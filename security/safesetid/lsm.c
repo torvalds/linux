@@ -131,7 +131,7 @@ static int safesetid_security_capable(const struct cred *cred,
 		 * set*gid() (e.g. setting up userns gid mappings).
 		 */
 		pr_warn("Operation requires CAP_SETGID, which is not available to GID %u for operations besides approved set*gid transitions\n",
-			__kuid_val(cred->uid));
+			__kgid_val(cred->gid));
 		return -EPERM;
 	default:
 		/* Error, the only capabilities were checking for is CAP_SETUID/GID */

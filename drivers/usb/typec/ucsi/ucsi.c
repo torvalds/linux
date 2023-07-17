@@ -132,10 +132,8 @@ static int ucsi_exec_command(struct ucsi *ucsi, u64 cmd)
 	if (ret)
 		return ret;
 
-	if (cci & UCSI_CCI_BUSY) {
-		ucsi->ops->async_write(ucsi, UCSI_CANCEL, NULL, 0);
-		return -EBUSY;
-	}
+	if (cmd != UCSI_CANCEL && cci & UCSI_CCI_BUSY)
+		return ucsi_exec_command(ucsi, UCSI_CANCEL);
 
 	if (!(cci & UCSI_CCI_COMMAND_COMPLETE))
 		return -EIO;
@@ -147,6 +145,11 @@ static int ucsi_exec_command(struct ucsi *ucsi, u64 cmd)
 		if (cmd == UCSI_GET_ERROR_STATUS)
 			return -EIO;
 		return ucsi_read_error(ucsi);
+	}
+
+	if (cmd == UCSI_CANCEL && cci & UCSI_CCI_CANCEL_COMPLETE) {
+		ret = ucsi_acknowledge_command(ucsi);
+		return ret ? ret : -EBUSY;
 	}
 
 	return UCSI_CCI_LENGTH(cci);
@@ -807,6 +810,23 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 		break;
 	default:
 		break;
+	}
+
+	if (con->status.flags & UCSI_CONSTAT_CONNECTED) {
+		switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
+		case UCSI_CONSTAT_PARTNER_TYPE_DEBUG:
+			typec_set_mode(con->port, TYPEC_MODE_DEBUG);
+			break;
+		case UCSI_CONSTAT_PARTNER_TYPE_AUDIO:
+			typec_set_mode(con->port, TYPEC_MODE_AUDIO);
+			break;
+		default:
+			if (UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) ==
+					UCSI_CONSTAT_PARTNER_FLAG_USB)
+				typec_set_mode(con->port, TYPEC_STATE_USB);
+		}
+	} else {
+		typec_set_mode(con->port, TYPEC_STATE_SAFE);
 	}
 
 	/* Only notify USB controller if partner supports USB data */

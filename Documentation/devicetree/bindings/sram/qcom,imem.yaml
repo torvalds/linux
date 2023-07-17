@@ -18,8 +18,10 @@ properties:
     items:
       - enum:
           - qcom,apq8064-imem
+          - qcom,msm8226-imem
           - qcom,msm8974-imem
           - qcom,qcs404-imem
+          - qcom,qdu1000-imem
           - qcom,sc7180-imem
           - qcom,sc7280-imem
           - qcom,sdm630-imem

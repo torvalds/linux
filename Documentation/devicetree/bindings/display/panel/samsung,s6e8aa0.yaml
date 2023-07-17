@@ -74,7 +74,7 @@ examples:
             vdd3-supply = <&vcclcd_reg>;
             vci-supply = <&vlcd_reg>;
             reset-gpios = <&gpy4 5 0>;
-            power-on-delay= <50>;
+            power-on-delay = <50>;
             reset-delay = <100>;
             init-delay = <100>;
             panel-width-mm = <58>;

@@ -103,6 +103,7 @@ static void dcn31_program_det_size(struct hubbub *hubbub, int hubp_inst, unsigne
 	default:
 		break;
 	}
+	DC_LOG_DEBUG("Set DET%d to %d segments\n", hubp_inst, det_size_segments);
 	/* Should never be hit, if it is we have an erroneous hw config*/
 	ASSERT(hubbub2->det0_size + hubbub2->det1_size + hubbub2->det2_size
 			+ hubbub2->det3_size + hubbub2->compbuf_size_segments <= hubbub2->crb_size_segs);

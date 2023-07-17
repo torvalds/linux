@@ -409,7 +409,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	if (r || !idle)
 		goto error;
 
-	if (vm->reserved_vmid[vmhub]) {
+	if (vm->reserved_vmid[vmhub] || (enforce_isolation && (vmhub == AMDGPU_GFXHUB(0)))) {
 		r = amdgpu_vmid_grab_reserved(vm, ring, job, &id, fence);
 		if (r || !id)
 			goto error;
@@ -460,14 +460,11 @@ error:
 }
 
 int amdgpu_vmid_alloc_reserved(struct amdgpu_device *adev,
-			       struct amdgpu_vm *vm,
 			       unsigned vmhub)
 {
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 
 	mutex_lock(&id_mgr->lock);
-	if (vm->reserved_vmid[vmhub])
-		goto unlock;
 
 	++id_mgr->reserved_use_count;
 	if (!id_mgr->reserved) {
@@ -479,27 +476,23 @@ int amdgpu_vmid_alloc_reserved(struct amdgpu_device *adev,
 		list_del_init(&id->list);
 		id_mgr->reserved = id;
 	}
-	vm->reserved_vmid[vmhub] = true;
 
-unlock:
 	mutex_unlock(&id_mgr->lock);
 	return 0;
 }
 
 void amdgpu_vmid_free_reserved(struct amdgpu_device *adev,
-			       struct amdgpu_vm *vm,
 			       unsigned vmhub)
 {
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 
 	mutex_lock(&id_mgr->lock);
-	if (vm->reserved_vmid[vmhub] &&
-	    !--id_mgr->reserved_use_count) {
+	if (!--id_mgr->reserved_use_count) {
 		/* give the reserved ID back to normal round robin */
 		list_add(&id_mgr->reserved->list, &id_mgr->ids_lru);
 		id_mgr->reserved = NULL;
 	}
-	vm->reserved_vmid[vmhub] = false;
+
 	mutex_unlock(&id_mgr->lock);
 }
 
@@ -578,6 +571,10 @@ void amdgpu_vmid_mgr_init(struct amdgpu_device *adev)
 			list_add_tail(&id_mgr->ids[j].list, &id_mgr->ids_lru);
 		}
 	}
+	/* alloc a default reserved vmid to enforce isolation */
+	if (enforce_isolation)
+		amdgpu_vmid_alloc_reserved(adev, AMDGPU_GFXHUB(0));
+
 }
 
 /**

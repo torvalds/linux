@@ -52,7 +52,7 @@ static struct i2c_driver bme680_i2c_driver = {
 		.name			= "bme680_i2c",
 		.of_match_table		= bme680_of_i2c_match,
 	},
-	.probe_new = bme680_i2c_probe,
+	.probe = bme680_i2c_probe,
 	.id_table = bme680_i2c_id,
 };
 module_i2c_driver(bme680_i2c_driver);

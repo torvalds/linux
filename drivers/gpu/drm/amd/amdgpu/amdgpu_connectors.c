@@ -593,11 +593,20 @@ static int amdgpu_connector_set_property(struct drm_connector *connector,
 
 		switch (val) {
 		default:
-		case DRM_MODE_SCALE_NONE: rmx_type = RMX_OFF; break;
-		case DRM_MODE_SCALE_CENTER: rmx_type = RMX_CENTER; break;
-		case DRM_MODE_SCALE_ASPECT: rmx_type = RMX_ASPECT; break;
-		case DRM_MODE_SCALE_FULLSCREEN: rmx_type = RMX_FULL; break;
+		case DRM_MODE_SCALE_NONE:
+			rmx_type = RMX_OFF;
+			break;
+		case DRM_MODE_SCALE_CENTER:
+			rmx_type = RMX_CENTER;
+			break;
+		case DRM_MODE_SCALE_ASPECT:
+			rmx_type = RMX_ASPECT;
+			break;
+		case DRM_MODE_SCALE_FULLSCREEN:
+			rmx_type = RMX_FULL;
+			break;
 		}
+
 		if (amdgpu_encoder->rmx_type == rmx_type)
 			return 0;
 
@@ -799,12 +808,21 @@ static int amdgpu_connector_set_lcd_property(struct drm_connector *connector,
 	}
 
 	switch (value) {
-	case DRM_MODE_SCALE_NONE: rmx_type = RMX_OFF; break;
-	case DRM_MODE_SCALE_CENTER: rmx_type = RMX_CENTER; break;
-	case DRM_MODE_SCALE_ASPECT: rmx_type = RMX_ASPECT; break;
+	case DRM_MODE_SCALE_NONE:
+		rmx_type = RMX_OFF;
+		break;
+	case DRM_MODE_SCALE_CENTER:
+		rmx_type = RMX_CENTER;
+		break;
+	case DRM_MODE_SCALE_ASPECT:
+		rmx_type = RMX_ASPECT;
+		break;
 	default:
-	case DRM_MODE_SCALE_FULLSCREEN: rmx_type = RMX_FULL; break;
+	case DRM_MODE_SCALE_FULLSCREEN:
+		rmx_type = RMX_FULL;
+		break;
 	}
+
 	if (amdgpu_encoder->rmx_type == rmx_type)
 		return 0;
 
@@ -1127,7 +1145,8 @@ amdgpu_connector_dvi_detect(struct drm_connector *connector, bool force)
 					/* assume digital unless load detected otherwise */
 					amdgpu_connector->use_digital = true;
 					lret = encoder_funcs->detect(encoder, connector);
-					DRM_DEBUG_KMS("load_detect %x returned: %x\n",encoder->encoder_type,lret);
+					DRM_DEBUG_KMS("load_detect %x returned: %x\n",
+						      encoder->encoder_type, lret);
 					if (lret == connector_status_connected)
 						amdgpu_connector->use_digital = false;
 				}
@@ -1991,7 +2010,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 	if (amdgpu_connector->hpd.hpd == AMDGPU_HPD_NONE) {
 		if (i2c_bus->valid) {
 			connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-			                    DRM_CONNECTOR_POLL_DISCONNECT;
+						DRM_CONNECTOR_POLL_DISCONNECT;
 		}
 	} else
 		connector->polled = DRM_CONNECTOR_POLL_HPD;

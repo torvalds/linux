@@ -563,11 +563,9 @@ static bool construct_phy(struct dc_link *link,
 		goto create_fail;
 	}
 
-	/* TODO: #DAL3 Implement id to str function.*/
-	LINK_INFO("Connector[%d] description:"
-		  "signal %d\n",
+	LINK_INFO("Connector[%d] description: signal: %s\n",
 		  init_params->connector_index,
-		  link->connector_signal);
+		  signal_type_to_string(link->connector_signal));
 
 	ddc_service_init_data.ctx = link->ctx;
 	ddc_service_init_data.id = link->link_id;

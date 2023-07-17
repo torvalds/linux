@@ -46,6 +46,7 @@ static struct spi_driver kx022a_spi_driver = {
 	.driver = {
 		.name   = "kx022a-spi",
 		.of_match_table = kx022a_of_match,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = kx022a_spi_probe,
 	.id_table = kx022a_id,

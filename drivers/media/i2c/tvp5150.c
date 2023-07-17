@@ -2280,7 +2280,7 @@ static struct i2c_driver tvp5150_driver = {
 		.name	= "tvp5150",
 		.pm	= &tvp5150_pm_ops,
 	},
-	.probe_new	= tvp5150_probe,
+	.probe		= tvp5150_probe,
 	.remove		= tvp5150_remove,
 	.id_table	= tvp5150_id,
 };

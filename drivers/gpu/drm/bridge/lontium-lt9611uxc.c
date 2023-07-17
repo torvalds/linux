@@ -1011,7 +1011,7 @@ static struct i2c_driver lt9611uxc_driver = {
 		.of_match_table = lt9611uxc_match_table,
 		.dev_groups = lt9611uxc_attr_groups,
 	},
-	.probe_new = lt9611uxc_probe,
+	.probe = lt9611uxc_probe,
 	.remove = lt9611uxc_remove,
 	.id_table = lt9611uxc_id,
 };

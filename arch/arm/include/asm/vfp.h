@@ -102,6 +102,7 @@
 
 #ifndef __ASSEMBLY__
 void vfp_disable(void);
+void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs);
 #endif
 
 #endif /* __ASM_VFP_H */

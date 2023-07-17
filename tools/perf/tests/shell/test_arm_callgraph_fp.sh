@@ -9,13 +9,14 @@ TEST_PROGRAM="perf test -w leafloop"
 
 cleanup_files()
 {
-	rm -f $PERF_DATA
+	rm -f "$PERF_DATA"
 }
 
-trap cleanup_files exit term int
+trap cleanup_files EXIT TERM INT
 
 # Add a 1 second delay to skip samples that are not in the leaf() function
-perf record -o $PERF_DATA --call-graph fp -e cycles//u -D 1000 --user-callchains -- $TEST_PROGRAM 2> /dev/null &
+# shellcheck disable=SC2086
+perf record -o "$PERF_DATA" --call-graph fp -e cycles//u -D 1000 --user-callchains -- $TEST_PROGRAM 2> /dev/null &
 PID=$!
 
 echo " + Recording (PID=$PID)..."
@@ -33,8 +34,8 @@ wait $PID
 # 	76c leafloop
 # ...
 
-perf script -i $PERF_DATA -F comm,ip,sym | head -n4
-perf script -i $PERF_DATA -F comm,ip,sym | head -n4 | \
+perf script -i "$PERF_DATA" -F comm,ip,sym | head -n4
+perf script -i "$PERF_DATA" -F comm,ip,sym | head -n4 | \
 	awk '{ if ($2 != "") sym[i++] = $2 } END { if (sym[0] != "leaf" ||
 						       sym[1] != "parent" ||
 						       sym[2] != "leafloop") exit 1 }'

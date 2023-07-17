@@ -343,7 +343,7 @@ static inline void *kasan_reset_tag(const void *addr)
  * @is_write: whether the bad access is a write or a read
  * @ip: instruction pointer for the accessibility check or the bad access itself
  */
-bool kasan_report(unsigned long addr, size_t size,
+bool kasan_report(const void *addr, size_t size,
 		bool is_write, unsigned long ip);
 
 #else /* CONFIG_KASAN_SW_TAGS || CONFIG_KASAN_HW_TAGS */

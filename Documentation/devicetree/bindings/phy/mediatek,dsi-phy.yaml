@@ -26,6 +26,10 @@ properties:
           - const: mediatek,mt2701-mipi-tx
       - items:
           - enum:
+              - mediatek,mt6795-mipi-tx
+          - const: mediatek,mt8173-mipi-tx
+      - items:
+          - enum:
               - mediatek,mt8365-mipi-tx
           - const: mediatek,mt8183-mipi-tx
       - const: mediatek,mt2701-mipi-tx
@@ -83,7 +87,7 @@ examples:
         clocks = <&clk26m>;
         clock-output-names = "mipi_tx0_pll";
         drive-strength-microamp = <4000>;
-        nvmem-cells= <&mipi_tx_calibration>;
+        nvmem-cells = <&mipi_tx_calibration>;
         nvmem-cell-names = "calibration-data";
         #clock-cells = <0>;
         #phy-cells = <0>;

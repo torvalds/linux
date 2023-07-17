@@ -100,19 +100,6 @@ config TYPEC_STUSB160X
 	  If you choose to build this driver as a dynamically linked module, the
 	  module will be called stusb160x.ko.
 
-config TYPEC_QCOM_PMIC
-	tristate "Qualcomm PMIC USB Type-C driver"
-	depends on ARCH_QCOM || COMPILE_TEST
-	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
-	help
-	  Driver for supporting role switch over the Qualcomm PMIC.  This will
-	  handle the USB Type-C role and orientation detection reported by the
-	  QCOM PMIC if the PMIC has the capability to handle USB Type-C
-	  detection.
-
-	  It will also enable the VBUS output to connected devices when a
-	  DFP connection is made.
-
 config TYPEC_WUSB3801
 	tristate "Willsemi WUSB3801 Type-C port controller driver"
 	depends on I2C

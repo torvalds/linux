@@ -141,7 +141,7 @@ static struct i2c_driver lv5207lp_driver = {
 	.driver = {
 		.name = "lv5207lp",
 	},
-	.probe_new = lv5207lp_probe,
+	.probe = lv5207lp_probe,
 	.remove = lv5207lp_remove,
 	.id_table = lv5207lp_ids,
 };

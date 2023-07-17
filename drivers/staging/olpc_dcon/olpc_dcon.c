@@ -779,7 +779,7 @@ static struct i2c_driver dcon_driver = {
 	},
 	.class = I2C_CLASS_DDC | I2C_CLASS_HWMON,
 	.id_table = dcon_idtable,
-	.probe_new = dcon_probe,
+	.probe = dcon_probe,
 	.remove = dcon_remove,
 	.detect = dcon_detect,
 	.address_list = normal_i2c,

@@ -372,7 +372,7 @@ static struct i2c_driver cros_ec_driver = {
 		.of_match_table = of_match_ptr(cros_ec_i2c_of_match),
 		.pm	= &cros_ec_i2c_pm_ops,
 	},
-	.probe_new	= cros_ec_i2c_probe,
+	.probe		= cros_ec_i2c_probe,
 	.remove		= cros_ec_i2c_remove,
 	.id_table	= cros_ec_i2c_id,
 };

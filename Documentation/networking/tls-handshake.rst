@@ -53,6 +53,7 @@ fills in a structure that contains the parameters of the request:
         struct socket   *ta_sock;
         tls_done_func_t ta_done;
         void            *ta_data;
+        const char      *ta_peername;
         unsigned int    ta_timeout_ms;
         key_serial_t    ta_keyring;
         key_serial_t    ta_my_cert;
@@ -70,6 +71,10 @@ instantiated a struct file in sock->file.
 @ta_done contains a callback function that is invoked when the handshake
 has completed. Further explanation of this function is in the "Handshake
 Completion" sesction below.
+
+The consumer can provide a NUL-terminated hostname in the @ta_peername
+field that is sent as part of ClientHello. If no peername is provided,
+the DNS hostname associated with the server's IP address is used instead.
 
 The consumer can fill in the @ta_timeout_ms field to force the servicing
 handshake agent to exit after a number of milliseconds. This enables the

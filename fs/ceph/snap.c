@@ -675,14 +675,17 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 		return 0;
 	}
 
-	/* Fb cap still in use, delay it */
-	if (ci->i_wb_ref) {
+	/*
+	 * Defer flushing the capsnap if the dirty buffer not flushed yet.
+	 * And trigger to flush the buffer immediately.
+	 */
+	if (ci->i_wrbuffer_ref) {
 		dout("%s %p %llx.%llx cap_snap %p snapc %p %llu %s s=%llu "
 		     "used WRBUFFER, delaying\n", __func__, inode,
 		     ceph_vinop(inode), capsnap, capsnap->context,
 		     capsnap->context->seq, ceph_cap_string(capsnap->dirty),
 		     capsnap->size);
-		capsnap->writing = 1;
+		ceph_queue_writeback(inode);
 		return 0;
 	}
 
@@ -693,8 +696,10 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 	     capsnap->size);
 
 	spin_lock(&mdsc->snap_flush_lock);
-	if (list_empty(&ci->i_snap_flush_item))
+	if (list_empty(&ci->i_snap_flush_item)) {
+		ihold(inode);
 		list_add_tail(&ci->i_snap_flush_item, &mdsc->snap_flush_list);
+	}
 	spin_unlock(&mdsc->snap_flush_lock);
 	return 1;  /* caller may want to ceph_flush_snaps */
 }

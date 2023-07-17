@@ -8,7 +8,7 @@
 
 #include "genl.h"
 
-#include <linux/handshake.h>
+#include <uapi/linux/handshake.h>
 
 /* HANDSHAKE_CMD_ACCEPT - do */
 static const struct nla_policy handshake_accept_nl_policy[HANDSHAKE_A_ACCEPT_HANDLER_CLASS + 1] = {

@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) STMicroelectronics 2017 - All Rights Reserved
+ * Author: Alexandre Torgue  <alexandre.torgue@st.com> for STMicroelectronics.
+ */
+
+#include "stm32f7-pinctrl.dtsi"
+
+&pinctrl {
+	compatible = "st,stm32f746-pinctrl";
+};

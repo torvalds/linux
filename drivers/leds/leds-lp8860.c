@@ -475,7 +475,7 @@ static struct i2c_driver lp8860_driver = {
 		.name	= "lp8860",
 		.of_match_table = of_lp8860_leds_match,
 	},
-	.probe_new	= lp8860_probe,
+	.probe		= lp8860_probe,
 	.remove		= lp8860_remove,
 	.id_table	= lp8860_id,
 };

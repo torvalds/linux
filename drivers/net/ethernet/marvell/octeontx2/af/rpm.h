@@ -74,6 +74,7 @@
 #define RPMX_MTI_MAC100X_CL01_PAUSE_QUANTA              0x80A8
 #define RPMX_MTI_MAC100X_CL89_PAUSE_QUANTA		0x8108
 #define RPM_DEFAULT_PAUSE_TIME                          0x7FF
+#define RPMX_CMRX_RX_LOGL_XON				0x4100
 
 #define RPMX_MTI_MAC100X_XIF_MODE		        0x8100
 #define RPMX_ONESTEP_ENABLE				BIT_ULL(5)
@@ -94,7 +95,8 @@
 
 /* CN10KB CSR Declaration */
 #define  RPM2_CMRX_SW_INT				0x1b0
-#define  RPM2_CMRX_SW_INT_ENA_W1S			0x1b8
+#define  RPM2_CMRX_SW_INT_ENA_W1S			0x1c8
+#define  RPM2_LMAC_FWI					0x12
 #define  RPM2_CMR_CHAN_MSK_OR				0x3120
 #define  RPM2_CMR_RX_OVR_BP_EN				BIT_ULL(2)
 #define  RPM2_CMR_RX_OVR_BP_BP				BIT_ULL(1)
@@ -131,4 +133,5 @@ int rpm_lmac_get_pfc_frm_cfg(void *rpmd, int lmac_id, u8 *tx_pause,
 int rpm2_get_nr_lmacs(void *rpmd);
 bool is_dev_rpm2(void *rpmd);
 int rpm_get_fec_stats(void *cgxd, int lmac_id, struct cgx_fec_stats_rsp *rsp);
+int rpm_lmac_reset(void *rpmd, int lmac_id, u8 pf_req_flr);
 #endif /* RPM_H */

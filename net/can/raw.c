@@ -962,7 +962,6 @@ static const struct proto_ops raw_ops = {
 	.sendmsg       = raw_sendmsg,
 	.recvmsg       = raw_recvmsg,
 	.mmap          = sock_no_mmap,
-	.sendpage      = sock_no_sendpage,
 };
 
 static struct proto raw_proto __read_mostly = {

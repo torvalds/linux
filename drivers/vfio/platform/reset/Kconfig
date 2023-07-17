@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
+if VFIO_PLATFORM
 config VFIO_PLATFORM_CALXEDAXGMAC_RESET
 	tristate "VFIO support for calxeda xgmac reset"
 	help
@@ -21,3 +22,4 @@ config VFIO_PLATFORM_BCMFLEXRM_RESET
 	  Enables the VFIO platform driver to handle reset for Broadcom FlexRM
 
 	  If you don't know what to do here, say N.
+endif

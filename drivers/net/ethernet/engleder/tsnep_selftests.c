@@ -329,7 +329,7 @@ static bool disable_taprio(struct tsnep_adapter *adapter)
 	int retval;
 
 	memset(&qopt, 0, sizeof(qopt));
-	qopt.enable = 0;
+	qopt.cmd = TAPRIO_CMD_DESTROY;
 	retval = tsnep_tc_setup(adapter->netdev, TC_SETUP_QDISC_TAPRIO, &qopt);
 	if (retval)
 		return false;
@@ -360,7 +360,7 @@ static bool tsnep_test_taprio(struct tsnep_adapter *adapter)
 	for (i = 0; i < 255; i++)
 		qopt->entries[i].command = TC_TAPRIO_CMD_SET_GATES;
 
-	qopt->enable = 1;
+	qopt->cmd = TAPRIO_CMD_REPLACE;
 	qopt->base_time = ktime_set(0, 0);
 	qopt->cycle_time = 1500000;
 	qopt->cycle_time_extension = 0;
@@ -382,7 +382,7 @@ static bool tsnep_test_taprio(struct tsnep_adapter *adapter)
 	if (!run_taprio(adapter, qopt, 100))
 		goto failed;
 
-	qopt->enable = 1;
+	qopt->cmd = TAPRIO_CMD_REPLACE;
 	qopt->base_time = ktime_set(0, 0);
 	qopt->cycle_time = 411854;
 	qopt->cycle_time_extension = 0;
@@ -406,7 +406,7 @@ static bool tsnep_test_taprio(struct tsnep_adapter *adapter)
 	if (!run_taprio(adapter, qopt, 100))
 		goto failed;
 
-	qopt->enable = 1;
+	qopt->cmd = TAPRIO_CMD_REPLACE;
 	qopt->base_time = ktime_set(0, 0);
 	delay_base_time(adapter, qopt, 12);
 	qopt->cycle_time = 125000;
@@ -457,7 +457,7 @@ static bool tsnep_test_taprio_change(struct tsnep_adapter *adapter)
 	for (i = 0; i < 255; i++)
 		qopt->entries[i].command = TC_TAPRIO_CMD_SET_GATES;
 
-	qopt->enable = 1;
+	qopt->cmd = TAPRIO_CMD_REPLACE;
 	qopt->base_time = ktime_set(0, 0);
 	qopt->cycle_time = 100000;
 	qopt->cycle_time_extension = 0;
@@ -610,7 +610,7 @@ static bool tsnep_test_taprio_extension(struct tsnep_adapter *adapter)
 	for (i = 0; i < 255; i++)
 		qopt->entries[i].command = TC_TAPRIO_CMD_SET_GATES;
 
-	qopt->enable = 1;
+	qopt->cmd = TAPRIO_CMD_REPLACE;
 	qopt->base_time = ktime_set(0, 0);
 	qopt->cycle_time = 100000;
 	qopt->cycle_time_extension = 50000;

@@ -271,8 +271,8 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	 * more than two stations associated to the AP, then we can not enter
 	 * lps, because fw does not handle the overlapped beacon interval
 	 *
-	 * mac80211 should iterate vifs and determine if driver can enter
-	 * ps by passing IEEE80211_CONF_PS to us, all we need to do is to
+	 * rtw_recalc_lps() iterate vifs and determine if driver can enter
+	 * ps by vif->type and vif->cfg.ps, all we need to do here is to
 	 * get that vif and check if device is having traffic more than the
 	 * threshold.
 	 */
@@ -334,12 +334,15 @@ int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 		struct ieee80211_vif *vif)
 {
 	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	int i;
 
 	si->mac_id = rtw_acquire_macid(rtwdev);
 	if (si->mac_id >= RTW_MAX_MAC_ID_NUM)
 		return -ENOSPC;
 
+	if (vif->type == NL80211_IFTYPE_STATION && vif->cfg.assoc == 0)
+		rtwvif->mac_id = si->mac_id;
 	si->rtwdev = rtwdev;
 	si->sta = sta;
 	si->vif = vif;
@@ -2340,6 +2343,9 @@ static void rtw_port_switch_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	rtw_dbg(rtwdev, RTW_DBG_STATE, "AP port switch from %d -> %d\n",
 		rtwvif_ap->port, rtwvif_target->port);
 
+	/* Leave LPS so the value swapped are not in PS mode */
+	rtw_leave_lps(rtwdev);
+
 	reg1 = &rtwvif_ap->conf->net_type;
 	reg2 = &rtwvif_target->conf->net_type;
 	rtw_swap_reg_mask(rtwdev, reg1, reg2);
@@ -2358,6 +2364,8 @@ static void rtw_port_switch_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 
 	swap(rtwvif_target->port, rtwvif_ap->port);
 	swap(rtwvif_target->conf, rtwvif_ap->conf);
+
+	rtw_fw_default_port(rtwdev, rtwvif_target);
 }
 
 void rtw_core_port_switch(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
@@ -2403,10 +2411,13 @@ void rtw_core_enable_beacon(struct rtw_dev *rtwdev, bool enable)
 	if (!rtwdev->ap_active)
 		return;
 
-	if (enable)
+	if (enable) {
 		rtw_write32_set(rtwdev, REG_BCN_CTRL, BIT_EN_BCN_FUNCTION);
-	else
+		rtw_write32_clr(rtwdev, REG_TXPAUSE, BIT_HIGH_QUEUE);
+	} else {
 		rtw_write32_clr(rtwdev, REG_BCN_CTRL, BIT_EN_BCN_FUNCTION);
+		rtw_write32_set(rtwdev, REG_TXPAUSE, BIT_HIGH_QUEUE);
+	}
 }
 
 MODULE_AUTHOR("Realtek Corporation");

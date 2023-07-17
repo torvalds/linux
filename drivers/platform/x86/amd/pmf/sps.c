@@ -12,6 +12,60 @@
 
 static struct amd_pmf_static_slider_granular config_store;
 
+#ifdef CONFIG_AMD_PMF_DEBUG
+static const char *slider_as_str(unsigned int state)
+{
+	switch (state) {
+	case POWER_MODE_PERFORMANCE:
+		return "PERFORMANCE";
+	case POWER_MODE_BALANCED_POWER:
+		return "BALANCED_POWER";
+	case POWER_MODE_POWER_SAVER:
+		return "POWER_SAVER";
+	default:
+		return "Unknown Slider State";
+	}
+}
+
+static const char *source_as_str(unsigned int state)
+{
+	switch (state) {
+	case POWER_SOURCE_AC:
+		return "AC";
+	case POWER_SOURCE_DC:
+		return "DC";
+	default:
+		return "Unknown Power State";
+	}
+}
+
+static void amd_pmf_dump_sps_defaults(struct amd_pmf_static_slider_granular *data)
+{
+	int i, j;
+
+	pr_debug("Static Slider Data - BEGIN\n");
+
+	for (i = 0; i < POWER_SOURCE_MAX; i++) {
+		for (j = 0; j < POWER_MODE_MAX; j++) {
+			pr_debug("--- Source:%s Mode:%s ---\n", source_as_str(i), slider_as_str(j));
+			pr_debug("SPL: %u mW\n", data->prop[i][j].spl);
+			pr_debug("SPPT: %u mW\n", data->prop[i][j].sppt);
+			pr_debug("SPPT_ApuOnly: %u mW\n", data->prop[i][j].sppt_apu_only);
+			pr_debug("FPPT: %u mW\n", data->prop[i][j].fppt);
+			pr_debug("STTMinLimit: %u mW\n", data->prop[i][j].stt_min);
+			pr_debug("STT_SkinTempLimit_APU: %u C\n",
+				 data->prop[i][j].stt_skin_temp[STT_TEMP_APU]);
+			pr_debug("STT_SkinTempLimit_HS2: %u C\n",
+				 data->prop[i][j].stt_skin_temp[STT_TEMP_HS2]);
+		}
+	}
+
+	pr_debug("Static Slider Data - END\n");
+}
+#else
+static void amd_pmf_dump_sps_defaults(struct amd_pmf_static_slider_granular *data) {}
+#endif
+
 static void amd_pmf_load_defaults_sps(struct amd_pmf_dev *dev)
 {
 	struct apmf_static_slider_granular_output output;
@@ -36,6 +90,7 @@ static void amd_pmf_load_defaults_sps(struct amd_pmf_dev *dev)
 			idx++;
 		}
 	}
+	amd_pmf_dump_sps_defaults(&config_store);
 }
 
 void amd_pmf_update_slider(struct amd_pmf_dev *dev, bool op, int idx,

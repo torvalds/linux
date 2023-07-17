@@ -421,6 +421,9 @@ allowing themselves a breath. Please respect that.
 The release candidate -rc1 is the starting point for new patches to be
 applied which are targeted for the next merge window.
 
+So called _urgent_ branches will be merged into mainline during the
+stabilization phase of each release.
+
 
 Git
 ^^^
@@ -451,6 +454,8 @@ and can be added to an existing kernel config by running:
 
 Some of these options are x86-specific and can be left out when testing
 on other architectures.
+
+.. _maintainer-tip-coding-style:
 
 Coding style notes
 ------------------

@@ -64,7 +64,7 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: qcom,dsi-phy-5nm-8350
+        const: qcom,sm8350-dsi-phy-5nm
 
 unevaluatedProperties: false
 

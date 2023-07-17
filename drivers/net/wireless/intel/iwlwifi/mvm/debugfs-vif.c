@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -554,7 +554,7 @@ static ssize_t iwl_dbgfs_uapsd_misbehaving_read(struct file *file,
 	char buf[20];
 	int len;
 
-	len = sprintf(buf, "%pM\n", mvmvif->uapsd_misbehaving_bssid);
+	len = sprintf(buf, "%pM\n", mvmvif->uapsd_misbehaving_ap_addr);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -567,7 +567,7 @@ static ssize_t iwl_dbgfs_uapsd_misbehaving_write(struct ieee80211_vif *vif,
 	bool ret;
 
 	mutex_lock(&mvm->mutex);
-	ret = mac_pton(buf, mvmvif->uapsd_misbehaving_bssid);
+	ret = mac_pton(buf, mvmvif->uapsd_misbehaving_ap_addr);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ? count : -EINVAL;

@@ -36,7 +36,7 @@ properties:
     description:
       A list of channels tied to this function, used for matching
       the function to a set of virtual channels.
-    $ref: "/schemas/types.yaml#/definitions/string-array"
+    $ref: /schemas/types.yaml#/definitions/string-array
     items:
       - const: fastrpcglink-apps-dsp
 
@@ -48,14 +48,14 @@ properties:
   qcom,smd-channels:
     description:
       Channel name used for the RPM communication
-    $ref: "/schemas/types.yaml#/definitions/string-array"
+    $ref: /schemas/types.yaml#/definitions/string-array
     items:
       - const: fastrpcsmd-apps-dsp
 
   qcom,vmids:
     description:
       Virtual machine IDs for remote processor.
-    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+    $ref: /schemas/types.yaml#/definitions/uint32-array
 
   "#address-cells":
     const: 1

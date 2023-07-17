@@ -488,7 +488,7 @@ static struct i2c_driver hynitron_i2c_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.id_table = hyn_tpd_id,
-	.probe_new = hyn_probe,
+	.probe = hyn_probe,
 };
 
 module_i2c_driver(hynitron_i2c_driver);

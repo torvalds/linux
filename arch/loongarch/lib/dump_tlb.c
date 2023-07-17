@@ -20,9 +20,9 @@ void dump_tlb_regs(void)
 
 	pr_info("Index    : 0x%0x\n", read_csr_tlbidx());
 	pr_info("PageSize : 0x%0x\n", read_csr_pagesize());
-	pr_info("EntryHi  : 0x%0*llx\n", field, read_csr_entryhi());
-	pr_info("EntryLo0 : 0x%0*llx\n", field, read_csr_entrylo0());
-	pr_info("EntryLo1 : 0x%0*llx\n", field, read_csr_entrylo1());
+	pr_info("EntryHi  : 0x%0*lx\n", field, read_csr_entryhi());
+	pr_info("EntryLo0 : 0x%0*lx\n", field, read_csr_entrylo0());
+	pr_info("EntryLo1 : 0x%0*lx\n", field, read_csr_entrylo1());
 }
 
 static void dump_tlb(int first, int last)

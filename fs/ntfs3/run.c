@@ -434,8 +434,8 @@ requires_new_range:
 
 			if (should_add_tail) {
 				tail_lcn = r->lcn == SPARSE_LCN ?
-							 SPARSE_LCN :
-							 (r->lcn + Tovcn);
+						   SPARSE_LCN :
+						   (r->lcn + Tovcn);
 				tail_vcn = r->vcn + Tovcn;
 				tail_len = r->len - Tovcn;
 			}

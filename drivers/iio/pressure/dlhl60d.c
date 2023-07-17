@@ -362,7 +362,7 @@ static struct i2c_driver dlh_driver = {
 		.name = "dlhl60d",
 		.of_match_table = dlh_of_match,
 	},
-	.probe_new = dlh_probe,
+	.probe = dlh_probe,
 	.id_table = dlh_id,
 };
 module_i2c_driver(dlh_driver);

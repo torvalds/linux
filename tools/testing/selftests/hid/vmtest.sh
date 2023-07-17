@@ -79,6 +79,7 @@ recompile_kernel()
 	cd "${kernel_checkout}"
 
 	${make_command} olddefconfig
+	${make_command} headers
 	${make_command}
 }
 

@@ -7,6 +7,7 @@
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
 #include "mt6795.dtsi"
+#include "mt6331.dtsi"
 
 / {
 	model = "Sony Xperia M5";
@@ -16,6 +17,7 @@
 	aliases {
 		mmc0 = &mmc0;
 		mmc1 = &mmc1;
+		mmc2 = &mmc2;
 		serial0 = &uart0;
 		serial1 = &uart1;
 	};
@@ -132,7 +134,97 @@
 	};
 };
 
+&mmc0 {
+	/* eMMC controller */
+	mediatek,latch-ck = <0x14>; /* hs400 */
+	mediatek,hs200-cmd-int-delay = <1>;
+	mediatek,hs400-cmd-int-delay = <1>;
+	mediatek,hs400-ds-dly3 = <0x1a>;
+	non-removable;
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&mmc0_pins_default>;
+	pinctrl-1 = <&mmc0_pins_uhs>;
+	vmmc-supply = <&mt6331_vemc33_reg>;
+	vqmmc-supply = <&mt6331_vio18_reg>;
+	status = "okay";
+};
+
+&mmc1 {
+	/* MicroSD card slot */
+	vmmc-supply = <&mt6331_vmc_reg>;
+	vqmmc-supply = <&mt6331_vmch_reg>;
+	status = "okay";
+};
+
+&mmc2 {
+	/* SDIO WiFi on MMC2 */
+	vmmc-supply = <&mt6331_vmc_reg>;
+	vqmmc-supply = <&mt6331_vmch_reg>;
+	status = "okay";
+};
+
 &pio {
+	mmc0_pins_default: emmc-sdr-pins {
+		pins-cmd-dat {
+			pinmux = <PINMUX_GPIO154__FUNC_MSDC0_DAT0>,
+				 <PINMUX_GPIO155__FUNC_MSDC0_DAT1>,
+				 <PINMUX_GPIO156__FUNC_MSDC0_DAT2>,
+				 <PINMUX_GPIO157__FUNC_MSDC0_DAT3>,
+				 <PINMUX_GPIO158__FUNC_MSDC0_DAT4>,
+				 <PINMUX_GPIO159__FUNC_MSDC0_DAT5>,
+				 <PINMUX_GPIO160__FUNC_MSDC0_DAT6>,
+				 <PINMUX_GPIO161__FUNC_MSDC0_DAT7>,
+				 <PINMUX_GPIO162__FUNC_MSDC0_CMD>;
+			input-enable;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+
+		pins-clk {
+			pinmux = <PINMUX_GPIO163__FUNC_MSDC0_CLK>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+
+		pins-rst {
+			pinmux = <PINMUX_GPIO165__FUNC_MSDC0_RSTB>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
+		};
+	};
+
+	mmc0_pins_uhs: emmc-uhs-pins {
+		pins-cmd-dat {
+			pinmux = <PINMUX_GPIO154__FUNC_MSDC0_DAT0>,
+				 <PINMUX_GPIO155__FUNC_MSDC0_DAT1>,
+				 <PINMUX_GPIO156__FUNC_MSDC0_DAT2>,
+				 <PINMUX_GPIO157__FUNC_MSDC0_DAT3>,
+				 <PINMUX_GPIO158__FUNC_MSDC0_DAT4>,
+				 <PINMUX_GPIO159__FUNC_MSDC0_DAT5>,
+				 <PINMUX_GPIO160__FUNC_MSDC0_DAT6>,
+				 <PINMUX_GPIO161__FUNC_MSDC0_DAT7>,
+				 <PINMUX_GPIO162__FUNC_MSDC0_CMD>;
+			input-enable;
+			drive-strength = <MTK_DRIVE_6mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+
+		pins-clk {
+			pinmux = <PINMUX_GPIO163__FUNC_MSDC0_CLK>;
+			drive-strength = <MTK_DRIVE_6mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+
+		pins-rst {
+			pinmux = <PINMUX_GPIO165__FUNC_MSDC0_RSTB>;
+			drive-strength = <MTK_DRIVE_6mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
+		};
+
+		pins-ds {
+			pinmux = <PINMUX_GPIO164__FUNC_MSDC0_DSL>;
+			drive-strength = <MTK_DRIVE_6mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+	};
+
 	nfc_pins: nfc-pins {
 		pins-irq {
 			pinmux = <PINMUX_GPIO3__FUNC_GPIO3>;
@@ -237,6 +329,15 @@
 			pinmux = <PINMUX_GPIO32__FUNC_UTXD2>;
 		};
 	};
+};
+
+&pmic {
+	/*
+	 * Smartphones, including the Xperia M5, are equipped with a companion
+	 * MT6332 PMIC: when this is present, the main MT6331 PMIC will fire
+	 * an interrupt on the companion, so we use the MT6332 IRQ GPIO.
+	 */
+	interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &uart0 {

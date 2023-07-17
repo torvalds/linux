@@ -5,6 +5,8 @@
 #include "vcap_api_client.h"
 #include "vcap_tc.h"
 
+#define LAN966X_FORCE_UNTAGED	3
+
 static bool lan966x_tc_is_known_etype(struct vcap_tc_flower_parse_usage *st,
 				      u16 etype)
 {
@@ -29,6 +31,8 @@ static bool lan966x_tc_is_known_etype(struct vcap_tc_flower_parse_usage *st,
 			return true;
 		}
 		break;
+	case VCAP_TYPE_ES0:
+		return true;
 	default:
 		NL_SET_ERR_MSG_MOD(st->fco->common.extack,
 				   "VCAP type not supported");
@@ -318,6 +322,9 @@ static int lan966x_tc_set_actionset(struct vcap_admin *admin,
 	case VCAP_TYPE_IS2:
 		aset = VCAP_AFS_BASE_TYPE;
 		break;
+	case VCAP_TYPE_ES0:
+		aset = VCAP_AFS_VID;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -352,6 +359,10 @@ static int lan966x_tc_add_rule_link_target(struct vcap_admin *admin,
 	case VCAP_TYPE_IS2:
 		/* Add IS2 specific PAG key (for chaining rules from IS1) */
 		return vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_PAG,
+					     link_val, ~0);
+	case VCAP_TYPE_ES0:
+		/* Add ES0 specific ISDX key (for chaining rules from IS1) */
+		return vcap_rule_add_key_u32(vrule, VCAP_KF_ISDX_CLS,
 					     link_val, ~0);
 	default:
 		break;
@@ -389,10 +400,39 @@ static int lan966x_tc_add_rule_link(struct vcap_control *vctrl,
 					       0xff);
 		if (err)
 			return err;
+	} else if (admin->vtype == VCAP_TYPE_IS1 &&
+		   to_admin->vtype == VCAP_TYPE_ES0) {
+		/* This works for IS1->ES0 */
+		err = vcap_rule_add_action_u32(vrule, VCAP_AF_ISDX_ADD_VAL,
+					       diff);
+		if (err)
+			return err;
+
+		err = vcap_rule_add_action_bit(vrule, VCAP_AF_ISDX_REPLACE_ENA,
+					       VCAP_BIT_1);
+		if (err)
+			return err;
 	} else {
 		NL_SET_ERR_MSG_MOD(f->common.extack,
 				   "Unsupported chain destination");
 		return -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
+static int lan966x_tc_add_rule_counter(struct vcap_admin *admin,
+				       struct vcap_rule *vrule)
+{
+	int err = 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_ES0:
+		err = vcap_rule_mod_action_u32(vrule, VCAP_AF_ESDX,
+					       vrule->id);
+		break;
+	default:
+		break;
 	}
 
 	return err;
@@ -466,12 +506,33 @@ static int lan966x_tc_flower_add(struct lan966x_port *port,
 				goto out;
 
 			break;
+		case FLOW_ACTION_VLAN_POP:
+			if (admin->vtype != VCAP_TYPE_ES0) {
+				NL_SET_ERR_MSG_MOD(f->common.extack,
+						   "Cannot use vlan pop on non es0");
+				err = -EOPNOTSUPP;
+				goto out;
+			}
+
+			/* Force untag */
+			err = vcap_rule_add_action_u32(vrule, VCAP_AF_PUSH_OUTER_TAG,
+						       LAN966X_FORCE_UNTAGED);
+			if (err)
+				goto out;
+
+			break;
 		default:
 			NL_SET_ERR_MSG_MOD(f->common.extack,
 					   "Unsupported TC action");
 			err = -EOPNOTSUPP;
 			goto out;
 		}
+	}
+
+	err = lan966x_tc_add_rule_counter(admin, vrule);
+	if (err) {
+		vcap_set_tc_exterr(f, vrule);
+		goto out;
 	}
 
 	err = vcap_val_rule(vrule, l3_proto);

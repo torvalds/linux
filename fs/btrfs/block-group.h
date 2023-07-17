@@ -162,7 +162,14 @@ struct btrfs_block_group {
 	 */
 	struct list_head cluster_list;
 
-	/* For delayed block group creation or deletion of empty block groups */
+	/*
+	 * Used for several lists:
+	 *
+	 * 1) struct btrfs_fs_info::unused_bgs
+	 * 2) struct btrfs_fs_info::reclaim_bgs
+	 * 3) struct btrfs_transaction::deleted_bgs
+	 * 4) struct btrfs_trans_handle::new_bgs
+	 */
 	struct list_head bg_list;
 
 	/* For read-only block groups */

@@ -705,6 +705,46 @@
 #define regSQC_ICACHE_UTCL1_STATUS_BASE_IDX                                                             0
 #define regSQC_DCACHE_UTCL1_STATUS                                                                      0x03d8
 #define regSQC_DCACHE_UTCL1_STATUS_BASE_IDX                                                             0
+#define regSQC_UE_EDC_LO                                                                                0x03d9
+#define regSQC_UE_EDC_LO_BASE_IDX                                                                       0
+#define regSQC_UE_EDC_HI                                                                                0x03da
+#define regSQC_UE_EDC_HI_BASE_IDX                                                                       0
+#define regSQC_CE_EDC_LO                                                                                0x03db
+#define regSQC_CE_EDC_LO_BASE_IDX                                                                       0
+#define regSQC_CE_EDC_HI                                                                                0x03dc
+#define regSQC_CE_EDC_HI_BASE_IDX                                                                       0
+#define regSQ_UE_ERR_STATUS_LO                                                                          0x03dd
+#define regSQ_UE_ERR_STATUS_LO_BASE_IDX                                                                 0
+#define regSQ_UE_ERR_STATUS_HI                                                                          0x03de
+#define regSQ_UE_ERR_STATUS_HI_BASE_IDX                                                                 0
+#define regSQ_CE_ERR_STATUS_LO                                                                          0x03df
+#define regSQ_CE_ERR_STATUS_LO_BASE_IDX                                                                 0
+#define regSQ_CE_ERR_STATUS_HI                                                                          0x03e0
+#define regSQ_CE_ERR_STATUS_HI_BASE_IDX                                                                 0
+#define regLDS_UE_ERR_STATUS_LO                                                                         0x03e1
+#define regLDS_UE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regLDS_UE_ERR_STATUS_HI                                                                         0x03e2
+#define regLDS_UE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regLDS_CE_ERR_STATUS_LO                                                                         0x03e3
+#define regLDS_CE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regLDS_CE_ERR_STATUS_HI                                                                         0x03e4
+#define regLDS_CE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regSP0_UE_ERR_STATUS_LO                                                                         0x03e5
+#define regSP0_UE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regSP0_UE_ERR_STATUS_HI                                                                         0x03e6
+#define regSP0_UE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regSP0_CE_ERR_STATUS_LO                                                                         0x03e7
+#define regSP0_CE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regSP0_CE_ERR_STATUS_HI                                                                         0x03e8
+#define regSP0_CE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regSP1_UE_ERR_STATUS_LO                                                                         0x03e9
+#define regSP1_UE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regSP1_UE_ERR_STATUS_HI                                                                         0x03ea
+#define regSP1_UE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regSP1_CE_ERR_STATUS_LO                                                                         0x03eb
+#define regSP1_CE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regSP1_CE_ERR_STATUS_HI                                                                         0x03ec
+#define regSP1_CE_ERR_STATUS_HI_BASE_IDX                                                                0
 
 
 // addressBlock: xcd0_gc_shsdec
@@ -727,6 +767,14 @@
 #define regSPI_DSM_CNTL2_BASE_IDX                                                                       0
 #define regSPI_EDC_CNT                                                                                  0x0445
 #define regSPI_EDC_CNT_BASE_IDX                                                                         0
+#define regSPI_UE_ERR_STATUS_LO                                                                         0x0446
+#define regSPI_UE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regSPI_UE_ERR_STATUS_HI                                                                         0x0447
+#define regSPI_UE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regSPI_CE_ERR_STATUS_LO                                                                         0x0448
+#define regSPI_CE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regSPI_CE_ERR_STATUS_HI                                                                         0x0449
+#define regSPI_CE_ERR_STATUS_HI_BASE_IDX                                                                0
 #define regSPI_DEBUG_BUSY                                                                               0x0450
 #define regSPI_DEBUG_BUSY_BASE_IDX                                                                      0
 #define regSPI_CONFIG_PS_CU_EN                                                                          0x0452
@@ -871,6 +919,14 @@
 #define regTD_STATUS_BASE_IDX                                                                           0
 #define regTD_POWER_CNTL                                                                                0x052a
 #define regTD_POWER_CNTL_BASE_IDX                                                                       0
+#define regTD_UE_EDC_LO                                                                                 0x052b
+#define regTD_UE_EDC_LO_BASE_IDX                                                                        0
+#define regTD_UE_EDC_HI                                                                                 0x052c
+#define regTD_UE_EDC_HI_BASE_IDX                                                                        0
+#define regTD_CE_EDC_LO                                                                                 0x052d
+#define regTD_CE_EDC_LO_BASE_IDX                                                                        0
+#define regTD_CE_EDC_HI                                                                                 0x052e
+#define regTD_CE_EDC_HI_BASE_IDX                                                                        0
 #define regTD_DSM_CNTL                                                                                  0x052f
 #define regTD_DSM_CNTL_BASE_IDX                                                                         0
 #define regTD_DSM_CNTL2                                                                                 0x0530
@@ -893,6 +949,14 @@
 #define regTA_DSM_CNTL_BASE_IDX                                                                         0
 #define regTA_DSM_CNTL2                                                                                 0x0585
 #define regTA_DSM_CNTL2_BASE_IDX                                                                        0
+#define regTA_UE_EDC_LO                                                                                 0x0587
+#define regTA_UE_EDC_LO_BASE_IDX                                                                        0
+#define regTA_UE_EDC_HI                                                                                 0x0588
+#define regTA_UE_EDC_HI_BASE_IDX                                                                        0
+#define regTA_CE_EDC_LO                                                                                 0x0589
+#define regTA_CE_EDC_LO_BASE_IDX                                                                        0
+#define regTA_CE_EDC_HI                                                                                 0x058a
+#define regTA_CE_EDC_HI_BASE_IDX                                                                        0
 
 
 // addressBlock: xcd0_gc_gdsdec
@@ -923,6 +987,14 @@
 #define regGDS_DSM_CNTL2_BASE_IDX                                                                       0
 #define regGDS_WD_GDS_CSB                                                                               0x05ce
 #define regGDS_WD_GDS_CSB_BASE_IDX                                                                      0
+#define regGDS_UE_ERR_STATUS_LO                                                                         0x05cf
+#define regGDS_UE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regGDS_UE_ERR_STATUS_HI                                                                         0x05d0
+#define regGDS_UE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regGDS_CE_ERR_STATUS_LO                                                                         0x05d1
+#define regGDS_CE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regGDS_CE_ERR_STATUS_HI                                                                         0x05d2
+#define regGDS_CE_ERR_STATUS_HI_BASE_IDX                                                                0
 
 
 // addressBlock: xcd0_gc_rbdec
@@ -1243,6 +1315,10 @@
 #define regGCEA_MAM_CTRL_BASE_IDX                                                                       0
 #define regGCEA_MAM_CTRL2                                                                               0x0702
 #define regGCEA_MAM_CTRL2_BASE_IDX                                                                      0
+#define regGCEA_UE_ERR_STATUS_LO                                                                        0x0706
+#define regGCEA_UE_ERR_STATUS_LO_BASE_IDX                                                               0
+#define regGCEA_UE_ERR_STATUS_HI                                                                        0x0707
+#define regGCEA_UE_ERR_STATUS_HI_BASE_IDX                                                               0
 #define regGCEA_DSM_CNTL                                                                                0x0708
 #define regGCEA_DSM_CNTL_BASE_IDX                                                                       0
 #define regGCEA_DSM_CNTLA                                                                               0x0709
@@ -1277,6 +1353,10 @@
 #define regGCEA_SDP_BACKDOOR_DATACREDITS1_BASE_IDX                                                      0
 #define regGCEA_SDP_BACKDOOR_MISCCREDITS                                                                0x0719
 #define regGCEA_SDP_BACKDOOR_MISCCREDITS_BASE_IDX                                                       0
+#define regGCEA_CE_ERR_STATUS_LO                                                                        0x071b
+#define regGCEA_CE_ERR_STATUS_LO_BASE_IDX                                                               0
+#define regGCEA_CE_ERR_STATUS_HI                                                                        0x071d
+#define regGCEA_CE_ERR_STATUS_HI_BASE_IDX                                                               0
 #define regGCEA_SDP_ENABLE                                                                              0x071f
 #define regGCEA_SDP_ENABLE_BASE_IDX                                                                     0
 
@@ -1389,6 +1469,14 @@
 #define regATC_L2_CNTL4_BASE_IDX                                                                        0
 #define regATC_L2_MM_GROUP_RT_CLASSES                                                                   0x0816
 #define regATC_L2_MM_GROUP_RT_CLASSES_BASE_IDX                                                          0
+#define regATC_L2_UE_ERR_STATUS_LO                                                                      0x081a
+#define regATC_L2_UE_ERR_STATUS_LO_BASE_IDX                                                             0
+#define regATC_L2_UE_ERR_STATUS_HI                                                                      0x081b
+#define regATC_L2_UE_ERR_STATUS_HI_BASE_IDX                                                             0
+#define regATC_L2_CE_ERR_STATUS_LO                                                                      0x081c
+#define regATC_L2_CE_ERR_STATUS_LO_BASE_IDX                                                             0
+#define regATC_L2_CE_ERR_STATUS_HI                                                                      0x081d
+#define regATC_L2_CE_ERR_STATUS_HI_BASE_IDX                                                             0
 
 
 // addressBlock: xcd0_gc_utcl2_vml2pfdec
@@ -1475,6 +1563,30 @@
 #define regUTCL2_EDC_MODE_BASE_IDX                                                                      0
 #define regUTCL2_EDC_CONFIG                                                                             0x084c
 #define regUTCL2_EDC_CONFIG_BASE_IDX                                                                    0
+#define regVML2_UE_ERR_STATUS_LO                                                                        0x084d
+#define regVML2_UE_ERR_STATUS_LO_BASE_IDX                                                               0
+#define regVML2_WALKER_UE_ERR_STATUS_LO                                                                 0x084e
+#define regVML2_WALKER_UE_ERR_STATUS_LO_BASE_IDX                                                        0
+#define regUTCL2_UE_ERR_STATUS_LO                                                                       0x084f
+#define regUTCL2_UE_ERR_STATUS_LO_BASE_IDX                                                              0
+#define regVML2_UE_ERR_STATUS_HI                                                                        0x0850
+#define regVML2_UE_ERR_STATUS_HI_BASE_IDX                                                               0
+#define regVML2_WALKER_UE_ERR_STATUS_HI                                                                 0x0851
+#define regVML2_WALKER_UE_ERR_STATUS_HI_BASE_IDX                                                        0
+#define regUTCL2_UE_ERR_STATUS_HI                                                                       0x0852
+#define regUTCL2_UE_ERR_STATUS_HI_BASE_IDX                                                              0
+#define regVML2_CE_ERR_STATUS_LO                                                                        0x0853
+#define regVML2_CE_ERR_STATUS_LO_BASE_IDX                                                               0
+#define regVML2_WALKER_CE_ERR_STATUS_LO                                                                 0x0854
+#define regVML2_WALKER_CE_ERR_STATUS_LO_BASE_IDX                                                        0
+#define regUTCL2_CE_ERR_STATUS_LO                                                                       0x0855
+#define regUTCL2_CE_ERR_STATUS_LO_BASE_IDX                                                              0
+#define regVML2_CE_ERR_STATUS_HI                                                                        0x0856
+#define regVML2_CE_ERR_STATUS_HI_BASE_IDX                                                               0
+#define regVML2_WALKER_CE_ERR_STATUS_HI                                                                 0x0857
+#define regVML2_WALKER_CE_ERR_STATUS_HI_BASE_IDX                                                        0
+#define regUTCL2_CE_ERR_STATUS_HI                                                                       0x0858
+#define regUTCL2_CE_ERR_STATUS_HI_BASE_IDX                                                              0
 
 
 // addressBlock: xcd0_gc_utcl2_vml2vcdec
@@ -2011,6 +2123,22 @@
 #define regTC_CFG_L1_VOLATILE_BASE_IDX                                                                  0
 #define regTC_CFG_L2_VOLATILE                                                                           0x0b23
 #define regTC_CFG_L2_VOLATILE_BASE_IDX                                                                  0
+#define regTCP_UE_EDC_HI_REG                                                                            0x0b54
+#define regTCP_UE_EDC_HI_REG_BASE_IDX                                                                   0
+#define regTCP_UE_EDC_LO_REG                                                                            0x0b55
+#define regTCP_UE_EDC_LO_REG_BASE_IDX                                                                   0
+#define regTCP_CE_EDC_HI_REG                                                                            0x0b56
+#define regTCP_CE_EDC_HI_REG_BASE_IDX                                                                   0
+#define regTCP_CE_EDC_LO_REG                                                                            0x0b57
+#define regTCP_CE_EDC_LO_REG_BASE_IDX                                                                   0
+#define regTCI_UE_EDC_HI_REG                                                                            0x0b58
+#define regTCI_UE_EDC_HI_REG_BASE_IDX                                                                   0
+#define regTCI_UE_EDC_LO_REG                                                                            0x0b59
+#define regTCI_UE_EDC_LO_REG_BASE_IDX                                                                   0
+#define regTCI_CE_EDC_HI_REG                                                                            0x0b5a
+#define regTCI_CE_EDC_HI_REG_BASE_IDX                                                                   0
+#define regTCI_CE_EDC_LO_REG                                                                            0x0b5b
+#define regTCI_CE_EDC_LO_REG_BASE_IDX                                                                   0
 #define regTCI_MISC                                                                                     0x0b5c
 #define regTCI_MISC_BASE_IDX                                                                            0
 #define regTCI_CNTL_3                                                                                   0x0b5d
@@ -2061,6 +2189,26 @@
 #define regTCX_DSM_CNTL_BASE_IDX                                                                        0
 #define regTCX_DSM_CNTL2                                                                                0x0bc8
 #define regTCX_DSM_CNTL2_BASE_IDX                                                                       0
+#define regTCA_UE_ERR_STATUS_LO                                                                         0x0bc9
+#define regTCA_UE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regTCA_UE_ERR_STATUS_HI                                                                         0x0bca
+#define regTCA_UE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regTCX_UE_ERR_STATUS_LO                                                                         0x0bcb
+#define regTCX_UE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regTCX_UE_ERR_STATUS_HI                                                                         0x0bcc
+#define regTCX_UE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regTCX_CE_ERR_STATUS_LO                                                                         0x0bcd
+#define regTCX_CE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regTCX_CE_ERR_STATUS_HI                                                                         0x0bce
+#define regTCX_CE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regTCC_UE_ERR_STATUS_LO                                                                         0x0bcf
+#define regTCC_UE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regTCC_UE_ERR_STATUS_HI                                                                         0x0bd0
+#define regTCC_UE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regTCC_CE_ERR_STATUS_LO                                                                         0x0bd1
+#define regTCC_CE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regTCC_CE_ERR_STATUS_HI                                                                         0x0bd2
+#define regTCC_CE_ERR_STATUS_HI_BASE_IDX                                                                0
 
 
 // addressBlock: xcd0_gc_shdec
@@ -2905,6 +3053,30 @@
 #define regCP_MEC2_F32_INT_DIS_BASE_IDX                                                                 0
 #define regCP_VMID_STATUS                                                                               0x10bf
 #define regCP_VMID_STATUS_BASE_IDX                                                                      0
+#define regCPC_UE_ERR_STATUS_LO                                                                         0x10e0
+#define regCPC_UE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regCPC_UE_ERR_STATUS_HI                                                                         0x10e1
+#define regCPC_UE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regCPC_CE_ERR_STATUS_LO                                                                         0x10e2
+#define regCPC_CE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regCPC_CE_ERR_STATUS_HI                                                                         0x10e3
+#define regCPC_CE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regCPF_UE_ERR_STATUS_LO                                                                         0x10e4
+#define regCPF_UE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regCPF_UE_ERR_STATUS_HI                                                                         0x10e5
+#define regCPF_UE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regCPF_CE_ERR_STATUS_LO                                                                         0x10e6
+#define regCPF_CE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regCPF_CE_ERR_STATUS_HI                                                                         0x10e7
+#define regCPF_CE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regCPG_UE_ERR_STATUS_LO                                                                         0x10e8
+#define regCPG_UE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regCPG_UE_ERR_STATUS_HI                                                                         0x10e9
+#define regCPG_UE_ERR_STATUS_HI_BASE_IDX                                                                0
+#define regCPG_CE_ERR_STATUS_LO                                                                         0x10ea
+#define regCPG_CE_ERR_STATUS_LO_BASE_IDX                                                                0
+#define regCPG_CE_ERR_STATUS_HI                                                                         0x10eb
+#define regCPG_CE_ERR_STATUS_HI_BASE_IDX                                                                0
 
 
 // addressBlock: xcd0_gc_cppdec2
@@ -5364,6 +5536,18 @@
 #define regSPI_WAVE_LIMIT_CNTL                                                                          0x2443
 #define regSPI_WAVE_LIMIT_CNTL_BASE_IDX                                                                 1
 
+// addressBlock: xcd0_gc_gccanedec
+// base address: 0x33d00
+#define regGC_CANE_ERR_STATUS                                                                           0x2f4d
+#define regGC_CANE_ERR_STATUS_BASE_IDX                                                                  1
+#define regGC_CANE_UE_ERR_STATUS_LO                                                                     0x2f4e
+#define regGC_CANE_UE_ERR_STATUS_LO_BASE_IDX                                                            1
+#define regGC_CANE_UE_ERR_STATUS_HI                                                                     0x2f4f
+#define regGC_CANE_UE_ERR_STATUS_HI_BASE_IDX                                                            1
+#define regGC_CANE_CE_ERR_STATUS_LO                                                                     0x2f50
+#define regGC_CANE_CE_ERR_STATUS_LO_BASE_IDX                                                            1
+#define regGC_CANE_CE_ERR_STATUS_HI                                                                     0x2f51
+#define regGC_CANE_CE_ERR_STATUS_HI_BASE_IDX                                                            1
 
 // addressBlock: xcd0_gc_perfddec
 // base address: 0x34000
@@ -6583,6 +6767,10 @@
 #define regRLC_CAPTURE_GPU_CLOCK_COUNT_2_BASE_IDX                                                       1
 #define regRLC_CPG_STAT_INVAL                                                                           0x4d09
 #define regRLC_CPG_STAT_INVAL_BASE_IDX                                                                  1
+#define regRLC_UE_ERR_STATUS_LOW                                                                        0x4d40
+#define regRLC_UE_ERR_STATUS_LOW_BASE_IDX                                                               1
+#define regRLC_UE_ERR_STATUS_HIGH                                                                       0x4d41
+#define regRLC_UE_ERR_STATUS_HIGH_BASE_IDX                                                              1
 #define regRLC_DSM_CNTL                                                                                 0x4d42
 #define regRLC_DSM_CNTL_BASE_IDX                                                                        1
 #define regRLC_DSM_CNTLA                                                                                0x4d43
@@ -6591,6 +6779,10 @@
 #define regRLC_DSM_CNTL2_BASE_IDX                                                                       1
 #define regRLC_DSM_CNTL2A                                                                               0x4d45
 #define regRLC_DSM_CNTL2A_BASE_IDX                                                                      1
+#define regRLC_CE_ERR_STATUS_LOW                                                                        0x4d49
+#define regRLC_CE_ERR_STATUS_LOW_BASE_IDX                                                               1
+#define regRLC_CE_ERR_STATUS_HIGH                                                                       0x4d4a
+#define regRLC_CE_ERR_STATUS_HIGH_BASE_IDX                                                              1
 #define regRLC_RLCV_SPARE_INT                                                                           0x4f30
 #define regRLC_RLCV_SPARE_INT_BASE_IDX                                                                  1
 #define regRLC_SMU_CLK_REQ                                                                              0x4f97

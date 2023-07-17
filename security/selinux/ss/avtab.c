@@ -354,7 +354,7 @@ int avtab_alloc_dup(struct avtab *new, const struct avtab *orig)
 	return avtab_alloc_common(new, orig->nslot);
 }
 
-void avtab_hash_eval(struct avtab *h, char *tag)
+void avtab_hash_eval(struct avtab *h, const char *tag)
 {
 	int i, chain_len, slots_used, max_chain_len;
 	unsigned long long chain2_len_sum;

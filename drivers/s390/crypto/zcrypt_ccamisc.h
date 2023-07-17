@@ -115,7 +115,7 @@ struct eccprivkeytoken {
 	u64 mkvp;     /* master key verification pattern */
 	u8  opk[48];  /* encrypted object protection key data */
 	u16 adatalen; /* associated data length in bytes */
-	u16 fseclen;  /* formated section length in bytes */
+	u16 fseclen;  /* formatted section length in bytes */
 	u8  more_data[]; /* more data follows */
 } __packed;
 
@@ -232,7 +232,7 @@ int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify);
  * the number of apqns stored into the list is returned in *nr_apqns. One apqn
  * entry is simple a 32 bit value with 16 bit cardnr and 16 bit domain nr and
  * may be casted to struct pkey_apqn. The return value is either 0 for success
- * or a negative errno value. If no apqn meeting the criterias is found,
+ * or a negative errno value. If no apqn meeting the criteria is found,
  * -ENODEV is returned.
  */
 int cca_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,

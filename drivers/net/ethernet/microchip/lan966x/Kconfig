@@ -10,3 +10,14 @@ config LAN966X_SWITCH
 	select VCAP
 	help
 	  This driver supports the Lan966x network switch device.
+
+config LAN966X_DCB
+	bool "Data Center Bridging (DCB) support"
+	depends on LAN966X_SWITCH && DCB
+	default y
+	help
+	  Say Y here if you want to use Data Center Bridging (DCB) in the
+	  driver. This can be used to assign priority to traffic, based on
+	  DSCP and PCP.
+
+	  If unsure, set to Y.

@@ -454,7 +454,7 @@ static struct i2c_driver lm83_driver = {
 	.driver = {
 		.name	= "lm83",
 	},
-	.probe_new	= lm83_probe,
+	.probe		= lm83_probe,
 	.id_table	= lm83_id,
 	.detect		= lm83_detect,
 	.address_list	= normal_i2c,

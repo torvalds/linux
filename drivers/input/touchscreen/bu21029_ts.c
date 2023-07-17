@@ -474,7 +474,7 @@ static struct i2c_driver bu21029_driver = {
 		.pm		= pm_sleep_ptr(&bu21029_pm_ops),
 	},
 	.id_table	= bu21029_ids,
-	.probe_new	= bu21029_probe,
+	.probe		= bu21029_probe,
 };
 module_i2c_driver(bu21029_driver);
 

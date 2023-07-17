@@ -1256,7 +1256,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	if (!__netif_txq_completed_wake(txq, total_packets, total_bytes,
 					ixgbe_desc_unused(tx_ring),
 					TX_WAKE_THRESHOLD,
-					netif_carrier_ok(tx_ring->netdev) &&
+					!netif_carrier_ok(tx_ring->netdev) ||
 					test_bit(__IXGBE_DOWN, &adapter->state)))
 		++tx_ring->tx_stats.restart_queue;
 

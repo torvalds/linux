@@ -24,12 +24,12 @@ BEGIN {
 }
 
 /^[vA-Z0-9_]+$/ {
-	printf("#define ARM64_%-30s\t%d\n", $0, cap_num++)
+	printf("#define ARM64_%-40s\t%d\n", $0, cap_num++)
 	next
 }
 
 END {
-	printf("#define ARM64_NCAPS\t\t\t\t%d\n", cap_num)
+	printf("#define ARM64_NCAPS\t\t\t\t\t%d\n", cap_num)
 	print ""
 	print "#endif /* __ASM_CPUCAPS_H */"
 }

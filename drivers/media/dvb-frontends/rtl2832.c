@@ -1135,7 +1135,7 @@ static struct i2c_driver rtl2832_driver = {
 		.name	= "rtl2832",
 		.suppress_bind_attrs	= true,
 	},
-	.probe_new	= rtl2832_probe,
+	.probe		= rtl2832_probe,
 	.remove		= rtl2832_remove,
 	.id_table	= rtl2832_id_table,
 };

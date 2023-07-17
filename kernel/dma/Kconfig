@@ -24,6 +24,9 @@ config DMA_OPS_BYPASS
 config ARCH_HAS_DMA_MAP_DIRECT
 	bool
 
+config NEED_SG_DMA_FLAGS
+	bool
+
 config NEED_SG_DMA_LENGTH
 	bool
 
@@ -39,7 +42,7 @@ config ARCH_HAS_DMA_SET_MASK
 #
 # Select this option if the architecture needs special handling for
 # DMA_ATTR_WRITE_COMBINE.  Normally the "uncached" mapping should be what
-# people thing of when saying write combine, so very few platforms should
+# people think of when saying write combine, so very few platforms should
 # need to enable this.
 #
 config ARCH_HAS_DMA_WRITE_COMBINE
@@ -86,6 +89,10 @@ config ARCH_DMA_DEFAULT_COHERENT
 config SWIOTLB
 	bool
 	select NEED_DMA_MAP_STATE
+
+config DMA_BOUNCE_UNALIGNED_KMALLOC
+	bool
+	depends on SWIOTLB
 
 config DMA_RESTRICTED_POOL
 	bool "DMA Restricted Pool"

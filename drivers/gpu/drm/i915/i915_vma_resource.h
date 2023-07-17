@@ -34,6 +34,27 @@ struct i915_page_sizes {
 };
 
 /**
+ * struct i915_vma_bindinfo - Information needed for async bind
+ * only but that can be dropped after the bind has taken place.
+ * Consider making this a separate argument to the bind_vma
+ * op, coalescing with other arguments like vm, stash, cache_level
+ * and flags
+ * @pages: The pages sg-table.
+ * @page_sizes: Page sizes of the pages.
+ * @pages_rsgt: Refcounted sg-table when delayed object destruction
+ * is supported. May be NULL.
+ * @readonly: Whether the vma should be bound read-only.
+ * @lmem: Whether the vma points to lmem.
+ */
+struct i915_vma_bindinfo {
+	struct sg_table *pages;
+	struct i915_page_sizes page_sizes;
+	struct i915_refct_sgt *pages_rsgt;
+	bool readonly:1;
+	bool lmem:1;
+};
+
+/**
  * struct i915_vma_resource - Snapshotted unbind information.
  * @unbind_fence: Fence to mark unbinding complete. Note that this fence
  * is not considered published until unbind is scheduled, and as such it
@@ -47,6 +68,7 @@ struct i915_page_sizes {
  * @chain: Pointer to struct i915_sw_fence used to await dependencies.
  * @rb: Rb node for the vm's pending unbind interval tree.
  * @__subtree_last: Interval tree private member.
+ * @wakeref: wakeref.
  * @vm: non-refcounted pointer to the vm. This is for internal use only and
  * this member is cleared after vm_resource unbind.
  * @mr: The memory region of the object pointed to by the vma.
@@ -88,25 +110,13 @@ struct i915_vma_resource {
 	intel_wakeref_t wakeref;
 
 	/**
-	 * struct i915_vma_bindinfo - Information needed for async bind
-	 * only but that can be dropped after the bind has taken place.
-	 * Consider making this a separate argument to the bind_vma
-	 * op, coalescing with other arguments like vm, stash, cache_level
-	 * and flags
-	 * @pages: The pages sg-table.
-	 * @page_sizes: Page sizes of the pages.
-	 * @pages_rsgt: Refcounted sg-table when delayed object destruction
-	 * is supported. May be NULL.
-	 * @readonly: Whether the vma should be bound read-only.
-	 * @lmem: Whether the vma points to lmem.
+	 * @bi: Information needed for async bind only but that can be dropped
+	 * after the bind has taken place.
+	 *
+	 * Consider making this a separate argument to the bind_vma op,
+	 * coalescing with other arguments like vm, stash, cache_level and flags
 	 */
-	struct i915_vma_bindinfo {
-		struct sg_table *pages;
-		struct i915_page_sizes page_sizes;
-		struct i915_refct_sgt *pages_rsgt;
-		bool readonly:1;
-		bool lmem:1;
-	} bi;
+	struct i915_vma_bindinfo bi;
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 	struct intel_memory_region *mr;

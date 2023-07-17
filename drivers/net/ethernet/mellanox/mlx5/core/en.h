@@ -165,15 +165,6 @@ struct page_pool;
 #define MLX5E_MAX_KLM_PER_WQE(mdev) \
 	MLX5E_KLM_ENTRIES_PER_WQE(MLX5_SEND_WQE_BB * mlx5e_get_max_sq_aligned_wqebbs(mdev))
 
-#define MLX5E_MSG_LEVEL			NETIF_MSG_LINK
-
-#define mlx5e_dbg(mlevel, priv, format, ...)                    \
-do {                                                            \
-	if (NETIF_MSG_##mlevel & (priv)->msglevel)              \
-		netdev_warn(priv->netdev, format,               \
-			    ##__VA_ARGS__);                     \
-} while (0)
-
 #define mlx5e_state_dereference(priv, p) \
 	rcu_dereference_protected((p), lockdep_is_held(&(priv)->state_lock))
 
@@ -327,6 +318,7 @@ struct mlx5e_params {
 	unsigned int sw_mtu;
 	int hard_mtu;
 	bool ptp_rx;
+	__be32 terminate_lkey_be;
 };
 
 static inline u8 mlx5e_get_dcb_num_tc(struct mlx5e_params *params)
@@ -592,13 +584,6 @@ struct mlx5e_mpw_info {
 };
 
 #define MLX5E_MAX_RX_FRAGS 4
-
-/* a single cache unit is capable to serve one napi call (for non-striding rq)
- * or a MPWQE (for striding rq).
- */
-#define MLX5E_CACHE_UNIT (MLX5_MPWRQ_MAX_PAGES_PER_WQE > NAPI_POLL_WEIGHT ? \
-			  MLX5_MPWRQ_MAX_PAGES_PER_WQE : NAPI_POLL_WEIGHT)
-#define MLX5E_CACHE_SIZE	(4 * roundup_pow_of_two(MLX5E_CACHE_UNIT))
 
 struct mlx5e_rq;
 typedef void (*mlx5e_fp_handle_rx_cqe)(struct mlx5e_rq*, struct mlx5_cqe64*);
@@ -886,7 +871,6 @@ struct mlx5e_priv {
 #endif
 	/* priv data path fields - end */
 
-	u32                        msglevel;
 	unsigned long              state;
 	struct mutex               state_lock; /* Protects Interface state */
 	struct mlx5e_rq            drop_rq;

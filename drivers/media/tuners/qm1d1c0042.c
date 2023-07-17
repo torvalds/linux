@@ -443,7 +443,7 @@ static struct i2c_driver qm1d1c0042_driver = {
 	.driver = {
 		.name	= "qm1d1c0042",
 	},
-	.probe_new	= qm1d1c0042_probe,
+	.probe		= qm1d1c0042_probe,
 	.remove		= qm1d1c0042_remove,
 	.id_table	= qm1d1c0042_id,
 };

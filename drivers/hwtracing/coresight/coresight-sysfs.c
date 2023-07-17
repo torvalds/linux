@@ -148,13 +148,17 @@ int coresight_make_links(struct coresight_device *orig,
 	char *outs = NULL, *ins = NULL;
 	struct coresight_sysfs_link *link = NULL;
 
+	/* Helper devices aren't shown in sysfs */
+	if (conn->dest_port == -1 && conn->src_port == -1)
+		return 0;
+
 	do {
 		outs = devm_kasprintf(&orig->dev, GFP_KERNEL,
-				      "out:%d", conn->outport);
+				      "out:%d", conn->src_port);
 		if (!outs)
 			break;
 		ins = devm_kasprintf(&target->dev, GFP_KERNEL,
-				     "in:%d", conn->child_port);
+				     "in:%d", conn->dest_port);
 		if (!ins)
 			break;
 		link = devm_kzalloc(&orig->dev,
@@ -173,12 +177,6 @@ int coresight_make_links(struct coresight_device *orig,
 			break;
 
 		conn->link = link;
-
-		/*
-		 * Install the device connection. This also indicates that
-		 * the links are operational on both ends.
-		 */
-		conn->child_dev = target;
 		return 0;
 	} while (0);
 
@@ -198,9 +196,8 @@ void coresight_remove_links(struct coresight_device *orig,
 
 	coresight_remove_sysfs_link(conn->link);
 
-	devm_kfree(&conn->child_dev->dev, conn->link->target_name);
+	devm_kfree(&conn->dest_dev->dev, conn->link->target_name);
 	devm_kfree(&orig->dev, conn->link->orig_name);
 	devm_kfree(&orig->dev, conn->link);
 	conn->link = NULL;
-	conn->child_dev = NULL;
 }

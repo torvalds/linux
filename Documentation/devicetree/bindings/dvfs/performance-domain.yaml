@@ -42,7 +42,7 @@ properties:
     enum: [ 0, 1 ]
 
   performance-domains:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     description:
       A phandle and performance domain specifier as defined by bindings of the
       performance controller/provider specified by phandle.

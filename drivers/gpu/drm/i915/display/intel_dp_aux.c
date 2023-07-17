@@ -129,7 +129,7 @@ static int intel_dp_aux_sync_len(void)
 
 static int intel_dp_aux_fw_sync_len(void)
 {
-	int precharge = 16; /* 10-16 */
+	int precharge = 10; /* 10-16 */
 	int preamble = 8;
 
 	return precharge + preamble;
@@ -161,14 +161,14 @@ static u32 g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 		timeout = DP_AUX_CH_CTL_TIME_OUT_400us;
 
 	return DP_AUX_CH_CTL_SEND_BUSY |
-	       DP_AUX_CH_CTL_DONE |
-	       DP_AUX_CH_CTL_INTERRUPT |
-	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
-	       timeout |
-	       DP_AUX_CH_CTL_RECEIVE_ERROR |
-	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
-	       (g4x_dp_aux_precharge_len() << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
-	       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT);
+		DP_AUX_CH_CTL_DONE |
+		DP_AUX_CH_CTL_INTERRUPT |
+		DP_AUX_CH_CTL_TIME_OUT_ERROR |
+		timeout |
+		DP_AUX_CH_CTL_RECEIVE_ERROR |
+		DP_AUX_CH_CTL_MESSAGE_SIZE(send_bytes) |
+		DP_AUX_CH_CTL_PRECHARGE_2US(g4x_dp_aux_precharge_len()) |
+		DP_AUX_CH_CTL_BIT_CLOCK_2X(aux_clock_divider);
 }
 
 static u32 skl_get_aux_send_ctl(struct intel_dp *intel_dp,
@@ -185,14 +185,14 @@ static u32 skl_get_aux_send_ctl(struct intel_dp *intel_dp,
 	 * ICL+: 4ms
 	 */
 	ret = DP_AUX_CH_CTL_SEND_BUSY |
-	      DP_AUX_CH_CTL_DONE |
-	      DP_AUX_CH_CTL_INTERRUPT |
-	      DP_AUX_CH_CTL_TIME_OUT_ERROR |
-	      DP_AUX_CH_CTL_TIME_OUT_MAX |
-	      DP_AUX_CH_CTL_RECEIVE_ERROR |
-	      (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
-	      DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL(intel_dp_aux_fw_sync_len()) |
-	      DP_AUX_CH_CTL_SYNC_PULSE_SKL(intel_dp_aux_sync_len());
+		DP_AUX_CH_CTL_DONE |
+		DP_AUX_CH_CTL_INTERRUPT |
+		DP_AUX_CH_CTL_TIME_OUT_ERROR |
+		DP_AUX_CH_CTL_TIME_OUT_MAX |
+		DP_AUX_CH_CTL_RECEIVE_ERROR |
+		DP_AUX_CH_CTL_MESSAGE_SIZE(send_bytes) |
+		DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL(intel_dp_aux_fw_sync_len()) |
+		DP_AUX_CH_CTL_SYNC_PULSE_SKL(intel_dp_aux_sync_len());
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
 		ret |= DP_AUX_CH_CTL_TBT_IO;
@@ -267,6 +267,11 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	cpu_latency_qos_update_request(&intel_dp->pm_qos, 0);
 
 	intel_pps_check_power_unlocked(intel_dp);
+
+	/*
+	 * FIXME PSR should be disabled here to prevent
+	 * it using the same AUX CH simultaneously
+	 */
 
 	/* Try to wait for any previous AUX channel activity */
 	for (try = 0; try < 3; try++) {
@@ -373,8 +378,7 @@ done:
 	}
 
 	/* Unload any bytes sent back from the other side */
-	recv_bytes = ((status & DP_AUX_CH_CTL_MESSAGE_SIZE_MASK) >>
-		      DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT);
+	recv_bytes = REG_FIELD_GET(DP_AUX_CH_CTL_MESSAGE_SIZE_MASK, status);
 
 	/*
 	 * By BSpec: "Message sizes of 0 or >20 are not allowed."
@@ -809,4 +813,9 @@ enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
 		    aux_ch_name(aux_ch));
 
 	return aux_ch;
+}
+
+void intel_dp_aux_irq_handler(struct drm_i915_private *i915)
+{
+	wake_up_all(&i915->display.gmbus.wait_queue);
 }

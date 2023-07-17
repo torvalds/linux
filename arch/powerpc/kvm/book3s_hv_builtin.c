@@ -406,7 +406,7 @@ static long kvmppc_read_one_intr(bool *again)
 		return 1;
 
 	/* see if a host IPI is pending */
-	host_ipi = local_paca->kvm_hstate.host_ipi;
+	host_ipi = READ_ONCE(local_paca->kvm_hstate.host_ipi);
 	if (host_ipi)
 		return 1;
 
@@ -466,7 +466,7 @@ static long kvmppc_read_one_intr(bool *again)
 		 * meantime. If it's clear, we bounce the interrupt to the
 		 * guest
 		 */
-		host_ipi = local_paca->kvm_hstate.host_ipi;
+		host_ipi = READ_ONCE(local_paca->kvm_hstate.host_ipi);
 		if (unlikely(host_ipi != 0)) {
 			/* We raced with the host,
 			 * we need to resend that IPI, bummer

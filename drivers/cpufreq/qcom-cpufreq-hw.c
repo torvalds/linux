@@ -661,7 +661,7 @@ static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)
 
 	ret = dev_pm_opp_of_find_icc_paths(cpu_dev, NULL);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "Failed to find icc paths\n");
 
 	for (num_domains = 0; num_domains < MAX_FREQ_DOMAINS; num_domains++)
 		if (!platform_get_resource(pdev, IORESOURCE_MEM, num_domains))

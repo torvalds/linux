@@ -1230,7 +1230,7 @@ static void mxuport_close(struct usb_serial_port *port)
 }
 
 /* Send a break to the port. */
-static void mxuport_break_ctl(struct tty_struct *tty, int break_state)
+static int mxuport_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
@@ -1244,8 +1244,8 @@ static void mxuport_break_ctl(struct tty_struct *tty, int break_state)
 		dev_dbg(&port->dev, "%s - clearing break\n", __func__);
 	}
 
-	mxuport_send_ctrl_urb(serial, RQ_VENDOR_SET_BREAK,
-			      enable, port->port_number);
+	return mxuport_send_ctrl_urb(serial, RQ_VENDOR_SET_BREAK,
+				     enable, port->port_number);
 }
 
 static int mxuport_resume(struct usb_serial *serial)

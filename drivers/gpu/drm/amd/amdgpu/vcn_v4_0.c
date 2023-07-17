@@ -129,7 +129,11 @@ static int vcn_v4_0_sw_init(void *handle)
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
-		atomic_set(&adev->vcn.inst[i].sched_score, 0);
+		/* Init instance 0 sched_score to 1, so it's scheduled after other instances */
+		if (i == 0)
+			atomic_set(&adev->vcn.inst[i].sched_score, 1);
+		else
+			atomic_set(&adev->vcn.inst[i].sched_score, 0);
 
 		/* VCN UNIFIED TRAP */
 		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_vcns[i],
@@ -139,7 +143,7 @@ static int vcn_v4_0_sw_init(void *handle)
 
 		/* VCN POISON TRAP */
 		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_vcns[i],
-				VCN_4_0__SRCID_UVD_POISON, &adev->vcn.inst[i].irq);
+				VCN_4_0__SRCID_UVD_POISON, &adev->vcn.inst[i].ras_poison_irq);
 		if (r)
 			return r;
 
@@ -149,7 +153,7 @@ static int vcn_v4_0_sw_init(void *handle)
 			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + i * (adev->vcn.num_enc_rings + 1) + 1;
 		else
 			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 2 + 8 * i;
-		ring->vm_hub = AMDGPU_MMHUB_0;
+		ring->vm_hub = AMDGPU_MMHUB0(0);
 		sprintf(ring->name, "vcn_unified_%d", i);
 
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[i].irq, 0,
@@ -305,8 +309,8 @@ static int vcn_v4_0_hw_fini(void *handle)
                         vcn_v4_0_set_powergating_state(adev, AMD_PG_STATE_GATE);
 			}
 		}
-
-		amdgpu_irq_put(adev, &adev->vcn.inst[i].irq, 0);
+		if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__VCN))
+			amdgpu_irq_put(adev, &adev->vcn.inst[i].ras_poison_irq, 0);
 	}
 
 	return 0;
@@ -1239,7 +1243,7 @@ static int vcn_v4_0_start_sriov(struct amdgpu_device *adev)
 
 	header.version = MMSCH_VERSION;
 	header.total_size = sizeof(struct mmsch_v4_0_init_header) >> 2;
-	for (i = 0; i < AMDGPU_MAX_VCN_INSTANCES; i++) {
+	for (i = 0; i < MMSCH_V4_0_VCN_INSTANCES; i++) {
 		header.inst[i].init_status = 0;
 		header.inst[i].table_offset = 0;
 		header.inst[i].table_size = 0;
@@ -1420,8 +1424,10 @@ static int vcn_v4_0_start_sriov(struct amdgpu_device *adev)
  */
 static void vcn_v4_0_stop_dpg_mode(struct amdgpu_device *adev, int inst_idx)
 {
+	struct dpg_pause_state state = {.fw_based = VCN_DPG_STATE__UNPAUSE};
 	uint32_t tmp;
 
+	vcn_v4_0_pause_dpg_mode(adev, inst_idx, &state);
 	/* Wait for power status to be 1 */
 	SOC15_WAIT_ON_RREG(VCN, inst_idx, regUVD_POWER_STATUS, 1,
 		UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
@@ -1976,6 +1982,24 @@ static int vcn_v4_0_set_interrupt_state(struct amdgpu_device *adev, struct amdgp
 }
 
 /**
+ * vcn_v4_0_set_ras_interrupt_state - set VCN block RAS interrupt state
+ *
+ * @adev: amdgpu_device pointer
+ * @source: interrupt sources
+ * @type: interrupt types
+ * @state: interrupt states
+ *
+ * Set VCN block RAS interrupt state
+ */
+static int vcn_v4_0_set_ras_interrupt_state(struct amdgpu_device *adev,
+	struct amdgpu_irq_src *source,
+	unsigned int type,
+	enum amdgpu_interrupt_state state)
+{
+	return 0;
+}
+
+/**
  * vcn_v4_0_process_interrupt - process VCN block interrupt
  *
  * @adev: amdgpu_device pointer
@@ -2007,9 +2031,6 @@ static int vcn_v4_0_process_interrupt(struct amdgpu_device *adev, struct amdgpu_
 	case VCN_4_0__SRCID__UVD_ENC_GENERAL_PURPOSE:
 		amdgpu_fence_process(&adev->vcn.inst[ip_instance].ring_enc[0]);
 		break;
-	case VCN_4_0__SRCID_UVD_POISON:
-		amdgpu_vcn_process_poison_irq(adev, source, entry);
-		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",
 			  entry->src_id, entry->src_data[0]);
@@ -2022,6 +2043,11 @@ static int vcn_v4_0_process_interrupt(struct amdgpu_device *adev, struct amdgpu_
 static const struct amdgpu_irq_src_funcs vcn_v4_0_irq_funcs = {
 	.set = vcn_v4_0_set_interrupt_state,
 	.process = vcn_v4_0_process_interrupt,
+};
+
+static const struct amdgpu_irq_src_funcs vcn_v4_0_ras_irq_funcs = {
+	.set = vcn_v4_0_set_ras_interrupt_state,
+	.process = amdgpu_vcn_process_poison_irq,
 };
 
 /**
@@ -2041,6 +2067,9 @@ static void vcn_v4_0_set_irq_funcs(struct amdgpu_device *adev)
 
 		adev->vcn.inst[i].irq.num_types = adev->vcn.num_enc_rings + 1;
 		adev->vcn.inst[i].irq.funcs = &vcn_v4_0_irq_funcs;
+
+		adev->vcn.inst[i].ras_poison_irq.num_types = adev->vcn.num_enc_rings + 1;
+		adev->vcn.inst[i].ras_poison_irq.funcs = &vcn_v4_0_ras_irq_funcs;
 	}
 }
 
@@ -2114,6 +2143,7 @@ const struct amdgpu_ras_block_hw_ops vcn_v4_0_ras_hw_ops = {
 static struct amdgpu_vcn_ras vcn_v4_0_ras = {
 	.ras_block = {
 		.hw_ops = &vcn_v4_0_ras_hw_ops,
+		.ras_late_init = amdgpu_vcn_ras_late_init,
 	},
 };
 

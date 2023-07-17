@@ -223,7 +223,7 @@ static int pata_platform_probe(struct platform_device *pdev)
 
 static struct platform_driver pata_platform_driver = {
 	.probe		= pata_platform_probe,
-	.remove		= ata_platform_remove_one,
+	.remove_new	= ata_platform_remove_one,
 	.driver = {
 		.name		= DRV_NAME,
 	},

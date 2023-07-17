@@ -150,7 +150,6 @@ int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 
 	if ((issue_flags & IO_URING_F_NONBLOCK) && !nonblock_set)
 		file->f_flags &= ~O_NONBLOCK;
-	fsnotify_open(file);
 
 	if (!fixed)
 		fd_install(ret, file);

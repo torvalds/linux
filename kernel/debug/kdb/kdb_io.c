@@ -131,6 +131,7 @@ char kdb_getchar(void)
 	int escape_delay = 0;
 	get_char_func *f, *f_prev = NULL;
 	int key;
+	static bool last_char_was_cr;
 
 	for (f = &kdb_poll_funcs[0]; ; ++f) {
 		if (*f == NULL) {
@@ -148,6 +149,18 @@ char kdb_getchar(void)
 			}
 			continue;
 		}
+
+		/*
+		 * The caller expects that newlines are either CR or LF. However
+		 * some terminals send _both_ CR and LF. Avoid having to handle
+		 * this in the caller by stripping the LF if we saw a CR right
+		 * before.
+		 */
+		if (last_char_was_cr && key == '\n') {
+			last_char_was_cr = false;
+			continue;
+		}
+		last_char_was_cr = (key == '\r');
 
 		/*
 		 * When the first character is received (or we get a change
@@ -244,7 +257,8 @@ poll_again:
 			*cp = tmp;
 		}
 		break;
-	case 13: /* enter */
+	case 10: /* linefeed */
+	case 13: /* carriage return */
 		*lastchar++ = '\n';
 		*lastchar++ = '\0';
 		if (!KDB_STATE(KGDB_TRANS)) {

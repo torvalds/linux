@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Xilinx AXI GPIO controller
 
 maintainers:
-  - Neeli Srinivas <srinivas.neeli@xilinx.com>
+  - Neeli Srinivas <srinivas.neeli@amd.com>
 
 description:
   The AXI GPIO design provides a general purpose input/output interface

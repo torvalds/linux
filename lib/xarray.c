@@ -12,6 +12,8 @@
 #include <linux/slab.h>
 #include <linux/xarray.h>
 
+#include "radix-tree.h"
+
 /*
  * Coding conventions in this file:
  *
@@ -246,10 +248,6 @@ void *xas_load(struct xa_state *xas)
 	return entry;
 }
 EXPORT_SYMBOL_GPL(xas_load);
-
-/* Move the radix tree node cache here */
-extern struct kmem_cache *radix_tree_node_cachep;
-extern void radix_tree_node_rcu_free(struct rcu_head *head);
 
 #define XA_RCU_FREE	((struct xarray *)1)
 

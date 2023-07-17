@@ -306,7 +306,7 @@ static struct i2c_driver ak7375_i2c_driver = {
 		.pm = &ak7375_pm_ops,
 		.of_match_table = ak7375_of_table,
 	},
-	.probe_new = ak7375_probe,
+	.probe = ak7375_probe,
 	.remove = ak7375_remove,
 };
 module_i2c_driver(ak7375_i2c_driver);

@@ -12,15 +12,6 @@
 struct bpfilter_umh_ops bpfilter_ops;
 EXPORT_SYMBOL_GPL(bpfilter_ops);
 
-void bpfilter_umh_cleanup(struct umd_info *info)
-{
-	fput(info->pipe_to_umh);
-	fput(info->pipe_from_umh);
-	put_pid(info->tgid);
-	info->tgid = NULL;
-}
-EXPORT_SYMBOL_GPL(bpfilter_umh_cleanup);
-
 static int bpfilter_mbox_request(struct sock *sk, int optname, sockptr_t optval,
 				 unsigned int optlen, bool is_set)
 {
@@ -38,7 +29,7 @@ static int bpfilter_mbox_request(struct sock *sk, int optname, sockptr_t optval,
 	}
 	if (bpfilter_ops.info.tgid &&
 	    thread_group_exited(bpfilter_ops.info.tgid))
-		bpfilter_umh_cleanup(&bpfilter_ops.info);
+		umd_cleanup_helper(&bpfilter_ops.info);
 
 	if (!bpfilter_ops.info.tgid) {
 		err = bpfilter_ops.start();

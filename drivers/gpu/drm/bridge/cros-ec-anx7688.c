@@ -173,7 +173,7 @@ static const struct of_device_id cros_ec_anx7688_bridge_match_table[] = {
 MODULE_DEVICE_TABLE(of, cros_ec_anx7688_bridge_match_table);
 
 static struct i2c_driver cros_ec_anx7688_bridge_driver = {
-	.probe_new = cros_ec_anx7688_bridge_probe,
+	.probe = cros_ec_anx7688_bridge_probe,
 	.remove = cros_ec_anx7688_bridge_remove,
 	.driver = {
 		.name = "cros-ec-anx7688-bridge",

@@ -168,8 +168,8 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 	struct cpu_clk *cpuclk;
 	void __iomem *clock_complex_base = of_iomap(node, 0);
 	void __iomem *pmu_dfs_base = of_iomap(node, 1);
-	int ncpus = 0;
-	struct device_node *dn;
+	int ncpus = num_possible_cpus();
+	int cpu;
 
 	if (clock_complex_base == NULL) {
 		pr_err("%s: clock-complex base register not set\n",
@@ -181,9 +181,6 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 		pr_warn("%s: pmu-dfs base register not set, dynamic frequency scaling not available\n",
 			__func__);
 
-	for_each_of_cpu_node(dn)
-		ncpus++;
-
 	cpuclk = kcalloc(ncpus, sizeof(*cpuclk), GFP_KERNEL);
 	if (WARN_ON(!cpuclk))
 		goto cpuclk_out;
@@ -192,17 +189,12 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 	if (WARN_ON(!clks))
 		goto clks_out;
 
-	for_each_of_cpu_node(dn) {
+	for_each_possible_cpu(cpu) {
 		struct clk_init_data init;
 		struct clk *clk;
 		char *clk_name = kzalloc(5, GFP_KERNEL);
-		int cpu, err;
 
 		if (WARN_ON(!clk_name))
-			goto bail_out;
-
-		err = of_property_read_u32(dn, "reg", &cpu);
-		if (WARN_ON(err))
 			goto bail_out;
 
 		sprintf(clk_name, "cpu%d", cpu);

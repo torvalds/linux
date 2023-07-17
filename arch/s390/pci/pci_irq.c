@@ -163,7 +163,7 @@ static void zpci_handle_cpu_local_irq(bool rescan)
 			if (!rescan || irqs_on++)
 				/* End of second scan with interrupts on. */
 				break;
-			/* First scan complete, reenable interrupts. */
+			/* First scan complete, re-enable interrupts. */
 			if (zpci_set_irq_ctrl(SIC_IRQ_MODE_D_SINGLE, PCI_ISC, &iib))
 				break;
 			bit = 0;
@@ -202,7 +202,7 @@ static void zpci_handle_fallback_irq(void)
 			if (irqs_on++)
 				/* End of second scan with interrupts on. */
 				break;
-			/* First scan complete, reenable interrupts. */
+			/* First scan complete, re-enable interrupts. */
 			if (zpci_set_irq_ctrl(SIC_IRQ_MODE_SINGLE, PCI_ISC, &iib))
 				break;
 			cpu = 0;
@@ -247,7 +247,7 @@ static void zpci_floating_irq_handler(struct airq_struct *airq,
 			if (irqs_on++)
 				/* End of second scan with interrupts on. */
 				break;
-			/* First scan complete, reenable interrupts. */
+			/* First scan complete, re-enable interrupts. */
 			if (zpci_set_irq_ctrl(SIC_IRQ_MODE_SINGLE, PCI_ISC, &iib))
 				break;
 			si = 0;

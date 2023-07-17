@@ -36,5 +36,5 @@ SYM_CODE_START(startup_continue)
 	lpswe	dw_psw-.(%r13)		# load disabled wait psw
 SYM_CODE_END(startup_continue)
 
-	.align	16
+	.balign	16
 SYM_DATA_LOCAL(dw_psw,	.quad 0x0002000180000000,0x0000000000000000)

@@ -213,6 +213,8 @@ struct mlx5dr_ptrn_mgr *mlx5dr_ptrn_mgr_create(struct mlx5dr_domain *dmn)
 	}
 
 	INIT_LIST_HEAD(&mgr->ptrn_list);
+	mutex_init(&mgr->modify_hdr_mutex);
+
 	return mgr;
 
 free_mgr:
@@ -237,5 +239,6 @@ void mlx5dr_ptrn_mgr_destroy(struct mlx5dr_ptrn_mgr *mgr)
 	}
 
 	mlx5dr_icm_pool_destroy(mgr->ptrn_icm_pool);
+	mutex_destroy(&mgr->modify_hdr_mutex);
 	kfree(mgr);
 }

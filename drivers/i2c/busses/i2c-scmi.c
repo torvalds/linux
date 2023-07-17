@@ -13,9 +13,6 @@
 #include <linux/i2c.h>
 #include <linux/acpi.h>
 
-/* SMBUS HID definition as supported by Microsoft Windows */
-#define ACPI_SMBUS_MS_HID		"SMB0001"
-
 struct smbus_methods_t {
 	char *mt_info;
 	char *mt_sbr;
@@ -404,19 +401,17 @@ err:
 	return ret;
 }
 
-static int smbus_cmi_remove(struct platform_device *device)
+static void smbus_cmi_remove(struct platform_device *device)
 {
 	struct acpi_smbus_cmi *smbus_cmi = platform_get_drvdata(device);
 
 	i2c_del_adapter(&smbus_cmi->adapter);
 	kfree(smbus_cmi);
-
-	return 0;
 }
 
 static struct platform_driver smbus_cmi_driver = {
 	.probe = smbus_cmi_probe,
-	.remove = smbus_cmi_remove,
+	.remove_new = smbus_cmi_remove,
 	.driver = {
 		.name   = "smbus_cmi",
 		.acpi_match_table = acpi_smbus_cmi_ids,

@@ -466,8 +466,6 @@ static int sdma_v2_4_gfx_resume(struct amdgpu_device *adev)
 #endif
 		/* enable DMA IBs */
 		WREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i], ib_cntl);
-
-		ring->sched.ready = true;
 	}
 
 	sdma_v2_4_enable(adev, true);

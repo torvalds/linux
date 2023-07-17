@@ -117,14 +117,16 @@ static int tps65219_pb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tps65219_pb_remove(struct platform_device *pdev)
+static void tps65219_pb_remove(struct platform_device *pdev)
 {
 	struct tps65219 *tps = dev_get_drvdata(pdev->dev.parent);
+	int ret;
 
 	/* Disable interrupt for the pushbutton */
-	return regmap_update_bits(tps->regmap, TPS65219_REG_MASK_CONFIG,
-				  TPS65219_REG_MASK_INT_FOR_PB_MASK,
-				  TPS65219_REG_MASK_INT_FOR_PB_MASK);
+	ret = regmap_set_bits(tps->regmap, TPS65219_REG_MASK_CONFIG,
+			      TPS65219_REG_MASK_INT_FOR_PB_MASK);
+	if (ret)
+		dev_warn(&pdev->dev, "Failed to disable irq (%pe)\n", ERR_PTR(ret));
 }
 
 static const struct platform_device_id tps65219_pwrbtn_id_table[] = {
@@ -135,7 +137,7 @@ MODULE_DEVICE_TABLE(platform, tps65219_pwrbtn_id_table);
 
 static struct platform_driver tps65219_pb_driver = {
 	.probe = tps65219_pb_probe,
-	.remove = tps65219_pb_remove,
+	.remove_new = tps65219_pb_remove,
 	.driver = {
 		.name = "tps65219_pwrbutton",
 	},

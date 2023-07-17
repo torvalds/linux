@@ -287,8 +287,8 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 			/* Check bits before 'bit'. */
 			ib = wnd->zone_bit == wnd->zone_end ||
 					     bit < wnd->zone_end ?
-					   0 :
-					   wnd->zone_end;
+				     0 :
+				     wnd->zone_end;
 
 			while (bit > ib && wnd_is_free_hlp(wnd, bit - 1, 1)) {
 				bit -= 1;
@@ -298,8 +298,8 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 			/* Check bits after 'end_in'. */
 			ib = wnd->zone_bit == wnd->zone_end ||
 					     end_in > wnd->zone_bit ?
-					   wnd->nbits :
-					   wnd->zone_bit;
+				     wnd->nbits :
+				     wnd->zone_bit;
 
 			while (end_in < ib && wnd_is_free_hlp(wnd, end_in, 1)) {
 				end_in += 1;
@@ -418,7 +418,7 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 		n3 = rb_first(&wnd->count_tree);
 		wnd->extent_max =
 			n3 ? rb_entry(n3, struct e_node, count.node)->count.key :
-				   0;
+			     0;
 		return;
 	}
 

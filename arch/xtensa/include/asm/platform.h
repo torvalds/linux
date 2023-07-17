@@ -28,29 +28,9 @@ extern void platform_init(bp_tag_t*);
 extern void platform_setup (char **);
 
 /*
- * platform_restart is called to restart the system.
- */
-extern void platform_restart (void);
-
-/*
- * platform_halt is called to stop the system and halt.
- */
-extern void platform_halt (void);
-
-/*
- * platform_power_off is called to stop the system and power it off.
- */
-extern void platform_power_off (void);
-
-/*
  * platform_idle is called from the idle function.
  */
 extern void platform_idle (void);
-
-/*
- * platform_heartbeat is called every HZ
- */
-extern void platform_heartbeat (void);
 
 /*
  * platform_calibrate_ccount calibrates cpu clock freq (CONFIG_XTENSA_CALIBRATE)

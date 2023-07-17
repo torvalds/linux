@@ -60,7 +60,7 @@ static struct i2c_driver fxos8700_i2c_driver = {
 		.acpi_match_table       = ACPI_PTR(fxos8700_acpi_match),
 		.of_match_table         = fxos8700_of_match,
 	},
-	.probe_new      = fxos8700_i2c_probe,
+	.probe          = fxos8700_i2c_probe,
 	.id_table       = fxos8700_i2c_id,
 };
 module_i2c_driver(fxos8700_i2c_driver);

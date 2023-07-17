@@ -416,10 +416,9 @@ long get_mte_ctrl(struct task_struct *task)
 static int __access_remote_tags(struct mm_struct *mm, unsigned long addr,
 				struct iovec *kiov, unsigned int gup_flags)
 {
-	struct vm_area_struct *vma;
 	void __user *buf = kiov->iov_base;
 	size_t len = kiov->iov_len;
-	int ret;
+	int err = 0;
 	int write = gup_flags & FOLL_WRITE;
 
 	if (!access_ok(buf, len))
@@ -429,14 +428,16 @@ static int __access_remote_tags(struct mm_struct *mm, unsigned long addr,
 		return -EIO;
 
 	while (len) {
+		struct vm_area_struct *vma;
 		unsigned long tags, offset;
 		void *maddr;
-		struct page *page = NULL;
+		struct page *page = get_user_page_vma_remote(mm, addr,
+							     gup_flags, &vma);
 
-		ret = get_user_pages_remote(mm, addr, 1, gup_flags, &page,
-					    &vma, NULL);
-		if (ret <= 0)
+		if (IS_ERR_OR_NULL(page)) {
+			err = page == NULL ? -EIO : PTR_ERR(page);
 			break;
+		}
 
 		/*
 		 * Only copy tags if the page has been mapped as PROT_MTE
@@ -446,7 +447,7 @@ static int __access_remote_tags(struct mm_struct *mm, unsigned long addr,
 		 * was never mapped with PROT_MTE.
 		 */
 		if (!(vma->vm_flags & VM_MTE)) {
-			ret = -EOPNOTSUPP;
+			err = -EOPNOTSUPP;
 			put_page(page);
 			break;
 		}
@@ -479,7 +480,7 @@ static int __access_remote_tags(struct mm_struct *mm, unsigned long addr,
 	kiov->iov_len = buf - kiov->iov_base;
 	if (!kiov->iov_len) {
 		/* check for error accessing the tracee's address space */
-		if (ret <= 0)
+		if (err)
 			return -EIO;
 		else
 			return -EFAULT;

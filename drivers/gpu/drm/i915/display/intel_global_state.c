@@ -255,3 +255,15 @@ int intel_atomic_serialize_global_state(struct intel_global_state *obj_state)
 
 	return 0;
 }
+
+bool
+intel_atomic_global_state_is_serialized(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
+
+	for_each_intel_crtc(&i915->drm, crtc)
+		if (!intel_atomic_get_new_crtc_state(state, crtc))
+			return false;
+	return true;
+}

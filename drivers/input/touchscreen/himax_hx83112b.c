@@ -349,7 +349,7 @@ MODULE_DEVICE_TABLE(of, himax_of_match);
 #endif
 
 static struct i2c_driver himax_ts_driver = {
-	.probe_new = himax_probe,
+	.probe = himax_probe,
 	.id_table = himax_ts_id,
 	.driver = {
 		.name = "Himax-hx83112b-TS",

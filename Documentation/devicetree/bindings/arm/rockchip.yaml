@@ -40,6 +40,11 @@ properties:
           - const: anbernic,rg353p
           - const: rockchip,rk3566
 
+      - description: Anbernic RG353PS
+        items:
+          - const: anbernic,rg353ps
+          - const: rockchip,rk3566
+
       - description: Anbernic RG353V
         items:
           - const: anbernic,rg353v
@@ -100,6 +105,12 @@ properties:
         items:
           - const: edgeble,neural-compute-module-6a-io  # Edgeble Neural Compute Module 6A IO Board
           - const: edgeble,neural-compute-module-6a     # Edgeble Neural Compute Module 6A SoM
+          - const: rockchip,rk3588
+
+      - description: Edgeble Neural Compute Module 6(Neu6) Model B SoM based boards
+        items:
+          - const: edgeble,neural-compute-module-6b-io  # Edgeble Neural Compute Module 6B IO Board
+          - const: edgeble,neural-compute-module-6b     # Edgeble Neural Compute Module 6B SoM
           - const: rockchip,rk3588
 
       - description: Elgin RV1108 R1
@@ -189,6 +200,7 @@ properties:
         items:
           - enum:
               - friendlyarm,nanopi-r2c
+              - friendlyarm,nanopi-r2c-plus
               - friendlyarm,nanopi-r2s
           - const: rockchip,rk3328
 
@@ -534,6 +546,11 @@ properties:
           - const: hugsun,x99
           - const: rockchip,rk3399
 
+      - description: Indiedroid Nova SBC
+        items:
+          - const: indiedroid,nova
+          - const: rockchip,rk3588s
+
       - description: Khadas Edge series boards
         items:
           - enum:
@@ -561,6 +578,13 @@ properties:
         items:
           - const: leez,p710
           - const: rockchip,rk3399
+
+      - description: Lunzn FastRhino R66S / R68S
+        items:
+          - enum:
+              - lunzn,fastrhino-r66s
+              - lunzn,fastrhino-r68s
+          - const: rockchip,rk3568
 
       - description: mqmaker MiQi
         items:

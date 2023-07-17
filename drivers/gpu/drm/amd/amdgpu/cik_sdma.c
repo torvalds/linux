@@ -489,8 +489,6 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 #endif
 		/* enable DMA IBs */
 		WREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i], ib_cntl);
-
-		ring->sched.ready = true;
 	}
 
 	cik_sdma_enable(adev, true);

@@ -129,6 +129,9 @@ static ssize_t cobalt_lcdfb_read(struct fb_info *info, char __user *buf,
 	unsigned long pos;
 	int len, retval = 0;
 
+	if (!info->screen_base)
+		return -ENODEV;
+
 	pos = *ppos;
 	if (pos >= LCD_CHARS_MAX || count == 0)
 		return 0;
@@ -174,6 +177,9 @@ static ssize_t cobalt_lcdfb_write(struct fb_info *info, const char __user *buf,
 	char dst[LCD_CHARS_MAX];
 	unsigned long pos;
 	int len, retval = 0;
+
+	if (!info->screen_base)
+		return -ENODEV;
 
 	pos = *ppos;
 	if (pos >= LCD_CHARS_MAX || count == 0)

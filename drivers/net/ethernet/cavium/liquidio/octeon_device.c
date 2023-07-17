@@ -564,6 +564,7 @@ void octeon_init_device_list(int conf_type)
 	for (i = 0; i <  MAX_OCTEON_DEVICES; i++)
 		oct_set_config_info(i, conf_type);
 }
+EXPORT_SYMBOL_GPL(octeon_init_device_list);
 
 static void *__retrieve_octeon_config_info(struct octeon_device *oct,
 					   u16 card_type)
@@ -633,6 +634,7 @@ char *lio_get_state_string(atomic_t *state_ptr)
 		return oct_dev_state_str[OCT_DEV_STATE_INVALID];
 	return oct_dev_state_str[istate];
 }
+EXPORT_SYMBOL_GPL(lio_get_state_string);
 
 static char *get_oct_app_string(u32 app_mode)
 {
@@ -661,6 +663,7 @@ void octeon_free_device_mem(struct octeon_device *oct)
 	octeon_device[i] = NULL;
 	octeon_device_count--;
 }
+EXPORT_SYMBOL_GPL(octeon_free_device_mem);
 
 static struct octeon_device *octeon_allocate_device_mem(u32 pci_id,
 							u32 priv_size)
@@ -747,6 +750,7 @@ struct octeon_device *octeon_allocate_device(u32 pci_id,
 
 	return oct;
 }
+EXPORT_SYMBOL_GPL(octeon_allocate_device);
 
 /** Register a device's bus location at initialization time.
  *  @param octeon_dev - pointer to the octeon device structure.
@@ -804,6 +808,7 @@ int octeon_register_device(struct octeon_device *oct,
 
 	return refcount;
 }
+EXPORT_SYMBOL_GPL(octeon_register_device);
 
 /** Deregister a device at de-initialization time.
  *  @param octeon_dev - pointer to the octeon device structure.
@@ -821,6 +826,7 @@ int octeon_deregister_device(struct octeon_device *oct)
 
 	return refcount;
 }
+EXPORT_SYMBOL_GPL(octeon_deregister_device);
 
 int
 octeon_allocate_ioq_vector(struct octeon_device *oct, u32 num_ioqs)
@@ -853,12 +859,14 @@ octeon_allocate_ioq_vector(struct octeon_device *oct, u32 num_ioqs)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_allocate_ioq_vector);
 
 void
 octeon_free_ioq_vector(struct octeon_device *oct)
 {
 	vfree(oct->ioq_vector);
 }
+EXPORT_SYMBOL_GPL(octeon_free_ioq_vector);
 
 /* this function is only for setting up the first queue */
 int octeon_setup_instr_queues(struct octeon_device *oct)
@@ -904,6 +912,7 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 	oct->num_iqs++;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_setup_instr_queues);
 
 int octeon_setup_output_queues(struct octeon_device *oct)
 {
@@ -940,6 +949,7 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_setup_output_queues);
 
 int octeon_set_io_queues_off(struct octeon_device *oct)
 {
@@ -989,6 +999,7 @@ int octeon_set_io_queues_off(struct octeon_device *oct)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_set_io_queues_off);
 
 void octeon_set_droq_pkt_op(struct octeon_device *oct,
 			    u32 q_no,
@@ -1027,6 +1038,7 @@ int octeon_init_dispatch_list(struct octeon_device *oct)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_init_dispatch_list);
 
 void octeon_delete_dispatch_list(struct octeon_device *oct)
 {
@@ -1058,6 +1070,7 @@ void octeon_delete_dispatch_list(struct octeon_device *oct)
 		kfree(temp);
 	}
 }
+EXPORT_SYMBOL_GPL(octeon_delete_dispatch_list);
 
 octeon_dispatch_fn_t
 octeon_get_dispatch(struct octeon_device *octeon_dev, u16 opcode,
@@ -1180,6 +1193,7 @@ octeon_register_dispatch_fn(struct octeon_device *oct,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_register_dispatch_fn);
 
 int octeon_core_drv_init(struct octeon_recv_info *recv_info, void *buf)
 {
@@ -1262,6 +1276,7 @@ core_drv_init_err:
 	octeon_free_recv_info(recv_info);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_core_drv_init);
 
 int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
 
@@ -1272,6 +1287,7 @@ int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
 
 	return -1;
 }
+EXPORT_SYMBOL_GPL(octeon_get_tx_qsize);
 
 int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no)
 {
@@ -1280,6 +1296,7 @@ int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no)
 		return oct->droq[q_no]->max_count;
 	return -1;
 }
+EXPORT_SYMBOL_GPL(octeon_get_rx_qsize);
 
 /* Retruns the host firmware handshake OCTEON specific configuration */
 struct octeon_config *octeon_get_conf(struct octeon_device *oct)
@@ -1302,6 +1319,7 @@ struct octeon_config *octeon_get_conf(struct octeon_device *oct)
 	}
 	return default_oct_conf;
 }
+EXPORT_SYMBOL_GPL(octeon_get_conf);
 
 /* scratch register address is same in all the OCT-II and CN70XX models */
 #define CNXX_SLI_SCRATCH1   0x3C0
@@ -1318,6 +1336,7 @@ struct octeon_device *lio_get_device(u32 octeon_id)
 	else
 		return octeon_device[octeon_id];
 }
+EXPORT_SYMBOL_GPL(lio_get_device);
 
 u64 lio_pci_readq(struct octeon_device *oct, u64 addr)
 {
@@ -1349,6 +1368,7 @@ u64 lio_pci_readq(struct octeon_device *oct, u64 addr)
 
 	return val64;
 }
+EXPORT_SYMBOL_GPL(lio_pci_readq);
 
 void lio_pci_writeq(struct octeon_device *oct,
 		    u64 val,
@@ -1369,6 +1389,7 @@ void lio_pci_writeq(struct octeon_device *oct,
 
 	spin_unlock_irqrestore(&oct->pci_win_lock, flags);
 }
+EXPORT_SYMBOL_GPL(lio_pci_writeq);
 
 int octeon_mem_access_ok(struct octeon_device *oct)
 {
@@ -1388,6 +1409,7 @@ int octeon_mem_access_ok(struct octeon_device *oct)
 
 	return access_okay ? 0 : 1;
 }
+EXPORT_SYMBOL_GPL(octeon_mem_access_ok);
 
 int octeon_wait_for_ddr_init(struct octeon_device *oct, u32 *timeout)
 {
@@ -1408,6 +1430,7 @@ int octeon_wait_for_ddr_init(struct octeon_device *oct, u32 *timeout)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(octeon_wait_for_ddr_init);
 
 /* Get the octeon id assigned to the octeon device passed as argument.
  *  This function is exported to other modules.
@@ -1462,3 +1485,4 @@ void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(lio_enable_irq);

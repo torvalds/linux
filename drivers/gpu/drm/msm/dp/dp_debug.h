@@ -32,7 +32,6 @@ struct dp_debug {
  *
  * @dev: device instance of the caller
  * @panel: instance of panel module
- * @usbpd: instance of usbpd module
  * @link: instance of link module
  * @connector: double pointer to display connector
  * @minor: pointer to drm minor number after device registration
@@ -42,7 +41,7 @@ struct dp_debug {
  * for debugfs input to be communicated with existing modules
  */
 struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
-		struct dp_usbpd *usbpd, struct dp_link *link,
+		struct dp_link *link,
 		struct drm_connector *connector,
 		struct drm_minor *minor);
 
@@ -59,7 +58,7 @@ void dp_debug_put(struct dp_debug *dp_debug);
 
 static inline
 struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
-		struct dp_usbpd *usbpd, struct dp_link *link,
+		struct dp_link *link,
 		struct drm_connector *connector, struct drm_minor *minor)
 {
 	return ERR_PTR(-EINVAL);

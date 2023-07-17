@@ -100,7 +100,7 @@ static struct i2c_driver ssd130x_i2c_driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = ssd130x_of_match,
 	},
-	.probe_new = ssd130x_i2c_probe,
+	.probe = ssd130x_i2c_probe,
 	.remove = ssd130x_i2c_remove,
 	.shutdown = ssd130x_i2c_shutdown,
 };

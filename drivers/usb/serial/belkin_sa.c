@@ -46,7 +46,7 @@ static void belkin_sa_process_read_urb(struct urb *urb);
 static void belkin_sa_set_termios(struct tty_struct *tty,
 				  struct usb_serial_port *port,
 				  const struct ktermios *old_termios);
-static void belkin_sa_break_ctl(struct tty_struct *tty, int break_state);
+static int belkin_sa_break_ctl(struct tty_struct *tty, int break_state);
 static int  belkin_sa_tiocmget(struct tty_struct *tty);
 static int  belkin_sa_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear);
@@ -399,13 +399,19 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static void belkin_sa_break_ctl(struct tty_struct *tty, int break_state)
+static int belkin_sa_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
+	int ret;
 
-	if (BSA_USB_CMD(BELKIN_SA_SET_BREAK_REQUEST, break_state ? 1 : 0) < 0)
+	ret = BSA_USB_CMD(BELKIN_SA_SET_BREAK_REQUEST, break_state ? 1 : 0);
+	if (ret < 0) {
 		dev_err(&port->dev, "Set break_ctl %d\n", break_state);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int belkin_sa_tiocmget(struct tty_struct *tty)

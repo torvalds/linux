@@ -16,9 +16,9 @@
 /* if mode == 0, then the sta is allowed once the addr is hit. */
 /* if mode == 1, then the sta is rejected once the addr is non-hit. */
 struct rtw_wlan_acl_node {
-        struct list_head		        list;
-        u8       addr[ETH_ALEN];
-        u8       valid;
+	struct list_head list;
+	u8		 addr[ETH_ALEN];
+	u8		 valid;
 };
 
 /* mode = 0, disable */
@@ -340,19 +340,19 @@ struct	sta_priv {
 
 static inline u32 wifi_mac_hash(u8 *mac)
 {
-        u32 x;
+	u32 x;
 
-        x = mac[0];
-        x = (x << 2) ^ mac[1];
-        x = (x << 2) ^ mac[2];
-        x = (x << 2) ^ mac[3];
-        x = (x << 2) ^ mac[4];
-        x = (x << 2) ^ mac[5];
+	x = mac[0];
+	x = (x << 2) ^ mac[1];
+	x = (x << 2) ^ mac[2];
+	x = (x << 2) ^ mac[3];
+	x = (x << 2) ^ mac[4];
+	x = (x << 2) ^ mac[5];
 
-        x ^= x >> 8;
-        x  = x & (NUM_STA - 1);
+	x ^= x >> 8;
+	x  = x & (NUM_STA - 1);
 
-        return x;
+	return x;
 }
 
 

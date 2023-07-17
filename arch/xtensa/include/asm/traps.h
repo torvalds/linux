@@ -47,6 +47,7 @@ __init trap_set_handler(int cause, xtensa_exception_handler *handler);
 asmlinkage void fast_illegal_instruction_user(void);
 asmlinkage void fast_syscall_user(void);
 asmlinkage void fast_alloca(void);
+asmlinkage void fast_load_store(void);
 asmlinkage void fast_unaligned(void);
 asmlinkage void fast_second_level_miss(void);
 asmlinkage void fast_store_prohibited(void);
@@ -64,8 +65,14 @@ void do_unhandled(struct pt_regs *regs);
 static inline void __init early_trap_init(void)
 {
 	static struct exc_table init_exc_table __initdata = {
+#ifdef CONFIG_XTENSA_LOAD_STORE
+		.fast_kernel_handler[EXCCAUSE_LOAD_STORE_ERROR] =
+			fast_load_store,
+#endif
+#ifdef CONFIG_MMU
 		.fast_kernel_handler[EXCCAUSE_DTLB_MISS] =
 			fast_second_level_miss,
+#endif
 	};
 	xtensa_set_sr(&init_exc_table, excsave1);
 }

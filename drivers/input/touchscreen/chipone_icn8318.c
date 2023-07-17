@@ -264,7 +264,7 @@ static struct i2c_driver icn8318_driver = {
 		.pm	= pm_sleep_ptr(&icn8318_pm_ops),
 		.of_match_table = icn8318_of_match,
 	},
-	.probe_new = icn8318_probe,
+	.probe = icn8318_probe,
 	.id_table = icn8318_i2c_id,
 };
 

@@ -4,16 +4,23 @@
 # subsystems should select the appropriate symbols.
 
 config REGMAP
+	bool "Register Map support" if KUNIT_ALL_TESTS
 	default y if (REGMAP_I2C || REGMAP_SPI || REGMAP_SPMI || REGMAP_W1 || REGMAP_AC97 || REGMAP_MMIO || REGMAP_IRQ || REGMAP_SOUNDWIRE || REGMAP_SOUNDWIRE_MBQ || REGMAP_SCCB || REGMAP_I3C || REGMAP_SPI_AVMM || REGMAP_MDIO || REGMAP_FSI)
 	select IRQ_DOMAIN if REGMAP_IRQ
 	select MDIO_BUS if REGMAP_MDIO
-	bool
+	help
+	  Enable support for the Register Map (regmap) access API.
+
+	  Usually, this option is automatically selected when needed.
+	  However, you may want to enable it manually for running the regmap
+	  KUnit tests.
+
+	  If unsure, say N.
 
 config REGMAP_KUNIT
 	tristate "KUnit tests for regmap"
-	depends on KUNIT
+	depends on KUNIT && REGMAP
 	default KUNIT_ALL_TESTS
-	select REGMAP
 	select REGMAP_RAM
 
 config REGMAP_AC97

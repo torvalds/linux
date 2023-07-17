@@ -1496,7 +1496,6 @@ static const struct proto_ops rose_proto_ops = {
 	.sendmsg	=	rose_sendmsg,
 	.recvmsg	=	rose_recvmsg,
 	.mmap		=	sock_no_mmap,
-	.sendpage	=	sock_no_sendpage,
 };
 
 static struct notifier_block rose_dev_notifier = {

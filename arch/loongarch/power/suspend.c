@@ -27,7 +27,7 @@ struct saved_registers {
 };
 static struct saved_registers saved_regs;
 
-static void arch_common_suspend(void)
+void loongarch_common_suspend(void)
 {
 	save_counter();
 	saved_regs.pgd = csr_read64(LOONGARCH_CSR_PGDL);
@@ -40,7 +40,7 @@ static void arch_common_suspend(void)
 	loongarch_suspend_addr = loongson_sysconf.suspend_addr;
 }
 
-static void arch_common_resume(void)
+void loongarch_common_resume(void)
 {
 	sync_counter();
 	local_flush_tlb_all();
@@ -62,12 +62,12 @@ int loongarch_acpi_suspend(void)
 	enable_gpe_wakeup();
 	enable_pci_wakeup();
 
-	arch_common_suspend();
+	loongarch_common_suspend();
 
 	/* processor specific suspend */
 	loongarch_suspend_enter();
 
-	arch_common_resume();
+	loongarch_common_resume();
 
 	return 0;
 }

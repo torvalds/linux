@@ -183,8 +183,8 @@ static int rtw_debugfs_copy_from_user(char tmp[], int size,
 
 	tmp_len = (count > size - 1 ? size - 1 : count);
 
-	if (!buffer || copy_from_user(tmp, buffer, tmp_len))
-		return count;
+	if (copy_from_user(tmp, buffer, tmp_len))
+		return -EFAULT;
 
 	tmp[tmp_len] = '\0';
 
@@ -201,13 +201,16 @@ static ssize_t rtw_debugfs_set_read_reg(struct file *filp,
 	char tmp[32 + 1];
 	u32 addr, len;
 	int num;
+	int ret;
 
-	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 2);
+	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 2);
+	if (ret)
+		return ret;
 
 	num = sscanf(tmp, "%x %x", &addr, &len);
 
 	if (num !=  2)
-		return count;
+		return -EINVAL;
 
 	if (len != 1 && len != 2 && len != 4) {
 		rtw_warn(rtwdev, "read reg setting wrong len\n");
@@ -288,8 +291,11 @@ static ssize_t rtw_debugfs_set_rsvd_page(struct file *filp,
 	char tmp[32 + 1];
 	u32 offset, page_num;
 	int num;
+	int ret;
 
-	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 2);
+	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 2);
+	if (ret)
+		return ret;
 
 	num = sscanf(tmp, "%d %d", &offset, &page_num);
 
@@ -314,8 +320,11 @@ static ssize_t rtw_debugfs_set_single_input(struct file *filp,
 	char tmp[32 + 1];
 	u32 input;
 	int num;
+	int ret;
 
-	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	if (ret)
+		return ret;
 
 	num = kstrtoint(tmp, 0, &input);
 
@@ -338,14 +347,17 @@ static ssize_t rtw_debugfs_set_write_reg(struct file *filp,
 	char tmp[32 + 1];
 	u32 addr, val, len;
 	int num;
+	int ret;
 
-	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 3);
+	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 3);
+	if (ret)
+		return ret;
 
 	/* write BB/MAC register */
 	num = sscanf(tmp, "%x %x %x", &addr, &val, &len);
 
 	if (num !=  3)
-		return count;
+		return -EINVAL;
 
 	switch (len) {
 	case 1:
@@ -381,8 +393,11 @@ static ssize_t rtw_debugfs_set_h2c(struct file *filp,
 	char tmp[32 + 1];
 	u8 param[8];
 	int num;
+	int ret;
 
-	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 3);
+	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 3);
+	if (ret)
+		return ret;
 
 	num = sscanf(tmp, "%hhx,%hhx,%hhx,%hhx,%hhx,%hhx,%hhx,%hhx",
 		     &param[0], &param[1], &param[2], &param[3],
@@ -408,14 +423,17 @@ static ssize_t rtw_debugfs_set_rf_write(struct file *filp,
 	char tmp[32 + 1];
 	u32 path, addr, mask, val;
 	int num;
+	int ret;
 
-	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 4);
+	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 4);
+	if (ret)
+		return ret;
 
 	num = sscanf(tmp, "%x %x %x %x", &path, &addr, &mask, &val);
 
 	if (num !=  4) {
 		rtw_warn(rtwdev, "invalid args, [path] [addr] [mask] [val]\n");
-		return count;
+		return -EINVAL;
 	}
 
 	mutex_lock(&rtwdev->mutex);
@@ -438,14 +456,17 @@ static ssize_t rtw_debugfs_set_rf_read(struct file *filp,
 	char tmp[32 + 1];
 	u32 path, addr, mask;
 	int num;
+	int ret;
 
-	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 3);
+	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 3);
+	if (ret)
+		return ret;
 
 	num = sscanf(tmp, "%x %x %x", &path, &addr, &mask);
 
 	if (num !=  3) {
 		rtw_warn(rtwdev, "invalid args, [path] [addr] [mask] [val]\n");
-		return count;
+		return -EINVAL;
 	}
 
 	debugfs_priv->rf_path = path;
@@ -467,7 +488,9 @@ static ssize_t rtw_debugfs_set_fix_rate(struct file *filp,
 	char tmp[32 + 1];
 	int ret;
 
-	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	if (ret)
+		return ret;
 
 	ret = kstrtou8(tmp, 0, &fix_rate);
 	if (ret) {
@@ -860,7 +883,9 @@ static ssize_t rtw_debugfs_set_coex_enable(struct file *filp,
 	bool enable;
 	int ret;
 
-	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	if (ret)
+		return ret;
 
 	ret = kstrtobool(tmp, &enable);
 	if (ret) {
@@ -930,7 +955,9 @@ static ssize_t rtw_debugfs_set_fw_crash(struct file *filp,
 	bool input;
 	int ret;
 
-	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	if (ret)
+		return ret;
 
 	ret = kstrtobool(tmp, &input);
 	if (ret)

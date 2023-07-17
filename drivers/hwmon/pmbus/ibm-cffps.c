@@ -605,7 +605,7 @@ static struct i2c_driver ibm_cffps_driver = {
 		.name = "ibm-cffps",
 		.of_match_table = ibm_cffps_of_match,
 	},
-	.probe_new = ibm_cffps_probe,
+	.probe = ibm_cffps_probe,
 	.id_table = ibm_cffps_id,
 };
 

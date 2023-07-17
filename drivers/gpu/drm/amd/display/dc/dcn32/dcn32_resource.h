@@ -37,15 +37,25 @@
 #define DCN3_2_MBLK_WIDTH 128
 #define DCN3_2_MBLK_HEIGHT_4BPE 128
 #define DCN3_2_MBLK_HEIGHT_8BPE 64
-#define DCN3_2_VMIN_DISPCLK_HZ 717000000
 #define DCN3_2_DCFCLK_DS_INIT_KHZ 10000 // Choose 10Mhz for init DCFCLK DS freq
-#define DCN3_2_MIN_ACTIVE_SWITCH_MARGIN_FPO_US 100 // Only allow FPO + Vactive if active margin >= 100
+#define SUBVP_HIGH_REFRESH_LIST_LEN 3
+#define DCN3_2_MAX_SUBVP_PIXEL_RATE_MHZ 1800
+#define DCN3_2_VMIN_DISPCLK_HZ 717000000
 
 #define TO_DCN32_RES_POOL(pool)\
 	container_of(pool, struct dcn32_resource_pool, base)
 
 extern struct _vcs_dpi_ip_params_st dcn3_2_ip;
 extern struct _vcs_dpi_soc_bounding_box_st dcn3_2_soc;
+
+struct subvp_high_refresh_list {
+	int min_refresh;
+	int max_refresh;
+	struct resolution {
+		int width;
+		int height;
+	} res[SUBVP_HIGH_REFRESH_LIST_LEN];
+};
 
 struct dcn32_resource_pool {
 	struct resource_pool base;
@@ -151,9 +161,17 @@ struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stre
 
 bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe);
 
+bool dcn32_allow_subvp_high_refresh_rate(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe);
+
 unsigned int dcn32_calc_num_avail_chans_for_mall(struct dc *dc, int num_chans);
 
 double dcn32_determine_max_vratio_prefetch(struct dc *dc, struct dc_state *context);
+
+bool dcn32_check_native_scaling_for_res(struct pipe_ctx *pipe, unsigned int width, unsigned int height);
+
+bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context);
+
+bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int vlevel);
 
 /* definitions for run time init of reg offsets */
 

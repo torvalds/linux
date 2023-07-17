@@ -51,8 +51,7 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 	struct vi_mqd *m;
 	uint32_t se_mask[4] = {0}; /* 4 is the max # of SEs */
 
-	if (!minfo || (minfo->update_flag != UPDATE_FLAG_CU_MASK) ||
-	    !minfo->cu_mask.ptr)
+	if (!minfo || !minfo->cu_mask.ptr)
 		return;
 
 	mqd_symmetrically_map_cu_mask(mm,
@@ -77,7 +76,7 @@ static void set_priority(struct vi_mqd *m, struct queue_properties *q)
 	m->cp_hqd_queue_priority = q->priority;
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
+static struct kfd_mem_obj *allocate_mqd(struct kfd_node *kfd,
 					struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj;
@@ -136,7 +135,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 			(1 << COMPUTE_PGM_RSRC2__TRAP_PRESENT__SHIFT);
 	}
 
-	if (mm->dev->cwsr_enabled && q->ctx_save_restore_area_address) {
+	if (mm->dev->kfd->cwsr_enabled && q->ctx_save_restore_area_address) {
 		m->cp_hqd_persistent_state |=
 			(1 << CP_HQD_PERSISTENT_STATE__QSWITCH_MODE__SHIFT);
 		m->cp_hqd_ctx_save_base_addr_lo =
@@ -165,7 +164,7 @@ static int load_mqd(struct mqd_manager *mm, void *mqd,
 
 	return mm->dev->kfd2kgd->hqd_load(mm->dev->adev, mqd, pipe_id, queue_id,
 					  (uint32_t __user *)p->write_ptr,
-					  wptr_shift, wptr_mask, mms);
+					  wptr_shift, wptr_mask, mms, 0);
 }
 
 static void __update_mqd(struct mqd_manager *mm, void *mqd,
@@ -227,7 +226,7 @@ static void __update_mqd(struct mqd_manager *mm, void *mqd,
 				2 << CP_HQD_PQ_CONTROL__SLOT_BASED_WPTR__SHIFT;
 	}
 
-	if (mm->dev->cwsr_enabled && q->ctx_save_restore_area_address)
+	if (mm->dev->kfd->cwsr_enabled && q->ctx_save_restore_area_address)
 		m->cp_hqd_ctx_save_control =
 			atc_bit << CP_HQD_CTX_SAVE_CONTROL__ATC__SHIFT |
 			mtype << CP_HQD_CTX_SAVE_CONTROL__MTYPE__SHIFT;
@@ -261,6 +260,7 @@ static void update_mqd_tonga(struct mqd_manager *mm, void *mqd,
 }
 
 static int get_wave_state(struct mqd_manager *mm, void *mqd,
+			  struct queue_properties *q,
 			  void __user *ctl_stack,
 			  u32 *ctl_stack_used_size,
 			  u32 *save_area_used_size)
@@ -446,7 +446,7 @@ static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
 #endif
 
 struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
-		struct kfd_dev *dev)
+		struct kfd_node *dev)
 {
 	struct mqd_manager *mqd;
 
@@ -486,6 +486,7 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 		mqd->destroy_mqd = kfd_destroy_mqd_cp;
 		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->mqd_size = sizeof(struct vi_mqd);
+		mqd->mqd_stride = kfd_mqd_stride;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
@@ -500,6 +501,7 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 		mqd->destroy_mqd = kfd_destroy_mqd_cp;
 		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->mqd_size = sizeof(struct vi_mqd);
+		mqd->mqd_stride = kfd_mqd_stride;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
@@ -515,6 +517,7 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 		mqd->checkpoint_mqd = checkpoint_mqd_sdma;
 		mqd->restore_mqd = restore_mqd_sdma;
 		mqd->mqd_size = sizeof(struct vi_sdma_mqd);
+		mqd->mqd_stride = kfd_mqd_stride;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd_sdma;
 #endif
@@ -528,7 +531,7 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 }
 
 struct mqd_manager *mqd_manager_init_vi_tonga(enum KFD_MQD_TYPE type,
-			struct kfd_dev *dev)
+			struct kfd_node *dev)
 {
 	struct mqd_manager *mqd;
 

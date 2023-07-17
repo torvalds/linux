@@ -35,44 +35,6 @@
 #include <linux/pm_runtime.h>
 #include <asm/processor.h>
 
-static const struct cg_flag_name clocks[] = {
-	{AMD_CG_SUPPORT_GFX_FGCG, "Graphics Fine Grain Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_MGCG, "Graphics Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_MGLS, "Graphics Medium Grain memory Light Sleep"},
-	{AMD_CG_SUPPORT_GFX_CGCG, "Graphics Coarse Grain Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_CGLS, "Graphics Coarse Grain memory Light Sleep"},
-	{AMD_CG_SUPPORT_GFX_CGTS, "Graphics Coarse Grain Tree Shader Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_CGTS_LS, "Graphics Coarse Grain Tree Shader Light Sleep"},
-	{AMD_CG_SUPPORT_GFX_CP_LS, "Graphics Command Processor Light Sleep"},
-	{AMD_CG_SUPPORT_GFX_RLC_LS, "Graphics Run List Controller Light Sleep"},
-	{AMD_CG_SUPPORT_GFX_3D_CGCG, "Graphics 3D Coarse Grain Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_3D_CGLS, "Graphics 3D Coarse Grain memory Light Sleep"},
-	{AMD_CG_SUPPORT_MC_LS, "Memory Controller Light Sleep"},
-	{AMD_CG_SUPPORT_MC_MGCG, "Memory Controller Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_SDMA_LS, "System Direct Memory Access Light Sleep"},
-	{AMD_CG_SUPPORT_SDMA_MGCG, "System Direct Memory Access Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_BIF_MGCG, "Bus Interface Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_BIF_LS, "Bus Interface Light Sleep"},
-	{AMD_CG_SUPPORT_UVD_MGCG, "Unified Video Decoder Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_VCE_MGCG, "Video Compression Engine Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_HDP_LS, "Host Data Path Light Sleep"},
-	{AMD_CG_SUPPORT_HDP_MGCG, "Host Data Path Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_DRM_MGCG, "Digital Right Management Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_DRM_LS, "Digital Right Management Light Sleep"},
-	{AMD_CG_SUPPORT_ROM_MGCG, "Rom Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_DF_MGCG, "Data Fabric Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_VCN_MGCG, "VCN Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_HDP_DS, "Host Data Path Deep Sleep"},
-	{AMD_CG_SUPPORT_HDP_SD, "Host Data Path Shutdown"},
-	{AMD_CG_SUPPORT_IH_CG, "Interrupt Handler Clock Gating"},
-	{AMD_CG_SUPPORT_JPEG_MGCG, "JPEG Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_REPEATER_FGCG, "Repeater Fine Grain Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_PERF_CLK, "Perfmon Clock Gating"},
-	{AMD_CG_SUPPORT_ATHUB_MGCG, "Address Translation Hub Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_ATHUB_LS, "Address Translation Hub Light Sleep"},
-	{0, NULL},
-};
-
 static const struct hwmon_temp_label {
 	enum PP_HWMON_TEMP channel;
 	const char *label;
@@ -678,7 +640,12 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *   clock labeled OD_MCLK
  *
  * - three <frequency, voltage> points labeled OD_VDDC_CURVE.
- *   They can be used to calibrate the sclk voltage curve.
+ *   They can be used to calibrate the sclk voltage curve. This is
+ *   available for Vega20 and NV1X.
+ *
+ * - voltage offset for the six anchor points of the v/f curve labeled
+ *   OD_VDDC_CURVE. They can be used to calibrate the v/f curve. This
+ *   is only availabe for some SMU13 ASICs.
  *
  * - voltage offset(in mV) applied on target voltage calculation.
  *   This is available for Sienna Cichlid, Navy Flounder and Dimgrey
@@ -719,12 +686,19 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *   E.g., "p 2 0 800" would set the minimum core clock on core
  *   2 to 800Mhz.
  *
- *   For sclk voltage curve, enter the new values by writing a
- *   string that contains "vc point clock voltage" to the file. The
- *   points are indexed by 0, 1 and 2. E.g., "vc 0 300 600" will
- *   update point1 with clock set as 300Mhz and voltage as
- *   600mV. "vc 2 1000 1000" will update point3 with clock set
- *   as 1000Mhz and voltage 1000mV.
+ *   For sclk voltage curve,
+ *     - For NV1X, enter the new values by writing a string that
+ *       contains "vc point clock voltage" to the file. The points
+ *       are indexed by 0, 1 and 2. E.g., "vc 0 300 600" will update
+ *       point1 with clock set as 300Mhz and voltage as 600mV. "vc 2
+ *       1000 1000" will update point3 with clock set as 1000Mhz and
+ *       voltage 1000mV.
+ *     - For SMU13 ASICs, enter the new values by writing a string that
+ *       contains "vc anchor_point_index voltage_offset" to the file.
+ *       There are total six anchor points defined on the v/f curve with
+ *       index as 0 - 5.
+ *       - "vc 0 10" will update the voltage offset for point1 as 10mv.
+ *       - "vc 5 -10" will update the voltage offset for point6 as -10mv.
  *
  *   To update the voltage offset applied for gfxclk/voltage calculation,
  *   enter the new value by writing a string that contains "vo offset".
@@ -871,13 +845,11 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 	}
 	if (ret == -ENOENT) {
 		size = amdgpu_dpm_print_clock_levels(adev, OD_SCLK, buf);
-		if (size > 0) {
-			size += amdgpu_dpm_print_clock_levels(adev, OD_MCLK, buf + size);
-			size += amdgpu_dpm_print_clock_levels(adev, OD_VDDC_CURVE, buf + size);
-			size += amdgpu_dpm_print_clock_levels(adev, OD_VDDGFX_OFFSET, buf + size);
-			size += amdgpu_dpm_print_clock_levels(adev, OD_RANGE, buf + size);
-			size += amdgpu_dpm_print_clock_levels(adev, OD_CCLK, buf + size);
-		}
+		size += amdgpu_dpm_print_clock_levels(adev, OD_MCLK, buf + size);
+		size += amdgpu_dpm_print_clock_levels(adev, OD_VDDC_CURVE, buf + size);
+		size += amdgpu_dpm_print_clock_levels(adev, OD_VDDGFX_OFFSET, buf + size);
+		size += amdgpu_dpm_print_clock_levels(adev, OD_RANGE, buf + size);
+		size += amdgpu_dpm_print_clock_levels(adev, OD_CCLK, buf + size);
 	}
 
 	if (size == 0)
@@ -2100,6 +2072,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		case IP_VERSION(9, 4, 0):
 		case IP_VERSION(9, 4, 1):
 		case IP_VERSION(9, 4, 2):
+		case IP_VERSION(9, 4, 3):
 		case IP_VERSION(10, 3, 0):
 		case IP_VERSION(11, 0, 0):
 		case IP_VERSION(11, 0, 1):
@@ -2110,7 +2083,9 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			*states = ATTR_STATE_UNSUPPORTED;
 		}
 	} else if (DEVICE_ATTR_IS(pp_features)) {
-		if (adev->flags & AMD_IS_APU || gc_ver < IP_VERSION(9, 0, 0))
+		if ((adev->flags & AMD_IS_APU &&
+		     gc_ver != IP_VERSION(9, 4, 3)) ||
+		    gc_ver < IP_VERSION(9, 0, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(gpu_metrics)) {
 		if (gc_ver < IP_VERSION(9, 1, 0))
@@ -3362,7 +3337,8 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* Skip crit temp on APU */
-	if ((adev->flags & AMD_IS_APU) && (adev->family >= AMDGPU_FAMILY_CZ) &&
+	if ((((adev->flags & AMD_IS_APU) && (adev->family >= AMDGPU_FAMILY_CZ)) ||
+	    (gc_ver == IP_VERSION(9, 4, 3))) &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr))
 		return 0;
@@ -3395,9 +3371,10 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	      attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't manage state */
 		effective_mode &= ~S_IWUSR;
 
-	/* In the case of APUs, this is only implemented on Vangogh */
+	/* not implemented yet for APUs other than GC 10.3.1 (vangogh) and 9.4.3 */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
-	     ((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(10, 3, 1)))) &&
+	     ((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(10, 3, 1)) &&
+	      (gc_ver != IP_VERSION(9, 4, 3)))) &&
 	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr ||
@@ -3426,36 +3403,48 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	if ((adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
-	     adev->family == AMDGPU_FAMILY_KV) &&	/* not implemented yet */
+	     adev->family == AMDGPU_FAMILY_KV ||	/* not implemented yet */
+	     (gc_ver == IP_VERSION(9, 4, 3))) &&
 	    (attr == &sensor_dev_attr_in0_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in0_label.dev_attr.attr))
 		return 0;
 
-	/* only APUs have vddnb */
-	if (!(adev->flags & AMD_IS_APU) &&
+	/* only APUs other than gc 9,4,3 have vddnb */
+	if ((!(adev->flags & AMD_IS_APU) || (gc_ver == IP_VERSION(9, 4, 3))) &&
 	    (attr == &sensor_dev_attr_in1_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in1_label.dev_attr.attr))
 		return 0;
 
-	/* no mclk on APUs */
-	if ((adev->flags & AMD_IS_APU) &&
+	/* no mclk on APUs other than gc 9,4,3*/
+	if (((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(9, 4, 3))) &&
 	    (attr == &sensor_dev_attr_freq2_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_freq2_label.dev_attr.attr))
 		return 0;
 
-	/* only SOC15 dGPUs support hotspot and mem temperatures */
 	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0)) &&
+	    (gc_ver != IP_VERSION(9, 4, 3)) &&
+	    (attr == &sensor_dev_attr_temp2_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp2_label.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp3_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp3_label.dev_attr.attr))
+		return 0;
+
+	/* hotspot temperature for gc 9,4,3*/
+	if ((gc_ver == IP_VERSION(9, 4, 3)) &&
+	    (attr == &sensor_dev_attr_temp1_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp1_label.dev_attr.attr))
+		return 0;
+
+	/* only SOC15 dGPUs support hotspot and mem temperatures */
+	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0) ||
+	    (gc_ver == IP_VERSION(9, 4, 3))) &&
 	    (attr == &sensor_dev_attr_temp2_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp3_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp3_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_emergency.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_emergency.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_emergency.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp2_input.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_input.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp2_label.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_label.dev_attr.attr))
+	     attr == &sensor_dev_attr_temp3_emergency.dev_attr.attr))
 		return 0;
 
 	/* only Vangogh has fast PPT limit and power labels */
@@ -3659,6 +3648,44 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 
 	return 0;
 }
+
+static const struct cg_flag_name clocks[] = {
+	{AMD_CG_SUPPORT_GFX_FGCG, "Graphics Fine Grain Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_MGCG, "Graphics Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_MGLS, "Graphics Medium Grain memory Light Sleep"},
+	{AMD_CG_SUPPORT_GFX_CGCG, "Graphics Coarse Grain Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_CGLS, "Graphics Coarse Grain memory Light Sleep"},
+	{AMD_CG_SUPPORT_GFX_CGTS, "Graphics Coarse Grain Tree Shader Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_CGTS_LS, "Graphics Coarse Grain Tree Shader Light Sleep"},
+	{AMD_CG_SUPPORT_GFX_CP_LS, "Graphics Command Processor Light Sleep"},
+	{AMD_CG_SUPPORT_GFX_RLC_LS, "Graphics Run List Controller Light Sleep"},
+	{AMD_CG_SUPPORT_GFX_3D_CGCG, "Graphics 3D Coarse Grain Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_3D_CGLS, "Graphics 3D Coarse Grain memory Light Sleep"},
+	{AMD_CG_SUPPORT_MC_LS, "Memory Controller Light Sleep"},
+	{AMD_CG_SUPPORT_MC_MGCG, "Memory Controller Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_SDMA_LS, "System Direct Memory Access Light Sleep"},
+	{AMD_CG_SUPPORT_SDMA_MGCG, "System Direct Memory Access Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_BIF_MGCG, "Bus Interface Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_BIF_LS, "Bus Interface Light Sleep"},
+	{AMD_CG_SUPPORT_UVD_MGCG, "Unified Video Decoder Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_VCE_MGCG, "Video Compression Engine Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_HDP_LS, "Host Data Path Light Sleep"},
+	{AMD_CG_SUPPORT_HDP_MGCG, "Host Data Path Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_DRM_MGCG, "Digital Right Management Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_DRM_LS, "Digital Right Management Light Sleep"},
+	{AMD_CG_SUPPORT_ROM_MGCG, "Rom Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_DF_MGCG, "Data Fabric Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_VCN_MGCG, "VCN Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_HDP_DS, "Host Data Path Deep Sleep"},
+	{AMD_CG_SUPPORT_HDP_SD, "Host Data Path Shutdown"},
+	{AMD_CG_SUPPORT_IH_CG, "Interrupt Handler Clock Gating"},
+	{AMD_CG_SUPPORT_JPEG_MGCG, "JPEG Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_REPEATER_FGCG, "Repeater Fine Grain Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_PERF_CLK, "Perfmon Clock Gating"},
+	{AMD_CG_SUPPORT_ATHUB_MGCG, "Address Translation Hub Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_ATHUB_LS, "Address Translation Hub Light Sleep"},
+	{0, NULL},
+};
 
 static void amdgpu_parse_cg_state(struct seq_file *m, u64 flags)
 {

@@ -9,6 +9,7 @@ doc: Partial family for Devlink.
 attribute-sets:
   -
     name: devlink
+    name-prefix: devlink-attr-
     attributes:
       -
         name: bus-name
@@ -95,10 +96,12 @@ attribute-sets:
       -
         name: reload-action-info
         type: nest
+        multi-attr: true
         nested-attributes: dl-reload-act-info
       -
         name: reload-action-stats
         type: nest
+        multi-attr: true
         nested-attributes: dl-reload-act-stats
   -
     name: dl-dev-stats
@@ -196,3 +199,8 @@ operations:
           attributes:
             - bus-name
             - dev-name
+            - info-driver-name
+            - info-serial-number
+            - info-version-fixed
+            - info-version-running
+            - info-version-stored

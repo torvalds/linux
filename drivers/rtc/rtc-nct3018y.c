@@ -540,7 +540,7 @@ static struct i2c_driver nct3018y_driver = {
 		.name	= "rtc-nct3018y",
 		.of_match_table = of_match_ptr(nct3018y_of_match),
 	},
-	.probe_new	= nct3018y_probe,
+	.probe		= nct3018y_probe,
 	.id_table	= nct3018y_id,
 };
 

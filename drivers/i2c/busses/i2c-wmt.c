@@ -372,7 +372,6 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct wmt_i2c_dev *i2c_dev;
 	struct i2c_adapter *adap;
-	struct resource *res;
 	int err;
 	u32 clk_rate;
 
@@ -380,8 +379,7 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	if (!i2c_dev)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c_dev->base = devm_ioremap_resource(&pdev->dev, res);
+	i2c_dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(i2c_dev->base))
 		return PTR_ERR(i2c_dev->base);
 
@@ -436,7 +434,7 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int wmt_i2c_remove(struct platform_device *pdev)
+static void wmt_i2c_remove(struct platform_device *pdev)
 {
 	struct wmt_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 
@@ -444,8 +442,6 @@ static int wmt_i2c_remove(struct platform_device *pdev)
 	writew(0, i2c_dev->base + REG_IMR);
 	clk_disable_unprepare(i2c_dev->clk);
 	i2c_del_adapter(&i2c_dev->adapter);
-
-	return 0;
 }
 
 static const struct of_device_id wmt_i2c_dt_ids[] = {
@@ -455,7 +451,7 @@ static const struct of_device_id wmt_i2c_dt_ids[] = {
 
 static struct platform_driver wmt_i2c_driver = {
 	.probe		= wmt_i2c_probe,
-	.remove		= wmt_i2c_remove,
+	.remove_new	= wmt_i2c_remove,
 	.driver		= {
 		.name	= "wmt-i2c",
 		.of_match_table = wmt_i2c_dt_ids,

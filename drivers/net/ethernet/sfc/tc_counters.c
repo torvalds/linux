@@ -9,6 +9,7 @@
  */
 
 #include "tc_counters.h"
+#include "tc_encap_actions.h"
 #include "mae_counter_format.h"
 #include "mae.h"
 #include "rx_common.h"
@@ -31,6 +32,15 @@ static void efx_tc_counter_free(void *ptr, void *__unused)
 {
 	struct efx_tc_counter *cnt = ptr;
 
+	WARN_ON(!list_empty(&cnt->users));
+	/* We'd like to synchronize_rcu() here, but unfortunately we aren't
+	 * removing the element from the hashtable (it's not clear that's a
+	 * safe thing to do in an rhashtable_free_and_destroy free_fn), so
+	 * threads could still be obtaining new pointers to *cnt if they can
+	 * race against this function at all.
+	 */
+	flush_work(&cnt->work);
+	EFX_WARN_ON_PARANOID(spin_is_locked(&cnt->lock));
 	kfree(cnt);
 }
 
@@ -74,6 +84,49 @@ void efx_tc_fini_counters(struct efx_nic *efx)
 	rhashtable_free_and_destroy(&efx->tc->counter_ht, efx_tc_counter_free, NULL);
 }
 
+static void efx_tc_counter_work(struct work_struct *work)
+{
+	struct efx_tc_counter *cnt = container_of(work, struct efx_tc_counter, work);
+	struct efx_tc_encap_action *encap;
+	struct efx_tc_action_set *act;
+	unsigned long touched;
+	struct neighbour *n;
+
+	spin_lock_bh(&cnt->lock);
+	touched = READ_ONCE(cnt->touched);
+
+	list_for_each_entry(act, &cnt->users, count_user) {
+		encap = act->encap_md;
+		if (!encap)
+			continue;
+		if (!encap->neigh) /* can't happen */
+			continue;
+		if (time_after_eq(encap->neigh->used, touched))
+			continue;
+		encap->neigh->used = touched;
+		/* We have passed traffic using this ARP entry, so
+		 * indicate to the ARP cache that it's still active
+		 */
+		if (encap->neigh->dst_ip)
+			n = neigh_lookup(&arp_tbl, &encap->neigh->dst_ip,
+					 encap->neigh->egdev);
+		else
+#if IS_ENABLED(CONFIG_IPV6)
+			n = neigh_lookup(ipv6_stub->nd_tbl,
+					 &encap->neigh->dst_ip6,
+					 encap->neigh->egdev);
+#else
+			n = NULL;
+#endif
+		if (!n)
+			continue;
+
+		neigh_event_send(n, NULL);
+		neigh_release(n);
+	}
+	spin_unlock_bh(&cnt->lock);
+}
+
 /* Counter allocation */
 
 static struct efx_tc_counter *efx_tc_flower_allocate_counter(struct efx_nic *efx,
@@ -87,12 +140,14 @@ static struct efx_tc_counter *efx_tc_flower_allocate_counter(struct efx_nic *efx
 		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&cnt->lock);
+	INIT_WORK(&cnt->work, efx_tc_counter_work);
 	cnt->touched = jiffies;
 	cnt->type = type;
 
 	rc = efx_mae_allocate_counter(efx, cnt);
 	if (rc)
 		goto fail1;
+	INIT_LIST_HEAD(&cnt->users);
 	rc = rhashtable_insert_fast(&efx->tc->counter_ht, &cnt->linkage,
 				    efx_tc_counter_ht_params);
 	if (rc)
@@ -126,6 +181,7 @@ static void efx_tc_flower_release_counter(struct efx_nic *efx,
 		netif_warn(efx, hw, efx->net_dev,
 			   "Failed to free MAE counter %u, rc %d\n",
 			   cnt->fw_id, rc);
+	WARN_ON(!list_empty(&cnt->users));
 	/* This doesn't protect counter updates coming in arbitrarily long
 	 * after we deleted the counter.  The RCU just ensures that we won't
 	 * free the counter while another thread has a pointer to it.
@@ -133,6 +189,7 @@ static void efx_tc_flower_release_counter(struct efx_nic *efx,
 	 * is handled by the generation count.
 	 */
 	synchronize_rcu();
+	flush_work(&cnt->work);
 	EFX_WARN_ON_PARANOID(spin_is_locked(&cnt->lock));
 	kfree(cnt);
 }
@@ -302,6 +359,7 @@ static void efx_tc_counter_update(struct efx_nic *efx,
 		cnt->touched = jiffies;
 	}
 	spin_unlock_bh(&cnt->lock);
+	schedule_work(&cnt->work);
 out:
 	rcu_read_unlock();
 }

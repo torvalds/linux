@@ -350,9 +350,6 @@ int ast_mode_config_init(struct ast_device *ast);
 #define AST_DP501_LINKRATE	0xf014
 #define AST_DP501_EDID_DATA	0xf020
 
-/* Define for Soc scratched reg */
-#define COPROCESSOR_LAUNCH			BIT(5)
-
 /*
  * Display Transmitter Type:
  */
@@ -480,7 +477,7 @@ struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev);
 
 /* aspeed DP */
 int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata);
-void ast_dp_launch(struct drm_device *dev, u8 bPower);
+void ast_dp_launch(struct drm_device *dev);
 void ast_dp_power_on_off(struct drm_device *dev, bool no);
 void ast_dp_set_on_off(struct drm_device *dev, bool no);
 void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mode);

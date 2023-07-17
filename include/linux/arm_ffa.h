@@ -94,8 +94,17 @@
  */
 #define FFA_PAGE_SIZE		SZ_4K
 
+/*
+ * Minimum buffer size/alignment encodings returned by an FFA_FEATURES
+ * query for FFA_RXTX_MAP.
+ */
+#define FFA_FEAT_RXTX_MIN_SZ_4K		0
+#define FFA_FEAT_RXTX_MIN_SZ_64K	1
+#define FFA_FEAT_RXTX_MIN_SZ_16K	2
+
 /* FFA Bus/Device/Driver related */
 struct ffa_device {
+	u32 id;
 	int vm_id;
 	bool mode_32bit;
 	uuid_t uuid;

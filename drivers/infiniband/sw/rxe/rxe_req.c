@@ -99,17 +99,18 @@ static void req_retry(struct rxe_qp *qp)
 void rnr_nak_timer(struct timer_list *t)
 {
 	struct rxe_qp *qp = from_timer(qp, t, rnr_nak_timer);
+	unsigned long flags;
 
 	rxe_dbg_qp(qp, "nak timer fired\n");
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (qp->valid) {
 		/* request a send queue retry */
 		qp->req.need_retry = 1;
 		qp->req.wait_for_rnr_timer = 0;
 		rxe_sched_task(&qp->req.task);
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 }
 
 static void req_check_sq_drain_done(struct rxe_qp *qp)
@@ -118,8 +119,9 @@ static void req_check_sq_drain_done(struct rxe_qp *qp)
 	unsigned int index;
 	unsigned int cons;
 	struct rxe_send_wqe *wqe;
+	unsigned long flags;
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (qp_state(qp) == IB_QPS_SQD) {
 		q = qp->sq.queue;
 		index = qp->req.wqe_index;
@@ -140,7 +142,7 @@ static void req_check_sq_drain_done(struct rxe_qp *qp)
 				break;
 
 			qp->attr.sq_draining = 0;
-			spin_unlock_bh(&qp->state_lock);
+			spin_unlock_irqrestore(&qp->state_lock, flags);
 
 			if (qp->ibqp.event_handler) {
 				struct ib_event ev;
@@ -154,7 +156,7 @@ static void req_check_sq_drain_done(struct rxe_qp *qp)
 			return;
 		} while (0);
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 }
 
 static struct rxe_send_wqe *__req_next_wqe(struct rxe_qp *qp)
@@ -173,6 +175,7 @@ static struct rxe_send_wqe *__req_next_wqe(struct rxe_qp *qp)
 static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 {
 	struct rxe_send_wqe *wqe;
+	unsigned long flags;
 
 	req_check_sq_drain_done(qp);
 
@@ -180,13 +183,13 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 	if (wqe == NULL)
 		return NULL;
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (unlikely((qp_state(qp) == IB_QPS_SQD) &&
 		     (wqe->state != wqe_state_processing))) {
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		return NULL;
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	wqe->mask = wr_opcode_mask(wqe->wr.opcode, qp);
 	return wqe;
@@ -676,16 +679,17 @@ int rxe_requester(struct rxe_qp *qp)
 	struct rxe_queue *q = qp->sq.queue;
 	struct rxe_ah *ah;
 	struct rxe_av *av;
+	unsigned long flags;
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (unlikely(!qp->valid)) {
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		goto exit;
 	}
 
 	if (unlikely(qp_state(qp) == IB_QPS_ERR)) {
 		wqe = __req_next_wqe(qp);
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		if (wqe)
 			goto err;
 		else
@@ -700,10 +704,10 @@ int rxe_requester(struct rxe_qp *qp)
 		qp->req.wait_psn = 0;
 		qp->req.need_retry = 0;
 		qp->req.wait_for_rnr_timer = 0;
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		goto exit;
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	/* we come here if the retransmit timer has fired
 	 * or if the rnr timer has fired. If the retransmit
@@ -853,7 +857,7 @@ int rxe_requester(struct rxe_qp *qp)
 	update_state(qp, &pkt);
 
 	/* A non-zero return value will cause rxe_do_task to
-	 * exit its loop and end the tasklet. A zero return
+	 * exit its loop and end the work item. A zero return
 	 * will continue looping and return to rxe_requester
 	 */
 done:

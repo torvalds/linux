@@ -80,7 +80,7 @@ MODULE_DEVICE_TABLE(platform, clk_mt2701_mm_id_table);
 
 static struct platform_driver clk_mt2701_mm_drv = {
 	.probe = mtk_clk_pdev_probe,
-	.remove = mtk_clk_pdev_remove,
+	.remove_new = mtk_clk_pdev_remove,
 	.driver = {
 		.name = "clk-mt2701-mm",
 	},

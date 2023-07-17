@@ -8,6 +8,7 @@
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include <dt-bindings/clock/qcom,sm8450-camcc.h>
 #include <dt-bindings/clock/qcom,sm8450-dispcc.h>
+#include <dt-bindings/clock/qcom,sm8450-videocc.h>
 #include <dt-bindings/dma/qcom-gpi.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/mailbox/qcom-ipcc.h>
@@ -57,12 +58,14 @@
 			#cooling-cells = <2>;
 			clocks = <&cpufreq_hw 0>;
 			L2_0: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 				L3_0: l3-cache {
-				      compatible = "cache";
-				      cache-level = <3>;
+					compatible = "cache";
+					cache-level = <3>;
+					cache-unified;
 				};
 			};
 		};
@@ -79,9 +82,10 @@
 			#cooling-cells = <2>;
 			clocks = <&cpufreq_hw 0>;
 			L2_100: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -97,9 +101,10 @@
 			#cooling-cells = <2>;
 			clocks = <&cpufreq_hw 0>;
 			L2_200: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -115,9 +120,10 @@
 			#cooling-cells = <2>;
 			clocks = <&cpufreq_hw 0>;
 			L2_300: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -133,9 +139,10 @@
 			#cooling-cells = <2>;
 			clocks = <&cpufreq_hw 1>;
 			L2_400: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -151,9 +158,10 @@
 			#cooling-cells = <2>;
 			clocks = <&cpufreq_hw 1>;
 			L2_500: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -169,9 +177,10 @@
 			#cooling-cells = <2>;
 			clocks = <&cpufreq_hw 1>;
 			L2_600: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -187,9 +196,10 @@
 			#cooling-cells = <2>;
 			clocks = <&cpufreq_hw 2>;
 			L2_700: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -2044,6 +2054,32 @@
 			#phy-cells = <1>;
 
 			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					usb_1_qmpphy_out: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					usb_1_qmpphy_usb_ss_in: endpoint {
+					};
+				};
+
+				port@2 {
+					reg = <2>;
+
+					usb_1_qmpphy_dp_in: endpoint {
+					};
+				};
+			};
 		};
 
 		remoteproc_slpi: remoteproc@2400000 {
@@ -2570,6 +2606,18 @@
 				label = "modem";
 				qcom,remote-pid = <1>;
 			};
+		};
+
+		videocc: clock-controller@aaf0000 {
+			compatible = "qcom,sm8450-videocc";
+			reg = <0 0x0aaf0000 0 0x10000>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_VIDEO_AHB_CLK>;
+			power-domains = <&rpmhpd SM8450_MMCX>;
+			required-opps = <&rpmhpd_opp_low_svs>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 		};
 
 		cci0: cci@ac15000 {
@@ -3993,31 +4041,43 @@
 						opp-level = <RPMH_REGULATOR_LEVEL_LOW_SVS>;
 					};
 
-					rpmhpd_opp_svs: opp5 {
+					rpmhpd_opp_low_svs_l1: opp5 {
+						opp-level = <RPMH_REGULATOR_LEVEL_LOW_SVS_L1>;
+					};
+
+					rpmhpd_opp_svs: opp6 {
 						opp-level = <RPMH_REGULATOR_LEVEL_SVS>;
 					};
 
-					rpmhpd_opp_svs_l1: opp6 {
+					rpmhpd_opp_svs_l0: opp7 {
+						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L0>;
+					};
+
+					rpmhpd_opp_svs_l1: opp8 {
 						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
 					};
 
-					rpmhpd_opp_nom: opp7 {
+					rpmhpd_opp_svs_l2: opp9 {
+						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L2>;
+					};
+
+					rpmhpd_opp_nom: opp10 {
 						opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
 					};
 
-					rpmhpd_opp_nom_l1: opp8 {
+					rpmhpd_opp_nom_l1: opp11 {
 						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
 					};
 
-					rpmhpd_opp_nom_l2: opp9 {
+					rpmhpd_opp_nom_l2: opp12 {
 						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
 					};
 
-					rpmhpd_opp_turbo: opp10 {
+					rpmhpd_opp_turbo: opp13 {
 						opp-level = <RPMH_REGULATOR_LEVEL_TURBO>;
 					};
 
-					rpmhpd_opp_turbo_l1: opp11 {
+					rpmhpd_opp_turbo_l1: opp14 {
 						opp-level = <RPMH_REGULATOR_LEVEL_TURBO_L1>;
 					};
 				};
@@ -4138,6 +4198,34 @@
 			};
 		};
 
+		cryptobam: dma-controller@1dc4000 {
+			compatible = "qcom,bam-v1.7.4", "qcom,bam-v1.7.0";
+			reg = <0 0x01dc4000 0 0x28000>;
+			interrupts = <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+			qcom,controlled-remotely;
+			iommus = <&apps_smmu 0x584 0x11>,
+				 <&apps_smmu 0x588 0x0>,
+				 <&apps_smmu 0x598 0x5>,
+				 <&apps_smmu 0x59a 0x0>,
+				 <&apps_smmu 0x59f 0x0>;
+		};
+
+		crypto: crypto@1de0000 {
+			compatible = "qcom,sm8450-qce", "qcom,sm8150-qce", "qcom,qce";
+			reg = <0 0x01dfa000 0 0x6000>;
+			dmas = <&cryptobam 4>, <&cryptobam 5>;
+			dma-names = "rx", "tx";
+			iommus = <&apps_smmu 0x584 0x11>,
+				 <&apps_smmu 0x588 0x0>,
+				 <&apps_smmu 0x598 0x5>,
+				 <&apps_smmu 0x59a 0x0>,
+				 <&apps_smmu 0x59f 0x0>;
+			interconnects = <&aggre2_noc MASTER_CRYPTO 0 &mc_virt SLAVE_EBI1 0>;
+			interconnect-names = "memory";
+		};
+
 		sdhc_2: mmc@8804000 {
 			compatible = "qcom,sm8450-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0 0x08804000 0 0x1000>;
@@ -4217,6 +4305,10 @@
 			power-domains = <&gcc USB30_PRIM_GDSC>;
 
 			resets = <&gcc GCC_USB30_PRIM_BCR>;
+
+			interconnects = <&aggre1_noc MASTER_USB3_0 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_USB3_0 0>;
+			interconnect-names = "usb-ddr", "apps-usb";
 
 			usb_1_dwc3: usb@a600000 {
 				compatible = "snps,dwc3";

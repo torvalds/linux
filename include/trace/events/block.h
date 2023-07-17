@@ -246,6 +246,32 @@ DEFINE_EVENT(block_rq, block_rq_merge,
 );
 
 /**
+ * block_io_start - insert a request for execution
+ * @rq: block IO operation request
+ *
+ * Called when block operation request @rq is queued for execution
+ */
+DEFINE_EVENT(block_rq, block_io_start,
+
+	TP_PROTO(struct request *rq),
+
+	TP_ARGS(rq)
+);
+
+/**
+ * block_io_done - block IO operation request completed
+ * @rq: block IO operation request
+ *
+ * Called when block operation request @rq is completed
+ */
+DEFINE_EVENT(block_rq, block_io_done,
+
+	TP_PROTO(struct request *rq),
+
+	TP_ARGS(rq)
+);
+
+/**
  * block_bio_complete - completed all work on the block operation
  * @q: queue holding the block operation
  * @bio: block operation completed

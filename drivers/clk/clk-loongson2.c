@@ -40,7 +40,7 @@ static struct clk_hw *loongson2_clk_register(struct device *dev,
 {
 	int ret;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = { };
 
 	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
 	if (!hw)

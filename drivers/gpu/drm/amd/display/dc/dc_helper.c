@@ -41,19 +41,13 @@ static inline void submit_dmub_read_modify_write(
 	const struct dc_context *ctx)
 {
 	struct dmub_rb_cmd_read_modify_write *cmd_buf = &offload->cmd_data.read_modify_write;
-	bool gather = false;
 
 	offload->should_burst_write =
 			(offload->same_addr_count == (DMUB_READ_MODIFY_WRITE_SEQ__MAX - 1));
 	cmd_buf->header.payload_bytes =
 			sizeof(struct dmub_cmd_read_modify_write_sequence) * offload->reg_seq_count;
 
-	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
-
-	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &offload->cmd_data);
-
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
+	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 
@@ -66,17 +60,11 @@ static inline void submit_dmub_burst_write(
 	const struct dc_context *ctx)
 {
 	struct dmub_rb_cmd_burst_write *cmd_buf = &offload->cmd_data.burst_write;
-	bool gather = false;
 
 	cmd_buf->header.payload_bytes =
 			sizeof(uint32_t) * offload->reg_seq_count;
 
-	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
-
-	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &offload->cmd_data);
-
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
+	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 
@@ -88,17 +76,11 @@ static inline void submit_dmub_reg_wait(
 		const struct dc_context *ctx)
 {
 	struct dmub_rb_cmd_reg_wait *cmd_buf = &offload->cmd_data.reg_wait;
-	bool gather = false;
 
-	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
-
-	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &offload->cmd_data);
+	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 	offload->reg_seq_count = 0;
-
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
 }
 
 struct dc_reg_value_masks {
@@ -151,7 +133,6 @@ static void dmub_flush_buffer_execute(
 		const struct dc_context *ctx)
 {
 	submit_dmub_read_modify_write(offload, ctx);
-	dc_dmub_srv_cmd_execute(ctx->dmub_srv);
 }
 
 static void dmub_flush_burst_write_buffer_execute(
@@ -159,7 +140,6 @@ static void dmub_flush_burst_write_buffer_execute(
 		const struct dc_context *ctx)
 {
 	submit_dmub_burst_write(offload, ctx);
-	dc_dmub_srv_cmd_execute(ctx->dmub_srv);
 }
 
 static bool dmub_reg_value_burst_set_pack(const struct dc_context *ctx, uint32_t addr,
@@ -484,8 +464,7 @@ void generic_reg_wait(const struct dc_context *ctx,
 		field_value = get_reg_field_value_ex(reg_val, mask, shift);
 
 		if (field_value == condition_value) {
-			if (i * delay_between_poll_us > 1000 &&
-					!IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
+			if (i * delay_between_poll_us > 1000)
 				DC_LOG_DC("REG_WAIT taking a while: %dms in %s line:%d\n",
 						delay_between_poll_us * i / 1000,
 						func_name, line);
@@ -497,8 +476,7 @@ void generic_reg_wait(const struct dc_context *ctx,
 			delay_between_poll_us, time_out_num_tries,
 			func_name, line);
 
-	if (!IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
-		BREAK_TO_DEBUGGER();
+	BREAK_TO_DEBUGGER();
 }
 
 void generic_write_indirect_reg(const struct dc_context *ctx,
@@ -691,8 +669,6 @@ void reg_sequence_start_execute(const struct dc_context *ctx)
 		default:
 			return;
 		}
-
-		dc_dmub_srv_cmd_execute(ctx->dmub_srv);
 	}
 }
 
@@ -710,5 +686,61 @@ void reg_sequence_wait_done(const struct dc_context *ctx)
 	    ctx->dc->debug.dmub_offload_enabled &&
 	    !ctx->dc->debug.dmcub_emulation) {
 		dc_dmub_srv_wait_idle(ctx->dmub_srv);
+	}
+}
+
+char *dce_version_to_string(const int version)
+{
+	switch (version) {
+	case DCE_VERSION_8_0:
+		return "DCE 8.0";
+	case DCE_VERSION_8_1:
+		return "DCE 8.1";
+	case DCE_VERSION_8_3:
+		return "DCE 8.3";
+	case DCE_VERSION_10_0:
+		return "DCE 10.0";
+	case DCE_VERSION_11_0:
+		return "DCE 11.0";
+	case DCE_VERSION_11_2:
+		return "DCE 11.2";
+	case DCE_VERSION_11_22:
+		return "DCE 11.22";
+	case DCE_VERSION_12_0:
+		return "DCE 12.0";
+	case DCE_VERSION_12_1:
+		return "DCE 12.1";
+	case DCN_VERSION_1_0:
+		return "DCN 1.0";
+	case DCN_VERSION_1_01:
+		return "DCN 1.0.1";
+	case DCN_VERSION_2_0:
+		return "DCN 2.0";
+	case DCN_VERSION_2_1:
+		return "DCN 2.1";
+	case DCN_VERSION_2_01:
+		return "DCN 2.0.1";
+	case DCN_VERSION_3_0:
+		return "DCN 3.0";
+	case DCN_VERSION_3_01:
+		return "DCN 3.0.1";
+	case DCN_VERSION_3_02:
+		return "DCN 3.0.2";
+	case DCN_VERSION_3_03:
+		return "DCN 3.0.3";
+	case DCN_VERSION_3_1:
+		return "DCN 3.1";
+	case DCN_VERSION_3_14:
+		return "DCN 3.1.4";
+	case DCN_VERSION_3_15:
+		return "DCN 3.1.5";
+	case DCN_VERSION_3_16:
+		return "DCN 3.1.6";
+	case DCN_VERSION_3_2:
+		return "DCN 3.2";
+	case DCN_VERSION_3_21:
+		return "DCN 3.2.1";
+	default:
+		return "Unknown";
 	}
 }

@@ -33,6 +33,7 @@ properties:
     enum:
       - ti,am62a-dmss-bcdma-csirx
       - ti,am64-dmss-bcdma
+      - ti,j721s2-dmss-bcdma-csi
 
   reg:
     minItems: 3
@@ -151,7 +152,12 @@ allOf:
       required:
         - power-domains
 
-    else:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,am64-dmss-bcdma
+    then:
       properties:
         reg:
           minItems: 5
@@ -166,6 +172,28 @@ allOf:
 
       required:
         - ti,sci-rm-range-bchan
+        - ti,sci-rm-range-tchan
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,j721s2-dmss-bcdma-csi
+    then:
+      properties:
+        ti,sci-rm-range-bchan: false
+
+        reg:
+          maxItems: 4
+
+        reg-names:
+          items:
+            - const: gcfg
+            - const: rchanrt
+            - const: tchanrt
+            - const: ringrt
+
+      required:
         - ti,sci-rm-range-tchan
 
 unevaluatedProperties: false

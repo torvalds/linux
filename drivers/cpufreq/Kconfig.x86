@@ -51,6 +51,23 @@ config X86_AMD_PSTATE
 
 	  If in doubt, say N.
 
+config X86_AMD_PSTATE_DEFAULT_MODE
+	int "AMD Processor P-State default mode"
+	depends on X86_AMD_PSTATE
+	default 3 if X86_AMD_PSTATE
+	range 1 4
+	help
+	  Select the default mode the amd-pstate driver will use on
+	  supported hardware.
+	  The value set has the following meanings:
+		1 -> Disabled
+		2 -> Passive
+		3 -> Active (EPP)
+		4 -> Guided
+
+	  For details, take a look at:
+	  <file:Documentation/admin-guide/pm/amd-pstate.rst>.
+
 config X86_AMD_PSTATE_UT
 	tristate "selftest for AMD Processor P-State driver"
 	depends on X86 && ACPI_PROCESSOR

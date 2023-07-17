@@ -4,8 +4,10 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/leds/common.h>
 #include "sdm632.dtsi"
 #include "pm8953.dtsi"
+#include "pmi632.dtsi"
 
 / {
 	model = "Fairphone 3";
@@ -81,6 +83,33 @@
 &pm8953_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
+};
+
+&pmi632_lpg {
+	status = "okay";
+
+	multi-led {
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_STATUS;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@1 {
+			reg = <1>;
+			color = <LED_COLOR_ID_RED>;
+		};
+
+		led@2 {
+			reg = <2>;
+			color = <LED_COLOR_ID_GREEN>;
+		};
+
+		led@3 {
+			reg = <3>;
+			color = <LED_COLOR_ID_BLUE>;
+		};
+	};
 };
 
 &sdhc_1 {

@@ -13,6 +13,8 @@
 #include <linux/ctype.h>
 #include <linux/io.h>
 
+#include "kdb_private.h"
+
 /* Keyboard Controller Registers on normal PCs. */
 
 #define KBD_STATUS_REG		0x64	/* Status register (R) */

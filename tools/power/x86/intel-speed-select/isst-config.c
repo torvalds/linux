@@ -15,7 +15,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.15";
+static const char *version_str = "v1.16";
 
 static const int supported_api_ver = 2;
 static struct isst_if_platform_info isst_platform_info;
@@ -2113,7 +2113,6 @@ static void set_fact_enable(int arg)
 	else
 		for_each_online_power_domain_in_set(set_fact_for_cpu, NULL, NULL,
 					       NULL, &enable);
-	isst_ctdp_display_information_end(outf);
 
 	if (!fact_enable_fail && enable && auto_mode) {
 		/*
@@ -2192,10 +2191,13 @@ static void set_fact_enable(int arg)
 		isst_display_result(&id, outf, "turbo-freq --auto", "enable", 0);
 	}
 
+	isst_ctdp_display_information_end(outf);
+
 	return;
 
 error_disp:
 	isst_display_result(&id, outf, "turbo-freq --auto", "enable", ret);
+	isst_ctdp_display_information_end(outf);
 
 }
 
@@ -2260,9 +2262,6 @@ static void dump_clos_config_for_cpu(struct isst_id *id, void *arg1, void *arg2,
 {
 	struct isst_clos_config clos_config;
 	int ret;
-
-	if (id->cpu < 0)
-		return;
 
 	ret = isst_pm_get_clos(id, current_clos, &clos_config);
 	if (ret)
@@ -2437,12 +2436,16 @@ static void set_clos_assoc(int arg)
 		isst_display_error_info_message(1, "Invalid clos id\n", 0, 0);
 		exit(0);
 	}
+
+	isst_ctdp_display_information_start(outf);
+
 	if (max_target_cpus)
 		for_each_online_target_cpu_in_set(set_clos_assoc_for_cpu, NULL,
 						  NULL, NULL, NULL);
 	else {
 		isst_display_error_info_message(1, "Invalid target cpu. Specify with [-c|--cpu]", 0, 0);
 	}
+	isst_ctdp_display_information_end(outf);
 }
 
 static void get_clos_assoc_for_cpu(struct isst_id *id, void *arg1, void *arg2, void *arg3,

@@ -10470,6 +10470,30 @@
 #define MMEA0_PERFCOUNTER_RSLT_CNTL__ENABLE_ANY_MASK                                                          0x01000000L
 #define MMEA0_PERFCOUNTER_RSLT_CNTL__CLEAR_ALL_MASK                                                           0x02000000L
 #define MMEA0_PERFCOUNTER_RSLT_CNTL__STOP_ALL_ON_SATURATE_MASK                                                0x04000000L
+//MMEA0_UE_ERR_STATUS_LO
+#define MMEA0_UE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                      0x0
+#define MMEA0_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define MMEA0_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define MMEA0_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define MMEA0_UE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                        0x00000001L
+#define MMEA0_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define MMEA0_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define MMEA0_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
+//MMEA0_UE_ERR_STATUS_HI
+#define MMEA0_UE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define MMEA0_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                 0x1
+#define MMEA0_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define MMEA0_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define MMEA0_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                 0x17
+#define MMEA0_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                0x1a
+#define MMEA0_UE_ERR_STATUS_HI__RESERVED_FIELD__SHIFT                                                         0x1d
+#define MMEA0_UE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define MMEA0_UE_ERR_STATUS_HI__PARITY_MASK                                                                   0x00000002L
+#define MMEA0_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define MMEA0_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define MMEA0_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                   0x03800000L
+#define MMEA0_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                  0x1C000000L
+#define MMEA0_UE_ERR_STATUS_HI__RESERVED_FIELD_MASK                                                           0xE0000000L
 //MMEA0_DSM_CNTL
 #define MMEA0_DSM_CNTL__DRAMRD_CMDMEM_DSM_IRRITATOR_DATA__SHIFT                                               0x0
 #define MMEA0_DSM_CNTL__DRAMRD_CMDMEM_ENABLE_SINGLE_WRITE__SHIFT                                              0x2
@@ -10718,12 +10742,35 @@
 #define MMEA0_MISC2__DRAM_WR_THROTTLE_MASK                                                                    0x00020000L
 #define MMEA0_MISC2__GMI_RD_THROTTLE_MASK                                                                     0x00040000L
 #define MMEA0_MISC2__GMI_WR_THROTTLE_MASK                                                                     0x00080000L
+//MMEA0_CE_ERR_STATUS_LO
+#define MMEA0_CE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                      0x0
+#define MMEA0_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define MMEA0_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define MMEA0_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define MMEA0_CE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                        0x00000001L
+#define MMEA0_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define MMEA0_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define MMEA0_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
 //MMEA0_MISC_AON
 #define MMEA0_MISC_AON__LINKMGR_PARTACK_HYSTERESIS__SHIFT                                                     0x0
 #define MMEA0_MISC_AON__LINKMGR_PARTACK_DEASSERT_MODE__SHIFT                                                  0x2
 #define MMEA0_MISC_AON__LINKMGR_PARTACK_HYSTERESIS_MASK                                                       0x00000003L
 #define MMEA0_MISC_AON__LINKMGR_PARTACK_DEASSERT_MODE_MASK                                                    0x00000004L
-
+//MMEA0_CE_ERR_STATUS_HI
+#define MMEA0_CE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define MMEA0_CE_ERR_STATUS_HI__RESERVED_FIELD0__SHIFT                                                        0x1
+#define MMEA0_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define MMEA0_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define MMEA0_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                 0x17
+#define MMEA0_CE_ERR_STATUS_HI__POISON__SHIFT                                                                 0x1a
+#define MMEA0_CE_ERR_STATUS_HI__RESERVED_FIELD1__SHIFT                                                        0x1b
+#define MMEA0_CE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define MMEA0_CE_ERR_STATUS_HI__RESERVED_FIELD0_MASK                                                          0x00000002L
+#define MMEA0_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define MMEA0_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define MMEA0_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                   0x03800000L
+#define MMEA0_CE_ERR_STATUS_HI__POISON_MASK                                                                   0x04000000L
+#define MMEA0_CE_ERR_STATUS_HI__RESERVED_FIELD1_MASK                                                          0xF8000000L
 
 // addressBlock: aid_mmhub_ea_mmeadec1
 //MMEA1_DRAM_RD_CLI2GRP_MAP0
@@ -12418,6 +12465,30 @@
 #define MMEA1_PERFCOUNTER_RSLT_CNTL__ENABLE_ANY_MASK                                                          0x01000000L
 #define MMEA1_PERFCOUNTER_RSLT_CNTL__CLEAR_ALL_MASK                                                           0x02000000L
 #define MMEA1_PERFCOUNTER_RSLT_CNTL__STOP_ALL_ON_SATURATE_MASK                                                0x04000000L
+//MMEA1_UE_ERR_STATUS_LO
+#define MMEA1_UE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                      0x0
+#define MMEA1_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define MMEA1_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define MMEA1_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define MMEA1_UE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                        0x00000001L
+#define MMEA1_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define MMEA1_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define MMEA1_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
+//MMEA1_UE_ERR_STATUS_HI
+#define MMEA1_UE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define MMEA1_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                 0x1
+#define MMEA1_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define MMEA1_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define MMEA1_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                 0x17
+#define MMEA1_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                0x1a
+#define MMEA1_UE_ERR_STATUS_HI__RESERVED_FIELD__SHIFT                                                         0x1d
+#define MMEA1_UE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define MMEA1_UE_ERR_STATUS_HI__PARITY_MASK                                                                   0x00000002L
+#define MMEA1_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define MMEA1_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define MMEA1_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                   0x03800000L
+#define MMEA1_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                  0x1C000000L
+#define MMEA1_UE_ERR_STATUS_HI__RESERVED_FIELD_MASK                                                           0xE0000000L
 //MMEA1_DSM_CNTL
 #define MMEA1_DSM_CNTL__DRAMRD_CMDMEM_DSM_IRRITATOR_DATA__SHIFT                                               0x0
 #define MMEA1_DSM_CNTL__DRAMRD_CMDMEM_ENABLE_SINGLE_WRITE__SHIFT                                              0x2
@@ -12666,12 +12737,35 @@
 #define MMEA1_MISC2__DRAM_WR_THROTTLE_MASK                                                                    0x00020000L
 #define MMEA1_MISC2__GMI_RD_THROTTLE_MASK                                                                     0x00040000L
 #define MMEA1_MISC2__GMI_WR_THROTTLE_MASK                                                                     0x00080000L
+//MMEA1_CE_ERR_STATUS_LO
+#define MMEA1_CE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                      0x0
+#define MMEA1_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define MMEA1_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define MMEA1_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define MMEA1_CE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                        0x00000001L
+#define MMEA1_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define MMEA1_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define MMEA1_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
 //MMEA1_MISC_AON
 #define MMEA1_MISC_AON__LINKMGR_PARTACK_HYSTERESIS__SHIFT                                                     0x0
 #define MMEA1_MISC_AON__LINKMGR_PARTACK_DEASSERT_MODE__SHIFT                                                  0x2
 #define MMEA1_MISC_AON__LINKMGR_PARTACK_HYSTERESIS_MASK                                                       0x00000003L
 #define MMEA1_MISC_AON__LINKMGR_PARTACK_DEASSERT_MODE_MASK                                                    0x00000004L
-
+//MMEA1_CE_ERR_STATUS_HI
+#define MMEA1_CE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define MMEA1_CE_ERR_STATUS_HI__RESERVED_FIELD0__SHIFT                                                        0x1
+#define MMEA1_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define MMEA1_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define MMEA1_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                 0x17
+#define MMEA1_CE_ERR_STATUS_HI__POISON__SHIFT                                                                 0x1a
+#define MMEA1_CE_ERR_STATUS_HI__RESERVED_FIELD1__SHIFT                                                        0x1b
+#define MMEA1_CE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define MMEA1_CE_ERR_STATUS_HI__RESERVED_FIELD0_MASK                                                          0x00000002L
+#define MMEA1_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define MMEA1_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define MMEA1_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                   0x03800000L
+#define MMEA1_CE_ERR_STATUS_HI__POISON_MASK                                                                   0x04000000L
+#define MMEA1_CE_ERR_STATUS_HI__RESERVED_FIELD1_MASK                                                          0xF8000000L
 
 // addressBlock: aid_mmhub_ea_mmeadec2
 //MMEA2_DRAM_RD_CLI2GRP_MAP0
@@ -14366,6 +14460,30 @@
 #define MMEA2_PERFCOUNTER_RSLT_CNTL__ENABLE_ANY_MASK                                                          0x01000000L
 #define MMEA2_PERFCOUNTER_RSLT_CNTL__CLEAR_ALL_MASK                                                           0x02000000L
 #define MMEA2_PERFCOUNTER_RSLT_CNTL__STOP_ALL_ON_SATURATE_MASK                                                0x04000000L
+//MMEA2_UE_ERR_STATUS_LO
+#define MMEA2_UE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                      0x0
+#define MMEA2_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define MMEA2_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define MMEA2_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define MMEA2_UE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                        0x00000001L
+#define MMEA2_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define MMEA2_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define MMEA2_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
+//MMEA2_UE_ERR_STATUS_HI
+#define MMEA2_UE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define MMEA2_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                 0x1
+#define MMEA2_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define MMEA2_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define MMEA2_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                 0x17
+#define MMEA2_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                0x1a
+#define MMEA2_UE_ERR_STATUS_HI__RESERVED_FIELD__SHIFT                                                         0x1d
+#define MMEA2_UE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define MMEA2_UE_ERR_STATUS_HI__PARITY_MASK                                                                   0x00000002L
+#define MMEA2_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define MMEA2_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define MMEA2_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                   0x03800000L
+#define MMEA2_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                  0x1C000000L
+#define MMEA2_UE_ERR_STATUS_HI__RESERVED_FIELD_MASK                                                           0xE0000000L
 //MMEA2_DSM_CNTL
 #define MMEA2_DSM_CNTL__DRAMRD_CMDMEM_DSM_IRRITATOR_DATA__SHIFT                                               0x0
 #define MMEA2_DSM_CNTL__DRAMRD_CMDMEM_ENABLE_SINGLE_WRITE__SHIFT                                              0x2
@@ -14614,12 +14732,35 @@
 #define MMEA2_MISC2__DRAM_WR_THROTTLE_MASK                                                                    0x00020000L
 #define MMEA2_MISC2__GMI_RD_THROTTLE_MASK                                                                     0x00040000L
 #define MMEA2_MISC2__GMI_WR_THROTTLE_MASK                                                                     0x00080000L
+//MMEA2_CE_ERR_STATUS_LO
+#define MMEA2_CE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                      0x0
+#define MMEA2_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define MMEA2_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define MMEA2_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define MMEA2_CE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                        0x00000001L
+#define MMEA2_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define MMEA2_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define MMEA2_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
 //MMEA2_MISC_AON
 #define MMEA2_MISC_AON__LINKMGR_PARTACK_HYSTERESIS__SHIFT                                                     0x0
 #define MMEA2_MISC_AON__LINKMGR_PARTACK_DEASSERT_MODE__SHIFT                                                  0x2
 #define MMEA2_MISC_AON__LINKMGR_PARTACK_HYSTERESIS_MASK                                                       0x00000003L
 #define MMEA2_MISC_AON__LINKMGR_PARTACK_DEASSERT_MODE_MASK                                                    0x00000004L
-
+//MMEA2_CE_ERR_STATUS_HI
+#define MMEA2_CE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define MMEA2_CE_ERR_STATUS_HI__RESERVED_FIELD0__SHIFT                                                        0x1
+#define MMEA2_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define MMEA2_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define MMEA2_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                 0x17
+#define MMEA2_CE_ERR_STATUS_HI__POISON__SHIFT                                                                 0x1a
+#define MMEA2_CE_ERR_STATUS_HI__RESERVED_FIELD1__SHIFT                                                        0x1b
+#define MMEA2_CE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define MMEA2_CE_ERR_STATUS_HI__RESERVED_FIELD0_MASK                                                          0x00000002L
+#define MMEA2_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define MMEA2_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define MMEA2_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                   0x03800000L
+#define MMEA2_CE_ERR_STATUS_HI__POISON_MASK                                                                   0x04000000L
+#define MMEA2_CE_ERR_STATUS_HI__RESERVED_FIELD1_MASK                                                          0xF8000000L
 
 // addressBlock: aid_mmhub_ea_mmeadec3
 //MMEA3_DRAM_RD_CLI2GRP_MAP0
@@ -16314,6 +16455,30 @@
 #define MMEA3_PERFCOUNTER_RSLT_CNTL__ENABLE_ANY_MASK                                                          0x01000000L
 #define MMEA3_PERFCOUNTER_RSLT_CNTL__CLEAR_ALL_MASK                                                           0x02000000L
 #define MMEA3_PERFCOUNTER_RSLT_CNTL__STOP_ALL_ON_SATURATE_MASK                                                0x04000000L
+//MMEA3_UE_ERR_STATUS_LO
+#define MMEA3_UE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                      0x0
+#define MMEA3_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define MMEA3_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define MMEA3_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define MMEA3_UE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                        0x00000001L
+#define MMEA3_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define MMEA3_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define MMEA3_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
+//MMEA3_UE_ERR_STATUS_HI
+#define MMEA3_UE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define MMEA3_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                 0x1
+#define MMEA3_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define MMEA3_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define MMEA3_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                 0x17
+#define MMEA3_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                0x1a
+#define MMEA3_UE_ERR_STATUS_HI__RESERVED_FIELD__SHIFT                                                         0x1d
+#define MMEA3_UE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define MMEA3_UE_ERR_STATUS_HI__PARITY_MASK                                                                   0x00000002L
+#define MMEA3_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define MMEA3_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define MMEA3_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                   0x03800000L
+#define MMEA3_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                  0x1C000000L
+#define MMEA3_UE_ERR_STATUS_HI__RESERVED_FIELD_MASK                                                           0xE0000000L
 //MMEA3_DSM_CNTL
 #define MMEA3_DSM_CNTL__DRAMRD_CMDMEM_DSM_IRRITATOR_DATA__SHIFT                                               0x0
 #define MMEA3_DSM_CNTL__DRAMRD_CMDMEM_ENABLE_SINGLE_WRITE__SHIFT                                              0x2
@@ -16562,12 +16727,35 @@
 #define MMEA3_MISC2__DRAM_WR_THROTTLE_MASK                                                                    0x00020000L
 #define MMEA3_MISC2__GMI_RD_THROTTLE_MASK                                                                     0x00040000L
 #define MMEA3_MISC2__GMI_WR_THROTTLE_MASK                                                                     0x00080000L
+//MMEA3_CE_ERR_STATUS_LO
+#define MMEA3_CE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                      0x0
+#define MMEA3_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define MMEA3_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define MMEA3_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define MMEA3_CE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                        0x00000001L
+#define MMEA3_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define MMEA3_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define MMEA3_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
 //MMEA3_MISC_AON
 #define MMEA3_MISC_AON__LINKMGR_PARTACK_HYSTERESIS__SHIFT                                                     0x0
 #define MMEA3_MISC_AON__LINKMGR_PARTACK_DEASSERT_MODE__SHIFT                                                  0x2
 #define MMEA3_MISC_AON__LINKMGR_PARTACK_HYSTERESIS_MASK                                                       0x00000003L
 #define MMEA3_MISC_AON__LINKMGR_PARTACK_DEASSERT_MODE_MASK                                                    0x00000004L
-
+//MMEA3_CE_ERR_STATUS_HI
+#define MMEA3_CE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define MMEA3_CE_ERR_STATUS_HI__RESERVED_FIELD0__SHIFT                                                        0x1
+#define MMEA3_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define MMEA3_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define MMEA3_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                 0x17
+#define MMEA3_CE_ERR_STATUS_HI__POISON__SHIFT                                                                 0x1a
+#define MMEA3_CE_ERR_STATUS_HI__RESERVED_FIELD1__SHIFT                                                        0x1b
+#define MMEA3_CE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define MMEA3_CE_ERR_STATUS_HI__RESERVED_FIELD0_MASK                                                          0x00000002L
+#define MMEA3_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define MMEA3_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define MMEA3_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                   0x03800000L
+#define MMEA3_CE_ERR_STATUS_HI__POISON_MASK                                                                   0x04000000L
+#define MMEA3_CE_ERR_STATUS_HI__RESERVED_FIELD1_MASK                                                          0xF8000000L
 
 // addressBlock: aid_mmhub_ea_mmeadec4
 //MMEA4_DRAM_RD_CLI2GRP_MAP0
@@ -18262,6 +18450,30 @@
 #define MMEA4_PERFCOUNTER_RSLT_CNTL__ENABLE_ANY_MASK                                                          0x01000000L
 #define MMEA4_PERFCOUNTER_RSLT_CNTL__CLEAR_ALL_MASK                                                           0x02000000L
 #define MMEA4_PERFCOUNTER_RSLT_CNTL__STOP_ALL_ON_SATURATE_MASK                                                0x04000000L
+//MMEA4_UE_ERR_STATUS_LO
+#define MMEA4_UE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                      0x0
+#define MMEA4_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define MMEA4_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define MMEA4_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define MMEA4_UE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                        0x00000001L
+#define MMEA4_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define MMEA4_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define MMEA4_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
+//MMEA4_UE_ERR_STATUS_HI
+#define MMEA4_UE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define MMEA4_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                 0x1
+#define MMEA4_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define MMEA4_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define MMEA4_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                 0x17
+#define MMEA4_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                0x1a
+#define MMEA4_UE_ERR_STATUS_HI__RESERVED_FIELD__SHIFT                                                         0x1d
+#define MMEA4_UE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define MMEA4_UE_ERR_STATUS_HI__PARITY_MASK                                                                   0x00000002L
+#define MMEA4_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define MMEA4_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define MMEA4_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                   0x03800000L
+#define MMEA4_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                  0x1C000000L
+#define MMEA4_UE_ERR_STATUS_HI__RESERVED_FIELD_MASK                                                           0xE0000000L
 //MMEA4_DSM_CNTL
 #define MMEA4_DSM_CNTL__DRAMRD_CMDMEM_DSM_IRRITATOR_DATA__SHIFT                                               0x0
 #define MMEA4_DSM_CNTL__DRAMRD_CMDMEM_ENABLE_SINGLE_WRITE__SHIFT                                              0x2
@@ -18510,12 +18722,35 @@
 #define MMEA4_MISC2__DRAM_WR_THROTTLE_MASK                                                                    0x00020000L
 #define MMEA4_MISC2__GMI_RD_THROTTLE_MASK                                                                     0x00040000L
 #define MMEA4_MISC2__GMI_WR_THROTTLE_MASK                                                                     0x00080000L
+//MMEA4_CE_ERR_STATUS_LO
+#define MMEA4_CE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                      0x0
+#define MMEA4_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define MMEA4_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define MMEA4_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define MMEA4_CE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                        0x00000001L
+#define MMEA4_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define MMEA4_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define MMEA4_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
 //MMEA4_MISC_AON
 #define MMEA4_MISC_AON__LINKMGR_PARTACK_HYSTERESIS__SHIFT                                                     0x0
 #define MMEA4_MISC_AON__LINKMGR_PARTACK_DEASSERT_MODE__SHIFT                                                  0x2
 #define MMEA4_MISC_AON__LINKMGR_PARTACK_HYSTERESIS_MASK                                                       0x00000003L
 #define MMEA4_MISC_AON__LINKMGR_PARTACK_DEASSERT_MODE_MASK                                                    0x00000004L
-
+//MMEA4_CE_ERR_STATUS_HI
+#define MMEA4_CE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define MMEA4_CE_ERR_STATUS_HI__RESERVED_FIELD0__SHIFT                                                        0x1
+#define MMEA4_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define MMEA4_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define MMEA4_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                 0x17
+#define MMEA4_CE_ERR_STATUS_HI__POISON__SHIFT                                                                 0x1a
+#define MMEA4_CE_ERR_STATUS_HI__RESERVED_FIELD1__SHIFT                                                        0x1b
+#define MMEA4_CE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define MMEA4_CE_ERR_STATUS_HI__RESERVED_FIELD0_MASK                                                          0x00000002L
+#define MMEA4_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define MMEA4_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define MMEA4_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                   0x03800000L
+#define MMEA4_CE_ERR_STATUS_HI__POISON_MASK                                                                   0x04000000L
+#define MMEA4_CE_ERR_STATUS_HI__RESERVED_FIELD1_MASK                                                          0xF8000000L
 
 // addressBlock: aid_mmhub_pctldec0
 //PCTL0_CTRL
@@ -22311,5 +22546,83 @@
 #define L2TLB_PERFCOUNTER_HI__COUNTER_HI_MASK                                                                 0x0000FFFFL
 #define L2TLB_PERFCOUNTER_HI__COMPARE_VALUE_MASK                                                              0xFFFF0000L
 
-
+// addressBlock: aid_mmhub_mm_cane_mmcanedec
+//MM_CANE_ICG_CTRL
+#define MM_CANE_ICG_CTRL__SOFT_OVERRIDE_IREQ0__SHIFT                                                          0x0
+#define MM_CANE_ICG_CTRL__SOFT_OVERRIDE_ATRET__SHIFT                                                          0x1
+#define MM_CANE_ICG_CTRL__SOFT_OVERRIDE_OREQ__SHIFT                                                           0x2
+#define MM_CANE_ICG_CTRL__SOFT_OVERRIDE_REGISTER__SHIFT                                                       0x3
+#define MM_CANE_ICG_CTRL__SOFT_OVERRIDE_SDPM_RETURN__SHIFT                                                    0x4
+#define MM_CANE_ICG_CTRL__SOFT_OVERRIDE_IREQ0_MASK                                                            0x00000001L
+#define MM_CANE_ICG_CTRL__SOFT_OVERRIDE_ATRET_MASK                                                            0x00000002L
+#define MM_CANE_ICG_CTRL__SOFT_OVERRIDE_OREQ_MASK                                                             0x00000004L
+#define MM_CANE_ICG_CTRL__SOFT_OVERRIDE_REGISTER_MASK                                                         0x00000008L
+#define MM_CANE_ICG_CTRL__SOFT_OVERRIDE_SDPM_RETURN_MASK                                                      0x00000010L
+//MM_CANE_ERR_STATUS
+#define MM_CANE_ERR_STATUS__SDPM_RDRSP_STATUS__SHIFT                                                          0x0
+#define MM_CANE_ERR_STATUS__SDPM_WRRSP_STATUS__SHIFT                                                          0x4
+#define MM_CANE_ERR_STATUS__SDPM_RDRSP_DATASTATUS__SHIFT                                                      0x8
+#define MM_CANE_ERR_STATUS__SDPM_RDRSP_DATAPARITY_ERROR__SHIFT                                                0xa
+#define MM_CANE_ERR_STATUS__SDPS_DAT_ERROR__SHIFT                                                             0xb
+#define MM_CANE_ERR_STATUS__SDPS_DAT_PARITY_ERROR__SHIFT                                                      0xc
+#define MM_CANE_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                         0xd
+#define MM_CANE_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                              0xe
+#define MM_CANE_ERR_STATUS__BUSY_ON_UER_ERROR__SHIFT                                                          0xf
+#define MM_CANE_ERR_STATUS__FUE_FLAG__SHIFT                                                                   0x10
+#define MM_CANE_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                         0x11
+#define MM_CANE_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                            0x12
+#define MM_CANE_ERR_STATUS__SDPM_RDRSP_STATUS_MASK                                                            0x0000000FL
+#define MM_CANE_ERR_STATUS__SDPM_WRRSP_STATUS_MASK                                                            0x000000F0L
+#define MM_CANE_ERR_STATUS__SDPM_RDRSP_DATASTATUS_MASK                                                        0x00000300L
+#define MM_CANE_ERR_STATUS__SDPM_RDRSP_DATAPARITY_ERROR_MASK                                                  0x00000400L
+#define MM_CANE_ERR_STATUS__SDPS_DAT_ERROR_MASK                                                               0x00000800L
+#define MM_CANE_ERR_STATUS__SDPS_DAT_PARITY_ERROR_MASK                                                        0x00001000L
+#define MM_CANE_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                           0x00002000L
+#define MM_CANE_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                0x00004000L
+#define MM_CANE_ERR_STATUS__BUSY_ON_UER_ERROR_MASK                                                            0x00008000L
+#define MM_CANE_ERR_STATUS__FUE_FLAG_MASK                                                                     0x00010000L
+#define MM_CANE_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                           0x00020000L
+#define MM_CANE_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                              0x00040000L
+//MM_CANE_UE_ERR_STATUS_LO
+#define MM_CANE_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                0x0
+#define MM_CANE_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                   0x1
+#define MM_CANE_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                              0x2
+#define MM_CANE_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                            0x18
+#define MM_CANE_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                  0x00000001L
+#define MM_CANE_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                     0x00000002L
+#define MM_CANE_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                0x00FFFFFCL
+#define MM_CANE_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                              0xFF000000L
+//MM_CANE_UE_ERR_STATUS_HI
+#define MM_CANE_UE_ERR_STATUS_HI__ECC__SHIFT                                                                  0x0
+#define MM_CANE_UE_ERR_STATUS_HI__PARITY__SHIFT                                                               0x1
+#define MM_CANE_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                  0x2
+#define MM_CANE_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                             0x3
+#define MM_CANE_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                               0x17
+#define MM_CANE_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                              0x1a
+#define MM_CANE_UE_ERR_STATUS_HI__ECC_MASK                                                                    0x00000001L
+#define MM_CANE_UE_ERR_STATUS_HI__PARITY_MASK                                                                 0x00000002L
+#define MM_CANE_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                    0x00000004L
+#define MM_CANE_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                               0x007FFFF8L
+#define MM_CANE_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                 0x03800000L
+#define MM_CANE_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                0x1C000000L
+//MM_CANE_CE_ERR_STATUS_LO
+#define MM_CANE_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                0x0
+#define MM_CANE_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                   0x1
+#define MM_CANE_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                              0x2
+#define MM_CANE_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                            0x18
+#define MM_CANE_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                  0x00000001L
+#define MM_CANE_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                     0x00000002L
+#define MM_CANE_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                0x00FFFFFCL
+#define MM_CANE_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                              0xFF000000L
+//MM_CANE_CE_ERR_STATUS_HI
+#define MM_CANE_CE_ERR_STATUS_HI__ECC__SHIFT                                                                  0x0
+#define MM_CANE_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                  0x2
+#define MM_CANE_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                             0x3
+#define MM_CANE_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                               0x17
+#define MM_CANE_CE_ERR_STATUS_HI__POISON__SHIFT                                                               0x1a
+#define MM_CANE_CE_ERR_STATUS_HI__ECC_MASK                                                                    0x00000001L
+#define MM_CANE_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                    0x00000004L
+#define MM_CANE_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                               0x007FFFF8L
+#define MM_CANE_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                 0x03800000L
+#define MM_CANE_CE_ERR_STATUS_HI__POISON_MASK                                                                 0x04000000L
 #endif

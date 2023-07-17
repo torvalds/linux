@@ -34,7 +34,7 @@ required:
   - color
 
 allOf:
-  - $ref: "common.yaml#"
+  - $ref: common.yaml#
 
 additionalProperties: true
 

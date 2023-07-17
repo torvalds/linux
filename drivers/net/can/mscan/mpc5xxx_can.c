@@ -349,7 +349,7 @@ exit_unmap_mem:
 	return err;
 }
 
-static int mpc5xxx_can_remove(struct platform_device *ofdev)
+static void mpc5xxx_can_remove(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
 	const struct mpc5xxx_can_data *data;
@@ -365,8 +365,6 @@ static int mpc5xxx_can_remove(struct platform_device *ofdev)
 	iounmap(priv->reg_base);
 	irq_dispose_mapping(dev->irq);
 	free_candev(dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -437,7 +435,7 @@ static struct platform_driver mpc5xxx_can_driver = {
 		.of_match_table = mpc5xxx_can_table,
 	},
 	.probe = mpc5xxx_can_probe,
-	.remove = mpc5xxx_can_remove,
+	.remove_new = mpc5xxx_can_remove,
 #ifdef CONFIG_PM
 	.suspend = mpc5xxx_can_suspend,
 	.resume = mpc5xxx_can_resume,

@@ -1039,6 +1039,7 @@ static void glk_force_audio_cdclk(struct drm_i915_private *i915,
 		return;
 
 	state->acquire_ctx = &ctx;
+	to_intel_atomic_state(state)->internal = true;
 
 retry:
 	ret = glk_force_audio_cdclk_commit(to_intel_atomic_state(state), crtc,

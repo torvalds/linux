@@ -111,7 +111,7 @@ static struct i2c_driver st_gyro_driver = {
 		.name = "st-gyro-i2c",
 		.of_match_table = st_gyro_of_match,
 	},
-	.probe_new = st_gyro_i2c_probe,
+	.probe = st_gyro_i2c_probe,
 	.id_table = st_gyro_id_table,
 };
 module_i2c_driver(st_gyro_driver);

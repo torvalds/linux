@@ -198,7 +198,7 @@ static int visconti_eth_clock_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static int visconti_eth_clock_remove(struct platform_device *pdev)
+static void visconti_eth_clock_remove(struct platform_device *pdev)
 {
 	struct visconti_eth *dwmac = get_stmmac_bsp_priv(&pdev->dev);
 	struct net_device *ndev = platform_get_drvdata(pdev);
@@ -206,8 +206,6 @@ static int visconti_eth_clock_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(dwmac->phy_ref_clk);
 	clk_disable_unprepare(priv->plat->stmmac_clk);
-
-	return 0;
 }
 
 static int visconti_eth_dwmac_probe(struct platform_device *pdev)
@@ -259,23 +257,16 @@ remove_config:
 	return ret;
 }
 
-static int visconti_eth_dwmac_remove(struct platform_device *pdev)
+static void visconti_eth_dwmac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	int err;
 
-	err = stmmac_pltfr_remove(pdev);
-	if (err < 0)
-		dev_err(&pdev->dev, "failed to remove platform: %d\n", err);
+	stmmac_pltfr_remove(pdev);
 
-	err = visconti_eth_clock_remove(pdev);
-	if (err < 0)
-		dev_err(&pdev->dev, "failed to remove clock: %d\n", err);
+	visconti_eth_clock_remove(pdev);
 
 	stmmac_remove_config_dt(pdev, priv->plat);
-
-	return err;
 }
 
 static const struct of_device_id visconti_eth_dwmac_match[] = {
@@ -286,7 +277,7 @@ MODULE_DEVICE_TABLE(of, visconti_eth_dwmac_match);
 
 static struct platform_driver visconti_eth_dwmac_driver = {
 	.probe  = visconti_eth_dwmac_probe,
-	.remove = visconti_eth_dwmac_remove,
+	.remove_new = visconti_eth_dwmac_remove,
 	.driver = {
 		.name           = "visconti-eth-dwmac",
 		.of_match_table = visconti_eth_dwmac_match,

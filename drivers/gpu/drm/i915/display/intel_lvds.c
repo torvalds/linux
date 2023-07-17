@@ -150,7 +150,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 	if (DISPLAY_VER(dev_priv) < 4) {
 		tmp = intel_de_read(dev_priv, PFIT_CONTROL);
 
-		crtc_state->gmch_pfit.control |= tmp & PANEL_8TO6_DITHER_ENABLE;
+		crtc_state->gmch_pfit.control |= tmp & PFIT_PANEL_8TO6_DITHER_ENABLE;
 	}
 
 	crtc_state->hw.adjusted_mode.crtc_clock = crtc_state->port_clock;
@@ -437,6 +437,7 @@ static int intel_lvds_compute_config(struct intel_encoder *encoder,
 		crtc_state->pipe_bpp = lvds_bpp;
 	}
 
+	crtc_state->sink_format = INTEL_OUTPUT_FORMAT_RGB;
 	crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	/*
@@ -943,17 +944,8 @@ void intel_lvds_init(struct drm_i915_private *i915)
 	 */
 	mutex_lock(&i915->drm.mode_config.mutex);
 	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_CAN_SWITCH_DDC) {
-		const struct edid *edid;
-
-		/* FIXME: Make drm_get_edid_switcheroo() return drm_edid */
-		edid = drm_get_edid_switcheroo(&connector->base,
-					       intel_gmbus_get_adapter(i915, pin));
-		if (edid) {
-			drm_edid = drm_edid_alloc(edid, (edid->extensions + 1) * EDID_LENGTH);
-			kfree(edid);
-		} else {
-			drm_edid = NULL;
-		}
+		drm_edid = drm_edid_read_switcheroo(&connector->base,
+						    intel_gmbus_get_adapter(i915, pin));
 	} else {
 		drm_edid = drm_edid_read_ddc(&connector->base,
 					     intel_gmbus_get_adapter(i915, pin));

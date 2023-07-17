@@ -14,7 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/i2c.h>
 #include <linux/pm.h>
 #include <linux/mfd/palmas.h>
 #include <linux/completion.h>
@@ -547,7 +546,7 @@ static int palmas_gpadc_read_raw(struct iio_dev *indio_dev,
 	int adc_chan = chan->channel;
 	int ret = 0;
 
-	if (adc_chan > PALMAS_ADC_CH_MAX)
+	if (adc_chan >= PALMAS_ADC_CH_MAX)
 		return -EINVAL;
 
 	mutex_lock(&adc->lock);
@@ -595,7 +594,7 @@ static int palmas_gpadc_read_event_config(struct iio_dev *indio_dev,
 	int adc_chan = chan->channel;
 	int ret = 0;
 
-	if (adc_chan > PALMAS_ADC_CH_MAX || type != IIO_EV_TYPE_THRESH)
+	if (adc_chan >= PALMAS_ADC_CH_MAX || type != IIO_EV_TYPE_THRESH)
 		return -EINVAL;
 
 	mutex_lock(&adc->lock);
@@ -684,7 +683,7 @@ static int palmas_gpadc_write_event_config(struct iio_dev *indio_dev,
 	int adc_chan = chan->channel;
 	int ret;
 
-	if (adc_chan > PALMAS_ADC_CH_MAX || type != IIO_EV_TYPE_THRESH)
+	if (adc_chan >= PALMAS_ADC_CH_MAX || type != IIO_EV_TYPE_THRESH)
 		return -EINVAL;
 
 	mutex_lock(&adc->lock);
@@ -710,7 +709,7 @@ static int palmas_gpadc_read_event_value(struct iio_dev *indio_dev,
 	int adc_chan = chan->channel;
 	int ret;
 
-	if (adc_chan > PALMAS_ADC_CH_MAX || type != IIO_EV_TYPE_THRESH)
+	if (adc_chan >= PALMAS_ADC_CH_MAX || type != IIO_EV_TYPE_THRESH)
 		return -EINVAL;
 
 	mutex_lock(&adc->lock);
@@ -744,7 +743,7 @@ static int palmas_gpadc_write_event_value(struct iio_dev *indio_dev,
 	int old;
 	int ret;
 
-	if (adc_chan > PALMAS_ADC_CH_MAX || type != IIO_EV_TYPE_THRESH)
+	if (adc_chan >= PALMAS_ADC_CH_MAX || type != IIO_EV_TYPE_THRESH)
 		return -EINVAL;
 
 	mutex_lock(&adc->lock);

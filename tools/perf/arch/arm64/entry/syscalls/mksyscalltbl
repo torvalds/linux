@@ -19,27 +19,28 @@ if ! test -r $input; then
 	exit 1
 fi
 
-create_table_from_c()
+create_sc_table()
 {
-	local sc nr last_sc
+	local sc nr max_nr
 
 	while read sc nr; do
 		printf "%s\n" "	[$nr] = \"$sc\","
-		last_sc=$sc
+		max_nr=$nr
 	done
 
-	printf "%s\n" "#define SYSCALLTBL_ARM64_MAX_ID __NR_$last_sc"
+	echo "#define SYSCALLTBL_ARM64_MAX_ID $max_nr"
 }
 
 create_table()
 {
 	echo "#include \"$input\""
-	echo "static const char *syscalltbl_arm64[] = {"
-	create_table_from_c
+	echo "static const char *const syscalltbl_arm64[] = {"
+	create_sc_table
 	echo "};"
 }
 
 $gcc -E -dM -x c -I $incpath/include/uapi $input \
-	|sed -ne 's/^#define __NR_//p' \
-	|sort -t' ' -k2 -n	       \
+	|awk '$2 ~ "__NR" && $3 !~ "__NR3264_" {
+		sub("^#define __NR(3264)?_", "");
+		print | "sort -k2 -n"}' \
 	|create_table

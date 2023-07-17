@@ -19,6 +19,7 @@ struct nft_lookup {
 	struct nft_set			*set;
 	u8				sreg;
 	u8				dreg;
+	bool				dreg_set;
 	bool				invert;
 	struct nft_set_binding		binding;
 };
@@ -75,7 +76,7 @@ void nft_lookup_eval(const struct nft_expr *expr,
 	}
 
 	if (ext) {
-		if (set->flags & NFT_SET_MAP)
+		if (priv->dreg_set)
 			nft_data_copy(&regs->data[priv->dreg],
 				      nft_set_ext_data(ext), set->dlen);
 
@@ -122,11 +123,8 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 		if (flags & ~NFT_LOOKUP_F_INV)
 			return -EINVAL;
 
-		if (flags & NFT_LOOKUP_F_INV) {
-			if (set->flags & NFT_SET_MAP)
-				return -EINVAL;
+		if (flags & NFT_LOOKUP_F_INV)
 			priv->invert = true;
-		}
 	}
 
 	if (tb[NFTA_LOOKUP_DREG] != NULL) {
@@ -140,8 +138,17 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 					       set->dlen);
 		if (err < 0)
 			return err;
-	} else if (set->flags & NFT_SET_MAP)
-		return -EINVAL;
+		priv->dreg_set = true;
+	} else if (set->flags & NFT_SET_MAP) {
+		/* Map given, but user asks for lookup only (i.e. to
+		 * ignore value assoicated with key).
+		 *
+		 * This makes no sense for anonymous maps since they are
+		 * scoped to the rule, but for named sets this can be useful.
+		 */
+		if (set->flags & NFT_SET_ANONYMOUS)
+			return -EINVAL;
+	}
 
 	priv->binding.flags = set->flags & NFT_SET_MAP;
 
@@ -188,7 +195,7 @@ static int nft_lookup_dump(struct sk_buff *skb,
 		goto nla_put_failure;
 	if (nft_dump_register(skb, NFTA_LOOKUP_SREG, priv->sreg))
 		goto nla_put_failure;
-	if (priv->set->flags & NFT_SET_MAP)
+	if (priv->dreg_set)
 		if (nft_dump_register(skb, NFTA_LOOKUP_DREG, priv->dreg))
 			goto nla_put_failure;
 	if (nla_put_be32(skb, NFTA_LOOKUP_FLAGS, htonl(flags)))

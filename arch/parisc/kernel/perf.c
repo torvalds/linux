@@ -288,7 +288,7 @@ static ssize_t perf_read(struct file *file, char __user *buf, size_t cnt, loff_t
 static ssize_t perf_write(struct file *file, const char __user *buf,
 	size_t count, loff_t *ppos)
 {
-	size_t image_size;
+	size_t image_size __maybe_unused;
 	uint32_t image_type;
 	uint32_t interface_type;
 	uint32_t test;

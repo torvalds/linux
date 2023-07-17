@@ -246,9 +246,9 @@ static inline void atomic_lock_thread_idle(void)
 {
 	int cpu = raw_smp_processor_id();
 	int first = cpu_first_thread_sibling(cpu);
-	unsigned long *state = &paca_ptrs[first]->idle_state;
+	unsigned long *lock = &paca_ptrs[first]->idle_lock;
 
-	while (unlikely(test_and_set_bit_lock(NR_PNV_CORE_IDLE_LOCK_BIT, state)))
+	while (unlikely(test_and_set_bit_lock(NR_PNV_CORE_IDLE_LOCK_BIT, lock)))
 		barrier();
 }
 
@@ -258,29 +258,31 @@ static inline void atomic_unlock_and_stop_thread_idle(void)
 	int first = cpu_first_thread_sibling(cpu);
 	unsigned long thread = 1UL << cpu_thread_in_core(cpu);
 	unsigned long *state = &paca_ptrs[first]->idle_state;
+	unsigned long *lock = &paca_ptrs[first]->idle_lock;
 	u64 s = READ_ONCE(*state);
 	u64 new, tmp;
 
-	BUG_ON(!(s & PNV_CORE_IDLE_LOCK_BIT));
+	BUG_ON(!(READ_ONCE(*lock) & PNV_CORE_IDLE_LOCK_BIT));
 	BUG_ON(s & thread);
 
 again:
-	new = (s | thread) & ~PNV_CORE_IDLE_LOCK_BIT;
+	new = s | thread;
 	tmp = cmpxchg(state, s, new);
 	if (unlikely(tmp != s)) {
 		s = tmp;
 		goto again;
 	}
+	clear_bit_unlock(NR_PNV_CORE_IDLE_LOCK_BIT, lock);
 }
 
 static inline void atomic_unlock_thread_idle(void)
 {
 	int cpu = raw_smp_processor_id();
 	int first = cpu_first_thread_sibling(cpu);
-	unsigned long *state = &paca_ptrs[first]->idle_state;
+	unsigned long *lock = &paca_ptrs[first]->idle_lock;
 
-	BUG_ON(!test_bit(NR_PNV_CORE_IDLE_LOCK_BIT, state));
-	clear_bit_unlock(NR_PNV_CORE_IDLE_LOCK_BIT, state);
+	BUG_ON(!test_bit(NR_PNV_CORE_IDLE_LOCK_BIT, lock));
+	clear_bit_unlock(NR_PNV_CORE_IDLE_LOCK_BIT, lock);
 }
 
 /* P7 and P8 */

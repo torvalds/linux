@@ -567,7 +567,7 @@ static struct i2c_driver ccs811_driver = {
 		.name = "ccs811",
 		.of_match_table = ccs811_dt_ids,
 	},
-	.probe_new = ccs811_probe,
+	.probe = ccs811_probe,
 	.remove = ccs811_remove,
 	.id_table = ccs811_id,
 };

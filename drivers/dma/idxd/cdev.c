@@ -277,7 +277,6 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 		if (wq_dedicated(wq)) {
 			rc = idxd_wq_set_pasid(wq, pasid);
 			if (rc < 0) {
-				iommu_sva_unbind_device(sva);
 				dev_err(dev, "wq set pasid failed: %d\n", rc);
 				goto failed_set_pasid;
 			}

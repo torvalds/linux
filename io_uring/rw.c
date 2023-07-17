@@ -283,7 +283,7 @@ static inline int io_fixup_rw_res(struct io_kiocb *req, long res)
 	return res;
 }
 
-static void io_req_rw_complete(struct io_kiocb *req, struct io_tw_state *ts)
+void io_req_rw_complete(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	io_req_io_end(req);
 
@@ -666,8 +666,8 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 	if (unlikely(!file || !(file->f_mode & mode)))
 		return -EBADF;
 
-	if (!io_req_ffs_set(req))
-		req->flags |= io_file_get_flags(file) << REQ_F_SUPPORT_NOWAIT_BIT;
+	if (!(req->flags & REQ_F_FIXED_FILE))
+		req->flags |= io_file_get_flags(file);
 
 	kiocb->ki_flags = file->f_iocb_flags;
 	ret = kiocb_set_rw_flags(kiocb, rw->flags);

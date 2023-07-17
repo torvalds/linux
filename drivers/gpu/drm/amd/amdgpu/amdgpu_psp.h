@@ -455,6 +455,8 @@ extern const struct amdgpu_ip_block_version psp_v13_0_4_ip_block;
 
 extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 			uint32_t field_val, uint32_t mask, bool check_changed);
+extern int psp_wait_for_spirom_update(struct psp_context *psp, uint32_t reg_index,
+			uint32_t field_val, uint32_t mask, uint32_t msec_timeout);
 
 int psp_gpu_reset(struct amdgpu_device *adev);
 int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
@@ -486,7 +488,7 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_ras_enable_features(struct psp_context *psp,
 		union ta_ras_cmd_input *info, bool enable);
 int psp_ras_trigger_error(struct psp_context *psp,
-			  struct ta_ras_trigger_error_input *info);
+			  struct ta_ras_trigger_error_input *info, uint32_t instance_mask);
 int psp_ras_terminate(struct psp_context *psp);
 
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
@@ -518,6 +520,8 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 int psp_load_fw_list(struct psp_context *psp,
 		     struct amdgpu_firmware_info **ucode_list, int ucode_count);
 void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size);
+
+int psp_spatial_partition(struct psp_context *psp, int mode);
 
 int is_psp_fw_valid(struct psp_bin_desc bin);
 

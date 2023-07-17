@@ -234,10 +234,10 @@ void wg_timers_init(struct wg_peer *peer)
 
 void wg_timers_stop(struct wg_peer *peer)
 {
-	del_timer_sync(&peer->timer_retransmit_handshake);
-	del_timer_sync(&peer->timer_send_keepalive);
-	del_timer_sync(&peer->timer_new_handshake);
-	del_timer_sync(&peer->timer_zero_key_material);
-	del_timer_sync(&peer->timer_persistent_keepalive);
+	timer_delete_sync(&peer->timer_retransmit_handshake);
+	timer_delete_sync(&peer->timer_send_keepalive);
+	timer_delete_sync(&peer->timer_new_handshake);
+	timer_delete_sync(&peer->timer_zero_key_material);
+	timer_delete_sync(&peer->timer_persistent_keepalive);
 	flush_work(&peer->clear_peer_work);
 }

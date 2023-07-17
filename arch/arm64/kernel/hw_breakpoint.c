@@ -973,14 +973,6 @@ static int hw_breakpoint_reset(unsigned int cpu)
 	return 0;
 }
 
-#ifdef CONFIG_CPU_PM
-extern void cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int));
-#else
-static inline void cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int))
-{
-}
-#endif
-
 /*
  * One-time initialisation.
  */

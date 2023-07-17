@@ -458,7 +458,7 @@ EXPORT_SYMBOL_GPL(nft_meta_set_eval);
 
 const struct nla_policy nft_meta_policy[NFTA_META_MAX + 1] = {
 	[NFTA_META_DREG]	= { .type = NLA_U32 },
-	[NFTA_META_KEY]		= { .type = NLA_U32 },
+	[NFTA_META_KEY]		= NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_META_SREG]	= { .type = NLA_U32 },
 };
 EXPORT_SYMBOL_GPL(nft_meta_policy);

@@ -205,6 +205,32 @@ static int rsa_check_key_length(unsigned int len)
 	return -EINVAL;
 }
 
+static int rsa_check_exponent_fips(MPI e)
+{
+	MPI e_max = NULL;
+
+	/* check if odd */
+	if (!mpi_test_bit(e, 0)) {
+		return -EINVAL;
+	}
+
+	/* check if 2^16 < e < 2^256. */
+	if (mpi_cmp_ui(e, 65536) <= 0) {
+		return -EINVAL;
+	}
+
+	e_max = mpi_alloc(0);
+	mpi_set_bit(e_max, 256);
+
+	if (mpi_cmp(e, e_max) >= 0) {
+		mpi_free(e_max);
+		return -EINVAL;
+	}
+
+	mpi_free(e_max);
+	return 0;
+}
+
 static int rsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 			   unsigned int keylen)
 {
@@ -228,6 +254,11 @@ static int rsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 		goto err;
 
 	if (rsa_check_key_length(mpi_get_size(mpi_key->n) << 3)) {
+		rsa_free_mpi_key(mpi_key);
+		return -EINVAL;
+	}
+
+	if (fips_enabled && rsa_check_exponent_fips(mpi_key->e)) {
 		rsa_free_mpi_key(mpi_key);
 		return -EINVAL;
 	}
@@ -286,6 +317,11 @@ static int rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 		goto err;
 
 	if (rsa_check_key_length(mpi_get_size(mpi_key->n) << 3)) {
+		rsa_free_mpi_key(mpi_key);
+		return -EINVAL;
+	}
+
+	if (fips_enabled && rsa_check_exponent_fips(mpi_key->e)) {
 		rsa_free_mpi_key(mpi_key);
 		return -EINVAL;
 	}

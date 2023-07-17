@@ -6,7 +6,8 @@
 # See arch/parisc/math-emu/README
 ccflags-y := -Wno-parentheses -Wno-implicit-function-declaration \
 	-Wno-uninitialized -Wno-strict-prototypes -Wno-return-type \
-	-Wno-implicit-int
+	-Wno-implicit-int -Wno-missing-prototypes -Wno-missing-declarations \
+	-Wno-old-style-definition -Wno-unused-but-set-variable
 
 obj-y	 := frnd.o driver.o decode_exc.o fpudispatch.o denormal.o \
 		dfmpy.o sfmpy.o sfsqrt.o dfsqrt.o dfadd.o fmpyfadd.o \

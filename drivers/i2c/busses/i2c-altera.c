@@ -465,14 +465,12 @@ static int altr_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int altr_i2c_remove(struct platform_device *pdev)
+static void altr_i2c_remove(struct platform_device *pdev)
 {
 	struct altr_i2c_dev *idev = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(idev->i2c_clk);
 	i2c_del_adapter(&idev->adapter);
-
-	return 0;
 }
 
 /* Match table for of_platform binding */
@@ -484,7 +482,7 @@ MODULE_DEVICE_TABLE(of, altr_i2c_of_match);
 
 static struct platform_driver altr_i2c_driver = {
 	.probe = altr_i2c_probe,
-	.remove = altr_i2c_remove,
+	.remove_new = altr_i2c_remove,
 	.driver = {
 		.name = "altera-i2c",
 		.of_match_table = altr_i2c_of_match,

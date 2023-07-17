@@ -1198,37 +1198,37 @@ static void sas_print_parent_topology_bug(struct domain_device *child,
 		  sas_route_char(child, child_phy));
 }
 
+static bool sas_eeds_valid(struct domain_device *parent,
+			   struct domain_device *child)
+{
+	struct sas_discovery *disc = &parent->port->disc;
+
+	return (SAS_ADDR(disc->eeds_a) == SAS_ADDR(parent->sas_addr) ||
+		SAS_ADDR(disc->eeds_a) == SAS_ADDR(child->sas_addr)) &&
+	       (SAS_ADDR(disc->eeds_b) == SAS_ADDR(parent->sas_addr) ||
+		SAS_ADDR(disc->eeds_b) == SAS_ADDR(child->sas_addr));
+}
+
 static int sas_check_eeds(struct domain_device *child,
-				 struct ex_phy *parent_phy,
-				 struct ex_phy *child_phy)
+			  struct ex_phy *parent_phy,
+			  struct ex_phy *child_phy)
 {
 	int res = 0;
 	struct domain_device *parent = child->parent;
+	struct sas_discovery *disc = &parent->port->disc;
 
-	if (SAS_ADDR(parent->port->disc.fanout_sas_addr) != 0) {
+	if (SAS_ADDR(disc->fanout_sas_addr) != 0) {
 		res = -ENODEV;
 		pr_warn("edge ex %016llx phy S:%02d <--> edge ex %016llx phy S:%02d, while there is a fanout ex %016llx\n",
 			SAS_ADDR(parent->sas_addr),
 			parent_phy->phy_id,
 			SAS_ADDR(child->sas_addr),
 			child_phy->phy_id,
-			SAS_ADDR(parent->port->disc.fanout_sas_addr));
-	} else if (SAS_ADDR(parent->port->disc.eeds_a) == 0) {
-		memcpy(parent->port->disc.eeds_a, parent->sas_addr,
-		       SAS_ADDR_SIZE);
-		memcpy(parent->port->disc.eeds_b, child->sas_addr,
-		       SAS_ADDR_SIZE);
-	} else if (((SAS_ADDR(parent->port->disc.eeds_a) ==
-		    SAS_ADDR(parent->sas_addr)) ||
-		   (SAS_ADDR(parent->port->disc.eeds_a) ==
-		    SAS_ADDR(child->sas_addr)))
-		   &&
-		   ((SAS_ADDR(parent->port->disc.eeds_b) ==
-		     SAS_ADDR(parent->sas_addr)) ||
-		    (SAS_ADDR(parent->port->disc.eeds_b) ==
-		     SAS_ADDR(child->sas_addr))))
-		;
-	else {
+			SAS_ADDR(disc->fanout_sas_addr));
+	} else if (SAS_ADDR(disc->eeds_a) == 0) {
+		memcpy(disc->eeds_a, parent->sas_addr, SAS_ADDR_SIZE);
+		memcpy(disc->eeds_b, child->sas_addr, SAS_ADDR_SIZE);
+	} else if (!sas_eeds_valid(parent, child)) {
 		res = -ENODEV;
 		pr_warn("edge ex %016llx phy%02d <--> edge ex %016llx phy%02d link forms a third EEDS!\n",
 			SAS_ADDR(parent->sas_addr),
@@ -1240,11 +1240,56 @@ static int sas_check_eeds(struct domain_device *child,
 	return res;
 }
 
-/* Here we spill over 80 columns.  It is intentional.
- */
-static int sas_check_parent_topology(struct domain_device *child)
+static int sas_check_edge_expander_topo(struct domain_device *child,
+					struct ex_phy *parent_phy)
 {
 	struct expander_device *child_ex = &child->ex_dev;
+	struct expander_device *parent_ex = &child->parent->ex_dev;
+	struct ex_phy *child_phy;
+
+	child_phy = &child_ex->ex_phy[parent_phy->attached_phy_id];
+
+	if (child->dev_type == SAS_FANOUT_EXPANDER_DEVICE) {
+		if (parent_phy->routing_attr != SUBTRACTIVE_ROUTING ||
+		    child_phy->routing_attr != TABLE_ROUTING)
+			goto error;
+	} else if (parent_phy->routing_attr == SUBTRACTIVE_ROUTING) {
+		if (child_phy->routing_attr == SUBTRACTIVE_ROUTING)
+			return sas_check_eeds(child, parent_phy, child_phy);
+		else if (child_phy->routing_attr != TABLE_ROUTING)
+			goto error;
+	} else if (parent_phy->routing_attr == TABLE_ROUTING) {
+		if (child_phy->routing_attr != SUBTRACTIVE_ROUTING &&
+		    (child_phy->routing_attr != TABLE_ROUTING ||
+		     !child_ex->t2t_supp || !parent_ex->t2t_supp))
+			goto error;
+	}
+
+	return 0;
+error:
+	sas_print_parent_topology_bug(child, parent_phy, child_phy);
+	return -ENODEV;
+}
+
+static int sas_check_fanout_expander_topo(struct domain_device *child,
+					  struct ex_phy *parent_phy)
+{
+	struct expander_device *child_ex = &child->ex_dev;
+	struct ex_phy *child_phy;
+
+	child_phy = &child_ex->ex_phy[parent_phy->attached_phy_id];
+
+	if (parent_phy->routing_attr == TABLE_ROUTING &&
+	    child_phy->routing_attr == SUBTRACTIVE_ROUTING)
+		return 0;
+
+	sas_print_parent_topology_bug(child, parent_phy, child_phy);
+
+	return -ENODEV;
+}
+
+static int sas_check_parent_topology(struct domain_device *child)
+{
 	struct expander_device *parent_ex;
 	int i;
 	int res = 0;
@@ -1259,7 +1304,6 @@ static int sas_check_parent_topology(struct domain_device *child)
 
 	for (i = 0; i < parent_ex->num_phys; i++) {
 		struct ex_phy *parent_phy = &parent_ex->ex_phy[i];
-		struct ex_phy *child_phy;
 
 		if (parent_phy->phy_state == PHY_VACANT ||
 		    parent_phy->phy_state == PHY_NOT_PRESENT)
@@ -1268,40 +1312,14 @@ static int sas_check_parent_topology(struct domain_device *child)
 		if (!sas_phy_match_dev_addr(child, parent_phy))
 			continue;
 
-		child_phy = &child_ex->ex_phy[parent_phy->attached_phy_id];
-
 		switch (child->parent->dev_type) {
 		case SAS_EDGE_EXPANDER_DEVICE:
-			if (child->dev_type == SAS_FANOUT_EXPANDER_DEVICE) {
-				if (parent_phy->routing_attr != SUBTRACTIVE_ROUTING ||
-				    child_phy->routing_attr != TABLE_ROUTING) {
-					sas_print_parent_topology_bug(child, parent_phy, child_phy);
-					res = -ENODEV;
-				}
-			} else if (parent_phy->routing_attr == SUBTRACTIVE_ROUTING) {
-				if (child_phy->routing_attr == SUBTRACTIVE_ROUTING) {
-					res = sas_check_eeds(child, parent_phy, child_phy);
-				} else if (child_phy->routing_attr != TABLE_ROUTING) {
-					sas_print_parent_topology_bug(child, parent_phy, child_phy);
-					res = -ENODEV;
-				}
-			} else if (parent_phy->routing_attr == TABLE_ROUTING) {
-				if (child_phy->routing_attr == SUBTRACTIVE_ROUTING ||
-				    (child_phy->routing_attr == TABLE_ROUTING &&
-				     child_ex->t2t_supp && parent_ex->t2t_supp)) {
-					/* All good */;
-				} else {
-					sas_print_parent_topology_bug(child, parent_phy, child_phy);
-					res = -ENODEV;
-				}
-			}
+			if (sas_check_edge_expander_topo(child, parent_phy))
+				res = -ENODEV;
 			break;
 		case SAS_FANOUT_EXPANDER_DEVICE:
-			if (parent_phy->routing_attr != TABLE_ROUTING ||
-			    child_phy->routing_attr != SUBTRACTIVE_ROUTING) {
-				sas_print_parent_topology_bug(child, parent_phy, child_phy);
+			if (sas_check_fanout_expander_topo(child, parent_phy))
 				res = -ENODEV;
-			}
 			break;
 		default:
 			break;

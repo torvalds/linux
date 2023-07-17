@@ -231,12 +231,11 @@ Mount options:
     Redirects are enabled.
 - "redirect_dir=follow":
     Redirects are not created, but followed.
-- "redirect_dir=off":
-    Redirects are not created and only followed if "redirect_always_follow"
-    feature is enabled in the kernel/module config.
 - "redirect_dir=nofollow":
-    Redirects are not created and not followed (equivalent to "redirect_dir=off"
-    if "redirect_always_follow" feature is not enabled).
+    Redirects are not created and not followed.
+- "redirect_dir=off":
+    If "redirect_always_follow" is enabled in the kernel/module config,
+    this "off" traslates to "follow", otherwise it translates to "nofollow".
 
 When the NFS export feature is enabled, every copied up directory is
 indexed by the file handle of the lower inode and a file handle of the
@@ -370,6 +369,41 @@ conflict with metacopy=on, and will result in an error.
 
 [*] redirect_dir=follow only conflicts with metacopy=on if upperdir=... is
 given.
+
+
+Data-only lower layers
+----------------------
+
+With "metacopy" feature enabled, an overlayfs regular file may be a composition
+of information from up to three different layers:
+
+ 1) metadata from a file in the upper layer
+
+ 2) st_ino and st_dev object identifier from a file in a lower layer
+
+ 3) data from a file in another lower layer (further below)
+
+The "lower data" file can be on any lower layer, except from the top most
+lower layer.
+
+Below the top most lower layer, any number of lower most layers may be defined
+as "data-only" lower layers, using double colon ("::") separators.
+A normal lower layer is not allowed to be below a data-only layer, so single
+colon separators are not allowed to the right of double colon ("::") separators.
+
+
+For example:
+
+  mount -t overlay overlay -olowerdir=/l1:/l2:/l3::/do1::/do2 /merged
+
+The paths of files in the "data-only" lower layers are not visible in the
+merged overlayfs directories and the metadata and st_ino/st_dev of files
+in the "data-only" lower layers are not visible in overlayfs inodes.
+
+Only the data of the files in the "data-only" lower layers may be visible
+when a "metacopy" file in one of the lower layers above it, has a "redirect"
+to the absolute path of the "lower data" file in the "data-only" lower layer.
+
 
 Sharing and copying layers
 --------------------------

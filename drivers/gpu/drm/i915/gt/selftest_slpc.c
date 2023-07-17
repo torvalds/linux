@@ -70,6 +70,31 @@ static int slpc_set_freq(struct intel_gt *gt, u32 freq)
 	return err;
 }
 
+static int slpc_restore_freq(struct intel_guc_slpc *slpc, u32 min, u32 max)
+{
+	int err;
+
+	err = slpc_set_max_freq(slpc, max);
+	if (err) {
+		pr_err("Unable to restore max freq");
+		return err;
+	}
+
+	err = slpc_set_min_freq(slpc, min);
+	if (err) {
+		pr_err("Unable to restore min freq");
+		return err;
+	}
+
+	err = intel_guc_slpc_set_ignore_eff_freq(slpc, false);
+	if (err) {
+		pr_err("Unable to restore efficient freq");
+		return err;
+	}
+
+	return 0;
+}
+
 static u64 measure_power_at_freq(struct intel_gt *gt, int *freq, u64 *power)
 {
 	int err = 0;
@@ -268,12 +293,20 @@ static int run_test(struct intel_gt *gt, int test_type)
 
 	/*
 	 * Set min frequency to RPn so that we can test the whole
-	 * range of RPn-RP0. This also turns off efficient freq
-	 * usage and makes results more predictable.
+	 * range of RPn-RP0.
 	 */
 	err = slpc_set_min_freq(slpc, slpc->min_freq);
 	if (err) {
 		pr_err("Unable to update min freq!");
+		return err;
+	}
+
+	/*
+	 * Turn off efficient frequency so RPn/RP0 ranges are obeyed.
+	 */
+	err = intel_guc_slpc_set_ignore_eff_freq(slpc, true);
+	if (err) {
+		pr_err("Unable to turn off efficient freq!");
 		return err;
 	}
 
@@ -358,9 +391,8 @@ static int run_test(struct intel_gt *gt, int test_type)
 			break;
 	}
 
-	/* Restore min/max frequencies */
-	slpc_set_max_freq(slpc, slpc_max_freq);
-	slpc_set_min_freq(slpc, slpc_min_freq);
+	/* Restore min/max/efficient frequencies */
+	err = slpc_restore_freq(slpc, slpc_min_freq, slpc_max_freq);
 
 	if (igt_flush_test(gt->i915))
 		err = -EIO;

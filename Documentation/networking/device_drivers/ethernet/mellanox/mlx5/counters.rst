@@ -797,6 +797,16 @@ Counters on the NIC port that is connected to a eSwitch.
        RoCE/UD/RC traffic) [#accel]_.
      - Acceleration
 
+   * - `vport_loopback_packets`
+     - Unicast, multicast and broadcast packets that were loop-back (received
+       and transmitted), IB/Eth  [#accel]_.
+     - Acceleration
+
+   * - `vport_loopback_bytes`
+     - Unicast, multicast and broadcast bytes that were loop-back (received
+       and transmitted), IB/Eth  [#accel]_.
+     - Acceleration
+
    * - `rx_steer_missed_packets`
      - Number of packets that was received by the NIC, however was discarded
        because it did not match any flow in the NIC flow table.

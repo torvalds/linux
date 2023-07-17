@@ -1746,7 +1746,7 @@ static struct i2c_driver iqs269_i2c_driver = {
 		.of_match_table = iqs269_of_match,
 		.pm = pm_sleep_ptr(&iqs269_pm),
 	},
-	.probe_new = iqs269_probe,
+	.probe = iqs269_probe,
 };
 module_i2c_driver(iqs269_i2c_driver);
 

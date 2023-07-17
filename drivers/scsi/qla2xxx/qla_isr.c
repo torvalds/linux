@@ -1862,9 +1862,9 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 	}
 }
 
-srb_t *
-qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
-    struct req_que *req, void *iocb)
+static srb_t *
+qla_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
+		       struct req_que *req, void *iocb, u16 *ret_index)
 {
 	struct qla_hw_data *ha = vha->hw;
 	sts_entry_t *pkt = iocb;
@@ -1899,9 +1899,22 @@ qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
 		return NULL;
 	}
 
-	req->outstanding_cmds[index] = NULL;
-
+	*ret_index = index;
 	qla_put_fw_resources(sp->qpair, &sp->iores);
+	return sp;
+}
+
+srb_t *
+qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
+			   struct req_que *req, void *iocb)
+{
+	uint16_t index;
+	srb_t *sp;
+
+	sp = qla_get_sp_from_handle(vha, func, req, iocb, &index);
+	if (sp)
+		req->outstanding_cmds[index] = NULL;
+
 	return sp;
 }
 
@@ -3237,13 +3250,13 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		return;
 	}
 
-	req->outstanding_cmds[handle] = NULL;
 	cp = GET_CMD_SP(sp);
 	if (cp == NULL) {
 		ql_dbg(ql_dbg_io, vha, 0x3018,
 		    "Command already returned (0x%x/%p).\n",
 		    sts->handle, sp);
 
+		req->outstanding_cmds[handle] = NULL;
 		return;
 	}
 
@@ -3514,6 +3527,9 @@ out:
 
 	if (rsp->status_srb == NULL)
 		sp->done(sp, res);
+
+	/* for io's, clearing of outstanding_cmds[handle] means scsi_done was called */
+	req->outstanding_cmds[handle] = NULL;
 }
 
 /**
@@ -3590,6 +3606,7 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 	uint16_t que = MSW(pkt->handle);
 	struct req_que *req = NULL;
 	int res = DID_ERROR << 16;
+	u16 index;
 
 	ql_dbg(ql_dbg_async, vha, 0x502a,
 	    "iocb type %xh with error status %xh, handle %xh, rspq id %d\n",
@@ -3608,7 +3625,6 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 
 	switch (pkt->entry_type) {
 	case NOTIFY_ACK_TYPE:
-	case STATUS_TYPE:
 	case STATUS_CONT_TYPE:
 	case LOGINOUT_PORT_IOCB_TYPE:
 	case CT_IOCB_TYPE:
@@ -3628,6 +3644,14 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 	case CTIO_TYPE7:
 	case CTIO_CRC2:
 		return 1;
+	case STATUS_TYPE:
+		sp = qla_get_sp_from_handle(vha, func, req, pkt, &index);
+		if (sp) {
+			sp->done(sp, res);
+			req->outstanding_cmds[index] = NULL;
+			return 0;
+		}
+		break;
 	}
 fatal:
 	ql_log(ql_log_warn, vha, 0x5030,
@@ -3750,6 +3774,28 @@ static int qla_chk_cont_iocb_avail(struct scsi_qla_host *vha,
 	return rc;
 }
 
+static void qla_marker_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
+	struct mrk_entry_24xx *pkt)
+{
+	const char func[] = "MRK-IOCB";
+	srb_t *sp;
+	int res = QLA_SUCCESS;
+
+	if (!IS_FWI2_CAPABLE(vha->hw))
+		return;
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
+	if (!sp)
+		return;
+
+	if (pkt->entry_status) {
+		ql_dbg(ql_dbg_taskm, vha, 0x8025, "marker failure.\n");
+		res = QLA_COMMAND_ERROR;
+	}
+	sp->u.iocb_cmd.u.tmf.data = res;
+	sp->done(sp, res);
+}
+
 /**
  * qla24xx_process_response_queue() - Process response queue entries.
  * @vha: SCSI driver HA context
@@ -3770,6 +3816,9 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 
 	if (rsp->qpair->cpuid != smp_processor_id() || !rsp->qpair->rcv_intr) {
 		rsp->qpair->rcv_intr = 1;
+
+		if (!rsp->qpair->cpu_mapped)
+			qla_cpu_update(rsp->qpair, raw_smp_processor_id());
 	}
 
 #define __update_rsp_in(_is_shadow_hba, _rsp, _rsp_in)			\
@@ -3863,9 +3912,7 @@ process_err:
 					(struct nack_to_isp *)pkt);
 			break;
 		case MARKER_TYPE:
-			/* Do nothing in this case, this check is to prevent it
-			 * from falling into default case
-			 */
+			qla_marker_iocb_entry(vha, rsp->req, (struct mrk_entry_24xx *)pkt);
 			break;
 		case ABORT_IOCB_TYPE:
 			qla24xx_abort_iocb_entry(vha, rsp->req,

@@ -726,7 +726,11 @@ static int vduse_vdpa_set_vq_affinity(struct vdpa_device *vdpa, u16 idx,
 {
 	struct vduse_dev *dev = vdpa_to_vduse(vdpa);
 
-	cpumask_copy(&dev->vqs[idx]->irq_affinity, cpu_mask);
+	if (cpu_mask)
+		cpumask_copy(&dev->vqs[idx]->irq_affinity, cpu_mask);
+	else
+		cpumask_setall(&dev->vqs[idx]->irq_affinity);
+
 	return 0;
 }
 
@@ -1052,7 +1056,7 @@ static int vduse_dev_reg_umem(struct vduse_dev *dev,
 		goto out;
 
 	pinned = pin_user_pages(uaddr, npages, FOLL_LONGTERM | FOLL_WRITE,
-				page_list, NULL);
+				page_list);
 	if (pinned != npages) {
 		ret = pinned < 0 ? pinned : -ENOMEM;
 		goto out;
@@ -1683,6 +1687,9 @@ static bool vduse_validate_config(struct vduse_dev_config *config)
 		return false;
 
 	if (config->vq_num > 0xffff)
+		return false;
+
+	if (!config->name[0])
 		return false;
 
 	if (!device_is_allowed(config->device_id))

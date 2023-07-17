@@ -773,8 +773,6 @@
 	.octa 0x3F893781E95FE1576CDA64D2BA0CB204
 
 #ifdef CONFIG_AS_GFNI
-.section	.rodata.cst8, "aM", @progbits, 8
-.align 8
 /* AES affine: */
 #define tf_aff_const BV8(1, 1, 0, 0, 0, 1, 1, 0)
 .Ltf_aff_bitmatrix:

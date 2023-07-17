@@ -416,7 +416,7 @@ static struct i2c_driver sp2_driver = {
 	.driver = {
 		.name	= "sp2",
 	},
-	.probe_new	= sp2_probe,
+	.probe		= sp2_probe,
 	.remove		= sp2_remove,
 	.id_table	= sp2_id,
 };

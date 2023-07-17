@@ -11,25 +11,26 @@
 #include <linux/types.h>
 
 /*
- * Linux EFI stub v1.0 adds the following functionality:
- * - Loading initrd from the LINUX_EFI_INITRD_MEDIA_GUID device path,
- * - Loading/starting the kernel from firmware that targets a different
- *   machine type, via the entrypoint exposed in the .compat PE/COFF section.
+ * Starting from version v3.0, the major version field should be interpreted as
+ * a bit mask of features supported by the kernel's EFI stub:
+ * - 0x1: initrd loading from the LINUX_EFI_INITRD_MEDIA_GUID device path,
+ * - 0x2: initrd loading using the initrd= command line option, where the file
+ *        may be specified using device path notation, and is not required to
+ *        reside on the same volume as the loaded kernel image.
  *
  * The recommended way of loading and starting v1.0 or later kernels is to use
  * the LoadImage() and StartImage() EFI boot services, and expose the initrd
  * via the LINUX_EFI_INITRD_MEDIA_GUID device path.
  *
- * Versions older than v1.0 support initrd loading via the image load options
- * (using initrd=, limited to the volume from which the kernel itself was
- * loaded), or via arch specific means (bootparams, DT, etc).
+ * Versions older than v1.0 may support initrd loading via the image load
+ * options (using initrd=, limited to the volume from which the kernel itself
+ * was loaded), or only via arch specific means (bootparams, DT, etc).
  *
- * On x86, LoadImage() and StartImage() can be omitted if the EFI handover
- * protocol is implemented, which can be inferred from the version,
- * handover_offset and xloadflags fields in the bootparams structure.
+ * The minor version field must remain 0x0.
+ * (https://lore.kernel.org/all/efd6f2d4-547c-1378-1faa-53c044dbd297@gmail.com/)
  */
-#define LINUX_EFISTUB_MAJOR_VERSION		0x1
-#define LINUX_EFISTUB_MINOR_VERSION		0x1
+#define LINUX_EFISTUB_MAJOR_VERSION		0x3
+#define LINUX_EFISTUB_MINOR_VERSION		0x0
 
 /*
  * LINUX_PE_MAGIC appears at offset 0x38 into the MS-DOS header of EFI bootable

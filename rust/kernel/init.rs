@@ -197,6 +197,7 @@
 //! [`Opaque`]: kernel::types::Opaque
 //! [`Opaque::ffi_init`]: kernel::types::Opaque::ffi_init
 //! [`pin_data`]: ::macros::pin_data
+//! [`pin_init!`]: crate::pin_init!
 
 use crate::{
     error::{self, Error},
@@ -255,6 +256,8 @@ pub mod macros;
 /// A normal `let` binding with optional type annotation. The expression is expected to implement
 /// [`PinInit`]/[`Init`] with the error type [`Infallible`]. If you want to use a different error
 /// type, then use [`stack_try_pin_init!`].
+///
+/// [`stack_try_pin_init!`]: crate::stack_try_pin_init!
 #[macro_export]
 macro_rules! stack_pin_init {
     (let $var:ident $(: $t:ty)? = $val:expr) => {
@@ -804,6 +807,8 @@ macro_rules! try_pin_init {
 ///
 /// This initializer is for initializing data in-place that might later be moved. If you want to
 /// pin-initialize, use [`pin_init!`].
+///
+/// [`try_init!`]: crate::try_init!
 // For a detailed example of how this macro works, see the module documentation of the hidden
 // module `__internal` inside of `init/__internal.rs`.
 #[macro_export]

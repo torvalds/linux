@@ -86,6 +86,7 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 	state->acquire_ctx = &ctx;
+	to_intel_atomic_state(state)->internal = true;
 
 	while (1) {
 		plane_state = drm_atomic_get_plane_state(state, plane);

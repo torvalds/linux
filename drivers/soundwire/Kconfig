@@ -37,6 +37,7 @@ config SOUNDWIRE_INTEL
 	select SOUNDWIRE_GENERIC_ALLOCATION
 	select AUXILIARY_BUS
 	depends on ACPI && SND_SOC
+	depends on SND_SOC_SOF_HDA_MLINK || !SND_SOC_SOF_HDA_MLINK
 	help
 	  SoundWire Intel Master driver.
 	  If you have an Intel platform which has a SoundWire Master then

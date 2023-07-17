@@ -21,6 +21,13 @@
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
 
+static const struct of_device_id __maybe_unused armada_8k_cpufreq_of_match[] = {
+	{ .compatible = "marvell,ap806-cpu-clock" },
+	{ .compatible = "marvell,ap807-cpu-clock" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, armada_8k_cpufreq_of_match);
+
 /*
  * Setup the opps list with the divider for the max frequency, that
  * will be filled at runtime.
@@ -127,7 +134,8 @@ static int __init armada_8k_cpufreq_init(void)
 	struct device_node *node;
 	struct cpumask cpus;
 
-	node = of_find_compatible_node(NULL, NULL, "marvell,ap806-cpu-clock");
+	node = of_find_matching_node_and_match(NULL, armada_8k_cpufreq_of_match,
+					       NULL);
 	if (!node || !of_device_is_available(node)) {
 		of_node_put(node);
 		return -ENODEV;
@@ -203,12 +211,6 @@ static void __exit armada_8k_cpufreq_exit(void)
 	armada_8k_cpufreq_free_table(freq_tables);
 }
 module_exit(armada_8k_cpufreq_exit);
-
-static const struct of_device_id __maybe_unused armada_8k_cpufreq_of_match[] = {
-	{ .compatible = "marvell,ap806-cpu-clock" },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, armada_8k_cpufreq_of_match);
 
 MODULE_AUTHOR("Gregory Clement <gregory.clement@bootlin.com>");
 MODULE_DESCRIPTION("Armada 8K cpufreq driver");

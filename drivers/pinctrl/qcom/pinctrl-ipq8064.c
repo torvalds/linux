@@ -6,7 +6,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-msm.h"
 
@@ -161,18 +160,11 @@ static const unsigned int sdc3_clk_pins[] = { 69 };
 static const unsigned int sdc3_cmd_pins[] = { 70 };
 static const unsigned int sdc3_data_pins[] = { 71 };
 
-#define FUNCTION(fname)					\
-	[IPQ_MUX_##fname] = {				\
-		.name = #fname,				\
-		.groups = fname##_groups,		\
-		.ngroups = ARRAY_SIZE(fname##_groups),	\
-	}
-
 #define PINGROUP(id, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10) \
 	{						\
-		.name = "gpio" #id,			\
-		.pins = gpio##id##_pins,		\
-		.npins = ARRAY_SIZE(gpio##id##_pins),	\
+		.grp = PINCTRL_PINGROUP("gpio" #id, 	\
+			gpio##id##_pins, 		\
+			ARRAY_SIZE(gpio##id##_pins)),	\
 		.funcs = (int[]){			\
 			IPQ_MUX_gpio,			\
 			IPQ_MUX_##f1,			\
@@ -211,9 +203,9 @@ static const unsigned int sdc3_data_pins[] = { 71 };
 
 #define SDC_PINGROUP(pg_name, ctl, pull, drv)		\
 	{						\
-		.name = #pg_name,	                \
-		.pins = pg_name##_pins,                 \
-		.npins = ARRAY_SIZE(pg_name##_pins),    \
+		.grp = PINCTRL_PINGROUP(#pg_name, 	\
+			pg_name##_pins, 		\
+			ARRAY_SIZE(pg_name##_pins)),	\
 		.ctl_reg = ctl,                         \
 		.io_reg = 0,                            \
 		.intr_cfg_reg = 0,                      \
@@ -487,53 +479,53 @@ static const char * const ps_hold_groups[] = {
 	"gpio26",
 };
 
-static const struct msm_function ipq8064_functions[] = {
-	FUNCTION(gpio),
-	FUNCTION(mdio),
-	FUNCTION(ssbi),
-	FUNCTION(spmi),
-	FUNCTION(mi2s),
-	FUNCTION(pdm),
-	FUNCTION(audio_pcm),
-	FUNCTION(gsbi1),
-	FUNCTION(gsbi2),
-	FUNCTION(gsbi4),
-	FUNCTION(gsbi5),
-	FUNCTION(gsbi5_spi_cs1),
-	FUNCTION(gsbi5_spi_cs2),
-	FUNCTION(gsbi5_spi_cs3),
-	FUNCTION(gsbi6),
-	FUNCTION(gsbi7),
-	FUNCTION(nss_spi),
-	FUNCTION(sdc1),
-	FUNCTION(spdif),
-	FUNCTION(nand),
-	FUNCTION(tsif1),
-	FUNCTION(tsif2),
-	FUNCTION(usb_fs_n),
-	FUNCTION(usb_fs),
-	FUNCTION(usb2_hsic),
-	FUNCTION(rgmii2),
-	FUNCTION(sata),
-	FUNCTION(pcie1_rst),
-	FUNCTION(pcie1_prsnt),
-	FUNCTION(pcie1_pwren_n),
-	FUNCTION(pcie1_pwren),
-	FUNCTION(pcie1_pwrflt),
-	FUNCTION(pcie1_clk_req),
-	FUNCTION(pcie2_rst),
-	FUNCTION(pcie2_prsnt),
-	FUNCTION(pcie2_pwren_n),
-	FUNCTION(pcie2_pwren),
-	FUNCTION(pcie2_pwrflt),
-	FUNCTION(pcie2_clk_req),
-	FUNCTION(pcie3_rst),
-	FUNCTION(pcie3_prsnt),
-	FUNCTION(pcie3_pwren_n),
-	FUNCTION(pcie3_pwren),
-	FUNCTION(pcie3_pwrflt),
-	FUNCTION(pcie3_clk_req),
-	FUNCTION(ps_hold),
+static const struct pinfunction ipq8064_functions[] = {
+	IPQ_PIN_FUNCTION(gpio),
+	IPQ_PIN_FUNCTION(mdio),
+	IPQ_PIN_FUNCTION(ssbi),
+	IPQ_PIN_FUNCTION(spmi),
+	IPQ_PIN_FUNCTION(mi2s),
+	IPQ_PIN_FUNCTION(pdm),
+	IPQ_PIN_FUNCTION(audio_pcm),
+	IPQ_PIN_FUNCTION(gsbi1),
+	IPQ_PIN_FUNCTION(gsbi2),
+	IPQ_PIN_FUNCTION(gsbi4),
+	IPQ_PIN_FUNCTION(gsbi5),
+	IPQ_PIN_FUNCTION(gsbi5_spi_cs1),
+	IPQ_PIN_FUNCTION(gsbi5_spi_cs2),
+	IPQ_PIN_FUNCTION(gsbi5_spi_cs3),
+	IPQ_PIN_FUNCTION(gsbi6),
+	IPQ_PIN_FUNCTION(gsbi7),
+	IPQ_PIN_FUNCTION(nss_spi),
+	IPQ_PIN_FUNCTION(sdc1),
+	IPQ_PIN_FUNCTION(spdif),
+	IPQ_PIN_FUNCTION(nand),
+	IPQ_PIN_FUNCTION(tsif1),
+	IPQ_PIN_FUNCTION(tsif2),
+	IPQ_PIN_FUNCTION(usb_fs_n),
+	IPQ_PIN_FUNCTION(usb_fs),
+	IPQ_PIN_FUNCTION(usb2_hsic),
+	IPQ_PIN_FUNCTION(rgmii2),
+	IPQ_PIN_FUNCTION(sata),
+	IPQ_PIN_FUNCTION(pcie1_rst),
+	IPQ_PIN_FUNCTION(pcie1_prsnt),
+	IPQ_PIN_FUNCTION(pcie1_pwren_n),
+	IPQ_PIN_FUNCTION(pcie1_pwren),
+	IPQ_PIN_FUNCTION(pcie1_pwrflt),
+	IPQ_PIN_FUNCTION(pcie1_clk_req),
+	IPQ_PIN_FUNCTION(pcie2_rst),
+	IPQ_PIN_FUNCTION(pcie2_prsnt),
+	IPQ_PIN_FUNCTION(pcie2_pwren_n),
+	IPQ_PIN_FUNCTION(pcie2_pwren),
+	IPQ_PIN_FUNCTION(pcie2_pwrflt),
+	IPQ_PIN_FUNCTION(pcie2_clk_req),
+	IPQ_PIN_FUNCTION(pcie3_rst),
+	IPQ_PIN_FUNCTION(pcie3_prsnt),
+	IPQ_PIN_FUNCTION(pcie3_pwren_n),
+	IPQ_PIN_FUNCTION(pcie3_pwren),
+	IPQ_PIN_FUNCTION(pcie3_pwrflt),
+	IPQ_PIN_FUNCTION(pcie3_clk_req),
+	IPQ_PIN_FUNCTION(ps_hold),
 };
 
 static const struct msm_pingroup ipq8064_groups[] = {

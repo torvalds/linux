@@ -323,6 +323,16 @@
         "UMask": "0x2"
     },
     {
+        "BriefDescription": "Retired instructions with at least 1 uncacheable load or lock.",
+        "Data_LA": "1",
+        "EventCode": "0xd4",
+        "EventName": "MEM_LOAD_MISC_RETIRED.UC",
+        "PEBS": "1",
+        "PublicDescription": "Retired instructions with at least one load to uncacheable memory-type, or at least one cache-line split locked access",
+        "SampleAfterValue": "100007",
+        "UMask": "0x4"
+    },
+    {
         "BriefDescription": "Number of completed demand load requests that missed the L1, but hit the FB(fill buffer), because a preceding miss to the same cacheline initiated the line to be brought into L1, but data is not yet ready in L1.",
         "Data_LA": "1",
         "EventCode": "0xd1",
@@ -509,6 +519,14 @@
         "PublicDescription": "Counts the number of off-core outstanding read-for-ownership (RFO) store transactions every cycle. An RFO transaction is considered to be in the Off-core outstanding state between L2 cache miss and transaction completion.",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts bus locks, accounts for cache line split locks and UC locks.",
+        "EventCode": "0xf4",
+        "EventName": "SQ_MISC.BUS_LOCK",
+        "PublicDescription": "Counts the more expensive bus lock needed to enforce cache coherency for certain memory accesses that need to be done atomically.  Can be created by issuing an atomic instruction (via the LOCK prefix) which causes a cache line split or accesses uncacheable memory.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x10"
     },
     {
         "BriefDescription": "Cycles the superQ cannot take any more entries.",

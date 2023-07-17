@@ -488,6 +488,34 @@ static inline void serial8250_apply_quirks(struct uart_8250_port *up)
 	up->port.quirks |= skip_txen_test ? UPQ_NO_TXEN_TEST : 0;
 }
 
+static struct uart_8250_port *serial8250_setup_port(int index)
+{
+	struct uart_8250_port *up;
+
+	if (index >= UART_NR)
+		return NULL;
+
+	up = &serial8250_ports[index];
+	up->port.line = index;
+
+	serial8250_init_port(up);
+	if (!base_ops)
+		base_ops = up->port.ops;
+	up->port.ops = &univ8250_port_ops;
+
+	timer_setup(&up->timer, serial8250_timeout, 0);
+
+	up->ops = &univ8250_driver_ops;
+
+	if (IS_ENABLED(CONFIG_ALPHA_JENSEN) ||
+	    (IS_ENABLED(CONFIG_ALPHA_GENERIC) && alpha_jensen()))
+		up->port.set_mctrl = alpha_jensen_set_mctrl;
+
+	serial8250_set_defaults(up);
+
+	return up;
+}
+
 static void __init serial8250_isa_init_ports(void)
 {
 	struct uart_8250_port *up;
@@ -501,26 +529,13 @@ static void __init serial8250_isa_init_ports(void)
 	if (nr_uarts > UART_NR)
 		nr_uarts = UART_NR;
 
-	for (i = 0; i < nr_uarts; i++) {
-		struct uart_8250_port *up = &serial8250_ports[i];
-		struct uart_port *port = &up->port;
-
-		port->line = i;
-		serial8250_init_port(up);
-		if (!base_ops)
-			base_ops = port->ops;
-		port->ops = &univ8250_port_ops;
-
-		timer_setup(&up->timer, serial8250_timeout, 0);
-
-		up->ops = &univ8250_driver_ops;
-
-		if (IS_ENABLED(CONFIG_ALPHA_JENSEN) ||
-		    (IS_ENABLED(CONFIG_ALPHA_GENERIC) && alpha_jensen()))
-			port->set_mctrl = alpha_jensen_set_mctrl;
-
-		serial8250_set_defaults(up);
-	}
+	/*
+	 * Set up initial isa ports based on nr_uart module param, or else
+	 * default to CONFIG_SERIAL_8250_RUNTIME_UARTS. Note that we do not
+	 * need to increase nr_uarts when setting up the initial isa ports.
+	 */
+	for (i = 0; i < nr_uarts; i++)
+		serial8250_setup_port(i);
 
 	/* chain base port ops to support Remote Supervisor Adapter */
 	univ8250_port_ops = *base_ops;
@@ -586,16 +601,29 @@ static void univ8250_console_write(struct console *co, const char *s,
 
 static int univ8250_console_setup(struct console *co, char *options)
 {
+	struct uart_8250_port *up;
 	struct uart_port *port;
-	int retval;
+	int retval, i;
 
 	/*
 	 * Check whether an invalid uart number has been specified, and
 	 * if so, search for the first available port that does have
 	 * console support.
 	 */
-	if (co->index >= nr_uarts)
+	if (co->index >= UART_NR)
 		co->index = 0;
+
+	/*
+	 * If the console is past the initial isa ports, init more ports up to
+	 * co->index as needed and increment nr_uarts accordingly.
+	 */
+	for (i = nr_uarts; i <= co->index; i++) {
+		up = serial8250_setup_port(i);
+		if (!up)
+			return -ENODEV;
+		nr_uarts++;
+	}
+
 	port = &serial8250_ports[co->index].port;
 	/* link port to console */
 	port->cons = co;
@@ -822,12 +850,16 @@ static int serial8250_probe(struct platform_device *dev)
 		uart.port.iotype	= p->iotype;
 		uart.port.flags		= p->flags;
 		uart.port.mapbase	= p->mapbase;
+		uart.port.mapsize	= p->mapsize;
 		uart.port.hub6		= p->hub6;
 		uart.port.has_sysrq	= p->has_sysrq;
 		uart.port.private_data	= p->private_data;
 		uart.port.type		= p->type;
+		uart.bugs		= p->bugs;
 		uart.port.serial_in	= p->serial_in;
 		uart.port.serial_out	= p->serial_out;
+		uart.dl_read		= p->dl_read;
+		uart.dl_write		= p->dl_write;
 		uart.port.handle_irq	= p->handle_irq;
 		uart.port.handle_break	= p->handle_break;
 		uart.port.set_termios	= p->set_termios;
@@ -990,12 +1022,24 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 	mutex_lock(&serial_mutex);
 
 	uart = serial8250_find_match_or_unused(&up->port);
-	if (uart && uart->port.type != PORT_8250_CIR) {
+	if (!uart) {
+		/*
+		 * If the port is past the initial isa ports, initialize a new
+		 * port and increment nr_uarts accordingly.
+		 */
+		uart = serial8250_setup_port(nr_uarts);
+		if (!uart)
+			goto unlock;
+		nr_uarts++;
+	}
+
+	if (uart->port.type != PORT_8250_CIR) {
 		struct mctrl_gpios *gpios;
 
 		if (uart->port.dev)
 			uart_remove_one_port(&serial8250_reg, &uart->port);
 
+		uart->port.ctrl_id	= up->port.ctrl_id;
 		uart->port.iobase       = up->port.iobase;
 		uart->port.membase      = up->port.membase;
 		uart->port.irq          = up->port.irq;
@@ -1120,6 +1164,7 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 		}
 	}
 
+unlock:
 	mutex_unlock(&serial_mutex);
 
 	return ret;

@@ -13,28 +13,6 @@
 
 struct dpu_hw_pingpong;
 
-struct dpu_hw_tear_check {
-	/*
-	 * This is ratio of MDP VSYNC clk freq(Hz) to
-	 * refresh rate divided by no of lines
-	 */
-	u32 vsync_count;
-	u32 sync_cfg_height;
-	u32 vsync_init_val;
-	u32 sync_threshold_start;
-	u32 sync_threshold_continue;
-	u32 start_pos;
-	u32 rd_ptr_irq;
-	u8 hw_vsync_mode;
-};
-
-struct dpu_hw_pp_vsync_info {
-	u32 rd_ptr_init_val;	/* value of rd pointer at vsync edge */
-	u32 rd_ptr_frame_count;	/* num frames sent since enabling interface */
-	u32 rd_ptr_line_count;	/* current line on panel (rd ptr) */
-	u32 wr_ptr_line_count;	/* current line within pp fifo (wr ptr) */
-};
-
 /**
  * struct dpu_hw_dither_cfg - dither feature structure
  * @flags: for customizing operations
@@ -59,11 +37,8 @@ struct dpu_hw_dither_cfg {
  *
  * struct dpu_hw_pingpong_ops : Interface to the pingpong Hw driver functions
  *  Assumption is these functions will be called after clocks are enabled
- *  @setup_tearcheck : program tear check values
- *  @enable_tearcheck : enables tear check
- *  @get_vsync_info : retries timing info of the panel
- *  @setup_autorefresh : configure and enable the autorefresh config
- *  @get_autorefresh : retrieve autorefresh config from hardware
+ *  @enable_tearcheck: program and enable tear check block
+ *  @disable_tearcheck: disable able tear check block
  *  @setup_dither : function to program the dither hw block
  *  @get_line_count: obtain current vertical line counter
  */
@@ -72,14 +47,13 @@ struct dpu_hw_pingpong_ops {
 	 * enables vysnc generation and sets up init value of
 	 * read pointer and programs the tear check cofiguration
 	 */
-	int (*setup_tearcheck)(struct dpu_hw_pingpong *pp,
+	int (*enable_tearcheck)(struct dpu_hw_pingpong *pp,
 			struct dpu_hw_tear_check *cfg);
 
 	/**
-	 * enables tear check block
+	 * disables tear check block
 	 */
-	int (*enable_tearcheck)(struct dpu_hw_pingpong *pp,
-			bool enable);
+	int (*disable_tearcheck)(struct dpu_hw_pingpong *pp);
 
 	/**
 	 * read, modify, write to either set or clear listening to external TE
@@ -89,34 +63,14 @@ struct dpu_hw_pingpong_ops {
 			bool enable_external_te);
 
 	/**
-	 * provides the programmed and current
-	 * line_count
-	 */
-	int (*get_vsync_info)(struct dpu_hw_pingpong *pp,
-			struct dpu_hw_pp_vsync_info  *info);
-
-	/**
-	 * configure and enable the autorefresh config
-	 */
-	void (*setup_autorefresh)(struct dpu_hw_pingpong *pp,
-				  u32 frame_count, bool enable);
-
-	/**
-	 * retrieve autorefresh config from hardware
-	 */
-	bool (*get_autorefresh)(struct dpu_hw_pingpong *pp,
-				u32 *frame_count);
-
-	/**
-	 * poll until write pointer transmission starts
-	 * @Return: 0 on success, -ETIMEDOUT on timeout
-	 */
-	int (*poll_timeout_wr_ptr)(struct dpu_hw_pingpong *pp, u32 timeout_us);
-
-	/**
 	 * Obtain current vertical line counter
 	 */
 	u32 (*get_line_count)(struct dpu_hw_pingpong *pp);
+
+	/**
+	 * Disable autorefresh if enabled
+	 */
+	void (*disable_autorefresh)(struct dpu_hw_pingpong *pp, uint32_t encoder_id, u16 vdisplay);
 
 	/**
 	 * Setup dither matix for pingpong block
@@ -165,16 +119,14 @@ static inline struct dpu_hw_pingpong *to_dpu_hw_pingpong(struct dpu_hw_blk *hw)
 }
 
 /**
- * dpu_hw_pingpong_init - initializes the pingpong driver for the passed
- *	pingpong idx.
- * @idx:  Pingpong index for which driver object is required
+ * dpu_hw_pingpong_init() - initializes the pingpong driver for the passed
+ * pingpong catalog entry.
+ * @cfg:  Pingpong catalog entry for which driver object is required
  * @addr: Mapped register io address of MDP
- * @m:    Pointer to mdss catalog data
- * Returns: Error code or allocated dpu_hw_pingpong context
+ * Return: Error code or allocated dpu_hw_pingpong context
  */
-struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m);
+struct dpu_hw_pingpong *dpu_hw_pingpong_init(const struct dpu_pingpong_cfg *cfg,
+		void __iomem *addr);
 
 /**
  * dpu_hw_pingpong_destroy - destroys pingpong driver context

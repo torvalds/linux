@@ -79,6 +79,7 @@ struct stm32_mbox {
 
 struct stm32_rproc {
 	struct reset_control *rst;
+	struct reset_control *hold_boot_rst;
 	struct stm32_syscon hold_boot;
 	struct stm32_syscon pdds;
 	struct stm32_syscon m4_state;
@@ -88,7 +89,7 @@ struct stm32_rproc {
 	struct stm32_rproc_mem *rmems;
 	struct stm32_mbox mb[MBOX_NB_MBX];
 	struct workqueue_struct *workqueue;
-	bool secured_soc;
+	bool hold_boot_smc;
 	void __iomem *rsc_va;
 };
 
@@ -118,10 +119,10 @@ static int stm32_rproc_mem_alloc(struct rproc *rproc,
 	struct device *dev = rproc->dev.parent;
 	void *va;
 
-	dev_dbg(dev, "map memory: %pa+%x\n", &mem->dma, mem->len);
+	dev_dbg(dev, "map memory: %pad+%zx\n", &mem->dma, mem->len);
 	va = ioremap_wc(mem->dma, mem->len);
 	if (IS_ERR_OR_NULL(va)) {
-		dev_err(dev, "Unable to map memory region: %pa+%x\n",
+		dev_err(dev, "Unable to map memory region: %pad+0x%zx\n",
 			&mem->dma, mem->len);
 		return -ENOMEM;
 	}
@@ -413,13 +414,28 @@ static int stm32_rproc_set_hold_boot(struct rproc *rproc, bool hold)
 	struct arm_smccc_res smc_res;
 	int val, err;
 
+	/*
+	 * Three ways to manage the hold boot
+	 * - using SCMI: the hold boot is managed as a reset,
+	 * - using Linux(no SCMI): the hold boot is managed as a syscon register
+	 * - using SMC call (deprecated): use SMC reset interface
+	 */
+
 	val = hold ? HOLD_BOOT : RELEASE_BOOT;
 
-	if (IS_ENABLED(CONFIG_HAVE_ARM_SMCCC) && ddata->secured_soc) {
+	if (ddata->hold_boot_rst) {
+		/* Use the SCMI reset controller */
+		if (!hold)
+			err = reset_control_deassert(ddata->hold_boot_rst);
+		else
+			err =  reset_control_assert(ddata->hold_boot_rst);
+	} else if (IS_ENABLED(CONFIG_HAVE_ARM_SMCCC) && ddata->hold_boot_smc) {
+		/* Use the SMC call */
 		arm_smccc_smc(STM32_SMC_RCC, STM32_SMC_REG_WRITE,
 			      hold_boot.reg, val, 0, 0, 0, 0, &smc_res);
 		err = smc_res.a0;
 	} else {
+		/* Use syscon */
 		err = regmap_update_bits(hold_boot.map, hold_boot.reg,
 					 hold_boot.mask, val);
 	}
@@ -627,7 +643,7 @@ stm32_rproc_get_loaded_rsc_table(struct rproc *rproc, size_t *table_sz)
 
 	ddata->rsc_va = devm_ioremap_wc(dev, rsc_pa, RSC_TBL_SIZE);
 	if (IS_ERR_OR_NULL(ddata->rsc_va)) {
-		dev_err(dev, "Unable to map memory region: %pa+%zx\n",
+		dev_err(dev, "Unable to map memory region: %pa+%x\n",
 			&rsc_pa, RSC_TBL_SIZE);
 		ddata->rsc_va = NULL;
 		return ERR_PTR(-ENOMEM);
@@ -717,34 +733,52 @@ static int stm32_rproc_parse_dt(struct platform_device *pdev,
 		dev_info(dev, "wdg irq registered\n");
 	}
 
-	ddata->rst = devm_reset_control_get_by_index(dev, 0);
+	ddata->rst = devm_reset_control_get_optional(dev, "mcu_rst");
+	if (!ddata->rst) {
+		/* Try legacy fallback method: get it by index */
+		ddata->rst = devm_reset_control_get_by_index(dev, 0);
+	}
 	if (IS_ERR(ddata->rst))
 		return dev_err_probe(dev, PTR_ERR(ddata->rst),
 				     "failed to get mcu_reset\n");
 
 	/*
-	 * if platform is secured the hold boot bit must be written by
-	 * smc call and read normally.
-	 * if not secure the hold boot bit could be read/write normally
+	 * Three ways to manage the hold boot
+	 * - using SCMI: the hold boot is managed as a reset
+	 *    The DT "reset-mames" property should be defined with 2 items:
+	 *        reset-names = "mcu_rst", "hold_boot";
+	 * - using SMC call (deprecated): use SMC reset interface
+	 *    The DT "reset-mames" property is optional, "st,syscfg-tz" is required
+	 * - default(no SCMI, no SMC): the hold boot is managed as a syscon register
+	 *    The DT "reset-mames" property is optional, "st,syscfg-holdboot" is required
 	 */
-	err = stm32_rproc_get_syscon(np, "st,syscfg-tz", &tz);
-	if (err) {
-		dev_err(dev, "failed to get tz syscfg\n");
-		return err;
+
+	ddata->hold_boot_rst = devm_reset_control_get_optional(dev, "hold_boot");
+	if (IS_ERR(ddata->hold_boot_rst))
+		return dev_err_probe(dev, PTR_ERR(ddata->hold_boot_rst),
+				     "failed to get hold_boot reset\n");
+
+	if (!ddata->hold_boot_rst && IS_ENABLED(CONFIG_HAVE_ARM_SMCCC)) {
+		/* Manage the MCU_BOOT using SMC call */
+		err = stm32_rproc_get_syscon(np, "st,syscfg-tz", &tz);
+		if (!err) {
+			err = regmap_read(tz.map, tz.reg, &tzen);
+			if (err) {
+				dev_err(dev, "failed to read tzen\n");
+				return err;
+			}
+			ddata->hold_boot_smc = tzen & tz.mask;
+		}
 	}
 
-	err = regmap_read(tz.map, tz.reg, &tzen);
-	if (err) {
-		dev_err(dev, "failed to read tzen\n");
-		return err;
-	}
-	ddata->secured_soc = tzen & tz.mask;
-
-	err = stm32_rproc_get_syscon(np, "st,syscfg-holdboot",
-				     &ddata->hold_boot);
-	if (err) {
-		dev_err(dev, "failed to get hold boot\n");
-		return err;
+	if (!ddata->hold_boot_rst && !ddata->hold_boot_smc) {
+		/* Default: hold boot manage it through the syscon controller */
+		err = stm32_rproc_get_syscon(np, "st,syscfg-holdboot",
+					     &ddata->hold_boot);
+		if (err) {
+			dev_err(dev, "failed to get hold boot\n");
+			return err;
+		}
 	}
 
 	err = stm32_rproc_get_syscon(np, "st,syscfg-pdds", &ddata->pdds);
@@ -867,7 +901,7 @@ free_rproc:
 	return ret;
 }
 
-static int stm32_rproc_remove(struct platform_device *pdev)
+static void stm32_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct stm32_rproc *ddata = rproc->priv;
@@ -885,8 +919,6 @@ static int stm32_rproc_remove(struct platform_device *pdev)
 		device_init_wakeup(dev, false);
 	}
 	rproc_free(rproc);
-
-	return 0;
 }
 
 static int __maybe_unused stm32_rproc_suspend(struct device *dev)
@@ -916,7 +948,7 @@ static SIMPLE_DEV_PM_OPS(stm32_rproc_pm_ops,
 
 static struct platform_driver stm32_rproc_driver = {
 	.probe = stm32_rproc_probe,
-	.remove = stm32_rproc_remove,
+	.remove_new = stm32_rproc_remove,
 	.driver = {
 		.name = "stm32-rproc",
 		.pm = &stm32_rproc_pm_ops,

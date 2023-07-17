@@ -289,7 +289,7 @@ static int aq_get_txsc_stats(struct aq_hw_s *hw, const int sc_idx,
 
 static int aq_mdo_dev_open(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	int ret = 0;
 
 	if (netif_carrier_ok(nic->ndev))
@@ -300,7 +300,7 @@ static int aq_mdo_dev_open(struct macsec_context *ctx)
 
 static int aq_mdo_dev_stop(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	int i;
 
 	for (i = 0; i < AQ_MACSEC_MAX_SC; i++) {
@@ -439,7 +439,7 @@ static enum aq_macsec_sc_sa sc_sa_from_num_an(const int num_an)
 
 static int aq_mdo_add_secy(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
 	const struct macsec_secy *secy = ctx->secy;
 	enum aq_macsec_sc_sa sc_sa;
@@ -474,7 +474,7 @@ static int aq_mdo_add_secy(struct macsec_context *ctx)
 
 static int aq_mdo_upd_secy(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	const struct macsec_secy *secy = ctx->secy;
 	int txsc_idx;
 	int ret = 0;
@@ -528,7 +528,7 @@ static int aq_clear_txsc(struct aq_nic_s *nic, const int txsc_idx,
 
 static int aq_mdo_del_secy(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	int ret = 0;
 
 	if (!nic->macsec_cfg)
@@ -576,7 +576,7 @@ static int aq_update_txsa(struct aq_nic_s *nic, const unsigned int sc_idx,
 
 static int aq_mdo_add_txsa(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
 	const struct macsec_secy *secy = ctx->secy;
 	struct aq_macsec_txsc *aq_txsc;
@@ -603,7 +603,7 @@ static int aq_mdo_add_txsa(struct macsec_context *ctx)
 
 static int aq_mdo_upd_txsa(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
 	const struct macsec_secy *secy = ctx->secy;
 	struct aq_macsec_txsc *aq_txsc;
@@ -652,7 +652,7 @@ static int aq_clear_txsa(struct aq_nic_s *nic, struct aq_macsec_txsc *aq_txsc,
 
 static int aq_mdo_del_txsa(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
 	int txsc_idx;
 	int ret = 0;
@@ -744,7 +744,7 @@ static int aq_set_rxsc(struct aq_nic_s *nic, const u32 rxsc_idx)
 
 static int aq_mdo_add_rxsc(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
 	const u32 rxsc_idx_max = aq_sc_idx_max(cfg->sc_sa);
 	u32 rxsc_idx;
@@ -775,7 +775,7 @@ static int aq_mdo_add_rxsc(struct macsec_context *ctx)
 
 static int aq_mdo_upd_rxsc(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	int rxsc_idx;
 	int ret = 0;
 
@@ -838,7 +838,7 @@ static int aq_clear_rxsc(struct aq_nic_s *nic, const int rxsc_idx,
 
 static int aq_mdo_del_rxsc(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	enum aq_clear_type clear_type = AQ_CLEAR_SW;
 	int rxsc_idx;
 	int ret = 0;
@@ -906,8 +906,8 @@ static int aq_update_rxsa(struct aq_nic_s *nic, const unsigned int sc_idx,
 
 static int aq_mdo_add_rxsa(struct macsec_context *ctx)
 {
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	const struct macsec_rx_sc *rx_sc = ctx->sa.rx_sa->sc;
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
 	const struct macsec_secy *secy = ctx->secy;
 	struct aq_macsec_rxsc *aq_rxsc;
 	int rxsc_idx;
@@ -933,8 +933,8 @@ static int aq_mdo_add_rxsa(struct macsec_context *ctx)
 
 static int aq_mdo_upd_rxsa(struct macsec_context *ctx)
 {
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	const struct macsec_rx_sc *rx_sc = ctx->sa.rx_sa->sc;
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
 	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
 	const struct macsec_secy *secy = ctx->secy;
 	int rxsc_idx;
@@ -982,8 +982,8 @@ static int aq_clear_rxsa(struct aq_nic_s *nic, struct aq_macsec_rxsc *aq_rxsc,
 
 static int aq_mdo_del_rxsa(struct macsec_context *ctx)
 {
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	const struct macsec_rx_sc *rx_sc = ctx->sa.rx_sa->sc;
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
 	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
 	int rxsc_idx;
 	int ret = 0;
@@ -1000,7 +1000,7 @@ static int aq_mdo_del_rxsa(struct macsec_context *ctx)
 
 static int aq_mdo_get_dev_stats(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	struct aq_macsec_common_stats *stats = &nic->macsec_cfg->stats;
 	struct aq_hw_s *hw = nic->aq_hw;
 
@@ -1020,7 +1020,7 @@ static int aq_mdo_get_dev_stats(struct macsec_context *ctx)
 
 static int aq_mdo_get_tx_sc_stats(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	struct aq_macsec_tx_sc_stats *stats;
 	struct aq_hw_s *hw = nic->aq_hw;
 	struct aq_macsec_txsc *aq_txsc;
@@ -1044,7 +1044,7 @@ static int aq_mdo_get_tx_sc_stats(struct macsec_context *ctx)
 
 static int aq_mdo_get_tx_sa_stats(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
 	struct aq_macsec_tx_sa_stats *stats;
 	struct aq_hw_s *hw = nic->aq_hw;
@@ -1084,7 +1084,7 @@ static int aq_mdo_get_tx_sa_stats(struct macsec_context *ctx)
 
 static int aq_mdo_get_rx_sc_stats(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
 	struct aq_macsec_rx_sa_stats *stats;
 	struct aq_hw_s *hw = nic->aq_hw;
@@ -1129,7 +1129,7 @@ static int aq_mdo_get_rx_sc_stats(struct macsec_context *ctx)
 
 static int aq_mdo_get_rx_sa_stats(struct macsec_context *ctx)
 {
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);
 	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
 	struct aq_macsec_rx_sa_stats *stats;
 	struct aq_hw_s *hw = nic->aq_hw;
@@ -1399,7 +1399,7 @@ static void aq_check_txsa_expiration(struct aq_nic_s *nic)
 #define AQ_LOCKED_MDO_DEF(mdo)						\
 static int aq_locked_mdo_##mdo(struct macsec_context *ctx)		\
 {									\
-	struct aq_nic_s *nic = netdev_priv(ctx->netdev);		\
+	struct aq_nic_s *nic = macsec_netdev_priv(ctx->netdev);		\
 	int ret;							\
 	mutex_lock(&nic->macsec_mutex);					\
 	ret = aq_mdo_##mdo(ctx);					\

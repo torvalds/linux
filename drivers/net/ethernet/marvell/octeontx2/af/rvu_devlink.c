@@ -1413,7 +1413,8 @@ static int rvu_af_dl_dwrr_mtu_set(struct devlink *devlink, u32 id,
 	u64 dwrr_mtu;
 
 	dwrr_mtu = convert_bytes_to_dwrr_mtu(ctx->val.vu32);
-	rvu_write64(rvu, BLKADDR_NIX0, NIX_AF_DWRR_RPM_MTU, dwrr_mtu);
+	rvu_write64(rvu, BLKADDR_NIX0,
+		    nix_get_dwrr_mtu_reg(rvu->hw, SMQ_LINK_TYPE_RPM), dwrr_mtu);
 
 	return 0;
 }
@@ -1428,7 +1429,8 @@ static int rvu_af_dl_dwrr_mtu_get(struct devlink *devlink, u32 id,
 	if (!rvu->hw->cap.nix_common_dwrr_mtu)
 		return -EOPNOTSUPP;
 
-	dwrr_mtu = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_DWRR_RPM_MTU);
+	dwrr_mtu = rvu_read64(rvu, BLKADDR_NIX0,
+			      nix_get_dwrr_mtu_reg(rvu->hw, SMQ_LINK_TYPE_RPM));
 	ctx->val.vu32 = convert_dwrr_mtu_to_bytes(dwrr_mtu);
 
 	return 0;
@@ -1438,6 +1440,7 @@ enum rvu_af_dl_param_id {
 	RVU_AF_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
 	RVU_AF_DEVLINK_PARAM_ID_DWRR_MTU,
 	RVU_AF_DEVLINK_PARAM_ID_NPC_EXACT_FEATURE_DISABLE,
+	RVU_AF_DEVLINK_PARAM_ID_NPC_MCAM_ZONE_PERCENT,
 };
 
 static int rvu_af_npc_exact_feature_get(struct devlink *devlink, u32 id,
@@ -1494,6 +1497,67 @@ static int rvu_af_npc_exact_feature_validate(struct devlink *devlink, u32 id,
 	return -EFAULT;
 }
 
+static int rvu_af_dl_npc_mcam_high_zone_percent_get(struct devlink *devlink, u32 id,
+						    struct devlink_param_gset_ctx *ctx)
+{
+	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
+	struct rvu *rvu = rvu_dl->rvu;
+	struct npc_mcam *mcam;
+	u32 percent;
+
+	mcam = &rvu->hw->mcam;
+	percent = (mcam->hprio_count * 100) / mcam->bmap_entries;
+	ctx->val.vu8 = (u8)percent;
+
+	return 0;
+}
+
+static int rvu_af_dl_npc_mcam_high_zone_percent_set(struct devlink *devlink, u32 id,
+						    struct devlink_param_gset_ctx *ctx)
+{
+	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
+	struct rvu *rvu = rvu_dl->rvu;
+	struct npc_mcam *mcam;
+	u32 percent;
+
+	percent = ctx->val.vu8;
+	mcam = &rvu->hw->mcam;
+	mcam->hprio_count = (mcam->bmap_entries * percent) / 100;
+	mcam->hprio_end = mcam->hprio_count;
+	mcam->lprio_count = (mcam->bmap_entries - mcam->hprio_count) / 2;
+	mcam->lprio_start = mcam->bmap_entries - mcam->lprio_count;
+
+	return 0;
+}
+
+static int rvu_af_dl_npc_mcam_high_zone_percent_validate(struct devlink *devlink, u32 id,
+							 union devlink_param_value val,
+							 struct netlink_ext_ack *extack)
+{
+	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
+	struct rvu *rvu = rvu_dl->rvu;
+	struct npc_mcam *mcam;
+
+	/* The percent of high prio zone must range from 12% to 100% of unreserved mcam space */
+	if (val.vu8 < 12 || val.vu8 > 100) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "mcam high zone percent must be between 12% to 100%");
+		return -EINVAL;
+	}
+
+	/* Do not allow user to modify the high priority zone entries while mcam entries
+	 * have already been assigned.
+	 */
+	mcam = &rvu->hw->mcam;
+	if (mcam->bmap_fcnt < mcam->bmap_entries) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "mcam entries have already been assigned, can't resize");
+		return -EPERM;
+	}
+
+	return 0;
+}
+
 static const struct devlink_param rvu_af_dl_params[] = {
 	DEVLINK_PARAM_DRIVER(RVU_AF_DEVLINK_PARAM_ID_DWRR_MTU,
 			     "dwrr_mtu", DEVLINK_PARAM_TYPE_U32,
@@ -1509,6 +1573,12 @@ static const struct devlink_param rvu_af_dl_param_exact_match[] = {
 			     rvu_af_npc_exact_feature_get,
 			     rvu_af_npc_exact_feature_disable,
 			     rvu_af_npc_exact_feature_validate),
+	DEVLINK_PARAM_DRIVER(RVU_AF_DEVLINK_PARAM_ID_NPC_MCAM_ZONE_PERCENT,
+			     "npc_mcam_high_zone_percent", DEVLINK_PARAM_TYPE_U8,
+			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			     rvu_af_dl_npc_mcam_high_zone_percent_get,
+			     rvu_af_dl_npc_mcam_high_zone_percent_set,
+			     rvu_af_dl_npc_mcam_high_zone_percent_validate),
 };
 
 /* Devlink switch mode */

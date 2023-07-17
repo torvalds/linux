@@ -865,7 +865,7 @@ static struct i2c_driver isl29018_driver = {
 			.pm = pm_sleep_ptr(&isl29018_pm_ops),
 			.of_match_table = isl29018_of_match,
 		    },
-	.probe_new = isl29018_probe,
+	.probe = isl29018_probe,
 	.id_table = isl29018_id,
 };
 module_i2c_driver(isl29018_driver);

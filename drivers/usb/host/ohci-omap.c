@@ -321,7 +321,7 @@ err_put_hcd:
  * the HCD's stop() method.  It is always called from a thread
  * context, normally "rmmod", "apmd", or something similar.
  */
-static int ohci_hcd_omap_remove(struct platform_device *pdev)
+static void ohci_hcd_omap_remove(struct platform_device *pdev)
 {
 	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
 	struct ohci_omap_priv *priv = hcd_to_ohci_omap_priv(hcd);
@@ -340,7 +340,6 @@ static int ohci_hcd_omap_remove(struct platform_device *pdev)
 	clk_unprepare(priv->usb_host_ck);
 	clk_put(priv->usb_host_ck);
 	usb_put_hcd(hcd);
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -391,7 +390,7 @@ static int ohci_omap_resume(struct platform_device *dev)
  */
 static struct platform_driver ohci_hcd_omap_driver = {
 	.probe		= ohci_hcd_omap_probe,
-	.remove		= ohci_hcd_omap_remove,
+	.remove_new	= ohci_hcd_omap_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 #ifdef	CONFIG_PM
 	.suspend	= ohci_omap_suspend,

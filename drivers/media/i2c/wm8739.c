@@ -252,7 +252,7 @@ static struct i2c_driver wm8739_driver = {
 	.driver = {
 		.name	= "wm8739",
 	},
-	.probe_new	= wm8739_probe,
+	.probe		= wm8739_probe,
 	.remove		= wm8739_remove,
 	.id_table	= wm8739_id,
 };

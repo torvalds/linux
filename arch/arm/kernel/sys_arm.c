@@ -24,6 +24,7 @@
 #include <linux/ipc.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <asm/syscalls.h>
 
 /*
  * Since loff_t is a 64 bit type we avoid a lot of ABI hassle

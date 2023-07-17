@@ -47,6 +47,10 @@
 #include <linux/kgdb.h>
 #include <linux/kprobes.h>
 
+#if defined(CONFIG_LIGHTWEIGHT_SPINLOCK_CHECK)
+#include <asm/spinlock.h>
+#endif
+
 #include "../math-emu/math-emu.h"	/* for handle_fpe() */
 
 static void parisc_show_stack(struct task_struct *task,
@@ -291,21 +295,27 @@ static void handle_break(struct pt_regs *regs)
 	}
 
 #ifdef CONFIG_KPROBES
-	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN)) {
+	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN && !user_mode(regs))) {
 		parisc_kprobe_break_handler(regs);
 		return;
 	}
-	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN2)) {
+	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN2 && !user_mode(regs))) {
 		parisc_kprobe_ss_handler(regs);
 		return;
 	}
 #endif
 
 #ifdef CONFIG_KGDB
-	if (unlikely(iir == PARISC_KGDB_COMPILED_BREAK_INSN ||
-		iir == PARISC_KGDB_BREAK_INSN)) {
+	if (unlikely((iir == PARISC_KGDB_COMPILED_BREAK_INSN ||
+		iir == PARISC_KGDB_BREAK_INSN)) && !user_mode(regs)) {
 		kgdb_handle_exception(9, SIGTRAP, 0, regs);
 		return;
+	}
+#endif
+
+#ifdef CONFIG_LIGHTWEIGHT_SPINLOCK_CHECK
+        if ((iir == SPINLOCK_BREAK_INSN) && !user_mode(regs)) {
+		die_if_kernel("Spinlock was trashed", regs, 1);
 	}
 #endif
 
@@ -328,7 +338,7 @@ static void default_trap(int code, struct pt_regs *regs)
 void (*cpu_lpmc) (int code, struct pt_regs *regs) __read_mostly = default_trap;
 
 
-void transfer_pim_to_trap_frame(struct pt_regs *regs)
+static void transfer_pim_to_trap_frame(struct pt_regs *regs)
 {
     register int i;
     extern unsigned int hpmc_pim_data[];
@@ -790,14 +800,13 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 }
 
 
-void __init initialize_ivt(const void *iva)
+static void __init initialize_ivt(const void *iva)
 {
 	extern const u32 os_hpmc[];
 
 	int i;
 	u32 check = 0;
 	u32 *ivap;
-	u32 *hpmcp;
 	u32 instr;
 
 	if (strcmp((const char *)iva, "cows can fly"))
@@ -829,8 +838,6 @@ void __init initialize_ivt(const void *iva)
 
 	/* Setup IVA and compute checksum for HPMC handler */
 	ivap[6] = (u32)__pa(os_hpmc);
-
-	hpmcp = (u32 *)os_hpmc;
 
 	for (i=0; i<8; i++)
 	    check += ivap[i];

@@ -859,10 +859,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 						struct btrfs_ordered_sum,
 						list);
 				csum_root = btrfs_csum_root(fs_info,
-							    sums->bytenr);
+							    sums->logical);
 				if (!ret)
 					ret = btrfs_del_csums(trans, csum_root,
-							      sums->bytenr,
+							      sums->logical,
 							      sums->len);
 				if (!ret)
 					ret = btrfs_csum_file_blocks(trans,
@@ -3252,7 +3252,7 @@ int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
  * Returns 1 if the inode was logged before in the transaction, 0 if it was not,
  * and < 0 on error.
  */
-static int inode_logged(struct btrfs_trans_handle *trans,
+static int inode_logged(const struct btrfs_trans_handle *trans,
 			struct btrfs_inode *inode,
 			struct btrfs_path *path_in)
 {
@@ -4056,14 +4056,14 @@ static int drop_inode_items(struct btrfs_trans_handle *trans,
 
 	while (1) {
 		ret = btrfs_search_slot(trans, log, &key, path, -1, 1);
-		BUG_ON(ret == 0); /* Logic error */
-		if (ret < 0)
+		if (ret < 0) {
 			break;
+		} else if (ret > 0) {
+			if (path->slots[0] == 0)
+				break;
+			path->slots[0]--;
+		}
 
-		if (path->slots[0] == 0)
-			break;
-
-		path->slots[0]--;
 		btrfs_item_key_to_cpu(path->nodes[0], &found_key,
 				      path->slots[0]);
 
@@ -4221,7 +4221,7 @@ static int log_csums(struct btrfs_trans_handle *trans,
 		     struct btrfs_root *log_root,
 		     struct btrfs_ordered_sum *sums)
 {
-	const u64 lock_end = sums->bytenr + sums->len - 1;
+	const u64 lock_end = sums->logical + sums->len - 1;
 	struct extent_state *cached_state = NULL;
 	int ret;
 
@@ -4239,7 +4239,7 @@ static int log_csums(struct btrfs_trans_handle *trans,
 	 * file which happens to refer to the same extent as well. Such races
 	 * can leave checksum items in the log with overlapping ranges.
 	 */
-	ret = lock_extent(&log_root->log_csum_range, sums->bytenr, lock_end,
+	ret = lock_extent(&log_root->log_csum_range, sums->logical, lock_end,
 			  &cached_state);
 	if (ret)
 		return ret;
@@ -4252,11 +4252,11 @@ static int log_csums(struct btrfs_trans_handle *trans,
 	 * some checksums missing in the fs/subvolume tree. So just delete (or
 	 * trim and adjust) any existing csum items in the log for this range.
 	 */
-	ret = btrfs_del_csums(trans, log_root, sums->bytenr, sums->len);
+	ret = btrfs_del_csums(trans, log_root, sums->logical, sums->len);
 	if (!ret)
 		ret = btrfs_csum_file_blocks(trans, log_root, sums);
 
-	unlock_extent(&log_root->log_csum_range, sums->bytenr, lock_end,
+	unlock_extent(&log_root->log_csum_range, sums->logical, lock_end,
 		      &cached_state);
 
 	return ret;
@@ -5303,7 +5303,7 @@ out:
  * multiple times when multiple tasks have joined the same log transaction.
  */
 static bool need_log_inode(const struct btrfs_trans_handle *trans,
-			   const struct btrfs_inode *inode)
+			   struct btrfs_inode *inode)
 {
 	/*
 	 * If a directory was not modified, no dentries added or removed, we can
@@ -5321,7 +5321,7 @@ static bool need_log_inode(const struct btrfs_trans_handle *trans,
 	 * logged_trans will be 0, in which case we have to fully log it since
 	 * logged_trans is a transient field, not persisted.
 	 */
-	if (inode->logged_trans == trans->transid &&
+	if (inode_logged(trans, inode, NULL) == 1 &&
 	    !test_bit(BTRFS_INODE_COPY_EVERYTHING, &inode->runtime_flags))
 		return false;
 
@@ -6158,7 +6158,7 @@ static int log_delayed_deletions_incremental(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *log = inode->root->log_root;
 	const struct btrfs_delayed_item *curr;
-	u64 last_range_start;
+	u64 last_range_start = 0;
 	u64 last_range_end = 0;
 	struct btrfs_key key;
 
@@ -7309,7 +7309,7 @@ error:
  */
 void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 			     struct btrfs_inode *dir, struct btrfs_inode *inode,
-			     int for_rename)
+			     bool for_rename)
 {
 	/*
 	 * when we're logging a file, if it hasn't been renamed
@@ -7325,18 +7325,25 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 	inode->last_unlink_trans = trans->transid;
 	mutex_unlock(&inode->log_mutex);
 
-	/*
-	 * if this directory was already logged any new
-	 * names for this file/dir will get recorded
-	 */
-	if (dir->logged_trans == trans->transid)
+	if (!for_rename)
 		return;
 
 	/*
-	 * if the inode we're about to unlink was logged,
-	 * the log will be properly updated for any new names
+	 * If this directory was already logged, any new names will be logged
+	 * with btrfs_log_new_name() and old names will be deleted from the log
+	 * tree with btrfs_del_dir_entries_in_log() or with
+	 * btrfs_del_inode_ref_in_log().
 	 */
-	if (inode->logged_trans == trans->transid)
+	if (inode_logged(trans, dir, NULL) == 1)
+		return;
+
+	/*
+	 * If the inode we're about to unlink was logged before, the log will be
+	 * properly updated with the new name with btrfs_log_new_name() and the
+	 * old name removed with btrfs_del_dir_entries_in_log() or with
+	 * btrfs_del_inode_ref_in_log().
+	 */
+	if (inode_logged(trans, inode, NULL) == 1)
 		return;
 
 	/*
@@ -7346,13 +7353,6 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 	 * properly.  So, we have to be conservative and force commits
 	 * so the new name gets discovered.
 	 */
-	if (for_rename)
-		goto record;
-
-	/* we can safely do the unlink without any special recording */
-	return;
-
-record:
 	mutex_lock(&dir->log_mutex);
 	dir->last_unlink_trans = trans->transid;
 	mutex_unlock(&dir->log_mutex);

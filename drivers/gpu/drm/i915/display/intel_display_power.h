@@ -6,6 +6,9 @@
 #ifndef __INTEL_DISPLAY_POWER_H__
 #define __INTEL_DISPLAY_POWER_H__
 
+#include <linux/mutex.h>
+#include <linux/workqueue.h>
+
 #include "intel_wakeref.h"
 
 enum aux_ch;
@@ -16,6 +19,7 @@ enum port;
 struct drm_i915_private;
 struct i915_power_well;
 struct intel_encoder;
+struct seq_file;
 
 /*
  * Keep the pipe, transcoder, port (DDI_LANES,DDI_IO,AUX) domain instances
@@ -171,8 +175,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 void intel_power_domains_driver_remove(struct drm_i915_private *dev_priv);
 void intel_power_domains_enable(struct drm_i915_private *dev_priv);
 void intel_power_domains_disable(struct drm_i915_private *dev_priv);
-void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
-				 enum i915_drm_suspend_mode);
+void intel_power_domains_suspend(struct drm_i915_private *dev_priv, bool s2idle);
 void intel_power_domains_resume(struct drm_i915_private *dev_priv);
 void intel_power_domains_sanitize_state(struct drm_i915_private *dev_priv);
 

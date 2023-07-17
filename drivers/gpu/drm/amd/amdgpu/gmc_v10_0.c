@@ -76,7 +76,7 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
 		/* MM HUB */
-		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB_0, false);
+		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB0(0), false);
 		/* GFX HUB */
 		/* This works because this interrupt is only
 		 * enabled at init/resume and disabled in
@@ -84,11 +84,11 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		 * change over the course of suspend/resume.
 		 */
 		if (!adev->in_s0ix)
-			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, false);
+			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB(0), false);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
 		/* MM HUB */
-		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB_0, true);
+		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB0(0), true);
 		/* GFX HUB */
 		/* This works because this interrupt is only
 		 * enabled at init/resume and disabled in
@@ -96,7 +96,7 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		 * change over the course of suspend/resume.
 		 */
 		if (!adev->in_s0ix)
-			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, true);
+			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB(0), true);
 		break;
 	default:
 		break;
@@ -139,7 +139,7 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 		/* Try to handle the recoverable page faults by filling page
 		 * tables
 		 */
-		if (amdgpu_vm_handle_fault(adev, entry->pasid, addr, write_fault))
+		if (amdgpu_vm_handle_fault(adev, entry->pasid, 0, 0, addr, write_fault))
 			return 1;
 	}
 
@@ -149,7 +149,7 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 		 * be updated to avoid reading an incorrect value due to
 		 * the new fast GRBM interface.
 		 */
-		if ((entry->vmid_src == AMDGPU_GFXHUB_0) &&
+		if ((entry->vmid_src == AMDGPU_GFXHUB(0)) &&
 		    (adev->ip_versions[GC_HWIP][0] < IP_VERSION(10, 3, 0)))
 			RREG32(hub->vm_l2_pro_fault_status);
 
@@ -212,8 +212,7 @@ static void gmc_v10_0_set_irq_funcs(struct amdgpu_device *adev)
 static bool gmc_v10_0_use_invalidate_semaphore(struct amdgpu_device *adev,
 				       uint32_t vmhub)
 {
-	return ((vmhub == AMDGPU_MMHUB_0 ||
-		 vmhub == AMDGPU_MMHUB_1) &&
+	return ((vmhub == AMDGPU_MMHUB0(0)) &&
 		(!amdgpu_sriov_vf(adev)));
 }
 
@@ -249,7 +248,7 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 	unsigned int i;
 	unsigned char hub_ip = 0;
 
-	hub_ip = (vmhub == AMDGPU_GFXHUB_0) ?
+	hub_ip = (vmhub == AMDGPU_GFXHUB(0)) ?
 		   GC_HWIP : MMHUB_HWIP;
 
 	spin_lock(&adev->gmc.invalidate_lock);
@@ -284,7 +283,7 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 	 * Issue a dummy read to wait for the ACK register to be cleared
 	 * to avoid a false ACK due to the new fast GRBM interface.
 	 */
-	if ((vmhub == AMDGPU_GFXHUB_0) &&
+	if ((vmhub == AMDGPU_GFXHUB(0)) &&
 	    (adev->ip_versions[GC_HWIP][0] < IP_VERSION(10, 3, 0)))
 		RREG32_RLC_NO_KIQ(hub->vm_inv_eng0_req +
 				  hub->eng_distance * eng, hub_ip);
@@ -343,7 +342,7 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	/* For SRIOV run time, driver shouldn't access the register through MMIO
 	 * Directly use kiq to do the vm invalidation instead
 	 */
-	if (adev->gfx.kiq.ring.sched.ready && !adev->enable_mes &&
+	if (adev->gfx.kiq[0].ring.sched.ready && !adev->enable_mes &&
 	    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
 	    down_read_trylock(&adev->reset_domain->sem)) {
 		struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
@@ -361,19 +360,19 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 
 	mutex_lock(&adev->mman.gtt_window_lock);
 
-	if (vmhub == AMDGPU_MMHUB_0) {
-		gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_MMHUB_0, 0);
+	if (vmhub == AMDGPU_MMHUB0(0)) {
+		gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_MMHUB0(0), 0);
 		mutex_unlock(&adev->mman.gtt_window_lock);
 		return;
 	}
 
-	BUG_ON(vmhub != AMDGPU_GFXHUB_0);
+	BUG_ON(vmhub != AMDGPU_GFXHUB(0));
 
 	if (!adev->mman.buffer_funcs_enabled ||
 	    !adev->ib_pool_ready ||
 	    amdgpu_in_reset(adev) ||
 	    ring->sched.ready == false) {
-		gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_GFXHUB_0, 0);
+		gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_GFXHUB(0), 0);
 		mutex_unlock(&adev->mman.gtt_window_lock);
 		return;
 	}
@@ -383,7 +382,7 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	 * translation. Avoid this by doing the invalidation from the SDMA
 	 * itself.
 	 */
-	r = amdgpu_job_alloc_with_ib(ring->adev, &adev->mman.entity,
+	r = amdgpu_job_alloc_with_ib(ring->adev, &adev->mman.high_pr,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
 				     16 * 4, AMDGPU_IB_POOL_IMMEDIATE,
 				     &job);
@@ -415,12 +414,13 @@ error_alloc:
  * @pasid: pasid to be flush
  * @flush_type: the flush type
  * @all_hub: Used with PACKET3_INVALIDATE_TLBS_ALL_HUB()
+ * @inst: is used to select which instance of KIQ to use for the invalidation
  *
  * Flush the TLB for the requested pasid.
  */
 static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 					uint16_t pasid, uint32_t flush_type,
-					bool all_hub)
+					bool all_hub, uint32_t inst)
 {
 	int vmid, i;
 	signed long r;
@@ -428,11 +428,11 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	uint16_t queried_pasid;
 	bool ret;
 	u32 usec_timeout = amdgpu_sriov_vf(adev) ? SRIOV_USEC_TIMEOUT : adev->usec_timeout;
-	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_ring *ring = &adev->gfx.kiq[0].ring;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
 
 	if (amdgpu_emu_mode == 0 && ring->sched.ready) {
-		spin_lock(&adev->gfx.kiq.ring_lock);
+		spin_lock(&adev->gfx.kiq[0].ring_lock);
 		/* 2 dwords flush + 8 dwords fence */
 		amdgpu_ring_alloc(ring, kiq->pmf->invalidate_tlbs_size + 8);
 		kiq->pmf->kiq_invalidate_tlbs(ring,
@@ -440,12 +440,12 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 		r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
 		if (r) {
 			amdgpu_ring_undo(ring);
-			spin_unlock(&adev->gfx.kiq.ring_lock);
+			spin_unlock(&adev->gfx.kiq[0].ring_lock);
 			return -ETIME;
 		}
 
 		amdgpu_ring_commit(ring);
-		spin_unlock(&adev->gfx.kiq.ring_lock);
+		spin_unlock(&adev->gfx.kiq[0].ring_lock);
 		r = amdgpu_fence_wait_polling(ring, seq, usec_timeout);
 		if (r < 1) {
 			dev_err(adev->dev, "wait for kiq fence error: %ld.\n", r);
@@ -461,12 +461,12 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 				&queried_pasid);
 		if (ret	&& queried_pasid == pasid) {
 			if (all_hub) {
-				for (i = 0; i < adev->num_vmhubs; i++)
+				for_each_set_bit(i, adev->vmhubs_mask, AMDGPU_MAX_VMHUBS)
 					gmc_v10_0_flush_gpu_tlb(adev, vmid,
 							i, flush_type);
 			} else {
 				gmc_v10_0_flush_gpu_tlb(adev, vmid,
-						AMDGPU_GFXHUB_0, flush_type);
+						AMDGPU_GFXHUB(0), flush_type);
 			}
 			if (!adev->enable_mes)
 				break;
@@ -534,7 +534,7 @@ static void gmc_v10_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid
 	if (ring->is_mes_queue)
 		return;
 
-	if (ring->vm_hub == AMDGPU_GFXHUB_0)
+	if (ring->vm_hub == AMDGPU_GFXHUB(0))
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT) + vmid;
 	else
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT_MM) + vmid;
@@ -929,7 +929,8 @@ static int gmc_v10_0_sw_init(void *handle)
 	case IP_VERSION(10, 3, 6):
 	case IP_VERSION(10, 3, 3):
 	case IP_VERSION(10, 3, 7):
-		adev->num_vmhubs = 2;
+		set_bit(AMDGPU_GFXHUB(0), adev->vmhubs_mask);
+		set_bit(AMDGPU_MMHUB0(0), adev->vmhubs_mask);
 		/*
 		 * To fulfill 4-level page support,
 		 * vm size is 256TB (48bit), maximum size of Navi10/Navi14/Navi12,
@@ -1075,9 +1076,9 @@ static int gmc_v10_0_gart_enable(struct amdgpu_device *adev)
 	if (!adev->in_s0ix)
 		adev->gfxhub.funcs->set_fault_enable_default(adev, value);
 	adev->mmhub.funcs->set_fault_enable_default(adev, value);
-	gmc_v10_0_flush_gpu_tlb(adev, 0, AMDGPU_MMHUB_0, 0);
+	gmc_v10_0_flush_gpu_tlb(adev, 0, AMDGPU_MMHUB0(0), 0);
 	if (!adev->in_s0ix)
-		gmc_v10_0_flush_gpu_tlb(adev, 0, AMDGPU_GFXHUB_0, 0);
+		gmc_v10_0_flush_gpu_tlb(adev, 0, AMDGPU_GFXHUB(0), 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),

@@ -260,7 +260,7 @@ static struct i2c_driver t5403_driver = {
 	.driver = {
 		.name	= "t5403",
 	},
-	.probe_new = t5403_probe,
+	.probe = t5403_probe,
 	.id_table = t5403_id,
 };
 module_i2c_driver(t5403_driver);

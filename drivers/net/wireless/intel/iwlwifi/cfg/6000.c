@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 - 2020 Intel Corporation
+ * Copyright(c) 2018 - 2020, 2023 Intel Corporation
  *****************************************************************************/
 
 #include <linux/module.h>
@@ -37,17 +37,17 @@
 #define EEPROM_6035_TX_POWER_VERSION	(6)
 #define EEPROM_6035_EEPROM_VERSION	(0x753)
 
-#define IWL6000_FW_PRE "iwlwifi-6000-"
-#define IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE __stringify(api) ".ucode"
+#define IWL6000_FW_PRE "iwlwifi-6000"
+#define IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL6050_FW_PRE "iwlwifi-6050-"
-#define IWL6050_MODULE_FIRMWARE(api) IWL6050_FW_PRE __stringify(api) ".ucode"
+#define IWL6050_FW_PRE "iwlwifi-6050"
+#define IWL6050_MODULE_FIRMWARE(api) IWL6050_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL6005_FW_PRE "iwlwifi-6000g2a-"
-#define IWL6005_MODULE_FIRMWARE(api) IWL6005_FW_PRE __stringify(api) ".ucode"
+#define IWL6005_FW_PRE "iwlwifi-6000g2a"
+#define IWL6005_MODULE_FIRMWARE(api) IWL6005_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL6030_FW_PRE "iwlwifi-6000g2b-"
-#define IWL6030_MODULE_FIRMWARE(api) IWL6030_FW_PRE __stringify(api) ".ucode"
+#define IWL6030_FW_PRE "iwlwifi-6000g2b"
+#define IWL6030_MODULE_FIRMWARE(api) IWL6030_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl6000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,

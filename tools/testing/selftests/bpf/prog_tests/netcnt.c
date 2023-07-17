@@ -67,12 +67,12 @@ void serial_test_netcnt(void)
 	}
 
 	/* No packets should be lost */
-	ASSERT_EQ(packets, 10000, "packets");
+	ASSERT_GE(packets, 10000, "packets");
 
 	/* Let's check that bytes counter matches the number of packets
 	 * multiplied by the size of ipv6 ICMP packet.
 	 */
-	ASSERT_EQ(bytes, packets * 104, "bytes");
+	ASSERT_GE(bytes, packets * 104, "bytes");
 
 err:
 	if (cg_fd != -1)

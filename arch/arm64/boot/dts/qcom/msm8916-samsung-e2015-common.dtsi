@@ -18,7 +18,7 @@
 			compatible = "siliconmitus,sm5504-muic";
 			reg = <0x14>;
 
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
 
 			pinctrl-names = "default";
@@ -32,7 +32,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&msmgpio 97 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 97 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -66,7 +66,7 @@
 	compatible = "qcom,wcn3620";
 };
 
-&msmgpio {
+&tlmm {
 	tkey_en_default: tkey-en-default-state {
 		pins = "gpio97";
 		function = "gpio";

@@ -100,8 +100,8 @@ static PyObject *perf_sample_insn(PyObject *obj, PyObject *args)
 	if (!c)
 		return NULL;
 
-	if (c->sample->ip && !c->sample->insn_len && c->al->thread->maps) {
-		struct machine *machine =  maps__machine(c->al->thread->maps);
+	if (c->sample->ip && !c->sample->insn_len && thread__maps(c->al->thread)) {
+		struct machine *machine =  maps__machine(thread__maps(c->al->thread));
 
 		script_fetch_insn(c->sample, c->al->thread, machine);
 	}

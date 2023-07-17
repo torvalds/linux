@@ -16,10 +16,10 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+#include <linux/io.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include <asm/cpcmd.h>
-#include <asm/io.h>
 
 static DEFINE_SPINLOCK(cpcmd_lock);
 static char cpcmd_buf[241];

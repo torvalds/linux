@@ -86,9 +86,6 @@ static struct bpf_map *bloom_map_alloc(union bpf_attr *attr)
 	int numa_node = bpf_map_attr_numa_node(attr);
 	struct bpf_bloom_filter *bloom;
 
-	if (!bpf_capable())
-		return ERR_PTR(-EPERM);
-
 	if (attr->key_size != 0 || attr->value_size == 0 ||
 	    attr->max_entries == 0 ||
 	    attr->map_flags & ~BLOOM_CREATE_FLAG_MASK ||

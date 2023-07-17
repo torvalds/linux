@@ -1057,7 +1057,7 @@ void intel_dmc_init(struct drm_i915_private *i915)
 	i915->display.dmc.dmc = dmc;
 
 	drm_dbg_kms(&i915->drm, "Loading %s\n", dmc->fw_path);
-	schedule_work(&dmc->work);
+	queue_work(i915->unordered_wq, &dmc->work);
 
 	return;
 

@@ -4,6 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
 #include "bpf_misc.h"
+#include "../bpf_testmod/bpf_testmod_kfunc.h"
 
 struct map_value {
 	char buf[8];
@@ -18,9 +19,6 @@ struct array_map {
 	__type(value, struct map_value);
 	__uint(max_entries, 1);
 } array_map SEC(".maps");
-
-extern struct prog_test_ref_kfunc *bpf_kfunc_call_test_acquire(unsigned long *sp) __ksym;
-extern void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p) __ksym;
 
 SEC("?tc")
 __failure __msg("kptr access size must be BPF_DW")

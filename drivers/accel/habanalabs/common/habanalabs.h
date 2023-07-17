@@ -36,6 +36,8 @@
 struct hl_device;
 struct hl_fpriv;
 
+#define PCI_VENDOR_ID_HABANALABS	0x1da3
+
 /* Use upper bits of mmap offset to store habana driver specific information.
  * bits[63:59] - Encode mmap type
  * bits[45:0]  - mmap offset value
@@ -111,18 +113,6 @@ enum hl_mmu_page_table_location {
 	MMU_DR_PGT = 0,		/* device-dram-resident MMU PGT */
 	MMU_HR_PGT,		/* host resident MMU PGT */
 	MMU_NUM_PGT_LOCATIONS	/* num of PGT locations */
-};
-
-/**
- * enum hl_mmu_enablement - what mmu modules to enable
- * @MMU_EN_NONE: mmu disabled.
- * @MMU_EN_ALL: enable all.
- * @MMU_EN_PMMU_ONLY: Enable only the PMMU leaving the DMMU disabled.
- */
-enum hl_mmu_enablement {
-	MMU_EN_NONE = 0,
-	MMU_EN_ALL = 1,
-	MMU_EN_PMMU_ONLY = 3,	/* N/A for Goya/Gaudi */
 };
 
 /*
@@ -2568,12 +2558,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	ktime_t __timeout; \
 	u32 __elbi_read; \
 	int __rc = 0; \
-	if (hdev->pdev) \
-		__timeout = ktime_add_us(ktime_get(), timeout_us); \
-	else \
-		__timeout = ktime_add_us(ktime_get(),\
-				min((u64)(timeout_us * 10), \
-					(u64) HL_SIM_MAX_TIMEOUT_US)); \
+	__timeout = ktime_add_us(ktime_get(), timeout_us); \
 	might_sleep_if(sleep_us); \
 	for (;;) { \
 		if (elbi) { \
@@ -2625,13 +2610,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	u8 __arr_idx;	\
 	int __rc = 0; \
 	\
-	if (hdev->pdev) \
-		__timeout = ktime_add_us(ktime_get(), timeout_us); \
-	else \
-		__timeout = ktime_add_us(ktime_get(),\
-				min(((u64)timeout_us * 10), \
-					(u64) HL_SIM_MAX_TIMEOUT_US)); \
-	\
+	__timeout = ktime_add_us(ktime_get(), timeout_us); \
 	might_sleep_if(sleep_us); \
 	if (arr_size >= 64) \
 		__rc = -EINVAL; \
@@ -2689,12 +2668,8 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 				mem_written_by_device) \
 ({ \
 	ktime_t __timeout; \
-	if (hdev->pdev) \
-		__timeout = ktime_add_us(ktime_get(), timeout_us); \
-	else \
-		__timeout = ktime_add_us(ktime_get(),\
-				min((u64)(timeout_us * 100), \
-					(u64) HL_SIM_MAX_TIMEOUT_US)); \
+	\
+	__timeout = ktime_add_us(ktime_get(), timeout_us); \
 	might_sleep_if(sleep_us); \
 	for (;;) { \
 		/* Verify we read updates done by other cores or by device */ \
@@ -3225,8 +3200,11 @@ struct hl_reset_info {
  * @captured_err_info: holds information about errors.
  * @reset_info: holds current device reset information.
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
- * @fw_major_version: major version of current loaded preboot.
- * @fw_minor_version: minor version of current loaded preboot.
+ * @fw_inner_major_ver: the major of current loaded preboot inner version.
+ * @fw_inner_minor_ver: the minor of current loaded preboot inner version.
+ * @fw_sw_major_ver: the major of current loaded preboot SW version.
+ * @fw_sw_minor_ver: the minor of current loaded preboot SW version.
+ * @fw_sw_sub_minor_ver: the sub-minor of current loaded preboot SW version.
  * @dram_used_mem: current DRAM memory consumption.
  * @memory_scrub_val: the value to which the dram will be scrubbed to using cb scrub_device_dram
  * @timeout_jiffies: device CS timeout value.
@@ -3287,7 +3265,7 @@ struct hl_reset_info {
  * @in_debug: whether the device is in a state where the profiling/tracing infrastructure
  *            can be used. This indication is needed because in some ASICs we need to do
  *            specific operations to enable that infrastructure.
- * @cdev_sysfs_created: were char devices and sysfs nodes created.
+ * @cdev_sysfs_debugfs_created: were char devices and sysfs/debugfs files created.
  * @stop_on_err: true if engines should stop on error.
  * @supports_sync_stream: is sync stream supported.
  * @sync_stream_queue_idx: helper index for sync stream queues initialization.
@@ -3314,7 +3292,7 @@ struct hl_reset_info {
  * @nic_ports_mask: Controls which NIC ports are enabled. Used only for testing.
  * @fw_components: Controls which f/w components to load to the device. There are multiple f/w
  *                 stages and sometimes we want to stop at a certain stage. Used only for testing.
- * @mmu_enable: Whether to enable or disable the device MMU(s). Used only for testing.
+ * @mmu_disable: Disable the device MMU(s). Used only for testing.
  * @cpu_queues_enable: Whether to enable queues communication vs. the f/w. Used only for testing.
  * @pldm: Whether we are running in Palladium environment. Used only for testing.
  * @hard_reset_on_fw_events: Whether to do device hard-reset when a fatal event is received from
@@ -3412,8 +3390,11 @@ struct hl_device {
 	struct hl_reset_info		reset_info;
 
 	u32				*stream_master_qid_arr;
-	u32				fw_major_version;
-	u32				fw_minor_version;
+	u32				fw_inner_major_ver;
+	u32				fw_inner_minor_ver;
+	u32				fw_sw_major_ver;
+	u32				fw_sw_minor_ver;
+	u32				fw_sw_sub_minor_ver;
 	atomic64_t			dram_used_mem;
 	u64				memory_scrub_val;
 	u64				timeout_jiffies;
@@ -3451,7 +3432,7 @@ struct hl_device {
 	u8				init_done;
 	u8				device_cpu_disabled;
 	u8				in_debug;
-	u8				cdev_sysfs_created;
+	u8				cdev_sysfs_debugfs_created;
 	u8				stop_on_err;
 	u8				supports_sync_stream;
 	u8				sync_stream_queue_idx;
@@ -3474,7 +3455,7 @@ struct hl_device {
 	/* Parameters for bring-up to be upstreamed */
 	u64				nic_ports_mask;
 	u64				fw_components;
-	u8				mmu_enable;
+	u8				mmu_disable;
 	u8				cpu_queues_enable;
 	u8				pldm;
 	u8				hard_reset_on_fw_events;
@@ -3547,9 +3528,15 @@ struct hl_ioctl_desc {
 	hl_ioctl_t *func;
 };
 
-static inline bool hl_is_fw_ver_below_1_9(struct hl_device *hdev)
+static inline bool hl_is_fw_sw_ver_below(struct hl_device *hdev, u32 fw_sw_major, u32 fw_sw_minor)
 {
-	return (hdev->fw_major_version < 42);
+	if (hdev->fw_sw_major_ver < fw_sw_major)
+		return true;
+	if (hdev->fw_sw_major_ver > fw_sw_major)
+		return false;
+	if (hdev->fw_sw_minor_ver < fw_sw_minor)
+		return true;
+	return false;
 }
 
 /*
@@ -3813,8 +3800,6 @@ struct pgt_info *hl_mmu_hr_get_alloc_next_hop(struct hl_ctx *ctx,
 							u64 curr_pte, bool *is_new_hop);
 int hl_mmu_hr_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr, struct hl_mmu_hop_info *hops,
 							struct hl_hr_mmu_funcs *hr_func);
-void hl_mmu_swap_out(struct hl_ctx *ctx);
-void hl_mmu_swap_in(struct hl_ctx *ctx);
 int hl_mmu_if_set_funcs(struct hl_device *hdev);
 void hl_mmu_v1_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
 void hl_mmu_v2_hr_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
@@ -3872,6 +3857,7 @@ int hl_fw_dram_replaced_row_get(struct hl_device *hdev,
 int hl_fw_dram_pending_row_get(struct hl_device *hdev, u32 *pend_rows_num);
 int hl_fw_cpucp_engine_core_asid_set(struct hl_device *hdev, u32 asid);
 int hl_fw_send_device_activity(struct hl_device *hdev, bool open);
+int hl_fw_send_soft_reset(struct hl_device *hdev);
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 			bool is_wc[3]);
 int hl_pci_elbi_read(struct hl_device *hdev, u64 addr, u32 *data);
@@ -3921,7 +3907,7 @@ void hl_dec_fini(struct hl_device *hdev);
 void hl_dec_ctx_fini(struct hl_ctx *ctx);
 
 void hl_release_pending_user_interrupts(struct hl_device *hdev);
-void hl_abort_waitings_for_completion(struct hl_device *hdev);
+void hl_abort_waiting_for_cs_completions(struct hl_device *hdev);
 int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
 			struct hl_hw_sob **hw_sob, u32 count, bool encaps_sig);
 
@@ -3958,11 +3944,14 @@ void hl_handle_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_
 				u64 *event_mask);
 void hl_handle_critical_hw_err(struct hl_device *hdev, u16 event_id, u64 *event_mask);
 void hl_handle_fw_err(struct hl_device *hdev, struct hl_info_fw_err_info *info);
+void hl_enable_err_info_capture(struct hl_error_info *captured_err_info);
 
 #ifdef CONFIG_DEBUG_FS
 
 void hl_debugfs_init(void);
 void hl_debugfs_fini(void);
+int hl_debugfs_device_init(struct hl_device *hdev);
+void hl_debugfs_device_fini(struct hl_device *hdev);
 void hl_debugfs_add_device(struct hl_device *hdev);
 void hl_debugfs_remove_device(struct hl_device *hdev);
 void hl_debugfs_add_file(struct hl_fpriv *hpriv);

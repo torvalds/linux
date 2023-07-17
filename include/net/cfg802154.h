@@ -178,12 +178,15 @@ wpan_phy_cca_cmp(const struct wpan_phy_cca *a, const struct wpan_phy_cca *b)
  *	setting.
  * @WPAN_PHY_FLAG_STATE_QUEUE_STOPPED: Indicates that the transmit queue was
  *	temporarily stopped.
+ * @WPAN_PHY_FLAG_DATAGRAMS_ONLY: Indicates that transceiver is only able to
+ *	send/receive datagrams.
  */
 enum wpan_phy_flags {
 	WPAN_PHY_FLAG_TXPOWER		= BIT(1),
 	WPAN_PHY_FLAG_CCA_ED_LEVEL	= BIT(2),
 	WPAN_PHY_FLAG_CCA_MODE		= BIT(3),
 	WPAN_PHY_FLAG_STATE_QUEUE_STOPPED = BIT(4),
+	WPAN_PHY_FLAG_DATAGRAMS_ONLY	= BIT(5),
 };
 
 struct wpan_phy {

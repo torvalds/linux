@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Cadence SPI controller
 
 maintainers:
-  - Michal Simek <michal.simek@xilinx.com>
+  - Michal Simek <michal.simek@amd.com>
 
 allOf:
   - $ref: spi-controller.yaml#

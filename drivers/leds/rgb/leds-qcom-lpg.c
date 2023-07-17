@@ -312,14 +312,14 @@ static int lpg_calc_freq(struct lpg_channel *chan, uint64_t period)
 		max_res = LPG_RESOLUTION_9BIT;
 	}
 
-	min_period = (u64)NSEC_PER_SEC *
-			div64_u64((1 << pwm_resolution_arr[0]), clk_rate_arr[clk_len - 1]);
+	min_period = div64_u64((u64)NSEC_PER_SEC * (1 << pwm_resolution_arr[0]),
+			       clk_rate_arr[clk_len - 1]);
 	if (period <= min_period)
 		return -EINVAL;
 
 	/* Limit period to largest possible value, to avoid overflows */
-	max_period = (u64)NSEC_PER_SEC * max_res * LPG_MAX_PREDIV *
-			div64_u64((1 << LPG_MAX_M), 1024);
+	max_period = div64_u64((u64)NSEC_PER_SEC * max_res * LPG_MAX_PREDIV * (1 << LPG_MAX_M),
+			       1024);
 	if (period > max_period)
 		period = max_period;
 
@@ -1173,8 +1173,10 @@ static int lpg_add_led(struct lpg *lpg, struct device_node *np)
 		i = 0;
 		for_each_available_child_of_node(np, child) {
 			ret = lpg_parse_channel(lpg, child, &led->channels[i]);
-			if (ret < 0)
+			if (ret < 0) {
+				of_node_put(child);
 				return ret;
+			}
 
 			info[i].color_index = led->channels[i]->color;
 			info[i].intensity = 0;
@@ -1352,8 +1354,10 @@ static int lpg_probe(struct platform_device *pdev)
 
 	for_each_available_child_of_node(pdev->dev.of_node, np) {
 		ret = lpg_add_led(lpg, np);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			return ret;
+		}
 	}
 
 	for (i = 0; i < lpg->num_channels; i++)
@@ -1411,6 +1415,20 @@ static const struct lpg_data pm8994_lpg_data = {
 		{ .base = 0xb400 },
 		{ .base = 0xb500 },
 		{ .base = 0xb600 },
+	},
+};
+
+/* PMI632 uses SDAM instead of LUT for pattern */
+static const struct lpg_data pmi632_lpg_data = {
+	.triled_base = 0xd000,
+
+	.num_channels = 5,
+	.channels = (const struct lpg_channel_data[]) {
+		{ .base = 0xb300, .triled_mask = BIT(7) },
+		{ .base = 0xb400, .triled_mask = BIT(6) },
+		{ .base = 0xb500, .triled_mask = BIT(5) },
+		{ .base = 0xb600 },
+		{ .base = 0xb700 },
 	},
 };
 
@@ -1505,6 +1523,7 @@ static const struct of_device_id lpg_of_table[] = {
 	{ .compatible = "qcom,pm8916-pwm", .data = &pm8916_pwm_data },
 	{ .compatible = "qcom,pm8941-lpg", .data = &pm8941_lpg_data },
 	{ .compatible = "qcom,pm8994-lpg", .data = &pm8994_lpg_data },
+	{ .compatible = "qcom,pmi632-lpg", .data = &pmi632_lpg_data },
 	{ .compatible = "qcom,pmi8994-lpg", .data = &pmi8994_lpg_data },
 	{ .compatible = "qcom,pmi8998-lpg", .data = &pmi8998_lpg_data },
 	{ .compatible = "qcom,pmc8180c-lpg", .data = &pm8150l_lpg_data },

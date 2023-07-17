@@ -303,7 +303,7 @@ static struct i2c_driver mt6370_driver = {
 		.name = "mt6370",
 		.of_match_table = mt6370_match_table,
 	},
-	.probe_new = mt6370_probe,
+	.probe = mt6370_probe,
 };
 module_i2c_driver(mt6370_driver);
 

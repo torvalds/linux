@@ -335,29 +335,29 @@ static void ufs_hisi_pwr_change_pre_change(struct ufs_hba *hba)
 	/* PA_TxSkip */
 	ufshcd_dme_set(hba, UIC_ARG_MIB(0x155c), 0x0);
 	/*PA_PWRModeUserData0 = 8191, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b0), 8191);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b0), SZ_8K - 1);
 	/*PA_PWRModeUserData1 = 65535, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b1), 65535);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b1), SZ_64K - 1);
 	/*PA_PWRModeUserData2 = 32767, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b2), 32767);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b2), SZ_32K - 1);
 	/*DME_FC0ProtectionTimeOutVal = 8191, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd041), 8191);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd041), SZ_8K - 1);
 	/*DME_TC0ReplayTimeOutVal = 65535, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd042), 65535);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd042), SZ_64K - 1);
 	/*DME_AFC0ReqTimeOutVal = 32767, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd043), 32767);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd043), SZ_32K - 1);
 	/*PA_PWRModeUserData3 = 8191, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b3), 8191);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b3), SZ_8K - 1);
 	/*PA_PWRModeUserData4 = 65535, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b4), 65535);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b4), SZ_64K - 1);
 	/*PA_PWRModeUserData5 = 32767, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b5), 32767);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b5), SZ_32K - 1);
 	/*DME_FC1ProtectionTimeOutVal = 8191, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd044), 8191);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd044), SZ_8K - 1);
 	/*DME_TC1ReplayTimeOutVal = 65535, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd045), 65535);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd045), SZ_64K - 1);
 	/*DME_AFC1ReqTimeOutVal = 32767, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd046), 32767);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd046), SZ_32K - 1);
 }
 
 static int ufs_hisi_pwr_change_notify(struct ufs_hba *hba,
@@ -593,7 +593,6 @@ static const struct dev_pm_ops ufs_hisi_pm_ops = {
 static struct platform_driver ufs_hisi_pltform = {
 	.probe	= ufs_hisi_probe,
 	.remove	= ufs_hisi_remove,
-	.shutdown = ufshcd_pltfrm_shutdown,
 	.driver	= {
 		.name	= "ufshcd-hisi",
 		.pm	= &ufs_hisi_pm_ops,

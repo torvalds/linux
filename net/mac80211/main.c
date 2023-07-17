@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2017     Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 
 #include <net/mac80211.h>
@@ -291,7 +291,7 @@ void ieee80211_link_info_change_notify(struct ieee80211_sub_if_data *sdata,
 	drv_link_info_changed(local, sdata, link->conf, link->link_id, changed);
 }
 
-u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata)
+u64 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata)
 {
 	sdata->vif.bss_conf.use_cts_prot = false;
 	sdata->vif.bss_conf.use_short_preamble = false;
@@ -364,7 +364,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 			 * The exception is ieee80211_chswitch_done.
 			 * Then we can have a race...
 			 */
-			cancel_work_sync(&sdata->u.mgd.csa_connection_drop_work);
+			wiphy_work_cancel(local->hw.wiphy,
+					  &sdata->u.mgd.csa_connection_drop_work);
 			if (sdata->vif.bss_conf.csa_active) {
 				sdata_lock(sdata);
 				ieee80211_sta_connection_lost(sdata,

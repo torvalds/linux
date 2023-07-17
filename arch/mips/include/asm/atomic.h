@@ -33,17 +33,6 @@ static __always_inline void arch_##pfx##_set(pfx##_t *v, type i)	\
 {									\
 	WRITE_ONCE(v->counter, i);					\
 }									\
-									\
-static __always_inline type						\
-arch_##pfx##_cmpxchg(pfx##_t *v, type o, type n)			\
-{									\
-	return arch_cmpxchg(&v->counter, o, n);				\
-}									\
-									\
-static __always_inline type arch_##pfx##_xchg(pfx##_t *v, type n)	\
-{									\
-	return arch_xchg(&v->counter, n);				\
-}
 
 ATOMIC_OPS(atomic, int)
 

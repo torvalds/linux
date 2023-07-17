@@ -174,7 +174,7 @@ static struct i2c_driver mcp4018_driver = {
 		.name	= "mcp4018",
 		.of_match_table = mcp4018_of_match,
 	},
-	.probe_new	= mcp4018_probe,
+	.probe		= mcp4018_probe,
 	.id_table	= mcp4018_id,
 };
 

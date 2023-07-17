@@ -425,7 +425,7 @@ static struct i2c_driver vidtv_tuner_i2c_driver = {
 		.name                = "dvb_vidtv_tuner",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new = vidtv_tuner_i2c_probe,
+	.probe    = vidtv_tuner_i2c_probe,
 	.remove   = vidtv_tuner_i2c_remove,
 	.id_table = vidtv_tuner_i2c_id_table,
 };

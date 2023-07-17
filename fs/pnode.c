@@ -216,7 +216,7 @@ static struct mount *next_group(struct mount *m, struct mount *origin)
 static struct mount *last_dest, *first_source, *last_source, *dest_master;
 static struct hlist_head *list;
 
-static inline bool peers(struct mount *m1, struct mount *m2)
+static inline bool peers(const struct mount *m1, const struct mount *m2)
 {
 	return m1->mnt_group_id == m2->mnt_group_id && m1->mnt_group_id;
 }
@@ -352,6 +352,46 @@ static struct mount *find_topper(struct mount *mnt)
 static inline int do_refcount_check(struct mount *mnt, int count)
 {
 	return mnt_get_count(mnt) > count;
+}
+
+/**
+ * propagation_would_overmount - check whether propagation from @from
+ *                               would overmount @to
+ * @from: shared mount
+ * @to:   mount to check
+ * @mp:   future mountpoint of @to on @from
+ *
+ * If @from propagates mounts to @to, @from and @to must either be peers
+ * or one of the masters in the hierarchy of masters of @to must be a
+ * peer of @from.
+ *
+ * If the root of the @to mount is equal to the future mountpoint @mp of
+ * the @to mount on @from then @to will be overmounted by whatever is
+ * propagated to it.
+ *
+ * Context: This function expects namespace_lock() to be held and that
+ *          @mp is stable.
+ * Return: If @from overmounts @to, true is returned, false if not.
+ */
+bool propagation_would_overmount(const struct mount *from,
+				 const struct mount *to,
+				 const struct mountpoint *mp)
+{
+	if (!IS_MNT_SHARED(from))
+		return false;
+
+	if (IS_MNT_NEW(to))
+		return false;
+
+	if (to->mnt.mnt_root != mp->m_dentry)
+		return false;
+
+	for (const struct mount *m = to; m; m = m->mnt_master) {
+		if (peers(from, m))
+			return true;
+	}
+
+	return false;
 }
 
 /*

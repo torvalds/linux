@@ -9,6 +9,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <stdio.h>
+#include "addr_location.h"
 #include "path.h"
 #include "symbol_conf.h"
 #include "spark.h"
@@ -42,8 +43,7 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 
 /**
  * A symtab entry. When allocated this may be preceded by an annotation (see
- * symbol__annotation), a browser_index (see symbol__browser_index) and rb_node
- * to sort by name (see struct symbol_name_rb_node).
+ * symbol__annotation) and/or a browser_index (see symbol__browser_index).
  */
 struct symbol {
 	struct rb_node	rb_node;
@@ -94,11 +94,6 @@ static inline size_t symbol__size(const struct symbol *sym)
 struct strlist;
 struct intlist;
 
-struct symbol_name_rb_node {
-	struct rb_node	rb_node;
-	struct symbol	sym;
-};
-
 static inline int __symbol__join_symfs(char *bf, size_t size, const char *path)
 {
 	return path__join(bf, size, symbol_conf.symfs, path);
@@ -120,22 +115,6 @@ struct ref_reloc_sym {
 	u64		unrelocated_addr;
 };
 
-struct addr_location {
-	struct thread *thread;
-	struct maps   *maps;
-	struct map    *map;
-	struct symbol *sym;
-	const char    *srcline;
-	u64	      addr;
-	char	      level;
-	u8	      filtered;
-	u8	      cpumode;
-	s32	      cpu;
-	s32	      socket;
-};
-
-void addr_location__put(struct addr_location *al);
-
 int dso__load(struct dso *dso, struct map *map);
 int dso__load_vmlinux(struct dso *dso, struct map *map,
 		      const char *vmlinux, bool vmlinux_allocated);
@@ -151,9 +130,9 @@ void dso__delete_symbol(struct dso *dso,
 
 struct symbol *dso__find_symbol(struct dso *dso, u64 addr);
 struct symbol *dso__find_symbol_nocache(struct dso *dso, u64 addr);
-struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name);
 
-struct symbol *symbol__next_by_name(struct symbol *sym);
+struct symbol *dso__next_symbol_by_name(struct dso *dso, size_t *idx);
+struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name, size_t *idx);
 
 struct symbol *dso__first_symbol(struct dso *dso);
 struct symbol *dso__last_symbol(struct dso *dso);

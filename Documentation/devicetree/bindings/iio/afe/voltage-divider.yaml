@@ -13,7 +13,7 @@ description: |
   When an io-channel measures the midpoint of a voltage divider, the
   interesting voltage is often the voltage over the full resistance
   of the divider. This binding describes the voltage divider in such
-  a curcuit.
+  a circuit.
 
     Vin ----.
             |

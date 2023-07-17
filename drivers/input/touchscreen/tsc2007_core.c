@@ -418,7 +418,7 @@ static struct i2c_driver tsc2007_driver = {
 		.of_match_table = tsc2007_of_match,
 	},
 	.id_table	= tsc2007_idtable,
-	.probe_new	= tsc2007_probe,
+	.probe		= tsc2007_probe,
 };
 
 module_i2c_driver(tsc2007_driver);

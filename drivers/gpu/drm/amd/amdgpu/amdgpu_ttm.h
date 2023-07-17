@@ -49,6 +49,7 @@ struct amdgpu_gtt_mgr {
 
 struct amdgpu_mman {
 	struct ttm_device		bdev;
+	struct ttm_pool			*ttm_pools;
 	bool				initialized;
 	void __iomem			*aper_base_kaddr;
 
@@ -58,8 +59,10 @@ struct amdgpu_mman {
 	bool					buffer_funcs_enabled;
 
 	struct mutex				gtt_window_lock;
-	/* Scheduler entity for buffer moves */
-	struct drm_sched_entity			entity;
+	/* High priority scheduler entity for buffer moves */
+	struct drm_sched_entity			high_pr;
+	/* Low priority scheduler entity for VRAM clearing */
+	struct drm_sched_entity			low_pr;
 
 	struct amdgpu_vram_mgr vram_mgr;
 	struct amdgpu_gtt_mgr gtt_mgr;
@@ -78,7 +81,8 @@ struct amdgpu_mman {
 	/* discovery */
 	uint8_t				*discovery_bin;
 	uint32_t			discovery_tmr_size;
-	struct amdgpu_bo		*discovery_memory;
+	/* fw reserved memory */
+	struct amdgpu_bo		*fw_reserved_memory;
 
 	/* firmware VRAM reservation */
 	u64		fw_vram_usage_start_offset;
@@ -150,7 +154,8 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			uint32_t src_data,
 			struct dma_resv *resv,
-			struct dma_fence **fence);
+			struct dma_fence **fence,
+			bool delayed);
 
 int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo);
 void amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo);

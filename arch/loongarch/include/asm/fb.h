@@ -5,19 +5,27 @@
 #ifndef _ASM_FB_H_
 #define _ASM_FB_H_
 
-#include <linux/fb.h>
-#include <linux/fs.h>
-#include <asm/page.h>
+#include <linux/compiler.h>
+#include <linux/string.h>
 
-static inline void fb_pgprotect(struct file *file, struct vm_area_struct *vma,
-				unsigned long off)
+static inline void fb_memcpy_fromio(void *to, const volatile void __iomem *from, size_t n)
 {
-	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	memcpy(to, (void __force *)from, n);
 }
+#define fb_memcpy_fromio fb_memcpy_fromio
 
-static inline int fb_is_primary_device(struct fb_info *info)
+static inline void fb_memcpy_toio(volatile void __iomem *to, const void *from, size_t n)
 {
-	return 0;
+	memcpy((void __force *)to, from, n);
 }
+#define fb_memcpy_toio fb_memcpy_toio
+
+static inline void fb_memset_io(volatile void __iomem *addr, int c, size_t n)
+{
+	memset((void __force *)addr, c, n);
+}
+#define fb_memset fb_memset_io
+
+#include <asm-generic/fb.h>
 
 #endif /* _ASM_FB_H_ */

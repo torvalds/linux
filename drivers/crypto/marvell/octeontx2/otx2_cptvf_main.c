@@ -75,9 +75,9 @@ static int cptvf_pfvf_mbox_init(struct otx2_cptvf_dev *cptvf)
 	resource_size_t offset, size;
 	int ret;
 
-	cptvf->pfvf_mbox_wq = alloc_workqueue("cpt_pfvf_mailbox",
-					      WQ_UNBOUND | WQ_HIGHPRI |
-					      WQ_MEM_RECLAIM, 1);
+	cptvf->pfvf_mbox_wq =
+		alloc_ordered_workqueue("cpt_pfvf_mailbox",
+					WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!cptvf->pfvf_mbox_wq)
 		return -ENOMEM;
 
@@ -277,12 +277,11 @@ static int cptvf_lf_init(struct otx2_cptvf_dev *cptvf)
 	if (ret)
 		return ret;
 
-	lfs->reg_base = cptvf->reg_base;
-	lfs->pdev = cptvf->pdev;
-	lfs->mbox = &cptvf->pfvf_mbox;
-
 	lfs_num = cptvf->lfs.kvf_limits ? cptvf->lfs.kvf_limits :
 		  num_online_cpus();
+
+	otx2_cptlf_set_dev_info(lfs, cptvf->pdev, cptvf->reg_base,
+				&cptvf->pfvf_mbox, cptvf->blkaddr);
 	ret = otx2_cptlf_init(lfs, eng_grp_msk, OTX2_CPT_QUEUE_HI_PRIO,
 			      lfs_num);
 	if (ret)
@@ -380,6 +379,7 @@ static int otx2_cptvf_probe(struct pci_dev *pdev,
 	if (ret)
 		goto destroy_pfvf_mbox;
 
+	cptvf->blkaddr = BLKADDR_CPT0;
 	/* Initialize CPT LFs */
 	ret = cptvf_lf_init(cptvf);
 	if (ret)

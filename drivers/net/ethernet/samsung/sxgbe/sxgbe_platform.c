@@ -172,9 +172,10 @@ err_out:
 static int sxgbe_platform_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
-	int ret = sxgbe_drv_remove(ndev);
 
-	return ret;
+	sxgbe_drv_remove(ndev);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM

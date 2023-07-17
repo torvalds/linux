@@ -369,7 +369,7 @@ static struct i2c_driver fsa9480_i2c_driver = {
 		.pm		= &fsa9480_pm_ops,
 		.of_match_table = fsa9480_of_match,
 	},
-	.probe_new		= fsa9480_probe,
+	.probe			= fsa9480_probe,
 	.id_table		= fsa9480_id,
 };
 

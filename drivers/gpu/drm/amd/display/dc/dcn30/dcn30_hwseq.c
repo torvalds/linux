@@ -106,7 +106,7 @@ static bool dcn30_set_mpc_shaper_3dlut(struct pipe_ctx *pipe_ctx,
 		if (stream->func_shaper->type == TF_TYPE_HWPWL) {
 			shaper_lut = &stream->func_shaper->pwl;
 		} else if (stream->func_shaper->type == TF_TYPE_DISTRIBUTED_POINTS) {
-			cm_helper_translate_curve_to_hw_format(stream->func_shaper,
+			cm_helper_translate_curve_to_hw_format(stream->ctx, stream->func_shaper,
 							       &dpp_base->shaper_params, true);
 			shaper_lut = &dpp_base->shaper_params;
 		}
@@ -330,10 +330,6 @@ void dcn30_enable_writeback(
 	DC_LOG_DWB("%s dwb_pipe_inst = %d, mpcc_inst = %d",\
 		__func__, wb_info->dwb_pipe_inst,\
 		wb_info->mpcc_inst);
-	if (IS_DIAG_DC(dc->ctx->dce_environment)) {
-		/*till diags switch to warmup interface*/
-		dcn30_mmhubbub_warmup(dc, 1, wb_info);
-	}
 	/* Update writeback pipe */
 	dcn30_set_writeback(dc, wb_info, context);
 
@@ -447,28 +443,6 @@ void dcn30_init_hw(struct dc *dc)
 	if (res_pool->dccg->funcs->dccg_init)
 		res_pool->dccg->funcs->dccg_init(res_pool->dccg);
 
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-
-		REG_WRITE(REFCLK_CNTL, 0);
-		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
-		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
-
-		if (!dc->debug.disable_clock_gate) {
-			/* enable all DCN clock gating */
-			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-
-			REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
-
-			REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
-		}
-
-		//Enable ability to power gate / don't force power on permanently
-		if (hws->funcs.enable_power_gating_plane)
-			hws->funcs.enable_power_gating_plane(hws, true);
-
-		return;
-	}
-
 	if (!dcb->funcs->is_accelerated_mode(dcb)) {
 		hws->funcs.bios_golden_init(dc);
 		hws->funcs.disable_vga(dc->hwseq);
@@ -491,23 +465,21 @@ void dcn30_init_hw(struct dc *dc)
 		res_pool->ref_clocks.xtalin_clock_inKhz =
 				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
 
-		if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-			if (res_pool->dccg && res_pool->hubbub) {
+		if (res_pool->dccg && res_pool->hubbub) {
 
-				(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
-						dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
-						&res_pool->ref_clocks.dccg_ref_clock_inKhz);
+			(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
+					dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
+					&res_pool->ref_clocks.dccg_ref_clock_inKhz);
 
-				(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
-						res_pool->ref_clocks.dccg_ref_clock_inKhz,
-						&res_pool->ref_clocks.dchub_ref_clock_inKhz);
-			} else {
-				// Not all ASICs have DCCG sw component
-				res_pool->ref_clocks.dccg_ref_clock_inKhz =
-						res_pool->ref_clocks.xtalin_clock_inKhz;
-				res_pool->ref_clocks.dchub_ref_clock_inKhz =
-						res_pool->ref_clocks.xtalin_clock_inKhz;
-			}
+			(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
+					res_pool->ref_clocks.dccg_ref_clock_inKhz,
+					&res_pool->ref_clocks.dchub_ref_clock_inKhz);
+		} else {
+			// Not all ASICs have DCCG sw component
+			res_pool->ref_clocks.dccg_ref_clock_inKhz =
+					res_pool->ref_clocks.xtalin_clock_inKhz;
+			res_pool->ref_clocks.dchub_ref_clock_inKhz =
+					res_pool->ref_clocks.xtalin_clock_inKhz;
 		}
 	} else
 		ASSERT_CRITICAL(false);
@@ -632,7 +604,7 @@ void dcn30_init_hw(struct dc *dc)
 		dc->res_pool->hubbub->funcs->init_crb(dc->res_pool->hubbub);
 
 	// Get DMCUB capabilities
-	dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv->dmub);
+	dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv);
 	dc->caps.dmub_caps.psr = dc->ctx->dmub_srv->dmub->feature_caps.psr;
 	dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch;
 }
@@ -736,8 +708,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 				cmd.mall.header.sub_type = DMUB_CMD__MALL_ACTION_NO_DF_REQ;
 				cmd.mall.header.payload_bytes = sizeof(cmd.mall) - sizeof(cmd.mall.header);
 
-				dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-				dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
+				dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 				return true;
 			}
@@ -859,9 +830,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 					cmd.mall.cursor_height = cursor_attr.height;
 					cmd.mall.cursor_pitch = cursor_attr.pitch;
 
-					dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-					dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
-					dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+					dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 					/* Use copied cursor, and it's okay to not switch back */
 					cursor_attr.address.quad_part = cmd.mall.cursor_copy_dst.quad_part;
@@ -877,8 +846,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 				cmd.mall.tmr_scale = tmr_scale;
 				cmd.mall.debug_bits = dc->debug.mall_error_as_fatal;
 
-				dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-				dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
+				dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 				return true;
 			}
@@ -895,9 +863,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	cmd.mall.header.payload_bytes =
 		sizeof(cmd.mall) - sizeof(cmd.mall.header);
 
-	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 	return true;
 }
@@ -983,36 +949,13 @@ void dcn30_set_disp_pattern_generator(const struct dc *dc,
 }
 
 void dcn30_prepare_bandwidth(struct dc *dc,
-	struct dc_state *context)
+			     struct dc_state *context)
 {
-	bool p_state_change_support = context->bw_ctx.bw.dcn.clk.p_state_change_support;
-	/* Any transition into an FPO config should disable MCLK switching first to avoid
-	 * driver and FW P-State synchronization issues.
-	 */
-	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching || dc->clk_mgr->clks.fw_based_mclk_switching) {
-		dc->optimized_required = true;
-		context->bw_ctx.bw.dcn.clk.p_state_change_support = false;
-	}
-
 	if (dc->clk_mgr->dc_mode_softmax_enabled)
 		if (dc->clk_mgr->clks.dramclk_khz <= dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000 &&
 				context->bw_ctx.bw.dcn.clk.dramclk_khz > dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000)
 			dc->clk_mgr->funcs->set_max_memclk(dc->clk_mgr, dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz);
 
 	dcn20_prepare_bandwidth(dc, context);
-	/*
-	 * enabled -> enabled: do not disable
-	 * enabled -> disabled: disable
-	 * disabled -> enabled: don't care
-	 * disabled -> disabled: don't care
-	 */
-	if (!context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching)
-		dc_dmub_srv_p_state_delegate(dc, false, context);
-
-	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching || dc->clk_mgr->clks.fw_based_mclk_switching) {
-		/* After disabling P-State, restore the original value to ensure we get the correct P-State
-		 * on the next optimize. */
-		context->bw_ctx.bw.dcn.clk.p_state_change_support = p_state_change_support;
-	}
 }
 

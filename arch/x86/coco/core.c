@@ -13,10 +13,10 @@
 #include <asm/coco.h>
 #include <asm/processor.h>
 
-enum cc_vendor cc_vendor __ro_after_init;
+enum cc_vendor cc_vendor __ro_after_init = CC_VENDOR_NONE;
 static u64 cc_mask __ro_after_init;
 
-static bool intel_cc_platform_has(enum cc_attr attr)
+static bool noinstr intel_cc_platform_has(enum cc_attr attr)
 {
 	switch (attr) {
 	case CC_ATTR_GUEST_UNROLL_STRING_IO:
@@ -34,7 +34,7 @@ static bool intel_cc_platform_has(enum cc_attr attr)
  * the other levels of SME/SEV functionality, including C-bit
  * based SEV-SNP, are not enabled.
  */
-static __maybe_unused bool amd_cc_platform_vtom(enum cc_attr attr)
+static __maybe_unused __always_inline bool amd_cc_platform_vtom(enum cc_attr attr)
 {
 	switch (attr) {
 	case CC_ATTR_GUEST_MEM_ENCRYPT:
@@ -58,7 +58,7 @@ static __maybe_unused bool amd_cc_platform_vtom(enum cc_attr attr)
  * the trampoline area must be encrypted.
  */
 
-static bool amd_cc_platform_has(enum cc_attr attr)
+static bool noinstr amd_cc_platform_has(enum cc_attr attr)
 {
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 
@@ -97,7 +97,7 @@ static bool amd_cc_platform_has(enum cc_attr attr)
 #endif
 }
 
-bool cc_platform_has(enum cc_attr attr)
+bool noinstr cc_platform_has(enum cc_attr attr)
 {
 	switch (cc_vendor) {
 	case CC_VENDOR_AMD:

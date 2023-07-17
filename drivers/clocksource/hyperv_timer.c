@@ -365,6 +365,20 @@ void hv_stimer_global_cleanup(void)
 }
 EXPORT_SYMBOL_GPL(hv_stimer_global_cleanup);
 
+static __always_inline u64 read_hv_clock_msr(void)
+{
+	/*
+	 * Read the partition counter to get the current tick count. This count
+	 * is set to 0 when the partition is created and is incremented in 100
+	 * nanosecond units.
+	 *
+	 * Use hv_raw_get_register() because this function is used from
+	 * noinstr. Notable; while HV_REGISTER_TIME_REF_COUNT is a synthetic
+	 * register it doesn't need the GHCB path.
+	 */
+	return hv_raw_get_register(HV_REGISTER_TIME_REF_COUNT);
+}
+
 /*
  * Code and definitions for the Hyper-V clocksources.  Two
  * clocksources are defined: one that reads the Hyper-V defined MSR, and
@@ -393,14 +407,20 @@ struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 }
 EXPORT_SYMBOL_GPL(hv_get_tsc_page);
 
-static u64 notrace read_hv_clock_tsc(void)
+static __always_inline u64 read_hv_clock_tsc(void)
 {
-	u64 current_tick = hv_read_tsc_page(hv_get_tsc_page());
+	u64 cur_tsc, time;
 
-	if (current_tick == U64_MAX)
-		current_tick = hv_get_register(HV_REGISTER_TIME_REF_COUNT);
+	/*
+	 * The Hyper-V Top-Level Function Spec (TLFS), section Timers,
+	 * subsection Refererence Counter, guarantees that the TSC and MSR
+	 * times are in sync and monotonic. Therefore we can fall back
+	 * to the MSR in case the TSC page indicates unavailability.
+	 */
+	if (!hv_read_tsc_page_tsc(tsc_page, &cur_tsc, &time))
+		time = read_hv_clock_msr();
 
-	return current_tick;
+	return time;
 }
 
 static u64 notrace read_hv_clock_tsc_cs(struct clocksource *arg)
@@ -408,7 +428,7 @@ static u64 notrace read_hv_clock_tsc_cs(struct clocksource *arg)
 	return read_hv_clock_tsc();
 }
 
-static u64 notrace read_hv_sched_clock_tsc(void)
+static u64 noinstr read_hv_sched_clock_tsc(void)
 {
 	return (read_hv_clock_tsc() - hv_sched_clock_offset) *
 		(NSEC_PER_SEC / HV_CLOCK_HZ);
@@ -460,30 +480,14 @@ static struct clocksource hyperv_cs_tsc = {
 #endif
 };
 
-static u64 notrace read_hv_clock_msr(void)
-{
-	/*
-	 * Read the partition counter to get the current tick count. This count
-	 * is set to 0 when the partition is created and is incremented in
-	 * 100 nanosecond units.
-	 */
-	return hv_get_register(HV_REGISTER_TIME_REF_COUNT);
-}
-
 static u64 notrace read_hv_clock_msr_cs(struct clocksource *arg)
 {
 	return read_hv_clock_msr();
 }
 
-static u64 notrace read_hv_sched_clock_msr(void)
-{
-	return (read_hv_clock_msr() - hv_sched_clock_offset) *
-		(NSEC_PER_SEC / HV_CLOCK_HZ);
-}
-
 static struct clocksource hyperv_cs_msr = {
 	.name	= "hyperv_clocksource_msr",
-	.rating	= 500,
+	.rating	= 495,
 	.read	= read_hv_clock_msr_cs,
 	.mask	= CLOCKSOURCE_MASK(64),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
@@ -513,7 +517,7 @@ static __always_inline void hv_setup_sched_clock(void *sched_clock)
 static __always_inline void hv_setup_sched_clock(void *sched_clock) {}
 #endif /* CONFIG_GENERIC_SCHED_CLOCK */
 
-static bool __init hv_init_tsc_clocksource(void)
+static void __init hv_init_tsc_clocksource(void)
 {
 	union hv_reference_tsc_msr tsc_msr;
 
@@ -524,17 +528,14 @@ static bool __init hv_init_tsc_clocksource(void)
 	 * Hyper-V Reference TSC rating, causing the generic TSC to be used.
 	 * TSC_INVARIANT is not offered on ARM64, so the Hyper-V Reference
 	 * TSC will be preferred over the virtualized ARM64 arch counter.
-	 * While the Hyper-V MSR clocksource won't be used since the
-	 * Reference TSC clocksource is present, change its rating as
-	 * well for consistency.
 	 */
 	if (ms_hyperv.features & HV_ACCESS_TSC_INVARIANT) {
 		hyperv_cs_tsc.rating = 250;
-		hyperv_cs_msr.rating = 250;
+		hyperv_cs_msr.rating = 245;
 	}
 
 	if (!(ms_hyperv.features & HV_MSR_REFERENCE_TSC_AVAILABLE))
-		return false;
+		return;
 
 	hv_read_reference_counter = read_hv_clock_tsc;
 
@@ -565,33 +566,34 @@ static bool __init hv_init_tsc_clocksource(void)
 
 	clocksource_register_hz(&hyperv_cs_tsc, NSEC_PER_SEC/100);
 
-	hv_sched_clock_offset = hv_read_reference_counter();
-	hv_setup_sched_clock(read_hv_sched_clock_tsc);
-
-	return true;
+	/*
+	 * If TSC is invariant, then let it stay as the sched clock since it
+	 * will be faster than reading the TSC page. But if not invariant, use
+	 * the TSC page so that live migrations across hosts with different
+	 * frequencies is handled correctly.
+	 */
+	if (!(ms_hyperv.features & HV_ACCESS_TSC_INVARIANT)) {
+		hv_sched_clock_offset = hv_read_reference_counter();
+		hv_setup_sched_clock(read_hv_sched_clock_tsc);
+	}
 }
 
 void __init hv_init_clocksource(void)
 {
 	/*
-	 * Try to set up the TSC page clocksource. If it succeeds, we're
-	 * done. Otherwise, set up the MSR clocksource.  At least one of
-	 * these will always be available except on very old versions of
-	 * Hyper-V on x86.  In that case we won't have a Hyper-V
+	 * Try to set up the TSC page clocksource, then the MSR clocksource.
+	 * At least one of these will always be available except on very old
+	 * versions of Hyper-V on x86.  In that case we won't have a Hyper-V
 	 * clocksource, but Linux will still run with a clocksource based
 	 * on the emulated PIT or LAPIC timer.
+	 *
+	 * Never use the MSR clocksource as sched clock.  It's too slow.
+	 * Better to use the native sched clock as the fallback.
 	 */
-	if (hv_init_tsc_clocksource())
-		return;
+	hv_init_tsc_clocksource();
 
-	if (!(ms_hyperv.features & HV_MSR_TIME_REF_COUNT_AVAILABLE))
-		return;
-
-	hv_read_reference_counter = read_hv_clock_msr;
-	clocksource_register_hz(&hyperv_cs_msr, NSEC_PER_SEC/100);
-
-	hv_sched_clock_offset = hv_read_reference_counter();
-	hv_setup_sched_clock(read_hv_sched_clock_msr);
+	if (ms_hyperv.features & HV_MSR_TIME_REF_COUNT_AVAILABLE)
+		clocksource_register_hz(&hyperv_cs_msr, NSEC_PER_SEC/100);
 }
 
 void __init hv_remap_tsc_clocksource(void)

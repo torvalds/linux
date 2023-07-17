@@ -21,6 +21,9 @@ CFLAGS_REMOVE_unwind.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_patch.o = $(CC_FLAGS_FTRACE)
 endif
 
+CFLAGS_REMOVE_sys_parisc.o = -Wmissing-prototypes -Wmissing-declarations
+CFLAGS_REMOVE_sys_parisc32.o = -Wmissing-prototypes -Wmissing-declarations
+
 obj-$(CONFIG_SMP)	+= smp.o
 obj-$(CONFIG_PA11)	+= pci-dma.o
 obj-$(CONFIG_PCI)	+= pci.o

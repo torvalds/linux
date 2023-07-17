@@ -296,11 +296,12 @@ static int tmag5273_read_raw(struct iio_dev *indio_dev,
 			return ret;
 
 		ret = tmag5273_get_measure(data, &t, &x, &y, &z, &angle, &magnitude);
-		if (ret)
-			return ret;
 
 		pm_runtime_mark_last_busy(data->dev);
 		pm_runtime_put_autosuspend(data->dev);
+
+		if (ret)
+			return ret;
 
 		switch (chan->address) {
 		case TEMPERATURE:
@@ -733,7 +734,7 @@ static struct i2c_driver tmag5273_driver = {
 		.of_match_table = tmag5273_of_match,
 		.pm = pm_ptr(&tmag5273_pm_ops),
 	},
-	.probe_new = tmag5273_probe,
+	.probe = tmag5273_probe,
 	.id_table = tmag5273_id,
 };
 module_i2c_driver(tmag5273_driver);

@@ -417,7 +417,6 @@ nvkm_pstate_new(struct nvkm_clk *clk, int idx)
 		return 0;
 
 	pstate = kzalloc(sizeof(*pstate), GFP_KERNEL);
-	cstate = &pstate->base;
 	if (!pstate)
 		return -ENOMEM;
 
@@ -427,6 +426,7 @@ nvkm_pstate_new(struct nvkm_clk *clk, int idx)
 	pstate->fanspeed = perfE.fanspeed;
 	pstate->pcie_speed = perfE.pcie_speed;
 	pstate->pcie_width = perfE.pcie_width;
+	cstate = &pstate->base;
 	cstate->voltage = perfE.voltage;
 	cstate->domain[nv_clk_src_core] = perfE.core;
 	cstate->domain[nv_clk_src_shader] = perfE.shader;

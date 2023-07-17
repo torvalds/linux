@@ -655,4 +655,4 @@ fi
 # Control buffer size: --bootargs trace_buf_size=3k
 # Get trace-buffer dumps on all oopses: --bootargs ftrace_dump_on_oops
 # Ditto, but dump only the oopsing CPU: --bootargs ftrace_dump_on_oops=orig_cpu
-# Heavy-handed way to also dump on warnings: --bootargs panic_on_warn
+# Heavy-handed way to also dump on warnings: --bootargs panic_on_warn=1
