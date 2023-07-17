@@ -716,9 +716,8 @@ retry_same_fence:
 		ptr = xa_store(&ct->fence_lookup,
 			       g2h_fence.seqno,
 			       &g2h_fence, GFP_KERNEL);
-		if (IS_ERR(ptr)) {
+		if (IS_ERR(ptr))
 			return PTR_ERR(ptr);
-		}
 
 		goto retry_same_fence;
 	} else if (unlikely(ret)) {

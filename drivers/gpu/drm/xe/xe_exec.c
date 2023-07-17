@@ -243,6 +243,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	    vm->flags & XE_VM_FLAG_ASYNC_BIND_OPS) {
 		for (i = 0; i < args->num_syncs; i++) {
 			struct dma_fence *fence = syncs[i].fence;
+
 			if (fence) {
 				err = xe_vm_async_fence_wait_start(fence);
 				if (err)

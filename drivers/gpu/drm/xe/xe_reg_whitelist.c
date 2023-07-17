@@ -82,7 +82,7 @@ void xe_reg_whitelist_print_entry(struct drm_printer *p, unsigned int indent,
 {
 	u32 val = entry->set_bits;
 	const char *access_str = "(invalid)";
-	unsigned range_bit = 2;
+	unsigned int range_bit = 2;
 	u32 range_start, range_end;
 	bool deny;
 

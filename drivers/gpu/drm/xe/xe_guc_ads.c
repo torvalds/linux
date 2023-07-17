@@ -444,7 +444,7 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 		xe_gt_any_hw_engine_by_reset_domain(hwe->gt, XE_ENGINE_CLASS_RENDER);
 	struct xe_reg_sr_entry *entry;
 	unsigned long idx;
-	unsigned count = 0;
+	unsigned int count = 0;
 	const struct {
 		struct xe_reg reg;
 		bool skip;

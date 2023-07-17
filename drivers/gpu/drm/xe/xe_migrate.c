@@ -511,7 +511,7 @@ static void emit_copy_ccs(struct xe_gt *gt, struct xe_bb *bb,
 #define EMIT_COPY_DW 10
 static void emit_copy(struct xe_gt *gt, struct xe_bb *bb,
 		      u64 src_ofs, u64 dst_ofs, unsigned int size,
-		      unsigned pitch)
+		      unsigned int pitch)
 {
 	XE_BUG_ON(size / pitch > S16_MAX);
 	XE_BUG_ON(pitch / 4 > S16_MAX);
@@ -1012,6 +1012,7 @@ static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 
 	do {
 		u64 addr = ppgtt_ofs + ofs * 8;
+
 		chunk = min(update->qwords, 0x1ffU);
 
 		/* Ensure populatefn can do memset64 by aligning bb->cs */

@@ -11,7 +11,7 @@
 struct xe_device;
 struct xe_gt;
 
-#define xe_execlist_port_assert_held(port) lockdep_assert_held(&(port)->lock);
+#define xe_execlist_port_assert_held(port) lockdep_assert_held(&(port)->lock)
 
 int xe_execlist_init(struct xe_gt *gt);
 struct xe_execlist_port *xe_execlist_port_create(struct xe_device *xe,

@@ -330,7 +330,7 @@ static void __guc_engine_policy_add_##func(struct engine_policy *policy, \
 					   u32 data) \
 { \
 	XE_BUG_ON(policy->count >= GUC_CONTEXT_POLICIES_KLV_NUM_IDS); \
- \
+\
 	policy->h2g.klv[policy->count].kl = \
 		FIELD_PREP(GUC_KLV_0_KEY, \
 			   GUC_CONTEXT_POLICIES_KLV_ID_##id) | \

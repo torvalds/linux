@@ -81,7 +81,7 @@ struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 
 }
 
 struct drm_suballoc *xe_sa_bo_new(struct xe_sa_manager *sa_manager,
-				  unsigned size)
+				  unsigned int size)
 {
 	return drm_suballoc_new(&sa_manager->base, size, GFP_KERNEL, true, 0);
 }

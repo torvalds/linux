@@ -428,8 +428,8 @@
  * the list of userptrs mapped in the VM, the list of engines using this VM, and
  * the array of external BOs mapped in the VM. When adding or removing any of the
  * aforemented state from the VM should acquire this lock in write mode. The VM
- * bind path also acquires this lock in write while while the exec / compute
- * mode rebind worker acquire this lock in read mode.
+ * bind path also acquires this lock in write while the exec / compute mode
+ * rebind worker acquire this lock in read mode.
  *
  * VM dma-resv lock (vm->ttm.base.resv->lock) - WW lock. Protects VM dma-resv
  * slots which is shared with any private BO in the VM. Expected to be acquired

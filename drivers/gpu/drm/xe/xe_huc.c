@@ -68,6 +68,7 @@ int xe_huc_auth(struct xe_huc *huc)
 	struct xe_gt *gt = huc_to_gt(huc);
 	struct xe_guc *guc = huc_to_guc(huc);
 	int ret;
+
 	if (xe_uc_fw_is_disabled(&huc->fw))
 		return 0;
 

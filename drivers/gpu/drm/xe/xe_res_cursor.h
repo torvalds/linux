@@ -130,7 +130,6 @@ fallback:
 	cur->node = NULL;
 	cur->mem_type = XE_PL_TT;
 	XE_WARN_ON(res && start + size > res->size);
-	return;
 }
 
 static inline void __xe_res_sg_next(struct xe_res_cursor *cur)

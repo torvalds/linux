@@ -1720,7 +1720,7 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	struct ww_acquire_ctx ww;
 	struct xe_vm *vm = NULL;
 	struct xe_bo *bo;
-	unsigned bo_flags = XE_BO_CREATE_USER_BIT;
+	unsigned int bo_flags = XE_BO_CREATE_USER_BIT;
 	u32 handle;
 	int err;
 

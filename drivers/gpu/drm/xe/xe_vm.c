@@ -2163,16 +2163,16 @@ static int vm_bind_ioctl_lookup_vma(struct xe_vm *vm, struct xe_bo *bo,
 	case XE_VM_BIND_OP_PREFETCH:
 		vma = xe_vm_find_overlapping_vma(vm, addr, range);
 		if (XE_IOCTL_DBG(xe, !vma))
-			return -ENODATA;	/* Not an actual error, IOCTL
-						   cleans up returns and 0 */
+			/* Not an actual error, IOCTL cleans up returns and 0 */
+			return -ENODATA;
 		if (XE_IOCTL_DBG(xe, (xe_vma_start(vma) != addr ||
 				      xe_vma_end(vma) != addr + range) && !async))
 			return -EINVAL;
 		break;
 	case XE_VM_BIND_OP_UNMAP_ALL:
 		if (XE_IOCTL_DBG(xe, list_empty(&bo->ttm.base.gpuva.list)))
-			return -ENODATA;	/* Not an actual error, IOCTL
-						   cleans up returns and 0 */
+			/* Not an actual error, IOCTL cleans up returns and 0 */
+			return -ENODATA;
 		break;
 	default:
 		XE_BUG_ON("NOT POSSIBLE");

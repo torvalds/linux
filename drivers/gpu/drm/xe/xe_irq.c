@@ -250,7 +250,7 @@ static struct xe_gt *pick_engine_gt(struct xe_tile *tile,
 }
 
 static void gt_irq_handler(struct xe_tile *tile,
-			   u32 master_ctl, long unsigned int *intr_dw,
+			   u32 master_ctl, unsigned long *intr_dw,
 			   u32 *identity)
 {
 	struct xe_device *xe = tile_to_xe(tile);
@@ -305,7 +305,7 @@ static irqreturn_t xelp_irq_handler(int irq, void *arg)
 	struct xe_device *xe = arg;
 	struct xe_tile *tile = xe_device_get_root_tile(xe);
 	u32 master_ctl, gu_misc_iir;
-	long unsigned int intr_dw[2];
+	unsigned long intr_dw[2];
 	u32 identity[32];
 
 	master_ctl = xelp_intr_disable(xe);
@@ -360,7 +360,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 	struct xe_device *xe = arg;
 	struct xe_tile *tile;
 	u32 master_tile_ctl, master_ctl = 0, gu_misc_iir = 0;
-	long unsigned int intr_dw[2];
+	unsigned long intr_dw[2];
 	u32 identity[32];
 	u8 id;
 
@@ -502,11 +502,10 @@ static void xe_irq_postinstall(struct xe_device *xe)
 
 static irq_handler_t xe_irq_handler(struct xe_device *xe)
 {
-	if (GRAPHICS_VERx100(xe) >= 1210) {
+	if (GRAPHICS_VERx100(xe) >= 1210)
 		return dg1_irq_handler;
-	} else {
+	else
 		return xelp_irq_handler;
-	}
 }
 
 static void irq_uninstall(struct drm_device *drm, void *arg)

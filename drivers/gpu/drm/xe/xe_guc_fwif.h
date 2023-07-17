@@ -140,16 +140,20 @@ struct guc_update_engine_policy {
 
 struct guc_policies {
 	u32 submission_queue_depth[GUC_MAX_ENGINE_CLASSES];
-	/* In micro seconds. How much time to allow before DPC processing is
+	/*
+	 * In micro seconds. How much time to allow before DPC processing is
 	 * called back via interrupt (to prevent DPC queue drain starving).
-	 * Typically 1000s of micro seconds (example only, not granularity). */
+	 * Typically 1000s of micro seconds (example only, not granularity).
+	 */
 	u32 dpc_promote_time;
 
 	/* Must be set to take these new values. */
 	u32 is_valid;
 
-	/* Max number of WIs to process per call. A large value may keep CS
-	 * idle. */
+	/*
+	 * Max number of WIs to process per call. A large value may keep CS
+	 * idle.
+	 */
 	u32 max_num_work_items;
 
 	u32 global_flags;

@@ -147,9 +147,9 @@ struct fw_blobs_by_type {
 		entry__,							\
 	},
 
-XE_GUC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE,					\
+XE_GUC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE,
 		     fw_filename_mmp_ver, fw_filename_major_ver)
-XE_HUC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE,					\
+XE_HUC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE,
 		     fw_filename_mmp_ver, fw_filename_no_ver)
 
 static struct xe_gt *
