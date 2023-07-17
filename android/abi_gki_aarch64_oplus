@@ -2794,6 +2794,7 @@
   __traceiter_android_vh_clear_mask_adjust
   __traceiter_android_vh_clear_reserved_fmt_fields
   __traceiter_android_vh_cma_drain_all_pages_bypass
+  __traceiter_android_vh_compact_finished
   __traceiter_android_vh_alloc_pages_reclaim_bypass
   __traceiter_android_vh_free_unref_page_bypass
   __traceiter_android_vh_kvmalloc_node_use_vmalloc
@@ -2851,6 +2852,7 @@
   __traceiter_android_vh_logbuf
   __traceiter_android_vh_look_around
   __traceiter_android_vh_look_around_migrate_page
+  __traceiter_android_vh_madvise_cold_or_pageout_abort
   __traceiter_android_vh_mark_page_accessed
   __traceiter_android_vh_mem_cgroup_alloc
   __traceiter_android_vh_mem_cgroup_css_offline
@@ -3059,6 +3061,7 @@
   __tracepoint_android_vh_clear_mask_adjust
   __tracepoint_android_vh_clear_reserved_fmt_fields
   __tracepoint_android_vh_cma_drain_all_pages_bypass
+  __tracepoint_android_vh_compact_finished
   __tracepoint_android_vh_alloc_pages_reclaim_bypass
   __tracepoint_android_vh_free_unref_page_bypass
   __tracepoint_android_vh_kvmalloc_node_use_vmalloc
@@ -3116,6 +3119,7 @@
   __tracepoint_android_vh_logbuf
   __tracepoint_android_vh_look_around
   __tracepoint_android_vh_look_around_migrate_page
+  __tracepoint_android_vh_madvise_cold_or_pageout_abort
   __tracepoint_android_vh_mark_page_accessed
   __tracepoint_android_vh_mem_cgroup_alloc
   __tracepoint_android_vh_mem_cgroup_css_offline
