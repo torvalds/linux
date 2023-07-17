@@ -303,9 +303,9 @@ int taskset_benchmark(pid_t bm_pid, int cpu_no)
 void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 {
 	int operation, ret, malloc_and_init_memory, memflush;
-	size_t span, buffer_span;
 	char **benchmark_cmd;
 	char resctrl_val[64];
+	size_t span;
 	FILE *fp;
 
 	benchmark_cmd = info->si_ptr;
@@ -326,12 +326,7 @@ void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 		operation = atoi(benchmark_cmd[4]);
 		sprintf(resctrl_val, "%s", benchmark_cmd[5]);
 
-		if (strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR)))
-			buffer_span = span * MB;
-		else
-			buffer_span = span;
-
-		if (run_fill_buf(buffer_span, malloc_and_init_memory, memflush,
+		if (run_fill_buf(span, malloc_and_init_memory, memflush,
 				 operation, resctrl_val))
 			fprintf(stderr, "Error in running fill buffer\n");
 	} else {
