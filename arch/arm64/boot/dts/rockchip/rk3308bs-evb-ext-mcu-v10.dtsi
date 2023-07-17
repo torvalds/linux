@@ -113,19 +113,23 @@
 			  00   00  01  36
 			  01   00  01  48
 
-			  00   00  01  3a  //interface mode control
-			  01   00  01  55  //spi rgb:66(r1 r4 r5), mcu: 55(r2, r3 r6)
+			  00   00  01  3a  //interface pixel format
+			  01   00  01  55  // bpp    cfg
+					   //  3      11
+					   //  16     55
+					   //  18     66
+					   //  24     77
 
 			  00   00  01  b0  //interface mode control
 			  01   00  01  00
 
-			  00   00  01  b1  //frame rate 70hz
-			  01   00  01  b0
+			  00   00  01  b1  //frame rate 60hz
+			  01   00  01  a0
 			  01   00  01  11
 			  00   00  01  b4
 			  01   00  01  02
-			  00   00  01  B6  //RGB/MCU Interface Control
-			  01   00  01  02  //02 mcu, 32 rgb
+			  00   00  01  B6
+			  01   00  01  02
 			  01   00  01  02
 
 			  00   00  01  b7
@@ -159,7 +163,7 @@
 			native-mode = <&kd050fwfba002_timing>;
 
 			kd050fwfba002_timing: timing0 {
-				clock-frequency = <20000000>;
+				clock-frequency = <94081500>;
 				hactive = <320>;
 				vactive = <480>;
 				hback-porch = <10>;
