@@ -199,5 +199,6 @@ void bch2_inode_opts_get(struct bch_io_opts *, struct bch_fs *,
 			 struct bch_inode_unpacked *);
 
 int bch2_inode_rm_snapshot(struct btree_trans *, u64, u32);
+int bch2_delete_dead_inodes(struct bch_fs *);
 
 #endif /* _BCACHEFS_INODE_H */

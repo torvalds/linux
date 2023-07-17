@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "btree_key_cache.h"
+#include "btree_write_buffer.h"
 #include "bkey_methods.h"
 #include "btree_update.h"
 #include "buckets.h"
@@ -519,6 +520,25 @@ void bch2_inode_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	__bch2_inode_unpacked_to_text(out, &inode);
 }
 
+static inline u64 bkey_inode_flags(struct bkey_s_c k)
+{
+	switch (k.k->type) {
+	case KEY_TYPE_inode:
+		return le32_to_cpu(bkey_s_c_to_inode(k).v->bi_flags);
+	case KEY_TYPE_inode_v2:
+		return le64_to_cpu(bkey_s_c_to_inode_v2(k).v->bi_flags);
+	case KEY_TYPE_inode_v3:
+		return le64_to_cpu(bkey_s_c_to_inode_v3(k).v->bi_flags);
+	default:
+		return 0;
+	}
+}
+
+static inline bool bkey_is_deleted_inode(struct bkey_s_c k)
+{
+	return bkey_inode_flags(k) & BCH_INODE_UNLINKED;
+}
+
 int bch2_trans_mark_inode(struct btree_trans *trans,
 			  enum btree_id btree_id, unsigned level,
 			  struct bkey_s_c old,
@@ -526,6 +546,8 @@ int bch2_trans_mark_inode(struct btree_trans *trans,
 			  unsigned flags)
 {
 	int nr = bkey_is_inode(&new->k) - bkey_is_inode(old.k);
+	bool old_deleted = bkey_is_deleted_inode(old);
+	bool new_deleted = bkey_is_deleted_inode(bkey_i_to_s_c(new));
 
 	if (nr) {
 		int ret = bch2_replicas_deltas_realloc(trans, 0);
@@ -535,6 +557,12 @@ int bch2_trans_mark_inode(struct btree_trans *trans,
 			return ret;
 
 		d->nr_inodes += nr;
+	}
+
+	if (old_deleted != new_deleted) {
+		int ret = bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, new->k.p, new_deleted);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -985,4 +1013,91 @@ err:
 		goto retry;
 
 	return ret ?: -BCH_ERR_transaction_restart_nested;
+}
+
+static int may_delete_deleted_inode(struct btree_trans *trans, struct bpos pos)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bch_inode_unpacked inode;
+	int ret;
+
+	if (bch2_snapshot_is_internal_node(c, pos.snapshot))
+		return 0;
+
+	if (!fsck_err_on(c->sb.clean, c,
+			 "filesystem marked as clean but have deleted inode %llu:%u",
+			 pos.offset, pos.snapshot))
+		return 0;
+
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes, pos, BTREE_ITER_CACHED);
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	ret = bkey_is_inode(k.k) ? 0 : -BCH_ERR_ENOENT_inode;
+	if (fsck_err_on(!bkey_is_inode(k.k), c,
+			"nonexistent inode %llu:%u in deleted_inodes btree",
+			pos.offset, pos.snapshot))
+		goto delete;
+
+	ret = bch2_inode_unpack(k, &inode);
+	if (ret)
+		goto err;
+
+	if (fsck_err_on(!(inode.bi_flags & BCH_INODE_UNLINKED), c,
+			"non-deleted inode %llu:%u in deleted_inodes btree",
+			pos.offset, pos.snapshot))
+		goto delete;
+
+	return 1;
+err:
+fsck_err:
+	return ret;
+delete:
+	return bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, pos, false);
+}
+
+int bch2_delete_dead_inodes(struct bch_fs *c)
+{
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	ret = bch2_btree_write_buffer_flush_sync(&trans);
+	if (ret)
+		goto err;
+
+	/*
+	 * Weird transaction restart handling here because on successful delete,
+	 * bch2_inode_rm_snapshot() will return a nested transaction restart,
+	 * but we can't retry because the btree write buffer won't have been
+	 * flushed and we'd spin:
+	 */
+	for_each_btree_key(&trans, iter, BTREE_ID_deleted_inodes, POS_MIN,
+			   BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
+		ret = lockrestart_do(&trans, may_delete_deleted_inode(&trans, k.k->p));
+		if (ret < 0)
+			break;
+
+		if (ret) {
+			if (!test_bit(BCH_FS_RW, &c->flags)) {
+				bch2_trans_unlock(&trans);
+				bch2_fs_lazy_rw(c);
+			}
+
+			ret = bch2_inode_rm_snapshot(&trans, k.k->p.offset, k.k->p.snapshot);
+			if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
+				break;
+		}
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+err:
+	bch2_trans_exit(&trans);
+
+	return ret;
 }

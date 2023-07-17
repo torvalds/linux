@@ -29,13 +29,14 @@
 	x(check_subvols,		PASS_FSCK)						\
 	x(delete_dead_snapshots,	PASS_FSCK|PASS_UNCLEAN)					\
 	x(fs_upgrade_for_subvolumes,	0)							\
-	x(check_inodes,			PASS_FSCK|PASS_UNCLEAN)					\
+	x(check_inodes,			PASS_FSCK)						\
 	x(check_extents,		PASS_FSCK)						\
 	x(check_dirents,		PASS_FSCK)						\
 	x(check_xattrs,			PASS_FSCK)						\
 	x(check_root,			PASS_FSCK)						\
 	x(check_directory_structure,	PASS_FSCK)						\
 	x(check_nlinks,			PASS_FSCK)						\
+	x(delete_dead_inodes,		PASS_FSCK|PASS_UNCLEAN)					\
 	x(fix_reflink_p,		0)							\
 
 enum bch_recovery_pass {

@@ -1629,7 +1629,9 @@ struct bch_sb_field_journal_seq_blacklist {
 	x(major_minor,			BCH_VERSION(1,  0),		\
 	  0)								\
 	x(snapshot_skiplists,		BCH_VERSION(1,  1),		\
-	  BIT_ULL(BCH_RECOVERY_PASS_check_snapshots))
+	  BIT_ULL(BCH_RECOVERY_PASS_check_snapshots))			\
+	x(deleted_inodes,		BCH_VERSION(1,  2),		\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -2251,7 +2253,9 @@ enum btree_id_flags {
 	x(bucket_gens,		14,	0,					\
 	  BIT_ULL(KEY_TYPE_bucket_gens))					\
 	x(snapshot_trees,	15,	0,					\
-	  BIT_ULL(KEY_TYPE_snapshot_tree))
+	  BIT_ULL(KEY_TYPE_snapshot_tree))					\
+	x(deleted_inodes,	16,	BTREE_ID_SNAPSHOTS,			\
+	  BIT_ULL(KEY_TYPE_set))
 
 enum btree_id {
 #define x(name, nr, ...) BTREE_ID_##name = nr,
