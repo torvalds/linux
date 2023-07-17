@@ -1394,7 +1394,7 @@
 	bus-width = <4>;
 	vmmc-supply = <&reg_wifi_3v3>;
 	mmc-pwrseq = <&usdhc2_pwrseq>;
-	post-power-on-delay-ms = <1000>;
+	post-power-on-delay-ms = <20>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	max-frequency = <100000000>;
 	disable-wp;
