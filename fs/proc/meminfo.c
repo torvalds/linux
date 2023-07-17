@@ -17,6 +17,7 @@
 #ifdef CONFIG_CMA
 #include <linux/cma.h>
 #endif
+#include <linux/zswap.h>
 #include <asm/page.h>
 #include "internal.h"
 

@@ -19,12 +19,12 @@
 #include <linux/bio.h>
 #include <linux/swapops.h>
 #include <linux/writeback.h>
-#include <linux/frontswap.h>
 #include <linux/blkdev.h>
 #include <linux/psi.h>
 #include <linux/uio.h>
 #include <linux/sched/task.h>
 #include <linux/delayacct.h>
+#include <linux/zswap.h>
 #include "swap.h"
 
 static void __end_swap_bio_write(struct bio *bio)
@@ -195,7 +195,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
 		folio_unlock(folio);
 		return ret;
 	}
-	if (frontswap_store(&folio->page) == 0) {
+	if (zswap_store(&folio->page)) {
 		folio_start_writeback(folio);
 		folio_unlock(folio);
 		folio_end_writeback(folio);
@@ -512,7 +512,7 @@ void swap_readpage(struct page *page, bool synchronous, struct swap_iocb **plug)
 	}
 	delayacct_swapin_start();
 
-	if (frontswap_load(page) == 0) {
+	if (zswap_load(page)) {
 		SetPageUptodate(page);
 		unlock_page(page);
 	} else if (data_race(sis->flags & SWP_FS_OPS)) {

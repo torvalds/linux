@@ -302,10 +302,6 @@ struct swap_info_struct {
 	struct file *swap_file;		/* seldom referenced */
 	unsigned int old_block_size;	/* seldom referenced */
 	struct completion comp;		/* seldom referenced */
-#ifdef CONFIG_FRONTSWAP
-	unsigned long *frontswap_map;	/* frontswap in-use, one bit per page */
-	atomic_t frontswap_pages;	/* frontswap pages in-use counter */
-#endif
 	spinlock_t lock;		/*
 					 * protect map scan related fields like
 					 * swap_map, lowest_bit, highest_bit,
@@ -628,11 +624,6 @@ static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
 {
 	return READ_ONCE(vm_swappiness);
 }
-#endif
-
-#ifdef CONFIG_ZSWAP
-extern u64 zswap_pool_total_size;
-extern atomic_t zswap_stored_pages;
 #endif
 
 #if defined(CONFIG_SWAP) && defined(CONFIG_MEMCG) && defined(CONFIG_BLK_CGROUP)

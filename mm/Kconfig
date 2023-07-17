@@ -25,7 +25,6 @@ menuconfig SWAP
 config ZSWAP
 	bool "Compressed cache for swap pages"
 	depends on SWAP
-	select FRONTSWAP
 	select CRYPTO
 	select ZPOOL
 	help
@@ -871,9 +870,6 @@ config USE_PERCPU_NUMA_NODE_ID
 	bool
 
 config HAVE_SETUP_PER_CPU_AREA
-	bool
-
-config FRONTSWAP
 	bool
 
 config CMA

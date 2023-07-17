@@ -2,7 +2,7 @@
 /*
  * zswap.c - zswap driver file
  *
- * zswap is a backend for frontswap that takes pages that are in the process
+ * zswap is a cache that takes pages that are in the process
  * of being swapped out and attempts to compress and store them in a
  * RAM-based memory pool.  This can result in a significant I/O reduction on
  * the swap device and, in the case where decompressing from RAM is faster
@@ -20,7 +20,6 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/atomic.h>
-#include <linux/frontswap.h>
 #include <linux/rbtree.h>
 #include <linux/swap.h>
 #include <linux/crypto.h>
@@ -28,7 +27,7 @@
 #include <linux/mempool.h>
 #include <linux/zpool.h>
 #include <crypto/acompress.h>
-
+#include <linux/zswap.h>
 #include <linux/mm_types.h>
 #include <linux/page-flags.h>
 #include <linux/swapops.h>
@@ -1084,7 +1083,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
  *
  * This can be thought of as a "resumed writeback" of the page
  * to the swap device.  We are basically resuming the same swap
- * writeback path that was intercepted with the frontswap_store()
+ * writeback path that was intercepted with the zswap_store()
  * in the first place.  After the page has been decompressed into
  * the swap cache, the compressed version stored by zswap can be
  * freed.
@@ -1224,13 +1223,11 @@ static void zswap_fill_page(void *ptr, unsigned long value)
 	memset_l(page, value, PAGE_SIZE / sizeof(unsigned long));
 }
 
-/*********************************
-* frontswap hooks
-**********************************/
-/* attempts to compress and store an single page */
-static int zswap_frontswap_store(unsigned type, pgoff_t offset,
-				struct page *page)
+bool zswap_store(struct page *page)
 {
+	swp_entry_t swp = { .val = page_private(page), };
+	int type = swp_type(swp);
+	pgoff_t offset = swp_offset(swp);
 	struct zswap_tree *tree = zswap_trees[type];
 	struct zswap_entry *entry, *dupentry;
 	struct scatterlist input, output;
@@ -1238,23 +1235,22 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 	struct obj_cgroup *objcg = NULL;
 	struct zswap_pool *pool;
 	struct zpool *zpool;
-	int ret;
 	unsigned int dlen = PAGE_SIZE;
 	unsigned long handle, value;
 	char *buf;
 	u8 *src, *dst;
 	gfp_t gfp;
+	int ret;
+
+	VM_WARN_ON_ONCE(!PageLocked(page));
+	VM_WARN_ON_ONCE(!PageSwapCache(page));
 
 	/* THP isn't supported */
-	if (PageTransHuge(page)) {
-		ret = -EINVAL;
-		goto reject;
-	}
+	if (PageTransHuge(page))
+		return false;
 
-	if (!zswap_enabled || !tree) {
-		ret = -ENODEV;
-		goto reject;
-	}
+	if (!zswap_enabled || !tree)
+		return false;
 
 	/*
 	 * XXX: zswap reclaim does not work with cgroups yet. Without a
@@ -1262,10 +1258,8 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 	 * local cgroup limits.
 	 */
 	objcg = get_obj_cgroup_from_page(page);
-	if (objcg && !obj_cgroup_may_zswap(objcg)) {
-		ret = -ENOMEM;
+	if (objcg && !obj_cgroup_may_zswap(objcg))
 		goto reject;
-	}
 
 	/* reclaim space if needed */
 	if (zswap_is_full()) {
@@ -1275,10 +1269,9 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 	}
 
 	if (zswap_pool_reached_full) {
-	       if (!zswap_can_accept()) {
-			ret = -ENOMEM;
+	       if (!zswap_can_accept())
 			goto shrink;
-		} else
+		else
 			zswap_pool_reached_full = false;
 	}
 
@@ -1286,7 +1279,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 	entry = zswap_entry_cache_alloc(GFP_KERNEL);
 	if (!entry) {
 		zswap_reject_kmemcache_fail++;
-		ret = -ENOMEM;
 		goto reject;
 	}
 
@@ -1303,17 +1295,13 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 		kunmap_atomic(src);
 	}
 
-	if (!zswap_non_same_filled_pages_enabled) {
-		ret = -EINVAL;
+	if (!zswap_non_same_filled_pages_enabled)
 		goto freepage;
-	}
 
 	/* if entry is successfully added, it keeps the reference */
 	entry->pool = zswap_pool_current_get();
-	if (!entry->pool) {
-		ret = -EINVAL;
+	if (!entry->pool)
 		goto freepage;
-	}
 
 	/* compress */
 	acomp_ctx = raw_cpu_ptr(entry->pool->acomp_ctx);
@@ -1333,19 +1321,17 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 	 * synchronous in fact.
 	 * Theoretically, acomp supports users send multiple acomp requests in one
 	 * acomp instance, then get those requests done simultaneously. but in this
-	 * case, frontswap actually does store and load page by page, there is no
+	 * case, zswap actually does store and load page by page, there is no
 	 * existing method to send the second page before the first page is done
-	 * in one thread doing frontswap.
+	 * in one thread doing zwap.
 	 * but in different threads running on different cpu, we have different
 	 * acomp instance, so multiple threads can do (de)compression in parallel.
 	 */
 	ret = crypto_wait_req(crypto_acomp_compress(acomp_ctx->req), &acomp_ctx->wait);
 	dlen = acomp_ctx->req->dlen;
 
-	if (ret) {
-		ret = -EINVAL;
+	if (ret)
 		goto put_dstmem;
-	}
 
 	/* store */
 	zpool = zswap_find_zpool(entry);
@@ -1381,15 +1367,12 @@ insert_entry:
 
 	/* map */
 	spin_lock(&tree->lock);
-	do {
-		ret = zswap_rb_insert(&tree->rbroot, entry, &dupentry);
-		if (ret == -EEXIST) {
-			zswap_duplicate_entry++;
-			/* remove from rbtree */
-			zswap_rb_erase(&tree->rbroot, dupentry);
-			zswap_entry_put(tree, dupentry);
-		}
-	} while (ret == -EEXIST);
+	while (zswap_rb_insert(&tree->rbroot, entry, &dupentry) == -EEXIST) {
+		zswap_duplicate_entry++;
+		/* remove from rbtree */
+		zswap_rb_erase(&tree->rbroot, dupentry);
+		zswap_entry_put(tree, dupentry);
+	}
 	if (entry->length) {
 		spin_lock(&entry->pool->lru_lock);
 		list_add(&entry->lru, &entry->pool->lru);
@@ -1402,7 +1385,7 @@ insert_entry:
 	zswap_update_total_size();
 	count_vm_event(ZSWPOUT);
 
-	return 0;
+	return true;
 
 put_dstmem:
 	mutex_unlock(acomp_ctx->mutex);
@@ -1412,23 +1395,20 @@ freepage:
 reject:
 	if (objcg)
 		obj_cgroup_put(objcg);
-	return ret;
+	return false;
 
 shrink:
 	pool = zswap_pool_last_get();
 	if (pool)
 		queue_work(shrink_wq, &pool->shrink_work);
-	ret = -ENOMEM;
 	goto reject;
 }
 
-/*
- * returns 0 if the page was successfully decompressed
- * return -1 on entry not found or error
-*/
-static int zswap_frontswap_load(unsigned type, pgoff_t offset,
-				struct page *page, bool *exclusive)
+bool zswap_load(struct page *page)
 {
+	swp_entry_t swp = { .val = page_private(page), };
+	int type = swp_type(swp);
+	pgoff_t offset = swp_offset(swp);
 	struct zswap_tree *tree = zswap_trees[type];
 	struct zswap_entry *entry;
 	struct scatterlist input, output;
@@ -1436,15 +1416,16 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
 	u8 *src, *dst, *tmp;
 	struct zpool *zpool;
 	unsigned int dlen;
-	int ret;
+	bool ret;
+
+	VM_WARN_ON_ONCE(!PageLocked(page));
 
 	/* find */
 	spin_lock(&tree->lock);
 	entry = zswap_entry_find_get(&tree->rbroot, offset);
 	if (!entry) {
-		/* entry was written back */
 		spin_unlock(&tree->lock);
-		return -1;
+		return false;
 	}
 	spin_unlock(&tree->lock);
 
@@ -1452,7 +1433,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
 		dst = kmap_atomic(page);
 		zswap_fill_page(dst, entry->value);
 		kunmap_atomic(dst);
-		ret = 0;
+		ret = true;
 		goto stats;
 	}
 
@@ -1460,7 +1441,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
 	if (!zpool_can_sleep_mapped(zpool)) {
 		tmp = kmalloc(entry->length, GFP_KERNEL);
 		if (!tmp) {
-			ret = -ENOMEM;
+			ret = false;
 			goto freeentry;
 		}
 	}
@@ -1481,7 +1462,8 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
 	sg_init_table(&output, 1);
 	sg_set_page(&output, page, PAGE_SIZE, 0);
 	acomp_request_set_params(acomp_ctx->req, &input, &output, entry->length, dlen);
-	ret = crypto_wait_req(crypto_acomp_decompress(acomp_ctx->req), &acomp_ctx->wait);
+	if (crypto_wait_req(crypto_acomp_decompress(acomp_ctx->req), &acomp_ctx->wait))
+		WARN_ON(1);
 	mutex_unlock(acomp_ctx->mutex);
 
 	if (zpool_can_sleep_mapped(zpool))
@@ -1489,16 +1471,16 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
 	else
 		kfree(tmp);
 
-	BUG_ON(ret);
+	ret = true;
 stats:
 	count_vm_event(ZSWPIN);
 	if (entry->objcg)
 		count_objcg_event(entry->objcg, ZSWPIN);
 freeentry:
 	spin_lock(&tree->lock);
-	if (!ret && zswap_exclusive_loads_enabled) {
+	if (ret && zswap_exclusive_loads_enabled) {
 		zswap_invalidate_entry(tree, entry);
-		*exclusive = true;
+		SetPageDirty(page);
 	} else if (entry->length) {
 		spin_lock(&entry->pool->lru_lock);
 		list_move(&entry->lru, &entry->pool->lru);
@@ -1510,8 +1492,7 @@ freeentry:
 	return ret;
 }
 
-/* frees an entry in zswap */
-static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
+void zswap_invalidate(int type, pgoff_t offset)
 {
 	struct zswap_tree *tree = zswap_trees[type];
 	struct zswap_entry *entry;
@@ -1528,8 +1509,22 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
 	spin_unlock(&tree->lock);
 }
 
-/* frees all zswap entries for the given swap type */
-static void zswap_frontswap_invalidate_area(unsigned type)
+void zswap_swapon(int type)
+{
+	struct zswap_tree *tree;
+
+	tree = kzalloc(sizeof(*tree), GFP_KERNEL);
+	if (!tree) {
+		pr_err("alloc failed, zswap disabled for swap type %d\n", type);
+		return;
+	}
+
+	tree->rbroot = RB_ROOT;
+	spin_lock_init(&tree->lock);
+	zswap_trees[type] = tree;
+}
+
+void zswap_swapoff(int type)
 {
 	struct zswap_tree *tree = zswap_trees[type];
 	struct zswap_entry *entry, *n;
@@ -1546,29 +1541,6 @@ static void zswap_frontswap_invalidate_area(unsigned type)
 	kfree(tree);
 	zswap_trees[type] = NULL;
 }
-
-static void zswap_frontswap_init(unsigned type)
-{
-	struct zswap_tree *tree;
-
-	tree = kzalloc(sizeof(*tree), GFP_KERNEL);
-	if (!tree) {
-		pr_err("alloc failed, zswap disabled for swap type %d\n", type);
-		return;
-	}
-
-	tree->rbroot = RB_ROOT;
-	spin_lock_init(&tree->lock);
-	zswap_trees[type] = tree;
-}
-
-static const struct frontswap_ops zswap_frontswap_ops = {
-	.store = zswap_frontswap_store,
-	.load = zswap_frontswap_load,
-	.invalidate_page = zswap_frontswap_invalidate_page,
-	.invalidate_area = zswap_frontswap_invalidate_area,
-	.init = zswap_frontswap_init
-};
 
 /*********************************
 * debugfs functions
@@ -1658,16 +1630,11 @@ static int zswap_setup(void)
 	if (!shrink_wq)
 		goto fallback_fail;
 
-	ret = frontswap_register_ops(&zswap_frontswap_ops);
-	if (ret)
-		goto destroy_wq;
 	if (zswap_debugfs_init())
 		pr_warn("debugfs initialization failed\n");
 	zswap_init_state = ZSWAP_INIT_SUCCEED;
 	return 0;
 
-destroy_wq:
-	destroy_workqueue(shrink_wq);
 fallback_fail:
 	if (pool)
 		zswap_pool_destroy(pool);
