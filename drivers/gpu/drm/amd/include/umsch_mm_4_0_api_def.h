@@ -212,6 +212,7 @@ union UMSCHAPI__SET_HW_RESOURCES {
 		union UMSCH_API_HEADER header;
 		uint32_t vmid_mask_mm_vcn;
 		uint32_t vmid_mask_mm_vpe;
+		uint32_t collaboration_mask_vpe;
 		uint32_t engine_mask;
 		uint32_t logging_vmid;
 		uint32_t vcn0_hqd_mask[MAX_VCN0_INSTANCES];
@@ -223,6 +224,8 @@ union UMSCHAPI__SET_HW_RESOURCES {
 		uint32_t mmhub_version;
 		uint32_t osssys_base[UMSCH_MAX_HWIP_SEGMENT];
 		uint32_t osssys_version;
+		uint32_t vcn_version;
+		uint32_t vpe_version;
 		struct UMSCH_API_STATUS api_status;
 		union {
 			struct {

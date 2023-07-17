@@ -279,6 +279,9 @@ static int umsch_mm_v4_0_set_hw_resources(struct amdgpu_umsch_mm *umsch)
 	       sizeof(uint32_t) * 5);
 	set_hw_resources.osssys_version = adev->ip_versions[OSSSYS_HWIP][0];
 
+	set_hw_resources.vcn_version = adev->ip_versions[VCN_HWIP][0];
+	set_hw_resources.vpe_version = adev->ip_versions[VPE_HWIP][0];
+
 	set_hw_resources.api_status.api_completion_fence_addr = umsch->ring.fence_drv.gpu_addr;
 	set_hw_resources.api_status.api_completion_fence_value = ++umsch->ring.fence_drv.sync_seq;
 
