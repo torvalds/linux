@@ -3829,10 +3829,6 @@ static int __stmmac_open(struct net_device *dev,
 		}
 	}
 
-	/* Extra statistics */
-	memset(&priv->xstats, 0, sizeof(struct stmmac_extra_stats));
-	priv->xstats.threshold = tc;
-
 	priv->rx_copybreak = STMMAC_RX_COPYBREAK;
 
 	buf_sz = dma_conf->dma_buf_sz;
@@ -7321,6 +7317,8 @@ int stmmac_dvr_probe(struct device *device,
 	}
 #endif
 	priv->msg_enable = netif_msg_init(debug, default_msg_level);
+
+	priv->xstats.threshold = tc;
 
 	/* Initialize RSS */
 	rxq = priv->plat->rx_queues_to_use;
