@@ -143,8 +143,7 @@ enum nouveau_dp_status {
 int nouveau_dp_detect(struct nouveau_connector *, struct nouveau_encoder *);
 bool nouveau_dp_link_check(struct nouveau_connector *);
 void nouveau_dp_irq(struct work_struct *);
-enum drm_mode_status nv50_dp_mode_valid(struct drm_connector *,
-					struct nouveau_encoder *,
+enum drm_mode_status nv50_dp_mode_valid(struct nouveau_encoder *,
 					const struct drm_display_mode *,
 					unsigned *clock);
 

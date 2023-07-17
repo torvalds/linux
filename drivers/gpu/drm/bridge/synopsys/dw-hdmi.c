@@ -49,20 +49,6 @@
 
 #define HDMI14_MAX_TMDSCLK	340000000
 
-enum hdmi_datamap {
-	RGB444_8B = 0x01,
-	RGB444_10B = 0x03,
-	RGB444_12B = 0x05,
-	RGB444_16B = 0x07,
-	YCbCr444_8B = 0x09,
-	YCbCr444_10B = 0x0B,
-	YCbCr444_12B = 0x0D,
-	YCbCr444_16B = 0x0F,
-	YCbCr422_8B = 0x16,
-	YCbCr422_10B = 0x14,
-	YCbCr422_12B = 0x12,
-};
-
 static const u16 csc_coeff_default[3][4] = {
 	{ 0x2000, 0x0000, 0x0000, 0x0000 },
 	{ 0x0000, 0x2000, 0x0000, 0x0000 },
@@ -856,10 +842,10 @@ static void dw_hdmi_gp_audio_enable(struct dw_hdmi *hdmi)
 
 	if (pdata->enable_audio)
 		pdata->enable_audio(hdmi,
-					    hdmi->channels,
-					    hdmi->sample_width,
-					    hdmi->sample_rate,
-					    hdmi->sample_non_pcm);
+				    hdmi->channels,
+				    hdmi->sample_width,
+				    hdmi->sample_rate,
+				    hdmi->sample_non_pcm);
 }
 
 static void dw_hdmi_gp_audio_disable(struct dw_hdmi *hdmi)
@@ -2710,9 +2696,10 @@ static u32 *dw_hdmi_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		/* Default 8bit fallback */
 		output_fmts[i++] = MEDIA_BUS_FMT_UYYVYY8_0_5X24;
 
-		*num_output_fmts = i;
-
-		return output_fmts;
+		if (drm_mode_is_420_only(info, mode)) {
+			*num_output_fmts = i;
+			return output_fmts;
+		}
 	}
 
 	/*
@@ -3345,6 +3332,12 @@ static int dw_hdmi_parse_dt(struct dw_hdmi *hdmi)
 
 	return 0;
 }
+
+bool dw_hdmi_bus_fmt_is_420(struct dw_hdmi *hdmi)
+{
+	return hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_bus_fmt_is_420);
 
 struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 			      const struct dw_hdmi_plat_data *plat_data)

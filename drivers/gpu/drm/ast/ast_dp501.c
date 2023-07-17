@@ -350,7 +350,7 @@ static bool ast_init_dvo(struct drm_device *dev)
 		data |= 0x00000500;
 		ast_write32(ast, 0x12008, data);
 
-		if (ast->chip == AST2300) {
+		if (IS_AST_GEN4(ast)) {
 			data = ast_read32(ast, 0x12084);
 			/* multi-pins for DVO single-edge */
 			data |= 0xfffe0000;
@@ -366,7 +366,7 @@ static bool ast_init_dvo(struct drm_device *dev)
 			data &= 0xffffffcf;
 			data |= 0x00000020;
 			ast_write32(ast, 0x12090, data);
-		} else { /* AST2400 */
+		} else { /* AST GEN5+ */
 			data = ast_read32(ast, 0x12088);
 			/* multi-pins for DVO single-edge */
 			data |= 0x30000000;
@@ -437,7 +437,7 @@ void ast_init_3rdtx(struct drm_device *dev)
 	struct ast_device *ast = to_ast_device(dev);
 	u8 jreg;
 
-	if (ast->chip == AST2300 || ast->chip == AST2400) {
+	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast)) {
 		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
 		switch (jreg & 0x0e) {
 		case 0x04:

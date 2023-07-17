@@ -782,14 +782,12 @@ err_pm_disable:
 	return ret;
 }
 
-static int rzg2l_mipi_dsi_remove(struct platform_device *pdev)
+static void rzg2l_mipi_dsi_remove(struct platform_device *pdev)
 {
 	struct rzg2l_mipi_dsi *dsi = platform_get_drvdata(pdev);
 
 	mipi_dsi_host_unregister(&dsi->host);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id rzg2l_mipi_dsi_of_table[] = {
@@ -801,7 +799,7 @@ MODULE_DEVICE_TABLE(of, rzg2l_mipi_dsi_of_table);
 
 static struct platform_driver rzg2l_mipi_dsi_platform_driver = {
 	.probe	= rzg2l_mipi_dsi_probe,
-	.remove	= rzg2l_mipi_dsi_remove,
+	.remove_new = rzg2l_mipi_dsi_remove,
 	.driver	= {
 		.name = "rzg2l-mipi-dsi",
 		.pm = &rzg2l_mipi_pm_ops,

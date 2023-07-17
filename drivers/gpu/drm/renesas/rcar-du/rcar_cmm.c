@@ -187,11 +187,9 @@ static int rcar_cmm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rcar_cmm_remove(struct platform_device *pdev)
+static void rcar_cmm_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id rcar_cmm_of_table[] = {
@@ -203,7 +201,7 @@ MODULE_DEVICE_TABLE(of, rcar_cmm_of_table);
 
 static struct platform_driver rcar_cmm_platform_driver = {
 	.probe		= rcar_cmm_probe,
-	.remove		= rcar_cmm_remove,
+	.remove_new	= rcar_cmm_remove,
 	.driver		= {
 		.name	= "rcar-cmm",
 		.of_match_table = rcar_cmm_of_table,

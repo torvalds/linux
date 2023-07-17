@@ -342,7 +342,7 @@ static void ast_set_crtc_reg(struct ast_device *ast,
 	u8 jreg05 = 0, jreg07 = 0, jreg09 = 0, jregAC = 0, jregAD = 0, jregAE = 0;
 	u16 temp, precache = 0;
 
-	if ((ast->chip == AST2500 || ast->chip == AST2600) &&
+	if ((IS_AST_GEN6(ast) || IS_AST_GEN7(ast)) &&
 	    (vbios_mode->enh_table->flags & AST2500PreCatchCRT))
 		precache = 40;
 
@@ -384,7 +384,7 @@ static void ast_set_crtc_reg(struct ast_device *ast,
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAD, 0x00, jregAD);
 
 	// Workaround for HSync Time non octave pixels (1920x1080@60Hz HSync 44 pixels);
-	if ((ast->chip == AST2600) && (mode->crtc_vdisplay == 1080))
+	if (IS_AST_GEN7(ast) && (mode->crtc_vdisplay == 1080))
 		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xFC, 0xFD, 0x02);
 	else
 		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xFC, 0xFD, 0x00);
@@ -466,7 +466,7 @@ static void ast_set_dclk_reg(struct ast_device *ast,
 {
 	const struct ast_vbios_dclk_info *clk_info;
 
-	if ((ast->chip == AST2500) || (ast->chip == AST2600))
+	if (IS_AST_GEN6(ast) || IS_AST_GEN7(ast))
 		clk_info = &dclk_table_ast2500[vbios_mode->enh_table->dclk_index];
 	else
 		clk_info = &dclk_table[vbios_mode->enh_table->dclk_index];
@@ -510,17 +510,13 @@ static void ast_set_color_reg(struct ast_device *ast,
 static void ast_set_crtthd_reg(struct ast_device *ast)
 {
 	/* Set Threshold */
-	if (ast->chip == AST2600) {
+	if (IS_AST_GEN7(ast)) {
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0xe0);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0xa0);
-	} else if (ast->chip == AST2300 || ast->chip == AST2400 ||
-	    ast->chip == AST2500) {
+	} else if (IS_AST_GEN6(ast) || IS_AST_GEN5(ast) || IS_AST_GEN4(ast)) {
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0x78);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0x60);
-	} else if (ast->chip == AST2100 ||
-		   ast->chip == AST1100 ||
-		   ast->chip == AST2200 ||
-		   ast->chip == AST2150) {
+	} else if (IS_AST_GEN3(ast) || IS_AST_GEN2(ast)) {
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0x3f);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0x2f);
 	} else {
@@ -1082,9 +1078,10 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 		if ((mode->hdisplay == 1152) && (mode->vdisplay == 864))
 			return MODE_OK;
 
-		if ((ast->chip == AST2100) || (ast->chip == AST2200) ||
-		    (ast->chip == AST2300) || (ast->chip == AST2400) ||
-		    (ast->chip == AST2500) || (ast->chip == AST2600)) {
+		if ((ast->chip == AST2100) || // GEN2, but not AST1100 (?)
+		    (ast->chip == AST2200) || // GEN3, but not AST2150 (?)
+		    IS_AST_GEN4(ast) || IS_AST_GEN5(ast) ||
+		    IS_AST_GEN6(ast) || IS_AST_GEN7(ast)) {
 			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
 				return MODE_OK;
 
@@ -1800,12 +1797,12 @@ int ast_mode_config_init(struct ast_device *ast)
 	dev->mode_config.min_height = 0;
 	dev->mode_config.preferred_depth = 24;
 
-	if (ast->chip == AST2100 ||
-	    ast->chip == AST2200 ||
-	    ast->chip == AST2300 ||
-	    ast->chip == AST2400 ||
-	    ast->chip == AST2500 ||
-	    ast->chip == AST2600) {
+	if (ast->chip == AST2100 || // GEN2, but not AST1100 (?)
+	    ast->chip == AST2200 || // GEN3, but not AST2150 (?)
+	    IS_AST_GEN7(ast) ||
+	    IS_AST_GEN6(ast) ||
+	    IS_AST_GEN5(ast) ||
+	    IS_AST_GEN4(ast)) {
 		dev->mode_config.max_width = 1920;
 		dev->mode_config.max_height = 2048;
 	} else {

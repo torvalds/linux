@@ -54,12 +54,8 @@ static void drm_fbdev_dma_fb_destroy(struct fb_info *info)
 static int drm_fbdev_dma_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_device *dev = fb_helper->dev;
 
-	if (drm_WARN_ON_ONCE(dev, !fb_helper->dev->driver->gem_prime_mmap))
-		return -ENODEV;
-
-	return fb_helper->dev->driver->gem_prime_mmap(fb_helper->buffer->gem, vma);
+	return drm_gem_prime_mmap(fb_helper->buffer->gem, vma);
 }
 
 static const struct fb_ops drm_fbdev_dma_fb_ops = {

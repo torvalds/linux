@@ -419,14 +419,12 @@ err_dp_remove:
 	return ret;
 }
 
-static int rockchip_dp_remove(struct platform_device *pdev)
+static void rockchip_dp_remove(struct platform_device *pdev)
 {
 	struct rockchip_dp_device *dp = platform_get_drvdata(pdev);
 
 	component_del(&pdev->dev, &rockchip_dp_component_ops);
 	analogix_dp_remove(dp->adp);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -481,7 +479,7 @@ MODULE_DEVICE_TABLE(of, rockchip_dp_dt_ids);
 
 struct platform_driver rockchip_dp_driver = {
 	.probe = rockchip_dp_probe,
-	.remove = rockchip_dp_remove,
+	.remove_new = rockchip_dp_remove,
 	.driver = {
 		   .name = "rockchip-dp",
 		   .pm = &rockchip_dp_pm_ops,

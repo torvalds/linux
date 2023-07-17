@@ -379,8 +379,8 @@ static int dw_hdmi_phy_init(struct dw_hdmi *hdmi, void *data,
 			 mode->clock > 340000 ? 40 : 10);
 
 	if (drm_mode_is_420_only(display, mode) ||
-	    (!is_hdmi2_sink &&
-	     drm_mode_is_420_also(display, mode)))
+	    (!is_hdmi2_sink && drm_mode_is_420_also(display, mode)) ||
+	    dw_hdmi_bus_fmt_is_420(hdmi))
 		mode_is_420 = true;
 
 	/* Enable clocks */
@@ -852,11 +852,9 @@ static int meson_dw_hdmi_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &meson_dw_hdmi_ops);
 }
 
-static int meson_dw_hdmi_remove(struct platform_device *pdev)
+static void meson_dw_hdmi_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &meson_dw_hdmi_ops);
-
-	return 0;
 }
 
 static const struct dev_pm_ops meson_dw_hdmi_pm_ops = {
@@ -879,7 +877,7 @@ MODULE_DEVICE_TABLE(of, meson_dw_hdmi_of_table);
 
 static struct platform_driver meson_dw_hdmi_platform_driver = {
 	.probe		= meson_dw_hdmi_probe,
-	.remove		= meson_dw_hdmi_remove,
+	.remove_new	= meson_dw_hdmi_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.of_match_table	= meson_dw_hdmi_of_table,

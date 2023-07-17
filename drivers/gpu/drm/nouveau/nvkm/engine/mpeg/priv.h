@@ -2,7 +2,7 @@
 #ifndef __NVKM_MPEG_PRIV_H__
 #define __NVKM_MPEG_PRIV_H__
 #include <engine/mpeg.h>
-struct nvkm_fifo_chan;
+struct nvkm_chan;
 
 int nv31_mpeg_init(struct nvkm_engine *);
 void nv31_mpeg_tile(struct nvkm_engine *, int, struct nvkm_fb_tile *);

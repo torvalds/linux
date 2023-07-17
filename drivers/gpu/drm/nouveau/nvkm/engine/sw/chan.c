@@ -74,7 +74,7 @@ nvkm_sw_chan = {
 
 int
 nvkm_sw_chan_ctor(const struct nvkm_sw_chan_func *func, struct nvkm_sw *sw,
-		  struct nvkm_fifo_chan *fifo, const struct nvkm_oclass *oclass,
+		  struct nvkm_chan *fifo, const struct nvkm_oclass *oclass,
 		  struct nvkm_sw_chan *chan)
 {
 	unsigned long flags;

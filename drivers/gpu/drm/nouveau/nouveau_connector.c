@@ -619,7 +619,10 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 
 		nouveau_connector_set_encoder(connector, nv_encoder);
 		conn_status = connector_status_connected;
-		drm_dp_cec_set_edid(&nv_connector->aux, nv_connector->edid);
+
+		if (nv_encoder->dcb->type == DCB_OUTPUT_DP)
+			drm_dp_cec_set_edid(&nv_connector->aux, nv_connector->edid);
+
 		goto out;
 	} else {
 		nouveau_connector_set_edid(nv_connector, NULL);
@@ -1079,7 +1082,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 	case DCB_OUTPUT_TV:
 		return get_slave_funcs(encoder)->mode_valid(encoder, mode);
 	case DCB_OUTPUT_DP:
-		return nv50_dp_mode_valid(connector, nv_encoder, mode, NULL);
+		return nv50_dp_mode_valid(nv_encoder, mode, NULL);
 	default:
 		BUG();
 		return MODE_BAD;

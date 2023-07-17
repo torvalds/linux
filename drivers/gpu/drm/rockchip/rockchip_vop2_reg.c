@@ -264,16 +264,14 @@ static int vop2_probe(struct platform_device *pdev)
 	return component_add(dev, &vop2_component_ops);
 }
 
-static int vop2_remove(struct platform_device *pdev)
+static void vop2_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &vop2_component_ops);
-
-	return 0;
 }
 
 struct platform_driver vop2_platform_driver = {
 	.probe = vop2_probe,
-	.remove = vop2_remove,
+	.remove_new = vop2_remove,
 	.driver = {
 		.name = "rockchip-vop2",
 		.of_match_table = of_match_ptr(vop2_dt_match),

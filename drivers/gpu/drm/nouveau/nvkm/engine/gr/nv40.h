@@ -22,12 +22,12 @@ u64 nv40_gr_units(struct nvkm_gr *);
 struct nv40_gr_chan {
 	struct nvkm_object object;
 	struct nv40_gr *gr;
-	struct nvkm_fifo_chan *fifo;
+	struct nvkm_chan *fifo;
 	u32 inst;
 	struct list_head head;
 };
 
-int nv40_gr_chan_new(struct nvkm_gr *, struct nvkm_fifo_chan *,
+int nv40_gr_chan_new(struct nvkm_gr *, struct nvkm_chan *,
 		     const struct nvkm_oclass *, struct nvkm_object **);
 
 extern const struct nvkm_object_func nv40_gr_object;

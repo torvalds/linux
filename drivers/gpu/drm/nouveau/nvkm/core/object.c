@@ -185,7 +185,7 @@ nvkm_object_fini(struct nvkm_object *object, bool suspend)
 
 	nvif_debug(object, "%s children...\n", action);
 	time = ktime_to_us(ktime_get());
-	list_for_each_entry(child, &object->tree, head) {
+	list_for_each_entry_reverse(child, &object->tree, head) {
 		ret = nvkm_object_fini(child, suspend);
 		if (ret && suspend)
 			goto fail_child;

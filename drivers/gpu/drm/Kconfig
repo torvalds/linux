@@ -80,6 +80,7 @@ config DRM_KUNIT_TEST
 	select DRM_BUDDY
 	select DRM_EXPORT_FOR_TESTS if m
 	select DRM_KUNIT_TEST_HELPERS
+	select DRM_EXEC
 	default KUNIT_ALL_TESTS
 	help
 	  This builds unit tests for DRM. This option is not useful for
@@ -193,6 +194,12 @@ config DRM_TTM
 	  GPU memory management subsystem for devices with multiple
 	  GPU memory types. Will be enabled automatically if a device driver
 	  uses it.
+
+config DRM_EXEC
+	tristate
+	depends on DRM
+	help
+	  Execution context for command submissions
 
 config DRM_BUDDY
 	tristate
@@ -322,6 +329,8 @@ source "drivers/gpu/drm/ingenic/Kconfig"
 source "drivers/gpu/drm/v3d/Kconfig"
 
 source "drivers/gpu/drm/vc4/Kconfig"
+
+source "drivers/gpu/drm/loongson/Kconfig"
 
 source "drivers/gpu/drm/etnaviv/Kconfig"
 

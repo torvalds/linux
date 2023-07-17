@@ -276,10 +276,7 @@ static const struct drm_driver lima_drm_driver = {
 	.patchlevel         = 0,
 
 	.gem_create_object  = lima_gem_create_object,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.gem_prime_mmap = drm_gem_prime_mmap,
 };
 
 struct lima_block_reader {
@@ -441,7 +438,7 @@ err_out0:
 	return err;
 }
 
-static int lima_pdev_remove(struct platform_device *pdev)
+static void lima_pdev_remove(struct platform_device *pdev)
 {
 	struct lima_device *ldev = platform_get_drvdata(pdev);
 	struct drm_device *ddev = ldev->ddev;
@@ -459,7 +456,6 @@ static int lima_pdev_remove(struct platform_device *pdev)
 
 	drm_dev_put(ddev);
 	lima_sched_slab_fini();
-	return 0;
 }
 
 static const struct of_device_id dt_match[] = {
@@ -476,7 +472,7 @@ static const struct dev_pm_ops lima_pm_ops = {
 
 static struct platform_driver lima_platform_driver = {
 	.probe      = lima_pdev_probe,
-	.remove     = lima_pdev_remove,
+	.remove_new = lima_pdev_remove,
 	.driver     = {
 		.name   = "lima",
 		.pm	= &lima_pm_ops,

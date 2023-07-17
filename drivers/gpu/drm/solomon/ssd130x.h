@@ -37,6 +37,9 @@ struct ssd130x_deviceinfo {
 	u32 default_vcomh;
 	u32 default_dclk_div;
 	u32 default_dclk_frq;
+	u32 default_width;
+	u32 default_height;
+	u32 page_height;
 	int need_pwm;
 	int need_chargepump;
 	bool page_mode_only;
@@ -86,6 +89,9 @@ struct ssd130x_device {
 	u8 col_end;
 	u8 page_start;
 	u8 page_end;
+
+	u8 *buffer;
+	u8 *data_array;
 };
 
 extern const struct ssd130x_deviceinfo ssd130x_variants[];

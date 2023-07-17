@@ -399,7 +399,7 @@ nvkm_runl_new(struct nvkm_fifo *fifo, int runi, u32 addr, int id_nr)
 	int ret;
 
 	if (!(runl = kzalloc(sizeof(*runl), GFP_KERNEL)))
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	runl->func = fifo->func->runl;
 	runl->fifo = fifo;
@@ -419,7 +419,7 @@ nvkm_runl_new(struct nvkm_fifo *fifo, int runi, u32 addr, int id_nr)
 		    (ret = nvkm_chid_new(&nvkm_chan_event, subdev, id_nr, 0, id_nr, &runl->chid))) {
 			RUNL_ERROR(runl, "cgid/chid: %d", ret);
 			nvkm_runl_del(runl);
-			return NULL;
+			return ERR_PTR(ret);
 		}
 	} else {
 		runl->cgid = nvkm_chid_ref(fifo->cgid);

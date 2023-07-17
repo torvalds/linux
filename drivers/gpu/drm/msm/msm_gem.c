@@ -1234,6 +1234,10 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev, uint32_t size, uint32
 	list_add_tail(&msm_obj->node, &priv->objects);
 	mutex_unlock(&priv->obj_lock);
 
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto fail;
+
 	return obj;
 
 fail:
@@ -1289,6 +1293,10 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	mutex_lock(&priv->obj_lock);
 	list_add_tail(&msm_obj->node, &priv->objects);
 	mutex_unlock(&priv->obj_lock);
+
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto fail;
 
 	return obj;
 

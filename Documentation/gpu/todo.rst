@@ -319,15 +319,6 @@ Contact: Daniel Vetter, Noralf Tronnes
 
 Level: Advanced
 
-struct drm_gem_object_funcs
----------------------------
-
-GEM objects can now have a function table instead of having the callbacks on the
-DRM driver struct. This is now the preferred way. Callbacks in drivers have been
-converted, except for struct drm_driver.gem_prime_mmap.
-
-Level: Intermediate
-
 connector register/unregister fixes
 -----------------------------------
 
@@ -447,6 +438,19 @@ where possible.
 
 Drivers are pretty bad at doing this and there used to be conflicts among
 DRM and fbdev drivers. Still, it's the correct thing to do.
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>
+
+Level: Starter
+
+Remove driver dependencies on FB_DEVICE
+---------------------------------------
+
+A number of fbdev drivers provide attributes via sysfs and therefore depend
+on CONFIG_FB_DEVICE to be selected. Review each driver and attempt to make
+any dependencies on CONFIG_FB_DEVICE optional. At the minimum, the respective
+code in the driver could be conditionalized via ifdef CONFIG_FB_DEVICE. Not
+all drivers might be able to drop CONFIG_FB_DEVICE.
 
 Contact: Thomas Zimmermann <tzimmermann@suse.de>
 

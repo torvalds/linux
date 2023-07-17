@@ -5,9 +5,9 @@ config OMAP2_VRFB
 menuconfig FB_OMAP2
 	tristate "OMAP2+ frame buffer support"
 	depends on FB
+	depends on FB_DEVICE
 	depends on DRM_OMAP = n
 	depends on GPIOLIB
-
 	select FB_OMAP2_DSS
 	select OMAP2_VRFB if ARCH_OMAP2 || ARCH_OMAP3
 	select FB_CFB_FILLRECT

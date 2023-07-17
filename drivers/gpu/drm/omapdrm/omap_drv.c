@@ -655,8 +655,6 @@ static const struct drm_driver omap_drm_driver = {
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = omap_debugfs_init,
 #endif
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = omap_gem_prime_import,
 	.dumb_create = omap_gem_dumb_create,
 	.dumb_map_offset = omap_gem_dumb_map_offset,
@@ -821,14 +819,12 @@ static int pdev_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int pdev_remove(struct platform_device *pdev)
+static void pdev_remove(struct platform_device *pdev)
 {
 	struct omap_drm_private *priv = platform_get_drvdata(pdev);
 
 	omapdrm_cleanup(priv);
 	kfree(priv);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -859,7 +855,7 @@ static struct platform_driver pdev = {
 		.pm = &omapdrm_pm_ops,
 	},
 	.probe = pdev_probe,
-	.remove = pdev_remove,
+	.remove_new = pdev_remove,
 };
 
 static struct platform_driver * const drivers[] = {
