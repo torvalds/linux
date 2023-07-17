@@ -3180,8 +3180,7 @@ static int sdhci_msm_cqe_add_host(struct sdhci_host *host,
 	msm_host->mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
 	cq_host->ops = &sdhci_msm_cqhci_ops;
 	msm_host->cq_host = cq_host;
-	/* TODO: Needs Upstreaming */
-	/* cq_host->offset_changed = msm_host->cqhci_offset_changed; */
+	cq_host->offset_changed = msm_host->cqhci_offset_changed;
 
 	dma64 = host->flags & SDHCI_USE_64_BIT_DMA;
 
@@ -3875,11 +3874,9 @@ static void sdhci_msm_cqe_dump_debug_ram(struct sdhci_host *host)
 
 	/* registers offset changed starting from 4.2.0 */
 	offset = minor >= SDHCI_MSM_VER_420 ? 0 : 0x48;
-	/*
-	 * TODO: Needs upstreaming?
-	 * if (cq_host->offset_changed)
-	 *	offset += CQE_V5_VENDOR_CFG;
-	 */
+
+	if (cq_host->offset_changed)
+		offset += CQE_V5_VENDOR_CFG;
 	pr_err("---- Debug RAM dump ----\n");
 	pr_err(DRV_NAME ": Debug RAM wrap-around: 0x%08x | Debug RAM overlap: 0x%08x\n",
 	       cqhci_readl(cq_host, CQ_CMD_DBG_RAM_WA + offset),
@@ -4963,6 +4960,13 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	if (core_major == 1 && core_minor >= 0x49)
 		msm_host->updated_ddr_cfg = true;
+
+	/* For SDHC v5.0.0 onwards, ICE 3.0 specific registers are added
+	 * in CQ register space, due to which few CQ registers are
+	 * shifted. Set cqhci_offset_changed boolean to use updated address.
+	 */
+	if (core_major == 1 && core_minor >= 0x6B)
+		msm_host->cqhci_offset_changed = true;
 
 	if (core_major == 1 && core_minor >= 0x71)
 		msm_host->uses_tassadar_dll = true;
