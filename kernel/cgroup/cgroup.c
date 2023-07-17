@@ -2477,7 +2477,7 @@ struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset,
 
 			/*
 			 * This function may be called both before and
-			 * after cgroup_taskset_migrate().  The two cases
+			 * after cgroup_migrate_execute().  The two cases
 			 * can be distinguished by looking at whether @cset
 			 * has its ->mg_dst_cset set.
 			 */
