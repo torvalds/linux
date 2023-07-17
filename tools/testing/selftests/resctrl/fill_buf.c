@@ -38,32 +38,32 @@ static void cl_flush(void *p)
 #endif
 }
 
-static void mem_flush(void *p, size_t s)
+static void mem_flush(unsigned char *buf, size_t buf_size)
 {
-	char *cp = (char *)p;
+	unsigned char *cp = buf;
 	size_t i = 0;
 
-	s = s / CL_SIZE; /* mem size in cache llines */
+	buf_size = buf_size / CL_SIZE; /* mem size in cache lines */
 
-	for (i = 0; i < s; i++)
+	for (i = 0; i < buf_size; i++)
 		cl_flush(&cp[i * CL_SIZE]);
 
 	sb();
 }
 
-static void *malloc_and_init_memory(size_t s)
+static void *malloc_and_init_memory(size_t buf_size)
 {
 	void *p = NULL;
 	uint64_t *p64;
 	size_t s64;
 	int ret;
 
-	ret = posix_memalign(&p, PAGE_SIZE, s);
+	ret = posix_memalign(&p, PAGE_SIZE, buf_size);
 	if (ret < 0)
 		return NULL;
 
 	p64 = (uint64_t *)p;
-	s64 = s / sizeof(uint64_t);
+	s64 = buf_size / sizeof(uint64_t);
 
 	while (s64 > 0) {
 		*p64 = (uint64_t)rand();
@@ -74,12 +74,13 @@ static void *malloc_and_init_memory(size_t s)
 	return p;
 }
 
-static int fill_one_span_read(unsigned char *start_ptr, unsigned char *end_ptr)
+static int fill_one_span_read(unsigned char *buf, size_t buf_size)
 {
+	unsigned char *end_ptr = buf + buf_size;
 	unsigned char sum, *p;
 
 	sum = 0;
-	p = start_ptr;
+	p = buf;
 	while (p < end_ptr) {
 		sum += *p;
 		p += (CL_SIZE / 2);
@@ -88,26 +89,26 @@ static int fill_one_span_read(unsigned char *start_ptr, unsigned char *end_ptr)
 	return sum;
 }
 
-static
-void fill_one_span_write(unsigned char *start_ptr, unsigned char *end_ptr)
+static void fill_one_span_write(unsigned char *buf, size_t buf_size)
 {
+	unsigned char *end_ptr = buf + buf_size;
 	unsigned char *p;
 
-	p = start_ptr;
+	p = buf;
 	while (p < end_ptr) {
 		*p = '1';
 		p += (CL_SIZE / 2);
 	}
 }
 
-static int fill_cache_read(unsigned char *start_ptr, unsigned char *end_ptr,
+static int fill_cache_read(unsigned char *buf, size_t buf_size,
 			   char *resctrl_val)
 {
 	int ret = 0;
 	FILE *fp;
 
 	while (1) {
-		ret = fill_one_span_read(start_ptr, end_ptr);
+		ret = fill_one_span_read(buf, buf_size);
 		if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)))
 			break;
 	}
@@ -124,11 +125,11 @@ static int fill_cache_read(unsigned char *start_ptr, unsigned char *end_ptr,
 	return 0;
 }
 
-static int fill_cache_write(unsigned char *start_ptr, unsigned char *end_ptr,
+static int fill_cache_write(unsigned char *buf, size_t buf_size,
 			    char *resctrl_val)
 {
 	while (1) {
-		fill_one_span_write(start_ptr, end_ptr);
+		fill_one_span_write(buf, buf_size);
 		if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)))
 			break;
 	}
@@ -138,25 +139,23 @@ static int fill_cache_write(unsigned char *start_ptr, unsigned char *end_ptr,
 
 static int fill_cache(size_t buf_size, int memflush, int op, char *resctrl_val)
 {
-	unsigned char *start_ptr, *end_ptr;
+	unsigned char *buf;
 	int ret;
 
-	start_ptr = malloc_and_init_memory(buf_size);
-	if (!start_ptr)
+	buf = malloc_and_init_memory(buf_size);
+	if (!buf)
 		return -1;
-
-	end_ptr = start_ptr + buf_size;
 
 	/* Flush the memory before using to avoid "cache hot pages" effect */
 	if (memflush)
-		mem_flush(start_ptr, buf_size);
+		mem_flush(buf, buf_size);
 
 	if (op == 0)
-		ret = fill_cache_read(start_ptr, end_ptr, resctrl_val);
+		ret = fill_cache_read(buf, buf_size, resctrl_val);
 	else
-		ret = fill_cache_write(start_ptr, end_ptr, resctrl_val);
+		ret = fill_cache_write(buf, buf_size, resctrl_val);
 
-	free(start_ptr);
+	free(buf);
 
 	if (ret) {
 		printf("\n Error in fill cache read/write...\n");
