@@ -37,6 +37,7 @@ memory_dump_v2.ko
 dispcc-pineapple.ko
 tcsrcc-pineapple.ko
 gpucc-pineapple.ko
+gcc-cliffs.ko
 gcc-pineapple.ko
 videocc-pineapple.ko
 debug-regulator.ko
