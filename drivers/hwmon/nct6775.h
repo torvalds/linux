@@ -239,10 +239,25 @@ nct6775_add_attr_group(struct nct6775_data *data, const struct attribute_group *
 
 #define NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE	0x28
 
-#define FAN_ALARM_BASE		16
-#define TEMP_ALARM_BASE		24
-#define INTRUSION_ALARM_BASE	30
-#define BEEP_ENABLE_BASE	15
+/*
+ * ALARM_BITS and BEEP_BITS store bit-index for the mask of the registers
+ * loaded into data->alarm and data->beep.
+ *
+ * Every input register (IN/TEMP/FAN) must have a corresponding
+ *   ALARM/BEEP bit at the same index BITS[BASE + index]
+ * Set value to -1 to disable the visibility of that '*_alarm' attribute and
+ * to pad the bits until the next BASE
+ *
+ * Beep has an additional GLOBAL_BEEP_ENABLE bit
+ */
+#define VIN_ALARM_BASE		 0
+#define FAN_ALARM_BASE		24
+#define TEMP_ALARM_BASE		36
+#define INTRUSION_ALARM_BASE	48
+#define BEEP_ENABLE_BASE	50
+
+#define NUM_ALARM_BITS		(INTRUSION_ALARM_BASE + 4)
+#define NUM_BEEP_BITS		(BEEP_ENABLE_BASE + 1)
 
 /*
  * Not currently used:

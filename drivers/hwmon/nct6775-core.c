@@ -98,31 +98,23 @@ static const u16 NCT6775_REG_IN[] = {
 
 static const u16 NCT6775_REG_ALARM[NUM_REG_ALARM] = { 0x459, 0x45A, 0x45B };
 
-/* 0..15 voltages, 16..23 fans, 24..29 temperatures, 30..31 intrusion */
-
-static const s8 NCT6775_ALARM_BITS[] = {
-	0, 1, 2, 3, 8, 21, 20, 16,	/* in0.. in7 */
-	17, -1, -1, -1, -1, -1, -1,	/* in8..in14 */
-	-1,				/* unused */
-	6, 7, 11, -1, -1,		/* fan1..fan5 */
-	-1, -1, -1,			/* unused */
-	4, 5, 13, -1, -1, -1,		/* temp1..temp6 */
-	12, -1 };			/* intrusion0, intrusion1 */
+static const s8 NCT6775_ALARM_BITS[NUM_ALARM_BITS] = {
+	 0,  1,  2,  3,  8, 21, 20, 16, 17, -1, -1, -1,	  /* in0-in11     */
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* in12-in23    */
+	 6,  7, 11, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* fan1-fan12   */
+	 4,  5, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* temp1-temp12 */
+	12, -1,						  /* intr0-intr1  */
+};
 
 static const u16 NCT6775_REG_BEEP[NUM_REG_BEEP] = { 0x56, 0x57, 0x453, 0x4e };
 
-/*
- * 0..14 voltages, 15 global beep enable, 16..23 fans, 24..29 temperatures,
- * 30..31 intrusion
- */
-static const s8 NCT6775_BEEP_BITS[] = {
-	0, 1, 2, 3, 8, 9, 10, 16,	/* in0.. in7 */
-	17, -1, -1, -1, -1, -1, -1,	/* in8..in14 */
-	21,				/* global beep enable */
-	6, 7, 11, 28, -1,		/* fan1..fan5 */
-	-1, -1, -1,			/* unused */
-	4, 5, 13, -1, -1, -1,		/* temp1..temp6 */
-	12, -1 };			/* intrusion0, intrusion1 */
+static const s8 NCT6775_BEEP_BITS[NUM_BEEP_BITS] = {
+	 0,  1,  2,  3,  8,  9, 10, 16, 17, -1, -1, -1,	  /* in0-in11     */
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* in12-in23    */
+	 6,  7, 11, 28, -1, -1, -1, -1, -1, -1, -1, -1,	  /* fan1-fan12   */
+	 4,  5, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* temp1-temp12 */
+	12, -1, 21					  /* intr0-intr1, beep_en */
+};
 
 /* DC or PWM output fan configuration */
 static const u8 NCT6775_REG_PWM_MODE[] = { 0x04, 0x04, 0x12 };
@@ -256,25 +248,23 @@ static const u16 NCT6775_REG_TSI_TEMP[] = { 0x669 };
 #define NCT6776_REG_FAN_STEP_UP_TIME NCT6775_REG_FAN_STEP_DOWN_TIME
 #define NCT6776_REG_FAN_STEP_DOWN_TIME NCT6775_REG_FAN_STEP_UP_TIME
 
-static const s8 NCT6776_ALARM_BITS[] = {
-	0, 1, 2, 3, 8, 21, 20, 16,	/* in0.. in7 */
-	17, -1, -1, -1, -1, -1, -1,	/* in8..in14 */
-	-1,				/* unused */
-	6, 7, 11, 10, 23,		/* fan1..fan5 */
-	-1, -1, -1,			/* unused */
-	4, 5, 13, -1, -1, -1,		/* temp1..temp6 */
-	12, 9 };			/* intrusion0, intrusion1 */
+static const s8 NCT6776_ALARM_BITS[NUM_ALARM_BITS] = {
+	 0,  1,  2,  3,  8, 21, 20, 16, 17, -1, -1, -1,	  /* in0-in11     */
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* in12-in23    */
+	 6,  7, 11, 10, 23, -1, -1, -1, -1, -1, -1, -1,	  /* fan1-fan12   */
+	 4,  5, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* temp1-temp12 */
+	12,  9,						  /* intr0-intr1  */
+};
 
 static const u16 NCT6776_REG_BEEP[NUM_REG_BEEP] = { 0xb2, 0xb3, 0xb4, 0xb5 };
 
-static const s8 NCT6776_BEEP_BITS[] = {
-	0, 1, 2, 3, 4, 5, 6, 7,		/* in0.. in7 */
-	8, -1, -1, -1, -1, -1, -1,	/* in8..in14 */
-	24,				/* global beep enable */
-	25, 26, 27, 28, 29,		/* fan1..fan5 */
-	-1, -1, -1,			/* unused */
-	16, 17, 18, 19, 20, 21,		/* temp1..temp6 */
-	30, 31 };			/* intrusion0, intrusion1 */
+static const s8 NCT6776_BEEP_BITS[NUM_BEEP_BITS] = {
+	 0,  1,  2,  3,  4,  5,  6,  7,  8, -1, -1, -1,	  /* in0-in11     */
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* in12-in23    */
+	25, 26, 27, 28, 29, -1, -1, -1, -1, -1, -1, -1,	  /* fan1-fan12   */
+	16, 17, 18, 19, 20, 21, -1, -1, -1, -1, -1, -1,	  /* temp1-temp12 */
+	30, 31, 24					  /* intr0-intr1, beep_en */
+};
 
 static const u16 NCT6776_REG_TOLERANCE_H[] = {
 	0x10c, 0x20c, 0x30c, 0x80c, 0x90c, 0xa0c, 0xb0c };
@@ -345,23 +335,21 @@ static const u16 NCT6779_REG_IN[] = {
 static const u16 NCT6779_REG_ALARM[NUM_REG_ALARM] = {
 	0x459, 0x45A, 0x45B, 0x568 };
 
-static const s8 NCT6779_ALARM_BITS[] = {
-	0, 1, 2, 3, 8, 21, 20, 16,	/* in0.. in7 */
-	17, 24, 25, 26, 27, 28, 29,	/* in8..in14 */
-	-1,				/* unused */
-	6, 7, 11, 10, 23,		/* fan1..fan5 */
-	-1, -1, -1,			/* unused */
-	4, 5, 13, -1, -1, -1,		/* temp1..temp6 */
-	12, 9 };			/* intrusion0, intrusion1 */
+static const s8 NCT6779_ALARM_BITS[NUM_ALARM_BITS] = {
+	 0,  1,  2,  3,  8, 21, 20, 16, 17, 24, 25, 26,	  /* in0-in11     */
+	27, 28, 29, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* in12-in23    */
+	 6,  7, 11, 10, 23, -1, -1, -1, -1, -1, -1, -1,	  /* fan1-fan12   */
+	 4,  5, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* temp1-temp12 */
+	12,  9,						  /* intr0-intr1  */
+};
 
-static const s8 NCT6779_BEEP_BITS[] = {
-	0, 1, 2, 3, 4, 5, 6, 7,		/* in0.. in7 */
-	8, 9, 10, 11, 12, 13, 14,	/* in8..in14 */
-	24,				/* global beep enable */
-	25, 26, 27, 28, 29,		/* fan1..fan5 */
-	-1, -1, -1,			/* unused */
-	16, 17, -1, -1, -1, -1,		/* temp1..temp6 */
-	30, 31 };			/* intrusion0, intrusion1 */
+static const s8 NCT6779_BEEP_BITS[NUM_BEEP_BITS] = {
+	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11,	  /* in0-in11     */
+	12, 13, 14, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* in12-in23    */
+	25, 26, 27, 28, 29, -1, -1, -1, -1, -1, -1, -1,	  /* fan1-fan12   */
+	16, 17, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* temp1-temp12 */
+	30, 31, 24					  /* intr0-intr1, beep_en */
+};
 
 static const u16 NCT6779_REG_FAN[] = {
 	0x4c0, 0x4c2, 0x4c4, 0x4c6, 0x4c8, 0x4ca, 0x4ce };
@@ -449,14 +437,13 @@ static const u16 NCT6791_REG_WEIGHT_DUTY_BASE[NUM_FAN] = { 0, 0x23e };
 static const u16 NCT6791_REG_ALARM[NUM_REG_ALARM] = {
 	0x459, 0x45A, 0x45B, 0x568, 0x45D };
 
-static const s8 NCT6791_ALARM_BITS[] = {
-	0, 1, 2, 3, 8, 21, 20, 16,	/* in0.. in7 */
-	17, 24, 25, 26, 27, 28, 29,	/* in8..in14 */
-	-1,				/* unused */
-	6, 7, 11, 10, 23, 33,		/* fan1..fan6 */
-	-1, -1,				/* unused */
-	4, 5, 13, -1, -1, -1,		/* temp1..temp6 */
-	12, 9 };			/* intrusion0, intrusion1 */
+static const s8 NCT6791_ALARM_BITS[NUM_ALARM_BITS] = {
+	 0,  1,  2,  3,  8, 21, 20, 16, 17, 24, 25, 26,	  /* in0-in11     */
+	27, 28, 29, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* in12-in23    */
+	 6,  7, 11, 10, 23, 33, -1, -1, -1, -1, -1, -1,	  /* fan1-fan12   */
+	 4,  5, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* temp1-temp12 */
+	12,  9,						  /* intr0-intr1  */
+};
 
 /* NCT6792/NCT6793 specific data */
 
@@ -764,27 +751,23 @@ static const u16 NCT6106_REG_AUTO_PWM[] = { 0x164, 0x174, 0x184 };
 static const u16 NCT6106_REG_ALARM[NUM_REG_ALARM] = {
 	0x77, 0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d };
 
-static const s8 NCT6106_ALARM_BITS[] = {
-	0, 1, 2, 3, 4, 5, 7, 8,		/* in0.. in7 */
-	9, -1, -1, -1, -1, -1, -1,	/* in8..in14 */
-	-1,				/* unused */
-	32, 33, 34, -1, -1,		/* fan1..fan5 */
-	-1, -1, -1,			/* unused */
-	16, 17, 18, 19, 20, 21,		/* temp1..temp6 */
-	48, -1				/* intrusion0, intrusion1 */
+static const s8 NCT6106_ALARM_BITS[NUM_ALARM_BITS] = {
+	 0,  1,  2,  3,  4,  5,  7,  8,  9, -1, -1, -1,	  /* in0-in11     */
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* in12-in23    */
+	32, 33, 34, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* fan1-fan12   */
+	16, 17, 18, 19, 20, 21, -1, -1, -1, -1, -1, -1,	  /* temp1-temp12 */
+	48, -1,						  /* intr0-intr1  */
 };
 
 static const u16 NCT6106_REG_BEEP[NUM_REG_BEEP] = {
 	0x3c0, 0x3c1, 0x3c2, 0x3c3, 0x3c4 };
 
-static const s8 NCT6106_BEEP_BITS[] = {
-	0, 1, 2, 3, 4, 5, 7, 8,		/* in0.. in7 */
-	9, 10, 11, 12, -1, -1, -1,	/* in8..in14 */
-	32,				/* global beep enable */
-	24, 25, 26, 27, 28,		/* fan1..fan5 */
-	-1, -1, -1,			/* unused */
-	16, 17, 18, 19, 20, 21,		/* temp1..temp6 */
-	34, -1				/* intrusion0, intrusion1 */
+static const s8 NCT6106_BEEP_BITS[NUM_BEEP_BITS] = {
+	 0,  1,  2,  3,  4,  5,  7,  8,  9, 10, 11, 12,	  /* in0-in11     */
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* in12-in23    */
+	24, 25, 26, 27, 28, -1, -1, -1, -1, -1, -1, -1,	  /* fan1-fan12   */
+	16, 17, 18, 19, 20, 21, -1, -1, -1, -1, -1, -1,	  /* temp1-temp12 */
+	34, -1, 32					  /* intr0-intr1, beep_en */
 };
 
 static const u16 NCT6106_REG_TEMP_ALTERNATE[32] = {
@@ -844,24 +827,20 @@ static const u16 NCT6116_REG_AUTO_TEMP[] = {
 static const u16 NCT6116_REG_AUTO_PWM[] = {
 	0x164, 0x174, 0x184, 0x1d4, 0x1e4 };
 
-static const s8 NCT6116_ALARM_BITS[] = {
-	0, 1, 2, 3, 4, 5, 7, 8,		/* in0.. in7 */
-	9, -1, -1, -1, -1, -1, -1,	/* in8..in9 */
-	-1,				/* unused */
-	32, 33, 34, 35, 36,		/* fan1..fan5 */
-	-1, -1, -1,			/* unused */
-	16, 17, 18, -1, -1, -1,		/* temp1..temp6 */
-	48, -1				/* intrusion0, intrusion1 */
+static const s8 NCT6116_ALARM_BITS[NUM_ALARM_BITS] = {
+	 0,  1,  2,  3,  4,  5,  7,  8,  9, -1, -1, -1,	  /* in0-in11     */
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* in12-in23    */
+	32, 33, 34, 35, 36, -1, -1, -1, -1, -1, -1, -1,	  /* fan1-fan12   */
+	16, 17, 18, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* temp1-temp12 */
+	48, -1,						  /* intr0-intr1  */
 };
 
-static const s8 NCT6116_BEEP_BITS[] = {
-	0, 1, 2, 3, 4, 5, 7, 8,		/* in0.. in7 */
-	9, 10, 11, 12, -1, -1, -1,	/* in8..in14 */
-	32,				/* global beep enable */
-	24, 25, 26, 27, 28,		/* fan1..fan5 */
-	-1, -1, -1,			/* unused */
-	16, 17, 18, -1, -1, -1,		/* temp1..temp6 */
-	34, -1				/* intrusion0, intrusion1 */
+static const s8 NCT6116_BEEP_BITS[NUM_BEEP_BITS] = {
+	 0,  1,  2,  3,  4,  5,  7,  8,  9, 10, 11, 12,	  /* in0-in11     */
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* in12-in23    */
+	24, 25, 26, 27, 28, -1, -1, -1, -1, -1, -1, -1,	  /* fan1-fan12   */
+	16, 17, 18, -1, -1, -1, -1, -1, -1, -1, -1, -1,	  /* temp1-temp12 */
+	34, -1, 32					  /* intr0-intr1, beep_en */
 };
 
 static const u16 NCT6116_REG_TSI_TEMP[] = { 0x59, 0x5b };
