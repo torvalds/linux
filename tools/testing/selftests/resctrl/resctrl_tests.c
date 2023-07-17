@@ -77,7 +77,7 @@ static void run_mbm_test(bool has_ben, char **benchmark_cmd, int span,
 
 	ksft_print_msg("Starting MBM BW change ...\n");
 
-	res = remount_resctrlfs(true);
+	res = mount_resctrlfs();
 	if (res) {
 		ksft_exit_fail_msg("Failed to mount resctrl FS\n");
 		return;
@@ -106,7 +106,7 @@ static void run_mba_test(bool has_ben, char **benchmark_cmd, int span,
 
 	ksft_print_msg("Starting MBA Schemata change ...\n");
 
-	res = remount_resctrlfs(true);
+	res = mount_resctrlfs();
 	if (res) {
 		ksft_exit_fail_msg("Failed to mount resctrl FS\n");
 		return;
@@ -132,7 +132,7 @@ static void run_cmt_test(bool has_ben, char **benchmark_cmd, int cpu_no)
 
 	ksft_print_msg("Starting CMT test ...\n");
 
-	res = remount_resctrlfs(true);
+	res = mount_resctrlfs();
 	if (res) {
 		ksft_exit_fail_msg("Failed to mount resctrl FS\n");
 		return;
@@ -160,7 +160,7 @@ static void run_cat_test(int cpu_no, int no_of_bits)
 
 	ksft_print_msg("Starting CAT test ...\n");
 
-	res = remount_resctrlfs(true);
+	res = mount_resctrlfs();
 	if (res) {
 		ksft_exit_fail_msg("Failed to mount resctrl FS\n");
 		return;
