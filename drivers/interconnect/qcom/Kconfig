@@ -220,6 +220,19 @@ config INTERCONNECT_QCOM_SM8450
 	  This is a driver for the Qualcomm Network-on-Chip on SM8450-based
 	  platforms.
 
+config INTERCONNECT_QCOM_CLIFFS
+	tristate "CLIFFS interconnect driver"
+	depends on INTERCONNECT_QCOM
+	depends on OF
+	select INTERCONNECT_QCOM_BCM_VOTER
+	select INTERCONNECT_QCOM_RPMH
+	select INTERCONNECT_QCOM_QOS
+	help
+	  This is a driver for the Qualcomm Technologies, Inc. Network-on-Chip
+	  on Cliffs-based platforms. Interconnect driver provides interfaces
+	  for setting bandwidth between two endpoints (path). It also used to
+	  configure NOC QoS settings (Quality of Service).
+
 config INTERCONNECT_QCOM_PINEAPPLE
 	tristate "PINEAPPLE interconnect driver"
 	depends on INTERCONNECT_QCOM
