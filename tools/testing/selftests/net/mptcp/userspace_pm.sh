@@ -59,6 +59,8 @@ rndh=$(printf %x "$sec")-$(mktemp -u XXXXXX)
 ns1="ns1-$rndh"
 ns2="ns2-$rndh"
 ret=0
+test_name=""
+
 _printf() {
 	stdbuf -o0 -e0 printf "${@}"
 }
@@ -71,7 +73,9 @@ print_title()
 # $1: test name
 print_test()
 {
-	_printf "%-63s" "${1}"
+	test_name="${1}"
+
+	_printf "%-63s" "${test_name}"
 }
 
 print_results()
@@ -82,11 +86,13 @@ print_results()
 test_pass()
 {
 	print_results " OK "
+	mptcp_lib_result_pass "${test_name}"
 }
 
 test_skip()
 {
 	print_results "SKIP"
+	mptcp_lib_result_skip "${test_name}"
 }
 
 # $1: msg
@@ -98,6 +104,8 @@ test_fail()
 	if [ -n "${1}" ]; then
 		_printf "\t%s\n" "${1}"
 	fi
+
+	mptcp_lib_result_fail "${test_name}"
 }
 
 kill_wait()
@@ -255,6 +263,7 @@ make_connection()
 		test_pass
 	else
 		test_fail "Expected tokens (c:${client_token} - s:${server_token}) and server (c:${client_serverside} - s:${server_serverside})"
+		mptcp_lib_result_print_all_tap
 		exit 1
 	fi
 
@@ -990,4 +999,5 @@ test_subflows_v4_v6_mix
 test_prio
 test_listener
 
+mptcp_lib_result_print_all_tap
 exit ${ret}
