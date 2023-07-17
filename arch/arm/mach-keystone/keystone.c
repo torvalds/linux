@@ -7,12 +7,10 @@
  *	Santosh Shilimkar <santosh.shillimkar@ti.com>
  */
 #include <linux/io.h>
-#include <linux/of.h>
 #include <linux/dma-map-ops.h>
 #include <linux/init.h>
-#include <linux/of_platform.h>
-#include <linux/of_address.h>
 #include <linux/memblock.h>
+#include <linux/platform_device.h>
 
 #include <asm/setup.h>
 #include <asm/mach/map.h>
