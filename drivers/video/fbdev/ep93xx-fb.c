@@ -548,7 +548,9 @@ static int ep93xxfb_probe(struct platform_device *pdev)
 	}
 
 	ep93xxfb_set_par(info);
-	clk_prepare_enable(fbi->clk);
+	err = clk_prepare_enable(fbi->clk);
+	if (err)
+		goto failed_check;
 
 	err = register_framebuffer(info);
 	if (err)
