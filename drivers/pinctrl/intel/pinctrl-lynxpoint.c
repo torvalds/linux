@@ -877,9 +877,8 @@ static int lp_gpio_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops lp_gpio_pm_ops = {
-	.runtime_suspend = lp_gpio_runtime_suspend,
-	.runtime_resume = lp_gpio_runtime_resume,
-	.resume = lp_gpio_resume,
+	SYSTEM_SLEEP_PM_OPS(NULL, lp_gpio_resume)
+	RUNTIME_PM_OPS(lp_gpio_runtime_suspend, lp_gpio_runtime_resume, NULL)
 };
 
 static const struct acpi_device_id lynxpoint_gpio_acpi_match[] = {
@@ -894,7 +893,7 @@ static struct platform_driver lp_gpio_driver = {
 	.remove         = lp_gpio_remove,
 	.driver         = {
 		.name   = "lp_gpio",
-		.pm	= &lp_gpio_pm_ops,
+		.pm	= pm_ptr(&lp_gpio_pm_ops),
 		.acpi_match_table = lynxpoint_gpio_acpi_match,
 	},
 };
