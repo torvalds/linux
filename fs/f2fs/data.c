@@ -3232,8 +3232,7 @@ result:
 					}
 					goto next;
 				}
-				done_index = folio->index +
-					folio_nr_pages(folio);
+				done_index = folio_next_index(folio);
 				done = 1;
 				break;
 			}
