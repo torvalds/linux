@@ -730,12 +730,20 @@ static int pc_adjust_requested_freq(struct xe_guc_pc *pc)
 	return ret;
 }
 
-static int pc_gucrc_disable(struct xe_guc_pc *pc)
+/**
+ * xe_guc_pc_gucrc_disable - Disable GuC RC
+ * @pc: Xe_GuC_PC instance
+ *
+ * Disables GuC RC by taking control of RC6 back from GuC.
+ *
+ * Return: 0 on success, negative error code on error.
+ */
+int xe_guc_pc_gucrc_disable(struct xe_guc_pc *pc)
 {
 	struct xe_gt *gt = pc_to_gt(pc);
 	int ret;
 
-	xe_device_assert_mem_access(pc_to_xe(pc));
+	xe_device_mem_access_get(pc_to_xe(pc));
 
 	ret = pc_action_setup_gucrc(pc, XE_GUCRC_HOST_CONTROL);
 	if (ret)
@@ -750,6 +758,7 @@ static int pc_gucrc_disable(struct xe_guc_pc *pc)
 	xe_mmio_write32(gt, RC_STATE, 0);
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
+	xe_device_mem_access_put(pc_to_xe(pc));
 	return 0;
 }
 
@@ -827,7 +836,7 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 		goto out;
 
 	if (xe->info.platform == XE_PVC) {
-		pc_gucrc_disable(pc);
+		xe_guc_pc_gucrc_disable(pc);
 		ret = 0;
 		goto out;
 	}
@@ -849,10 +858,6 @@ int xe_guc_pc_stop(struct xe_guc_pc *pc)
 	int ret;
 
 	xe_device_mem_access_get(pc_to_xe(pc));
-
-	ret = pc_gucrc_disable(pc);
-	if (ret)
-		goto out;
 
 	mutex_lock(&pc->freq_lock);
 	pc->freq_ready = false;
@@ -876,6 +881,7 @@ static void pc_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_guc_pc *pc = arg;
 
+	XE_WARN_ON(xe_guc_pc_gucrc_disable(pc));
 	XE_WARN_ON(xe_guc_pc_stop(pc));
 	sysfs_remove_files(pc_to_gt(pc)->sysfs, pc_attrs);
 	xe_bo_unpin_map_no_vm(pc->bo);
