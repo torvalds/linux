@@ -139,7 +139,7 @@ static int fill_cache_write(unsigned char *start_ptr, unsigned char *end_ptr,
 }
 
 static int
-fill_cache(unsigned long long buf_size, int malloc_and_init, int memflush,
+fill_cache(size_t buf_size, int malloc_and_init, int memflush,
 	   int op, char *resctrl_val)
 {
 	unsigned char *start_ptr, *end_ptr;
@@ -188,10 +188,10 @@ fill_cache(unsigned long long buf_size, int malloc_and_init, int memflush,
 	return 0;
 }
 
-int run_fill_buf(unsigned long span, int malloc_and_init_memory,
-		 int memflush, int op, char *resctrl_val)
+int run_fill_buf(size_t span, int malloc_and_init_memory, int memflush, int op,
+		 char *resctrl_val)
 {
-	unsigned long long cache_size = span;
+	size_t cache_size = span;
 	int ret;
 
 	ret = fill_cache(cache_size, malloc_and_init_memory, memflush, op,

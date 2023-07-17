@@ -286,7 +286,7 @@ pe_close:
  * Return:		0 on success. non-zero on failure.
  */
 int show_cache_info(unsigned long sum_llc_val, int no_of_bits,
-		    unsigned long cache_span, unsigned long max_diff,
+		    size_t cache_span, unsigned long max_diff,
 		    unsigned long max_diff_percent, unsigned long num_of_runs,
 		    bool platform, bool cmt)
 {
@@ -308,7 +308,7 @@ int show_cache_info(unsigned long sum_llc_val, int no_of_bits,
 	ksft_print_msg("Percent diff=%d\n", abs((int)diff_percent));
 	ksft_print_msg("Number of bits: %d\n", no_of_bits);
 	ksft_print_msg("Average LLC val: %lu\n", avg_llc_val);
-	ksft_print_msg("Cache span (%s): %lu\n", cmt ? "bytes" : "lines",
+	ksft_print_msg("Cache span (%s): %zu\n", cmt ? "bytes" : "lines",
 		       cache_span);
 
 	return ret;

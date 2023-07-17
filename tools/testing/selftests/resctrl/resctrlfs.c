@@ -303,7 +303,7 @@ int taskset_benchmark(pid_t bm_pid, int cpu_no)
 void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 {
 	int operation, ret, malloc_and_init_memory, memflush;
-	unsigned long span, buffer_span;
+	size_t span, buffer_span;
 	char **benchmark_cmd;
 	char resctrl_val[64];
 	FILE *fp;

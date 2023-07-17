@@ -121,7 +121,7 @@ int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 	};
 
 	if (strcmp(benchmark_cmd[0], "fill_buf") == 0)
-		sprintf(benchmark_cmd[1], "%lu", param.span);
+		sprintf(benchmark_cmd[1], "%zu", param.span);
 
 	remove(RESULT_FILE_NAME);
 
