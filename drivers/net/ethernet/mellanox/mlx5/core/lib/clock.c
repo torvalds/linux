@@ -1002,10 +1002,12 @@ static void mlx5_init_timer_clock(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_clock *clock = &mdev->clock;
 
+	/* Configure the PHC */
+	clock->ptp_info = mlx5_ptp_clock_info;
+
 	mlx5_timecounter_init(mdev);
 	mlx5_init_clock_info(mdev);
 	mlx5_init_overflow_period(clock);
-	clock->ptp_info = mlx5_ptp_clock_info;
 
 	if (mlx5_real_time_mode(mdev)) {
 		struct timespec64 ts;
@@ -1036,11 +1038,10 @@ void mlx5_init_clock(struct mlx5_core_dev *mdev)
 	}
 
 	seqlock_init(&clock->lock);
-	mlx5_init_timer_clock(mdev);
 	INIT_WORK(&clock->pps_info.out_work, mlx5_pps_out);
 
-	/* Configure the PHC */
-	clock->ptp_info = mlx5_ptp_clock_info;
+	/* Initialize the device clock */
+	mlx5_init_timer_clock(mdev);
 
 	/* Initialize 1PPS data structures */
 	mlx5_init_pps(mdev);
