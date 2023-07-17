@@ -167,6 +167,7 @@ void __init of_core_init(void)
 {
 	struct device_node *np;
 
+	of_platform_register_reconfig_notifier();
 
 	/* Create the kset, and register existing nodes */
 	mutex_lock(&of_mutex);

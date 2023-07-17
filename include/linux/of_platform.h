@@ -127,10 +127,4 @@ static inline int devm_of_platform_populate(struct device *dev)
 static inline void devm_of_platform_depopulate(struct device *dev) { }
 #endif
 
-#if defined(CONFIG_OF_DYNAMIC) && defined(CONFIG_OF_ADDRESS)
-extern void of_platform_register_reconfig_notifier(void);
-#else
-static inline void of_platform_register_reconfig_notifier(void) { }
-#endif
-
 #endif	/* _LINUX_OF_PLATFORM_H */
