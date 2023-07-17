@@ -682,6 +682,7 @@ found:
 
 	if (snapshot != i->snapshot && !is_whiteout) {
 		struct inode_walker_entry new = *i;
+		size_t pos;
 		int ret;
 
 		new.snapshot = snapshot;
@@ -693,9 +694,12 @@ found:
 		while (i > w->inodes.data && i[-1].snapshot > snapshot)
 			--i;
 
-		ret = darray_insert_item(&w->inodes, i - w->inodes.data, new);
+		pos = i - w->inodes.data;
+		ret = darray_insert_item(&w->inodes, pos, new);
 		if (ret)
 			return ERR_PTR(ret);
+
+		i = w->inodes.data + pos;
 	}
 
 	return i;
