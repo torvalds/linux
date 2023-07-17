@@ -60,12 +60,12 @@ static int query_engines(struct xe_device *xe,
 	if (query->size == 0) {
 		query->size = size;
 		return 0;
-	} else if (XE_IOCTL_ERR(xe, query->size != size)) {
+	} else if (XE_IOCTL_DBG(xe, query->size != size)) {
 		return -EINVAL;
 	}
 
 	hw_engine_info = kmalloc(size, GFP_KERNEL);
-	if (XE_IOCTL_ERR(xe, !hw_engine_info))
+	if (XE_IOCTL_DBG(xe, !hw_engine_info))
 		return -ENOMEM;
 
 	for_each_gt(gt, xe, gt_id)
@@ -114,12 +114,12 @@ static int query_memory_usage(struct xe_device *xe,
 	if (query->size == 0) {
 		query->size = size;
 		return 0;
-	} else if (XE_IOCTL_ERR(xe, query->size != size)) {
+	} else if (XE_IOCTL_DBG(xe, query->size != size)) {
 		return -EINVAL;
 	}
 
 	usage = kzalloc(size, GFP_KERNEL);
-	if (XE_IOCTL_ERR(xe, !usage))
+	if (XE_IOCTL_DBG(xe, !usage))
 		return -ENOMEM;
 
 	man = ttm_manager_type(&xe->ttm, XE_PL_TT);
@@ -177,12 +177,12 @@ static int query_config(struct xe_device *xe, struct drm_xe_device_query *query)
 	if (query->size == 0) {
 		query->size = size;
 		return 0;
-	} else if (XE_IOCTL_ERR(xe, query->size != size)) {
+	} else if (XE_IOCTL_DBG(xe, query->size != size)) {
 		return -EINVAL;
 	}
 
 	config = kzalloc(size, GFP_KERNEL);
-	if (XE_IOCTL_ERR(xe, !config))
+	if (XE_IOCTL_DBG(xe, !config))
 		return -ENOMEM;
 
 	config->num_params = num_params;
@@ -226,12 +226,12 @@ static int query_gts(struct xe_device *xe, struct drm_xe_device_query *query)
 	if (query->size == 0) {
 		query->size = size;
 		return 0;
-	} else if (XE_IOCTL_ERR(xe, query->size != size)) {
+	} else if (XE_IOCTL_DBG(xe, query->size != size)) {
 		return -EINVAL;
 	}
 
 	gts = kzalloc(size, GFP_KERNEL);
-	if (XE_IOCTL_ERR(xe, !gts))
+	if (XE_IOCTL_DBG(xe, !gts))
 		return -ENOMEM;
 
 	gts->num_gt = xe->info.gt_count;
@@ -273,12 +273,12 @@ static int query_hwconfig(struct xe_device *xe,
 	if (query->size == 0) {
 		query->size = size;
 		return 0;
-	} else if (XE_IOCTL_ERR(xe, query->size != size)) {
+	} else if (XE_IOCTL_DBG(xe, query->size != size)) {
 		return -EINVAL;
 	}
 
 	hwconfig = kzalloc(size, GFP_KERNEL);
-	if (XE_IOCTL_ERR(xe, !hwconfig))
+	if (XE_IOCTL_DBG(xe, !hwconfig))
 		return -ENOMEM;
 
 	xe_device_mem_access_get(xe);
@@ -332,7 +332,7 @@ static int query_gt_topology(struct xe_device *xe,
 	if (query->size == 0) {
 		query->size = size;
 		return 0;
-	} else if (XE_IOCTL_ERR(xe, query->size != size)) {
+	} else if (XE_IOCTL_DBG(xe, query->size != size)) {
 		return -EINVAL;
 	}
 
@@ -380,15 +380,15 @@ int xe_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct drm_xe_device_query *query = data;
 	u32 idx;
 
-	if (XE_IOCTL_ERR(xe, query->extensions) ||
-	    XE_IOCTL_ERR(xe, query->reserved[0] || query->reserved[1]))
+	if (XE_IOCTL_DBG(xe, query->extensions) ||
+	    XE_IOCTL_DBG(xe, query->reserved[0] || query->reserved[1]))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, query->query > ARRAY_SIZE(xe_query_funcs)))
+	if (XE_IOCTL_DBG(xe, query->query > ARRAY_SIZE(xe_query_funcs)))
 		return -EINVAL;
 
 	idx = array_index_nospec(query->query, ARRAY_SIZE(xe_query_funcs));
-	if (XE_IOCTL_ERR(xe, !xe_query_funcs[idx]))
+	if (XE_IOCTL_DBG(xe, !xe_query_funcs[idx]))
 		return -EINVAL;
 
 	return xe_query_funcs[idx](xe, query);

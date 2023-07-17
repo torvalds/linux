@@ -19,10 +19,10 @@ static int madvise_preferred_mem_class(struct xe_device *xe, struct xe_vm *vm,
 {
 	int i, err;
 
-	if (XE_IOCTL_ERR(xe, value > XE_MEM_REGION_CLASS_VRAM))
+	if (XE_IOCTL_DBG(xe, value > XE_MEM_REGION_CLASS_VRAM))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, value == XE_MEM_REGION_CLASS_VRAM &&
+	if (XE_IOCTL_DBG(xe, value == XE_MEM_REGION_CLASS_VRAM &&
 			 !xe->info.is_dgfx))
 		return -EINVAL;
 
@@ -48,7 +48,7 @@ static int madvise_preferred_gt(struct xe_device *xe, struct xe_vm *vm,
 {
 	int i, err;
 
-	if (XE_IOCTL_ERR(xe, value > xe->info.tile_count))
+	if (XE_IOCTL_DBG(xe, value > xe->info.tile_count))
 		return -EINVAL;
 
 	for (i = 0; i < num_vmas; ++i) {
@@ -77,14 +77,14 @@ static int madvise_preferred_mem_class_gt(struct xe_device *xe,
 	u32 gt_id = upper_32_bits(value);
 	u32 mem_class = lower_32_bits(value);
 
-	if (XE_IOCTL_ERR(xe, mem_class > XE_MEM_REGION_CLASS_VRAM))
+	if (XE_IOCTL_DBG(xe, mem_class > XE_MEM_REGION_CLASS_VRAM))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, mem_class == XE_MEM_REGION_CLASS_VRAM &&
+	if (XE_IOCTL_DBG(xe, mem_class == XE_MEM_REGION_CLASS_VRAM &&
 			 !xe->info.is_dgfx))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, gt_id > xe->info.tile_count))
+	if (XE_IOCTL_DBG(xe, gt_id > xe->info.tile_count))
 		return -EINVAL;
 
 	for (i = 0; i < num_vmas; ++i) {
@@ -115,7 +115,7 @@ static int madvise_cpu_atomic(struct xe_device *xe, struct xe_vm *vm,
 		struct ww_acquire_ctx ww;
 
 		bo = xe_vma_bo(vmas[i]);
-		if (XE_IOCTL_ERR(xe, !(bo->flags & XE_BO_CREATE_SYSTEM_BIT)))
+		if (XE_IOCTL_DBG(xe, !(bo->flags & XE_BO_CREATE_SYSTEM_BIT)))
 			return -EINVAL;
 
 		err = xe_bo_lock(bo, &ww, 0, true);
@@ -146,7 +146,7 @@ static int madvise_device_atomic(struct xe_device *xe, struct xe_vm *vm,
 		struct ww_acquire_ctx ww;
 
 		bo = xe_vma_bo(vmas[i]);
-		if (XE_IOCTL_ERR(xe, !(bo->flags & XE_BO_CREATE_VRAM0_BIT) &&
+		if (XE_IOCTL_DBG(xe, !(bo->flags & XE_BO_CREATE_VRAM0_BIT) &&
 				 !(bo->flags & XE_BO_CREATE_VRAM1_BIT)))
 			return -EINVAL;
 
@@ -165,10 +165,10 @@ static int madvise_priority(struct xe_device *xe, struct xe_vm *vm,
 {
 	int i, err;
 
-	if (XE_IOCTL_ERR(xe, value > DRM_XE_VMA_PRIORITY_HIGH))
+	if (XE_IOCTL_DBG(xe, value > DRM_XE_VMA_PRIORITY_HIGH))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, value == DRM_XE_VMA_PRIORITY_HIGH &&
+	if (XE_IOCTL_DBG(xe, value == DRM_XE_VMA_PRIORITY_HIGH &&
 			 !capable(CAP_SYS_NICE)))
 		return -EPERM;
 
@@ -255,40 +255,40 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data,
 	struct xe_vma **vmas = NULL;
 	int num_vmas = 0, err = 0, idx;
 
-	if (XE_IOCTL_ERR(xe, args->extensions) ||
-	    XE_IOCTL_ERR(xe, args->pad || args->pad2) ||
-	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->extensions) ||
+	    XE_IOCTL_DBG(xe, args->pad || args->pad2) ||
+	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->property > ARRAY_SIZE(madvise_funcs)))
+	if (XE_IOCTL_DBG(xe, args->property > ARRAY_SIZE(madvise_funcs)))
 		return -EINVAL;
 
 	vm = xe_vm_lookup(xef, args->vm_id);
-	if (XE_IOCTL_ERR(xe, !vm))
+	if (XE_IOCTL_DBG(xe, !vm))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, !xe_vm_in_fault_mode(vm))) {
+	if (XE_IOCTL_DBG(xe, !xe_vm_in_fault_mode(vm))) {
 		err = -EINVAL;
 		goto put_vm;
 	}
 
 	down_read(&vm->lock);
 
-	if (XE_IOCTL_ERR(xe, xe_vm_is_closed_or_banned(vm))) {
+	if (XE_IOCTL_DBG(xe, xe_vm_is_closed_or_banned(vm))) {
 		err = -ENOENT;
 		goto unlock_vm;
 	}
 
 	vmas = get_vmas(vm, &num_vmas, args->addr, args->range);
-	if (XE_IOCTL_ERR(xe, err))
+	if (XE_IOCTL_DBG(xe, err))
 		goto unlock_vm;
 
-	if (XE_IOCTL_ERR(xe, !vmas)) {
+	if (XE_IOCTL_DBG(xe, !vmas)) {
 		err = -ENOMEM;
 		goto unlock_vm;
 	}
 
-	if (XE_IOCTL_ERR(xe, !num_vmas)) {
+	if (XE_IOCTL_DBG(xe, !num_vmas)) {
 		err = -EINVAL;
 		goto unlock_vm;
 	}

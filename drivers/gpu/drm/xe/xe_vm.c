@@ -1875,13 +1875,13 @@ static int xe_vm_unbind(struct xe_vm *vm, struct xe_vma *vma,
 static int vm_set_error_capture_address(struct xe_device *xe, struct xe_vm *vm,
 					u64 value)
 {
-	if (XE_IOCTL_ERR(xe, !value))
+	if (XE_IOCTL_DBG(xe, !value))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, !(vm->flags & XE_VM_FLAG_ASYNC_BIND_OPS)))
+	if (XE_IOCTL_DBG(xe, !(vm->flags & XE_VM_FLAG_ASYNC_BIND_OPS)))
 		return -EOPNOTSUPP;
 
-	if (XE_IOCTL_ERR(xe, vm->async_ops.error_capture.addr))
+	if (XE_IOCTL_DBG(xe, vm->async_ops.error_capture.addr))
 		return -EOPNOTSUPP;
 
 	vm->async_ops.error_capture.mm = current->mm;
@@ -1907,13 +1907,13 @@ static int vm_user_ext_set_property(struct xe_device *xe, struct xe_vm *vm,
 	int err;
 
 	err = __copy_from_user(&ext, address, sizeof(ext));
-	if (XE_IOCTL_ERR(xe, err))
+	if (XE_IOCTL_DBG(xe, err))
 		return -EFAULT;
 
-	if (XE_IOCTL_ERR(xe, ext.property >=
+	if (XE_IOCTL_DBG(xe, ext.property >=
 			 ARRAY_SIZE(vm_set_property_funcs)) ||
-	    XE_IOCTL_ERR(xe, ext.pad) ||
-	    XE_IOCTL_ERR(xe, ext.reserved[0] || ext.reserved[1]))
+	    XE_IOCTL_DBG(xe, ext.pad) ||
+	    XE_IOCTL_DBG(xe, ext.reserved[0] || ext.reserved[1]))
 		return -EINVAL;
 
 	return vm_set_property_funcs[ext.property](xe, vm, ext.value);
@@ -1934,20 +1934,20 @@ static int vm_user_extensions(struct xe_device *xe, struct xe_vm *vm,
 	struct xe_user_extension ext;
 	int err;
 
-	if (XE_IOCTL_ERR(xe, ext_number >= MAX_USER_EXTENSIONS))
+	if (XE_IOCTL_DBG(xe, ext_number >= MAX_USER_EXTENSIONS))
 		return -E2BIG;
 
 	err = __copy_from_user(&ext, address, sizeof(ext));
-	if (XE_IOCTL_ERR(xe, err))
+	if (XE_IOCTL_DBG(xe, err))
 		return -EFAULT;
 
-	if (XE_IOCTL_ERR(xe, ext.pad) ||
-	    XE_IOCTL_ERR(xe, ext.name >=
+	if (XE_IOCTL_DBG(xe, ext.pad) ||
+	    XE_IOCTL_DBG(xe, ext.name >=
 			 ARRAY_SIZE(vm_user_extension_funcs)))
 		return -EINVAL;
 
 	err = vm_user_extension_funcs[ext.name](xe, vm, extensions);
-	if (XE_IOCTL_ERR(xe, err))
+	if (XE_IOCTL_DBG(xe, err))
 		return err;
 
 	if (ext.next_extension)
@@ -1973,29 +1973,29 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	int err;
 	u32 flags = 0;
 
-	if (XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->flags & ~ALL_DRM_XE_VM_CREATE_FLAGS))
+	if (XE_IOCTL_DBG(xe, args->flags & ~ALL_DRM_XE_VM_CREATE_FLAGS))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->flags & DRM_XE_VM_CREATE_SCRATCH_PAGE &&
+	if (XE_IOCTL_DBG(xe, args->flags & DRM_XE_VM_CREATE_SCRATCH_PAGE &&
 			 args->flags & DRM_XE_VM_CREATE_FAULT_MODE))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->flags & DRM_XE_VM_CREATE_COMPUTE_MODE &&
+	if (XE_IOCTL_DBG(xe, args->flags & DRM_XE_VM_CREATE_COMPUTE_MODE &&
 			 args->flags & DRM_XE_VM_CREATE_FAULT_MODE))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->flags & DRM_XE_VM_CREATE_FAULT_MODE &&
+	if (XE_IOCTL_DBG(xe, args->flags & DRM_XE_VM_CREATE_FAULT_MODE &&
 			 xe_device_in_non_fault_mode(xe)))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, !(args->flags & DRM_XE_VM_CREATE_FAULT_MODE) &&
+	if (XE_IOCTL_DBG(xe, !(args->flags & DRM_XE_VM_CREATE_FAULT_MODE) &&
 			 xe_device_in_fault_mode(xe)))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->flags & DRM_XE_VM_CREATE_FAULT_MODE &&
+	if (XE_IOCTL_DBG(xe, args->flags & DRM_XE_VM_CREATE_FAULT_MODE &&
 			 !xe->info.supports_usm))
 		return -EINVAL;
 
@@ -2014,7 +2014,7 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 
 	if (args->extensions) {
 		err = vm_user_extensions(xe, vm, args->extensions, 0);
-		if (XE_IOCTL_ERR(xe, err)) {
+		if (XE_IOCTL_DBG(xe, err)) {
 			xe_vm_close_and_put(vm);
 			return err;
 		}
@@ -2060,15 +2060,15 @@ int xe_vm_destroy_ioctl(struct drm_device *dev, void *data,
 	struct xe_vm *vm;
 	int err = 0;
 
-	if (XE_IOCTL_ERR(xe, args->pad) ||
-	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->pad) ||
+	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
 	mutex_lock(&xef->vm.lock);
 	vm = xa_load(&xef->vm.xa, args->vm_id);
-	if (XE_IOCTL_ERR(xe, !vm))
+	if (XE_IOCTL_DBG(xe, !vm))
 		err = -ENOENT;
-	else if (XE_IOCTL_ERR(xe, vm->preempt.num_engines))
+	else if (XE_IOCTL_DBG(xe, vm->preempt.num_engines))
 		err = -EBUSY;
 	else
 		xa_erase(&xef->vm.xa, args->vm_id);
@@ -2156,21 +2156,21 @@ static int vm_bind_ioctl_lookup_vma(struct xe_vm *vm, struct xe_bo *bo,
 	case XE_VM_BIND_OP_MAP:
 	case XE_VM_BIND_OP_MAP_USERPTR:
 		vma = xe_vm_find_overlapping_vma(vm, addr, range);
-		if (XE_IOCTL_ERR(xe, vma && !async))
+		if (XE_IOCTL_DBG(xe, vma && !async))
 			return -EBUSY;
 		break;
 	case XE_VM_BIND_OP_UNMAP:
 	case XE_VM_BIND_OP_PREFETCH:
 		vma = xe_vm_find_overlapping_vma(vm, addr, range);
-		if (XE_IOCTL_ERR(xe, !vma))
+		if (XE_IOCTL_DBG(xe, !vma))
 			return -ENODATA;	/* Not an actual error, IOCTL
 						   cleans up returns and 0 */
-		if (XE_IOCTL_ERR(xe, (xe_vma_start(vma) != addr ||
-				 xe_vma_end(vma) != addr + range) && !async))
+		if (XE_IOCTL_DBG(xe, (xe_vma_start(vma) != addr ||
+				      xe_vma_end(vma) != addr + range) && !async))
 			return -EINVAL;
 		break;
 	case XE_VM_BIND_OP_UNMAP_ALL:
-		if (XE_IOCTL_ERR(xe, list_empty(&bo->ttm.base.gpuva.list)))
+		if (XE_IOCTL_DBG(xe, list_empty(&bo->ttm.base.gpuva.list)))
 			return -ENODATA;	/* Not an actual error, IOCTL
 						   cleans up returns and 0 */
 		break;
@@ -3007,9 +3007,9 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 	int err;
 	int i;
 
-	if (XE_IOCTL_ERR(xe, args->extensions) ||
-	    XE_IOCTL_ERR(xe, !args->num_binds) ||
-	    XE_IOCTL_ERR(xe, args->num_binds > MAX_BINDS))
+	if (XE_IOCTL_DBG(xe, args->extensions) ||
+	    XE_IOCTL_DBG(xe, !args->num_binds) ||
+	    XE_IOCTL_DBG(xe, args->num_binds > MAX_BINDS))
 		return -EINVAL;
 
 	if (args->num_binds > 1) {
@@ -3024,7 +3024,7 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 		err = __copy_from_user(*bind_ops, bind_user,
 				       sizeof(struct drm_xe_vm_bind_op) *
 				       args->num_binds);
-		if (XE_IOCTL_ERR(xe, err)) {
+		if (XE_IOCTL_DBG(xe, err)) {
 			err = -EFAULT;
 			goto free_bind_ops;
 		}
@@ -3043,60 +3043,60 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 
 		if (i == 0) {
 			*async = !!(op & XE_VM_BIND_FLAG_ASYNC);
-		} else if (XE_IOCTL_ERR(xe, !*async) ||
-			   XE_IOCTL_ERR(xe, !(op & XE_VM_BIND_FLAG_ASYNC)) ||
-			   XE_IOCTL_ERR(xe, VM_BIND_OP(op) ==
+		} else if (XE_IOCTL_DBG(xe, !*async) ||
+			   XE_IOCTL_DBG(xe, !(op & XE_VM_BIND_FLAG_ASYNC)) ||
+			   XE_IOCTL_DBG(xe, VM_BIND_OP(op) ==
 					XE_VM_BIND_OP_RESTART)) {
 			err = -EINVAL;
 			goto free_bind_ops;
 		}
 
-		if (XE_IOCTL_ERR(xe, !*async &&
+		if (XE_IOCTL_DBG(xe, !*async &&
 				 VM_BIND_OP(op) == XE_VM_BIND_OP_UNMAP_ALL)) {
 			err = -EINVAL;
 			goto free_bind_ops;
 		}
 
-		if (XE_IOCTL_ERR(xe, !*async &&
+		if (XE_IOCTL_DBG(xe, !*async &&
 				 VM_BIND_OP(op) == XE_VM_BIND_OP_PREFETCH)) {
 			err = -EINVAL;
 			goto free_bind_ops;
 		}
 
-		if (XE_IOCTL_ERR(xe, VM_BIND_OP(op) >
+		if (XE_IOCTL_DBG(xe, VM_BIND_OP(op) >
 				 XE_VM_BIND_OP_PREFETCH) ||
-		    XE_IOCTL_ERR(xe, op & ~SUPPORTED_FLAGS) ||
-		    XE_IOCTL_ERR(xe, obj && is_null) ||
-		    XE_IOCTL_ERR(xe, obj_offset && is_null) ||
-		    XE_IOCTL_ERR(xe, VM_BIND_OP(op) != XE_VM_BIND_OP_MAP &&
+		    XE_IOCTL_DBG(xe, op & ~SUPPORTED_FLAGS) ||
+		    XE_IOCTL_DBG(xe, obj && is_null) ||
+		    XE_IOCTL_DBG(xe, obj_offset && is_null) ||
+		    XE_IOCTL_DBG(xe, VM_BIND_OP(op) != XE_VM_BIND_OP_MAP &&
 				 is_null) ||
-		    XE_IOCTL_ERR(xe, !obj &&
+		    XE_IOCTL_DBG(xe, !obj &&
 				 VM_BIND_OP(op) == XE_VM_BIND_OP_MAP &&
 				 !is_null) ||
-		    XE_IOCTL_ERR(xe, !obj &&
+		    XE_IOCTL_DBG(xe, !obj &&
 				 VM_BIND_OP(op) == XE_VM_BIND_OP_UNMAP_ALL) ||
-		    XE_IOCTL_ERR(xe, addr &&
+		    XE_IOCTL_DBG(xe, addr &&
 				 VM_BIND_OP(op) == XE_VM_BIND_OP_UNMAP_ALL) ||
-		    XE_IOCTL_ERR(xe, range &&
+		    XE_IOCTL_DBG(xe, range &&
 				 VM_BIND_OP(op) == XE_VM_BIND_OP_UNMAP_ALL) ||
-		    XE_IOCTL_ERR(xe, obj &&
+		    XE_IOCTL_DBG(xe, obj &&
 				 VM_BIND_OP(op) == XE_VM_BIND_OP_MAP_USERPTR) ||
-		    XE_IOCTL_ERR(xe, obj &&
+		    XE_IOCTL_DBG(xe, obj &&
 				 VM_BIND_OP(op) == XE_VM_BIND_OP_PREFETCH) ||
-		    XE_IOCTL_ERR(xe, region &&
+		    XE_IOCTL_DBG(xe, region &&
 				 VM_BIND_OP(op) != XE_VM_BIND_OP_PREFETCH) ||
-		    XE_IOCTL_ERR(xe, !(BIT(region) &
+		    XE_IOCTL_DBG(xe, !(BIT(region) &
 				       xe->info.mem_region_mask)) ||
-		    XE_IOCTL_ERR(xe, obj &&
+		    XE_IOCTL_DBG(xe, obj &&
 				 VM_BIND_OP(op) == XE_VM_BIND_OP_UNMAP)) {
 			err = -EINVAL;
 			goto free_bind_ops;
 		}
 
-		if (XE_IOCTL_ERR(xe, obj_offset & ~PAGE_MASK) ||
-		    XE_IOCTL_ERR(xe, addr & ~PAGE_MASK) ||
-		    XE_IOCTL_ERR(xe, range & ~PAGE_MASK) ||
-		    XE_IOCTL_ERR(xe, !range && VM_BIND_OP(op) !=
+		if (XE_IOCTL_DBG(xe, obj_offset & ~PAGE_MASK) ||
+		    XE_IOCTL_DBG(xe, addr & ~PAGE_MASK) ||
+		    XE_IOCTL_DBG(xe, range & ~PAGE_MASK) ||
+		    XE_IOCTL_DBG(xe, !range && VM_BIND_OP(op) !=
 				 XE_VM_BIND_OP_RESTART &&
 				 VM_BIND_OP(op) != XE_VM_BIND_OP_UNMAP_ALL)) {
 			err = -EINVAL;
@@ -3136,19 +3136,19 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	if (args->engine_id) {
 		e = xe_engine_lookup(xef, args->engine_id);
-		if (XE_IOCTL_ERR(xe, !e)) {
+		if (XE_IOCTL_DBG(xe, !e)) {
 			err = -ENOENT;
 			goto free_objs;
 		}
 
-		if (XE_IOCTL_ERR(xe, !(e->flags & ENGINE_FLAG_VM))) {
+		if (XE_IOCTL_DBG(xe, !(e->flags & ENGINE_FLAG_VM))) {
 			err = -EINVAL;
 			goto put_engine;
 		}
 	}
 
 	vm = xe_vm_lookup(xef, args->vm_id);
-	if (XE_IOCTL_ERR(xe, !vm)) {
+	if (XE_IOCTL_DBG(xe, !vm)) {
 		err = -EINVAL;
 		goto put_engine;
 	}
@@ -3157,17 +3157,17 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (err)
 		goto put_vm;
 
-	if (XE_IOCTL_ERR(xe, xe_vm_is_closed_or_banned(vm))) {
+	if (XE_IOCTL_DBG(xe, xe_vm_is_closed_or_banned(vm))) {
 		err = -ENOENT;
 		goto release_vm_lock;
 	}
 
 	if (VM_BIND_OP(bind_ops[0].op) == XE_VM_BIND_OP_RESTART) {
-		if (XE_IOCTL_ERR(xe, !(vm->flags & XE_VM_FLAG_ASYNC_BIND_OPS)))
+		if (XE_IOCTL_DBG(xe, !(vm->flags & XE_VM_FLAG_ASYNC_BIND_OPS)))
 			err = -EOPNOTSUPP;
-		if (XE_IOCTL_ERR(xe, !err && args->num_syncs))
+		if (XE_IOCTL_DBG(xe, !err && args->num_syncs))
 			err = EINVAL;
-		if (XE_IOCTL_ERR(xe, !err && !vm->async_ops.error))
+		if (XE_IOCTL_DBG(xe, !err && !vm->async_ops.error))
 			err = -EPROTO;
 
 		if (!err) {
@@ -3184,7 +3184,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		goto release_vm_lock;
 	}
 
-	if (XE_IOCTL_ERR(xe, !vm->async_ops.error &&
+	if (XE_IOCTL_DBG(xe, !vm->async_ops.error &&
 			 async != !!(vm->flags & XE_VM_FLAG_ASYNC_BIND_OPS))) {
 		err = -EOPNOTSUPP;
 		goto release_vm_lock;
@@ -3194,8 +3194,8 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		u64 range = bind_ops[i].range;
 		u64 addr = bind_ops[i].addr;
 
-		if (XE_IOCTL_ERR(xe, range > vm->size) ||
-		    XE_IOCTL_ERR(xe, addr > vm->size - range)) {
+		if (XE_IOCTL_DBG(xe, range > vm->size) ||
+		    XE_IOCTL_DBG(xe, addr > vm->size - range)) {
 			err = -EINVAL;
 			goto release_vm_lock;
 		}
@@ -3203,7 +3203,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		if (bind_ops[i].tile_mask) {
 			u64 valid_tiles = BIT(xe->info.tile_count) - 1;
 
-			if (XE_IOCTL_ERR(xe, bind_ops[i].tile_mask &
+			if (XE_IOCTL_DBG(xe, bind_ops[i].tile_mask &
 					 ~valid_tiles)) {
 				err = -EINVAL;
 				goto release_vm_lock;
@@ -3234,24 +3234,24 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			continue;
 
 		gem_obj = drm_gem_object_lookup(file, obj);
-		if (XE_IOCTL_ERR(xe, !gem_obj)) {
+		if (XE_IOCTL_DBG(xe, !gem_obj)) {
 			err = -ENOENT;
 			goto put_obj;
 		}
 		bos[i] = gem_to_xe_bo(gem_obj);
 
-		if (XE_IOCTL_ERR(xe, range > bos[i]->size) ||
-		    XE_IOCTL_ERR(xe, obj_offset >
+		if (XE_IOCTL_DBG(xe, range > bos[i]->size) ||
+		    XE_IOCTL_DBG(xe, obj_offset >
 				 bos[i]->size - range)) {
 			err = -EINVAL;
 			goto put_obj;
 		}
 
 		if (bos[i]->flags & XE_BO_INTERNAL_64K) {
-			if (XE_IOCTL_ERR(xe, obj_offset &
+			if (XE_IOCTL_DBG(xe, obj_offset &
 					 XE_64K_PAGE_MASK) ||
-			    XE_IOCTL_ERR(xe, addr & XE_64K_PAGE_MASK) ||
-			    XE_IOCTL_ERR(xe, range & XE_64K_PAGE_MASK)) {
+			    XE_IOCTL_DBG(xe, addr & XE_64K_PAGE_MASK) ||
+			    XE_IOCTL_DBG(xe, range & XE_64K_PAGE_MASK)) {
 				err = -EINVAL;
 				goto put_obj;
 			}

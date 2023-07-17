@@ -1724,35 +1724,35 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	u32 handle;
 	int err;
 
-	if (XE_IOCTL_ERR(xe, args->extensions) || XE_IOCTL_ERR(xe, args->pad) ||
-	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->extensions) || XE_IOCTL_DBG(xe, args->pad) ||
+	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->flags &
+	if (XE_IOCTL_DBG(xe, args->flags &
 			 ~(XE_GEM_CREATE_FLAG_DEFER_BACKING |
 			   XE_GEM_CREATE_FLAG_SCANOUT |
 			   xe->info.mem_region_mask)))
 		return -EINVAL;
 
 	/* at least one memory type must be specified */
-	if (XE_IOCTL_ERR(xe, !(args->flags & xe->info.mem_region_mask)))
+	if (XE_IOCTL_DBG(xe, !(args->flags & xe->info.mem_region_mask)))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->handle))
+	if (XE_IOCTL_DBG(xe, args->handle))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, !args->size))
+	if (XE_IOCTL_DBG(xe, !args->size))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->size > SIZE_MAX))
+	if (XE_IOCTL_DBG(xe, args->size > SIZE_MAX))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->size & ~PAGE_MASK))
+	if (XE_IOCTL_DBG(xe, args->size & ~PAGE_MASK))
 		return -EINVAL;
 
 	if (args->vm_id) {
 		vm = xe_vm_lookup(xef, args->vm_id);
-		if (XE_IOCTL_ERR(xe, !vm))
+		if (XE_IOCTL_DBG(xe, !vm))
 			return -ENOENT;
 		err = xe_vm_lock(vm, &ww, 0, true);
 		if (err) {
@@ -1795,15 +1795,15 @@ int xe_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
 	struct drm_xe_gem_mmap_offset *args = data;
 	struct drm_gem_object *gem_obj;
 
-	if (XE_IOCTL_ERR(xe, args->extensions) ||
-	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->extensions) ||
+	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->flags))
+	if (XE_IOCTL_DBG(xe, args->flags))
 		return -EINVAL;
 
 	gem_obj = drm_gem_object_lookup(file, args->handle);
-	if (XE_IOCTL_ERR(xe, !gem_obj))
+	if (XE_IOCTL_DBG(xe, !gem_obj))
 		return -ENOENT;
 
 	/* The mmap offset was set up at BO allocation time. */

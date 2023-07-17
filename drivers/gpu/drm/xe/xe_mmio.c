@@ -447,14 +447,14 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 	bool allowed;
 	int ret = 0;
 
-	if (XE_IOCTL_ERR(xe, args->extensions) ||
-	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->extensions) ||
+	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->flags & ~VALID_MMIO_FLAGS))
+	if (XE_IOCTL_DBG(xe, args->flags & ~VALID_MMIO_FLAGS))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, !(args->flags & DRM_XE_MMIO_WRITE) && args->value))
+	if (XE_IOCTL_DBG(xe, !(args->flags & DRM_XE_MMIO_WRITE) && args->value))
 		return -EINVAL;
 
 	allowed = capable(CAP_SYS_ADMIN);
@@ -469,12 +469,12 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	if (XE_IOCTL_ERR(xe, !allowed))
+	if (XE_IOCTL_DBG(xe, !allowed))
 		return -EPERM;
 
 	bits_flag = args->flags & DRM_XE_MMIO_BITS_MASK;
 	bytes = 1 << bits_flag;
-	if (XE_IOCTL_ERR(xe, args->addr + bytes > xe->mmio.size))
+	if (XE_IOCTL_DBG(xe, args->addr + bytes > xe->mmio.size))
 		return -EINVAL;
 
 	/*
@@ -488,7 +488,7 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & DRM_XE_MMIO_WRITE) {
 		switch (bits_flag) {
 		case DRM_XE_MMIO_32BIT:
-			if (XE_IOCTL_ERR(xe, args->value > U32_MAX)) {
+			if (XE_IOCTL_DBG(xe, args->value > U32_MAX)) {
 				ret = -EINVAL;
 				goto exit;
 			}

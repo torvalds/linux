@@ -184,22 +184,22 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	bool write_locked;
 	int err = 0;
 
-	if (XE_IOCTL_ERR(xe, args->extensions) ||
-	    XE_IOCTL_ERR(xe, args->pad[0] || args->pad[1] || args->pad[2]) ||
-	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->extensions) ||
+	    XE_IOCTL_DBG(xe, args->pad[0] || args->pad[1] || args->pad[2]) ||
+	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
 	engine = xe_engine_lookup(xef, args->engine_id);
-	if (XE_IOCTL_ERR(xe, !engine))
+	if (XE_IOCTL_DBG(xe, !engine))
 		return -ENOENT;
 
-	if (XE_IOCTL_ERR(xe, engine->flags & ENGINE_FLAG_VM))
+	if (XE_IOCTL_DBG(xe, engine->flags & ENGINE_FLAG_VM))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, engine->width != args->num_batch_buffer))
+	if (XE_IOCTL_DBG(xe, engine->width != args->num_batch_buffer))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, engine->flags & ENGINE_FLAG_BANNED)) {
+	if (XE_IOCTL_DBG(xe, engine->flags & ENGINE_FLAG_BANNED)) {
 		err = -ECANCELED;
 		goto err_engine;
 	}

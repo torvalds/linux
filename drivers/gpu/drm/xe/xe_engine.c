@@ -179,10 +179,10 @@ xe_engine_device_get_max_priority(struct xe_device *xe)
 static int engine_set_priority(struct xe_device *xe, struct xe_engine *e,
 			       u64 value, bool create)
 {
-	if (XE_IOCTL_ERR(xe, value > XE_ENGINE_PRIORITY_HIGH))
+	if (XE_IOCTL_DBG(xe, value > XE_ENGINE_PRIORITY_HIGH))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, value > xe_engine_device_get_max_priority(xe)))
+	if (XE_IOCTL_DBG(xe, value > xe_engine_device_get_max_priority(xe)))
 		return -EPERM;
 
 	return e->ops->set_priority(e, value);
@@ -210,33 +210,33 @@ static int engine_set_preemption_timeout(struct xe_device *xe,
 static int engine_set_compute_mode(struct xe_device *xe, struct xe_engine *e,
 				   u64 value, bool create)
 {
-	if (XE_IOCTL_ERR(xe, !create))
+	if (XE_IOCTL_DBG(xe, !create))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, e->flags & ENGINE_FLAG_COMPUTE_MODE))
+	if (XE_IOCTL_DBG(xe, e->flags & ENGINE_FLAG_COMPUTE_MODE))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, e->flags & ENGINE_FLAG_VM))
+	if (XE_IOCTL_DBG(xe, e->flags & ENGINE_FLAG_VM))
 		return -EINVAL;
 
 	if (value) {
 		struct xe_vm *vm = e->vm;
 		int err;
 
-		if (XE_IOCTL_ERR(xe, xe_vm_in_fault_mode(vm)))
+		if (XE_IOCTL_DBG(xe, xe_vm_in_fault_mode(vm)))
 			return -EOPNOTSUPP;
 
-		if (XE_IOCTL_ERR(xe, !xe_vm_in_compute_mode(vm)))
+		if (XE_IOCTL_DBG(xe, !xe_vm_in_compute_mode(vm)))
 			return -EOPNOTSUPP;
 
-		if (XE_IOCTL_ERR(xe, e->width != 1))
+		if (XE_IOCTL_DBG(xe, e->width != 1))
 			return -EINVAL;
 
 		e->compute.context = dma_fence_context_alloc(1);
 		spin_lock_init(&e->compute.lock);
 
 		err = xe_vm_add_compute_engine(vm, e);
-		if (XE_IOCTL_ERR(xe, err))
+		if (XE_IOCTL_DBG(xe, err))
 			return err;
 
 		e->flags |= ENGINE_FLAG_COMPUTE_MODE;
@@ -249,10 +249,10 @@ static int engine_set_compute_mode(struct xe_device *xe, struct xe_engine *e,
 static int engine_set_persistence(struct xe_device *xe, struct xe_engine *e,
 				  u64 value, bool create)
 {
-	if (XE_IOCTL_ERR(xe, !create))
+	if (XE_IOCTL_DBG(xe, !create))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, e->flags & ENGINE_FLAG_COMPUTE_MODE))
+	if (XE_IOCTL_DBG(xe, e->flags & ENGINE_FLAG_COMPUTE_MODE))
 		return -EINVAL;
 
 	if (value)
@@ -266,7 +266,7 @@ static int engine_set_persistence(struct xe_device *xe, struct xe_engine *e,
 static int engine_set_job_timeout(struct xe_device *xe, struct xe_engine *e,
 				  u64 value, bool create)
 {
-	if (XE_IOCTL_ERR(xe, !create))
+	if (XE_IOCTL_DBG(xe, !create))
 		return -EINVAL;
 
 	if (!capable(CAP_SYS_NICE))
@@ -278,10 +278,10 @@ static int engine_set_job_timeout(struct xe_device *xe, struct xe_engine *e,
 static int engine_set_acc_trigger(struct xe_device *xe, struct xe_engine *e,
 				  u64 value, bool create)
 {
-	if (XE_IOCTL_ERR(xe, !create))
+	if (XE_IOCTL_DBG(xe, !create))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, !xe->info.supports_usm))
+	if (XE_IOCTL_DBG(xe, !xe->info.supports_usm))
 		return -EINVAL;
 
 	e->usm.acc_trigger = value;
@@ -292,10 +292,10 @@ static int engine_set_acc_trigger(struct xe_device *xe, struct xe_engine *e,
 static int engine_set_acc_notify(struct xe_device *xe, struct xe_engine *e,
 				 u64 value, bool create)
 {
-	if (XE_IOCTL_ERR(xe, !create))
+	if (XE_IOCTL_DBG(xe, !create))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, !xe->info.supports_usm))
+	if (XE_IOCTL_DBG(xe, !xe->info.supports_usm))
 		return -EINVAL;
 
 	e->usm.acc_notify = value;
@@ -306,10 +306,10 @@ static int engine_set_acc_notify(struct xe_device *xe, struct xe_engine *e,
 static int engine_set_acc_granularity(struct xe_device *xe, struct xe_engine *e,
 				      u64 value, bool create)
 {
-	if (XE_IOCTL_ERR(xe, !create))
+	if (XE_IOCTL_DBG(xe, !create))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, !xe->info.supports_usm))
+	if (XE_IOCTL_DBG(xe, !xe->info.supports_usm))
 		return -EINVAL;
 
 	e->usm.acc_granularity = value;
@@ -344,12 +344,12 @@ static int engine_user_ext_set_property(struct xe_device *xe,
 	u32 idx;
 
 	err = __copy_from_user(&ext, address, sizeof(ext));
-	if (XE_IOCTL_ERR(xe, err))
+	if (XE_IOCTL_DBG(xe, err))
 		return -EFAULT;
 
-	if (XE_IOCTL_ERR(xe, ext.property >=
+	if (XE_IOCTL_DBG(xe, ext.property >=
 			 ARRAY_SIZE(engine_set_property_funcs)) ||
-	    XE_IOCTL_ERR(xe, ext.pad))
+	    XE_IOCTL_DBG(xe, ext.pad))
 		return -EINVAL;
 
 	idx = array_index_nospec(ext.property, ARRAY_SIZE(engine_set_property_funcs));
@@ -374,22 +374,22 @@ static int engine_user_extensions(struct xe_device *xe, struct xe_engine *e,
 	int err;
 	u32 idx;
 
-	if (XE_IOCTL_ERR(xe, ext_number >= MAX_USER_EXTENSIONS))
+	if (XE_IOCTL_DBG(xe, ext_number >= MAX_USER_EXTENSIONS))
 		return -E2BIG;
 
 	err = __copy_from_user(&ext, address, sizeof(ext));
-	if (XE_IOCTL_ERR(xe, err))
+	if (XE_IOCTL_DBG(xe, err))
 		return -EFAULT;
 
-	if (XE_IOCTL_ERR(xe, ext.pad) ||
-	    XE_IOCTL_ERR(xe, ext.name >=
+	if (XE_IOCTL_DBG(xe, ext.pad) ||
+	    XE_IOCTL_DBG(xe, ext.name >=
 			 ARRAY_SIZE(engine_user_extension_funcs)))
 		return -EINVAL;
 
 	idx = array_index_nospec(ext.name,
 				 ARRAY_SIZE(engine_user_extension_funcs));
 	err = engine_user_extension_funcs[idx](xe, e, extensions, create);
-	if (XE_IOCTL_ERR(xe, err))
+	if (XE_IOCTL_DBG(xe, err))
 		return err;
 
 	if (ext.next_extension)
@@ -435,11 +435,11 @@ static u32 bind_engine_logical_mask(struct xe_device *xe, struct xe_gt *gt,
 	enum xe_hw_engine_id id;
 	u32 logical_mask = 0;
 
-	if (XE_IOCTL_ERR(xe, width != 1))
+	if (XE_IOCTL_DBG(xe, width != 1))
 		return 0;
-	if (XE_IOCTL_ERR(xe, num_placements != 1))
+	if (XE_IOCTL_DBG(xe, num_placements != 1))
 		return 0;
-	if (XE_IOCTL_ERR(xe, eci[0].engine_instance != 0))
+	if (XE_IOCTL_DBG(xe, eci[0].engine_instance != 0))
 		return 0;
 
 	eci[0].engine_class = DRM_XE_ENGINE_CLASS_COPY;
@@ -466,7 +466,7 @@ static u32 calc_validate_logical_mask(struct xe_device *xe, struct xe_gt *gt,
 	u16 gt_id;
 	u32 return_mask = 0, prev_mask;
 
-	if (XE_IOCTL_ERR(xe, !xe_device_guc_submission_enabled(xe) &&
+	if (XE_IOCTL_DBG(xe, !xe_device_guc_submission_enabled(xe) &&
 			 len > 1))
 		return 0;
 
@@ -479,14 +479,14 @@ static u32 calc_validate_logical_mask(struct xe_device *xe, struct xe_gt *gt,
 			n = j * width + i;
 
 			hwe = find_hw_engine(xe, eci[n]);
-			if (XE_IOCTL_ERR(xe, !hwe))
+			if (XE_IOCTL_DBG(xe, !hwe))
 				return 0;
 
-			if (XE_IOCTL_ERR(xe, xe_hw_engine_is_reserved(hwe)))
+			if (XE_IOCTL_DBG(xe, xe_hw_engine_is_reserved(hwe)))
 				return 0;
 
-			if (XE_IOCTL_ERR(xe, n && eci[n].gt_id != gt_id) ||
-			    XE_IOCTL_ERR(xe, n && eci[n].engine_class != class))
+			if (XE_IOCTL_DBG(xe, n && eci[n].gt_id != gt_id) ||
+			    XE_IOCTL_DBG(xe, n && eci[n].engine_class != class))
 				return 0;
 
 			class = eci[n].engine_class;
@@ -498,7 +498,7 @@ static u32 calc_validate_logical_mask(struct xe_device *xe, struct xe_gt *gt,
 		}
 
 		/* Parallel submissions must be logically contiguous */
-		if (i && XE_IOCTL_ERR(xe, current_mask != prev_mask << 1))
+		if (i && XE_IOCTL_DBG(xe, current_mask != prev_mask << 1))
 			return 0;
 
 		prev_mask = current_mask;
@@ -525,21 +525,21 @@ int xe_engine_create_ioctl(struct drm_device *dev, void *data,
 	u32 len;
 	int err;
 
-	if (XE_IOCTL_ERR(xe, args->flags) ||
-	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->flags) ||
+	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
 	len = args->width * args->num_placements;
-	if (XE_IOCTL_ERR(xe, !len || len > XE_HW_ENGINE_MAX_INSTANCE))
+	if (XE_IOCTL_DBG(xe, !len || len > XE_HW_ENGINE_MAX_INSTANCE))
 		return -EINVAL;
 
 	err = __copy_from_user(eci, user_eci,
 			       sizeof(struct drm_xe_engine_class_instance) *
 			       len);
-	if (XE_IOCTL_ERR(xe, err))
+	if (XE_IOCTL_DBG(xe, err))
 		return -EFAULT;
 
-	if (XE_IOCTL_ERR(xe, eci[0].gt_id >= xe->info.tile_count))
+	if (XE_IOCTL_DBG(xe, eci[0].gt_id >= xe->info.tile_count))
 		return -EINVAL;
 
 	if (eci[0].engine_class == DRM_XE_ENGINE_CLASS_VM_BIND) {
@@ -553,11 +553,11 @@ int xe_engine_create_ioctl(struct drm_device *dev, void *data,
 			logical_mask = bind_engine_logical_mask(xe, gt, eci,
 								args->width,
 								args->num_placements);
-			if (XE_IOCTL_ERR(xe, !logical_mask))
+			if (XE_IOCTL_DBG(xe, !logical_mask))
 				return -EINVAL;
 
 			hwe = find_hw_engine(xe, eci[0]);
-			if (XE_IOCTL_ERR(xe, !hwe))
+			if (XE_IOCTL_DBG(xe, !hwe))
 				return -EINVAL;
 
 			migrate_vm = xe_migrate_get_vm(gt_to_tile(gt)->migrate);
@@ -586,15 +586,15 @@ int xe_engine_create_ioctl(struct drm_device *dev, void *data,
 		logical_mask = calc_validate_logical_mask(xe, gt, eci,
 							  args->width,
 							  args->num_placements);
-		if (XE_IOCTL_ERR(xe, !logical_mask))
+		if (XE_IOCTL_DBG(xe, !logical_mask))
 			return -EINVAL;
 
 		hwe = find_hw_engine(xe, eci[0]);
-		if (XE_IOCTL_ERR(xe, !hwe))
+		if (XE_IOCTL_DBG(xe, !hwe))
 			return -EINVAL;
 
 		vm = xe_vm_lookup(xef, args->vm_id);
-		if (XE_IOCTL_ERR(xe, !vm))
+		if (XE_IOCTL_DBG(xe, !vm))
 			return -ENOENT;
 
 		err = down_read_interruptible(&vm->lock);
@@ -603,7 +603,7 @@ int xe_engine_create_ioctl(struct drm_device *dev, void *data,
 			return err;
 		}
 
-		if (XE_IOCTL_ERR(xe, xe_vm_is_closed_or_banned(vm))) {
+		if (XE_IOCTL_DBG(xe, xe_vm_is_closed_or_banned(vm))) {
 			up_read(&vm->lock);
 			xe_vm_put(vm);
 			return -ENOENT;
@@ -621,11 +621,11 @@ int xe_engine_create_ioctl(struct drm_device *dev, void *data,
 
 	if (args->extensions) {
 		err = engine_user_extensions(xe, e, args->extensions, 0, true);
-		if (XE_IOCTL_ERR(xe, err))
+		if (XE_IOCTL_DBG(xe, err))
 			goto put_engine;
 	}
 
-	if (XE_IOCTL_ERR(xe, e->vm && xe_vm_in_compute_mode(e->vm) !=
+	if (XE_IOCTL_DBG(xe, e->vm && xe_vm_in_compute_mode(e->vm) !=
 			 !!(e->flags & ENGINE_FLAG_COMPUTE_MODE))) {
 		err = -EOPNOTSUPP;
 		goto put_engine;
@@ -658,11 +658,11 @@ int xe_engine_get_property_ioctl(struct drm_device *dev, void *data,
 	struct xe_engine *e;
 	int ret;
 
-	if (XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
 	e = xe_engine_lookup(xef, args->engine_id);
-	if (XE_IOCTL_ERR(xe, !e))
+	if (XE_IOCTL_DBG(xe, !e))
 		return -ENOENT;
 
 	switch (args->property) {
@@ -771,14 +771,14 @@ int xe_engine_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_xe_engine_destroy *args = data;
 	struct xe_engine *e;
 
-	if (XE_IOCTL_ERR(xe, args->pad) ||
-	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->pad) ||
+	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
 	mutex_lock(&xef->engine.lock);
 	e = xa_erase(&xef->engine.xa, args->engine_id);
 	mutex_unlock(&xef->engine.lock);
-	if (XE_IOCTL_ERR(xe, !e))
+	if (XE_IOCTL_DBG(xe, !e))
 		return -ENOENT;
 
 	if (!(e->flags & ENGINE_FLAG_PERSISTENT))
@@ -802,14 +802,14 @@ int xe_engine_set_property_ioctl(struct drm_device *dev, void *data,
 	int ret;
 	u32 idx;
 
-	if (XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
 	e = xe_engine_lookup(xef, args->engine_id);
-	if (XE_IOCTL_ERR(xe, !e))
+	if (XE_IOCTL_DBG(xe, !e))
 		return -ENOENT;
 
-	if (XE_IOCTL_ERR(xe, args->property >=
+	if (XE_IOCTL_DBG(xe, args->property >=
 			 ARRAY_SIZE(engine_set_property_funcs))) {
 		ret = -EINVAL;
 		goto out;
@@ -818,7 +818,7 @@ int xe_engine_set_property_ioctl(struct drm_device *dev, void *data,
 	idx = array_index_nospec(args->property,
 				 ARRAY_SIZE(engine_set_property_funcs));
 	ret = engine_set_property_funcs[idx](xe, e, args->value, false);
-	if (XE_IOCTL_ERR(xe, ret))
+	if (XE_IOCTL_DBG(xe, ret))
 		goto out;
 
 	if (args->extensions)

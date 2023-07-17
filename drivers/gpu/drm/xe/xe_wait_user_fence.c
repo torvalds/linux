@@ -117,51 +117,51 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 	unsigned long timeout;
 	ktime_t start;
 
-	if (XE_IOCTL_ERR(xe, args->extensions) || XE_IOCTL_ERR(xe, args->pad) ||
-	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+	if (XE_IOCTL_DBG(xe, args->extensions) || XE_IOCTL_DBG(xe, args->pad) ||
+	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->flags & ~VALID_FLAGS))
+	if (XE_IOCTL_DBG(xe, args->flags & ~VALID_FLAGS))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->op > MAX_OP))
+	if (XE_IOCTL_DBG(xe, args->op > MAX_OP))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, no_engines &&
+	if (XE_IOCTL_DBG(xe, no_engines &&
 			 (args->num_engines || args->instances)))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, !no_engines && !args->num_engines))
+	if (XE_IOCTL_DBG(xe, !no_engines && !args->num_engines))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, !(args->flags & DRM_XE_UFENCE_WAIT_VM_ERROR) &&
+	if (XE_IOCTL_DBG(xe, !(args->flags & DRM_XE_UFENCE_WAIT_VM_ERROR) &&
 			 addr & 0x7))
 		return -EINVAL;
 
-	if (XE_IOCTL_ERR(xe, args->num_engines > XE_HW_ENGINE_MAX_INSTANCE))
+	if (XE_IOCTL_DBG(xe, args->num_engines > XE_HW_ENGINE_MAX_INSTANCE))
 		return -EINVAL;
 
 	if (!no_engines) {
 		err = copy_from_user(eci, user_eci,
 				     sizeof(struct drm_xe_engine_class_instance) *
 			     args->num_engines);
-		if (XE_IOCTL_ERR(xe, err))
+		if (XE_IOCTL_DBG(xe, err))
 			return -EFAULT;
 
-		if (XE_IOCTL_ERR(xe, check_hw_engines(xe, eci,
+		if (XE_IOCTL_DBG(xe, check_hw_engines(xe, eci,
 						      args->num_engines)))
 			return -EINVAL;
 	}
 
 	if (args->flags & DRM_XE_UFENCE_WAIT_VM_ERROR) {
-		if (XE_IOCTL_ERR(xe, args->vm_id >> 32))
+		if (XE_IOCTL_DBG(xe, args->vm_id >> 32))
 			return -EINVAL;
 
 		vm = xe_vm_lookup(to_xe_file(file), args->vm_id);
-		if (XE_IOCTL_ERR(xe, !vm))
+		if (XE_IOCTL_DBG(xe, !vm))
 			return -ENOENT;
 
-		if (XE_IOCTL_ERR(xe, !vm->async_ops.error_capture.addr)) {
+		if (XE_IOCTL_DBG(xe, !vm->async_ops.error_capture.addr)) {
 			xe_vm_put(vm);
 			return -EOPNOTSUPP;
 		}
@@ -226,9 +226,9 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 			args->timeout = 0;
 	}
 
-	if (XE_IOCTL_ERR(xe, err < 0))
+	if (XE_IOCTL_DBG(xe, err < 0))
 		return err;
-	else if (XE_IOCTL_ERR(xe, !timeout))
+	else if (XE_IOCTL_DBG(xe, !timeout))
 		return -ETIME;
 
 	return 0;
