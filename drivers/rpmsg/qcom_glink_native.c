@@ -1070,8 +1070,10 @@ static void qcom_glink_handle_signals(struct qcom_glink *glink,
 	spin_lock_irqsave(&glink->idr_lock, flags);
 	channel = idr_find(&glink->rcids, rcid);
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
-	if (!channel)
+	if (!channel) {
 		dev_err(glink->dev, "signal for non-existing channel\n");
+		return;
+	}
 
 	enable = sigs & NATIVE_DSR_SIG || sigs & NATIVE_CTS_SIG;
 
