@@ -1996,6 +1996,24 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 	return ret;
 }
 
+int bch2_btree_bit_mod(struct btree_trans *trans, enum btree_id btree,
+		       struct bpos pos, bool set)
+{
+	struct bkey_i *k;
+	int ret = 0;
+
+	k = bch2_trans_kmalloc_nomemzero(trans, sizeof(*k));
+	ret = PTR_ERR_OR_ZERO(k);
+	if (unlikely(ret))
+		return ret;
+
+	bkey_init(&k->k);
+	k->k.type = set ? KEY_TYPE_set : KEY_TYPE_deleted;
+	k->k.p = pos;
+
+	return bch2_trans_update_buffered(trans, btree, k);
+}
+
 static int __bch2_trans_log_msg(darray_u64 *entries, const char *fmt, va_list args)
 {
 	struct printbuf buf = PRINTBUF;

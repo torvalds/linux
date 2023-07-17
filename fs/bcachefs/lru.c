@@ -41,28 +41,12 @@ void bch2_lru_pos_to_text(struct printbuf *out, struct bpos lru)
 }
 
 static int __bch2_lru_set(struct btree_trans *trans, u16 lru_id,
-			u64 dev_bucket, u64 time, unsigned key_type)
+			  u64 dev_bucket, u64 time, bool set)
 {
-	struct bkey_i *k;
-	int ret = 0;
-
-	if (!time)
-		return 0;
-
-	k = bch2_trans_kmalloc_nomemzero(trans, sizeof(*k));
-	ret = PTR_ERR_OR_ZERO(k);
-	if (unlikely(ret))
-		return ret;
-
-	bkey_init(&k->k);
-	k->k.type = key_type;
-	k->k.p = lru_pos(lru_id, dev_bucket, time);
-
-	EBUG_ON(lru_pos_id(k->k.p) != lru_id);
-	EBUG_ON(lru_pos_time(k->k.p) != time);
-	EBUG_ON(k->k.p.offset != dev_bucket);
-
-	return bch2_trans_update_buffered(trans, BTREE_ID_lru, k);
+	return time
+		? bch2_btree_bit_mod(trans, BTREE_ID_lru,
+				     lru_pos(lru_id, dev_bucket, time), set)
+		: 0;
 }
 
 int bch2_lru_del(struct btree_trans *trans, u16 lru_id, u64 dev_bucket, u64 time)
