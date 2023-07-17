@@ -1320,6 +1320,7 @@
 	uartd: serial@70006300 {
 		compatible = "nvidia,tegra30-hsuart";
 		reset-names = "serial";
+		/delete-property/ reg-shift;
 		status = "okay";
 
 		bluetooth {
