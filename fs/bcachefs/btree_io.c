@@ -610,7 +610,7 @@ static int __btree_err(enum btree_err_type type,
 	case BTREE_ERR_BAD_NODE:
 		bch2_print_string_as_lines(KERN_ERR, out.buf);
 		bch2_topology_error(c);
-		ret = -BCH_ERR_need_topology_repair;
+		ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology) ?: -EIO;
 		break;
 	case BTREE_ERR_INCOMPATIBLE:
 		bch2_print_string_as_lines(KERN_ERR, out.buf);
@@ -1566,7 +1566,8 @@ void bch2_btree_node_read(struct bch_fs *c, struct btree *b,
 		btree_pos_to_text(&buf, c, b);
 		bch_err(c, "%s", buf.buf);
 
-		if (test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags))
+		if (c->recovery_passes_explicit & BIT_ULL(BCH_RECOVERY_PASS_check_topology) &&
+		    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_topology)
 			bch2_fatal_error(c);
 
 		set_btree_node_read_error(b);

@@ -563,7 +563,6 @@ enum {
 	BCH_FS_CLEAN_SHUTDOWN,
 
 	/* fsck passes: */
-	BCH_FS_TOPOLOGY_REPAIR_DONE,
 	BCH_FS_FSCK_DONE,
 	BCH_FS_INITIAL_GC_UNFIXED,	/* kill when we enumerate fsck errors */
 	BCH_FS_NEED_ANOTHER_GC,
@@ -666,6 +665,7 @@ enum bch_write_ref {
 	x(stripes_read,			PASS_ALWAYS)						\
 	x(initialize_subvolumes,	0)							\
 	x(snapshots_read,		PASS_ALWAYS)						\
+	x(check_topology,		0)							\
 	x(check_allocations,		PASS_FSCK)						\
 	x(set_may_go_rw,		PASS_ALWAYS|PASS_SILENT)				\
 	x(journal_replay,		PASS_ALWAYS)						\
@@ -1185,11 +1185,14 @@ static inline bool bch2_dev_exists2(const struct bch_fs *c, unsigned dev)
 static inline int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 						  enum bch_recovery_pass pass)
 {
-	BUG_ON(c->curr_recovery_pass < pass);
-
 	c->recovery_passes_explicit |= BIT_ULL(pass);
-	c->curr_recovery_pass = pass;
-	return -BCH_ERR_restart_recovery;
+
+	if (c->curr_recovery_pass >= pass) {
+		c->curr_recovery_pass = pass;
+		return -BCH_ERR_restart_recovery;
+	} else {
+		return 0;
+	}
 }
 
 #define BKEY_PADDED_ONSTACK(key, pad)				\

@@ -40,6 +40,12 @@
 #define DROP_THIS_NODE		10
 #define DROP_PREV_NODE		11
 
+static bool should_restart_for_topology_repair(struct bch_fs *c)
+{
+	return c->opts.fix_errors != FSCK_FIX_no &&
+		!(c->recovery_passes_explicit & BIT_ULL(BCH_RECOVERY_PASS_check_topology));
+}
+
 static inline void __gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
 {
 	preempt_disable();
@@ -96,9 +102,9 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 				  "  cur %s",
 				  bch2_btree_ids[b->c.btree_id], b->c.level,
 				  buf1.buf, buf2.buf) &&
-			    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
+			    should_restart_for_topology_repair(c)) {
 				bch_info(c, "Halting mark and sweep to start topology repair pass");
-				ret = -BCH_ERR_need_topology_repair;
+				ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
 				goto err;
 			} else {
 				set_bit(BCH_FS_INITIAL_GC_UNFIXED, &c->flags);
@@ -124,9 +130,9 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 			  "  expected %s",
 			  bch2_btree_ids[b->c.btree_id], b->c.level,
 			  buf1.buf, buf2.buf) &&
-		    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
+		    should_restart_for_topology_repair(c)) {
 			bch_info(c, "Halting mark and sweep to start topology repair pass");
-			ret = -BCH_ERR_need_topology_repair;
+			ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
 			goto err;
 		} else {
 			set_bit(BCH_FS_INITIAL_GC_UNFIXED, &c->flags);
@@ -520,7 +526,7 @@ fsck_err:
 	return ret;
 }
 
-static int bch2_repair_topology(struct bch_fs *c)
+int bch2_check_topology(struct bch_fs *c)
 {
 	struct btree_trans trans;
 	struct btree *b;
@@ -969,9 +975,9 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 					  b->c.level - 1,
 					  (printbuf_reset(&buf),
 					   bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur.k)), buf.buf)) &&
-				    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
-					ret = -BCH_ERR_need_topology_repair;
+				    should_restart_for_topology_repair(c)) {
 					bch_info(c, "Halting mark and sweep to start topology repair pass");
+					ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
 					goto fsck_err;
 				} else {
 					/* Continue marking when opted to not
@@ -1805,31 +1811,7 @@ again:
 
 	bch2_mark_superblocks(c);
 
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) ||
-	    (BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb) &&
-	     c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_allocations &&
-	     c->opts.fix_errors != FSCK_FIX_no)) {
-		bch_info(c, "Starting topology repair pass");
-		ret = bch2_repair_topology(c);
-		if (ret)
-			goto out;
-		bch_info(c, "Topology repair pass done");
-
-		set_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags);
-	}
-
 	ret = bch2_gc_btrees(c, initial, metadata_only);
-
-	if (ret == -BCH_ERR_need_topology_repair &&
-	    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags) &&
-	    c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_allocations) {
-		set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
-		SET_BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb, true);
-		ret = 0;
-	}
-
-	if (ret == -BCH_ERR_need_topology_repair)
-		ret = -BCH_ERR_fsck_errors_not_fixed;
 
 	if (ret)
 		goto out;

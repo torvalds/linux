@@ -1262,16 +1262,15 @@ static int bch2_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 static int bch2_run_recovery_passes(struct bch_fs *c)
 {
 	int ret = 0;
-again:
+
 	while (c->curr_recovery_pass < ARRAY_SIZE(recovery_passes)) {
 		ret = bch2_run_recovery_pass(c, c->curr_recovery_pass);
+		if (bch2_err_matches(ret, BCH_ERR_restart_recovery))
+			continue;
 		if (ret)
 			break;
 		c->curr_recovery_pass++;
 	}
-
-	if (bch2_err_matches(ret, BCH_ERR_restart_recovery))
-		goto again;
 
 	return ret;
 }
@@ -1449,6 +1448,11 @@ use_clean:
 	ret = read_btree_roots(c);
 	if (ret)
 		goto err;
+
+	if (c->opts.fsck &&
+	    (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) ||
+	     BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb)))
+		c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
 
 	ret = bch2_run_recovery_passes(c);
 	if (ret)

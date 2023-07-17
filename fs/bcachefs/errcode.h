@@ -158,7 +158,6 @@
 	x(BCH_ERR_fsck,			fsck_repair_unimplemented)		\
 	x(BCH_ERR_fsck,			fsck_repair_impossible)			\
 	x(0,				restart_recovery)			\
-	x(0,				need_topology_repair)			\
 	x(0,				unwritten_extent_update)		\
 	x(EINVAL,			device_state_not_allowed)		\
 	x(EINVAL,			member_info_missing)			\
