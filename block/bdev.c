@@ -248,9 +248,9 @@ int freeze_bdev(struct block_device *bdev)
 	if (!sb)
 		goto sync;
 	if (sb->s_op->freeze_super)
-		error = sb->s_op->freeze_super(sb);
+		error = sb->s_op->freeze_super(sb, FREEZE_HOLDER_USERSPACE);
 	else
-		error = freeze_super(sb);
+		error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
 	deactivate_super(sb);
 
 	if (error) {
@@ -291,9 +291,9 @@ int thaw_bdev(struct block_device *bdev)
 		goto out;
 
 	if (sb->s_op->thaw_super)
-		error = sb->s_op->thaw_super(sb);
+		error = sb->s_op->thaw_super(sb, FREEZE_HOLDER_USERSPACE);
 	else
-		error = thaw_super(sb);
+		error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
 	if (error)
 		bdev->bd_fsfreeze_count++;
 	else
