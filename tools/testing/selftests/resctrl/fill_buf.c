@@ -22,8 +22,6 @@
 #define PAGE_SIZE		(4 * 1024)
 #define MB			(1024 * 1024)
 
-static unsigned char *startptr;
-
 static void sb(void)
 {
 #if defined(__i386) || defined(__x86_64)
@@ -147,7 +145,6 @@ static int fill_cache(size_t buf_size, int memflush, int op, char *resctrl_val)
 	if (!start_ptr)
 		return -1;
 
-	startptr = start_ptr;
 	end_ptr = start_ptr + buf_size;
 
 	/* Flush the memory before using to avoid "cache hot pages" effect */
@@ -159,7 +156,7 @@ static int fill_cache(size_t buf_size, int memflush, int op, char *resctrl_val)
 	else
 		ret = fill_cache_write(start_ptr, end_ptr, resctrl_val);
 
-	free(startptr);
+	free(start_ptr);
 
 	if (ret) {
 		printf("\n Error in fill cache read/write...\n");
