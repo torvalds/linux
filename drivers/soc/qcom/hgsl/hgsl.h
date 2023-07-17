@@ -23,7 +23,7 @@
 
 /* Support upto 3 GVMs: 3 DBQs(Low/Medium/High priority) per GVM */
 #define MAX_DB_QUEUE 9
-#define HGSL_TCSR_NUM 2
+#define HGSL_TCSR_NUM 4
 
 struct qcom_hgsl;
 struct hgsl_hsync_timeline;

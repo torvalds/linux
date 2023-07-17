@@ -61,6 +61,9 @@
 #define DB_SIGNAL_GLOBAL_1	2
 #define DB_SIGNAL_LOCAL	3
 #define DB_SIGNAL_MAX	DB_SIGNAL_LOCAL
+#define DB_SIGNAL_GLOBAL_2	3
+#define DB_SIGNAL_GLOBAL_3	4
+#define DBCQ_SIGNAL_MAX	DB_SIGNAL_GLOBAL_3
 #define HGSL_CLEANUP_WAIT_SLICE_IN_MS  50
 
 #define QHDR_STATUS_INACTIVE 0x00
@@ -874,7 +877,7 @@ static void hgsl_dbcq_init(struct hgsl_priv *priv,
 	int ret = 0;
 
 	if ((db_signal <= DB_SIGNAL_INVALID) ||
-		(db_signal > DB_SIGNAL_MAX) ||
+		(db_signal > DBCQ_SIGNAL_MAX) ||
 		(gmuaddr == 0) ||
 		(irq_idx == GLB_DB_DEST_TS_RETIRE_IRQ_ID)) {
 		LOGE("Invalid db signal %d or queue buffer 0x%x\n or irq_idx %d",
@@ -888,8 +891,7 @@ static void hgsl_dbcq_init(struct hgsl_priv *priv,
 		goto err;
 	}
 
-	tcsr_idx = (db_signal != DB_SIGNAL_LOCAL) ?
-				db_signal - DB_SIGNAL_GLOBAL_0 : -1;
+	tcsr_idx = db_signal - DB_SIGNAL_GLOBAL_0;
 	ret = hgsl_init_db_signal(hgsl, tcsr_idx);
 	if (ret != 0) {
 		LOGE("failed to init dbcq signal %d", db_signal);
