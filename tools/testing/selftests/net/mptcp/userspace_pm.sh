@@ -1,6 +1,13 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+# Double quotes to prevent globbing and word splitting is recommended in new
+# code but we accept it.
+#shellcheck disable=SC2086
+
+# Some variables are used below but indirectly, see check_expected_one()
+#shellcheck disable=SC2034
+
 . "$(dirname "${0}")/mptcp_lib.sh"
 
 mptcp_lib_check_mptcp
@@ -11,8 +18,7 @@ if ! mptcp_lib_has_file '/proc/sys/net/mptcp/pm_type'; then
 	exit ${KSFT_SKIP}
 fi
 
-ip -Version > /dev/null 2>&1
-if [ $? -ne 0 ];then
+if ! ip -Version &> /dev/null; then
 	echo "SKIP: Cannot not run test without ip tool"
 	exit ${KSFT_SKIP}
 fi
@@ -68,6 +74,8 @@ kill_wait()
 	wait $1 2>/dev/null
 }
 
+# This function is used in the cleanup trap
+#shellcheck disable=SC2317
 cleanup()
 {
 	print_title "Cleanup"
