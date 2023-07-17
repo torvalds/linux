@@ -8,6 +8,7 @@ load(
     "kernel_compile_commands",
     "kernel_images",
     "kernel_modules_install",
+    "kernel_uapi_headers_cc_library",
     "merged_kernel_uapi_headers",
 )
 load(
@@ -205,6 +206,17 @@ def _define_kernel_dist(target, msm_target, variant):
         dist_dir = dist_dir,
     )
 
+def _define_uapi_library(target):
+    """Define a cc_library for userspace programs to use
+
+    Args:
+      target: kernel_build target name (e.g. "kalama_gki")
+    """
+    kernel_uapi_headers_cc_library(
+        name = "{}_uapi_header_library".format(target),
+        kernel_build = ":{}".format(target),
+    )
+
 def define_msm_lxc(
         msm_target,
         variant,
@@ -269,6 +281,10 @@ def define_msm_lxc(
 
     _define_kernel_dist(target, msm_target, variant)
 
+    _define_uapi_library(target)
+
     define_abl_dist(target, msm_target, variant)
 
     define_dtc_dist(target, msm_target, variant)
+
+    define_extras(target)
