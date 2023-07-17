@@ -92,6 +92,7 @@ static const struct pci_epf_mhi_ep_info sdx55_info = {
 };
 
 struct pci_epf_mhi {
+	const struct pci_epc_features *epc_features;
 	const struct pci_epf_mhi_ep_info *info;
 	struct mhi_ep_cntrl mhi_cntrl;
 	struct pci_epf *epf;
@@ -101,6 +102,11 @@ struct pci_epf_mhi {
 	u32 mmio_size;
 	int irq;
 };
+
+static size_t get_align_offset(struct pci_epf_mhi *epf_mhi, u64 addr)
+{
+	return addr & (epf_mhi->epc_features->align -1);
+}
 
 static int __pci_epf_mhi_alloc_map(struct mhi_ep_cntrl *mhi_cntrl, u64 pci_addr,
 				 phys_addr_t *paddr, void __iomem **vaddr,
@@ -133,8 +139,7 @@ static int pci_epf_mhi_alloc_map(struct mhi_ep_cntrl *mhi_cntrl, u64 pci_addr,
 				 size_t size)
 {
 	struct pci_epf_mhi *epf_mhi = to_epf_mhi(mhi_cntrl);
-	struct pci_epc *epc = epf_mhi->epf->epc;
-	size_t offset = pci_addr & (epc->mem->window.page_size - 1);
+	size_t offset = get_align_offset(epf_mhi, pci_addr);
 
 	return __pci_epf_mhi_alloc_map(mhi_cntrl, pci_addr, paddr, vaddr,
 				      offset, size);
@@ -159,9 +164,7 @@ static void pci_epf_mhi_unmap_free(struct mhi_ep_cntrl *mhi_cntrl, u64 pci_addr,
 				   size_t size)
 {
 	struct pci_epf_mhi *epf_mhi = to_epf_mhi(mhi_cntrl);
-	struct pci_epf *epf = epf_mhi->epf;
-	struct pci_epc *epc = epf->epc;
-	size_t offset = pci_addr & (epc->mem->window.page_size - 1);
+	size_t offset = get_align_offset(epf_mhi, pci_addr);
 
 	__pci_epf_mhi_unmap_free(mhi_cntrl, pci_addr, paddr, vaddr, offset,
 				 size);
@@ -185,7 +188,7 @@ static int pci_epf_mhi_read_from_host(struct mhi_ep_cntrl *mhi_cntrl, u64 from,
 				      void *to, size_t size)
 {
 	struct pci_epf_mhi *epf_mhi = to_epf_mhi(mhi_cntrl);
-	size_t offset = from % SZ_4K;
+	size_t offset = get_align_offset(epf_mhi, from);
 	void __iomem *tre_buf;
 	phys_addr_t tre_phys;
 	int ret;
@@ -213,7 +216,7 @@ static int pci_epf_mhi_write_to_host(struct mhi_ep_cntrl *mhi_cntrl,
 				     void *from, u64 to, size_t size)
 {
 	struct pci_epf_mhi *epf_mhi = to_epf_mhi(mhi_cntrl);
-	size_t offset = to % SZ_4K;
+	size_t offset = get_align_offset(epf_mhi, to);
 	void __iomem *tre_buf;
 	phys_addr_t tre_phys;
 	int ret;
@@ -269,6 +272,10 @@ static int pci_epf_mhi_core_init(struct pci_epf *epf)
 		dev_err(dev, "Failed to set Configuration header: %d\n", ret);
 		return ret;
 	}
+
+	epf_mhi->epc_features = pci_epc_get_features(epc, epf->func_no, epf->vfunc_no);
+	if (!epf_mhi->epc_features)
+		return -ENODATA;
 
 	return 0;
 }
