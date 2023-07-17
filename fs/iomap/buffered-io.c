@@ -875,7 +875,7 @@ iomap_file_buffered_write(struct kiocb *iocb, struct iov_iter *i,
 	if (unlikely(iter.pos == iocb->ki_pos))
 		return ret;
 	ret = iter.pos - iocb->ki_pos;
-	iocb->ki_pos += ret;
+	iocb->ki_pos = iter.pos;
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iomap_file_buffered_write);
