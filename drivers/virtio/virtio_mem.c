@@ -2431,7 +2431,6 @@ static void virtio_mem_run_wq(struct work_struct *work)
 
 	atomic_set(&vm->wq_active, 1);
 
-	noreclaim_flag = memalloc_noreclaim_save();
 retry:
 	rc = 0;
 
@@ -2451,7 +2450,9 @@ retry:
 	if (!rc && vm->requested_size != vm->plugged_size) {
 		if (vm->requested_size > vm->plugged_size) {
 			diff = vm->requested_size - vm->plugged_size;
+			noreclaim_flag = memalloc_noreclaim_save();
 			rc = virtio_mem_plug_request(vm, diff);
+			memalloc_noreclaim_restore(noreclaim_flag);
 		} else {
 			diff = vm->plugged_size - vm->requested_size;
 			rc = virtio_mem_unplug_request(vm, diff);
@@ -2494,7 +2495,6 @@ retry:
 	}
 
 	atomic_set(&vm->wq_active, 0);
-	memalloc_noreclaim_restore(noreclaim_flag);
 }
 
 static enum hrtimer_restart virtio_mem_timer_expired(struct hrtimer *timer)
