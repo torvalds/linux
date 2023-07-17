@@ -4355,6 +4355,12 @@
 		power-domains = <&power RK3588_PD_VI>;
 		rockchip,grf = <&sys_grf>;
 		iommus = <&rkcif_mmu>;
+		nvmem-cells = <&specification_serial_number>,
+			      <&package_serial_number_low>,
+			      <&package_serial_number_high>;
+		nvmem-cell-names = "specification",
+				   "package_low",
+				   "package_high";
 		status = "disabled";
 	};
 
