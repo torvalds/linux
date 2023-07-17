@@ -266,9 +266,6 @@ static int mlx5_ptp_settime_real_time(struct mlx5_core_dev *mdev,
 {
 	u32 in[MLX5_ST_SZ_DW(mtutc_reg)] = {};
 
-	if (!mlx5_modify_mtutc_allowed(mdev))
-		return 0;
-
 	if (ts->tv_sec < 0 || ts->tv_sec > U32_MAX ||
 	    ts->tv_nsec < 0 || ts->tv_nsec > NSEC_PER_SEC)
 		return -EINVAL;
@@ -286,12 +283,15 @@ static int mlx5_ptp_settime(struct ptp_clock_info *ptp, const struct timespec64 
 	struct mlx5_timer *timer = &clock->timer;
 	struct mlx5_core_dev *mdev;
 	unsigned long flags;
-	int err;
 
 	mdev = container_of(clock, struct mlx5_core_dev, clock);
-	err = mlx5_ptp_settime_real_time(mdev, ts);
-	if (err)
-		return err;
+
+	if (mlx5_modify_mtutc_allowed(mdev)) {
+		int err = mlx5_ptp_settime_real_time(mdev, ts);
+
+		if (err)
+			return err;
+	}
 
 	write_seqlock_irqsave(&clock->lock, flags);
 	timecounter_init(&timer->tc, &timer->cycles, timespec64_to_ns(ts));
@@ -341,9 +341,6 @@ static int mlx5_ptp_adjtime_real_time(struct mlx5_core_dev *mdev, s64 delta)
 {
 	u32 in[MLX5_ST_SZ_DW(mtutc_reg)] = {};
 
-	if (!mlx5_modify_mtutc_allowed(mdev))
-		return 0;
-
 	/* HW time adjustment range is checked. If out of range, settime instead */
 	if (!mlx5_is_mtutc_time_adj_cap(mdev, delta)) {
 		struct timespec64 ts;
@@ -367,13 +364,16 @@ static int mlx5_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	struct mlx5_timer *timer = &clock->timer;
 	struct mlx5_core_dev *mdev;
 	unsigned long flags;
-	int err;
 
 	mdev = container_of(clock, struct mlx5_core_dev, clock);
 
-	err = mlx5_ptp_adjtime_real_time(mdev, delta);
-	if (err)
-		return err;
+	if (mlx5_modify_mtutc_allowed(mdev)) {
+		int err = mlx5_ptp_adjtime_real_time(mdev, delta);
+
+		if (err)
+			return err;
+	}
+
 	write_seqlock_irqsave(&clock->lock, flags);
 	timecounter_adjtime(&timer->tc, delta);
 	mlx5_update_clock_info_page(mdev);
@@ -390,9 +390,6 @@ static int mlx5_ptp_adjphase(struct ptp_clock_info *ptp, s32 delta)
 static int mlx5_ptp_freq_adj_real_time(struct mlx5_core_dev *mdev, long scaled_ppm)
 {
 	u32 in[MLX5_ST_SZ_DW(mtutc_reg)] = {};
-
-	if (!mlx5_modify_mtutc_allowed(mdev))
-		return 0;
 
 	MLX5_SET(mtutc_reg, in, operation, MLX5_MTUTC_OPERATION_ADJUST_FREQ_UTC);
 
@@ -415,13 +412,15 @@ static int mlx5_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	struct mlx5_core_dev *mdev;
 	unsigned long flags;
 	u32 mult;
-	int err;
 
 	mdev = container_of(clock, struct mlx5_core_dev, clock);
 
-	err = mlx5_ptp_freq_adj_real_time(mdev, scaled_ppm);
-	if (err)
-		return err;
+	if (mlx5_modify_mtutc_allowed(mdev)) {
+		int err = mlx5_ptp_freq_adj_real_time(mdev, scaled_ppm);
+
+		if (err)
+			return err;
+	}
 
 	mult = (u32)adjust_by_scaled_ppm(timer->nominal_c_mult, scaled_ppm);
 
