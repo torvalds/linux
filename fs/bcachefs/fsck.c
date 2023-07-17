@@ -1038,47 +1038,6 @@ int bch2_check_inodes(struct bch_fs *c)
 	return ret;
 }
 
-/*
- * Checking for overlapping extents needs to be reimplemented
- */
-#if 0
-static int fix_overlapping_extent(struct btree_trans *trans,
-				       struct bkey_s_c k, struct bpos cut_at)
-{
-	struct btree_iter iter;
-	struct bkey_i *u;
-	int ret;
-
-	u = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
-	ret = PTR_ERR_OR_ZERO(u);
-	if (ret)
-		return ret;
-
-	bkey_reassemble(u, k);
-	bch2_cut_front(cut_at, u);
-
-
-	/*
-	 * We don't want to go through the extent_handle_overwrites path:
-	 *
-	 * XXX: this is going to screw up disk accounting, extent triggers
-	 * assume things about extent overwrites - we should be running the
-	 * triggers manually here
-	 */
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents, u->k.p,
-			     BTREE_ITER_INTENT|BTREE_ITER_NOT_EXTENTS);
-
-	BUG_ON(iter.flags & BTREE_ITER_IS_EXTENTS);
-	ret   = bch2_btree_iter_traverse(&iter) ?:
-		bch2_trans_update(trans, &iter, u, BTREE_TRIGGER_NORUN) ?:
-		bch2_trans_commit(trans, NULL, NULL,
-				  BTREE_INSERT_NOFAIL|
-				  BTREE_INSERT_LAZY_RW);
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-#endif
-
 static struct bkey_s_c_dirent dirent_get_by_pos(struct btree_trans *trans,
 						struct btree_iter *iter,
 						struct bpos pos)
