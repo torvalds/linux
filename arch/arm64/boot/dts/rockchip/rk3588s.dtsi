@@ -6372,6 +6372,14 @@
 		cpu_code: cpu-code@2 {
 			reg = <0x02 0x2>;
 		};
+		package_serial_number_high: package-serial-number-high@5 {
+			reg = <0x05 0x1>;
+			bits = <0 1>;
+		};
+		package_serial_number_low: package-serial-number-low@6 {
+			reg = <0x06 0x1>;
+			bits = <5 3>;
+		};
 		specification_serial_number: specification-serial-number@6 {
 			reg = <0x06 0x1>;
 			bits = <0 5>;
