@@ -3959,6 +3959,19 @@ static inline void find_prime_and_max_tasks(struct walt_task_struct **wts_list,
 	}
 }
 
+static inline bool is_prime_worthy(struct walt_task_struct *wts)
+{
+	struct task_struct *p;
+
+	if (wts == NULL)
+		return false;
+
+	p = wts_to_ts(wts);
+
+	/* assume sched_cluster[1] references gold cpus */
+	return !task_fits_max(p, cpumask_last(&sched_cluster[1]->cpus));
+}
+
 void rearrange_heavy(u64 window_start)
 {
 	struct walt_related_thread_group *grp;
@@ -3966,8 +3979,29 @@ void rearrange_heavy(u64 window_start)
 	struct walt_task_struct *other_wts = NULL;
 	unsigned long flags;
 
-	if (have_heavy_list <= 2)
+	if (have_heavy_list <= 2) {
+		find_prime_and_max_tasks(heavy_wts, &prime_wts, &other_wts);
+
+		if (prime_wts && !is_prime_worthy(prime_wts)) {
+			int assign_cpu;
+
+			/* demote prime_wts, it is not worthy */
+			assign_cpu = cpumask_first(&last_available_big_cpus);
+			if (assign_cpu < nr_cpu_ids) {
+				prime_wts->pipeline_cpu = assign_cpu;
+				cpumask_clear_cpu(assign_cpu, &last_available_big_cpus);
+				prime_wts = NULL;
+			}
+			/* if no pipeline cpu available to assign, leave task on prime */
+		}
+
+		if (!prime_wts && is_prime_worthy(other_wts)) {
+			/* promote other_wts to prime, it is worthy */
+			swap_pipeline_with_prime_locked(NULL, other_wts);
+		}
+
 		return;
+	}
 
 	/* checks to avoid rearrangemment, until the next find_heavy run */
 	if (sysctl_sched_heavy_nr <= 2)
@@ -3986,7 +4020,7 @@ void rearrange_heavy(u64 window_start)
 
 	find_prime_and_max_tasks(heavy_wts, &prime_wts, &other_wts);
 
-	/* swap prime for nr_pipeline >= 3 */
+	/* swap prime for have_heavy_list >= 3 */
 	swap_pipeline_with_prime_locked(prime_wts, other_wts);
 
 	raw_spin_unlock_irqrestore(&heavy_lock, flags);
@@ -4069,8 +4103,8 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 	}
 
 	if (pipeline_nr <= 2) {
-		/* pipeline task reduced, demote the prime one if its around */
-		if (prime_wts) {
+		if (prime_wts && !is_prime_worthy(prime_wts)) {
+			/* demote prime_wts, it is not worthy */
 			assign_cpu = cpumask_next_and(assign_cpu,
 						&cpus_for_pipeline, cpu_online_mask);
 			if (assign_cpu >= nr_cpu_ids) {
@@ -4083,7 +4117,14 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 				prime_wts->pipeline_cpu = -1;
 			else
 				prime_wts->pipeline_cpu = assign_cpu;
+			prime_wts = NULL;
 		}
+
+		if (!prime_wts && is_prime_worthy(other_wts)) {
+			/* promote other_wts to prime, it is worthy */
+			swap_pipeline_with_prime_locked(NULL, other_wts);
+		}
+
 		goto release_lock;
 	}
 
