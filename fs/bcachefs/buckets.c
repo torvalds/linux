@@ -102,18 +102,6 @@ void bch2_dev_usage_read_fast(struct bch_dev *ca, struct bch_dev_usage *usage)
 	} while (read_seqcount_retry(&c->usage_lock, seq));
 }
 
-static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,
-						unsigned journal_seq,
-						bool gc)
-{
-	percpu_rwsem_assert_held(&c->mark_lock);
-	BUG_ON(!gc && !journal_seq);
-
-	return this_cpu_ptr(gc
-			    ? c->usage_gc
-			    : c->usage[journal_seq & JOURNAL_BUF_MASK]);
-}
-
 u64 bch2_fs_usage_read_one(struct bch_fs *c, u64 *v)
 {
 	ssize_t offset = v - (u64 *) c->usage_base;
@@ -460,7 +448,7 @@ static int __replicas_deltas_realloc(struct btree_trans *trans, unsigned more,
 	return 0;
 }
 
-static int replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
+int bch2_replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
 {
 	return allocate_dropping_locks_errcode(trans,
 				__replicas_deltas_realloc(trans, more, _gfp));
@@ -479,7 +467,7 @@ static inline int update_replicas_list(struct btree_trans *trans,
 		return 0;
 
 	b = replicas_entry_bytes(r) + 8;
-	ret = replicas_deltas_realloc(trans, b);
+	ret = bch2_replicas_deltas_realloc(trans, b);
 	if (ret)
 		return ret;
 
@@ -1137,38 +1125,6 @@ int bch2_mark_stripe(struct btree_trans *trans,
 	return 0;
 }
 
-int bch2_mark_inode(struct btree_trans *trans,
-		    enum btree_id btree_id, unsigned level,
-		    struct bkey_s_c old, struct bkey_s_c new,
-		    unsigned flags)
-{
-	struct bch_fs *c = trans->c;
-	struct bch_fs_usage *fs_usage;
-	u64 journal_seq = trans->journal_res.seq;
-
-	if (flags & BTREE_TRIGGER_INSERT) {
-		struct bch_inode_v3 *v = (struct bch_inode_v3 *) new.v;
-
-		BUG_ON(!journal_seq);
-		BUG_ON(new.k->type != KEY_TYPE_inode_v3);
-
-		v->bi_journal_seq = cpu_to_le64(journal_seq);
-	}
-
-	if (flags & BTREE_TRIGGER_GC) {
-		percpu_down_read(&c->mark_lock);
-		preempt_disable();
-
-		fs_usage = fs_usage_ptr(c, journal_seq, flags & BTREE_TRIGGER_GC);
-		fs_usage->nr_inodes += bkey_is_inode(new.k);
-		fs_usage->nr_inodes -= bkey_is_inode(old.k);
-
-		preempt_enable();
-		percpu_up_read(&c->mark_lock);
-	}
-	return 0;
-}
-
 int bch2_mark_reservation(struct btree_trans *trans,
 			  enum btree_id btree_id, unsigned level,
 			  struct bkey_s_c old, struct bkey_s_c new,
@@ -1715,27 +1671,6 @@ int bch2_trans_mark_stripe(struct btree_trans *trans,
 	return ret;
 }
 
-int bch2_trans_mark_inode(struct btree_trans *trans,
-			  enum btree_id btree_id, unsigned level,
-			  struct bkey_s_c old,
-			  struct bkey_i *new,
-			  unsigned flags)
-{
-	int nr = bkey_is_inode(&new->k) - bkey_is_inode(old.k);
-
-	if (nr) {
-		int ret = replicas_deltas_realloc(trans, 0);
-		struct replicas_delta_list *d = trans->fs_usage_deltas;
-
-		if (ret)
-			return ret;
-
-		d->nr_inodes += nr;
-	}
-
-	return 0;
-}
-
 int bch2_trans_mark_reservation(struct btree_trans *trans,
 				enum btree_id btree_id, unsigned level,
 				struct bkey_s_c old,
@@ -1754,7 +1689,7 @@ int bch2_trans_mark_reservation(struct btree_trans *trans,
 		sectors = -sectors;
 	sectors *= replicas;
 
-	ret = replicas_deltas_realloc(trans, 0);
+	ret = bch2_replicas_deltas_realloc(trans, 0);
 	if (ret)
 		return ret;
 

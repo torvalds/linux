@@ -519,6 +519,59 @@ void bch2_inode_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	__bch2_inode_unpacked_to_text(out, &inode);
 }
 
+int bch2_trans_mark_inode(struct btree_trans *trans,
+			  enum btree_id btree_id, unsigned level,
+			  struct bkey_s_c old,
+			  struct bkey_i *new,
+			  unsigned flags)
+{
+	int nr = bkey_is_inode(&new->k) - bkey_is_inode(old.k);
+
+	if (nr) {
+		int ret = bch2_replicas_deltas_realloc(trans, 0);
+		struct replicas_delta_list *d = trans->fs_usage_deltas;
+
+		if (ret)
+			return ret;
+
+		d->nr_inodes += nr;
+	}
+
+	return 0;
+}
+
+int bch2_mark_inode(struct btree_trans *trans,
+		    enum btree_id btree_id, unsigned level,
+		    struct bkey_s_c old, struct bkey_s_c new,
+		    unsigned flags)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_fs_usage *fs_usage;
+	u64 journal_seq = trans->journal_res.seq;
+
+	if (flags & BTREE_TRIGGER_INSERT) {
+		struct bch_inode_v3 *v = (struct bch_inode_v3 *) new.v;
+
+		BUG_ON(!journal_seq);
+		BUG_ON(new.k->type != KEY_TYPE_inode_v3);
+
+		v->bi_journal_seq = cpu_to_le64(journal_seq);
+	}
+
+	if (flags & BTREE_TRIGGER_GC) {
+		percpu_down_read(&c->mark_lock);
+		preempt_disable();
+
+		fs_usage = fs_usage_ptr(c, journal_seq, flags & BTREE_TRIGGER_GC);
+		fs_usage->nr_inodes += bkey_is_inode(new.k);
+		fs_usage->nr_inodes -= bkey_is_inode(old.k);
+
+		preempt_enable();
+		percpu_up_read(&c->mark_lock);
+	}
+	return 0;
+}
+
 int bch2_inode_generation_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				  enum bkey_invalid_flags flags,
 				  struct printbuf *err)

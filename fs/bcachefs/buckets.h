@@ -249,6 +249,20 @@ bch2_fs_usage_read_short(struct bch_fs *);
 
 /* key/bucket marking: */
 
+static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,
+						unsigned journal_seq,
+						bool gc)
+{
+	percpu_rwsem_assert_held(&c->mark_lock);
+	BUG_ON(!gc && !journal_seq);
+
+	return this_cpu_ptr(gc
+			    ? c->usage_gc
+			    : c->usage[journal_seq & JOURNAL_BUF_MASK]);
+}
+
+int bch2_replicas_deltas_realloc(struct btree_trans *, unsigned);
+
 void bch2_fs_usage_initialize(struct bch_fs *);
 
 int bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
@@ -261,8 +275,6 @@ int bch2_mark_extent(struct btree_trans *, enum btree_id, unsigned,
 		     struct bkey_s_c, struct bkey_s_c, unsigned);
 int bch2_mark_stripe(struct btree_trans *, enum btree_id, unsigned,
 		     struct bkey_s_c, struct bkey_s_c, unsigned);
-int bch2_mark_inode(struct btree_trans *, enum btree_id, unsigned,
-		    struct bkey_s_c, struct bkey_s_c, unsigned);
 int bch2_mark_reservation(struct btree_trans *, enum btree_id, unsigned,
 			  struct bkey_s_c, struct bkey_s_c, unsigned);
 int bch2_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned,
@@ -270,7 +282,6 @@ int bch2_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned,
 
 int bch2_trans_mark_extent(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
 int bch2_trans_mark_stripe(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
-int bch2_trans_mark_inode(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
 int bch2_trans_mark_reservation(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
 int bch2_trans_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
 
