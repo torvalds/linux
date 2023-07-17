@@ -8,6 +8,7 @@
 
 struct pglist_data;
 
+#ifdef CONFIG_PAGE_EXTENSION
 /**
  * struct page_ext_operations - per page_ext client operations
  * @offset: Offset to the client's data within page_ext. Offset is returned to
@@ -28,8 +29,6 @@ struct page_ext_operations {
 	void (*init)(void);
 	bool need_shared_flags;
 };
-
-#ifdef CONFIG_PAGE_EXTENSION
 
 /*
  * The page_ext_flags users must set need_shared_flags to true.
