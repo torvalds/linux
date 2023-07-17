@@ -34,22 +34,21 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					scmi_reg11: reg11@0 {
+					scmi_reg11: regulator@0 {
 						reg = <0>;
 						regulator-name = "reg11";
 						regulator-min-microvolt = <1100000>;
 						regulator-max-microvolt = <1100000>;
 					};
 
-					scmi_reg18: reg18@1 {
-						voltd-name = "reg18";
+					scmi_reg18: regulator@1 {
 						reg = <1>;
 						regulator-name = "reg18";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 					};
 
-					scmi_usb33: usb33@2 {
+					scmi_usb33: regulator@2 {
 						reg = <2>;
 						regulator-name = "usb33";
 						regulator-min-microvolt = <3300000>;
