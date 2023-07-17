@@ -617,7 +617,8 @@ char *fgrep(FILE *inf, const char *str)
  * validate_resctrl_feature_request - Check if requested feature is valid.
  * @resctrl_val:	Requested feature
  *
- * Return: True if the feature is supported, else false
+ * Return: True if the feature is supported, else false. False is also
+ *         returned if resctrl FS is not mounted.
  */
 bool validate_resctrl_feature_request(const char *resctrl_val)
 {
@@ -625,11 +626,13 @@ bool validate_resctrl_feature_request(const char *resctrl_val)
 	bool found = false;
 	char *res;
 	FILE *inf;
+	int ret;
 
 	if (!resctrl_val)
 		return false;
 
-	if (remount_resctrlfs(false))
+	ret = find_resctrl_mount(NULL);
+	if (ret)
 		return false;
 
 	if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR))) {

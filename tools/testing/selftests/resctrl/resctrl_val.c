@@ -648,10 +648,6 @@ int resctrl_val(char **benchmark_cmd, struct resctrl_val_param *param)
 			return ret;
 	}
 
-	ret = remount_resctrlfs(param->mum_resctrlfs);
-	if (ret)
-		return ret;
-
 	/*
 	 * If benchmark wasn't successfully started by child, then child should
 	 * kill parent, so save parent's pid
@@ -788,7 +784,6 @@ unregister:
 	signal_handler_unregister();
 out:
 	kill(bm_pid, SIGKILL);
-	umount_resctrlfs();
 
 	return ret;
 }

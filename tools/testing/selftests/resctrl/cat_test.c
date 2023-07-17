@@ -106,10 +106,6 @@ int cat_perf_miss_val(int cpu_no, int n, char *cache_type)
 
 	cache_size = 0;
 
-	ret = remount_resctrlfs(true);
-	if (ret)
-		return ret;
-
 	/* Get default cbm mask for L3/L2 cache */
 	ret = get_cbm_mask(cache_type, cbm_mask);
 	if (ret)
@@ -227,8 +223,6 @@ int cat_perf_miss_val(int cpu_no, int n, char *cache_type)
 
 out:
 	cat_test_cleanup();
-	if (bm_pid)
-		umount_resctrlfs();
 
 	return ret;
 }
