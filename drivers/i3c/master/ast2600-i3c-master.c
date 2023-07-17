@@ -2850,11 +2850,12 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 	aspeed_i3c_master_init_group_dat(master);
 #ifdef CONFIG_AST2600_I3C_CCC_WORKAROUND
 	master->free_pos &= ~BIT(master->maxdevs - 1);
-	ret = (even_parity(I3C_BROADCAST_ADDR) << 7) | I3C_BROADCAST_ADDR;
-	master->addrs[master->maxdevs - 1] = ret;
-	writel(FIELD_PREP(DEV_ADDR_TABLE_DYNAMIC_ADDR, ret),
-	       master->regs + DEV_ADDR_TABLE_LOC(master->datstartaddr,
-						 master->maxdevs - 1));
+	master->addrs[master->maxdevs - 1] = I3C_BROADCAST_ADDR;
+	ret = FIELD_PREP(DEV_ADDR_TABLE_DYNAMIC_ADDR, I3C_BROADCAST_ADDR) |
+	      FIELD_PREP(DEV_ADDR_TABLE_DA_PARITY,
+			 even_parity(I3C_BROADCAST_ADDR));
+	writel(ret, master->regs + DEV_ADDR_TABLE_LOC(master->datstartaddr,
+						      master->maxdevs - 1));
 #endif
 	master->dev = &pdev->dev;
 	master->base.pec_supported = true;
