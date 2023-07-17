@@ -822,6 +822,13 @@ struct ice_mbx_data {
 	u16 async_watermark_val;
 };
 
+/* PHY model */
+enum ice_phy_model {
+	ICE_PHY_UNSUP = -1,
+	ICE_PHY_E810  = 1,
+	ICE_PHY_E822,
+};
+
 /* Port hardware description */
 struct ice_hw {
 	u8 __iomem *hw_addr;
@@ -843,6 +850,7 @@ struct ice_hw {
 	u8 revision_id;
 
 	u8 pf_id;		/* device profile info */
+	enum ice_phy_model phy_model;
 
 	u16 max_burst_size;	/* driver sets this value */
 

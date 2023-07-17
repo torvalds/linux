@@ -1366,6 +1366,7 @@ out_unlock:
 void ice_ptp_link_change(struct ice_pf *pf, u8 port, bool linkup)
 {
 	struct ice_ptp_port *ptp_port;
+	struct ice_hw *hw = &pf->hw;
 
 	if (!test_bit(ICE_FLAG_PTP, pf->flags))
 		return;
@@ -1380,11 +1381,16 @@ void ice_ptp_link_change(struct ice_pf *pf, u8 port, bool linkup)
 	/* Update cached link status for this port immediately */
 	ptp_port->link_up = linkup;
 
-	/* E810 devices do not need to reconfigure the PHY */
-	if (ice_is_e810(&pf->hw))
+	switch (hw->phy_model) {
+	case ICE_PHY_E810:
+		/* Do not reconfigure E810 PHY */
 		return;
-
-	ice_ptp_port_phy_restart(ptp_port);
+	case ICE_PHY_E822:
+		ice_ptp_port_phy_restart(ptp_port);
+		return;
+	default:
+		dev_warn(ice_pf_to_dev(pf), "%s: Unknown PHY type\n", __func__);
+	}
 }
 
 /**
@@ -2702,14 +2708,22 @@ static int ice_ptp_init_work(struct ice_pf *pf, struct ice_ptp *ptp)
  */
 static int ice_ptp_init_port(struct ice_pf *pf, struct ice_ptp_port *ptp_port)
 {
+	struct ice_hw *hw = &pf->hw;
+
 	mutex_init(&ptp_port->ps_lock);
 
-	if (ice_is_e810(&pf->hw))
+	switch (hw->phy_model) {
+	case ICE_PHY_E810:
 		return ice_ptp_init_tx_e810(pf, &ptp_port->tx);
+	case ICE_PHY_E822:
+		kthread_init_delayed_work(&ptp_port->ov_work,
+					  ice_ptp_wait_for_offsets);
 
-	kthread_init_delayed_work(&ptp_port->ov_work,
-				  ice_ptp_wait_for_offsets);
-	return ice_ptp_init_tx_e822(pf, &ptp_port->tx, ptp_port->port_num);
+		return ice_ptp_init_tx_e822(pf, &ptp_port->tx,
+					    ptp_port->port_num);
+	default:
+		return -ENODEV;
+	}
 }
 
 /**
@@ -2729,6 +2743,8 @@ void ice_ptp_init(struct ice_pf *pf)
 	struct ice_ptp *ptp = &pf->ptp;
 	struct ice_hw *hw = &pf->hw;
 	int err;
+
+	ice_ptp_init_phy_model(hw);
 
 	/* If this function owns the clock hardware, it must allocate and
 	 * configure the PTP clock device to represent it.
