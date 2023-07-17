@@ -7,6 +7,7 @@ time_start=$(date +%s)
 
 optstring="S:R:d:e:l:r:h4cm:f:tC"
 ret=0
+final_ret=0
 sin=""
 sout=""
 cin_disconnect=""
@@ -837,14 +838,25 @@ display_time()
 	echo "Time: ${time_run} seconds"
 }
 
-stop_if_error()
+log_if_error()
 {
 	local msg="$1"
 
 	if [ ${ret} -ne 0 ]; then
 		echo "FAIL: ${msg}" 1>&2
+
+		final_ret=${ret}
+		ret=0
+
+		return ${final_ret}
+	fi
+}
+
+stop_if_error()
+{
+	if ! log_if_error "${@}"; then
 		display_time
-		exit ${ret}
+		exit ${final_ret}
 	fi
 }
 
@@ -934,23 +946,24 @@ for sender in $ns1 $ns2 $ns3 $ns4;do
 	run_tests "$ns4" $sender 10.0.3.1
 	run_tests "$ns4" $sender dead:beef:3::1
 
-	stop_if_error "Tests with $sender as a sender have failed"
+	log_if_error "Tests with $sender as a sender have failed"
 done
 
 run_tests_peekmode "saveWithPeek"
 run_tests_peekmode "saveAfterPeek"
-stop_if_error "Tests with peek mode have failed"
+log_if_error "Tests with peek mode have failed"
 
 # MPTFO (MultiPath TCP Fatopen tests)
 run_tests_mptfo
-stop_if_error "Tests with MPTFO have failed"
+log_if_error "Tests with MPTFO have failed"
 
 # connect to ns4 ip address, ns2 should intercept/proxy
 run_test_transparent 10.0.3.1 "tproxy ipv4"
 run_test_transparent dead:beef:3::1 "tproxy ipv6"
-stop_if_error "Tests with tproxy have failed"
+log_if_error "Tests with tproxy have failed"
 
 run_tests_disconnect
+log_if_error "Tests of the full disconnection have failed"
 
 display_time
-exit $ret
+exit ${final_ret}
