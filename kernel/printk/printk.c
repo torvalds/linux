@@ -86,7 +86,7 @@ EXPORT_SYMBOL(oops_in_progress);
 static DEFINE_MUTEX(console_mutex);
 
 /*
- * console_sem protects updates to console->seq and console_suspended,
+ * console_sem protects updates to console->seq
  * and also provides serialization for console printing.
  */
 static DEFINE_SEMAPHORE(console_sem);
@@ -359,7 +359,7 @@ static bool panic_in_progress(void)
  * paths in the console code where we end up in places I want
  * locked without the console semaphore held).
  */
-static int console_locked, console_suspended;
+static int console_locked;
 
 /*
  *	Array of consoles built from command line options (console=)
@@ -2549,22 +2549,46 @@ MODULE_PARM_DESC(console_no_auto_verbose, "Disable console loglevel raise to hig
  */
 void suspend_console(void)
 {
+	struct console *con;
+
 	if (!console_suspend_enabled)
 		return;
 	pr_info("Suspending console(s) (use no_console_suspend to debug)\n");
 	pr_flush(1000, true);
-	console_lock();
-	console_suspended = 1;
-	up_console_sem();
+
+	console_list_lock();
+	for_each_console(con)
+		console_srcu_write_flags(con, con->flags | CON_SUSPENDED);
+	console_list_unlock();
+
+	/*
+	 * Ensure that all SRCU list walks have completed. All printing
+	 * contexts must be able to see that they are suspended so that it
+	 * is guaranteed that all printing has stopped when this function
+	 * completes.
+	 */
+	synchronize_srcu(&console_srcu);
 }
 
 void resume_console(void)
 {
+	struct console *con;
+
 	if (!console_suspend_enabled)
 		return;
-	down_console_sem();
-	console_suspended = 0;
-	console_unlock();
+
+	console_list_lock();
+	for_each_console(con)
+		console_srcu_write_flags(con, con->flags & ~CON_SUSPENDED);
+	console_list_unlock();
+
+	/*
+	 * Ensure that all SRCU list walks have completed. All printing
+	 * contexts must be able to see they are no longer suspended so
+	 * that they are guaranteed to wake up and resume printing.
+	 */
+	synchronize_srcu(&console_srcu);
+
 	pr_flush(1000, true);
 }
 
@@ -2623,8 +2647,6 @@ void console_lock(void)
 		msleep(1000);
 
 	down_console_sem();
-	if (console_suspended)
-		return;
 	console_locked = 1;
 	console_may_schedule = 1;
 }
@@ -2645,10 +2667,6 @@ int console_trylock(void)
 		return 0;
 	if (down_trylock_console_sem())
 		return 0;
-	if (console_suspended) {
-		up_console_sem();
-		return 0;
-	}
 	console_locked = 1;
 	console_may_schedule = 0;
 	return 1;
@@ -2672,6 +2690,9 @@ static inline bool console_is_usable(struct console *con)
 	short flags = console_srcu_read_flags(con);
 
 	if (!(flags & CON_ENABLED))
+		return false;
+
+	if ((flags & CON_SUSPENDED))
 		return false;
 
 	if (!con->write)
@@ -2991,11 +3012,6 @@ void console_unlock(void)
 	bool handover;
 	bool flushed;
 	u64 next_seq;
-
-	if (console_suspended) {
-		up_console_sem();
-		return;
-	}
 
 	/*
 	 * Console drivers are called with interrupts disabled, so
@@ -3726,8 +3742,7 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 
 		/*
 		 * Hold the console_lock to guarantee safe access to
-		 * console->seq and to prevent changes to @console_suspended
-		 * until all consoles have been processed.
+		 * console->seq.
 		 */
 		console_lock();
 
@@ -3735,6 +3750,11 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 		for_each_console_srcu(c) {
 			if (con && con != c)
 				continue;
+			/*
+			 * If consoles are not usable, it cannot be expected
+			 * that they make forward progress, so only increment
+			 * @diff for usable consoles.
+			 */
 			if (!console_is_usable(c))
 				continue;
 			printk_seq = c->seq;
@@ -3743,18 +3763,12 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 		}
 		console_srcu_read_unlock(cookie);
 
-		/*
-		 * If consoles are suspended, it cannot be expected that they
-		 * make forward progress, so timeout immediately. @diff is
-		 * still used to return a valid flush status.
-		 */
-		if (console_suspended)
-			remaining = 0;
-		else if (diff != last_diff && reset_on_progress)
+		if (diff != last_diff && reset_on_progress)
 			remaining = timeout_ms;
 
 		console_unlock();
 
+		/* Note: @diff is 0 if there are no usable consoles. */
 		if (diff == 0 || remaining == 0)
 			break;
 
@@ -3788,7 +3802,7 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
  * printer has been seen to make some forward progress.
  *
  * Context: Process context. May sleep while acquiring console lock.
- * Return: true if all enabled printers are caught up.
+ * Return: true if all usable printers are caught up.
  */
 static bool pr_flush(int timeout_ms, bool reset_on_progress)
 {
