@@ -6736,37 +6736,37 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-static void vop2_dither_setup(struct drm_crtc *crtc)
+static void vop2_dither_setup(struct rockchip_crtc_state *vcstate, struct drm_crtc *crtc)
 {
-	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
+	bool pre_dither_down_en = false;
 
 	switch (vcstate->bus_format) {
 	case MEDIA_BUS_FMT_RGB565_1X16:
 		VOP_MODULE_SET(vop2, vp, dither_down_en, 1);
 		VOP_MODULE_SET(vop2, vp, dither_down_mode, RGB888_TO_RGB565);
-		VOP_MODULE_SET(vop2, vp, pre_dither_down_en, 1);
+		pre_dither_down_en = true;
 		break;
 	case MEDIA_BUS_FMT_RGB666_1X18:
 	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
 	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
 		VOP_MODULE_SET(vop2, vp, dither_down_en, 1);
 		VOP_MODULE_SET(vop2, vp, dither_down_mode, RGB888_TO_RGB666);
-		VOP_MODULE_SET(vop2, vp, pre_dither_down_en, 1);
+		pre_dither_down_en = true;
 		break;
 	case MEDIA_BUS_FMT_YUYV8_1X16:
 	case MEDIA_BUS_FMT_YUV8_1X24:
 	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
 		VOP_MODULE_SET(vop2, vp, dither_down_en, 0);
-		VOP_MODULE_SET(vop2, vp, pre_dither_down_en, 1);
+		pre_dither_down_en = true;
 		break;
 	case MEDIA_BUS_FMT_YUYV10_1X20:
 	case MEDIA_BUS_FMT_YUV10_1X30:
 	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
 	case MEDIA_BUS_FMT_RGB101010_1X30:
 		VOP_MODULE_SET(vop2, vp, dither_down_en, 0);
-		VOP_MODULE_SET(vop2, vp, pre_dither_down_en, 0);
+		pre_dither_down_en = false;
 		break;
 	case MEDIA_BUS_FMT_RGB888_3X8:
 	case MEDIA_BUS_FMT_RGB888_DUMMY_4X8:
@@ -6775,10 +6775,14 @@ static void vop2_dither_setup(struct drm_crtc *crtc)
 	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
 	default:
 		VOP_MODULE_SET(vop2, vp, dither_down_en, 0);
-		VOP_MODULE_SET(vop2, vp, pre_dither_down_en, 1);
+		pre_dither_down_en = true;
 		break;
 	}
 
+	if (is_yuv_output(vcstate->bus_format))
+		pre_dither_down_en = false;
+
+	VOP_MODULE_SET(vop2, vp, pre_dither_down_en, pre_dither_down_en);
 	VOP_MODULE_SET(vop2, vp, dither_down_sel, DITHER_DOWN_ALLEGRO);
 }
 
@@ -9742,7 +9746,9 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 
 	vop2_post_color_swap(crtc);
 
-	vop2_dither_setup(crtc);
+	vop2_dither_setup(vcstate, crtc);
+	if (vcstate->splice_mode)
+		vop2_dither_setup(vcstate, &splice_vp->rockchip_crtc.crtc);
 
 	VOP_MODULE_SET(vop2, vp, overlay_mode, vcstate->yuv_overlay);
 
