@@ -514,46 +514,39 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 }
 #endif
 
-enum pcf85063_type {
-	PCF85063,
-	PCF85063TP,
-	PCF85063A,
-	RV8263,
-	PCF85063_LAST_ID
+static const struct pcf85063_config config_pcf85063 = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x0a,
+	},
 };
 
-static struct pcf85063_config pcf85063_cfg[] = {
-	[PCF85063] = {
-		.regmap = {
-			.reg_bits = 8,
-			.val_bits = 8,
-			.max_register = 0x0a,
-		},
+static const struct pcf85063_config config_pcf85063tp = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x0a,
 	},
-	[PCF85063TP] = {
-		.regmap = {
-			.reg_bits = 8,
-			.val_bits = 8,
-			.max_register = 0x0a,
-		},
+};
+
+static const struct pcf85063_config config_pcf85063a = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x11,
 	},
-	[PCF85063A] = {
-		.regmap = {
-			.reg_bits = 8,
-			.val_bits = 8,
-			.max_register = 0x11,
-		},
-		.has_alarms = 1,
+	.has_alarms = 1,
+};
+
+static const struct pcf85063_config config_rv8263 = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x11,
 	},
-	[RV8263] = {
-		.regmap = {
-			.reg_bits = 8,
-			.val_bits = 8,
-			.max_register = 0x11,
-		},
-		.has_alarms = 1,
-		.force_cap_7000 = 1,
-	},
+	.has_alarms = 1,
+	.force_cap_7000 = 1,
 };
 
 static int pcf85063_probe(struct i2c_client *client)
@@ -645,22 +638,22 @@ static int pcf85063_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pcf85063_ids[] = {
-	{ "pca85073a", .driver_data = (kernel_ulong_t)&pcf85063_cfg[PCF85063A] },
-	{ "pcf85063", .driver_data = (kernel_ulong_t)&pcf85063_cfg[PCF85063] },
-	{ "pcf85063tp", .driver_data = (kernel_ulong_t)&pcf85063_cfg[PCF85063TP] },
-	{ "pcf85063a", .driver_data = (kernel_ulong_t)&pcf85063_cfg[PCF85063A] },
-	{ "rv8263", .driver_data = (kernel_ulong_t)&pcf85063_cfg[RV8263] },
+	{ "pca85073a", .driver_data = (kernel_ulong_t)&config_pcf85063a },
+	{ "pcf85063", .driver_data = (kernel_ulong_t)&config_pcf85063 },
+	{ "pcf85063tp", .driver_data = (kernel_ulong_t)&config_pcf85063tp },
+	{ "pcf85063a", .driver_data = (kernel_ulong_t)&config_pcf85063a },
+	{ "rv8263", .driver_data = (kernel_ulong_t)&config_rv8263 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, pcf85063_ids);
 
 #ifdef CONFIG_OF
 static const struct of_device_id pcf85063_of_match[] = {
-	{ .compatible = "nxp,pca85073a", .data = &pcf85063_cfg[PCF85063A] },
-	{ .compatible = "nxp,pcf85063", .data = &pcf85063_cfg[PCF85063] },
-	{ .compatible = "nxp,pcf85063tp", .data = &pcf85063_cfg[PCF85063TP] },
-	{ .compatible = "nxp,pcf85063a", .data = &pcf85063_cfg[PCF85063A] },
-	{ .compatible = "microcrystal,rv8263", .data = &pcf85063_cfg[RV8263] },
+	{ .compatible = "nxp,pca85073a", .data = &config_pcf85063a },
+	{ .compatible = "nxp,pcf85063", .data = &config_pcf85063 },
+	{ .compatible = "nxp,pcf85063tp", .data = &config_pcf85063tp },
+	{ .compatible = "nxp,pcf85063a", .data = &config_pcf85063a },
+	{ .compatible = "microcrystal,rv8263", .data = &config_rv8263 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, pcf85063_of_match);
