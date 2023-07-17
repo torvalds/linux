@@ -366,6 +366,7 @@
 
 	cam_pwr_b_cs: cam-pwr-b-state {
 		pins = "gpio69";
+		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 		output-low;
@@ -373,6 +374,7 @@
 
 	cam_pwr_a_cs: cam-pwr-a-state {
 		pins = "gpio71";
+		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 		output-low;
