@@ -3335,7 +3335,6 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 			 */
 			UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
 					"%s: Stop Rx Engine\n", __func__);
-			dmaengine_terminate_all(msm_port->gsi->rx_c);
 			timeout = wait_for_completion_timeout
 				(&msm_port->xfer,
 				msecs_to_jiffies(POLL_WAIT_TIMEOUT_MSEC));
