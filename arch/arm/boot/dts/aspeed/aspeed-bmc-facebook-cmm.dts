@@ -328,7 +328,7 @@
 &i2c1 {
 	status = "okay";
 
-	i2c-switch@77 {
+	i2c-mux@77 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -341,7 +341,7 @@
 			#size-cells = <0>;
 			reg = <0>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -390,7 +390,7 @@
 				};
 			};
 
-			i2c-switch@73 {
+			i2c-mux@73 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -446,7 +446,7 @@
 			#size-cells = <0>;
 			reg = <1>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -495,7 +495,7 @@
 				};
 			};
 
-			i2c-switch@73 {
+			i2c-mux@73 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -551,7 +551,7 @@
 			#size-cells = <0>;
 			reg = <2>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -600,7 +600,7 @@
 				};
 			};
 
-			i2c-switch@73 {
+			i2c-mux@73 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -656,7 +656,7 @@
 			#size-cells = <0>;
 			reg = <3>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -705,7 +705,7 @@
 				};
 			};
 
-			i2c-switch@73 {
+			i2c-mux@73 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -761,7 +761,7 @@
 			#size-cells = <0>;
 			reg = <4>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -810,7 +810,7 @@
 				};
 			};
 
-			i2c-switch@73 {
+			i2c-mux@73 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -866,7 +866,7 @@
 			#size-cells = <0>;
 			reg = <5>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -915,7 +915,7 @@
 				};
 			};
 
-			i2c-switch@73 {
+			i2c-mux@73 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -971,7 +971,7 @@
 			#size-cells = <0>;
 			reg = <6>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1020,7 +1020,7 @@
 				};
 			};
 
-			i2c-switch@73 {
+			i2c-mux@73 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1076,7 +1076,7 @@
 			#size-cells = <0>;
 			reg = <7>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1125,7 +1125,7 @@
 				};
 			};
 
-			i2c-switch@73 {
+			i2c-mux@73 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1183,7 +1183,7 @@
 &i2c2 {
 	status = "okay";
 
-	i2c-switch@71 {
+	i2c-mux@71 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1281,7 +1281,7 @@
 &i2c8 {
 	status = "okay";
 
-	i2c-switch@77 {
+	i2c-mux@77 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1294,7 +1294,7 @@
 			#size-cells = <0>;
 			reg = <0>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1350,7 +1350,7 @@
 			#size-cells = <0>;
 			reg = <1>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1406,7 +1406,7 @@
 			#size-cells = <0>;
 			reg = <2>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1462,7 +1462,7 @@
 			#size-cells = <0>;
 			reg = <3>;
 
-			i2c-switch@70 {
+			i2c-mux@70 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;

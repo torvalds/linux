@@ -417,7 +417,7 @@
 			"expander-cable-card5";
 	};
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -562,7 +562,7 @@
 			"expander-cable-card11";
 	};
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -719,7 +719,7 @@
 &i2c6 {
 	status = "okay";
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -1810,7 +1810,7 @@
 		reg = <0x50>;
 	};
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -1947,7 +1947,7 @@
 		reg = <(0x62 | I2C_OWN_SLAVE_ADDRESS)>;
 	};
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -2206,7 +2206,7 @@
 		};
 	};
 
-	i2c-switch@71 {
+	i2c-mux@71 {
 		compatible = "nxp,pca9546";
 		reg = <0x71>;
 		#address-cells = <1>;
@@ -2259,7 +2259,7 @@
 &i2c15 {
 	status = "okay";
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -2311,7 +2311,7 @@
 		};
 	};
 
-	i2c-switch@71 {
+	i2c-mux@71 {
 		compatible = "nxp,pca9546";
 		reg = <0x71>;
 		#address-cells = <1>;
@@ -2363,7 +2363,7 @@
 		};
 	};
 
-	i2c-switch@72 {
+	i2c-mux@72 {
 		compatible = "nxp,pca9546";
 		reg = <0x72>;
 		#address-cells = <1>;

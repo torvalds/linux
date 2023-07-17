@@ -341,7 +341,7 @@
 		reg = <0x4a>;
 	};
 
-	pca9546@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -423,7 +423,7 @@
 		reg = <0x49>;
 	};
 
-	pca9546@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -525,7 +525,7 @@
 		reg = <0x4b>;
 	};
 
-	pca9546@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -1355,7 +1355,7 @@
 		reg = <0x49>;
 	};
 
-	pca9546@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
