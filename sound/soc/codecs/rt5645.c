@@ -3950,7 +3950,11 @@ static int rt5645_i2c_probe(struct i2c_client *i2c)
 	 * read and power On.
 	 */
 	msleep(TIME_TO_POWER_MS);
-	regmap_read(regmap, RT5645_VENDOR_ID2, &val);
+	ret = regmap_read(regmap, RT5645_VENDOR_ID2, &val);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to read: 0x%02X\n, ret = %d", RT5645_VENDOR_ID2, ret);
+		goto err_enable;
+	}
 
 	switch (val) {
 	case RT5645_DEVICE_ID:
