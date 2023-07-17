@@ -866,7 +866,7 @@ out:
 }
 
 int hgsl_hyp_ctxt_destroy(struct hgsl_hab_channel_t *hab_channel,
-	uint32_t devhandle, uint32_t context_id, uint32_t *rval)
+	uint32_t devhandle, uint32_t context_id, uint32_t *rval, uint32_t dbcq_export_id)
 {
 	struct context_destroy_params_t rpc_params = { 0 };
 	struct gsl_hab_payload *send_buf = NULL;
@@ -903,6 +903,14 @@ int hgsl_hyp_ctxt_destroy(struct hgsl_hab_channel_t *hab_channel,
 		LOGE("gsl_rpc_transact failed, %d", ret);
 		goto out;
 	}
+
+	if (dbcq_export_id) {
+		ret = habmm_unexport(hab_channel->socket, dbcq_export_id, 0);
+		if (ret)
+			LOGE("Failed to unexport context queue, %d, export_id %d",
+			context_id, dbcq_export_id);
+	}
+
 	if (rval) {
 		ret = gsl_rpc_read_uint32_l(recv_buf, rval);
 		if (ret) {
@@ -1392,7 +1400,7 @@ int hgsl_hyp_mem_unmap_smmu(struct hgsl_hab_channel_t *hab_channel,
 		ret = habmm_unexport(hab_channel->socket,
 						mem_node->export_id, 0);
 		if (ret) {
-			LOGE("habmm_unexport faile, socket %d export_id %d",
+			LOGE("habmm_unexport failed, socket %d export_id %d",
 					mem_node->hab_channel->socket,
 					mem_node->export_id);
 			goto out;
@@ -2258,8 +2266,7 @@ int hgsl_hyp_dbq_create(struct hgsl_hab_channel_t *hab_channel,
 		goto out;
 	}
 	if (rval != GSL_SUCCESS) {
-		if (rval != GSL_FAILURE_NOTSUPPORTED)
-			LOGE("RPC_DBQ_CREATE failed, %d", rval);
+		LOGI("RPC_DBQ_CREATE failed, %d", rval);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2421,4 +2428,158 @@ int hgsl_hyp_notify_cleanup(struct hgsl_hab_channel_t *hab_channel, uint32_t tim
 out:
 	return ret;
 }
-MODULE_IMPORT_NS(DMA_BUF);
+
+int hgsl_hyp_query_dbcq(struct hgsl_hab_channel_t *hab_channel, uint32_t devhandle,
+	uint32_t ctxthandle, uint32_t length, uint32_t *db_signal, uint32_t *queue_gmuaddr,
+	uint32_t *irq_idx)
+{
+	struct query_dbcq_params_t rpc_params = { 0 };
+	struct gsl_hab_payload *send_buf = NULL;
+	struct gsl_hab_payload *recv_buf = NULL;
+	int ret = 0;
+	int rval = 0;
+
+	RPC_TRACE();
+
+	if (!hab_channel) {
+		LOGE("invalid hab_channel");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = hgsl_rpc_parcel_reset(hab_channel);
+	if (ret) {
+		LOGE("hgsl_rpc_parcel_reset failed %d", ret);
+		goto out;
+	}
+
+	send_buf = &hab_channel->send_buf;
+	recv_buf = &hab_channel->recv_buf;
+
+	rpc_params.size              = sizeof(rpc_params);
+	rpc_params.devhandle         = devhandle;
+	rpc_params.ctxthandle        = ctxthandle;
+	rpc_params.length            = length;
+
+	ret = gsl_rpc_write(send_buf, &rpc_params, sizeof(rpc_params));
+	if (ret) {
+		LOGE("gsl_rpc_write failed, %d", ret);
+		goto out;
+	}
+
+	ret = gsl_rpc_transact(RPC_CONTEXT_QUERY_DBCQ, hab_channel);
+	if (ret) {
+		LOGE("gsl_rpc_transact failed, %d", ret);
+		goto out;
+	}
+
+	ret = gsl_rpc_read_int32_l(recv_buf, &rval);
+	if (ret) {
+		LOGE("gsl_rpc_read_int32_l failed, %d", ret);
+		goto out;
+	}
+	if (rval != GSL_SUCCESS) {
+		LOGI("RPC_CONTEXT_QUERY_DBCQ failed, rval %d", rval);
+		ret = -EINVAL;
+		goto out;
+	}
+	ret = gsl_rpc_read_uint32_l(recv_buf, db_signal);
+	if (ret) {
+		LOGE("failed to read db_signal, %d", ret);
+		ret = -EINVAL;
+		goto out;
+	}
+	ret = gsl_rpc_read_uint32_l(recv_buf, queue_gmuaddr);
+	if (ret) {
+		LOGE("failed to read queue_gmuaddr, %d", ret);
+		ret = -EINVAL;
+		goto out;
+	}
+	ret = gsl_rpc_read_uint32_l(recv_buf, irq_idx);
+	if (ret) {
+		LOGE("failed to read irq_idx, %d", ret);
+		ret = -EINVAL;
+		goto out;
+	}
+
+out:
+	RPC_TRACE_DONE();
+	return ret;
+}
+
+int hgsl_hyp_context_register_dbcq(struct hgsl_hab_channel_t *hab_channel,
+	uint32_t devhandle, uint32_t ctxthandle, int fd, uint32_t size,
+	uint32_t queue_body_offset, uint32_t *export_id)
+{
+	struct register_dbcq_params_t rpc_params = { 0 };
+	struct gsl_hab_payload *send_buf = NULL;
+	struct gsl_hab_payload *recv_buf = NULL;
+	int ret = 0;
+	int rval = 0;
+	int hab_exp_flags = 0;
+	void  *hab_exp_handle = NULL;
+
+	RPC_TRACE();
+
+	if (!hab_channel || !export_id) {
+		LOGE("invalid hab_channel");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = hgsl_rpc_parcel_reset(hab_channel);
+	if (ret) {
+		LOGE("hgsl_rpc_parcel_reset failed %d", ret);
+		goto out;
+	}
+
+	send_buf = &hab_channel->send_buf;
+	recv_buf = &hab_channel->recv_buf;
+
+	hab_exp_flags = HABMM_EXPIMP_FLAGS_FD;
+	hab_exp_handle = (void *)((uintptr_t)fd);
+
+	ret = habmm_export(hab_channel->socket, hab_exp_handle,
+		size, export_id, hab_exp_flags);
+	if (ret) {
+		LOGE("export failed, fd(%d), size(%d), hab flags(0x%X) ret(%d)",
+				fd, size, ret);
+		goto out;
+	}
+
+	rpc_params.size              = sizeof(rpc_params);
+	rpc_params.devhandle         = devhandle;
+	rpc_params.ctxthandle        = ctxthandle;
+	rpc_params.len               = size;
+	rpc_params.queue_body_offset = queue_body_offset;
+	rpc_params.export_id         = *export_id;
+
+	ret = gsl_rpc_write(send_buf, &rpc_params, sizeof(rpc_params));
+	if (ret) {
+		LOGE("gsl_rpc_write failed, %d", ret);
+		goto out;
+	}
+
+	ret = gsl_rpc_transact(RPC_CONTEXT_REGISTER_DBCQ, hab_channel);
+	if (ret) {
+		LOGE("gsl_rpc_transact failed, %d", ret);
+		goto out;
+	}
+
+	ret = gsl_rpc_read_int32_l(recv_buf, &rval);
+	if (ret) {
+		LOGE("gsl_rpc_read_int32_l failed, %d", ret);
+		goto out;
+	}
+	if (rval != GSL_SUCCESS) {
+		LOGE("RPC_REGISTER_DB_CONTEXT_QUEUE failed, %d, %d, %d", rval, fd, *export_id);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	LOGD("ctxt id(%d) export_id(%d), size(%d)", ctxthandle, *export_id, rpc_params.len);
+
+out:
+	RPC_TRACE_DONE();
+	return ret;
+}

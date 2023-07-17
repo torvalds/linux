@@ -66,6 +66,21 @@ struct doorbell_queue {
 	atomic_t seq_num;
 };
 
+struct doorbell_context_queue {
+	struct hgsl_mem_node *queue_mem;
+	struct iosys_map map;
+	uint32_t db_signal;
+	uint32_t seq_num;
+	void *queue_header;
+	void *queue_body;
+	void *indirect_ibs;
+	uint32_t queue_header_gmuaddr;
+	uint32_t queue_body_gmuaddr;
+	uint32_t indirect_ibs_gmuaddr;
+	uint32_t queue_size;
+	int irq_idx;
+};
+
 struct qcom_hgsl {
 	struct device *dev;
 
@@ -134,6 +149,10 @@ struct hgsl_context {
 	struct hgsl_hsync_timeline *timeline;
 	uint32_t queued_ts;
 	bool is_killed;
+	int tcsr_idx;
+	struct mutex lock;
+	struct doorbell_context_queue *dbcq;
+	uint32_t dbcq_export_id;
 };
 
 struct hgsl_priv {
