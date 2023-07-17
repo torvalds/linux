@@ -65,6 +65,38 @@ print_title()
 	stdbuf -o0 -e0 printf "INFO: %s\n" "${1}"
 }
 
+# $1: test name
+print_test()
+{
+	stdbuf -o0 -e0 printf "%-63s" "${1}"
+}
+
+print_results()
+{
+	stdbuf -o0 -e0 printf "[%s]\n" "${1}"
+}
+
+test_pass()
+{
+	print_results " OK "
+}
+
+test_skip()
+{
+	print_results "SKIP"
+}
+
+# $1: msg
+test_fail()
+{
+	print_results "FAIL"
+	ret=1
+
+	if [ -n "${1}" ]; then
+		stdbuf -o0 -e0 printf "\t%s\n" "${1}"
+	fi
+}
+
 kill_wait()
 {
 	[ $1 -eq 0 ] && return 0
@@ -127,7 +159,8 @@ ip -net "$ns2" addr add dead:beef:2::2/64 dev ns2eth1 nodad
 ip -net "$ns2" link set ns2eth1 up
 
 print_title "Init"
-stdbuf -o0 -e0 printf "Created network namespaces ns1, ns2         \t\t\t[OK]\n"
+print_test "Created network namespaces ns1, ns2"
+test_pass
 
 make_file()
 {
@@ -212,16 +245,13 @@ make_connection()
 	server_serverside=$(grep "type:1," "$server_evts" |
 			    sed --unbuffered -n 's/.*\(server_side:\)\([[:digit:]]*\).*$/\2/p;q')
 
-	stdbuf -o0 -e0 printf "Established IP%s MPTCP Connection ns2 => ns1    \t\t" $is_v6
+	print_test "Established IP${is_v6} MPTCP Connection ns2 => ns1"
 	if [ "$client_token" != "" ] && [ "$server_token" != "" ] && [ "$client_serverside" = 0 ] &&
 		   [ "$server_serverside" = 1 ]
 	then
-		stdbuf -o0 -e0 printf "[OK]\n"
+		test_pass
 	else
-		stdbuf -o0 -e0 printf "[FAIL]\n"
-		stdbuf -o0 -e0 printf "\tExpected tokens (c:%s - s:%s) and server (c:%d - s:%d)\n" \
-			"${client_token}" "${server_token}" \
-			"${client_serverside}" "${server_serverside}"
+		test_fail "Expected tokens (c:${client_token} - s:${server_token}) and server (c:${client_serverside} - s:${server_serverside})"
 		exit 1
 	fi
 
@@ -255,7 +285,7 @@ check_expected_one()
 
 	if [ "${prev_ret}" = "0" ]
 	then
-		stdbuf -o0 -e0 printf "[FAIL]\n"
+		test_fail
 	fi
 
 	stdbuf -o0 -e0 printf "\tExpected value for '%s': '%s', got '%s'.\n" \
@@ -276,11 +306,11 @@ check_expected()
 
 	if [ ${rc} -eq 0 ]
 	then
-		stdbuf -o0 -e0 printf "[OK]\n"
+		test_pass
 		return 0
 	fi
 
-	ret=1
+	return 1
 }
 
 verify_announce_event()
@@ -326,13 +356,12 @@ test_announce()
 
 	local type
 	type=$(sed --unbuffered -n 's/.*\(type:\)\([[:digit:]]*\).*$/\2/p;q' "$server_evts")
-	stdbuf -o0 -e0 printf "ADD_ADDR 10.0.2.2 (ns2) => ns1, invalid token    \t\t"
+	print_test "ADD_ADDR 10.0.2.2 (ns2) => ns1, invalid token"
 	if [ "$type" = "" ]
 	then
-		stdbuf -o0 -e0 printf "[OK]\n"
+		test_pass
 	else
-		stdbuf -o0 -e0 printf "[FAIL]\n\ttype defined: %s\n" "${type}"
-		ret=1
+		test_fail "type defined: ${type}"
 	fi
 
 	# ADD_ADDR from the client to server machine reusing the subflow port
@@ -340,7 +369,7 @@ test_announce()
 	ip netns exec "$ns2"\
 	   ./pm_nl_ctl ann 10.0.2.2 token "$client4_token" id $client_addr_id dev\
 	   ns2eth1 > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "ADD_ADDR id:%d 10.0.2.2 (ns2) => ns1, reuse port \t\t" $client_addr_id
+	print_test "ADD_ADDR id:${client_addr_id} 10.0.2.2 (ns2) => ns1, reuse port"
 	sleep 0.5
 	verify_announce_event $server_evts $ANNOUNCED $server4_token "10.0.2.2" $client_addr_id \
 			      "$client4_port"
@@ -349,7 +378,7 @@ test_announce()
 	:>"$server_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl ann\
 	   dead:beef:2::2 token "$client6_token" id $client_addr_id dev ns2eth1 > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "ADD_ADDR6 id:%d dead:beef:2::2 (ns2) => ns1, reuse port\t\t" $client_addr_id
+	print_test "ADD_ADDR6 id:${client_addr_id} dead:beef:2::2 (ns2) => ns1, reuse port"
 	sleep 0.5
 	verify_announce_event "$server_evts" "$ANNOUNCED" "$server6_token" "dead:beef:2::2"\
 			      "$client_addr_id" "$client6_port" "v6"
@@ -359,7 +388,7 @@ test_announce()
 	client_addr_id=$((client_addr_id+1))
 	ip netns exec "$ns2" ./pm_nl_ctl ann 10.0.2.2 token "$client4_token" id\
 	   $client_addr_id dev ns2eth1 port $new4_port > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "ADD_ADDR id:%d 10.0.2.2 (ns2) => ns1, new port \t\t\t" $client_addr_id
+	print_test "ADD_ADDR id:${client_addr_id} 10.0.2.2 (ns2) => ns1, new port"
 	sleep 0.5
 	verify_announce_event "$server_evts" "$ANNOUNCED" "$server4_token" "10.0.2.2"\
 			      "$client_addr_id" "$new4_port"
@@ -370,7 +399,7 @@ test_announce()
 	# ADD_ADDR from the server to client machine reusing the subflow port
 	ip netns exec "$ns1" ./pm_nl_ctl ann 10.0.2.1 token "$server4_token" id\
 	   $server_addr_id dev ns1eth2 > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "ADD_ADDR id:%d 10.0.2.1 (ns1) => ns2, reuse port \t\t" $server_addr_id
+	print_test "ADD_ADDR id:${server_addr_id} 10.0.2.1 (ns1) => ns2, reuse port"
 	sleep 0.5
 	verify_announce_event "$client_evts" "$ANNOUNCED" "$client4_token" "10.0.2.1"\
 			      "$server_addr_id" "$app4_port"
@@ -379,7 +408,7 @@ test_announce()
 	:>"$client_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl ann dead:beef:2::1 token "$server6_token" id\
 	   $server_addr_id dev ns1eth2 > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "ADD_ADDR6 id:%d dead:beef:2::1 (ns1) => ns2, reuse port\t\t" $server_addr_id
+	print_test "ADD_ADDR6 id:${server_addr_id} dead:beef:2::1 (ns1) => ns2, reuse port"
 	sleep 0.5
 	verify_announce_event "$client_evts" "$ANNOUNCED" "$client6_token" "dead:beef:2::1"\
 			      "$server_addr_id" "$app6_port" "v6"
@@ -389,7 +418,7 @@ test_announce()
 	server_addr_id=$((server_addr_id+1))
 	ip netns exec "$ns1" ./pm_nl_ctl ann 10.0.2.1 token "$server4_token" id\
 	   $server_addr_id dev ns1eth2 port $new4_port > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "ADD_ADDR id:%d 10.0.2.1 (ns1) => ns2, new port \t\t\t" $server_addr_id
+	print_test "ADD_ADDR id:${server_addr_id} 10.0.2.1 (ns1) => ns2, new port"
 	sleep 0.5
 	verify_announce_event "$client_evts" "$ANNOUNCED" "$client4_token" "10.0.2.1"\
 			      "$server_addr_id" "$new4_port"
@@ -423,39 +452,34 @@ test_remove()
 	local invalid_token=$(( client4_token - 1 ))
 	ip netns exec "$ns2" ./pm_nl_ctl rem token $invalid_token id\
 	   $client_addr_id > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "RM_ADDR id:%d ns2 => ns1, invalid token                    \t"\
-	       $client_addr_id
+	print_test "RM_ADDR id:${client_addr_id} ns2 => ns1, invalid token"
 	local type
 	type=$(sed --unbuffered -n 's/.*\(type:\)\([[:digit:]]*\).*$/\2/p;q' "$server_evts")
 	if [ "$type" = "" ]
 	then
-		stdbuf -o0 -e0 printf "[OK]\n"
+		test_pass
 	else
-		stdbuf -o0 -e0 printf "[FAIL]\n"
-		ret=1
+		test_fail
 	fi
 
 	# RM_ADDR using an invalid addr id should result in no action
 	local invalid_id=$(( client_addr_id + 1 ))
 	ip netns exec "$ns2" ./pm_nl_ctl rem token "$client4_token" id\
 	   $invalid_id > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "RM_ADDR id:%d ns2 => ns1, invalid id                    \t"\
-	       $invalid_id
+	print_test "RM_ADDR id:${invalid_id} ns2 => ns1, invalid id"
 	type=$(sed --unbuffered -n 's/.*\(type:\)\([[:digit:]]*\).*$/\2/p;q' "$server_evts")
 	if [ "$type" = "" ]
 	then
-		stdbuf -o0 -e0 printf "[OK]\n"
+		test_pass
 	else
-		stdbuf -o0 -e0 printf "[FAIL]\n"
-		ret=1
+		test_fail
 	fi
 
 	# RM_ADDR from the client to server machine
 	:>"$server_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl rem token "$client4_token" id\
 	   $client_addr_id > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "RM_ADDR id:%d ns2 => ns1                                \t"\
-	       $client_addr_id
+	print_test "RM_ADDR id:${client_addr_id} ns2 => ns1"
 	sleep 0.5
 	verify_remove_event "$server_evts" "$REMOVED" "$server4_token" "$client_addr_id"
 
@@ -464,8 +488,7 @@ test_remove()
 	client_addr_id=$(( client_addr_id - 1 ))
 	ip netns exec "$ns2" ./pm_nl_ctl rem token "$client4_token" id\
 	   $client_addr_id > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "RM_ADDR id:%d ns2 => ns1                                \t"\
-	       $client_addr_id
+	print_test "RM_ADDR id:${client_addr_id} ns2 => ns1"
 	sleep 0.5
 	verify_remove_event "$server_evts" "$REMOVED" "$server4_token" "$client_addr_id"
 
@@ -473,8 +496,7 @@ test_remove()
 	:>"$server_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl rem token "$client6_token" id\
 	   $client_addr_id > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "RM_ADDR6 id:%d ns2 => ns1                               \t"\
-	       $client_addr_id
+	print_test "RM_ADDR6 id:${client_addr_id} ns2 => ns1"
 	sleep 0.5
 	verify_remove_event "$server_evts" "$REMOVED" "$server6_token" "$client_addr_id"
 
@@ -484,8 +506,7 @@ test_remove()
 	# RM_ADDR from the server to client machine
 	ip netns exec "$ns1" ./pm_nl_ctl rem token "$server4_token" id\
 	   $server_addr_id > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "RM_ADDR id:%d ns1 => ns2                                \t"\
-	       $server_addr_id
+	print_test "RM_ADDR id:${server_addr_id} ns1 => ns2"
 	sleep 0.5
 	verify_remove_event "$client_evts" "$REMOVED" "$client4_token" "$server_addr_id"
 
@@ -494,7 +515,7 @@ test_remove()
 	server_addr_id=$(( server_addr_id - 1 ))
 	ip netns exec "$ns1" ./pm_nl_ctl rem token "$server4_token" id\
 	   $server_addr_id > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "RM_ADDR id:%d ns1 => ns2                                \t" $server_addr_id
+	print_test "RM_ADDR id:${server_addr_id} ns1 => ns2"
 	sleep 0.5
 	verify_remove_event "$client_evts" "$REMOVED" "$client4_token" "$server_addr_id"
 
@@ -502,7 +523,7 @@ test_remove()
 	:>"$client_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl rem token "$server6_token" id\
 	   $server_addr_id > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "RM_ADDR6 id:%d ns1 => ns2                               \t" $server_addr_id
+	print_test "RM_ADDR6 id:${server_addr_id} ns1 => ns2"
 	sleep 0.5
 	verify_remove_event "$client_evts" "$REMOVED" "$client6_token" "$server_addr_id"
 }
@@ -529,25 +550,24 @@ verify_subflow_events()
 	local dport
 	local locid
 	local remid
+	local info
+
+	info="${e_saddr} (${e_from}) => ${e_daddr} (${e_to})"
 
 	if [ "$e_type" = "$SUB_ESTABLISHED" ]
 	then
 		if [ "$e_family" = "$AF_INET6" ]
 		then
-			stdbuf -o0 -e0 printf "CREATE_SUBFLOW6 %s (%s) => %s (%s)    "\
-			       "$e_saddr" "$e_from" "$e_daddr" "$e_to"
+			print_test "CREATE_SUBFLOW6 ${info}"
 		else
-			stdbuf -o0 -e0 printf "CREATE_SUBFLOW %s (%s) => %s (%s)         \t"\
-			       "$e_saddr" "$e_from" "$e_daddr" "$e_to"
+			print_test "CREATE_SUBFLOW ${info}"
 		fi
 	else
 		if [ "$e_family" = "$AF_INET6" ]
 		then
-			stdbuf -o0 -e0 printf "DESTROY_SUBFLOW6 %s (%s) => %s (%s)   "\
-			       "$e_saddr" "$e_from" "$e_daddr" "$e_to"
+			print_test "DESTROY_SUBFLOW6 ${info}"
 		else
-			stdbuf -o0 -e0 printf "DESTROY_SUBFLOW %s (%s) => %s (%s)         \t"\
-			       "$e_saddr" "$e_from" "$e_daddr" "$e_to"
+			print_test "DESTROY_SUBFLOW ${info}"
 		fi
 	fi
 
@@ -818,7 +838,7 @@ test_subflows_v4_v6_mix()
 	:>"$client_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl ann 10.0.2.1 token "$server6_token" id\
 	   $server_addr_id dev ns1eth2 > /dev/null 2>&1
-	stdbuf -o0 -e0 printf "ADD_ADDR4 id:%d 10.0.2.1 (ns1) => ns2, reuse port\t\t" $server_addr_id
+	print_test "ADD_ADDR4 id:${server_addr_id} 10.0.2.1 (ns1) => ns2, reuse port"
 	sleep 0.5
 	verify_announce_event "$client_evts" "$ANNOUNCED" "$client6_token" "10.0.2.1"\
 			      "$server_addr_id" "$app6_port"
@@ -863,25 +883,23 @@ test_prio()
 	sleep 0.5
 
 	# Check TX
-	stdbuf -o0 -e0 printf "MP_PRIO TX                                                 \t"
+	print_test "MP_PRIO TX"
 	count=$(ip netns exec "$ns2" nstat -as | grep MPTcpExtMPPrioTx | awk '{print $2}')
 	[ -z "$count" ] && count=0
 	if [ $count != 1 ]; then
-		stdbuf -o0 -e0 printf "[FAIL]\n\tCount != 1: %d\n" "${count}"
-		ret=1
+		test_fail "Count != 1: ${count}"
 	else
-		stdbuf -o0 -e0 printf "[OK]\n"
+		test_pass
 	fi
 
 	# Check RX
-	stdbuf -o0 -e0 printf "MP_PRIO RX                                                 \t"
+	print_test "MP_PRIO RX"
 	count=$(ip netns exec "$ns1" nstat -as | grep MPTcpExtMPPrioRx | awk '{print $2}')
 	[ -z "$count" ] && count=0
 	if [ $count != 1 ]; then
-		stdbuf -o0 -e0 printf "[FAIL]\n\tCount != 1: %d\n" "${count}"
-		ret=1
+		test_fail "Count != 1: ${count}"
 	else
-		stdbuf -o0 -e0 printf "[OK]\n"
+		test_pass
 	fi
 }
 
@@ -898,11 +916,9 @@ verify_listener_events()
 	local sport
 
 	if [ $e_type = $LISTENER_CREATED ]; then
-		stdbuf -o0 -e0 printf "CREATE_LISTENER %s:%s\t\t\t\t\t"\
-			$e_saddr $e_sport
+		print_test "CREATE_LISTENER $e_saddr:$e_sport"
 	elif [ $e_type = $LISTENER_CLOSED ]; then
-		stdbuf -o0 -e0 printf "CLOSE_LISTENER %s:%s\t\t\t\t\t"\
-			$e_saddr $e_sport
+		print_test "CLOSE_LISTENER $e_saddr:$e_sport"
 	fi
 
 	type=$(grep "type:$e_type," $evt |
@@ -927,7 +943,8 @@ test_listener()
 	print_title "Listener tests"
 
 	if ! mptcp_lib_kallsyms_has "mptcp_event_pm_listener$"; then
-		stdbuf -o0 -e0 printf "LISTENER events                                            \t[SKIP] Not supported\n"
+		print_test "LISTENER events"
+		test_skip
 		return
 	fi
 
