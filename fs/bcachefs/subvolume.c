@@ -331,8 +331,10 @@ int bch2_mark_snapshot(struct btree_trans *trans,
 		       parent - id - 1 < IS_ANCESTOR_BITMAP)
 			__set_bit(parent - id - 1, t->is_ancestor);
 
-		if (BCH_SNAPSHOT_DELETED(s.v))
+		if (BCH_SNAPSHOT_DELETED(s.v)) {
 			set_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
+			c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_delete_dead_snapshots);
+		}
 	} else {
 		memset(t, 0, sizeof(*t));
 	}
@@ -1302,9 +1304,6 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	u32 i, id;
 	int ret = 0;
 
-	if (!test_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags))
-		return 0;
-
 	if (!test_bit(BCH_FS_STARTED, &c->flags)) {
 		ret = bch2_fs_read_write_early(c);
 		if (ret) {
@@ -1399,7 +1398,8 @@ static void bch2_delete_dead_snapshots_work(struct work_struct *work)
 {
 	struct bch_fs *c = container_of(work, struct bch_fs, snapshot_delete_work);
 
-	bch2_delete_dead_snapshots(c);
+	if (test_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags))
+		bch2_delete_dead_snapshots(c);
 	bch2_write_ref_put(c, BCH_WRITE_REF_delete_dead_snapshots);
 }
 

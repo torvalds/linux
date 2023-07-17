@@ -1270,11 +1270,8 @@ again:
 		c->curr_recovery_pass++;
 	}
 
-	if (bch2_err_matches(ret, BCH_ERR_need_snapshot_cleanup)) {
-		set_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
-		c->curr_recovery_pass = BCH_RECOVERY_PASS_delete_dead_snapshots;
+	if (bch2_err_matches(ret, BCH_ERR_restart_recovery))
 		goto again;
-	}
 
 	return ret;
 }

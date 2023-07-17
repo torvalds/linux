@@ -680,7 +680,7 @@ enum bch_write_ref {
 	x(check_snapshot_trees,		PASS_FSCK)						\
 	x(check_snapshots,		PASS_FSCK)						\
 	x(check_subvols,		PASS_FSCK)						\
-	x(delete_dead_snapshots,	PASS_FSCK|PASS_UNCLEAN|PASS_SILENT)			\
+	x(delete_dead_snapshots,	PASS_FSCK|PASS_UNCLEAN)					\
 	x(fs_upgrade_for_subvolumes,	0)							\
 	x(check_inodes,			PASS_FSCK|PASS_UNCLEAN)					\
 	x(check_extents,		PASS_FSCK)						\
@@ -1177,6 +1177,19 @@ static inline s64 bch2_current_time(const struct bch_fs *c)
 static inline bool bch2_dev_exists2(const struct bch_fs *c, unsigned dev)
 {
 	return dev < c->sb.nr_devices && c->devs[dev];
+}
+
+/*
+ * For when we need to rewind recovery passes and run a pass we skipped:
+ */
+static inline int bch2_run_explicit_recovery_pass(struct bch_fs *c,
+						  enum bch_recovery_pass pass)
+{
+	BUG_ON(c->curr_recovery_pass < pass);
+
+	c->recovery_passes_explicit |= BIT_ULL(pass);
+	c->curr_recovery_pass = pass;
+	return -BCH_ERR_restart_recovery;
 }
 
 #define BKEY_PADDED_ONSTACK(key, pad)				\

@@ -500,7 +500,7 @@ static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 				bch2_btree_ids[btree_id],
 				pos.inode, pos.offset,
 				i->id, n.id, n.equiv);
-			return -BCH_ERR_need_snapshot_cleanup;
+			return bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_delete_dead_snapshots);
 		}
 	}
 
