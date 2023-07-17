@@ -2,9 +2,7 @@
 /*
  *  The driver for the EMU10K1 (SB Live!) based soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.demon.co.uk>
- *      Added support for Audigy 2 Value.
+ *                   James Courtier-Dutton <James@superbug.co.uk>
  */
 
 #include <linux/init.h>
@@ -192,6 +190,7 @@ static int snd_emu10k1_suspend(struct device *dev)
 	emu->suspend = 1;
 
 	cancel_work_sync(&emu->emu1010.firmware_work);
+	cancel_work_sync(&emu->emu1010.clock_work);
 
 	snd_ac97_suspend(emu->ac97);
 
