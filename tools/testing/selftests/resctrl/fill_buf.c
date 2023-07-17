@@ -101,15 +101,14 @@ static void fill_one_span_write(unsigned char *buf, size_t buf_size)
 	}
 }
 
-static int fill_cache_read(unsigned char *buf, size_t buf_size,
-			   char *resctrl_val)
+static int fill_cache_read(unsigned char *buf, size_t buf_size, bool once)
 {
 	int ret = 0;
 	FILE *fp;
 
 	while (1) {
 		ret = fill_one_span_read(buf, buf_size);
-		if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)))
+		if (once)
 			break;
 	}
 
@@ -125,19 +124,18 @@ static int fill_cache_read(unsigned char *buf, size_t buf_size,
 	return 0;
 }
 
-static int fill_cache_write(unsigned char *buf, size_t buf_size,
-			    char *resctrl_val)
+static int fill_cache_write(unsigned char *buf, size_t buf_size, bool once)
 {
 	while (1) {
 		fill_one_span_write(buf, buf_size);
-		if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)))
+		if (once)
 			break;
 	}
 
 	return 0;
 }
 
-static int fill_cache(size_t buf_size, int memflush, int op, char *resctrl_val)
+static int fill_cache(size_t buf_size, int memflush, int op, bool once)
 {
 	unsigned char *buf;
 	int ret;
@@ -151,9 +149,9 @@ static int fill_cache(size_t buf_size, int memflush, int op, char *resctrl_val)
 		mem_flush(buf, buf_size);
 
 	if (op == 0)
-		ret = fill_cache_read(buf, buf_size, resctrl_val);
+		ret = fill_cache_read(buf, buf_size, once);
 	else
-		ret = fill_cache_write(buf, buf_size, resctrl_val);
+		ret = fill_cache_write(buf, buf_size, once);
 
 	free(buf);
 
@@ -166,12 +164,12 @@ static int fill_cache(size_t buf_size, int memflush, int op, char *resctrl_val)
 	return 0;
 }
 
-int run_fill_buf(size_t span, int memflush, int op, char *resctrl_val)
+int run_fill_buf(size_t span, int memflush, int op, bool once)
 {
 	size_t cache_size = span;
 	int ret;
 
-	ret = fill_cache(cache_size, memflush, op, resctrl_val);
+	ret = fill_cache(cache_size, memflush, op, once);
 	if (ret) {
 		printf("\n Error in fill cache\n");
 		return -1;
