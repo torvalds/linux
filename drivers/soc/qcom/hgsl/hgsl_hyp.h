@@ -467,15 +467,8 @@ int hgsl_hyp_get_shadowts_mem(struct hgsl_hab_channel_t *hab_channel,
 int hgsl_hyp_put_shadowts_mem(struct hgsl_hab_channel_t *hab_channel,
 	struct hgsl_mem_node *mem_node);
 
-int hgsl_hyp_mem_alloc(struct hgsl_hyp_priv_t *priv,
-	struct hgsl_ioctl_mem_alloc_params *hgsl_params,
-	struct hgsl_mem_node *mem_node);
-
-int hgsl_hyp_mem_free(struct hgsl_hyp_priv_t *priv,
-	struct hgsl_mem_node *mem_node);
-
 int hgsl_hyp_mem_map_smmu(struct hgsl_hab_channel_t *hab_channel,
-	struct hgsl_ioctl_mem_map_smmu_params *hgsl_params,
+	uint64_t size, uint64_t offset,
 	struct hgsl_mem_node *mem_node);
 
 int hgsl_hyp_mem_unmap_smmu(struct hgsl_hab_channel_t *hab_channel,
@@ -538,7 +531,7 @@ int hgsl_hyp_query_dbcq(struct hgsl_hab_channel_t *hab_channel, uint32_t devhand
 	uint32_t *irq_idx);
 
 int hgsl_hyp_context_register_dbcq(struct hgsl_hab_channel_t *hab_channel,
-	uint32_t devhandle, uint32_t ctxthandle, int fd, uint32_t size,
+	uint32_t devhandle, uint32_t ctxthandle, struct dma_buf *dma_buf, uint32_t size,
 	uint32_t queue_body_offset, uint32_t *export_id);
 
 #endif

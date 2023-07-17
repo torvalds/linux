@@ -26,7 +26,6 @@ struct hgsl_mem_node {
 	struct gsl_memdesc_t       memdesc;
 	int32_t                    fd;
 	uint32_t                   export_id;
-	struct hgsl_hab_channel_t *hab_channel;
 	enum gsl_user_mem_type_t   memtype;
 	struct dma_buf            *dma_buf;
 	struct page               **pages;
@@ -54,6 +53,5 @@ void hgsl_put_sgt(struct hgsl_mem_node *mem_node, bool internal);
 
 struct hgsl_mem_node *hgsl_mem_find_base_locked(struct list_head *head,
 	uint64_t gpuaddr, uint64_t size);
-
 
 #endif

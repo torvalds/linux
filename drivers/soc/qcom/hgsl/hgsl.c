@@ -924,11 +924,6 @@ static void hgsl_dbcq_close(struct hgsl_context *ctxt)
 			dma_buf_end_cpu_access(dbcq->queue_mem->dma_buf,
 						   DMA_BIDIRECTIONAL);
 		}
-
-		if (dbcq->queue_mem->fd >= 0) {
-			dma_buf_put(dbcq->queue_mem->dma_buf);
-			put_unused_fd(dbcq->queue_mem->fd);
-		}
 		hgsl_sharedmem_free(dbcq->queue_mem);
 	}
 
@@ -968,7 +963,6 @@ static int hgsl_dbcq_open(struct hgsl_priv *priv,
 		goto err;
 	}
 
-	dbcq->queue_mem->fd = -1;
 	dbcq->queue_mem->flags = GSL_MEMFLAGS_UNCACHED | GSL_MEMFLAGS_ALIGN4K;
 	ret = hgsl_sharedmem_alloc(hgsl->dev, HGSL_CTXT_QUEUE_TOTAL_SIZE,
 		dbcq->queue_mem->flags, dbcq->queue_mem);
@@ -998,8 +992,8 @@ static int hgsl_dbcq_open(struct hgsl_priv *priv,
 	queue_header->dbqSignal = dbcq->db_signal;
 
 	ret = hgsl_hyp_context_register_dbcq(hab_channel, ctxt->devhandle, ctxt->context_id,
-		dbcq->queue_mem->fd, dbcq->queue_mem->memdesc.size, HGSL_CTXT_QUEUE_BODY_OFFSET,
-		&ctxt->dbcq_export_id);
+		dbcq->queue_mem->dma_buf, dbcq->queue_mem->memdesc.size,
+		HGSL_CTXT_QUEUE_BODY_OFFSET, &ctxt->dbcq_export_id);
 	if (ret) {
 		LOGE("Failed to register dbcq %d\n", ret);
 		goto err;
@@ -1584,8 +1578,6 @@ static int hgsl_ioctl_get_shadowts_mem(struct file *filep, unsigned long arg)
 	}
 
 	if (copy_to_user(USRPTR(arg), &params, sizeof(params))) {
-		dma_buf_put(dma_buf);
-		put_unused_fd(params.fd);
 		ret = -EFAULT;
 	}
 
@@ -2015,7 +2007,6 @@ static int hgsl_ioctl_mem_alloc(struct file *filep, unsigned long arg)
 	struct qcom_hgsl *hgsl = priv->dev;
 	int ret = 0;
 	struct hgsl_mem_node *mem_node = NULL;
-	struct hgsl_ioctl_mem_map_smmu_params map_params;
 	struct hgsl_hab_channel_t *hab_channel = NULL;
 
 	ret = hgsl_hyp_channel_pool_get(&priv->hyp_priv, 0, &hab_channel);
@@ -2042,45 +2033,43 @@ static int hgsl_ioctl_mem_alloc(struct file *filep, unsigned long arg)
 		goto out;
 	}
 
-	mem_node->fd = -1;
 	mem_node->flags = params.flags;
 
 	ret = hgsl_sharedmem_alloc(hgsl->dev, params.sizebytes, params.flags, mem_node);
 	if (ret)
 		goto out;
-	memset(&map_params, 0, sizeof(map_params));
-	map_params.fd = mem_node->fd;
-	map_params.memtype = mem_node->memtype;
-	map_params.flags = params.flags;
-	map_params.size = params.sizebytes;
-	map_params.offset = 0;
-	ret = hgsl_hyp_mem_map_smmu(hab_channel, &map_params, mem_node);
+
+	ret = hgsl_hyp_mem_map_smmu(hab_channel, mem_node->memdesc.size, 0, mem_node);
 	LOGD("%d, %d, gpuaddr 0x%llx",
 		ret, mem_node->export_id, mem_node->memdesc.gpuaddr);
+	if (ret)
+		goto out;
 
-	params.fd = mem_node->fd;
-	if (!ret) {
-		if (copy_to_user(USRPTR(arg), &params, sizeof(params))) {
-			ret = -EFAULT;
-			goto out;
-		}
-		if (copy_to_user(USRPTR(params.memdesc),
-			&mem_node->memdesc, sizeof(mem_node->memdesc))) {
-			ret = -EFAULT;
-			goto out;
-		}
-		mutex_lock(&priv->lock);
-		list_add(&mem_node->node, &priv->mem_allocated);
-		mutex_unlock(&priv->lock);
-		hgsl_trace_gpu_mem_total(priv, mem_node->memdesc.size64);
+	params.fd = dma_buf_fd(mem_node->dma_buf, O_CLOEXEC);
+
+	if (params.fd < 0) {
+		LOGE("dma_buf_fd failed, size 0x%x", mem_node->memdesc.size);
+		ret = -EINVAL;
+		goto out;
 	}
+	get_dma_buf(mem_node->dma_buf);
+
+	if (copy_to_user(USRPTR(arg), &params, sizeof(params))) {
+		ret = -EFAULT;
+		goto out;
+	}
+	if (copy_to_user(USRPTR(params.memdesc),
+		&mem_node->memdesc, sizeof(mem_node->memdesc))) {
+		ret = -EFAULT;
+		goto out;
+	}
+	mutex_lock(&priv->lock);
+	list_add(&mem_node->node, &priv->mem_allocated);
+	mutex_unlock(&priv->lock);
+	hgsl_trace_gpu_mem_total(priv, mem_node->memdesc.size64);
 
 out:
 	if (ret && mem_node) {
-		if (mem_node->fd >= 0) {
-			dma_buf_put(mem_node->dma_buf);
-			put_unused_fd(mem_node->fd);
-		}
 		hgsl_hyp_mem_unmap_smmu(hab_channel, mem_node);
 		hgsl_sharedmem_free(mem_node);
 	}
@@ -2231,7 +2220,9 @@ static int hgsl_ioctl_mem_map_smmu(struct file *filep, unsigned long arg)
 
 	params.size = PAGE_ALIGN(params.size);
 	mem_node->flags = params.flags;
-	ret = hgsl_hyp_mem_map_smmu(hab_channel, &params, mem_node);
+	mem_node->fd = params.fd;
+	mem_node->memtype = params.memtype;
+	ret = hgsl_hyp_mem_map_smmu(hab_channel, params.size, params.offset, mem_node);
 
 	if (ret == 0) {
 		if (copy_to_user(USRPTR(arg), &params, sizeof(params))) {
