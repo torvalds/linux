@@ -556,8 +556,6 @@ static struct pcf85063_config pcf85063_cfg[] = {
 	},
 };
 
-static const struct i2c_device_id pcf85063_ids[];
-
 static int pcf85063_probe(struct i2c_client *client)
 {
 	struct pcf85063 *pcf85063;
@@ -579,17 +577,9 @@ static int pcf85063_probe(struct i2c_client *client)
 	if (!pcf85063)
 		return -ENOMEM;
 
-	if (client->dev.of_node) {
-		config = of_device_get_match_data(&client->dev);
-		if (!config)
-			return -ENODEV;
-	} else {
-		enum pcf85063_type type =
-			i2c_match_id(pcf85063_ids, client)->driver_data;
-		if (type >= PCF85063_LAST_ID)
-			return -ENODEV;
-		config = &pcf85063_cfg[type];
-	}
+	config = i2c_get_match_data(client);
+	if (!config)
+		return -ENODEV;
 
 	pcf85063->regmap = devm_regmap_init_i2c(client, &config->regmap);
 	if (IS_ERR(pcf85063->regmap))
@@ -655,11 +645,11 @@ static int pcf85063_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pcf85063_ids[] = {
-	{ "pca85073a", PCF85063A },
-	{ "pcf85063", PCF85063 },
-	{ "pcf85063tp", PCF85063TP },
-	{ "pcf85063a", PCF85063A },
-	{ "rv8263", RV8263 },
+	{ "pca85073a", .driver_data = (kernel_ulong_t)&pcf85063_cfg[PCF85063A] },
+	{ "pcf85063", .driver_data = (kernel_ulong_t)&pcf85063_cfg[PCF85063] },
+	{ "pcf85063tp", .driver_data = (kernel_ulong_t)&pcf85063_cfg[PCF85063TP] },
+	{ "pcf85063a", .driver_data = (kernel_ulong_t)&pcf85063_cfg[PCF85063A] },
+	{ "rv8263", .driver_data = (kernel_ulong_t)&pcf85063_cfg[RV8263] },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, pcf85063_ids);
