@@ -240,7 +240,7 @@ static int qcom_icc_rpm_set(struct qcom_icc_node *qn, u64 *bw)
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 /**
