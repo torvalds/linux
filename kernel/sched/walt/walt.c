@@ -3877,6 +3877,24 @@ void find_heaviest_topapp(u64 window_start)
 	raw_spin_unlock_irqrestore(&grp->lock, flags);
 }
 
+static inline void swap_pipeline_with_prime_locked(struct walt_task_struct *prime_wts,
+						   struct walt_task_struct *other_wts)
+{
+	if (prime_wts && other_wts) {
+		if (prime_wts->demand < other_wts->demand) {
+			int cpu;
+
+			cpu = other_wts->pipeline_cpu;
+			other_wts->pipeline_cpu = prime_wts->pipeline_cpu;
+			prime_wts->pipeline_cpu = cpu;
+		}
+	} else if (!prime_wts && other_wts) {
+		/* if prime preferred died promote gold to prime, assumes 1 prime */
+		other_wts->pipeline_cpu =
+			cpumask_last(&sched_cluster[num_sched_clusters - 1]->cpus);
+	}
+}
+
 void rearrange_heavy(u64 window_start)
 {
 	struct walt_related_thread_group *grp;
@@ -3930,19 +3948,7 @@ void rearrange_heavy(u64 window_start)
 	}
 
 	/* swap prime for nr_pipeline >= 3 */
-	if (prime_wts && other_wts) {
-		if (prime_wts->demand < other_wts->demand) {
-			int cpu;
-
-			cpu = other_wts->pipeline_cpu;
-			other_wts->pipeline_cpu = prime_wts->pipeline_cpu;
-			prime_wts->pipeline_cpu = cpu;
-		}
-	} else if (!prime_wts && other_wts) {
-		/* if prime preferred died promote gold to prime, assumes 1 prime */
-		other_wts->pipeline_cpu =
-			cpumask_last(&sched_cluster[num_sched_clusters - 1]->cpus);
-	}
+	swap_pipeline_with_prime_locked(prime_wts, other_wts);
 
 	raw_spin_unlock_irqrestore(&heavy_lock, flags);
 }
@@ -4041,19 +4047,7 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 	}
 
 	/* swap prime for nr_piprline >= 3 */
-	if (prime_wts && other_wts) {
-		if (prime_wts->demand < other_wts->demand) {
-			int cpu;
-
-			cpu = other_wts->pipeline_cpu;
-			other_wts->pipeline_cpu = prime_wts->pipeline_cpu;
-			prime_wts->pipeline_cpu = cpu;
-		}
-	} else if (!prime_wts && other_wts) {
-		/* if prime preferred died promote gold to prime, assumes 1 prime */
-		other_wts->pipeline_cpu =
-			cpumask_last(&sched_cluster[num_sched_clusters - 1]->cpus);
-	}
+	swap_pipeline_with_prime_locked(prime_wts, other_wts);
 
 release_lock:
 	raw_spin_unlock_irqrestore(&pipeline_lock, flags);
