@@ -822,7 +822,7 @@
 			lpc0_mbox: mbox@200 {
 				compatible = "aspeed,ast2700-mbox";
 				reg = <0x200 0xc0>;
-				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts-extended = <&intc0 20>;
 				status = "disabled";
 			};
 		};
@@ -900,7 +900,7 @@
 			lpc1_mbox: mbox@200 {
 				compatible = "aspeed,ast2700-mbox";
 				reg = <0x200 0xc0>;
-				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts-extended = <&intc1 20>;
 				status = "disabled";
 			};
 		};
