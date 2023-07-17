@@ -257,7 +257,8 @@ config SERIAL_8250_ACCENT
 
 config SERIAL_8250_ASPEED
 	tristate "Aspeed UART"
-	depends on ARCH_ASPEED && SERIAL_8250
+	depends on SERIAL_8250 && ARCH_ASPEED
+	select ASPEED_UDMA
 	help
 	  If you have a system using an Aspeed AST26xx SoCs and wish to
 	  make use of its 16550A-compatible UART devices with DMA support,

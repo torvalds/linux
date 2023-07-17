@@ -120,6 +120,14 @@ config ASPEED_LPC_PCC
 	  allowing the BMC to snoop data bytes written by the
 	  the host to an arbitrary LPC I/O port.
 
+config ASPEED_UDMA
+	tristate "Aspeed UDMA Engine Driver"
+	depends on ARCH_ASPEED && REGMAP && MFD_SYSCON && HAS_DMA
+	help
+	  Enable support for the Aspeed UDMA Engine found on the Aspeed AST2XXX
+	  SOCs. The UDMA engine can perform UART DMA operations between the memory
+	  buffer and the UART/VUART devices.
+
 endmenu
 
 endif
