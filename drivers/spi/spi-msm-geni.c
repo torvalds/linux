@@ -2187,6 +2187,8 @@ static int spi_geni_probe(struct platform_device *pdev)
 	if (slave_en)
 		spi->slave_abort = spi_slv_abort;
 
+	pr_info("boot_kpi: M - DRIVER GENI_SPI Init\n");
+
 	platform_set_drvdata(pdev, spi);
 	geni_mas = spi_master_get_devdata(spi);
 	geni_mas->dev = dev;
@@ -2392,6 +2394,9 @@ static int spi_geni_probe(struct platform_device *pdev)
 	geni_mas->is_xfer_in_progress = false;
 
 	dev_info(&pdev->dev, "%s: completed %d\n", __func__, ret);
+
+	pr_info("boot_kpi: M - DRIVER GENI_SPI_%d Ready\n", spi->bus_num);
+
 	return ret;
 spi_geni_probe_err:
 	dev_info(&pdev->dev, "%s: ret:%d\n", __func__, ret);

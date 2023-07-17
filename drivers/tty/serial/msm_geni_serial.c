@@ -4839,6 +4839,11 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 		line = pdev->id;
 	}
 
+	if (drv->cons)
+		pr_info("boot_kpi: M - DRIVER GENI_CONSOLE_%d Init\n", line);
+	else
+		pr_info("boot_kpi: M - DRIVER GENI_HS_UART_%d Init\n", line);
+
 	is_console = (drv->cons ? true : false);
 	dev_port = get_port_from_line(line, is_console);
 	if (IS_ERR_OR_NULL(dev_port)) {
@@ -4951,6 +4956,11 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 	ret = uart_add_one_port(drv, uport);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to register uart_port: %d\n", ret);
+
+	if (is_console)
+		pr_info("boot_kpi: M - DRIVER GENI_CONSOLE_%d Ready\n", line);
+	else
+		pr_info("boot_kpi: M - DRIVER GENI_HS_UART_%d Ready\n", line);
 
 exit_geni_serial_probe:
 	UART_LOG_DBG(dev_port->ipc_log_misc, &pdev->dev, "%s: ret:%d\n",
