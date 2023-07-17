@@ -52,6 +52,7 @@ sec=$(date +%s)
 rndh=$(printf %x "$sec")-$(mktemp -u XXXXXX)
 ns1="ns1-$rndh"
 ns2="ns2-$rndh"
+ret=0
 
 print_title()
 {
@@ -257,21 +258,21 @@ check_expected_one()
 # $@: all var names to check
 check_expected()
 {
-	local ret=0
+	local rc=0
 	local var
 
 	for var in "${@}"
 	do
-		check_expected_one "${var}" "${ret}" || ret=1
+		check_expected_one "${var}" "${rc}" || rc=1
 	done
 
-	if [ ${ret} -eq 0 ]
+	if [ ${rc} -eq 0 ]
 	then
 		stdbuf -o0 -e0 printf "[OK]\n"
 		return 0
 	fi
 
-	exit 1
+	ret=1
 }
 
 verify_announce_event()
@@ -323,7 +324,7 @@ test_announce()
 		stdbuf -o0 -e0 printf "[OK]\n"
 	else
 		stdbuf -o0 -e0 printf "[FAIL]\n\ttype defined: %s\n" "${type}"
-		exit 1
+		ret=1
 	fi
 
 	# ADD_ADDR from the client to server machine reusing the subflow port
@@ -423,7 +424,7 @@ test_remove()
 		stdbuf -o0 -e0 printf "[OK]\n"
 	else
 		stdbuf -o0 -e0 printf "[FAIL]\n"
-		exit 1
+		ret=1
 	fi
 
 	# RM_ADDR using an invalid addr id should result in no action
@@ -438,7 +439,7 @@ test_remove()
 		stdbuf -o0 -e0 printf "[OK]\n"
 	else
 		stdbuf -o0 -e0 printf "[FAIL]\n"
-		exit 1
+		ret=1
 	fi
 
 	# RM_ADDR from the client to server machine
@@ -859,7 +860,7 @@ test_prio()
 	[ -z "$count" ] && count=0
 	if [ $count != 1 ]; then
 		stdbuf -o0 -e0 printf "[FAIL]\n\tCount != 1: %d\n" "${count}"
-		exit 1
+		ret=1
 	else
 		stdbuf -o0 -e0 printf "[OK]\n"
 	fi
@@ -870,7 +871,7 @@ test_prio()
 	[ -z "$count" ] && count=0
 	if [ $count != 1 ]; then
 		stdbuf -o0 -e0 printf "[FAIL]\n\tCount != 1: %d\n" "${count}"
-		exit 1
+		ret=1
 	else
 		stdbuf -o0 -e0 printf "[OK]\n"
 	fi
@@ -961,4 +962,4 @@ test_subflows_v4_v6_mix
 test_prio
 test_listener
 
-exit 0
+exit ${ret}
