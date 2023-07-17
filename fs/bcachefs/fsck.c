@@ -483,27 +483,31 @@ static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 	if (!bkey_eq(s->pos, pos))
 		s->ids.nr = 0;
 
-	pos.snapshot = n.equiv;
 	s->pos = pos;
+	s->pos.snapshot = n.equiv;
 
-	darray_for_each(s->ids, i)
-		if (i->equiv == n.equiv) {
-			if (fsck_err_on(i->id != n.id, c,
-					"snapshot deletion did not run correctly:\n"
-					"  duplicate keys in btree %s at %llu:%llu snapshots %u, %u (equiv %u)\n",
-					bch2_btree_ids[btree_id],
-					pos.inode, pos.offset,
-					i->id, n.id, n.equiv))
-				return -BCH_ERR_need_snapshot_cleanup;
-
+	darray_for_each(s->ids, i) {
+		if (i->id == n.id)
 			return 0;
+
+		/*
+		 * We currently don't rigorously track for snapshot cleanup
+		 * needing to be run, so it shouldn't be a fsck error yet:
+		 */
+		if (i->equiv == n.equiv) {
+			bch_err(c, "snapshot deletion did not finish:\n"
+				"  duplicate keys in btree %s at %llu:%llu snapshots %u, %u (equiv %u)\n",
+				bch2_btree_ids[btree_id],
+				pos.inode, pos.offset,
+				i->id, n.id, n.equiv);
+			return -BCH_ERR_need_snapshot_cleanup;
 		}
+	}
 
 	ret = darray_push(&s->ids, n);
 	if (ret)
 		bch_err(c, "error reallocating snapshots_seen table (size %zu)",
 			s->ids.size);
-fsck_err:
 	return ret;
 }
 
