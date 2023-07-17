@@ -8,7 +8,6 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 #include "core.h"
