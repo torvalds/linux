@@ -154,6 +154,7 @@ void br_forward(const struct net_bridge_port *to,
 		backup_port = rcu_dereference(to->backup_port);
 		if (unlikely(!backup_port))
 			goto out;
+		BR_INPUT_SKB_CB(skb)->backup_nhid = READ_ONCE(to->backup_nhid);
 		to = backup_port;
 	}
 
