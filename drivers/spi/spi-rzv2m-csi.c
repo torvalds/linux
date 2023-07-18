@@ -38,6 +38,7 @@
 /* CSI_CLKSEL */
 #define CSI_CLKSEL_CKP		BIT(17)
 #define CSI_CLKSEL_DAP		BIT(16)
+#define CSI_CLKSEL_MODE		(CSI_CLKSEL_CKP|CSI_CLKSEL_DAP)
 #define CSI_CLKSEL_SLAVE	BIT(15)
 #define CSI_CLKSEL_CKS		GENMASK(14, 1)
 
@@ -408,10 +409,8 @@ static int rzv2m_csi_setup(struct spi_device *spi)
 	writel(CSI_MODE_SETUP, csi->base + CSI_MODE);
 
 	/* Setup clock polarity and phase timing */
-	rzv2m_csi_reg_write_bit(csi, CSI_CLKSEL, CSI_CLKSEL_CKP,
-				!(spi->mode & SPI_CPOL));
-	rzv2m_csi_reg_write_bit(csi, CSI_CLKSEL, CSI_CLKSEL_DAP,
-				!(spi->mode & SPI_CPHA));
+	rzv2m_csi_reg_write_bit(csi, CSI_CLKSEL, CSI_CLKSEL_MODE,
+				~spi->mode & SPI_MODE_X_MASK);
 
 	/* Setup serial data order */
 	rzv2m_csi_reg_write_bit(csi, CSI_MODE, CSI_MODE_DIR,
