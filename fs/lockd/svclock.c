@@ -1019,7 +1019,7 @@ retry_deferred_block(struct nlm_block *block)
  * picks up locks that can be granted, or grant notifications that must
  * be retransmitted.
  */
-unsigned long
+void
 nlmsvc_retry_blocked(void)
 {
 	unsigned long	timeout = MAX_SCHEDULE_TIMEOUT;
@@ -1049,5 +1049,6 @@ nlmsvc_retry_blocked(void)
 	}
 	spin_unlock(&nlm_blocked_lock);
 
-	return timeout;
+	if (timeout < MAX_SCHEDULE_TIMEOUT)
+		mod_timer(&nlmsvc_retry, jiffies + timeout);
 }

@@ -961,7 +961,7 @@ nfsd(void *vrqstp)
 		/* Update sv_maxconn if it has changed */
 		rqstp->rq_server->sv_maxconn = nn->max_connections;
 
-		svc_recv(rqstp, 60*60*HZ);
+		svc_recv(rqstp);
 		validate_process_creds();
 	}
 

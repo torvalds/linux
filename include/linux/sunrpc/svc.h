@@ -41,7 +41,6 @@ struct svc_pool {
 	/* statistics on pool operation */
 	struct percpu_counter	sp_sockets_queued;
 	struct percpu_counter	sp_threads_woken;
-	struct percpu_counter	sp_threads_timedout;
 
 #define	SP_TASK_PENDING		(0)		/* still work to do even if no
 						 * xprt is queued. */

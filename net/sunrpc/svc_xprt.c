@@ -750,10 +750,9 @@ rqst_should_sleep(struct svc_rqst *rqstp)
 	return true;
 }
 
-static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
+static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp)
 {
 	struct svc_pool		*pool = rqstp->rq_pool;
-	long			time_left = 0;
 
 	/* rq_xprt should be clear on entry */
 	WARN_ON_ONCE(rqstp->rq_xprt);
@@ -769,7 +768,7 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 	smp_mb__after_atomic();
 
 	if (likely(rqst_should_sleep(rqstp)))
-		time_left = schedule_timeout(timeout);
+		schedule();
 	else
 		__set_current_state(TASK_RUNNING);
 
@@ -780,9 +779,6 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 	rqstp->rq_xprt = svc_xprt_dequeue(pool);
 	if (rqstp->rq_xprt)
 		goto out_found;
-
-	if (!time_left)
-		percpu_counter_inc(&pool->sp_threads_timedout);
 
 	if (kthread_should_stop())
 		return NULL;
@@ -863,12 +859,15 @@ out:
 	return len;
 }
 
-/*
- * Receive the next request on any transport.  This code is carefully
- * organised not to touch any cachelines in the shared svc_serv
- * structure, only cachelines in the local svc_pool.
+/**
+ * svc_recv - Receive and process the next request on any transport
+ * @rqstp: an idle RPC service thread
+ *
+ * This code is carefully organised not to touch any cachelines in
+ * the shared svc_serv structure, only cachelines in the local
+ * svc_pool.
  */
-void svc_recv(struct svc_rqst *rqstp, long timeout)
+void svc_recv(struct svc_rqst *rqstp)
 {
 	struct svc_xprt		*xprt = NULL;
 	struct svc_serv		*serv = rqstp->rq_server;
@@ -882,7 +881,7 @@ void svc_recv(struct svc_rqst *rqstp, long timeout)
 	if (kthread_should_stop())
 		goto out;
 
-	xprt = svc_get_next_xprt(rqstp, timeout);
+	xprt = svc_get_next_xprt(rqstp);
 	if (!xprt)
 		goto out;
 
@@ -1447,12 +1446,11 @@ static int svc_pool_stats_show(struct seq_file *m, void *p)
 		return 0;
 	}
 
-	seq_printf(m, "%u %llu %llu %llu %llu\n",
-		pool->sp_id,
-		percpu_counter_sum_positive(&pool->sp_sockets_queued),
-		percpu_counter_sum_positive(&pool->sp_sockets_queued),
-		percpu_counter_sum_positive(&pool->sp_threads_woken),
-		percpu_counter_sum_positive(&pool->sp_threads_timedout));
+	seq_printf(m, "%u %llu %llu %llu 0\n",
+		   pool->sp_id,
+		   percpu_counter_sum_positive(&pool->sp_sockets_queued),
+		   percpu_counter_sum_positive(&pool->sp_sockets_queued),
+		   percpu_counter_sum_positive(&pool->sp_threads_woken));
 
 	return 0;
 }

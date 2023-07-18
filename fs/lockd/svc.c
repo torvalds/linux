@@ -56,6 +56,12 @@ static unsigned int		nlmsvc_users;
 static struct svc_serv		*nlmsvc_serv;
 unsigned long			nlmsvc_timeout;
 
+static void nlmsvc_request_retry(struct timer_list *tl)
+{
+	svc_wake_up(nlmsvc_serv);
+}
+DEFINE_TIMER(nlmsvc_retry, nlmsvc_request_retry);
+
 unsigned int lockd_net_id;
 
 /*
@@ -130,14 +136,11 @@ lockd(void *vrqstp)
 	 * NFS mount or NFS daemon has gone away.
 	 */
 	while (!kthread_should_stop()) {
-		long timeout = MAX_SCHEDULE_TIMEOUT;
-
 		/* update sv_maxconn if it has changed */
 		rqstp->rq_server->sv_maxconn = nlm_max_connections;
 
-		timeout = nlmsvc_retry_blocked();
-
-		svc_recv(rqstp, timeout);
+		nlmsvc_retry_blocked();
+		svc_recv(rqstp);
 	}
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
@@ -371,6 +374,7 @@ static void lockd_put(void)
 #endif
 
 	svc_set_num_threads(nlmsvc_serv, NULL, 0);
+	timer_delete_sync(&nlmsvc_retry);
 	nlmsvc_serv = NULL;
 	dprintk("lockd_down: service destroyed\n");
 }
