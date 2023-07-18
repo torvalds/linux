@@ -1572,8 +1572,9 @@ post_soft_reset:
 	if (ret)
 		return ret;
 
-	/* Populate soft registers in the regmap cache */
-	cs35l56_reread_firmware_registers(cs35l56->dev, cs35l56->regmap);
+	ret = cs35l56_set_patch(cs35l56->regmap);
+	if (ret)
+		return ret;
 
 	/* Registers could be dirty after soft reset or SoundWire enumeration */
 	regcache_sync(cs35l56->regmap);

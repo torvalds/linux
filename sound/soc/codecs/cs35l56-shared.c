@@ -11,6 +11,19 @@
 
 #include "cs35l56.h"
 
+static const struct reg_sequence cs35l56_patch[] = {
+	/* These are not reset by a soft-reset, so patch to defaults. */
+	{ CS35L56_MAIN_RENDER_USER_MUTE,	0x00000000 },
+	{ CS35L56_MAIN_RENDER_USER_VOLUME,	0x00000000 },
+	{ CS35L56_MAIN_POSTURE_NUMBER,		0x00000000 },
+};
+
+int cs35l56_set_patch(struct regmap *regmap)
+{
+	return regmap_register_patch(regmap, cs35l56_patch, ARRAY_SIZE(cs35l56_patch));
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_set_patch, SND_SOC_CS35L56_SHARED);
+
 static const struct reg_default cs35l56_reg_defaults[] = {
 	{ CS35L56_ASP1_ENABLES1,		0x00000000 },
 	{ CS35L56_ASP1_CONTROL1,		0x00000028 },
@@ -35,9 +48,9 @@ static const struct reg_default cs35l56_reg_defaults[] = {
 	{ CS35L56_IRQ1_MASK_8,			0xfc000fff },
 	{ CS35L56_IRQ1_MASK_18,			0x1f7df0ff },
 	{ CS35L56_IRQ1_MASK_20,			0x15c00000 },
-	/* CS35L56_MAIN_RENDER_USER_MUTE - soft register, no default	*/
-	/* CS35L56_MAIN_RENDER_USER_VOLUME - soft register, no default	*/
-	/* CS35L56_MAIN_POSTURE_NUMBER - soft register, no default	*/
+	{ CS35L56_MAIN_RENDER_USER_MUTE,	0x00000000 },
+	{ CS35L56_MAIN_RENDER_USER_VOLUME,	0x00000000 },
+	{ CS35L56_MAIN_POSTURE_NUMBER,		0x00000000 },
 };
 
 static bool cs35l56_is_dsp_memory(unsigned int reg)
@@ -180,25 +193,6 @@ static bool cs35l56_volatile_reg(struct device *dev, unsigned int reg)
 		return cs35l56_is_dsp_memory(reg);
 	}
 }
-
-static const u32 cs35l56_firmware_registers[] = {
-	CS35L56_MAIN_RENDER_USER_MUTE,
-	CS35L56_MAIN_RENDER_USER_VOLUME,
-	CS35L56_MAIN_POSTURE_NUMBER,
-};
-
-void cs35l56_reread_firmware_registers(struct device *dev, struct regmap *regmap)
-{
-	int i;
-	unsigned int val;
-
-	for (i = 0; i < ARRAY_SIZE(cs35l56_firmware_registers); i++) {
-		regmap_read(regmap, cs35l56_firmware_registers[i], &val);
-		dev_dbg(dev, "%s: %d: %#x: %#x\n", __func__,
-			i, cs35l56_firmware_registers[i], val);
-	}
-}
-EXPORT_SYMBOL_NS_GPL(cs35l56_reread_firmware_registers, SND_SOC_CS35L56_SHARED);
 
 const struct cs_dsp_region cs35l56_dsp1_regions[] = {
 	{ .type = WMFW_HALO_PM_PACKED,	.base = CS35L56_DSP1_PMEM_0 },
