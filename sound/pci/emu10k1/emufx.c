@@ -977,11 +977,9 @@ static int snd_emu10k1_del_controls(struct snd_emu10k1 *emu,
 				       in_kernel);
 		if (err < 0)
 			return err;
-		down_write(&card->controls_rwsem);
 		ctl = snd_emu10k1_look_for_ctl(emu, &id);
 		if (ctl)
 			snd_ctl_remove(card, ctl->kcontrol);
-		up_write(&card->controls_rwsem);
 	}
 	return 0;
 }

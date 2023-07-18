@@ -39,6 +39,9 @@ static LIST_HEAD(snd_control_compat_ioctls);
 #endif
 static struct snd_ctl_layer_ops *snd_ctl_layer;
 
+static int snd_ctl_remove_locked(struct snd_card *card,
+				 struct snd_kcontrol *kcontrol);
+
 static int snd_ctl_open(struct inode *inode, struct file *file)
 {
 	unsigned long flags;
@@ -483,7 +486,7 @@ static int __snd_ctl_add_replace(struct snd_card *card,
 			return -EBUSY;
 		}
 
-		err = snd_ctl_remove(card, old);
+		err = snd_ctl_remove_locked(card, old);
 		if (err < 0)
 			return err;
 	}
@@ -589,20 +592,32 @@ static int __snd_ctl_remove(struct snd_card *card,
 	return 0;
 }
 
+static inline int snd_ctl_remove_locked(struct snd_card *card,
+					struct snd_kcontrol *kcontrol)
+{
+	return __snd_ctl_remove(card, kcontrol, true);
+}
+
 /**
  * snd_ctl_remove - remove the control from the card and release it
  * @card: the card instance
  * @kcontrol: the control instance to remove
  *
  * Removes the control from the card and then releases the instance.
- * You don't need to call snd_ctl_free_one(). You must be in
- * the write lock - down_write(&card->controls_rwsem).
+ * You don't need to call snd_ctl_free_one().
  *
  * Return: 0 if successful, or a negative error code on failure.
+ *
+ * Note that this function takes card->controls_rwsem lock internally.
  */
 int snd_ctl_remove(struct snd_card *card, struct snd_kcontrol *kcontrol)
 {
-	return __snd_ctl_remove(card, kcontrol, true);
+	int ret;
+
+	down_write(&card->controls_rwsem);
+	ret = snd_ctl_remove_locked(card, kcontrol);
+	up_write(&card->controls_rwsem);
+	return ret;
 }
 EXPORT_SYMBOL(snd_ctl_remove);
 
@@ -627,7 +642,7 @@ int snd_ctl_remove_id(struct snd_card *card, struct snd_ctl_elem_id *id)
 		up_write(&card->controls_rwsem);
 		return -ENOENT;
 	}
-	ret = snd_ctl_remove(card, kctl);
+	ret = snd_ctl_remove_locked(card, kctl);
 	up_write(&card->controls_rwsem);
 	return ret;
 }
@@ -665,7 +680,7 @@ static int snd_ctl_remove_user_ctl(struct snd_ctl_file * file,
 			ret = -EBUSY;
 			goto error;
 		}
-	ret = snd_ctl_remove(card, kctl);
+	ret = snd_ctl_remove_locked(card, kctl);
 error:
 	up_write(&card->controls_rwsem);
 	return ret;
