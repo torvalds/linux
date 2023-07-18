@@ -214,12 +214,12 @@ static int gfs2_write_jdata_batch(struct address_space *mapping,
 	unsigned nrblocks;
 	int i;
 	int ret;
-	int nr_pages = 0;
+	size_t size = 0;
 	int nr_folios = folio_batch_count(fbatch);
 
 	for (i = 0; i < nr_folios; i++)
-		nr_pages += folio_nr_pages(fbatch->folios[i]);
-	nrblocks = nr_pages * (PAGE_SIZE >> inode->i_blkbits);
+		size += folio_size(fbatch->folios[i]);
+	nrblocks = size >> inode->i_blkbits;
 
 	ret = gfs2_trans_begin(sdp, nrblocks, nrblocks);
 	if (ret < 0)
