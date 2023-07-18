@@ -1216,8 +1216,10 @@ static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
 			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
 			       IRQF_ONESHOT,
 			       "mbhc switch irq", priv);
-	if (ret)
+	if (ret) {
 		dev_err(dev, "cannot request mbhc switch irq\n");
+		return ret;
+	}
 
 	if (priv->mbhc_btn_enabled) {
 		irq = platform_get_irq_byname(pdev, "mbhc_but_press_det");
@@ -1229,8 +1231,10 @@ static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
 				       IRQF_TRIGGER_RISING |
 				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				       "mbhc btn press irq", priv);
-		if (ret)
+		if (ret) {
 			dev_err(dev, "cannot request mbhc button press irq\n");
+			return ret;
+		}
 
 		irq = platform_get_irq_byname(pdev, "mbhc_but_rel_det");
 		if (irq < 0)
@@ -1241,9 +1245,10 @@ static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
 				       IRQF_TRIGGER_RISING |
 				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				       "mbhc btn release irq", priv);
-		if (ret)
+		if (ret) {
 			dev_err(dev, "cannot request mbhc button release irq\n");
-
+			return ret;
+		}
 	}
 
 	dev_set_drvdata(dev, priv);
