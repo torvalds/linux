@@ -469,6 +469,8 @@ static int __snd_ctl_add_replace(struct snd_card *card,
 	struct snd_kcontrol *old;
 	int err;
 
+	lockdep_assert_held_write(&card->controls_rwsem);
+
 	id = kcontrol->id;
 	if (id.index > UINT_MAX - kcontrol->count)
 		return -EINVAL;
@@ -577,6 +579,8 @@ static int __snd_ctl_remove(struct snd_card *card,
 			    bool remove_hash)
 {
 	unsigned int idx;
+
+	lockdep_assert_held_write(&card->controls_rwsem);
 
 	if (snd_BUG_ON(!card || !kcontrol))
 		return -EINVAL;
@@ -1524,6 +1528,8 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 	int i;
 	int change;
 
+	lockdep_assert_held_write(&ue->card->controls_rwsem);
+
 	if (size > 1024 * 128)	/* sane value */
 		return -EINVAL;
 
@@ -1599,6 +1605,8 @@ static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 	size_t buf_len, name_len;
 	unsigned int i;
 	const uintptr_t user_ptrval = ue->info.value.enumerated.names_ptr;
+
+	lockdep_assert_held_write(&ue->card->controls_rwsem);
 
 	buf_len = ue->info.value.enumerated.names_length;
 	if (buf_len > 64 * 1024)
@@ -1903,6 +1911,8 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 	struct snd_kcontrol *kctl;
 	struct snd_ctl_elem_id id;
 	struct snd_kcontrol_volatile *vd;
+
+	lockdep_assert_held(&file->card->controls_rwsem);
 
 	if (copy_from_user(&header, buf, sizeof(header)))
 		return -EFAULT;
