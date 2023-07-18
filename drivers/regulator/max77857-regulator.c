@@ -449,7 +449,7 @@ struct i2c_driver max77857_driver = {
 		.of_match_table = max77857_of_id,
 	},
 	.id_table = max77857_id,
-	.probe_new = max77857_probe,
+	.probe = max77857_probe,
 };
 module_i2c_driver(max77857_driver);
 
