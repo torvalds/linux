@@ -140,7 +140,7 @@ static int ntxec_pwm_probe(struct platform_device *pdev)
 	struct ntxec_pwm *priv;
 	struct pwm_chip *chip;
 
-	pdev->dev.of_node = pdev->dev.parent->of_node;
+	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
