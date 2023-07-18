@@ -74,23 +74,18 @@
 				label = "img-stg";
 			};
 
-			pch-stg@c000000 {
-				reg = <0xc000000 0x2000000>; // 32768KB
-				label = "pch-stg";
-			};
-
-			pfr-stg@e000000 {
-				reg = <0xe000000 0x100000>; // 1024KB
+			pfr-stg@c000000 {
+				reg = <0xc000000 0x100000>; // 1024KB
 				label = "pfr-stg";
 			};
 
-			cpld-stg@e100000 {
-				reg = <0xe100000 0x400000>; // 4096KB
+			cpld-stg@c100000 {
+				reg = <0xc100000 0x400000>; // 4096KB
 				label = "cpld-stg";
 			};
 
-			reserved-2@e500000 {
-				reg = <0xe500000 0x1b00000>; // 27648KB
+			reserved-2@c500000 {
+				reg = <0xc500000 0x3b00000>; // 60416KB
 				label = "reserved-2";
 			};
 		};

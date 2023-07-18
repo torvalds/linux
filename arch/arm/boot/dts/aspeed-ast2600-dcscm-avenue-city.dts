@@ -303,33 +303,28 @@
 				label = "img-stg";
 			};
 
-			pch-stg@bde0000 {
-				reg = <0xbde0000 0x1000000>; // 16384KB
-				label = "pch-stg";
-			};
-
-			pfr-stg@cde0000 {
-				reg = <0xcde0000 0x100000>; // 1024KB
+			pfr-stg@bde0000 {
+				reg = <0xbde0000 0x100000>; // 1024KB
 				label = "pfr-stg";
 			};
 
-			cpld-stg@cee0000 {
-				reg = <0xcee0000 0x400000>; // 4096KB
+			cpld-stg@bee0000 {
+				reg = <0xbee0000 0x400000>; // 4096KB
 				label = "cpld-stg";
 			};
 
-			afm-stg@d2e0000 {
-				reg = <0xd2e0000 0x20000>; // 128KB
+			afm-stg@c2e0000 {
+				reg = <0xc2e0000 0x20000>; // 128KB
 				label = "afm-stg";
 			};
 
-			afm-rc@d300000 {
-				reg = <0xd300000 0x20000>; // 128KB
+			afm-rc@c300000 {
+				reg = <0xc300000 0x20000>; // 128KB
 				label = "afm-rc";
 			};
 
-			reserved@d320000 {
-				reg = <0xd320000 0x2ce0000>; // 45952KB
+			reserved@c320000 {
+				reg = <0xc320000 0x3ce0000>; // 62336KB
 				label = "reserved";
 			};
 		};
