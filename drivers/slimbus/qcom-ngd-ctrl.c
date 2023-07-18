@@ -1106,6 +1106,8 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 		if (!timeout) {
 			SLIM_WARN(ctrl, "TX usr_msg timed out:MC:0x%x,mt:0x%x",
 				txn->mc, txn->mt);
+			ctrl->capability_timeout = true;
+			txn->comp = NULL;
 			mutex_unlock(&ctrl->tx_lock);
 			return -ETIMEDOUT;
 		}
@@ -1461,6 +1463,7 @@ static int qcom_slim_ngd_exit_dma(struct qcom_slim_ngd_ctrl *ctrl)
 		dma_free_coherent(dev, size, ctrl->rx_base, ctrl->rx_phys_base);
 		size = ((QCOM_SLIM_NGD_DESC_NUM + 1) * SLIM_MSGQ_BUF_LEN);
 		dma_free_coherent(dev, size, ctrl->tx_base, ctrl->tx_phys_base);
+		ctrl->tx_base = ctrl->rx_base = NULL;
 	} else {
 		ctrl->r_mem.r_vbase = ctrl->r_mem.r_vsbase;
 		ctrl->r_mem.r_res->start = ctrl->r_mem.r_pbase;
