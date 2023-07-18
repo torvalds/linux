@@ -123,7 +123,7 @@ int hp_wmi_perform_query(int query, enum hp_wmi_command command, void *buffer,
 	struct bios_return *bios_return;
 	union acpi_object *obj = NULL;
 	struct bios_args *args = NULL;
-	u32 mid, actual_outsize, ret;
+	int mid, actual_outsize, ret;
 	size_t bios_args_size;
 
 	mid = hp_encode_outsize_for_pvsz(outsize);
