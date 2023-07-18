@@ -1111,6 +1111,9 @@ void md_dma_buf_info(char *m, size_t dump_size)
 	struct dma_buf_priv dma_buf_priv;
 	struct priv_buf buf;
 
+	if (!in_task())
+		return;
+
 	buf.buf = m;
 	buf.size = dump_size;
 	buf.offset = 0;
