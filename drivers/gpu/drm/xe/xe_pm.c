@@ -280,3 +280,28 @@ int xe_pm_set_vram_threshold(struct xe_device *xe, u32 threshold)
 
 	return 0;
 }
+
+void xe_pm_d3cold_allowed_toggle(struct xe_device *xe)
+{
+	struct ttm_resource_manager *man;
+	u32 total_vram_used_mb = 0;
+	u64 vram_used;
+	int i;
+
+	for (i = XE_PL_VRAM0; i <= XE_PL_VRAM1; ++i) {
+		man = ttm_manager_type(&xe->ttm, i);
+		if (man) {
+			vram_used = ttm_resource_manager_usage(man);
+			total_vram_used_mb += DIV_ROUND_UP_ULL(vram_used, 1024 * 1024);
+		}
+	}
+
+	mutex_lock(&xe->d3cold.lock);
+
+	if (total_vram_used_mb < xe->d3cold.vram_threshold)
+		xe->d3cold.allowed = true;
+	else
+		xe->d3cold.allowed = false;
+
+	mutex_unlock(&xe->d3cold.lock);
+}

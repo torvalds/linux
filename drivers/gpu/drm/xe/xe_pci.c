@@ -25,6 +25,11 @@
 #include "xe_pm.h"
 #include "xe_step.h"
 
+enum toggle_d3cold {
+	D3COLD_DISABLE,
+	D3COLD_ENABLE,
+};
+
 struct xe_subplatform_desc {
 	enum xe_subplatform subplatform;
 	const char *name;
@@ -726,6 +731,28 @@ static int xe_pci_resume(struct device *dev)
 	return 0;
 }
 
+static void d3cold_toggle(struct pci_dev *pdev, enum toggle_d3cold toggle)
+{
+	struct xe_device *xe = pdev_to_xe_device(pdev);
+	struct pci_dev *root_pdev;
+
+	if (!xe->d3cold.capable)
+		return;
+
+	root_pdev = pcie_find_root_port(pdev);
+	if (!root_pdev)
+		return;
+
+	switch (toggle) {
+	case D3COLD_DISABLE:
+		pci_d3cold_disable(root_pdev);
+		break;
+	case D3COLD_ENABLE:
+		pci_d3cold_enable(root_pdev);
+		break;
+	}
+}
+
 static int xe_pci_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -743,6 +770,7 @@ static int xe_pci_runtime_suspend(struct device *dev)
 		pci_ignore_hotplug(pdev);
 		pci_set_power_state(pdev, PCI_D3cold);
 	} else {
+		d3cold_toggle(pdev, D3COLD_DISABLE);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 
@@ -767,6 +795,8 @@ static int xe_pci_runtime_resume(struct device *dev)
 			return err;
 
 		pci_set_master(pdev);
+	} else {
+		d3cold_toggle(pdev, D3COLD_ENABLE);
 	}
 
 	return xe_pm_runtime_resume(xe);
@@ -780,15 +810,15 @@ static int xe_pci_runtime_idle(struct device *dev)
 	if (!xe->d3cold.capable) {
 		xe->d3cold.allowed = false;
 	} else {
+		xe_pm_d3cold_allowed_toggle(xe);
+
 		/*
 		 * TODO: d3cold should be allowed (true) if
 		 * (IS_DGFX(xe) && !xe_device_mem_access_ongoing(xe))
 		 * but maybe include some other conditions. So, before
 		 * we can re-enable the D3cold, we need to:
 		 * 1. rewrite the VRAM save / restore to avoid buffer object locks
-		 * 2. block D3cold if we have a big amount of device memory in use
-		 *    in order to reduce the latency.
-		 * 3. at resume, detect if we really lost power and avoid memory
+		 * 2. at resume, detect if we really lost power and avoid memory
 		 *    restoration if we were only up to d3cold
 		 */
 		xe->d3cold.allowed = false;
