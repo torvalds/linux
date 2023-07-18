@@ -10,6 +10,7 @@
 #include <linux/count_zeros.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
+#include <linux/log2.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/spi/spi.h>
@@ -97,20 +98,6 @@ struct rzv2m_csi_priv {
 	wait_queue_head_t wait;
 	u32 errors;
 	u32 status;
-};
-
-static const unsigned char x_trg[] = {
-	0, 1, 1, 2, 2, 2, 2, 3,
-	3, 3, 3, 3, 3, 3, 3, 4,
-	4, 4, 4, 4, 4, 4, 4, 4,
-	4, 4, 4, 4, 4, 4, 4, 5
-};
-
-static const unsigned char x_trg_words[] = {
-	1,  2,  2,  4,  4,  4,  4,  8,
-	8,  8,  8,  8,  8,  8,  8,  16,
-	16, 16, 16, 16, 16, 16, 16, 16,
-	16, 16, 16, 16, 16, 16, 16, 32
 };
 
 static void rzv2m_csi_reg_write_bit(const struct rzv2m_csi_priv *csi,
@@ -230,7 +217,7 @@ static inline void rzv2m_csi_calc_current_transfer(struct rzv2m_csi_priv *csi)
 	 * less than or equal to the number of bytes we need to transfer.
 	 * This may result in multiple smaller transfers.
 	 */
-	csi->words_to_transfer = x_trg_words[to_transfer - 1];
+	csi->words_to_transfer = rounddown_pow_of_two(to_transfer);
 
 	if (csi->bytes_per_word == 2)
 		csi->bytes_to_transfer = csi->words_to_transfer << 1;
@@ -241,7 +228,7 @@ static inline void rzv2m_csi_calc_current_transfer(struct rzv2m_csi_priv *csi)
 static inline void rzv2m_csi_set_rx_fifo_trigger_level(struct rzv2m_csi_priv *csi)
 {
 	rzv2m_csi_reg_write_bit(csi, CSI_FIFOTRG, CSI_FIFOTRG_R_TRG,
-				x_trg[csi->words_to_transfer - 1]);
+				ilog2(csi->words_to_transfer));
 }
 
 static inline void rzv2m_csi_enable_rx_trigger(struct rzv2m_csi_priv *csi,
@@ -314,7 +301,6 @@ static int rzv2m_csi_wait_for_tx_empty(struct rzv2m_csi_priv *csi)
 		return 0;
 
 	ret = rzv2m_csi_wait_for_interrupt(csi, CSI_INT_TREND, CSI_CNT_TREND_E);
-
 	if (ret == -ETIMEDOUT)
 		csi->errors |= TX_TIMEOUT_ERROR;
 
@@ -330,7 +316,6 @@ static inline int rzv2m_csi_wait_for_rx_ready(struct rzv2m_csi_priv *csi)
 
 	ret = rzv2m_csi_wait_for_interrupt(csi, CSI_INT_R_TRGR,
 					   CSI_CNT_R_TRGR_E);
-
 	if (ret == -ETIMEDOUT)
 		csi->errors |= RX_TIMEOUT_ERROR;
 
