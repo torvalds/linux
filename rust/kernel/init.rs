@@ -120,14 +120,24 @@
 //!   `slot` gets called.
 //!
 //! ```rust
-//! use kernel::{prelude::*, init};
+//! # #![allow(unreachable_pub, clippy::disallowed_names)]
+//! use kernel::{prelude::*, init, types::Opaque};
 //! use core::{ptr::addr_of_mut, marker::PhantomPinned, pin::Pin};
 //! # mod bindings {
+//! #     #![allow(non_camel_case_types)]
 //! #     pub struct foo;
 //! #     pub unsafe fn init_foo(_ptr: *mut foo) {}
 //! #     pub unsafe fn destroy_foo(_ptr: *mut foo) {}
 //! #     pub unsafe fn enable_foo(_ptr: *mut foo, _flags: u32) -> i32 { 0 }
 //! # }
+//! # // `Error::from_errno` is `pub(crate)` in the `kernel` crate, thus provide a workaround.
+//! # trait FromErrno {
+//! #     fn from_errno(errno: core::ffi::c_int) -> Error {
+//! #         // Dummy error that can be constructed outside the `kernel` crate.
+//! #         Error::from(core::fmt::Error)
+//! #     }
+//! # }
+//! # impl FromErrno for Error {}
 //! /// # Invariants
 //! ///
 //! /// `foo` is always initialized
@@ -158,7 +168,7 @@
 //!                 if err != 0 {
 //!                     // Enabling has failed, first clean up the foo and then return the error.
 //!                     bindings::destroy_foo(Opaque::raw_get(foo));
-//!                     return Err(Error::from_kernel_errno(err));
+//!                     return Err(Error::from_errno(err));
 //!                 }
 //!
 //!                 // All fields of `RawFoo` have been initialized, since `_p` is a ZST.
@@ -226,8 +236,7 @@ pub mod macros;
 ///
 /// ```rust
 /// # #![allow(clippy::disallowed_names, clippy::new_ret_no_self)]
-/// # use kernel::{init, pin_init, stack_pin_init, init::*, sync::Mutex, new_mutex};
-/// # use macros::pin_data;
+/// # use kernel::{init, macros::pin_data, pin_init, stack_pin_init, init::*, sync::Mutex, new_mutex};
 /// # use core::pin::Pin;
 /// #[pin_data]
 /// struct Foo {
@@ -277,7 +286,7 @@ macro_rules! stack_pin_init {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// # #![allow(clippy::disallowed_names, clippy::new_ret_no_self)]
 /// # use kernel::{init, pin_init, stack_try_pin_init, init::*, sync::Mutex, new_mutex};
 /// # use macros::pin_data;
@@ -303,7 +312,7 @@ macro_rules! stack_pin_init {
 /// pr_info!("a: {}", &*foo.a.lock());
 /// ```
 ///
-/// ```rust
+/// ```rust,ignore
 /// # #![allow(clippy::disallowed_names, clippy::new_ret_no_self)]
 /// # use kernel::{init, pin_init, stack_try_pin_init, init::*, sync::Mutex, new_mutex};
 /// # use macros::pin_data;
@@ -513,8 +522,7 @@ macro_rules! stack_try_pin_init {
 /// For instance:
 ///
 /// ```rust
-/// # use kernel::pin_init;
-/// # use macros::pin_data;
+/// # use kernel::{macros::pin_data, pin_init};
 /// # use core::{ptr::addr_of_mut, marker::PhantomPinned};
 /// #[pin_data]
 /// struct Buf {
@@ -841,7 +849,7 @@ macro_rules! init {
 /// # Examples
 ///
 /// ```rust
-/// use kernel::{init::PinInit, error::Error, InPlaceInit};
+/// use kernel::{init::{PinInit, zeroed}, error::Error};
 /// struct BigBuf {
 ///     big: Box<[u8; 1024 * 1024 * 1024]>,
 ///     small: [u8; 1024 * 1024],
