@@ -238,9 +238,25 @@ static inline void snd_soc_debugfs_exit(void) { }
 
 #endif
 
+static int snd_soc_is_match_dai_args(struct of_phandle_args *args1,
+				     struct of_phandle_args *args2)
+{
+	if (!args1 || !args2)
+		return 0;
+
+	if (args1->np != args2->np)
+		return 0;
+
+	for (int i = 0; i < args1->args_count; i++)
+		if (args1->args[i] != args2->args[i])
+			return 0;
+
+	return 1;
+}
+
 static inline int snd_soc_dlc_component_is_empty(struct snd_soc_dai_link_component *dlc)
 {
-	return !(dlc->name || dlc->of_node);
+	return !(dlc->dai_args || dlc->name || dlc->of_node);
 }
 
 static inline int snd_soc_dlc_component_is_invalid(struct snd_soc_dai_link_component *dlc)
@@ -250,8 +266,52 @@ static inline int snd_soc_dlc_component_is_invalid(struct snd_soc_dai_link_compo
 
 static inline int snd_soc_dlc_dai_is_empty(struct snd_soc_dai_link_component *dlc)
 {
-	return !dlc->dai_name;
+	return !(dlc->dai_args || dlc->dai_name);
 }
+
+static int snd_soc_is_matching_dai(const struct snd_soc_dai_link_component *dlc,
+				   struct snd_soc_dai *dai)
+{
+	if (!dlc)
+		return 0;
+
+	if (dlc->dai_args)
+		return snd_soc_is_match_dai_args(dai->driver->dai_args, dlc->dai_args);
+
+	if (!dlc->dai_name)
+		return 1;
+
+	/* see snd_soc_dai_name_get() */
+
+	if (strcmp(dlc->dai_name, dai->name) == 0)
+		return 1;
+
+	if (dai->driver->name &&
+	    strcmp(dai->driver->name, dlc->dai_name) == 0)
+		return 1;
+
+	if (dai->component->name &&
+	    strcmp(dlc->dai_name, dai->component->name) == 0)
+		return 1;
+
+	return 0;
+}
+
+const char *snd_soc_dai_name_get(struct snd_soc_dai *dai)
+{
+	/* see snd_soc_is_matching_dai() */
+	if (dai->name)
+		return dai->name;
+
+	if (dai->driver->name)
+		return dai->driver->name;
+
+	if (dai->component->name)
+		return dai->component->name;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_name_get);
 
 static int snd_soc_rtd_add_component(struct snd_soc_pcm_runtime *rtd,
 				     struct snd_soc_component *component)
@@ -749,6 +809,19 @@ static struct device_node
 	return of_node;
 }
 
+struct of_phandle_args *snd_soc_copy_dai_args(struct device *dev, struct of_phandle_args *args)
+{
+	struct of_phandle_args *ret = devm_kzalloc(dev, sizeof(*ret), GFP_KERNEL);
+
+	if (!ret)
+		return NULL;
+
+	*ret = *args;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_copy_dai_args);
+
 static int snd_soc_is_matching_component(
 	const struct snd_soc_dai_link_component *dlc,
 	struct snd_soc_component *component)
@@ -757,6 +830,15 @@ static int snd_soc_is_matching_component(
 
 	if (!dlc)
 		return 0;
+
+	if (dlc->dai_args) {
+		struct snd_soc_dai *dai;
+
+		for_each_component_dais(component, dai)
+			if (snd_soc_is_matching_dai(dlc, dai))
+				return 1;
+		return 0;
+	}
 
 	component_of_node = soc_component_to_node(component);
 
@@ -810,18 +892,11 @@ struct snd_soc_dai *snd_soc_find_dai(
 	lockdep_assert_held(&client_mutex);
 
 	/* Find CPU DAI from registered DAIs */
-	for_each_component(component) {
-		if (!snd_soc_is_matching_component(dlc, component))
-			continue;
-		for_each_component_dais(component, dai) {
-			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name)
-			    && (!dai->driver->name
-				|| strcmp(dai->driver->name, dlc->dai_name)))
-				continue;
-
-			return dai;
-		}
-	}
+	for_each_component(component)
+		if (snd_soc_is_matching_component(dlc, component))
+			for_each_component_dais(component, dai)
+				if (snd_soc_is_matching_dai(dlc, dai))
+					return dai;
 
 	return NULL;
 }
@@ -2943,6 +3018,14 @@ int snd_soc_of_parse_tdm_slot(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_tdm_slot);
 
+void snd_soc_dlc_use_cpu_as_platform(struct snd_soc_dai_link_component *platforms,
+				     struct snd_soc_dai_link_component *cpus)
+{
+	platforms->of_node	= cpus->of_node;
+	platforms->dai_args	= cpus->dai_args;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dlc_use_cpu_as_platform);
+
 void snd_soc_of_parse_node_prefix(struct device_node *np,
 				  struct snd_soc_codec_conf *codec_conf,
 				  struct device_node *of_node,
@@ -3316,9 +3399,7 @@ int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_
 				id--;
 			}
 
-			dlc->dai_name	= dai->driver->name;
-			if (!dlc->dai_name)
-				dlc->dai_name = pos->name;
+			dlc->dai_name	= snd_soc_dai_name_get(dai);
 		} else if (ret) {
 			/*
 			 * if another error than ENOTSUPP is returned go on and
@@ -3385,6 +3466,24 @@ int snd_soc_of_get_dai_name(struct device_node *of_node,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_get_dai_name);
+
+struct snd_soc_dai *snd_soc_get_dai_via_args(struct of_phandle_args *dai_args)
+{
+	struct snd_soc_dai *dai;
+	struct snd_soc_component *component;
+
+	mutex_lock(&client_mutex);
+	for_each_component(component) {
+		for_each_component_dais(component, dai)
+			if (snd_soc_is_match_dai_args(dai->driver->dai_args, dai_args))
+				goto found;
+	}
+	dai = NULL;
+found:
+	mutex_unlock(&client_mutex);
+	return dai;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_dai_via_args);
 
 static void __snd_soc_of_put_component(struct snd_soc_dai_link_component *component)
 {
