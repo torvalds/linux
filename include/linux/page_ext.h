@@ -82,6 +82,12 @@ static inline void page_ext_init(void)
 extern struct page_ext *page_ext_get(struct page *page);
 extern void page_ext_put(struct page_ext *page_ext);
 
+static inline void *page_ext_data(struct page_ext *page_ext,
+				  struct page_ext_operations *ops)
+{
+	return (void *)(page_ext) + ops->offset;
+}
+
 static inline struct page_ext *page_ext_next(struct page_ext *curr)
 {
 	void *next = curr;
