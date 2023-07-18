@@ -8229,11 +8229,6 @@ static bool emulator_get_cpuid(struct x86_emulate_ctxt *ctxt,
 	return kvm_cpuid(emul_to_vcpu(ctxt), eax, ebx, ecx, edx, exact_only);
 }
 
-static bool emulator_guest_has_long_mode(struct x86_emulate_ctxt *ctxt)
-{
-	return guest_cpuid_has(emul_to_vcpu(ctxt), X86_FEATURE_LM);
-}
-
 static bool emulator_guest_has_movbe(struct x86_emulate_ctxt *ctxt)
 {
 	return guest_cpuid_has(emul_to_vcpu(ctxt), X86_FEATURE_MOVBE);
@@ -8335,7 +8330,6 @@ static const struct x86_emulate_ops emulate_ops = {
 	.fix_hypercall       = emulator_fix_hypercall,
 	.intercept           = emulator_intercept,
 	.get_cpuid           = emulator_get_cpuid,
-	.guest_has_long_mode = emulator_guest_has_long_mode,
 	.guest_has_movbe     = emulator_guest_has_movbe,
 	.guest_has_fxsr      = emulator_guest_has_fxsr,
 	.guest_has_rdpid     = emulator_guest_has_rdpid,
