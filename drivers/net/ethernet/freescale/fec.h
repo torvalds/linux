@@ -679,8 +679,6 @@ struct fec_enet_private {
 	struct ethtool_eee eee;
 	unsigned int clk_ref_rate;
 
-	u32 rx_copybreak;
-
 	/* ptp clock period in ns*/
 	unsigned int ptp_inc;
 
