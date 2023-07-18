@@ -769,11 +769,12 @@ EXPORT_SYMBOL(snd_ctl_rename_id);
  *
  * Renames the specified control on the card to the new name.
  *
- * Make sure to take the control write lock - down_write(&card->controls_rwsem).
+ * Note that this function takes card->controls_rwsem lock internally.
  */
 void snd_ctl_rename(struct snd_card *card, struct snd_kcontrol *kctl,
 		    const char *name)
 {
+	down_write(&card->controls_rwsem);
 	remove_hash_entries(card, kctl);
 
 	if (strscpy(kctl->id.name, name, sizeof(kctl->id.name)) < 0)
@@ -781,6 +782,7 @@ void snd_ctl_rename(struct snd_card *card, struct snd_kcontrol *kctl,
 			name, kctl->id.name);
 
 	add_hash_entries(card, kctl);
+	up_write(&card->controls_rwsem);
 }
 EXPORT_SYMBOL(snd_ctl_rename);
 
