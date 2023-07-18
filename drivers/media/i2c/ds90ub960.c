@@ -1662,10 +1662,10 @@ static int ub960_rxport_add_serializer(struct ub960_data *priv, u8 nport)
 	ser_info.addr = rxport->ser.alias;
 	rxport->ser.client =
 		i2c_new_client_device(priv->client->adapter, &ser_info);
-	if (!rxport->ser.client) {
+	if (IS_ERR(rxport->ser.client)) {
 		dev_err(dev, "rx%u: cannot add %s i2c device", nport,
 			ser_info.type);
-		return -EIO;
+		return PTR_ERR(rxport->ser.client);
 	}
 
 	dev_dbg(dev, "rx%u: remote serializer at alias 0x%02x (%u-%04x)\n",
