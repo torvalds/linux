@@ -8,6 +8,7 @@
 #include <dt-bindings/clock/starfive,jh7110-crg.h>
 #include <dt-bindings/power/starfive,jh7110-pmu.h>
 #include <dt-bindings/reset/starfive,jh7110-crg.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "starfive,jh7110";
@@ -57,6 +58,7 @@
 			operating-points-v2 = <&cpu_opp>;
 			clocks = <&syscrg JH7110_SYSCLK_CPU_CORE>;
 			clock-names = "cpu";
+			#cooling-cells = <2>;
 
 			cpu1_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -86,6 +88,7 @@
 			operating-points-v2 = <&cpu_opp>;
 			clocks = <&syscrg JH7110_SYSCLK_CPU_CORE>;
 			clock-names = "cpu";
+			#cooling-cells = <2>;
 
 			cpu2_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -115,6 +118,7 @@
 			operating-points-v2 = <&cpu_opp>;
 			clocks = <&syscrg JH7110_SYSCLK_CPU_CORE>;
 			clock-names = "cpu";
+			#cooling-cells = <2>;
 
 			cpu3_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -144,6 +148,7 @@
 			operating-points-v2 = <&cpu_opp>;
 			clocks = <&syscrg JH7110_SYSCLK_CPU_CORE>;
 			clock-names = "cpu";
+			#cooling-cells = <2>;
 
 			cpu4_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -198,12 +203,47 @@
 			};
 	};
 
+	thermal-zones {
+		cpu-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <15000>;
+
+			thermal-sensors = <&sfctemp>;
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert0>;
+					cooling-device =
+						<&U74_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&U74_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&U74_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&U74_4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+
+			trips {
+				cpu_alert0: cpu_alert0 {
+					/* milliCelsius */
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit {
+					/* milliCelsius */
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+
 	dvp_clk: dvp-clock {
 		compatible = "fixed-clock";
 		clock-output-names = "dvp_clk";
 		#clock-cells = <0>;
 	};
-
 	gmac0_rgmii_rxin: gmac0-rgmii-rxin-clock {
 		compatible = "fixed-clock";
 		clock-output-names = "gmac0_rgmii_rxin";
@@ -515,6 +555,18 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+		};
+
+		sfctemp: temperature-sensor@120e0000 {
+			compatible = "starfive,jh7110-temp";
+			reg = <0x0 0x120e0000 0x0 0x10000>;
+			clocks = <&syscrg JH7110_SYSCLK_TEMP_CORE>,
+				 <&syscrg JH7110_SYSCLK_TEMP_APB>;
+			clock-names = "sense", "bus";
+			resets = <&syscrg JH7110_SYSRST_TEMP_CORE>,
+				 <&syscrg JH7110_SYSRST_TEMP_APB>;
+			reset-names = "sense", "bus";
+			#thermal-sensor-cells = <0>;
 		};
 
 		syscrg: clock-controller@13020000 {
