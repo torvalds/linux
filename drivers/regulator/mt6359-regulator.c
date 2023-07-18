@@ -3,7 +3,6 @@
 // Copyright (c) 2021 MediaTek Inc.
 
 #include <linux/platform_device.h>
-#include <linux/platform_device.h>
 #include <linux/mfd/mt6359/registers.h>
 #include <linux/mfd/mt6359p/registers.h>
 #include <linux/mfd/mt6397/core.h>
