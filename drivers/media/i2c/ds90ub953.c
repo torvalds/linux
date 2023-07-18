@@ -1382,7 +1382,7 @@ static const struct of_device_id ub953_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, ub953_dt_ids);
 
 static struct i2c_driver ds90ub953_driver = {
-	.probe_new	= ub953_probe,
+	.probe		= ub953_probe,
 	.remove		= ub953_remove,
 	.id_table	= ub953_id,
 	.driver = {
