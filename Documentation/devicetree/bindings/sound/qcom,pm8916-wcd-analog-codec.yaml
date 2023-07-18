@@ -19,10 +19,6 @@ properties:
   reg:
     maxItems: 1
 
-  reg-names:
-    items:
-      - const: pmic-codec-core
-
   clocks:
     maxItems: 1
 
@@ -126,7 +122,6 @@ examples:
       audio-codec@f000 {
         compatible = "qcom,pm8916-wcd-analog-codec";
         reg = <0xf000>;
-        reg-names = "pmic-codec-core";
         clocks = <&gcc GCC_CODEC_DIGCODEC_CLK>;
         clock-names = "mclk";
         qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
