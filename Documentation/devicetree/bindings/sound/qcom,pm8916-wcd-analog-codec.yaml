@@ -19,13 +19,6 @@ properties:
   reg:
     maxItems: 1
 
-  clocks:
-    maxItems: 1
-
-  clock-names:
-    items:
-      - const: mclk
-
   interrupts:
     maxItems: 14
 
@@ -109,7 +102,6 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/qcom,gcc-msm8916.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/spmi/spmi.h>
 
@@ -122,8 +114,6 @@ examples:
       audio-codec@f000 {
         compatible = "qcom,pm8916-wcd-analog-codec";
         reg = <0xf000>;
-        clocks = <&gcc GCC_CODEC_DIGCODEC_CLK>;
-        clock-names = "mclk";
         qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
         qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
         interrupt-parent = <&spmi_bus>;
