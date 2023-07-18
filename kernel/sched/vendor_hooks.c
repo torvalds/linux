@@ -75,6 +75,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_is_cpu_allowed);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_get_nohz_timer_target);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_getaffinity);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_sched_yield);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_before_do_sched_yield);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_fork_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_ttwu_cond);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_schedule_bug);
