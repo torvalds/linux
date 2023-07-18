@@ -92,9 +92,3 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 32);
 	}
 }
-
-char *pcibios_setup(char *str)
-{
-	return str;
-}
-
