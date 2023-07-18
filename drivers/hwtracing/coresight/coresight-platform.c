@@ -9,9 +9,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/of_graph.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
 #include <linux/coresight.h>
