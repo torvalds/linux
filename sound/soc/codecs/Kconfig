@@ -184,6 +184,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1015
 	imply SND_SOC_RT1015P
 	imply SND_SOC_RT1016
+	imply SND_SOC_RT1017_SDCA_SDW
 	imply SND_SOC_RT1019
 	imply SND_SOC_RT1305
 	imply SND_SOC_RT1308
@@ -1427,6 +1428,11 @@ config SND_SOC_RT1015P
 config SND_SOC_RT1016
 	tristate
 	depends on I2C
+
+config SND_SOC_RT1017_SDCA_SDW
+	tristate "Realtek RT1017 SDCA Codec - SDW"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
 
 config SND_SOC_RT1019
 	tristate
