@@ -1480,13 +1480,12 @@ void qrtr_endpoint_unregister(struct qrtr_endpoint *ep)
 		if (*slot != node)
 			continue;
 		src.sq_node = iter.index;
-		skb = qrtr_alloc_ctrl_packet(&pkt, GFP_ATOMIC);
+		spin_unlock_irqrestore(&qrtr_nodes_lock, flags);
+		skb = qrtr_alloc_ctrl_packet(&pkt, GFP_KERNEL);
 		if (skb) {
 			pkt->cmd = cpu_to_le32(QRTR_TYPE_BYE);
 			qrtr_local_enqueue(NULL, skb, QRTR_TYPE_BYE, &src, &dst, 0);
 		}
-
-		spin_unlock_irqrestore(&qrtr_nodes_lock, flags);
 		qrtr_fwd_del_proc(node, iter.index);
 		spin_lock_irqsave(&qrtr_nodes_lock, flags);
 	}
