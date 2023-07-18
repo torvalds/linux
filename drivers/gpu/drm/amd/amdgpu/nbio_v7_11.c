@@ -79,6 +79,29 @@ static void nbio_v7_11_sdma_doorbell_range(struct amdgpu_device *adev, int insta
 	WREG32_PCIE_PORT(reg, doorbell_range);
 }
 
+static void nbio_v7_11_vpe_doorbell_range(struct amdgpu_device *adev, int instance,
+					  bool use_doorbell, int doorbell_index,
+					  int doorbell_size)
+{
+	u32 reg = SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VPE_DOORBELL_RANGE);
+	u32 doorbell_range = RREG32_PCIE_PORT(reg);
+
+	if (use_doorbell) {
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       GDC0_BIF_VPE_DOORBELL_RANGE,
+					       OFFSET, doorbell_index);
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       GDC0_BIF_VPE_DOORBELL_RANGE,
+					       SIZE, doorbell_size);
+	} else {
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       GDC0_BIF_VPE_DOORBELL_RANGE,
+					       SIZE, 0);
+	}
+
+	WREG32_PCIE_PORT(reg, doorbell_range);
+}
+
 static void nbio_v7_11_enable_doorbell_aperture(struct amdgpu_device *adev,
 					       bool enable)
 {
@@ -235,6 +258,7 @@ const struct amdgpu_nbio_funcs nbio_v7_11_funcs = {
 	.mc_access_enable = nbio_v7_11_mc_access_enable,
 	.get_memsize = nbio_v7_11_get_memsize,
 	.sdma_doorbell_range = nbio_v7_11_sdma_doorbell_range,
+	.vpe_doorbell_range = nbio_v7_11_vpe_doorbell_range,
 	.enable_doorbell_aperture = nbio_v7_11_enable_doorbell_aperture,
 	.enable_doorbell_selfring_aperture = nbio_v7_11_enable_doorbell_selfring_aperture,
 	.ih_doorbell_range = nbio_v7_11_ih_doorbell_range,
