@@ -3966,9 +3966,6 @@ static int fec_enet_init(struct net_device *ndev)
 	if (ret)
 		goto free_queue_mem;
 
-	/* make sure MAC we just acquired is programmed into the hw */
-	fec_set_mac_address(ndev, NULL);
-
 	/* Set receive and transmit descriptor base. */
 	for (i = 0; i < fep->num_rx_queues; i++) {
 		struct fec_enet_priv_rx_q *rxq = fep->rx_queue[i];
