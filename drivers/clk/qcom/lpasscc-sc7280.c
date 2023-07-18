@@ -115,8 +115,12 @@ static int lpass_cc_sc7280_probe(struct platform_device *pdev)
 	ret = pm_clk_add(&pdev->dev, "iface");
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to acquire iface clock\n");
-		goto destroy_pm_clk;
+		goto err_destroy_pm_clk;
 	}
+
+	ret = pm_runtime_resume_and_get(&pdev->dev);
+	if (ret)
+		goto err_destroy_pm_clk;
 
 	if (!of_property_read_bool(pdev->dev.of_node, "qcom,adsp-pil-mode")) {
 		lpass_regmap_config.name = "qdsp6ss";
@@ -125,7 +129,7 @@ static int lpass_cc_sc7280_probe(struct platform_device *pdev)
 
 		ret = qcom_cc_probe_by_index(pdev, 0, desc);
 		if (ret)
-			goto destroy_pm_clk;
+			goto err_put_rpm;
 	}
 
 	lpass_regmap_config.name = "top_cc";
@@ -134,11 +138,15 @@ static int lpass_cc_sc7280_probe(struct platform_device *pdev)
 
 	ret = qcom_cc_probe_by_index(pdev, 1, desc);
 	if (ret)
-		goto destroy_pm_clk;
+		goto err_put_rpm;
+
+	pm_runtime_put(&pdev->dev);
 
 	return 0;
 
-destroy_pm_clk:
+err_put_rpm:
+	pm_runtime_put_sync(&pdev->dev);
+err_destroy_pm_clk:
 	pm_clk_destroy(&pdev->dev);
 
 disable_pm_runtime:
