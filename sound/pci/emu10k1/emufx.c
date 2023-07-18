@@ -800,7 +800,7 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 			continue;
 		gctl_id = (struct snd_ctl_elem_id *)&gctl->id;
 		down_read(&emu->card->controls_rwsem);
-		if (snd_ctl_find_id(emu->card, gctl_id)) {
+		if (snd_ctl_find_id_locked(emu->card, gctl_id)) {
 			up_read(&emu->card->controls_rwsem);
 			err = -EEXIST;
 			goto __error;
