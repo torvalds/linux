@@ -209,37 +209,21 @@ static int berlin_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(bpc->base))
 		return PTR_ERR(bpc->base);
 
-	bpc->clk = devm_clk_get(&pdev->dev, NULL);
+	bpc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(bpc->clk))
 		return PTR_ERR(bpc->clk);
-
-	ret = clk_prepare_enable(bpc->clk);
-	if (ret)
-		return ret;
 
 	bpc->chip.dev = &pdev->dev;
 	bpc->chip.ops = &berlin_pwm_ops;
 	bpc->chip.npwm = BERLIN_PWM_NUMPWMS;
 
-	ret = pwmchip_add(&bpc->chip);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
-		clk_disable_unprepare(bpc->clk);
-		return ret;
-	}
+	ret = devm_pwmchip_add(&pdev->dev, &bpc->chip);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "failed to add PWM chip\n");
 
 	platform_set_drvdata(pdev, bpc);
 
 	return 0;
-}
-
-static void berlin_pwm_remove(struct platform_device *pdev)
-{
-	struct berlin_pwm_chip *bpc = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&bpc->chip);
-
-	clk_disable_unprepare(bpc->clk);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -290,7 +274,6 @@ static SIMPLE_DEV_PM_OPS(berlin_pwm_pm_ops, berlin_pwm_suspend,
 
 static struct platform_driver berlin_pwm_driver = {
 	.probe = berlin_pwm_probe,
-	.remove_new = berlin_pwm_remove,
 	.driver = {
 		.name = "berlin-pwm",
 		.of_match_table = berlin_pwm_match,
