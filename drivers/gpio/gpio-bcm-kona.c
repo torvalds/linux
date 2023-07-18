@@ -64,7 +64,6 @@ struct bcm_kona_gpio {
 	struct gpio_chip gpio_chip;
 	struct irq_domain *irq_domain;
 	struct bcm_kona_gpio_bank *banks;
-	struct platform_device *pdev;
 };
 
 struct bcm_kona_gpio_bank {
@@ -591,7 +590,6 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 	if (!kona_gpio->banks)
 		return -ENOMEM;
 
-	kona_gpio->pdev = pdev;
 	chip->parent = dev;
 	chip->ngpio = kona_gpio->num_bank * GPIO_PER_BANK;
 
