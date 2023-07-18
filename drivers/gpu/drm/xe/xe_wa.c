@@ -604,6 +604,16 @@ static const struct xe_rtp_entry_sr lrc_was[] = {
 	  XE_RTP_ACTIONS(SET(CACHE_MODE_1, MSAA_OPTIMIZATION_REDUC_DISABLE))
 	},
 
+	/* PVC */
+
+	{ XE_RTP_NAME("16017236439"),
+	  XE_RTP_RULES(PLATFORM(PVC), ENGINE_CLASS(COPY),
+		       FUNC(xe_rtp_match_even_instance)),
+	  XE_RTP_ACTIONS(SET(BCS_SWCTRL(0),
+			     BCS_SWCTRL_DISABLE_256B,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE))),
+	},
+
 	/* Xe_LPG */
 	{ XE_RTP_NAME("18019271663"),
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1270, 1271)),
