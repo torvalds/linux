@@ -12,6 +12,7 @@
 #include <linux/iopoll.h>
 #include <linux/log2.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/reset.h>
 #include <linux/spi/spi.h>
 #include <linux/units.h>
@@ -589,11 +590,12 @@ static int rzv2m_csi_probe(struct platform_device *pdev)
 	init_waitqueue_head(&csi->wait);
 
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
-	controller->dev.of_node = pdev->dev.of_node;
 	controller->bits_per_word_mask = SPI_BPW_MASK(16) | SPI_BPW_MASK(8);
 	controller->setup = rzv2m_csi_setup;
 	controller->transfer_one = rzv2m_csi_transfer_one;
 	controller->use_gpio_descriptors = true;
+
+	device_set_node(&controller->dev, dev_fwnode(dev));
 
 	ret = devm_request_irq(dev, irq, rzv2m_csi_irq_handler, 0,
 			       dev_name(dev), csi);
