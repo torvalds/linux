@@ -92,13 +92,6 @@ config TEST_POWER
 	help
 	  This driver is used for testing. It's safe to say M here.
 
-config WALLPOWER_CHARGER
-        tristate "Wall power charger stub driver"
-        help
-           This driver enables power supply source type to wallpowered
-           mode. For enabling this psy->type is set to PSY_TYPE_MAINS.
-           It is safe to say M here.
-
 config BATTERY_88PM860X
 	tristate "Marvell 88PM860x battery driver"
 	depends on MFD_88PM860X
