@@ -836,6 +836,7 @@ snd_ctl_find_numid_locked(struct snd_card *card, unsigned int numid)
 {
 	if (snd_BUG_ON(!card || !numid))
 		return NULL;
+	lockdep_assert_held(&card->controls_rwsem);
 #ifdef CONFIG_SND_CTL_FAST_LOOKUP
 	return xa_load(&card->ctl_numids, numid);
 #else
@@ -852,11 +853,18 @@ EXPORT_SYMBOL(snd_ctl_find_numid_locked);
  * Finds the control instance with the given number-id from the card.
  *
  * Return: The pointer of the instance if found, or %NULL if not.
+ *
+ * Note that this function takes card->controls_rwsem lock internally.
  */
 struct snd_kcontrol *snd_ctl_find_numid(struct snd_card *card,
 					unsigned int numid)
 {
-	return snd_ctl_find_numid_locked(card, numid);
+	struct snd_kcontrol *kctl;
+
+	down_read(&card->controls_rwsem);
+	kctl = snd_ctl_find_numid_locked(card, numid);
+	up_read(&card->controls_rwsem);
+	return kctl;
 }
 EXPORT_SYMBOL(snd_ctl_find_numid);
 
@@ -879,6 +887,7 @@ struct snd_kcontrol *snd_ctl_find_id_locked(struct snd_card *card,
 
 	if (snd_BUG_ON(!card || !id))
 		return NULL;
+	lockdep_assert_held(&card->controls_rwsem);
 	if (id->numid != 0)
 		return snd_ctl_find_numid_locked(card, id->numid);
 #ifdef CONFIG_SND_CTL_FAST_LOOKUP
@@ -905,11 +914,18 @@ EXPORT_SYMBOL(snd_ctl_find_id_locked);
  * Finds the control instance with the given id from the card.
  *
  * Return: The pointer of the instance if found, or %NULL if not.
+ *
+ * Note that this function takes card->controls_rwsem lock internally.
  */
 struct snd_kcontrol *snd_ctl_find_id(struct snd_card *card,
 				     const struct snd_ctl_elem_id *id)
 {
-	return snd_ctl_find_id_locked(card, id);
+	struct snd_kcontrol *kctl;
+
+	down_read(&card->controls_rwsem);
+	kctl = snd_ctl_find_id_locked(card, id);
+	up_read(&card->controls_rwsem);
+	return kctl;
 }
 EXPORT_SYMBOL(snd_ctl_find_id);
 
