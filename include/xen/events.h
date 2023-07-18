@@ -69,7 +69,7 @@ int xen_set_irq_priority(unsigned irq, unsigned priority);
 /*
  * Allow extra references to event channels exposed to userspace by evtchn
  */
-int evtchn_make_refcounted(evtchn_port_t evtchn);
+int evtchn_make_refcounted(evtchn_port_t evtchn, bool is_static);
 int evtchn_get(evtchn_port_t evtchn);
 void evtchn_put(evtchn_port_t evtchn);
 
@@ -140,5 +140,14 @@ int xen_test_irq_shared(int irq);
 void xen_init_IRQ(void);
 
 irqreturn_t xen_debug_interrupt(int irq, void *dev_id);
+
+static inline void xen_evtchn_close(evtchn_port_t port)
+{
+	struct evtchn_close close;
+
+	close.port = port;
+	if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
+		BUG();
+}
 
 #endif	/* _XEN_EVENTS_H */
