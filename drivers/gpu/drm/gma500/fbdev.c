@@ -328,10 +328,6 @@ void psb_fbdev_setup(struct drm_psb_private *dev_priv)
 		goto err_drm_fb_helper_unprepare;
 	}
 
-	ret = psb_fbdev_client_hotplug(&fb_helper->client);
-	if (ret)
-		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
-
 	drm_client_register(&fb_helper->client);
 
 	return;
