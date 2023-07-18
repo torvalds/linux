@@ -45,7 +45,6 @@
 
 #define NLMDBG_FACILITY		NLMDBG_SVC
 #define LOCKD_BUFSIZE		(1024 + NLMSVC_XDRSIZE)
-#define ALLOWED_SIGS		(sigmask(SIGKILL))
 
 static struct svc_program	nlmsvc_program;
 
@@ -111,19 +110,6 @@ static void set_grace_period(struct net *net)
 	schedule_delayed_work(&ln->grace_period_end, grace_period);
 }
 
-static void restart_grace(void)
-{
-	if (nlmsvc_ops) {
-		struct net *net = &init_net;
-		struct lockd_net *ln = net_generic(net, lockd_net_id);
-
-		cancel_delayed_work_sync(&ln->grace_period_end);
-		locks_end_grace(&ln->lockd_manager);
-		nlmsvc_invalidate_all();
-		set_grace_period(net);
-	}
-}
-
 /*
  * This is the lockd kernel thread
  */
@@ -138,9 +124,6 @@ lockd(void *vrqstp)
 	/* try_to_freeze() is called from svc_recv() */
 	set_freezable();
 
-	/* Allow SIGKILL to tell lockd to drop all of its locks */
-	allow_signal(SIGKILL);
-
 	dprintk("NFS locking service started (ver " LOCKD_VERSION ").\n");
 
 	/*
@@ -153,12 +136,6 @@ lockd(void *vrqstp)
 
 		/* update sv_maxconn if it has changed */
 		rqstp->rq_server->sv_maxconn = nlm_max_connections;
-
-		if (signalled()) {
-			flush_signals(current);
-			restart_grace();
-			continue;
-		}
 
 		timeout = nlmsvc_retry_blocked();
 
@@ -174,7 +151,6 @@ lockd(void *vrqstp)
 
 		svc_process(rqstp);
 	}
-	flush_signals(current);
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
 	nlm_shutdown_hosts();
