@@ -11,7 +11,6 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/mmc/slot-gpio.h>
 
 #include "sdhci-pltfm.h"

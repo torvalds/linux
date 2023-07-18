@@ -6,7 +6,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/delay.h>
 #include <linux/mmc/mmc.h>
 #include <linux/pm_runtime.h>
@@ -15,6 +14,7 @@
 #include <linux/iopoll.h>
 #include <linux/regulator/consumer.h>
 #include <linux/interconnect.h>
+#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/reset.h>
 

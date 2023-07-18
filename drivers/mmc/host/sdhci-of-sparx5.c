@@ -13,9 +13,9 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
-#include <linux/of_device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/dma-mapping.h>
+#include <linux/of.h>
 
 #include "sdhci-pltfm.h"
 
