@@ -5337,3 +5337,17 @@ bool dc_abm_save_restore(
 	return false;
 }
 
+void dc_query_current_properties(struct dc *dc, struct dc_current_properties *properties)
+{
+	unsigned int i;
+	bool subvp_in_use = false;
+
+	for (i = 0; i < dc->current_state->stream_count; i++) {
+		if (dc->current_state->streams[i]->mall_stream_config.type != SUBVP_NONE) {
+			subvp_in_use = true;
+			break;
+		}
+	}
+	properties->cursor_size_limit = subvp_in_use ? 64 : dc->caps.max_cursor_size;
+}
+

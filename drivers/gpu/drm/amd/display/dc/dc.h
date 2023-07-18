@@ -910,6 +910,14 @@ struct dc_debug_options {
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
+
+/* Generic structure that can be used to query properties of DC. More fields
+ * can be added as required.
+ */
+struct dc_current_properties {
+	unsigned int cursor_size_limit;
+};
+
 struct dc {
 	struct dc_debug_options debug;
 	struct dc_versions versions;
@@ -2279,6 +2287,8 @@ void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 				uint32_t hpd_int_enable);
 
 void dc_print_dmub_diagnostic_data(const struct dc *dc);
+
+void dc_query_current_properties(struct dc *dc, struct dc_current_properties *properties);
 
 /* DSC Interfaces */
 #include "dc_dsc.h"
