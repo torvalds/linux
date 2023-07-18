@@ -3673,6 +3673,8 @@ out:
 	return ret;
 }
 
+cpumask_t cpus_for_pipeline = { CPU_BITS_NONE };
+
 cpumask_t last_available_big_cpus = CPU_MASK_NONE;
 int have_heavy_list;
 void find_heaviest_topapp(u64 window_start)
@@ -3770,8 +3772,8 @@ void find_heaviest_topapp(u64 window_start)
 		isolation_boost = true;
 	}
 
-	/* remove cpus of tasks that continue to be heavy */
-	cpumask_andnot(&last_available_big_cpus, cpu_online_mask, &sched_cluster[0]->cpus);
+	/* start with non-prime cpus chosen for this chipset (e.g. golds) */
+	cpumask_and(&last_available_big_cpus, cpu_online_mask, &cpus_for_pipeline);
 	cpumask_andnot(&last_available_big_cpus, &last_available_big_cpus, cpu_halt_mask);
 	for (i = 0; i < WALT_NR_CPUS; i++) {
 		wts = heavy_wts[i];
@@ -3930,20 +3932,31 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 		 * all pipelines too do not have it set
 		 */
 		if (wts->pipeline_cpu == -1) {
-			/* avoid min cpus */
-			if (is_min_possible_cluster_cpu(assign_cpu))
-				assign_cpu = cpumask_last(
-					&sched_cluster[num_sched_clusters - 2]->cpus);
-			wts->pipeline_cpu = assign_cpu--;
+			assign_cpu = cpumask_next_and(assign_cpu,
+						&cpus_for_pipeline, cpu_online_mask);
+
+			if (assign_cpu >= nr_cpu_ids) {
+				/* reset and rotate the cpus */
+				assign_cpu = 0;
+				assign_cpu = cpumask_next_and(assign_cpu,
+						&cpus_for_pipeline, cpu_online_mask);
+			}
+
+			if (assign_cpu >= nr_cpu_ids)
+				wts->pipeline_cpu = -1;
+			else
+				wts->pipeline_cpu = assign_cpu;
 		}
 
-		if (is_max_possible_cluster_cpu(wts->pipeline_cpu)) {
-			/* assumes just one prime */
-			prime_wts = wts;
-		} else {
-			if (wts->demand_scaled > max_demand) {
-				max_demand = wts->demand_scaled;
-				other_wts = wts;
+		if (wts->pipeline_cpu != -1) {
+			if (is_max_possible_cluster_cpu(wts->pipeline_cpu)) {
+				/* assumes just one prime */
+				prime_wts = wts;
+			} else {
+				if (wts->demand_scaled > max_demand) {
+					max_demand = wts->demand_scaled;
+					other_wts = wts;
+				}
 			}
 		}
 	}
@@ -3951,10 +3964,18 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 	if (pipeline_nr <= 2) {
 		/* pipeline task reduced, demote the prime one if its around */
 		if (prime_wts) {
-			if (is_min_possible_cluster_cpu(assign_cpu))
-				assign_cpu = cpumask_last(
-					&sched_cluster[num_sched_clusters - 2]->cpus);
-			prime_wts->pipeline_cpu = assign_cpu--;
+			assign_cpu = cpumask_next_and(assign_cpu,
+						&cpus_for_pipeline, cpu_online_mask);
+			if (assign_cpu >= nr_cpu_ids) {
+				/* reset and rotate the cpus */
+				assign_cpu = 0;
+				assign_cpu = cpumask_next_and(assign_cpu,
+							&cpus_for_pipeline, cpu_online_mask);
+			}
+			if (assign_cpu >= nr_cpu_ids)
+				prime_wts->pipeline_cpu = -1;
+			else
+				prime_wts->pipeline_cpu = assign_cpu;
 		}
 		goto release_lock;
 	}
