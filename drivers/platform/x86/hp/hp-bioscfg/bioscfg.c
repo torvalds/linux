@@ -94,12 +94,15 @@ int hp_get_string_from_buffer(u8 **buffer, u32 *buffer_size, char *dst, u32 dst_
 	utf16s_to_utf8s(src, src_size, UTF16_HOST_ENDIAN, dst, conv_dst_size);
 	dst[conv_dst_size] = 0;
 
-	for (i = 0; i < size && i < conv_dst_size; i++) {
+	for (i = 0; i < conv_dst_size; i++) {
 		if (*src == '\\' ||
 		    *src == '\r' ||
 		    *src == '\n' ||
-		    *src == '\t')
+		    *src == '\t') {
 			dst[i++] = '\\';
+			if (i == conv_dst_size)
+				break;
+		}
 
 		if (*src == '\r')
 			dst[i] = 'r';
