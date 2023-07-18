@@ -1953,13 +1953,18 @@ static int __bpf_list_add(struct bpf_list_node_kern *node,
 	 */
 	if (unlikely(!h->next))
 		INIT_LIST_HEAD(h);
-	if (!list_empty(n)) {
+
+	/* node->owner != NULL implies !list_empty(n), no need to separately
+	 * check the latter
+	 */
+	if (cmpxchg(&node->owner, NULL, BPF_PTR_POISON)) {
 		/* Only called from BPF prog, no need to migrate_disable */
 		__bpf_obj_drop_impl((void *)n - off, rec);
 		return -EINVAL;
 	}
 
 	tail ? list_add_tail(n, h) : list_add(n, h);
+	WRITE_ONCE(node->owner, head);
 
 	return 0;
 }
@@ -1987,6 +1992,7 @@ __bpf_kfunc int bpf_list_push_back_impl(struct bpf_list_head *head,
 static struct bpf_list_node *__bpf_list_del(struct bpf_list_head *head, bool tail)
 {
 	struct list_head *n, *h = (void *)head;
+	struct bpf_list_node_kern *node;
 
 	/* If list_head was 0-initialized by map, bpf_obj_init_field wasn't
 	 * called on its fields, so init here
@@ -1995,8 +2001,14 @@ static struct bpf_list_node *__bpf_list_del(struct bpf_list_head *head, bool tai
 		INIT_LIST_HEAD(h);
 	if (list_empty(h))
 		return NULL;
+
 	n = tail ? h->prev : h->next;
+	node = container_of(n, struct bpf_list_node_kern, list_head);
+	if (WARN_ON_ONCE(READ_ONCE(node->owner) != head))
+		return NULL;
+
 	list_del_init(n);
+	WRITE_ONCE(node->owner, NULL);
 	return (struct bpf_list_node *)n;
 }
 
@@ -2013,14 +2025,19 @@ __bpf_kfunc struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head)
 __bpf_kfunc struct bpf_rb_node *bpf_rbtree_remove(struct bpf_rb_root *root,
 						  struct bpf_rb_node *node)
 {
+	struct bpf_rb_node_kern *node_internal = (struct bpf_rb_node_kern *)node;
 	struct rb_root_cached *r = (struct rb_root_cached *)root;
-	struct rb_node *n = &((struct bpf_rb_node_kern *)node)->rb_node;
+	struct rb_node *n = &node_internal->rb_node;
 
-	if (RB_EMPTY_NODE(n))
+	/* node_internal->owner != root implies either RB_EMPTY_NODE(n) or
+	 * n is owned by some other tree. No need to check RB_EMPTY_NODE(n)
+	 */
+	if (READ_ONCE(node_internal->owner) != root)
 		return NULL;
 
 	rb_erase_cached(n, r);
 	RB_CLEAR_NODE(n);
+	WRITE_ONCE(node_internal->owner, NULL);
 	return (struct bpf_rb_node *)n;
 }
 
@@ -2036,7 +2053,10 @@ static int __bpf_rbtree_add(struct bpf_rb_root *root,
 	bpf_callback_t cb = (bpf_callback_t)less;
 	bool leftmost = true;
 
-	if (!RB_EMPTY_NODE(n)) {
+	/* node->owner != NULL implies !RB_EMPTY_NODE(n), no need to separately
+	 * check the latter
+	 */
+	if (cmpxchg(&node->owner, NULL, BPF_PTR_POISON)) {
 		/* Only called from BPF prog, no need to migrate_disable */
 		__bpf_obj_drop_impl((void *)n - off, rec);
 		return -EINVAL;
@@ -2054,6 +2074,7 @@ static int __bpf_rbtree_add(struct bpf_rb_root *root,
 
 	rb_link_node(n, parent, link);
 	rb_insert_color_cached(n, (struct rb_root_cached *)root, leftmost);
+	WRITE_ONCE(node->owner, root);
 	return 0;
 }
 

@@ -231,11 +231,13 @@ struct btf_record {
 /* Non-opaque version of bpf_rb_node in uapi/linux/bpf.h */
 struct bpf_rb_node_kern {
 	struct rb_node rb_node;
+	void *owner;
 } __attribute__((aligned(8)));
 
 /* Non-opaque version of bpf_list_node in uapi/linux/bpf.h */
 struct bpf_list_node_kern {
 	struct list_head list_head;
+	void *owner;
 } __attribute__((aligned(8)));
 
 struct bpf_map {
