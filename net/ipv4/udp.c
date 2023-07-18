@@ -1553,7 +1553,7 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 	spin_unlock(&list->lock);
 
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk);
+		INDIRECT_CALL_1(sk->sk_data_ready, sock_def_readable, sk);
 
 	busylock_release(busy);
 	return 0;
