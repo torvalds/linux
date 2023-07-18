@@ -14,16 +14,17 @@
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nft_fib.h>
 
-const struct nla_policy nft_fib_policy[NFTA_FIB_MAX + 1] = {
-	[NFTA_FIB_DREG]		= { .type = NLA_U32 },
-	[NFTA_FIB_RESULT]	= { .type = NLA_U32 },
-	[NFTA_FIB_FLAGS]	= { .type = NLA_U32 },
-};
-EXPORT_SYMBOL(nft_fib_policy);
-
 #define NFTA_FIB_F_ALL (NFTA_FIB_F_SADDR | NFTA_FIB_F_DADDR | \
 			NFTA_FIB_F_MARK | NFTA_FIB_F_IIF | NFTA_FIB_F_OIF | \
 			NFTA_FIB_F_PRESENT)
+
+const struct nla_policy nft_fib_policy[NFTA_FIB_MAX + 1] = {
+	[NFTA_FIB_DREG]		= { .type = NLA_U32 },
+	[NFTA_FIB_RESULT]	= { .type = NLA_U32 },
+	[NFTA_FIB_FLAGS]	=
+		NLA_POLICY_MASK(NLA_BE32, NFTA_FIB_F_ALL),
+};
+EXPORT_SYMBOL(nft_fib_policy);
 
 int nft_fib_validate(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		     const struct nft_data **data)
@@ -77,7 +78,7 @@ int nft_fib_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	priv->flags = ntohl(nla_get_be32(tb[NFTA_FIB_FLAGS]));
 
-	if (priv->flags == 0 || (priv->flags & ~NFTA_FIB_F_ALL))
+	if (priv->flags == 0)
 		return -EINVAL;
 
 	if ((priv->flags & (NFTA_FIB_F_SADDR | NFTA_FIB_F_DADDR)) ==
