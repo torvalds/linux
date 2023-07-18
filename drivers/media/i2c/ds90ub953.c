@@ -1387,7 +1387,6 @@ static struct i2c_driver ds90ub953_driver = {
 	.id_table	= ub953_id,
 	.driver = {
 		.name	= "ds90ub953",
-		.owner = THIS_MODULE,
 		.of_match_table = ub953_dt_ids,
 	},
 };
