@@ -143,8 +143,8 @@ struct xe_vm {
 #define XE_VM_FLAG_SCRATCH_PAGE		BIT(4)
 #define XE_VM_FLAG_FAULT_MODE		BIT(5)
 #define XE_VM_FLAG_BANNED		BIT(6)
-#define XE_VM_FLAG_TILE_ID(flags)	(((flags) >> 7) & 0x3)
-#define XE_VM_FLAG_SET_TILE_ID(tile)	((tile)->id << 7)
+#define XE_VM_FLAG_TILE_ID(flags)	FIELD_GET(GENMASK(8, 7), flags)
+#define XE_VM_FLAG_SET_TILE_ID(tile)	FIELD_PREP(GENMASK(8, 7), (tile)->id)
 	unsigned long flags;
 
 	/** @composite_fence_ctx: context composite fence */
