@@ -5,6 +5,7 @@
  * Copyright (C) 2023 Renesas Electronics Corporation
  */
 
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/count_zeros.h>
 #include <linux/interrupt.h>
@@ -12,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/spi/spi.h>
+#include <linux/units.h>
 
 /* Registers */
 #define CSI_MODE		0x00	/* CSI mode control */
@@ -63,14 +65,19 @@
 #define CSI_FIFO_SIZE_BYTES	32
 #define CSI_FIFO_HALF_SIZE	16
 #define CSI_EN_DIS_TIMEOUT_US	100
-#define CSI_CKS_MAX		0x3FFF
+/*
+ * Clock "csiclk" gets divided by 2 * CSI_CLKSEL_CKS in order to generate the
+ * serial clock (output from master), with CSI_CLKSEL_CKS ranging from 0x1 (that
+ * means "csiclk" is divided by 2) to 0x3FFF ("csiclk" is divided by 32766).
+ */
+#define CSI_CKS_MAX		GENMASK(13, 0)
 
 #define UNDERRUN_ERROR		BIT(0)
 #define OVERFLOW_ERROR		BIT(1)
 #define TX_TIMEOUT_ERROR	BIT(2)
 #define RX_TIMEOUT_ERROR	BIT(3)
 
-#define CSI_MAX_SPI_SCKO	8000000
+#define CSI_MAX_SPI_SCKO	(8 * HZ_PER_MHZ)
 
 struct rzv2m_csi_priv {
 	void __iomem *base;
@@ -124,13 +131,12 @@ static int rzv2m_csi_sw_reset(struct rzv2m_csi_priv *csi, int assert)
 
 	rzv2m_csi_reg_write_bit(csi, CSI_CNT, CSI_CNT_CSIRST, assert);
 
-	if (assert) {
-		return readl_poll_timeout(csi->base + CSI_MODE, reg,
-					  !(reg & CSI_MODE_CSOT), 0,
-					  CSI_EN_DIS_TIMEOUT_US);
-	}
+	if (!assert)
+		return 0;
 
-	return 0;
+	return readl_poll_timeout(csi->base + CSI_MODE, reg,
+				  !(reg & CSI_MODE_CSOT), 0,
+				  CSI_EN_DIS_TIMEOUT_US);
 }
 
 static int rzv2m_csi_start_stop_operation(const struct rzv2m_csi_priv *csi,
@@ -140,12 +146,12 @@ static int rzv2m_csi_start_stop_operation(const struct rzv2m_csi_priv *csi,
 
 	rzv2m_csi_reg_write_bit(csi, CSI_MODE, CSI_MODE_CSIE, enable);
 
-	if (!enable && wait)
-		return readl_poll_timeout(csi->base + CSI_MODE, reg,
-					  !(reg & CSI_MODE_CSOT), 0,
-					  CSI_EN_DIS_TIMEOUT_US);
+	if (enable || !wait)
+		return 0;
 
-	return 0;
+	return readl_poll_timeout(csi->base + CSI_MODE, reg,
+				  !(reg & CSI_MODE_CSOT), 0,
+				  CSI_EN_DIS_TIMEOUT_US);
 }
 
 static int rzv2m_csi_fill_txfifo(struct rzv2m_csi_priv *csi)
@@ -433,8 +439,8 @@ static int rzv2m_csi_setup(struct spi_device *spi)
 
 static int rzv2m_csi_pio_transfer(struct rzv2m_csi_priv *csi)
 {
-	bool tx_completed = csi->txbuf ? false : true;
-	bool rx_completed = csi->rxbuf ? false : true;
+	bool tx_completed = !csi->txbuf;
+	bool rx_completed = !csi->rxbuf;
 	int ret = 0;
 
 	/* Make sure the TX FIFO is empty */
