@@ -31,7 +31,7 @@ struct misc_cg;
  * struct misc_res: Per cgroup per misc type resource
  * @max: Maximum limit on the resource.
  * @usage: Current usage of the resource.
- * @failed: True if charged failed for the resource in a cgroup.
+ * @events: Number of times, the resource limit exceeded.
  */
 struct misc_res {
 	unsigned long max;
@@ -42,6 +42,7 @@ struct misc_res {
 /**
  * struct misc_cg - Miscellaneous controller's cgroup structure.
  * @css: cgroup subsys state object.
+ * @events_file: Handle for the misc resources events file.
  * @res: Array of misc resources usage in the cgroup.
  */
 struct misc_cg {
