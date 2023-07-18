@@ -116,7 +116,6 @@ static void set_grace_period(struct net *net)
 static int
 lockd(void *vrqstp)
 {
-	int		err = 0;
 	struct svc_rqst *rqstp = vrqstp;
 	struct net *net = &init_net;
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
@@ -138,13 +137,7 @@ lockd(void *vrqstp)
 
 		timeout = nlmsvc_retry_blocked();
 
-		/*
-		 * Find a socket with data available and call its
-		 * recvfrom routine.
-		 */
-		err = svc_recv(rqstp, timeout);
-		if (err == -EAGAIN || err == -EINTR)
-			continue;
+		svc_recv(rqstp, timeout);
 	}
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();

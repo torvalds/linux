@@ -939,7 +939,6 @@ nfsd(void *vrqstp)
 	struct svc_xprt *perm_sock = list_entry(rqstp->rq_server->sv_permsocks.next, typeof(struct svc_xprt), xpt_list);
 	struct net *net = perm_sock->xpt_net;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-	int err;
 
 	/* At this point, the thread shares current->fs
 	 * with the init process. We need to create files with the
@@ -958,19 +957,11 @@ nfsd(void *vrqstp)
 	/*
 	 * The main request loop
 	 */
-	for (;;) {
+	while (!kthread_should_stop()) {
 		/* Update sv_maxconn if it has changed */
 		rqstp->rq_server->sv_maxconn = nn->max_connections;
 
-		/*
-		 * Find a socket with data available and call its
-		 * recvfrom routine.
-		 */
-		while ((err = svc_recv(rqstp, 60*60*HZ)) == -EAGAIN)
-			;
-		if (err == -EINTR)
-			break;
-
+		svc_recv(rqstp, 60*60*HZ);
 		validate_process_creds();
 	}
 

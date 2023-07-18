@@ -74,19 +74,12 @@ out_err:
 static int
 nfs4_callback_svc(void *vrqstp)
 {
-	int err;
 	struct svc_rqst *rqstp = vrqstp;
 
 	set_freezable();
 
-	while (!kthread_freezable_should_stop(NULL)) {
-		/*
-		 * Listen for a request on the socket
-		 */
-		err = svc_recv(rqstp, MAX_SCHEDULE_TIMEOUT);
-		if (err == -EAGAIN || err == -EINTR)
-			continue;
-	}
+	while (!kthread_freezable_should_stop(NULL))
+		svc_recv(rqstp, MAX_SCHEDULE_TIMEOUT);
 
 	svc_exit_thread(rqstp);
 	return 0;

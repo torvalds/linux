@@ -679,7 +679,7 @@ static void svc_check_conn_limits(struct svc_serv *serv)
 	}
 }
 
-static int svc_alloc_arg(struct svc_rqst *rqstp)
+static bool svc_alloc_arg(struct svc_rqst *rqstp)
 {
 	struct svc_serv *serv = rqstp->rq_server;
 	struct xdr_buf *arg = &rqstp->rq_arg;
@@ -704,7 +704,7 @@ static int svc_alloc_arg(struct svc_rqst *rqstp)
 		set_current_state(TASK_IDLE);
 		if (kthread_should_stop()) {
 			set_current_state(TASK_RUNNING);
-			return -EINTR;
+			return false;
 		}
 		trace_svc_alloc_arg_err(pages, ret);
 		memalloc_retry_wait(GFP_KERNEL);
@@ -723,7 +723,7 @@ static int svc_alloc_arg(struct svc_rqst *rqstp)
 	arg->tail[0].iov_len = 0;
 
 	rqstp->rq_xid = xdr_zero;
-	return 0;
+	return true;
 }
 
 static bool
@@ -785,8 +785,8 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 		percpu_counter_inc(&pool->sp_threads_timedout);
 
 	if (kthread_should_stop())
-		return ERR_PTR(-EINTR);
-	return ERR_PTR(-EAGAIN);
+		return NULL;
+	return NULL;
 out_found:
 	/* Normally we will wait up to 5 seconds for any required
 	 * cache information to be provided.
@@ -868,32 +868,27 @@ out:
  * organised not to touch any cachelines in the shared svc_serv
  * structure, only cachelines in the local svc_pool.
  */
-int svc_recv(struct svc_rqst *rqstp, long timeout)
+void svc_recv(struct svc_rqst *rqstp, long timeout)
 {
 	struct svc_xprt		*xprt = NULL;
 	struct svc_serv		*serv = rqstp->rq_server;
-	int			len, err;
+	int			len;
 
-	err = svc_alloc_arg(rqstp);
-	if (err)
+	if (!svc_alloc_arg(rqstp))
 		goto out;
 
 	try_to_freeze();
 	cond_resched();
-	err = -EINTR;
 	if (kthread_should_stop())
 		goto out;
 
 	xprt = svc_get_next_xprt(rqstp, timeout);
-	if (IS_ERR(xprt)) {
-		err = PTR_ERR(xprt);
+	if (!xprt)
 		goto out;
-	}
 
 	len = svc_handle_xprt(rqstp, xprt);
 
 	/* No data, incomplete (TCP) read, or accept() */
-	err = -EAGAIN;
 	if (len <= 0)
 		goto out_release;
 
@@ -907,12 +902,11 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		serv->sv_stats->netcnt++;
 	rqstp->rq_stime = ktime_get();
 	svc_process(rqstp);
-	return 0;
+out:
+	return;
 out_release:
 	rqstp->rq_res.len = 0;
 	svc_xprt_release(rqstp);
-out:
-	return err;
 }
 EXPORT_SYMBOL_GPL(svc_recv);
 
