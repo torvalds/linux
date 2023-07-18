@@ -858,7 +858,7 @@ EXPORT_SYMBOL(snd_ctl_find_numid);
  *
  */
 struct snd_kcontrol *snd_ctl_find_id(struct snd_card *card,
-				     struct snd_ctl_elem_id *id)
+				     const struct snd_ctl_elem_id *id)
 {
 	struct snd_kcontrol *kctl;
 
