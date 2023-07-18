@@ -151,7 +151,7 @@ static int jh7110_pcie_phy_probe(struct platform_device *pdev)
 
 	phy->phy = devm_phy_create(dev, NULL, &jh7110_pcie_phy_ops);
 	if (IS_ERR(phy->phy))
-		return dev_err_probe(dev, PTR_ERR(phy->regs),
+		return dev_err_probe(dev, PTR_ERR(phy->phy),
 				     "Failed to map phy base\n");
 
 	phy->sys_syscon =
