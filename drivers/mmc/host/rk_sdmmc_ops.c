@@ -22,6 +22,8 @@
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
 #include <linux/miscdevice.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include "../core/block.h"
 #include "../core/card.h"
 #include "../core/core.h"
@@ -154,6 +156,7 @@ int rk_emmc_transfer(u8 *buffer, unsigned int addr, unsigned int datasz, int wri
 
 	rk_emmc_prepare_mrq(&mrq, &sg, 1, addr, datasz / BLKSZ, BLKSZ, write);
 
+	pm_runtime_get_sync(&this_card->dev);
 	mmc_claim_host(this_card->host);
 
 	if (this_card->ext_csd.cmdq_en) {
@@ -196,6 +199,8 @@ exit:
 		mmc_cmdq_enable(this_card);
 
 	mmc_release_host(this_card->host);
+	pm_runtime_put(&this_card->dev);
+
 	return ret;
 }
 EXPORT_SYMBOL(rk_emmc_transfer);
