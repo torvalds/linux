@@ -1687,7 +1687,7 @@ static int user_bounds_sanity_check(void *key, void *datum, void *datap)
 
 		if (++depth == POLICYDB_BOUNDS_MAXDEPTH) {
 			pr_err("SELinux: user %s: "
-			       "too deep or looped boundary",
+			       "too deep or looped boundary\n",
 			       (char *) key);
 			return -EINVAL;
 		}
@@ -1766,7 +1766,7 @@ static int type_bounds_sanity_check(void *key, void *datum, void *datap)
 
 		if (upper->attribute) {
 			pr_err("SELinux: type %s: "
-			       "bounded by attribute %s",
+			       "bounded by attribute %s\n",
 			       (char *) key,
 			       sym_name(p, SYM_TYPES, upper->value - 1));
 			return -EINVAL;
@@ -3675,7 +3675,7 @@ int policydb_write(struct policydb *p, void *fp)
 	info = policydb_lookup_compat(p->policyvers);
 	if (!info) {
 		pr_err("SELinux: compatibility lookup failed for policy "
-		    "version %d", p->policyvers);
+		    "version %d\n", p->policyvers);
 		return -EINVAL;
 	}
 

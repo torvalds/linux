@@ -2930,7 +2930,7 @@ static int selinux_inode_init_security_anon(struct inode *inode,
 		struct inode_security_struct *context_isec =
 			selinux_inode(context_inode);
 		if (context_isec->initialized != LABEL_INITIALIZED) {
-			pr_err("SELinux:  context_inode is not initialized");
+			pr_err("SELinux:  context_inode is not initialized\n");
 			return -EACCES;
 		}
 
