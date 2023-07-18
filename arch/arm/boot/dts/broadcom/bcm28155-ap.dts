@@ -15,64 +15,64 @@
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
+};
 
-	serial@3e000000 {
-		status = "okay";
+&bsc1 {
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&bsc2 {
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&bsc3 {
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&pmu_bsc {
+	clock-frequency = <100000>;
+	status = "okay";
+
+	pmu: pmu@8 {
+		reg = <0x08>;
 	};
+};
 
-	i2c@3e016000 {
-		clock-frequency = <400000>;
-		status = "okay";
-	};
+&pwm {
+	status = "okay";
+};
 
-	i2c@3e017000 {
-		clock-frequency = <400000>;
-		status = "okay";
-	};
+&sdio2 {
+	non-removable;
+	max-frequency = <48000000>;
+	vmmc-supply = <&camldo1_reg>;
+	vqmmc-supply = <&iosr1_reg>;
+	status = "okay";
+};
 
-	i2c@3e018000 {
-		clock-frequency = <400000>;
-		status = "okay";
-	};
+&sdio4 {
+	max-frequency = <48000000>;
+	cd-gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
+	vmmc-supply = <&sdldo_reg>;
+	vqmmc-supply = <&sdxldo_reg>;
+	status = "okay";
+};
 
-	i2c@3500d000 {
-		clock-frequency = <100000>;
-		status = "okay";
+&uartb {
+	status = "okay";
+};
 
-		pmu: pmu@8 {
-			reg = <0x08>;
-		};
-	};
+&usbotg {
+	vusb_d-supply = <&usbldo_reg>;
+	vusb_a-supply = <&iosr1_reg>;
+	status = "okay";
+};
 
-	sdio2: mmc@3f190000 {
-		non-removable;
-		max-frequency = <48000000>;
-		vmmc-supply = <&camldo1_reg>;
-		vqmmc-supply = <&iosr1_reg>;
-		status = "okay";
-	};
-
-	sdio4: mmc@3f1b0000 {
-		max-frequency = <48000000>;
-		cd-gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
-		vmmc-supply = <&sdldo_reg>;
-		vqmmc-supply = <&sdxldo_reg>;
-		status = "okay";
-	};
-
-	pwm: pwm@3e01a000 {
-		status = "okay";
-	};
-
-	usbotg: usb@3f120000 {
-		vusb_d-supply = <&usbldo_reg>;
-		vusb_a-supply = <&iosr1_reg>;
-		status = "okay";
-	};
-
-	usbphy: usb-phy@3f130000 {
-		status = "okay";
-	};
+&usbphy {
+	status = "okay";
 };
 
 #include "bcm59056.dtsi"
