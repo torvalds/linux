@@ -341,7 +341,7 @@ int xe_pt_create_scratch(struct xe_device *xe, struct xe_tile *tile,
 	 * platforms where 64K pages are needed for VRAM.
 	 */
 	flags = XE_BO_CREATE_PINNED_BIT;
-	if (vm->flags & XE_VM_FLAGS_64K)
+	if (vm->flags & XE_VM_FLAG_64K)
 		flags |= XE_BO_CREATE_SYSTEM_BIT;
 	else
 		flags |= XE_BO_CREATE_VRAM_IF_DGFX(tile);
@@ -761,7 +761,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		.va_curs_start = xe_vma_start(vma),
 		.vma = vma,
 		.wupd.entries = entries,
-		.needs_64K = (xe_vma_vm(vma)->flags & XE_VM_FLAGS_64K) && is_vram,
+		.needs_64K = (xe_vma_vm(vma)->flags & XE_VM_FLAG_64K) && is_vram,
 	};
 	struct xe_pt *pt = xe_vma_vm(vma)->pt_root[tile->id];
 	int ret;

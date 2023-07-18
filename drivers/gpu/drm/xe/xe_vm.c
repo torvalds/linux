@@ -1264,11 +1264,11 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 		goto err_close;
 
 	if (IS_DGFX(xe) && xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K)
-		vm->flags |= XE_VM_FLAGS_64K;
+		vm->flags |= XE_VM_FLAG_64K;
 
 	for_each_tile(tile, xe, id) {
 		if (flags & XE_VM_FLAG_MIGRATION &&
-		    tile->id != XE_VM_FLAG_GT_ID(flags))
+		    tile->id != XE_VM_FLAG_TILE_ID(flags))
 			continue;
 
 		vm->pt_root[id] = xe_pt_create(vm, tile, xe->info.vm_max_level);
@@ -2119,7 +2119,7 @@ static int xe_vm_prefetch(struct xe_vm *vm, struct xe_vma *vma,
 struct ttm_buffer_object *xe_vm_ttm_bo(struct xe_vm *vm)
 {
 	int idx = vm->flags & XE_VM_FLAG_MIGRATION ?
-		XE_VM_FLAG_GT_ID(vm->flags) : 0;
+		XE_VM_FLAG_TILE_ID(vm->flags) : 0;
 
 	/* Safe to use index 0 as all BO in the VM share a single dma-resv lock */
 	return &vm->pt_root[idx]->bo->ttm;

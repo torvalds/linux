@@ -201,7 +201,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 
 		xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64, entry);
 
-		if (vm->flags & XE_VM_FLAGS_64K)
+		if (vm->flags & XE_VM_FLAG_64K)
 			i += 16;
 		else
 			i += 1;
@@ -213,7 +213,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		/* Write out batch too */
 		m->batch_base_ofs = NUM_PT_SLOTS * XE_PAGE_SIZE;
 		for (i = 0; i < batch->size;
-		     i += vm->flags & XE_VM_FLAGS_64K ? XE_64K_PAGE_SIZE :
+		     i += vm->flags & XE_VM_FLAG_64K ? XE_64K_PAGE_SIZE :
 		     XE_PAGE_SIZE) {
 			entry = xe_pte_encode(NULL, batch, i,
 					      XE_CACHE_WB, 0);
@@ -239,7 +239,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	for (level = 1; level < num_level; level++) {
 		u32 flags = 0;
 
-		if (vm->flags & XE_VM_FLAGS_64K && level == 1)
+		if (vm->flags & XE_VM_FLAG_64K && level == 1)
 			flags = XE_PDE_64K;
 
 		entry = xe_pde_encode(bo, map_ofs + (level - 1) *
@@ -462,7 +462,7 @@ static void emit_pte(struct xe_migrate *m,
 			addr = xe_res_dma(cur) & PAGE_MASK;
 			if (is_vram) {
 				/* Is this a 64K PTE entry? */
-				if ((m->eng->vm->flags & XE_VM_FLAGS_64K) &&
+				if ((m->eng->vm->flags & XE_VM_FLAG_64K) &&
 				    !(cur_ofs & (16 * 8 - 1))) {
 					XE_WARN_ON(!IS_ALIGNED(addr, SZ_64K));
 					addr |= XE_PTE_PS64;
