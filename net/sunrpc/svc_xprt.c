@@ -906,7 +906,8 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 	if (serv->sv_stats)
 		serv->sv_stats->netcnt++;
 	rqstp->rq_stime = ktime_get();
-	return len;
+	svc_process(rqstp);
+	return 0;
 out_release:
 	rqstp->rq_res.len = 0;
 	svc_xprt_release(rqstp);

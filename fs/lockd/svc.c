@@ -132,7 +132,6 @@ lockd(void *vrqstp)
 	 */
 	while (!kthread_should_stop()) {
 		long timeout = MAX_SCHEDULE_TIMEOUT;
-		RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
 
 		/* update sv_maxconn if it has changed */
 		rqstp->rq_server->sv_maxconn = nlm_max_connections;
@@ -146,10 +145,6 @@ lockd(void *vrqstp)
 		err = svc_recv(rqstp, timeout);
 		if (err == -EAGAIN || err == -EINTR)
 			continue;
-		dprintk("lockd: request from %s\n",
-				svc_print_addr(rqstp, buf, sizeof(buf)));
-
-		svc_process(rqstp);
 	}
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();

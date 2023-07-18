@@ -86,7 +86,6 @@ nfs4_callback_svc(void *vrqstp)
 		err = svc_recv(rqstp, MAX_SCHEDULE_TIMEOUT);
 		if (err == -EAGAIN || err == -EINTR)
 			continue;
-		svc_process(rqstp);
 	}
 
 	svc_exit_thread(rqstp);
