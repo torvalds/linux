@@ -1562,7 +1562,7 @@ static u8 irdma_iw_get_vlan_prio(u32 *loc_addr, u8 prio, bool ipv4)
 	rcu_read_lock();
 	if (ipv4) {
 		ndev = ip_dev_find(&init_net, htonl(loc_addr[0]));
-	} else {
+	} else if (IS_ENABLED(CONFIG_IPV6)) {
 		struct net_device *ip_dev;
 		struct in6_addr laddr6;
 
