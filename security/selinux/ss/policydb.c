@@ -41,7 +41,7 @@
 #include "mls.h"
 #include "services.h"
 
-#ifdef DEBUG_HASHES
+#ifdef CONFIG_SECURITY_SELINUX_DEBUG
 static const char *const symtab_name[SYM_NUM] = {
 	"common prefixes",
 	"classes",
@@ -678,7 +678,7 @@ static int (*const index_f[SYM_NUM]) (void *key, void *datum, void *datap) = {
 	cat_index,
 };
 
-#ifdef DEBUG_HASHES
+#ifdef CONFIG_SECURITY_SELINUX_DEBUG
 static void hash_eval(struct hashtab *h, const char *hash_name)
 {
 	struct hashtab_info info;
@@ -701,7 +701,7 @@ static void symtab_hash_eval(struct symtab *s)
 static inline void hash_eval(struct hashtab *h, const char *hash_name)
 {
 }
-#endif
+#endif /* CONFIG_SECURITY_SELINUX_DEBUG */
 
 /*
  * Define the other val_to_name and val_to_struct arrays
@@ -725,7 +725,7 @@ static int policydb_index(struct policydb *p)
 	pr_debug("SELinux:  %d classes, %d rules\n",
 		 p->p_classes.nprim, p->te_avtab.nel);
 
-#ifdef DEBUG_HASHES
+#ifdef CONFIG_SECURITY_SELINUX_DEBUG
 	avtab_hash_eval(&p->te_avtab, "rules");
 	symtab_hash_eval(p->symtab);
 #endif
