@@ -4,10 +4,11 @@
  */
 
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 #include <linux/usb/otg.h>
 
 #include "ci_hdrc_imx.h"

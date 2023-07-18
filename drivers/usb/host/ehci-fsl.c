@@ -22,7 +22,7 @@
 #include <linux/usb/otg.h>
 #include <linux/platform_device.h>
 #include <linux/fsl_devices.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/io.h>
 
 #include "ehci.h"
