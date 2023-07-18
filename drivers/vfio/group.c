@@ -194,9 +194,18 @@ static int vfio_df_group_open(struct vfio_device_file *df)
 	df->iommufd = device->group->iommufd;
 
 	ret = vfio_df_open(df);
-	if (ret)
+	if (ret) {
 		df->iommufd = NULL;
+		goto out_put_kvm;
+	}
 
+	/*
+	 * Paired with smp_load_acquire() in vfio_device_fops::ioctl/
+	 * read/write/mmap and vfio_file_has_device_access()
+	 */
+	smp_store_release(&df->access_granted, true);
+
+out_put_kvm:
 	if (device->open_count == 0)
 		vfio_device_put_kvm(device);
 
