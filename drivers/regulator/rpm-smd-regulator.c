@@ -2,7 +2,7 @@
 
 /*
  * Copyright (c) 2012-2015, 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -1807,10 +1807,9 @@ static int rpm_vreg_device_probe(struct platform_device *pdev)
 		goto fail_remove_from_list;
 	}
 
-	rc = devm_regulator_proxy_consumer_register(pdev->dev.parent, node);
+	rc = devm_regulator_proxy_consumer_register(dev, node);
 	if (rc)
-		vreg_err(reg, "failed to register proxy consumer, rc=%d\n",
-			rc);
+		vreg_err(reg, "failed to register proxy consumer, rc=%d\n", rc);
 
 	platform_set_drvdata(pdev, reg);
 
@@ -2102,6 +2101,7 @@ static struct platform_driver rpm_vreg_device_driver = {
 	.driver = {
 		.name = "qcom,rpm-smd-regulator",
 		.of_match_table = rpm_vreg_match_table_device,
+		.sync_state = regulator_proxy_consumer_sync_state,
 	},
 };
 
@@ -2111,7 +2111,6 @@ static struct platform_driver rpm_vreg_resource_driver = {
 	.driver = {
 		.name = "qcom,rpm-smd-regulator-resource",
 		.of_match_table = rpm_vreg_match_table_resource,
-		.sync_state = regulator_proxy_consumer_sync_state,
 	},
 };
 
