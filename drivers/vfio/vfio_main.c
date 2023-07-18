@@ -338,6 +338,9 @@ void vfio_unregister_group_dev(struct vfio_device *device)
 	 */
 	vfio_device_group_unregister(device);
 
+	/* Balances device_add in register path */
+	device_del(&device->device);
+
 	vfio_device_put_registration(device);
 	rc = try_wait_for_completion(&device->comp);
 	while (rc <= 0) {
@@ -360,9 +363,6 @@ void vfio_unregister_group_dev(struct vfio_device *device)
 			}
 		}
 	}
-
-	/* Balances device_add in register path */
-	device_del(&device->device);
 
 	/* Balances vfio_device_set_group in register path */
 	vfio_device_remove_group(device);
