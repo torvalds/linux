@@ -39,7 +39,7 @@ some of them are ESA/390 platform specific.
 
 Note:
   In order to write a driver for S/390, you also need to look into the interface
-  described in Documentation/s390/driver-model.rst.
+  described in Documentation/arch/s390/driver-model.rst.
 
 Note for porting drivers from 2.4:
 

@@ -440,6 +440,6 @@ Reference
 1. ESA/s390 Principles of Operation manual (IBM Form. No. SA22-7832)
 2. ESA/390 Common I/O Device Commands manual (IBM Form. No. SA22-7204)
 3. https://en.wikipedia.org/wiki/Channel_I/O
-4. Documentation/s390/cds.rst
+4. Documentation/arch/s390/cds.rst
 5. Documentation/driver-api/vfio.rst
 6. Documentation/driver-api/vfio-mediated-device.rst
