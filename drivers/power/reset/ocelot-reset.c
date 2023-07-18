@@ -8,10 +8,10 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/notifier.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
 

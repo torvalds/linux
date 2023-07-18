@@ -10,10 +10,11 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
+#include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 
 #define RSTYPE_RG			0x0
 #define RSCTRL_RG			0x4

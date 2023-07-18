@@ -2,8 +2,8 @@
 // Copyright (C) 2016 Broadcom
 
 #include <linux/io.h>
-#include <linux/of_address.h>
-#include <linux/of_platform.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 #include <linux/reboot.h>
 
 #define RSTMGR_REG_WR_ACCESS_OFFSET	0
