@@ -18,6 +18,9 @@ struct vfio_container;
 
 struct vfio_device_file {
 	struct vfio_device *device;
+
+	spinlock_t kvm_ref_lock; /* protect kvm field */
+	struct kvm *kvm;
 };
 
 void vfio_device_put_registration(struct vfio_device *device);
