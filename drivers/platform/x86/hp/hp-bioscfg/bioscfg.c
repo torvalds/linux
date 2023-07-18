@@ -630,13 +630,18 @@ static int hp_add_other_attributes(int attr_type)
 	switch (attr_type) {
 	case HPWMI_SECURE_PLATFORM_TYPE:
 		ret = hp_populate_secure_platform_data(attr_name_kobj);
+		if (ret)
+			goto err_other_attr_init;
 		break;
 
 	case HPWMI_SURE_START_TYPE:
 		ret = hp_populate_sure_start_data(attr_name_kobj);
+		if (ret)
+			goto err_other_attr_init;
 		break;
 
 	default:
+		ret = -EINVAL;
 		goto err_other_attr_init;
 	}
 
