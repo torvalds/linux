@@ -180,38 +180,6 @@ struct avtab_node *avtab_insert_nonunique(struct avtab *h,
 	return avtab_insert_node(h, hvalue, prev, key, datum);
 }
 
-struct avtab_datum *avtab_search(struct avtab *h, const struct avtab_key *key)
-{
-	int hvalue;
-	struct avtab_node *cur;
-	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
-
-	if (!h || !h->nslot)
-		return NULL;
-
-	hvalue = avtab_hash(key, h->mask);
-	for (cur = h->htable[hvalue]; cur;
-	     cur = cur->next) {
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type == cur->key.target_type &&
-		    key->target_class == cur->key.target_class &&
-		    (specified & cur->key.specified))
-			return &cur->datum;
-
-		if (key->source_type < cur->key.source_type)
-			break;
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type < cur->key.target_type)
-			break;
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type == cur->key.target_type &&
-		    key->target_class < cur->key.target_class)
-			break;
-	}
-
-	return NULL;
-}
-
 /* This search function returns a node pointer, and can be used in
  * conjunction with avtab_search_next_node()
  */

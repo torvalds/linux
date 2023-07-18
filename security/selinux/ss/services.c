@@ -1706,8 +1706,7 @@ static int security_compute_sid(u32 ssid,
 	struct context *scontext, *tcontext, newcontext;
 	struct sidtab_entry *sentry, *tentry;
 	struct avtab_key avkey;
-	struct avtab_datum *avdatum;
-	struct avtab_node *node;
+	struct avtab_node *avnode, *node;
 	u16 tclass;
 	int rc = 0;
 	bool sock;
@@ -1815,22 +1814,22 @@ retry:
 	avkey.target_type = tcontext->type;
 	avkey.target_class = tclass;
 	avkey.specified = specified;
-	avdatum = avtab_search(&policydb->te_avtab, &avkey);
+	avnode = avtab_search_node(&policydb->te_avtab, &avkey);
 
 	/* If no permanent rule, also check for enabled conditional rules */
-	if (!avdatum) {
+	if (!avnode) {
 		node = avtab_search_node(&policydb->te_cond_avtab, &avkey);
 		for (; node; node = avtab_search_node_next(node, specified)) {
 			if (node->key.specified & AVTAB_ENABLED) {
-				avdatum = &node->datum;
+				avnode = node;
 				break;
 			}
 		}
 	}
 
-	if (avdatum) {
+	if (avnode) {
 		/* Use the type from the type transition/member/change rule. */
-		newcontext.type = avdatum->u.data;
+		newcontext.type = avnode->datum.u.data;
 	}
 
 	/* if we have a objname this is a file trans check so check those rules */
