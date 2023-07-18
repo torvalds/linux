@@ -378,6 +378,30 @@ struct iommufd_ctx *iommufd_ctx_from_file(struct file *file)
 EXPORT_SYMBOL_NS_GPL(iommufd_ctx_from_file, IOMMUFD);
 
 /**
+ * iommufd_ctx_from_fd - Acquires a reference to the iommufd context
+ * @fd: File descriptor to obtain the reference from
+ *
+ * Returns a pointer to the iommufd_ctx, otherwise ERR_PTR. On success
+ * the caller is responsible to call iommufd_ctx_put().
+ */
+struct iommufd_ctx *iommufd_ctx_from_fd(int fd)
+{
+	struct file *file;
+
+	file = fget(fd);
+	if (!file)
+		return ERR_PTR(-EBADF);
+
+	if (file->f_op != &iommufd_fops) {
+		fput(file);
+		return ERR_PTR(-EBADFD);
+	}
+	/* fget is the same as iommufd_ctx_get() */
+	return file->private_data;
+}
+EXPORT_SYMBOL_NS_GPL(iommufd_ctx_from_fd, IOMMUFD);
+
+/**
  * iommufd_ctx_put - Put back a reference
  * @ictx: Context to put back
  */
