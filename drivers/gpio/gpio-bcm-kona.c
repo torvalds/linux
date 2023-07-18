@@ -592,7 +592,6 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	kona_gpio->pdev = pdev;
-	platform_set_drvdata(pdev, kona_gpio);
 	chip->parent = dev;
 	chip->ngpio = kona_gpio->num_bank * GPIO_PER_BANK;
 
