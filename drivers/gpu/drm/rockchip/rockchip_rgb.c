@@ -68,7 +68,8 @@ struct rockchip_rgb_funcs {
 };
 
 struct rockchip_rgb_data {
-	u32 max_dclk_rate;
+	u32 rgb_max_dclk_rate;
+	u32 mcu_max_dclk_rate;
 	const struct rockchip_rgb_funcs *funcs;
 };
 
@@ -129,7 +130,9 @@ struct rockchip_mcu_panel {
 struct rockchip_rgb {
 	u8 id;
 	u32 max_dclk_rate;
+	u32 mcu_pix_total;
 	struct device *dev;
+	struct device_node *np_mcu_panel;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	struct drm_connector connector;
@@ -137,7 +140,6 @@ struct rockchip_rgb {
 	struct phy *phy;
 	struct regmap *grf;
 	bool data_sync_bypass;
-	bool is_mcu_panel;
 	bool phy_enabled;
 	const struct rockchip_rgb_funcs *funcs;
 	struct rockchip_drm_sub_dev sub_dev;
@@ -332,7 +334,7 @@ static int rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
 {
 	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
 
-	if (rgb->is_mcu_panel) {
+	if (rgb->np_mcu_panel) {
 		struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(rgb->panel);
 
 		mcu_panel->prepared = true;
@@ -367,11 +369,22 @@ rockchip_rgb_encoder_mode_valid(struct drm_encoder *encoder,
 {
 	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
 	struct device *dev = rgb->dev;
+	struct drm_display_info *info = &rgb->connector.display_info;
 	u32 request_clock = mode->clock;
 	u32 max_clock = rgb->max_dclk_rate;
+	u32 bus_format;
+
+	if (info->num_bus_formats)
+		bus_format = info->bus_formats[0];
+	else
+		bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		request_clock *= 2;
+
+	if (rgb->np_mcu_panel)
+		request_clock *= rockchip_drm_get_cycles_per_pixel(bus_format) *
+				 (rgb->mcu_pix_total + 1);
 
 	if (max_clock != 0 && request_clock > max_clock) {
 		DRM_DEV_ERROR(dev, "mode [%dx%d] clock %d is higher than max_clock %d\n",
@@ -453,16 +466,18 @@ static int rockchip_mcu_panel_parse_cmd_seq(struct device *dev,
 	return 0;
 }
 
-static int rockchip_mcu_panel_init(struct rockchip_rgb *rgb, struct device_node *np_mcu_panel)
+static int rockchip_mcu_panel_init(struct rockchip_rgb *rgb)
 {
 	struct device *dev = rgb->dev;
-	struct device_node *port, *endpoint, *np_crtc, *remote;
+	struct device_node *np_mcu_panel = rgb->np_mcu_panel;
+	struct device_node *port, *endpoint, *np_crtc, *remote, *np_mcu_timing;
 	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(rgb->panel);
 	struct drm_display_mode *mode;
 	const void *data;
 	int len;
 	int ret;
 	u32 bus_flags;
+	u32 val;
 
 	mcu_panel->enable_gpio = devm_fwnode_gpiod_get_index(dev, &np_mcu_panel->fwnode,
 							     "enable", 0, GPIOD_ASIS,
@@ -553,6 +568,8 @@ static int rockchip_mcu_panel_init(struct rockchip_rgb *rgb, struct device_node 
 				if (remote) {
 					np_crtc = of_get_next_parent(remote);
 					mcu_panel->np_crtc = np_crtc;
+
+					of_node_put(np_crtc);
 					break;
 				}
 			}
@@ -562,6 +579,31 @@ static int rockchip_mcu_panel_init(struct rockchip_rgb *rgb, struct device_node 
 			DRM_DEV_ERROR(dev, "failed to find available crtc for mcu panel\n");
 			return -EINVAL;
 		}
+
+		np_mcu_timing = of_get_child_by_name(mcu_panel->np_crtc, "mcu-timing");
+		if (!np_mcu_timing) {
+			np_crtc = of_get_parent(mcu_panel->np_crtc);
+			if (np_crtc)
+				np_mcu_timing = of_get_child_by_name(np_crtc, "mcu-timing");
+
+			if (!np_mcu_timing) {
+				DRM_DEV_ERROR(dev, "failed to find timing config for mcu panel\n");
+				of_node_put(np_crtc);
+				return -EINVAL;
+			}
+
+			of_node_put(np_crtc);
+		}
+
+		ret = of_property_read_u32(np_mcu_timing, "mcu-pix-total", &val);
+		if (ret || val == 0) {
+			DRM_DEV_ERROR(dev, "failed to parse mcu_pix_total config\n");
+			of_node_put(np_mcu_timing);
+			return -EINVAL;
+		}
+		rgb->mcu_pix_total = val;
+
+		of_node_put(np_mcu_timing);
 	}
 
 	return 0;
@@ -750,9 +792,10 @@ static const struct drm_panel_funcs rockchip_mcu_panel_funcs = {
 	.get_modes = rockchip_mcu_panel_get_modes,
 };
 
-static struct backlight_device *rockchip_mcu_panel_find_backlight(struct device_node *np_mcu_panel)
+static struct backlight_device *rockchip_mcu_panel_find_backlight(struct rockchip_rgb *rgb)
 {
 	struct backlight_device *bd = NULL;
+	struct device_node *np_mcu_panel = rgb->np_mcu_panel;
 	struct device_node *np = NULL;
 
 	np = of_parse_phandle(np_mcu_panel, "backlight", 0);
@@ -777,45 +820,35 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder = &rgb->encoder;
 	struct drm_connector *connector;
-	struct fwnode_handle *fwnode_mcu_panel;
 	int ret;
 
-	fwnode_mcu_panel = device_get_named_child_node(dev, "mcu-panel");
-	if (fwnode_mcu_panel) {
+	if (rgb->np_mcu_panel) {
 		struct rockchip_mcu_panel *mcu_panel;
-		struct device_node *np_mcu_panel = to_of_node(fwnode_mcu_panel);
 
 		mcu_panel = devm_kzalloc(dev, sizeof(*mcu_panel), GFP_KERNEL);
 		if (!mcu_panel) {
-			of_node_put(np_mcu_panel);
 			return -ENOMEM;
 		}
 		mcu_panel->drm_dev = drm_dev;
 
 		rgb->panel = &mcu_panel->base;
 
-		ret = rockchip_mcu_panel_init(rgb, np_mcu_panel);
+		ret = rockchip_mcu_panel_init(rgb);
 		if (ret < 0) {
 			DRM_DEV_ERROR(dev, "failed to init mcu panel: %d\n", ret);
-			of_node_put(np_mcu_panel);
 			return ret;
 		}
 
-		rgb->panel->backlight = rockchip_mcu_panel_find_backlight(np_mcu_panel);
+		rgb->panel->backlight = rockchip_mcu_panel_find_backlight(rgb);
 		if (!rgb->panel->backlight) {
 			DRM_DEV_ERROR(dev, "failed to find backlight device");
-			of_node_put(np_mcu_panel);
 			return -EINVAL;
 		}
-
-		of_node_put(np_mcu_panel);
 
 		drm_panel_init(&mcu_panel->base, dev, &rockchip_mcu_panel_funcs,
 			       DRM_MODE_CONNECTOR_DPI);
 
 		drm_panel_add(&mcu_panel->base);
-
-		rgb->is_mcu_panel = true;
 	} else {
 		ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1,
 						  &rgb->panel, &rgb->bridge);
@@ -908,6 +941,7 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rockchip_rgb *rgb;
 	const struct rockchip_rgb_data *rgb_data;
+	struct fwnode_handle *fwnode_mcu_panel;
 	int ret, id;
 
 	rgb = devm_kzalloc(&pdev->dev, sizeof(*rgb), GFP_KERNEL);
@@ -918,17 +952,23 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 	if (id < 0)
 		id = 0;
 
+	rgb->data_sync_bypass = of_property_read_bool(dev->of_node, "rockchip,data-sync-bypass");
+
+	fwnode_mcu_panel = device_get_named_child_node(dev, "mcu-panel");
+	if (fwnode_mcu_panel)
+		rgb->np_mcu_panel = to_of_node(fwnode_mcu_panel);
+
 	rgb_data = of_device_get_match_data(dev);
 	if (rgb_data) {
-		rgb->max_dclk_rate = rgb_data->max_dclk_rate;
 		rgb->funcs = rgb_data->funcs;
+		if (rgb->np_mcu_panel)
+			rgb->max_dclk_rate = rgb_data->mcu_max_dclk_rate;
+		else
+			rgb->max_dclk_rate = rgb_data->rgb_max_dclk_rate;
 	}
 	rgb->id = id;
 	rgb->dev = dev;
 	platform_set_drvdata(pdev, rgb);
-
-	rgb->data_sync_bypass =
-	    of_property_read_bool(dev->of_node, "rockchip,data-sync-bypass");
 
 	if (dev->parent && dev->parent->of_node) {
 		rgb->grf = syscon_node_to_regmap(dev->parent->of_node);
@@ -1070,7 +1110,8 @@ static const struct rockchip_rgb_funcs rv1106_rgb_funcs = {
 };
 
 static const struct rockchip_rgb_data rv1106_rgb = {
-	.max_dclk_rate = 74250,
+	.rgb_max_dclk_rate = 74250,
+	.mcu_max_dclk_rate = 150000,
 	.funcs = &rv1106_rgb_funcs,
 };
 
