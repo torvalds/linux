@@ -335,6 +335,9 @@ struct xe_device {
 		/** @allowed: Indicates if d3cold is a valid device state */
 		bool allowed;
 
+		/** @power_lost: Indicates if card has really lost power. */
+		bool power_lost;
+
 		/**
 		 * @vram_threshold:
 		 *
