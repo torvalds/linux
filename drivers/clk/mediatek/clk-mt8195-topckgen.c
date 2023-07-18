@@ -8,7 +8,7 @@
 #include "clk-mux.h"
 
 #include <dt-bindings/clock/mt8195-clk.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
 static DEFINE_SPINLOCK(mt8195_clk_lock);
