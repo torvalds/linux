@@ -63,8 +63,8 @@
 /* CSI_FIFOTRG */
 #define CSI_FIFOTRG_R_TRG       GENMASK(2, 0)
 
-#define CSI_FIFO_SIZE_BYTES	32
-#define CSI_FIFO_HALF_SIZE	16
+#define CSI_FIFO_SIZE_BYTES	32U
+#define CSI_FIFO_HALF_SIZE	16U
 #define CSI_EN_DIS_TIMEOUT_US	100
 /*
  * Clock "csiclk" gets divided by 2 * CSI_CLKSEL_CKS in order to generate the
@@ -86,16 +86,16 @@ struct rzv2m_csi_priv {
 	struct clk *pclk;
 	struct device *dev;
 	struct spi_controller *controller;
-	const u8 *txbuf;
-	u8 *rxbuf;
-	int buffer_len;
-	int bytes_sent;
-	int bytes_received;
-	int bytes_to_transfer;
-	int words_to_transfer;
-	unsigned char bytes_per_word;
+	const void *txbuf;
+	void *rxbuf;
+	unsigned int buffer_len;
+	unsigned int bytes_sent;
+	unsigned int bytes_received;
+	unsigned int bytes_to_transfer;
+	unsigned int words_to_transfer;
+	unsigned int bytes_per_word;
 	wait_queue_head_t wait;
-	u8 errors;
+	u32 errors;
 	u32 status;
 };
 
@@ -157,18 +157,18 @@ static int rzv2m_csi_start_stop_operation(const struct rzv2m_csi_priv *csi,
 
 static int rzv2m_csi_fill_txfifo(struct rzv2m_csi_priv *csi)
 {
-	int i;
+	unsigned int i;
 
 	if (readl(csi->base + CSI_OFIFOL))
 		return -EIO;
 
 	if (csi->bytes_per_word == 2) {
-		u16 *buf = (u16 *)csi->txbuf;
+		const u16 *buf = csi->txbuf;
 
 		for (i = 0; i < csi->words_to_transfer; i++)
 			writel(buf[i], csi->base + CSI_OFIFO);
 	} else {
-		u8 *buf = (u8 *)csi->txbuf;
+		const u8 *buf = csi->txbuf;
 
 		for (i = 0; i < csi->words_to_transfer; i++)
 			writel(buf[i], csi->base + CSI_OFIFO);
@@ -182,18 +182,18 @@ static int rzv2m_csi_fill_txfifo(struct rzv2m_csi_priv *csi)
 
 static int rzv2m_csi_read_rxfifo(struct rzv2m_csi_priv *csi)
 {
-	int i;
+	unsigned int i;
 
 	if (readl(csi->base + CSI_IFIFOL) != csi->bytes_to_transfer)
 		return -EIO;
 
 	if (csi->bytes_per_word == 2) {
-		u16 *buf = (u16 *)csi->rxbuf;
+		u16 *buf = csi->rxbuf;
 
 		for (i = 0; i < csi->words_to_transfer; i++)
 			buf[i] = (u16)readl(csi->base + CSI_IFIFO);
 	} else {
-		u8 *buf = (u8 *)csi->rxbuf;
+		u8 *buf = csi->rxbuf;
 
 		for (i = 0; i < csi->words_to_transfer; i++)
 			buf[i] = (u8)readl(csi->base + CSI_IFIFO);
@@ -207,9 +207,9 @@ static int rzv2m_csi_read_rxfifo(struct rzv2m_csi_priv *csi)
 
 static inline void rzv2m_csi_calc_current_transfer(struct rzv2m_csi_priv *csi)
 {
-	int bytes_transferred = max_t(int, csi->bytes_received, csi->bytes_sent);
-	int bytes_remaining = csi->buffer_len - bytes_transferred;
-	int to_transfer;
+	unsigned int bytes_transferred = max(csi->bytes_received, csi->bytes_sent);
+	unsigned int bytes_remaining = csi->buffer_len - bytes_transferred;
+	unsigned int to_transfer;
 
 	if (csi->txbuf)
 		/*
@@ -217,9 +217,9 @@ static inline void rzv2m_csi_calc_current_transfer(struct rzv2m_csi_priv *csi)
 		 * hard to raise an overflow error (which is only possible
 		 * when IP transmits and receives at the same time).
 		 */
-		to_transfer = min_t(int, CSI_FIFO_HALF_SIZE, bytes_remaining);
+		to_transfer = min(CSI_FIFO_HALF_SIZE, bytes_remaining);
 	else
-		to_transfer = min_t(int, CSI_FIFO_SIZE_BYTES, bytes_remaining);
+		to_transfer = min(CSI_FIFO_SIZE_BYTES, bytes_remaining);
 
 	if (csi->bytes_per_word == 2)
 		to_transfer >>= 1;
@@ -339,7 +339,7 @@ static inline int rzv2m_csi_wait_for_rx_ready(struct rzv2m_csi_priv *csi)
 
 static irqreturn_t rzv2m_csi_irq_handler(int irq, void *data)
 {
-	struct rzv2m_csi_priv *csi = (struct rzv2m_csi_priv *)data;
+	struct rzv2m_csi_priv *csi = data;
 
 	csi->status = readl(csi->base + CSI_INT);
 	rzv2m_csi_disable_irqs(csi, csi->status);
