@@ -7539,8 +7539,8 @@ static int gcc_sc8280xp_probe(struct platform_device *pdev)
 
 	regmap = qcom_cc_map(pdev, &gcc_sc8280xp_desc);
 	if (IS_ERR(regmap)) {
-		pm_runtime_put(&pdev->dev);
-		return PTR_ERR(regmap);
+		ret = PTR_ERR(regmap);
+		goto err_put_rpm;
 	}
 
 	/*
@@ -7561,10 +7561,18 @@ static int gcc_sc8280xp_probe(struct platform_device *pdev)
 
 	ret = qcom_cc_register_rcg_dfs(regmap, gcc_dfs_clocks, ARRAY_SIZE(gcc_dfs_clocks));
 	if (ret)
-		return ret;
+		goto err_put_rpm;
 
 	ret = qcom_cc_really_probe(pdev, &gcc_sc8280xp_desc, regmap);
+	if (ret)
+		goto err_put_rpm;
+
 	pm_runtime_put(&pdev->dev);
+
+	return 0;
+
+err_put_rpm:
+	pm_runtime_put_sync(&pdev->dev);
 
 	return ret;
 }
