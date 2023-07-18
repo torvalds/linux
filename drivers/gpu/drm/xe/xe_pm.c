@@ -7,11 +7,13 @@
 
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_managed.h>
 #include <drm/ttm/ttm_placement.h>
 
 #include "xe_bo.h"
 #include "xe_bo_evict.h"
 #include "xe_device.h"
+#include "xe_device_sysfs.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_irq.h"
@@ -137,8 +139,11 @@ void xe_pm_init(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 
+	drmm_mutex_init(&xe->drm, &xe->d3cold.lock);
 	xe_pm_runtime_init(xe);
-	xe->d3cold_capable = xe_pm_pci_d3cold_capable(pdev);
+	xe->d3cold.capable = xe_pm_pci_d3cold_capable(pdev);
+	xe_device_sysfs_init(xe);
+	xe_pm_set_vram_threshold(xe, DEFAULT_VRAM_THRESHOLD);
 }
 
 void xe_pm_runtime_fini(struct xe_device *xe)
@@ -155,7 +160,7 @@ int xe_pm_runtime_suspend(struct xe_device *xe)
 	u8 id;
 	int err;
 
-	if (xe->d3cold_allowed) {
+	if (xe->d3cold.allowed) {
 		if (xe_device_mem_access_ongoing(xe))
 			return -EBUSY;
 
@@ -181,7 +186,7 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	u8 id;
 	int err;
 
-	if (xe->d3cold_allowed) {
+	if (xe->d3cold.allowed) {
 		for_each_gt(gt, xe, id) {
 			err = xe_pcode_init(gt);
 			if (err)
@@ -202,7 +207,7 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	for_each_gt(gt, xe, id)
 		xe_gt_resume(gt);
 
-	if (xe->d3cold_allowed) {
+	if (xe->d3cold.allowed) {
 		err = xe_bo_restore_user(xe);
 		if (err)
 			return err;
@@ -250,4 +255,28 @@ void xe_pm_assert_unbounded_bridge(struct xe_device *xe)
 		drm_warn(&xe->drm, "unbounded parent pci bridge, device won't support any PM support.\n");
 		device_set_pm_not_required(&pdev->dev);
 	}
+}
+
+int xe_pm_set_vram_threshold(struct xe_device *xe, u32 threshold)
+{
+	struct ttm_resource_manager *man;
+	u32 vram_total_mb = 0;
+	int i;
+
+	for (i = XE_PL_VRAM0; i <= XE_PL_VRAM1; ++i) {
+		man = ttm_manager_type(&xe->ttm, i);
+		if (man)
+			vram_total_mb += DIV_ROUND_UP_ULL(man->size, 1024 * 1024);
+	}
+
+	drm_dbg(&xe->drm, "Total vram %u mb\n", vram_total_mb);
+
+	if (threshold > vram_total_mb)
+		return -EINVAL;
+
+	mutex_lock(&xe->d3cold.lock);
+	xe->d3cold.vram_threshold = threshold;
+	mutex_unlock(&xe->d3cold.lock);
+
+	return 0;
 }

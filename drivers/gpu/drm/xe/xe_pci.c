@@ -738,7 +738,7 @@ static int xe_pci_runtime_suspend(struct device *dev)
 
 	pci_save_state(pdev);
 
-	if (xe->d3cold_allowed) {
+	if (xe->d3cold.allowed) {
 		pci_disable_device(pdev);
 		pci_ignore_hotplug(pdev);
 		pci_set_power_state(pdev, PCI_D3cold);
@@ -761,7 +761,7 @@ static int xe_pci_runtime_resume(struct device *dev)
 
 	pci_restore_state(pdev);
 
-	if (xe->d3cold_allowed) {
+	if (xe->d3cold.allowed) {
 		err = pci_enable_device(pdev);
 		if (err)
 			return err;
@@ -777,8 +777,8 @@ static int xe_pci_runtime_idle(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 
-	if (!xe->d3cold_capable) {
-		xe->d3cold_allowed = false;
+	if (!xe->d3cold.capable) {
+		xe->d3cold.allowed = false;
 	} else {
 		/*
 		 * TODO: d3cold should be allowed (true) if
@@ -791,7 +791,7 @@ static int xe_pci_runtime_idle(struct device *dev)
 		 * 3. at resume, detect if we really lost power and avoid memory
 		 *    restoration if we were only up to d3cold
 		 */
-		xe->d3cold_allowed = false;
+		xe->d3cold.allowed = false;
 	}
 
 	return 0;

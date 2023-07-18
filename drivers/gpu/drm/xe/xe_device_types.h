@@ -327,11 +327,27 @@ struct xe_device {
 		bool hold_rpm;
 	} mem_access;
 
-	/** d3cold_capable: Indicates if root port is d3cold capable */
-	bool d3cold_capable;
+	/** @d3cold: Encapsulate d3cold related stuff */
+	struct {
+		/** capable: Indicates if root port is d3cold capable */
+		bool capable;
 
-	/** @d3cold_allowed: Indicates if d3cold is a valid device state */
-	bool d3cold_allowed;
+		/** @allowed: Indicates if d3cold is a valid device state */
+		bool allowed;
+
+		/**
+		 * @vram_threshold:
+		 *
+		 * This represents the permissible threshold(in megabytes)
+		 * for vram save/restore. d3cold will be disallowed,
+		 * when vram_usages is above or equals the threshold value
+		 * to avoid the vram save/restore latency.
+		 * Default threshold value is 300mb.
+		 */
+		u32 vram_threshold;
+		/** @lock: protect vram_threshold */
+		struct mutex lock;
+	} d3cold;
 
 	/* For pcode */
 	struct mutex sb_lock;

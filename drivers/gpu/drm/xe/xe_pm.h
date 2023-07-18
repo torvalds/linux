@@ -8,6 +8,8 @@
 
 #include <linux/pm_runtime.h>
 
+#define DEFAULT_VRAM_THRESHOLD 300 /* in MB */
+
 struct xe_device;
 
 int xe_pm_suspend(struct xe_device *xe);
@@ -22,5 +24,6 @@ int xe_pm_runtime_put(struct xe_device *xe);
 bool xe_pm_runtime_resume_if_suspended(struct xe_device *xe);
 int xe_pm_runtime_get_if_active(struct xe_device *xe);
 void xe_pm_assert_unbounded_bridge(struct xe_device *xe);
+int xe_pm_set_vram_threshold(struct xe_device *xe, u32 threshold);
 
 #endif
