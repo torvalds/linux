@@ -16,12 +16,14 @@ properties:
       - enum:
           - atmel,at91rm9200-usart
           - atmel,at91sam9260-usart
-          - microchip,sam9x60-usart
       - items:
           - const: atmel,at91rm9200-dbgu
           - const: atmel,at91rm9200-usart
       - items:
           - const: atmel,at91sam9260-dbgu
+          - const: atmel,at91sam9260-usart
+      - items:
+          - const: microchip,sam9x60-usart
           - const: atmel,at91sam9260-usart
       - items:
           - const: microchip,sam9x60-dbgu
