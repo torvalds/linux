@@ -178,6 +178,7 @@ def _define_kernel_dist(target, msm_target, variant):
         ":{}_merged_kernel_uapi_headers".format(target),
         ":{}_build_config".format(target),
         ":{}_dummy_files".format(le_target),
+        ":{}_avb_sign_boot_image".format(target),
     ]
 
     copy_to_dist_dir(
@@ -208,8 +209,6 @@ def _define_kernel_dist(target, msm_target, variant):
         name = "{}_test_mapping_dist".format(target),
         dist_dir = dist_dir,
     )
-
-    gen_allyes_files(le_target, msm_dist_targets)
 
 def define_msm_le(
         msm_target,
@@ -278,5 +277,7 @@ def define_msm_le(
     define_abl_dist(target, msm_target, variant)
 
     define_dtc_dist(target, msm_target, variant)
+
+    gen_allyes_files(le_target, target)
 
     define_extras(target)
