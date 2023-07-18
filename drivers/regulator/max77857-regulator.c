@@ -206,7 +206,7 @@ static int max77859_set_voltage_sel(struct regulator_dev *rdev,
 			       MAX77859_CONT3_DVS_START);
 }
 
-int max77859_get_voltage_sel(struct regulator_dev *rdev)
+static int max77859_get_voltage_sel(struct regulator_dev *rdev)
 {
 	__be16 reg;
 	int ret;
@@ -218,7 +218,7 @@ int max77859_get_voltage_sel(struct regulator_dev *rdev)
 	return FIELD_GET(MAX77859_VOLTAGE_SEL_MASK, __be16_to_cpu(reg));
 }
 
-int max77859_set_current_limit(struct regulator_dev *rdev, int min_uA, int max_uA)
+static int max77859_set_current_limit(struct regulator_dev *rdev, int min_uA, int max_uA)
 {
 	u32 selector;
 
@@ -232,7 +232,7 @@ int max77859_set_current_limit(struct regulator_dev *rdev, int min_uA, int max_u
 	return regmap_write(rdev->regmap, MAX77859_REG_CONT5, selector);
 }
 
-int max77859_get_current_limit(struct regulator_dev *rdev)
+static int max77859_get_current_limit(struct regulator_dev *rdev)
 {
 	u32 selector;
 	int ret;
