@@ -24,7 +24,6 @@
 #include <linux/types.h>
 
 struct ntxec_pwm {
-	struct device *dev;
 	struct ntxec *ec;
 	struct pwm_chip chip;
 };
@@ -148,7 +147,6 @@ static int ntxec_pwm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->ec = ec;
-	priv->dev = &pdev->dev;
 
 	chip = &priv->chip;
 	chip->dev = &pdev->dev;
