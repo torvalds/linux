@@ -54,6 +54,12 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 		    MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
 					      reformat_l3_esp_tunnel_to_l2))
 			caps |= MLX5_IPSEC_CAP_TUNNEL;
+
+		if (MLX5_CAP_FLOWTABLE_NIC_TX(mdev,
+					      reformat_add_esp_transport_over_udp) &&
+		    MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
+					      reformat_del_esp_transport_over_udp))
+			caps |= MLX5_IPSEC_CAP_ESPINUDP;
 	}
 
 	if (mlx5_get_roce_state(mdev) &&

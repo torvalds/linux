@@ -110,6 +110,7 @@ enum mlx5_ipsec_cap {
 	MLX5_IPSEC_CAP_ROCE             = 1 << 3,
 	MLX5_IPSEC_CAP_PRIO             = 1 << 4,
 	MLX5_IPSEC_CAP_TUNNEL           = 1 << 5,
+	MLX5_IPSEC_CAP_ESPINUDP         = 1 << 6,
 };
 
 struct mlx5e_priv;
