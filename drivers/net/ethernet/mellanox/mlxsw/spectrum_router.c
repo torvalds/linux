@@ -2872,6 +2872,21 @@ static bool mlxsw_sp_dev_lower_is_port(struct net_device *dev)
 	return !!mlxsw_sp_port;
 }
 
+static int mlxsw_sp_router_schedule_neigh_work(struct mlxsw_sp_router *router,
+					       struct neighbour *n)
+{
+	struct net *net;
+
+	net = neigh_parms_net(n->parms);
+
+	/* Take a reference to ensure the neighbour won't be destructed until we
+	 * drop the reference in delayed work.
+	 */
+	neigh_clone(n);
+	return mlxsw_sp_router_schedule_work(net, router, n,
+					     mlxsw_sp_router_neigh_event_work);
+}
+
 static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 					  unsigned long event, void *ptr)
 {
@@ -2879,7 +2894,6 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 	unsigned long interval;
 	struct neigh_parms *p;
 	struct neighbour *n;
-	struct net *net;
 
 	router = container_of(nb, struct mlxsw_sp_router, netevent_nb);
 
@@ -2903,7 +2917,6 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 		break;
 	case NETEVENT_NEIGH_UPDATE:
 		n = ptr;
-		net = neigh_parms_net(n->parms);
 
 		if (n->tbl->family != AF_INET && n->tbl->family != AF_INET6)
 			return NOTIFY_DONE;
@@ -2911,13 +2924,7 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 		if (!mlxsw_sp_dev_lower_is_port(n->dev))
 			return NOTIFY_DONE;
 
-		/* Take a reference to ensure the neighbour won't be
-		 * destructed until we drop the reference in delayed
-		 * work.
-		 */
-		neigh_clone(n);
-		return mlxsw_sp_router_schedule_work(net, router, n,
-				mlxsw_sp_router_neigh_event_work);
+		return mlxsw_sp_router_schedule_neigh_work(router, n);
 
 	case NETEVENT_IPV4_MPATH_HASH_UPDATE:
 	case NETEVENT_IPV6_MPATH_HASH_UPDATE:
