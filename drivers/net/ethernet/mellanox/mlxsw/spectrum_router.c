@@ -8884,10 +8884,11 @@ static int mlxsw_sp_inetaddr_port_vlan_event(struct net_device *l3_dev,
 }
 
 static int mlxsw_sp_inetaddr_port_event(struct net_device *port_dev,
-					unsigned long event,
+					unsigned long event, bool nomaster,
 					struct netlink_ext_ack *extack)
 {
-	if (netif_is_any_bridge_port(port_dev) || netif_is_lag_port(port_dev))
+	if (!nomaster && (netif_is_any_bridge_port(port_dev) ||
+			  netif_is_lag_port(port_dev)))
 		return 0;
 
 	return mlxsw_sp_inetaddr_port_vlan_event(port_dev, port_dev, event,
@@ -8918,10 +8919,10 @@ static int __mlxsw_sp_inetaddr_lag_event(struct net_device *l3_dev,
 }
 
 static int mlxsw_sp_inetaddr_lag_event(struct net_device *lag_dev,
-				       unsigned long event,
+				       unsigned long event, bool nomaster,
 				       struct netlink_ext_ack *extack)
 {
-	if (netif_is_bridge_port(lag_dev))
+	if (!nomaster && netif_is_bridge_port(lag_dev))
 		return 0;
 
 	return __mlxsw_sp_inetaddr_lag_event(lag_dev, lag_dev, event,
@@ -8980,7 +8981,7 @@ static int mlxsw_sp_inetaddr_bridge_event(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_inetaddr_vlan_event(struct mlxsw_sp *mlxsw_sp,
 					struct net_device *vlan_dev,
-					unsigned long event,
+					unsigned long event, bool nomaster,
 					struct netlink_ext_ack *extack)
 {
 	struct net_device *real_dev = vlan_dev_real_dev(vlan_dev);
@@ -8988,7 +8989,7 @@ static int mlxsw_sp_inetaddr_vlan_event(struct mlxsw_sp *mlxsw_sp,
 	u16 lower_pvid;
 	int err;
 
-	if (netif_is_bridge_port(vlan_dev))
+	if (!nomaster && netif_is_bridge_port(vlan_dev))
 		return 0;
 
 	if (mlxsw_sp_port_dev_check(real_dev)) {
@@ -9132,19 +9133,21 @@ static int mlxsw_sp_inetaddr_macvlan_event(struct mlxsw_sp *mlxsw_sp,
 
 static int __mlxsw_sp_inetaddr_event(struct mlxsw_sp *mlxsw_sp,
 				     struct net_device *dev,
-				     unsigned long event,
+				     unsigned long event, bool nomaster,
 				     struct netlink_ext_ack *extack)
 {
 	if (mlxsw_sp_port_dev_check(dev))
-		return mlxsw_sp_inetaddr_port_event(dev, event, extack);
+		return mlxsw_sp_inetaddr_port_event(dev, event, nomaster,
+						    extack);
 	else if (netif_is_lag_master(dev))
-		return mlxsw_sp_inetaddr_lag_event(dev, event, extack);
+		return mlxsw_sp_inetaddr_lag_event(dev, event, nomaster,
+						   extack);
 	else if (netif_is_bridge_master(dev))
 		return mlxsw_sp_inetaddr_bridge_event(mlxsw_sp, dev, -1, event,
 						      extack);
 	else if (is_vlan_dev(dev))
 		return mlxsw_sp_inetaddr_vlan_event(mlxsw_sp, dev, event,
-						    extack);
+						    nomaster, extack);
 	else if (netif_is_macvlan(dev))
 		return mlxsw_sp_inetaddr_macvlan_event(mlxsw_sp, dev, event,
 						       extack);
@@ -9171,7 +9174,8 @@ static int mlxsw_sp_inetaddr_event(struct notifier_block *nb,
 	if (!mlxsw_sp_rif_should_config(rif, dev, event))
 		goto out;
 
-	err = __mlxsw_sp_inetaddr_event(router->mlxsw_sp, dev, event, NULL);
+	err = __mlxsw_sp_inetaddr_event(router->mlxsw_sp, dev, event, false,
+					NULL);
 out:
 	mutex_unlock(&router->lock);
 	return notifier_from_errno(err);
@@ -9195,7 +9199,8 @@ static int mlxsw_sp_inetaddr_valid_event(struct notifier_block *unused,
 	if (!mlxsw_sp_rif_should_config(rif, dev, event))
 		goto out;
 
-	err = __mlxsw_sp_inetaddr_event(mlxsw_sp, dev, event, ivi->extack);
+	err = __mlxsw_sp_inetaddr_event(mlxsw_sp, dev, event, false,
+					ivi->extack);
 out:
 	mutex_unlock(&mlxsw_sp->router->lock);
 	return notifier_from_errno(err);
@@ -9224,7 +9229,7 @@ static void mlxsw_sp_inet6addr_event_work(struct work_struct *work)
 	if (!mlxsw_sp_rif_should_config(rif, dev, event))
 		goto out;
 
-	__mlxsw_sp_inetaddr_event(mlxsw_sp, dev, event, NULL);
+	__mlxsw_sp_inetaddr_event(mlxsw_sp, dev, event, false, NULL);
 out:
 	mutex_unlock(&mlxsw_sp->router->lock);
 	rtnl_unlock();
@@ -9278,7 +9283,8 @@ static int mlxsw_sp_inet6addr_valid_event(struct notifier_block *unused,
 	if (!mlxsw_sp_rif_should_config(rif, dev, event))
 		goto out;
 
-	err = __mlxsw_sp_inetaddr_event(mlxsw_sp, dev, event, i6vi->extack);
+	err = __mlxsw_sp_inetaddr_event(mlxsw_sp, dev, event, false,
+					i6vi->extack);
 out:
 	mutex_unlock(&mlxsw_sp->router->lock);
 	return notifier_from_errno(err);
@@ -9598,10 +9604,11 @@ static int mlxsw_sp_port_vrf_join(struct mlxsw_sp *mlxsw_sp,
 	 */
 	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, l3_dev);
 	if (rif)
-		__mlxsw_sp_inetaddr_event(mlxsw_sp, l3_dev, NETDEV_DOWN,
+		__mlxsw_sp_inetaddr_event(mlxsw_sp, l3_dev, NETDEV_DOWN, false,
 					  extack);
 
-	return __mlxsw_sp_inetaddr_event(mlxsw_sp, l3_dev, NETDEV_UP, extack);
+	return __mlxsw_sp_inetaddr_event(mlxsw_sp, l3_dev, NETDEV_UP, false,
+					 extack);
 }
 
 static void mlxsw_sp_port_vrf_leave(struct mlxsw_sp *mlxsw_sp,
@@ -9612,7 +9619,7 @@ static void mlxsw_sp_port_vrf_leave(struct mlxsw_sp *mlxsw_sp,
 	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, l3_dev);
 	if (!rif)
 		return;
-	__mlxsw_sp_inetaddr_event(mlxsw_sp, l3_dev, NETDEV_DOWN, NULL);
+	__mlxsw_sp_inetaddr_event(mlxsw_sp, l3_dev, NETDEV_DOWN, false, NULL);
 }
 
 static bool mlxsw_sp_is_vrf_event(unsigned long event, void *ptr)
