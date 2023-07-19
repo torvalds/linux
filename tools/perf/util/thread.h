@@ -71,6 +71,8 @@ struct thread *thread__new(pid_t pid, pid_t tid);
 int thread__init_maps(struct thread *thread, struct machine *machine);
 void thread__delete(struct thread *thread);
 
+void thread__set_priv_destructor(void (*destructor)(void *priv));
+
 struct thread *thread__get(struct thread *thread);
 void thread__put(struct thread *thread);
 
