@@ -20,33 +20,18 @@
 #include <linux/platform_device.h>
 
 /*
- * We need to separate bit slots between KMD and GMU,
- * to avoid one processor signaling back to itself.
- * GMU should have the same definitions.
- *
- * Allocated 4 bits for KMD and 2 for GMU. 3 KMD bits
- * can be used by submission and 1 GMU bits for TS
- * retire. The other 1 bit is reserved for furture use.
+ * Bit 0-5 are used for doorbell interrupt for each RB
+ * Bit 8 is used for retire TS interrupt to GVM.
  */
 #define TCSR_KMD_TRIGGER_IRQ_ID_0		0
-#define TCSR_KMD_TRIGGER_IRQ_ID_1		1
-#define TCSR_KMD_TRIGGER_IRQ_ID_2		2
-#define TCSR_KMD_TRIGGER_IRQ_ID_3		3
 #define TCSR_GMU_TRIGGER_IRQ_ID_0		8
-#define TCSR_GMU_TRIGGER_IRQ_ID_1		9
 
 /* Define Source and Destination IRQ for KMD */
 #define TCSR_SRC_IRQ_ID_0		TCSR_KMD_TRIGGER_IRQ_ID_0
-#define TCSR_SRC_IRQ_ID_1		TCSR_KMD_TRIGGER_IRQ_ID_1
-#define TCSR_SRC_IRQ_ID_2		TCSR_KMD_TRIGGER_IRQ_ID_2
-#define TCSR_SRC_IRQ_ID_3		TCSR_KMD_TRIGGER_IRQ_ID_3
+
 #define TCSR_DEST_IRQ_ID_0		TCSR_GMU_TRIGGER_IRQ_ID_0
-#define TCSR_DEST_IRQ_ID_1		TCSR_GMU_TRIGGER_IRQ_ID_1
 
 #define TCSR_DEST_IRQ_MASK_0	(1 << TCSR_DEST_IRQ_ID_0)
-#define TCSR_DEST_IRQ_MASK_1	(1 << TCSR_DEST_IRQ_ID_1)
-
-#define TCSR_DEST_IRQ_MASK	(TCSR_DEST_IRQ_MASK_0 | TCSR_DEST_IRQ_MASK_1)
 
 enum hgsl_tcsr_role {
 	HGSL_TCSR_ROLE_SENDER = 0,
