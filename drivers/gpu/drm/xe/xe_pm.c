@@ -155,37 +155,65 @@ void xe_pm_runtime_fini(struct xe_device *xe)
 	pm_runtime_forbid(dev);
 }
 
+static void xe_pm_write_callback_task(struct xe_device *xe,
+				      struct task_struct *task)
+{
+	WRITE_ONCE(xe->pm_callback_task, task);
+
+	/*
+	 * Just in case it's somehow possible for our writes to be reordered to
+	 * the extent that something else re-uses the task written in
+	 * pm_callback_task. For example after returning from the callback, but
+	 * before the reordered write that resets pm_callback_task back to NULL.
+	 */
+	smp_mb(); /* pairs with xe_pm_read_callback_task */
+}
+
+struct task_struct *xe_pm_read_callback_task(struct xe_device *xe)
+{
+	smp_mb(); /* pairs with xe_pm_write_callback_task */
+
+	return READ_ONCE(xe->pm_callback_task);
+}
+
 int xe_pm_runtime_suspend(struct xe_device *xe)
 {
 	struct xe_gt *gt;
 	u8 id;
-	int err;
+	int err = 0;
+
+	if (xe->d3cold.allowed && xe_device_mem_access_ongoing(xe))
+		return -EBUSY;
+
+	/* Disable access_ongoing asserts and prevent recursive pm calls */
+	xe_pm_write_callback_task(xe, current);
 
 	if (xe->d3cold.allowed) {
-		if (xe_device_mem_access_ongoing(xe))
-			return -EBUSY;
-
 		err = xe_bo_evict_all(xe);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	for_each_gt(gt, xe, id) {
 		err = xe_gt_suspend(gt);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	xe_irq_suspend(xe);
-
-	return 0;
+out:
+	xe_pm_write_callback_task(xe, NULL);
+	return err;
 }
 
 int xe_pm_runtime_resume(struct xe_device *xe)
 {
 	struct xe_gt *gt;
 	u8 id;
-	int err;
+	int err = 0;
+
+	/* Disable access_ongoing asserts and prevent recursive pm calls */
+	xe_pm_write_callback_task(xe, current);
 
 	/*
 	 * It can be possible that xe has allowed d3cold but other pcie devices
@@ -199,7 +227,7 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 		for_each_gt(gt, xe, id) {
 			err = xe_pcode_init(gt);
 			if (err)
-				return err;
+				goto out;
 		}
 
 		/*
@@ -208,7 +236,7 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 		 */
 		err = xe_bo_restore_kernel(xe);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	xe_irq_resume(xe);
@@ -219,10 +247,11 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	if (xe->d3cold.allowed && xe->d3cold.power_lost) {
 		err = xe_bo_restore_user(xe);
 		if (err)
-			return err;
+			goto out;
 	}
-
-	return 0;
+out:
+	xe_pm_write_callback_task(xe, NULL);
+	return err;
 }
 
 int xe_pm_runtime_get(struct xe_device *xe)
@@ -236,19 +265,8 @@ int xe_pm_runtime_put(struct xe_device *xe)
 	return pm_runtime_put_autosuspend(xe->drm.dev);
 }
 
-/* Return true if resume operation happened and usage count was increased */
-bool xe_pm_runtime_resume_if_suspended(struct xe_device *xe)
-{
-	/* In case we are suspended we need to immediately wake up */
-	if (pm_runtime_suspended(xe->drm.dev))
-		return !pm_runtime_resume_and_get(xe->drm.dev);
-
-	return false;
-}
-
 int xe_pm_runtime_get_if_active(struct xe_device *xe)
 {
-	WARN_ON(pm_runtime_suspended(xe->drm.dev));
 	return pm_runtime_get_if_active(xe->drm.dev, true);
 }
 

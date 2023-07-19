@@ -364,33 +364,67 @@ u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size)
 		DIV_ROUND_UP(size, NUM_BYTES_PER_CCS_BYTE) : 0;
 }
 
+bool xe_device_mem_access_ongoing(struct xe_device *xe)
+{
+	if (xe_pm_read_callback_task(xe) != NULL)
+		return true;
+
+	return atomic_read(&xe->mem_access.ref);
+}
+
+void xe_device_assert_mem_access(struct xe_device *xe)
+{
+	XE_WARN_ON(!xe_device_mem_access_ongoing(xe));
+}
+
 bool xe_device_mem_access_get_if_ongoing(struct xe_device *xe)
 {
-	return atomic_inc_not_zero(&xe->mem_access.ref);
+	bool active;
+
+	if (xe_pm_read_callback_task(xe) == current)
+		return true;
+
+	active = xe_pm_runtime_get_if_active(xe);
+	if (active) {
+		int ref = atomic_inc_return(&xe->mem_access.ref);
+
+		XE_WARN_ON(ref == S32_MAX);
+	}
+
+	return active;
 }
 
 void xe_device_mem_access_get(struct xe_device *xe)
 {
-	bool resumed = xe_pm_runtime_resume_if_suspended(xe);
-	int ref = atomic_inc_return(&xe->mem_access.ref);
+	int ref;
 
-	if (ref == 1)
-		xe->mem_access.hold_rpm = xe_pm_runtime_get_if_active(xe);
+	/*
+	 * This looks racy, but should be fine since the pm_callback_task only
+	 * transitions from NULL -> current (and back to NULL again), during the
+	 * runtime_resume() or runtime_suspend() callbacks, for which there can
+	 * only be a single one running for our device. We only need to prevent
+	 * recursively calling the runtime_get or runtime_put from those
+	 * callbacks, as well as preventing triggering any access_ongoing
+	 * asserts.
+	 */
+	if (xe_pm_read_callback_task(xe) == current)
+		return;
 
-	/* The usage counter increased if device was immediately resumed */
-	if (resumed)
-		xe_pm_runtime_put(xe);
+	xe_pm_runtime_get(xe);
+	ref = atomic_inc_return(&xe->mem_access.ref);
 
 	XE_WARN_ON(ref == S32_MAX);
 }
 
 void xe_device_mem_access_put(struct xe_device *xe)
 {
-	bool hold = xe->mem_access.hold_rpm;
-	int ref = atomic_dec_return(&xe->mem_access.ref);
+	int ref;
 
-	if (!ref && hold)
-		xe_pm_runtime_put(xe);
+	if (xe_pm_read_callback_task(xe) == current)
+		return;
+
+	ref = atomic_dec_return(&xe->mem_access.ref);
+	xe_pm_runtime_put(xe);
 
 	XE_WARN_ON(ref < 0);
 }

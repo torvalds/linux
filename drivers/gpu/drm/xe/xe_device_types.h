@@ -323,8 +323,6 @@ struct xe_device {
 	struct {
 		/** @ref: ref count of memory accesses */
 		atomic_t ref;
-		/** @hold_rpm: need to put rpm ref back at the end */
-		bool hold_rpm;
 	} mem_access;
 
 	/** @d3cold: Encapsulate d3cold related stuff */
@@ -351,6 +349,12 @@ struct xe_device {
 		/** @lock: protect vram_threshold */
 		struct mutex lock;
 	} d3cold;
+
+	/**
+	 * @pm_callback_task: Track the active task that is running in either
+	 * the runtime_suspend or runtime_resume callbacks.
+	 */
+	struct task_struct *pm_callback_task;
 
 	/* For pcode */
 	struct mutex sb_lock;
