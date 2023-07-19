@@ -145,14 +145,6 @@ struct si_pub {
 
 struct pci_dev;
 
-struct gpioh_item {
-	void *arg;
-	bool level;
-	void (*handler) (u32 stat, void *arg);
-	u32 event;
-	struct gpioh_item *next;
-};
-
 /* misc si info needed by some of the routines */
 struct si_info {
 	struct si_pub pub;	/* back plane public state (must be first) */
