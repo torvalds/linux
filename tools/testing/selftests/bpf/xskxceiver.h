@@ -50,6 +50,9 @@
 #define RX_FULL_RXQSIZE 32
 #define UMEM_HEADROOM_TEST_SIZE 128
 #define XSK_UMEM__INVALID_FRAME_SIZE (MAX_ETH_JUMBO_SIZE + 1)
+#define XSK_UMEM__LARGE_FRAME_SIZE (3 * 1024)
+#define XSK_UMEM__MAX_FRAME_SIZE (4 * 1024)
+#define XSK_DESC__INVALID_OPTION (0xffff)
 #define HUGEPAGE_SIZE (2 * 1024 * 1024)
 #define PKT_DUMP_NB_TO_PRINT 16
 
@@ -87,6 +90,8 @@ enum test_type {
 	TEST_TYPE_XDP_METADATA_COUNT,
 	TEST_TYPE_RUN_TO_COMPLETION_MB,
 	TEST_TYPE_UNALIGNED_MB,
+	TEST_TYPE_ALIGNED_INV_DESC_MB,
+	TEST_TYPE_UNALIGNED_INV_DESC_MB,
 	TEST_TYPE_MAX
 };
 
@@ -119,6 +124,7 @@ struct pkt {
 	u32 len;
 	u32 pkt_nb;
 	bool valid;
+	u16 options;
 };
 
 struct pkt_stream {
@@ -126,6 +132,7 @@ struct pkt_stream {
 	u32 current_pkt_nb;
 	struct pkt *pkts;
 	u32 max_pkt_len;
+	bool verbatim;
 };
 
 struct ifobject;
