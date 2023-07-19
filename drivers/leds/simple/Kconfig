@@ -2,6 +2,7 @@
 config LEDS_SIEMENS_SIMATIC_IPC
 	tristate "LED driver for Siemens Simatic IPCs"
 	depends on SIEMENS_SIMATIC_IPC
+	default y
 	help
 	  This option enables support for the LEDs of several Industrial PCs
 	  from Siemens.
