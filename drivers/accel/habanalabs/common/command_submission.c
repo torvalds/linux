@@ -1098,19 +1098,22 @@ static void
 wake_pending_user_interrupt_threads(struct hl_user_interrupt *interrupt)
 {
 	struct hl_user_pending_interrupt *pend, *temp;
+	unsigned long flags;
 
-	spin_lock(&interrupt->wait_list_lock);
-	list_for_each_entry_safe(pend, temp, &interrupt->wait_list_head, wait_list_node) {
-		if (pend->ts_reg_info.buf) {
-			list_del(&pend->wait_list_node);
-			hl_mmap_mem_buf_put(pend->ts_reg_info.buf);
-			hl_cb_put(pend->ts_reg_info.cq_cb);
-		} else {
-			pend->fence.error = -EIO;
-			complete_all(&pend->fence.completion);
-		}
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
+	list_for_each_entry_safe(pend, temp, &interrupt->wait_list_head, list_node) {
+		pend->fence.error = -EIO;
+		complete_all(&pend->fence.completion);
 	}
-	spin_unlock(&interrupt->wait_list_lock);
+	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
+
+	spin_lock_irqsave(&interrupt->ts_list_lock, flags);
+	list_for_each_entry_safe(pend, temp, &interrupt->ts_list_head, list_node) {
+		list_del(&pend->list_node);
+		hl_mmap_mem_buf_put(pend->ts_reg_info.buf);
+		hl_cb_put(pend->ts_reg_info.cq_cb);
+	}
+	spin_unlock_irqrestore(&interrupt->ts_list_lock, flags);
 }
 
 void hl_release_pending_user_interrupts(struct hl_device *hdev)
@@ -3251,18 +3254,19 @@ static void unregister_timestamp_node(struct hl_device *hdev,
 {
 	struct hl_user_interrupt *interrupt = record->ts_reg_info.interrupt;
 	bool ts_rec_found = false;
+	unsigned long flags;
 
 	if (need_lock)
-		spin_lock(&interrupt->wait_list_lock);
+		spin_lock_irqsave(&interrupt->ts_list_lock, flags);
 
 	if (record->ts_reg_info.in_use) {
 		record->ts_reg_info.in_use = false;
-		list_del(&record->wait_list_node);
+		list_del(&record->list_node);
 		ts_rec_found = true;
 	}
 
 	if (need_lock)
-		spin_unlock(&interrupt->wait_list_lock);
+		spin_unlock_irqrestore(&interrupt->ts_list_lock, flags);
 
 	/* Put refcounts that were taken when we registered the event */
 	if (ts_rec_found) {
@@ -3272,7 +3276,7 @@ static void unregister_timestamp_node(struct hl_device *hdev,
 }
 
 static int ts_get_and_handle_kernel_record(struct hl_device *hdev, struct hl_ctx *ctx,
-					struct wait_interrupt_data *data,
+					struct wait_interrupt_data *data, unsigned long *flags,
 					struct hl_user_pending_interrupt **pend)
 {
 	struct hl_user_pending_interrupt *req_offset_record;
@@ -3302,13 +3306,13 @@ static int ts_get_and_handle_kernel_record(struct hl_device *hdev, struct hl_ctx
 				req_offset_record->ts_reg_info.interrupt->interrupt_id) {
 
 			need_lock = true;
-			spin_unlock(&data->interrupt->wait_list_lock);
+			spin_unlock_irqrestore(&data->interrupt->ts_list_lock, *flags);
 		}
 
 		unregister_timestamp_node(hdev, req_offset_record, need_lock);
 
 		if (need_lock)
-			spin_lock(&data->interrupt->wait_list_lock);
+			spin_lock_irqsave(&data->interrupt->ts_list_lock, *flags);
 	}
 
 	/* Fill up the new registration node info and add it to the list */
@@ -3325,13 +3329,89 @@ static int ts_get_and_handle_kernel_record(struct hl_device *hdev, struct hl_ctx
 	return rc;
 }
 
-static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
+static int _hl_interrupt_ts_reg_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				struct wait_interrupt_data *data,
-				bool register_ts_record,
 				u32 *status, u64 *timestamp)
 {
 	struct hl_user_pending_interrupt *pend;
-	unsigned long timeout;
+	unsigned long flags;
+	int rc = 0;
+
+	hl_ctx_get(ctx);
+
+	data->cq_cb = hl_cb_get(data->mmg, data->cq_handle);
+	if (!data->cq_cb) {
+		rc = -EINVAL;
+		goto put_ctx;
+	}
+
+	/* Validate the cq offset */
+	if (((u64 *) data->cq_cb->kernel_address + data->cq_offset) >=
+			((u64 *) data->cq_cb->kernel_address + (data->cq_cb->size / sizeof(u64)))) {
+		rc = -EINVAL;
+		goto put_cq_cb;
+	}
+
+	dev_dbg(hdev->dev, "Timestamp registration: interrupt id: %u, handle: 0x%llx, ts offset: %llu, cq_offset: %llu\n",
+					data->interrupt->interrupt_id, data->ts_handle,
+					data->ts_offset, data->cq_offset);
+
+	data->buf = hl_mmap_mem_buf_get(data->mmg, data->ts_handle);
+	if (!data->buf) {
+		rc = -EINVAL;
+		goto put_cq_cb;
+	}
+
+	spin_lock_irqsave(&data->interrupt->ts_list_lock, flags);
+
+	/* get ts buffer record */
+	rc = ts_get_and_handle_kernel_record(hdev, ctx, data, &flags, &pend);
+	if (rc) {
+		spin_unlock_irqrestore(&data->interrupt->ts_list_lock, flags);
+		goto put_ts_buff;
+	}
+
+	/* We check for completion value as interrupt could have been received
+	 * before we add the timestamp node to the ts list.
+	 */
+	if (*pend->cq_kernel_addr >= data->target_value) {
+		spin_unlock_irqrestore(&data->interrupt->ts_list_lock, flags);
+
+		dev_dbg(hdev->dev, "Target value already reached release ts record: pend: %p, offset: %llu, interrupt: %u\n",
+				pend, data->ts_offset, data->interrupt->interrupt_id);
+
+		pend->ts_reg_info.in_use = 0;
+		*status = HL_WAIT_CS_STATUS_COMPLETED;
+		*pend->ts_reg_info.timestamp_kernel_addr = ktime_get_ns();
+
+		goto put_ts_buff;
+	}
+
+	list_add_tail(&pend->list_node, &data->interrupt->ts_list_head);
+	spin_unlock_irqrestore(&data->interrupt->ts_list_lock, flags);
+
+	rc = *status = HL_WAIT_CS_STATUS_COMPLETED;
+
+	hl_ctx_put(ctx);
+
+	return rc;
+
+put_ts_buff:
+	hl_mmap_mem_buf_put(data->buf);
+put_cq_cb:
+	hl_cb_put(data->cq_cb);
+put_ctx:
+	hl_ctx_put(ctx);
+
+	return rc;
+}
+
+static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
+				struct wait_interrupt_data *data,
+				u32 *status, u64 *timestamp)
+{
+	struct hl_user_pending_interrupt *pend;
+	unsigned long timeout, flags;
 	long completion_rc;
 	int rc = 0;
 
@@ -3352,61 +3432,29 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 		goto put_cq_cb;
 	}
 
-	if (register_ts_record) {
-		dev_dbg(hdev->dev, "Timestamp registration: interrupt id: %u, handle: 0x%llx, ts offset: %llu, cq_offset: %llu\n",
-				data->interrupt->interrupt_id, data->ts_handle,
-				data->ts_offset, data->cq_offset);
-
-		data->buf = hl_mmap_mem_buf_get(data->mmg, data->ts_handle);
-		if (!data->buf) {
-			rc = -EINVAL;
-			goto put_cq_cb;
-		}
-
-		spin_lock_irqsave(&data->interrupt->wait_list_lock, data->flags);
-
-		/* get ts buffer record */
-		rc = ts_get_and_handle_kernel_record(hdev, ctx, data, &pend);
-		if (rc) {
-			spin_unlock_irqrestore(&data->interrupt->wait_list_lock, data->flags);
-			goto put_ts_buff;
-		}
-	} else {
-		pend = kzalloc(sizeof(*pend), GFP_KERNEL);
-		if (!pend) {
-			rc = -ENOMEM;
-			goto put_cq_cb;
-		}
-		hl_fence_init(&pend->fence, ULONG_MAX);
-		pend->cq_kernel_addr = (u64 *) data->cq_cb->kernel_address + data->cq_offset;
-		pend->cq_target_value = data->target_value;
-		spin_lock_irqsave(&data->interrupt->wait_list_lock, data->flags);
+	pend = kzalloc(sizeof(*pend), GFP_KERNEL);
+	if (!pend) {
+		rc = -ENOMEM;
+		goto put_cq_cb;
 	}
 
+	hl_fence_init(&pend->fence, ULONG_MAX);
+	pend->cq_kernel_addr = (u64 *) data->cq_cb->kernel_address + data->cq_offset;
+	pend->cq_target_value = data->target_value;
+	spin_lock_irqsave(&data->interrupt->wait_list_lock, flags);
+
+
 	/* We check for completion value as interrupt could have been received
-	 * before we add the wait/timestamp node to the wait list.
+	 * before we add the wait node to the wait list.
 	 */
-	if (*pend->cq_kernel_addr >= data->target_value) {
-		spin_unlock_irqrestore(&data->interrupt->wait_list_lock, data->flags);
+	if (*pend->cq_kernel_addr >= data->target_value || (!data->intr_timeout_us)) {
+		spin_unlock_irqrestore(&data->interrupt->wait_list_lock, flags);
 
-		if (register_ts_record) {
-			dev_dbg(hdev->dev, "Target value already reached release ts record: pend: %p, offset: %llu, interrupt: %u\n",
-					pend, data->ts_offset, data->interrupt->interrupt_id);
-			pend->ts_reg_info.in_use = false;
-		}
+		if (*pend->cq_kernel_addr >= data->target_value)
+			*status = HL_WAIT_CS_STATUS_COMPLETED;
+		else
+			*status = HL_WAIT_CS_STATUS_BUSY;
 
-		*status = HL_WAIT_CS_STATUS_COMPLETED;
-
-		if (register_ts_record) {
-			*pend->ts_reg_info.timestamp_kernel_addr = ktime_get_ns();
-			goto put_ts_buff;
-		} else {
-			pend->fence.timestamp = ktime_get();
-			goto set_timestamp;
-		}
-	} else if (!data->intr_timeout_us) {
-		spin_unlock_irqrestore(&data->interrupt->wait_list_lock, data->flags);
-		*status = HL_WAIT_CS_STATUS_BUSY;
 		pend->fence.timestamp = ktime_get();
 		goto set_timestamp;
 	}
@@ -3417,13 +3465,8 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	 * in order to shorten the list pass loop, since
 	 * same list could have nodes for different cq counter handle.
 	 */
-	list_add_tail(&pend->wait_list_node, &data->interrupt->wait_list_head);
-	spin_unlock_irqrestore(&data->interrupt->wait_list_lock, data->flags);
-
-	if (register_ts_record) {
-		rc = *status = HL_WAIT_CS_STATUS_COMPLETED;
-		goto ts_registration_exit;
-	}
+	list_add_tail(&pend->list_node, &data->interrupt->wait_list_head);
+	spin_unlock_irqrestore(&data->interrupt->wait_list_lock, flags);
 
 	/* Wait for interrupt handler to signal completion */
 	completion_rc = wait_for_completion_interruptible_timeout(&pend->fence.completion,
@@ -3462,21 +3505,18 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	 * for ts record, the node will be deleted in the irq handler after
 	 * we reach the target value.
 	 */
-	spin_lock_irqsave(&data->interrupt->wait_list_lock, data->flags);
-	list_del(&pend->wait_list_node);
-	spin_unlock_irqrestore(&data->interrupt->wait_list_lock, data->flags);
+	spin_lock_irqsave(&data->interrupt->wait_list_lock, flags);
+	list_del(&pend->list_node);
+	spin_unlock_irqrestore(&data->interrupt->wait_list_lock, flags);
 
 set_timestamp:
 	*timestamp = ktime_to_ns(pend->fence.timestamp);
 	kfree(pend);
 	hl_cb_put(data->cq_cb);
-ts_registration_exit:
 	hl_ctx_put(ctx);
 
 	return rc;
 
-put_ts_buff:
-	hl_mmap_mem_buf_put(data->buf);
 put_cq_cb:
 	hl_cb_put(data->cq_cb);
 put_ctx:
@@ -3513,7 +3553,7 @@ static int _hl_interrupt_wait_ioctl_user_addr(struct hl_device *hdev, struct hl_
 	 * handler to monitor
 	 */
 	spin_lock(&interrupt->wait_list_lock);
-	list_add_tail(&pend->wait_list_node, &interrupt->wait_list_head);
+	list_add_tail(&pend->list_node, &interrupt->wait_list_head);
 	spin_unlock(&interrupt->wait_list_lock);
 
 	/* We check for completion value as interrupt could have been received
@@ -3590,7 +3630,7 @@ wait_again:
 
 remove_pending_user_interrupt:
 	spin_lock(&interrupt->wait_list_lock);
-	list_del(&pend->wait_list_node);
+	list_del(&pend->list_node);
 	spin_unlock(&interrupt->wait_list_lock);
 
 	*timestamp = ktime_to_ns(pend->fence.timestamp);
@@ -3649,16 +3689,6 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		return -EINVAL;
 	}
 
-	/*
-	 * Allow only one registration at a time. this is needed in order to prevent issues
-	 * while handling the flow of re-use of the same offset.
-	 * Since the registration flow is protected only by the interrupt lock, re-use flow
-	 * might request to move ts node to another interrupt list, and in such case we're
-	 * not protected.
-	 */
-	if (args->in.flags & HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT)
-		mutex_lock(&hpriv->ctx->ts_reg_lock);
-
 	if (args->in.flags & HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ) {
 		struct wait_interrupt_data wait_intr_data = {0};
 
@@ -3671,18 +3701,29 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		wait_intr_data.target_value = args->in.target;
 		wait_intr_data.intr_timeout_us = args->in.interrupt_timeout_us;
 
-		rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx, &wait_intr_data,
-				!!(args->in.flags & HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT),
-				&status, &timestamp);
+		if (args->in.flags & HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT) {
+			/*
+			 * Allow only one registration at a time. this is needed in order to prevent
+			 * issues while handling the flow of re-use of the same offset.
+			 * Since the registration flow is protected only by the interrupt lock,
+			 * re-use flow might request to move ts node to another interrupt list,
+			 * and in such case we're not protected.
+			 */
+			mutex_lock(&hpriv->ctx->ts_reg_lock);
+
+			rc = _hl_interrupt_ts_reg_ioctl(hdev, hpriv->ctx, &wait_intr_data,
+						&status, &timestamp);
+
+			mutex_unlock(&hpriv->ctx->ts_reg_lock);
+		} else
+			rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx, &wait_intr_data,
+						&status, &timestamp);
 	} else {
 		rc = _hl_interrupt_wait_ioctl_user_addr(hdev, hpriv->ctx,
 				args->in.interrupt_timeout_us, args->in.addr,
 				args->in.target, interrupt, &status,
 				&timestamp);
 	}
-
-	if (args->in.flags & HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT)
-		mutex_unlock(&hpriv->ctx->ts_reg_lock);
 
 	if (rc)
 		return rc;
