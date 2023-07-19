@@ -9,6 +9,7 @@
  * Copyright (C) 2013, Intel Corporation
  *                     Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  */
+#define pr_fmt(fmt) "ACPI: " fmt
 
 #include <linux/acpi.h>
 #include <linux/device.h>
@@ -611,9 +612,9 @@ static bool __init acpi_early_processor_osc(void)
 void __init acpi_early_processor_control_setup(void)
 {
 	if (acpi_early_processor_osc()) {
-		pr_info("_OSC evaluated successfully\n");
+		pr_info("_OSC evaluated successfully for all CPUs\n");
 	} else {
-		pr_info("_OSC evaluation failed, trying _PDC\n");
+		pr_info("_OSC evaluation for CPUs failed, trying _PDC\n");
 		acpi_early_processor_set_pdc();
 	}
 }
