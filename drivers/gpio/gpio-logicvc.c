@@ -138,8 +138,6 @@ static int logicvc_gpio_probe(struct platform_device *pdev)
 	logicvc->chip.set = logicvc_gpio_set;
 	logicvc->chip.direction_output = logicvc_gpio_direction_output;
 
-	platform_set_drvdata(pdev, logicvc);
-
 	return devm_gpiochip_add_data(dev, &logicvc->chip, logicvc);
 }
 
