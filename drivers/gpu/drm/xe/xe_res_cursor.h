@@ -51,15 +51,14 @@ struct xe_res_cursor {
 static struct drm_buddy *xe_res_get_buddy(struct ttm_resource *res)
 {
 	struct xe_device *xe = ttm_to_xe_device(res->bo->bdev);
+	struct ttm_resource_manager *mgr;
 
-	if (res->mem_type != XE_PL_STOLEN) {
+	if (res->mem_type != XE_PL_STOLEN)
 		return &xe->tiles[res->mem_type - XE_PL_VRAM0].mem.vram_mgr->mm;
-	} else {
-		struct ttm_resource_manager *mgr =
-			ttm_manager_type(&xe->ttm, XE_PL_STOLEN);
 
-		return &to_xe_ttm_vram_mgr(mgr)->mm;
-	}
+	mgr = ttm_manager_type(&xe->ttm, XE_PL_STOLEN);
+
+	return &to_xe_ttm_vram_mgr(mgr)->mm;
 }
 
 /**

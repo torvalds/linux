@@ -1831,7 +1831,7 @@ int xe_bo_lock(struct xe_bo *bo, struct ww_acquire_ctx *ww,
 	XE_BUG_ON(!ww);
 
 	tv_bo.num_shared = num_resv;
-	tv_bo.bo = &bo->ttm;;
+	tv_bo.bo = &bo->ttm;
 	list_add_tail(&tv_bo.head, &objs);
 
 	return ttm_eu_reserve_buffers(ww, &objs, intr, &dups);

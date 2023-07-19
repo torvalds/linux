@@ -37,10 +37,8 @@ void xe_gt_sysfs_init(struct xe_gt *gt)
 	int err;
 
 	kg = kzalloc(sizeof(*kg), GFP_KERNEL);
-	if (!kg) {
-		drm_warn(&xe->drm, "Allocating kobject failed.\n");
+	if (!kg)
 		return;
-	}
 
 	kobject_init(&kg->base, &xe_gt_sysfs_kobj_type);
 	kg->gt = gt;

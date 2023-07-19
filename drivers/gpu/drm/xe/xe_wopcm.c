@@ -47,12 +47,10 @@
  */
 
 /* Default WOPCM size is 2MB from Gen11, 1MB on previous platforms */
-#define DGFX_WOPCM_SIZE			SZ_4M	/* FIXME: Larger size require
-						   for 2 tile PVC, do a proper
-						   probe sooner or later */
-#define MTL_WOPCM_SIZE			SZ_4M	/* FIXME: Larger size require
-						   for MTL, do a proper probe
-						   sooner or later */
+/* FIXME: Larger size require for 2 tile PVC, do a proper probe sooner or later */
+#define DGFX_WOPCM_SIZE			SZ_4M
+/* FIXME: Larger size require for MTL, do a proper probe sooner or later */
+#define MTL_WOPCM_SIZE			SZ_4M
 #define GEN11_WOPCM_SIZE		SZ_2M
 
 #define GEN12_MAX_WOPCM_SIZE            SZ_8M

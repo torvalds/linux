@@ -475,7 +475,7 @@ static void emit_pte(struct xe_migrate *m,
 			bb->cs[bb->len++] = lower_32_bits(addr);
 			bb->cs[bb->len++] = upper_32_bits(addr);
 
-			xe_res_next(cur, min(size, (u32)PAGE_SIZE));
+			xe_res_next(cur, min_t(u32, size, PAGE_SIZE));
 			cur_ofs += 8;
 		}
 	}

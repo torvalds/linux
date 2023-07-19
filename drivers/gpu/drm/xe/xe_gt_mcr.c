@@ -273,7 +273,7 @@ static void init_steering_inst0(struct xe_gt *gt)
 
 static const struct {
 	const char *name;
-	void (*init)(struct xe_gt *);
+	void (*init)(struct xe_gt *gt);
 } xe_steering_types[] = {
 	[L3BANK] =	{ "L3BANK",	init_steering_l3bank },
 	[MSLICE] =	{ "MSLICE",	init_steering_mslice },

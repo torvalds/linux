@@ -89,18 +89,30 @@ void xe_reg_whitelist_print_entry(struct drm_printer *p, unsigned int indent,
 	deny = val & RING_FORCE_TO_NONPRIV_DENY;
 
 	switch (val & RING_FORCE_TO_NONPRIV_RANGE_MASK) {
-	case RING_FORCE_TO_NONPRIV_RANGE_4: range_bit = 4; break;
-	case RING_FORCE_TO_NONPRIV_RANGE_16: range_bit = 6; break;
-	case RING_FORCE_TO_NONPRIV_RANGE_64: range_bit = 8; break;
+	case RING_FORCE_TO_NONPRIV_RANGE_4:
+		range_bit = 4;
+		break;
+	case RING_FORCE_TO_NONPRIV_RANGE_16:
+		range_bit = 6;
+		break;
+	case RING_FORCE_TO_NONPRIV_RANGE_64:
+		range_bit = 8;
+		break;
 	}
 
 	range_start = reg & REG_GENMASK(25, range_bit);
 	range_end = range_start | REG_GENMASK(range_bit, 0);
 
 	switch (val & RING_FORCE_TO_NONPRIV_ACCESS_MASK) {
-	case RING_FORCE_TO_NONPRIV_ACCESS_RW: access_str = "rw"; break;
-	case RING_FORCE_TO_NONPRIV_ACCESS_RD: access_str = "read"; break;
-	case RING_FORCE_TO_NONPRIV_ACCESS_WR: access_str = "write"; break;
+	case RING_FORCE_TO_NONPRIV_ACCESS_RW:
+		access_str = "rw";
+		break;
+	case RING_FORCE_TO_NONPRIV_ACCESS_RD:
+		access_str = "read";
+		break;
+	case RING_FORCE_TO_NONPRIV_ACCESS_WR:
+		access_str = "write";
+		break;
 	}
 
 	drm_printf_indent(p, indent, "REG[0x%x-0x%x]: %s %s access\n",
