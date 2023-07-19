@@ -533,6 +533,11 @@ static struct pkt_stream *__pkt_stream_alloc(u32 nb_pkts)
 	return pkt_stream;
 }
 
+static bool pkt_continues(const struct xdp_desc *desc)
+{
+	return desc->options & XDP_PKT_CONTD;
+}
+
 static u32 ceil_u32(u32 a, u32 b)
 {
 	return (a + b - 1) / b;
@@ -549,7 +554,7 @@ static void pkt_set(struct xsk_umem_info *umem, struct pkt *pkt, int offset, u32
 {
 	pkt->offset = offset;
 	pkt->len = len;
-	if (len > umem->frame_size - XDP_PACKET_HEADROOM - MIN_PKT_SIZE * 2 - umem->frame_headroom)
+	if (len > MAX_ETH_JUMBO_SIZE)
 		pkt->valid = false;
 	else
 		pkt->valid = true;
@@ -635,6 +640,11 @@ static u64 pkt_get_addr(struct pkt *pkt, struct xsk_umem_info *umem)
 	if (!pkt->valid)
 		return pkt->offset;
 	return pkt->offset + umem_alloc_buffer(umem);
+}
+
+static void pkt_stream_cancel(struct pkt_stream *pkt_stream)
+{
+	pkt_stream->current_pkt_nb--;
 }
 
 static void pkt_generate(struct ifobject *ifobject, u64 addr, u32 len, u32 pkt_nb,
@@ -765,41 +775,79 @@ static bool is_metadata_correct(struct pkt *pkt, void *buffer, u64 addr)
 	return true;
 }
 
-static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
+static bool is_frag_valid(struct xsk_umem_info *umem, u64 addr, u32 len, u32 expected_pkt_nb,
+			  u32 bytes_processed)
 {
-	void *data = xsk_umem__get_data(buffer, addr);
-	u32 seqnum, pkt_data;
+	u32 seqnum, pkt_nb, *pkt_data, words_to_end, expected_seqnum;
+	void *data = xsk_umem__get_data(umem->buffer, addr);
 
-	if (!pkt) {
-		ksft_print_msg("[%s] too many packets received\n", __func__);
+	addr -= umem->base_addr;
+
+	if (addr >= umem->num_frames * umem->frame_size ||
+	    addr + len > umem->num_frames * umem->frame_size) {
+		ksft_print_msg("Frag invalid addr: %llx len: %u\n", addr, len);
+		return false;
+	}
+	if (!umem->unaligned_mode && addr % umem->frame_size + len > umem->frame_size) {
+		ksft_print_msg("Frag crosses frame boundary addr: %llx len: %u\n", addr, len);
+		return false;
+	}
+
+	pkt_data = data;
+	if (!bytes_processed) {
+		pkt_data += PKT_HDR_SIZE / sizeof(*pkt_data);
+		len -= PKT_HDR_SIZE;
+	} else {
+		bytes_processed -= PKT_HDR_SIZE;
+	}
+
+	expected_seqnum = bytes_processed / sizeof(*pkt_data);
+	seqnum = ntohl(*pkt_data) & 0xffff;
+	pkt_nb = ntohl(*pkt_data) >> 16;
+
+	if (expected_pkt_nb != pkt_nb) {
+		ksft_print_msg("[%s] expected pkt_nb [%u], got pkt_nb [%u]\n",
+			       __func__, expected_pkt_nb, pkt_nb);
+		goto error;
+	}
+	if (expected_seqnum != seqnum) {
+		ksft_print_msg("[%s] expected seqnum at start [%u], got seqnum [%u]\n",
+			       __func__, expected_seqnum, seqnum);
 		goto error;
 	}
 
-	if (len < MIN_PKT_SIZE || pkt->len < MIN_PKT_SIZE) {
-		/* Do not try to verify packets that are smaller than minimum size. */
-		return true;
-	}
-
-	if (pkt->len != len) {
-		ksft_print_msg("[%s] expected length [%d], got length [%d]\n",
-			       __func__, pkt->len, len);
-		goto error;
-	}
-
-	pkt_data = ntohl(*((u32 *)(data + PKT_HDR_SIZE)));
-	seqnum = pkt_data >> 16;
-
-	if (pkt->pkt_nb != seqnum) {
-		ksft_print_msg("[%s] expected seqnum [%d], got seqnum [%d]\n",
-			       __func__, pkt->pkt_nb, seqnum);
+	words_to_end = len / sizeof(*pkt_data) - 1;
+	pkt_data += words_to_end;
+	seqnum = ntohl(*pkt_data) & 0xffff;
+	expected_seqnum += words_to_end;
+	if (expected_seqnum != seqnum) {
+		ksft_print_msg("[%s] expected seqnum at end [%u], got seqnum [%u]\n",
+			       __func__, expected_seqnum, seqnum);
 		goto error;
 	}
 
 	return true;
 
 error:
-	pkt_dump(data, len, true);
+	pkt_dump(data, len, !bytes_processed);
 	return false;
+}
+
+static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
+{
+	if (!pkt) {
+		ksft_print_msg("[%s] too many packets received\n", __func__);
+		return false;
+	}
+
+	if (pkt->len != len) {
+		ksft_print_msg("[%s] expected packet length [%d], got length [%d]\n",
+			       __func__, pkt->len, len);
+		pkt_dump(xsk_umem__get_data(buffer, addr), len, true);
+		return false;
+	}
+
+	return true;
 }
 
 static void kick_tx(struct xsk_socket_info *xsk)
@@ -854,8 +902,8 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 {
 	struct timeval tv_end, tv_now, tv_timeout = {THREAD_TMOUT, 0};
 	struct pkt_stream *pkt_stream = test->ifobj_rx->pkt_stream;
-	u32 idx_rx = 0, idx_fq = 0, rcvd, i, pkts_sent = 0;
 	struct xsk_socket_info *xsk = test->ifobj_rx->xsk;
+	u32 idx_rx = 0, idx_fq = 0, rcvd, pkts_sent = 0;
 	struct ifobject *ifobj = test->ifobj_rx;
 	struct xsk_umem_info *umem = xsk->umem;
 	struct pkt *pkt;
@@ -868,6 +916,9 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 
 	pkt = pkt_stream_get_next_rx_pkt(pkt_stream, &pkts_sent);
 	while (pkt) {
+		u32 frags_processed = 0, nb_frags = 0, pkt_len = 0;
+		u64 first_addr;
+
 		ret = gettimeofday(&tv_now, NULL);
 		if (ret)
 			exit_with_error(errno);
@@ -913,27 +964,53 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 			}
 		}
 
-		for (i = 0; i < rcvd; i++) {
+		while (frags_processed < rcvd) {
 			const struct xdp_desc *desc = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++);
 			u64 addr = desc->addr, orig;
 
 			orig = xsk_umem__extract_addr(addr);
 			addr = xsk_umem__add_offset_to_addr(addr);
 
-			if (!is_pkt_valid(pkt, umem->buffer, addr, desc->len) ||
+			if (!is_frag_valid(umem, addr, desc->len, pkt->pkt_nb, pkt_len) ||
 			    !is_offset_correct(umem, pkt, addr) ||
 			    (ifobj->use_metadata && !is_metadata_correct(pkt, umem->buffer, addr)))
 				return TEST_FAILURE;
 
+			if (!nb_frags++)
+				first_addr = addr;
+			frags_processed++;
+			pkt_len += desc->len;
 			if (ifobj->use_fill_ring)
 				*xsk_ring_prod__fill_addr(&umem->fq, idx_fq++) = orig;
+
+			if (pkt_continues(desc))
+				continue;
+
+			/* The complete packet has been received */
+			if (!is_pkt_valid(pkt, umem->buffer, first_addr, pkt_len) ||
+			    !is_offset_correct(umem, pkt, addr))
+				return TEST_FAILURE;
+
 			pkt = pkt_stream_get_next_rx_pkt(pkt_stream, &pkts_sent);
+			nb_frags = 0;
+			pkt_len = 0;
+		}
+
+		if (nb_frags) {
+			/* In the middle of a packet. Start over from beginning of packet. */
+			idx_rx -= nb_frags;
+			xsk_ring_cons__cancel(&xsk->rx, nb_frags);
+			if (ifobj->use_fill_ring) {
+				idx_fq -= nb_frags;
+				xsk_ring_prod__cancel(&umem->fq, nb_frags);
+			}
+			frags_processed -= nb_frags;
 		}
 
 		if (ifobj->use_fill_ring)
-			xsk_ring_prod__submit(&umem->fq, rcvd);
+			xsk_ring_prod__submit(&umem->fq, frags_processed);
 		if (ifobj->release_rx)
-			xsk_ring_cons__release(&xsk->rx, rcvd);
+			xsk_ring_cons__release(&xsk->rx, frags_processed);
 
 		pthread_mutex_lock(&pacing_mutex);
 		pkts_in_flight -= pkts_sent;
@@ -946,13 +1023,14 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 
 static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeout)
 {
+	u32 i, idx = 0, valid_pkts = 0, valid_frags = 0, buffer_len;
+	struct pkt_stream *pkt_stream = ifobject->pkt_stream;
 	struct xsk_socket_info *xsk = ifobject->xsk;
 	struct xsk_umem_info *umem = ifobject->umem;
-	u32 i, idx = 0, valid_pkts = 0, buffer_len;
 	bool use_poll = ifobject->use_poll;
 	int ret;
 
-	buffer_len = pkt_get_buffer_len(umem, ifobject->pkt_stream->max_pkt_len);
+	buffer_len = pkt_get_buffer_len(umem, pkt_stream->max_pkt_len);
 	/* pkts_in_flight might be negative if many invalid packets are sent */
 	if (pkts_in_flight >= (int)((umem_size(umem) - BATCH_SIZE * buffer_len) / buffer_len)) {
 		kick_tx(xsk);
@@ -983,17 +1061,40 @@ static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeo
 	}
 
 	for (i = 0; i < BATCH_SIZE; i++) {
-		struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx, idx + i);
-		struct pkt *pkt = pkt_stream_get_next_tx_pkt(ifobject->pkt_stream);
+		struct pkt *pkt = pkt_stream_get_next_tx_pkt(pkt_stream);
+		u32 nb_frags, bytes_written = 0;
 
 		if (!pkt)
 			break;
 
-		tx_desc->addr = pkt_get_addr(pkt, umem);
-		tx_desc->len = pkt->len;
+		nb_frags = pkt_nb_frags(umem->frame_size, pkt);
+		if (nb_frags > BATCH_SIZE - i) {
+			pkt_stream_cancel(pkt_stream);
+			xsk_ring_prod__cancel(&xsk->tx, BATCH_SIZE - i);
+			break;
+		}
+
 		if (pkt->valid) {
 			valid_pkts++;
-			pkt_generate(ifobject, tx_desc->addr, tx_desc->len, pkt->pkt_nb, 0);
+			valid_frags += nb_frags;
+		}
+
+		while (nb_frags--) {
+			struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx, idx + i);
+
+			tx_desc->addr = pkt_get_addr(pkt, ifobject->umem);
+			if (nb_frags) {
+				tx_desc->len = umem->frame_size;
+				tx_desc->options = XDP_PKT_CONTD;
+				i++;
+			} else {
+				tx_desc->len = pkt->len - bytes_written;
+				tx_desc->options = 0;
+			}
+			if (pkt->valid)
+				pkt_generate(ifobject, tx_desc->addr, tx_desc->len, pkt->pkt_nb,
+					     bytes_written);
+			bytes_written += tx_desc->len;
 		}
 	}
 
@@ -1002,7 +1103,7 @@ static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeo
 	pthread_mutex_unlock(&pacing_mutex);
 
 	xsk_ring_prod__submit(&xsk->tx, i);
-	xsk->outstanding_tx += valid_pkts;
+	xsk->outstanding_tx += valid_frags;
 
 	if (use_poll) {
 		ret = poll(fds, 1, POLL_TMOUT);

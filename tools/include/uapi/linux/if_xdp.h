@@ -106,6 +106,9 @@ struct xdp_desc {
 	__u32 options;
 };
 
+/* Flag indicating packet constitutes of multiple buffers*/
+#define XDP_PKT_CONTD (1 << 0)
+
 /* UMEM descriptor is __u64 */
 
 #endif /* _LINUX_IF_XDP_H */
