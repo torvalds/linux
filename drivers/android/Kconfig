@@ -47,6 +47,17 @@ config ANDROID_BINDER_IPC_SELFTEST
 	  exhaustively with combinations of various buffer sizes and
 	  alignments.
 
+config ANDROID_DEBUG_SYMBOLS
+	bool "Android Debug Symbols"
+	help
+	  Enables export of debug symbols that are useful for offline debugging
+	  of a kernel. These symbols would be used in vendor modules to find
+	  addresses of the core kernel symbols for vendor extensions.
+
+	  This driver is statically compiled into kernel and maintains all the
+	  required symbol addresses for vendor modules and provides necessary
+	  interface vendor modules.
+
 config ANDROID_VENDOR_HOOKS
 	bool "Android Vendor Hooks"
 	depends on TRACEPOINTS

@@ -1,5 +1,6 @@
 [abi_symbol_list]
 # commonly used symbols
+  access_process_vm
   add_cpu
   add_wait_queue
   add_wait_queue_exclusive
@@ -14,6 +15,8 @@
   __alloc_skb
   alloc_workqueue
   alt_cb_patch_nops
+  android_debug_per_cpu_symbol
+  android_debug_symbol
   arch_freq_scale
   __arch_copy_from_user
   __arch_copy_to_user
@@ -171,6 +174,7 @@
   dma_unmap_page_attrs
   do_trace_netlink_extack
   double_rq_lock
+  down
   down_read
   down_write
   driver_unregister
@@ -181,6 +185,7 @@
   __dynamic_dev_dbg
   __dynamic_netdev_dbg
   __dynamic_pr_debug
+  inet_proto_csum_replace4
   init_task
   enable_irq
   eth_mac_addr
@@ -191,7 +196,10 @@
   eth_type_trans
   eth_validate_addr
   extcon_get_state
+  filp_open_block
+  find_get_pid
   _find_next_bit
+  find_task_by_vpid
   finish_wait
   flush_delayed_work
   flush_work
@@ -217,6 +225,7 @@
   get_device
   __get_free_pages
   get_random_bytes
+  get_zeroed_page
   gic_nonsecure_priorities
   gpiochip_disable_irq
   gpiochip_enable_irq
@@ -286,6 +295,10 @@
   kmem_cache_destroy
   kmem_cache_free
   kmemdup
+  kmsg_dump_get_buffer
+  kmsg_dump_register
+  kmsg_dump_rewind
+  kmsg_dump_unregister
   kobject_uevent
   kobject_uevent_env
   ksoftirqd
@@ -310,11 +323,13 @@
   log_post_write_mmio
   log_read_mmio
   log_write_mmio
+  mas_find
   mbox_chan_received_data
   mbox_chan_txdone
   memcpy
   memmove
   memset
+  mem_section
   memstart_addr
   migrate_swap
   misc_deregister
@@ -354,12 +369,15 @@
   netlink_unicast
   net_ratelimit
   nf_conntrack_destroy
+  nf_conntrack_find_get
+  nf_ct_destroy
   nla_memcpy
   __nla_parse
   nla_put
   nla_put_64bit
   nla_strscpy
   __nlmsg_put
+  node_states
   noop_llseek
   nr_cpu_ids
   ns_capable
@@ -437,9 +455,11 @@
   __pskb_copy_fclone
   pskb_expand_head
   __pskb_pull_tail
+  pskb_trim_rcsum_slow
   put_cmsg
   put_device
   __put_net
+  put_pid
   __put_task_struct
   queue_delayed_work_on
   queue_work_on
@@ -498,6 +518,7 @@
   request_threaded_irq
   return_address
   root_task_group
+  rt6_lookup
   rtc_time64_to_tm
   rtnl_is_locked
   rtnl_link_register
@@ -513,6 +534,7 @@
   scnprintf
   security_sk_clone
   security_sock_graft
+  send_sig_info
   seq_buf_printf
   seq_lseek
   seq_printf
@@ -688,6 +710,7 @@
   __traceiter_android_vh_cpufreq_target
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
+  __traceiter_android_vh_enable_thermal_power_throttle
   __traceiter_android_vh_get_thermal_zone_device
   __traceiter_android_vh_modify_thermal_request_freq
   __traceiter_android_vh_modify_thermal_target_freq
@@ -765,6 +788,7 @@
   __tracepoint_android_vh_cpufreq_target
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
+  __tracepoint_android_vh_enable_thermal_power_throttle
   __tracepoint_android_vh_get_thermal_zone_device
   __tracepoint_android_vh_modify_thermal_request_freq
   __tracepoint_android_vh_modify_thermal_target_freq
@@ -819,6 +843,7 @@
   unregister_pernet_device
   unregister_pernet_subsys
   unregister_pm_notifier
+  up
   up_read
   up_write
   update_rq_clock
@@ -1204,6 +1229,17 @@
   sock_common_recvmsg
   sock_common_setsockopt
 
+# required by ims_bridge.ko
+  icmp6_send
+  inet_select_addr
+  ip6_find_1stfragopt
+  ip6_route_output_flags
+  ipv6_dev_get_saddr
+  ipv6_select_ident
+  nf_ct_get_tuplepr
+  nf_ct_invert_tuple
+  xfrm_state_afinfo_get_rcu
+
 # required by kfifo_buf.ko
   devres_add
   __devres_alloc_node
@@ -1444,6 +1480,9 @@
   power_supply_put
   power_supply_temp2resist_simple
 
+# required by sc27xx_pd.ko
+  devm_extcon_register_notifier_all
+
 # required by sc27xx_typec.ko
   devm_extcon_dev_allocate
   devm_extcon_dev_register
@@ -1542,6 +1581,9 @@
   __kthread_init_worker
   kthread_queue_work
   kthread_worker_fn
+
+# required by sprd-charger-manager.ko
+  orderly_poweroff
 
 # required by sprd-dma.ko
   dma_async_device_register
@@ -1650,6 +1692,30 @@
   devfreq_remove_governor
   dev_pm_opp_add
   update_devfreq
+
+# required by sprd_tcpm.ko
+  typec_altmode_attention
+  typec_altmode_notify
+  typec_altmode_update_active
+  typec_altmode_vdm
+  typec_find_power_role
+  typec_match_altmode
+  typec_partner_register_altmode
+  typec_port_register_altmode
+  typec_set_mode
+  typec_unregister_altmode
+
+# required by sprd_thermal_ctl.ko
+  cpufreq_quick_get_max
+  devfreq_cooling_em_register
+  devfreq_cooling_unregister
+
+# required by sprd_soc_thm.ko
+  thermal_of_zone_unregister
+  thermal_zone_bind_cooling_device
+  thermal_zone_device_register_with_trips
+  thermal_zone_device_update
+  thermal_zone_unbind_cooling_device
 
 # required by sprd_hwspinlock.ko
   devm_hwspin_lock_register
@@ -1796,6 +1862,7 @@
   sk_stop_timer
   sock_recvmsg
   sock_rfree
+  strcasecmp
   strchr
   strrchr
   sysctl_vals

@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/file.h>
 #include <sys/inotify.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -1336,6 +1337,50 @@ out:
 	return result;
 }
 
+static int flock_test(const char *mount_dir)
+{
+	const char *file = "file";
+	int result = TEST_FAILURE;
+	int src_fd = -1;
+	int fuse_dev = -1;
+	int fd = -1, fd2 = -1;
+	int backing_fd = -1;
+	char *addr = NULL;
+
+	TEST(src_fd = open(ft_src, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
+	     src_fd != -1);
+	TESTEQUAL(mount_fuse(mount_dir, -1, src_fd, &fuse_dev), 0);
+	TEST(fd = s_open(s_path(s(mount_dir), s(file)),
+			 O_CREAT | O_RDWR | O_CLOEXEC, 0777),
+	     fd != -1);
+	TEST(fd2 = s_open(s_path(s(mount_dir), s(file)),
+				 O_RDWR | O_CLOEXEC, 0777),
+		     fd2 != -1);
+	TESTSYSCALL(flock(fd, LOCK_EX | LOCK_NB));
+	TESTCONDERR((flock(fd2, LOCK_EX | LOCK_NB)) == -1);
+	TESTCOND(errno == EAGAIN);
+	TESTSYSCALL(flock(fd, LOCK_UN));
+	TESTSYSCALL(flock(fd2, LOCK_EX | LOCK_NB));
+	TEST(backing_fd = s_open(s_path(s(ft_src), s(file)),
+				 O_RDONLY | O_CLOEXEC),
+				 backing_fd != -1);
+	TESTCONDERR((flock(backing_fd, LOCK_EX | LOCK_NB)) == -1);
+	TESTCOND(errno == EAGAIN);
+	close(fd2);
+	fd2 = 0;
+	TESTSYSCALL(flock(backing_fd, LOCK_EX | LOCK_NB));
+
+	result = TEST_SUCCESS;
+out:
+	close(fd);
+	close(fd2);
+	close(backing_fd);
+	umount(mount_dir);
+	close(fuse_dev);
+	close(src_fd);
+	return result;
+}
+
 static int readdir_perms_test(const char *mount_dir)
 {
 	int result = TEST_FAILURE;
@@ -2091,6 +2136,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(bpf_test_no_readdirplus_without_nodeid),
 		MAKE_TEST(bpf_test_revalidate_handle_backing_fd),
 		MAKE_TEST(bpf_test_lookup_postfilter),
+		MAKE_TEST(flock_test),
 	};
 #undef MAKE_TEST
 

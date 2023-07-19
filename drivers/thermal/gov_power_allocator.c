@@ -704,6 +704,7 @@ static int power_allocator_throttle(struct thermal_zone_device *tz, int trip)
 	int switch_on_temp, control_temp;
 	struct power_allocator_params *params = tz->governor_data;
 	bool update;
+	bool enable = true;
 
 	lockdep_assert_held(&tz->lock);
 
@@ -714,9 +715,11 @@ static int power_allocator_throttle(struct thermal_zone_device *tz, int trip)
 	if (trip != params->trip_max_desired_temperature)
 		return 0;
 
+	trace_android_vh_enable_thermal_power_throttle(&enable);
+
 	ret = tz->ops->get_trip_temp(tz, params->trip_switch_on,
 				     &switch_on_temp);
-	if (!ret && (tz->temperature < switch_on_temp)) {
+	if ((!ret && (tz->temperature < switch_on_temp)) || !enable) {
 		update = (tz->last_temperature >= switch_on_temp);
 		tz->passive = 0;
 		reset_pid_controller(params);
