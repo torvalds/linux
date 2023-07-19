@@ -1105,9 +1105,10 @@ struct bpf_xdp_query_opts {
 	__u32 skb_prog_id;	/* output */
 	__u8 attach_mode;	/* output */
 	__u64 feature_flags;	/* output */
+	__u32 xdp_zc_max_segs;	/* output */
 	size_t :0;
 };
-#define bpf_xdp_query_opts__last_field feature_flags
+#define bpf_xdp_query_opts__last_field xdp_zc_max_segs
 
 LIBBPF_API int bpf_xdp_attach(int ifindex, int prog_fd, __u32 flags,
 			      const struct bpf_xdp_attach_opts *opts);
