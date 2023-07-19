@@ -4936,17 +4936,17 @@ static int mlxsw_sp_netdevice_lag_port_vlan_event(struct net_device *vlan_dev,
 	return 0;
 }
 
-static int mlxsw_sp_netdevice_bridge_vlan_event(struct net_device *vlan_dev,
+static int mlxsw_sp_netdevice_bridge_vlan_event(struct mlxsw_sp *mlxsw_sp,
+						struct net_device *vlan_dev,
 						struct net_device *br_dev,
 						unsigned long event, void *ptr,
-						u16 vid)
+						u16 vid, bool process_foreign)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(vlan_dev);
 	struct netdev_notifier_changeupper_info *info = ptr;
 	struct netlink_ext_ack *extack;
 	struct net_device *upper_dev;
 
-	if (!mlxsw_sp)
+	if (!process_foreign && !mlxsw_sp_lower_get(vlan_dev))
 		return 0;
 
 	extack = netdev_notifier_info_to_extack(&info->info);
@@ -4979,8 +4979,10 @@ static int mlxsw_sp_netdevice_bridge_vlan_event(struct net_device *vlan_dev,
 	return 0;
 }
 
-static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
-					 unsigned long event, void *ptr)
+static int mlxsw_sp_netdevice_vlan_event(struct mlxsw_sp *mlxsw_sp,
+					 struct net_device *vlan_dev,
+					 unsigned long event, void *ptr,
+					 bool process_foreign)
 {
 	struct net_device *real_dev = vlan_dev_real_dev(vlan_dev);
 	u16 vid = vlan_dev_vlan_id(vlan_dev);
@@ -4993,22 +4995,25 @@ static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
 							      real_dev, event,
 							      ptr, vid);
 	else if (netif_is_bridge_master(real_dev))
-		return mlxsw_sp_netdevice_bridge_vlan_event(vlan_dev, real_dev,
-							    event, ptr, vid);
+		return mlxsw_sp_netdevice_bridge_vlan_event(mlxsw_sp, vlan_dev,
+							    real_dev, event,
+							    ptr, vid,
+							    process_foreign);
 
 	return 0;
 }
 
-static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
-					   unsigned long event, void *ptr)
+static int mlxsw_sp_netdevice_bridge_event(struct mlxsw_sp *mlxsw_sp,
+					   struct net_device *br_dev,
+					   unsigned long event, void *ptr,
+					   bool process_foreign)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(br_dev);
 	struct netdev_notifier_changeupper_info *info = ptr;
 	struct netlink_ext_ack *extack;
 	struct net_device *upper_dev;
 	u16 proto;
 
-	if (!mlxsw_sp)
+	if (!process_foreign && !mlxsw_sp_lower_get(br_dev))
 		return 0;
 
 	extack = netdev_notifier_info_to_extack(&info->info);
@@ -5147,7 +5152,8 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int __mlxsw_sp_netdevice_event(struct mlxsw_sp *mlxsw_sp,
-				      unsigned long event, void *ptr)
+				      unsigned long event, void *ptr,
+				      bool process_foreign)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct mlxsw_sp_span_entry *span_entry;
@@ -5166,9 +5172,11 @@ static int __mlxsw_sp_netdevice_event(struct mlxsw_sp *mlxsw_sp,
 	else if (netif_is_lag_master(dev))
 		err = mlxsw_sp_netdevice_lag_event(dev, event, ptr);
 	else if (is_vlan_dev(dev))
-		err = mlxsw_sp_netdevice_vlan_event(dev, event, ptr);
+		err = mlxsw_sp_netdevice_vlan_event(mlxsw_sp, dev, event, ptr,
+						    process_foreign);
 	else if (netif_is_bridge_master(dev))
-		err = mlxsw_sp_netdevice_bridge_event(dev, event, ptr);
+		err = mlxsw_sp_netdevice_bridge_event(mlxsw_sp, dev, event, ptr,
+						      process_foreign);
 	else if (netif_is_macvlan(dev))
 		err = mlxsw_sp_netdevice_macvlan_event(dev, event, ptr);
 
@@ -5183,7 +5191,7 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 
 	mlxsw_sp = container_of(nb, struct mlxsw_sp, netdevice_nb);
 	mlxsw_sp_span_respin(mlxsw_sp);
-	err = __mlxsw_sp_netdevice_event(mlxsw_sp, event, ptr);
+	err = __mlxsw_sp_netdevice_event(mlxsw_sp, event, ptr, false);
 
 	return notifier_from_errno(err);
 }
