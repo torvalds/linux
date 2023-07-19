@@ -3392,6 +3392,7 @@ static void ice_set_ops(struct ice_vsi *vsi)
 	netdev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
 			       NETDEV_XDP_ACT_XSK_ZEROCOPY |
 			       NETDEV_XDP_ACT_RX_SG;
+	netdev->xdp_zc_max_segs = ICE_MAX_BUF_TXD;
 }
 
 /**
