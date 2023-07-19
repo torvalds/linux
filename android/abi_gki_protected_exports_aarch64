@@ -336,12 +336,10 @@ wpan_phy_new
 wpan_phy_register
 wpan_phy_unregister
 wwan_create_port
-wwan_get_debugfs_dir
 wwan_port_get_drvdata
 wwan_port_rx
 wwan_port_txoff
 wwan_port_txon
-wwan_put_debugfs_dir
 wwan_register_ops
 wwan_remove_port
 wwan_unregister_ops
