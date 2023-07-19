@@ -1194,20 +1194,22 @@ static struct nexthop *nexthop_select_path_hthr(struct nh_group *nhg, int hash)
 	for (i = 0; i < nhg->num_nh; ++i) {
 		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
 
-		if (hash > atomic_read(&nhge->hthr.upper_bound))
-			continue;
-
 		/* nexthops always check if it is good and does
 		 * not rely on a sysctl for this behavior
 		 */
-		if (nexthop_is_good_nh(nhge->nh))
-			return nhge->nh;
+		if (!nexthop_is_good_nh(nhge->nh))
+			continue;
 
 		if (!rc)
 			rc = nhge->nh;
+
+		if (hash > atomic_read(&nhge->hthr.upper_bound))
+			continue;
+
+		return nhge->nh;
 	}
 
-	return rc;
+	return rc ? : nhg->nh_entries[0].nh;
 }
 
 static struct nexthop *nexthop_select_path_res(struct nh_group *nhg, int hash)
