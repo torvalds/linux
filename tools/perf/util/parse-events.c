@@ -2189,7 +2189,7 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 	list_for_each_entry(pos, list, core.node) {
 		const struct evsel *pos_leader = evsel__leader(pos);
 		const char *pos_pmu_name = pos->group_pmu_name;
-		const char *cur_leader_pmu_name, *pos_leader_pmu_name;
+		const char *cur_leader_pmu_name;
 		bool pos_force_grouped = arch_evsel__must_be_in_group(pos);
 
 		/* Reset index and nr_members. */
@@ -2223,13 +2223,8 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 			 */
 			cur_leader_force_grouped = pos_force_grouped;
 		}
-		pos_leader_pmu_name = pos_leader->group_pmu_name;
-		if (strcmp(pos_leader_pmu_name, pos_pmu_name) || pos_force_grouped) {
-			/*
-			 * Event's PMU differs from its leader's. Groups can't
-			 * span PMUs, so update leader from the group/PMU
-			 * tracker.
-			 */
+		if (pos_leader != cur_leader) {
+			/* The leader changed so update it. */
 			evsel__set_leader(pos, cur_leader);
 		}
 	}
