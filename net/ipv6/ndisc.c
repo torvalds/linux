@@ -1280,10 +1280,19 @@ static enum skb_drop_reason ndisc_router_discovery(struct sk_buff *skb)
 	if (!ndisc_parse_options(skb->dev, opt, optlen, &ndopts))
 		return SKB_DROP_REASON_IPV6_NDISC_BAD_OPTIONS;
 
+	lifetime = ntohs(ra_msg->icmph.icmp6_rt_lifetime);
+
 	if (!ipv6_accept_ra(in6_dev)) {
 		ND_PRINTK(2, info,
 			  "RA: %s, did not accept ra for dev: %s\n",
 			  __func__, skb->dev->name);
+		goto skip_linkparms;
+	}
+
+	if (lifetime != 0 && lifetime < in6_dev->cnf.accept_ra_min_rtr_lft) {
+		ND_PRINTK(2, info,
+			  "RA: router lifetime (%ds) is too short: %s\n",
+			  lifetime, skb->dev->name);
 		goto skip_linkparms;
 	}
 
@@ -1338,8 +1347,6 @@ static enum skb_drop_reason ndisc_router_discovery(struct sk_buff *skb)
 			  skb->dev->name);
 		goto skip_defrtr;
 	}
-
-	lifetime = ntohs(ra_msg->icmph.icmp6_rt_lifetime);
 
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	pref = ra_msg->icmph.icmp6_router_pref;
@@ -1489,6 +1496,13 @@ skip_linkparms:
 		ND_PRINTK(2, info,
 			  "RA: %s, accept_ra is false for dev: %s\n",
 			  __func__, skb->dev->name);
+		goto out;
+	}
+
+	if (lifetime != 0 && lifetime < in6_dev->cnf.accept_ra_min_rtr_lft) {
+		ND_PRINTK(2, info,
+			  "RA: router lifetime (%ds) is too short: %s\n",
+			  lifetime, skb->dev->name);
 		goto out;
 	}
 
