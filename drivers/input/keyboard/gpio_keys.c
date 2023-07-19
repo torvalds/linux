@@ -28,6 +28,7 @@
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <dt-bindings/input/gpio-keys.h>
+#include <trace/hooks/wakeupbypass.h>
 
 struct gpio_button_data {
 	const struct gpio_keys_button *button;
@@ -958,11 +959,16 @@ static int __maybe_unused gpio_keys_suspend(struct device *dev)
 	struct gpio_keys_drvdata *ddata = dev_get_drvdata(dev);
 	struct input_dev *input = ddata->input;
 	int error;
+	int wakeup_bypass_enabled = 0;
+
+	trace_android_vh_wakeup_bypass(&wakeup_bypass_enabled);
 
 	if (device_may_wakeup(dev)) {
-		error = gpio_keys_enable_wakeup(ddata);
-		if (error)
-			return error;
+		if (!wakeup_bypass_enabled) {
+			error = gpio_keys_enable_wakeup(ddata);
+			if (error)
+				return error;
+		}
 	} else {
 		mutex_lock(&input->mutex);
 		if (input->users)
@@ -978,9 +984,13 @@ static int __maybe_unused gpio_keys_resume(struct device *dev)
 	struct gpio_keys_drvdata *ddata = dev_get_drvdata(dev);
 	struct input_dev *input = ddata->input;
 	int error = 0;
+	int wakeup_bypass_enabled = 0;
+
+	trace_android_vh_wakeup_bypass(&wakeup_bypass_enabled);
 
 	if (device_may_wakeup(dev)) {
-		gpio_keys_disable_wakeup(ddata);
+		if (!wakeup_bypass_enabled)
+			gpio_keys_disable_wakeup(ddata);
 	} else {
 		mutex_lock(&input->mutex);
 		if (input->users)
