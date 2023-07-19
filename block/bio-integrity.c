@@ -199,7 +199,6 @@ bool bio_integrity_prep(struct bio *bio)
 	unsigned long start, end;
 	unsigned int len, nr_pages;
 	unsigned int bytes, offset, i;
-	unsigned int intervals;
 	blk_status_t status;
 
 	if (!bi)
@@ -224,10 +223,9 @@ bool bio_integrity_prep(struct bio *bio)
 		    !(bi->flags & BLK_INTEGRITY_GENERATE))
 			return true;
 	}
-	intervals = bio_integrity_intervals(bi, bio_sectors(bio));
 
 	/* Allocate kernel buffer for protection data */
-	len = intervals * bi->tuple_size;
+	len = bio_integrity_bytes(bi, bio_sectors(bio));
 	buf = kmalloc(len, GFP_NOIO);
 	status = BLK_STS_RESOURCE;
 	if (unlikely(buf == NULL)) {
