@@ -4641,7 +4641,8 @@ static bool mlxsw_sp_bridge_vxlan_is_valid(struct net_device *br_dev,
 
 static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 					       struct net_device *dev,
-					       unsigned long event, void *ptr)
+					       unsigned long event, void *ptr,
+					       bool replay_deslavement)
 {
 	struct netdev_notifier_changeupper_info *info;
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -4815,13 +4816,15 @@ static int mlxsw_sp_netdevice_port_lower_event(struct net_device *dev,
 
 static int mlxsw_sp_netdevice_port_event(struct net_device *lower_dev,
 					 struct net_device *port_dev,
-					 unsigned long event, void *ptr)
+					 unsigned long event, void *ptr,
+					 bool replay_deslavement)
 {
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 	case NETDEV_CHANGEUPPER:
 		return mlxsw_sp_netdevice_port_upper_event(lower_dev, port_dev,
-							   event, ptr);
+							   event, ptr,
+							   replay_deslavement);
 	case NETDEV_CHANGELOWERSTATE:
 		return mlxsw_sp_netdevice_port_lower_event(port_dev, event,
 							   ptr);
@@ -4840,7 +4843,7 @@ static int mlxsw_sp_netdevice_lag_event(struct net_device *lag_dev,
 	netdev_for_each_lower_dev(lag_dev, dev, iter) {
 		if (mlxsw_sp_port_dev_check(dev)) {
 			ret = mlxsw_sp_netdevice_port_event(lag_dev, dev, event,
-							    ptr);
+							    ptr, false);
 			if (ret)
 				return ret;
 		}
@@ -4852,7 +4855,7 @@ static int mlxsw_sp_netdevice_lag_event(struct net_device *lag_dev,
 static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 					      struct net_device *dev,
 					      unsigned long event, void *ptr,
-					      u16 vid)
+					      u16 vid, bool replay_deslavement)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
@@ -4927,7 +4930,7 @@ static int mlxsw_sp_netdevice_lag_port_vlan_event(struct net_device *vlan_dev,
 		if (mlxsw_sp_port_dev_check(dev)) {
 			ret = mlxsw_sp_netdevice_port_vlan_event(vlan_dev, dev,
 								 event, ptr,
-								 vid);
+								 vid, false);
 			if (ret)
 				return ret;
 		}
@@ -4989,7 +4992,8 @@ static int mlxsw_sp_netdevice_vlan_event(struct mlxsw_sp *mlxsw_sp,
 
 	if (mlxsw_sp_port_dev_check(real_dev))
 		return mlxsw_sp_netdevice_port_vlan_event(vlan_dev, real_dev,
-							  event, ptr, vid);
+							  event, ptr, vid,
+							  true);
 	else if (netif_is_lag_master(real_dev))
 		return mlxsw_sp_netdevice_lag_port_vlan_event(vlan_dev,
 							      real_dev, event,
@@ -5168,7 +5172,7 @@ static int __mlxsw_sp_netdevice_event(struct mlxsw_sp *mlxsw_sp,
 	if (netif_is_vxlan(dev))
 		err = mlxsw_sp_netdevice_vxlan_event(mlxsw_sp, dev, event, ptr);
 	else if (mlxsw_sp_port_dev_check(dev))
-		err = mlxsw_sp_netdevice_port_event(dev, dev, event, ptr);
+		err = mlxsw_sp_netdevice_port_event(dev, dev, event, ptr, true);
 	else if (netif_is_lag_master(dev))
 		err = mlxsw_sp_netdevice_lag_event(dev, event, ptr);
 	else if (is_vlan_dev(dev))
