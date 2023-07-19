@@ -121,8 +121,10 @@ struct bnxt_re_pacing {
 	u32 dbq_pacing_time; /* ms */
 	u32 dbr_def_do_pacing;
 	bool dbr_pacing;
+	struct mutex dbq_lock; /* synchronize db pacing algo */
 };
 
+#define BNXT_RE_MAX_DBR_DO_PACING 0xFFFF
 #define BNXT_RE_DBR_PACING_TIME 5 /* ms */
 #define BNXT_RE_PACING_ALGO_THRESHOLD 250 /* Entries in DB FIFO */
 #define BNXT_RE_PACING_ALARM_TH_MULTIPLE 2 /* Multiple of pacing algo threshold */
@@ -193,6 +195,8 @@ struct bnxt_re_dev {
 	u32 is_virtfn;
 	u32 num_vfs;
 	struct bnxt_re_pacing pacing;
+	struct work_struct dbq_fifo_check_work;
+	struct delayed_work dbq_pacing_work;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\
@@ -203,6 +207,7 @@ struct bnxt_re_dev {
 #define BNXT_RE_ROCEV2_IPV6_PACKET	3
 
 #define BNXT_RE_CHECK_RC(x) ((x) && ((x) != -ETIMEDOUT))
+void bnxt_re_pacing_alert(struct bnxt_re_dev *rdev);
 
 static inline struct device *rdev_to_dev(struct bnxt_re_dev *rdev)
 {
