@@ -1466,9 +1466,9 @@ static void samsung_mipi_cphy_timing_init(struct samsung_mipi_dcphy *samsung)
 
 	/*
 	 * Divide-by-2 Clock from Serial Clock. Use this when data rate is under
-	 * 1500Mbps, otherwise divide-by-16 Clock from Serial Clock
+	 * 500Msps, otherwise divide-by-16 Clock from Serial Clock
 	 */
-	if (lane_hs_rate < 1500)
+	if (lane_hs_rate < 500)
 		val = HSTX_CLK_SEL;
 
 	val |= T_LPX(timing->lpx);
