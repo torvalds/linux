@@ -17,7 +17,31 @@ MSM_EXTENSIONS = "build/msm_kernel_extensions.bzl"
 ABL_EXTENSIONS = "build/abl_extensions.bzl"
 DEFAULT_MSM_EXTENSIONS_SRC = "../msm-kernel/msm_kernel_extensions.bzl"
 DEFAULT_ABL_EXTENSIONS_SRC = "../bootable/bootloader/edk2/abl_extensions.bzl"
+DEFAULT_OUT_DIR = "{workspace}/out/msm-kernel-{target}-{variant}"
 
+class Target:
+    def __init__(self, workspace, target, variant, bazel_label, out_dir=None):
+        self.workspace = workspace
+        self.target = target
+        self.variant = variant
+        self.bazel_label = bazel_label
+        self.out_dir = out_dir
+
+    def __lt__(self, other):
+        return len(self.bazel_label) < len(other.bazel_label)
+
+    def get_out_dir(self, suffix=None):
+        if self.out_dir:
+            out_dir = self.out_dir
+        else:
+            out_dir = DEFAULT_OUT_DIR.format(
+                workspace = self.workspace, target=self.target, variant=self.variant
+            )
+
+        if suffix:
+            return os.path.join(out_dir, suffix)
+        else:
+            return out_dir
 
 class BazelBuilder:
     """Helper class for building with Bazel"""
@@ -41,10 +65,15 @@ class BazelBuilder:
 
         self.target_list = target_list
         self.skip_list = skip_list
-        self.out_dir = out_dir
         self.dry_run = dry_run
         self.user_opts = user_opts
         self.process_list = []
+        if len(self.target_list) > 1 and out_dir:
+            logging.error("cannot specify multiple targets with one out dir")
+            sys.exit(1)
+        else:
+            self.out_dir = out_dir
+
         self.setup_extensions()
 
     def __del__(self):
@@ -86,6 +115,10 @@ class BazelBuilder:
         host_target_list = []
         for t, v in self.target_list:
             if v == "ALL":
+                if self.out_dir:
+                    logging.error("cannot specify multiple targets (ALL variants) with one out dir")
+                    sys.exit(1)
+
                 skip_list_re = [
                     re.compile(r"//{}:{}_.*_{}_dist".format(self.kernel_dir, t, s))
                     for s in self.skip_list
@@ -125,14 +158,14 @@ class BazelBuilder:
                     cmdline, cwd=self.workspace, stdout=subprocess.PIPE
                 )
                 self.process_list.append(query_cmd)
-                target_list = [l.decode("utf-8") for l in query_cmd.stdout.read().splitlines()]
+                label_list = [l.decode("utf-8") for l in query_cmd.stdout.read().splitlines()]
             except Exception as e:
                 logging.error(e)
                 sys.exit(1)
 
             self.process_list.remove(query_cmd)
 
-            if not target_list:
+            if not label_list:
                 logging.error(
                     "failed to find any Bazel targets for target/variant combo %s_%s",
                     t,
@@ -140,18 +173,30 @@ class BazelBuilder:
                 )
                 sys.exit(1)
 
-            for target in target_list:
-                if any((skip_re.match(target) for skip_re in skip_list_re)):
+            for label in label_list:
+                if any((skip_re.match(label) for skip_re in skip_list_re)):
                     continue
-                if any((host_re.match(target) for host_re in host_target_list_re)):
-                    host_target_list.append(target)
-                else:
-                    cross_target_list.append(target)
 
-        # Sort build targets by string length to guarantee the base target goes
+                if v == "ALL":
+                    real_variant = re.search(
+                        r"//{}:{}_([^_]+)_".format(self.kernel_dir, t), label
+                    ).group(1)
+                else:
+                    real_variant = v
+
+                if any((host_re.match(label) for host_re in host_target_list_re)):
+                    host_target_list.append(
+                        Target(self.workspace, t, real_variant, label, self.out_dir)
+                    )
+                else:
+                    cross_target_list.append(
+                        Target(self.workspace, t, real_variant, label, self.out_dir)
+                    )
+
+        # Sort build targets by label string length to guarantee the base target goes
         # first when copying to output directory
-        cross_target_list.sort(key=len)
-        host_target_list.sort(key=len)
+        cross_target_list.sort()
+        host_target_list.sort()
 
         return (cross_target_list, host_target_list)
 
@@ -180,7 +225,7 @@ class BazelBuilder:
         cmdline = [self.bazel_bin, bazel_subcommand]
         if extra_options:
             cmdline.extend(extra_options)
-        cmdline.extend(targets)
+        cmdline.extend([t.bazel_label for t in targets])
         if bazel_target_opts is not None:
             cmdline.extend(["--"] + bazel_target_opts)
 
@@ -206,11 +251,10 @@ class BazelBuilder:
 
     def run_targets(self, targets, out_subdir="dist", user_opts=None):
         """Run "bazel run" on all targets in serial (since bazel run cannot have multiple targets)"""
-        bto = []
-        if self.out_dir:
-            bto.extend(["--dist_dir", os.path.join(self.out_dir, out_subdir)])
         for target in targets:
-            self.bazel("run", [target], extra_options=user_opts, bazel_target_opts=bto)
+            out_dir = target.get_out_dir(out_subdir)
+            self.bazel("run", [target], extra_options=user_opts, bazel_target_opts=["--dist_dir", out_dir])
+            self.write_opts(out_dir, user_opts)
 
     def run_menuconfig(self):
         """Run menuconfig on all target-variant combos class is initialized with"""
@@ -218,21 +262,28 @@ class BazelBuilder:
             self.bazel("run", ["//{}:{}_{}_config".format(self.kernel_dir, t, v)],
                     bazel_target_opts=["menuconfig"])
 
+    def write_opts(self, out_dir, user_opts=None):
+        with open(os.path.join(out_dir, "build_opts.txt"), "w") as opt_file:
+            if user_opts:
+                opt_file.write("{}".format("\n".join(user_opts)))
+            opt_file.write("\n")
+
     def build(self):
         """Determine which targets to build, then build them"""
         cross_targets_to_build, host_targets_to_build = self.get_build_targets()
 
-        logging.debug(
-            "Building the following device targets:\n%s",
-            "\n".join(cross_targets_to_build),
-        )
-        logging.debug(
-            "Building the following host targets:\n%s", "\n".join(host_targets_to_build)
-        )
-
         if not cross_targets_to_build and not host_targets_to_build:
             logging.error("no targets to build")
             sys.exit(1)
+
+        logging.debug(
+            "Building the following device targets:\n%s",
+            "\n".join([t.bazel_label for t in cross_targets_to_build])
+        )
+        logging.debug(
+            "Building the following host targets:\n%s",
+            "\n".join([t.bazel_label for t in host_targets_to_build])
+        )
 
         self.clean_legacy_generated_files()
 
