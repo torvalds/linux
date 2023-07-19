@@ -2983,6 +2983,52 @@ static void mlxsw_sp_neigh_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
+struct mlxsw_sp_neigh_rif_made_sync {
+	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_rif *rif;
+	int err;
+};
+
+static void mlxsw_sp_neigh_rif_made_sync_each(struct neighbour *n, void *data)
+{
+	struct mlxsw_sp_neigh_rif_made_sync *rms = data;
+	int rc;
+
+	if (rms->err)
+		return;
+	if (n->dev != mlxsw_sp_rif_dev(rms->rif))
+		return;
+	rc = mlxsw_sp_router_schedule_neigh_work(rms->mlxsw_sp->router, n);
+	if (rc != NOTIFY_DONE)
+		rms->err = -ENOMEM;
+}
+
+static int mlxsw_sp_neigh_rif_made_sync(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp_neigh_rif_made_sync rms = {
+		.mlxsw_sp = mlxsw_sp,
+		.rif = rif,
+	};
+
+	neigh_for_each(&arp_tbl, mlxsw_sp_neigh_rif_made_sync_each, &rms);
+	if (rms.err)
+		goto err_arp;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	neigh_for_each(&nd_tbl, mlxsw_sp_neigh_rif_made_sync_each, &rms);
+#endif
+	if (rms.err)
+		goto err_nd;
+
+	return 0;
+
+err_nd:
+err_arp:
+	mlxsw_sp_neigh_rif_gone_sync(mlxsw_sp, rif);
+	return rms.err;
+}
+
 enum mlxsw_sp_nexthop_type {
 	MLXSW_SP_NEXTHOP_TYPE_ETH,
 	MLXSW_SP_NEXTHOP_TYPE_IPIP,
@@ -7937,7 +7983,21 @@ static int mlxsw_sp_router_rif_disable(struct mlxsw_sp *mlxsw_sp, u16 rif)
 static int mlxsw_sp_router_rif_made_sync(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_rif *rif)
 {
-	return mlxsw_sp_nexthop_rif_made_sync(mlxsw_sp, rif);
+	int err;
+
+	err = mlxsw_sp_neigh_rif_made_sync(mlxsw_sp, rif);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_nexthop_rif_made_sync(mlxsw_sp, rif);
+	if (err)
+		goto err_nexthop;
+
+	return 0;
+
+err_nexthop:
+	mlxsw_sp_neigh_rif_gone_sync(mlxsw_sp, rif);
+	return err;
 }
 
 static void mlxsw_sp_router_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
