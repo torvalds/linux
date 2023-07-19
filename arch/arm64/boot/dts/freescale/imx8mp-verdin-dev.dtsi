@@ -4,8 +4,6 @@
  */
 
 / {
-	/* TODO: Audio Codec */
-
 	reg_eth2phy: regulator-eth2phy {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -16,6 +14,41 @@
 		regulator-name = "+V3.3_ETH";
 		startup-delay-us = <200000>;
 		vin-supply = <&reg_3p3v>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,bitclock-master = <&codec_dai>;
+		simple-audio-card,format = "i2s";
+		simple-audio-card,frame-master = <&codec_dai>;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "imx8mp-nau8822";
+		simple-audio-card,routing =
+			"Headphones", "LHP",
+			"Headphones", "RHP",
+			"Speaker", "LSPK",
+			"Speaker", "RSPK",
+			"Line Out", "AUXOUT1",
+			"Line Out", "AUXOUT2",
+			"LAUX", "Line In",
+			"RAUX", "Line In",
+			"LMICP", "Mic In",
+			"RMICP", "Mic In";
+		simple-audio-card,widgets =
+			"Headphones", "Headphones",
+			"Line Out", "Line Out",
+			"Speaker", "Speaker",
+			"Microphone", "Mic In",
+			"Line", "Line In";
+
+		codec_dai: simple-audio-card,codec {
+			clocks = <&audio_blk_ctrl IMX8MP_CLK_AUDIOMIX_SAI1_MCLK1>;
+			sound-dai = <&nau8822_1a>;
+		};
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai1>;
+		};
 	};
 };
 
@@ -88,7 +121,14 @@
 &i2c4 {
 	status = "okay";
 
-	/* TODO: Audio Codec */
+	/* Audio Codec */
+	nau8822_1a: audio-codec@1a {
+		compatible = "nuvoton,nau8822";
+		reg = <0x1a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sai1>;
+		#sound-dai-cells = <0>;
+	};
 };
 
 /* Verdin PCIE_1 */
@@ -119,7 +159,14 @@
 	vin-supply = <&reg_3p3v>;
 };
 
-/* TODO: Verdin I2C_1 with Audio Codec */
+/* Verdin I2S_1 */
+&sai1 {
+	assigned-clocks = <&clk IMX8MP_CLK_SAI1>;
+	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
+	assigned-clock-rates = <24576000>;
+	fsl,sai-mclk-direction-output;
+	status = "okay";
+};
 
 /* Verdin UART_1, connector X50 through RS485 transceiver */
 &uart1 {
