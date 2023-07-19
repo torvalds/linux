@@ -70,10 +70,6 @@ highmem).
 Structures used for memory mapping
 ==================================
 
-Before discussing the mechanism of memory-mapping a device, we will
-present some of the basic structures related to the memory management
-subsystem of the Linux kernel.
-
 Before discussing about the memory mapping mechanism over a device,
 we will present some of the basic structures used by the Linux memory
 management subsystem.
