@@ -290,12 +290,6 @@ inline void bch2_btree_insert_key_leaf(struct btree_trans *trans,
 		bch2_trans_node_reinit_iter(trans, b);
 }
 
-static void btree_insert_key_leaf(struct btree_trans *trans,
-				  struct btree_insert_entry *insert)
-{
-	bch2_btree_insert_key_leaf(trans, insert->path, insert->k, trans->journal_res.seq);
-}
-
 /* Cached btree updates: */
 
 /* Normal update interface: */
@@ -753,7 +747,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 		i->k->k.needs_whiteout = false;
 
 		if (!i->cached)
-			btree_insert_key_leaf(trans, i);
+			bch2_btree_insert_key_leaf(trans, i->path, i->k, trans->journal_res.seq);
 		else if (!i->key_cache_already_flushed)
 			bch2_btree_insert_key_cached(trans, flags, i);
 		else {
