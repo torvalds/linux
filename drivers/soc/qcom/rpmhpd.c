@@ -14,6 +14,7 @@
 #include <soc/qcom/cmd-db.h>
 #include <soc/qcom/rpmh.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
+#include <dt-bindings/power/qcom,rpmhpd.h>
 
 #define domain_to_rpmhpd(domain) container_of(domain, struct rpmhpd, pd)
 
@@ -358,16 +359,16 @@ static const struct rpmhpd_desc sa8155p_desc = {
 
 /* SM8250 RPMH powerdomains */
 static struct rpmhpd *sm8250_rpmhpds[] = {
-	[SM8250_CX] = &cx_w_mx_parent,
-	[SM8250_CX_AO] = &cx_ao_w_mx_parent,
-	[SM8250_EBI] = &ebi,
-	[SM8250_GFX] = &gfx,
-	[SM8250_LCX] = &lcx,
-	[SM8250_LMX] = &lmx,
-	[SM8250_MMCX] = &mmcx,
-	[SM8250_MMCX_AO] = &mmcx_ao,
-	[SM8250_MX] = &mx,
-	[SM8250_MX_AO] = &mx_ao,
+	[RPMHPD_CX] = &cx_w_mx_parent,
+	[RPMHPD_CX_AO] = &cx_ao_w_mx_parent,
+	[RPMHPD_EBI] = &ebi,
+	[RPMHPD_GFX] = &gfx,
+	[RPMHPD_LCX] = &lcx,
+	[RPMHPD_LMX] = &lmx,
+	[RPMHPD_MMCX] = &mmcx,
+	[RPMHPD_MMCX_AO] = &mmcx_ao,
+	[RPMHPD_MX] = &mx,
+	[RPMHPD_MX_AO] = &mx_ao,
 };
 
 static const struct rpmhpd_desc sm8250_desc = {
@@ -377,19 +378,19 @@ static const struct rpmhpd_desc sm8250_desc = {
 
 /* SM8350 Power domains */
 static struct rpmhpd *sm8350_rpmhpds[] = {
-	[SM8350_CX] = &cx_w_mx_parent,
-	[SM8350_CX_AO] = &cx_ao_w_mx_parent,
-	[SM8350_EBI] = &ebi,
-	[SM8350_GFX] = &gfx,
-	[SM8350_LCX] = &lcx,
-	[SM8350_LMX] = &lmx,
-	[SM8350_MMCX] = &mmcx,
-	[SM8350_MMCX_AO] = &mmcx_ao,
-	[SM8350_MSS] = &mss,
-	[SM8350_MX] = &mx,
-	[SM8350_MX_AO] = &mx_ao,
-	[SM8350_MXC] = &mxc,
-	[SM8350_MXC_AO] = &mxc_ao,
+	[RPMHPD_CX] = &cx_w_mx_parent,
+	[RPMHPD_CX_AO] = &cx_ao_w_mx_parent,
+	[RPMHPD_EBI] = &ebi,
+	[RPMHPD_GFX] = &gfx,
+	[RPMHPD_LCX] = &lcx,
+	[RPMHPD_LMX] = &lmx,
+	[RPMHPD_MMCX] = &mmcx,
+	[RPMHPD_MMCX_AO] = &mmcx_ao,
+	[RPMHPD_MSS] = &mss,
+	[RPMHPD_MX] = &mx,
+	[RPMHPD_MX_AO] = &mx_ao,
+	[RPMHPD_MXC] = &mxc,
+	[RPMHPD_MXC_AO] = &mxc_ao,
 };
 
 static const struct rpmhpd_desc sm8350_desc = {
@@ -399,19 +400,19 @@ static const struct rpmhpd_desc sm8350_desc = {
 
 /* SM8450 RPMH powerdomains */
 static struct rpmhpd *sm8450_rpmhpds[] = {
-	[SM8450_CX] = &cx,
-	[SM8450_CX_AO] = &cx_ao,
-	[SM8450_EBI] = &ebi,
-	[SM8450_GFX] = &gfx,
-	[SM8450_LCX] = &lcx,
-	[SM8450_LMX] = &lmx,
-	[SM8450_MMCX] = &mmcx_w_cx_parent,
-	[SM8450_MMCX_AO] = &mmcx_ao_w_cx_parent,
-	[SM8450_MSS] = &mss,
-	[SM8450_MX] = &mx,
-	[SM8450_MX_AO] = &mx_ao,
-	[SM8450_MXC] = &mxc,
-	[SM8450_MXC_AO] = &mxc_ao,
+	[RPMHPD_CX] = &cx,
+	[RPMHPD_CX_AO] = &cx_ao,
+	[RPMHPD_EBI] = &ebi,
+	[RPMHPD_GFX] = &gfx,
+	[RPMHPD_LCX] = &lcx,
+	[RPMHPD_LMX] = &lmx,
+	[RPMHPD_MMCX] = &mmcx_w_cx_parent,
+	[RPMHPD_MMCX_AO] = &mmcx_ao_w_cx_parent,
+	[RPMHPD_MSS] = &mss,
+	[RPMHPD_MX] = &mx,
+	[RPMHPD_MX_AO] = &mx_ao,
+	[RPMHPD_MXC] = &mxc,
+	[RPMHPD_MXC_AO] = &mxc_ao,
 };
 
 static const struct rpmhpd_desc sm8450_desc = {
@@ -421,20 +422,20 @@ static const struct rpmhpd_desc sm8450_desc = {
 
 /* SM8550 RPMH powerdomains */
 static struct rpmhpd *sm8550_rpmhpds[] = {
-	[SM8550_CX] = &cx,
-	[SM8550_CX_AO] = &cx_ao,
-	[SM8550_EBI] = &ebi,
-	[SM8550_GFX] = &gfx,
-	[SM8550_LCX] = &lcx,
-	[SM8550_LMX] = &lmx,
-	[SM8550_MMCX] = &mmcx_w_cx_parent,
-	[SM8550_MMCX_AO] = &mmcx_ao_w_cx_parent,
-	[SM8550_MSS] = &mss,
-	[SM8550_MX] = &mx,
-	[SM8550_MX_AO] = &mx_ao,
-	[SM8550_MXC] = &mxc,
-	[SM8550_MXC_AO] = &mxc_ao,
-	[SM8550_NSP] = &nsp,
+	[RPMHPD_CX] = &cx,
+	[RPMHPD_CX_AO] = &cx_ao,
+	[RPMHPD_EBI] = &ebi,
+	[RPMHPD_GFX] = &gfx,
+	[RPMHPD_LCX] = &lcx,
+	[RPMHPD_LMX] = &lmx,
+	[RPMHPD_MMCX] = &mmcx_w_cx_parent,
+	[RPMHPD_MMCX_AO] = &mmcx_ao_w_cx_parent,
+	[RPMHPD_MSS] = &mss,
+	[RPMHPD_MX] = &mx,
+	[RPMHPD_MX_AO] = &mx_ao,
+	[RPMHPD_MXC] = &mxc,
+	[RPMHPD_MXC_AO] = &mxc_ao,
+	[RPMHPD_NSP] = &nsp,
 };
 
 static const struct rpmhpd_desc sm8550_desc = {
