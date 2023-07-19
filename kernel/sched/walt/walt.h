@@ -73,6 +73,12 @@ enum migrate_types {
 	RQ_TO_GROUP,
 };
 
+enum pipeline_types {
+	NO_PIPELINE = 0,
+	MANUAL_PIPELINE = 1,
+	AUTO_PIPELINE = 2,
+};
+
 #define WALT_LOW_LATENCY_PROCFS		BIT(0)
 #define WALT_LOW_LATENCY_BINDER		BIT(1)
 #define WALT_LOW_LATENCY_PIPELINE	BIT(2)
@@ -355,6 +361,7 @@ extern cpumask_t cpus_for_pipeline;
 #define WALT_CPUFREQ_EARLY_DET		0x10
 #define WALT_CPUFREQ_BOOST_UPDATE	0x20
 #define WALT_CPUFREQ_ASYM_FIXUP		0x40
+#define WALT_CPUFREQ_SHARED_RAIL	0x80
 
 #define CPUFREQ_REASON_LOAD		0
 #define CPUFREQ_REASON_BTR		0x1
