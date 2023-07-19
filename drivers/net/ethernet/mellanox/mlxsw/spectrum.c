@@ -1132,8 +1132,8 @@ static int mlxsw_sp_port_add_vid(struct net_device *dev,
 	return PTR_ERR_OR_ZERO(mlxsw_sp_port_vlan_create(mlxsw_sp_port, vid));
 }
 
-static int mlxsw_sp_port_kill_vid(struct net_device *dev,
-				  __be16 __always_unused proto, u16 vid)
+int mlxsw_sp_port_kill_vid(struct net_device *dev,
+			   __be16 __always_unused proto, u16 vid)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
