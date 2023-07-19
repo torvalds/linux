@@ -58,16 +58,19 @@ check()
 	local out=`$cmd 2>$err`
 	local cmd_ret=$?
 
-	printf "%-50s %s" "$msg"
+	printf "%-50s" "$msg"
 	if [ $cmd_ret -ne 0 ]; then
 		echo "[FAIL] command execution '$cmd' stderr "
 		cat $err
+		mptcp_lib_result_fail "${msg} # error ${cmd_ret}"
 		ret=1
 	elif [ "$out" = "$expected" ]; then
 		echo "[ OK ]"
+		mptcp_lib_result_pass "${msg}"
 	else
 		echo -n "[FAIL] "
 		echo "expected '$expected' got '$out'"
+		mptcp_lib_result_fail "${msg} # different output"
 		ret=1
 	fi
 }
@@ -193,4 +196,5 @@ subflow 10.0.1.1" "          (nofullmesh)"
 subflow,backup,fullmesh 10.0.1.1" "          (backup,fullmesh)"
 fi
 
+mptcp_lib_result_print_all_tap
 exit $ret
