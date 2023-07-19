@@ -4404,6 +4404,19 @@ err_neigh_init:
 	return err;
 }
 
+static int mlxsw_sp_nexthop_type_rif_made(struct mlxsw_sp *mlxsw_sp,
+					  struct mlxsw_sp_nexthop *nh)
+{
+	switch (nh->type) {
+	case MLXSW_SP_NEXTHOP_TYPE_ETH:
+		return mlxsw_sp_nexthop_neigh_init(mlxsw_sp, nh);
+	case MLXSW_SP_NEXTHOP_TYPE_IPIP:
+		break;
+	}
+
+	return 0;
+}
+
 static void mlxsw_sp_nexthop_type_rif_gone(struct mlxsw_sp *mlxsw_sp,
 					   struct mlxsw_sp_nexthop *nh)
 {
@@ -4530,6 +4543,35 @@ static void mlxsw_sp_nexthop_rif_update(struct mlxsw_sp *mlxsw_sp,
 		__mlxsw_sp_nexthop_neigh_update(nh, removing);
 		mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh->nhgi->nh_grp);
 	}
+}
+
+static int mlxsw_sp_nexthop_rif_made_sync(struct mlxsw_sp *mlxsw_sp,
+					  struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp_nexthop *nh, *tmp;
+	unsigned int n = 0;
+	int err;
+
+	list_for_each_entry_safe(nh, tmp, &rif->crif->nexthop_list,
+				 crif_list_node) {
+		err = mlxsw_sp_nexthop_type_rif_made(mlxsw_sp, nh);
+		if (err)
+			goto err_nexthop_type_rif;
+		mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh->nhgi->nh_grp);
+		n++;
+	}
+
+	return 0;
+
+err_nexthop_type_rif:
+	list_for_each_entry_safe(nh, tmp, &rif->crif->nexthop_list,
+				 crif_list_node) {
+		if (!n--)
+			break;
+		mlxsw_sp_nexthop_type_rif_gone(mlxsw_sp, nh);
+		mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh->nhgi->nh_grp);
+	}
+	return err;
 }
 
 static void mlxsw_sp_nexthop_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
@@ -7892,6 +7934,12 @@ static int mlxsw_sp_router_rif_disable(struct mlxsw_sp *mlxsw_sp, u16 rif)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
 }
 
+static int mlxsw_sp_router_rif_made_sync(struct mlxsw_sp *mlxsw_sp,
+					 struct mlxsw_sp_rif *rif)
+{
+	return mlxsw_sp_nexthop_rif_made_sync(mlxsw_sp, rif);
+}
+
 static void mlxsw_sp_router_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
 					  struct mlxsw_sp_rif *rif)
 {
@@ -8329,6 +8377,10 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 			goto err_mr_rif_add;
 	}
 
+	err = mlxsw_sp_router_rif_made_sync(mlxsw_sp, rif);
+	if (err)
+		goto err_rif_made_sync;
+
 	if (netdev_offload_xstats_enabled(params->dev,
 					  NETDEV_OFFLOAD_XSTATS_TYPE_L3)) {
 		err = mlxsw_sp_router_port_l3_stats_enable(rif);
@@ -8343,6 +8395,8 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	return rif;
 
 err_stats_enable:
+	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, rif);
+err_rif_made_sync:
 err_mr_rif_add:
 	for (i--; i >= 0; i--)
 		mlxsw_sp_mr_rif_del(vr->mr_table[i], rif);
