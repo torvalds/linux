@@ -387,6 +387,7 @@ struct net_bridge_port {
 	struct net_bridge_vlan_group	__rcu *vlgrp;
 #endif
 	struct net_bridge_port		__rcu *backup_port;
+	u32				backup_nhid;
 
 	/* STP */
 	u8				priority;
@@ -605,6 +606,8 @@ struct br_input_skb_cb {
 	 */
 	unsigned long fwd_hwdoms;
 #endif
+
+	u32 backup_nhid;
 };
 
 #define BR_INPUT_SKB_CB(__skb)	((struct br_input_skb_cb *)(__skb)->cb)

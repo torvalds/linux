@@ -2672,6 +2672,45 @@ drop:
 	dev_kfree_skb(skb);
 }
 
+static netdev_tx_t vxlan_xmit_nhid(struct sk_buff *skb, struct net_device *dev,
+				   u32 nhid, __be32 vni)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_rdst nh_rdst;
+	struct nexthop *nh;
+	bool do_xmit;
+	u32 hash;
+
+	memset(&nh_rdst, 0, sizeof(struct vxlan_rdst));
+	hash = skb_get_hash(skb);
+
+	rcu_read_lock();
+	nh = nexthop_find_by_id(dev_net(dev), nhid);
+	if (unlikely(!nh || !nexthop_is_fdb(nh) || !nexthop_is_multipath(nh))) {
+		rcu_read_unlock();
+		goto drop;
+	}
+	do_xmit = vxlan_fdb_nh_path_select(nh, hash, &nh_rdst);
+	rcu_read_unlock();
+
+	if (vxlan->cfg.saddr.sa.sa_family != nh_rdst.remote_ip.sa.sa_family)
+		goto drop;
+
+	if (likely(do_xmit))
+		vxlan_xmit_one(skb, dev, vni, &nh_rdst, false);
+	else
+		goto drop;
+
+	return NETDEV_TX_OK;
+
+drop:
+	dev->stats.tx_dropped++;
+	vxlan_vnifilter_count(netdev_priv(dev), vni, NULL,
+			      VXLAN_VNI_STATS_TX_DROPS, 0);
+	dev_kfree_skb(skb);
+	return NETDEV_TX_OK;
+}
+
 /* Transmit local packets over Vxlan
  *
  * Outer IP header inherits ECN and DF from inner header.
@@ -2687,6 +2726,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct vxlan_fdb *f;
 	struct ethhdr *eth;
 	__be32 vni = 0;
+	u32 nhid = 0;
 
 	info = skb_tunnel_info(skb);
 
@@ -2696,6 +2736,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (info && info->mode & IP_TUNNEL_INFO_BRIDGE &&
 		    info->mode & IP_TUNNEL_INFO_TX) {
 			vni = tunnel_id_to_key32(info->key.tun_id);
+			nhid = info->key.nhid;
 		} else {
 			if (info && info->mode & IP_TUNNEL_INFO_TX)
 				vxlan_xmit_one(skb, dev, vni, NULL, false);
@@ -2722,6 +2763,9 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 #endif
 	}
+
+	if (nhid)
+		return vxlan_xmit_nhid(skb, dev, nhid, vni);
 
 	if (vxlan->cfg.flags & VXLAN_F_MDB) {
 		struct vxlan_mdb_entry *mdb_entry;
