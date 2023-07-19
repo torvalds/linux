@@ -97,7 +97,26 @@
 
 &i2c3 {
 	status = "okay";
-	//todo, add gyro IAM20680
+
+	iam20680_acc: acc@69 {
+		compatible = "iam20680_acc";
+		reg = <0x69>;
+		irq-gpio = <&gpio1 RK_PC2 IRQ_TYPE_LEVEL_LOW>;
+		irq_enable = <1>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_ACCEL>;
+		layout = <1>;
+	};
+
+	iam20680_gyro: gyro@69 {
+		compatible = "iam20680_gyro";
+		reg = <0x69>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_GYROSCOPE>;
+		layout = <1>;
+	};
+
 	//todo, add mfi
 };
 
