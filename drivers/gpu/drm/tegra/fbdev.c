@@ -225,10 +225,6 @@ void tegra_fbdev_setup(struct drm_device *dev)
 	if (ret)
 		goto err_drm_client_init;
 
-	ret = tegra_fbdev_client_hotplug(&helper->client);
-	if (ret)
-		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
-
 	drm_client_register(&helper->client);
 
 	return;

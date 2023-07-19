@@ -117,10 +117,10 @@ static unsigned char irl2irq[R2D_NR_IRL];
 
 int rts7751r2d_irq_demux(int irq)
 {
-	if (irq >= R2D_NR_IRL || irq < 0 || !irl2irq[irq])
+	if (irq >= R2D_NR_IRL + 16 || irq < 16 || !irl2irq[irq - 16])
 		return irq;
 
-	return irl2irq[irq];
+	return irl2irq[irq - 16];
 }
 
 /*
