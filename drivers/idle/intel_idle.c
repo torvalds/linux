@@ -199,43 +199,6 @@ static __cpuidle int intel_idle_xstate(struct cpuidle_device *dev,
 	return __intel_idle(dev, drv, index);
 }
 
-static __always_inline int __intel_idle_hlt(struct cpuidle_device *dev,
-					struct cpuidle_driver *drv, int index)
-{
-	raw_safe_halt();
-	raw_local_irq_disable();
-	return index;
-}
-
-/**
- * intel_idle_hlt - Ask the processor to enter the given idle state using hlt.
- * @dev: cpuidle device of the target CPU.
- * @drv: cpuidle driver (assumed to point to intel_idle_driver).
- * @index: Target idle state index.
- *
- * Use the HLT instruction to notify the processor that the CPU represented by
- * @dev is idle and it can try to enter the idle state corresponding to @index.
- *
- * Must be called under local_irq_disable().
- */
-static __cpuidle int intel_idle_hlt(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv, int index)
-{
-	return __intel_idle_hlt(dev, drv, index);
-}
-
-static __cpuidle int intel_idle_hlt_irq_on(struct cpuidle_device *dev,
-                                   struct cpuidle_driver *drv, int index)
-{
-       int ret;
-
-       raw_local_irq_enable();
-       ret = __intel_idle_hlt(dev, drv, index);
-       raw_local_irq_disable();
-
-       return ret;
-}
-
 /**
  * intel_idle_s2idle - Ask the processor to enter the given idle state.
  * @dev: cpuidle device of the target CPU.
@@ -1279,18 +1242,6 @@ static struct cpuidle_state snr_cstates[] __initdata = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state vmguest_cstates[] __initdata = {
-	{
-		.name = "C1",
-		.desc = "HLT",
-		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_IRQ_ENABLE,
-		.exit_latency = 5,
-		.target_residency = 10,
-		.enter = &intel_idle_hlt, },
-	{
-		.enter = NULL }
-};
-
 static const struct idle_cpu idle_cpu_nehalem __initconst = {
 	.state_table = nehalem_cstates,
 	.auto_demotion_disable_flags = NHM_C1_AUTO_DEMOTE | NHM_C3_AUTO_DEMOTE,
@@ -1890,16 +1841,6 @@ static bool __init intel_idle_verify_cstate(unsigned int mwait_hint)
 
 static void state_update_enter_method(struct cpuidle_state *state, int cstate)
 {
-	if (state->enter == intel_idle_hlt) {
-		if (force_irq_on) {
-			pr_info("forced intel_idle_irq for state %d\n", cstate);
-			state->enter = intel_idle_hlt_irq_on;
-		}
-		return;
-	}
-	if (state->enter == intel_idle_hlt_irq_on)
-		return; /* no update scenarios */
-
 	if (state->flags & CPUIDLE_FLAG_INIT_XSTATE) {
 		/*
 		 * Combining with XSTATE with IBRS or IRQ_ENABLE flags
@@ -1931,21 +1872,6 @@ static void state_update_enter_method(struct cpuidle_state *state, int cstate)
 		pr_info("forced intel_idle_irq for state %d\n", cstate);
 		state->enter = intel_idle_irq;
 	}
-}
-
-/*
- * For mwait based states, we want to verify the cpuid data to see if the state
- * is actually supported by this specific CPU.
- * For non-mwait based states, this check should be skipped.
- */
-static bool should_verify_mwait(struct cpuidle_state *state)
-{
-	if (state->enter == intel_idle_hlt)
-		return false;
-	if (state->enter == intel_idle_hlt_irq_on)
-		return false;
-
-	return true;
 }
 
 static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
@@ -1996,7 +1922,7 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 		}
 
 		mwait_hint = flg2MWAIT(cpuidle_state_table[cstate].flags);
-		if (should_verify_mwait(&cpuidle_state_table[cstate]) && !intel_idle_verify_cstate(mwait_hint))
+		if (!intel_idle_verify_cstate(mwait_hint))
 			continue;
 
 		/* Structure copy. */
@@ -2130,45 +2056,6 @@ static void __init intel_idle_cpuidle_devices_uninit(void)
 		cpuidle_unregister_device(per_cpu_ptr(intel_idle_cpuidle_devices, i));
 }
 
-static int __init intel_idle_vminit(const struct x86_cpu_id *id)
-{
-	int retval;
-
-	cpuidle_state_table = vmguest_cstates;
-
-	icpu = (const struct idle_cpu *)id->driver_data;
-
-	pr_debug("v" INTEL_IDLE_VERSION " model 0x%X\n",
-		 boot_cpu_data.x86_model);
-
-	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
-	if (!intel_idle_cpuidle_devices)
-		return -ENOMEM;
-
-	intel_idle_cpuidle_driver_init(&intel_idle_driver);
-
-	retval = cpuidle_register_driver(&intel_idle_driver);
-	if (retval) {
-		struct cpuidle_driver *drv = cpuidle_get_driver();
-		printk(KERN_DEBUG pr_fmt("intel_idle yielding to %s\n"),
-		       drv ? drv->name : "none");
-		goto init_driver_fail;
-	}
-
-	retval = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "idle/intel:online",
-				   intel_idle_cpu_online, NULL);
-	if (retval < 0)
-		goto hp_setup_fail;
-
-	return 0;
-hp_setup_fail:
-	intel_idle_cpuidle_devices_uninit();
-	cpuidle_unregister_driver(&intel_idle_driver);
-init_driver_fail:
-	free_percpu(intel_idle_cpuidle_devices);
-	return retval;
-}
-
 static int __init intel_idle_init(void)
 {
 	const struct x86_cpu_id *id;
@@ -2187,8 +2074,6 @@ static int __init intel_idle_init(void)
 	id = x86_match_cpu(intel_idle_ids);
 	if (id) {
 		if (!boot_cpu_has(X86_FEATURE_MWAIT)) {
-			if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
-				return intel_idle_vminit(id);
 			pr_debug("Please enable MWAIT in BIOS SETUP\n");
 			return -ENODEV;
 		}
