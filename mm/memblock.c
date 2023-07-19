@@ -374,6 +374,10 @@ void __init memblock_discard(void)
 			kfree(memblock.reserved.regions);
 		else
 			memblock_free_late(addr, size);
+		/* Reset to prevent UAF from stray frees. */
+		memblock.reserved.regions = memblock_reserved_init_regions;
+		memblock.reserved.cnt = 1;
+		memblock_remove_region(&memblock.reserved, 0);
 	}
 
 	if (memblock.memory.regions != memblock_memory_init_regions) {
