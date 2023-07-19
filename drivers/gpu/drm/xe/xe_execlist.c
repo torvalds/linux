@@ -318,9 +318,12 @@ static int execlist_engine_init(struct xe_engine *e)
 {
 	struct drm_gpu_scheduler *sched;
 	struct xe_execlist_engine *exl;
+	struct xe_device *xe = gt_to_xe(e->gt);
 	int err;
 
-	XE_BUG_ON(xe_device_guc_submission_enabled(gt_to_xe(e->gt)));
+	XE_BUG_ON(xe_device_guc_submission_enabled(xe));
+
+	drm_info(&xe->drm, "Enabling execlist submission (GuC submission disabled)\n");
 
 	exl = kzalloc(sizeof(*exl), GFP_KERNEL);
 	if (!exl)
