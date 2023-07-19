@@ -3904,7 +3904,7 @@ static inline void swap_pipeline_with_prime_locked(struct walt_task_struct *prim
 						   struct walt_task_struct *other_wts)
 {
 	if (prime_wts && other_wts) {
-		if (prime_wts->demand < other_wts->demand) {
+		if (prime_wts->coloc_demand < other_wts->coloc_demand) {
 			int cpu;
 
 			cpu = other_wts->pipeline_cpu;
@@ -3922,7 +3922,7 @@ void rearrange_heavy(u64 window_start)
 {
 	struct walt_related_thread_group *grp;
 	struct walt_task_struct *wts;
-	int max_demand = 0;
+	u32 max_demand = 0;
 	struct walt_task_struct *prime_wts = NULL;
 	struct walt_task_struct *other_wts = NULL;
 	unsigned long flags;
@@ -3963,8 +3963,8 @@ void rearrange_heavy(u64 window_start)
 			/* assumes just one prime */
 			prime_wts = wts;
 		} else {
-			if (wts->demand_scaled > max_demand) {
-				max_demand = wts->demand_scaled;
+			if (wts->coloc_demand > max_demand) {
+				max_demand = wts->coloc_demand;
 				other_wts = wts;
 			}
 		}
@@ -3982,7 +3982,7 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 	unsigned long flags;
 	struct walt_task_struct *wts;
 	bool found_pipeline = false;
-	int max_demand = 0;
+	u32 max_demand = 0;
 	struct walt_task_struct *prime_wts = NULL;
 	struct walt_task_struct *other_wts = NULL;
 	static int assign_cpu;
@@ -4042,8 +4042,8 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 				/* assumes just one prime */
 				prime_wts = wts;
 			} else {
-				if (wts->demand_scaled > max_demand) {
-					max_demand = wts->demand_scaled;
+				if (wts->coloc_demand > max_demand) {
+					max_demand = wts->coloc_demand;
 					other_wts = wts;
 				}
 			}
