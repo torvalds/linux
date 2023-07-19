@@ -158,4 +158,11 @@ config ICM2060X_ACC
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
+config IAM20680_ACC
+	tristate "gsensor iam20680"
+	default n
+	help
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
+
 endif

@@ -9,3 +9,4 @@ obj-$(CONFIG_GYRO_MPU6500)    += mpu6500_gyro.o
 obj-$(CONFIG_GYRO_MPU6880)    += mpu6880_gyro.o
 obj-$(CONFIG_GYRO_LSM330)   += lsm330_gyro.o
 obj-$(CONFIG_GYRO_ICM2060X) += icm2060x_gyro.o
+obj-$(CONFIG_GYRO_IAM20680) += iam20680_gyro.o

@@ -39,4 +39,11 @@ config GYRO_LSM330
 
 config GYRO_ICM2060X
 	tristate "gyroscope icm2060x_gyro"
+
+config GYRO_IAM20680
+	tristate "gyroscope iam20680_gyro"
+	default n
+	help
+	  To have support for your specific gyroscope you will have to
+	  select the proper drivers which depend on this option.
 endif
