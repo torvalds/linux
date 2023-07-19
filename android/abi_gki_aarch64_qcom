@@ -340,6 +340,7 @@
   contig_page_data
   _copy_from_iter
   copy_from_kernel_nofault
+  copy_page
   __copy_overflow
   _copy_to_iter
   __cpu_active_mask
@@ -429,6 +430,7 @@
   crypto_get_default_rng
   crypto_has_ahash
   crypto_has_alg
+  crypto_inc
   crypto_init_queue
   __crypto_memneq
   crypto_put_default_rng
@@ -1232,6 +1234,7 @@
   get_user_ifreq
   get_user_pages
   get_zeroed_page
+  gf128mul_lle
   gh_rm_call
   gh_rm_notifier_register
   gh_rm_notifier_unregister
