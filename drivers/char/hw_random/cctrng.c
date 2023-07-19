@@ -460,29 +460,15 @@ static int cc_trng_clk_init(struct cctrng_drvdata *drvdata)
 {
 	struct clk *clk;
 	struct device *dev = &(drvdata->pdev->dev);
-	int rc = 0;
 
-	clk = devm_clk_get_optional(dev, NULL);
+	clk = devm_clk_get_optional_enabled(dev, NULL);
 	if (IS_ERR(clk))
 		return dev_err_probe(dev, PTR_ERR(clk),
-				     "Error getting clock\n");
+				     "Failed to get or enable the clock\n");
 
 	drvdata->clk = clk;
-
-	rc = clk_prepare_enable(drvdata->clk);
-	if (rc) {
-		dev_err(dev, "Failed to enable clock\n");
-		return rc;
-	}
-
 	return 0;
 }
-
-static void cc_trng_clk_fini(struct cctrng_drvdata *drvdata)
-{
-	clk_disable_unprepare(drvdata->clk);
-}
-
 
 static int cctrng_probe(struct platform_device *pdev)
 {
@@ -545,7 +531,7 @@ static int cctrng_probe(struct platform_device *pdev)
 	rc = devm_request_irq(dev, irq, cc_isr, IRQF_SHARED, "cctrng", drvdata);
 	if (rc) {
 		dev_err(dev, "Could not register to interrupt %d\n", irq);
-		goto post_clk_err;
+		return rc;
 	}
 	dev_dbg(dev, "Registered to IRQ: %d\n", irq);
 
@@ -563,14 +549,14 @@ static int cctrng_probe(struct platform_device *pdev)
 	rc = cc_trng_pm_init(drvdata);
 	if (rc) {
 		dev_err(dev, "cc_trng_pm_init failed\n");
-		goto post_clk_err;
+		return rc;
 	}
 
 	/* increment device's usage counter */
 	rc = cc_trng_pm_get(dev);
 	if (rc) {
 		dev_err(dev, "cc_trng_pm_get returned %x\n", rc);
-		goto post_pm_err;
+		return rc;
 	}
 
 	/* set pending_hw to verify that HW won't be triggered from read */
@@ -597,9 +583,6 @@ static int cctrng_probe(struct platform_device *pdev)
 post_pm_err:
 	cc_trng_pm_fini(drvdata);
 
-post_clk_err:
-	cc_trng_clk_fini(drvdata);
-
 	return rc;
 }
 
@@ -611,8 +594,6 @@ static int cctrng_remove(struct platform_device *pdev)
 	dev_dbg(dev, "Releasing cctrng resources...\n");
 
 	cc_trng_pm_fini(drvdata);
-
-	cc_trng_clk_fini(drvdata);
 
 	dev_info(dev, "ARM cctrng device terminated\n");
 
