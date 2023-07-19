@@ -146,6 +146,8 @@ enum bnxt_re_mmap_flag {
 	BNXT_RE_MMAP_SH_PAGE,
 	BNXT_RE_MMAP_UC_DB,
 	BNXT_RE_MMAP_WC_DB,
+	BNXT_RE_MMAP_DBR_PAGE,
+	BNXT_RE_MMAP_DBR_BAR,
 };
 
 struct bnxt_re_user_mmap_entry {

@@ -136,6 +136,8 @@ enum bnxt_re_objects {
 
 enum bnxt_re_alloc_page_type {
 	BNXT_RE_ALLOC_WC_PAGE = 0,
+	BNXT_RE_ALLOC_DBR_BAR_PAGE,
+	BNXT_RE_ALLOC_DBR_PAGE,
 };
 
 enum bnxt_re_var_alloc_page_attrs {

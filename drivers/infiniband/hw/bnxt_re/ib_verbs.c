@@ -565,6 +565,8 @@ bnxt_re_mmap_entry_insert(struct bnxt_re_ucontext *uctx, u64 mem_offset,
 		break;
 	case BNXT_RE_MMAP_UC_DB:
 	case BNXT_RE_MMAP_WC_DB:
+	case BNXT_RE_MMAP_DBR_BAR:
+	case BNXT_RE_MMAP_DBR_PAGE:
 		ret = rdma_user_mmap_entry_insert(&uctx->ib_uctx,
 						  &entry->rdma_entry, PAGE_SIZE);
 		break;
@@ -4149,6 +4151,19 @@ int bnxt_re_mmap(struct ib_ucontext *ib_uctx, struct vm_area_struct *vma)
 	case BNXT_RE_MMAP_SH_PAGE:
 		ret = vm_insert_page(vma, vma->vm_start, virt_to_page(uctx->shpg));
 		break;
+	case BNXT_RE_MMAP_DBR_BAR:
+		pfn = bnxt_entry->mem_offset >> PAGE_SHIFT;
+		ret = rdma_user_mmap_io(ib_uctx, vma, pfn, PAGE_SIZE,
+					pgprot_noncached(vma->vm_page_prot),
+					rdma_entry);
+		break;
+	case BNXT_RE_MMAP_DBR_PAGE:
+		/* Driver doesn't expect write access for user space */
+		if (vma->vm_flags & VM_WRITE)
+			return -EFAULT;
+		ret = vm_insert_page(vma, vma->vm_start,
+				     virt_to_page((void *)bnxt_entry->mem_offset));
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -4180,7 +4195,7 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_ALLOC_PAGE)(struct uverbs_attr_bundle *
 	u64 mmap_offset;
 	u32 length;
 	u32 dpi;
-	u64 dbr;
+	u64 addr;
 	int err;
 
 	uctx = container_of(ib_uverbs_get_ucontext(attrs), struct bnxt_re_ucontext, ib_uctx);
@@ -4202,19 +4217,30 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_ALLOC_PAGE)(struct uverbs_attr_bundle *
 				return -ENOMEM;
 			length = PAGE_SIZE;
 			dpi = uctx->wcdpi.dpi;
-			dbr = (u64)uctx->wcdpi.umdbr;
+			addr = (u64)uctx->wcdpi.umdbr;
 			mmap_flag = BNXT_RE_MMAP_WC_DB;
 		} else {
 			return -EINVAL;
 		}
 
 		break;
+	case BNXT_RE_ALLOC_DBR_BAR_PAGE:
+		length = PAGE_SIZE;
+		addr = (u64)rdev->pacing.dbr_bar_addr;
+		mmap_flag = BNXT_RE_MMAP_DBR_BAR;
+		break;
+
+	case BNXT_RE_ALLOC_DBR_PAGE:
+		length = PAGE_SIZE;
+		addr = (u64)rdev->pacing.dbr_page;
+		mmap_flag = BNXT_RE_MMAP_DBR_PAGE;
+		break;
 
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	entry = bnxt_re_mmap_entry_insert(uctx, dbr, mmap_flag, &mmap_offset);
+	entry = bnxt_re_mmap_entry_insert(uctx, addr, mmap_flag, &mmap_offset);
 	if (!entry)
 		return -ENOMEM;
 
@@ -4253,6 +4279,9 @@ static int alloc_page_obj_cleanup(struct ib_uobject *uobject,
 			bnxt_qplib_dealloc_dpi(&rdev->qplib_res, &uctx->wcdpi);
 			uctx->wcdpi.dbr = NULL;
 		}
+		break;
+	case BNXT_RE_MMAP_DBR_BAR:
+	case BNXT_RE_MMAP_DBR_PAGE:
 		break;
 	default:
 		goto exit;
