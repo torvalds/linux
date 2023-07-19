@@ -1489,10 +1489,11 @@ static int ufs_qcom_mod_min_cpufreq(unsigned int cpu, s32 new_val)
 
 static int ufs_qcom_init_cpu_minfreq_req(struct ufs_qcom_host *host)
 {
-	int ret, i;
-	unsigned int cpu;
 	struct cpufreq_policy *policy;
 	struct freq_qos_request *req;
+	unsigned int cpu;
+	int ret = -EINVAL;
+	int i;
 
 	for (i = 0; i < host->num_cpus; i++) {
 		cpu = (unsigned int)host->cpu_info[i].cpu;
