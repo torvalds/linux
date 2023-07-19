@@ -1288,13 +1288,6 @@ static struct cpuidle_state vmguest_cstates[] __initdata = {
 		.target_residency = 10,
 		.enter = &intel_idle_hlt, },
 	{
-		.name = "C1L",
-		.desc = "Long HLT",
-		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TLB_FLUSHED,
-		.exit_latency = 5,
-		.target_residency = 200,
-		.enter = &intel_idle_hlt, },
-	{
 		.enter = NULL }
 };
 
@@ -2137,45 +2130,6 @@ static void __init intel_idle_cpuidle_devices_uninit(void)
 		cpuidle_unregister_device(per_cpu_ptr(intel_idle_cpuidle_devices, i));
 }
 
-/*
- * Match up the latency and break even point of the bare metal (cpu based)
- * states with the deepest VM available state.
- *
- * We only want to do this for the deepest state, the ones that has
- * the TLB_FLUSHED flag set on the .
- *
- * All our short idle states are dominated by vmexit/vmenter latencies,
- * not the underlying hardware latencies so we keep our values for these.
- */
-static void matchup_vm_state_with_baremetal(void)
-{
-	int cstate;
-
-	for (cstate = 0; cstate < CPUIDLE_STATE_MAX; ++cstate) {
-		int matching_cstate;
-
-		if (intel_idle_max_cstate_reached(cstate))
-			break;
-
-		if (!cpuidle_state_table[cstate].enter)
-			break;
-
-		if (!(cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_TLB_FLUSHED))
-			continue;
-
-		for (matching_cstate = 0; matching_cstate < CPUIDLE_STATE_MAX; ++matching_cstate) {
-			if (!icpu->state_table[matching_cstate].enter)
-				break;
-			if (icpu->state_table[matching_cstate].exit_latency > cpuidle_state_table[cstate].exit_latency) {
-				cpuidle_state_table[cstate].exit_latency = icpu->state_table[matching_cstate].exit_latency;
-				cpuidle_state_table[cstate].target_residency = icpu->state_table[matching_cstate].target_residency;
-			}
-		}
-
-	}
-}
-
-
 static int __init intel_idle_vminit(const struct x86_cpu_id *id)
 {
 	int retval;
@@ -2190,15 +2144,6 @@ static int __init intel_idle_vminit(const struct x86_cpu_id *id)
 	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
 	if (!intel_idle_cpuidle_devices)
 		return -ENOMEM;
-
-	/*
-	 * We don't know exactly what the host will do when we go idle, but as a worst estimate
-	 * we can assume that the exit latency of the deepest host state will be hit for our
-	 * deep (long duration) guest idle state.
-	 * The same logic applies to the break even point for the long duration guest idle state.
-	 * So lets copy these two properties from the table we found for the host CPU type.
-	 */
-	matchup_vm_state_with_baremetal();
 
 	intel_idle_cpuidle_driver_init(&intel_idle_driver);
 
