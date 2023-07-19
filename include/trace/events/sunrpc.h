@@ -2014,25 +2014,25 @@ TRACE_EVENT(svc_xprt_create_err,
 TRACE_EVENT(svc_xprt_enqueue,
 	TP_PROTO(
 		const struct svc_xprt *xprt,
-		const struct svc_rqst *rqst
+		unsigned long flags
 	),
 
-	TP_ARGS(xprt, rqst),
+	TP_ARGS(xprt, flags),
 
 	TP_STRUCT__entry(
 		SVC_XPRT_ENDPOINT_FIELDS(xprt)
-
-		__field(int, pid)
 	),
 
 	TP_fast_assign(
-		SVC_XPRT_ENDPOINT_ASSIGNMENTS(xprt);
-
-		__entry->pid = rqst? rqst->rq_task->pid : 0;
+		__assign_sockaddr(server, &xprt->xpt_local,
+				  xprt->xpt_locallen);
+		__assign_sockaddr(client, &xprt->xpt_remote,
+				  xprt->xpt_remotelen);
+		__entry->flags = flags;
+		__entry->netns_ino = xprt->xpt_net->ns.inum;
 	),
 
-	TP_printk(SVC_XPRT_ENDPOINT_FORMAT " pid=%d",
-		SVC_XPRT_ENDPOINT_VARARGS, __entry->pid)
+	TP_printk(SVC_XPRT_ENDPOINT_FORMAT, SVC_XPRT_ENDPOINT_VARARGS)
 );
 
 TRACE_EVENT(svc_xprt_dequeue,

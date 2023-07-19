@@ -434,6 +434,7 @@ static bool svc_xprt_ready(struct svc_xprt *xprt)
 	smp_rmb();
 	xpt_flags = READ_ONCE(xprt->xpt_flags);
 
+	trace_svc_xprt_enqueue(xprt, xpt_flags);
 	if (xpt_flags & BIT(XPT_BUSY))
 		return false;
 	if (xpt_flags & (BIT(XPT_CONN) | BIT(XPT_CLOSE) | BIT(XPT_HANDSHAKE)))
@@ -490,7 +491,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	rqstp = NULL;
 out_unlock:
 	rcu_read_unlock();
-	trace_svc_xprt_enqueue(xprt, rqstp);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_enqueue);
 
