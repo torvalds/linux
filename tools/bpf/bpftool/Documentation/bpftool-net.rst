@@ -4,7 +4,7 @@
 bpftool-net
 ================
 -------------------------------------------------------------------------------
-tool for inspection of netdev/tc related bpf prog attachments
+tool for inspection of networking related bpf prog attachments
 -------------------------------------------------------------------------------
 
 :Manual section: 8
@@ -37,10 +37,13 @@ DESCRIPTION
 	**bpftool net { show | list }** [ **dev** *NAME* ]
 		  List bpf program attachments in the kernel networking subsystem.
 
-		  Currently, only device driver xdp attachments and tc filter
-		  classification/action attachments are implemented, i.e., for
-		  program types **BPF_PROG_TYPE_SCHED_CLS**,
-		  **BPF_PROG_TYPE_SCHED_ACT** and **BPF_PROG_TYPE_XDP**.
+		  Currently, device driver xdp attachments, tcx and old-style tc
+		  classifier/action attachments, flow_dissector as well as netfilter
+		  attachments are implemented, i.e., for
+		  program types **BPF_PROG_TYPE_XDP**, **BPF_PROG_TYPE_SCHED_CLS**,
+		  **BPF_PROG_TYPE_SCHED_ACT**, **BPF_PROG_TYPE_FLOW_DISSECTOR**,
+		  **BPF_PROG_TYPE_NETFILTER**.
+
 		  For programs attached to a particular cgroup, e.g.,
 		  **BPF_PROG_TYPE_CGROUP_SKB**, **BPF_PROG_TYPE_CGROUP_SOCK**,
 		  **BPF_PROG_TYPE_SOCK_OPS** and **BPF_PROG_TYPE_CGROUP_SOCK_ADDR**,
@@ -49,12 +52,13 @@ DESCRIPTION
 		  bpf programs, users should consult other tools, e.g., iproute2.
 
 		  The current output will start with all xdp program attachments, followed by
-		  all tc class/qdisc bpf program attachments. Both xdp programs and
-		  tc programs are ordered based on ifindex number. If multiple bpf
-		  programs attached to the same networking device through **tc filter**,
-		  the order will be first all bpf programs attached to tc classes, then
-		  all bpf programs attached to non clsact qdiscs, and finally all
-		  bpf programs attached to root and clsact qdisc.
+		  all tcx, then tc class/qdisc bpf program attachments, then flow_dissector
+		  and finally netfilter programs. Both xdp programs and tcx/tc programs are
+		  ordered based on ifindex number. If multiple bpf programs attached
+		  to the same networking device through **tc**, the order will be first
+		  all bpf programs attached to tcx, then tc classes, then all bpf programs
+		  attached to non clsact qdiscs, and finally all bpf programs attached
+		  to root and clsact qdisc.
 
 	**bpftool** **net attach** *ATTACH_TYPE* *PROG* **dev** *NAME* [ **overwrite** ]
 		  Attach bpf program *PROG* to network interface *NAME* with

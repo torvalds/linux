@@ -629,55 +629,89 @@ int bpf_prog_attach(int prog_fd, int target_fd, enum bpf_attach_type type,
 	return bpf_prog_attach_opts(prog_fd, target_fd, type, &opts);
 }
 
-int bpf_prog_attach_opts(int prog_fd, int target_fd,
-			  enum bpf_attach_type type,
-			  const struct bpf_prog_attach_opts *opts)
+int bpf_prog_attach_opts(int prog_fd, int target, enum bpf_attach_type type,
+			 const struct bpf_prog_attach_opts *opts)
 {
-	const size_t attr_sz = offsetofend(union bpf_attr, replace_bpf_fd);
+	const size_t attr_sz = offsetofend(union bpf_attr, expected_revision);
+	__u32 relative_id, flags;
+	int ret, relative_fd;
 	union bpf_attr attr;
-	int ret;
 
 	if (!OPTS_VALID(opts, bpf_prog_attach_opts))
 		return libbpf_err(-EINVAL);
 
+	relative_id = OPTS_GET(opts, relative_id, 0);
+	relative_fd = OPTS_GET(opts, relative_fd, 0);
+	flags = OPTS_GET(opts, flags, 0);
+
+	/* validate we don't have unexpected combinations of non-zero fields */
+	if (relative_fd && relative_id)
+		return libbpf_err(-EINVAL);
+
 	memset(&attr, 0, attr_sz);
-	attr.target_fd	   = target_fd;
-	attr.attach_bpf_fd = prog_fd;
-	attr.attach_type   = type;
-	attr.attach_flags  = OPTS_GET(opts, flags, 0);
-	attr.replace_bpf_fd = OPTS_GET(opts, replace_prog_fd, 0);
+	attr.target_fd		= target;
+	attr.attach_bpf_fd	= prog_fd;
+	attr.attach_type	= type;
+	attr.replace_bpf_fd	= OPTS_GET(opts, replace_fd, 0);
+	attr.expected_revision	= OPTS_GET(opts, expected_revision, 0);
+
+	if (relative_id) {
+		attr.attach_flags = flags | BPF_F_ID;
+		attr.relative_id  = relative_id;
+	} else {
+		attr.attach_flags = flags;
+		attr.relative_fd  = relative_fd;
+	}
 
 	ret = sys_bpf(BPF_PROG_ATTACH, &attr, attr_sz);
 	return libbpf_err_errno(ret);
 }
 
-int bpf_prog_detach(int target_fd, enum bpf_attach_type type)
+int bpf_prog_detach_opts(int prog_fd, int target, enum bpf_attach_type type,
+			 const struct bpf_prog_detach_opts *opts)
 {
-	const size_t attr_sz = offsetofend(union bpf_attr, replace_bpf_fd);
+	const size_t attr_sz = offsetofend(union bpf_attr, expected_revision);
+	__u32 relative_id, flags;
+	int ret, relative_fd;
 	union bpf_attr attr;
-	int ret;
+
+	if (!OPTS_VALID(opts, bpf_prog_detach_opts))
+		return libbpf_err(-EINVAL);
+
+	relative_id = OPTS_GET(opts, relative_id, 0);
+	relative_fd = OPTS_GET(opts, relative_fd, 0);
+	flags = OPTS_GET(opts, flags, 0);
+
+	/* validate we don't have unexpected combinations of non-zero fields */
+	if (relative_fd && relative_id)
+		return libbpf_err(-EINVAL);
 
 	memset(&attr, 0, attr_sz);
-	attr.target_fd	 = target_fd;
-	attr.attach_type = type;
+	attr.target_fd		= target;
+	attr.attach_bpf_fd	= prog_fd;
+	attr.attach_type	= type;
+	attr.expected_revision	= OPTS_GET(opts, expected_revision, 0);
+
+	if (relative_id) {
+		attr.attach_flags = flags | BPF_F_ID;
+		attr.relative_id  = relative_id;
+	} else {
+		attr.attach_flags = flags;
+		attr.relative_fd  = relative_fd;
+	}
 
 	ret = sys_bpf(BPF_PROG_DETACH, &attr, attr_sz);
 	return libbpf_err_errno(ret);
 }
 
+int bpf_prog_detach(int target_fd, enum bpf_attach_type type)
+{
+	return bpf_prog_detach_opts(0, target_fd, type, NULL);
+}
+
 int bpf_prog_detach2(int prog_fd, int target_fd, enum bpf_attach_type type)
 {
-	const size_t attr_sz = offsetofend(union bpf_attr, replace_bpf_fd);
-	union bpf_attr attr;
-	int ret;
-
-	memset(&attr, 0, attr_sz);
-	attr.target_fd	 = target_fd;
-	attr.attach_bpf_fd = prog_fd;
-	attr.attach_type = type;
-
-	ret = sys_bpf(BPF_PROG_DETACH, &attr, attr_sz);
-	return libbpf_err_errno(ret);
+	return bpf_prog_detach_opts(prog_fd, target_fd, type, NULL);
 }
 
 int bpf_link_create(int prog_fd, int target_fd,
@@ -685,9 +719,9 @@ int bpf_link_create(int prog_fd, int target_fd,
 		    const struct bpf_link_create_opts *opts)
 {
 	const size_t attr_sz = offsetofend(union bpf_attr, link_create);
-	__u32 target_btf_id, iter_info_len;
+	__u32 target_btf_id, iter_info_len, relative_id;
+	int fd, err, relative_fd;
 	union bpf_attr attr;
-	int fd, err;
 
 	if (!OPTS_VALID(opts, bpf_link_create_opts))
 		return libbpf_err(-EINVAL);
@@ -747,6 +781,22 @@ int bpf_link_create(int prog_fd, int target_fd,
 		attr.link_create.netfilter.priority = OPTS_GET(opts, netfilter.priority, 0);
 		attr.link_create.netfilter.flags = OPTS_GET(opts, netfilter.flags, 0);
 		if (!OPTS_ZEROED(opts, netfilter))
+			return libbpf_err(-EINVAL);
+		break;
+	case BPF_TCX_INGRESS:
+	case BPF_TCX_EGRESS:
+		relative_fd = OPTS_GET(opts, tcx.relative_fd, 0);
+		relative_id = OPTS_GET(opts, tcx.relative_id, 0);
+		if (relative_fd && relative_id)
+			return libbpf_err(-EINVAL);
+		if (relative_id) {
+			attr.link_create.tcx.relative_id = relative_id;
+			attr.link_create.flags |= BPF_F_ID;
+		} else {
+			attr.link_create.tcx.relative_fd = relative_fd;
+		}
+		attr.link_create.tcx.expected_revision = OPTS_GET(opts, tcx.expected_revision, 0);
+		if (!OPTS_ZEROED(opts, tcx))
 			return libbpf_err(-EINVAL);
 		break;
 	default:
@@ -841,8 +891,7 @@ int bpf_iter_create(int link_fd)
 	return libbpf_err_errno(fd);
 }
 
-int bpf_prog_query_opts(int target_fd,
-			enum bpf_attach_type type,
+int bpf_prog_query_opts(int target, enum bpf_attach_type type,
 			struct bpf_prog_query_opts *opts)
 {
 	const size_t attr_sz = offsetofend(union bpf_attr, query);
@@ -853,18 +902,20 @@ int bpf_prog_query_opts(int target_fd,
 		return libbpf_err(-EINVAL);
 
 	memset(&attr, 0, attr_sz);
-
-	attr.query.target_fd	= target_fd;
-	attr.query.attach_type	= type;
-	attr.query.query_flags	= OPTS_GET(opts, query_flags, 0);
-	attr.query.prog_cnt	= OPTS_GET(opts, prog_cnt, 0);
-	attr.query.prog_ids	= ptr_to_u64(OPTS_GET(opts, prog_ids, NULL));
-	attr.query.prog_attach_flags = ptr_to_u64(OPTS_GET(opts, prog_attach_flags, NULL));
+	attr.query.target_fd		= target;
+	attr.query.attach_type		= type;
+	attr.query.query_flags		= OPTS_GET(opts, query_flags, 0);
+	attr.query.count		= OPTS_GET(opts, count, 0);
+	attr.query.prog_ids		= ptr_to_u64(OPTS_GET(opts, prog_ids, NULL));
+	attr.query.link_ids		= ptr_to_u64(OPTS_GET(opts, link_ids, NULL));
+	attr.query.prog_attach_flags	= ptr_to_u64(OPTS_GET(opts, prog_attach_flags, NULL));
+	attr.query.link_attach_flags	= ptr_to_u64(OPTS_GET(opts, link_attach_flags, NULL));
 
 	ret = sys_bpf(BPF_PROG_QUERY, &attr, attr_sz);
 
 	OPTS_SET(opts, attach_flags, attr.query.attach_flags);
-	OPTS_SET(opts, prog_cnt, attr.query.prog_cnt);
+	OPTS_SET(opts, revision, attr.query.revision);
+	OPTS_SET(opts, count, attr.query.count);
 
 	return libbpf_err_errno(ret);
 }

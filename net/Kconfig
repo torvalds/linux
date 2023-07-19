@@ -52,6 +52,11 @@ config NET_INGRESS
 config NET_EGRESS
 	bool
 
+config NET_XGRESS
+	select NET_INGRESS
+	select NET_EGRESS
+	bool
+
 config NET_REDIRECT
 	bool
 
