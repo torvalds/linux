@@ -231,6 +231,7 @@ enum switchdev_notifier_type {
 
 	SWITCHDEV_BRPORT_OFFLOADED,
 	SWITCHDEV_BRPORT_UNOFFLOADED,
+	SWITCHDEV_BRPORT_REPLAY,
 };
 
 struct switchdev_notifier_info {
@@ -299,6 +300,11 @@ void switchdev_bridge_port_unoffload(struct net_device *brport_dev,
 				     const void *ctx,
 				     struct notifier_block *atomic_nb,
 				     struct notifier_block *blocking_nb);
+int switchdev_bridge_port_replay(struct net_device *brport_dev,
+				 struct net_device *dev, const void *ctx,
+				 struct notifier_block *atomic_nb,
+				 struct notifier_block *blocking_nb,
+				 struct netlink_ext_ack *extack);
 
 void switchdev_deferred_process(void);
 int switchdev_port_attr_set(struct net_device *dev,
