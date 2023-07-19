@@ -535,6 +535,7 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 static void i40e_xmit_pkt(struct i40e_ring *xdp_ring, struct xdp_desc *desc,
 			  unsigned int *total_bytes)
 {
+	u32 cmd = I40E_TX_DESC_CMD_ICRC | xsk_is_eop_desc(desc);
 	struct i40e_tx_desc *tx_desc;
 	dma_addr_t dma;
 
@@ -543,8 +544,7 @@ static void i40e_xmit_pkt(struct i40e_ring *xdp_ring, struct xdp_desc *desc,
 
 	tx_desc = I40E_TX_DESC(xdp_ring, xdp_ring->next_to_use++);
 	tx_desc->buffer_addr = cpu_to_le64(dma);
-	tx_desc->cmd_type_offset_bsz = build_ctob(I40E_TX_DESC_CMD_ICRC | I40E_TX_DESC_CMD_EOP,
-						  0, desc->len, 0);
+	tx_desc->cmd_type_offset_bsz = build_ctob(cmd, 0, desc->len, 0);
 
 	*total_bytes += desc->len;
 }
@@ -558,14 +558,14 @@ static void i40e_xmit_pkt_batch(struct i40e_ring *xdp_ring, struct xdp_desc *des
 	u32 i;
 
 	loop_unrolled_for(i = 0; i < PKTS_PER_BATCH; i++) {
+		u32 cmd = I40E_TX_DESC_CMD_ICRC | xsk_is_eop_desc(&desc[i]);
+
 		dma = xsk_buff_raw_get_dma(xdp_ring->xsk_pool, desc[i].addr);
 		xsk_buff_raw_dma_sync_for_device(xdp_ring->xsk_pool, dma, desc[i].len);
 
 		tx_desc = I40E_TX_DESC(xdp_ring, ntu++);
 		tx_desc->buffer_addr = cpu_to_le64(dma);
-		tx_desc->cmd_type_offset_bsz = build_ctob(I40E_TX_DESC_CMD_ICRC |
-							  I40E_TX_DESC_CMD_EOP,
-							  0, desc[i].len, 0);
+		tx_desc->cmd_type_offset_bsz = build_ctob(cmd, 0, desc[i].len, 0);
 
 		*total_bytes += desc[i].len;
 	}
