@@ -4469,8 +4469,14 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		goto err_router_join;
 
+	err = mlxsw_sp_netdevice_enslavement_replay(mlxsw_sp, lag_dev, extack);
+	if (err)
+		goto err_replay;
+
 	return 0;
 
+err_replay:
+	mlxsw_sp_router_port_leave_lag(mlxsw_sp_port, lag_dev);
 err_router_join:
 	lag->ref_count--;
 	mlxsw_sp_port->lagged = 0;

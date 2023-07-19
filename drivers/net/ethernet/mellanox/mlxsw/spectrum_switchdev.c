@@ -2894,8 +2894,15 @@ int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		goto err_port_join;
 
+	err = mlxsw_sp_netdevice_enslavement_replay(mlxsw_sp, br_dev, extack);
+	if (err)
+		goto err_replay;
+
 	return 0;
 
+err_replay:
+	bridge_device->ops->port_leave(bridge_device, bridge_port,
+				       mlxsw_sp_port);
 err_port_join:
 	mlxsw_sp_bridge_port_put(mlxsw_sp->bridge, bridge_port);
 	return err;
