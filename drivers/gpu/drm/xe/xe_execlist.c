@@ -47,8 +47,6 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 	struct xe_device *xe = gt_to_xe(gt);
 	u64 lrc_desc;
 
-	printk(KERN_INFO "__start_lrc(%s, 0x%p, %u)\n", hwe->name, lrc, ctx_id);
-
 	lrc_desc = xe_lrc_descriptor(lrc);
 
 	if (GRAPHICS_VERx100(xe) >= 1250) {
@@ -125,9 +123,6 @@ static void __xe_execlist_port_idle(struct xe_execlist_port *port)
 	if (!port->running_exl)
 		return;
 
-	printk(KERN_INFO "__xe_execlist_port_idle(%d:%d)\n", port->hwe->class,
-	       port->hwe->instance);
-
 	xe_lrc_write_ring(&port->hwe->kernel_lrc, noop, sizeof(noop));
 	__start_lrc(port->hwe, &port->hwe->kernel_lrc, 0);
 	port->running_exl = NULL;
@@ -175,9 +170,6 @@ static u64 read_execlist_status(struct xe_hw_engine *hwe)
 
 	lo = xe_mmio_read32(gt, RING_EXECLIST_STATUS_LO(hwe->mmio_base));
 	hi = xe_mmio_read32(gt, RING_EXECLIST_STATUS_HI(hwe->mmio_base));
-
-	printk(KERN_INFO "EXECLIST_STATUS %d:%d = 0x%08x %08x\n", hwe->class,
-	       hwe->instance, hi, lo);
 
 	return lo | (u64)hi << 32;
 }
