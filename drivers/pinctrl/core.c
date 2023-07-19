@@ -633,7 +633,7 @@ int pinctrl_generic_add_group(struct pinctrl_dev *pctldev, const char *name,
 			      int *pins, int num_pins, void *data)
 {
 	struct group_desc *group;
-	int selector;
+	int selector, error;
 
 	if (!name)
 		return -EINVAL;
@@ -653,7 +653,9 @@ int pinctrl_generic_add_group(struct pinctrl_dev *pctldev, const char *name,
 	group->num_pins = num_pins;
 	group->data = data;
 
-	radix_tree_insert(&pctldev->pin_group_tree, selector, group);
+	error = radix_tree_insert(&pctldev->pin_group_tree, selector, group);
+	if (error)
+		return error;
 
 	pctldev->num_groups++;
 
