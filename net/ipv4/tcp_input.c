@@ -4312,10 +4312,16 @@ static inline bool tcp_paws_discard(const struct sock *sk,
  * (borrowed from freebsd)
  */
 
-static inline bool tcp_sequence(const struct tcp_sock *tp, u32 seq, u32 end_seq)
+static enum skb_drop_reason tcp_sequence(const struct tcp_sock *tp,
+					 u32 seq, u32 end_seq)
 {
-	return	!before(end_seq, tp->rcv_wup) &&
-		!after(seq, tp->rcv_nxt + tcp_receive_window(tp));
+	if (before(end_seq, tp->rcv_wup))
+		return SKB_DROP_REASON_TCP_OLD_SEQUENCE;
+
+	if (after(seq, tp->rcv_nxt + tcp_receive_window(tp)))
+		return SKB_DROP_REASON_TCP_INVALID_SEQUENCE;
+
+	return SKB_NOT_DROPPED_YET;
 }
 
 /* When we get a reset we do this. */
@@ -5738,7 +5744,8 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 	}
 
 	/* Step 1: check sequence number */
-	if (!tcp_sequence(tp, TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq)) {
+	reason = tcp_sequence(tp, TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq);
+	if (reason) {
 		/* RFC793, page 37: "In all states except SYN-SENT, all reset
 		 * (RST) segments are validated by checking their SEQ-fields."
 		 * And page 69: "If an incoming segment is not acceptable,
@@ -5755,7 +5762,6 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 		} else if (tcp_reset_check(sk, skb)) {
 			goto reset;
 		}
-		SKB_DR_SET(reason, TCP_INVALID_SEQUENCE);
 		goto discard;
 	}
 
