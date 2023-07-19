@@ -885,13 +885,20 @@ static void amdgpu_block_invalid_wreg(struct amdgpu_device *adev,
  */
 static int amdgpu_device_asic_init(struct amdgpu_device *adev)
 {
+	int ret;
+
 	amdgpu_asic_pre_asic_init(adev);
 
 	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3) ||
-	    adev->ip_versions[GC_HWIP][0] >= IP_VERSION(11, 0, 0))
-		return amdgpu_atomfirmware_asic_init(adev, true);
-	else
+	    adev->ip_versions[GC_HWIP][0] >= IP_VERSION(11, 0, 0)) {
+		amdgpu_psp_wait_for_bootloader(adev);
+		ret = amdgpu_atomfirmware_asic_init(adev, true);
+		return ret;
+	} else {
 		return amdgpu_atom_asic_init(adev->mode_info.atom_context);
+	}
+
+	return 0;
 }
 
 /**
@@ -4697,6 +4704,9 @@ int amdgpu_device_mode1_reset(struct amdgpu_device *adev)
 		dev_err(adev->dev, "GPU mode1 reset failed\n");
 
 	amdgpu_device_load_pci_state(adev->pdev);
+	ret = amdgpu_psp_wait_for_bootloader(adev);
+	if (ret)
+		return ret;
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -4708,6 +4718,7 @@ int amdgpu_device_mode1_reset(struct amdgpu_device *adev)
 	}
 
 	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+
 	return ret;
 }
 
