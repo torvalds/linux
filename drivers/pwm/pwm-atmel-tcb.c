@@ -33,7 +33,6 @@
 				 ATMEL_TC_BEEVT | ATMEL_TC_BSWTRG)
 
 struct atmel_tcb_pwm_device {
-	enum pwm_polarity polarity;	/* PWM polarity */
 	unsigned div;			/* PWM clock divider */
 	unsigned duty;			/* PWM duty expressed in clk cycles */
 	unsigned period;		/* PWM period expressed in clk cycles */
@@ -79,7 +78,6 @@ static int atmel_tcb_pwm_request(struct pwm_chip *chip,
 	if (ret)
 		return ret;
 
-	tcbpwm->polarity = PWM_POLARITY_NORMAL;
 	tcbpwm->duty = 0;
 	tcbpwm->period = 0;
 	tcbpwm->div = 0;
@@ -122,12 +120,12 @@ static void atmel_tcb_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	clk_disable_unprepare(tcbpwmc->clk);
 }
 
-static void atmel_tcb_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
+static void atmel_tcb_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm,
+				  enum pwm_polarity polarity)
 {
 	struct atmel_tcb_pwm_chip *tcbpwmc = to_tcb_chip(chip);
 	struct atmel_tcb_pwm_device *tcbpwm = &tcbpwmc->pwms[pwm->hwpwm];
 	unsigned cmr;
-	enum pwm_polarity polarity = tcbpwm->polarity;
 
 	/*
 	 * If duty is 0 the timer will be stopped and we have to
@@ -179,12 +177,12 @@ static void atmel_tcb_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	spin_unlock(&tcbpwmc->lock);
 }
 
-static int atmel_tcb_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
+static int atmel_tcb_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm,
+				enum pwm_polarity polarity)
 {
 	struct atmel_tcb_pwm_chip *tcbpwmc = to_tcb_chip(chip);
 	struct atmel_tcb_pwm_device *tcbpwm = &tcbpwmc->pwms[pwm->hwpwm];
 	u32 cmr;
-	enum pwm_polarity polarity = tcbpwm->polarity;
 
 	/*
 	 * If duty is 0 the timer will be stopped and we have to
@@ -344,15 +342,11 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 static int atmel_tcb_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			       const struct pwm_state *state)
 {
-	struct atmel_tcb_pwm_chip *tcbpwmc = to_tcb_chip(chip);
-	struct atmel_tcb_pwm_device *tcbpwm = &tcbpwmc->pwms[pwm->hwpwm];
 	int duty_cycle, period;
 	int ret;
 
-	tcbpwm->polarity = state->polarity;
-
 	if (!state->enabled) {
-		atmel_tcb_pwm_disable(chip, pwm);
+		atmel_tcb_pwm_disable(chip, pwm, state->polarity);
 		return 0;
 	}
 
@@ -363,7 +357,7 @@ static int atmel_tcb_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (ret)
 		return ret;
 
-	return atmel_tcb_pwm_enable(chip, pwm);
+	return atmel_tcb_pwm_enable(chip, pwm, state->polarity);
 }
 
 static const struct pwm_ops atmel_tcb_pwm_ops = {
