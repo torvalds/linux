@@ -3918,6 +3918,20 @@ static inline void swap_pipeline_with_prime_locked(struct walt_task_struct *prim
 	}
 }
 
+#define WINDOW_HYSTERESIS 4
+static inline bool delay_rearrange(u64 window_start, int pipeline_type)
+{
+	static u64 last_rearrange_ns[MAX_PIPELINE_TYPES];
+
+	if (last_rearrange_ns[pipeline_type] &&
+			(window_start < (last_rearrange_ns[pipeline_type] +
+			(sched_ravg_window*WINDOW_HYSTERESIS))))
+		return true;
+
+	last_rearrange_ns[pipeline_type] = window_start;
+	return false;
+}
+
 void rearrange_heavy(u64 window_start)
 {
 	struct walt_related_thread_group *grp;
@@ -3939,6 +3953,9 @@ void rearrange_heavy(u64 window_start)
 	if (!grp)
 		return;
 	if (!grp->skip_min)
+		return;
+
+	if (delay_rearrange(window_start, AUTO_PIPELINE))
 		return;
 
 	raw_spin_lock_irqsave(&heavy_lock, flags);
@@ -3999,6 +4016,8 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 	if (!grp)
 		goto out;
 	if (!grp->skip_min)
+		goto out;
+	if (delay_rearrange(window_start, MANUAL_PIPELINE))
 		goto out;
 
 	raw_spin_lock_irqsave(&pipeline_lock, flags);
