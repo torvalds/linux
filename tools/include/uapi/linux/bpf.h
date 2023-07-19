@@ -7098,6 +7098,7 @@ struct bpf_list_head {
 struct bpf_list_node {
 	__u64 :64;
 	__u64 :64;
+	__u64 :64;
 } __attribute__((aligned(8)));
 
 struct bpf_rb_root {
@@ -7106,6 +7107,7 @@ struct bpf_rb_root {
 } __attribute__((aligned(8)));
 
 struct bpf_rb_node {
+	__u64 :64;
 	__u64 :64;
 	__u64 :64;
 	__u64 :64;
