@@ -9685,15 +9685,64 @@ mlxsw_sp_port_vid_router_join_existing(struct mlxsw_sp_port *mlxsw_sp_port,
 						       dev, extack);
 }
 
+static void
+mlxsw_sp_port_vid_router_leave(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
+			       struct net_device *dev)
+{
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
+
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port,
+							    vid);
+	if (WARN_ON(!mlxsw_sp_port_vlan))
+		return;
+
+	__mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
+}
+
 static int __mlxsw_sp_router_port_join_lag(struct mlxsw_sp_port *mlxsw_sp_port,
 					   struct net_device *lag_dev,
 					   struct netlink_ext_ack *extack)
 {
 	u16 default_vid = MLXSW_SP_DEFAULT_VID;
+	struct net_device *upper_dev;
+	struct list_head *iter;
+	int done = 0;
+	u16 vid;
+	int err;
 
-	return mlxsw_sp_port_vid_router_join_existing(mlxsw_sp_port,
-						      default_vid, lag_dev,
-						      extack);
+	err = mlxsw_sp_port_vid_router_join_existing(mlxsw_sp_port, default_vid,
+						     lag_dev, extack);
+	if (err)
+		return err;
+
+	netdev_for_each_upper_dev_rcu(lag_dev, upper_dev, iter) {
+		if (!is_vlan_dev(upper_dev))
+			continue;
+
+		vid = vlan_dev_vlan_id(upper_dev);
+		err = mlxsw_sp_port_vid_router_join_existing(mlxsw_sp_port, vid,
+							     upper_dev, extack);
+		if (err)
+			goto err_router_join_dev;
+
+		++done;
+	}
+
+	return 0;
+
+err_router_join_dev:
+	netdev_for_each_upper_dev_rcu(lag_dev, upper_dev, iter) {
+		if (!is_vlan_dev(upper_dev))
+			continue;
+		if (!done--)
+			break;
+
+		vid = vlan_dev_vlan_id(upper_dev);
+		mlxsw_sp_port_vid_router_leave(mlxsw_sp_port, vid, upper_dev);
+	}
+
+	mlxsw_sp_port_vid_router_leave(mlxsw_sp_port, default_vid, lag_dev);
+	return err;
 }
 
 int mlxsw_sp_router_port_join_lag(struct mlxsw_sp_port *mlxsw_sp_port,
