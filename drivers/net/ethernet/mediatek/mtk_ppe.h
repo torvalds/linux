@@ -216,6 +216,9 @@ struct mtk_foe_ipv6_6rd {
 	struct mtk_foe_mac_info l2;
 };
 
+#define MTK_FOE_ENTRY_V1_SIZE	80
+#define MTK_FOE_ENTRY_V2_SIZE	96
+
 struct mtk_foe_entry {
 	u32 ib1;
 
