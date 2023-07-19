@@ -5419,6 +5419,7 @@ static u32 *reg2btf_ids[__BPF_REG_TYPE_MAX] = {
 	[PTR_TO_SOCK_COMMON] = &btf_sock_ids[BTF_SOCK_TYPE_SOCK_COMMON],
 	[PTR_TO_TCP_SOCK] = &btf_sock_ids[BTF_SOCK_TYPE_TCP],
 #endif
+	[CONST_PTR_TO_MAP] = btf_bpf_map_id,
 };
 
 static bool is_trusted_reg(const struct bpf_reg_state *reg)
