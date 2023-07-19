@@ -4838,15 +4838,20 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
 		if (netif_is_bridge_master(upper_dev)) {
-			if (info->linking)
+			if (info->linking) {
 				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port,
 								lower_dev,
 								upper_dev,
 								extack);
-			else
+			} else {
 				mlxsw_sp_port_bridge_leave(mlxsw_sp_port,
 							   lower_dev,
 							   upper_dev);
+				if (!replay_deslavement)
+					break;
+				mlxsw_sp_netdevice_deslavement_replay(mlxsw_sp,
+								      lower_dev);
+			}
 		} else if (netif_is_lag_master(upper_dev)) {
 			if (info->linking) {
 				err = mlxsw_sp_port_lag_join(mlxsw_sp_port,
@@ -4855,6 +4860,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 				mlxsw_sp_port_lag_col_dist_disable(mlxsw_sp_port);
 				mlxsw_sp_port_lag_leave(mlxsw_sp_port,
 							upper_dev);
+				mlxsw_sp_netdevice_deslavement_replay(mlxsw_sp,
+								      dev);
 			}
 		} else if (netif_is_ovs_master(upper_dev)) {
 			if (info->linking)
@@ -4924,6 +4931,30 @@ static int mlxsw_sp_netdevice_port_event(struct net_device *lower_dev,
 	return 0;
 }
 
+/* Called for LAG or its upper VLAN after the per-LAG-lower processing was done,
+ * to do any per-LAG / per-LAG-upper processing.
+ */
+static int mlxsw_sp_netdevice_post_lag_event(struct net_device *dev,
+					     unsigned long event,
+					     void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(dev);
+	struct netdev_notifier_changeupper_info *info = ptr;
+
+	if (!mlxsw_sp)
+		return 0;
+
+	switch (event) {
+	case NETDEV_CHANGEUPPER:
+		if (info->linking)
+			break;
+		if (netif_is_bridge_master(info->upper_dev))
+			mlxsw_sp_netdevice_deslavement_replay(mlxsw_sp, dev);
+		break;
+	}
+	return 0;
+}
+
 static int mlxsw_sp_netdevice_lag_event(struct net_device *lag_dev,
 					unsigned long event, void *ptr)
 {
@@ -4940,7 +4971,7 @@ static int mlxsw_sp_netdevice_lag_event(struct net_device *lag_dev,
 		}
 	}
 
-	return 0;
+	return mlxsw_sp_netdevice_post_lag_event(lag_dev, event, ptr);
 }
 
 static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
@@ -4984,15 +5015,20 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
 		if (netif_is_bridge_master(upper_dev)) {
-			if (info->linking)
+			if (info->linking) {
 				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port,
 								vlan_dev,
 								upper_dev,
 								extack);
-			else
+			} else {
 				mlxsw_sp_port_bridge_leave(mlxsw_sp_port,
 							   vlan_dev,
 							   upper_dev);
+				if (!replay_deslavement)
+					break;
+				mlxsw_sp_netdevice_deslavement_replay(mlxsw_sp,
+								      vlan_dev);
+			}
 		} else if (netif_is_macvlan(upper_dev)) {
 			if (!info->linking)
 				mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
@@ -5022,7 +5058,7 @@ static int mlxsw_sp_netdevice_lag_port_vlan_event(struct net_device *vlan_dev,
 		}
 	}
 
-	return 0;
+	return mlxsw_sp_netdevice_post_lag_event(vlan_dev, event, ptr);
 }
 
 static int mlxsw_sp_netdevice_bridge_vlan_event(struct mlxsw_sp *mlxsw_sp,

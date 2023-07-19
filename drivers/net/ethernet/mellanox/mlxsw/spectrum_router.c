@@ -9785,12 +9785,14 @@ struct mlxsw_sp_router_replay_inetaddr_up {
 	struct mlxsw_sp *mlxsw_sp;
 	struct netlink_ext_ack *extack;
 	unsigned int done;
+	bool deslavement;
 };
 
 static int mlxsw_sp_router_replay_inetaddr_up(struct net_device *dev,
 					      struct netdev_nested_priv *priv)
 {
 	struct mlxsw_sp_router_replay_inetaddr_up *ctx = priv->data;
+	bool nomaster = ctx->deslavement;
 	struct mlxsw_sp_crif *crif;
 	int err;
 
@@ -9805,7 +9807,7 @@ static int mlxsw_sp_router_replay_inetaddr_up(struct net_device *dev,
 		return 0;
 
 	err = __mlxsw_sp_inetaddr_event(ctx->mlxsw_sp, dev, NETDEV_UP,
-					false, ctx->extack);
+					nomaster, ctx->extack);
 	if (err)
 		return err;
 
@@ -9817,6 +9819,7 @@ static int mlxsw_sp_router_unreplay_inetaddr_up(struct net_device *dev,
 						struct netdev_nested_priv *priv)
 {
 	struct mlxsw_sp_router_replay_inetaddr_up *ctx = priv->data;
+	bool nomaster = ctx->deslavement;
 	struct mlxsw_sp_crif *crif;
 
 	if (!ctx->done)
@@ -9833,7 +9836,8 @@ static int mlxsw_sp_router_unreplay_inetaddr_up(struct net_device *dev,
 	if (!mlxsw_sp_rif_should_config(crif->rif, dev, NETDEV_UP))
 		return 0;
 
-	__mlxsw_sp_inetaddr_event(ctx->mlxsw_sp, dev, NETDEV_DOWN, false, NULL);
+	__mlxsw_sp_inetaddr_event(ctx->mlxsw_sp, dev, NETDEV_DOWN, nomaster,
+				  NULL);
 
 	ctx->done--;
 	return 0;
@@ -9846,6 +9850,7 @@ int mlxsw_sp_netdevice_enslavement_replay(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_router_replay_inetaddr_up ctx = {
 		.mlxsw_sp = mlxsw_sp,
 		.extack = extack,
+		.deslavement = false,
 	};
 	struct netdev_nested_priv priv = {
 		.data = &ctx,
@@ -9870,6 +9875,20 @@ err_replay_up:
 				      &priv);
 	mlxsw_sp_router_unreplay_inetaddr_up(upper_dev, &priv);
 	return err;
+}
+
+void mlxsw_sp_netdevice_deslavement_replay(struct mlxsw_sp *mlxsw_sp,
+					   struct net_device *dev)
+{
+	struct mlxsw_sp_router_replay_inetaddr_up ctx = {
+		.mlxsw_sp = mlxsw_sp,
+		.deslavement = true,
+	};
+	struct netdev_nested_priv priv = {
+		.data = &ctx,
+	};
+
+	mlxsw_sp_router_replay_inetaddr_up(dev, &priv);
 }
 
 static int
