@@ -5545,8 +5545,7 @@ err_free_css:
 
 /*
  * The returned cgroup is fully initialized including its control mask, but
- * it isn't associated with its kernfs_node and doesn't have the control
- * mask applied.
+ * it doesn't have the control mask applied.
  */
 static struct cgroup *cgroup_create(struct cgroup *parent, const char *name,
 				    umode_t mode)
