@@ -4575,6 +4575,9 @@ retry:
 	if (r)
 		return r;
 
+	/* some sw clean up VF needs to do before recover */
+	amdgpu_virt_post_reset(adev);
+
 	/* Resume IP prior to SMC */
 	r = amdgpu_device_ip_reinit_early_sriov(adev);
 	if (r)
