@@ -954,7 +954,7 @@ bool tomoyo_str_starts(char **src, const char *find);
 char *tomoyo_encode(const char *str);
 char *tomoyo_encode2(const char *str, int str_len);
 char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
-		      va_list args);
+		      va_list args) __printf(3, 0);
 char *tomoyo_read_token(struct tomoyo_acl_param *param);
 char *tomoyo_realpath_from_path(const struct path *path);
 char *tomoyo_realpath_nofollow(const char *pathname);
@@ -1067,7 +1067,7 @@ void tomoyo_warn_oom(const char *function);
 void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
 	__printf(2, 3);
 void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
-		       va_list args);
+		       va_list args) __printf(3, 0);
 
 /********** External variable definitions. **********/
 
