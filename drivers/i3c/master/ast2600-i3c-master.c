@@ -33,6 +33,7 @@ DECLARE_CRC8_TABLE(i3c_crc8_table);
 #define DEVICE_CTRL			0x0
 #define DEV_CTRL_ENABLE			BIT(31)
 #define DEV_CTRL_RESUME			BIT(30)
+#define DEV_CTRL_ABORT			BIT(29)
 #define DEV_CTRL_AUTO_HJ_DISABLE	BIT(27)
 #define DEV_CTRL_SLAVE_MDB		GENMASK(23, 16)
 #define DEV_CTRL_SLAVE_PEC_EN		BIT(10)
@@ -640,6 +641,15 @@ static int aspeed_i3c_master_enable(struct aspeed_i3c_master *master)
 	return 0;
 }
 
+static void aspeed_i3c_master_abort(struct aspeed_i3c_master *master)
+{
+	dev_warn(master->dev,
+		 "To resolve the unexpected status, try using an abort");
+	WARN_ON_ONCE(1);
+	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_ABORT,
+	       master->regs + DEVICE_CTRL);
+}
+
 static void aspeed_i3c_master_resume(struct aspeed_i3c_master *master)
 {
 	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_RESUME,
@@ -893,6 +903,14 @@ static void aspeed_i3c_master_dequeue_xfer_locked(struct aspeed_i3c_master *mast
 {
 	if (master->xferqueue.cur == xfer) {
 		u32 status;
+		int ret;
+
+		ret = readl_poll_timeout_atomic(master->regs + PRESENT_STATE, status,
+						FIELD_GET(CM_TFR_STS, status) == CM_TFR_STS_MASTER_HALT,
+						10, 1000000);
+
+		if (ret)
+			dev_err(master->dev, "wait HALT state TIMEOUT");
 
 		master->xferqueue.cur = NULL;
 
@@ -900,8 +918,10 @@ static void aspeed_i3c_master_dequeue_xfer_locked(struct aspeed_i3c_master *mast
 		       RESET_CTRL_RESP_QUEUE | RESET_CTRL_CMD_QUEUE,
 		       master->regs + RESET_CTRL);
 
-		readl_poll_timeout_atomic(master->regs + RESET_CTRL, status,
-					  !status, 10, 1000000);
+		ret = readl_poll_timeout_atomic(master->regs + RESET_CTRL,
+						status, !status, 10, 1000000);
+		if (ret)
+			dev_err(master->dev, "wait rest fifo done TIMEOUT");
 	} else {
 		list_del_init(&xfer->node);
 	}
@@ -1063,6 +1083,7 @@ static void aspeed_i3c_master_end_xfer_locked(struct aspeed_i3c_master *master, 
 	complete(&xfer->comp);
 
 	if (ret < 0) {
+		/* Enter halt guarantee by the HW */
 		aspeed_i3c_master_dequeue_xfer_locked(master, xfer);
 		aspeed_i3c_master_resume(master);
 	}
@@ -1517,8 +1538,11 @@ static int aspeed_i3c_ccc_set(struct aspeed_i3c_master *master,
 		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len, ccc->id);
 
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		aspeed_i3c_master_abort(master);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		aspeed_i3c_master_resume(master);
+	}
 
 	ret = xfer->ret;
 	if (ret)
@@ -1564,8 +1588,11 @@ static int aspeed_i3c_ccc_get(struct aspeed_i3c_master *master, struct i3c_ccc_c
 		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->rx_len, ccc->id);
 
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		aspeed_i3c_master_abort(master);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		aspeed_i3c_master_resume(master);
+	}
 
 	ret = xfer->ret;
 	if (ret)
@@ -1668,8 +1695,11 @@ static int aspeed_i3c_master_daa(struct i3c_master_controller *m)
 		      COMMAND_PORT_ROC;
 
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		aspeed_i3c_master_abort(master);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		aspeed_i3c_master_resume(master);
+	}
 
 	newdevs = GENMASK(ndevs - cmd->rx_len - 1, 0) << pos;
 	for (pos = 0; pos < master->maxdevs; pos++) {
@@ -1772,8 +1802,11 @@ static int aspeed_i3c_master_ccc_xfers(struct i3c_dev_desc *dev,
 	}
 
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		aspeed_i3c_master_abort(master);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		aspeed_i3c_master_resume(master);
+	}
 
 	ret = xfer->ret;
 	aspeed_i3c_master_free_xfer(xfer);
@@ -1862,8 +1895,11 @@ static int aspeed_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 	}
 
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		aspeed_i3c_master_abort(master);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		aspeed_i3c_master_resume(master);
+	}
 
 	for (i = 0; i < i3c_nxfers; i++) {
 		struct aspeed_i3c_cmd *cmd = &xfer->cmds[i];
@@ -1954,8 +1990,11 @@ static int aspeed_i3c_master_send_hdr_cmd(struct i3c_master_controller *m,
 	}
 
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		aspeed_i3c_master_abort(master);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		aspeed_i3c_master_resume(master);
+	}
 
 	for (i = 0; i < ncmds; i++) {
 		struct aspeed_i3c_cmd *cmd = &xfer->cmds[i];
@@ -2091,8 +2130,11 @@ static int aspeed_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	}
 
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		aspeed_i3c_master_abort(master);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		aspeed_i3c_master_resume(master);
+	}
 
 	ret = xfer->ret;
 	if (ret)
