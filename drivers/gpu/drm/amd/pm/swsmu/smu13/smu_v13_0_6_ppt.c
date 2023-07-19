@@ -2158,8 +2158,7 @@ static int smu_v13_0_6_mode1_reset(struct smu_context *smu)
 
 static bool smu_v13_0_6_is_mode1_reset_supported(struct smu_context *smu)
 {
-	/* TODO: Enable this when FW support is added */
-	return false;
+	return true;
 }
 
 static bool smu_v13_0_6_is_mode2_reset_supported(struct smu_context *smu)
