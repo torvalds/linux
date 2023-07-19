@@ -841,11 +841,6 @@ static inline struct hstate *folio_hstate(struct folio *folio)
 	return size_to_hstate(folio_size(folio));
 }
 
-static inline struct hstate *page_hstate(struct page *page)
-{
-	return folio_hstate(page_folio(page));
-}
-
 static inline unsigned hstate_index_to_shift(unsigned index)
 {
 	return hstates[index].order + PAGE_SHIFT;
@@ -1058,11 +1053,6 @@ static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
 }
 
 static inline struct hstate *folio_hstate(struct folio *folio)
-{
-	return NULL;
-}
-
-static inline struct hstate *page_hstate(struct page *page)
 {
 	return NULL;
 }
