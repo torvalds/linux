@@ -197,7 +197,7 @@ __diag_push();
 __diag_ignore_all("-Wmissing-prototypes",
 		  "Global functions as their definitions will be in vmlinux BTF");
 
-__bpf_kfunc s64 bpf_map_sum_elem_count(struct bpf_map *map)
+__bpf_kfunc s64 bpf_map_sum_elem_count(const struct bpf_map *map)
 {
 	s64 *pcount;
 	s64 ret = 0;
