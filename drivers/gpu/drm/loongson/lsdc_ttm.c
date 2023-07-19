@@ -496,6 +496,8 @@ struct lsdc_bo *lsdc_bo_create_kernel_pinned(struct drm_device *ddev,
 	int ret;
 
 	lbo = lsdc_bo_create(ddev, domain, size, true, NULL, NULL);
+	if (IS_ERR(lbo))
+		return ERR_CAST(lbo);
 
 	ret = lsdc_bo_reserve(lbo);
 	if (unlikely(ret)) {
