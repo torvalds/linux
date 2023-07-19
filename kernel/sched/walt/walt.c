@@ -3927,20 +3927,44 @@ static inline bool delay_rearrange(u64 window_start, int pipeline_type)
 			(window_start < (last_rearrange_ns[pipeline_type] +
 			(sched_ravg_window*WINDOW_HYSTERESIS))))
 		return true;
-
 	last_rearrange_ns[pipeline_type] = window_start;
 	return false;
+}
+
+static inline void find_prime_and_max_tasks(struct walt_task_struct **wts_list,
+					    struct walt_task_struct **prime_wts,
+					    struct walt_task_struct **other_wts)
+{
+	int i;
+	int max_demand = 0;
+
+	for (i = 0; i < WALT_NR_CPUS; i++) {
+		struct walt_task_struct *wts = wts_list[i];
+
+		if (wts == NULL)
+			continue;
+
+		if (wts->pipeline_cpu < 0)
+			continue;
+
+		if (is_max_possible_cluster_cpu(wts->pipeline_cpu)) {
+			if (prime_wts)
+				*prime_wts = wts;
+		} else {
+			if (other_wts && wts->coloc_demand > max_demand) {
+				max_demand = wts->coloc_demand;
+				*other_wts = wts;
+			}
+		}
+	}
 }
 
 void rearrange_heavy(u64 window_start)
 {
 	struct walt_related_thread_group *grp;
-	struct walt_task_struct *wts;
-	u32 max_demand = 0;
 	struct walt_task_struct *prime_wts = NULL;
 	struct walt_task_struct *other_wts = NULL;
 	unsigned long flags;
-	int i;
 
 	if (have_heavy_list <= 2)
 		return;
@@ -3960,32 +3984,7 @@ void rearrange_heavy(u64 window_start)
 
 	raw_spin_lock_irqsave(&heavy_lock, flags);
 
-	for (i = 0; i < WALT_NR_CPUS; i++) {
-		wts = heavy_wts[i];
-
-		if (!wts)
-			continue;
-
-		if (!wts->grp) {
-			/* will be removed from heavy_wts in the next run of find_heaviest_topapp */
-			wts->pipeline_cpu = -1;
-			continue;
-		}
-
-		if (wts->pipeline_cpu == -1)
-			/* we could have run out of the assignable cpus. skip unassigned tasks */
-			continue;
-
-		if (is_max_possible_cluster_cpu(wts->pipeline_cpu)) {
-			/* assumes just one prime */
-			prime_wts = wts;
-		} else {
-			if (wts->coloc_demand > max_demand) {
-				max_demand = wts->coloc_demand;
-				other_wts = wts;
-			}
-		}
-	}
+	find_prime_and_max_tasks(heavy_wts, &prime_wts, &other_wts);
 
 	/* swap prime for nr_pipeline >= 3 */
 	swap_pipeline_with_prime_locked(prime_wts, other_wts);
