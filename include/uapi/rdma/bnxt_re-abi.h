@@ -132,6 +132,7 @@ enum bnxt_re_shpg_offt {
 
 enum bnxt_re_objects {
 	BNXT_RE_OBJECT_ALLOC_PAGE = (1U << UVERBS_ID_NS_SHIFT),
+	BNXT_RE_OBJECT_NOTIFY_DRV,
 };
 
 enum bnxt_re_alloc_page_type {
@@ -157,4 +158,7 @@ enum bnxt_re_alloc_page_methods {
 	BNXT_RE_METHOD_DESTROY_PAGE,
 };
 
+enum bnxt_re_notify_drv_methods {
+	BNXT_RE_METHOD_NOTIFY_DRV = (1U << UVERBS_ID_NS_SHIFT),
+};
 #endif /* __BNXT_RE_UVERBS_ABI_H__*/
