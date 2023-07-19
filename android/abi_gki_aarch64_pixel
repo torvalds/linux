@@ -1987,6 +1987,7 @@
   __traceiter_android_rvh_typec_tcpci_get_vbus
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
+  __traceiter_android_vh_enable_thermal_genl_check
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_sysrq_crash
@@ -2022,6 +2023,7 @@
   __tracepoint_android_rvh_typec_tcpci_get_vbus
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
+  __tracepoint_android_vh_enable_thermal_genl_check
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_sysrq_crash
