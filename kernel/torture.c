@@ -932,7 +932,7 @@ EXPORT_SYMBOL_GPL(torture_kthread_stopping);
  * it starts, you will need to open-code your own.
  */
 int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
-			    char *f, struct task_struct **tp)
+			    char *f, struct task_struct **tp, void (*cbf)(struct task_struct *tp))
 {
 	int ret = 0;
 
@@ -944,6 +944,10 @@ int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
 		*tp = NULL;
 		return ret;
 	}
+
+	if (cbf)
+		cbf(*tp);
+
 	wake_up_process(*tp);  // Process is sleeping, so ordering provided.
 	torture_shuffle_task_register(*tp);
 	return ret;
