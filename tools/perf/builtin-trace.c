@@ -1296,6 +1296,8 @@ static struct thread_trace *thread_trace__new(void)
 	return ttrace;
 }
 
+static void thread_trace__free_files(struct thread_trace *ttrace);
+
 static void thread_trace__delete(void *pttrace)
 {
 	struct thread_trace *ttrace = pttrace;
@@ -1305,6 +1307,7 @@ static void thread_trace__delete(void *pttrace)
 
 	intlist__delete(ttrace->syscall_stats);
 	ttrace->syscall_stats = NULL;
+	thread_trace__free_files(ttrace);
 	zfree(&ttrace->entry_str);
 	free(ttrace);
 }
@@ -1345,6 +1348,17 @@ void syscall_arg__set_ret_scnprintf(struct syscall_arg *arg,
 #define TRACE_PFMIN		(1 << 1)
 
 static const size_t trace__entry_str_size = 2048;
+
+static void thread_trace__free_files(struct thread_trace *ttrace)
+{
+	for (int i = 0; i < ttrace->files.max; ++i) {
+		struct file *file = ttrace->files.table + i;
+		zfree(&file->pathname);
+	}
+
+	zfree(&ttrace->files.table);
+	ttrace->files.max  = -1;
+}
 
 static struct file *thread_trace__files_entry(struct thread_trace *ttrace, int fd)
 {
