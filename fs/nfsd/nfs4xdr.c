@@ -3978,17 +3978,20 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 		nfserr = nfsd4_encode_stateid(xdr, &open->op_delegate_stateid);
 		if (nfserr)
 			return nfserr;
-		p = xdr_reserve_space(xdr, 32);
+
+		p = xdr_reserve_space(xdr, XDR_UNIT * 8);
 		if (!p)
 			return nfserr_resource;
 		*p++ = cpu_to_be32(open->op_recall);
 
 		/*
+		 * Always flush on close
+		 *
 		 * TODO: space_limit's in delegations
 		 */
 		*p++ = cpu_to_be32(NFS4_LIMIT_SIZE);
-		*p++ = cpu_to_be32(~(u32)0);
-		*p++ = cpu_to_be32(~(u32)0);
+		*p++ = xdr_zero;
+		*p++ = xdr_zero;
 
 		/*
 		 * TODO: ACE's in delegations
