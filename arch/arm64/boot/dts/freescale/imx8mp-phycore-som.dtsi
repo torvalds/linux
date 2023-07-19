@@ -142,21 +142,9 @@
 				regulator-min-microvolt = <1600000>;
 			};
 
-			ldo2: LDO2 {
-				regulator-always-on;
-				regulator-boot-on;
-				regulator-max-microvolt = <1150000>;
-				regulator-min-microvolt = <800000>;
-			};
-
 			ldo3: LDO3 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-max-microvolt = <3300000>;
-				regulator-min-microvolt = <800000>;
-			};
-
-			ldo4: LDO4 {
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <800000>;
 			};
