@@ -16,6 +16,7 @@ enum pwm_enable { off, manual, thermal_cruise, speed_cruise, sf3, sf4 };
 #define NUM_REG_BEEP	5	/* Max number of beep registers */
 
 #define NUM_FAN		7
+#define NUM_IN		18
 
 struct nct6775_data {
 	int addr;	/* IO base of hw monitor block */
@@ -97,7 +98,7 @@ struct nct6775_data {
 	/* Register values */
 	u8 bank;		/* current register bank */
 	u8 in_num;		/* number of in inputs we have */
-	u8 in[15][3];		/* [0]=in, [1]=in_max, [2]=in_min */
+	u8 in[NUM_IN][3];	/* [0]=in, [1]=in_max, [2]=in_min */
 	const u16 *scale_in;	/* internal scaling factors */
 	unsigned int rpm[NUM_FAN];
 	u16 fan_min[NUM_FAN];
@@ -166,7 +167,7 @@ struct nct6775_data {
 	u16 have_temp;
 	u16 have_temp_fixed;
 	u16 have_tsi_temp;
-	u16 have_in;
+	u32 have_in;
 
 	/* Remember extra register values over suspend/resume */
 	u8 vbat;
