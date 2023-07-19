@@ -380,6 +380,7 @@ struct btree_insert_entry {
 	u8			old_btree_u64s;
 	struct bkey_i		*k;
 	struct btree_path	*path;
+	u64			seq;
 	/* key being overwritten: */
 	struct bkey		old_k;
 	const struct bch_val	*old_v;

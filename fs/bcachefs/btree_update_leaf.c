@@ -747,9 +747,14 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	trans_for_each_update(trans, i) {
 		i->k->k.needs_whiteout = false;
 
-		if (!i->cached)
-			bch2_btree_insert_key_leaf(trans, i->path, i->k, trans->journal_res.seq);
-		else if (!i->key_cache_already_flushed)
+		if (!i->cached) {
+			u64 seq = trans->journal_res.seq;
+
+			if (i->flags & BTREE_UPDATE_PREJOURNAL)
+				seq = i->seq;
+
+			bch2_btree_insert_key_leaf(trans, i->path, i->k, seq);
+		} else if (!i->key_cache_already_flushed)
 			bch2_btree_insert_key_cached(trans, flags, i);
 		else {
 			bch2_btree_key_cache_drop(trans, i->path);
@@ -1571,11 +1576,20 @@ bch2_trans_update_by_path(struct btree_trans *trans, struct btree_path *path,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i, n;
+	u64 seq = 0;
 	int cmp;
 
 	EBUG_ON(!path->should_be_locked);
 	EBUG_ON(trans->nr_updates >= BTREE_ITER_MAX);
 	EBUG_ON(!bpos_eq(k->k.p, path->pos));
+
+	/*
+	 * The transaction journal res hasn't been allocated at this point.
+	 * That occurs at commit time. Reuse the seq field to pass in the seq
+	 * of a prejournaled key.
+	 */
+	if (flags & BTREE_UPDATE_PREJOURNAL)
+		seq = trans->journal_res.seq;
 
 	n = (struct btree_insert_entry) {
 		.flags		= flags,
@@ -1585,6 +1599,7 @@ bch2_trans_update_by_path(struct btree_trans *trans, struct btree_path *path,
 		.cached		= path->cached,
 		.path		= path,
 		.k		= k,
+		.seq		= seq,
 		.ip_allocated	= ip,
 	};
 
@@ -1612,6 +1627,7 @@ bch2_trans_update_by_path(struct btree_trans *trans, struct btree_path *path,
 		i->cached	= n.cached;
 		i->k		= n.k;
 		i->path		= n.path;
+		i->seq		= n.seq;
 		i->ip_allocated	= n.ip_allocated;
 	} else {
 		array_insert_item(trans->updates, trans->nr_updates,
@@ -1707,6 +1723,18 @@ int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter 
 	}
 
 	return bch2_trans_update_by_path(trans, path, k, flags, _RET_IP_);
+}
+
+/*
+ * Add a transaction update for a key that has already been journaled.
+ */
+int __must_check bch2_trans_update_seq(struct btree_trans *trans, u64 seq,
+				       struct btree_iter *iter, struct bkey_i *k,
+				       enum btree_update_flags flags)
+{
+	trans->journal_res.seq = seq;
+	return bch2_trans_update(trans, iter, k, flags|BTREE_UPDATE_NOJOURNAL|
+						 BTREE_UPDATE_PREJOURNAL);
 }
 
 int __must_check bch2_trans_update_buffered(struct btree_trans *trans,
