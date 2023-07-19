@@ -62,6 +62,12 @@ attribute-sets:
         type: u64
         enum: xdp-act
         enum-as-flags: true
+      -
+        name: xdp_zc_max_segs
+        doc: max fragment count supported by ZC driver
+        type: u32
+        checks:
+          min: 1
 
 operations:
   list:
