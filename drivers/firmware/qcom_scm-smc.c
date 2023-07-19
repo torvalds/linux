@@ -150,8 +150,6 @@ static int scm_smc_do_quirk(struct device *dev, struct arm_smccc_args *smc,
 				wq = NULL;
 				continue;
 			} else {
-				/* Currently it is not supported by a firmware */
-				WARN_ON_ONCE(1);
 				fill_wq_wake_ack_args(smc, smc_call_ctx);
 				continue;
 			}
