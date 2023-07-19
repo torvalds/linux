@@ -3245,6 +3245,10 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 
 			ret = brcmnand_init_cs(host, NULL);
 			if (ret) {
+				if (ret == -EPROBE_DEFER) {
+					of_node_put(child);
+					goto err;
+				}
 				devm_kfree(dev, host);
 				continue; /* Try all chip-selects */
 			}
