@@ -492,6 +492,10 @@ static int cctrng_probe(struct platform_device *pdev)
 	u32 val;
 	int irq;
 
+	/* Compile time assertion checks */
+	BUILD_BUG_ON(CCTRNG_DATA_BUF_WORDS < 6);
+	BUILD_BUG_ON((CCTRNG_DATA_BUF_WORDS & (CCTRNG_DATA_BUF_WORDS-1)) != 0);
+
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
@@ -698,21 +702,7 @@ static struct platform_driver cctrng_driver = {
 	.remove = cctrng_remove,
 };
 
-static int __init cctrng_mod_init(void)
-{
-	/* Compile time assertion checks */
-	BUILD_BUG_ON(CCTRNG_DATA_BUF_WORDS < 6);
-	BUILD_BUG_ON((CCTRNG_DATA_BUF_WORDS & (CCTRNG_DATA_BUF_WORDS-1)) != 0);
-
-	return platform_driver_register(&cctrng_driver);
-}
-module_init(cctrng_mod_init);
-
-static void __exit cctrng_mod_exit(void)
-{
-	platform_driver_unregister(&cctrng_driver);
-}
-module_exit(cctrng_mod_exit);
+module_platform_driver(cctrng_driver);
 
 /* Module description */
 MODULE_DESCRIPTION("ARM CryptoCell TRNG Driver");
