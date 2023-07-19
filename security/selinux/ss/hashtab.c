@@ -2,7 +2,7 @@
 /*
  * Implementation of the hash table type.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>

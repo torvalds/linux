@@ -2,7 +2,7 @@
 /*
  * Implementation of the security services.
  *
- * Authors : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Authors : Stephen Smalley, <stephen.smalley.work@gmail.com>
  *	     James Morris <jmorris@redhat.com>
  *
  * Updated: Trusted Computer Solutions, Inc. <dgoeddel@trustedcs.com>

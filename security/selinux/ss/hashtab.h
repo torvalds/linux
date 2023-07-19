@@ -6,7 +6,7 @@
  * functions for hash computation and key comparison are
  * provided by the creator of the table.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
 #ifndef _SS_HASHTAB_H_
 #define _SS_HASHTAB_H_

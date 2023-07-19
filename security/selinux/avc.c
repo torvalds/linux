@@ -2,7 +2,7 @@
 /*
  * Implementation of the kernel access vector cache (AVC).
  *
- * Authors:  Stephen Smalley, <sds@tycho.nsa.gov>
+ * Authors:  Stephen Smalley, <stephen.smalley.work@gmail.com>
  *	     James Morris <jmorris@redhat.com>
  *
  * Update:   KaiGai, Kohei <kaigai@ak.jp.nec.com>

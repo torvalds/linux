@@ -2,7 +2,7 @@
 /*
  * Implementation of the security services.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
 #ifndef _SS_SERVICES_H_
 #define _SS_SERVICES_H_
