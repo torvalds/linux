@@ -54,8 +54,6 @@
 		ethphy1: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <0>;
-			interrupt-parent = <&gpio1>;
-			interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
 			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
 			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
 			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
@@ -222,7 +220,6 @@
 			MX8MP_IOMUXC_SAI1_TXD3__ENET1_RGMII_TD3		0x14
 			MX8MP_IOMUXC_SAI1_TXD4__ENET1_RGMII_TX_CTL	0x14
 			MX8MP_IOMUXC_SAI1_TXD5__ENET1_RGMII_TXC		0x14
-			MX8MP_IOMUXC_GPIO1_IO15__GPIO1_IO15		0x11
 		>;
 	};
 
