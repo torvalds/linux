@@ -140,6 +140,9 @@ static inline bool xp_aligned_validate_desc(struct xsk_buff_pool *pool,
 {
 	u64 offset = desc->addr & (pool->chunk_size - 1);
 
+	if (!desc->len)
+		return false;
+
 	if (offset + desc->len > pool->chunk_size)
 		return false;
 
@@ -155,6 +158,9 @@ static inline bool xp_unaligned_validate_desc(struct xsk_buff_pool *pool,
 					      struct xdp_desc *desc)
 {
 	u64 addr = xp_unaligned_add_offset_to_addr(desc->addr);
+
+	if (!desc->len)
+		return false;
 
 	if (desc->len > pool->chunk_size)
 		return false;
