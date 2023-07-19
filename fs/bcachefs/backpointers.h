@@ -54,7 +54,7 @@ static inline struct bpos bucket_pos_to_bp(const struct bch_fs *c,
 	return ret;
 }
 
-int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *, struct bpos,
+int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *, struct bkey_i_backpointer *,
 				struct bch_backpointer, struct bkey_s_c, bool);
 
 static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
@@ -66,9 +66,6 @@ static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bkey_i_backpointer *bp_k;
 	int ret;
-
-	if (unlikely(bch2_backpointers_no_use_write_buffer))
-		return bch2_bucket_backpointer_mod_nowritebuffer(trans, bucket, bp, orig_k, insert);
 
 	bp_k = bch2_trans_kmalloc_nomemzero(trans, sizeof(struct bkey_i_backpointer));
 	ret = PTR_ERR_OR_ZERO(bp_k);
@@ -83,6 +80,9 @@ static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
 		bp_k->k.type = KEY_TYPE_deleted;
 		set_bkey_val_u64s(&bp_k->k, 0);
 	}
+
+	if (unlikely(bch2_backpointers_no_use_write_buffer))
+		return bch2_bucket_backpointer_mod_nowritebuffer(trans, bp_k, bp, orig_k, insert);
 
 	return bch2_trans_update_buffered(trans, BTREE_ID_backpointers, &bp_k->k_i);
 }

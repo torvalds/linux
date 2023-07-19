@@ -134,30 +134,14 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 }
 
 int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *trans,
-				struct bpos bucket,
+				struct bkey_i_backpointer *bp_k,
 				struct bch_backpointer bp,
 				struct bkey_s_c orig_k,
 				bool insert)
 {
-	struct bch_fs *c = trans->c;
-	struct bkey_i_backpointer *bp_k;
 	struct btree_iter bp_iter;
 	struct bkey_s_c k;
 	int ret;
-
-	bp_k = bch2_trans_kmalloc_nomemzero(trans, sizeof(struct bkey_i_backpointer));
-	ret = PTR_ERR_OR_ZERO(bp_k);
-	if (ret)
-		return ret;
-
-	bkey_backpointer_init(&bp_k->k_i);
-	bp_k->k.p = bucket_pos_to_bp(c, bucket, bp.bucket_offset);
-	bp_k->v = bp;
-
-	if (!insert) {
-		bp_k->k.type = KEY_TYPE_deleted;
-		set_bkey_val_u64s(&bp_k->k, 0);
-	}
 
 	k = bch2_bkey_get_iter(trans, &bp_iter, BTREE_ID_backpointers,
 			       bp_k->k.p,
