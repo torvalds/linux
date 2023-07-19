@@ -899,6 +899,14 @@ int genphy_c45_pma_baset1_read_abilities(struct phy_device *phydev)
 			 phydev->supported,
 			 val & MDIO_PMA_PMD_BT1_B10L_ABLE);
 
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT1_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_PMD_BT1_B100_ABLE);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT1_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_PMD_BT1_B1000_ABLE);
+
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_T1_STAT);
 	if (val < 0)
 		return val;
