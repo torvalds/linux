@@ -108,7 +108,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_pma_baset1_setup_master_slave);
  */
 int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 {
-	int ctrl1, ctrl2, ret;
+	int bt1_ctrl, ctrl1, ctrl2, ret;
 
 	/* Half duplex is not supported */
 	if (phydev->duplex != DUPLEX_FULL)
@@ -174,6 +174,15 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 
 	if (genphy_c45_baset1_able(phydev)) {
 		ret = genphy_c45_pma_baset1_setup_master_slave(phydev);
+		if (ret < 0)
+			return ret;
+
+		bt1_ctrl = 0;
+		if (phydev->speed == SPEED_1000)
+			bt1_ctrl = MDIO_PMA_PMD_BT1_CTRL_STRAP_B1000;
+
+		ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL,
+				     MDIO_PMA_PMD_BT1_CTRL_STRAP, bt1_ctrl);
 		if (ret < 0)
 			return ret;
 	}
