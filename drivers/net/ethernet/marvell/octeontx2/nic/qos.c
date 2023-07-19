@@ -19,6 +19,7 @@
 #define OTX2_QOS_CLASS_NONE		0
 #define OTX2_QOS_DEFAULT_PRIO		0xF
 #define OTX2_QOS_INVALID_SQ		0xFFFF
+#define OTX2_QOS_INVALID_TXSCHQ_IDX	0xFFFF
 
 static void otx2_qos_update_tx_netdev_queues(struct otx2_nic *pfvf)
 {
@@ -315,9 +316,14 @@ static void otx2_qos_fill_cfg_tl(struct otx2_qos_node *parent,
 
 	list_for_each_entry(node, &parent->child_list, list) {
 		otx2_qos_fill_cfg_tl(node, cfg);
-		cfg->schq_contig[node->level]++;
 		otx2_qos_fill_cfg_schq(node, cfg);
 	}
+
+	/* Assign the required number of transmit schedular queues under the
+	 * given class
+	 */
+	cfg->schq_contig[parent->level - 1] += parent->child_dwrr_cnt +
+					       parent->max_static_prio + 1;
 }
 
 static void otx2_qos_prepare_txschq_cfg(struct otx2_nic *pfvf,
@@ -401,9 +407,13 @@ static int otx2_qos_add_child_node(struct otx2_qos_node *parent,
 	struct otx2_qos_node *tmp_node;
 	struct list_head *tmp;
 
+	if (node->prio > parent->max_static_prio)
+		parent->max_static_prio = node->prio;
+
 	for (tmp = head->next; tmp != head; tmp = tmp->next) {
 		tmp_node = list_entry(tmp, struct otx2_qos_node, list);
-		if (tmp_node->prio == node->prio)
+		if (tmp_node->prio == node->prio &&
+		    tmp_node->is_static)
 			return -EEXIST;
 		if (tmp_node->prio > node->prio) {
 			list_add_tail(&node->list, tmp);
@@ -476,6 +486,7 @@ otx2_qos_sw_create_leaf_node(struct otx2_nic *pfvf,
 	node->rate = otx2_convert_rate(rate);
 	node->ceil = otx2_convert_rate(ceil);
 	node->prio = prio;
+	node->is_static = true;
 
 	__set_bit(qid, pfvf->qos.qos_sq_bmap);
 
@@ -628,6 +639,21 @@ out:
 	return rc;
 }
 
+static void otx2_qos_free_unused_txschq(struct otx2_nic *pfvf,
+					struct otx2_qos_cfg *cfg)
+{
+	int lvl, idx, schq;
+
+	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
+		for (idx = 0; idx < cfg->schq_contig[lvl]; idx++) {
+			if (!cfg->schq_index_used[lvl][idx]) {
+				schq = cfg->schq_contig_list[lvl][idx];
+				otx2_txschq_free_one(pfvf, lvl, schq);
+			}
+		}
+	}
+}
+
 static void otx2_qos_txschq_fill_cfg_schq(struct otx2_nic *pfvf,
 					  struct otx2_qos_node *node,
 					  struct otx2_qos_cfg *cfg)
@@ -652,9 +678,11 @@ static void otx2_qos_txschq_fill_cfg_tl(struct otx2_nic *pfvf,
 	list_for_each_entry(tmp, &node->child_list, list) {
 		otx2_qos_txschq_fill_cfg_tl(pfvf, tmp, cfg);
 		cnt = cfg->static_node_pos[tmp->level];
-		tmp->schq = cfg->schq_contig_list[tmp->level][cnt];
+		tmp->schq = cfg->schq_contig_list[tmp->level][tmp->txschq_idx];
+		cfg->schq_index_used[tmp->level][tmp->txschq_idx] = true;
 		if (cnt == 0)
-			node->prio_anchor = tmp->schq;
+			node->prio_anchor =
+				cfg->schq_contig_list[tmp->level][0];
 		cfg->static_node_pos[tmp->level]++;
 		otx2_qos_txschq_fill_cfg_schq(pfvf, tmp, cfg);
 	}
@@ -667,7 +695,85 @@ static void otx2_qos_txschq_fill_cfg(struct otx2_nic *pfvf,
 	mutex_lock(&pfvf->qos.qos_lock);
 	otx2_qos_txschq_fill_cfg_tl(pfvf, node, cfg);
 	otx2_qos_txschq_fill_cfg_schq(pfvf, node, cfg);
+	otx2_qos_free_unused_txschq(pfvf, cfg);
 	mutex_unlock(&pfvf->qos.qos_lock);
+}
+
+static void __otx2_qos_assign_base_idx_tl(struct otx2_nic *pfvf,
+					  struct otx2_qos_node *tmp,
+					  unsigned long *child_idx_bmap,
+					  int child_cnt)
+{
+	int idx;
+
+	if (tmp->txschq_idx != OTX2_QOS_INVALID_TXSCHQ_IDX)
+		return;
+
+	/* assign static nodes 1:1 prio mapping first, then remaining nodes */
+	for (idx = 0; idx < child_cnt; idx++) {
+		if (tmp->is_static && tmp->prio == idx &&
+		    !test_bit(idx, child_idx_bmap)) {
+			tmp->txschq_idx = idx;
+			set_bit(idx, child_idx_bmap);
+			return;
+		} else if (!tmp->is_static && idx >= tmp->prio &&
+			   !test_bit(idx, child_idx_bmap)) {
+			tmp->txschq_idx = idx;
+			set_bit(idx, child_idx_bmap);
+			return;
+		}
+	}
+}
+
+static int otx2_qos_assign_base_idx_tl(struct otx2_nic *pfvf,
+				       struct otx2_qos_node *node)
+{
+	unsigned long *child_idx_bmap;
+	struct otx2_qos_node *tmp;
+	int child_cnt;
+
+	list_for_each_entry(tmp, &node->child_list, list)
+		tmp->txschq_idx = OTX2_QOS_INVALID_TXSCHQ_IDX;
+
+	/* allocate child index array */
+	child_cnt = node->child_dwrr_cnt + node->max_static_prio + 1;
+	child_idx_bmap = kcalloc(BITS_TO_LONGS(child_cnt),
+				 sizeof(unsigned long),
+				 GFP_KERNEL);
+	if (!child_idx_bmap)
+		return -ENOMEM;
+
+	list_for_each_entry(tmp, &node->child_list, list)
+		otx2_qos_assign_base_idx_tl(pfvf, tmp);
+
+	/* assign base index of static priority children first */
+	list_for_each_entry(tmp, &node->child_list, list) {
+		if (!tmp->is_static)
+			continue;
+		__otx2_qos_assign_base_idx_tl(pfvf, tmp, child_idx_bmap,
+					      child_cnt);
+	}
+
+	/* assign base index of dwrr priority children */
+	list_for_each_entry(tmp, &node->child_list, list)
+		__otx2_qos_assign_base_idx_tl(pfvf, tmp, child_idx_bmap,
+					      child_cnt);
+
+	kfree(child_idx_bmap);
+
+	return 0;
+}
+
+static int otx2_qos_assign_base_idx(struct otx2_nic *pfvf,
+				    struct otx2_qos_node *node)
+{
+	int ret = 0;
+
+	mutex_lock(&pfvf->qos.qos_lock);
+	ret = otx2_qos_assign_base_idx_tl(pfvf, node);
+	mutex_unlock(&pfvf->qos.qos_lock);
+
+	return ret;
 }
 
 static int otx2_qos_txschq_push_cfg_schq(struct otx2_nic *pfvf,
@@ -761,8 +867,10 @@ static void otx2_qos_free_cfg(struct otx2_nic *pfvf, struct otx2_qos_cfg *cfg)
 
 	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
 		for (idx = 0; idx < cfg->schq_contig[lvl]; idx++) {
-			schq = cfg->schq_contig_list[lvl][idx];
-			otx2_txschq_free_one(pfvf, lvl, schq);
+			if (cfg->schq_index_used[lvl][idx]) {
+				schq = cfg->schq_contig_list[lvl][idx];
+				otx2_txschq_free_one(pfvf, lvl, schq);
+			}
 		}
 	}
 }
@@ -837,6 +945,10 @@ static int otx2_qos_push_txschq_cfg(struct otx2_nic *pfvf,
 	ret = otx2_qos_txschq_alloc(pfvf, cfg);
 	if (ret)
 		return -ENOSPC;
+
+	ret = otx2_qos_assign_base_idx(pfvf, node);
+	if (ret)
+		return -ENOMEM;
 
 	if (!(pfvf->netdev->flags & IFF_UP)) {
 		otx2_qos_txschq_fill_cfg(pfvf, node, cfg);
@@ -995,6 +1107,7 @@ static int otx2_qos_leaf_alloc_queue(struct otx2_nic *pfvf, u16 classid,
 	if (ret)
 		goto out;
 
+	parent->child_static_cnt++;
 	set_bit(prio, parent->prio_bmap);
 
 	/* read current txschq configuration */
@@ -1067,6 +1180,7 @@ free_node:
 free_old_cfg:
 	kfree(old_cfg);
 reset_prio:
+	parent->child_static_cnt--;
 	clear_bit(prio, parent->prio_bmap);
 out:
 	return ret;
@@ -1105,6 +1219,7 @@ static int otx2_qos_leaf_to_inner(struct otx2_nic *pfvf, u16 classid,
 		goto out;
 	}
 
+	node->child_static_cnt++;
 	set_bit(prio, node->prio_bmap);
 
 	/* store the qid to assign to leaf node */
@@ -1178,6 +1293,7 @@ free_node:
 free_old_cfg:
 	kfree(old_cfg);
 reset_prio:
+	node->child_static_cnt--;
 	clear_bit(prio, node->prio_bmap);
 out:
 	return ret;
@@ -1206,6 +1322,10 @@ static int otx2_qos_leaf_del(struct otx2_nic *pfvf, u16 *classid,
 
 	otx2_qos_destroy_node(pfvf, node);
 	pfvf->qos.qid_to_sqmap[qid] = OTX2_QOS_INVALID_SQ;
+
+	parent->child_static_cnt--;
+	if (!parent->child_static_cnt)
+		parent->max_static_prio = 0;
 
 	clear_bit(prio, parent->prio_bmap);
 
@@ -1244,6 +1364,10 @@ static int otx2_qos_leaf_del_last(struct otx2_nic *pfvf, u16 classid, bool force
 	/* destroy the leaf node */
 	otx2_qos_destroy_node(pfvf, node);
 	pfvf->qos.qid_to_sqmap[qid] = OTX2_QOS_INVALID_SQ;
+
+	parent->child_static_cnt--;
+	if (!parent->child_static_cnt)
+		parent->max_static_prio = 0;
 
 	clear_bit(prio, parent->prio_bmap);
 
