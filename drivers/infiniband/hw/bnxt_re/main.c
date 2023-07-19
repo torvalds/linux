@@ -432,7 +432,90 @@ int bnxt_re_hwrm_qcaps(struct bnxt_re_dev *rdev)
 		return rc;
 	cctx->modes.db_push = le32_to_cpu(resp.flags) & FUNC_QCAPS_RESP_FLAGS_WCB_PUSH_MODE;
 
+	cctx->modes.dbr_pacing =
+		le32_to_cpu(resp.flags_ext2) & FUNC_QCAPS_RESP_FLAGS_EXT2_DBR_PACING_EXT_SUPPORTED ?
+		true : false;
 	return 0;
+}
+
+static int bnxt_re_hwrm_dbr_pacing_qcfg(struct bnxt_re_dev *rdev)
+{
+	struct hwrm_func_dbr_pacing_qcfg_output resp = {};
+	struct hwrm_func_dbr_pacing_qcfg_input req = {};
+	struct bnxt_en_dev *en_dev = rdev->en_dev;
+	struct bnxt_qplib_chip_ctx *cctx;
+	struct bnxt_fw_msg fw_msg = {};
+	int rc;
+
+	cctx = rdev->chip_ctx;
+	bnxt_re_init_hwrm_hdr((void *)&req, HWRM_FUNC_DBR_PACING_QCFG);
+	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
+			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
+	rc = bnxt_send_msg(en_dev, &fw_msg);
+	if (rc)
+		return rc;
+
+	if ((le32_to_cpu(resp.dbr_stat_db_fifo_reg) &
+	    FUNC_DBR_PACING_QCFG_RESP_DBR_STAT_DB_FIFO_REG_ADDR_SPACE_MASK) ==
+		FUNC_DBR_PACING_QCFG_RESP_DBR_STAT_DB_FIFO_REG_ADDR_SPACE_GRC)
+		cctx->dbr_stat_db_fifo =
+			le32_to_cpu(resp.dbr_stat_db_fifo_reg) &
+			~FUNC_DBR_PACING_QCFG_RESP_DBR_STAT_DB_FIFO_REG_ADDR_SPACE_MASK;
+	return 0;
+}
+
+/* Update the pacing tunable parameters to the default values */
+static void bnxt_re_set_default_pacing_data(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_qplib_db_pacing_data *pacing_data = rdev->qplib_res.pacing_data;
+
+	pacing_data->do_pacing = rdev->pacing.dbr_def_do_pacing;
+	pacing_data->pacing_th = rdev->pacing.pacing_algo_th;
+	pacing_data->alarm_th =
+		pacing_data->pacing_th * BNXT_RE_PACING_ALARM_TH_MULTIPLE;
+}
+
+static int bnxt_re_initialize_dbr_pacing(struct bnxt_re_dev *rdev)
+{
+	if (bnxt_re_hwrm_dbr_pacing_qcfg(rdev))
+		return -EIO;
+
+	/* Allocate a page for app use */
+	rdev->pacing.dbr_page = (void *)__get_free_page(GFP_KERNEL);
+	if (!rdev->pacing.dbr_page)
+		return -ENOMEM;
+
+	memset((u8 *)rdev->pacing.dbr_page, 0, PAGE_SIZE);
+	rdev->qplib_res.pacing_data = (struct bnxt_qplib_db_pacing_data *)rdev->pacing.dbr_page;
+
+	/* MAP HW window 2 for reading db fifo depth */
+	writel(rdev->chip_ctx->dbr_stat_db_fifo & BNXT_GRC_BASE_MASK,
+	       rdev->en_dev->bar0 + BNXT_GRCPF_REG_WINDOW_BASE_OUT + 4);
+	rdev->pacing.dbr_db_fifo_reg_off =
+		(rdev->chip_ctx->dbr_stat_db_fifo & BNXT_GRC_OFFSET_MASK) +
+		 BNXT_RE_GRC_FIFO_REG_BASE;
+	rdev->pacing.dbr_bar_addr =
+		pci_resource_start(rdev->qplib_res.pdev, 0) + rdev->pacing.dbr_db_fifo_reg_off;
+
+	rdev->pacing.pacing_algo_th = BNXT_RE_PACING_ALGO_THRESHOLD;
+	rdev->pacing.dbq_pacing_time = BNXT_RE_DBR_PACING_TIME;
+	rdev->pacing.dbr_def_do_pacing = BNXT_RE_DBR_DO_PACING_NO_CONGESTION;
+	rdev->pacing.do_pacing_save = rdev->pacing.dbr_def_do_pacing;
+	rdev->qplib_res.pacing_data->fifo_max_depth = BNXT_RE_MAX_FIFO_DEPTH;
+	rdev->qplib_res.pacing_data->fifo_room_mask = BNXT_RE_DB_FIFO_ROOM_MASK;
+	rdev->qplib_res.pacing_data->fifo_room_shift = BNXT_RE_DB_FIFO_ROOM_SHIFT;
+	rdev->qplib_res.pacing_data->grc_reg_offset = rdev->pacing.dbr_db_fifo_reg_off;
+	bnxt_re_set_default_pacing_data(rdev);
+	return 0;
+}
+
+static void bnxt_re_deinitialize_dbr_pacing(struct bnxt_re_dev *rdev)
+{
+	if (rdev->pacing.dbr_page)
+		free_page((u64)rdev->pacing.dbr_page);
+
+	rdev->pacing.dbr_page = NULL;
+	rdev->pacing.dbr_pacing = false;
 }
 
 static int bnxt_re_net_ring_free(struct bnxt_re_dev *rdev,
@@ -1217,6 +1300,9 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev)
 	if (test_and_clear_bit(BNXT_RE_FLAG_GOT_MSIX, &rdev->flags))
 		rdev->num_msix = 0;
 
+	if (rdev->pacing.dbr_pacing)
+		bnxt_re_deinitialize_dbr_pacing(rdev);
+
 	bnxt_re_destroy_chip_ctx(rdev);
 	if (test_and_clear_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags))
 		bnxt_unregister_dev(rdev->en_dev);
@@ -1309,6 +1395,16 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 		goto free_ring;
 	}
 
+	if (bnxt_qplib_dbr_pacing_en(rdev->chip_ctx)) {
+		rc = bnxt_re_initialize_dbr_pacing(rdev);
+		if (!rc) {
+			rdev->pacing.dbr_pacing = true;
+		} else {
+			ibdev_err(&rdev->ibdev,
+				  "DBR pacing disabled with error : %d\n", rc);
+			rdev->pacing.dbr_pacing = false;
+		}
+	}
 	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr,
 				     rdev->is_virtfn);
 	if (rc)
