@@ -455,21 +455,6 @@ static void cc_trng_startwork_handler(struct work_struct *w)
 	cc_trng_hw_trigger(drvdata);
 }
 
-
-static int cc_trng_clk_init(struct cctrng_drvdata *drvdata)
-{
-	struct clk *clk;
-	struct device *dev = &(drvdata->pdev->dev);
-
-	clk = devm_clk_get_optional_enabled(dev, NULL);
-	if (IS_ERR(clk))
-		return dev_err_probe(dev, PTR_ERR(clk),
-				     "Failed to get or enable the clock\n");
-
-	drvdata->clk = clk;
-	return 0;
-}
-
 static int cctrng_probe(struct platform_device *pdev)
 {
 	struct cctrng_drvdata *drvdata;
@@ -517,11 +502,10 @@ static int cctrng_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	rc = cc_trng_clk_init(drvdata);
-	if (rc) {
-		dev_err(dev, "cc_trng_clk_init failed\n");
-		return rc;
-	}
+	drvdata->clk = devm_clk_get_optional_enabled(dev, NULL);
+	if (IS_ERR(drvdata->clk))
+		return dev_err_probe(dev, PTR_ERR(drvdata->clk),
+				     "Failed to get or enable the clock\n");
 
 	INIT_WORK(&drvdata->compwork, cc_trng_compwork_handler);
 	INIT_WORK(&drvdata->startwork, cc_trng_startwork_handler);
