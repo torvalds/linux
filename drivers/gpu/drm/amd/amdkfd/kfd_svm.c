@@ -46,6 +46,8 @@
  * page table is updated.
  */
 #define AMDGPU_SVM_RANGE_RETRY_FAULT_PENDING	(2UL * NSEC_PER_MSEC)
+#define dynamic_svm_range_dump(svms) \
+	_dynamic_func_call_no_desc("svm_range_dump", svm_range_debug_dump, svms)
 
 /* Giant svm range split into smaller ranges based on this, it is decided using
  * minimum of all dGPU/APU 1/32 VRAM size, between 2MB to 1GB and alignment to
@@ -3563,7 +3565,7 @@ out_unlock_range:
 			break;
 	}
 
-	svm_range_debug_dump(svms);
+	dynamic_svm_range_dump(svms);
 
 	mutex_unlock(&svms->lock);
 	mmap_read_unlock(mm);
