@@ -315,4 +315,13 @@ int bpf_mprog_detach(struct bpf_mprog_entry *entry,
 int bpf_mprog_query(const union bpf_attr *attr, union bpf_attr __user *uattr,
 		    struct bpf_mprog_entry *entry);
 
+static inline bool bpf_mprog_supported(enum bpf_prog_type type)
+{
+	switch (type) {
+	case BPF_PROG_TYPE_SCHED_CLS:
+		return true;
+	default:
+		return false;
+	}
+}
 #endif /* __BPF_MPROG_H */
