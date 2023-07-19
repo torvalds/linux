@@ -14,3 +14,7 @@ void test_refcounted_kptr(void)
 void test_refcounted_kptr_fail(void)
 {
 }
+
+void test_refcounted_kptr_wrong_owner(void)
+{
+}

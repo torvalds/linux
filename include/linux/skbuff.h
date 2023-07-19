@@ -944,7 +944,7 @@ struct sk_buff {
 	__u8			__mono_tc_offset[0];
 	/* public: */
 	__u8			mono_delivery_time:1;	/* See SKB_MONO_DELIVERY_TIME_MASK */
-#ifdef CONFIG_NET_CLS_ACT
+#ifdef CONFIG_NET_XGRESS
 	__u8			tc_at_ingress:1;	/* See TC_AT_INGRESS_MASK */
 	__u8			tc_skip_classify:1;
 #endif
@@ -993,7 +993,7 @@ struct sk_buff {
 	__u8			csum_not_inet:1;
 #endif
 
-#ifdef CONFIG_NET_SCHED
+#if defined(CONFIG_NET_SCHED) || defined(CONFIG_NET_XGRESS)
 	__u16			tc_index;	/* traffic control index */
 #endif
 
@@ -4023,7 +4023,7 @@ __skb_header_pointer(const struct sk_buff *skb, int offset, int len,
 	if (likely(hlen - offset >= len))
 		return (void *)data + offset;
 
-	if (!skb || !buffer || unlikely(skb_copy_bits(skb, offset, buffer, len) < 0))
+	if (!skb || unlikely(skb_copy_bits(skb, offset, buffer, len) < 0))
 		return NULL;
 
 	return buffer;
@@ -4034,6 +4034,14 @@ skb_header_pointer(const struct sk_buff *skb, int offset, int len, void *buffer)
 {
 	return __skb_header_pointer(skb, offset, len, skb->data,
 				    skb_headlen(skb), buffer);
+}
+
+static inline void * __must_check
+skb_pointer_if_linear(const struct sk_buff *skb, int offset, int len)
+{
+	if (likely(skb_headlen(skb) - offset >= len))
+		return skb->data + offset;
+	return NULL;
 }
 
 /**

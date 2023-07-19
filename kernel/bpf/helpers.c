@@ -1942,23 +1942,29 @@ __bpf_kfunc void *bpf_refcount_acquire_impl(void *p__refcounted_kptr, void *meta
 	return (void *)p__refcounted_kptr;
 }
 
-static int __bpf_list_add(struct bpf_list_node *node, struct bpf_list_head *head,
+static int __bpf_list_add(struct bpf_list_node_kern *node,
+			  struct bpf_list_head *head,
 			  bool tail, struct btf_record *rec, u64 off)
 {
-	struct list_head *n = (void *)node, *h = (void *)head;
+	struct list_head *n = &node->list_head, *h = (void *)head;
 
 	/* If list_head was 0-initialized by map, bpf_obj_init_field wasn't
 	 * called on its fields, so init here
 	 */
 	if (unlikely(!h->next))
 		INIT_LIST_HEAD(h);
-	if (!list_empty(n)) {
+
+	/* node->owner != NULL implies !list_empty(n), no need to separately
+	 * check the latter
+	 */
+	if (cmpxchg(&node->owner, NULL, BPF_PTR_POISON)) {
 		/* Only called from BPF prog, no need to migrate_disable */
 		__bpf_obj_drop_impl((void *)n - off, rec);
 		return -EINVAL;
 	}
 
 	tail ? list_add_tail(n, h) : list_add(n, h);
+	WRITE_ONCE(node->owner, head);
 
 	return 0;
 }
@@ -1967,25 +1973,26 @@ __bpf_kfunc int bpf_list_push_front_impl(struct bpf_list_head *head,
 					 struct bpf_list_node *node,
 					 void *meta__ign, u64 off)
 {
+	struct bpf_list_node_kern *n = (void *)node;
 	struct btf_struct_meta *meta = meta__ign;
 
-	return __bpf_list_add(node, head, false,
-			      meta ? meta->record : NULL, off);
+	return __bpf_list_add(n, head, false, meta ? meta->record : NULL, off);
 }
 
 __bpf_kfunc int bpf_list_push_back_impl(struct bpf_list_head *head,
 					struct bpf_list_node *node,
 					void *meta__ign, u64 off)
 {
+	struct bpf_list_node_kern *n = (void *)node;
 	struct btf_struct_meta *meta = meta__ign;
 
-	return __bpf_list_add(node, head, true,
-			      meta ? meta->record : NULL, off);
+	return __bpf_list_add(n, head, true, meta ? meta->record : NULL, off);
 }
 
 static struct bpf_list_node *__bpf_list_del(struct bpf_list_head *head, bool tail)
 {
 	struct list_head *n, *h = (void *)head;
+	struct bpf_list_node_kern *node;
 
 	/* If list_head was 0-initialized by map, bpf_obj_init_field wasn't
 	 * called on its fields, so init here
@@ -1994,8 +2001,14 @@ static struct bpf_list_node *__bpf_list_del(struct bpf_list_head *head, bool tai
 		INIT_LIST_HEAD(h);
 	if (list_empty(h))
 		return NULL;
+
 	n = tail ? h->prev : h->next;
+	node = container_of(n, struct bpf_list_node_kern, list_head);
+	if (WARN_ON_ONCE(READ_ONCE(node->owner) != head))
+		return NULL;
+
 	list_del_init(n);
+	WRITE_ONCE(node->owner, NULL);
 	return (struct bpf_list_node *)n;
 }
 
@@ -2012,29 +2025,38 @@ __bpf_kfunc struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head)
 __bpf_kfunc struct bpf_rb_node *bpf_rbtree_remove(struct bpf_rb_root *root,
 						  struct bpf_rb_node *node)
 {
+	struct bpf_rb_node_kern *node_internal = (struct bpf_rb_node_kern *)node;
 	struct rb_root_cached *r = (struct rb_root_cached *)root;
-	struct rb_node *n = (struct rb_node *)node;
+	struct rb_node *n = &node_internal->rb_node;
 
-	if (RB_EMPTY_NODE(n))
+	/* node_internal->owner != root implies either RB_EMPTY_NODE(n) or
+	 * n is owned by some other tree. No need to check RB_EMPTY_NODE(n)
+	 */
+	if (READ_ONCE(node_internal->owner) != root)
 		return NULL;
 
 	rb_erase_cached(n, r);
 	RB_CLEAR_NODE(n);
+	WRITE_ONCE(node_internal->owner, NULL);
 	return (struct bpf_rb_node *)n;
 }
 
 /* Need to copy rbtree_add_cached's logic here because our 'less' is a BPF
  * program
  */
-static int __bpf_rbtree_add(struct bpf_rb_root *root, struct bpf_rb_node *node,
+static int __bpf_rbtree_add(struct bpf_rb_root *root,
+			    struct bpf_rb_node_kern *node,
 			    void *less, struct btf_record *rec, u64 off)
 {
 	struct rb_node **link = &((struct rb_root_cached *)root)->rb_root.rb_node;
-	struct rb_node *parent = NULL, *n = (struct rb_node *)node;
+	struct rb_node *parent = NULL, *n = &node->rb_node;
 	bpf_callback_t cb = (bpf_callback_t)less;
 	bool leftmost = true;
 
-	if (!RB_EMPTY_NODE(n)) {
+	/* node->owner != NULL implies !RB_EMPTY_NODE(n), no need to separately
+	 * check the latter
+	 */
+	if (cmpxchg(&node->owner, NULL, BPF_PTR_POISON)) {
 		/* Only called from BPF prog, no need to migrate_disable */
 		__bpf_obj_drop_impl((void *)n - off, rec);
 		return -EINVAL;
@@ -2052,6 +2074,7 @@ static int __bpf_rbtree_add(struct bpf_rb_root *root, struct bpf_rb_node *node,
 
 	rb_link_node(n, parent, link);
 	rb_insert_color_cached(n, (struct rb_root_cached *)root, leftmost);
+	WRITE_ONCE(node->owner, root);
 	return 0;
 }
 
@@ -2060,8 +2083,9 @@ __bpf_kfunc int bpf_rbtree_add_impl(struct bpf_rb_root *root, struct bpf_rb_node
 				    void *meta__ign, u64 off)
 {
 	struct btf_struct_meta *meta = meta__ign;
+	struct bpf_rb_node_kern *n = (void *)node;
 
-	return __bpf_rbtree_add(root, node, (void *)less, meta ? meta->record : NULL, off);
+	return __bpf_rbtree_add(root, n, (void *)less, meta ? meta->record : NULL, off);
 }
 
 __bpf_kfunc struct bpf_rb_node *bpf_rbtree_first(struct bpf_rb_root *root)
@@ -2239,7 +2263,10 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr_kern *ptr, u32 offset
 	case BPF_DYNPTR_TYPE_RINGBUF:
 		return ptr->data + ptr->offset + offset;
 	case BPF_DYNPTR_TYPE_SKB:
-		return skb_header_pointer(ptr->data, ptr->offset + offset, len, buffer__opt);
+		if (buffer__opt)
+			return skb_header_pointer(ptr->data, ptr->offset + offset, len, buffer__opt);
+		else
+			return skb_pointer_if_linear(ptr->data, ptr->offset + offset, len);
 	case BPF_DYNPTR_TYPE_XDP:
 	{
 		void *xdp_ptr = bpf_xdp_pointer(ptr->data, ptr->offset + offset, len);

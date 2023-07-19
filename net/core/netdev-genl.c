@@ -25,6 +25,14 @@ netdev_nl_dev_fill(struct net_device *netdev, struct sk_buff *rsp,
 		return -EINVAL;
 	}
 
+	if (netdev->xdp_features & NETDEV_XDP_ACT_XSK_ZEROCOPY) {
+		if (nla_put_u32(rsp, NETDEV_A_DEV_XDP_ZC_MAX_SEGS,
+				netdev->xdp_zc_max_segs)) {
+			genlmsg_cancel(rsp, hdr);
+			return -EINVAL;
+		}
+	}
+
 	genlmsg_end(rsp, hdr);
 
 	return 0;

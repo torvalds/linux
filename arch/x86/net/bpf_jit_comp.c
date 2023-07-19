@@ -1925,7 +1925,7 @@ static int get_nr_used_regs(const struct btf_func_model *m)
 static void save_args(const struct btf_func_model *m, u8 **prog,
 		      int stack_size, bool for_call_origin)
 {
-	int arg_regs, first_off, nr_regs = 0, nr_stack_slots = 0;
+	int arg_regs, first_off = 0, nr_regs = 0, nr_stack_slots = 0;
 	int i, j;
 
 	/* Store function arguments to stack.
