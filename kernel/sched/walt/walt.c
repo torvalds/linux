@@ -5118,7 +5118,7 @@ static void do_freq_qos_request(struct qos_req
 				cpu = cpumask_first(&sched_cluster[i]->cpus);
 				if (cpufreq_get_policy(&policy, cpu))
 					continue;
-				if (cpu_online(cpu))
+				if (!cpu_online(cpu))
 					continue;
 
 				req = get_req_from_client(cpu, client);
