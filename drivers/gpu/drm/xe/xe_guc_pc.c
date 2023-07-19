@@ -422,8 +422,12 @@ static ssize_t freq_rpe_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	struct xe_guc_pc *pc = dev_to_pc(dev);
+	struct xe_gt *gt = pc_to_gt(pc);
+	struct xe_device *xe = gt_to_xe(gt);
 
+	xe_device_mem_access_get(xe);
 	pc_update_rp_values(pc);
+	xe_device_mem_access_put(xe);
 	return sysfs_emit(buf, "%d\n", pc->rpe_freq);
 }
 static DEVICE_ATTR_RO(freq_rpe);
