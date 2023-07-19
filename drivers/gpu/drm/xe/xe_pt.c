@@ -1116,6 +1116,53 @@ struct xe_pt_migrate_pt_update {
 	bool locked;
 };
 
+/*
+ * This function adds the needed dependencies to a page-table update job
+ * to make sure racing jobs for separate bind engines don't race writing
+ * to the same page-table range, wreaking havoc. Initially use a single
+ * fence for the entire VM. An optimization would use smaller granularity.
+ */
+static int xe_pt_vm_dependencies(struct xe_sched_job *job,
+				 struct xe_range_fence_tree *rftree,
+				 u64 start, u64 last)
+{
+	struct xe_range_fence *rtfence;
+	struct dma_fence *fence;
+	int err;
+
+	rtfence = xe_range_fence_tree_first(rftree, start, last);
+	while (rtfence) {
+		fence = rtfence->fence;
+
+		if (!dma_fence_is_signaled(fence)) {
+			/*
+			 * Is this a CPU update? GPU is busy updating, so return
+			 * an error
+			 */
+			if (!job)
+				return -ETIME;
+
+			dma_fence_get(fence);
+			err = drm_sched_job_add_dependency(&job->drm, fence);
+			if (err)
+				return err;
+		}
+
+		rtfence = xe_range_fence_tree_next(rtfence, start, last);
+	}
+
+	return 0;
+}
+
+static int xe_pt_pre_commit(struct xe_migrate_pt_update *pt_update)
+{
+	struct xe_range_fence_tree *rftree =
+		&xe_vma_vm(pt_update->vma)->rftree[pt_update->tile_id];
+
+	return xe_pt_vm_dependencies(pt_update->job, rftree,
+				     pt_update->start, pt_update->last);
+}
+
 static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 {
 	struct xe_pt_migrate_pt_update *userptr_update =
@@ -1123,6 +1170,13 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 	struct xe_vma *vma = pt_update->vma;
 	unsigned long notifier_seq = vma->userptr.notifier_seq;
 	struct xe_vm *vm = xe_vma_vm(vma);
+	int err = xe_pt_vm_dependencies(pt_update->job,
+					&vm->rftree[pt_update->tile_id],
+					pt_update->start,
+					pt_update->last);
+
+	if (err)
+		return err;
 
 	userptr_update->locked = false;
 
@@ -1161,6 +1215,7 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 
 static const struct xe_migrate_pt_update_ops bind_ops = {
 	.populate = xe_vm_populate_pgtable,
+	.pre_commit = xe_pt_pre_commit,
 };
 
 static const struct xe_migrate_pt_update_ops userptr_bind_ops = {
@@ -1258,6 +1313,27 @@ static int invalidation_fence_init(struct xe_gt *gt,
 	return ret && ret != -ENOENT ? ret : 0;
 }
 
+static void xe_pt_calc_rfence_interval(struct xe_vma *vma,
+				       struct xe_pt_migrate_pt_update *update,
+				       struct xe_vm_pgtable_update *entries,
+				       u32 num_entries)
+{
+	int i, level = 0;
+
+	for (i = 0; i < num_entries; i++) {
+		const struct xe_vm_pgtable_update *entry = &entries[i];
+
+		if (entry->pt->level > level)
+			level = entry->pt->level;
+	}
+
+	/* Greedy (non-optimal) calculation but simple */
+	update->base.start = ALIGN_DOWN(xe_vma_start(vma),
+					0x1ull << xe_pt_shift(level));
+	update->base.last = ALIGN(xe_vma_end(vma),
+				  0x1ull << xe_pt_shift(level)) - 1;
+}
+
 /**
  * __xe_pt_bind_vma() - Build and connect a page-table tree for the vma
  * address range.
@@ -1290,6 +1366,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 		.base = {
 			.ops = xe_vma_is_userptr(vma) ? &userptr_bind_ops : &bind_ops,
 			.vma = vma,
+			.tile_id = tile->id,
 		},
 		.bind = true,
 	};
@@ -1297,6 +1374,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 	u32 num_entries;
 	struct dma_fence *fence;
 	struct invalidation_fence *ifence = NULL;
+	struct xe_range_fence *rfence;
 	int err;
 
 	bind_pt_update.locked = false;
@@ -1313,6 +1391,8 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 	XE_BUG_ON(num_entries > ARRAY_SIZE(entries));
 
 	xe_vm_dbg_print_entries(tile_to_xe(tile), entries, num_entries);
+	xe_pt_calc_rfence_interval(vma, &bind_pt_update, entries,
+				   num_entries);
 
 	/*
 	 * If rebind, we have to invalidate TLB on !LR vms to invalidate
@@ -1333,6 +1413,12 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 			return ERR_PTR(-ENOMEM);
 	}
 
+	rfence = kzalloc(sizeof(*rfence), GFP_KERNEL);
+	if (!rfence) {
+		kfree(ifence);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	fence = xe_migrate_update_pgtables(tile->migrate,
 					   vm, xe_vma_bo(vma),
 					   e ? e : vm->eng[tile->id],
@@ -1342,6 +1428,14 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 	if (!IS_ERR(fence)) {
 		bool last_munmap_rebind = vma->gpuva.flags & XE_VMA_LAST_REBIND;
 		LLIST_HEAD(deferred);
+		int err;
+
+		err = xe_range_fence_insert(&vm->rftree[tile->id], rfence,
+					    &xe_range_fence_kfree_ops,
+					    bind_pt_update.base.start,
+					    bind_pt_update.base.last, fence);
+		if (err)
+			dma_fence_wait(fence, false);
 
 		/* TLB invalidation must be done before signaling rebind */
 		if (ifence) {
@@ -1380,6 +1474,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 			queue_work(vm->xe->ordered_wq,
 				   &vm->preempt.rebind_work);
 	} else {
+		kfree(rfence);
 		kfree(ifence);
 		if (bind_pt_update.locked)
 			up_read(&vm->userptr.notifier_lock);
@@ -1589,6 +1684,7 @@ xe_pt_commit_unbind(struct xe_vma *vma,
 
 static const struct xe_migrate_pt_update_ops unbind_ops = {
 	.populate = xe_migrate_clear_pgtable_callback,
+	.pre_commit = xe_pt_pre_commit,
 };
 
 static const struct xe_migrate_pt_update_ops userptr_unbind_ops = {
@@ -1626,12 +1722,15 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 			.ops = xe_vma_is_userptr(vma) ? &userptr_unbind_ops :
 			&unbind_ops,
 			.vma = vma,
+			.tile_id = tile->id,
 		},
 	};
 	struct xe_vm *vm = xe_vma_vm(vma);
 	u32 num_entries;
 	struct dma_fence *fence = NULL;
 	struct invalidation_fence *ifence;
+	struct xe_range_fence *rfence;
+
 	LLIST_HEAD(deferred);
 
 	xe_bo_assert_held(xe_vma_bo(vma));
@@ -1645,10 +1744,18 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 	XE_BUG_ON(num_entries > ARRAY_SIZE(entries));
 
 	xe_vm_dbg_print_entries(tile_to_xe(tile), entries, num_entries);
+	xe_pt_calc_rfence_interval(vma, &unbind_pt_update, entries,
+				   num_entries);
 
 	ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
 	if (!ifence)
 		return ERR_PTR(-ENOMEM);
+
+	rfence = kzalloc(sizeof(*rfence), GFP_KERNEL);
+	if (!rfence) {
+		kfree(ifence);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	/*
 	 * Even if we were already evicted and unbind to destroy, we need to
@@ -1663,6 +1770,13 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 					   &unbind_pt_update.base);
 	if (!IS_ERR(fence)) {
 		int err;
+
+		err = xe_range_fence_insert(&vm->rftree[tile->id], rfence,
+					    &xe_range_fence_kfree_ops,
+					    unbind_pt_update.base.start,
+					    unbind_pt_update.base.last, fence);
+		if (err)
+			dma_fence_wait(fence, false);
 
 		/* TLB invalidation must be done before signaling unbind */
 		err = invalidation_fence_init(tile->primary_gt, ifence, fence, vma);
@@ -1685,6 +1799,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 				    unbind_pt_update.locked ? &deferred : NULL);
 		vma->tile_present &= ~BIT(tile->id);
 	} else {
+		kfree(rfence);
 		kfree(ifence);
 	}
 

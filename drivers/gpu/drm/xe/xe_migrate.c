@@ -1074,6 +1074,7 @@ xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
 		return ERR_PTR(-ETIME);
 
 	if (ops->pre_commit) {
+		pt_update->job = NULL;
 		err = ops->pre_commit(pt_update);
 		if (err)
 			return ERR_PTR(err);
@@ -1295,6 +1296,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		goto err_job;
 
 	if (ops->pre_commit) {
+		pt_update->job = job;
 		err = ops->pre_commit(pt_update);
 		if (err)
 			goto err_job;

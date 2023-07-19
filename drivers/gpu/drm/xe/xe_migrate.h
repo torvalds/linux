@@ -69,6 +69,14 @@ struct xe_migrate_pt_update {
 	const struct xe_migrate_pt_update_ops *ops;
 	/** @vma: The vma we're updating the pagetable for. */
 	struct xe_vma *vma;
+	/** @job: The job if a GPU page-table update. NULL otherwise */
+	struct xe_sched_job *job;
+	/** @start: Start of update for the range fence */
+	u64 start;
+	/** @last: Last of update for the range fence */
+	u64 last;
+	/** @tile_id: Tile ID of the update */
+	u8 tile_id;
 };
 
 struct xe_migrate *xe_migrate_init(struct xe_tile *tile);

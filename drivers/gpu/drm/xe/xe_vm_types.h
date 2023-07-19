@@ -15,6 +15,7 @@
 
 #include "xe_device_types.h"
 #include "xe_pt_types.h"
+#include "xe_range_fence.h"
 
 struct async_op_fence;
 struct xe_bo;
@@ -174,6 +175,12 @@ struct xe_vm {
 	 * to sleep.
 	 */
 	struct work_struct destroy_work;
+
+	/**
+	 * @rftree: range fence tree to track updates to page table structure.
+	 * Used to implement conflict tracking between independent bind engines.
+	 */
+	struct xe_range_fence_tree rftree[XE_MAX_TILES_PER_DEVICE];
 
 	/** @extobj: bookkeeping for external objects. Protected by the vm lock */
 	struct {

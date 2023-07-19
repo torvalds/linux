@@ -1243,6 +1243,9 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 	INIT_LIST_HEAD(&vm->preempt.engines);
 	vm->preempt.min_run_period_ms = 10;	/* FIXME: Wire up to uAPI */
 
+	for_each_tile(tile, xe, id)
+		xe_range_fence_tree_init(&vm->rftree[id]);
+
 	INIT_LIST_HEAD(&vm->extobj.list);
 
 	if (!(flags & XE_VM_FLAG_MIGRATION))
@@ -1356,6 +1359,8 @@ err_close:
 	return ERR_PTR(err);
 
 err_no_resv:
+	for_each_tile(tile, xe, id)
+		xe_range_fence_tree_fini(&vm->rftree[id]);
 	kfree(vm);
 	if (!(flags & XE_VM_FLAG_MIGRATION))
 		xe_device_mem_access_put(xe);
@@ -1499,6 +1504,9 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	else if (!(vm->flags & XE_VM_FLAG_MIGRATION))
 		xe->usm.num_vm_in_non_fault_mode--;
 	mutex_unlock(&xe->usm.lock);
+
+	for_each_tile(tile, xe, id)
+		xe_range_fence_tree_fini(&vm->rftree[id]);
 
 	xe_vm_put(vm);
 }
