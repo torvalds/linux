@@ -1152,10 +1152,30 @@ static bool ipv4_good_nh(const struct fib_nh *nh)
 	return !!(state & NUD_VALID);
 }
 
+static struct nexthop *nexthop_select_path_fdb(struct nh_group *nhg, int hash)
+{
+	int i;
+
+	for (i = 0; i < nhg->num_nh; i++) {
+		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
+
+		if (hash > atomic_read(&nhge->hthr.upper_bound))
+			continue;
+
+		return nhge->nh;
+	}
+
+	WARN_ON_ONCE(1);
+	return NULL;
+}
+
 static struct nexthop *nexthop_select_path_hthr(struct nh_group *nhg, int hash)
 {
 	struct nexthop *rc = NULL;
 	int i;
+
+	if (nhg->fdb_nh)
+		return nexthop_select_path_fdb(nhg, hash);
 
 	for (i = 0; i < nhg->num_nh; ++i) {
 		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
@@ -1165,8 +1185,6 @@ static struct nexthop *nexthop_select_path_hthr(struct nh_group *nhg, int hash)
 			continue;
 
 		nhi = rcu_dereference(nhge->nh->nh_info);
-		if (nhi->fdb_nh)
-			return nhge->nh;
 
 		/* nexthops always check if it is good and does
 		 * not rely on a sysctl for this behavior
