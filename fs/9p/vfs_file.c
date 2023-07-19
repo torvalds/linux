@@ -505,9 +505,7 @@ v9fs_file_mmap(struct file *filp, struct vm_area_struct *vma)
 	p9_debug(P9_DEBUG_MMAP, "filp :%p\n", filp);
 
 	if (!(v9ses->cache & CACHE_WRITEBACK)) {
-		p9_debug(P9_DEBUG_CACHE, "(no mmap mode)");
-		if (vma->vm_flags & VM_MAYSHARE)
-			return -ENODEV;
+		p9_debug(P9_DEBUG_CACHE, "(read-only mmap mode)");
 		invalidate_inode_pages2(filp->f_mapping);
 		return generic_file_readonly_mmap(filp, vma);
 	}
