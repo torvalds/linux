@@ -427,8 +427,9 @@
 			interrupt-names = "global",
 					  "doorbell";
 
-			interconnects = <&system_noc MASTER_PCIE &mc_virt SLAVE_EBI_CH0>;
-			interconnect-names = "pcie-mem";
+			interconnects = <&system_noc MASTER_PCIE &mc_virt SLAVE_EBI_CH0>,
+					<&mem_noc MASTER_AMPSS_M0 &system_noc SLAVE_PCIE_0>;
+			interconnect-names = "pcie-mem", "cpu-pcie";
 
 			resets = <&gcc GCC_PCIE_BCR>;
 			reset-names = "core";
