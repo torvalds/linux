@@ -951,37 +951,70 @@ free_reformatbf:
 	return -EINVAL;
 }
 
+static int get_reformat_type(struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	switch (attrs->dir) {
+	case XFRM_DEV_OFFLOAD_IN:
+		if (attrs->encap)
+			return MLX5_REFORMAT_TYPE_DEL_ESP_TRANSPORT_OVER_UDP;
+		return MLX5_REFORMAT_TYPE_DEL_ESP_TRANSPORT;
+	case XFRM_DEV_OFFLOAD_OUT:
+		if (attrs->family == AF_INET) {
+			if (attrs->encap)
+				return MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_UDPV4;
+			return MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV4;
+		}
+
+		if (attrs->encap)
+			return MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_UDPV6;
+		return MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV6;
+	default:
+		WARN_ON(true);
+	}
+
+	return -EINVAL;
+}
+
 static int
 setup_pkt_transport_reformat(struct mlx5_accel_esp_xfrm_attrs *attrs,
 			     struct mlx5_pkt_reformat_params *reformat_params)
 {
-	u8 *reformatbf;
+	struct udphdr *udphdr;
+	char *reformatbf;
+	size_t bfflen;
 	__be32 spi;
+	void *hdr;
+
+	reformat_params->type = get_reformat_type(attrs);
+	if (reformat_params->type < 0)
+		return reformat_params->type;
 
 	switch (attrs->dir) {
 	case XFRM_DEV_OFFLOAD_IN:
-		reformat_params->type = MLX5_REFORMAT_TYPE_DEL_ESP_TRANSPORT;
 		break;
 	case XFRM_DEV_OFFLOAD_OUT:
-		if (attrs->family == AF_INET)
-			reformat_params->type =
-				MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV4;
-		else
-			reformat_params->type =
-				MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV6;
+		bfflen = MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_SIZE;
+		if (attrs->encap)
+			bfflen += sizeof(*udphdr);
 
-		reformatbf = kzalloc(MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_SIZE,
-				     GFP_KERNEL);
+		reformatbf = kzalloc(bfflen, GFP_KERNEL);
 		if (!reformatbf)
 			return -ENOMEM;
 
+		hdr = reformatbf;
+		if (attrs->encap) {
+			udphdr = (struct udphdr *)reformatbf;
+			udphdr->source = attrs->sport;
+			udphdr->dest = attrs->dport;
+			hdr += sizeof(*udphdr);
+		}
+
 		/* convert to network format */
 		spi = htonl(attrs->spi);
-		memcpy(reformatbf, &spi, sizeof(spi));
+		memcpy(hdr, &spi, sizeof(spi));
 
 		reformat_params->param_0 = attrs->authsize;
-		reformat_params->size =
-			MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_SIZE;
+		reformat_params->size = bfflen;
 		reformat_params->data = reformatbf;
 		break;
 	default:
