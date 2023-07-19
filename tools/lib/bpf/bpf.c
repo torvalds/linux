@@ -719,9 +719,9 @@ int bpf_link_create(int prog_fd, int target_fd,
 		    const struct bpf_link_create_opts *opts)
 {
 	const size_t attr_sz = offsetofend(union bpf_attr, link_create);
-	__u32 target_btf_id, iter_info_len;
+	__u32 target_btf_id, iter_info_len, relative_id;
+	int fd, err, relative_fd;
 	union bpf_attr attr;
-	int fd, err;
 
 	if (!OPTS_VALID(opts, bpf_link_create_opts))
 		return libbpf_err(-EINVAL);
@@ -781,6 +781,22 @@ int bpf_link_create(int prog_fd, int target_fd,
 		attr.link_create.netfilter.priority = OPTS_GET(opts, netfilter.priority, 0);
 		attr.link_create.netfilter.flags = OPTS_GET(opts, netfilter.flags, 0);
 		if (!OPTS_ZEROED(opts, netfilter))
+			return libbpf_err(-EINVAL);
+		break;
+	case BPF_TCX_INGRESS:
+	case BPF_TCX_EGRESS:
+		relative_fd = OPTS_GET(opts, tcx.relative_fd, 0);
+		relative_id = OPTS_GET(opts, tcx.relative_id, 0);
+		if (relative_fd && relative_id)
+			return libbpf_err(-EINVAL);
+		if (relative_id) {
+			attr.link_create.tcx.relative_id = relative_id;
+			attr.link_create.flags |= BPF_F_ID;
+		} else {
+			attr.link_create.tcx.relative_fd = relative_fd;
+		}
+		attr.link_create.tcx.expected_revision = OPTS_GET(opts, tcx.expected_revision, 0);
+		if (!OPTS_ZEROED(opts, tcx))
 			return libbpf_err(-EINVAL);
 		break;
 	default:

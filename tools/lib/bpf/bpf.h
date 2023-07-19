@@ -401,6 +401,11 @@ struct bpf_link_create_opts {
 			__s32 priority;
 			__u32 flags;
 		} netfilter;
+		struct {
+			__u32 relative_fd;
+			__u32 relative_id;
+			__u64 expected_revision;
+		} tcx;
 	};
 	size_t :0;
 };
