@@ -341,13 +341,3 @@ config POWER_MLXBF
 	  This driver supports reset or low power mode handling for Mellanox BlueField.
 
 endif
-
-config PM_SILENT_MODE
-	tristate "Silent Mode PM operations"
-	default n
-	help
-	  This feature is enabled when silent mode is needed in the system.
-	  PM sysfs nodes under:
-	  /sys/kernel/silent_boot/pm_silentmode_kernel_state is used to
-	  indicate the state of the commandline value parsed and
-	  set as part of startup.
