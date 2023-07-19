@@ -173,10 +173,8 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 	 */
 #define DEBUGFS_SIZE	(ARRAY_SIZE(debugfs_list) * sizeof(struct drm_info_list))
 	local = drmm_kmalloc(&gt_to_xe(gt)->drm, DEBUGFS_SIZE, GFP_KERNEL);
-	if (!local) {
-		XE_WARN_ON("Couldn't allocate memory");
+	if (!local)
 		return;
-	}
 
 	memcpy(local, debugfs_list, DEBUGFS_SIZE);
 #undef DEBUGFS_SIZE

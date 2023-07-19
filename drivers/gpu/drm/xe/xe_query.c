@@ -65,7 +65,7 @@ static int query_engines(struct xe_device *xe,
 	}
 
 	hw_engine_info = kmalloc(size, GFP_KERNEL);
-	if (XE_IOCTL_DBG(xe, !hw_engine_info))
+	if (!hw_engine_info)
 		return -ENOMEM;
 
 	for_each_gt(gt, xe, gt_id)
@@ -182,7 +182,7 @@ static int query_config(struct xe_device *xe, struct drm_xe_device_query *query)
 	}
 
 	config = kzalloc(size, GFP_KERNEL);
-	if (XE_IOCTL_DBG(xe, !config))
+	if (!config)
 		return -ENOMEM;
 
 	config->num_params = num_params;
@@ -231,7 +231,7 @@ static int query_gts(struct xe_device *xe, struct drm_xe_device_query *query)
 	}
 
 	gts = kzalloc(size, GFP_KERNEL);
-	if (XE_IOCTL_DBG(xe, !gts))
+	if (!gts)
 		return -ENOMEM;
 
 	gts->num_gt = xe->info.gt_count;
@@ -278,7 +278,7 @@ static int query_hwconfig(struct xe_device *xe,
 	}
 
 	hwconfig = kzalloc(size, GFP_KERNEL);
-	if (XE_IOCTL_DBG(xe, !hwconfig))
+	if (!hwconfig)
 		return -ENOMEM;
 
 	xe_device_mem_access_get(xe);
