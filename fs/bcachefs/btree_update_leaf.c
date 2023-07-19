@@ -66,7 +66,8 @@ static void verify_update_old_key(struct btree_trans *trans, struct btree_insert
 
 static int __must_check
 bch2_trans_update_by_path(struct btree_trans *, struct btree_path *,
-			  struct bkey_i *, enum btree_update_flags);
+			  struct bkey_i *, enum btree_update_flags,
+			  unsigned long ip);
 
 static inline int btree_insert_entry_cmp(const struct btree_insert_entry *l,
 					 const struct btree_insert_entry *r)
@@ -1489,7 +1490,7 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 
 			ret = bch2_trans_update_by_path(trans, iter.path, update,
 						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
-						  flags);
+						  flags, _RET_IP_);
 			if (ret)
 				goto err;
 			goto out;
@@ -1527,11 +1528,6 @@ err:
 	return ret;
 }
 
-static int __must_check
-bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *path,
-				struct bkey_i *k, enum btree_update_flags flags,
-				unsigned long ip);
-
 static noinline int flush_new_cached_update(struct btree_trans *trans,
 					    struct btree_path *path,
 					    struct btree_insert_entry *i,
@@ -1562,16 +1558,16 @@ static noinline int flush_new_cached_update(struct btree_trans *trans,
 	i->flags |= BTREE_TRIGGER_NORUN;
 
 	btree_path_set_should_be_locked(btree_path);
-	ret = bch2_trans_update_by_path_trace(trans, btree_path, i->k, flags, ip);
+	ret = bch2_trans_update_by_path(trans, btree_path, i->k, flags, ip);
 out:
 	bch2_path_put(trans, btree_path, true);
 	return ret;
 }
 
 static int __must_check
-bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *path,
-				struct bkey_i *k, enum btree_update_flags flags,
-				unsigned long ip)
+bch2_trans_update_by_path(struct btree_trans *trans, struct btree_path *path,
+			  struct bkey_i *k, enum btree_update_flags flags,
+			  unsigned long ip)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i, n;
@@ -1650,13 +1646,6 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 	return 0;
 }
 
-static inline int __must_check
-bch2_trans_update_by_path(struct btree_trans *trans, struct btree_path *path,
-			  struct bkey_i *k, enum btree_update_flags flags)
-{
-	return bch2_trans_update_by_path_trace(trans, path, k, flags, _RET_IP_);
-}
-
 int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 				   struct bkey_i *k, enum btree_update_flags flags)
 {
@@ -1717,7 +1706,7 @@ int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter 
 		path = iter->key_cache_path;
 	}
 
-	return bch2_trans_update_by_path(trans, path, k, flags);
+	return bch2_trans_update_by_path(trans, path, k, flags, _RET_IP_);
 }
 
 int __must_check bch2_trans_update_buffered(struct btree_trans *trans,
