@@ -38,6 +38,7 @@
 #define MAX_TEARDOWN_ITER 10
 #define PKT_HDR_SIZE (sizeof(struct ethhdr) + 2) /* Just to align the data in the packet */
 #define MIN_PKT_SIZE 64
+#define MAX_ETH_PKT_SIZE 1518
 #define MAX_ETH_JUMBO_SIZE 9000
 #define USLEEP_MAX 10000
 #define SOCK_RECONF_CTR 10
@@ -84,6 +85,7 @@ enum test_type {
 	TEST_TYPE_BPF_RES,
 	TEST_TYPE_XDP_DROP_HALF,
 	TEST_TYPE_XDP_METADATA_COUNT,
+	TEST_TYPE_RUN_TO_COMPLETION_MB,
 	TEST_TYPE_MAX
 };
 
@@ -142,6 +144,7 @@ struct ifobject {
 	struct bpf_program *xdp_prog;
 	enum test_mode mode;
 	int ifindex;
+	int mtu;
 	u32 bind_flags;
 	bool tx_on;
 	bool rx_on;
@@ -152,6 +155,8 @@ struct ifobject {
 	bool shared_umem;
 	bool use_metadata;
 	bool unaligned_supp;
+	bool multi_buff_supp;
+	bool multi_buff_zc_supp;
 	u8 dst_mac[ETH_ALEN];
 	u8 src_mac[ETH_ALEN];
 };
@@ -165,6 +170,7 @@ struct test_spec {
 	struct bpf_program *xdp_prog_tx;
 	struct bpf_map *xskmap_rx;
 	struct bpf_map *xskmap_tx;
+	int mtu;
 	u16 total_steps;
 	u16 current_step;
 	u16 nb_sockets;

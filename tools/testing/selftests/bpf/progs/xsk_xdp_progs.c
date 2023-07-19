@@ -15,12 +15,12 @@ struct {
 static unsigned int idx;
 int count = 0;
 
-SEC("xdp") int xsk_def_prog(struct xdp_md *xdp)
+SEC("xdp.frags") int xsk_def_prog(struct xdp_md *xdp)
 {
 	return bpf_redirect_map(&xsk, 0, XDP_DROP);
 }
 
-SEC("xdp") int xsk_xdp_drop(struct xdp_md *xdp)
+SEC("xdp.frags") int xsk_xdp_drop(struct xdp_md *xdp)
 {
 	/* Drop every other packet */
 	if (idx++ % 2)

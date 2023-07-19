@@ -49,6 +49,7 @@
  *    h. tests for invalid and corner case Tx descriptors so that the correct ones
  *       are discarded and let through, respectively.
  *    i. 2K frame size tests
+ *    j. If multi-buffer is supported, send 9k packets divided into 3 frames
  *
  * Total tests: 12
  *
@@ -77,6 +78,7 @@
 #include <linux/if_link.h>
 #include <linux/if_ether.h>
 #include <linux/mman.h>
+#include <linux/netdev.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <locale.h>
@@ -253,6 +255,8 @@ static int __xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_i
 	cfg.bind_flags = ifobject->bind_flags;
 	if (shared)
 		cfg.bind_flags |= XDP_SHARED_UMEM;
+	if (ifobject->pkt_stream && ifobject->mtu > MAX_ETH_PKT_SIZE)
+		cfg.bind_flags |= XDP_USE_SG;
 
 	txr = ifobject->tx_on ? &xsk->tx : NULL;
 	rxr = ifobject->rx_on ? &xsk->rx : NULL;
@@ -415,6 +419,7 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 	test->total_steps = 1;
 	test->nb_sockets = 1;
 	test->fail = false;
+	test->mtu = MAX_ETH_PKT_SIZE;
 	test->xdp_prog_rx = ifobj_rx->xdp_progs->progs.xsk_def_prog;
 	test->xskmap_rx = ifobj_rx->xdp_progs->maps.xsk;
 	test->xdp_prog_tx = ifobj_tx->xdp_progs->progs.xsk_def_prog;
@@ -466,6 +471,26 @@ static void test_spec_set_xdp_prog(struct test_spec *test, struct bpf_program *x
 	test->xdp_prog_tx = xdp_prog_tx;
 	test->xskmap_rx = xskmap_rx;
 	test->xskmap_tx = xskmap_tx;
+}
+
+static int test_spec_set_mtu(struct test_spec *test, int mtu)
+{
+	int err;
+
+	if (test->ifobj_rx->mtu != mtu) {
+		err = xsk_set_mtu(test->ifobj_rx->ifindex, mtu);
+		if (err)
+			return err;
+		test->ifobj_rx->mtu = mtu;
+	}
+	if (test->ifobj_tx->mtu != mtu) {
+		err = xsk_set_mtu(test->ifobj_tx->ifindex, mtu);
+		if (err)
+			return err;
+		test->ifobj_tx->mtu = mtu;
+	}
+
+	return 0;
 }
 
 static void pkt_stream_reset(struct pkt_stream *pkt_stream)
@@ -1516,6 +1541,25 @@ static int __testapp_validate_traffic(struct test_spec *test, struct ifobject *i
 				      struct ifobject *ifobj2)
 {
 	pthread_t t0, t1;
+	int err;
+
+	if (test->mtu > MAX_ETH_PKT_SIZE) {
+		if (test->mode == TEST_MODE_ZC && (!ifobj1->multi_buff_zc_supp ||
+						   (ifobj2 && !ifobj2->multi_buff_zc_supp))) {
+			ksft_test_result_skip("Multi buffer for zero-copy not supported.\n");
+			return TEST_SKIP;
+		}
+		if (test->mode != TEST_MODE_ZC && (!ifobj1->multi_buff_supp ||
+						   (ifobj2 && !ifobj2->multi_buff_supp))) {
+			ksft_test_result_skip("Multi buffer not supported.\n");
+			return TEST_SKIP;
+		}
+	}
+	err = test_spec_set_mtu(test, test->mtu);
+	if (err) {
+		ksft_print_msg("Error, could not set mtu.\n");
+		exit_with_error(err);
+	}
 
 	if (ifobj2) {
 		if (pthread_barrier_init(&barr, NULL, 2))
@@ -1725,6 +1769,15 @@ static int testapp_single_pkt(struct test_spec *test)
 	return testapp_validate_traffic(test);
 }
 
+static int testapp_multi_buffer(struct test_spec *test)
+{
+	test_spec_set_name(test, "RUN_TO_COMPLETION_9K_PACKETS");
+	test->mtu = MAX_ETH_JUMBO_SIZE;
+	pkt_stream_replace(test, DEFAULT_PKT_CNT, MAX_ETH_JUMBO_SIZE);
+
+	return testapp_validate_traffic(test);
+}
+
 static int testapp_invalid_desc(struct test_spec *test)
 {
 	struct xsk_umem_info *umem = test->ifobj_tx->umem;
@@ -1858,6 +1911,7 @@ static bool hugepages_present(void)
 static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *src_mac,
 		       thread_func_t func_ptr)
 {
+	LIBBPF_OPTS(bpf_xdp_query_opts, query_opts);
 	int err;
 
 	memcpy(ifobj->dst_mac, dst_mac, ETH_ALEN);
@@ -1873,6 +1927,17 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *
 
 	if (hugepages_present())
 		ifobj->unaligned_supp = true;
+
+	err = bpf_xdp_query(ifobj->ifindex, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (err) {
+		ksft_print_msg("Error querrying XDP capabilities\n");
+		exit_with_error(-err);
+	}
+	if (query_opts.feature_flags & NETDEV_XDP_ACT_RX_SG)
+		ifobj->multi_buff_supp = true;
+	if (query_opts.feature_flags & NETDEV_XDP_ACT_XSK_ZEROCOPY)
+		if (query_opts.xdp_zc_max_segs > 1)
+			ifobj->multi_buff_zc_supp = true;
 }
 
 static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_type type)
@@ -1904,6 +1969,9 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 	case TEST_TYPE_RUN_TO_COMPLETION:
 		test_spec_set_name(test, "RUN_TO_COMPLETION");
 		ret = testapp_validate_traffic(test);
+		break;
+	case TEST_TYPE_RUN_TO_COMPLETION_MB:
+		ret = testapp_multi_buffer(test);
 		break;
 	case TEST_TYPE_RUN_TO_COMPLETION_SINGLE_PKT:
 		test_spec_set_name(test, "RUN_TO_COMPLETION_SINGLE_PKT");
