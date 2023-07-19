@@ -872,7 +872,7 @@ int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 				void *data)
 {
 	struct function_desc *function;
-	int selector;
+	int selector, error;
 
 	if (!name)
 		return -EINVAL;
@@ -892,7 +892,9 @@ int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 	function->num_group_names = num_groups;
 	function->data = data;
 
-	radix_tree_insert(&pctldev->pin_function_tree, selector, function);
+	error = radix_tree_insert(&pctldev->pin_function_tree, selector, function);
+	if (error)
+		return error;
 
 	pctldev->num_functions++;
 
