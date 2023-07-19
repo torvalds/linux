@@ -60,12 +60,15 @@ struct otx2_qos_node {
 	u64 ceil;
 	u32 classid;
 	u32 prio;
-	u16 schq; /* hw txschq */
+	u32 quantum;
+	/* hw txschq */
+	u16 schq;
 	u16 qid;
 	u16 prio_anchor;
 	u16 max_static_prio;
 	u16 child_dwrr_cnt;
 	u16 child_static_cnt;
+	u16 child_dwrr_prio;
 	u16 txschq_idx;			/* txschq allocation index */
 	u8 level;
 	bool is_static;
