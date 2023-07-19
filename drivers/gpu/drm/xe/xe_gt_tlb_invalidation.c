@@ -248,7 +248,7 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 	struct xe_device *xe = gt_to_xe(gt);
 #define MAX_TLB_INVALIDATION_LEN	7
 	u32 action[MAX_TLB_INVALIDATION_LEN];
-	int len = 0, ret;
+	int len = 0;
 
 	XE_BUG_ON(!vma);
 
@@ -302,11 +302,7 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 
 	XE_BUG_ON(len > MAX_TLB_INVALIDATION_LEN);
 
-	xe_device_mem_access_get(xe);
-	ret = send_tlb_invalidation(&gt->uc.guc, fence, action, len);
-	xe_device_mem_access_put(xe);
-
-	return ret;
+	return send_tlb_invalidation(&gt->uc.guc, fence, action, len);
 }
 
 /**
