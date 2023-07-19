@@ -485,10 +485,8 @@ static int cctrng_probe(struct platform_device *pdev)
 	drvdata->circ.buf = (char *)drvdata->data_buf;
 
 	drvdata->cc_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(drvdata->cc_base)) {
-		dev_err(dev, "Failed to ioremap registers");
-		return PTR_ERR(drvdata->cc_base);
-	}
+	if (IS_ERR(drvdata->cc_base))
+		return dev_err_probe(dev, PTR_ERR(drvdata->cc_base), "Failed to ioremap registers");
 
 	/* Then IRQ */
 	irq = platform_get_irq(pdev, 0);
@@ -497,10 +495,8 @@ static int cctrng_probe(struct platform_device *pdev)
 
 	/* parse sampling rate from device tree */
 	rc = cc_trng_parse_sampling_ratio(drvdata);
-	if (rc) {
-		dev_err(dev, "Failed to get legal sampling ratio for rosc\n");
-		return rc;
-	}
+	if (rc)
+		return dev_err_probe(dev, rc, "Failed to get legal sampling ratio for rosc\n");
 
 	drvdata->clk = devm_clk_get_optional_enabled(dev, NULL);
 	if (IS_ERR(drvdata->clk))
@@ -513,10 +509,8 @@ static int cctrng_probe(struct platform_device *pdev)
 
 	/* register the driver isr function */
 	rc = devm_request_irq(dev, irq, cc_isr, IRQF_SHARED, "cctrng", drvdata);
-	if (rc) {
-		dev_err(dev, "Could not register to interrupt %d\n", irq);
-		return rc;
-	}
+	if (rc)
+		return dev_err_probe(dev, rc, "Could not register to interrupt %d\n", irq);
 	dev_dbg(dev, "Registered to IRQ: %d\n", irq);
 
 	/* Clear all pending interrupts */
@@ -531,17 +525,13 @@ static int cctrng_probe(struct platform_device *pdev)
 
 	/* init PM */
 	rc = cc_trng_pm_init(drvdata);
-	if (rc) {
-		dev_err(dev, "cc_trng_pm_init failed\n");
-		return rc;
-	}
+	if (rc)
+		return dev_err_probe(dev, rc, "cc_trng_pm_init failed\n");
 
 	/* increment device's usage counter */
 	rc = cc_trng_pm_get(dev);
-	if (rc) {
-		dev_err(dev, "cc_trng_pm_get returned %x\n", rc);
-		return rc;
-	}
+	if (rc)
+		return dev_err_probe(dev, rc, "cc_trng_pm_get returned %x\n", rc);
 
 	/* set pending_hw to verify that HW won't be triggered from read */
 	atomic_set(&drvdata->pending_hw, 1);
