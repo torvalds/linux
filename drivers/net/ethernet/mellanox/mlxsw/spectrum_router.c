@@ -9121,10 +9121,8 @@ static int mlxsw_sp_rif_macvlan_add(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, vlan->lowerdev);
-	if (!rif) {
-		NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
-		return -EOPNOTSUPP;
-	}
+	if (!rif)
+		return 0;
 
 	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, macvlan_dev->dev_addr,
 				  mlxsw_sp_fid_index(rif->fid), true);
@@ -9857,6 +9855,40 @@ out:
 	return notifier_from_errno(err);
 }
 
+struct mlxsw_sp_macvlan_replay {
+	struct mlxsw_sp *mlxsw_sp;
+	struct netlink_ext_ack *extack;
+};
+
+static int mlxsw_sp_macvlan_replay_upper(struct net_device *dev,
+					 struct netdev_nested_priv *priv)
+{
+	const struct mlxsw_sp_macvlan_replay *rms = priv->data;
+	struct netlink_ext_ack *extack = rms->extack;
+	struct mlxsw_sp *mlxsw_sp = rms->mlxsw_sp;
+
+	if (!netif_is_macvlan(dev))
+		return 0;
+
+	return mlxsw_sp_rif_macvlan_add(mlxsw_sp, dev, extack);
+}
+
+static int mlxsw_sp_macvlan_replay(struct mlxsw_sp_rif *rif,
+				   struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_macvlan_replay rms = {
+		.mlxsw_sp = rif->mlxsw_sp,
+		.extack = extack,
+	};
+	struct netdev_nested_priv priv = {
+		.data = &rms,
+	};
+
+	return netdev_walk_all_upper_dev_rcu(mlxsw_sp_rif_dev(rif),
+					     mlxsw_sp_macvlan_replay_upper,
+					     &priv);
+}
+
 static int __mlxsw_sp_rif_macvlan_flush(struct net_device *dev,
 					struct netdev_nested_priv *priv)
 {
@@ -9879,7 +9911,6 @@ static int mlxsw_sp_rif_macvlan_flush(struct mlxsw_sp_rif *rif)
 	if (!netif_is_macvlan_port(dev))
 		return 0;
 
-	netdev_warn(dev, "Router interface is deleted. Upper macvlans will not work\n");
 	return netdev_walk_all_upper_dev_rcu(dev,
 					     __mlxsw_sp_rif_macvlan_flush, &priv);
 }
@@ -9937,6 +9968,10 @@ static int mlxsw_sp_rif_subport_configure(struct mlxsw_sp_rif *rif,
 	if (err)
 		goto err_rif_subport_op;
 
+	err = mlxsw_sp_macvlan_replay(rif, extack);
+	if (err)
+		goto err_macvlan_replay;
+
 	err = mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, dev->dev_addr,
 				  mlxsw_sp_fid_index(rif->fid), true);
 	if (err)
@@ -9952,6 +9987,8 @@ err_fid_rif_set:
 	mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, dev->dev_addr,
 			    mlxsw_sp_fid_index(rif->fid), false);
 err_rif_fdb_op:
+	mlxsw_sp_rif_macvlan_flush(rif);
+err_macvlan_replay:
 	mlxsw_sp_rif_subport_op(rif, false);
 err_rif_subport_op:
 	mlxsw_sp_rif_mac_profile_put(rif->mlxsw_sp, mac_profile);
@@ -10038,6 +10075,10 @@ static int mlxsw_sp_rif_fid_configure(struct mlxsw_sp_rif *rif,
 	if (err)
 		goto err_fid_bc_flood_set;
 
+	err = mlxsw_sp_macvlan_replay(rif, extack);
+	if (err)
+		goto err_macvlan_replay;
+
 	err = mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, dev->dev_addr,
 				  mlxsw_sp_fid_index(rif->fid), true);
 	if (err)
@@ -10053,6 +10094,8 @@ err_fid_rif_set:
 	mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, dev->dev_addr,
 			    mlxsw_sp_fid_index(rif->fid), false);
 err_rif_fdb_op:
+	mlxsw_sp_rif_macvlan_flush(rif);
+err_macvlan_replay:
 	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_BC,
 			       mlxsw_sp_router_port(mlxsw_sp), false);
 err_fid_bc_flood_set:
@@ -10200,6 +10243,10 @@ static int mlxsw_sp_rif_vlan_configure(struct mlxsw_sp_rif *rif, u16 efid,
 	if (err)
 		goto err_fid_bc_flood_set;
 
+	err = mlxsw_sp_macvlan_replay(rif, extack);
+	if (err)
+		goto err_macvlan_replay;
+
 	err = mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, dev->dev_addr,
 				  mlxsw_sp_fid_index(rif->fid), true);
 	if (err)
@@ -10215,6 +10262,8 @@ err_fid_rif_set:
 	mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, dev->dev_addr,
 			    mlxsw_sp_fid_index(rif->fid), false);
 err_rif_fdb_op:
+	mlxsw_sp_rif_macvlan_flush(rif);
+err_macvlan_replay:
 	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_BC,
 			       mlxsw_sp_router_port(mlxsw_sp), false);
 err_fid_bc_flood_set:
