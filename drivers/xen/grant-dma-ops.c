@@ -303,6 +303,8 @@ static struct device_node *xen_dt_get_node(struct device *dev)
 		while (!pci_is_root_bus(bus))
 			bus = bus->parent;
 
+		if (!bus->bridge->parent)
+			return NULL;
 		return of_node_get(bus->bridge->parent->of_node);
 	}
 
