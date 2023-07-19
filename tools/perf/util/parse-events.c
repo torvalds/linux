@@ -2149,7 +2149,7 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 	int idx = 0, unsorted_idx = -1;
 	struct evsel *pos, *cur_leader = NULL;
 	struct perf_evsel *cur_leaders_grp = NULL;
-	bool idx_changed = false;
+	bool idx_changed = false, cur_leader_force_grouped = false;
 	int orig_num_leaders = 0, num_leaders = 0;
 	int ret;
 
@@ -2190,7 +2190,7 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 		const struct evsel *pos_leader = evsel__leader(pos);
 		const char *pos_pmu_name = pos->group_pmu_name;
 		const char *cur_leader_pmu_name, *pos_leader_pmu_name;
-		bool force_grouped = arch_evsel__must_be_in_group(pos);
+		bool pos_force_grouped = arch_evsel__must_be_in_group(pos);
 
 		/* Reset index and nr_members. */
 		if (pos->core.idx != idx)
@@ -2206,7 +2206,8 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 			cur_leader = pos;
 
 		cur_leader_pmu_name = cur_leader->group_pmu_name;
-		if ((cur_leaders_grp != pos->core.leader && !force_grouped) ||
+		if ((cur_leaders_grp != pos->core.leader &&
+		     (!pos_force_grouped || !cur_leader_force_grouped)) ||
 		    strcmp(cur_leader_pmu_name, pos_pmu_name)) {
 			/* Event is for a different group/PMU than last. */
 			cur_leader = pos;
@@ -2216,9 +2217,14 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 			 * group.
 			 */
 			cur_leaders_grp = pos->core.leader;
+			/*
+			 * Avoid forcing events into groups with events that
+			 * don't need to be in the group.
+			 */
+			cur_leader_force_grouped = pos_force_grouped;
 		}
 		pos_leader_pmu_name = pos_leader->group_pmu_name;
-		if (strcmp(pos_leader_pmu_name, pos_pmu_name) || force_grouped) {
+		if (strcmp(pos_leader_pmu_name, pos_pmu_name) || pos_force_grouped) {
 			/*
 			 * Event's PMU differs from its leader's. Groups can't
 			 * span PMUs, so update leader from the group/PMU
