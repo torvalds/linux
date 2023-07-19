@@ -5146,21 +5146,18 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
-				    unsigned long event, void *ptr)
+static int __mlxsw_sp_netdevice_event(struct mlxsw_sp *mlxsw_sp,
+				      unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct mlxsw_sp_span_entry *span_entry;
-	struct mlxsw_sp *mlxsw_sp;
 	int err = 0;
 
-	mlxsw_sp = container_of(nb, struct mlxsw_sp, netdevice_nb);
 	if (event == NETDEV_UNREGISTER) {
 		span_entry = mlxsw_sp_span_entry_find_by_port(mlxsw_sp, dev);
 		if (span_entry)
 			mlxsw_sp_span_entry_invalidate(mlxsw_sp, span_entry);
 	}
-	mlxsw_sp_span_respin(mlxsw_sp);
 
 	if (netif_is_vxlan(dev))
 		err = mlxsw_sp_netdevice_vxlan_event(mlxsw_sp, dev, event, ptr);
@@ -5174,6 +5171,19 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 		err = mlxsw_sp_netdevice_bridge_event(dev, event, ptr);
 	else if (netif_is_macvlan(dev))
 		err = mlxsw_sp_netdevice_macvlan_event(dev, event, ptr);
+
+	return err;
+}
+
+static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
+				    unsigned long event, void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp;
+	int err;
+
+	mlxsw_sp = container_of(nb, struct mlxsw_sp, netdevice_nb);
+	mlxsw_sp_span_respin(mlxsw_sp);
+	err = __mlxsw_sp_netdevice_event(mlxsw_sp, event, ptr);
 
 	return notifier_from_errno(err);
 }
