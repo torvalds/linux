@@ -880,14 +880,17 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	XE_BUG_ON(start >= end);
 	XE_BUG_ON(end >= vm->size);
 
-	vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+	if (!bo && !is_null)	/* userptr */
+		vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+	else
+		vma = kzalloc(sizeof(*vma) - sizeof(struct xe_userptr),
+			      GFP_KERNEL);
 	if (!vma) {
 		vma = ERR_PTR(-ENOMEM);
 		return vma;
 	}
 
 	INIT_LIST_HEAD(&vma->combined_links.rebind);
-	INIT_LIST_HEAD(&vma->userptr.invalidate_link);
 	INIT_LIST_HEAD(&vma->notifier.rebind_link);
 	INIT_LIST_HEAD(&vma->extobj.link);
 
@@ -931,6 +934,7 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 			u64 size = end - start + 1;
 			int err;
 
+			INIT_LIST_HEAD(&vma->userptr.invalidate_link);
 			vma->gpuva.gem.offset = bo_offset_or_userptr;
 
 			err = mmu_interval_notifier_insert(&vma->userptr.notifier,
