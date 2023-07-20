@@ -45,8 +45,40 @@
 		default-brightness-level = <200>;
 	};
 
-	panel: panel {
-		compatible = "simple-panel";
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x800000>;
+			linux,cma-default;
+		};
+	};
+};
+
+&display_subsystem {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&rgb {
+	status = "okay";
+	rockchip,data-sync-bypass;
+
+	/*
+	 * 320x480 RGB/MCU screen K350C4516T
+	 */
+	mcu_panel: mcu-panel {
+		/*
+		 * MEDIA_BUS_FMT_RGB888_3X8  for RGB3x8(8bit)
+		 * MEDIA_BUS_FMT_RGB565_1X16 for RGB565(16bit)
+		 */
 		bus-format = <MEDIA_BUS_FMT_RGB565_1X16>;
 		backlight = <&backlight>;
 		enable-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
@@ -59,8 +91,6 @@
 		disable-delay-ms = <20>;
 		width-mm = <217>;
 		height-mm = <136>;
-		status = "okay";
-		rockchip,cmd-type = "mcu";
 
 		// type:0 is cmd, 1 is data
 		panel-init-sequence = [
@@ -113,23 +143,31 @@
 			  00   00  01  36
 			  01   00  01  48
 
-			  00   00  01  3a  //interface pixel format
-			  01   00  01  55  // bpp    cfg
-					   //  3      11
-					   //  16     55
-					   //  18     66
-					   //  24     77
+			  00   00  01  3a
+			  01   00  01  55 /*
+					   * interface pixel format:
+					   * 66 for RGB3x8(8bit)
+					   * 55 for RGB565(16bit)
+					   */
 
-			  00   00  01  b0  //interface mode control
+			  00   00  01  b0
 			  01   00  01  00
 
-			  00   00  01  b1  //frame rate 60hz
-			  01   00  01  a0
+			  00   00  01  b1
+			  01   00  01  a0 /*
+					   * frame rate control:
+					   * 70 (45hz) for RGB3x8(8bit)
+					   * a0 (60hz) for RGB565(16bit)
+					   */
 			  01   00  01  11
 			  00   00  01  b4
 			  01   00  01  02
 			  00   00  01  B6
-			  01   00  01  02
+			  01   00  01  02 /*
+					   * display function control:
+					   * 32 for RGB
+					   * 02 for MCU
+					   */
 			  01   00  01  02
 
 			  00   00  01  b7
@@ -163,7 +201,11 @@
 			native-mode = <&kd050fwfba002_timing>;
 
 			kd050fwfba002_timing: timing0 {
-				clock-frequency = <94081500>;
+				/*
+				 * 7840125  for frame rate 45Hz
+				 * 10453500 for frame rate 60Hz
+				 */
+				clock-frequency = <10453500>;
 				hactive = <320>;
 				vactive = <480>;
 				hback-porch = <10>;
@@ -186,35 +228,6 @@
 		};
 	};
 
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x800000>;
-			linux,cma-default;
-		};
-	};
-};
-
-&display_subsystem {
-	status = "okay";
-};
-
-&route_rgb {
-	status = "okay";
-};
-
-&pwm1 {
-	status = "okay";
-};
-
-&rgb {
-	status = "okay";
-
 	ports {
 		rgb_out: port@1 {
 			reg = <1>;
@@ -229,15 +242,32 @@
 	};
 };
 
+&route_rgb {
+	status = "okay";
+};
+
 &vop {
 	status = "okay";
 
+	/*
+	 * Default config is as follows:
+	 *
+	 * mcu-pix-total = <9>;
+	 * mcu-cs-pst = <1>;
+	 * mcu-cs-pend = <8>;
+	 * mcu-rw-pst = <2>;
+	 * mcu-rw-pend = <5>;
+	 * mcu-hold-mode = <0>; // default set to 0
+	 *
+	 * To increase the frame rate, reduce all parameters because
+	 * the max dclk rate of mcu is 150M in rk3308.
+	 */
 	mcu-timing {
-		mcu-pix-total = <9>;
+		mcu-pix-total = <5>;
 		mcu-cs-pst = <1>;
-		mcu-cs-pend = <8>;
+		mcu-cs-pend = <4>;
 		mcu-rw-pst = <2>;
-		mcu-rw-pend = <5>;
+		mcu-rw-pend = <3>;
 
 		mcu-hold-mode = <0>; // default set to 0
 	};

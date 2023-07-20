@@ -45,147 +45,171 @@
 		default-brightness-level = <200>;
 	};
 
-	panel: panel {
-		compatible = "simple-panel";
-		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
-		backlight = <&backlight>;
-		enable-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
-		enable-delay-ms = <20>;
-		reset-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
-		reset-delay-ms = <10>;
-		prepare-delay-ms = <20>;
-		unprepare-delay-ms = <20>;
-		disable-delay-ms = <20>;
-		/* spi-sdo-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>; */
-		spi-sdi-gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
-		spi-scl-gpios = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
-		spi-cs-gpios = <&gpio1 RK_PD1 GPIO_ACTIVE_HIGH>;
-		width-mm = <217>;
-		height-mm = <136>;
-		status = "okay";
+	spi_gpio: spi-gpio {
+		compatible = "spi-gpio";
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&spi_init_cmd>;
-		rockchip,cmd-type = "spi";
+		pinctrl-0 = <&spi_pins>;
+		spi-delay-us = <10>;
+		status = "okay";
 
-		/* type:0 is cmd, 1 is data */
-		panel-init-sequence = [
-			/* type delay num val1 val2 val3 */
-			  00   00  01  e0
-			  01   00  01  00
-			  01   00  01  07
-			  01   00  01  0f
-			  01   00  01  0d
-			  01   00  01  1b
-			  01   00  01  0a
-			  01   00  01  3c
-			  01   00  01  78
-			  01   00  01  4a
-			  01   00  01  07
-			  01   00  01  0e
-			  01   00  01  09
-			  01   00  01  1b
-			  01   00  01  1e
-			  01   00  01  0f
-			  00   00  01  e1
-			  01   00  01  00
-			  01   00  01  22
-			  01   00  01  24
-			  01   00  01  06
-			  01   00  01  12
-			  01   00  01  07
-			  01   00  01  36
-			  01   00  01  47
-			  01   00  01  47
-			  01   00  01  06
-			  01   00  01  0a
-			  01   00  01  07
-			  01   00  01  30
-			  01   00  01  37
-			  01   00  01  0f
+		sck-gpios = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio1 RK_PD1 GPIO_ACTIVE_HIGH>;
+		num-chipselects = <1>;
 
-			  00   00  01  c0
-			  01   00  01  10
-			  01   00  01  10
+		/*
+		 * 320x480 RGB/MCU screen K350C4516T
+		 */
+		panel: panel {
+			compatible = "simple-panel-spi";
+			reg = <0>;
+			bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
+			backlight = <&backlight>;
+			enable-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+			enable-delay-ms = <20>;
+			reset-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+			reset-delay-ms = <10>;
+			prepare-delay-ms = <20>;
+			unprepare-delay-ms = <20>;
+			disable-delay-ms = <20>;
+			init-delay-ms = <10>;
+			width-mm = <217>;
+			height-mm = <136>;
+			rockchip,cmd-type = "spi";
+			status = "okay";
 
-			  00   00  01  c1
-			  01   00  01  41
+			// type:0 is cmd, 1 is data
+			panel-init-sequence = [
+				/* type delay num val1 val2 val3 */
+				00   00  01  e0
+				01   00  01  00
+				01   00  01  07
+				01   00  01  0f
+				01   00  01  0d
+				01   00  01  1b
+				01   00  01  0a
+				01   00  01  3c
+				01   00  01  78
+				01   00  01  4a
+				01   00  01  07
+				01   00  01  0e
+				01   00  01  09
+				01   00  01  1b
+				01   00  01  1e
+				01   00  01  0f
+				00   00  01  e1
+				01   00  01  00
+				01   00  01  22
+				01   00  01  24
+				01   00  01  06
+				01   00  01  12
+				01   00  01  07
+				01   00  01  36
+				01   00  01  47
+				01   00  01  47
+				01   00  01  06
+				01   00  01  0a
+				01   00  01  07
+				01   00  01  30
+				01   00  01  37
+				01   00  01  0f
 
-			  00   00  01  c5
-			  01   00  01  00
-			  01   00  01  22
-			  01   00  01  80
+				00   00  01  c0
+				01   00  01  10
+				01   00  01  10
 
-			  00   00  01  36
-			  01   00  01  48
+				00   00  01  c1
+				01   00  01  41
 
-			  00   00  01  3a  //interface pixel format
-			  01   00  01  66  // bpp    cfg
-					   //  3      11
-					   //  16     55
-					   //  18     66
-					   //  24     77
+				00   00  01  c5
+				01   00  01  00
+				01   00  01  22
+				01   00  01  80
 
-			  00   00  01  b0  /* interface mode control */
-			  01   00  01  00
+				00   00  01  36
+				01   00  01  48
 
-			  00   00  01  b1  /* frame rate 60hz */
-			  01   00  01  a0
-			  01   00  01  11
-			  00   00  01  b4
-			  01   00  01  02
-			  00   00  01  B6
-			  01   00  01  32
-			  01   00  01  02
+				00   00  01  3a
+				01   00  01  66 /*
+						 * interface pixel format:
+						 * 66 for RGB666(18bit)
+						 */
 
-			  00   00  01  b7
-			  01   00  01  c6
+				00   00  01  b0
+				01   00  01  00
 
-			  00   00  01  be
-			  01   00  01  00
-			  01   00  01  04
+				00   00  01  b1
+				01   00  01  a0 /*
+						 * frame rate control:
+						 * a0 (60hz) for RGB666(18bit)
+						 */
+				01   00  01  11
+				00   00  01  b4
+				01   00  01  02
+				00   00  01  B6
+				01   00  01  32 /*
+						 * display function control:
+						 * 32 for RGB
+						 * 02 for MCU
+						 */
+				01   00  01  02
 
-			  00   00  01  e9
-			  01   00  01  00
+				00   00  01  b7
+				01   00  01  c6
 
-			  00   00  01  f7
-			  01   00  01  a9
-			  01   00  01  51
-			  01   00  01  2c
-			  01   00  01  82
+				00   00  01  be
+				01   00  01  00
+				01   00  01  04
 
-			  00   78  01  11
-			  00   00  01  29
-		];
+				00   00  01  e9
+				01   00  01  00
 
-		panel-exit-sequence = [
-			/* type delay num val1 val2 val3 */
-			00   0a  01  28
-			00   78  01  10
-		];
+				00   00  01  f7
+				01   00  01  a9
+				01   00  01  51
+				01   00  01  2c
+				01   00  01  82
 
-		display-timings {
-			native-mode = <&kd050fwfba002_timing>;
+				00   78  01  11
+				00   00  01  29
+			];
 
-			kd050fwfba002_timing: timing0 {
-				clock-frequency = <94081500>;
-				hactive = <320>;
-				vactive = <480>;
-				hback-porch = <10>;
-				hfront-porch = <5>;
-				vback-porch = <10>;
-				vfront-porch = <5>;
-				hsync-len = <10>;
-				vsync-len = <10>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
+			panel-exit-sequence = [
+				//type delay num val1 val2 val3
+				00   0a  01  28
+				00   78  01  10
+			];
+
+			display-timings {
+				native-mode = <&kd050fwfba002_timing>;
+
+				kd050fwfba002_timing: timing0 {
+					/*
+					 * 10453500  for RGB666(18bit)
+					 */
+					clock-frequency = <10453500>;
+					hactive = <320>;
+					vactive = <480>;
+					hback-porch = <10>;
+					hfront-porch = <5>;
+					vback-porch = <10>;
+					vfront-porch = <5>;
+					hsync-len = <10>;
+					vsync-len = <10>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <1>;
+				};
 			};
-		};
 
-		port {
-			panel_in_rgb: endpoint {
-				remote-endpoint = <&rgb_out_panel>;
+			port {
+				panel_in_rgb: endpoint {
+					remote-endpoint = <&rgb_out_panel>;
+				};
 			};
 		};
 	};
@@ -196,9 +220,11 @@
 };
 
 &pinctrl {
-	spi_panel {
-		spi_init_cmd: spi-init-cmd {
+	soft_spi {
+		spi_pins: spi-pins {
 			rockchip,pins =
+				/* spi sdo */
+				<3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>,
 				/* spi sdi */
 				<1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>,
 				/* spi scl */
@@ -236,14 +262,4 @@
 
 &vop {
 	status = "okay";
-
-	mcu-timing {
-		mcu-pix-total = <9>;
-		mcu-cs-pst = <1>;
-		mcu-cs-pend = <8>;
-		mcu-rw-pst = <2>;
-		mcu-rw-pend = <5>;
-
-		mcu-hold-mode = <0>; // default set to 0
-	};
 };

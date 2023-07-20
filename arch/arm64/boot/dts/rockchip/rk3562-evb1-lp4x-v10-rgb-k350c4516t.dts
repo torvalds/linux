@@ -43,6 +43,7 @@
 			prepare-delay-ms = <20>;
 			unprepare-delay-ms = <20>;
 			disable-delay-ms = <20>;
+			init-delay-ms = <10>;
 			width-mm = <217>;
 			height-mm = <136>;
 			rockchip,cmd-type = "spi";
@@ -99,23 +100,29 @@
 				00   00  01  36
 				01   00  01  48
 
-				00   00  01  3a  //interface pixel format
-				01   00  01  66  // bpp    cfg
-						 //  3      11
-						 //  16     55
-						 //  18     66
-						 //  24     77
+				00   00  01  3a
+				01   00  01  66 /*
+						 * interface pixel format:
+						 * 66 for RGB666(18bit)
+						 */
 
-				00   00  01  b0  /* interface mode control */
+				00   00  01  b0
 				01   00  01  00
 
-				00   00  01  b1  /* frame rate 60hz */
-				01   00  01  a0
+				00   00  01  b1
+				01   00  01  a0 /*
+						 * frame rate control:
+						 * a0 (60hz) for RGB666(18bit)
+						 */
 				01   00  01  11
 				00   00  01  b4
 				01   00  01  02
 				00   00  01  B6
-				01   00  01  32
+				01   00  01  32 /*
+						 * display function control:
+						 * 32 for RGB
+						 * 02 for MCU
+						 */
 				01   00  01  02
 
 				00   00  01  b7
@@ -148,6 +155,9 @@
 				native-mode = <&kd050fwfba002_timing>;
 
 				kd050fwfba002_timing: timing0 {
+					/*
+					 * 10453500  for RGB666(18bit)
+					 */
 					clock-frequency = <10453500>;
 					hactive = <320>;
 					vactive = <480>;
