@@ -2092,6 +2092,11 @@ static int gaudi2_config_etf(struct hl_device *hdev, struct hl_debug_params *par
 	if (rc)
 		return -EIO;
 
+	val = RREG32(base_reg + mmETF_CTL_OFFSET);
+
+	if ((!params->enable && val == 0x0) || (params->enable && val != 0x0))
+		return 0;
+
 	val = RREG32(base_reg + mmETF_FFCR_OFFSET);
 	val |= 0x1000;
 	WREG32(base_reg + mmETF_FFCR_OFFSET, val);
@@ -2188,6 +2193,11 @@ static int gaudi2_config_etr(struct hl_device *hdev, struct hl_ctx *ctx,
 	rc = gaudi2_unlock_coresight_unit(hdev, mmPSOC_ETR_BASE);
 	if (rc)
 		return -EIO;
+
+	val = RREG32(mmPSOC_ETR_CTL);
+
+	if ((!params->enable && val == 0x0) || (params->enable && val != 0x0))
+		return 0;
 
 	val = RREG32(mmPSOC_ETR_FFCR);
 	val |= 0x1000;
