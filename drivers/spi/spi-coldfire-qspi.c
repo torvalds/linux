@@ -381,13 +381,12 @@ static int mcfqspi_probe(struct platform_device *pdev)
 		goto fail0;
 	}
 
-	mcfqspi->clk = devm_clk_get(&pdev->dev, "qspi_clk");
+	mcfqspi->clk = devm_clk_get_enabled(&pdev->dev, "qspi_clk");
 	if (IS_ERR(mcfqspi->clk)) {
 		dev_dbg(&pdev->dev, "clk_get failed\n");
 		status = PTR_ERR(mcfqspi->clk);
 		goto fail0;
 	}
-	clk_prepare_enable(mcfqspi->clk);
 
 	master->bus_num = pdata->bus_num;
 	master->num_chipselect = pdata->num_chipselect;
@@ -396,7 +395,7 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	status = mcfqspi_cs_setup(mcfqspi);
 	if (status) {
 		dev_dbg(&pdev->dev, "error initializing cs_control\n");
-		goto fail1;
+		goto fail0;
 	}
 
 	init_waitqueue_head(&mcfqspi->waitq);
@@ -414,18 +413,16 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	status = devm_spi_register_master(&pdev->dev, master);
 	if (status) {
 		dev_dbg(&pdev->dev, "spi_register_master failed\n");
-		goto fail2;
+		goto fail1;
 	}
 
 	dev_info(&pdev->dev, "Coldfire QSPI bus driver\n");
 
 	return 0;
 
-fail2:
+fail1:
 	pm_runtime_disable(&pdev->dev);
 	mcfqspi_cs_teardown(mcfqspi);
-fail1:
-	clk_disable_unprepare(mcfqspi->clk);
 fail0:
 	spi_master_put(master);
 
