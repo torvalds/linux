@@ -1075,12 +1075,11 @@ static void gfx_v9_4_3_xcc_unset_safe_mode(struct amdgpu_device *adev,
 
 static void gfx_v9_4_3_init_rlcg_reg_access_ctrl(struct amdgpu_device *adev)
 {
-	int xcc_id;
+	int xcc_id, num_xcc;
 	struct amdgpu_rlcg_reg_access_ctrl *reg_access_ctrl;
 
-	for (xcc_id = 0; xcc_id < AMDGPU_MAX_RLC_INSTANCES; xcc_id++) {
-		if (((1 << xcc_id) & adev->gfx.xcc_mask) == 0)
-			continue;
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
 		reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl[GET_INST(GC, xcc_id)];
 		reg_access_ctrl->scratch_reg0 = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG0);
 		reg_access_ctrl->scratch_reg1 = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG1);
