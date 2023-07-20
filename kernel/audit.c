@@ -53,9 +53,7 @@
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <linux/skbuff.h>
-#ifdef CONFIG_SECURITY
 #include <linux/security.h>
-#endif
 #include <linux/freezer.h>
 #include <linux/pid_namespace.h>
 #include <net/netns/generic.h>
