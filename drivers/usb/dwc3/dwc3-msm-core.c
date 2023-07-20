@@ -6523,6 +6523,9 @@ static void dwc3_msm_update_interfaces(struct usb_device *udev)
 {
 	int i;
 
+	if (!udev->actconfig)
+		return;
+
 	for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
 		struct usb_interface *intf = udev->actconfig->interface[i];
 		struct usb_interface_descriptor *desc = NULL;
