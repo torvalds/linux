@@ -814,9 +814,7 @@ static void free_chmap(struct snd_pcm_str *pstr)
 	if (pstr->chmap_kctl) {
 		struct snd_card *card = pstr->pcm->card;
 
-		down_write(&card->controls_rwsem);
 		snd_ctl_remove(card, pstr->chmap_kctl);
-		up_write(&card->controls_rwsem);
 		pstr->chmap_kctl = NULL;
 	}
 }
