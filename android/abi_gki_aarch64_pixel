@@ -971,6 +971,7 @@
   iommu_attach_device
   iommu_attach_device_pasid
   iommu_attach_group
+  iommu_detach_device
   iommu_detach_device_pasid
   iommu_device_register
   iommu_device_sysfs_add
