@@ -52,10 +52,11 @@
 	vcc3v3_pcie_wifi: vcc3v3-pcie-wifi {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie_wifi";
+		regulator-always-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		//gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
 		startup-delay-us = <5000>;
 		vin-supply = <&vcc_3v3_s0>;
 	};
@@ -123,7 +124,7 @@
 		compatible = "wlan-platdata";
 		wifi_chip_type = "ap6398s";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_poweren_gpio>, <&wifi_host_wake_irq>;
+		pinctrl-0 = <&wifi_host_wake_irq>;
 		WIFI,host_wake_irq = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
 		WIFI,poweren_gpio = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
 		status = "okay";
@@ -287,9 +288,6 @@
 			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
-		wifi_poweren_gpio: wifi-power-gpio {
-			rockchip,pins = <3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
 	};
 
 	rk3308 {
