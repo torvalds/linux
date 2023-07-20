@@ -3249,7 +3249,7 @@ wa_list_srm(struct i915_request *rq,
 	    const struct i915_wa_list *wal,
 	    struct i915_vma *vma)
 {
-	struct drm_i915_private *i915 = rq->engine->i915;
+	struct drm_i915_private *i915 = rq->i915;
 	unsigned int i, count = 0;
 	const struct i915_wa *wa;
 	u32 srm, *cs;
@@ -3348,7 +3348,7 @@ retry:
 
 	err = 0;
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
-		if (mcr_range(rq->engine->i915, i915_mmio_reg_offset(wa->reg)))
+		if (mcr_range(rq->i915, i915_mmio_reg_offset(wa->reg)))
 			continue;
 
 		if (!wa_verify(wal->gt, wa, results[i], wal->name, from))
