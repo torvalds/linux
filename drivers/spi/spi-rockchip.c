@@ -979,6 +979,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	bool slave_mode;
 	struct pinctrl *pinctrl = NULL;
 	const struct rockchip_spi_quirks *quirks_cfg;
+	u32 val;
 
 	slave_mode = of_property_read_bool(np, "spi-slave");
 
@@ -1105,6 +1106,13 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	quirks_cfg = device_get_match_data(&pdev->dev);
 	if (quirks_cfg)
 		rs->max_baud_div_in_cpha = quirks_cfg->max_baud_div_in_cpha;
+
+	if (!device_property_read_u32(&pdev->dev, "rockchip,autosuspend-delay-ms", &val)) {
+		if (val > 0) {
+			pm_runtime_set_autosuspend_delay(&pdev->dev, val);
+			pm_runtime_use_autosuspend(&pdev->dev);
+		}
+	}
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
