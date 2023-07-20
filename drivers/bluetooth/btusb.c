@@ -2492,79 +2492,6 @@ static int btusb_recv_bulk_intel(struct btusb_data *data, void *buffer,
 	return btusb_recv_bulk(data, buffer, count);
 }
 
-static int btusb_intel_diagnostics(struct hci_dev *hdev, struct sk_buff *skb)
-{
-	struct intel_tlv *tlv = (void *)&skb->data[5];
-
-	/* The first event is always an event type TLV */
-	if (tlv->type != INTEL_TLV_TYPE_ID)
-		goto recv_frame;
-
-	switch (tlv->val[0]) {
-	case INTEL_TLV_SYSTEM_EXCEPTION:
-	case INTEL_TLV_FATAL_EXCEPTION:
-	case INTEL_TLV_DEBUG_EXCEPTION:
-	case INTEL_TLV_TEST_EXCEPTION:
-		/* Generate devcoredump from exception */
-		if (!hci_devcd_init(hdev, skb->len)) {
-			hci_devcd_append(hdev, skb);
-			hci_devcd_complete(hdev);
-		} else {
-			bt_dev_err(hdev, "Failed to generate devcoredump");
-			kfree_skb(skb);
-		}
-		return 0;
-	default:
-		bt_dev_err(hdev, "Invalid exception type %02X", tlv->val[0]);
-	}
-
-recv_frame:
-	return hci_recv_frame(hdev, skb);
-}
-
-static int btusb_recv_event_intel(struct hci_dev *hdev, struct sk_buff *skb)
-{
-	struct hci_event_hdr *hdr = (void *)skb->data;
-	const char diagnostics_hdr[] = { 0x87, 0x80, 0x03 };
-
-	if (skb->len > HCI_EVENT_HDR_SIZE && hdr->evt == 0xff &&
-	    hdr->plen > 0) {
-		const void *ptr = skb->data + HCI_EVENT_HDR_SIZE + 1;
-		unsigned int len = skb->len - HCI_EVENT_HDR_SIZE - 1;
-
-		if (btintel_test_flag(hdev, INTEL_BOOTLOADER)) {
-			switch (skb->data[2]) {
-			case 0x02:
-				/* When switching to the operational firmware
-				 * the device sends a vendor specific event
-				 * indicating that the bootup completed.
-				 */
-				btintel_bootup(hdev, ptr, len);
-				break;
-			case 0x06:
-				/* When the firmware loading completes the
-				 * device sends out a vendor specific event
-				 * indicating the result of the firmware
-				 * loading.
-				 */
-				btintel_secure_send_result(hdev, ptr, len);
-				break;
-			}
-		}
-
-		/* Handle all diagnostics events separately. May still call
-		 * hci_recv_frame.
-		 */
-		if (len >= sizeof(diagnostics_hdr) &&
-		    memcmp(&skb->data[2], diagnostics_hdr,
-			   sizeof(diagnostics_hdr)) == 0) {
-			return btusb_intel_diagnostics(hdev, skb);
-		}
-	}
-
-	return hci_recv_frame(hdev, skb);
-}
-
 static int btusb_send_frame_intel(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct urb *urb;
@@ -4350,7 +4277,7 @@ static int btusb_probe(struct usb_interface *intf,
 		priv_size += sizeof(struct btintel_data);
 
 		/* Override the rx handlers */
-		data->recv_event = btusb_recv_event_intel;
+		data->recv_event = btintel_recv_event;
 		data->recv_bulk = btusb_recv_bulk_intel;
 	} else if (id->driver_info & BTUSB_REALTEK) {
 		/* Allocate extra space for Realtek device */
