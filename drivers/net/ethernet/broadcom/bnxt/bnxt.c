@@ -304,12 +304,18 @@ static void bnxt_queue_fw_reset_work(struct bnxt *bp, unsigned long delay)
 		schedule_delayed_work(&bp->fw_reset_task, delay);
 }
 
-static void bnxt_queue_sp_work(struct bnxt *bp)
+static void __bnxt_queue_sp_work(struct bnxt *bp)
 {
 	if (BNXT_PF(bp))
 		queue_work(bnxt_pf_wq, &bp->sp_task);
 	else
 		schedule_work(&bp->sp_task);
+}
+
+static void bnxt_queue_sp_work(struct bnxt *bp, unsigned int event)
+{
+	set_bit(event, &bp->sp_event);
+	__bnxt_queue_sp_work(bp);
 }
 
 static void bnxt_sched_reset_rxr(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
@@ -320,7 +326,7 @@ static void bnxt_sched_reset_rxr(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
 			set_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event);
 		else
 			set_bit(BNXT_RST_RING_SP_EVENT, &bp->sp_event);
-		bnxt_queue_sp_work(bp);
+		__bnxt_queue_sp_work(bp);
 	}
 	rxr->rx_next_cons = 0xffff;
 }
@@ -2384,7 +2390,7 @@ static int bnxt_async_event_process(struct bnxt *bp,
 	default:
 		goto async_event_process_exit;
 	}
-	bnxt_queue_sp_work(bp);
+	__bnxt_queue_sp_work(bp);
 async_event_process_exit:
 	return 0;
 }
@@ -2413,8 +2419,7 @@ static int bnxt_hwrm_handler(struct bnxt *bp, struct tx_cmp *txcmp)
 		}
 
 		set_bit(vf_id - bp->pf.first_vf_id, bp->pf.vf_event_bmap);
-		set_bit(BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT, &bp->sp_event);
-		bnxt_queue_sp_work(bp);
+		bnxt_queue_sp_work(bp, BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT);
 		break;
 
 	case CMPL_BASE_TYPE_HWRM_ASYNC_EVENT:
@@ -11031,8 +11036,7 @@ static void bnxt_set_rx_mode(struct net_device *dev)
 	if (mask != vnic->rx_mask || uc_update || mc_update) {
 		vnic->rx_mask = mask;
 
-		set_bit(BNXT_RX_MASK_SP_EVENT, &bp->sp_event);
-		bnxt_queue_sp_work(bp);
+		bnxt_queue_sp_work(bp, BNXT_RX_MASK_SP_EVENT);
 	}
 }
 
@@ -11597,8 +11601,7 @@ static void bnxt_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	struct bnxt *bp = netdev_priv(dev);
 
 	netdev_err(bp->dev,  "TX timeout detected, starting reset task!\n");
-	set_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event);
-	bnxt_queue_sp_work(bp);
+	bnxt_queue_sp_work(bp, BNXT_RESET_TASK_SP_EVENT);
 }
 
 static void bnxt_fw_health_check(struct bnxt *bp)
@@ -11635,8 +11638,7 @@ static void bnxt_fw_health_check(struct bnxt *bp)
 	return;
 
 fw_reset:
-	set_bit(BNXT_FW_EXCEPTION_SP_EVENT, &bp->sp_event);
-	bnxt_queue_sp_work(bp);
+	bnxt_queue_sp_work(bp, BNXT_FW_EXCEPTION_SP_EVENT);
 }
 
 static void bnxt_timer(struct timer_list *t)
@@ -11653,21 +11655,15 @@ static void bnxt_timer(struct timer_list *t)
 	if (bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)
 		bnxt_fw_health_check(bp);
 
-	if (BNXT_LINK_IS_UP(bp) && bp->stats_coal_ticks) {
-		set_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event);
-		bnxt_queue_sp_work(bp);
-	}
+	if (BNXT_LINK_IS_UP(bp) && bp->stats_coal_ticks)
+		bnxt_queue_sp_work(bp, BNXT_PERIODIC_STATS_SP_EVENT);
 
-	if (bnxt_tc_flower_enabled(bp)) {
-		set_bit(BNXT_FLOW_STATS_SP_EVENT, &bp->sp_event);
-		bnxt_queue_sp_work(bp);
-	}
+	if (bnxt_tc_flower_enabled(bp))
+		bnxt_queue_sp_work(bp, BNXT_FLOW_STATS_SP_EVENT);
 
 #ifdef CONFIG_RFS_ACCEL
-	if ((bp->flags & BNXT_FLAG_RFS) && bp->ntp_fltr_count) {
-		set_bit(BNXT_RX_NTP_FLTR_SP_EVENT, &bp->sp_event);
-		bnxt_queue_sp_work(bp);
-	}
+	if ((bp->flags & BNXT_FLAG_RFS) && bp->ntp_fltr_count)
+		bnxt_queue_sp_work(bp, BNXT_RX_NTP_FLTR_SP_EVENT);
 #endif /*CONFIG_RFS_ACCEL*/
 
 	if (bp->link_info.phy_retry) {
@@ -11675,21 +11671,17 @@ static void bnxt_timer(struct timer_list *t)
 			bp->link_info.phy_retry = false;
 			netdev_warn(bp->dev, "failed to update phy settings after maximum retries.\n");
 		} else {
-			set_bit(BNXT_UPDATE_PHY_SP_EVENT, &bp->sp_event);
-			bnxt_queue_sp_work(bp);
+			bnxt_queue_sp_work(bp, BNXT_UPDATE_PHY_SP_EVENT);
 		}
 	}
 
-	if (test_bit(BNXT_STATE_L2_FILTER_RETRY, &bp->state)) {
-		set_bit(BNXT_RX_MASK_SP_EVENT, &bp->sp_event);
-		bnxt_queue_sp_work(bp);
-	}
+	if (test_bit(BNXT_STATE_L2_FILTER_RETRY, &bp->state))
+		bnxt_queue_sp_work(bp, BNXT_RX_MASK_SP_EVENT);
 
 	if ((bp->flags & BNXT_FLAG_CHIP_P5) && !bp->chip_rev &&
-	    netif_carrier_ok(dev)) {
-		set_bit(BNXT_RING_COAL_NOW_SP_EVENT, &bp->sp_event);
-		bnxt_queue_sp_work(bp);
-	}
+	    netif_carrier_ok(dev))
+		bnxt_queue_sp_work(bp, BNXT_RING_COAL_NOW_SP_EVENT);
+
 bnxt_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
@@ -12968,8 +12960,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	bp->ntp_fltr_count++;
 	spin_unlock_bh(&bp->ntp_fltr_lock);
 
-	set_bit(BNXT_RX_NTP_FLTR_SP_EVENT, &bp->sp_event);
-	bnxt_queue_sp_work(bp);
+	bnxt_queue_sp_work(bp, BNXT_RX_NTP_FLTR_SP_EVENT);
 
 	return new_fltr->sw_id;
 
