@@ -246,7 +246,7 @@ static void ad_net_init_from_iif(struct common_audit_data *ad,
 				 struct lsm_network_audit *net,
 				 int ifindex, u16 family)
 {
-	__ad_net_init(ad, net, ifindex, 0, family);
+	__ad_net_init(ad, net, ifindex, NULL, family);
 }
 
 /*
