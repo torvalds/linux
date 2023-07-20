@@ -969,16 +969,6 @@ static struct snd_soc_dai_link mt8188_mt6359_dai_links[] = {
 	},
 };
 
-static struct snd_kcontrol *ctl_find(struct snd_card *card, const char *name)
-{
-	struct snd_ctl_elem_id sid;
-
-	memset(&sid, 0, sizeof(sid));
-	strcpy(sid.name, name);
-	sid.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	return snd_ctl_find_id(card, &sid);
-}
-
 static void mt8188_fixup_controls(struct snd_soc_card *card)
 {
 	struct mt8188_mt6359_priv *priv = snd_soc_card_get_drvdata(card);
@@ -995,7 +985,7 @@ static void mt8188_fixup_controls(struct snd_soc_card *card)
 			snd_soc_dapm_free_widget(w);
 		}
 
-		kctl = ctl_find(card->snd_card, "Headphone Switch");
+		kctl = snd_ctl_find_id_mixer(card->snd_card, "Headphone Switch");
 		if (kctl)
 			snd_ctl_remove(card->snd_card, kctl);
 		else
