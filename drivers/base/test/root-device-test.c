@@ -78,8 +78,6 @@ static void root_device_devm_register_get_unregister_with_devm_test(struct kunit
 	struct test_priv *priv = test->priv;
 	int ret;
 
-	kunit_skip(test, "This needs to be fixed in the core.");
-
 	priv->dev = root_device_register(DEVICE_NAME);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->dev);
 
