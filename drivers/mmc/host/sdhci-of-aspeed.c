@@ -24,6 +24,7 @@
 #define ASPEED_SDC_PHASE		0xf4
 #define   ASPEED_SDC_S1_PHASE_IN	GENMASK(25, 21)
 #define   ASPEED_SDC_S0_PHASE_IN	GENMASK(20, 16)
+#define	  ASPEED_SDC_S0_PHASE_IN_SHIFT	16
 #define   ASPEED_SDC_S1_PHASE_OUT	GENMASK(15, 11)
 #define   ASPEED_SDC_S1_PHASE_IN_EN	BIT(10)
 #define   ASPEED_SDC_S1_PHASE_OUT_EN	GENMASK(9, 8)
@@ -351,6 +352,8 @@ static void aspeed_sdhci_reset(struct sdhci_host *host, u8 mask)
 			SDHCI_INT_ENABLE,
 			SDHCI_SIGNAL_ENABLE};
 	int i;
+	u16 tran_mode;
+	u32 mmc8_mode;
 
 	pltfm_priv = sdhci_priv(host);
 	aspeed_sdhci = sdhci_pltfm_priv(pltfm_priv);
@@ -360,6 +363,9 @@ static void aspeed_sdhci_reset(struct sdhci_host *host, u8 mask)
 		for (i = 0; i < ARRAY_SIZE(reg_array); i++)
 			save_array[i] = sdhci_readl(host, reg_array[i]);
 
+		tran_mode = sdhci_readw(host, SDHCI_TRANSFER_MODE);
+		mmc8_mode = readl(aspeed_sdc->regs);
+
 		reset_control_assert(aspeed_sdc->rst);
 		mdelay(1);
 		reset_control_deassert(aspeed_sdc->rst);
@@ -368,10 +374,79 @@ static void aspeed_sdhci_reset(struct sdhci_host *host, u8 mask)
 		for (i = 0; i < ARRAY_SIZE(reg_array); i++)
 			sdhci_writel(host, save_array[i], reg_array[i]);
 
+		sdhci_writew(host, tran_mode, SDHCI_TRANSFER_MODE);
+		writel(mmc8_mode, aspeed_sdc->regs);
+
 		aspeed_sdhci_set_clock(host, host->clock);
 	}
 
 	sdhci_reset(host, mask);
+}
+
+static int aspeed_sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
+{
+	struct sdhci_pltfm_host *pltfm_priv;
+	struct aspeed_sdhci *sdhci;
+	struct aspeed_sdc *sdc;
+	struct device *dev;
+
+	u32 val, left, right, edge;
+	u32 window, oldwindow = 0, center;
+	u32 in_phase, out_phase, enable_mask, inverted = 0;
+
+	dev = mmc_dev(host->mmc);
+	pltfm_priv = sdhci_priv(host);
+	sdhci = sdhci_pltfm_priv(pltfm_priv);
+	sdc = sdhci->parent;
+
+	out_phase = readl(sdc->regs + ASPEED_SDC_PHASE) & ASPEED_SDC_S0_PHASE_OUT;
+
+	enable_mask = ASPEED_SDC_S0_PHASE_OUT_EN | ASPEED_SDC_S0_PHASE_IN_EN;
+
+	/*
+	 * There are two window upon clock rising and falling edge.
+	 * Iterate each tap delay to find the valid window and choose the
+	 * bigger one, set the tap delay at the middle of window.
+	 */
+	for (edge = 0; edge < 2; edge++) {
+		if (edge == 1)
+			inverted = ASPEED_SDHCI_TAP_PARAM_INVERT_CLK;
+
+		val = (out_phase | enable_mask | (inverted << ASPEED_SDC_S0_PHASE_IN_SHIFT));
+
+		/* find the left boundary */
+		for (left = 0; left < ASPEED_SDHCI_NR_TAPS + 1; left++) {
+			in_phase = val | (left << ASPEED_SDC_S0_PHASE_IN_SHIFT);
+			writel(in_phase, sdc->regs + ASPEED_SDC_PHASE);
+
+			if (!mmc_send_tuning(host->mmc, opcode, NULL))
+				break;
+		}
+
+		/* find the right boundary */
+		for (right = left + 1; right < ASPEED_SDHCI_NR_TAPS + 1; right++) {
+			in_phase = val | (right << ASPEED_SDC_S0_PHASE_IN_SHIFT);
+			writel(in_phase, sdc->regs + ASPEED_SDC_PHASE);
+
+			if (mmc_send_tuning(host->mmc, opcode, NULL))
+				break;
+		}
+
+		window = right - left;
+		dev_info(dev, "tuning window = %d\n", window);
+
+		if (window > oldwindow) {
+			oldwindow = window;
+			center = (((right - 1) + left) / 2) | inverted;
+		}
+	}
+
+	val = (out_phase | enable_mask | (center << ASPEED_SDC_S0_PHASE_IN_SHIFT));
+	writel(val, sdc->regs + ASPEED_SDC_PHASE);
+
+	dev_info(dev, "tuning result=%x\n", val);
+
+	return mmc_send_tuning(host->mmc, opcode, NULL);
 }
 
 static const struct sdhci_ops aspeed_sdhci_ops = {
@@ -382,6 +457,7 @@ static const struct sdhci_ops aspeed_sdhci_ops = {
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 	.reset = aspeed_sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
+	.platform_execute_tuning = aspeed_sdhci_execute_tuning,
 };
 
 static const struct sdhci_pltfm_data aspeed_sdhci_pdata = {
