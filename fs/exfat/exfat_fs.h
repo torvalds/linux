@@ -234,6 +234,8 @@ struct exfat_mount_options {
 		 discard:1, /* Issue discard requests on deletions */
 		 keep_last_dots:1; /* Keep trailing periods in paths */
 	int time_offset; /* Offset of timestamps from UTC (in minutes) */
+	/* Support creating zero-size directory, default: false */
+	bool zero_size_dir;
 };
 
 /*

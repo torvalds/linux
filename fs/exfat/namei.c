@@ -518,7 +518,7 @@ static int exfat_add_entry(struct inode *inode, const char *path,
 		goto out;
 	}
 
-	if (type == TYPE_DIR) {
+	if (type == TYPE_DIR && !sbi->options.zero_size_dir) {
 		ret = exfat_alloc_new_dir(inode, &clu);
 		if (ret)
 			goto out;
@@ -551,7 +551,10 @@ static int exfat_add_entry(struct inode *inode, const char *path,
 		info->num_subdirs = 0;
 	} else {
 		info->attr = EXFAT_ATTR_SUBDIR;
-		info->start_clu = start_clu;
+		if (sbi->options.zero_size_dir)
+			info->start_clu = EXFAT_EOF_CLUSTER;
+		else
+			info->start_clu = start_clu;
 		info->size = clu_size;
 		info->num_subdirs = EXFAT_MIN_SUBDIR;
 	}

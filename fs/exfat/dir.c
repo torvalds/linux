@@ -418,11 +418,13 @@ static void exfat_set_entry_type(struct exfat_dentry *ep, unsigned int type)
 }
 
 static void exfat_init_stream_entry(struct exfat_dentry *ep,
-		unsigned char flags, unsigned int start_clu,
-		unsigned long long size)
+		unsigned int start_clu, unsigned long long size)
 {
 	exfat_set_entry_type(ep, TYPE_STREAM);
-	ep->dentry.stream.flags = flags;
+	if (size == 0)
+		ep->dentry.stream.flags = ALLOC_FAT_CHAIN;
+	else
+		ep->dentry.stream.flags = ALLOC_NO_FAT_CHAIN;
 	ep->dentry.stream.start_clu = cpu_to_le32(start_clu);
 	ep->dentry.stream.valid_size = cpu_to_le64(size);
 	ep->dentry.stream.size = cpu_to_le64(size);
@@ -488,9 +490,7 @@ int exfat_init_dir_entry(struct inode *inode, struct exfat_chain *p_dir,
 	if (!ep)
 		return -EIO;
 
-	exfat_init_stream_entry(ep,
-		(type == TYPE_FILE) ? ALLOC_FAT_CHAIN : ALLOC_NO_FAT_CHAIN,
-		start_clu, size);
+	exfat_init_stream_entry(ep, start_clu, size);
 	exfat_update_bh(bh, IS_DIRSYNC(inode));
 	brelse(bh);
 
