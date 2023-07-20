@@ -800,8 +800,9 @@ static int rockchip_csi2_dphy_fwnode_parse(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (vep->bus_type == V4L2_MBUS_CSI2_DPHY) {
-		config->type = V4L2_MBUS_CSI2_DPHY;
+	if (vep->bus_type == V4L2_MBUS_CSI2_DPHY ||
+	    vep->bus_type == V4L2_MBUS_CSI2_CPHY) {
+		config->type = vep->bus_type;
 		config->flags = vep->bus.mipi_csi2.flags;
 		s_asd->lanes = vep->bus.mipi_csi2.num_data_lanes;
 	} else if (vep->bus_type == V4L2_MBUS_CCP2) {
