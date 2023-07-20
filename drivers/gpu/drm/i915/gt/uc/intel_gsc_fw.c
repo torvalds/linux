@@ -45,6 +45,20 @@ bool intel_gsc_uc_fw_proxy_init_done(struct intel_gsc_uc *gsc, bool needs_wakere
 	       HECI1_FWSTS1_PROXY_STATE_NORMAL;
 }
 
+int intel_gsc_uc_fw_proxy_get_status(struct intel_gsc_uc *gsc)
+{
+	if (!(IS_ENABLED(CONFIG_INTEL_MEI_GSC_PROXY)))
+		return -ENODEV;
+	if (!intel_uc_fw_is_loadable(&gsc->fw))
+		return -ENODEV;
+	if (__intel_uc_fw_status(&gsc->fw) == INTEL_UC_FIRMWARE_LOAD_FAIL)
+		return -ENOLINK;
+	if (!intel_gsc_uc_fw_proxy_init_done(gsc, true))
+		return -EAGAIN;
+
+	return 0;
+}
+
 bool intel_gsc_uc_fw_init_done(struct intel_gsc_uc *gsc)
 {
 	return gsc_uc_get_fw_status(gsc_uc_to_gt(gsc)->uncore, false) &
