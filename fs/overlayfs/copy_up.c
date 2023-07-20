@@ -1170,17 +1170,10 @@ static bool ovl_open_need_copy_up(struct dentry *dentry, int flags)
 
 int ovl_maybe_copy_up(struct dentry *dentry, int flags)
 {
-	int err = 0;
+	if (!ovl_open_need_copy_up(dentry, flags))
+		return 0;
 
-	if (ovl_open_need_copy_up(dentry, flags)) {
-		err = ovl_want_write(dentry);
-		if (!err) {
-			err = ovl_copy_up_flags(dentry, flags);
-			ovl_drop_write(dentry);
-		}
-	}
-
-	return err;
+	return ovl_copy_up_flags(dentry, flags);
 }
 
 int ovl_copy_up_with_data(struct dentry *dentry)
