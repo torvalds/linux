@@ -3431,11 +3431,7 @@ static const char * const follower_sws_vt1616[] = {
 static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
 						    const char *name)
 {
-	struct snd_ctl_elem_id id;
-	memset(&id, 0, sizeof(id));
-	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	strcpy(id.name, name);
-	return snd_ctl_find_id(ac97->bus->card, &id);
+	return snd_ctl_find_id_mixer(ac97->bus->card, name);
 }
 
 /* create a virtual master control and add followers */
