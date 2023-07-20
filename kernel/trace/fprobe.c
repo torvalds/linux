@@ -100,6 +100,12 @@ static void fprobe_kprobe_handler(unsigned long ip, unsigned long parent_ip,
 		return;
 	}
 
+	/*
+	 * This user handler is shared with other kprobes and is not expected to be
+	 * called recursively. So if any other kprobe handler is running, this will
+	 * exit as kprobe does. See the section 'Share the callbacks with kprobes'
+	 * in Documentation/trace/fprobe.rst for more information.
+	 */
 	if (unlikely(kprobe_running())) {
 		fp->nmissed++;
 		goto recursion_unlock;
