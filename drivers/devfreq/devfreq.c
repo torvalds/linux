@@ -472,10 +472,11 @@ static void devfreq_monitor(struct work_struct *work)
  * devfreq_monitor_start() - Start load monitoring of devfreq instance
  * @devfreq:	the devfreq instance.
  *
- * Helper function for starting devfreq device load monitoring. By
- * default delayed work based monitoring is supported. Function
- * to be called from governor in response to DEVFREQ_GOV_START
- * event when device is added to devfreq framework.
+ * Helper function for starting devfreq device load monitoring. By default,
+ * deferrable timer is used for load monitoring. But the users can change this
+ * behavior using the "timer" type in devfreq_dev_profile. This function will be
+ * called by devfreq governor in response to the DEVFREQ_GOV_START event
+ * generated while adding a device to the devfreq framework.
  */
 void devfreq_monitor_start(struct devfreq *devfreq)
 {
