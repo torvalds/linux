@@ -163,7 +163,7 @@ Initialization
      other fields
          follow standard semantics.
 
-   * **Return fields:**
+   * **Returned fields:**
 
      ``sizeimage``
          adjusted size of ``CAPTURE`` buffers.
@@ -189,7 +189,7 @@ Initialization
      other fields
          follow standard semantics.
 
-   * **Return fields:**
+   * **Returned fields:**
 
      ``pixelformat``
          raw format supported for the coded format currently selected on
@@ -215,7 +215,7 @@ Initialization
      other fields
          follow standard semantics.
 
-   * **Return fields:**
+   * **Returned fields:**
 
      ``width``, ``height``
          may be adjusted to match encoder minimums, maximums and alignment
@@ -245,7 +245,7 @@ Initialization
 	 the desired frame interval; the encoder may adjust it to
 	 match hardware requirements.
 
-   * **Return fields:**
+   * **Returned fields:**
 
      ``parm.output.timeperframe``
 	 the adjusted frame interval.
@@ -296,7 +296,7 @@ Initialization
 	 the desired coded frame interval; the encoder may adjust it to
 	 match hardware requirements.
 
-   * **Return fields:**
+   * **Returned fields:**
 
      ``parm.capture.timeperframe``
 	 the adjusted frame interval.
@@ -339,7 +339,7 @@ Initialization
          rectangle and may be subject to adjustment to match codec and
          hardware constraints.
 
-   * **Return fields:**
+   * **Returned fields:**
 
      ``r.left``, ``r.top``, ``r.width``, ``r.height``
          visible rectangle adjusted by the encoder.
@@ -387,7 +387,7 @@ Initialization
      other fields
          follow standard semantics.
 
-   * **Return fields:**
+   * **Returned fields:**
 
      ``count``
           actual number of buffers allocated.
@@ -420,7 +420,7 @@ Initialization
      other fields
          follow standard semantics.
 
-   * **Return fields:**
+   * **Returned fields:**
 
      ``count``
          adjusted to the number of allocated buffers.
