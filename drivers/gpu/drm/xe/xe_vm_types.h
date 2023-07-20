@@ -50,21 +50,28 @@ struct xe_vma {
 	 */
 	u64 tile_present;
 
-	/** @userptr_link: link into VM repin list if userptr */
-	struct list_head userptr_link;
-
-	/**
-	 * @rebind_link: link into VM if this VMA needs rebinding, and
-	 * if it's a bo (not userptr) needs validation after a possible
-	 * eviction. Protected by the vm's resv lock.
-	 */
-	struct list_head rebind_link;
-
-	/**
-	 * @unbind_link: link or list head if an unbind of multiple VMAs, in
-	 * single unbind op, is being done.
-	 */
-	struct list_head unbind_link;
+	/** @combined_links: links into lists which are mutually exclusive */
+	union {
+		/**
+		 * @userptr: link into VM repin list if userptr. Protected by
+		 * vm->lock in write mode.
+		 */
+		struct list_head userptr;
+		/**
+		 * @rebind: link into VM if this VMA needs rebinding, and
+		 * if it's a bo (not userptr) needs validation after a possible
+		 * eviction. Protected by the vm's resv lock and typically
+		 * vm->lock is also held in write mode. The only place where
+		 * vm->lock isn't held is the BO eviction path which has
+		 * mutually exclusive execution with userptr.
+		 */
+		struct list_head rebind;
+		/**
+		 * @destroy: link to contested list when VM is being closed.
+		 * Protected by vm->lock in write mode and vm's resv lock.
+		 */
+		struct list_head destroy;
+	} combined_links;
 
 	/** @destroy_cb: callback to destroy VMA when unbind job is done */
 	struct dma_fence_cb destroy_cb;

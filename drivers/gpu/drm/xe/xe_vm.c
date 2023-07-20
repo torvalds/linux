@@ -467,7 +467,8 @@ int xe_vm_lock_dma_resv(struct xe_vm *vm, struct ww_acquire_ctx *ww,
 
 		list_del_init(&vma->notifier.rebind_link);
 		if (vma->tile_present && !(vma->gpuva.flags & XE_VMA_DESTROYED))
-			list_move_tail(&vma->rebind_link, &vm->rebind_list);
+			list_move_tail(&vma->combined_links.rebind,
+				       &vm->rebind_list);
 	}
 	spin_unlock(&vm->notifier.list_lock);
 
@@ -608,7 +609,7 @@ retry:
 	if (err)
 		goto out_unlock;
 
-	list_for_each_entry(vma, &vm->rebind_list, rebind_link) {
+	list_for_each_entry(vma, &vm->rebind_list, combined_links.rebind) {
 		if (xe_vma_has_no_bo(vma) ||
 		    vma->gpuva.flags & XE_VMA_DESTROYED)
 			continue;
@@ -780,17 +781,20 @@ int xe_vm_userptr_pin(struct xe_vm *vm)
 	list_for_each_entry_safe(vma, next, &vm->userptr.invalidated,
 				 userptr.invalidate_link) {
 		list_del_init(&vma->userptr.invalidate_link);
-		list_move_tail(&vma->userptr_link, &vm->userptr.repin_list);
+		if (list_empty(&vma->combined_links.userptr))
+			list_move_tail(&vma->combined_links.userptr,
+				       &vm->userptr.repin_list);
 	}
 	spin_unlock(&vm->userptr.invalidated_lock);
 
 	/* Pin and move to temporary list */
-	list_for_each_entry_safe(vma, next, &vm->userptr.repin_list, userptr_link) {
+	list_for_each_entry_safe(vma, next, &vm->userptr.repin_list,
+				 combined_links.userptr) {
 		err = xe_vma_userptr_pin_pages(vma);
 		if (err < 0)
 			goto out_err;
 
-		list_move_tail(&vma->userptr_link, &tmp_evict);
+		list_move_tail(&vma->combined_links.userptr, &tmp_evict);
 	}
 
 	/* Take lock and move to rebind_list for rebinding. */
@@ -798,10 +802,8 @@ int xe_vm_userptr_pin(struct xe_vm *vm)
 	if (err)
 		goto out_err;
 
-	list_for_each_entry_safe(vma, next, &tmp_evict, userptr_link) {
-		list_del_init(&vma->userptr_link);
-		list_move_tail(&vma->rebind_link, &vm->rebind_list);
-	}
+	list_for_each_entry_safe(vma, next, &tmp_evict, combined_links.userptr)
+		list_move_tail(&vma->combined_links.rebind, &vm->rebind_list);
 
 	dma_resv_unlock(xe_vm_resv(vm));
 
@@ -845,10 +847,11 @@ struct dma_fence *xe_vm_rebind(struct xe_vm *vm, bool rebind_worker)
 		return NULL;
 
 	xe_vm_assert_held(vm);
-	list_for_each_entry_safe(vma, next, &vm->rebind_list, rebind_link) {
+	list_for_each_entry_safe(vma, next, &vm->rebind_list,
+				 combined_links.rebind) {
 		XE_WARN_ON(!vma->tile_present);
 
-		list_del_init(&vma->rebind_link);
+		list_del_init(&vma->combined_links.rebind);
 		dma_fence_put(fence);
 		if (rebind_worker)
 			trace_xe_vma_rebind_worker(vma);
@@ -883,9 +886,7 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 		return vma;
 	}
 
-	INIT_LIST_HEAD(&vma->rebind_link);
-	INIT_LIST_HEAD(&vma->unbind_link);
-	INIT_LIST_HEAD(&vma->userptr_link);
+	INIT_LIST_HEAD(&vma->combined_links.rebind);
 	INIT_LIST_HEAD(&vma->userptr.invalidate_link);
 	INIT_LIST_HEAD(&vma->notifier.rebind_link);
 	INIT_LIST_HEAD(&vma->extobj.link);
@@ -1070,7 +1071,7 @@ static void xe_vma_destroy(struct xe_vma *vma, struct dma_fence *fence)
 	struct xe_vm *vm = xe_vma_vm(vma);
 
 	lockdep_assert_held_write(&vm->lock);
-	XE_BUG_ON(!list_empty(&vma->unbind_link));
+	XE_BUG_ON(!list_empty(&vma->combined_links.destroy));
 
 	if (xe_vma_is_userptr(vma)) {
 		XE_WARN_ON(!(vma->gpuva.flags & XE_VMA_DESTROYED));
@@ -1078,7 +1079,6 @@ static void xe_vma_destroy(struct xe_vma *vma, struct dma_fence *fence)
 		spin_lock(&vm->userptr.invalidated_lock);
 		list_del_init(&vma->userptr.invalidate_link);
 		spin_unlock(&vm->userptr.invalidated_lock);
-		list_del(&vma->userptr_link);
 	} else if (!xe_vma_is_null(vma)) {
 		xe_bo_assert_held(xe_vma_bo(vma));
 
@@ -1099,9 +1099,6 @@ static void xe_vma_destroy(struct xe_vma *vma, struct dma_fence *fence)
 	}
 
 	xe_vm_assert_held(vm);
-	if (!list_empty(&vma->rebind_link))
-		list_del(&vma->rebind_link);
-
 	if (fence) {
 		int ret = dma_fence_add_callback(fence, &vma->destroy_cb,
 						 vma_destroy_cb);
@@ -1451,11 +1448,12 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 
 		/* easy case, remove from VMA? */
 		if (xe_vma_has_no_bo(vma) || xe_vma_bo(vma)->vm) {
+			list_del_init(&vma->combined_links.rebind);
 			xe_vma_destroy(vma, NULL);
 			continue;
 		}
 
-		list_add_tail(&vma->unbind_link, &contested);
+		list_move_tail(&vma->combined_links.destroy, &contested);
 	}
 
 	/*
@@ -1487,8 +1485,9 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	 * Since we hold a refcount to the bo, we can remove and free
 	 * the members safely without locking.
 	 */
-	list_for_each_entry_safe(vma, next_vma, &contested, unbind_link) {
-		list_del_init(&vma->unbind_link);
+	list_for_each_entry_safe(vma, next_vma, &contested,
+				 combined_links.destroy) {
+		list_del_init(&vma->combined_links.destroy);
 		xe_vma_destroy_unlocked(vma);
 	}
 

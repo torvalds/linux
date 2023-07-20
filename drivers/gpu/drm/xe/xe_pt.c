@@ -1805,7 +1805,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 	}
 
 	if (!vma->tile_present)
-		list_del_init(&vma->rebind_link);
+		list_del_init(&vma->combined_links.rebind);
 
 	if (unbind_pt_update.locked) {
 		XE_WARN_ON(!xe_vma_is_userptr(vma));

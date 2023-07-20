@@ -120,7 +120,7 @@ retry:
 	 * BOs have valid placements possibly moving an evicted BO back
 	 * to a location where the GPU can access it).
 	 */
-	list_for_each_entry(vma, &vm->rebind_list, rebind_link) {
+	list_for_each_entry(vma, &vm->rebind_list, combined_links.rebind) {
 		XE_WARN_ON(xe_vma_is_null(vma));
 
 		if (xe_vma_is_userptr(vma))
