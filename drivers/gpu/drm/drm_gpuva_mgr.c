@@ -619,7 +619,7 @@ drm_gpuva_check_overflow(u64 addr, u64 range)
 	u64 end;
 
 	return WARN(check_add_overflow(addr, range, &end),
-		    "GPUVA address limited to %lu bytes.\n", sizeof(end));
+		    "GPUVA address limited to %zu bytes.\n", sizeof(end));
 }
 
 static bool
