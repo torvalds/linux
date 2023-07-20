@@ -315,7 +315,7 @@
 		compatible = "qcom,pmc8180c", "qcom,spmi-pmic";
 		reg = <0x5 SPMI_USID>;
 
-		pmc8180c_lpg: lpg {
+		pmc8180c_lpg: pwm {
 			compatible = "qcom,pmc8180c-lpg";
 
 			#address-cells = <1>;
