@@ -2110,6 +2110,7 @@ end:
 	dev->irq_ends_mask = 0;
 	dev->hdr.op_mode = 0;
 	dev->sw_rd_cnt = 0;
+	dev->stats_vdev.rdbk_drop = false;
 	rkisp_set_state(&dev->isp_state, ISP_STOP);
 
 	if (dev->isp_ver >= ISP_V20)

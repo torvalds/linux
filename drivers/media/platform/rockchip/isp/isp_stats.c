@@ -222,7 +222,6 @@ rkisp_stats_vb2_start_streaming(struct vb2_queue *queue,
 {
 	struct rkisp_isp_stats_vdev *stats_vdev = queue->drv_priv;
 
-	stats_vdev->rdbk_drop = false;
 	stats_vdev->cur_buf = NULL;
 	stats_vdev->ops->rdbk_enable(stats_vdev, false);
 	stats_vdev->streamon = true;
