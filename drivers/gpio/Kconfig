@@ -858,6 +858,7 @@ config GPIO_104_DIO_48E
 	select REGMAP_IRQ
 	select GPIOLIB_IRQCHIP
 	select GPIO_I8255
+	select I8254
 	help
 	  Enables GPIO support for the ACCES 104-DIO-48E series (104-DIO-48E,
 	  104-DIO-24E). The base port addresses for the devices may be
