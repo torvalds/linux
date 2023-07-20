@@ -1074,7 +1074,6 @@ F:	include/soc/amlogic/
 
 AMPHION VPU CODEC V4L2 DRIVER
 M:	Ming Qian <ming.qian@nxp.com>
-M:	Shijie Qin <shijie.qin@nxp.com>
 M:	Zhou Peng <eagle.zhou@nxp.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
