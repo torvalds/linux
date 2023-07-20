@@ -1473,7 +1473,7 @@ static void handle_uaudio_stream_req(struct qmi_handle *handle,
 	struct snd_usb_audio *chip;
 
 	u8 pcm_card_num, pcm_dev_num, direction;
-	int info_idx = -EINVAL, datainterval = -EINVAL, ret = 0;
+	int info_idx = -EINVAL, datainterval = -EINVAL, ret = 0, ifnum;
 
 	uaudio_dbg("sq_node:%x sq_port:%x sq_family:%x\n", sq->sq_node,
 			sq->sq_port, sq->sq_family);
@@ -1521,8 +1521,8 @@ static void handle_uaudio_stream_req(struct qmi_handle *handle,
 		goto response;
 	}
 
-	info_idx = info_idx_from_ifnum(pcm_card_num, subs->cur_audiofmt ?
-			subs->cur_audiofmt->iface : -1, req_msg->enable);
+	ifnum = subs->cur_audiofmt ? subs->cur_audiofmt->iface : -1;
+	info_idx = info_idx_from_ifnum(pcm_card_num, ifnum, req_msg->enable);
 	if (atomic_read(&chip->shutdown) || !subs->stream || !subs->stream->pcm
 			|| !subs->stream->chip) {
 		uaudio_err("chip or sub not available: shutdown:%d stream:%p\n",
@@ -1538,7 +1538,7 @@ static void handle_uaudio_stream_req(struct qmi_handle *handle,
 	if (req_msg->enable) {
 		if (info_idx < 0) {
 			uaudio_err("interface# %d already in use card# %d\n",
-					subs->cur_audiofmt->iface, pcm_card_num);
+					ifnum, pcm_card_num);
 			ret = -EBUSY;
 			goto response;
 		}
