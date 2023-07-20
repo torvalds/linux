@@ -18006,7 +18006,7 @@ F:	include/linux/regmap.h
 
 REISERFS FILE SYSTEM
 L:	reiserfs-devel@vger.kernel.org
-S:	Supported
+S:	Obsolete
 F:	fs/reiserfs/
 
 REMOTE PROCESSOR (REMOTEPROC) SUBSYSTEM
