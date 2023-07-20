@@ -427,6 +427,23 @@
  * 2.lock for rockit qbuf
  * 3.fix open video during device register
  * 4.sync dev register and fast_work
+ *
+ * v2.2.2 (AIQ v5.1.3)
+ * 1.fixed framerate ctl invalid issue
+ * 2.fix rockit uv offset if switch resolution
+ * 3.fix isp rockit frame rate err
+ * 4.fix error for multi sensor with scale up case
+ * 5.force offset to 0 when frame end for wrap mode
+ * 6.fix sync with 3a_server
+ * 7.fix isp32 and lite buf output err due to mi on/off
+ * 8.fix uyvy format for isp32
+ * 9.wait RISC-V with 400ms timeout
+ * 10.fix uyvy format for unite mode
+ * 11.fix ldch for multiple read back
+ * 12.sync isp stream_on end then to start working
+ * 13.no set clk if assigned-clock-rates in dts
+ * 14.distinguish buf done or subscribed event for param poll
+ * 15.fix repeated reporting statistics if stats video on/off
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
