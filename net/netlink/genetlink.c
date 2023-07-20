@@ -593,8 +593,12 @@ static int genl_validate_ops(const struct genl_family *family)
 			return -EINVAL;
 
 		/* Check sort order */
-		if (a->cmd < b->cmd)
+		if (a->cmd < b->cmd) {
 			continue;
+		} else if (a->cmd > b->cmd) {
+			WARN_ON(1);
+			return -EINVAL;
+		}
 
 		if (a->internal_flags != b->internal_flags ||
 		    ((a->flags ^ b->flags) & ~(GENL_CMD_CAP_DO |
