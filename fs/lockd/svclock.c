@@ -131,12 +131,14 @@ static void nlmsvc_insert_block(struct nlm_block *block, unsigned long when)
 static inline void
 nlmsvc_remove_block(struct nlm_block *block)
 {
+	spin_lock(&nlm_blocked_lock);
 	if (!list_empty(&block->b_list)) {
-		spin_lock(&nlm_blocked_lock);
 		list_del_init(&block->b_list);
 		spin_unlock(&nlm_blocked_lock);
 		nlmsvc_release_block(block);
+		return;
 	}
+	spin_unlock(&nlm_blocked_lock);
 }
 
 /*
@@ -152,6 +154,7 @@ nlmsvc_lookup_block(struct nlm_file *file, struct nlm_lock *lock)
 				file, lock->fl.fl_pid,
 				(long long)lock->fl.fl_start,
 				(long long)lock->fl.fl_end, lock->fl.fl_type);
+	spin_lock(&nlm_blocked_lock);
 	list_for_each_entry(block, &nlm_blocked, b_list) {
 		fl = &block->b_call->a_args.lock.fl;
 		dprintk("lockd: check f=%p pd=%d %Ld-%Ld ty=%d cookie=%s\n",
@@ -161,9 +164,11 @@ nlmsvc_lookup_block(struct nlm_file *file, struct nlm_lock *lock)
 				nlmdbg_cookie2a(&block->b_call->a_args.cookie));
 		if (block->b_file == file && nlm_compare_locks(fl, &lock->fl)) {
 			kref_get(&block->b_count);
+			spin_unlock(&nlm_blocked_lock);
 			return block;
 		}
 	}
+	spin_unlock(&nlm_blocked_lock);
 
 	return NULL;
 }
@@ -185,16 +190,19 @@ nlmsvc_find_block(struct nlm_cookie *cookie)
 {
 	struct nlm_block *block;
 
+	spin_lock(&nlm_blocked_lock);
 	list_for_each_entry(block, &nlm_blocked, b_list) {
 		if (nlm_cookie_match(&block->b_call->a_args.cookie,cookie))
 			goto found;
 	}
+	spin_unlock(&nlm_blocked_lock);
 
 	return NULL;
 
 found:
 	dprintk("nlmsvc_find_block(%s): block=%p\n", nlmdbg_cookie2a(cookie), block);
 	kref_get(&block->b_count);
+	spin_unlock(&nlm_blocked_lock);
 	return block;
 }
 
@@ -317,6 +325,7 @@ void nlmsvc_traverse_blocks(struct nlm_host *host,
 
 restart:
 	mutex_lock(&file->f_mutex);
+	spin_lock(&nlm_blocked_lock);
 	list_for_each_entry_safe(block, next, &file->f_blocks, b_flist) {
 		if (!match(block->b_host, host))
 			continue;
@@ -325,11 +334,13 @@ restart:
 		if (list_empty(&block->b_list))
 			continue;
 		kref_get(&block->b_count);
+		spin_unlock(&nlm_blocked_lock);
 		mutex_unlock(&file->f_mutex);
 		nlmsvc_unlink_block(block);
 		nlmsvc_release_block(block);
 		goto restart;
 	}
+	spin_unlock(&nlm_blocked_lock);
 	mutex_unlock(&file->f_mutex);
 }
 
