@@ -783,7 +783,7 @@ int amdgpu_vm_pde_update(struct amdgpu_vm_update_params *params,
 /**
  * amdgpu_vm_pte_update_noretry_flags - Update PTE no-retry flags
  *
- * @adev - amdgpu_device pointer
+ * @adev: amdgpu_device pointer
  * @flags: pointer to PTE flags
  *
  * Update PTE no-retry flags when TF is enabled.
