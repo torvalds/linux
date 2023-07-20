@@ -554,7 +554,8 @@ static void prctl_set_onexec(struct vec_data *data)
 /* For each VQ verify that setting via prctl() does the right thing */
 static void prctl_set_all_vqs(struct vec_data *data)
 {
-	int ret, vq, vl, new_vl;
+	int ret, vq, vl, new_vl, i;
+	int orig_vls[ARRAY_SIZE(vec_data)];
 	int errors = 0;
 
 	if (!data->min_vl || !data->max_vl) {
@@ -562,6 +563,9 @@ static void prctl_set_all_vqs(struct vec_data *data)
 				      data->name);
 		return;
 	}
+
+	for (i = 0; i < ARRAY_SIZE(vec_data); i++)
+		orig_vls[i] = vec_data[i].rdvl();
 
 	for (vq = SVE_VQ_MIN; vq <= SVE_VQ_MAX; vq++) {
 		vl = sve_vl_from_vq(vq);
@@ -583,6 +587,22 @@ static void prctl_set_all_vqs(struct vec_data *data)
 			ksft_print_msg("Set %s VL %d but RDVL reports %d\n",
 				       data->name, new_vl, data->rdvl());
 			errors++;
+		}
+
+		/* Did any other VLs change? */
+		for (i = 0; i < ARRAY_SIZE(vec_data); i++) {
+			if (&vec_data[i] == data)
+				continue;
+
+			if (!(getauxval(vec_data[i].hwcap_type) & vec_data[i].hwcap))
+				continue;
+
+			if (vec_data[i].rdvl() != orig_vls[i]) {
+				ksft_print_msg("%s VL changed from %d to %d\n",
+					       vec_data[i].name, orig_vls[i],
+					       vec_data[i].rdvl());
+				errors++;
+			}
 		}
 
 		/* Was that the VL we asked for? */
