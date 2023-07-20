@@ -192,7 +192,7 @@
 				#size-cells = <0>;
 				reg = <0x4b>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&synaptics_tvk_mode>;
 				interrupt-parent = <&gpio2>;
