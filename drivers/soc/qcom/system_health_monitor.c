@@ -194,6 +194,10 @@ static void shm_svc_restart_worker(struct work_struct *work)
 		return;
 	}
 
+	if (tmp_hma_info->rproc->recovery_disabled)
+		panic("%s: HMA in %s failed to respond in time, panic!\n", __func__,
+		      tmp_hma_info->subsys_name);
+
 	SHM_ERR("%s: HMA in %s failed to respond in time. Restarting %s...\n",
 		__func__, tmp_hma_info->subsys_name,
 		tmp_hma_info->ssrestart_string);
