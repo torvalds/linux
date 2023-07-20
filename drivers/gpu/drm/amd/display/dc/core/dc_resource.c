@@ -76,7 +76,6 @@
 
 #define DC_LOGGER_INIT(logger)
 
-#define HEAD_NOT_IN_ODM -2
 #define UNABLE_TO_SPLIT -1
 
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
@@ -1717,48 +1716,6 @@ static int acquire_first_split_pipe(
 
 			split_pipe->stream = stream;
 			return i;
-		} else if (split_pipe->prev_odm_pipe &&
-				split_pipe->prev_odm_pipe->plane_state == split_pipe->plane_state) {
-
-			// Fix case where ODM slice has child planes
-			// Re-attach child planes
-			struct pipe_ctx *temp_head_pipe = resource_get_head_pipe_for_stream(res_ctx, split_pipe->stream);
-
-			if (split_pipe->bottom_pipe && temp_head_pipe) {
-
-				struct pipe_ctx *temp_tail_pipe = resource_get_tail_pipe(res_ctx, temp_head_pipe);
-
-				if (temp_tail_pipe) {
-
-					split_pipe->bottom_pipe->top_pipe = temp_tail_pipe;
-					temp_tail_pipe->bottom_pipe = split_pipe->bottom_pipe;
-				}
-			}
-
-			split_pipe->prev_odm_pipe->next_odm_pipe = split_pipe->next_odm_pipe;
-
-			if (split_pipe->next_odm_pipe)
-				split_pipe->next_odm_pipe->prev_odm_pipe = split_pipe->prev_odm_pipe;
-
-			if (split_pipe->prev_odm_pipe->plane_state)
-				resource_build_scaling_params(split_pipe->prev_odm_pipe);
-
-			memset(split_pipe, 0, sizeof(*split_pipe));
-
-			// We cannot split if head pipe is not odm
-			if (temp_head_pipe && !temp_head_pipe->next_odm_pipe && !temp_head_pipe->prev_odm_pipe)
-				return HEAD_NOT_IN_ODM;
-
-			split_pipe->stream_res.tg = pool->timing_generators[i];
-			split_pipe->plane_res.hubp = pool->hubps[i];
-			split_pipe->plane_res.ipp = pool->ipps[i];
-			split_pipe->plane_res.dpp = pool->dpps[i];
-			split_pipe->stream_res.opp = pool->opps[i];
-			split_pipe->plane_res.mpcc_inst = pool->dpps[i]->inst;
-			split_pipe->pipe_idx = i;
-
-			split_pipe->stream = stream;
-			return i;
 		}
 	}
 	return UNABLE_TO_SPLIT;
@@ -1774,9 +1731,6 @@ bool dc_add_plane_to_context(
 	struct resource_pool *pool = dc->res_pool;
 	struct pipe_ctx *head_pipe, *tail_pipe, *free_pipe;
 	struct dc_stream_status *stream_status = NULL;
-	struct pipe_ctx *prev_right_head = NULL;
-	struct pipe_ctx *free_right_pipe = NULL;
-	struct pipe_ctx *prev_left_head = NULL;
 
 	DC_LOGGER_INIT(stream->ctx->logger);
 	for (i = 0; i < context->stream_count; i++)
@@ -1813,10 +1767,6 @@ bool dc_add_plane_to_context(
 			int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
 			if (pipe_idx >= 0)
 				free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
-			else if (pipe_idx == HEAD_NOT_IN_ODM)
-				break;
-			else
-				ASSERT(false);
 		}
 
 		if (!free_pipe) {
@@ -1830,184 +1780,23 @@ bool dc_add_plane_to_context(
 			tail_pipe = resource_get_tail_pipe(&context->res_ctx, head_pipe);
 			ASSERT(tail_pipe);
 
-			/* ODM + window MPO, where MPO window is on right half only */
-			if (free_pipe->plane_state &&
-				(free_pipe->plane_state->clip_rect.x >= free_pipe->stream->src.x + free_pipe->stream->src.width/2) &&
-				tail_pipe->next_odm_pipe) {
-
-				/* For ODM + window MPO, in 3 plane case, if we already have a MPO window on
-				 *  the right side, then we will invalidate a 2nd one on the right side
-				 */
-				if (head_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
-					dc_plane_state_release(plane_state);
-					return false;
-				}
-
-				DC_LOG_SCALER("%s - ODM + window MPO(right). free_pipe:%d  tail_pipe->next_odm_pipe:%d\n",
-						__func__,
-						free_pipe->pipe_idx,
-						tail_pipe->next_odm_pipe ? tail_pipe->next_odm_pipe->pipe_idx : -1);
-
-				/*
-				 * We want to avoid the case where the right side already has a pipe assigned to
-				 *  it and is different from free_pipe ( which would cause trigger a pipe
-				 *  reallocation ).
-				 * Check the old context to see if the right side already has a pipe allocated
-				 * - If not, continue to use free_pipe
-				 * - If the right side already has a pipe, use that pipe instead if its available
-				 */
-
-				/*
-				 * We also want to avoid the case where with three plane ( 2 MPO videos ), we have
-				 *  both videos on the left side so one of the videos is invalidated.  Then we
-				 *  move the invalidated video back to the right side.  If the order of the plane
-				 *  states is such that the right MPO plane is processed first, the free pipe
-				 *  selected by the head will be the left MPO pipe. But since there was no right
-				 *  MPO pipe, it will assign the free pipe to the right MPO pipe instead and
-				 *  a pipe reallocation will occur.
-				 * Check the old context to see if the left side already has a pipe allocated
-				 * - If not, continue to use free_pipe
-				 * - If the left side is already using this pipe, then pick another pipe for right
-				 */
-
-				prev_right_head = &dc->current_state->res_ctx.pipe_ctx[tail_pipe->next_odm_pipe->pipe_idx];
-				if ((prev_right_head->bottom_pipe) &&
-					(free_pipe->pipe_idx != prev_right_head->bottom_pipe->pipe_idx)) {
-					free_right_pipe = acquire_free_pipe_for_head(context, pool, tail_pipe->next_odm_pipe);
-				} else {
-					prev_left_head = &dc->current_state->res_ctx.pipe_ctx[head_pipe->pipe_idx];
-					if ((prev_left_head->bottom_pipe) &&
-						(free_pipe->pipe_idx == prev_left_head->bottom_pipe->pipe_idx)) {
-						free_right_pipe = acquire_free_pipe_for_head(context, pool, head_pipe);
-					}
-				}
-
-				if (free_right_pipe) {
-					free_pipe->stream = NULL;
-					memset(&free_pipe->stream_res, 0, sizeof(struct stream_resource));
-					memset(&free_pipe->plane_res, 0, sizeof(struct plane_resource));
-					free_pipe->plane_state = NULL;
-					free_pipe->pipe_idx = 0;
-					free_right_pipe->plane_state = plane_state;
-					free_pipe = free_right_pipe;
-				}
-
-				free_pipe->stream_res.tg = tail_pipe->next_odm_pipe->stream_res.tg;
-				free_pipe->stream_res.abm = tail_pipe->next_odm_pipe->stream_res.abm;
-				free_pipe->stream_res.opp = tail_pipe->next_odm_pipe->stream_res.opp;
-				free_pipe->stream_res.stream_enc = tail_pipe->next_odm_pipe->stream_res.stream_enc;
-				free_pipe->stream_res.audio = tail_pipe->next_odm_pipe->stream_res.audio;
-				free_pipe->clock_source = tail_pipe->next_odm_pipe->clock_source;
-
-				free_pipe->top_pipe = tail_pipe->next_odm_pipe;
-				tail_pipe->next_odm_pipe->bottom_pipe = free_pipe;
-			} else if (free_pipe->plane_state &&
-				(free_pipe->plane_state->clip_rect.x >= free_pipe->stream->src.x + free_pipe->stream->src.width/2)
-				&& head_pipe->next_odm_pipe) {
-
-				/* For ODM + window MPO, support 3 plane ( 2 MPO ) case.
-				 * Here we have a desktop ODM + left window MPO and a new MPO window appears
-				 *  on the right side only.  It fails the first case, because tail_pipe is the
-				 *  left window MPO, so it has no next_odm_pipe.  So in this scenario, we check
-				 *  for head_pipe->next_odm_pipe instead
-				 */
-				DC_LOG_SCALER("%s - ODM + win MPO (left) + win MPO (right). free_pipe:%d  head_pipe->next_odm:%d\n",
-						__func__,
-						free_pipe->pipe_idx,
-						head_pipe->next_odm_pipe ? head_pipe->next_odm_pipe->pipe_idx : -1);
-
-				/*
-				 * We want to avoid the case where the right side already has a pipe assigned to
-				 *  it and is different from free_pipe ( which would cause trigger a pipe
-				 *  reallocation ).
-				 * Check the old context to see if the right side already has a pipe allocated
-				 * - If not, continue to use free_pipe
-				 * - If the right side already has a pipe, use that pipe instead if its available
-				 */
-				prev_right_head = &dc->current_state->res_ctx.pipe_ctx[head_pipe->next_odm_pipe->pipe_idx];
-				if ((prev_right_head->bottom_pipe) &&
-					(free_pipe->pipe_idx != prev_right_head->bottom_pipe->pipe_idx)) {
-					free_right_pipe = acquire_free_pipe_for_head(context, pool, head_pipe->next_odm_pipe);
-					if (free_right_pipe) {
-						free_pipe->stream = NULL;
-						memset(&free_pipe->stream_res, 0, sizeof(struct stream_resource));
-						memset(&free_pipe->plane_res, 0, sizeof(struct plane_resource));
-						free_pipe->plane_state = NULL;
-						free_pipe->pipe_idx = 0;
-						free_right_pipe->plane_state = plane_state;
-						free_pipe = free_right_pipe;
-					}
-				}
-
-				free_pipe->stream_res.tg = head_pipe->next_odm_pipe->stream_res.tg;
-				free_pipe->stream_res.abm = head_pipe->next_odm_pipe->stream_res.abm;
-				free_pipe->stream_res.opp = head_pipe->next_odm_pipe->stream_res.opp;
-				free_pipe->stream_res.stream_enc = head_pipe->next_odm_pipe->stream_res.stream_enc;
-				free_pipe->stream_res.audio = head_pipe->next_odm_pipe->stream_res.audio;
-				free_pipe->clock_source = head_pipe->next_odm_pipe->clock_source;
-
-				free_pipe->top_pipe = head_pipe->next_odm_pipe;
-				head_pipe->next_odm_pipe->bottom_pipe = free_pipe;
-			} else {
-
-				/* For ODM + window MPO, in 3 plane case, if we already have a MPO window on
-				 *  the left side, then we will invalidate a 2nd one on the left side
-				 */
-				if (head_pipe->next_odm_pipe && tail_pipe->top_pipe) {
-					dc_plane_state_release(plane_state);
-					return false;
-				}
-
-				free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
-				free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
-				free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
-				free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
-				free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
-				free_pipe->clock_source = tail_pipe->clock_source;
-
-				free_pipe->top_pipe = tail_pipe;
-				tail_pipe->bottom_pipe = free_pipe;
-
-				/* Connect MPO pipes together if MPO window is in the centre */
-				if (!(free_pipe->plane_state &&
-						(free_pipe->plane_state->clip_rect.x + free_pipe->plane_state->clip_rect.width <=
-						free_pipe->stream->src.x + free_pipe->stream->src.width/2))) {
-					if (!free_pipe->next_odm_pipe &&
-						tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe &&
-						tail_pipe->next_odm_pipe->bottom_pipe->plane_state == free_pipe->plane_state) {
-						free_pipe->next_odm_pipe = tail_pipe->next_odm_pipe->bottom_pipe;
-						tail_pipe->next_odm_pipe->bottom_pipe->prev_odm_pipe = free_pipe;
-					}
-					if (!free_pipe->prev_odm_pipe &&
-						tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe &&
-						tail_pipe->prev_odm_pipe->bottom_pipe->plane_state == free_pipe->plane_state) {
-						free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
-						tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
-					}
-				}
+			free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
+			free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
+			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
+			free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
+			free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
+			free_pipe->clock_source = tail_pipe->clock_source;
+			free_pipe->top_pipe = tail_pipe;
+			tail_pipe->bottom_pipe = free_pipe;
+			if (tail_pipe->prev_odm_pipe) {
+				tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
+				free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
 			}
-		}
-
-		/* ODM + window MPO, where MPO window is on left half only */
-		if (free_pipe->plane_state &&
-			(free_pipe->plane_state->clip_rect.x + free_pipe->plane_state->clip_rect.width <=
-			free_pipe->stream->src.x + free_pipe->stream->src.width/2)) {
-			DC_LOG_SCALER("%s - ODM + window MPO(left). free_pipe:%d\n",
-					__func__,
-					free_pipe->pipe_idx);
-			break;
-		}
-		/* ODM + window MPO, where MPO window is on right half only */
-		if (free_pipe->plane_state &&
-			(free_pipe->plane_state->clip_rect.x >= free_pipe->stream->src.x + free_pipe->stream->src.width/2)) {
-			DC_LOG_SCALER("%s - ODM + window MPO(right). free_pipe:%d\n",
-					__func__,
-					free_pipe->pipe_idx);
-			break;
 		}
 
 		head_pipe = head_pipe->next_odm_pipe;
 	}
+
 	/* assign new surfaces*/
 	stream_status->plane_states[stream_status->plane_count] = plane_state;
 
