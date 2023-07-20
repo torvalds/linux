@@ -2040,7 +2040,7 @@ device_reset:
 	if (ctx)
 		hl_ctx_put(ctx);
 
-	return hl_device_reset(hdev, flags);
+	return hl_device_reset(hdev, flags | HL_DRV_RESET_HARD);
 }
 
 static void hl_notifier_event_send(struct hl_notifier_event *notifier_event, u64 event_mask)
