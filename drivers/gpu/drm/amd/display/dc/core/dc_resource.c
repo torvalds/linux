@@ -1157,15 +1157,23 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 			pipe_ctx, &plane_clip);
 	odm_slice = calculate_odm_slice_in_timing_active(pipe_ctx);
 	overlapping_area = intersect_rec(&mpc_slice_of_plane_clip, &odm_slice);
-	/* shift the overlapping area so it is with respect to current ODM
-	 * slice's position
-	 */
-	pipe_ctx->plane_res.scl_data.recout = shift_rec(
-			&overlapping_area,
-			-odm_slice.x, -odm_slice.y);
+	if (overlapping_area.height > 0 &&
+			overlapping_area.width > 0) {
+		/* shift the overlapping area so it is with respect to current
+		 * ODM slice's position
+		 */
+		pipe_ctx->plane_res.scl_data.recout = shift_rec(
+				&overlapping_area,
+				-odm_slice.x, -odm_slice.y);
+		adjust_recout_for_visual_confirm(
+				&pipe_ctx->plane_res.scl_data.recout,
+				pipe_ctx);
+	} else {
+		/* if there is no overlap, zero recout */
+		memset(&pipe_ctx->plane_res.scl_data.recout, 0,
+				sizeof(struct rect));
+	}
 
-	adjust_recout_for_visual_confirm(&pipe_ctx->plane_res.scl_data.recout,
-			pipe_ctx);
 }
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
@@ -1292,6 +1300,7 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 	struct rect recout_dst_in_active_timing;
 	struct rect recout_clip_in_active_timing;
 	struct rect recout_clip_in_recout_dst;
+	struct rect overlap_in_active_timing;
 	struct rect odm_slice = calculate_odm_slice_in_timing_active(pipe_ctx);
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
 				|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
@@ -1301,11 +1310,16 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 			&data->recout, odm_slice.x, odm_slice.y);
 	recout_dst_in_active_timing = calculate_plane_rec_in_timing_active(
 			pipe_ctx, &plane_state->dst_rect);
-	recout_clip_in_recout_dst = shift_rec(&recout_clip_in_active_timing,
-			-recout_dst_in_active_timing.x,
-			-recout_dst_in_active_timing.y);
-	ASSERT(recout_clip_in_recout_dst.x >= 0 &&
-			recout_clip_in_recout_dst.y >= 0);
+	overlap_in_active_timing = intersect_rec(&recout_clip_in_active_timing,
+			&recout_dst_in_active_timing);
+	if (overlap_in_active_timing.width > 0 &&
+			overlap_in_active_timing.height > 0)
+		recout_clip_in_recout_dst = shift_rec(&overlap_in_active_timing,
+				-recout_dst_in_active_timing.x,
+				-recout_dst_in_active_timing.y);
+	else
+		memset(&recout_clip_in_recout_dst, 0, sizeof(struct rect));
+
 	/*
 	 * Work in recout rotation since that requires less transformations
 	 */
@@ -1487,17 +1501,12 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.recout.x += pipe_ctx->plane_res.scl_data.recout.width;
 	}
 
-	if (!pipe_ctx->stream->ctx->dc->config.enable_windowed_mpo_odm) {
-		if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE ||
-				pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
-			res = false;
-	} else {
-		/* Clamp minimum viewport size */
-		if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE)
-			pipe_ctx->plane_res.scl_data.viewport.height = MIN_VIEWPORT_SIZE;
-		if (pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
-			pipe_ctx->plane_res.scl_data.viewport.width = MIN_VIEWPORT_SIZE;
-	}
+	/* Clamp minimum viewport size */
+	if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE)
+		pipe_ctx->plane_res.scl_data.viewport.height = MIN_VIEWPORT_SIZE;
+	if (pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
+		pipe_ctx->plane_res.scl_data.viewport.width = MIN_VIEWPORT_SIZE;
+
 
 	DC_LOG_SCALER("%s pipe %d:\nViewport: height:%d width:%d x:%d y:%d  Recout: height:%d width:%d x:%d y:%d  HACTIVE:%d VACTIVE:%d\n"
 			"src_rect: height:%d width:%d x:%d y:%d  dst_rect: height:%d width:%d x:%d y:%d  clip_rect: height:%d width:%d x:%d y:%d\n",
