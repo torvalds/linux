@@ -964,5 +964,6 @@ void gve_handle_report_stats(struct gve_priv *priv);
 /* exported by ethtool.c */
 extern const struct ethtool_ops gve_ethtool_ops;
 /* needed by ethtool */
+extern char gve_driver_name[];
 extern const char gve_version_str[];
 #endif /* _GVE_H_ */

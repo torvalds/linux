@@ -215,10 +215,6 @@ void exynos_drm_fbdev_setup(struct drm_device *dev)
 	if (ret)
 		goto err_drm_client_init;
 
-	ret = exynos_drm_fbdev_client_hotplug(&fb_helper->client);
-	if (ret)
-		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
-
 	drm_client_register(&fb_helper->client);
 
 	return;
