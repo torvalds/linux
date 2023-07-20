@@ -2076,7 +2076,7 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *
 
 	err = bpf_xdp_query(ifobj->ifindex, XDP_FLAGS_DRV_MODE, &query_opts);
 	if (err) {
-		ksft_print_msg("Error querrying XDP capabilities\n");
+		ksft_print_msg("Error querying XDP capabilities\n");
 		exit_with_error(-err);
 	}
 	if (query_opts.feature_flags & NETDEV_XDP_ACT_RX_SG)
