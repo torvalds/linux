@@ -233,7 +233,7 @@ Initialization
    :c:func:`VIDIOC_S_PARM`. This also sets the coded frame interval on the
    ``CAPTURE`` queue to the same value.
 
-   * ** Required fields:**
+   * **Required fields:**
 
      ``type``
 	 a ``V4L2_BUF_TYPE_*`` enum appropriate for ``OUTPUT``.
@@ -284,7 +284,7 @@ Initialization
    the case for off-line encoding. Support for this feature is signalled
    by the :ref:`V4L2_FMT_FLAG_ENC_CAP_FRAME_INTERVAL <fmtdesc-flags>` format flag.
 
-   * ** Required fields:**
+   * **Required fields:**
 
      ``type``
 	 a ``V4L2_BUF_TYPE_*`` enum appropriate for ``CAPTURE``.
