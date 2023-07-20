@@ -626,7 +626,7 @@ static void cxvt_info_fill_data(void __iomem *reg, u32 entry_count,
 int cx_stats_get_ss_vote_info(int ss_count,
 			       struct qcom_stats_cx_vote_info *vote_info)
 {
-	static const char buf[MAX_MSG_LEN] = "{class: arc_statis, res: cx_vote}";
+	static const char buf[MAX_MSG_LEN] = "{class: misc_debug, res: cx_vote}";
 	void __iomem *reg;
 	int ret;
 	int i, j;
