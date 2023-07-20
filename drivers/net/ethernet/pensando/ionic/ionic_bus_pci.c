@@ -220,29 +220,11 @@ static void ionic_clear_pci(struct ionic *ionic)
 	pci_disable_device(ionic->pdev);
 }
 
-static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int ionic_setup_one(struct ionic *ionic)
 {
-	struct device *dev = &pdev->dev;
-	struct ionic *ionic;
-	int num_vfs;
+	struct pci_dev *pdev = ionic->pdev;
+	struct device *dev = ionic->dev;
 	int err;
-
-	ionic = ionic_devlink_alloc(dev);
-	if (!ionic)
-		return -ENOMEM;
-
-	ionic->pdev = pdev;
-	ionic->dev = dev;
-	pci_set_drvdata(pdev, ionic);
-	mutex_init(&ionic->dev_cmd_lock);
-
-	/* Query system for DMA addressing limitation for the device. */
-	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(IONIC_ADDR_LEN));
-	if (err) {
-		dev_err(dev, "Unable to obtain 64-bit DMA for consistent allocations, aborting.  err=%d\n",
-			err);
-		goto err_out_clear_drvdata;
-	}
 
 	ionic_debugfs_add_dev(ionic);
 
@@ -258,7 +240,6 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(dev, "Cannot request PCI regions: %d, aborting\n", err);
 		goto err_out_clear_pci;
 	}
-
 	pcie_print_link_status(pdev);
 
 	err = ionic_map_bars(ionic);
@@ -286,24 +267,64 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_teardown;
 	}
 
-	/* Configure the ports */
+	/* Configure the port */
 	err = ionic_port_identify(ionic);
 	if (err) {
 		dev_err(dev, "Cannot identify port: %d, aborting\n", err);
-		goto err_out_reset;
+		goto err_out_teardown;
 	}
 
 	err = ionic_port_init(ionic);
 	if (err) {
 		dev_err(dev, "Cannot init port: %d, aborting\n", err);
-		goto err_out_reset;
+		goto err_out_teardown;
 	}
+
+	return 0;
+
+err_out_teardown:
+	ionic_dev_teardown(ionic);
+err_out_clear_pci:
+	ionic_clear_pci(ionic);
+err_out_debugfs_del_dev:
+	ionic_debugfs_del_dev(ionic);
+
+	return err;
+}
+
+static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+{
+	struct device *dev = &pdev->dev;
+	struct ionic *ionic;
+	int num_vfs;
+	int err;
+
+	ionic = ionic_devlink_alloc(dev);
+	if (!ionic)
+		return -ENOMEM;
+
+	ionic->pdev = pdev;
+	ionic->dev = dev;
+	pci_set_drvdata(pdev, ionic);
+	mutex_init(&ionic->dev_cmd_lock);
+
+	/* Query system for DMA addressing limitation for the device. */
+	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(IONIC_ADDR_LEN));
+	if (err) {
+		dev_err(dev, "Unable to obtain 64-bit DMA for consistent allocations, aborting.  err=%d\n",
+			err);
+		goto err_out;
+	}
+
+	err = ionic_setup_one(ionic);
+	if (err)
+		goto err_out;
 
 	/* Allocate and init the LIF */
 	err = ionic_lif_size(ionic);
 	if (err) {
 		dev_err(dev, "Cannot size LIF: %d, aborting\n", err);
-		goto err_out_port_reset;
+		goto err_out_pci;
 	}
 
 	err = ionic_lif_alloc(ionic);
@@ -354,17 +375,10 @@ err_out_free_lifs:
 	ionic->lif = NULL;
 err_out_free_irqs:
 	ionic_bus_free_irq_vectors(ionic);
-err_out_port_reset:
-	ionic_port_reset(ionic);
-err_out_reset:
-	ionic_reset(ionic);
-err_out_teardown:
+err_out_pci:
 	ionic_dev_teardown(ionic);
-err_out_clear_pci:
 	ionic_clear_pci(ionic);
-err_out_debugfs_del_dev:
-	ionic_debugfs_del_dev(ionic);
-err_out_clear_drvdata:
+err_out:
 	mutex_destroy(&ionic->dev_cmd_lock);
 	ionic_devlink_free(ionic);
 
