@@ -4006,6 +4006,12 @@ static bool ufs_qcom_update_ber_event(struct ufs_qcom_host *host,
 	u32 mode = ber_table[gear].mode;
 	bool rc = false;
 
+	/* Check if the gear mode is valid */
+	if (mode >= UFS_QCOM_BER_MODE_MAX) {
+		dev_err(host->hba->dev, "%s: Invalid gear mode: %d\n", __func__, mode);
+		return false;
+	}
+
 	h = &host->ber_hist[mode];
 	h->uec_pa[h->pos] = data;
 
