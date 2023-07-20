@@ -1662,7 +1662,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 	if (ret < 0)
 		goto err;
 
-	if (dir->first_this_inode)
+	if (dir->first_this_inode && dir->inodes.nr)
 		*hash_info = bch2_hash_info_init(c, &dir->inodes.data[0].inode);
 	dir->first_this_inode = false;
 
@@ -1839,7 +1839,7 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 	if (ret)
 		return ret;
 
-	if (inode->first_this_inode)
+	if (inode->first_this_inode && inode->inodes.nr)
 		*hash_info = bch2_hash_info_init(c, &inode->inodes.data[0].inode);
 	inode->first_this_inode = false;
 
