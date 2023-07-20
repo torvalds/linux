@@ -338,6 +338,22 @@ void mem_buf_vmperm_unpin(struct mem_buf_vmperm *vmperm)
 }
 EXPORT_SYMBOL(mem_buf_vmperm_unpin);
 
+static bool mem_buf_check_rw_perm(struct mem_buf_vmperm *vmperm)
+{
+	u32 perms = PERM_READ | PERM_WRITE;
+	bool ret = false;
+
+	mutex_lock(&vmperm->lock);
+	if (vmperm->flags & MEM_BUF_WRAPPER_FLAG_ERR)
+		goto unlock;
+	if (!(((vmperm->current_vm_perms & perms) == perms) && vmperm->mapcount))
+		goto unlock;
+	ret = true;
+unlock:
+	mutex_unlock(&vmperm->lock);
+	return ret;
+}
+
 /*
  * DC IVAC requires write permission, so no CMO on read-only buffers.
  * We allow mapping to iommu regardless of permissions.
@@ -345,22 +361,23 @@ EXPORT_SYMBOL(mem_buf_vmperm_unpin);
  */
 bool mem_buf_vmperm_can_cmo(struct mem_buf_vmperm *vmperm)
 {
-	u32 perms = PERM_READ | PERM_WRITE;
-	bool ret = false;
-
-	mutex_lock(&vmperm->lock);
-	if (((vmperm->current_vm_perms & perms) == perms) && vmperm->mapcount)
-		ret = true;
-	mutex_unlock(&vmperm->lock);
-	return ret;
+	return mem_buf_check_rw_perm(vmperm);
 }
 EXPORT_SYMBOL(mem_buf_vmperm_can_cmo);
+
+bool mem_buf_vmperm_can_vmap(struct mem_buf_vmperm *vmperm)
+{
+	return mem_buf_check_rw_perm(vmperm);
+}
+EXPORT_SYMBOL(mem_buf_vmperm_can_vmap);
 
 bool mem_buf_vmperm_can_mmap(struct mem_buf_vmperm *vmperm, struct vm_area_struct *vma)
 {
 	bool ret = false;
 
 	mutex_lock(&vmperm->lock);
+	if (vmperm->flags & MEM_BUF_WRAPPER_FLAG_ERR)
+		goto unlock;
 	if (!vmperm->mapcount)
 		goto unlock;
 	if (!(vmperm->current_vm_perms & PERM_READ))
@@ -377,19 +394,6 @@ unlock:
 	return ret;
 }
 EXPORT_SYMBOL(mem_buf_vmperm_can_mmap);
-
-bool mem_buf_vmperm_can_vmap(struct mem_buf_vmperm *vmperm)
-{
-	u32 perms = PERM_READ | PERM_WRITE;
-	bool ret = false;
-
-	mutex_lock(&vmperm->lock);
-	if (((vmperm->current_vm_perms & perms) == perms) && vmperm->mapcount)
-		ret = true;
-	mutex_unlock(&vmperm->lock);
-	return ret;
-}
-EXPORT_SYMBOL(mem_buf_vmperm_can_vmap);
 
 static int validate_lend_vmids(struct mem_buf_lend_kernel_arg *arg,
 				u32 op)
@@ -472,6 +476,12 @@ static int mem_buf_lend_internal(struct dma_buf *dmabuf,
 		return ret;
 
 	mutex_lock(&vmperm->lock);
+	if (vmperm->flags & MEM_BUF_WRAPPER_FLAG_ERR) {
+		pr_err_ratelimited("dma-buf is not in a usable state!\n");
+		mutex_unlock(&vmperm->lock);
+		return -EINVAL;
+	}
+
 	if (vmperm->flags & MEM_BUF_WRAPPER_FLAG_STATIC_VM) {
 		pr_err_ratelimited("dma-buf is staticvm type!\n");
 		mutex_unlock(&vmperm->lock);
