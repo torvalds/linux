@@ -455,45 +455,6 @@ static int ovs_ct_handle_fragments(struct net *net, struct sw_flow_key *key,
 	return 0;
 }
 
-static struct nf_conntrack_expect *
-ovs_ct_expect_find(struct net *net, const struct nf_conntrack_zone *zone,
-		   u16 proto, const struct sk_buff *skb)
-{
-	struct nf_conntrack_tuple tuple;
-	struct nf_conntrack_expect *exp;
-
-	if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb), proto, net, &tuple))
-		return NULL;
-
-	exp = __nf_ct_expect_find(net, zone, &tuple);
-	if (exp) {
-		struct nf_conntrack_tuple_hash *h;
-
-		/* Delete existing conntrack entry, if it clashes with the
-		 * expectation.  This can happen since conntrack ALGs do not
-		 * check for clashes between (new) expectations and existing
-		 * conntrack entries.  nf_conntrack_in() will check the
-		 * expectations only if a conntrack entry can not be found,
-		 * which can lead to OVS finding the expectation (here) in the
-		 * init direction, but which will not be removed by the
-		 * nf_conntrack_in() call, if a matching conntrack entry is
-		 * found instead.  In this case all init direction packets
-		 * would be reported as new related packets, while reply
-		 * direction packets would be reported as un-related
-		 * established packets.
-		 */
-		h = nf_conntrack_find_get(net, zone, &tuple);
-		if (h) {
-			struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
-
-			nf_ct_delete(ct, 0, 0);
-			nf_ct_put(ct);
-		}
-	}
-
-	return exp;
-}
-
 /* This replicates logic from nf_conntrack_core.c that is not exported. */
 static enum ip_conntrack_info
 ovs_ct_get_info(const struct nf_conntrack_tuple_hash *h)
@@ -852,36 +813,16 @@ static int ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 			 const struct ovs_conntrack_info *info,
 			 struct sk_buff *skb)
 {
-	struct nf_conntrack_expect *exp;
+	struct nf_conn *ct;
+	int err;
 
-	/* If we pass an expected packet through nf_conntrack_in() the
-	 * expectation is typically removed, but the packet could still be
-	 * lost in upcall processing.  To prevent this from happening we
-	 * perform an explicit expectation lookup.  Expected connections are
-	 * always new, and will be passed through conntrack only when they are
-	 * committed, as it is OK to remove the expectation at that time.
-	 */
-	exp = ovs_ct_expect_find(net, &info->zone, info->family, skb);
-	if (exp) {
-		u8 state;
+	err = __ovs_ct_lookup(net, key, info, skb);
+	if (err)
+		return err;
 
-		/* NOTE: New connections are NATted and Helped only when
-		 * committed, so we are not calling into NAT here.
-		 */
-		state = OVS_CS_F_TRACKED | OVS_CS_F_NEW | OVS_CS_F_RELATED;
-		__ovs_ct_update_key(key, state, &info->zone, exp->master);
-	} else {
-		struct nf_conn *ct;
-		int err;
-
-		err = __ovs_ct_lookup(net, key, info, skb);
-		if (err)
-			return err;
-
-		ct = (struct nf_conn *)skb_nfct(skb);
-		if (ct)
-			nf_ct_deliver_cached_events(ct);
-	}
+	ct = (struct nf_conn *)skb_nfct(skb);
+	if (ct)
+		nf_ct_deliver_cached_events(ct);
 
 	return 0;
 }
@@ -1460,7 +1401,8 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 	if (err)
 		goto err_free_ct;
 
-	__set_bit(IPS_CONFIRMED_BIT, &ct_info.ct->status);
+	if (ct_info.commit)
+		__set_bit(IPS_CONFIRMED_BIT, &ct_info.ct->status);
 	return 0;
 err_free_ct:
 	__ovs_ct_free_action(&ct_info);
