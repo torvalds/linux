@@ -3329,11 +3329,38 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_ref *ref)
 }
 
 enum btrfs_loop_type {
+	/*
+	 * Start caching block groups but do not wait for progress or for them
+	 * to be done.
+	 */
 	LOOP_CACHING_NOWAIT,
+
+	/*
+	 * Wait for the block group free_space >= the space we're waiting for if
+	 * the block group isn't cached.
+	 */
 	LOOP_CACHING_WAIT,
+
+	/*
+	 * Allow allocations to happen from block groups that do not yet have a
+	 * size classification.
+	 */
 	LOOP_UNSET_SIZE_CLASS,
+
+	/*
+	 * Allocate a chunk and then retry the allocation.
+	 */
 	LOOP_ALLOC_CHUNK,
+
+	/*
+	 * Ignore the size class restrictions for this allocation.
+	 */
 	LOOP_WRONG_SIZE_CLASS,
+
+	/*
+	 * Ignore the empty size, only try to allocate the number of bytes
+	 * needed for this allocation.
+	 */
 	LOOP_NO_EMPTY_SIZE,
 };
 
@@ -3927,15 +3954,7 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
 	if (ffe_ctl->index < BTRFS_NR_RAID_TYPES)
 		return 1;
 
-	/*
-	 * LOOP_CACHING_NOWAIT, search partially cached block groups, kicking
-	 *			caching kthreads as we move along
-	 * LOOP_CACHING_WAIT, search everything, and wait if our bg is caching
-	 * LOOP_UNSET_SIZE_CLASS, allow unset size class
-	 * LOOP_ALLOC_CHUNK, force a chunk allocation and try again
-	 * LOOP_NO_EMPTY_SIZE, set empty_size and empty_cluster to 0 and try
-	 *		       again
-	 */
+	/* See the comments for btrfs_loop_type for an explanation of the phases. */
 	if (ffe_ctl->loop < LOOP_NO_EMPTY_SIZE) {
 		ffe_ctl->index = 0;
 		/*
