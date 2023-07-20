@@ -251,7 +251,7 @@ static int snd_ctl_led_set_id(int card_number, struct snd_ctl_elem_id *id,
 	card = snd_card_ref(card_number);
 	if (card) {
 		down_write(&card->controls_rwsem);
-		kctl = snd_ctl_find_id(card, id);
+		kctl = snd_ctl_find_id_locked(card, id);
 		if (kctl) {
 			ioff = snd_ctl_get_ioff(kctl, id);
 			vd = &kctl->vd[ioff];
