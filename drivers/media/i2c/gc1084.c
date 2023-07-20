@@ -136,6 +136,7 @@ struct gc1084 {
 	const char      *module_facing;
 	const char      *module_name;
 	const char      *len_name;
+	enum rkmodule_sync_mode	sync_mode;
 	u32		cur_vts;
 
 	bool			  has_init_exp;
@@ -150,6 +151,27 @@ static const struct regmap_config gc1084_regmap_config = {
 
 static const s64 link_freq_menu_items[] = {
 	MIPI_FREQ_400M,
+};
+
+static const struct reg_sequence gc1084_master_mode_regs[] = {
+	{0x0068, 0x85},
+	{0x0d6a, 0x80},
+	{0x0069, 0x00},
+	{0x006a, 0x02},
+	{0x0d69, 0x04},
+};
+
+static const struct reg_sequence gc1084_slave_mode_regs[] = {
+	{0x0d67, 0x00},
+	{0x0d69, 0x03},
+	{0x0d6a, 0x08},
+	{0x0d6b, 0x50},
+	{0x0d6c, 0x00},
+	{0x0d6d, 0x53},
+	{0x0d6e, 0x00},
+	{0x0d6f, 0x10},
+	{0x0d70, 0x00},
+	{0x0d71, 0x12},
 };
 
 /*
@@ -629,6 +651,7 @@ static long gc1084_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u32 stream = 0;
 	u64 delay_us = 0;
 	u32 fps = 0;
+	u32 *sync_mode = NULL;
 
 	switch (cmd) {
 	case RKMODULE_GET_HDR_CFG:
@@ -654,6 +677,14 @@ static long gc1084_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			delay_us = 1000000 / (gc1084->cur_mode->vts_def * fps / gc1084->cur_vts);
 			usleep_range(delay_us, delay_us + 2000);
 		}
+		break;
+	case RKMODULE_GET_SYNC_MODE:
+		sync_mode = (u32 *)arg;
+		*sync_mode = gc1084->sync_mode;
+		break;
+	case RKMODULE_SET_SYNC_MODE:
+		sync_mode = (u32 *)arg;
+		gc1084->sync_mode = *sync_mode;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -686,6 +717,25 @@ static int __gc1084_start_stream(struct gc1084 *gc1084)
 		}
 	}
 
+	if (gc1084->sync_mode == INTERNAL_MASTER_MODE) {
+		ret = regmap_multi_reg_write(gc1084->regmap, gc1084_master_mode_regs,
+					     ARRAY_SIZE(gc1084_master_mode_regs));
+		if (ret)
+			dev_err(gc1084->dev,
+				"write internal master mode reg failed %d\n", ret);
+	} else if (gc1084->sync_mode == EXTERNAL_MASTER_MODE) {
+		ret = regmap_multi_reg_write(gc1084->regmap, gc1084_slave_mode_regs,
+					     ARRAY_SIZE(gc1084_slave_mode_regs));
+		if (ret)
+			dev_err(gc1084->dev,
+				"write external master mode reg failed %d\n", ret);
+	} else if (gc1084->sync_mode == SLAVE_MODE) {
+		ret = regmap_multi_reg_write(gc1084->regmap, gc1084_slave_mode_regs,
+					     ARRAY_SIZE(gc1084_slave_mode_regs));
+		if (ret)
+			dev_err(gc1084->dev, "write slave mode reg failed %d\n", ret);
+	}
+
 	return gc1084_write_reg(gc1084, GC1084_REG_CTRL_MODE,
 				GC1084_MODE_STREAMING);
 }
@@ -707,6 +757,7 @@ static long gc1084_compat_ioctl32(struct v4l2_subdev *sd,
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret = 0;
 	u32 stream = 0;
+	u32 sync_mode;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -771,6 +822,21 @@ static long gc1084_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
 			ret = gc1084_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
+		break;
+	case RKMODULE_GET_SYNC_MODE:
+		ret = gc1084_ioctl(sd, cmd, &sync_mode);
+		if (!ret) {
+			ret = copy_to_user(up, &sync_mode, sizeof(u32));
+			if (ret)
+				ret = -EFAULT;
+		}
+		break;
+	case RKMODULE_SET_SYNC_MODE:
+		ret = copy_from_user(&sync_mode, up, sizeof(u32));
+		if (!ret)
+			ret = gc1084_ioctl(sd, cmd, &sync_mode);
 		else
 			ret = -EFAULT;
 		break;
@@ -1096,6 +1162,7 @@ static int gc1084_probe(struct i2c_client *client,
 	struct v4l2_subdev *sd;
 	char facing[2];
 	int ret;
+	const char *sync_mode_name = NULL;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		 DRIVER_VERSION >> 16,
@@ -1124,6 +1191,20 @@ static int gc1084_probe(struct i2c_client *client,
 	if (ret) {
 		dev_err(dev, "Failed to get module information\n");
 		return -EINVAL;
+	}
+
+	ret = of_property_read_string(node, RKMODULE_CAMERA_SYNC_MODE,
+				      &sync_mode_name);
+	if (ret) {
+		gc1084->sync_mode = NO_SYNC_MODE;
+		dev_err(dev, "could not get sync mode!\n");
+	} else {
+		if (strcmp(sync_mode_name, RKMODULE_EXTERNAL_MASTER_MODE) == 0)
+			gc1084->sync_mode = EXTERNAL_MASTER_MODE;
+		else if (strcmp(sync_mode_name, RKMODULE_INTERNAL_MASTER_MODE) == 0)
+			gc1084->sync_mode = INTERNAL_MASTER_MODE;
+		else if (strcmp(sync_mode_name, RKMODULE_SLAVE_MODE) == 0)
+			gc1084->sync_mode = SLAVE_MODE;
 	}
 
 	gc1084->xvclk = devm_clk_get(gc1084->dev, "xvclk");
