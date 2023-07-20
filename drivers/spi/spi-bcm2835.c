@@ -1363,7 +1363,9 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	if (bs->irq <= 0)
 		return bs->irq ? bs->irq : -ENODEV;
 
-	clk_prepare_enable(bs->clk);
+	err = clk_prepare_enable(bs->clk);
+	if (err)
+		return err;
 	bs->clk_hz = clk_get_rate(bs->clk);
 
 	err = bcm2835_dma_init(ctlr, &pdev->dev, bs);
