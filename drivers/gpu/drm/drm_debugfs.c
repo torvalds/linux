@@ -209,7 +209,7 @@ int drm_debugfs_gpuva_info(struct seq_file *m,
 
 		seq_printf(m, "     | 0x%016llx | 0x%016llx | 0x%016llx | 0x%016llx | 0x%016llx\n",
 			   va->va.addr, va->va.range, va->va.addr + va->va.range,
-			   (u64)va->gem.obj, va->gem.offset);
+			   (u64)(uintptr_t)va->gem.obj, va->gem.offset);
 	}
 
 	return 0;
