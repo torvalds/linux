@@ -229,6 +229,13 @@
 		};
 	};
 
+	mailbox_client0: mailbox_client {
+		compatible = "starfive,mailbox-test";
+		mbox-names = "rx", "tx";
+		mboxes = <&mailbox_contrl0 0 1>,<&mailbox_contrl0 1 0>;
+		status = "disabled";
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		interrupt-parent = <&plic>;
@@ -1628,12 +1635,6 @@
 			status = "disabled";
 		};
 
-		mailbox_client0: mailbox_client@0 {
-			compatible = "starfive,mailbox-test";
-			mbox-names = "rx", "tx";
-			mboxes = <&mailbox_contrl0 0 1>,<&mailbox_contrl0 1 0>;
-			status = "disabled";
-		};
 
 		display: display-subsystem {
 			compatible = "starfive,jh7110-display","verisilicon,display-subsystem";
