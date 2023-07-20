@@ -179,6 +179,7 @@ def _define_kernel_dist(target, msm_target, variant):
         ":{}_build_config".format(target),
         ":{}_dummy_files".format(le_target),
         ":{}_avb_sign_boot_image".format(target),
+        "//msm-kernel:{}_super_image".format(le_target + "_gki"),
     ]
 
     copy_to_dist_dir(
