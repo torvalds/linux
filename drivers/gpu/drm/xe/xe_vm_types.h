@@ -61,11 +61,12 @@ struct xe_vma {
 		struct list_head destroy;
 	} combined_links;
 
-	/** @destroy_cb: callback to destroy VMA when unbind job is done */
-	struct dma_fence_cb destroy_cb;
-
-	/** @destroy_work: worker to destroy this BO */
-	struct work_struct destroy_work;
+	union {
+		/** @destroy_cb: callback to destroy VMA when unbind job is done */
+		struct dma_fence_cb destroy_cb;
+		/** @destroy_work: worker to destroy this BO */
+		struct work_struct destroy_work;
+	};
 
 	/** @userptr: user pointer state */
 	struct {
