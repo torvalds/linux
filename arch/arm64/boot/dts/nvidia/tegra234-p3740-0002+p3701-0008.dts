@@ -20,51 +20,6 @@
 	};
 
 	bus@0 {
-		host1x@13e00000 {
-			nvdec@15480000 {
-				status = "okay";
-			};
-		};
-
-		pcie@140e0000 {
-			status = "okay";
-			vddio-pex-ctl-supply = <&vdd_1v8_ls>;
-			phys = <&p2u_gbe_4>, <&p2u_gbe_5>;
-			phy-names = "p2u-0", "p2u-1";
-		};
-
-		pcie@14100000 {
-			status = "okay";
-			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
-			phys = <&p2u_hsio_3>;
-			phy-names = "p2u-0";
-		};
-
-		pcie@14160000 {
-			status = "okay";
-			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
-			phys = <&p2u_hsio_7>, <&p2u_hsio_6>, <&p2u_hsio_5>,
-			       <&p2u_hsio_4>;
-			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3";
-		};
-
-		pcie@141a0000 {
-			status = "okay";
-			vddio-pex-ctl-supply = <&vdd_1v8_ls>;
-			phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
-				<&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
-				<&p2u_nvhs_6>, <&p2u_nvhs_7>;
-			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
-				    "p2u-5", "p2u-6", "p2u-7";
-		};
-
-		pcie@141e0000 {
-			status = "okay";
-			vddio-pex-ctl-supply = <&vdd_1v8_ls>;
-			phys = <&p2u_gbe_0>, <&p2u_gbe_1>;
-			phy-names = "p2u-0", "p2u-1";
-		};
-
 		serial@3100000 {
 			compatible = "nvidia,tegra194-hsuart";
 			status = "okay";
@@ -114,6 +69,51 @@
 
 		i2c@c250000 {
 			status = "okay";
+		};
+
+		host1x@13e00000 {
+			nvdec@15480000 {
+				status = "okay";
+			};
+		};
+
+		pcie@140e0000 {
+			status = "okay";
+			vddio-pex-ctl-supply = <&vdd_1v8_ls>;
+			phys = <&p2u_gbe_4>, <&p2u_gbe_5>;
+			phy-names = "p2u-0", "p2u-1";
+		};
+
+		pcie@14100000 {
+			status = "okay";
+			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
+			phys = <&p2u_hsio_3>;
+			phy-names = "p2u-0";
+		};
+
+		pcie@14160000 {
+			status = "okay";
+			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
+			phys = <&p2u_hsio_7>, <&p2u_hsio_6>, <&p2u_hsio_5>,
+			       <&p2u_hsio_4>;
+			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3";
+		};
+
+		pcie@141a0000 {
+			status = "okay";
+			vddio-pex-ctl-supply = <&vdd_1v8_ls>;
+			phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
+				<&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
+				<&p2u_nvhs_6>, <&p2u_nvhs_7>;
+			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
+				    "p2u-5", "p2u-6", "p2u-7";
+		};
+
+		pcie@141e0000 {
+			status = "okay";
+			vddio-pex-ctl-supply = <&vdd_1v8_ls>;
+			phys = <&p2u_gbe_0>, <&p2u_gbe_1>;
+			phy-names = "p2u-0", "p2u-1";
 		};
 	};
 
