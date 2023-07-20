@@ -160,6 +160,7 @@ struct venus_format {
  * @core0_usage_count: usage counter for core0
  * @core1_usage_count: usage counter for core1
  * @root:	debugfs root directory
+ * @venus_ver:	the venus firmware version
  */
 struct venus_core {
 	void __iomem *base;
@@ -386,7 +387,8 @@ enum venus_inst_modes {
  * @ycbcr_enc:	current YCbCr encoding
  * @quantization:	current quantization
  * @xfer_func:	current xfer function
- * @codec_state:	current codec API state (see DEC/ENC_STATE_)
+ * @codec_state:	current decoder API state (see DEC_STATE_)
+ * @enc_state:		current encoder API state (see ENC_STATE_)
  * @reconf_wait:	wait queue for resolution change event
  * @subscriptions:	used to hold current events subscriptions
  * @buf_count:		used to count number of buffers (reqbuf(0))
