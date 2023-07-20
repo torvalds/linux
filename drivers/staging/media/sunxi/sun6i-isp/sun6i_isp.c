@@ -541,7 +541,7 @@ static struct platform_driver sun6i_isp_platform_driver = {
 	.remove_new = sun6i_isp_remove,
 	.driver	= {
 		.name		= SUN6I_ISP_NAME,
-		.of_match_table	= of_match_ptr(sun6i_isp_of_match),
+		.of_match_table	= sun6i_isp_of_match,
 		.pm		= &sun6i_isp_pm_ops,
 	},
 };
