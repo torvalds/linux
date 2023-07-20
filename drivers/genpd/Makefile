@@ -3,6 +3,7 @@ obj-y					+= actions/
 obj-y					+= amlogic/
 obj-y					+= apple/
 obj-y					+= bcm/
+obj-y					+= imx/
 obj-y					+= mediatek/
 obj-y					+= qcom/
 obj-y					+= renesas/
