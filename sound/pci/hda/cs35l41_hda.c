@@ -626,17 +626,22 @@ static int cs35l41_system_suspend(struct device *dev)
 	}
 
 	ret = pm_runtime_force_suspend(dev);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "System Suspend Failed, unable to runtime suspend: %d\n", ret);
 		return ret;
+	}
 
 	/* Shutdown DSP before system suspend */
-	cs35l41_ready_for_reset(cs35l41);
+	ret = cs35l41_ready_for_reset(cs35l41);
+
+	if (ret)
+		dev_err(dev, "System Suspend Failed, not ready for Reset: %d\n", ret);
 
 	/*
 	 * Reset GPIO may be shared, so cannot reset here.
 	 * However beyond this point, amps may be powered down.
 	 */
-	return 0;
+	return ret;
 }
 
 static int cs35l41_system_resume(struct device *dev)
@@ -659,9 +664,13 @@ static int cs35l41_system_resume(struct device *dev)
 	usleep_range(2000, 2100);
 
 	ret = pm_runtime_force_resume(dev);
+	if (ret) {
+		dev_err(dev, "System Resume Failed: Unable to runtime resume: %d\n", ret);
+		return ret;
+	}
 
 	mutex_lock(&cs35l41->fw_mutex);
-	if (!ret && cs35l41->request_fw_load && !cs35l41->fw_request_ongoing) {
+	if (cs35l41->request_fw_load && !cs35l41->fw_request_ongoing) {
 		cs35l41->fw_request_ongoing = true;
 		schedule_work(&cs35l41->fw_load_work);
 	}
