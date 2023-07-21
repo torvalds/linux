@@ -201,9 +201,9 @@ bool iio_buffer_enabled(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 
-	return iio_dev_opaque->currentmode
-		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE |
-		   INDIO_BUFFER_SOFTWARE);
+	return iio_dev_opaque->currentmode &
+	       (INDIO_BUFFER_HARDWARE | INDIO_BUFFER_SOFTWARE |
+		INDIO_BUFFER_TRIGGERED);
 }
 EXPORT_SYMBOL_GPL(iio_buffer_enabled);
 
@@ -372,8 +372,8 @@ static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
 	}
 
 	iio_dev_opaque->read_buf_len = snprintf(iio_dev_opaque->read_buf,
-					      sizeof(iio_dev_opaque->read_buf),
-					      "0x%X\n", val);
+						sizeof(iio_dev_opaque->read_buf),
+						"0x%X\n", val);
 
 	return simple_read_from_buffer(userbuf, count, ppos,
 				       iio_dev_opaque->read_buf,
@@ -476,8 +476,7 @@ static ssize_t iio_read_channel_ext_info(struct device *dev,
 
 static ssize_t iio_write_channel_ext_info(struct device *dev,
 				     struct device_attribute *attr,
-				     const char *buf,
-					 size_t len)
+				     const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
@@ -569,9 +568,9 @@ static int iio_setup_mount_idmatrix(const struct device *dev,
 ssize_t iio_show_mount_matrix(struct iio_dev *indio_dev, uintptr_t priv,
 			      const struct iio_chan_spec *chan, char *buf)
 {
-	const struct iio_mount_matrix *mtx = ((iio_get_mount_matrix_t *)
-					      priv)(indio_dev, chan);
+	const struct iio_mount_matrix *mtx;
 
+	mtx = ((iio_get_mount_matrix_t *)priv)(indio_dev, chan);
 	if (IS_ERR(mtx))
 		return PTR_ERR(mtx);
 
@@ -1009,14 +1008,12 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	if (chan->modified && (shared_by == IIO_SEPARATE)) {
 		if (chan->extend_name)
 			full_postfix = kasprintf(GFP_KERNEL, "%s_%s_%s",
-						 iio_modifier_names[chan
-								    ->channel2],
+						 iio_modifier_names[chan->channel2],
 						 chan->extend_name,
 						 postfix);
 		else
 			full_postfix = kasprintf(GFP_KERNEL, "%s_%s",
-						 iio_modifier_names[chan
-								    ->channel2],
+						 iio_modifier_names[chan->channel2],
 						 postfix);
 	} else {
 		if (chan->extend_name == NULL || shared_by != IIO_SEPARATE)
