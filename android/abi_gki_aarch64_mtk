@@ -395,6 +395,7 @@
   device_del
   device_destroy
   device_find_child
+  device_find_child_by_name
   device_for_each_child
   device_get_child_node_count
   device_get_match_data
@@ -1200,6 +1201,7 @@
   ip_send_check
   __ipv6_addr_type
   ipv6_dev_find
+  ipv6_ext_hdr
   ipv6_skip_exthdr
   ipv6_stub
   __irq_apply_affinity_hint
@@ -1337,10 +1339,14 @@
   kthread_flush_work
   kthread_flush_worker
   __kthread_init_worker
+  kthread_park
+  kthread_parkme
   kthread_queue_delayed_work
   kthread_queue_work
+  kthread_should_park
   kthread_should_stop
   kthread_stop
+  kthread_unpark
   kthread_worker_fn
   ktime_get
   ktime_get_coarse_with_offset
@@ -1692,6 +1698,7 @@
   out_of_line_wait_on_bit_timeout
   overflowuid
   page_endio
+  page_frag_free
   page_pinner_inited
   __page_pinner_put_page
   page_pool_alloc_pages
@@ -1715,6 +1722,7 @@
   param_ops_uint
   param_ops_ullong
   param_ops_ulong
+  param_ops_ushort
   param_set_bool
   param_set_charp
   param_set_uint
@@ -1722,18 +1730,25 @@
   pci_alloc_irq_vectors_affinity
   pci_ats_supported
   pci_bus_type
+  pci_clear_master
   pci_device_group
+  pci_device_is_present
   pci_dev_put
   pci_disable_ats
   pci_disable_device
+  pcie_capability_clear_and_set_word
+  pcie_capability_read_word
   pci_enable_ats
   pci_find_ext_capability
+  pci_free_irq
   pci_free_irq_vectors
   pci_generic_config_read32
   pci_generic_config_write32
   pci_get_slot
   pci_host_probe
   pci_irq_vector
+  pci_load_and_free_saved_state
+  pci_load_saved_state
   pci_lock_rescan_remove
   pcim_enable_device
   pcim_iomap_regions
@@ -1747,10 +1762,12 @@
   pci_read_config_word
   __pci_register_driver
   pci_remove_root_bus
+  pci_request_irq
   pci_restore_state
   pci_save_state
   pci_set_master
   pci_stop_root_bus
+  pci_store_saved_state
   pci_unlock_rescan_remove
   pci_unregister_driver
   pci_write_config_dword
@@ -1869,6 +1886,7 @@
   __pm_runtime_set_status
   __pm_runtime_suspend
   __pm_runtime_use_autosuspend
+  pm_schedule_suspend
   __pm_stay_awake
   pm_stay_awake
   pm_suspend_default_s2idle
@@ -1933,9 +1951,11 @@
   queue_delayed_work_on
   queue_work_on
   radix_tree_delete
+  radix_tree_gang_lookup
   radix_tree_insert
   radix_tree_lookup
   radix_tree_maybe_preload
+  radix_tree_next_chunk
   radix_tree_tagged
   ___ratelimit
   raw_notifier_call_chain
@@ -2123,6 +2143,8 @@
   rtc_tm_to_time64
   rtc_update_irq
   rtc_valid_tm
+  rtnl_configure_link
+  rtnl_create_link
   rtnl_is_locked
   rtnl_link_register
   rtnl_link_unregister
@@ -2526,6 +2548,7 @@
   timecounter_init
   timecounter_read
   timer_of_init
+  timer_reduce
   timer_unstable_counter_workaround
   topology_clear_scale_freq_source
   topology_update_thermal_pressure
@@ -2733,6 +2756,7 @@
   __tracepoint_task_newtask
   trace_print_array_seq
   trace_print_flags_seq
+  trace_print_hex_seq
   trace_print_symbols_seq
   __trace_puts
   trace_raw_output_prep
