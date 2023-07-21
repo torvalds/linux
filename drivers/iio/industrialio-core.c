@@ -524,7 +524,7 @@ ssize_t iio_enum_read(struct iio_dev *indio_dev,
 	i = e->get(indio_dev, chan);
 	if (i < 0)
 		return i;
-	else if (i >= e->num_items || !e->items[i])
+	if (i >= e->num_items || !e->items[i])
 		return -EINVAL;
 
 	return sysfs_emit(buf, "%s\n", e->items[i]);
@@ -1217,7 +1217,7 @@ static int iio_device_add_info_mask_type(struct iio_dev *indio_dev,
 					     &iio_dev_opaque->channel_attr_list);
 		if ((ret == -EBUSY) && (shared_by != IIO_SEPARATE))
 			continue;
-		else if (ret < 0)
+		if (ret < 0)
 			return ret;
 		attrcount++;
 	}
@@ -1255,7 +1255,7 @@ static int iio_device_add_info_mask_type_avail(struct iio_dev *indio_dev,
 		kfree(avail_postfix);
 		if ((ret == -EBUSY) && (shared_by != IIO_SEPARATE))
 			continue;
-		else if (ret < 0)
+		if (ret < 0)
 			return ret;
 		attrcount++;
 	}
