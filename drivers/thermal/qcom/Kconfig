@@ -158,6 +158,15 @@ config QTI_USERSPACE_CDEV
 	   socket, so that userspace cooling device can perform a mitigation
 	   action.
 
+config MAX31760_FAN_CONTROLLER
+	tristate "MAX31760 Fan Controller Driver"
+	depends on THERMAL && THERMAL_OF
+	help
+	  This enables the MAX31760 fan controller cooling device.
+	  This driver uses i2c bus to control registers for setting
+	  different fan speed. Also, this driver initializes the power for
+	  the fan controller.
+
 config QTI_THERMAL_LIMITS_DCVS
 	tristate "QTI LMH DCVS Driver"
 	depends on THERMAL && CPU_THERMAL
