@@ -12579,12 +12579,9 @@ F:	Documentation/devicetree/bindings/net/marvell,pp2.yaml
 F:	drivers/net/ethernet/marvell/mvpp2/
 
 MARVELL MWIFIEX WIRELESS DRIVER
-M:	Amitkumar Karwar <amitkarwar@gmail.com>
-M:	Ganapathi Bhat <ganapathi017@gmail.com>
-M:	Sharvari Harisangam <sharvari.harisangam@nxp.com>
-M:	Xinming Hu <huxinming820@gmail.com>
+M:	Brian Norris <briannorris@chromium.org>
 L:	linux-wireless@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/net/wireless/marvell/mwifiex/
 
 MARVELL MWL8K WIRELESS DRIVER
