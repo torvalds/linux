@@ -65,7 +65,7 @@
 
 		i2c-parent = <&i2c_4>;
 
-		our-claim-gpio = <&gpf0 3 GPIO_ACTIVE_LOW>;
+		our-claim-gpios = <&gpf0 3 GPIO_ACTIVE_LOW>;
 		their-claim-gpios = <&gpe0 4 GPIO_ACTIVE_LOW>;
 		slew-delay-us = <10>;
 		wait-retry-us = <3000>;
