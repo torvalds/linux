@@ -198,4 +198,6 @@ struct bch_opts bch2_inode_opts_to_opts(struct bch_inode_unpacked *);
 void bch2_inode_opts_get(struct bch_io_opts *, struct bch_fs *,
 			 struct bch_inode_unpacked *);
 
+int bch2_inode_rm_snapshot(struct btree_trans *, u64, u32);
+
 #endif /* _BCACHEFS_INODE_H */

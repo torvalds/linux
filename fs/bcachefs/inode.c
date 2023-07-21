@@ -923,3 +923,66 @@ void bch2_inode_opts_get(struct bch_io_opts *opts, struct bch_fs *c,
 	if (opts->nocow)
 		opts->compression = opts->background_compression = opts->data_checksum = opts->erasure_code = 0;
 }
+
+int bch2_inode_rm_snapshot(struct btree_trans *trans, u64 inum, u32 snapshot)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter = { NULL };
+	struct bkey_i_inode_generation delete;
+	struct bch_inode_unpacked inode_u;
+	struct bkey_s_c k;
+	int ret;
+
+	do {
+		ret   = bch2_btree_delete_range_trans(trans, BTREE_ID_extents,
+						      SPOS(inum, 0, snapshot),
+						      SPOS(inum, U64_MAX, snapshot),
+						      0, NULL) ?:
+			bch2_btree_delete_range_trans(trans, BTREE_ID_dirents,
+						      SPOS(inum, 0, snapshot),
+						      SPOS(inum, U64_MAX, snapshot),
+						      0, NULL) ?:
+			bch2_btree_delete_range_trans(trans, BTREE_ID_xattrs,
+						      SPOS(inum, 0, snapshot),
+						      SPOS(inum, U64_MAX, snapshot),
+						      0, NULL);
+	} while (ret == -BCH_ERR_transaction_restart_nested);
+	if (ret)
+		goto err;
+retry:
+	bch2_trans_begin(trans);
+
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
+			       SPOS(0, inum, snapshot), BTREE_ITER_INTENT);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (!bkey_is_inode(k.k)) {
+		bch2_fs_inconsistent(c,
+				     "inode %llu:%u not found when deleting",
+				     inum, snapshot);
+		ret = -EIO;
+		goto err;
+	}
+
+	bch2_inode_unpack(k, &inode_u);
+
+	/* Subvolume root? */
+	if (inode_u.bi_subvol)
+		bch_warn(c, "deleting inode %llu marked as unlinked, but also a subvolume root!?", inode_u.bi_inum);
+
+	bkey_inode_generation_init(&delete.k_i);
+	delete.k.p = iter.pos;
+	delete.v.bi_generation = cpu_to_le32(inode_u.bi_generation + 1);
+
+	ret   = bch2_trans_update(trans, &iter, &delete.k_i, 0) ?:
+		bch2_trans_commit(trans, NULL, NULL,
+				BTREE_INSERT_NOFAIL);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+		goto retry;
+
+	return ret ?: -BCH_ERR_transaction_restart_nested;
+}
