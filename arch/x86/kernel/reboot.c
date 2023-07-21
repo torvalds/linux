@@ -532,7 +532,6 @@ static inline void nmi_shootdown_cpus_on_restart(void);
 
 static void emergency_reboot_disable_virtualization(void)
 {
-	/* Just make sure we won't change CPUs while doing this */
 	local_irq_disable();
 
 	/*
@@ -820,6 +819,13 @@ int crashing_cpu = -1;
 void cpu_emergency_disable_virtualization(void)
 {
 	cpu_emergency_virt_cb *callback;
+
+	/*
+	 * IRQs must be disabled as KVM enables virtualization in hardware via
+	 * function call IPIs, i.e. IRQs need to be disabled to guarantee
+	 * virtualization stays disabled.
+	 */
+	lockdep_assert_irqs_disabled();
 
 	rcu_read_lock();
 	callback = rcu_dereference(cpu_emergency_virt_callback);
