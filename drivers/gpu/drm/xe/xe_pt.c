@@ -1421,8 +1421,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 	}
 
 	fence = xe_migrate_update_pgtables(tile->migrate,
-					   vm, xe_vma_bo(vma),
-					   e ? e : vm->eng[tile->id],
+					   vm, xe_vma_bo(vma), e,
 					   entries, num_entries,
 					   syncs, num_syncs,
 					   &bind_pt_update.base);

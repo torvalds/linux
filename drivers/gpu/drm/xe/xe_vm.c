@@ -1675,7 +1675,8 @@ xe_vm_bind_vma(struct xe_vma *vma, struct xe_engine *e,
 		if (!(vma->tile_mask & BIT(id)))
 			goto next;
 
-		fence = __xe_pt_bind_vma(tile, vma, e, first_op ? syncs : NULL,
+		fence = __xe_pt_bind_vma(tile, vma, e ? e : vm->eng[id],
+					 first_op ? syncs : NULL,
 					 first_op ? num_syncs : 0,
 					 vma->tile_present & BIT(id));
 		if (IS_ERR(fence)) {
