@@ -723,15 +723,6 @@ struct regmap *__regmap_init(struct device *dev,
 	} else {
 		if ((bus && bus->fast_io) ||
 		    config->fast_io) {
-			/*
-			 * fast_io is incompatible with REGCACHE_RBTREE and REGCACHE_MAPLE
-			 * since both need to dynamically allocate memory.
-			 */
-			if (config->cache_type == REGCACHE_RBTREE ||
-			    config->cache_type == REGCACHE_MAPLE) {
-				ret = -EINVAL;
-				goto err_name;
-			}
 			if (config->use_raw_spinlock) {
 				raw_spin_lock_init(&map->raw_spinlock);
 				map->lock = regmap_lock_raw_spinlock;
