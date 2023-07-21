@@ -226,20 +226,18 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_level);
 unsigned int dev_pm_opp_get_required_pstate(struct dev_pm_opp *opp,
 					    unsigned int index)
 {
-	struct opp_table *opp_table = opp->opp_table;
-
 	if (IS_ERR_OR_NULL(opp) || !opp->available ||
-	    index >= opp_table->required_opp_count) {
+	    index >= opp->opp_table->required_opp_count) {
 		pr_err("%s: Invalid parameters\n", __func__);
 		return 0;
 	}
 
 	/* required-opps not fully initialized yet */
-	if (lazy_linking_pending(opp_table))
+	if (lazy_linking_pending(opp->opp_table))
 		return 0;
 
 	/* The required OPP table must belong to a genpd */
-	if (unlikely(!opp_table->required_opp_tables[index]->is_genpd)) {
+	if (unlikely(!opp->opp_table->required_opp_tables[index]->is_genpd)) {
 		pr_err("%s: Performance state is only valid for genpds.\n", __func__);
 		return 0;
 	}
