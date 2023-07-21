@@ -33,7 +33,7 @@
 #include "dcn301_init.h"
 
 static const struct hw_sequencer_funcs dcn301_funcs = {
-	.program_gamut_remap = dcn10_program_gamut_remap,
+	.program_gamut_remap = dcn30_program_gamut_remap,
 	.init_hw = dcn10_init_hw,
 	.power_down_on_boot = dcn10_power_down_on_boot,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,

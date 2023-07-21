@@ -186,6 +186,43 @@ bool dcn30_set_input_transfer_func(struct dc *dc,
 	return result;
 }
 
+void dcn30_program_gamut_remap(struct pipe_ctx *pipe_ctx)
+{
+	int i = 0;
+	struct dpp_grph_csc_adjustment dpp_adjust;
+	struct mpc_grph_gamut_adjustment mpc_adjust;
+	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
+	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+
+	memset(&dpp_adjust, 0, sizeof(dpp_adjust));
+	dpp_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
+
+	if (pipe_ctx->plane_state &&
+	    pipe_ctx->plane_state->gamut_remap_matrix.enable_remap == true) {
+		dpp_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
+		for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
+			dpp_adjust.temperature_matrix[i] =
+				pipe_ctx->plane_state->gamut_remap_matrix.matrix[i];
+	}
+
+	pipe_ctx->plane_res.dpp->funcs->dpp_set_gamut_remap(pipe_ctx->plane_res.dpp,
+							    &dpp_adjust);
+
+	memset(&mpc_adjust, 0, sizeof(mpc_adjust));
+	mpc_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
+
+	if (pipe_ctx->top_pipe == NULL) {
+		if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
+			mpc_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
+			for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
+				mpc_adjust.temperature_matrix[i] =
+					pipe_ctx->stream->gamut_remap_matrix.matrix[i];
+		}
+	}
+
+	mpc->funcs->set_gamut_remap(mpc, mpcc_id, &mpc_adjust);
+}
+
 bool dcn30_set_output_transfer_func(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_stream_state *stream)
