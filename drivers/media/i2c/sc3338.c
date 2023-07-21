@@ -1394,11 +1394,11 @@ static int sc3338_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	sc3338->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
+	sc3338->reset_gpio = devm_gpiod_get(dev, "reset", sc3338->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
 	if (IS_ERR(sc3338->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	sc3338->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
+	sc3338->pwdn_gpio = devm_gpiod_get(dev, "pwdn", sc3338->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
 	if (IS_ERR(sc3338->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
