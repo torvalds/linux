@@ -260,32 +260,32 @@ static struct netconsole_target *to_target(struct config_item *item)
 
 static ssize_t enabled_show(struct config_item *item, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", to_target(item)->enabled);
+	return sysfs_emit(buf, "%d\n", to_target(item)->enabled);
 }
 
 static ssize_t extended_show(struct config_item *item, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", to_target(item)->extended);
+	return sysfs_emit(buf, "%d\n", to_target(item)->extended);
 }
 
 static ssize_t release_show(struct config_item *item, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", to_target(item)->release);
+	return sysfs_emit(buf, "%d\n", to_target(item)->release);
 }
 
 static ssize_t dev_name_show(struct config_item *item, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", to_target(item)->np.dev_name);
+	return sysfs_emit(buf, "%s\n", to_target(item)->np.dev_name);
 }
 
 static ssize_t local_port_show(struct config_item *item, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", to_target(item)->np.local_port);
+	return sysfs_emit(buf, "%d\n", to_target(item)->np.local_port);
 }
 
 static ssize_t remote_port_show(struct config_item *item, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", to_target(item)->np.remote_port);
+	return sysfs_emit(buf, "%d\n", to_target(item)->np.remote_port);
 }
 
 static ssize_t local_ip_show(struct config_item *item, char *buf)
@@ -293,9 +293,9 @@ static ssize_t local_ip_show(struct config_item *item, char *buf)
 	struct netconsole_target *nt = to_target(item);
 
 	if (nt->np.ipv6)
-		return snprintf(buf, PAGE_SIZE, "%pI6c\n", &nt->np.local_ip.in6);
+		return sysfs_emit(buf, "%pI6c\n", &nt->np.local_ip.in6);
 	else
-		return snprintf(buf, PAGE_SIZE, "%pI4\n", &nt->np.local_ip);
+		return sysfs_emit(buf, "%pI4\n", &nt->np.local_ip);
 }
 
 static ssize_t remote_ip_show(struct config_item *item, char *buf)
@@ -303,9 +303,9 @@ static ssize_t remote_ip_show(struct config_item *item, char *buf)
 	struct netconsole_target *nt = to_target(item);
 
 	if (nt->np.ipv6)
-		return snprintf(buf, PAGE_SIZE, "%pI6c\n", &nt->np.remote_ip.in6);
+		return sysfs_emit(buf, "%pI6c\n", &nt->np.remote_ip.in6);
 	else
-		return snprintf(buf, PAGE_SIZE, "%pI4\n", &nt->np.remote_ip);
+		return sysfs_emit(buf, "%pI4\n", &nt->np.remote_ip);
 }
 
 static ssize_t local_mac_show(struct config_item *item, char *buf)
@@ -313,12 +313,12 @@ static ssize_t local_mac_show(struct config_item *item, char *buf)
 	struct net_device *dev = to_target(item)->np.dev;
 	static const u8 bcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	return snprintf(buf, PAGE_SIZE, "%pM\n", dev ? dev->dev_addr : bcast);
+	return sysfs_emit(buf, "%pM\n", dev ? dev->dev_addr : bcast);
 }
 
 static ssize_t remote_mac_show(struct config_item *item, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%pM\n", to_target(item)->np.remote_mac);
+	return sysfs_emit(buf, "%pM\n", to_target(item)->np.remote_mac);
 }
 
 /*
