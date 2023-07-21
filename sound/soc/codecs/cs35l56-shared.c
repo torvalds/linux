@@ -18,9 +18,10 @@ static const struct reg_sequence cs35l56_patch[] = {
 	{ CS35L56_MAIN_POSTURE_NUMBER,		0x00000000 },
 };
 
-int cs35l56_set_patch(struct regmap *regmap)
+int cs35l56_set_patch(struct cs35l56_base *cs35l56_base)
 {
-	return regmap_register_patch(regmap, cs35l56_patch, ARRAY_SIZE(cs35l56_patch));
+	return regmap_register_patch(cs35l56_base->regmap, cs35l56_patch,
+				     ARRAY_SIZE(cs35l56_patch));
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_set_patch, SND_SOC_CS35L56_SHARED);
 

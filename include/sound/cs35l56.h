@@ -252,6 +252,19 @@
 #define CS35L56_NUM_BULK_SUPPLIES			3
 #define CS35L56_NUM_DSP_REGIONS				5
 
+struct cs35l56_base {
+	struct device *dev;
+	struct regmap *regmap;
+	int irq;
+	struct mutex irq_lock;
+	u8 rev;
+	bool init_done;
+	bool fw_patched;
+	bool secured;
+	bool can_hibernate;
+	struct gpio_desc *reset_gpio;
+};
+
 extern struct regmap_config cs35l56_regmap_i2c;
 extern struct regmap_config cs35l56_regmap_spi;
 extern struct regmap_config cs35l56_regmap_sdw;
@@ -260,7 +273,7 @@ extern const struct cs_dsp_region cs35l56_dsp1_regions[CS35L56_NUM_DSP_REGIONS];
 extern const char * const cs35l56_tx_input_texts[CS35L56_NUM_INPUT_SRC];
 extern const unsigned int cs35l56_tx_input_values[CS35L56_NUM_INPUT_SRC];
 
-int cs35l56_set_patch(struct regmap *regmap);
+int cs35l56_set_patch(struct cs35l56_base *cs35l56_base);
 int cs35l56_get_bclk_freq_id(unsigned int freq);
 void cs35l56_fill_supply_names(struct regulator_bulk_data *data);
 
