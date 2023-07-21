@@ -140,78 +140,14 @@ int bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k,
 	return ops->key_invalid(c, k, flags, err);
 }
 
-static unsigned bch2_key_types_allowed[] = {
-	[BKEY_TYPE_extents] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_whiteout)|
-		(1U << KEY_TYPE_error)|
-		(1U << KEY_TYPE_cookie)|
-		(1U << KEY_TYPE_extent)|
-		(1U << KEY_TYPE_reservation)|
-		(1U << KEY_TYPE_reflink_p)|
-		(1U << KEY_TYPE_inline_data),
-	[BKEY_TYPE_inodes] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_whiteout)|
-		(1U << KEY_TYPE_inode)|
-		(1U << KEY_TYPE_inode_v2)|
-		(1U << KEY_TYPE_inode_v3)|
-		(1U << KEY_TYPE_inode_generation),
-	[BKEY_TYPE_dirents] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_whiteout)|
-		(1U << KEY_TYPE_hash_whiteout)|
-		(1U << KEY_TYPE_dirent),
-	[BKEY_TYPE_xattrs] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_whiteout)|
-		(1U << KEY_TYPE_cookie)|
-		(1U << KEY_TYPE_hash_whiteout)|
-		(1U << KEY_TYPE_xattr),
-	[BKEY_TYPE_alloc] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_alloc)|
-		(1U << KEY_TYPE_alloc_v2)|
-		(1U << KEY_TYPE_alloc_v3)|
-		(1U << KEY_TYPE_alloc_v4),
-	[BKEY_TYPE_quotas] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_quota),
-	[BKEY_TYPE_stripes] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_stripe),
-	[BKEY_TYPE_reflink] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_reflink_v)|
-		(1U << KEY_TYPE_indirect_inline_data),
-	[BKEY_TYPE_subvolumes] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_subvolume),
-	[BKEY_TYPE_snapshots] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_snapshot),
-	[BKEY_TYPE_lru] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_set),
-	[BKEY_TYPE_freespace] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_set),
-	[BKEY_TYPE_need_discard] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_set),
-	[BKEY_TYPE_backpointers] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_backpointer),
-	[BKEY_TYPE_bucket_gens] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_bucket_gens),
-	[BKEY_TYPE_snapshot_trees] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_snapshot_tree),
+static u64 bch2_key_types_allowed[] = {
+#define x(name, nr, flags, keys)	[BKEY_TYPE_##name] = BIT_ULL(KEY_TYPE_deleted)|keys,
+	BCH_BTREE_IDS()
+#undef x
 	[BKEY_TYPE_btree] =
-		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_btree_ptr)|
-		(1U << KEY_TYPE_btree_ptr_v2),
+		BIT_ULL(KEY_TYPE_deleted)|
+		BIT_ULL(KEY_TYPE_btree_ptr)|
+		BIT_ULL(KEY_TYPE_btree_ptr_v2),
 };
 
 int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
@@ -225,7 +161,7 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	}
 
 	if (flags & BKEY_INVALID_COMMIT	 &&
-	    !(bch2_key_types_allowed[type] & (1U << k.k->type))) {
+	    !(bch2_key_types_allowed[type] & BIT_ULL(k.k->type))) {
 		prt_printf(err, "invalid key type for btree %s (%s)",
 			   bch2_btree_ids[type], bch2_bkey_types[k.k->type]);
 		return -BCH_ERR_invalid_bkey;

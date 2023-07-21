@@ -2194,26 +2194,67 @@ LE32_BITMASK(JSET_NO_FLUSH,	struct jset, flags, 5, 6);
 
 /* Btree: */
 
-#define BCH_BTREE_IDS()				\
-	x(extents,		0)		\
-	x(inodes,		1)		\
-	x(dirents,		2)		\
-	x(xattrs,		3)		\
-	x(alloc,		4)		\
-	x(quotas,		5)		\
-	x(stripes,		6)		\
-	x(reflink,		7)		\
-	x(subvolumes,		8)		\
-	x(snapshots,		9)		\
-	x(lru,			10)		\
-	x(freespace,		11)		\
-	x(need_discard,		12)		\
-	x(backpointers,		13)		\
-	x(bucket_gens,		14)		\
-	x(snapshot_trees,	15)
+enum btree_id_flags {
+	BTREE_ID_EXTENTS	= BIT(0),
+	BTREE_ID_SNAPSHOTS	= BIT(1),
+	BTREE_ID_DATA		= BIT(2),
+};
+
+#define BCH_BTREE_IDS()								\
+	x(extents,		0,	BTREE_ID_EXTENTS|BTREE_ID_SNAPSHOTS|BTREE_ID_DATA,\
+	  BIT_ULL(KEY_TYPE_whiteout)|						\
+	  BIT_ULL(KEY_TYPE_error)|						\
+	  BIT_ULL(KEY_TYPE_cookie)|						\
+	  BIT_ULL(KEY_TYPE_extent)|						\
+	  BIT_ULL(KEY_TYPE_reservation)|					\
+	  BIT_ULL(KEY_TYPE_reflink_p)|						\
+	  BIT_ULL(KEY_TYPE_inline_data))					\
+	x(inodes,		1,	BTREE_ID_SNAPSHOTS,			\
+	  BIT_ULL(KEY_TYPE_whiteout)|						\
+	  BIT_ULL(KEY_TYPE_inode)|						\
+	  BIT_ULL(KEY_TYPE_inode_v2)|						\
+	  BIT_ULL(KEY_TYPE_inode_v3)|						\
+	  BIT_ULL(KEY_TYPE_inode_generation))					\
+	x(dirents,		2,	BTREE_ID_SNAPSHOTS,			\
+	  BIT_ULL(KEY_TYPE_whiteout)|						\
+	  BIT_ULL(KEY_TYPE_hash_whiteout)|					\
+	  BIT_ULL(KEY_TYPE_dirent))						\
+	x(xattrs,		3,	BTREE_ID_SNAPSHOTS,			\
+	  BIT_ULL(KEY_TYPE_whiteout)|						\
+	  BIT_ULL(KEY_TYPE_cookie)|						\
+	  BIT_ULL(KEY_TYPE_hash_whiteout)|					\
+	  BIT_ULL(KEY_TYPE_xattr))						\
+	x(alloc,		4,	0,					\
+	  BIT_ULL(KEY_TYPE_alloc)|						\
+	  BIT_ULL(KEY_TYPE_alloc_v2)|						\
+	  BIT_ULL(KEY_TYPE_alloc_v3)|						\
+	  BIT_ULL(KEY_TYPE_alloc_v4))						\
+	x(quotas,		5,	0,					\
+	  BIT_ULL(KEY_TYPE_quota))						\
+	x(stripes,		6,	0,					\
+	  BIT_ULL(KEY_TYPE_stripe))						\
+	x(reflink,		7,	BTREE_ID_EXTENTS|BTREE_ID_DATA,		\
+	  BIT_ULL(KEY_TYPE_reflink_v)|						\
+	  BIT_ULL(KEY_TYPE_indirect_inline_data))				\
+	x(subvolumes,		8,	0,					\
+	  BIT_ULL(KEY_TYPE_subvolume))						\
+	x(snapshots,		9,	0,					\
+	  BIT_ULL(KEY_TYPE_snapshot))						\
+	x(lru,			10,	0,					\
+	  BIT_ULL(KEY_TYPE_set))						\
+	x(freespace,		11,	BTREE_ID_EXTENTS,			\
+	  BIT_ULL(KEY_TYPE_set))						\
+	x(need_discard,		12,	0,					\
+	  BIT_ULL(KEY_TYPE_set))						\
+	x(backpointers,		13,	0,					\
+	  BIT_ULL(KEY_TYPE_backpointer))					\
+	x(bucket_gens,		14,	0,					\
+	  BIT_ULL(KEY_TYPE_bucket_gens))					\
+	x(snapshot_trees,	15,	0,					\
+	  BIT_ULL(KEY_TYPE_snapshot_tree))
 
 enum btree_id {
-#define x(kwd, val) BTREE_ID_##kwd = val,
+#define x(name, nr, ...) BTREE_ID_##name = nr,
 	BCH_BTREE_IDS()
 #undef x
 	BTREE_ID_NR

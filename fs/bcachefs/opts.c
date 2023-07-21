@@ -10,7 +10,7 @@
 #include "super-io.h"
 #include "util.h"
 
-#define x(t, n) [n] = #t,
+#define x(t, n, ...) [n] = #t,
 
 const char * const bch2_error_actions[] = {
 	BCH_ERROR_ACTIONS()
