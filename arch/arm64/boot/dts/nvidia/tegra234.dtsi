@@ -818,6 +818,44 @@
 			dma-names = "rx", "tx";
 		};
 
+		spi@3210000 {
+			compatible = "nvidia,tegra210-spi";
+			reg = <0x0 0x03210000 0x0 0x1000>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA234_CLK_SPI1>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_SPI1>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clock-names = "spi";
+			iommus = <&smmu_niso0 TEGRA234_SID_GPCDMA>;
+			resets = <&bpmp TEGRA234_RESET_SPI1>;
+			reset-names = "spi";
+			dmas = <&gpcdma 15>, <&gpcdma 15>;
+			dma-names = "rx", "tx";
+			dma-coherent;
+			status = "disabled";
+		};
+
+		spi@3230000 {
+			compatible = "nvidia,tegra210-spi";
+			reg = <0x0 0x03230000 0x0 0x1000>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA234_CLK_SPI3>;
+			clock-names = "spi";
+			iommus = <&smmu_niso0 TEGRA234_SID_GPCDMA>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_SPI3>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA234_RESET_SPI3>;
+			reset-names = "spi";
+			dmas = <&gpcdma 17>, <&gpcdma 17>;
+			dma-names = "rx", "tx";
+			dma-coherent;
+			status = "disabled";
+		};
+
 		spi@3270000 {
 			compatible = "nvidia,tegra234-qspi";
 			reg = <0x0 0x3270000 0x0 0x1000>;
@@ -1741,6 +1779,25 @@
 			reset-names = "i2c";
 			dmas = <&gpcdma 0>, <&gpcdma 0>;
 			dma-names = "rx", "tx";
+		};
+
+		spi@c260000 {
+			compatible = "nvidia,tegra210-spi";
+			reg = <0x0 0x0c260000 0x0 0x1000>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA234_CLK_SPI2>;
+			clock-names = "spi";
+			iommus = <&smmu_niso0 TEGRA234_SID_GPCDMA>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_SPI2>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA234_RESET_SPI2>;
+			reset-names = "spi";
+			dmas = <&gpcdma 19>, <&gpcdma 19>;
+			dma-names = "rx", "tx";
+			dma-coherent;
+			status = "disabled";
 		};
 
 		rtc@c2a0000 {
