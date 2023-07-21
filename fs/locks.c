@@ -2151,7 +2151,7 @@ EXPORT_SYMBOL_GPL(vfs_test_lock);
  * @fl: The file_lock who's fl_pid should be translated
  * @ns: The namespace into which the pid should be translated
  *
- * Used to tranlate a fl_pid into a namespace virtual pid number
+ * Used to translate a fl_pid into a namespace virtual pid number
  */
 static pid_t locks_translate_pid(struct file_lock *fl, struct pid_namespace *ns)
 {
