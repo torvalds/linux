@@ -187,10 +187,8 @@ static int cn10k_rng_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, rng);
 
 	rng->reg_base = pcim_iomap(pdev, 0, 0);
-	if (!rng->reg_base) {
-		dev_err(&pdev->dev, "Error while mapping CSRs, exiting\n");
-		return -ENOMEM;
-	}
+	if (!rng->reg_base)
+		return dev_err_probe(&pdev->dev, -ENOMEM, "Error while mapping CSRs, exiting\n");
 
 	rng->ops.name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 				       "cn10k-rng-%s", dev_name(&pdev->dev));
@@ -205,10 +203,8 @@ static int cn10k_rng_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	reset_rng_health_state(rng);
 
 	err = devm_hwrng_register(&pdev->dev, &rng->ops);
-	if (err) {
-		dev_err(&pdev->dev, "Could not register hwrng device.\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err, "Could not register hwrng device.\n");
 
 	return 0;
 }
