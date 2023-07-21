@@ -605,11 +605,13 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	}
 	if (opp_info->data && opp_info->data->get_soc_info)
 		opp_info->data->get_soc_info(dev, np, &bin, &process);
+	rockchip_get_soc_info(dev, np, &bin, &process);
 	rockchip_get_scale_volt_sel(dev, "cpu_leakage", reg_name, bin, process,
 				    &cluster->scale, &volt_sel);
 	if (opp_info->data && opp_info->data->set_soc_info)
 		opp_info->data->set_soc_info(dev, np, bin, process, volt_sel);
 	pname_table = rockchip_set_opp_prop_name(dev, process, volt_sel);
+	rockchip_set_opp_supported_hw(dev, np, bin, volt_sel);
 
 	if (of_find_property(dev->of_node, "cpu-supply", NULL) &&
 	    of_find_property(dev->of_node, "mem-supply", NULL)) {
