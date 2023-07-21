@@ -177,27 +177,6 @@ unsigned long dev_pm_opp_get_power(struct dev_pm_opp *opp)
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_power);
 
 /**
- * dev_pm_opp_get_freq() - Gets the frequency corresponding to an available opp
- * @opp:	opp for which frequency has to be returned for
- *
- * Return: frequency in hertz corresponding to the opp, else
- * return 0
- */
-unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
-{
-	if (IS_ERR_OR_NULL(opp)) {
-		pr_err("%s: Invalid parameters\n", __func__);
-		return 0;
-	}
-
-	if (!assert_single_clk(opp->opp_table))
-		return 0;
-
-	return opp->rates[0];
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
-
-/**
  * dev_pm_opp_get_freq_indexed() - Gets the frequency corresponding to an
  *				   available opp with specified index
  * @opp: opp for which frequency has to be returned for
