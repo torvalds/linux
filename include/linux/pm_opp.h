@@ -124,6 +124,10 @@ struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 					      unsigned long freq,
 					      bool available);
 
+struct dev_pm_opp *
+dev_pm_opp_find_freq_exact_indexed(struct device *dev, unsigned long freq,
+				   u32 index, bool available);
+
 struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 					      unsigned long *freq);
 
@@ -264,6 +268,13 @@ static inline unsigned long dev_pm_opp_get_suspend_opp_freq(struct device *dev)
 
 static inline struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 					unsigned long freq, bool available)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline struct dev_pm_opp *
+dev_pm_opp_find_freq_exact_indexed(struct device *dev, unsigned long freq,
+				   u32 index, bool available)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }

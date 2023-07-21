@@ -646,6 +646,34 @@ struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_exact);
 
+/**
+ * dev_pm_opp_find_freq_exact_indexed() - Search for an exact freq for the
+ *					 clock corresponding to the index
+ * @dev:	Device for which we do this operation
+ * @freq:	frequency to search for
+ * @index:	Clock index
+ * @available:	true/false - match for available opp
+ *
+ * Search for the matching exact OPP for the clock corresponding to the
+ * specified index from a starting freq for a device.
+ *
+ * Return: matching *opp , else returns ERR_PTR in case of error and should be
+ * handled using IS_ERR. Error return values can be:
+ * EINVAL:	for bad pointer
+ * ERANGE:	no match found for search
+ * ENODEV:	if device not found in list of registered devices
+ *
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
+ */
+struct dev_pm_opp *
+dev_pm_opp_find_freq_exact_indexed(struct device *dev, unsigned long freq,
+				   u32 index, bool available)
+{
+	return _find_key_exact(dev, freq, index, available, _read_freq, NULL);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_exact_indexed);
+
 static noinline struct dev_pm_opp *_find_freq_ceil(struct opp_table *opp_table,
 						   unsigned long *freq)
 {
