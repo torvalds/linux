@@ -285,7 +285,7 @@ static int aspeed_rst_deassert(struct reset_controller_dev *rcdev, unsigned long
 
 	/* Use set to clear register */
 	writel(rst, rc->base + reg + 0x04);
-	return 1;
+	return 0;
 }
 
 static int aspeed_rst_assert(struct reset_controller_dev *rcdev, unsigned long id)
@@ -295,7 +295,7 @@ static int aspeed_rst_assert(struct reset_controller_dev *rcdev, unsigned long i
 	u32 reg = id >= 32 ? AST2700_CPU_RESET_CTRL2 : AST2700_CPU_RESET_CTRL;
 
 	writel(rst, rc->base + reg);
-	return 1;
+	return 0;
 }
 
 static int aspeed_rst_status(struct reset_controller_dev *rcdev, unsigned long id)
