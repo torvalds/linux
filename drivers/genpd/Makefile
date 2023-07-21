@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+obj-y					+= actions/
+obj-y					+= amlogic/
+obj-y					+= apple/
+obj-y					+= bcm/
+obj-y					+= mediatek/
+obj-y					+= qcom/
+obj-y					+= renesas/
+obj-y					+= rockchip/
+obj-y					+= samsung/
+obj-y					+= st/
+obj-y					+= starfive/
+obj-y					+= sunxi/
+obj-y					+= tegra/
+obj-y					+= ti/
+obj-y					+= xilinx/
