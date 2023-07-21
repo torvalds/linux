@@ -331,6 +331,7 @@ static void swap_writepage_bdev_sync(struct page *page,
 {
 	struct bio_vec bv;
 	struct bio bio;
+	struct folio *folio = page_folio(page);
 
 	bio_init(&bio, sis->bdev, &bv, 1,
 		 REQ_OP_WRITE | REQ_SWAP | wbc_to_write_flags(wbc));
@@ -340,8 +341,8 @@ static void swap_writepage_bdev_sync(struct page *page,
 	bio_associate_blkg_from_page(&bio, page);
 	count_swpout_vm_event(page);
 
-	set_page_writeback(page);
-	unlock_page(page);
+	folio_start_writeback(folio);
+	folio_unlock(folio);
 
 	submit_bio_wait(&bio);
 	__end_swap_bio_write(&bio);
