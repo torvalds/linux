@@ -2211,6 +2211,21 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused rkcif_runtime_prepare(struct device *dev)
+{
+	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
+
+	rkcif_stream_suspend(cif_dev, RKCIF_RESUME_CIF);
+	return 0;
+}
+
+static void __maybe_unused rkcif_runtime_complete(struct device *dev)
+{
+	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
+
+	rkcif_stream_resume(cif_dev, RKCIF_RESUME_CIF);
+}
+
 static int __maybe_unused rkcif_runtime_suspend(struct device *dev)
 {
 	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
@@ -2281,8 +2296,8 @@ late_initcall(rkcif_clr_unready_dev);
 #endif
 
 static const struct dev_pm_ops rkcif_plat_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	.prepare = rkcif_runtime_prepare,
+	.complete = rkcif_runtime_complete,
 	SET_RUNTIME_PM_OPS(rkcif_runtime_suspend, rkcif_runtime_resume, NULL)
 };
 

@@ -84,5 +84,6 @@ struct sditf_priv {
 
 extern struct platform_driver rkcif_subdev_driver;
 void sditf_change_to_online(struct sditf_priv *priv);
+void sditf_disable_immediately(struct sditf_priv *priv);
 
 #endif

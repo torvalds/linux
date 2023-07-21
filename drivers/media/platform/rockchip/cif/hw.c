@@ -699,6 +699,10 @@ static const struct cif_reg rk3588_cif_regs[] = {
 	[CIF_REG_MIPI_EFFECT_CODE_ID1] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID1),
 	[CIF_REG_MIPI_EFFECT_CODE_ID2] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID2),
 	[CIF_REG_MIPI_EFFECT_CODE_ID3] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID3),
+	[CIF_REG_MIPI_FRAME_SIZE_ID0] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID0),
+	[CIF_REG_MIPI_FRAME_SIZE_ID1] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID1),
+	[CIF_REG_MIPI_FRAME_SIZE_ID2] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID2),
+	[CIF_REG_MIPI_FRAME_SIZE_ID3] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID3),
 	[CIF_REG_MIPI_ON_PAD] = CIF_REG(CSI_MIPI0_ON_PAD),
 
 	[CIF_REG_GLB_CTRL] = CIF_REG(GLB_CTRL),
@@ -823,6 +827,10 @@ static const struct cif_reg rv1106_cif_regs[] = {
 	[CIF_REG_MIPI_EFFECT_CODE_ID1] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID1),
 	[CIF_REG_MIPI_EFFECT_CODE_ID2] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID2),
 	[CIF_REG_MIPI_EFFECT_CODE_ID3] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID3),
+	[CIF_REG_MIPI_FRAME_SIZE_ID0] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID0),
+	[CIF_REG_MIPI_FRAME_SIZE_ID1] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID1),
+	[CIF_REG_MIPI_FRAME_SIZE_ID2] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID2),
+	[CIF_REG_MIPI_FRAME_SIZE_ID3] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID3),
 	[CIF_REG_MIPI_ON_PAD] = CIF_REG(CSI_MIPI0_ON_PAD),
 	[CIF_REG_LVDS_ID0_CTRL0] = CIF_REG(CIF_LVDS0_ID0_CTRL0),
 	[CIF_REG_LVDS_ID1_CTRL0] = CIF_REG(CIF_LVDS0_ID1_CTRL0),
@@ -942,6 +950,10 @@ static const struct cif_reg rk3562_cif_regs[] = {
 	[CIF_REG_MIPI_EFFECT_CODE_ID1] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID1),
 	[CIF_REG_MIPI_EFFECT_CODE_ID2] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID2),
 	[CIF_REG_MIPI_EFFECT_CODE_ID3] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID3),
+	[CIF_REG_MIPI_FRAME_SIZE_ID0] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID0),
+	[CIF_REG_MIPI_FRAME_SIZE_ID1] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID1),
+	[CIF_REG_MIPI_FRAME_SIZE_ID2] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID2),
+	[CIF_REG_MIPI_FRAME_SIZE_ID3] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID3),
 	[CIF_REG_MIPI_ON_PAD] = CIF_REG(CSI_MIPI0_ON_PAD),
 
 	[CIF_REG_GLB_CTRL] = CIF_REG(GLB_CTRL),
@@ -1538,7 +1550,32 @@ static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int __maybe_unused rkcif_sleep_suspend(struct device *dev)
+{
+	struct rkcif_hw *cif_hw = dev_get_drvdata(dev);
+
+	rkcif_disable_sys_clk(cif_hw);
+
+	return pinctrl_pm_select_sleep_state(dev);
+}
+
+static int __maybe_unused rkcif_sleep_resume(struct device *dev)
+{
+	struct rkcif_hw *cif_hw = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pinctrl_pm_select_default_state(dev);
+	if (ret < 0)
+		return ret;
+	rkcif_enable_sys_clk(cif_hw);
+	rkcif_hw_soft_reset(cif_hw, true);
+
+	return 0;
+}
+
 static const struct dev_pm_ops rkcif_plat_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rkcif_sleep_suspend,
+				rkcif_sleep_resume)
 	SET_RUNTIME_PM_OPS(rkcif_runtime_suspend, rkcif_runtime_resume, NULL)
 };
 

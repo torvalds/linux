@@ -792,6 +792,15 @@ struct rkcif_err_state_work {
 	u32 intstat;
 	u32 lastline;
 	u32 lastpixel;
+	u32 size_id0;
+	u32 size_id1;
+	u32 size_id2;
+	u32 size_id3;
+};
+
+enum rkcif_resume_user {
+	RKCIF_RESUME_CIF,
+	RKCIF_RESUME_ISP,
 };
 
 /*
@@ -968,5 +977,7 @@ void rkcif_rockit_dev_init(struct rkcif_device *dev);
 void rkcif_rockit_dev_deinit(void);
 
 void rkcif_err_print_work(struct work_struct *work);
+int rkcif_stream_suspend(struct rkcif_device *cif_dev, int mode);
+int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode);
 
 #endif
