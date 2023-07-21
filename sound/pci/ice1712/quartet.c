@@ -766,21 +766,12 @@ static const char * const follower_vols[] = {
 static
 DECLARE_TLV_DB_SCALE(qtet_master_db_scale, -6350, 50, 1);
 
-static struct snd_kcontrol *ctl_find(struct snd_card *card,
-				     const char *name)
-{
-	struct snd_ctl_elem_id sid = {0};
-
-	strscpy(sid.name, name, sizeof(sid.name));
-	sid.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	return snd_ctl_find_id(card, &sid);
-}
-
 static void add_followers(struct snd_card *card,
 			  struct snd_kcontrol *master, const char * const *list)
 {
 	for (; *list; list++) {
-		struct snd_kcontrol *follower = ctl_find(card, *list);
+		struct snd_kcontrol *follower =
+			snd_ctl_find_id_mixer(card, *list);
 		if (follower)
 			snd_ctl_add_follower(master, follower);
 	}
