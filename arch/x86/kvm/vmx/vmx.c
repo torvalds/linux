@@ -441,13 +441,23 @@ do {					\
 	pr_warn_ratelimited(fmt);	\
 } while (0)
 
-void vmread_error(unsigned long field, bool fault)
+noinline void vmread_error(unsigned long field)
 {
-	if (fault)
-		kvm_spurious_fault();
-	else
-		vmx_insn_failed("vmread failed: field=%lx\n", field);
+	vmx_insn_failed("vmread failed: field=%lx\n", field);
 }
+
+#ifndef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+noinstr void vmread_error_trampoline2(unsigned long field, bool fault)
+{
+	if (fault) {
+		kvm_spurious_fault();
+	} else {
+		instrumentation_begin();
+		vmread_error(field);
+		instrumentation_end();
+	}
+}
+#endif
 
 noinline void vmwrite_error(unsigned long field, unsigned long value)
 {
