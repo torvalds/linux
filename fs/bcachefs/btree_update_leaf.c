@@ -1386,19 +1386,115 @@ int __bch2_insert_snapshot_whiteouts(struct btree_trans *trans,
 	return ret;
 }
 
-int bch2_trans_update_extent(struct btree_trans *trans,
-			     struct btree_iter *orig_iter,
-			     struct bkey_i *insert,
-			     enum btree_update_flags flags)
+int bch2_trans_update_extent_overwrite(struct btree_trans *trans,
+				       struct btree_iter *iter,
+				       enum btree_update_flags flags,
+				       struct bkey_s_c old,
+				       struct bkey_s_c new)
 {
-	struct btree_iter iter;
-	struct bpos start = bkey_start_pos(&insert->k);
+	enum btree_id btree_id = iter->btree_id;
 	struct bkey_i *update;
-	struct bkey_s_c k;
-	enum btree_id btree_id = orig_iter->btree_id;
+	struct bpos new_start = bkey_start_pos(new.k);
+	bool front_split = bkey_lt(bkey_start_pos(old.k), new_start);
+	bool back_split  = bkey_gt(old.k->p, new.k->p);
 	int ret = 0, compressed_sectors;
 
-	bch2_trans_iter_init(trans, &iter, btree_id, start,
+	/*
+	 * If we're going to be splitting a compressed extent, note it
+	 * so that __bch2_trans_commit() can increase our disk
+	 * reservation:
+	 */
+	if (((front_split && back_split) ||
+	     ((front_split || back_split) && old.k->p.snapshot != new.k->p.snapshot)) &&
+	    (compressed_sectors = bch2_bkey_sectors_compressed(old)))
+		trans->extra_journal_res += compressed_sectors;
+
+	if (front_split) {
+		update = bch2_bkey_make_mut_noupdate(trans, old);
+		if ((ret = PTR_ERR_OR_ZERO(update)))
+			return ret;
+
+		bch2_cut_back(new_start, update);
+
+		ret =   bch2_insert_snapshot_whiteouts(trans, btree_id,
+					old.k->p, update->k.p) ?:
+			bch2_btree_insert_nonextent(trans, btree_id, update,
+					BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|flags);
+		if (ret)
+			return ret;
+	}
+
+	/* If we're overwriting in a different snapshot - middle split: */
+	if (old.k->p.snapshot != new.k->p.snapshot &&
+	    (front_split || back_split)) {
+		update = bch2_bkey_make_mut_noupdate(trans, old);
+		if ((ret = PTR_ERR_OR_ZERO(update)))
+			return ret;
+
+		bch2_cut_front(new_start, update);
+		bch2_cut_back(new.k->p, update);
+
+		ret =   bch2_insert_snapshot_whiteouts(trans, btree_id,
+					old.k->p, update->k.p) ?:
+			bch2_btree_insert_nonextent(trans, btree_id, update,
+					  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|flags);
+		if (ret)
+			return ret;
+	}
+
+	if (bkey_le(old.k->p, new.k->p)) {
+		update = bch2_trans_kmalloc(trans, sizeof(*update));
+		if ((ret = PTR_ERR_OR_ZERO(update)))
+			return ret;
+
+		bkey_init(&update->k);
+		update->k.p = old.k->p;
+		update->k.p.snapshot = new.k->p.snapshot;
+
+		if (new.k->p.snapshot != old.k->p.snapshot) {
+			update->k.type = KEY_TYPE_whiteout;
+		} else if (btree_type_has_snapshots(btree_id)) {
+			ret = need_whiteout_for_snapshot(trans, btree_id, update->k.p);
+			if (ret < 0)
+				return ret;
+			if (ret)
+				update->k.type = KEY_TYPE_whiteout;
+		}
+
+		ret = bch2_btree_insert_nonextent(trans, btree_id, update,
+					  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|flags);
+		if (ret)
+			return ret;
+	}
+
+	if (back_split) {
+		update = bch2_bkey_make_mut_noupdate(trans, old);
+		if ((ret = PTR_ERR_OR_ZERO(update)))
+			return ret;
+
+		bch2_cut_front(new.k->p, update);
+
+		ret = bch2_trans_update_by_path(trans, iter->path, update,
+					  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
+					  flags, _RET_IP_);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int bch2_trans_update_extent(struct btree_trans *trans,
+				    struct btree_iter *orig_iter,
+				    struct bkey_i *insert,
+				    enum btree_update_flags flags)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	enum btree_id btree_id = orig_iter->btree_id;
+	int ret = 0;
+
+	bch2_trans_iter_init(trans, &iter, btree_id, bkey_start_pos(&insert->k),
 			     BTREE_ITER_INTENT|
 			     BTREE_ITER_WITH_UPDATES|
 			     BTREE_ITER_NOT_EXTENTS);
@@ -1419,90 +1515,14 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 	}
 
 	while (bkey_gt(insert->k.p, bkey_start_pos(k.k))) {
-		bool front_split = bkey_lt(bkey_start_pos(k.k), start);
-		bool back_split  = bkey_gt(k.k->p, insert->k.p);
+		bool done = bkey_lt(insert->k.p, k.k->p);
 
-		/*
-		 * If we're going to be splitting a compressed extent, note it
-		 * so that __bch2_trans_commit() can increase our disk
-		 * reservation:
-		 */
-		if (((front_split && back_split) ||
-		     ((front_split || back_split) && k.k->p.snapshot != insert->k.p.snapshot)) &&
-		    (compressed_sectors = bch2_bkey_sectors_compressed(k)))
-			trans->extra_journal_res += compressed_sectors;
+		ret = bch2_trans_update_extent_overwrite(trans, &iter, flags, k, bkey_i_to_s_c(insert));
+		if (ret)
+			goto err;
 
-		if (front_split) {
-			update = bch2_bkey_make_mut_noupdate(trans, k);
-			if ((ret = PTR_ERR_OR_ZERO(update)))
-				goto err;
-
-			bch2_cut_back(start, update);
-
-			ret =   bch2_insert_snapshot_whiteouts(trans, btree_id,
-						k.k->p, update->k.p) ?:
-				bch2_btree_insert_nonextent(trans, btree_id, update,
-						BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|flags);
-			if (ret)
-				goto err;
-		}
-
-		if (k.k->p.snapshot != insert->k.p.snapshot &&
-		    (front_split || back_split)) {
-			update = bch2_bkey_make_mut_noupdate(trans, k);
-			if ((ret = PTR_ERR_OR_ZERO(update)))
-				goto err;
-
-			bch2_cut_front(start, update);
-			bch2_cut_back(insert->k.p, update);
-
-			ret =   bch2_insert_snapshot_whiteouts(trans, btree_id,
-						k.k->p, update->k.p) ?:
-				bch2_btree_insert_nonextent(trans, btree_id, update,
-						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|flags);
-			if (ret)
-				goto err;
-		}
-
-		if (bkey_le(k.k->p, insert->k.p)) {
-			update = bch2_trans_kmalloc(trans, sizeof(*update));
-			if ((ret = PTR_ERR_OR_ZERO(update)))
-				goto err;
-
-			bkey_init(&update->k);
-			update->k.p = k.k->p;
-			update->k.p.snapshot = insert->k.p.snapshot;
-
-			if (insert->k.p.snapshot != k.k->p.snapshot) {
-				update->k.type = KEY_TYPE_whiteout;
-			} else if (btree_type_has_snapshots(btree_id)) {
-				ret = need_whiteout_for_snapshot(trans, btree_id, update->k.p);
-				if (ret < 0)
-					goto err;
-				if (ret)
-					update->k.type = KEY_TYPE_whiteout;
-			}
-
-			ret = bch2_btree_insert_nonextent(trans, btree_id, update,
-						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|flags);
-			if (ret)
-				goto err;
-		}
-
-		if (back_split) {
-			update = bch2_bkey_make_mut_noupdate(trans, k);
-			if ((ret = PTR_ERR_OR_ZERO(update)))
-				goto err;
-
-			bch2_cut_front(insert->k.p, update);
-
-			ret = bch2_trans_update_by_path(trans, iter.path, update,
-						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
-						  flags, _RET_IP_);
-			if (ret)
-				goto err;
+		if (done)
 			goto out;
-		}
 next:
 		bch2_btree_iter_advance(&iter);
 		k = bch2_btree_iter_peek_upto(&iter, POS(insert->k.p.inode, U64_MAX));
@@ -1518,18 +1538,8 @@ next:
 			goto err;
 	}
 out:
-	if (!bkey_deleted(&insert->k)) {
-		/*
-		 * Rewinding iterators is expensive: get a new one and the one
-		 * that points to the start of insert will be cloned from:
-		 */
-		bch2_trans_iter_exit(trans, &iter);
-		bch2_trans_iter_init(trans, &iter, btree_id, insert->k.p,
-				     BTREE_ITER_NOT_EXTENTS|
-				     BTREE_ITER_INTENT);
-		ret   = bch2_btree_iter_traverse(&iter) ?:
-			bch2_trans_update(trans, &iter, insert, flags);
-	}
+	if (!bkey_deleted(&insert->k))
+		ret = bch2_btree_insert_nonextent(trans, btree_id, insert, flags);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 

@@ -96,8 +96,9 @@ static inline int bch2_insert_snapshot_whiteouts(struct btree_trans *trans,
 	return __bch2_insert_snapshot_whiteouts(trans, btree, old_pos, new_pos);
 }
 
-int bch2_trans_update_extent(struct btree_trans *, struct btree_iter *,
-			     struct bkey_i *, enum btree_update_flags);
+int bch2_trans_update_extent_overwrite(struct btree_trans *, struct btree_iter *,
+				       enum btree_update_flags,
+				       struct bkey_s_c, struct bkey_s_c);
 
 int bch2_bkey_get_empty_slot(struct btree_trans *, struct btree_iter *,
 			     enum btree_id, struct bpos);
