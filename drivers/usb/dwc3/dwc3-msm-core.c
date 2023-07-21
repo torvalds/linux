@@ -500,15 +500,15 @@ struct extcon_nb {
 #define PM_QOS_PERF_SAMPLE_THRESHOLD	400
 
 struct dwc3_msm {
-	struct device *dev;
-	void __iomem *base;
-	void __iomem *tcsr_dyn_en_dis;
-	void __iomem *ahb2phy_base;
-	phys_addr_t reg_phys;
-	struct platform_device	*dwc3;
-	struct dma_iommu_mapping *iommu_map;
-	const struct usb_ep_ops *original_ep_ops[DWC3_ENDPOINTS_NUM];
-	struct list_head req_complete_list;
+	struct device		*dev;
+	void __iomem		*base;
+	void __iomem		*tcsr_dyn_en_dis;
+	void __iomem		*ahb2phy_base;
+	phys_addr_t		reg_phys;
+	struct platform_device		*dwc3;
+	struct dma_iommu_mapping	*iommu_map;
+	const struct usb_ep_ops		*original_ep_ops[DWC3_ENDPOINTS_NUM];
+	struct list_head	req_complete_list;
 	struct clk		*xo_clk;
 	struct clk		*core_clk;
 	long			core_clk_rate;
@@ -533,15 +533,15 @@ struct dwc3_msm {
 	bool			dbm_is_1p4;
 
 	bool			resume_pending;
-	atomic_t                pm_suspended;
+	atomic_t		pm_suspended;
 	struct usb_irq		wakeup_irq[USB_MAX_IRQ];
 	int			core_irq;
 	unsigned int		irq_cnt;
 	struct work_struct	resume_work;
 	struct work_struct	restart_usb_work;
 	bool			in_restart;
-	struct workqueue_struct *dwc3_wq;
-	struct workqueue_struct *sm_usb_wq;
+	struct workqueue_struct		*dwc3_wq;
+	struct workqueue_struct		*sm_usb_wq;
 	struct work_struct	sm_work;
 	unsigned long		inputs;
 	enum dwc3_drd_state	drd_state;
@@ -575,21 +575,21 @@ struct dwc3_msm {
 	struct notifier_block	host_nb;
 
 	u32			ip;
-	atomic_t                in_p3;
+	atomic_t		in_p3;
 	atomic_t		in_lpm;
 	unsigned int		lpm_to_suspend_delay;
 	struct dev_pm_ops	*dwc3_pm_ops;
 	struct dev_pm_ops	*xhci_pm_ops;
 
 	u32			num_gsi_event_buffers;
-	struct dwc3_event_buffer **gsi_ev_buff;
-	int pm_qos_latency;
-	struct pm_qos_request pm_qos_req_dma;
-	struct delayed_work perf_vote_work;
-	struct mutex suspend_resume_mutex;
-	struct mutex role_switch_mutex;
+	struct dwc3_event_buffer	**gsi_ev_buff;
+	int			pm_qos_latency;
+	struct pm_qos_request	pm_qos_req_dma;
+	struct delayed_work	perf_vote_work;
+	struct mutex		suspend_resume_mutex;
+	struct mutex		role_switch_mutex;
 
-	enum usb_device_speed override_usb_speed;
+	enum usb_device_speed	override_usb_speed;
 	enum usb_device_speed	max_hw_supp_speed;
 	u32			*gsi_reg;
 	int			gsi_reg_offset_cnt;
@@ -600,8 +600,8 @@ struct dwc3_msm {
 	u64			dummy_gsi_db;
 	dma_addr_t		dummy_gsi_db_dma;
 
-	struct usb_role_switch *role_switch;
-	struct usb_role_switch *dwc3_drd_sw;
+	struct usb_role_switch	*role_switch;
+	struct usb_role_switch	*dwc3_drd_sw;
 	bool			ss_release_called;
 	int			orientation_override;
 
@@ -609,8 +609,8 @@ struct dwc3_msm {
 	bool			err_evt_seen;
 	int			retries_on_error;
 
-	void            *dwc_ipc_log_ctxt;
-	void            *dwc_dma_ipc_log_ctxt;
+	void			*dwc_ipc_log_ctxt;
+	void			*dwc_dma_ipc_log_ctxt;
 
 	struct dwc3_hw_ep	hw_eps[DWC3_ENDPOINTS_NUM];
 	phys_addr_t		ebc_desc_addr;
@@ -628,15 +628,15 @@ struct dwc3_msm {
 	bool			wcd_usbss;
 	bool			dynamic_disable;
 
-	struct dentry *dbg_dir;
+	struct dentry		*dbg_dir;
 #define PM_QOS_REQ_DYNAMIC	0
 #define PM_QOS_REQ_PERF		1
 #define PM_QOS_REQ_DEFAULT	2
-	u8 qos_req_state;
+	u8			qos_req_state;
 #define PM_QOS_REC_MAX_RECORD	50
-	bool qos_rec_start;
-	u8 qos_rec_index;
-	u32 qos_rec_irq[PM_QOS_REC_MAX_RECORD];
+	bool			qos_rec_start;
+	u8			qos_rec_index;
+	u32			qos_rec_irq[PM_QOS_REC_MAX_RECORD];
 
 	int			repeater_rev;
 };
