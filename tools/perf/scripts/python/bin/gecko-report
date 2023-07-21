@@ -1,0 +1,3 @@
+#!/bin/bash
+# description: create firefox gecko profile json format from perf.data
+perf script "$@" -s "$PERF_EXEC_PATH"/scripts/python/gecko.py
