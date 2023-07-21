@@ -638,6 +638,7 @@ enum rkmodule_reset_src {
 	RKICF_RESET_SRC_ERR_CUTOFF,
 	RKCIF_RESET_SRC_ERR_HOTPLUG,
 	RKCIF_RESET_SRC_ERR_APP,
+	RKCIF_RESET_SRC_ERR_ISP,
 };
 
 struct rkmodule_vicap_reset_info {

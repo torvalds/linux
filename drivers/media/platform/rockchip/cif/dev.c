@@ -1134,6 +1134,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			cif_dev->reset_watchdog_timer.is_triggered = false;
 			cif_dev->reset_watchdog_timer.is_running = false;
 			cif_dev->err_state_work.last_timestamp = 0;
+			cif_dev->is_toisp_reset = false;
 			for (i = 0; i < cif_dev->num_channels; i++)
 				cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 			cif_dev->reset_watchdog_timer.run_cnt = 0;
@@ -1218,6 +1219,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				cif_dev->is_start_hdr = true;
 				cif_dev->reset_watchdog_timer.is_triggered = false;
 				cif_dev->reset_watchdog_timer.is_running = false;
+				cif_dev->is_toisp_reset = false;
 				for (i = 0; i < cif_dev->num_channels; i++)
 					cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 				cif_dev->reset_watchdog_timer.run_cnt = 0;

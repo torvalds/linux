@@ -383,6 +383,12 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			rkcif_stream_suspend(cif_dev, RKCIF_RESUME_ISP);
 		}
 		break;
+	case RKISP_VICAP_CMD_SET_RESET:
+		if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE) {
+			cif_dev->is_toisp_reset = true;
+			return 0;
+		}
+		break;
 	default:
 		break;
 	}
@@ -439,6 +445,9 @@ static long sditf_compat_ioctl32(struct v4l2_subdev *sd,
 		if (copy_from_user(&on, up, sizeof(int)))
 			return -EFAULT;
 		ret = sditf_ioctl(sd, cmd, &on);
+		return ret;
+	case RKISP_VICAP_CMD_SET_RESET:
+		ret = sditf_ioctl(sd, cmd, NULL);
 		return ret;
 	default:
 		break;

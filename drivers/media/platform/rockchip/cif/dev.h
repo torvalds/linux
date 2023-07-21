@@ -883,6 +883,7 @@ struct rkcif_device {
 	bool				is_support_tools;
 	bool				is_rtt_suspend;
 	bool				sensor_state_change;
+	bool				is_toisp_reset;
 	int				rdbk_debug;
 	struct rkcif_sync_cfg		sync_cfg;
 	int				sditf_cnt;

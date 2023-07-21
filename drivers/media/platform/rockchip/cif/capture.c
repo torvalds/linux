@@ -9075,6 +9075,15 @@ static void rkcif_set_sof(struct rkcif_device *cif_dev, u32 seq)
 	}
 }
 
+static void rkcif_toisp_set_stream(struct rkcif_device *dev, int on)
+{
+	struct v4l2_subdev *sd = get_rkisp_sd(dev->sditf[0]);
+
+	if (sd)
+		v4l2_subdev_call(sd, core, ioctl,
+				 RKISP_VICAP_CMD_SET_STREAM, &on);
+}
+
 static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 			       enum rkmodule_reset_src reset_src)
 {
@@ -9180,6 +9189,9 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 			goto unlock_stream;
 		}
 	}
+
+	if (priv && priv->mode.rdbk_mode == RKISP_VICAP_ONLINE)
+		rkcif_toisp_set_stream(cif_dev, 1);
 
 	for (i = 0; i < j; i++) {
 		stream = resume_stream[i];
@@ -9428,6 +9440,7 @@ static void rkcif_init_reset_work(struct rkcif_timer *timer)
 	timer->csi2_err_cnt_even = 0;
 	timer->csi2_err_fs_fe_cnt = 0;
 	timer->notifer_called_cnt = 0;
+	dev->is_toisp_reset = false;
 	for (i = 0; i < dev->num_channels; i++) {
 		stream = &dev->stream[i];
 		if (stream->state == RKCIF_STATE_STREAMING)
@@ -9437,10 +9450,10 @@ static void rkcif_init_reset_work(struct rkcif_timer *timer)
 	if (timer->is_ctrl_by_user) {
 		rkcif_send_reset_event(dev, timer->reset_src);
 	} else {
+		dev->reset_work.reset_src = timer->reset_src;
 		if (!schedule_work(&dev->reset_work.work))
 			v4l2_info(&dev->v4l2_dev,
 				  "schedule reset work failed\n");
-		dev->reset_work.reset_src = timer->reset_src;
 	}
 }
 
@@ -9454,6 +9467,15 @@ static int rkcif_detect_reset_event(struct rkcif_stream *stream,
 	unsigned long flags;
 	int ret, is_reset = 0;
 	struct rkmodule_vicap_reset_info rst_info;
+
+	if (dev->is_toisp_reset) {
+		is_reset = 1;
+		timer->reset_src = RKCIF_RESET_SRC_ERR_ISP;
+	}
+	if (is_reset) {
+		rkcif_init_reset_work(timer);
+		return is_reset;
+	}
 
 	if (timer->last_buf_wakeup_cnt[stream->id] < stream->buf_wake_up_cnt &&
 	    check_cnt == 0) {
@@ -10056,6 +10078,11 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 			cur_time = ktime_get_ns();
 			stream->readout.readout_time = cur_time - stream->readout.fs_timestamp;
 			stream->readout.fs_timestamp = cur_time;
+			stream->buf_wake_up_cnt++;
+			if (stream->frame_idx % 2)
+				stream->fps_stats.frm0_timestamp = ktime_get_ns();
+			else
+				stream->fps_stats.frm1_timestamp = ktime_get_ns();
 			if (stream->cifdev->rdbk_debug &&
 			    stream->frame_idx < 15)
 				v4l2_info(&priv->cif_dev->v4l2_dev,
