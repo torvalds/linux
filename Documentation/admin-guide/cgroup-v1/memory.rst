@@ -197,11 +197,11 @@ are not accounted. We just account pages under usual VM management.
 
 RSS pages are accounted at page_fault unless they've already been accounted
 for earlier. A file page will be accounted for as Page Cache when it's
-inserted into inode (radix-tree). While it's mapped into the page tables of
+inserted into inode (xarray). While it's mapped into the page tables of
 processes, duplicate accounting is carefully avoided.
 
 An RSS page is unaccounted when it's fully unmapped. A PageCache page is
-unaccounted when it's removed from radix-tree. Even if RSS pages are fully
+unaccounted when it's removed from xarray. Even if RSS pages are fully
 unmapped (by kswapd), they may exist as SwapCache in the system until they
 are really freed. Such SwapCaches are also accounted.
 A swapped-in page is accounted after adding into swapcache.
