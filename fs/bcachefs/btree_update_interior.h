@@ -154,6 +154,15 @@ static inline int bch2_foreground_maybe_merge(struct btree_trans *trans,
 						    btree_next_sib);
 }
 
+int bch2_btree_node_rewrite(struct btree_trans *, struct btree_iter *,
+			    struct btree *, unsigned);
+void bch2_btree_node_rewrite_async(struct bch_fs *, struct btree *);
+int bch2_btree_node_update_key(struct btree_trans *, struct btree_iter *,
+			       struct btree *, struct bkey_i *,
+			       unsigned, bool);
+int bch2_btree_node_update_key_get_iter(struct btree_trans *, struct btree *,
+					struct bkey_i *, unsigned, bool);
+
 void bch2_btree_set_root_for_read(struct bch_fs *, struct btree *);
 void bch2_btree_root_alloc(struct bch_fs *, enum btree_id);
 
