@@ -123,7 +123,7 @@ static void ingress_destroy(struct Qdisc *sch)
 	if (entry) {
 		tcx_miniq_set_active(entry, false);
 		if (!tcx_entry_is_active(entry)) {
-			tcx_entry_update(dev, NULL, false);
+			tcx_entry_update(dev, NULL, true);
 			tcx_entry_free(entry);
 		}
 	}
