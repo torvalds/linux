@@ -537,6 +537,7 @@ inline int vma_expand(struct ma_state *mas, struct vm_area_struct *vma,
 			int error;
 
 			anon_vma = next->anon_vma;
+			vma_start_write(vma);
 			vma->anon_vma = anon_vma;
 			error = anon_vma_clone(vma, next);
 			if (error)
