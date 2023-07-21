@@ -34,9 +34,8 @@ struct otx2_tc_flow_stats {
 };
 
 struct otx2_tc_flow {
-	struct rhash_head		node;
+	struct list_head		list;
 	unsigned long			cookie;
-	unsigned int			bitpos;
 	struct rcu_head			rcu;
 	struct otx2_tc_flow_stats	stats;
 	spinlock_t			lock; /* lock for stats */
@@ -44,30 +43,9 @@ struct otx2_tc_flow {
 	u16				entry;
 	u16				leaf_profile;
 	bool				is_act_police;
+	u32				prio;
+	struct npc_install_flow_req	req;
 };
-
-int otx2_tc_alloc_ent_bitmap(struct otx2_nic *nic)
-{
-	struct otx2_tc_info *tc = &nic->tc_info;
-
-	if (!nic->flow_cfg->max_flows)
-		return 0;
-
-	/* Max flows changed, free the existing bitmap */
-	kfree(tc->tc_entries_bitmap);
-
-	tc->tc_entries_bitmap =
-			kcalloc(BITS_TO_LONGS(nic->flow_cfg->max_flows),
-				sizeof(long), GFP_KERNEL);
-	if (!tc->tc_entries_bitmap) {
-		netdev_err(nic->netdev,
-			   "Unable to alloc TC flow entries bitmap\n");
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(otx2_tc_alloc_ent_bitmap);
 
 static void otx2_get_egress_burst_cfg(struct otx2_nic *nic, u32 burst,
 				      u32 *burst_exp, u32 *burst_mantissa)
@@ -707,8 +685,117 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 	return otx2_tc_parse_actions(nic, &rule->action, req, f, node);
 }
 
-static int otx2_del_mcam_flow_entry(struct otx2_nic *nic, u16 entry)
+static void otx2_destroy_tc_flow_list(struct otx2_nic *pfvf)
 {
+	struct otx2_flow_config *flow_cfg = pfvf->flow_cfg;
+	struct otx2_tc_flow *iter, *tmp;
+
+	if (!(pfvf->flags & OTX2_FLAG_MCAM_ENTRIES_ALLOC))
+		return;
+
+	list_for_each_entry_safe(iter, tmp, &flow_cfg->flow_list_tc, list) {
+		list_del(&iter->list);
+		kfree(iter);
+		flow_cfg->nr_flows--;
+	}
+}
+
+static struct otx2_tc_flow *otx2_tc_get_entry_by_cookie(struct otx2_flow_config *flow_cfg,
+							unsigned long cookie)
+{
+	struct otx2_tc_flow *tmp;
+
+	list_for_each_entry(tmp, &flow_cfg->flow_list_tc, list) {
+		if (tmp->cookie == cookie)
+			return tmp;
+	}
+
+	return NULL;
+}
+
+static struct otx2_tc_flow *otx2_tc_get_entry_by_index(struct otx2_flow_config *flow_cfg,
+						       int index)
+{
+	struct otx2_tc_flow *tmp;
+	int i = 0;
+
+	list_for_each_entry(tmp, &flow_cfg->flow_list_tc, list) {
+		if (i == index)
+			return tmp;
+		i++;
+	}
+
+	return NULL;
+}
+
+static void otx2_tc_del_from_flow_list(struct otx2_flow_config *flow_cfg,
+				       struct otx2_tc_flow *node)
+{
+	struct list_head *pos, *n;
+	struct otx2_tc_flow *tmp;
+
+	list_for_each_safe(pos, n, &flow_cfg->flow_list_tc) {
+		tmp = list_entry(pos, struct otx2_tc_flow, list);
+		if (node == tmp) {
+			list_del(&node->list);
+			return;
+		}
+	}
+}
+
+static int otx2_tc_add_to_flow_list(struct otx2_flow_config *flow_cfg,
+				    struct otx2_tc_flow *node)
+{
+	struct list_head *pos, *n;
+	struct otx2_tc_flow *tmp;
+	int index = 0;
+
+	/* If the flow list is empty then add the new node */
+	if (list_empty(&flow_cfg->flow_list_tc)) {
+		list_add(&node->list, &flow_cfg->flow_list_tc);
+		return index;
+	}
+
+	list_for_each_safe(pos, n, &flow_cfg->flow_list_tc) {
+		tmp = list_entry(pos, struct otx2_tc_flow, list);
+		if (node->prio < tmp->prio)
+			break;
+		index++;
+	}
+
+	list_add(&node->list, pos->prev);
+	return index;
+}
+
+static int otx2_add_mcam_flow_entry(struct otx2_nic *nic, struct npc_install_flow_req *req)
+{
+	struct npc_install_flow_req *tmp_req;
+	int err;
+
+	mutex_lock(&nic->mbox.lock);
+	tmp_req = otx2_mbox_alloc_msg_npc_install_flow(&nic->mbox);
+	if (!tmp_req) {
+		mutex_unlock(&nic->mbox.lock);
+		return -ENOMEM;
+	}
+
+	memcpy(tmp_req, req, sizeof(struct npc_install_flow_req));
+	/* Send message to AF */
+	err = otx2_sync_mbox_msg(&nic->mbox);
+	if (err) {
+		netdev_err(nic->netdev, "Failed to install MCAM flow entry %d\n",
+			   req->entry);
+		mutex_unlock(&nic->mbox.lock);
+		return -EFAULT;
+	}
+
+	mutex_unlock(&nic->mbox.lock);
+	return 0;
+}
+
+static int otx2_del_mcam_flow_entry(struct otx2_nic *nic, u16 entry, u16 *cntr_val)
+{
+	struct npc_delete_flow_rsp *rsp;
 	struct npc_delete_flow_req *req;
 	int err;
 
@@ -729,22 +816,113 @@ static int otx2_del_mcam_flow_entry(struct otx2_nic *nic, u16 entry)
 		mutex_unlock(&nic->mbox.lock);
 		return -EFAULT;
 	}
+
+	if (cntr_val) {
+		rsp = (struct npc_delete_flow_rsp *)otx2_mbox_get_rsp(&nic->mbox.mbox,
+								      0, &req->hdr);
+		if (IS_ERR(rsp)) {
+			netdev_err(nic->netdev, "Failed to get MCAM delete response for entry %d\n",
+				   entry);
+			mutex_unlock(&nic->mbox.lock);
+			return -EFAULT;
+		}
+
+		*cntr_val = rsp->cntr_val;
+	}
+
 	mutex_unlock(&nic->mbox.lock);
+	return 0;
+}
+
+static int otx2_tc_update_mcam_table_del_req(struct otx2_nic *nic,
+					     struct otx2_flow_config *flow_cfg,
+					     struct otx2_tc_flow *node)
+{
+	struct list_head *pos, *n;
+	struct otx2_tc_flow *tmp;
+	int i = 0, index = 0;
+	u16 cntr_val;
+
+	/* Find and delete the entry from the list and re-install
+	 * all the entries from beginning to the index of the
+	 * deleted entry to higher mcam indexes.
+	 */
+	list_for_each_safe(pos, n, &flow_cfg->flow_list_tc) {
+		tmp = list_entry(pos, struct otx2_tc_flow, list);
+		if (node == tmp) {
+			list_del(&tmp->list);
+			break;
+		}
+
+		otx2_del_mcam_flow_entry(nic, tmp->entry, &cntr_val);
+		tmp->entry++;
+		tmp->req.entry = tmp->entry;
+		tmp->req.cntr_val = cntr_val;
+		index++;
+	}
+
+	list_for_each_safe(pos, n, &flow_cfg->flow_list_tc) {
+		if (i == index)
+			break;
+
+		tmp = list_entry(pos, struct otx2_tc_flow, list);
+		otx2_add_mcam_flow_entry(nic, &tmp->req);
+		i++;
+	}
 
 	return 0;
+}
+
+static int otx2_tc_update_mcam_table_add_req(struct otx2_nic *nic,
+					     struct otx2_flow_config *flow_cfg,
+					     struct otx2_tc_flow *node)
+{
+	int mcam_idx = flow_cfg->max_flows - flow_cfg->nr_flows - 1;
+	struct otx2_tc_flow *tmp;
+	int list_idx, i;
+	u16 cntr_val;
+
+	/* Find the index of the entry(list_idx) whose priority
+	 * is greater than the new entry and re-install all
+	 * the entries from beginning to list_idx to higher
+	 * mcam indexes.
+	 */
+	list_idx = otx2_tc_add_to_flow_list(flow_cfg, node);
+	for (i = 0; i < list_idx; i++) {
+		tmp = otx2_tc_get_entry_by_index(flow_cfg, i);
+		if (!tmp)
+			return -ENOMEM;
+
+		otx2_del_mcam_flow_entry(nic, tmp->entry, &cntr_val);
+		tmp->entry = flow_cfg->flow_ent[mcam_idx];
+		tmp->req.entry = tmp->entry;
+		tmp->req.cntr_val = cntr_val;
+		otx2_add_mcam_flow_entry(nic, &tmp->req);
+		mcam_idx++;
+	}
+
+	return mcam_idx;
+}
+
+static int otx2_tc_update_mcam_table(struct otx2_nic *nic,
+				     struct otx2_flow_config *flow_cfg,
+				     struct otx2_tc_flow *node,
+				     bool add_req)
+{
+	if (add_req)
+		return otx2_tc_update_mcam_table_add_req(nic, flow_cfg, node);
+
+	return otx2_tc_update_mcam_table_del_req(nic, flow_cfg, node);
 }
 
 static int otx2_tc_del_flow(struct otx2_nic *nic,
 			    struct flow_cls_offload *tc_flow_cmd)
 {
 	struct otx2_flow_config *flow_cfg = nic->flow_cfg;
-	struct otx2_tc_info *tc_info = &nic->tc_info;
 	struct otx2_tc_flow *flow_node;
 	int err;
 
-	flow_node = rhashtable_lookup_fast(&tc_info->flow_table,
-					   &tc_flow_cmd->cookie,
-					   tc_info->flow_ht_params);
+	flow_node = otx2_tc_get_entry_by_cookie(flow_cfg, tc_flow_cmd->cookie);
 	if (!flow_node) {
 		netdev_err(nic->netdev, "tc flow not found for cookie 0x%lx\n",
 			   tc_flow_cmd->cookie);
@@ -772,16 +950,10 @@ static int otx2_tc_del_flow(struct otx2_nic *nic,
 		mutex_unlock(&nic->mbox.lock);
 	}
 
-	otx2_del_mcam_flow_entry(nic, flow_node->entry);
-
-	WARN_ON(rhashtable_remove_fast(&nic->tc_info.flow_table,
-				       &flow_node->node,
-				       nic->tc_info.flow_ht_params));
+	otx2_del_mcam_flow_entry(nic, flow_node->entry, NULL);
+	otx2_tc_update_mcam_table(nic, flow_cfg, flow_node, false);
 	kfree_rcu(flow_node, rcu);
-
-	clear_bit(flow_node->bitpos, tc_info->tc_entries_bitmap);
 	flow_cfg->nr_flows--;
-
 	return 0;
 }
 
@@ -790,15 +962,14 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 {
 	struct netlink_ext_ack *extack = tc_flow_cmd->common.extack;
 	struct otx2_flow_config *flow_cfg = nic->flow_cfg;
-	struct otx2_tc_info *tc_info = &nic->tc_info;
 	struct otx2_tc_flow *new_node, *old_node;
 	struct npc_install_flow_req *req, dummy;
-	int rc, err;
+	int rc, err, mcam_idx;
 
 	if (!(nic->flags & OTX2_FLAG_TC_FLOWER_SUPPORT))
 		return -ENOMEM;
 
-	if (bitmap_full(tc_info->tc_entries_bitmap, flow_cfg->max_flows)) {
+	if (flow_cfg->nr_flows == flow_cfg->max_flows) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Free MCAM entry not available to add the flow");
 		return -ENOMEM;
@@ -810,6 +981,7 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 		return -ENOMEM;
 	spin_lock_init(&new_node->lock);
 	new_node->cookie = tc_flow_cmd->cookie;
+	new_node->prio = tc_flow_cmd->common.prio;
 
 	memset(&dummy, 0, sizeof(struct npc_install_flow_req));
 
@@ -820,12 +992,11 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	}
 
 	/* If a flow exists with the same cookie, delete it */
-	old_node = rhashtable_lookup_fast(&tc_info->flow_table,
-					  &tc_flow_cmd->cookie,
-					  tc_info->flow_ht_params);
+	old_node = otx2_tc_get_entry_by_cookie(flow_cfg, tc_flow_cmd->cookie);
 	if (old_node)
 		otx2_tc_del_flow(nic, tc_flow_cmd);
 
+	mcam_idx = otx2_tc_update_mcam_table(nic, flow_cfg, new_node, true);
 	mutex_lock(&nic->mbox.lock);
 	req = otx2_mbox_alloc_msg_npc_install_flow(&nic->mbox);
 	if (!req) {
@@ -836,11 +1007,8 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 
 	memcpy(&dummy.hdr, &req->hdr, sizeof(struct mbox_msghdr));
 	memcpy(req, &dummy, sizeof(struct npc_install_flow_req));
-
-	new_node->bitpos = find_first_zero_bit(tc_info->tc_entries_bitmap,
-					       flow_cfg->max_flows);
 	req->channel = nic->hw.rx_chan_base;
-	req->entry = flow_cfg->flow_ent[flow_cfg->max_flows - new_node->bitpos - 1];
+	req->entry = flow_cfg->flow_ent[mcam_idx];
 	req->intf = NIX_INTF_RX;
 	req->set_cntr = 1;
 	new_node->entry = req->entry;
@@ -850,26 +1018,18 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	if (rc) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to install MCAM flow entry");
 		mutex_unlock(&nic->mbox.lock);
-		kfree_rcu(new_node, rcu);
 		goto free_leaf;
 	}
+
 	mutex_unlock(&nic->mbox.lock);
+	memcpy(&new_node->req, req, sizeof(struct npc_install_flow_req));
 
-	/* add new flow to flow-table */
-	rc = rhashtable_insert_fast(&nic->tc_info.flow_table, &new_node->node,
-				    nic->tc_info.flow_ht_params);
-	if (rc) {
-		otx2_del_mcam_flow_entry(nic, req->entry);
-		kfree_rcu(new_node, rcu);
-		goto free_leaf;
-	}
-
-	set_bit(new_node->bitpos, tc_info->tc_entries_bitmap);
 	flow_cfg->nr_flows++;
-
 	return 0;
 
 free_leaf:
+	otx2_tc_del_from_flow_list(flow_cfg, new_node);
+	kfree_rcu(new_node, rcu);
 	if (new_node->is_act_police) {
 		mutex_lock(&nic->mbox.lock);
 
@@ -896,16 +1056,13 @@ free_leaf:
 static int otx2_tc_get_flow_stats(struct otx2_nic *nic,
 				  struct flow_cls_offload *tc_flow_cmd)
 {
-	struct otx2_tc_info *tc_info = &nic->tc_info;
 	struct npc_mcam_get_stats_req *req;
 	struct npc_mcam_get_stats_rsp *rsp;
 	struct otx2_tc_flow_stats *stats;
 	struct otx2_tc_flow *flow_node;
 	int err;
 
-	flow_node = rhashtable_lookup_fast(&tc_info->flow_table,
-					   &tc_flow_cmd->cookie,
-					   tc_info->flow_ht_params);
+	flow_node = otx2_tc_get_entry_by_cookie(nic->flow_cfg, tc_flow_cmd->cookie);
 	if (!flow_node) {
 		netdev_info(nic->netdev, "tc flow not found for cookie %lx",
 			    tc_flow_cmd->cookie);
@@ -1053,12 +1210,20 @@ static int otx2_setup_tc_block_ingress_cb(enum tc_setup_type type,
 					  void *type_data, void *cb_priv)
 {
 	struct otx2_nic *nic = cb_priv;
+	bool ntuple;
 
 	if (!tc_cls_can_offload_and_chain0(nic->netdev, type_data))
 		return -EOPNOTSUPP;
 
+	ntuple = nic->netdev->features & NETIF_F_NTUPLE;
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
+		if (ntuple) {
+			netdev_warn(nic->netdev,
+				    "Can't install TC flower offload rule when NTUPLE is active");
+			return -EOPNOTSUPP;
+		}
+
 		return otx2_setup_tc_cls_flower(nic, type_data);
 	case TC_SETUP_CLSMATCHALL:
 		return otx2_setup_tc_ingress_matchall(nic, type_data);
@@ -1143,18 +1308,8 @@ int otx2_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 }
 EXPORT_SYMBOL(otx2_setup_tc);
 
-static const struct rhashtable_params tc_flow_ht_params = {
-	.head_offset = offsetof(struct otx2_tc_flow, node),
-	.key_offset = offsetof(struct otx2_tc_flow, cookie),
-	.key_len = sizeof(((struct otx2_tc_flow *)0)->cookie),
-	.automatic_shrinking = true,
-};
-
 int otx2_init_tc(struct otx2_nic *nic)
 {
-	struct otx2_tc_info *tc = &nic->tc_info;
-	int err;
-
 	/* Exclude receive queue 0 being used for police action */
 	set_bit(0, &nic->rq_bmap);
 
@@ -1164,25 +1319,12 @@ int otx2_init_tc(struct otx2_nic *nic)
 		return -EINVAL;
 	}
 
-	err = otx2_tc_alloc_ent_bitmap(nic);
-	if (err)
-		return err;
-
-	tc->flow_ht_params = tc_flow_ht_params;
-	err = rhashtable_init(&tc->flow_table, &tc->flow_ht_params);
-	if (err) {
-		kfree(tc->tc_entries_bitmap);
-		tc->tc_entries_bitmap = NULL;
-	}
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(otx2_init_tc);
 
 void otx2_shutdown_tc(struct otx2_nic *nic)
 {
-	struct otx2_tc_info *tc = &nic->tc_info;
-
-	kfree(tc->tc_entries_bitmap);
-	rhashtable_destroy(&tc->flow_table);
+	otx2_destroy_tc_flow_list(nic);
 }
 EXPORT_SYMBOL(otx2_shutdown_tc);
