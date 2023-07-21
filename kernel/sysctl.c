@@ -1983,7 +1983,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_perf_event_sample_rate,
 		.maxlen		= sizeof(sysctl_perf_event_sample_rate),
 		.mode		= 0644,
-		.proc_handler	= perf_proc_update_handler,
+		.proc_handler	= perf_event_max_sample_rate_handler,
 		.extra1		= SYSCTL_ONE,
 	},
 	{
