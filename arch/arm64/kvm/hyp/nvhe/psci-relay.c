@@ -28,14 +28,19 @@ struct kvm_host_psci_config __ro_after_init kvm_host_psci_config;
 static void (*pkvm_psci_notifier)(enum pkvm_psci_notification, struct kvm_cpu_context *);
 static void pkvm_psci_notify(enum pkvm_psci_notification notif, struct kvm_cpu_context *host_ctxt)
 {
-	if (READ_ONCE(pkvm_psci_notifier))
+	if (smp_load_acquire(&pkvm_psci_notifier))
 		pkvm_psci_notifier(notif, host_ctxt);
 }
 
 #ifdef CONFIG_MODULES
 int __pkvm_register_psci_notifier(void (*cb)(enum pkvm_psci_notification, struct kvm_cpu_context *))
 {
-	return cmpxchg(&pkvm_psci_notifier, NULL, cb) ? -EBUSY : 0;
+	/*
+	 * Paired with smp_load_acquire(&pkvm_psci_notifier) in
+	 * pkvm_psci_notify(). Ensure memory stores hapenning during a pKVM module
+	 * init are observed before executing the callback.
+	 */
+	return cmpxchg_release(&pkvm_psci_notifier, NULL, cb) ? -EBUSY : 0;
 }
 #endif
 
