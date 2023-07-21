@@ -518,18 +518,20 @@ static void svm_init_osvw(struct kvm_vcpu *vcpu)
 		vcpu->arch.osvw.status |= 1;
 }
 
-static bool kvm_is_svm_supported(void)
+static bool __kvm_is_svm_supported(void)
 {
-	int cpu = raw_smp_processor_id();
+	int cpu = smp_processor_id();
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+
 	u64 vm_cr;
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD &&
-	    boot_cpu_data.x86_vendor != X86_VENDOR_HYGON) {
+	if (c->x86_vendor != X86_VENDOR_AMD &&
+	    c->x86_vendor != X86_VENDOR_HYGON) {
 		pr_err("CPU %d isn't AMD or Hygon\n", cpu);
 		return false;
 	}
 
-	if (!boot_cpu_has(X86_FEATURE_SVM)) {
+	if (!cpu_has(c, X86_FEATURE_SVM)) {
 		pr_err("SVM not supported by CPU %d\n", cpu);
 		return false;
 	}
@@ -548,9 +550,20 @@ static bool kvm_is_svm_supported(void)
 	return true;
 }
 
+static bool kvm_is_svm_supported(void)
+{
+	bool supported;
+
+	migrate_disable();
+	supported = __kvm_is_svm_supported();
+	migrate_enable();
+
+	return supported;
+}
+
 static int svm_check_processor_compat(void)
 {
-	if (!kvm_is_svm_supported())
+	if (!__kvm_is_svm_supported())
 		return -EIO;
 
 	return 0;
