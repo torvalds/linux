@@ -31,6 +31,7 @@
 #ifdef CONFIG_SCHED_WALT
 #include <linux/sched/walt.h>
 #endif
+#include <linux/nvmem-consumer.h>
 
 #include <ufs/ufshcd.h>
 #include "ufshcd-pltfrm.h"
@@ -5385,6 +5386,60 @@ static int ufs_cpufreq_status(void)
 }
 #endif
 
+static bool is_bootdevice_ufs = true;
+
+static bool ufs_qcom_read_boot_config(struct platform_device *pdev)
+{
+	u8 *buf;
+	size_t len;
+	struct nvmem_cell *cell;
+	int boot_device_type, data;
+	struct device *dev = &pdev->dev;
+
+	cell = nvmem_cell_get(dev, "boot_conf");
+	if (IS_ERR(cell)) {
+		dev_warn(dev, "nvmem cell get failed\n");
+		goto ret;
+	}
+	buf = (u8 *)nvmem_cell_read(cell, &len);
+	if (IS_ERR(buf)) {
+		dev_warn(dev, "nvmem cell read failed\n");
+		goto ret_put_nvmem;
+	}
+
+	/**
+	 *  Boot_device_type value is passed from the dtsi node
+	 */
+	if (of_property_read_u32(dev->of_node, "boot_device_type",
+				&boot_device_type)) {
+		dev_warn(dev, "boot_device_type not present\n");
+		goto ret_free_buf;
+	}
+
+	/*
+	 * Storage boot device fuse is present in QFPROM_RAW_OEM_CONFIG_ROW0_LSB
+	 * this fuse is blown by bootloader and pupulated in boot_config
+	 * register[1:5] - hence shift read data by 1 and mask it with 0x1f.
+	 */
+	data = *buf >> 1 & 0x1f;
+
+
+	/**
+	 *  The value in the boot_device_type in dtsi node should match with the
+	 * value read from the register for the probe to continue.
+	 */
+	is_bootdevice_ufs = (data == boot_device_type) ? true : false;
+	if (!is_bootdevice_ufs)
+		dev_err(dev, "boot dev in reg = 0x%x boot dev in dtsi = 0x%x\n",
+				data, boot_device_type);
+
+ret_free_buf:
+	kfree(buf);
+ret_put_nvmem:
+	nvmem_cell_put(cell);
+ret:
+	return is_bootdevice_ufs;
+}
 
 /**
  * ufs_qcom_probe - probe routine of the driver
@@ -5396,7 +5451,11 @@ static int ufs_qcom_probe(struct platform_device *pdev)
 {
 	int err = 0;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+
+	if (!ufs_qcom_read_boot_config(pdev)) {
+		dev_err(dev, "UFS is not boot dev.\n");
+		return err;
+	}
 
 	/**
 	 * CPUFreq driver is needed for performance reasons.
@@ -5408,23 +5467,6 @@ static int ufs_qcom_probe(struct platform_device *pdev)
 	err = ufs_cpufreq_status();
 	if (err)
 		return err;
-
-	/*
-	 * On qcom platforms, bootdevice is the primary storage
-	 * device. This device can either be eMMC or UFS.
-	 * The type of device connected is detected at runtime.
-	 * So, if an eMMC device is connected, and this function
-	 * is invoked, it would turn-off the regulator if it detects
-	 * that the storage device is not ufs.
-	 * These regulators are turned ON by the bootloaders & turning
-	 * them off without sending PON may damage the connected device.
-	 * Hence, check for the connected device early-on & don't turn-off
-	 * the regulators.
-	 */
-	if (of_property_read_bool(np, "non-removable") &&
-	    strlen(android_boot_dev) &&
-	    strcmp(android_boot_dev, dev_name(dev)))
-		return -ENODEV;
 
 	/* Perform generic probe */
 	err = ufshcd_pltfrm_init(pdev, &ufs_hba_qcom_vops);
@@ -5443,11 +5485,21 @@ static int ufs_qcom_probe(struct platform_device *pdev)
  */
 static int ufs_qcom_remove(struct platform_device *pdev)
 {
-	struct ufs_hba *hba =  platform_get_drvdata(pdev);
-	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-	struct ufs_qcom_qos_req *r = host->ufs_qos;
-	struct qos_cpu_group *qcg = r->qcg;
+	struct ufs_hba *hba;
+	struct ufs_qcom_host *host;
+	struct ufs_qcom_qos_req *r;
+	struct qos_cpu_group *qcg;
 	int i;
+
+	if (!is_bootdevice_ufs) {
+		dev_info(&pdev->dev, "UFS is not boot dev.\n");
+		return 0;
+	}
+
+	hba =  platform_get_drvdata(pdev);
+	host = ufshcd_get_variant(hba);
+	r = host->ufs_qos;
+	qcg = r->qcg;
 
 	pm_runtime_get_sync(&(pdev)->dev);
 	for (i = 0; i < r->num_groups; i++, qcg++)
@@ -5464,8 +5516,16 @@ static int ufs_qcom_remove(struct platform_device *pdev)
 
 static void ufs_qcom_shutdown(struct platform_device *pdev)
 {
-	struct ufs_hba *hba =  platform_get_drvdata(pdev);
-	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	struct ufs_hba *hba;
+	struct ufs_qcom_host *host;
+
+	if (!is_bootdevice_ufs) {
+		dev_info(&pdev->dev, "UFS is not boot dev.\n");
+		return;
+	}
+
+	hba =  platform_get_drvdata(pdev);
+	host = ufshcd_get_variant(hba);
 
 	ufs_qcom_log_str(host, "0xdead\n");
 	ufshcd_pltfrm_shutdown(pdev);
@@ -5477,6 +5537,80 @@ static void ufs_qcom_shutdown(struct platform_device *pdev)
 	if (!host->bypass_pbl_rst_wa)
 		ufs_qcom_device_reset_ctrl(hba, false);
 }
+
+static int ufs_qcom_system_suspend(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+
+	if (of_property_read_bool(np, "non-removable") && !is_bootdevice_ufs) {
+		dev_info(dev, "UFS is not boot dev.\n");
+		return 0;
+	}
+
+	return ufshcd_system_suspend(dev);
+}
+
+static int ufs_qcom_system_resume(struct device *dev)
+{
+	if (!is_bootdevice_ufs) {
+		dev_info(dev, "UFS is not boot dev.\n");
+		return 0;
+	}
+
+	return ufshcd_system_resume(dev);
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int ufs_qcom_suspend_prepare(struct device *dev)
+{
+	if (!is_bootdevice_ufs) {
+		dev_info(dev, "UFS is not boot dev.\n");
+		return 0;
+	}
+
+	return ufshcd_suspend_prepare(dev);
+}
+
+static void ufs_qcom_resume_complete(struct device *dev)
+{
+	if (!is_bootdevice_ufs) {
+		dev_info(dev, "UFS is not boot dev.\n");
+		return;
+	}
+
+	return ufshcd_resume_complete(dev);
+}
+
+static int ufs_qcom_system_freeze(struct device *dev)
+{
+	if (!is_bootdevice_ufs) {
+		dev_info(dev, "UFS is not boot dev.\n");
+		return 0;
+	}
+
+	return ufshcd_system_freeze(dev);
+}
+
+static int ufs_qcom_system_restore(struct device *dev)
+{
+	if (!is_bootdevice_ufs) {
+		dev_info(dev, "UFS is not boot dev.\n");
+		return 0;
+	}
+
+	return ufshcd_system_restore(dev);
+}
+
+static int ufs_qcom_system_thaw(struct device *dev)
+{
+	if (!is_bootdevice_ufs) {
+		dev_info(dev, "UFS is not boot dev.\n");
+		return 0;
+	}
+
+	return ufshcd_system_thaw(dev);
+}
+#endif
 
 static const struct of_device_id ufs_qcom_of_match[] = {
 	{ .compatible = "qcom,ufshc"},
@@ -5494,14 +5628,14 @@ MODULE_DEVICE_TABLE(acpi, ufs_qcom_acpi_match);
 
 static const struct dev_pm_ops ufs_qcom_pm_ops = {
 	SET_RUNTIME_PM_OPS(ufshcd_runtime_suspend, ufshcd_runtime_resume, NULL)
-	.prepare	 = ufshcd_suspend_prepare,
-	.complete	 = ufshcd_resume_complete,
+	.prepare	 = ufs_qcom_suspend_prepare,
+	.complete	 = ufs_qcom_resume_complete,
 #ifdef CONFIG_PM_SLEEP
-	.suspend         = ufshcd_system_suspend,
-	.resume          = ufshcd_system_resume,
-	.freeze          = ufshcd_system_freeze,
-	.restore         = ufshcd_system_restore,
-	.thaw            = ufshcd_system_thaw,
+	.suspend         = ufs_qcom_system_suspend,
+	.resume          = ufs_qcom_system_resume,
+	.freeze          = ufs_qcom_system_freeze,
+	.restore         = ufs_qcom_system_restore,
+	.thaw            = ufs_qcom_system_thaw,
 #endif
 };
 
