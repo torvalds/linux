@@ -210,8 +210,8 @@ struct xe_device {
 		u8 supports_usm:1;
 		/** @has_asid: Has address space ID */
 		u8 has_asid:1;
-		/** @enable_guc: GuC submission enabled */
-		u8 enable_guc:1;
+		/** @force_execlist: Forced execlist submission */
+		u8 force_execlist:1;
 		/** @has_flat_ccs: Whether flat CCS metadata is used */
 		u8 has_flat_ccs:1;
 		/** @has_4tile: Whether tile-4 tiling is supported */

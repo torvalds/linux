@@ -14,9 +14,9 @@
 #include "xe_pci.h"
 #include "xe_sched_job.h"
 
-bool enable_guc = true;
-module_param_named_unsafe(enable_guc, enable_guc, bool, 0444);
-MODULE_PARM_DESC(enable_guc, "Enable GuC submission");
+bool force_execlist = false;
+module_param_named_unsafe(force_execlist, force_execlist, bool, 0444);
+MODULE_PARM_DESC(force_execlist, "Force Execlist submission");
 
 u32 xe_force_vram_bar_size;
 module_param_named(vram_bar_size, xe_force_vram_bar_size, uint, 0600);

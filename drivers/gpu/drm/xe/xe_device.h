@@ -116,12 +116,7 @@ static inline struct xe_gt *xe_root_mmio_gt(struct xe_device *xe)
 
 static inline bool xe_device_guc_submission_enabled(struct xe_device *xe)
 {
-	return xe->info.enable_guc;
-}
-
-static inline void xe_device_guc_submission_disable(struct xe_device *xe)
-{
-	xe->info.enable_guc = false;
+	return !xe->info.force_execlist;
 }
 
 #define for_each_tile(tile__, xe__, id__) \
