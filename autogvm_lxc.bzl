@@ -6,7 +6,7 @@ target_name = "autogvm"
 
 def define_autogvm_lxc():
     _autogvm_lxc_in_tree_modules = [
-	# keep sorted
+        # keep sorted
     ]
 
     for variant in lxc_variants:
@@ -20,5 +20,6 @@ def define_autogvm_lxc():
             boot_image_opts = boot_image_opts(
                 boot_image_header_version = 2,
                 base_address = 0x80000000,
-                page_size = 4096),
+                page_size = 4096,
+            ),
         )

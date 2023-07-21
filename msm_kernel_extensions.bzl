@@ -7,12 +7,12 @@ def define_top_level_rules():
 
         native.config_setting(
             name = "skip_{}_setting".format(skippable),
-            flag_values = {":skip_{}".format(skippable): "1"}
+            flag_values = {":skip_{}".format(skippable): "1"},
         )
 
         native.config_setting(
             name = "include_{}_setting".format(skippable),
-            flag_values = {":skip_{}".format(skippable): "0"}
+            flag_values = {":skip_{}".format(skippable): "0"},
         )
 
 def define_combined_vm_image(target, variant, vm_size_ext4):

@@ -27,11 +27,11 @@ load(":target_variants.bzl", "vm_variants")
 
 def define_make_vm_dtb_img(target, dtb_list, page_size):
     compiled_dtbs = ["//msm-kernel:{}/{}".format(target, t) for t in dtb_list]
-    dtb_cmd="compiled_dtb_list=\"{}\"\n".format(" ".join(["$(location {})".format(d) for d in compiled_dtbs]))
+    dtb_cmd = "compiled_dtb_list=\"{}\"\n".format(" ".join(["$(location {})".format(d) for d in compiled_dtbs]))
     dtb_cmd += """
       $(location //prebuilts/kernel-build-tools:linux-x86/bin/mkdtboimg) \\
         create "$@" --page_size={page_size} $${{compiled_dtb_list}}
-    """.format(page_size=page_size)
+    """.format(page_size = page_size)
 
     native.genrule(
         name = "{}_vm_dtb_img".format(target),
@@ -85,17 +85,17 @@ DUMMY_IMG_SIZE=%d
 
 EOF
     """ % (
-        " ".join([v.replace("-", "_") for v in vm_variants]), # VARIANTS
-        msm_arch, # MSM_ARCH
-        variant.replace("-", "_"), # VARIANT
-        vm_image_opts.preferred_usespace, # PREFERED_USERSPACE
-        int(vm_image_opts.vm_dtb_img_create), # VM_DTB_IMG_CREATE
-        vm_image_opts.kernel_offset, # KERNEL_OFFSET
-        vm_image_opts.dtb_offset, # DTB_OFFSET
-        vm_image_opts.ramdisk_offset, # RAMDISK_OFFSET
-        vm_image_opts.cmdline_cpio_offset, # CMDLINE_CPIO_OFFSET
-        vm_image_opts.vm_size_ext4, # VM_SIZE_EXT4
-        vm_image_opts.dummy_img_size, # DUMMY_IMG_SIZE
+        " ".join([v.replace("-", "_") for v in vm_variants]),  # VARIANTS
+        msm_arch,  # MSM_ARCH
+        variant.replace("-", "_"),  # VARIANT
+        vm_image_opts.preferred_usespace,  # PREFERED_USERSPACE
+        int(vm_image_opts.vm_dtb_img_create),  # VM_DTB_IMG_CREATE
+        vm_image_opts.kernel_offset,  # KERNEL_OFFSET
+        vm_image_opts.dtb_offset,  # DTB_OFFSET
+        vm_image_opts.ramdisk_offset,  # RAMDISK_OFFSET
+        vm_image_opts.cmdline_cpio_offset,  # CMDLINE_CPIO_OFFSET
+        vm_image_opts.vm_size_ext4,  # VM_SIZE_EXT4
+        vm_image_opts.dummy_img_size,  # DUMMY_IMG_SIZE
     )
 
     # Generate the build config
@@ -307,9 +307,9 @@ def define_msm_vm(
 
     # use only dtbs related to the variant for dtb image creation
     if "tuivm" in msm_target:
-        seg_dtb_list = [ dtb for dtb in dtb_list if "-vm-" in dtb ]
+        seg_dtb_list = [dtb for dtb in dtb_list if "-vm-" in dtb]
     elif "oemvm" in msm_target:
-        seg_dtb_list = [ dtb for dtb in dtb_list if "-oemvm-" in dtb ]
+        seg_dtb_list = [dtb for dtb in dtb_list if "-oemvm-" in dtb]
 
     define_make_vm_dtb_img(target, seg_dtb_list, vm_image_opts.dummy_img_size)
 
