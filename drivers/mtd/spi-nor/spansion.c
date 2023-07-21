@@ -656,13 +656,7 @@ static int s28hx_t_post_bfpt_fixup(struct spi_nor *nor,
 				   const struct sfdp_parameter_header *bfpt_header,
 				   const struct sfdp_bfpt *bfpt)
 {
-	int ret;
-
-	ret = cypress_nor_set_addr_mode_nbytes(nor);
-	if (ret)
-		return ret;
-
-	return 0;
+	return cypress_nor_set_addr_mode_nbytes(nor);
 }
 
 static void s28hx_t_late_init(struct spi_nor *nor)
