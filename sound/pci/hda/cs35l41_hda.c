@@ -58,8 +58,6 @@ static const struct reg_sequence cs35l41_hda_config[] = {
 	{ CS35L41_DSP1_RX3_SRC,         0x00000018 }, // DSP1RX3 SRC = VMON
 	{ CS35L41_DSP1_RX4_SRC,         0x00000019 }, // DSP1RX4 SRC = IMON
 	{ CS35L41_DSP1_RX5_SRC,         0x00000020 }, // DSP1RX5 SRC = ERRVOL
-	{ CS35L41_AMP_DIG_VOL_CTRL,	0x00008000 }, // AMP_HPF_PCM_EN = 1, AMP_VOL_PCM  0.0 dB
-	{ CS35L41_AMP_GAIN_CTRL,	0x00000084 }, // AMP_GAIN_PCM 4.5 dB
 };
 
 static const struct reg_sequence cs35l41_hda_config_dsp[] = {
@@ -82,6 +80,14 @@ static const struct reg_sequence cs35l41_hda_config_dsp[] = {
 	{ CS35L41_DSP1_RX3_SRC,         0x00000018 }, // DSP1RX3 SRC = VMON
 	{ CS35L41_DSP1_RX4_SRC,         0x00000019 }, // DSP1RX4 SRC = IMON
 	{ CS35L41_DSP1_RX5_SRC,         0x00000029 }, // DSP1RX5 SRC = VBSTMON
+};
+
+static const struct reg_sequence cs35l41_hda_unmute[] = {
+	{ CS35L41_AMP_DIG_VOL_CTRL,	0x00008000 }, // AMP_HPF_PCM_EN = 1, AMP_VOL_PCM  0.0 dB
+	{ CS35L41_AMP_GAIN_CTRL,	0x00000084 }, // AMP_GAIN_PCM 4.5 dB
+};
+
+static const struct reg_sequence cs35l41_hda_unmute_dsp[] = {
 	{ CS35L41_AMP_DIG_VOL_CTRL,	0x00008000 }, // AMP_HPF_PCM_EN = 1, AMP_VOL_PCM  0.0 dB
 	{ CS35L41_AMP_GAIN_CTRL,	0x00000233 }, // AMP_GAIN_PCM = 17.5dB AMP_GAIN_PDM = 19.5dB
 };
@@ -522,6 +528,13 @@ static void cs35l41_hda_play_done(struct device *dev)
 
 	cs35l41_global_enable(dev, reg, cs35l41->hw_cfg.bst_type, 1, NULL,
 			      cs35l41->firmware_running);
+	if (cs35l41->firmware_running) {
+		regmap_multi_reg_write(reg, cs35l41_hda_unmute_dsp,
+				       ARRAY_SIZE(cs35l41_hda_unmute_dsp));
+	} else {
+		regmap_multi_reg_write(reg, cs35l41_hda_unmute,
+				       ARRAY_SIZE(cs35l41_hda_unmute));
+	}
 }
 
 static void cs35l41_hda_pause_start(struct device *dev)
@@ -1613,6 +1626,11 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	}
 
 	ret = cs35l41_test_key_lock(cs35l41->dev, cs35l41->regmap);
+	if (ret)
+		goto err;
+
+	ret = regmap_multi_reg_write(cs35l41->regmap, cs35l41_hda_mute,
+				     ARRAY_SIZE(cs35l41_hda_mute));
 	if (ret)
 		goto err;
 
