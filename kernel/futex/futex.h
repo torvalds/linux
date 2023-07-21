@@ -52,6 +52,8 @@ static inline unsigned int futex_to_flags(unsigned int op)
 	return flags;
 }
 
+#define FUTEX2_VALID_MASK (FUTEX2_SIZE_MASK | FUTEX2_PRIVATE)
+
 /* FUTEX2_ to FLAGS_ */
 static inline unsigned int futex2_to_flags(unsigned int flags2)
 {
