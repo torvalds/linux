@@ -447,8 +447,8 @@ static void scsi_run_queue(struct request_queue *q)
 	if (!list_empty(&sdev->host->starved_list))
 		scsi_starved_list_run(sdev->host);
 
+	/* Note: blk_mq_kick_requeue_list() runs the queue asynchronously. */
 	blk_mq_kick_requeue_list(q);
-	blk_mq_run_hw_queues(q, false);
 }
 
 void scsi_requeue_run_queue(struct work_struct *work)
