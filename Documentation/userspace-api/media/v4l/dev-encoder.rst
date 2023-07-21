@@ -115,8 +115,8 @@ Querying Capabilities
 
 4. The client may use :c:func:`VIDIOC_ENUM_FRAMEINTERVALS` to detect supported
    frame intervals for a given format and resolution, passing the desired pixel
-   format in :c:type:`v4l2_frmsizeenum` ``pixel_format`` and the resolution
-   in :c:type:`v4l2_frmsizeenum` ``width`` and :c:type:`v4l2_frmsizeenum`
+   format in :c:type:`v4l2_frmivalenum` ``pixel_format`` and the resolution
+   in :c:type:`v4l2_frmivalenum` ``width`` and :c:type:`v4l2_frmivalenum`
    ``height``.
 
    * Values returned by :c:func:`VIDIOC_ENUM_FRAMEINTERVALS` for a coded pixel
