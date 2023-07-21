@@ -1327,7 +1327,7 @@ int __bch2_insert_snapshot_whiteouts(struct btree_trans *trans,
 				   struct bpos new_pos)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter old_iter, new_iter;
+	struct btree_iter old_iter, new_iter = { NULL };
 	struct bkey_s_c old_k, new_k;
 	snapshot_id_list s;
 	struct bkey_i *update;
@@ -1377,6 +1377,7 @@ int __bch2_insert_snapshot_whiteouts(struct btree_trans *trans,
 		if (ret)
 			break;
 	}
+	bch2_trans_iter_exit(trans, &new_iter);
 	bch2_trans_iter_exit(trans, &old_iter);
 	darray_exit(&s);
 
