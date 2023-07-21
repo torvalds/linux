@@ -626,7 +626,6 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 	inno_mipi_dphy_reset(inno);
 	inno_mipi_dphy_timing_init(inno);
 	inno_mipi_dphy_lane_enable(inno);
-	inno_mipi_dphy_lane_enable(inno);
 }
 
 static void inno_dsidphy_lvds_mode_enable(struct inno_dsidphy *inno)
