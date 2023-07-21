@@ -34,23 +34,6 @@
 static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event);
 
-static int cs35l56_mbox_send(struct cs35l56_base *cs35l56_base, unsigned int command)
-{
-	unsigned int val;
-	int ret;
-
-	regmap_write(cs35l56_base->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1, command);
-	ret = regmap_read_poll_timeout(cs35l56_base->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
-				       val, (val == 0),
-				       CS35L56_MBOX_POLL_US, CS35L56_MBOX_TIMEOUT_US);
-	if (ret) {
-		dev_warn(cs35l56_base->dev, "MBOX command %#x failed: %d\n", command, ret);
-		return ret;
-	}
-
-	return 0;
-}
-
 static void cs35l56_wait_dsp_ready(struct cs35l56_private *cs35l56)
 {
 	/* Wait for patching to complete */
@@ -314,92 +297,6 @@ static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
 
 	return wm_adsp_event(w, kcontrol, event);
 }
-
-irqreturn_t cs35l56_irq(int irq, void *data)
-{
-	struct cs35l56_base *cs35l56_base = data;
-	unsigned int status1 = 0, status8 = 0, status20 = 0;
-	unsigned int mask1, mask8, mask20;
-	unsigned int val;
-	int rv;
-
-	irqreturn_t ret = IRQ_NONE;
-
-	if (!cs35l56_base->init_done)
-		return IRQ_NONE;
-
-	mutex_lock(&cs35l56_base->irq_lock);
-
-	rv = pm_runtime_resume_and_get(cs35l56_base->dev);
-	if (rv < 0) {
-		dev_err(cs35l56_base->dev, "irq: failed to get pm_runtime: %d\n", rv);
-		goto err_unlock;
-	}
-
-	regmap_read(cs35l56_base->regmap, CS35L56_IRQ1_STATUS, &val);
-	if ((val & CS35L56_IRQ1_STS_MASK) == 0) {
-		dev_dbg(cs35l56_base->dev, "Spurious IRQ: no pending interrupt\n");
-		goto err;
-	}
-
-	/* Ack interrupts */
-	regmap_read(cs35l56_base->regmap, CS35L56_IRQ1_EINT_1, &status1);
-	regmap_read(cs35l56_base->regmap, CS35L56_IRQ1_MASK_1, &mask1);
-	status1 &= ~mask1;
-	regmap_write(cs35l56_base->regmap, CS35L56_IRQ1_EINT_1, status1);
-
-	regmap_read(cs35l56_base->regmap, CS35L56_IRQ1_EINT_8, &status8);
-	regmap_read(cs35l56_base->regmap, CS35L56_IRQ1_MASK_8, &mask8);
-	status8 &= ~mask8;
-	regmap_write(cs35l56_base->regmap, CS35L56_IRQ1_EINT_8, status8);
-
-	regmap_read(cs35l56_base->regmap, CS35L56_IRQ1_EINT_20, &status20);
-	regmap_read(cs35l56_base->regmap, CS35L56_IRQ1_MASK_20, &mask20);
-	status20 &= ~mask20;
-	/* We don't want EINT20 but they default to unmasked: force mask */
-	regmap_write(cs35l56_base->regmap, CS35L56_IRQ1_MASK_20, 0xffffffff);
-
-	dev_dbg(cs35l56_base->dev, "%s: %#x %#x\n", __func__, status1, status8);
-
-	/* Check to see if unmasked bits are active */
-	if (!status1 && !status8 && !status20)
-		goto err;
-
-	if (status1 & CS35L56_AMP_SHORT_ERR_EINT1_MASK)
-		dev_crit(cs35l56_base->dev, "Amp short error\n");
-
-	if (status8 & CS35L56_TEMP_ERR_EINT1_MASK)
-		dev_crit(cs35l56_base->dev, "Overtemp error\n");
-
-	ret = IRQ_HANDLED;
-
-err:
-	pm_runtime_put(cs35l56_base->dev);
-err_unlock:
-	mutex_unlock(&cs35l56_base->irq_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_NS_GPL(cs35l56_irq, SND_SOC_CS35L56_CORE);
-
-int cs35l56_irq_request(struct cs35l56_base *cs35l56_base, int irq)
-{
-	int ret;
-
-	if (!irq)
-		return 0;
-
-	ret = devm_request_threaded_irq(cs35l56_base->dev, irq, NULL, cs35l56_irq,
-					IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
-					"cs35l56", cs35l56_base);
-	if (!ret)
-		cs35l56_base->irq = irq;
-	else
-		dev_err(cs35l56_base->dev, "Failed to get IRQ: %d\n", ret);
-
-	return ret;
-}
-EXPORT_SYMBOL_NS_GPL(cs35l56_irq_request, SND_SOC_CS35L56_CORE);
 
 static int cs35l56_asp_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
@@ -762,65 +659,6 @@ static struct snd_soc_dai_driver cs35l56_dai[] = {
 	}
 };
 
-static int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base)
-{
-	unsigned int reg;
-	unsigned int val;
-	int ret;
-
-	if (cs35l56_base->rev < CS35L56_REVID_B0)
-		reg = CS35L56_DSP1_HALO_STATE_A1;
-	else
-		reg = CS35L56_DSP1_HALO_STATE;
-
-	ret = regmap_read_poll_timeout(cs35l56_base->regmap, reg,
-				       val,
-				       (val < 0xFFFF) && (val >= CS35L56_HALO_STATE_BOOT_DONE),
-				       CS35L56_HALO_STATE_POLL_US,
-				       CS35L56_HALO_STATE_TIMEOUT_US);
-
-	if ((ret < 0) && (ret != -ETIMEDOUT)) {
-		dev_err(cs35l56_base->dev, "Failed to read HALO_STATE: %d\n", ret);
-		return ret;
-	}
-
-	if ((ret == -ETIMEDOUT) || (val != CS35L56_HALO_STATE_BOOT_DONE)) {
-		dev_err(cs35l56_base->dev, "Firmware boot fail: HALO_STATE=%#x\n", val);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static inline void cs35l56_wait_min_reset_pulse(void)
-{
-	/* Satisfy minimum reset pulse width spec */
-	usleep_range(CS35L56_RESET_PULSE_MIN_US, 2 * CS35L56_RESET_PULSE_MIN_US);
-}
-
-static const struct reg_sequence cs35l56_system_reset_seq[] = {
-	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_SYSTEM_RESET),
-};
-
-static void cs35l56_system_reset(struct cs35l56_base *cs35l56_base, bool is_soundwire)
-{
-	/*
-	 * Must enter cache-only first so there can't be any more register
-	 * accesses other than the controlled system reset sequence below.
-	 */
-	regcache_cache_only(cs35l56_base->regmap, true);
-	regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
-					cs35l56_system_reset_seq,
-					ARRAY_SIZE(cs35l56_system_reset_seq));
-
-	/* On SoundWire the registers won't be accessible until it re-enumerates. */
-	if (is_soundwire)
-		return;
-
-	usleep_range(CS35L56_CONTROL_PORT_READY_US, CS35L56_CONTROL_PORT_READY_US + 400);
-	regcache_cache_only(cs35l56_base->regmap, false);
-}
-
 static void cs35l56_secure_patch(struct cs35l56_private *cs35l56)
 {
 	int ret;
@@ -1136,47 +974,6 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_resume_common, SND_SOC_CS35L56_CORE);
-
-static int cs35l56_is_fw_reload_needed(struct cs35l56_base *cs35l56_base)
-{
-	unsigned int val;
-	int ret;
-
-	/* Nothing to re-patch if we haven't done any patching yet. */
-	if (!cs35l56_base->fw_patched)
-		return false;
-
-	/*
-	 * If we have control of RESET we will have asserted it so the firmware
-	 * will need re-patching.
-	 */
-	if (cs35l56_base->reset_gpio)
-		return true;
-
-	/*
-	 * In secure mode FIRMWARE_MISSING is cleared by the BIOS loader so
-	 * can't be used here to test for memory retention.
-	 * Assume that tuning must be re-loaded.
-	 */
-	if (cs35l56_base->secured)
-		return true;
-
-	ret = pm_runtime_resume_and_get(cs35l56_base->dev);
-	if (ret) {
-		dev_err(cs35l56_base->dev, "Failed to runtime_get: %d\n", ret);
-		return ret;
-	}
-
-	ret = regmap_read(cs35l56_base->regmap, CS35L56_PROTECTION_STATUS, &val);
-	if (ret)
-		dev_err(cs35l56_base->dev, "Failed to read PROTECTION_STATUS: %d\n", ret);
-	else
-		ret = !!(val & CS35L56_FIRMWARE_MISSING);
-
-	pm_runtime_put_autosuspend(cs35l56_base->dev);
-
-	return ret;
-}
 
 int cs35l56_system_suspend(struct device *dev)
 {
