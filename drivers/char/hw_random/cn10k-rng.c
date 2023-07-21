@@ -213,11 +213,6 @@ static int cn10k_rng_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 }
 
-static void cn10k_rng_remove(struct pci_dev *pdev)
-{
-	/* Nothing to do */
-}
-
 static const struct pci_device_id cn10k_rng_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CAVIUM, 0xA098) }, /* RNG PF */
 	{0,},
@@ -229,7 +224,6 @@ static struct pci_driver cn10k_rng_driver = {
 	.name		= "cn10k_rng",
 	.id_table	= cn10k_rng_id_table,
 	.probe		= cn10k_rng_probe,
-	.remove		= cn10k_rng_remove,
 };
 
 module_pci_driver(cn10k_rng_driver);
