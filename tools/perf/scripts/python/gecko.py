@@ -13,6 +13,7 @@ import os
 import sys
 import json
 import argparse
+from functools import reduce
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, NamedTuple, Set, Tuple, Any
 
@@ -38,6 +39,10 @@ CATEGORIES = None
 
 # The product name is used by the profiler UI to show the Operating system and Processor.
 PRODUCT = os.popen('uname -op').read().strip()
+
+# The category index is used by the profiler UI to show the color of the flame graph.
+USER_CATEGORY_INDEX = 0
+KERNEL_CATEGORY_INDEX = 1
 
 # https://github.com/firefox-devtools/profiler/blob/53970305b51b9b472e26d7457fee1d66cd4e2737/src/types/gecko-profile.js#L156
 class Frame(NamedTuple):
@@ -98,6 +103,55 @@ class Thread:
 	stackTable: List[Stack] = field(default_factory=list)
 	stackMap: Dict[Tuple[Optional[int], int], int] = field(default_factory=dict)
 	frameMap: Dict[str, int] = field(default_factory=dict)
+
+	def _intern_stack(self, frame_id: int, prefix_id: Optional[int]) -> int:
+		"""Gets a matching stack, or saves the new stack. Returns a Stack ID."""
+		key = f"{frame_id}" if prefix_id is None else f"{frame_id},{prefix_id}"
+		# key = (prefix_id, frame_id)
+		stack_id = self.stackMap.get(key)
+		if stack_id is None:
+			# return stack_id
+			stack_id = len(self.stackTable)
+			self.stackTable.append(Stack(prefix_id=prefix_id, frame_id=frame_id))
+			self.stackMap[key] = stack_id
+		return stack_id
+
+	def _intern_string(self, string: str) -> int:
+		"""Gets a matching string, or saves the new string. Returns a String ID."""
+		string_id = self.stringMap.get(string)
+		if string_id is not None:
+			return string_id
+		string_id = len(self.stringTable)
+		self.stringTable.append(string)
+		self.stringMap[string] = string_id
+		return string_id
+
+	def _intern_frame(self, frame_str: str) -> int:
+		"""Gets a matching stack frame, or saves the new frame. Returns a Frame ID."""
+		frame_id = self.frameMap.get(frame_str)
+		if frame_id is not None:
+			return frame_id
+		frame_id = len(self.frameTable)
+		self.frameMap[frame_str] = frame_id
+		string_id = self._intern_string(frame_str)
+
+		symbol_name_to_category = KERNEL_CATEGORY_INDEX if frame_str.find('kallsyms') != -1 \
+		or frame_str.find('/vmlinux') != -1 \
+		or frame_str.endswith('.ko)') \
+		else USER_CATEGORY_INDEX
+
+		self.frameTable.append(Frame(
+			string_id=string_id,
+			relevantForJS=False,
+			innerWindowID=0,
+			implementation=None,
+			optimizations=None,
+			line=None,
+			column=None,
+			category=symbol_name_to_category,
+			subcategory=None,
+		))
+		return frame_id
 
 	def _to_json_dict(self) -> Dict:
 		"""Converts current Thread to GeckoThread JSON format."""
