@@ -470,7 +470,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_count);
 /* Helpers to read keys */
 static unsigned long _read_freq(struct dev_pm_opp *opp, int index)
 {
-	return opp->rates[0];
+	return opp->rates[index];
 }
 
 static unsigned long _read_level(struct dev_pm_opp *opp, int index)
