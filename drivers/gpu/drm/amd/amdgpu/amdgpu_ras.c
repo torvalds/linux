@@ -2522,7 +2522,8 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 	 * Disable ras feature for aqua vanjaram
 	 * by default on apu platform.
 	 */
-	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 6))
+	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 6) &&
+	    adev->gmc.is_app_apu)
 		adev->ras_enabled = amdgpu_ras_enable != 1 ? 0 :
 			adev->ras_hw_enabled & amdgpu_ras_mask;
 	else
