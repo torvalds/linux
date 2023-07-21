@@ -1080,28 +1080,32 @@ static const struct reg_sequence cs35l41_safe_to_reset[] = {
 	{ 0x00000040,			0x00000033 },
 };
 
-static const struct reg_sequence cs35l41_active_to_safe[] = {
+static const struct reg_sequence cs35l41_active_to_safe_start[] = {
 	{ 0x00000040,			0x00000055 },
 	{ 0x00000040,			0x000000AA },
 	{ 0x00007438,			0x00585941 },
 	{ CS35L41_PWR_CTRL1,		0x00000000 },
-	{ 0x0000742C,			0x00000009, 3000 },
+	{ 0x0000742C,			0x00000009 },
+};
+
+static const struct reg_sequence cs35l41_active_to_safe_end[] = {
 	{ 0x00007438,			0x00580941 },
 	{ 0x00000040,			0x000000CC },
 	{ 0x00000040,			0x00000033 },
 };
 
-static const struct reg_sequence cs35l41_safe_to_active[] = {
+static const struct reg_sequence cs35l41_safe_to_active_start[] = {
 	{ 0x00000040,			0x00000055 },
 	{ 0x00000040,			0x000000AA },
 	{ 0x0000742C,			0x0000000F },
 	{ 0x0000742C,			0x00000079 },
 	{ 0x00007438,			0x00585941 },
-	{ CS35L41_PWR_CTRL1,		0x00000001, 3000 }, // GLOBAL_EN = 1
+	{ CS35L41_PWR_CTRL1,		0x00000001 }, // GLOBAL_EN = 1
+};
+
+static const struct reg_sequence cs35l41_safe_to_active_en_spk[] = {
 	{ 0x0000742C,			0x000000F9 },
 	{ 0x00007438,			0x00580941 },
-	{ 0x00000040,			0x000000CC },
-	{ 0x00000040,			0x00000033 },
 };
 
 static const struct reg_sequence cs35l41_reset_to_safe[] = {
@@ -1188,11 +1192,11 @@ bool cs35l41_safe_reset(struct regmap *regmap, enum cs35l41_boost_type b_type)
 }
 EXPORT_SYMBOL_GPL(cs35l41_safe_reset);
 
-int cs35l41_global_enable(struct regmap *regmap, enum cs35l41_boost_type b_type, int enable,
-			  struct completion *pll_lock)
+int cs35l41_global_enable(struct device *dev, struct regmap *regmap, enum cs35l41_boost_type b_type,
+			  int enable, struct completion *pll_lock, bool firmware_running)
 {
 	int ret;
-	unsigned int gpio1_func, pad_control, pwr_ctrl1, pwr_ctrl3;
+	unsigned int gpio1_func, pad_control, pwr_ctrl1, pwr_ctrl3, int_status;
 	struct reg_sequence cs35l41_mdsync_down_seq[] = {
 		{CS35L41_PWR_CTRL3,		0},
 		{CS35L41_GPIO_PAD_CONTROL,	0},
@@ -1203,6 +1207,14 @@ int cs35l41_global_enable(struct regmap *regmap, enum cs35l41_boost_type b_type,
 		{CS35L41_PWR_CTRL1,	0x00000000, 3000},
 		{CS35L41_PWR_CTRL1,	0x00000001, 3000},
 	};
+
+	if ((pwr_ctl1_val & CS35L41_GLOBAL_EN_MASK) && enable) {
+		dev_dbg(dev, "Cannot set Global Enable - already set.\n");
+		return 0;
+	} else if (!(pwr_ctl1_val & CS35L41_GLOBAL_EN_MASK) && !enable) {
+		dev_dbg(dev, "Cannot unset Global Enable - not set.\n");
+		return 0;
+	}
 
 	switch (b_type) {
 	case CS35L41_SHD_BOOST_ACTV:
@@ -1244,16 +1256,48 @@ int cs35l41_global_enable(struct regmap *regmap, enum cs35l41_boost_type b_type,
 	case CS35L41_INT_BOOST:
 		ret = regmap_update_bits(regmap, CS35L41_PWR_CTRL1, CS35L41_GLOBAL_EN_MASK,
 					 enable << CS35L41_GLOBAL_EN_SHIFT);
+		if (ret) {
+			dev_err(dev, "CS35L41_PWR_CTRL1 set failed: %d\n", ret);
+			return ret;
+		}
 		usleep_range(3000, 3100);
 		break;
 	case CS35L41_EXT_BOOST:
 	case CS35L41_EXT_BOOST_NO_VSPK_SWITCH:
-		if (enable)
-			ret = regmap_multi_reg_write(regmap, cs35l41_safe_to_active,
-						     ARRAY_SIZE(cs35l41_safe_to_active));
-		else
-			ret = regmap_multi_reg_write(regmap, cs35l41_active_to_safe,
-						     ARRAY_SIZE(cs35l41_active_to_safe));
+		if (enable) {
+			/* Test Key is unlocked here */
+			ret = regmap_multi_reg_write(regmap, cs35l41_safe_to_active_start,
+						     ARRAY_SIZE(cs35l41_safe_to_active_start));
+			if (ret)
+				return ret;
+
+			usleep_range(3000, 3100);
+
+			if (firmware_running)
+				ret = cs35l41_set_cspl_mbox_cmd(dev, regmap,
+								CSPL_MBOX_CMD_SPK_OUT_ENABLE);
+			else
+				ret = regmap_multi_reg_write(regmap, cs35l41_safe_to_active_en_spk,
+							ARRAY_SIZE(cs35l41_safe_to_active_en_spk));
+
+			/* Lock the test key, it was unlocked during the multi_reg_write */
+			cs35l41_test_key_lock(dev, regmap);
+		} else {
+			/* Test Key is unlocked here */
+			ret = regmap_multi_reg_write(regmap, cs35l41_active_to_safe_start,
+						     ARRAY_SIZE(cs35l41_active_to_safe_start));
+			if (ret) {
+				/* Lock the test key, it was unlocked during the multi_reg_write */
+				cs35l41_test_key_lock(dev, regmap);
+				return ret;
+			}
+
+			usleep_range(3000, 3100);
+
+			/* Test Key is locked here */
+			ret = regmap_multi_reg_write(regmap, cs35l41_active_to_safe_end,
+						     ARRAY_SIZE(cs35l41_active_to_safe_end));
+		}
 		break;
 	default:
 		ret = -EINVAL;
@@ -1344,6 +1388,8 @@ static bool cs35l41_check_cspl_mbox_sts(enum cs35l41_cspl_mbox_cmd cmd,
 		return (sts == CSPL_MBOX_STS_RUNNING);
 	case CSPL_MBOX_CMD_STOP_PRE_REINIT:
 		return (sts == CSPL_MBOX_STS_RDY_FOR_REINIT);
+	case CSPL_MBOX_CMD_SPK_OUT_ENABLE:
+		return (sts == CSPL_MBOX_STS_RUNNING);
 	default:
 		return false;
 	}
