@@ -545,7 +545,14 @@ static int mipid02_configure_from_code(struct mipid02_dev *bridge)
 static int mipid02_stream_disable(struct mipid02_dev *bridge)
 {
 	struct i2c_client *client = bridge->i2c_client;
-	int ret;
+	int ret = -EINVAL;
+
+	if (!bridge->s_subdev)
+		goto error;
+
+	ret = v4l2_subdev_call(bridge->s_subdev, video, s_stream, 0);
+	if (ret)
+		goto error;
 
 	/* Disable all lanes */
 	ret = mipid02_write_reg(bridge, MIPID02_CLK_LANE_REG1, 0);
@@ -630,6 +637,10 @@ static int mipid02_stream_enable(struct mipid02_dev *bridge)
 		goto error;
 	ret = mipid02_write_reg(bridge, MIPID02_PIX_WIDTH_CTRL_EMB,
 		bridge->r.pix_width_ctrl_emb);
+	if (ret)
+		goto error;
+
+	ret = v4l2_subdev_call(bridge->s_subdev, video, s_stream, 1);
 	if (ret)
 		goto error;
 
