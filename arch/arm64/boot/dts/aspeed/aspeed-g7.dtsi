@@ -245,6 +245,32 @@
 			status = "disabled";
 		};
 
+		syscon: syscon@12c02000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x0 0x12c02000 0x0 0x1000>;
+			ranges = <0x0 0x12c02000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+
+			scu_ic0: interrupt-controller@1D0 {
+				#interrupt-cells = <1>;
+				compatible = "aspeed,ast2700-scu-ic0";
+				reg = <0x1D0 0xc>;
+				interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+			};
+
+			scu_ic1: interrupt-controller@1E0 {
+				#interrupt-cells = <1>;
+				compatible = "aspeed,ast2700-scu-ic1";
+				reg = <0x1E0 0xc>;
+				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+			};
+		};
+
 		cpu_clk: clock-controller@12c02200 {
 			compatible = "aspeed,ast2700_cpu-clk";
 			reg = <0 0x12c02200 0 0x200>;
