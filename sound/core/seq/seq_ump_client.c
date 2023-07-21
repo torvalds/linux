@@ -298,8 +298,7 @@ static void update_group_attrs(struct seq_ump_client *client)
 	}
 
 	list_for_each_entry(fb, &client->ump->block_list, list) {
-		if (fb->info.first_group < 0 ||
-		    fb->info.first_group + fb->info.num_groups > SNDRV_UMP_MAX_GROUPS)
+		if (fb->info.first_group + fb->info.num_groups > SNDRV_UMP_MAX_GROUPS)
 			break;
 		group = &client->groups[fb->info.first_group];
 		for (i = 0; i < fb->info.num_groups; i++, group++) {
