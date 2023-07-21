@@ -6,11 +6,12 @@
 /dts-v1/;
 
 #include <dt-bindings/phy/phy.h>
-#include <dt-bindings/mux/ti-serdes.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/net/ti-dp83867.h>
 #include "k3-am642.dtsi"
+
+#include "k3-serdes.h"
 
 / {
 	compatible = "ti,am642-evm", "ti,am642";

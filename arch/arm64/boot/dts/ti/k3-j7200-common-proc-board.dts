@@ -8,8 +8,9 @@
 #include "k3-j7200-som-p0.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/net/ti-dp83867.h>
-#include <dt-bindings/mux/ti-serdes.h>
 #include <dt-bindings/phy/phy.h>
+
+#include "k3-serdes.h"
 
 / {
 	compatible = "ti,j7200-evm", "ti,j7200";

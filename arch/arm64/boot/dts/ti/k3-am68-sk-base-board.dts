@@ -11,7 +11,8 @@
 #include <dt-bindings/net/ti-dp83867.h>
 #include <dt-bindings/phy/phy-cadence.h>
 #include <dt-bindings/phy/phy.h>
-#include <dt-bindings/mux/ti-serdes.h>
+
+#include "k3-serdes.h"
 
 / {
 	compatible = "ti,am68-sk", "ti,j721s2";
