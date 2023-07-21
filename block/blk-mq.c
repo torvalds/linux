@@ -1323,7 +1323,7 @@ void blk_execute_rq_nowait(struct request *rq, bool at_head)
 	}
 
 	blk_mq_insert_request(rq, at_head ? BLK_MQ_INSERT_AT_HEAD : 0);
-	blk_mq_run_hw_queue(hctx, false);
+	blk_mq_run_hw_queue(hctx, hctx->flags & BLK_MQ_F_BLOCKING);
 }
 EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
 
@@ -2222,6 +2222,8 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 	 */
 	WARN_ON_ONCE(!async && in_interrupt());
 
+	might_sleep_if(!async && hctx->flags & BLK_MQ_F_BLOCKING);
+
 	/*
 	 * When queue is quiesced, we may be switching io scheduler, or
 	 * updating nr_hw_queues, or other things, and we can't run queue
@@ -2237,8 +2239,7 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 	if (!need_run)
 		return;
 
-	if (async || (hctx->flags & BLK_MQ_F_BLOCKING) ||
-	    !cpumask_test_cpu(raw_smp_processor_id(), hctx->cpumask)) {
+	if (async || !cpumask_test_cpu(raw_smp_processor_id(), hctx->cpumask)) {
 		blk_mq_delay_run_hw_queue(hctx, 0);
 		return;
 	}
@@ -2373,7 +2374,7 @@ void blk_mq_start_hw_queue(struct blk_mq_hw_ctx *hctx)
 {
 	clear_bit(BLK_MQ_S_STOPPED, &hctx->state);
 
-	blk_mq_run_hw_queue(hctx, false);
+	blk_mq_run_hw_queue(hctx, hctx->flags & BLK_MQ_F_BLOCKING);
 }
 EXPORT_SYMBOL(blk_mq_start_hw_queue);
 
@@ -2403,7 +2404,8 @@ void blk_mq_start_stopped_hw_queues(struct request_queue *q, bool async)
 	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
-		blk_mq_start_stopped_hw_queue(hctx, async);
+		blk_mq_start_stopped_hw_queue(hctx, async ||
+					(hctx->flags & BLK_MQ_F_BLOCKING));
 }
 EXPORT_SYMBOL(blk_mq_start_stopped_hw_queues);
 
@@ -2461,6 +2463,8 @@ static void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx,
 	list_for_each_entry(rq, list, queuelist) {
 		BUG_ON(rq->mq_ctx != ctx);
 		trace_block_rq_insert(rq);
+		if (rq->cmd_flags & REQ_NOWAIT)
+			run_queue_async = true;
 	}
 
 	spin_lock(&ctx->lock);
@@ -2621,7 +2625,7 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 
 	if ((rq->rq_flags & RQF_USE_SCHED) || !blk_mq_get_budget_and_tag(rq)) {
 		blk_mq_insert_request(rq, 0);
-		blk_mq_run_hw_queue(hctx, false);
+		blk_mq_run_hw_queue(hctx, rq->cmd_flags & REQ_NOWAIT);
 		return;
 	}
 

@@ -335,7 +335,8 @@ static void scsi_single_lun_run(struct scsi_device *current_sdev)
 	 * but in most cases, we will be first. Ideally, each LU on the
 	 * target would get some limited time or requests on the target.
 	 */
-	blk_mq_run_hw_queues(current_sdev->request_queue, false);
+	blk_mq_run_hw_queues(current_sdev->request_queue,
+			     shost->queuecommand_may_block);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (!starget->starget_sdev_user)
