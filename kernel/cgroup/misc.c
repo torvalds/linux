@@ -142,7 +142,7 @@ int misc_cg_try_charge(enum misc_res_type type, struct misc_cg *cg, u64 amount)
 	struct misc_cg *i, *j;
 	int ret;
 	struct misc_res *res;
-	s64 new_usage;
+	u64 new_usage;
 
 	if (!(valid_type(type) && cg && READ_ONCE(misc_res_capacity[type])))
 		return -EINVAL;
