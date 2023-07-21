@@ -66,6 +66,65 @@
 			no-map;
 		};
 	};
+
+	vreg_disp_avdd: regulator-disp-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "disp_avdd";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pio 138 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vreg_disp_avee: regulator-disp-avee {
+		compatible = "regulator-fixed";
+		regulator-name = "disp_avee";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pio 139 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vreg_disp_vddh: regulator-disp-vddh {
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vddh";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+};
+
+&dsi0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	panel: panel@0 {
+		compatible = "sharp,ls060t1sx01";
+		reg = <0>;
+		avdd-supply = <&vreg_disp_avdd>;
+		avee-supply = <&vreg_disp_avee>;
+		vddi-supply = <&mt6331_vgp3_reg>;
+		vddh-supply = <&vreg_disp_vddh>;
+		reset-gpios = <&pio 106 GPIO_ACTIVE_LOW>;
+		backlight = <&backlight_lcd0>;
+
+		pinctrl-0 = <&disp_rst_pins>;
+		pinctrl-names = "default";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dsi0_out>;
+			};
+		};
+	};
+
+	port {
+		dsi0_out: endpoint {
+			remote-endpoint = <&panel_in>;
+		};
+	};
 };
 
 &fhctl {
@@ -180,7 +239,17 @@
 	status = "okay";
 };
 
+&mt6331_vgp3_reg {
+	regulator-min-microvolt = <1800000>;
+};
+
 &pio {
+	disp_rst_pins: lcm-pins {
+		pins-rst {
+			pinmux = <PINMUX_GPIO106__FUNC_GPIO106>;
+		};
+	};
+
 	mmc0_pins_default: emmc-sdr-pins {
 		pins-cmd-dat {
 			pinmux = <PINMUX_GPIO154__FUNC_MSDC0_DAT0>,
