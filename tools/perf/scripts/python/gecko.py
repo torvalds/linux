@@ -40,6 +40,9 @@ CATEGORIES = None
 # The product name is used by the profiler UI to show the Operating system and Processor.
 PRODUCT = os.popen('uname -op').read().strip()
 
+# Here key = tid, value = Thread
+tid_to_thread = dict()
+
 # The category index is used by the profiler UI to show the color of the flame graph.
 USER_CATEGORY_INDEX = 0
 KERNEL_CATEGORY_INDEX = 1
@@ -153,6 +156,25 @@ class Thread:
 		))
 		return frame_id
 
+	def _add_sample(self, comm: str, stack: List[str], time_ms: Milliseconds) -> None:
+		"""Add a timestamped stack trace sample to the thread builder.
+		Args:
+			comm: command-line (name) of the thread at this sample
+			stack: sampled stack frames. Root first, leaf last.
+			time_ms: timestamp of sample in milliseconds.
+		"""
+		# Ihreads may not set their names right after they are created.
+		# Instead, they might do it later. In such situations, to use the latest name they have set.
+		if self.comm != comm:
+			self.comm = comm
+
+		prefix_stack_id = reduce(lambda prefix_id, frame: self._intern_stack
+						(self._intern_frame(frame), prefix_id), stack, None)
+		if prefix_stack_id is not None:
+			self.samples.append(Sample(stack_id=prefix_stack_id,
+									time_ms=time_ms,
+									responsiveness=0))
+
 	def _to_json_dict(self) -> Dict:
 		"""Converts current Thread to GeckoThread JSON format."""
 		# Gecko profile format is row-oriented data as List[List],
@@ -231,9 +253,36 @@ def process_event(param_dict: Dict) -> None:
 	if not start_time:
 		start_time = time_stamp
 
+	# Parse and append the callchain of the current sample into a stack.
+	stack = []
+	if param_dict['callchain']:
+		for call in param_dict['callchain']:
+			if 'sym' not in call:
+				continue
+			stack.append(f'{call["sym"]["name"]} (in {call["dso"]})')
+		if len(stack) != 0:
+			# Reverse the stack, as root come first and the leaf at the end.
+			stack = stack[::-1]
+
+	# During perf record if -g is not used, the callchain is not available.
+	# In that case, the symbol and dso are available in the event parameters.
+	else:
+		func = param_dict['symbol'] if 'symbol' in param_dict else '[unknown]'
+		dso = param_dict['dso'] if 'dso' in param_dict else '[unknown]'
+		stack.append(f'{func} (in {dso})')
+
+	# Add sample to the specific thread.
+	thread = tid_to_thread.get(tid)
+	if thread is None:
+		thread = Thread(comm=comm, pid=pid, tid=tid)
+		tid_to_thread[tid] = thread
+	thread._add_sample(comm=comm, stack=stack, time_ms=time_stamp)
+
 # Trace_end runs at the end and will be used to aggregate
 # the data into the final json object and print it out to stdout.
 def trace_end() -> None:
+	threads = [thread._to_json_dict() for thread in tid_to_thread.values()]
+
 	# Schema: https://github.com/firefox-devtools/profiler/blob/53970305b51b9b472e26d7457fee1d66cd4e2737/src/types/gecko-profile.js#L305
 	gecko_profile_with_meta = {
 		"meta": {
@@ -252,8 +301,7 @@ def trace_end() -> None:
 			"markerSchema": [],
 			},
 		"libs": [],
-		# threads will be implemented in later commits.
-		# "threads": threads,
+		"threads": threads,
 		"processes": [],
 		"pausedRanges": [],
 	}
