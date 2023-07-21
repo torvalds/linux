@@ -20,10 +20,22 @@ sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 from perf_trace_context import *
 from Core import *
 
+# start_time is intialiazed only once for the all event traces.
+start_time = None
+
 # Uses perf script python interface to parse each
 # event and store the data in the thread builder.
 def process_event(param_dict: Dict) -> None:
-	pass
+	global start_time
+	global tid_to_thread
+	time_stamp = (param_dict['sample']['time'] // 1000) / 1000
+	pid = param_dict['sample']['pid']
+	tid = param_dict['sample']['tid']
+	comm = param_dict['comm']
+
+	# Start time is the time of the first sample
+	if not start_time:
+		start_time = time_stamp
 
 # Trace_end runs at the end and will be used to aggregate
 # the data into the final json object and print it out to stdout.
