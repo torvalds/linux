@@ -1134,7 +1134,7 @@ static struct i2c_driver vc3_driver = {
 		.name = "vc3",
 		.of_match_table = of_match_ptr(dev_ids),
 	},
-	.probe_new = vc3_probe,
+	.probe = vc3_probe,
 };
 module_i2c_driver(vc3_driver);
 
