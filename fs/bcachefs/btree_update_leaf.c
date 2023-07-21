@@ -852,12 +852,11 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
-	int ret, u64s_delta = 0;
+	int ret = 0, u64s_delta = 0;
 
 #ifdef CONFIG_BCACHEFS_DEBUG
-	struct printbuf buf = PRINTBUF;
-
 	trans_for_each_update(trans, i) {
+		struct printbuf buf = PRINTBUF;
 		enum bkey_invalid_flags invalid_flags = 0;
 
 		if (!(flags & BTREE_INSERT_JOURNAL_REPLAY))
@@ -865,10 +864,13 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 
 		if (unlikely(bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
 					       i->bkey_type, invalid_flags, &buf)))
-			return bch2_trans_commit_bkey_invalid(trans, flags, i, &buf);
+			ret = bch2_trans_commit_bkey_invalid(trans, flags, i, &buf);
 		btree_insert_entry_checks(trans, i);
+		printbuf_exit(&buf);
+
+		if (ret)
+			return ret;
 	}
-	printbuf_exit(&buf);
 #endif
 
 	trans_for_each_update(trans, i) {
