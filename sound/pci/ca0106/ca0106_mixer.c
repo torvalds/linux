@@ -751,17 +751,6 @@ static const char * const follower_sws[] = {
 	NULL
 };
 
-static void add_followers(struct snd_card *card,
-			  struct snd_kcontrol *master, const char * const *list)
-{
-	for (; *list; list++) {
-		struct snd_kcontrol *follower =
-			snd_ctl_find_id_mixer(card, *list);
-		if (follower)
-			snd_ctl_add_follower(master, follower);
-	}
-}
-
 int snd_ca0106_mixer(struct snd_ca0106 *emu)
 {
 	int err;
@@ -843,7 +832,9 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 	err = snd_ctl_add(card, vmaster);
 	if (err < 0)
 		return err;
-	add_followers(card, vmaster, follower_vols);
+	err = snd_ctl_add_followers(card, vmaster, follower_vols);
+	if (err < 0)
+		return err;
 
 	if (emu->details->spi_dac) {
 		vmaster = snd_ctl_make_virtual_master("Master Playback Switch",
@@ -853,7 +844,9 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 		err = snd_ctl_add(card, vmaster);
 		if (err < 0)
 			return err;
-		add_followers(card, vmaster, follower_sws);
+		err = snd_ctl_add_followers(card, vmaster, follower_sws);
+		if (err < 0)
+			return err;
 	}
 
 	strcpy(card->mixername, "CA0106");
