@@ -584,6 +584,8 @@ struct dwc3_msm {
 	u32			num_gsi_event_buffers;
 	struct dwc3_event_buffer	**gsi_ev_buff;
 	int			pm_qos_latency;
+	int			pm_qos_latency_cfg;
+	int			pm_qos_latency_dbg;
 	struct pm_qos_request	pm_qos_req_dma;
 	struct delayed_work	perf_vote_work;
 	struct mutex		suspend_resume_mutex;
@@ -5686,6 +5688,7 @@ static void dwc3_msm_debug_init(struct dwc3_msm *mdwc)
 	debugfs_create_bool("qos_rec_start", 0644, mdwc->dbg_dir, &mdwc->qos_rec_start);
 	debugfs_create_u8("qos_rec_index", 0644, mdwc->dbg_dir, &mdwc->qos_rec_index);
 	debugfs_create_file("qos_rec_irq", 0444, mdwc->dbg_dir, mdwc, &qos_rec_irq_ops);
+	debugfs_create_x32("pm_qos_latency", 0644, mdwc->dbg_dir, &mdwc->pm_qos_latency_dbg);
 }
 
 static void dwc3_msm_debug_exit(struct dwc3_msm *mdwc)
@@ -6015,12 +6018,9 @@ static int dwc3_msm_parse_params(struct dwc3_msm *mdwc, struct device_node *node
 			mdwc->icc_paths[i] = NULL;
 	}
 
-	ret = of_property_read_u32(node, "qcom,pm-qos-latency",
+	mdwc->pm_qos_latency_dbg = PM_QOS_DEFAULT_VALUE;
+	of_property_read_u32(node, "qcom,pm-qos-latency",
 				&mdwc->pm_qos_latency);
-	if (ret) {
-		dev_dbg(dev, "setting pm-qos-latency to zero.\n");
-		mdwc->pm_qos_latency = 0;
-	}
 
 	mdwc->force_gen1 = of_property_read_bool(node, "qcom,force-gen1");
 
@@ -6611,20 +6611,15 @@ static int dwc3_msm_host_notifier(struct notifier_block *nb,
 
 static void msm_dwc3_perf_vote_update(struct dwc3_msm *mdwc, bool perf_mode)
 {
-	int latency = mdwc->pm_qos_latency;
+	int latency;
 
-	if ((mdwc->perf_mode == perf_mode) || !latency)
+	if (mdwc->perf_mode == perf_mode)
 		return;
 
-	if (perf_mode)
-		cpu_latency_qos_update_request(&mdwc->pm_qos_req_dma, latency);
-	else
-		cpu_latency_qos_update_request(&mdwc->pm_qos_req_dma,
-						PM_QOS_DEFAULT_VALUE);
+	latency = perf_mode ? mdwc->pm_qos_latency_cfg : PM_QOS_DEFAULT_VALUE;
+	cpu_latency_qos_update_request(&mdwc->pm_qos_req_dma, latency);
 
 	mdwc->perf_mode = perf_mode;
-	pr_debug("%s: latency updated to: %d\n", __func__,
-			perf_mode ? latency : PM_QOS_DEFAULT_VALUE);
 }
 
 static void msm_dwc3_perf_vote_work(struct work_struct *w)
@@ -6654,9 +6649,6 @@ static void msm_dwc3_perf_vote_work(struct work_struct *w)
 	    (mdwc->qos_req_state == PM_QOS_REQ_DYNAMIC && count >= threshold))
 		in_perf_mode = true;
 
-	pr_debug("%s: in_perf_mode:%u, interrupts in last sample:%u\n",
-		 __func__, in_perf_mode, count);
-
 	mdwc->irq_cnt = new;
 	msm_dwc3_perf_vote_update(mdwc, in_perf_mode);
 
@@ -6678,11 +6670,19 @@ static void msm_dwc3_perf_vote_enable(struct dwc3_msm *mdwc, bool enable)
 		return;
 
 	if (enable) {
+		mdwc->perf_mode = false;
+
+		if (mdwc->pm_qos_latency_dbg != PM_QOS_DEFAULT_VALUE)
+			mdwc->pm_qos_latency_cfg = mdwc->pm_qos_latency_dbg;
+		else
+			mdwc->pm_qos_latency_cfg =  mdwc->pm_qos_latency;
+		if (!mdwc->pm_qos_latency_cfg)
+			return;
+
 		/* make sure when enable work, save a valid start irq count */
 		mdwc->irq_cnt = irq_desc->tot_count;
 
 		/* start default mode intially */
-		mdwc->perf_mode = false;
 		cpu_latency_qos_add_request(&mdwc->pm_qos_req_dma,
 					    PM_QOS_DEFAULT_VALUE);
 		schedule_delayed_work(&mdwc->perf_vote_work,
