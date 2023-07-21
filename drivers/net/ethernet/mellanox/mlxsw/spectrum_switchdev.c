@@ -384,6 +384,91 @@ mlxsw_sp_bridge_port_find(struct mlxsw_sp_bridge *bridge,
 	return __mlxsw_sp_bridge_port_find(bridge_device, brport_dev);
 }
 
+static int mlxsw_sp_port_obj_add(struct net_device *dev, const void *ctx,
+				 const struct switchdev_obj *obj,
+				 struct netlink_ext_ack *extack);
+static int mlxsw_sp_port_obj_del(struct net_device *dev, const void *ctx,
+				 const struct switchdev_obj *obj);
+
+struct mlxsw_sp_bridge_port_replay_switchdev_objs {
+	struct net_device *brport_dev;
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	int done;
+};
+
+static int
+mlxsw_sp_bridge_port_replay_switchdev_objs(struct notifier_block *nb,
+					   unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct switchdev_notifier_port_obj_info *port_obj_info = ptr;
+	struct netlink_ext_ack *extack = port_obj_info->info.extack;
+	struct mlxsw_sp_bridge_port_replay_switchdev_objs *rso;
+	int err = 0;
+
+	rso = (void *)port_obj_info->info.ctx;
+
+	if (event != SWITCHDEV_PORT_OBJ_ADD ||
+	    dev != rso->brport_dev)
+		goto out;
+
+	/* When a port is joining the bridge through a LAG, there likely are
+	 * VLANs configured on that LAG already. The replay will thus attempt to
+	 * have the given port-vlans join the corresponding FIDs. But the LAG
+	 * netdevice has already called the ndo_vlan_rx_add_vid NDO for its VLAN
+	 * memberships, back before CHANGEUPPER was distributed and netdevice
+	 * master set. So now before propagating the VLAN events further, we
+	 * first need to kill the corresponding VID at the mlxsw_sp_port.
+	 *
+	 * Note that this doesn't need to be rolled back on failure -- if the
+	 * replay fails, the enslavement is off, and the VIDs would be killed by
+	 * LAG anyway as part of its rollback.
+	 */
+	if (port_obj_info->obj->id == SWITCHDEV_OBJ_ID_PORT_VLAN) {
+		u16 vid = SWITCHDEV_OBJ_PORT_VLAN(port_obj_info->obj)->vid;
+
+		err = mlxsw_sp_port_kill_vid(rso->mlxsw_sp_port->dev, 0, vid);
+		if (err)
+			goto out;
+	}
+
+	++rso->done;
+	err = mlxsw_sp_port_obj_add(rso->mlxsw_sp_port->dev, NULL,
+				    port_obj_info->obj, extack);
+
+out:
+	return notifier_from_errno(err);
+}
+
+static struct notifier_block mlxsw_sp_bridge_port_replay_switchdev_objs_nb = {
+	.notifier_call = mlxsw_sp_bridge_port_replay_switchdev_objs,
+};
+
+static int
+mlxsw_sp_bridge_port_unreplay_switchdev_objs(struct notifier_block *nb,
+					     unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct switchdev_notifier_port_obj_info *port_obj_info = ptr;
+	struct mlxsw_sp_bridge_port_replay_switchdev_objs *rso;
+
+	rso = (void *)port_obj_info->info.ctx;
+
+	if (event != SWITCHDEV_PORT_OBJ_ADD ||
+	    dev != rso->brport_dev)
+		return NOTIFY_DONE;
+	if (!rso->done--)
+		return NOTIFY_STOP;
+
+	mlxsw_sp_port_obj_del(rso->mlxsw_sp_port->dev, NULL,
+			      port_obj_info->obj);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block mlxsw_sp_bridge_port_unreplay_switchdev_objs_nb = {
+	.notifier_call = mlxsw_sp_bridge_port_unreplay_switchdev_objs,
+};
+
 static struct mlxsw_sp_bridge_port *
 mlxsw_sp_bridge_port_create(struct mlxsw_sp_bridge_device *bridge_device,
 			    struct net_device *brport_dev,
@@ -2351,6 +2436,33 @@ static struct mlxsw_sp_port *mlxsw_sp_lag_rep_port(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
+mlxsw_sp_bridge_port_replay(struct mlxsw_sp_bridge_port *bridge_port,
+			    struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_bridge_port_replay_switchdev_objs rso = {
+		.brport_dev = bridge_port->dev,
+		.mlxsw_sp_port = mlxsw_sp_port,
+	};
+	struct notifier_block *nb;
+	int err;
+
+	nb = &mlxsw_sp_bridge_port_replay_switchdev_objs_nb;
+	err = switchdev_bridge_port_replay(bridge_port->dev, mlxsw_sp_port->dev,
+					   &rso, NULL, nb, extack);
+	if (err)
+		goto err_replay;
+
+	return 0;
+
+err_replay:
+	nb = &mlxsw_sp_bridge_port_unreplay_switchdev_objs_nb;
+	switchdev_bridge_port_replay(bridge_port->dev, mlxsw_sp_port->dev,
+				     &rso, NULL, nb, extack);
+	return err;
+}
+
+static int
 mlxsw_sp_bridge_vlan_aware_port_join(struct mlxsw_sp_bridge_port *bridge_port,
 				     struct mlxsw_sp_port *mlxsw_sp_port,
 				     struct netlink_ext_ack *extack)
@@ -2364,7 +2476,7 @@ mlxsw_sp_bridge_vlan_aware_port_join(struct mlxsw_sp_bridge_port *bridge_port,
 	if (mlxsw_sp_port->default_vlan->fid)
 		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port->default_vlan);
 
-	return 0;
+	return mlxsw_sp_bridge_port_replay(bridge_port, mlxsw_sp_port, extack);
 }
 
 static int
@@ -2536,6 +2648,7 @@ mlxsw_sp_bridge_8021d_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	struct net_device *dev = bridge_port->dev;
 	u16 vid;
+	int err;
 
 	vid = is_vlan_dev(dev) ? vlan_dev_vlan_id(dev) : MLXSW_SP_DEFAULT_VID;
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
@@ -2551,8 +2664,20 @@ mlxsw_sp_bridge_8021d_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 	if (mlxsw_sp_port_vlan->fid)
 		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
 
-	return mlxsw_sp_port_vlan_bridge_join(mlxsw_sp_port_vlan, bridge_port,
-					      extack);
+	err = mlxsw_sp_port_vlan_bridge_join(mlxsw_sp_port_vlan, bridge_port,
+					     extack);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_bridge_port_replay(bridge_port, mlxsw_sp_port, extack);
+	if (err)
+		goto err_replay;
+
+	return 0;
+
+err_replay:
+	mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
+	return err;
 }
 
 static void
@@ -2769,8 +2894,15 @@ int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		goto err_port_join;
 
+	err = mlxsw_sp_netdevice_enslavement_replay(mlxsw_sp, br_dev, extack);
+	if (err)
+		goto err_replay;
+
 	return 0;
 
+err_replay:
+	bridge_device->ops->port_leave(bridge_device, bridge_port,
+				       mlxsw_sp_port);
 err_port_join:
 	mlxsw_sp_bridge_port_put(mlxsw_sp->bridge, bridge_port);
 	return err;

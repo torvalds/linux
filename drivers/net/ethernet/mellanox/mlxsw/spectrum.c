@@ -1132,8 +1132,8 @@ static int mlxsw_sp_port_add_vid(struct net_device *dev,
 	return PTR_ERR_OR_ZERO(mlxsw_sp_port_vlan_create(mlxsw_sp_port, vid));
 }
 
-static int mlxsw_sp_port_kill_vid(struct net_device *dev,
-				  __be16 __always_unused proto, u16 vid)
+int mlxsw_sp_port_kill_vid(struct net_device *dev,
+			   __be16 __always_unused proto, u16 vid)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
@@ -4337,6 +4337,88 @@ static int mlxsw_sp_port_lag_index_get(struct mlxsw_sp *mlxsw_sp,
 	return -EBUSY;
 }
 
+static int mlxsw_sp_lag_uppers_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
+					   struct net_device *lag_dev,
+					   struct netlink_ext_ack *extack)
+{
+	struct net_device *upper_dev;
+	struct net_device *master;
+	struct list_head *iter;
+	int done = 0;
+	int err;
+
+	master = netdev_master_upper_dev_get(lag_dev);
+	if (master && netif_is_bridge_master(master)) {
+		err = mlxsw_sp_port_bridge_join(mlxsw_sp_port, lag_dev, master,
+						extack);
+		if (err)
+			return err;
+	}
+
+	netdev_for_each_upper_dev_rcu(lag_dev, upper_dev, iter) {
+		if (!is_vlan_dev(upper_dev))
+			continue;
+
+		master = netdev_master_upper_dev_get(upper_dev);
+		if (master && netif_is_bridge_master(master)) {
+			err = mlxsw_sp_port_bridge_join(mlxsw_sp_port,
+							upper_dev, master,
+							extack);
+			if (err)
+				goto err_port_bridge_join;
+		}
+
+		++done;
+	}
+
+	return 0;
+
+err_port_bridge_join:
+	netdev_for_each_upper_dev_rcu(lag_dev, upper_dev, iter) {
+		if (!is_vlan_dev(upper_dev))
+			continue;
+
+		master = netdev_master_upper_dev_get(upper_dev);
+		if (!master || !netif_is_bridge_master(master))
+			continue;
+
+		if (!done--)
+			break;
+
+		mlxsw_sp_port_bridge_leave(mlxsw_sp_port, upper_dev, master);
+	}
+
+	master = netdev_master_upper_dev_get(lag_dev);
+	if (master && netif_is_bridge_master(master))
+		mlxsw_sp_port_bridge_leave(mlxsw_sp_port, lag_dev, master);
+
+	return err;
+}
+
+static void
+mlxsw_sp_lag_uppers_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
+				 struct net_device *lag_dev)
+{
+	struct net_device *upper_dev;
+	struct net_device *master;
+	struct list_head *iter;
+
+	netdev_for_each_upper_dev_rcu(lag_dev, upper_dev, iter) {
+		if (!is_vlan_dev(upper_dev))
+			continue;
+
+		master = netdev_master_upper_dev_get(upper_dev);
+		if (!master)
+			continue;
+
+		mlxsw_sp_port_bridge_leave(mlxsw_sp_port, upper_dev, master);
+	}
+
+	master = netdev_master_upper_dev_get(lag_dev);
+	if (master)
+		mlxsw_sp_port_bridge_leave(mlxsw_sp_port, lag_dev, master);
+}
+
 static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 				  struct net_device *lag_dev,
 				  struct netlink_ext_ack *extack)
@@ -4361,6 +4443,12 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	err = mlxsw_sp_port_lag_index_get(mlxsw_sp, lag_id, &port_index);
 	if (err)
 		return err;
+
+	err = mlxsw_sp_lag_uppers_bridge_join(mlxsw_sp_port, lag_dev,
+					      extack);
+	if (err)
+		goto err_lag_uppers_bridge_join;
+
 	err = mlxsw_sp_lag_col_port_add(mlxsw_sp_port, lag_id, port_index);
 	if (err)
 		goto err_col_port_add;
@@ -4381,8 +4469,14 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		goto err_router_join;
 
+	err = mlxsw_sp_netdevice_enslavement_replay(mlxsw_sp, lag_dev, extack);
+	if (err)
+		goto err_replay;
+
 	return 0;
 
+err_replay:
+	mlxsw_sp_router_port_leave_lag(mlxsw_sp_port, lag_dev);
 err_router_join:
 	lag->ref_count--;
 	mlxsw_sp_port->lagged = 0;
@@ -4390,6 +4484,8 @@ err_router_join:
 				     mlxsw_sp_port->local_port);
 	mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
 err_col_port_add:
+	mlxsw_sp_lag_uppers_bridge_leave(mlxsw_sp_port, lag_dev);
+err_lag_uppers_bridge_join:
 	if (!lag->ref_count)
 		mlxsw_sp_lag_destroy(mlxsw_sp, lag_id);
 	return err;
@@ -4639,9 +4735,62 @@ static bool mlxsw_sp_bridge_vxlan_is_valid(struct net_device *br_dev,
 	return true;
 }
 
+static bool mlxsw_sp_netdev_is_master(struct net_device *upper_dev,
+				      struct net_device *dev)
+{
+	return upper_dev == netdev_master_upper_dev_get(dev);
+}
+
+static int __mlxsw_sp_netdevice_event(struct mlxsw_sp *mlxsw_sp,
+				      unsigned long event, void *ptr,
+				      bool process_foreign);
+
+static int mlxsw_sp_netdevice_validate_uppers(struct mlxsw_sp *mlxsw_sp,
+					      struct net_device *dev,
+					      struct netlink_ext_ack *extack)
+{
+	struct net_device *upper_dev;
+	struct list_head *iter;
+	int err;
+
+	netdev_for_each_upper_dev_rcu(dev, upper_dev, iter) {
+		struct netdev_notifier_changeupper_info info = {
+			.info = {
+				.dev = dev,
+				.extack = extack,
+			},
+			.master = mlxsw_sp_netdev_is_master(upper_dev, dev),
+			.upper_dev = upper_dev,
+			.linking = true,
+
+			/* upper_info is relevant for LAG devices. But we would
+			 * only need this if LAG were a valid upper above
+			 * another upper (e.g. a bridge that is a member of a
+			 * LAG), and that is never a valid configuration. So we
+			 * can keep this as NULL.
+			 */
+			.upper_info = NULL,
+		};
+
+		err = __mlxsw_sp_netdevice_event(mlxsw_sp,
+						 NETDEV_PRECHANGEUPPER,
+						 &info, true);
+		if (err)
+			return err;
+
+		err = mlxsw_sp_netdevice_validate_uppers(mlxsw_sp, upper_dev,
+							 extack);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 					       struct net_device *dev,
-					       unsigned long event, void *ptr)
+					       unsigned long event, void *ptr,
+					       bool replay_deslavement)
 {
 	struct netdev_notifier_changeupper_info *info;
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -4679,8 +4828,11 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		    (!netif_is_bridge_master(upper_dev) ||
 		     !mlxsw_sp_bridge_device_is_offloaded(mlxsw_sp,
 							  upper_dev))) {
-			NL_SET_ERR_MSG_MOD(extack, "Enslaving a port to a device that already has an upper device is not supported");
-			return -EINVAL;
+			err = mlxsw_sp_netdevice_validate_uppers(mlxsw_sp,
+								 upper_dev,
+								 extack);
+			if (err)
+				return err;
 		}
 		if (netif_is_lag_master(upper_dev) &&
 		    !mlxsw_sp_master_lag_check(mlxsw_sp, upper_dev,
@@ -4694,11 +4846,6 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		    !netif_is_lag_master(vlan_dev_real_dev(upper_dev))) {
 			NL_SET_ERR_MSG_MOD(extack, "Can not put a VLAN on a LAG port");
 			return -EINVAL;
-		}
-		if (netif_is_macvlan(upper_dev) &&
-		    !mlxsw_sp_rif_exists(mlxsw_sp, lower_dev)) {
-			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
-			return -EOPNOTSUPP;
 		}
 		if (netif_is_ovs_master(upper_dev) && vlan_uses_dev(dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Master device is an OVS master and this device has a VLAN");
@@ -4746,15 +4893,20 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
 		if (netif_is_bridge_master(upper_dev)) {
-			if (info->linking)
+			if (info->linking) {
 				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port,
 								lower_dev,
 								upper_dev,
 								extack);
-			else
+			} else {
 				mlxsw_sp_port_bridge_leave(mlxsw_sp_port,
 							   lower_dev,
 							   upper_dev);
+				if (!replay_deslavement)
+					break;
+				mlxsw_sp_netdevice_deslavement_replay(mlxsw_sp,
+								      lower_dev);
+			}
 		} else if (netif_is_lag_master(upper_dev)) {
 			if (info->linking) {
 				err = mlxsw_sp_port_lag_join(mlxsw_sp_port,
@@ -4763,6 +4915,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 				mlxsw_sp_port_lag_col_dist_disable(mlxsw_sp_port);
 				mlxsw_sp_port_lag_leave(mlxsw_sp_port,
 							upper_dev);
+				mlxsw_sp_netdevice_deslavement_replay(mlxsw_sp,
+								      dev);
 			}
 		} else if (netif_is_ovs_master(upper_dev)) {
 			if (info->linking)
@@ -4815,18 +4969,44 @@ static int mlxsw_sp_netdevice_port_lower_event(struct net_device *dev,
 
 static int mlxsw_sp_netdevice_port_event(struct net_device *lower_dev,
 					 struct net_device *port_dev,
-					 unsigned long event, void *ptr)
+					 unsigned long event, void *ptr,
+					 bool replay_deslavement)
 {
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 	case NETDEV_CHANGEUPPER:
 		return mlxsw_sp_netdevice_port_upper_event(lower_dev, port_dev,
-							   event, ptr);
+							   event, ptr,
+							   replay_deslavement);
 	case NETDEV_CHANGELOWERSTATE:
 		return mlxsw_sp_netdevice_port_lower_event(port_dev, event,
 							   ptr);
 	}
 
+	return 0;
+}
+
+/* Called for LAG or its upper VLAN after the per-LAG-lower processing was done,
+ * to do any per-LAG / per-LAG-upper processing.
+ */
+static int mlxsw_sp_netdevice_post_lag_event(struct net_device *dev,
+					     unsigned long event,
+					     void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(dev);
+	struct netdev_notifier_changeupper_info *info = ptr;
+
+	if (!mlxsw_sp)
+		return 0;
+
+	switch (event) {
+	case NETDEV_CHANGEUPPER:
+		if (info->linking)
+			break;
+		if (netif_is_bridge_master(info->upper_dev))
+			mlxsw_sp_netdevice_deslavement_replay(mlxsw_sp, dev);
+		break;
+	}
 	return 0;
 }
 
@@ -4840,19 +5020,19 @@ static int mlxsw_sp_netdevice_lag_event(struct net_device *lag_dev,
 	netdev_for_each_lower_dev(lag_dev, dev, iter) {
 		if (mlxsw_sp_port_dev_check(dev)) {
 			ret = mlxsw_sp_netdevice_port_event(lag_dev, dev, event,
-							    ptr);
+							    ptr, false);
 			if (ret)
 				return ret;
 		}
 	}
 
-	return 0;
+	return mlxsw_sp_netdevice_post_lag_event(lag_dev, event, ptr);
 }
 
 static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 					      struct net_device *dev,
 					      unsigned long event, void *ptr,
-					      u16 vid)
+					      u16 vid, bool replay_deslavement)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
@@ -4883,27 +5063,30 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 		    (!netif_is_bridge_master(upper_dev) ||
 		     !mlxsw_sp_bridge_device_is_offloaded(mlxsw_sp,
 							  upper_dev))) {
-			NL_SET_ERR_MSG_MOD(extack, "Enslaving a port to a device that already has an upper device is not supported");
-			return -EINVAL;
-		}
-		if (netif_is_macvlan(upper_dev) &&
-		    !mlxsw_sp_rif_exists(mlxsw_sp, vlan_dev)) {
-			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
-			return -EOPNOTSUPP;
+			err = mlxsw_sp_netdevice_validate_uppers(mlxsw_sp,
+								 upper_dev,
+								 extack);
+			if (err)
+				return err;
 		}
 		break;
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
 		if (netif_is_bridge_master(upper_dev)) {
-			if (info->linking)
+			if (info->linking) {
 				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port,
 								vlan_dev,
 								upper_dev,
 								extack);
-			else
+			} else {
 				mlxsw_sp_port_bridge_leave(mlxsw_sp_port,
 							   vlan_dev,
 							   upper_dev);
+				if (!replay_deslavement)
+					break;
+				mlxsw_sp_netdevice_deslavement_replay(mlxsw_sp,
+								      vlan_dev);
+			}
 		} else if (netif_is_macvlan(upper_dev)) {
 			if (!info->linking)
 				mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
@@ -4927,26 +5110,26 @@ static int mlxsw_sp_netdevice_lag_port_vlan_event(struct net_device *vlan_dev,
 		if (mlxsw_sp_port_dev_check(dev)) {
 			ret = mlxsw_sp_netdevice_port_vlan_event(vlan_dev, dev,
 								 event, ptr,
-								 vid);
+								 vid, false);
 			if (ret)
 				return ret;
 		}
 	}
 
-	return 0;
+	return mlxsw_sp_netdevice_post_lag_event(vlan_dev, event, ptr);
 }
 
-static int mlxsw_sp_netdevice_bridge_vlan_event(struct net_device *vlan_dev,
+static int mlxsw_sp_netdevice_bridge_vlan_event(struct mlxsw_sp *mlxsw_sp,
+						struct net_device *vlan_dev,
 						struct net_device *br_dev,
 						unsigned long event, void *ptr,
-						u16 vid)
+						u16 vid, bool process_foreign)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(vlan_dev);
 	struct netdev_notifier_changeupper_info *info = ptr;
 	struct netlink_ext_ack *extack;
 	struct net_device *upper_dev;
 
-	if (!mlxsw_sp)
+	if (!process_foreign && !mlxsw_sp_lower_get(vlan_dev))
 		return 0;
 
 	extack = netdev_notifier_info_to_extack(&info->info);
@@ -4957,13 +5140,6 @@ static int mlxsw_sp_netdevice_bridge_vlan_event(struct net_device *vlan_dev,
 		if (!netif_is_macvlan(upper_dev) &&
 		    !netif_is_l3_master(upper_dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
-			return -EOPNOTSUPP;
-		}
-		if (!info->linking)
-			break;
-		if (netif_is_macvlan(upper_dev) &&
-		    !mlxsw_sp_rif_exists(mlxsw_sp, vlan_dev)) {
-			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
 			return -EOPNOTSUPP;
 		}
 		break;
@@ -4979,36 +5155,42 @@ static int mlxsw_sp_netdevice_bridge_vlan_event(struct net_device *vlan_dev,
 	return 0;
 }
 
-static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
-					 unsigned long event, void *ptr)
+static int mlxsw_sp_netdevice_vlan_event(struct mlxsw_sp *mlxsw_sp,
+					 struct net_device *vlan_dev,
+					 unsigned long event, void *ptr,
+					 bool process_foreign)
 {
 	struct net_device *real_dev = vlan_dev_real_dev(vlan_dev);
 	u16 vid = vlan_dev_vlan_id(vlan_dev);
 
 	if (mlxsw_sp_port_dev_check(real_dev))
 		return mlxsw_sp_netdevice_port_vlan_event(vlan_dev, real_dev,
-							  event, ptr, vid);
+							  event, ptr, vid,
+							  true);
 	else if (netif_is_lag_master(real_dev))
 		return mlxsw_sp_netdevice_lag_port_vlan_event(vlan_dev,
 							      real_dev, event,
 							      ptr, vid);
 	else if (netif_is_bridge_master(real_dev))
-		return mlxsw_sp_netdevice_bridge_vlan_event(vlan_dev, real_dev,
-							    event, ptr, vid);
+		return mlxsw_sp_netdevice_bridge_vlan_event(mlxsw_sp, vlan_dev,
+							    real_dev, event,
+							    ptr, vid,
+							    process_foreign);
 
 	return 0;
 }
 
-static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
-					   unsigned long event, void *ptr)
+static int mlxsw_sp_netdevice_bridge_event(struct mlxsw_sp *mlxsw_sp,
+					   struct net_device *br_dev,
+					   unsigned long event, void *ptr,
+					   bool process_foreign)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(br_dev);
 	struct netdev_notifier_changeupper_info *info = ptr;
 	struct netlink_ext_ack *extack;
 	struct net_device *upper_dev;
 	u16 proto;
 
-	if (!mlxsw_sp)
+	if (!process_foreign && !mlxsw_sp_lower_get(br_dev))
 		return 0;
 
 	extack = netdev_notifier_info_to_extack(&info->info);
@@ -5034,11 +5216,6 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 		if (is_vlan_dev(upper_dev) &&
 		    ntohs(vlan_dev_vlan_proto(upper_dev)) != ETH_P_8021Q) {
 			NL_SET_ERR_MSG_MOD(extack, "VLAN uppers are only supported with 802.1q VLAN protocol");
-			return -EOPNOTSUPP;
-		}
-		if (netif_is_macvlan(upper_dev) &&
-		    !mlxsw_sp_rif_exists(mlxsw_sp, br_dev)) {
-			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
 			return -EOPNOTSUPP;
 		}
 		break;
@@ -5146,34 +5323,47 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
-				    unsigned long event, void *ptr)
+static int __mlxsw_sp_netdevice_event(struct mlxsw_sp *mlxsw_sp,
+				      unsigned long event, void *ptr,
+				      bool process_foreign)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct mlxsw_sp_span_entry *span_entry;
-	struct mlxsw_sp *mlxsw_sp;
 	int err = 0;
 
-	mlxsw_sp = container_of(nb, struct mlxsw_sp, netdevice_nb);
 	if (event == NETDEV_UNREGISTER) {
 		span_entry = mlxsw_sp_span_entry_find_by_port(mlxsw_sp, dev);
 		if (span_entry)
 			mlxsw_sp_span_entry_invalidate(mlxsw_sp, span_entry);
 	}
-	mlxsw_sp_span_respin(mlxsw_sp);
 
 	if (netif_is_vxlan(dev))
 		err = mlxsw_sp_netdevice_vxlan_event(mlxsw_sp, dev, event, ptr);
 	else if (mlxsw_sp_port_dev_check(dev))
-		err = mlxsw_sp_netdevice_port_event(dev, dev, event, ptr);
+		err = mlxsw_sp_netdevice_port_event(dev, dev, event, ptr, true);
 	else if (netif_is_lag_master(dev))
 		err = mlxsw_sp_netdevice_lag_event(dev, event, ptr);
 	else if (is_vlan_dev(dev))
-		err = mlxsw_sp_netdevice_vlan_event(dev, event, ptr);
+		err = mlxsw_sp_netdevice_vlan_event(mlxsw_sp, dev, event, ptr,
+						    process_foreign);
 	else if (netif_is_bridge_master(dev))
-		err = mlxsw_sp_netdevice_bridge_event(dev, event, ptr);
+		err = mlxsw_sp_netdevice_bridge_event(mlxsw_sp, dev, event, ptr,
+						      process_foreign);
 	else if (netif_is_macvlan(dev))
 		err = mlxsw_sp_netdevice_macvlan_event(dev, event, ptr);
+
+	return err;
+}
+
+static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
+				    unsigned long event, void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp;
+	int err;
+
+	mlxsw_sp = container_of(nb, struct mlxsw_sp, netdevice_nb);
+	mlxsw_sp_span_respin(mlxsw_sp);
+	err = __mlxsw_sp_netdevice_event(mlxsw_sp, event, ptr, false);
 
 	return notifier_from_errno(err);
 }

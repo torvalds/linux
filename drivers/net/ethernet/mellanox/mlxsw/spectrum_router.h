@@ -178,5 +178,12 @@ int mlxsw_sp_router_bridge_vlan_add(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_router_port_join_lag(struct mlxsw_sp_port *mlxsw_sp_port,
 				  struct net_device *lag_dev,
 				  struct netlink_ext_ack *extack);
+void mlxsw_sp_router_port_leave_lag(struct mlxsw_sp_port *mlxsw_sp_port,
+				    struct net_device *lag_dev);
+int mlxsw_sp_netdevice_enslavement_replay(struct mlxsw_sp *mlxsw_sp,
+					  struct net_device *upper_dev,
+					  struct netlink_ext_ack *extack);
+void mlxsw_sp_netdevice_deslavement_replay(struct mlxsw_sp *mlxsw_sp,
+					   struct net_device *dev);
 
 #endif /* _MLXSW_ROUTER_H_*/
