@@ -5300,10 +5300,15 @@ rkisp_params_cfg_v32(struct rkisp_isp_params_vdev *params_vdev,
 		struct rkisp_isp_params_val_v32 *priv_val =
 			(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
 
-		priv_val->last_hdrmge = priv_val->cur_hdrmge;
-		priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
-		priv_val->cur_hdrmge = new_params->others.hdrmge_cfg;
-		priv_val->cur_hdrdrc = new_params->others.drc_cfg;
+		if (new_params->module_cfg_update & ISP32_MODULE_HDRMGE) {
+			priv_val->last_hdrmge = priv_val->cur_hdrmge;
+			priv_val->cur_hdrmge = new_params->others.hdrmge_cfg;
+		}
+
+		if (new_params->module_cfg_update & ISP32_MODULE_DRC) {
+			priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
+			priv_val->cur_hdrdrc = new_params->others.drc_cfg;
+		}
 		new_params->module_cfg_update = 0;
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		cur_buf = NULL;

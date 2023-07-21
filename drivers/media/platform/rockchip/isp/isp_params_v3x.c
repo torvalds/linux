@@ -4773,10 +4773,15 @@ rkisp_params_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev,
 		struct rkisp_isp_params_val_v3x *priv_val =
 			(struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
 
-		priv_val->last_hdrmge = priv_val->cur_hdrmge;
-		priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
-		priv_val->cur_hdrmge = new_params->others.hdrmge_cfg;
-		priv_val->cur_hdrdrc = new_params->others.drc_cfg;
+		if (new_params->module_cfg_update & ISP3X_MODULE_HDRMGE) {
+			priv_val->last_hdrmge = priv_val->cur_hdrmge;
+			priv_val->cur_hdrmge = new_params->others.hdrmge_cfg;
+		}
+
+		if (new_params->module_cfg_update & ISP3X_MODULE_DRC) {
+			priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
+			priv_val->cur_hdrdrc = new_params->others.drc_cfg;
+		}
 		new_params->module_cfg_update = 0;
 		if (hw_dev->is_unite)
 			(new_params++)->module_cfg_update = 0;
