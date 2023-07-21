@@ -333,17 +333,15 @@ static ssize_t enabled_store(struct config_item *item,
 {
 	struct netconsole_target *nt = to_target(item);
 	unsigned long flags;
-	int enabled;
+	bool enabled;
 	int err;
 
 	mutex_lock(&dynamic_netconsole_mutex);
-	err = kstrtoint(buf, 10, &enabled);
-	if (err < 0)
+	err = kstrtobool(buf, &enabled);
+	if (err)
 		goto out_unlock;
 
 	err = -EINVAL;
-	if (enabled < 0 || enabled > 1)
-		goto out_unlock;
 	if ((bool)enabled == nt->enabled) {
 		pr_info("network logging has already %s\n",
 			nt->enabled ? "started" : "stopped");
@@ -394,7 +392,7 @@ static ssize_t release_store(struct config_item *item, const char *buf,
 			     size_t count)
 {
 	struct netconsole_target *nt = to_target(item);
-	int release;
+	bool release;
 	int err;
 
 	mutex_lock(&dynamic_netconsole_mutex);
@@ -405,13 +403,9 @@ static ssize_t release_store(struct config_item *item, const char *buf,
 		goto out_unlock;
 	}
 
-	err = kstrtoint(buf, 10, &release);
-	if (err < 0)
+	err = kstrtobool(buf, &release);
+	if (err)
 		goto out_unlock;
-	if (release < 0 || release > 1) {
-		err = -EINVAL;
-		goto out_unlock;
-	}
 
 	nt->release = release;
 
@@ -426,7 +420,7 @@ static ssize_t extended_store(struct config_item *item, const char *buf,
 		size_t count)
 {
 	struct netconsole_target *nt = to_target(item);
-	int extended;
+	bool extended;
 	int err;
 
 	mutex_lock(&dynamic_netconsole_mutex);
@@ -437,13 +431,9 @@ static ssize_t extended_store(struct config_item *item, const char *buf,
 		goto out_unlock;
 	}
 
-	err = kstrtoint(buf, 10, &extended);
-	if (err < 0)
+	err = kstrtobool(buf, &extended);
+	if (err)
 		goto out_unlock;
-	if (extended < 0 || extended > 1) {
-		err = -EINVAL;
-		goto out_unlock;
-	}
 
 	nt->extended = extended;
 
