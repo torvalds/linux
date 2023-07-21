@@ -407,8 +407,11 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 
 		/* prepare MQD backup */
 		kiq->mqd_backup = kmalloc(mqd_size, GFP_KERNEL);
-		if (!kiq->mqd_backup)
-				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
+		if (!kiq->mqd_backup) {
+			dev_warn(adev->dev,
+				 "no memory to create MQD backup for ring %s\n", ring->name);
+			return -ENOMEM;
+		}
 	}
 
 	if (adev->asic_type >= CHIP_NAVI10 && amdgpu_async_gfx_ring) {
@@ -427,8 +430,10 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 				ring->mqd_size = mqd_size;
 				/* prepare MQD backup */
 				adev->gfx.me.mqd_backup[i] = kmalloc(mqd_size, GFP_KERNEL);
-				if (!adev->gfx.me.mqd_backup[i])
+				if (!adev->gfx.me.mqd_backup[i]) {
 					dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
+					return -ENOMEM;
+				}
 			}
 		}
 	}
