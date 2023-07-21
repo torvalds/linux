@@ -688,6 +688,15 @@
 			status = "disabled";
 		};
 
+		uarte: serial@3140000 {
+			compatible = "nvidia,tegra234-uart", "nvidia,tegra20-uart";
+			reg = <0x0 0x03140000 0x0 0x10000>;
+			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA234_CLK_UARTE>;
+			resets = <&bpmp TEGRA234_RESET_UARTE>;
+			status = "disabled";
+		};
+
 		gen1_i2c: i2c@3160000 {
 			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0 0x3160000 0x0 0x100>;
