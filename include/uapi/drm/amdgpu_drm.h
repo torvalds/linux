@@ -150,7 +150,7 @@ extern "C" {
  */
 #define AMDGPU_GEM_CREATE_DISCARDABLE		(1 << 12)
 /* Flag that BO is shared coherently between multiple devices or CPU threads.
- * May depend on GPU instructions to flush caches explicitly
+ * May depend on GPU instructions to flush caches to system scope explicitly.
  *
  * This influences the choice of MTYPE in the PTEs on GFXv9 and later GPUs and
  * may override the MTYPE selected in AMDGPU_VA_OP_MAP.
@@ -163,6 +163,14 @@ extern "C" {
  * may override the MTYPE selected in AMDGPU_VA_OP_MAP.
  */
 #define AMDGPU_GEM_CREATE_UNCACHED		(1 << 14)
+/* Flag that BO should be coherent across devices when using device-level
+ * atomics. May depend on GPU instructions to flush caches to device scope
+ * explicitly, promoting them to system scope automatically.
+ *
+ * This influences the choice of MTYPE in the PTEs on GFXv9 and later GPUs and
+ * may override the MTYPE selected in AMDGPU_VA_OP_MAP.
+ */
+#define AMDGPU_GEM_CREATE_EXT_COHERENT		(1 << 15)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
