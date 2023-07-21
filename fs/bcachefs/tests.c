@@ -503,6 +503,36 @@ static int test_extent_overwrite_all(struct bch_fs *c, u64 nr)
 		__test_extent_overwrite(c, 32, 64, 32, 128);
 }
 
+static int insert_test_overlapping_extent(struct bch_fs *c, u64 inum, u64 start, u32 len, u32 snapid)
+{
+	struct bkey_i_cookie k;
+	int ret;
+
+	bkey_cookie_init(&k.k_i);
+	k.k_i.k.p.inode	= inum;
+	k.k_i.k.p.offset = start + len;
+	k.k_i.k.p.snapshot = snapid;
+	k.k_i.k.size = len;
+
+	ret = bch2_trans_do(c, NULL, NULL, 0,
+		bch2_btree_insert_nonextent(&trans, BTREE_ID_extents, &k.k_i,
+					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE));
+	if (ret)
+		bch_err_fn(c, ret);
+	return ret;
+}
+
+static int test_extent_create_overlapping(struct bch_fs *c, u64 inum)
+{
+	return  insert_test_overlapping_extent(c, inum,  0, 16, U32_MAX - 2) ?: /* overwrite entire */
+		insert_test_overlapping_extent(c, inum,  2,  8, U32_MAX - 2) ?:
+		insert_test_overlapping_extent(c, inum,  4,  4, U32_MAX) ?:
+		insert_test_overlapping_extent(c, inum, 32,  8, U32_MAX - 2) ?: /* overwrite front/back */
+		insert_test_overlapping_extent(c, inum, 36,  8, U32_MAX) ?:
+		insert_test_overlapping_extent(c, inum, 60,  8, U32_MAX - 2) ?:
+		insert_test_overlapping_extent(c, inum, 64,  8, U32_MAX);
+}
+
 /* snapshot unit tests */
 
 /* Test skipping over keys in unrelated snapshots: */
@@ -901,6 +931,7 @@ int bch2_btree_perf_test(struct bch_fs *c, const char *testname,
 	perf_test(test_extent_overwrite_back);
 	perf_test(test_extent_overwrite_middle);
 	perf_test(test_extent_overwrite_all);
+	perf_test(test_extent_create_overlapping);
 
 	perf_test(test_snapshots);
 
