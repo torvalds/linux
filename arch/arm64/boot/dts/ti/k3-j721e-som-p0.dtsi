@@ -201,19 +201,6 @@
 	};
 };
 
-&wkup_i2c0 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&wkup_i2c0_pins_default>;
-	clock-frequency = <400000>;
-
-	eeprom@50 {
-		/* CAV24C256WE-GT3 */
-		compatible = "atmel,24c256";
-		reg = <0x50>;
-	};
-};
-
 &ospi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_fss0_ospi0_pins_default>;
