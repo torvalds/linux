@@ -1835,36 +1835,6 @@ static bool rkvdec2_core_working(struct mpp_taskqueue *queue)
 	return flag;
 }
 
-static int rkvdec2_ccu_link_session_detach(struct mpp_dev *mpp,
-					   struct mpp_taskqueue *queue)
-{
-	mutex_lock(&queue->session_lock);
-	while (atomic_read(&queue->detach_count)) {
-		struct mpp_session *session = NULL;
-
-		session = list_first_entry_or_null(&queue->session_detach,
-						   struct mpp_session,
-						   session_link);
-		if (session) {
-			list_del_init(&session->session_link);
-			atomic_dec(&queue->detach_count);
-		}
-
-		mutex_unlock(&queue->session_lock);
-
-		if (session) {
-			mpp_dbg_session("%s detach count %d\n", dev_name(mpp->dev),
-					atomic_read(&queue->detach_count));
-			mpp_session_deinit(session);
-		}
-
-		mutex_lock(&queue->session_lock);
-	}
-	mutex_unlock(&queue->session_lock);
-
-	return 0;
-}
-
 void rkvdec2_soft_ccu_worker(struct kthread_work *work_s)
 {
 	struct mpp_task *mpp_task;
@@ -1939,7 +1909,7 @@ void rkvdec2_soft_ccu_worker(struct kthread_work *work_s)
 		rkvdec2_ccu_power_off(queue, dec->ccu);
 
 	/* 5. check session detach out of queue */
-	rkvdec2_ccu_link_session_detach(mpp, queue);
+	mpp_session_cleanup_detach(queue, work_s);
 
 	mpp_debug_leave();
 }

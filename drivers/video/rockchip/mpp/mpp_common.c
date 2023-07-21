@@ -353,9 +353,9 @@ void mpp_session_cleanup_detach(struct mpp_taskqueue *queue, struct kthread_work
 		mutex_unlock(&queue->session_lock);
 
 		if (task_count) {
-			mpp_dbg_session("session %d:%d task not finished %d\n",
-					session->pid, session->index,
-					atomic_read(&queue->detach_count));
+			mpp_dbg_session("session %d:%d not finished %d task cnt %d\n",
+					session->device_type, session->index,
+					atomic_read(&queue->detach_count), task_count);
 
 			mpp_session_clear_pending(session);
 		} else {
