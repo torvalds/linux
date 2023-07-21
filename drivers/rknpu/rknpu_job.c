@@ -157,10 +157,12 @@ static inline int rknpu_job_wait(struct rknpu_job *job)
 	struct rknpu_submit *args = job->args;
 	struct rknpu_task *last_task = NULL;
 	struct rknpu_subcore_data *subcore_data = NULL;
+	struct rknpu_job *entry, *q;
 	void __iomem *rknpu_core_base = NULL;
 	int core_index = rknpu_core_index(job->args->core_mask);
 	unsigned long flags;
 	int wait_count = 0;
+	bool continue_wait = false;
 	int ret = -EINVAL;
 	int i = 0;
 
@@ -171,31 +173,48 @@ static inline int rknpu_job_wait(struct rknpu_job *job)
 					 job->flags & RKNPU_JOB_DONE ||
 						 rknpu_dev->soft_reseting,
 					 msecs_to_jiffies(args->timeout));
+
 		if (++wait_count >= 3)
 			break;
-	} while (ret == 0 && job->in_queue[core_index]);
 
-	if (job->in_queue[core_index]) {
+		if (ret == 0) {
+			int64_t commit_time = 0;
+
+			spin_lock_irqsave(&rknpu_dev->irq_lock, flags);
+			commit_time = ktime_us_delta(ktime_get(),
+						     job->commit_pc_time);
+			continue_wait =
+				job->commit_pc_time == 0 ?
+					true :
+					(commit_time < args->timeout * 1000);
+			spin_unlock_irqrestore(&rknpu_dev->irq_lock, flags);
+			LOG_ERROR(
+				"job: %p, wait_count: %d, continue_wait: %d, commit time: %lldus, wait time: %lldus, timeout time: %uus\n",
+				job, wait_count, continue_wait,
+				(job->commit_pc_time == 0 ? 0 : commit_time),
+				ktime_us_delta(ktime_get(), job->timestamp),
+				args->timeout * 1000);
+		}
+	} while (ret == 0 && continue_wait);
+
+	last_task = job->last_task;
+	if (!last_task) {
 		spin_lock_irqsave(&rknpu_dev->lock, flags);
-		subcore_data->task_num -= rknn_get_task_number(job, core_index);
-		if (job->use_core_num == 1) {
-			list_del_init(&job->head[core_index]);
-			job->in_queue[core_index] = false;
-		} else if (job->use_core_num > 1) {
-			for (i = 0; i < job->use_core_num; i++) {
-				if (job->in_queue[i]) {
-					list_del_init(&job->head[i]);
-					job->in_queue[i] = false;
+		for (i = 0; i < job->use_core_num; i++) {
+			subcore_data = &rknpu_dev->subcore_datas[i];
+			list_for_each_entry_safe(
+				entry, q, &subcore_data->todo_list, head[i]) {
+				if (entry == job) {
+					list_del(&job->head[i]);
+					break;
 				}
 			}
 		}
-		spin_unlock_irqrestore(&rknpu_dev->lock, flags);
+		spin_unlock_irqrestore(&rknpu_dev->irq_lock, flags);
+
+		LOG_ERROR("job commit failed\n");
 		return ret < 0 ? ret : -EINVAL;
 	}
-
-	last_task = job->last_task;
-	if (!last_task)
-		return ret < 0 ? ret : -EINVAL;
 
 	last_task->int_status = job->int_status[core_index];
 
@@ -213,7 +232,7 @@ static inline int rknpu_job_wait(struct rknpu_job *job)
 		LOG_ERROR(
 			"failed to wait job, task counter: %d, flags: %#x, ret = %d, elapsed time: %lldus\n",
 			args->task_counter, args->flags, ret,
-			ktime_to_us(ktime_sub(ktime_get(), job->timestamp)));
+			ktime_us_delta(ktime_get(), job->timestamp));
 
 		return ret < 0 ? ret : -ETIMEDOUT;
 	}
@@ -250,8 +269,10 @@ static inline int rknpu_job_commit_pc(struct rknpu_job *job, int core_index)
 	int pc_task_number_bits = rknpu_dev->config->pc_task_number_bits;
 	int i = 0;
 
-	if (!task_obj)
-		return -EINVAL;
+	if (!task_obj) {
+		job->ret = -EINVAL;
+		return job->ret;
+	}
 
 	if (rknpu_dev->config->num_irqs > 1) {
 		for (i = 0; i < rknpu_dev->config->num_irqs; i++) {
@@ -328,8 +349,10 @@ static int rknpu_job_commit(struct rknpu_job *job, int core_index)
 	// switch to slave mode
 	REG_WRITE(0x1, RKNPU_OFFSET_PC_DATA_ADDR);
 
-	if (!(args->flags & RKNPU_JOB_PC))
-		return -EINVAL;
+	if (!(args->flags & RKNPU_JOB_PC)) {
+		job->ret = -EINVAL;
+		return job->ret;
+	}
 
 	return rknpu_job_commit_pc(job, core_index);
 }
@@ -356,18 +379,36 @@ static void rknpu_job_next(struct rknpu_device *rknpu_dev, int core_index)
 			       head[core_index]);
 
 	list_del_init(&job->head[core_index]);
-	job->in_queue[core_index] = false;
 	subcore_data->job = job;
 	job->hw_recoder_time = ktime_get();
+	job->commit_pc_time = job->hw_recoder_time;
 	spin_unlock_irqrestore(&rknpu_dev->irq_lock, flags);
 
 	if (atomic_dec_and_test(&job->run_count)) {
-		if (job->args->core_mask & RKNPU_CORE0_MASK)
-			job->ret = rknpu_job_commit(job, 0);
-		if (job->args->core_mask & RKNPU_CORE1_MASK)
-			job->ret = rknpu_job_commit(job, 1);
-		if (job->args->core_mask & RKNPU_CORE2_MASK)
-			job->ret = rknpu_job_commit(job, 2);
+		switch (job->args->core_mask & ((1 << RKNPU_MAX_CORES) - 1)) {
+		case RKNPU_CORE0_MASK:
+			rknpu_job_commit(job, 0);
+			break;
+		case RKNPU_CORE1_MASK:
+			rknpu_job_commit(job, 1);
+			break;
+		case RKNPU_CORE2_MASK:
+			rknpu_job_commit(job, 2);
+			break;
+		case RKNPU_CORE0_MASK | RKNPU_CORE1_MASK:
+			rknpu_job_commit(job, 0);
+			rknpu_job_commit(job, 1);
+			break;
+		case RKNPU_CORE0_MASK | RKNPU_CORE1_MASK | RKNPU_CORE2_MASK:
+			rknpu_job_commit(job, 0);
+			rknpu_job_commit(job, 1);
+			rknpu_job_commit(job, 2);
+			break;
+		default:
+			LOG_ERROR("Unknown core mask: %#x\n",
+				  job->args->core_mask);
+			break;
+		}
 	}
 }
 
@@ -417,7 +458,8 @@ static void rknpu_job_schedule(struct rknpu_job *job)
 	int task_num_list[3] = { 0, 1, 2 };
 	int tmp = 0;
 
-	if ((job->args->core_mask & 0x07) == RKNPU_CORE_AUTO_MASK) {
+	if ((job->args->core_mask & ((1 << RKNPU_MAX_CORES) - 1)) ==
+	    RKNPU_CORE_AUTO_MASK) {
 		if (rknpu_dev->subcore_datas[0].task_num >
 		    rknpu_dev->subcore_datas[1].task_num) {
 			tmp = task_num_list[1];
@@ -457,7 +499,6 @@ static void rknpu_job_schedule(struct rknpu_job *job)
 			subcore_data = &rknpu_dev->subcore_datas[i];
 			list_add_tail(&job->head[i], &subcore_data->todo_list);
 			subcore_data->task_num += rknn_get_task_number(job, i);
-			job->in_queue[i] = true;
 		}
 	}
 	spin_unlock_irqrestore(&rknpu_dev->irq_lock, flags);
@@ -477,18 +518,18 @@ static void rknpu_job_abort(struct rknpu_job *job)
 
 	msleep(100);
 
+	spin_lock_irqsave(&rknpu_dev->irq_lock, flags);
 	for (i = 0; i < rknpu_dev->config->num_irqs; i++) {
 		if (job->args->core_mask & rknpu_core_mask(i)) {
 			subcore_data = &rknpu_dev->subcore_datas[i];
-			spin_lock_irqsave(&rknpu_dev->irq_lock, flags);
 			if (job == subcore_data->job && !job->irq_entry[i]) {
 				subcore_data->job = NULL;
 				subcore_data->task_num -=
 					rknn_get_task_number(job, i);
 			}
-			spin_unlock_irqrestore(&rknpu_dev->irq_lock, flags);
 		}
 	}
+	spin_unlock_irqrestore(&rknpu_dev->irq_lock, flags);
 
 	if (job->ret == -ETIMEDOUT) {
 		LOG_ERROR("job timeout, flags: %#x:\n", job->flags);
@@ -505,8 +546,8 @@ static void rknpu_job_abort(struct rknpu_job *job)
 						 rknpu_dev->config
 							 ->pc_task_status_offset) &
 					 rknpu_dev->config->pc_task_number_mask),
-					ktime_to_us(ktime_sub(ktime_get(),
-							      job->timestamp)));
+					ktime_us_delta(ktime_get(),
+						       job->timestamp));
 			}
 		}
 		rknpu_soft_reset(rknpu_dev);
@@ -514,7 +555,7 @@ static void rknpu_job_abort(struct rknpu_job *job)
 		LOG_ERROR(
 			"job abort, flags: %#x, ret: %d, elapsed time: %lldus\n",
 			job->flags, job->ret,
-			ktime_to_us(ktime_sub(ktime_get(), job->timestamp)));
+			ktime_us_delta(ktime_get(), job->timestamp));
 	}
 
 	rknpu_job_cleanup(job);
@@ -609,7 +650,6 @@ static void rknpu_job_timeout_clean(struct rknpu_device *rknpu_dev,
 {
 	struct rknpu_job *job = NULL;
 	unsigned long flags;
-	ktime_t now = ktime_get();
 	struct rknpu_subcore_data *subcore_data = NULL;
 	int i = 0;
 
@@ -618,7 +658,7 @@ static void rknpu_job_timeout_clean(struct rknpu_device *rknpu_dev,
 			subcore_data = &rknpu_dev->subcore_datas[i];
 			job = subcore_data->job;
 			if (job &&
-			    ktime_to_ms(ktime_sub(now, job->timestamp)) >=
+			    ktime_us_delta(ktime_get(), job->timestamp) >=
 				    job->args->timeout) {
 				rknpu_soft_reset(rknpu_dev);
 
@@ -640,7 +680,6 @@ static void rknpu_job_timeout_clean(struct rknpu_device *rknpu_dev,
 							struct rknpu_job,
 							head[i]);
 						list_del_init(&job->head[i]);
-						job->in_queue[i] = false;
 					} else {
 						job = NULL;
 					}

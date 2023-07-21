@@ -30,7 +30,6 @@ struct rknpu_job {
 	struct rknpu_device *rknpu_dev;
 	struct list_head head[RKNPU_MAX_CORES];
 	struct work_struct cleanup_work;
-	bool in_queue[RKNPU_MAX_CORES];
 	bool irq_entry[RKNPU_MAX_CORES];
 	unsigned int flags;
 	int ret;
@@ -46,6 +45,7 @@ struct rknpu_job {
 	atomic_t run_count;
 	atomic_t interrupt_count;
 	ktime_t hw_recoder_time;
+	ktime_t commit_pc_time;
 };
 
 irqreturn_t rknpu_core0_irq_handler(int irq, void *data);
