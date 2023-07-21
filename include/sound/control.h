@@ -262,6 +262,9 @@ snd_ctl_add_follower(struct snd_kcontrol *master, struct snd_kcontrol *follower)
 	return _snd_ctl_add_follower(master, follower, 0);
 }
 
+int snd_ctl_add_followers(struct snd_card *card, struct snd_kcontrol *master,
+			  const char * const *list);
+
 /**
  * snd_ctl_add_follower_uncached - Add a virtual follower control
  * @master: vmaster element
