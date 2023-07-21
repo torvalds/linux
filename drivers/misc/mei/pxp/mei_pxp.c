@@ -40,8 +40,7 @@ mei_pxp_send_message(struct device *dev, const void *message, size_t size)
 
 	cldev = to_mei_cl_device(dev);
 
-	/* temporary drop const qualifier till the API is fixed */
-	byte = mei_cldev_send(cldev, (u8 *)message, size);
+	byte = mei_cldev_send(cldev, message, size);
 	if (byte < 0) {
 		dev_dbg(dev, "mei_cldev_send failed. %zd\n", byte);
 		return byte;
