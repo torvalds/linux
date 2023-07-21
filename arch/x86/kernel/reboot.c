@@ -826,9 +826,6 @@ void cpu_emergency_disable_virtualization(void)
 	if (callback)
 		callback();
 	rcu_read_unlock();
-
-	/* KVM_AMD doesn't yet utilize the common callback. */
-	cpu_emergency_svm_disable();
 }
 
 #if defined(CONFIG_SMP)
