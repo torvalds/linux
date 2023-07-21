@@ -403,27 +403,27 @@ static int gfs2_jdata_writepages(struct address_space *mapping,
 }
 
 /**
- * stuffed_readpage - Fill in a Linux page with stuffed file data
+ * stuffed_readpage - Fill in a Linux folio with stuffed file data
  * @ip: the inode
- * @page: the page
+ * @folio: the folio
  *
  * Returns: errno
  */
-static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
+static int stuffed_readpage(struct gfs2_inode *ip, struct folio *folio)
 {
 	struct buffer_head *dibh;
-	u64 dsize = i_size_read(&ip->i_inode);
-	void *kaddr;
+	size_t i_size = i_size_read(&ip->i_inode);
+	void *data;
 	int error;
 
 	/*
 	 * Due to the order of unstuffing files and ->fault(), we can be
-	 * asked for a zero page in the case of a stuffed file being extended,
+	 * asked for a zero folio in the case of a stuffed file being extended,
 	 * so we need to supply one here. It doesn't happen often.
 	 */
-	if (unlikely(page->index)) {
-		zero_user(page, 0, PAGE_SIZE);
-		SetPageUptodate(page);
+	if (unlikely(folio->index)) {
+		folio_zero_range(folio, 0, folio_size(folio));
+		folio_mark_uptodate(folio);
 		return 0;
 	}
 
@@ -431,13 +431,11 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	if (error)
 		return error;
 
-	kaddr = kmap_local_page(page);
-	memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode), dsize);
-	memset(kaddr + dsize, 0, PAGE_SIZE - dsize);
-	kunmap_local(kaddr);
-	flush_dcache_page(page);
+	data = dibh->b_data + sizeof(struct gfs2_dinode);
+	memcpy_to_folio(folio, 0, data, i_size);
+	folio_zero_range(folio, i_size, folio_size(folio) - i_size);
 	brelse(dibh);
-	SetPageUptodate(page);
+	folio_mark_uptodate(folio);
 
 	return 0;
 }
@@ -458,7 +456,7 @@ static int gfs2_read_folio(struct file *file, struct folio *folio)
 	    (i_blocksize(inode) == PAGE_SIZE && !folio_buffers(folio))) {
 		error = iomap_read_folio(folio, &gfs2_iomap_ops);
 	} else if (gfs2_is_stuffed(ip)) {
-		error = stuffed_readpage(ip, &folio->page);
+		error = stuffed_readpage(ip, folio);
 		folio_unlock(folio);
 	} else {
 		error = mpage_read_folio(folio, gfs2_block_map);
