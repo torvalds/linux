@@ -1893,9 +1893,7 @@ int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls, u8 *vl_scontexts)
 			vl_scontexts[i] = sc_per_vl + (extra > 0 ? 1 : 0);
 	}
 	/* build new map */
-	newmap = kzalloc(sizeof(*newmap) +
-			 roundup_pow_of_two(num_vls) *
-			 sizeof(struct pio_map_elem *),
+	newmap = kzalloc(struct_size(newmap, map, roundup_pow_of_two(num_vls)),
 			 GFP_KERNEL);
 	if (!newmap)
 		goto bail;
@@ -1910,9 +1908,8 @@ int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls, u8 *vl_scontexts)
 			int sz = roundup_pow_of_two(vl_scontexts[i]);
 
 			/* only allocate once */
-			newmap->map[i] = kzalloc(sizeof(*newmap->map[i]) +
-						 sz * sizeof(struct
-							     send_context *),
+			newmap->map[i] = kzalloc(struct_size(newmap->map[i],
+							     ksc, sz),
 						 GFP_KERNEL);
 			if (!newmap->map[i])
 				goto bail;
