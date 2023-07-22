@@ -1606,8 +1606,10 @@ static int __SC301IOT_stop_stream(struct SC301IOT *SC301IOT)
 {
 	SC301IOT->has_init_exp = false;
 	dev_dbg(&SC301IOT->client->dev, "stop stream\n");
-	if (SC301IOT->is_thunderboot)
+	if (SC301IOT->is_thunderboot) {
 		SC301IOT->is_first_streamoff = true;
+		pm_runtime_put(&SC301IOT->client->dev);
+	}
 	return SC301IOT_write_reg(SC301IOT->client, SC301IOT_REG_CTRL_MODE,
 				 SC301IOT_REG_VALUE_08BIT, SC301IOT_MODE_SW_STANDBY);
 }
@@ -2257,7 +2259,10 @@ static int SC301IOT_probe(struct i2c_client *client,
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	if (SC301IOT->is_thunderboot)
+		pm_runtime_get_sync(dev);
+	else
+		pm_runtime_idle(dev);
 
 	return 0;
 
