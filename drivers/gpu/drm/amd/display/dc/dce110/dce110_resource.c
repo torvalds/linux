@@ -1119,13 +1119,15 @@ static enum dc_status dce110_add_stream_to_ctx(
 }
 
 static struct pipe_ctx *dce110_acquire_underlay(
-		struct dc_state *context,
+		const struct dc_state *cur_ctx,
+		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
-		struct dc_stream_state *stream)
+		const struct pipe_ctx *opp_head_pipe)
 {
+	struct dc_stream_state *stream = opp_head_pipe->stream;
 	struct dc *dc = stream->ctx->dc;
 	struct dce_hwseq *hws = dc->hwseq;
-	struct resource_context *res_ctx = &context->res_ctx;
+	struct resource_context *res_ctx = &new_ctx->res_ctx;
 	unsigned int underlay_idx = pool->underlay_pipe_index;
 	struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[underlay_idx];
 
@@ -1173,7 +1175,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 				stream->timing.h_total,
 				stream->timing.v_total,
 				stream->timing.pix_clk_100hz / 10,
-				context->stream_count);
+				new_ctx->stream_count);
 
 		color_space_to_black_color(dc,
 				COLOR_SPACE_YCBCR601, &black_color);

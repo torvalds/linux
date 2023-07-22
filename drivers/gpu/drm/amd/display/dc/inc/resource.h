@@ -153,10 +153,16 @@ bool resource_attach_surfaces_to_context(
 		struct dc_state *context,
 		const struct resource_pool *pool);
 
-struct pipe_ctx *find_idle_secondary_pipe(
+struct pipe_ctx *find_idle_secondary_pipe_legacy(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		const struct pipe_ctx *primary_pipe);
+
+struct pipe_ctx *find_optimal_idle_pipe_as_secondary_dpp_pipe(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool,
+		const struct pipe_ctx *new_pri);
 
 bool resource_validate_attach_surfaces(
 		const struct dc_validation_set set[],

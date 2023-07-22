@@ -2148,13 +2148,14 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 }
 
 struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(
-		struct dc_state *state,
+		const struct dc_state *cur_ctx,
+		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
-		struct dc_stream_state *stream)
+		const struct pipe_ctx *opp_head_pipe)
 {
-	struct resource_context *res_ctx = &state->res_ctx;
-	struct pipe_ctx *head_pipe = resource_get_head_pipe_for_stream(res_ctx, stream);
-	struct pipe_ctx *idle_pipe = find_idle_secondary_pipe(res_ctx, pool, head_pipe);
+	struct resource_context *res_ctx = &new_ctx->res_ctx;
+	struct pipe_ctx *head_pipe = resource_get_head_pipe_for_stream(res_ctx, opp_head_pipe->stream);
+	struct pipe_ctx *idle_pipe = find_idle_secondary_pipe_legacy(res_ctx, pool, head_pipe);
 
 	if (!head_pipe)
 		ASSERT(0);

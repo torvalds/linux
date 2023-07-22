@@ -1557,7 +1557,7 @@ enum dc_status resource_build_scaling_params_for_context(
 	return DC_OK;
 }
 
-struct pipe_ctx *find_idle_secondary_pipe(
+struct pipe_ctx *find_idle_secondary_pipe_legacy(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		const struct pipe_ctx *primary_pipe)
@@ -1617,6 +1617,165 @@ struct pipe_ctx *find_idle_secondary_pipe(
 	return secondary_pipe;
 }
 
+/*
+ * Find the most optimal idle pipe from res_ctx, which could be used as a
+ * secondary dpp pipe for input opp head pipe.
+ *
+ * an idle pipe - a pipe in input res_ctx not yet used for any streams or
+ * planes.
+ * secondary dpp pipe - a pipe gets inserted to a head OPP pipe's MPC blending
+ * tree. This is typical used for rendering MPO planes or additional offset
+ * areas in MPCC combine.
+ *
+ * Hardware Transition Minimization Algorithm for Finding a Secondary DPP Pipe
+ * -------------------------------------------------------------------------
+ *
+ * PROBLEM:
+ *
+ * 1. There is a hardware limitation that a secondary DPP pipe cannot be
+ * transferred from one MPC blending tree to the other in a single frame.
+ * Otherwise it could cause glitches on the screen.
+ *
+ * For instance, we cannot transition from state 1 to state 2 in one frame. This
+ * is because PIPE1 is transferred from PIPE0's MPC blending tree over to
+ * PIPE2's MPC blending tree, which is not supported by hardware.
+ * To support this transition we need to first remove PIPE1 from PIPE0's MPC
+ * blending tree in one frame and then insert PIPE1 to PIPE2's MPC blending tree
+ * in the next frame. This is not optimal as it will delay the flip for two
+ * frames.
+ *
+ *	State 1:
+ *	PIPE0 -- secondary DPP pipe --> (PIPE1)
+ *	PIPE2 -- secondary DPP pipe --> NONE
+ *
+ *	State 2:
+ *	PIPE0 -- secondary DPP pipe --> NONE
+ *	PIPE2 -- secondary DPP pipe --> (PIPE1)
+ *
+ * 2. We want to in general minimize the unnecessary changes in pipe topology.
+ * If a pipe is already added in current blending tree and there are no changes
+ * to plane topology, we don't want to swap it with another idle pipe
+ * unnecessarily in every update. Powering up and down a pipe would require a
+ * full update which delays the flip for 1 frame. If we use the original pipe
+ * we don't have to toggle its power. So we can flip faster.
+ */
+struct pipe_ctx *find_optimal_idle_pipe_as_secondary_dpp_pipe(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool,
+		const struct pipe_ctx *new_head)
+{
+	const struct pipe_ctx *cur_head, *cur_sec;
+	struct pipe_ctx *new_sec;
+	bool found = false;
+	int i;
+
+	cur_head = &cur_res_ctx->pipe_ctx[new_head->pipe_idx];
+	cur_sec = cur_head->bottom_pipe;
+
+	while (cur_sec) {
+		/* find an idle pipe used in current opp blend tree,
+		 * this is to avoid MPO pipe switching to different opp blending
+		 * tree
+		 */
+		new_sec = &new_res_ctx->pipe_ctx[cur_sec->pipe_idx];
+		if (new_sec->plane_state == NULL && new_sec->stream == NULL) {
+			new_sec->pipe_idx = cur_sec->pipe_idx;
+			found = true;
+			break;
+		}
+		cur_sec = cur_sec->bottom_pipe;
+	}
+
+	/* Up until here if we have not found an idle secondary pipe, we will
+	 * need to wait for at least one frame to complete the transition
+	 * sequence.
+	 */
+	if (!found) {
+		/* find a free pipe not used in current res ctx, this is to
+		 * avoid tearing down other pipe's topology
+		 */
+		for (i = 0; i < pool->pipe_count; i++) {
+			cur_sec = &cur_res_ctx->pipe_ctx[i];
+			new_sec = &new_res_ctx->pipe_ctx[i];
+
+			if (cur_sec->plane_state == NULL &&
+					cur_sec->stream == NULL &&
+					new_sec->plane_state == NULL &&
+					new_sec->stream == NULL) {
+				new_sec->pipe_idx = i;
+				found = true;
+				break;
+			}
+		}
+	}
+
+	/* Up until here if we have not found an idle secondary pipe, we will
+	 * need to wait for at least two frames to complete the transition
+	 * sequence. It really doesn't matter which pipe we decide take from
+	 * current enabled pipes. It won't save our frame time when we swap only
+	 * one pipe or more pipes.
+	 */
+	if (!found) {
+		/* find a free pipe by taking away a secondary dpp pipe from an
+		 * MPCC combine in current context
+		 */
+		for (i = 0; i < pool->pipe_count; i++) {
+			cur_sec = &cur_res_ctx->pipe_ctx[i];
+			new_sec = &new_res_ctx->pipe_ctx[i];
+
+			if (cur_sec->plane_state &&
+					cur_sec->bottom_pipe &&
+					cur_sec->bottom_pipe->plane_state == cur_sec->plane_state &&
+					new_sec->plane_state == NULL &&
+					new_sec->stream == NULL) {
+				found = true;
+				new_sec->pipe_idx = i;
+				break;
+			}
+		}
+	}
+
+	if (!found) {
+		/* find any pipe not used by new state */
+		for (i = 0; i < pool->pipe_count; i++) {
+			new_sec = &new_res_ctx->pipe_ctx[i];
+
+			if (new_sec->plane_state == NULL) {
+				found = true;
+				new_sec->pipe_idx = i;
+				break;
+			}
+		}
+	}
+
+	return found ? new_sec : NULL;
+}
+
+/* TODO: Unify the pipe naming convention:
+ *
+ * OPP head pipe - the head pipe of an MPC blending tree with a functional OPP
+ * feeding to an OTG. OPP head pipe is by convention the top most pipe. i.e.
+ * pipe's top_pipe is NULL.
+ *
+ * OTG master pipe - the master pipe of its OPP head pipes with a functional
+ * OTG. It merges all its OPP head pipes pixel data from their MPCs in ODM block
+ * and output to backend DIG. OTG master pipe is by convention the top most pipe
+ * of the first odm slice. i.e. pipe's top_pipe is NULL and pipe's prev_odm_pipe
+ * is NULL.
+ *
+ * Secondary OPP head pipe - an OPP head pipe which is not an OTG master pipe.
+ * Its output feeds to another OTG master pipe. i.e pipe's top_pipe is NULL and
+ * pipe's prev_odm_pipe is not NULL.
+ *
+ * Secondary DPP pipe - the pipe with a functional DPP outputting to another OPP
+ * head pipe's MPC. Its output is a secondary layer in the OPP head's MPC
+ * blending tree. Secondary DPP pipe is by convention a non top most pipe. i.e
+ * pipe's top_pipe should be not NULL.
+ *
+ * The function below is actually getting the OTG master pipe associated with
+ * the stream. Name it as getting head pipe is confusing.
+ */
 struct pipe_ctx *resource_get_head_pipe_for_stream(
 		struct resource_context *res_ctx,
 		struct dc_stream_state *stream)
@@ -1632,8 +1791,7 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
 	return NULL;
 }
 
-static struct pipe_ctx *resource_get_tail_pipe(
-		struct resource_context *res_ctx,
+static struct pipe_ctx *get_tail_pipe(
 		struct pipe_ctx *head_pipe)
 {
 	struct pipe_ctx *tail_pipe;
@@ -1646,44 +1804,6 @@ static struct pipe_ctx *resource_get_tail_pipe(
 	}
 
 	return head_pipe;
-}
-
-/*
- * A free_pipe for a stream is defined here as a pipe
- * that has no surface attached yet
- */
-static struct pipe_ctx *acquire_free_pipe_for_head(
-		struct dc_state *context,
-		const struct resource_pool *pool,
-		struct pipe_ctx *head_pipe)
-{
-	int i;
-	struct resource_context *res_ctx = &context->res_ctx;
-
-	if (!head_pipe->plane_state)
-		return head_pipe;
-
-	/* Re-use pipe already acquired for this stream if available*/
-	for (i = pool->pipe_count - 1; i >= 0; i--) {
-		if (res_ctx->pipe_ctx[i].stream == head_pipe->stream &&
-				!res_ctx->pipe_ctx[i].plane_state) {
-			return &res_ctx->pipe_ctx[i];
-		}
-	}
-
-	/*
-	 * At this point we have no re-useable pipe for this stream and we need
-	 * to acquire an idle one to satisfy the request
-	 */
-
-	if (!pool->funcs->acquire_idle_pipe_for_layer) {
-		if (!pool->funcs->acquire_idle_pipe_for_head_pipe_in_layer)
-			return NULL;
-		else
-			return pool->funcs->acquire_idle_pipe_for_head_pipe_in_layer(context, pool, head_pipe->stream, head_pipe);
-	}
-
-	return pool->funcs->acquire_idle_pipe_for_layer(context, pool, head_pipe->stream);
 }
 
 static int acquire_first_split_pipe(
@@ -1721,88 +1841,121 @@ static int acquire_first_split_pipe(
 	return UNABLE_TO_SPLIT;
 }
 
+static bool add_plane_to_opp_head_pipes(struct pipe_ctx *otg_master_pipe,
+		struct dc_plane_state *plane_state,
+		struct dc_state *context)
+{
+	struct pipe_ctx *opp_head_pipe = otg_master_pipe;
+
+	while (opp_head_pipe) {
+		if (opp_head_pipe->plane_state) {
+			ASSERT(0);
+			return false;
+		}
+		opp_head_pipe->plane_state = plane_state;
+		opp_head_pipe = opp_head_pipe->next_odm_pipe;
+	}
+
+	return true;
+}
+
+static void insert_secondary_dpp_pipe_with_plane(struct pipe_ctx *opp_head_pipe,
+		struct pipe_ctx *sec_pipe, struct dc_plane_state *plane_state)
+{
+	struct pipe_ctx *tail_pipe = get_tail_pipe(opp_head_pipe);
+
+	tail_pipe->bottom_pipe = sec_pipe;
+	sec_pipe->top_pipe = tail_pipe;
+	if (tail_pipe->prev_odm_pipe) {
+		ASSERT(tail_pipe->prev_odm_pipe->bottom_pipe);
+		sec_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
+		tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = sec_pipe;
+	}
+	sec_pipe->plane_state = plane_state;
+}
+
+/* for each opp head pipe of an otg master pipe, acquire a secondary dpp pipe
+ * and add the plane. So the plane is added to all MPC blend trees associated
+ * with the otg master pipe.
+ */
+static bool acquire_secondary_dpp_pipes_and_add_plane(
+		struct pipe_ctx *otg_master_pipe,
+		struct dc_plane_state *plane_state,
+		struct dc_state *new_ctx,
+		struct dc_state *cur_ctx,
+		struct resource_pool *pool)
+{
+	struct pipe_ctx *opp_head_pipe, *sec_pipe;
+
+	if (!pool->funcs->acquire_idle_pipe_for_layer)
+		return false;
+
+	opp_head_pipe = otg_master_pipe;
+	while (opp_head_pipe) {
+		sec_pipe = pool->funcs->acquire_idle_pipe_for_layer(
+				cur_ctx,
+				new_ctx,
+				pool,
+				opp_head_pipe);
+		if (!sec_pipe) {
+			/* try tearing down MPCC combine */
+			int pipe_idx = acquire_first_split_pipe(
+					&new_ctx->res_ctx, pool,
+					otg_master_pipe->stream);
+
+			if (pipe_idx >= 0)
+				sec_pipe = &new_ctx->res_ctx.pipe_ctx[pipe_idx];
+		}
+
+		if (!sec_pipe)
+			return false;
+
+		insert_secondary_dpp_pipe_with_plane(opp_head_pipe, sec_pipe,
+				plane_state);
+		opp_head_pipe = opp_head_pipe->next_odm_pipe;
+	}
+	return true;
+}
+
 bool dc_add_plane_to_context(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_plane_state *plane_state,
 		struct dc_state *context)
 {
-	int i;
 	struct resource_pool *pool = dc->res_pool;
-	struct pipe_ctx *head_pipe, *tail_pipe, *free_pipe;
+	struct pipe_ctx *otg_master_pipe;
 	struct dc_stream_status *stream_status = NULL;
+	bool added = false;
 
-	DC_LOGGER_INIT(stream->ctx->logger);
-	for (i = 0; i < context->stream_count; i++)
-		if (context->streams[i] == stream) {
-			stream_status = &context->stream_status[i];
-			break;
-		}
+	stream_status = dc_stream_get_status_from_state(context, stream);
 	if (stream_status == NULL) {
 		dm_error("Existing stream not found; failed to attach surface!\n");
-		return false;
-	}
-
-
-	if (stream_status->plane_count == MAX_SURFACE_NUM) {
+		goto out;
+	} else if (stream_status->plane_count == MAX_SURFACE_NUM) {
 		dm_error("Surface: can not attach plane_state %p! Maximum is: %d\n",
 				plane_state, MAX_SURFACE_NUM);
-		return false;
+		goto out;
 	}
 
-	head_pipe = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
-
-	if (!head_pipe) {
-		dm_error("Head pipe not found for stream_state %p !\n", stream);
-		return false;
+	otg_master_pipe = resource_get_head_pipe_for_stream(
+			&context->res_ctx, stream);
+	if (otg_master_pipe->plane_state == NULL)
+		added = add_plane_to_opp_head_pipes(otg_master_pipe,
+				plane_state, context);
+	else
+		added = acquire_secondary_dpp_pipes_and_add_plane(
+				otg_master_pipe, plane_state, context,
+				dc->current_state, pool);
+	if (added) {
+		stream_status->plane_states[stream_status->plane_count] =
+				plane_state;
+		stream_status->plane_count++;
+		dc_plane_state_retain(plane_state);
 	}
 
-	/* retain new surface, but only once per stream */
-	dc_plane_state_retain(plane_state);
-
-	while (head_pipe) {
-		free_pipe = acquire_free_pipe_for_head(context, pool, head_pipe);
-
-		if (!free_pipe) {
-			int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
-			if (pipe_idx >= 0)
-				free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
-		}
-
-		if (!free_pipe) {
-			dc_plane_state_release(plane_state);
-			return false;
-		}
-
-		free_pipe->plane_state = plane_state;
-
-		if (head_pipe != free_pipe) {
-			tail_pipe = resource_get_tail_pipe(&context->res_ctx, head_pipe);
-			ASSERT(tail_pipe);
-
-			free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
-			free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
-			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
-			free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
-			free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
-			free_pipe->clock_source = tail_pipe->clock_source;
-			free_pipe->top_pipe = tail_pipe;
-			tail_pipe->bottom_pipe = free_pipe;
-			if (tail_pipe->prev_odm_pipe) {
-				tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
-				free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
-			}
-		}
-
-		head_pipe = head_pipe->next_odm_pipe;
-	}
-
-	/* assign new surfaces*/
-	stream_status->plane_states[stream_status->plane_count] = plane_state;
-
-	stream_status->plane_count++;
-
-	return true;
+out:
+	return added;
 }
 
 bool dc_remove_plane_from_context(

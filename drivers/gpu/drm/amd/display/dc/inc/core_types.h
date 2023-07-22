@@ -126,38 +126,24 @@ struct resource_funcs {
 		struct dc_state *context);
 
 	/*
-	 * Acquires a free pipe for the head pipe.
-	 * The head pipe is first pipe in the current context that matches the stream
-	 *  and does not have a top pipe or prev_odm_pipe.
+	 * Acquire an idle pipe from context, which could be used as a secondary
+	 * pipe for the otg master pipe associated with the input stream.
+	 *
+	 * an idle pipe - a pipe not yet used for any streams or
+	 * planes.
+	 * secondary pipe - a pipe gets inserted to a head OPP pipe's blending
+	 * tree. This is typical used for rendering MPO planes or additional
+	 * offset areas in MPCC combine.
 	 */
 	struct pipe_ctx *(*acquire_idle_pipe_for_layer)(
-			struct dc_state *context,
+			const struct dc_state *cur_ctx,
+			struct dc_state *new_ctx,
 			const struct resource_pool *pool,
-			struct dc_stream_state *stream);
+			const struct pipe_ctx *opp_head_pipe);
 
-	/*
-	 * Acquires a free pipe for the head pipe with some additional checks for odm.
-	 * The head pipe is passed in as an argument unlike acquire_idle_pipe_for_layer
-	 *  where it is read from the context.  So this allows us look for different
-	 *  idle_pipe if the head_pipes are different ( ex. in odm 2:1 when we have
-	 *  a left and right pipe ).
-	 *
-	 * It also checks the old context to see if:
-	 *
-	 * 1. a pipe has already been allocated for the head pipe.  If so, it will
-	 *  try to select that pipe as the idle pipe if it is available in the current
-	 *  context.
-	 * 2. if the head_pipe is on the left, it will check if the right pipe has
-	 *  a pipe already allocated.  If so, it will not use that pipe if it is
-	 *  selected as the idle pipe.
-	 */
-	struct pipe_ctx *(*acquire_idle_pipe_for_head_pipe_in_layer)(
-			struct dc_state *context,
-			const struct resource_pool *pool,
-			struct dc_stream_state *stream,
-			struct pipe_ctx *head_pipe);
-
-	enum dc_status (*validate_plane)(const struct dc_plane_state *plane_state, struct dc_caps *caps);
+	enum dc_status (*validate_plane)(
+			const struct dc_plane_state *plane_state,
+			struct dc_caps *caps);
 
 	enum dc_status (*add_stream_to_ctx)(
 			struct dc *dc,
