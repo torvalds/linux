@@ -98,7 +98,7 @@ struct pci_epf_driver {
 	void	(*remove)(struct pci_epf *epf);
 
 	struct device_driver	driver;
-	struct pci_epf_ops	*ops;
+	const struct pci_epf_ops *ops;
 	struct module		*owner;
 	struct list_head	epf_group;
 	const struct pci_epf_device_id	*id_table;
