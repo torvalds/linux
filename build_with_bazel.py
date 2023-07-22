@@ -259,8 +259,9 @@ class BazelBuilder:
     def run_menuconfig(self):
         """Run menuconfig on all target-variant combos class is initialized with"""
         for t, v in self.target_list:
-            self.bazel("run", ["//{}:{}_{}_config".format(self.kernel_dir, t, v)],
-                    bazel_target_opts=["menuconfig"])
+            menuconfig_label = "//{}:{}_{}_config".format(self.kernel_dir, t, v)
+            menuconfig_target = [Target(self.workspace, t, v, menuconfig_label, self.out_dir)]
+            self.bazel("run", menuconfig_target, bazel_target_opts=["menuconfig"])
 
     def write_opts(self, out_dir, user_opts=None):
         with open(os.path.join(out_dir, "build_opts.txt"), "w") as opt_file:
