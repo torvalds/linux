@@ -12,7 +12,6 @@
 # how we were called determines which rpms we build and how we build them
 if [ "$1" = prebuilt ]; then
 	S=DEL
-	MAKE="$MAKE -f $srctree/Makefile"
 else
 	S=
 
