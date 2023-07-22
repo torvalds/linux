@@ -2581,14 +2581,12 @@ void __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 {
 	size_t size_sum = ai->static_size + ai->reserved_size + ai->dyn_size;
 	size_t static_size, dyn_size;
-	struct pcpu_chunk *chunk;
 	unsigned long *group_offsets;
 	size_t *group_sizes;
 	unsigned long *unit_off;
 	unsigned int cpu;
 	int *unit_map;
 	int group, unit, i;
-	int map_size;
 	unsigned long tmp_addr;
 	size_t alloc_size;
 
@@ -2697,7 +2695,7 @@ void __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_unit_pages = ai->unit_size >> PAGE_SHIFT;
 	pcpu_unit_size = pcpu_unit_pages << PAGE_SHIFT;
 	pcpu_atom_size = ai->atom_size;
-	pcpu_chunk_struct_size = struct_size(chunk, populated,
+	pcpu_chunk_struct_size = struct_size((struct pcpu_chunk *)0, populated,
 					     BITS_TO_LONGS(pcpu_unit_pages));
 
 	pcpu_stats_save_ai(ai);
@@ -2734,29 +2732,23 @@ void __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	dyn_size = ai->dyn_size - (static_size - ai->static_size);
 
 	/*
-	 * Initialize first chunk.
-	 * If the reserved_size is non-zero, this initializes the reserved
-	 * chunk.  If the reserved_size is zero, the reserved chunk is NULL
-	 * and the dynamic region is initialized here.  The first chunk,
-	 * pcpu_first_chunk, will always point to the chunk that serves
-	 * the dynamic region.
+	 * Initialize first chunk:
+	 * This chunk is broken up into 3 parts:
+	 *		< static | [reserved] | dynamic >
+	 * - static - there is no backing chunk because these allocations can
+	 *   never be freed.
+	 * - reserved (pcpu_reserved_chunk) - exists primarily to serve
+	 *   allocations from module load.
+	 * - dynamic (pcpu_first_chunk) - serves the dynamic part of the first
+	 *   chunk.
 	 */
 	tmp_addr = (unsigned long)base_addr + static_size;
-	map_size = ai->reserved_size ?: dyn_size;
-	chunk = pcpu_alloc_first_chunk(tmp_addr, map_size);
+	if (ai->reserved_size)
+		pcpu_reserved_chunk = pcpu_alloc_first_chunk(tmp_addr,
+						ai->reserved_size);
+	tmp_addr = (unsigned long)base_addr + static_size + ai->reserved_size;
+	pcpu_first_chunk = pcpu_alloc_first_chunk(tmp_addr, dyn_size);
 
-	/* init dynamic chunk if necessary */
-	if (ai->reserved_size) {
-		pcpu_reserved_chunk = chunk;
-
-		tmp_addr = (unsigned long)base_addr + static_size +
-			   ai->reserved_size;
-		map_size = dyn_size;
-		chunk = pcpu_alloc_first_chunk(tmp_addr, map_size);
-	}
-
-	/* link the first chunk in */
-	pcpu_first_chunk = chunk;
 	pcpu_nr_empty_pop_pages = pcpu_first_chunk->nr_empty_pop_pages;
 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
 
