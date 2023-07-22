@@ -101,16 +101,13 @@ $S$M
 	%else
 	cp \$(%{make} %{makeflags} -s image_name) %{buildroot}/boot/vmlinuz-%{KERNELRELEASE}
 	%endif
-$M	%{make} %{makeflags} INSTALL_MOD_PATH=%{buildroot} modules_install
+	%{make} %{makeflags} INSTALL_MOD_PATH=%{buildroot} modules_install
 	%{make} %{makeflags} INSTALL_HDR_PATH=%{buildroot}/usr headers_install
 	cp System.map %{buildroot}/boot/System.map-%{KERNELRELEASE}
 	cp .config %{buildroot}/boot/config-%{KERNELRELEASE}
-$S$M	rm -f %{buildroot}/lib/modules/%{KERNELRELEASE}/build
-$S$M	rm -f %{buildroot}/lib/modules/%{KERNELRELEASE}/source
+	ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEASE}/build
+	ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEASE}/source
 $S$M	%{make} %{makeflags} run-command KBUILD_RUN_COMMAND='\${srctree}/scripts/package/install-extmod-build %{buildroot}/usr/src/kernels/%{KERNELRELEASE}'
-$S$M	cd %{buildroot}/lib/modules/%{KERNELRELEASE}
-$S$M	ln -sf /usr/src/kernels/%{KERNELRELEASE} build
-$S$M	ln -sf /usr/src/kernels/%{KERNELRELEASE} source
 
 	%clean
 	rm -rf %{buildroot}
@@ -138,9 +135,9 @@ $S$M	ln -sf /usr/src/kernels/%{KERNELRELEASE} source
 
 	%files
 	%defattr (-, root, root)
-$M	/lib/modules/%{KERNELRELEASE}
-$M	%exclude /lib/modules/%{KERNELRELEASE}/build
-$M	%exclude /lib/modules/%{KERNELRELEASE}/source
+	/lib/modules/%{KERNELRELEASE}
+	%exclude /lib/modules/%{KERNELRELEASE}/build
+	%exclude /lib/modules/%{KERNELRELEASE}/source
 	/boot/*
 
 	%files headers
