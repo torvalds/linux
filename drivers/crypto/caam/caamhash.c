@@ -368,10 +368,8 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, u32 *keylen, u8 *key,
 	int ret;
 
 	desc = kmalloc(CAAM_CMD_SZ * 8 + CAAM_PTR_SZ * 2, GFP_KERNEL);
-	if (!desc) {
-		dev_err(jrdev, "unable to allocate key input memory\n");
+	if (!desc)
 		return -ENOMEM;
-	}
 
 	init_job_desc(desc, 0);
 
@@ -702,18 +700,14 @@ static struct ahash_edesc *ahash_edesc_alloc(struct ahash_request *req,
 					     int sg_num, u32 *sh_desc,
 					     dma_addr_t sh_desc_dma)
 {
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
 	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	gfp_t flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
 		       GFP_KERNEL : GFP_ATOMIC;
 	struct ahash_edesc *edesc;
 
 	edesc = kzalloc(struct_size(edesc, sec4_sg, sg_num), flags);
-	if (!edesc) {
-		dev_err(ctx->jrdev, "could not allocate extended descriptor\n");
+	if (!edesc)
 		return NULL;
-	}
 
 	state->edesc = edesc;
 
@@ -1908,10 +1902,8 @@ caam_hash_alloc(struct caam_hash_template *template,
 	struct crypto_alg *alg;
 
 	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
-	if (!t_alg) {
-		pr_err("failed to allocate t_alg\n");
+	if (!t_alg)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	t_alg->ahash_alg = template->template_ahash;
 	halg = &t_alg->ahash_alg;
