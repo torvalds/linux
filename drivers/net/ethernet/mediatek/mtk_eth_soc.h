@@ -1030,6 +1030,7 @@ struct mtk_soc_data {
 	u16		foe_entry_size;
 	netdev_features_t hw_features;
 	bool		has_accounting;
+	bool		disable_pll_modes;
 	struct {
 		u32	txd_size;
 		u32	rxd_size;

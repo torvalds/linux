@@ -385,10 +385,8 @@ static int mt7621_gmac0_rgmii_adjust(struct mtk_eth *eth,
 }
 
 static void mtk_gmac0_rgmii_adjust(struct mtk_eth *eth,
-				   phy_interface_t interface, int speed)
+				   phy_interface_t interface)
 {
-	unsigned long rate;
-	u32 tck, rck, intf;
 	int ret;
 
 	if (interface == PHY_INTERFACE_MODE_TRGMII) {
@@ -399,30 +397,7 @@ static void mtk_gmac0_rgmii_adjust(struct mtk_eth *eth,
 		return;
 	}
 
-	if (speed == SPEED_1000) {
-		intf = INTF_MODE_RGMII_1000;
-		rate = 250000000;
-		rck = RCK_CTRL_RGMII_1000;
-		tck = TCK_CTRL_RGMII_1000;
-	} else {
-		intf = INTF_MODE_RGMII_10_100;
-		rate = 500000000;
-		rck = RCK_CTRL_RGMII_10_100;
-		tck = TCK_CTRL_RGMII_10_100;
-	}
-
-	mtk_w32(eth, intf, INTF_MODE);
-
-	regmap_update_bits(eth->ethsys, ETHSYS_CLKCFG0,
-			   ETHSYS_TRGMII_CLK_SEL362_5,
-			   ETHSYS_TRGMII_CLK_SEL362_5);
-
-	ret = clk_set_rate(eth->clks[MTK_CLK_TRGPLL], rate);
-	if (ret)
-		dev_err(eth->dev, "Failed to set trgmii pll: %d\n", ret);
-
-	mtk_w32(eth, rck, TRGMII_RCK_CTRL);
-	mtk_w32(eth, tck, TRGMII_TCK_CTRL);
+	dev_err(eth->dev, "Missing PLL configuration, ethernet may not work\n");
 }
 
 static struct phylink_pcs *mtk_mac_select_pcs(struct phylink_config *config,
@@ -498,17 +473,8 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 							      state->interface))
 					goto err_phy;
 			} else {
-				/* FIXME: this is incorrect. Not only does it
-				 * use state->speed (which is not guaranteed
-				 * to be correct) but it also makes use of it
-				 * in a code path that will only be reachable
-				 * when the PHY interface mode changes, not
-				 * when the speed changes. Consequently, RGMII
-				 * is probably broken.
-				 */
 				mtk_gmac0_rgmii_adjust(mac->hw,
-						       state->interface,
-						       state->speed);
+						       state->interface);
 
 				/* mt7623_pad_clk_setup */
 				for (i = 0 ; i < NUM_TRGMII_CTRL; i++)
@@ -4366,13 +4332,19 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	mac->phylink_config.mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 		MAC_10 | MAC_100 | MAC_1000 | MAC_2500FD;
 
-	__set_bit(PHY_INTERFACE_MODE_MII,
-		  mac->phylink_config.supported_interfaces);
-	__set_bit(PHY_INTERFACE_MODE_GMII,
-		  mac->phylink_config.supported_interfaces);
+	/* MT7623 gmac0 is now missing its speed-specific PLL configuration
+	 * in its .mac_config method (since state->speed is not valid there.
+	 * Disable support for MII, GMII and RGMII.
+	 */
+	if (!mac->hw->soc->disable_pll_modes || mac->id != 0) {
+		__set_bit(PHY_INTERFACE_MODE_MII,
+			  mac->phylink_config.supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_GMII,
+			  mac->phylink_config.supported_interfaces);
 
-	if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_RGMII))
-		phy_interface_set_rgmii(mac->phylink_config.supported_interfaces);
+		if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_RGMII))
+			phy_interface_set_rgmii(mac->phylink_config.supported_interfaces);
+	}
 
 	if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_TRGMII) && !mac->id)
 		__set_bit(PHY_INTERFACE_MODE_TRGMII,
@@ -4845,6 +4817,7 @@ static const struct mtk_soc_data mt7623_data = {
 	.offload_version = 1,
 	.hash_offset = 2,
 	.foe_entry_size = MTK_FOE_ENTRY_V1_SIZE,
+	.disable_pll_modes = true,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma),
 		.rxd_size = sizeof(struct mtk_rx_dma),
