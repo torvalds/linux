@@ -146,10 +146,6 @@ deb-pkg srcdeb-pkg bindeb-pkg:
 		--no-check-builddeps) \
 	$(DPKG_FLAGS))
 
-PHONY += intdeb-pkg
-intdeb-pkg:
-	+$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
-
 # snap-pkg
 # ---------------------------------------------------------------------------
 PHONY += snap-pkg

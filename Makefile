@@ -2148,6 +2148,10 @@ kernelversion:
 image_name:
 	@echo $(KBUILD_IMAGE)
 
+PHONY += run-command
+run-command:
+	$(Q)$(KBUILD_RUN_COMMAND)
+
 quiet_cmd_rmfiles = $(if $(wildcard $(rm-files)),CLEAN   $(wildcard $(rm-files)))
       cmd_rmfiles = rm -rf $(rm-files)
 

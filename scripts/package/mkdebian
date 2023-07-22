@@ -283,7 +283,8 @@ build: build-arch
 binary-indep:
 binary-arch: build-arch
 	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} \
-	KERNELRELEASE=\$(KERNELRELEASE) intdeb-pkg
+	KERNELRELEASE=\$(KERNELRELEASE) \
+	run-command KBUILD_RUN_COMMAND=+\$(srctree)/scripts/package/builddeb
 
 clean:
 	rm -rf debian/files debian/linux-*
