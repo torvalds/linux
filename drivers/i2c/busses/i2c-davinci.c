@@ -902,7 +902,6 @@ static void davinci_i2c_remove(struct platform_device *pdev)
 	pm_runtime_disable(dev->dev);
 }
 
-#ifdef CONFIG_PM
 static int davinci_i2c_suspend(struct device *dev)
 {
 	struct davinci_i2c_dev *i2c_dev = dev_get_drvdata(dev);
@@ -926,14 +925,9 @@ static int davinci_i2c_resume(struct device *dev)
 static const struct dev_pm_ops davinci_i2c_pm = {
 	.suspend        = davinci_i2c_suspend,
 	.resume         = davinci_i2c_resume,
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				      pm_runtime_force_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				  pm_runtime_force_resume)
 };
-
-#define davinci_i2c_pm_ops (&davinci_i2c_pm)
-#else
-#define davinci_i2c_pm_ops NULL
-#endif
 
 static const struct platform_device_id davinci_i2c_driver_ids[] = {
 	{ .name = "i2c_davinci", },
@@ -947,7 +941,7 @@ static struct platform_driver davinci_i2c_driver = {
 	.id_table	= davinci_i2c_driver_ids,
 	.driver		= {
 		.name	= "i2c_davinci",
-		.pm	= davinci_i2c_pm_ops,
+		.pm	= pm_sleep_ptr(&davinci_i2c_pm),
 		.of_match_table = davinci_i2c_of_match,
 	},
 };
