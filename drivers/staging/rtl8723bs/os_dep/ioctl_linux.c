@@ -40,7 +40,6 @@ static int wpa_set_auth_algs(struct net_device *dev, u32 value)
 	}
 
 	return ret;
-
 }
 
 static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, u32 param_len)
@@ -80,7 +79,6 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	}
 
 	if (strcmp(param->u.crypt.alg, "WEP") == 0) {
-
 		padapter->securitypriv.ndisencryptstatus = Ndis802_11Encryption1Enabled;
 		padapter->securitypriv.dot11PrivacyAlgrthm = _WEP40_;
 		padapter->securitypriv.dot118021XGrpPrivacy = _WEP40_;
@@ -392,7 +390,6 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 		 * be set.
 		 */
 		break;
-
 	}
 	case IEEE_PARAM_PRIVACY_INVOKED:
 
@@ -429,11 +426,9 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 		ret = -EOPNOTSUPP;
 
 		break;
-
 	}
 
 	return ret;
-
 }
 
 static int wpa_mlme(struct net_device *dev, u32 command, u32 reason)
@@ -462,7 +457,6 @@ static int wpa_mlme(struct net_device *dev, u32 command, u32 reason)
 	}
 
 	return ret;
-
 }
 
 static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
@@ -485,7 +479,6 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 	}
 
 	switch (param->cmd) {
-
 	case IEEE_CMD_SET_WPA_PARAM:
 		ret = wpa_set_param(dev, param->u.wpa_param.name, param->u.wpa_param.value);
 		break;
@@ -506,7 +499,6 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 	default:
 		ret = -EOPNOTSUPP;
 		break;
-
 	}
 
 	if (ret == 0 && copy_to_user(p->pointer, param, p->length))
@@ -586,7 +578,6 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 			pwep->key_length = wep_key_len;
 			pwep->length = wep_total_len;
-
 		}
 
 		pwep->key_index = wep_key_idx;
@@ -623,7 +614,6 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 		}
 
 		goto exit;
-
 	}
 
 	if (!psta && check_fwstate(pmlmepriv, WIFI_AP_STATE)) { /*  group key */
@@ -671,7 +661,6 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 		}
 
 		goto exit;
-
 	}
 
 	if (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X && psta) { /*  psk/802_1x */
@@ -694,7 +683,6 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 					psecuritypriv->busetkipkey = true;
 
 				} else if (strcmp(param->u.crypt.alg, "CCMP") == 0) {
-
 					psta->dot118021XPrivacy = _AES_;
 				} else {
 					psta->dot118021XPrivacy = _NO_PRIVACY_;
@@ -752,7 +740,6 @@ exit:
 	kfree(pwep);
 
 	return ret;
-
 }
 
 static int rtw_set_beacon(struct net_device *dev, struct ieee_param *param, int len)
@@ -777,7 +764,6 @@ static int rtw_set_beacon(struct net_device *dev, struct ieee_param *param, int 
 		ret = -EINVAL;
 
 	return ret;
-
 }
 
 static void rtw_hostapd_sta_flush(struct net_device *dev)
@@ -856,7 +842,6 @@ static int rtw_add_sta(struct net_device *dev, struct ieee_param *param)
 	}
 
 	return ret;
-
 }
 
 static int rtw_del_sta(struct net_device *dev, struct ieee_param *param)
@@ -885,18 +870,15 @@ static int rtw_del_sta(struct net_device *dev, struct ieee_param *param)
 			list_del_init(&psta->asoc_list);
 			pstapriv->asoc_list_cnt--;
 			updated = ap_free_sta(padapter, psta, true, WLAN_REASON_DEAUTH_LEAVING);
-
 		}
 		spin_unlock_bh(&pstapriv->asoc_list_lock);
 
 		associated_clients_update(padapter, updated);
 
 		psta = NULL;
-
 	}
 
 	return ret;
-
 }
 
 static int rtw_ioctl_get_sta_data(struct net_device *dev, struct ieee_param *param, int len)
@@ -956,7 +938,6 @@ static int rtw_ioctl_get_sta_data(struct net_device *dev, struct ieee_param *par
 	}
 
 	return ret;
-
 }
 
 static int rtw_get_sta_wpaie(struct net_device *dev, struct ieee_param *param)
@@ -995,7 +976,6 @@ static int rtw_get_sta_wpaie(struct net_device *dev, struct ieee_param *param)
 	}
 
 	return ret;
-
 }
 
 static int rtw_set_wps_beacon(struct net_device *dev, struct ieee_param *param, int len)
@@ -1029,7 +1009,6 @@ static int rtw_set_wps_beacon(struct net_device *dev, struct ieee_param *param, 
 	}
 
 	return ret;
-
 }
 
 static int rtw_set_wps_probe_resp(struct net_device *dev, struct ieee_param *param, int len)
@@ -1057,7 +1036,6 @@ static int rtw_set_wps_probe_resp(struct net_device *dev, struct ieee_param *par
 	}
 
 	return ret;
-
 }
 
 static int rtw_set_wps_assoc_resp(struct net_device *dev, struct ieee_param *param, int len)
@@ -1085,7 +1063,6 @@ static int rtw_set_wps_assoc_resp(struct net_device *dev, struct ieee_param *par
 	}
 
 	return ret;
-
 }
 
 static int rtw_set_hidden_ssid(struct net_device *dev, struct ieee_param *param, int len)
@@ -1144,7 +1121,6 @@ static int rtw_ioctl_acl_remove_sta(struct net_device *dev, struct ieee_param *p
 
 	rtw_acl_remove_sta(padapter, param->sta_addr);
 	return 0;
-
 }
 
 static int rtw_ioctl_acl_add_sta(struct net_device *dev, struct ieee_param *param, int len)
@@ -1162,7 +1138,6 @@ static int rtw_ioctl_acl_add_sta(struct net_device *dev, struct ieee_param *para
 	}
 
 	return rtw_acl_add_sta(padapter, param->sta_addr);
-
 }
 
 static int rtw_ioctl_set_macaddr_acl(struct net_device *dev, struct ieee_param *param, int len)
@@ -1293,7 +1268,6 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 	default:
 		ret = -EOPNOTSUPP;
 		break;
-
 	}
 
 	if (ret == 0 && copy_to_user(p->pointer, param, p->length))
