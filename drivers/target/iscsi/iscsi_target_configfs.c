@@ -45,9 +45,9 @@ static ssize_t lio_target_np_driver_show(struct config_item *item, char *page,
 
 	tpg_np_new = iscsit_tpg_locate_child_np(tpg_np, type);
 	if (tpg_np_new)
-		rb = sprintf(page, "1\n");
+		rb = sysfs_emit(page, "1\n");
 	else
-		rb = sprintf(page, "0\n");
+		rb = sysfs_emit(page, "0\n");
 
 	return rb;
 }
@@ -282,7 +282,7 @@ static ssize_t iscsi_nacl_attrib_##name##_show(struct config_item *item,\
 {									\
 	struct se_node_acl *se_nacl = attrib_to_nacl(item);		\
 	struct iscsi_node_acl *nacl = to_iscsi_nacl(se_nacl);		\
-	return sprintf(page, "%u\n", nacl->node_attrib.name);		\
+	return sysfs_emit(page, "%u\n", nacl->node_attrib.name);		\
 }									\
 									\
 static ssize_t iscsi_nacl_attrib_##name##_store(struct config_item *item,\
@@ -320,7 +320,7 @@ static ssize_t iscsi_nacl_attrib_authentication_show(struct config_item *item,
 	struct se_node_acl *se_nacl = attrib_to_nacl(item);
 	struct iscsi_node_acl *nacl = to_iscsi_nacl(se_nacl);
 
-	return sprintf(page, "%d\n", nacl->node_attrib.authentication);
+	return sysfs_emit(page, "%d\n", nacl->node_attrib.authentication);
 }
 
 static ssize_t iscsi_nacl_attrib_authentication_store(struct config_item *item,
@@ -641,7 +641,7 @@ static ssize_t lio_target_nacl_info_show(struct config_item *item, char *page)
 static ssize_t lio_target_nacl_cmdsn_depth_show(struct config_item *item,
 		char *page)
 {
-	return sprintf(page, "%u\n", acl_to_nacl(item)->queue_depth);
+	return sysfs_emit(page, "%u\n", acl_to_nacl(item)->queue_depth);
 }
 
 static ssize_t lio_target_nacl_cmdsn_depth_store(struct config_item *item,
@@ -750,7 +750,7 @@ static ssize_t iscsi_tpg_attrib_##name##_show(struct config_item *item,	\
 	if (iscsit_get_tpg(tpg) < 0)					\
 		return -EINVAL;						\
 									\
-	rb = sprintf(page, "%u\n", tpg->tpg_attrib.name);		\
+	rb = sysfs_emit(page, "%u\n", tpg->tpg_attrib.name);		\
 	iscsit_put_tpg(tpg);						\
 	return rb;							\
 }									\
@@ -1138,7 +1138,7 @@ static void lio_target_tiqn_deltpg(struct se_portal_group *se_tpg)
 static ssize_t lio_target_wwn_lio_version_show(struct config_item *item,
 		char *page)
 {
-	return sprintf(page, "Datera Inc. iSCSI Target "ISCSIT_VERSION"\n");
+	return sysfs_emit(page, "Datera Inc. iSCSI Target %s\n", ISCSIT_VERSION);
 }
 
 CONFIGFS_ATTR_RO(lio_target_wwn_, lio_version);
@@ -1146,7 +1146,7 @@ CONFIGFS_ATTR_RO(lio_target_wwn_, lio_version);
 static ssize_t lio_target_wwn_cpus_allowed_list_show(
 		struct config_item *item, char *page)
 {
-	return sprintf(page, "%*pbl\n",
+	return sysfs_emit(page, "%*pbl\n",
 		       cpumask_pr_args(iscsit_global->allowed_cpumask));
 }
 
@@ -1283,7 +1283,7 @@ static ssize_t iscsi_disc_enforce_discovery_auth_show(struct config_item *item,
 {
 	struct iscsi_node_auth *discovery_auth = &iscsit_global->discovery_acl.node_auth;
 
-	return sprintf(page, "%d\n", discovery_auth->enforce_discovery_auth);
+	return sysfs_emit(page, "%d\n", discovery_auth->enforce_discovery_auth);
 }
 
 static ssize_t iscsi_disc_enforce_discovery_auth_store(struct config_item *item,
