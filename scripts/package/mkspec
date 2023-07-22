@@ -81,12 +81,12 @@ $S	BuildRequires: gcc make openssl openssl-devel perl python3 rsync
 	glibc package.
 
 $S$M	%package devel
-$S$M	Summary: Development package for building kernel modules to match the $__KERNELRELEASE kernel
+$S$M	Summary: Development package for building kernel modules to match the %{version} kernel
 $S$M	Group: System Environment/Kernel
 $S$M	AutoReqProv: no
 $S$M	%description -n kernel-devel
 $S$M	This package provides kernel headers and makefiles sufficient to build modules
-$S$M	against the $__KERNELRELEASE kernel package.
+$S$M	against the %{version} kernel package.
 $S$M
 $S	%prep
 $S	%setup -q -n linux
