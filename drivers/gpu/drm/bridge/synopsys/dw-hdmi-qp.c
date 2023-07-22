@@ -2241,7 +2241,6 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 
 		dev_info(hdmi->dev, "failed to get edid\n");
 	}
-	dw_hdmi_qp_check_output_type_changed(hdmi);
 
 	return ret;
 }
@@ -2563,7 +2562,8 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	}
 
 	if (check_hdr_color_change(old_state, new_state, hdmi) || hdmi->logo_plug_out ||
-	    dw_hdmi_color_changed(connector, state)) {
+	    dw_hdmi_color_changed(connector, state) ||
+	    dw_hdmi_qp_check_output_type_changed(hdmi)) {
 		u32 mtmdsclk;
 
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
@@ -2625,17 +2625,6 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 void dw_hdmi_qp_set_output_type(struct dw_hdmi_qp *hdmi, u64 val)
 {
 	hdmi->force_output = val;
-
-	if (!dw_hdmi_qp_check_output_type_changed(hdmi))
-		return;
-
-	if (hdmi->disabled)
-		return;
-
-	if (!hdmi->sink_is_hdmi)
-		hdmi_modb(hdmi, OPMODE_DVI, OPMODE_DVI, LINK_CONFIG0);
-	else
-		hdmi_modb(hdmi, 0, OPMODE_DVI, LINK_CONFIG0);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_output_type);
 
@@ -2763,8 +2752,13 @@ dw_hdmi_qp_bridge_mode_valid(struct drm_bridge *bridge,
 			     const struct drm_display_info *info,
 			     const struct drm_display_mode *mode)
 {
+	struct dw_hdmi_qp *hdmi = bridge->driver_private;
+
 	if (mode->clock <= 25000)
 		return MODE_CLOCK_RANGE;
+
+	if (!hdmi->sink_is_hdmi && mode->clock > 340000)
+		return MODE_BAD;
 
 	return MODE_OK;
 }

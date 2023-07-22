@@ -2031,11 +2031,6 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	else
 		color_depth = 8;
 
-	if (!sink_is_hdmi) {
-		*color_format = RK_IF_FORMAT_RGB;
-		color_depth = 8;
-	}
-
 	*eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	if (conn_state->hdr_output_metadata) {
 		hdr_metadata = (struct hdr_output_metadata *)
@@ -2084,6 +2079,11 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 
 	if (hdmi->is_hdmi_qp && mode.clock >= 600000)
 		*color_format = RK_IF_FORMAT_YCBCR420;
+
+	if (!sink_is_hdmi) {
+		*color_format = RK_IF_FORMAT_RGB;
+		color_depth = 8;
+	}
 
 	if (*color_format == RK_IF_FORMAT_YCBCR422 || color_depth == 8)
 		tmdsclock = pixclock;
