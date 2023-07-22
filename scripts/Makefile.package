@@ -72,6 +72,7 @@ PHONY += rpm-pkg
 rpm-pkg: srpm = $(shell rpmspec --srpm --query --queryformat='%{name}-%{VERSION}-%{RELEASE}.src.rpm' kernel.spec)
 rpm-pkg: srcrpm-pkg
 	+rpmbuild $(RPMOPTS) --target $(UTS_MACHINE)-linux -rb $(srpm) \
+	--build-in-place --noprep \
 	--define='_smp_mflags %{nil}' --define='make $(MAKE)'
 
 # srcrpm-pkg
