@@ -38,6 +38,7 @@ config EROFS_FS_DEBUG
 config EROFS_FS_XATTR
 	bool "EROFS extended attributes"
 	depends on EROFS_FS
+	select XXHASH
 	default y
 	help
 	  Extended attributes are name:value pairs associated with inodes by
