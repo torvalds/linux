@@ -426,10 +426,7 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 
 	default:
 
-
-
 		ret = -EOPNOTSUPP;
-
 
 		break;
 
@@ -570,7 +567,6 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 		goto exit;
 	}
 
-
 	if (strcmp(param->u.crypt.alg, "WEP") == 0 && !psta) {
 		wep_key_idx = param->u.crypt.idx;
 		wep_key_len = param->u.crypt.key_len;
@@ -579,7 +575,6 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 			ret = -EINVAL;
 			goto exit;
 		}
-
 
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
@@ -609,7 +604,6 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				psecuritypriv->dot118021XGrpPrivacy = _WEP104_;
 			}
 
-
 			psecuritypriv->dot11PrivacyKeyIndex = wep_key_idx;
 
 			memcpy(&(psecuritypriv->dot11DefKey[wep_key_idx].skey[0]), pwep->key_material, pwep->key_length);
@@ -631,7 +625,6 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 		goto exit;
 
 	}
-
 
 	if (!psta && check_fwstate(pmlmepriv, WIFI_AP_STATE)) { /*  group key */
 		if (param->u.crypt.set_tx == 1) {
@@ -778,12 +771,10 @@ static int rtw_set_beacon(struct net_device *dev, struct ieee_param *param, int 
 	if ((pstapriv->max_num_sta > NUM_STA) || (pstapriv->max_num_sta <= 0))
 		pstapriv->max_num_sta = NUM_STA;
 
-
 	if (rtw_check_beacon_data(padapter, pbuf,  (len-12-2)) == _SUCCESS)/*  12 = param header, 2:no packed */
 		ret = 0;
 	else
 		ret = -EINVAL;
-
 
 	return ret;
 
@@ -837,7 +828,6 @@ static int rtw_add_sta(struct net_device *dev, struct ieee_param *param)
 
 		memcpy(psta->bssrateset, param->u.add_sta.tx_supp_rates, 16);
 
-
 		/* check wmm cap. */
 		if (WLAN_STA_WME&flags)
 			psta->qos_option = 1;
@@ -860,7 +850,6 @@ static int rtw_add_sta(struct net_device *dev, struct ieee_param *param)
 			psta->htpriv.ht_option = false;
 
 		update_sta_info_apmode(padapter, psta);
-
 
 	} else {
 		ret = -ENOMEM;
@@ -962,7 +951,6 @@ static int rtw_ioctl_get_sta_data(struct net_device *dev, struct ieee_param *par
 		psta_data->tx_bytes = psta->sta_stats.tx_bytes;
 		psta_data->tx_drops = psta->sta_stats.tx_drops;
 
-
 	} else {
 		ret = -1;
 	}
@@ -1024,7 +1012,6 @@ static int rtw_set_wps_beacon(struct net_device *dev, struct ieee_param *param, 
 
 	ie_len = len-12-2;/*  12 = param header, 2:no packed */
 
-
 	kfree(pmlmepriv->wps_beacon_ie);
 	pmlmepriv->wps_beacon_ie = NULL;
 
@@ -1040,7 +1027,6 @@ static int rtw_set_wps_beacon(struct net_device *dev, struct ieee_param *param, 
 
 		pmlmeext->bstart_bss = true;
 	}
-
 
 	return ret;
 
@@ -1058,7 +1044,6 @@ static int rtw_set_wps_probe_resp(struct net_device *dev, struct ieee_param *par
 
 	ie_len = len-12-2;/*  12 = param header, 2:no packed */
 
-
 	kfree(pmlmepriv->wps_probe_resp_ie);
 	pmlmepriv->wps_probe_resp_ie = NULL;
 
@@ -1070,7 +1055,6 @@ static int rtw_set_wps_probe_resp(struct net_device *dev, struct ieee_param *par
 
 		memcpy(pmlmepriv->wps_probe_resp_ie, param->u.bcn_ie.buf, ie_len);
 	}
-
 
 	return ret;
 
@@ -1088,7 +1072,6 @@ static int rtw_set_wps_assoc_resp(struct net_device *dev, struct ieee_param *par
 
 	ie_len = len-12-2;/*  12 = param header, 2:no packed */
 
-
 	kfree(pmlmepriv->wps_assoc_resp_ie);
 	pmlmepriv->wps_assoc_resp_ie = NULL;
 
@@ -1100,7 +1083,6 @@ static int rtw_set_wps_assoc_resp(struct net_device *dev, struct ieee_param *par
 
 		memcpy(pmlmepriv->wps_assoc_resp_ie, param->u.bcn_ie.buf, ie_len);
 	}
-
 
 	return ret;
 
