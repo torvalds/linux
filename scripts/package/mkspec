@@ -39,6 +39,7 @@ EXCLUDES="$RCS_TAR_IGNORE --exclude=*vmlinux* --exclude=*.mod \
 #  $M: this line is enabled only when CONFIG_MODULES is enabled
 sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
 %define ARCH ${ARCH}
+%define KERNELRELEASE ${KERNELRELEASE}
 
 %{!?make: %define make make}
 %define makeflags %{?_smp_mflags} ARCH=%{ARCH}
@@ -54,7 +55,7 @@ sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
 $S	Source0: linux.tar.gz
 $S	Source1: config
 $S	Source2: diff.patch
-	Provides: kernel-$KERNELRELEASE
+	Provides: kernel-%{KERNELRELEASE}
 $S	BuildRequires: bc binutils bison dwarves
 $S	BuildRequires: (elfutils-libelf-devel or libelf-devel) flex
 $S	BuildRequires: gcc make openssl openssl-devel perl python3 rsync
@@ -94,58 +95,58 @@ $S	cp %{SOURCE1} .config
 $S	patch -p1 < %{SOURCE2}
 $S
 $S	%build
-$S	%{make} %{makeflags} KERNELRELEASE=$KERNELRELEASE KBUILD_BUILD_VERSION=%{release}
+$S	%{make} %{makeflags} KERNELRELEASE=%{KERNELRELEASE} KBUILD_BUILD_VERSION=%{release}
 $S
 	%install
 	mkdir -p %{buildroot}/boot
 	%ifarch ia64
 	mkdir -p %{buildroot}/boot/efi
-	cp \$(%{make} %{makeflags} -s image_name) %{buildroot}/boot/efi/vmlinuz-$KERNELRELEASE
-	ln -s efi/vmlinuz-$KERNELRELEASE %{buildroot}/boot/
+	cp \$(%{make} %{makeflags} -s image_name) %{buildroot}/boot/efi/vmlinuz-%{KERNELRELEASE}
+	ln -s efi/vmlinuz-%{KERNELRELEASE} %{buildroot}/boot/
 	%else
-	cp \$(%{make} %{makeflags} -s image_name) %{buildroot}/boot/vmlinuz-$KERNELRELEASE
+	cp \$(%{make} %{makeflags} -s image_name) %{buildroot}/boot/vmlinuz-%{KERNELRELEASE}
 	%endif
 $M	%{make} %{makeflags} INSTALL_MOD_PATH=%{buildroot} modules_install
 	%{make} %{makeflags} INSTALL_HDR_PATH=%{buildroot}/usr headers_install
-	cp System.map %{buildroot}/boot/System.map-$KERNELRELEASE
-	cp .config %{buildroot}/boot/config-$KERNELRELEASE
-$S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/build
-$S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/source
-$S$M	mkdir -p %{buildroot}/usr/src/kernels/$KERNELRELEASE
-$S$M	tar cf - $EXCLUDES . | tar xf - -C %{buildroot}/usr/src/kernels/$KERNELRELEASE
-$S$M	cd %{buildroot}/lib/modules/$KERNELRELEASE
-$S$M	ln -sf /usr/src/kernels/$KERNELRELEASE build
-$S$M	ln -sf /usr/src/kernels/$KERNELRELEASE source
+	cp System.map %{buildroot}/boot/System.map-%{KERNELRELEASE}
+	cp .config %{buildroot}/boot/config-%{KERNELRELEASE}
+$S$M	rm -f %{buildroot}/lib/modules/%{KERNELRELEASE}/build
+$S$M	rm -f %{buildroot}/lib/modules/%{KERNELRELEASE}/source
+$S$M	mkdir -p %{buildroot}/usr/src/kernels/%{KERNELRELEASE}
+$S$M	tar cf - $EXCLUDES . | tar xf - -C %{buildroot}/usr/src/kernels/%{KERNELRELEASE}
+$S$M	cd %{buildroot}/lib/modules/%{KERNELRELEASE}
+$S$M	ln -sf /usr/src/kernels/%{KERNELRELEASE} build
+$S$M	ln -sf /usr/src/kernels/%{KERNELRELEASE} source
 
 	%clean
 	rm -rf %{buildroot}
 
 	%post
-	if [ -x /sbin/installkernel -a -r /boot/vmlinuz-$KERNELRELEASE -a -r /boot/System.map-$KERNELRELEASE ]; then
-	cp /boot/vmlinuz-$KERNELRELEASE /boot/.vmlinuz-$KERNELRELEASE-rpm
-	cp /boot/System.map-$KERNELRELEASE /boot/.System.map-$KERNELRELEASE-rpm
-	rm -f /boot/vmlinuz-$KERNELRELEASE /boot/System.map-$KERNELRELEASE
-	/sbin/installkernel $KERNELRELEASE /boot/.vmlinuz-$KERNELRELEASE-rpm /boot/.System.map-$KERNELRELEASE-rpm
-	rm -f /boot/.vmlinuz-$KERNELRELEASE-rpm /boot/.System.map-$KERNELRELEASE-rpm
+	if [ -x /sbin/installkernel -a -r /boot/vmlinuz-%{KERNELRELEASE} -a -r /boot/System.map-%{KERNELRELEASE} ]; then
+	cp /boot/vmlinuz-%{KERNELRELEASE} /boot/.vmlinuz-%{KERNELRELEASE}-rpm
+	cp /boot/System.map-%{KERNELRELEASE} /boot/.System.map-%{KERNELRELEASE}-rpm
+	rm -f /boot/vmlinuz-%{KERNELRELEASE} /boot/System.map-%{KERNELRELEASE}
+	/sbin/installkernel %{KERNELRELEASE} /boot/.vmlinuz-%{KERNELRELEASE}-rpm /boot/.System.map-%{KERNELRELEASE}-rpm
+	rm -f /boot/.vmlinuz-%{KERNELRELEASE}-rpm /boot/.System.map-%{KERNELRELEASE}-rpm
 	fi
 
 	%preun
 	if [ -x /sbin/new-kernel-pkg ]; then
-	new-kernel-pkg --remove $KERNELRELEASE --rminitrd --initrdfile=/boot/initramfs-$KERNELRELEASE.img
+	new-kernel-pkg --remove %{KERNELRELEASE} --rminitrd --initrdfile=/boot/initramfs-%{KERNELRELEASE}.img
 	elif [ -x /usr/bin/kernel-install ]; then
-	kernel-install remove $KERNELRELEASE
+	kernel-install remove %{KERNELRELEASE}
 	fi
 
 	%postun
 	if [ -x /sbin/update-bootloader ]; then
-	/sbin/update-bootloader --remove $KERNELRELEASE
+	/sbin/update-bootloader --remove %{KERNELRELEASE}
 	fi
 
 	%files
 	%defattr (-, root, root)
-$M	/lib/modules/$KERNELRELEASE
-$M	%exclude /lib/modules/$KERNELRELEASE/build
-$M	%exclude /lib/modules/$KERNELRELEASE/source
+$M	/lib/modules/%{KERNELRELEASE}
+$M	%exclude /lib/modules/%{KERNELRELEASE}/build
+$M	%exclude /lib/modules/%{KERNELRELEASE}/source
 	/boot/*
 
 	%files headers
@@ -154,7 +155,7 @@ $M	%exclude /lib/modules/$KERNELRELEASE/source
 $S$M
 $S$M	%files devel
 $S$M	%defattr (-, root, root)
-$S$M	/usr/src/kernels/$KERNELRELEASE
-$S$M	/lib/modules/$KERNELRELEASE/build
-$S$M	/lib/modules/$KERNELRELEASE/source
+$S$M	/usr/src/kernels/%{KERNELRELEASE}
+$S$M	/lib/modules/%{KERNELRELEASE}/build
+$S$M	/lib/modules/%{KERNELRELEASE}/source
 EOF
