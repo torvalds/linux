@@ -516,14 +516,11 @@
 		iommus = <&sysmmu_fimc_isp>, <&sysmmu_fimc_drc>,
 			 <&sysmmu_fimc_fd>, <&sysmmu_fimc_mcuctl>;
 		iommu-names = "isp", "drc", "fd", "mcuctl";
+		samsung,pmu-syscon = <&pmu_system_controller>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 		status = "disabled";
-
-		pmu@10020000 {
-			reg = <0x10020000 0x3000>;
-		};
 
 		i2c1_isp: i2c-isp@12140000 {
 			compatible = "samsung,exynos4212-i2c-isp";
