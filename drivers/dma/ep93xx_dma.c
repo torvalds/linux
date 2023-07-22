@@ -1320,11 +1320,9 @@ static int __init ep93xx_dma_probe(struct platform_device *pdev)
 	struct ep93xx_dma_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct ep93xx_dma_engine *edma;
 	struct dma_device *dma_dev;
-	size_t edma_size;
 	int ret, i;
 
-	edma_size = pdata->num_channels * sizeof(struct ep93xx_dma_chan);
-	edma = kzalloc(sizeof(*edma) + edma_size, GFP_KERNEL);
+	edma = kzalloc(struct_size(edma, channels, pdata->num_channels), GFP_KERNEL);
 	if (!edma)
 		return -ENOMEM;
 
