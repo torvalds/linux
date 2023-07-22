@@ -1198,13 +1198,6 @@ static int phylink_change_inband_advert(struct phylink *pl)
 	if (test_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state))
 		return 0;
 
-	if (!pl->pcs && pl->config->legacy_pre_march2020) {
-		/* Legacy method */
-		phylink_mac_config(pl, &pl->link_config);
-		phylink_pcs_an_restart(pl);
-		return 0;
-	}
-
 	phylink_dbg(pl, "%s: mode=%s/%s adv=%*pb pause=%02x\n", __func__,
 		    phylink_an_mode_str(pl->cur_link_an_mode),
 		    phy_modes(pl->link_config.interface),
@@ -1257,9 +1250,6 @@ static void phylink_mac_pcs_get_state(struct phylink *pl,
 
 	if (pl->pcs)
 		pl->pcs->ops->pcs_get_state(pl->pcs, state);
-	else if (pl->mac_ops->mac_pcs_get_state &&
-		 pl->config->legacy_pre_march2020)
-		pl->mac_ops->mac_pcs_get_state(pl->config, state);
 	else
 		state->link = 0;
 }
@@ -1492,13 +1482,6 @@ static void phylink_resolve(struct work_struct *w)
 			}
 			phylink_major_config(pl, false, &link_state);
 			pl->link_config.interface = link_state.interface;
-		} else if (!pl->pcs && pl->config->legacy_pre_march2020) {
-			/* The interface remains unchanged, only the speed,
-			 * duplex or pause settings have changed. Call the
-			 * old mac_config() method to configure the MAC/PCS
-			 * only if we do not have a legacy MAC driver.
-			 */
-			phylink_mac_config(pl, &link_state);
 		}
 	}
 
@@ -3513,7 +3496,7 @@ static void phylink_decode_usgmii_word(struct phylink_link_state *state,
  *
  * Parse the Clause 37 or Cisco SGMII link partner negotiation word into
  * the phylink @state structure. This is suitable to be used for implementing
- * the mac_pcs_get_state() member of the struct phylink_mac_ops structure if
+ * the pcs_get_state() member of the struct phylink_pcs_ops structure if
  * accessing @bmsr and @lpa cannot be done with MDIO directly.
  */
 void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
@@ -3563,7 +3546,7 @@ EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_decode_state);
  * Read the MAC PCS state from the MII device configured in @config and
  * parse the Clause 37 or Cisco SGMII link partner negotiation word into
  * the phylink @state structure. This is suitable to be directly plugged
- * into the mac_pcs_get_state() member of the struct phylink_mac_ops
+ * into the pcs_get_state() member of the struct phylink_pcs_ops
  * structure.
  */
 void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
@@ -3674,8 +3657,8 @@ EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_config);
  * clause 37 negotiation.
  *
  * Restart the clause 37 negotiation with the link partner. This is
- * suitable to be directly plugged into the mac_pcs_get_state() member
- * of the struct phylink_mac_ops structure.
+ * suitable to be directly plugged into the pcs_get_state() member
+ * of the struct phylink_pcs_ops structure.
  */
 void phylink_mii_c22_pcs_an_restart(struct mdio_device *pcs)
 {
