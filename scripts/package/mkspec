@@ -38,8 +38,10 @@ EXCLUDES="$RCS_TAR_IGNORE --exclude=*vmlinux* --exclude=*.mod \
 #  $S: this line is enabled only when building source package
 #  $M: this line is enabled only when CONFIG_MODULES is enabled
 sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
+%define ARCH ${ARCH}
+
 %{!?make: %define make make}
-%define makeflags %{?_smp_mflags}
+%define makeflags %{?_smp_mflags} ARCH=%{ARCH}
 
 	Name: kernel
 	Summary: The Linux Kernel
