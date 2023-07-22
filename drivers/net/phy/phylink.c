@@ -1066,17 +1066,24 @@ static void phylink_pcs_poll_start(struct phylink *pl)
 static void phylink_mac_config(struct phylink *pl,
 			       const struct phylink_link_state *state)
 {
-	phylink_dbg(pl,
-		    "%s: mode=%s/%s/%s/%s/%s adv=%*pb pause=%02x link=%u\n",
-		    __func__, phylink_an_mode_str(pl->cur_link_an_mode),
-		    phy_modes(state->interface),
-		    phy_speed_to_str(state->speed),
-		    phy_duplex_to_str(state->duplex),
-		    phy_rate_matching_to_str(state->rate_matching),
-		    __ETHTOOL_LINK_MODE_MASK_NBITS, state->advertising,
-		    state->pause, state->link);
+	struct phylink_link_state st = *state;
 
-	pl->mac_ops->mac_config(pl->config, pl->cur_link_an_mode, state);
+	/* Stop drivers incorrectly using these */
+	linkmode_zero(st.lp_advertising);
+	st.speed = SPEED_UNKNOWN;
+	st.duplex = DUPLEX_UNKNOWN;
+	st.an_complete = false;
+	st.link = false;
+
+	phylink_dbg(pl,
+		    "%s: mode=%s/%s/%s adv=%*pb pause=%02x\n",
+		    __func__, phylink_an_mode_str(pl->cur_link_an_mode),
+		    phy_modes(st.interface),
+		    phy_rate_matching_to_str(st.rate_matching),
+		    __ETHTOOL_LINK_MODE_MASK_NBITS, st.advertising,
+		    st.pause);
+
+	pl->mac_ops->mac_config(pl->config, pl->cur_link_an_mode, &st);
 }
 
 static void phylink_pcs_an_restart(struct phylink *pl)
