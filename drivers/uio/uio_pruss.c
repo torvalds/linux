@@ -175,8 +175,12 @@ static int pruss_probe(struct platform_device *pdev)
 		goto err_free_ddr_vaddr;
 	}
 
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		goto err_free_ddr_vaddr;
+
+	gdev->hostirq_start = ret;
 	gdev->pintc_base = pdata->pintc_base;
-	gdev->hostirq_start = platform_get_irq(pdev, 0);
 
 	for (cnt = 0, p = gdev->info; cnt < MAX_PRUSS_EVT; cnt++, p++) {
 		p->mem[0].addr = regs_prussio->start;
