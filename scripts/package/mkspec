@@ -28,9 +28,6 @@ else
 fi
 
 __KERNELRELEASE=$(echo $KERNELRELEASE | sed -e "s/-/_/g")
-EXCLUDES="$RCS_TAR_IGNORE --exclude=*vmlinux* --exclude=*.mod \
---exclude=*.o --exclude=*.ko --exclude=*.cmd --exclude=Documentation \
---exclude=.config.old --exclude=.missing-syscalls.d --exclude=*.s"
 
 # We can label the here-doc lines for conditional output to the spec file
 #
@@ -112,8 +109,7 @@ $M	%{make} %{makeflags} INSTALL_MOD_PATH=%{buildroot} modules_install
 	cp .config %{buildroot}/boot/config-%{KERNELRELEASE}
 $S$M	rm -f %{buildroot}/lib/modules/%{KERNELRELEASE}/build
 $S$M	rm -f %{buildroot}/lib/modules/%{KERNELRELEASE}/source
-$S$M	mkdir -p %{buildroot}/usr/src/kernels/%{KERNELRELEASE}
-$S$M	tar cf - $EXCLUDES . | tar xf - -C %{buildroot}/usr/src/kernels/%{KERNELRELEASE}
+$S$M	%{make} %{makeflags} run-command KBUILD_RUN_COMMAND='\${srctree}/scripts/package/install-extmod-build %{buildroot}/usr/src/kernels/%{KERNELRELEASE}'
 $S$M	cd %{buildroot}/lib/modules/%{KERNELRELEASE}
 $S$M	ln -sf /usr/src/kernels/%{KERNELRELEASE} build
 $S$M	ln -sf /usr/src/kernels/%{KERNELRELEASE} source
