@@ -27,8 +27,6 @@ else
 	M=DEL
 fi
 
-__KERNELRELEASE=$(echo $KERNELRELEASE | sed -e "s/-/_/g")
-
 # We can label the here-doc lines for conditional output to the spec file
 #
 # Labels:
@@ -43,7 +41,7 @@ sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
 
 	Name: kernel
 	Summary: The Linux Kernel
-	Version: $__KERNELRELEASE
+	Version: %(echo %{KERNELRELEASE} | sed -e 's/-/_/g')
 	Release: $(cat .version 2>/dev/null || echo 1)
 	License: GPL
 	Group: System Environment/Kernel
