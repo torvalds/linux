@@ -72,7 +72,7 @@ PHONY += rpm-pkg
 rpm-pkg: srpm = $(shell rpmspec --srpm --query --queryformat='%{name}-%{VERSION}-%{RELEASE}.src.rpm' kernel.spec)
 rpm-pkg: srcrpm-pkg
 	+rpmbuild $(RPMOPTS) --target $(UTS_MACHINE)-linux -rb $(srpm) \
-	--define='_smp_mflags %{nil}'
+	--define='_smp_mflags %{nil}' --define='make $(MAKE)'
 
 # srcrpm-pkg
 # ---------------------------------------------------------------------------
@@ -89,7 +89,8 @@ binrpm-pkg:
 	$(MAKE) -f $(srctree)/Makefile
 	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $(objtree)/binkernel.spec
 	+rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --target \
-		$(UTS_MACHINE)-linux -bb $(objtree)/binkernel.spec
+		$(UTS_MACHINE)-linux -bb $(objtree)/binkernel.spec \
+		--define='make $(MAKE)'
 
 # deb-pkg srcdeb-pkg bindeb-pkg
 # ---------------------------------------------------------------------------
