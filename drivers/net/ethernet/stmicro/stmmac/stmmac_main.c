@@ -5441,7 +5441,7 @@ read_again:
 					priv->dma_conf.dma_buf_sz);
 
 			/* Data payload appended into SKB */
-			page_pool_release_page(rx_q->page_pool, buf->page);
+			skb_mark_for_recycle(skb);
 			buf->page = NULL;
 		}
 
@@ -5453,7 +5453,7 @@ read_again:
 					priv->dma_conf.dma_buf_sz);
 
 			/* Data payload appended into SKB */
-			page_pool_release_page(rx_q->page_pool, buf->sec_page);
+			skb_mark_for_recycle(skb);
 			buf->sec_page = NULL;
 		}
 
