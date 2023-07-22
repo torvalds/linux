@@ -130,7 +130,7 @@ static int hgsl_mem_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 		(mem_node->page_count < page_count + vma->vm_pgoff))
 		return -EINVAL;
 
-	vma->vm_flags |= VM_DONTDUMP | VM_DONTEXPAND | VM_DONTCOPY;
+	vm_flags_set(vma, VM_DONTDUMP | VM_DONTEXPAND | VM_DONTCOPY);
 	vma->vm_private_data = mem_node;
 	cache_mode = mem_node->flags & GSL_MEMFLAGS_CACHEMODE_MASK;
 	switch (cache_mode) {
