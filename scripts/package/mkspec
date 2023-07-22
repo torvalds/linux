@@ -10,11 +10,7 @@
 #
 
 # how we were called determines which rpms we build and how we build them
-if [ "$1" = prebuilt ]; then
-	S=DEL
-else
-	S=
-
+if [ -z "$1" ]; then
 	mkdir -p rpmbuild/SOURCES
 	cp linux.tar.gz rpmbuild/SOURCES
 	cp "${KCONFIG_CONFIG}" rpmbuild/SOURCES/config
@@ -22,17 +18,12 @@ else
 fi
 
 if grep -q CONFIG_MODULES=y include/config/auto.conf; then
-	M=
+echo '%define with_devel %{?_without_devel: 0} %{?!_without_devel: 1}'
 else
-	M=DEL
+echo '%define with_devel 0'
 fi
 
-# We can label the here-doc lines for conditional output to the spec file
-#
-# Labels:
-#  $S: this line is enabled only when building source package
-#  $M: this line is enabled only when CONFIG_MODULES is enabled
-sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
+cat<<-EOF
 %define ARCH ${ARCH}
 %define KERNELRELEASE ${KERNELRELEASE}
 %define pkg_release $("${srctree}/init/build-version")
@@ -76,14 +67,16 @@ sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
 	building most standard programs and are also needed for rebuilding the
 	glibc package.
 
-$S$M	%package devel
-$S$M	Summary: Development package for building kernel modules to match the %{version} kernel
-$S$M	Group: System Environment/Kernel
-$S$M	AutoReqProv: no
-$S$M	%description -n kernel-devel
-$S$M	This package provides kernel headers and makefiles sufficient to build modules
-$S$M	against the %{version} kernel package.
-$S$M
+	%if %{with_devel}
+	%package devel
+	Summary: Development package for building kernel modules to match the %{version} kernel
+	Group: System Environment/Kernel
+	AutoReqProv: no
+	%description -n kernel-devel
+	This package provides kernel headers and makefiles sufficient to build modules
+	against the %{version} kernel package.
+	%endif
+
 	%prep
 	%setup -q -n linux
 	cp %{SOURCE1} .config
@@ -107,7 +100,9 @@ $S$M
 	cp .config %{buildroot}/boot/config-%{KERNELRELEASE}
 	ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEASE}/build
 	ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEASE}/source
-$S$M	%{make} %{makeflags} run-command KBUILD_RUN_COMMAND='\${srctree}/scripts/package/install-extmod-build %{buildroot}/usr/src/kernels/%{KERNELRELEASE}'
+	%if %{with_devel}
+	%{make} %{makeflags} run-command KBUILD_RUN_COMMAND='\${srctree}/scripts/package/install-extmod-build %{buildroot}/usr/src/kernels/%{KERNELRELEASE}'
+	%endif
 
 	%clean
 	rm -rf %{buildroot}
@@ -143,10 +138,12 @@ $S$M	%{make} %{makeflags} run-command KBUILD_RUN_COMMAND='\${srctree}/scripts/pa
 	%files headers
 	%defattr (-, root, root)
 	/usr/include
-$S$M
-$S$M	%files devel
-$S$M	%defattr (-, root, root)
-$S$M	/usr/src/kernels/%{KERNELRELEASE}
-$S$M	/lib/modules/%{KERNELRELEASE}/build
-$S$M	/lib/modules/%{KERNELRELEASE}/source
+
+	%if %{with_devel}
+	%files devel
+	%defattr (-, root, root)
+	/usr/src/kernels/%{KERNELRELEASE}
+	/lib/modules/%{KERNELRELEASE}/build
+	/lib/modules/%{KERNELRELEASE}/source
+	%endif
 EOF

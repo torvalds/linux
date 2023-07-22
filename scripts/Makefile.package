@@ -89,7 +89,7 @@ binrpm-pkg:
 	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $(objtree)/binkernel.spec
 	+rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --target \
 		$(UTS_MACHINE)-linux -bb $(objtree)/binkernel.spec \
-		--build-in-place --noprep --define='_smp_mflags %{nil}' \
+		--build-in-place --noprep --define='_smp_mflags %{nil}' --without devel \
 		--define='make $(MAKE)'
 
 # deb-pkg srcdeb-pkg bindeb-pkg
