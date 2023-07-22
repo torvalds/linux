@@ -35,6 +35,7 @@ fi
 sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
 %define ARCH ${ARCH}
 %define KERNELRELEASE ${KERNELRELEASE}
+%define pkg_release $("${srctree}/init/build-version")
 
 # _arch is undefined if /usr/lib/rpm/platform/*/macros was not included.
 %{!?_arch: %define _arch dummy}
@@ -44,18 +45,18 @@ sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
 	Name: kernel
 	Summary: The Linux Kernel
 	Version: %(echo %{KERNELRELEASE} | sed -e 's/-/_/g')
-	Release: $(cat .version 2>/dev/null || echo 1)
+	Release: %{pkg_release}
 	License: GPL
 	Group: System Environment/Kernel
 	Vendor: The Linux Community
 	URL: https://www.kernel.org
-$S	Source0: linux.tar.gz
-$S	Source1: config
-$S	Source2: diff.patch
+	Source0: linux.tar.gz
+	Source1: config
+	Source2: diff.patch
 	Provides: kernel-%{KERNELRELEASE}
-$S	BuildRequires: bc binutils bison dwarves
-$S	BuildRequires: (elfutils-libelf-devel or libelf-devel) flex
-$S	BuildRequires: gcc make openssl openssl-devel perl python3 rsync
+	BuildRequires: bc binutils bison dwarves
+	BuildRequires: (elfutils-libelf-devel or libelf-devel) flex
+	BuildRequires: gcc make openssl openssl-devel perl python3 rsync
 
 	%define __spec_install_post /usr/lib/rpm/brp-compress || :
 	%define debug_package %{nil}
@@ -83,14 +84,14 @@ $S$M	%description -n kernel-devel
 $S$M	This package provides kernel headers and makefiles sufficient to build modules
 $S$M	against the %{version} kernel package.
 $S$M
-$S	%prep
-$S	%setup -q -n linux
-$S	cp %{SOURCE1} .config
-$S	patch -p1 < %{SOURCE2}
-$S
-$S	%build
-$S	%{make} %{makeflags} KERNELRELEASE=%{KERNELRELEASE} KBUILD_BUILD_VERSION=%{release}
-$S
+	%prep
+	%setup -q -n linux
+	cp %{SOURCE1} .config
+	patch -p1 < %{SOURCE2}
+
+	%build
+	%{make} %{makeflags} KERNELRELEASE=%{KERNELRELEASE} KBUILD_BUILD_VERSION=%{release}
+
 	%install
 	mkdir -p %{buildroot}/boot
 	%ifarch ia64

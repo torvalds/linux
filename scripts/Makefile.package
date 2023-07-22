@@ -86,10 +86,10 @@ srcrpm-pkg: linux.tar.gz
 # ---------------------------------------------------------------------------
 PHONY += binrpm-pkg
 binrpm-pkg:
-	$(MAKE) -f $(srctree)/Makefile
 	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $(objtree)/binkernel.spec
 	+rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --target \
 		$(UTS_MACHINE)-linux -bb $(objtree)/binkernel.spec \
+		--build-in-place --noprep --define='_smp_mflags %{nil}' \
 		--define='make $(MAKE)'
 
 # deb-pkg srcdeb-pkg bindeb-pkg
