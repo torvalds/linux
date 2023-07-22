@@ -86,9 +86,9 @@ srcrpm-pkg: linux.tar.gz
 # ---------------------------------------------------------------------------
 PHONY += binrpm-pkg
 binrpm-pkg:
-	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $(objtree)/binkernel.spec
+	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $(objtree)/kernel.spec
 	+rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --target \
-		$(UTS_MACHINE)-linux -bb $(objtree)/binkernel.spec \
+		$(UTS_MACHINE)-linux -bb $(objtree)/kernel.spec \
 		--build-in-place --noprep --define='_smp_mflags %{nil}' --without devel \
 		--define='make $(MAKE)'
 
