@@ -1021,10 +1021,12 @@ static int mes_v11_0_mqd_sw_init(struct amdgpu_device *adev,
 
 	/* prepare MQD backup */
 	adev->mes.mqd_backup[pipe] = kmalloc(mqd_size, GFP_KERNEL);
-	if (!adev->mes.mqd_backup[pipe])
+	if (!adev->mes.mqd_backup[pipe]) {
 		dev_warn(adev->dev,
 			 "no memory to create MQD backup for ring %s\n",
 			 ring->name);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
