@@ -83,11 +83,12 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 			if (strnstr(atom_ctx->vbios_pn, "D603GLXE",
 				    sizeof(atom_ctx->vbios_pn))) {
 				return false;
-			} else {
-				if (fru_addr)
-					*fru_addr = FRU_EEPROM_MADDR_6;
-				return true;
 			}
+
+			if (fru_addr)
+				*fru_addr = FRU_EEPROM_MADDR_6;
+			return true;
+
 		} else {
 			return false;
 		}
