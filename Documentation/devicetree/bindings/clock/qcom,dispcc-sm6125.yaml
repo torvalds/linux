@@ -48,6 +48,16 @@ properties:
   '#power-domain-cells':
     const: 1
 
+  power-domains:
+    description:
+      A phandle and PM domain specifier for the CX power domain.
+    maxItems: 1
+
+  required-opps:
+    description:
+      A phandle to an OPP node describing the power domain's performance point.
+    maxItems: 1
+
   reg:
     maxItems: 1
 
@@ -65,9 +75,11 @@ examples:
   - |
     #include <dt-bindings/clock/qcom,rpmcc.h>
     #include <dt-bindings/clock/qcom,gcc-sm6125.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
     clock-controller@5f00000 {
       compatible = "qcom,sm6125-dispcc";
       reg = <0x5f00000 0x20000>;
+
       clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
                <&dsi0_phy 0>,
                <&dsi0_phy 1>,
@@ -84,6 +96,10 @@ examples:
                     "dp_phy_pll_vco_div_clk",
                     "cfg_ahb_clk",
                     "gcc_disp_gpll0_div_clk_src";
+
+      required-opps = <&rpmhpd_opp_ret>;
+      power-domains = <&rpmpd SM6125_VDDCX>;
+
       #clock-cells = <1>;
       #power-domain-cells = <1>;
     };
