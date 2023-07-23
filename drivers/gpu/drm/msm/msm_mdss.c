@@ -559,6 +559,13 @@ static const struct msm_mdss_data sm6115_data = {
 	.ubwc_static = 0x11f,
 };
 
+static const struct msm_mdss_data sm6125_data = {
+	.ubwc_version = UBWC_1_0,
+	.ubwc_dec_version = UBWC_3_0,
+	.ubwc_swizzle = 1,
+	.highest_bank_bit = 1,
+};
+
 static const struct msm_mdss_data sm8250_data = {
 	.ubwc_version = UBWC_4_0,
 	.ubwc_dec_version = UBWC_4_0,
@@ -579,6 +586,7 @@ static const struct of_device_id mdss_dt_match[] = {
 	{ .compatible = "qcom,sc8180x-mdss", .data = &sc8180x_data },
 	{ .compatible = "qcom,sc8280xp-mdss", .data = &sc8280xp_data },
 	{ .compatible = "qcom,sm6115-mdss", .data = &sm6115_data },
+	{ .compatible = "qcom,sm6125-mdss", .data = &sm6125_data },
 	{ .compatible = "qcom,sm6350-mdss", .data = &sm6350_data },
 	{ .compatible = "qcom,sm6375-mdss", .data = &sm6350_data },
 	{ .compatible = "qcom,sm8150-mdss", .data = &sm8150_data },
