@@ -7,6 +7,7 @@
 #include <linux/poll.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
+#include <linux/android_kabi.h>
 
 /**
  * enum wwan_port_type - WWAN port types
@@ -165,6 +166,9 @@ struct wwan_ops {
 		       u32 if_id, struct netlink_ext_ack *extack);
 	void (*dellink)(void *ctxt, struct net_device *dev,
 			struct list_head *head);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
