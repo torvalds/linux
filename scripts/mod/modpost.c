@@ -1426,6 +1426,41 @@ static Elf_Addr addend_mips_rel(uint32_t *location, unsigned int r_type)
 #define R_LARCH_SUB32		55
 #endif
 
+static void get_rel_type_and_sym(struct elf_info *elf, uint64_t r_info,
+				 unsigned int *r_type, unsigned int *r_sym)
+{
+	typedef struct {
+		Elf64_Word    r_sym;	/* Symbol index */
+		unsigned char r_ssym;	/* Special symbol for 2nd relocation */
+		unsigned char r_type3;	/* 3rd relocation type */
+		unsigned char r_type2;	/* 2nd relocation type */
+		unsigned char r_type;	/* 1st relocation type */
+	} Elf64_Mips_R_Info;
+
+	bool is_64bit = (elf->hdr->e_ident[EI_CLASS] == ELFCLASS64);
+
+	if (elf->hdr->e_machine == EM_MIPS && is_64bit) {
+		Elf64_Mips_R_Info *mips64_r_info = (void *)&r_info;
+
+		*r_type = mips64_r_info->r_type;
+		*r_sym = TO_NATIVE(mips64_r_info->r_sym);
+		return;
+	}
+
+	if (is_64bit) {
+		Elf64_Xword r_info64 = r_info;
+
+		r_info = TO_NATIVE(r_info64);
+	} else {
+		Elf32_Word r_info32 = r_info;
+
+		r_info = TO_NATIVE(r_info32);
+	}
+
+	*r_type = ELF_R_TYPE(r_info);
+	*r_sym = ELF_R_SYM(r_info);
+}
+
 static void section_rela(struct module *mod, struct elf_info *elf,
 			 Elf_Shdr *sechdr)
 {
@@ -1442,32 +1477,21 @@ static void section_rela(struct module *mod, struct elf_info *elf,
 		return;
 
 	for (rela = start; rela < stop; rela++) {
+		unsigned int r_type;
+
 		r.r_offset = TO_NATIVE(rela->r_offset);
-#if KERNEL_ELFCLASS == ELFCLASS64
-		if (elf->hdr->e_machine == EM_MIPS) {
-			unsigned int r_typ;
-			r_sym = ELF64_MIPS_R_SYM(rela->r_info);
-			r_sym = TO_NATIVE(r_sym);
-			r_typ = ELF64_MIPS_R_TYPE(rela->r_info);
-			r.r_info = ELF64_R_INFO(r_sym, r_typ);
-		} else {
-			r.r_info = TO_NATIVE(rela->r_info);
-			r_sym = ELF_R_SYM(r.r_info);
-		}
-#else
-		r.r_info = TO_NATIVE(rela->r_info);
-		r_sym = ELF_R_SYM(r.r_info);
-#endif
+		get_rel_type_and_sym(elf, rela->r_info, &r_type, &r_sym);
+
 		r.r_addend = TO_NATIVE(rela->r_addend);
 		switch (elf->hdr->e_machine) {
 		case EM_RISCV:
 			if (!strcmp("__ex_table", fromsec) &&
-			    ELF_R_TYPE(r.r_info) == R_RISCV_SUB32)
+			    r_type == R_RISCV_SUB32)
 				continue;
 			break;
 		case EM_LOONGARCH:
 			if (!strcmp("__ex_table", fromsec) &&
-			    ELF_R_TYPE(r.r_info) == R_LARCH_SUB32)
+			    r_type == R_LARCH_SUB32)
 				continue;
 			break;
 		}
@@ -1499,25 +1523,11 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 		unsigned int r_type;
 
 		r.r_offset = TO_NATIVE(rel->r_offset);
-#if KERNEL_ELFCLASS == ELFCLASS64
-		if (elf->hdr->e_machine == EM_MIPS) {
-			unsigned int r_typ;
-			r_sym = ELF64_MIPS_R_SYM(rel->r_info);
-			r_sym = TO_NATIVE(r_sym);
-			r_typ = ELF64_MIPS_R_TYPE(rel->r_info);
-			r.r_info = ELF64_R_INFO(r_sym, r_typ);
-		} else {
-			r.r_info = TO_NATIVE(rel->r_info);
-			r_sym = ELF_R_SYM(r.r_info);
-		}
-#else
-		r.r_info = TO_NATIVE(rel->r_info);
-		r_sym = ELF_R_SYM(r.r_info);
-#endif
+
+		get_rel_type_and_sym(elf, rel->r_info, &r_type, &r_sym);
 
 		loc = sym_get_data_by_offset(elf, fsecndx, r.r_offset);
 		tsym = elf->symtab_start + r_sym;
-		r_type = ELF_R_TYPE(r.r_info);
 
 		switch (elf->hdr->e_machine) {
 		case EM_386:
