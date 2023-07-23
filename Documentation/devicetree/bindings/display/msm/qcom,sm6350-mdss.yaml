@@ -131,13 +131,6 @@ examples:
                         remote-endpoint = <&dsi0_in>;
                     };
                 };
-
-                port@1 {
-                    reg = <1>;
-                    dpu_intf2_out: endpoint {
-                        remote-endpoint = <&dsi1_in>;
-                    };
-                };
             };
         };
 
