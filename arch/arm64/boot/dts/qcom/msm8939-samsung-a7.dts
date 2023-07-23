@@ -448,7 +448,7 @@
 		pins = "gpio38";
 		function = "gpio";
 		drive-strength = <2>;
-		bias-pull-up;
+		bias-disable;
 	};
 
 	sensor_i2c_default: sensor-i2c-default-state {
