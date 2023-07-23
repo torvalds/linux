@@ -169,7 +169,8 @@ static int path_name(const char *op, const struct cred *subj_cred,
 struct aa_perms default_perms = {};
 /**
  * aa_lookup_fperms - convert dfa compressed perms to internal perms
- * @file_rules: the aa_policydb to lookup perms for  (NOT NULL)
+ * @subj_uid: uid to use for subject owner test
+ * @rules: the aa_policydb to lookup perms for  (NOT NULL)
  * @state: state in dfa
  * @cond:  conditions to consider  (NOT NULL)
  *
@@ -177,18 +178,21 @@ struct aa_perms default_perms = {};
  *
  * Returns: a pointer to a file permission set
  */
-struct aa_perms *aa_lookup_fperms(struct aa_policydb *file_rules,
-				 aa_state_t state, struct path_cond *cond)
+struct aa_perms *aa_lookup_condperms(kuid_t subj_uid, struct aa_policydb *rules,
+				     aa_state_t state, struct path_cond *cond)
 {
-	unsigned int index = ACCEPT_TABLE(file_rules->dfa)[state];
+	unsigned int index = ACCEPT_TABLE(rules->dfa)[state];
 
-	if (!(file_rules->perms))
+	if (!(rules->perms))
 		return &default_perms;
 
-	if (uid_eq(current_fsuid(), cond->uid))
-		return &(file_rules->perms[index]);
+	if ((ACCEPT_TABLE2(rules->dfa)[state] & ACCEPT_FLAG_OWNER)) {
+		if (uid_eq(subj_uid, cond->uid))
+			return &(rules->perms[index]);
+		return &(rules->perms[index + 1]);
+	}
 
-	return &(file_rules->perms[index + 1]);
+	return &(rules->perms[index]);
 }
 
 /**
@@ -207,7 +211,8 @@ aa_state_t aa_str_perms(struct aa_policydb *file_rules, aa_state_t start,
 {
 	aa_state_t state;
 	state = aa_dfa_match(file_rules->dfa, start, name);
-	*perms = *(aa_lookup_fperms(file_rules, state, cond));
+	*perms = *(aa_lookup_condperms(current_fsuid(), file_rules, state,
+				       cond));
 
 	return state;
 }

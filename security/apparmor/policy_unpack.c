@@ -716,6 +716,7 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb **policy,
 	void *pos = e->pos;
 	int i, flags, error = -EPROTO;
 	ssize_t size;
+	u32 version = 0;
 
 	pdb = aa_alloc_pdb(GFP_KERNEL);
 	if (!pdb)
@@ -733,6 +734,9 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb **policy,
 	if (pdb->perms) {
 		/* perms table present accept is index */
 		flags = TO_ACCEPT1_FLAG(YYTD_DATA32);
+		if (aa_unpack_u32(e, &version, "permsv") && version > 2)
+			/* accept2 used for dfa flags */
+			flags |= TO_ACCEPT2_FLAG(YYTD_DATA32);
 	} else {
 		/* packed perms in accept1 and accept2 */
 		flags = TO_ACCEPT1_FLAG(YYTD_DATA32) |
@@ -770,6 +774,20 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb **policy,
 		}
 	}
 
+	if (pdb->perms && version <= 2) {
+		/* add dfa flags table missing in v2 */
+		u32 noents = pdb->dfa->tables[YYTD_ID_ACCEPT]->td_lolen;
+		u16 tdflags = pdb->dfa->tables[YYTD_ID_ACCEPT]->td_flags;
+		size_t tsize = table_size(noents, tdflags);
+
+		pdb->dfa->tables[YYTD_ID_ACCEPT2] = kvzalloc(tsize, GFP_KERNEL);
+		if (!pdb->dfa->tables[YYTD_ID_ACCEPT2]) {
+			*info = "failed to alloc dfa flags table";
+			goto out;
+		}
+		pdb->dfa->tables[YYTD_ID_ACCEPT2]->td_lolen = noents;
+		pdb->dfa->tables[YYTD_ID_ACCEPT2]->td_flags = tdflags;
+	}
 	/*
 	 * Unfortunately due to a bug in earlier userspaces, a
 	 * transition table may be present even when the dfa is
@@ -785,7 +803,7 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb **policy,
 
 	/* TODO: move compat mapping here, requires dfa merging first */
 	/* TODO: move verify here, it has to be done after compat mappings */
-
+out:
 	*policy = pdb;
 	return 0;
 
