@@ -216,6 +216,16 @@
 							reg = <4>;
 						};
 
+						port@5 {
+							reg = <5>;
+							ethernet = <&gmac1>;
+
+							fixed-link {
+								speed = <1000>;
+								full-duplex;
+							};
+						};
+
 						port@8 {
 							reg = <8>;
 							ethernet = <&gmac0>;
