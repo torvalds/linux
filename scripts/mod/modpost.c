@@ -1257,21 +1257,18 @@ static void check_section_mismatch(struct module *mod, struct elf_info *elf,
 				 tosec, taddr);
 }
 
-static int addend_386_rel(uint32_t *location, Elf_Rela *r)
+static Elf_Addr addend_386_rel(uint32_t *location, Elf_Rela *r)
 {
 	unsigned int r_typ = ELF_R_TYPE(r->r_info);
 
 	switch (r_typ) {
 	case R_386_32:
-		r->r_addend = TO_NATIVE(*location);
-		break;
+		return TO_NATIVE(*location);
 	case R_386_PC32:
-		r->r_addend = TO_NATIVE(*location) + 4;
-		break;
-	default:
-		r->r_addend = (Elf_Addr)(-1);
+		return TO_NATIVE(*location) + 4;
 	}
-	return 0;
+
+	return (Elf_Addr)(-1);
 }
 
 #ifndef R_ARM_CALL
@@ -1315,7 +1312,7 @@ static int32_t sign_extend32(int32_t value, int index)
 	return (int32_t)(value << shift) >> shift;
 }
 
-static int addend_arm_rel(void *loc, Elf_Sym *sym, Elf_Rela *r)
+static Elf_Addr addend_arm_rel(void *loc, Elf_Sym *sym, Elf_Rela *r)
 {
 	unsigned int r_typ = ELF_R_TYPE(r->r_info);
 	uint32_t inst, upper, lower, sign, j1, j2;
@@ -1325,22 +1322,19 @@ static int addend_arm_rel(void *loc, Elf_Sym *sym, Elf_Rela *r)
 	case R_ARM_ABS32:
 	case R_ARM_REL32:
 		inst = TO_NATIVE(*(uint32_t *)loc);
-		r->r_addend = inst + sym->st_value;
-		break;
+		return inst + sym->st_value;
 	case R_ARM_MOVW_ABS_NC:
 	case R_ARM_MOVT_ABS:
 		inst = TO_NATIVE(*(uint32_t *)loc);
 		offset = sign_extend32(((inst & 0xf0000) >> 4) | (inst & 0xfff),
 				       15);
-		r->r_addend = offset + sym->st_value;
-		break;
+		return offset + sym->st_value;
 	case R_ARM_PC24:
 	case R_ARM_CALL:
 	case R_ARM_JUMP24:
 		inst = TO_NATIVE(*(uint32_t *)loc);
 		offset = sign_extend32((inst & 0x00ffffff) << 2, 25);
-		r->r_addend = offset + sym->st_value + 8;
-		break;
+		return offset + sym->st_value + 8;
 	case R_ARM_THM_MOVW_ABS_NC:
 	case R_ARM_THM_MOVT_ABS:
 		upper = TO_NATIVE(*(uint16_t *)loc);
@@ -1350,8 +1344,7 @@ static int addend_arm_rel(void *loc, Elf_Sym *sym, Elf_Rela *r)
 				       ((lower & 0x7000) >> 4) |
 				       (lower & 0x00ff),
 				       15);
-		r->r_addend = offset + sym->st_value;
-		break;
+		return offset + sym->st_value;
 	case R_ARM_THM_JUMP19:
 		/*
 		 * Encoding T3:
@@ -1372,8 +1365,7 @@ static int addend_arm_rel(void *loc, Elf_Sym *sym, Elf_Rela *r)
 				       ((upper & 0x03f) << 12) |
 				       ((lower & 0x07ff) << 1),
 				       20);
-		r->r_addend = offset + sym->st_value + 4;
-		break;
+		return offset + sym->st_value + 4;
 	case R_ARM_THM_CALL:
 	case R_ARM_THM_JUMP24:
 		/*
@@ -1399,15 +1391,13 @@ static int addend_arm_rel(void *loc, Elf_Sym *sym, Elf_Rela *r)
 				       ((upper & 0x03ff) << 12) |
 				       ((lower & 0x07ff) << 1),
 				       24);
-		r->r_addend = offset + sym->st_value + 4;
-		break;
-	default:
-		r->r_addend = (Elf_Addr)(-1);
+		return offset + sym->st_value + 4;
 	}
-	return 0;
+
+	return (Elf_Addr)(-1);
 }
 
-static int addend_mips_rel(uint32_t *location, Elf_Rela *r)
+static Elf_Addr addend_mips_rel(uint32_t *location, Elf_Rela *r)
 {
 	unsigned int r_typ = ELF_R_TYPE(r->r_info);
 	uint32_t inst;
@@ -1415,18 +1405,13 @@ static int addend_mips_rel(uint32_t *location, Elf_Rela *r)
 	inst = TO_NATIVE(*location);
 	switch (r_typ) {
 	case R_MIPS_LO16:
-		r->r_addend = inst & 0xffff;
-		break;
+		return inst & 0xffff;
 	case R_MIPS_26:
-		r->r_addend = (inst & 0x03ffffff) << 2;
-		break;
+		return (inst & 0x03ffffff) << 2;
 	case R_MIPS_32:
-		r->r_addend = inst;
-		break;
-	default:
-		r->r_addend = (Elf_Addr)(-1);
+		return inst;
 	}
-	return 0;
+	return (Elf_Addr)(-1);
 }
 
 #ifndef EM_RISCV
@@ -1513,6 +1498,7 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 
 	for (rel = start; rel < stop; rel++) {
 		Elf_Sym *tsym;
+		Elf_Addr taddr = 0;
 		void *loc;
 
 		r.r_offset = TO_NATIVE(rel->r_offset);
@@ -1531,27 +1517,26 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 		r.r_info = TO_NATIVE(rel->r_info);
 		r_sym = ELF_R_SYM(r.r_info);
 #endif
-		r.r_addend = 0;
 
 		loc = sym_get_data_by_offset(elf, fsecndx, r.r_offset);
 		tsym = elf->symtab_start + r_sym;
 
 		switch (elf->hdr->e_machine) {
 		case EM_386:
-			addend_386_rel(loc, &r);
+			taddr = addend_386_rel(loc, &r);
 			break;
 		case EM_ARM:
-			addend_arm_rel(loc, tsym, &r);
+			taddr = addend_arm_rel(loc, tsym, &r);
 			break;
 		case EM_MIPS:
-			addend_mips_rel(loc, &r);
+			taddr = addend_mips_rel(loc, &r);
 			break;
 		default:
 			fatal("Please add code to calculate addend for this architecture\n");
 		}
 
 		check_section_mismatch(mod, elf, tsym,
-				       fsecndx, fromsec, r.r_offset, r.r_addend);
+				       fsecndx, fromsec, r.r_offset, taddr);
 	}
 }
 
