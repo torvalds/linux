@@ -2123,7 +2123,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			en_rn_msg = false;
 		} else if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
 			 reg_err2 == SLIPORT_ERR2_REG_FORCED_DUMP)
-			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"3144 Port Down: Debug Dump\n");
 		else if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
 			 reg_err2 == SLIPORT_ERR2_REG_FUNC_PROVISON)
@@ -7550,6 +7550,8 @@ lpfc_disable_pci_dev(struct lpfc_hba *phba)
 void
 lpfc_reset_hba(struct lpfc_hba *phba)
 {
+	int rc = 0;
+
 	/* If resets are disabled then set error state and return. */
 	if (!phba->cfg_enable_hba_reset) {
 		phba->link_state = LPFC_HBA_ERROR;
@@ -7560,13 +7562,25 @@ lpfc_reset_hba(struct lpfc_hba *phba)
 	if (phba->sli.sli_flag & LPFC_SLI_ACTIVE) {
 		lpfc_offline_prep(phba, LPFC_MBX_WAIT);
 	} else {
+		if (test_bit(MBX_TMO_ERR, &phba->bit_flags)) {
+			/* Perform a PCI function reset to start from clean */
+			rc = lpfc_pci_function_reset(phba);
+			lpfc_els_flush_all_cmd(phba);
+		}
 		lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
 		lpfc_sli_flush_io_rings(phba);
 	}
 	lpfc_offline(phba);
-	lpfc_sli_brdrestart(phba);
-	lpfc_online(phba);
-	lpfc_unblock_mgmt_io(phba);
+	clear_bit(MBX_TMO_ERR, &phba->bit_flags);
+	if (unlikely(rc)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"8888 PCI function reset failed rc %x\n",
+				rc);
+	} else {
+		lpfc_sli_brdrestart(phba);
+		lpfc_online(phba);
+		lpfc_unblock_mgmt_io(phba);
+	}
 }
 
 /**
@@ -12498,10 +12512,7 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 				    (new_cpup->eq != LPFC_VECTOR_MAP_EMPTY) &&
 				    (new_cpup->phys_id == cpup->phys_id))
 					goto found_same;
-				new_cpu = cpumask_next(
-					new_cpu, cpu_present_mask);
-				if (new_cpu >= nr_cpu_ids)
-					new_cpu = first_cpu;
+				new_cpu = lpfc_next_present_cpu(new_cpu);
 			}
 			/* At this point, we leave the CPU as unassigned */
 			continue;
@@ -12513,9 +12524,7 @@ found_same:
 			 * chance of having multiple unassigned CPU entries
 			 * selecting the same IRQ.
 			 */
-			start_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (start_cpu >= nr_cpu_ids)
-				start_cpu = first_cpu;
+			start_cpu = lpfc_next_present_cpu(new_cpu);
 
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"3337 Set Affinity: CPU %d "
@@ -12548,10 +12557,7 @@ found_same:
 				if (!(new_cpup->flag & LPFC_CPU_MAP_UNASSIGN) &&
 				    (new_cpup->eq != LPFC_VECTOR_MAP_EMPTY))
 					goto found_any;
-				new_cpu = cpumask_next(
-					new_cpu, cpu_present_mask);
-				if (new_cpu >= nr_cpu_ids)
-					new_cpu = first_cpu;
+				new_cpu = lpfc_next_present_cpu(new_cpu);
 			}
 			/* We should never leave an entry unassigned */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -12567,9 +12573,7 @@ found_any:
 			 * chance of having multiple unassigned CPU entries
 			 * selecting the same IRQ.
 			 */
-			start_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (start_cpu >= nr_cpu_ids)
-				start_cpu = first_cpu;
+			start_cpu = lpfc_next_present_cpu(new_cpu);
 
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"3338 Set Affinity: CPU %d "
@@ -12640,9 +12644,7 @@ found_any:
 			    new_cpup->core_id == cpup->core_id) {
 				goto found_hdwq;
 			}
-			new_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (new_cpu >= nr_cpu_ids)
-				new_cpu = first_cpu;
+			new_cpu = lpfc_next_present_cpu(new_cpu);
 		}
 
 		/* If we can't match both phys_id and core_id,
@@ -12654,10 +12656,7 @@ found_any:
 			if (new_cpup->hdwq != LPFC_VECTOR_MAP_EMPTY &&
 			    new_cpup->phys_id == cpup->phys_id)
 				goto found_hdwq;
-
-			new_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (new_cpu >= nr_cpu_ids)
-				new_cpu = first_cpu;
+			new_cpu = lpfc_next_present_cpu(new_cpu);
 		}
 
 		/* Otherwise just round robin on cfg_hdw_queue */
@@ -12666,9 +12665,7 @@ found_any:
 		goto logit;
  found_hdwq:
 		/* We found an available entry, copy the IRQ info */
-		start_cpu = cpumask_next(new_cpu, cpu_present_mask);
-		if (start_cpu >= nr_cpu_ids)
-			start_cpu = first_cpu;
+		start_cpu = lpfc_next_present_cpu(new_cpu);
 		cpup->hdwq = new_cpup->hdwq;
  logit:
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
