@@ -1475,10 +1475,10 @@
 
 			clocks = <&gcc GCC_CFG_NOC_USB2_AXI_CLK>,
 				 <&gcc GCC_USB20_MASTER_CLK>,
-				 <&gcc GCC_USB20_MOCK_UTMI_CLK>,
-				 <&gcc GCC_USB20_SLEEP_CLK>;
+				 <&gcc GCC_USB20_SLEEP_CLK>,
+				 <&gcc GCC_USB20_MOCK_UTMI_CLK>;
 			clock-names = "cfg_noc", "core",
-				      "mock_utmi", "sleep";
+				      "sleep", "mock_utmi";
 
 			assigned-clocks = <&gcc GCC_USB20_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB20_MASTER_CLK>;
