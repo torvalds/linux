@@ -1465,8 +1465,6 @@ static void section_rela(struct module *mod, struct elf_info *elf,
 			 Elf_Shdr *sechdr)
 {
 	Elf_Rela *rela;
-	Elf_Rela r;
-	unsigned int r_sym;
 	unsigned int fsecndx = sechdr->sh_info;
 	const char *fromsec = sec_name(elf, fsecndx);
 	Elf_Rela *start = (void *)elf->hdr + sechdr->sh_offset;
@@ -1477,12 +1475,14 @@ static void section_rela(struct module *mod, struct elf_info *elf,
 		return;
 
 	for (rela = start; rela < stop; rela++) {
-		unsigned int r_type;
+		Elf_Addr taddr, r_offset;
+		unsigned int r_type, r_sym;
 
-		r.r_offset = TO_NATIVE(rela->r_offset);
+		r_offset = TO_NATIVE(rela->r_offset);
 		get_rel_type_and_sym(elf, rela->r_info, &r_type, &r_sym);
 
-		r.r_addend = TO_NATIVE(rela->r_addend);
+		taddr = TO_NATIVE(rela->r_addend);
+
 		switch (elf->hdr->e_machine) {
 		case EM_RISCV:
 			if (!strcmp("__ex_table", fromsec) &&
@@ -1497,7 +1497,7 @@ static void section_rela(struct module *mod, struct elf_info *elf,
 		}
 
 		check_section_mismatch(mod, elf, elf->symtab_start + r_sym,
-				       fsecndx, fromsec, r.r_offset, r.r_addend);
+				       fsecndx, fromsec, r_offset, taddr);
 	}
 }
 
@@ -1505,8 +1505,6 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 			Elf_Shdr *sechdr)
 {
 	Elf_Rel *rel;
-	Elf_Rela r;
-	unsigned int r_sym;
 	unsigned int fsecndx = sechdr->sh_info;
 	const char *fromsec = sec_name(elf, fsecndx);
 	Elf_Rel *start = (void *)elf->hdr + sechdr->sh_offset;
@@ -1518,15 +1516,14 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 
 	for (rel = start; rel < stop; rel++) {
 		Elf_Sym *tsym;
-		Elf_Addr taddr = 0;
+		Elf_Addr taddr = 0, r_offset;
+		unsigned int r_type, r_sym;
 		void *loc;
-		unsigned int r_type;
 
-		r.r_offset = TO_NATIVE(rel->r_offset);
-
+		r_offset = TO_NATIVE(rel->r_offset);
 		get_rel_type_and_sym(elf, rel->r_info, &r_type, &r_sym);
 
-		loc = sym_get_data_by_offset(elf, fsecndx, r.r_offset);
+		loc = sym_get_data_by_offset(elf, fsecndx, r_offset);
 		tsym = elf->symtab_start + r_sym;
 
 		switch (elf->hdr->e_machine) {
@@ -1544,7 +1541,7 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 		}
 
 		check_section_mismatch(mod, elf, tsym,
-				       fsecndx, fromsec, r.r_offset, taddr);
+				       fsecndx, fromsec, r_offset, taddr);
 	}
 }
 
