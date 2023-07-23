@@ -1006,13 +1006,10 @@ static void ext4_mb_choose_next_group_best_avail(struct ext4_allocation_context 
 	 * fls() instead since we need to know the actual length while modifying
 	 * goal length.
 	 */
-	order = fls(ac->ac_g_ex.fe_len);
+	order = fls(ac->ac_g_ex.fe_len) - 1;
 	min_order = order - sbi->s_mb_best_avail_max_trim_order;
 	if (min_order < 0)
 		min_order = 0;
-
-	if (1 << min_order < ac->ac_o_ex.fe_len)
-		min_order = fls(ac->ac_o_ex.fe_len) + 1;
 
 	if (sbi->s_stripe > 0) {
 		/*
@@ -1021,8 +1018,15 @@ static void ext4_mb_choose_next_group_best_avail(struct ext4_allocation_context 
 		 */
 		num_stripe_clusters = EXT4_NUM_B2C(sbi, sbi->s_stripe);
 		if (1 << min_order < num_stripe_clusters)
-			min_order = fls(num_stripe_clusters);
+			/*
+			 * We consider 1 order less because later we round
+			 * up the goal len to num_stripe_clusters
+			 */
+			min_order = fls(num_stripe_clusters) - 1;
 	}
+
+	if (1 << min_order < ac->ac_o_ex.fe_len)
+		min_order = fls(ac->ac_o_ex.fe_len);
 
 	for (i = order; i >= min_order; i--) {
 		int frag_order;
@@ -4761,8 +4765,8 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 	int order, i;
 	struct ext4_inode_info *ei = EXT4_I(ac->ac_inode);
 	struct ext4_locality_group *lg;
-	struct ext4_prealloc_space *tmp_pa, *cpa = NULL;
-	ext4_lblk_t tmp_pa_start, tmp_pa_end;
+	struct ext4_prealloc_space *tmp_pa = NULL, *cpa = NULL;
+	loff_t tmp_pa_end;
 	struct rb_node *iter;
 	ext4_fsblk_t goal_block;
 
@@ -4770,47 +4774,151 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 	if (!(ac->ac_flags & EXT4_MB_HINT_DATA))
 		return false;
 
-	/* first, try per-file preallocation */
+	/*
+	 * first, try per-file preallocation by searching the inode pa rbtree.
+	 *
+	 * Here, we can't do a direct traversal of the tree because
+	 * ext4_mb_discard_group_preallocation() can paralelly mark the pa
+	 * deleted and that can cause direct traversal to skip some entries.
+	 */
 	read_lock(&ei->i_prealloc_lock);
+
+	if (RB_EMPTY_ROOT(&ei->i_prealloc_node)) {
+		goto try_group_pa;
+	}
+
+	/*
+	 * Step 1: Find a pa with logical start immediately adjacent to the
+	 * original logical start. This could be on the left or right.
+	 *
+	 * (tmp_pa->pa_lstart never changes so we can skip locking for it).
+	 */
 	for (iter = ei->i_prealloc_node.rb_node; iter;
 	     iter = ext4_mb_pa_rb_next_iter(ac->ac_o_ex.fe_logical,
-					    tmp_pa_start, iter)) {
+					    tmp_pa->pa_lstart, iter)) {
 		tmp_pa = rb_entry(iter, struct ext4_prealloc_space,
 				  pa_node.inode_node);
+	}
 
-		/* all fields in this condition don't change,
-		 * so we can skip locking for them */
-		tmp_pa_start = tmp_pa->pa_lstart;
-		tmp_pa_end = tmp_pa->pa_lstart + EXT4_C2B(sbi, tmp_pa->pa_len);
+	/*
+	 * Step 2: The adjacent pa might be to the right of logical start, find
+	 * the left adjacent pa. After this step we'd have a valid tmp_pa whose
+	 * logical start is towards the left of original request's logical start
+	 */
+	if (tmp_pa->pa_lstart > ac->ac_o_ex.fe_logical) {
+		struct rb_node *tmp;
+		tmp = rb_prev(&tmp_pa->pa_node.inode_node);
 
-		/* original request start doesn't lie in this PA */
-		if (ac->ac_o_ex.fe_logical < tmp_pa_start ||
-		    ac->ac_o_ex.fe_logical >= tmp_pa_end)
-			continue;
-
-		/* non-extent files can't have physical blocks past 2^32 */
-		if (!(ext4_test_inode_flag(ac->ac_inode, EXT4_INODE_EXTENTS)) &&
-		    (tmp_pa->pa_pstart + EXT4_C2B(sbi, tmp_pa->pa_len) >
-		     EXT4_MAX_BLOCK_FILE_PHYS)) {
+		if (tmp) {
+			tmp_pa = rb_entry(tmp, struct ext4_prealloc_space,
+					    pa_node.inode_node);
+		} else {
 			/*
-			 * Since PAs don't overlap, we won't find any
-			 * other PA to satisfy this.
+			 * If there is no adjacent pa to the left then finding
+			 * an overlapping pa is not possible hence stop searching
+			 * inode pa tree
+			 */
+			goto try_group_pa;
+		}
+	}
+
+	BUG_ON(!(tmp_pa && tmp_pa->pa_lstart <= ac->ac_o_ex.fe_logical));
+
+	/*
+	 * Step 3: If the left adjacent pa is deleted, keep moving left to find
+	 * the first non deleted adjacent pa. After this step we should have a
+	 * valid tmp_pa which is guaranteed to be non deleted.
+	 */
+	for (iter = &tmp_pa->pa_node.inode_node;; iter = rb_prev(iter)) {
+		if (!iter) {
+			/*
+			 * no non deleted left adjacent pa, so stop searching
+			 * inode pa tree
+			 */
+			goto try_group_pa;
+		}
+		tmp_pa = rb_entry(iter, struct ext4_prealloc_space,
+				  pa_node.inode_node);
+		spin_lock(&tmp_pa->pa_lock);
+		if (tmp_pa->pa_deleted == 0) {
+			/*
+			 * We will keep holding the pa_lock from
+			 * this point on because we don't want group discard
+			 * to delete this pa underneath us. Since group
+			 * discard is anyways an ENOSPC operation it
+			 * should be okay for it to wait a few more cycles.
 			 */
 			break;
-		}
-
-		/* found preallocated blocks, use them */
-		spin_lock(&tmp_pa->pa_lock);
-		if (tmp_pa->pa_deleted == 0 && tmp_pa->pa_free &&
-		    likely(ext4_mb_pa_goal_check(ac, tmp_pa))) {
-			atomic_inc(&tmp_pa->pa_count);
-			ext4_mb_use_inode_pa(ac, tmp_pa);
+		} else {
 			spin_unlock(&tmp_pa->pa_lock);
-			read_unlock(&ei->i_prealloc_lock);
-			return true;
 		}
-		spin_unlock(&tmp_pa->pa_lock);
 	}
+
+	BUG_ON(!(tmp_pa && tmp_pa->pa_lstart <= ac->ac_o_ex.fe_logical));
+	BUG_ON(tmp_pa->pa_deleted == 1);
+
+	/*
+	 * Step 4: We now have the non deleted left adjacent pa. Only this
+	 * pa can possibly satisfy the request hence check if it overlaps
+	 * original logical start and stop searching if it doesn't.
+	 */
+	tmp_pa_end = (loff_t)tmp_pa->pa_lstart + EXT4_C2B(sbi, tmp_pa->pa_len);
+
+	if (ac->ac_o_ex.fe_logical >= tmp_pa_end) {
+		spin_unlock(&tmp_pa->pa_lock);
+		goto try_group_pa;
+	}
+
+	/* non-extent files can't have physical blocks past 2^32 */
+	if (!(ext4_test_inode_flag(ac->ac_inode, EXT4_INODE_EXTENTS)) &&
+	    (tmp_pa->pa_pstart + EXT4_C2B(sbi, tmp_pa->pa_len) >
+	     EXT4_MAX_BLOCK_FILE_PHYS)) {
+		/*
+		 * Since PAs don't overlap, we won't find any other PA to
+		 * satisfy this.
+		 */
+		spin_unlock(&tmp_pa->pa_lock);
+		goto try_group_pa;
+	}
+
+	if (tmp_pa->pa_free && likely(ext4_mb_pa_goal_check(ac, tmp_pa))) {
+		atomic_inc(&tmp_pa->pa_count);
+		ext4_mb_use_inode_pa(ac, tmp_pa);
+		spin_unlock(&tmp_pa->pa_lock);
+		read_unlock(&ei->i_prealloc_lock);
+		return true;
+	} else {
+		/*
+		 * We found a valid overlapping pa but couldn't use it because
+		 * it had no free blocks. This should ideally never happen
+		 * because:
+		 *
+		 * 1. When a new inode pa is added to rbtree it must have
+		 *    pa_free > 0 since otherwise we won't actually need
+		 *    preallocation.
+		 *
+		 * 2. An inode pa that is in the rbtree can only have it's
+		 *    pa_free become zero when another thread calls:
+		 *      ext4_mb_new_blocks
+		 *       ext4_mb_use_preallocated
+		 *        ext4_mb_use_inode_pa
+		 *
+		 * 3. Further, after the above calls make pa_free == 0, we will
+		 *    immediately remove it from the rbtree in:
+		 *      ext4_mb_new_blocks
+		 *       ext4_mb_release_context
+		 *        ext4_mb_put_pa
+		 *
+		 * 4. Since the pa_free becoming 0 and pa_free getting removed
+		 * from tree both happen in ext4_mb_new_blocks, which is always
+		 * called with i_data_sem held for data allocations, we can be
+		 * sure that another process will never see a pa in rbtree with
+		 * pa_free == 0.
+		 */
+		WARN_ON_ONCE(tmp_pa->pa_free == 0);
+	}
+	spin_unlock(&tmp_pa->pa_lock);
+try_group_pa:
 	read_unlock(&ei->i_prealloc_lock);
 
 	/* can we use group allocation? */
