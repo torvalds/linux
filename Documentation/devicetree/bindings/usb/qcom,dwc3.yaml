@@ -83,15 +83,6 @@ properties:
     minItems: 1
     maxItems: 9
 
-  assigned-clocks:
-    items:
-      - description: Phandle and clock specifier of MOCK_UTMI_CLK.
-      - description: Phandle and clock specifoer of MASTER_CLK.
-
-  assigned-clock-rates:
-    items:
-      - description: Must be 19.2MHz (19200000).
-      - description: Must be >= 60 MHz in HS mode, >= 125 MHz in SS mode.
   resets:
     maxItems: 1
 
