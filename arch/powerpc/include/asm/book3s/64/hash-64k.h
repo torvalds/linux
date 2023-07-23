@@ -263,11 +263,6 @@ static inline int hash__pmd_trans_huge(pmd_t pmd)
 		  (_PAGE_PTE | H_PAGE_THP_HUGE));
 }
 
-static inline int hash__pmd_same(pmd_t pmd_a, pmd_t pmd_b)
-{
-	return (((pmd_raw(pmd_a) ^ pmd_raw(pmd_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
-}
-
 static inline pmd_t hash__pmd_mkhuge(pmd_t pmd)
 {
 	return __pmd(pmd_val(pmd) | (_PAGE_PTE | H_PAGE_THP_HUGE));

@@ -185,8 +185,10 @@ static int software_key_query(const struct kernel_pkey_params *params,
 
 	if (issig) {
 		sig = crypto_alloc_sig(alg_name, 0, 0);
-		if (IS_ERR(sig))
+		if (IS_ERR(sig)) {
+			ret = PTR_ERR(sig);
 			goto error_free_key;
+		}
 
 		if (pkey->key_is_private)
 			ret = crypto_sig_set_privkey(sig, key, pkey->keylen);
@@ -208,8 +210,10 @@ static int software_key_query(const struct kernel_pkey_params *params,
 		}
 	} else {
 		tfm = crypto_alloc_akcipher(alg_name, 0, 0);
-		if (IS_ERR(tfm))
+		if (IS_ERR(tfm)) {
+			ret = PTR_ERR(tfm);
 			goto error_free_key;
+		}
 
 		if (pkey->key_is_private)
 			ret = crypto_akcipher_set_priv_key(tfm, key, pkey->keylen);
@@ -300,8 +304,10 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 
 	if (issig) {
 		sig = crypto_alloc_sig(alg_name, 0, 0);
-		if (IS_ERR(sig))
+		if (IS_ERR(sig)) {
+			ret = PTR_ERR(sig);
 			goto error_free_key;
+		}
 
 		if (pkey->key_is_private)
 			ret = crypto_sig_set_privkey(sig, key, pkey->keylen);
@@ -313,8 +319,10 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 		ksz = crypto_sig_maxsize(sig);
 	} else {
 		tfm = crypto_alloc_akcipher(alg_name, 0, 0);
-		if (IS_ERR(tfm))
+		if (IS_ERR(tfm)) {
+			ret = PTR_ERR(tfm);
 			goto error_free_key;
+		}
 
 		if (pkey->key_is_private)
 			ret = crypto_akcipher_set_priv_key(tfm, key, pkey->keylen);
@@ -411,8 +419,10 @@ int public_key_verify_signature(const struct public_key *pkey,
 
 	key = kmalloc(pkey->keylen + sizeof(u32) * 2 + pkey->paramlen,
 		      GFP_KERNEL);
-	if (!key)
+	if (!key) {
+		ret = -ENOMEM;
 		goto error_free_tfm;
+	}
 
 	memcpy(key, pkey->key, pkey->keylen);
 	ptr = key + pkey->keylen;

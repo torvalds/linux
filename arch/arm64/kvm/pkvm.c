@@ -244,7 +244,7 @@ static int __init finalize_pkvm(void)
 {
 	int ret;
 
-	if (!is_protected_kvm_enabled())
+	if (!is_protected_kvm_enabled() || !is_kvm_arm_initialised())
 		return 0;
 
 	/*

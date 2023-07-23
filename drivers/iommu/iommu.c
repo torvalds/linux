@@ -2891,14 +2891,11 @@ static int iommu_setup_default_domain(struct iommu_group *group,
 		ret = __iommu_group_set_domain_internal(
 			group, dom, IOMMU_SET_DOMAIN_MUST_SUCCEED);
 		if (WARN_ON(ret))
-			goto out_free;
+			goto out_free_old;
 	} else {
 		ret = __iommu_group_set_domain(group, dom);
-		if (ret) {
-			iommu_domain_free(dom);
-			group->default_domain = old_dom;
-			return ret;
-		}
+		if (ret)
+			goto err_restore_def_domain;
 	}
 
 	/*
@@ -2911,20 +2908,24 @@ static int iommu_setup_default_domain(struct iommu_group *group,
 		for_each_group_device(group, gdev) {
 			ret = iommu_create_device_direct_mappings(dom, gdev->dev);
 			if (ret)
-				goto err_restore;
+				goto err_restore_domain;
 		}
 	}
 
-err_restore:
-	if (old_dom) {
-		__iommu_group_set_domain_internal(
-			group, old_dom, IOMMU_SET_DOMAIN_MUST_SUCCEED);
-		iommu_domain_free(dom);
-		old_dom = NULL;
-	}
-out_free:
+out_free_old:
 	if (old_dom)
 		iommu_domain_free(old_dom);
+	return ret;
+
+err_restore_domain:
+	if (old_dom)
+		__iommu_group_set_domain_internal(
+			group, old_dom, IOMMU_SET_DOMAIN_MUST_SUCCEED);
+err_restore_def_domain:
+	if (old_dom) {
+		iommu_domain_free(dom);
+		group->default_domain = old_dom;
+	}
 	return ret;
 }
 
