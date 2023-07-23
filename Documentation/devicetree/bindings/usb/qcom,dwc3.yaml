@@ -283,15 +283,23 @@ allOf:
     then:
       properties:
         clocks:
-          minItems: 6
+          minItems: 5
+          maxItems: 6
         clock-names:
-          items:
-            - const: cfg_noc
-            - const: core
-            - const: iface
-            - const: sleep
-            - const: mock_utmi
-            - const: bus
+          oneOf:
+            - items:
+                - const: cfg_noc
+                - const: core
+                - const: iface
+                - const: sleep
+                - const: mock_utmi
+                - const: bus
+            - items:
+                - const: cfg_noc
+                - const: core
+                - const: sleep
+                - const: mock_utmi
+                - const: bus
 
   - if:
       properties:
