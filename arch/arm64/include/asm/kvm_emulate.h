@@ -588,6 +588,10 @@ static __always_inline u64 kvm_get_reset_cptr_el2(struct kvm_vcpu *vcpu)
 		       CPACR_EL1_ZEN_EL1EN);
 	} else if (has_hvhe()) {
 		val = (CPACR_EL1_FPEN_EL0EN | CPACR_EL1_FPEN_EL1EN);
+
+		if (!vcpu_has_sve(vcpu) ||
+		    (vcpu->arch.fp_state != FP_STATE_GUEST_OWNED))
+			val |= CPACR_EL1_ZEN_EL1EN | CPACR_EL1_ZEN_EL0EN;
 	} else {
 		val = CPTR_NVHE_EL2_RES1;
 
