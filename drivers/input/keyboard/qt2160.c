@@ -371,8 +371,7 @@ static int qt2160_probe(struct i2c_client *client)
 
 	if (client->irq) {
 		error = request_threaded_irq(client->irq, NULL, qt2160_irq,
-					     IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					     "qt2160", input);
+					     IRQF_ONESHOT, "qt2160", input);
 		if (error) {
 			dev_err(&client->dev,
 				"failed to allocate irq %d\n", client->irq);
