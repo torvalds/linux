@@ -411,7 +411,7 @@ set_change_info(struct nfsd4_change_info *cinfo, struct svc_fh *fhp)
 	if (WARN_ON_ONCE(!fhp->fh_pre_saved))
 		cinfo->before_change = 0;
 	if (!fhp->fh_post_saved)
-		cinfo->after_change = 0;
+		cinfo->after_change = cinfo->before_change + 1;
 }
 
 static __be32
