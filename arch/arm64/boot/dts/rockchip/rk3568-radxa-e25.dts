@@ -99,6 +99,10 @@
 	};
 };
 
+&combphy1 {
+	phy-supply = <&vcc3v3_pcie30x1>;
+};
+
 &pcie2x1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie20_reset_h>;
@@ -175,6 +179,10 @@
 &pwm12 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm12m1_pins>;
+	status = "okay";
+};
+
+&sata1 {
 	status = "okay";
 };
 
