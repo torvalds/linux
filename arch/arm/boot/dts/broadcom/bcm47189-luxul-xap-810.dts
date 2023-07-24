@@ -96,3 +96,7 @@
 		};
 	};
 };
+
+&gmac1 {
+	status = "disabled";
+};
