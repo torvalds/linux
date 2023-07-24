@@ -945,20 +945,17 @@ static inline bool page_is_mergeable(const struct bio_vec *bv,
 static bool __bio_try_merge_page(struct bio *bio, struct page *page,
 		unsigned int len, unsigned int off, bool *same_page)
 {
-	if (bio->bi_vcnt > 0) {
-		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
+	struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
 
-		if (page_is_mergeable(bv, page, len, off, same_page)) {
-			if (bio->bi_iter.bi_size > UINT_MAX - len) {
-				*same_page = false;
-				return false;
-			}
-			bv->bv_len += len;
-			bio->bi_iter.bi_size += len;
-			return true;
-		}
+	if (!page_is_mergeable(bv, page, len, off, same_page))
+		return false;
+	if (bio->bi_iter.bi_size > UINT_MAX - len) {
+		*same_page = false;
+		return false;
 	}
-	return false;
+	bv->bv_len += len;
+	bio->bi_iter.bi_size += len;
+	return true;
 }
 
 /*
@@ -1127,11 +1124,13 @@ int bio_add_page(struct bio *bio, struct page *page,
 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
 		return 0;
 
-	if (!__bio_try_merge_page(bio, page, len, offset, &same_page)) {
-		if (bio_full(bio, len))
-			return 0;
-		__bio_add_page(bio, page, len, offset);
-	}
+	if (bio->bi_vcnt > 0 &&
+	    __bio_try_merge_page(bio, page, len, offset, &same_page))
+		return len;
+
+	if (bio_full(bio, len))
+		return 0;
+	__bio_add_page(bio, page, len, offset);
 	return len;
 }
 EXPORT_SYMBOL(bio_add_page);
@@ -1205,13 +1204,13 @@ static int bio_iov_add_page(struct bio *bio, struct page *page,
 {
 	bool same_page = false;
 
-	if (!__bio_try_merge_page(bio, page, len, offset, &same_page)) {
-		__bio_add_page(bio, page, len, offset);
+	if (bio->bi_vcnt > 0 &&
+	    __bio_try_merge_page(bio, page, len, offset, &same_page)) {
+		if (same_page)
+			bio_release_page(bio, page);
 		return 0;
 	}
-
-	if (same_page)
-		bio_release_page(bio, page);
+	__bio_add_page(bio, page, len, offset);
 	return 0;
 }
 
