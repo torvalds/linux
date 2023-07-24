@@ -1288,13 +1288,13 @@
 		compatible = "aspeed,ast2600-i3c-global", "syscon";
 	};
 
-	i3c0: i3c0@2000 {
-		#address-cells = <1>;
+	i3c0: i3c-master@2000 {
+		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
 		reg = <0x2000 0x1000>;
-		compatible = "aspeed,ast2600-i3c", "syscon";
+		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C0CLK>;
 		resets = <&syscon ASPEED_RESET_I3C0>, <&syscon ASPEED_RESET_I3C>;
 		reset-names = "core_rst", "global_rst";
@@ -1310,13 +1310,13 @@
 		status = "disabled";
 	};
 
-	i3c1: i3c1@3000 {
-		#address-cells = <1>;
+	i3c1: i3c-master@3000 {
+		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
 		reg = <0x3000 0x1000>;
-		compatible = "aspeed,ast2600-i3c", "syscon";
+		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C1CLK>;
 		resets = <&syscon ASPEED_RESET_I3C1>, <&syscon ASPEED_RESET_I3C>;
 		reset-names = "core_rst", "global_rst";
@@ -1332,13 +1332,13 @@
 		status = "disabled";
 	};
 
-	i3c2: i3c2@4000 {
-		#address-cells = <1>;
+	i3c2: i3c-master@4000 {
+		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
 		reg = <0x4000 0x1000>;
-		compatible = "aspeed,ast2600-i3c", "syscon";
+		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C2CLK>;
 		resets = <&syscon ASPEED_RESET_I3C2>, <&syscon ASPEED_RESET_I3C>;
 		reset-names = "core_rst", "global_rst";
@@ -1352,13 +1352,13 @@
 		status = "disabled";
 	};
 
-	i3c3: i3c3@5000 {
-		#address-cells = <1>;
+	i3c3: i3c-master@5000 {
+		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
 		reg = <0x5000 0x1000>;
-		compatible = "aspeed,ast2600-i3c", "syscon";
+		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C3CLK>;
 		resets = <&syscon ASPEED_RESET_I3C3>, <&syscon ASPEED_RESET_I3C>;
 		reset-names = "core_rst", "global_rst";
@@ -1372,13 +1372,13 @@
 		status = "disabled";
 	};
 
-	i3c4: i3c4@6000 {
-		#address-cells = <1>;
+	i3c4: i3c-master@6000 {
+		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
 		reg = <0x6000 0x1000>;
-		compatible = "aspeed,ast2600-i3c", "syscon";
+		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C4CLK>;
 		resets = <&syscon ASPEED_RESET_I3C4>, <&syscon ASPEED_RESET_I3C>;
 		reset-names = "core_rst", "global_rst";
@@ -1394,13 +1394,13 @@
 		status = "disabled";
 	};
 
-	i3c5: i3c5@7000 {
-		#address-cells = <1>;
+	i3c5: i3c-master@7000 {
+		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
 		reg = <0x7000 0x1000>;
-		compatible = "aspeed,ast2600-i3c", "syscon";
+		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C5CLK>;
 		resets = <&syscon ASPEED_RESET_I3C5>, <&syscon ASPEED_RESET_I3C>;
 		reset-names = "core_rst", "global_rst";
