@@ -4,6 +4,7 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/of.h>
 #include <linux/thermal.h>
 #include "mt7996.h"
 #include "mac.h"

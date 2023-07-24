@@ -4,6 +4,7 @@
 #include <linux/etherdevice.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/of.h>
 #include <linux/thermal.h>
 #include "mt7915.h"
 #include "mac.h"
