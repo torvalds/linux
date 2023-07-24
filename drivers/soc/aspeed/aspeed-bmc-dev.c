@@ -487,19 +487,22 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
+	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 #else
 	bmc_device->scu = syscon_regmap_lookup_by_phandle(dev->of_node, "aspeed,scu");
 	if (IS_ERR(bmc_device->scu)) {
 		dev_err(&pdev->dev, "failed to find SCU regmap\n");
 		goto out_region;
 	}
+
+	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 #endif
+
 	if (of_property_read_bool(dev->of_node, "pcie2lpc"))
 		bmc_device->pcie2lpc = 1;
 
-#ifdef CONFIG_MACH_ASPEED_G7
-	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
-#endif
+	if (of_reserved_mem_device_init(dev))
+		dev_err(dev, "can't get reserved memory\n");
 
 	bmc_device->bmc_mem_virt = dma_alloc_coherent(&pdev->dev, BMC_MEM_BAR_SIZE,
 						      &bmc_device->bmc_mem_phy, GFP_KERNEL);
@@ -554,8 +557,8 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 		goto out_unmap;
 	}
 
-	ret = devm_request_irq(&pdev->dev, bmc_device->irq,
-			       aspeed_bmc_dev_isr, 0, dev_name(&pdev->dev), bmc_device);
+	ret = devm_request_irq(&pdev->dev, bmc_device->irq, aspeed_bmc_dev_isr,
+			       0, dev_name(&pdev->dev), bmc_device);
 	if (ret) {
 		dev_err(dev, "aspeed bmc device Unable to get IRQ");
 		goto out_unmap;
