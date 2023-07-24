@@ -71,7 +71,7 @@
 		};
 	};
 
-	opp_supply_mpu_iva: opp_supply {
+	opp_supply_mpu_iva: opp-supply {
 		compatible = "ti,omap-opp-supply";
 		ti,absolute-max-voltage-uv = <1375000>;
 	};
