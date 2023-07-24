@@ -816,10 +816,10 @@ static int hab_mem_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	if (obj_size < vma->vm_end - vma->vm_start)
 		return -EINVAL;
 
-	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, (VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP));
 	vma->vm_ops = &hab_buffer_vm_ops;
 	vma->vm_private_data = pglist;
-	vma->vm_flags |= VM_MIXEDMAP;
+	vm_flags_set(vma, VM_MIXEDMAP);
 
 	if (!(pglist->userflags & HABMM_IMPORT_FLAGS_CACHED))
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
