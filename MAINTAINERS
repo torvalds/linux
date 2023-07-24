@@ -5451,8 +5451,7 @@ F:	Documentation/devicetree/bindings/net/can/ctu,ctucanfd.yaml
 F:	drivers/net/can/ctucanfd/
 
 CW1200 WLAN driver
-M:	Solomon Peachy <pizza@shaftnet.org>
-S:	Maintained
+S:	Orphan
 F:	drivers/net/wireless/st/cw1200/
 
 CX18 VIDEO4LINUX DRIVER
