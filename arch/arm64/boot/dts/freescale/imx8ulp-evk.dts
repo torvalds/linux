@@ -20,6 +20,19 @@
 		reg = <0x0 0x80000000 0 0x80000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0 0x28000000>;
+			linux,cma-default;
+		};
+	};
+
 	clock_ext_rmii: clock-ext-rmii {
 		compatible = "fixed-clock";
 		clock-frequency = <50000000>;
