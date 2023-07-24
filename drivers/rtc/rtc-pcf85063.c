@@ -14,7 +14,7 @@
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/regmap.h>
 

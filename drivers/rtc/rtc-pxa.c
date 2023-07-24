@@ -14,7 +14,6 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include "rtc-sa1100.h"
 

@@ -12,7 +12,7 @@
 #include <linux/bcd.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 /*
  * Ricoh has a family of I2C based RTCs, which differ only slightly from
