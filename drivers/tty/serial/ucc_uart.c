@@ -59,7 +59,7 @@ static int firmware_loaded;
 /* #define LOOPBACK */
 
 /* The major and minor device numbers are defined in
- * http://www.lanana.org/docs/device-list/devices-2.6+.txt.  For the QE
+ * Documentation/admin-guide/devices.txt.  For the QE
  * UART, we have major number 204 and minor numbers 46 - 49, which are the
  * same as for the CPM2.  This decision was made because no Freescale part
  * has both a CPM and a QE.
