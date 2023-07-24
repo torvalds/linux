@@ -86,6 +86,8 @@
 	phy-mode = "rgmii";
 	phy-handle = <&bcm54210e>;
 
+	/delete-node/ fixed-link;
+
 	mdio {
 		/delete-node/ switch@1e;
 

@@ -181,6 +181,12 @@
 
 		gmac0: ethernet@5000 {
 			reg = <0x5000 0x1000>;
+			phy-mode = "internal";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 
 			mdio {
 				#address-cells = <1>;
@@ -237,6 +243,12 @@
 
 		gmac1: ethernet@b000 {
 			reg = <0xb000 0x1000>;
+			phy-mode = "internal";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 		};
 
 		pmu@12000 {
