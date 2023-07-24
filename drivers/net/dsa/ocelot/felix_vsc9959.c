@@ -16,6 +16,7 @@
 #include <net/pkt_sched.h>
 #include <linux/iopoll.h>
 #include <linux/mdio.h>
+#include <linux/of.h>
 #include <linux/pci.h>
 #include <linux/time.h>
 #include "felix.h"

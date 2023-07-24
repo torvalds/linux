@@ -18,8 +18,8 @@
 #include <linux/if_vlan.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/of.h>
 #include <linux/of_mdio.h>
-#include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/micrel_phy.h>
 #include <net/dsa.h>
