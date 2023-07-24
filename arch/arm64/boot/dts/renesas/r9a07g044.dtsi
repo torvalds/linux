@@ -223,20 +223,20 @@
 				     <GIC_SPI 212 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 213 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "tgia0", "tgib0", "tgic0", "tgid0",
-					  "tgiv0", "tgie0", "tgif0",
-					  "tgia1", "tgib1", "tgiv1", "tgiu1",
-					  "tgia2", "tgib2", "tgiv2", "tgiu2",
+					  "tciv0", "tgie0", "tgif0",
+					  "tgia1", "tgib1", "tciv1", "tciu1",
+					  "tgia2", "tgib2", "tciv2", "tciu2",
 					  "tgia3", "tgib3", "tgic3", "tgid3",
-					  "tgiv3",
+					  "tciv3",
 					  "tgia4", "tgib4", "tgic4", "tgid4",
-					  "tgiv4",
+					  "tciv4",
 					  "tgiu5", "tgiv5", "tgiw5",
 					  "tgia6", "tgib6", "tgic6", "tgid6",
-					  "tgiv6",
+					  "tciv6",
 					  "tgia7", "tgib7", "tgic7", "tgid7",
-					  "tgiv7",
+					  "tciv7",
 					  "tgia8", "tgib8", "tgic8", "tgid8",
-					  "tgiv8", "tgiu8";
+					  "tciv8", "tciu8";
 			clocks = <&cpg CPG_MOD R9A07G044_MTU_X_MCK_MTU3>;
 			power-domains = <&cpg>;
 			resets = <&cpg R9A07G044_MTU_X_PRESET_MTU3>;
