@@ -1976,6 +1976,13 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 	u64 ino = btrfs_ino(inode);
 	struct can_nocow_file_extent_args nocow_args = { 0 };
 
+	/*
+	 * Normally on a zoned device we're only doing COW writes, but in case
+	 * of relocation on a zoned filesystem serializes I/O so that we're only
+	 * writing sequentially and can end up here as well.
+	 */
+	ASSERT(!btrfs_is_zoned(fs_info) || btrfs_is_data_reloc_root(root));
+
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;
@@ -2257,14 +2264,6 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 		 start >= page_offset(locked_page) + PAGE_SIZE));
 
 	if (should_nocow(inode, start, end)) {
-		/*
-		 * Normally on a zoned device we're only doing COW writes, but
-		 * in case of relocation on a zoned filesystem we have taken
-		 * precaution, that we're only writing sequentially. It's safe
-		 * to use run_delalloc_nocow() here, like for  regular
-		 * preallocated inodes.
-		 */
-		ASSERT(!zoned || btrfs_is_data_reloc_root(inode->root));
 		ret = run_delalloc_nocow(inode, locked_page, start, end);
 		goto out;
 	}
