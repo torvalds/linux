@@ -31,6 +31,13 @@
 .Lskip_hcrx_\@:
 .endm
 
+/* Check if running in host at EL2 mode, i.e., (h)VHE. Jump to fail if not. */
+.macro __check_hvhe fail, tmp
+	mrs	\tmp, hcr_el2
+	and	\tmp, \tmp, #HCR_E2H
+	cbz	\tmp, \fail
+.endm
+
 /*
  * Allow Non-secure EL1 and EL0 to access physical timer and counter.
  * This is not necessary for VHE, since the host kernel runs in EL2,
@@ -43,9 +50,7 @@
  */
 .macro __init_el2_timers
 	mov	x0, #3				// Enable EL1 physical timers
-	mrs	x1, hcr_el2
-	and	x1, x1, #HCR_E2H
-	cbz	x1, .LnVHE_\@
+	__check_hvhe .LnVHE_\@, x1
 	lsl	x0, x0, #10
 .LnVHE_\@:
 	msr	cnthctl_el2, x0
@@ -139,9 +144,7 @@
 
 /* Coprocessor traps */
 .macro __init_el2_cptr
-	mrs	x1, hcr_el2
-	and	x1, x1, #HCR_E2H
-	cbz	x1, .LnVHE_\@
+	__check_hvhe .LnVHE_\@, x1
 	mov	x0, #(CPACR_EL1_FPEN_EL1EN | CPACR_EL1_FPEN_EL0EN)
 	b	.Lset_cptr_\@
 .LnVHE_\@:
@@ -269,9 +272,7 @@
 
 .Linit_sve_\@:	/* SVE register access */
 	mrs	x0, cptr_el2			// Disable SVE traps
-	mrs	x1, hcr_el2
-	and	x1, x1, #HCR_E2H
-	cbz	x1, .Lcptr_nvhe_\@
+	__check_hvhe .Lcptr_nvhe_\@, x1
 
 	// VHE case
 	orr	x0, x0, #(CPACR_EL1_ZEN_EL1EN | CPACR_EL1_ZEN_EL0EN)
