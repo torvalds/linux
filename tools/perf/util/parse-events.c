@@ -762,7 +762,7 @@ parse_events_config_bpf(struct parse_events_state *parse_state,
 			struct list_head *head_config)
 {
 	struct parse_events_term *term;
-	int error_pos;
+	int error_pos = 0;
 
 	if (!head_config || list_empty(head_config))
 		return 0;
