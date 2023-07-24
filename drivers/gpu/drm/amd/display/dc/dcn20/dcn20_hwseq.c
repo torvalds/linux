@@ -1084,7 +1084,7 @@ void dcn20_blank_pixel_data(
 
 	while (odm_pipe->next_odm_pipe) {
 		dc->hwss.set_disp_pattern_generator(dc,
-				pipe_ctx,
+				odm_pipe,
 				test_pattern,
 				test_pattern_color_space,
 				stream->timing.display_color_depth,

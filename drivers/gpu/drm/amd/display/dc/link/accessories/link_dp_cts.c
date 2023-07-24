@@ -513,7 +513,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				odm_opp = odm_pipe->stream_res.opp;
 				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
 				link->dc->hwss.set_disp_pattern_generator(link->dc,
-						pipe_ctx,
+						odm_pipe,
 						controller_test_pattern,
 						controller_color_space,
 						color_depth,
