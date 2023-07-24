@@ -148,6 +148,11 @@
 		};
 	};
 
+	cm33: remoteproc-cm33 {
+		compatible = "fsl,imx8ulp-cm33";
+		status = "disabled";
+	};
+
 	soc: soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
