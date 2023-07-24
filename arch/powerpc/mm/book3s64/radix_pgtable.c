@@ -962,7 +962,7 @@ unsigned long radix__pmd_hugepage_update(struct mm_struct *mm, unsigned long add
 #endif
 
 	old = radix__pte_update(mm, addr, pmdp_ptep(pmdp), clr, set, 1);
-	trace_hugepage_update(addr, old, clr, set);
+	trace_hugepage_update_pmd(addr, old, clr, set);
 
 	return old;
 }
