@@ -32,7 +32,7 @@
 
 #define QT2160_NUM_LEDS_X	8
 
-#define QT2160_CYCLE_INTERVAL	(2*HZ)
+#define QT2160_CYCLE_INTERVAL	2000 /* msec - 2 sec */
 
 static unsigned char qt2160_key2code[] = {
 	KEY_0, KEY_1, KEY_2, KEY_3,
@@ -54,7 +54,6 @@ struct qt2160_led {
 struct qt2160_data {
 	struct i2c_client *client;
 	struct input_dev *input;
-	struct delayed_work dwork;
 	unsigned short keycodes[ARRAY_SIZE(qt2160_key2code)];
 	u16 key_matrix;
 #ifdef CONFIG_LEDS_CLASS
@@ -155,10 +154,10 @@ static int qt2160_read_block(struct i2c_client *client,
 	return 0;
 }
 
-static int qt2160_get_key_matrix(struct qt2160_data *qt2160)
+static void qt2160_get_key_matrix(struct input_dev *input)
 {
+	struct qt2160_data *qt2160 = input_get_drvdata(input);
 	struct i2c_client *client = qt2160->client;
-	struct input_dev *input = qt2160->input;
 	u8 regs[6];
 	u16 old_matrix, new_matrix;
 	int ret, i, mask;
@@ -173,7 +172,7 @@ static int qt2160_get_key_matrix(struct qt2160_data *qt2160)
 	if (ret) {
 		dev_err(&client->dev,
 			"could not perform chip read.\n");
-		return ret;
+		return;
 	}
 
 	old_matrix = qt2160->key_matrix;
@@ -191,35 +190,15 @@ static int qt2160_get_key_matrix(struct qt2160_data *qt2160)
 	}
 
 	input_sync(input);
-
-	return 0;
 }
 
-static irqreturn_t qt2160_irq(int irq, void *_qt2160)
+static irqreturn_t qt2160_irq(int irq, void *data)
 {
-	struct qt2160_data *qt2160 = _qt2160;
+	struct input_dev *input = data;
 
-	mod_delayed_work(system_wq, &qt2160->dwork, 0);
+	qt2160_get_key_matrix(input);
 
 	return IRQ_HANDLED;
-}
-
-static void qt2160_schedule_read(struct qt2160_data *qt2160)
-{
-	schedule_delayed_work(&qt2160->dwork, QT2160_CYCLE_INTERVAL);
-}
-
-static void qt2160_worker(struct work_struct *work)
-{
-	struct qt2160_data *qt2160 =
-		container_of(work, struct qt2160_data, dwork.work);
-
-	dev_dbg(&qt2160->client->dev, "worker\n");
-
-	qt2160_get_key_matrix(qt2160);
-
-	/* Avoid device lock up by checking every so often */
-	qt2160_schedule_read(qt2160);
 }
 
 static int qt2160_read(struct i2c_client *client, u8 reg)
@@ -365,7 +344,6 @@ static int qt2160_probe(struct i2c_client *client)
 
 	qt2160->client = client;
 	qt2160->input = input;
-	INIT_DELAYED_WORK(&qt2160->dwork, qt2160_worker);
 
 	input->name = "AT42QT2160 Touch Sense Keyboard";
 	input->id.bustype = BUS_I2C;
@@ -382,6 +360,8 @@ static int qt2160_probe(struct i2c_client *client)
 	}
 	__clear_bit(KEY_RESERVED, input->keybit);
 
+	input_set_drvdata(input, qt2160);
+
 	/* Calibrate device */
 	error = qt2160_write(client, QT2160_CMD_CALIBRATE, 1);
 	if (error) {
@@ -390,13 +370,21 @@ static int qt2160_probe(struct i2c_client *client)
 	}
 
 	if (client->irq) {
-		error = request_irq(client->irq, qt2160_irq,
-				    IRQF_TRIGGER_FALLING, "qt2160", qt2160);
+		error = request_threaded_irq(client->irq, NULL, qt2160_irq,
+					     IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					     "qt2160", input);
 		if (error) {
 			dev_err(&client->dev,
 				"failed to allocate irq %d\n", client->irq);
 			goto err_free_mem;
 		}
+	} else {
+		error = input_setup_polling(input, qt2160_get_key_matrix);
+		if (error) {
+			dev_err(&client->dev, "Failed to setup polling\n");
+			goto err_free_mem;
+		}
+		input_set_poll_interval(input, QT2160_CYCLE_INTERVAL);
 	}
 
 	error = qt2160_register_leds(qt2160);
@@ -413,7 +401,6 @@ static int qt2160_probe(struct i2c_client *client)
 	}
 
 	i2c_set_clientdata(client, qt2160);
-	qt2160_schedule_read(qt2160);
 
 	return 0;
 
@@ -437,8 +424,6 @@ static void qt2160_remove(struct i2c_client *client)
 	/* Release IRQ so no queue will be scheduled */
 	if (client->irq)
 		free_irq(client->irq, qt2160);
-
-	cancel_delayed_work_sync(&qt2160->dwork);
 
 	input_unregister_device(qt2160->input);
 	kfree(qt2160);
