@@ -571,6 +571,14 @@ static inline bool vcpu_has_feature(struct kvm_vcpu *vcpu, int feature)
 	return test_bit(feature, vcpu->arch.features);
 }
 
+static __always_inline void kvm_write_cptr_el2(u64 val)
+{
+	if (has_vhe() || has_hvhe())
+		write_sysreg(val, cpacr_el1);
+	else
+		write_sysreg(val, cptr_el2);
+}
+
 static __always_inline u64 kvm_get_reset_cptr_el2(struct kvm_vcpu *vcpu)
 {
 	u64 val;
@@ -597,9 +605,6 @@ static __always_inline void kvm_reset_cptr_el2(struct kvm_vcpu *vcpu)
 {
 	u64 val = kvm_get_reset_cptr_el2(vcpu);
 
-	if (has_vhe() || has_hvhe())
-		write_sysreg(val, cpacr_el1);
-	else
-		write_sysreg(val, cptr_el2);
+	kvm_write_cptr_el2(val);
 }
 #endif /* __ARM64_KVM_EMULATE_H__ */
