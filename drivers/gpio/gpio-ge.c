@@ -59,7 +59,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	gc = devm_kzalloc(&pdev->dev, sizeof(*gc), GFP_KERNEL);
+	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
 	if (!gc)
 		return -ENOMEM;
 
@@ -67,9 +67,9 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	ret = bgpio_init(gc, &pdev->dev, 4, regs + GEF_GPIO_IN,
-			 regs + GEF_GPIO_OUT, NULL, NULL,
-			 regs + GEF_GPIO_DIRECT, BGPIOF_BIG_ENDIAN_BYTE_ORDER);
+	ret = bgpio_init(gc, dev, 4, regs + GEF_GPIO_IN, regs + GEF_GPIO_OUT,
+			 NULL, NULL, regs + GEF_GPIO_DIRECT,
+			 BGPIOF_BIG_ENDIAN_BYTE_ORDER);
 	if (ret)
 		return dev_err_probe(dev, ret, "bgpio_init failed\n");
 
@@ -82,7 +82,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	gc->ngpio = (uintptr_t)device_get_match_data(dev);
 
 	/* This function adds a memory mapped GPIO chip */
-	ret = devm_gpiochip_add_data(&pdev->dev, gc, NULL);
+	ret = devm_gpiochip_add_data(dev, gc, NULL);
 	if (ret)
 		return dev_err_probe(dev, ret, "GPIO chip registration failed\n");
 
