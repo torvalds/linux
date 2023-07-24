@@ -615,6 +615,12 @@ static ssize_t lm8323_set_disable(struct device *dev,
 }
 static DEVICE_ATTR(disable_kp, 0644, lm8323_show_disable, lm8323_set_disable);
 
+static struct attribute *lm8323_attrs[] = {
+	&dev_attr_disable_kp.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(lm8323);
+
 static int lm8323_probe(struct i2c_client *client)
 {
 	struct lm8323_platform_data *pdata = dev_get_platdata(&client->dev);
@@ -696,9 +702,6 @@ static int lm8323_probe(struct i2c_client *client)
 	}
 
 	lm->kp_enabled = true;
-	err = device_create_file(&client->dev, &dev_attr_disable_kp);
-	if (err < 0)
-		goto fail2;
 
 	idev->name = pdata->name ? : "LM8323 keypad";
 	snprintf(lm->phys, sizeof(lm->phys),
@@ -719,14 +722,14 @@ static int lm8323_probe(struct i2c_client *client)
 	err = input_register_device(idev);
 	if (err) {
 		dev_dbg(&client->dev, "error registering input device\n");
-		goto fail3;
+		goto fail2;
 	}
 
 	err = request_threaded_irq(client->irq, NULL, lm8323_irq,
 			  IRQF_TRIGGER_LOW|IRQF_ONESHOT, "lm8323", lm);
 	if (err) {
 		dev_err(&client->dev, "could not get IRQ %d\n", client->irq);
-		goto fail4;
+		goto fail3;
 	}
 
 	i2c_set_clientdata(client, lm);
@@ -736,11 +739,9 @@ static int lm8323_probe(struct i2c_client *client)
 
 	return 0;
 
-fail4:
+fail3:
 	input_unregister_device(idev);
 	idev = NULL;
-fail3:
-	device_remove_file(&client->dev, &dev_attr_disable_kp);
 fail2:
 	while (--pwm >= 0)
 		if (lm->pwm[pwm].enabled)
@@ -760,8 +761,6 @@ static void lm8323_remove(struct i2c_client *client)
 	free_irq(client->irq, lm);
 
 	input_unregister_device(lm->idev);
-
-	device_remove_file(&lm->client->dev, &dev_attr_disable_kp);
 
 	for (i = 0; i < 3; i++)
 		if (lm->pwm[i].enabled)
@@ -823,8 +822,9 @@ static const struct i2c_device_id lm8323_id[] = {
 
 static struct i2c_driver lm8323_i2c_driver = {
 	.driver = {
-		.name	= "lm8323",
-		.pm	= pm_sleep_ptr(&lm8323_pm_ops),
+		.name		= "lm8323",
+		.pm		= pm_sleep_ptr(&lm8323_pm_ops),
+		.dev_groups	= lm8323_groups,
 	},
 	.probe		= lm8323_probe,
 	.remove		= lm8323_remove,
