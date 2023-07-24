@@ -51,20 +51,19 @@ static struct pfault_refbk pfault_init_refbk = {
 
 int __pfault_init(void)
 {
-        int rc;
+	int rc = -EOPNOTSUPP;
 
 	if (pfault_disable)
-		return -1;
+		return rc;
 	diag_stat_inc(DIAG_STAT_X258);
 	asm volatile(
-		"	diag	%1,%0,0x258\n"
-		"0:	j	2f\n"
-		"1:	la	%0,8\n"
-		"2:\n"
-		EX_TABLE(0b,1b)
-		: "=d" (rc)
-		: "a" (&pfault_init_refbk), "m" (pfault_init_refbk) : "cc");
-        return rc;
+		"	diag	%[refbk],%[rc],0x258\n"
+		"0:	nopr	%%r7\n"
+		EX_TABLE(0b, 0b)
+		: [rc] "+d" (rc)
+		: [refbk] "a" (&pfault_init_refbk), "m" (pfault_init_refbk)
+		: "cc");
+	return rc;
 }
 
 static struct pfault_refbk pfault_fini_refbk = {
@@ -76,15 +75,16 @@ static struct pfault_refbk pfault_fini_refbk = {
 
 void __pfault_fini(void)
 {
-
 	if (pfault_disable)
 		return;
 	diag_stat_inc(DIAG_STAT_X258);
 	asm volatile(
-		"	diag	%0,0,0x258\n"
+		"	diag	%[refbk],0,0x258\n"
 		"0:	nopr	%%r7\n"
-		EX_TABLE(0b,0b)
-		: : "a" (&pfault_fini_refbk), "m" (pfault_fini_refbk) : "cc");
+		EX_TABLE(0b, 0b)
+		:
+		: [refbk] "a" (&pfault_fini_refbk), "m" (pfault_fini_refbk)
+		: "cc");
 }
 
 static DEFINE_SPINLOCK(pfault_lock);
