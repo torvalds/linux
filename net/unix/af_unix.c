@@ -1208,10 +1208,8 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	struct path parent;
 	int err;
 
-	unix_mkname_bsd(sunaddr, addr_len);
-	addr_len = strlen(sunaddr->sun_path) +
-		offsetof(struct sockaddr_un, sun_path) + 1;
-
+	addr_len = strnlen(sunaddr->sun_path, sizeof(sunaddr->sun_path))
+		+ offsetof(struct sockaddr_un, sun_path) + 1;
 	addr = unix_create_addr(sunaddr, addr_len);
 	if (!addr)
 		return -ENOMEM;
