@@ -82,12 +82,20 @@ int efx_mae_match_check_caps(struct efx_nic *efx,
 			     const struct efx_tc_match_fields *mask,
 			     struct netlink_ext_ack *extack);
 int efx_mae_check_encap_match_caps(struct efx_nic *efx, bool ipv6,
+				   u8 ip_tos_mask, __be16 udp_sport_mask,
 				   struct netlink_ext_ack *extack);
 int efx_mae_check_encap_type_supported(struct efx_nic *efx,
 				       enum efx_encap_type typ);
 
 int efx_mae_allocate_counter(struct efx_nic *efx, struct efx_tc_counter *cnt);
 int efx_mae_free_counter(struct efx_nic *efx, struct efx_tc_counter *cnt);
+
+int efx_mae_allocate_encap_md(struct efx_nic *efx,
+			      struct efx_tc_encap_action *encap);
+int efx_mae_update_encap_md(struct efx_nic *efx,
+			    struct efx_tc_encap_action *encap);
+int efx_mae_free_encap_md(struct efx_nic *efx,
+			  struct efx_tc_encap_action *encap);
 
 int efx_mae_alloc_action_set(struct efx_nic *efx, struct efx_tc_action_set *act);
 int efx_mae_free_action_set(struct efx_nic *efx, u32 fw_id);
@@ -104,6 +112,7 @@ int efx_mae_unregister_encap_match(struct efx_nic *efx,
 
 int efx_mae_insert_rule(struct efx_nic *efx, const struct efx_tc_match *match,
 			u32 prio, u32 acts_id, u32 *id);
+int efx_mae_update_rule(struct efx_nic *efx, u32 acts_id, u32 id);
 int efx_mae_delete_rule(struct efx_nic *efx, u32 id);
 
 int efx_init_mae(struct efx_nic *efx);

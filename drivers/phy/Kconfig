@@ -18,6 +18,7 @@ config GENERIC_PHY
 
 config GENERIC_PHY_MIPI_DPHY
 	bool
+	depends on GENERIC_PHY
 	help
 	  Generic MIPI D-PHY support.
 

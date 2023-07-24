@@ -167,6 +167,7 @@ struct _vcs_dpi_voltage_scaling_st {
 	double phyclk_mhz;
 	double dppclk_mhz;
 	double dtbclk_mhz;
+	float net_bw_in_kbytes_sec;
 };
 
 /**

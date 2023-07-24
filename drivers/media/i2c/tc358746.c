@@ -1686,7 +1686,7 @@ static struct i2c_driver tc358746_driver = {
 		.pm = pm_ptr(&tc358746_pm_ops),
 		.of_match_table = tc358746_of_match,
 	},
-	.probe_new = tc358746_probe,
+	.probe = tc358746_probe,
 	.remove = tc358746_remove,
 };
 

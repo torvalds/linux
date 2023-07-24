@@ -11,6 +11,7 @@
 #include "ksym_race.skel.h"
 #include "bpf_mod_race.skel.h"
 #include "kfunc_call_race.skel.h"
+#include "testing_helpers.h"
 
 /* This test crafts a race between btf_try_get_module and do_init_module, and
  * checks whether btf_try_get_module handles the invocation for a well-formed
@@ -44,35 +45,10 @@ enum bpf_test_state {
 
 static _Atomic enum bpf_test_state state = _TS_INVALID;
 
-static int sys_finit_module(int fd, const char *param_values, int flags)
-{
-	return syscall(__NR_finit_module, fd, param_values, flags);
-}
-
-static int sys_delete_module(const char *name, unsigned int flags)
-{
-	return syscall(__NR_delete_module, name, flags);
-}
-
-static int load_module(const char *mod)
-{
-	int ret, fd;
-
-	fd = open("bpf_testmod.ko", O_RDONLY);
-	if (fd < 0)
-		return fd;
-
-	ret = sys_finit_module(fd, "", 0);
-	close(fd);
-	if (ret < 0)
-		return ret;
-	return 0;
-}
-
 static void *load_module_thread(void *p)
 {
 
-	if (!ASSERT_NEQ(load_module("bpf_testmod.ko"), 0, "load_module_thread must fail"))
+	if (!ASSERT_NEQ(load_bpf_testmod(false), 0, "load_module_thread must fail"))
 		atomic_store(&state, TS_MODULE_LOAD);
 	else
 		atomic_store(&state, TS_MODULE_LOAD_FAIL);
@@ -124,7 +100,7 @@ static void test_bpf_mod_race_config(const struct test_config *config)
 	if (!ASSERT_NEQ(fault_addr, MAP_FAILED, "mmap for uffd registration"))
 		return;
 
-	if (!ASSERT_OK(sys_delete_module("bpf_testmod", 0), "unload bpf_testmod"))
+	if (!ASSERT_OK(unload_bpf_testmod(false), "unload bpf_testmod"))
 		goto end_mmap;
 
 	skel = bpf_mod_race__open();
@@ -202,8 +178,8 @@ end_destroy:
 	bpf_mod_race__destroy(skel);
 	ASSERT_OK(kern_sync_rcu(), "kern_sync_rcu");
 end_module:
-	sys_delete_module("bpf_testmod", 0);
-	ASSERT_OK(load_module("bpf_testmod.ko"), "restore bpf_testmod");
+	unload_bpf_testmod(false);
+	ASSERT_OK(load_bpf_testmod(false), "restore bpf_testmod");
 end_mmap:
 	munmap(fault_addr, 4096);
 	atomic_store(&state, _TS_INVALID);

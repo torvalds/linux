@@ -27,7 +27,7 @@ and			vF	i	v
 andnot			vF	i	v
 or			vF	i	v
 xor			vF	i	v
-xchg			I	v	i
+xchg			I	v	i:new
 cmpxchg			I	v	i:old	i:new
 try_cmpxchg		B	v	p:old	i:new
 sub_and_test		b	i	v

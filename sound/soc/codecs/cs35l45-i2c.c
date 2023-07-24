@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0
 //
 // cs35l45-i2c.c -- CS35L45 I2C driver
 //
@@ -65,12 +65,12 @@ static struct i2c_driver cs35l45_i2c_driver = {
 		.pm		= &cs35l45_pm_ops,
 	},
 	.id_table	= cs35l45_id_i2c,
-	.probe_new	= cs35l45_i2c_probe,
+	.probe		= cs35l45_i2c_probe,
 	.remove		= cs35l45_i2c_remove,
 };
 module_i2c_driver(cs35l45_i2c_driver);
 
 MODULE_DESCRIPTION("I2C CS35L45 driver");
 MODULE_AUTHOR("James Schulman, Cirrus Logic Inc, <james.schulman@cirrus.com>");
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_CS35L45);

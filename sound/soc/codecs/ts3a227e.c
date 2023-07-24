@@ -455,7 +455,7 @@ static struct i2c_driver ts3a227e_driver = {
 		.of_match_table = of_match_ptr(ts3a227e_of_match),
 		.acpi_match_table = ACPI_PTR(ts3a227e_acpi_match),
 	},
-	.probe_new = ts3a227e_i2c_probe,
+	.probe = ts3a227e_i2c_probe,
 	.id_table = ts3a227e_i2c_ids,
 };
 module_i2c_driver(ts3a227e_driver);

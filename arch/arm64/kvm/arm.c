@@ -51,6 +51,8 @@ DECLARE_KVM_HYP_PER_CPU(unsigned long, kvm_hyp_vector);
 DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
 DECLARE_KVM_NVHE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 
+DECLARE_KVM_NVHE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
+
 static bool vgic_present;
 
 static DEFINE_PER_CPU(unsigned char, kvm_arm_hardware_enabled);
@@ -65,6 +67,7 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 			    struct kvm_enable_cap *cap)
 {
 	int r;
+	u64 new_cap;
 
 	if (cap->flags)
 		return -EINVAL;
@@ -89,6 +92,24 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		r = 0;
 		set_bit(KVM_ARCH_FLAG_SYSTEM_SUSPEND_ENABLED, &kvm->arch.flags);
 		break;
+	case KVM_CAP_ARM_EAGER_SPLIT_CHUNK_SIZE:
+		new_cap = cap->args[0];
+
+		mutex_lock(&kvm->slots_lock);
+		/*
+		 * To keep things simple, allow changing the chunk
+		 * size only when no memory slots have been created.
+		 */
+		if (!kvm_are_all_memslots_empty(kvm)) {
+			r = -EINVAL;
+		} else if (new_cap && !kvm_is_block_size_supported(new_cap)) {
+			r = -EINVAL;
+		} else {
+			r = 0;
+			kvm->arch.mmu.split_page_chunk_size = new_cap;
+		}
+		mutex_unlock(&kvm->slots_lock);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -100,22 +121,6 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 static int kvm_arm_default_max_vcpus(void)
 {
 	return vgic_present ? kvm_vgic_get_max_vcpus() : KVM_MAX_VCPUS;
-}
-
-static void set_default_spectre(struct kvm *kvm)
-{
-	/*
-	 * The default is to expose CSV2 == 1 if the HW isn't affected.
-	 * Although this is a per-CPU feature, we make it global because
-	 * asymmetric systems are just a nuisance.
-	 *
-	 * Userspace can override this as long as it doesn't promise
-	 * the impossible.
-	 */
-	if (arm64_get_spectre_v2_state() == SPECTRE_UNAFFECTED)
-		kvm->arch.pfr0_csv2 = 1;
-	if (arm64_get_meltdown_state() == SPECTRE_UNAFFECTED)
-		kvm->arch.pfr0_csv3 = 1;
 }
 
 /**
@@ -161,14 +166,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	/* The maximum number of VCPUs is limited by the host's GIC model */
 	kvm->max_vcpus = kvm_arm_default_max_vcpus();
 
-	set_default_spectre(kvm);
 	kvm_arm_init_hypercalls(kvm);
 
-	/*
-	 * Initialise the default PMUver before there is a chance to
-	 * create an actual PMU.
-	 */
-	kvm->arch.dfr0_pmuver.imp = kvm_arm_pmu_get_pmuver_limit();
+	bitmap_zero(kvm->arch.vcpu_features, KVM_VCPU_MAX_FEATURES);
 
 	return 0;
 
@@ -301,6 +301,15 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_ARM_PTRAUTH_ADDRESS:
 	case KVM_CAP_ARM_PTRAUTH_GENERIC:
 		r = system_has_full_ptr_auth();
+		break;
+	case KVM_CAP_ARM_EAGER_SPLIT_CHUNK_SIZE:
+		if (kvm)
+			r = kvm->arch.mmu.split_page_chunk_size;
+		else
+			r = KVM_ARM_EAGER_SPLIT_CHUNK_SIZE_DEFAULT;
+		break;
+	case KVM_CAP_ARM_SUPPORTED_BLOCK_SIZES:
+		r = kvm_supported_block_sizes();
 		break;
 	default:
 		r = 0;
@@ -1167,57 +1176,114 @@ int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
 	return -EINVAL;
 }
 
-static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
-			       const struct kvm_vcpu_init *init)
+static int kvm_vcpu_init_check_features(struct kvm_vcpu *vcpu,
+					const struct kvm_vcpu_init *init)
 {
-	unsigned int i, ret;
-	u32 phys_target = kvm_target_cpu();
+	unsigned long features = init->features[0];
+	int i;
 
-	if (init->target != phys_target)
-		return -EINVAL;
+	if (features & ~KVM_VCPU_VALID_FEATURES)
+		return -ENOENT;
 
-	/*
-	 * Secondary and subsequent calls to KVM_ARM_VCPU_INIT must
-	 * use the same target.
-	 */
-	if (vcpu->arch.target != -1 && vcpu->arch.target != init->target)
-		return -EINVAL;
-
-	/* -ENOENT for unknown features, -EINVAL for invalid combinations. */
-	for (i = 0; i < sizeof(init->features) * 8; i++) {
-		bool set = (init->features[i / 32] & (1 << (i % 32)));
-
-		if (set && i >= KVM_VCPU_MAX_FEATURES)
+	for (i = 1; i < ARRAY_SIZE(init->features); i++) {
+		if (init->features[i])
 			return -ENOENT;
-
-		/*
-		 * Secondary and subsequent calls to KVM_ARM_VCPU_INIT must
-		 * use the same feature set.
-		 */
-		if (vcpu->arch.target != -1 && i < KVM_VCPU_MAX_FEATURES &&
-		    test_bit(i, vcpu->arch.features) != set)
-			return -EINVAL;
-
-		if (set)
-			set_bit(i, vcpu->arch.features);
 	}
 
-	vcpu->arch.target = phys_target;
+	if (!test_bit(KVM_ARM_VCPU_EL1_32BIT, &features))
+		return 0;
+
+	if (!cpus_have_const_cap(ARM64_HAS_32BIT_EL1))
+		return -EINVAL;
+
+	/* MTE is incompatible with AArch32 */
+	if (kvm_has_mte(vcpu->kvm))
+		return -EINVAL;
+
+	/* NV is incompatible with AArch32 */
+	if (test_bit(KVM_ARM_VCPU_HAS_EL2, &features))
+		return -EINVAL;
+
+	return 0;
+}
+
+static bool kvm_vcpu_init_changed(struct kvm_vcpu *vcpu,
+				  const struct kvm_vcpu_init *init)
+{
+	unsigned long features = init->features[0];
+
+	return !bitmap_equal(vcpu->arch.features, &features, KVM_VCPU_MAX_FEATURES) ||
+			vcpu->arch.target != init->target;
+}
+
+static int __kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
+				 const struct kvm_vcpu_init *init)
+{
+	unsigned long features = init->features[0];
+	struct kvm *kvm = vcpu->kvm;
+	int ret = -EINVAL;
+
+	mutex_lock(&kvm->arch.config_lock);
+
+	if (test_bit(KVM_ARCH_FLAG_VCPU_FEATURES_CONFIGURED, &kvm->arch.flags) &&
+	    !bitmap_equal(kvm->arch.vcpu_features, &features, KVM_VCPU_MAX_FEATURES))
+		goto out_unlock;
+
+	vcpu->arch.target = init->target;
+	bitmap_copy(vcpu->arch.features, &features, KVM_VCPU_MAX_FEATURES);
 
 	/* Now we know what it is, we can reset it. */
 	ret = kvm_reset_vcpu(vcpu);
 	if (ret) {
 		vcpu->arch.target = -1;
 		bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
+		goto out_unlock;
 	}
 
+	bitmap_copy(kvm->arch.vcpu_features, &features, KVM_VCPU_MAX_FEATURES);
+	set_bit(KVM_ARCH_FLAG_VCPU_FEATURES_CONFIGURED, &kvm->arch.flags);
+
+out_unlock:
+	mutex_unlock(&kvm->arch.config_lock);
 	return ret;
+}
+
+static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
+			       const struct kvm_vcpu_init *init)
+{
+	int ret;
+
+	if (init->target != kvm_target_cpu())
+		return -EINVAL;
+
+	ret = kvm_vcpu_init_check_features(vcpu, init);
+	if (ret)
+		return ret;
+
+	if (vcpu->arch.target == -1)
+		return __kvm_vcpu_set_target(vcpu, init);
+
+	if (kvm_vcpu_init_changed(vcpu, init))
+		return -EINVAL;
+
+	return kvm_reset_vcpu(vcpu);
 }
 
 static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 					 struct kvm_vcpu_init *init)
 {
+	bool power_off = false;
 	int ret;
+
+	/*
+	 * Treat the power-off vCPU feature as ephemeral. Clear the bit to avoid
+	 * reflecting it in the finalized feature set, thus limiting its scope
+	 * to a single KVM_ARM_VCPU_INIT call.
+	 */
+	if (init->features[0] & BIT(KVM_ARM_VCPU_POWER_OFF)) {
+		init->features[0] &= ~BIT(KVM_ARM_VCPU_POWER_OFF);
+		power_off = true;
+	}
 
 	ret = kvm_vcpu_set_target(vcpu, init);
 	if (ret)
@@ -1240,14 +1306,14 @@ static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 	}
 
 	vcpu_reset_hcr(vcpu);
-	vcpu->arch.cptr_el2 = CPTR_EL2_DEFAULT;
+	vcpu->arch.cptr_el2 = kvm_get_reset_cptr_el2(vcpu);
 
 	/*
 	 * Handle the "start in power-off" case.
 	 */
 	spin_lock(&vcpu->arch.mp_state_lock);
 
-	if (test_bit(KVM_ARM_VCPU_POWER_OFF, vcpu->arch.features))
+	if (power_off)
 		__kvm_arm_vcpu_power_off(vcpu);
 	else
 		WRITE_ONCE(vcpu->arch.mp_state.mp_state, KVM_MP_STATE_RUNNABLE);
@@ -1666,7 +1732,13 @@ static void __init cpu_prepare_hyp_mode(int cpu, u32 hyp_va_bits)
 
 	params->mair_el2 = read_sysreg(mair_el1);
 
-	tcr = (read_sysreg(tcr_el1) & TCR_EL2_MASK) | TCR_EL2_RES1;
+	tcr = read_sysreg(tcr_el1);
+	if (cpus_have_final_cap(ARM64_KVM_HVHE)) {
+		tcr |= TCR_EPD1_MASK;
+	} else {
+		tcr &= TCR_EL2_MASK;
+		tcr |= TCR_EL2_RES1;
+	}
 	tcr &= ~TCR_T0SZ_MASK;
 	tcr |= TCR_T0SZ(hyp_va_bits);
 	params->tcr_el2 = tcr;
@@ -1676,6 +1748,8 @@ static void __init cpu_prepare_hyp_mode(int cpu, u32 hyp_va_bits)
 		params->hcr_el2 = HCR_HOST_NVHE_PROTECTED_FLAGS;
 	else
 		params->hcr_el2 = HCR_HOST_NVHE_FLAGS;
+	if (cpus_have_final_cap(ARM64_KVM_HVHE))
+		params->hcr_el2 |= HCR_E2H;
 	params->vttbr = params->vtcr = 0;
 
 	/*
@@ -1910,6 +1984,7 @@ static bool __init init_psci_relay(void)
 	}
 
 	kvm_host_psci_config.version = psci_ops.get_version();
+	kvm_host_psci_config.smccc_version = arm_smccc_get_version();
 
 	if (kvm_host_psci_config.version == PSCI_VERSION(0, 1)) {
 		kvm_host_psci_config.function_ids_0_1 = get_psci_0_1_function_ids();
@@ -2065,6 +2140,26 @@ static int __init kvm_hyp_init_protection(u32 hyp_va_bits)
 	free_hyp_pgds();
 
 	return 0;
+}
+
+static void pkvm_hyp_init_ptrauth(void)
+{
+	struct kvm_cpu_context *hyp_ctxt;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		hyp_ctxt = per_cpu_ptr_nvhe_sym(kvm_hyp_ctxt, cpu);
+		hyp_ctxt->sys_regs[APIAKEYLO_EL1] = get_random_long();
+		hyp_ctxt->sys_regs[APIAKEYHI_EL1] = get_random_long();
+		hyp_ctxt->sys_regs[APIBKEYLO_EL1] = get_random_long();
+		hyp_ctxt->sys_regs[APIBKEYHI_EL1] = get_random_long();
+		hyp_ctxt->sys_regs[APDAKEYLO_EL1] = get_random_long();
+		hyp_ctxt->sys_regs[APDAKEYHI_EL1] = get_random_long();
+		hyp_ctxt->sys_regs[APDBKEYLO_EL1] = get_random_long();
+		hyp_ctxt->sys_regs[APDBKEYHI_EL1] = get_random_long();
+		hyp_ctxt->sys_regs[APGAKEYLO_EL1] = get_random_long();
+		hyp_ctxt->sys_regs[APGAKEYHI_EL1] = get_random_long();
+	}
 }
 
 /* Inits Hyp-mode on all online CPUs */
@@ -2228,6 +2323,10 @@ static int __init init_hyp_mode(void)
 	kvm_hyp_init_symbols();
 
 	if (is_protected_kvm_enabled()) {
+		if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL) &&
+		    cpus_have_const_cap(ARM64_HAS_ADDRESS_AUTH))
+			pkvm_hyp_init_ptrauth();
+
 		init_cpu_logical_map();
 
 		if (!init_psci_relay()) {

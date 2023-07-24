@@ -323,12 +323,6 @@ void lruvec_add_folio(struct lruvec *lruvec, struct folio *folio)
 		list_add(&folio->lru, &lruvec->lists[lru]);
 }
 
-static __always_inline void add_page_to_lru_list(struct page *page,
-				struct lruvec *lruvec)
-{
-	lruvec_add_folio(lruvec, page_folio(page));
-}
-
 static __always_inline
 void lruvec_add_folio_tail(struct lruvec *lruvec, struct folio *folio)
 {
@@ -355,12 +349,6 @@ void lruvec_del_folio(struct lruvec *lruvec, struct folio *folio)
 		list_del(&folio->lru);
 	update_lru_size(lruvec, lru, folio_zonenum(folio),
 			-folio_nr_pages(folio));
-}
-
-static __always_inline void del_page_from_lru_list(struct page *page,
-				struct lruvec *lruvec)
-{
-	lruvec_del_folio(lruvec, page_folio(page));
 }
 
 #ifdef CONFIG_ANON_VMA_NAME
@@ -555,7 +543,7 @@ pte_install_uffd_wp_if_needed(struct vm_area_struct *vma, unsigned long addr,
 	bool arm_uffd_pte = false;
 
 	/* The current status of the pte should be "cleared" before calling */
-	WARN_ON_ONCE(!pte_none(*pte));
+	WARN_ON_ONCE(!pte_none(ptep_get(pte)));
 
 	/*
 	 * NOTE: userfaultfd_wp_unpopulated() doesn't need this whole

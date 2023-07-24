@@ -417,4 +417,22 @@
 
 		status = "disabled";
 	};
+
+	aic: audio-controller@10020000 {
+		compatible = "ingenic,x1000-i2s";
+		reg = <0x10020000 0x38>;
+
+		#sound-dai-cells = <0>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <1>;
+
+		clocks = <&cgu X1000_CLK_AIC>,
+			 <&cgu X1000_CLK_I2S>;
+		clock-names = "aic", "i2s";
+
+		dmas = <&pdma X1000_DMA_I2S0_RX 0xffffffff>,
+			   <&pdma X1000_DMA_I2S0_TX 0xffffffff>;
+		dma-names = "rx", "tx";
+	};
 };

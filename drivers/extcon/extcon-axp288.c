@@ -393,7 +393,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 		adev = acpi_dev_get_first_match_dev("INT3496", NULL, -1);
 		if (adev) {
 			info->id_extcon = extcon_get_extcon_dev(acpi_dev_name(adev));
-			put_device(&adev->dev);
+			acpi_dev_put(adev);
 			if (IS_ERR(info->id_extcon))
 				return PTR_ERR(info->id_extcon);
 

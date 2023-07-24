@@ -13,10 +13,10 @@ static void cptlf_do_set_done_time_wait(struct otx2_cptlf_info *lf,
 {
 	union otx2_cptx_lf_done_wait done_wait;
 
-	done_wait.u = otx2_cpt_read64(lf->lfs->reg_base, BLKADDR_CPT0, lf->slot,
-				      OTX2_CPT_LF_DONE_WAIT);
+	done_wait.u = otx2_cpt_read64(lf->lfs->reg_base, lf->lfs->blkaddr,
+				      lf->slot, OTX2_CPT_LF_DONE_WAIT);
 	done_wait.s.time_wait = time_wait;
-	otx2_cpt_write64(lf->lfs->reg_base, BLKADDR_CPT0, lf->slot,
+	otx2_cpt_write64(lf->lfs->reg_base, lf->lfs->blkaddr, lf->slot,
 			 OTX2_CPT_LF_DONE_WAIT, done_wait.u);
 }
 
@@ -24,10 +24,10 @@ static void cptlf_do_set_done_num_wait(struct otx2_cptlf_info *lf, int num_wait)
 {
 	union otx2_cptx_lf_done_wait done_wait;
 
-	done_wait.u = otx2_cpt_read64(lf->lfs->reg_base, BLKADDR_CPT0, lf->slot,
-				      OTX2_CPT_LF_DONE_WAIT);
+	done_wait.u = otx2_cpt_read64(lf->lfs->reg_base, lf->lfs->blkaddr,
+				      lf->slot, OTX2_CPT_LF_DONE_WAIT);
 	done_wait.s.num_wait = num_wait;
-	otx2_cpt_write64(lf->lfs->reg_base, BLKADDR_CPT0, lf->slot,
+	otx2_cpt_write64(lf->lfs->reg_base, lf->lfs->blkaddr, lf->slot,
 			 OTX2_CPT_LF_DONE_WAIT, done_wait.u);
 }
 
@@ -147,7 +147,7 @@ static void cptlf_set_misc_intrs(struct otx2_cptlfs_info *lfs, u8 enable)
 	irq_misc.s.nwrp = 0x1;
 
 	for (slot = 0; slot < lfs->lfs_num; slot++)
-		otx2_cpt_write64(lfs->reg_base, BLKADDR_CPT0, slot, reg,
+		otx2_cpt_write64(lfs->reg_base, lfs->blkaddr, slot, reg,
 				 irq_misc.u);
 }
 
@@ -157,7 +157,7 @@ static void cptlf_enable_intrs(struct otx2_cptlfs_info *lfs)
 
 	/* Enable done interrupts */
 	for (slot = 0; slot < lfs->lfs_num; slot++)
-		otx2_cpt_write64(lfs->reg_base, BLKADDR_CPT0, slot,
+		otx2_cpt_write64(lfs->reg_base, lfs->blkaddr, slot,
 				 OTX2_CPT_LF_DONE_INT_ENA_W1S, 0x1);
 	/* Enable Misc interrupts */
 	cptlf_set_misc_intrs(lfs, true);
@@ -168,7 +168,7 @@ static void cptlf_disable_intrs(struct otx2_cptlfs_info *lfs)
 	int slot;
 
 	for (slot = 0; slot < lfs->lfs_num; slot++)
-		otx2_cpt_write64(lfs->reg_base, BLKADDR_CPT0, slot,
+		otx2_cpt_write64(lfs->reg_base, lfs->blkaddr, slot,
 				 OTX2_CPT_LF_DONE_INT_ENA_W1C, 0x1);
 	cptlf_set_misc_intrs(lfs, false);
 }
@@ -177,7 +177,7 @@ static inline int cptlf_read_done_cnt(struct otx2_cptlf_info *lf)
 {
 	union otx2_cptx_lf_done irq_cnt;
 
-	irq_cnt.u = otx2_cpt_read64(lf->lfs->reg_base, BLKADDR_CPT0, lf->slot,
+	irq_cnt.u = otx2_cpt_read64(lf->lfs->reg_base, lf->lfs->blkaddr, lf->slot,
 				    OTX2_CPT_LF_DONE);
 	return irq_cnt.s.done;
 }
@@ -189,8 +189,8 @@ static irqreturn_t cptlf_misc_intr_handler(int __always_unused irq, void *arg)
 	struct device *dev;
 
 	dev = &lf->lfs->pdev->dev;
-	irq_misc.u = otx2_cpt_read64(lf->lfs->reg_base, BLKADDR_CPT0, lf->slot,
-				     OTX2_CPT_LF_MISC_INT);
+	irq_misc.u = otx2_cpt_read64(lf->lfs->reg_base, lf->lfs->blkaddr,
+				     lf->slot, OTX2_CPT_LF_MISC_INT);
 	irq_misc_ack.u = 0x0;
 
 	if (irq_misc.s.fault) {
@@ -222,7 +222,7 @@ static irqreturn_t cptlf_misc_intr_handler(int __always_unused irq, void *arg)
 	}
 
 	/* Acknowledge interrupts */
-	otx2_cpt_write64(lf->lfs->reg_base, BLKADDR_CPT0, lf->slot,
+	otx2_cpt_write64(lf->lfs->reg_base, lf->lfs->blkaddr, lf->slot,
 			 OTX2_CPT_LF_MISC_INT, irq_misc_ack.u);
 
 	return IRQ_HANDLED;
@@ -237,13 +237,13 @@ static irqreturn_t cptlf_done_intr_handler(int irq, void *arg)
 	/* Read the number of completed requests */
 	irq_cnt = cptlf_read_done_cnt(lf);
 	if (irq_cnt) {
-		done_wait.u = otx2_cpt_read64(lf->lfs->reg_base, BLKADDR_CPT0,
+		done_wait.u = otx2_cpt_read64(lf->lfs->reg_base, lf->lfs->blkaddr,
 					      lf->slot, OTX2_CPT_LF_DONE_WAIT);
 		/* Acknowledge the number of completed requests */
-		otx2_cpt_write64(lf->lfs->reg_base, BLKADDR_CPT0, lf->slot,
+		otx2_cpt_write64(lf->lfs->reg_base, lf->lfs->blkaddr, lf->slot,
 				 OTX2_CPT_LF_DONE_ACK, irq_cnt);
 
-		otx2_cpt_write64(lf->lfs->reg_base, BLKADDR_CPT0, lf->slot,
+		otx2_cpt_write64(lf->lfs->reg_base, lf->lfs->blkaddr, lf->slot,
 				 OTX2_CPT_LF_DONE_WAIT, done_wait.u);
 		if (unlikely(!lf->wqe)) {
 			dev_err(&lf->lfs->pdev->dev, "No work for LF %d\n",
@@ -393,7 +393,7 @@ int otx2_cptlf_init(struct otx2_cptlfs_info *lfs, u8 eng_grp_mask, int pri,
 						 OTX2_CPT_LMT_LF_LMTLINEX(0));
 
 		lfs->lf[slot].ioreg = lfs->reg_base +
-			OTX2_CPT_RVU_FUNC_ADDR_S(BLKADDR_CPT0, slot,
+			OTX2_CPT_RVU_FUNC_ADDR_S(lfs->blkaddr, slot,
 						 OTX2_CPT_LF_NQX(0));
 	}
 	/* Send request to attach LFs */

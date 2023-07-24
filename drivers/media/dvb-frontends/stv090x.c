@@ -5084,7 +5084,7 @@ static struct i2c_driver stv090x_driver = {
 		.name	= "stv090x",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= stv090x_probe,
+	.probe		= stv090x_probe,
 	.remove		= stv090x_remove,
 	.id_table	= stv090x_id_table,
 };

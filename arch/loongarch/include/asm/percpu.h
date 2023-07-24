@@ -14,7 +14,11 @@
  * loaded. Tell the compiler this fact when using explicit relocs.
  */
 #if defined(MODULE) && defined(CONFIG_AS_HAS_EXPLICIT_RELOCS)
-#define PER_CPU_ATTRIBUTES    __attribute__((model("extreme")))
+# if __has_attribute(model)
+#  define PER_CPU_ATTRIBUTES __attribute__((model("extreme")))
+# else
+#  error compiler support for the model attribute is necessary when a recent assembler is used
+# endif
 #endif
 
 /* Use r21 for fast access */

@@ -28,14 +28,14 @@ enum sof_ipc4_mtrace_type {
 /**
  * struct sof_ipc4_fw_module - IPC4 module info
  * @sof_man4_module: Module info
+ * @fw_mod_cfg: Pointer to the module config start of the module
  * @m_ida: Module instance identifier
- * @bss_size: Module object size
  * @private: Module private data
  */
 struct sof_ipc4_fw_module {
 	struct sof_man4_module man4_module_entry;
+	const struct sof_man4_module_config *fw_mod_cfg;
 	struct ida m_ida;
-	u32 bss_size;
 	void *private;
 };
 
@@ -114,4 +114,10 @@ int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev);
 int sof_ipc4_reload_fw_libraries(struct snd_sof_dev *sdev);
 struct sof_ipc4_fw_module *sof_ipc4_find_module_by_uuid(struct snd_sof_dev *sdev,
 							const guid_t *uuid);
+
+struct sof_ipc4_base_module_cfg;
+void sof_ipc4_update_cpc_from_manifest(struct snd_sof_dev *sdev,
+				       struct sof_ipc4_fw_module *fw_module,
+				       struct sof_ipc4_base_module_cfg *basecfg);
+
 #endif

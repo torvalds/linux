@@ -142,25 +142,34 @@ static int ieee80211_check_dup_link_addrs(struct ieee80211_sub_if_data *sdata)
 }
 
 static void ieee80211_set_vif_links_bitmaps(struct ieee80211_sub_if_data *sdata,
-					    u16 links)
+					    u16 valid_links, u16 dormant_links)
 {
-	sdata->vif.valid_links = links;
+	sdata->vif.valid_links = valid_links;
+	sdata->vif.dormant_links = dormant_links;
 
-	if (!links) {
+	if (!valid_links ||
+	    WARN((~valid_links & dormant_links) ||
+		 !(valid_links & ~dormant_links),
+		 "Invalid links: valid=0x%x, dormant=0x%x",
+		 valid_links, dormant_links)) {
 		sdata->vif.active_links = 0;
+		sdata->vif.dormant_links = 0;
 		return;
 	}
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
 		/* in an AP all links are always active */
-		sdata->vif.active_links = links;
+		sdata->vif.active_links = valid_links;
+
+		/* AP links are not expected to be disabled */
+		WARN_ON(dormant_links);
 		break;
 	case NL80211_IFTYPE_STATION:
 		if (sdata->vif.active_links)
 			break;
-		WARN_ON(hweight16(links) > 1);
-		sdata->vif.active_links = links;
+		sdata->vif.active_links = valid_links & ~dormant_links;
+		WARN_ON(hweight16(sdata->vif.active_links) > 1);
 		break;
 	default:
 		WARN_ON(1);
@@ -169,7 +178,7 @@ static void ieee80211_set_vif_links_bitmaps(struct ieee80211_sub_if_data *sdata,
 
 static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 				      struct link_container **to_free,
-				      u16 new_links)
+				      u16 new_links, u16 dormant_links)
 {
 	u16 old_links = sdata->vif.valid_links;
 	u16 old_active = sdata->vif.active_links;
@@ -245,7 +254,7 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 		/* for keys we will not be able to undo this */
 		ieee80211_tear_down_links(sdata, to_free, rem);
 
-		ieee80211_set_vif_links_bitmaps(sdata, new_links);
+		ieee80211_set_vif_links_bitmaps(sdata, new_links, dormant_links);
 
 		/* tell the driver */
 		ret = drv_change_vif_links(sdata->local, sdata,
@@ -258,7 +267,7 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 		/* restore config */
 		memcpy(sdata->link, old_data, sizeof(old_data));
 		memcpy(sdata->vif.link_conf, old, sizeof(old));
-		ieee80211_set_vif_links_bitmaps(sdata, old_links);
+		ieee80211_set_vif_links_bitmaps(sdata, old_links, dormant_links);
 		/* and free (only) the newly allocated links */
 		memset(to_free, 0, sizeof(links));
 		goto free;
@@ -282,12 +291,13 @@ deinit:
 }
 
 int ieee80211_vif_set_links(struct ieee80211_sub_if_data *sdata,
-			    u16 new_links)
+			    u16 new_links, u16 dormant_links)
 {
 	struct link_container *links[IEEE80211_MLD_MAX_NUM_LINKS];
 	int ret;
 
-	ret = ieee80211_vif_update_links(sdata, links, new_links);
+	ret = ieee80211_vif_update_links(sdata, links, new_links,
+					 dormant_links);
 	ieee80211_free_links(sdata, links);
 
 	return ret;
@@ -304,7 +314,7 @@ void ieee80211_vif_clear_links(struct ieee80211_sub_if_data *sdata)
 	 */
 
 	sdata_lock(sdata);
-	ieee80211_vif_update_links(sdata, links, 0);
+	ieee80211_vif_update_links(sdata, links, 0, 0);
 	sdata_unlock(sdata);
 
 	ieee80211_free_links(sdata, links);
@@ -328,8 +338,7 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EINVAL;
 
-	/* cannot activate links that don't exist */
-	if (active_links & ~sdata->vif.valid_links)
+	if (active_links & ~ieee80211_vif_usable_links(&sdata->vif))
 		return -EINVAL;
 
 	/* nothing to do */
@@ -438,14 +447,14 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
+int __ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
 	u16 old_active;
 	int ret;
 
-	sdata_lock(sdata);
+	sdata_assert_lock(sdata);
 	mutex_lock(&local->sta_mtx);
 	mutex_lock(&local->mtx);
 	mutex_lock(&local->key_mtx);
@@ -467,6 +476,17 @@ int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
 	mutex_unlock(&local->key_mtx);
 	mutex_unlock(&local->mtx);
 	mutex_unlock(&local->sta_mtx);
+
+	return ret;
+}
+
+int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	int ret;
+
+	sdata_lock(sdata);
+	ret = __ieee80211_set_active_links(vif, active_links);
 	sdata_unlock(sdata);
 
 	return ret;
@@ -484,8 +504,7 @@ void ieee80211_set_active_links_async(struct ieee80211_vif *vif,
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return;
 
-	/* cannot activate links that don't exist */
-	if (active_links & ~sdata->vif.valid_links)
+	if (active_links & ~ieee80211_vif_usable_links(&sdata->vif))
 		return;
 
 	/* nothing to do */

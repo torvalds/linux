@@ -10,7 +10,7 @@
 #include <sound/asound.h>
 
 /** version of the sequencer */
-#define SNDRV_SEQ_VERSION SNDRV_PROTOCOL_VERSION(1, 0, 2)
+#define SNDRV_SEQ_VERSION SNDRV_PROTOCOL_VERSION(1, 0, 3)
 
 /**
  * definition of sequencer event types
@@ -174,6 +174,7 @@ struct snd_seq_connect {
 #define SNDRV_SEQ_PRIORITY_HIGH		(1<<4)	/* event should be processed before others */
 #define SNDRV_SEQ_PRIORITY_MASK		(1<<4)
 
+#define SNDRV_SEQ_EVENT_UMP		(1<<5)	/* event holds a UMP packet */
 
 	/* note event */
 struct snd_seq_ev_note {
@@ -252,6 +253,19 @@ struct snd_seq_ev_quote {
 	struct snd_seq_event *event;		/* quoted event */
 } __attribute__((packed));
 
+union snd_seq_event_data { /* event data... */
+	struct snd_seq_ev_note note;
+	struct snd_seq_ev_ctrl control;
+	struct snd_seq_ev_raw8 raw8;
+	struct snd_seq_ev_raw32 raw32;
+	struct snd_seq_ev_ext ext;
+	struct snd_seq_ev_queue_control queue;
+	union snd_seq_timestamp time;
+	struct snd_seq_addr addr;
+	struct snd_seq_connect connect;
+	struct snd_seq_result result;
+	struct snd_seq_ev_quote quote;
+};
 
 	/* sequencer event */
 struct snd_seq_event {
@@ -262,25 +276,27 @@ struct snd_seq_event {
 	unsigned char queue;		/* schedule queue */
 	union snd_seq_timestamp time;	/* schedule time */
 
-
 	struct snd_seq_addr source;	/* source address */
 	struct snd_seq_addr dest;	/* destination address */
 
-	union {				/* event data... */
-		struct snd_seq_ev_note note;
-		struct snd_seq_ev_ctrl control;
-		struct snd_seq_ev_raw8 raw8;
-		struct snd_seq_ev_raw32 raw32;
-		struct snd_seq_ev_ext ext;
-		struct snd_seq_ev_queue_control queue;
-		union snd_seq_timestamp time;
-		struct snd_seq_addr addr;
-		struct snd_seq_connect connect;
-		struct snd_seq_result result;
-		struct snd_seq_ev_quote quote;
-	} data;
+	union snd_seq_event_data data;
 };
 
+	/* (compatible) event for UMP-capable clients */
+struct snd_seq_ump_event {
+	snd_seq_event_type_t type;	/* event type */
+	unsigned char flags;		/* event flags */
+	char tag;
+	unsigned char queue;		/* schedule queue */
+	union snd_seq_timestamp time;	/* schedule time */
+	struct snd_seq_addr source;	/* source address */
+	struct snd_seq_addr dest;	/* destination address */
+
+	union {
+		union snd_seq_event_data data;
+		unsigned int ump[4];
+	};
+};
 
 /*
  * bounce event - stored as variable size data
@@ -331,6 +347,7 @@ typedef int __bitwise snd_seq_client_type_t;
 #define SNDRV_SEQ_FILTER_BROADCAST	(1U<<0)	/* accept broadcast messages */
 #define SNDRV_SEQ_FILTER_MULTICAST	(1U<<1)	/* accept multicast messages */
 #define SNDRV_SEQ_FILTER_BOUNCE		(1U<<2)	/* accept bounce event in error */
+#define SNDRV_SEQ_FILTER_NO_CONVERT	(1U<<30) /* don't convert UMP events */
 #define SNDRV_SEQ_FILTER_USE_EVENT	(1U<<31)	/* use event filter */
 
 struct snd_seq_client_info {
@@ -344,9 +361,18 @@ struct snd_seq_client_info {
 	int event_lost;			/* number of lost events */
 	int card;			/* RO: card number[kernel] */
 	int pid;			/* RO: pid[user] */
-	char reserved[56];		/* for future use */
+	unsigned int midi_version;	/* MIDI version */
+	unsigned int group_filter;	/* UMP group filter bitmap
+					 * (bit 0 = groupless messages,
+					 *  bit 1-16 = messages for groups 1-16)
+					 */
+	char reserved[48];		/* for future use */
 };
 
+/* MIDI version numbers in client info */
+#define SNDRV_SEQ_CLIENT_LEGACY_MIDI		0	/* Legacy client */
+#define SNDRV_SEQ_CLIENT_UMP_MIDI_1_0		1	/* UMP MIDI 1.0 */
+#define SNDRV_SEQ_CLIENT_UMP_MIDI_2_0		2	/* UMP MIDI 2.0 */
 
 /* client pool size */
 struct snd_seq_client_pool {
@@ -406,6 +432,8 @@ struct snd_seq_remove_events {
 #define SNDRV_SEQ_PORT_CAP_SUBS_READ	(1<<5)	/* allow read subscription */
 #define SNDRV_SEQ_PORT_CAP_SUBS_WRITE	(1<<6)	/* allow write subscription */
 #define SNDRV_SEQ_PORT_CAP_NO_EXPORT	(1<<7)	/* routing not allowed */
+#define SNDRV_SEQ_PORT_CAP_INACTIVE	(1<<8)	/* inactive port */
+#define SNDRV_SEQ_PORT_CAP_UMP_ENDPOINT	(1<<9)	/* MIDI 2.0 UMP Endpoint port */
 
 	/* port type */
 #define SNDRV_SEQ_PORT_TYPE_SPECIFIC	(1<<0)	/* hardware specific */
@@ -415,6 +443,7 @@ struct snd_seq_remove_events {
 #define SNDRV_SEQ_PORT_TYPE_MIDI_XG	(1<<4)	/* XG compatible device */
 #define SNDRV_SEQ_PORT_TYPE_MIDI_MT32	(1<<5)	/* MT-32 compatible device */
 #define SNDRV_SEQ_PORT_TYPE_MIDI_GM2	(1<<6)	/* General MIDI 2 compatible device */
+#define SNDRV_SEQ_PORT_TYPE_MIDI_UMP	(1<<7)	/* UMP */
 
 /* other standards...*/
 #define SNDRV_SEQ_PORT_TYPE_SYNTH	(1<<10)	/* Synth device (no MIDI compatible - direct wavetable) */
@@ -432,6 +461,12 @@ struct snd_seq_remove_events {
 #define SNDRV_SEQ_PORT_FLG_TIMESTAMP	(1<<1)
 #define SNDRV_SEQ_PORT_FLG_TIME_REAL	(1<<2)
 
+/* port direction */
+#define SNDRV_SEQ_PORT_DIR_UNKNOWN	0
+#define SNDRV_SEQ_PORT_DIR_INPUT	1
+#define SNDRV_SEQ_PORT_DIR_OUTPUT	2
+#define SNDRV_SEQ_PORT_DIR_BIDIRECTION	3
+
 struct snd_seq_port_info {
 	struct snd_seq_addr addr;	/* client/port numbers */
 	char name[64];			/* port name */
@@ -448,7 +483,9 @@ struct snd_seq_port_info {
 	void *kernel;			/* reserved for kernel use (must be NULL) */
 	unsigned int flags;		/* misc. conditioning */
 	unsigned char time_queue;	/* queue # for timestamping */
-	char reserved[59];		/* for future use */
+	unsigned char direction;	/* port usage direction (r/w/bidir) */
+	unsigned char ump_group;	/* 0 = UMP EP (no conversion), 1-16 = UMP group number */
+	char reserved[57];		/* for future use */
 };
 
 
@@ -552,6 +589,18 @@ struct snd_seq_query_subs {
 	char reserved[64];	/* for future use */
 };
 
+/*
+ * UMP-specific information
+ */
+/* type of UMP info query */
+#define SNDRV_SEQ_CLIENT_UMP_INFO_ENDPOINT	0
+#define SNDRV_SEQ_CLIENT_UMP_INFO_BLOCK		1
+
+struct snd_seq_client_ump_info {
+	int client;			/* client number to inquire/set */
+	int type;			/* type to inquire/set */
+	unsigned char info[512];	/* info (either UMP ep or block info) */
+} __packed;
 
 /*
  *  IOCTL commands
@@ -561,9 +610,12 @@ struct snd_seq_query_subs {
 #define SNDRV_SEQ_IOCTL_CLIENT_ID	_IOR ('S', 0x01, int)
 #define SNDRV_SEQ_IOCTL_SYSTEM_INFO	_IOWR('S', 0x02, struct snd_seq_system_info)
 #define SNDRV_SEQ_IOCTL_RUNNING_MODE	_IOWR('S', 0x03, struct snd_seq_running_info)
+#define SNDRV_SEQ_IOCTL_USER_PVERSION	_IOW('S', 0x04, int)
 
 #define SNDRV_SEQ_IOCTL_GET_CLIENT_INFO	_IOWR('S', 0x10, struct snd_seq_client_info)
 #define SNDRV_SEQ_IOCTL_SET_CLIENT_INFO	_IOW ('S', 0x11, struct snd_seq_client_info)
+#define SNDRV_SEQ_IOCTL_GET_CLIENT_UMP_INFO	_IOWR('S', 0x12, struct snd_seq_client_ump_info)
+#define SNDRV_SEQ_IOCTL_SET_CLIENT_UMP_INFO	_IOWR('S', 0x13, struct snd_seq_client_ump_info)
 
 #define SNDRV_SEQ_IOCTL_CREATE_PORT	_IOWR('S', 0x20, struct snd_seq_port_info)
 #define SNDRV_SEQ_IOCTL_DELETE_PORT	_IOW ('S', 0x21, struct snd_seq_port_info)

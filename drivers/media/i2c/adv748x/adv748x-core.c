@@ -847,7 +847,7 @@ static struct i2c_driver adv748x_driver = {
 		.of_match_table = adv748x_of_table,
 		.pm = &adv748x_pm_ops,
 	},
-	.probe_new = adv748x_probe,
+	.probe = adv748x_probe,
 	.remove = adv748x_remove,
 };
 

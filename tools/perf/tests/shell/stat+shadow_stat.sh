@@ -33,7 +33,7 @@ test_global_aggr()
 		fi
 
 		# use printf for rounding and a leading zero
-		res=`printf "%.2f" $(echo "scale=6; $num / $cyc" | bc -q)`
+		res=`printf "%.2f" "$(echo "scale=6; $num / $cyc" | bc -q)"`
 		if [ "$ipc" != "$res" ]; then
 			echo "IPC is different: $res != $ipc  ($num / $cyc)"
 			exit 1
@@ -67,7 +67,7 @@ test_no_aggr()
 		fi
 
 		# use printf for rounding and a leading zero
-		res=`printf "%.2f" $(echo "scale=6; $num / $cyc" | bc -q)`
+		res=`printf "%.2f" "$(echo "scale=6; $num / $cyc" | bc -q)"`
 		if [ "$ipc" != "$res" ]; then
 			echo "IPC is different for $cpu: $res != $ipc  ($num / $cyc)"
 			exit 1

@@ -392,7 +392,7 @@ static struct i2c_driver arcxcnn_driver = {
 		.name = "arcxcnn_bl",
 		.of_match_table = arcxcnn_dt_ids,
 	},
-	.probe_new = arcxcnn_probe,
+	.probe = arcxcnn_probe,
 	.remove = arcxcnn_remove,
 	.id_table = arcxcnn_ids,
 };

@@ -87,6 +87,7 @@ static const struct of_device_id __maybe_unused nct6775_i2c_of_match[] = {
 	{ .compatible = "nuvoton,nct6796", .data = (void *)nct6796, },
 	{ .compatible = "nuvoton,nct6797", .data = (void *)nct6797, },
 	{ .compatible = "nuvoton,nct6798", .data = (void *)nct6798, },
+	{ .compatible = "nuvoton,nct6799", .data = (void *)nct6799, },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, nct6775_i2c_of_match);
@@ -104,6 +105,7 @@ static const struct i2c_device_id nct6775_i2c_id[] = {
 	{ "nct6796", nct6796 },
 	{ "nct6797", nct6797 },
 	{ "nct6798", nct6798 },
+	{ "nct6799", nct6799 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nct6775_i2c_id);
@@ -183,7 +185,7 @@ static struct i2c_driver nct6775_i2c_driver = {
 		.name = "nct6775-i2c",
 		.of_match_table = of_match_ptr(nct6775_i2c_of_match),
 	},
-	.probe_new = nct6775_i2c_probe,
+	.probe = nct6775_i2c_probe,
 	.id_table = nct6775_i2c_id,
 };
 

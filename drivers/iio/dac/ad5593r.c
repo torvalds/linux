@@ -138,7 +138,7 @@ static struct i2c_driver ad5593r_driver = {
 		.of_match_table = ad5593r_of_match,
 		.acpi_match_table = ad5593r_acpi_match,
 	},
-	.probe_new = ad5593r_i2c_probe,
+	.probe = ad5593r_i2c_probe,
 	.remove = ad5593r_i2c_remove,
 	.id_table = ad5593r_i2c_ids,
 };

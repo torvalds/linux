@@ -885,7 +885,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		}
 
 		if (h->ms.map == NULL && verbose > 1) {
-			maps__fprintf(h->thread->maps, fp);
+			maps__fprintf(thread__maps(h->thread), fp);
 			fprintf(fp, "%.10s end\n", graph_dotted_line);
 		}
 	}

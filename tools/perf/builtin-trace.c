@@ -914,7 +914,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 #include "trace/beauty/socket_type.c"
 #include "trace/beauty/waitid_options.c"
 
-static struct syscall_fmt syscall_fmts[] = {
+static const struct syscall_fmt syscall_fmts[] = {
 	{ .name	    = "access",
 	  .arg = { [1] = { .scnprintf = SCA_ACCMODE,  /* mode */ }, }, },
 	{ .name	    = "arch_prctl",
@@ -1176,18 +1176,21 @@ static int syscall_fmt__cmp(const void *name, const void *fmtp)
 	return strcmp(name, fmt->name);
 }
 
-static struct syscall_fmt *__syscall_fmt__find(struct syscall_fmt *fmts, const int nmemb, const char *name)
+static const struct syscall_fmt *__syscall_fmt__find(const struct syscall_fmt *fmts,
+						     const int nmemb,
+						     const char *name)
 {
 	return bsearch(name, fmts, nmemb, sizeof(struct syscall_fmt), syscall_fmt__cmp);
 }
 
-static struct syscall_fmt *syscall_fmt__find(const char *name)
+static const struct syscall_fmt *syscall_fmt__find(const char *name)
 {
 	const int nmemb = ARRAY_SIZE(syscall_fmts);
 	return __syscall_fmt__find(syscall_fmts, nmemb, name);
 }
 
-static struct syscall_fmt *__syscall_fmt__find_by_alias(struct syscall_fmt *fmts, const int nmemb, const char *alias)
+static const struct syscall_fmt *__syscall_fmt__find_by_alias(const struct syscall_fmt *fmts,
+							      const int nmemb, const char *alias)
 {
 	int i;
 
@@ -1199,7 +1202,7 @@ static struct syscall_fmt *__syscall_fmt__find_by_alias(struct syscall_fmt *fmts
 	return NULL;
 }
 
-static struct syscall_fmt *syscall_fmt__find_by_alias(const char *alias)
+static const struct syscall_fmt *syscall_fmt__find_by_alias(const char *alias)
 {
 	const int nmemb = ARRAY_SIZE(syscall_fmts);
 	return __syscall_fmt__find_by_alias(syscall_fmts, nmemb, alias);
@@ -1224,7 +1227,7 @@ struct syscall {
 	bool		    nonexistent;
 	struct tep_format_field *args;
 	const char	    *name;
-	struct syscall_fmt  *fmt;
+	const struct syscall_fmt  *fmt;
 	struct syscall_arg_fmt *arg_fmt;
 };
 
@@ -1383,12 +1386,13 @@ static int thread__read_fd_path(struct thread *thread, int fd)
 	struct stat st;
 	int ret;
 
-	if (thread->pid_ == thread->tid) {
+	if (thread__pid(thread) == thread__tid(thread)) {
 		scnprintf(linkname, sizeof(linkname),
-			  "/proc/%d/fd/%d", thread->pid_, fd);
+			  "/proc/%d/fd/%d", thread__pid(thread), fd);
 	} else {
 		scnprintf(linkname, sizeof(linkname),
-			  "/proc/%d/task/%d/fd/%d", thread->pid_, thread->tid, fd);
+			  "/proc/%d/task/%d/fd/%d",
+			  thread__pid(thread), thread__tid(thread), fd);
 	}
 
 	if (lstat(linkname, &st) < 0 || st.st_size + 1 > (off_t)sizeof(pathname))
@@ -1556,7 +1560,7 @@ static size_t trace__fprintf_comm_tid(struct trace *trace, struct thread *thread
 	if (trace->multiple_threads) {
 		if (trace->show_comm)
 			printed += fprintf(fp, "%.14s/", thread__comm_str(thread));
-		printed += fprintf(fp, "%d ", thread->tid);
+		printed += fprintf(fp, "%d ", thread__tid(thread));
 	}
 
 	return printed;
@@ -1673,7 +1677,7 @@ static int syscall__alloc_arg_fmts(struct syscall *sc, int nr_args)
 	return 0;
 }
 
-static struct syscall_arg_fmt syscall_arg_fmts__by_name[] = {
+static const struct syscall_arg_fmt syscall_arg_fmts__by_name[] = {
 	{ .name = "msr",	.scnprintf = SCA_X86_MSR,	  .strtoul = STUL_X86_MSR,	   },
 	{ .name = "vector",	.scnprintf = SCA_X86_IRQ_VECTORS, .strtoul = STUL_X86_IRQ_VECTORS, },
 };
@@ -1684,13 +1688,14 @@ static int syscall_arg_fmt__cmp(const void *name, const void *fmtp)
        return strcmp(name, fmt->name);
 }
 
-static struct syscall_arg_fmt *
-__syscall_arg_fmt__find_by_name(struct syscall_arg_fmt *fmts, const int nmemb, const char *name)
+static const struct syscall_arg_fmt *
+__syscall_arg_fmt__find_by_name(const struct syscall_arg_fmt *fmts, const int nmemb,
+				const char *name)
 {
        return bsearch(name, fmts, nmemb, sizeof(struct syscall_arg_fmt), syscall_arg_fmt__cmp);
 }
 
-static struct syscall_arg_fmt *syscall_arg_fmt__find_by_name(const char *name)
+static const struct syscall_arg_fmt *syscall_arg_fmt__find_by_name(const char *name)
 {
        const int nmemb = ARRAY_SIZE(syscall_arg_fmts__by_name);
        return __syscall_arg_fmt__find_by_name(syscall_arg_fmts__by_name, nmemb, name);
@@ -1735,8 +1740,9 @@ syscall_arg_fmt__init_array(struct syscall_arg_fmt *arg, struct tep_format_field
 			 * 7 unsigned long
 			 */
 			arg->scnprintf = SCA_FD;
-               } else {
-			struct syscall_arg_fmt *fmt = syscall_arg_fmt__find_by_name(field->name);
+		} else {
+			const struct syscall_arg_fmt *fmt =
+				syscall_arg_fmt__find_by_name(field->name);
 
 			if (fmt) {
 				arg->scnprintf = fmt->scnprintf;
@@ -2200,7 +2206,8 @@ static void thread__update_stats(struct thread *thread, struct thread_trace *ttr
 				memset(new_errnos + stats->max_errno, 0, (err - stats->max_errno) * sizeof(u32));
 			} else {
 				pr_debug("Not enough memory for errno stats for thread \"%s\"(%d/%d), results will be incomplete\n",
-					 thread__comm_str(thread), thread->pid_, thread->tid);
+					 thread__comm_str(thread), thread__pid(thread),
+					 thread__tid(thread));
 				return;
 			}
 
@@ -2411,13 +2418,15 @@ static int trace__resolve_callchain(struct trace *trace, struct evsel *evsel,
 	int max_stack = evsel->core.attr.sample_max_stack ?
 			evsel->core.attr.sample_max_stack :
 			trace->max_stack;
-	int err;
+	int err = -1;
 
+	addr_location__init(&al);
 	if (machine__resolve(trace->host, &al, sample) < 0)
-		return -1;
+		goto out;
 
 	err = thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, max_stack);
-	addr_location__put(&al);
+out:
+	addr_location__exit(&al);
 	return err;
 }
 
@@ -2428,7 +2437,7 @@ static int trace__fprintf_callchain(struct trace *trace, struct perf_sample *sam
 				        EVSEL__PRINT_DSO |
 				        EVSEL__PRINT_UNKNOWN_AS_ADDR;
 
-	return sample__fprintf_callchain(sample, 38, print_opts, &callchain_cursor, symbol_conf.bt_stop_list, trace->output);
+	return sample__fprintf_callchain(sample, 38, print_opts, get_tls_callchain_cursor(), symbol_conf.bt_stop_list, trace->output);
 }
 
 static const char *errno_to_name(struct evsel *evsel, int err)
@@ -2482,9 +2491,11 @@ static int trace__sys_exit(struct trace *trace, struct evsel *evsel,
 		goto out;
 
 	if (sample->callchain) {
-		callchain_ret = trace__resolve_callchain(trace, evsel, sample, &callchain_cursor);
+		struct callchain_cursor *cursor = get_tls_callchain_cursor();
+
+		callchain_ret = trace__resolve_callchain(trace, evsel, sample, cursor);
 		if (callchain_ret == 0) {
-			if (callchain_cursor.nr < trace->min_stack)
+			if (cursor->nr < trace->min_stack)
 				goto out;
 			callchain_ret = 1;
 		}
@@ -2545,7 +2556,7 @@ errno_print: {
 
 		if (child != NULL) {
 			fprintf(trace->output, "%ld", ret);
-			if (child->comm_set)
+			if (thread__comm_set(child))
 				fprintf(trace->output, " (%s)", thread__comm_str(child));
 			thread__put(child);
 		}
@@ -2786,9 +2797,11 @@ static int trace__event_handler(struct trace *trace, struct evsel *evsel,
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 
 	if (sample->callchain) {
-		callchain_ret = trace__resolve_callchain(trace, evsel, sample, &callchain_cursor);
+		struct callchain_cursor *cursor = get_tls_callchain_cursor();
+
+		callchain_ret = trace__resolve_callchain(trace, evsel, sample, cursor);
 		if (callchain_ret == 0) {
-			if (callchain_cursor.nr < trace->min_stack)
+			if (cursor->nr < trace->min_stack)
 				goto out;
 			callchain_ret = 1;
 		}
@@ -2886,12 +2899,15 @@ static int trace__pgfault(struct trace *trace,
 	int err = -1;
 	int callchain_ret = 0;
 
+	addr_location__init(&al);
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 
 	if (sample->callchain) {
-		callchain_ret = trace__resolve_callchain(trace, evsel, sample, &callchain_cursor);
+		struct callchain_cursor *cursor = get_tls_callchain_cursor();
+
+		callchain_ret = trace__resolve_callchain(trace, evsel, sample, cursor);
 		if (callchain_ret == 0) {
-			if (callchain_cursor.nr < trace->min_stack)
+			if (cursor->nr < trace->min_stack)
 				goto out_put;
 			callchain_ret = 1;
 		}
@@ -2946,6 +2962,7 @@ out:
 	err = 0;
 out_put:
 	thread__put(thread);
+	addr_location__exit(&al);
 	return err;
 }
 
@@ -3611,14 +3628,16 @@ static int trace__set_filter_loop_pids(struct trace *trace)
 	struct thread *thread = machine__find_thread(trace->host, pids[0], pids[0]);
 
 	while (thread && nr < ARRAY_SIZE(pids)) {
-		struct thread *parent = machine__find_thread(trace->host, thread->ppid, thread->ppid);
+		struct thread *parent = machine__find_thread(trace->host,
+							     thread__ppid(thread),
+							     thread__ppid(thread));
 
 		if (parent == NULL)
 			break;
 
 		if (!strcmp(thread__comm_str(parent), "sshd") ||
 		    strstarts(thread__comm_str(parent), "gnome-terminal")) {
-			pids[nr++] = parent->tid;
+			pids[nr++] = thread__tid(parent);
 			break;
 		}
 		thread = parent;
@@ -4317,7 +4336,7 @@ static size_t trace__fprintf_thread(FILE *fp, struct thread *thread, struct trac
 
 	ratio = (double)ttrace->nr_events / trace->nr_events * 100.0;
 
-	printed += fprintf(fp, " %s (%d), ", thread__comm_str(thread), thread->tid);
+	printed += fprintf(fp, " %s (%d), ", thread__comm_str(thread), thread__tid(thread));
 	printed += fprintf(fp, "%lu events, ", ttrace->nr_events);
 	printed += fprintf(fp, "%.1f%%", ratio);
 	if (ttrace->pfmaj)
@@ -4339,11 +4358,13 @@ static unsigned long thread__nr_events(struct thread_trace *ttrace)
 	return ttrace ? ttrace->nr_events : 0;
 }
 
-DEFINE_RESORT_RB(threads, (thread__nr_events(a->thread->priv) < thread__nr_events(b->thread->priv)),
+DEFINE_RESORT_RB(threads,
+		(thread__nr_events(thread__priv(a->thread)) <
+		 thread__nr_events(thread__priv(b->thread))),
 	struct thread *thread;
 )
 {
-	entry->thread = rb_entry(nd, struct thread, rb_node);
+	entry->thread = rb_entry(nd, struct thread_rb_node, rb_node)->thread;
 }
 
 static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
@@ -4458,7 +4479,7 @@ static void evsel__set_syscall_arg_fmt(struct evsel *evsel, const char *name)
 	struct syscall_arg_fmt *fmt = evsel__syscall_arg_fmt(evsel);
 
 	if (fmt) {
-		struct syscall_fmt *scfmt = syscall_fmt__find(name);
+		const struct syscall_fmt *scfmt = syscall_fmt__find(name);
 
 		if (scfmt) {
 			int skip = 0;
@@ -4525,7 +4546,7 @@ static int trace__parse_events_option(const struct option *opt, const char *str,
 	int len = strlen(str) + 1, err = -1, list, idx;
 	char *strace_groups_dir = system_path(STRACE_GROUPS_DIR);
 	char group_name[PATH_MAX];
-	struct syscall_fmt *fmt;
+	const struct syscall_fmt *fmt;
 
 	if (strace_groups_dir == NULL)
 		return -1;
@@ -4591,8 +4612,11 @@ do_concat:
 	err = 0;
 
 	if (lists[0]) {
+		struct parse_events_option_args parse_events_option_args = {
+			.evlistp = &trace->evlist,
+		};
 		struct option o = {
-			.value = &trace->evlist,
+			.value = &parse_events_option_args,
 		};
 		err = parse_events_option(&o, lists[0], 0);
 	}

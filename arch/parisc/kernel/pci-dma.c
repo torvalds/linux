@@ -164,7 +164,7 @@ static inline void unmap_uncached_pte(pmd_t * pmd, unsigned long vaddr,
 		pmd_clear(pmd);
 		return;
 	}
-	pte = pte_offset_map(pmd, vaddr);
+	pte = pte_offset_kernel(pmd, vaddr);
 	vaddr &= ~PMD_MASK;
 	end = vaddr + size;
 	if (end > PMD_SIZE)
@@ -245,7 +245,7 @@ static void unmap_uncached_pages(unsigned long vaddr, unsigned long size)
        PCXL_SEARCH_LOOP(idx, mask, size); \
 }
 
-unsigned long
+static unsigned long
 pcxl_alloc_range(size_t size)
 {
 	int res_idx;

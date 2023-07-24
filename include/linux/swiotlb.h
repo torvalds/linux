@@ -76,7 +76,6 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
  * @nslabs:	The number of IO TLB blocks (in groups of 64) between @start and
  *		@end. For default swiotlb, this is command line adjustable via
  *		setup_io_tlb_npages.
- * @used:	The number of used IO TLB block.
  * @list:	The free list describing the number of free entries available
  *		from each index.
  * @orig_addr:	The original address corresponding to a mapped entry.
@@ -98,7 +97,6 @@ struct io_tlb_mem {
 	phys_addr_t end;
 	void *vaddr;
 	unsigned long nslabs;
-	unsigned long used;
 	struct dentry *debugfs;
 	bool late_alloc;
 	bool force_bounce;

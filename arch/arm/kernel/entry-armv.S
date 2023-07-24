@@ -15,7 +15,7 @@
 #include <linux/init.h>
 
 #include <asm/assembler.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/glue-df.h>
 #include <asm/glue-pf.h>
 #include <asm/vfpmacros.h>
@@ -875,7 +875,7 @@ ENDPROC(__bad_stack)
  * existing ones.  This mechanism should be used only for things that are
  * really small and justified, and not be abused freely.
  *
- * See Documentation/arm/kernel_user_helpers.rst for formal definitions.
+ * See Documentation/arch/arm/kernel_user_helpers.rst for formal definitions.
  */
  THUMB(	.arm	)
 

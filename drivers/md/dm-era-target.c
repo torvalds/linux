@@ -1482,14 +1482,16 @@ static int era_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	era->ti = ti;
 
-	r = dm_get_device(ti, argv[0], FMODE_READ | FMODE_WRITE, &era->metadata_dev);
+	r = dm_get_device(ti, argv[0], BLK_OPEN_READ | BLK_OPEN_WRITE,
+			  &era->metadata_dev);
 	if (r) {
 		ti->error = "Error opening metadata device";
 		era_destroy(era);
 		return -EINVAL;
 	}
 
-	r = dm_get_device(ti, argv[1], FMODE_READ | FMODE_WRITE, &era->origin_dev);
+	r = dm_get_device(ti, argv[1], BLK_OPEN_READ | BLK_OPEN_WRITE,
+			  &era->origin_dev);
 	if (r) {
 		ti->error = "Error opening data device";
 		era_destroy(era);

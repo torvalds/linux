@@ -169,17 +169,6 @@ static int acp3x_power_on(void __iomem *base)
 	return readl_poll_timeout(base + ACP_PGFSM_STATUS, val, !val, DELAY_US, ACP_TIMEOUT);
 }
 
-static int acp3x_power_off(void __iomem *base)
-{
-	u32 val;
-
-	writel(ACP_PWR_OFF_MASK, base + ACP_PGFSM_CONTROL);
-
-	return readl_poll_timeout(base + ACP_PGFSM_STATUS, val,
-				  (val & ACP_PGFSM_STAT_MASK) == ACP_POWERED_OFF,
-				  DELAY_US, ACP_TIMEOUT);
-}
-
 static int acp3x_reset(void __iomem *base)
 {
 	u32 val;
@@ -246,12 +235,6 @@ static int rn_acp_deinit(void __iomem *base)
 		return ret;
 
 	writel(0x00, base + ACP_CONTROL);
-
-	/* power off */
-	ret = acp3x_power_off(base);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 static int renoir_audio_probe(struct platform_device *pdev)

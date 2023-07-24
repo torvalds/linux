@@ -798,7 +798,7 @@ static struct i2c_driver uda1380_i2c_driver = {
 		.name =  "uda1380-codec",
 		.of_match_table = uda1380_of_match,
 	},
-	.probe_new = uda1380_i2c_probe,
+	.probe = uda1380_i2c_probe,
 	.id_table = uda1380_i2c_id,
 };
 

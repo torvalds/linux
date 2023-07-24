@@ -725,7 +725,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.dwb_fi_phase = -1, // -1 = disable,
 	.dmub_command_table = true,
 	.use_max_lb = true,
-	.exit_idle_opt_for_cursor_updates = true
+	.exit_idle_opt_for_cursor_updates = true,
+	.enable_legacy_fast_update = false,
 };
 
 static const struct dc_panel_config panel_config_defaults = {
@@ -1986,11 +1987,10 @@ bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, 
 	if (!is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(context))
 		return false;
 
-	// check if freesync enabled
 	if (!context->streams[0]->allow_freesync)
 		return false;
 
-	if (context->streams[0]->vrr_active_variable)
+	if (context->streams[0]->vrr_active_variable && dc->debug.disable_fams_gaming)
 		return false;
 
 	context->streams[0]->fpo_in_use = true;

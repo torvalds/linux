@@ -123,16 +123,24 @@ int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 	if (!gws && pdd->qpd.num_gws == 0)
 		return -EINVAL;
 
-	if (gws)
-		ret = amdgpu_amdkfd_add_gws_to_process(pdd->process->kgd_process_info,
-			gws, &mem);
-	else
-		ret = amdgpu_amdkfd_remove_gws_from_process(pdd->process->kgd_process_info,
-			pqn->q->gws);
-	if (unlikely(ret))
-		return ret;
+	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 3)) {
+		if (gws)
+			ret = amdgpu_amdkfd_add_gws_to_process(pdd->process->kgd_process_info,
+				gws, &mem);
+		else
+			ret = amdgpu_amdkfd_remove_gws_from_process(pdd->process->kgd_process_info,
+				pqn->q->gws);
+		if (unlikely(ret))
+			return ret;
+		pqn->q->gws = mem;
+	} else {
+		/*
+		 * Intentionally set GWS to a non-NULL value
+		 * for GFX 9.4.3.
+		 */
+		pqn->q->gws = gws ? ERR_PTR(-ENOMEM) : NULL;
+	}
 
-	pqn->q->gws = mem;
 	pdd->qpd.num_gws = gws ? dev->adev->gds.gws_size : 0;
 
 	return pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
@@ -164,7 +172,8 @@ void pqm_uninit(struct process_queue_manager *pqm)
 	struct process_queue_node *pqn, *next;
 
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
-		if (pqn->q && pqn->q->gws)
+		if (pqn->q && pqn->q->gws &&
+		    KFD_GC_VERSION(pqn->q->device) != IP_VERSION(9, 4, 3))
 			amdgpu_amdkfd_remove_gws_from_process(pqm->process->kgd_process_info,
 				pqn->q->gws);
 		kfd_procfs_del_queue(pqn->q);
@@ -446,8 +455,10 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 		}
 
 		if (pqn->q->gws) {
-			amdgpu_amdkfd_remove_gws_from_process(pqm->process->kgd_process_info,
-				pqn->q->gws);
+			if (KFD_GC_VERSION(pqn->q->device) != IP_VERSION(9, 4, 3))
+				amdgpu_amdkfd_remove_gws_from_process(
+						pqm->process->kgd_process_info,
+						pqn->q->gws);
 			pdd->qpd.num_gws = 0;
 		}
 

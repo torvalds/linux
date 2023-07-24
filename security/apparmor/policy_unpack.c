@@ -448,7 +448,7 @@ static struct aa_dfa *unpack_dfa(struct aa_ext *e, int flags)
 /**
  * unpack_trans_table - unpack a profile transition table
  * @e: serialized data extent information  (NOT NULL)
- * @table: str table to unpack to (NOT NULL)
+ * @strs: str table to unpack to (NOT NULL)
  *
  * Returns: true if table successfully unpacked or not present
  */
@@ -860,10 +860,12 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		}
 		profile->attach.xmatch_len = tmp;
 		profile->attach.xmatch.start[AA_CLASS_XMATCH] = DFA_START;
-		error = aa_compat_map_xmatch(&profile->attach.xmatch);
-		if (error) {
-			info = "failed to convert xmatch permission table";
-			goto fail;
+		if (!profile->attach.xmatch.perms) {
+			error = aa_compat_map_xmatch(&profile->attach.xmatch);
+			if (error) {
+				info = "failed to convert xmatch permission table";
+				goto fail;
+			}
 		}
 	}
 
@@ -983,31 +985,54 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 				      AA_CLASS_FILE);
 		if (!aa_unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
-		error = aa_compat_map_policy(&rules->policy, e->version);
-		if (error) {
-			info = "failed to remap policydb permission table";
-			goto fail;
+		if (!rules->policy.perms) {
+			error = aa_compat_map_policy(&rules->policy,
+						     e->version);
+			if (error) {
+				info = "failed to remap policydb permission table";
+				goto fail;
+			}
 		}
-	} else
+	} else {
 		rules->policy.dfa = aa_get_dfa(nulldfa);
-
+		rules->policy.perms = kcalloc(2, sizeof(struct aa_perms),
+					      GFP_KERNEL);
+		if (!rules->policy.perms)
+			goto fail;
+		rules->policy.size = 2;
+	}
 	/* get file rules */
 	error = unpack_pdb(e, &rules->file, false, true, &info);
 	if (error) {
 		goto fail;
 	} else if (rules->file.dfa) {
-		error = aa_compat_map_file(&rules->file);
-		if (error) {
-			info = "failed to remap file permission table";
-			goto fail;
+		if (!rules->file.perms) {
+			error = aa_compat_map_file(&rules->file);
+			if (error) {
+				info = "failed to remap file permission table";
+				goto fail;
+			}
 		}
 	} else if (rules->policy.dfa &&
 		   rules->policy.start[AA_CLASS_FILE]) {
 		rules->file.dfa = aa_get_dfa(rules->policy.dfa);
 		rules->file.start[AA_CLASS_FILE] = rules->policy.start[AA_CLASS_FILE];
-	} else
+		rules->file.perms = kcalloc(rules->policy.size,
+					    sizeof(struct aa_perms),
+					    GFP_KERNEL);
+		if (!rules->file.perms)
+			goto fail;
+		memcpy(rules->file.perms, rules->policy.perms,
+		       rules->policy.size * sizeof(struct aa_perms));
+		rules->file.size = rules->policy.size;
+	} else {
 		rules->file.dfa = aa_get_dfa(nulldfa);
-
+		rules->file.perms = kcalloc(2, sizeof(struct aa_perms),
+					    GFP_KERNEL);
+		if (!rules->file.perms)
+			goto fail;
+		rules->file.size = 2;
+	}
 	error = -EPROTO;
 	if (aa_unpack_nameX(e, AA_STRUCT, "data")) {
 		info = "out of memory";
@@ -1046,8 +1071,13 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 				goto fail;
 			}
 
-			rhashtable_insert_fast(profile->data, &data->head,
-					       profile->data->p);
+			if (rhashtable_insert_fast(profile->data, &data->head,
+						   profile->data->p)) {
+				kfree_sensitive(data->key);
+				kfree_sensitive(data);
+				info = "failed to insert data to table";
+				goto fail;
+			}
 		}
 
 		if (!aa_unpack_nameX(e, AA_STRUCTEND, NULL)) {
@@ -1134,22 +1164,16 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 	return 0;
 }
 
-static bool verify_xindex(int xindex, int table_size)
-{
-	int index, xtype;
-	xtype = xindex & AA_X_TYPE_MASK;
-	index = xindex & AA_X_INDEX_MASK;
-	if (xtype == AA_X_TABLE && index >= table_size)
-		return false;
-	return true;
-}
-
-/* verify dfa xindexes are in range of transition tables */
-static bool verify_dfa_xindex(struct aa_dfa *dfa, int table_size)
+/**
+ * verify_dfa_accept_index - verify accept indexes are in range of perms table
+ * @dfa: the dfa to check accept indexes are in range
+ * table_size: the permission table size the indexes should be within
+ */
+static bool verify_dfa_accept_index(struct aa_dfa *dfa, int table_size)
 {
 	int i;
 	for (i = 0; i < dfa->tables[YYTD_ID_ACCEPT]->td_lolen; i++) {
-		if (!verify_xindex(ACCEPT_TABLE(dfa)[i], table_size))
+		if (ACCEPT_TABLE(dfa)[i] >= table_size)
 			return false;
 	}
 	return true;
@@ -1186,11 +1210,13 @@ static bool verify_perms(struct aa_policydb *pdb)
 		if (!verify_perm(&pdb->perms[i]))
 			return false;
 		/* verify indexes into str table */
-		if (pdb->perms[i].xindex >= pdb->trans.size)
+		if ((pdb->perms[i].xindex & AA_X_TYPE_MASK) == AA_X_TABLE &&
+		    (pdb->perms[i].xindex & AA_X_INDEX_MASK) >= pdb->trans.size)
 			return false;
-		if (pdb->perms[i].tag >= pdb->trans.size)
+		if (pdb->perms[i].tag && pdb->perms[i].tag >= pdb->trans.size)
 			return false;
-		if (pdb->perms[i].label >= pdb->trans.size)
+		if (pdb->perms[i].label &&
+		    pdb->perms[i].label >= pdb->trans.size)
 			return false;
 	}
 
@@ -1212,10 +1238,10 @@ static int verify_profile(struct aa_profile *profile)
 	if (!rules)
 		return 0;
 
-	if ((rules->file.dfa && !verify_dfa_xindex(rules->file.dfa,
-						  rules->file.trans.size)) ||
+	if ((rules->file.dfa && !verify_dfa_accept_index(rules->file.dfa,
+							 rules->file.size)) ||
 	    (rules->policy.dfa &&
-	     !verify_dfa_xindex(rules->policy.dfa, rules->policy.trans.size))) {
+	     !verify_dfa_accept_index(rules->policy.dfa, rules->policy.size))) {
 		audit_iface(profile, NULL, NULL,
 			    "Unpack: Invalid named transition", NULL, -EPROTO);
 		return -EPROTO;

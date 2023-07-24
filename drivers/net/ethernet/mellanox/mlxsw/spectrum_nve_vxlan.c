@@ -11,10 +11,12 @@
 #include "spectrum_nve.h"
 
 #define MLXSW_SP_NVE_VXLAN_IPV4_SUPPORTED_FLAGS (VXLAN_F_UDP_ZERO_CSUM_TX | \
-						 VXLAN_F_LEARN)
+						 VXLAN_F_LEARN | \
+						 VXLAN_F_LOCALBYPASS)
 #define MLXSW_SP_NVE_VXLAN_IPV6_SUPPORTED_FLAGS (VXLAN_F_IPV6 | \
 						 VXLAN_F_UDP_ZERO_CSUM6_TX | \
-						 VXLAN_F_UDP_ZERO_CSUM6_RX)
+						 VXLAN_F_UDP_ZERO_CSUM6_RX | \
+						 VXLAN_F_LOCALBYPASS)
 
 static bool mlxsw_sp_nve_vxlan_ipv4_flags_check(const struct vxlan_config *cfg,
 						struct netlink_ext_ack *extack)

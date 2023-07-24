@@ -140,14 +140,15 @@ static int mdio_mux_mmioreg_probe(struct platform_device *pdev)
 	 * set any bits outside of the 'mask'.
 	 */
 	for_each_available_child_of_node(np, np2) {
-		iprop = of_get_property(np2, "reg", &len);
-		if (!iprop || len != sizeof(uint32_t)) {
+		u64 reg;
+
+		if (of_property_read_reg(np2, 0, &reg, NULL)) {
 			dev_err(&pdev->dev, "mdio-mux child node %pOF is "
 				"missing a 'reg' property\n", np2);
 			of_node_put(np2);
 			return -ENODEV;
 		}
-		if (be32_to_cpup(iprop) & ~s->mask) {
+		if ((u32)reg & ~s->mask) {
 			dev_err(&pdev->dev, "mdio-mux child node %pOF has "
 				"a 'reg' value with unmasked bits\n",
 				np2);

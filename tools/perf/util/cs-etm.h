@@ -244,11 +244,18 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 				  struct perf_session *session);
 struct perf_event_attr *cs_etm_get_default_config(struct perf_pmu *pmu);
 
+enum cs_etm_pid_fmt {
+	CS_ETM_PIDFMT_NONE,
+	CS_ETM_PIDFMT_CTXTID,
+	CS_ETM_PIDFMT_CTXTID2
+};
+
 #ifdef HAVE_CSTRACE_SUPPORT
+#include <opencsd/ocsd_if_types.h>
 int cs_etm__get_cpu(u8 trace_chan_id, int *cpu);
-int cs_etm__get_pid_fmt(u8 trace_chan_id, u64 *pid_fmt);
-int cs_etm__etmq_set_tid(struct cs_etm_queue *etmq,
-			 pid_t tid, u8 trace_chan_id);
+enum cs_etm_pid_fmt cs_etm__get_pid_fmt(struct cs_etm_queue *etmq);
+int cs_etm__etmq_set_tid_el(struct cs_etm_queue *etmq, pid_t tid,
+			    u8 trace_chan_id, ocsd_ex_level el);
 bool cs_etm__etmq_is_timeless(struct cs_etm_queue *etmq);
 void cs_etm__etmq_set_traceid_queue_timestamp(struct cs_etm_queue *etmq,
 					      u8 trace_chan_id);

@@ -1375,7 +1375,8 @@ struct sensor_async_subdev {
 	struct csi2_bus_info csi2;
 };
 
-#define to_sensor_asd(asd)	container_of(asd, struct sensor_async_subdev, asd)
+#define to_sensor_asd(__asd)	\
+	container_of_const(__asd, struct sensor_async_subdev, asd)
 
 /* The .bound() notifier callback when a match is found */
 static int cio2_notifier_bound(struct v4l2_async_notifier *notifier,
@@ -1417,31 +1418,27 @@ static int cio2_notifier_complete(struct v4l2_async_notifier *notifier)
 	struct sensor_async_subdev *s_asd;
 	struct v4l2_async_subdev *asd;
 	struct cio2_queue *q;
-	unsigned int pad;
 	int ret;
 
 	list_for_each_entry(asd, &cio2->notifier.asd_list, asd_list) {
 		s_asd = to_sensor_asd(asd);
 		q = &cio2->queue[s_asd->csi2.port];
 
-		for (pad = 0; pad < q->sensor->entity.num_pads; pad++)
-			if (q->sensor->entity.pads[pad].flags &
-						MEDIA_PAD_FL_SOURCE)
-				break;
-
-		if (pad == q->sensor->entity.num_pads) {
-			dev_err(dev, "failed to find src pad for %s\n",
-				q->sensor->name);
-			return -ENXIO;
+		ret = media_entity_get_fwnode_pad(&q->sensor->entity,
+						  s_asd->asd.match.fwnode,
+						  MEDIA_PAD_FL_SOURCE);
+		if (ret < 0) {
+			dev_err(dev, "no pad for endpoint %pfw (%d)\n",
+				s_asd->asd.match.fwnode, ret);
+			return ret;
 		}
 
-		ret = media_create_pad_link(
-				&q->sensor->entity, pad,
-				&q->subdev.entity, CIO2_PAD_SINK,
-				0);
+		ret = media_create_pad_link(&q->sensor->entity, ret,
+					    &q->subdev.entity, CIO2_PAD_SINK,
+					    0);
 		if (ret) {
-			dev_err(dev, "failed to create link for %s\n",
-				q->sensor->name);
+			dev_err(dev, "failed to create link for %s (endpoint %pfw, error %d)\n",
+				q->sensor->name, s_asd->asd.match.fwnode, ret);
 			return ret;
 		}
 	}

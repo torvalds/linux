@@ -80,6 +80,7 @@ static int max1111_read(struct device *dev, int channel)
 #ifdef CONFIG_SHARPSL_PM
 static struct max1111_data *the_max1111;
 
+int max1111_read_channel(int channel);
 int max1111_read_channel(int channel)
 {
 	if (!the_max1111 || !the_max1111->spi)

@@ -460,6 +460,7 @@ void intel_lpss_remove(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(intel_lpss_remove);
 
+#ifdef CONFIG_PM
 static int resume_lpss_device(struct device *dev, void *data)
 {
 	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND))
@@ -514,6 +515,7 @@ int intel_lpss_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_lpss_resume);
+#endif
 
 static int __init intel_lpss_init(void)
 {

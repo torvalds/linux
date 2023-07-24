@@ -34,6 +34,14 @@ enum brcmusb_reg_sel {
 	brcm_usb_ctrl_unset(USB_CTRL_REG(base, reg),		\
 			    USB_CTRL_##reg##_##field##_MASK)
 
+#define USB_XHCI_GBL_REG(base, reg) ((void __iomem *)base + USB_XHCI_GBL_##reg)
+#define USB_XHCI_GBL_SET(base, reg, field) \
+	brcm_usb_ctrl_set(USB_XHCI_GBL_REG(base, reg), \
+			  USB_XHCI_GBL_##reg##_##field##_MASK)
+#define USB_XHCI_GBL_UNSET(base, reg, field) \
+	brcm_usb_ctrl_unset(USB_XHCI_GBL_REG(base, reg), \
+			    USB_XHCI_GBL_##reg##_##field##_MASK)
+
 struct  brcm_usb_init_params;
 
 struct brcm_usb_init_ops {

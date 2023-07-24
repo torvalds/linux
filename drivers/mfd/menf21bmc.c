@@ -111,7 +111,7 @@ MODULE_DEVICE_TABLE(i2c, menf21bmc_id_table);
 static struct i2c_driver menf21bmc_driver = {
 	.driver.name	= "menf21bmc",
 	.id_table	= menf21bmc_id_table,
-	.probe_new	= menf21bmc_probe,
+	.probe		= menf21bmc_probe,
 };
 
 module_i2c_driver(menf21bmc_driver);

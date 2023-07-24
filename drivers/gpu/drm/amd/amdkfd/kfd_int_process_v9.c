@@ -446,7 +446,36 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 	}
 }
 
+static bool event_interrupt_isr_v9_4_3(struct kfd_node *node,
+				const uint32_t *ih_ring_entry,
+				uint32_t *patched_ihre,
+				bool *patched_flag)
+{
+	uint16_t node_id, vmid;
+
+	/*
+	 * For GFX 9.4.3, process the interrupt if:
+	 * - NodeID field in IH entry matches the corresponding bit
+	 *   set in interrupt_bitmap Bits 0-15.
+	 *   OR
+	 * - If partition mode is CPX and interrupt came from
+	 *   Node_id 0,4,8,12, then check if the Bit (16 + client id)
+	 *   is set in interrupt bitmap Bits 16-31.
+	 */
+	node_id = SOC15_NODEID_FROM_IH_ENTRY(ih_ring_entry);
+	vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
+	if (kfd_irq_is_from_node(node, node_id, vmid))
+		return event_interrupt_isr_v9(node, ih_ring_entry,
+					patched_ihre, patched_flag);
+	return false;
+}
+
 const struct kfd_event_interrupt_class event_interrupt_class_v9 = {
 	.interrupt_isr = event_interrupt_isr_v9,
+	.interrupt_wq = event_interrupt_wq_v9,
+};
+
+const struct kfd_event_interrupt_class event_interrupt_class_v9_4_3 = {
+	.interrupt_isr = event_interrupt_isr_v9_4_3,
 	.interrupt_wq = event_interrupt_wq_v9,
 };

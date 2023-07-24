@@ -2078,7 +2078,7 @@ fail_dev:
 	return err;
 }
 
-static int rcar_canfd_remove(struct platform_device *pdev)
+static void rcar_canfd_remove(struct platform_device *pdev)
 {
 	struct rcar_canfd_global *gpriv = platform_get_drvdata(pdev);
 	u32 ch;
@@ -2096,8 +2096,6 @@ static int rcar_canfd_remove(struct platform_device *pdev)
 	clk_disable_unprepare(gpriv->clkp);
 	reset_control_assert(gpriv->rstc1);
 	reset_control_assert(gpriv->rstc2);
-
-	return 0;
 }
 
 static int __maybe_unused rcar_canfd_suspend(struct device *dev)
@@ -2130,7 +2128,7 @@ static struct platform_driver rcar_canfd_driver = {
 		.pm = &rcar_canfd_pm_ops,
 	},
 	.probe = rcar_canfd_probe,
-	.remove = rcar_canfd_remove,
+	.remove_new = rcar_canfd_remove,
 };
 
 module_platform_driver(rcar_canfd_driver);

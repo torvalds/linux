@@ -146,16 +146,6 @@ curtable && /\.procname[\t ]*=[\t ]*".+"/ {
     children[curtable][curentry] = child
 }
 
-/register_sysctl_table\(.*\)/ {
-    match($0, /register_sysctl_table\(([^)]+)\)/, tables)
-    if (debug) print "Registering table " tables[1]
-    if (children[tables[1]][table]) {
-	for (entry in entries[children[tables[1]][table]]) {
-	    printentry(entry)
-	}
-    }
-}
-
 END {
     for (entry in documented) {
 	if (!seen[entry]) {

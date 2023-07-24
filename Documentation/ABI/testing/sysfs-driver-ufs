@@ -994,7 +994,7 @@ Description:	This file shows the amount of physical memory needed
 What:		/sys/bus/platform/drivers/ufshcd/*/rpm_lvl
 What:		/sys/bus/platform/devices/*.ufs/rpm_lvl
 Date:		September 2014
-Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This entry could be used to set or show the UFS device
 		runtime power management level. The current driver
 		implementation supports 7 levels with next target states:
@@ -1021,7 +1021,7 @@ Description:	This entry could be used to set or show the UFS device
 What:		/sys/bus/platform/drivers/ufshcd/*/rpm_target_dev_state
 What:		/sys/bus/platform/devices/*.ufs/rpm_target_dev_state
 Date:		February 2018
-Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This entry shows the target power mode of an UFS device
 		for the chosen runtime power management level.
 
@@ -1030,7 +1030,7 @@ Description:	This entry shows the target power mode of an UFS device
 What:		/sys/bus/platform/drivers/ufshcd/*/rpm_target_link_state
 What:		/sys/bus/platform/devices/*.ufs/rpm_target_link_state
 Date:		February 2018
-Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This entry shows the target state of an UFS UIC link
 		for the chosen runtime power management level.
 
@@ -1039,7 +1039,7 @@ Description:	This entry shows the target state of an UFS UIC link
 What:		/sys/bus/platform/drivers/ufshcd/*/spm_lvl
 What:		/sys/bus/platform/devices/*.ufs/spm_lvl
 Date:		September 2014
-Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This entry could be used to set or show the UFS device
 		system power management level. The current driver
 		implementation supports 7 levels with next target states:
@@ -1066,7 +1066,7 @@ Description:	This entry could be used to set or show the UFS device
 What:		/sys/bus/platform/drivers/ufshcd/*/spm_target_dev_state
 What:		/sys/bus/platform/devices/*.ufs/spm_target_dev_state
 Date:		February 2018
-Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This entry shows the target power mode of an UFS device
 		for the chosen system power management level.
 
@@ -1075,7 +1075,7 @@ Description:	This entry shows the target power mode of an UFS device
 What:		/sys/bus/platform/drivers/ufshcd/*/spm_target_link_state
 What:		/sys/bus/platform/devices/*.ufs/spm_target_link_state
 Date:		February 2018
-Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This entry shows the target state of an UFS UIC link
 		for the chosen system power management level.
 
@@ -1084,7 +1084,7 @@ Description:	This entry shows the target state of an UFS UIC link
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/monitor_enable
 What:		/sys/bus/platform/devices/*.ufs/monitor/monitor_enable
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows the status of performance monitor enablement
 		and it can be used to start/stop the monitor. When the monitor
 		is stopped, the performance data collected is also cleared.
@@ -1092,7 +1092,7 @@ Description:	This file shows the status of performance monitor enablement
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/monitor_chunk_size
 What:		/sys/bus/platform/devices/*.ufs/monitor/monitor_chunk_size
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file tells the monitor to focus on requests transferring
 		data of specific chunk size (in Bytes). 0 means any chunk size.
 		It can only be changed when monitor is disabled.
@@ -1100,7 +1100,7 @@ Description:	This file tells the monitor to focus on requests transferring
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/read_total_sectors
 What:		/sys/bus/platform/devices/*.ufs/monitor/read_total_sectors
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows how many sectors (in 512 Bytes) have been
 		sent from device to host after monitor gets started.
 
@@ -1109,7 +1109,7 @@ Description:	This file shows how many sectors (in 512 Bytes) have been
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/read_total_busy
 What:		/sys/bus/platform/devices/*.ufs/monitor/read_total_busy
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows how long (in micro seconds) has been spent
 		sending data from device to host after monitor gets started.
 
@@ -1118,7 +1118,7 @@ Description:	This file shows how long (in micro seconds) has been spent
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/read_nr_requests
 What:		/sys/bus/platform/devices/*.ufs/monitor/read_nr_requests
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows how many read requests have been sent after
 		monitor gets started.
 
@@ -1127,7 +1127,7 @@ Description:	This file shows how many read requests have been sent after
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/read_req_latency_max
 What:		/sys/bus/platform/devices/*.ufs/monitor/read_req_latency_max
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows the maximum latency (in micro seconds) of
 		read requests after monitor gets started.
 
@@ -1136,7 +1136,7 @@ Description:	This file shows the maximum latency (in micro seconds) of
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/read_req_latency_min
 What:		/sys/bus/platform/devices/*.ufs/monitor/read_req_latency_min
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows the minimum latency (in micro seconds) of
 		read requests after monitor gets started.
 
@@ -1145,7 +1145,7 @@ Description:	This file shows the minimum latency (in micro seconds) of
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/read_req_latency_avg
 What:		/sys/bus/platform/devices/*.ufs/monitor/read_req_latency_avg
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows the average latency (in micro seconds) of
 		read requests after monitor gets started.
 
@@ -1154,7 +1154,7 @@ Description:	This file shows the average latency (in micro seconds) of
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/read_req_latency_sum
 What:		/sys/bus/platform/devices/*.ufs/monitor/read_req_latency_sum
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows the total latency (in micro seconds) of
 		read requests sent after monitor gets started.
 
@@ -1163,7 +1163,7 @@ Description:	This file shows the total latency (in micro seconds) of
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/write_total_sectors
 What:		/sys/bus/platform/devices/*.ufs/monitor/write_total_sectors
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows how many sectors (in 512 Bytes) have been sent
 		from host to device after monitor gets started.
 
@@ -1172,7 +1172,7 @@ Description:	This file shows how many sectors (in 512 Bytes) have been sent
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/write_total_busy
 What:		/sys/bus/platform/devices/*.ufs/monitor/write_total_busy
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows how long (in micro seconds) has been spent
 		sending data from host to device after monitor gets started.
 
@@ -1181,7 +1181,7 @@ Description:	This file shows how long (in micro seconds) has been spent
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/write_nr_requests
 What:		/sys/bus/platform/devices/*.ufs/monitor/write_nr_requests
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows how many write requests have been sent after
 		monitor gets started.
 
@@ -1190,7 +1190,7 @@ Description:	This file shows how many write requests have been sent after
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/write_req_latency_max
 What:		/sys/bus/platform/devices/*.ufs/monitor/write_req_latency_max
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows the maximum latency (in micro seconds) of write
 		requests after monitor gets started.
 
@@ -1199,7 +1199,7 @@ Description:	This file shows the maximum latency (in micro seconds) of write
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/write_req_latency_min
 What:		/sys/bus/platform/devices/*.ufs/monitor/write_req_latency_min
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows the minimum latency (in micro seconds) of write
 		requests after monitor gets started.
 
@@ -1208,7 +1208,7 @@ Description:	This file shows the minimum latency (in micro seconds) of write
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/write_req_latency_avg
 What:		/sys/bus/platform/devices/*.ufs/monitor/write_req_latency_avg
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows the average latency (in micro seconds) of write
 		requests after monitor gets started.
 
@@ -1217,7 +1217,7 @@ Description:	This file shows the average latency (in micro seconds) of write
 What:		/sys/bus/platform/drivers/ufshcd/*/monitor/write_req_latency_sum
 What:		/sys/bus/platform/devices/*.ufs/monitor/write_req_latency_sum
 Date:		January 2021
-Contact:	Can Guo <cang@codeaurora.org>
+Contact:	Can Guo <quic_cang@quicinc.com>
 Description:	This file shows the total latency (in micro seconds) of write
 		requests after monitor gets started.
 
@@ -1226,7 +1226,7 @@ Description:	This file shows the total latency (in micro seconds) of write
 What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/wb_presv_us_en
 What:		/sys/bus/platform/devices/*.ufs/device_descriptor/wb_presv_us_en
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows if preserve user-space was configured
 
 		The file is read only.
@@ -1234,7 +1234,7 @@ Description:	This entry shows if preserve user-space was configured
 What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/wb_shared_alloc_units
 What:		/sys/bus/platform/devices/*.ufs/device_descriptor/wb_shared_alloc_units
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows the shared allocated units of WB buffer
 
 		The file is read only.
@@ -1242,7 +1242,7 @@ Description:	This entry shows the shared allocated units of WB buffer
 What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/wb_type
 What:		/sys/bus/platform/devices/*.ufs/device_descriptor/wb_type
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows the configured WB type.
 		0x1 for shared buffer mode. 0x0 for dedicated buffer mode.
 
@@ -1251,7 +1251,7 @@ Description:	This entry shows the configured WB type.
 What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/wb_buff_cap_adj
 What:		/sys/bus/platform/devices/*.ufs/geometry_descriptor/wb_buff_cap_adj
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows the total user-space decrease in shared
 		buffer mode.
 		The value of this parameter is 3 for TLC NAND when SLC mode
@@ -1262,7 +1262,7 @@ Description:	This entry shows the total user-space decrease in shared
 What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/wb_max_alloc_units
 What:		/sys/bus/platform/devices/*.ufs/geometry_descriptor/wb_max_alloc_units
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows the Maximum total WriteBooster Buffer size
 		which is supported by the entire device.
 
@@ -1271,7 +1271,7 @@ Description:	This entry shows the Maximum total WriteBooster Buffer size
 What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/wb_max_wb_luns
 What:		/sys/bus/platform/devices/*.ufs/geometry_descriptor/wb_max_wb_luns
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows the maximum number of luns that can support
 		WriteBooster.
 
@@ -1280,7 +1280,7 @@ Description:	This entry shows the maximum number of luns that can support
 What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/wb_sup_red_type
 What:		/sys/bus/platform/devices/*.ufs/geometry_descriptor/wb_sup_red_type
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	The supportability of user space reduction mode
 		and preserve user space mode.
 		00h: WriteBooster Buffer can be configured only in
@@ -1295,7 +1295,7 @@ Description:	The supportability of user space reduction mode
 What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/wb_sup_wb_type
 What:		/sys/bus/platform/devices/*.ufs/geometry_descriptor/wb_sup_wb_type
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	The supportability of WriteBooster Buffer type.
 
 		===  ==========================================================
@@ -1310,7 +1310,7 @@ Description:	The supportability of WriteBooster Buffer type.
 What:		/sys/bus/platform/drivers/ufshcd/*/flags/wb_enable
 What:		/sys/bus/platform/devices/*.ufs/flags/wb_enable
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows the status of WriteBooster.
 
 		== ============================
@@ -1323,7 +1323,7 @@ Description:	This entry shows the status of WriteBooster.
 What:		/sys/bus/platform/drivers/ufshcd/*/flags/wb_flush_en
 What:		/sys/bus/platform/devices/*.ufs/flags/wb_flush_en
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows if flush is enabled.
 
 		== =================================
@@ -1336,7 +1336,7 @@ Description:	This entry shows if flush is enabled.
 What:		/sys/bus/platform/drivers/ufshcd/*/flags/wb_flush_during_h8
 What:		/sys/bus/platform/devices/*.ufs/flags/wb_flush_during_h8
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	Flush WriteBooster Buffer during hibernate state.
 
 		== =================================================
@@ -1351,7 +1351,7 @@ Description:	Flush WriteBooster Buffer during hibernate state.
 What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_avail_buf
 What:		/sys/bus/platform/devices/*.ufs/attributes/wb_avail_buf
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows the amount of unused WriteBooster buffer
 		available.
 
@@ -1360,7 +1360,7 @@ Description:	This entry shows the amount of unused WriteBooster buffer
 What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_cur_buf
 What:		/sys/bus/platform/devices/*.ufs/attributes/wb_cur_buf
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows the amount of unused current buffer.
 
 		The file is read only.
@@ -1368,7 +1368,7 @@ Description:	This entry shows the amount of unused current buffer.
 What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_flush_status
 What:		/sys/bus/platform/devices/*.ufs/attributes/wb_flush_status
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows the flush operation status.
 
 
@@ -1385,7 +1385,7 @@ Description:	This entry shows the flush operation status.
 What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_life_time_est
 What:		/sys/bus/platform/devices/*.ufs/attributes/wb_life_time_est
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows an indication of the WriteBooster Buffer
 		lifetime based on the amount of performed program/erase cycles
 
@@ -1399,7 +1399,7 @@ Description:	This entry shows an indication of the WriteBooster Buffer
 
 What:		/sys/class/scsi_device/*/device/unit_descriptor/wb_buf_alloc_units
 Date:		June 2020
-Contact:	Asutosh Das <asutoshd@codeaurora.org>
+Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows the configured size of WriteBooster buffer.
 		0400h corresponds to 4GB.
 
@@ -1425,6 +1425,17 @@ Description:	This entry shows the status of WriteBooster buffer flushing
 		and it can be used to enable or disable the flushing.
 		If flushing is enabled, the device executes the flush
 		operation when the command queue is empty.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/wb_flush_threshold
+What:		/sys/bus/platform/devices/*.ufs/wb_flush_threshold
+Date:		June 2023
+Contact:	Lu Hongfei <luhongfei@vivo.com>
+Description:
+		wb_flush_threshold represents the threshold for flushing WriteBooster buffer,
+		whose value expressed in unit of 10% granularity, such as '1' representing 10%,
+		'2' representing 20%, and so on.
+		If avail_wb_buff < wb_flush_threshold, it indicates that WriteBooster buffer needs to
+		be flushed, otherwise it is not necessary.
 
 What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/hpb_version
 What:		/sys/bus/platform/devices/*.ufs/device_descriptor/hpb_version

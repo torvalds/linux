@@ -308,6 +308,57 @@ void rtw_fw_c2h_cmd_isr(struct rtw_dev *rtwdev)
 }
 EXPORT_SYMBOL(rtw_fw_c2h_cmd_isr);
 
+static void rtw_fw_send_h2c_command_register(struct rtw_dev *rtwdev,
+					     struct rtw_h2c_register *h2c)
+{
+	u32 box_reg, box_ex_reg;
+	u8 box_state, box;
+	int ret;
+
+	rtw_dbg(rtwdev, RTW_DBG_FW, "send H2C content %08x %08x\n", h2c->w0,
+		h2c->w1);
+
+	lockdep_assert_held(&rtwdev->mutex);
+
+	box = rtwdev->h2c.last_box_num;
+	switch (box) {
+	case 0:
+		box_reg = REG_HMEBOX0;
+		box_ex_reg = REG_HMEBOX0_EX;
+		break;
+	case 1:
+		box_reg = REG_HMEBOX1;
+		box_ex_reg = REG_HMEBOX1_EX;
+		break;
+	case 2:
+		box_reg = REG_HMEBOX2;
+		box_ex_reg = REG_HMEBOX2_EX;
+		break;
+	case 3:
+		box_reg = REG_HMEBOX3;
+		box_ex_reg = REG_HMEBOX3_EX;
+		break;
+	default:
+		WARN(1, "invalid h2c mail box number\n");
+		return;
+	}
+
+	ret = read_poll_timeout_atomic(rtw_read8, box_state,
+				       !((box_state >> box) & 0x1), 100, 3000,
+				       false, rtwdev, REG_HMETFR);
+
+	if (ret) {
+		rtw_err(rtwdev, "failed to send h2c command\n");
+		return;
+	}
+
+	rtw_write32(rtwdev, box_ex_reg, h2c->w1);
+	rtw_write32(rtwdev, box_reg, h2c->w0);
+
+	if (++rtwdev->h2c.last_box_num >= 4)
+		rtwdev->h2c.last_box_num = 0;
+}
+
 static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 				    u8 *h2c)
 {
@@ -466,6 +517,23 @@ void rtw_fw_query_bt_info(struct rtw_dev *rtwdev)
 	SET_QUERY_BT_INFO(h2c_pkt, true);
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_default_port(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif)
+{
+	struct rtw_h2c_register h2c = {};
+
+	if (rtwvif->net_type != RTW_NET_MGD_LINKED)
+		return;
+
+	/* Leave LPS before default port H2C so FW timer is correct */
+	rtw_leave_lps(rtwdev);
+
+	h2c.w0 = u32_encode_bits(H2C_CMD_DEFAULT_PORT, RTW_H2C_W0_CMDID) |
+		 u32_encode_bits(rtwvif->port, RTW_H2C_DEFAULT_PORT_W0_PORTID) |
+		 u32_encode_bits(rtwvif->mac_id, RTW_H2C_DEFAULT_PORT_W0_MACID);
+
+	rtw_fw_send_h2c_command_register(rtwdev, &h2c);
 }
 
 void rtw_fw_wl_ch_info(struct rtw_dev *rtwdev, u8 link, u8 ch, u8 bw)

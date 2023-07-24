@@ -51,7 +51,7 @@ static u64 arm_spe_calc_ip(int index, u64 payload)
 		 * (bits [63:56]) is assigned as top-byte tag; so we only can
 		 * retrieve address value from bits [55:0].
 		 *
-		 * According to Documentation/arm64/memory.rst, if detects the
+		 * According to Documentation/arch/arm64/memory.rst, if detects the
 		 * specific pattern in bits [55:52] of payload which falls in
 		 * the kernel space, should fixup the top byte and this allows
 		 * perf tool to parse DSO symbol for data address correctly.

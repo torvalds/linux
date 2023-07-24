@@ -24,6 +24,9 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    maxItems: 2
+
   clocks:
     minItems: 6
     maxItems: 7

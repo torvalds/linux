@@ -35,8 +35,8 @@
  * with this program; if not, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/gpio.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
@@ -254,4 +254,6 @@ void __init omap1_init_irq(void)
 		ct = irq_data_get_chip_type(d);
 		ct->chip.irq_unmask(d);
 	}
+
+	set_handle_irq(omap1_handle_irq);
 }

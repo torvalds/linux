@@ -23,7 +23,7 @@ void __init set_send_ipi(void (*func)(const struct cpumask *mask), int irq);
 
 int __cpu_disable(void);
 
-void __cpu_die(unsigned int cpu);
+static inline void __cpu_die(unsigned int cpu) { }
 
 #endif /* CONFIG_SMP */
 

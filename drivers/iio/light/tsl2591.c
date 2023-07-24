@@ -1214,7 +1214,7 @@ static struct i2c_driver tsl2591_driver = {
 		.pm = pm_ptr(&tsl2591_pm_ops),
 		.of_match_table = tsl2591_of_match,
 	},
-	.probe_new = tsl2591_probe
+	.probe = tsl2591_probe
 };
 module_i2c_driver(tsl2591_driver);
 

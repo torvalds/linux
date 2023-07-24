@@ -208,7 +208,7 @@ static struct i2c_driver bd718xx_i2c_driver = {
 		.name = "rohm-bd718x7",
 		.of_match_table = bd718xx_of_match,
 	},
-	.probe_new = bd718xx_i2c_probe,
+	.probe = bd718xx_i2c_probe,
 };
 
 static int __init bd718xx_i2c_init(void)

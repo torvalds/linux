@@ -60,6 +60,21 @@ static int generic_post_bank_switch(struct sdw_bus *bus)
 	return sdw->link_res->hw_ops->post_bank_switch(sdw);
 }
 
+static void generic_new_peripheral_assigned(struct sdw_bus *bus, int dev_num)
+{
+	struct sdw_cdns *cdns = bus_to_cdns(bus);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
+
+	/* paranoia check, this should never happen */
+	if (dev_num < INTEL_DEV_NUM_IDA_MIN || dev_num > SDW_MAX_DEVICES)  {
+		dev_err(bus->dev, "%s: invalid dev_num %d\n", __func__, dev_num);
+		return;
+	}
+
+	if (sdw->link_res->hw_ops->program_sdi)
+		sdw->link_res->hw_ops->program_sdi(sdw, dev_num);
+}
+
 static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 {
 	struct sdw_master_prop *prop = &bus->prop;
@@ -117,6 +132,7 @@ static struct sdw_master_ops sdw_intel_ops = {
 	.pre_bank_switch = generic_pre_bank_switch,
 	.post_bank_switch = generic_post_bank_switch,
 	.read_ping_status = cdns_read_ping_status,
+	.new_peripheral_assigned = generic_new_peripheral_assigned,
 };
 
 /*
@@ -144,6 +160,7 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 	sdw->link_res = &ldev->link_res;
 	cdns->dev = dev;
 	cdns->registers = sdw->link_res->registers;
+	cdns->ip_offset = sdw->link_res->ip_offset;
 	cdns->instance = sdw->instance;
 	cdns->msg_count = 0;
 

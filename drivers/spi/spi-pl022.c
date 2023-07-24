@@ -2217,8 +2217,8 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	amba_set_drvdata(adev, pl022);
 	status = devm_spi_register_master(&adev->dev, master);
 	if (status != 0) {
-		dev_err(&adev->dev,
-			"probe - problem registering spi master\n");
+		dev_err_probe(&adev->dev, status,
+			      "problem registering spi master\n");
 		goto err_spi_register;
 	}
 	dev_dbg(dev, "probe succeeded\n");

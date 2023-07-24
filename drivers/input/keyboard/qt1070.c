@@ -271,7 +271,7 @@ static struct i2c_driver qt1070_driver = {
 		.pm	= pm_sleep_ptr(&qt1070_pm_ops),
 	},
 	.id_table	= qt1070_id,
-	.probe_new	= qt1070_probe,
+	.probe		= qt1070_probe,
 	.remove		= qt1070_remove,
 };
 

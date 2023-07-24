@@ -69,7 +69,7 @@ static inline int iunit_dump_dbgopt(struct atomisp_device *isp,
 		}
 
 		if (opt & OPTION_BIN_RUN) {
-			if (atomisp_streaming_count(isp)) {
+			if (isp->asd.streaming) {
 				atomisp_css_dump_sp_raw_copy_linecount(true);
 				atomisp_css_debug_dump_isp_binary();
 			} else {

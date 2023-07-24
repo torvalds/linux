@@ -118,15 +118,31 @@ static void mock_gt_probe(struct drm_i915_private *i915)
 	i915->gt[0]->name = "Mock GT";
 }
 
+static const struct intel_device_info mock_info = {
+	.__runtime.graphics.ip.ver = -1,
+	.__runtime.page_sizes = (I915_GTT_PAGE_SIZE_4K |
+				 I915_GTT_PAGE_SIZE_64K |
+				 I915_GTT_PAGE_SIZE_2M),
+	.__runtime.memory_regions = REGION_SMEM,
+	.__runtime.platform_engine_mask = BIT(0),
+
+	/* simply use legacy cache level for mock device */
+	.max_pat_index = 3,
+	.cachelevel_to_pat = {
+		[I915_CACHE_NONE]   = 0,
+		[I915_CACHE_LLC]    = 1,
+		[I915_CACHE_L3_LLC] = 2,
+		[I915_CACHE_WT]     = 3,
+	},
+};
+
 struct drm_i915_private *mock_gem_device(void)
 {
 #if IS_ENABLED(CONFIG_IOMMU_API) && defined(CONFIG_INTEL_IOMMU)
 	static struct dev_iommu fake_iommu = { .priv = (void *)-1 };
 #endif
 	struct drm_i915_private *i915;
-	struct intel_device_info *i915_info;
 	struct pci_dev *pdev;
-	unsigned int i;
 	int ret;
 
 	pdev = kzalloc(sizeof(*pdev), GFP_KERNEL);
@@ -159,14 +175,17 @@ struct drm_i915_private *mock_gem_device(void)
 
 	pci_set_drvdata(pdev, i915);
 
+	/* Device parameters start as a copy of module parameters. */
+	i915_params_copy(&i915->params, &i915_modparams);
+
+	/* Set up device info and initial runtime info. */
+	intel_device_info_driver_create(i915, pdev->device, &mock_info);
+
 	dev_pm_domain_set(&pdev->dev, &pm_domain);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	if (pm_runtime_enabled(&pdev->dev))
 		WARN_ON(pm_runtime_get_sync(&pdev->dev));
-
-
-	i915_params_copy(&i915->params, &i915_modparams);
 
 	intel_runtime_pm_init_early(&i915->runtime_pm);
 	/* wakeref tracking has significant overhead */
@@ -174,21 +193,6 @@ struct drm_i915_private *mock_gem_device(void)
 
 	/* Using the global GTT may ask questions about KMS users, so prepare */
 	drm_mode_config_init(&i915->drm);
-
-	RUNTIME_INFO(i915)->graphics.ip.ver = -1;
-
-	RUNTIME_INFO(i915)->page_sizes =
-		I915_GTT_PAGE_SIZE_4K |
-		I915_GTT_PAGE_SIZE_64K |
-		I915_GTT_PAGE_SIZE_2M;
-
-	RUNTIME_INFO(i915)->memory_regions = REGION_SMEM;
-
-	/* simply use legacy cache level for mock device */
-	i915_info = (struct intel_device_info *)INTEL_INFO(i915);
-	i915_info->max_pat_index = 3;
-	for (i = 0; i < I915_MAX_CACHE_LEVEL; i++)
-		i915_info->cachelevel_to_pat[i] = i;
 
 	intel_memory_regions_hw_probe(i915);
 
@@ -223,7 +227,6 @@ struct drm_i915_private *mock_gem_device(void)
 	mock_init_ggtt(to_gt(i915));
 	to_gt(i915)->vm = i915_vm_get(&to_gt(i915)->ggtt->vm);
 
-	RUNTIME_INFO(i915)->platform_engine_mask = BIT(0);
 	to_gt(i915)->info.engine_mask = BIT(0);
 
 	to_gt(i915)->engine[RCS0] = mock_engine(i915, "mock", RCS0);

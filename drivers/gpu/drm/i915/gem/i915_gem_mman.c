@@ -1085,8 +1085,8 @@ int i915_gem_fb_mmap(struct drm_i915_gem_object *obj, struct vm_area_struct *vma
 		/* handle stolen and smem objects */
 		mmap_type = i915_ggtt_has_aperture(ggtt) ? I915_MMAP_TYPE_GTT : I915_MMAP_TYPE_WC;
 		mmo = mmap_offset_attach(obj, mmap_type, NULL);
-		if (!mmo)
-			return -ENODEV;
+		if (IS_ERR(mmo))
+			return PTR_ERR(mmo);
 	}
 
 	/*

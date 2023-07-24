@@ -541,9 +541,18 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			clk_mgr_base->clks.p_state_change_support = p_state_change_support;
 
 			/* to disable P-State switching, set UCLK min = max */
-			if (!clk_mgr_base->clks.p_state_change_support)
-				dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-						clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels - 1].memclk_mhz);
+			if (!clk_mgr_base->clks.p_state_change_support) {
+				if (dc->clk_mgr->dc_mode_softmax_enabled) {
+					/* On DCN32x we will never have the functional UCLK min above the softmax
+					 * since we calculate mode support based on softmax being the max UCLK
+					 * frequency.
+					 */
+					dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
+							dc->clk_mgr->bw_params->dc_mode_softmax_memclk);
+				} else {
+					dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK, dc->clk_mgr->bw_params->max_memclk_mhz);
+				}
+			}
 		}
 
 		/* Always update saved value, even if new value not set due to P-State switching unsupported. Also check safe_to_lower for FCLK */
@@ -808,8 +817,7 @@ static void dcn32_set_hard_max_memclk(struct clk_mgr *clk_mgr_base)
 	if (!clk_mgr->smu_present)
 		return;
 
-	dcn30_smu_set_hard_max_by_freq(clk_mgr, PPCLK_UCLK,
-			clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels - 1].memclk_mhz);
+	dcn30_smu_set_hard_max_by_freq(clk_mgr, PPCLK_UCLK, clk_mgr_base->bw_params->max_memclk_mhz);
 }
 
 /* Get current memclk states, update bounding box */
@@ -827,6 +835,7 @@ static void dcn32_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 			&clk_mgr_base->bw_params->clk_table.entries[0].memclk_mhz,
 			&num_entries_per_clk->num_memclk_levels);
 	clk_mgr_base->bw_params->dc_mode_limit.memclk_mhz = dcn30_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_UCLK);
+	clk_mgr_base->bw_params->dc_mode_softmax_memclk = clk_mgr_base->bw_params->dc_mode_limit.memclk_mhz;
 
 	/* memclk must have at least one level */
 	num_entries_per_clk->num_memclk_levels = num_entries_per_clk->num_memclk_levels ? num_entries_per_clk->num_memclk_levels : 1;
@@ -841,7 +850,8 @@ static void dcn32_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 	} else {
 		num_levels = num_entries_per_clk->num_fclk_levels;
 	}
-
+	clk_mgr_base->bw_params->max_memclk_mhz =
+			clk_mgr_base->bw_params->clk_table.entries[num_entries_per_clk->num_memclk_levels - 1].memclk_mhz;
 	clk_mgr_base->bw_params->clk_table.num_entries = num_levels ? num_levels : 1;
 
 	if (clk_mgr->dpm_present && !num_levels)
@@ -894,6 +904,25 @@ static bool dcn32_is_smu_present(struct clk_mgr *clk_mgr_base)
 	return clk_mgr->smu_present;
 }
 
+static void dcn32_set_max_memclk(struct clk_mgr *clk_mgr_base, unsigned int memclk_mhz)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	if (!clk_mgr->smu_present)
+		return;
+
+	dcn30_smu_set_hard_max_by_freq(clk_mgr, PPCLK_UCLK, memclk_mhz);
+}
+
+static void dcn32_set_min_memclk(struct clk_mgr *clk_mgr_base, unsigned int memclk_mhz)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	if (!clk_mgr->smu_present)
+		return;
+
+	dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK, memclk_mhz);
+}
 
 static struct clk_mgr_funcs dcn32_funcs = {
 		.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
@@ -904,6 +933,8 @@ static struct clk_mgr_funcs dcn32_funcs = {
 		.notify_wm_ranges = dcn32_notify_wm_ranges,
 		.set_hard_min_memclk = dcn32_set_hard_min_memclk,
 		.set_hard_max_memclk = dcn32_set_hard_max_memclk,
+		.set_max_memclk = dcn32_set_max_memclk,
+		.set_min_memclk = dcn32_set_min_memclk,
 		.get_memclk_states_from_smu = dcn32_get_memclk_states_from_smu,
 		.are_clock_states_equal = dcn32_are_clock_states_equal,
 		.enable_pme_wa = dcn32_enable_pme_wa,

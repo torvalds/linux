@@ -14,23 +14,27 @@ TEST_FILE=$(mktemp)
 
 # This represents
 #
-# TEST_ID:TEST_COUNT:ENABLED:TARGET
+# TEST_ID:TEST_COUNT:ENABLED:TARGET:SKIP_NO_TARGET
 #
 # TEST_ID: is the test id number
 # TEST_COUNT: number of times we should run the test
 # ENABLED: 1 if enabled, 0 otherwise
 # TARGET: test target file required on the test_sysctl module
+# SKIP_NO_TARGET: 1 skip if TARGET not there
+#                 0 run eventhough TARGET not there
 #
 # Once these are enabled please leave them as-is. Write your own test,
 # we have tons of space.
-ALL_TESTS="0001:1:1:int_0001"
-ALL_TESTS="$ALL_TESTS 0002:1:1:string_0001"
-ALL_TESTS="$ALL_TESTS 0003:1:1:int_0002"
-ALL_TESTS="$ALL_TESTS 0004:1:1:uint_0001"
-ALL_TESTS="$ALL_TESTS 0005:3:1:int_0003"
-ALL_TESTS="$ALL_TESTS 0006:50:1:bitmap_0001"
-ALL_TESTS="$ALL_TESTS 0007:1:1:boot_int"
-ALL_TESTS="$ALL_TESTS 0008:1:1:match_int"
+ALL_TESTS="0001:1:1:int_0001:1"
+ALL_TESTS="$ALL_TESTS 0002:1:1:string_0001:1"
+ALL_TESTS="$ALL_TESTS 0003:1:1:int_0002:1"
+ALL_TESTS="$ALL_TESTS 0004:1:1:uint_0001:1"
+ALL_TESTS="$ALL_TESTS 0005:3:1:int_0003:1"
+ALL_TESTS="$ALL_TESTS 0006:50:1:bitmap_0001:1"
+ALL_TESTS="$ALL_TESTS 0007:1:1:boot_int:1"
+ALL_TESTS="$ALL_TESTS 0008:1:1:match_int:1"
+ALL_TESTS="$ALL_TESTS 0009:1:1:unregister_error:0"
+ALL_TESTS="$ALL_TESTS 0010:1:1:mnt/mnt_error:0"
 
 function allow_user_defaults()
 {
@@ -613,7 +617,6 @@ target_exists()
 	TEST_ID="$2"
 
 	if [ ! -f ${TARGET} ] ; then
-		echo "Target for test $TEST_ID: $TARGET not exist, skipping test ..."
 		return 0
 	fi
 	return 1
@@ -730,7 +733,7 @@ sysctl_test_0005()
 
 sysctl_test_0006()
 {
-	TARGET="${SYSCTL}/bitmap_0001"
+	TARGET="${SYSCTL}/$(get_test_target 0006)"
 	reset_vals
 	ORIG=""
 	run_bitmaptest
@@ -738,7 +741,7 @@ sysctl_test_0006()
 
 sysctl_test_0007()
 {
-	TARGET="${SYSCTL}/boot_int"
+	TARGET="${SYSCTL}/$(get_test_target 0007)"
 	if [ ! -f $TARGET ]; then
 		echo "Skipping test for $TARGET as it is not present ..."
 		return $ksft_skip
@@ -778,7 +781,7 @@ sysctl_test_0007()
 
 sysctl_test_0008()
 {
-	TARGET="${SYSCTL}/match_int"
+	TARGET="${SYSCTL}/$(get_test_target 0008)"
 	if [ ! -f $TARGET ]; then
 		echo "Skipping test for $TARGET as it is not present ..."
 		return $ksft_skip
@@ -788,6 +791,34 @@ sysctl_test_0008()
 	ORIG_VALUE=$(cat "${TARGET}")
 
 	if [ $ORIG_VALUE -ne 1 ]; then
+		echo "TEST FAILED"
+		rc=1
+		test_rc
+	fi
+
+	echo "ok"
+	return 0
+}
+
+sysctl_test_0009()
+{
+	TARGET="${SYSCTL}/$(get_test_target 0009)"
+	echo -n "Testing if $TARGET unregistered correctly ..."
+	if [ -d $TARGET ]; then
+		echo "TEST FAILED"
+		rc=1
+		test_rc
+	fi
+
+	echo "ok"
+	return 0
+}
+
+sysctl_test_0010()
+{
+	TARGET="${SYSCTL}/$(get_test_target 0010)"
+	echo -n "Testing that $TARGET was not created  ..."
+	if [ -d $TARGET ]; then
 		echo "TEST FAILED"
 		rc=1
 		test_rc
@@ -813,6 +844,8 @@ list_tests()
 	echo "0006 x $(get_test_count 0006) - tests proc_do_large_bitmap()"
 	echo "0007 x $(get_test_count 0007) - tests setting sysctl from kernel boot param"
 	echo "0008 x $(get_test_count 0008) - tests sysctl macro values match"
+	echo "0009 x $(get_test_count 0009) - tests sysct unregister"
+	echo "0010 x $(get_test_count 0010) - tests sysct mount point"
 }
 
 usage()
@@ -857,38 +890,65 @@ function test_num()
 		usage
 	fi
 }
+function remove_leading_zeros()
+{
+	echo $1 | sed 's/^0*//'
+}
 
 function get_test_count()
 {
 	test_num $1
-	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
+	awk_field=$(remove_leading_zeros $1)
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$awk_field'}')
 	echo ${TEST_DATA} | awk -F":" '{print $2}'
 }
 
 function get_test_enabled()
 {
 	test_num $1
-	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
+	awk_field=$(remove_leading_zeros $1)
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$awk_field'}')
 	echo ${TEST_DATA} | awk -F":" '{print $3}'
 }
 
 function get_test_target()
 {
 	test_num $1
-	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
+	awk_field=$(remove_leading_zeros $1)
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$awk_field'}')
 	echo ${TEST_DATA} | awk -F":" '{print $4}'
+}
+
+function get_test_skip_no_target()
+{
+	test_num $1
+	awk_field=$(remove_leading_zeros $1)
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$awk_field'}')
+	echo ${TEST_DATA} | awk -F":" '{print $5}'
+}
+
+function skip_test()
+{
+	TEST_ID=$1
+	TEST_TARGET=$2
+	if target_exists $TEST_TARGET $TEST_ID; then
+		TEST_SKIP=$(get_test_skip_no_target $TEST_ID)
+		if [[ $TEST_SKIP -eq "1" ]]; then
+			echo "Target for test $TEST_ID: $TEST_TARGET not exist, skipping test ..."
+			return 0
+		fi
+	fi
+	return 1
 }
 
 function run_all_tests()
 {
 	for i in $ALL_TESTS ; do
-		TEST_ID=${i%:*:*:*}
+		TEST_ID=${i%:*:*:*:*}
 		ENABLED=$(get_test_enabled $TEST_ID)
 		TEST_COUNT=$(get_test_count $TEST_ID)
 		TEST_TARGET=$(get_test_target $TEST_ID)
-		if target_exists $TEST_TARGET $TEST_ID; then
-			continue
-		fi
+
 		if [[ $ENABLED -eq "1" ]]; then
 			test_case $TEST_ID $TEST_COUNT $TEST_TARGET
 		fi
@@ -923,18 +983,19 @@ function watch_case()
 
 function test_case()
 {
+	TEST_ID=$1
 	NUM_TESTS=$2
+	TARGET=$3
 
-	i=0
-
-	if target_exists $3 $1; then
-		continue
+	if skip_test $TEST_ID $TARGET; then
+		return
 	fi
 
+	i=0
 	while [ $i -lt $NUM_TESTS ]; do
-		test_num $1
-		watch_log $i ${TEST_NAME}_test_$1 noclear
-		RUN_TEST=${TEST_NAME}_test_$1
+		test_num $TEST_ID
+		watch_log $i ${TEST_NAME}_test_${TEST_ID} noclear
+		RUN_TEST=${TEST_NAME}_test_${TEST_ID}
 		$RUN_TEST
 		let i=$i+1
 	done

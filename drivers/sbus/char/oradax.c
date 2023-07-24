@@ -226,8 +226,10 @@ static int dax_ccb_info(u64 ca, struct ccb_info_result *info);
 static int dax_ccb_kill(u64 ca, u16 *kill_res);
 
 static struct cdev c_dev;
-static struct class *cl;
 static dev_t first;
+static const struct class cl = {
+	.name = DAX_NAME,
+};
 
 static int max_ccb_version;
 static int dax_debug;
@@ -323,14 +325,11 @@ static int __init dax_attach(void)
 		goto done;
 	}
 
-	cl = class_create(DAX_NAME);
-	if (IS_ERR(cl)) {
-		dax_err("class_create failed");
-		ret = PTR_ERR(cl);
+	ret = class_register(&cl);
+	if (ret)
 		goto class_error;
-	}
 
-	if (device_create(cl, NULL, first, NULL, dax_name) == NULL) {
+	if (device_create(&cl, NULL, first, NULL, dax_name) == NULL) {
 		dax_err("device_create failed");
 		ret = -ENXIO;
 		goto device_error;
@@ -347,9 +346,9 @@ static int __init dax_attach(void)
 	goto done;
 
 cdev_error:
-	device_destroy(cl, first);
+	device_destroy(&cl, first);
 device_error:
-	class_destroy(cl);
+	class_unregister(&cl);
 class_error:
 	unregister_chrdev_region(first, 1);
 done:
@@ -362,8 +361,8 @@ static void __exit dax_detach(void)
 {
 	pr_info("Cleaning up DAX module\n");
 	cdev_del(&c_dev);
-	device_destroy(cl, first);
-	class_destroy(cl);
+	device_destroy(&cl, first);
+	class_unregister(&cl);
 	unregister_chrdev_region(first, 1);
 }
 module_exit(dax_detach);

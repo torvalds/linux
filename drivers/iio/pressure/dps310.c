@@ -887,7 +887,7 @@ static struct i2c_driver dps310_driver = {
 		.name = DPS310_DEV_NAME,
 		.acpi_match_table = dps310_acpi_match,
 	},
-	.probe_new = dps310_probe,
+	.probe = dps310_probe,
 	.id_table = dps310_id,
 };
 module_i2c_driver(dps310_driver);

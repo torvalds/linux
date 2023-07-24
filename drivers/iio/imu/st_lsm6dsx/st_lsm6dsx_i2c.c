@@ -179,7 +179,7 @@ static struct i2c_driver st_lsm6dsx_driver = {
 		.of_match_table = st_lsm6dsx_i2c_of_match,
 		.acpi_match_table = st_lsm6dsx_i2c_acpi_match,
 	},
-	.probe_new = st_lsm6dsx_i2c_probe,
+	.probe = st_lsm6dsx_i2c_probe,
 	.id_table = st_lsm6dsx_i2c_id_table,
 };
 module_i2c_driver(st_lsm6dsx_driver);

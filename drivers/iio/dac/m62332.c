@@ -238,7 +238,7 @@ static struct i2c_driver m62332_driver = {
 		.name	= "m62332",
 		.pm	= pm_sleep_ptr(&m62332_pm_ops),
 	},
-	.probe_new	= m62332_probe,
+	.probe		= m62332_probe,
 	.remove		= m62332_remove,
 	.id_table	= m62332_id,
 };

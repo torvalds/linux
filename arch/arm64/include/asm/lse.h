@@ -18,7 +18,7 @@
 
 static __always_inline bool system_uses_lse_atomics(void)
 {
-	return alternative_has_feature_likely(ARM64_HAS_LSE_ATOMICS);
+	return alternative_has_cap_likely(ARM64_HAS_LSE_ATOMICS);
 }
 
 #define __lse_ll_sc_body(op, ...)					\

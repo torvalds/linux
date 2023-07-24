@@ -134,7 +134,7 @@ extern const struct nla_policy rtm_tca_policy[TCA_MAX + 1];
  */
 static inline unsigned int psched_mtu(const struct net_device *dev)
 {
-	return dev->mtu + dev->hard_header_len;
+	return READ_ONCE(dev->mtu) + dev->hard_header_len;
 }
 
 static inline struct net *qdisc_net(struct Qdisc *q)
@@ -187,6 +187,32 @@ struct tc_taprio_caps {
 	bool broken_mqprio:1;
 };
 
+enum tc_taprio_qopt_cmd {
+	TAPRIO_CMD_REPLACE,
+	TAPRIO_CMD_DESTROY,
+	TAPRIO_CMD_STATS,
+	TAPRIO_CMD_QUEUE_STATS,
+};
+
+/**
+ * struct tc_taprio_qopt_stats - IEEE 802.1Qbv statistics
+ * @window_drops: Frames that were dropped because they were too large to be
+ *	transmitted in any of the allotted time windows (open gates) for their
+ *	traffic class.
+ * @tx_overruns: Frames still being transmitted by the MAC after the
+ *	transmission gate associated with their traffic class has closed.
+ *	Equivalent to `12.29.1.1.2 TransmissionOverrun` from 802.1Q-2018.
+ */
+struct tc_taprio_qopt_stats {
+	u64 window_drops;
+	u64 tx_overruns;
+};
+
+struct tc_taprio_qopt_queue_stats {
+	int queue;
+	struct tc_taprio_qopt_stats stats;
+};
+
 struct tc_taprio_sched_entry {
 	u8 command; /* TC_TAPRIO_CMD_* */
 
@@ -196,16 +222,26 @@ struct tc_taprio_sched_entry {
 };
 
 struct tc_taprio_qopt_offload {
-	struct tc_mqprio_qopt_offload mqprio;
-	struct netlink_ext_ack *extack;
-	u8 enable;
-	ktime_t base_time;
-	u64 cycle_time;
-	u64 cycle_time_extension;
-	u32 max_sdu[TC_MAX_QUEUE];
+	enum tc_taprio_qopt_cmd cmd;
 
-	size_t num_entries;
-	struct tc_taprio_sched_entry entries[];
+	union {
+		/* TAPRIO_CMD_STATS */
+		struct tc_taprio_qopt_stats stats;
+		/* TAPRIO_CMD_QUEUE_STATS */
+		struct tc_taprio_qopt_queue_stats queue_stats;
+		/* TAPRIO_CMD_REPLACE */
+		struct {
+			struct tc_mqprio_qopt_offload mqprio;
+			struct netlink_ext_ack *extack;
+			ktime_t base_time;
+			u64 cycle_time;
+			u64 cycle_time_extension;
+			u32 max_sdu[TC_MAX_QUEUE];
+
+			size_t num_entries;
+			struct tc_taprio_sched_entry entries[];
+		};
+	};
 };
 
 #if IS_ENABLED(CONFIG_NET_SCH_TAPRIO)

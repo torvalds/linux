@@ -13,10 +13,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#ifndef MAP_FIXED_NOREPLACE
-#define MAP_FIXED_NOREPLACE 0x100000
-#endif
-
 static void dump_maps(void)
 {
 	char cmd[32];

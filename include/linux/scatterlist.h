@@ -16,7 +16,7 @@ struct scatterlist {
 #ifdef CONFIG_NEED_SG_DMA_LENGTH
 	unsigned int	dma_length;
 #endif
-#ifdef CONFIG_PCI_P2PDMA
+#ifdef CONFIG_NEED_SG_DMA_FLAGS
 	unsigned int    dma_flags;
 #endif
 };
@@ -141,6 +141,30 @@ static inline void sg_set_page(struct scatterlist *sg, struct page *page,
 	sg->length = len;
 }
 
+/**
+ * sg_set_folio - Set sg entry to point at given folio
+ * @sg:		 SG entry
+ * @folio:	 The folio
+ * @len:	 Length of data
+ * @offset:	 Offset into folio
+ *
+ * Description:
+ *   Use this function to set an sg entry pointing at a folio, never assign
+ *   the folio directly. We encode sg table information in the lower bits
+ *   of the folio pointer. See sg_page() for looking up the page belonging
+ *   to an sg entry.
+ *
+ **/
+static inline void sg_set_folio(struct scatterlist *sg, struct folio *folio,
+			       size_t len, size_t offset)
+{
+	WARN_ON_ONCE(len > UINT_MAX);
+	WARN_ON_ONCE(offset > UINT_MAX);
+	sg_assign_page(sg, &folio->page);
+	sg->offset = offset;
+	sg->length = len;
+}
+
 static inline struct page *sg_page(struct scatterlist *sg)
 {
 #ifdef CONFIG_DEBUG_SG
@@ -249,17 +273,18 @@ static inline void sg_unmark_end(struct scatterlist *sg)
 }
 
 /*
- * CONFGI_PCI_P2PDMA depends on CONFIG_64BIT which means there is 4 bytes
- * in struct scatterlist (assuming also CONFIG_NEED_SG_DMA_LENGTH is set).
- * Use this padding for DMA flags bits to indicate when a specific
- * dma address is a bus address.
+ * One 64-bit architectures there is a 4-byte padding in struct scatterlist
+ * (assuming also CONFIG_NEED_SG_DMA_LENGTH is set). Use this padding for DMA
+ * flags bits to indicate when a specific dma address is a bus address or the
+ * buffer may have been bounced via SWIOTLB.
  */
-#ifdef CONFIG_PCI_P2PDMA
+#ifdef CONFIG_NEED_SG_DMA_FLAGS
 
-#define SG_DMA_BUS_ADDRESS (1 << 0)
+#define SG_DMA_BUS_ADDRESS	(1 << 0)
+#define SG_DMA_SWIOTLB		(1 << 1)
 
 /**
- * sg_dma_is_bus address - Return whether a given segment was marked
+ * sg_dma_is_bus_address - Return whether a given segment was marked
  *			   as a bus address
  * @sg:		 SG entry
  *
@@ -267,13 +292,13 @@ static inline void sg_unmark_end(struct scatterlist *sg)
  *   Returns true if sg_dma_mark_bus_address() has been called on
  *   this segment.
  **/
-static inline bool sg_is_dma_bus_address(struct scatterlist *sg)
+static inline bool sg_dma_is_bus_address(struct scatterlist *sg)
 {
 	return sg->dma_flags & SG_DMA_BUS_ADDRESS;
 }
 
 /**
- * sg_dma_mark_bus address - Mark the scatterlist entry as a bus address
+ * sg_dma_mark_bus_address - Mark the scatterlist entry as a bus address
  * @sg:		 SG entry
  *
  * Description:
@@ -299,9 +324,37 @@ static inline void sg_dma_unmark_bus_address(struct scatterlist *sg)
 	sg->dma_flags &= ~SG_DMA_BUS_ADDRESS;
 }
 
+/**
+ * sg_dma_is_swiotlb - Return whether the scatterlist was marked for SWIOTLB
+ *			bouncing
+ * @sg:		SG entry
+ *
+ * Description:
+ *   Returns true if the scatterlist was marked for SWIOTLB bouncing. Not all
+ *   elements may have been bounced, so the caller would have to check
+ *   individual SG entries with is_swiotlb_buffer().
+ */
+static inline bool sg_dma_is_swiotlb(struct scatterlist *sg)
+{
+	return sg->dma_flags & SG_DMA_SWIOTLB;
+}
+
+/**
+ * sg_dma_mark_swiotlb - Mark the scatterlist for SWIOTLB bouncing
+ * @sg:		SG entry
+ *
+ * Description:
+ *   Marks a a scatterlist for SWIOTLB bounce. Not all SG entries may be
+ *   bounced.
+ */
+static inline void sg_dma_mark_swiotlb(struct scatterlist *sg)
+{
+	sg->dma_flags |= SG_DMA_SWIOTLB;
+}
+
 #else
 
-static inline bool sg_is_dma_bus_address(struct scatterlist *sg)
+static inline bool sg_dma_is_bus_address(struct scatterlist *sg)
 {
 	return false;
 }
@@ -311,8 +364,15 @@ static inline void sg_dma_mark_bus_address(struct scatterlist *sg)
 static inline void sg_dma_unmark_bus_address(struct scatterlist *sg)
 {
 }
+static inline bool sg_dma_is_swiotlb(struct scatterlist *sg)
+{
+	return false;
+}
+static inline void sg_dma_mark_swiotlb(struct scatterlist *sg)
+{
+}
 
-#endif
+#endif	/* CONFIG_NEED_SG_DMA_FLAGS */
 
 /**
  * sg_phys - Return physical address of an sg entry

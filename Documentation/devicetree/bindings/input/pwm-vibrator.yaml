@@ -32,6 +32,8 @@ properties:
     minItems: 1
     maxItems: 2
 
+  enable-gpios: true
+
   vcc-supply: true
 
   direction-duty-cycle-ns:

@@ -233,7 +233,6 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 	struct gfs2_bufdata *bd;
 	struct gfs2_meta_header *mh;
 	struct gfs2_trans *tr = current->journal_info;
-	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
 
 	lock_buffer(bh);
 	if (buffer_pinned(bh)) {
@@ -267,7 +266,7 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 		       (unsigned long long)bd->bd_bh->b_blocknr);
 		BUG();
 	}
-	if (unlikely(state == SFS_FROZEN)) {
+	if (unlikely(test_bit(SDF_FROZEN, &sdp->sd_flags))) {
 		fs_info(sdp, "GFS2:adding buf while frozen\n");
 		gfs2_assert_withdraw(sdp, 0);
 	}

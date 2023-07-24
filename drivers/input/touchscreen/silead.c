@@ -826,7 +826,7 @@ MODULE_DEVICE_TABLE(of, silead_ts_of_match);
 #endif
 
 static struct i2c_driver silead_ts_driver = {
-	.probe_new = silead_ts_probe,
+	.probe = silead_ts_probe,
 	.id_table = silead_ts_id,
 	.driver = {
 		.name = SILEAD_TS_NAME,

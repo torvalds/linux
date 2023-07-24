@@ -352,7 +352,8 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 			rc = apply_rela_bits(loc, val, 0, 64, 0, write);
 		else if (r_type == R_390_GOTENT ||
 			 r_type == R_390_GOTPLTENT) {
-			val += (Elf_Addr) me->mem[MOD_TEXT].base - loc;
+			val += (Elf_Addr)me->mem[MOD_TEXT].base +
+				me->arch.got_offset - loc;
 			rc = apply_rela_bits(loc, val, 1, 32, 1, write);
 		}
 		break;

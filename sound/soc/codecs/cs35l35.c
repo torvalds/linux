@@ -1099,7 +1099,7 @@ static struct regmap_config cs35l35_regmap = {
 	.volatile_reg = cs35l35_volatile_register,
 	.readable_reg = cs35l35_readable_register,
 	.precious_reg = cs35l35_precious_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -1654,7 +1654,7 @@ static struct i2c_driver cs35l35_i2c_driver = {
 		.of_match_table = cs35l35_of_match,
 	},
 	.id_table = cs35l35_id,
-	.probe_new = cs35l35_i2c_probe,
+	.probe = cs35l35_i2c_probe,
 	.remove = cs35l35_i2c_remove,
 };
 

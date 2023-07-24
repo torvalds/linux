@@ -15,7 +15,7 @@
 #include <linux/string.h> /* memcpy */
 #include <asm/cputype.h>
 #include <asm/mach/map.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/system_info.h>
 #include <asm/traps.h>
 #include <asm/tcm.h>

@@ -670,7 +670,7 @@ Description:	Preferred MTE tag checking mode
 		"async"	  	  Prefer asynchronous mode
 		================  ==============================================
 
-		See also: Documentation/arm64/memory-tagging-extension.rst
+		See also: Documentation/arch/arm64/memory-tagging-extension.rst
 
 What:		/sys/devices/system/cpu/nohz_full
 Date:		Apr 2015

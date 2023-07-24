@@ -281,7 +281,7 @@ static int ad8366_probe(struct spi_device *spi)
 	indio_dev->info = &ad8366_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = ad8366_write(indio_dev, 0 , 0);
+	ret = ad8366_write(indio_dev, 0, 0);
 	if (ret < 0)
 		goto error_disable_reg;
 

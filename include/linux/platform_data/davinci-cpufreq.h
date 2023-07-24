@@ -16,4 +16,10 @@ struct davinci_cpufreq_config {
 	int (*init)(void);
 };
 
+#ifdef CONFIG_CPU_FREQ
+int davinci_cpufreq_init(void);
+#else
+static inline int davinci_cpufreq_init(void) { return 0; }
+#endif
+
 #endif /* _MACH_DAVINCI_CPUFREQ_H */

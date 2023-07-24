@@ -30,6 +30,8 @@ struct btrfs_zoned_device_info {
 	struct blk_zone sb_zones[2 * BTRFS_SUPER_MIRROR_MAX];
 };
 
+void btrfs_finish_ordered_zoned(struct btrfs_ordered_extent *ordered);
+
 #ifdef CONFIG_BLK_DEV_ZONED
 int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
 		       struct blk_zone *zone);
@@ -54,10 +56,8 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new);
 void btrfs_calc_zone_unusable(struct btrfs_block_group *cache);
 void btrfs_redirty_list_add(struct btrfs_transaction *trans,
 			    struct extent_buffer *eb);
-void btrfs_free_redirty_list(struct btrfs_transaction *trans);
 bool btrfs_use_zone_append(struct btrfs_bio *bbio);
 void btrfs_record_physical_zoned(struct btrfs_bio *bbio);
-void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered);
 bool btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
 				    struct extent_buffer *eb,
 				    struct btrfs_block_group **cache_ret);
@@ -179,7 +179,6 @@ static inline void btrfs_calc_zone_unusable(struct btrfs_block_group *cache) { }
 
 static inline void btrfs_redirty_list_add(struct btrfs_transaction *trans,
 					  struct extent_buffer *eb) { }
-static inline void btrfs_free_redirty_list(struct btrfs_transaction *trans) { }
 
 static inline bool btrfs_use_zone_append(struct btrfs_bio *bbio)
 {
@@ -189,9 +188,6 @@ static inline bool btrfs_use_zone_append(struct btrfs_bio *bbio)
 static inline void btrfs_record_physical_zoned(struct btrfs_bio *bbio)
 {
 }
-
-static inline void btrfs_rewrite_logical_zoned(
-				struct btrfs_ordered_extent *ordered) { }
 
 static inline bool btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
 			       struct extent_buffer *eb,

@@ -402,7 +402,7 @@ static struct i2c_driver vz89x_driver = {
 		.name	= "vz89x",
 		.of_match_table = vz89x_dt_ids,
 	},
-	.probe_new = vz89x_probe,
+	.probe = vz89x_probe,
 	.id_table = vz89x_id,
 };
 module_i2c_driver(vz89x_driver);

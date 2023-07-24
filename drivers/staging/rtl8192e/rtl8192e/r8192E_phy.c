@@ -32,7 +32,6 @@ static u32 _rtl92e_calculate_bit_shift(u32 dwBitMask)
 void rtl92e_set_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
 		       u32 dwData)
 {
-
 	u32 OriginalValue, BitShift, NewValue;
 
 	if (dwBitMask != bMaskDWord) {
@@ -40,8 +39,9 @@ void rtl92e_set_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
 		BitShift = _rtl92e_calculate_bit_shift(dwBitMask);
 		NewValue = (OriginalValue & ~dwBitMask) | (dwData << BitShift);
 		rtl92e_writel(dev, dwRegAddr, NewValue);
-	} else
+	} else {
 		rtl92e_writel(dev, dwRegAddr, dwData);
+	}
 }
 
 u32 rtl92e_get_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
@@ -99,7 +99,6 @@ static u32 _rtl92e_phy_rf_read(struct net_device *dev,
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);
 
 	return ret;
-
 }
 
 static void _rtl92e_phy_rf_write(struct net_device *dev,
@@ -165,10 +164,10 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 
 			_rtl92e_phy_rf_fw_write(dev, eRFPath, RegAddr,
 						New_Value);
-		} else
+		} else {
 			_rtl92e_phy_rf_fw_write(dev, eRFPath, RegAddr, Data);
+		}
 		udelay(200);
-
 	} else {
 		if (BitMask != bMask12Bits) {
 			Original_Value = _rtl92e_phy_rf_read(dev, eRFPath,
@@ -177,8 +176,9 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 			New_Value = (Original_Value & ~BitMask) | (Data << BitShift);
 
 			_rtl92e_phy_rf_write(dev, eRFPath, RegAddr, New_Value);
-		} else
+		} else {
 			_rtl92e_phy_rf_write(dev, eRFPath, RegAddr, Data);
+		}
 	}
 }
 
@@ -226,7 +226,6 @@ static u32 _rtl92e_phy_rf_fw_read(struct net_device *dev,
 			return 0;
 	}
 	return rtl92e_readl(dev, RF_DATA);
-
 }
 
 static void _rtl92e_phy_rf_fw_write(struct net_device *dev,
@@ -247,9 +246,7 @@ static void _rtl92e_phy_rf_fw_write(struct net_device *dev,
 			break;
 	}
 	rtl92e_writel(dev, QPNR, Data);
-
 }
-
 
 void rtl92e_config_mac(struct net_device *dev)
 {
@@ -267,12 +264,10 @@ void rtl92e_config_mac(struct net_device *dev)
 	}
 	for (i = 0; i < dwArrayLen; i += 3) {
 		if (pdwArray[i] == 0x318)
-			pdwArray[i+2] = 0x00000800;
-		rtl92e_set_bb_reg(dev, pdwArray[i], pdwArray[i+1],
-				  pdwArray[i+2]);
+			pdwArray[i + 2] = 0x00000800;
+		rtl92e_set_bb_reg(dev, pdwArray[i], pdwArray[i + 1],
+				  pdwArray[i + 2]);
 	}
-	return;
-
 }
 
 static void _rtl92e_phy_config_bb(struct net_device *dev, u8 ConfigType)
@@ -291,13 +286,13 @@ static void _rtl92e_phy_config_bb(struct net_device *dev, u8 ConfigType)
 		for (i = 0; i < PHY_REGArrayLen; i += 2) {
 			rtl92e_set_bb_reg(dev, Rtl819XPHY_REGArray_Table[i],
 					  bMaskDWord,
-					  Rtl819XPHY_REGArray_Table[i+1]);
+					  Rtl819XPHY_REGArray_Table[i + 1]);
 		}
 	} else if (ConfigType == BB_CONFIG_AGC_TAB) {
 		for (i = 0; i < AGCTAB_ArrayLen; i += 2) {
 			rtl92e_set_bb_reg(dev, Rtl819XAGCTAB_Array_Table[i],
 					  bMaskDWord,
-					  Rtl819XAGCTAB_Array_Table[i+1]);
+					  Rtl819XAGCTAB_Array_Table[i + 1]);
 		}
 	}
 }
@@ -370,7 +365,6 @@ bool rtl92e_check_bb_and_rf(struct net_device *dev, enum hw90_block CheckBlock,
 			break;
 		}
 
-
 		if (dwRegRead != WriteData[i]) {
 			netdev_warn(dev, "%s(): Check failed.\n", __func__);
 			ret = false;
@@ -389,10 +383,10 @@ static bool _rtl92e_bb_config_para_file(struct net_device *dev)
 	u32 dwRegValue = 0;
 
 	bRegValue = rtl92e_readb(dev, BB_GLOBAL_RESET);
-	rtl92e_writeb(dev, BB_GLOBAL_RESET, (bRegValue|BB_GLOBAL_RESET_BIT));
+	rtl92e_writeb(dev, BB_GLOBAL_RESET, (bRegValue | BB_GLOBAL_RESET_BIT));
 
 	dwRegValue = rtl92e_readl(dev, CPU_GEN);
-	rtl92e_writel(dev, CPU_GEN, (dwRegValue&(~CPU_GEN_BB_RST)));
+	rtl92e_writel(dev, CPU_GEN, (dwRegValue & (~CPU_GEN_BB_RST)));
 
 	for (eCheckItem = (enum hw90_block)HW90_BLOCK_PHY0;
 	     eCheckItem <= HW90_BLOCK_PHY1; eCheckItem++) {
@@ -402,19 +396,18 @@ static bool _rtl92e_bb_config_para_file(struct net_device *dev)
 		if (!rtStatus)
 			return rtStatus;
 	}
-	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bCCKEn|bOFDMEn, 0x0);
+	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bCCKEn | bOFDMEn, 0x0);
 	_rtl92e_phy_config_bb(dev, BB_CONFIG_PHY_REG);
 
 	dwRegValue = rtl92e_readl(dev, CPU_GEN);
-	rtl92e_writel(dev, CPU_GEN, (dwRegValue|CPU_GEN_BB_RST));
+	rtl92e_writel(dev, CPU_GEN, (dwRegValue | CPU_GEN_BB_RST));
 
 	_rtl92e_phy_config_bb(dev, BB_CONFIG_AGC_TAB);
 
 	if (priv->ic_cut  > VERSION_8190_BD) {
 		dwRegValue = 0x0;
 		rtl92e_set_bb_reg(dev, rFPGA0_TxGainStage,
-				  (bXBTxAGC|bXCTxAGC|bXDTxAGC), dwRegValue);
-
+				  (bXBTxAGC | bXCTxAGC | bXDTxAGC), dwRegValue);
 
 		dwRegValue = priv->crystal_cap;
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, bXtalCap92x,
@@ -470,7 +463,6 @@ void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
 
 u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 {
-
 	int i;
 
 	switch (eRFPath) {
@@ -483,7 +475,6 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 			rtl92e_set_rf_reg(dev, eRFPath, RTL8192E_RADIO_A_ARR[i],
 					  bMask12Bits,
 					  RTL8192E_RADIO_A_ARR[i + 1]);
-
 		}
 		break;
 	case RF90_PATH_B:
@@ -495,7 +486,6 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 			rtl92e_set_rf_reg(dev, eRFPath, RTL8192E_RADIO_B_ARR[i],
 					  bMask12Bits,
 					  RTL8192E_RADIO_B_ARR[i + 1]);
-
 		}
 		break;
 	default:
@@ -503,7 +493,6 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 	}
 
 	return 0;
-
 }
 
 static void _rtl92e_set_tx_power_level(struct net_device *dev, u8 channel)
@@ -645,7 +634,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 					rtl92e_set_rf_reg(dev,
 						 (enum rf90_radio_path)eRFPath,
 						 CurrentCmd->Para1, bMask12Bits,
-						 CurrentCmd->Para2<<7);
+						 CurrentCmd->Para2 << 7);
 				break;
 			default:
 				break;
@@ -677,7 +666,6 @@ static void _rtl92e_phy_switch_channel(struct net_device *dev, u8 channel)
 
 static void _rtl92e_phy_switch_channel_work_item(struct net_device *dev)
 {
-
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	_rtl92e_phy_switch_channel(dev, priv->chan);
@@ -693,7 +681,6 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 	}
 	if (priv->sw_chnl_in_progress)
 		return false;
-
 
 	switch (priv->rtllib->mode) {
 	case WIRELESS_MODE_B:
@@ -824,7 +811,6 @@ static void _rtl92e_cck_tx_power_track_bw_switch(struct net_device *dev)
 
 static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 {
-
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 regBwOpMode;
 
@@ -880,7 +866,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		}
 
 		rtl92e_set_bb_reg(dev, rCCK0_System, bCCKSideBand,
-				  (priv->n_cur_40mhz_prime_sc>>1));
+				  (priv->n_cur_40mhz_prime_sc >> 1));
 		rtl92e_set_bb_reg(dev, rOFDM1_LSTF, 0xC00,
 				  priv->n_cur_40mhz_prime_sc);
 
@@ -890,7 +876,6 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		netdev_err(dev, "%s(): unknown Bandwidth: %#X\n", __func__,
 			   priv->current_chnl_bw);
 		break;
-
 	}
 
 	rtl92e_set_bandwidth(dev, priv->current_chnl_bw);
@@ -903,7 +888,6 @@ void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width bandwidth,
 			enum ht_extchnl_offset Offset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-
 
 	if (priv->set_bw_mode_in_progress)
 		return;
@@ -921,7 +905,6 @@ void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width bandwidth,
 		priv->n_cur_40mhz_prime_sc = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
 	_rtl92e_set_bw_mode_work_item(dev);
-
 }
 
 void rtl92e_init_gain(struct net_device *dev, u8 Operation)
@@ -993,7 +976,6 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 
 void rtl92e_set_rf_off(struct net_device *dev)
 {
-
 	rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x18, 0x0);
@@ -1002,7 +984,6 @@ void rtl92e_set_rf_off(struct net_device *dev)
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x60, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x4, 0x0);
 	rtl92e_writeb(dev, ANAPAR_FOR_8192PCIE, 0x07);
-
 }
 
 static bool _rtl92e_set_rf_power_state(struct net_device *dev,
@@ -1099,9 +1080,8 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 		break;
 	}
 
-	if (bResult) {
+	if (bResult)
 		priv->rtllib->rf_power_state = rf_power_state;
-	}
 
 	priv->set_rf_pwr_state_in_progress = false;
 	return bResult;
@@ -1130,11 +1110,11 @@ void rtl92e_scan_op_backup(struct net_device *dev, u8 Operation)
 	if (priv->up) {
 		switch (Operation) {
 		case SCAN_OPT_BACKUP:
-			priv->rtllib->InitialGainHandler(dev, IG_Backup);
+			priv->rtllib->init_gain_handler(dev, IG_Backup);
 			break;
 
 		case SCAN_OPT_RESTORE:
-			priv->rtllib->InitialGainHandler(dev, IG_Restore);
+			priv->rtllib->init_gain_handler(dev, IG_Restore);
 			break;
 		}
 	}

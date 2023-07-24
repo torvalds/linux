@@ -3317,7 +3317,7 @@ static struct i2c_driver da7218_i2c_driver = {
 		.name = "da7218",
 		.of_match_table = da7218_of_match,
 	},
-	.probe_new	= da7218_i2c_probe,
+	.probe		= da7218_i2c_probe,
 	.id_table	= da7218_i2c_id,
 };
 

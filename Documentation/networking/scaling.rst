@@ -269,8 +269,8 @@ a single application thread handles flows with many different flow hashes.
 rps_sock_flow_table is a global flow table that contains the *desired* CPU
 for flows: the CPU that is currently processing the flow in userspace.
 Each table value is a CPU index that is updated during calls to recvmsg
-and sendmsg (specifically, inet_recvmsg(), inet_sendmsg(), inet_sendpage()
-and tcp_splice_read()).
+and sendmsg (specifically, inet_recvmsg(), inet_sendmsg() and
+tcp_splice_read()).
 
 When the scheduler moves a thread to a new CPU while it has outstanding
 receive packets on the old CPU, packets may arrive out of order. To

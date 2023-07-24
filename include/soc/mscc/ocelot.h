@@ -663,6 +663,7 @@ struct ocelot_ops {
 			      struct flow_stats *stats);
 	void (*cut_through_fwd)(struct ocelot *ocelot);
 	void (*tas_clock_adjust)(struct ocelot *ocelot);
+	void (*tas_guard_bands_update)(struct ocelot *ocelot, int port);
 	void (*update_stats)(struct ocelot *ocelot);
 };
 
@@ -730,6 +731,11 @@ enum macaccess_entry_type {
 	ENTRYTYPE_MACv6,
 };
 
+enum ocelot_proto {
+	OCELOT_PROTO_PTP_L2 = BIT(0),
+	OCELOT_PROTO_PTP_L4 = BIT(1),
+};
+
 #define OCELOT_QUIRK_PCS_PERFORMS_RATE_ADAPTATION	BIT(0)
 #define OCELOT_QUIRK_QSGMII_PORTS_MUST_BE_UP		BIT(1)
 
@@ -774,6 +780,8 @@ struct ocelot_port {
 
 	unsigned int			ptp_skbs_in_flight;
 	struct sk_buff_head		tx_skbs;
+
+	unsigned int			trap_proto;
 
 	u16				mrp_ring_id;
 
@@ -856,11 +864,11 @@ struct ocelot {
 	struct mutex			stat_view_lock;
 	/* Lock for serializing access to the MAC table */
 	struct mutex			mact_lock;
-	/* Lock for serializing forwarding domain changes */
+	/* Lock for serializing forwarding domain changes, including the
+	 * configuration of the Time-Aware Shaper, MAC Merge layer and
+	 * cut-through forwarding, on which it depends
+	 */
 	struct mutex			fwd_domain_lock;
-
-	/* Lock for serializing Time-Aware Shaper changes */
-	struct mutex			tas_lock;
 
 	struct workqueue_struct		*owq;
 
@@ -868,12 +876,9 @@ struct ocelot {
 	u8				mm_supported:1;
 	struct ptp_clock		*ptp_clock;
 	struct ptp_clock_info		ptp_info;
-	struct hwtstamp_config		hwtstamp_config;
 	unsigned int			ptp_skbs_in_flight;
 	/* Protects the 2-step TX timestamp ID logic */
 	spinlock_t			ts_id_lock;
-	/* Protects the PTP interface state */
-	struct mutex			ptp_lock;
 	/* Protects the PTP clock */
 	spinlock_t			ptp_clock_lock;
 	struct ptp_pin_desc		ptp_pins[OCELOT_PTP_PINS_NUM];

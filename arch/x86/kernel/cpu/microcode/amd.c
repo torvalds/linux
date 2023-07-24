@@ -78,8 +78,6 @@ static u16 find_equiv_id(struct equiv_cpu_table *et, u32 sig)
 
 		if (sig == e->installed_cpu)
 			return e->equiv_cpu;
-
-		e++;
 	}
 	return 0;
 }
@@ -596,11 +594,6 @@ void reload_ucode_amd(unsigned int cpu)
 		}
 	}
 }
-static u16 __find_equiv_id(unsigned int cpu)
-{
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	return find_equiv_id(&equiv_table, uci->cpu_sig.sig);
-}
 
 /*
  * a small, trivial cache of per-family ucode patches
@@ -651,9 +644,11 @@ static void free_cache(void)
 
 static struct ucode_patch *find_patch(unsigned int cpu)
 {
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	u16 equiv_id;
 
-	equiv_id = __find_equiv_id(cpu);
+
+	equiv_id = find_equiv_id(&equiv_table, uci->cpu_sig.sig);
 	if (!equiv_id)
 		return NULL;
 
@@ -705,7 +700,7 @@ static enum ucode_state apply_microcode_amd(int cpu)
 	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 
 	/* need to apply patch? */
-	if (rev >= mc_amd->hdr.patch_id) {
+	if (rev > mc_amd->hdr.patch_id) {
 		ret = UCODE_OK;
 		goto out;
 	}

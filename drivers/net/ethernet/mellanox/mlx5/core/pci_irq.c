@@ -41,6 +41,15 @@ struct mlx5_irq_table {
 	struct mlx5_irq_pool *sf_comp_pool;
 };
 
+static int mlx5_core_func_to_vport(const struct mlx5_core_dev *dev,
+				   int func,
+				   bool ec_vf_func)
+{
+	if (!ec_vf_func)
+		return func;
+	return mlx5_core_ec_vf_vport_base(dev) + func - 1;
+}
+
 /**
  * mlx5_get_default_msix_vec_count - Get the default number of MSI-X vectors
  *                                   to be ssigned to each VF.
@@ -79,6 +88,8 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
 	void *hca_cap = NULL, *query_cap = NULL, *cap;
 	int num_vf_msix, min_msix, max_msix;
+	bool ec_vf_function;
+	int vport;
 	int ret;
 
 	num_vf_msix = MLX5_CAP_GEN_MAX(dev, num_total_dynamic_vf_msix);
@@ -104,7 +115,9 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 		goto out;
 	}
 
-	ret = mlx5_vport_get_other_func_general_cap(dev, function_id, query_cap);
+	ec_vf_function = mlx5_core_ec_sriov_enabled(dev);
+	vport = mlx5_core_func_to_vport(dev, function_id, ec_vf_function);
+	ret = mlx5_vport_get_other_func_general_cap(dev, vport, query_cap);
 	if (ret)
 		goto out;
 
@@ -115,6 +128,7 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 
 	MLX5_SET(set_hca_cap_in, hca_cap, opcode, MLX5_CMD_OP_SET_HCA_CAP);
 	MLX5_SET(set_hca_cap_in, hca_cap, other_function, 1);
+	MLX5_SET(set_hca_cap_in, hca_cap, ec_vf_function, ec_vf_function);
 	MLX5_SET(set_hca_cap_in, hca_cap, function_id, function_id);
 
 	MLX5_SET(set_hca_cap_in, hca_cap, op_mod,
@@ -126,14 +140,22 @@ out:
 	return ret;
 }
 
-static void irq_release(struct mlx5_irq *irq)
+/* mlx5_system_free_irq - Free an IRQ
+ * @irq: IRQ to free
+ *
+ * Free the IRQ and other resources such as rmap from the system.
+ * BUT doesn't free or remove reference from mlx5.
+ * This function is very important for the shutdown flow, where we need to
+ * cleanup system resoruces but keep mlx5 objects alive,
+ * see mlx5_irq_table_free_irqs().
+ */
+static void mlx5_system_free_irq(struct mlx5_irq *irq)
 {
 	struct mlx5_irq_pool *pool = irq->pool;
 #ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap *rmap;
 #endif
 
-	xa_erase(&pool->irqs, irq->pool_index);
 	/* free_irq requires that affinity_hint and rmap will be cleared before
 	 * calling it. To satisfy this requirement, we call
 	 * irq_cpu_rmap_remove() to remove the notifier
@@ -145,10 +167,18 @@ static void irq_release(struct mlx5_irq *irq)
 		irq_cpu_rmap_remove(rmap, irq->map.virq);
 #endif
 
-	free_cpumask_var(irq->mask);
 	free_irq(irq->map.virq, &irq->nh);
 	if (irq->map.index && pci_msix_can_alloc_dyn(pool->dev->pdev))
 		pci_msix_free_irq(pool->dev->pdev, irq->map);
+}
+
+static void irq_release(struct mlx5_irq *irq)
+{
+	struct mlx5_irq_pool *pool = irq->pool;
+
+	xa_erase(&pool->irqs, irq->pool_index);
+	mlx5_system_free_irq(irq);
+	free_cpumask_var(irq->mask);
 	kfree(irq);
 }
 
@@ -565,15 +595,21 @@ void mlx5_irqs_release_vectors(struct mlx5_irq **irqs, int nirqs)
 int mlx5_irqs_request_vectors(struct mlx5_core_dev *dev, u16 *cpus, int nirqs,
 			      struct mlx5_irq **irqs, struct cpu_rmap **rmap)
 {
+	struct mlx5_irq_table *table = mlx5_irq_table_get(dev);
+	struct mlx5_irq_pool *pool = table->pcif_pool;
 	struct irq_affinity_desc af_desc;
 	struct mlx5_irq *irq;
+	int offset = 1;
 	int i;
+
+	if (!pool->xa_num_irqs.max)
+		offset = 0;
 
 	af_desc.is_managed = false;
 	for (i = 0; i < nirqs; i++) {
 		cpumask_clear(&af_desc.mask);
 		cpumask_set_cpu(cpus[i], &af_desc.mask);
-		irq = mlx5_irq_request(dev, i + 1, &af_desc, rmap);
+		irq = mlx5_irq_request(dev, i + offset, &af_desc, rmap);
 		if (IS_ERR(irq))
 			break;
 		irqs[i] = irq;
@@ -699,7 +735,8 @@ static void mlx5_irq_pool_free_irqs(struct mlx5_irq_pool *pool)
 	unsigned long index;
 
 	xa_for_each(&pool->irqs, index, irq)
-		free_irq(irq->map.virq, &irq->nh);
+		mlx5_system_free_irq(irq);
+
 }
 
 static void mlx5_irq_pools_free_irqs(struct mlx5_irq_table *table)

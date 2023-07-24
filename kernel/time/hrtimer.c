@@ -164,6 +164,7 @@ static inline bool is_migration_base(struct hrtimer_clock_base *base)
 static
 struct hrtimer_clock_base *lock_hrtimer_base(const struct hrtimer *timer,
 					     unsigned long *flags)
+	__acquires(&timer->base->lock)
 {
 	struct hrtimer_clock_base *base;
 
@@ -280,6 +281,7 @@ static inline bool is_migration_base(struct hrtimer_clock_base *base)
 
 static inline struct hrtimer_clock_base *
 lock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
+	__acquires(&timer->base->cpu_base->lock)
 {
 	struct hrtimer_clock_base *base = timer->base;
 
@@ -1013,6 +1015,7 @@ void hrtimers_resume_local(void)
  */
 static inline
 void unlock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
+	__releases(&timer->base->cpu_base->lock)
 {
 	raw_spin_unlock_irqrestore(&timer->base->cpu_base->lock, *flags);
 }

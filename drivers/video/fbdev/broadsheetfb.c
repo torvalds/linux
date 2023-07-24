@@ -1161,3 +1161,5 @@ module_platform_driver(broadsheetfb_driver);
 MODULE_DESCRIPTION("fbdev driver for Broadsheet controller");
 MODULE_AUTHOR("Jaya Kumar");
 MODULE_LICENSE("GPL");
+
+MODULE_FIRMWARE("broadsheet.wbf");

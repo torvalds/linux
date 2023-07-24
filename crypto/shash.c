@@ -597,7 +597,7 @@ struct crypto_shash *crypto_clone_shash(struct crypto_shash *hash)
 		return hash;
 	}
 
-	if (!alg->clone_tfm)
+	if (!alg->clone_tfm && (alg->init_tfm || alg->base.cra_init))
 		return ERR_PTR(-ENOSYS);
 
 	nhash = crypto_clone_tfm(&crypto_shash_type, tfm);
@@ -606,10 +606,12 @@ struct crypto_shash *crypto_clone_shash(struct crypto_shash *hash)
 
 	nhash->descsize = hash->descsize;
 
-	err = alg->clone_tfm(nhash, hash);
-	if (err) {
-		crypto_free_shash(nhash);
-		return ERR_PTR(err);
+	if (alg->clone_tfm) {
+		err = alg->clone_tfm(nhash, hash);
+		if (err) {
+			crypto_free_shash(nhash);
+			return ERR_PTR(err);
+		}
 	}
 
 	return nhash;

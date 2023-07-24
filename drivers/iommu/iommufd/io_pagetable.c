@@ -458,6 +458,7 @@ static int iopt_unmap_iova_range(struct io_pagetable *iopt, unsigned long start,
 {
 	struct iopt_area *area;
 	unsigned long unmapped_bytes = 0;
+	unsigned int tries = 0;
 	int rc = -ENOENT;
 
 	/*
@@ -484,19 +485,26 @@ again:
 			goto out_unlock_iova;
 		}
 
+		if (area_first != start)
+			tries = 0;
+
 		/*
 		 * num_accesses writers must hold the iova_rwsem too, so we can
 		 * safely read it under the write side of the iovam_rwsem
 		 * without the pages->mutex.
 		 */
 		if (area->num_accesses) {
+			size_t length = iopt_area_length(area);
+
 			start = area_first;
 			area->prevent_access = true;
 			up_write(&iopt->iova_rwsem);
 			up_read(&iopt->domains_rwsem);
-			iommufd_access_notify_unmap(iopt, area_first,
-						    iopt_area_length(area));
-			if (WARN_ON(READ_ONCE(area->num_accesses)))
+
+			iommufd_access_notify_unmap(iopt, area_first, length);
+			/* Something is not responding to unmap requests. */
+			tries++;
+			if (WARN_ON(tries > 100))
 				return -EDEADLOCK;
 			goto again;
 		}

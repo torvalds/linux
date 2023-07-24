@@ -12,6 +12,8 @@
 
 #include <uapi/linux/psci.h>
 
+#include "core.h"
+
 #define HIGHBANK_SUSPEND_PARAM \
 	((0 << PSCI_0_2_POWER_STATE_ID_SHIFT) | \
 	 (1 << PSCI_0_2_POWER_STATE_AFFL_SHIFT) | \

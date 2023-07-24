@@ -826,7 +826,8 @@ static bool folio_referenced_one(struct folio *folio,
 		}
 
 		if (pvmw.pte) {
-			if (lru_gen_enabled() && pte_young(*pvmw.pte)) {
+			if (lru_gen_enabled() &&
+			    pte_young(ptep_get(pvmw.pte))) {
 				lru_gen_look_around(&pvmw);
 				referenced++;
 			}
@@ -956,13 +957,13 @@ static int page_vma_mkclean_one(struct page_vma_mapped_walk *pvmw)
 
 		address = pvmw->address;
 		if (pvmw->pte) {
-			pte_t entry;
 			pte_t *pte = pvmw->pte;
+			pte_t entry = ptep_get(pte);
 
-			if (!pte_dirty(*pte) && !pte_write(*pte))
+			if (!pte_dirty(entry) && !pte_write(entry))
 				continue;
 
-			flush_cache_page(vma, address, pte_pfn(*pte));
+			flush_cache_page(vma, address, pte_pfn(entry));
 			entry = ptep_clear_flush(vma, address, pte);
 			entry = pte_wrprotect(entry);
 			entry = pte_mkclean(entry);
@@ -1137,7 +1138,7 @@ void page_move_anon_rmap(struct page *page, struct vm_area_struct *vma)
  * @folio:	Folio which contains page.
  * @page:	Page to add to rmap.
  * @vma:	VM area to add page to.
- * @address:	User virtual address of the mapping	
+ * @address:	User virtual address of the mapping
  * @exclusive:	the page is exclusively owned by the current process
  */
 static void __page_set_anon_rmap(struct folio *folio, struct page *page,
@@ -1458,6 +1459,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 	bool anon_exclusive, ret = true;
 	struct mmu_notifier_range range;
 	enum ttu_flags flags = (enum ttu_flags)(long)arg;
+	unsigned long pfn;
 
 	/*
 	 * When racing against e.g. zap_pte_range() on another cpu,
@@ -1508,8 +1510,8 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			break;
 		}
 
-		subpage = folio_page(folio,
-					pte_pfn(*pvmw.pte) - folio_pfn(folio));
+		pfn = pte_pfn(ptep_get(pvmw.pte));
+		subpage = folio_page(folio, pfn - folio_pfn(folio));
 		address = pvmw.address;
 		anon_exclusive = folio_test_anon(folio) &&
 				 PageAnonExclusive(subpage);
@@ -1571,7 +1573,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			}
 			pteval = huge_ptep_clear_flush(vma, address, pvmw.pte);
 		} else {
-			flush_cache_page(vma, address, pte_pfn(*pvmw.pte));
+			flush_cache_page(vma, address, pfn);
 			/* Nuke the page table entry. */
 			if (should_defer_flush(mm, flags)) {
 				/*
@@ -1818,6 +1820,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 	bool anon_exclusive, ret = true;
 	struct mmu_notifier_range range;
 	enum ttu_flags flags = (enum ttu_flags)(long)arg;
+	unsigned long pfn;
 
 	/*
 	 * When racing against e.g. zap_pte_range() on another cpu,
@@ -1877,6 +1880,8 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 		/* Unexpected PMD-mapped THP? */
 		VM_BUG_ON_FOLIO(!pvmw.pte, folio);
 
+		pfn = pte_pfn(ptep_get(pvmw.pte));
+
 		if (folio_is_zone_device(folio)) {
 			/*
 			 * Our PTE is a non-present device exclusive entry and
@@ -1891,8 +1896,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			VM_BUG_ON_FOLIO(folio_nr_pages(folio) > 1, folio);
 			subpage = &folio->page;
 		} else {
-			subpage = folio_page(folio,
-					pte_pfn(*pvmw.pte) - folio_pfn(folio));
+			subpage = folio_page(folio, pfn - folio_pfn(folio));
 		}
 		address = pvmw.address;
 		anon_exclusive = folio_test_anon(folio) &&
@@ -1952,7 +1956,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			/* Nuke the hugetlb page table entry */
 			pteval = huge_ptep_clear_flush(vma, address, pvmw.pte);
 		} else {
-			flush_cache_page(vma, address, pte_pfn(*pvmw.pte));
+			flush_cache_page(vma, address, pfn);
 			/* Nuke the page table entry. */
 			if (should_defer_flush(mm, flags)) {
 				/*
@@ -2187,6 +2191,7 @@ static bool page_make_device_exclusive_one(struct folio *folio,
 	struct mmu_notifier_range range;
 	swp_entry_t entry;
 	pte_t swp_pte;
+	pte_t ptent;
 
 	mmu_notifier_range_init_owner(&range, MMU_NOTIFY_EXCLUSIVE, 0,
 				      vma->vm_mm, address, min(vma->vm_end,
@@ -2198,18 +2203,19 @@ static bool page_make_device_exclusive_one(struct folio *folio,
 		/* Unexpected PMD-mapped THP? */
 		VM_BUG_ON_FOLIO(!pvmw.pte, folio);
 
-		if (!pte_present(*pvmw.pte)) {
+		ptent = ptep_get(pvmw.pte);
+		if (!pte_present(ptent)) {
 			ret = false;
 			page_vma_mapped_walk_done(&pvmw);
 			break;
 		}
 
 		subpage = folio_page(folio,
-				pte_pfn(*pvmw.pte) - folio_pfn(folio));
+				pte_pfn(ptent) - folio_pfn(folio));
 		address = pvmw.address;
 
 		/* Nuke the page table entry. */
-		flush_cache_page(vma, address, pte_pfn(*pvmw.pte));
+		flush_cache_page(vma, address, pte_pfn(ptent));
 		pteval = ptep_clear_flush(vma, address, pvmw.pte);
 
 		/* Set the dirty flag on the folio now the pte is gone. */
@@ -2328,7 +2334,7 @@ int make_device_exclusive_range(struct mm_struct *mm, unsigned long start,
 
 	npages = get_user_pages_remote(mm, start, npages,
 				       FOLL_GET | FOLL_WRITE | FOLL_SPLIT_PMD,
-				       pages, NULL, NULL);
+				       pages, NULL);
 	if (npages < 0)
 		return npages;
 

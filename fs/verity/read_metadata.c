@@ -105,7 +105,7 @@ static int fsverity_read_descriptor(struct inode *inode,
 	if (res)
 		return res;
 
-	/* don't include the signature */
+	/* don't include the builtin signature */
 	desc_size = offsetof(struct fsverity_descriptor, signature);
 	desc->sig_size = 0;
 
@@ -131,7 +131,7 @@ static int fsverity_read_signature(struct inode *inode,
 	}
 
 	/*
-	 * Include only the signature.  Note that fsverity_get_descriptor()
+	 * Include only the builtin signature.  fsverity_get_descriptor()
 	 * already verified that sig_size is in-bounds.
 	 */
 	res = fsverity_read_buffer(buf, offset, length, desc->signature,

@@ -139,12 +139,12 @@ static void serial8250_em_serial_out(struct uart_port *p, int offset, int value)
 	}
 }
 
-static int serial8250_em_serial_dl_read(struct uart_8250_port *up)
+static u32 serial8250_em_serial_dl_read(struct uart_8250_port *up)
 {
 	return serial_in(up, UART_DLL_EM) | serial_in(up, UART_DLM_EM) << 8;
 }
 
-static void serial8250_em_serial_dl_write(struct uart_8250_port *up, int value)
+static void serial8250_em_serial_dl_write(struct uart_8250_port *up, u32 value)
 {
 	serial_out(up, UART_DLL_EM, value & 0xff);
 	serial_out(up, UART_DLM_EM, value >> 8 & 0xff);

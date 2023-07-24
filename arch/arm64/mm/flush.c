@@ -8,6 +8,7 @@
 
 #include <linux/export.h>
 #include <linux/mm.h>
+#include <linux/libnvdimm.h>
 #include <linux/pagemap.h>
 
 #include <asm/cacheflush.h>

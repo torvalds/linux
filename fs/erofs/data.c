@@ -448,5 +448,5 @@ const struct file_operations erofs_file_fops = {
 	.llseek		= generic_file_llseek,
 	.read_iter	= erofs_file_read_iter,
 	.mmap		= erofs_file_mmap,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= filemap_splice_read,
 };

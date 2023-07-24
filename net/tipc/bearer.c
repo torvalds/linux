@@ -176,7 +176,7 @@ static int bearer_name_validate(const char *name,
  */
 struct tipc_bearer *tipc_bearer_find(struct net *net, const char *name)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
 	struct tipc_bearer *b;
 	u32 i;
 
@@ -211,11 +211,10 @@ int tipc_bearer_get_name(struct net *net, char *name, u32 bearer_id)
 
 void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_bearer *b;
 
 	rcu_read_lock();
-	b = rcu_dereference(tn->bearer_list[bearer_id]);
+	b = bearer_get(net, bearer_id);
 	if (b)
 		tipc_disc_add_dest(b->disc);
 	rcu_read_unlock();
@@ -223,11 +222,10 @@ void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest)
 
 void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_bearer *b;
 
 	rcu_read_lock();
-	b = rcu_dereference(tn->bearer_list[bearer_id]);
+	b = bearer_get(net, bearer_id);
 	if (b)
 		tipc_disc_remove_dest(b->disc);
 	rcu_read_unlock();
@@ -431,7 +429,7 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 	dev = dev_get_by_name(net, dev_name);
 	if (!dev)
 		return -ENODEV;
-	if (tipc_mtu_bad(dev, 0)) {
+	if (tipc_mtu_bad(dev)) {
 		dev_put(dev);
 		return -EINVAL;
 	}
@@ -534,7 +532,7 @@ int tipc_bearer_mtu(struct net *net, u32 bearer_id)
 	struct tipc_bearer *b;
 
 	rcu_read_lock();
-	b = rcu_dereference(tipc_net(net)->bearer_list[bearer_id]);
+	b = bearer_get(net, bearer_id);
 	if (b)
 		mtu = b->mtu;
 	rcu_read_unlock();
@@ -708,7 +706,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 		test_and_set_bit_lock(0, &b->up);
 		break;
 	case NETDEV_CHANGEMTU:
-		if (tipc_mtu_bad(dev, 0)) {
+		if (tipc_mtu_bad(dev)) {
 			bearer_disable(net, b);
 			break;
 		}
@@ -745,7 +743,7 @@ void tipc_bearer_cleanup(void)
 
 void tipc_bearer_stop(struct net *net)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
 	struct tipc_bearer *b;
 	u32 i;
 
@@ -881,7 +879,7 @@ int tipc_nl_bearer_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct tipc_bearer *bearer;
 	struct tipc_nl_msg msg;
 	struct net *net = sock_net(skb->sk);
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
 
 	if (i == MAX_BEARERS)
 		return 0;

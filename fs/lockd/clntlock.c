@@ -93,6 +93,12 @@ void nlmclnt_prepare_block(struct nlm_wait *block, struct nlm_host *host, struct
 	block->b_status = nlm_lck_blocked;
 }
 
+struct rpc_clnt *nlmclnt_rpc_clnt(struct nlm_host *host)
+{
+	return host->h_rpcclnt;
+}
+EXPORT_SYMBOL_GPL(nlmclnt_rpc_clnt);
+
 /*
  * Queue up a lock for blocking so that the GRANTED request can see it
  */

@@ -751,7 +751,7 @@ static struct i2c_driver cs4270_i2c_driver = {
 		.of_match_table = cs4270_of_match,
 	},
 	.id_table = cs4270_id,
-	.probe_new = cs4270_i2c_probe,
+	.probe = cs4270_i2c_probe,
 	.remove = cs4270_i2c_remove,
 };
 

@@ -53,4 +53,7 @@ struct mount *copy_tree(struct mount *, struct dentry *, int);
 bool is_path_reachable(struct mount *, struct dentry *,
 			 const struct path *root);
 int count_mounts(struct mnt_namespace *ns, struct mount *mnt);
+bool propagation_would_overmount(const struct mount *from,
+				 const struct mount *to,
+				 const struct mountpoint *mp);
 #endif /* _LINUX_PNODE_H */

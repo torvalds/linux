@@ -1013,15 +1013,13 @@ err_reg:
 	return ret;
 }
 
-static int ifi_canfd_plat_remove(struct platform_device *pdev)
+static void ifi_canfd_plat_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 
 	unregister_candev(ndev);
 	platform_set_drvdata(pdev, NULL);
 	free_candev(ndev);
-
-	return 0;
 }
 
 static const struct of_device_id ifi_canfd_of_table[] = {
@@ -1036,7 +1034,7 @@ static struct platform_driver ifi_canfd_plat_driver = {
 		.of_match_table	= ifi_canfd_of_table,
 	},
 	.probe	= ifi_canfd_plat_probe,
-	.remove	= ifi_canfd_plat_remove,
+	.remove_new = ifi_canfd_plat_remove,
 };
 
 module_platform_driver(ifi_canfd_plat_driver);

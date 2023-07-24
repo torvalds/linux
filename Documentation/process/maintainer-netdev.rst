@@ -98,7 +98,7 @@ If you aren't subscribed to netdev and/or are simply unsure if
 repository link above for any new networking-related commits.  You may
 also check the following website for the current status:
 
-  http://vger.kernel.org/~davem/net-next.html
+  https://patchwork.hopto.org/net-next.html
 
 The ``net`` tree continues to collect fixes for the vX.Y content, and is
 fed back to Linus at regular (~weekly) intervals.  Meaning that the
@@ -149,8 +149,11 @@ themselves. No email should ever be sent to the list with the main purpose
 of communicating with the bot, the bot commands should be seen as metadata.
 
 The use of the bot is restricted to authors of the patches (the ``From:``
-header on patch submission and command must match!), maintainers themselves
-and a handful of senior reviewers. Bot records its activity here:
+header on patch submission and command must match!), maintainers of
+the modified code according to the MAINTAINERS file (again, ``From:``
+must match the MAINTAINERS entry) and a handful of senior reviewers.
+
+Bot records its activity here:
 
   https://patchwork.hopto.org/pw-bot.html
 

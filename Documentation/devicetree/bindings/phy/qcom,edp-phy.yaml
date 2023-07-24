@@ -43,6 +43,9 @@ properties:
   "#phy-cells":
     const: 0
 
+  power-domains:
+    maxItems: 1
+
   vdda-phy-supply: true
   vdda-pll-supply: true
 

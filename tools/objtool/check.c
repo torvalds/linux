@@ -8,7 +8,6 @@
 #include <inttypes.h>
 #include <sys/mman.h>
 
-#include <arch/elf.h>
 #include <objtool/builtin.h>
 #include <objtool/cfi.h>
 #include <objtool/arch.h>
@@ -33,6 +32,7 @@ static unsigned long nr_cfi, nr_cfi_reused, nr_cfi_cache;
 static struct cfi_init_state initial_func_cfi;
 static struct cfi_state init_cfi;
 static struct cfi_state func_cfi;
+static struct cfi_state force_undefined_cfi;
 
 struct instruction *find_insn(struct objtool_file *file,
 			      struct section *sec, unsigned long offset)
@@ -192,51 +192,11 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 	struct instruction *insn;
 	bool empty = true;
 
-	/*
-	 * Unfortunately these have to be hard coded because the noreturn
-	 * attribute isn't provided in ELF data. Keep 'em sorted.
-	 */
+#define NORETURN(func) __stringify(func),
 	static const char * const global_noreturns[] = {
-		"__invalid_creds",
-		"__module_put_and_kthread_exit",
-		"__reiserfs_panic",
-		"__stack_chk_fail",
-		"__ubsan_handle_builtin_unreachable",
-		"arch_call_rest_init",
-		"arch_cpu_idle_dead",
-		"btrfs_assertfail",
-		"cpu_bringup_and_idle",
-		"cpu_startup_entry",
-		"do_exit",
-		"do_group_exit",
-		"do_task_dead",
-		"ex_handler_msr_mce",
-		"fortify_panic",
-		"hlt_play_dead",
-		"hv_ghcb_terminate",
-		"kthread_complete_and_exit",
-		"kthread_exit",
-		"kunit_try_catch_throw",
-		"lbug_with_loc",
-		"machine_real_restart",
-		"make_task_dead",
-		"mpt_halt_firmware",
-		"nmi_panic_self_stop",
-		"panic",
-		"panic_smp_self_stop",
-		"rest_init",
-		"resume_play_dead",
-		"rewind_stack_and_make_dead",
-		"sev_es_terminate",
-		"snp_abort",
-		"start_kernel",
-		"stop_this_cpu",
-		"usercopy_abort",
-		"x86_64_start_kernel",
-		"x86_64_start_reservations",
-		"xen_cpu_bringup_again",
-		"xen_start_kernel",
+#include "noreturns.h"
 	};
+#undef NORETURN
 
 	if (!func)
 		return false;
@@ -533,7 +493,7 @@ static int add_pv_ops(struct objtool_file *file, const char *symname)
 {
 	struct symbol *sym, *func;
 	unsigned long off, end;
-	struct reloc *rel;
+	struct reloc *reloc;
 	int idx;
 
 	sym = find_symbol_by_name(file->elf, symname);
@@ -543,19 +503,20 @@ static int add_pv_ops(struct objtool_file *file, const char *symname)
 	off = sym->offset;
 	end = off + sym->len;
 	for (;;) {
-		rel = find_reloc_by_dest_range(file->elf, sym->sec, off, end - off);
-		if (!rel)
+		reloc = find_reloc_by_dest_range(file->elf, sym->sec, off, end - off);
+		if (!reloc)
 			break;
 
-		func = rel->sym;
+		func = reloc->sym;
 		if (func->type == STT_SECTION)
-			func = find_symbol_by_offset(rel->sym->sec, rel->addend);
+			func = find_symbol_by_offset(reloc->sym->sec,
+						     reloc_addend(reloc));
 
-		idx = (rel->offset - sym->offset) / sizeof(unsigned long);
+		idx = (reloc_offset(reloc) - sym->offset) / sizeof(unsigned long);
 
 		objtool_pv_add(file, idx, func);
 
-		off = rel->offset + 1;
+		off = reloc_offset(reloc) + 1;
 		if (off > end)
 			break;
 	}
@@ -620,35 +581,40 @@ static struct instruction *find_last_insn(struct objtool_file *file,
  */
 static int add_dead_ends(struct objtool_file *file)
 {
-	struct section *sec;
+	struct section *rsec;
 	struct reloc *reloc;
 	struct instruction *insn;
+	s64 addend;
 
 	/*
 	 * Check for manually annotated dead ends.
 	 */
-	sec = find_section_by_name(file->elf, ".rela.discard.unreachable");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.unreachable");
+	if (!rsec)
 		goto reachable;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
+
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
-		insn = find_insn(file, reloc->sym->sec, reloc->addend);
+
+		addend = reloc_addend(reloc);
+
+		insn = find_insn(file, reloc->sym->sec, addend);
 		if (insn)
 			insn = prev_insn_same_sec(file, insn);
-		else if (reloc->addend == reloc->sym->sec->sh.sh_size) {
+		else if (addend == reloc->sym->sec->sh.sh_size) {
 			insn = find_last_insn(file, reloc->sym->sec);
 			if (!insn) {
 				WARN("can't find unreachable insn at %s+0x%" PRIx64,
-				     reloc->sym->sec->name, reloc->addend);
+				     reloc->sym->sec->name, addend);
 				return -1;
 			}
 		} else {
 			WARN("can't find unreachable insn at %s+0x%" PRIx64,
-			     reloc->sym->sec->name, reloc->addend);
+			     reloc->sym->sec->name, addend);
 			return -1;
 		}
 
@@ -662,28 +628,32 @@ reachable:
 	 * GCC doesn't know the "ud2" is fatal, so it generates code as if it's
 	 * not a dead end.
 	 */
-	sec = find_section_by_name(file->elf, ".rela.discard.reachable");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.reachable");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
+
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
-		insn = find_insn(file, reloc->sym->sec, reloc->addend);
+
+		addend = reloc_addend(reloc);
+
+		insn = find_insn(file, reloc->sym->sec, addend);
 		if (insn)
 			insn = prev_insn_same_sec(file, insn);
-		else if (reloc->addend == reloc->sym->sec->sh.sh_size) {
+		else if (addend == reloc->sym->sec->sh.sh_size) {
 			insn = find_last_insn(file, reloc->sym->sec);
 			if (!insn) {
 				WARN("can't find reachable insn at %s+0x%" PRIx64,
-				     reloc->sym->sec->name, reloc->addend);
+				     reloc->sym->sec->name, addend);
 				return -1;
 			}
 		} else {
 			WARN("can't find reachable insn at %s+0x%" PRIx64,
-			     reloc->sym->sec->name, reloc->addend);
+			     reloc->sym->sec->name, addend);
 			return -1;
 		}
 
@@ -695,8 +665,8 @@ reachable:
 
 static int create_static_call_sections(struct objtool_file *file)
 {
-	struct section *sec;
 	struct static_call_site *site;
+	struct section *sec;
 	struct instruction *insn;
 	struct symbol *key_sym;
 	char *key_name, *tmp;
@@ -716,22 +686,21 @@ static int create_static_call_sections(struct objtool_file *file)
 	list_for_each_entry(insn, &file->static_call_list, call_node)
 		idx++;
 
-	sec = elf_create_section(file->elf, ".static_call_sites", SHF_WRITE,
-				 sizeof(struct static_call_site), idx);
+	sec = elf_create_section_pair(file->elf, ".static_call_sites",
+				      sizeof(*site), idx, idx * 2);
 	if (!sec)
 		return -1;
+
+	/* Allow modules to modify the low bits of static_call_site::key */
+	sec->sh.sh_flags |= SHF_WRITE;
 
 	idx = 0;
 	list_for_each_entry(insn, &file->static_call_list, call_node) {
 
-		site = (struct static_call_site *)sec->data->d_buf + idx;
-		memset(site, 0, sizeof(struct static_call_site));
-
 		/* populate reloc for 'addr' */
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(struct static_call_site),
-					  R_X86_64_PC32,
-					  insn->sec, insn->offset))
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(*site), idx * 2,
+					     insn->sec, insn->offset))
 			return -1;
 
 		/* find key symbol */
@@ -771,10 +740,10 @@ static int create_static_call_sections(struct objtool_file *file)
 		free(key_name);
 
 		/* populate reloc for 'key' */
-		if (elf_add_reloc(file->elf, sec,
-				  idx * sizeof(struct static_call_site) + 4,
-				  R_X86_64_PC32, key_sym,
-				  is_sibling_call(insn) * STATIC_CALL_SITE_TAIL))
+		if (!elf_init_reloc_data_sym(file->elf, sec,
+					     idx * sizeof(*site) + 4,
+					     (idx * 2) + 1, key_sym,
+					     is_sibling_call(insn) * STATIC_CALL_SITE_TAIL))
 			return -1;
 
 		idx++;
@@ -802,26 +771,18 @@ static int create_retpoline_sites_sections(struct objtool_file *file)
 	if (!idx)
 		return 0;
 
-	sec = elf_create_section(file->elf, ".retpoline_sites", 0,
-				 sizeof(int), idx);
-	if (!sec) {
-		WARN("elf_create_section: .retpoline_sites");
+	sec = elf_create_section_pair(file->elf, ".retpoline_sites",
+				      sizeof(int), idx, idx);
+	if (!sec)
 		return -1;
-	}
 
 	idx = 0;
 	list_for_each_entry(insn, &file->retpoline_call_list, call_node) {
 
-		int *site = (int *)sec->data->d_buf + idx;
-		*site = 0;
-
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(int),
-					  R_X86_64_PC32,
-					  insn->sec, insn->offset)) {
-			WARN("elf_add_reloc_to_insn: .retpoline_sites");
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(int), idx,
+					     insn->sec, insn->offset))
 			return -1;
-		}
 
 		idx++;
 	}
@@ -848,26 +809,18 @@ static int create_return_sites_sections(struct objtool_file *file)
 	if (!idx)
 		return 0;
 
-	sec = elf_create_section(file->elf, ".return_sites", 0,
-				 sizeof(int), idx);
-	if (!sec) {
-		WARN("elf_create_section: .return_sites");
+	sec = elf_create_section_pair(file->elf, ".return_sites",
+				      sizeof(int), idx, idx);
+	if (!sec)
 		return -1;
-	}
 
 	idx = 0;
 	list_for_each_entry(insn, &file->return_thunk_list, call_node) {
 
-		int *site = (int *)sec->data->d_buf + idx;
-		*site = 0;
-
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(int),
-					  R_X86_64_PC32,
-					  insn->sec, insn->offset)) {
-			WARN("elf_add_reloc_to_insn: .return_sites");
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(int), idx,
+					     insn->sec, insn->offset))
 			return -1;
-		}
 
 		idx++;
 	}
@@ -900,12 +853,10 @@ static int create_ibt_endbr_seal_sections(struct objtool_file *file)
 	if (!idx)
 		return 0;
 
-	sec = elf_create_section(file->elf, ".ibt_endbr_seal", 0,
-				 sizeof(int), idx);
-	if (!sec) {
-		WARN("elf_create_section: .ibt_endbr_seal");
+	sec = elf_create_section_pair(file->elf, ".ibt_endbr_seal",
+				      sizeof(int), idx, idx);
+	if (!sec)
 		return -1;
-	}
 
 	idx = 0;
 	list_for_each_entry(insn, &file->endbr_list, call_node) {
@@ -920,13 +871,10 @@ static int create_ibt_endbr_seal_sections(struct objtool_file *file)
 		     !strcmp(sym->name, "cleanup_module")))
 			WARN("%s(): not an indirect call target", sym->name);
 
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(int),
-					  R_X86_64_PC32,
-					  insn->sec, insn->offset)) {
-			WARN("elf_add_reloc_to_insn: .ibt_endbr_seal");
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(int), idx,
+					     insn->sec, insn->offset))
 			return -1;
-		}
 
 		idx++;
 	}
@@ -938,7 +886,6 @@ static int create_cfi_sections(struct objtool_file *file)
 {
 	struct section *sec;
 	struct symbol *sym;
-	unsigned int *loc;
 	int idx;
 
 	sec = find_section_by_name(file->elf, ".cfi_sites");
@@ -959,7 +906,8 @@ static int create_cfi_sections(struct objtool_file *file)
 		idx++;
 	}
 
-	sec = elf_create_section(file->elf, ".cfi_sites", 0, sizeof(unsigned int), idx);
+	sec = elf_create_section_pair(file->elf, ".cfi_sites",
+				      sizeof(unsigned int), idx, idx);
 	if (!sec)
 		return -1;
 
@@ -971,13 +919,9 @@ static int create_cfi_sections(struct objtool_file *file)
 		if (strncmp(sym->name, "__cfi_", 6))
 			continue;
 
-		loc = (unsigned int *)sec->data->d_buf + idx;
-		memset(loc, 0, sizeof(unsigned int));
-
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(unsigned int),
-					  R_X86_64_PC32,
-					  sym->sec, sym->offset))
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(unsigned int), idx,
+					     sym->sec, sym->offset))
 			return -1;
 
 		idx++;
@@ -988,7 +932,7 @@ static int create_cfi_sections(struct objtool_file *file)
 
 static int create_mcount_loc_sections(struct objtool_file *file)
 {
-	int addrsize = elf_class_addrsize(file->elf);
+	size_t addr_size = elf_addr_size(file->elf);
 	struct instruction *insn;
 	struct section *sec;
 	int idx;
@@ -1007,25 +951,26 @@ static int create_mcount_loc_sections(struct objtool_file *file)
 	list_for_each_entry(insn, &file->mcount_loc_list, call_node)
 		idx++;
 
-	sec = elf_create_section(file->elf, "__mcount_loc", 0, addrsize, idx);
+	sec = elf_create_section_pair(file->elf, "__mcount_loc", addr_size,
+				      idx, idx);
 	if (!sec)
 		return -1;
 
-	sec->sh.sh_addralign = addrsize;
+	sec->sh.sh_addralign = addr_size;
 
 	idx = 0;
 	list_for_each_entry(insn, &file->mcount_loc_list, call_node) {
-		void *loc;
 
-		loc = sec->data->d_buf + idx;
-		memset(loc, 0, addrsize);
+		struct reloc *reloc;
 
-		if (elf_add_reloc_to_insn(file->elf, sec, idx,
-					  addrsize == sizeof(u64) ? R_ABS64 : R_ABS32,
-					  insn->sec, insn->offset))
+		reloc = elf_init_reloc_text_sym(file->elf, sec, idx * addr_size, idx,
+					       insn->sec, insn->offset);
+		if (!reloc)
 			return -1;
 
-		idx += addrsize;
+		set_reloc_type(file->elf, reloc, addr_size == 8 ? R_ABS64 : R_ABS32);
+
+		idx++;
 	}
 
 	return 0;
@@ -1035,7 +980,6 @@ static int create_direct_call_sections(struct objtool_file *file)
 {
 	struct instruction *insn;
 	struct section *sec;
-	unsigned int *loc;
 	int idx;
 
 	sec = find_section_by_name(file->elf, ".call_sites");
@@ -1052,20 +996,17 @@ static int create_direct_call_sections(struct objtool_file *file)
 	list_for_each_entry(insn, &file->call_list, call_node)
 		idx++;
 
-	sec = elf_create_section(file->elf, ".call_sites", 0, sizeof(unsigned int), idx);
+	sec = elf_create_section_pair(file->elf, ".call_sites",
+				      sizeof(unsigned int), idx, idx);
 	if (!sec)
 		return -1;
 
 	idx = 0;
 	list_for_each_entry(insn, &file->call_list, call_node) {
 
-		loc = (unsigned int *)sec->data->d_buf + idx;
-		memset(loc, 0, sizeof(unsigned int));
-
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(unsigned int),
-					  R_X86_64_PC32,
-					  insn->sec, insn->offset))
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(unsigned int), idx,
+					     insn->sec, insn->offset))
 			return -1;
 
 		idx++;
@@ -1080,28 +1021,29 @@ static int create_direct_call_sections(struct objtool_file *file)
 static void add_ignores(struct objtool_file *file)
 {
 	struct instruction *insn;
-	struct section *sec;
+	struct section *rsec;
 	struct symbol *func;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.func_stack_frame_non_standard");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.func_stack_frame_non_standard");
+	if (!rsec)
 		return;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		switch (reloc->sym->type) {
 		case STT_FUNC:
 			func = reloc->sym;
 			break;
 
 		case STT_SECTION:
-			func = find_func_by_offset(reloc->sym->sec, reloc->addend);
+			func = find_func_by_offset(reloc->sym->sec, reloc_addend(reloc));
 			if (!func)
 				continue;
 			break;
 
 		default:
-			WARN("unexpected relocation symbol type in %s: %d", sec->name, reloc->sym->type);
+			WARN("unexpected relocation symbol type in %s: %d",
+			     rsec->name, reloc->sym->type);
 			continue;
 		}
 
@@ -1320,21 +1262,21 @@ static void add_uaccess_safe(struct objtool_file *file)
  */
 static int add_ignore_alternatives(struct objtool_file *file)
 {
-	struct section *sec;
+	struct section *rsec;
 	struct reloc *reloc;
 	struct instruction *insn;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.ignore_alts");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.ignore_alts");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 
-		insn = find_insn(file, reloc->sym->sec, reloc->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc_addend(reloc));
 		if (!insn) {
 			WARN("bad .discard.ignore_alts entry");
 			return -1;
@@ -1421,10 +1363,8 @@ static void annotate_call_site(struct objtool_file *file,
 	 * noinstr text.
 	 */
 	if (opts.hack_noinstr && insn->sec->noinstr && sym->profiling_func) {
-		if (reloc) {
-			reloc->type = R_NONE;
-			elf_write_reloc(file->elf, reloc);
-		}
+		if (reloc)
+			set_reloc_type(file->elf, reloc, R_NONE);
 
 		elf_write_insn(file->elf, insn->sec,
 			       insn->offset, insn->len,
@@ -1450,10 +1390,8 @@ static void annotate_call_site(struct objtool_file *file,
 		if (sibling)
 			WARN_INSN(insn, "tail call to __fentry__ !?!?");
 		if (opts.mnop) {
-			if (reloc) {
-				reloc->type = R_NONE;
-				elf_write_reloc(file->elf, reloc);
-			}
+			if (reloc)
+				set_reloc_type(file->elf, reloc, R_NONE);
 
 			elf_write_insn(file->elf, insn->sec,
 				       insn->offset, insn->len,
@@ -1610,7 +1548,7 @@ static int add_jump_destinations(struct objtool_file *file)
 			dest_off = arch_jump_destination(insn);
 		} else if (reloc->sym->type == STT_SECTION) {
 			dest_sec = reloc->sym->sec;
-			dest_off = arch_dest_reloc_offset(reloc->addend);
+			dest_off = arch_dest_reloc_offset(reloc_addend(reloc));
 		} else if (reloc->sym->retpoline_thunk) {
 			add_retpoline_call(file, insn);
 			continue;
@@ -1627,7 +1565,7 @@ static int add_jump_destinations(struct objtool_file *file)
 		} else if (reloc->sym->sec->idx) {
 			dest_sec = reloc->sym->sec;
 			dest_off = reloc->sym->sym.st_value +
-				   arch_dest_reloc_offset(reloc->addend);
+				   arch_dest_reloc_offset(reloc_addend(reloc));
 		} else {
 			/* non-func asm code jumping to another file */
 			continue;
@@ -1744,7 +1682,7 @@ static int add_call_destinations(struct objtool_file *file)
 			}
 
 		} else if (reloc->sym->type == STT_SECTION) {
-			dest_off = arch_dest_reloc_offset(reloc->addend);
+			dest_off = arch_dest_reloc_offset(reloc_addend(reloc));
 			dest = find_call_destination(reloc->sym->sec, dest_off);
 			if (!dest) {
 				WARN_INSN(insn, "can't find call dest symbol at %s+0x%lx",
@@ -1932,10 +1870,8 @@ static int handle_jump_alt(struct objtool_file *file,
 	if (opts.hack_jump_label && special_alt->key_addend & 2) {
 		struct reloc *reloc = insn_reloc(file, orig_insn);
 
-		if (reloc) {
-			reloc->type = R_NONE;
-			elf_write_reloc(file->elf, reloc);
-		}
+		if (reloc)
+			set_reloc_type(file->elf, reloc, R_NONE);
 		elf_write_insn(file->elf, orig_insn->sec,
 			       orig_insn->offset, orig_insn->len,
 			       arch_nop_insn(orig_insn->len));
@@ -2047,34 +1983,35 @@ out:
 }
 
 static int add_jump_table(struct objtool_file *file, struct instruction *insn,
-			    struct reloc *table)
+			  struct reloc *next_table)
 {
-	struct reloc *reloc = table;
-	struct instruction *dest_insn;
-	struct alternative *alt;
 	struct symbol *pfunc = insn_func(insn)->pfunc;
+	struct reloc *table = insn_jump_table(insn);
+	struct instruction *dest_insn;
 	unsigned int prev_offset = 0;
+	struct reloc *reloc = table;
+	struct alternative *alt;
 
 	/*
 	 * Each @reloc is a switch table relocation which points to the target
 	 * instruction.
 	 */
-	list_for_each_entry_from(reloc, &table->sec->reloc_list, list) {
+	for_each_reloc_from(table->sec, reloc) {
 
 		/* Check for the end of the table: */
-		if (reloc != table && reloc->jump_table_start)
+		if (reloc != table && reloc == next_table)
 			break;
 
 		/* Make sure the table entries are consecutive: */
-		if (prev_offset && reloc->offset != prev_offset + 8)
+		if (prev_offset && reloc_offset(reloc) != prev_offset + 8)
 			break;
 
 		/* Detect function pointers from contiguous objects: */
 		if (reloc->sym->sec == pfunc->sec &&
-		    reloc->addend == pfunc->offset)
+		    reloc_addend(reloc) == pfunc->offset)
 			break;
 
-		dest_insn = find_insn(file, reloc->sym->sec, reloc->addend);
+		dest_insn = find_insn(file, reloc->sym->sec, reloc_addend(reloc));
 		if (!dest_insn)
 			break;
 
@@ -2091,7 +2028,7 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
 		alt->insn = dest_insn;
 		alt->next = insn->alts;
 		insn->alts = alt;
-		prev_offset = reloc->offset;
+		prev_offset = reloc_offset(reloc);
 	}
 
 	if (!prev_offset) {
@@ -2135,7 +2072,7 @@ static struct reloc *find_jump_table(struct objtool_file *file,
 		table_reloc = arch_find_switch_table(file, insn);
 		if (!table_reloc)
 			continue;
-		dest_insn = find_insn(file, table_reloc->sym->sec, table_reloc->addend);
+		dest_insn = find_insn(file, table_reloc->sym->sec, reloc_addend(table_reloc));
 		if (!dest_insn || !insn_func(dest_insn) || insn_func(dest_insn)->pfunc != func)
 			continue;
 
@@ -2177,29 +2114,39 @@ static void mark_func_jump_tables(struct objtool_file *file,
 			continue;
 
 		reloc = find_jump_table(file, func, insn);
-		if (reloc) {
-			reloc->jump_table_start = true;
+		if (reloc)
 			insn->_jump_table = reloc;
-		}
 	}
 }
 
 static int add_func_jump_tables(struct objtool_file *file,
 				  struct symbol *func)
 {
-	struct instruction *insn;
-	int ret;
+	struct instruction *insn, *insn_t1 = NULL, *insn_t2;
+	int ret = 0;
 
 	func_for_each_insn(file, func, insn) {
 		if (!insn_jump_table(insn))
 			continue;
 
-		ret = add_jump_table(file, insn, insn_jump_table(insn));
+		if (!insn_t1) {
+			insn_t1 = insn;
+			continue;
+		}
+
+		insn_t2 = insn;
+
+		ret = add_jump_table(file, insn_t1, insn_jump_table(insn_t2));
 		if (ret)
 			return ret;
+
+		insn_t1 = insn_t2;
 	}
 
-	return 0;
+	if (insn_t1)
+		ret = add_jump_table(file, insn_t1, NULL);
+
+	return ret;
 }
 
 /*
@@ -2240,7 +2187,7 @@ static void set_func_state(struct cfi_state *state)
 static int read_unwind_hints(struct objtool_file *file)
 {
 	struct cfi_state cfi = init_cfi;
-	struct section *sec, *relocsec;
+	struct section *sec;
 	struct unwind_hint *hint;
 	struct instruction *insn;
 	struct reloc *reloc;
@@ -2250,8 +2197,7 @@ static int read_unwind_hints(struct objtool_file *file)
 	if (!sec)
 		return 0;
 
-	relocsec = sec->reloc;
-	if (!relocsec) {
+	if (!sec->rsec) {
 		WARN("missing .rela.discard.unwind_hints section");
 		return -1;
 	}
@@ -2272,13 +2218,18 @@ static int read_unwind_hints(struct objtool_file *file)
 			return -1;
 		}
 
-		insn = find_insn(file, reloc->sym->sec, reloc->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc_addend(reloc));
 		if (!insn) {
 			WARN("can't find insn for unwind_hints[%d]", i);
 			return -1;
 		}
 
 		insn->hint = true;
+
+		if (hint->type == UNWIND_HINT_TYPE_UNDEFINED) {
+			insn->cfi = &force_undefined_cfi;
+			continue;
+		}
 
 		if (hint->type == UNWIND_HINT_TYPE_SAVE) {
 			insn->hint = false;
@@ -2326,16 +2277,17 @@ static int read_unwind_hints(struct objtool_file *file)
 
 static int read_noendbr_hints(struct objtool_file *file)
 {
-	struct section *sec;
 	struct instruction *insn;
+	struct section *rsec;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.noendbr");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.noendbr");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
-		insn = find_insn(file, reloc->sym->sec, reloc->sym->offset + reloc->addend);
+	for_each_reloc(rsec, reloc) {
+		insn = find_insn(file, reloc->sym->sec,
+				 reloc->sym->offset + reloc_addend(reloc));
 		if (!insn) {
 			WARN("bad .discard.noendbr entry");
 			return -1;
@@ -2349,21 +2301,21 @@ static int read_noendbr_hints(struct objtool_file *file)
 
 static int read_retpoline_hints(struct objtool_file *file)
 {
-	struct section *sec;
+	struct section *rsec;
 	struct instruction *insn;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.retpoline_safe");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.retpoline_safe");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 
-		insn = find_insn(file, reloc->sym->sec, reloc->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc_addend(reloc));
 		if (!insn) {
 			WARN("bad .discard.retpoline_safe entry");
 			return -1;
@@ -2385,21 +2337,21 @@ static int read_retpoline_hints(struct objtool_file *file)
 
 static int read_instr_hints(struct objtool_file *file)
 {
-	struct section *sec;
+	struct section *rsec;
 	struct instruction *insn;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.instr_end");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.instr_end");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 
-		insn = find_insn(file, reloc->sym->sec, reloc->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc_addend(reloc));
 		if (!insn) {
 			WARN("bad .discard.instr_end entry");
 			return -1;
@@ -2408,17 +2360,17 @@ static int read_instr_hints(struct objtool_file *file)
 		insn->instr--;
 	}
 
-	sec = find_section_by_name(file->elf, ".rela.discard.instr_begin");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.instr_begin");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 
-		insn = find_insn(file, reloc->sym->sec, reloc->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc_addend(reloc));
 		if (!insn) {
 			WARN("bad .discard.instr_begin entry");
 			return -1;
@@ -2432,21 +2384,21 @@ static int read_instr_hints(struct objtool_file *file)
 
 static int read_validate_unret_hints(struct objtool_file *file)
 {
-	struct section *sec;
+	struct section *rsec;
 	struct instruction *insn;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.validate_unret");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.validate_unret");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 
-		insn = find_insn(file, reloc->sym->sec, reloc->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc_addend(reloc));
 		if (!insn) {
 			WARN("bad .discard.instr_end entry");
 			return -1;
@@ -2461,23 +2413,23 @@ static int read_validate_unret_hints(struct objtool_file *file)
 static int read_intra_function_calls(struct objtool_file *file)
 {
 	struct instruction *insn;
-	struct section *sec;
+	struct section *rsec;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.intra_function_calls");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.intra_function_calls");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		unsigned long dest_off;
 
 		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s",
-			     sec->name);
+			     rsec->name);
 			return -1;
 		}
 
-		insn = find_insn(file, reloc->sym->sec, reloc->addend);
+		insn = find_insn(file, reloc->sym->sec, reloc_addend(reloc));
 		if (!insn) {
 			WARN("bad .discard.intra_function_call entry");
 			return -1;
@@ -2832,6 +2784,10 @@ static int update_cfi_state(struct instruction *insn,
 {
 	struct cfi_reg *cfa = &cfi->cfa;
 	struct cfi_reg *regs = cfi->regs;
+
+	/* ignore UNWIND_HINT_UNDEFINED regions */
+	if (cfi->force_undefined)
+		return 0;
 
 	/* stack operations don't make sense with an undefined CFA */
 	if (cfa->base == CFI_UNDEFINED) {
@@ -3369,15 +3325,15 @@ static inline bool func_uaccess_safe(struct symbol *func)
 static inline const char *call_dest_name(struct instruction *insn)
 {
 	static char pvname[19];
-	struct reloc *rel;
+	struct reloc *reloc;
 	int idx;
 
 	if (insn_call_dest(insn))
 		return insn_call_dest(insn)->name;
 
-	rel = insn_reloc(NULL, insn);
-	if (rel && !strcmp(rel->sym->name, "pv_ops")) {
-		idx = (rel->addend / sizeof(void *));
+	reloc = insn_reloc(NULL, insn);
+	if (reloc && !strcmp(reloc->sym->name, "pv_ops")) {
+		idx = (reloc_addend(reloc) / sizeof(void *));
 		snprintf(pvname, sizeof(pvname), "pv_ops[%d]", idx);
 		return pvname;
 	}
@@ -3388,14 +3344,14 @@ static inline const char *call_dest_name(struct instruction *insn)
 static bool pv_call_dest(struct objtool_file *file, struct instruction *insn)
 {
 	struct symbol *target;
-	struct reloc *rel;
+	struct reloc *reloc;
 	int idx;
 
-	rel = insn_reloc(file, insn);
-	if (!rel || strcmp(rel->sym->name, "pv_ops"))
+	reloc = insn_reloc(file, insn);
+	if (!reloc || strcmp(reloc->sym->name, "pv_ops"))
 		return false;
 
-	idx = (arch_dest_reloc_offset(rel->addend) / sizeof(void *));
+	idx = (arch_dest_reloc_offset(reloc_addend(reloc)) / sizeof(void *));
 
 	if (file->pv_ops[idx].clean)
 		return true;
@@ -3657,8 +3613,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 
 				ret = validate_branch(file, func, alt->insn, state);
 				if (ret) {
-					if (opts.backtrace)
-						BT_FUNC("(alt)", insn);
+					BT_INSN(insn, "(alt)");
 					return ret;
 				}
 			}
@@ -3703,8 +3658,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 				ret = validate_branch(file, func,
 						      insn->jump_dest, state);
 				if (ret) {
-					if (opts.backtrace)
-						BT_FUNC("(branch)", insn);
+					BT_INSN(insn, "(branch)");
 					return ret;
 				}
 			}
@@ -3802,8 +3756,8 @@ static int validate_unwind_hint(struct objtool_file *file,
 {
 	if (insn->hint && !insn->visited && !insn->ignore) {
 		int ret = validate_branch(file, insn_func(insn), insn, *state);
-		if (ret && opts.backtrace)
-			BT_FUNC("<=== (hint)", insn);
+		if (ret)
+			BT_INSN(insn, "<=== (hint)");
 		return ret;
 	}
 
@@ -3841,7 +3795,7 @@ static int validate_unwind_hints(struct objtool_file *file, struct section *sec)
 static int validate_unret(struct objtool_file *file, struct instruction *insn)
 {
 	struct instruction *next, *dest;
-	int ret, warnings = 0;
+	int ret;
 
 	for (;;) {
 		next = next_insn_to_validate(file, insn);
@@ -3861,8 +3815,7 @@ static int validate_unret(struct objtool_file *file, struct instruction *insn)
 
 				ret = validate_unret(file, alt->insn);
 				if (ret) {
-				        if (opts.backtrace)
-						BT_FUNC("(alt)", insn);
+					BT_INSN(insn, "(alt)");
 					return ret;
 				}
 			}
@@ -3888,10 +3841,8 @@ static int validate_unret(struct objtool_file *file, struct instruction *insn)
 				}
 				ret = validate_unret(file, insn->jump_dest);
 				if (ret) {
-					if (opts.backtrace) {
-						BT_FUNC("(branch%s)", insn,
-							insn->type == INSN_JUMP_CONDITIONAL ? "-cond" : "");
-					}
+					BT_INSN(insn, "(branch%s)",
+						insn->type == INSN_JUMP_CONDITIONAL ? "-cond" : "");
 					return ret;
 				}
 
@@ -3913,8 +3864,7 @@ static int validate_unret(struct objtool_file *file, struct instruction *insn)
 
 			ret = validate_unret(file, dest);
 			if (ret) {
-				if (opts.backtrace)
-					BT_FUNC("(call)", insn);
+				BT_INSN(insn, "(call)");
 				return ret;
 			}
 			/*
@@ -3943,7 +3893,7 @@ static int validate_unret(struct objtool_file *file, struct instruction *insn)
 		insn = next;
 	}
 
-	return warnings;
+	return 0;
 }
 
 /*
@@ -4178,7 +4128,6 @@ static int add_prefix_symbols(struct objtool_file *file)
 {
 	struct section *sec;
 	struct symbol *func;
-	int warnings = 0;
 
 	for_each_sec(file, sec) {
 		if (!(sec->sh.sh_flags & SHF_EXECINSTR))
@@ -4192,7 +4141,7 @@ static int add_prefix_symbols(struct objtool_file *file)
 		}
 	}
 
-	return warnings;
+	return 0;
 }
 
 static int validate_symbol(struct objtool_file *file, struct section *sec,
@@ -4216,8 +4165,8 @@ static int validate_symbol(struct objtool_file *file, struct section *sec,
 	state->uaccess = sym->uaccess_safe;
 
 	ret = validate_branch(file, insn_func(insn), insn, *state);
-	if (ret && opts.backtrace)
-		BT_FUNC("<=== (sym)", insn);
+	if (ret)
+		BT_INSN(insn, "<=== (sym)");
 	return ret;
 }
 
@@ -4333,8 +4282,8 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 	for (reloc = insn_reloc(file, insn);
 	     reloc;
 	     reloc = find_reloc_by_dest_range(file->elf, insn->sec,
-					      reloc->offset + 1,
-					      (insn->offset + insn->len) - (reloc->offset + 1))) {
+					      reloc_offset(reloc) + 1,
+					      (insn->offset + insn->len) - (reloc_offset(reloc) + 1))) {
 
 		/*
 		 * static_call_update() references the trampoline, which
@@ -4344,10 +4293,11 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 			continue;
 
 		off = reloc->sym->offset;
-		if (reloc->type == R_X86_64_PC32 || reloc->type == R_X86_64_PLT32)
-			off += arch_dest_reloc_offset(reloc->addend);
+		if (reloc_type(reloc) == R_X86_64_PC32 ||
+		    reloc_type(reloc) == R_X86_64_PLT32)
+			off += arch_dest_reloc_offset(reloc_addend(reloc));
 		else
-			off += reloc->addend;
+			off += reloc_addend(reloc);
 
 		dest = find_insn(file, reloc->sym->sec, off);
 		if (!dest)
@@ -4404,7 +4354,7 @@ static int validate_ibt_data_reloc(struct objtool_file *file,
 	struct instruction *dest;
 
 	dest = find_insn(file, reloc->sym->sec,
-			 reloc->sym->offset + reloc->addend);
+			 reloc->sym->offset + reloc_addend(reloc));
 	if (!dest)
 		return 0;
 
@@ -4417,7 +4367,7 @@ static int validate_ibt_data_reloc(struct objtool_file *file,
 		return 0;
 
 	WARN_FUNC("data relocation to !ENDBR: %s",
-		  reloc->sec->base, reloc->offset,
+		  reloc->sec->base, reloc_offset(reloc),
 		  offstr(dest->sec, dest->offset));
 
 	return 1;
@@ -4444,7 +4394,7 @@ static int validate_ibt(struct objtool_file *file)
 		if (sec->sh.sh_flags & SHF_EXECINSTR)
 			continue;
 
-		if (!sec->reloc)
+		if (!sec->rsec)
 			continue;
 
 		/*
@@ -4471,7 +4421,7 @@ static int validate_ibt(struct objtool_file *file)
 		    strstr(sec->name, "__patchable_function_entries"))
 			continue;
 
-		list_for_each_entry(reloc, &sec->reloc->reloc_list, list)
+		for_each_reloc(sec->rsec, reloc)
 			warnings += validate_ibt_data_reloc(file, reloc);
 	}
 
@@ -4511,9 +4461,40 @@ static int validate_sls(struct objtool_file *file)
 	return warnings;
 }
 
+static bool ignore_noreturn_call(struct instruction *insn)
+{
+	struct symbol *call_dest = insn_call_dest(insn);
+
+	/*
+	 * FIXME: hack, we need a real noreturn solution
+	 *
+	 * Problem is, exc_double_fault() may or may not return, depending on
+	 * whether CONFIG_X86_ESPFIX64 is set.  But objtool has no visibility
+	 * to the kernel config.
+	 *
+	 * Other potential ways to fix it:
+	 *
+	 *   - have compiler communicate __noreturn functions somehow
+	 *   - remove CONFIG_X86_ESPFIX64
+	 *   - read the .config file
+	 *   - add a cmdline option
+	 *   - create a generic objtool annotation format (vs a bunch of custom
+	 *     formats) and annotate it
+	 */
+	if (!strcmp(call_dest->name, "exc_double_fault")) {
+		/* prevent further unreachable warnings for the caller */
+		insn->sym->warned = 1;
+		return true;
+	}
+
+	return false;
+}
+
 static int validate_reachable_instructions(struct objtool_file *file)
 {
-	struct instruction *insn;
+	struct instruction *insn, *prev_insn;
+	struct symbol *call_dest;
+	int warnings = 0;
 
 	if (file->ignore_unreachables)
 		return 0;
@@ -4522,11 +4503,125 @@ static int validate_reachable_instructions(struct objtool_file *file)
 		if (insn->visited || ignore_unreachable_insn(file, insn))
 			continue;
 
+		prev_insn = prev_insn_same_sec(file, insn);
+		if (prev_insn && prev_insn->dead_end) {
+			call_dest = insn_call_dest(prev_insn);
+			if (call_dest && !ignore_noreturn_call(prev_insn)) {
+				WARN_INSN(insn, "%s() is missing a __noreturn annotation",
+					  call_dest->name);
+				warnings++;
+				continue;
+			}
+		}
+
 		WARN_INSN(insn, "unreachable instruction");
-		return 1;
+		warnings++;
+	}
+
+	return warnings;
+}
+
+/* 'funcs' is a space-separated list of function names */
+static int disas_funcs(const char *funcs)
+{
+	const char *objdump_str, *cross_compile;
+	int size, ret;
+	char *cmd;
+
+	cross_compile = getenv("CROSS_COMPILE");
+
+	objdump_str = "%sobjdump -wdr %s | gawk -M -v _funcs='%s' '"
+			"BEGIN { split(_funcs, funcs); }"
+			"/^$/ { func_match = 0; }"
+			"/<.*>:/ { "
+				"f = gensub(/.*<(.*)>:/, \"\\\\1\", 1);"
+				"for (i in funcs) {"
+					"if (funcs[i] == f) {"
+						"func_match = 1;"
+						"base = strtonum(\"0x\" $1);"
+						"break;"
+					"}"
+				"}"
+			"}"
+			"{"
+				"if (func_match) {"
+					"addr = strtonum(\"0x\" $1);"
+					"printf(\"%%04x \", addr - base);"
+					"print;"
+				"}"
+			"}' 1>&2";
+
+	/* fake snprintf() to calculate the size */
+	size = snprintf(NULL, 0, objdump_str, cross_compile, objname, funcs) + 1;
+	if (size <= 0) {
+		WARN("objdump string size calculation failed");
+		return -1;
+	}
+
+	cmd = malloc(size);
+
+	/* real snprintf() */
+	snprintf(cmd, size, objdump_str, cross_compile, objname, funcs);
+	ret = system(cmd);
+	if (ret) {
+		WARN("disassembly failed: %d", ret);
+		return -1;
 	}
 
 	return 0;
+}
+
+static int disas_warned_funcs(struct objtool_file *file)
+{
+	struct symbol *sym;
+	char *funcs = NULL, *tmp;
+
+	for_each_sym(file, sym) {
+		if (sym->warned) {
+			if (!funcs) {
+				funcs = malloc(strlen(sym->name) + 1);
+				strcpy(funcs, sym->name);
+			} else {
+				tmp = malloc(strlen(funcs) + strlen(sym->name) + 2);
+				sprintf(tmp, "%s %s", funcs, sym->name);
+				free(funcs);
+				funcs = tmp;
+			}
+		}
+	}
+
+	if (funcs)
+		disas_funcs(funcs);
+
+	return 0;
+}
+
+struct insn_chunk {
+	void *addr;
+	struct insn_chunk *next;
+};
+
+/*
+ * Reduce peak RSS usage by freeing insns memory before writing the ELF file,
+ * which can trigger more allocations for .debug_* sections whose data hasn't
+ * been read yet.
+ */
+static void free_insns(struct objtool_file *file)
+{
+	struct instruction *insn;
+	struct insn_chunk *chunks = NULL, *chunk;
+
+	for_each_insn(file, insn) {
+		if (!insn->idx) {
+			chunk = malloc(sizeof(*chunk));
+			chunk->addr = insn;
+			chunk->next = chunks;
+			chunks = chunk;
+		}
+	}
+
+	for (chunk = chunks; chunk; chunk = chunk->next)
+		free(chunk->addr);
 }
 
 int check(struct objtool_file *file)
@@ -4537,6 +4632,8 @@ int check(struct objtool_file *file)
 	init_cfi_state(&init_cfi);
 	init_cfi_state(&func_cfi);
 	set_func_state(&func_cfi);
+	init_cfi_state(&force_undefined_cfi);
+	force_undefined_cfi.force_undefined = true;
 
 	if (!cfi_hash_alloc(1UL << (file->elf->symbol_bits - 3)))
 		goto out;
@@ -4673,6 +4770,10 @@ int check(struct objtool_file *file)
 		warnings += ret;
 	}
 
+	free_insns(file);
+
+	if (opts.verbose)
+		disas_warned_funcs(file);
 
 	if (opts.stats) {
 		printf("nr_insns_visited: %ld\n", nr_insns_visited);

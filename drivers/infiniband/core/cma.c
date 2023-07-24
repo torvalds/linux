@@ -4805,8 +4805,7 @@ static void cma_make_mc_event(int status, struct rdma_id_private *id_priv,
 	event->param.ud.qkey = id_priv->qkey;
 
 out:
-	if (ndev)
-		dev_put(ndev);
+	dev_put(ndev);
 }
 
 static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)

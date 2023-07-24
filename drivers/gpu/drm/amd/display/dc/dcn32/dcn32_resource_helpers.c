@@ -595,11 +595,10 @@ struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stre
 	if (!is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(fpo_candidate_stream, fpo_vactive_margin_us))
 		return NULL;
 
-	// check if freesync enabled
 	if (!fpo_candidate_stream->allow_freesync)
 		return NULL;
 
-	if (fpo_candidate_stream->vrr_active_variable)
+	if (fpo_candidate_stream->vrr_active_variable && dc->debug.disable_fams_gaming)
 		return NULL;
 
 	return fpo_candidate_stream;

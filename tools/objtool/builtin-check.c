@@ -93,6 +93,7 @@ static const struct option check_options[] = {
 	OPT_BOOLEAN(0, "no-unreachable", &opts.no_unreachable, "skip 'unreachable instruction' warnings"),
 	OPT_BOOLEAN(0, "sec-address", &opts.sec_address, "print section addresses in warnings"),
 	OPT_BOOLEAN(0, "stats", &opts.stats, "print statistics"),
+	OPT_BOOLEAN('v', "verbose", &opts.verbose, "verbose warnings"),
 
 	OPT_END(),
 };
@@ -117,6 +118,10 @@ int cmd_parse_options(int argc, const char **argv, const char * const usage[])
 
 		parse_options(envc, envv, check_options, env_usage, 0);
 	}
+
+	env = getenv("OBJTOOL_VERBOSE");
+	if (env && !strcmp(env, "1"))
+		opts.verbose = true;
 
 	argc = parse_options(argc, argv, check_options, usage, 0);
 	if (argc != 1)

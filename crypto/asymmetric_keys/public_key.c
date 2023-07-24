@@ -8,18 +8,17 @@
  */
 
 #define pr_fmt(fmt) "PKEY: "fmt
-#include <linux/module.h>
-#include <linux/export.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/seq_file.h>
-#include <linux/scatterlist.h>
-#include <linux/asn1.h>
-#include <keys/asymmetric-subtype.h>
-#include <crypto/public_key.h>
 #include <crypto/akcipher.h>
-#include <crypto/sm2.h>
-#include <crypto/sm3_base.h>
+#include <crypto/public_key.h>
+#include <crypto/sig.h>
+#include <keys/asymmetric-subtype.h>
+#include <linux/asn1.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 MODULE_DESCRIPTION("In-software asymmetric public-key subtype");
 MODULE_AUTHOR("Red Hat, Inc.");
@@ -67,9 +66,12 @@ static void public_key_destroy(void *payload0, void *payload3)
 static int
 software_key_determine_akcipher(const struct public_key *pkey,
 				const char *encoding, const char *hash_algo,
-				char alg_name[CRYPTO_MAX_ALG_NAME])
+				char alg_name[CRYPTO_MAX_ALG_NAME], bool *sig,
+				enum kernel_pkey_operation op)
 {
 	int n;
+
+	*sig = true;
 
 	if (!encoding)
 		return -EINVAL;
@@ -79,14 +81,18 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		 * RSA signatures usually use EMSA-PKCS1-1_5 [RFC3447 sec 8.2].
 		 */
 		if (strcmp(encoding, "pkcs1") == 0) {
-			if (!hash_algo)
+			if (!hash_algo) {
+				*sig = false;
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s)",
 					     pkey->pkey_algo);
-			else
+			} else {
+				*sig = op == kernel_pkey_sign ||
+				       op == kernel_pkey_verify;
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s,%s)",
 					     pkey->pkey_algo, hash_algo);
+			}
 			return n >= CRYPTO_MAX_ALG_NAME ? -EINVAL : 0;
 		}
 		if (strcmp(encoding, "raw") != 0)
@@ -97,6 +103,7 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		 */
 		if (hash_algo)
 			return -EINVAL;
+		*sig = false;
 	} else if (strncmp(pkey->pkey_algo, "ecdsa", 5) == 0) {
 		if (strcmp(encoding, "x962") != 0)
 			return -EINVAL;
@@ -154,37 +161,74 @@ static int software_key_query(const struct kernel_pkey_params *params,
 	struct crypto_akcipher *tfm;
 	struct public_key *pkey = params->key->payload.data[asym_crypto];
 	char alg_name[CRYPTO_MAX_ALG_NAME];
+	struct crypto_sig *sig;
 	u8 *key, *ptr;
 	int ret, len;
+	bool issig;
 
 	ret = software_key_determine_akcipher(pkey, params->encoding,
-					      params->hash_algo, alg_name);
+					      params->hash_algo, alg_name,
+					      &issig, kernel_pkey_sign);
 	if (ret < 0)
 		return ret;
 
-	tfm = crypto_alloc_akcipher(alg_name, 0, 0);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
-
-	ret = -ENOMEM;
 	key = kmalloc(pkey->keylen + sizeof(u32) * 2 + pkey->paramlen,
 		      GFP_KERNEL);
 	if (!key)
-		goto error_free_tfm;
+		return -ENOMEM;
+
 	memcpy(key, pkey->key, pkey->keylen);
 	ptr = key + pkey->keylen;
 	ptr = pkey_pack_u32(ptr, pkey->algo);
 	ptr = pkey_pack_u32(ptr, pkey->paramlen);
 	memcpy(ptr, pkey->params, pkey->paramlen);
 
-	if (pkey->key_is_private)
-		ret = crypto_akcipher_set_priv_key(tfm, key, pkey->keylen);
-	else
-		ret = crypto_akcipher_set_pub_key(tfm, key, pkey->keylen);
-	if (ret < 0)
-		goto error_free_key;
+	if (issig) {
+		sig = crypto_alloc_sig(alg_name, 0, 0);
+		if (IS_ERR(sig)) {
+			ret = PTR_ERR(sig);
+			goto error_free_key;
+		}
 
-	len = crypto_akcipher_maxsize(tfm);
+		if (pkey->key_is_private)
+			ret = crypto_sig_set_privkey(sig, key, pkey->keylen);
+		else
+			ret = crypto_sig_set_pubkey(sig, key, pkey->keylen);
+		if (ret < 0)
+			goto error_free_tfm;
+
+		len = crypto_sig_maxsize(sig);
+
+		info->supported_ops = KEYCTL_SUPPORTS_VERIFY;
+		if (pkey->key_is_private)
+			info->supported_ops |= KEYCTL_SUPPORTS_SIGN;
+
+		if (strcmp(params->encoding, "pkcs1") == 0) {
+			info->supported_ops |= KEYCTL_SUPPORTS_ENCRYPT;
+			if (pkey->key_is_private)
+				info->supported_ops |= KEYCTL_SUPPORTS_DECRYPT;
+		}
+	} else {
+		tfm = crypto_alloc_akcipher(alg_name, 0, 0);
+		if (IS_ERR(tfm)) {
+			ret = PTR_ERR(tfm);
+			goto error_free_key;
+		}
+
+		if (pkey->key_is_private)
+			ret = crypto_akcipher_set_priv_key(tfm, key, pkey->keylen);
+		else
+			ret = crypto_akcipher_set_pub_key(tfm, key, pkey->keylen);
+		if (ret < 0)
+			goto error_free_tfm;
+
+		len = crypto_akcipher_maxsize(tfm);
+
+		info->supported_ops = KEYCTL_SUPPORTS_ENCRYPT;
+		if (pkey->key_is_private)
+			info->supported_ops |= KEYCTL_SUPPORTS_DECRYPT;
+	}
+
 	info->key_size = len * 8;
 
 	if (strncmp(pkey->pkey_algo, "ecdsa", 5) == 0) {
@@ -210,17 +254,16 @@ static int software_key_query(const struct kernel_pkey_params *params,
 
 	info->max_enc_size = len;
 	info->max_dec_size = len;
-	info->supported_ops = (KEYCTL_SUPPORTS_ENCRYPT |
-			       KEYCTL_SUPPORTS_VERIFY);
-	if (pkey->key_is_private)
-		info->supported_ops |= (KEYCTL_SUPPORTS_DECRYPT |
-					KEYCTL_SUPPORTS_SIGN);
+
 	ret = 0;
 
+error_free_tfm:
+	if (issig)
+		crypto_free_sig(sig);
+	else
+		crypto_free_akcipher(tfm);
 error_free_key:
 	kfree(key);
-error_free_tfm:
-	crypto_free_akcipher(tfm);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
@@ -232,34 +275,26 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 			       const void *in, void *out)
 {
 	const struct public_key *pkey = params->key->payload.data[asym_crypto];
-	struct akcipher_request *req;
-	struct crypto_akcipher *tfm;
-	struct crypto_wait cwait;
-	struct scatterlist in_sg, out_sg;
 	char alg_name[CRYPTO_MAX_ALG_NAME];
+	struct crypto_akcipher *tfm;
+	struct crypto_sig *sig;
 	char *key, *ptr;
+	bool issig;
+	int ksz;
 	int ret;
 
 	pr_devel("==>%s()\n", __func__);
 
 	ret = software_key_determine_akcipher(pkey, params->encoding,
-					      params->hash_algo, alg_name);
+					      params->hash_algo, alg_name,
+					      &issig, params->op);
 	if (ret < 0)
 		return ret;
-
-	tfm = crypto_alloc_akcipher(alg_name, 0, 0);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
-
-	ret = -ENOMEM;
-	req = akcipher_request_alloc(tfm, GFP_KERNEL);
-	if (!req)
-		goto error_free_tfm;
 
 	key = kmalloc(pkey->keylen + sizeof(u32) * 2 + pkey->paramlen,
 		      GFP_KERNEL);
 	if (!key)
-		goto error_free_req;
+		return -ENOMEM;
 
 	memcpy(key, pkey->key, pkey->keylen);
 	ptr = key + pkey->keylen;
@@ -267,109 +302,77 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 	ptr = pkey_pack_u32(ptr, pkey->paramlen);
 	memcpy(ptr, pkey->params, pkey->paramlen);
 
-	if (pkey->key_is_private)
-		ret = crypto_akcipher_set_priv_key(tfm, key, pkey->keylen);
-	else
-		ret = crypto_akcipher_set_pub_key(tfm, key, pkey->keylen);
-	if (ret)
-		goto error_free_key;
+	if (issig) {
+		sig = crypto_alloc_sig(alg_name, 0, 0);
+		if (IS_ERR(sig)) {
+			ret = PTR_ERR(sig);
+			goto error_free_key;
+		}
 
-	sg_init_one(&in_sg, in, params->in_len);
-	sg_init_one(&out_sg, out, params->out_len);
-	akcipher_request_set_crypt(req, &in_sg, &out_sg, params->in_len,
-				   params->out_len);
-	crypto_init_wait(&cwait);
-	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
-				      CRYPTO_TFM_REQ_MAY_SLEEP,
-				      crypto_req_done, &cwait);
+		if (pkey->key_is_private)
+			ret = crypto_sig_set_privkey(sig, key, pkey->keylen);
+		else
+			ret = crypto_sig_set_pubkey(sig, key, pkey->keylen);
+		if (ret)
+			goto error_free_tfm;
+
+		ksz = crypto_sig_maxsize(sig);
+	} else {
+		tfm = crypto_alloc_akcipher(alg_name, 0, 0);
+		if (IS_ERR(tfm)) {
+			ret = PTR_ERR(tfm);
+			goto error_free_key;
+		}
+
+		if (pkey->key_is_private)
+			ret = crypto_akcipher_set_priv_key(tfm, key, pkey->keylen);
+		else
+			ret = crypto_akcipher_set_pub_key(tfm, key, pkey->keylen);
+		if (ret)
+			goto error_free_tfm;
+
+		ksz = crypto_akcipher_maxsize(tfm);
+	}
+
+	ret = -EINVAL;
 
 	/* Perform the encryption calculation. */
 	switch (params->op) {
 	case kernel_pkey_encrypt:
-		ret = crypto_akcipher_encrypt(req);
+		if (issig)
+			break;
+		ret = crypto_akcipher_sync_encrypt(tfm, in, params->in_len,
+						   out, params->out_len);
 		break;
 	case kernel_pkey_decrypt:
-		ret = crypto_akcipher_decrypt(req);
+		if (issig)
+			break;
+		ret = crypto_akcipher_sync_decrypt(tfm, in, params->in_len,
+						   out, params->out_len);
 		break;
 	case kernel_pkey_sign:
-		ret = crypto_akcipher_sign(req);
+		if (!issig)
+			break;
+		ret = crypto_sig_sign(sig, in, params->in_len,
+				      out, params->out_len);
 		break;
 	default:
 		BUG();
 	}
 
-	ret = crypto_wait_req(ret, &cwait);
 	if (ret == 0)
-		ret = req->dst_len;
+		ret = ksz;
 
+error_free_tfm:
+	if (issig)
+		crypto_free_sig(sig);
+	else
+		crypto_free_akcipher(tfm);
 error_free_key:
 	kfree(key);
-error_free_req:
-	akcipher_request_free(req);
-error_free_tfm:
-	crypto_free_akcipher(tfm);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
-
-#if IS_REACHABLE(CONFIG_CRYPTO_SM2)
-static int cert_sig_digest_update(const struct public_key_signature *sig,
-				  struct crypto_akcipher *tfm_pkey)
-{
-	struct crypto_shash *tfm;
-	struct shash_desc *desc;
-	size_t desc_size;
-	unsigned char dgst[SM3_DIGEST_SIZE];
-	int ret;
-
-	BUG_ON(!sig->data);
-
-	/* SM2 signatures always use the SM3 hash algorithm */
-	if (!sig->hash_algo || strcmp(sig->hash_algo, "sm3") != 0)
-		return -EINVAL;
-
-	ret = sm2_compute_z_digest(tfm_pkey, SM2_DEFAULT_USERID,
-					SM2_DEFAULT_USERID_LEN, dgst);
-	if (ret)
-		return ret;
-
-	tfm = crypto_alloc_shash(sig->hash_algo, 0, 0);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
-
-	desc_size = crypto_shash_descsize(tfm) + sizeof(*desc);
-	desc = kzalloc(desc_size, GFP_KERNEL);
-	if (!desc) {
-		ret = -ENOMEM;
-		goto error_free_tfm;
-	}
-
-	desc->tfm = tfm;
-
-	ret = crypto_shash_init(desc);
-	if (ret < 0)
-		goto error_free_desc;
-
-	ret = crypto_shash_update(desc, dgst, SM3_DIGEST_SIZE);
-	if (ret < 0)
-		goto error_free_desc;
-
-	ret = crypto_shash_finup(desc, sig->data, sig->data_size, sig->digest);
-
-error_free_desc:
-	kfree(desc);
-error_free_tfm:
-	crypto_free_shash(tfm);
-	return ret;
-}
-#else
-static inline int cert_sig_digest_update(
-	const struct public_key_signature *sig,
-	struct crypto_akcipher *tfm_pkey)
-{
-	return -ENOTSUPP;
-}
-#endif /* ! IS_REACHABLE(CONFIG_CRYPTO_SM2) */
 
 /*
  * Verify a signature using a public key.
@@ -377,13 +380,10 @@ static inline int cert_sig_digest_update(
 int public_key_verify_signature(const struct public_key *pkey,
 				const struct public_key_signature *sig)
 {
-	struct crypto_wait cwait;
-	struct crypto_akcipher *tfm;
-	struct akcipher_request *req;
-	struct scatterlist src_sg;
 	char alg_name[CRYPTO_MAX_ALG_NAME];
-	char *buf, *ptr;
-	size_t buf_len;
+	struct crypto_sig *tfm;
+	char *key, *ptr;
+	bool issig;
 	int ret;
 
 	pr_devel("==>%s()\n", __func__);
@@ -408,63 +408,42 @@ int public_key_verify_signature(const struct public_key *pkey,
 	}
 
 	ret = software_key_determine_akcipher(pkey, sig->encoding,
-					      sig->hash_algo, alg_name);
+					      sig->hash_algo, alg_name,
+					      &issig, kernel_pkey_verify);
 	if (ret < 0)
 		return ret;
 
-	tfm = crypto_alloc_akcipher(alg_name, 0, 0);
+	tfm = crypto_alloc_sig(alg_name, 0, 0);
 	if (IS_ERR(tfm))
 		return PTR_ERR(tfm);
 
-	ret = -ENOMEM;
-	req = akcipher_request_alloc(tfm, GFP_KERNEL);
-	if (!req)
+	key = kmalloc(pkey->keylen + sizeof(u32) * 2 + pkey->paramlen,
+		      GFP_KERNEL);
+	if (!key) {
+		ret = -ENOMEM;
 		goto error_free_tfm;
+	}
 
-	buf_len = max_t(size_t, pkey->keylen + sizeof(u32) * 2 + pkey->paramlen,
-			sig->s_size + sig->digest_size);
-
-	buf = kmalloc(buf_len, GFP_KERNEL);
-	if (!buf)
-		goto error_free_req;
-
-	memcpy(buf, pkey->key, pkey->keylen);
-	ptr = buf + pkey->keylen;
+	memcpy(key, pkey->key, pkey->keylen);
+	ptr = key + pkey->keylen;
 	ptr = pkey_pack_u32(ptr, pkey->algo);
 	ptr = pkey_pack_u32(ptr, pkey->paramlen);
 	memcpy(ptr, pkey->params, pkey->paramlen);
 
 	if (pkey->key_is_private)
-		ret = crypto_akcipher_set_priv_key(tfm, buf, pkey->keylen);
+		ret = crypto_sig_set_privkey(tfm, key, pkey->keylen);
 	else
-		ret = crypto_akcipher_set_pub_key(tfm, buf, pkey->keylen);
+		ret = crypto_sig_set_pubkey(tfm, key, pkey->keylen);
 	if (ret)
-		goto error_free_buf;
+		goto error_free_key;
 
-	if (strcmp(pkey->pkey_algo, "sm2") == 0 && sig->data_size) {
-		ret = cert_sig_digest_update(sig, tfm);
-		if (ret)
-			goto error_free_buf;
-	}
+	ret = crypto_sig_verify(tfm, sig->s, sig->s_size,
+				sig->digest, sig->digest_size);
 
-	memcpy(buf, sig->s, sig->s_size);
-	memcpy(buf + sig->s_size, sig->digest, sig->digest_size);
-
-	sg_init_one(&src_sg, buf, sig->s_size + sig->digest_size);
-	akcipher_request_set_crypt(req, &src_sg, NULL, sig->s_size,
-				   sig->digest_size);
-	crypto_init_wait(&cwait);
-	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
-				      CRYPTO_TFM_REQ_MAY_SLEEP,
-				      crypto_req_done, &cwait);
-	ret = crypto_wait_req(crypto_akcipher_verify(req), &cwait);
-
-error_free_buf:
-	kfree(buf);
-error_free_req:
-	akcipher_request_free(req);
+error_free_key:
+	kfree(key);
 error_free_tfm:
-	crypto_free_akcipher(tfm);
+	crypto_free_sig(tfm);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	if (WARN_ON_ONCE(ret > 0))
 		ret = -EINVAL;

@@ -561,7 +561,7 @@ static int blinkm_detect(struct i2c_client *client, struct i2c_board_info *info)
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, "blinkm", I2C_NAME_SIZE);
+	strscpy(info->type, "blinkm", I2C_NAME_SIZE);
 	return 0;
 }
 
@@ -730,7 +730,7 @@ static struct i2c_driver blinkm_driver = {
 	.driver = {
 		   .name = "blinkm",
 		   },
-	.probe_new = blinkm_probe,
+	.probe = blinkm_probe,
 	.remove = blinkm_remove,
 	.id_table = blinkm_id,
 	.detect = blinkm_detect,

@@ -273,7 +273,7 @@ static struct i2c_driver lp3952_i2c_driver = {
 	.driver = {
 			.name = LP3952_NAME,
 	},
-	.probe_new = lp3952_probe,
+	.probe = lp3952_probe,
 	.remove = lp3952_remove,
 	.id_table = lp3952_id,
 };

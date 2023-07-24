@@ -1114,7 +1114,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int s3c24xx_i2c_remove(struct platform_device *pdev)
+static void s3c24xx_i2c_remove(struct platform_device *pdev)
 {
 	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
 
@@ -1123,8 +1123,6 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	i2c_del_adapter(&i2c->adap);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1172,7 +1170,7 @@ static const struct dev_pm_ops s3c24xx_i2c_dev_pm_ops = {
 
 static struct platform_driver s3c24xx_i2c_driver = {
 	.probe		= s3c24xx_i2c_probe,
-	.remove		= s3c24xx_i2c_remove,
+	.remove_new	= s3c24xx_i2c_remove,
 	.id_table	= s3c24xx_driver_ids,
 	.driver		= {
 		.name	= "s3c-i2c",

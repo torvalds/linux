@@ -224,6 +224,13 @@ int snd_soc_component_is_dummy(struct snd_soc_component *component)
 		(component->driver == &dummy_codec));
 }
 
+struct snd_soc_dai_link_component asoc_dummy_dlc = {
+	.of_node	= NULL,
+	.dai_name	= "snd-soc-dummy-dai",
+	.name		= "snd-soc-dummy",
+};
+EXPORT_SYMBOL_GPL(asoc_dummy_dlc);
+
 static int snd_soc_dummy_probe(struct platform_device *pdev)
 {
 	int ret;

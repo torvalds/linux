@@ -27,7 +27,7 @@ cleanup_files()
 	exit $glb_err
 }
 
-trap cleanup_files exit term int
+trap cleanup_files EXIT TERM INT
 
 arm_spe_report() {
 	if [ $2 = 0 ]; then

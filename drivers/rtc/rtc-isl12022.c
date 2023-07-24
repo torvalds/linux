@@ -89,7 +89,7 @@ static int isl12022_hwmon_read(struct device *dev,
 	return -EOPNOTSUPP;
 }
 
-static const struct hwmon_channel_info *isl12022_hwmon_info[] = {
+static const struct hwmon_channel_info * const isl12022_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	NULL
 };
@@ -262,7 +262,7 @@ static struct i2c_driver isl12022_driver = {
 		.name	= "rtc-isl12022",
 		.of_match_table = isl12022_dt_match,
 	},
-	.probe_new	= isl12022_probe,
+	.probe		= isl12022_probe,
 	.id_table	= isl12022_id,
 };
 

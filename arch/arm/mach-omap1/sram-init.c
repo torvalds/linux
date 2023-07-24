@@ -23,7 +23,7 @@
 
 #define OMAP1_SRAM_PA		0x20000000
 #define SRAM_BOOTLOADER_SZ	0x80
-#define ROUND_DOWN(value,boundary)	((value) & (~((boundary)-1)))
+#define ROUND_DOWN(value, boundary)	((value) & (~((boundary) - 1)))
 
 static void __iomem *omap_sram_base;
 static unsigned long omap_sram_start;

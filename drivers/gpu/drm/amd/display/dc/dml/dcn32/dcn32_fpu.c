@@ -485,24 +485,20 @@ static void get_optimal_ntuple(struct _vcs_dpi_voltage_scaling_st *entry)
 	}
 }
 
-void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
+static void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
 				    unsigned int *num_entries,
 				    struct _vcs_dpi_voltage_scaling_st *entry)
 {
 	int i = 0;
 	int index = 0;
-	float net_bw_of_new_state = 0;
 
 	dc_assert_fp_enabled();
-
-	get_optimal_ntuple(entry);
 
 	if (*num_entries == 0) {
 		table[0] = *entry;
 		(*num_entries)++;
 	} else {
-		net_bw_of_new_state = calculate_net_bw_in_kbytes_sec(entry);
-		while (net_bw_of_new_state > calculate_net_bw_in_kbytes_sec(&table[index])) {
+		while (entry->net_bw_in_kbytes_sec > table[index].net_bw_in_kbytes_sec) {
 			index++;
 			if (index >= *num_entries)
 				break;
@@ -2349,6 +2345,63 @@ void dcn32_patch_dpm_table(struct clk_bw_params *bw_params)
 		bw_params->clk_table.entries[0].memclk_mhz = dcn3_2_soc.clock_limits[0].dram_speed_mts / 16;
 }
 
+static void swap_table_entries(struct _vcs_dpi_voltage_scaling_st *first_entry,
+		struct _vcs_dpi_voltage_scaling_st *second_entry)
+{
+	struct _vcs_dpi_voltage_scaling_st temp_entry = *first_entry;
+	*first_entry = *second_entry;
+	*second_entry = temp_entry;
+}
+
+/*
+ * sort_entries_with_same_bw - Sort entries sharing the same bandwidth by DCFCLK
+ */
+static void sort_entries_with_same_bw(struct _vcs_dpi_voltage_scaling_st *table, unsigned int *num_entries)
+{
+	unsigned int start_index = 0;
+	unsigned int end_index = 0;
+	unsigned int current_bw = 0;
+
+	for (int i = 0; i < (*num_entries - 1); i++) {
+		if (table[i].net_bw_in_kbytes_sec == table[i+1].net_bw_in_kbytes_sec) {
+			current_bw = table[i].net_bw_in_kbytes_sec;
+			start_index = i;
+			end_index = ++i;
+
+			while ((i < (*num_entries - 1)) && (table[i+1].net_bw_in_kbytes_sec == current_bw))
+				end_index = ++i;
+		}
+
+		if (start_index != end_index) {
+			for (int j = start_index; j < end_index; j++) {
+				for (int k = start_index; k < end_index; k++) {
+					if (table[k].dcfclk_mhz > table[k+1].dcfclk_mhz)
+						swap_table_entries(&table[k], &table[k+1]);
+				}
+			}
+		}
+
+		start_index = 0;
+		end_index = 0;
+
+	}
+}
+
+/*
+ * remove_inconsistent_entries - Ensure entries with the same bandwidth have MEMCLK and FCLK monotonically increasing
+ *                               and remove entries that do not
+ */
+static void remove_inconsistent_entries(struct _vcs_dpi_voltage_scaling_st *table, unsigned int *num_entries)
+{
+	for (int i = 0; i < (*num_entries - 1); i++) {
+		if (table[i].net_bw_in_kbytes_sec == table[i+1].net_bw_in_kbytes_sec) {
+			if ((table[i].dram_speed_mts > table[i+1].dram_speed_mts) ||
+				(table[i].fabricclk_mhz > table[i+1].fabricclk_mhz))
+				remove_entry_from_table_at_index(table, num_entries, i);
+		}
+	}
+}
+
 /*
  * override_max_clk_values - Overwrite the max clock frequencies with the max DC mode timings
  * Input:
@@ -2480,6 +2533,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 		entry.fabricclk_mhz = 0;
 		entry.dram_speed_mts = 0;
 
+		get_optimal_ntuple(&entry);
+		entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&entry);
 		insert_entry_into_table_sorted(table, num_entries, &entry);
 	}
 
@@ -2488,6 +2543,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 	entry.fabricclk_mhz = 0;
 	entry.dram_speed_mts = 0;
 
+	get_optimal_ntuple(&entry);
+	entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&entry);
 	insert_entry_into_table_sorted(table, num_entries, &entry);
 
 	// Insert the UCLK DPMS
@@ -2496,6 +2553,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 		entry.fabricclk_mhz = 0;
 		entry.dram_speed_mts = bw_params->clk_table.entries[i].memclk_mhz * 16;
 
+		get_optimal_ntuple(&entry);
+		entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&entry);
 		insert_entry_into_table_sorted(table, num_entries, &entry);
 	}
 
@@ -2506,6 +2565,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 			entry.fabricclk_mhz = bw_params->clk_table.entries[i].fclk_mhz;
 			entry.dram_speed_mts = 0;
 
+			get_optimal_ntuple(&entry);
+			entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&entry);
 			insert_entry_into_table_sorted(table, num_entries, &entry);
 		}
 	}
@@ -2515,6 +2576,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 		entry.fabricclk_mhz = max_clk_data.fclk_mhz;
 		entry.dram_speed_mts = 0;
 
+		get_optimal_ntuple(&entry);
+		entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&entry);
 		insert_entry_into_table_sorted(table, num_entries, &entry);
 	}
 
@@ -2528,6 +2591,21 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 				table[i].fabricclk_mhz > max_clk_data.fclk_mhz ||
 				table[i].dram_speed_mts > max_clk_data.memclk_mhz * 16)
 			remove_entry_from_table_at_index(table, num_entries, i);
+	}
+
+	// Insert entry with all max dc limits without bandwidth matching
+	if (!disable_dc_mode_overwrite) {
+		struct _vcs_dpi_voltage_scaling_st max_dc_limits_entry = entry;
+
+		max_dc_limits_entry.dcfclk_mhz = max_clk_data.dcfclk_mhz;
+		max_dc_limits_entry.fabricclk_mhz = max_clk_data.fclk_mhz;
+		max_dc_limits_entry.dram_speed_mts = max_clk_data.memclk_mhz * 16;
+
+		max_dc_limits_entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&max_dc_limits_entry);
+		insert_entry_into_table_sorted(table, num_entries, &max_dc_limits_entry);
+
+		sort_entries_with_same_bw(table, num_entries);
+		remove_inconsistent_entries(table, num_entries);
 	}
 
 	// At this point, the table only contains supported points of interest

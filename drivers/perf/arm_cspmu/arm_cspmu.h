@@ -8,7 +8,6 @@
 #ifndef __ARM_CSPMU_H__
 #define __ARM_CSPMU_H__
 
-#include <linux/acpi.h>
 #include <linux/bitfield.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
@@ -118,16 +117,16 @@ struct arm_cspmu_impl {
 struct arm_cspmu {
 	struct pmu pmu;
 	struct device *dev;
-	struct acpi_apmt_node *apmt_node;
 	const char *name;
 	const char *identifier;
 	void __iomem *base0;
 	void __iomem *base1;
-	int irq;
 	cpumask_t associated_cpus;
 	cpumask_t active_cpu;
 	struct hlist_node cpuhp_node;
+	int irq;
 
+	bool has_atomic_dword;
 	u32 pmcfgr;
 	u32 num_logical_ctrs;
 	u32 num_set_clr_reg;

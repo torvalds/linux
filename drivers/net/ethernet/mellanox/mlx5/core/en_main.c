@@ -641,7 +641,7 @@ static void mlx5e_free_mpwqe_rq_drop_page(struct mlx5e_rq *rq)
 }
 
 static int mlx5e_init_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *params,
-			     struct mlx5e_rq *rq)
+			     u32 xdp_frag_size, struct mlx5e_rq *rq)
 {
 	struct mlx5_core_dev *mdev = c->mdev;
 	int err;
@@ -665,7 +665,8 @@ static int mlx5e_init_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 	if (err)
 		return err;
 
-	return xdp_rxq_info_reg(&rq->xdp_rxq, rq->netdev, rq->ix, c->napi.napi_id);
+	return __xdp_rxq_info_reg(&rq->xdp_rxq, rq->netdev, rq->ix, c->napi.napi_id,
+				  xdp_frag_size);
 }
 
 static int mlx5_rq_shampo_alloc(struct mlx5_core_dev *mdev,
@@ -2240,7 +2241,7 @@ static int mlx5e_open_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 {
 	int err;
 
-	err = mlx5e_init_rxq_rq(c, params, &c->rq);
+	err = mlx5e_init_rxq_rq(c, params, rq_params->xdp_frag_size, &c->rq);
 	if (err)
 		return err;
 
@@ -2401,7 +2402,7 @@ static int mlx5e_channel_stats_alloc(struct mlx5e_priv *priv, int ix, int cpu)
 	/* Asymmetric dynamic memory allocation.
 	 * Freed in mlx5e_priv_arrays_free, not on channel closure.
 	 */
-	mlx5e_dbg(DRV, priv, "Creating channel stats %d\n", ix);
+	netdev_dbg(priv->netdev, "Creating channel stats %d\n", ix);
 	priv->channel_stats[ix] = kvzalloc_node(sizeof(**priv->channel_stats),
 						GFP_KERNEL, cpu_to_node(cpu));
 	if (!priv->channel_stats[ix])
@@ -2779,7 +2780,7 @@ int mlx5e_update_tx_netdev_queues(struct mlx5e_priv *priv)
 	if (MLX5E_GET_PFLAG(&priv->channels.params, MLX5E_PFLAG_TX_PORT_TS))
 		num_txqs += ntc;
 
-	mlx5e_dbg(DRV, priv, "Setting num_txqs %d\n", num_txqs);
+	netdev_dbg(priv->netdev, "Setting num_txqs %d\n", num_txqs);
 	err = netif_set_real_num_tx_queues(priv->netdev, num_txqs);
 	if (err)
 		netdev_warn(priv->netdev, "netif_set_real_num_tx_queues failed, %d\n", err);
@@ -5585,7 +5586,6 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 	/* priv init */
 	priv->mdev        = mdev;
 	priv->netdev      = netdev;
-	priv->msglevel    = MLX5E_MSG_LEVEL;
 	priv->max_nch     = nch;
 	priv->max_opened_tc = 1;
 

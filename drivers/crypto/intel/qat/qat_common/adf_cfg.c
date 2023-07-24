@@ -74,15 +74,30 @@ int adf_cfg_dev_add(struct adf_accel_dev *accel_dev)
 	INIT_LIST_HEAD(&dev_cfg_data->sec_list);
 	init_rwsem(&dev_cfg_data->lock);
 	accel_dev->cfg = dev_cfg_data;
-
-	/* accel_dev->debugfs_dir should always be non-NULL here */
-	dev_cfg_data->debug = debugfs_create_file("dev_cfg", S_IRUSR,
-						  accel_dev->debugfs_dir,
-						  dev_cfg_data,
-						  &qat_dev_cfg_fops);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(adf_cfg_dev_add);
+
+void adf_cfg_dev_dbgfs_add(struct adf_accel_dev *accel_dev)
+{
+	struct adf_cfg_device_data *dev_cfg_data = accel_dev->cfg;
+
+	dev_cfg_data->debug = debugfs_create_file("dev_cfg", 0400,
+						  accel_dev->debugfs_dir,
+						  dev_cfg_data,
+						  &qat_dev_cfg_fops);
+}
+
+void adf_cfg_dev_dbgfs_rm(struct adf_accel_dev *accel_dev)
+{
+	struct adf_cfg_device_data *dev_cfg_data = accel_dev->cfg;
+
+	if (!dev_cfg_data)
+		return;
+
+	debugfs_remove(dev_cfg_data->debug);
+	dev_cfg_data->debug = NULL;
+}
 
 static void adf_cfg_section_del_all(struct list_head *head);
 
@@ -116,7 +131,6 @@ void adf_cfg_dev_remove(struct adf_accel_dev *accel_dev)
 	down_write(&dev_cfg_data->lock);
 	adf_cfg_section_del_all(&dev_cfg_data->sec_list);
 	up_write(&dev_cfg_data->lock);
-	debugfs_remove(dev_cfg_data->debug);
 	kfree(dev_cfg_data);
 	accel_dev->cfg = NULL;
 }

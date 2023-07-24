@@ -21,12 +21,20 @@
  */
 extern phys_addr_t ibft_phys_addr;
 
+#ifdef CONFIG_ISCSI_IBFT_FIND
+
 /*
  * Routine used to find and reserve the iSCSI Boot Format Table. The
  * physical address is set in the ibft_phys_addr variable.
  */
-#ifdef CONFIG_ISCSI_IBFT_FIND
 void reserve_ibft_region(void);
+
+/*
+ * Physical bounds to search for the iSCSI Boot Format Table.
+ */
+#define IBFT_START 0x80000 /* 512kB */
+#define IBFT_END 0x100000 /* 1MB */
+
 #else
 static inline void reserve_ibft_region(void) {}
 #endif

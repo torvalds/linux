@@ -72,28 +72,28 @@ static const struct simple_mfd_data silergy_sy7636a = {
 	.mfd_cell_size = ARRAY_SIZE(sy7636a_cells),
 };
 
-static const struct mfd_cell max597x_cells[] = {
-	{ .name = "max597x-regulator", },
-	{ .name = "max597x-iio", },
-	{ .name = "max597x-led", },
+static const struct mfd_cell max5970_cells[] = {
+	{ .name = "max5970-regulator", },
+	{ .name = "max5970-iio", },
+	{ .name = "max5970-led", },
 };
 
-static const struct simple_mfd_data maxim_max597x = {
-	.mfd_cell = max597x_cells,
-	.mfd_cell_size = ARRAY_SIZE(max597x_cells),
+static const struct simple_mfd_data maxim_max5970 = {
+	.mfd_cell = max5970_cells,
+	.mfd_cell_size = ARRAY_SIZE(max5970_cells),
 };
 
 static const struct of_device_id simple_mfd_i2c_of_match[] = {
 	{ .compatible = "kontron,sl28cpld" },
 	{ .compatible = "silergy,sy7636a", .data = &silergy_sy7636a},
-	{ .compatible = "maxim,max5970", .data = &maxim_max597x},
-	{ .compatible = "maxim,max5978", .data = &maxim_max597x},
+	{ .compatible = "maxim,max5970", .data = &maxim_max5970},
+	{ .compatible = "maxim,max5978", .data = &maxim_max5970},
 	{}
 };
 MODULE_DEVICE_TABLE(of, simple_mfd_i2c_of_match);
 
 static struct i2c_driver simple_mfd_i2c_driver = {
-	.probe_new = simple_mfd_i2c_probe,
+	.probe = simple_mfd_i2c_probe,
 	.driver = {
 		.name = "simple-mfd-i2c",
 		.of_match_table = simple_mfd_i2c_of_match,

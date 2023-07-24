@@ -8,6 +8,7 @@
 #include "cpumap.h"
 #include "cputopo.h"
 #include "debug.h"
+#include "evlist.h"
 #include "expr.h"
 #include "expr-bison.h"
 #include "expr-flex.h"
@@ -473,4 +474,24 @@ double expr__get_literal(const char *literal, const struct expr_scanner_ctx *ctx
 out:
 	pr_debug2("literal: %s = %f\n", literal, result);
 	return result;
+}
+
+/* Does the event 'id' parse? Determine via ctx->ids if possible. */
+double expr__has_event(const struct expr_parse_ctx *ctx, bool compute_ids, const char *id)
+{
+	struct evlist *tmp;
+	double ret;
+
+	if (hashmap__find(ctx->ids, id, /*value=*/NULL))
+		return 1.0;
+
+	if (!compute_ids)
+		return 0.0;
+
+	tmp = evlist__new();
+	if (!tmp)
+		return NAN;
+	ret = parse_event(tmp, id) ? 0 : 1;
+	evlist__delete(tmp);
+	return ret;
 }

@@ -414,10 +414,13 @@ static void _fh_update(struct svc_fh *fhp, struct svc_export *exp,
 		struct fid *fid = (struct fid *)
 			(fhp->fh_handle.fh_fsid + fhp->fh_handle.fh_size/4 - 1);
 		int maxsize = (fhp->fh_maxsize - fhp->fh_handle.fh_size)/4;
-		int subtreecheck = !(exp->ex_flags & NFSEXP_NOSUBTREECHECK);
+		int fh_flags = (exp->ex_flags & NFSEXP_NOSUBTREECHECK) ? 0 :
+				EXPORT_FH_CONNECTABLE;
+		int fileid_type =
+			exportfs_encode_fh(dentry, fid, &maxsize, fh_flags);
 
 		fhp->fh_handle.fh_fileid_type =
-			exportfs_encode_fh(dentry, fid, &maxsize, subtreecheck);
+			fileid_type > 0 ? fileid_type : FILEID_INVALID;
 		fhp->fh_handle.fh_size += maxsize * 4;
 	} else {
 		fhp->fh_handle.fh_fileid_type = FILEID_ROOT;
@@ -623,16 +626,9 @@ void fh_fill_pre_attrs(struct svc_fh *fhp)
 
 	inode = d_inode(fhp->fh_dentry);
 	err = fh_getattr(fhp, &stat);
-	if (err) {
-		/* Grab the times from inode anyway */
-		stat.mtime = inode->i_mtime;
-		stat.ctime = inode->i_ctime;
-		stat.size  = inode->i_size;
-		if (v4 && IS_I_VERSION(inode)) {
-			stat.change_cookie = inode_query_iversion(inode);
-			stat.result_mask |= STATX_CHANGE_COOKIE;
-		}
-	}
+	if (err)
+		return;
+
 	if (v4)
 		fhp->fh_pre_change = nfsd4_change_attribute(&stat, inode);
 
@@ -660,15 +656,10 @@ void fh_fill_post_attrs(struct svc_fh *fhp)
 		printk("nfsd: inode locked twice during operation.\n");
 
 	err = fh_getattr(fhp, &fhp->fh_post_attr);
-	if (err) {
-		fhp->fh_post_saved = false;
-		fhp->fh_post_attr.ctime = inode->i_ctime;
-		if (v4 && IS_I_VERSION(inode)) {
-			fhp->fh_post_attr.change_cookie = inode_query_iversion(inode);
-			fhp->fh_post_attr.result_mask |= STATX_CHANGE_COOKIE;
-		}
-	} else
-		fhp->fh_post_saved = true;
+	if (err)
+		return;
+
+	fhp->fh_post_saved = true;
 	if (v4)
 		fhp->fh_post_change =
 			nfsd4_change_attribute(&fhp->fh_post_attr, inode);

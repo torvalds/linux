@@ -66,7 +66,7 @@ MODULE_DEVICE_TABLE(acpi, pcm512x_acpi_match);
 #endif
 
 static struct i2c_driver pcm512x_i2c_driver = {
-	.probe_new	= pcm512x_i2c_probe,
+	.probe		= pcm512x_i2c_probe,
 	.remove 	= pcm512x_i2c_remove,
 	.id_table	= pcm512x_i2c_id,
 	.driver		= {

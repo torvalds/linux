@@ -118,8 +118,8 @@ struct lowcore {
 	__u64	avg_steal_timer;		/* 0x0300 */
 	__u64	last_update_timer;		/* 0x0308 */
 	__u64	last_update_clock;		/* 0x0310 */
-	__u64	int_clock;			/* 0x0318*/
-	__u64	mcck_clock;			/* 0x0320 */
+	__u64	int_clock;			/* 0x0318 */
+	__u8	pad_0x0320[0x0328-0x0320];	/* 0x0320 */
 	__u64	clock_comparator;		/* 0x0328 */
 	__u64	boot_clock[2];			/* 0x0330 */
 

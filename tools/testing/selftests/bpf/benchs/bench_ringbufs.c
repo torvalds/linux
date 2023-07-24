@@ -96,7 +96,7 @@ static inline void bufs_trigger_batch(void)
 static void bufs_validate(void)
 {
 	if (env.consumer_cnt != 1) {
-		fprintf(stderr, "rb-libbpf benchmark doesn't support multi-consumer!\n");
+		fprintf(stderr, "rb-libbpf benchmark needs one consumer!\n");
 		exit(1);
 	}
 

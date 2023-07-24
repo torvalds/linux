@@ -15,7 +15,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&msmgpio 73 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 73 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-0 = <&reg_tsp_en_default>;
@@ -24,7 +24,7 @@
 
 	vibrator {
 		compatible = "gpio-vibrator";
-		enable-gpios = <&msmgpio 76 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&tlmm 76 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-0 = <&vibrator_en_default>;
 		pinctrl-names = "default";
@@ -37,7 +37,7 @@
 	touchscreen@20 {
 		compatible = "zinitix,bt532";
 		reg = <0x20>;
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
 
 		touchscreen-size-x = <768>;
@@ -51,7 +51,7 @@
 	};
 };
 
-&msmgpio {
+&tlmm {
 	reg_tsp_en_default: reg-tsp-en-default-state {
 		pins = "gpio73";
 		function = "gpio";

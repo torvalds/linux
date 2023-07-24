@@ -45,7 +45,7 @@ static int mlx5_thermal_get_mtmp_temp(struct mlx5_core_dev *mdev, u32 id, int *p
 static int mlx5_thermal_get_temp(struct thermal_zone_device *tzdev,
 				 int *p_temp)
 {
-	struct mlx5_thermal *thermal = tzdev->devdata;
+	struct mlx5_thermal *thermal = thermal_zone_device_priv(tzdev);
 	struct mlx5_core_dev *mdev = thermal->mdev;
 	int err;
 
@@ -68,30 +68,36 @@ static struct thermal_zone_device_ops mlx5_thermal_ops = {
 
 int mlx5_thermal_init(struct mlx5_core_dev *mdev)
 {
+	char data[THERMAL_NAME_LENGTH];
 	struct mlx5_thermal *thermal;
-	struct thermal_zone_device *tzd;
-	const char *data = "mlx5";
+	int err;
 
-	tzd = thermal_zone_get_zone_by_name(data);
-	if (!IS_ERR(tzd))
+	if (!mlx5_core_is_pf(mdev) && !mlx5_core_is_ecpf(mdev))
 		return 0;
+
+	err = snprintf(data, sizeof(data), "mlx5_%s", dev_name(mdev->device));
+	if (err < 0 || err >= sizeof(data)) {
+		mlx5_core_err(mdev, "Failed to setup thermal zone name, %d\n", err);
+		return -EINVAL;
+	}
 
 	thermal = kzalloc(sizeof(*thermal), GFP_KERNEL);
 	if (!thermal)
 		return -ENOMEM;
 
 	thermal->mdev = mdev;
-	thermal->tzdev = thermal_zone_device_register(data,
-						      MLX5_THERMAL_NUM_TRIPS,
-						      MLX5_THERMAL_TRIP_MASK,
-						      thermal,
-						      &mlx5_thermal_ops,
-						      NULL, 0, MLX5_THERMAL_POLL_INT_MSEC);
+	thermal->tzdev = thermal_zone_device_register_with_trips(data,
+								 NULL,
+								 MLX5_THERMAL_NUM_TRIPS,
+								 MLX5_THERMAL_TRIP_MASK,
+								 thermal,
+								 &mlx5_thermal_ops,
+								 NULL, 0, MLX5_THERMAL_POLL_INT_MSEC);
 	if (IS_ERR(thermal->tzdev)) {
-		dev_err(mdev->device, "Failed to register thermal zone device (%s) %ld\n",
-			data, PTR_ERR(thermal->tzdev));
+		err = PTR_ERR(thermal->tzdev);
+		mlx5_core_err(mdev, "Failed to register thermal zone device (%s) %d\n", data, err);
 		kfree(thermal);
-		return -EINVAL;
+		return err;
 	}
 
 	mdev->thermal = thermal;

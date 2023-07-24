@@ -44,6 +44,7 @@ patternProperties:
             - GPIO0
             - GPIO1
             - GPIO2
+            - GPIO3
 
       function:
         enum:

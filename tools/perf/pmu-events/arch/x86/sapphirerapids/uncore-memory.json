@@ -2480,11 +2480,11 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "DRAM Precharge commands. : Precharge due to (?)",
+        "BriefDescription": "DRAM Precharge commands",
         "EventCode": "0x03",
         "EventName": "UNC_M_PRE_COUNT.PGT",
         "PerPkg": "1",
-        "PublicDescription": "DRAM Precharge commands. : Precharge due to (?) : Counts the number of DRAM Precharge commands sent on this channel.",
+        "PublicDescription": "DRAM Precharge commands.  Counts the number of DRAM Precharge commands sent on this channel.",
         "UMask": "0x88",
         "Unit": "iMC"
     },
@@ -3236,7 +3236,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "2LM Tag check hit due to memory read (bug?)",
+        "BriefDescription": "2LM Tag check hit due to memory read",
         "EventCode": "0xd3",
         "EventName": "UNC_M_TAGCHK.NM_RD_HIT",
         "PerPkg": "1",
@@ -3244,7 +3244,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "2LM Tag check hit due to memory write (bug?)",
+        "BriefDescription": "2LM Tag check hit due to memory write",
         "EventCode": "0xd3",
         "EventName": "UNC_M_TAGCHK.NM_WR_HIT",
         "PerPkg": "1",

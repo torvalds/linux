@@ -426,7 +426,7 @@ static struct i2c_driver dac5571_driver = {
 		   .name = "ti-dac5571",
 		   .of_match_table = dac5571_of_id,
 	},
-	.probe_new = dac5571_probe,
+	.probe = dac5571_probe,
 	.remove   = dac5571_remove,
 	.id_table = dac5571_id,
 };

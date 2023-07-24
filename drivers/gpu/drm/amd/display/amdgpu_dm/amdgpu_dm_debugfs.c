@@ -336,6 +336,153 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	return size;
 }
 
+static bool dp_mst_is_end_device(struct amdgpu_dm_connector *aconnector)
+{
+	bool is_end_device = false;
+	struct drm_dp_mst_topology_mgr *mgr = NULL;
+	struct drm_dp_mst_port *port = NULL;
+
+	if (aconnector->mst_root && aconnector->mst_root->mst_mgr.mst_state) {
+		mgr = &aconnector->mst_root->mst_mgr;
+		port = aconnector->mst_output_port;
+
+		drm_modeset_lock(&mgr->base.lock, NULL);
+		if (port->pdt == DP_PEER_DEVICE_SST_SINK ||
+			port->pdt == DP_PEER_DEVICE_DP_LEGACY_CONV)
+			is_end_device = true;
+		drm_modeset_unlock(&mgr->base.lock);
+	}
+
+	return is_end_device;
+}
+
+/* Change MST link setting
+ *
+ * valid lane count value: 1, 2, 4
+ * valid link rate value:
+ * 06h = 1.62Gbps per lane
+ * 0Ah = 2.7Gbps per lane
+ * 0Ch = 3.24Gbps per lane
+ * 14h = 5.4Gbps per lane
+ * 1Eh = 8.1Gbps per lane
+ * 3E8h = 10.0Gbps per lane
+ * 546h = 13.5Gbps per lane
+ * 7D0h = 20.0Gbps per lane
+ *
+ * debugfs is located at /sys/kernel/debug/dri/0/DP-x/mst_link_settings
+ *
+ * for example, to force to  2 lane, 10.0GHz,
+ * echo 2 0x3e8 > /sys/kernel/debug/dri/0/DP-x/mst_link_settings
+ *
+ * Valid input will trigger hotplug event to get new link setting applied
+ * Invalid input will trigger training setting reset
+ *
+ * The usage can be referred to link_settings entry
+ *
+ */
+static ssize_t dp_mst_link_setting(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct dc_link *link = aconnector->dc_link;
+	struct amdgpu_device *adev = drm_to_adev(aconnector->base.dev);
+	struct dc *dc = (struct dc *)link->dc;
+	struct dc_link_settings prefer_link_settings;
+	char *wr_buf = NULL;
+	const uint32_t wr_buf_size = 40;
+	/* 0: lane_count; 1: link_rate */
+	int max_param_num = 2;
+	uint8_t param_nums = 0;
+	long param[2];
+	bool valid_input = true;
+
+	if (!dp_mst_is_end_device(aconnector))
+		return -EINVAL;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+	if (!wr_buf)
+		return -ENOSPC;
+
+	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		return -EINVAL;
+	}
+
+	switch (param[0]) {
+	case LANE_COUNT_ONE:
+	case LANE_COUNT_TWO:
+	case LANE_COUNT_FOUR:
+		break;
+	default:
+		valid_input = false;
+		break;
+	}
+
+	switch (param[1]) {
+	case LINK_RATE_LOW:
+	case LINK_RATE_HIGH:
+	case LINK_RATE_RBR2:
+	case LINK_RATE_HIGH2:
+	case LINK_RATE_HIGH3:
+	case LINK_RATE_UHBR10:
+	case LINK_RATE_UHBR13_5:
+	case LINK_RATE_UHBR20:
+		break;
+	default:
+		valid_input = false;
+		break;
+	}
+
+	if (!valid_input) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("Invalid Input value No HW will be programmed\n");
+		mutex_lock(&adev->dm.dc_lock);
+		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, false);
+		mutex_unlock(&adev->dm.dc_lock);
+		return -EINVAL;
+	}
+
+	/* save user force lane_count, link_rate to preferred settings
+	 * spread spectrum will not be changed
+	 */
+	prefer_link_settings.link_spread = link->cur_link_settings.link_spread;
+	prefer_link_settings.use_link_rate_set = false;
+	prefer_link_settings.lane_count = param[0];
+	prefer_link_settings.link_rate = param[1];
+
+	/* skip immediate retrain, and train to new link setting after hotplug event triggered */
+	mutex_lock(&adev->dm.dc_lock);
+	dc_link_set_preferred_training_settings(dc, &prefer_link_settings, NULL, link, true);
+	mutex_unlock(&adev->dm.dc_lock);
+
+	mutex_lock(&aconnector->base.dev->mode_config.mutex);
+	aconnector->base.force = DRM_FORCE_OFF;
+	mutex_unlock(&aconnector->base.dev->mode_config.mutex);
+	drm_kms_helper_hotplug_event(aconnector->base.dev);
+
+	msleep(100);
+
+	mutex_lock(&aconnector->base.dev->mode_config.mutex);
+	aconnector->base.force = DRM_FORCE_UNSPECIFIED;
+	mutex_unlock(&aconnector->base.dev->mode_config.mutex);
+	drm_kms_helper_hotplug_event(aconnector->base.dev);
+
+	kfree(wr_buf);
+	return size;
+}
+
 /* function: get current DP PHY settings: voltage swing, pre-emphasis,
  * post-cursor2 (defined by VESA DP specification)
  *
@@ -2668,6 +2815,12 @@ static const struct file_operations dp_dsc_disable_passthrough_debugfs_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations dp_mst_link_settings_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.write = dp_mst_link_setting,
+	.llseek = default_llseek
+};
+
 static const struct {
 	char *name;
 	const struct file_operations *fops;
@@ -2691,7 +2844,8 @@ static const struct {
 		{"dsc_disable_passthrough", &dp_dsc_disable_passthrough_debugfs_fops},
 		{"is_mst_connector", &dp_is_mst_connector_fops},
 		{"mst_progress_status", &dp_mst_progress_status_fops},
-		{"is_dpia_link", &is_dpia_link_fops}
+		{"is_dpia_link", &is_dpia_link_fops},
+		{"mst_link_settings", &dp_mst_link_settings_debugfs_fops}
 };
 
 static const struct {

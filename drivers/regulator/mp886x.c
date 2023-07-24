@@ -365,7 +365,7 @@ static struct i2c_driver mp886x_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = mp886x_dt_ids,
 	},
-	.probe_new = mp886x_i2c_probe,
+	.probe = mp886x_i2c_probe,
 	.id_table = mp886x_id,
 };
 module_i2c_driver(mp886x_regulator_driver);

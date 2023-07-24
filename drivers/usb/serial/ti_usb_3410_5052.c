@@ -319,7 +319,7 @@ static void ti_set_termios(struct tty_struct *tty,
 static int ti_tiocmget(struct tty_struct *tty);
 static int ti_tiocmset(struct tty_struct *tty,
 		unsigned int set, unsigned int clear);
-static void ti_break(struct tty_struct *tty, int break_state);
+static int ti_break(struct tty_struct *tty, int break_state);
 static void ti_interrupt_callback(struct urb *urb);
 static void ti_bulk_in_callback(struct urb *urb);
 static void ti_bulk_out_callback(struct urb *urb);
@@ -1071,7 +1071,7 @@ static int ti_tiocmset(struct tty_struct *tty,
 }
 
 
-static void ti_break(struct tty_struct *tty, int break_state)
+static int ti_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);
@@ -1083,8 +1083,12 @@ static void ti_break(struct tty_struct *tty, int break_state)
 		tport->tp_uart_base_addr + TI_UART_OFFSET_LCR,
 		TI_LCR_BREAK, break_state == -1 ? TI_LCR_BREAK : 0);
 
-	if (status)
+	if (status) {
 		dev_dbg(&port->dev, "%s - error setting break, %d\n", __func__, status);
+		return status;
+	}
+
+	return 0;
 }
 
 static int ti_get_port_from_code(unsigned char code)

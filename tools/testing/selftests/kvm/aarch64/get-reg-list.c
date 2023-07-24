@@ -48,6 +48,34 @@ struct reg_sublist {
 	__u64 rejects_set_n;
 };
 
+struct feature_id_reg {
+	__u64 reg;
+	__u64 id_reg;
+	__u64 feat_shift;
+	__u64 feat_min;
+};
+
+static struct feature_id_reg feat_id_regs[] = {
+	{
+		ARM64_SYS_REG(3, 0, 2, 0, 3),	/* TCR2_EL1 */
+		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
+		0,
+		1
+	},
+	{
+		ARM64_SYS_REG(3, 0, 10, 2, 2),	/* PIRE0_EL1 */
+		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
+		4,
+		1
+	},
+	{
+		ARM64_SYS_REG(3, 0, 10, 2, 3),	/* PIR_EL1 */
+		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
+		4,
+		1
+	}
+};
+
 struct vcpu_config {
 	char *name;
 	struct reg_sublist sublists[];
@@ -68,7 +96,8 @@ static int vcpu_configs_n;
 
 #define for_each_missing_reg(i)							\
 	for ((i) = 0; (i) < blessed_n; ++(i))					\
-		if (!find_reg(reg_list->reg, reg_list->n, blessed_reg[i]))
+		if (!find_reg(reg_list->reg, reg_list->n, blessed_reg[i]))	\
+			if (check_supported_feat_reg(vcpu, blessed_reg[i]))
 
 #define for_each_new_reg(i)							\
 	for_each_reg_filtered(i)						\
@@ -130,6 +159,25 @@ static bool find_reg(__u64 regs[], __u64 nr_regs, __u64 reg)
 		if (reg == regs[i])
 			return true;
 	return false;
+}
+
+static bool check_supported_feat_reg(struct kvm_vcpu *vcpu, __u64 reg)
+{
+	int i, ret;
+	__u64 data, feat_val;
+
+	for (i = 0; i < ARRAY_SIZE(feat_id_regs); i++) {
+		if (feat_id_regs[i].reg == reg) {
+			ret = __vcpu_get_reg(vcpu, feat_id_regs[i].id_reg, &data);
+			if (ret < 0)
+				return false;
+
+			feat_val = ((data >> feat_id_regs[i].feat_shift) & 0xf);
+			return feat_val >= feat_id_regs[i].feat_min;
+		}
+	}
+
+	return true;
 }
 
 static const char *str_with_index(const char *template, __u64 index)
@@ -843,12 +891,15 @@ static __u64 base_regs[] = {
 	ARM64_SYS_REG(3, 0, 2, 0, 0),	/* TTBR0_EL1 */
 	ARM64_SYS_REG(3, 0, 2, 0, 1),	/* TTBR1_EL1 */
 	ARM64_SYS_REG(3, 0, 2, 0, 2),	/* TCR_EL1 */
+	ARM64_SYS_REG(3, 0, 2, 0, 3),	/* TCR2_EL1 */
 	ARM64_SYS_REG(3, 0, 5, 1, 0),	/* AFSR0_EL1 */
 	ARM64_SYS_REG(3, 0, 5, 1, 1),	/* AFSR1_EL1 */
 	ARM64_SYS_REG(3, 0, 5, 2, 0),	/* ESR_EL1 */
 	ARM64_SYS_REG(3, 0, 6, 0, 0),	/* FAR_EL1 */
 	ARM64_SYS_REG(3, 0, 7, 4, 0),	/* PAR_EL1 */
 	ARM64_SYS_REG(3, 0, 10, 2, 0),	/* MAIR_EL1 */
+	ARM64_SYS_REG(3, 0, 10, 2, 2),	/* PIRE0_EL1 */
+	ARM64_SYS_REG(3, 0, 10, 2, 3),	/* PIR_EL1 */
 	ARM64_SYS_REG(3, 0, 10, 3, 0),	/* AMAIR_EL1 */
 	ARM64_SYS_REG(3, 0, 12, 0, 0),	/* VBAR_EL1 */
 	ARM64_SYS_REG(3, 0, 12, 1, 1),	/* DISR_EL1 */

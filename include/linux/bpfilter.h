@@ -11,7 +11,6 @@ int bpfilter_ip_set_sockopt(struct sock *sk, int optname, sockptr_t optval,
 			    unsigned int optlen);
 int bpfilter_ip_get_sockopt(struct sock *sk, int optname, char __user *optval,
 			    int __user *optlen);
-void bpfilter_umh_cleanup(struct umd_info *info);
 
 struct bpfilter_umh_ops {
 	struct umd_info info;

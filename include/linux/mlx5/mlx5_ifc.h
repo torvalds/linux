@@ -1710,9 +1710,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         regexp_params[0x1];
 	u8         uar_sz[0x6];
 	u8         port_selection_cap[0x1];
-	u8         reserved_at_248[0x1];
+	u8         reserved_at_251[0x1];
 	u8         umem_uid_0[0x1];
-	u8         reserved_at_250[0x5];
+	u8         reserved_at_253[0x5];
 	u8         log_pg_sz[0x8];
 
 	u8         bf[0x1];
@@ -1755,7 +1755,10 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_328[0x2];
 	u8	   relaxed_ordering_read[0x1];
 	u8         log_max_pd[0x5];
-	u8         reserved_at_330[0x9];
+	u8         reserved_at_330[0x6];
+	u8         pci_sync_for_fw_update_with_driver_unload[0x1];
+	u8         vnic_env_cnt_steering_fail[0x1];
+	u8         vport_counter_local_loopback[0x1];
 	u8         q_counter_aggregation[0x1];
 	u8         q_counter_other_vport[0x1];
 	u8         log_max_xrcd[0x5];
@@ -1990,7 +1993,10 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   ts_cqe_metadata_size2wqe_counter[0x5];
 	u8	   reserved_at_250[0x10];
 
-	u8	   reserved_at_260[0x5a0];
+	u8	   reserved_at_260[0x120];
+	u8	   reserved_at_380[0x10];
+	u8	   ec_vf_vport_base[0x10];
+	u8	   reserved_at_3a0[0x460];
 };
 
 enum mlx5_ifc_flow_destination_type {
@@ -3112,7 +3118,9 @@ struct mlx5_ifc_dtor_reg_bits {
 
 	struct mlx5_ifc_default_timeout_bits reclaim_vfs_pages_to;
 
-	u8         reserved_at_1c0[0x40];
+	struct mlx5_ifc_default_timeout_bits reset_unload_to;
+
+	u8         reserved_at_1c0[0x20];
 };
 
 enum {
@@ -3673,7 +3681,13 @@ struct mlx5_ifc_vnic_diagnostic_statistics_bits {
 
 	u8         eth_wqe_too_small[0x20];
 
-	u8         reserved_at_220[0xdc0];
+	u8         reserved_at_220[0xc0];
+
+	u8         generated_pkt_steering_fail[0x40];
+
+	u8         handled_pkt_steering_fail[0x40];
+
+	u8         reserved_at_360[0xc80];
 };
 
 struct mlx5_ifc_traffic_counter_bits {
@@ -4797,7 +4811,8 @@ struct mlx5_ifc_set_hca_cap_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_function[0x1];
-	u8         reserved_at_41[0xf];
+	u8         ec_vf_function[0x1];
+	u8         reserved_at_42[0xe];
 	u8         function_id[0x10];
 
 	u8         reserved_at_60[0x20];
@@ -5175,7 +5190,9 @@ struct mlx5_ifc_query_vport_counter_out_bits {
 
 	struct mlx5_ifc_traffic_counter_bits transmitted_eth_multicast;
 
-	u8         reserved_at_680[0xa00];
+	struct mlx5_ifc_traffic_counter_bits local_loopback;
+
+	u8         reserved_at_700[0x980];
 };
 
 enum {
@@ -5948,7 +5965,8 @@ struct mlx5_ifc_query_hca_cap_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_function[0x1];
-	u8         reserved_at_41[0xf];
+	u8         ec_vf_function[0x1];
+	u8         reserved_at_42[0xe];
 	u8         function_id[0x10];
 
 	u8         reserved_at_60[0x20];

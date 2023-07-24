@@ -1495,7 +1495,7 @@ static struct i2c_driver ucsi_ccg_driver = {
 		.acpi_match_table = amd_i2c_ucsi_match,
 		.of_match_table = ucsi_ccg_of_match_table,
 	},
-	.probe_new = ucsi_ccg_probe,
+	.probe = ucsi_ccg_probe,
 	.remove = ucsi_ccg_remove,
 	.id_table = ucsi_ccg_device_id,
 };

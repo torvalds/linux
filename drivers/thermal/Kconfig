@@ -130,6 +130,14 @@ config THERMAL_DEFAULT_GOV_POWER_ALLOCATOR
 	  system and device power allocation. This governor can only
 	  operate on cooling devices that implement the power API.
 
+config THERMAL_DEFAULT_GOV_BANG_BANG
+	bool "bang_bang"
+	depends on THERMAL_GOV_BANG_BANG
+	help
+	  Use the bang_bang governor as default. This throttles the
+	  devices one step at the time, taking into account the trip
+	  point hysteresis.
+
 endchoice
 
 config THERMAL_GOV_FAIR_SHARE

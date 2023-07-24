@@ -704,18 +704,6 @@ config GPIO_VISCONTI
 	help
 	  Say yes here to support GPIO on Tohisba Visconti.
 
-config GPIO_VX855
-	tristate "VIA VX855/VX875 GPIO"
-	depends on (X86 || COMPILE_TEST) && PCI
-	select MFD_CORE
-	select MFD_VX855
-	help
-	  Support access to the VX855/VX875 GPIO lines through the GPIO library.
-
-	  This driver provides common support for accessing the device.
-	  Additional drivers must be enabled in order to use the
-	  functionality of the device.
-
 config GPIO_WCD934X
 	tristate "Qualcomm Technologies Inc WCD9340/WCD9341 GPIO controller driver"
 	depends on MFD_WCD934X && OF_GPIO
@@ -835,7 +823,19 @@ config GPIO_IDT3243X
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
-	depends on X86 # Unconditional I/O space access
+	depends on X86 && HAS_IOPORT # I/O space access
+
+config GPIO_VX855
+	tristate "VIA VX855/VX875 GPIO"
+	depends on PCI
+	select MFD_CORE
+	select MFD_VX855
+	help
+	  Support access to the VX855/VX875 GPIO lines through the GPIO library.
+
+	  This driver provides common support for accessing the device.
+	  Additional drivers must be enabled in order to use the
+	  functionality of the device.
 
 config GPIO_I8255
 	tristate
@@ -1440,6 +1440,22 @@ config GPIO_TPS65218
 	  Select this option to enable GPIO driver for the TPS65218
 	  chip family.
 
+config GPIO_TPS65219
+	tristate "TPS65219 GPIO"
+	depends on MFD_TPS65219
+	default MFD_TPS65219
+	help
+	  Select this option to enable GPIO driver for the TPS65219 chip
+	  family.
+	  GPIO0 is statically configured as either input or output prior to
+	  Linux boot. It is used for MULTI_DEVICE_ENABLE function. This setting
+	  is statically configured by NVM. GPIO0 can't be used as a generic
+	  GPIO. It's either a GPO when MULTI_DEVICE_EN=0 or a GPI when
+	  MULTI_DEVICE_EN=1.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio_tps65219.
+
 config GPIO_TPS6586X
 	bool "TPS6586X GPIO"
 	depends on MFD_TPS6586X
@@ -1582,6 +1598,19 @@ config GPIO_MLXBF2
 	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here if you want GPIO support on Mellanox BlueField 2 SoC.
+
+config GPIO_MLXBF3
+	tristate "Mellanox BlueField 3 SoC GPIO"
+	depends on (MELLANOX_PLATFORM && ARM64) || COMPILE_TEST
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y if you want GPIO support on Mellanox BlueField 3 SoC.
+	  This GPIO controller supports interrupt handling and enables the
+	  manipulation of certain GPIO pins.
+	  This controller should be used in parallel with pinctrl-mlxbf3 to
+	  control the desired GPIOs.
+	  This driver can also be built as a module called mlxbf3-gpio.
 
 config GPIO_ML_IOH
 	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"

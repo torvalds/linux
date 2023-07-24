@@ -288,7 +288,7 @@ static struct i2c_driver rc5t583_i2c_driver = {
 	.driver = {
 		   .name = "rc5t583",
 		   },
-	.probe_new = rc5t583_i2c_probe,
+	.probe = rc5t583_i2c_probe,
 	.id_table = rc5t583_i2c_id,
 };
 

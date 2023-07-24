@@ -422,7 +422,7 @@ static struct i2c_driver aw2013_driver = {
 		.name = "leds-aw2013",
 		.of_match_table = of_match_ptr(aw2013_match_table),
 	},
-	.probe_new = aw2013_probe,
+	.probe = aw2013_probe,
 	.remove = aw2013_remove,
 };
 

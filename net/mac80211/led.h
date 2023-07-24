@@ -13,22 +13,18 @@
 static inline void ieee80211_led_rx(struct ieee80211_local *local)
 {
 #ifdef CONFIG_MAC80211_LEDS
-	unsigned long led_delay = MAC80211_BLINK_DELAY;
-
 	if (!atomic_read(&local->rx_led_active))
 		return;
-	led_trigger_blink_oneshot(&local->rx_led, &led_delay, &led_delay, 0);
+	led_trigger_blink_oneshot(&local->rx_led, MAC80211_BLINK_DELAY, MAC80211_BLINK_DELAY, 0);
 #endif
 }
 
 static inline void ieee80211_led_tx(struct ieee80211_local *local)
 {
 #ifdef CONFIG_MAC80211_LEDS
-	unsigned long led_delay = MAC80211_BLINK_DELAY;
-
 	if (!atomic_read(&local->tx_led_active))
 		return;
-	led_trigger_blink_oneshot(&local->tx_led, &led_delay, &led_delay, 0);
+	led_trigger_blink_oneshot(&local->tx_led, MAC80211_BLINK_DELAY, MAC80211_BLINK_DELAY, 0);
 #endif
 }
 

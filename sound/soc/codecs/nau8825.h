@@ -75,6 +75,8 @@
 #define NAU8825_REG_MISC_CTRL		0x55
 #define NAU8825_REG_I2C_DEVICE_ID		0x58
 #define NAU8825_REG_SARDOUT_RAM_STATUS		0x59
+#define NAU8825_REG_FLL2_LOWER		0x5a
+#define NAU8825_REG_FLL2_UPPER		0x5b
 #define NAU8825_REG_BIAS_ADJ		0x66
 #define NAU8825_REG_TRIM_SETTINGS		0x68
 #define NAU8825_REG_ANALOG_CONTROL_1		0x69
@@ -386,6 +388,7 @@
 #define NAU8825_GPIO2JD1	(1 << 7)
 #define NAU8825_SOFTWARE_ID_MASK	0x3
 #define NAU8825_SOFTWARE_ID_NAU8825	0x0
+#define NAU8825_SOFTWARE_ID_NAU8825C	0x1
 
 /* BIAS_ADJ (0x66) */
 #define NAU8825_BIAS_HPR_IMP		(1 << 15)
@@ -442,9 +445,16 @@
 /* BOOST (0x76) */
 #define NAU8825_PRECHARGE_DIS	(1 << 13)
 #define NAU8825_GLOBAL_BIAS_EN	(1 << 12)
+#define NAU8825_DISCHRG_EN	(1 << 11)
 #define NAU8825_HP_BOOST_DIS		(1 << 9)
 #define NAU8825_HP_BOOST_G_DIS	(1 << 8)
 #define NAU8825_SHORT_SHUTDOWN_EN	(1 << 6)
+
+/* FEPGA (0x77) */
+#define NAU8825_ACDC_CTRL_SFT		14
+#define NAU8825_ACDC_CTRL_MASK		(0x3 << NAU8825_ACDC_CTRL_SFT)
+#define NAU8825_ACDC_VREF_MICP		(0x1 << NAU8825_ACDC_CTRL_SFT)
+#define NAU8825_ACDC_VREF_MICN		(0x2 << NAU8825_ACDC_CTRL_SFT)
 
 /* POWER_UP_CONTROL (0x7f) */
 #define NAU8825_POWERUP_INTEGR_R	(1 << 5)
@@ -490,6 +500,7 @@ struct nau8825 {
 	struct clk *mclk;
 	struct work_struct xtalk_work;
 	struct semaphore xtalk_sem;
+	int sw_id;
 	int irq;
 	int mclk_freq; /* 0 - mclk is disabled */
 	int button_pressed;

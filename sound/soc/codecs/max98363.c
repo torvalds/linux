@@ -15,11 +15,6 @@
 #include "max98363.h"
 
 static struct reg_default max98363_reg[] = {
-	{MAX98363_R2001_INTR_RAW, 0x0},
-	{MAX98363_R2003_INTR_STATE, 0x0},
-	{MAX98363_R2005_INTR_FALG, 0x0},
-	{MAX98363_R2007_INTR_EN, 0x0},
-	{MAX98363_R2009_INTR_CLR, 0x0},
 	{MAX98363_R2021_ERR_MON_CTRL, 0x0},
 	{MAX98363_R2022_SPK_MON_THRESH, 0x0},
 	{MAX98363_R2023_SPK_MON_DURATION, 0x0},
@@ -28,7 +23,6 @@ static struct reg_default max98363_reg[] = {
 	{MAX98363_R2040_AMP_VOL, 0x0},
 	{MAX98363_R2041_AMP_GAIN, 0x5},
 	{MAX98363_R2042_DSP_CFG, 0x0},
-	{MAX98363_R21FF_REV_ID, 0x0},
 };
 
 static bool max98363_readable_register(struct device *dev, unsigned int reg)

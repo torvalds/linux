@@ -1501,14 +1501,34 @@ static struct bpf_map *bpf_object__add_map(struct bpf_object *obj)
 	return map;
 }
 
-static size_t bpf_map_mmap_sz(const struct bpf_map *map)
+static size_t bpf_map_mmap_sz(unsigned int value_sz, unsigned int max_entries)
 {
-	long page_sz = sysconf(_SC_PAGE_SIZE);
+	const long page_sz = sysconf(_SC_PAGE_SIZE);
 	size_t map_sz;
 
-	map_sz = (size_t)roundup(map->def.value_size, 8) * map->def.max_entries;
+	map_sz = (size_t)roundup(value_sz, 8) * max_entries;
 	map_sz = roundup(map_sz, page_sz);
 	return map_sz;
+}
+
+static int bpf_map_mmap_resize(struct bpf_map *map, size_t old_sz, size_t new_sz)
+{
+	void *mmaped;
+
+	if (!map->mmaped)
+		return -EINVAL;
+
+	if (old_sz == new_sz)
+		return 0;
+
+	mmaped = mmap(NULL, new_sz, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	if (mmaped == MAP_FAILED)
+		return -errno;
+
+	memcpy(mmaped, map->mmaped, min(old_sz, new_sz));
+	munmap(map->mmaped, old_sz);
+	map->mmaped = mmaped;
+	return 0;
 }
 
 static char *internal_map_name(struct bpf_object *obj, const char *real_name)
@@ -1609,6 +1629,7 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 {
 	struct bpf_map_def *def;
 	struct bpf_map *map;
+	size_t mmap_sz;
 	int err;
 
 	map = bpf_object__add_map(obj);
@@ -1643,7 +1664,8 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 	pr_debug("map '%s' (global data): at sec_idx %d, offset %zu, flags %x.\n",
 		 map->name, map->sec_idx, map->sec_offset, def->map_flags);
 
-	map->mmaped = mmap(NULL, bpf_map_mmap_sz(map), PROT_READ | PROT_WRITE,
+	mmap_sz = bpf_map_mmap_sz(map->def.value_size, map->def.max_entries);
+	map->mmaped = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
 			   MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 	if (map->mmaped == MAP_FAILED) {
 		err = -errno;
@@ -4330,7 +4352,7 @@ static int bpf_get_map_info_from_fdinfo(int fd, struct bpf_map_info *info)
 	snprintf(file, sizeof(file), "/proc/%d/fdinfo/%d", getpid(), fd);
 	memset(info, 0, sizeof(*info));
 
-	fp = fopen(file, "r");
+	fp = fopen(file, "re");
 	if (!fp) {
 		err = -errno;
 		pr_warn("failed to open %s: %d. No procfs support?\n", file,
@@ -4393,16 +4415,15 @@ int bpf_map__reuse_fd(struct bpf_map *map, int fd)
 	if (!new_name)
 		return libbpf_err(-errno);
 
-	new_fd = open("/", O_RDONLY | O_CLOEXEC);
+	/*
+	 * Like dup(), but make sure new FD is >= 3 and has O_CLOEXEC set.
+	 * This is similar to what we do in ensure_good_fd(), but without
+	 * closing original FD.
+	 */
+	new_fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
 	if (new_fd < 0) {
 		err = -errno;
 		goto err_free_new_name;
-	}
-
-	new_fd = dup3(fd, new_fd, O_CLOEXEC);
-	if (new_fd < 0) {
-		err = -errno;
-		goto err_close_new_fd;
 	}
 
 	err = zclose(map->fd);
@@ -7434,7 +7455,7 @@ int libbpf_kallsyms_parse(kallsyms_cb_t cb, void *ctx)
 	int ret, err = 0;
 	FILE *f;
 
-	f = fopen("/proc/kallsyms", "r");
+	f = fopen("/proc/kallsyms", "re");
 	if (!f) {
 		err = -errno;
 		pr_warn("failed to open /proc/kallsyms: %d\n", err);
@@ -8295,7 +8316,10 @@ static void bpf_map__destroy(struct bpf_map *map)
 	map->init_slots_sz = 0;
 
 	if (map->mmaped) {
-		munmap(map->mmaped, bpf_map_mmap_sz(map));
+		size_t mmap_sz;
+
+		mmap_sz = bpf_map_mmap_sz(map->def.value_size, map->def.max_entries);
+		munmap(map->mmaped, mmap_sz);
 		map->mmaped = NULL;
 	}
 
@@ -9413,10 +9437,103 @@ __u32 bpf_map__value_size(const struct bpf_map *map)
 	return map->def.value_size;
 }
 
+static int map_btf_datasec_resize(struct bpf_map *map, __u32 size)
+{
+	struct btf *btf;
+	struct btf_type *datasec_type, *var_type;
+	struct btf_var_secinfo *var;
+	const struct btf_type *array_type;
+	const struct btf_array *array;
+	int vlen, element_sz, new_array_id;
+	__u32 nr_elements;
+
+	/* check btf existence */
+	btf = bpf_object__btf(map->obj);
+	if (!btf)
+		return -ENOENT;
+
+	/* verify map is datasec */
+	datasec_type = btf_type_by_id(btf, bpf_map__btf_value_type_id(map));
+	if (!btf_is_datasec(datasec_type)) {
+		pr_warn("map '%s': cannot be resized, map value type is not a datasec\n",
+			bpf_map__name(map));
+		return -EINVAL;
+	}
+
+	/* verify datasec has at least one var */
+	vlen = btf_vlen(datasec_type);
+	if (vlen == 0) {
+		pr_warn("map '%s': cannot be resized, map value datasec is empty\n",
+			bpf_map__name(map));
+		return -EINVAL;
+	}
+
+	/* verify last var in the datasec is an array */
+	var = &btf_var_secinfos(datasec_type)[vlen - 1];
+	var_type = btf_type_by_id(btf, var->type);
+	array_type = skip_mods_and_typedefs(btf, var_type->type, NULL);
+	if (!btf_is_array(array_type)) {
+		pr_warn("map '%s': cannot be resized, last var must be an array\n",
+			bpf_map__name(map));
+		return -EINVAL;
+	}
+
+	/* verify request size aligns with array */
+	array = btf_array(array_type);
+	element_sz = btf__resolve_size(btf, array->type);
+	if (element_sz <= 0 || (size - var->offset) % element_sz != 0) {
+		pr_warn("map '%s': cannot be resized, element size (%d) doesn't align with new total size (%u)\n",
+			bpf_map__name(map), element_sz, size);
+		return -EINVAL;
+	}
+
+	/* create a new array based on the existing array, but with new length */
+	nr_elements = (size - var->offset) / element_sz;
+	new_array_id = btf__add_array(btf, array->index_type, array->type, nr_elements);
+	if (new_array_id < 0)
+		return new_array_id;
+
+	/* adding a new btf type invalidates existing pointers to btf objects,
+	 * so refresh pointers before proceeding
+	 */
+	datasec_type = btf_type_by_id(btf, map->btf_value_type_id);
+	var = &btf_var_secinfos(datasec_type)[vlen - 1];
+	var_type = btf_type_by_id(btf, var->type);
+
+	/* finally update btf info */
+	datasec_type->size = size;
+	var->size = size - var->offset;
+	var_type->type = new_array_id;
+
+	return 0;
+}
+
 int bpf_map__set_value_size(struct bpf_map *map, __u32 size)
 {
 	if (map->fd >= 0)
 		return libbpf_err(-EBUSY);
+
+	if (map->mmaped) {
+		int err;
+		size_t mmap_old_sz, mmap_new_sz;
+
+		mmap_old_sz = bpf_map_mmap_sz(map->def.value_size, map->def.max_entries);
+		mmap_new_sz = bpf_map_mmap_sz(size, map->def.max_entries);
+		err = bpf_map_mmap_resize(map, mmap_old_sz, mmap_new_sz);
+		if (err) {
+			pr_warn("map '%s': failed to resize memory-mapped region: %d\n",
+				bpf_map__name(map), err);
+			return err;
+		}
+		err = map_btf_datasec_resize(map, size);
+		if (err && err != -ENOENT) {
+			pr_warn("map '%s': failed to adjust resized BTF, clearing BTF key/value info: %d\n",
+				bpf_map__name(map), err);
+			map->btf_value_type_id = 0;
+			map->btf_key_type_id = 0;
+		}
+	}
+
 	map->def.value_size = size;
 	return 0;
 }
@@ -9442,7 +9559,7 @@ int bpf_map__set_initial_value(struct bpf_map *map,
 	return 0;
 }
 
-const void *bpf_map__initial_value(struct bpf_map *map, size_t *psize)
+void *bpf_map__initial_value(struct bpf_map *map, size_t *psize)
 {
 	if (!map->mmaped)
 		return NULL;
@@ -9958,7 +10075,7 @@ static int parse_uint_from_file(const char *file, const char *fmt)
 	int err, ret;
 	FILE *f;
 
-	f = fopen(file, "r");
+	f = fopen(file, "re");
 	if (!f) {
 		err = -errno;
 		pr_debug("failed to open '%s': %s\n", file,
@@ -12694,7 +12811,7 @@ int bpf_object__load_skeleton(struct bpf_object_skeleton *s)
 
 	for (i = 0; i < s->map_cnt; i++) {
 		struct bpf_map *map = *s->maps[i].map;
-		size_t mmap_sz = bpf_map_mmap_sz(map);
+		size_t mmap_sz = bpf_map_mmap_sz(map->def.value_size, map->def.max_entries);
 		int prot, map_fd = bpf_map__fd(map);
 		void **mmaped = s->maps[i].mmaped;
 
@@ -12721,8 +12838,7 @@ int bpf_object__load_skeleton(struct bpf_object_skeleton *s)
 		 * as per normal clean up procedure, so we don't need to worry
 		 * about it from skeleton's clean up perspective.
 		 */
-		*mmaped = mmap(map->mmaped, mmap_sz, prot,
-				MAP_SHARED | MAP_FIXED, map_fd, 0);
+		*mmaped = mmap(map->mmaped, mmap_sz, prot, MAP_SHARED | MAP_FIXED, map_fd, 0);
 		if (*mmaped == MAP_FAILED) {
 			err = -errno;
 			*mmaped = NULL;

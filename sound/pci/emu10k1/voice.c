@@ -23,110 +23,101 @@
  * allocator uses a round robin scheme.  The next free voice is tracked in 
  * the card record and each allocation begins where the last left off.  The 
  * hardware requires stereo interleaved voices be aligned to an even/odd 
- * boundary.  For multichannel voice allocation we ensure than the block of 
- * voices does not cross the 32 voice boundary.  This simplifies the 
- * multichannel support and ensures we can use a single write to the 
- * (set|clear)_loop_stop registers.  Otherwise (for example) the voices would 
- * get out of sync when pausing/resuming a stream.
+ * boundary.
  *							--rlrevell
  */
 
 static int voice_alloc(struct snd_emu10k1 *emu, int type, int number,
-		       struct snd_emu10k1_voice **rvoice)
+		       struct snd_emu10k1_pcm *epcm, struct snd_emu10k1_voice **rvoice)
 {
 	struct snd_emu10k1_voice *voice;
-	int i, j, k, first_voice, last_voice, skip;
+	int i, j, k, skip;
 
-	*rvoice = NULL;
-	first_voice = last_voice = 0;
-	for (i = emu->next_free_voice, j = 0; j < NUM_G ; i += number, j += number) {
+	for (i = emu->next_free_voice, j = 0; j < NUM_G; i = (i + skip) % NUM_G, j += skip) {
 		/*
 		dev_dbg(emu->card->dev, "i %d j %d next free %d!\n",
 		       i, j, emu->next_free_voice);
 		*/
-		i %= NUM_G;
 
 		/* stereo voices must be even/odd */
-		if ((number == 2) && (i % 2)) {
-			i++;
+		if ((number > 1) && (i % 2)) {
+			skip = 1;
 			continue;
 		}
-			
-		skip = 0;
+
 		for (k = 0; k < number; k++) {
-			voice = &emu->voices[(i+k) % NUM_G];
+			voice = &emu->voices[i + k];
 			if (voice->use) {
-				skip = 1;
-				break;
+				skip = k + 1;
+				goto next;
 			}
 		}
-		if (!skip) {
-			/* dev_dbg(emu->card->dev, "allocated voice %d\n", i); */
-			first_voice = i;
-			last_voice = (i + number) % NUM_G;
-			emu->next_free_voice = last_voice;
-			break;
+
+		for (k = 0; k < number; k++) {
+			voice = &emu->voices[i + k];
+			voice->use = type;
+			voice->epcm = epcm;
+			/* dev_dbg(emu->card->dev, "allocated voice %d\n", i + k); */
 		}
+		voice->last = 1;
+
+		*rvoice = &emu->voices[i];
+		emu->next_free_voice = (i + number) % NUM_G;
+		return 0;
+
+	next: ;
 	}
-	
-	if (first_voice == last_voice)
-		return -ENOMEM;
-	
-	for (i = 0; i < number; i++) {
-		voice = &emu->voices[(first_voice + i) % NUM_G];
-		/*
-		dev_dbg(emu->card->dev, "voice alloc - %i, %i of %i\n",
-		       voice->number, idx-first_voice+1, number);
-		*/
-		voice->use = 1;
-		switch (type) {
-		case EMU10K1_PCM:
-			voice->pcm = 1;
-			break;
-		case EMU10K1_SYNTH:
-			voice->synth = 1;
-			break;
-		case EMU10K1_MIDI:
-			voice->midi = 1;
-			break;
-		case EMU10K1_EFX:
-			voice->efx = 1;
-			break;
-		}
-	}
-	*rvoice = &emu->voices[first_voice];
-	return 0;
+	return -ENOMEM;  // -EBUSY would have been better
 }
 
-int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int number,
-			    struct snd_emu10k1_voice **rvoice)
+static void voice_free(struct snd_emu10k1 *emu,
+		       struct snd_emu10k1_voice *pvoice)
+{
+	if (pvoice->dirty)
+		snd_emu10k1_voice_init(emu, pvoice->number);
+	pvoice->interrupt = NULL;
+	pvoice->use = pvoice->dirty = pvoice->last = 0;
+	pvoice->epcm = NULL;
+}
+
+int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int count, int channels,
+			    struct snd_emu10k1_pcm *epcm, struct snd_emu10k1_voice **rvoice)
 {
 	unsigned long flags;
 	int result;
 
 	if (snd_BUG_ON(!rvoice))
 		return -EINVAL;
-	if (snd_BUG_ON(!number))
+	if (snd_BUG_ON(!count))
+		return -EINVAL;
+	if (snd_BUG_ON(!channels))
 		return -EINVAL;
 
 	spin_lock_irqsave(&emu->voice_lock, flags);
-	for (;;) {
-		result = voice_alloc(emu, type, number, rvoice);
-		if (result == 0 || type == EMU10K1_SYNTH || type == EMU10K1_MIDI)
-			break;
-
-		/* free a voice from synth */
-		if (emu->get_synth_voice) {
+	for (int got = 0; got < channels; ) {
+		result = voice_alloc(emu, type, count, epcm, &rvoice[got]);
+		if (result == 0) {
+			got++;
+			/*
+			dev_dbg(emu->card->dev, "voice alloc - %i, %i of %i\n",
+			        rvoice[got - 1]->number, got, want);
+			*/
+			continue;
+		}
+		if (type != EMU10K1_SYNTH && emu->get_synth_voice) {
+			/* free a voice from synth */
 			result = emu->get_synth_voice(emu);
 			if (result >= 0) {
-				struct snd_emu10k1_voice *pvoice = &emu->voices[result];
-				pvoice->interrupt = NULL;
-				pvoice->use = pvoice->pcm = pvoice->synth = pvoice->midi = pvoice->efx = 0;
-				pvoice->epcm = NULL;
+				voice_free(emu, &emu->voices[result]);
+				continue;
 			}
 		}
-		if (result < 0)
-			break;
+		for (int i = 0; i < got; i++) {
+			for (int j = 0; j < count; j++)
+				voice_free(emu, rvoice[i] + j);
+			rvoice[i] = NULL;
+		}
+		break;
 	}
 	spin_unlock_irqrestore(&emu->voice_lock, flags);
 
@@ -139,14 +130,15 @@ int snd_emu10k1_voice_free(struct snd_emu10k1 *emu,
 			   struct snd_emu10k1_voice *pvoice)
 {
 	unsigned long flags;
+	int last;
 
 	if (snd_BUG_ON(!pvoice))
 		return -EINVAL;
 	spin_lock_irqsave(&emu->voice_lock, flags);
-	pvoice->interrupt = NULL;
-	pvoice->use = pvoice->pcm = pvoice->synth = pvoice->midi = pvoice->efx = 0;
-	pvoice->epcm = NULL;
-	snd_emu10k1_voice_init(emu, pvoice->number);
+	do {
+		last = pvoice->last;
+		voice_free(emu, pvoice++);
+	} while (!last);
 	spin_unlock_irqrestore(&emu->voice_lock, flags);
 	return 0;
 }

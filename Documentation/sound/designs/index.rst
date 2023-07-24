@@ -15,3 +15,4 @@ Designs and Implementations
    oss-emulation
    seq-oss
    jack-injection
+   midi-2.0

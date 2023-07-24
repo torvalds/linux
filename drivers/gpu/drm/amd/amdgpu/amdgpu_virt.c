@@ -66,9 +66,6 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	adev->cg_flags = 0;
 	adev->pg_flags = 0;
 
-	/* enable mcbp for sriov */
-	amdgpu_mcbp = 1;
-
 	/* Reduce kcq number to 2 to reduce latency */
 	if (amdgpu_num_kcq == -1)
 		amdgpu_num_kcq = 2;

@@ -282,7 +282,7 @@ static void tpt_trig_timer(struct timer_list *t)
 		}
 	}
 
-	led_trigger_blink(&local->tpt_led, &on, &off);
+	led_trigger_blink(&local->tpt_led, on, off);
 }
 
 const char *

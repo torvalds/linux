@@ -11,6 +11,10 @@
 #ifndef _MT8188_AFE_CLK_H_
 #define _MT8188_AFE_CLK_H_
 
+/* APLL */
+#define APLL1_W_NAME "APLL1"
+#define APLL2_W_NAME "APLL2"
+
 enum {
 	/* xtal */
 	MT8188_CLK_XTAL_26M,
@@ -18,13 +22,18 @@ enum {
 	MT8188_CLK_APMIXED_APLL1,
 	MT8188_CLK_APMIXED_APLL2,
 	/* divider */
+	MT8188_CLK_TOP_APLL1_D4,
+	MT8188_CLK_TOP_APLL2_D4,
 	MT8188_CLK_TOP_APLL12_DIV0,
 	MT8188_CLK_TOP_APLL12_DIV1,
 	MT8188_CLK_TOP_APLL12_DIV2,
 	MT8188_CLK_TOP_APLL12_DIV3,
+	MT8188_CLK_TOP_APLL12_DIV4,
 	MT8188_CLK_TOP_APLL12_DIV9,
 	/* mux */
 	MT8188_CLK_TOP_A1SYS_HP_SEL,
+	MT8188_CLK_TOP_A2SYS_SEL,
+	MT8188_CLK_TOP_AUD_IEC_SEL,
 	MT8188_CLK_TOP_AUD_INTBUS_SEL,
 	MT8188_CLK_TOP_AUDIO_H_SEL,
 	MT8188_CLK_TOP_AUDIO_LOCAL_BUS_SEL,
@@ -99,6 +108,8 @@ struct mtk_base_afe;
 int mt8188_afe_get_mclk_source_clk_id(int sel);
 int mt8188_afe_get_mclk_source_rate(struct mtk_base_afe *afe, int apll);
 int mt8188_afe_get_default_mclk_source_by_rate(int rate);
+int mt8188_get_apll_by_rate(struct mtk_base_afe *afe, int rate);
+int mt8188_get_apll_by_name(struct mtk_base_afe *afe, const char *name);
 int mt8188_afe_init_clock(struct mtk_base_afe *afe);
 int mt8188_afe_enable_clk(struct mtk_base_afe *afe, struct clk *clk);
 void mt8188_afe_disable_clk(struct mtk_base_afe *afe, struct clk *clk);
@@ -106,6 +117,10 @@ int mt8188_afe_set_clk_rate(struct mtk_base_afe *afe, struct clk *clk,
 			    unsigned int rate);
 int mt8188_afe_set_clk_parent(struct mtk_base_afe *afe, struct clk *clk,
 			      struct clk *parent);
+int mt8188_apll1_enable(struct mtk_base_afe *afe);
+int mt8188_apll1_disable(struct mtk_base_afe *afe);
+int mt8188_apll2_enable(struct mtk_base_afe *afe);
+int mt8188_apll2_disable(struct mtk_base_afe *afe);
 int mt8188_afe_enable_main_clock(struct mtk_base_afe *afe);
 int mt8188_afe_disable_main_clock(struct mtk_base_afe *afe);
 int mt8188_afe_enable_reg_rw_clk(struct mtk_base_afe *afe);

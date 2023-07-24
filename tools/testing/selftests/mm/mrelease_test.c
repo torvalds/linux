@@ -9,17 +9,9 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <asm-generic/unistd.h>
 #include "vm_util.h"
-
 #include "../kselftest.h"
-
-#ifndef __NR_pidfd_open
-#define __NR_pidfd_open -1
-#endif
-
-#ifndef __NR_process_mrelease
-#define __NR_process_mrelease -1
-#endif
 
 #define MB(x) (x << 20)
 #define MAX_SIZE_MB 1024

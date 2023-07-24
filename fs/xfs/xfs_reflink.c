@@ -617,7 +617,8 @@ xfs_reflink_cancel_cow_blocks(
 					del.br_blockcount);
 
 			error = xfs_free_extent_later(*tpp, del.br_startblock,
-					  del.br_blockcount, NULL);
+					del.br_blockcount, NULL,
+					XFS_AG_RESV_NONE);
 			if (error)
 				break;
 

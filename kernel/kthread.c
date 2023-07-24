@@ -182,6 +182,16 @@ bool kthread_should_park(void)
 }
 EXPORT_SYMBOL_GPL(kthread_should_park);
 
+bool kthread_should_stop_or_park(void)
+{
+	struct kthread *kthread = __to_kthread(current);
+
+	if (!kthread)
+		return false;
+
+	return kthread->flags & (BIT(KTHREAD_SHOULD_STOP) | BIT(KTHREAD_SHOULD_PARK));
+}
+
 /**
  * kthread_freezable_should_stop - should this freezable kthread return now?
  * @was_frozen: optional out parameter, indicates whether %current was frozen
@@ -312,10 +322,10 @@ void __noreturn kthread_exit(long result)
  * @comp: Completion to complete
  * @code: The integer value to return to kthread_stop().
  *
- * If present complete @comp and the reuturn code to kthread_stop().
+ * If present, complete @comp and then return code to kthread_stop().
  *
  * A kernel thread whose module may be removed after the completion of
- * @comp can use this function exit safely.
+ * @comp can use this function to exit safely.
  *
  * Does not return.
  */

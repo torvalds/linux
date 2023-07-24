@@ -255,7 +255,7 @@ static struct i2c_driver adm1177_driver = {
 		.name = "adm1177",
 		.of_match_table = adm1177_dt_ids,
 	},
-	.probe_new = adm1177_probe,
+	.probe = adm1177_probe,
 	.id_table = adm1177_id,
 };
 module_i2c_driver(adm1177_driver);

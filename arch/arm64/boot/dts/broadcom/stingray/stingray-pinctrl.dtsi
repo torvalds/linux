@@ -44,7 +44,7 @@
 			compatible = "pinctrl-single";
 			reg = <0x0014029c 0x26c>;
 			#address-cells = <1>;
-			#size-cells = <1>;
+			#size-cells = <0>;
 			pinctrl-single,register-width = <32>;
 			pinctrl-single,function-mask = <0xf>;
 			pinctrl-single,gpio-range = <
@@ -56,14 +56,14 @@
 			};
 
 			/* pinctrl functions */
-			tsio_pins: pinmux_gpio_14 {
+			tsio_pins: gpio-14-pins {
 				pinctrl-single,pins = <
 					0x038 MODE_NITRO /* tsio_0 */
 					0x03c MODE_NITRO /* tsio_1 */
 				>;
 			};
 
-			nor_pins: pinmux_pnor_adv_n {
+			nor_pins: pnor-adv-n-pins {
 				pinctrl-single,pins = <
 					0x0ac MODE_PNOR /* nand_ce1_n */
 					0x0b0 MODE_PNOR /* nand_ce0_n */
@@ -119,7 +119,7 @@
 				>;
 			};
 
-			nand_pins: pinmux_nand_ce1_n {
+			nand_pins: nand-ce1-n-pins {
 				pinctrl-single,pins = <
 					0x0ac MODE_NAND /* nand_ce1_n */
 					0x0b0 MODE_NAND /* nand_ce0_n */
@@ -148,59 +148,59 @@
 				>;
 			};
 
-			pwm0_pins: pinmux_pwm_0 {
+			pwm0_pins: pwm-0-pins {
 				pinctrl-single,pins = <
 					0x10c MODE_NITRO
 				>;
 			};
 
-			pwm1_pins: pinmux_pwm_1 {
+			pwm1_pins: pwm-1-pins {
 				pinctrl-single,pins = <
 					0x110 MODE_NITRO
 				>;
 			};
 
-			pwm2_pins: pinmux_pwm_2 {
+			pwm2_pins: pwm-2-pins {
 				pinctrl-single,pins = <
 					0x114 MODE_NITRO
 				>;
 			};
 
-			pwm3_pins: pinmux_pwm_3 {
+			pwm3_pins: pwm-3-pins {
 				pinctrl-single,pins = <
 					0x118 MODE_NITRO
 				>;
 			};
 
-			dbu_rxd_pins: pinmux_uart1_sin_nitro {
+			dbu_rxd_pins: uart1-sin-nitro-pins {
 				pinctrl-single,pins = <
 					0x11c MODE_NITRO /* dbu_rxd */
 					0x120 MODE_NITRO /* dbu_txd */
 				>;
 			};
 
-			uart1_pins: pinmux_uart1_sin_nand {
+			uart1_pins: uart1-sin-nand-pins {
 				pinctrl-single,pins = <
 					0x11c MODE_NAND /* uart1_sin */
 					0x120 MODE_NAND /* uart1_out */
 				>;
 			};
 
-			uart2_pins: pinmux_uart2_sin {
+			uart2_pins: uart2-sin-pins {
 				pinctrl-single,pins = <
 					0x124 MODE_NITRO /* uart2_sin */
 					0x128 MODE_NITRO /* uart2_out */
 				>;
 			};
 
-			uart3_pins: pinmux_uart3_sin {
+			uart3_pins: uart3-sin-pins {
 				pinctrl-single,pins = <
 					0x12c MODE_NITRO /* uart3_sin */
 					0x130 MODE_NITRO /* uart3_out */
 				>;
 			};
 
-			i2s_pins: pinmux_i2s_bitclk {
+			i2s_pins: i2s-bitclk-pins {
 				pinctrl-single,pins = <
 					0x134 MODE_NITRO /* i2s_bitclk */
 					0x138 MODE_NITRO /* i2s_sdout */
@@ -211,7 +211,7 @@
 				>;
 			};
 
-			qspi_pins: pinumx_qspi_hold_n {
+			qspi_pins: qspi-hold-n-pins {
 				pinctrl-single,pins = <
 					0x14c MODE_NAND /* qspi_hold_n */
 					0x150 MODE_NAND /* qspi_wp_n */
@@ -222,28 +222,28 @@
 				>;
 			};
 
-			mdio_pins: pinumx_ext_mdio {
+			mdio_pins: ext-mdio-pins {
 				pinctrl-single,pins = <
 					0x164 MODE_NITRO /* ext_mdio */
 					0x168 MODE_NITRO /* ext_mdc */
 				>;
 			};
 
-			i2c0_pins: pinmux_i2c0_sda {
+			i2c0_pins: i2c0-sda-pins {
 				pinctrl-single,pins = <
 					0x16c MODE_NITRO /* i2c0_sda */
 					0x170 MODE_NITRO /* i2c0_scl */
 				>;
 			};
 
-			i2c1_pins: pinmux_i2c1_sda {
+			i2c1_pins: i2c1-sda-pins {
 				pinctrl-single,pins = <
 					0x174 MODE_NITRO /* i2c1_sda */
 					0x178 MODE_NITRO /* i2c1_scl */
 				>;
 			};
 
-			sdio0_pins: pinmux_sdio0_cd_l {
+			sdio0_pins: sdio0-cd-l-pins {
 				pinctrl-single,pins = <
 					0x17c MODE_NITRO /* sdio0_cd_l */
 					0x180 MODE_NITRO /* sdio0_clk_sdcard */
@@ -262,7 +262,7 @@
 				>;
 			};
 
-			sdio1_pins: pinmux_sdio1_cd_l {
+			sdio1_pins: sdio1-cd-l-pins {
 				pinctrl-single,pins = <
 					0x1b4 MODE_NITRO /* sdio1_cd_l */
 					0x1b8 MODE_NITRO /* sdio1_clk_sdcard */
@@ -281,7 +281,7 @@
 				>;
 			};
 
-			spi0_pins: pinmux_spi0_sck_nand {
+			spi0_pins: spi0-sck-nand-pins {
 				pinctrl-single,pins = <
 					0x1ec MODE_NITRO /* spi0_sck */
 					0x1f0 MODE_NITRO /* spi0_rxd */
@@ -290,7 +290,7 @@
 				>;
 			};
 
-			spi1_pins: pinmux_spi1_sck_nand {
+			spi1_pins: spi1-sck-nand-pins {
 				pinctrl-single,pins = <
 					0x1fc MODE_NITRO /* spi1_sck */
 					0x200 MODE_NITRO /* spi1_rxd */
@@ -299,14 +299,14 @@
 				>;
 			};
 
-			nuart_pins: pinmux_uart0_sin_nitro {
+			nuart_pins: uart0-sin-nitro-pins {
 				pinctrl-single,pins = <
 					0x20c MODE_NITRO /* nuart_rxd */
 					0x210 MODE_NITRO /* nuart_txd */
 				>;
 			};
 
-			uart0_pins: pinumux_uart0_sin_nand {
+			uart0_pins: uart0-sin-nand-pins {
 				pinctrl-single,pins = <
 					0x20c MODE_NAND /* uart0_sin */
 					0x210 MODE_NAND /* uart0_out */
@@ -319,7 +319,7 @@
 				>;
 			};
 
-			drdu2_pins: pinmux_drdu2_overcurrent {
+			drdu2_pins: drdu2-overcurrent-pins {
 				pinctrl-single,pins = <
 					0x22c MODE_NITRO /* drdu2_overcurrent */
 					0x230 MODE_NITRO /* drdu2_vbus_ppc */
@@ -328,7 +328,7 @@
 				>;
 			};
 
-			drdu3_pins: pinmux_drdu3_overcurrent {
+			drdu3_pins: drdu3-overcurrent-pins {
 				pinctrl-single,pins = <
 					0x23c MODE_NITRO /* drdu3_overcurrent */
 					0x240 MODE_NITRO /* drdu3_vbus_ppc */
@@ -337,7 +337,7 @@
 				>;
 			};
 
-			usb3h_pins: pinmux_usb3h_overcurrent {
+			usb3h_pins: usb3h-overcurrent-pins {
 				pinctrl-single,pins = <
 					0x24c MODE_NITRO /* usb3h_overcurrent */
 					0x250 MODE_NITRO /* usb3h_vbus_ppc */

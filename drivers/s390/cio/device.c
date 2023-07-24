@@ -943,7 +943,7 @@ static int ccw_device_move_to_sch(struct ccw_device *cdev,
 			      cdev->private->dev_id.devno, sch->schid.ssid,
 			      sch->schib.pmcw.dev, rc);
 		if (old_enabled) {
-			/* Try to reenable the old subchannel. */
+			/* Try to re-enable the old subchannel. */
 			spin_lock_irq(old_sch->lock);
 			cio_enable_subchannel(old_sch, (u32)virt_to_phys(old_sch));
 			spin_unlock_irq(old_sch->lock);

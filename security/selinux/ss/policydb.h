@@ -225,7 +225,7 @@ struct genfs {
 
 /* object context array indices */
 #define OCON_ISID	0 /* initial SIDs */
-#define OCON_FS		1 /* unlabeled file systems */
+#define OCON_FS		1 /* unlabeled file systems (deprecated) */
 #define OCON_PORT	2 /* TCP and UDP port numbers */
 #define OCON_NETIF	3 /* network interfaces */
 #define OCON_NODE	4 /* nodes */

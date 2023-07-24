@@ -1,0 +1,190 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/qcom,pmic-typec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm PMIC based USB Type-C block
+
+maintainers:
+  - Bryan O'Donoghue <bryan.odonoghue@linaro.org>
+
+description:
+  Qualcomm PMIC Type-C block
+
+properties:
+  compatible:
+    enum:
+      - qcom,pm8150b-typec
+
+  connector:
+    type: object
+    $ref: /schemas/connector/usb-connector.yaml#
+    unevaluatedProperties: false
+
+  reg:
+    description: Type-C port and pdphy SPMI register base offsets
+    maxItems: 2
+
+  interrupts:
+    items:
+      - description: Type-C CC attach notification, VBUS error, tCCDebounce done
+      - description: Type-C VCONN powered
+      - description: Type-C CC state change
+      - description: Type-C VCONN over-current
+      - description: Type-C VBUS state change
+      - description: Type-C Attach/detach notification
+      - description: Type-C Legacy cable detect
+      - description: Type-C Try.Src Try.Snk state change
+      - description: Power Domain Signal TX - HardReset or CableReset signal TX
+      - description: Power Domain Signal RX - HardReset or CableReset signal RX
+      - description: Power Domain TX complete
+      - description: Power Domain RX complete
+      - description: Power Domain TX fail
+      - description: Power Domain TX message discard
+      - description: Power Domain RX message discard
+      - description: Power Domain Fast Role Swap event
+
+  interrupt-names:
+    items:
+      - const: or-rid-detect-change
+      - const: vpd-detect
+      - const: cc-state-change
+      - const: vconn-oc
+      - const: vbus-change
+      - const: attach-detach
+      - const: legacy-cable-detect
+      - const: try-snk-src-detect
+      - const: sig-tx
+      - const: sig-rx
+      - const: msg-tx
+      - const: msg-rx
+      - const: msg-tx-failed
+      - const: msg-tx-discarded
+      - const: msg-rx-discarded
+      - const: fr-swap
+
+  vdd-vbus-supply:
+    description: VBUS power supply.
+
+  vdd-pdphy-supply:
+    description: VDD regulator supply to the PDPHY.
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description:
+      Contains a port which produces data-role switching messages.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - vdd-vbus-supply
+  - vdd-pdphy-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/usb/pd.h>
+
+    pmic {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pm8150b_typec: typec@1500 {
+            compatible = "qcom,pm8150b-typec";
+            reg = <0x1500>,
+                  <0x1700>;
+
+            interrupts = <0x2 0x15 0x00 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x15 0x01 IRQ_TYPE_EDGE_BOTH>,
+                         <0x2 0x15 0x02 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x15 0x03 IRQ_TYPE_EDGE_BOTH>,
+                         <0x2 0x15 0x04 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x15 0x05 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x15 0x06 IRQ_TYPE_EDGE_BOTH>,
+                         <0x2 0x15 0x07 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x17 0x00 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x17 0x01 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x17 0x02 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x17 0x03 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x17 0x04 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x17 0x05 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x17 0x06 IRQ_TYPE_EDGE_RISING>,
+                         <0x2 0x17 0x07 IRQ_TYPE_EDGE_RISING>;
+
+            interrupt-names = "or-rid-detect-change",
+                              "vpd-detect",
+                              "cc-state-change",
+                              "vconn-oc",
+                              "vbus-change",
+                              "attach-detach",
+                              "legacy-cable-detect",
+                              "try-snk-src-detect",
+                              "sig-tx",
+                              "sig-rx",
+                              "msg-tx",
+                              "msg-rx",
+                              "msg-tx-failed",
+                              "msg-tx-discarded",
+                              "msg-rx-discarded",
+                              "fr-swap";
+
+            vdd-vbus-supply = <&pm8150b_vbus>;
+            vdd-pdphy-supply = <&vreg_l2a_3p1>;
+
+            connector {
+                compatible = "usb-c-connector";
+
+                power-role = "source";
+                data-role = "dual";
+                self-powered;
+
+                source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_DUAL_ROLE |
+                               PDO_FIXED_USB_COMM | PDO_FIXED_DATA_SWAP)>;
+
+                ports {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    port@0 {
+                        reg = <0>;
+                        pmic_typec_mux_out: endpoint {
+                            remote-endpoint = <&usb_phy_typec_mux_in>;
+                        };
+                    };
+
+                    port@1 {
+                        reg = <1>;
+                        pmic_typec_role_switch_out: endpoint {
+                            remote-endpoint = <&usb_role_switch_in>;
+                        };
+                    };
+                };
+            };
+        };
+    };
+
+    usb {
+        dr_mode = "otg";
+        usb-role-switch;
+        port {
+            usb_role_switch_in: endpoint {
+                remote-endpoint = <&pmic_typec_role_switch_out>;
+            };
+        };
+    };
+
+    usb-phy {
+        orientation-switch;
+        port {
+            usb_phy_typec_mux_in: endpoint {
+                remote-endpoint = <&pmic_typec_mux_out>;
+            };
+        };
+    };
+
+...

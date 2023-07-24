@@ -4278,14 +4278,12 @@ static void oxu_remove(struct platform_device *pdev, struct usb_hcd *hcd)
 	usb_put_hcd(hcd);
 }
 
-static int oxu_drv_remove(struct platform_device *pdev)
+static void oxu_drv_remove(struct platform_device *pdev)
 {
 	struct oxu_info *info = platform_get_drvdata(pdev);
 
 	oxu_remove(pdev, info->hcd[0]);
 	oxu_remove(pdev, info->hcd[1]);
-
-	return 0;
 }
 
 static void oxu_drv_shutdown(struct platform_device *pdev)
@@ -4317,7 +4315,7 @@ static int oxu_drv_resume(struct device *dev)
 
 static struct platform_driver oxu_driver = {
 	.probe		= oxu_drv_probe,
-	.remove		= oxu_drv_remove,
+	.remove_new	= oxu_drv_remove,
 	.shutdown	= oxu_drv_shutdown,
 	.suspend	= oxu_drv_suspend,
 	.resume		= oxu_drv_resume,

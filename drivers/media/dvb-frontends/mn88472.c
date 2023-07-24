@@ -718,7 +718,7 @@ static struct i2c_driver mn88472_driver = {
 		.name = "mn88472",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new = mn88472_probe,
+	.probe    = mn88472_probe,
 	.remove   = mn88472_remove,
 	.id_table = mn88472_id_table,
 };

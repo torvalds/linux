@@ -700,7 +700,25 @@ static struct arm_pmu *kvm_pmu_probe_armpmu(void)
 
 	mutex_lock(&arm_pmus_lock);
 
-	cpu = smp_processor_id();
+	/*
+	 * It is safe to use a stale cpu to iterate the list of PMUs so long as
+	 * the same value is used for the entirety of the loop. Given this, and
+	 * the fact that no percpu data is used for the lookup there is no need
+	 * to disable preemption.
+	 *
+	 * It is still necessary to get a valid cpu, though, to probe for the
+	 * default PMU instance as userspace is not required to specify a PMU
+	 * type. In order to uphold the preexisting behavior KVM selects the
+	 * PMU instance for the core where the first call to the
+	 * KVM_ARM_VCPU_PMU_V3_CTRL attribute group occurs. A dependent use case
+	 * would be a user with disdain of all things big.LITTLE that affines
+	 * the VMM to a particular cluster of cores.
+	 *
+	 * In any case, userspace should just do the sane thing and use the UAPI
+	 * to select a PMU type directly. But, be wary of the baggage being
+	 * carried here.
+	 */
+	cpu = raw_smp_processor_id();
 	list_for_each_entry(entry, &arm_pmus, entry) {
 		tmp = entry->arm_pmu;
 

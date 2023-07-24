@@ -617,7 +617,7 @@ static struct i2c_driver bu21013_driver = {
 		.name	=	DRIVER_TP,
 		.pm	=	pm_sleep_ptr(&bu21013_dev_pm_ops),
 	},
-	.probe_new	=	bu21013_probe,
+	.probe		=	bu21013_probe,
 	.remove		=	bu21013_remove,
 	.id_table	=	bu21013_id,
 };

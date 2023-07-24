@@ -14,7 +14,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/export.h>
@@ -1035,6 +1034,10 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
+		struct snd_pcm_hw_params cpu_params;
+		unsigned int ch_mask = 0;
+		int j;
+
 		/*
 		 * Skip CPUs which don't support the current stream
 		 * type. See soc_pcm_init_runtime_hw() for more details
@@ -1042,13 +1045,32 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 		if (!snd_soc_dai_stream_valid(cpu_dai, substream->stream))
 			continue;
 
-		ret = snd_soc_dai_hw_params(cpu_dai, substream, params);
+		/* copy params for each cpu */
+		cpu_params = *params;
+
+		if (!rtd->dai_link->codec_ch_maps)
+			goto hw_params;
+		/*
+		 * construct cpu channel mask by combining ch_mask of each
+		 * codec which maps to the cpu.
+		 */
+		for_each_rtd_codec_dais(rtd, j, codec_dai) {
+			if (rtd->dai_link->codec_ch_maps[j].connected_cpu_id == i)
+				ch_mask |= rtd->dai_link->codec_ch_maps[j].ch_mask;
+		}
+
+		/* fixup cpu channel number */
+		if (ch_mask)
+			soc_pcm_codec_params_fixup(&cpu_params, ch_mask);
+
+hw_params:
+		ret = snd_soc_dai_hw_params(cpu_dai, substream, &cpu_params);
 		if (ret < 0)
 			goto out;
 
 		/* store the parameters for each DAI */
-		soc_pcm_set_dai_params(cpu_dai, params);
-		snd_soc_dapm_update_dai(substream, params, cpu_dai);
+		soc_pcm_set_dai_params(cpu_dai, &cpu_params);
+		snd_soc_dapm_update_dai(substream, &cpu_params, cpu_dai);
 	}
 
 	ret = snd_soc_pcm_component_hw_params(substream, params);
@@ -1072,49 +1094,67 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+#define TRIGGER_MAX 3
+static int (* const trigger[][TRIGGER_MAX])(struct snd_pcm_substream *substream, int cmd, int rollback) = {
+	[SND_SOC_TRIGGER_ORDER_DEFAULT] = {
+		snd_soc_link_trigger,
+		snd_soc_pcm_component_trigger,
+		snd_soc_pcm_dai_trigger,
+	},
+	[SND_SOC_TRIGGER_ORDER_LDC] = {
+		snd_soc_link_trigger,
+		snd_soc_pcm_dai_trigger,
+		snd_soc_pcm_component_trigger,
+	},
+};
+
 static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component;
-	int ret = -EINVAL, _ret = 0, start_dma_last = 0, i;
+	int ret = 0, r = 0, i;
 	int rollback = 0;
+	int start = 0, stop = 0;
 
+	/*
+	 * select START/STOP sequence
+	 */
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->trigger_start)
+			start = component->driver->trigger_start;
+		if (component->driver->trigger_stop)
+			stop = component->driver->trigger_stop;
+	}
+	if (rtd->dai_link->trigger_start)
+		start = rtd->dai_link->trigger_start;
+	if (rtd->dai_link->trigger_stop)
+		stop  = rtd->dai_link->trigger_stop;
+
+	if (start < 0 || start >= SND_SOC_TRIGGER_ORDER_MAX ||
+	    stop  < 0 || stop  >= SND_SOC_TRIGGER_ORDER_MAX)
+		return -EINVAL;
+
+	/*
+	 * START
+	 */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		/* Do we need to start dma last? */
-		for_each_rtd_components(rtd, i, component) {
-			if (component->driver->start_dma_last) {
-				start_dma_last = 1;
+		for (i = 0; i < TRIGGER_MAX; i++) {
+			r = trigger[start][i](substream, cmd, 0);
+			if (r < 0)
 				break;
-			}
 		}
-
-		ret = snd_soc_link_trigger(substream, cmd, 0);
-		if (ret < 0)
-			goto start_err;
-
-		if (start_dma_last) {
-			ret = snd_soc_pcm_dai_trigger(substream, cmd, 0);
-			if (ret < 0)
-				goto start_err;
-
-			ret = snd_soc_pcm_component_trigger(substream, cmd, 0);
-		} else {
-			ret = snd_soc_pcm_component_trigger(substream, cmd, 0);
-			if (ret < 0)
-				goto start_err;
-
-			ret = snd_soc_pcm_dai_trigger(substream, cmd, 0);
-		}
-start_err:
-		if (ret < 0)
-			rollback = 1;
 	}
 
-	if (rollback) {
-		_ret = ret;
+	/*
+	 * Rollback if START failed
+	 * find correspond STOP command
+	 */
+	if (r < 0) {
+		rollback = 1;
+		ret = r;
 		switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
 			cmd = SNDRV_PCM_TRIGGER_STOP;
@@ -1128,33 +1168,19 @@ start_err:
 		}
 	}
 
+	/*
+	 * STOP
+	 */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (rtd->dai_link->stop_dma_first) {
-			ret = snd_soc_pcm_component_trigger(substream, cmd, rollback);
-			if (ret < 0)
-				break;
-
-			ret = snd_soc_pcm_dai_trigger(substream, cmd, rollback);
-			if (ret < 0)
-				break;
-		} else {
-			ret = snd_soc_pcm_dai_trigger(substream, cmd, rollback);
-			if (ret < 0)
-				break;
-
-			ret = snd_soc_pcm_component_trigger(substream, cmd, rollback);
-			if (ret < 0)
-				break;
+		for (i = TRIGGER_MAX; i > 0; i--) {
+			r = trigger[stop][i - 1](substream, cmd, rollback);
+			if (r < 0)
+				ret = r;
 		}
-		ret = snd_soc_link_trigger(substream, cmd, rollback);
-		break;
 	}
-
-	if (_ret)
-		ret = _ret;
 
 	return ret;
 }
@@ -2734,48 +2760,50 @@ open_end:
 static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 				    int *playback, int *capture)
 {
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *cpu_dai;
+	int has_playback = 0;
+	int has_capture  = 0;
 	int i;
 
-	if (rtd->dai_link->dynamic && rtd->dai_link->num_cpus > 1) {
-		dev_err(rtd->dev,
-			"DPCM doesn't support Multi CPU for Front-Ends yet\n");
+	if (dai_link->dynamic && dai_link->num_cpus > 1) {
+		dev_err(rtd->dev, "DPCM doesn't support Multi CPU for Front-Ends yet\n");
 		return -EINVAL;
 	}
 
-	if (rtd->dai_link->dynamic || rtd->dai_link->no_pcm) {
+	if (dai_link->dynamic || dai_link->no_pcm) {
 		int stream;
 
-		if (rtd->dai_link->dpcm_playback) {
+		if (dai_link->dpcm_playback) {
 			stream = SNDRV_PCM_STREAM_PLAYBACK;
 
 			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 				if (snd_soc_dai_stream_valid(cpu_dai, stream)) {
-					*playback = 1;
+					has_playback = 1;
 					break;
 				}
 			}
-			if (!*playback) {
+			if (!has_playback) {
 				dev_err(rtd->card->dev,
 					"No CPU DAIs support playback for stream %s\n",
-					rtd->dai_link->stream_name);
+					dai_link->stream_name);
 				return -EINVAL;
 			}
 		}
-		if (rtd->dai_link->dpcm_capture) {
+		if (dai_link->dpcm_capture) {
 			stream = SNDRV_PCM_STREAM_CAPTURE;
 
 			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 				if (snd_soc_dai_stream_valid(cpu_dai, stream)) {
-					*capture = 1;
+					has_capture = 1;
 					break;
 				}
 			}
 
-			if (!*capture) {
+			if (!has_capture) {
 				dev_err(rtd->card->dev,
 					"No CPU DAIs support capture for stream %s\n",
-					rtd->dai_link->stream_name);
+					dai_link->stream_name);
 				return -EINVAL;
 			}
 		}
@@ -2783,40 +2811,57 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 		struct snd_soc_dai *codec_dai;
 
 		/* Adapt stream for codec2codec links */
-		int cpu_capture = rtd->dai_link->c2c_params ?
-			SNDRV_PCM_STREAM_PLAYBACK : SNDRV_PCM_STREAM_CAPTURE;
-		int cpu_playback = rtd->dai_link->c2c_params ?
-			SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
+		int cpu_capture  = snd_soc_get_stream_cpu(dai_link, SNDRV_PCM_STREAM_CAPTURE);
+		int cpu_playback = snd_soc_get_stream_cpu(dai_link, SNDRV_PCM_STREAM_PLAYBACK);
 
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
-			if (rtd->dai_link->num_cpus == 1) {
+			if (dai_link->num_cpus == 1) {
 				cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-			} else if (rtd->dai_link->num_cpus == rtd->dai_link->num_codecs) {
+			} else if (dai_link->num_cpus == dai_link->num_codecs) {
 				cpu_dai = asoc_rtd_to_cpu(rtd, i);
+			} else if (rtd->dai_link->num_codecs > rtd->dai_link->num_cpus) {
+				int cpu_id;
+
+				if (!rtd->dai_link->codec_ch_maps) {
+					dev_err(rtd->card->dev, "%s: no codec channel mapping table provided\n",
+						__func__);
+					return -EINVAL;
+				}
+
+				cpu_id = rtd->dai_link->codec_ch_maps[i].connected_cpu_id;
+				cpu_dai = asoc_rtd_to_cpu(rtd, cpu_id);
 			} else {
 				dev_err(rtd->card->dev,
-					"N cpus to M codecs link is not supported yet\n");
+					"%s codec number %d < cpu number %d is not supported\n",
+					__func__, rtd->dai_link->num_codecs,
+					rtd->dai_link->num_cpus);
 				return -EINVAL;
 			}
 
 			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_PLAYBACK) &&
 			    snd_soc_dai_stream_valid(cpu_dai,   cpu_playback))
-				*playback = 1;
+				has_playback = 1;
 			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_CAPTURE) &&
 			    snd_soc_dai_stream_valid(cpu_dai,   cpu_capture))
-				*capture = 1;
+				has_capture = 1;
 		}
 	}
 
-	if (rtd->dai_link->playback_only) {
-		*playback = 1;
-		*capture = 0;
+	if (dai_link->playback_only)
+		has_capture = 0;
+
+	if (dai_link->capture_only)
+		has_playback = 0;
+
+	if (!has_playback && !has_capture) {
+		dev_err(rtd->dev, "substream %s has no playback, no capture\n",
+			dai_link->stream_name);
+
+		return -EINVAL;
 	}
 
-	if (rtd->dai_link->capture_only) {
-		*playback = 0;
-		*capture = 1;
-	}
+	*playback = has_playback;
+	*capture  = has_capture;
 
 	return 0;
 }

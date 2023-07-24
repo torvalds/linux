@@ -392,6 +392,13 @@ int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 	if (mask & IB_QP_CAP && rxe_qp_chk_cap(rxe, &attr->cap, !!qp->srq))
 		goto err1;
 
+	if (mask & IB_QP_ACCESS_FLAGS) {
+		if (!(qp_type(qp) == IB_QPT_RC || qp_type(qp) == IB_QPT_UC))
+			goto err1;
+		if (attr->qp_access_flags & ~RXE_ACCESS_SUPPORTED_QP)
+			goto err1;
+	}
+
 	if (mask & IB_QP_AV && rxe_av_chk_attr(qp, &attr->ah_attr))
 		goto err1;
 

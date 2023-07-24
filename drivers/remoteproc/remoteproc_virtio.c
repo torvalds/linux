@@ -569,7 +569,7 @@ unwind_vring_allocations:
 	return ret;
 }
 
-static int rproc_virtio_remove(struct platform_device *pdev)
+static void rproc_virtio_remove(struct platform_device *pdev)
 {
 	struct rproc_vdev *rvdev = dev_get_drvdata(&pdev->dev);
 	struct rproc *rproc = rvdev->rproc;
@@ -588,14 +588,12 @@ static int rproc_virtio_remove(struct platform_device *pdev)
 	dma_release_coherent_memory(&pdev->dev);
 
 	put_device(&rproc->dev);
-
-	return 0;
 }
 
 /* Platform driver */
 static struct platform_driver rproc_virtio_driver = {
 	.probe		= rproc_virtio_probe,
-	.remove		= rproc_virtio_remove,
+	.remove_new	= rproc_virtio_remove,
 	.driver		= {
 		.name	= "rproc-virtio",
 	},

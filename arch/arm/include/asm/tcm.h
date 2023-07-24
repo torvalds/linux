@@ -9,9 +9,7 @@
 #ifndef __ASMARM_TCM_H
 #define __ASMARM_TCM_H
 
-#ifndef CONFIG_HAVE_TCM
-#error "You should not be including tcm.h unless you have a TCM!"
-#endif
+#ifdef CONFIG_HAVE_TCM
 
 #include <linux/compiler.h>
 
@@ -29,4 +27,11 @@ void tcm_free(void *addr, size_t len);
 bool tcm_dtcm_present(void);
 bool tcm_itcm_present(void);
 
+void __init tcm_init(void);
+#else
+/* No TCM support, just blank inlines to be optimized out */
+static inline void tcm_init(void)
+{
+}
+#endif
 #endif

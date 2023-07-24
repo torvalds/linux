@@ -628,7 +628,7 @@ static struct i2c_driver ak4641_i2c_driver = {
 	.driver = {
 		.name = "ak4641",
 	},
-	.probe_new = ak4641_i2c_probe,
+	.probe =    ak4641_i2c_probe,
 	.remove =   ak4641_i2c_remove,
 	.id_table = ak4641_i2c_id,
 };

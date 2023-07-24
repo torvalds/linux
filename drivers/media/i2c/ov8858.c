@@ -1998,8 +1998,8 @@ static struct i2c_driver ov8858_i2c_driver = {
 		.pm = &ov8858_pm_ops,
 		.of_match_table = ov8858_of_match,
 	},
-	.probe_new	= &ov8858_probe,
-	.remove		= &ov8858_remove,
+	.probe		= ov8858_probe,
+	.remove		= ov8858_remove,
 };
 
 module_i2c_driver(ov8858_i2c_driver);

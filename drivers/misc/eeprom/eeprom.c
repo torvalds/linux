@@ -196,7 +196,7 @@ static struct i2c_driver eeprom_driver = {
 	.driver = {
 		.name	= "eeprom",
 	},
-	.probe_new	= eeprom_probe,
+	.probe		= eeprom_probe,
 	.remove		= eeprom_remove,
 	.id_table	= eeprom_id,
 

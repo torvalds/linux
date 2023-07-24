@@ -125,6 +125,7 @@ static void ifcvf_free_irq(struct ifcvf_hw *vf)
 	ifcvf_free_vq_irq(vf);
 	ifcvf_free_config_irq(vf);
 	ifcvf_free_irq_vectors(pdev);
+	vf->num_msix_vectors = 0;
 }
 
 /* ifcvf MSIX vectors allocator, this helper tries to allocate
@@ -343,54 +344,9 @@ static int ifcvf_request_irq(struct ifcvf_hw *vf)
 	if (ret)
 		return ret;
 
-	return 0;
-}
-
-static int ifcvf_start_datapath(struct ifcvf_adapter *adapter)
-{
-	struct ifcvf_hw *vf = adapter->vf;
-	u8 status;
-	int ret;
-
-	ret = ifcvf_start_hw(vf);
-	if (ret < 0) {
-		status = ifcvf_get_status(vf);
-		status |= VIRTIO_CONFIG_S_FAILED;
-		ifcvf_set_status(vf, status);
-	}
-
-	return ret;
-}
-
-static int ifcvf_stop_datapath(struct ifcvf_adapter *adapter)
-{
-	struct ifcvf_hw *vf = adapter->vf;
-	int i;
-
-	for (i = 0; i < vf->nr_vring; i++)
-		vf->vring[i].cb.callback = NULL;
-
-	ifcvf_stop_hw(vf);
+	vf->num_msix_vectors = nvectors;
 
 	return 0;
-}
-
-static void ifcvf_reset_vring(struct ifcvf_adapter *adapter)
-{
-	struct ifcvf_hw *vf = adapter->vf;
-	int i;
-
-	for (i = 0; i < vf->nr_vring; i++) {
-		vf->vring[i].last_avail_idx = 0;
-		vf->vring[i].desc = 0;
-		vf->vring[i].avail = 0;
-		vf->vring[i].used = 0;
-		vf->vring[i].ready = 0;
-		vf->vring[i].cb.callback = NULL;
-		vf->vring[i].cb.private = NULL;
-	}
-
-	ifcvf_reset(vf);
 }
 
 static struct ifcvf_adapter *vdpa_to_adapter(struct vdpa_device *vdpa_dev)
@@ -414,7 +370,7 @@ static u64 ifcvf_vdpa_get_device_features(struct vdpa_device *vdpa_dev)
 	u64 features;
 
 	if (type == VIRTIO_ID_NET || type == VIRTIO_ID_BLOCK)
-		features = ifcvf_get_features(vf);
+		features = ifcvf_get_dev_features(vf);
 	else {
 		features = 0;
 		IFCVF_ERR(pdev, "VIRTIO ID %u not supported\n", vf->dev_type);
@@ -432,7 +388,7 @@ static int ifcvf_vdpa_set_driver_features(struct vdpa_device *vdpa_dev, u64 feat
 	if (ret)
 		return ret;
 
-	vf->req_features = features;
+	ifcvf_set_driver_features(vf, features);
 
 	return 0;
 }
@@ -440,8 +396,11 @@ static int ifcvf_vdpa_set_driver_features(struct vdpa_device *vdpa_dev, u64 feat
 static u64 ifcvf_vdpa_get_driver_features(struct vdpa_device *vdpa_dev)
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+	u64 features;
 
-	return vf->req_features;
+	features = ifcvf_get_driver_features(vf);
+
+	return features;
 }
 
 static u8 ifcvf_vdpa_get_status(struct vdpa_device *vdpa_dev)
@@ -453,13 +412,11 @@ static u8 ifcvf_vdpa_get_status(struct vdpa_device *vdpa_dev)
 
 static void ifcvf_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 {
-	struct ifcvf_adapter *adapter;
 	struct ifcvf_hw *vf;
 	u8 status_old;
 	int ret;
 
 	vf  = vdpa_to_vf(vdpa_dev);
-	adapter = vdpa_to_adapter(vdpa_dev);
 	status_old = ifcvf_get_status(vf);
 
 	if (status_old == status)
@@ -469,16 +426,9 @@ static void ifcvf_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 	    !(status_old & VIRTIO_CONFIG_S_DRIVER_OK)) {
 		ret = ifcvf_request_irq(vf);
 		if (ret) {
-			status = ifcvf_get_status(vf);
-			status |= VIRTIO_CONFIG_S_FAILED;
-			ifcvf_set_status(vf, status);
+			IFCVF_ERR(vf->pdev, "failed to request irq with error %d\n", ret);
 			return;
 		}
-
-		if (ifcvf_start_datapath(adapter) < 0)
-			IFCVF_ERR(adapter->pdev,
-				  "Failed to set ifcvf vdpa  status %u\n",
-				  status);
 	}
 
 	ifcvf_set_status(vf, status);
@@ -486,30 +436,24 @@ static void ifcvf_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 
 static int ifcvf_vdpa_reset(struct vdpa_device *vdpa_dev)
 {
-	struct ifcvf_adapter *adapter;
-	struct ifcvf_hw *vf;
-	u8 status_old;
+	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+	u8 status = ifcvf_get_status(vf);
 
-	vf  = vdpa_to_vf(vdpa_dev);
-	adapter = vdpa_to_adapter(vdpa_dev);
-	status_old = ifcvf_get_status(vf);
+	ifcvf_stop(vf);
 
-	if (status_old == 0)
-		return 0;
-
-	if (status_old & VIRTIO_CONFIG_S_DRIVER_OK) {
-		ifcvf_stop_datapath(adapter);
+	if (status & VIRTIO_CONFIG_S_DRIVER_OK)
 		ifcvf_free_irq(vf);
-	}
 
-	ifcvf_reset_vring(adapter);
+	ifcvf_reset(vf);
 
 	return 0;
 }
 
 static u16 ifcvf_vdpa_get_vq_num_max(struct vdpa_device *vdpa_dev)
 {
-	return IFCVF_QUEUE_MAX;
+	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+
+	return ifcvf_get_max_vq_size(vf);
 }
 
 static int ifcvf_vdpa_get_vq_state(struct vdpa_device *vdpa_dev, u16 qid,
@@ -542,14 +486,14 @@ static void ifcvf_vdpa_set_vq_ready(struct vdpa_device *vdpa_dev,
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	vf->vring[qid].ready = ready;
+	ifcvf_set_vq_ready(vf, qid, ready);
 }
 
 static bool ifcvf_vdpa_get_vq_ready(struct vdpa_device *vdpa_dev, u16 qid)
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	return vf->vring[qid].ready;
+	return ifcvf_get_vq_ready(vf, qid);
 }
 
 static void ifcvf_vdpa_set_vq_num(struct vdpa_device *vdpa_dev, u16 qid,
@@ -557,7 +501,7 @@ static void ifcvf_vdpa_set_vq_num(struct vdpa_device *vdpa_dev, u16 qid,
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	vf->vring[qid].size = num;
+	ifcvf_set_vq_num(vf, qid, num);
 }
 
 static int ifcvf_vdpa_set_vq_address(struct vdpa_device *vdpa_dev, u16 qid,
@@ -566,11 +510,7 @@ static int ifcvf_vdpa_set_vq_address(struct vdpa_device *vdpa_dev, u16 qid,
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	vf->vring[qid].desc = desc_area;
-	vf->vring[qid].avail = driver_area;
-	vf->vring[qid].used = device_area;
-
-	return 0;
+	return ifcvf_set_vq_address(vf, qid, desc_area, driver_area, device_area);
 }
 
 static void ifcvf_vdpa_kick_vq(struct vdpa_device *vdpa_dev, u16 qid)
@@ -892,6 +832,7 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err:
+	kfree(ifcvf_mgmt_dev->vf.vring);
 	kfree(ifcvf_mgmt_dev);
 	return ret;
 }
@@ -902,6 +843,7 @@ static void ifcvf_remove(struct pci_dev *pdev)
 
 	ifcvf_mgmt_dev = pci_get_drvdata(pdev);
 	vdpa_mgmtdev_unregister(&ifcvf_mgmt_dev->mdev);
+	kfree(ifcvf_mgmt_dev->vf.vring);
 	kfree(ifcvf_mgmt_dev);
 }
 
@@ -911,7 +853,9 @@ static struct pci_device_id ifcvf_pci_ids[] = {
 			 N3000_DEVICE_ID,
 			 PCI_VENDOR_ID_INTEL,
 			 N3000_SUBSYS_DEVICE_ID) },
-	/* C5000X-PL network device */
+	/* C5000X-PL network device
+	 * F2000X-PL network device
+	 */
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_REDHAT_QUMRANET,
 			 VIRTIO_TRANS_ID_NET,
 			 PCI_VENDOR_ID_INTEL,

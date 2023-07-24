@@ -143,8 +143,8 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *arg);
 
 int fsverity_ioctl_measure(struct file *filp, void __user *arg);
 int fsverity_get_digest(struct inode *inode,
-			u8 digest[FS_VERITY_MAX_DIGEST_SIZE],
-			enum hash_algo *alg);
+			u8 raw_digest[FS_VERITY_MAX_DIGEST_SIZE],
+			u8 *alg, enum hash_algo *halg);
 
 /* open.c */
 
@@ -197,10 +197,14 @@ static inline int fsverity_ioctl_measure(struct file *filp, void __user *arg)
 }
 
 static inline int fsverity_get_digest(struct inode *inode,
-				      u8 digest[FS_VERITY_MAX_DIGEST_SIZE],
-				      enum hash_algo *alg)
+				      u8 raw_digest[FS_VERITY_MAX_DIGEST_SIZE],
+				      u8 *alg, enum hash_algo *halg)
 {
-	return -EOPNOTSUPP;
+	/*
+	 * fsverity is not enabled in the kernel configuration, so always report
+	 * that the file doesn't have fsverity enabled (digest size 0).
+	 */
+	return 0;
 }
 
 /* open.c */

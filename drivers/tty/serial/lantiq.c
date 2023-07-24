@@ -890,7 +890,9 @@ static int lqasc_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
-	return uart_remove_one_port(&lqasc_reg, port);
+	uart_remove_one_port(&lqasc_reg, port);
+
+	return 0;
 }
 
 static const struct ltq_soc_data soc_data_lantiq = {

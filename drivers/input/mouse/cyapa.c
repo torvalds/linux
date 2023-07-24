@@ -1489,7 +1489,7 @@ static struct i2c_driver cyapa_driver = {
 		.of_match_table = of_match_ptr(cyapa_of_match),
 	},
 
-	.probe_new = cyapa_probe,
+	.probe = cyapa_probe,
 	.id_table = cyapa_id_table,
 };
 

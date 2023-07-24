@@ -24,6 +24,7 @@ endif
 obj-$(CONFIG_USB_CDNS3_PCI_WRAP)		+= cdns3-pci-wrap.o
 obj-$(CONFIG_USB_CDNS3_TI)			+= cdns3-ti.o
 obj-$(CONFIG_USB_CDNS3_IMX)			+= cdns3-imx.o
+obj-$(CONFIG_USB_CDNS3_STARFIVE)		+= cdns3-starfive.o
 
 cdnsp-udc-pci-y					:= cdnsp-pci.o
 

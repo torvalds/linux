@@ -12,8 +12,9 @@
 #include <crypto/internal/simd.h>
 #include <crypto/sha2.h>
 #include <crypto/sha256_base.h>
-#include <linux/types.h>
+#include <linux/module.h>
 #include <linux/string.h>
+#include <linux/types.h>
 
 MODULE_DESCRIPTION("SHA-224/SHA-256 secure hash for arm64");
 MODULE_AUTHOR("Andy Polyakov <appro@openssl.org>");

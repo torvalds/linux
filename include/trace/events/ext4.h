@@ -120,6 +120,20 @@ TRACE_DEFINE_ENUM(EXT4_FC_REASON_MAX);
 		{ EXT4_FC_REASON_INODE_JOURNAL_DATA,	"INODE_JOURNAL_DATA"}, \
 		{ EXT4_FC_REASON_ENCRYPTED_FILENAME,	"ENCRYPTED_FILENAME"})
 
+TRACE_DEFINE_ENUM(CR_POWER2_ALIGNED);
+TRACE_DEFINE_ENUM(CR_GOAL_LEN_FAST);
+TRACE_DEFINE_ENUM(CR_BEST_AVAIL_LEN);
+TRACE_DEFINE_ENUM(CR_GOAL_LEN_SLOW);
+TRACE_DEFINE_ENUM(CR_ANY_FREE);
+
+#define show_criteria(cr)                                               \
+	__print_symbolic(cr,                                            \
+			 { CR_POWER2_ALIGNED, "CR_POWER2_ALIGNED" },	\
+			 { CR_GOAL_LEN_FAST, "CR_GOAL_LEN_FAST" },      \
+			 { CR_BEST_AVAIL_LEN, "CR_BEST_AVAIL_LEN" },    \
+			 { CR_GOAL_LEN_SLOW, "CR_GOAL_LEN_SLOW" },      \
+			 { CR_ANY_FREE, "CR_ANY_FREE" })
+
 TRACE_EVENT(ext4_other_inode_update_time,
 	TP_PROTO(struct inode *inode, ino_t orig_ino),
 
@@ -560,10 +574,10 @@ TRACE_EVENT(ext4_writepages_result,
 		  (unsigned long) __entry->writeback_index)
 );
 
-DECLARE_EVENT_CLASS(ext4__page_op,
-	TP_PROTO(struct page *page),
+DECLARE_EVENT_CLASS(ext4__folio_op,
+	TP_PROTO(struct inode *inode, struct folio *folio),
 
-	TP_ARGS(page),
+	TP_ARGS(inode, folio),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
@@ -573,29 +587,29 @@ DECLARE_EVENT_CLASS(ext4__page_op,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= page->mapping->host->i_sb->s_dev;
-		__entry->ino	= page->mapping->host->i_ino;
-		__entry->index	= page->index;
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->index	= folio->index;
 	),
 
-	TP_printk("dev %d,%d ino %lu page_index %lu",
+	TP_printk("dev %d,%d ino %lu folio_index %lu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  (unsigned long) __entry->index)
 );
 
-DEFINE_EVENT(ext4__page_op, ext4_readpage,
+DEFINE_EVENT(ext4__folio_op, ext4_read_folio,
 
-	TP_PROTO(struct page *page),
+	TP_PROTO(struct inode *inode, struct folio *folio),
 
-	TP_ARGS(page)
+	TP_ARGS(inode, folio)
 );
 
-DEFINE_EVENT(ext4__page_op, ext4_releasepage,
+DEFINE_EVENT(ext4__folio_op, ext4_release_folio,
 
-	TP_PROTO(struct page *page),
+	TP_PROTO(struct inode *inode, struct folio *folio),
 
-	TP_ARGS(page)
+	TP_ARGS(inode, folio)
 );
 
 DECLARE_EVENT_CLASS(ext4_invalidate_folio_op,
@@ -1063,7 +1077,7 @@ TRACE_EVENT(ext4_mballoc_alloc,
 	),
 
 	TP_printk("dev %d,%d inode %lu orig %u/%d/%u@%u goal %u/%d/%u@%u "
-		  "result %u/%d/%u@%u blks %u grps %u cr %u flags %s "
+		  "result %u/%d/%u@%u blks %u grps %u cr %s flags %s "
 		  "tail %u broken %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
@@ -1073,7 +1087,7 @@ TRACE_EVENT(ext4_mballoc_alloc,
 		  __entry->goal_len, __entry->goal_logical,
 		  __entry->result_group, __entry->result_start,
 		  __entry->result_len, __entry->result_logical,
-		  __entry->found, __entry->groups, __entry->cr,
+		  __entry->found, __entry->groups, show_criteria(__entry->cr),
 		  show_mballoc_flags(__entry->flags), __entry->tail,
 		  __entry->buddy ? 1 << __entry->buddy : 0)
 );

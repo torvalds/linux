@@ -793,16 +793,10 @@ static int ext4_ioctl_setproject(struct inode *inode, __u32 projid)
 }
 #endif
 
-static int ext4_shutdown(struct super_block *sb, unsigned long arg)
+int ext4_force_shutdown(struct super_block *sb, u32 flags)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	__u32 flags;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	if (get_user(flags, (__u32 __user *)arg))
-		return -EFAULT;
+	int ret;
 
 	if (flags > EXT4_GOING_FLAGS_NOLOGFLUSH)
 		return -EINVAL;
@@ -815,7 +809,9 @@ static int ext4_shutdown(struct super_block *sb, unsigned long arg)
 
 	switch (flags) {
 	case EXT4_GOING_FLAGS_DEFAULT:
-		freeze_bdev(sb->s_bdev);
+		ret = freeze_bdev(sb->s_bdev);
+		if (ret)
+			return ret;
 		set_bit(EXT4_FLAGS_SHUTDOWN, &sbi->s_ext4_flags);
 		thaw_bdev(sb->s_bdev);
 		break;
@@ -836,6 +832,19 @@ static int ext4_shutdown(struct super_block *sb, unsigned long arg)
 	}
 	clear_opt(sb, DISCARD);
 	return 0;
+}
+
+static int ext4_ioctl_shutdown(struct super_block *sb, unsigned long arg)
+{
+	u32 flags;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (get_user(flags, (__u32 __user *)arg))
+		return -EFAULT;
+
+	return ext4_force_shutdown(sb, flags);
 }
 
 struct getfsmap_info {
@@ -1566,7 +1575,7 @@ resizefs_out:
 		return ext4_ioctl_get_es_cache(filp, arg);
 
 	case EXT4_IOC_SHUTDOWN:
-		return ext4_shutdown(sb, arg);
+		return ext4_ioctl_shutdown(sb, arg);
 
 	case FS_IOC_ENABLE_VERITY:
 		if (!ext4_has_feature_verity(sb))

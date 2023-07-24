@@ -6045,7 +6045,7 @@ static struct i2c_driver cx25840_driver = {
 	.driver = {
 		.name	= "cx25840",
 	},
-	.probe_new	= cx25840_probe,
+	.probe		= cx25840_probe,
 	.remove		= cx25840_remove,
 	.id_table	= cx25840_id,
 };

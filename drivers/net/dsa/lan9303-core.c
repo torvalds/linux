@@ -1458,7 +1458,6 @@ int lan9303_remove(struct lan9303 *chip)
 
 	/* assert reset to the whole device to prevent it from doing anything */
 	gpiod_set_value_cansleep(chip->reset_gpio, 1);
-	gpiod_unexport(chip->reset_gpio);
 
 	return 0;
 }

@@ -80,7 +80,7 @@
 
 #include <linux/uaccess.h>
 
-#define PPPOE_HASH_BITS 4
+#define PPPOE_HASH_BITS CONFIG_PPPOE_HASH_BITS
 #define PPPOE_HASH_SIZE (1 << PPPOE_HASH_BITS)
 #define PPPOE_HASH_MASK	(PPPOE_HASH_SIZE - 1)
 

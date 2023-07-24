@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/swab.h>
 
@@ -1108,7 +1109,7 @@ static int vc7_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, vc7);
 	vc7->client = client;
-	vc7->chip_info = of_device_get_match_data(&client->dev);
+	vc7->chip_info = device_get_match_data(&client->dev);
 
 	vc7->pin_xin = devm_clk_get(&client->dev, "xin");
 	if (PTR_ERR(vc7->pin_xin) == -EPROBE_DEFER) {
@@ -1282,7 +1283,7 @@ static const struct regmap_config vc7_regmap_config = {
 };
 
 static const struct i2c_device_id vc7_i2c_id[] = {
-	{ "rc21008a", VC7_RC21008A },
+	{ "rc21008a", .driver_data = (kernel_ulong_t)&vc7_rc21008a_info },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, vc7_i2c_id);
@@ -1298,7 +1299,7 @@ static struct i2c_driver vc7_i2c_driver = {
 		.name = "vc7",
 		.of_match_table = vc7_of_match,
 	},
-	.probe_new = vc7_probe,
+	.probe = vc7_probe,
 	.remove = vc7_remove,
 	.id_table = vc7_i2c_id,
 };

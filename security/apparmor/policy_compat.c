@@ -146,7 +146,8 @@ static struct aa_perms compute_fperms_other(struct aa_dfa *dfa,
  *
  * Returns: remapped perm table
  */
-static struct aa_perms *compute_fperms(struct aa_dfa *dfa)
+static struct aa_perms *compute_fperms(struct aa_dfa *dfa,
+				       u32 *size)
 {
 	aa_state_t state;
 	unsigned int state_count;
@@ -159,6 +160,7 @@ static struct aa_perms *compute_fperms(struct aa_dfa *dfa)
 	table = kvcalloc(state_count * 2, sizeof(struct aa_perms), GFP_KERNEL);
 	if (!table)
 		return NULL;
+	*size = state_count * 2;
 
 	for (state = 0; state < state_count; state++) {
 		table[state * 2] = compute_fperms_user(dfa, state);
@@ -168,7 +170,8 @@ static struct aa_perms *compute_fperms(struct aa_dfa *dfa)
 	return table;
 }
 
-static struct aa_perms *compute_xmatch_perms(struct aa_dfa *xmatch)
+static struct aa_perms *compute_xmatch_perms(struct aa_dfa *xmatch,
+				      u32 *size)
 {
 	struct aa_perms *perms;
 	int state;
@@ -179,6 +182,9 @@ static struct aa_perms *compute_xmatch_perms(struct aa_dfa *xmatch)
 	state_count = xmatch->tables[YYTD_ID_BASE]->td_lolen;
 	/* DFAs are restricted from having a state_count of less than 2 */
 	perms = kvcalloc(state_count, sizeof(struct aa_perms), GFP_KERNEL);
+	if (!perms)
+		return NULL;
+	*size = state_count;
 
 	/* zero init so skip the trap state (state == 0) */
 	for (state = 1; state < state_count; state++)
@@ -239,7 +245,8 @@ static struct aa_perms compute_perms_entry(struct aa_dfa *dfa,
 	return perms;
 }
 
-static struct aa_perms *compute_perms(struct aa_dfa *dfa, u32 version)
+static struct aa_perms *compute_perms(struct aa_dfa *dfa, u32 version,
+				      u32 *size)
 {
 	unsigned int state;
 	unsigned int state_count;
@@ -252,6 +259,7 @@ static struct aa_perms *compute_perms(struct aa_dfa *dfa, u32 version)
 	table = kvcalloc(state_count, sizeof(struct aa_perms), GFP_KERNEL);
 	if (!table)
 		return NULL;
+	*size = state_count;
 
 	/* zero init so skip the trap state (state == 0) */
 	for (state = 1; state < state_count; state++)
@@ -286,7 +294,7 @@ static void remap_dfa_accept(struct aa_dfa *dfa, unsigned int factor)
 /* TODO: merge different dfa mappings into single map_policy fn */
 int aa_compat_map_xmatch(struct aa_policydb *policy)
 {
-	policy->perms = compute_xmatch_perms(policy->dfa);
+	policy->perms = compute_xmatch_perms(policy->dfa, &policy->size);
 	if (!policy->perms)
 		return -ENOMEM;
 
@@ -297,7 +305,7 @@ int aa_compat_map_xmatch(struct aa_policydb *policy)
 
 int aa_compat_map_policy(struct aa_policydb *policy, u32 version)
 {
-	policy->perms = compute_perms(policy->dfa, version);
+	policy->perms = compute_perms(policy->dfa, version, &policy->size);
 	if (!policy->perms)
 		return -ENOMEM;
 
@@ -308,7 +316,7 @@ int aa_compat_map_policy(struct aa_policydb *policy, u32 version)
 
 int aa_compat_map_file(struct aa_policydb *policy)
 {
-	policy->perms = compute_fperms(policy->dfa);
+	policy->perms = compute_fperms(policy->dfa, &policy->size);
 	if (!policy->perms)
 		return -ENOMEM;
 
