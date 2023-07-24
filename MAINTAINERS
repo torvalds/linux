@@ -23509,11 +23509,8 @@ S:	Maintained
 F:	mm/zbud.c
 
 ZD1211RW WIRELESS DRIVER
-M:	Ulrich Kunitz <kune@deine-taler.de>
 L:	linux-wireless@vger.kernel.org
-L:	zd1211-devs@lists.sourceforge.net (subscribers-only)
-S:	Maintained
-W:	http://zd1211.ath.cx/wiki/DriverRewrite
+S:	Orphan
 F:	drivers/net/wireless/zydas/zd1211rw/
 
 ZD1301 MEDIA DRIVER
