@@ -1974,8 +1974,6 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 	int ret;
 	bool check_prev = true;
 	u64 ino = btrfs_ino(inode);
-	struct btrfs_block_group *bg;
-	bool nocow = false;
 	struct can_nocow_file_extent_args nocow_args = { 0 };
 
 	path = btrfs_alloc_path();
@@ -1993,6 +1991,7 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 	nocow_args.writeback_path = true;
 
 	while (1) {
+		struct btrfs_block_group *nocow_bg = NULL;
 		struct btrfs_ordered_extent *ordered;
 		struct btrfs_key found_key;
 		struct btrfs_file_extent_item *fi;
@@ -2002,8 +2001,6 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 		u64 nocow_end;
 		int extent_type;
 		bool is_prealloc;
-
-		nocow = false;
 
 		ret = btrfs_lookup_file_extent(NULL, root, path, ino,
 					       cur_offset, 0);
@@ -2063,7 +2060,7 @@ next_slot:
 		if (found_key.offset > cur_offset) {
 			extent_end = found_key.offset;
 			extent_type = 0;
-			goto out_check;
+			goto must_cow;
 		}
 
 		/*
@@ -2096,18 +2093,19 @@ next_slot:
 		if (ret < 0)
 			goto error;
 		if (ret == 0)
-			goto out_check;
+			goto must_cow;
 
 		ret = 0;
-		bg = btrfs_inc_nocow_writers(fs_info, nocow_args.disk_bytenr);
-		if (bg)
-			nocow = true;
-out_check:
-		/*
-		 * If nocow is false then record the beginning of the range
-		 * that needs to be COWed
-		 */
-		if (!nocow) {
+		nocow_bg = btrfs_inc_nocow_writers(fs_info, nocow_args.disk_bytenr);
+		if (!nocow_bg) {
+must_cow:
+			/*
+			 * If we can't perform NOCOW writeback for the range,
+			 * then record the beginning of the range that needs to
+			 * be COWed.  It will be written out before the next
+			 * NOCOW range if we find one, or when exiting this
+			 * loop.
+			 */
 			if (cow_start == (u64)-1)
 				cow_start = cur_offset;
 			cur_offset = extent_end;
@@ -2128,8 +2126,10 @@ out_check:
 			ret = fallback_to_cow(inode, locked_page,
 					      cow_start, found_key.offset - 1);
 			cow_start = (u64)-1;
-			if (ret)
+			if (ret) {
+				btrfs_dec_nocow_writers(nocow_bg);
 				goto error;
+			}
 		}
 
 		nocow_end = cur_offset + nocow_args.num_bytes - 1;
@@ -2146,6 +2146,7 @@ out_check:
 					  ram_bytes, BTRFS_COMPRESS_NONE,
 					  BTRFS_ORDERED_PREALLOC);
 			if (IS_ERR(em)) {
+				btrfs_dec_nocow_writers(nocow_bg);
 				ret = PTR_ERR(em);
 				goto error;
 			}
@@ -2159,6 +2160,7 @@ out_check:
 				? (1 << BTRFS_ORDERED_PREALLOC)
 				: (1 << BTRFS_ORDERED_NOCOW),
 				BTRFS_COMPRESS_NONE);
+		btrfs_dec_nocow_writers(nocow_bg);
 		if (IS_ERR(ordered)) {
 			if (is_prealloc) {
 				btrfs_drop_extent_map_range(inode, cur_offset,
@@ -2166,11 +2168,6 @@ out_check:
 			}
 			ret = PTR_ERR(ordered);
 			goto error;
-		}
-
-		if (nocow) {
-			btrfs_dec_nocow_writers(bg);
-			nocow = false;
 		}
 
 		if (btrfs_is_data_reloc_root(root))
@@ -2213,10 +2210,10 @@ out_check:
 			goto error;
 	}
 
-error:
-	if (nocow)
-		btrfs_dec_nocow_writers(bg);
+	btrfs_free_path(path);
+	return 0;
 
+error:
 	/*
 	 * If an error happened while a COW region is outstanding, cur_offset
 	 * needs to be reset to cow_start to ensure the COW region is unlocked
@@ -2224,7 +2221,7 @@ error:
 	 */
 	if (cow_start != (u64)-1)
 		cur_offset = cow_start;
-	if (ret && cur_offset < end)
+	if (cur_offset < end)
 		extent_clear_unlock_delalloc(inode, cur_offset, end,
 					     locked_page, EXTENT_LOCKED |
 					     EXTENT_DELALLOC | EXTENT_DEFRAG |
