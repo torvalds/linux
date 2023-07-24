@@ -711,7 +711,7 @@ static void print_cpu_stall(unsigned long gps)
 
 static void check_cpu_stall(struct rcu_data *rdp)
 {
-	bool didstall = false;
+	bool self_detected;
 	unsigned long gs1;
 	unsigned long gs2;
 	unsigned long gps;
@@ -758,10 +758,10 @@ static void check_cpu_stall(struct rcu_data *rdp)
 		return; /* No stall or GP completed since entering function. */
 	rnp = rdp->mynode;
 	jn = jiffies + ULONG_MAX / 2;
+	self_detected = READ_ONCE(rnp->qsmask) & rdp->grpmask;
 	if (rcu_gp_in_progress() &&
-	    (READ_ONCE(rnp->qsmask) & rdp->grpmask) &&
+	    (self_detected || ULONG_CMP_GE(j, js + RCU_STALL_RAT_DELAY)) &&
 	    cmpxchg(&rcu_state.jiffies_stall, js, jn) == js) {
-
 		/*
 		 * If a virtual machine is stopped by the host it can look to
 		 * the watchdog like an RCU stall. Check to see if the host
@@ -770,33 +770,21 @@ static void check_cpu_stall(struct rcu_data *rdp)
 		if (kvm_check_and_clear_guest_paused())
 			return;
 
-		/* We haven't checked in, so go dump stack. */
-		print_cpu_stall(gps);
+		if (self_detected) {
+			/* We haven't checked in, so go dump stack. */
+			print_cpu_stall(gps);
+		} else {
+			/* They had a few time units to dump stack, so complain. */
+			print_other_cpu_stall(gs2, gps);
+		}
+
 		if (READ_ONCE(rcu_cpu_stall_ftrace_dump))
 			rcu_ftrace_dump(DUMP_ALL);
-		didstall = true;
 
-	} else if (rcu_gp_in_progress() &&
-		   ULONG_CMP_GE(j, js + RCU_STALL_RAT_DELAY) &&
-		   cmpxchg(&rcu_state.jiffies_stall, js, jn) == js) {
-
-		/*
-		 * If a virtual machine is stopped by the host it can look to
-		 * the watchdog like an RCU stall. Check to see if the host
-		 * stopped the vm.
-		 */
-		if (kvm_check_and_clear_guest_paused())
-			return;
-
-		/* They had a few time units to dump stack, so complain. */
-		print_other_cpu_stall(gs2, gps);
-		if (READ_ONCE(rcu_cpu_stall_ftrace_dump))
-			rcu_ftrace_dump(DUMP_ALL);
-		didstall = true;
-	}
-	if (didstall && READ_ONCE(rcu_state.jiffies_stall) == jn) {
-		jn = jiffies + 3 * rcu_jiffies_till_stall_check() + 3;
-		WRITE_ONCE(rcu_state.jiffies_stall, jn);
+		if (READ_ONCE(rcu_state.jiffies_stall) == jn) {
+			jn = jiffies + 3 * rcu_jiffies_till_stall_check() + 3;
+			WRITE_ONCE(rcu_state.jiffies_stall, jn);
+		}
 	}
 }
 
