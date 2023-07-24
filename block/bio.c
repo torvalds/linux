@@ -1126,7 +1126,7 @@ int bio_add_page(struct bio *bio, struct page *page,
 	    __bio_try_merge_page(bio, page, len, offset, &same_page))
 		return len;
 
-	if (bio_full(bio, len))
+	if (bio->bi_vcnt >= bio->bi_max_vecs)
 		return 0;
 	__bio_add_page(bio, page, len, offset);
 	return len;
