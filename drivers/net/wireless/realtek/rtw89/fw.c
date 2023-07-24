@@ -312,31 +312,17 @@ rtw89_early_fw_feature_recognize(struct device *device,
 				 struct rtw89_fw_info *early_fw,
 				 int *used_fw_format)
 {
-	union rtw89_compat_fw_hdr buf = {};
 	const struct firmware *firmware;
-	bool full_req = false;
 	char fw_name[64];
 	int fw_format;
 	u32 ver_code;
 	int ret;
 
-	/* If SECURITY_LOADPIN_ENFORCE is enabled, reading partial files will
-	 * be denied (-EPERM). Then, we don't get right firmware things as
-	 * expected. So, in this case, we have to request full firmware here.
-	 */
-	if (IS_ENABLED(CONFIG_SECURITY_LOADPIN_ENFORCE))
-		full_req = true;
-
 	for (fw_format = chip->fw_format_max; fw_format >= 0; fw_format--) {
 		rtw89_fw_get_filename(fw_name, sizeof(fw_name),
 				      chip->fw_basename, fw_format);
 
-		if (full_req)
-			ret = request_firmware(&firmware, fw_name, device);
-		else
-			ret = request_partial_firmware_into_buf(&firmware, fw_name,
-								device, &buf, sizeof(buf),
-								0);
+		ret = request_firmware(&firmware, fw_name, device);
 		if (!ret) {
 			dev_info(device, "loaded firmware %s\n", fw_name);
 			*used_fw_format = fw_format;
@@ -349,10 +335,7 @@ rtw89_early_fw_feature_recognize(struct device *device,
 		return NULL;
 	}
 
-	if (full_req)
-		ver_code = rtw89_compat_fw_hdr_ver_code(firmware->data);
-	else
-		ver_code = rtw89_compat_fw_hdr_ver_code(&buf);
+	ver_code = rtw89_compat_fw_hdr_ver_code(firmware->data);
 
 	if (!ver_code)
 		goto out;
@@ -360,11 +343,7 @@ rtw89_early_fw_feature_recognize(struct device *device,
 	rtw89_fw_iterate_feature_cfg(early_fw, chip, ver_code);
 
 out:
-	if (full_req)
-		return firmware;
-
-	release_firmware(firmware);
-	return NULL;
+	return firmware;
 }
 
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev)
