@@ -1345,7 +1345,6 @@ static int flock_test(const char *mount_dir)
 	int fuse_dev = -1;
 	int fd = -1, fd2 = -1;
 	int backing_fd = -1;
-	char *addr = NULL;
 
 	TEST(src_fd = open(ft_src, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
 	     src_fd != -1);
