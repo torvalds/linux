@@ -322,7 +322,10 @@ then
 	CATEGORY="pkey" run_test ./protection_keys_64
 fi
 
-CATEGORY="soft_dirty" run_test ./soft-dirty
+if [ -x ./soft-dirty ]
+then
+	CATEGORY="soft_dirty" run_test ./soft-dirty
+fi
 
 # COW tests
 CATEGORY="cow" run_test ./cow

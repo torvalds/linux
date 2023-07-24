@@ -64,11 +64,14 @@ TEST_GEN_PROGS += thuge-gen
 TEST_GEN_PROGS += transhuge-stress
 TEST_GEN_PROGS += uffd-stress
 TEST_GEN_PROGS += uffd-unit-tests
-TEST_GEN_PROGS += soft-dirty
 TEST_GEN_PROGS += split_huge_page_test
 TEST_GEN_PROGS += ksm_tests
 TEST_GEN_PROGS += ksm_functional_tests
 TEST_GEN_PROGS += mdwe_test
+
+ifneq ($(ARCH),arm64)
+TEST_GEN_PROGS += soft-dirty
+endif
 
 ifeq ($(ARCH),x86_64)
 CAN_BUILD_I386 := $(shell ./../x86/check_cc.sh "$(CC)" ../x86/trivial_32bit_program.c -m32)
