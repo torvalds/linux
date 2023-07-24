@@ -345,12 +345,9 @@ static int qt2160_probe(struct i2c_client *client)
 	int i;
 	int error;
 
-	/* Check functionality */
-	error = i2c_check_functionality(client->adapter,
-			I2C_FUNC_SMBUS_BYTE);
-	if (!error) {
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE)) {
 		dev_err(&client->dev, "%s adapter not supported\n",
-				dev_driver_string(&client->adapter->dev));
+			dev_driver_string(&client->adapter->dev));
 		return -ENODEV;
 	}
 
