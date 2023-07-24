@@ -1474,7 +1474,7 @@ int iio_device_register_sysfs_group(struct iio_dev *indio_dev,
 	const struct attribute_group **new, **old = iio_dev_opaque->groups;
 	unsigned int cnt = iio_dev_opaque->groupcounter;
 
-	new = krealloc(old, sizeof(*new) * (cnt + 2), GFP_KERNEL);
+	new = krealloc_array(old, cnt + 2, sizeof(*new), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
