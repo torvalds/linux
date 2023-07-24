@@ -690,17 +690,18 @@ cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *reaso
 {
 	struct walt_cpu_load wl_other = {0};
 	struct walt_cpu_load wl_prime = {0};
-	unsigned long util = 0, util_other = 0;
+	unsigned long util = 0, util_other = 0, util_prime = 0;
 	unsigned long capacity = capacity_orig_of(cpu);
 	int i, mpct = PRIME_FACTOR;
 	unsigned long max_nl_other = 0, max_pl_other = 0;
-	bool shared_rail = false;
+
+	util =  __cpu_util_freq_walt(cpu, walt_load, reason);
 
 	if (cpumask_test_cpu(cpu, &shared_rail_sibling_cpus) &&
 			enable_shared_rail_boost) {
 		for_each_cpu(i, &shared_rail_sibling_cpus) {
 			if (i == (num_possible_cpus() - 1))
-				util = __cpu_util_freq_walt(i, &wl_prime, reason);
+				util_prime = __cpu_util_freq_walt(i, &wl_prime, reason);
 			else {
 				util_other = max(util_other,
 						__cpu_util_freq_walt(i, &wl_other, reason));
@@ -712,10 +713,9 @@ cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *reaso
 		if (cpu == (num_possible_cpus() - 1))
 			mpct = 100;
 
-		util = ADJUSTED_SHARED_RAIL_UTIL(util_other, util, mpct);
+		util = ADJUSTED_SHARED_RAIL_UTIL(util_other, util_prime, mpct);
 		walt_load->nl = ADJUSTED_SHARED_RAIL_UTIL(max_nl_other, wl_prime.nl, mpct);
 		walt_load->pl = ADJUSTED_SHARED_RAIL_UTIL(max_pl_other, wl_prime.pl, mpct);
-		shared_rail = true;
 	}
 
 	if (!cpumask_test_cpu(cpu, &asym_cap_sibling_cpus))
@@ -725,9 +725,7 @@ cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *reaso
 		goto finish;
 
 	for_each_cpu(i, &asym_cap_sibling_cpus) {
-		if (i == cpu)
-			util = max(util, __cpu_util_freq_walt(cpu, walt_load, reason));
-		else {
+		if (i != cpu) {
 			util_other = max(util_other, __cpu_util_freq_walt(i, &wl_other, reason));
 			max_nl_other = max(max_nl_other, wl_other.nl);
 			max_pl_other = max(max_pl_other, wl_other.pl);
@@ -737,12 +735,8 @@ cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *reaso
 	util = max(util, util_other);
 	walt_load->nl = max(walt_load->nl, max_nl_other);
 	walt_load->pl = max(walt_load->pl, max_pl_other);
-	return (util >= capacity) ? capacity : util;
 finish:
-	if (shared_rail)
-		return (util >= capacity) ? capacity : util;
-
-	return __cpu_util_freq_walt(cpu, walt_load, reason);
+	return (util >= capacity) ? capacity : util;
 }
 
 /*
