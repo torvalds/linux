@@ -27,7 +27,6 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/serial_reg.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
