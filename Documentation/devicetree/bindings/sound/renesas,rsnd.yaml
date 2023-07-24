@@ -9,6 +9,20 @@ title: Renesas R-Car Sound Driver
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
+definitions:
+  port-def:
+    $ref: audio-graph-port.yaml#/definitions/port-base
+    unevaluatedProperties: false
+    patternProperties:
+      "^endpoint(@[0-9a-f]+)?":
+        $ref: audio-graph-port.yaml#/definitions/endpoint-base
+        properties:
+          playback:
+            $ref: /schemas/types.yaml#/definitions/phandle-array
+          capture:
+            $ref: /schemas/types.yaml#/definitions/phandle-array
+        unevaluatedProperties: false
+
 properties:
 
   compatible:
@@ -108,30 +122,10 @@ properties:
     unevaluatedProperties: false
     patternProperties:
       '^port(@[0-9a-f]+)?$':
-        $ref: audio-graph-port.yaml#/definitions/port-base
-        unevaluatedProperties: false
-        patternProperties:
-          "^endpoint(@[0-9a-f]+)?":
-            $ref: audio-graph-port.yaml#/definitions/endpoint-base
-            properties:
-              playback:
-                $ref: /schemas/types.yaml#/definitions/phandle-array
-              capture:
-                $ref: /schemas/types.yaml#/definitions/phandle-array
-            unevaluatedProperties: false
+        $ref: "#/definitions/port-def"
 
   port:
-    $ref: audio-graph-port.yaml#/definitions/port-base
-    unevaluatedProperties: false
-    patternProperties:
-      "^endpoint(@[0-9a-f]+)?":
-        $ref: audio-graph-port.yaml#/definitions/endpoint-base
-        properties:
-          playback:
-            $ref: /schemas/types.yaml#/definitions/phandle-array
-          capture:
-            $ref: /schemas/types.yaml#/definitions/phandle-array
-        unevaluatedProperties: false
+    $ref: "#/definitions/port-def"
 
   rcar_sound,dvc:
     description: DVC subnode.
