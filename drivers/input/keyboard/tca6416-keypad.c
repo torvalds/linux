@@ -24,6 +24,8 @@
 #define TCA6416_INVERT         2
 #define TCA6416_DIRECTION      3
 
+#define TCA6416_POLL_INTERVAL	100 /* msec */
+
 static const struct i2c_device_id tca6416_id[] = {
 	{ "tca6416-keys", 16, },
 	{ "tca6408-keys", 8, },
@@ -43,7 +45,6 @@ struct tca6416_keypad_chip {
 
 	struct i2c_client *client;
 	struct input_dev *input;
-	struct delayed_work dwork;
 	int io_size;
 	int irqnum;
 	u16 pinmask;
@@ -85,9 +86,9 @@ static int tca6416_read_reg(struct tca6416_keypad_chip *chip, int reg, u16 *val)
 	return 0;
 }
 
-static void tca6416_keys_scan(struct tca6416_keypad_chip *chip)
+static void tca6416_keys_scan(struct input_dev *input)
 {
-	struct input_dev *input = chip->input;
+	struct tca6416_keypad_chip *chip = input_get_drvdata(input);
 	u16 reg_val, val;
 	int error, i, pin_index;
 
@@ -122,33 +123,20 @@ static void tca6416_keys_scan(struct tca6416_keypad_chip *chip)
  */
 static irqreturn_t tca6416_keys_isr(int irq, void *dev_id)
 {
-	struct tca6416_keypad_chip *chip = dev_id;
-
-	tca6416_keys_scan(chip);
+	tca6416_keys_scan(dev_id);
 
 	return IRQ_HANDLED;
-}
-
-static void tca6416_keys_work_func(struct work_struct *work)
-{
-	struct tca6416_keypad_chip *chip =
-		container_of(work, struct tca6416_keypad_chip, dwork.work);
-
-	tca6416_keys_scan(chip);
-	schedule_delayed_work(&chip->dwork, msecs_to_jiffies(100));
 }
 
 static int tca6416_keys_open(struct input_dev *dev)
 {
 	struct tca6416_keypad_chip *chip = input_get_drvdata(dev);
 
-	/* Get initial device state in case it has switches */
-	tca6416_keys_scan(chip);
-
-	if (chip->use_polling)
-		schedule_delayed_work(&chip->dwork, msecs_to_jiffies(100));
-	else
+	if (!chip->use_polling) {
+		/* Get initial device state in case it has switches */
+		tca6416_keys_scan(dev);
 		enable_irq(chip->client->irq);
+	}
 
 	return 0;
 }
@@ -157,9 +145,7 @@ static void tca6416_keys_close(struct input_dev *dev)
 {
 	struct tca6416_keypad_chip *chip = input_get_drvdata(dev);
 
-	if (chip->use_polling)
-		cancel_delayed_work_sync(&chip->dwork);
-	else
+	if (!chip->use_polling)
 		disable_irq(chip->client->irq);
 }
 
@@ -232,8 +218,6 @@ static int tca6416_keypad_probe(struct i2c_client *client)
 	chip->pinmask = pdata->pinmask;
 	chip->use_polling = pdata->use_polling;
 
-	INIT_DELAYED_WORK(&chip->dwork, tca6416_keys_work_func);
-
 	input->phys = "tca6416-keys/input0";
 	input->name = client->name;
 
@@ -267,13 +251,21 @@ static int tca6416_keypad_probe(struct i2c_client *client)
 	if (error)
 		return error;
 
-	if (!chip->use_polling) {
+	if (chip->use_polling) {
+		error = input_setup_polling(input, tca6416_keys_scan);
+		if (error) {
+			dev_err(&client->dev, "Failed to setup polling\n");
+			return error;
+		}
+
+		input_set_poll_interval(input, TCA6416_POLL_INTERVAL);
+	} else {
 		error = devm_request_threaded_irq(&client->dev, client->irq,
 						  NULL, tca6416_keys_isr,
 						  IRQF_TRIGGER_FALLING |
 							IRQF_ONESHOT |
 							IRQF_NO_AUTOEN,
-						  "tca6416-keypad", chip);
+						  "tca6416-keypad", input);
 		if (error) {
 			dev_dbg(&client->dev,
 				"Unable to claim irq %d; error %d\n",
