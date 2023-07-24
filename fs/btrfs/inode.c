@@ -2029,11 +2029,8 @@ next_slot:
 		leaf = path->nodes[0];
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
 			ret = btrfs_next_leaf(root, path);
-			if (ret < 0) {
-				if (cow_start != (u64)-1)
-					cur_offset = cow_start;
+			if (ret < 0)
 				goto error;
-			}
 			if (ret > 0)
 				break;
 			leaf = path->nodes[0];
@@ -2096,13 +2093,10 @@ next_slot:
 
 		nocow_args.start = cur_offset;
 		ret = can_nocow_file_extent(path, &found_key, inode, &nocow_args);
-		if (ret < 0) {
-			if (cow_start != (u64)-1)
-				cur_offset = cow_start;
+		if (ret < 0)
 			goto error;
-		} else if (ret == 0) {
+		if (ret == 0)
 			goto out_check;
-		}
 
 		ret = 0;
 		bg = btrfs_inc_nocow_writers(fs_info, nocow_args.disk_bytenr);
@@ -2133,9 +2127,9 @@ out_check:
 		if (cow_start != (u64)-1) {
 			ret = fallback_to_cow(inode, locked_page,
 					      cow_start, found_key.offset - 1);
+			cow_start = (u64)-1;
 			if (ret)
 				goto error;
-			cow_start = (u64)-1;
 		}
 
 		nocow_end = cur_offset + nocow_args.num_bytes - 1;
@@ -2214,6 +2208,7 @@ out_check:
 	if (cow_start != (u64)-1) {
 		cur_offset = end;
 		ret = fallback_to_cow(inode, locked_page, cow_start, end);
+		cow_start = (u64)-1;
 		if (ret)
 			goto error;
 	}
@@ -2222,6 +2217,13 @@ error:
 	if (nocow)
 		btrfs_dec_nocow_writers(bg);
 
+	/*
+	 * If an error happened while a COW region is outstanding, cur_offset
+	 * needs to be reset to cow_start to ensure the COW region is unlocked
+	 * as well.
+	 */
+	if (cow_start != (u64)-1)
+		cur_offset = cow_start;
 	if (ret && cur_offset < end)
 		extent_clear_unlock_delalloc(inode, cur_offset, end,
 					     locked_page, EXTENT_LOCKED |
