@@ -198,16 +198,11 @@ bool altmap_cross_boundary(struct vmem_altmap *altmap, unsigned long start,
 	return false;
 }
 
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
-		struct vmem_altmap *altmap)
+static int __meminit __vmemmap_populate(unsigned long start, unsigned long end, int node,
+					struct vmem_altmap *altmap)
 {
 	bool altmap_alloc;
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
-
-#ifdef CONFIG_PPC_BOOK3S_64
-	if (radix_enabled())
-		return radix__vmemmap_populate(start, end, node, altmap);
-#endif
 
 	/* Align to the page size of the linear mapping. */
 	start = ALIGN_DOWN(start, page_size);
@@ -275,6 +270,18 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	}
 
 	return 0;
+}
+
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+			       struct vmem_altmap *altmap)
+{
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (radix_enabled())
+		return radix__vmemmap_populate(start, end, node, altmap);
+#endif
+
+	return __vmemmap_populate(start, end, node, altmap);
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
