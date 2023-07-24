@@ -37,12 +37,6 @@ properties:
       - qcom,qcs404-bimc
       - qcom,qcs404-pcnoc
       - qcom,qcs404-snoc
-      - qcom,sdm660-a2noc
-      - qcom,sdm660-bimc
-      - qcom,sdm660-cnoc
-      - qcom,sdm660-gnoc
-      - qcom,sdm660-mnoc
-      - qcom,sdm660-snoc
 
   '#interconnect-cells':
     description: |
@@ -123,10 +117,6 @@ allOf:
               - qcom,qcs404-bimc
               - qcom,qcs404-pcnoc
               - qcom,qcs404-snoc
-              - qcom,sdm660-bimc
-              - qcom,sdm660-cnoc
-              - qcom,sdm660-gnoc
-              - qcom,sdm660-snoc
 
     then:
       properties:
@@ -146,7 +136,6 @@ allOf:
           contains:
             enum:
               - qcom,msm8996-mnoc
-              - qcom,sdm660-mnoc
 
     then:
       properties:
@@ -208,35 +197,6 @@ allOf:
             - description: Bus A Clock
             - description: Aggregate2 NoC UFS AXI Clock
             - description: UFS AXI Clock
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,sdm660-a2noc
-
-    then:
-      properties:
-        clock-names:
-          items:
-            - const: bus
-            - const: bus_a
-            - const: ipa
-            - const: ufs_axi
-            - const: aggre2_ufs_axi
-            - const: aggre2_usb3_axi
-            - const: cfg_noc_usb2_axi
-
-        clocks:
-          items:
-            - description: Bus Clock.
-            - description: Bus A Clock.
-            - description: IPA Clock.
-            - description: UFS AXI Clock.
-            - description: Aggregate2 UFS AXI Clock.
-            - description: Aggregate2 USB3 AXI Clock.
-            - description: Config NoC USB2 AXI Clock.
 
   - if:
       not:
