@@ -627,8 +627,8 @@ filegroup(
 ddk_headers(
     name = "all_headers_unsafe",
     hdrs = [
-        "drivers/gpu/drm/virtio/virtgpu_trace.h",
         "drivers/devfreq/governor.h",
+        "drivers/gpu/drm/virtio/virtgpu_trace.h",
         "mm/slab.h",
     ],
     # The list of include directories where source files can #include headers

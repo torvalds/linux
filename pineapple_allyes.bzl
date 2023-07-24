@@ -20,5 +20,6 @@ def define_pineapple_allyes():
             boot_image_opts = boot_image_opts(
                 boot_image_header_version = 2,
                 base_address = 0x80000000,
-                page_size = 4096),
+                page_size = 4096,
+            ),
         )

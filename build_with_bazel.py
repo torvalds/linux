@@ -34,8 +34,16 @@ class Target:
         if self.out_dir:
             out_dir = self.out_dir
         else:
+            # Mirror the logic in msm_common.bzl:get_out_dir()
+            if "allyes" in self.target:
+                target_norm = self.target.replace("_", "-")
+            else:
+                target_norm = self.target.replace("-", "_")
+
+            variant_norm = self.variant.replace("-", "_")
+
             out_dir = DEFAULT_OUT_DIR.format(
-                workspace = self.workspace, target=self.target, variant=self.variant
+                workspace = self.workspace, target=target_norm, variant=variant_norm
             )
 
         if suffix:
