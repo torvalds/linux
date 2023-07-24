@@ -23,9 +23,6 @@ properties:
       - qcom,msm8916-bimc
       - qcom,msm8916-pcnoc
       - qcom,msm8916-snoc
-      - qcom,msm8939-bimc
-      - qcom,msm8939-pcnoc
-      - qcom,msm8939-snoc
       - qcom,qcs404-bimc
       - qcom,qcs404-pcnoc
       - qcom,qcs404-snoc
@@ -48,38 +45,6 @@ properties:
   power-domains:
     maxItems: 1
 
-# Child node's properties
-patternProperties:
-  '^interconnect-[a-z0-9]+$':
-    type: object
-    additionalProperties: false
-    description:
-      snoc-mm is a child of snoc, sharing snoc's register address space.
-
-    properties:
-      compatible:
-        enum:
-          - qcom,msm8939-snoc-mm
-
-      '#interconnect-cells':
-        const: 1
-
-      clock-names:
-        items:
-          - const: bus
-          - const: bus_a
-
-      clocks:
-        items:
-          - description: Bus Clock
-          - description: Bus A Clock
-
-    required:
-      - compatible
-      - '#interconnect-cells'
-      - clock-names
-      - clocks
-
 required:
   - compatible
   - reg
@@ -98,9 +63,6 @@ allOf:
               - qcom,msm8916-bimc
               - qcom,msm8916-pcnoc
               - qcom,msm8916-snoc
-              - qcom,msm8939-bimc
-              - qcom,msm8939-pcnoc
-              - qcom,msm8939-snoc
               - qcom,qcs404-bimc
               - qcom,qcs404-pcnoc
               - qcom,qcs404-snoc
@@ -116,17 +78,6 @@ allOf:
           items:
             - description: Bus Clock
             - description: Bus A Clock
-
-  - if:
-      not:
-        properties:
-          compatible:
-            contains:
-              enum:
-                - qcom,msm8939-snoc
-    then:
-      patternProperties:
-        '^interconnect-[a-z0-9]+$': false
 
 examples:
   - |
