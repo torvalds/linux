@@ -668,7 +668,11 @@ enum pq_init_status {
  *       Packet to register interrupts indicating LKD is ready to receive events from FW.
  *
  * CPUCP_PACKET_SOFT_RESET -
- *	 Packet to perform soft-reset.
+ *      Packet to perform soft-reset.
+ *
+ * CPUCP_PACKET_INTS_REGISTER -
+ *       Packet to inform FW that queues have been established and LKD is ready to receive
+ *       EQ events.
  */
 
 enum cpucp_packet_id {
@@ -734,9 +738,10 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_RESERVED10,		/* not used */
 	CPUCP_PACKET_RESERVED11,		/* not used */
 	CPUCP_PACKET_RESERVED12,		/* internal */
-	CPUCP_PACKET_REGISTER_INTERRUPTS,	/* internal */
-	CPUCP_PACKET_SOFT_RESET,		/* internal */
-	CPUCP_PACKET_ID_MAX			/* must be last */
+	CPUCP_PACKET_RESERVED13,                /* internal */
+	CPUCP_PACKET_SOFT_RESET,                /* internal */
+	CPUCP_PACKET_INTS_REGISTER,             /* internal */
+	CPUCP_PACKET_ID_MAX                     /* must be last */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
