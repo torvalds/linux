@@ -6716,8 +6716,16 @@ static void comp_generic_playback_hook(struct hda_pcm_stream *hinfo, struct hda_
 	int i;
 
 	for (i = 0; i < HDA_MAX_COMPONENTS; i++) {
-		if (spec->comps[i].dev)
+		if (spec->comps[i].dev && spec->comps[i].pre_playback_hook)
+			spec->comps[i].pre_playback_hook(spec->comps[i].dev, action);
+	}
+	for (i = 0; i < HDA_MAX_COMPONENTS; i++) {
+		if (spec->comps[i].dev && spec->comps[i].playback_hook)
 			spec->comps[i].playback_hook(spec->comps[i].dev, action);
+	}
+	for (i = 0; i < HDA_MAX_COMPONENTS; i++) {
+		if (spec->comps[i].dev && spec->comps[i].post_playback_hook)
+			spec->comps[i].post_playback_hook(spec->comps[i].dev, action);
 	}
 }
 

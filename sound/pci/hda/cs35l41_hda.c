@@ -58,8 +58,6 @@ static const struct reg_sequence cs35l41_hda_config[] = {
 	{ CS35L41_DSP1_RX3_SRC,         0x00000018 }, // DSP1RX3 SRC = VMON
 	{ CS35L41_DSP1_RX4_SRC,         0x00000019 }, // DSP1RX4 SRC = IMON
 	{ CS35L41_DSP1_RX5_SRC,         0x00000020 }, // DSP1RX5 SRC = ERRVOL
-	{ CS35L41_AMP_DIG_VOL_CTRL,	0x00008000 }, // AMP_HPF_PCM_EN = 1, AMP_VOL_PCM  0.0 dB
-	{ CS35L41_AMP_GAIN_CTRL,	0x00000084 }, // AMP_GAIN_PCM 4.5 dB
 };
 
 static const struct reg_sequence cs35l41_hda_config_dsp[] = {
@@ -82,6 +80,14 @@ static const struct reg_sequence cs35l41_hda_config_dsp[] = {
 	{ CS35L41_DSP1_RX3_SRC,         0x00000018 }, // DSP1RX3 SRC = VMON
 	{ CS35L41_DSP1_RX4_SRC,         0x00000019 }, // DSP1RX4 SRC = IMON
 	{ CS35L41_DSP1_RX5_SRC,         0x00000029 }, // DSP1RX5 SRC = VBSTMON
+};
+
+static const struct reg_sequence cs35l41_hda_unmute[] = {
+	{ CS35L41_AMP_DIG_VOL_CTRL,	0x00008000 }, // AMP_HPF_PCM_EN = 1, AMP_VOL_PCM  0.0 dB
+	{ CS35L41_AMP_GAIN_CTRL,	0x00000084 }, // AMP_GAIN_PCM 4.5 dB
+};
+
+static const struct reg_sequence cs35l41_hda_unmute_dsp[] = {
 	{ CS35L41_AMP_DIG_VOL_CTRL,	0x00008000 }, // AMP_HPF_PCM_EN = 1, AMP_VOL_PCM  0.0 dB
 	{ CS35L41_AMP_GAIN_CTRL,	0x00000233 }, // AMP_GAIN_PCM = 17.5dB AMP_GAIN_PDM = 19.5dB
 };
@@ -483,73 +489,159 @@ static void cs35l41_irq_release(struct cs35l41_hda *cs35l41)
 	cs35l41->irq_errors = 0;
 }
 
-static void cs35l41_hda_playback_hook(struct device *dev, int action)
+static void cs35l41_hda_play_start(struct device *dev)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
 	struct regmap *reg = cs35l41->regmap;
-	int ret = 0;
+
+	dev_dbg(dev, "Play (Start)\n");
+
+	if (cs35l41->playback_started) {
+		dev_dbg(dev, "Playback already started.");
+		return;
+	}
+
+	cs35l41->playback_started = true;
+
+	if (cs35l41->firmware_running) {
+		regmap_multi_reg_write(reg, cs35l41_hda_config_dsp,
+				       ARRAY_SIZE(cs35l41_hda_config_dsp));
+		regmap_update_bits(reg, CS35L41_PWR_CTRL2,
+				   CS35L41_VMON_EN_MASK | CS35L41_IMON_EN_MASK,
+				   1 << CS35L41_VMON_EN_SHIFT | 1 << CS35L41_IMON_EN_SHIFT);
+		cs35l41_set_cspl_mbox_cmd(cs35l41->dev, reg, CSPL_MBOX_CMD_RESUME);
+	} else {
+		regmap_multi_reg_write(reg, cs35l41_hda_config, ARRAY_SIZE(cs35l41_hda_config));
+	}
+	regmap_update_bits(reg, CS35L41_PWR_CTRL2, CS35L41_AMP_EN_MASK, 1 << CS35L41_AMP_EN_SHIFT);
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
+		regmap_write(reg, CS35L41_GPIO1_CTRL1, 0x00008001);
+
+}
+
+static void cs35l41_hda_play_done(struct device *dev)
+{
+	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
+	struct regmap *reg = cs35l41->regmap;
+
+	dev_dbg(dev, "Play (Complete)\n");
+
+	cs35l41_global_enable(dev, reg, cs35l41->hw_cfg.bst_type, 1, NULL,
+			      cs35l41->firmware_running);
+	if (cs35l41->firmware_running) {
+		regmap_multi_reg_write(reg, cs35l41_hda_unmute_dsp,
+				       ARRAY_SIZE(cs35l41_hda_unmute_dsp));
+	} else {
+		regmap_multi_reg_write(reg, cs35l41_hda_unmute,
+				       ARRAY_SIZE(cs35l41_hda_unmute));
+	}
+}
+
+static void cs35l41_hda_pause_start(struct device *dev)
+{
+	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
+	struct regmap *reg = cs35l41->regmap;
+
+	dev_dbg(dev, "Pause (Start)\n");
+
+	regmap_multi_reg_write(reg, cs35l41_hda_mute, ARRAY_SIZE(cs35l41_hda_mute));
+	cs35l41_global_enable(dev, reg, cs35l41->hw_cfg.bst_type, 0, NULL,
+			      cs35l41->firmware_running);
+}
+
+static void cs35l41_hda_pause_done(struct device *dev)
+{
+	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
+	struct regmap *reg = cs35l41->regmap;
+
+	dev_dbg(dev, "Pause (Complete)\n");
+
+	regmap_update_bits(reg, CS35L41_PWR_CTRL2, CS35L41_AMP_EN_MASK, 0 << CS35L41_AMP_EN_SHIFT);
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
+		regmap_write(reg, CS35L41_GPIO1_CTRL1, 0x00000001);
+	if (cs35l41->firmware_running) {
+		cs35l41_set_cspl_mbox_cmd(dev, reg, CSPL_MBOX_CMD_PAUSE);
+		regmap_update_bits(reg, CS35L41_PWR_CTRL2,
+				   CS35L41_VMON_EN_MASK | CS35L41_IMON_EN_MASK,
+				   0 << CS35L41_VMON_EN_SHIFT | 0 << CS35L41_IMON_EN_SHIFT);
+	}
+	cs35l41_irq_release(cs35l41);
+	cs35l41->playback_started = false;
+}
+
+static void cs35l41_hda_pre_playback_hook(struct device *dev, int action)
+{
+	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
+
+	switch (action) {
+	case HDA_GEN_PCM_ACT_CLEANUP:
+		mutex_lock(&cs35l41->fw_mutex);
+		cs35l41_hda_pause_start(dev);
+		mutex_unlock(&cs35l41->fw_mutex);
+		break;
+	default:
+		break;
+	}
+}
+static void cs35l41_hda_playback_hook(struct device *dev, int action)
+{
+	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
 
 	switch (action) {
 	case HDA_GEN_PCM_ACT_OPEN:
+		/*
+		 * All amps must be resumed before we can start playing back.
+		 * This ensures, for external boost, that all amps are in AMP_SAFE mode.
+		 * Do this in HDA_GEN_PCM_ACT_OPEN, since this is run prior to any of the
+		 * other actions.
+		 */
 		pm_runtime_get_sync(dev);
-		mutex_lock(&cs35l41->fw_mutex);
-		cs35l41->playback_started = true;
-		if (cs35l41->firmware_running) {
-			regmap_multi_reg_write(reg, cs35l41_hda_config_dsp,
-					       ARRAY_SIZE(cs35l41_hda_config_dsp));
-			regmap_update_bits(cs35l41->regmap, CS35L41_PWR_CTRL2,
-					   CS35L41_VMON_EN_MASK | CS35L41_IMON_EN_MASK,
-					   1 << CS35L41_VMON_EN_SHIFT | 1 << CS35L41_IMON_EN_SHIFT);
-			cs35l41_set_cspl_mbox_cmd(cs35l41->dev, cs35l41->regmap,
-						  CSPL_MBOX_CMD_RESUME);
-		} else {
-			regmap_multi_reg_write(reg, cs35l41_hda_config,
-					       ARRAY_SIZE(cs35l41_hda_config));
-		}
-		ret = regmap_update_bits(reg, CS35L41_PWR_CTRL2,
-					 CS35L41_AMP_EN_MASK, 1 << CS35L41_AMP_EN_SHIFT);
-		if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
-			regmap_write(reg, CS35L41_GPIO1_CTRL1, 0x00008001);
-		mutex_unlock(&cs35l41->fw_mutex);
 		break;
 	case HDA_GEN_PCM_ACT_PREPARE:
 		mutex_lock(&cs35l41->fw_mutex);
-		ret = cs35l41_global_enable(reg, cs35l41->hw_cfg.bst_type, 1, NULL);
+		cs35l41_hda_play_start(dev);
 		mutex_unlock(&cs35l41->fw_mutex);
 		break;
 	case HDA_GEN_PCM_ACT_CLEANUP:
 		mutex_lock(&cs35l41->fw_mutex);
-		regmap_multi_reg_write(reg, cs35l41_hda_mute, ARRAY_SIZE(cs35l41_hda_mute));
-		ret = cs35l41_global_enable(reg, cs35l41->hw_cfg.bst_type, 0, NULL);
+		cs35l41_hda_pause_done(dev);
 		mutex_unlock(&cs35l41->fw_mutex);
 		break;
 	case HDA_GEN_PCM_ACT_CLOSE:
 		mutex_lock(&cs35l41->fw_mutex);
-		ret = regmap_update_bits(reg, CS35L41_PWR_CTRL2,
-					 CS35L41_AMP_EN_MASK, 0 << CS35L41_AMP_EN_SHIFT);
-		if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
-			regmap_write(reg, CS35L41_GPIO1_CTRL1, 0x00000001);
-		if (cs35l41->firmware_running) {
-			cs35l41_set_cspl_mbox_cmd(cs35l41->dev, cs35l41->regmap,
-						  CSPL_MBOX_CMD_PAUSE);
-			regmap_update_bits(cs35l41->regmap, CS35L41_PWR_CTRL2,
-					   CS35L41_VMON_EN_MASK | CS35L41_IMON_EN_MASK,
-					   0 << CS35L41_VMON_EN_SHIFT | 0 << CS35L41_IMON_EN_SHIFT);
+		if (!cs35l41->firmware_running && cs35l41->request_fw_load &&
+		    !cs35l41->fw_request_ongoing) {
+			dev_info(dev, "Requesting Firmware Load after HDA_GEN_PCM_ACT_CLOSE\n");
+			cs35l41->fw_request_ongoing = true;
+			schedule_work(&cs35l41->fw_load_work);
 		}
-		cs35l41_irq_release(cs35l41);
-		cs35l41->playback_started = false;
 		mutex_unlock(&cs35l41->fw_mutex);
 
+		/*
+		 * Playback must be finished for all amps before we start runtime suspend.
+		 * This ensures no amps are playing back when we start putting them to sleep.
+		 */
 		pm_runtime_mark_last_busy(dev);
 		pm_runtime_put_autosuspend(dev);
 		break;
 	default:
-		dev_warn(cs35l41->dev, "Playback action not supported: %d\n", action);
 		break;
 	}
+}
 
-	if (ret)
-		dev_err(cs35l41->dev, "Regmap access fail: %d\n", ret);
+static void cs35l41_hda_post_playback_hook(struct device *dev, int action)
+{
+	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
+
+	switch (action) {
+	case HDA_GEN_PCM_ACT_PREPARE:
+		mutex_lock(&cs35l41->fw_mutex);
+		cs35l41_hda_play_done(dev);
+		mutex_unlock(&cs35l41->fw_mutex);
+		break;
+	default:
+		break;
+	}
 }
 
 static int cs35l41_hda_channel_map(struct device *dev, unsigned int tx_num, unsigned int *tx_slot,
@@ -572,21 +664,62 @@ static int cs35l41_hda_channel_map(struct device *dev, unsigned int tx_num, unsi
 				    rx_slot);
 }
 
-static void cs35l41_ready_for_reset(struct cs35l41_hda *cs35l41)
+static int cs35l41_ready_for_reset(struct cs35l41_hda *cs35l41)
 {
+	int ret = 0;
+
 	mutex_lock(&cs35l41->fw_mutex);
 	if (cs35l41->firmware_running) {
 
 		regcache_cache_only(cs35l41->regmap, false);
 
-		cs35l41_exit_hibernate(cs35l41->dev, cs35l41->regmap);
+		ret = cs35l41_exit_hibernate(cs35l41->dev, cs35l41->regmap);
+		if (ret) {
+			dev_warn(cs35l41->dev, "Unable to exit Hibernate.");
+			goto err;
+		}
+
+		/* Test key needs to be unlocked to allow the OTP settings to re-apply */
+		cs35l41_test_key_unlock(cs35l41->dev, cs35l41->regmap);
+		ret = regcache_sync(cs35l41->regmap);
+		cs35l41_test_key_lock(cs35l41->dev, cs35l41->regmap);
+		if (ret) {
+			dev_err(cs35l41->dev, "Failed to restore register cache: %d\n", ret);
+			goto err;
+		}
+
+		if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
+			cs35l41_init_boost(cs35l41->dev, cs35l41->regmap, &cs35l41->hw_cfg);
+
 		cs35l41_shutdown_dsp(cs35l41);
 		cs35l41_safe_reset(cs35l41->regmap, cs35l41->hw_cfg.bst_type);
-
-		regcache_cache_only(cs35l41->regmap, true);
-		regcache_mark_dirty(cs35l41->regmap);
 	}
+err:
+	regcache_cache_only(cs35l41->regmap, true);
+	regcache_mark_dirty(cs35l41->regmap);
+
 	mutex_unlock(&cs35l41->fw_mutex);
+
+	return ret;
+}
+
+static int cs35l41_system_suspend_prep(struct device *dev)
+{
+	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
+
+	dev_dbg(cs35l41->dev, "System Suspend Prepare\n");
+
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
+		dev_err_once(cs35l41->dev, "System Suspend not supported\n");
+		return 0; /* don't block the whole system suspend */
+	}
+
+	mutex_lock(&cs35l41->fw_mutex);
+	if (cs35l41->playback_started)
+		cs35l41_hda_pause_start(dev);
+	mutex_unlock(&cs35l41->fw_mutex);
+
+	return 0;
 }
 
 static int cs35l41_system_suspend(struct device *dev)
@@ -601,18 +734,28 @@ static int cs35l41_system_suspend(struct device *dev)
 		return 0; /* don't block the whole system suspend */
 	}
 
+	mutex_lock(&cs35l41->fw_mutex);
+	if (cs35l41->playback_started)
+		cs35l41_hda_pause_done(dev);
+	mutex_unlock(&cs35l41->fw_mutex);
+
 	ret = pm_runtime_force_suspend(dev);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "System Suspend Failed, unable to runtime suspend: %d\n", ret);
 		return ret;
+	}
 
 	/* Shutdown DSP before system suspend */
-	cs35l41_ready_for_reset(cs35l41);
+	ret = cs35l41_ready_for_reset(cs35l41);
+
+	if (ret)
+		dev_err(dev, "System Suspend Failed, not ready for Reset: %d\n", ret);
 
 	/*
 	 * Reset GPIO may be shared, so cannot reset here.
 	 * However beyond this point, amps may be powered down.
 	 */
-	return 0;
+	return ret;
 }
 
 static int cs35l41_system_resume(struct device *dev)
@@ -635,9 +778,14 @@ static int cs35l41_system_resume(struct device *dev)
 	usleep_range(2000, 2100);
 
 	ret = pm_runtime_force_resume(dev);
+	if (ret) {
+		dev_err(dev, "System Resume Failed: Unable to runtime resume: %d\n", ret);
+		return ret;
+	}
 
 	mutex_lock(&cs35l41->fw_mutex);
-	if (!ret && cs35l41->request_fw_load && !cs35l41->fw_request_ongoing) {
+
+	if (cs35l41->request_fw_load && !cs35l41->fw_request_ongoing) {
 		cs35l41->fw_request_ongoing = true;
 		schedule_work(&cs35l41->fw_load_work);
 	}
@@ -668,20 +816,6 @@ static int cs35l41_runtime_suspend(struct device *dev)
 	}
 
 	mutex_lock(&cs35l41->fw_mutex);
-
-	if (cs35l41->playback_started) {
-		regmap_multi_reg_write(cs35l41->regmap, cs35l41_hda_mute,
-				       ARRAY_SIZE(cs35l41_hda_mute));
-		cs35l41_global_enable(cs35l41->regmap, cs35l41->hw_cfg.bst_type, 0, NULL);
-		regmap_update_bits(cs35l41->regmap, CS35L41_PWR_CTRL2,
-				   CS35L41_AMP_EN_MASK, 0 << CS35L41_AMP_EN_SHIFT);
-		if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
-			regmap_write(cs35l41->regmap, CS35L41_GPIO1_CTRL1, 0x00000001);
-		regmap_update_bits(cs35l41->regmap, CS35L41_PWR_CTRL2,
-				   CS35L41_VMON_EN_MASK | CS35L41_IMON_EN_MASK,
-				   0 << CS35L41_VMON_EN_SHIFT | 0 << CS35L41_IMON_EN_SHIFT);
-		cs35l41->playback_started = false;
-	}
 
 	if (cs35l41->firmware_running) {
 		ret = cs35l41_enter_hibernate(cs35l41->dev, cs35l41->regmap,
@@ -778,7 +912,12 @@ static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
 		goto clean_dsp;
 	}
 
-	cs35l41_set_cspl_mbox_cmd(cs35l41->dev, cs35l41->regmap, CSPL_MBOX_CMD_PAUSE);
+	ret = cs35l41_set_cspl_mbox_cmd(cs35l41->dev, cs35l41->regmap, CSPL_MBOX_CMD_PAUSE);
+	if (ret) {
+		dev_err(cs35l41->dev, "Error waiting for DSP to pause: %u\n", ret);
+		goto clean_dsp;
+	}
+
 	cs35l41->firmware_running = true;
 
 	return 0;
@@ -937,6 +1076,7 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
 	struct hda_component *comps = master_data;
+	unsigned int sleep_flags;
 	int ret = 0;
 
 	if (!comps || cs35l41->index < 0 || cs35l41->index >= HDA_MAX_COMPONENTS)
@@ -971,8 +1111,15 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 	ret = cs35l41_create_controls(cs35l41);
 
 	comps->playback_hook = cs35l41_hda_playback_hook;
+	comps->pre_playback_hook = cs35l41_hda_pre_playback_hook;
+	comps->post_playback_hook = cs35l41_hda_post_playback_hook;
 
 	mutex_unlock(&cs35l41->fw_mutex);
+
+	sleep_flags = lock_system_sleep();
+	if (!device_link_add(&comps->codec->core.dev, cs35l41->dev, DL_FLAG_STATELESS))
+		dev_warn(dev, "Unable to create device link\n");
+	unlock_system_sleep(sleep_flags);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -984,9 +1131,14 @@ static void cs35l41_hda_unbind(struct device *dev, struct device *master, void *
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
 	struct hda_component *comps = master_data;
+	unsigned int sleep_flags;
 
-	if (comps[cs35l41->index].dev == dev)
+	if (comps[cs35l41->index].dev == dev) {
 		memset(&comps[cs35l41->index], 0, sizeof(*comps));
+		sleep_flags = lock_system_sleep();
+		device_link_remove(&comps->codec->core.dev, cs35l41->dev);
+		unlock_system_sleep(sleep_flags);
+	}
 }
 
 static const struct component_ops cs35l41_hda_comp_ops = {
@@ -1477,6 +1629,11 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	if (ret)
 		goto err;
 
+	ret = regmap_multi_reg_write(cs35l41->regmap, cs35l41_hda_mute,
+				     ARRAY_SIZE(cs35l41_hda_mute));
+	if (ret)
+		goto err;
+
 	INIT_WORK(&cs35l41->fw_load_work, cs35l41_fw_load_work);
 	mutex_init(&cs35l41->fw_mutex);
 
@@ -1542,6 +1699,7 @@ EXPORT_SYMBOL_NS_GPL(cs35l41_hda_remove, SND_HDA_SCODEC_CS35L41);
 const struct dev_pm_ops cs35l41_hda_pm_ops = {
 	RUNTIME_PM_OPS(cs35l41_runtime_suspend, cs35l41_runtime_resume,
 		       cs35l41_runtime_idle)
+	.prepare = cs35l41_system_suspend_prep,
 	SYSTEM_SLEEP_PM_OPS(cs35l41_system_suspend, cs35l41_system_resume)
 };
 EXPORT_SYMBOL_NS_GPL(cs35l41_hda_pm_ops, SND_HDA_SCODEC_CS35L41);
