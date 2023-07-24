@@ -107,16 +107,21 @@ int mdiobus_unregister_device(struct mdio_device *mdiodev)
 }
 EXPORT_SYMBOL(mdiobus_unregister_device);
 
-struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr)
+static struct mdio_device *mdiobus_find_device(struct mii_bus *bus, int addr)
 {
 	bool addr_valid = addr >= 0 && addr < ARRAY_SIZE(bus->mdio_map);
-	struct mdio_device *mdiodev;
 
 	if (WARN_ONCE(!addr_valid, "addr %d out of range\n", addr))
 		return NULL;
 
-	mdiodev = bus->mdio_map[addr];
+	return bus->mdio_map[addr];
+}
 
+struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr)
+{
+	struct mdio_device *mdiodev;
+
+	mdiodev = mdiobus_find_device(bus, addr);
 	if (!mdiodev)
 		return NULL;
 
@@ -129,7 +134,7 @@ EXPORT_SYMBOL(mdiobus_get_phy);
 
 bool mdiobus_is_registered_device(struct mii_bus *bus, int addr)
 {
-	return bus->mdio_map[addr];
+	return mdiobus_find_device(bus, addr) != NULL;
 }
 EXPORT_SYMBOL(mdiobus_is_registered_device);
 
