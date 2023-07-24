@@ -21884,9 +21884,8 @@ S:	Maintained
 F:	drivers/usb/misc/apple-mfi-fastcharge.c
 
 USB AR5523 WIRELESS DRIVER
-M:	Pontus Fuchs <pontus.fuchs@gmail.com>
 L:	linux-wireless@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/wireless/ath/ar5523/
 
 USB ATTACHED SCSI
