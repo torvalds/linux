@@ -469,7 +469,6 @@ static int ___do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (is_exec)
 		flags |= FAULT_FLAG_INSTRUCTION;
 
-#ifdef CONFIG_PER_VMA_LOCK
 	if (!(flags & FAULT_FLAG_USER))
 		goto lock_mmap;
 
@@ -502,7 +501,6 @@ static int ___do_page_fault(struct pt_regs *regs, unsigned long address,
 		return user_mode(regs) ? 0 : SIGBUS;
 
 lock_mmap:
-#endif /* CONFIG_PER_VMA_LOCK */
 
 	/* When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the
@@ -552,9 +550,7 @@ retry:
 
 	mmap_read_unlock(current->mm);
 
-#ifdef CONFIG_PER_VMA_LOCK
 done:
-#endif
 	if (unlikely(fault & VM_FAULT_ERROR))
 		return mm_fault_error(regs, address, fault);
 

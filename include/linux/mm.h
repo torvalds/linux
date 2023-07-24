@@ -788,6 +788,12 @@ static inline void assert_fault_locked(struct vm_fault *vmf)
 	mmap_assert_locked(vmf->vma->vm_mm);
 }
 
+static inline struct vm_area_struct *lock_vma_under_rcu(struct mm_struct *mm,
+		unsigned long address)
+{
+	return NULL;
+}
+
 #endif /* CONFIG_PER_VMA_LOCK */
 
 /*
