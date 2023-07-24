@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* The industrial I/O core
+/*
+ * The industrial I/O core
  *
  * Copyright (c) 2008 Jonathan Cameron
  *
@@ -183,7 +184,9 @@ static const char * const iio_chan_info_postfix[] = {
  * @indio_dev:		Device structure whose ID is being queried
  *
  * The IIO device ID is a unique index used for example for the naming
- * of the character device /dev/iio\:device[ID]
+ * of the character device /dev/iio\:device[ID].
+ *
+ * Returns: Unique ID for the device.
  */
 int iio_device_id(struct iio_dev *indio_dev)
 {
@@ -196,6 +199,8 @@ EXPORT_SYMBOL_GPL(iio_device_id);
 /**
  * iio_buffer_enabled() - helper function to test if the buffer is enabled
  * @indio_dev:		IIO device structure for device
+ *
+ * Returns: True, if the buffer is enabled.
  */
 bool iio_buffer_enabled(struct iio_dev *indio_dev)
 {
@@ -225,6 +230,9 @@ EXPORT_SYMBOL_GPL(iio_get_debugfs_dentry);
  * iio_find_channel_from_si() - get channel from its scan index
  * @indio_dev:		device
  * @si:			scan index to match
+ *
+ * Returns:
+ * Constant pointer to iio_chan_spec, if scan index matches, NULL on failure.
  */
 const struct iio_chan_spec
 *iio_find_channel_from_si(struct iio_dev *indio_dev, int si)
@@ -249,7 +257,9 @@ EXPORT_SYMBOL(iio_read_const_attr);
 /**
  * iio_device_set_clock() - Set current timestamping clock for the device
  * @indio_dev: IIO device structure containing the device
- * @clock_id: timestamping clock posix identifier to set.
+ * @clock_id: timestamping clock POSIX identifier to set.
+ *
+ * Returns: 0 on success, or a negative error code.
  */
 int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
 {
@@ -275,6 +285,8 @@ EXPORT_SYMBOL(iio_device_set_clock);
 /**
  * iio_device_get_clock() - Retrieve current timestamping clock for the device
  * @indio_dev: IIO device structure containing the device
+ *
+ * Returns: Clock ID of the current timestamping clock for the device.
  */
 clockid_t iio_device_get_clock(const struct iio_dev *indio_dev)
 {
@@ -287,6 +299,8 @@ EXPORT_SYMBOL(iio_device_get_clock);
 /**
  * iio_get_time_ns() - utility function to get a time stamp for events etc
  * @indio_dev: device
+ *
+ * Returns: Timestamp of the event in nanoseconds.
  */
 s64 iio_get_time_ns(const struct iio_dev *indio_dev)
 {
@@ -593,7 +607,7 @@ EXPORT_SYMBOL_GPL(iio_show_mount_matrix);
  * If device is assigned no mounting matrix property, a default 3x3 identity
  * matrix will be filled in.
  *
- * Return: 0 if success, or a negative error code on failure.
+ * Returns: 0 if success, or a negative error code on failure.
  */
 int iio_read_mount_matrix(struct device *dev, struct iio_mount_matrix *matrix)
 {
@@ -691,9 +705,9 @@ static ssize_t __iio_format_value(char *buf, size_t offset, unsigned int type,
  * @vals:	Pointer to the values, exact meaning depends on the
  *		type parameter.
  *
- * Return: 0 by default, a negative number on failure or the
- *	   total number of characters written for a type that belongs
- *	   to the IIO_VAL_* constant.
+ * Returns:
+ * 0 by default, a negative number on failure or the total number of characters
+ * written for a type that belongs to the IIO_VAL_* constant.
  */
 ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 {
@@ -846,8 +860,8 @@ static ssize_t iio_read_channel_info_avail(struct device *dev,
  * @fract: The fractional part of the number
  * @scale_db: True if this should parse as dB
  *
- * Returns 0 on success, or a negative error code if the string could not be
- * parsed.
+ * Returns:
+ * 0 on success, or a negative error code if the string could not be parsed.
  */
 static int __iio_str_to_fixpoint(const char *str, int fract_mult,
 				 int *integer, int *fract, bool scale_db)
@@ -916,8 +930,8 @@ static int __iio_str_to_fixpoint(const char *str, int fract_mult,
  * @integer: The integer part of the number
  * @fract: The fractional part of the number
  *
- * Returns 0 on success, or a negative error code if the string could not be
- * parsed.
+ * Returns:
+ * 0 on success, or a negative error code if the string could not be parsed.
  */
 int iio_str_to_fixpoint(const char *str, int fract_mult,
 			int *integer, int *fract)
@@ -1611,7 +1625,10 @@ const struct device_type iio_device_type = {
  * iio_device_alloc() - allocate an iio_dev from a driver
  * @parent:		Parent device.
  * @sizeof_priv:	Space to allocate for private structure.
- **/
+ *
+ * Returns:
+ * Pointer to allocated iio_dev on success, NULL on failure.
+ */
 struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 {
 	struct iio_dev_opaque *iio_dev_opaque;
@@ -1667,7 +1684,7 @@ EXPORT_SYMBOL(iio_device_alloc);
 /**
  * iio_device_free() - free an iio_dev from a driver
  * @dev:		the iio_dev associated with the device
- **/
+ */
 void iio_device_free(struct iio_dev *dev)
 {
 	if (dev)
@@ -1688,7 +1705,7 @@ static void devm_iio_device_release(void *iio_dev)
  * Managed iio_device_alloc. iio_dev allocated with this function is
  * automatically freed on driver detach.
  *
- * RETURNS:
+ * Returns:
  * Pointer to allocated iio_dev on success, NULL on failure.
  */
 struct iio_dev *devm_iio_device_alloc(struct device *parent, int sizeof_priv)
@@ -1715,8 +1732,8 @@ EXPORT_SYMBOL_GPL(devm_iio_device_alloc);
  * @filp:	File structure for iio device used to keep and later access
  *		private data
  *
- * Return: 0 on success or -EBUSY if the device is already opened
- **/
+ * Returns: 0 on success or -EBUSY if the device is already opened
+ */
 static int iio_chrdev_open(struct inode *inode, struct file *filp)
 {
 	struct iio_dev_opaque *iio_dev_opaque =
@@ -1749,7 +1766,7 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
  * @inode:	Inode structure pointer for the char device
  * @filp:	File structure pointer for the char device
  *
- * Return: 0 for successful release
+ * Returns: 0 for successful release.
  */
 static int iio_chrdev_release(struct inode *inode, struct file *filp)
 {
@@ -1788,7 +1805,7 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 
-	/**
+	/*
 	 * The NULL check here is required to prevent crashing when a device
 	 * is being removed while userspace would still have open file handles
 	 * to try to access this device.
@@ -1965,7 +1982,7 @@ EXPORT_SYMBOL(__iio_device_register);
 /**
  * iio_device_unregister() - unregister a device from the IIO subsystem
  * @indio_dev:		Device structure representing the device.
- **/
+ */
 void iio_device_unregister(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
@@ -2016,7 +2033,7 @@ EXPORT_SYMBOL_GPL(__devm_iio_device_register);
  *
  * Use with iio_device_release_direct_mode()
  *
- * Returns: 0 on success, -EBUSY on failure
+ * Returns: 0 on success, -EBUSY on failure.
  */
 int iio_device_claim_direct_mode(struct iio_dev *indio_dev)
 {
