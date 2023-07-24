@@ -142,23 +142,27 @@ static void pfault_interrupt(struct ext_code ext_code,
 	if (subcode & PF_COMPLETE) {
 		/* signal bit is set -> a page has been swapped in by VM */
 		if (tsk->thread.pfault_wait == 1) {
-			/* Initial interrupt was faster than the completion
+			/*
+			 * Initial interrupt was faster than the completion
 			 * interrupt. pfault_wait is valid. Set pfault_wait
 			 * back to zero and wake up the process. This can
 			 * safely be done because the task is still sleeping
-			 * and can't produce new pfaults. */
+			 * and can't produce new pfaults.
+			 */
 			tsk->thread.pfault_wait = 0;
 			list_del(&tsk->thread.list);
 			wake_up_process(tsk);
 			put_task_struct(tsk);
 		} else {
-			/* Completion interrupt was faster than initial
+			/*
+			 * Completion interrupt was faster than initial
 			 * interrupt. Set pfault_wait to -1 so the initial
 			 * interrupt doesn't put the task to sleep.
 			 * If the task is not running, ignore the completion
 			 * interrupt since it must be a leftover of a PFAULT
 			 * CANCEL operation which didn't remove all pending
-			 * completion interrupts. */
+			 * completion interrupts.
+			 */
 			if (task_is_running(tsk))
 				tsk->thread.pfault_wait = -1;
 		}
@@ -170,23 +174,29 @@ static void pfault_interrupt(struct ext_code ext_code,
 			/* Already on the list with a reference: put to sleep */
 			goto block;
 		} else if (tsk->thread.pfault_wait == -1) {
-			/* Completion interrupt was faster than the initial
+			/*
+			 * Completion interrupt was faster than the initial
 			 * interrupt (pfault_wait == -1). Set pfault_wait
-			 * back to zero and exit. */
+			 * back to zero and exit.
+			 */
 			tsk->thread.pfault_wait = 0;
 		} else {
-			/* Initial interrupt arrived before completion
+			/*
+			 * Initial interrupt arrived before completion
 			 * interrupt. Let the task sleep.
 			 * An extra task reference is needed since a different
 			 * cpu may set the task state to TASK_RUNNING again
-			 * before the scheduler is reached. */
+			 * before the scheduler is reached.
+			 */
 			get_task_struct(tsk);
 			tsk->thread.pfault_wait = 1;
 			list_add(&tsk->thread.list, &pfault_list);
 block:
-			/* Since this must be a userspace fault, there
+			/*
+			 * Since this must be a userspace fault, there
 			 * is no kernel task state to trample. Rely on the
-			 * return to userspace schedule() to block. */
+			 * return to userspace schedule() to block.
+			 */
 			__set_current_state(TASK_UNINTERRUPTIBLE);
 			set_tsk_need_resched(tsk);
 			set_preempt_need_resched();
