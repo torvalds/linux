@@ -853,6 +853,9 @@ int qca8k_port_mdb_add(struct dsa_switch *ds, int port,
 	const u8 *addr = mdb->addr;
 	u16 vid = mdb->vid;
 
+	if (!vid)
+		vid = QCA8K_PORT_VID_DEF;
+
 	return qca8k_fdb_search_and_insert(priv, BIT(port), addr, vid,
 					   QCA8K_ATU_STATUS_STATIC);
 }
@@ -864,6 +867,9 @@ int qca8k_port_mdb_del(struct dsa_switch *ds, int port,
 	struct qca8k_priv *priv = ds->priv;
 	const u8 *addr = mdb->addr;
 	u16 vid = mdb->vid;
+
+	if (!vid)
+		vid = QCA8K_PORT_VID_DEF;
 
 	return qca8k_fdb_search_and_del(priv, BIT(port), addr, vid);
 }
