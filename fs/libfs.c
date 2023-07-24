@@ -249,6 +249,8 @@ static u32 dentry2offset(struct dentry *dentry)
 	return (u32)((uintptr_t)(dentry->d_fsdata));
 }
 
+static struct lock_class_key simple_offset_xa_lock;
+
 /**
  * simple_offset_init - initialize an offset_ctx
  * @octx: directory offset map to be initialized
@@ -257,6 +259,7 @@ static u32 dentry2offset(struct dentry *dentry)
 void simple_offset_init(struct offset_ctx *octx)
 {
 	xa_init_flags(&octx->xa, XA_FLAGS_ALLOC1);
+	lockdep_set_class(&octx->xa.xa_lock, &simple_offset_xa_lock);
 
 	/* 0 is '.', 1 is '..', so always start with offset 2 */
 	octx->next_offset = 2;
