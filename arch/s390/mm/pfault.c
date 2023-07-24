@@ -37,7 +37,7 @@ struct pfault_refbk {
 	u64 refselmk;
 	u64 refcmpmk;
 	u64 reserved;
-} __attribute__ ((packed, aligned(8)));
+};
 
 static struct pfault_refbk pfault_init_refbk = {
 	.refdiagc = 0x258,
