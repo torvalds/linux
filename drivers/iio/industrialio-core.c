@@ -1397,50 +1397,42 @@ static ssize_t label_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(label);
 
+static const char * const clock_names[] = {
+	[CLOCK_REALTIME]	 	= "realtime",
+	[CLOCK_MONOTONIC]	 	= "monotonic",
+	[CLOCK_PROCESS_CPUTIME_ID]	= "process_cputime_id",
+	[CLOCK_THREAD_CPUTIME_ID]	= "thread_cputime_id",
+	[CLOCK_MONOTONIC_RAW]	 	= "monotonic_raw",
+	[CLOCK_REALTIME_COARSE]	 	= "realtime_coarse",
+	[CLOCK_MONOTONIC_COARSE] 	= "monotonic_coarse",
+	[CLOCK_BOOTTIME]	 	= "boottime",
+	[CLOCK_REALTIME_ALARM]		= "realtime_alarm",
+	[CLOCK_BOOTTIME_ALARM]		= "boottime_alarm",
+	[CLOCK_SGI_CYCLE]		= "sgi_cycle",
+	[CLOCK_TAI]		 	= "tai",
+};
+
 static ssize_t current_timestamp_clock_show(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
 	const struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	const clockid_t clk = iio_device_get_clock(indio_dev);
-	const char *name;
-	ssize_t sz;
 
 	switch (clk) {
 	case CLOCK_REALTIME:
-		name = "realtime\n";
-		sz = sizeof("realtime\n");
-		break;
 	case CLOCK_MONOTONIC:
-		name = "monotonic\n";
-		sz = sizeof("monotonic\n");
-		break;
 	case CLOCK_MONOTONIC_RAW:
-		name = "monotonic_raw\n";
-		sz = sizeof("monotonic_raw\n");
-		break;
 	case CLOCK_REALTIME_COARSE:
-		name = "realtime_coarse\n";
-		sz = sizeof("realtime_coarse\n");
-		break;
 	case CLOCK_MONOTONIC_COARSE:
-		name = "monotonic_coarse\n";
-		sz = sizeof("monotonic_coarse\n");
-		break;
 	case CLOCK_BOOTTIME:
-		name = "boottime\n";
-		sz = sizeof("boottime\n");
-		break;
 	case CLOCK_TAI:
-		name = "tai\n";
-		sz = sizeof("tai\n");
 		break;
 	default:
 		BUG();
 	}
 
-	memcpy(buf, name, sz);
-	return sz;
+	return sysfs_emit(buf, "%s\n", clock_names[clk]);
 }
 
 static ssize_t current_timestamp_clock_store(struct device *dev,
@@ -1450,22 +1442,23 @@ static ssize_t current_timestamp_clock_store(struct device *dev,
 	clockid_t clk;
 	int ret;
 
-	if (sysfs_streq(buf, "realtime"))
-		clk = CLOCK_REALTIME;
-	else if (sysfs_streq(buf, "monotonic"))
-		clk = CLOCK_MONOTONIC;
-	else if (sysfs_streq(buf, "monotonic_raw"))
-		clk = CLOCK_MONOTONIC_RAW;
-	else if (sysfs_streq(buf, "realtime_coarse"))
-		clk = CLOCK_REALTIME_COARSE;
-	else if (sysfs_streq(buf, "monotonic_coarse"))
-		clk = CLOCK_MONOTONIC_COARSE;
-	else if (sysfs_streq(buf, "boottime"))
-		clk = CLOCK_BOOTTIME;
-	else if (sysfs_streq(buf, "tai"))
-		clk = CLOCK_TAI;
-	else
+	ret = sysfs_match_string(clock_names, buf);
+	if (ret < 0)
+		return ret;
+	clk = ret;
+
+	switch (clk) {
+	case CLOCK_REALTIME:
+	case CLOCK_MONOTONIC:
+	case CLOCK_MONOTONIC_RAW:
+	case CLOCK_REALTIME_COARSE:
+	case CLOCK_MONOTONIC_COARSE:
+	case CLOCK_BOOTTIME:
+	case CLOCK_TAI:
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	ret = iio_device_set_clock(dev_to_iio_dev(dev), clk);
 	if (ret)
