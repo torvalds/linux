@@ -1378,6 +1378,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	drv->name	= rdai->name;
 	drv->ops	= &rsnd_soc_dai_ops;
 	drv->pcm_new	= rsnd_pcm_new;
+	drv->id		= dai_i;
 
 	io_playback->rdai		= rdai;
 	io_capture->rdai		= rdai;
