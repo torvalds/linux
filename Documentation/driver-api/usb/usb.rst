@@ -420,6 +420,12 @@ USBDEVFS_CONNECTINFO
     know the devnum value already, it's the DDD value of the device file
     name.
 
+USBDEVFS_GET_SPEED
+    Returns the speed of the device. The speed is returned as a
+    nummerical value in accordance with enum usb_device_speed
+
+    File modification time is not updated by this request.
+
 USBDEVFS_GETDRIVER
     Returns the name of the kernel driver bound to a given interface (a
     string). Parameter is a pointer to this structure, which is
