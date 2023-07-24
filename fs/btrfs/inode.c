@@ -1978,13 +1978,8 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		extent_clear_unlock_delalloc(inode, start, end, locked_page,
-					     EXTENT_LOCKED | EXTENT_DELALLOC |
-					     EXTENT_DO_ACCOUNTING |
-					     EXTENT_DEFRAG, PAGE_UNLOCK |
-					     PAGE_START_WRITEBACK |
-					     PAGE_END_WRITEBACK);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error;
 	}
 
 	nocow_args.end = end;
