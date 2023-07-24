@@ -3260,9 +3260,8 @@ F:	Documentation/devicetree/bindings/input/atmel,maxtouch.yaml
 F:	drivers/input/touchscreen/atmel_mxt_ts.c
 
 ATMEL WIRELESS DRIVER
-M:	Simon Kelley <simon@thekelleys.org.uk>
 L:	linux-wireless@vger.kernel.org
-S:	Maintained
+S:	Orphan
 W:	http://www.thekelleys.org.uk/atmel
 W:	http://atmelwlandriver.sourceforge.net/
 F:	drivers/net/wireless/atmel/atmel*
