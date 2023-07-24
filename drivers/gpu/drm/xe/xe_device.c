@@ -35,7 +35,7 @@
 #include "xe_wait_user_fence.h"
 
 #ifdef CONFIG_LOCKDEP
-static struct lockdep_map xe_device_mem_access_lockdep_map = {
+struct lockdep_map xe_device_mem_access_lockdep_map = {
 	.name = "xe_device_mem_access_lockdep_map"
 };
 #endif
@@ -431,13 +431,13 @@ void xe_device_mem_access_get(struct xe_device *xe)
 	 * runtime_resume callback, lockdep should give us a nice splat.
 	 */
 	lock_map_acquire(&xe_device_mem_access_lockdep_map);
+	lock_map_release(&xe_device_mem_access_lockdep_map);
 
 	xe_pm_runtime_get(xe);
 	ref = atomic_inc_return(&xe->mem_access.ref);
 
 	XE_WARN_ON(ref == S32_MAX);
 
-	lock_map_release(&xe_device_mem_access_lockdep_map);
 }
 
 void xe_device_mem_access_put(struct xe_device *xe)
