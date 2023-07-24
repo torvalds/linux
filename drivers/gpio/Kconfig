@@ -283,7 +283,7 @@ config GPIO_EXAR
 
 config GPIO_GE_FPGA
 	bool "GE FPGA based GPIO"
-	depends on GE_FPGA
+	depends on GE_FPGA || COMPILE_TEST
 	select GPIO_GENERIC
 	help
 	  Support for common GPIO functionality provided on some GE Single Board
