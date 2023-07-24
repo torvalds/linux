@@ -38,6 +38,9 @@
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_dm_mst_types.h"
+#include "dpcd_defs.h"
+#include "dc/inc/core_types.h"
+#include "dc_link_dp.h"
 
 #include "dm_helpers.h"
 #include "ddc_service_types.h"
@@ -1054,6 +1057,128 @@ void dm_helpers_mst_enable_stream_features(const struct dc_stream_state *stream)
 		dm_helpers_dp_write_dpcd(link->ctx, link, DP_DOWNSPREAD_CTRL,
 					 &new_downspread.raw,
 					 sizeof(new_downspread));
+}
+
+bool dm_helpers_dp_handle_test_pattern_request(
+		struct dc_context *ctx,
+		const struct dc_link *link,
+		union link_test_pattern dpcd_test_pattern,
+		union test_misc dpcd_test_params)
+{
+	enum dp_test_pattern test_pattern;
+	enum dp_test_pattern_color_space test_pattern_color_space =
+			DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED;
+	enum dc_color_depth requestColorDepth = COLOR_DEPTH_UNDEFINED;
+	enum dc_pixel_encoding requestPixelEncoding = PIXEL_ENCODING_UNDEFINED;
+	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
+	struct pipe_ctx *pipe_ctx = NULL;
+	struct amdgpu_dm_connector *aconnector = link->priv;
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (pipes[i].stream == NULL)
+			continue;
+
+		if (pipes[i].stream->link == link && !pipes[i].top_pipe &&
+			!pipes[i].prev_odm_pipe) {
+			pipe_ctx = &pipes[i];
+			break;
+		}
+	}
+
+	if (pipe_ctx == NULL)
+		return false;
+
+	switch (dpcd_test_pattern.bits.PATTERN) {
+	case LINK_TEST_PATTERN_COLOR_RAMP:
+		test_pattern = DP_TEST_PATTERN_COLOR_RAMP;
+	break;
+	case LINK_TEST_PATTERN_VERTICAL_BARS:
+		test_pattern = DP_TEST_PATTERN_VERTICAL_BARS;
+	break; /* black and white */
+	case LINK_TEST_PATTERN_COLOR_SQUARES:
+		test_pattern = (dpcd_test_params.bits.DYN_RANGE ==
+				TEST_DYN_RANGE_VESA ?
+				DP_TEST_PATTERN_COLOR_SQUARES :
+				DP_TEST_PATTERN_COLOR_SQUARES_CEA);
+	break;
+	default:
+		test_pattern = DP_TEST_PATTERN_VIDEO_MODE;
+	break;
+	}
+
+	if (dpcd_test_params.bits.CLR_FORMAT == 0)
+		test_pattern_color_space = DP_TEST_PATTERN_COLOR_SPACE_RGB;
+	else
+		test_pattern_color_space = dpcd_test_params.bits.YCBCR_COEFS ?
+				DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 :
+				DP_TEST_PATTERN_COLOR_SPACE_YCBCR601;
+
+	switch (dpcd_test_params.bits.BPC) {
+	case 0: // 6 bits
+		requestColorDepth = COLOR_DEPTH_666;
+		break;
+	case 1: // 8 bits
+		requestColorDepth = COLOR_DEPTH_888;
+		break;
+	case 2: // 10 bits
+		requestColorDepth = COLOR_DEPTH_101010;
+		break;
+	case 3: // 12 bits
+		requestColorDepth = COLOR_DEPTH_121212;
+		break;
+	default:
+		break;
+	}
+
+	switch (dpcd_test_params.bits.CLR_FORMAT) {
+	case 0:
+		requestPixelEncoding = PIXEL_ENCODING_RGB;
+		break;
+	case 1:
+		requestPixelEncoding = PIXEL_ENCODING_YCBCR422;
+		break;
+	case 2:
+		requestPixelEncoding = PIXEL_ENCODING_YCBCR444;
+		break;
+	default:
+		requestPixelEncoding = PIXEL_ENCODING_RGB;
+		break;
+	}
+
+	if ((requestColorDepth != COLOR_DEPTH_UNDEFINED
+		&& pipe_ctx->stream->timing.display_color_depth != requestColorDepth)
+		|| (requestPixelEncoding != PIXEL_ENCODING_UNDEFINED
+		&& pipe_ctx->stream->timing.pixel_encoding != requestPixelEncoding)) {
+		DC_LOG_DEBUG("%s: original bpc %d pix encoding %d, changing to %d  %d\n",
+				__func__,
+				pipe_ctx->stream->timing.display_color_depth,
+				pipe_ctx->stream->timing.pixel_encoding,
+				requestColorDepth,
+				requestPixelEncoding);
+		pipe_ctx->stream->timing.display_color_depth = requestColorDepth;
+		pipe_ctx->stream->timing.pixel_encoding = requestPixelEncoding;
+
+		dp_update_dsc_config(pipe_ctx);
+
+		aconnector->timing_changed = true;
+		/* store current timing */
+		if (aconnector->timing_requested)
+			*aconnector->timing_requested = pipe_ctx->stream->timing;
+		else
+			DC_LOG_ERROR("%s: timing storage failed\n", __func__);
+
+	}
+
+	dc_link_dp_set_test_pattern(
+		(struct dc_link *) link,
+		test_pattern,
+		test_pattern_color_space,
+		NULL,
+		NULL,
+		0);
+
+	return false;
 }
 
 void dm_set_phyd32clk(struct dc_context *ctx, int freq_khz)
