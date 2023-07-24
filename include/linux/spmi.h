@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
+#include <linux/android_kabi.h>
 
 /* Maximum slave identifier */
 #define SPMI_MAX_SLAVE_ID		16
@@ -85,6 +86,7 @@ struct spmi_controller {
 			    u8 sid, u16 addr, u8 *buf, size_t len);
 	int	(*write_cmd)(struct spmi_controller *ctrl, u8 opcode,
 			     u8 sid, u16 addr, const u8 *buf, size_t len);
+	ANDROID_KABI_RESERVE(1);
 };
 
 static inline struct spmi_controller *to_spmi_controller(struct device *d)
@@ -139,6 +141,7 @@ struct spmi_driver {
 	int	(*probe)(struct spmi_device *sdev);
 	void	(*remove)(struct spmi_device *sdev);
 	void	(*shutdown)(struct spmi_device *sdev);
+	ANDROID_KABI_RESERVE(1);
 };
 
 static inline struct spmi_driver *to_spmi_driver(struct device_driver *d)

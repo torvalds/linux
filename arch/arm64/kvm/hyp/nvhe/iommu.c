@@ -456,21 +456,15 @@ int __pkvm_iommu_finalize(int err)
 {
 	int ret = 0;
 
+	/* Err is not currently used in EL2.*/
+	WARN_ON(err);
+
 	hyp_spin_lock(&iommu_registration_lock);
 	if (!iommu_finalized)
 		iommu_finalized = true;
 	else
 		ret = -EPERM;
 	hyp_spin_unlock(&iommu_registration_lock);
-
-	/*
-	 * If finalize failed in EL1 driver for any reason, this means we can't trust the DMA
-	 * isolation. So we have to inform pKVM to properly protect itself.
-	 */
-	if (!ret && err)
-		pkvm_handle_system_misconfiguration(NO_DMA_ISOLATION);
-
-	__pkvm_close_late_module_registration();
 
 	return ret;
 }

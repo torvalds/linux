@@ -525,7 +525,7 @@ static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 	pfn = paste_addr >> PAGE_SHIFT;
 
 	/* flags, page_prot from cxl_mmap(), except we want cachable */
-	vma->vm_flags |= VM_IO | VM_PFNMAP;
+	vm_flags_set(vma, VM_IO | VM_PFNMAP);
 	vma->vm_page_prot = pgprot_cached(vma->vm_page_prot);
 
 	prot = __pgprot(pgprot_val(vma->vm_page_prot) | _PAGE_DIRTY);

@@ -14,6 +14,7 @@
 #include <linux/skbuff.h>
 #include <linux/types.h>
 #include <linux/usb.h>
+#include <linux/android_kabi.h>
 
 /* interface from usbnet core to each USB networking link we handle */
 struct usbnet {
@@ -76,6 +77,11 @@ struct usbnet {
 #		define EVENT_LINK_CHANGE	11
 #		define EVENT_SET_RX_MODE	12
 #		define EVENT_NO_IP_ALIGN	13
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)
@@ -165,6 +171,9 @@ struct driver_info {
 	int		out;		/* tx endpoint */
 
 	unsigned long	data;		/* Misc driver specific data */
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 /* Minidrivers are just drivers using the "usbnet" core as a powerful

@@ -2082,6 +2082,7 @@ unsigned long snapshot_get_image_size(void)
 {
 	return nr_copy_pages + nr_meta_pages + 1;
 }
+EXPORT_SYMBOL_GPL(snapshot_get_image_size);
 
 static int init_header(struct swsusp_info *info)
 {

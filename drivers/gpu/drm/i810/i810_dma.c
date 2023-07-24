@@ -102,7 +102,7 @@ static int i810_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 	buf = dev_priv->mmap_buffer;
 	buf_priv = buf->dev_private;
 
-	vma->vm_flags |= VM_DONTCOPY;
+	vm_flags_set(vma, VM_DONTCOPY);
 
 	buf_priv->currently_mapped = I810_BUF_MAPPED;
 

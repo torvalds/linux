@@ -199,6 +199,8 @@ struct ufshcd_lrb {
 #endif
 
 	bool req_abort_skip;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -392,6 +394,8 @@ struct ufs_clk_gating {
 	bool is_initialized;
 	int active_reqs;
 	struct workqueue_struct *clk_gating_workq;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct ufs_saved_pwr_info {
@@ -438,6 +442,8 @@ struct ufs_clk_scaling {
 	bool is_initialized;
 	bool is_busy_started;
 	bool is_suspended;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 #define UFS_EVENT_HIST_LENGTH 8
@@ -610,6 +616,19 @@ enum ufshcd_quirks {
 	 * auto-hibernate capability but it's FASTAUTO only.
 	 */
 	UFSHCD_QUIRK_HIBERN_FASTAUTO			= 1 << 18,
+
+	/*
+	 * Some host raises interrupt (per queue) in addition to
+	 * CQES (traditional) when ESI is disabled.
+	 * Enable this quirk will disable CQES and use per queue interrupt.
+	 */
+	UFSHCD_QUIRK_MCQ_BROKEN_INTR			= 1 << 20,
+
+	/*
+	 * Some host does not implement SQ Run Time Command (SQRTC) register
+	 * thus need this quirk to skip related flow.
+	 */
+	UFSHCD_QUIRK_MCQ_BROKEN_RTC			= 1 << 21,
 };
 
 enum ufshcd_android_quirks {
@@ -1102,6 +1121,8 @@ struct ufs_hba {
 	struct ufs_hw_queue *uhq;
 	struct ufs_hw_queue *dev_cmd_queue;
 	struct ufshcd_mcq_opr_info_t mcq_opr[OPR_MAX];
+
+	ANDROID_OEM_DATA(1);
 };
 
 /**
@@ -1121,6 +1142,7 @@ struct ufs_hba {
  * @cq_tail_slot: current slot to which CQ tail pointer is pointing
  * @cq_head_slot: current slot to which CQ head pointer is pointing
  * @cq_lock: Synchronize between multiple polling instances
+ * @sq_mutex: prevent submission queue concurrent access
  */
 struct ufs_hw_queue {
 	void __iomem *mcq_sq_head;
@@ -1139,6 +1161,8 @@ struct ufs_hw_queue {
 	u32 cq_tail_slot;
 	u32 cq_head_slot;
 	spinlock_t cq_lock;
+	/* prevent concurrent access to submission queue */
+	struct mutex sq_mutex;
 };
 
 static inline bool is_mcq_enabled(struct ufs_hba *hba)
@@ -1275,6 +1299,8 @@ void ufshcd_hba_stop(struct ufs_hba *hba);
 void ufshcd_schedule_eh_work(struct ufs_hba *hba);
 void ufshcd_mcq_write_cqis(struct ufs_hba *hba, u32 val, int i);
 unsigned long ufshcd_mcq_poll_cqe_nolock(struct ufs_hba *hba,
+					 struct ufs_hw_queue *hwq);
+unsigned long ufshcd_mcq_poll_cqe_lock(struct ufs_hba *hba,
 					 struct ufs_hw_queue *hwq);
 void ufshcd_mcq_enable_esi(struct ufs_hba *hba);
 void ufshcd_mcq_config_esi(struct ufs_hba *hba, struct msi_msg *msg);

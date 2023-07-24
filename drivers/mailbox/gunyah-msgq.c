@@ -165,8 +165,6 @@ int gh_msgq_init(struct device *parent, struct gh_msgq *msgq, struct mbox_client
 		if (ret)
 			goto err_tx_ghrsc;
 
-		enable_irq_wake(msgq->tx_ghrsc->irq);
-
 		tasklet_setup(&msgq->txdone_tasklet, gh_msgq_txdone_tasklet);
 	}
 
@@ -177,8 +175,6 @@ int gh_msgq_init(struct device *parent, struct gh_msgq *msgq, struct mbox_client
 						IRQF_ONESHOT, "gh_msgq_rx", msgq);
 		if (ret)
 			goto err_tx_irq;
-
-		enable_irq_wake(msgq->rx_ghrsc->irq);
 	}
 
 	return 0;

@@ -325,7 +325,7 @@ static int kvmppc_xive_native_mmap(struct kvm_device *dev,
 		return -EINVAL;
 	}
 
-	vma->vm_flags |= VM_IO | VM_PFNMAP;
+	vm_flags_set(vma, VM_IO | VM_PFNMAP);
 	vma->vm_page_prot = pgprot_noncached_wc(vma->vm_page_prot);
 
 	/*

@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/perf_event.h>
 #include <linux/sched.h>
+#include <linux/android_kabi.h>
 
 /* Peripheral id registers (0xFD0-0xFEC) */
 #define CORESIGHT_PERIPHIDR4	0xfd0
@@ -159,6 +160,7 @@ struct coresight_desc {
 	const struct attribute_group **groups;
 	const char *name;
 	struct csdev_access access;
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -178,6 +180,7 @@ struct coresight_connection {
 	struct fwnode_handle *child_fwnode;
 	struct coresight_device *child_dev;
 	struct coresight_sysfs_link *link;
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -247,6 +250,8 @@ struct coresight_device {
 	struct list_head config_csdev_list;
 	spinlock_t cscfg_csdev_lock;
 	void *active_cscfg_ctxt;
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 /*
@@ -298,6 +303,7 @@ struct coresight_ops_sink {
 	unsigned long (*update_buffer)(struct coresight_device *csdev,
 			      struct perf_output_handle *handle,
 			      void *sink_config);
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -328,6 +334,7 @@ struct coresight_ops_source {
 		      struct perf_event *event,  u32 mode);
 	void (*disable)(struct coresight_device *csdev,
 			struct perf_event *event);
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -361,6 +368,7 @@ struct coresight_ops {
 	const struct coresight_ops_source *source_ops;
 	const struct coresight_ops_helper *helper_ops;
 	const struct coresight_ops_ect *ect_ops;
+	ANDROID_KABI_RESERVE(1);
 };
 
 #if IS_ENABLED(CONFIG_CORESIGHT)

@@ -14,6 +14,7 @@
 #include <linux/compiler.h>
 #include <linux/minmax.h>
 #include <linux/types.h>
+#include <linux/android_kabi.h>
 /*
  * Resources are tree-like, allowing
  * nesting etc..
@@ -25,6 +26,11 @@ struct resource {
 	unsigned long flags;
 	unsigned long desc;
 	struct resource *parent, *sibling, *child;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 /*

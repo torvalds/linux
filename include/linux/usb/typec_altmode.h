@@ -30,6 +30,7 @@ struct typec_altmode {
 
 	char				*desc;
 	const struct typec_altmode_ops	*ops;
+	ANDROID_KABI_RESERVE(1);
 };
 
 #define to_typec_altmode(d) container_of(d, struct typec_altmode, dev)
@@ -63,6 +64,7 @@ struct typec_altmode_ops {
 	int (*notify)(struct typec_altmode *altmode, unsigned long conf,
 		      void *data);
 	int (*activate)(struct typec_altmode *altmode, int activate);
+	ANDROID_KABI_RESERVE(1);
 };
 
 int typec_altmode_enter(struct typec_altmode *altmode, u32 *vdo);
