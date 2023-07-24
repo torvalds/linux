@@ -1014,6 +1014,10 @@ int bio_add_hw_page(struct request_queue *q, struct bio *bio,
 		if (bio_try_merge_hw_seg(q, bio, page, len, offset, same_page))
 			return len;
 
+		if (bio->bi_vcnt >=
+		    min(bio->bi_max_vecs, queue_max_segments(q)))
+			return 0;
+
 		/*
 		 * If the queue doesn't support SG gaps and adding this segment
 		 * would create a gap, disallow it.
@@ -1022,12 +1026,6 @@ int bio_add_hw_page(struct request_queue *q, struct bio *bio,
 		if (bvec_gap_to_prev(&q->limits, bvec, offset))
 			return 0;
 	}
-
-	if (bio_full(bio, len))
-		return 0;
-
-	if (bio->bi_vcnt >= queue_max_segments(q))
-		return 0;
 
 	bvec_set_page(&bio->bi_io_vec[bio->bi_vcnt], page, len, offset);
 	bio->bi_vcnt++;
