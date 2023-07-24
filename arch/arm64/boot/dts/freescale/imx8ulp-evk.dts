@@ -119,9 +119,11 @@
 };
 
 &usdhc0 {
-	pinctrl-names = "default", "sleep";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc0>;
 	pinctrl-1 = <&pinctrl_usdhc0>;
+	pinctrl-2 = <&pinctrl_usdhc0>;
+	pinctrl-3 = <&pinctrl_usdhc0>;
 	non-removable;
 	bus-width = <8>;
 	status = "okay";
@@ -200,17 +202,17 @@
 
 	pinctrl_usdhc0: usdhc0grp {
 		fsl,pins = <
-			MX8ULP_PAD_PTD1__SDHC0_CMD	0x43
-			MX8ULP_PAD_PTD2__SDHC0_CLK	0x10042
-			MX8ULP_PAD_PTD10__SDHC0_D0	0x43
-			MX8ULP_PAD_PTD9__SDHC0_D1	0x43
-			MX8ULP_PAD_PTD8__SDHC0_D2	0x43
-			MX8ULP_PAD_PTD7__SDHC0_D3	0x43
-			MX8ULP_PAD_PTD6__SDHC0_D4	0x43
-			MX8ULP_PAD_PTD5__SDHC0_D5	0x43
-			MX8ULP_PAD_PTD4__SDHC0_D6	0x43
-			MX8ULP_PAD_PTD3__SDHC0_D7	0x43
-			MX8ULP_PAD_PTD11__SDHC0_DQS	0x10042
+			MX8ULP_PAD_PTD1__SDHC0_CMD	0x3
+			MX8ULP_PAD_PTD2__SDHC0_CLK	0x10002
+			MX8ULP_PAD_PTD10__SDHC0_D0	0x3
+			MX8ULP_PAD_PTD9__SDHC0_D1	0x3
+			MX8ULP_PAD_PTD8__SDHC0_D2	0x3
+			MX8ULP_PAD_PTD7__SDHC0_D3	0x3
+			MX8ULP_PAD_PTD6__SDHC0_D4	0x3
+			MX8ULP_PAD_PTD5__SDHC0_D5	0x3
+			MX8ULP_PAD_PTD4__SDHC0_D6	0x3
+			MX8ULP_PAD_PTD3__SDHC0_D7	0x3
+			MX8ULP_PAD_PTD11__SDHC0_DQS	0x10002
 		>;
 	};
 };
