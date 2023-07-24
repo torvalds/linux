@@ -967,6 +967,23 @@ unsigned long radix__pmd_hugepage_update(struct mm_struct *mm, unsigned long add
 	return old;
 }
 
+unsigned long radix__pud_hugepage_update(struct mm_struct *mm, unsigned long addr,
+					 pud_t *pudp, unsigned long clr,
+					 unsigned long set)
+{
+	unsigned long old;
+
+#ifdef CONFIG_DEBUG_VM
+	WARN_ON(!pud_devmap(*pudp));
+	assert_spin_locked(pud_lockptr(mm, pudp));
+#endif
+
+	old = radix__pte_update(mm, addr, pudp_ptep(pudp), clr, set, 1);
+	trace_hugepage_update_pud(addr, old, clr, set);
+
+	return old;
+}
+
 pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
 			pmd_t *pmdp)
 
@@ -1041,6 +1058,17 @@ pmd_t radix__pmdp_huge_get_and_clear(struct mm_struct *mm,
 	old = radix__pmd_hugepage_update(mm, addr, pmdp, ~0UL, 0);
 	old_pmd = __pmd(old);
 	return old_pmd;
+}
+
+pud_t radix__pudp_huge_get_and_clear(struct mm_struct *mm,
+				     unsigned long addr, pud_t *pudp)
+{
+	pud_t old_pud;
+	unsigned long old;
+
+	old = radix__pud_hugepage_update(mm, addr, pudp, ~0UL, 0);
+	old_pud = __pud(old);
+	return old_pud;
 }
 
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */

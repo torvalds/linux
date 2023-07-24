@@ -921,7 +921,28 @@ static inline pud_t pte_pud(pte_t pte)
 {
 	return __pud_raw(pte_raw(pte));
 }
+
+static inline pte_t *pudp_ptep(pud_t *pud)
+{
+	return (pte_t *)pud;
+}
+
+#define pud_pfn(pud)		pte_pfn(pud_pte(pud))
+#define pud_dirty(pud)		pte_dirty(pud_pte(pud))
+#define pud_young(pud)		pte_young(pud_pte(pud))
+#define pud_mkold(pud)		pte_pud(pte_mkold(pud_pte(pud)))
+#define pud_wrprotect(pud)	pte_pud(pte_wrprotect(pud_pte(pud)))
+#define pud_mkdirty(pud)	pte_pud(pte_mkdirty(pud_pte(pud)))
+#define pud_mkclean(pud)	pte_pud(pte_mkclean(pud_pte(pud)))
+#define pud_mkyoung(pud)	pte_pud(pte_mkyoung(pud_pte(pud)))
+#define pud_mkwrite(pud)	pte_pud(pte_mkwrite(pud_pte(pud)))
 #define pud_write(pud)		pte_write(pud_pte(pud))
+
+#ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
+#define pud_soft_dirty(pmd)    pte_soft_dirty(pud_pte(pud))
+#define pud_mksoft_dirty(pmd)  pte_pud(pte_mksoft_dirty(pud_pte(pud)))
+#define pud_clear_soft_dirty(pmd) pte_pud(pte_clear_soft_dirty(pud_pte(pud)))
+#endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
 
 static inline int pud_bad(pud_t pud)
 {
@@ -1115,12 +1136,21 @@ static inline bool pmd_access_permitted(pmd_t pmd, bool write)
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 extern pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot);
+extern pud_t pfn_pud(unsigned long pfn, pgprot_t pgprot);
 extern pmd_t mk_pmd(struct page *page, pgprot_t pgprot);
 extern pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot);
 extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 		       pmd_t *pmdp, pmd_t pmd);
+extern void set_pud_at(struct mm_struct *mm, unsigned long addr,
+		       pud_t *pudp, pud_t pud);
+
 static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 					unsigned long addr, pmd_t *pmd)
+{
+}
+
+static inline void update_mmu_cache_pud(struct vm_area_struct *vma,
+					unsigned long addr, pud_t *pud)
 {
 }
 
@@ -1133,6 +1163,14 @@ static inline int has_transparent_hugepage(void)
 }
 #define has_transparent_hugepage has_transparent_hugepage
 
+static inline int has_transparent_pud_hugepage(void)
+{
+	if (radix_enabled())
+		return radix__has_transparent_pud_hugepage();
+	return 0;
+}
+#define has_transparent_pud_hugepage has_transparent_pud_hugepage
+
 static inline unsigned long
 pmd_hugepage_update(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp,
 		    unsigned long clr, unsigned long set)
@@ -1142,6 +1180,16 @@ pmd_hugepage_update(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp,
 	return hash__pmd_hugepage_update(mm, addr, pmdp, clr, set);
 }
 
+static inline unsigned long
+pud_hugepage_update(struct mm_struct *mm, unsigned long addr, pud_t *pudp,
+		    unsigned long clr, unsigned long set)
+{
+	if (radix_enabled())
+		return radix__pud_hugepage_update(mm, addr, pudp, clr, set);
+	BUG();
+	return pud_val(*pudp);
+}
+
 /*
  * returns true for pmd migration entries, THP, devmap, hugetlb
  * But compile time dependent on THP config
@@ -1149,6 +1197,11 @@ pmd_hugepage_update(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp,
 static inline int pmd_large(pmd_t pmd)
 {
 	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
+}
+
+static inline int pud_large(pud_t pud)
+{
+	return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PTE));
 }
 
 /*
@@ -1166,12 +1219,31 @@ static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
 	return ((old & _PAGE_ACCESSED) != 0);
 }
 
+static inline int __pudp_test_and_clear_young(struct mm_struct *mm,
+					      unsigned long addr, pud_t *pudp)
+{
+	unsigned long old;
+
+	if ((pud_raw(*pudp) & cpu_to_be64(_PAGE_ACCESSED | H_PAGE_HASHPTE)) == 0)
+		return 0;
+	old = pud_hugepage_update(mm, addr, pudp, _PAGE_ACCESSED, 0);
+	return ((old & _PAGE_ACCESSED) != 0);
+}
+
 #define __HAVE_ARCH_PMDP_SET_WRPROTECT
 static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pmd_t *pmdp)
 {
 	if (pmd_write(*pmdp))
 		pmd_hugepage_update(mm, addr, pmdp, _PAGE_WRITE, 0);
+}
+
+#define __HAVE_ARCH_PUDP_SET_WRPROTECT
+static inline void pudp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+				      pud_t *pudp)
+{
+	if (pud_write(*pudp))
+		pud_hugepage_update(mm, addr, pudp, _PAGE_WRITE, 0);
 }
 
 /*
@@ -1195,6 +1267,17 @@ static inline int pmd_trans_huge(pmd_t pmd)
 	return hash__pmd_trans_huge(pmd);
 }
 
+static inline int pud_trans_huge(pud_t pud)
+{
+	if (!pud_present(pud))
+		return false;
+
+	if (radix_enabled())
+		return radix__pud_trans_huge(pud);
+	return 0;
+}
+
+
 #define __HAVE_ARCH_PMD_SAME
 static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 {
@@ -1203,11 +1286,28 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 	return hash__pmd_same(pmd_a, pmd_b);
 }
 
+#define pud_same pud_same
+static inline int pud_same(pud_t pud_a, pud_t pud_b)
+{
+	if (radix_enabled())
+		return radix__pud_same(pud_a, pud_b);
+	return hash__pud_same(pud_a, pud_b);
+}
+
+
 static inline pmd_t __pmd_mkhuge(pmd_t pmd)
 {
 	if (radix_enabled())
 		return radix__pmd_mkhuge(pmd);
 	return hash__pmd_mkhuge(pmd);
+}
+
+static inline pud_t __pud_mkhuge(pud_t pud)
+{
+	if (radix_enabled())
+		return radix__pud_mkhuge(pud);
+	BUG();
+	return pud;
 }
 
 /*
@@ -1225,14 +1325,34 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
 	return pmd;
 }
 
+static inline pud_t pud_mkhuge(pud_t pud)
+{
+#ifdef CONFIG_DEBUG_VM
+	if (radix_enabled())
+		WARN_ON((pud_raw(pud) & cpu_to_be64(_PAGE_PTE)) == 0);
+	else
+		WARN_ON(1);
+#endif
+	return pud;
+}
+
+
 #define __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
 extern int pmdp_set_access_flags(struct vm_area_struct *vma,
 				 unsigned long address, pmd_t *pmdp,
 				 pmd_t entry, int dirty);
+#define __HAVE_ARCH_PUDP_SET_ACCESS_FLAGS
+extern int pudp_set_access_flags(struct vm_area_struct *vma,
+				 unsigned long address, pud_t *pudp,
+				 pud_t entry, int dirty);
 
 #define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
 extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 				     unsigned long address, pmd_t *pmdp);
+#define __HAVE_ARCH_PUDP_TEST_AND_CLEAR_YOUNG
+extern int pudp_test_and_clear_young(struct vm_area_struct *vma,
+				     unsigned long address, pud_t *pudp);
+
 
 #define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
 static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
@@ -1241,6 +1361,16 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 	if (radix_enabled())
 		return radix__pmdp_huge_get_and_clear(mm, addr, pmdp);
 	return hash__pmdp_huge_get_and_clear(mm, addr, pmdp);
+}
+
+#define __HAVE_ARCH_PUDP_HUGE_GET_AND_CLEAR
+static inline pud_t pudp_huge_get_and_clear(struct mm_struct *mm,
+					    unsigned long addr, pud_t *pudp)
+{
+	if (radix_enabled())
+		return radix__pudp_huge_get_and_clear(mm, addr, pudp);
+	BUG();
+	return *pudp;
 }
 
 static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
@@ -1256,6 +1386,11 @@ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
 pmd_t pmdp_huge_get_and_clear_full(struct vm_area_struct *vma,
 				   unsigned long addr,
 				   pmd_t *pmdp, int full);
+
+#define __HAVE_ARCH_PUDP_HUGE_GET_AND_CLEAR_FULL
+pud_t pudp_huge_get_and_clear_full(struct vm_area_struct *vma,
+				   unsigned long addr,
+				   pud_t *pudp, int full);
 
 #define __HAVE_ARCH_PGTABLE_DEPOSIT
 static inline void pgtable_trans_huge_deposit(struct mm_struct *mm,
@@ -1305,6 +1440,14 @@ static inline pmd_t pmd_mkdevmap(pmd_t pmd)
 	return hash__pmd_mkdevmap(pmd);
 }
 
+static inline pud_t pud_mkdevmap(pud_t pud)
+{
+	if (radix_enabled())
+		return radix__pud_mkdevmap(pud);
+	BUG();
+	return pud;
+}
+
 static inline int pmd_devmap(pmd_t pmd)
 {
 	return pte_devmap(pmd_pte(pmd));
@@ -1312,7 +1455,7 @@ static inline int pmd_devmap(pmd_t pmd)
 
 static inline int pud_devmap(pud_t pud)
 {
-	return 0;
+	return pte_devmap(pud_pte(pud));
 }
 
 static inline int pgd_devmap(pgd_t pgd)
@@ -1321,16 +1464,6 @@ static inline int pgd_devmap(pgd_t pgd)
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-static inline int pud_pfn(pud_t pud)
-{
-	/*
-	 * Currently all calls to pud_pfn() are gated around a pud_devmap()
-	 * check so this should never be used. If it grows another user we
-	 * want to know about it.
-	 */
-	BUILD_BUG();
-	return 0;
-}
 #define __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
 pte_t ptep_modify_prot_start(struct vm_area_struct *, unsigned long, pte_t *);
 void ptep_modify_prot_commit(struct vm_area_struct *, unsigned long,

@@ -1465,6 +1465,13 @@ void radix__flush_pmd_tlb_range(struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL(radix__flush_pmd_tlb_range);
 
+void radix__flush_pud_tlb_range(struct vm_area_struct *vma,
+				unsigned long start, unsigned long end)
+{
+	radix__flush_tlb_range_psize(vma->vm_mm, start, end, MMU_PAGE_1G);
+}
+EXPORT_SYMBOL(radix__flush_pud_tlb_range);
+
 void radix__flush_tlb_all(void)
 {
 	unsigned long rb,prs,r,rs;

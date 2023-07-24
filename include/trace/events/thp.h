@@ -30,6 +30,11 @@ DEFINE_EVENT(hugepage_set, hugepage_set_pmd,
 	    TP_ARGS(addr, pmd)
 );
 
+DEFINE_EVENT(hugepage_set, hugepage_set_pud,
+	    TP_PROTO(unsigned long addr, unsigned long pud),
+	    TP_ARGS(addr, pud)
+);
+
 DECLARE_EVENT_CLASS(hugepage_update,
 
 	    TP_PROTO(unsigned long addr, unsigned long pte, unsigned long clr, unsigned long set),
@@ -55,6 +60,11 @@ DECLARE_EVENT_CLASS(hugepage_update,
 DEFINE_EVENT(hugepage_update, hugepage_update_pmd,
 	    TP_PROTO(unsigned long addr, unsigned long pmd, unsigned long clr, unsigned long set),
 	    TP_ARGS(addr, pmd, clr, set)
+);
+
+DEFINE_EVENT(hugepage_update, hugepage_update_pud,
+	    TP_PROTO(unsigned long addr, unsigned long pud, unsigned long clr, unsigned long set),
+	    TP_ARGS(addr, pud, clr, set)
 );
 
 DECLARE_EVENT_CLASS(migration_pmd,

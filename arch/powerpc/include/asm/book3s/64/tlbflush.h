@@ -51,6 +51,14 @@ static inline void flush_pmd_tlb_range(struct vm_area_struct *vma,
 		radix__flush_pmd_tlb_range(vma, start, end);
 }
 
+#define __HAVE_ARCH_FLUSH_PUD_TLB_RANGE
+static inline void flush_pud_tlb_range(struct vm_area_struct *vma,
+				       unsigned long start, unsigned long end)
+{
+	if (radix_enabled())
+		radix__flush_pud_tlb_range(vma, start, end);
+}
+
 #define __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
 static inline void flush_hugetlb_tlb_range(struct vm_area_struct *vma,
 					   unsigned long start,
