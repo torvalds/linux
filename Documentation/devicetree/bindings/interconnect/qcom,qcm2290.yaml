@@ -13,6 +13,9 @@ description: |
   The Qualcomm QCM2290 interconnect providers support adjusting the
   bandwidth requirements between the various NoC fabrics.
 
+allOf:
+  - $ref: qcom,rpm-common.yaml#
+
 properties:
   reg:
     maxItems: 1
@@ -22,9 +25,6 @@ properties:
       - qcom,qcm2290-bimc
       - qcom,qcm2290-cnoc
       - qcom,qcm2290-snoc
-
-  '#interconnect-cells':
-    const: 1
 
   clock-names:
     items:
@@ -44,15 +44,15 @@ patternProperties:
       The interconnect providers do not have a separate QoS register space,
       but share parent's space.
 
+    allOf:
+      - $ref: qcom,rpm-common.yaml#
+
     properties:
       compatible:
         enum:
           - qcom,qcm2290-qup-virt
           - qcom,qcm2290-mmrt-virt
           - qcom,qcm2290-mmnrt-virt
-
-      '#interconnect-cells':
-        const: 1
 
       clock-names:
         items:
@@ -66,20 +66,18 @@ patternProperties:
 
     required:
       - compatible
-      - '#interconnect-cells'
       - clock-names
       - clocks
 
-    additionalProperties: false
+    unevaluatedProperties: false
 
 required:
   - compatible
   - reg
-  - '#interconnect-cells'
   - clock-names
   - clocks
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
