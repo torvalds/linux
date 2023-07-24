@@ -58,6 +58,17 @@ separated by spaces:
 	test soft dirty page bit semantics
 - cow
 	test copy-on-write semantics
+- thp
+	test transparent huge pages
+- migration
+	invoke move_pages(2) to exercise the migration entry code
+	paths in the kernel
+- mkdirty
+	test handling of code that might set PTE/PMD dirty in
+	read-only VMAs
+- mdwe
+	test prctl(PR_SET_MDWE, ...)
+
 example: ./run_vmtests.sh -t "hmm mmap ksm"
 EOF
 	exit 0
@@ -329,6 +340,18 @@ fi
 
 # COW tests
 CATEGORY="cow" run_test ./cow
+
+CATEGORY="thp" run_test ./khugepaged
+
+CATEGORY="thp" run_test ./transhuge-stress -d 20
+
+CATEGORY="thp" run_test ./split_huge_page_test
+
+CATEGORY="migration" run_test ./migration
+
+CATEGORY="mkdirty" run_test ./mkdirty
+
+CATEGORY="mdwe" run_test ./mdwe_test
 
 echo "SUMMARY: PASS=${count_pass} SKIP=${count_skip} FAIL=${count_fail}"
 
