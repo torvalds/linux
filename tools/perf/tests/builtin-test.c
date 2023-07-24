@@ -33,9 +33,18 @@
 static bool dont_fork;
 const char *dso_to_test;
 
-struct test_suite *__weak arch_tests[] = {
+/*
+ * List of architecture specific tests. Not a weak symbol as the array length is
+ * dependent on the initialization, as such GCC with LTO complains of
+ * conflicting definitions with a weak symbol.
+ */
+#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__) || defined(__powerpc64__)
+extern struct test_suite *arch_tests[];
+#else
+static struct test_suite *arch_tests[] = {
 	NULL,
 };
+#endif
 
 static struct test_suite *generic_tests[] = {
 	&suite__vmlinux_matches_kallsyms,
