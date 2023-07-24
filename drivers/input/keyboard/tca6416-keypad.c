@@ -216,12 +216,15 @@ static int tca6416_keypad_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	chip = kzalloc(struct_size(chip, buttons, pdata->nbuttons), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!chip || !input) {
-		error = -ENOMEM;
-		goto fail1;
-	}
+	chip = devm_kzalloc(&client->dev,
+			    struct_size(chip, buttons, pdata->nbuttons),
+			    GFP_KERNEL);
+	if (!chip)
+		return -ENOMEM;
+
+	input = devm_input_allocate_device(&client->dev);
+	if (!input)
+		return -ENOMEM;
 
 	chip->client = client;
 	chip->input = input;
@@ -233,7 +236,6 @@ static int tca6416_keypad_probe(struct i2c_client *client)
 
 	input->phys = "tca6416-keys/input0";
 	input->name = client->name;
-	input->dev.parent = &client->dev;
 
 	input->open = tca6416_keys_open;
 	input->close = tca6416_keys_close;
@@ -263,19 +265,20 @@ static int tca6416_keypad_probe(struct i2c_client *client)
 	 */
 	error = tca6416_setup_registers(chip);
 	if (error)
-		goto fail1;
+		return error;
 
 	if (!chip->use_polling) {
-		error = request_threaded_irq(client->irq, NULL,
-					     tca6416_keys_isr,
-					     IRQF_TRIGGER_FALLING |
-					     IRQF_ONESHOT | IRQF_NO_AUTOEN,
-					     "tca6416-keypad", chip);
+		error = devm_request_threaded_irq(&client->dev, client->irq,
+						  NULL, tca6416_keys_isr,
+						  IRQF_TRIGGER_FALLING |
+							IRQF_ONESHOT |
+							IRQF_NO_AUTOEN,
+						  "tca6416-keypad", chip);
 		if (error) {
 			dev_dbg(&client->dev,
 				"Unable to claim irq %d; error %d\n",
 				client->irq, error);
-			goto fail1;
+			return error;
 		}
 	}
 
@@ -283,31 +286,12 @@ static int tca6416_keypad_probe(struct i2c_client *client)
 	if (error) {
 		dev_dbg(&client->dev,
 			"Unable to register input device, error: %d\n", error);
-		goto fail2;
+		return error;
 	}
 
 	i2c_set_clientdata(client, chip);
 
 	return 0;
-
-fail2:
-	if (!chip->use_polling)
-		free_irq(client->irq, chip);
-fail1:
-	input_free_device(input);
-	kfree(chip);
-	return error;
-}
-
-static void tca6416_keypad_remove(struct i2c_client *client)
-{
-	struct tca6416_keypad_chip *chip = i2c_get_clientdata(client);
-
-	if (!chip->use_polling)
-		free_irq(client->irq, chip);
-
-	input_unregister_device(chip->input);
-	kfree(chip);
 }
 
 static struct i2c_driver tca6416_keypad_driver = {
@@ -315,7 +299,6 @@ static struct i2c_driver tca6416_keypad_driver = {
 		.name	= "tca6416-keypad",
 	},
 	.probe		= tca6416_keypad_probe,
-	.remove		= tca6416_keypad_remove,
 	.id_table	= tca6416_id,
 };
 
