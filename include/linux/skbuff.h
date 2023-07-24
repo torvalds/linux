@@ -441,8 +441,6 @@ static inline bool skb_frag_must_loop(struct page *p)
 	     copied += p_len, p++, p_off = 0,				\
 	     p_len = min_t(u32, f_len - copied, PAGE_SIZE))		\
 
-#define HAVE_HW_TIME_STAMP
-
 /**
  * struct skb_shared_hwtstamps - hardware time stamps
  * @hwtstamp:		hardware time stamp transformed into duration
