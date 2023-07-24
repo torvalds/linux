@@ -2676,8 +2676,11 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 
 	next = vma_next(&vmi);
 	prev = vma_prev(&vmi);
-	if (vm_flags & VM_SPECIAL)
+	if (vm_flags & VM_SPECIAL) {
+		if (prev)
+			vma_iter_next_range(&vmi);
 		goto cannot_expand;
+	}
 
 	/* Attempt to expand an old mapping */
 	/* Check next */
@@ -2698,6 +2701,8 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		merge_start = prev->vm_start;
 		vma = prev;
 		vm_pgoff = prev->vm_pgoff;
+	} else if (prev) {
+		vma_iter_next_range(&vmi);
 	}
 
 
@@ -2708,9 +2713,9 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		goto expanded;
 	}
 
+	if (vma == prev)
+		vma_iter_set(&vmi, addr);
 cannot_expand:
-	if (prev)
-		vma_iter_next_range(&vmi);
 
 	/*
 	 * Determine the object being mapped and call the appropriate
@@ -2723,7 +2728,7 @@ cannot_expand:
 		goto unacct_error;
 	}
 
-	vma_iter_set(&vmi, addr);
+	vma_iter_config(&vmi, addr, end);
 	vma->vm_start = addr;
 	vma->vm_end = end;
 	vm_flags_init(vma, vm_flags);
@@ -2750,7 +2755,7 @@ cannot_expand:
 		if (WARN_ON((addr != vma->vm_start)))
 			goto close_and_free_vma;
 
-		vma_iter_set(&vmi, addr);
+		vma_iter_config(&vmi, addr, end);
 		/*
 		 * If vm_flags changed after call_mmap(), we should try merge
 		 * vma again as we may succeed this time.
