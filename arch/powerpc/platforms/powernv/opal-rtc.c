@@ -11,8 +11,9 @@
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 #include <linux/delay.h>
-#include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <asm/opal.h>
 #include <asm/firmware.h>

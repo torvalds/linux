@@ -15,8 +15,8 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
 
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>

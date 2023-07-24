@@ -47,6 +47,7 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <asm/ibmebus.h>
 #include <asm/machdep.h>
 

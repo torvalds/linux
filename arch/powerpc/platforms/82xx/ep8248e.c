@@ -13,6 +13,7 @@
 #include <linux/of_mdio.h>
 #include <linux/slab.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/cpm2.h>
