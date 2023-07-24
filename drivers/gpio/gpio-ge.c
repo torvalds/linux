@@ -10,11 +10,12 @@
  * kind, whether express or implied.
  */
 
-/* TODO
+/*
+ * TODO:
  *
- * Configuration of output modes (totem-pole/open-drain)
- * Interrupt configuration - interrupts are always generated the FPGA relies on
- * the I/O interrupt controllers mask to stop them propergating
+ * Configuration of output modes (totem-pole/open-drain).
+ * Interrupt configuration - interrupts are always generated, the FPGA relies
+ * on the I/O interrupt controllers mask to stop them from being propagated.
  */
 
 #include <linux/gpio/driver.h>
@@ -104,5 +105,5 @@ static struct platform_driver gef_gpio_driver = {
 module_platform_driver_probe(gef_gpio_driver, gef_gpio_probe);
 
 MODULE_DESCRIPTION("GE I/O FPGA GPIO driver");
-MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com");
+MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com>");
 MODULE_LICENSE("GPL");
