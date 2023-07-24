@@ -223,7 +223,7 @@ int diag210(struct diag210 *addr)
 EXPORT_SYMBOL(diag210);
 
 /*
- * Diagnose 210: Get information about a virtual device
+ * Diagnose 8C: Access 3270 Display Device Information
  */
 int diag8c(struct diag8c *addr, struct ccw_dev_id *devno)
 {
