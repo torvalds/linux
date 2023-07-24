@@ -13,7 +13,7 @@
 #include <asm/diag.h>
 
 #define __SUBCODE_MASK 0x0600
-#define __PF_RES_FIELD 0x8000000000000000ULL
+#define __PF_RES_FIELD 0x8000000000000000UL
 
 /*
  * 'pfault' pseudo page faults routines.
@@ -45,8 +45,8 @@ static struct pfault_refbk pfault_init_refbk = {
 	.refdwlen = 5,
 	.refversn = 2,
 	.refgaddr = __LC_LPP,
-	.refselmk = 1ULL << 48,
-	.refcmpmk = 1ULL << 48,
+	.refselmk = 1UL << 48,
+	.refcmpmk = 1UL << 48,
 	.reserved = __PF_RES_FIELD
 };
 
