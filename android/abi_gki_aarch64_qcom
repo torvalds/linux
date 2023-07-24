@@ -3648,6 +3648,7 @@
   ufshcd_hold
   ufshcd_mcq_config_esi
   ufshcd_mcq_enable_esi
+  ufshcd_mcq_poll_cqe_lock
   ufshcd_mcq_poll_cqe_nolock
   ufshcd_mcq_write_cqis
   ufshcd_pltfrm_init
