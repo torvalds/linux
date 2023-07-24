@@ -466,6 +466,8 @@ static void ath_tx_count_frames(struct ath_softc *sc, struct ath_buf *bf,
 	*nframes = 0;
 
 	isaggr = bf_isaggr(bf);
+	memset(ba, 0, WME_BA_BMP_SIZE >> 3);
+
 	if (isaggr) {
 		seq_st = ts->ts_seqnum;
 		memcpy(ba, &ts->ba_low, WME_BA_BMP_SIZE >> 3);
