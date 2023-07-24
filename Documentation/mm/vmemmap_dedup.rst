@@ -210,6 +210,7 @@ the device (altmap).
 
 The following page sizes are supported in DAX: PAGE_SIZE (4K on x86_64),
 PMD_SIZE (2M on x86_64) and PUD_SIZE (1G on x86_64).
+For powerpc equivalent details see Documentation/powerpc/vmemmap_dedup.rst
 
 The differences with HugeTLB are relatively minor.
 
