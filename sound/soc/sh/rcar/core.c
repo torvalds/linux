@@ -1261,7 +1261,7 @@ int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name
 }
 
 static struct device_node *rsnd_dai_of_node(struct rsnd_priv *priv,
-					    int *is_graph)
+					    int *nr, int *is_graph)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct device_node *np = dev->of_node;
@@ -1274,22 +1274,30 @@ static struct device_node *rsnd_dai_of_node(struct rsnd_priv *priv,
 	 * parse both previous dai (= rcar_sound,dai), and
 	 * graph dai (= ports/port)
 	 */
+
+	/*
+	 * Simple-Card
+	 */
 	dai_node = of_get_child_by_name(np, RSND_NODE_DAI);
 	if (dai_node) {
+		*nr = of_get_child_count(dai_node);
 		ret = dai_node;
 		goto of_node_compatible;
 	}
 
-	ret = np;
-
+	/*
+	 * Audio-Graph-Card
+	 */
 	dai_node = of_graph_get_next_endpoint(np, NULL);
-	if (dai_node)
-		goto of_node_graph;
+	if (dai_node) {
+		*nr = of_graph_get_endpoint_count(np);
+		*is_graph = 1;
+		ret = np;
+		goto of_node_compatible;
+	}
 
 	return NULL;
 
-of_node_graph:
-	*is_graph = 1;
 of_node_compatible:
 	of_node_put(dai_node);
 
@@ -1447,16 +1455,11 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	struct snd_soc_dai_driver *rdrv;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_dai *rdai;
-	int nr;
+	int nr = 0;
 	int is_graph;
 	int dai_i;
 
-	dai_node = rsnd_dai_of_node(priv, &is_graph);
-	if (is_graph)
-		nr = of_graph_get_endpoint_count(dai_node);
-	else
-		nr = of_get_child_count(dai_node);
-
+	dai_node = rsnd_dai_of_node(priv, &nr, &is_graph);
 	if (!nr)
 		return -EINVAL;
 
