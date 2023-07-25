@@ -94,13 +94,20 @@ struct mlx5_accel_esp_xfrm_attrs {
 	u8 dir : 2;
 	u8 type : 2;
 	u8 drop : 1;
+	u8 encap : 1;
 	u8 family;
 	struct mlx5_replay_esn replay_esn;
 	u32 authsize;
 	u32 reqid;
 	struct mlx5_ipsec_lft lft;
-	u8 smac[ETH_ALEN];
-	u8 dmac[ETH_ALEN];
+	union {
+		u8 smac[ETH_ALEN];
+		__be16 sport;
+	};
+	union {
+		u8 dmac[ETH_ALEN];
+		__be16 dport;
+	};
 };
 
 enum mlx5_ipsec_cap {
@@ -110,6 +117,7 @@ enum mlx5_ipsec_cap {
 	MLX5_IPSEC_CAP_ROCE             = 1 << 3,
 	MLX5_IPSEC_CAP_PRIO             = 1 << 4,
 	MLX5_IPSEC_CAP_TUNNEL           = 1 << 5,
+	MLX5_IPSEC_CAP_ESPINUDP         = 1 << 6,
 };
 
 struct mlx5e_priv;
