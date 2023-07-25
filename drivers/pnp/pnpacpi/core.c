@@ -254,6 +254,9 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	else
 		strncpy(dev->name, acpi_device_bid(device), sizeof(dev->name));
 
+	/* Handle possible string truncation */
+	dev->name[sizeof(dev->name) - 1] = '\0';
+
 	if (dev->active)
 		pnpacpi_parse_allocated_resource(dev);
 
