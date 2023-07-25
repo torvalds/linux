@@ -357,8 +357,20 @@ static int qcom_qspi_setup_dma_desc(struct qcom_qspi *ctrl,
 
 	for (i = 0; i < sgt->nents; i++) {
 		dma_ptr_sg = sg_dma_address(sgt->sgl + i);
+		dma_len_sg = sg_dma_len(sgt->sgl + i);
 		if (!IS_ALIGNED(dma_ptr_sg, QSPI_ALIGN_REQ)) {
 			dev_warn_once(ctrl->dev, "dma_address not aligned to %d\n", QSPI_ALIGN_REQ);
+			return -EAGAIN;
+		}
+		/*
+		 * When reading with DMA the controller writes to memory 1 word
+		 * at a time. If the length isn't a multiple of 4 bytes then
+		 * the controller can clobber the things later in memory.
+		 * Fallback to PIO to be safe.
+		 */
+		if (ctrl->xfer.dir == QSPI_READ && (dma_len_sg & 0x03)) {
+			dev_warn_once(ctrl->dev, "fallback to PIO for read of size %#010x\n",
+				      dma_len_sg);
 			return -EAGAIN;
 		}
 	}
