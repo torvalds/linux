@@ -18,11 +18,11 @@ enum ctx_state {
 	CT_STATE_MAX		= 4,
 };
 
-/* Even value for idle, else odd. */
-#define RCU_DYNTICKS_IDX CT_STATE_MAX
+/* Odd value for watching, else even. */
+#define CT_RCU_WATCHING CT_STATE_MAX
 
 #define CT_STATE_MASK (CT_STATE_MAX - 1)
-#define CT_DYNTICKS_MASK (~CT_STATE_MASK)
+#define CT_RCU_WATCHING_MASK (~CT_STATE_MASK)
 
 struct context_tracking {
 #ifdef CONFIG_CONTEXT_TRACKING_USER
@@ -58,21 +58,21 @@ static __always_inline int __ct_state(void)
 #ifdef CONFIG_CONTEXT_TRACKING_IDLE
 static __always_inline int ct_dynticks(void)
 {
-	return atomic_read(this_cpu_ptr(&context_tracking.state)) & CT_DYNTICKS_MASK;
+	return atomic_read(this_cpu_ptr(&context_tracking.state)) & CT_RCU_WATCHING_MASK;
 }
 
 static __always_inline int ct_dynticks_cpu(int cpu)
 {
 	struct context_tracking *ct = per_cpu_ptr(&context_tracking, cpu);
 
-	return atomic_read(&ct->state) & CT_DYNTICKS_MASK;
+	return atomic_read(&ct->state) & CT_RCU_WATCHING_MASK;
 }
 
 static __always_inline int ct_dynticks_cpu_acquire(int cpu)
 {
 	struct context_tracking *ct = per_cpu_ptr(&context_tracking, cpu);
 
-	return atomic_read_acquire(&ct->state) & CT_DYNTICKS_MASK;
+	return atomic_read_acquire(&ct->state) & CT_RCU_WATCHING_MASK;
 }
 
 static __always_inline long ct_dynticks_nesting(void)

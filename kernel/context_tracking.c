@@ -31,7 +31,7 @@ DEFINE_PER_CPU(struct context_tracking, context_tracking) = {
 	.dynticks_nesting = 1,
 	.dynticks_nmi_nesting = DYNTICK_IRQ_NONIDLE,
 #endif
-	.state = ATOMIC_INIT(RCU_DYNTICKS_IDX),
+	.state = ATOMIC_INIT(CT_RCU_WATCHING),
 };
 EXPORT_SYMBOL_GPL(context_tracking);
 
@@ -90,7 +90,7 @@ static noinstr void ct_kernel_exit_state(int offset)
 	rcu_dynticks_task_trace_enter();  // Before ->dynticks update!
 	seq = ct_state_inc(offset);
 	// RCU is no longer watching.  Better be in extended quiescent state!
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && (seq & RCU_DYNTICKS_IDX));
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && (seq & CT_RCU_WATCHING));
 }
 
 /*
@@ -110,7 +110,7 @@ static noinstr void ct_kernel_enter_state(int offset)
 	seq = ct_state_inc(offset);
 	// RCU is now watching.  Better not be in an extended quiescent state!
 	rcu_dynticks_task_trace_exit();  // After ->dynticks update!
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !(seq & RCU_DYNTICKS_IDX));
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !(seq & CT_RCU_WATCHING));
 }
 
 /*
@@ -236,7 +236,7 @@ void noinstr ct_nmi_exit(void)
 	instrumentation_end();
 
 	// RCU is watching here ...
-	ct_kernel_exit_state(RCU_DYNTICKS_IDX);
+	ct_kernel_exit_state(CT_RCU_WATCHING);
 	// ... but is no longer watching here.
 
 	if (!in_nmi())
@@ -277,7 +277,7 @@ void noinstr ct_nmi_enter(void)
 			rcu_dynticks_task_exit();
 
 		// RCU is not watching here ...
-		ct_kernel_enter_state(RCU_DYNTICKS_IDX);
+		ct_kernel_enter_state(CT_RCU_WATCHING);
 		// ... but is watching here.
 
 		instrumentation_begin();
@@ -317,7 +317,7 @@ void noinstr ct_nmi_enter(void)
 void noinstr ct_idle_enter(void)
 {
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !raw_irqs_disabled());
-	ct_kernel_exit(false, RCU_DYNTICKS_IDX + CT_STATE_IDLE);
+	ct_kernel_exit(false, CT_RCU_WATCHING + CT_STATE_IDLE);
 }
 EXPORT_SYMBOL_GPL(ct_idle_enter);
 
@@ -335,7 +335,7 @@ void noinstr ct_idle_exit(void)
 	unsigned long flags;
 
 	raw_local_irq_save(flags);
-	ct_kernel_enter(false, RCU_DYNTICKS_IDX - CT_STATE_IDLE);
+	ct_kernel_enter(false, CT_RCU_WATCHING - CT_STATE_IDLE);
 	raw_local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(ct_idle_exit);
@@ -504,7 +504,7 @@ void noinstr __ct_user_enter(enum ctx_state state)
 			 * CPU doesn't need to maintain the tick for RCU maintenance purposes
 			 * when the CPU runs in userspace.
 			 */
-			ct_kernel_exit(true, RCU_DYNTICKS_IDX + state);
+			ct_kernel_exit(true, CT_RCU_WATCHING + state);
 
 			/*
 			 * Special case if we only track user <-> kernel transitions for tickless
@@ -534,7 +534,7 @@ void noinstr __ct_user_enter(enum ctx_state state)
 				/*
 				 * Tracking for vtime and RCU EQS. Make sure we don't race
 				 * with NMIs. OTOH we don't care about ordering here since
-				 * RCU only requires RCU_DYNTICKS_IDX increments to be fully
+				 * RCU only requires CT_RCU_WATCHING increments to be fully
 				 * ordered.
 				 */
 				raw_atomic_add(state, &ct->state);
@@ -620,7 +620,7 @@ void noinstr __ct_user_exit(enum ctx_state state)
 			 * Exit RCU idle mode while entering the kernel because it can
 			 * run a RCU read side critical section anytime.
 			 */
-			ct_kernel_enter(true, RCU_DYNTICKS_IDX - state);
+			ct_kernel_enter(true, CT_RCU_WATCHING - state);
 			if (state == CT_STATE_USER) {
 				instrumentation_begin();
 				vtime_user_exit(current);
@@ -644,7 +644,7 @@ void noinstr __ct_user_exit(enum ctx_state state)
 				/*
 				 * Tracking for vtime and RCU EQS. Make sure we don't race
 				 * with NMIs. OTOH we don't care about ordering here since
-				 * RCU only requires RCU_DYNTICKS_IDX increments to be fully
+				 * RCU only requires CT_RCU_WATCHING increments to be fully
 				 * ordered.
 				 */
 				raw_atomic_sub(state, &ct->state);
