@@ -5239,7 +5239,18 @@ static void ufs_qcom_hook_send_command(void *param, struct ufs_hba *hba,
 
 		ufs_qcom_qos(hba, lrbp->task_tag);
 
-		if (is_mcq_enabled(hba)) {
+		if (!is_mcq_enabled(hba)) {
+			ufs_qcom_log_str(host, "<,%x,%d,%x,%d\n",
+							lrbp->cmd->cmnd[0],
+							lrbp->task_tag,
+							ufshcd_readl(hba,
+								REG_UTP_TRANSFER_REQ_DOOR_BELL),
+							sz);
+			return;
+		}
+
+		if (rq) {
+			/* The dev cmd would not be logged in MCQ mode provisionally */
 			u32 utag = (rq->mq_hctx->queue_num << BLK_MQ_UNIQUE_TAG_BITS) |
 						(rq->tag & BLK_MQ_UNIQUE_TAG_MASK);
 			u32 idx = blk_mq_unique_tag_to_hwq(utag) + 1;
@@ -5249,13 +5260,6 @@ static void ufs_qcom_hook_send_command(void *param, struct ufs_hba *hba,
 							lrbp->cmd->cmnd[0],
 							lrbp->task_tag,
 							hwq->id,
-							sz);
-		} else {
-			ufs_qcom_log_str(host, "<,%x,%d,%x,%d\n",
-							lrbp->cmd->cmnd[0],
-							lrbp->task_tag,
-							ufshcd_readl(hba,
-								REG_UTP_TRANSFER_REQ_DOOR_BELL),
 							sz);
 		}
 	}
@@ -5271,7 +5275,18 @@ static void ufs_qcom_hook_compl_command(void *param, struct ufs_hba *hba,
 		struct request *rq = scsi_cmd_to_rq(lrbp->cmd);
 		int sz = rq ? blk_rq_sectors(rq) : 0;
 
-		if (is_mcq_enabled(hba)) {
+		if (!is_mcq_enabled(hba)) {
+			ufs_qcom_log_str(host, ">,%x,%d,%x,%d\n",
+							lrbp->cmd->cmnd[0],
+							lrbp->task_tag,
+							ufshcd_readl(hba,
+								REG_UTP_TRANSFER_REQ_DOOR_BELL),
+							sz);
+			return;
+		}
+
+		if (rq) {
+			/* The dev cmd would not be logged in MCQ mode provisionally */
 			u32 utag = (rq->mq_hctx->queue_num << BLK_MQ_UNIQUE_TAG_BITS) |
 						(rq->tag & BLK_MQ_UNIQUE_TAG_MASK);
 			u32 idx = blk_mq_unique_tag_to_hwq(utag) + 1;
@@ -5281,13 +5296,6 @@ static void ufs_qcom_hook_compl_command(void *param, struct ufs_hba *hba,
 							lrbp->cmd->cmnd[0],
 							lrbp->task_tag,
 							hwq->id,
-							sz);
-		} else {
-			ufs_qcom_log_str(host, ">,%x,%d,%x,%d\n",
-							lrbp->cmd->cmnd[0],
-							lrbp->task_tag,
-							ufshcd_readl(hba,
-								REG_UTP_TRANSFER_REQ_DOOR_BELL),
 							sz);
 		}
 	}
