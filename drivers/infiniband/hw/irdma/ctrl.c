@@ -4004,7 +4004,6 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 {
 	u64 temp, compl_ctx;
 	__le64 *aeqe;
-	u16 wqe_idx;
 	u8 ae_src;
 	u8 polarity;
 
@@ -4020,7 +4019,7 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 			     aeqe, 16, false);
 
 	ae_src = (u8)FIELD_GET(IRDMA_AEQE_AESRC, temp);
-	wqe_idx = (u16)FIELD_GET(IRDMA_AEQE_WQDESCIDX, temp);
+	info->wqe_idx = (u16)FIELD_GET(IRDMA_AEQE_WQDESCIDX, temp);
 	info->qp_cq_id = (u32)FIELD_GET(IRDMA_AEQE_QPCQID_LOW, temp) |
 			 ((u32)FIELD_GET(IRDMA_AEQE_QPCQID_HI, temp) << 18);
 	info->ae_id = (u16)FIELD_GET(IRDMA_AEQE_AECODE, temp);
@@ -4103,7 +4102,6 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 	case IRDMA_AE_SOURCE_RQ_0011:
 		info->qp = true;
 		info->rq = true;
-		info->wqe_idx = wqe_idx;
 		info->compl_ctx = compl_ctx;
 		break;
 	case IRDMA_AE_SOURCE_CQ:
@@ -4117,7 +4115,6 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 	case IRDMA_AE_SOURCE_SQ_0111:
 		info->qp = true;
 		info->sq = true;
-		info->wqe_idx = wqe_idx;
 		info->compl_ctx = compl_ctx;
 		break;
 	case IRDMA_AE_SOURCE_IN_RR_WR:
