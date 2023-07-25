@@ -603,6 +603,9 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 	int_status = readl(ctrl->base + MSTR_INT_STATUS);
 	writel(int_status, ctrl->base + MSTR_INT_STATUS);
 
+	/* Ignore disabled interrupts */
+	int_status &= readl(ctrl->base + MSTR_INT_EN);
+
 	/* PIO mode handling */
 	if (ctrl->xfer.dir == QSPI_WRITE) {
 		if (int_status & WR_FIFO_EMPTY)
