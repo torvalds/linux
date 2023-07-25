@@ -1001,6 +1001,7 @@ config REGULATOR_PWM
 
 config REGULATOR_QCOM_REFGEN
 	tristate "Qualcomm REFGEN regulator driver"
+	depends on ARCH_QCOM || COMPILE_TEST
 	depends on HAS_IOMEM
 	depends on REGMAP
 	help
