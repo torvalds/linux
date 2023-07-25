@@ -269,7 +269,7 @@ futex_proxy_trylock_atomic(u32 __user *pifutex, struct futex_hash_bucket *hb1,
 			   union futex_key *key2, struct futex_pi_state **ps,
 			   struct task_struct **exiting, int set_waiters)
 {
-	struct futex_q *top_waiter = NULL;
+	struct futex_q *top_waiter;
 	u32 curval;
 	int ret;
 
