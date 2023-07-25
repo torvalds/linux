@@ -407,7 +407,7 @@ static struct dentry *offset_find_next(struct xa_state *xas)
 	child = xas_next_entry(xas, U32_MAX);
 	if (!child)
 		goto out;
-	spin_lock_nested(&child->d_lock, DENTRY_D_LOCK_NESTED);
+	spin_lock(&child->d_lock);
 	if (simple_positive(child))
 		found = dget_dlock(child);
 	spin_unlock(&child->d_lock);
@@ -425,17 +425,14 @@ static bool offset_dir_emit(struct dir_context *ctx, struct dentry *dentry)
 			  inode->i_ino, fs_umode_to_dtype(inode->i_mode));
 }
 
-static void offset_iterate_dir(struct dentry *dir, struct dir_context *ctx)
+static void offset_iterate_dir(struct inode *inode, struct dir_context *ctx)
 {
-	struct inode *inode = d_inode(dir);
 	struct offset_ctx *so_ctx = inode->i_op->get_offset_ctx(inode);
 	XA_STATE(xas, &so_ctx->xa, ctx->pos);
 	struct dentry *dentry;
 
 	while (true) {
-		spin_lock(&dir->d_lock);
 		dentry = offset_find_next(&xas);
-		spin_unlock(&dir->d_lock);
 		if (!dentry)
 			break;
 
@@ -465,7 +462,7 @@ static void offset_iterate_dir(struct dentry *dir, struct dir_context *ctx)
  * output buffer.
  *
  * On return, @ctx->pos contains an offset that will read the next entry
- * in this directory when shmem_readdir() is called again with @ctx.
+ * in this directory when offset_readdir() is called again with @ctx.
  *
  * Return values:
  *   %0 - Complete
@@ -479,7 +476,7 @@ static int offset_readdir(struct file *file, struct dir_context *ctx)
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	offset_iterate_dir(dir, ctx);
+	offset_iterate_dir(d_inode(dir), ctx);
 	return 0;
 }
 
