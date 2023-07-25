@@ -45,43 +45,6 @@ struct aa_file_ctx {
 	u32 allow;
 };
 
-/**
- * aa_alloc_file_ctx - allocate file_ctx
- * @label: initial label of task creating the file
- * @gfp: gfp flags for allocation
- *
- * Returns: file_ctx or NULL on failure
- */
-static inline struct aa_file_ctx *aa_alloc_file_ctx(struct aa_label *label,
-						    gfp_t gfp)
-{
-	struct aa_file_ctx *ctx;
-
-	ctx = kzalloc(sizeof(struct aa_file_ctx), gfp);
-	if (ctx) {
-		spin_lock_init(&ctx->lock);
-		rcu_assign_pointer(ctx->label, aa_get_label(label));
-	}
-	return ctx;
-}
-
-/**
- * aa_free_file_ctx - free a file_ctx
- * @ctx: file_ctx to free  (MAYBE_NULL)
- */
-static inline void aa_free_file_ctx(struct aa_file_ctx *ctx)
-{
-	if (ctx) {
-		aa_put_label(rcu_access_pointer(ctx->label));
-		kfree_sensitive(ctx);
-	}
-}
-
-static inline struct aa_label *aa_get_file_label(struct aa_file_ctx *ctx)
-{
-	return aa_get_label_rcu(&ctx->label);
-}
-
 /*
  * The xindex is broken into 3 parts
  * - index - an index into either the exec name table or the variable table
