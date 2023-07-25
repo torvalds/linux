@@ -85,6 +85,7 @@ enum irdma_device_caps_const {
 	IRDMA_Q2_BUF_SIZE =			256,
 	IRDMA_QP_CTX_SIZE =			256,
 	IRDMA_MAX_PDS =				262144,
+	IRDMA_MIN_WQ_SIZE_GEN2 =                8,
 };
 
 enum irdma_addressing_type {

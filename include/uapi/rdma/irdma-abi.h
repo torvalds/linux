@@ -24,6 +24,7 @@ enum irdma_memreg_type {
 
 enum {
 	IRDMA_ALLOC_UCTX_USE_RAW_ATTR = 1 << 0,
+	IRDMA_ALLOC_UCTX_MIN_HW_WQ_SIZE = 1 << 1,
 };
 
 struct irdma_alloc_ucontext_req {
@@ -52,6 +53,8 @@ struct irdma_alloc_ucontext_resp {
 	__u8 hw_rev;
 	__u8 rsvd2;
 	__aligned_u64 comp_mask;
+	__u16 min_hw_wq_size;
+	__u8 rsvd3[6];
 };
 
 struct irdma_alloc_pd_resp {

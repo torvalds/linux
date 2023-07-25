@@ -330,6 +330,8 @@ static int irdma_alloc_ucontext(struct ib_ucontext *uctx,
 		uresp.min_hw_cq_size = uk_attrs->min_hw_cq_size;
 		uresp.hw_rev = uk_attrs->hw_rev;
 		uresp.comp_mask |= IRDMA_ALLOC_UCTX_USE_RAW_ATTR;
+		uresp.min_hw_wq_size = uk_attrs->min_hw_wq_size;
+		uresp.comp_mask |= IRDMA_ALLOC_UCTX_MIN_HW_WQ_SIZE;
 		if (ib_copy_to_udata(udata, &uresp,
 				     min(sizeof(uresp), udata->outlen))) {
 			rdma_user_mmap_entry_remove(ucontext->db_mmap_entry);
