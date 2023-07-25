@@ -76,7 +76,13 @@ struct fuse_dentry {
 		u64 time;
 		struct rcu_head rcu;
 	};
+
+#ifdef CONFIG_FUSE_BPF
 	struct path backing_path;
+
+	/* bpf program *only* set for negative dentries */
+	struct bpf_prog *bpf;
+#endif
 };
 
 static inline struct fuse_dentry *get_fuse_dentry(const struct dentry *entry)

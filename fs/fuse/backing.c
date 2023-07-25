@@ -1240,60 +1240,60 @@ int fuse_handle_bpf_prog(struct fuse_entry_bpf *feb, struct inode *parent,
 struct dentry *fuse_lookup_finalize(struct fuse_bpf_args *fa, struct inode *dir,
 			   struct dentry *entry, unsigned int flags)
 {
-	struct fuse_dentry *fd;
-	struct dentry *bd;
+	struct fuse_dentry *fuse_entry;
+	struct dentry *backing_entry;
 	struct inode *inode = NULL, *backing_inode;
-	struct inode *d_inode = entry->d_inode;
+	struct inode *entry_inode = entry->d_inode;
 	struct fuse_entry_out *feo = fa->out_args[0].value;
 	struct fuse_entry_bpf_out *febo = fa->out_args[1].value;
-	struct fuse_entry_bpf *feb = container_of(febo, struct fuse_entry_bpf, out);
+	struct fuse_entry_bpf *feb = container_of(febo, struct fuse_entry_bpf,
+						  out);
 	int error = -1;
 	u64 target_nodeid = 0;
-	struct dentry *ret;
+	struct dentry *ret = NULL;
 
-	fd = get_fuse_dentry(entry);
-	if (!fd) {
+	fuse_entry = get_fuse_dentry(entry);
+	if (!fuse_entry) {
 		ret = ERR_PTR(-EIO);
 		goto out;
 	}
 
-	bd = fd->backing_path.dentry;
-	if (!bd) {
+	backing_entry = fuse_entry->backing_path.dentry;
+	if (!backing_entry) {
 		ret = ERR_PTR(-ENOENT);
 		goto out;
 	}
 
-	backing_inode = bd->d_inode;
-	if (!backing_inode) {
-		ret = 0;
-		goto out;
-	}
+	if (entry_inode)
+		target_nodeid = get_fuse_inode(entry_inode)->nodeid;
 
-	if (d_inode)
-		target_nodeid = get_fuse_inode(d_inode)->nodeid;
+	backing_inode = backing_entry->d_inode;
+	if (backing_inode)
+		inode = fuse_iget_backing(dir->i_sb, target_nodeid,
+					  backing_inode);
 
-	inode = fuse_iget_backing(dir->i_sb, target_nodeid, backing_inode);
-	if (!inode) {
-		ret = ERR_PTR(-EIO);
-		goto out;
-	}
-
-	error = fuse_handle_bpf_prog(feb, dir, &get_fuse_inode(inode)->bpf);
+	error = inode ?
+		fuse_handle_bpf_prog(feb, dir, &get_fuse_inode(inode)->bpf) :
+		fuse_handle_bpf_prog(feb, dir, &fuse_entry->bpf);
 	if (error) {
 		ret = ERR_PTR(error);
 		goto out;
 	}
 
-	error = fuse_handle_backing(feb, &get_fuse_inode(inode)->backing_inode, &fd->backing_path);
-	if (error) {
-		ret = ERR_PTR(error);
-		goto out;
-	}
+	if (inode) {
+		error = fuse_handle_backing(feb,
+					&get_fuse_inode(inode)->backing_inode,
+					&fuse_entry->backing_path);
+		if (error) {
+			ret = ERR_PTR(error);
+			goto out;
+		}
 
-	get_fuse_inode(inode)->nodeid = feo->nodeid;
-	ret = d_splice_alias(inode, entry);
-	if (!IS_ERR(ret))
-		inode = NULL;
+		get_fuse_inode(inode)->nodeid = feo->nodeid;
+		ret = d_splice_alias(inode, entry);
+		if (!IS_ERR(ret))
+			inode = NULL;
+	}
 out:
 	iput(inode);
 	if (feb->backing_file)
