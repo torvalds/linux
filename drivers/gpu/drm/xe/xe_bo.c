@@ -1200,8 +1200,10 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	/* Only kernel objects should set GT */
 	XE_WARN_ON(tile && type != ttm_bo_type_kernel);
 
-	if (XE_WARN_ON(!size))
+	if (XE_WARN_ON(!size)) {
+		xe_bo_free(bo);
 		return ERR_PTR(-EINVAL);
+	}
 
 	if (!bo) {
 		bo = xe_bo_alloc();
@@ -1239,8 +1241,10 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 
 	if (!(flags & XE_BO_FIXED_PLACEMENT_BIT)) {
 		err = __xe_bo_placement_for_flags(xe, bo, bo->flags);
-		if (WARN_ON(err))
+		if (WARN_ON(err)) {
+			xe_ttm_bo_destroy(&bo->ttm);
 			return ERR_PTR(err);
+		}
 	}
 
 	/* Defer populating type_sg bos */
