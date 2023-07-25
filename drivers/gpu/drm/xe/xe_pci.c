@@ -766,6 +766,7 @@ static int xe_pci_runtime_suspend(struct device *dev)
 	pci_save_state(pdev);
 
 	if (xe->d3cold.allowed) {
+		d3cold_toggle(pdev, D3COLD_ENABLE);
 		pci_disable_device(pdev);
 		pci_ignore_hotplug(pdev);
 		pci_set_power_state(pdev, PCI_D3cold);
@@ -795,8 +796,6 @@ static int xe_pci_runtime_resume(struct device *dev)
 			return err;
 
 		pci_set_master(pdev);
-	} else {
-		d3cold_toggle(pdev, D3COLD_ENABLE);
 	}
 
 	return xe_pm_runtime_resume(xe);
