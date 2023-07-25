@@ -26,5 +26,5 @@
 };
 
 &vcc3v3_btreg {
-	enable-gpio = <&gpio1 RK_PC3 GPIO_ACTIVE_HIGH>;
+	enable-gpios = <&gpio1 RK_PC3 GPIO_ACTIVE_HIGH>;
 };
