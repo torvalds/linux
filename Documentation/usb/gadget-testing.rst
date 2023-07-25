@@ -1009,22 +1009,24 @@ Each Endpoint subdirectory contains a subdirectory "block.0", which
 represents the Function Block for Block 0 information.
 Its attributes are:
 
-	===============	===============================================
-	name		Function Block name string
-	direction	Direction of this FB
-			1: input, 2: output, or 3: bidirectional
-	first_group	The first UMP Group number (0-15)
-	num_groups	The number of groups in this FB (1-16)
-	ui_hint		UI-hint of this FB
-			0: unknown, 1: receiver, 2: sender, 3: both
-	midi_ci_verison	Supported MIDI-CI version number (8 bit)
-	is_midi1	Legacy MIDI 1.0 device (0-2)
-			0: MIDI 2.0 device,
-			1: MIDI 1.0 without restriction, or
-			2: MIDI 1.0 with low speed
-	sysex8_streams	Max number of SysEx8 streams (8 bit)
-	active		Bool flag for FB activity (0 or 1)
-	===============	===============================================
+	=================	===============================================
+	name			Function Block name string
+	direction		Direction of this FB
+				1: input, 2: output, or 3: bidirectional
+	first_group		The first UMP Group number (0-15)
+	num_groups		The number of groups in this FB (1-16)
+	midi1_first_group	The first UMP Group number for MIDI 1.0 (0-15)
+	midi1_num_groups	The number of groups for MIDI 1.0 (0-16)
+	ui_hint			UI-hint of this FB
+				0: unknown, 1: receiver, 2: sender, 3: both
+	midi_ci_verison		Supported MIDI-CI version number (8 bit)
+	is_midi1		Legacy MIDI 1.0 device (0-2)
+				0: MIDI 2.0 device,
+				1: MIDI 1.0 without restriction, or
+				2: MIDI 1.0 with low speed
+	sysex8_streams		Max number of SysEx8 streams (8 bit)
+	active			Bool flag for FB activity (0 or 1)
+	=================	===============================================
 
 If multiple Function Blocks are required, you can add more Function
 Blocks by creating subdirectories "block.<num>" with the corresponding

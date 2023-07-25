@@ -18,6 +18,8 @@ struct f_midi2_block_info {
 	unsigned int direction;		/* FB direction: 1-3 */
 	unsigned int first_group;	/* first UMP group: 0-15 */
 	unsigned int num_groups;	/* number of UMP groups: 1-16 */
+	unsigned int midi1_first_group;	/* first UMP group for MIDI 1.0 */
+	unsigned int midi1_num_groups;	/* number of UMP groups for MIDI 1.0 */
 	unsigned int ui_hint;		/* UI-hint: 0-3 */
 	unsigned int midi_ci_version;	/* MIDI-CI version: 0-255 */
 	unsigned int sysex8_streams;	/* number of sysex8 streams: 0-255 */
