@@ -128,8 +128,8 @@ int ptrace_tm_spd_vsx(void)
 	pid_t pid;
 	int ret, status, i;
 
-	SKIP_IF(!have_htm());
-	SKIP_IF(htm_is_synthetic());
+	SKIP_IF_MSG(!have_htm(), "Don't have transactional memory");
+	SKIP_IF_MSG(htm_is_synthetic(), "Transactional memory is synthetic");
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 3, 0777|IPC_CREAT);
 
 	for (i = 0; i < 128; i++) {

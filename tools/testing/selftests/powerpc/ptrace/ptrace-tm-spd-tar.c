@@ -128,8 +128,8 @@ int ptrace_tm_spd_tar(void)
 	pid_t pid;
 	int ret, status;
 
-	SKIP_IF(!have_htm());
-	SKIP_IF(htm_is_synthetic());
+	SKIP_IF_MSG(!have_htm(), "Don't have transactional memory");
+	SKIP_IF_MSG(htm_is_synthetic(), "Transactional memory is synthetic");
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 3, 0777|IPC_CREAT);
 	pid = fork();
 	if (pid == 0)

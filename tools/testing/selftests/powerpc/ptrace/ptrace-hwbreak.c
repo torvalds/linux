@@ -603,7 +603,7 @@ static int ptrace_hwbreak(void)
 	wait(NULL);
 
 	get_dbginfo(child_pid, &dbginfo);
-	SKIP_IF(dbginfo.num_data_bps == 0);
+	SKIP_IF_MSG(dbginfo.num_data_bps == 0, "No data breakpoints present");
 
 	dawr = dawr_present(&dbginfo);
 	run_tests(child_pid, &dbginfo, dawr);

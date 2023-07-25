@@ -641,10 +641,10 @@ static int ptrace_perf_hwbreak(void)
 	wait(NULL); /* <-- child (SIGUSR1) */
 
 	get_dbginfo(child_pid, &dbginfo);
-	SKIP_IF(dbginfo.num_data_bps <= 1);
+	SKIP_IF_MSG(dbginfo.num_data_bps <= 1, "Not enough data watchpoints (need at least 2)");
 
 	ret = perf_cpu_event_open(0, (__u64)perf_data1, sizeof(*perf_data1));
-	SKIP_IF(ret < 0);
+	SKIP_IF_MSG(ret < 0, "perf_event_open syscall failed");
 	close(ret);
 
 	ret = test(child_pid);
