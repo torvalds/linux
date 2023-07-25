@@ -912,7 +912,8 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 			*ksize = kb->head.bitlen;
 
 		rc = ep11_findcard2(&_apqns, &_nr_apqns, *cardnr, *domain,
-				    ZCRYPT_CEX7, EP11_API_V, kb->wkvp);
+				    ZCRYPT_CEX7, EP11_API_V,
+				    ep11_kb_wkvp(key, keylen));
 		if (rc)
 			goto out;
 
@@ -922,6 +923,30 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 		*cardnr = ((struct pkey_apqn *)_apqns)->card;
 		*domain = ((struct pkey_apqn *)_apqns)->domain;
 
+	} else if (hdr->type == TOKTYPE_NON_CCA &&
+		   hdr->version == TOKVER_EP11_AES_WITH_HEADER) {
+		struct ep11kblob_header *kh = (struct ep11kblob_header *)key;
+
+		rc = ep11_check_aes_key_with_hdr(debug_info, 3,
+						 key, keylen, 1);
+		if (rc)
+			goto out;
+		if (ktype)
+			*ktype = PKEY_TYPE_EP11_AES;
+		if (ksize)
+			*ksize = kh->bitlen;
+
+		rc = ep11_findcard2(&_apqns, &_nr_apqns, *cardnr, *domain,
+				    ZCRYPT_CEX7, EP11_API_V,
+				    ep11_kb_wkvp(key, keylen));
+		if (rc)
+			goto out;
+
+		if (flags)
+			*flags = PKEY_FLAGS_MATCH_CUR_MKVP;
+
+		*cardnr = ((struct pkey_apqn *)_apqns)->card;
+		*domain = ((struct pkey_apqn *)_apqns)->domain;
 	} else {
 		rc = -EINVAL;
 	}
