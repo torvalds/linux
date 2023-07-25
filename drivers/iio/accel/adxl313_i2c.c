@@ -65,9 +65,7 @@ static int adxl313_i2c_probe(struct i2c_client *client)
 	 * Retrieves device specific data as a pointer to a
 	 * adxl313_chip_info structure
 	 */
-	chip_data = device_get_match_data(&client->dev);
-	if (!chip_data)
-		chip_data = (const struct adxl313_chip_info *)i2c_match_id(adxl313_i2c_id, client)->driver_data;
+	chip_data = i2c_get_match_data(client);
 
 	regmap = devm_regmap_init_i2c(client,
 				      &adxl31x_i2c_regmap_config[chip_data->type]);
