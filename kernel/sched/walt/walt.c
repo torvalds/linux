@@ -3721,9 +3721,9 @@ static inline void pipeline_set_boost(bool boost, int flag)
 	struct walt_sched_cluster *cluster;
 
 	if (!boost)
-		enable_pipeline_boost &= ~flag;
+		enable_pipeline_boost &= ~(1 << flag);
 	else
-		enable_pipeline_boost |= flag;
+		enable_pipeline_boost |= (1 << flag);
 
 	if (isolation_boost && !enable_pipeline_boost) {
 		isolation_boost = false;
