@@ -97,8 +97,6 @@ properties:
         properties:
           regulator-name:
             pattern: "^BUCK([1-2])$"
-            description: |
-              BUCK2 present in DA9122, DA9220, DA9131, DA9132 only
 
           regulator-initial-mode:
             enum: [ 0, 1, 2, 3 ]
@@ -121,6 +119,23 @@ required:
   - compatible
   - reg
   - regulators
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              enum:
+                - dlg,da9122
+                - dlg,da9131
+                - dlg,da9132
+                - dlg,da9220
+    then:
+      properties:
+        regulators:
+          properties:
+            buck2: false
 
 additionalProperties: false
 
