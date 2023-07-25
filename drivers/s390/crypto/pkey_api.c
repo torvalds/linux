@@ -212,7 +212,8 @@ static int pkey_clr2ep11key(const u8 *clrkey, size_t clrkeylen,
 		card = apqns[i] >> 16;
 		dom = apqns[i] & 0xFFFF;
 		rc = ep11_clr2keyblob(card, dom, clrkeylen * 8,
-				      0, clrkey, keybuf, keybuflen);
+				      0, clrkey, keybuf, keybuflen,
+				      PKEY_TYPE_EP11);
 		if (rc == 0)
 			break;
 	}
@@ -627,6 +628,11 @@ static int pkey_clr2seckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 		if (*keybufsize < MINEP11AESKEYBLOBSIZE)
 			return -EINVAL;
 		break;
+	case PKEY_TYPE_EP11_AES:
+		if (*keybufsize < (sizeof(struct ep11kblob_header) +
+				   MINEP11AESKEYBLOBSIZE))
+			return -EINVAL;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -645,9 +651,11 @@ static int pkey_clr2seckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
 		card = apqns[i].card;
 		dom = apqns[i].domain;
-		if (ktype == PKEY_TYPE_EP11) {
+		if (ktype == PKEY_TYPE_EP11 ||
+		    ktype == PKEY_TYPE_EP11_AES) {
 			rc = ep11_clr2keyblob(card, dom, ksize, kflags,
-					      clrkey, keybuf, keybufsize);
+					      clrkey, keybuf, keybufsize,
+					      ktype);
 		} else if (ktype == PKEY_TYPE_CCA_DATA) {
 			rc = cca_clr2seckey(card, dom, ksize,
 					    clrkey, keybuf);
@@ -1361,7 +1369,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		apqns = _copy_apqns_from_user(kcs.apqns, kcs.apqn_entries);
 		if (IS_ERR(apqns))
 			return PTR_ERR(apqns);
-		kkey = kmalloc(klen, GFP_KERNEL);
+		kkey = kzalloc(klen, GFP_KERNEL);
 		if (!kkey) {
 			kfree(apqns);
 			return -ENOMEM;

@@ -1000,12 +1000,12 @@ out:
 	return rc;
 }
 
-static int ep11_unwrapkey(u16 card, u16 domain,
-			  const u8 *kek, size_t keksize,
-			  const u8 *enckey, size_t enckeysize,
-			  u32 mech, const u8 *iv,
-			  u32 keybitsize, u32 keygenflags,
-			  u8 *keybuf, size_t *keybufsize)
+static int _ep11_unwrapkey(u16 card, u16 domain,
+			   const u8 *kek, size_t keksize,
+			   const u8 *enckey, size_t enckeysize,
+			   u32 mech, const u8 *iv,
+			   u32 keybitsize, u32 keygenflags,
+			   u8 *keybuf, size_t *keybufsize)
 {
 	struct uw_req_pl {
 		struct pl_head head;
@@ -1042,7 +1042,6 @@ static int ep11_unwrapkey(u16 card, u16 domain,
 	struct ep11_cprb *req = NULL, *rep = NULL;
 	struct ep11_target_dev target;
 	struct ep11_urb *urb = NULL;
-	struct ep11keyblob *kb;
 	size_t req_pl_size;
 	int api, rc = -ENOMEM;
 	u8 *p;
@@ -1124,20 +1123,51 @@ static int ep11_unwrapkey(u16 card, u16 domain,
 		goto out;
 	}
 
-	/* copy key blob and set header values */
+	/* copy key blob */
 	memcpy(keybuf, rep_pl->data, rep_pl->data_len);
 	*keybufsize = rep_pl->data_len;
-	kb = (struct ep11keyblob *)keybuf;
-	kb->head.type = TOKTYPE_NON_CCA;
-	kb->head.len = rep_pl->data_len;
-	kb->head.version = TOKVER_EP11_AES;
-	kb->head.bitlen = keybitsize;
 
 out:
 	kfree(req);
 	kfree(rep);
 	kfree(urb);
 	return rc;
+}
+
+static int ep11_unwrapkey(u16 card, u16 domain,
+			  const u8 *kek, size_t keksize,
+			  const u8 *enckey, size_t enckeysize,
+			  u32 mech, const u8 *iv,
+			  u32 keybitsize, u32 keygenflags,
+			  u8 *keybuf, size_t *keybufsize,
+			  u8 keybufver)
+{
+	struct ep11kblob_header *hdr;
+	size_t hdr_size, pl_size;
+	u8 *pl;
+	int rc;
+
+	rc = ep11_kb_split(keybuf, *keybufsize, keybufver,
+			   &hdr, &hdr_size, &pl, &pl_size);
+	if (rc)
+		return rc;
+
+	rc = _ep11_unwrapkey(card, domain, kek, keksize, enckey, enckeysize,
+			     mech, iv, keybitsize, keygenflags,
+			     pl, &pl_size);
+	if (rc)
+		return rc;
+
+	*keybufsize = hdr_size + pl_size;
+
+	/* update header information */
+	hdr = (struct ep11kblob_header *)keybuf;
+	hdr->type = TOKTYPE_NON_CCA;
+	hdr->len = *keybufsize;
+	hdr->version = keybufver;
+	hdr->bitlen = keybitsize;
+
+	return 0;
 }
 
 static int ep11_wrapkey(u16 card, u16 domain,
@@ -1274,7 +1304,8 @@ out:
 }
 
 int ep11_clr2keyblob(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
-		     const u8 *clrkey, u8 *keybuf, size_t *keybufsize)
+		     const u8 *clrkey, u8 *keybuf, size_t *keybufsize,
+		     u32 keytype)
 {
 	int rc;
 	u8 encbuf[64], *kek = NULL;
@@ -1321,7 +1352,7 @@ int ep11_clr2keyblob(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
 	/* Step 3: import the encrypted key value as a new key */
 	rc = ep11_unwrapkey(card, domain, kek, keklen,
 			    encbuf, encbuflen, 0, def_iv,
-			    keybitsize, 0, keybuf, keybufsize);
+			    keybitsize, 0, keybuf, keybufsize, keytype);
 	if (rc) {
 		DEBUG_ERR(
 			"%s importing key value as new key failed,, rc=%d\n",
