@@ -257,14 +257,19 @@ static void test_stream_multiconn_server(const struct test_opts *opts)
 
 #define MSG_PEEK_BUF_LEN 64
 
-static void test_stream_msg_peek_client(const struct test_opts *opts)
+static void test_msg_peek_client(const struct test_opts *opts,
+				 bool seqpacket)
 {
 	unsigned char buf[MSG_PEEK_BUF_LEN];
 	ssize_t send_size;
 	int fd;
 	int i;
 
-	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	if (seqpacket)
+		fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	else
+		fd = vsock_stream_connect(opts->peer_cid, 1234);
+
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -290,7 +295,8 @@ static void test_stream_msg_peek_client(const struct test_opts *opts)
 	close(fd);
 }
 
-static void test_stream_msg_peek_server(const struct test_opts *opts)
+static void test_msg_peek_server(const struct test_opts *opts,
+				 bool seqpacket)
 {
 	unsigned char buf_half[MSG_PEEK_BUF_LEN / 2];
 	unsigned char buf_normal[MSG_PEEK_BUF_LEN];
@@ -298,7 +304,11 @@ static void test_stream_msg_peek_server(const struct test_opts *opts)
 	ssize_t res;
 	int fd;
 
-	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (seqpacket)
+		fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	else
+		fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -340,6 +350,21 @@ static void test_stream_msg_peek_server(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
+	if (seqpacket) {
+		/* This type of socket supports MSG_TRUNC flag,
+		 * so check it with MSG_PEEK. We must get length
+		 * of the message.
+		 */
+		res = recv(fd, buf_half, sizeof(buf_half), MSG_PEEK |
+			   MSG_TRUNC);
+		if (res != sizeof(buf_peek)) {
+			fprintf(stderr,
+				"recv(2) + MSG_PEEK | MSG_TRUNC, exp %zu, got %zi\n",
+				sizeof(buf_half), res);
+			exit(EXIT_FAILURE);
+		}
+	}
+
 	res = recv(fd, buf_normal, sizeof(buf_normal), 0);
 	if (res != sizeof(buf_normal)) {
 		fprintf(stderr, "recv(2), expected %zu, got %zi\n",
@@ -354,6 +379,16 @@ static void test_stream_msg_peek_server(const struct test_opts *opts)
 	}
 
 	close(fd);
+}
+
+static void test_stream_msg_peek_client(const struct test_opts *opts)
+{
+	return test_msg_peek_client(opts, false);
+}
+
+static void test_stream_msg_peek_server(const struct test_opts *opts)
+{
+	return test_msg_peek_server(opts, false);
 }
 
 #define SOCK_BUF_SIZE (2 * 1024 * 1024)
@@ -1125,6 +1160,16 @@ static void test_stream_virtio_skb_merge_server(const struct test_opts *opts)
 	close(fd);
 }
 
+static void test_seqpacket_msg_peek_client(const struct test_opts *opts)
+{
+	return test_msg_peek_client(opts, true);
+}
+
+static void test_seqpacket_msg_peek_server(const struct test_opts *opts)
+{
+	return test_msg_peek_server(opts, true);
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -1199,6 +1244,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM virtio skb merge",
 		.run_client = test_stream_virtio_skb_merge_client,
 		.run_server = test_stream_virtio_skb_merge_server,
+	},
+	{
+		.name = "SOCK_SEQPACKET MSG_PEEK",
+		.run_client = test_seqpacket_msg_peek_client,
+		.run_server = test_seqpacket_msg_peek_server,
 	},
 	{},
 };
