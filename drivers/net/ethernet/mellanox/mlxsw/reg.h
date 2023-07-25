@@ -9644,14 +9644,6 @@ static inline void mlxsw_reg_mtbr_temp_unpack(char *payload, int rec_ind,
 
 MLXSW_REG_DEFINE(mcia, MLXSW_REG_MCIA_ID, MLXSW_REG_MCIA_LEN);
 
-/* reg_mcia_l
- * Lock bit. Setting this bit will lock the access to the specific
- * cable. Used for updating a full page in a cable EPROM. Any access
- * other then subsequence writes will fail while the port is locked.
- * Access: RW
- */
-MLXSW_ITEM32(reg, mcia, l, 0x00, 31, 1);
-
 /* reg_mcia_module
  * Module number.
  * Access: Index
@@ -9764,14 +9756,12 @@ MLXSW_ITEM_BUF(reg, mcia, eeprom, 0x10, MLXSW_REG_MCIA_EEPROM_SIZE);
 				MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH + 1)
 
 static inline void mlxsw_reg_mcia_pack(char *payload, u8 slot_index, u8 module,
-				       u8 lock, u8 page_number,
-				       u16 device_addr, u8 size,
+				       u8 page_number, u16 device_addr, u8 size,
 				       u8 i2c_device_addr)
 {
 	MLXSW_REG_ZERO(mcia, payload);
 	mlxsw_reg_mcia_slot_set(payload, slot_index);
 	mlxsw_reg_mcia_module_set(payload, module);
-	mlxsw_reg_mcia_l_set(payload, lock);
 	mlxsw_reg_mcia_page_number_set(payload, page_number);
 	mlxsw_reg_mcia_device_address_set(payload, device_addr);
 	mlxsw_reg_mcia_size_set(payload, size);

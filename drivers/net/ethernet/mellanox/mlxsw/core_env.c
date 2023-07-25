@@ -111,7 +111,7 @@ mlxsw_env_validate_cable_ident(struct mlxsw_core *core, u8 slot_index, int id,
 	if (err)
 		return err;
 
-	mlxsw_reg_mcia_pack(mcia_pl, slot_index, id, 0,
+	mlxsw_reg_mcia_pack(mcia_pl, slot_index, id,
 			    MLXSW_REG_MCIA_PAGE0_LO_OFF, 0, 1,
 			    MLXSW_REG_MCIA_I2C_ADDR_LOW);
 	err = mlxsw_reg_query(core, MLXSW_REG(mcia), mcia_pl);
@@ -188,7 +188,7 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, u8 slot_index,
 		}
 	}
 
-	mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0, page, offset, size,
+	mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, page, offset, size,
 			    i2c_addr);
 
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcia), mcia_pl);
@@ -266,12 +266,12 @@ mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, u8 slot_index,
 			page = MLXSW_REG_MCIA_TH_PAGE_CMIS_NUM;
 		else
 			page = MLXSW_REG_MCIA_TH_PAGE_NUM;
-		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0, page,
+		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, page,
 				    MLXSW_REG_MCIA_TH_PAGE_OFF + off,
 				    MLXSW_REG_MCIA_TH_ITEM_SIZE,
 				    MLXSW_REG_MCIA_I2C_ADDR_LOW);
 	} else {
-		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0,
+		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module,
 				    MLXSW_REG_MCIA_PAGE0_LO,
 				    off, MLXSW_REG_MCIA_TH_ITEM_SIZE,
 				    MLXSW_REG_MCIA_I2C_ADDR_HIGH);
@@ -491,7 +491,7 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core,
 		size = min_t(u8, page->length - bytes_read,
 			     MLXSW_REG_MCIA_EEPROM_SIZE);
 
-		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0, page->page,
+		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, page->page,
 				    device_addr + bytes_read, size,
 				    page->i2c_address);
 		mlxsw_reg_mcia_bank_number_set(mcia_pl, page->bank);
