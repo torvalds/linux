@@ -175,7 +175,7 @@ static int rt722_sdca_update_status(struct sdw_slave *slave,
 		 * This also could sync with the cache value as the rt722_sdca_jack_init set.
 		 */
 			sdw_write_no_pm(rt722->slave, SDW_SCP_SDCA_INTMASK1,
-				SDW_SCP_SDCA_INTMASK_SDCA_0 | SDW_SCP_SDCA_INTMASK_SDCA_6);
+				SDW_SCP_SDCA_INTMASK_SDCA_6);
 			sdw_write_no_pm(rt722->slave, SDW_SCP_SDCA_INTMASK2,
 				SDW_SCP_SDCA_INTMASK_SDCA_8);
 		}

@@ -2148,7 +2148,7 @@ static const struct regmap_config wm8904_regmap = {
 	.volatile_reg = wm8904_volatile_register,
 	.readable_reg = wm8904_readable_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm8904_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8904_reg_defaults),
 };

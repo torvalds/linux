@@ -272,10 +272,6 @@ extern u64 tracing_map_read_sum(struct tracing_map_elt *elt, unsigned int i);
 extern u64 tracing_map_read_var(struct tracing_map_elt *elt, unsigned int i);
 extern u64 tracing_map_read_var_once(struct tracing_map_elt *elt, unsigned int i);
 
-extern void tracing_map_set_field_descr(struct tracing_map *map,
-					unsigned int i,
-					unsigned int key_offset,
-					tracing_map_cmp_fn_t cmp_fn);
 extern int
 tracing_map_sort_entries(struct tracing_map *map,
 			 struct tracing_map_sort_key *sort_keys,

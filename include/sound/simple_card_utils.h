@@ -192,9 +192,8 @@ int asoc_simple_remove(struct platform_device *pdev);
 
 int asoc_graph_card_probe(struct snd_soc_card *card);
 int asoc_graph_is_ports0(struct device_node *port);
-int asoc_graph_parse_dai(struct device_node *ep,
-			 struct snd_soc_dai_link_component *dlc,
-			 int *is_single_link);
+int asoc_graph_parse_dai(struct device *dev, struct device_node *ep,
+			 struct snd_soc_dai_link_component *dlc, int *is_single_link);
 
 #ifdef DEBUG
 static inline void asoc_simple_debug_dai(struct asoc_simple_priv *priv,

@@ -472,7 +472,7 @@ const struct regmap_config adau1781_regmap_config = {
 	.readable_reg		= adau1781_readable_register,
 	.volatile_reg		= adau17x1_volatile_register,
 	.precious_reg		= adau17x1_precious_register,
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_GPL(adau1781_regmap_config);
 

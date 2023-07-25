@@ -11,7 +11,7 @@
 #include <linux/spi/spi.h>
 
 #include <media/dvb_frontend.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 
 #include "cxd2880.h"
 #include "cxd2880_tnrdmd_mon.h"

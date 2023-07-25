@@ -30,7 +30,7 @@ static struct sdw_dma_ring_buf_reg sdw0_dma_ring_buf_reg[ACP63_SDW0_DMA_MAX_STRE
 	 ACP_AUDIO2_TX_LINEARPOSITIONCNTR_LOW, ACP_AUDIO2_TX_LINEARPOSITIONCNTR_HIGH},
 	{ACP_AUDIO0_RX_DMA_SIZE, ACP_AUDIO0_RX_FIFOADDR, ACP_AUDIO0_RX_FIFOSIZE,
 	 ACP_AUDIO0_RX_RINGBUFSIZE, ACP_AUDIO0_RX_RINGBUFADDR, ACP_AUDIO0_RX_INTR_WATERMARK_SIZE,
-	 ACP_AUDIO0_TX_LINEARPOSITIONCNTR_LOW, ACP_AUDIO0_TX_LINEARPOSITIONCNTR_HIGH},
+	 ACP_AUDIO0_RX_LINEARPOSITIONCNTR_LOW, ACP_AUDIO0_RX_LINEARPOSITIONCNTR_HIGH},
 	{ACP_AUDIO1_RX_DMA_SIZE, ACP_AUDIO1_RX_FIFOADDR, ACP_AUDIO1_RX_FIFOSIZE,
 	 ACP_AUDIO1_RX_RINGBUFSIZE, ACP_AUDIO1_RX_RINGBUFADDR, ACP_AUDIO1_RX_INTR_WATERMARK_SIZE,
 	 ACP_AUDIO1_RX_LINEARPOSITIONCNTR_LOW, ACP_AUDIO1_RX_LINEARPOSITIONCNTR_HIGH},
@@ -39,6 +39,11 @@ static struct sdw_dma_ring_buf_reg sdw0_dma_ring_buf_reg[ACP63_SDW0_DMA_MAX_STRE
 	 ACP_AUDIO2_RX_LINEARPOSITIONCNTR_LOW, ACP_AUDIO2_RX_LINEARPOSITIONCNTR_HIGH}
 };
 
+/*
+ * SDW1 instance supports one TX stream and one RX stream.
+ * For TX/RX streams DMA registers programming for SDW1 instance, it uses ACP_P1_AUDIO1 register
+ * set as per hardware register documentation
+ */
 static struct sdw_dma_ring_buf_reg sdw1_dma_ring_buf_reg[ACP63_SDW1_DMA_MAX_STREAMS] =  {
 	{ACP_P1_AUDIO1_TX_DMA_SIZE, ACP_P1_AUDIO1_TX_FIFOADDR, ACP_P1_AUDIO1_TX_FIFOSIZE,
 	 ACP_P1_AUDIO1_TX_RINGBUFSIZE, ACP_P1_AUDIO1_TX_RINGBUFADDR,
@@ -59,6 +64,12 @@ static u32 sdw0_dma_enable_reg[ACP63_SDW0_DMA_MAX_STREAMS] = {
 	ACP_SW0_AUDIO2_RX_EN,
 };
 
+/*
+ * SDW1 instance supports one TX stream and one RX stream.
+ * For TX/RX streams DMA enable register programming for SDW1 instance,
+ * it uses ACP_SW1_AUDIO1_TX_EN and ACP_SW1_AUDIO1_RX_EN registers
+ * as per hardware register documentation.
+ */
 static u32 sdw1_dma_enable_reg[ACP63_SDW1_DMA_MAX_STREAMS] = {
 	ACP_SW1_AUDIO1_TX_EN,
 	ACP_SW1_AUDIO1_RX_EN,
@@ -307,12 +318,13 @@ static u64 acp63_sdw_get_byte_count(struct acp_sdw_dma_stream *stream, void __io
 		pos_high_reg = sdw1_dma_ring_buf_reg[stream->stream_id].pos_high_reg;
 		break;
 	default:
-		return -EINVAL;
+		goto POINTER_RETURN_BYTES;
 	}
 	if (pos_low_reg) {
 		byte_count.bcount.high = readl(acp_base + pos_high_reg);
 		byte_count.bcount.low = readl(acp_base + pos_low_reg);
 	}
+POINTER_RETURN_BYTES:
 	return byte_count.bytescount;
 }
 
@@ -476,10 +488,9 @@ static int acp63_sdw_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int acp63_sdw_platform_remove(struct platform_device *pdev)
+static void acp63_sdw_platform_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static int acp_restore_sdw_dma_config(struct sdw_dma_dev_data *sdw_data)
@@ -540,7 +551,7 @@ static const struct dev_pm_ops acp63_pm_ops = {
 
 static struct platform_driver acp63_sdw_dma_driver = {
 	.probe = acp63_sdw_platform_probe,
-	.remove = acp63_sdw_platform_remove,
+	.remove_new = acp63_sdw_platform_remove,
 	.driver = {
 		.name = "amd_ps_sdw_dma",
 		.pm = &acp63_pm_ops,

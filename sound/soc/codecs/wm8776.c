@@ -451,7 +451,7 @@ static const struct regmap_config wm8776_regmap = {
 
 	.reg_defaults = wm8776_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8776_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = wm8776_volatile,
 };

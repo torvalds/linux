@@ -1732,7 +1732,8 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 
 	ret = snd_soc_add_pcm_runtimes(tplg->comp->card, link, 1);
 	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: adding FE link failed\n");
+		if (ret != -EPROBE_DEFER)
+			dev_err(tplg->dev, "ASoC: adding FE link failed\n");
 		goto err;
 	}
 
@@ -2492,8 +2493,11 @@ static int soc_tplg_process_headers(struct soc_tplg *tplg)
 			/* load the header object */
 			ret = soc_tplg_load_header(tplg, hdr);
 			if (ret < 0) {
-				dev_err(tplg->dev,
-					"ASoC: topology: could not load header: %d\n", ret);
+				if (ret != -EPROBE_DEFER) {
+					dev_err(tplg->dev,
+						"ASoC: topology: could not load header: %d\n",
+						ret);
+				}
 				return ret;
 			}
 
