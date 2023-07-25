@@ -146,7 +146,7 @@ static int mcs_touchkey_probe(struct i2c_client *client)
 
 	fw_ver = i2c_smbus_read_byte_data(client, fw_reg);
 	if (fw_ver < 0) {
-		dev_err(&client->dev, "i2c read error[%d]\n", error);
+		dev_err(&client->dev, "i2c read error[%d]\n", fw_ver);
 		return fw_ver;
 	}
 	dev_info(&client->dev, "Firmware version: %d\n", fw_ver);
