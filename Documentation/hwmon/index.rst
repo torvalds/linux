@@ -78,6 +78,7 @@ Hardware Monitoring Kernel Drivers
    gxp-fan-ctrl
    hih6130
    hp-wmi-sensors
+   hs3001
    ibmaem
    ibm-cffps
    ibmpowernv
