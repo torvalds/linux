@@ -1106,3 +1106,14 @@ On the host::
 The access to MIDI 1.0 on altset 0 on the host is supported, and it's
 translated from/to UMP packets on the gadget. It's bound to only
 Function Block 0.
+
+The current operation mode can be observed in ALSA control element
+"Operation Mode" for SND_CTL_IFACE_RAWMIDI.  For example::
+
+  $ amixer -c1 contents
+  numid=1,iface=RAWMIDI,name='Operation Mode'
+    ; type=INTEGER,access=r--v----,values=1,min=0,max=2,step=0
+    : values=2
+
+where 0 = unused, 1 = MIDI 1.0 (altset 0), 2 = MIDI 2.0 (altset 1).
+The example above shows it's running in 2, i.e. MIDI 2.0.

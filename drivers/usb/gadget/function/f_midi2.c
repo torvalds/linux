@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 
 #include <sound/core.h>
+#include <sound/control.h>
 #include <sound/ump.h>
 #include <sound/ump_msg.h>
 #include <sound/ump_convert.h>
@@ -1451,6 +1452,36 @@ static const struct snd_ump_ops f_midi2_ump_ops = {
 };
 
 /*
+ * "Operation Mode" control element
+ */
+static int f_midi2_operation_mode_info(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = MIDI_OP_MODE_UNSET;
+	uinfo->value.integer.max = MIDI_OP_MODE_MIDI2;
+	return 0;
+}
+
+static int f_midi2_operation_mode_get(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct f_midi2 *midi2 = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = midi2->operation_mode;
+	return 0;
+}
+
+static const struct snd_kcontrol_new operation_mode_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_RAWMIDI,
+	.name = "Operation Mode",
+	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
+	.info = f_midi2_operation_mode_info,
+	.get = f_midi2_operation_mode_get,
+};
+
+/*
  * ALSA UMP instance creation / deletion
  */
 static void f_midi2_free_card(struct f_midi2 *midi2)
@@ -1546,6 +1577,10 @@ static int f_midi2_create_card(struct f_midi2 *midi2)
 			goto error;
 		id++;
 	}
+
+	err = snd_ctl_add(card, snd_ctl_new1(&operation_mode_ctl, midi2));
+	if (err < 0)
+		goto error;
 
 	err = snd_card_register(card);
 	if (err < 0)
