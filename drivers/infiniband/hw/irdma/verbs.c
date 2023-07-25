@@ -3994,7 +3994,7 @@ static int irdma_attach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
 	if (!ipv6_addr_v4mapped((struct in6_addr *)ibgid)) {
 		irdma_copy_ip_ntohl(ip_addr,
 				    sgid_addr.saddr_in6.sin6_addr.in6_u.u6_addr32);
-		irdma_netdev_vlan_ipv6(ip_addr, &vlan_id, NULL);
+		irdma_get_vlan_mac_ipv6(ip_addr, &vlan_id, NULL);
 		ipv4 = false;
 		ibdev_dbg(&iwdev->ibdev,
 			  "VERBS: qp_id=%d, IP6address=%pI6\n", ibqp->qp_num,

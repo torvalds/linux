@@ -1591,21 +1591,20 @@ done:
 }
 
 /**
- * irdma_netdev_vlan_ipv6 - Gets the netdev and mac
+ * irdma_get_vlan_mac_ipv6 - Gets the vlan and mac
  * @addr: local IPv6 address
  * @vlan_id: vlan id for the given IPv6 address
  * @mac: mac address for the given IPv6 address
  *
- * Returns the net_device of the IPv6 address and also sets the
- * vlan id and mac for that address.
+ * Returns the vlan id and mac for an IPv6 address.
  */
-struct net_device *irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
+void irdma_get_vlan_mac_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
 {
 	struct net_device *ip_dev = NULL;
 	struct in6_addr laddr6;
 
 	if (!IS_ENABLED(CONFIG_IPV6))
-		return NULL;
+		return;
 
 	irdma_copy_ip_htonl(laddr6.in6_u.u6_addr32, addr);
 	if (vlan_id)
@@ -1624,8 +1623,6 @@ struct net_device *irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
 		}
 	}
 	rcu_read_unlock();
-
-	return ip_dev;
 }
 
 /**
@@ -3666,8 +3663,8 @@ int irdma_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		cm_node->vlan_id = irdma_get_vlan_ipv4(cm_node->loc_addr);
 	} else {
 		cm_node->ipv4 = false;
-		irdma_netdev_vlan_ipv6(cm_node->loc_addr, &cm_node->vlan_id,
-				       NULL);
+		irdma_get_vlan_mac_ipv6(cm_node->loc_addr, &cm_node->vlan_id,
+					NULL);
 	}
 	ibdev_dbg(&iwdev->ibdev, "CM: Accept vlan_id=%d\n",
 		  cm_node->vlan_id);
@@ -3875,8 +3872,8 @@ int irdma_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 				    raddr6->sin6_addr.in6_u.u6_addr32);
 		cm_info.loc_port = ntohs(laddr6->sin6_port);
 		cm_info.rem_port = ntohs(raddr6->sin6_port);
-		irdma_netdev_vlan_ipv6(cm_info.loc_addr, &cm_info.vlan_id,
-				       NULL);
+		irdma_get_vlan_mac_ipv6(cm_info.loc_addr, &cm_info.vlan_id,
+					NULL);
 	}
 	cm_info.cm_id = cm_id;
 	cm_info.qh_qpid = iwdev->vsi.ilq->qp_id;
@@ -4005,8 +4002,8 @@ int irdma_create_listen(struct iw_cm_id *cm_id, int backlog)
 				    laddr6->sin6_addr.in6_u.u6_addr32);
 		cm_info.loc_port = ntohs(laddr6->sin6_port);
 		if (ipv6_addr_type(&laddr6->sin6_addr) != IPV6_ADDR_ANY) {
-			irdma_netdev_vlan_ipv6(cm_info.loc_addr,
-					       &cm_info.vlan_id, NULL);
+			irdma_get_vlan_mac_ipv6(cm_info.loc_addr,
+						&cm_info.vlan_id, NULL);
 		} else {
 			cm_info.vlan_id = 0xFFFF;
 			wildcard = true;
