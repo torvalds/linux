@@ -133,7 +133,7 @@ static void xe_pm_runtime_init(struct xe_device *xe)
 	pm_runtime_set_active(dev);
 	pm_runtime_allow(dev);
 	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_put(dev);
 }
 
 void xe_pm_init(struct xe_device *xe)
@@ -289,7 +289,7 @@ int xe_pm_runtime_get(struct xe_device *xe)
 int xe_pm_runtime_put(struct xe_device *xe)
 {
 	pm_runtime_mark_last_busy(xe->drm.dev);
-	return pm_runtime_put_autosuspend(xe->drm.dev);
+	return pm_runtime_put(xe->drm.dev);
 }
 
 int xe_pm_runtime_get_if_active(struct xe_device *xe)
