@@ -60,4 +60,4 @@ config SIEMENS_SIMATIC_IPC_BATT_F7188X
 	  from Siemens based on Nuvoton GPIO.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called simatic-ipc-batt-elkhartlake.
+	  will be called simatic-ipc-batt-f7188x.
