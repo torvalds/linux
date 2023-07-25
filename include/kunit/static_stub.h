@@ -11,7 +11,7 @@
 #if !IS_ENABLED(CONFIG_KUNIT)
 
 /* If CONFIG_KUNIT is not enabled, these stubs quietly disappear. */
-#define KUNIT_TRIGGER_STATIC_STUB(real_fn_name, args...) do {} while (0)
+#define KUNIT_STATIC_STUB_REDIRECT(real_fn_name, args...) do {} while (0)
 
 #else
 
@@ -30,7 +30,7 @@
  * This is a function prologue which is used to allow calls to the current
  * function to be redirected by a KUnit test. KUnit tests can call
  * kunit_activate_static_stub() to pass a replacement function in. The
- * replacement function will be called by KUNIT_TRIGGER_STATIC_STUB(), which
+ * replacement function will be called by KUNIT_STATIC_STUB_REDIRECT(), which
  * will then return from the function. If the caller is not in a KUnit context,
  * the function will continue execution as normal.
  *
@@ -87,7 +87,7 @@ void __kunit_activate_static_stub(struct kunit *test,
  * When activated, calls to real_fn_addr from within this test (even if called
  * indirectly) will instead call replacement_addr. The function pointed to by
  * real_fn_addr must begin with the static stub prologue in
- * KUNIT_TRIGGER_STATIC_STUB() for this to work. real_fn_addr and
+ * KUNIT_STATIC_STUB_REDIRECT() for this to work. real_fn_addr and
  * replacement_addr must have the same type.
  *
  * The redirection can be disabled again with kunit_deactivate_static_stub().
