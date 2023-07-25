@@ -749,6 +749,7 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 	return 0;
 
 release:
+	fwnode_handle_put(child);
 	while (flash_data->v4l2_flash[flash_data->leds_count] && flash_data->leds_count)
 		v4l2_flash_release(flash_data->v4l2_flash[flash_data->leds_count--]);
 	return rc;
