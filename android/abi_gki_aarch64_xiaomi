@@ -306,3 +306,7 @@
   __tracepoint_android_vh_rmqueue_smallest_bypass
   __traceiter_android_vh_free_one_page_bypass
   __tracepoint_android_vh_free_one_page_bypass
+
+# required by SAGT module
+  __traceiter_android_rvh_before_do_sched_yield
+  __tracepoint_android_rvh_before_do_sched_yield

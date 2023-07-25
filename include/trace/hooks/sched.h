@@ -255,6 +255,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_do_sched_yield,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_before_do_sched_yield,
+	TP_PROTO(long *unused),
+	TP_ARGS(unused), 1);
+
 DECLARE_HOOK(android_vh_free_task,
 	TP_PROTO(struct task_struct *p),
 	TP_ARGS(p));

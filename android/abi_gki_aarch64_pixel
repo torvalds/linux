@@ -369,15 +369,19 @@
   devm_clk_put
   devm_device_add_group
   devm_device_add_groups
+  devm_device_remove_group
   __devm_drm_dev_alloc
   devm_drm_panel_bridge_add_typed
   devm_extcon_dev_allocate
   devm_extcon_dev_register
   devm_free_irq
+  devm_fwnode_gpiod_get_index
+  devm_fwnode_pwm_get
   devm_gen_pool_create
   devm_gpiochip_add_data_with_key
   devm_gpiod_get
   devm_gpiod_get_array
+  devm_gpiod_get_index_optional
   devm_gpiod_get_optional
   devm_gpiod_put_array
   devm_gpio_request
@@ -396,6 +400,7 @@
   devm_kmemdup
   devm_kstrdup
   devm_kstrdup_const
+  devm_led_classdev_register_ext
   devm_mfd_add_devices
   devm_nvmem_register
   __devm_of_phy_provider_register
@@ -410,6 +415,7 @@
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
   devm_power_supply_register
+  devm_pwm_get
   devm_regmap_add_irq_chip
   __devm_regmap_init
   __devm_regmap_init_i2c
@@ -742,6 +748,7 @@
   extcon_register_notifier
   extcon_set_property
   extcon_set_property_capability
+  extcon_set_property_sync
   extcon_set_state_sync
   extcon_unregister_notifier
   fasync_helper
@@ -962,8 +969,10 @@
   int_to_scsilun
   iomem_resource
   iommu_alloc_resv_region
+  iommu_attach_device
   iommu_attach_device_pasid
   iommu_attach_group
+  iommu_detach_device
   iommu_detach_device_pasid
   iommu_device_register
   iommu_device_sysfs_add
@@ -1124,6 +1133,7 @@
   kvmalloc_node
   led_classdev_register_ext
   led_classdev_unregister
+  led_init_default_state_get
   __list_add_valid
   __list_del_entry_valid
   list_sort
@@ -1505,6 +1515,7 @@
   __put_task_struct
   put_unused_fd
   put_vaddr_frames
+  pwm_apply_state
   queue_delayed_work_on
   queue_work_on
   radix_tree_delete_item
@@ -1607,6 +1618,7 @@
   regulator_map_voltage_linear
   regulator_notifier_call_chain
   regulator_put
+  regulator_set_active_discharge_regmap
   regulator_set_voltage
   regulator_set_voltage_sel_regmap
   regulator_unregister
@@ -1977,6 +1989,7 @@
   __traceiter_android_rvh_typec_tcpci_get_vbus
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
+  __traceiter_android_vh_enable_thermal_genl_check
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_sysrq_crash
@@ -1997,14 +2010,22 @@
   __traceiter_device_pm_callback_end
   __traceiter_device_pm_callback_start
   __traceiter_gpu_mem_total
+  __traceiter_hrtimer_expire_entry
+  __traceiter_hrtimer_expire_exit
+  __traceiter_irq_handler_entry
+  __traceiter_irq_handler_exit
   __traceiter_mmap_lock_acquire_returned
   __traceiter_mmap_lock_released
   __traceiter_mmap_lock_start_locking
+  __traceiter_sched_switch
   __traceiter_suspend_resume
+  __traceiter_workqueue_execute_end
+  __traceiter_workqueue_execute_start
   trace_output_call
   __tracepoint_android_rvh_typec_tcpci_get_vbus
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
+  __tracepoint_android_vh_enable_thermal_genl_check
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_sysrq_crash
@@ -2025,12 +2046,19 @@
   __tracepoint_device_pm_callback_end
   __tracepoint_device_pm_callback_start
   __tracepoint_gpu_mem_total
+  __tracepoint_hrtimer_expire_entry
+  __tracepoint_hrtimer_expire_exit
+  __tracepoint_irq_handler_entry
+  __tracepoint_irq_handler_exit
   __tracepoint_mmap_lock_acquire_returned
   __tracepoint_mmap_lock_released
   __tracepoint_mmap_lock_start_locking
   tracepoint_probe_register
   tracepoint_probe_unregister
+  __tracepoint_sched_switch
   __tracepoint_suspend_resume
+  __tracepoint_workqueue_execute_end
+  __tracepoint_workqueue_execute_start
   trace_print_array_seq
   trace_print_bitmask_seq
   trace_print_flags_seq
