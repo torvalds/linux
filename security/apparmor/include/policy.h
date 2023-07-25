@@ -227,10 +227,6 @@ extern enum profile_mode aa_g_profile_mode;
 #define profiles_ns(P) ((P)->ns)
 #define name_is_shared(A, B) ((A)->hname && (A)->hname == (B)->hname)
 
-void aa_add_profile(struct aa_policy *common, struct aa_profile *profile);
-
-
-void aa_free_proxy_kref(struct kref *kref);
 struct aa_ruleset *aa_alloc_ruleset(gfp_t gfp);
 struct aa_profile *aa_alloc_profile(const char *name, struct aa_proxy *proxy,
 				    gfp_t gfp);
@@ -239,14 +235,12 @@ struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
 struct aa_profile *aa_new_learning_profile(struct aa_profile *parent, bool hat,
 					   const char *base, gfp_t gfp);
 void aa_free_profile(struct aa_profile *profile);
-void aa_free_profile_kref(struct kref *kref);
 struct aa_profile *aa_find_child(struct aa_profile *parent, const char *name);
 struct aa_profile *aa_lookupn_profile(struct aa_ns *ns, const char *hname,
 				      size_t n);
 struct aa_profile *aa_lookup_profile(struct aa_ns *ns, const char *name);
 struct aa_profile *aa_fqlookupn_profile(struct aa_label *base,
 					const char *fqname, size_t n);
-struct aa_profile *aa_match_profile(struct aa_ns *ns, const char *name);
 
 ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_label *label,
 			    u32 mask, struct aa_loaddata *udata);
