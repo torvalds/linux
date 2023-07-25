@@ -141,10 +141,12 @@ void xe_pm_init(struct xe_device *xe)
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 
 	drmm_mutex_init(&xe->drm, &xe->d3cold.lock);
-	xe_pm_runtime_init(xe);
+
 	xe->d3cold.capable = xe_pm_pci_d3cold_capable(pdev);
 	xe_device_sysfs_init(xe);
 	xe_pm_set_vram_threshold(xe, DEFAULT_VRAM_THRESHOLD);
+
+	xe_pm_runtime_init(xe);
 }
 
 void xe_pm_runtime_fini(struct xe_device *xe)
