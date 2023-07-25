@@ -1860,10 +1860,6 @@ extern void arch_perf_update_userpage(struct perf_event *event,
 				      struct perf_event_mmap_page *userpg,
 				      u64 now);
 
-#ifdef CONFIG_MMU
-extern __weak u64 arch_perf_get_page_size(struct mm_struct *mm, unsigned long addr);
-#endif
-
 /*
  * Snapshot branch stack on software events.
  *
