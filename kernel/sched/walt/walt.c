@@ -84,7 +84,7 @@ unsigned int __read_mostly sched_init_task_load_windows;
  */
 unsigned int __read_mostly sched_load_granule;
 
-int enable_shared_rail_boost;
+unsigned int enable_pipeline_boost;
 
 u64 walt_sched_clock(void)
 {
@@ -697,7 +697,7 @@ cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *reaso
 	bool shared_rail = false;
 
 	if (cpumask_test_cpu(cpu, &shared_rail_sibling_cpus) &&
-			enable_shared_rail_boost) {
+			enable_pipeline_boost) {
 		for_each_cpu(i, &shared_rail_sibling_cpus) {
 			if (i == (num_possible_cpus() - 1))
 				util = __cpu_util_freq_walt(i, &wl_prime, reason);
@@ -3720,7 +3720,12 @@ static inline void pipeline_set_boost(bool boost, int flag)
 	static bool isolation_boost;
 	struct walt_sched_cluster *cluster;
 
-	if (isolation_boost && !boost) {
+	if (!boost)
+		enable_pipeline_boost &= ~flag;
+	else
+		enable_pipeline_boost |= flag;
+
+	if (isolation_boost && !enable_pipeline_boost) {
 		isolation_boost = false;
 
 		for_each_sched_cluster(cluster) {
@@ -3728,8 +3733,7 @@ static inline void pipeline_set_boost(bool boost, int flag)
 			    is_max_possible_cluster_cpu(cpumask_first(&cluster->cpus)))
 				core_ctl_set_cluster_boost(cluster->id, false);
 		}
-		enable_shared_rail_boost &= ~flag;
-	} else if (!isolation_boost && boost) {
+	} else if (!isolation_boost && enable_pipeline_boost) {
 		isolation_boost = true;
 
 		for_each_sched_cluster(cluster) {
@@ -3737,7 +3741,26 @@ static inline void pipeline_set_boost(bool boost, int flag)
 			    is_max_possible_cluster_cpu(cpumask_first(&cluster->cpus)))
 				core_ctl_set_cluster_boost(cluster->id, true);
 		}
-		enable_shared_rail_boost |= flag;
+	}
+}
+
+/*
+ * sysctl_sched_heavy_nr can change at any moment in time. as a result,
+ * the ability to set/clear boost state for a particular type of pipeline,
+ * is hindered. Detect a transition and reset the boost state of the pipeline
+ * method no longer in use.
+ */
+static inline void pipeline_reset_boost(void)
+{
+	static unsigned int last_sched_heavy_nr;
+
+	if (sysctl_sched_heavy_nr != last_sched_heavy_nr) {
+		if (sysctl_sched_heavy_nr)
+			pipeline_set_boost(MANUAL_PIPELINE, false);
+		else
+			pipeline_set_boost(AUTO_PIPELINE, false);
+
+		last_sched_heavy_nr = sysctl_sched_heavy_nr;
 	}
 }
 
@@ -4304,7 +4327,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 			return;
 
 		if (cpumask_intersects(&lock_cpus, &shared_rail_sibling_cpus) &&
-				enable_shared_rail_boost) {
+				enable_pipeline_boost) {
 			cpumask_or(&lock_cpus, &lock_cpus, &shared_rail_sibling_cpus);
 			is_shared_rail_migration = true;
 		}
@@ -4341,6 +4364,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 		find_heaviest_topapp(wrq->window_start);
 		rearrange_heavy(wrq->window_start);
 		rearrange_pipeline_preferred_cpus(wrq->window_start);
+		pipeline_reset_boost();
 		core_ctl_check(wrq->window_start, wakeup_ctr_sum);
 	}
 }
