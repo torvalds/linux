@@ -27,12 +27,17 @@
 #include <linux/elf-randomize.h>
 
 /*
- * Construct an artificial page offset for the mapping based on the physical
+ * Construct an artificial page offset for the mapping based on the virtual
  * address of the kernel file mapping variable.
+ * If filp is zero the calculated pgoff value aliases the memory of the given
+ * address. This is useful for io_uring where the mapping shall alias a kernel
+ * address and a userspace adress where both the kernel and the userspace
+ * access the same memory region.
  */
-#define GET_FILP_PGOFF(filp)		\
-	(filp ? (((unsigned long) filp->f_mapping) >> 8)	\
-		 & ((SHM_COLOUR-1) >> PAGE_SHIFT) : 0UL)
+#define GET_FILP_PGOFF(filp, addr)		\
+	((filp ? (((unsigned long) filp->f_mapping) >> 8)	\
+		 & ((SHM_COLOUR-1) >> PAGE_SHIFT) : 0UL)	\
+	  + (addr >> PAGE_SHIFT))
 
 static unsigned long shared_align_offset(unsigned long filp_pgoff,
 					 unsigned long pgoff)
@@ -112,7 +117,7 @@ static unsigned long arch_get_unmapped_area_common(struct file *filp,
 	do_color_align = 0;
 	if (filp || (flags & MAP_SHARED))
 		do_color_align = 1;
-	filp_pgoff = GET_FILP_PGOFF(filp);
+	filp_pgoff = GET_FILP_PGOFF(filp, addr);
 
 	if (flags & MAP_FIXED) {
 		/* Even MAP_FIXED mappings must reside within TASK_SIZE */

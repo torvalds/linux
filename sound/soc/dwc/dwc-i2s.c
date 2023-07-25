@@ -183,7 +183,15 @@ static void i2s_start(struct dw_i2s_dev *dev,
 {
 	struct i2s_clk_config_data *config = &dev->config;
 
-	i2s_write_reg(dev->i2s_base, IER, 1);
+	u32 reg = IER_IEN;
+
+	if (dev->tdm_slots) {
+		reg |= (dev->tdm_slots - 1) << IER_TDM_SLOTS_SHIFT;
+		reg |= IER_INTF_TYPE;
+		reg |= dev->frame_offset << IER_FRAME_OFF_SHIFT;
+	}
+
+	i2s_write_reg(dev->i2s_base, IER, reg);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		i2s_write_reg(dev->i2s_base, ITER, 1);
@@ -233,13 +241,15 @@ static void dw_i2s_config(struct dw_i2s_dev *dev, int stream)
 				      dev->xfer_resolution);
 			i2s_write_reg(dev->i2s_base, TFCR(ch_reg),
 				      dev->fifo_th - 1);
-			i2s_write_reg(dev->i2s_base, TER(ch_reg), 1);
+			i2s_write_reg(dev->i2s_base, TER(ch_reg), TER_TXCHEN |
+				      dev->tdm_mask << TER_TXSLOT_SHIFT);
 		} else {
 			i2s_write_reg(dev->i2s_base, RCR(ch_reg),
 				      dev->xfer_resolution);
 			i2s_write_reg(dev->i2s_base, RFCR(ch_reg),
 				      dev->fifo_th - 1);
-			i2s_write_reg(dev->i2s_base, RER(ch_reg), 1);
+			i2s_write_reg(dev->i2s_base, RER(ch_reg), RER_RXCHEN |
+				      dev->tdm_mask << RER_RXSLOT_SHIFT);
 		}
 
 	}
@@ -275,6 +285,9 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 		dev_err(dev->dev, "designware-i2s: unsupported PCM fmt");
 		return -EINVAL;
 	}
+
+	if (dev->tdm_slots)
+		config->data_width = 32;
 
 	config->chan_nr = params_channels(params);
 
@@ -384,7 +397,50 @@ static int dw_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		ret = -EINVAL;
 		break;
 	}
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_I2S:
+	case SND_SOC_DAIFMT_LEFT_J:
+	case SND_SOC_DAIFMT_RIGHT_J:
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		dev->frame_offset = 1;
+		break;
+	case SND_SOC_DAIFMT_DSP_B:
+		dev->frame_offset = 0;
+		break;
+	default:
+		dev_err(dev->dev, "DAI format unsupported");
+		return -EINVAL;
+	}
+
 	return ret;
+}
+
+static int dw_i2s_set_tdm_slot(struct snd_soc_dai *cpu_dai,	unsigned int tx_mask,
+			   unsigned int rx_mask, int slots, int slot_width)
+{
+	struct dw_i2s_dev *dev = snd_soc_dai_get_drvdata(cpu_dai);
+
+	if (slot_width != 32)
+		return -EINVAL;
+
+	if (slots < 0 || slots > 16)
+		return -EINVAL;
+
+	if (rx_mask != tx_mask)
+		return -EINVAL;
+
+	if (!rx_mask)
+		return -EINVAL;
+
+	dev->tdm_slots = slots;
+	dev->tdm_mask = rx_mask;
+
+	dev->l_reg = RSLOT_TSLOT(ffs(rx_mask) - 1);
+	dev->r_reg = RSLOT_TSLOT(fls(rx_mask) - 1);
+
+	return 0;
 }
 
 static const struct snd_soc_dai_ops dw_i2s_dai_ops = {
@@ -392,6 +448,7 @@ static const struct snd_soc_dai_ops dw_i2s_dai_ops = {
 	.prepare	= dw_i2s_prepare,
 	.trigger	= dw_i2s_trigger,
 	.set_fmt	= dw_i2s_set_fmt,
+	.set_tdm_slot	= dw_i2s_set_tdm_slot,
 };
 
 #ifdef CONFIG_PM
@@ -726,6 +783,8 @@ static int dw_i2s_probe(struct platform_device *pdev)
 		if (irq >= 0) {
 			ret = dw_pcm_register(pdev);
 			dev->use_pio = true;
+			dev->l_reg = LRBR_LTHR(0);
+			dev->r_reg = RRBR_RTHR(0);
 		} else {
 			ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL,
 					0);

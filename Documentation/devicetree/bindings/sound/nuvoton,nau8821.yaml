@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nuvoton,nau8821.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NAU88L21 audio codec
+
+maintainers:
+  - Seven Lee <wtli@nuvoton.com>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    const: nuvoton,nau8821
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  nuvoton,jkdet-enable:
+    description: Enable jack detection via JKDET pin.
+    type: boolean
+
+  nuvoton,jkdet-pull-enable:
+    description: Enable JKDET pin pull. If set - pin pull enabled,
+      otherwise pin in high impedance state.
+    type: boolean
+
+  nuvoton,jkdet-pull-up:
+    description: Pull-up JKDET pin. If set then JKDET pin is pull up,
+      otherwise pull down.
+    type: boolean
+
+  nuvoton,key-enable:
+    description: handles key press detection.
+    type: boolean
+
+  nuvoton,jkdet-polarity:
+    description: JKDET pin polarity.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0 # active high
+      - 1 # active low
+    default: 1
+
+  nuvoton,micbias-voltage:
+    description: MICBIAS output level select.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0 # VDDA
+      - 1 # VDDA * 1
+      - 2 # VDDA * 1.1
+      - 3 # VDDA * 1.2
+      - 4 # VDDA * 1.3
+      - 5 # VDDA * 1.4
+      - 6 # VDDA * 1.53
+      - 7 # VDDA * 1.53
+    default: 6
+
+  nuvoton,vref-impedance:
+    description: VMID Tie-off impedance select.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0 # open
+      - 1 # 25KOhms
+      - 2 # 125KOhms
+      - 3 # 2.5KOhms
+    default: 2
+
+  nuvoton,jack-insert-debounce:
+    description: number from 0 to 7 that sets debounce time to 2^(n+2)ms.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 7
+    default: 7
+
+  nuvoton,jack-eject-debounce:
+    description: number from 0 to 7 that sets debounce time to 2^(n+2)ms.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 7
+    default: 0
+
+  nuvoton,dmic-clk-threshold:
+    description: DMIC clock speed expected value. Unit is Hz.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 3072000
+
+  '#sound-dai-cells':
+    const: 0
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        codec@1b {
+            compatible = "nuvoton,nau8821";
+            reg = <0x1b>;
+            interrupt-parent = <&gpio>;
+            interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+            nuvoton,jkdet-enable;
+            nuvoton,jkdet-pull-enable;
+            nuvoton,jkdet-pull-up;
+            nuvoton,key-enable;
+            nuvoton,jkdet-polarity = <GPIO_ACTIVE_LOW>;
+            nuvoton,micbias-voltage = <6>;
+            nuvoton,vref-impedance = <2>;
+            nuvoton,jack-insert-debounce = <7>;
+            nuvoton,jack-eject-debounce = <0>;
+            nuvoton,dmic-clk-threshold = <3072000>;
+            #sound-dai-cells = <0>;
+        };
+    };

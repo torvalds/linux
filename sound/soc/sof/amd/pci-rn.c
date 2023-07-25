@@ -25,6 +25,7 @@
 
 #define ACP3x_REG_START		0x1240000
 #define ACP3x_REG_END		0x125C000
+#define ACP3X_FUTURE_REG_ACLK_0	0x1860
 
 static const struct sof_amd_acp_desc renoir_chip_info = {
 	.rev		= 3,
@@ -35,6 +36,7 @@ static const struct sof_amd_acp_desc renoir_chip_info = {
 	.sram_pte_offset = ACP3X_SRAM_PTE_OFFSET,
 	.hw_semaphore_offset = ACP3X_AXI2DAGB_SEM_0,
 	.acp_clkmux_sel	= ACP3X_CLKMUX_SEL,
+	.probe_reg_offset = ACP3X_FUTURE_REG_ACLK_0,
 };
 
 static const struct sof_dev_desc renoir_desc = {

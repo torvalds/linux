@@ -563,8 +563,7 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 	mcpdm->dma_data[0].filter_data = "dn_link";
 	mcpdm->dma_data[1].filter_data = "up_link";
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
-	mcpdm->io_base = devm_ioremap_resource(&pdev->dev, res);
+	mcpdm->io_base = devm_platform_ioremap_resource_byname(pdev, "mpu");
 	if (IS_ERR(mcpdm->io_base))
 		return PTR_ERR(mcpdm->io_base);
 

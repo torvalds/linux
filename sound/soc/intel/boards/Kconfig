@@ -475,7 +475,7 @@ endif ## SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC || SND_SOC_SOF_HDA_AUDIO_CODEC
 
 if SND_SOC_SOF_HDA_LINK || SND_SOC_SOF_BAYTRAIL
 config SND_SOC_INTEL_SOF_RT5682_MACH
-	tristate "SOF with rt5682 codec in I2S Mode"
+	tristate "SOF with rt5650/rt5682 codec in I2S Mode"
 	depends on I2C && ACPI
 	depends on ((SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC) &&\
 		    (MFD_INTEL_LPSS || COMPILE_TEST)) ||\
@@ -485,6 +485,7 @@ config SND_SOC_INTEL_SOF_RT5682_MACH
 	select SND_SOC_RT1011
 	select SND_SOC_RT1015
 	select SND_SOC_RT1015P
+	select SND_SOC_RT5645
 	select SND_SOC_RT5682_I2C
 	select SND_SOC_RT5682S
 	select SND_SOC_DMIC
@@ -494,7 +495,7 @@ config SND_SOC_INTEL_SOF_RT5682_MACH
 	select SND_SOC_INTEL_SOF_REALTEK_COMMON
 	help
 	   This adds support for ASoC machine driver for SOF platforms
-	   with rt5682 codec.
+	   with rt5650 or rt5682 codec.
 	   Say Y if you have such a device.
 	   If unsure select "N".
 

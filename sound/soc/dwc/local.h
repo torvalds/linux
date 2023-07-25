@@ -25,6 +25,13 @@
 #define RXFFR		0x014
 #define TXFFR		0x018
 
+/* Enable register fields */
+#define IER_TDM_SLOTS_SHIFT	8
+#define IER_FRAME_OFF_SHIFT	5
+#define IER_FRAME_OFF	BIT(5)
+#define IER_INTF_TYPE	BIT(1)
+#define IER_IEN		BIT(0)
+
 /* Interrupt status register fields */
 #define ISR_TXFO	BIT(5)
 #define ISR_TXFE	BIT(4)
@@ -46,6 +53,15 @@
 #define TFCR(x)		(0x40 * x + 0x04C)
 #define RFF(x)		(0x40 * x + 0x050)
 #define TFF(x)		(0x40 * x + 0x054)
+#define RSLOT_TSLOT(x)	(0x4 * (x) + 0x224)
+
+/* Receive enable register fields */
+#define RER_RXSLOT_SHIFT	8
+#define RER_RXCHEN	BIT(0)
+
+/* Transmit enable register fields */
+#define TER_TXSLOT_SHIFT	8
+#define TER_TXCHEN	BIT(0)
 
 /* I2SCOMPRegisters */
 #define I2S_COMP_PARAM_2	0x01F0
@@ -105,6 +121,8 @@ struct dw_i2s_dev {
 	u32 ccr;
 	u32 xfer_resolution;
 	u32 fifo_th;
+	u32 l_reg;
+	u32 r_reg;
 
 	/* data related to DMA transfers b/w i2s and DMAC */
 	union dw_i2s_snd_dma_data play_dma_data;
@@ -114,6 +132,12 @@ struct dw_i2s_dev {
 
 	/* data related to PIO transfers */
 	bool use_pio;
+
+	/* data related to TDM mode */
+	u32 tdm_slots;
+	u32 tdm_mask;
+	u32 frame_offset;
+
 	struct snd_pcm_substream __rcu *tx_substream;
 	struct snd_pcm_substream __rcu *rx_substream;
 	unsigned int (*tx_fn)(struct dw_i2s_dev *dev,

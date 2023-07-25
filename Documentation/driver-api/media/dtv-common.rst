@@ -3,15 +3,6 @@
 Digital TV Common functions
 ---------------------------
 
-Math functions
-~~~~~~~~~~~~~~
-
-Provide some commonly-used math functions, usually required in order to
-estimate signal strength and signal to noise measurements in dB.
-
-.. kernel-doc:: include/media/dvb_math.h
-
-
 DVB devices
 ~~~~~~~~~~~
 

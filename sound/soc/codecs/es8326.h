@@ -9,8 +9,6 @@
 #ifndef _ES8326_H
 #define _ES8326_H
 
-#define CONFIG_HHTECH_MINIPMP	1
-
 /* ES8326 register space */
 #define ES8326_RESET		0x00
 #define ES8326_CLK_CTL		0x01
@@ -94,6 +92,8 @@
 #define	ES8326_PWRUP_SEQ_EN	(1 << 5)
 #define ES8326_CODEC_RESET (0x0f << 0)
 #define ES8326_CSM_OFF (0 << 7)
+#define ES8326_MUTE_MASK (3 << 0)
+#define ES8326_MUTE (3 << 0)
 
 /* ES8326_CLK_CTL */
 #define ES8326_CLK_ON (0x7f << 0)
@@ -122,7 +122,9 @@
 #define ES8326_MIC2_SEL (1 << 5)
 
 /* ES8326_HP_CAL */
-#define ES8326_HPOR_SHIFT 4
+#define ES8326_HP_OFF 0
+#define ES8326_HP_FORCE_CAL ((1 << 7) | (1 << 3))
+#define ES8326_HP_ON ((7 << 4) | (7 << 0))
 
 /* ES8326_ADC1_SRC */
 #define ES8326_ADC1_SHIFT 0
@@ -180,3 +182,4 @@
 #define ES8326_VERSION_B (1 << 0)
 
 #endif
+

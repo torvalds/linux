@@ -488,11 +488,9 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 
 	dmic->dma_data.filter_data = "up_link";
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
-	dmic->io_base = devm_ioremap_resource(&pdev->dev, res);
+	dmic->io_base = devm_platform_ioremap_resource_byname(pdev, "mpu");
 	if (IS_ERR(dmic->io_base))
 		return PTR_ERR(dmic->io_base);
-
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &omap_dmic_component,
