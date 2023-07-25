@@ -1916,6 +1916,8 @@
 		rockchip,hw-tshut-temp = <120000>;
 		rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
 		rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+		nvmem-cells = <&cpu_tsadc_trim_l>, <&cpu_tsadc_trim_h>;
+		nvmem-cell-names = "trim_l", "trim_h";
 		status = "disabled";
 	};
 
@@ -2315,6 +2317,12 @@
 		};
 		dmc_opp_info: dmc-opp-info@3e {
 			reg = <0x3e 0x6>;
+		};
+		cpu_tsadc_trim_l: cpu-tsadc-trim-l@44 {
+			reg = <0x44 0x1>;
+		};
+		cpu_tsadc_trim_h: cpu-tsadc-trim-h@45 {
+			reg = <0x45 0x1>;
 		};
 	};
 
