@@ -1239,9 +1239,6 @@ extern int vmbus_recvpacket_raw(struct vmbus_channel *channel,
 				     u32 *buffer_actual_len,
 				     u64 *requestid);
 
-
-extern void vmbus_ontimer(unsigned long data);
-
 /* Base driver object */
 struct hv_driver {
 	const char *name;
