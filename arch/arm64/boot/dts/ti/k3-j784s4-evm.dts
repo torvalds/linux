@@ -430,6 +430,10 @@
 	pinctrl-0 = <&main_uart8_pins_default>;
 };
 
+&ufs_wrapper {
+	status = "okay";
+};
+
 &fss {
 	status = "okay";
 };
