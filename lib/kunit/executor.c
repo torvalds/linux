@@ -2,6 +2,7 @@
 
 #include <linux/reboot.h>
 #include <kunit/test.h>
+#include <kunit/attributes.h>
 #include <linux/glob.h>
 #include <linux/moduleparam.h>
 
@@ -24,7 +25,8 @@ module_param_named(action, action_param, charp, 0);
 MODULE_PARM_DESC(action,
 		 "Changes KUnit executor behavior, valid values are:\n"
 		 "<none>: run the tests like normal\n"
-		 "'list' to list test names instead of running them.\n");
+		 "'list' to list test names instead of running them.\n"
+		 "'list_attr' to list test names and attributes instead of running them.\n");
 
 /* glob_match() needs NULL terminated strings, so we need a copy of filter_glob_param. */
 struct kunit_test_filter {
@@ -172,7 +174,7 @@ static void kunit_exec_run_tests(struct suite_set *suite_set)
 	__kunit_test_suites_init(suite_set->start, num_suites);
 }
 
-static void kunit_exec_list_tests(struct suite_set *suite_set)
+static void kunit_exec_list_tests(struct suite_set *suite_set, bool include_attr)
 {
 	struct kunit_suite * const *suites;
 	struct kunit_case *test_case;
@@ -180,10 +182,19 @@ static void kunit_exec_list_tests(struct suite_set *suite_set)
 	/* Hack: print a ktap header so kunit.py can find the start of KUnit output. */
 	pr_info("KTAP version 1\n");
 
-	for (suites = suite_set->start; suites < suite_set->end; suites++)
+	for (suites = suite_set->start; suites < suite_set->end; suites++) {
+		/* Print suite name and suite attributes */
+		pr_info("%s\n", (*suites)->name);
+		if (include_attr)
+			kunit_print_attr((void *)(*suites), false, 0);
+
+		/* Print test case name and attributes in suite */
 		kunit_suite_for_each_test_case((*suites), test_case) {
 			pr_info("%s.%s\n", (*suites)->name, test_case->name);
+			if (include_attr)
+				kunit_print_attr((void *)test_case, true, 0);
 		}
+	}
 }
 
 int kunit_run_all_tests(void)
@@ -206,7 +217,9 @@ int kunit_run_all_tests(void)
 	if (!action_param)
 		kunit_exec_run_tests(&suite_set);
 	else if (strcmp(action_param, "list") == 0)
-		kunit_exec_list_tests(&suite_set);
+		kunit_exec_list_tests(&suite_set, false);
+	else if (strcmp(action_param, "list_attr") == 0)
+		kunit_exec_list_tests(&suite_set, true);
 	else
 		pr_err("kunit executor: unknown action '%s'\n", action_param);
 
