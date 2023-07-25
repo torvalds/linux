@@ -257,6 +257,7 @@ config BNXT_HWMON
 
 config BCMASP
 	tristate "Broadcom ASP 2.0 Ethernet support"
+	depends on ARCH_BRCMSTB || COMPILE_TEST
 	default ARCH_BRCMSTB
 	depends on OF
 	select MII
