@@ -1181,7 +1181,8 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 		pm80xx_set_thermal_config(pm8001_ha);
 	}
 
-	if (pm8001_init_sas_add(pm8001_ha))
+	rc = pm8001_init_sas_add(pm8001_ha);
+	if (rc)
 		goto err_out_shost;
 	/* phy setting support for motherboard controller */
 	rc = pm8001_configure_phy_settings(pm8001_ha);
