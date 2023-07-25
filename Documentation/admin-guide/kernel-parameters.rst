@@ -89,10 +89,11 @@ reveal their parameters in /sys/module/${modulename}/parameters/. Some of these
 parameters may be changed at runtime by the command
 ``echo -n ${value} > /sys/module/${modulename}/parameters/${parm}``.
 
-The parameters listed below are only valid if certain kernel build options were
-enabled and if respective hardware is present. The text in square brackets at
-the beginning of each description states the restrictions within which a
-parameter is applicable::
+The parameters listed below are only valid if certain kernel build options
+were enabled and if respective hardware is present. This list should be kept
+in alphabetical order. The text in square brackets at the beginning
+of each description states the restrictions within which a parameter
+is applicable::
 
 	ACPI	ACPI support is enabled.
 	AGP	AGP (Accelerated Graphics Port) is enabled.
@@ -127,9 +128,9 @@ parameter is applicable::
 	KGDB	Kernel debugger support is enabled.
 	KVM	Kernel Virtual Machine support is enabled.
 	LIBATA  Libata driver is enabled
-	LP	Printer support is enabled.
 	LOONGARCH LoongArch architecture is enabled.
 	LOOP	Loopback device support is enabled.
+	LP	Printer support is enabled.
 	M68k	M68k architecture is enabled.
 			These options have more detailed description inside of
 			Documentation/arch/m68k/kernel-options.rst.
@@ -139,10 +140,9 @@ parameter is applicable::
 	MSI	Message Signaled Interrupts (PCI).
 	MTD	MTD (Memory Technology Device) support is enabled.
 	NET	Appropriate network support is enabled.
-	NUMA	NUMA support is enabled.
 	NFS	Appropriate NFS support is enabled.
+	NUMA	NUMA support is enabled.
 	OF	Devicetree is enabled.
-	PV_OPS	A paravirtualized kernel is enabled.
 	PARISC	The PA-RISC architecture is enabled.
 	PCI	PCI bus support is enabled.
 	PCIE	PCI Express support is enabled.
@@ -151,9 +151,10 @@ parameter is applicable::
 	PPC	PowerPC architecture is enabled.
 	PPT	Parallel port support is enabled.
 	PS2	Appropriate PS/2 support is enabled.
+	PV_OPS	A paravirtualized kernel is enabled.
 	RAM	RAM disk support is enabled.
-	RISCV	RISCV architecture is enabled.
 	RDT	Intel Resource Director Technology.
+	RISCV	RISCV architecture is enabled.
 	S390	S390 architecture is enabled.
 	SCSI	Appropriate SCSI support is enabled.
 			A lot of drivers have their options described inside
@@ -164,15 +165,15 @@ parameter is applicable::
 	SH	SuperH architecture is enabled.
 	SMP	The kernel is an SMP kernel.
 	SPARC	Sparc architecture is enabled.
-	SWSUSP	Software suspend (hibernation) is enabled.
 	SUSPEND	System suspend states are enabled.
+	SWSUSP	Software suspend (hibernation) is enabled.
 	TPM	TPM drivers are enabled.
 	UMS	USB Mass Storage support is enabled.
 	USB	USB support is enabled.
 	USBHID	USB Human Interface Device support is enabled.
 	V4L	Video For Linux support is enabled.
-	VMMIO   Driver for memory mapped virtio devices is enabled.
 	VGA	The VGA console has been enabled.
+	VMMIO   Driver for memory mapped virtio devices is enabled.
 	VT	Virtual terminal support is enabled.
 	WDT	Watchdog support is enabled.
 	X86-32	X86-32, aka i386 architecture is enabled.
@@ -186,9 +187,9 @@ parameter is applicable::
 
 In addition, the following text indicates that the option::
 
+	BOOT	Is a boot loader parameter.
 	BUGS=	Relates to possible processor bugs on the said processor.
 	KNL	Is a kernel start-up parameter.
-	BOOT	Is a boot loader parameter.
 
 Parameters denoted with BOOT are actually interpreted by the boot
 loader, and have no meaning to the kernel directly.
