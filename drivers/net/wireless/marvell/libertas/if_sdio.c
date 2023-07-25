@@ -123,6 +123,7 @@ struct if_sdio_card {
 
 	struct workqueue_struct	*workqueue;
 	struct work_struct	packet_worker;
+	struct work_struct	reset_worker;
 
 	u8			rx_unit;
 };
@@ -1022,10 +1023,19 @@ static int if_sdio_reset_deep_sleep_wakeup(struct lbs_private *priv)
 
 }
 
-static struct mmc_host *reset_host;
-
 static void if_sdio_reset_card_worker(struct work_struct *work)
 {
+	int ret;
+	const char *name;
+	struct device *dev;
+	struct if_sdio_card *card;
+	struct mmc_host *reset_host;
+
+	card = container_of(work, struct if_sdio_card, reset_worker);
+	reset_host = card->func->card->host;
+	name = card->priv->dev->name;
+	dev = &card->func->dev;
+
 	/*
 	 * The actual reset operation must be run outside of lbs_thread. This
 	 * is because mmc_remove_host() will cause the device to be instantly
@@ -1036,21 +1046,19 @@ static void if_sdio_reset_card_worker(struct work_struct *work)
 	 * instance for that reason.
 	 */
 
-	pr_info("Resetting card...");
+	dev_info(dev, "resetting card %s...", name);
 	mmc_remove_host(reset_host);
-	mmc_add_host(reset_host);
+	ret = mmc_add_host(reset_host);
+	if (ret)
+		dev_err(dev, "%s: can't add mmc host, error %d\n", name, ret);
 }
-static DECLARE_WORK(card_reset_work, if_sdio_reset_card_worker);
 
 static void if_sdio_reset_card(struct lbs_private *priv)
 {
 	struct if_sdio_card *card = priv->card;
 
-	if (work_pending(&card_reset_work))
-		return;
-
-	reset_host = card->func->card->host;
-	schedule_work(&card_reset_work);
+	if (!work_pending(&card->reset_worker))
+		schedule_work(&card->reset_worker);
 }
 
 static int if_sdio_power_save(struct lbs_private *priv)
@@ -1178,6 +1186,8 @@ static int if_sdio_probe(struct sdio_func *func,
 		ret = -ENOMEM;
 		goto err_queue;
 	}
+
+	INIT_WORK(&card->reset_worker, if_sdio_reset_card_worker);
 	INIT_WORK(&card->packet_worker, if_sdio_host_to_card_worker);
 	init_waitqueue_head(&card->pwron_waitq);
 
@@ -1229,6 +1239,7 @@ err_activate_card:
 	lbs_remove_card(priv);
 free:
 	cancel_work_sync(&card->packet_worker);
+	cancel_work_sync(&card->reset_worker);
 	destroy_workqueue(card->workqueue);
 err_queue:
 	list_for_each_entry_safe(packet, tmp, &card->packets, list)
@@ -1271,6 +1282,7 @@ static void if_sdio_remove(struct sdio_func *func)
 	lbs_remove_card(card->priv);
 
 	cancel_work_sync(&card->packet_worker);
+	cancel_work_sync(&card->reset_worker);
 	destroy_workqueue(card->workqueue);
 
 	list_for_each_entry_safe(packet, tmp, &card->packets, list)
@@ -1393,8 +1405,6 @@ static void __exit if_sdio_exit_module(void)
 {
 	/* Set the flag as user is removing this module. */
 	user_rmmod = 1;
-
-	cancel_work_sync(&card_reset_work);
 
 	sdio_unregister_driver(&if_sdio_driver);
 }
