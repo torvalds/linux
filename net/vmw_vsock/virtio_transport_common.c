@@ -348,37 +348,34 @@ virtio_transport_stream_do_peek(struct vsock_sock *vsk,
 				size_t len)
 {
 	struct virtio_vsock_sock *vvs = vsk->trans;
-	size_t bytes, total = 0, off;
-	struct sk_buff *skb, *tmp;
-	int err = -EFAULT;
+	struct sk_buff *skb;
+	size_t total = 0;
+	int err;
 
 	spin_lock_bh(&vvs->rx_lock);
 
-	skb_queue_walk_safe(&vvs->rx_queue, skb,  tmp) {
-		off = 0;
+	skb_queue_walk(&vvs->rx_queue, skb) {
+		size_t bytes;
+
+		bytes = len - total;
+		if (bytes > skb->len)
+			bytes = skb->len;
+
+		spin_unlock_bh(&vvs->rx_lock);
+
+		/* sk_lock is held by caller so no one else can dequeue.
+		 * Unlock rx_lock since memcpy_to_msg() may sleep.
+		 */
+		err = memcpy_to_msg(msg, skb->data, bytes);
+		if (err)
+			goto out;
+
+		total += bytes;
+
+		spin_lock_bh(&vvs->rx_lock);
 
 		if (total == len)
 			break;
-
-		while (total < len && off < skb->len) {
-			bytes = len - total;
-			if (bytes > skb->len - off)
-				bytes = skb->len - off;
-
-			/* sk_lock is held by caller so no one else can dequeue.
-			 * Unlock rx_lock since memcpy_to_msg() may sleep.
-			 */
-			spin_unlock_bh(&vvs->rx_lock);
-
-			err = memcpy_to_msg(msg, skb->data + off, bytes);
-			if (err)
-				goto out;
-
-			spin_lock_bh(&vvs->rx_lock);
-
-			total += bytes;
-			off += bytes;
-		}
 	}
 
 	spin_unlock_bh(&vvs->rx_lock);
