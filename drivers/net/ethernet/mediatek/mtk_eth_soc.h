@@ -122,6 +122,7 @@
 #define MTK_GDMA_ICS_EN		BIT(22)
 #define MTK_GDMA_TCS_EN		BIT(21)
 #define MTK_GDMA_UCS_EN		BIT(20)
+#define MTK_GDMA_STRP_CRC	BIT(16)
 #define MTK_GDMA_TO_PDMA	0x0
 #define MTK_GDMA_DROP_ALL       0x7777
 
@@ -287,8 +288,6 @@
 /* QDMA Interrupt grouping registers */
 #define MTK_RLS_DONE_INT	BIT(0)
 
-#define MTK_STAT_OFFSET		0x40
-
 /* QDMA TX NUM */
 #define QID_BITS_V2(x)		(((x) & 0x3f) << 16)
 #define MTK_QDMA_GMAC2_QID	8
@@ -300,6 +299,8 @@
 /* QDMA V2 descriptor txd5 */
 #define TX_DMA_CHKSUM_V2	(0x7 << 28)
 #define TX_DMA_TSO_V2		BIT(31)
+
+#define TX_DMA_SPTAG_V3         BIT(27)
 
 /* QDMA V2 descriptor txd4 */
 #define TX_DMA_FPORT_SHIFT_V2	8
@@ -634,12 +635,6 @@ enum mtk_tx_flags {
 	 */
 	MTK_TX_FLAGS_SINGLE0	= 0x01,
 	MTK_TX_FLAGS_PAGE0	= 0x02,
-
-	/* MTK_TX_FLAGS_FPORTx allows tracking which port the transmitted
-	 * SKB out instead of looking up through hardware TX descriptor.
-	 */
-	MTK_TX_FLAGS_FPORT0	= 0x04,
-	MTK_TX_FLAGS_FPORT1	= 0x08,
 };
 
 /* This enum allows us to identify how the clock is defined on the array of the
@@ -725,6 +720,35 @@ enum mtk_dev_state {
 	MTK_RESETTING
 };
 
+/* PSE Port Definition */
+enum mtk_pse_port {
+	PSE_ADMA_PORT = 0,
+	PSE_GDM1_PORT,
+	PSE_GDM2_PORT,
+	PSE_PPE0_PORT,
+	PSE_PPE1_PORT,
+	PSE_QDMA_TX_PORT,
+	PSE_QDMA_RX_PORT,
+	PSE_DROP_PORT,
+	PSE_WDMA0_PORT,
+	PSE_WDMA1_PORT,
+	PSE_TDMA_PORT,
+	PSE_NONE_PORT,
+	PSE_PPE2_PORT,
+	PSE_WDMA2_PORT,
+	PSE_EIP197_PORT,
+	PSE_GDM3_PORT,
+	PSE_PORT_MAX
+};
+
+/* GMAC Identifier */
+enum mtk_gmac_id {
+	MTK_GMAC1_ID = 0,
+	MTK_GMAC2_ID,
+	MTK_GMAC3_ID,
+	MTK_GMAC_ID_MAX
+};
+
 enum mtk_tx_buf_type {
 	MTK_TYPE_SKB,
 	MTK_TYPE_XDP_TX,
@@ -743,7 +767,8 @@ struct mtk_tx_buf {
 	enum mtk_tx_buf_type type;
 	void *data;
 
-	u32 flags;
+	u16 mac_id;
+	u16 flags;
 	DEFINE_DMA_UNMAP_ADDR(dma_addr0);
 	DEFINE_DMA_UNMAP_LEN(dma_len0);
 	DEFINE_DMA_UNMAP_ADDR(dma_addr1);
@@ -1190,6 +1215,11 @@ static inline bool mtk_is_netsys_v1(struct mtk_eth *eth)
 static inline bool mtk_is_netsys_v2_or_greater(struct mtk_eth *eth)
 {
 	return eth->soc->version > 1;
+}
+
+static inline bool mtk_is_netsys_v3_or_greater(struct mtk_eth *eth)
+{
+	return eth->soc->version > 2;
 }
 
 static inline struct mtk_foe_entry *
