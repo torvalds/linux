@@ -1913,7 +1913,7 @@ static bool add_event_handler(struct hp_wmi_sensors *state)
 static int hp_wmi_sensors_init(struct hp_wmi_sensors *state)
 {
 	struct hp_wmi_info *connected[HP_WMI_MAX_INSTANCES];
-	struct hp_wmi_platform_events *pevents;
+	struct hp_wmi_platform_events *pevents = NULL;
 	struct device *dev = &state->wdev->dev;
 	struct hp_wmi_info *info;
 	struct device *hwdev;
