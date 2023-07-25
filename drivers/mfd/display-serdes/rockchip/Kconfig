@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# rockchip display serdes drivers configuration
+#
+
+menuconfig SERDES_DISPLAY_CHIP_ROCKCHIP
+	tristate "rockchip serdes device support"
+	default y
+	help
+	  Enable this to be able to choose the drivers for controlling the
+	  rockchip serdes.
+
+if SERDES_DISPLAY_CHIP_ROCKCHIP
+config SERDES_DISPLAY_CHIP_ROCKCHIP_RKX111
+	tristate "rockchip rkx111 serdes"
+	default y
+	help
+	  To support rockchip rkx111 display serdes.
+
+config SERDES_DISPLAY_CHIP_ROCKCHIP_RKX121
+	tristate "rockchip rkx121 serdes"
+	default y
+	help
+	  To support rockchip rkx121 display serdes.
+endif

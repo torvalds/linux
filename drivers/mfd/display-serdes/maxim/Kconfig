@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# maxim display serdes drivers configuration
+#
+
+menuconfig SERDES_DISPLAY_CHIP_MAXIM
+	tristate "maxim serdes device support"
+	default y
+	help
+	  Enable this to be able to choose the drivers for controlling the
+	  maxim serdes.
+
+if SERDES_DISPLAY_CHIP_MAXIM
+config SERDES_DISPLAY_CHIP_MAXIM_MAX96745
+	tristate "maxim max96745 serdes"
+	default y
+	help
+	  To support maxim max96745 display serdes.
+
+config SERDES_DISPLAY_CHIP_MAXIM_MAX96752
+	tristate "maxim max96752 serdes"
+	default y
+	help
+	  To support maxim max96752 display serdes.
+
+config SERDES_DISPLAY_CHIP_MAXIM_MAX96755
+	tristate "maxim max96755 serdes"
+	default y
+	help
+	  To support maxim max96755 display serdes.
+
+config SERDES_DISPLAY_CHIP_MAXIM_MAX96772
+	tristate "maxim max96772 serdes"
+	default y
+	help
+	  To support maxim max96772 display serdes.
+
+config SERDES_DISPLAY_CHIP_MAXIM_MAX96789
+	tristate "maxim max96789 serdes"
+	default y
+	help
+	  To support maxim max96789 display serdes.
+
+endif

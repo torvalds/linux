@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Multifunction miscellaneous devices
+#
+comment "driver for different display serdes"
+
+menuconfig MFD_SERDES_DISPLAY
+	tristate "rockchip display serdes drivers support"
+	select DRM_PANEL_BRIDGE
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select SERDES_DISPLAY_CHIP_ROHM
+	select SERDES_DISPLAY_CHIP_MAXIM
+	select SERDES_DISPLAY_CHIP_ROCKCHIP
+	select SERDES_DISPLAY_CHIP_NOVO
+	select MFD_CORE
+	select REGMAP_I2C
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	default n
+	help
+	  This driver supports different serdes devices from different vendor such as
+	  maxim, rohm, rockchip etc.
+
+if MFD_SERDES_DISPLAY
+source "drivers/mfd/display-serdes/maxim/Kconfig"
+source "drivers/mfd/display-serdes/rohm/Kconfig"
+source "drivers/mfd/display-serdes/rockchip/Kconfig"
+source "drivers/mfd/display-serdes/novo/Kconfig"
+endif
+

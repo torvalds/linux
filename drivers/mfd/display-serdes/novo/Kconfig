@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# rohm serdes drivers configuration
+#
+
+menuconfig SERDES_DISPLAY_CHIP_NOVO
+	tristate "novo expander device support"
+	default y
+	help
+	  Enable this to be able to choose the drivers for controlling the
+	  rohm serdes.
+
+if SERDES_DISPLAY_CHIP_NOVO
+config SERDES_DISPLAY_CHIP_NOVO_NCA9539
+	tristate "novo nca9539 expander"
+	default y
+	help
+	  To support novo nca9539 expander.
+
+endif
