@@ -166,7 +166,6 @@ Integer log and power Functions
 -------------------------------
 
 .. kernel-doc:: include/linux/int_log.h
-   :export:
 
 .. kernel-doc:: lib/math/int_pow.c
    :export:
