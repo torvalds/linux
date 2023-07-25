@@ -24,15 +24,15 @@ static struct kunit_case dummy_test_cases[] = {
 
 static void parse_filter_test(struct kunit *test)
 {
-	struct kunit_test_filter filter = {NULL, NULL};
+	struct kunit_glob_filter filter = {NULL, NULL};
 
-	kunit_parse_filter_glob(&filter, "suite");
+	kunit_parse_glob_filter(&filter, "suite");
 	KUNIT_EXPECT_STREQ(test, filter.suite_glob, "suite");
 	KUNIT_EXPECT_FALSE(test, filter.test_glob);
 	kfree(filter.suite_glob);
 	kfree(filter.test_glob);
 
-	kunit_parse_filter_glob(&filter, "suite.test");
+	kunit_parse_glob_filter(&filter, "suite.test");
 	KUNIT_EXPECT_STREQ(test, filter.suite_glob, "suite");
 	KUNIT_EXPECT_STREQ(test, filter.test_glob, "test");
 	kfree(filter.suite_glob);
@@ -50,7 +50,7 @@ static void filter_suites_test(struct kunit *test)
 	subsuite[1] = alloc_fake_suite(test, "suite2", dummy_test_cases);
 
 	/* Want: suite1, suite2, NULL -> suite2, NULL */
-	got = kunit_filter_suites(&suite_set, "suite2", &err);
+	got = kunit_filter_suites(&suite_set, "suite2", NULL, NULL, &err);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, got.start);
 	KUNIT_ASSERT_EQ(test, err, 0);
 	kfree_at_end(test, got.start);
@@ -74,7 +74,7 @@ static void filter_suites_test_glob_test(struct kunit *test)
 	subsuite[1] = alloc_fake_suite(test, "suite2", dummy_test_cases);
 
 	/* Want: suite1, suite2, NULL -> suite2 (just test1), NULL */
-	got = kunit_filter_suites(&suite_set, "suite2.test2", &err);
+	got = kunit_filter_suites(&suite_set, "suite2.test2", NULL, NULL, &err);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, got.start);
 	KUNIT_ASSERT_EQ(test, err, 0);
 	kfree_at_end(test, got.start);
@@ -100,7 +100,7 @@ static void filter_suites_to_empty_test(struct kunit *test)
 	subsuite[0] = alloc_fake_suite(test, "suite1", dummy_test_cases);
 	subsuite[1] = alloc_fake_suite(test, "suite2", dummy_test_cases);
 
-	got = kunit_filter_suites(&suite_set, "not_found", &err);
+	got = kunit_filter_suites(&suite_set, "not_found", NULL, NULL, &err);
 	KUNIT_ASSERT_EQ(test, err, 0);
 	kfree_at_end(test, got.start); /* just in case */
 
