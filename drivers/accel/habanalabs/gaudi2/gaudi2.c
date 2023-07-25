@@ -7834,16 +7834,29 @@ static void gaudi2_print_event(struct hl_device *hdev, u16 event_type,
 static bool gaudi2_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 		struct hl_eq_ecc_data *ecc_data)
 {
-	u64 ecc_address = 0, ecc_syndrom = 0;
+	u64 ecc_address = 0, ecc_syndrome = 0;
 	u8 memory_wrapper_idx = 0;
+	bool has_block_id = false;
+	u16 block_id;
+
+	if (!hl_is_fw_sw_ver_below(hdev, 1, 12))
+		has_block_id = true;
 
 	ecc_address = le64_to_cpu(ecc_data->ecc_address);
-	ecc_syndrom = le64_to_cpu(ecc_data->ecc_syndrom);
+	ecc_syndrome = le64_to_cpu(ecc_data->ecc_syndrom);
 	memory_wrapper_idx = ecc_data->memory_wrapper_idx;
 
-	gaudi2_print_event(hdev, event_type, !ecc_data->is_critical,
-		"ECC error detected. address: %#llx. Syndrom: %#llx. block id %u. critical %u.",
-		ecc_address, ecc_syndrom, memory_wrapper_idx, ecc_data->is_critical);
+	if (has_block_id) {
+		block_id = le16_to_cpu(ecc_data->block_id);
+		gaudi2_print_event(hdev, event_type, !ecc_data->is_critical,
+			"ECC error detected. address: %#llx. Syndrome: %#llx. wrapper id %u. block id %#x. critical %u.",
+			ecc_address, ecc_syndrome, memory_wrapper_idx, block_id,
+			ecc_data->is_critical);
+	} else {
+		gaudi2_print_event(hdev, event_type, !ecc_data->is_critical,
+			"ECC error detected. address: %#llx. Syndrome: %#llx. wrapper id %u. critical %u.",
+			ecc_address, ecc_syndrome, memory_wrapper_idx, ecc_data->is_critical);
+	}
 
 	return !!ecc_data->is_critical;
 }

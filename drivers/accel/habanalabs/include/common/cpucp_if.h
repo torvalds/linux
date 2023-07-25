@@ -69,7 +69,8 @@ struct hl_eq_ecc_data {
 	__le64 ecc_syndrom;
 	__u8 memory_wrapper_idx;
 	__u8 is_critical;
-	__u8 pad[6];
+	__le16 block_id;
+	__u8 pad[4];
 };
 
 enum hl_sm_sei_cause {
