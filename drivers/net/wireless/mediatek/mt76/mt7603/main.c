@@ -69,6 +69,7 @@ mt7603_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	INIT_LIST_HEAD(&mvif->sta.wcid.poll_list);
 	mvif->sta.wcid.idx = idx;
 	mvif->sta.wcid.hw_key_idx = -1;
+	mvif->sta.vif = mvif;
 	mt76_packet_id_init(&mvif->sta.wcid);
 
 	eth_broadcast_addr(bc_addr);
@@ -357,6 +358,7 @@ mt7603_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	msta->smps = ~0;
 	msta->wcid.sta = 1;
 	msta->wcid.idx = idx;
+	msta->vif = mvif;
 	mt7603_wtbl_init(dev, idx, mvif->idx, sta->addr);
 	mt7603_wtbl_set_ps(dev, msta, false);
 
@@ -380,12 +382,13 @@ mt7603_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		  struct ieee80211_sta *sta)
 {
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt7603_vif *mvif = (struct mt7603_vif *)vif->drv_priv;
 	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
 	struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
 
 	spin_lock_bh(&dev->ps_lock);
 	__skb_queue_purge(&msta->psq);
-	mt7603_filter_tx(dev, wcid->idx, true);
+	mt7603_filter_tx(dev, mvif->idx, wcid->idx, true);
 	spin_unlock_bh(&dev->ps_lock);
 
 	spin_lock_bh(&mdev->sta_poll_lock);

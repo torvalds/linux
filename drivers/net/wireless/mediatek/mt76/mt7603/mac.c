@@ -178,8 +178,9 @@ mt7603_wtbl_set_skip_tx(struct mt7603_dev *dev, int idx, bool enabled)
 	mt76_wr(dev, addr + 3 * 4, val);
 }
 
-void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort)
+void mt7603_filter_tx(struct mt7603_dev *dev, int mac_idx, int idx, bool abort)
 {
+	u32 flush_mask;
 	int i, port, queue;
 
 	if (abort) {
@@ -195,6 +196,18 @@ void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort)
 	mt76_wr(dev, MT_TX_ABORT, MT_TX_ABORT_EN |
 			FIELD_PREP(MT_TX_ABORT_WCID, idx));
 
+	flush_mask = MT_WF_ARB_TX_FLUSH_AC0 |
+		     MT_WF_ARB_TX_FLUSH_AC1 |
+		     MT_WF_ARB_TX_FLUSH_AC2 |
+		     MT_WF_ARB_TX_FLUSH_AC3;
+	flush_mask <<= mac_idx;
+
+	mt76_wr(dev, MT_WF_ARB_TX_FLUSH_0, flush_mask);
+	mt76_poll(dev, MT_WF_ARB_TX_FLUSH_0, flush_mask, 0, 20000);
+	mt76_wr(dev, MT_WF_ARB_TX_START_0, flush_mask);
+
+	mt76_wr(dev, MT_TX_ABORT, 0);
+
 	for (i = 0; i < 4; i++) {
 		mt76_wr(dev, MT_DMA_FQCR0, MT_DMA_FQCR0_BUSY |
 			FIELD_PREP(MT_DMA_FQCR0_TARGET_WCID, idx) |
@@ -202,12 +215,10 @@ void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort)
 			FIELD_PREP(MT_DMA_FQCR0_DEST_PORT_ID, port) |
 			FIELD_PREP(MT_DMA_FQCR0_DEST_QUEUE_ID, queue));
 
-		mt76_poll(dev, MT_DMA_FQCR0, MT_DMA_FQCR0_BUSY, 0, 15000);
+		mt76_poll(dev, MT_DMA_FQCR0, MT_DMA_FQCR0_BUSY, 0, 5000);
 	}
 
 	WARN_ON_ONCE(mt76_rr(dev, MT_DMA_FQCR0) & MT_DMA_FQCR0_BUSY);
-
-	mt76_wr(dev, MT_TX_ABORT, 0);
 
 	mt7603_wtbl_set_skip_tx(dev, idx, false);
 }
@@ -245,7 +256,7 @@ void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt7603_sta *sta,
 	mt76_poll(dev, MT_PSE_RTA, MT_PSE_RTA_BUSY, 0, 5000);
 
 	if (enabled)
-		mt7603_filter_tx(dev, idx, false);
+		mt7603_filter_tx(dev, sta->vif->idx, idx, false);
 
 	addr = mt7603_wtbl1_addr(idx);
 	mt76_set(dev, MT_WTBL1_OR, MT_WTBL1_OR_PSM_WRITE);
