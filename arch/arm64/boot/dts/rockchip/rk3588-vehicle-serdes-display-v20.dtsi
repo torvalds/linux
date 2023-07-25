@@ -5,14 +5,6 @@
  */
 
 / {
-	lt7911d {
-		compatible = "lontium,lt7911d-fb-notifier";
-		reset-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_LOW>,
-			      <&gpio4 RK_PA7 GPIO_ACTIVE_LOW>,
-			      <&gpio3 RK_PD4 GPIO_ACTIVE_LOW>,
-			      <&gpio3 RK_PD2 GPIO_ACTIVE_LOW>;
-	};
-
 	dsi2lvds_backlight1: dsi2lvds_backlight1 {
 		compatible = "pwm-backlight";
 		brightness-levels = <
@@ -1015,6 +1007,13 @@
 			};
 		};
 	};
+
+	lt7911d@2b {
+		compatible = "lontium,lt7911d-fb-notifier";
+		reg = <0x2b>;
+		reset-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
 };
 
 &i2c5 {
@@ -1205,6 +1204,13 @@
 		pinctrl-0 = <&touch_pin>;
 		reset-gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_LOW>;
 		ilitek,name = "ilitek_i2c";
+	};
+
+	lt7911d@2b {
+		compatible = "lontium,lt7911d-fb-notifier";
+		reg = <0x2b>;
+		reset-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_LOW>;
+		status = "okay";
 	};
 };
 
@@ -1593,6 +1599,13 @@
 			};
 		};
 	};
+
+	lt7911d@2b {
+		compatible = "lontium,lt7911d-fb-notifier";
+		reg = <0x2b>;
+		reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
 };
 
 &i2c8 {
@@ -1769,6 +1782,13 @@
 			};
 		};
 	};
+
+	lt7911d@2b {
+		compatible = "lontium,lt7911d-fb-notifier";
+		reg = <0x2b>;
+		reset-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
 };
 
 &mipi_dcphy0 {
@@ -1918,25 +1938,25 @@
 };
 
 &vop {
-	assigned-clocks = <&cru PLL_V0PLL>;
-	assigned-clock-rates = <1152000000>;
+	//assigned-clocks = <&cru PLL_V0PLL>;
+	//assigned-clock-rates = <1152000000>;
 };
-
+//dp01
 &vp0 {
 	assigned-clocks = <&cru DCLK_VOP0_SRC>;
-	assigned-clock-parents = <&cru PLL_V0PLL>;
+	assigned-clock-parents = <&cru PLL_GPLL>;
 };
-
+//edp01
 &vp1 {
 	assigned-clocks = <&cru DCLK_VOP1_SRC>;
 	assigned-clock-parents = <&cru PLL_GPLL>;
 };
-
+//dsi0
 &vp2 {
 	assigned-clocks = <&cru DCLK_VOP2_SRC>;
 	assigned-clock-parents = <&cru PLL_V0PLL>;
 };
-
+//dsi1
 &vp3 {
 	assigned-clocks = <&cru DCLK_VOP3>;
 	assigned-clock-parents = <&cru PLL_V0PLL>;
