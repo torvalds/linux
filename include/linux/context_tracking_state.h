@@ -10,18 +10,18 @@
 #define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
 
 enum ctx_state {
-	CONTEXT_DISABLED	= -1,	/* returned by ct_state() if unknown */
-	CONTEXT_KERNEL		= 0,
-	CONTEXT_IDLE		= 1,
-	CONTEXT_USER		= 2,
-	CONTEXT_GUEST		= 3,
-	CONTEXT_MAX		= 4,
+	CT_STATE_DISABLED	= -1,	/* returned by ct_state() if unknown */
+	CT_STATE_KERNEL		= 0,
+	CT_STATE_IDLE		= 1,
+	CT_STATE_USER		= 2,
+	CT_STATE_GUEST		= 3,
+	CT_STATE_MAX		= 4,
 };
 
 /* Even value for idle, else odd. */
-#define RCU_DYNTICKS_IDX CONTEXT_MAX
+#define RCU_DYNTICKS_IDX CT_STATE_MAX
 
-#define CT_STATE_MASK (CONTEXT_MAX - 1)
+#define CT_STATE_MASK (CT_STATE_MAX - 1)
 #define CT_DYNTICKS_MASK (~CT_STATE_MASK)
 
 struct context_tracking {
@@ -123,14 +123,14 @@ static inline bool context_tracking_enabled_this_cpu(void)
  *
  * Returns the current cpu's context tracking state if context tracking
  * is enabled.  If context tracking is disabled, returns
- * CONTEXT_DISABLED.  This should be used primarily for debugging.
+ * CT_STATE_DISABLED.  This should be used primarily for debugging.
  */
 static __always_inline int ct_state(void)
 {
 	int ret;
 
 	if (!context_tracking_enabled())
-		return CONTEXT_DISABLED;
+		return CT_STATE_DISABLED;
 
 	preempt_disable();
 	ret = __ct_state();

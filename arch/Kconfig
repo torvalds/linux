@@ -862,7 +862,7 @@ config HAVE_CONTEXT_TRACKING_USER_OFFSTACK
 	  Architecture neither relies on exception_enter()/exception_exit()
 	  nor on schedule_user(). Also preempt_schedule_notrace() and
 	  preempt_schedule_irq() can't be called in a preemptible section
-	  while context tracking is CONTEXT_USER. This feature reflects a sane
+	  while context tracking is CT_STATE_USER. This feature reflects a sane
 	  entry implementation where the following requirements are met on
 	  critical entry code, ie: before user_exit() or after user_enter():
 
