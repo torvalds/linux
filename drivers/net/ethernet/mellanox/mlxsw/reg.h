@@ -10581,6 +10581,79 @@ static inline void mlxsw_reg_mcda_pack(char *payload, u32 update_handle,
 		mlxsw_reg_mcda_data_set(payload, i, *(u32 *) &data[i * 4]);
 }
 
+/* MCAM - Management Capabilities Mask Register
+ * --------------------------------------------
+ * Reports the device supported management features.
+ */
+#define MLXSW_REG_MCAM_ID 0x907F
+#define MLXSW_REG_MCAM_LEN 0x48
+
+MLXSW_REG_DEFINE(mcam, MLXSW_REG_MCAM_ID, MLXSW_REG_MCAM_LEN);
+
+enum mlxsw_reg_mcam_feature_group {
+	/* Enhanced features. */
+	MLXSW_REG_MCAM_FEATURE_GROUP_ENHANCED_FEATURES,
+};
+
+/* reg_mcam_feature_group
+ * Feature list mask index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mcam, feature_group, 0x00, 16, 8);
+
+enum mlxsw_reg_mcam_mng_feature_cap_mask_bits {
+	/* If set, MCIA supports 128 bytes payloads. Otherwise, 48 bytes. */
+	MLXSW_REG_MCAM_MCIA_128B = 34,
+};
+
+#define MLXSW_REG_BYTES_PER_DWORD 0x4
+
+/* reg_mcam_mng_feature_cap_mask
+ * Supported port's enhanced features.
+ * Based on feature_group index.
+ * When bit is set, the feature is supported in the device.
+ * Access: RO
+ */
+#define MLXSW_REG_MCAM_MNG_FEATURE_CAP_MASK_DWORD(_dw_num, _offset)	 \
+	MLXSW_ITEM_BIT_ARRAY(reg, mcam, mng_feature_cap_mask_dw##_dw_num, \
+			     _offset, MLXSW_REG_BYTES_PER_DWORD, 1)
+
+/* The access to the bits in the field 'mng_feature_cap_mask' is not same to
+ * other mask fields in other registers. In most of the cases bit #0 is the
+ * first one in the last dword. In MCAM register, the first dword contains bits
+ * #0-#31 and so on, so the access to the bits is simpler using bit array per
+ * dword. Declare each dword of 'mng_feature_cap_mask' field separately.
+ */
+MLXSW_REG_MCAM_MNG_FEATURE_CAP_MASK_DWORD(0, 0x28);
+MLXSW_REG_MCAM_MNG_FEATURE_CAP_MASK_DWORD(1, 0x2C);
+MLXSW_REG_MCAM_MNG_FEATURE_CAP_MASK_DWORD(2, 0x30);
+MLXSW_REG_MCAM_MNG_FEATURE_CAP_MASK_DWORD(3, 0x34);
+
+static inline void
+mlxsw_reg_mcam_pack(char *payload, enum mlxsw_reg_mcam_feature_group feat_group)
+{
+	MLXSW_REG_ZERO(mcam, payload);
+	mlxsw_reg_mcam_feature_group_set(payload, feat_group);
+}
+
+static inline void
+mlxsw_reg_mcam_unpack(char *payload,
+		      enum mlxsw_reg_mcam_mng_feature_cap_mask_bits bit,
+		      bool *p_mng_feature_cap_val)
+{
+	int offset = bit % (MLXSW_REG_BYTES_PER_DWORD * BITS_PER_BYTE);
+	int dword = bit / (MLXSW_REG_BYTES_PER_DWORD * BITS_PER_BYTE);
+	u8 (*getters[])(const char *, u16) = {
+		mlxsw_reg_mcam_mng_feature_cap_mask_dw0_get,
+		mlxsw_reg_mcam_mng_feature_cap_mask_dw1_get,
+		mlxsw_reg_mcam_mng_feature_cap_mask_dw2_get,
+		mlxsw_reg_mcam_mng_feature_cap_mask_dw3_get,
+	};
+
+	if (!WARN_ON_ONCE(dword >= ARRAY_SIZE(getters)))
+		*p_mng_feature_cap_val = getters[dword](payload, offset);
+}
+
 /* MPSC - Monitoring Packet Sampling Configuration Register
  * --------------------------------------------------------
  * MPSC Register is used to configure the Packet Sampling mechanism.
@@ -12977,6 +13050,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mcqi),
 	MLXSW_REG(mcc),
 	MLXSW_REG(mcda),
+	MLXSW_REG(mcam),
 	MLXSW_REG(mpsc),
 	MLXSW_REG(mgpc),
 	MLXSW_REG(mprs),
