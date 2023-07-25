@@ -59,10 +59,10 @@ static struct powercap_control_type *tpmi_control_type;
 
 static int tpmi_rapl_read_raw(int id, struct reg_action *ra)
 {
-	if (!ra->reg)
+	if (!ra->reg.mmio)
 		return -EINVAL;
 
-	ra->value = readq((void __iomem *)ra->reg);
+	ra->value = readq(ra->reg.mmio);
 
 	ra->value &= ra->mask;
 	return 0;
@@ -72,15 +72,15 @@ static int tpmi_rapl_write_raw(int id, struct reg_action *ra)
 {
 	u64 val;
 
-	if (!ra->reg)
+	if (!ra->reg.mmio)
 		return -EINVAL;
 
-	val = readq((void __iomem *)ra->reg);
+	val = readq(ra->reg.mmio);
 
 	val &= ~ra->mask;
 	val |= ra->value;
 
-	writeq(val, (void __iomem *)ra->reg);
+	writeq(val, ra->reg.mmio);
 	return 0;
 }
 
@@ -138,8 +138,7 @@ static int parse_one_domain(struct tpmi_rapl_package *trp, u32 offset)
 	enum tpmi_rapl_register reg_index;
 	enum rapl_domain_reg_id reg_id;
 	int tpmi_domain_size, tpmi_domain_flags;
-	u64 *tpmi_rapl_regs = trp->base + offset;
-	u64 tpmi_domain_header = readq((void __iomem *)tpmi_rapl_regs);
+	u64 tpmi_domain_header = readq(trp->base + offset);
 
 	/* Domain Parent bits are ignored for now */
 	tpmi_domain_version = tpmi_domain_header & 0xff;
@@ -180,7 +179,7 @@ static int parse_one_domain(struct tpmi_rapl_package *trp, u32 offset)
 		return -EINVAL;
 	}
 
-	if (trp->priv.regs[domain_type][RAPL_DOMAIN_REG_UNIT]) {
+	if (trp->priv.regs[domain_type][RAPL_DOMAIN_REG_UNIT].mmio) {
 		pr_warn(FW_BUG "Duplicate Domain type %d\n", tpmi_domain_type);
 		return -EINVAL;
 	}
@@ -218,7 +217,7 @@ static int parse_one_domain(struct tpmi_rapl_package *trp, u32 offset)
 		default:
 			continue;
 		}
-		trp->priv.regs[domain_type][reg_id] = (u64)&tpmi_rapl_regs[reg_index];
+		trp->priv.regs[domain_type][reg_id].mmio = trp->base + offset + reg_index * 8;
 	}
 
 	return 0;
