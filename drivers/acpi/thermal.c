@@ -115,7 +115,6 @@ struct acpi_thermal_active {
 	struct acpi_handle_list devices;
 	unsigned long temperature;
 	bool valid;
-	bool enabled;
 };
 
 struct acpi_thermal_trips {
@@ -1039,15 +1038,10 @@ static int acpi_thermal_resume(struct device *dev)
 		if (!tz->trips.active[i].valid)
 			break;
 
-		tz->trips.active[i].enabled = true;
 		for (j = 0; j < tz->trips.active[i].devices.count; j++) {
 			result = acpi_bus_update_power(
 					tz->trips.active[i].devices.handles[j],
 					&power_state);
-			if (result || (power_state != ACPI_STATE_D0)) {
-				tz->trips.active[i].enabled = false;
-				break;
-			}
 		}
 	}
 
