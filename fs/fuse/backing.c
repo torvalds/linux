@@ -208,6 +208,7 @@ int fuse_create_open_backing(
 		struct file *file, unsigned int flags, umode_t mode)
 {
 	struct fuse_inode *dir_fuse_inode = get_fuse_inode(dir);
+	struct fuse_dentry *fuse_entry = get_fuse_dentry(entry);
 	struct fuse_dentry *dir_fuse_dentry = get_fuse_dentry(entry->d_parent);
 	struct dentry *backing_dentry = NULL;
 	struct inode *inode = NULL;
@@ -239,19 +240,19 @@ int fuse_create_open_backing(
 	if (err)
 		goto out;
 
-	if (get_fuse_dentry(entry)->backing_path.dentry)
-		path_put(&get_fuse_dentry(entry)->backing_path);
-	get_fuse_dentry(entry)->backing_path = (struct path) {
+	if (fuse_entry->backing_path.dentry)
+		path_put(&fuse_entry->backing_path);
+	fuse_entry->backing_path = (struct path) {
 		.mnt = dir_fuse_dentry->backing_path.mnt,
 		.dentry = backing_dentry,
 	};
-	path_get(&get_fuse_dentry(entry)->backing_path);
+	path_get(&fuse_entry->backing_path);
 
 	if (d_inode)
 		target_nodeid = get_fuse_inode(d_inode)->nodeid;
 
 	inode = fuse_iget_backing(dir->i_sb, target_nodeid,
-			get_fuse_dentry(entry)->backing_path.dentry->d_inode);
+			fuse_entry->backing_path.dentry->d_inode);
 	if (!inode) {
 		err = -EIO;
 		goto out;
@@ -259,9 +260,8 @@ int fuse_create_open_backing(
 
 	if (get_fuse_inode(inode)->bpf)
 		bpf_prog_put(get_fuse_inode(inode)->bpf);
-	get_fuse_inode(inode)->bpf = dir_fuse_inode->bpf;
-	if (get_fuse_inode(inode)->bpf)
-		bpf_prog_inc(dir_fuse_inode->bpf);
+	get_fuse_inode(inode)->bpf = fuse_entry->bpf;
+	fuse_entry->bpf = NULL;
 
 	newent = d_splice_alias(inode, entry);
 	if (IS_ERR(newent)) {
