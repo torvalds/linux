@@ -1233,6 +1233,7 @@ err_activate_card:
 	flush_workqueue(card->workqueue);
 	lbs_remove_card(priv);
 free:
+	cancel_work_sync(&card->packet_worker);
 	destroy_workqueue(card->workqueue);
 err_queue:
 	while (card->packets) {
@@ -1277,6 +1278,7 @@ static void if_sdio_remove(struct sdio_func *func)
 	lbs_stop_card(card->priv);
 	lbs_remove_card(card->priv);
 
+	cancel_work_sync(&card->packet_worker);
 	destroy_workqueue(card->workqueue);
 
 	while (card->packets) {
