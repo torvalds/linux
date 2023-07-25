@@ -184,7 +184,7 @@
 		label = "bmc";
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <50000000>;
-#include "openbmc-flash-layout-64.dtsi"
+#include "aspeed-evb-flash-layout-64.dtsi"
 	};
 };
 
