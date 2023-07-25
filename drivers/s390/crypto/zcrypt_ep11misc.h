@@ -107,7 +107,7 @@ int ep11_get_domain_info(u16 card, u16 domain, struct ep11_domain_info *info);
  * Generate (random) EP11 AES secure key.
  */
 int ep11_genaeskey(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
-		   u8 *keybuf, size_t *keybufsize);
+		   u8 *keybuf, size_t *keybufsize, u32 keybufver);
 
 /*
  * Generate EP11 AES secure key with given clear key value.

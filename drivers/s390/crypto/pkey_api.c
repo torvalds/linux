@@ -713,6 +713,11 @@ static int pkey_genseckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 		if (*keybufsize < MINEP11AESKEYBLOBSIZE)
 			return -EINVAL;
 		break;
+	case PKEY_TYPE_EP11_AES:
+		if (*keybufsize < (sizeof(struct ep11kblob_header) +
+				   MINEP11AESKEYBLOBSIZE))
+			return -EINVAL;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -729,9 +734,10 @@ static int pkey_genseckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
 		card = apqns[i].card;
 		dom = apqns[i].domain;
-		if (ktype == PKEY_TYPE_EP11) {
+		if (ktype == PKEY_TYPE_EP11 ||
+		    ktype == PKEY_TYPE_EP11_AES) {
 			rc = ep11_genaeskey(card, dom, ksize, kflags,
-					    keybuf, keybufsize);
+					    keybuf, keybufsize, ktype);
 		} else if (ktype == PKEY_TYPE_CCA_DATA) {
 			rc = cca_genseckey(card, dom, ksize, keybuf);
 			*keybufsize = (rc ? 0 : SECKEYBLOBSIZE);
@@ -1466,7 +1472,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		apqns = _copy_apqns_from_user(kgs.apqns, kgs.apqn_entries);
 		if (IS_ERR(apqns))
 			return PTR_ERR(apqns);
-		kkey = kmalloc(klen, GFP_KERNEL);
+		kkey = kzalloc(klen, GFP_KERNEL);
 		if (!kkey) {
 			kfree(apqns);
 			return -ENOMEM;
@@ -2130,7 +2136,8 @@ static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
 		card = apqns[i] >> 16;
 		dom = apqns[i] & 0xFFFF;
-		rc = ep11_genaeskey(card, dom, keybits, 0, buf, &keysize);
+		rc = ep11_genaeskey(card, dom, keybits, 0, buf, &keysize,
+				    PKEY_TYPE_EP11);
 		if (rc == 0)
 			break;
 	}
@@ -2140,7 +2147,8 @@ static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 	if (is_xts) {
 		keysize = MAXEP11AESKEYBLOBSIZE;
 		buf += MAXEP11AESKEYBLOBSIZE;
-		rc = ep11_genaeskey(card, dom, keybits, 0, buf, &keysize);
+		rc = ep11_genaeskey(card, dom, keybits, 0, buf, &keysize,
+				    PKEY_TYPE_EP11);
 		if (rc == 0)
 			return 2 * MAXEP11AESKEYBLOBSIZE;
 	}
