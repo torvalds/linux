@@ -50,6 +50,7 @@
 #define CPUCP_MAX_LOG_LEVEL			0xF
 static DEFINE_PER_CPU(bool, cpu_is_hp);
 static DEFINE_MUTEX(perfevent_lock);
+static DEFINE_MUTEX(freq_pmqos_lock);
 
 enum event_idx {
 	INST_EVENT,
@@ -332,15 +333,18 @@ static ssize_t set_cpu_min_freq(struct kobject *kobj,
 	struct freq_qos_request *req;
 	int ret = 0;
 
+	mutex_lock(&freq_pmqos_lock);
 	if (!ready_for_freq_updates) {
 		ret = freq_qos_request_init();
 		if (ret) {
 			pr_err("%s: Failed to init qos requests policy for ret=%d\n",
 				__func__, ret);
+			mutex_unlock(&freq_pmqos_lock);
 			return ret;
 		}
 		ready_for_freq_updates = true;
 	}
+	mutex_unlock(&freq_pmqos_lock);
 
 	while ((cp = strpbrk(cp + 1, " :")))
 		ntokens++;
@@ -413,15 +417,18 @@ static ssize_t set_cpu_max_freq(struct kobject *kobj,
 	struct freq_qos_request *req;
 	int ret = 0;
 
+	mutex_lock(&freq_pmqos_lock);
 	if (!ready_for_freq_updates) {
 		ret = freq_qos_request_init();
 		if (ret) {
 			pr_err("%s: Failed to init qos requests policy for ret=%d\n",
 				__func__, ret);
+			mutex_unlock(&freq_pmqos_lock);
 			return ret;
 		}
 		ready_for_freq_updates = true;
 	}
+	mutex_unlock(&freq_pmqos_lock);
 
 	while ((cp = strpbrk(cp + 1, " :")))
 		ntokens++;
