@@ -712,6 +712,7 @@
 			resets = <&io_clk ASPEED_RESET_ESPI1>;
 			pinctrl-names = "default";
 			pinctrl-1 = <&pinctrl_espi1_default>;
+			status = "disabled";
 		};
 
 		jtag1: jtag@14c09000 {
