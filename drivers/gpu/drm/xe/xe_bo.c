@@ -301,6 +301,7 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 	struct xe_device *xe = xe_bo_device(bo);
 	struct xe_ttm_tt *tt;
 	unsigned long extra_pages;
+	enum ttm_caching caching = ttm_cached;
 	int err;
 
 	tt = kzalloc(sizeof(*tt), GFP_KERNEL);
@@ -314,10 +315,17 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 		extra_pages = DIV_ROUND_UP(xe_device_ccs_bytes(xe, bo->size),
 					   PAGE_SIZE);
 
-	/* TODO: Select caching mode */
-	err = ttm_tt_init(&tt->ttm, &bo->ttm, page_flags,
-			  bo->flags & XE_BO_SCANOUT_BIT ? ttm_write_combined : ttm_cached,
-			  extra_pages);
+	/*
+	 * Display scanout is always non-coherent with the CPU cache.
+	 *
+	 * For Xe_LPG and beyond, PPGTT PTE lookups are also non-coherent and
+	 * require a CPU:WC mapping.
+	 */
+	if (bo->flags & XE_BO_SCANOUT_BIT ||
+	    (xe->info.graphics_verx100 >= 1270 && bo->flags & XE_BO_PAGETABLE))
+		caching = ttm_write_combined;
+
+	err = ttm_tt_init(&tt->ttm, &bo->ttm, page_flags, caching, extra_pages);
 	if (err) {
 		kfree(tt);
 		return NULL;

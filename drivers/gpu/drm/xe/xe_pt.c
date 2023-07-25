@@ -221,7 +221,8 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				  XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT |
 				  XE_BO_CREATE_PINNED_BIT |
-				  XE_BO_CREATE_NO_RESV_EVICT);
+				  XE_BO_CREATE_NO_RESV_EVICT |
+				  XE_BO_PAGETABLE);
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
 		goto err_kfree;
