@@ -40,9 +40,51 @@ struct kunit_attr {
 	enum print_ops print;
 };
 
+/* String Lists for enum Attributes */
+
+static const char * const speed_str_list[] = {"unset", "very_slow", "slow", "normal"};
+
+/* To String Methods */
+
+static const char *attr_enum_to_string(void *attr, const char * const str_list[], bool *to_free)
+{
+	long val = (long)attr;
+
+	*to_free = false;
+	if (!val)
+		return NULL;
+	return str_list[val];
+}
+
+static const char *attr_speed_to_string(void *attr, bool *to_free)
+{
+	return attr_enum_to_string(attr, speed_str_list, to_free);
+}
+
+/* Get Attribute Methods */
+
+static void *attr_speed_get(void *test_or_suite, bool is_test)
+{
+	struct kunit_suite *suite = is_test ? NULL : test_or_suite;
+	struct kunit_case *test = is_test ? test_or_suite : NULL;
+
+	if (test)
+		return ((void *) test->attr.speed);
+	else
+		return ((void *) suite->attr.speed);
+}
+
 /* List of all Test Attributes */
 
-static struct kunit_attr kunit_attr_list[] = {};
+static struct kunit_attr kunit_attr_list[] = {
+	{
+		.name = "speed",
+		.get_attr = attr_speed_get,
+		.to_string = attr_speed_to_string,
+		.attr_default = (void *)KUNIT_SPEED_NORMAL,
+		.print = PRINT_ALWAYS,
+	},
+};
 
 /* Helper Functions to Access Attributes */
 
