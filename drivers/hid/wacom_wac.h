@@ -328,7 +328,7 @@ struct hid_data {
 	ktime_t time_delayed;
 };
 
-struct wacom_remote_data {
+struct wacom_remote_work_data {
 	struct {
 		u32 serial;
 	} remote[WACOM_MAX_REMOTES];
