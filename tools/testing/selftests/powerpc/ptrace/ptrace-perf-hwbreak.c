@@ -46,7 +46,7 @@ static unsigned long pid_max_addr(void)
 		return strtoul(addr, &c, 16);
 	}
 	fclose(fp);
-	printf("Could not find pix_max. Exiting..\n");
+	printf("Could not find pid_max. Exiting..\n");
 	exit(EXIT_FAILURE);
 	return -1;
 }
