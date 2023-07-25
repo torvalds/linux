@@ -380,66 +380,66 @@ static int qcom_ddump_alive_log_probe(struct qcom_dmesg_dumper *qdd)
 		return -EINVAL;
 	}
 
-	dbl_label = qdd->label;
-	qdd->tx_dbl = gh_dbl_tx_register(dbl_label);
-	if (IS_ERR_OR_NULL(qdd->tx_dbl)) {
-		ret = PTR_ERR(qdd->tx_dbl);
-		dev_err(dev, "%s:Failed to get gunyah tx dbl %d\n", __func__, ret);
-		return ret;
-	}
-
-	qdd->rx_dbl = gh_dbl_rx_register(dbl_label, qcom_ddump_gh_cb, qdd);
-	if (IS_ERR_OR_NULL(qdd->rx_dbl)) {
-		ret = PTR_ERR(qdd->rx_dbl);
-		dev_err(dev, "%s:Failed to get gunyah rx dbl %d\n", __func__, ret);
-		goto err_unregister_tx_dbl;
-	}
-
 	if (qdd->primary_vm) {
 		res = devm_request_mem_region(dev, qdd->res.start, qdd->size, dev_name(dev));
 		if (!res) {
-			ret = -ENXIO;
 			dev_err(dev, "request mem region fail\n");
-			goto err_unregister_rx_dbl;
+			return -ENXIO;
 		}
 
 		init_completion(&qdd->ddump_completion);
 		dent = proc_create_data(DDUMP_PROFS_NAME, 0400, NULL, &ddump_proc_ops, qdd);
 		if (!dent) {
 			dev_err(dev, "proc_create_data fail\n");
-			ret = -ENOMEM;
-			goto err_unregister_rx_dbl;
+			return -ENOMEM;
 		}
 	} else {
-		qdd->wakeup_source = wakeup_source_register(dev, dev_name(dev));
-		if (!qdd->wakeup_source) {
-			ret = -ENOMEM;
-			goto err_unregister_rx_dbl;
-		}
-
 		/* init shared memory header */
 		hdr = qdd->base;
 		hdr->svm_is_suspend = false;
 
 		ret = qcom_ddump_encrypt_init(node);
 		if (ret)
-			goto err_unregister_wakeup_source;
+			return ret;
+
+		qdd->wakeup_source = wakeup_source_register(dev, dev_name(dev));
+		if (!qdd->wakeup_source)
+			return -ENOMEM;
 
 		qdd->gh_panic_nb.notifier_call = qcom_ddump_gh_panic_handler;
 		qdd->gh_panic_nb.priority = INT_MAX;
 		ret = gh_panic_notifier_register(&qdd->gh_panic_nb);
 		if (ret)
-			goto err_unregister_wakeup_source;
+			goto err_panic_notifier_register;
+	}
+
+	dbl_label = qdd->label;
+	qdd->tx_dbl = gh_dbl_tx_register(dbl_label);
+	if (IS_ERR_OR_NULL(qdd->tx_dbl)) {
+		ret = PTR_ERR(qdd->tx_dbl);
+		dev_err(dev, "%s:Failed to get gunyah tx dbl %d\n", __func__, ret);
+		goto err_dbl_tx_register;
+	}
+
+	qdd->rx_dbl = gh_dbl_rx_register(dbl_label, qcom_ddump_gh_cb, qdd);
+	if (IS_ERR_OR_NULL(qdd->rx_dbl)) {
+		ret = PTR_ERR(qdd->rx_dbl);
+		dev_err(dev, "%s:Failed to get gunyah rx dbl %d\n", __func__, ret);
+		goto err_dbl_rx_register;
 	}
 
 	return 0;
 
-err_unregister_wakeup_source:
-	wakeup_source_unregister(qdd->wakeup_source);
-err_unregister_rx_dbl:
-	gh_dbl_rx_unregister(qdd->rx_dbl);
-err_unregister_tx_dbl:
+err_dbl_rx_register:
 	gh_dbl_tx_unregister(qdd->tx_dbl);
+err_dbl_tx_register:
+	if (qdd->primary_vm)
+		remove_proc_entry(DDUMP_PROFS_NAME, NULL);
+	else
+		gh_panic_notifier_unregister(&qdd->gh_panic_nb);
+err_panic_notifier_register:
+	if (!qdd->primary_vm)
+		wakeup_source_unregister(qdd->wakeup_source);
 
 	return ret;
 }
