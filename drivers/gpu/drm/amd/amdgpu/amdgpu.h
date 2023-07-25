@@ -1506,4 +1506,8 @@ static inline bool amdgpu_is_tmz(struct amdgpu_device *adev)
 
 int amdgpu_in_reset(struct amdgpu_device *adev);
 
+extern const struct attribute_group amdgpu_vram_mgr_attr_group;
+extern const struct attribute_group amdgpu_gtt_mgr_attr_group;
+extern const struct attribute_group amdgpu_flash_attr_group;
+
 #endif
