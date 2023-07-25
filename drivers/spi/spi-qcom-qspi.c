@@ -443,8 +443,10 @@ static int qcom_qspi_transfer_one(struct spi_master *master,
 
 		ret = qcom_qspi_setup_dma_desc(ctrl, xfer);
 		if (ret != -EAGAIN) {
-			if (!ret)
+			if (!ret) {
+				dma_wmb();
 				qcom_qspi_dma_xfer(ctrl);
+			}
 			goto exit;
 		}
 		dev_warn_once(ctrl->dev, "DMA failure, falling back to PIO\n");
