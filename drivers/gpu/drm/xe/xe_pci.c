@@ -806,20 +806,7 @@ static int xe_pci_runtime_idle(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 
-	if (!xe->d3cold.capable) {
-		xe->d3cold.allowed = false;
-	} else {
-		xe_pm_d3cold_allowed_toggle(xe);
-
-		/*
-		 * TODO: d3cold should be allowed (true) if
-		 * (IS_DGFX(xe) && !xe_device_mem_access_ongoing(xe))
-		 * but maybe include some other conditions. So, before
-		 * we can re-enable the D3cold, we need to:
-		 * 1. rewrite the VRAM save / restore to avoid buffer object locks
-		 */
-		xe->d3cold.allowed = false;
-	}
+	xe_pm_d3cold_allowed_toggle(xe);
 
 	return 0;
 }

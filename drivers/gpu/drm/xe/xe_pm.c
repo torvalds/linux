@@ -342,6 +342,11 @@ void xe_pm_d3cold_allowed_toggle(struct xe_device *xe)
 	u64 vram_used;
 	int i;
 
+	if (!xe->d3cold.capable) {
+		xe->d3cold.allowed = false;
+		return;
+	}
+
 	for (i = XE_PL_VRAM0; i <= XE_PL_VRAM1; ++i) {
 		man = ttm_manager_type(&xe->ttm, i);
 		if (man) {
