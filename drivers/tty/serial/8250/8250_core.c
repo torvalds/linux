@@ -497,6 +497,7 @@ static struct uart_8250_port *serial8250_setup_port(int index)
 
 	up = &serial8250_ports[index];
 	up->port.line = index;
+	up->port.port_id = index;
 
 	serial8250_init_port(up);
 	if (!base_ops)
@@ -1040,6 +1041,7 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 			uart_remove_one_port(&serial8250_reg, &uart->port);
 
 		uart->port.ctrl_id	= up->port.ctrl_id;
+		uart->port.port_id	= up->port.port_id;
 		uart->port.iobase       = up->port.iobase;
 		uart->port.membase      = up->port.membase;
 		uart->port.irq          = up->port.irq;

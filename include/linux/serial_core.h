@@ -460,6 +460,7 @@ struct uart_port {
 	int			(*iso7816_config)(struct uart_port *,
 						  struct serial_iso7816 *iso7816);
 	unsigned int		ctrl_id;		/* optional serial core controller id */
+	unsigned int		port_id;		/* optional serial core port id */
 	unsigned int		irq;			/* irq number */
 	unsigned long		irqflags;		/* irq flags  */
 	unsigned int		uartclk;		/* base uart clock */

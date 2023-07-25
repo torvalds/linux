@@ -136,7 +136,7 @@ struct serial_port_device *serial_base_port_add(struct uart_port *port,
 	err = serial_base_device_init(port, &port_dev->dev,
 				      &ctrl_dev->dev, &serial_port_type,
 				      serial_base_port_release,
-				      port->line);
+				      port->port_id);
 	if (err)
 		goto err_put_device;
 
