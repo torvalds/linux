@@ -2684,7 +2684,7 @@ static void wacom_remote_work(struct work_struct *work)
 
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		serial = data.remote[i].serial;
-		if (data.remote[i].connected) {
+		if (serial) {
 
 			if (kt - remote->remotes[i].active_time > WACOM_REMOTE_BATTERY_TIMEOUT
 			    && remote->remotes[i].active_time != 0)
