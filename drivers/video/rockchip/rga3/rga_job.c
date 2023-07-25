@@ -851,6 +851,7 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 	struct rga_pending_request_manager *request_manager;
 	struct rga_request *request;
 	int finished_count, failed_count;
+	bool is_finished = false;
 	unsigned long flags;
 
 	request_manager = rga_drvdata->pend_request_manager;
@@ -899,7 +900,7 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 
 		rga_dma_fence_signal(request->release_fence, request->ret);
 
-		wake_up(&request->finished_wq);
+		is_finished = true;
 
 		if (DEBUGGER_EN(MSG))
 			pr_info("request[%d] finished %d failed %d\n",
@@ -912,7 +913,12 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 	}
 
 	mutex_lock(&request_manager->lock);
+
+	if (is_finished)
+		wake_up(&request->finished_wq);
+
 	rga_request_put(request);
+
 	mutex_unlock(&request_manager->lock);
 
 	return 0;
