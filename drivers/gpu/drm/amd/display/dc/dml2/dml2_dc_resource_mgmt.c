@@ -708,6 +708,17 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 					// If ODM combine is not inuse, then the number of pipes
 					// per plane is determined by MPC combine factor
 					scratch.mpc_info.mpc_factor = DPPPerSurface[plane_disp_cfg_index];
+
+					//For stereo timings, we need to pipe split
+					if ((state->streams[stream_index]->view_format ==
+							VIEW_3D_FORMAT_SIDE_BY_SIDE ||
+							state->streams[stream_index]->view_format ==
+							VIEW_3D_FORMAT_TOP_AND_BOTTOM) &&
+							(state->streams[stream_index]->timing.timing_3d_format ==
+							TIMING_3D_FORMAT_TOP_AND_BOTTOM ||
+							state->streams[stream_index]->timing.timing_3d_format ==
+							TIMING_3D_FORMAT_SIDE_BY_SIDE))
+						scratch.mpc_info.mpc_factor = 2;
 				} else {
 					// If ODM combine is enabled, then we use at most 1 pipe per
 					// odm slice per plane, i.e. MPC combine is never used
