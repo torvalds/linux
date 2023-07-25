@@ -117,7 +117,8 @@
 #define MTK_CDMP_EG_CTRL	0x404
 
 /* GDM Exgress Control Register */
-#define MTK_GDMA_FWD_CFG(x)	(0x500 + (x * 0x1000))
+#define MTK_GDMA_FWD_CFG(x)	({ typeof(x) _x = (x); (_x == MTK_GMAC3_ID) ?	\
+				   0x540 : 0x500 + (_x * 0x1000); })
 #define MTK_GDMA_SPECIAL_TAG	BIT(24)
 #define MTK_GDMA_ICS_EN		BIT(22)
 #define MTK_GDMA_TCS_EN		BIT(21)
@@ -125,6 +126,11 @@
 #define MTK_GDMA_STRP_CRC	BIT(16)
 #define MTK_GDMA_TO_PDMA	0x0
 #define MTK_GDMA_DROP_ALL       0x7777
+
+/* GDM Egress Control Register */
+#define MTK_GDMA_EG_CTRL(x)	({ typeof(x) _x = (x); (_x == MTK_GMAC3_ID) ?	\
+				   0x544 : 0x504 + (_x * 0x1000); })
+#define MTK_GDMA_XGDM_SEL	BIT(31)
 
 /* Unicast Filter MAC Address Register - Low */
 #define MTK_GDMA_MAC_ADRL(x)	(0x508 + (x * 0x1000))
@@ -389,7 +395,26 @@
 #define PHY_IAC_TIMEOUT		HZ
 
 #define MTK_MAC_MISC		0x1000c
+#define MTK_MAC_MISC_V3		0x10010
 #define MTK_MUX_TO_ESW		BIT(0)
+#define MISC_MDC_TURBO		BIT(4)
+
+/* XMAC status registers */
+#define MTK_XGMAC_STS(x)	(((x) == MTK_GMAC3_ID) ? 0x1001C : 0x1000C)
+#define MTK_XGMAC_FORCE_LINK(x)	(((x) == MTK_GMAC2_ID) ? BIT(31) : BIT(15))
+#define MTK_USXGMII_PCS_LINK	BIT(8)
+#define MTK_XGMAC_RX_FC		BIT(5)
+#define MTK_XGMAC_TX_FC		BIT(4)
+#define MTK_USXGMII_PCS_MODE	GENMASK(3, 1)
+#define MTK_XGMAC_LINK_STS	BIT(0)
+
+/* GSW bridge registers */
+#define MTK_GSW_CFG		(0x10080)
+#define GSWTX_IPG_MASK		GENMASK(19, 16)
+#define GSWTX_IPG_SHIFT		16
+#define GSWRX_IPG_MASK		GENMASK(3, 0)
+#define GSWRX_IPG_SHIFT		0
+#define GSW_IPG_11		11
 
 /* Mac control registers */
 #define MTK_MAC_MCR(x)		(0x10100 + (x * 0x100))
@@ -647,6 +672,11 @@ enum mtk_clks_map {
 	MTK_CLK_GP0,
 	MTK_CLK_GP1,
 	MTK_CLK_GP2,
+	MTK_CLK_GP3,
+	MTK_CLK_XGP1,
+	MTK_CLK_XGP2,
+	MTK_CLK_XGP3,
+	MTK_CLK_CRYPTO,
 	MTK_CLK_FE,
 	MTK_CLK_TRGPLL,
 	MTK_CLK_SGMII_TX_250M,
@@ -663,6 +693,27 @@ enum mtk_clks_map {
 	MTK_CLK_WOCPU1,
 	MTK_CLK_NETSYS0,
 	MTK_CLK_NETSYS1,
+	MTK_CLK_ETHWARP_WOCPU2,
+	MTK_CLK_ETHWARP_WOCPU1,
+	MTK_CLK_ETHWARP_WOCPU0,
+	MTK_CLK_TOP_USXGMII_SBUS_0_SEL,
+	MTK_CLK_TOP_USXGMII_SBUS_1_SEL,
+	MTK_CLK_TOP_SGM_0_SEL,
+	MTK_CLK_TOP_SGM_1_SEL,
+	MTK_CLK_TOP_XFI_PHY_0_XTAL_SEL,
+	MTK_CLK_TOP_XFI_PHY_1_XTAL_SEL,
+	MTK_CLK_TOP_ETH_GMII_SEL,
+	MTK_CLK_TOP_ETH_REFCK_50M_SEL,
+	MTK_CLK_TOP_ETH_SYS_200M_SEL,
+	MTK_CLK_TOP_ETH_SYS_SEL,
+	MTK_CLK_TOP_ETH_XGMII_SEL,
+	MTK_CLK_TOP_ETH_MII_SEL,
+	MTK_CLK_TOP_NETSYS_SEL,
+	MTK_CLK_TOP_NETSYS_500M_SEL,
+	MTK_CLK_TOP_NETSYS_PAO_2X_SEL,
+	MTK_CLK_TOP_NETSYS_SYNC_250M_SEL,
+	MTK_CLK_TOP_NETSYS_PPEFB_250M_SEL,
+	MTK_CLK_TOP_NETSYS_WARP_SEL,
 	MTK_CLK_MAX
 };
 
@@ -716,6 +767,36 @@ enum mtk_clks_map {
 				 BIT_ULL(MTK_CLK_SGMII2_RX_250M) | \
 				 BIT_ULL(MTK_CLK_SGMII2_CDR_REF) | \
 				 BIT_ULL(MTK_CLK_SGMII2_CDR_FB))
+#define MT7988_CLKS_BITMAP	(BIT_ULL(MTK_CLK_FE) | BIT_ULL(MTK_CLK_ESW) | \
+				 BIT_ULL(MTK_CLK_GP1) | BIT_ULL(MTK_CLK_GP2) | \
+				 BIT_ULL(MTK_CLK_GP3) | BIT_ULL(MTK_CLK_XGP1) | \
+				 BIT_ULL(MTK_CLK_XGP2) | BIT_ULL(MTK_CLK_XGP3) | \
+				 BIT_ULL(MTK_CLK_CRYPTO) | \
+				 BIT_ULL(MTK_CLK_SGMII_TX_250M) | \
+				 BIT_ULL(MTK_CLK_SGMII_RX_250M) | \
+				 BIT_ULL(MTK_CLK_SGMII2_TX_250M) | \
+				 BIT_ULL(MTK_CLK_SGMII2_RX_250M) | \
+				 BIT_ULL(MTK_CLK_ETHWARP_WOCPU2) | \
+				 BIT_ULL(MTK_CLK_ETHWARP_WOCPU1) | \
+				 BIT_ULL(MTK_CLK_ETHWARP_WOCPU0) | \
+				 BIT_ULL(MTK_CLK_TOP_USXGMII_SBUS_0_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_USXGMII_SBUS_1_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_SGM_0_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_SGM_1_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_XFI_PHY_0_XTAL_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_XFI_PHY_1_XTAL_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_ETH_GMII_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_ETH_REFCK_50M_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_ETH_SYS_200M_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_ETH_SYS_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_ETH_XGMII_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_ETH_MII_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_NETSYS_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_NETSYS_500M_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_NETSYS_PAO_2X_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_NETSYS_SYNC_250M_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_NETSYS_PPEFB_250M_SEL) | \
+				 BIT_ULL(MTK_CLK_TOP_NETSYS_WARP_SEL))
 
 enum mtk_dev_state {
 	MTK_HW_INIT,
@@ -963,6 +1044,8 @@ enum mkt_eth_capabilities {
 #define MT7986_CAPS  (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | \
 		      MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
 		      MTK_RSTCTRL_PPE1)
+
+#define MT7988_CAPS  (MTK_GDM1_ESW | MTK_QDMA | MTK_RSTCTRL_PPE1)
 
 struct mtk_tx_dma_desc_info {
 	dma_addr_t	addr;
@@ -1309,6 +1392,7 @@ void mtk_stats_update_mac(struct mtk_mac *mac);
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
 u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
+u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned int reg);
 
 int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);

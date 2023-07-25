@@ -152,6 +152,54 @@ static const struct mtk_reg_map mt7986_reg_map = {
 	.pse_oq_sta		= 0x01a0,
 };
 
+static const struct mtk_reg_map mt7988_reg_map = {
+	.tx_irq_mask		= 0x461c,
+	.tx_irq_status		= 0x4618,
+	.pdma = {
+		.rx_ptr		= 0x6900,
+		.rx_cnt_cfg	= 0x6904,
+		.pcrx_ptr	= 0x6908,
+		.glo_cfg	= 0x6a04,
+		.rst_idx	= 0x6a08,
+		.delay_irq	= 0x6a0c,
+		.irq_status	= 0x6a20,
+		.irq_mask	= 0x6a28,
+		.adma_rx_dbg0	= 0x6a38,
+		.int_grp	= 0x6a50,
+	},
+	.qdma = {
+		.qtx_cfg	= 0x4400,
+		.qtx_sch	= 0x4404,
+		.rx_ptr		= 0x4500,
+		.rx_cnt_cfg	= 0x4504,
+		.qcrx_ptr	= 0x4508,
+		.glo_cfg	= 0x4604,
+		.rst_idx	= 0x4608,
+		.delay_irq	= 0x460c,
+		.fc_th		= 0x4610,
+		.int_grp	= 0x4620,
+		.hred		= 0x4644,
+		.ctx_ptr	= 0x4700,
+		.dtx_ptr	= 0x4704,
+		.crx_ptr	= 0x4710,
+		.drx_ptr	= 0x4714,
+		.fq_head	= 0x4720,
+		.fq_tail	= 0x4724,
+		.fq_count	= 0x4728,
+		.fq_blen	= 0x472c,
+		.tx_sch_rate	= 0x4798,
+	},
+	.gdm1_cnt		= 0x1c00,
+	.gdma_to_ppe		= 0x3333,
+	.ppe_base		= 0x2000,
+	.wdma_base = {
+		[0]		= 0x4800,
+		[1]		= 0x4c00,
+	},
+	.pse_iq_sta		= 0x0180,
+	.pse_oq_sta		= 0x01a0,
+};
+
 /* strings used by ethtool */
 static const struct mtk_ethtool_stats {
 	char str[ETH_GSTRING_LEN];
@@ -179,10 +227,54 @@ static const struct mtk_ethtool_stats {
 };
 
 static const char * const mtk_clks_source_name[] = {
-	"ethif", "sgmiitop", "esw", "gp0", "gp1", "gp2", "fe", "trgpll",
-	"sgmii_tx250m", "sgmii_rx250m", "sgmii_cdr_ref", "sgmii_cdr_fb",
-	"sgmii2_tx250m", "sgmii2_rx250m", "sgmii2_cdr_ref", "sgmii2_cdr_fb",
-	"sgmii_ck", "eth2pll", "wocpu0", "wocpu1", "netsys0", "netsys1"
+	"ethif",
+	"sgmiitop",
+	"esw",
+	"gp0",
+	"gp1",
+	"gp2",
+	"gp3",
+	"xgp1",
+	"xgp2",
+	"xgp3",
+	"crypto",
+	"fe",
+	"trgpll",
+	"sgmii_tx250m",
+	"sgmii_rx250m",
+	"sgmii_cdr_ref",
+	"sgmii_cdr_fb",
+	"sgmii2_tx250m",
+	"sgmii2_rx250m",
+	"sgmii2_cdr_ref",
+	"sgmii2_cdr_fb",
+	"sgmii_ck",
+	"eth2pll",
+	"wocpu0",
+	"wocpu1",
+	"netsys0",
+	"netsys1",
+	"ethwarp_wocpu2",
+	"ethwarp_wocpu1",
+	"ethwarp_wocpu0",
+	"top_usxgmii0_sel",
+	"top_usxgmii1_sel",
+	"top_sgm0_sel",
+	"top_sgm1_sel",
+	"top_xfi_phy0_xtal_sel",
+	"top_xfi_phy1_xtal_sel",
+	"top_eth_gmii_sel",
+	"top_eth_refck_50m_sel",
+	"top_eth_sys_200m_sel",
+	"top_eth_sys_sel",
+	"top_eth_xgmii_sel",
+	"top_eth_mii_sel",
+	"top_netsys_sel",
+	"top_netsys_500m_sel",
+	"top_netsys_pao_2x_sel",
+	"top_netsys_sync_250m_sel",
+	"top_netsys_ppefb_250m_sel",
+	"top_netsys_warp_sel",
 };
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
@@ -195,7 +287,7 @@ u32 mtk_r32(struct mtk_eth *eth, unsigned reg)
 	return __raw_readl(eth->base + reg);
 }
 
-static u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned reg)
+u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned int reg)
 {
 	u32 val;
 
@@ -400,6 +492,19 @@ static void mtk_gmac0_rgmii_adjust(struct mtk_eth *eth,
 	dev_err(eth->dev, "Missing PLL configuration, ethernet may not work\n");
 }
 
+static void mtk_setup_bridge_switch(struct mtk_eth *eth)
+{
+	/* Force Port1 XGMAC Link Up */
+	mtk_m32(eth, 0, MTK_XGMAC_FORCE_LINK(MTK_GMAC1_ID),
+		MTK_XGMAC_STS(MTK_GMAC1_ID));
+
+	/* Adjust GSW bridge IPG to 11 */
+	mtk_m32(eth, GSWTX_IPG_MASK | GSWRX_IPG_MASK,
+		(GSW_IPG_11 << GSWTX_IPG_SHIFT) |
+		(GSW_IPG_11 << GSWRX_IPG_SHIFT),
+		MTK_GSW_CFG);
+}
+
 static struct phylink_pcs *mtk_mac_select_pcs(struct phylink_config *config,
 					      phy_interface_t interface)
 {
@@ -458,6 +563,8 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 				if (err)
 					goto init_err;
 			}
+			break;
+		case PHY_INTERFACE_MODE_INTERNAL:
 			break;
 		default:
 			goto err_phy;
@@ -526,6 +633,15 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		dev_err(eth->dev,
 			"In-band mode not supported in non SGMII mode!\n");
 		return;
+	}
+
+	/* Setup gmac */
+	if (mtk_is_netsys_v3_or_greater(eth) &&
+	    mac->interface == PHY_INTERFACE_MODE_INTERNAL) {
+		mtk_w32(mac->hw, MTK_GDMA_XGDM_SEL, MTK_GDMA_EG_CTRL(mac->id));
+		mtk_w32(mac->hw, MAC_MCR_FORCE_LINK_DOWN, MTK_MAC_MCR(mac->id));
+
+		mtk_setup_bridge_switch(eth);
 	}
 
 	return;
@@ -740,11 +856,15 @@ static int mtk_mdio_init(struct mtk_eth *eth)
 	}
 	divider = min_t(unsigned int, DIV_ROUND_UP(MDC_MAX_FREQ, max_clk), 63);
 
+	/* Configure MDC Turbo Mode */
+	if (mtk_is_netsys_v3_or_greater(eth))
+		mtk_m32(eth, 0, MISC_MDC_TURBO, MTK_MAC_MISC_V3);
+
 	/* Configure MDC Divider */
-	val = mtk_r32(eth, MTK_PPSC);
-	val &= ~PPSC_MDC_CFG;
-	val |= FIELD_PREP(PPSC_MDC_CFG, divider) | PPSC_MDC_TURBO;
-	mtk_w32(eth, val, MTK_PPSC);
+	val = FIELD_PREP(PPSC_MDC_CFG, divider);
+	if (!mtk_is_netsys_v3_or_greater(eth))
+		val |= PPSC_MDC_TURBO;
+	mtk_m32(eth, PPSC_MDC_CFG, val, MTK_PPSC);
 
 	dev_dbg(eth->dev, "MDC is running on %d Hz\n", MDC_MAX_FREQ / divider);
 
@@ -1205,10 +1325,19 @@ static void mtk_tx_set_dma_desc_v2(struct net_device *dev, void *txd,
 		data |= TX_DMA_LS0;
 	WRITE_ONCE(desc->txd3, data);
 
-	if (mac->id == MTK_GMAC3_ID)
-		data = PSE_GDM3_PORT;
-	else
-		data = (mac->id + 1) << TX_DMA_FPORT_SHIFT_V2; /* forward port */
+	 /* set forward port */
+	switch (mac->id) {
+	case MTK_GMAC1_ID:
+		data = PSE_GDM1_PORT << TX_DMA_FPORT_SHIFT_V2;
+		break;
+	case MTK_GMAC2_ID:
+		data = PSE_GDM2_PORT << TX_DMA_FPORT_SHIFT_V2;
+		break;
+	case MTK_GMAC3_ID:
+		data = PSE_GDM3_PORT << TX_DMA_FPORT_SHIFT_V2;
+		break;
+	}
+
 	data |= TX_DMA_SWC_V2 | QID_BITS_V2(info->qid);
 	WRITE_ONCE(desc->txd4, data);
 
@@ -4387,6 +4516,17 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 			  mac->phylink_config.supported_interfaces);
 	}
 
+	if (mtk_is_netsys_v3_or_greater(mac->hw) &&
+	    MTK_HAS_CAPS(mac->hw->soc->caps, MTK_ESW_BIT) &&
+	    id == MTK_GMAC1_ID) {
+		mac->phylink_config.mac_capabilities = MAC_ASYM_PAUSE |
+						       MAC_SYM_PAUSE |
+						       MAC_10000FD;
+		phy_interface_zero(mac->phylink_config.supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  mac->phylink_config.supported_interfaces);
+	}
+
 	phylink = phylink_create(&mac->phylink_config,
 				 of_fwnode_handle(mac->of_node),
 				 phy_mode, &mtk_phylink_ops);
@@ -4913,6 +5053,24 @@ static const struct mtk_soc_data mt7986_data = {
 	},
 };
 
+static const struct mtk_soc_data mt7988_data = {
+	.reg_map = &mt7988_reg_map,
+	.ana_rgc3 = 0x128,
+	.caps = MT7988_CAPS,
+	.hw_features = MTK_HW_FEATURES,
+	.required_clks = MT7988_CLKS_BITMAP,
+	.required_pctl = false,
+	.version = 3,
+	.txrx = {
+		.txd_size = sizeof(struct mtk_tx_dma_v2),
+		.rxd_size = sizeof(struct mtk_rx_dma_v2),
+		.rx_irq_done_mask = MTK_RX_DONE_INT_V2,
+		.rx_dma_l4_valid = RX_DMA_L4_VALID_V2,
+		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
+		.dma_len_offset = 8,
+	},
+};
+
 static const struct mtk_soc_data rt5350_data = {
 	.reg_map = &mt7628_reg_map,
 	.caps = MT7628_CAPS,
@@ -4931,14 +5089,15 @@ static const struct mtk_soc_data rt5350_data = {
 };
 
 const struct of_device_id of_mtk_match[] = {
-	{ .compatible = "mediatek,mt2701-eth", .data = &mt2701_data},
-	{ .compatible = "mediatek,mt7621-eth", .data = &mt7621_data},
-	{ .compatible = "mediatek,mt7622-eth", .data = &mt7622_data},
-	{ .compatible = "mediatek,mt7623-eth", .data = &mt7623_data},
-	{ .compatible = "mediatek,mt7629-eth", .data = &mt7629_data},
-	{ .compatible = "mediatek,mt7981-eth", .data = &mt7981_data},
-	{ .compatible = "mediatek,mt7986-eth", .data = &mt7986_data},
-	{ .compatible = "ralink,rt5350-eth", .data = &rt5350_data},
+	{ .compatible = "mediatek,mt2701-eth", .data = &mt2701_data },
+	{ .compatible = "mediatek,mt7621-eth", .data = &mt7621_data },
+	{ .compatible = "mediatek,mt7622-eth", .data = &mt7622_data },
+	{ .compatible = "mediatek,mt7623-eth", .data = &mt7623_data },
+	{ .compatible = "mediatek,mt7629-eth", .data = &mt7629_data },
+	{ .compatible = "mediatek,mt7981-eth", .data = &mt7981_data },
+	{ .compatible = "mediatek,mt7986-eth", .data = &mt7986_data },
+	{ .compatible = "mediatek,mt7988-eth", .data = &mt7988_data },
+	{ .compatible = "ralink,rt5350-eth", .data = &rt5350_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_mtk_match);

@@ -43,7 +43,7 @@ static const char *mtk_eth_path_name(u64 path)
 static int set_mux_gdm1_to_gmac1_esw(struct mtk_eth *eth, u64 path)
 {
 	bool updated = true;
-	u32 val, mask, set;
+	u32 mask, set, reg;
 
 	switch (path) {
 	case MTK_ETH_PATH_GMAC1_SGMII:
@@ -59,11 +59,13 @@ static int set_mux_gdm1_to_gmac1_esw(struct mtk_eth *eth, u64 path)
 		break;
 	}
 
-	if (updated) {
-		val = mtk_r32(eth, MTK_MAC_MISC);
-		val = (val & mask) | set;
-		mtk_w32(eth, val, MTK_MAC_MISC);
-	}
+	if (mtk_is_netsys_v3_or_greater(eth))
+		reg = MTK_MAC_MISC_V3;
+	else
+		reg = MTK_MAC_MISC;
+
+	if (updated)
+		mtk_m32(eth, mask, set, reg);
 
 	dev_dbg(eth->dev, "path %s in %s updated = %d\n",
 		mtk_eth_path_name(path), __func__, updated);
