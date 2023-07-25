@@ -18,7 +18,8 @@ struct irdma_ucontext {
 	struct list_head qp_reg_mem_list;
 	spinlock_t qp_reg_mem_list_lock; /* protect QP memory list */
 	int abi_ver;
-	bool legacy_mode;
+	u8 legacy_mode : 1;
+	u8 use_raw_attrs : 1;
 };
 
 struct irdma_pd {
