@@ -424,18 +424,20 @@ static void shmem_recalc_inode(struct inode *inode)
 bool shmem_charge(struct inode *inode, long pages)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
-	unsigned long flags;
+	struct address_space *mapping = inode->i_mapping;
 
 	if (shmem_inode_acct_block(inode, pages))
 		return false;
 
 	/* nrpages adjustment first, then shmem_recalc_inode() when balanced */
-	inode->i_mapping->nrpages += pages;
+	xa_lock_irq(&mapping->i_pages);
+	mapping->nrpages += pages;
+	xa_unlock_irq(&mapping->i_pages);
 
-	spin_lock_irqsave(&info->lock, flags);
+	spin_lock_irq(&info->lock);
 	info->alloced += pages;
 	shmem_recalc_inode(inode);
-	spin_unlock_irqrestore(&info->lock, flags);
+	spin_unlock_irq(&info->lock);
 
 	return true;
 }
@@ -443,16 +445,13 @@ bool shmem_charge(struct inode *inode, long pages)
 void shmem_uncharge(struct inode *inode, long pages)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
-	unsigned long flags;
 
 	/* nrpages adjustment done by __filemap_remove_folio() or caller */
 
-	spin_lock_irqsave(&info->lock, flags);
-	info->alloced -= pages;
+	spin_lock_irq(&info->lock);
 	shmem_recalc_inode(inode);
-	spin_unlock_irqrestore(&info->lock, flags);
-
-	shmem_inode_unacct_blocks(inode, pages);
+	/* which has called shmem_inode_unacct_blocks() if necessary */
+	spin_unlock_irq(&info->lock);
 }
 
 /*

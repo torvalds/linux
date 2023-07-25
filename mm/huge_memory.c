@@ -2521,7 +2521,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 	struct address_space *swap_cache = NULL;
 	unsigned long offset = 0;
 	unsigned int nr = thp_nr_pages(head);
-	int i;
+	int i, nr_dropped = 0;
 
 	/* complete memcg works before add pages to LRU */
 	split_page_memcg(head, nr);
@@ -2546,7 +2546,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 			struct folio *tail = page_folio(head + i);
 
 			if (shmem_mapping(head->mapping))
-				shmem_uncharge(head->mapping->host, 1);
+				nr_dropped++;
 			else if (folio_test_clear_dirty(tail))
 				folio_account_cleaned(tail,
 					inode_to_wb(folio->mapping->host));
@@ -2583,6 +2583,8 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 	}
 	local_irq_enable();
 
+	if (nr_dropped)
+		shmem_uncharge(head->mapping->host, nr_dropped);
 	remap_page(folio, nr);
 
 	if (PageSwapCache(head)) {
