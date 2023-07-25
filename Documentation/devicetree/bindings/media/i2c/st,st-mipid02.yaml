@@ -143,7 +143,6 @@ examples:
         mipid02: csi2rx@14 {
             compatible = "st,st-mipid02";
             reg = <0x14>;
-            status = "okay";
             clocks = <&clk_ext_camera_12>;
             clock-names = "xclk";
             VDDE-supply = <&vdd>;
