@@ -313,10 +313,7 @@ EXPORT_SYMBOL_GPL(pwmchip_add);
  * pwmchip_remove() - remove a PWM chip
  * @chip: the PWM chip to remove
  *
- * Removes a PWM chip. This function may return busy if the PWM chip provides
- * a PWM device that is still requested.
- *
- * Returns: 0 on success or a negative error code on failure.
+ * Removes a PWM chip.
  */
 void pwmchip_remove(struct pwm_chip *chip)
 {
