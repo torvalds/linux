@@ -30,6 +30,28 @@ enum toggle_d3cold {
 	D3COLD_ENABLE,
 };
 
+static void d3cold_toggle(struct pci_dev *pdev, enum toggle_d3cold toggle)
+{
+	struct xe_device *xe = pdev_to_xe_device(pdev);
+	struct pci_dev *root_pdev;
+
+	if (!xe->d3cold.capable)
+		return;
+
+	root_pdev = pcie_find_root_port(pdev);
+	if (!root_pdev)
+		return;
+
+	switch (toggle) {
+	case D3COLD_DISABLE:
+		pci_d3cold_disable(root_pdev);
+		break;
+	case D3COLD_ENABLE:
+		pci_d3cold_enable(root_pdev);
+		break;
+	}
+}
+
 struct xe_subplatform_desc {
 	enum xe_subplatform subplatform;
 	const char *name;
@@ -697,6 +719,13 @@ static int xe_pci_suspend(struct device *dev)
 	if (err)
 		return err;
 
+	/*
+	 * Enabling D3Cold is needed for S2Idle/S0ix.
+	 * It is save to allow here since xe_pm_suspend has evicted
+	 * the local memory and the direct complete optimization is disabled.
+	 */
+	d3cold_toggle(pdev, D3COLD_ENABLE);
+
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 
@@ -711,6 +740,9 @@ static int xe_pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	int err;
+
+	/* Give back the D3Cold decision to the runtime P M*/
+	d3cold_toggle(pdev, D3COLD_DISABLE);
 
 	err = pci_set_power_state(pdev, PCI_D0);
 	if (err)
@@ -729,28 +761,6 @@ static int xe_pci_resume(struct device *dev)
 		return err;
 
 	return 0;
-}
-
-static void d3cold_toggle(struct pci_dev *pdev, enum toggle_d3cold toggle)
-{
-	struct xe_device *xe = pdev_to_xe_device(pdev);
-	struct pci_dev *root_pdev;
-
-	if (!xe->d3cold.capable)
-		return;
-
-	root_pdev = pcie_find_root_port(pdev);
-	if (!root_pdev)
-		return;
-
-	switch (toggle) {
-	case D3COLD_DISABLE:
-		pci_d3cold_disable(root_pdev);
-		break;
-	case D3COLD_ENABLE:
-		pci_d3cold_enable(root_pdev);
-		break;
-	}
 }
 
 static int xe_pci_runtime_suspend(struct device *dev)

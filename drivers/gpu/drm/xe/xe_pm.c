@@ -128,6 +128,17 @@ static void xe_pm_runtime_init(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
 
+	/*
+	 * Disable the system suspend direct complete optimization.
+	 * We need to ensure that the regular device suspend/resume functions
+	 * are called since our runtime_pm cannot guarantee local memory
+	 * eviction for d3cold.
+	 * TODO: Check HDA audio dependencies claimed by i915, and then enforce
+	 *       this option to integrated graphics as well.
+	 */
+	if (IS_DGFX(xe))
+		dev_pm_set_driver_flags(dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_set_active(dev);
