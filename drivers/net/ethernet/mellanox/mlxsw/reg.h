@@ -9640,7 +9640,7 @@ static inline void mlxsw_reg_mtbr_temp_unpack(char *payload, int rec_ind,
  */
 
 #define MLXSW_REG_MCIA_ID 0x9014
-#define MLXSW_REG_MCIA_LEN 0x40
+#define MLXSW_REG_MCIA_LEN 0x94
 
 MLXSW_REG_DEFINE(mcia, MLXSW_REG_MCIA_ID, MLXSW_REG_MCIA_LEN);
 
