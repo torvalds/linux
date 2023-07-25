@@ -726,7 +726,7 @@ int test_mmap_munmap(void)
 
 	page_size = getpagesize();
 	if (page_size < 0)
-		return -1;
+		return 1;
 
 	/* find a right file to mmap, existed and accessible */
 	for (i = 0; files[i] != NULL; i++) {
@@ -737,7 +737,7 @@ int test_mmap_munmap(void)
 			break;
 	}
 	if (ret == -1)
-		return ret;
+		return 1;
 
 	ret = stat(files[i], &stat_buf);
 	if (ret == -1)
@@ -757,7 +757,7 @@ int test_mmap_munmap(void)
 
 	mem = mmap(NULL, length + offset - pa_offset, PROT_READ, MAP_SHARED, fd, pa_offset);
 	if (mem == MAP_FAILED) {
-		ret = -1;
+		ret = 1;
 		goto end;
 	}
 
@@ -765,7 +765,7 @@ int test_mmap_munmap(void)
 
 end:
 	close(fd);
-	return ret;
+	return !!ret;
 }
 
 
