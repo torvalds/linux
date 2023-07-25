@@ -72,7 +72,12 @@
 #define VISUAL_CONFIRM_BASE_DEFAULT 3
 #define VISUAL_CONFIRM_BASE_MIN 1
 #define VISUAL_CONFIRM_BASE_MAX 10
-#define VISUAL_CONFIRM_DPP_OFFSET 3
+/* we choose 240 because it is a common denominator of common v addressable
+ * such as 2160, 1440, 1200, 960. So we take 1/240 portion of v addressable as
+ * the visual confirm dpp offset height. So visual confirm height can stay
+ * relatively the same independent from timing used.
+ */
+#define VISUAL_CONFIRM_DPP_OFFSET_DENO 240
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1002,7 +1007,8 @@ static void adjust_recout_for_visual_confirm(struct rect *recout,
 	if (dc->debug.visual_confirm == VISUAL_CONFIRM_DISABLE)
 		return;
 
-	dpp_offset = pipe_ctx->plane_res.dpp->inst * VISUAL_CONFIRM_DPP_OFFSET;
+	dpp_offset = pipe_ctx->stream->timing.v_addressable / VISUAL_CONFIRM_DPP_OFFSET_DENO;
+	dpp_offset *= pipe_ctx->plane_res.dpp->inst;
 
 	if ((dc->debug.visual_confirm_rect_height >= VISUAL_CONFIRM_BASE_MIN) &&
 			dc->debug.visual_confirm_rect_height <= VISUAL_CONFIRM_BASE_MAX)
