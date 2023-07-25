@@ -95,9 +95,6 @@ properties:
           Properties for a single BUCK regulator
 
         properties:
-          regulator-name:
-            pattern: "^BUCK([1-2])$"
-
           regulator-initial-mode:
             enum: [ 0, 1, 2, 3 ]
             description: Defined in include/dt-bindings/regulator/dlg,da9121-regulator.h
