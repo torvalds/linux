@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. include:: ../disclaimer-zh_CN.rst
+.. include:: ../../disclaimer-zh_CN.rst
 
-:Original: Documentation/mips/booting.rst
+:Original: Documentation/arch/mips/booting.rst
 
 :翻译:
 

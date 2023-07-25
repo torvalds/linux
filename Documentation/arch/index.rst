@@ -15,7 +15,7 @@ implementation.
    ia64/index
    loongarch/index
    m68k/index
-   ../mips/index
+   mips/index
    nios2/index
    openrisc/index
    parisc/index
