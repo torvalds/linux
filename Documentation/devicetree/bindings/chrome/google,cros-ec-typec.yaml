@@ -29,10 +29,8 @@ properties:
 patternProperties:
   '^connector@[0-9a-f]+$':
     $ref: /schemas/connector/usb-connector.yaml#
-    unevaluatedProperties: false
-    properties:
-      reg:
-        maxItems: 1
+    required:
+      - reg
 
 required:
   - compatible
