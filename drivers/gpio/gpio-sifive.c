@@ -6,7 +6,6 @@
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/errno.h>
-#include <linux/of_irq.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -182,8 +181,6 @@ static const struct regmap_config sifive_gpio_regmap_config = {
 static int sifive_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *irq_parent;
 	struct irq_domain *parent;
 	struct gpio_irq_chip *girq;
 	struct sifive_gpio *chip;
@@ -204,24 +201,22 @@ static int sifive_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(chip->regs))
 		return PTR_ERR(chip->regs);
 
-	irq_parent = of_irq_find_parent(node);
-	if (!irq_parent) {
-		dev_err(dev, "no IRQ parent node\n");
-		return -ENODEV;
-	}
-	parent = irq_find_host(irq_parent);
-	of_node_put(irq_parent);
-	if (!parent) {
-		dev_err(dev, "no IRQ parent domain\n");
-		return -ENODEV;
-	}
-
 	for (ngpio = 0; ngpio < SIFIVE_GPIO_MAX; ngpio++) {
 		ret = platform_get_irq_optional(pdev, ngpio);
 		if (ret < 0)
 			break;
 		chip->irq_number[ngpio] = ret;
 	}
+	if (!ngpio) {
+		dev_err(dev, "no IRQ found\n");
+		return -ENODEV;
+	}
+
+	/*
+	 * The check above ensures at least one parent IRQ is valid.
+	 * Assume all parent IRQs belong to the same domain.
+	 */
+	parent = irq_get_irq_data(chip->irq_number[0])->domain;
 
 	ret = bgpio_init(&chip->gc, dev, 4,
 			 chip->base + SIFIVE_GPIO_INPUT_VAL,
