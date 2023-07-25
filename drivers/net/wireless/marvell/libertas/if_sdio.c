@@ -101,7 +101,7 @@ MODULE_FIRMWARE("sd8688_helper.bin");
 MODULE_FIRMWARE("sd8688.bin");
 
 struct if_sdio_packet {
-	struct if_sdio_packet	*next;
+	struct list_head	list;
 	u16			nb;
 	u8			buffer[] __aligned(4);
 };
@@ -119,7 +119,7 @@ struct if_sdio_card {
 	u8			buffer[65536] __attribute__((aligned(4)));
 
 	spinlock_t		lock;
-	struct if_sdio_packet	*packets;
+	struct list_head	packets;
 
 	struct workqueue_struct	*workqueue;
 	struct work_struct	packet_worker;
@@ -404,9 +404,10 @@ static void if_sdio_host_to_card_worker(struct work_struct *work)
 
 	while (1) {
 		spin_lock_irqsave(&card->lock, flags);
-		packet = card->packets;
+		packet = list_first_entry_or_null(&card->packets,
+						  struct if_sdio_packet, list);
 		if (packet)
-			card->packets = packet->next;
+			list_del(&packet->list);
 		spin_unlock_irqrestore(&card->lock, flags);
 
 		if (!packet)
@@ -909,7 +910,7 @@ static int if_sdio_host_to_card(struct lbs_private *priv,
 {
 	int ret;
 	struct if_sdio_card *card;
-	struct if_sdio_packet *packet, *cur;
+	struct if_sdio_packet *packet;
 	u16 size;
 	unsigned long flags;
 
@@ -934,7 +935,6 @@ static int if_sdio_host_to_card(struct lbs_private *priv,
 		goto out;
 	}
 
-	packet->next = NULL;
 	packet->nb = size;
 
 	/*
@@ -949,14 +949,7 @@ static int if_sdio_host_to_card(struct lbs_private *priv,
 
 	spin_lock_irqsave(&card->lock, flags);
 
-	if (!card->packets)
-		card->packets = packet;
-	else {
-		cur = card->packets;
-		while (cur->next)
-			cur = cur->next;
-		cur->next = packet;
-	}
+	list_add_tail(&packet->list, &card->packets);
 
 	switch (type) {
 	case MVMS_CMD:
@@ -1137,7 +1130,7 @@ static int if_sdio_probe(struct sdio_func *func,
 	struct lbs_private *priv;
 	int ret, i;
 	unsigned int model;
-	struct if_sdio_packet *packet;
+	struct if_sdio_packet *packet, *tmp;
 
 	for (i = 0;i < func->card->num_info;i++) {
 		if (sscanf(func->card->info[i],
@@ -1178,6 +1171,8 @@ static int if_sdio_probe(struct sdio_func *func,
 	}
 
 	spin_lock_init(&card->lock);
+	INIT_LIST_HEAD(&card->packets);
+
 	card->workqueue = alloc_workqueue("libertas_sdio", WQ_MEM_RECLAIM, 0);
 	if (unlikely(!card->workqueue)) {
 		ret = -ENOMEM;
@@ -1236,11 +1231,8 @@ free:
 	cancel_work_sync(&card->packet_worker);
 	destroy_workqueue(card->workqueue);
 err_queue:
-	while (card->packets) {
-		packet = card->packets;
-		card->packets = card->packets->next;
+	list_for_each_entry_safe(packet, tmp, &card->packets, list)
 		kfree(packet);
-	}
 
 	kfree(card);
 
@@ -1250,7 +1242,7 @@ err_queue:
 static void if_sdio_remove(struct sdio_func *func)
 {
 	struct if_sdio_card *card;
-	struct if_sdio_packet *packet;
+	struct if_sdio_packet *packet, *tmp;
 
 	card = sdio_get_drvdata(func);
 
@@ -1281,11 +1273,8 @@ static void if_sdio_remove(struct sdio_func *func)
 	cancel_work_sync(&card->packet_worker);
 	destroy_workqueue(card->workqueue);
 
-	while (card->packets) {
-		packet = card->packets;
-		card->packets = card->packets->next;
+	list_for_each_entry_safe(packet, tmp, &card->packets, list)
 		kfree(packet);
-	}
 
 	kfree(card);
 }
