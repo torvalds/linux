@@ -503,15 +503,14 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 
 	dma->chan_rx = dma_request_chan(dev, "rx");
 	if (IS_ERR(dma->chan_rx)) {
-		dev_err(dev, "rx dma channel not available\n");
-		ret = PTR_ERR(dma->chan_rx);
-		return ret;
+		return dev_err_probe(dev, PTR_ERR(dma->chan_rx),
+			"rx dma channel not available\n");
 	}
 
 	dma->chan_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->chan_tx)) {
-		dev_err(dev, "tx dma channel not available\n");
 		ret = PTR_ERR(dma->chan_tx);
+		dev_err_probe(dev, ret, "tx dma channel not available\n");
 		goto err_tx_channel;
 	}
 
