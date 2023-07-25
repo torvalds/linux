@@ -1,0 +1,4 @@
+[abi_symbol_list]
+# required by mount_state.ko
+  iterate_supers_type
+  get_fs_type
