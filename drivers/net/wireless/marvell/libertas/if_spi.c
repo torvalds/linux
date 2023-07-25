@@ -76,16 +76,13 @@ struct if_spi_card {
 
 static void free_if_spi_card(struct if_spi_card *card)
 {
-	struct list_head *cursor, *next;
-	struct if_spi_packet *packet;
+	struct if_spi_packet *packet, *tmp;
 
-	list_for_each_safe(cursor, next, &card->cmd_packet_list) {
-		packet = container_of(cursor, struct if_spi_packet, list);
+	list_for_each_entry_safe(packet, tmp, &card->cmd_packet_list, list) {
 		list_del(&packet->list);
 		kfree(packet);
 	}
-	list_for_each_safe(cursor, next, &card->data_packet_list) {
-		packet = container_of(cursor, struct if_spi_packet, list);
+	list_for_each_entry_safe(packet, tmp, &card->data_packet_list, list) {
 		list_del(&packet->list);
 		kfree(packet);
 	}
