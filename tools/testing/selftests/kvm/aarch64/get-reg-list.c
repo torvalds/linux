@@ -79,6 +79,11 @@ bool check_supported_reg(struct kvm_vcpu *vcpu, __u64 reg)
 	return check_supported_feat_reg(vcpu, reg);
 }
 
+bool check_reject_set(int err)
+{
+	return err == EPERM;
+}
+
 #define REG_MASK (KVM_REG_ARCH_MASK | KVM_REG_SIZE_MASK | KVM_REG_ARM_COPROC_MASK)
 
 #define CORE_REGS_XX_NR_WORDS	2
