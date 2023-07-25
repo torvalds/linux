@@ -309,7 +309,9 @@ struct irdma_pci_f {
 	spinlock_t arp_lock; /*protect ARP table access*/
 	spinlock_t rsrc_lock; /* protect HW resource array access */
 	spinlock_t qptable_lock; /*protect QP table access*/
+	spinlock_t cqtable_lock; /*protect CQ table access*/
 	struct irdma_qp **qp_table;
+	struct irdma_cq **cq_table;
 	spinlock_t qh_list_lock; /* protect mc_qht_list */
 	struct mc_table_list mc_qht_list;
 	struct irdma_msix_vector *iw_msixtbl;
@@ -500,6 +502,8 @@ int irdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 		    struct ib_udata *udata);
 int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			 int attr_mask, struct ib_udata *udata);
+void irdma_cq_add_ref(struct ib_cq *ibcq);
+void irdma_cq_rem_ref(struct ib_cq *ibcq);
 void irdma_cq_wq_destroy(struct irdma_pci_f *rf, struct irdma_sc_cq *cq);
 
 void irdma_cleanup_pending_cqp_op(struct irdma_pci_f *rf);

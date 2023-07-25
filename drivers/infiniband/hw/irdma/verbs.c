@@ -1805,6 +1805,9 @@ static int irdma_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 		irdma_process_resize_list(iwcq, iwdev, NULL);
 	spin_unlock_irqrestore(&iwcq->lock, flags);
 
+	irdma_cq_rem_ref(ib_cq);
+	wait_for_completion(&iwcq->free_cq);
+
 	irdma_cq_wq_destroy(iwdev->rf, cq);
 
 	spin_lock_irqsave(&iwceq->ce_lock, flags);
@@ -2014,6 +2017,7 @@ static int irdma_create_cq(struct ib_cq *ibcq,
 
 	cq = &iwcq->sc_cq;
 	cq->back_cq = iwcq;
+	refcount_set(&iwcq->refcnt, 1);
 	spin_lock_init(&iwcq->lock);
 	INIT_LIST_HEAD(&iwcq->resize_list);
 	INIT_LIST_HEAD(&iwcq->cmpl_generated);
@@ -2165,6 +2169,9 @@ static int irdma_create_cq(struct ib_cq *ibcq,
 			goto cq_destroy;
 		}
 	}
+	rf->cq_table[cq_num] = iwcq;
+	init_completion(&iwcq->free_cq);
+
 	return 0;
 cq_destroy:
 	irdma_cq_wq_destroy(rf, cq);

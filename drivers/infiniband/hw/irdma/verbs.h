@@ -122,6 +122,8 @@ struct irdma_cq {
 	u32 cq_mem_size;
 	struct irdma_dma_mem kmem;
 	struct irdma_dma_mem kmem_shadow;
+	struct completion free_cq;
+	refcount_t refcnt;
 	spinlock_t lock; /* for poll cq */
 	struct irdma_pbl *iwpbl;
 	struct irdma_pbl *iwpbl_shadow;
