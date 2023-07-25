@@ -308,9 +308,11 @@ static int qcom_qspi_alloc_desc(struct qcom_qspi *ctrl, dma_addr_t dma_ptr,
 	dma_addr_t dma_cmd_desc;
 
 	/* allocate for dma cmd descriptor */
-	virt_cmd_desc = dma_pool_alloc(ctrl->dma_cmd_pool, GFP_KERNEL | __GFP_ZERO, &dma_cmd_desc);
-	if (!virt_cmd_desc)
-		return -ENOMEM;
+	virt_cmd_desc = dma_pool_alloc(ctrl->dma_cmd_pool, GFP_ATOMIC | __GFP_ZERO, &dma_cmd_desc);
+	if (!virt_cmd_desc) {
+		dev_warn_once(ctrl->dev, "Couldn't find memory for descriptor\n");
+		return -EAGAIN;
+	}
 
 	ctrl->virt_cmd_desc[ctrl->n_cmd_desc] = virt_cmd_desc;
 	ctrl->dma_cmd_desc[ctrl->n_cmd_desc] = dma_cmd_desc;
