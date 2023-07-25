@@ -233,6 +233,18 @@ config TMPFS_INODE64
 
 	  If unsure, say N.
 
+config TMPFS_QUOTA
+	bool "Tmpfs quota support"
+	depends on TMPFS
+	select QUOTA
+	help
+	  Quota support allows to set per user and group limits for tmpfs
+	  usage.  Say Y to enable quota support. Once enabled you can control
+	  user and group quota enforcement with quota, usrquota and grpquota
+	  mount options.
+
+	  If unsure, say N.
+
 config ARCH_SUPPORTS_HUGETLBFS
 	def_bool n
 
