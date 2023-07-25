@@ -561,6 +561,10 @@ bool unhandled_signal(struct task_struct *tsk, int sig)
 	if (handler != SIG_IGN && handler != SIG_DFL)
 		return false;
 
+	/* If dying, we handle all new signals by ignoring them */
+	if (fatal_signal_pending(tsk))
+		return false;
+
 	/* if ptraced, let the tracer determine */
 	return !tsk->ptrace;
 }
