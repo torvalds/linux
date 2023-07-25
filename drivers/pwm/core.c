@@ -318,12 +318,12 @@ void pwmchip_remove(struct pwm_chip *chip)
 {
 	pwmchip_sysfs_unexport(chip);
 
+	if (IS_ENABLED(CONFIG_OF))
+		of_pwmchip_remove(chip);
+
 	mutex_lock(&pwm_lock);
 
 	list_del_init(&chip->list);
-
-	if (IS_ENABLED(CONFIG_OF))
-		of_pwmchip_remove(chip);
 
 	free_pwms(chip);
 
