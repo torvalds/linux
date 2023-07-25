@@ -31,6 +31,7 @@ static const char * const dcvs_hw_names[NUM_DCVS_HW_TYPES] = {
 	[DCVS_L3]		= "L3",
 	[DCVS_DDRQOS]		= "DDRQOS",
 	[DCVS_UBWCP]		= "UBWCP",
+	[DCVS_L3_1]		= "L3_1",
 };
 
 enum dcvs_type {
@@ -702,7 +703,7 @@ static int qcom_dcvs_hw_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (hw_type == DCVS_L3)
+	if (hw_type == DCVS_L3 || hw_type == DCVS_L3_1)
 		ret = populate_l3_table(dev, &hw->freq_table);
 	else
 		ret = populate_freq_table(dev, &hw->freq_table);
@@ -773,7 +774,7 @@ static int qcom_dcvs_path_probe(struct platform_device *pdev)
 					|| hw->type == DCVS_DDRQOS
 					|| hw->type == DCVS_UBWCP)
 			ret = setup_icc_sp_device(dev, hw, path);
-		else if (hw->type == DCVS_L3)
+		else if (hw->type == DCVS_L3 || hw->type == DCVS_L3_1)
 			ret = setup_epss_l3_sp_device(dev, hw, path);
 		if (ret < 0) {
 			dev_err(dev, "Error setting up sp dev: %d\n", ret);
@@ -792,7 +793,7 @@ static int qcom_dcvs_path_probe(struct platform_device *pdev)
 		}
 		break;
 	case DCVS_PERCPU_PATH:
-		if (hw->type != DCVS_L3) {
+		if (hw->type != DCVS_L3 && hw->type != DCVS_L3_1) {
 			dev_err(dev, "Unsupported HW for path: %d\n", ret);
 			return -EINVAL;
 		}

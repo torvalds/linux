@@ -19,6 +19,7 @@ enum dcvs_hw_type {
 	DCVS_L3,
 	DCVS_DDRQOS,
 	DCVS_UBWCP,
+	DCVS_L3_1,
 	NUM_DCVS_HW_TYPES
 };
 

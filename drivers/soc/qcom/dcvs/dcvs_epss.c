@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "qcom-dcvs-epss: " fmt
@@ -122,7 +122,7 @@ static int commit_epss_l3(struct dcvs_path *path, struct dcvs_freq *freqs,
 		if (freqs->ib <= hw->freq_table[idx])
 			break;
 
-	if (hw->type == DCVS_L3) {
+	if (hw->type == DCVS_L3 || hw->type == DCVS_L3_1) {
 		if (shared)
 			offset = d->l3_shared_offset;
 		else {
