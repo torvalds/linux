@@ -666,6 +666,30 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 	return ret;
 }
 
+static int qcom_qspi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
+{
+	/*
+	 * If qcom_qspi_can_dma() is going to return false we don't need to
+	 * adjust anything.
+	 */
+	if (op->data.nbytes <= QSPI_MAX_BYTES_FIFO)
+		return 0;
+
+	/*
+	 * When reading, the transfer needs to be a multiple of 4 bytes so
+	 * shrink the transfer if that's not true. The caller will then do a
+	 * second transfer to finish things up.
+	 */
+	if (op->data.dir == SPI_MEM_DATA_IN && (op->data.nbytes & 0x3))
+		op->data.nbytes &= ~0x3;
+
+	return 0;
+}
+
+static const struct spi_controller_mem_ops qcom_qspi_mem_ops = {
+	.adjust_op_size = qcom_qspi_adjust_op_size,
+};
+
 static int qcom_qspi_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -750,6 +774,7 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	if (of_property_read_bool(pdev->dev.of_node, "iommus"))
 		master->can_dma = qcom_qspi_can_dma;
 	master->auto_runtime_pm = true;
+	master->mem_ops = &qcom_qspi_mem_ops;
 
 	ret = devm_pm_opp_set_clkname(&pdev->dev, "core");
 	if (ret)
