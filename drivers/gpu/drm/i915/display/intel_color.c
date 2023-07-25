@@ -3456,6 +3456,14 @@ static struct drm_property_blob *glk_read_degamma_lut(struct intel_crtc *crtc)
 	for (i = 0; i < lut_size; i++) {
 		u32 val = intel_de_read_fw(dev_priv, PRE_CSC_GAMC_DATA(pipe));
 
+		/*
+		 * For MTL and beyond, convert back the 24 bit lut values
+		 * read from HW to 16 bit values to maintain parity with
+		 * userspace values
+		 */
+		if (DISPLAY_VER(dev_priv) >= 14)
+			val = change_lut_val_precision(val, 16, 24);
+
 		lut[i].red = val;
 		lut[i].green = val;
 		lut[i].blue = val;
