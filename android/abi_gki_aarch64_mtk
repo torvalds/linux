@@ -416,6 +416,7 @@
   device_release_driver
   device_remove_bin_file
   device_remove_file
+  device_remove_file_self
   device_rename
   __device_reset
   device_set_of_node_from_dev
@@ -429,6 +430,22 @@
   _dev_info
   __dev_kfree_skb_any
   __dev_kfree_skb_irq
+  devlink_alloc_ns
+  devlink_flash_update_status_notify
+  devlink_fmsg_binary_pair_nest_end
+  devlink_fmsg_binary_pair_nest_start
+  devlink_fmsg_binary_put
+  devlink_free
+  devlink_health_report
+  devlink_health_reporter_create
+  devlink_health_reporter_destroy
+  devlink_health_reporter_priv
+  devlink_health_reporter_state_update
+  devlink_priv
+  devlink_region_create
+  devlink_region_destroy
+  devlink_register
+  devlink_unregister
   dev_load
   devm_add_action
   __devm_alloc_percpu
