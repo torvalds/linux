@@ -615,6 +615,7 @@ int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 		udata, struct bnxt_re_ucontext, ib_uctx);
 	struct bnxt_re_pd *pd = container_of(ibpd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_user_mmap_entry *entry = NULL;
+	u32 active_pds;
 	int rc = 0;
 
 	pd->rdev = rdev;
@@ -665,7 +666,9 @@ int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 		if (bnxt_re_create_fence_mr(pd))
 			ibdev_warn(&rdev->ibdev,
 				   "Failed to create Fence-MR\n");
-	atomic_inc(&rdev->stats.res.pd_count);
+	active_pds = atomic_inc_return(&rdev->stats.res.pd_count);
+	if (active_pds > rdev->stats.res.pd_watermark)
+		rdev->stats.res.pd_watermark = active_pds;
 
 	return 0;
 dbfail:
@@ -725,6 +728,7 @@ int bnxt_re_create_ah(struct ib_ah *ib_ah, struct rdma_ah_init_attr *init_attr,
 	const struct ib_gid_attr *sgid_attr;
 	struct bnxt_re_gid_ctx *ctx;
 	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ib_ah);
+	u32 active_ahs;
 	u8 nw_type;
 	int rc;
 
@@ -777,7 +781,9 @@ int bnxt_re_create_ah(struct ib_ah *ib_ah, struct rdma_ah_init_attr *init_attr,
 		wmb(); /* make sure cache is updated. */
 		spin_unlock_irqrestore(&uctx->sh_lock, flag);
 	}
-	atomic_inc(&rdev->stats.res.ah_count);
+	active_ahs = atomic_inc_return(&rdev->stats.res.ah_count);
+	if (active_ahs > rdev->stats.res.ah_watermark)
+		rdev->stats.res.ah_watermark = active_ahs;
 
 	return 0;
 }
@@ -1487,6 +1493,7 @@ int bnxt_re_create_qp(struct ib_qp *ib_qp, struct ib_qp_init_attr *qp_init_attr,
 	struct bnxt_re_dev *rdev = pd->rdev;
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
 	struct bnxt_re_qp *qp = container_of(ib_qp, struct bnxt_re_qp, ib_qp);
+	u32 active_qps;
 	int rc;
 
 	rc = bnxt_re_test_qp_limits(rdev, qp_init_attr, dev_attr);
@@ -1535,7 +1542,18 @@ int bnxt_re_create_qp(struct ib_qp *ib_qp, struct ib_qp_init_attr *qp_init_attr,
 	mutex_lock(&rdev->qp_lock);
 	list_add_tail(&qp->list, &rdev->qp_list);
 	mutex_unlock(&rdev->qp_lock);
-	atomic_inc(&rdev->stats.res.qp_count);
+	active_qps = atomic_inc_return(&rdev->stats.res.qp_count);
+	if (active_qps > rdev->stats.res.qp_watermark)
+		rdev->stats.res.qp_watermark = active_qps;
+	if (qp_init_attr->qp_type == IB_QPT_RC) {
+		active_qps = atomic_inc_return(&rdev->stats.res.rc_qp_count);
+		if (active_qps > rdev->stats.res.rc_qp_watermark)
+			rdev->stats.res.rc_qp_watermark = active_qps;
+	} else if (qp_init_attr->qp_type == IB_QPT_UD) {
+		active_qps = atomic_inc_return(&rdev->stats.res.ud_qp_count);
+		if (active_qps > rdev->stats.res.ud_qp_watermark)
+			rdev->stats.res.ud_qp_watermark = active_qps;
+	}
 
 	return 0;
 qp_destroy:
@@ -1686,6 +1704,7 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 	struct bnxt_re_srq *srq;
 	struct bnxt_re_pd *pd;
 	struct ib_pd *ib_pd;
+	u32 active_srqs;
 	int rc, entries;
 
 	ib_pd = ib_srq->pd;
@@ -1750,7 +1769,9 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 	}
 	if (nq)
 		nq->budget++;
-	atomic_inc(&rdev->stats.res.srq_count);
+	active_srqs = atomic_inc_return(&rdev->stats.res.srq_count);
+	if (active_srqs > rdev->stats.res.srq_watermark)
+		rdev->stats.res.srq_watermark = active_srqs;
 	spin_lock_init(&srq->lock);
 
 	return 0;
@@ -2892,6 +2913,7 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	int cqe = attr->cqe;
 	struct bnxt_qplib_nq *nq = NULL;
 	unsigned int nq_alloc_cnt;
+	u32 active_cqs;
 
 	if (attr->flags)
 		return -EOPNOTSUPP;
@@ -2960,7 +2982,9 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	cq->cq_period = cq->qplib_cq.period;
 	nq->budget++;
 
-	atomic_inc(&rdev->stats.res.cq_count);
+	active_cqs = atomic_inc_return(&rdev->stats.res.cq_count);
+	if (active_cqs > rdev->stats.res.cq_watermark)
+		rdev->stats.res.cq_watermark = active_cqs;
 	spin_lock_init(&cq->cq_lock);
 
 	if (udata) {
@@ -3073,6 +3097,7 @@ int bnxt_re_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	}
 
 	cq->ib_cq.cqe = cq->resize_cqe;
+	atomic_inc(&rdev->stats.res.resize_count);
 
 	return 0;
 
@@ -3758,6 +3783,7 @@ struct ib_mr *bnxt_re_get_dma_mr(struct ib_pd *ib_pd, int mr_access_flags)
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
 	struct bnxt_re_mr *mr;
+	u32 active_mrs;
 	int rc;
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
@@ -3785,7 +3811,9 @@ struct ib_mr *bnxt_re_get_dma_mr(struct ib_pd *ib_pd, int mr_access_flags)
 	if (mr_access_flags & (IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_READ |
 			       IB_ACCESS_REMOTE_ATOMIC))
 		mr->ib_mr.rkey = mr->ib_mr.lkey;
-	atomic_inc(&rdev->stats.res.mr_count);
+	active_mrs = atomic_inc_return(&rdev->stats.res.mr_count);
+	if (active_mrs > rdev->stats.res.mr_watermark)
+		rdev->stats.res.mr_watermark = active_mrs;
 
 	return &mr->ib_mr;
 
@@ -3848,6 +3876,7 @@ struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
 	struct bnxt_re_mr *mr = NULL;
+	u32 active_mrs;
 	int rc;
 
 	if (type != IB_MR_TYPE_MEM_REG) {
@@ -3886,7 +3915,9 @@ struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
 		goto fail_mr;
 	}
 
-	atomic_inc(&rdev->stats.res.mr_count);
+	active_mrs = atomic_inc_return(&rdev->stats.res.mr_count);
+	if (active_mrs > rdev->stats.res.mr_watermark)
+		rdev->stats.res.mr_watermark = active_mrs;
 	return &mr->ib_mr;
 
 fail_mr:
@@ -3904,6 +3935,7 @@ struct ib_mw *bnxt_re_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
 	struct bnxt_re_mw *mw;
+	u32 active_mws;
 	int rc;
 
 	mw = kzalloc(sizeof(*mw), GFP_KERNEL);
@@ -3922,7 +3954,9 @@ struct ib_mw *bnxt_re_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
 	}
 	mw->ib_mw.rkey = mw->qplib_mw.rkey;
 
-	atomic_inc(&rdev->stats.res.mw_count);
+	active_mws = atomic_inc_return(&rdev->stats.res.mw_count);
+	if (active_mws > rdev->stats.res.mw_watermark)
+		rdev->stats.res.mw_watermark = active_mws;
 	return &mw->ib_mw;
 
 fail:
@@ -3958,6 +3992,7 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 	struct ib_umem *umem;
 	unsigned long page_size;
 	int umem_pgs, rc;
+	u32 active_mrs;
 
 	if (length > BNXT_RE_MAX_MR_SIZE) {
 		ibdev_err(&rdev->ibdev, "MR Size: %lld > Max supported:%lld\n",
@@ -4010,7 +4045,9 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 
 	mr->ib_mr.lkey = mr->qplib_mr.lkey;
 	mr->ib_mr.rkey = mr->qplib_mr.lkey;
-	atomic_inc(&rdev->stats.res.mr_count);
+	active_mrs = atomic_inc_return(&rdev->stats.res.mr_count);
+	if (active_mrs > rdev->stats.res.mr_watermark)
+		rdev->stats.res.mr_watermark = active_mrs;
 
 	return &mr->ib_mr;
 free_umem:

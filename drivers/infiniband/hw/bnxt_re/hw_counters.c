@@ -61,10 +61,22 @@ static const struct rdma_stat_desc bnxt_re_stat_descs[] = {
 	[BNXT_RE_ACTIVE_PD].name		=  "active_pds",
 	[BNXT_RE_ACTIVE_AH].name		=  "active_ahs",
 	[BNXT_RE_ACTIVE_QP].name		=  "active_qps",
+	[BNXT_RE_ACTIVE_RC_QP].name             =  "active_rc_qps",
+	[BNXT_RE_ACTIVE_UD_QP].name             =  "active_ud_qps",
 	[BNXT_RE_ACTIVE_SRQ].name		=  "active_srqs",
 	[BNXT_RE_ACTIVE_CQ].name		=  "active_cqs",
 	[BNXT_RE_ACTIVE_MR].name		=  "active_mrs",
 	[BNXT_RE_ACTIVE_MW].name		=  "active_mws",
+	[BNXT_RE_WATERMARK_PD].name             =  "watermark_pds",
+	[BNXT_RE_WATERMARK_AH].name             =  "watermark_ahs",
+	[BNXT_RE_WATERMARK_QP].name             =  "watermark_qps",
+	[BNXT_RE_WATERMARK_RC_QP].name          =  "watermark_rc_qps",
+	[BNXT_RE_WATERMARK_UD_QP].name          =  "watermark_ud_qps",
+	[BNXT_RE_WATERMARK_SRQ].name            =  "watermark_srqs",
+	[BNXT_RE_WATERMARK_CQ].name             =  "watermark_cqs",
+	[BNXT_RE_WATERMARK_MR].name             =  "watermark_mrs",
+	[BNXT_RE_WATERMARK_MW].name             =  "watermark_mws",
+	[BNXT_RE_RESIZE_CQ_CNT].name            =  "resize_cq_cnt",
 	[BNXT_RE_RX_PKTS].name		=  "rx_pkts",
 	[BNXT_RE_RX_BYTES].name		=  "rx_bytes",
 	[BNXT_RE_TX_PKTS].name		=  "tx_pkts",
@@ -264,12 +276,24 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 		return -EINVAL;
 
 	stats->value[BNXT_RE_ACTIVE_QP] = atomic_read(&res_s->qp_count);
+	stats->value[BNXT_RE_ACTIVE_RC_QP] = atomic_read(&res_s->rc_qp_count);
+	stats->value[BNXT_RE_ACTIVE_UD_QP] = atomic_read(&res_s->ud_qp_count);
 	stats->value[BNXT_RE_ACTIVE_SRQ] = atomic_read(&res_s->srq_count);
 	stats->value[BNXT_RE_ACTIVE_CQ] = atomic_read(&res_s->cq_count);
 	stats->value[BNXT_RE_ACTIVE_MR] = atomic_read(&res_s->mr_count);
 	stats->value[BNXT_RE_ACTIVE_MW] = atomic_read(&res_s->mw_count);
 	stats->value[BNXT_RE_ACTIVE_PD] = atomic_read(&res_s->pd_count);
 	stats->value[BNXT_RE_ACTIVE_AH] = atomic_read(&res_s->ah_count);
+	stats->value[BNXT_RE_WATERMARK_QP] = res_s->qp_watermark;
+	stats->value[BNXT_RE_WATERMARK_RC_QP] = res_s->rc_qp_watermark;
+	stats->value[BNXT_RE_WATERMARK_UD_QP] = res_s->ud_qp_watermark;
+	stats->value[BNXT_RE_WATERMARK_SRQ] = res_s->srq_watermark;
+	stats->value[BNXT_RE_WATERMARK_CQ] = res_s->cq_watermark;
+	stats->value[BNXT_RE_WATERMARK_MR] = res_s->mr_watermark;
+	stats->value[BNXT_RE_WATERMARK_MW] = res_s->mw_watermark;
+	stats->value[BNXT_RE_WATERMARK_PD] = res_s->pd_watermark;
+	stats->value[BNXT_RE_WATERMARK_AH] = res_s->ah_watermark;
+	stats->value[BNXT_RE_RESIZE_CQ_CNT] = atomic_read(&res_s->resize_count);
 
 	if (hw_stats) {
 		stats->value[BNXT_RE_RECOVERABLE_ERRORS] =

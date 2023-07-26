@@ -44,10 +44,22 @@ enum bnxt_re_hw_stats {
 	BNXT_RE_ACTIVE_PD,
 	BNXT_RE_ACTIVE_AH,
 	BNXT_RE_ACTIVE_QP,
+	BNXT_RE_ACTIVE_RC_QP,
+	BNXT_RE_ACTIVE_UD_QP,
 	BNXT_RE_ACTIVE_SRQ,
 	BNXT_RE_ACTIVE_CQ,
 	BNXT_RE_ACTIVE_MR,
 	BNXT_RE_ACTIVE_MW,
+	BNXT_RE_WATERMARK_PD,
+	BNXT_RE_WATERMARK_AH,
+	BNXT_RE_WATERMARK_QP,
+	BNXT_RE_WATERMARK_RC_QP,
+	BNXT_RE_WATERMARK_UD_QP,
+	BNXT_RE_WATERMARK_SRQ,
+	BNXT_RE_WATERMARK_CQ,
+	BNXT_RE_WATERMARK_MR,
+	BNXT_RE_WATERMARK_MW,
+	BNXT_RE_RESIZE_CQ_CNT,
 	BNXT_RE_RX_PKTS,
 	BNXT_RE_RX_BYTES,
 	BNXT_RE_TX_PKTS,
@@ -115,12 +127,24 @@ enum bnxt_re_hw_stats {
 
 struct bnxt_re_res_cntrs {
 	atomic_t qp_count;
+	atomic_t rc_qp_count;
+	atomic_t ud_qp_count;
 	atomic_t cq_count;
 	atomic_t srq_count;
 	atomic_t mr_count;
 	atomic_t mw_count;
 	atomic_t ah_count;
 	atomic_t pd_count;
+	atomic_t resize_count;
+	u64 qp_watermark;
+	u64 rc_qp_watermark;
+	u64 ud_qp_watermark;
+	u64 cq_watermark;
+	u64 srq_watermark;
+	u64 mr_watermark;
+	u64 mw_watermark;
+	u64 ah_watermark;
+	u64 pd_watermark;
 };
 
 struct bnxt_re_rstat {
