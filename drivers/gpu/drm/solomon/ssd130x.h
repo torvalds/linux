@@ -89,9 +89,6 @@ struct ssd130x_device {
 	u8 col_end;
 	u8 page_start;
 	u8 page_end;
-
-	u8 *buffer;
-	u8 *data_array;
 };
 
 extern const struct ssd130x_deviceinfo ssd130x_variants[];
