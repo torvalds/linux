@@ -180,10 +180,10 @@ struct ipms_canfd_priv {
 static struct can_bittiming_const canfd_bittiming_const = {
 	.name = DRIVER_NAME,
 	.tseg1_min = 2,
-	.tseg1_max = 65,
-	.tseg2_min = 1,
+	.tseg1_max = 16,
+	.tseg2_min = 2,
 	.tseg2_max = 8,
-	.sjw_max = 16,
+	.sjw_max = 4,
 	.brp_min = 1,
 	.brp_max = 512,
 	.brp_inc = 1,
@@ -192,9 +192,9 @@ static struct can_bittiming_const canfd_bittiming_const = {
 
 static struct can_bittiming_const canfd_data_bittiming_const = {
 	.name = DRIVER_NAME,
-	.tseg1_min = 2,
-	.tseg1_max = 17,
-	.tseg2_min = 1,
+	.tseg1_min = 1,
+	.tseg1_max = 16,
+	.tseg2_min = 2,
 	.tseg2_max = 8,
 	.sjw_max = 8,
 	.brp_min = 1,
