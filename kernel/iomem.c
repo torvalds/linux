@@ -5,18 +5,14 @@
 #include <linux/mm.h>
 #include <linux/ioremap.h>
 
-#ifndef ioremap_cache
-/* temporary while we convert existing ioremap_cache users to memremap */
-__weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
-{
-	return ioremap(offset, size);
-}
-#endif
-
 #ifndef arch_memremap_wb
 static void *arch_memremap_wb(resource_size_t offset, unsigned long size)
 {
+#ifdef ioremap_cache
 	return (__force void *)ioremap_cache(offset, size);
+#else
+	return (__force void *)ioremap(offset, size);
+#endif
 }
 #endif
 
