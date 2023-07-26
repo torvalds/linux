@@ -6,10 +6,14 @@
  *	Cyril Chemparathy <cyril@ti.com>
  *	Santosh Shilimkar <santosh.shillimkar@ti.com>
  */
+
 #include <linux/io.h>
 #include <linux/dma-map-ops.h>
 #include <linux/init.h>
+#include <linux/pm_runtime.h>
+#include <linux/pm_clock.h>
 #include <linux/memblock.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 #include <asm/setup.h>
@@ -17,8 +21,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/page.h>
-
-#include "keystone.h"
 
 #define KEYSTONE_LOW_PHYS_START		0x80000000ULL
 #define KEYSTONE_LOW_PHYS_SIZE		0x80000000ULL /* 2G */
@@ -29,6 +31,38 @@
 #define KEYSTONE_HIGH_PHYS_SIZE		0x400000000ULL	/* 16G */
 #define KEYSTONE_HIGH_PHYS_END		(KEYSTONE_HIGH_PHYS_START + \
 					 KEYSTONE_HIGH_PHYS_SIZE - 1)
+
+static struct dev_pm_domain keystone_pm_domain = {
+	.ops = {
+		USE_PM_CLK_RUNTIME_OPS
+		USE_PLATFORM_PM_SLEEP_OPS
+	},
+};
+
+static struct pm_clk_notifier_block platform_domain_notifier = {
+	.pm_domain = &keystone_pm_domain,
+	.con_ids = { NULL },
+};
+
+static const struct of_device_id of_keystone_table[] = {
+	{.compatible = "ti,k2hk"},
+	{.compatible = "ti,k2e"},
+	{.compatible = "ti,k2l"},
+	{ /* end of list */ },
+};
+
+static int __init keystone_pm_runtime_init(void)
+{
+	struct device_node *np;
+
+	np = of_find_matching_node(NULL, of_keystone_table);
+	if (!np)
+		return 0;
+
+	pm_clk_add_notifier(&platform_bus_type, &platform_domain_notifier);
+
+	return 0;
+}
 
 #ifdef CONFIG_ARM_LPAE
 static int keystone_platform_notifier(struct notifier_block *nb,
