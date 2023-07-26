@@ -46,6 +46,5 @@
 #define LS1X_CLK_BASE			0x1fe78030
 
 #include <regs-mux.h>
-#include <regs-rtc.h>
 
 #endif /* __ASM_MACH_LOONGSON32_LOONGSON1_H */
