@@ -87,14 +87,15 @@ EXPORT_SYMBOL_GPL(verbose_torout_sleep);
  * nanosecond random fuzz.  This function and its friends desynchronize
  * testing from the timer wheel.
  */
-int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, struct torture_random_state *trsp)
+int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, const enum hrtimer_mode mode,
+			 struct torture_random_state *trsp)
 {
 	ktime_t hto = baset_ns;
 
 	if (trsp)
 		hto += torture_random(trsp) % fuzzt_ns;
 	set_current_state(TASK_IDLE);
-	return schedule_hrtimeout(&hto, HRTIMER_MODE_REL);
+	return schedule_hrtimeout(&hto, mode);
 }
 EXPORT_SYMBOL_GPL(torture_hrtimeout_ns);
 
@@ -106,7 +107,7 @@ int torture_hrtimeout_us(u32 baset_us, u32 fuzzt_ns, struct torture_random_state
 {
 	ktime_t baset_ns = baset_us * NSEC_PER_USEC;
 
-	return torture_hrtimeout_ns(baset_ns, fuzzt_ns, trsp);
+	return torture_hrtimeout_ns(baset_ns, fuzzt_ns, HRTIMER_MODE_REL, trsp);
 }
 EXPORT_SYMBOL_GPL(torture_hrtimeout_us);
 
@@ -123,7 +124,7 @@ int torture_hrtimeout_ms(u32 baset_ms, u32 fuzzt_us, struct torture_random_state
 		fuzzt_ns = (u32)~0U;
 	else
 		fuzzt_ns = fuzzt_us * NSEC_PER_USEC;
-	return torture_hrtimeout_ns(baset_ns, fuzzt_ns, trsp);
+	return torture_hrtimeout_ns(baset_ns, fuzzt_ns, HRTIMER_MODE_REL, trsp);
 }
 EXPORT_SYMBOL_GPL(torture_hrtimeout_ms);
 
@@ -136,7 +137,7 @@ int torture_hrtimeout_jiffies(u32 baset_j, struct torture_random_state *trsp)
 {
 	ktime_t baset_ns = jiffies_to_nsecs(baset_j);
 
-	return torture_hrtimeout_ns(baset_ns, jiffies_to_nsecs(1), trsp);
+	return torture_hrtimeout_ns(baset_ns, jiffies_to_nsecs(1), HRTIMER_MODE_REL, trsp);
 }
 EXPORT_SYMBOL_GPL(torture_hrtimeout_jiffies);
 
@@ -153,7 +154,7 @@ int torture_hrtimeout_s(u32 baset_s, u32 fuzzt_ms, struct torture_random_state *
 		fuzzt_ns = (u32)~0U;
 	else
 		fuzzt_ns = fuzzt_ms * NSEC_PER_MSEC;
-	return torture_hrtimeout_ns(baset_ns, fuzzt_ns, trsp);
+	return torture_hrtimeout_ns(baset_ns, fuzzt_ns, HRTIMER_MODE_REL, trsp);
 }
 EXPORT_SYMBOL_GPL(torture_hrtimeout_s);
 
