@@ -3509,9 +3509,16 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		 */
 
 		if (found_key.offset == last_objectid) {
+			/*
+			 * We found the same inode as before. This means we were
+			 * not able to remove its items via eviction triggered
+			 * by an iput(). A transaction abort may have happened,
+			 * due to -ENOSPC for example, so try to grab the error
+			 * that lead to a transaction abort, if any.
+			 */
 			btrfs_err(fs_info,
 				  "Error removing orphan entry, stopping orphan cleanup");
-			ret = -EINVAL;
+			ret = BTRFS_FS_ERROR(fs_info) ?: -EINVAL;
 			goto out;
 		}
 
