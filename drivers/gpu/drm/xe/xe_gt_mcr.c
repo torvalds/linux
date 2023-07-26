@@ -420,10 +420,11 @@ static void mcr_lock(struct xe_gt *gt)
 	/*
 	 * Starting with MTL we also need to grab a semaphore register
 	 * to synchronize with external agents (e.g., firmware) that now
-	 * shares the same steering control register.
+	 * shares the same steering control register. The semaphore is obtained
+	 * when a read to the relevant register returns 1.
 	 */
 	if (GRAPHICS_VERx100(xe) >= 1270)
-		ret = xe_mmio_wait32(gt, STEER_SEMAPHORE, 0, 0x1, 10, NULL,
+		ret = xe_mmio_wait32(gt, STEER_SEMAPHORE, 0x1, 0x1, 10, NULL,
 				     true);
 
 	drm_WARN_ON_ONCE(&xe->drm, ret == -ETIMEDOUT);
@@ -431,7 +432,7 @@ static void mcr_lock(struct xe_gt *gt)
 
 static void mcr_unlock(struct xe_gt *gt)
 {
-	/* Release hardware semaphore */
+	/* Release hardware semaphore - this is done by writing 1 to the register */
 	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270)
 		xe_mmio_write32(gt, STEER_SEMAPHORE, 0x1);
 
