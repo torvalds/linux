@@ -1421,13 +1421,13 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 	/*
 	 * Attempt to steal from the global rsv if we can, except if the fs was
 	 * turned into error mode due to a transaction abort when flushing space
-	 * above, in that case fail with -EROFS instead of returning success to
-	 * the caller if we can steal from the global rsv - this is just to have
-	 * caller fail immeditelly instead of later when trying to modify the
-	 * fs, making it easier to debug -ENOSPC problems.
+	 * above, in that case fail with the abort error instead of returning
+	 * success to the caller if we can steal from the global rsv - this is
+	 * just to have caller fail immeditelly instead of later when trying to
+	 * modify the fs, making it easier to debug -ENOSPC problems.
 	 */
 	if (BTRFS_FS_ERROR(fs_info)) {
-		ticket->error = -EROFS;
+		ticket->error = BTRFS_FS_ERROR(fs_info);
 		remove_ticket(space_info, ticket);
 	} else if (!steal_from_global_rsv(fs_info, space_info, ticket)) {
 		ticket->error = -ENOSPC;
