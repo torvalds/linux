@@ -126,6 +126,7 @@ properties:
     description: The vast majority of hardware blocks of Tegra SoC belong to a
       core power domain, which has a dedicated voltage rail that powers the
       blocks.
+    additionalProperties: false
     properties:
       operating-points-v2:
         description: Should contain level, voltages and opp-supported-hw
@@ -139,12 +140,11 @@ properties:
       - operating-points-v2
       - "#power-domain-cells"
 
-    additionalProperties: false
-
   i2c-thermtrip:
     type: object
     description: On Tegra30, Tegra114 and Tegra124 if i2c-thermtrip subnode
       exists, hardware-triggered thermal reset will be enabled.
+    additionalProperties: false
     properties:
       nvidia,i2c-controller-id:
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -176,10 +176,9 @@ properties:
       - nvidia,reg-addr
       - nvidia,reg-data
 
-    additionalProperties: false
-
   powergates:
     type: object
+    additionalProperties: false
     description: |
       This node contains a hierarchy of power domain nodes, which should match
       the powergates on the Tegra SoC. Each powergate node represents a power-
@@ -224,7 +223,6 @@ properties:
       "^[a-z0-9]+$":
         type: object
         additionalProperties: false
-
         properties:
           clocks:
             minItems: 1
@@ -245,8 +243,6 @@ properties:
           - clocks
           - resets
           - '#power-domain-cells'
-
-    additionalProperties: false
 
 patternProperties:
   "^[a-f0-9]+-[a-f0-9]+$":
