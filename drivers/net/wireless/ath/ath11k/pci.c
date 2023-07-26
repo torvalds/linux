@@ -15,6 +15,7 @@
 #include "mhi.h"
 #include "debug.h"
 #include "pcic.h"
+#include "qmi.h"
 
 #define ATH11K_PCI_BAR_NUM		0
 #define ATH11K_PCI_DMA_MASK		32
@@ -897,6 +898,7 @@ unsupported_wcn6855_soc:
 		ath11k_err(ab, "failed to init core: %d\n", ret);
 		goto err_irq_affinity_cleanup;
 	}
+	ath11k_qmi_fwreset_from_cold_boot(ab);
 	return 0;
 
 err_irq_affinity_cleanup:
