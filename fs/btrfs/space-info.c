@@ -525,10 +525,11 @@ again:
 	list_for_each_entry(cache, &info->block_groups[index], list) {
 		spin_lock(&cache->lock);
 		btrfs_info(fs_info,
-			"block group %llu has %llu bytes, %llu used %llu pinned %llu reserved %llu zone_unusable %s",
-			cache->start, cache->length, cache->used, cache->pinned,
-			cache->reserved, cache->zone_unusable,
-			cache->ro ? "[readonly]" : "");
+"block group %llu has %llu bytes, %llu used %llu pinned %llu reserved %llu delalloc %llu super %llu zone_unusable %s",
+			   cache->start, cache->length, cache->used, cache->pinned,
+			   cache->reserved, cache->delalloc_bytes,
+			   cache->bytes_super, cache->zone_unusable,
+			   cache->ro ? "[readonly]" : "");
 		spin_unlock(&cache->lock);
 		btrfs_dump_free_space(cache, bytes);
 	}
