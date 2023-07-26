@@ -832,15 +832,22 @@ int bnxt_qplib_qext_stat(struct bnxt_qplib_rcfw *rcfw, u32 fid,
 	estat->tx_read_res = le64_to_cpu(sb->tx_read_res_pkts);
 	estat->tx_write_req = le64_to_cpu(sb->tx_write_req_pkts);
 	estat->tx_send_req = le64_to_cpu(sb->tx_send_req_pkts);
+	estat->tx_roce_pkts = le64_to_cpu(sb->tx_roce_pkts);
+	estat->tx_roce_bytes = le64_to_cpu(sb->tx_roce_bytes);
 	estat->rx_atomic_req = le64_to_cpu(sb->rx_atomic_req_pkts);
 	estat->rx_read_req = le64_to_cpu(sb->rx_read_req_pkts);
 	estat->rx_read_res = le64_to_cpu(sb->rx_read_res_pkts);
 	estat->rx_write_req = le64_to_cpu(sb->rx_write_req_pkts);
 	estat->rx_send_req = le64_to_cpu(sb->rx_send_req_pkts);
+	estat->rx_roce_pkts = le64_to_cpu(sb->rx_roce_pkts);
+	estat->rx_roce_bytes = le64_to_cpu(sb->rx_roce_bytes);
 	estat->rx_roce_good_pkts = le64_to_cpu(sb->rx_roce_good_pkts);
 	estat->rx_roce_good_bytes = le64_to_cpu(sb->rx_roce_good_bytes);
 	estat->rx_out_of_buffer = le64_to_cpu(sb->rx_out_of_buffer_pkts);
 	estat->rx_out_of_sequence = le64_to_cpu(sb->rx_out_of_sequence_pkts);
+	estat->tx_cnp = le64_to_cpu(sb->tx_cnp_pkts);
+	estat->rx_cnp = le64_to_cpu(sb->rx_cnp_pkts);
+	estat->rx_ecn_marked = le64_to_cpu(sb->rx_ecn_marked_pkts);
 
 bail:
 	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);

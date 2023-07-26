@@ -82,6 +82,8 @@ static const struct rdma_stat_desc bnxt_re_stat_descs[] = {
 	[BNXT_RE_TX_PKTS].name		=  "tx_pkts",
 	[BNXT_RE_TX_BYTES].name		=  "tx_bytes",
 	[BNXT_RE_RECOVERABLE_ERRORS].name	=  "recoverable_errors",
+	[BNXT_RE_TX_ERRORS].name                =  "tx_roce_errors",
+	[BNXT_RE_TX_DISCARDS].name              =  "tx_roce_discards",
 	[BNXT_RE_RX_ERRORS].name		=  "rx_roce_errors",
 	[BNXT_RE_RX_DISCARDS].name		=  "rx_roce_discards",
 	[BNXT_RE_TO_RETRANSMITS].name        = "to_retransmits",
@@ -129,14 +131,21 @@ static const struct rdma_stat_desc bnxt_re_stat_descs[] = {
 	[BNXT_RE_TX_READ_RES].name	     = "tx_read_resp",
 	[BNXT_RE_TX_WRITE_REQ].name	     = "tx_write_req",
 	[BNXT_RE_TX_SEND_REQ].name	     = "tx_send_req",
+	[BNXT_RE_TX_ROCE_PKTS].name          = "tx_roce_only_pkts",
+	[BNXT_RE_TX_ROCE_BYTES].name         = "tx_roce_only_bytes",
 	[BNXT_RE_RX_ATOMIC_REQ].name	     = "rx_atomic_req",
 	[BNXT_RE_RX_READ_REQ].name	     = "rx_read_req",
 	[BNXT_RE_RX_READ_RESP].name	     = "rx_read_resp",
 	[BNXT_RE_RX_WRITE_REQ].name	     = "rx_write_req",
 	[BNXT_RE_RX_SEND_REQ].name	     = "rx_send_req",
+	[BNXT_RE_RX_ROCE_PKTS].name          = "rx_roce_only_pkts",
+	[BNXT_RE_RX_ROCE_BYTES].name         = "rx_roce_only_bytes",
 	[BNXT_RE_RX_ROCE_GOOD_PKTS].name     = "rx_roce_good_pkts",
 	[BNXT_RE_RX_ROCE_GOOD_BYTES].name    = "rx_roce_good_bytes",
-	[BNXT_RE_OOB].name		     = "rx_out_of_buffer"
+	[BNXT_RE_OOB].name		     = "rx_out_of_buffer",
+	[BNXT_RE_TX_CNP].name                = "tx_cnp_pkts",
+	[BNXT_RE_RX_CNP].name                = "rx_cnp_pkts",
+	[BNXT_RE_RX_ECN].name                = "rx_ecn_marked_pkts",
 };
 
 static void bnxt_re_copy_ext_stats(struct bnxt_re_dev *rdev,
@@ -148,14 +157,22 @@ static void bnxt_re_copy_ext_stats(struct bnxt_re_dev *rdev,
 	stats->value[BNXT_RE_TX_READ_RES]   = s->tx_read_res;
 	stats->value[BNXT_RE_TX_WRITE_REQ]  = s->tx_write_req;
 	stats->value[BNXT_RE_TX_SEND_REQ]   = s->tx_send_req;
+	stats->value[BNXT_RE_TX_ROCE_PKTS]  = s->tx_roce_pkts;
+	stats->value[BNXT_RE_TX_ROCE_BYTES] = s->tx_roce_bytes;
 	stats->value[BNXT_RE_RX_ATOMIC_REQ] = s->rx_atomic_req;
 	stats->value[BNXT_RE_RX_READ_REQ]   = s->rx_read_req;
 	stats->value[BNXT_RE_RX_READ_RESP]  = s->rx_read_res;
 	stats->value[BNXT_RE_RX_WRITE_REQ]  = s->rx_write_req;
 	stats->value[BNXT_RE_RX_SEND_REQ]   = s->rx_send_req;
+	stats->value[BNXT_RE_RX_ROCE_PKTS]  = s->rx_roce_pkts;
+	stats->value[BNXT_RE_RX_ROCE_BYTES] = s->rx_roce_bytes;
 	stats->value[BNXT_RE_RX_ROCE_GOOD_PKTS] = s->rx_roce_good_pkts;
 	stats->value[BNXT_RE_RX_ROCE_GOOD_BYTES] = s->rx_roce_good_bytes;
 	stats->value[BNXT_RE_OOB] = s->rx_out_of_buffer;
+	stats->value[BNXT_RE_TX_CNP] = s->tx_cnp;
+	stats->value[BNXT_RE_RX_CNP] = s->rx_cnp;
+	stats->value[BNXT_RE_RX_ECN] = s->rx_ecn_marked;
+	stats->value[BNXT_RE_OUT_OF_SEQ_ERR] = s->rx_out_of_sequence;
 }
 
 static int bnxt_re_get_ext_stat(struct bnxt_re_dev *rdev,
@@ -298,6 +315,10 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 	if (hw_stats) {
 		stats->value[BNXT_RE_RECOVERABLE_ERRORS] =
 			le64_to_cpu(hw_stats->tx_bcast_pkts);
+		stats->value[BNXT_RE_TX_DISCARDS] =
+			le64_to_cpu(hw_stats->tx_discard_pkts);
+		stats->value[BNXT_RE_TX_ERRORS] =
+			le64_to_cpu(hw_stats->tx_error_pkts);
 		stats->value[BNXT_RE_RX_ERRORS] =
 			le64_to_cpu(hw_stats->rx_error_pkts);
 		stats->value[BNXT_RE_RX_DISCARDS] =
@@ -319,6 +340,7 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 				  &rdev->flags);
 			goto done;
 		}
+		bnxt_re_copy_err_stats(rdev, stats, err_s);
 		if (_is_ext_stats_supported(rdev->dev_attr.dev_cap_flags) &&
 		    !rdev->is_virtfn) {
 			rc = bnxt_re_get_ext_stat(rdev, stats);
@@ -328,7 +350,6 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 				goto done;
 			}
 		}
-		bnxt_re_copy_err_stats(rdev, stats, err_s);
 	}
 
 done:
