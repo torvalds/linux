@@ -94,11 +94,22 @@ static u32 detect_bar2_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr
 
 	ggc = xe_mmio_read32(xe_root_mmio_gt(xe), GGC);
 
-	/* check GGMS, should be fixed 0x3 (8MB) */
+	/*
+	 * Check GGMS: it should be fixed 0x3 (8MB), which corresponds to the
+	 * GTT size
+	 */
 	if (drm_WARN_ON(&xe->drm, (ggc & GGMS_MASK) != GGMS_MASK))
 		return 0;
 
-	mgr->stolen_base = mgr->io_base = pci_resource_start(pdev, 2) + SZ_8M;
+	/*
+	 * Graphics >= 1270 uses the offset to the GSMBASE as address in the
+	 * PTEs, together with the DM flag being set. Previously there was no
+	 * such flag so the address was the io_base.
+	 *
+	 * DSMBASE = GSMBASE + 8MB
+	 */
+	mgr->stolen_base = SZ_8M;
+	mgr->io_base = pci_resource_start(pdev, 2) + mgr->stolen_base;
 
 	/* return valid GMS value, -EIO if invalid */
 	gms = REG_FIELD_GET(GMS_MASK, ggc);
