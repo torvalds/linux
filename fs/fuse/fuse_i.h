@@ -1536,14 +1536,11 @@ void *fuse_link_finalize(struct fuse_bpf_args *fa, struct dentry *entry,
 			 struct inode *dir, struct dentry *newent);
 
 int fuse_release_initialize(struct fuse_bpf_args *fa, struct fuse_release_in *fri,
-			    struct inode *inode, struct file *file);
-int fuse_releasedir_initialize(struct fuse_bpf_args *fa,
-			struct fuse_release_in *fri,
-			struct inode *inode, struct file *file);
+			    struct inode *inode, struct fuse_file *ff);
 int fuse_release_backing(struct fuse_bpf_args *fa,
-			 struct inode *inode, struct file *file);
+			 struct inode *inode, struct fuse_file *ff);
 void *fuse_release_finalize(struct fuse_bpf_args *fa,
-			    struct inode *inode, struct file *file);
+			    struct inode *inode, struct fuse_file *ff);
 
 int fuse_flush_initialize(struct fuse_bpf_args *fa, struct fuse_flush_in *ffi,
 			  struct file *file, fl_owner_t id);

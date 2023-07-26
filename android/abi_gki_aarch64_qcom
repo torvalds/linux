@@ -31,7 +31,6 @@
   __alloc_percpu_gfp
   __alloc_skb
   alloc_skb_with_frags
-  alloc_swapdev_block
   alloc_workqueue
   alt_cb_patch_nops
   amba_bustype
@@ -2970,7 +2969,6 @@
   smp_call_function
   smp_call_function_single
   smp_call_function_single_async
-  snapshot_get_image_size
   snd_ctl_remove
   snd_hwdep_new
   snd_info_create_card_entry
