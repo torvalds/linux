@@ -127,8 +127,8 @@ u64 xe_pte_encode(struct xe_bo *bo, u64 offset, enum xe_cache_level cache,
 	u64 pte;
 
 	pte = xe_bo_addr(bo, offset, XE_PAGE_SIZE);
-	if (xe_bo_is_vram(bo))
-		pte |= XE_PPGTT_PTE_LM;
+	if (xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo))
+		pte |= XE_PPGTT_PTE_DM;
 
 	return __pte_encode(pte, cache, NULL, pt_level);
 }
@@ -714,7 +714,8 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		 struct xe_vm_pgtable_update *entries, u32 *num_entries)
 {
 	struct xe_bo *bo = xe_vma_bo(vma);
-	bool is_vram = !xe_vma_is_userptr(vma) && bo && xe_bo_is_vram(bo);
+	bool is_devmem = !xe_vma_is_userptr(vma) && bo &&
+		(xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo));
 	struct xe_res_cursor curs;
 	struct xe_pt_stage_bind_walk xe_walk = {
 		.base = {
@@ -728,13 +729,13 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		.va_curs_start = xe_vma_start(vma),
 		.vma = vma,
 		.wupd.entries = entries,
-		.needs_64K = (xe_vma_vm(vma)->flags & XE_VM_FLAG_64K) && is_vram,
+		.needs_64K = (xe_vma_vm(vma)->flags & XE_VM_FLAG_64K) && is_devmem,
 	};
 	struct xe_pt *pt = xe_vma_vm(vma)->pt_root[tile->id];
 	int ret;
 
-	if (is_vram) {
-		xe_walk.default_pte = XE_PPGTT_PTE_LM;
+	if (is_devmem) {
+		xe_walk.default_pte = XE_PPGTT_PTE_DM;
 		if (vma && vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT)
 			xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
 		xe_walk.dma_offset = vram_region_gpu_offset(bo->ttm.resource);

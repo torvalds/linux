@@ -67,9 +67,9 @@
 #define XE_PDPE_PS_1G			BIT_ULL(7)
 #define XE_PDE_IPS_64K			BIT_ULL(11)
 
-#define XE_GGTT_PTE_LM			BIT_ULL(1)
+#define XE_GGTT_PTE_DM			BIT_ULL(1)
 #define XE_USM_PPGTT_PTE_AE		BIT_ULL(10)
-#define XE_PPGTT_PTE_LM			BIT_ULL(11)
+#define XE_PPGTT_PTE_DM			BIT_ULL(11)
 #define XE_PDE_64K			BIT_ULL(6)
 #define XE_PTE_PS64			BIT_ULL(8)
 #define XE_PTE_NULL			BIT_ULL(9)
@@ -239,6 +239,7 @@ void xe_bo_vunmap(struct xe_bo *bo);
 bool mem_type_is_vram(u32 mem_type);
 bool xe_bo_is_vram(struct xe_bo *bo);
 bool xe_bo_is_stolen(struct xe_bo *bo);
+bool xe_bo_is_stolen_devmem(struct xe_bo *bo);
 uint64_t vram_region_gpu_offset(struct ttm_resource *res);
 
 bool xe_bo_can_migrate(struct xe_bo *bo, u32 mem_type);

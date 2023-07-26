@@ -80,6 +80,21 @@ bool xe_bo_is_stolen(struct xe_bo *bo)
 	return bo->ttm.resource->mem_type == XE_PL_STOLEN;
 }
 
+/**
+ * xe_bo_is_stolen_devmem - check if BO is of stolen type accessed via PCI BAR
+ * @bo: The BO
+ *
+ * The stolen memory is accessed through the PCI BAR for both DGFX and some
+ * integrated platforms that have a dedicated bit in the PTE for devmem (DM).
+ *
+ * Returns: true if it's stolen memory accessed via PCI BAR, false otherwise.
+ */
+bool xe_bo_is_stolen_devmem(struct xe_bo *bo)
+{
+	return xe_bo_is_stolen(bo) &&
+		GRAPHICS_VERx100(xe_bo_device(bo)) >= 1270;
+}
+
 static bool xe_bo_is_user(struct xe_bo *bo)
 {
 	return bo->flags & XE_BO_CREATE_USER_BIT;

@@ -35,8 +35,8 @@ u64 xe_ggtt_pte_encode(struct xe_bo *bo, u64 bo_offset)
 	pte = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
 	pte |= XE_PAGE_PRESENT;
 
-	if (xe_bo_is_vram(bo))
-		pte |= XE_GGTT_PTE_LM;
+	if (xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo))
+		pte |= XE_GGTT_PTE_DM;
 
 	/* FIXME: vfunc + pass in caching rules */
 	if (xe->info.platform == XE_METEORLAKE) {

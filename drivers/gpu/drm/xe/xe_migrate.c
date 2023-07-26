@@ -258,7 +258,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		level = 2;
 		ofs = map_ofs + XE_PAGE_SIZE * level + 256 * 8;
 		flags = XE_PAGE_RW | XE_PAGE_PRESENT | PPAT_CACHED |
-			XE_PPGTT_PTE_LM | XE_PDPE_PS_1G;
+			XE_PPGTT_PTE_DM | XE_PDPE_PS_1G;
 
 		/*
 		 * Use 1GB pages, it shouldn't matter the physical amount of
@@ -463,7 +463,7 @@ static void emit_pte(struct xe_migrate *m,
 				}
 
 				addr += vram_region_gpu_offset(bo->ttm.resource);
-				addr |= XE_PPGTT_PTE_LM;
+				addr |= XE_PPGTT_PTE_DM;
 			}
 			addr |= PPAT_CACHED | XE_PAGE_PRESENT | XE_PAGE_RW;
 			bb->cs[bb->len++] = lower_32_bits(addr);
