@@ -969,7 +969,7 @@ static const char * const msm_pcie_cesta_states[] = {
 };
 
 /* CESTA Power state to Perf level mapping w.r.t CESTA usage scenarios */
-static u32 msm_pcie_cesta_map[MAX_PERF_LVL][MAX_POWER_STATE] = {
+static u32 msm_pcie_cesta_map[MAX_MAP_IDX][MAX_POWER_STATE] = {
 	{PERF_LVL_D3COLD, PERF_LVL_D3COLD},
 	{MAX_PERF_LVL, MAX_PERF_LVL},
 	{PERF_LVL_L1SS, MAX_PERF_LVL},
