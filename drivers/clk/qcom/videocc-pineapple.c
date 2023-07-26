@@ -42,7 +42,7 @@ enum {
 };
 
 static const struct pll_vco lucid_ole_vco[] = {
-	{ 249600000, 2100000000, 0 },
+	{ 249600000, 2300000000, 0 },
 };
 
 static const struct alpha_pll_config video_cc_pll0_config = {
@@ -53,6 +53,23 @@ static const struct alpha_pll_config video_cc_pll0_config = {
 	.config_ctl_val = 0x20485699,
 	.config_ctl_hi_val = 0x00182261,
 	.config_ctl_hi1_val = 0x82AA299C,
+	.test_ctl_val = 0x00000000,
+	.test_ctl_hi_val = 0x00000003,
+	.test_ctl_hi1_val = 0x00009000,
+	.test_ctl_hi2_val = 0x00000034,
+	.user_ctl_val = 0x00000000,
+	.user_ctl_hi_val = 0x00000005,
+};
+
+/* 576MHz Configuration */
+static const struct alpha_pll_config video_cc_pll0_config_cliffs = {
+	.l = 0x1e,
+	.cal_l = 0x44,
+	.cal_l_ringosc = 0x44,
+	.alpha = 0x0,
+	.config_ctl_val = 0x20485699,
+	.config_ctl_hi_val = 0x00182261,
+	.config_ctl_hi1_val = 0x82aa299c,
 	.test_ctl_val = 0x00000000,
 	.test_ctl_hi_val = 0x00000003,
 	.test_ctl_hi1_val = 0x00009000,
@@ -83,7 +100,7 @@ static struct clk_alpha_pll video_cc_pll0 = {
 				[VDD_LOW] = 1100000000,
 				[VDD_LOW_L1] = 1600000000,
 				[VDD_NOMINAL] = 2000000000,
-				[VDD_HIGH_L1] = 2100000000},
+				[VDD_HIGH_L1] = 2300000000},
 		},
 	},
 };
@@ -126,7 +143,7 @@ static struct clk_alpha_pll video_cc_pll1 = {
 				[VDD_LOW] = 1100000000,
 				[VDD_LOW_L1] = 1600000000,
 				[VDD_NOMINAL] = 2000000000,
-				[VDD_HIGH_L1] = 2100000000},
+				[VDD_HIGH_L1] = 2300000000},
 		},
 	},
 };
@@ -205,6 +222,16 @@ static const struct freq_tbl ftbl_video_cc_mvs0_clk_src_pineapple_v2[] = {
 	F(1140000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
 	F(1305000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
 	F(1440000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1600000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	{ }
+};
+
+static const struct freq_tbl ftbl_video_cc_mvs0_clk_src_cliffs[] = {
+	F(576000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(720000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1014000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1098000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1332000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
 	F(1600000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
 	{ }
 };
@@ -595,6 +622,7 @@ static struct qcom_cc_desc video_cc_pineapple_desc = {
 static const struct of_device_id video_cc_pineapple_match_table[] = {
 	{ .compatible = "qcom,pineapple-videocc" },
 	{ .compatible = "qcom,pineapple-videocc-v2" },
+	{ .compatible = "qcom,cliffs-videocc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, video_cc_pineapple_match_table);
@@ -607,9 +635,35 @@ static void video_cc_pineapple_fixup_pineapplev2(struct regmap *regmap)
 	video_cc_mvs1_clk_src.clkr.vdd_data.rate_max[VDD_LOWER] = 1110000000;
 }
 
+static void video_cc_pineapple_fixup_cliffs(struct regmap *regmap)
+{
+	clk_lucid_ole_pll_configure(&video_cc_pll0, regmap, &video_cc_pll0_config_cliffs);
+	video_cc_mvs0_clk_src.freq_tbl = ftbl_video_cc_mvs0_clk_src_cliffs;
+	video_cc_mvs0_clk_src.clkr.vdd_data.rate_max[VDD_LOWER_D1] = 576000000;
+	video_cc_mvs0_clk_src.clkr.vdd_data.rate_max[VDD_LOWER] = 720000000;
+	video_cc_mvs0_clk_src.clkr.vdd_data.rate_max[VDD_LOW] = 1014000000;
+	video_cc_mvs0_clk_src.clkr.vdd_data.rate_max[VDD_LOW_L1] = 1098000000;
+	video_cc_mvs0_clk_src.clkr.vdd_data.rate_max[VDD_NOMINAL] = 1332000000;
+
+	video_cc_mvs0_shift_clk.halt_reg = 0x8144;
+	video_cc_mvs0_shift_clk.hwcg_reg = 0x8144;
+	video_cc_mvs0_shift_clk.clkr.enable_reg = 0x8144;
+	video_cc_mvs0c_shift_clk.halt_reg = 0x8148;
+	video_cc_mvs0c_shift_clk.halt_reg = 0x8148;
+	video_cc_mvs0c_shift_clk.hwcg_reg = 0x8148;
+	video_cc_mvs1_shift_clk.clkr.enable_reg = 0x814c;
+	video_cc_mvs1_shift_clk.hwcg_reg = 0x814c;
+	video_cc_mvs1_shift_clk.clkr.enable_reg = 0x814c;
+	video_cc_mvs1c_shift_clk.halt_reg = 0x8150;
+	video_cc_mvs1c_shift_clk.hwcg_reg = 0x8150;
+	video_cc_mvs1c_shift_clk.clkr.enable_reg = 0x8150;
+	video_cc_sleep_clk_src.cmd_rcgr = 0x8128;
+}
+
 static int video_cc_pineapple_fixup(struct platform_device *pdev, struct regmap *regmap)
 {
 	const char *compat = NULL;
+	u32 offset = 0x8150;
 	int compatlen = 0;
 
 	compat = of_get_property(pdev->dev.of_node, "compatible", &compatlen);
@@ -618,7 +672,20 @@ static int video_cc_pineapple_fixup(struct platform_device *pdev, struct regmap 
 
 	if (!strcmp(compat, "qcom,pineapple-videocc-v2"))
 		video_cc_pineapple_fixup_pineapplev2(regmap);
+	else if (!strcmp(compat, "qcom,cliffs-videocc")) {
+		video_cc_pineapple_fixup_cliffs(regmap);
+		offset = 0x8140;
+	}
 
+	/*
+	 * Keep clocks always enabled:
+	 *	video_cc_ahb_clk
+	 *	video_cc_xo_clk
+	 *	video_cc_sleep_clk
+	 */
+	regmap_update_bits(regmap, 0x80f4, BIT(0), BIT(0));
+	regmap_update_bits(regmap, 0x8124, BIT(0), BIT(0));
+	regmap_update_bits(regmap, offset, BIT(0), BIT(0));
 	return 0;
 }
 
@@ -645,16 +712,6 @@ static int video_cc_pineapple_probe(struct platform_device *pdev)
 	ret = video_cc_pineapple_fixup(pdev, regmap);
 	if (ret)
 		return ret;
-
-	/*
-	 * Keep clocks always enabled:
-	 *	video_cc_ahb_clk
-	 *	video_cc_sleep_clk
-	 *	video_cc_xo_clk
-	 */
-	regmap_update_bits(regmap, 0x80f4, BIT(0), BIT(0));
-	regmap_update_bits(regmap, 0x8150, BIT(0), BIT(0));
-	regmap_update_bits(regmap, 0x8124, BIT(0), BIT(0));
 
 	ret = qcom_cc_really_probe(pdev, &video_cc_pineapple_desc, regmap);
 	if (ret) {
