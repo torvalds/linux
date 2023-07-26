@@ -151,7 +151,8 @@ static void result(int llen, enum RESULT r)
 	else
 		msg = "[FAIL]";
 
-	putcharn(' ', 64 - llen);
+	if (llen < 64)
+		putcharn(' ', 64 - llen);
 	puts(msg);
 }
 
