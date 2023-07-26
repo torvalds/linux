@@ -594,6 +594,8 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 				list_move_tail(&gh->gh_list, &gl->gl_holders);
 				gh = find_first_waiter(gl);
 				gl->gl_target = gh->gh_state;
+				if (do_promote(gl))
+					goto out;
 				goto retry;
 			}
 			/* Some error or failed "try lock" - report it */
