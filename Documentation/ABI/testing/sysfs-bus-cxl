@@ -86,7 +86,8 @@ Description:
 		HPA ranges. This permits avoiding explicit global CPU cache
 		management, relying instead for it to be done when a region
 		transitions between software programmed and hardware committed
-		states.
+		states. If this file is not present, then there is no hardware
+		support for the operation.
 
 
 What            /sys/bus/cxl/devices/memX/security/erase
@@ -101,7 +102,8 @@ Description:
 		HPA ranges. This permits avoiding explicit global CPU cache
 		management, relying instead for it to be done when a region
 		transitions between software programmed and hardware committed
-		states.
+		states. If this file is not present, then there is no hardware
+		support for the operation.
 
 
 What:		/sys/bus/cxl/devices/memX/firmware/

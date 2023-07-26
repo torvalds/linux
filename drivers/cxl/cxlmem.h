@@ -244,6 +244,19 @@ enum poison_cmd_enabled_bits {
 	CXL_POISON_ENABLED_MAX
 };
 
+/* Device enabled security commands */
+enum security_cmd_enabled_bits {
+	CXL_SEC_ENABLED_SANITIZE,
+	CXL_SEC_ENABLED_SECURE_ERASE,
+	CXL_SEC_ENABLED_GET_SECURITY_STATE,
+	CXL_SEC_ENABLED_SET_PASSPHRASE,
+	CXL_SEC_ENABLED_DISABLE_PASSPHRASE,
+	CXL_SEC_ENABLED_UNLOCK,
+	CXL_SEC_ENABLED_FREEZE_SECURITY,
+	CXL_SEC_ENABLED_PASSPHRASE_SECURE_ERASE,
+	CXL_SEC_ENABLED_MAX
+};
+
 /**
  * struct cxl_poison_state - Driver poison state info
  *
@@ -346,6 +359,7 @@ struct cxl_fw_state {
  * struct cxl_security_state - Device security state
  *
  * @state: state of last security operation
+ * @enabled_cmds: All security commands enabled in the CEL
  * @poll: polling for sanitization is enabled, device has no mbox irq support
  * @poll_tmo_secs: polling timeout
  * @poll_dwork: polling work item
@@ -353,6 +367,7 @@ struct cxl_fw_state {
  */
 struct cxl_security_state {
 	unsigned long state;
+	DECLARE_BITMAP(enabled_cmds, CXL_SEC_ENABLED_MAX);
 	bool poll;
 	int poll_tmo_secs;
 	struct delayed_work poll_dwork;
