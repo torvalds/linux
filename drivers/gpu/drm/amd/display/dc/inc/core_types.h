@@ -125,17 +125,7 @@ struct resource_funcs {
 		struct dc *dc,
 		struct dc_state *context);
 
-	/*
-	 * Acquire an idle pipe from context, which could be used as a secondary
-	 * pipe for the otg master pipe associated with the input stream.
-	 *
-	 * an idle pipe - a pipe not yet used for any streams or
-	 * planes.
-	 * secondary pipe - a pipe gets inserted to a head OPP pipe's blending
-	 * tree. This is typical used for rendering MPO planes or additional
-	 * offset areas in MPCC combine.
-	 */
-	struct pipe_ctx *(*acquire_idle_pipe_for_layer)(
+	struct pipe_ctx *(*acquire_free_pipe_as_secondary_dpp_pipe)(
 			const struct dc_state *cur_ctx,
 			struct dc_state *new_ctx,
 			const struct resource_pool *pool,

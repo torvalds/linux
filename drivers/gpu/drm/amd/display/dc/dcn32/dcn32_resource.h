@@ -136,7 +136,7 @@ bool dcn32_any_surfaces_rotated(struct dc *dc, struct dc_state *context);
 bool dcn32_is_center_timing(struct pipe_ctx *pipe);
 bool dcn32_is_psr_capable(struct pipe_ctx *pipe);
 
-struct pipe_ctx *dcn32_acquire_idle_pipe_for_layer(
+struct pipe_ctx *dcn32_acquire_free_pipe_as_secondary_dpp_pipe(
 		const struct dc_state *cur_ctx,
 		struct dc_state *new_ctx,
 		const struct resource_pool *pool,

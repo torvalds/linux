@@ -1563,7 +1563,7 @@ enum dc_status resource_build_scaling_params_for_context(
 	return DC_OK;
 }
 
-struct pipe_ctx *find_idle_secondary_pipe_legacy(
+struct pipe_ctx *find_free_secondary_pipe_legacy(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		const struct pipe_ctx *primary_pipe)
@@ -1623,38 +1623,38 @@ struct pipe_ctx *find_idle_secondary_pipe_legacy(
 	return secondary_pipe;
 }
 
-int resource_find_idle_pipe_used_in_cur_mpc_blending_tree(
+int resource_find_free_pipe_used_in_cur_mpc_blending_tree(
 		const struct resource_context *cur_res_ctx,
 		struct resource_context *new_res_ctx,
 		const struct pipe_ctx *cur_opp_head)
 {
 	const struct pipe_ctx *cur_sec_dpp = cur_opp_head->bottom_pipe;
 	struct pipe_ctx *new_sec_dpp;
-	int idle_pipe_idx = IDLE_PIPE_INDEX_NOT_FOUND;
+	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
 
 	while (cur_sec_dpp) {
-		/* find an idle pipe used in current opp blend tree,
+		/* find a free pipe used in current opp blend tree,
 		 * this is to avoid MPO pipe switching to different opp blending
 		 * tree
 		 */
 		new_sec_dpp = &new_res_ctx->pipe_ctx[cur_sec_dpp->pipe_idx];
 		if (new_sec_dpp->plane_state == NULL &&
 				new_sec_dpp->stream == NULL) {
-			idle_pipe_idx = cur_sec_dpp->pipe_idx;
+			free_pipe_idx = cur_sec_dpp->pipe_idx;
 			break;
 		}
 		cur_sec_dpp = cur_sec_dpp->bottom_pipe;
 	}
 
-	return idle_pipe_idx;
+	return free_pipe_idx;
 }
 
-int recource_find_idle_pipe_not_used_in_cur_res_ctx(
+int recource_find_free_pipe_not_used_in_cur_res_ctx(
 		const struct resource_context *cur_res_ctx,
 		struct resource_context *new_res_ctx,
 		const struct resource_pool *pool)
 {
-	int idle_pipe_idx = IDLE_PIPE_INDEX_NOT_FOUND;
+	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
 	const struct pipe_ctx *new_sec_dpp, *cur_sec_dpp;
 	int i;
 
@@ -1666,20 +1666,20 @@ int recource_find_idle_pipe_not_used_in_cur_res_ctx(
 				cur_sec_dpp->stream == NULL &&
 				new_sec_dpp->plane_state == NULL &&
 				new_sec_dpp->stream == NULL) {
-			idle_pipe_idx = i;
+			free_pipe_idx = i;
 			break;
 		}
 	}
 
-	return idle_pipe_idx;
+	return free_pipe_idx;
 }
 
-int resource_find_idle_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
+int resource_find_free_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
 		const struct resource_context *cur_res_ctx,
 		struct resource_context *new_res_ctx,
 		const struct resource_pool *pool)
 {
-	int idle_pipe_idx = IDLE_PIPE_INDEX_NOT_FOUND;
+	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
 	const struct pipe_ctx *new_sec_dpp, *cur_sec_dpp;
 	int i;
 
@@ -1692,18 +1692,18 @@ int resource_find_idle_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
 				cur_sec_dpp->top_pipe->plane_state == cur_sec_dpp->plane_state &&
 				new_sec_dpp->plane_state == NULL &&
 				new_sec_dpp->stream == NULL) {
-			idle_pipe_idx = i;
+			free_pipe_idx = i;
 			break;
 		}
 	}
 
-	return idle_pipe_idx;
+	return free_pipe_idx;
 }
 
-int resource_find_any_idle_pipe(struct resource_context *new_res_ctx,
+int resource_find_any_free_pipe(struct resource_context *new_res_ctx,
 		const struct resource_pool *pool)
 {
-	int idle_pipe_idx = IDLE_PIPE_INDEX_NOT_FOUND;
+	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
 	const struct pipe_ctx *new_sec_dpp;
 	int i;
 
@@ -1712,12 +1712,12 @@ int resource_find_any_idle_pipe(struct resource_context *new_res_ctx,
 
 		if (new_sec_dpp->plane_state == NULL &&
 				new_sec_dpp->stream == NULL) {
-			idle_pipe_idx = i;
+			free_pipe_idx = i;
 			break;
 		}
 	}
 
-	return idle_pipe_idx;
+	return free_pipe_idx;
 }
 
 /* TODO: Unify the pipe naming convention:
@@ -1855,12 +1855,12 @@ static bool acquire_secondary_dpp_pipes_and_add_plane(
 {
 	struct pipe_ctx *opp_head_pipe, *sec_pipe;
 
-	if (!pool->funcs->acquire_idle_pipe_for_layer)
+	if (!pool->funcs->acquire_free_pipe_as_secondary_dpp_pipe)
 		return false;
 
 	opp_head_pipe = otg_master_pipe;
 	while (opp_head_pipe) {
-		sec_pipe = pool->funcs->acquire_idle_pipe_for_layer(
+		sec_pipe = pool->funcs->acquire_free_pipe_as_secondary_dpp_pipe(
 				cur_ctx,
 				new_ctx,
 				pool,

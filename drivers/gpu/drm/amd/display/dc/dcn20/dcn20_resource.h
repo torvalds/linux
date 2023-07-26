@@ -58,7 +58,7 @@ unsigned int dcn20_calc_max_scaled_time(
 		enum mmhubbub_wbif_mode mode,
 		unsigned int urgent_watermark);
 
-struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(
+struct pipe_ctx *dcn20_acquire_free_pipe_for_layer(
 		const struct dc_state *cur_ctx,
 		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
