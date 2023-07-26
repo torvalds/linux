@@ -89,7 +89,7 @@ static s64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 static u32 detect_bar2_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	u32 stolen_size;
+	u32 stolen_size, wopcm_size;
 	u32 ggc, gms;
 
 	ggc = xe_mmio_read32(xe_root_mmio_gt(xe), GGC);
@@ -123,6 +123,12 @@ static u32 detect_bar2_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr
 	default:
 		return 0;
 	}
+
+	/* Carve out the top of DSM as it contains the reserved WOPCM region */
+	wopcm_size = REG_FIELD_GET64(WOPCM_SIZE_MASK,
+				     xe_mmio_read64(xe_root_mmio_gt(xe),
+						    STOLEN_RESERVED));
+	stolen_size -= (1U << wopcm_size) * SZ_1M;
 
 	if (drm_WARN_ON(&xe->drm, stolen_size + SZ_8M > pci_resource_len(pdev, 2)))
 		return 0;

@@ -97,4 +97,7 @@
 #define DSMBASE					XE_REG(0x1080C0)
 #define   BDSM_MASK				REG_GENMASK64(63, 20)
 
+#define STOLEN_RESERVED				XE_REG(0x1082c0)
+#define   WOPCM_SIZE_MASK			REG_GENMASK64(8, 7)
+
 #endif
