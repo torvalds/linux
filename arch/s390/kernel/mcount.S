@@ -137,7 +137,7 @@ SYM_FUNC_START(return_to_handler)
 	lgr	%r1,%r15
 	aghi	%r15,-(STACK_FRAME_OVERHEAD+__FGRAPH_RET_SIZE)
 	stg	%r1,__SF_BACKCHAIN(%r15)
-	aghik	%r3,%r15,STACK_FRAME_OVERHEAD
+	la	%r3,STACK_FRAME_OVERHEAD(%r15)
 	stg	%r1,__FGRAPH_RET_FP(%r3)
 	stg	%r2,__FGRAPH_RET_GPR2(%r3)
 	lgr	%r2,%r3
