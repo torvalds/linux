@@ -49,6 +49,12 @@ static inline bool is_ep11_keyblob(const u8 *key)
 }
 
 /*
+ * For valid ep11 keyblobs, returns a reference to the wrappingkey verification
+ * pattern. Otherwise NULL.
+ */
+const u8 *ep11_kb_wkvp(const u8 *kblob, size_t kbloblen);
+
+/*
  * Simple check if the key blob is a valid EP11 AES key blob with header.
  * If checkcpacfexport is enabled, the key is also checked for the
  * attributes needed to export this key for CPACF use.

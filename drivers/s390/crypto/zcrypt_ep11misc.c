@@ -157,6 +157,65 @@ out:
 	return rc;
 }
 
+static int ep11_kb_decode(const u8 *kb, size_t kblen,
+			  struct ep11kblob_header **kbhdr, size_t *kbhdrsize,
+			  struct ep11keyblob **kbpl, size_t *kbplsize)
+{
+	struct ep11kblob_header *tmph, *hdr = NULL;
+	size_t hdrsize = 0, plsize = 0;
+	struct ep11keyblob *pl = NULL;
+	int rc = -EINVAL;
+	u8 *tmpp;
+
+	if (kblen < sizeof(struct ep11kblob_header))
+		goto out;
+	tmph = (struct ep11kblob_header *)kb;
+
+	if (tmph->type != TOKTYPE_NON_CCA &&
+	    tmph->len > kblen)
+		goto out;
+
+	if (ep11_kb_split(kb, kblen, tmph->version,
+			  &hdr, &hdrsize, &tmpp, &plsize))
+		goto out;
+
+	if (plsize < sizeof(struct ep11keyblob))
+		goto out;
+
+	if (!is_ep11_keyblob(tmpp))
+		goto out;
+
+	pl = (struct ep11keyblob *)tmpp;
+	plsize = hdr->len - hdrsize;
+
+	if (kbhdr)
+		*kbhdr = hdr;
+	if (kbhdrsize)
+		*kbhdrsize = hdrsize;
+	if (kbpl)
+		*kbpl = pl;
+	if (kbplsize)
+		*kbplsize = plsize;
+
+	rc = 0;
+out:
+	return rc;
+}
+
+/*
+ * For valid ep11 keyblobs, returns a reference to the wrappingkey verification
+ * pattern. Otherwise NULL.
+ */
+const u8 *ep11_kb_wkvp(const u8 *keyblob, size_t keybloblen)
+{
+	struct ep11keyblob *kb;
+
+	if (ep11_kb_decode(keyblob, keybloblen, NULL, NULL, &kb, NULL))
+		return NULL;
+	return kb->wkvp;
+}
+EXPORT_SYMBOL(ep11_kb_wkvp);
+
 /*
  * Simple check if the key blob is a valid EP11 AES key blob with header.
  */
@@ -1170,10 +1229,10 @@ static int ep11_unwrapkey(u16 card, u16 domain,
 	return 0;
 }
 
-static int ep11_wrapkey(u16 card, u16 domain,
-			const u8 *key, size_t keysize,
-			u32 mech, const u8 *iv,
-			u8 *databuf, size_t *datasize)
+static int _ep11_wrapkey(u16 card, u16 domain,
+			 const u8 *key, size_t keysize,
+			 u32 mech, const u8 *iv,
+			 u8 *databuf, size_t *datasize)
 {
 	struct wk_req_pl {
 		struct pl_head head;
@@ -1203,19 +1262,9 @@ static int ep11_wrapkey(u16 card, u16 domain,
 	struct ep11_cprb *req = NULL, *rep = NULL;
 	struct ep11_target_dev target;
 	struct ep11_urb *urb = NULL;
-	struct ep11keyblob *kb;
 	size_t req_pl_size;
 	int api, rc = -ENOMEM;
-	bool has_header = false;
 	u8 *p;
-
-	/* maybe the session field holds a header with key info */
-	kb = (struct ep11keyblob *)key;
-	if (kb->head.type == TOKTYPE_NON_CCA &&
-	    kb->head.version == TOKVER_EP11_AES) {
-		has_header = true;
-		keysize = min_t(size_t, kb->head.len, keysize);
-	}
 
 	/* request cprb and payload */
 	req_pl_size = sizeof(struct wk_req_pl) + (iv ? 16 : 0)
@@ -1241,11 +1290,6 @@ static int ep11_wrapkey(u16 card, u16 domain,
 	}
 	/* key blob */
 	p += asn1tag_write(p, 0x04, key, keysize);
-	/* maybe the key argument needs the head data cleaned out */
-	if (has_header) {
-		kb = (struct ep11keyblob *)(p - keysize);
-		memset(&kb->head, 0, sizeof(kb->head));
-	}
 	/* empty kek tag */
 	*p++ = 0x04;
 	*p++ = 0;
@@ -1366,11 +1410,12 @@ out:
 }
 EXPORT_SYMBOL(ep11_clr2keyblob);
 
-int ep11_kblob2protkey(u16 card, u16 dom, const u8 *keyblob, size_t keybloblen,
+int ep11_kblob2protkey(u16 card, u16 dom,
+		       const u8 *keyblob, size_t keybloblen,
 		       u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
-	int rc = -EIO;
-	u8 *wkbuf = NULL;
+	struct ep11kblob_header *hdr;
+	struct ep11keyblob *key;
 	size_t wkbuflen, keylen;
 	struct wk_info {
 		u16 version;
@@ -1381,31 +1426,17 @@ int ep11_kblob2protkey(u16 card, u16 dom, const u8 *keyblob, size_t keybloblen,
 		u8  res2[8];
 		u8  pkey[];
 	} __packed * wki;
-	const u8 *key;
-	struct ep11kblob_header *hdr;
+	u8 *wkbuf = NULL;
+	int rc = -EIO;
 
-	/* key with or without header ? */
-	hdr = (struct ep11kblob_header *)keyblob;
-	if (hdr->type == TOKTYPE_NON_CCA &&
-	    (hdr->version == TOKVER_EP11_AES_WITH_HEADER ||
-	     hdr->version == TOKVER_EP11_ECC_WITH_HEADER) &&
-	    is_ep11_keyblob(keyblob + sizeof(struct ep11kblob_header))) {
-		/* EP11 AES or ECC key with header */
-		key = keyblob + sizeof(struct ep11kblob_header);
-		keylen = hdr->len - sizeof(struct ep11kblob_header);
-	} else if (hdr->type == TOKTYPE_NON_CCA &&
-		   hdr->version == TOKVER_EP11_AES &&
-		   is_ep11_keyblob(keyblob)) {
-		/* EP11 AES key (old style) */
-		key = keyblob;
-		keylen = hdr->len;
-	} else if (is_ep11_keyblob(keyblob)) {
-		/* raw EP11 key blob */
-		key = keyblob;
-		keylen = keybloblen;
-	} else {
+	if (ep11_kb_decode((u8 *)keyblob, keybloblen, &hdr, NULL, &key, &keylen))
 		return -EINVAL;
+
+	if (hdr->version == TOKVER_EP11_AES) {
+		/* wipe overlayed header */
+		memset(hdr, 0, sizeof(*hdr));
 	}
+	/* !!! hdr is no longer a valid header !!! */
 
 	/* alloc temp working buffer */
 	wkbuflen = (keylen + AES_BLOCK_SIZE) & (~(AES_BLOCK_SIZE - 1));
@@ -1414,8 +1445,8 @@ int ep11_kblob2protkey(u16 card, u16 dom, const u8 *keyblob, size_t keybloblen,
 		return -ENOMEM;
 
 	/* ep11 secure key -> protected key + info */
-	rc = ep11_wrapkey(card, dom, key, keylen,
-			  0, def_iv, wkbuf, &wkbuflen);
+	rc = _ep11_wrapkey(card, dom, (u8 *)key, keylen,
+			   0, def_iv, wkbuf, &wkbuflen);
 	if (rc) {
 		DEBUG_ERR(
 			"%s rewrapping ep11 key to pkey failed, rc=%d\n",

@@ -288,10 +288,9 @@ out:
 /*
  * Find card and transform EP11 secure key into protected key.
  */
-static int pkey_ep11key2pkey(const u8 *key, u8 *protkey,
-			     u32 *protkeylen, u32 *protkeytype)
+static int pkey_ep11key2pkey(const u8 *key, size_t keylen,
+			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
-	struct ep11keyblob *kb = (struct ep11keyblob *)key;
 	u32 nr_apqns, *apqns = NULL;
 	u16 card, dom;
 	int i, rc;
@@ -300,7 +299,8 @@ static int pkey_ep11key2pkey(const u8 *key, u8 *protkey,
 
 	/* build a list of apqns suitable for this key */
 	rc = ep11_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
-			    ZCRYPT_CEX7, EP11_API_V, kb->wkvp);
+			    ZCRYPT_CEX7, EP11_API_V,
+			    ep11_kb_wkvp(key, keylen));
 	if (rc)
 		goto out;
 
@@ -308,7 +308,7 @@ static int pkey_ep11key2pkey(const u8 *key, u8 *protkey,
 	for (rc = -ENODEV, i = 0; i < nr_apqns; i++) {
 		card = apqns[i] >> 16;
 		dom = apqns[i] & 0xFFFF;
-		rc = ep11_kblob2protkey(card, dom, key, kb->head.len,
+		rc = ep11_kblob2protkey(card, dom, key, keylen,
 					protkey, protkeylen, protkeytype);
 		if (rc == 0)
 			break;
@@ -496,7 +496,7 @@ try_via_ep11:
 			      tmpbuf, &tmpbuflen);
 	if (rc)
 		goto failure;
-	rc = pkey_ep11key2pkey(tmpbuf,
+	rc = pkey_ep11key2pkey(tmpbuf, tmpbuflen,
 			       protkey, protkeylen, protkeytype);
 	if (!rc)
 		goto out;
@@ -612,7 +612,7 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		rc = ep11_check_aes_key(debug_info, 3, key, keylen, 1);
 		if (rc)
 			goto out;
-		rc = pkey_ep11key2pkey(key,
+		rc = pkey_ep11key2pkey(key, keylen,
 				       protkey, protkeylen, protkeytype);
 		break;
 	}
@@ -621,7 +621,7 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		rc = ep11_check_aes_key_with_hdr(debug_info, 3, key, keylen, 1);
 		if (rc)
 			goto out;
-		rc = pkey_ep11key2pkey(key + sizeof(struct ep11kblob_header),
+		rc = pkey_ep11key2pkey(key, keylen,
 				       protkey, protkeylen, protkeytype);
 		break;
 	default:
@@ -963,9 +963,11 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 		}
 	} else if (hdr->type == TOKTYPE_NON_CCA) {
 		if (hdr->version == TOKVER_EP11_AES) {
-			if (keylen < sizeof(struct ep11keyblob))
-				return -EINVAL;
 			if (ep11_check_aes_key(debug_info, 3, key, keylen, 1))
+				return -EINVAL;
+		} else if (hdr->version == TOKVER_EP11_AES_WITH_HEADER) {
+			if (ep11_check_aes_key_with_hdr(debug_info, 3,
+							key, keylen, 1))
 				return -EINVAL;
 		} else {
 			return pkey_nonccatok2pkey(key, keylen,
@@ -994,10 +996,7 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 						protkey, protkeylen,
 						protkeytype);
 		} else {
-			/* EP11 AES secure key blob */
-			struct ep11keyblob *kb = (struct ep11keyblob *)key;
-
-			rc = ep11_kblob2protkey(card, dom, key, kb->head.len,
+			rc = ep11_kblob2protkey(card, dom, key, keylen,
 						protkey, protkeylen,
 						protkeytype);
 		}
@@ -1257,12 +1256,14 @@ static int pkey_keyblob2pkey3(const struct pkey_apqn *apqns, size_t nr_apqns,
 		     hdr->version == TOKVER_EP11_ECC_WITH_HEADER) &&
 		    is_ep11_keyblob(key + sizeof(struct ep11kblob_header)))
 			rc = ep11_kblob2protkey(card, dom, key, hdr->len,
-						protkey, protkeylen, protkeytype);
+						protkey, protkeylen,
+						protkeytype);
 		else if (hdr->type == TOKTYPE_NON_CCA &&
 			 hdr->version == TOKVER_EP11_AES &&
 			 is_ep11_keyblob(key))
 			rc = ep11_kblob2protkey(card, dom, key, hdr->len,
-						protkey, protkeylen, protkeytype);
+						protkey, protkeylen,
+						protkeytype);
 		else if (hdr->type == TOKTYPE_CCA_INTERNAL &&
 			 hdr->version == TOKVER_CCA_AES)
 			rc = cca_sec2protkey(card, dom, key, protkey,
