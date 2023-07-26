@@ -14,20 +14,13 @@
 		stdout-path = &uart1;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reg_fec_phy: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "fec-phy";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio4 9 0>;
-			enable-active-high;
-		};
+	reg_fec_phy: regulator-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "fec-phy";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio4 9 0>;
+		enable-active-high;
 	};
 
 	memory@80000000 {
