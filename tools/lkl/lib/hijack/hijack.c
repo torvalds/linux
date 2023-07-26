@@ -31,8 +31,9 @@
 
 #include "xlate.h"
 #include "init.h"
+#include "hijack.h"
 
-static int is_lklfd(int fd)
+int is_lklfd(int fd)
 {
 	if (fd < LKL_FD_OFFSET)
 		return 0;
@@ -167,8 +168,8 @@ HOST_CALL(write)
 HOST_CALL(pipe2)
 
 HOST_CALL(setsockopt);
-int setsockopt(int fd, int level, int optname, const void *optval,
-	       socklen_t optlen)
+int hijack_setsockopt(int fd, int level, int optname, const void *optval,
+		      socklen_t optlen)
 {
 	CHECK_HOST_CALL(setsockopt);
 	if (!is_lklfd(fd))
@@ -178,7 +179,7 @@ int setsockopt(int fd, int level, int optname, const void *optval,
 }
 
 HOST_CALL(getsockopt);
-int getsockopt(int fd, int level, int optname, void *optval, socklen_t *optlen)
+int hijack_getsockopt(int fd, int level, int optname, void *optval, socklen_t *optlen)
 {
 	CHECK_HOST_CALL(getsockopt);
 	if (!is_lklfd(fd))
@@ -240,7 +241,7 @@ int fcntl(int fd, int cmd, ...)
 }
 
 HOST_CALL(poll);
-int poll(struct pollfd *fds, nfds_t nfds, int timeout)
+int hijack_poll(struct pollfd *fds, nfds_t nfds, int timeout)
 {
 	unsigned int i, lklfds = 0, hostfds = 0;
 
@@ -264,10 +265,8 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 	return lkl_sys_poll((struct lkl_pollfd *)fds, nfds, timeout);
 }
 
-int __poll(struct pollfd *, nfds_t, int) __attribute__((alias("poll")));
-
 HOST_CALL(select);
-int select(int nfds, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
+int hijack_select(int nfds, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
 {
 	int fd, hostfds = 0, lklfds = 0;
 
@@ -324,7 +323,7 @@ int close(int fd)
 }
 
 HOST_CALL(epoll_create);
-int epoll_create(int size)
+int hijack_epoll_create(int size)
 {
 	int host_fd;
 
@@ -346,7 +345,7 @@ int epoll_create(int size)
 }
 
 HOST_CALL(epoll_create1);
-int epoll_create1(int flags)
+int hijack_epoll_create1(int flags)
 {
 	int host_fd;
 
@@ -369,7 +368,7 @@ int epoll_create1(int flags)
 
 
 HOST_CALL(epoll_ctl);
-int epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
+int hijack_epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
 {
 	CHECK_HOST_CALL(epoll_ctl);
 
@@ -404,7 +403,7 @@ static void *host_epollwait(void *arg)
 	return (void *)(intptr_t)ret;
 }
 
-int epoll_wait(int epfd, struct epoll_event *events,
+int hijack_epoll_wait(int epfd, struct epoll_event *events,
 	       int maxevents, int timeout)
 {
 	CHECK_HOST_CALL(epoll_wait);
@@ -541,7 +540,7 @@ int epoll_wait(int epfd, struct epoll_event *events,
 	return ret;
 }
 
-int eventfd(unsigned int count, int flags)
+int hijack_eventfd(unsigned int count, int flags)
 {
 	if (!lkl_running) {
 		int (*f)(unsigned int, int) = resolve_sym("eventfd");
@@ -553,7 +552,7 @@ int eventfd(unsigned int count, int flags)
 }
 
 HOST_CALL(eventfd_read);
-int eventfd_read(int fd, uint64_t *value)
+int hijack_eventfd_read(int fd, uint64_t *value)
 {
 	CHECK_HOST_CALL(eventfd_read);
 
@@ -565,7 +564,7 @@ int eventfd_read(int fd, uint64_t *value)
 }
 
 HOST_CALL(eventfd_write);
-int eventfd_write(int fd, uint64_t value)
+int hijack_eventfd_write(int fd, uint64_t value)
 {
 	CHECK_HOST_CALL(eventfd_write);
 

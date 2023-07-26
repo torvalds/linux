@@ -2,12 +2,16 @@ libs-y += lib/liblkl
 
 ifneq ($(LKL_HOST_CONFIG_BSD),y)
 libs-$(LKL_HOST_CONFIG_POSIX) += lib/hijack/liblkl-hijack
+libs-$(LKL_HOST_CONFIG_POSIX) += lib/hijack/liblkl-zpoline
 endif
 LDFLAGS_lib/hijack/liblkl-hijack-y += -shared -nodefaultlibs
 LDLIBS_lib/hijack/liblkl-hijack-y += -ldl
 LDLIBS_lib/hijack/liblkl-hijack-$(LKL_HOST_CONFIG_ARM) += -lgcc -lc
 LDLIBS_lib/hijack/liblkl-hijack-$(LKL_HOST_CONFIG_AARCH64) += -lgcc -lc
 LDLIBS_lib/hijack/liblkl-hijack-$(LKL_HOST_CONFIG_I386) += -lc_nonshared
+
+LDFLAGS_lib/hijack/liblkl-zpoline-$(LKL_HOST_CONFIG_POSIX) += -shared -nodefaultlibs
+LDLIBS_lib/hijack/liblkl-zpoline-$(LKL_HOST_CONFIG_POSIX) += -ldl -lc
 
 progs-$(LKL_HOST_CONFIG_FUSE) += lklfuse
 LDLIBS_lklfuse-y := -lfuse

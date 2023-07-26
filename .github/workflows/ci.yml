@@ -36,6 +36,12 @@ jobs:
             runs_on: ubuntu-22.04
             shell: bash
             build_options: "LKL_FUZZING=1 fuzzers"
+          - displayTargetName: zpoline
+          # maybe integrate with default Linux build once the function becomes stable
+            os: unix
+            runs_on: ubuntu-22.04
+            shell: bash
+            build_options: "zpoline=./zpoline"
     timeout-minutes: 100
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
@@ -128,6 +134,20 @@ jobs:
           which gcc
           ccache -z
 
+      - name: install zpoline
+        if: matrix.displayTargetName == 'zpoline'
+        run: |
+          sudo apt install -y binutils-dev
+          git clone https://github.com/yasukata/zpoline
+          cd zpoline
+          git checkout 022a3b8c7a5c23bfd99162b478bf3eb5f70c07a2
+          make
+          cd ..
+          # This is the whole point of zpoline
+          echo "==== setting mmap_min_addr ===="
+          sudo sh -c "echo 0 > /proc/sys/vm/mmap_min_addr"
+          echo "setting env variable (debug)"
+          echo "ZPOLINE_DEBUG=0" >> "$GITHUB_ENV"
       - name: Build
         run: |
           make -j4 -C tools/lkl ${{ matrix.build_options }}

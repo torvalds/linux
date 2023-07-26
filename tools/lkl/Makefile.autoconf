@@ -62,6 +62,11 @@ define virtio_net_vde
   LDLIBS += $(shell pkg-config --libs vdeplug)
 endef
 
+define zpoline_conf
+  $(eval zpoline_dir=$(abspath $(srctree)/$(1)))
+  $(if $(strip $(foreach f, $(zpoline_dir), $(wildcard $(f)/libzpoline.so))),$(call set_autoconf_var,ZPOLINE_DIR,$(zpoline_dir)))
+endef
+
 define posix_host
   $(call set_autoconf_var,POSIX,y)
   $(call set_autoconf_var,VIRTIO_NET,y)
@@ -82,6 +87,7 @@ define posix_host
   $(if $(filter $(1),elf64-x86-64-freebsd),$(call set_autoconf_var,NEEDS_LARGP,y))
   $(if $(filter $(1),elf32-i386),$(call set_autoconf_var,I386,y))
   $(if $(strip $(call find_include,jsmn.h)),$(call set_autoconf_var,JSMN,y))
+  $(if $(filter %,$(zpoline)),$(call zpoline_conf,$(zpoline)))
 endef
 
 define nt64_host

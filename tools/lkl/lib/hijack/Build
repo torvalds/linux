@@ -1,4 +1,9 @@
+liblkl-hijack-y += preload.o
 liblkl-hijack-y += hijack.o
 liblkl-hijack-y += init.o
 liblkl-hijack-y += xlate.o
 
+liblkl-zpoline-y += zpoline.o
+liblkl-zpoline-y += hijack.o
+liblkl-zpoline-y += init.o
+liblkl-zpoline-y += xlate.o

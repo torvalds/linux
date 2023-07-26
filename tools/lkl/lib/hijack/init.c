@@ -112,8 +112,8 @@ static int config_load(void)
 	return ret;
 }
 
-void __attribute__((constructor))
-hijack_init(void)
+void
+__hijack_init(void)
 {
 	int ret, i, dev_null;
 	int single_cpu_mode = 0;
@@ -225,8 +225,17 @@ hijack_init(void)
 	lkl_load_config_post(cfg);
 }
 
-void __attribute__((destructor))
-hijack_fini(void)
+void __attribute__((constructor))
+hijack_init(void)
+{
+	if (getenv("LKL_HIJACK_ZPOLINE"))
+		return;
+
+	return __hijack_init();
+}
+
+void
+__hijack_fini(void)
 {
 	int i;
 	int err;
@@ -256,4 +265,13 @@ hijack_fini(void)
 		fprintf(stderr, "lkl_sys_halt: %s\n", lkl_strerror(err));
 
 	lkl_cleanup();
+}
+
+void __attribute__((destructor))
+hijack_fini(void)
+{
+	if (getenv("LKL_HIJACK_ZPOLINE"))
+		return;
+
+	return __hijack_fini();
 }

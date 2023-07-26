@@ -13,10 +13,19 @@
 ##
 
 script_dir=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
+. ${script_dir}/../tests/autoconf.sh
 
 export LD_LIBRARY_PATH=${script_dir}/../lib/hijack
 if [ -n ${LKL_HIJACK_DEBUG+x}  ]
 then
   trap '' TSTP
 fi
-LD_PRELOAD=liblkl-hijack.so $*
+
+
+if [ -n "${LKL_HIJACK_ZPOLINE}" ]
+then
+    export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LKL_HOST_CONFIG_ZPOLINE_DIR}
+    LD_PRELOAD=libzpoline.so LIBZPHOOK=liblkl-zpoline.so $*
+else
+    LD_PRELOAD=liblkl-hijack.so $*
+fi
