@@ -252,8 +252,7 @@ int ethnl_multicast(struct sk_buff *skb, struct net_device *dev)
  * @ops:        request ops of currently processed message type
  * @req_info:   parsed request header of processed request
  * @reply_data: data needed to compose the reply
- * @pos_hash:   saved iteration position - hashbucket
- * @pos_idx:    saved iteration position - index
+ * @pos_ifindex: saved iteration position - ifindex
  *
  * These parameters are kept in struct netlink_callback as context preserved
  * between iterations. They are initialized by ethnl_default_start() and used
@@ -263,8 +262,7 @@ struct ethnl_dump_ctx {
 	const struct ethnl_request_ops	*ops;
 	struct ethnl_req_info		*req_info;
 	struct ethnl_reply_data		*reply_data;
-	int				pos_hash;
-	int				pos_idx;
+	unsigned long			pos_ifindex;
 };
 
 static const struct ethnl_request_ops *
@@ -490,54 +488,26 @@ static int ethnl_default_dumpit(struct sk_buff *skb,
 {
 	struct ethnl_dump_ctx *ctx = ethnl_dump_context(cb);
 	struct net *net = sock_net(skb->sk);
-	int s_idx = ctx->pos_idx;
-	int h, idx = 0;
+	struct net_device *dev;
 	int ret = 0;
 
 	rtnl_lock();
-	for (h = ctx->pos_hash; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		struct hlist_head *head;
-		struct net_device *dev;
-		unsigned int seq;
+	for_each_netdev_dump(net, dev, ctx->pos_ifindex) {
+		dev_hold(dev);
+		rtnl_unlock();
 
-		head = &net->dev_index_head[h];
+		ret = ethnl_default_dump_one(skb, dev, ctx, cb);
 
-restart_chain:
-		seq = net->dev_base_seq;
-		cb->seq = seq;
-		idx = 0;
-		hlist_for_each_entry(dev, head, index_hlist) {
-			if (idx < s_idx)
-				goto cont;
-			dev_hold(dev);
-			rtnl_unlock();
+		rtnl_lock();
+		dev_put(dev);
 
-			ret = ethnl_default_dump_one(skb, dev, ctx, cb);
-			dev_put(dev);
-			if (ret < 0) {
-				if (ret == -EOPNOTSUPP)
-					goto lock_and_cont;
-				if (likely(skb->len))
-					ret = skb->len;
-				goto out;
-			}
-lock_and_cont:
-			rtnl_lock();
-			if (net->dev_base_seq != seq) {
-				s_idx = idx + 1;
-				goto restart_chain;
-			}
-cont:
-			idx++;
+		if (ret < 0 && ret != -EOPNOTSUPP) {
+			if (likely(skb->len))
+				ret = skb->len;
+			break;
 		}
-
 	}
 	rtnl_unlock();
-
-out:
-	ctx->pos_hash = h;
-	ctx->pos_idx = idx;
-	nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 
 	return ret;
 }
@@ -584,8 +554,7 @@ static int ethnl_default_start(struct netlink_callback *cb)
 	ctx->ops = ops;
 	ctx->req_info = req_info;
 	ctx->reply_data = reply_data;
-	ctx->pos_hash = 0;
-	ctx->pos_idx = 0;
+	ctx->pos_ifindex = 0;
 
 	return 0;
 
