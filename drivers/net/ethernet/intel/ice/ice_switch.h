@@ -191,6 +191,8 @@ struct ice_adv_rule_info {
 	u16 vlan_type;
 	u16 fltr_rule_id;
 	u32 priority;
+	u16 need_pass_l2:1;
+	u16 allow_pass_l2:1;
 	u16 src_vsi;
 	struct ice_sw_act_ctrl sw_act;
 	struct ice_adv_rule_flags_info flags_info;
@@ -253,6 +255,9 @@ struct ice_sw_recipe {
 	 * priority.
 	 */
 	u8 priority;
+
+	u8 need_pass_l2:1;
+	u8 allow_pass_l2:1;
 
 	struct list_head rg_list;
 
@@ -379,7 +384,6 @@ int
 ice_set_vlan_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
 			 bool rm_vlan_promisc);
 
-int ice_rem_adv_rule_for_vsi(struct ice_hw *hw, u16 vsi_handle);
 int
 ice_rem_adv_rule_by_id(struct ice_hw *hw,
 		       struct ice_rule_query_data *remove_entry);
