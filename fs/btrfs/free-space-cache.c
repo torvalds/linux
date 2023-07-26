@@ -2943,7 +2943,8 @@ void btrfs_dump_free_space(struct btrfs_block_group *block_group,
 	btrfs_info(fs_info, "block group has cluster?: %s",
 	       list_empty(&block_group->cluster_list) ? "no" : "yes");
 	btrfs_info(fs_info,
-		   "%d blocks of free space at or bigger than bytes is", count);
+		   "%d free space entries at or bigger than %llu bytes",
+		   count, bytes);
 }
 
 void btrfs_init_free_space_ctl(struct btrfs_block_group *block_group,
