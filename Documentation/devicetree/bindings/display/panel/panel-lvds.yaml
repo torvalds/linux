@@ -44,6 +44,8 @@ properties:
           - chunghwa,claa070wp03xg
           # HannStar Display Corp. HSD101PWW2 10.1" WXGA (1280x800) LVDS panel
           - hannstar,hsd101pww2
+          # Hydis Technologies 7" WXGA (800x1280) TFT LCD LVDS panel
+          - hydis,hv070wx2-1e0
           - tbs,a711-panel
 
       - const: panel-lvds
