@@ -81,8 +81,10 @@ u64 xe_pde_encode(struct xe_bo *bo, u64 bo_offset,
 static dma_addr_t vma_addr(struct xe_vma *vma, u64 offset,
 			   size_t page_size, bool *is_vram)
 {
-	if (xe_vma_is_null(vma))
+	if (xe_vma_is_null(vma)) {
+		*is_vram = 0;
 		return 0;
+	}
 
 	if (xe_vma_is_userptr(vma)) {
 		struct xe_res_cursor cur;
