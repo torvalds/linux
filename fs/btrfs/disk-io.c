@@ -2869,6 +2869,56 @@ static int btrfs_check_uuid_tree(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
+static int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
+{
+	u64 root_objectid = 0;
+	struct btrfs_root *gang[8];
+	int i = 0;
+	int err = 0;
+	unsigned int ret = 0;
+
+	while (1) {
+		spin_lock(&fs_info->fs_roots_radix_lock);
+		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
+					     (void **)gang, root_objectid,
+					     ARRAY_SIZE(gang));
+		if (!ret) {
+			spin_unlock(&fs_info->fs_roots_radix_lock);
+			break;
+		}
+		root_objectid = gang[ret - 1]->root_key.objectid + 1;
+
+		for (i = 0; i < ret; i++) {
+			/* Avoid to grab roots in dead_roots. */
+			if (btrfs_root_refs(&gang[i]->root_item) == 0) {
+				gang[i] = NULL;
+				continue;
+			}
+			/* Grab all the search result for later use. */
+			gang[i] = btrfs_grab_root(gang[i]);
+		}
+		spin_unlock(&fs_info->fs_roots_radix_lock);
+
+		for (i = 0; i < ret; i++) {
+			if (!gang[i])
+				continue;
+			root_objectid = gang[i]->root_key.objectid;
+			err = btrfs_orphan_cleanup(gang[i]);
+			if (err)
+				goto out;
+			btrfs_put_root(gang[i]);
+		}
+		root_objectid++;
+	}
+out:
+	/* Release the uncleaned roots due to error. */
+	for (; i < ret; i++) {
+		if (gang[i])
+			btrfs_put_root(gang[i]);
+	}
+	return err;
+}
+
 /*
  * Some options only have meaning at mount time and shouldn't persist across
  * remounts, or be displayed. Clear these at the end of mount and remount
@@ -4134,56 +4184,6 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 
 	if (drop_ref)
 		btrfs_put_root(root);
-}
-
-int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
-{
-	u64 root_objectid = 0;
-	struct btrfs_root *gang[8];
-	int i = 0;
-	int err = 0;
-	unsigned int ret = 0;
-
-	while (1) {
-		spin_lock(&fs_info->fs_roots_radix_lock);
-		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
-					     (void **)gang, root_objectid,
-					     ARRAY_SIZE(gang));
-		if (!ret) {
-			spin_unlock(&fs_info->fs_roots_radix_lock);
-			break;
-		}
-		root_objectid = gang[ret - 1]->root_key.objectid + 1;
-
-		for (i = 0; i < ret; i++) {
-			/* Avoid to grab roots in dead_roots */
-			if (btrfs_root_refs(&gang[i]->root_item) == 0) {
-				gang[i] = NULL;
-				continue;
-			}
-			/* grab all the search result for later use */
-			gang[i] = btrfs_grab_root(gang[i]);
-		}
-		spin_unlock(&fs_info->fs_roots_radix_lock);
-
-		for (i = 0; i < ret; i++) {
-			if (!gang[i])
-				continue;
-			root_objectid = gang[i]->root_key.objectid;
-			err = btrfs_orphan_cleanup(gang[i]);
-			if (err)
-				goto out;
-			btrfs_put_root(gang[i]);
-		}
-		root_objectid++;
-	}
-out:
-	/* release the uncleaned roots due to error */
-	for (; i < ret; i++) {
-		if (gang[i])
-			btrfs_put_root(gang[i]);
-	}
-	return err;
 }
 
 int btrfs_commit_super(struct btrfs_fs_info *fs_info)
