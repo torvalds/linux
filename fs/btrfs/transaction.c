@@ -799,7 +799,10 @@ struct btrfs_trans_handle *btrfs_join_transaction_spacecache(struct btrfs_root *
 
 /*
  * Similar to regular join but it never starts a transaction when none is
- * running or after waiting for the current one to finish.
+ * running or when there's a running one at a state >= TRANS_STATE_UNBLOCKED.
+ * This is similar to btrfs_attach_transaction() but it allows the join to
+ * happen if the transaction commit already started but it's not yet in the
+ * "doing" phase (the state is < TRANS_STATE_COMMIT_DOING).
  */
 struct btrfs_trans_handle *btrfs_join_transaction_nostart(struct btrfs_root *root)
 {
