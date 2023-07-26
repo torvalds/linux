@@ -99,17 +99,11 @@ static ssize_t write_file_dfs(struct file *file, const char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 	unsigned long val;
-	char buf[32];
-	ssize_t len;
+	ssize_t ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &val))
-		return -EINVAL;
-
+	ret = kstrtoul_from_user(user_buf, count, 0, &val);
+	if (ret)
+		return ret;
 	if (val == DFS_STATS_RESET_MAGIC)
 		memset(&sc->debug.stats.dfs_stats, 0,
 		       sizeof(sc->debug.stats.dfs_stats));
