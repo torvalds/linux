@@ -814,9 +814,18 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 		break;
 	case COMMIT_TRANS:
 		ASSERT(current->journal_info == NULL);
-		trans = btrfs_join_transaction(root);
+		/*
+		 * We don't want to start a new transaction, just attach to the
+		 * current one or wait it fully commits in case its commit is
+		 * happening at the moment. Note: we don't use a nostart join
+		 * because that does not wait for a transaction to fully commit
+		 * (only for it to be unblocked, state TRANS_STATE_UNBLOCKED).
+		 */
+		trans = btrfs_attach_transaction_barrier(root);
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
+			if (ret == -ENOENT)
+				ret = 0;
 			break;
 		}
 		ret = btrfs_commit_transaction(trans);
