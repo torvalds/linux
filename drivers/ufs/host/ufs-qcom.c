@@ -1382,6 +1382,10 @@ static int ufs_qcom_clk_scale_notify(struct ufs_hba *hba,
 	struct ufs_pa_layer_attr *dev_req_params = &host->dev_req_params;
 	int err = 0;
 
+	/* check the host controller state before sending hibern8 cmd */
+	if (!ufshcd_is_hba_active(hba))
+		return 0;
+
 	if (status == PRE_CHANGE) {
 		err = ufshcd_uic_hibern8_enter(hba);
 		if (err)
