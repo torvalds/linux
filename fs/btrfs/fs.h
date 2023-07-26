@@ -46,8 +46,6 @@ static_assert(sizeof(struct btrfs_super_block) == BTRFS_SUPER_INFO_SIZE);
  * Runtime (in-memory) states of filesystem
  */
 enum {
-	/* Global indicator of serious filesystem errors */
-	BTRFS_FS_STATE_ERROR,
 	/*
 	 * Filesystem is being remounted, allow to skip some operations, like
 	 * defrag
@@ -686,6 +684,12 @@ struct btrfs_fs_info {
 	bool qgroup_rescan_running;
 	u8 qgroup_drop_subtree_thres;
 
+	/*
+	 * If this is not 0, then it indicates a serious filesystem error has
+	 * happened and it contains that error (negative errno value).
+	 */
+	int fs_error;
+
 	/* Filesystem state */
 	unsigned long fs_state;
 
@@ -962,8 +966,8 @@ static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
 	clear_and_wake_up_bit(BTRFS_FS_UNFINISHED_DROPS, &fs_info->flags);
 }
 
-#define BTRFS_FS_ERROR(fs_info)	(unlikely(test_bit(BTRFS_FS_STATE_ERROR, \
-						   &(fs_info)->fs_state)))
+#define BTRFS_FS_ERROR(fs_info)	(READ_ONCE((fs_info)->fs_error))
+
 #define BTRFS_FS_LOG_CLEANUP_ERROR(fs_info)				\
 	(unlikely(test_bit(BTRFS_FS_STATE_LOG_CLEANUP_ERROR,		\
 			   &(fs_info)->fs_state)))
