@@ -8,6 +8,7 @@
 #include <linux/minmax.h>
 
 #include <drm/drm_managed.h>
+#include <drm/xe_drm.h>
 
 #include "regs/xe_gt_regs.h"
 #include "xe_bb.h"
@@ -499,6 +500,20 @@ static int do_gt_restart(struct xe_gt *gt)
 	return 0;
 }
 
+static void xe_uevent_gt_reset_failure(struct pci_dev *pdev, u8 tile_id, u8 gt_id)
+{
+	char *reset_event[4];
+
+	reset_event[0] = XE_RESET_FAILED_UEVENT "=NEEDS_RESET";
+	reset_event[1] = kasprintf(GFP_KERNEL, "TILE_ID=%d", tile_id);
+	reset_event[2] = kasprintf(GFP_KERNEL, "GT_ID=%d", gt_id);
+	reset_event[3] = NULL;
+	kobject_uevent_env(&pdev->dev.kobj, KOBJ_CHANGE, reset_event);
+
+	kfree(reset_event[1]);
+	kfree(reset_event[2]);
+}
+
 static int gt_reset(struct xe_gt *gt)
 {
 	int err;
@@ -548,6 +563,10 @@ err_msg:
 	XE_WARN_ON(xe_uc_start(&gt->uc));
 	xe_device_mem_access_put(gt_to_xe(gt));
 	xe_gt_err(gt, "reset failed (%pe)\n", ERR_PTR(err));
+
+	/* Notify userspace about gt reset failure */
+	xe_uevent_gt_reset_failure(to_pci_dev(gt_to_xe(gt)->drm.dev),
+				   gt_to_tile(gt)->id, gt->info.id);
 
 	return err;
 }
