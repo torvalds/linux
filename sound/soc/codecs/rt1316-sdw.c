@@ -424,6 +424,15 @@ static SOC_ENUM_SINGLE_DECL(rt1316_rx_data_ch_enum,
 	SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, RT1316_SDCA_ENT_UDMPU21, RT1316_SDCA_CTL_UDMPU_CLUSTER, 0), 0,
 	rt1316_rx_data_ch_select);
 
+static const char * const rt1316_dac_output_vol_select[] = {
+	"immediately",
+	"zero crossing",
+	"zero crossing with soft ramp",
+};
+
+static SOC_ENUM_SINGLE_DECL(rt1316_dac_vol_ctl_enum,
+	0xc010, 6, rt1316_dac_output_vol_select);
+
 static const struct snd_kcontrol_new rt1316_snd_controls[] = {
 
 	/* I2S Data Channel Selection */
@@ -442,6 +451,9 @@ static const struct snd_kcontrol_new rt1316_snd_controls[] = {
 	/* IV mixer Control */
 	SOC_DOUBLE("Isense Mixer Switch", 0xc605, 2, 0, 1, 1),
 	SOC_DOUBLE("Vsense Mixer Switch", 0xc605, 3, 1, 1, 1),
+
+	/* DAC Output Volume Control */
+	SOC_ENUM("DAC Output Vol Control", rt1316_dac_vol_ctl_enum),
 };
 
 static const struct snd_kcontrol_new rt1316_sto_dac =
