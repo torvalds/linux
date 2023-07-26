@@ -53,6 +53,7 @@ iommu-logger.ko
 arm_smmu.ko
 secure_buffer.ko
 qcom_dma_heaps.ko
+gic_intr_routing.ko
 msm_dma_iommu_mapping.ko
 mem_buf_dev.ko
 mem_buf_msgq.ko

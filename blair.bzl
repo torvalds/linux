@@ -128,6 +128,7 @@ def define_blair():
         "drivers/soc/qcom/dcvs/qcom-dcvs.ko",
         "drivers/soc/qcom/dcvs/qcom-pmu-lib.ko",
         "drivers/soc/qcom/eud.ko",
+        "drivers/soc/qcom/gic_intr_routing.ko",
         "drivers/soc/qcom/glink_probe.ko",
         "drivers/soc/qcom/hung_task_enh.ko",
         "drivers/soc/qcom/mdt_loader.ko",
