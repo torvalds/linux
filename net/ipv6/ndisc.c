@@ -1266,10 +1266,6 @@ static enum skb_drop_reason ndisc_router_discovery(struct sk_buff *skb)
 	}
 #endif
 
-	/*
-	 *	set the RA_RECV flag in the interface
-	 */
-
 	in6_dev = __in6_dev_get(skb->dev);
 	if (!in6_dev) {
 		ND_PRINTK(0, err, "RA: can't find inet6 device for %s\n",
