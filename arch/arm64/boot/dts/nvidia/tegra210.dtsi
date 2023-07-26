@@ -916,9 +916,7 @@
 
 			pd_vic: vic {
 				clocks = <&tegra_car TEGRA210_CLK_VIC03>;
-				clock-names = "vic";
 				resets = <&tegra_car 178>;
-				reset-names = "vic";
 				#power-domain-cells = <0>;
 			};
 
