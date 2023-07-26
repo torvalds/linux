@@ -53,7 +53,7 @@ static int npcm7xx_ehci_hcd_drv_probe(struct platform_device *pdev)
 	int irq;
 	int retval;
 
-	dev_dbg(&pdev->dev,	"initializing npcm7xx ehci USB Controller\n");
+	dev_dbg(&pdev->dev, "initializing npcm7xx ehci USB Controller\n");
 
 	if (usb_disabled())
 		return -ENODEV;
