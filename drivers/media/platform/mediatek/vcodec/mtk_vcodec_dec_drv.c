@@ -96,6 +96,7 @@ static int mtk_vcodec_get_reg_bases(struct mtk_vcodec_dev *dev)
 	int reg_num, i;
 	struct resource *res;
 	bool has_vdecsys_reg;
+	int num_max_vdec_regs;
 	static const char * const mtk_dec_reg_names[] = {
 		"misc",
 		"ld",
@@ -122,10 +123,13 @@ static int mtk_vcodec_get_reg_bases(struct mtk_vcodec_dev *dev)
 	else
 		has_vdecsys_reg = true;
 
+	num_max_vdec_regs = has_vdecsys_reg ? NUM_MAX_VDEC_REG_BASE :
+					      ARRAY_SIZE(mtk_dec_reg_names);
+
 	/* Sizeof(u32) * 4 bytes for each register base. */
 	reg_num = of_property_count_elems_of_size(pdev->dev.of_node, "reg",
 						  sizeof(u32) * 4);
-	if (reg_num <= 0 || reg_num > NUM_MAX_VDEC_REG_BASE) {
+	if (reg_num <= 0 || reg_num > num_max_vdec_regs) {
 		dev_err(&pdev->dev, "Invalid register property size: %d\n", reg_num);
 		return -EINVAL;
 	}
