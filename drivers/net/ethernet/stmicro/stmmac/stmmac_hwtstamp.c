@@ -60,48 +60,6 @@ static void config_sub_second_increment(void __iomem *ioaddr,
 		*ssinc = data;
 }
 
-static void correct_latency(struct stmmac_priv *priv)
-{
-	void __iomem *ioaddr = priv->ptpaddr;
-	u32 reg_tsic, reg_tsicsns;
-	u32 reg_tsec, reg_tsecsns;
-	u64 scaled_ns;
-	u32 val;
-
-	/* MAC-internal ingress latency */
-	scaled_ns = readl(ioaddr + PTP_TS_INGR_LAT);
-
-	/* See section 11.7.2.5.3.1 "Ingress Correction" on page 4001 of
-	 * i.MX8MP Applications Processor Reference Manual Rev. 1, 06/2021
-	 */
-	val = readl(ioaddr + PTP_TCR);
-	if (val & PTP_TCR_TSCTRLSSR)
-		/* nanoseconds field is in decimal format with granularity of 1ns/bit */
-		scaled_ns = ((u64)NSEC_PER_SEC << 16) - scaled_ns;
-	else
-		/* nanoseconds field is in binary format with granularity of ~0.466ns/bit */
-		scaled_ns = ((1ULL << 31) << 16) -
-			DIV_U64_ROUND_CLOSEST(scaled_ns * PSEC_PER_NSEC, 466U);
-
-	reg_tsic = scaled_ns >> 16;
-	reg_tsicsns = scaled_ns & 0xff00;
-
-	/* set bit 31 for 2's compliment */
-	reg_tsic |= BIT(31);
-
-	writel(reg_tsic, ioaddr + PTP_TS_INGR_CORR_NS);
-	writel(reg_tsicsns, ioaddr + PTP_TS_INGR_CORR_SNS);
-
-	/* MAC-internal egress latency */
-	scaled_ns = readl(ioaddr + PTP_TS_EGR_LAT);
-
-	reg_tsec = scaled_ns >> 16;
-	reg_tsecsns = scaled_ns & 0xff00;
-
-	writel(reg_tsec, ioaddr + PTP_TS_EGR_CORR_NS);
-	writel(reg_tsecsns, ioaddr + PTP_TS_EGR_CORR_SNS);
-}
-
 static int init_systime(void __iomem *ioaddr, u32 sec, u32 nsec)
 {
 	u32 value;
@@ -263,5 +221,4 @@ const struct stmmac_hwtimestamp stmmac_ptp = {
 	.get_systime = get_systime,
 	.get_ptptime = get_ptptime,
 	.timestamp_interrupt = timestamp_interrupt,
-	.correct_latency = correct_latency,
 };
