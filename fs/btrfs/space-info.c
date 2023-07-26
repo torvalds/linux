@@ -510,6 +510,7 @@ void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
 			   int dump_block_groups)
 {
 	struct btrfs_block_group *cache;
+	u64 total_avail = 0;
 	int index = 0;
 
 	spin_lock(&info->lock);
@@ -537,10 +538,13 @@ again:
 			   avail, cache->ro ? "[readonly]" : "");
 		spin_unlock(&cache->lock);
 		btrfs_dump_free_space(cache, bytes);
+		total_avail += avail;
 	}
 	if (++index < BTRFS_NR_RAID_TYPES)
 		goto again;
 	up_read(&info->groups_sem);
+
+	btrfs_info(fs_info, "%llu bytes available across all block groups", total_avail);
 }
 
 static inline u64 calc_reclaim_items_nr(const struct btrfs_fs_info *fs_info,
