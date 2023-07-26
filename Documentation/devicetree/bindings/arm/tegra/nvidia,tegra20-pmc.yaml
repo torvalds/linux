@@ -226,7 +226,7 @@ properties:
         properties:
           clocks:
             minItems: 1
-            maxItems: 8
+            maxItems: 10
 
           resets:
             minItems: 1
