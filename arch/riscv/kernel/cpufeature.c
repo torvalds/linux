@@ -204,10 +204,11 @@ static void __init riscv_parse_isa_string(unsigned long *this_hwcap, struct risc
 		switch (*ext) {
 		case 's':
 			/*
-			 * Workaround for invalid single-letter 's' & 'u'(QEMU).
+			 * Workaround for invalid single-letter 's' & 'u' (QEMU).
 			 * No need to set the bit in riscv_isa as 's' & 'u' are
-			 * not valid ISA extensions. It works until multi-letter
-			 * extension starting with "Su" appears.
+			 * not valid ISA extensions. It works unless the first
+			 * multi-letter extension in the ISA string begins with
+			 * "Su" and is not prefixed with an underscore.
 			 */
 			if (ext[-1] != '_' && ext[1] == 'u') {
 				++isa;
