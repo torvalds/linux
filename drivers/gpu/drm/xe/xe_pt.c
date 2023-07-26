@@ -61,12 +61,9 @@ u64 xe_pde_encode(struct xe_bo *bo, u64 bo_offset,
 		  const enum xe_cache_level level)
 {
 	u64 pde;
-	bool is_vram;
 
-	pde = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE, &is_vram);
+	pde = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
 	pde |= XE_PAGE_PRESENT | XE_PAGE_RW;
-
-	XE_WARN_ON(IS_DGFX(xe_bo_device(bo)) && !is_vram);
 
 	/* FIXME: I don't think the PPAT handling is correct for MTL */
 
@@ -128,10 +125,9 @@ u64 xe_pte_encode(struct xe_bo *bo, u64 offset, enum xe_cache_level cache,
 		  u32 pt_level)
 {
 	u64 pte;
-	bool is_vram;
 
-	pte = xe_bo_addr(bo, offset, XE_PAGE_SIZE, &is_vram);
-	if (is_vram)
+	pte = xe_bo_addr(bo, offset, XE_PAGE_SIZE);
+	if (xe_bo_is_vram(bo))
 		pte |= XE_PPGTT_PTE_LM;
 
 	return __pte_encode(pte, cache, NULL, pt_level);

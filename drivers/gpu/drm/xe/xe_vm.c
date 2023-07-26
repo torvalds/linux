@@ -3503,9 +3503,10 @@ int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id)
 		return 0;
 	}
 	if (vm->pt_root[gt_id]) {
-		addr = xe_bo_addr(vm->pt_root[gt_id]->bo, 0, XE_PAGE_SIZE,
-				  &is_vram);
-		drm_printf(p, " VM root: A:0x%llx %s\n", addr, is_vram ? "VRAM" : "SYS");
+		addr = xe_bo_addr(vm->pt_root[gt_id]->bo, 0, XE_PAGE_SIZE);
+		is_vram = xe_bo_is_vram(vm->pt_root[gt_id]->bo);
+		drm_printf(p, " VM root: A:0x%llx %s\n", addr,
+			   is_vram ? "VRAM" : "SYS");
 	}
 
 	drm_gpuvm_for_each_va(gpuva, &vm->gpuvm) {
@@ -3526,7 +3527,8 @@ int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id)
 				addr = 0;
 			}
 		} else {
-			addr = __xe_bo_addr(xe_vma_bo(vma), 0, XE_PAGE_SIZE, &is_vram);
+			addr = __xe_bo_addr(xe_vma_bo(vma), 0, XE_PAGE_SIZE);
+			is_vram = xe_bo_is_vram(xe_vma_bo(vma));
 		}
 		drm_printf(p, " [%016llx-%016llx] S:0x%016llx A:%016llx %s\n",
 			   xe_vma_start(vma), xe_vma_end(vma) - 1,

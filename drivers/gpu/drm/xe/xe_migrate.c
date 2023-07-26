@@ -132,7 +132,6 @@ static int xe_migrate_create_cleared_bo(struct xe_migrate *m, struct xe_vm *vm)
 	struct xe_device *xe = vm->xe;
 	size_t cleared_size;
 	u64 vram_addr;
-	bool is_vram;
 
 	if (!xe_device_has_flat_ccs(xe))
 		return 0;
@@ -147,8 +146,7 @@ static int xe_migrate_create_cleared_bo(struct xe_migrate *m, struct xe_vm *vm)
 		return PTR_ERR(m->cleared_bo);
 
 	xe_map_memset(xe, &m->cleared_bo->vmap, 0, 0x00, cleared_size);
-	vram_addr = xe_bo_addr(m->cleared_bo, 0, XE_PAGE_SIZE, &is_vram);
-	XE_BUG_ON(!is_vram);
+	vram_addr = xe_bo_addr(m->cleared_bo, 0, XE_PAGE_SIZE);
 	m->cleared_vram_ofs = xe_migrate_vram_ofs(vram_addr);
 
 	return 0;
@@ -221,15 +219,13 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 			level++;
 		}
 	} else {
-		bool is_vram;
-		u64 batch_addr = xe_bo_addr(batch, 0, XE_PAGE_SIZE, &is_vram);
+		u64 batch_addr = xe_bo_addr(batch, 0, XE_PAGE_SIZE);
 
 		m->batch_base_ofs = xe_migrate_vram_ofs(batch_addr);
 
 		if (xe->info.supports_usm) {
 			batch = tile->primary_gt->usm.bb_pool->bo;
-			batch_addr = xe_bo_addr(batch, 0, XE_PAGE_SIZE,
-						&is_vram);
+			batch_addr = xe_bo_addr(batch, 0, XE_PAGE_SIZE);
 			m->usm_batch_base_ofs = xe_migrate_vram_ofs(batch_addr);
 		}
 	}
@@ -1000,12 +996,8 @@ static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 	 */
 	XE_BUG_ON(update->qwords > 0x1ff);
 	if (!ppgtt_ofs) {
-		bool is_vram;
-
 		ppgtt_ofs = xe_migrate_vram_ofs(xe_bo_addr(update->pt_bo, 0,
-							   XE_PAGE_SIZE,
-							   &is_vram));
-		XE_BUG_ON(!is_vram);
+							   XE_PAGE_SIZE));
 	}
 
 	do {

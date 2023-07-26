@@ -216,17 +216,13 @@ static inline void xe_bo_unpin_map_no_vm(struct xe_bo *bo)
 }
 
 bool xe_bo_is_xe_bo(struct ttm_buffer_object *bo);
-dma_addr_t __xe_bo_addr(struct xe_bo *bo, u64 offset,
-		      size_t page_size, bool *is_vram);
-dma_addr_t xe_bo_addr(struct xe_bo *bo, u64 offset,
-		      size_t page_size, bool *is_vram);
+dma_addr_t __xe_bo_addr(struct xe_bo *bo, u64 offset, size_t page_size);
+dma_addr_t xe_bo_addr(struct xe_bo *bo, u64 offset, size_t page_size);
 
 static inline dma_addr_t
 xe_bo_main_addr(struct xe_bo *bo, size_t page_size)
 {
-	bool is_vram;
-
-	return xe_bo_addr(bo, 0, page_size, &is_vram);
+	return xe_bo_addr(bo, 0, page_size);
 }
 
 static inline u32
