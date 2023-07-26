@@ -1623,139 +1623,101 @@ struct pipe_ctx *find_idle_secondary_pipe_legacy(
 	return secondary_pipe;
 }
 
-/*
- * Find the most optimal idle pipe from res_ctx, which could be used as a
- * secondary dpp pipe for input opp head pipe.
- *
- * an idle pipe - a pipe in input res_ctx not yet used for any streams or
- * planes.
- * secondary dpp pipe - a pipe gets inserted to a head OPP pipe's MPC blending
- * tree. This is typical used for rendering MPO planes or additional offset
- * areas in MPCC combine.
- *
- * Hardware Transition Minimization Algorithm for Finding a Secondary DPP Pipe
- * -------------------------------------------------------------------------
- *
- * PROBLEM:
- *
- * 1. There is a hardware limitation that a secondary DPP pipe cannot be
- * transferred from one MPC blending tree to the other in a single frame.
- * Otherwise it could cause glitches on the screen.
- *
- * For instance, we cannot transition from state 1 to state 2 in one frame. This
- * is because PIPE1 is transferred from PIPE0's MPC blending tree over to
- * PIPE2's MPC blending tree, which is not supported by hardware.
- * To support this transition we need to first remove PIPE1 from PIPE0's MPC
- * blending tree in one frame and then insert PIPE1 to PIPE2's MPC blending tree
- * in the next frame. This is not optimal as it will delay the flip for two
- * frames.
- *
- *	State 1:
- *	PIPE0 -- secondary DPP pipe --> (PIPE1)
- *	PIPE2 -- secondary DPP pipe --> NONE
- *
- *	State 2:
- *	PIPE0 -- secondary DPP pipe --> NONE
- *	PIPE2 -- secondary DPP pipe --> (PIPE1)
- *
- * 2. We want to in general minimize the unnecessary changes in pipe topology.
- * If a pipe is already added in current blending tree and there are no changes
- * to plane topology, we don't want to swap it with another idle pipe
- * unnecessarily in every update. Powering up and down a pipe would require a
- * full update which delays the flip for 1 frame. If we use the original pipe
- * we don't have to toggle its power. So we can flip faster.
- */
-struct pipe_ctx *find_optimal_idle_pipe_as_secondary_dpp_pipe(
+int resource_find_idle_pipe_used_in_cur_mpc_blending_tree(
 		const struct resource_context *cur_res_ctx,
 		struct resource_context *new_res_ctx,
-		const struct resource_pool *pool,
-		const struct pipe_ctx *new_head)
+		const struct pipe_ctx *cur_opp_head)
 {
-	const struct pipe_ctx *cur_head, *cur_sec;
-	struct pipe_ctx *new_sec;
-	bool found = false;
-	int i;
+	const struct pipe_ctx *cur_sec_dpp = cur_opp_head->bottom_pipe;
+	struct pipe_ctx *new_sec_dpp;
+	int idle_pipe_idx = IDLE_PIPE_INDEX_NOT_FOUND;
 
-	cur_head = &cur_res_ctx->pipe_ctx[new_head->pipe_idx];
-	cur_sec = cur_head->bottom_pipe;
-
-	while (cur_sec) {
+	while (cur_sec_dpp) {
 		/* find an idle pipe used in current opp blend tree,
 		 * this is to avoid MPO pipe switching to different opp blending
 		 * tree
 		 */
-		new_sec = &new_res_ctx->pipe_ctx[cur_sec->pipe_idx];
-		if (new_sec->plane_state == NULL && new_sec->stream == NULL) {
-			new_sec->pipe_idx = cur_sec->pipe_idx;
-			found = true;
+		new_sec_dpp = &new_res_ctx->pipe_ctx[cur_sec_dpp->pipe_idx];
+		if (new_sec_dpp->plane_state == NULL &&
+				new_sec_dpp->stream == NULL) {
+			idle_pipe_idx = cur_sec_dpp->pipe_idx;
 			break;
 		}
-		cur_sec = cur_sec->bottom_pipe;
+		cur_sec_dpp = cur_sec_dpp->bottom_pipe;
 	}
 
-	/* Up until here if we have not found an idle secondary pipe, we will
-	 * need to wait for at least one frame to complete the transition
-	 * sequence.
-	 */
-	if (!found) {
-		/* find a free pipe not used in current res ctx, this is to
-		 * avoid tearing down other pipe's topology
-		 */
-		for (i = 0; i < pool->pipe_count; i++) {
-			cur_sec = &cur_res_ctx->pipe_ctx[i];
-			new_sec = &new_res_ctx->pipe_ctx[i];
+	return idle_pipe_idx;
+}
 
-			if (cur_sec->plane_state == NULL &&
-					cur_sec->stream == NULL &&
-					new_sec->plane_state == NULL &&
-					new_sec->stream == NULL) {
-				new_sec->pipe_idx = i;
-				found = true;
-				break;
-			}
+int recource_find_idle_pipe_not_used_in_cur_res_ctx(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool)
+{
+	int idle_pipe_idx = IDLE_PIPE_INDEX_NOT_FOUND;
+	const struct pipe_ctx *new_sec_dpp, *cur_sec_dpp;
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		cur_sec_dpp = &cur_res_ctx->pipe_ctx[i];
+		new_sec_dpp = &new_res_ctx->pipe_ctx[i];
+
+		if (cur_sec_dpp->plane_state == NULL &&
+				cur_sec_dpp->stream == NULL &&
+				new_sec_dpp->plane_state == NULL &&
+				new_sec_dpp->stream == NULL) {
+			idle_pipe_idx = i;
+			break;
 		}
 	}
 
-	/* Up until here if we have not found an idle secondary pipe, we will
-	 * need to wait for at least two frames to complete the transition
-	 * sequence. It really doesn't matter which pipe we decide take from
-	 * current enabled pipes. It won't save our frame time when we swap only
-	 * one pipe or more pipes.
-	 */
-	if (!found) {
-		/* find a free pipe by taking away a secondary dpp pipe from an
-		 * MPCC combine in current context
-		 */
-		for (i = 0; i < pool->pipe_count; i++) {
-			cur_sec = &cur_res_ctx->pipe_ctx[i];
-			new_sec = &new_res_ctx->pipe_ctx[i];
+	return idle_pipe_idx;
+}
 
-			if (cur_sec->plane_state &&
-					cur_sec->bottom_pipe &&
-					cur_sec->bottom_pipe->plane_state == cur_sec->plane_state &&
-					new_sec->plane_state == NULL &&
-					new_sec->stream == NULL) {
-				found = true;
-				new_sec->pipe_idx = i;
-				break;
-			}
+int resource_find_idle_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool)
+{
+	int idle_pipe_idx = IDLE_PIPE_INDEX_NOT_FOUND;
+	const struct pipe_ctx *new_sec_dpp, *cur_sec_dpp;
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		cur_sec_dpp = &cur_res_ctx->pipe_ctx[i];
+		new_sec_dpp = &new_res_ctx->pipe_ctx[i];
+
+		if (cur_sec_dpp->plane_state &&
+				cur_sec_dpp->top_pipe &&
+				cur_sec_dpp->top_pipe->plane_state == cur_sec_dpp->plane_state &&
+				new_sec_dpp->plane_state == NULL &&
+				new_sec_dpp->stream == NULL) {
+			idle_pipe_idx = i;
+			break;
 		}
 	}
 
-	if (!found) {
-		/* find any pipe not used by new state */
-		for (i = 0; i < pool->pipe_count; i++) {
-			new_sec = &new_res_ctx->pipe_ctx[i];
+	return idle_pipe_idx;
+}
 
-			if (new_sec->plane_state == NULL) {
-				found = true;
-				new_sec->pipe_idx = i;
-				break;
-			}
+int resource_find_any_idle_pipe(struct resource_context *new_res_ctx,
+		const struct resource_pool *pool)
+{
+	int idle_pipe_idx = IDLE_PIPE_INDEX_NOT_FOUND;
+	const struct pipe_ctx *new_sec_dpp;
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		new_sec_dpp = &new_res_ctx->pipe_ctx[i];
+
+		if (new_sec_dpp->plane_state == NULL &&
+				new_sec_dpp->stream == NULL) {
+			idle_pipe_idx = i;
+			break;
 		}
 	}
 
-	return found ? new_sec : NULL;
+	return idle_pipe_idx;
 }
 
 /* TODO: Unify the pipe naming convention:

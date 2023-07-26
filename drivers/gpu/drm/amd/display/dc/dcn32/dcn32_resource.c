@@ -2485,18 +2485,100 @@ struct resource_pool *dcn32_create_resource_pool(
 	return NULL;
 }
 
+/*
+ * Find the most optimal idle pipe from res_ctx, which could be used as a
+ * secondary dpp pipe for input opp head pipe.
+ *
+ * an idle pipe - a pipe in input res_ctx not yet used for any streams or
+ * planes.
+ * secondary dpp pipe - a pipe gets inserted to a head OPP pipe's MPC blending
+ * tree. This is typical used for rendering MPO planes or additional offset
+ * areas in MPCC combine.
+ *
+ * Hardware Transition Minimization Algorithm for Finding a Secondary DPP Pipe
+ * -------------------------------------------------------------------------
+ *
+ * PROBLEM:
+ *
+ * 1. There is a hardware limitation that a secondary DPP pipe cannot be
+ * transferred from one MPC blending tree to the other in a single frame.
+ * Otherwise it could cause glitches on the screen.
+ *
+ * For instance, we cannot transition from state 1 to state 2 in one frame. This
+ * is because PIPE1 is transferred from PIPE0's MPC blending tree over to
+ * PIPE2's MPC blending tree, which is not supported by hardware.
+ * To support this transition we need to first remove PIPE1 from PIPE0's MPC
+ * blending tree in one frame and then insert PIPE1 to PIPE2's MPC blending tree
+ * in the next frame. This is not optimal as it will delay the flip for two
+ * frames.
+ *
+ *	State 1:
+ *	PIPE0 -- secondary DPP pipe --> (PIPE1)
+ *	PIPE2 -- secondary DPP pipe --> NONE
+ *
+ *	State 2:
+ *	PIPE0 -- secondary DPP pipe --> NONE
+ *	PIPE2 -- secondary DPP pipe --> (PIPE1)
+ *
+ * 2. We want to in general minimize the unnecessary changes in pipe topology.
+ * If a pipe is already added in current blending tree and there are no changes
+ * to plane topology, we don't want to swap it with another idle pipe
+ * unnecessarily in every update. Powering up and down a pipe would require a
+ * full update which delays the flip for 1 frame. If we use the original pipe
+ * we don't have to toggle its power. So we can flip faster.
+ */
+static int find_optimal_idle_pipe_as_secondary_dpp_pipe(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool,
+		const struct pipe_ctx *new_opp_head)
+{
+	const struct pipe_ctx *cur_opp_head;
+	int idle_pipe_idx;
+
+	cur_opp_head = &cur_res_ctx->pipe_ctx[new_opp_head->pipe_idx];
+	idle_pipe_idx = resource_find_idle_pipe_used_in_cur_mpc_blending_tree(
+			cur_res_ctx, new_res_ctx, cur_opp_head);
+
+	/* Up until here if we have not found an idle secondary pipe, we will
+	 * need to wait for at least one frame to complete the transition
+	 * sequence.
+	 */
+	if (idle_pipe_idx == IDLE_PIPE_INDEX_NOT_FOUND)
+		idle_pipe_idx = recource_find_idle_pipe_not_used_in_cur_res_ctx(
+				cur_res_ctx, new_res_ctx, pool);
+
+	/* Up until here if we have not found an idle secondary pipe, we will
+	 * need to wait for at least two frames to complete the transition
+	 * sequence. It really doesn't matter which pipe we decide take from
+	 * current enabled pipes. It won't save our frame time when we swap only
+	 * one pipe or more pipes.
+	 */
+	if (idle_pipe_idx == IDLE_PIPE_INDEX_NOT_FOUND)
+		idle_pipe_idx = resource_find_idle_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
+				cur_res_ctx, new_res_ctx, pool);
+
+	if (idle_pipe_idx == IDLE_PIPE_INDEX_NOT_FOUND)
+		idle_pipe_idx = resource_find_any_idle_pipe(new_res_ctx, pool);
+
+	return idle_pipe_idx;
+}
+
 struct pipe_ctx *dcn32_acquire_idle_pipe_for_layer(
 		const struct dc_state *cur_ctx,
 		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
 		const struct pipe_ctx *opp_head_pipe)
 {
-	struct pipe_ctx *idle_pipe =
+	int idle_pipe_idx =
 			find_optimal_idle_pipe_as_secondary_dpp_pipe(
 					&cur_ctx->res_ctx, &new_ctx->res_ctx,
 					pool, opp_head_pipe);
+	struct pipe_ctx *idle_pipe;
 
-	if (idle_pipe) {
+	if (idle_pipe_idx >= 0) {
+		idle_pipe = &new_ctx->res_ctx.pipe_ctx[idle_pipe_idx];
+		idle_pipe->pipe_idx = idle_pipe_idx;
 		idle_pipe->stream = opp_head_pipe->stream;
 		idle_pipe->stream_res.tg = opp_head_pipe->stream_res.tg;
 		idle_pipe->stream_res.opp = opp_head_pipe->stream_res.opp;
@@ -2508,6 +2590,7 @@ struct pipe_ctx *dcn32_acquire_idle_pipe_for_layer(
 				pool->dpps[idle_pipe->pipe_idx]->inst;
 	} else {
 		ASSERT(opp_head_pipe);
+		idle_pipe = NULL;
 	}
 
 	return idle_pipe;
