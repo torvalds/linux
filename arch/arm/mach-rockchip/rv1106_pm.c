@@ -15,6 +15,7 @@
 #include <asm/fiq_glue.h>
 #include <asm/tlbflush.h>
 #include <asm/suspend.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include "rkpm_gicv2.h"
 #include "rkpm_helpers.h"
@@ -91,6 +92,7 @@ static void __iomem *firewall_syssram_base;
 static void __iomem *pmu_base;
 static void __iomem *nstimer_base;
 static void __iomem *stimer_base;
+static void __iomem *mbox_base;
 static void __iomem *ddrc_base;
 static void __iomem *ioc_base[5];
 static void __iomem *gpio_base[5];
@@ -309,7 +311,10 @@ static void gic400_save(void)
 
 static void gic400_restore(void)
 {
-	rkpm_gicv2_dist_restore(gicd_base, &gicd_ctx_save);
+	if (IS_ENABLED(CONFIG_RV1106_HPMCU_FAST_WAKEUP))
+		writel_relaxed(0x3, gicd_base + GIC_DIST_CTRL);
+	else
+		rkpm_gicv2_dist_restore(gicd_base, &gicd_ctx_save);
 	rkpm_gicv2_cpu_restore(gicd_base, gicc_base, &gicc_ctx_save);
 }
 
@@ -408,6 +413,87 @@ static void __init rv1106_config_bootdata(void)
 
 	rkpm_bootdata_l2ctlr_f = 1;
 	rkpm_bootdata_l2ctlr = rv1106_l2_config();
+}
+
+static void writel_clrset_bits(u32 clr, u32 set, void __iomem *addr)
+{
+	u32 val = readl_relaxed(addr);
+
+	val &= ~clr;
+	val |= set;
+	writel_relaxed(val, addr);
+}
+
+static void gic_irq_en(int irq)
+{
+	writel_clrset_bits(0xff << irq % 4 * 8, 0x1 << irq % 4 * 8,
+			   gicd_base + GIC_DIST_TARGET + (irq >> 2 << 2));
+	writel_clrset_bits(0xff << irq % 4 * 8, 0xa0 << irq % 4 * 8,
+			   gicd_base + GIC_DIST_PRI + (irq >> 2 << 2));
+	writel_clrset_bits(0x3 << irq % 16 * 2, 0x1 << irq % 16 * 2,
+			   gicd_base + GIC_DIST_CONFIG + (irq >> 4 << 2));
+	writel_clrset_bits(BIT(irq % 32), BIT(irq % 32),
+			   gicd_base + GIC_DIST_IGROUP + (irq >> 5 << 2));
+
+	dsb(sy);
+	writel_relaxed(0x1 << irq % 32, gicd_base + GIC_DIST_ENABLE_SET + (irq >> 5 << 2));
+	dsb(sy);
+}
+
+static int is_hpmcu_mbox_int(void)
+{
+	return !!(readl(mbox_base + RV1106_MBOX_B2A_STATUS) & BIT(0));
+}
+
+static void hpmcu_start(void)
+{
+	/* enable hpmcu mailbox AP irq */
+	gic_irq_en(RV1106_HPMCU_MBOX_IRQ_AP);
+
+	/* tell hpmcu that we are currently in system wake up. */
+	writel(RV1106_SYS_IS_WKUP, pmu_base + RV1106_PMU_SYS_REG(0));
+
+	/* set the mcu uncache area, usually set the devices address */
+	writel(0xff000, coregrf_base + RV1106_COREGRF_CACHE_PERI_ADDR_START);
+	writel(0xffc00, coregrf_base + RV1106_COREGRF_CACHE_PERI_ADDR_END);
+	/* Reset the hp mcu */
+	writel(0x1e001e, corecru_base + RV1106_COERCRU_SFTRST_CON(1));
+	/* set the mcu addr */
+	writel(RV1106_HPMCU_BOOT_ADDR,
+	       coresgrf_base + RV1106_CORESGRF_HPMCU_BOOTADDR);
+	dsb(sy);
+
+	/* release the mcu */
+	writel(0x1e0000, corecru_base + RV1106_COERCRU_SFTRST_CON(1));
+	dsb(sy);
+}
+
+static int hpmcu_fast_wkup(void)
+{
+	u32 cmd;
+
+	hpmcu_start();
+
+	while (1) {
+		rkpm_printstr("-s-\n");
+		dsb(sy);
+		wfi();
+		rkpm_printstr("-w-\n");
+
+		if (is_hpmcu_mbox_int()) {
+			rkpm_printstr("-h-mbox-\n");
+			/* clear system wake up state */
+			writel(0, pmu_base + RV1106_PMU_SYS_REG(0));
+			writel(BIT(0), mbox_base + RV1106_MBOX_B2A_STATUS);
+			break;
+		}
+	}
+
+	cmd = readl(mbox_base + RV1106_MBOX_B2A_CMD_0);
+	if (cmd == RV1106_MBOX_CMD_AP_SUSPEND)
+		return 1;
+	else
+		return 0;
 }
 
 static void clock_suspend(void)
@@ -616,10 +702,11 @@ static void pmu_sleep_config(void)
 	ddr_data.ioc1_1a_iomux_l = readl_relaxed(ioc_base[1] + 0);
 
 	pmu_wkup_con =
-		/* BIT(RV1106_PMU_WAKEUP_TIMEROUT_EN) | */
 		/* BIT(RV1106_PMU_WAKEUP_CPU_INT_EN) | */
 		BIT(RV1106_PMU_WAKEUP_GPIO_INT_EN) |
 		0;
+	if (IS_ENABLED(CONFIG_RV1106_HPMCU_FAST_WAKEUP))
+		pmu_wkup_con |= BIT(RV1106_PMU_WAKEUP_TIMEROUT_EN);
 
 	pmu_pwr_con =
 		BIT(RV1106_PMU_PWRMODE_EN) |
@@ -964,6 +1051,7 @@ static int rv1106_suspend_enter(suspend_state_t state)
 
 	rkpm_printch('-');
 
+RE_ENTER_SLEEP:
 	clock_suspend();
 	rkpm_printch('0');
 
@@ -1000,6 +1088,17 @@ static int rv1106_suspend_enter(suspend_state_t state)
 
 	clock_resume();
 	rkpm_printch('-');
+
+	/* Check whether it's time_out wakeup */
+	if (IS_ENABLED(CONFIG_RV1106_HPMCU_FAST_WAKEUP) && ddr_data.pmu_wkup_int_st == 0) {
+		if (hpmcu_fast_wkup()) {
+			rkpm_gicv2_dist_restore(gicd_base, &gicd_ctx_save);
+			goto RE_ENTER_SLEEP;
+		} else {
+			rkpm_gicv2_dist_restore(gicd_base, &gicd_ctx_save);
+			rkpm_gicv2_cpu_restore(gicd_base, gicc_base, &gicc_ctx_save);
+		}
+	}
 
 	fiq_glue_resume();
 
@@ -1062,6 +1161,7 @@ static int __init rv1106_suspend_init(struct device_node *np)
 	corecru_base = dev_reg_base + RV1106_CORECRU_OFFSET;
 	venccru_base = dev_reg_base + RV1106_VENCCRU_OFFSET;
 	vocru_base = dev_reg_base + RV1106_VOCRU_OFFSET;
+	mbox_base = dev_reg_base + RV1106_MBOX_OFFSET;
 
 	ioc_base[0] = dev_reg_base + RV1106_GPIO0IOC_OFFSET;
 	ioc_base[1] = dev_reg_base + RV1106_GPIO1IOC_OFFSET;
