@@ -141,12 +141,6 @@ err_free_bus:
 	return ret;
 }
 
-static int ep8248e_mdio_remove(struct platform_device *ofdev)
-{
-	BUG();
-	return 0;
-}
-
 static const struct of_device_id ep8248e_mdio_match[] = {
 	{
 		.compatible = "fsl,ep8248e-mdio-bitbang",
@@ -158,9 +152,9 @@ static struct platform_driver ep8248e_mdio_driver = {
 	.driver = {
 		.name = "ep8248e-mdio-bitbang",
 		.of_match_table = ep8248e_mdio_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = ep8248e_mdio_probe,
-	.remove = ep8248e_mdio_remove,
 };
 
 struct cpm_pin {
