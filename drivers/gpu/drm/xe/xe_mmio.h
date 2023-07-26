@@ -107,8 +107,8 @@ static inline int xe_mmio_write32_and_verify(struct xe_gt *gt,
 	return (reg_val & mask) != eval ? -EINVAL : 0;
 }
 
-static inline int xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 val,
-				 u32 mask, u32 timeout_us, u32 *out_val,
+static inline int xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask,
+				 u32 val, u32 timeout_us, u32 *out_val,
 				 bool atomic)
 {
 	ktime_t cur = ktime_get_raw();

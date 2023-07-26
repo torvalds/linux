@@ -290,8 +290,7 @@ int xe_guc_reset(struct xe_guc *guc)
 
 	xe_mmio_write32(gt, GDRST, GRDOM_GUC);
 
-	ret = xe_mmio_wait32(gt, GDRST, 0, GRDOM_GUC, 5000,
-			     &gdrst, false);
+	ret = xe_mmio_wait32(gt, GDRST, GRDOM_GUC, 0, 5000, &gdrst, false);
 	if (ret) {
 		drm_err(&xe->drm, "GuC reset timed out, GEN6_GDRST=0x%8x\n",
 			gdrst);
@@ -386,10 +385,9 @@ static int guc_wait_ucode(struct xe_guc *guc)
 	 * 200ms. Even at slowest clock, this should be sufficient. And
 	 * in the working case, a larger timeout makes no difference.
 	 */
-	ret = xe_mmio_wait32(guc_to_gt(guc), GUC_STATUS,
-			     FIELD_PREP(GS_UKERNEL_MASK,
-					XE_GUC_LOAD_STATUS_READY),
-			     GS_UKERNEL_MASK, 200000, &status, false);
+	ret = xe_mmio_wait32(guc_to_gt(guc), GUC_STATUS, GS_UKERNEL_MASK,
+			     FIELD_PREP(GS_UKERNEL_MASK, XE_GUC_LOAD_STATUS_READY),
+			     200000, &status, false);
 
 	if (ret) {
 		struct drm_device *drm = &xe->drm;
@@ -639,10 +637,9 @@ retry:
 
 	xe_guc_notify(guc);
 
-	ret = xe_mmio_wait32(gt, reply_reg,
-			     FIELD_PREP(GUC_HXG_MSG_0_ORIGIN,
-					GUC_HXG_ORIGIN_GUC),
-			     GUC_HXG_MSG_0_ORIGIN, 50000, &reply, false);
+	ret = xe_mmio_wait32(gt, reply_reg, GUC_HXG_MSG_0_ORIGIN,
+			     FIELD_PREP(GUC_HXG_MSG_0_ORIGIN, GUC_HXG_ORIGIN_GUC),
+			     50000, &reply, false);
 	if (ret) {
 timeout:
 		drm_err(&xe->drm, "mmio request %#x: no reply %#x\n",
@@ -654,11 +651,9 @@ timeout:
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) ==
 	    GUC_HXG_TYPE_NO_RESPONSE_BUSY) {
 
-		ret = xe_mmio_wait32(gt, reply_reg,
-				     FIELD_PREP(GUC_HXG_MSG_0_TYPE,
-						GUC_HXG_TYPE_RESPONSE_SUCCESS),
-				     GUC_HXG_MSG_0_TYPE, 1000000, &header,
-				     false);
+		ret = xe_mmio_wait32(gt, reply_reg, GUC_HXG_MSG_0_TYPE,
+				     FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_RESPONSE_SUCCESS),
+				     1000000, &header, false);
 
 		if (unlikely(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) !=
 			     GUC_HXG_ORIGIN_GUC))

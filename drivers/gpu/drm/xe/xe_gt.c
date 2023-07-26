@@ -456,8 +456,7 @@ static int do_gt_reset(struct xe_gt *gt)
 	int err;
 
 	xe_mmio_write32(gt, GDRST, GRDOM_FULL);
-	err = xe_mmio_wait32(gt, GDRST, 0, GRDOM_FULL, 5000,
-			     NULL, false);
+	err = xe_mmio_wait32(gt, GDRST, GRDOM_FULL, 0, 5000, NULL, false);
 	if (err)
 		xe_gt_err(gt, "failed to clear GEN11_GRDOM_FULL (%pe)\n",
 			  ERR_PTR(err));
