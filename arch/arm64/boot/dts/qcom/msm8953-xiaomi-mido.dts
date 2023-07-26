@@ -90,7 +90,7 @@
 	charge-full-design-microamp-hours = <4100000>;
 	constant-charge-current-max-microamp = <1000000>;
 	voltage-min-design-microvolt = <3400000>;
-	voltage-max-design-microvolt = <4400000>;
+	voltage-max-design-microvolt = <4380000>;
 };
 
 &ft5406_ts {
