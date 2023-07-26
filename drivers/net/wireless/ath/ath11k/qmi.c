@@ -2844,7 +2844,7 @@ int ath11k_qmi_fwreset_from_cold_boot(struct ath11k_base *ab)
 {
 	int timeout;
 
-	if (!ath11k_core_coldboot_cal_support(ab) || ab->qmi.cal_done ||
+	if (!ath11k_core_coldboot_cal_support(ab) ||
 	    ab->hw_params.cbcal_restart_fw == 0)
 		return 0;
 
