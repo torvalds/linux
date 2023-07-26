@@ -319,6 +319,8 @@ properties:
           - plx,pex8648
             # Pulsedlight LIDAR range-finding sensor
           - pulsedlight,lidar-lite-v2
+            # Renesas HS3001 Temperature and Relative Humidity Sensors
+          - renesas,hs3001
             # Renesas ISL29501 time-of-flight sensor
           - renesas,isl29501
             # Rohm DH2228FV
