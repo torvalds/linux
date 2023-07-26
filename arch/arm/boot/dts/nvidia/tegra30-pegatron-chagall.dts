@@ -2628,7 +2628,7 @@
 	};
 
 	display-panel {
-		compatible = "panel-lvds";
+		compatible = "hannstar,hsd101pww2", "panel-lvds";
 
 		width-mm = <217>;
 		height-mm = <136>;
