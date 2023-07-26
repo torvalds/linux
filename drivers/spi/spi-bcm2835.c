@@ -903,15 +903,15 @@ static int bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 	/* get tx/rx dma */
 	ctlr->dma_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(ctlr->dma_tx)) {
-		dev_err(dev, "no tx-dma configuration found - not using dma mode\n");
-		ret = PTR_ERR(ctlr->dma_tx);
+		ret = dev_err_probe(dev, PTR_ERR(ctlr->dma_tx),
+			"no tx-dma configuration found - not using dma mode\n");
 		ctlr->dma_tx = NULL;
 		goto err;
 	}
 	ctlr->dma_rx = dma_request_chan(dev, "rx");
 	if (IS_ERR(ctlr->dma_rx)) {
-		dev_err(dev, "no rx-dma configuration found - not using dma mode\n");
-		ret = PTR_ERR(ctlr->dma_rx);
+		ret = dev_err_probe(dev, PTR_ERR(ctlr->dma_rx),
+			"no rx-dma configuration found - not using dma mode\n");
 		ctlr->dma_rx = NULL;
 		goto err_release;
 	}
