@@ -1094,8 +1094,8 @@ static int zynqmp_disp_layer_request_dma(struct zynqmp_disp *disp,
 			 "%s%u", dma_names[layer->id], i);
 		dma->chan = dma_request_chan(disp->dev, dma_channel_name);
 		if (IS_ERR(dma->chan)) {
-			dev_err(disp->dev, "failed to request dma channel\n");
-			ret = PTR_ERR(dma->chan);
+			ret = dev_err_probe(disp->dev, PTR_ERR(dma->chan),
+					    "failed to request dma channel\n");
 			dma->chan = NULL;
 			return ret;
 		}
