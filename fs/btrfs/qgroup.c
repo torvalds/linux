@@ -3590,15 +3590,16 @@ btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info)
 	 * going to clear all tracking information for a clean start.
 	 */
 
-	trans = btrfs_join_transaction(fs_info->fs_root);
-	if (IS_ERR(trans)) {
+	trans = btrfs_attach_transaction_barrier(fs_info->fs_root);
+	if (IS_ERR(trans) && trans != ERR_PTR(-ENOENT)) {
 		fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
 		return PTR_ERR(trans);
-	}
-	ret = btrfs_commit_transaction(trans);
-	if (ret) {
-		fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
-		return ret;
+	} else if (trans != ERR_PTR(-ENOENT)) {
+		ret = btrfs_commit_transaction(trans);
+		if (ret) {
+			fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
+			return ret;
+		}
 	}
 
 	qgroup_rescan_zero_tracking(fs_info);
