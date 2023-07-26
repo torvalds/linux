@@ -1910,7 +1910,7 @@ static const struct adsp_data sdmshrike_cdsp_resource = {
 };
 
 static const struct adsp_data monaco_auto_adsp_resource = {
-	.crash_reason_smem = 2,
+	.crash_reason_smem = 423,
 	.firmware_name = "adsp.mdt",
 	.pas_id = 1,
 	.uses_elf64 = true,
