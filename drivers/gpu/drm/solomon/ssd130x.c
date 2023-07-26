@@ -146,38 +146,6 @@ static inline struct ssd130x_device *drm_to_ssd130x(struct drm_device *drm)
 	return container_of(drm, struct ssd130x_device, drm);
 }
 
-static int ssd130x_buf_alloc(struct ssd130x_device *ssd130x)
-{
-	unsigned int page_height = ssd130x->device_info->page_height;
-	unsigned int pages = DIV_ROUND_UP(ssd130x->height, page_height);
-	const struct drm_format_info *fi;
-	unsigned int pitch;
-
-	fi = drm_format_info(DRM_FORMAT_R1);
-	if (!fi)
-		return -EINVAL;
-
-	pitch = drm_format_info_min_pitch(fi, 0, ssd130x->width);
-
-	ssd130x->buffer = kcalloc(pitch, ssd130x->height, GFP_KERNEL);
-	if (!ssd130x->buffer)
-		return -ENOMEM;
-
-	ssd130x->data_array = kcalloc(ssd130x->width, pages, GFP_KERNEL);
-	if (!ssd130x->data_array) {
-		kfree(ssd130x->buffer);
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void ssd130x_buf_free(struct ssd130x_device *ssd130x)
-{
-	kfree(ssd130x->data_array);
-	kfree(ssd130x->buffer);
-}
-
 /*
  * Helper to write data (SSD130X_DATA) to the device.
  */
@@ -709,6 +677,10 @@ static void ssd130x_encoder_helper_atomic_enable(struct drm_encoder *encoder,
 {
 	struct drm_device *drm = encoder->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
+	unsigned int page_height = ssd130x->device_info->page_height;
+	unsigned int pages = DIV_ROUND_UP(ssd130x->height, page_height);
+	const struct drm_format_info *fi;
+	unsigned int pitch;
 	int ret;
 
 	ret = ssd130x_power_on(ssd130x);
@@ -719,9 +691,21 @@ static void ssd130x_encoder_helper_atomic_enable(struct drm_encoder *encoder,
 	if (ret)
 		goto power_off;
 
-	ret = ssd130x_buf_alloc(ssd130x);
-	if (ret)
+	fi = drm_format_info(DRM_FORMAT_R1);
+	if (!fi)
 		goto power_off;
+
+	pitch = drm_format_info_min_pitch(fi, 0, ssd130x->width);
+
+	ssd130x->buffer = kcalloc(pitch, ssd130x->height, GFP_KERNEL);
+	if (!ssd130x->buffer)
+		goto power_off;
+
+	ssd130x->data_array = kcalloc(ssd130x->width, pages, GFP_KERNEL);
+	if (!ssd130x->data_array) {
+		kfree(ssd130x->buffer);
+		goto power_off;
+	}
 
 	ssd130x_write_cmd(ssd130x, 1, SSD130X_DISPLAY_ON);
 
@@ -744,7 +728,8 @@ static void ssd130x_encoder_helper_atomic_disable(struct drm_encoder *encoder,
 
 	ssd130x_write_cmd(ssd130x, 1, SSD130X_DISPLAY_OFF);
 
-	ssd130x_buf_free(ssd130x);
+	kfree(ssd130x->data_array);
+	kfree(ssd130x->buffer);
 
 	ssd130x_power_off(ssd130x);
 }
