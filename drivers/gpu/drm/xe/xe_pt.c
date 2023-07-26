@@ -78,30 +78,6 @@ u64 xe_pde_encode(struct xe_bo *bo, u64 bo_offset,
 	return pde;
 }
 
-static dma_addr_t vma_addr(struct xe_vma *vma, u64 offset,
-			   size_t page_size, bool *is_vram)
-{
-	if (xe_vma_is_null(vma)) {
-		*is_vram = 0;
-		return 0;
-	}
-
-	if (xe_vma_is_userptr(vma)) {
-		struct xe_res_cursor cur;
-		u64 page;
-
-		*is_vram = false;
-		page = offset >> PAGE_SHIFT;
-		offset &= (PAGE_SIZE - 1);
-
-		xe_res_first_sg(vma->userptr.sg, page << PAGE_SHIFT, page_size,
-				&cur);
-		return xe_res_dma(&cur) + offset;
-	} else {
-		return xe_bo_addr(xe_vma_bo(vma), offset, page_size, is_vram);
-	}
-}
-
 static u64 __pte_encode(u64 pte, enum xe_cache_level cache,
 			struct xe_vma *vma, u32 pt_level)
 {
@@ -140,34 +116,25 @@ static u64 __pte_encode(u64 pte, enum xe_cache_level cache,
 
 /**
  * xe_pte_encode() - Encode a page-table entry pointing to memory.
- * @vma: The vma representing the memory to point to.
- * @bo: If @vma is NULL, representing the memory to point to.
- * @offset: The offset into @vma or @bo.
+ * @bo: The BO representing the memory to point to.
+ * @offset: The offset into @bo.
  * @cache: The cache level indicating
  * @pt_level: The page-table level of the page-table into which the entry
  * is to be inserted.
  *
  * Return: An encoded page-table entry. No errors.
  */
-u64 xe_pte_encode(struct xe_vma *vma, struct xe_bo *bo,
-		  u64 offset, enum xe_cache_level cache,
+u64 xe_pte_encode(struct xe_bo *bo, u64 offset, enum xe_cache_level cache,
 		  u32 pt_level)
 {
 	u64 pte;
 	bool is_vram;
 
-	if (vma)
-		pte = vma_addr(vma, offset, XE_PAGE_SIZE, &is_vram);
-	else
-		pte = xe_bo_addr(bo, offset, XE_PAGE_SIZE, &is_vram);
-
-	if (is_vram) {
+	pte = xe_bo_addr(bo, offset, XE_PAGE_SIZE, &is_vram);
+	if (is_vram)
 		pte |= XE_PPGTT_PTE_LM;
-		if (vma && vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT)
-			pte |= XE_USM_PPGTT_PTE_AE;
-	}
 
-	return __pte_encode(pte, cache, vma, pt_level);
+	return __pte_encode(pte, cache, NULL, pt_level);
 }
 
 static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
@@ -179,7 +146,7 @@ static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
 		return 0;
 
 	if (level == 0) {
-		u64 empty = xe_pte_encode(NULL, vm->scratch_bo[id], 0,
+		u64 empty = xe_pte_encode(vm->scratch_bo[id], 0,
 					  XE_CACHE_WB, 0);
 
 		return empty;

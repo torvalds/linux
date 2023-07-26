@@ -196,8 +196,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 
 	/* Map the entire BO in our level 0 pt */
 	for (i = 0, level = 0; i < num_entries; level++) {
-		entry = xe_pte_encode(NULL, bo, i * XE_PAGE_SIZE,
-				      XE_CACHE_WB, 0);
+		entry = xe_pte_encode(bo, i * XE_PAGE_SIZE, XE_CACHE_WB, 0);
 
 		xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64, entry);
 
@@ -215,8 +214,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		for (i = 0; i < batch->size;
 		     i += vm->flags & XE_VM_FLAG_64K ? XE_64K_PAGE_SIZE :
 		     XE_PAGE_SIZE) {
-			entry = xe_pte_encode(NULL, batch, i,
-					      XE_CACHE_WB, 0);
+			entry = xe_pte_encode(batch, i, XE_CACHE_WB, 0);
 
 			xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64,
 				  entry);
@@ -1235,7 +1233,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 
 			BUG_ON(pt_bo->size != SZ_4K);
 
-			addr = xe_pte_encode(NULL, pt_bo, 0, XE_CACHE_WB, 0);
+			addr = xe_pte_encode(pt_bo, 0, XE_CACHE_WB, 0);
 			bb->cs[bb->len++] = lower_32_bits(addr);
 			bb->cs[bb->len++] = upper_32_bits(addr);
 		}
