@@ -200,8 +200,7 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 		return -ENOMEM;
 	ohci_at91 = hcd_to_ohci_at91_priv(hcd);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(dev, res);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err;
