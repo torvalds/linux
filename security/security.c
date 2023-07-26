@@ -1604,8 +1604,8 @@ EXPORT_SYMBOL(security_dentry_create_files_as);
  * a security attribute on this particular inode, then it should return
  * -EOPNOTSUPP to skip this processing.
  *
- * Return: Returns 0 on success, -EOPNOTSUPP if no security attribute is
- * needed, or -ENOMEM on memory allocation failure.
+ * Return: Returns 0 if the LSM successfully initialized all of the inode
+ *         security attributes that are required, negative values otherwise.
  */
 int security_inode_init_security(struct inode *inode, struct inode *dir,
 				 const struct qstr *qstr,
