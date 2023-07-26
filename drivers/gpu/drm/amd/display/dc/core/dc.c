@@ -1925,6 +1925,14 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_trigger_sync(dc, context);
 
+	/* Full update should unconditionally be triggered when dc_commit_state_no_check is called */
+	for (i = 0; i < context->stream_count; i++) {
+		uint32_t prev_dsc_changed = context->streams[i]->update_flags.bits.dsc_changed;
+
+		context->streams[i]->update_flags.raw = 0xFFFFFFFF;
+		context->streams[i]->update_flags.bits.dsc_changed = prev_dsc_changed;
+	}
+
 	/* Program all planes within new context*/
 	if (dc->hwss.program_front_end_for_ctx) {
 		dc->hwss.interdependent_update_lock(dc, context, true);
@@ -2002,6 +2010,11 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	for (i = 0; i < context->stream_count; i++)
 		context->streams[i]->mode_changed = false;
+
+	/* Clear update flags that were set earlier to avoid redundant programming */
+	for (i = 0; i < context->stream_count; i++) {
+		context->streams[i]->update_flags.raw = 0x0;
+	}
 
 	old_state = dc->current_state;
 	dc->current_state = context;
