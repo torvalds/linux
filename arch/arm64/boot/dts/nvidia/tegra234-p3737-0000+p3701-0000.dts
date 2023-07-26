@@ -90,6 +90,7 @@
 					mode = "otg";
 					usb-role-switch;
 					status = "okay";
+
 					port {
 						hs_typec_p1: endpoint {
 							remote-endpoint = <&hs_ucsi_ccg_p1>;
@@ -100,6 +101,7 @@
 				usb2-1 {
 					mode = "host";
 					status = "okay";
+
 					port {
 						hs_typec_p0: endpoint {
 							remote-endpoint = <&hs_ucsi_ccg_p0>;
@@ -120,6 +122,7 @@
 				usb3-0 {
 					nvidia,usb2-companion = <1>;
 					status = "okay";
+
 					port {
 						ss_typec_p0: endpoint {
 							remote-endpoint = <&ss_ucsi_ccg_p0>;
@@ -130,6 +133,7 @@
 				usb3-1 {
 					nvidia,usb2-companion = <0>;
 					status = "okay";
+
 					port {
 						ss_typec_p1: endpoint {
 							remote-endpoint = <&ss_ucsi_ccg_p1>;
@@ -211,6 +215,7 @@
 
 						port@0 {
 							reg = <0>;
+
 							hs_ucsi_ccg_p0: endpoint {
 								remote-endpoint = <&hs_typec_p0>;
 							};
@@ -218,6 +223,7 @@
 
 						port@1 {
 							reg = <1>;
+
 							ss_ucsi_ccg_p0: endpoint {
 								remote-endpoint = <&ss_typec_p0>;
 							};
@@ -237,6 +243,7 @@
 
 						port@0 {
 							reg = <0>;
+
 							hs_ucsi_ccg_p1: endpoint {
 								remote-endpoint = <&hs_typec_p1>;
 							};
@@ -244,6 +251,7 @@
 
 						port@1 {
 							reg = <1>;
+
 							ss_ucsi_ccg_p1: endpoint {
 								remote-endpoint = <&ss_typec_p1>;
 							};
