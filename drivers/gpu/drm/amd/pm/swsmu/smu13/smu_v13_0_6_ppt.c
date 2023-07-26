@@ -772,8 +772,6 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 	struct smu_13_0_dpm_table *single_dpm_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_13_0_dpm_context *dpm_context = NULL;
-	uint32_t display_levels;
-	uint32_t freq_values[3] = { 0 };
 	uint32_t min_clk, max_clk;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
@@ -798,50 +796,24 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 			return ret;
 		}
 
-		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get gfx clk levels Failed!");
-			return ret;
-		}
-
-		display_levels = clocks.num_levels;
-
 		min_clk = pstate_table->gfxclk_pstate.curr.min;
 		max_clk = pstate_table->gfxclk_pstate.curr.max;
 
-		freq_values[0] = min_clk;
-		freq_values[1] = max_clk;
-
-		/* fine-grained dpm has only 2 levels */
-		if (now > min_clk && now < max_clk) {
-			display_levels = clocks.num_levels + 1;
-			freq_values[2] = max_clk;
-			freq_values[1] = now;
-		}
-
-		/*
-		 * For DPM disabled case, there will be only one clock level.
-		 * And it's safe to assume that is always the current clock.
-		 */
-		if (display_levels == clocks.num_levels) {
-			for (i = 0; i < clocks.num_levels; i++)
-				size += sysfs_emit_at(
-					buf, size, "%d: %uMhz %s\n", i,
-					freq_values[i],
-					(clocks.num_levels == 1) ?
-						"*" :
-						(smu_v13_0_6_freqs_in_same_level(
-							 freq_values[i], now) ?
-							 "*" :
-							 ""));
+		if (!smu_v13_0_6_freqs_in_same_level(now, min_clk) &&
+		    !smu_v13_0_6_freqs_in_same_level(now, max_clk)) {
+			size += sysfs_emit_at(buf, size, "0: %uMhz\n",
+					      min_clk);
+			size += sysfs_emit_at(buf, size, "1: %uMhz *\n",
+					      now);
+			size += sysfs_emit_at(buf, size, "2: %uMhz\n",
+					      max_clk);
 		} else {
-			for (i = 0; i < display_levels; i++)
-				size += sysfs_emit_at(buf, size,
-						      "%d: %uMhz %s\n", i,
-						      freq_values[i],
-						      i == 1 ? "*" : "");
+			size += sysfs_emit_at(buf, size, "0: %uMhz %s\n",
+					      min_clk,
+					      smu_v13_0_6_freqs_in_same_level(now, min_clk) ? "*" : "");
+			size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
+					      max_clk,
+					      smu_v13_0_6_freqs_in_same_level(now, max_clk) ? "*" : "");
 		}
 
 		break;
