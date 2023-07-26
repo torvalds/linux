@@ -103,8 +103,6 @@ properties:
       - cdtech,s070wv95-ct16
         # Chefree CH101OLHLWH-002 10.1" (1280x800) color TFT LCD panel
       - chefree,ch101olhlwh-002
-        # Chunghwa Picture Tubes Ltd. 7" WXGA TFT LCD panel
-      - chunghwa,claa070wp03xg
         # Chunghwa Picture Tubes Ltd. 10.1" WXGA TFT LCD panel
       - chunghwa,claa101wa01a
         # Chunghwa Picture Tubes Ltd. 10.1" WXGA TFT LCD panel
