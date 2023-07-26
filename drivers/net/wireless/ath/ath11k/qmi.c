@@ -2079,7 +2079,7 @@ static int ath11k_qmi_assign_target_mem_chunk(struct ath11k_base *ab)
 				return -EINVAL;
 			}
 
-			if (ath11k_cold_boot_cal && ab->hw_params.cold_boot_calib) {
+			if (ath11k_core_coldboot_cal_support(ab)) {
 				if (hremote_node) {
 					ab->qmi.target_mem[idx].paddr =
 							res.start + host_ddr_sz;
@@ -3209,8 +3209,8 @@ static void ath11k_qmi_driver_event_work(struct work_struct *work)
 				break;
 			}
 
-			if (ath11k_cold_boot_cal && ab->qmi.cal_done == 0 &&
-			    ab->hw_params.cold_boot_calib) {
+			if (ab->qmi.cal_done == 0 &&
+			    ath11k_core_coldboot_cal_support(ab)) {
 				ath11k_qmi_process_coldboot_calibration(ab);
 			} else {
 				clear_bit(ATH11K_FLAG_CRASH_FLUSH,
