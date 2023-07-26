@@ -1192,6 +1192,7 @@ struct af_alg_async_req *af_alg_alloc_areq(struct sock *sk,
 
 	areq->areqlen = areqlen;
 	areq->sk = sk;
+	areq->first_rsgl.sgl.sgt.sgl = areq->first_rsgl.sgl.sgl;
 	areq->last_rsgl = NULL;
 	INIT_LIST_HEAD(&areq->rsgl_list);
 	areq->tsgl = NULL;
