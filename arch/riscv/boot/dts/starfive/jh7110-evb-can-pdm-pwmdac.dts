@@ -16,13 +16,14 @@
 
 /* default sd card */
 &sdio0 {
+	assigned-clocks = <&clkgen JH7110_SDIO0_CLK_SDCARD>;
+	assigned-clock-rates = <50000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdcard0_pins>;
 	max-frequency = <100000000>;
 	card-detect-delay = <300>;
 	bus-width = <4>;
 	broken-cd;
-	cap-sd-highspeed;
 	post-power-on-delay-ms = <200>;
 	status = "okay";
 };
