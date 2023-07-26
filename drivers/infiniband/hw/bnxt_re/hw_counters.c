@@ -254,21 +254,22 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 			    u32 port, int index)
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
-	struct ctx_hw_stats *hw_stats = NULL;
+	struct bnxt_re_res_cntrs *res_s = &rdev->stats.res;
 	struct bnxt_qplib_roce_stats *err_s = NULL;
+	struct ctx_hw_stats *hw_stats = NULL;
 	int rc  = 0;
 
 	hw_stats = rdev->qplib_ctx.stats.dma;
 	if (!port || !stats)
 		return -EINVAL;
 
-	stats->value[BNXT_RE_ACTIVE_QP] = atomic_read(&rdev->qp_count);
-	stats->value[BNXT_RE_ACTIVE_SRQ] = atomic_read(&rdev->srq_count);
-	stats->value[BNXT_RE_ACTIVE_CQ] = atomic_read(&rdev->cq_count);
-	stats->value[BNXT_RE_ACTIVE_MR] = atomic_read(&rdev->mr_count);
-	stats->value[BNXT_RE_ACTIVE_MW] = atomic_read(&rdev->mw_count);
-	stats->value[BNXT_RE_ACTIVE_PD] = atomic_read(&rdev->pd_count);
-	stats->value[BNXT_RE_ACTIVE_AH] = atomic_read(&rdev->ah_count);
+	stats->value[BNXT_RE_ACTIVE_QP] = atomic_read(&res_s->qp_count);
+	stats->value[BNXT_RE_ACTIVE_SRQ] = atomic_read(&res_s->srq_count);
+	stats->value[BNXT_RE_ACTIVE_CQ] = atomic_read(&res_s->cq_count);
+	stats->value[BNXT_RE_ACTIVE_MR] = atomic_read(&res_s->mr_count);
+	stats->value[BNXT_RE_ACTIVE_MW] = atomic_read(&res_s->mw_count);
+	stats->value[BNXT_RE_ACTIVE_PD] = atomic_read(&res_s->pd_count);
+	stats->value[BNXT_RE_ACTIVE_AH] = atomic_read(&res_s->ah_count);
 
 	if (hw_stats) {
 		stats->value[BNXT_RE_RECOVERABLE_ERRORS] =

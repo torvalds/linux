@@ -113,6 +113,16 @@ enum bnxt_re_hw_stats {
 
 #define BNXT_RE_NUM_STD_COUNTERS (BNXT_RE_OUT_OF_SEQ_ERR + 1)
 
+struct bnxt_re_res_cntrs {
+	atomic_t qp_count;
+	atomic_t cq_count;
+	atomic_t srq_count;
+	atomic_t mr_count;
+	atomic_t mw_count;
+	atomic_t ah_count;
+	atomic_t pd_count;
+};
+
 struct bnxt_re_rstat {
 	struct bnxt_qplib_roce_stats    errs;
 	struct bnxt_qplib_ext_stat      ext_stat;
@@ -120,6 +130,7 @@ struct bnxt_re_rstat {
 
 struct bnxt_re_stats {
 	struct bnxt_re_rstat            rstat;
+	struct bnxt_re_res_cntrs        res;
 };
 
 struct rdma_hw_stats *bnxt_re_ib_alloc_hw_port_stats(struct ib_device *ibdev,

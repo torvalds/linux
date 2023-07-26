@@ -918,13 +918,13 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct bnxt_aux_priv *aux_priv,
 	rdev->id = rdev->en_dev->pdev->devfn;
 	INIT_LIST_HEAD(&rdev->qp_list);
 	mutex_init(&rdev->qp_lock);
-	atomic_set(&rdev->qp_count, 0);
-	atomic_set(&rdev->cq_count, 0);
-	atomic_set(&rdev->srq_count, 0);
-	atomic_set(&rdev->mr_count, 0);
-	atomic_set(&rdev->mw_count, 0);
-	atomic_set(&rdev->ah_count, 0);
-	atomic_set(&rdev->pd_count, 0);
+	atomic_set(&rdev->stats.res.qp_count, 0);
+	atomic_set(&rdev->stats.res.cq_count, 0);
+	atomic_set(&rdev->stats.res.srq_count, 0);
+	atomic_set(&rdev->stats.res.mr_count, 0);
+	atomic_set(&rdev->stats.res.mw_count, 0);
+	atomic_set(&rdev->stats.res.ah_count, 0);
+	atomic_set(&rdev->stats.res.pd_count, 0);
 	rdev->cosq[0] = 0xFFFF;
 	rdev->cosq[1] = 0xFFFF;
 

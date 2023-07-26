@@ -602,7 +602,7 @@ int bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_udata *udata)
 		if (!bnxt_qplib_dealloc_pd(&rdev->qplib_res,
 					   &rdev->qplib_res.pd_tbl,
 					   &pd->qplib_pd))
-			atomic_dec(&rdev->pd_count);
+			atomic_dec(&rdev->stats.res.pd_count);
 	}
 	return 0;
 }
@@ -665,7 +665,7 @@ int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 		if (bnxt_re_create_fence_mr(pd))
 			ibdev_warn(&rdev->ibdev,
 				   "Failed to create Fence-MR\n");
-	atomic_inc(&rdev->pd_count);
+	atomic_inc(&rdev->stats.res.pd_count);
 
 	return 0;
 dbfail:
@@ -691,7 +691,7 @@ int bnxt_re_destroy_ah(struct ib_ah *ib_ah, u32 flags)
 		else
 			goto fail;
 	}
-	atomic_dec(&rdev->ah_count);
+	atomic_dec(&rdev->stats.res.ah_count);
 fail:
 	return rc;
 }
@@ -777,7 +777,7 @@ int bnxt_re_create_ah(struct ib_ah *ib_ah, struct rdma_ah_init_attr *init_attr,
 		wmb(); /* make sure cache is updated. */
 		spin_unlock_irqrestore(&uctx->sh_lock, flag);
 	}
-	atomic_inc(&rdev->ah_count);
+	atomic_inc(&rdev->stats.res.ah_count);
 
 	return 0;
 }
@@ -838,7 +838,7 @@ static int bnxt_re_destroy_gsi_sqp(struct bnxt_re_qp *qp)
 	bnxt_qplib_destroy_ah(&rdev->qplib_res,
 			      &gsi_sah->qplib_ah,
 			      true);
-	atomic_dec(&rdev->ah_count);
+	atomic_dec(&rdev->stats.res.ah_count);
 	bnxt_qplib_clean_qp(&qp->qplib_qp);
 
 	ibdev_dbg(&rdev->ibdev, "Destroy the shadow QP\n");
@@ -853,7 +853,7 @@ static int bnxt_re_destroy_gsi_sqp(struct bnxt_re_qp *qp)
 	mutex_lock(&rdev->qp_lock);
 	list_del(&gsi_sqp->list);
 	mutex_unlock(&rdev->qp_lock);
-	atomic_dec(&rdev->qp_count);
+	atomic_dec(&rdev->stats.res.qp_count);
 
 	kfree(rdev->gsi_ctx.sqp_tbl);
 	kfree(gsi_sah);
@@ -900,7 +900,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 	mutex_lock(&rdev->qp_lock);
 	list_del(&qp->list);
 	mutex_unlock(&rdev->qp_lock);
-	atomic_dec(&rdev->qp_count);
+	atomic_dec(&rdev->stats.res.qp_count);
 
 	ib_umem_release(qp->rumem);
 	ib_umem_release(qp->sumem);
@@ -1085,7 +1085,7 @@ static struct bnxt_re_ah *bnxt_re_create_shadow_qp_ah
 			  "Failed to allocate HW AH for Shadow QP");
 		goto fail;
 	}
-	atomic_inc(&rdev->ah_count);
+	atomic_inc(&rdev->stats.res.ah_count);
 
 	return ah;
 
@@ -1153,7 +1153,7 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp
 	INIT_LIST_HEAD(&qp->list);
 	mutex_lock(&rdev->qp_lock);
 	list_add_tail(&qp->list, &rdev->qp_list);
-	atomic_inc(&rdev->qp_count);
+	atomic_inc(&rdev->stats.res.qp_count);
 	mutex_unlock(&rdev->qp_lock);
 	return qp;
 fail:
@@ -1535,7 +1535,7 @@ int bnxt_re_create_qp(struct ib_qp *ib_qp, struct ib_qp_init_attr *qp_init_attr,
 	mutex_lock(&rdev->qp_lock);
 	list_add_tail(&qp->list, &rdev->qp_list);
 	mutex_unlock(&rdev->qp_lock);
-	atomic_inc(&rdev->qp_count);
+	atomic_inc(&rdev->stats.res.qp_count);
 
 	return 0;
 qp_destroy:
@@ -1638,7 +1638,7 @@ int bnxt_re_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata)
 		nq = qplib_srq->cq->nq;
 	bnxt_qplib_destroy_srq(&rdev->qplib_res, qplib_srq);
 	ib_umem_release(srq->umem);
-	atomic_dec(&rdev->srq_count);
+	atomic_dec(&rdev->stats.res.srq_count);
 	if (nq)
 		nq->budget--;
 	return 0;
@@ -1750,7 +1750,7 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 	}
 	if (nq)
 		nq->budget++;
-	atomic_inc(&rdev->srq_count);
+	atomic_inc(&rdev->stats.res.srq_count);
 	spin_lock_init(&srq->lock);
 
 	return 0;
@@ -2876,7 +2876,7 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
 	ib_umem_release(cq->umem);
 
-	atomic_dec(&rdev->cq_count);
+	atomic_dec(&rdev->stats.res.cq_count);
 	nq->budget--;
 	kfree(cq->cql);
 	return 0;
@@ -2960,7 +2960,7 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	cq->cq_period = cq->qplib_cq.period;
 	nq->budget++;
 
-	atomic_inc(&rdev->cq_count);
+	atomic_inc(&rdev->stats.res.cq_count);
 	spin_lock_init(&cq->cq_lock);
 
 	if (udata) {
@@ -3785,7 +3785,7 @@ struct ib_mr *bnxt_re_get_dma_mr(struct ib_pd *ib_pd, int mr_access_flags)
 	if (mr_access_flags & (IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_READ |
 			       IB_ACCESS_REMOTE_ATOMIC))
 		mr->ib_mr.rkey = mr->ib_mr.lkey;
-	atomic_inc(&rdev->mr_count);
+	atomic_inc(&rdev->stats.res.mr_count);
 
 	return &mr->ib_mr;
 
@@ -3818,7 +3818,7 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 	ib_umem_release(mr->ib_umem);
 
 	kfree(mr);
-	atomic_dec(&rdev->mr_count);
+	atomic_dec(&rdev->stats.res.mr_count);
 	return rc;
 }
 
@@ -3886,7 +3886,7 @@ struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
 		goto fail_mr;
 	}
 
-	atomic_inc(&rdev->mr_count);
+	atomic_inc(&rdev->stats.res.mr_count);
 	return &mr->ib_mr;
 
 fail_mr:
@@ -3922,7 +3922,7 @@ struct ib_mw *bnxt_re_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
 	}
 	mw->ib_mw.rkey = mw->qplib_mw.rkey;
 
-	atomic_inc(&rdev->mw_count);
+	atomic_inc(&rdev->stats.res.mw_count);
 	return &mw->ib_mw;
 
 fail:
@@ -3943,7 +3943,7 @@ int bnxt_re_dealloc_mw(struct ib_mw *ib_mw)
 	}
 
 	kfree(mw);
-	atomic_dec(&rdev->mw_count);
+	atomic_dec(&rdev->stats.res.mw_count);
 	return rc;
 }
 
@@ -4010,7 +4010,7 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 
 	mr->ib_mr.lkey = mr->qplib_mr.lkey;
 	mr->ib_mr.rkey = mr->qplib_mr.lkey;
-	atomic_inc(&rdev->mr_count);
+	atomic_inc(&rdev->stats.res.mr_count);
 
 	return &mr->ib_mr;
 free_umem:

@@ -175,16 +175,9 @@ struct bnxt_re_dev {
 	struct bnxt_qplib_res		qplib_res;
 	struct bnxt_qplib_dpi		dpi_privileged;
 
-	atomic_t			qp_count;
 	struct mutex			qp_lock;	/* protect qp list */
 	struct list_head		qp_list;
 
-	atomic_t			cq_count;
-	atomic_t			srq_count;
-	atomic_t			mr_count;
-	atomic_t			mw_count;
-	atomic_t			ah_count;
-	atomic_t			pd_count;
 	/* Max of 2 lossless traffic class supported per port */
 	u16				cosq[2];
 
