@@ -333,10 +333,8 @@ static void radeon_connector_free_edid(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
-	if (radeon_connector->edid) {
-		kfree(radeon_connector->edid);
-		radeon_connector->edid = NULL;
-	}
+	kfree(radeon_connector->edid);
+	radeon_connector->edid = NULL;
 }
 
 static int radeon_ddc_get_modes(struct drm_connector *connector)
