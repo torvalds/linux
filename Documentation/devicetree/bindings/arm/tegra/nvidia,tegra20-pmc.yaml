@@ -244,69 +244,76 @@ properties:
           - resets
           - '#power-domain-cells'
 
-patternProperties:
-  "^[a-f0-9]+-[a-f0-9]+$":
+  pinmux:
     type: object
-    description:
-      This is a Pad configuration node. On Tegra SOCs a pad is a set of
-      pins which are configured as a group. The pin grouping is a fixed
-      attribute of the hardware. The PMC can be used to set pad power state
-      and signaling voltage. A pad can be either in active or power down mode.
-      The support for power state and signaling voltage configuration varies
-      depending on the pad in question. 3.3V and 1.8V signaling voltages
-      are supported on pins where software controllable signaling voltage
-      switching is available.
+    additionalProperties:
+      type: object
+      description: |
+        This is a pad configuration node. On Tegra SoCs a pad is a set of pins
+        which are configured as a group. The pin grouping is a fixed attribute
+        of the hardware. The PMC can be used to set pad power state and
+        signaling voltage. A pad can be either in active or power down mode.
+        The support for power state and signaling voltage configuration varies
+        depending on the pad in question. 3.3V and 1.8V signaling voltages are
+        supported on pins where software controllable signaling voltage
+        switching is available.
 
-      The pad configuration state nodes are placed under the pmc node and they
-      are referred to by the pinctrl client properties. For more information
-      see Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt.
-      The pad name should be used as the value of the pins property in pin
-      configuration nodes.
+        The pad configuration state nodes are placed under the pmc node and
+        they are referred to by the pinctrl client properties. For more
+        information see:
 
-      The following pads are present on Tegra124 and Tegra132
-      audio, bb, cam, comp, csia, csb, cse, dsi, dsib, dsic, dsid, hdmi, hsic,
-      hv, lvds, mipi-bias, nand, pex-bias, pex-clk1, pex-clk2, pex-cntrl,
-      sdmmc1, sdmmc3, sdmmc4, sys_ddc, uart, usb0, usb1, usb2, usb_bias.
+          Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
-      The following pads are present on Tegra210
-      audio, audio-hv, cam, csia, csib, csic, csid, csie, csif, dbg,
-      debug-nonao, dmic, dp, dsi, dsib, dsic, dsid, emmc, emmc2, gpio, hdmi,
-      hsic, lvds, mipi-bias, pex-bias, pex-clk1, pex-clk2, pex-cntrl, sdmmc1,
-      sdmmc3, spi, spi-hv, uart, usb0, usb1, usb2, usb3, usb-bias.
+        The pad name should be used as the value of the pins property in pin
+        configuration nodes.
 
-    properties:
-      pins:
-        $ref: /schemas/types.yaml#/definitions/string
-        description: Must contain name of the pad(s) to be configured.
+        The following pads are present on Tegra124 and Tegra132:
 
-      low-power-enable:
-        $ref: /schemas/types.yaml#/definitions/flag
-        description: Configure the pad into power down mode.
+          audio, bb, cam, comp, csia, csb, cse, dsi, dsib, dsic, dsid, hdmi,
+          hsic, hv, lvds, mipi-bias, nand, pex-bias, pex-clk1, pex-clk2,
+          pex-cntrl, sdmmc1, sdmmc3, sdmmc4, sys_ddc, uart, usb0, usb1, usb2,
+          usb_bias
 
-      low-power-disable:
-        $ref: /schemas/types.yaml#/definitions/flag
-        description: Configure the pad into active mode.
+        The following pads are present on Tegra210:
 
-      power-source:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description:
-          Must contain either TEGRA_IO_PAD_VOLTAGE_1V8 or
-          TEGRA_IO_PAD_VOLTAGE_3V3 to select between signaling voltages.
-          The values are defined in
-          include/dt-bindings/pinctrl/pinctrl-tegra-io-pad.h.
-          Power state can be configured on all Tegra124 and Tegra132
-          pads. None of the Tegra124 or Tegra132 pads support signaling
-          voltage switching.
-          All of the listed Tegra210 pads except pex-cntrl support power
-          state configuration. Signaling voltage switching is supported
-          on below Tegra210 pads.
-          audio, audio-hv, cam, dbg, dmic, gpio, pex-cntrl, sdmmc1,
-          sdmmc3, spi, spi-hv, and uart.
+          audio, audio-hv, cam, csia, csib, csic, csid, csie, csif, dbg,
+          debug-nonao, dmic, dp, dsi, dsib, dsic, dsid, emmc, emmc2, gpio,
+          hdmi, hsic, lvds, mipi-bias, pex-bias, pex-clk1, pex-clk2, pex-cntrl,
+          sdmmc1, sdmmc3, spi, spi-hv, uart, usb0, usb1, usb2, usb3, usb-bias
+      additionalProperties: false
+      properties:
+        pins:
+          $ref: /schemas/types.yaml#/definitions/string-array
+          description: Must contain name of the pad(s) to be configured.
 
-    required:
-      - pins
+        low-power-enable:
+          $ref: /schemas/types.yaml#/definitions/flag
+          description: Configure the pad into power down mode.
 
-    additionalProperties: false
+        low-power-disable:
+          $ref: /schemas/types.yaml#/definitions/flag
+          description: Configure the pad into active mode.
+
+        power-source:
+          $ref: /schemas/types.yaml#/definitions/uint32
+          description: |
+            Must contain either TEGRA_IO_PAD_VOLTAGE_1V8 or
+            TEGRA_IO_PAD_VOLTAGE_3V3 to select between signaling voltages. The
+            values are defined in:
+
+              include/dt-bindings/pinctrl/pinctrl-tegra-io-pad.h
+
+            Power state can be configured on all Tegra124 and Tegra132 pads.
+            None of the Tegra124 or Tegra132 pads support signaling voltage
+            switching. All of the listed Tegra210 pads except pex-cntrl support
+            power state configuration. Signaling voltage switching is supported
+            on the following Tegra210 pads:
+
+              audio, audio-hv, cam, dbg, dmic, gpio, pex-cntrl, sdmmc1, sdmmc3,
+              spi, spi-hv, uart
+
+      required:
+        - pins
 
 required:
   - compatible
@@ -314,6 +321,46 @@ required:
   - clock-names
   - clocks
   - '#clock-cells'
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra124-pmc
+    then:
+      properties:
+        pinmux:
+          additionalProperties:
+            type: object
+            properties:
+              pins:
+                items:
+                  enum: [ audio, bb, cam, comp, csia, csb, cse, dsi, dsib,
+                          dsic, dsid, hdmi, hsic, hv, lvds, mipi-bias, nand,
+                          pex-bias, pex-clk1, pex-clk2, pex-cntrl, sdmmc1,
+                          sdmmc3, sdmmc4, sys_ddc, uart, usb0, usb1, usb2,
+                          usb_bias ]
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra210-pmc
+    then:
+      properties:
+        pinmux:
+          additionalProperties:
+            type: object
+            properties:
+              pins:
+                items:
+                  enum: [ audio, audio-hv, cam, csia, csib, csic, csid, csie,
+                          csif, dbg, debug-nonao, dmic, dp, dsi, dsib, dsic,
+                          dsid, emmc, emmc2, gpio, hdmi, hsic, lvds, mipi-bias,
+                          pex-bias, pex-clk1, pex-clk2, pex-cntrl, sdmmc1,
+                          sdmmc3, spi, spi-hv, uart, usb0, usb1, usb2, usb3,
+                          usb-bias ]
 
 additionalProperties: false
 
