@@ -628,6 +628,7 @@ static void __iso_sock_close(struct sock *sk)
 		iso_sock_cleanup_listen(sk);
 		break;
 
+	case BT_CONNECT:
 	case BT_CONNECTED:
 	case BT_CONFIG:
 		if (iso_pi(sk)->conn->hcon) {
@@ -643,19 +644,6 @@ static void __iso_sock_close(struct sock *sk)
 		break;
 
 	case BT_CONNECT2:
-		iso_chan_del(sk, ECONNRESET);
-		break;
-	case BT_CONNECT:
-		/* In case of DEFER_SETUP the hcon would be bound to CIG which
-		 * needs to be removed so just call hci_conn_del so the cleanup
-		 * callback do what is needed.
-		 */
-		if (test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags) &&
-		    iso_pi(sk)->conn->hcon) {
-			hci_conn_del(iso_pi(sk)->conn->hcon);
-			iso_pi(sk)->conn->hcon = NULL;
-		}
-
 		iso_chan_del(sk, ECONNRESET);
 		break;
 	case BT_DISCONN:
