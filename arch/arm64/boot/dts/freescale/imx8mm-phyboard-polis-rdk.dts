@@ -143,7 +143,6 @@
 /* TPM */
 &ecspi2 {
 	cs-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
-	fsl,spi-num-chipselects = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	#address-cells = <1>;
