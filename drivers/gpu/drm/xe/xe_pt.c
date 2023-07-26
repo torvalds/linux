@@ -1472,8 +1472,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 		}
 		if (!rebind && last_munmap_rebind &&
 		    xe_vm_in_compute_mode(vm))
-			queue_work(vm->xe->ordered_wq,
-				   &vm->preempt.rebind_work);
+			xe_vm_queue_rebind_worker(vm);
 	} else {
 		kfree(rfence);
 		kfree(ifence);
