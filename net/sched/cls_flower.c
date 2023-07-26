@@ -776,7 +776,8 @@ mpls_stack_entry_policy[TCA_FLOWER_KEY_MPLS_OPT_LSE_MAX + 1] = {
 	[TCA_FLOWER_KEY_MPLS_OPT_LSE_LABEL]    = { .type = NLA_U32 },
 };
 
-static const struct nla_policy cfm_opt_policy[TCA_FLOWER_KEY_CFM_OPT_MAX] = {
+static const struct nla_policy
+cfm_opt_policy[TCA_FLOWER_KEY_CFM_OPT_MAX + 1] = {
 	[TCA_FLOWER_KEY_CFM_MD_LEVEL]	= NLA_POLICY_MAX(NLA_U8,
 						FLOW_DIS_CFM_MDL_MAX),
 	[TCA_FLOWER_KEY_CFM_OPCODE]	= { .type = NLA_U8 },
@@ -1709,7 +1710,7 @@ static int fl_set_key_cfm(struct nlattr **tb,
 			  struct fl_flow_key *mask,
 			  struct netlink_ext_ack *extack)
 {
-	struct nlattr *nla_cfm_opt[TCA_FLOWER_KEY_CFM_OPT_MAX];
+	struct nlattr *nla_cfm_opt[TCA_FLOWER_KEY_CFM_OPT_MAX + 1];
 	int err;
 
 	if (!tb[TCA_FLOWER_KEY_CFM])
