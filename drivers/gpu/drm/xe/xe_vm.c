@@ -3378,6 +3378,8 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 unwind_ops:
 	vm_bind_ioctl_ops_unwind(vm, ops, args->num_binds);
 free_syncs:
+	for (i = 0; err == -ENODATA && i < num_syncs; i++)
+		xe_sync_entry_signal(&syncs[i], NULL, dma_fence_get_stub());
 	while (num_syncs--)
 		xe_sync_entry_cleanup(&syncs[num_syncs]);
 
