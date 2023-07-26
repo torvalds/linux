@@ -102,7 +102,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-name = "+V3.3_ETH";
-		regulator-type = "voltage";
 		vin-supply = <&reg_module_3v3>;
 		clocks = <&clks IMX6UL_CLK_ENET2_REF_125M>;
 		startup-delay-us = <150000>;
