@@ -2753,7 +2753,12 @@ void amdgpu_vm_update_fault_cache(struct amdgpu_device *adev,
 	xa_lock_irqsave(&adev->vm_manager.pasids, flags);
 
 	vm = xa_load(&adev->vm_manager.pasids, pasid);
-	if (vm) {
+	/* Don't update the fault cache if status is 0.  In the multiple
+	 * fault case, subsequent faults will return a 0 status which is
+	 * useless for userspace and replaces the useful fault status, so
+	 * only update if status is non-0.
+	 */
+	if (vm && status) {
 		vm->fault_info.addr = addr;
 		vm->fault_info.status = status;
 		if (AMDGPU_IS_GFXHUB(vmhub)) {
