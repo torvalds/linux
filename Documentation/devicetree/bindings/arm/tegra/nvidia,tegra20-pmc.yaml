@@ -21,8 +21,6 @@ properties:
 
   reg:
     maxItems: 1
-    description:
-      Offset and length of the register set for the device.
 
   clock-names:
     items:
@@ -33,9 +31,6 @@ properties:
 
   clocks:
     maxItems: 2
-    description:
-      Must contain an entry for each entry in clock-names.
-      See ../clocks/clocks-bindings.txt for details.
 
   '#clock-cells':
     const: 1
@@ -234,18 +229,10 @@ properties:
           clocks:
             minItems: 1
             maxItems: 8
-            description:
-              Must contain an entry for each clock required by the PMC
-              for controlling a power-gate.
-              See ../clocks/clock-bindings.txt document for more details.
 
           resets:
             minItems: 1
             maxItems: 8
-            description:
-              Must contain an entry for each reset required by the PMC
-              for controlling a power-gate.
-              See ../reset/reset.txt for more details.
 
           power-domains:
             maxItems: 1
