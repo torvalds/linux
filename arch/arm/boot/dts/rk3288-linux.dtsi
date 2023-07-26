@@ -7,6 +7,13 @@
 #include "rk3288-dram-default-timing.dtsi"
 
 / {
+	aliases {
+		mshc0 = &emmc;
+		mshc1 = &sdmmc;
+		mshc2 = &sdio0;
+		mshc3 = &sdio1;
+	};
+
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff690000 console=ttyFIQ0 vmalloc=496M rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait";
 	};
