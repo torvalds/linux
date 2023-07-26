@@ -1051,15 +1051,17 @@ TRACE_EVENT(sched_compute_energy,
 
 TRACE_EVENT(sched_select_task_rt,
 
-	TP_PROTO(struct task_struct *p, int fastpath, int new_cpu),
+	TP_PROTO(struct task_struct *p, int fastpath, int new_cpu, struct cpumask *lowest_mask),
 
-	TP_ARGS(p, fastpath, new_cpu),
+	TP_ARGS(p, fastpath, new_cpu, lowest_mask),
 
 	TP_STRUCT__entry(
 		__field(int,		pid)
 		__array(char,		comm, TASK_COMM_LEN)
 		__field(int,		fastpath)
 		__field(int,		new_cpu)
+		__field(unsigned long,	reduce_mask)
+		__field(unsigned long,	lowest_mask)
 	),
 
 	TP_fast_assign(
@@ -1067,23 +1069,33 @@ TRACE_EVENT(sched_select_task_rt,
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->fastpath		= fastpath;
 		__entry->new_cpu		= new_cpu;
+		__entry->reduce_mask		=
+		cpumask_bits(&(((struct walt_task_struct *)
+				p->android_vendor_data1)->reduce_mask))[0];
+		if (!lowest_mask)
+			__entry->lowest_mask	= 0;
+		else
+			__entry->lowest_mask	= cpumask_bits(lowest_mask)[0];
 	),
 
-	TP_printk("pid=%d comm=%s fastpath=%u best_cpu=%d",
-		__entry->pid, __entry->comm, __entry->fastpath, __entry->new_cpu)
+	TP_printk("pid=%d comm=%s fastpath=%u best_cpu=%d reduce_mask=0x%x lowest_mask=0x%x",
+		__entry->pid, __entry->comm, __entry->fastpath, __entry->new_cpu,
+		__entry->reduce_mask, __entry->lowest_mask)
 );
 
 TRACE_EVENT(sched_rt_find_lowest_rq,
 
-	TP_PROTO(struct task_struct *p, int fastpath, int best_cpu),
+	TP_PROTO(struct task_struct *p, int fastpath, int best_cpu, struct cpumask *lowest_mask),
 
-	TP_ARGS(p, fastpath, best_cpu),
+	TP_ARGS(p, fastpath, best_cpu, lowest_mask),
 
 	TP_STRUCT__entry(
 		__field(int,		pid)
 		__array(char,		comm, TASK_COMM_LEN)
 		__field(int,		fastpath)
 		__field(int,		best_cpu)
+		__field(unsigned long,	reduce_mask)
+		__field(unsigned long,	lowest_mask)
 	),
 
 	TP_fast_assign(
@@ -1091,10 +1103,18 @@ TRACE_EVENT(sched_rt_find_lowest_rq,
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->fastpath		= fastpath;
 		__entry->best_cpu		= best_cpu;
+		__entry->reduce_mask		=
+		cpumask_bits(&(((struct walt_task_struct *)
+				p->android_vendor_data1)->reduce_mask))[0];
+		if (!lowest_mask)
+			__entry->lowest_mask	= 0;
+		else
+			__entry->lowest_mask	= cpumask_bits(lowest_mask)[0];
 	),
 
-	TP_printk("pid=%d comm=%s fastpath=%u best_cpu=%d",
-		__entry->pid, __entry->comm, __entry->fastpath, __entry->best_cpu)
+	TP_printk("pid=%d comm=%s fastpath=%u best_cpu=%d reduce_mask=0x%x lowest_mask=0x%x",
+		__entry->pid, __entry->comm, __entry->fastpath, __entry->best_cpu,
+		__entry->reduce_mask, __entry->lowest_mask)
 );
 
 TRACE_EVENT(sched_task_util,
