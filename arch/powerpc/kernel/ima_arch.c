@@ -23,9 +23,9 @@ bool arch_ima_get_secureboot(void)
  * is not enabled.
  */
 static const char *const secure_rules[] = {
-	"appraise func=KEXEC_KERNEL_CHECK appraise_flag=check_blacklist appraise_type=imasig|modsig",
+	"appraise func=KEXEC_KERNEL_CHECK appraise_type=imasig|modsig",
 #ifndef CONFIG_MODULE_SIG
-	"appraise func=MODULE_CHECK appraise_flag=check_blacklist appraise_type=imasig|modsig",
+	"appraise func=MODULE_CHECK appraise_type=imasig|modsig",
 #endif
 	NULL
 };
@@ -49,9 +49,9 @@ static const char *const trusted_rules[] = {
 static const char *const secure_and_trusted_rules[] = {
 	"measure func=KEXEC_KERNEL_CHECK template=ima-modsig",
 	"measure func=MODULE_CHECK template=ima-modsig",
-	"appraise func=KEXEC_KERNEL_CHECK appraise_flag=check_blacklist appraise_type=imasig|modsig",
+	"appraise func=KEXEC_KERNEL_CHECK appraise_type=imasig|modsig",
 #ifndef CONFIG_MODULE_SIG
-	"appraise func=MODULE_CHECK appraise_flag=check_blacklist appraise_type=imasig|modsig",
+	"appraise func=MODULE_CHECK appraise_type=imasig|modsig",
 #endif
 	NULL
 };
