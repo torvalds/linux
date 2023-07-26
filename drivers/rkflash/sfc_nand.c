@@ -311,7 +311,7 @@ static int sfc_nand_write_feature(u32 addr, u8 status)
 	return ret;
 }
 
-static int sfc_nand_wait_busy(u8 *data, int timeout)
+static int sfc_nand_wait_busy_sleep(u8 *data, int timeout, int sleep_us)
 {
 	int ret;
 	int i;
@@ -319,7 +319,9 @@ static int sfc_nand_wait_busy(u8 *data, int timeout)
 
 	*data = 0;
 
-	for (i = 0; i < timeout; i++) {
+	for (i = 0; i < timeout; i += sleep_us) {
+		usleep_range(sleep_us, sleep_us + 50);
+
 		ret = sfc_nand_read_feature(0xC0, &status);
 
 		if (ret != SFC_OK)
@@ -329,8 +331,6 @@ static int sfc_nand_wait_busy(u8 *data, int timeout)
 
 		if (!(status & (1 << 0)))
 			return SFC_OK;
-
-		sfc_delay(1);
 	}
 
 	return SFC_NAND_WAIT_TIME_OUT;
@@ -794,7 +794,7 @@ u32 sfc_nand_erase_block(u8 cs, u32 addr)
 	if (ret != SFC_OK)
 		return ret;
 
-	ret = sfc_nand_wait_busy(&status, 1000 * 1000);
+	ret = sfc_nand_wait_busy_sleep(&status, 1000 * 1000, 1000);
 
 	if (status & (1 << 2))
 		return SFC_NAND_PROG_ERASE_ERROR;
@@ -851,6 +851,7 @@ u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 	op.sfctrl.d32 = 0;
 	op.sfctrl.b.datalines = sfc_nand_dev.prog_lines;
 	op.sfctrl.b.addrbits = 16;
+	op.sfctrl.b.enbledma = 0;
 	plane = p_nand_info->plane_per_die == 2 ? ((addr >> 6) & 0x1) << 12 : 0;
 	sfc_request(&op, plane, p_page_buf, page_size);
 
@@ -880,7 +881,8 @@ u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 	if (ret != SFC_OK)
 		return ret;
 
-	ret = sfc_nand_wait_busy(&status, 1000 * 1000);
+	ret = sfc_nand_wait_busy_sleep(&status, 1000 * 1000, 200);
+
 	if (status & (1 << 3))
 		return SFC_NAND_PROG_ERASE_ERROR;
 
@@ -931,7 +933,10 @@ u32 sfc_nand_read(u32 row, u32 *p_page_buf, u32 column, u32 len)
 	    sfc_get_version() < SFC_VER_3)
 		sfc_nand_rw_preset();
 
-	sfc_nand_wait_busy(&status, 1000 * 1000);
+	sfc_nand_wait_busy_sleep(&status, 1000 * 1000, 50);
+	if (sfc_nand_dev.manufacturer == 0x01 && status)
+		sfc_nand_wait_busy_sleep(&status, 1000 * 1000, 50);
+
 	ecc_result = p_nand_info->ecc_status();
 
 	op.sfcmd.d32 = 0;
@@ -942,6 +947,7 @@ u32 sfc_nand_read(u32 row, u32 *p_page_buf, u32 column, u32 len)
 	op.sfctrl.d32 = 0;
 	op.sfctrl.b.datalines = sfc_nand_dev.read_lines;
 	op.sfctrl.b.addrbits = 16;
+	op.sfctrl.b.enbledma = 0;
 
 	plane = p_nand_info->plane_per_die == 2 ? ((row >> 6) & 0x1) << 12 : 0;
 	ret = sfc_request(&op, plane | column, p_page_buf, len);
