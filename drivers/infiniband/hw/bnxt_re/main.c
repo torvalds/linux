@@ -533,6 +533,7 @@ static void bnxt_re_db_fifo_check(struct work_struct *work)
 		pacing_data->pacing_th * BNXT_RE_PACING_ALARM_TH_MULTIPLE;
 	schedule_delayed_work(&rdev->dbq_pacing_work,
 			      msecs_to_jiffies(rdev->pacing.dbq_pacing_time));
+	rdev->stats.pacing.alerts++;
 	mutex_unlock(&rdev->pacing.dbq_lock);
 }
 
@@ -563,12 +564,14 @@ static void bnxt_re_pacing_timer_exp(struct work_struct *work)
 	pacing_data->do_pacing = max_t(u32, rdev->pacing.dbr_def_do_pacing, pacing_data->do_pacing);
 	if (pacing_data->do_pacing <= rdev->pacing.dbr_def_do_pacing) {
 		bnxt_re_set_default_pacing_data(rdev);
+		rdev->stats.pacing.complete++;
 		goto dbq_unlock;
 	}
 
 restart_timer:
 	schedule_delayed_work(&rdev->dbq_pacing_work,
 			      msecs_to_jiffies(rdev->pacing.dbq_pacing_time));
+	rdev->stats.pacing.resched++;
 dbq_unlock:
 	rdev->pacing.do_pacing_save = pacing_data->do_pacing;
 	mutex_unlock(&rdev->pacing.dbq_lock);

@@ -129,10 +129,20 @@ enum bnxt_re_hw_stats {
 	BNXT_RE_TX_CNP,
 	BNXT_RE_RX_CNP,
 	BNXT_RE_RX_ECN,
+	BNXT_RE_PACING_RESCHED,
+	BNXT_RE_PACING_CMPL,
+	BNXT_RE_PACING_ALERT,
+	BNXT_RE_DB_FIFO_REG,
 	BNXT_RE_NUM_EXT_COUNTERS
 };
 
 #define BNXT_RE_NUM_STD_COUNTERS (BNXT_RE_OUT_OF_SEQ_ERR + 1)
+
+struct bnxt_re_db_pacing_stats {
+	u64 resched;
+	u64 complete;
+	u64 alerts;
+};
 
 struct bnxt_re_res_cntrs {
 	atomic_t qp_count;
@@ -164,6 +174,7 @@ struct bnxt_re_rstat {
 struct bnxt_re_stats {
 	struct bnxt_re_rstat            rstat;
 	struct bnxt_re_res_cntrs        res;
+	struct bnxt_re_db_pacing_stats  pacing;
 };
 
 struct rdma_hw_stats *bnxt_re_ib_alloc_hw_port_stats(struct ib_device *ibdev,

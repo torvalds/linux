@@ -146,6 +146,10 @@ static const struct rdma_stat_desc bnxt_re_stat_descs[] = {
 	[BNXT_RE_TX_CNP].name                = "tx_cnp_pkts",
 	[BNXT_RE_RX_CNP].name                = "rx_cnp_pkts",
 	[BNXT_RE_RX_ECN].name                = "rx_ecn_marked_pkts",
+	[BNXT_RE_PACING_RESCHED].name        = "pacing_reschedule",
+	[BNXT_RE_PACING_CMPL].name           = "pacing_complete",
+	[BNXT_RE_PACING_ALERT].name          = "pacing_alerts",
+	[BNXT_RE_DB_FIFO_REG].name           = "db_fifo_register",
 };
 
 static void bnxt_re_copy_ext_stats(struct bnxt_re_dev *rdev,
@@ -278,6 +282,18 @@ static void bnxt_re_copy_err_stats(struct bnxt_re_dev *rdev,
 			err_s->res_oos_drop_count;
 }
 
+static void bnxt_re_copy_db_pacing_stats(struct bnxt_re_dev *rdev,
+					 struct rdma_hw_stats *stats)
+{
+	struct bnxt_re_db_pacing_stats *pacing_s =  &rdev->stats.pacing;
+
+	stats->value[BNXT_RE_PACING_RESCHED] = pacing_s->resched;
+	stats->value[BNXT_RE_PACING_CMPL] = pacing_s->complete;
+	stats->value[BNXT_RE_PACING_ALERT] = pacing_s->alerts;
+	stats->value[BNXT_RE_DB_FIFO_REG] =
+		readl(rdev->en_dev->bar0 + rdev->pacing.dbr_db_fifo_reg_off);
+}
+
 int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 			    struct rdma_hw_stats *stats,
 			    u32 port, int index)
@@ -350,6 +366,8 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 				goto done;
 			}
 		}
+		if (rdev->pacing.dbr_pacing)
+			bnxt_re_copy_db_pacing_stats(rdev, stats);
 	}
 
 done:
