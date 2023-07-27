@@ -8,7 +8,6 @@
 
 #include <linux/bug.h>
 
-#define XE_EXTRA_DEBUG 1
 #define XE_WARN_ON WARN_ON
 #define XE_BUG_ON BUG_ON
 
