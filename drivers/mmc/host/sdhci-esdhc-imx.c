@@ -1802,7 +1802,7 @@ free_sdhci:
 	return err;
 }
 
-static int sdhci_esdhc_imx_remove(struct platform_device *pdev)
+static void sdhci_esdhc_imx_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -1824,8 +1824,6 @@ static int sdhci_esdhc_imx_remove(struct platform_device *pdev)
 		cpu_latency_qos_remove_request(&imx_data->pm_qos_req);
 
 	sdhci_pltfm_free(pdev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1986,7 +1984,7 @@ static struct platform_driver sdhci_esdhc_imx_driver = {
 		.pm	= &sdhci_esdhc_pmops,
 	},
 	.probe		= sdhci_esdhc_imx_probe,
-	.remove		= sdhci_esdhc_imx_remove,
+	.remove_new	= sdhci_esdhc_imx_remove,
 };
 
 module_platform_driver(sdhci_esdhc_imx_driver);
