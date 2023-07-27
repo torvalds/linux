@@ -71,6 +71,7 @@ static const struct rhashtable_params mlxsw_sp_crif_ht_params = {
 
 struct mlxsw_sp_rif {
 	struct mlxsw_sp_crif *crif; /* NULL for underlay RIF */
+	netdevice_tracker dev_tracker;
 	struct list_head neigh_list;
 	struct mlxsw_sp_fid *fid;
 	unsigned char addr[ETH_ALEN];
@@ -8412,7 +8413,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		err = -ENOMEM;
 		goto err_rif_alloc;
 	}
-	dev_hold(params->dev);
+	netdev_hold(params->dev, &rif->dev_tracker, GFP_KERNEL);
 	mlxsw_sp->router->rifs[rif_index] = rif;
 	rif->mlxsw_sp = mlxsw_sp;
 	rif->ops = ops;
@@ -8469,7 +8470,7 @@ err_configure:
 		mlxsw_sp_fid_put(fid);
 err_fid_get:
 	mlxsw_sp->router->rifs[rif_index] = NULL;
-	dev_put(params->dev);
+	netdev_put(params->dev, &rif->dev_tracker);
 	mlxsw_sp_rif_free(rif);
 err_rif_alloc:
 err_crif_lookup:
@@ -8511,7 +8512,7 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 		/* Loopback RIFs are not associated with a FID. */
 		mlxsw_sp_fid_put(fid);
 	mlxsw_sp->router->rifs[rif->rif_index] = NULL;
-	dev_put(dev);
+	netdev_put(dev, &rif->dev_tracker);
 	mlxsw_sp_rif_free(rif);
 	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 	vr->rif_count--;
