@@ -118,7 +118,7 @@ config POWER_RESET_LINKSTATION
 	  Say Y here if you have a Buffalo LinkStation LS421D/E.
 
 config POWER_RESET_MSM
-	bool "Qualcomm MSM power-off driver"
+	tristate "Qualcomm MSM power-off driver"
 	depends on ARCH_QCOM
 	help
 	  Power off and restart support for Qualcomm boards.
