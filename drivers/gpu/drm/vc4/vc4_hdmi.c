@@ -41,8 +41,8 @@
 #include <linux/component.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
 #include <linux/rational.h>
 #include <linux/reset.h>

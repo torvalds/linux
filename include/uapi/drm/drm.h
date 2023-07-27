@@ -909,6 +909,27 @@ struct drm_syncobj_timeline_wait {
 	__u32 pad;
 };
 
+/**
+ * struct drm_syncobj_eventfd
+ * @handle: syncobj handle.
+ * @flags: Zero to wait for the point to be signalled, or
+ *         &DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE to wait for a fence to be
+ *         available for the point.
+ * @point: syncobj timeline point (set to zero for binary syncobjs).
+ * @fd: Existing eventfd to sent events to.
+ * @pad: Must be zero.
+ *
+ * Register an eventfd to be signalled by a syncobj. The eventfd counter will
+ * be incremented by one.
+ */
+struct drm_syncobj_eventfd {
+	__u32 handle;
+	__u32 flags;
+	__u64 point;
+	__s32 fd;
+	__u32 pad;
+};
+
 
 struct drm_syncobj_array {
 	__u64 handles;
@@ -1168,6 +1189,8 @@ extern "C" {
  * double-close handles which are specified multiple times in the array.
  */
 #define DRM_IOCTL_MODE_GETFB2		DRM_IOWR(0xCE, struct drm_mode_fb_cmd2)
+
+#define DRM_IOCTL_SYNCOBJ_EVENTFD	DRM_IOWR(0xCF, struct drm_syncobj_eventfd)
 
 /*
  * Device specific ioctls should only be in their respective headers

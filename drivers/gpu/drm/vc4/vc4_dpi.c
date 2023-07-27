@@ -22,8 +22,8 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/media-bus-format.h>
-#include <linux/of_graph.h>
-#include <linux/of_platform.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 

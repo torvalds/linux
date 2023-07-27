@@ -5,8 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>

@@ -6,7 +6,7 @@
 #include <linux/device.h>
 #include <linux/kref.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/of_device.h>
 #include <linux/pid.h>
 #include <linux/slab.h>
 

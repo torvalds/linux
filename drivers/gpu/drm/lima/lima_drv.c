@@ -2,7 +2,8 @@
 /* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
 
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
