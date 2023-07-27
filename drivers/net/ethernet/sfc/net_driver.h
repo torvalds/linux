@@ -67,9 +67,7 @@
 #define EFX_MAX_CORE_TX_QUEUES	(EFX_MAX_TX_TC * EFX_MAX_CHANNELS)
 #define EFX_TXQ_TYPE_OUTER_CSUM	1	/* Outer checksum offload */
 #define EFX_TXQ_TYPE_INNER_CSUM	2	/* Inner checksum offload */
-#define EFX_TXQ_TYPE_HIGHPRI	4	/* High-priority (for TC) */
-#define EFX_TXQ_TYPES		8
-/* HIGHPRI is Siena-only, and INNER_CSUM is EF10, so no need for both */
+#define EFX_TXQ_TYPES		4
 #define EFX_MAX_TXQ_PER_CHANNEL	4
 #define EFX_MAX_TX_QUEUES	(EFX_MAX_TXQ_PER_CHANNEL * EFX_MAX_CHANNELS)
 
