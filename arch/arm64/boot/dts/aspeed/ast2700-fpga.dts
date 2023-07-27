@@ -166,7 +166,7 @@
 &mac0 {
 	status = "okay";
 
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii";
 	phy-handle = <&ethphy0>;
 };
 
