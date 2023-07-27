@@ -72,6 +72,13 @@ properties:
           - const: phytec,am64-phycore-som
           - const: ti,am642
 
+      - description: K3 AM642 SoC on TQ-Systems TQMaX4XxL SoM
+        items:
+          - enum:
+              - tq,am642-tqma6442l-mbax4xxl # MBaX4XxL base board
+          - const: tq,am642-tqma6442l
+          - const: ti,am642
+
       - description: K3 AM654 SoC
         items:
           - enum:
