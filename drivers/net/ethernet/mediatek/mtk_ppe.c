@@ -208,7 +208,7 @@ int mtk_foe_entry_prepare(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 
 	memset(entry, 0, sizeof(*entry));
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+	if (mtk_is_netsys_v2_or_greater(eth)) {
 		val = FIELD_PREP(MTK_FOE_IB1_STATE, MTK_FOE_STATE_BIND) |
 		      FIELD_PREP(MTK_FOE_IB1_PACKET_TYPE_V2, type) |
 		      FIELD_PREP(MTK_FOE_IB1_UDP, l4proto == IPPROTO_UDP) |
@@ -272,7 +272,7 @@ int mtk_foe_entry_set_pse_port(struct mtk_eth *eth,
 	u32 *ib2 = mtk_foe_entry_ib2(eth, entry);
 	u32 val = *ib2;
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+	if (mtk_is_netsys_v2_or_greater(eth)) {
 		val &= ~MTK_FOE_IB2_DEST_PORT_V2;
 		val |= FIELD_PREP(MTK_FOE_IB2_DEST_PORT_V2, port);
 	} else {
@@ -423,7 +423,7 @@ int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(eth, entry);
 	u32 *ib2 = mtk_foe_entry_ib2(eth, entry);
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+	if (mtk_is_netsys_v2_or_greater(eth)) {
 		*ib2 &= ~MTK_FOE_IB2_PORT_MG_V2;
 		*ib2 |=  FIELD_PREP(MTK_FOE_IB2_RX_IDX, txq) |
 			 MTK_FOE_IB2_WDMA_WINFO_V2;
@@ -447,7 +447,7 @@ int mtk_foe_entry_set_queue(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 {
 	u32 *ib2 = mtk_foe_entry_ib2(eth, entry);
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+	if (mtk_is_netsys_v2_or_greater(eth)) {
 		*ib2 &= ~MTK_FOE_IB2_QID_V2;
 		*ib2 |= FIELD_PREP(MTK_FOE_IB2_QID_V2, queue);
 		*ib2 |= MTK_FOE_IB2_PSE_QOS_V2;
@@ -603,7 +603,7 @@ __mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
 	struct mtk_foe_entry *hwe;
 	u32 val;
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+	if (mtk_is_netsys_v2_or_greater(eth)) {
 		entry->ib1 &= ~MTK_FOE_IB1_BIND_TIMESTAMP_V2;
 		entry->ib1 |= FIELD_PREP(MTK_FOE_IB1_BIND_TIMESTAMP_V2,
 					 timestamp);
@@ -619,7 +619,7 @@ __mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
 	hwe->ib1 = entry->ib1;
 
 	if (ppe->accounting) {
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		if (mtk_is_netsys_v2_or_greater(eth))
 			val = MTK_FOE_IB2_MIB_CNT_V2;
 		else
 			val = MTK_FOE_IB2_MIB_CNT;
@@ -979,7 +979,7 @@ void mtk_ppe_start(struct mtk_ppe *ppe)
 			 MTK_PPE_SCAN_MODE_KEEPALIVE_AGE) |
 	      FIELD_PREP(MTK_PPE_TB_CFG_ENTRY_NUM,
 			 MTK_PPE_ENTRIES_SHIFT);
-	if (MTK_HAS_CAPS(ppe->eth->soc->caps, MTK_NETSYS_V2))
+	if (mtk_is_netsys_v2_or_greater(ppe->eth))
 		val |= MTK_PPE_TB_CFG_INFO_SEL;
 	ppe_w32(ppe, MTK_PPE_TB_CFG, val);
 
@@ -995,7 +995,7 @@ void mtk_ppe_start(struct mtk_ppe *ppe)
 	      MTK_PPE_FLOW_CFG_IP4_NAPT |
 	      MTK_PPE_FLOW_CFG_IP4_DSLITE |
 	      MTK_PPE_FLOW_CFG_IP4_NAT_FRAG;
-	if (MTK_HAS_CAPS(ppe->eth->soc->caps, MTK_NETSYS_V2))
+	if (mtk_is_netsys_v2_or_greater(ppe->eth))
 		val |= MTK_PPE_MD_TOAP_BYP_CRSN0 |
 		       MTK_PPE_MD_TOAP_BYP_CRSN1 |
 		       MTK_PPE_MD_TOAP_BYP_CRSN2 |
@@ -1037,7 +1037,7 @@ void mtk_ppe_start(struct mtk_ppe *ppe)
 
 	ppe_w32(ppe, MTK_PPE_DEFAULT_CPU_PORT, 0);
 
-	if (MTK_HAS_CAPS(ppe->eth->soc->caps, MTK_NETSYS_V2)) {
+	if (mtk_is_netsys_v2_or_greater(ppe->eth)) {
 		ppe_w32(ppe, MTK_PPE_DEFAULT_CPU_PORT1, 0xcb777);
 		ppe_w32(ppe, MTK_PPE_SBW_CTRL, 0x7f);
 	}

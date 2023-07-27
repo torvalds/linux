@@ -19,10 +19,12 @@ properties:
     enum:
       - mediatek,mt2701-eth
       - mediatek,mt7623-eth
+      - mediatek,mt7621-eth
       - mediatek,mt7622-eth
       - mediatek,mt7629-eth
       - mediatek,mt7981-eth
       - mediatek,mt7986-eth
+      - mediatek,mt7988-eth
       - ralink,rt5350-eth
 
   reg:
@@ -32,7 +34,7 @@ properties:
   clock-names: true
 
   interrupts:
-    minItems: 3
+    minItems: 1
     maxItems: 4
 
   power-domains:
@@ -59,6 +61,12 @@ properties:
     description:
       Phandle to the mediatek hifsys controller used to provide various clocks
       and reset to the system.
+
+  mediatek,infracfg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the syscon node that handles the path from GMAC to
+      PHY variants.
 
   mediatek,sgmiisys:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -121,11 +129,39 @@ allOf:
             - const: gp1
             - const: gp2
 
+        mediatek,infracfg: false
+
         mediatek,pctl:
           $ref: /schemas/types.yaml#/definitions/phandle
           description:
             Phandle to the syscon node that handles the ports slew rate and
             driver current.
+
+        mediatek,wed: false
+
+        mediatek,wed-pcie: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - mediatek,mt7621-eth
+    then:
+      properties:
+        interrupts:
+          maxItems: 1
+
+        clocks:
+          minItems: 2
+          maxItems: 2
+
+        clock-names:
+          items:
+            - const: ethif
+            - const: fe
+
+        mediatek,infracfg: false
 
         mediatek,wed: false
 
@@ -158,6 +194,8 @@ allOf:
             - const: sgmii_cdr_fb
             - const: sgmii_ck
             - const: eth2pll
+
+        mediatek,infracfg: false
 
         mediatek,sgmiisys:
           minItems: 1
@@ -204,12 +242,6 @@ allOf:
             - const: sgmii_ck
             - const: eth2pll
 
-        mediatek,infracfg:
-          $ref: /schemas/types.yaml#/definitions/phandle
-          description:
-            Phandle to the syscon node that handles the path from GMAC to
-            PHY variants.
-
         mediatek,sgmiisys:
           minItems: 2
           maxItems: 2
@@ -250,6 +282,8 @@ allOf:
             - const: netsys0
             - const: netsys1
 
+        mediatek,infracfg: false
+
         mediatek,sgmiisys:
           minItems: 2
           maxItems: 2
@@ -285,6 +319,67 @@ allOf:
             - const: sgmii2_cdr_fb
             - const: netsys0
             - const: netsys1
+
+        mediatek,infracfg: false
+
+        mediatek,sgmiisys:
+          minItems: 2
+          maxItems: 2
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt7988-eth
+    then:
+      properties:
+        interrupts:
+          minItems: 4
+
+        clocks:
+          minItems: 34
+          maxItems: 34
+
+        clock-names:
+          items:
+            - const: crypto
+            - const: fe
+            - const: gp2
+            - const: gp1
+            - const: gp3
+            - const: ethwarp_wocpu2
+            - const: ethwarp_wocpu1
+            - const: ethwarp_wocpu0
+            - const: esw
+            - const: netsys0
+            - const: netsys1
+            - const: sgmii_tx250m
+            - const: sgmii_rx250m
+            - const: sgmii2_tx250m
+            - const: sgmii2_rx250m
+            - const: top_usxgmii0_sel
+            - const: top_usxgmii1_sel
+            - const: top_sgm0_sel
+            - const: top_sgm1_sel
+            - const: top_xfi_phy0_xtal_sel
+            - const: top_xfi_phy1_xtal_sel
+            - const: top_eth_gmii_sel
+            - const: top_eth_refck_50m_sel
+            - const: top_eth_sys_200m_sel
+            - const: top_eth_sys_sel
+            - const: top_eth_xgmii_sel
+            - const: top_eth_mii_sel
+            - const: top_netsys_sel
+            - const: top_netsys_500m_sel
+            - const: top_netsys_pao_2x_sel
+            - const: top_netsys_sync_250m_sel
+            - const: top_netsys_ppefb_250m_sel
+            - const: top_netsys_warp_sel
+            - const: wocpu1
+            - const: wocpu0
+            - const: xgp1
+            - const: xgp2
+            - const: xgp3
 
         mediatek,sgmiisys:
           minItems: 2
