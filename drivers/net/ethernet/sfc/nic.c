@@ -272,11 +272,6 @@ void efx_nic_get_regs(struct efx_nic *efx, void *buf)
 			case 4: /* 32-bit SRAM */
 				efx_readd(efx, buf, table->offset + 4 * i);
 				break;
-			case 8: /* 64-bit SRAM */
-				efx_sram_readq(efx,
-					       efx->membase + table->offset,
-					       buf, i);
-				break;
 			case 16: /* 128-bit-readable register */
 				efx_reado_table(efx, buf, table->offset, i);
 				break;
