@@ -6199,6 +6199,7 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_ap_settings *params;
+	struct nlattr *attr;
 	int err;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
@@ -6219,6 +6220,20 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
 				   info->extack);
 	if (err)
 		goto out;
+
+	attr = info->attrs[NL80211_ATTR_FILS_DISCOVERY];
+	if (attr) {
+		err = nl80211_parse_fils_discovery(rdev, attr, params);
+		if (err)
+			goto out;
+	}
+
+	attr = info->attrs[NL80211_ATTR_UNSOL_BCAST_PROBE_RESP];
+	if (attr) {
+		err = nl80211_parse_unsol_bcast_probe_resp(rdev, attr, params);
+		if (err)
+			goto out;
+	}
 
 	err = rdev_change_beacon(rdev, dev, params);
 
