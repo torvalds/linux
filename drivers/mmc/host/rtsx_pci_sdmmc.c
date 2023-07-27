@@ -1529,9 +1529,6 @@ static int rtsx_pci_sdmmc_drv_remove(struct platform_device *pdev)
 	struct rtsx_pcr *pcr;
 	struct mmc_host *mmc;
 
-	if (!host)
-		return 0;
-
 	pcr = host->pcr;
 	pcr->slots[RTSX_SD_CARD].p_dev = NULL;
 	pcr->slots[RTSX_SD_CARD].card_event = NULL;
