@@ -60,6 +60,11 @@ struct adreno_reglist {
 extern const struct adreno_reglist a612_hwcg[], a615_hwcg[], a630_hwcg[], a640_hwcg[], a650_hwcg[];
 extern const struct adreno_reglist a660_hwcg[], a690_hwcg[];
 
+struct adreno_speedbin {
+	uint16_t fuse;
+	uint16_t speedbin;
+};
+
 struct adreno_info {
 	const char *machine;
 	struct adreno_rev rev;
@@ -72,7 +77,32 @@ struct adreno_info {
 	u32 inactive_period;
 	const struct adreno_reglist *hwcg;
 	u64 address_space_size;
+	/**
+	 * @speedbins: Optional table of fuse to speedbin mappings
+	 *
+	 * Consists of pairs of fuse, index mappings, terminated with
+	 * {SHRT_MAX, 0} sentinal.
+	 */
+	struct adreno_speedbin *speedbins;
 };
+
+/*
+ * Helper to build a speedbin table, ie. the table:
+ *      fuse | speedbin
+ *      -----+---------
+ *        0  |   0
+ *       169 |   1
+ *       174 |   2
+ *
+ * would be declared as:
+ *
+ *     .speedbins = ADRENO_SPEEDBINS(
+ *                      { 0,   0 },
+ *                      { 169, 1 },
+ *                      { 174, 2 },
+ *     ),
+ */
+#define ADRENO_SPEEDBINS(tbl...) (struct adreno_speedbin[]) { tbl {SHRT_MAX, 0} }
 
 const struct adreno_info *adreno_info(struct adreno_rev rev);
 
