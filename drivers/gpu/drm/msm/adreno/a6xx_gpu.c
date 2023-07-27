@@ -2484,8 +2484,6 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 		return ERR_PTR(-EINVAL);
 
 	/* Assign these early so that we can use the is_aXYZ helpers */
-	/* Numeric revision IDs (e.g. 630) */
-	adreno_gpu->revn = info->revn;
 	/* New-style ADRENO_REV()-only */
 	adreno_gpu->rev = info->rev;
 	/* Quirk data */
