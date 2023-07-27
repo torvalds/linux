@@ -907,7 +907,7 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int id)
 
 	ret = cs35l56_set_patch(&cs35l56->base);
 	if (ret)
-		return ret;
+		goto err;
 
 	regcache_mark_dirty(cs35l56->base.regmap);
 	regcache_sync(cs35l56->base.regmap);
