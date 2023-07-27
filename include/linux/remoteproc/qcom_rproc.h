@@ -62,7 +62,7 @@ static inline int qcom_unregister_ssr_notifier(void *notify,
 {
 	return 0;
 }
-static int qcom_rproc_set_dtb_firmware(struct rproc *rproc, const char *dtb_fw_name)
+static inline int qcom_rproc_set_dtb_firmware(struct rproc *rproc, const char *dtb_fw_name)
 {
 	return -EINVAL;
 }
