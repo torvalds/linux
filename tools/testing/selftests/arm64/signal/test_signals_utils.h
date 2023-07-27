@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <linux/compiler.h>
+
 #include "test_signals.h"
 
 int test_init(struct tdescr *td);
@@ -76,7 +78,7 @@ static __always_inline bool get_current_context(struct tdescr *td,
 	 */
 	for (i = 0; i < td->live_sz; i++) {
 		uc[i] = 0;
-		__asm__ ("" : "=r" (uc[i]) : "0" (uc[i]));
+		OPTIMIZER_HIDE_VAR(uc[0]);
 	}
 
 	td->live_uc = dest_uc;
