@@ -477,7 +477,7 @@ static int mpc512x_lpbfifo_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mpc512x_lpbfifo_remove(struct platform_device *pdev)
+static void mpc512x_lpbfifo_remove(struct platform_device *pdev)
 {
 	unsigned long flags;
 	struct dma_device *dma_dev = lpbfifo.chan->device;
@@ -494,8 +494,6 @@ static int mpc512x_lpbfifo_remove(struct platform_device *pdev)
 	free_irq(lpbfifo.irq, &pdev->dev);
 	irq_dispose_mapping(lpbfifo.irq);
 	dma_release_channel(lpbfifo.chan);
-
-	return 0;
 }
 
 static const struct of_device_id mpc512x_lpbfifo_match[] = {
@@ -506,7 +504,7 @@ MODULE_DEVICE_TABLE(of, mpc512x_lpbfifo_match);
 
 static struct platform_driver mpc512x_lpbfifo_driver = {
 	.probe = mpc512x_lpbfifo_probe,
-	.remove = mpc512x_lpbfifo_remove,
+	.remove_new = mpc512x_lpbfifo_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = mpc512x_lpbfifo_match,

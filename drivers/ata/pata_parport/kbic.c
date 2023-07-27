@@ -301,5 +301,8 @@ static void __exit kbic_exit(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
+MODULE_DESCRIPTION("KingByte Information Systems KBIC-951A and KBIC-971A "
+		   "parallel port IDE adapter protocol driver");
 module_init(kbic_init)
 module_exit(kbic_exit)

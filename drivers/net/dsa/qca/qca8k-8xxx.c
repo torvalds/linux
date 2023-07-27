@@ -576,8 +576,11 @@ static struct regmap_config qca8k_regmap_config = {
 	.rd_table = &qca8k_readable_table,
 	.disable_locking = true, /* Locking is handled by qca8k read/write */
 	.cache_type = REGCACHE_NONE, /* Explicitly disable CACHE */
-	.max_raw_read = 32, /* mgmt eth can read/write up to 8 registers at time */
-	.max_raw_write = 32,
+	.max_raw_read = 32, /* mgmt eth can read up to 8 registers at time */
+	/* ATU regs suffer from a bug where some data are not correctly
+	 * written. Disable bulk write to correctly write ATU entry.
+	 */
+	.use_single_write = true,
 };
 
 static int

@@ -1382,7 +1382,7 @@ int amdgpu_mes_self_test(struct amdgpu_device *adev)
 		goto error_pasid;
 	}
 
-	r = amdgpu_vm_init(adev, vm);
+	r = amdgpu_vm_init(adev, vm, -1);
 	if (r) {
 		DRM_ERROR("failed to initialize vm\n");
 		goto error_pasid;
