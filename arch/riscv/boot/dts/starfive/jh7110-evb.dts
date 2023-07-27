@@ -14,6 +14,8 @@
 
 /* default sd card */
 &sdio0 {
+	assigned-clocks = <&clkgen JH7110_SDIO0_CLK_SDCARD>;
+	assigned-clock-rates = <50000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdcard0_pins>;
 	max-frequency = <100000000>;
@@ -22,12 +24,6 @@
 	no-sdio;
 	no-mmc;
 	broken-cd;
-	sd-uhs-sdr12;
-	sd-uhs-sdr25;
-	sd-uhs-sdr50;
-	sd-uhs-sdr104;
-	sd-uhs-ddr50;
-	cap-sd-highspeed;
 	post-power-on-delay-ms = <200>;
 	status = "okay";
 };
