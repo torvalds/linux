@@ -214,7 +214,10 @@ static void rk3308_init(void)
 
 static void rk3528_init(void)
 {
-	rockchip_soc_id = ROCKCHIP_SOC_RK3528;
+	if (of_machine_is_compatible("rockchip,rk3528"))
+		rockchip_soc_id = ROCKCHIP_SOC_RK3528;
+	else if (of_machine_is_compatible("rockchip,rk3528a"))
+		rockchip_soc_id = ROCKCHIP_SOC_RK3528A;
 }
 
 #define RK356X_PMU_GRF_PHYS		0xfdc20000
