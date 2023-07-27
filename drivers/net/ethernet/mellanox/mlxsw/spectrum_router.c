@@ -9333,6 +9333,7 @@ struct mlxsw_sp_inet6addr_event_work {
 	struct work_struct work;
 	struct mlxsw_sp *mlxsw_sp;
 	struct net_device *dev;
+	netdevice_tracker dev_tracker;
 	unsigned long event;
 };
 
@@ -9356,7 +9357,7 @@ static void mlxsw_sp_inet6addr_event_work(struct work_struct *work)
 out:
 	mutex_unlock(&mlxsw_sp->router->lock);
 	rtnl_unlock();
-	dev_put(dev);
+	netdev_put(dev, &inet6addr_work->dev_tracker);
 	kfree(inet6addr_work);
 }
 
@@ -9382,7 +9383,7 @@ static int mlxsw_sp_inet6addr_event(struct notifier_block *nb,
 	inet6addr_work->mlxsw_sp = router->mlxsw_sp;
 	inet6addr_work->dev = dev;
 	inet6addr_work->event = event;
-	dev_hold(dev);
+	netdev_hold(dev, &inet6addr_work->dev_tracker, GFP_ATOMIC);
 	mlxsw_core_schedule_work(&inet6addr_work->work);
 
 	return NOTIFY_DONE;
