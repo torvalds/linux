@@ -135,10 +135,8 @@ static int platform_mhu_probe(struct platform_device *pdev)
 	for (i = 0; i < MHU_CHANS; i++) {
 		mhu->chan[i].con_priv = &mhu->mlink[i];
 		mhu->mlink[i].irq = platform_get_irq(pdev, i);
-		if (mhu->mlink[i].irq < 0) {
-			dev_err(dev, "failed to get irq%d\n", i);
+		if (mhu->mlink[i].irq < 0)
 			return mhu->mlink[i].irq;
-		}
 		mhu->mlink[i].rx_reg = mhu->base + platform_mhu_reg[i];
 		mhu->mlink[i].tx_reg = mhu->mlink[i].rx_reg + TX_REG_OFFSET;
 	}
