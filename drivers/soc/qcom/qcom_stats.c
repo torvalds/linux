@@ -287,7 +287,7 @@ static int qcom_stats_device_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int qcom_stats_ddr_freqsync_msg(void)
+int qcom_stats_ddr_freqsync_msg(void)
 {
 	static const char buf[MAX_MSG_LEN] = "{class: ddr, action: freqsync}";
 	int ret = 0;
@@ -309,6 +309,7 @@ static int qcom_stats_ddr_freqsync_msg(void)
 
 	return ret;
 }
+EXPORT_SYMBOL(qcom_stats_ddr_freqsync_msg);
 
 static int qcom_stats_ddr_freq_sync(int *modes, struct sleep_stats *stat)
 {
