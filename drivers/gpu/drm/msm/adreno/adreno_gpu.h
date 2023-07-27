@@ -130,8 +130,6 @@ struct adreno_info {
  */
 #define ADRENO_SPEEDBINS(tbl...) (struct adreno_speedbin[]) { tbl {SHRT_MAX, 0} }
 
-const struct adreno_info *adreno_info(struct adreno_rev rev);
-
 struct adreno_gpu {
 	struct msm_gpu base;
 	struct adreno_rev rev;
@@ -185,6 +183,7 @@ struct adreno_ocmem {
 /* platform config data (ie. from DT, or pdata) */
 struct adreno_platform_config {
 	struct adreno_rev rev;
+	const struct adreno_info *info;
 };
 
 #define ADRENO_IDLE_TIMEOUT msecs_to_jiffies(1000)

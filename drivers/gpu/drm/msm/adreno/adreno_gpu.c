@@ -1079,7 +1079,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	int ret;
 
 	adreno_gpu->funcs = funcs;
-	adreno_gpu->info = adreno_info(config->rev);
+	adreno_gpu->info = config->info;
 	adreno_gpu->rev = *rev;
 
 	/* Only handle the core clock when GMU is not in use (or is absent). */

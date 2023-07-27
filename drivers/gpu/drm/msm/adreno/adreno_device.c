@@ -508,7 +508,7 @@ bool adreno_cmp_rev(struct adreno_rev rev1, struct adreno_rev rev2)
 		_rev_match(rev1.patchid, rev2.patchid);
 }
 
-const struct adreno_info *adreno_info(struct adreno_rev rev)
+static const struct adreno_info *adreno_info(struct adreno_rev rev)
 {
 	int i;
 
@@ -659,12 +659,13 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	priv->gpu_pdev = to_platform_device(dev);
 
 	info = adreno_info(config.rev);
-
 	if (!info) {
 		dev_warn(drm->dev, "Unknown GPU revision: %"ADRENO_CHIPID_FMT"\n",
 			ADRENO_CHIPID_ARGS(config.rev));
 		return -ENXIO;
 	}
+
+	config.info = info;
 
 	DBG("Found GPU: %"ADRENO_CHIPID_FMT, ADRENO_CHIPID_ARGS(config.rev));
 
