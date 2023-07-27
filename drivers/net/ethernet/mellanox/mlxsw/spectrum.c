@@ -4112,23 +4112,6 @@ struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find_rcu(struct net_device *dev)
 	return (struct mlxsw_sp_port *)priv.data;
 }
 
-struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev)
-{
-	struct mlxsw_sp_port *mlxsw_sp_port;
-
-	rcu_read_lock();
-	mlxsw_sp_port = mlxsw_sp_port_dev_lower_find_rcu(dev);
-	if (mlxsw_sp_port)
-		dev_hold(mlxsw_sp_port->dev);
-	rcu_read_unlock();
-	return mlxsw_sp_port;
-}
-
-void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	dev_put(mlxsw_sp_port->dev);
-}
-
 int mlxsw_sp_parsing_depth_inc(struct mlxsw_sp *mlxsw_sp)
 {
 	char mprs_pl[MLXSW_REG_MPRS_LEN];
