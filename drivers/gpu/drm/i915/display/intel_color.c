@@ -1453,6 +1453,16 @@ static int glk_degamma_lut_size(struct drm_i915_private *i915)
 		return 35;
 }
 
+/*
+ * change_lut_val_precision: helper function to upscale or downscale lut values.
+ * Parameters 'to' and 'from' needs to be less than 32. This should be sufficient
+ * as currently there are no lut values exceeding 32 bit.
+ */
+static u32 change_lut_val_precision(u32 lut_val, int to, int from)
+{
+	return mul_u32_u32(lut_val, (1 << to)) / (1 << from);
+}
+
 static void glk_load_degamma_lut(const struct intel_crtc_state *crtc_state,
 				 const struct drm_property_blob *blob)
 {
@@ -1487,8 +1497,15 @@ static void glk_load_degamma_lut(const struct intel_crtc_state *crtc_state,
 		 * ToDo: Extend to max 7.0. Enable 32 bit input value
 		 * as compared to just 16 to achieve this.
 		 */
+		u32 lut_val;
+
+		if (DISPLAY_VER(i915) >= 14)
+			lut_val = change_lut_val_precision(lut[i].green, 24, 16);
+		else
+			lut_val = lut[i].green;
+
 		ilk_lut_write(crtc_state, PRE_CSC_GAMC_DATA(pipe),
-			      lut[i].green);
+			      lut_val);
 	}
 
 	/* Clamp values > 1.0. */
