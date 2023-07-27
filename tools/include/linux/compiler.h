@@ -42,6 +42,18 @@
 # define __always_inline	inline __attribute__((always_inline))
 #endif
 
+#ifndef __always_unused
+#define __always_unused __attribute__((__unused__))
+#endif
+
+#ifndef __noreturn
+#define __noreturn __attribute__((__noreturn__))
+#endif
+
+#ifndef unreachable
+#define unreachable() __builtin_unreachable()
+#endif
+
 #ifndef noinline
 #define noinline
 #endif
