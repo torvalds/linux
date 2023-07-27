@@ -4127,7 +4127,7 @@ BROADCOM BCM6348/BCM6358 SPI controller DRIVER
 M:	Jonas Gorski <jonas.gorski@gmail.com>
 L:	linux-spi@vger.kernel.org
 S:	Odd Fixes
-F:	Documentation/devicetree/bindings/spi/spi-bcm63xx.txt
+F:	Documentation/devicetree/bindings/spi/brcm,bcm63xx-spi.yaml
 F:	drivers/spi/spi-bcm63xx.c
 
 BROADCOM ETHERNET PHY DRIVERS
