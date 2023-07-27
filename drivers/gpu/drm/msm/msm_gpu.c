@@ -897,7 +897,6 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	gpu->irq = platform_get_irq(pdev, 0);
 	if (gpu->irq < 0) {
 		ret = gpu->irq;
-		DRM_DEV_ERROR(drm->dev, "failed to get irq: %d\n", ret);
 		goto fail;
 	}
 
