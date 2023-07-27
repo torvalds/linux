@@ -11,7 +11,8 @@
 #ifndef _UFSHCI_H
 #define _UFSHCI_H
 
-#include <scsi/scsi_host.h>
+#include <linux/types.h>
+#include <ufs/ufs.h>
 
 enum {
 	TASK_REQ_UPIU_SIZE_DWORDS	= 8,

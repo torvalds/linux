@@ -11,7 +11,7 @@
 #ifndef _UFS_H
 #define _UFS_H
 
-#include <linux/mutex.h>
+#include <linux/bitops.h>
 #include <linux/types.h>
 #include <uapi/scsi/scsi_bsg_ufs.h>
 
