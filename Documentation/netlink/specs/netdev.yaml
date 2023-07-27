@@ -14,7 +14,7 @@ definitions:
       -
         name: basic
         doc:
-          XDP feautues set supported by all drivers
+          XDP features set supported by all drivers
           (XDP_ABORTED, XDP_DROP, XDP_PASS, XDP_TX)
       -
         name: redirect
@@ -63,7 +63,7 @@ attribute-sets:
         enum: xdp-act
         enum-as-flags: true
       -
-        name: xdp_zc_max_segs
+        name: xdp-zc-max-segs
         doc: max fragment count supported by ZC driver
         type: u32
         checks:
@@ -83,6 +83,7 @@ operations:
           attributes:
             - ifindex
             - xdp-features
+            - xdp-zc-max-segs
       dump:
         reply: *dev-all
     -
