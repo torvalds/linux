@@ -422,7 +422,7 @@ found:
 	return 0;
 }
 
-void __init smp_store_boot_cpu_info(void)
+static void __init smp_store_boot_cpu_info(void)
 {
 	int id = 0; /* CPU 0 */
 	struct cpuinfo_x86 *c = &cpu_data(id);

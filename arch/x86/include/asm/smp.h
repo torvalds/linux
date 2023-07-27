@@ -134,8 +134,6 @@ void native_send_call_func_ipi(const struct cpumask *mask);
 void native_send_call_func_single_ipi(int cpu);
 
 bool smp_park_other_cpus_in_init(void);
-
-void smp_store_boot_cpu_info(void);
 void smp_store_cpu_info(int id);
 
 asmlinkage __visible void smp_reboot_interrupt(void);
