@@ -7040,7 +7040,7 @@ static int __ufshcd_issue_tm_cmd(struct ufs_hba *hba,
 static int ufshcd_issue_tm_cmd(struct ufs_hba *hba, int lun_id, int task_id,
 		u8 tm_function, u8 *tm_response)
 {
-	struct utp_task_req_desc treq = { { 0 }, };
+	struct utp_task_req_desc treq = { };
 	enum utp_ocs ocs_value;
 	int err;
 
@@ -7205,7 +7205,7 @@ int ufshcd_exec_raw_upiu_cmd(struct ufs_hba *hba,
 {
 	int err;
 	enum dev_cmd_type cmd_type = DEV_CMD_TYPE_QUERY;
-	struct utp_task_req_desc treq = { { 0 }, };
+	struct utp_task_req_desc treq = { };
 	enum utp_ocs ocs_value;
 	u8 tm_f = be32_to_cpu(req_upiu->header.dword_1) >> 16 & MASK_TM_FUNC;
 
