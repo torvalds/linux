@@ -166,6 +166,8 @@ EXPORT_SYMBOL_GPL(ufshcd_populate_vreg);
  * If any of the supplies are not defined it is assumed that they are always-on
  * and hence return zero. If the property is defined but parsing is failed
  * then return corresponding error.
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_parse_regulator_info(struct ufs_hba *hba)
 {

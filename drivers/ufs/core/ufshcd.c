@@ -876,6 +876,8 @@ static inline u32 ufshcd_get_dme_attr_val(struct ufs_hba *hba)
 /**
  * ufshcd_get_req_rsp - returns the TR response transaction type
  * @ucd_rsp_ptr: pointer to response UPIU
+ *
+ * Return: UPIU type.
  */
 static inline int
 ufshcd_get_req_rsp(struct utp_upiu_rsp *ucd_rsp_ptr)
@@ -2241,6 +2243,8 @@ static inline void ufshcd_copy_sense_data(struct ufshcd_lrb *lrbp)
  * descriptor
  * @hba: per adapter instance
  * @lrbp: pointer to local reference block
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static
 int ufshcd_copy_query_response(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
@@ -2713,6 +2717,8 @@ static inline void ufshcd_prepare_utp_nop_upiu(struct ufshcd_lrb *lrbp)
  *			     for Device Management Purposes
  * @hba: per adapter instance
  * @lrbp: pointer to local reference block
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_compose_devman_upiu(struct ufs_hba *hba,
 				      struct ufshcd_lrb *lrbp)
@@ -2741,6 +2747,8 @@ static int ufshcd_compose_devman_upiu(struct ufs_hba *hba,
  *			   for SCSI Purposes
  * @hba: per adapter instance
  * @lrbp: pointer to local reference block
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_comp_scsi_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
@@ -3018,6 +3026,8 @@ ufshcd_check_query_response(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
  * ufshcd_dev_cmd_completion() - handles device management command responses
  * @hba: per adapter instance
  * @lrbp: pointer to local reference block
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int
 ufshcd_dev_cmd_completion(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
@@ -3154,6 +3164,8 @@ retry:
  * @hba: UFS hba
  * @cmd_type: specifies the type (NOP, Query...)
  * @timeout: timeout in milliseconds
+ *
+ * Return: 0 upon success; < 0 upon failure.
  *
  * NOTE: Since there is only one available tag for device management commands,
  * it is expected you hold the hba->dev_cmd.lock mutex.
@@ -4387,6 +4399,8 @@ static void ufshcd_init_pwr_info(struct ufs_hba *hba)
 /**
  * ufshcd_get_max_pwr_mode - reads the max power mode negotiated with device
  * @hba: per-adapter instance
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_get_max_pwr_mode(struct ufs_hba *hba)
 {
@@ -4544,6 +4558,8 @@ static int ufshcd_change_power_mode(struct ufs_hba *hba,
  * ufshcd_config_pwr_mode - configure a new power mode
  * @hba: per-adapter instance
  * @desired_pwr_mode: desired power configuration
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 int ufshcd_config_pwr_mode(struct ufs_hba *hba,
 		struct ufs_pa_layer_attr *desired_pwr_mode)
@@ -4568,6 +4584,8 @@ EXPORT_SYMBOL_GPL(ufshcd_config_pwr_mode);
  * @hba: per-adapter instance
  *
  * Set fDeviceInit flag and poll until device toggles it.
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_complete_dev_init(struct ufs_hba *hba)
 {
@@ -4939,6 +4957,8 @@ out:
  * If the UTP layer at the device side is not initialized, it may
  * not respond with NOP IN UPIU within timeout of %NOP_OUT_TIMEOUT
  * and we retry sending NOP OUT for %NOP_OUT_RETRIES iterations.
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_verify_dev_init(struct ufs_hba *hba)
 {
@@ -5099,6 +5119,8 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
  * @depth: required depth to set
  *
  * Change queue depth and make sure the max. limits are not crossed.
+ *
+ * Return: new queue depth.
  */
 static int ufshcd_change_queue_depth(struct scsi_device *sdev, int depth)
 {
@@ -5108,6 +5130,8 @@ static int ufshcd_change_queue_depth(struct scsi_device *sdev, int depth)
 /**
  * ufshcd_slave_configure - adjust SCSI device configurations
  * @sdev: pointer to SCSI device
+ *
+ * Return: 0 (success).
  */
 static int ufshcd_slave_configure(struct scsi_device *sdev)
 {
@@ -5824,6 +5848,8 @@ out:
  *
  * If BKOPs is enabled, this function returns 0, 1 if the bkops in not enabled
  * and negative error value for any other failure.
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_urgent_bkops(struct ufs_hba *hba)
 {
@@ -7064,6 +7090,8 @@ static int ufshcd_issue_tm_cmd(struct ufs_hba *hba, int lun_id, int task_id,
  *
  * Since there is only one available tag for device management commands,
  * the caller is expected to hold the hba->dev_cmd.lock mutex.
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_issue_devman_upiu_cmd(struct ufs_hba *hba,
 					struct utp_upiu_req *req_upiu,
@@ -7165,6 +7193,8 @@ static int ufshcd_issue_devman_upiu_cmd(struct ufs_hba *hba,
  * Management requests.
  * It is up to the caller to fill the upiu conent properly, as it will
  * be copied without any further input validations.
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 int ufshcd_exec_raw_upiu_cmd(struct ufs_hba *hba,
 			     struct utp_upiu_req *req_upiu,
@@ -8478,6 +8508,8 @@ out:
 /**
  * ufshcd_add_lus - probe and add UFS logical units
  * @hba: per-adapter instance
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_add_lus(struct ufs_hba *hba)
 {
@@ -8687,6 +8719,8 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
  * @init_dev_params: whether or not to call ufshcd_device_params_init().
  *
  * Execute link-startup and verify device initialization
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_probe_hba(struct ufs_hba *hba, bool init_dev_params)
 {
@@ -9841,6 +9875,8 @@ out:
  *
  * This function will put disable irqs, turn off clocks
  * and set vreg and hba-vreg in lpm mode.
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_suspend(struct ufs_hba *hba)
 {
@@ -10002,6 +10038,8 @@ EXPORT_SYMBOL(ufshcd_runtime_suspend);
  *
  * 1. Turn on all the controller related clocks
  * 2. Turn ON VCC rail
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 int ufshcd_runtime_resume(struct device *dev)
 {

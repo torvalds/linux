@@ -235,7 +235,7 @@ static int cdns_ufs_init(struct ufs_hba *hba)
  * cdns_ufs_m31_16nm_phy_initialization - performs m31 phy initialization
  * @hba: host controller instance
  *
- * Always returns 0
+ * Return: 0 (success).
  */
 static int cdns_ufs_m31_16nm_phy_initialization(struct ufs_hba *hba)
 {
@@ -308,7 +308,7 @@ static int cdns_ufs_pltfrm_probe(struct platform_device *pdev)
  * cdns_ufs_pltfrm_remove - removes the ufs driver
  * @pdev: pointer to platform device handle
  *
- * Always returns 0
+ * Return: 0 (success).
  */
 static int cdns_ufs_pltfrm_remove(struct platform_device *pdev)
 {
