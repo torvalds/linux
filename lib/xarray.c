@@ -206,7 +206,7 @@ static void *xas_descend(struct xa_state *xas, struct xa_node *node)
 	void *entry = xa_entry(xas->xa, node, offset);
 
 	xas->xa_node = node;
-	if (xa_is_sibling(entry)) {
+	while (xa_is_sibling(entry)) {
 		offset = xa_to_sibling(entry);
 		entry = xa_entry(xas->xa, node, offset);
 		if (node->shift && xa_is_node(entry))
