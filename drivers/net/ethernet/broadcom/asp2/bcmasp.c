@@ -1232,7 +1232,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq <= 0)
-		return dev_err_probe(dev, -EINVAL, "invalid interrupt\n");
+		return -EINVAL;
 
 	priv->clk = devm_clk_get_optional_enabled(dev, "sw_asp");
 	if (IS_ERR(priv->clk))
