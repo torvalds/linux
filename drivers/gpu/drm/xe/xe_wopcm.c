@@ -144,10 +144,10 @@ static int __wopcm_init_regs(struct xe_device *xe, struct xe_gt *gt,
 	u32 mask;
 	int err;
 
-	XE_BUG_ON(!(base & GUC_WOPCM_OFFSET_MASK));
-	XE_BUG_ON(base & ~GUC_WOPCM_OFFSET_MASK);
-	XE_BUG_ON(!(size & GUC_WOPCM_SIZE_MASK));
-	XE_BUG_ON(size & ~GUC_WOPCM_SIZE_MASK);
+	XE_WARN_ON(!(base & GUC_WOPCM_OFFSET_MASK));
+	XE_WARN_ON(base & ~GUC_WOPCM_OFFSET_MASK);
+	XE_WARN_ON(!(size & GUC_WOPCM_SIZE_MASK));
+	XE_WARN_ON(size & ~GUC_WOPCM_SIZE_MASK);
 
 	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
 	err = xe_mmio_write32_and_verify(gt, GUC_WOPCM_SIZE, size, mask,
@@ -213,9 +213,9 @@ int xe_wopcm_init(struct xe_wopcm *wopcm)
 	drm_dbg(&xe->drm, "WOPCM: %uK\n", wopcm->size / SZ_1K);
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
-	XE_BUG_ON(guc_fw_size >= wopcm->size);
-	XE_BUG_ON(huc_fw_size >= wopcm->size);
-	XE_BUG_ON(ctx_rsvd + WOPCM_RESERVED_SIZE >= wopcm->size);
+	XE_WARN_ON(guc_fw_size >= wopcm->size);
+	XE_WARN_ON(huc_fw_size >= wopcm->size);
+	XE_WARN_ON(ctx_rsvd + WOPCM_RESERVED_SIZE >= wopcm->size);
 
 	locked = __wopcm_regs_locked(gt, &guc_wopcm_base, &guc_wopcm_size);
 	if (locked) {
@@ -256,8 +256,8 @@ check:
 			   guc_fw_size, huc_fw_size)) {
 		wopcm->guc.base = guc_wopcm_base;
 		wopcm->guc.size = guc_wopcm_size;
-		XE_BUG_ON(!wopcm->guc.base);
-		XE_BUG_ON(!wopcm->guc.size);
+		XE_WARN_ON(!wopcm->guc.base);
+		XE_WARN_ON(!wopcm->guc.size);
 	} else {
 		drm_notice(&xe->drm, "Unsuccessful WOPCM partitioning\n");
 		return -E2BIG;

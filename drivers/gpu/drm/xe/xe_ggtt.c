@@ -58,8 +58,8 @@ static unsigned int probe_gsm_size(struct pci_dev *pdev)
 
 void xe_ggtt_set_pte(struct xe_ggtt *ggtt, u64 addr, u64 pte)
 {
-	XE_BUG_ON(addr & XE_PTE_MASK);
-	XE_BUG_ON(addr >= ggtt->size);
+	XE_WARN_ON(addr & XE_PTE_MASK);
+	XE_WARN_ON(addr >= ggtt->size);
 
 	writeq(pte, &ggtt->gsm[addr >> XE_PTE_SHIFT]);
 }
@@ -69,7 +69,7 @@ static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
 	u64 end = start + size - 1;
 	u64 scratch_pte;
 
-	XE_BUG_ON(start >= end);
+	XE_WARN_ON(start >= end);
 
 	if (ggtt->scratch)
 		scratch_pte = xe_ggtt_pte_encode(ggtt->scratch, 0);
@@ -266,7 +266,7 @@ void xe_ggtt_printk(struct xe_ggtt *ggtt, const char *prefix)
 	for (addr = 0; addr < ggtt->size; addr += XE_PAGE_SIZE) {
 		unsigned int i = addr / XE_PAGE_SIZE;
 
-		XE_BUG_ON(addr > U32_MAX);
+		XE_WARN_ON(addr > U32_MAX);
 		if (ggtt->gsm[i] == scratch_pte)
 			continue;
 
@@ -315,7 +315,7 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 
 	if (XE_WARN_ON(bo->ggtt_node.size)) {
 		/* Someone's already inserted this BO in the GGTT */
-		XE_BUG_ON(bo->ggtt_node.size != bo->size);
+		XE_WARN_ON(bo->ggtt_node.size != bo->size);
 		return 0;
 	}
 
@@ -378,7 +378,7 @@ void xe_ggtt_remove_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 		return;
 
 	/* This BO is not currently in the GGTT */
-	XE_BUG_ON(bo->ggtt_node.size != bo->size);
+	XE_WARN_ON(bo->ggtt_node.size != bo->size);
 
 	xe_ggtt_remove_node(ggtt, &bo->ggtt_node);
 }

@@ -47,7 +47,7 @@ static u32 get_crystal_clock_freq(u32 rpm_config_reg)
 	case RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_25_MHZ:
 		return f25_mhz;
 	default:
-		XE_BUG_ON("NOT_POSSIBLE");
+		XE_WARN_ON("NOT_POSSIBLE");
 		return 0;
 	}
 }
@@ -58,7 +58,7 @@ int xe_gt_clock_init(struct xe_gt *gt)
 	u32 freq = 0;
 
 	/* Assuming gen11+ so assert this assumption is correct */
-	XE_BUG_ON(GRAPHICS_VER(gt_to_xe(gt)) < 11);
+	XE_WARN_ON(GRAPHICS_VER(gt_to_xe(gt)) < 11);
 
 	if (ctc_reg & CTC_SOURCE_DIVIDE_LOGIC) {
 		freq = read_reference_ts_freq(gt);

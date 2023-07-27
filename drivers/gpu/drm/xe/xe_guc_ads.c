@@ -118,7 +118,7 @@ struct __guc_ads_blob {
 
 static size_t guc_ads_regset_size(struct xe_guc_ads *ads)
 {
-	XE_BUG_ON(!ads->regset_size);
+	XE_WARN_ON(!ads->regset_size);
 
 	return ads->regset_size;
 }
@@ -312,7 +312,7 @@ int xe_guc_ads_init_post_hwconfig(struct xe_guc_ads *ads)
 	struct xe_gt *gt = ads_to_gt(ads);
 	u32 prev_regset_size = ads->regset_size;
 
-	XE_BUG_ON(!ads->bo);
+	XE_WARN_ON(!ads->bo);
 
 	ads->golden_lrc_size = calculate_golden_lrc_size(ads);
 	ads->regset_size = calculate_regset_size(gt);
@@ -518,7 +518,7 @@ static void guc_mmio_reg_state_init(struct xe_guc_ads *ads)
 		regset_used += count * sizeof(struct guc_mmio_reg);
 	}
 
-	XE_BUG_ON(regset_used > ads->regset_size);
+	XE_WARN_ON(regset_used > ads->regset_size);
 }
 
 static void guc_um_init_params(struct xe_guc_ads *ads)
@@ -573,7 +573,7 @@ void xe_guc_ads_populate_minimal(struct xe_guc_ads *ads)
 			offsetof(struct __guc_ads_blob, system_info));
 	u32 base = xe_bo_ggtt_addr(ads->bo);
 
-	XE_BUG_ON(!ads->bo);
+	XE_WARN_ON(!ads->bo);
 
 	xe_map_memset(ads_to_xe(ads), ads_to_map(ads), 0, 0, ads->bo->size);
 	guc_policies_init(ads);
@@ -597,7 +597,7 @@ void xe_guc_ads_populate(struct xe_guc_ads *ads)
 			offsetof(struct __guc_ads_blob, system_info));
 	u32 base = xe_bo_ggtt_addr(ads->bo);
 
-	XE_BUG_ON(!ads->bo);
+	XE_WARN_ON(!ads->bo);
 
 	xe_map_memset(ads_to_xe(ads), ads_to_map(ads), 0, 0, ads->bo->size);
 	guc_policies_init(ads);
@@ -647,7 +647,7 @@ static void guc_populate_golden_lrc(struct xe_guc_ads *ads)
 				   engine_enabled_masks[guc_class]))
 			continue;
 
-		XE_BUG_ON(!gt->default_lrc[class]);
+		XE_WARN_ON(!gt->default_lrc[class]);
 
 		real_size = xe_lrc_size(xe, class);
 		alloc_size = PAGE_ALIGN(real_size);
@@ -676,7 +676,7 @@ static void guc_populate_golden_lrc(struct xe_guc_ads *ads)
 		offset += alloc_size;
 	}
 
-	XE_BUG_ON(total_size != ads->golden_lrc_size);
+	XE_WARN_ON(total_size != ads->golden_lrc_size);
 }
 
 void xe_guc_ads_populate_post_load(struct xe_guc_ads *ads)

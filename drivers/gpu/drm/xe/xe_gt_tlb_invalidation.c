@@ -250,7 +250,7 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 	u32 action[MAX_TLB_INVALIDATION_LEN];
 	int len = 0;
 
-	XE_BUG_ON(!vma);
+	XE_WARN_ON(!vma);
 
 	action[len++] = XE_GUC_ACTION_TLB_INVALIDATION;
 	action[len++] = 0; /* seqno, replaced in send_tlb_invalidation */
@@ -288,10 +288,10 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 			start = ALIGN_DOWN(xe_vma_start(vma), length);
 		}
 
-		XE_BUG_ON(length < SZ_4K);
-		XE_BUG_ON(!is_power_of_2(length));
-		XE_BUG_ON(length & GENMASK(ilog2(SZ_16M) - 1, ilog2(SZ_2M) + 1));
-		XE_BUG_ON(!IS_ALIGNED(start, length));
+		XE_WARN_ON(length < SZ_4K);
+		XE_WARN_ON(!is_power_of_2(length));
+		XE_WARN_ON(length & GENMASK(ilog2(SZ_16M) - 1, ilog2(SZ_2M) + 1));
+		XE_WARN_ON(!IS_ALIGNED(start, length));
 
 		action[len++] = MAKE_INVAL_OP(XE_GUC_TLB_INVAL_PAGE_SELECTIVE);
 		action[len++] = xe_vma_vm(vma)->usm.asid;
@@ -300,7 +300,7 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 		action[len++] = ilog2(length) - ilog2(SZ_4K);
 	}
 
-	XE_BUG_ON(len > MAX_TLB_INVALIDATION_LEN);
+	XE_WARN_ON(len > MAX_TLB_INVALIDATION_LEN);
 
 	return send_tlb_invalidation(&gt->uc.guc, fence, action, len);
 }

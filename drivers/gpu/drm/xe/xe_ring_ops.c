@@ -233,7 +233,7 @@ static void __emit_job_gen12_copy(struct xe_sched_job *job, struct xe_lrc *lrc,
 
 	i = emit_user_interrupt(dw, i);
 
-	XE_BUG_ON(i > MAX_JOB_SIZE_DW);
+	XE_WARN_ON(i > MAX_JOB_SIZE_DW);
 
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }
@@ -291,7 +291,7 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 
 	i = emit_user_interrupt(dw, i);
 
-	XE_BUG_ON(i > MAX_JOB_SIZE_DW);
+	XE_WARN_ON(i > MAX_JOB_SIZE_DW);
 
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }
@@ -339,7 +339,7 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 
 	i = emit_user_interrupt(dw, i);
 
-	XE_BUG_ON(i > MAX_JOB_SIZE_DW);
+	XE_WARN_ON(i > MAX_JOB_SIZE_DW);
 
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }
@@ -369,7 +369,7 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 
 	i = emit_user_interrupt(dw, i);
 
-	XE_BUG_ON(i > MAX_JOB_SIZE_DW);
+	XE_WARN_ON(i > MAX_JOB_SIZE_DW);
 
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }

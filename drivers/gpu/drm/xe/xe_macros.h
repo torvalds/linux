@@ -9,7 +9,6 @@
 #include <linux/bug.h>
 
 #define XE_WARN_ON WARN_ON
-#define XE_BUG_ON BUG_ON
 
 #define XE_IOCTL_DBG(xe, cond) \
 	((cond) && (drm_dbg(&(xe)->drm, \

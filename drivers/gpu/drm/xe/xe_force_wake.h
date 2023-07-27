@@ -24,7 +24,7 @@ static inline int
 xe_force_wake_ref(struct xe_force_wake *fw,
 		  enum xe_force_wake_domains domain)
 {
-	XE_BUG_ON(!domain);
+	XE_WARN_ON(!domain);
 	return fw->domains[ffs(domain) - 1].ref;
 }
 
@@ -32,7 +32,7 @@ static inline void
 xe_force_wake_assert_held(struct xe_force_wake *fw,
 			  enum xe_force_wake_domains domain)
 {
-	XE_BUG_ON(!(fw->awake_domains & domain));
+	XE_WARN_ON(!(fw->awake_domains & domain));
 }
 
 #endif

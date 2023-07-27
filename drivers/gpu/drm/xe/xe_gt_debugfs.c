@@ -157,7 +157,7 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 	char name[8];
 	int i;
 
-	XE_BUG_ON(!minor->debugfs_root);
+	XE_WARN_ON(!minor->debugfs_root);
 
 	sprintf(name, "gt%d", gt->info.id);
 	root = debugfs_create_dir(name, minor->debugfs_root);

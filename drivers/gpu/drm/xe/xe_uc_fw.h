@@ -104,7 +104,7 @@ static inline enum xe_uc_fw_status
 __xe_uc_fw_status(struct xe_uc_fw *uc_fw)
 {
 	/* shouldn't call this before checking hw/blob availability */
-	XE_BUG_ON(uc_fw->status == XE_UC_FIRMWARE_UNINITIALIZED);
+	XE_WARN_ON(uc_fw->status == XE_UC_FIRMWARE_UNINITIALIZED);
 	return uc_fw->status;
 }
 

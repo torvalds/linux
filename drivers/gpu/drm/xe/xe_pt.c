@@ -106,7 +106,7 @@ static u64 __pte_encode(u64 pte, enum xe_cache_level cache,
 		pte |= XE_PDPE_PS_1G;
 
 	/* XXX: Does hw support 1 GiB pages? */
-	XE_BUG_ON(pt_level > 2);
+	XE_WARN_ON(pt_level > 2);
 
 	return pte;
 }
@@ -196,7 +196,7 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 	pt->level = level;
 	pt->base.dir = level ? &as_xe_pt_dir(pt)->dir : NULL;
 
-	XE_BUG_ON(level > XE_VM_MAX_LEVEL);
+	XE_WARN_ON(level > XE_VM_MAX_LEVEL);
 
 	return pt;
 
@@ -265,7 +265,7 @@ void xe_pt_destroy(struct xe_pt *pt, u32 flags, struct llist_head *deferred)
 	if (!pt)
 		return;
 
-	XE_BUG_ON(!list_empty(&pt->bo->vmas));
+	XE_WARN_ON(!list_empty(&pt->bo->vmas));
 	xe_bo_unpin(pt->bo);
 	xe_bo_put_deferred(pt->bo, deferred);
 
@@ -849,8 +849,8 @@ static int xe_pt_zap_ptes_entry(struct xe_ptw *parent, pgoff_t offset,
 	struct xe_pt *xe_child = container_of(*child, typeof(*xe_child), base);
 	pgoff_t end_offset;
 
-	XE_BUG_ON(!*child);
-	XE_BUG_ON(!level && xe_child->is_compact);
+	XE_WARN_ON(!*child);
+	XE_WARN_ON(!level && xe_child->is_compact);
 
 	/*
 	 * Note that we're called from an entry callback, and we're dealing
@@ -1004,7 +1004,7 @@ xe_pt_prepare_bind(struct xe_tile *tile, struct xe_vma *vma,
 	*num_entries = 0;
 	err = xe_pt_stage_bind(tile, vma, entries, num_entries);
 	if (!err)
-		BUG_ON(!*num_entries);
+		XE_WARN_ON(!*num_entries);
 	else /* abort! */
 		xe_pt_abort_bind(vma, entries, *num_entries);
 
@@ -1026,7 +1026,7 @@ static void xe_vm_dbg_print_entries(struct xe_device *xe,
 		u64 end;
 		u64 start;
 
-		XE_BUG_ON(entry->pt->is_compact);
+		XE_WARN_ON(entry->pt->is_compact);
 		start = entry->ofs * page_size;
 		end = start + page_size * entry->qwords;
 		vm_dbg(&xe->drm,
@@ -1356,7 +1356,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 	err = xe_pt_prepare_bind(tile, vma, entries, &num_entries, rebind);
 	if (err)
 		goto err;
-	XE_BUG_ON(num_entries > ARRAY_SIZE(entries));
+	XE_WARN_ON(num_entries > ARRAY_SIZE(entries));
 
 	xe_vm_dbg_print_entries(tile_to_xe(tile), entries, num_entries);
 	xe_pt_calc_rfence_interval(vma, &bind_pt_update, entries,
@@ -1515,8 +1515,8 @@ static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 {
 	struct xe_pt *xe_child = container_of(*child, typeof(*xe_child), base);
 
-	XE_BUG_ON(!*child);
-	XE_BUG_ON(!level && xe_child->is_compact);
+	XE_WARN_ON(!*child);
+	XE_WARN_ON(!level && xe_child->is_compact);
 
 	xe_pt_check_kill(addr, next, level - 1, xe_child, action, walk);
 
@@ -1707,7 +1707,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 	       xe_vma_start(vma), xe_vma_end(vma) - 1, e);
 
 	num_entries = xe_pt_stage_unbind(tile, vma, entries);
-	XE_BUG_ON(num_entries > ARRAY_SIZE(entries));
+	XE_WARN_ON(num_entries > ARRAY_SIZE(entries));
 
 	xe_vm_dbg_print_entries(tile_to_xe(tile), entries, num_entries);
 	xe_pt_calc_rfence_interval(vma, &unbind_pt_update, entries,

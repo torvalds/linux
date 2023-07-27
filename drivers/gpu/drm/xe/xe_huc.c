@@ -72,7 +72,7 @@ int xe_huc_auth(struct xe_huc *huc)
 	if (xe_uc_fw_is_disabled(&huc->fw))
 		return 0;
 
-	XE_BUG_ON(xe_uc_fw_is_running(&huc->fw));
+	XE_WARN_ON(xe_uc_fw_is_running(&huc->fw));
 
 	if (!xe_uc_fw_is_loaded(&huc->fw))
 		return -ENOEXEC;

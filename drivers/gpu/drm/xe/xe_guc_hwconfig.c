@@ -120,7 +120,7 @@ void xe_guc_hwconfig_copy(struct xe_guc *guc, void *dst)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 
-	XE_BUG_ON(!guc->hwconfig.bo);
+	XE_WARN_ON(!guc->hwconfig.bo);
 
 	xe_map_memcpy_from(xe, dst, &guc->hwconfig.bo->vmap, 0,
 			   guc->hwconfig.size);

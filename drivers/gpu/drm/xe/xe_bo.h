@@ -166,7 +166,7 @@ void xe_bo_unlock(struct xe_bo *bo, struct ww_acquire_ctx *ww);
 static inline void xe_bo_unlock_vm_held(struct xe_bo *bo)
 {
 	if (bo) {
-		XE_BUG_ON(bo->vm && bo->ttm.base.resv != xe_vm_resv(bo->vm));
+		XE_WARN_ON(bo->vm && bo->ttm.base.resv != xe_vm_resv(bo->vm));
 		if (bo->vm)
 			xe_vm_assert_held(bo->vm);
 		else
@@ -178,8 +178,8 @@ static inline void xe_bo_lock_no_vm(struct xe_bo *bo,
 				    struct ww_acquire_ctx *ctx)
 {
 	if (bo) {
-		XE_BUG_ON(bo->vm || (bo->ttm.type != ttm_bo_type_sg &&
-				     bo->ttm.base.resv != &bo->ttm.base._resv));
+		XE_WARN_ON(bo->vm || (bo->ttm.type != ttm_bo_type_sg &&
+				      bo->ttm.base.resv != &bo->ttm.base._resv));
 		dma_resv_lock(bo->ttm.base.resv, ctx);
 	}
 }
@@ -187,8 +187,8 @@ static inline void xe_bo_lock_no_vm(struct xe_bo *bo,
 static inline void xe_bo_unlock_no_vm(struct xe_bo *bo)
 {
 	if (bo) {
-		XE_BUG_ON(bo->vm || (bo->ttm.type != ttm_bo_type_sg &&
-				     bo->ttm.base.resv != &bo->ttm.base._resv));
+		XE_WARN_ON(bo->vm || (bo->ttm.type != ttm_bo_type_sg &&
+				      bo->ttm.base.resv != &bo->ttm.base._resv));
 		dma_resv_unlock(bo->ttm.base.resv);
 	}
 }
@@ -228,8 +228,8 @@ xe_bo_main_addr(struct xe_bo *bo, size_t page_size)
 static inline u32
 xe_bo_ggtt_addr(struct xe_bo *bo)
 {
-	XE_BUG_ON(bo->ggtt_node.size > bo->size);
-	XE_BUG_ON(bo->ggtt_node.start + bo->ggtt_node.size > (1ull << 32));
+	XE_WARN_ON(bo->ggtt_node.size > bo->size);
+	XE_WARN_ON(bo->ggtt_node.start + bo->ggtt_node.size > (1ull << 32));
 	return bo->ggtt_node.start;
 }
 

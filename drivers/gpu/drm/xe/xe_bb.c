@@ -78,7 +78,7 @@ struct xe_sched_job *xe_bb_create_wa_job(struct xe_engine *wa_eng,
 {
 	u64 addr = batch_base_ofs + drm_suballoc_soffset(bb->bo);
 
-	XE_BUG_ON(!(wa_eng->vm->flags & XE_VM_FLAG_MIGRATION));
+	XE_WARN_ON(!(wa_eng->vm->flags & XE_VM_FLAG_MIGRATION));
 
 	return __xe_bb_create_job(wa_eng, bb, &addr);
 }
@@ -94,8 +94,8 @@ struct xe_sched_job *xe_bb_create_migration_job(struct xe_engine *kernel_eng,
 		4 * second_idx,
 	};
 
-	BUG_ON(second_idx > bb->len);
-	BUG_ON(!(kernel_eng->vm->flags & XE_VM_FLAG_MIGRATION));
+	XE_WARN_ON(second_idx > bb->len);
+	XE_WARN_ON(!(kernel_eng->vm->flags & XE_VM_FLAG_MIGRATION));
 
 	return __xe_bb_create_job(kernel_eng, bb, addr);
 }
@@ -105,7 +105,7 @@ struct xe_sched_job *xe_bb_create_job(struct xe_engine *kernel_eng,
 {
 	u64 addr = xe_sa_bo_gpu_addr(bb->bo);
 
-	BUG_ON(kernel_eng->vm && kernel_eng->vm->flags & XE_VM_FLAG_MIGRATION);
+	XE_WARN_ON(kernel_eng->vm && kernel_eng->vm->flags & XE_VM_FLAG_MIGRATION);
 	return __xe_bb_create_job(kernel_eng, bb, &addr);
 }
 

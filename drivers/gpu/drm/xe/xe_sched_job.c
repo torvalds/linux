@@ -142,7 +142,7 @@ struct xe_sched_job *xe_sched_job_create(struct xe_engine *e,
 
 		/* Sanity check */
 		for (j = 0; j < e->width; ++j)
-			XE_BUG_ON(cf->base.seqno != fences[j]->seqno);
+			XE_WARN_ON(cf->base.seqno != fences[j]->seqno);
 
 		job->fence = &cf->base;
 	}

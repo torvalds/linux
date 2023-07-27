@@ -237,7 +237,7 @@ static void hw_engine_fini(struct drm_device *drm, void *arg)
 static void hw_engine_mmio_write32(struct xe_hw_engine *hwe, struct xe_reg reg,
 				   u32 val)
 {
-	XE_BUG_ON(reg.addr & hwe->mmio_base);
+	XE_WARN_ON(reg.addr & hwe->mmio_base);
 	xe_force_wake_assert_held(gt_to_fw(hwe->gt), hwe->domain);
 
 	reg.addr += hwe->mmio_base;
@@ -247,7 +247,7 @@ static void hw_engine_mmio_write32(struct xe_hw_engine *hwe, struct xe_reg reg,
 
 static u32 hw_engine_mmio_read32(struct xe_hw_engine *hwe, struct xe_reg reg)
 {
-	XE_BUG_ON(reg.addr & hwe->mmio_base);
+	XE_WARN_ON(reg.addr & hwe->mmio_base);
 	xe_force_wake_assert_held(gt_to_fw(hwe->gt), hwe->domain);
 
 	reg.addr += hwe->mmio_base;
@@ -351,7 +351,7 @@ static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 
 	info = &engine_infos[id];
 
-	XE_BUG_ON(hwe->gt);
+	XE_WARN_ON(hwe->gt);
 
 	hwe->gt = gt;
 	hwe->class = info->class;
@@ -377,8 +377,8 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	struct xe_tile *tile = gt_to_tile(gt);
 	int err;
 
-	XE_BUG_ON(id >= ARRAY_SIZE(engine_infos) || !engine_infos[id].name);
-	XE_BUG_ON(!(gt->info.engine_mask & BIT(id)));
+	XE_WARN_ON(id >= ARRAY_SIZE(engine_infos) || !engine_infos[id].name);
+	XE_WARN_ON(!(gt->info.engine_mask & BIT(id)));
 
 	xe_reg_sr_apply_mmio(&hwe->reg_sr, gt);
 	xe_reg_sr_apply_whitelist(hwe);

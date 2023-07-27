@@ -50,10 +50,10 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 	lrc_desc = xe_lrc_descriptor(lrc);
 
 	if (GRAPHICS_VERx100(xe) >= 1250) {
-		XE_BUG_ON(!FIELD_FIT(XEHP_SW_CTX_ID, ctx_id));
+		XE_WARN_ON(!FIELD_FIT(XEHP_SW_CTX_ID, ctx_id));
 		lrc_desc |= FIELD_PREP(XEHP_SW_CTX_ID, ctx_id);
 	} else {
-		XE_BUG_ON(!FIELD_FIT(GEN11_SW_CTX_ID, ctx_id));
+		XE_WARN_ON(!FIELD_FIT(GEN11_SW_CTX_ID, ctx_id));
 		lrc_desc |= FIELD_PREP(GEN11_SW_CTX_ID, ctx_id);
 	}
 
@@ -213,9 +213,9 @@ static void xe_execlist_make_active(struct xe_execlist_engine *exl)
 	struct xe_execlist_port *port = exl->port;
 	enum xe_engine_priority priority = exl->active_priority;
 
-	XE_BUG_ON(priority == XE_ENGINE_PRIORITY_UNSET);
-	XE_BUG_ON(priority < 0);
-	XE_BUG_ON(priority >= ARRAY_SIZE(exl->port->active));
+	XE_WARN_ON(priority == XE_ENGINE_PRIORITY_UNSET);
+	XE_WARN_ON(priority < 0);
+	XE_WARN_ON(priority >= ARRAY_SIZE(exl->port->active));
 
 	spin_lock_irq(&port->lock);
 
@@ -321,7 +321,7 @@ static int execlist_engine_init(struct xe_engine *e)
 	struct xe_device *xe = gt_to_xe(e->gt);
 	int err;
 
-	XE_BUG_ON(xe_device_guc_submission_enabled(xe));
+	XE_WARN_ON(xe_device_guc_submission_enabled(xe));
 
 	drm_info(&xe->drm, "Enabling execlist submission (GuC submission disabled)\n");
 
@@ -387,7 +387,7 @@ static void execlist_engine_fini_async(struct work_struct *w)
 	struct xe_execlist_engine *exl = e->execlist;
 	unsigned long flags;
 
-	XE_BUG_ON(xe_device_guc_submission_enabled(gt_to_xe(e->gt)));
+	XE_WARN_ON(xe_device_guc_submission_enabled(gt_to_xe(e->gt)));
 
 	spin_lock_irqsave(&exl->port->lock, flags);
 	if (WARN_ON(exl->active_priority != XE_ENGINE_PRIORITY_UNSET))
