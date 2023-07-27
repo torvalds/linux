@@ -615,49 +615,47 @@ TRACE_EVENT(rdev_start_ap,
 
 TRACE_EVENT(rdev_change_beacon,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 struct cfg80211_beacon_data *info),
+		 struct cfg80211_ap_settings *info),
 	TP_ARGS(wiphy, netdev, info),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
 		__field(int, link_id)
-		__dynamic_array(u8, head, info ? info->head_len : 0)
-		__dynamic_array(u8, tail, info ? info->tail_len : 0)
-		__dynamic_array(u8, beacon_ies, info ? info->beacon_ies_len : 0)
-		__dynamic_array(u8, proberesp_ies,
-				info ? info->proberesp_ies_len : 0)
-		__dynamic_array(u8, assocresp_ies,
-				info ? info->assocresp_ies_len : 0)
-		__dynamic_array(u8, probe_resp, info ? info->probe_resp_len : 0)
+		__dynamic_array(u8, head, info->beacon.head_len)
+		__dynamic_array(u8, tail, info->beacon.tail_len)
+		__dynamic_array(u8, beacon_ies, info->beacon.beacon_ies_len)
+		__dynamic_array(u8, proberesp_ies, info->beacon.proberesp_ies_len)
+		__dynamic_array(u8, assocresp_ies, info->beacon.assocresp_ies_len)
+		__dynamic_array(u8, probe_resp, info->beacon.probe_resp_len)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
-		if (info) {
-			__entry->link_id = info->link_id;
-			if (info->head)
-				memcpy(__get_dynamic_array(head), info->head,
-				       info->head_len);
-			if (info->tail)
-				memcpy(__get_dynamic_array(tail), info->tail,
-				       info->tail_len);
-			if (info->beacon_ies)
-				memcpy(__get_dynamic_array(beacon_ies),
-				       info->beacon_ies, info->beacon_ies_len);
-			if (info->proberesp_ies)
-				memcpy(__get_dynamic_array(proberesp_ies),
-				       info->proberesp_ies,
-				       info->proberesp_ies_len);
-			if (info->assocresp_ies)
-				memcpy(__get_dynamic_array(assocresp_ies),
-				       info->assocresp_ies,
-				       info->assocresp_ies_len);
-			if (info->probe_resp)
-				memcpy(__get_dynamic_array(probe_resp),
-				       info->probe_resp, info->probe_resp_len);
-		} else {
-			__entry->link_id = -1;
-		}
+		__entry->link_id = info->beacon.link_id;
+		if (info->beacon.head)
+			memcpy(__get_dynamic_array(head),
+			       info->beacon.head,
+			       info->beacon.head_len);
+		if (info->beacon.tail)
+			memcpy(__get_dynamic_array(tail),
+			       info->beacon.tail,
+			       info->beacon.tail_len);
+		if (info->beacon.beacon_ies)
+			memcpy(__get_dynamic_array(beacon_ies),
+			       info->beacon.beacon_ies,
+			       info->beacon.beacon_ies_len);
+		if (info->beacon.proberesp_ies)
+			memcpy(__get_dynamic_array(proberesp_ies),
+			       info->beacon.proberesp_ies,
+			       info->beacon.proberesp_ies_len);
+		if (info->beacon.assocresp_ies)
+			memcpy(__get_dynamic_array(assocresp_ies),
+			       info->beacon.assocresp_ies,
+			       info->beacon.assocresp_ies_len);
+		if (info->beacon.probe_resp)
+			memcpy(__get_dynamic_array(probe_resp),
+			       info->beacon.probe_resp,
+			       info->beacon.probe_resp_len);
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", link_id:%d",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->link_id)
