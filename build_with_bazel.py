@@ -300,7 +300,6 @@ class BazelBuilder:
             self.user_opts.extend(["--//msm-kernel:skip_{}=true".format(s) for s in self.skip_list])
 
         self.user_opts.extend([
-            "--config=stamp",
             "--user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom",
             "--ignore_missing_projects",
         ])
