@@ -484,16 +484,6 @@ static bool soc21_need_reset_on_init(struct amdgpu_device *adev)
 	return false;
 }
 
-static uint64_t soc21_get_pcie_replay_count(struct amdgpu_device *adev)
-{
-
-	/* TODO
-	 * dummy implement for pcie_replay_count sysfs interface
-	 * */
-
-	return 0;
-}
-
 static void soc21_init_doorbell_index(struct amdgpu_device *adev)
 {
 	adev->doorbell_index.kiq = AMDGPU_NAVI10_DOORBELL_KIQ;
@@ -561,7 +551,7 @@ static const struct amdgpu_asic_funcs soc21_asic_funcs =
 	.init_doorbell_index = &soc21_init_doorbell_index,
 	.need_full_reset = &soc21_need_full_reset,
 	.need_reset_on_init = &soc21_need_reset_on_init,
-	.get_pcie_replay_count = &soc21_get_pcie_replay_count,
+	.get_pcie_replay_count = &amdgpu_nbio_get_pcie_replay_count,
 	.supports_baco = &amdgpu_dpm_is_baco_supported,
 	.pre_asic_init = &soc21_pre_asic_init,
 	.query_video_codecs = &soc21_query_video_codecs,
