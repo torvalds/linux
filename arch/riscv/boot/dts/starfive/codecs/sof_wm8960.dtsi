@@ -1,0 +1,84 @@
+&sound6 {
+	/* sof + wm8960 */
+	simple-audio-card,dai-link@0 {
+		reg = <0>;
+		format = "dsp_a";
+		bitclock-master = <&sndcodec1>;
+		frame-master = <&sndcodec1>;
+
+		widgets = "Microphone", "Mic Jack",
+				"Line", "Line In",
+				"Line", "Line Out",
+				"Speaker", "Speaker",
+				"Headphone", "Headphone Jack";
+		routing = "Headphone Jack", "HP_L",
+				"Headphone Jack", "HP_R",
+				"Speaker", "SPK_LP",
+				"Speaker", "SPK_LN",
+				"LINPUT1", "Mic Jack",
+				"LINPUT3", "Mic Jack",
+				"RINPUT1", "Mic Jack",
+				"RINPUT2", "Mic Jack",
+				"Playback", "SSP0.OUT",
+				"SSP0.IN", "Capture";
+
+		cpu {
+			sound-dai = <&sof_tdm>;
+		};
+
+		plat {
+			sound-dai = <&sof_dsp>;
+		};
+
+		sndcodec1:codec {
+			sound-dai = <&wm8960>;
+			clocks = <&wm8960_mclk>;
+			clock-names = "mclk";
+		};
+	};
+};
+
+&soc {
+	sof_tdm: sof-tdm@0 {
+		compatible = "starfive,jh7110-sof-dai";
+		reg = <0x0 0x10090000 0x0 0x1000>;
+		reg-names = "tdm";
+		clocks = <&clkgen JH7110_TDM_CLK_AHB>,
+			<&clkgen JH7110_TDM_CLK_APB>,
+			<&clkgen JH7110_TDM_INTERNAL>,
+			<&tdm_ext>,
+			<&clkgen JH7110_TDM_CLK_TDM>,
+			<&clkgen JH7110_MCLK_INNER>;
+		clock-names = "clk_tdm_ahb", "clk_tdm_apb",
+				"clk_tdm_internal", "clk_tdm_ext",
+				"clk_tdm", "mclk_inner";
+		resets = <&rstgen RSTN_U0_TDM16SLOT_AHB>,
+			<&rstgen RSTN_U0_TDM16SLOT_APB>,
+			<&rstgen RSTN_U0_TDM16SLOT_TDM>;
+		reset-names = "tdm_ahb", "tdm_apb", "tdm_rst";
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+};
+
+
+&sof_dsp {
+	#sound-dai-cells = <0>;
+	compatible = "starfive,vf2-dsp-v1";
+	firmware-name = "sof-vf2.ri";
+	tplg-name = "sof-vf2-wm8960.tplg";
+	machine-drv-name = "asoc-simple-card";
+	status = "disabled";
+};
+
+&dma {
+	dma-channels = <2>;
+	snps,priority = <0 1>;
+	snps,block-size = <65536 65536>;
+};
+
+&sof_tdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&tdm0_pins>;
+	status = "disabled";
+};

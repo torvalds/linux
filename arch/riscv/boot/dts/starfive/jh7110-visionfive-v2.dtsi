@@ -67,11 +67,8 @@
 			reg = <0x0 0x6ce00000 0x0 0x1600000>;
 		};
 
-		xrp_reserved: xrpbuffer@f0000000 {
-			reg = <0x0 0x69c00000 0x0 0x01ffffff
-				0x0 0x6bc00000 0x0 0x00001000
-				0x0 0x6bc01000 0x0 0x00fff000
-				0x0 0x6cc00000 0x0 0x00001000>;
+		hifi4_reserved: hifi4@f0000000 {
+			reg = <0x0 0x69c00000 0x0 0x03001000>;
 		};
 
 	};
@@ -911,13 +908,12 @@
 	status = "okay";
 };
 
-&xrp {
-	memory-region = <&xrp_reserved>;
-	status = "okay";
-};
-
 &ptc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm_pins>;
 	status = "okay";
+};
+
+&sof_dsp {
+	memory-region = <&hifi4_reserved>;
 };

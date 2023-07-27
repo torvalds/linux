@@ -212,6 +212,40 @@
 			starfive,pin-gpio-doen = <OEN_HIGH>;
 		};
 	};
+
+	tdm0_pins: tdm0-pins {
+		tdm0-pins-tx {
+			starfive,pins = <PAD_GPIO44>;
+			starfive,pinmux = <PAD_GPIO44_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_TDM0_PCM_TXD>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		tdm0-pins-rx {
+			starfive,pins = <PAD_GPIO61>;
+			starfive,pinmux = <PAD_GPIO61_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
+			starfive,pin-gpio-din =  <GPI_TDM0_PCM_RXD>;
+		};
+
+		tdm0-pins-sync {
+			starfive,pins = <PAD_GPIO63>;
+			starfive,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
+			starfive,pin-gpio-din = <GPI_TDM0_PCM_SYNCIN>;
+		};
+
+		tdm0-pins-pcmclk {
+			starfive,pins = <PAD_GPIO38>;
+			starfive,pinmux = <PAD_GPIO38_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
+			starfive,pin-gpio-din = <GPI_TDM0_CLK_SLV>;
+		};
+	};
 };
 
 &uart0 {
@@ -256,4 +290,10 @@
 	cpu-supply = <&cpu_vdd>;
 	clocks = <&clkgen JH7110_CPU_CORE>;
 	clock-names = "cpu";
+};
+
+&tdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&tdm0_pins>;
+	status = "disabled";
 };
