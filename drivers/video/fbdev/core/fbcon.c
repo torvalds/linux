@@ -1612,8 +1612,7 @@ static void fbcon_redraw_blit(struct vc_data *vc, struct fb_info *info,
 	}
 }
 
-static void fbcon_redraw(struct vc_data *vc, struct fbcon_display *p,
-			 int line, int count, int offset)
+static void fbcon_redraw(struct vc_data *vc, int line, int count, int offset)
 {
 	unsigned short *d = (unsigned short *)
 	    (vc->vc_origin + vc->vc_size_row * line);
@@ -1827,7 +1826,7 @@ static bool fbcon_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 
 		case SCROLL_REDRAW:
 		      redraw_up:
-			fbcon_redraw(vc, p, t, b - t - count,
+			fbcon_redraw(vc, t, b - t - count,
 				     count * vc->vc_cols);
 			fbcon_clear(vc, b - count, 0, count, vc->vc_cols);
 			scr_memsetw((unsigned short *) (vc->vc_origin +
@@ -1913,7 +1912,7 @@ static bool fbcon_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 
 		case SCROLL_REDRAW:
 		      redraw_down:
-			fbcon_redraw(vc, p, b - 1, b - t - count,
+			fbcon_redraw(vc, b - 1, b - t - count,
 				     -count * vc->vc_cols);
 			fbcon_clear(vc, t, 0, count, vc->vc_cols);
 			scr_memsetw((unsigned short *) (vc->vc_origin +
