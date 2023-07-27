@@ -38,6 +38,8 @@
 #include <linux/mutex.h>
 #include <asm/unaligned.h>
 
+#include <drm/drm_panel.h>
+
 #include "../hid-ids.h"
 #include "i2c-hid.h"
 
@@ -107,6 +109,8 @@ struct i2c_hid {
 	struct mutex		reset_lock;
 
 	struct i2chid_ops	*ops;
+	struct drm_panel_follower panel_follower;
+	bool			is_panel_follower;
 };
 
 static const struct i2c_hid_quirks {
@@ -993,7 +997,7 @@ static int i2c_hid_core_resume(struct i2c_hid *ihid)
 }
 
 /**
- * i2c_hid_core_initial_power_up() - First time power up of the i2c-hid device.
+ * __do_i2c_hid_core_initial_power_up() - First time power up of the i2c-hid device.
  * @ihid: The ihid object created during probe.
  *
  * This function is called at probe time.
@@ -1004,7 +1008,7 @@ static int i2c_hid_core_resume(struct i2c_hid *ihid)
  *
  * Return: 0 or error code.
  */
-static int i2c_hid_core_initial_power_up(struct i2c_hid *ihid)
+static int __do_i2c_hid_core_initial_power_up(struct i2c_hid *ihid)
 {
 	struct i2c_client *client = ihid->client;
 	struct hid_device *hid = ihid->hid;
@@ -1056,6 +1060,83 @@ static int i2c_hid_core_initial_power_up(struct i2c_hid *ihid)
 err:
 	i2c_hid_core_power_down(ihid);
 	return ret;
+}
+
+static int i2c_hid_core_panel_prepared(struct drm_panel_follower *follower)
+{
+	struct i2c_hid *ihid = container_of(follower, struct i2c_hid, panel_follower);
+	struct hid_device *hid = ihid->hid;
+
+	/*
+	 * hid->version is set on the first power up. If it's still zero then
+	 * this is the first power on so we should perform initial power up
+	 * steps.
+	 */
+	if (!hid->version)
+		return __do_i2c_hid_core_initial_power_up(ihid);
+
+	return i2c_hid_core_resume(ihid);
+}
+
+static int i2c_hid_core_panel_unpreparing(struct drm_panel_follower *follower)
+{
+	struct i2c_hid *ihid = container_of(follower, struct i2c_hid, panel_follower);
+
+	return i2c_hid_core_suspend(ihid, true);
+}
+
+static const struct drm_panel_follower_funcs i2c_hid_core_panel_follower_funcs = {
+	.panel_prepared = i2c_hid_core_panel_prepared,
+	.panel_unpreparing = i2c_hid_core_panel_unpreparing,
+};
+
+static int i2c_hid_core_register_panel_follower(struct i2c_hid *ihid)
+{
+	struct device *dev = &ihid->client->dev;
+	int ret;
+
+	ihid->is_panel_follower = true;
+	ihid->panel_follower.funcs = &i2c_hid_core_panel_follower_funcs;
+
+	/*
+	 * If we're not in control of our own power up/power down then we can't
+	 * do the logic to manage wakeups. Give a warning if a user thought
+	 * that was possible then force the capability off.
+	 */
+	if (device_can_wakeup(dev)) {
+		dev_warn(dev, "Can't wakeup if following panel\n");
+		device_set_wakeup_capable(dev, false);
+	}
+
+	ret = drm_panel_add_follower(dev, &ihid->panel_follower);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int i2c_hid_core_initial_power_up(struct i2c_hid *ihid)
+{
+	/*
+	 * If we're a panel follower, we'll register and do our initial power
+	 * up when the panel turns on; otherwise we do it right away.
+	 */
+	if (drm_is_panel_follower(&ihid->client->dev))
+		return i2c_hid_core_register_panel_follower(ihid);
+	else
+		return __do_i2c_hid_core_initial_power_up(ihid);
+}
+
+static void i2c_hid_core_final_power_down(struct i2c_hid *ihid)
+{
+	/*
+	 * If we're a follower, the act of unfollowing will cause us to be
+	 * powered down. Otherwise we need to manually do it.
+	 */
+	if (ihid->is_panel_follower)
+		drm_panel_remove_follower(&ihid->panel_follower);
+	else
+		i2c_hid_core_suspend(ihid, true);
 }
 
 int i2c_hid_core_probe(struct i2c_client *client, struct i2chid_ops *ops,
@@ -1143,7 +1224,7 @@ void i2c_hid_core_remove(struct i2c_client *client)
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	struct hid_device *hid;
 
-	i2c_hid_core_suspend(ihid, true);
+	i2c_hid_core_final_power_down(ihid);
 
 	hid = ihid->hid;
 	hid_destroy_device(hid);
@@ -1171,6 +1252,9 @@ static int i2c_hid_core_pm_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 
+	if (ihid->is_panel_follower)
+		return 0;
+
 	return i2c_hid_core_suspend(ihid, false);
 }
 
@@ -1178,6 +1262,9 @@ static int i2c_hid_core_pm_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
+
+	if (ihid->is_panel_follower)
+		return 0;
 
 	return i2c_hid_core_resume(ihid);
 }

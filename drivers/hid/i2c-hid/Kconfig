@@ -70,5 +70,7 @@ config I2C_HID_OF_GOODIX
 
 config I2C_HID_CORE
 	tristate
+	# We need to call into panel code so if DRM=m, this can't be 'y'
+	depends on DRM || !DRM
 endif
 
