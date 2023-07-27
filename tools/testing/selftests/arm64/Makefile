@@ -19,6 +19,8 @@ CFLAGS += -I$(top_srcdir)/tools/testing/selftests/
 
 CFLAGS += $(KHDR_INCLUDES)
 
+CFLAGS += -I$(top_srcdir)/tools/include
+
 export CFLAGS
 export top_srcdir
 
