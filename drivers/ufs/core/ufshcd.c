@@ -3014,12 +3014,8 @@ static int ufshcd_clear_cmd(struct ufs_hba *hba, u32 task_tag)
 static int
 ufshcd_check_query_response(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
-	struct ufs_query_res *query_res = &hba->dev_cmd.query.response;
-
-	/* Get the UPIU response */
-	query_res->response = ufshcd_get_rsp_upiu_result(lrbp->ucd_rsp_ptr) >>
+	return ufshcd_get_rsp_upiu_result(lrbp->ucd_rsp_ptr) >>
 				UPIU_RSP_CODE_OFFSET;
-	return query_res->response;
 }
 
 /**
