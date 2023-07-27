@@ -190,4 +190,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 #define ___PASTE(a, b) a##b
 #define __PASTE(a, b) ___PASTE(a, b)
 
+#ifndef OPTIMIZER_HIDE_VAR
+/* Make the optimizer believe the variable can be manipulated arbitrarily. */
+#define OPTIMIZER_HIDE_VAR(var)						\
+	__asm__ ("" : "=r" (var) : "0" (var))
+#endif
+
 #endif /* _TOOLS_LINUX_COMPILER_H */
