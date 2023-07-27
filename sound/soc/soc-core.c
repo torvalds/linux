@@ -1805,6 +1805,9 @@ match:
 			dev_dbg(card->dev, "info: override BE DAI link %s\n",
 				card->dai_link[i].name);
 
+			if (dai_link->no_plat)
+				continue;
+
 			/* override platform component */
 			if (!dai_link->platforms) {
 				dev_err(card->dev, "init platform error");
