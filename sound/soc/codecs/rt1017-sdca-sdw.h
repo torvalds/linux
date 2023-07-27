@@ -180,9 +180,4 @@ static const struct reg_default rt1017_sdca_reg_defaults[] = {
 			RT1017_SDCA_CTL_REQ_POWER_STATE, 0), 0x03 },
 };
 
-static const struct reg_default rt1017_sdca_mbq_defaults[] = {
-	{ SDW_SDCA_CTL(FUNC_NUM_SMART_AMP, RT1017_SDCA_ENT_FU,
-			RT1017_SDCA_CTL_FU_VOLUME, 0x01), 0x00 },
-};
-
 #endif /* __RT1017_SDW_H__ */
