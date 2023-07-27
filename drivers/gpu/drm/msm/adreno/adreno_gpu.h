@@ -29,6 +29,25 @@ enum {
 	ADRENO_FW_MAX,
 };
 
+/**
+ * @enum adreno_family: identify generation and possibly sub-generation
+ *
+ * In some cases there are distinct sub-generations within a major revision
+ * so it helps to be able to group the GPU devices by generation and if
+ * necessary sub-generation.
+ */
+enum adreno_family {
+	ADRENO_2XX_GEN1,  /* a20x */
+	ADRENO_2XX_GEN2,  /* a22x */
+	ADRENO_3XX,
+	ADRENO_4XX,
+	ADRENO_5XX,
+	ADRENO_6XX_GEN1,  /* a630 family */
+	ADRENO_6XX_GEN2,  /* a640 family */
+	ADRENO_6XX_GEN3,  /* a650 family */
+	ADRENO_6XX_GEN4,  /* a660 family */
+};
+
 #define ADRENO_QUIRK_TWO_PASS_USE_WFI		BIT(0)
 #define ADRENO_QUIRK_FAULT_DETECT_MASK		BIT(1)
 #define ADRENO_QUIRK_LMLOADKILL_DISABLE		BIT(2)
@@ -68,6 +87,7 @@ struct adreno_speedbin {
 struct adreno_info {
 	const char *machine;
 	struct adreno_rev rev;
+	enum adreno_family family;
 	uint32_t revn;
 	const char *fw[ADRENO_FW_MAX];
 	uint32_t gmem;
@@ -193,14 +213,14 @@ static inline bool adreno_is_a2xx(const struct adreno_gpu *gpu)
 {
 	if (WARN_ON_ONCE(!gpu->info))
 		return false;
-	return (gpu->info->revn < 300);
+	return gpu->info->family <= ADRENO_2XX_GEN2;
 }
 
 static inline bool adreno_is_a20x(const struct adreno_gpu *gpu)
 {
 	if (WARN_ON_ONCE(!gpu->info))
 		return false;
-	return (gpu->info->revn < 210);
+	return gpu->info->family == ADRENO_2XX_GEN1;
 }
 
 static inline bool adreno_is_a225(const struct adreno_gpu *gpu)
@@ -344,29 +364,31 @@ static inline int adreno_is_a690(const struct adreno_gpu *gpu)
 /* check for a615, a616, a618, a619 or any a630 derivatives */
 static inline int adreno_is_a630_family(const struct adreno_gpu *gpu)
 {
-	return adreno_is_revn(gpu, 630) ||
-		adreno_is_revn(gpu, 615) ||
-		adreno_is_revn(gpu, 616) ||
-		adreno_is_revn(gpu, 618) ||
-		adreno_is_revn(gpu, 619);
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family == ADRENO_6XX_GEN1;
 }
 
 static inline int adreno_is_a660_family(const struct adreno_gpu *gpu)
 {
-	return adreno_is_a660(gpu) || adreno_is_a690(gpu) || adreno_is_7c3(gpu);
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family == ADRENO_6XX_GEN4;
 }
 
 /* check for a650, a660, or any derivatives */
 static inline int adreno_is_a650_family(const struct adreno_gpu *gpu)
 {
-	return adreno_is_revn(gpu, 650) ||
-		adreno_is_revn(gpu, 620) ||
-		adreno_is_a660_family(gpu);
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family >= ADRENO_6XX_GEN3;
 }
 
 static inline int adreno_is_a640_family(const struct adreno_gpu *gpu)
 {
-	return adreno_is_a640(gpu) || adreno_is_a680(gpu);
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family == ADRENO_6XX_GEN2;
 }
 
 u64 adreno_private_address_space_size(struct msm_gpu *gpu);

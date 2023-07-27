@@ -23,6 +23,7 @@ module_param_named(allow_vram_carveout, allow_vram_carveout, bool, 0600);
 static const struct adreno_info gpulist[] = {
 	{
 		.rev   = ADRENO_REV(2, 0, 0, 0),
+		.family = ADRENO_2XX_GEN1,
 		.revn  = 200,
 		.fw = {
 			[ADRENO_FW_PM4] = "yamato_pm4.fw",
@@ -33,6 +34,7 @@ static const struct adreno_info gpulist[] = {
 		.init  = a2xx_gpu_init,
 	}, { /* a200 on i.mx51 has only 128kib gmem */
 		.rev   = ADRENO_REV(2, 0, 0, 1),
+		.family = ADRENO_2XX_GEN1,
 		.revn  = 201,
 		.fw = {
 			[ADRENO_FW_PM4] = "yamato_pm4.fw",
@@ -43,6 +45,7 @@ static const struct adreno_info gpulist[] = {
 		.init  = a2xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(2, 2, 0, ANY_ID),
+		.family = ADRENO_2XX_GEN2,
 		.revn  = 220,
 		.fw = {
 			[ADRENO_FW_PM4] = "leia_pm4_470.fw",
@@ -53,6 +56,7 @@ static const struct adreno_info gpulist[] = {
 		.init  = a2xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(3, 0, 5, ANY_ID),
+		.family = ADRENO_3XX,
 		.revn  = 305,
 		.fw = {
 			[ADRENO_FW_PM4] = "a300_pm4.fw",
@@ -63,6 +67,7 @@ static const struct adreno_info gpulist[] = {
 		.init  = a3xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(3, 0, 6, 0),
+		.family = ADRENO_3XX,
 		.revn  = 307,        /* because a305c is revn==306 */
 		.fw = {
 			[ADRENO_FW_PM4] = "a300_pm4.fw",
@@ -73,6 +78,7 @@ static const struct adreno_info gpulist[] = {
 		.init  = a3xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(3, 2, ANY_ID, ANY_ID),
+		.family = ADRENO_3XX,
 		.revn  = 320,
 		.fw = {
 			[ADRENO_FW_PM4] = "a300_pm4.fw",
@@ -83,6 +89,7 @@ static const struct adreno_info gpulist[] = {
 		.init  = a3xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(3, 3, 0, ANY_ID),
+		.family = ADRENO_3XX,
 		.revn  = 330,
 		.fw = {
 			[ADRENO_FW_PM4] = "a330_pm4.fw",
@@ -93,6 +100,7 @@ static const struct adreno_info gpulist[] = {
 		.init  = a3xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(4, 0, 5, ANY_ID),
+		.family = ADRENO_4XX,
 		.revn  = 405,
 		.fw = {
 			[ADRENO_FW_PM4] = "a420_pm4.fw",
@@ -103,6 +111,7 @@ static const struct adreno_info gpulist[] = {
 		.init  = a4xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(4, 2, 0, ANY_ID),
+		.family = ADRENO_4XX,
 		.revn  = 420,
 		.fw = {
 			[ADRENO_FW_PM4] = "a420_pm4.fw",
@@ -113,6 +122,7 @@ static const struct adreno_info gpulist[] = {
 		.init  = a4xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(4, 3, 0, ANY_ID),
+		.family = ADRENO_4XX,
 		.revn  = 430,
 		.fw = {
 			[ADRENO_FW_PM4] = "a420_pm4.fw",
@@ -123,6 +133,7 @@ static const struct adreno_info gpulist[] = {
 		.init  = a4xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(5, 0, 6, ANY_ID),
+		.family = ADRENO_5XX,
 		.revn = 506,
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
@@ -140,6 +151,7 @@ static const struct adreno_info gpulist[] = {
 		.zapfw = "a506_zap.mdt",
 	}, {
 		.rev   = ADRENO_REV(5, 0, 8, ANY_ID),
+		.family = ADRENO_5XX,
 		.revn = 508,
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
@@ -156,6 +168,7 @@ static const struct adreno_info gpulist[] = {
 		.zapfw = "a508_zap.mdt",
 	}, {
 		.rev   = ADRENO_REV(5, 0, 9, ANY_ID),
+		.family = ADRENO_5XX,
 		.revn = 509,
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
@@ -173,6 +186,7 @@ static const struct adreno_info gpulist[] = {
 		.zapfw = "a512_zap.mdt",
 	}, {
 		.rev   = ADRENO_REV(5, 1, 0, ANY_ID),
+		.family = ADRENO_5XX,
 		.revn = 510,
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
@@ -187,6 +201,7 @@ static const struct adreno_info gpulist[] = {
 		.init = a5xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(5, 1, 2, ANY_ID),
+		.family = ADRENO_5XX,
 		.revn = 512,
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
@@ -203,6 +218,7 @@ static const struct adreno_info gpulist[] = {
 		.zapfw = "a512_zap.mdt",
 	}, {
 		.rev = ADRENO_REV(5, 3, 0, 2),
+		.family = ADRENO_5XX,
 		.revn = 530,
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
@@ -221,6 +237,7 @@ static const struct adreno_info gpulist[] = {
 		.zapfw = "a530_zap.mdt",
 	}, {
 		.rev = ADRENO_REV(5, 4, 0, ANY_ID),
+		.family = ADRENO_5XX,
 		.revn = 540,
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
@@ -238,6 +255,7 @@ static const struct adreno_info gpulist[] = {
 		.zapfw = "a540_zap.mdt",
 	}, {
 		.rev = ADRENO_REV(6, 1, 0, ANY_ID),
+		.family = ADRENO_6XX_GEN1,
 		.revn = 610,
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
@@ -263,6 +281,7 @@ static const struct adreno_info gpulist[] = {
 		),
 	}, {
 		.rev = ADRENO_REV(6, 1, 8, ANY_ID),
+		.family = ADRENO_6XX_GEN1,
 		.revn = 618,
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
@@ -280,6 +299,7 @@ static const struct adreno_info gpulist[] = {
 	}, {
 		.machine = "qcom,sm4350",
 		.rev = ADRENO_REV(6, 1, 9, ANY_ID),
+		.family = ADRENO_6XX_GEN1,
 		.revn = 619,
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
@@ -298,6 +318,7 @@ static const struct adreno_info gpulist[] = {
 	}, {
 		.machine = "qcom,sm6375",
 		.rev = ADRENO_REV(6, 1, 9, ANY_ID),
+		.family = ADRENO_6XX_GEN1,
 		.revn = 619,
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
@@ -315,6 +336,7 @@ static const struct adreno_info gpulist[] = {
 		),
 	}, {
 		.rev = ADRENO_REV(6, 1, 9, ANY_ID),
+		.family = ADRENO_6XX_GEN1,
 		.revn = 619,
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
@@ -335,6 +357,7 @@ static const struct adreno_info gpulist[] = {
 		),
 	}, {
 		.rev = ADRENO_REV(6, 3, 0, ANY_ID),
+		.family = ADRENO_6XX_GEN1,
 		.revn = 630,
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
@@ -348,6 +371,7 @@ static const struct adreno_info gpulist[] = {
 		.hwcg = a630_hwcg,
 	}, {
 		.rev = ADRENO_REV(6, 4, 0, ANY_ID),
+		.family = ADRENO_6XX_GEN2,
 		.revn = 640,
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
@@ -365,6 +389,7 @@ static const struct adreno_info gpulist[] = {
 		),
 	}, {
 		.rev = ADRENO_REV(6, 5, 0, ANY_ID),
+		.family = ADRENO_6XX_GEN3,
 		.revn = 650,
 		.fw = {
 			[ADRENO_FW_SQE] = "a650_sqe.fw",
@@ -386,6 +411,7 @@ static const struct adreno_info gpulist[] = {
 		),
 	}, {
 		.rev = ADRENO_REV(6, 6, 0, ANY_ID),
+		.family = ADRENO_6XX_GEN4,
 		.revn = 660,
 		.fw = {
 			[ADRENO_FW_SQE] = "a660_sqe.fw",
@@ -401,6 +427,7 @@ static const struct adreno_info gpulist[] = {
 		.address_space_size = SZ_16G,
 	}, {
 		.rev = ADRENO_REV(6, 3, 5, ANY_ID),
+		.family = ADRENO_6XX_GEN4,
 		.fw = {
 			[ADRENO_FW_SQE] = "a660_sqe.fw",
 			[ADRENO_FW_GMU] = "a660_gmu.bin",
@@ -419,6 +446,7 @@ static const struct adreno_info gpulist[] = {
 		),
 	}, {
 		.rev = ADRENO_REV(6, 8, 0, ANY_ID),
+		.family = ADRENO_6XX_GEN2,
 		.revn = 680,
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
@@ -432,6 +460,7 @@ static const struct adreno_info gpulist[] = {
 		.hwcg = a640_hwcg,
 	}, {
 		.rev = ADRENO_REV(6, 9, 0, ANY_ID),
+		.family = ADRENO_6XX_GEN4,
 		.fw = {
 			[ADRENO_FW_SQE] = "a660_sqe.fw",
 			[ADRENO_FW_GMU] = "a690_gmu.bin",
@@ -641,7 +670,7 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	DBG("Found GPU: %u.%u.%u.%u", config.rev.core, config.rev.major,
 		config.rev.minor, config.rev.patchid);
 
-	priv->is_a2xx = config.rev.core == 2;
+	priv->is_a2xx = info->family < ADRENO_3XX;
 	priv->has_cached_coherent =
 		!!(info->quirks & ADRENO_QUIRK_HAS_CACHED_COHERENT);
 
