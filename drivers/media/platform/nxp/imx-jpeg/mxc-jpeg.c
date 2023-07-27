@@ -2742,7 +2742,6 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "choose slot %d\n", jpeg->slot_data.slot);
 	dec_irq = platform_get_irq(pdev, 0);
 	if (dec_irq < 0) {
-		dev_err(&pdev->dev, "Failed to get irq %d\n", dec_irq);
 		ret = dec_irq;
 		goto err_irq;
 	}
