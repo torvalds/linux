@@ -558,12 +558,7 @@ unlock:
  */
 static void ufshcd_mcq_nullify_sqe(struct utp_transfer_req_desc *utrd)
 {
-	u32 dword_0;
-
-	dword_0 = le32_to_cpu(utrd->header.dword_0);
-	dword_0 &= ~UPIU_COMMAND_TYPE_MASK;
-	dword_0 |= FIELD_PREP(UPIU_COMMAND_TYPE_MASK, 0xF);
-	utrd->header.dword_0 = cpu_to_le32(dword_0);
+	utrd->header.command_type = 0xf;
 }
 
 /**
