@@ -272,9 +272,17 @@ static void start_irq_timer(struct rk_crypto_dev *rk_dev)
 static void rk_crypto_irq_timer_handle(struct timer_list *t)
 {
 	struct rk_crypto_dev *rk_dev = from_timer(rk_dev, t, timer);
+	unsigned long flags;
+
+	spin_lock_irqsave(&rk_dev->lock, flags);
 
 	rk_dev->err = -ETIMEDOUT;
 	rk_dev->stat.timeout_cnt++;
+
+	rk_unload_data(rk_dev);
+
+	spin_unlock_irqrestore(&rk_dev->lock, flags);
+
 	tasklet_schedule(&rk_dev->done_task);
 }
 
@@ -282,8 +290,12 @@ static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 {
 	struct rk_crypto_dev *rk_dev  = platform_get_drvdata(dev_id);
 	struct rk_alg_ctx *alg_ctx;
+	unsigned long flags;
 
-	spin_lock(&rk_dev->lock);
+	spin_lock_irqsave(&rk_dev->lock, flags);
+
+	/* reset timeout timer */
+	start_irq_timer(rk_dev);
 
 	alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
@@ -292,9 +304,14 @@ static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 	if (alg_ctx->ops.irq_handle)
 		alg_ctx->ops.irq_handle(irq, dev_id);
 
-	tasklet_schedule(&rk_dev->done_task);
+	/* already trigger timeout */
+	if (rk_dev->err != -ETIMEDOUT) {
+		spin_unlock_irqrestore(&rk_dev->lock, flags);
+		tasklet_schedule(&rk_dev->done_task);
+	} else {
+		spin_unlock_irqrestore(&rk_dev->lock, flags);
+	}
 
-	spin_unlock(&rk_dev->lock);
 	return IRQ_HANDLED;
 }
 

@@ -58,6 +58,10 @@ static void rk_hash_reset(struct rk_crypto_dev *rk_dev)
 			pool_timeout_us);
 
 	CRYPTO_WRITE(rk_dev, CRYPTO_HASH_CTL, 0xffff0000);
+
+	/* clear dma int status */
+	tmp = CRYPTO_READ(rk_dev, CRYPTO_DMA_INT_ST);
+	CRYPTO_WRITE(rk_dev, CRYPTO_DMA_INT_ST, tmp);
 }
 
 static int rk_crypto_irq_handle(int irq, void *dev_id)

@@ -196,6 +196,10 @@ static void rk_cipher_reset(struct rk_crypto_dev *rk_dev)
 			pool_timeout_us);
 
 	CRYPTO_WRITE(rk_dev, CRYPTO_BC_CTL, 0xffff0000);
+
+	/* clear dma int status */
+	tmp = CRYPTO_READ(rk_dev, CRYPTO_DMA_INT_ST);
+	CRYPTO_WRITE(rk_dev, CRYPTO_DMA_INT_ST, tmp);
 }
 
 static void rk_crypto_complete(struct crypto_async_request *base, int err)
