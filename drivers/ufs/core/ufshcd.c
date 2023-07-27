@@ -6387,9 +6387,14 @@ static bool ufshcd_is_pwr_mode_restore_needed(struct ufs_hba *hba)
 	return false;
 }
 
+/**
+ * ufshcd_abort_all - Abort all pending commands.
+ * @hba: Host bus adapter pointer.
+ *
+ * Return: true if and only if the host controller needs to be reset.
+ */
 static bool ufshcd_abort_all(struct ufs_hba *hba)
 {
-	bool needs_reset = false;
 	int tag, ret;
 
 	if (is_mcq_enabled(hba)) {
@@ -6404,10 +6409,8 @@ static bool ufshcd_abort_all(struct ufs_hba *hba)
 			dev_err(hba->dev, "Aborting tag %d / CDB %#02x %s\n", tag,
 				hba->lrb[tag].cmd ? hba->lrb[tag].cmd->cmnd[0] : -1,
 				ret ? "failed" : "succeeded");
-			if (ret) {
-				needs_reset = true;
+			if (ret)
 				goto out;
-			}
 		}
 	} else {
 		/* Clear pending transfer requests */
@@ -6416,25 +6419,22 @@ static bool ufshcd_abort_all(struct ufs_hba *hba)
 			dev_err(hba->dev, "Aborting tag %d / CDB %#02x %s\n", tag,
 				hba->lrb[tag].cmd ? hba->lrb[tag].cmd->cmnd[0] : -1,
 				ret ? "failed" : "succeeded");
-			if (ret) {
-				needs_reset = true;
+			if (ret)
 				goto out;
-			}
 		}
 	}
 	/* Clear pending task management requests */
 	for_each_set_bit(tag, &hba->outstanding_tasks, hba->nutmrs) {
-		if (ufshcd_clear_tm_cmd(hba, tag)) {
-			needs_reset = true;
+		ret = ufshcd_clear_tm_cmd(hba, tag);
+		if (ret)
 			goto out;
-		}
 	}
 
 out:
 	/* Complete the requests that are cleared by s/w */
 	ufshcd_complete_requests(hba, false);
 
-	return needs_reset;
+	return ret != 0;
 }
 
 /**
