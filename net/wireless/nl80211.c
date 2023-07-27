@@ -5647,6 +5647,13 @@ static int nl80211_parse_fils_discovery(struct cfg80211_registered_device *rdev,
 	if (ret)
 		return ret;
 
+	if (!tb[NL80211_FILS_DISCOVERY_ATTR_INT_MIN] &&
+	    !tb[NL80211_FILS_DISCOVERY_ATTR_INT_MAX] &&
+	    !tb[NL80211_FILS_DISCOVERY_ATTR_TMPL]) {
+		fd->update = true;
+		return 0;
+	}
+
 	if (!tb[NL80211_FILS_DISCOVERY_ATTR_INT_MIN] ||
 	    !tb[NL80211_FILS_DISCOVERY_ATTR_INT_MAX] ||
 	    !tb[NL80211_FILS_DISCOVERY_ATTR_TMPL])
@@ -5656,7 +5663,7 @@ static int nl80211_parse_fils_discovery(struct cfg80211_registered_device *rdev,
 	fd->tmpl = nla_data(tb[NL80211_FILS_DISCOVERY_ATTR_TMPL]);
 	fd->min_interval = nla_get_u32(tb[NL80211_FILS_DISCOVERY_ATTR_INT_MIN]);
 	fd->max_interval = nla_get_u32(tb[NL80211_FILS_DISCOVERY_ATTR_INT_MAX]);
-
+	fd->update = true;
 	return 0;
 }
 
@@ -5679,6 +5686,12 @@ nl80211_parse_unsol_bcast_probe_resp(struct cfg80211_registered_device *rdev,
 	if (ret)
 		return ret;
 
+	if (!tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_INT] &&
+	    !tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_TMPL]) {
+		presp->update = true;
+		return 0;
+	}
+
 	if (!tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_INT] ||
 	    !tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_TMPL])
 		return -EINVAL;
@@ -5686,6 +5699,7 @@ nl80211_parse_unsol_bcast_probe_resp(struct cfg80211_registered_device *rdev,
 	presp->tmpl = nla_data(tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_TMPL]);
 	presp->tmpl_len = nla_len(tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_TMPL]);
 	presp->interval = nla_get_u32(tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_INT]);
+	presp->update = true;
 	return 0;
 }
 
