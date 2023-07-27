@@ -8308,6 +8308,7 @@ mlxsw_sp_router_port_l3_stats_report_delta(struct mlxsw_sp_rif *rif,
 struct mlxsw_sp_router_hwstats_notify_work {
 	struct work_struct work;
 	struct net_device *dev;
+	netdevice_tracker dev_tracker;
 };
 
 static void mlxsw_sp_router_hwstats_notify_work(struct work_struct *work)
@@ -8319,7 +8320,7 @@ static void mlxsw_sp_router_hwstats_notify_work(struct work_struct *work)
 	rtnl_lock();
 	rtnl_offload_xstats_notify(hws_work->dev);
 	rtnl_unlock();
-	dev_put(hws_work->dev);
+	netdev_put(hws_work->dev, &hws_work->dev_tracker);
 	kfree(hws_work);
 }
 
@@ -8339,7 +8340,7 @@ mlxsw_sp_router_hwstats_notify_schedule(struct net_device *dev)
 		return;
 
 	INIT_WORK(&hws_work->work, mlxsw_sp_router_hwstats_notify_work);
-	dev_hold(dev);
+	netdev_hold(dev, &hws_work->dev_tracker, GFP_KERNEL);
 	hws_work->dev = dev;
 	mlxsw_core_schedule_work(&hws_work->work);
 }
