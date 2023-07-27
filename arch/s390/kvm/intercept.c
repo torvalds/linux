@@ -389,8 +389,8 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
  */
 int handle_sthyi(struct kvm_vcpu *vcpu)
 {
-	int reg1, reg2, r = 0;
-	u64 code, addr, cc = 0, rc = 0;
+	int reg1, reg2, cc = 0, r = 0;
+	u64 code, addr, rc = 0;
 	struct sthyi_sctns *sctns = NULL;
 
 	if (!test_kvm_facility(vcpu->kvm, 74))
@@ -421,7 +421,10 @@ int handle_sthyi(struct kvm_vcpu *vcpu)
 		return -ENOMEM;
 
 	cc = sthyi_fill(sctns, &rc);
-
+	if (cc < 0) {
+		free_page((unsigned long)sctns);
+		return cc;
+	}
 out:
 	if (!cc) {
 		if (kvm_s390_pv_cpu_is_protected(vcpu)) {
