@@ -841,7 +841,7 @@ static int otx2_tc_update_mcam_table_del_req(struct otx2_nic *nic,
 	struct list_head *pos, *n;
 	struct otx2_tc_flow *tmp;
 	int i = 0, index = 0;
-	u16 cntr_val;
+	u16 cntr_val = 0;
 
 	/* Find and delete the entry from the list and re-install
 	 * all the entries from beginning to the index of the
@@ -880,7 +880,7 @@ static int otx2_tc_update_mcam_table_add_req(struct otx2_nic *nic,
 	int mcam_idx = flow_cfg->max_flows - flow_cfg->nr_flows - 1;
 	struct otx2_tc_flow *tmp;
 	int list_idx, i;
-	u16 cntr_val;
+	u16 cntr_val = 0;
 
 	/* Find the index of the entry(list_idx) whose priority
 	 * is greater than the new entry and re-install all
