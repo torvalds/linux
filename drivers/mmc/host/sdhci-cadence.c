@@ -617,7 +617,7 @@ static struct platform_driver sdhci_cdns_driver = {
 		.of_match_table = sdhci_cdns_match,
 	},
 	.probe = sdhci_cdns_probe,
-	.remove = sdhci_pltfm_unregister,
+	.remove_new = sdhci_pltfm_unregister,
 };
 module_platform_driver(sdhci_cdns_driver);
 

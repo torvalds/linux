@@ -187,7 +187,7 @@ int sdhci_pltfm_register(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_register);
 
-int sdhci_pltfm_unregister(struct platform_device *pdev)
+void sdhci_pltfm_unregister(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -196,8 +196,6 @@ int sdhci_pltfm_unregister(struct platform_device *pdev)
 	sdhci_remove_host(host, dead);
 	clk_disable_unprepare(pltfm_host->clk);
 	sdhci_pltfm_free(pdev);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_unregister);
 
