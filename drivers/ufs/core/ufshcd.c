@@ -6387,6 +6387,22 @@ static bool ufshcd_is_pwr_mode_restore_needed(struct ufs_hba *hba)
 	return false;
 }
 
+static bool ufshcd_abort_one(struct request *rq, void *priv)
+{
+	int *ret = priv;
+	u32 tag = rq->tag;
+	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
+	struct scsi_device *sdev = cmd->device;
+	struct Scsi_Host *shost = sdev->host;
+	struct ufs_hba *hba = shost_priv(shost);
+
+	*ret = ufshcd_try_to_abort_task(hba, tag);
+	dev_err(hba->dev, "Aborting tag %d / CDB %#02x %s\n", tag,
+		hba->lrb[tag].cmd ? hba->lrb[tag].cmd->cmnd[0] : -1,
+		*ret ? "failed" : "succeeded");
+	return *ret == 0;
+}
+
 /**
  * ufshcd_abort_all - Abort all pending commands.
  * @hba: Host bus adapter pointer.
@@ -6395,34 +6411,12 @@ static bool ufshcd_is_pwr_mode_restore_needed(struct ufs_hba *hba)
  */
 static bool ufshcd_abort_all(struct ufs_hba *hba)
 {
-	int tag, ret;
+	int tag, ret = 0;
 
-	if (is_mcq_enabled(hba)) {
-		struct ufshcd_lrb *lrbp;
-		int tag;
+	blk_mq_tagset_busy_iter(&hba->host->tag_set, ufshcd_abort_one, &ret);
+	if (ret)
+		goto out;
 
-		for (tag = 0; tag < hba->nutrs; tag++) {
-			lrbp = &hba->lrb[tag];
-			if (!ufshcd_cmd_inflight(lrbp->cmd))
-				continue;
-			ret = ufshcd_try_to_abort_task(hba, tag);
-			dev_err(hba->dev, "Aborting tag %d / CDB %#02x %s\n", tag,
-				hba->lrb[tag].cmd ? hba->lrb[tag].cmd->cmnd[0] : -1,
-				ret ? "failed" : "succeeded");
-			if (ret)
-				goto out;
-		}
-	} else {
-		/* Clear pending transfer requests */
-		for_each_set_bit(tag, &hba->outstanding_reqs, hba->nutrs) {
-			ret = ufshcd_try_to_abort_task(hba, tag);
-			dev_err(hba->dev, "Aborting tag %d / CDB %#02x %s\n", tag,
-				hba->lrb[tag].cmd ? hba->lrb[tag].cmd->cmnd[0] : -1,
-				ret ? "failed" : "succeeded");
-			if (ret)
-				goto out;
-		}
-	}
 	/* Clear pending task management requests */
 	for_each_set_bit(tag, &hba->outstanding_tasks, hba->nutmrs) {
 		ret = ufshcd_clear_tm_cmd(hba, tag);
