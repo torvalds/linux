@@ -1674,7 +1674,7 @@ static void mtk_update_rx_cpu_idx(struct mtk_eth *eth)
 
 static bool mtk_page_pool_enabled(struct mtk_eth *eth)
 {
-	return eth->soc->version == 2;
+	return mtk_is_netsys_v2_or_greater(eth);
 }
 
 static struct page_pool *mtk_create_page_pool(struct mtk_eth *eth,
