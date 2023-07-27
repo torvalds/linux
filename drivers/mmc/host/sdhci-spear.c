@@ -117,7 +117,7 @@ err:
 	return ret;
 }
 
-static int sdhci_remove(struct platform_device *pdev)
+static void sdhci_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct spear_sdhci *sdhci = sdhci_priv(host);
@@ -131,8 +131,6 @@ static int sdhci_remove(struct platform_device *pdev)
 	sdhci_remove_host(host, dead);
 	clk_disable_unprepare(sdhci->clk);
 	sdhci_free_host(host);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -184,7 +182,7 @@ static struct platform_driver sdhci_driver = {
 		.of_match_table = sdhci_spear_id_table,
 	},
 	.probe		= sdhci_probe,
-	.remove		= sdhci_remove,
+	.remove_new	= sdhci_remove,
 };
 
 module_platform_driver(sdhci_driver);
