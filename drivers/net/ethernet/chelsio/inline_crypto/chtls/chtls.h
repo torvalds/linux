@@ -22,6 +22,7 @@
 #include <crypto/internal/hash.h>
 #include <linux/tls.h>
 #include <net/tls.h>
+#include <net/tls_prot.h>
 #include <net/tls_toe.h>
 
 #include "t4fw_api.h"

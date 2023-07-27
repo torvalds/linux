@@ -44,6 +44,7 @@
 #include <net/tcp.h>
 #include <net/tcp_states.h>
 #include <net/tls.h>
+#include <net/tls_prot.h>
 #include <net/handshake.h>
 #include <linux/uaccess.h>
 #include <linux/highmem.h>
