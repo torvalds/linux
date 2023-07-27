@@ -2016,7 +2016,7 @@ err_pltfm_free:
 	return ret;
 }
 
-static int sdhci_arasan_remove(struct platform_device *pdev)
+static void sdhci_arasan_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -2034,8 +2034,6 @@ static int sdhci_arasan_remove(struct platform_device *pdev)
 	sdhci_pltfm_unregister(pdev);
 
 	clk_disable_unprepare(clk_ahb);
-
-	return 0;
 }
 
 static struct platform_driver sdhci_arasan_driver = {
@@ -2046,7 +2044,7 @@ static struct platform_driver sdhci_arasan_driver = {
 		.pm = &sdhci_arasan_dev_pm_ops,
 	},
 	.probe = sdhci_arasan_probe,
-	.remove = sdhci_arasan_remove,
+	.remove_new = sdhci_arasan_remove,
 };
 
 module_platform_driver(sdhci_arasan_driver);
