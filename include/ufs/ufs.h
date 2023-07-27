@@ -15,6 +15,12 @@
 #include <linux/types.h>
 #include <uapi/scsi/scsi_bsg_ufs.h>
 
+/*
+ * Using static_assert() is not allowed in UAPI header files. Hence the check
+ * in this header file of the size of struct utp_upiu_header.
+ */
+static_assert(sizeof(struct utp_upiu_header) == 12);
+
 #define GENERAL_UPIU_REQUEST_SIZE (sizeof(struct utp_upiu_req))
 #define QUERY_DESC_MAX_SIZE       255
 #define QUERY_DESC_MIN_SIZE       2
@@ -22,11 +28,6 @@
 #define QUERY_OSF_SIZE            (GENERAL_UPIU_REQUEST_SIZE - \
 					(sizeof(struct utp_upiu_header)))
 #define UFS_SENSE_SIZE	18
-
-static inline __be32 upiu_header_dword(u8 byte3, u8 byte2, u8 byte1, u8 byte0)
-{
-	return cpu_to_be32(byte3 << 24 | byte2 << 16 | byte1 << 8 | byte0);
-}
 
 /*
  * UFS device may have standard LUs and LUN id could be from 0x00 to
@@ -477,14 +478,7 @@ enum {
 #define UPIU_RSP_CODE_OFFSET		8
 
 enum {
-	MASK_SCSI_STATUS		= 0xFF,
-	MASK_TASK_RESPONSE              = 0xFF00,
-	MASK_RSP_UPIU_RESULT            = 0xFFFF,
-	MASK_QUERY_DATA_SEG_LEN         = 0xFFFF,
-	MASK_RSP_UPIU_DATA_SEG_LEN	= 0xFFFF,
-	MASK_RSP_EXCEPTION_EVENT        = 0x10000,
 	MASK_TM_SERVICE_RESP		= 0xFF,
-	MASK_TM_FUNC			= 0xFF,
 };
 
 /* Task management service response */
