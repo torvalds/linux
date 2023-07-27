@@ -256,6 +256,24 @@ ice_verify_pin_e810t(struct ptp_clock_info *info, unsigned int pin,
 }
 
 /**
+ * ice_ptp_configure_tx_tstamp - Enable or disable Tx timestamp interrupt
+ * @pf: The PF pointer to search in
+ * @on: bool value for whether timestamp interrupt is enabled or disabled
+ */
+static void ice_ptp_configure_tx_tstamp(struct ice_pf *pf, bool on)
+{
+	u32 val;
+
+	/* Configure the Tx timestamp interrupt */
+	val = rd32(&pf->hw, PFINT_OICR_ENA);
+	if (on)
+		val |= PFINT_OICR_TSYN_TX_M;
+	else
+		val &= ~PFINT_OICR_TSYN_TX_M;
+	wr32(&pf->hw, PFINT_OICR_ENA, val);
+}
+
+/**
  * ice_set_tx_tstamp - Enable or disable Tx timestamping
  * @pf: The PF pointer to search in
  * @on: bool value for whether timestamps are enabled or disabled
@@ -263,7 +281,6 @@ ice_verify_pin_e810t(struct ptp_clock_info *info, unsigned int pin,
 static void ice_set_tx_tstamp(struct ice_pf *pf, bool on)
 {
 	struct ice_vsi *vsi;
-	u32 val;
 	u16 i;
 
 	vsi = ice_get_main_vsi(pf);
@@ -277,13 +294,8 @@ static void ice_set_tx_tstamp(struct ice_pf *pf, bool on)
 		vsi->tx_rings[i]->ptp_tx = on;
 	}
 
-	/* Configure the Tx timestamp interrupt */
-	val = rd32(&pf->hw, PFINT_OICR_ENA);
-	if (on)
-		val |= PFINT_OICR_TSYN_TX_M;
-	else
-		val &= ~PFINT_OICR_TSYN_TX_M;
-	wr32(&pf->hw, PFINT_OICR_ENA, val);
+	if (pf->ptp.tx_interrupt_mode == ICE_PTP_TX_INTERRUPT_SELF)
+		ice_ptp_configure_tx_tstamp(pf, on);
 
 	pf->ptp.tstamp_config.tx_type = on ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
 }
@@ -674,9 +686,6 @@ static void ice_ptp_process_tx_tstamp(struct ice_ptp_tx *tx)
 	int err;
 	u8 idx;
 
-	if (!tx->init)
-		return;
-
 	ptp_port = container_of(tx, struct ice_ptp_port, tx);
 	pf = ptp_port_to_pf(ptp_port);
 	hw = &pf->hw;
@@ -772,6 +781,39 @@ skip_ts_read:
 		skb_tstamp_tx(skb, &shhwtstamps);
 		dev_kfree_skb_any(skb);
 	}
+}
+
+/**
+ * ice_ptp_tx_tstamp_owner - Process Tx timestamps for all ports on the device
+ * @pf: Board private structure
+ */
+static enum ice_tx_tstamp_work ice_ptp_tx_tstamp_owner(struct ice_pf *pf)
+{
+	struct ice_ptp_port *port;
+	unsigned int i;
+
+	mutex_lock(&pf->ptp.ports_owner.lock);
+	list_for_each_entry(port, &pf->ptp.ports_owner.ports, list_member) {
+		struct ice_ptp_tx *tx = &port->tx;
+
+		if (!tx || !tx->init)
+			continue;
+
+		ice_ptp_process_tx_tstamp(tx);
+	}
+	mutex_unlock(&pf->ptp.ports_owner.lock);
+
+	for (i = 0; i < ICE_MAX_QUAD; i++) {
+		u64 tstamp_ready;
+		int err;
+
+		/* Read the Tx ready status first */
+		err = ice_get_phy_tx_tstamp_ready(&pf->hw, i, &tstamp_ready);
+		if (err || tstamp_ready)
+			return ICE_TX_TSTAMP_WORK_PENDING;
+	}
+
+	return ICE_TX_TSTAMP_WORK_DONE;
 }
 
 /**
@@ -2465,7 +2507,21 @@ s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb)
  */
 enum ice_tx_tstamp_work ice_ptp_process_ts(struct ice_pf *pf)
 {
-	return ice_ptp_tx_tstamp(&pf->ptp.port.tx);
+	switch (pf->ptp.tx_interrupt_mode) {
+	case ICE_PTP_TX_INTERRUPT_NONE:
+		/* This device has the clock owner handle timestamps for it */
+		return ICE_TX_TSTAMP_WORK_DONE;
+	case ICE_PTP_TX_INTERRUPT_SELF:
+		/* This device handles its own timestamps */
+		return ice_ptp_tx_tstamp(&pf->ptp.port.tx);
+	case ICE_PTP_TX_INTERRUPT_ALL:
+		/* This device handles timestamps for all ports */
+		return ice_ptp_tx_tstamp_owner(pf);
+	default:
+		WARN_ONCE(1, "Unexpected Tx timestamp interrupt mode %u\n",
+			  pf->ptp.tx_interrupt_mode);
+		return ICE_TX_TSTAMP_WORK_DONE;
+	}
 }
 
 static void ice_ptp_periodic_work(struct kthread_work *work)
@@ -2575,6 +2631,187 @@ err:
 }
 
 /**
+ * ice_ptp_aux_dev_to_aux_pf - Get auxiliary PF handle for the auxiliary device
+ * @aux_dev: auxiliary device to get the auxiliary PF for
+ */
+static struct ice_pf *
+ice_ptp_aux_dev_to_aux_pf(struct auxiliary_device *aux_dev)
+{
+	struct ice_ptp_port *aux_port;
+	struct ice_ptp *aux_ptp;
+
+	aux_port = container_of(aux_dev, struct ice_ptp_port, aux_dev);
+	aux_ptp = container_of(aux_port, struct ice_ptp, port);
+
+	return container_of(aux_ptp, struct ice_pf, ptp);
+}
+
+/**
+ * ice_ptp_aux_dev_to_owner_pf - Get PF handle for the auxiliary device
+ * @aux_dev: auxiliary device to get the PF for
+ */
+static struct ice_pf *
+ice_ptp_aux_dev_to_owner_pf(struct auxiliary_device *aux_dev)
+{
+	struct ice_ptp_port_owner *ports_owner;
+	struct auxiliary_driver *aux_drv;
+	struct ice_ptp *owner_ptp;
+
+	if (!aux_dev->dev.driver)
+		return NULL;
+
+	aux_drv = to_auxiliary_drv(aux_dev->dev.driver);
+	ports_owner = container_of(aux_drv, struct ice_ptp_port_owner,
+				   aux_driver);
+	owner_ptp = container_of(ports_owner, struct ice_ptp, ports_owner);
+	return container_of(owner_ptp, struct ice_pf, ptp);
+}
+
+/**
+ * ice_ptp_auxbus_probe - Probe auxiliary devices
+ * @aux_dev: PF's auxiliary device
+ * @id: Auxiliary device ID
+ */
+static int ice_ptp_auxbus_probe(struct auxiliary_device *aux_dev,
+				const struct auxiliary_device_id *id)
+{
+	struct ice_pf *owner_pf = ice_ptp_aux_dev_to_owner_pf(aux_dev);
+	struct ice_pf *aux_pf = ice_ptp_aux_dev_to_aux_pf(aux_dev);
+
+	if (WARN_ON(!owner_pf))
+		return -ENODEV;
+
+	INIT_LIST_HEAD(&aux_pf->ptp.port.list_member);
+	mutex_lock(&owner_pf->ptp.ports_owner.lock);
+	list_add(&aux_pf->ptp.port.list_member,
+		 &owner_pf->ptp.ports_owner.ports);
+	mutex_unlock(&owner_pf->ptp.ports_owner.lock);
+
+	return 0;
+}
+
+/**
+ * ice_ptp_auxbus_remove - Remove auxiliary devices from the bus
+ * @aux_dev: PF's auxiliary device
+ */
+static void ice_ptp_auxbus_remove(struct auxiliary_device *aux_dev)
+{
+	struct ice_pf *owner_pf = ice_ptp_aux_dev_to_owner_pf(aux_dev);
+	struct ice_pf *aux_pf = ice_ptp_aux_dev_to_aux_pf(aux_dev);
+
+	mutex_lock(&owner_pf->ptp.ports_owner.lock);
+	list_del(&aux_pf->ptp.port.list_member);
+	mutex_unlock(&owner_pf->ptp.ports_owner.lock);
+}
+
+/**
+ * ice_ptp_auxbus_shutdown
+ * @aux_dev: PF's auxiliary device
+ */
+static void ice_ptp_auxbus_shutdown(struct auxiliary_device *aux_dev)
+{
+	/* Doing nothing here, but handle to auxbus driver must be satisfied */
+}
+
+/**
+ * ice_ptp_auxbus_suspend
+ * @aux_dev: PF's auxiliary device
+ * @state: power management state indicator
+ */
+static int
+ice_ptp_auxbus_suspend(struct auxiliary_device *aux_dev, pm_message_t state)
+{
+	/* Doing nothing here, but handle to auxbus driver must be satisfied */
+	return 0;
+}
+
+/**
+ * ice_ptp_auxbus_resume
+ * @aux_dev: PF's auxiliary device
+ */
+static int ice_ptp_auxbus_resume(struct auxiliary_device *aux_dev)
+{
+	/* Doing nothing here, but handle to auxbus driver must be satisfied */
+	return 0;
+}
+
+/**
+ * ice_ptp_auxbus_create_id_table - Create auxiliary device ID table
+ * @pf: Board private structure
+ * @name: auxiliary bus driver name
+ */
+static struct auxiliary_device_id *
+ice_ptp_auxbus_create_id_table(struct ice_pf *pf, const char *name)
+{
+	struct auxiliary_device_id *ids;
+
+	/* Second id left empty to terminate the array */
+	ids = devm_kcalloc(ice_pf_to_dev(pf), 2,
+			   sizeof(struct auxiliary_device_id), GFP_KERNEL);
+	if (!ids)
+		return NULL;
+
+	snprintf(ids[0].name, sizeof(ids[0].name), "ice.%s", name);
+
+	return ids;
+}
+
+/**
+ * ice_ptp_register_auxbus_driver - Register PTP auxiliary bus driver
+ * @pf: Board private structure
+ */
+static int ice_ptp_register_auxbus_driver(struct ice_pf *pf)
+{
+	struct auxiliary_driver *aux_driver;
+	struct ice_ptp *ptp;
+	struct device *dev;
+	char *name;
+	int err;
+
+	ptp = &pf->ptp;
+	dev = ice_pf_to_dev(pf);
+	aux_driver = &ptp->ports_owner.aux_driver;
+	INIT_LIST_HEAD(&ptp->ports_owner.ports);
+	mutex_init(&ptp->ports_owner.lock);
+	name = devm_kasprintf(dev, GFP_KERNEL, "ptp_aux_dev_%u_%u_clk%u",
+			      pf->pdev->bus->number, PCI_SLOT(pf->pdev->devfn),
+			      ice_get_ptp_src_clock_index(&pf->hw));
+
+	aux_driver->name = name;
+	aux_driver->shutdown = ice_ptp_auxbus_shutdown;
+	aux_driver->suspend = ice_ptp_auxbus_suspend;
+	aux_driver->remove = ice_ptp_auxbus_remove;
+	aux_driver->resume = ice_ptp_auxbus_resume;
+	aux_driver->probe = ice_ptp_auxbus_probe;
+	aux_driver->id_table = ice_ptp_auxbus_create_id_table(pf, name);
+	if (!aux_driver->id_table)
+		return -ENOMEM;
+
+	err = auxiliary_driver_register(aux_driver);
+	if (err) {
+		devm_kfree(dev, aux_driver->id_table);
+		dev_err(dev, "Failed registering aux_driver, name <%s>\n",
+			name);
+	}
+
+	return err;
+}
+
+/**
+ * ice_ptp_unregister_auxbus_driver - Unregister PTP auxiliary bus driver
+ * @pf: Board private structure
+ */
+static void ice_ptp_unregister_auxbus_driver(struct ice_pf *pf)
+{
+	struct auxiliary_driver *aux_driver = &pf->ptp.ports_owner.aux_driver;
+
+	auxiliary_driver_unregister(aux_driver);
+	devm_kfree(ice_pf_to_dev(pf), aux_driver->id_table);
+
+	mutex_destroy(&pf->ptp.ports_owner.lock);
+}
+
+/**
  * ice_ptp_prepare_for_reset - Prepare PTP for reset
  * @pf: Board private structure
  */
@@ -2652,7 +2889,15 @@ static int ice_ptp_init_owner(struct ice_pf *pf)
 	/* Release the global hardware lock */
 	ice_ptp_unlock(hw);
 
-	if (!ice_is_e810(hw)) {
+	if (pf->ptp.tx_interrupt_mode == ICE_PTP_TX_INTERRUPT_ALL) {
+		/* The clock owner for this device type handles the timestamp
+		 * interrupt for all ports.
+		 */
+		ice_ptp_configure_tx_tstamp(pf, true);
+
+		/* React on all quads interrupts for E82x */
+		wr32(hw, PFINT_TSYN_MSK + (0x4 * hw->pf_id), (u32)0x1f);
+
 		/* Enable quad interrupts */
 		err = ice_ptp_tx_ena_intr(pf, true, itr);
 		if (err)
@@ -2667,8 +2912,16 @@ static int ice_ptp_init_owner(struct ice_pf *pf)
 	/* Store the PTP clock index for other PFs */
 	ice_set_ptp_clock_index(pf);
 
-	return 0;
+	err = ice_ptp_register_auxbus_driver(pf);
+	if (err) {
+		dev_err(ice_pf_to_dev(pf), "Failed to register PTP auxbus driver");
+		goto err_aux;
+	}
 
+	return 0;
+err_aux:
+	ice_clear_ptp_clock_index(pf);
+	ptp_clock_unregister(pf->ptp.clock);
 err_clk:
 	pf->ptp.clock = NULL;
 err_exit:
@@ -2718,6 +2971,13 @@ static int ice_ptp_init_port(struct ice_pf *pf, struct ice_ptp_port *ptp_port)
 	case ICE_PHY_E810:
 		return ice_ptp_init_tx_e810(pf, &ptp_port->tx);
 	case ICE_PHY_E822:
+		/* Non-owner PFs don't react to any interrupts on E82x,
+		 * neither on own quad nor on others
+		 */
+		if (!ice_ptp_pf_handles_tx_interrupt(pf)) {
+			ice_ptp_configure_tx_tstamp(pf, false);
+			wr32(hw, PFINT_TSYN_MSK + (0x4 * hw->pf_id), (u32)0x0);
+		}
 		kthread_init_delayed_work(&ptp_port->ov_work,
 					  ice_ptp_wait_for_offsets);
 
@@ -2725,6 +2985,101 @@ static int ice_ptp_init_port(struct ice_pf *pf, struct ice_ptp_port *ptp_port)
 					    ptp_port->port_num);
 	default:
 		return -ENODEV;
+	}
+}
+
+/**
+ * ice_ptp_release_auxbus_device
+ * @dev: device that utilizes the auxbus
+ */
+static void ice_ptp_release_auxbus_device(struct device *dev)
+{
+	/* Doing nothing here, but handle to auxbux device must be satisfied */
+}
+
+/**
+ * ice_ptp_create_auxbus_device - Create PTP auxiliary bus device
+ * @pf: Board private structure
+ */
+static int ice_ptp_create_auxbus_device(struct ice_pf *pf)
+{
+	struct auxiliary_device *aux_dev;
+	struct ice_ptp *ptp;
+	struct device *dev;
+	char *name;
+	int err;
+	u32 id;
+
+	ptp = &pf->ptp;
+	id = ptp->port.port_num;
+	dev = ice_pf_to_dev(pf);
+
+	aux_dev = &ptp->port.aux_dev;
+
+	name = devm_kasprintf(dev, GFP_KERNEL, "ptp_aux_dev_%u_%u_clk%u",
+			      pf->pdev->bus->number, PCI_SLOT(pf->pdev->devfn),
+			      ice_get_ptp_src_clock_index(&pf->hw));
+
+	aux_dev->name = name;
+	aux_dev->id = id;
+	aux_dev->dev.release = ice_ptp_release_auxbus_device;
+	aux_dev->dev.parent = dev;
+
+	err = auxiliary_device_init(aux_dev);
+	if (err)
+		goto aux_err;
+
+	err = auxiliary_device_add(aux_dev);
+	if (err) {
+		auxiliary_device_uninit(aux_dev);
+		goto aux_err;
+	}
+
+	return 0;
+aux_err:
+	dev_err(dev, "Failed to create PTP auxiliary bus device <%s>\n", name);
+	devm_kfree(dev, name);
+	return err;
+}
+
+/**
+ * ice_ptp_remove_auxbus_device - Remove PTP auxiliary bus device
+ * @pf: Board private structure
+ */
+static void ice_ptp_remove_auxbus_device(struct ice_pf *pf)
+{
+	struct auxiliary_device *aux_dev = &pf->ptp.port.aux_dev;
+
+	auxiliary_device_delete(aux_dev);
+	auxiliary_device_uninit(aux_dev);
+
+	memset(aux_dev, 0, sizeof(*aux_dev));
+}
+
+/**
+ * ice_ptp_init_tx_interrupt_mode - Initialize device Tx interrupt mode
+ * @pf: Board private structure
+ *
+ * Initialize the Tx timestamp interrupt mode for this device. For most device
+ * types, each PF processes the interrupt and manages its own timestamps. For
+ * E822-based devices, only the clock owner processes the timestamps. Other
+ * PFs disable the interrupt and do not process their own timestamps.
+ */
+static void ice_ptp_init_tx_interrupt_mode(struct ice_pf *pf)
+{
+	switch (pf->hw.phy_model) {
+	case ICE_PHY_E822:
+		/* E822 based PHY has the clock owner process the interrupt
+		 * for all ports.
+		 */
+		if (ice_pf_src_tmr_owned(pf))
+			pf->ptp.tx_interrupt_mode = ICE_PTP_TX_INTERRUPT_ALL;
+		else
+			pf->ptp.tx_interrupt_mode = ICE_PTP_TX_INTERRUPT_NONE;
+		break;
+	default:
+		/* other PHY types handle their own Tx interrupt */
+		pf->ptp.tx_interrupt_mode = ICE_PTP_TX_INTERRUPT_SELF;
 	}
 }
 
@@ -2748,6 +3103,8 @@ void ice_ptp_init(struct ice_pf *pf)
 
 	ice_ptp_init_phy_model(hw);
 
+	ice_ptp_init_tx_interrupt_mode(pf);
+
 	/* If this function owns the clock hardware, it must allocate and
 	 * configure the PTP clock device to represent it.
 	 */
@@ -2767,6 +3124,10 @@ void ice_ptp_init(struct ice_pf *pf)
 
 	set_bit(ICE_FLAG_PTP, pf->flags);
 	err = ice_ptp_init_work(pf, ptp);
+	if (err)
+		goto err;
+
+	err = ice_ptp_create_auxbus_device(pf);
 	if (err)
 		goto err;
 
@@ -2798,6 +3159,8 @@ void ice_ptp_release(struct ice_pf *pf)
 	/* Disable timestamping for both Tx and Rx */
 	ice_ptp_cfg_timestamp(pf, false);
 
+	ice_ptp_remove_auxbus_device(pf);
+
 	ice_ptp_release_tx_tracker(pf, &pf->ptp.port.tx);
 
 	clear_bit(ICE_FLAG_PTP, pf->flags);
@@ -2820,6 +3183,8 @@ void ice_ptp_release(struct ice_pf *pf)
 	ice_clear_ptp_clock_index(pf);
 	ptp_clock_unregister(pf->ptp.clock);
 	pf->ptp.clock = NULL;
+
+	ice_ptp_unregister_auxbus_driver(pf);
 
 	dev_info(ice_pf_to_dev(pf), "Removed PTP clock\n");
 }
