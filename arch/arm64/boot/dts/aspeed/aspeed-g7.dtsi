@@ -665,8 +665,8 @@
 			interrupt-parent = <&intc4>;
 			interrupts-extended = <&intc4 1>;
 
-			clocks = <&io_clk AST2700_IO_CLK_GATE_MAC0CLK>;
-			resets = <&io_clk ASPEED_RESET_MAC0>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_MAC1CLK>;
+			resets = <&io_clk ASPEED_RESET_MAC1>;
 			status = "disabled";
 		};
 
@@ -676,8 +676,8 @@
 			interrupt-parent = <&intc4>;
 			interrupts-extended = <&intc4 2>;
 
-			clocks = <&io_clk AST2700_IO_CLK_GATE_MAC0CLK>;
-			resets = <&io_clk ASPEED_RESET_MAC0>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_MAC2CLK>;
+			resets = <&io_clk ASPEED_RESET_MAC2>;
 			status = "disabled";
 		};
 
