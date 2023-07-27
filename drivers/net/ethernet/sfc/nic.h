@@ -24,97 +24,6 @@ enum {
 };
 
 enum {
-	SIENA_STAT_tx_bytes = GENERIC_STAT_COUNT,
-	SIENA_STAT_tx_good_bytes,
-	SIENA_STAT_tx_bad_bytes,
-	SIENA_STAT_tx_packets,
-	SIENA_STAT_tx_bad,
-	SIENA_STAT_tx_pause,
-	SIENA_STAT_tx_control,
-	SIENA_STAT_tx_unicast,
-	SIENA_STAT_tx_multicast,
-	SIENA_STAT_tx_broadcast,
-	SIENA_STAT_tx_lt64,
-	SIENA_STAT_tx_64,
-	SIENA_STAT_tx_65_to_127,
-	SIENA_STAT_tx_128_to_255,
-	SIENA_STAT_tx_256_to_511,
-	SIENA_STAT_tx_512_to_1023,
-	SIENA_STAT_tx_1024_to_15xx,
-	SIENA_STAT_tx_15xx_to_jumbo,
-	SIENA_STAT_tx_gtjumbo,
-	SIENA_STAT_tx_collision,
-	SIENA_STAT_tx_single_collision,
-	SIENA_STAT_tx_multiple_collision,
-	SIENA_STAT_tx_excessive_collision,
-	SIENA_STAT_tx_deferred,
-	SIENA_STAT_tx_late_collision,
-	SIENA_STAT_tx_excessive_deferred,
-	SIENA_STAT_tx_non_tcpudp,
-	SIENA_STAT_tx_mac_src_error,
-	SIENA_STAT_tx_ip_src_error,
-	SIENA_STAT_rx_bytes,
-	SIENA_STAT_rx_good_bytes,
-	SIENA_STAT_rx_bad_bytes,
-	SIENA_STAT_rx_packets,
-	SIENA_STAT_rx_good,
-	SIENA_STAT_rx_bad,
-	SIENA_STAT_rx_pause,
-	SIENA_STAT_rx_control,
-	SIENA_STAT_rx_unicast,
-	SIENA_STAT_rx_multicast,
-	SIENA_STAT_rx_broadcast,
-	SIENA_STAT_rx_lt64,
-	SIENA_STAT_rx_64,
-	SIENA_STAT_rx_65_to_127,
-	SIENA_STAT_rx_128_to_255,
-	SIENA_STAT_rx_256_to_511,
-	SIENA_STAT_rx_512_to_1023,
-	SIENA_STAT_rx_1024_to_15xx,
-	SIENA_STAT_rx_15xx_to_jumbo,
-	SIENA_STAT_rx_gtjumbo,
-	SIENA_STAT_rx_bad_gtjumbo,
-	SIENA_STAT_rx_overflow,
-	SIENA_STAT_rx_false_carrier,
-	SIENA_STAT_rx_symbol_error,
-	SIENA_STAT_rx_align_error,
-	SIENA_STAT_rx_length_error,
-	SIENA_STAT_rx_internal_error,
-	SIENA_STAT_rx_nodesc_drop_cnt,
-	SIENA_STAT_COUNT
-};
-
-/**
- * struct siena_nic_data - Siena NIC state
- * @efx: Pointer back to main interface structure
- * @wol_filter_id: Wake-on-LAN packet filter id
- * @stats: Hardware statistics
- * @vf: Array of &struct siena_vf objects
- * @vf_buftbl_base: The zeroth buffer table index used to back VF queues.
- * @vfdi_status: Common VFDI status page to be dmad to VF address space.
- * @local_addr_list: List of local addresses. Protected by %local_lock.
- * @local_page_list: List of DMA addressable pages used to broadcast
- *	%local_addr_list. Protected by %local_lock.
- * @local_lock: Mutex protecting %local_addr_list and %local_page_list.
- * @peer_work: Work item to broadcast peer addresses to VMs.
- */
-struct siena_nic_data {
-	struct efx_nic *efx;
-	int wol_filter_id;
-	u64 stats[SIENA_STAT_COUNT];
-#ifdef CONFIG_SFC_SRIOV
-	struct siena_vf *vf;
-	struct efx_channel *vfdi_channel;
-	unsigned vf_buftbl_base;
-	struct efx_buffer vfdi_status;
-	struct list_head local_addr_list;
-	struct list_head local_page_list;
-	struct mutex local_lock;
-	struct work_struct peer_work;
-#endif
-};
-
-enum {
 	EF10_STAT_port_tx_bytes = GENERIC_STAT_COUNT,
 	EF10_STAT_port_tx_packets,
 	EF10_STAT_port_tx_pause,
@@ -301,9 +210,5 @@ int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 
 extern const struct efx_nic_type efx_hunt_a0_nic_type;
 extern const struct efx_nic_type efx_hunt_a0_vf_nic_type;
-
-/* Global Resources */
-void siena_prepare_flush(struct efx_nic *efx);
-void siena_finish_flush(struct efx_nic *efx);
 
 #endif /* EFX_NIC_H */
