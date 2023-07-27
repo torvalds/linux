@@ -1100,13 +1100,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			bool migrate_dirty;
 
 			/*
-			 * Only pages without mappings or that have a
-			 * ->migrate_folio callback are possible to migrate
-			 * without blocking. However, we can be racing with
-			 * truncation so it's necessary to lock the page
-			 * to stabilise the mapping as truncation holds
-			 * the page lock until after the page is removed
-			 * from the page cache.
+			 * Only folios without mappings or that have
+			 * a ->migrate_folio callback are possible to
+			 * migrate without blocking.  However, we may
+			 * be racing with truncation, which can free
+			 * the mapping.  Truncation holds the folio lock
+			 * until after the folio is removed from the page
+			 * cache so holding it ourselves is sufficient.
 			 */
 			if (!folio_trylock(folio))
 				goto isolate_fail_put;
