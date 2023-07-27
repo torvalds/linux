@@ -7547,6 +7547,7 @@ struct mlxsw_sp_fib6_event_work {
 
 struct mlxsw_sp_fib_event_work {
 	struct work_struct work;
+	netdevice_tracker dev_tracker;
 	union {
 		struct mlxsw_sp_fib6_event_work fib6_work;
 		struct fib_entry_notifier_info fen_info;
@@ -7720,12 +7721,12 @@ static void mlxsw_sp_router_fibmr_event_work(struct work_struct *work)
 						    &fib_work->ven_info);
 		if (err)
 			dev_warn(mlxsw_sp->bus_info->dev, "MR VIF add failed.\n");
-		dev_put(fib_work->ven_info.dev);
+		netdev_put(fib_work->ven_info.dev, &fib_work->dev_tracker);
 		break;
 	case FIB_EVENT_VIF_DEL:
 		mlxsw_sp_router_fibmr_vif_del(mlxsw_sp,
 					      &fib_work->ven_info);
-		dev_put(fib_work->ven_info.dev);
+		netdev_put(fib_work->ven_info.dev, &fib_work->dev_tracker);
 		break;
 	}
 	mutex_unlock(&mlxsw_sp->router->lock);
@@ -7796,7 +7797,8 @@ mlxsw_sp_router_fibmr_event(struct mlxsw_sp_fib_event_work *fib_work,
 	case FIB_EVENT_VIF_ADD:
 	case FIB_EVENT_VIF_DEL:
 		memcpy(&fib_work->ven_info, info, sizeof(fib_work->ven_info));
-		dev_hold(fib_work->ven_info.dev);
+		netdev_hold(fib_work->ven_info.dev, &fib_work->dev_tracker,
+			    GFP_ATOMIC);
 		break;
 	}
 }
