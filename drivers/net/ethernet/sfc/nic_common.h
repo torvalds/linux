@@ -15,11 +15,10 @@
 #include "ptp.h"
 
 enum {
-	/* Revisions 0-2 were Falcon A0, A1 and B0 respectively.
+	/* Revisions 0-3 were Falcon A0, A1, B0 and Siena respectively.
 	 * They are not supported by this driver but these revision numbers
 	 * form part of the ethtool API for register dumping.
 	 */
-	EFX_REV_SIENA_A0 = 3,
 	EFX_REV_HUNT_A0 = 4,
 	EFX_REV_EF100 = 5,
 };
