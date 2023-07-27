@@ -79,9 +79,7 @@ int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 
 /* Decide whether to push a TX descriptor to the NIC vs merely writing
  * the doorbell.  This can reduce latency when we are adding a single
- * descriptor to an empty queue, but is otherwise pointless.  Further,
- * Falcon and Siena have hardware bugs (SF bug 33851) that may be
- * triggered if we don't check this.
+ * descriptor to an empty queue, but is otherwise pointless.
  * We use the write_count used for the last doorbell push, to get the
  * NIC's view of the tx queue.
  */
