@@ -74,6 +74,76 @@
 		#size-cells = <2>;
 		ranges;
 
+		mtu3: timer@10001200 {
+			compatible = "renesas,r9a07g043-mtu3",
+				     "renesas,rz-mtu3";
+			reg = <0 0x10001200 0 0xb00>;
+			interrupts = <SOC_PERIPHERAL_IRQ(170) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(171) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(172) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(173) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(174) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(175) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(176) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(177) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(178) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(179) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(180) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(181) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(182) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(183) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(184) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(185) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(186) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(187) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(188) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(189) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(190) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(191) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(192) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(193) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(194) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(195) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(196) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(197) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(198) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(199) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(200) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(201) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(202) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(203) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(204) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(205) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(206) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(207) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(208) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(209) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(210) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(211) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(212) IRQ_TYPE_EDGE_RISING>,
+				     <SOC_PERIPHERAL_IRQ(213) IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "tgia0", "tgib0", "tgic0", "tgid0",
+					  "tciv0", "tgie0", "tgif0",
+					  "tgia1", "tgib1", "tciv1", "tciu1",
+					  "tgia2", "tgib2", "tciv2", "tciu2",
+					  "tgia3", "tgib3", "tgic3", "tgid3",
+					  "tciv3",
+					  "tgia4", "tgib4", "tgic4", "tgid4",
+					  "tciv4",
+					  "tgiu5", "tgiv5", "tgiw5",
+					  "tgia6", "tgib6", "tgic6", "tgid6",
+					  "tciv6",
+					  "tgia7", "tgib7", "tgic7", "tgid7",
+					  "tciv7",
+					  "tgia8", "tgib8", "tgic8", "tgid8",
+					  "tciv8", "tciu8";
+			clocks = <&cpg CPG_MOD R9A07G043_MTU_X_MCK_MTU3>;
+			power-domains = <&cpg>;
+			resets = <&cpg R9A07G043_MTU_X_PRESET_MTU3>;
+			#pwm-cells = <2>;
+			status = "disabled";
+		};
+
 		ssi0: ssi@10049c00 {
 			compatible = "renesas,r9a07g043-ssi",
 				     "renesas,rz-ssi";
