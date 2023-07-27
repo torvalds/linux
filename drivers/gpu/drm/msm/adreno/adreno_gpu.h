@@ -61,6 +61,7 @@ extern const struct adreno_reglist a612_hwcg[], a615_hwcg[], a630_hwcg[], a640_h
 extern const struct adreno_reglist a660_hwcg[], a690_hwcg[];
 
 struct adreno_info {
+	const char *machine;
 	struct adreno_rev rev;
 	uint32_t revn;
 	const char *fw[ADRENO_FW_MAX];
