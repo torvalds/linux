@@ -17,6 +17,7 @@ enum dpu_hw_intr_reg {
 	MDP_SSPP_TOP0_INTR,
 	MDP_SSPP_TOP0_INTR2,
 	MDP_SSPP_TOP0_HIST_INTR,
+	/* All MDP_INTFn_INTR should come sequentially */
 	MDP_INTF0_INTR,
 	MDP_INTF1_INTR,
 	MDP_INTF2_INTR,
@@ -32,6 +33,8 @@ enum dpu_hw_intr_reg {
 	MDP_AD4_1_INTR,
 	MDP_INTR_MAX,
 };
+
+#define MDP_INTFn_INTR(intf)	(MDP_INTF0_INTR + (intf - INTF_0))
 
 /* compatibility */
 #define MDP_INTF0_7xxx_INTR MDP_INTF0_INTR
