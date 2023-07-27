@@ -19,6 +19,7 @@ load(
     "get_dtstree",
     "get_vendor_ramdisk_binaries",
 )
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines", "get_out_dir")
 load(":msm_dtc.bzl", "define_dtc_dist")
 load(":msm_abl.bzl", "define_abl_dist")
@@ -42,42 +43,27 @@ def _define_build_config(
       variant: variant of kernel to build (e.g. "gki")
     """
 
-    gen_config_command = """
-      cat << 'EOF' > "$@"
-KERNEL_DIR="msm-kernel"
-VARIANTS=(%s)
-MSM_ARCH=%s
-VARIANT=%s
-ABL_SRC=bootable/bootloader/edk2
-BOOT_IMAGE_HEADER_VERSION=%d
-BASE_ADDRESS=0x%X
-PAGE_SIZE=%d
-TARGET_HAS_SEPARATE_RD=1
-PREFERRED_USERSPACE=le
-BUILD_BOOT_IMG=1
-SKIP_UNPACKING_RAMDISK=1
-BUILD_INITRAMFS=1
-[ -z "$${DT_OVERLAY_SUPPORT}" ] && DT_OVERLAY_SUPPORT=1
-
-if [ "$${KERNEL_CMDLINE_CONSOLE_AUTO}" != "0" ]; then
-        KERNEL_VENDOR_CMDLINE+=' console=ttyMSM0,115200n8 earlycon=qcom_geni,0x00a9C000 qcom_geni_serial.con_enabled=1 '
-fi
-EOF
-    """ % (
-        " ".join([v.replace("-", "_") for v in le_variants]),  # VARIANTS
-        msm_target.replace("-", "_"),
-        variant.replace("-", "_"),
-        boot_image_opts.boot_image_header_version,
-        boot_image_opts.base_address,
-        boot_image_opts.page_size,
-    )
-
-    # Generate the build config
-    native.genrule(
+    write_file(
         name = "{}_build_config_bazel".format(target),
-        srcs = [],
-        outs = ["build.config.msm.{}.generated".format(target)],
-        cmd_bash = gen_config_command,
+        out = "build.config.msm.{}.generated".format(target),
+        content = [
+            'KERNEL_DIR="msm-kernel"',
+            "VARIANTS=({})".format(" ".join([v.replace("-", "_") for v in le_variants])),
+            "MSM_ARCH={}".format(msm_target.replace("-", "_")),
+            "VARIANT={}".format(variant.replace("-", "_")),
+            "ABL_SRC=bootable/bootloader/edk2",
+            "BOOT_IMAGE_HEADER_VERSION={}".format(boot_image_opts.boot_image_header_version),
+            "BASE_ADDRESS=0x%X" % boot_image_opts.base_address,
+            "PAGE_SIZE={}".format(boot_image_opts.page_size),
+            "TARGET_HAS_SEPARATE_RD=1",
+            "PREFERRED_USERSPACE=le",
+            "BUILD_BOOT_IMG=1",
+            "SKIP_UNPACKING_RAMDISK=1",
+            "BUILD_INITRAMFS=1",
+            '[ -z "$DT_OVERLAY_SUPPORT" ] && DT_OVERLAY_SUPPORT=1',
+            '[ "$KERNEL_CMDLINE_CONSOLE_AUTO" != "0" ] && KERNEL_VENDOR_CMDLINE+=\' console=ttyMSM0,115200n8 earlycon=qcom_geni,0x00a9C000 qcom_geni_serial.con_enabled=1 \'',
+            "",  # Needed for newline at end of file
+        ],
     )
 
     top_level_config = define_top_level_config(target)
