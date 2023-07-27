@@ -685,6 +685,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_dcc = DCC_ENABLE,
 	.disable_dpp_power_gate = true,
 	.disable_hubp_power_gate = true,
+	.disable_clock_gate = true,
 	.disable_dsc_power_gate = true,
 	.vsr_support = true,
 	.performance_trace = false,
