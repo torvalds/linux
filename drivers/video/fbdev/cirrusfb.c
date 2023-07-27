@@ -1978,8 +1978,7 @@ static int cirrusfb_set_fbinfo(struct fb_info *info)
 	struct fb_var_screeninfo *var = &info->var;
 
 	info->pseudo_palette = cinfo->pseudo_palette;
-	info->flags = FBINFO_DEFAULT
-		    | FBINFO_HWACCEL_XPAN
+	info->flags = FBINFO_HWACCEL_XPAN
 		    | FBINFO_HWACCEL_YPAN
 		    | FBINFO_HWACCEL_FILLRECT
 		    | FBINFO_HWACCEL_IMAGEBLIT

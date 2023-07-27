@@ -1406,7 +1406,6 @@ static struct fb_info *mx3fb_init_fbinfo(struct device *dev,
 	fbi->var.activate	= FB_ACTIVATE_NOW;
 
 	fbi->fbops		= ops;
-	fbi->flags		= FBINFO_FLAG_DEFAULT;
 	fbi->pseudo_palette	= mx3fbi->pseudo_palette;
 
 	mutex_init(&mx3fbi->mutex);

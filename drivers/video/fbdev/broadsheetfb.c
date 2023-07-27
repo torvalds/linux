@@ -1069,7 +1069,7 @@ static int broadsheetfb_probe(struct platform_device *dev)
 
 	mutex_init(&par->io_lock);
 
-	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_VIRTFB;
+	info->flags = FBINFO_VIRTFB;
 
 	info->fbdefio = &broadsheetfb_defio;
 	fb_deferred_io_init(info);

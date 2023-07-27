@@ -500,8 +500,8 @@ static int tc_pllupdate(struct tc_data *tc, unsigned int pllctrl)
 	if (ret)
 		return ret;
 
-	/* Wait for PLL to lock: up to 2.09 ms, depending on refclk */
-	usleep_range(3000, 6000);
+	/* Wait for PLL to lock: up to 7.5 ms, depending on refclk */
+	usleep_range(15000, 20000);
 
 	return 0;
 }
@@ -817,7 +817,7 @@ static int tc_set_common_video_mode(struct tc_data *tc,
 	 * sync signals
 	 */
 	ret = regmap_write(tc->regmap, VPCTRL0,
-			   FIELD_PREP(VSDELAY, 0) |
+			   FIELD_PREP(VSDELAY, right_margin + 10) |
 			   OPXLFMT_RGB888 | FRMSYNC_DISABLED | MSF_DISABLED);
 	if (ret)
 		return ret;

@@ -515,7 +515,6 @@ static int ep93xxfb_probe(struct platform_device *pdev)
 	info->fix.accel		= FB_ACCEL_NONE;
 	info->var.activate	= FB_ACTIVATE_NOW;
 	info->var.vmode		= FB_VMODE_NONINTERLACED;
-	info->flags		= FBINFO_DEFAULT;
 	info->node		= -1;
 	info->state		= FBINFO_STATE_RUNNING;
 	info->pseudo_palette	= &fbi->pseudo_palette;

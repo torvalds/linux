@@ -501,7 +501,7 @@ static int mb862xxfb_init_fbinfo(struct fb_info *fbi)
 	fbi->var.accel_flags = 0;
 	fbi->var.vmode = FB_VMODE_NONINTERLACED;
 	fbi->var.activate = FB_ACTIVATE_NOW;
-	fbi->flags = FBINFO_DEFAULT |
+	fbi->flags =
 #ifdef __BIG_ENDIAN
 		     FBINFO_FOREIGN_ENDIAN |
 #endif

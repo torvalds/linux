@@ -1077,7 +1077,7 @@ static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	info->fix.mmio_len = pci_resource_len(dev, 1);
 	info->fix.smem_start = pci_resource_start(dev, 0);
 	info->fix.smem_len = info->screen_size;
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	info->flags = FBINFO_HWACCEL_YPAN;
 
 	if (i740fb_setup_ddc_bus(info) == 0) {
 		par->ddc_registered = true;

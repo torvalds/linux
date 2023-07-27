@@ -698,8 +698,7 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 	info->var.vmode			= FB_VMODE_NONINTERLACED;
 
 	info->fbops			= &imxfb_ops;
-	info->flags			= FBINFO_FLAG_DEFAULT |
-					  FBINFO_READS_FAST;
+	info->flags			= FBINFO_READS_FAST;
 
 	np = pdev->dev.of_node;
 	info->var.grayscale = of_property_read_bool(np,

@@ -514,7 +514,7 @@ static void offb_init_fb(struct platform_device *parent, const char *name,
 	info->fbops = &offb_ops;
 	info->screen_base = ioremap(address, fix->smem_len);
 	info->pseudo_palette = par->pseudo_palette;
-	info->flags = FBINFO_DEFAULT | foreign_endian;
+	info->flags = foreign_endian;
 
 	fb_alloc_cmap(&info->cmap, 256, 0);
 

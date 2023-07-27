@@ -1468,7 +1468,7 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	info->fbops		= &tdfxfb_ops;
 	info->pseudo_palette	= default_par->palette;
-	info->flags		= FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	info->flags		= FBINFO_HWACCEL_YPAN;
 #ifdef CONFIG_FB_3DFX_ACCEL
 	info->flags		|= FBINFO_HWACCEL_FILLRECT |
 				   FBINFO_HWACCEL_COPYAREA |

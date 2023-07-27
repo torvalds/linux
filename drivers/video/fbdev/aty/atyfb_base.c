@@ -2637,8 +2637,7 @@ static int aty_init(struct fb_info *info)
 
 	info->fbops = &atyfb_ops;
 	info->pseudo_palette = par->pseudo_palette;
-	info->flags = FBINFO_DEFAULT           |
-		      FBINFO_HWACCEL_IMAGEBLIT |
+	info->flags = FBINFO_HWACCEL_IMAGEBLIT |
 		      FBINFO_HWACCEL_FILLRECT  |
 		      FBINFO_HWACCEL_COPYAREA  |
 		      FBINFO_HWACCEL_YPAN      |
