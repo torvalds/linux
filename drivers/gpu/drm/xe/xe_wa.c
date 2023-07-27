@@ -490,6 +490,11 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 			      */
 			     .read_mask = 0))
 	},
+	{ XE_RTP_NAME("14015150844"),
+	  XE_RTP_RULES(PLATFORM(DG2), FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(SET(XEHP_HDC_CHICKEN0, DIS_ATOMIC_CHAINING_TYPED_WRITES,
+			     XE_RTP_NOCHECK))
+	},
 
 	/* PVC */
 
@@ -516,6 +521,12 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1270, 1271),
 		       FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(ROW_CHICKEN3, DIS_FIX_EOT1_FLUSH))
+	},
+	{ XE_RTP_NAME("14015150844"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1270, 1271),
+		       FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(SET(XEHP_HDC_CHICKEN0, DIS_ATOMIC_CHAINING_TYPED_WRITES,
+			     XE_RTP_NOCHECK))
 	},
 
 	{}
