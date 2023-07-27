@@ -417,9 +417,9 @@ static void zswap_entry_put(struct zswap_tree *tree,
 {
 	int refcount = --entry->refcount;
 
-	BUG_ON(refcount < 0);
+	WARN_ON_ONCE(refcount < 0);
 	if (refcount == 0) {
-		zswap_rb_erase(&tree->rbroot, entry);
+		WARN_ON_ONCE(!RB_EMPTY_NODE(&entry->rbnode));
 		zswap_free_entry(entry);
 	}
 }
