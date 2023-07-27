@@ -21,6 +21,8 @@
 
 #include "handshake.h"
 
+#include <trace/events/handshake.h>
+
 /**
  * tls_alert_send - send a TLS Alert on a kTLS socket
  * @sock: open kTLS socket to send on
@@ -38,6 +40,8 @@ int tls_alert_send(struct socket *sock, u8 level, u8 description)
 	struct kvec iov;
 	u8 alert[2];
 	int ret;
+
+	trace_tls_alert_send(sock->sk, level, description);
 
 	alert[0] = level;
 	alert[1] = description;
@@ -77,6 +81,7 @@ u8 tls_get_record_type(const struct sock *sk, const struct cmsghdr *cmsg)
 		return 0;
 
 	record_type = *((u8 *)CMSG_DATA(cmsg));
+	trace_tls_contenttype(sk, record_type);
 	return record_type;
 }
 EXPORT_SYMBOL(tls_get_record_type);
@@ -99,5 +104,7 @@ void tls_alert_recv(const struct sock *sk, const struct msghdr *msg,
 	data = iov->iov_base;
 	*level = data[0];
 	*description = data[1];
+
+	trace_tls_alert_recv(sk, *level, *description);
 }
 EXPORT_SYMBOL(tls_alert_recv);
