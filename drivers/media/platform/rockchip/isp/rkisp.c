@@ -750,7 +750,9 @@ run_next:
 		}
 	}
 
-	/* read 3d lut at frame end */
+	/* disable isp force update to read 3dlut
+	 * 3dlut auto update at frame end for single sensor
+	 */
 	if (hw->is_single && is_upd &&
 	    rkisp_read_reg_cache(dev, ISP_3DLUT_UPDATE) & 0x1) {
 		rkisp_unite_write(dev, ISP_3DLUT_UPDATE, 0, true, hw->is_unite);
@@ -4059,9 +4061,14 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		}
 
 		if (IS_HDR_RDBK(dev->hdr.op_mode)) {
-			/* read 3d lut at isp readback */
-			if (!dev->hw_dev->is_single)
-				rkisp_write(dev, ISP_3DLUT_UPDATE, 0, true);
+			/* disabled frame end to read 3dlut for multi sensor
+			 * 3dlut will update at isp readback
+			 */
+			if (!dev->hw_dev->is_single) {
+				writel(0, hw->base_addr + ISP_3DLUT_UPDATE);
+				if (hw->is_unite)
+					writel(0, hw->base_next_addr + ISP_3DLUT_UPDATE);
+			}
 			rkisp_stats_rdbk_enable(&dev->stats_vdev, true);
 			goto vs_skip;
 		}
