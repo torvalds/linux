@@ -51,7 +51,7 @@ static void ufshcd_dwc_program_clk_div(struct ufs_hba *hba, u32 divider_val)
  * Check if link is up
  * @hba: private structure pointer
  *
- * Returns 0 on success, non-zero value on failure
+ * Return: 0 on success, non-zero value on failure.
  */
 static int ufshcd_dwc_link_is_up(struct ufs_hba *hba)
 {
@@ -78,7 +78,7 @@ static int ufshcd_dwc_link_is_up(struct ufs_hba *hba)
  *
  * @hba: pointer to drivers private data
  *
- * Returns 0 on success non-zero value on failure
+ * Return: 0 on success non-zero value on failure.
  */
 static int ufshcd_dwc_connection_setup(struct ufs_hba *hba)
 {
@@ -112,7 +112,7 @@ static int ufshcd_dwc_connection_setup(struct ufs_hba *hba)
  * @hba: private structure pointer
  * @status: Callback notify status
  *
- * Returns 0 on success, non-zero value on failure
+ * Return: 0 on success, non-zero value on failure.
  */
 int ufshcd_dwc_link_startup_notify(struct ufs_hba *hba,
 					enum ufs_notify_change_status status)

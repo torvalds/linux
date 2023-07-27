@@ -294,7 +294,7 @@ extern const struct ufs_pm_lvl_states ufs_pm_lvl_states[];
  * ufshcd_scsi_to_upiu_lun - maps scsi LUN to UPIU LUN
  * @scsi_lun: scsi LUN id
  *
- * Returns UPIU LUN id
+ * Return: UPIU LUN id
  */
 static inline u8 ufshcd_scsi_to_upiu_lun(unsigned int scsi_lun)
 {

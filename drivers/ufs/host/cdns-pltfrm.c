@@ -105,7 +105,7 @@ static void cdns_ufs_set_l4_attr(struct ufs_hba *hba)
  * Sets HCLKDIV register value based on the core_clk
  * @hba: host controller instance
  *
- * Return zero for success and non-zero for failure
+ * Return: zero for success and non-zero for failure.
  */
 static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
 {
@@ -148,7 +148,7 @@ static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
  * @hba: host controller instance
  * @status: notify stage (pre, post change)
  *
- * Return zero for success and non-zero for failure
+ * Return: zero for success and non-zero for failure.
  */
 static int cdns_ufs_hce_enable_notify(struct ufs_hba *hba,
 				      enum ufs_notify_change_status status)
@@ -182,7 +182,7 @@ static void cdns_ufs_hibern8_notify(struct ufs_hba *hba, enum uic_cmd_dme cmd,
  * @hba: host controller instance
  * @status: notify stage (pre, post change)
  *
- * Return zero for success and non-zero for failure
+ * Return: zero for success and non-zero for failure.
  */
 static int cdns_ufs_link_startup_notify(struct ufs_hba *hba,
 					enum ufs_notify_change_status status)
@@ -212,7 +212,7 @@ static int cdns_ufs_link_startup_notify(struct ufs_hba *hba,
  * cdns_ufs_init - performs additional ufs initialization
  * @hba: host controller instance
  *
- * Returns status of initialization
+ * Return: status of initialization.
  */
 static int cdns_ufs_init(struct ufs_hba *hba)
 {
@@ -284,7 +284,7 @@ MODULE_DEVICE_TABLE(of, cdns_ufs_of_match);
  * cdns_ufs_pltfrm_probe - probe routine of the driver
  * @pdev: pointer to platform device handle
  *
- * Return zero for success and non-zero for failure
+ * Return: zero for success and non-zero for failure.
  */
 static int cdns_ufs_pltfrm_probe(struct platform_device *pdev)
 {

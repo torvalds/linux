@@ -21,7 +21,7 @@
  * This function configures Synopsys TC specific atributes (40-bit RMMI)
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success or non-zero value on failure
+ * Return: 0 on success or non-zero value on failure.
  */
 static int tc_dwc_g210_setup_40bit_rmmi(struct ufs_hba *hba)
 {
@@ -85,7 +85,7 @@ static int tc_dwc_g210_setup_40bit_rmmi(struct ufs_hba *hba)
  * This function configures Synopsys TC 20-bit RMMI Lane 0
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success or non-zero value on failure
+ * Return: 0 on success or non-zero value on failure.
  */
 static int tc_dwc_g210_setup_20bit_rmmi_lane0(struct ufs_hba *hba)
 {
@@ -138,7 +138,7 @@ static int tc_dwc_g210_setup_20bit_rmmi_lane0(struct ufs_hba *hba)
  * This function configures Synopsys TC 20-bit RMMI Lane 1
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success or non-zero value on failure
+ * Return: 0 on success or non-zero value on failure.
  */
 static int tc_dwc_g210_setup_20bit_rmmi_lane1(struct ufs_hba *hba)
 {
@@ -215,7 +215,7 @@ out:
  * This function configures Synopsys TC specific atributes (20-bit RMMI)
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success or non-zero value on failure
+ * Return: 0 on success or non-zero value on failure.
  */
 static int tc_dwc_g210_setup_20bit_rmmi(struct ufs_hba *hba)
 {
@@ -256,7 +256,7 @@ out:
  *
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success non-zero value on failure
+ * Return: 0 on success non-zero value on failure.
  */
 int tc_dwc_g210_config_40_bit(struct ufs_hba *hba)
 {
@@ -288,7 +288,7 @@ EXPORT_SYMBOL(tc_dwc_g210_config_40_bit);
  *
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success non-zero value on failure
+ * Return: 0 on success non-zero value on failure.
  */
 int tc_dwc_g210_config_20_bit(struct ufs_hba *hba)
 {

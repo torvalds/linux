@@ -666,7 +666,7 @@ static void ufs_mtk_pwr_ctrl(struct ufs_hba *hba, bool on)
  * @on: If true, enable clocks else disable them.
  * @status: PRE_CHANGE or POST_CHANGE notify
  *
- * Returns 0 on success, non-zero on failure.
+ * Return: 0 on success, non-zero on failure.
  */
 static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
 				enum ufs_notify_change_status status)
@@ -885,7 +885,7 @@ failed:
  * Binds PHY with controller and powers up PHY enabling clocks
  * and regulators.
  *
- * Returns -EPROBE_DEFER if binding fails, returns negative error
+ * Return: -EPROBE_DEFER if binding fails, returns negative error
  * on phy power up failure and returns zero on success.
  */
 static int ufs_mtk_init(struct ufs_hba *hba)
@@ -1696,7 +1696,7 @@ static const struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
  * ufs_mtk_probe - probe routine of the driver
  * @pdev: pointer to Platform device handle
  *
- * Return zero for success and non-zero for failure
+ * Return: zero for success and non-zero for failure.
  */
 static int ufs_mtk_probe(struct platform_device *pdev)
 {

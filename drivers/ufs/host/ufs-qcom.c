@@ -485,7 +485,7 @@ static int ufs_qcom_hce_enable_notify(struct ufs_hba *hba,
 }
 
 /*
- * Returns zero for success and non-zero in case of a failure
+ * Return: zero for success and non-zero in case of a failure.
  */
 static int ufs_qcom_cfg_timers(struct ufs_hba *hba, u32 gear,
 			       u32 hs, u32 rate, bool update_link_startup_timer)
@@ -964,7 +964,7 @@ static void ufs_qcom_set_caps(struct ufs_hba *hba)
  * @on: If true, enable clocks else disable them.
  * @status: PRE_CHANGE or POST_CHANGE notify
  *
- * Returns 0 on success, non-zero on failure.
+ * Return: 0 on success, non-zero on failure.
  */
 static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 				 enum ufs_notify_change_status status)
@@ -1038,7 +1038,7 @@ static const struct reset_control_ops ufs_qcom_reset_ops = {
  * Binds PHY with controller and powers up PHY enabling clocks
  * and regulators.
  *
- * Returns -EPROBE_DEFER if binding fails, returns negative error
+ * Return: -EPROBE_DEFER if binding fails, returns negative error
  * on phy power up failure and returns zero on success.
  */
 static int ufs_qcom_init(struct ufs_hba *hba)
@@ -1756,7 +1756,7 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
  * ufs_qcom_probe - probe routine of the driver
  * @pdev: pointer to Platform device handle
  *
- * Return zero for success and non-zero for failure
+ * Return: zero for success and non-zero for failure.
  */
 static int ufs_qcom_probe(struct platform_device *pdev)
 {
