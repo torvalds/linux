@@ -1167,7 +1167,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return dev_err_probe(&pdev->dev, irq, "Failed to get IRQ\n");
+		return irq;
 
 	master = devm_spi_alloc_master(&pdev->dev, sizeof(*sdd));
 	if (!master)
