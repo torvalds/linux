@@ -54,7 +54,7 @@ examples:
     #include <dt-bindings/clock/qcom,gcc-sm8250.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interconnect/qcom,sm8250.h>
-    #include <dt-bindings/power/qcom-rpmpd.h>
+    #include <dt-bindings/power/qcom,rpmhpd.h>
 
     display-controller@ae01000 {
         compatible = "qcom,sm8250-dpu";
@@ -72,7 +72,7 @@ examples:
         assigned-clock-rates = <19200000>;
 
         operating-points-v2 = <&mdp_opp_table>;
-        power-domains = <&rpmhpd SM8250_MMCX>;
+        power-domains = <&rpmhpd RPMHPD_MMCX>;
 
         interrupt-parent = <&mdss>;
         interrupts = <0>;
