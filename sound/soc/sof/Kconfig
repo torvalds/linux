@@ -221,6 +221,7 @@ config SND_SOC_SOF_PROBE_WORK_QUEUE
 
 source "sound/soc/sof/imx/Kconfig"
 source "sound/soc/sof/intel/Kconfig"
+source "sound/soc/sof/starfive/Kconfig"
 source "sound/soc/sof/xtensa/Kconfig"
 
 endif

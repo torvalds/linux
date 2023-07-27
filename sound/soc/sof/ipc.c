@@ -264,7 +264,6 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc, u32 header,
 	 * other atomic contexts.
 	 */
 	spin_lock_irq(&sdev->ipc_lock);
-
 	/* initialise the message */
 	msg = &ipc->msg;
 

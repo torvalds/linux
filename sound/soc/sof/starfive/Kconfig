@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+
+config SND_SOC_SOF_STARFIVE_TOPLEVEL
+	bool "SOF support for Starfive HiFi4 audio DSPs"
+	depends on RISCV || COMPILE_TEST
+	depends on SND_SOC_SOF_OF
+	help
+	  This adds support for Sound Open Firmware for Starfive platforms.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+if SND_SOC_SOF_STARFIVE_TOPLEVEL
+
+config SND_SOC_SOF_STARFIVE_OF
+	def_tristate SND_SOC_SOF_OF
+	select SND_SOC_SOF_STARFIVE if SND_SOC_SOF_STARFIVE_SUPPORT
+	help
+	  This option is not user-selectable but automatically handled by
+	  'select' statements at a higher level.
+
+config SND_SOC_SOF_STARFIVE_COMMON
+	tristate
+	help
+	  This option is not user-selectable but automatically handled by
+	  'select' statements at a higher level.
+
+config SND_SOC_SOF_STARFIVE_SUPPORT
+	bool "SOF support for STARFIVE"
+	depends on SND_SOC_SOF_STARFIVE_OF
+	help
+	  This adds support for Sound Open Firmware for Starfive platforms.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_STARFIVE
+	tristate
+	select SND_SOC_SOF_STARFIVE_COMMON
+	select SND_SOC_SOF_XTENSA
+	help
+	  This option is not user-selectable but automatically handled by
+	  'select' statements at a higher level.
+
+config STARFIVE_DSP
+	tristate "STARFIVE DSP Protocol driver"
+	depends on STARFIVE_MBOX
+	help
+	  This enables DSP IPC protocol between host AP (Linux)
+	  and the firmware running on DSP.
+
+	  It acts like a doorbell. Client might use shared memory to
+	  exchange information with DSP side.
+
+endif ## SND_SOC_SOF_STARFIVE_TOPLEVEL
