@@ -237,7 +237,7 @@ struct efx_tx_buffer {
  *	Normally this will equal @write_count, but as option descriptors
  *	don't produce completion events, they won't update this.
  *	Filled in iff @efx->type->option_descriptors; only used for PIO.
- *	Thus, this is written and used on EF10, and neither on farch.
+ *	Thus, this is only written and used on EF10.
  * @old_read_count: The value of read_count when last checked.
  *	This is here for performance reasons.  The xmit path will
  *	only get the up-to-date value of read_count if this
@@ -1288,8 +1288,7 @@ struct efx_udp_tunnel {
  * @set_wol: Push WoL configuration to the NIC
  * @resume_wol: Synchronise WoL state between driver and MC (e.g. after resume)
  * @get_fec_stats: Get standard FEC statistics.
- * @test_chip: Test registers.  May use efx_farch_test_registers(), and is
- *	expected to reset the NIC.
+ * @test_chip: Test registers. This is expected to reset the NIC.
  * @test_nvram: Test validity of NVRAM contents
  * @mcdi_request: Send an MCDI request with the given header and SDU.
  *	The SDU length may be any value from 0 up to the protocol-

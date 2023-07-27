@@ -10,7 +10,6 @@
 #include "net_driver.h"
 #include "nic.h"
 #include "io.h"
-#include "farch_regs.h"
 #include "mcdi_pcol.h"
 
 /**************************************************************************

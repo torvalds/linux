@@ -11,8 +11,6 @@
 #include "nic_common.h"
 #include "efx.h"
 
-u32 efx_farch_fpga_ver(struct efx_nic *efx);
-
 enum {
 	PHY_TYPE_NONE = 0,
 	PHY_TYPE_TXC43128 = 1,
@@ -304,89 +302,8 @@ int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 extern const struct efx_nic_type efx_hunt_a0_nic_type;
 extern const struct efx_nic_type efx_hunt_a0_vf_nic_type;
 
-int falcon_probe_board(struct efx_nic *efx, u16 revision_info);
-
-/* Falcon/Siena queue operations */
-int efx_farch_tx_probe(struct efx_tx_queue *tx_queue);
-void efx_farch_tx_init(struct efx_tx_queue *tx_queue);
-void efx_farch_tx_fini(struct efx_tx_queue *tx_queue);
-void efx_farch_tx_remove(struct efx_tx_queue *tx_queue);
-void efx_farch_tx_write(struct efx_tx_queue *tx_queue);
-unsigned int efx_farch_tx_limit_len(struct efx_tx_queue *tx_queue,
-				    dma_addr_t dma_addr, unsigned int len);
-int efx_farch_rx_probe(struct efx_rx_queue *rx_queue);
-void efx_farch_rx_init(struct efx_rx_queue *rx_queue);
-void efx_farch_rx_fini(struct efx_rx_queue *rx_queue);
-void efx_farch_rx_remove(struct efx_rx_queue *rx_queue);
-void efx_farch_rx_write(struct efx_rx_queue *rx_queue);
-void efx_farch_rx_defer_refill(struct efx_rx_queue *rx_queue);
-int efx_farch_ev_probe(struct efx_channel *channel);
-int efx_farch_ev_init(struct efx_channel *channel);
-void efx_farch_ev_fini(struct efx_channel *channel);
-void efx_farch_ev_remove(struct efx_channel *channel);
-int efx_farch_ev_process(struct efx_channel *channel, int quota);
-void efx_farch_ev_read_ack(struct efx_channel *channel);
-void efx_farch_ev_test_generate(struct efx_channel *channel);
-
-/* Falcon/Siena filter operations */
-int efx_farch_filter_table_probe(struct efx_nic *efx);
-void efx_farch_filter_table_restore(struct efx_nic *efx);
-void efx_farch_filter_table_remove(struct efx_nic *efx);
-void efx_farch_filter_update_rx_scatter(struct efx_nic *efx);
-s32 efx_farch_filter_insert(struct efx_nic *efx, struct efx_filter_spec *spec,
-			    bool replace);
-int efx_farch_filter_remove_safe(struct efx_nic *efx,
-				 enum efx_filter_priority priority,
-				 u32 filter_id);
-int efx_farch_filter_get_safe(struct efx_nic *efx,
-			      enum efx_filter_priority priority, u32 filter_id,
-			      struct efx_filter_spec *);
-int efx_farch_filter_clear_rx(struct efx_nic *efx,
-			      enum efx_filter_priority priority);
-u32 efx_farch_filter_count_rx_used(struct efx_nic *efx,
-				   enum efx_filter_priority priority);
-u32 efx_farch_filter_get_rx_id_limit(struct efx_nic *efx);
-s32 efx_farch_filter_get_rx_ids(struct efx_nic *efx,
-				enum efx_filter_priority priority, u32 *buf,
-				u32 size);
-#ifdef CONFIG_RFS_ACCEL
-bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
-				     unsigned int index);
-#endif
-void efx_farch_filter_sync_rx_mode(struct efx_nic *efx);
-
-/* Falcon/Siena interrupts */
-void efx_farch_irq_enable_master(struct efx_nic *efx);
-int efx_farch_irq_test_generate(struct efx_nic *efx);
-void efx_farch_irq_disable_master(struct efx_nic *efx);
-irqreturn_t efx_farch_msi_interrupt(int irq, void *dev_id);
-irqreturn_t efx_farch_legacy_interrupt(int irq, void *dev_id);
-irqreturn_t efx_farch_fatal_interrupt(struct efx_nic *efx);
-
 /* Global Resources */
 void siena_prepare_flush(struct efx_nic *efx);
-int efx_farch_fini_dmaq(struct efx_nic *efx);
-void efx_farch_finish_flr(struct efx_nic *efx);
 void siena_finish_flush(struct efx_nic *efx);
-void falcon_start_nic_stats(struct efx_nic *efx);
-void falcon_stop_nic_stats(struct efx_nic *efx);
-int falcon_reset_xaui(struct efx_nic *efx);
-void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw);
-void efx_farch_init_common(struct efx_nic *efx);
-void efx_farch_rx_push_indir_table(struct efx_nic *efx);
-void efx_farch_rx_pull_indir_table(struct efx_nic *efx);
-
-/* Tests */
-struct efx_farch_register_test {
-	unsigned address;
-	efx_oword_t mask;
-};
-
-int efx_farch_test_registers(struct efx_nic *efx,
-			     const struct efx_farch_register_test *regs,
-			     size_t n_regs);
-
-void efx_farch_generate_event(struct efx_nic *efx, unsigned int evq,
-			      efx_qword_t *event);
 
 #endif /* EFX_NIC_H */
