@@ -355,6 +355,19 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 	break;
 
+	case AMDGPU_FAMILY_GC_11_5_0: {
+		struct clk_mgr_dcn35 *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
+
+		dcn35_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+		return &clk_mgr->base.base;
+	}
+	break;
+
 #endif /* CONFIG_DRM_AMD_DC_FP - Family RV */
 	default:
 		ASSERT(0); /* Unknown Asic */
