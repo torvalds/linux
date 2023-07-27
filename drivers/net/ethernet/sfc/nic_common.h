@@ -32,7 +32,7 @@ static inline int efx_nic_rev(struct efx_nic *efx)
 static inline efx_qword_t *efx_event(struct efx_channel *channel,
 				     unsigned int index)
 {
-	return ((efx_qword_t *) (channel->eventq.buf.addr)) +
+	return ((efx_qword_t *)(channel->eventq.addr)) +
 		(index & channel->eventq_mask);
 }
 
@@ -58,7 +58,7 @@ static inline int efx_event_present(efx_qword_t *event)
 static inline efx_qword_t *
 efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 {
-	return ((efx_qword_t *) (tx_queue->txd.buf.addr)) + index;
+	return ((efx_qword_t *)(tx_queue->txd.addr)) + index;
 }
 
 /* Report whether this TX queue would be empty for the given write_count.
@@ -98,7 +98,7 @@ static inline bool efx_nic_may_push_tx_desc(struct efx_tx_queue *tx_queue,
 static inline efx_qword_t *
 efx_rx_desc(struct efx_rx_queue *rx_queue, unsigned int index)
 {
-	return ((efx_qword_t *) (rx_queue->rxd.buf.addr)) + index;
+	return ((efx_qword_t *)(rx_queue->rxd.addr)) + index;
 }
 
 /* Alignment of PCIe DMA boundaries (4KB) */
