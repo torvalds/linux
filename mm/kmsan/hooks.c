@@ -339,7 +339,7 @@ void kmsan_handle_dma(struct page *page, size_t offset, size_t size,
 	 * internal KMSAN checks.
 	 */
 	while (size > 0) {
-		page_offset = addr % PAGE_SIZE;
+		page_offset = offset_in_page(addr);
 		to_go = min(PAGE_SIZE - page_offset, (u64)size);
 		kmsan_handle_dma_page((void *)addr, to_go, dir);
 		addr += to_go;
