@@ -42,4 +42,8 @@ int tls_server_hello_psk(const struct tls_handshake_args *args, gfp_t flags);
 bool tls_handshake_cancel(struct sock *sk);
 void tls_handshake_close(struct socket *sock);
 
+u8 tls_get_record_type(const struct sock *sk, const struct cmsghdr *msg);
+void tls_alert_recv(const struct sock *sk, const struct msghdr *msg,
+		    u8 *level, u8 *description);
+
 #endif /* _NET_HANDSHAKE_H */

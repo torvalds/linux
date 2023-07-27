@@ -59,3 +59,45 @@ int tls_alert_send(struct socket *sock, u8 level, u8 description)
 	ret = sock_sendmsg(sock, &msg);
 	return ret < 0 ? ret : 0;
 }
+
+/**
+ * tls_get_record_type - Look for TLS RECORD_TYPE information
+ * @sk: socket (for IP address information)
+ * @cmsg: incoming message to be parsed
+ *
+ * Returns zero or a TLS_RECORD_TYPE value.
+ */
+u8 tls_get_record_type(const struct sock *sk, const struct cmsghdr *cmsg)
+{
+	u8 record_type;
+
+	if (cmsg->cmsg_level != SOL_TLS)
+		return 0;
+	if (cmsg->cmsg_type != TLS_GET_RECORD_TYPE)
+		return 0;
+
+	record_type = *((u8 *)CMSG_DATA(cmsg));
+	return record_type;
+}
+EXPORT_SYMBOL(tls_get_record_type);
+
+/**
+ * tls_alert_recv - Parse TLS Alert messages
+ * @sk: socket (for IP address information)
+ * @msg: incoming message to be parsed
+ * @level: OUT - TLS AlertLevel value
+ * @description: OUT - TLS AlertDescription value
+ *
+ */
+void tls_alert_recv(const struct sock *sk, const struct msghdr *msg,
+		    u8 *level, u8 *description)
+{
+	const struct kvec *iov;
+	u8 *data;
+
+	iov = msg->msg_iter.kvec;
+	data = iov->iov_base;
+	*level = data[0];
+	*description = data[1];
+}
+EXPORT_SYMBOL(tls_alert_recv);
