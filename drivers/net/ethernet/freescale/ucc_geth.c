@@ -28,11 +28,12 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/workqueue.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <linux/uaccess.h>
 #include <asm/irq.h>
