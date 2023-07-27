@@ -326,10 +326,7 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 		*value = !adreno_is_a650_family(adreno_gpu) ? 0x100000 : 0;
 		return 0;
 	case MSM_PARAM_CHIP_ID:
-		*value =  (uint64_t)adreno_gpu->rev.patchid |
-			 ((uint64_t)adreno_gpu->rev.minor << 8) |
-			 ((uint64_t)adreno_gpu->rev.major << 16) |
-			 ((uint64_t)adreno_gpu->rev.core  << 24);
+		*value = adreno_gpu->chip_id;
 		if (!adreno_gpu->info->revn)
 			*value |= ((uint64_t) adreno_gpu->speedbin) << 32;
 		return 0;
@@ -849,7 +846,7 @@ void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 
 	drm_printf(p, "revision: %u (%"ADRENO_CHIPID_FMT")\n",
 			adreno_gpu->info->revn,
-			ADRENO_CHIPID_ARGS(adreno_gpu->rev));
+			ADRENO_CHIPID_ARGS(adreno_gpu->chip_id));
 	/*
 	 * If this is state collected due to iova fault, so fault related info
 	 *
@@ -922,7 +919,7 @@ void adreno_dump_info(struct msm_gpu *gpu)
 
 	printk("revision: %u (%"ADRENO_CHIPID_FMT")\n",
 			adreno_gpu->info->revn,
-			ADRENO_CHIPID_ARGS(adreno_gpu->rev));
+			ADRENO_CHIPID_ARGS(adreno_gpu->chip_id));
 
 	for (i = 0; i < gpu->nr_rings; i++) {
 		struct msm_ringbuffer *ring = gpu->rb[i];
@@ -1073,14 +1070,13 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	struct adreno_platform_config *config = dev->platform_data;
 	struct msm_gpu_config adreno_gpu_config  = { 0 };
 	struct msm_gpu *gpu = &adreno_gpu->base;
-	struct adreno_rev *rev = &config->rev;
 	const char *gpu_name;
 	u32 speedbin;
 	int ret;
 
 	adreno_gpu->funcs = funcs;
 	adreno_gpu->info = config->info;
-	adreno_gpu->rev = *rev;
+	adreno_gpu->chip_id = config->chip_id;
 
 	/* Only handle the core clock when GMU is not in use (or is absent). */
 	if (adreno_has_gmu_wrapper(adreno_gpu) ||
@@ -1105,7 +1101,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	adreno_gpu->speedbin = (uint16_t) (0xffff & speedbin);
 
 	gpu_name = devm_kasprintf(dev, GFP_KERNEL, "%"ADRENO_CHIPID_FMT,
-			ADRENO_CHIPID_ARGS(config->rev));
+			ADRENO_CHIPID_ARGS(config->chip_id));
 	if (!gpu_name)
 		return -ENOMEM;
 

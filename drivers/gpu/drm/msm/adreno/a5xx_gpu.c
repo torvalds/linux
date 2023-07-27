@@ -1770,7 +1770,7 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 
 	nr_rings = 4;
 
-	if (adreno_cmp_rev(ADRENO_REV(5, 1, 0, ANY_ID), config->rev))
+	if (config->info->revn == 510)
 		nr_rings = 1;
 
 	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, nr_rings);

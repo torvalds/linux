@@ -790,10 +790,16 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	gmu_write(gmu, REG_A6XX_GMU_AHB_FENCE_RANGE_0,
 		(1 << 31) | (0xa << 18) | (0xa0));
 
-	chipid = adreno_gpu->rev.core << 24;
-	chipid |= adreno_gpu->rev.major << 16;
-	chipid |= adreno_gpu->rev.minor << 12;
-	chipid |= adreno_gpu->rev.patchid << 8;
+	/*
+	 * Note that the GMU has a slightly different layout for
+	 * chip_id, for whatever reason, so a bit of massaging
+	 * is needed.  The upper 16b are the same, but minor and
+	 * patchid are packed in four bits each with the lower
+	 * 8b unused:
+	 */
+	chipid  = adreno_gpu->chip_id & 0xffff0000;
+	chipid |= (adreno_gpu->chip_id << 4) & 0xf000; /* minor */
+	chipid |= (adreno_gpu->chip_id << 8) & 0x0f00; /* patchid */
 
 	gmu_write(gmu, REG_A6XX_GMU_HFI_SFR_ADDR, chipid);
 

@@ -54,23 +54,15 @@ enum adreno_family {
 #define ADRENO_QUIRK_HAS_HW_APRIV		BIT(3)
 #define ADRENO_QUIRK_HAS_CACHED_COHERENT	BIT(4)
 
-struct adreno_rev {
-	uint8_t  core;
-	uint8_t  major;
-	uint8_t  minor;
-	uint8_t  patchid;
-};
-
-#define ANY_ID 0xff
-
-#define ADRENO_REV(core, major, minor, patchid) \
-	((struct adreno_rev){ core, major, minor, patchid })
-
 /* Helper for formating the chip_id in the way that userspace tools like
  * crashdec expect.
  */
 #define ADRENO_CHIPID_FMT "u.%u.%u.%u"
-#define ADRENO_CHIPID_ARGS(_r) (_r).core, (_r).major, (_r).minor, (_r).patchid
+#define ADRENO_CHIPID_ARGS(_c) \
+	(((_c) >> 24) & 0xff), \
+	(((_c) >> 16) & 0xff), \
+	(((_c) >> 8)  & 0xff), \
+	((_c) & 0xff)
 
 struct adreno_gpu_funcs {
 	struct msm_gpu_funcs base;
@@ -92,7 +84,12 @@ struct adreno_speedbin {
 
 struct adreno_info {
 	const char *machine;
-	struct adreno_rev rev;
+	/**
+	 * @chipids: Table of matching chip-ids
+	 *
+	 * Terminated with 0 sentinal
+	 */
+	uint32_t *chip_ids;
 	enum adreno_family family;
 	uint32_t revn;
 	const char *fw[ADRENO_FW_MAX];
@@ -111,6 +108,8 @@ struct adreno_info {
 	 */
 	struct adreno_speedbin *speedbins;
 };
+
+#define ADRENO_CHIP_IDS(tbl...) (uint32_t[]) { tbl, 0 }
 
 /*
  * Helper to build a speedbin table, ie. the table:
@@ -132,8 +131,8 @@ struct adreno_info {
 
 struct adreno_gpu {
 	struct msm_gpu base;
-	struct adreno_rev rev;
 	const struct adreno_info *info;
+	uint32_t chip_id;
 	uint16_t speedbin;
 	const struct adreno_gpu_funcs *funcs;
 
@@ -182,7 +181,7 @@ struct adreno_ocmem {
 
 /* platform config data (ie. from DT, or pdata) */
 struct adreno_platform_config {
-	struct adreno_rev rev;
+	uint32_t chip_id;
 	const struct adreno_info *info;
 };
 
@@ -200,7 +199,15 @@ struct adreno_platform_config {
 	__ret;                                             \
 })
 
-bool adreno_cmp_rev(struct adreno_rev rev1, struct adreno_rev rev2);
+static inline uint8_t adreno_patchid(const struct adreno_gpu *gpu)
+{
+	/* It is probably ok to assume legacy "adreno_rev" format
+	 * for all a6xx devices, but probably best to limit this
+	 * to older things.
+	 */
+	WARN_ON_ONCE(gpu->info->family >= ADRENO_6XX_GEN1);
+	return gpu->chip_id & 0xff;
+}
 
 static inline bool adreno_is_revn(const struct adreno_gpu *gpu, uint32_t revn)
 {
@@ -256,7 +263,7 @@ static inline bool adreno_is_a330(const struct adreno_gpu *gpu)
 
 static inline bool adreno_is_a330v2(const struct adreno_gpu *gpu)
 {
-	return adreno_is_a330(gpu) && (gpu->rev.patchid > 0);
+	return adreno_is_a330(gpu) && (adreno_patchid(gpu) > 0);
 }
 
 static inline int adreno_is_a405(const struct adreno_gpu *gpu)
@@ -346,8 +353,7 @@ static inline int adreno_is_a650(const struct adreno_gpu *gpu)
 
 static inline int adreno_is_7c3(const struct adreno_gpu *gpu)
 {
-	/* The order of args is important here to handle ANY_ID correctly */
-	return adreno_cmp_rev(ADRENO_REV(6, 3, 5, ANY_ID), gpu->rev);
+	return gpu->info->chip_ids[0] == 0x06030500;
 }
 
 static inline int adreno_is_a660(const struct adreno_gpu *gpu)
@@ -362,8 +368,7 @@ static inline int adreno_is_a680(const struct adreno_gpu *gpu)
 
 static inline int adreno_is_a690(const struct adreno_gpu *gpu)
 {
-	/* The order of args is important here to handle ANY_ID correctly */
-	return adreno_cmp_rev(ADRENO_REV(6, 9, 0, ANY_ID), gpu->rev);
+	return gpu->info->chip_ids[0] == 0x06090000;
 }
 
 /* check for a615, a616, a618, a619 or any a630 derivatives */
