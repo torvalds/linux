@@ -423,13 +423,22 @@ int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(eth, entry);
 	u32 *ib2 = mtk_foe_entry_ib2(eth, entry);
 
-	if (mtk_is_netsys_v2_or_greater(eth)) {
+	switch (eth->soc->version) {
+	case 3:
+		*ib2 &= ~MTK_FOE_IB2_PORT_MG_V2;
+		*ib2 |=  FIELD_PREP(MTK_FOE_IB2_RX_IDX, txq) |
+			 MTK_FOE_IB2_WDMA_WINFO_V2;
+		l2->w3info = FIELD_PREP(MTK_FOE_WINFO_WCID_V3, wcid) |
+			     FIELD_PREP(MTK_FOE_WINFO_BSS_V3, bss);
+		break;
+	case 2:
 		*ib2 &= ~MTK_FOE_IB2_PORT_MG_V2;
 		*ib2 |=  FIELD_PREP(MTK_FOE_IB2_RX_IDX, txq) |
 			 MTK_FOE_IB2_WDMA_WINFO_V2;
 		l2->winfo = FIELD_PREP(MTK_FOE_WINFO_WCID, wcid) |
 			    FIELD_PREP(MTK_FOE_WINFO_BSS, bss);
-	} else {
+		break;
+	default:
 		*ib2 &= ~MTK_FOE_IB2_PORT_MG;
 		*ib2 |= MTK_FOE_IB2_WDMA_WINFO;
 		if (wdma_idx)
@@ -437,6 +446,7 @@ int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 		l2->vlan2 = FIELD_PREP(MTK_FOE_VLAN2_WINFO_BSS, bss) |
 			    FIELD_PREP(MTK_FOE_VLAN2_WINFO_WCID, wcid) |
 			    FIELD_PREP(MTK_FOE_VLAN2_WINFO_RING, txq);
+		break;
 	}
 
 	return 0;
@@ -964,8 +974,7 @@ void mtk_ppe_start(struct mtk_ppe *ppe)
 	mtk_ppe_init_foe_table(ppe);
 	ppe_w32(ppe, MTK_PPE_TB_BASE, ppe->foe_phys);
 
-	val = MTK_PPE_TB_CFG_ENTRY_80B |
-	      MTK_PPE_TB_CFG_AGE_NON_L4 |
+	val = MTK_PPE_TB_CFG_AGE_NON_L4 |
 	      MTK_PPE_TB_CFG_AGE_UNBIND |
 	      MTK_PPE_TB_CFG_AGE_TCP |
 	      MTK_PPE_TB_CFG_AGE_UDP |
@@ -981,6 +990,8 @@ void mtk_ppe_start(struct mtk_ppe *ppe)
 			 MTK_PPE_ENTRIES_SHIFT);
 	if (mtk_is_netsys_v2_or_greater(ppe->eth))
 		val |= MTK_PPE_TB_CFG_INFO_SEL;
+	if (!mtk_is_netsys_v3_or_greater(ppe->eth))
+		val |= MTK_PPE_TB_CFG_ENTRY_80B;
 	ppe_w32(ppe, MTK_PPE_TB_CFG, val);
 
 	ppe_w32(ppe, MTK_PPE_IP_PROTO_CHK,
