@@ -726,15 +726,13 @@ free_host:
 	return ret;
 }
 
-static int uniphier_sd_remove(struct platform_device *pdev)
+static void uniphier_sd_remove(struct platform_device *pdev)
 {
 	struct tmio_mmc_host *host = platform_get_drvdata(pdev);
 
 	tmio_mmc_host_remove(host);
 	uniphier_sd_clk_disable(host);
 	tmio_mmc_host_free(host);
-
-	return 0;
 }
 
 static const struct of_device_id uniphier_sd_match[] = {
@@ -756,7 +754,7 @@ MODULE_DEVICE_TABLE(of, uniphier_sd_match);
 
 static struct platform_driver uniphier_sd_driver = {
 	.probe = uniphier_sd_probe,
-	.remove = uniphier_sd_remove,
+	.remove_new = uniphier_sd_remove,
 	.driver = {
 		.name = "uniphier-sd",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
