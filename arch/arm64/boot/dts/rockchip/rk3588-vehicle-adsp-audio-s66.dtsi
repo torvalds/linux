@@ -60,8 +60,8 @@
 	i2s-lrck-gpio = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
 	tdm-fsync-gpio = <&gpio4 RK_PA0 GPIO_ACTIVE_HIGH>;
 	rockchip,tdm-multi-lanes;
-	rockchip,tx-lanes = <3>;
-	rockchip,rx-lanes = <2>;
+	rockchip,tdm-tx-lanes = <3>;
+	rockchip,tdm-rx-lanes = <2>;
 	rockchip,clk-trcm = <1>;
 	status = "okay";
 };
