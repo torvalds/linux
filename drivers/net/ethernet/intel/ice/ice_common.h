@@ -253,12 +253,6 @@ int
 ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
 		     struct ice_aqc_txsched_elem_data *buf);
 int
-ice_aq_set_driver_param(struct ice_hw *hw, enum ice_aqc_driver_params idx,
-			u32 value, struct ice_sq_cd *cd);
-int
-ice_aq_get_driver_param(struct ice_hw *hw, enum ice_aqc_driver_params idx,
-			u32 *value, struct ice_sq_cd *cd);
-int
 ice_aq_set_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx, bool value,
 		struct ice_sq_cd *cd);
 int

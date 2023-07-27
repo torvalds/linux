@@ -2358,11 +2358,6 @@ struct ice_aqc_driver_shared_params {
 	__le32 addr_low;
 };
 
-enum ice_aqc_driver_params {
-	/* Add new parameters above */
-	ICE_AQC_DRIVER_PARAM_MAX = 16,
-};
-
 /* Lan Queue Overflow Event (direct, 0x1001) */
 struct ice_aqc_event_lan_overflow {
 	__le32 prtdcb_ruptq;
