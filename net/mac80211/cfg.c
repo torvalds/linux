@@ -1511,6 +1511,19 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (err < 0)
 		return err;
 
+	err = ieee80211_set_fils_discovery(sdata, &params->fils_discovery,
+					   link, link_conf);
+	if (err < 0)
+		return err;
+	changed |= err;
+
+	err = ieee80211_set_unsol_bcast_probe_resp(sdata,
+						   &params->unsol_bcast_probe_resp,
+						   link, link_conf);
+	if (err < 0)
+		return err;
+	changed |= err;
+
 	if (beacon->he_bss_color_valid &&
 	    beacon->he_bss_color.enabled != link_conf->he_bss_color.enabled) {
 		link_conf->he_bss_color.enabled = beacon->he_bss_color.enabled;
