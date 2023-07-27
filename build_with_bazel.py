@@ -12,7 +12,7 @@ import sys
 import subprocess
 
 HOST_TARGETS = ["dtc"]
-DEFAULT_SKIP_LIST = ["abi", "test_mapping"]
+DEFAULT_SKIP_LIST = ["abi"]
 MSM_EXTENSIONS = "build/msm_kernel_extensions.bzl"
 ABL_EXTENSIONS = "build/abl_extensions.bzl"
 DEFAULT_MSM_EXTENSIONS_SRC = "../msm-kernel/msm_kernel_extensions.bzl"

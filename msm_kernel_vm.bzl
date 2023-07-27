@@ -1,5 +1,4 @@
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
-load("//build/bazel_common_rules/test_mappings:test_mappings.bzl", "test_mappings_dist")
 load("//build/kernel/kleaf:constants.bzl", "aarch64_outs")
 load(
     "//build/kernel/kleaf:kernel.bzl",
@@ -235,16 +234,6 @@ def _define_kernel_dist(target, msm_target, variant):
             "**/*": "644",
         },
         log = "info",
-    )
-
-    native.alias(
-        name = "{}_test_mapping".format(target),
-        actual = ":{}_dist".format(target),
-    )
-
-    test_mappings_dist(
-        name = "{}_test_mapping_dist".format(target),
-        dist_dir = dist_dir,
     )
 
 def _define_uapi_library(target):
