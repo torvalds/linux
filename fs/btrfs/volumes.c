@@ -851,8 +851,9 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 
 		if (fs_devices->opened) {
 			btrfs_err(NULL,
-		"device %s belongs to fsid %pU, and the fs is already mounted",
-				  path, fs_devices->fsid);
+"device %s belongs to fsid %pU, and the fs is already mounted, scanned by %s (%d)",
+				  path, fs_devices->fsid, current->comm,
+				  task_pid_nr(current));
 			mutex_unlock(&fs_devices->device_list_mutex);
 			return ERR_PTR(-EBUSY);
 		}
