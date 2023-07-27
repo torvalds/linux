@@ -37,6 +37,8 @@
 #include <asm/pci-bridge.h>
 #include <asm/pmac_low_i2c.h>
 
+#include "pmac.h"
+
 #undef DEBUG_FEATURE
 
 #ifdef DEBUG_FEATURE

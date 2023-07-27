@@ -3,6 +3,8 @@
 #include <linux/audit_arch.h>
 #include <asm/unistd.h>
 
+#include "audit_32.h"
+
 unsigned ppc32_dir_class[] = {
 #include <asm-generic/audit_dir_write.h>
 ~0U

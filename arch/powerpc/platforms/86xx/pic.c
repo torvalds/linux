@@ -12,6 +12,8 @@
 #include <asm/mpic.h>
 #include <asm/i8259.h>
 
+#include "mpc86xx.h"
+
 #ifdef CONFIG_PPC_I8259
 static void mpc86xx_8259_cascade(struct irq_desc *desc)
 {
