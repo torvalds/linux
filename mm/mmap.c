@@ -2232,6 +2232,20 @@ struct vm_area_struct *find_extend_vma_locked(struct mm_struct *mm, unsigned lon
 #endif
 
 /*
+ * ANDROID: Reintroduce find_extend_vma() as it's still used by some external
+ * modules.  It was removed in commit  8d7071af8907 ("mm: always expand the
+ * stack with the mmap write lock held")
+ * In the future, everyone should just move to use the correct function instead
+ * of this old, legacy one.
+ */
+struct vm_area_struct *find_extend_vma(struct mm_struct *mm,
+		unsigned long addr)
+{
+	return find_extend_vma_locked(mm, addr);
+}
+EXPORT_SYMBOL_GPL(find_extend_vma);
+
+/*
  * IA64 has some horrid mapping rules: it can expand both up and down,
  * but with various special rules.
  *
