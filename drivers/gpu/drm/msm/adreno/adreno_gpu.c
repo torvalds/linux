@@ -1105,14 +1105,11 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		speedbin = 0xffff;
 	adreno_gpu->speedbin = (uint16_t) (0xffff & speedbin);
 
-	gpu_name = adreno_gpu->info->name;
-	if (!gpu_name) {
-		gpu_name = devm_kasprintf(dev, GFP_KERNEL, "%d.%d.%d.%d",
-				rev->core, rev->major, rev->minor,
-				rev->patchid);
-		if (!gpu_name)
-			return -ENOMEM;
-	}
+	gpu_name = devm_kasprintf(dev, GFP_KERNEL, "%d.%d.%d.%d",
+			rev->core, rev->major, rev->minor,
+			rev->patchid);
+	if (!gpu_name)
+		return -ENOMEM;
 
 	adreno_gpu_config.ioname = "kgsl_3d0_reg_memory";
 
