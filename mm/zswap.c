@@ -1370,9 +1370,7 @@ insert_entry:
 	spin_lock(&tree->lock);
 	while (zswap_rb_insert(&tree->rbroot, entry, &dupentry) == -EEXIST) {
 		zswap_duplicate_entry++;
-		/* remove from rbtree */
-		zswap_rb_erase(&tree->rbroot, dupentry);
-		zswap_entry_put(tree, dupentry);
+		zswap_invalidate_entry(tree, dupentry);
 	}
 	if (entry->length) {
 		spin_lock(&entry->pool->lru_lock);
