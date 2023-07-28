@@ -1,10 +1,12 @@
-Aspeed AST25XX and AST26XX SCU Interrupt Controller
+Aspeed AST25XX, AST26XX and AST27xx SCU Interrupt Controller
 
 Required Properties:
  - #interrupt-cells		: must be 1
  - compatible			: must be "aspeed,ast2500-scu-ic",
-				  "aspeed,ast2600-scu-ic0" or
-				  "aspeed,ast2600-scu-ic1"
+				  "aspeed,ast2600-scu-ic0",
+				  "aspeed,ast2600-scu-ic1",
+                  "aspeed,ast2700-scu-ic0" or
+                  "aspeed,ast2700-scu-ic1"
  - interrupts			: interrupt from the parent controller
  - interrupt-controller		: indicates that the controller receives and
 				  fires new interrupts for child busses
