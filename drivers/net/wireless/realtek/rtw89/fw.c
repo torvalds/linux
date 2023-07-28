@@ -2809,12 +2809,13 @@ void rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev)
 
 static void rtw89_fw_c2h_parse_attr(struct sk_buff *c2h)
 {
+	const struct rtw89_c2h_hdr *hdr = (const struct rtw89_c2h_hdr *)c2h->data;
 	struct rtw89_fw_c2h_attr *attr = RTW89_SKB_C2H_CB(c2h);
 
-	attr->category = RTW89_GET_C2H_CATEGORY(c2h->data);
-	attr->class = RTW89_GET_C2H_CLASS(c2h->data);
-	attr->func = RTW89_GET_C2H_FUNC(c2h->data);
-	attr->len = RTW89_GET_C2H_LEN(c2h->data);
+	attr->category = le32_get_bits(hdr->w0, RTW89_C2H_HDR_W0_CATEGORY);
+	attr->class = le32_get_bits(hdr->w0, RTW89_C2H_HDR_W0_CLASS);
+	attr->func = le32_get_bits(hdr->w0, RTW89_C2H_HDR_W0_FUNC);
+	attr->len = le32_get_bits(hdr->w1, RTW89_C2H_HDR_W1_LEN);
 }
 
 static bool rtw89_fw_c2h_chk_atomic(struct rtw89_dev *rtwdev,

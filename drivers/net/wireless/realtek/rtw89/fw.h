@@ -3101,14 +3101,15 @@ inline void RTW89_SET_FWCMD_MCC_SET_DURATION_DURATION_Y(void *cmd, u32 val)
 
 #define RTW89_C2H_HEADER_LEN 8
 
-#define RTW89_GET_C2H_CATEGORY(c2h) \
-	le32_get_bits(*((const __le32 *)c2h), GENMASK(1, 0))
-#define RTW89_GET_C2H_CLASS(c2h) \
-	le32_get_bits(*((const __le32 *)c2h), GENMASK(7, 2))
-#define RTW89_GET_C2H_FUNC(c2h) \
-	le32_get_bits(*((const __le32 *)c2h), GENMASK(15, 8))
-#define RTW89_GET_C2H_LEN(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 1), GENMASK(13, 0))
+struct rtw89_c2h_hdr {
+	__le32 w0;
+	__le32 w1;
+} __packed;
+
+#define RTW89_C2H_HDR_W0_CATEGORY GENMASK(1, 0)
+#define RTW89_C2H_HDR_W0_CLASS GENMASK(7, 2)
+#define RTW89_C2H_HDR_W0_FUNC GENMASK(15, 8)
+#define RTW89_C2H_HDR_W1_LEN GENMASK(13, 0)
 
 struct rtw89_fw_c2h_attr {
 	u8 category;
