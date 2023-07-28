@@ -1666,10 +1666,14 @@ static void dw_hdmi_rockchip_encoder_disable(struct drm_encoder *encoder)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 	struct drm_crtc *crtc = encoder->crtc;
-	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
+	struct rockchip_crtc_state *s;
 
-	if (WARN_ON(!crtc || !crtc->state))
+	if (!crtc || !crtc->state) {
+		dev_info(hdmi->dev, "%s old crtc state is null\n", __func__);
 		return;
+	}
+
+	s = to_rockchip_crtc_state(crtc->state);
 
 	if (crtc->state->active_changed) {
 		if (hdmi->plat_data->split_mode) {
@@ -1697,8 +1701,10 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	int mux;
 	int ret;
 
-	if (WARN_ON(!crtc || !crtc->state))
+	if (!crtc || !crtc->state) {
+		dev_info(hdmi->dev, "%s old crtc state is null\n", __func__);
 		return;
+	}
 
 	if (hdmi->phy)
 		phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
