@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -719,6 +720,10 @@ static bool ipmmu_device_is_allowed(struct device *dev)
 	/* Check whether this SoC can use the IPMMU correctly or not */
 	if (soc_device_match(soc_denylist))
 		return false;
+
+	/* Check whether this device is a PCI device */
+	if (dev_is_pci(dev))
+		return true;
 
 	/* Check whether this device can work with the IPMMU */
 	for (i = 0; i < ARRAY_SIZE(devices_allowlist); i++) {
