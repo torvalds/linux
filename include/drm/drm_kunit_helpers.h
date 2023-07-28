@@ -87,5 +87,7 @@ __drm_kunit_helper_alloc_drm_device(struct kunit *test,
 						      sizeof(_type),		\
 						      offsetof(_type, _member),	\
 						      _feat))
+struct drm_modeset_acquire_ctx *
+drm_kunit_helper_acquire_ctx_alloc(struct kunit *test);
 
 #endif // DRM_KUNIT_HELPERS_H_
