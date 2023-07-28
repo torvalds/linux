@@ -56,6 +56,55 @@ module_param(torture_type, charp, 0444);
 MODULE_PARM_DESC(torture_type,
 		 "Type of lock to torture (spin_lock, spin_lock_irq, mutex_lock, ...)");
 
+static cpumask_var_t readers_bind; // Bind the readers to the specified set of CPUs.
+static cpumask_var_t writers_bind; // Bind the writers to the specified set of CPUs.
+
+// Parse a cpumask kernel parameter.  If there are more users later on,
+// this might need to got to a more central location.
+static int param_set_cpumask(const char *val, const struct kernel_param *kp)
+{
+	cpumask_var_t *cm_bind = kp->arg;
+	int ret;
+	char *s;
+
+	if (!alloc_cpumask_var(cm_bind, GFP_KERNEL)) {
+		s = "Out of memory";
+		ret = -ENOMEM;
+		goto out_err;
+	}
+	ret = cpulist_parse(val, *cm_bind);
+	if (!ret)
+		return ret;
+	s = "Bad CPU range";
+out_err:
+	pr_warn("%s: %s, all CPUs set\n", kp->name, s);
+	cpumask_setall(*cm_bind);
+	return ret;
+}
+
+// Output a cpumask kernel parameter.
+static int param_get_cpumask(char *buffer, const struct kernel_param *kp)
+{
+	cpumask_var_t *cm_bind = kp->arg;
+
+	return sprintf(buffer, "%*pbl", cpumask_pr_args(*cm_bind));
+}
+
+static bool cpumask_nonempty(cpumask_var_t mask)
+{
+	return cpumask_available(mask) && !cpumask_empty(mask);
+}
+
+static const struct kernel_param_ops lt_bind_ops = {
+	.set = param_set_cpumask,
+	.get = param_get_cpumask,
+};
+
+module_param_cb(readers_bind, &lt_bind_ops, &readers_bind, 0644);
+module_param_cb(writers_bind, &lt_bind_ops, &writers_bind, 0644);
+
+long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask);
+
 static struct task_struct *stats_task;
 static struct task_struct **writer_tasks;
 static struct task_struct **reader_tasks;
@@ -986,16 +1035,23 @@ static int lock_torture_stats(void *arg)
 	return 0;
 }
 
+
 static inline void
 lock_torture_print_module_parms(struct lock_torture_ops *cur_ops,
 				const char *tag)
 {
+	static cpumask_t cpumask_all;
+	cpumask_t *rcmp = cpumask_nonempty(readers_bind) ? readers_bind : &cpumask_all;
+	cpumask_t *wcmp = cpumask_nonempty(writers_bind) ? writers_bind : &cpumask_all;
+
+	cpumask_setall(&cpumask_all);
 	pr_alert("%s" TORTURE_FLAG
-		 "--- %s%s: nwriters_stress=%d nreaders_stress=%d nested_locks=%d stat_interval=%d verbose=%d shuffle_interval=%d stutter=%d shutdown_secs=%d onoff_interval=%d onoff_holdoff=%d\n",
+		 "--- %s%s: nwriters_stress=%d nreaders_stress=%d nested_locks=%d stat_interval=%d verbose=%d shuffle_interval=%d stutter=%d shutdown_secs=%d onoff_interval=%d onoff_holdoff=%d readers_bind=%*pbl writers_bind=%*pbl\n",
 		 torture_type, tag, cxt.debug_lock ? " [debug]": "",
 		 cxt.nrealwriters_stress, cxt.nrealreaders_stress,
 		 nested_locks, stat_interval, verbose, shuffle_interval,
-		 stutter, shutdown_secs, onoff_interval, onoff_holdoff);
+		 stutter, shutdown_secs, onoff_interval, onoff_holdoff,
+		 cpumask_pr_args(rcmp), cpumask_pr_args(wcmp));
 }
 
 static void lock_torture_cleanup(void)
@@ -1250,6 +1306,8 @@ static int __init lock_torture_init(void)
 						     writer_fifo ? sched_set_fifo : NULL);
 		if (torture_init_error(firsterr))
 			goto unwind;
+		if (cpumask_nonempty(writers_bind))
+			torture_sched_setaffinity(writer_tasks[i]->pid, writers_bind);
 
 	create_reader:
 		if (cxt.cur_ops->readlock == NULL || (j >= cxt.nrealreaders_stress))
@@ -1259,6 +1317,8 @@ static int __init lock_torture_init(void)
 						  reader_tasks[j]);
 		if (torture_init_error(firsterr))
 			goto unwind;
+		if (cpumask_nonempty(readers_bind))
+			torture_sched_setaffinity(reader_tasks[j]->pid, readers_bind);
 	}
 	if (stat_interval > 0) {
 		firsterr = torture_create_kthread(lock_torture_stats, NULL,
