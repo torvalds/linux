@@ -1693,6 +1693,7 @@ static int ufs_qcom_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
 static int ufs_qcom_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	unsigned long flags;
 	int err;
 
 	if (host->vddp_ref_clk && (hba->rpm_lvl > UFS_PM_LVL_3 ||
@@ -1706,6 +1707,20 @@ static int ufs_qcom_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	err = ufs_qcom_enable_lane_clks(host);
 	if (err)
 		return err;
+
+	/*
+	 * For targets with Auto-Hibernate disabled, resume with 5ms
+	 * clock gating delay timer, regardless of the current Gear setting.
+	 * This is to prevent ufs remain active longer than necessary
+	 * coming out of resume. The ufs loading will determine when to
+	 * scale the clocks/gear, and in the next clock scaling event,
+	 * the clock gating delay timer will be set accordingly.
+	 */
+	if (host->hw_ver.major == 0x6) {
+		spin_lock_irqsave(hba->host->host_lock, flags);
+		hba->clk_gating.delay_ms = 5;
+		spin_unlock_irqrestore(hba->host->host_lock, flags);
+	}
 
 	ufs_qcom_log_str(host, "$,%d,%d,%d,%d,%d,%d\n",
 			pm_op, hba->rpm_lvl, hba->spm_lvl, hba->uic_link_state,
