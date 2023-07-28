@@ -38,7 +38,29 @@
 			no-map;
 		};
 
+		mctp0_reserved: mctp0_reserved@40a000000 {
+			reg = <0x4 0x0a000000 0x0 0x10000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		mctp1_reserved: mctp1_reserved@40a010000 {
+			reg = <0x4 0x0a010000 0x0 0x10000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
 	};
+};
+
+&mctp0 {
+	status = "okay";
+	memory-region = <&mctp0_reserved>;
+};
+
+&mctp1 {
+	status = "okay";
+	memory-region = <&mctp1_reserved>;
 };
 
 &jtag0 {
