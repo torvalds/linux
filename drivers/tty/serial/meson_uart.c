@@ -76,13 +76,8 @@
 #define AML_UART_POLL_USEC		5
 #define AML_UART_TIMEOUT_USEC		10000
 
-#define MESON_UART_DRIVER(_devname) meson_uart_driver_##_devname
-
-#define MESON_UART_DRIVER_DECLARE(_devname) \
-	static struct uart_driver MESON_UART_DRIVER(_devname)
-
-MESON_UART_DRIVER_DECLARE(ttyAML);
-MESON_UART_DRIVER_DECLARE(ttyS);
+static struct uart_driver meson_uart_driver_ttyAML;
+static struct uart_driver meson_uart_driver_ttyS;
 
 static struct uart_port *meson_ports[AML_UART_PORT_NUM];
 
@@ -617,21 +612,19 @@ static int meson_serial_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-#define MESON_SERIAL_CONSOLE(_devname) meson_serial_console_##_devname
-
-#define MESON_SERIAL_CONSOLE_DEFINE(_devname)				\
-	static struct console MESON_SERIAL_CONSOLE(_devname) = {	\
+#define MESON_SERIAL_CONSOLE(_devname)					\
+	static struct console meson_serial_console_##_devname = {	\
 		.name		= __stringify(_devname),		\
 		.write		= meson_serial_console_write,		\
 		.device		= uart_console_device,			\
 		.setup		= meson_serial_console_setup,		\
 		.flags		= CON_PRINTBUFFER,			\
 		.index		= -1,					\
-		.data		= &MESON_UART_DRIVER(_devname),		\
+		.data		= &meson_uart_driver_##_devname,	\
 	}
 
-MESON_SERIAL_CONSOLE_DEFINE(ttyAML);
-MESON_SERIAL_CONSOLE_DEFINE(ttyS);
+MESON_SERIAL_CONSOLE(ttyAML);
+MESON_SERIAL_CONSOLE(ttyS);
 
 static void meson_serial_early_console_write(struct console *co,
 					     const char *s,
@@ -656,13 +649,13 @@ meson_serial_early_console_setup(struct earlycon_device *device, const char *opt
 OF_EARLYCON_DECLARE(meson, "amlogic,meson-ao-uart",
 		    meson_serial_early_console_setup);
 
-#define MESON_SERIAL_CONSOLE_PTR(_devname) (&MESON_SERIAL_CONSOLE(_devname))
+#define MESON_SERIAL_CONSOLE_PTR(_devname) (&meson_serial_console_##_devname)
 #else
-#define MESON_SERIAL_CONSOLE_PTR(_devname)	(NULL)
+#define MESON_SERIAL_CONSOLE_PTR(_devname) (NULL)
 #endif
 
-#define MESON_UART_DRIVER_DEFINE(_devname)  \
-	static struct uart_driver MESON_UART_DRIVER(_devname) = {	\
+#define MESON_UART_DRIVER(_devname)					\
+	static struct uart_driver meson_uart_driver_##_devname = {	\
 		.owner		= THIS_MODULE,				\
 		.driver_name	= "meson_uart",				\
 		.dev_name	= __stringify(_devname),		\
@@ -670,8 +663,8 @@ OF_EARLYCON_DECLARE(meson, "amlogic,meson-ao-uart",
 		.cons		= MESON_SERIAL_CONSOLE_PTR(_devname),	\
 	}
 
-MESON_UART_DRIVER_DEFINE(ttyAML);
-MESON_UART_DRIVER_DEFINE(ttyS);
+MESON_UART_DRIVER(ttyAML);
+MESON_UART_DRIVER(ttyS);
 
 static int meson_uart_probe_clocks(struct platform_device *pdev,
 				   struct uart_port *port)
@@ -700,7 +693,7 @@ static int meson_uart_probe_clocks(struct platform_device *pdev,
 static struct uart_driver *meson_uart_current(const struct meson_uart_data *pd)
 {
 	return (pd && pd->uart_driver) ?
-		pd->uart_driver : &MESON_UART_DRIVER(ttyAML);
+		pd->uart_driver : &meson_uart_driver_ttyAML;
 }
 
 static int meson_uart_probe(struct platform_device *pdev)
@@ -819,12 +812,12 @@ static struct meson_uart_data meson_g12a_uart_data = {
 };
 
 static struct meson_uart_data meson_a1_uart_data = {
-	.uart_driver = &MESON_UART_DRIVER(ttyS),
+	.uart_driver = &meson_uart_driver_ttyS,
 	.has_xtal_div2 = false,
 };
 
 static struct meson_uart_data meson_s4_uart_data = {
-	.uart_driver = &MESON_UART_DRIVER(ttyS),
+	.uart_driver = &meson_uart_driver_ttyS,
 	.has_xtal_div2 = true,
 };
 
