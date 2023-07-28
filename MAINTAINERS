@@ -14979,6 +14979,7 @@ F:	include/linux/power/bq27xxx_battery.h
 
 NOLIBC HEADER FILE
 M:	Willy Tarreau <w@1wt.eu>
+M:	Thomas Weißschuh <linux@weissschuh.net>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wtarreau/nolibc.git
 F:	tools/include/nolibc/
