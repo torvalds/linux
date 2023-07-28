@@ -2997,12 +2997,6 @@ static void __init of_unittest_overlay_notify(void)
 
 	unittest(ovcs_id, "ovcs_id not created for overlay_17\n");
 
-	if (ovcs_id) {
-		ret = of_overlay_remove(&ovcs_id);
-		unittest(!ret,
-			"overlay_17 of_overlay_remove(), ret = %d\n", ret);
-	}
-
 	/* ---  overlay 18  --- */
 
 	unittest(overlay_data_apply("overlay_18", &ovcs_id),
@@ -3292,17 +3286,19 @@ out_skip_tests:
 	extern uint8_t __dtbo_##overlay_name##_begin[]; \
 	extern uint8_t __dtbo_##overlay_name##_end[]
 
-#define OVERLAY_INFO(overlay_name, expected) \
-{	.dtbo_begin       = __dtbo_##overlay_name##_begin, \
-	.dtbo_end         = __dtbo_##overlay_name##_end, \
-	.expected_result = expected, \
-	.name            = #overlay_name, \
+#define OVERLAY_INFO(overlay_name, expected, expected_remove) \
+{	.dtbo_begin		= __dtbo_##overlay_name##_begin, \
+	.dtbo_end		= __dtbo_##overlay_name##_end, \
+	.expected_result	= expected, \
+	.expected_result_remove	= expected_remove, \
+	.name			= #overlay_name, \
 }
 
 struct overlay_info {
 	uint8_t		*dtbo_begin;
 	uint8_t		*dtbo_end;
 	int		expected_result;
+	int		expected_result_remove;	/* if apply failed */
 	int		ovcs_id;
 	char		*name;
 };
@@ -3343,41 +3339,41 @@ OVERLAY_INFO_EXTERN(overlay_bad_symbol);
 
 /* entries found by name */
 static struct overlay_info overlays[] = {
-	OVERLAY_INFO(overlay_base, -9999),
-	OVERLAY_INFO(overlay, 0),
-	OVERLAY_INFO(overlay_0, 0),
-	OVERLAY_INFO(overlay_1, 0),
-	OVERLAY_INFO(overlay_2, 0),
-	OVERLAY_INFO(overlay_3, 0),
-	OVERLAY_INFO(overlay_4, 0),
-	OVERLAY_INFO(overlay_5, 0),
-	OVERLAY_INFO(overlay_6, 0),
-	OVERLAY_INFO(overlay_7, 0),
-	OVERLAY_INFO(overlay_8, 0),
-	OVERLAY_INFO(overlay_9, 0),
-	OVERLAY_INFO(overlay_10, 0),
-	OVERLAY_INFO(overlay_11, 0),
-	OVERLAY_INFO(overlay_12, 0),
-	OVERLAY_INFO(overlay_13, 0),
-	OVERLAY_INFO(overlay_15, 0),
-	OVERLAY_INFO(overlay_16, -EBUSY),
-	OVERLAY_INFO(overlay_17, -EEXIST),
-	OVERLAY_INFO(overlay_18, 0),
-	OVERLAY_INFO(overlay_19, 0),
-	OVERLAY_INFO(overlay_20, 0),
-	OVERLAY_INFO(overlay_gpio_01, 0),
-	OVERLAY_INFO(overlay_gpio_02a, 0),
-	OVERLAY_INFO(overlay_gpio_02b, 0),
-	OVERLAY_INFO(overlay_gpio_03, 0),
-	OVERLAY_INFO(overlay_gpio_04a, 0),
-	OVERLAY_INFO(overlay_gpio_04b, 0),
-	OVERLAY_INFO(overlay_pci_node, 0),
-	OVERLAY_INFO(overlay_bad_add_dup_node, -EINVAL),
-	OVERLAY_INFO(overlay_bad_add_dup_prop, -EINVAL),
-	OVERLAY_INFO(overlay_bad_phandle, -EINVAL),
-	OVERLAY_INFO(overlay_bad_symbol, -EINVAL),
+	OVERLAY_INFO(overlay_base, -9999, 0),
+	OVERLAY_INFO(overlay, 0, 0),
+	OVERLAY_INFO(overlay_0, 0, 0),
+	OVERLAY_INFO(overlay_1, 0, 0),
+	OVERLAY_INFO(overlay_2, 0, 0),
+	OVERLAY_INFO(overlay_3, 0, 0),
+	OVERLAY_INFO(overlay_4, 0, 0),
+	OVERLAY_INFO(overlay_5, 0, 0),
+	OVERLAY_INFO(overlay_6, 0, 0),
+	OVERLAY_INFO(overlay_7, 0, 0),
+	OVERLAY_INFO(overlay_8, 0, 0),
+	OVERLAY_INFO(overlay_9, 0, 0),
+	OVERLAY_INFO(overlay_10, 0, 0),
+	OVERLAY_INFO(overlay_11, 0, 0),
+	OVERLAY_INFO(overlay_12, 0, 0),
+	OVERLAY_INFO(overlay_13, 0, 0),
+	OVERLAY_INFO(overlay_15, 0, 0),
+	OVERLAY_INFO(overlay_16, -EBUSY, 0),
+	OVERLAY_INFO(overlay_17, -EEXIST, 0),
+	OVERLAY_INFO(overlay_18, 0, 0),
+	OVERLAY_INFO(overlay_19, 0, 0),
+	OVERLAY_INFO(overlay_20, 0, 0),
+	OVERLAY_INFO(overlay_gpio_01, 0, 0),
+	OVERLAY_INFO(overlay_gpio_02a, 0, 0),
+	OVERLAY_INFO(overlay_gpio_02b, 0, 0),
+	OVERLAY_INFO(overlay_gpio_03, 0, 0),
+	OVERLAY_INFO(overlay_gpio_04a, 0, 0),
+	OVERLAY_INFO(overlay_gpio_04b, 0, 0),
+	OVERLAY_INFO(overlay_pci_node, 0, 0),
+	OVERLAY_INFO(overlay_bad_add_dup_node, -EINVAL, -ENODEV),
+	OVERLAY_INFO(overlay_bad_add_dup_prop, -EINVAL, -ENODEV),
+	OVERLAY_INFO(overlay_bad_phandle, -EINVAL, 0),
+	OVERLAY_INFO(overlay_bad_symbol, -EINVAL, -ENODEV),
 	/* end marker */
-	{.dtbo_begin = NULL, .dtbo_end = NULL, .expected_result = 0, .name = NULL}
+	{ }
 };
 
 static struct device_node *overlay_base_root;
@@ -3472,8 +3468,9 @@ void __init unittest_unflatten_overlay_base(void)
 static int __init overlay_data_apply(const char *overlay_name, int *ovcs_id)
 {
 	struct overlay_info *info;
+	int passed = 1;
 	int found = 0;
-	int ret;
+	int ret, ret2;
 	u32 size;
 
 	for (info = overlays; info && info->name; info++) {
@@ -3501,11 +3498,24 @@ static int __init overlay_data_apply(const char *overlay_name, int *ovcs_id)
 	pr_debug("%s applied\n", overlay_name);
 
 out:
-	if (ret != info->expected_result)
+	if (ret != info->expected_result) {
 		pr_err("of_overlay_fdt_apply() expected %d, ret=%d, %s\n",
 		       info->expected_result, ret, overlay_name);
+		passed = 0;
+	}
 
-	return (ret == info->expected_result);
+	if (ret < 0) {
+		/* changeset may be partially applied */
+		ret2 = of_overlay_remove(&info->ovcs_id);
+		if (ret2 != info->expected_result_remove) {
+			pr_err("of_overlay_remove() expected %d, ret=%d, %s\n",
+			       info->expected_result_remove, ret2,
+			       overlay_name);
+			passed = 0;
+		}
+	}
+
+	return passed;
 }
 
 /*
@@ -3698,10 +3708,18 @@ static __init void of_unittest_overlay_high_level(void)
 		     "OF: overlay: ERROR: multiple fragments add and/or delete node /testcase-data-2/substation@100/motor-1/controller");
 	EXPECT_BEGIN(KERN_ERR,
 		     "OF: overlay: ERROR: multiple fragments add, update, and/or delete property /testcase-data-2/substation@100/motor-1/controller/name");
+	EXPECT_BEGIN(KERN_ERR,
+		     "OF: changeset: apply failed: REMOVE_PROPERTY /testcase-data-2/substation@100/motor-1/controller:name");
+	EXPECT_BEGIN(KERN_ERR,
+		     "OF: Error reverting changeset (-19)");
 
 	unittest(overlay_data_apply("overlay_bad_add_dup_node", NULL),
 		 "Adding overlay 'overlay_bad_add_dup_node' failed\n");
 
+	EXPECT_END(KERN_ERR,
+		   "OF: Error reverting changeset (-19)");
+	EXPECT_END(KERN_ERR,
+		   "OF: changeset: apply failed: REMOVE_PROPERTY /testcase-data-2/substation@100/motor-1/controller:name");
 	EXPECT_END(KERN_ERR,
 		   "OF: overlay: ERROR: multiple fragments add, update, and/or delete property /testcase-data-2/substation@100/motor-1/controller/name");
 	EXPECT_END(KERN_ERR,
@@ -3713,10 +3731,18 @@ static __init void of_unittest_overlay_high_level(void)
 		     "OF: overlay: ERROR: multiple fragments add, update, and/or delete property /testcase-data-2/substation@100/motor-1/electric/rpm_avail");
 	EXPECT_BEGIN(KERN_ERR,
 		     "OF: overlay: ERROR: multiple fragments add, update, and/or delete property /testcase-data-2/substation@100/motor-1/electric/name");
+	EXPECT_BEGIN(KERN_ERR,
+		     "OF: changeset: apply failed: REMOVE_PROPERTY /testcase-data-2/substation@100/motor-1/electric:name");
+	EXPECT_BEGIN(KERN_ERR,
+		     "OF: Error reverting changeset (-19)");
 
 	unittest(overlay_data_apply("overlay_bad_add_dup_prop", NULL),
 		 "Adding overlay 'overlay_bad_add_dup_prop' failed\n");
 
+	EXPECT_END(KERN_ERR,
+		   "OF: Error reverting changeset (-19)");
+	EXPECT_END(KERN_ERR,
+		   "OF: changeset: apply failed: REMOVE_PROPERTY /testcase-data-2/substation@100/motor-1/electric:name");
 	EXPECT_END(KERN_ERR,
 		   "OF: overlay: ERROR: multiple fragments add, update, and/or delete property /testcase-data-2/substation@100/motor-1/electric/name");
 	EXPECT_END(KERN_ERR,
@@ -3727,8 +3753,18 @@ static __init void of_unittest_overlay_high_level(void)
 	unittest(overlay_data_apply("overlay_bad_phandle", NULL),
 		 "Adding overlay 'overlay_bad_phandle' failed\n");
 
+	EXPECT_BEGIN(KERN_ERR,
+		     "OF: changeset: apply failed: REMOVE_PROPERTY /testcase-data-2/substation@100/hvac-medium-2:name");
+	EXPECT_BEGIN(KERN_ERR,
+		     "OF: Error reverting changeset (-19)");
+
 	unittest(overlay_data_apply("overlay_bad_symbol", NULL),
 		 "Adding overlay 'overlay_bad_symbol' failed\n");
+
+	EXPECT_END(KERN_ERR,
+		   "OF: Error reverting changeset (-19)");
+	EXPECT_END(KERN_ERR,
+		   "OF: changeset: apply failed: REMOVE_PROPERTY /testcase-data-2/substation@100/hvac-medium-2:name");
 
 	return;
 
