@@ -795,10 +795,6 @@ static int xe_pci_suspend(struct device *dev)
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 
-	err = pci_set_power_state(pdev, PCI_D3hot);
-	if (err)
-		return err;
-
 	return 0;
 }
 
@@ -813,8 +809,6 @@ static int xe_pci_resume(struct device *dev)
 	err = pci_set_power_state(pdev, PCI_D0);
 	if (err)
 		return err;
-
-	pci_restore_state(pdev);
 
 	err = pci_enable_device(pdev);
 	if (err)
