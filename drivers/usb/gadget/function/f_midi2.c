@@ -2350,8 +2350,8 @@ static int f_midi2_block_opts_create(struct f_midi2_ep_opts *ep_opts,
 	ep_opts->blks[blk] = block_opts;
 	*block_p = block_opts;
 
-	mutex_unlock(&ep_opts->opts->lock);
  out:
+	mutex_unlock(&ep_opts->opts->lock);
 	return ret;
 }
 
