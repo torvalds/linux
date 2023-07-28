@@ -702,6 +702,7 @@ static int fill_cs_keyring(void)
 	if (rc)
 		goto cleanup_keys;
 
+	rc = -ENOMEM;
 	cs_keyring = create_cs_keyring();
 	if (!cs_keyring)
 		goto cleanup_keys;
