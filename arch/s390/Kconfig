@@ -516,6 +516,7 @@ config KEXEC_SIG
 config CERT_STORE
 	bool "Get user certificates via DIAG320"
 	depends on KEYS
+	select CRYPTO_LIB_SHA256
 	help
 	  Enable this option if you want to access user-provided secure boot
 	  certificates via DIAG 0x320.
