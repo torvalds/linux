@@ -30,6 +30,7 @@ description: |
         apq8084
         apq8096
         ipq4018
+        ipq5018
         ipq5332
         ipq6018
         ipq8074
@@ -105,6 +106,7 @@ description: |
         hk10-c2
         idp
         liquid
+        rdp432-c2
         mtp
         qrd
         rb2
@@ -340,6 +342,11 @@ properties:
               - qcom,ipq4019-ap-dk07.1-c2
               - qcom,ipq4019-dk04.1-c1
           - const: qcom,ipq4019
+
+      - items:
+          - enum:
+              - qcom,ipq5018-rdp432-c2
+          - const: qcom,ipq5018
 
       - items:
           - enum:
