@@ -1882,61 +1882,60 @@ fail:
 	return ret;
 }
 
-#define H2C_RA_LEN 16
 int rtw89_fw_h2c_ra(struct rtw89_dev *rtwdev, struct rtw89_ra_info *ra, bool csi)
 {
 	struct sk_buff *skb;
-	u8 *cmd;
+	struct rtw89_h2c_ra *h2c;
+	u32 len = sizeof(*h2c);
 	int ret;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_RA_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c join\n");
 		return -ENOMEM;
 	}
-	skb_put(skb, H2C_RA_LEN);
-	cmd = skb->data;
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_ra *)skb->data;
 	rtw89_debug(rtwdev, RTW89_DBG_RA,
 		    "ra cmd msk: %llx ", ra->ra_mask);
 
-	RTW89_SET_FWCMD_RA_MODE(cmd, ra->mode_ctrl);
-	RTW89_SET_FWCMD_RA_BW_CAP(cmd, ra->bw_cap);
-	RTW89_SET_FWCMD_RA_MACID(cmd, ra->macid);
-	RTW89_SET_FWCMD_RA_DCM(cmd, ra->dcm_cap);
-	RTW89_SET_FWCMD_RA_ER(cmd, ra->er_cap);
-	RTW89_SET_FWCMD_RA_INIT_RATE_LV(cmd, ra->init_rate_lv);
-	RTW89_SET_FWCMD_RA_UPD_ALL(cmd, ra->upd_all);
-	RTW89_SET_FWCMD_RA_SGI(cmd, ra->en_sgi);
-	RTW89_SET_FWCMD_RA_LDPC(cmd, ra->ldpc_cap);
-	RTW89_SET_FWCMD_RA_STBC(cmd, ra->stbc_cap);
-	RTW89_SET_FWCMD_RA_SS_NUM(cmd, ra->ss_num);
-	RTW89_SET_FWCMD_RA_GILTF(cmd, ra->giltf);
-	RTW89_SET_FWCMD_RA_UPD_BW_NSS_MASK(cmd, ra->upd_bw_nss_mask);
-	RTW89_SET_FWCMD_RA_UPD_MASK(cmd, ra->upd_mask);
-	RTW89_SET_FWCMD_RA_MASK_0(cmd, FIELD_GET(MASKBYTE0, ra->ra_mask));
-	RTW89_SET_FWCMD_RA_MASK_1(cmd, FIELD_GET(MASKBYTE1, ra->ra_mask));
-	RTW89_SET_FWCMD_RA_MASK_2(cmd, FIELD_GET(MASKBYTE2, ra->ra_mask));
-	RTW89_SET_FWCMD_RA_MASK_3(cmd, FIELD_GET(MASKBYTE3, ra->ra_mask));
-	RTW89_SET_FWCMD_RA_MASK_4(cmd, FIELD_GET(MASKBYTE4, ra->ra_mask));
-	RTW89_SET_FWCMD_RA_FIX_GILTF_EN(cmd, ra->fix_giltf_en);
-	RTW89_SET_FWCMD_RA_FIX_GILTF(cmd, ra->fix_giltf);
+	h2c->w0 = le32_encode_bits(ra->mode_ctrl, RTW89_H2C_RA_W0_MODE) |
+		  le32_encode_bits(ra->bw_cap, RTW89_H2C_RA_W0_BW_CAP) |
+		  le32_encode_bits(ra->macid, RTW89_H2C_RA_W0_MACID) |
+		  le32_encode_bits(ra->dcm_cap, RTW89_H2C_RA_W0_DCM) |
+		  le32_encode_bits(ra->er_cap, RTW89_H2C_RA_W0_ER) |
+		  le32_encode_bits(ra->init_rate_lv, RTW89_H2C_RA_W0_INIT_RATE_LV) |
+		  le32_encode_bits(ra->upd_all, RTW89_H2C_RA_W0_UPD_ALL) |
+		  le32_encode_bits(ra->en_sgi, RTW89_H2C_RA_W0_SGI) |
+		  le32_encode_bits(ra->ldpc_cap, RTW89_H2C_RA_W0_LDPC) |
+		  le32_encode_bits(ra->stbc_cap, RTW89_H2C_RA_W0_STBC) |
+		  le32_encode_bits(ra->ss_num, RTW89_H2C_RA_W0_SS_NUM) |
+		  le32_encode_bits(ra->giltf, RTW89_H2C_RA_W0_GILTF) |
+		  le32_encode_bits(ra->upd_bw_nss_mask, RTW89_H2C_RA_W0_UPD_BW_NSS_MASK) |
+		  le32_encode_bits(ra->upd_mask, RTW89_H2C_RA_W0_UPD_MASK);
+	h2c->w1 = le32_encode_bits(ra->ra_mask, RTW89_H2C_RA_W1_RAMASK_LO32);
+	h2c->w2 = le32_encode_bits(ra->ra_mask >> 32, RTW89_H2C_RA_W2_RAMASK_HI32);
+	h2c->w3 = le32_encode_bits(ra->fix_giltf_en, RTW89_H2C_RA_W3_FIX_GILTF_EN) |
+		  le32_encode_bits(ra->fix_giltf, RTW89_H2C_RA_W3_FIX_GILTF);
 
-	if (csi) {
-		RTW89_SET_FWCMD_RA_BFEE_CSI_CTL(cmd, 1);
-		RTW89_SET_FWCMD_RA_BAND_NUM(cmd, ra->band_num);
-		RTW89_SET_FWCMD_RA_CR_TBL_SEL(cmd, ra->cr_tbl_sel);
-		RTW89_SET_FWCMD_RA_FIXED_CSI_RATE_EN(cmd, ra->fixed_csi_rate_en);
-		RTW89_SET_FWCMD_RA_RA_CSI_RATE_EN(cmd, ra->ra_csi_rate_en);
-		RTW89_SET_FWCMD_RA_FIXED_CSI_MCS_SS_IDX(cmd, ra->csi_mcs_ss_idx);
-		RTW89_SET_FWCMD_RA_FIXED_CSI_MODE(cmd, ra->csi_mode);
-		RTW89_SET_FWCMD_RA_FIXED_CSI_GI_LTF(cmd, ra->csi_gi_ltf);
-		RTW89_SET_FWCMD_RA_FIXED_CSI_BW(cmd, ra->csi_bw);
-	}
+	if (!csi)
+		goto done;
 
+	h2c->w2 |= le32_encode_bits(1, RTW89_H2C_RA_W2_BFEE_CSI_CTL);
+	h2c->w3 |= le32_encode_bits(ra->band_num, RTW89_H2C_RA_W3_BAND_NUM) |
+		   le32_encode_bits(ra->cr_tbl_sel, RTW89_H2C_RA_W3_CR_TBL_SEL) |
+		   le32_encode_bits(ra->fixed_csi_rate_en, RTW89_H2C_RA_W3_FIXED_CSI_RATE_EN) |
+		   le32_encode_bits(ra->ra_csi_rate_en, RTW89_H2C_RA_W3_RA_CSI_RATE_EN) |
+		   le32_encode_bits(ra->csi_mcs_ss_idx, RTW89_H2C_RA_W3_FIXED_CSI_MCS_SS_IDX) |
+		   le32_encode_bits(ra->csi_mode, RTW89_H2C_RA_W3_FIXED_CSI_MODE) |
+		   le32_encode_bits(ra->csi_gi_ltf, RTW89_H2C_RA_W3_FIXED_CSI_GI_LTF) |
+		   le32_encode_bits(ra->csi_bw, RTW89_H2C_RA_W3_FIXED_CSI_BW);
+
+done:
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_RA,
 			      H2C_FUNC_OUTSRC_RA_MACIDCFG, 0, 0,
-			      H2C_RA_LEN);
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
