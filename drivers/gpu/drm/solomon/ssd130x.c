@@ -272,8 +272,8 @@ static int ssd130x_pwm_enable(struct ssd130x_device *ssd130x)
 	/* Enable the PWM */
 	pwm_enable(ssd130x->pwm);
 
-	dev_dbg(dev, "Using PWM%d with a %lluns period.\n",
-		ssd130x->pwm->pwm, pwm_get_period(ssd130x->pwm));
+	dev_dbg(dev, "Using PWM %s with a %lluns period.\n",
+		ssd130x->pwm->label, pwm_get_period(ssd130x->pwm));
 
 	return 0;
 }
