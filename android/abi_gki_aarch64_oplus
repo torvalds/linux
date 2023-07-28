@@ -117,8 +117,11 @@
   __traceiter_android_vh_binder_thread_release
   __traceiter_android_vh_binder_wait_for_work
   __traceiter_android_vh_cgroup_set_task
+  __traceiter_android_vh_check_folio_look_around_ref
   __traceiter_android_vh_dup_task_struct
   __traceiter_android_vh_exit_signal
+  __traceiter_android_vh_look_around
+  __traceiter_android_vh_look_around_migrate_folio
   __traceiter_android_vh_mem_cgroup_id_remove
   __traceiter_android_vh_mem_cgroup_css_offline
   __traceiter_android_vh_mem_cgroup_css_online
@@ -154,6 +157,7 @@
   __traceiter_sched_stat_wait
   __traceiter_sched_waking
   __traceiter_task_rename
+  __traceiter_android_vh_test_clear_look_around_ref
   __tracepoint_android_rvh_post_init_entity_util_avg
   __tracepoint_android_rvh_rtmutex_force_update
   __tracepoint_android_vh_account_process_tick_gran
@@ -175,6 +179,7 @@
   __tracepoint_android_vh_binder_thread_release
   __tracepoint_android_vh_binder_wait_for_work
   __tracepoint_android_vh_cgroup_set_task
+  __tracepoint_android_vh_check_folio_look_around_ref
   __tracepoint_android_vh_do_futex
   __tracepoint_android_vh_dup_task_struct
   __tracepoint_android_vh_exit_signal
@@ -190,6 +195,8 @@
   __tracepoint_android_vh_futex_wake_traverse_plist
   __tracepoint_android_vh_futex_wake_up_q_finish
   __tracepoint_android_vh_irqtime_account_process_tick
+  __tracepoint_android_vh_look_around
+  __tracepoint_android_vh_look_around_migrate_folio
   __tracepoint_android_vh_mutex_can_spin_on_owner
   __tracepoint_android_vh_mutex_opt_spin_finish
   __tracepoint_android_vh_mutex_opt_spin_start
@@ -210,6 +217,7 @@
   __tracepoint_android_vh_shrink_node_memcgs
   __tracepoint_android_vh_sync_txn_recvd
   __tracepoint_android_vh_task_blocks_on_rtmutex
+  __tracepoint_android_vh_test_clear_look_around_ref
   __tracepoint_block_bio_queue
   __tracepoint_block_getrq
   __tracepoint_block_rq_complete
