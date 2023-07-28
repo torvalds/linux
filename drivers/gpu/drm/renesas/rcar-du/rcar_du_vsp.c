@@ -123,6 +123,8 @@ static const u32 rcar_du_vsp_formats[] = {
 	DRM_FORMAT_RGB888,
 	DRM_FORMAT_BGRA8888,
 	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_UYVY,
@@ -155,6 +157,8 @@ static const u32 rcar_du_vsp_formats_gen4[] = {
 	DRM_FORMAT_RGB888,
 	DRM_FORMAT_BGRA8888,
 	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_RGBX1010102,
@@ -193,6 +197,10 @@ static u32 rcar_du_vsp_state_get_format(struct rcar_du_vsp_plane_state *state)
 
 		case DRM_FORMAT_ARGB8888:
 			fourcc = DRM_FORMAT_XRGB8888;
+			break;
+
+		case DRM_FORMAT_ABGR8888:
+			fourcc = DRM_FORMAT_XBGR8888;
 			break;
 
 		case DRM_FORMAT_BGRA8888:
