@@ -2800,13 +2800,18 @@ static void warn_uprobe_event_compat(struct probe_trace_event *tev)
 	if (!tev->uprobes || tev->nargs == 0 || !buf)
 		goto out;
 
-	for (i = 0; i < tev->nargs; i++)
-		if (strglobmatch(tev->args[i].value, "[$@+-]*")) {
-			pr_warning("Please upgrade your kernel to at least "
-				   "3.14 to have access to feature %s\n",
+	for (i = 0; i < tev->nargs; i++) {
+		if (strchr(tev->args[i].value, '@')) {
+			pr_warning("%s accesses a variable by symbol name, but that is not supported for user application probe.\n",
 				   tev->args[i].value);
 			break;
 		}
+		if (strglobmatch(tev->args[i].value, "[$+-]*")) {
+			pr_warning("Please upgrade your kernel to at least 3.14 to have access to feature %s\n",
+				   tev->args[i].value);
+			break;
+		}
+	}
 out:
 	free(buf);
 }
