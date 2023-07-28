@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pwm.h>
-#include <linux/radix-tree.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
