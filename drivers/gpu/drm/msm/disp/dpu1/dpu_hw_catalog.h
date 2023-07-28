@@ -29,16 +29,6 @@
 #define MAX_XIN_COUNT 16
 
 /**
- * Supported UBWC feature versions
- */
-enum {
-	DPU_HW_UBWC_VER_10 = 0x100,
-	DPU_HW_UBWC_VER_20 = 0x200,
-	DPU_HW_UBWC_VER_30 = 0x300,
-	DPU_HW_UBWC_VER_40 = 0x400,
-};
-
-/**
  * MDP TOP BLOCK features
  * @DPU_MDP_PANIC_PER_PIPE Panic configuration needs to be done per pipe
  * @DPU_MDP_10BIT_SUPPORT, Chipset supports 10 bit pixel formats
@@ -503,19 +493,6 @@ struct dpu_mdp_cfg {
 	struct dpu_clk_ctrl_reg clk_ctrls[DPU_CLK_CTRL_MAX];
 };
 
-/**
- * struct dpu_ubwc_cfg - UBWC and memory configuration
- *
- * @ubwc_version       UBWC feature version (0x0 for not supported)
- * @highest_bank_bit:  UBWC parameter
- * @ubwc_swizzle:      ubwc default swizzle setting
- */
-struct dpu_ubwc_cfg {
-	u32 ubwc_version;
-	u32 highest_bank_bit;
-	u32 ubwc_swizzle;
-};
-
 /* struct dpu_ctl_cfg : MDP CTL instance info
  * @id:                index identifying this block
  * @base:              register base offset to mdss
@@ -816,8 +793,6 @@ struct dpu_mdss_cfg {
 	const struct dpu_mdss_version *mdss_ver;
 
 	const struct dpu_caps *caps;
-
-	const struct dpu_ubwc_cfg *ubwc;
 
 	const struct dpu_mdp_cfg *mdp;
 

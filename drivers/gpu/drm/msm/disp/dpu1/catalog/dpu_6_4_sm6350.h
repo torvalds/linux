@@ -19,12 +19,6 @@ static const struct dpu_caps sm6350_dpu_caps = {
 	.pixel_ram_size = DEFAULT_PIXEL_RAM_SIZE,
 };
 
-static const struct dpu_ubwc_cfg sm6350_ubwc_cfg = {
-	.ubwc_version = DPU_HW_UBWC_VER_20,
-	.ubwc_swizzle = 6,
-	.highest_bank_bit = 1,
-};
-
 static const struct dpu_mdp_cfg sm6350_mdp = {
 	.name = "top_0",
 	.base = 0x0, .len = 0x494,
@@ -215,7 +209,6 @@ static const struct dpu_mdss_version sm6350_mdss_ver = {
 const struct dpu_mdss_cfg dpu_sm6350_cfg = {
 	.mdss_ver = &sm6350_mdss_ver,
 	.caps = &sm6350_dpu_caps,
-	.ubwc = &sm6350_ubwc_cfg,
 	.mdp = &sm6350_mdp,
 	.ctl_count = ARRAY_SIZE(sm6350_ctl),
 	.ctl = sm6350_ctl,

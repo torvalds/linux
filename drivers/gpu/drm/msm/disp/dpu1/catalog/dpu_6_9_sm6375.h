@@ -18,12 +18,6 @@ static const struct dpu_caps sm6375_dpu_caps = {
 	.pixel_ram_size = DEFAULT_PIXEL_RAM_SIZE,
 };
 
-static const struct dpu_ubwc_cfg sm6375_ubwc_cfg = {
-	.ubwc_version = DPU_HW_UBWC_VER_20,
-	.ubwc_swizzle = 6,
-	.highest_bank_bit = 1,
-};
-
 static const struct dpu_mdp_cfg sm6375_mdp = {
 	.name = "top_0",
 	.base = 0x0, .len = 0x494,
@@ -154,7 +148,6 @@ static const struct dpu_mdss_version sm6375_mdss_ver = {
 const struct dpu_mdss_cfg dpu_sm6375_cfg = {
 	.mdss_ver = &sm6375_mdss_ver,
 	.caps = &sm6375_dpu_caps,
-	.ubwc = &sm6375_ubwc_cfg,
 	.mdp = &sm6375_mdp,
 	.ctl_count = ARRAY_SIZE(sm6375_ctl),
 	.ctl = sm6375_ctl,

@@ -17,12 +17,6 @@ static const struct dpu_caps sm6115_dpu_caps = {
 	.pixel_ram_size = DEFAULT_PIXEL_RAM_SIZE,
 };
 
-static const struct dpu_ubwc_cfg sm6115_ubwc_cfg = {
-	.ubwc_version = DPU_HW_UBWC_VER_10,
-	.highest_bank_bit = 0x1,
-	.ubwc_swizzle = 0x7,
-};
-
 static const struct dpu_mdp_cfg sm6115_mdp = {
 	.name = "top_0",
 	.base = 0x0, .len = 0x494,
@@ -144,7 +138,6 @@ static const struct dpu_mdss_version sm6115_mdss_ver = {
 const struct dpu_mdss_cfg dpu_sm6115_cfg = {
 	.mdss_ver = &sm6115_mdss_ver,
 	.caps = &sm6115_dpu_caps,
-	.ubwc = &sm6115_ubwc_cfg,
 	.mdp = &sm6115_mdp,
 	.ctl_count = ARRAY_SIZE(sm6115_ctl),
 	.ctl = sm6115_ctl,
