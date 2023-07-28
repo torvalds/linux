@@ -2141,7 +2141,7 @@ static int __init of_unittest_apply_overlay_check(int overlay_nr,
 {
 	int ret, ovcs_id;
 
-	/* unittest device must not be in before state */
+	/* unittest device must be in before state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != before) {
 		unittest(0, "%s with device @\"%s\" %s\n",
 				overlay_name_from_nr(overlay_nr),
@@ -2150,6 +2150,7 @@ static int __init of_unittest_apply_overlay_check(int overlay_nr,
 		return -EINVAL;
 	}
 
+	/* apply the overlay */
 	ovcs_id = 0;
 	ret = of_unittest_apply_overlay(overlay_nr, &ovcs_id);
 	if (ret != 0) {
@@ -2157,9 +2158,9 @@ static int __init of_unittest_apply_overlay_check(int overlay_nr,
 		return ret;
 	}
 
-	/* unittest device must be to set to after state */
+	/* unittest device must be in after state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != after) {
-		unittest(0, "%s failed to create @\"%s\" %s\n",
+		unittest(0, "%s with device @\"%s\" %s\n",
 				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!after ? "enabled" : "disabled");
@@ -2195,13 +2196,14 @@ static int __init of_unittest_apply_revert_overlay_check(int overlay_nr,
 
 	/* unittest device must be in after state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != after) {
-		unittest(0, "%s failed to create @\"%s\" %s\n",
+		unittest(0, "%s with device @\"%s\" %s\n",
 				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!after ? "enabled" : "disabled");
 		return -EINVAL;
 	}
 
+	/* remove the overlay */
 	save_ovcs_id = ovcs_id;
 	ret = of_overlay_remove(&ovcs_id);
 	if (ret != 0) {
