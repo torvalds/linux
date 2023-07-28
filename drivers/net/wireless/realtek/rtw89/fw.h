@@ -327,6 +327,17 @@ struct rtw89_h2c_ra {
 #define RTW89_H2C_RA_W3_FIXED_CSI_GI_LTF GENMASK(28, 26)
 #define RTW89_H2C_RA_W3_FIXED_CSI_BW GENMASK(31, 29)
 
+struct rtw89_h2c_ra_v1 {
+	struct rtw89_h2c_ra v0;
+	__le32 w4;
+	__le32 w5;
+} __packed;
+
+#define RTW89_H2C_RA_V1_W4_MODE_EHT GENMASK(6, 0)
+#define RTW89_H2C_RA_V1_W4_BW_EHT GENMASK(10, 8)
+#define RTW89_H2C_RA_V1_W4_RAMASK_UHL16 GENMASK(31, 16)
+#define RTW89_H2C_RA_V1_W5_RAMASK_UHH16 GENMASK(15, 0)
+
 static inline void RTW89_SET_FWCMD_SEC_IDX(void *cmd, u32 val)
 {
 	le32p_replace_bits((__le32 *)(cmd) + 0x00, val, GENMASK(7, 0));

@@ -2700,9 +2700,10 @@ struct rtw89_ra_info {
 	 * Bit2 : HT
 	 * Bit3 : VHT
 	 * Bit4 : HE
+	 * Bit5 : EHT
 	 */
-	u8 mode_ctrl:5;
-	u8 bw_cap:2;
+	u8 mode_ctrl:6;
+	u8 bw_cap:3; /* enum rtw89_bandwidth */
 	u8 macid;
 	u8 dcm_cap:1;
 	u8 er_cap:1;
