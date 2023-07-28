@@ -140,7 +140,6 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	mutex_init(&ct->lock);
 	spin_lock_init(&ct->fast_lock);
 	xa_init(&ct->fence_lookup);
-	ct->fence_context = dma_fence_context_alloc(1);
 	INIT_WORK(&ct->g2h_worker, g2h_worker_func);
 	init_waitqueue_head(&ct->wq);
 	init_waitqueue_head(&ct->g2h_fence_wq);

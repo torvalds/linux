@@ -100,8 +100,6 @@ struct xe_guc_ct {
 	bool enabled;
 	/** @fence_seqno: G2H fence seqno - 16 bits used by CT */
 	u32 fence_seqno;
-	/** @fence_context: context for G2H fence */
-	u64 fence_context;
 	/** @fence_lookup: G2H fence lookup */
 	struct xarray fence_lookup;
 	/** @wq: wait queue used for reliable CT sends and freeing G2H credits */
