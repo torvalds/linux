@@ -475,6 +475,80 @@ struct dentry *tracefs_end_creating(struct dentry *dentry)
 }
 
 /**
+ * eventfs_start_creating - start the process of creating a dentry
+ * @name: Name of the file created for the dentry
+ * @parent: The parent dentry where this dentry will be created
+ *
+ * This is a simple helper function for the dynamically created eventfs
+ * files. When the directory of the eventfs files are accessed, their
+ * dentries are created on the fly. This function is used to start that
+ * process.
+ */
+struct dentry *eventfs_start_creating(const char *name, struct dentry *parent)
+{
+	struct dentry *dentry;
+	int error;
+
+	error = simple_pin_fs(&trace_fs_type, &tracefs_mount,
+			      &tracefs_mount_count);
+	if (error)
+		return ERR_PTR(error);
+
+	/*
+	 * If the parent is not specified, we create it in the root.
+	 * We need the root dentry to do this, which is in the super
+	 * block. A pointer to that is in the struct vfsmount that we
+	 * have around.
+	 */
+	if (!parent)
+		parent = tracefs_mount->mnt_root;
+
+	if (unlikely(IS_DEADDIR(parent->d_inode)))
+		dentry = ERR_PTR(-ENOENT);
+	else
+		dentry = lookup_one_len(name, parent, strlen(name));
+
+	if (!IS_ERR(dentry) && dentry->d_inode) {
+		dput(dentry);
+		dentry = ERR_PTR(-EEXIST);
+	}
+
+	if (IS_ERR(dentry))
+		simple_release_fs(&tracefs_mount, &tracefs_mount_count);
+
+	return dentry;
+}
+
+/**
+ * eventfs_failed_creating - clean up a failed eventfs dentry creation
+ * @dentry: The dentry to clean up
+ *
+ * If after calling eventfs_start_creating(), a failure is detected, the
+ * resources created by eventfs_start_creating() needs to be cleaned up. In
+ * that case, this function should be called to perform that clean up.
+ */
+struct dentry *eventfs_failed_creating(struct dentry *dentry)
+{
+	dput(dentry);
+	simple_release_fs(&tracefs_mount, &tracefs_mount_count);
+	return NULL;
+}
+
+/**
+ * eventfs_end_creating - Finish the process of creating a eventfs dentry
+ * @dentry: The dentry that has successfully been created.
+ *
+ * This function is currently just a place holder to match
+ * eventfs_start_creating(). In case any synchronization needs to be added,
+ * this function will be used to implement that without having to modify
+ * the callers of eventfs_start_creating().
+ */
+struct dentry *eventfs_end_creating(struct dentry *dentry)
+{
+	return dentry;
+}
+
+/**
  * tracefs_create_file - create a file in the tracefs filesystem
  * @name: a pointer to a string containing the name of the file to create.
  * @mode: the permission that the file should have.
