@@ -819,12 +819,19 @@ static int mpp_task_run(struct mpp_dev *mpp,
 		mpp_set_grf(mpp->grf_info);
 	}
 	/*
+	 * Lock the reader locker of the device resource lock here,
+	 * release at the finish operation
+	 */
+	mpp_reset_down_read(mpp->reset_group);
+
+	/*
 	 * for iommu share hardware, should attach to ensure
 	 * working in current device
 	 */
 	ret = mpp_iommu_attach(mpp->iommu_info);
 	if (ret) {
 		dev_err(mpp->dev, "mpp_iommu_attach failed\n");
+		mpp_reset_up_read(mpp->reset_group);
 		return -ENODATA;
 	}
 
@@ -834,11 +841,6 @@ static int mpp_task_run(struct mpp_dev *mpp,
 
 	if (mpp->auto_freq_en && mpp->hw_ops->set_freq)
 		mpp->hw_ops->set_freq(mpp, task);
-	/*
-	 * TODO: Lock the reader locker of the device resource lock here,
-	 * release at the finish operation
-	 */
-	mpp_reset_down_read(mpp->reset_group);
 
 	mpp_iommu_dev_activate(mpp->iommu_info, mpp);
 	if (mpp->dev_ops->run)
