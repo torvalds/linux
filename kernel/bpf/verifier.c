@@ -5898,7 +5898,7 @@ static void coerce_reg_to_size_sx(struct bpf_reg_state *reg, int size)
 	s64_min = min(init_s64_max, init_s64_min);
 
 	/* both of s64_max/s64_min positive or negative */
-	if (s64_max >= 0 == s64_min >= 0) {
+	if ((s64_max >= 0) == (s64_min >= 0)) {
 		reg->smin_value = reg->s32_min_value = s64_min;
 		reg->smax_value = reg->s32_max_value = s64_max;
 		reg->umin_value = reg->u32_min_value = s64_min;
@@ -5962,7 +5962,7 @@ static void coerce_subreg_to_size_sx(struct bpf_reg_state *reg, int size)
 	s32_max = max(init_s32_max, init_s32_min);
 	s32_min = min(init_s32_max, init_s32_min);
 
-	if (s32_min >= 0 == s32_max >= 0) {
+	if ((s32_min >= 0) == (s32_max >= 0)) {
 		reg->s32_min_value = s32_min;
 		reg->s32_max_value = s32_max;
 		reg->u32_min_value = (u32)s32_min;
