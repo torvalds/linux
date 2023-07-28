@@ -256,6 +256,22 @@ static inline void bpf_mprog_entry_copy(struct bpf_mprog_entry *dst,
 	memcpy(dst->fp_items, src->fp_items, sizeof(src->fp_items));
 }
 
+static inline void bpf_mprog_entry_clear(struct bpf_mprog_entry *dst)
+{
+	memset(dst->fp_items, 0, sizeof(dst->fp_items));
+}
+
+static inline void bpf_mprog_clear_all(struct bpf_mprog_entry *entry,
+				       struct bpf_mprog_entry **entry_new)
+{
+	struct bpf_mprog_entry *peer;
+
+	peer = bpf_mprog_peer(entry);
+	bpf_mprog_entry_clear(peer);
+	peer->parent->count = 0;
+	*entry_new = peer;
+}
+
 static inline void bpf_mprog_entry_grow(struct bpf_mprog_entry *entry, int idx)
 {
 	int total = bpf_mprog_total(entry);
