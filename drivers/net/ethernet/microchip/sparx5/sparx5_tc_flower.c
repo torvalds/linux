@@ -126,7 +126,7 @@ sparx5_tc_flower_handler_basic_usage(struct vcap_tc_flower_parse_usage *st)
 		}
 	}
 
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_BASIC);
+	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_BASIC);
 
 	return err;
 
@@ -175,7 +175,7 @@ sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 			goto out;
 	}
 
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_CONTROL);
+	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL);
 
 	return err;
 

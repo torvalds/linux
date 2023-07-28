@@ -201,23 +201,23 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 		}
 	}
 	if (dissector->used_keys &
-	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
-	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
-	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
-	      BIT(FLOW_DISSECTOR_KEY_CVLAN) |
-	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_IP) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) |
-	      BIT(FLOW_DISSECTOR_KEY_TCP) |
-	      BIT(FLOW_DISSECTOR_KEY_IP))) {
-		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported flower keys %#x",
+	    ~(BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_VLAN) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_CVLAN) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_KEYID) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IP) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_PORTS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_CONTROL) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_TCP) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_IP))) {
+		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported flower keys %#llx",
 				       dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
@@ -228,12 +228,13 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	    !(match->value.eth_proto == htons(ETH_P_IP) ||
 	      match->value.eth_proto == htons(ETH_P_IPV6)))
 		if (dissector->used_keys &
-		    (BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
-		     BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
-		     BIT(FLOW_DISSECTOR_KEY_PORTS) |
-		     BIT(FLOW_DISSECTOR_KEY_IP) |
-		     BIT(FLOW_DISSECTOR_KEY_TCP))) {
-			NL_SET_ERR_MSG_FMT_MOD(extack, "L3/L4 flower keys %#x require protocol ipv[46]",
+		    (BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+		     BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+		     BIT_ULL(FLOW_DISSECTOR_KEY_PORTS) |
+		     BIT_ULL(FLOW_DISSECTOR_KEY_IP) |
+		     BIT_ULL(FLOW_DISSECTOR_KEY_TCP))) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "L3/L4 flower keys %#llx require protocol ipv[46]",
 					       dissector->used_keys);
 			return -EINVAL;
 		}
@@ -281,9 +282,10 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	if ((match->value.ip_proto != IPPROTO_UDP &&
 	     match->value.ip_proto != IPPROTO_TCP) || !IS_ALL_ONES(match->mask.ip_proto))
 		if (dissector->used_keys &
-		    (BIT(FLOW_DISSECTOR_KEY_PORTS) |
-		     BIT(FLOW_DISSECTOR_KEY_TCP))) {
-			NL_SET_ERR_MSG_FMT_MOD(extack, "L4 flower keys %#x require ipproto udp or tcp",
+		    (BIT_ULL(FLOW_DISSECTOR_KEY_PORTS) |
+		     BIT_ULL(FLOW_DISSECTOR_KEY_TCP))) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "L4 flower keys %#llx require ipproto udp or tcp",
 					       dissector->used_keys);
 			return -EINVAL;
 		}
@@ -344,12 +346,13 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 		MAP_ENC_KEY_AND_MASK(PORTS, ports, enc_ports, dst, enc_dport);
 		MAP_ENC_KEY_AND_MASK(KEYID, enc_keyid, enc_keyid, keyid, enc_keyid);
 	} else if (dissector->used_keys &
-		   (BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) |
-		    BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
-		    BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
-		    BIT(FLOW_DISSECTOR_KEY_ENC_IP) |
-		    BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))) {
-		NL_SET_ERR_MSG_FMT_MOD(extack, "Flower enc keys require enc_control (keys: %#x)",
+		   (BIT_ULL(FLOW_DISSECTOR_KEY_ENC_KEYID) |
+		    BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
+		    BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
+		    BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IP) |
+		    BIT_ULL(FLOW_DISSECTOR_KEY_ENC_PORTS))) {
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "Flower enc keys require enc_control (keys: %#llx)",
 				       dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
