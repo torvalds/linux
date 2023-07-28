@@ -2,6 +2,10 @@
 #ifndef _TRACEFS_INTERNAL_H
 #define _TRACEFS_INTERNAL_H
 
+enum {
+	TRACEFS_EVENT_INODE     = BIT(1),
+};
+
 struct tracefs_inode {
 	unsigned long           flags;
 	void                    *private;
