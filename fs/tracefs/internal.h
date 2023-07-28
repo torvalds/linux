@@ -21,4 +21,6 @@ struct dentry *tracefs_start_creating(const char *name, struct dentry *parent);
 struct dentry *tracefs_end_creating(struct dentry *dentry);
 struct dentry *tracefs_failed_creating(struct dentry *dentry);
 struct inode *tracefs_get_inode(struct super_block *sb);
+void eventfs_set_ef_status_free(struct dentry *dentry);
+
 #endif /* _TRACEFS_INTERNAL_H */

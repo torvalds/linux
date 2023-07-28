@@ -31,6 +31,8 @@ struct eventfs_inode {
  * struct eventfs_file - hold the properties of the eventfs files and
  *                       directories.
  * @name:	the name of the file or directory to create
+ * @d_parent:   holds parent's dentry
+ * @dentry:     once accessed holds dentry
  * @list:	file or directory to be added to parent directory
  * @ei:		list of files and directories within directory
  * @fop:	file_operations for file or directory
@@ -40,21 +42,319 @@ struct eventfs_inode {
  */
 struct eventfs_file {
 	const char			*name;
+	struct dentry			*d_parent;
+	struct dentry			*dentry;
 	struct list_head		list;
 	struct eventfs_inode		*ei;
 	const struct file_operations	*fop;
 	const struct inode_operations	*iop;
+	union {
+		struct list_head	del_list; /* list of eventfs_file to delete */
+		struct rcu_head		rcu; /* eventfs_file to delete */
+		unsigned long		is_freed; /* Freed if one of the above is set */
+	};
 	void				*data;
 	umode_t				mode;
 };
 
 static DEFINE_MUTEX(eventfs_mutex);
+DEFINE_STATIC_SRCU(eventfs_srcu);
+
+static struct dentry *eventfs_root_lookup(struct inode *dir,
+					  struct dentry *dentry,
+					  unsigned int flags);
+static int dcache_dir_open_wrapper(struct inode *inode, struct file *file);
+static int eventfs_release(struct inode *inode, struct file *file);
 
 static const struct inode_operations eventfs_root_dir_inode_operations = {
+	.lookup		= eventfs_root_lookup,
 };
 
 static const struct file_operations eventfs_file_operations = {
+	.open		= dcache_dir_open_wrapper,
+	.read		= generic_read_dir,
+	.iterate_shared	= dcache_readdir,
+	.llseek		= generic_file_llseek,
+	.release	= eventfs_release,
 };
+
+/**
+ * create_file - create a file in the tracefs filesystem
+ * @name: the name of the file to create.
+ * @mode: the permission that the file should have.
+ * @parent: parent dentry for this file.
+ * @data: something that the caller will want to get to later on.
+ * @fop: struct file_operations that should be used for this file.
+ *
+ * This is the basic "create a file" function for tracefs.  It allows for a
+ * wide range of flexibility in creating a file.
+ *
+ * This function will return a pointer to a dentry if it succeeds.  This
+ * pointer must be passed to the tracefs_remove() function when the file is
+ * to be removed (no automatic cleanup happens if your module is unloaded,
+ * you are responsible here.)  If an error occurs, %NULL will be returned.
+ *
+ * If tracefs is not enabled in the kernel, the value -%ENODEV will be
+ * returned.
+ */
+static struct dentry *create_file(const char *name, umode_t mode,
+				  struct dentry *parent, void *data,
+				  const struct file_operations *fop)
+{
+	return NULL;
+};
+
+/**
+ * create_dir - create a dir in the tracefs filesystem
+ * @name: the name of the file to create.
+ * @parent: parent dentry for this file.
+ * @data: something that the caller will want to get to later on.
+ *
+ * This is the basic "create a dir" function for eventfs.  It allows for a
+ * wide range of flexibility in creating a dir.
+ *
+ * This function will return a pointer to a dentry if it succeeds.  This
+ * pointer must be passed to the tracefs_remove() function when the file is
+ * to be removed (no automatic cleanup happens if your module is unloaded,
+ * you are responsible here.)  If an error occurs, %NULL will be returned.
+ *
+ * If tracefs is not enabled in the kernel, the value -%ENODEV will be
+ * returned.
+ */
+static struct dentry *create_dir(const char *name, struct dentry *parent, void *data)
+{
+	return NULL;
+}
+
+/**
+ * eventfs_set_ef_status_free - set the ef->status to free
+ * @dentry: dentry who's status to be freed
+ *
+ * eventfs_set_ef_status_free will be called if no more
+ * references remain
+ */
+void eventfs_set_ef_status_free(struct dentry *dentry)
+{
+	struct tracefs_inode *ti_parent;
+	struct eventfs_file *ef;
+
+	mutex_lock(&eventfs_mutex);
+	ti_parent = get_tracefs(dentry->d_parent->d_inode);
+	if (!ti_parent || !(ti_parent->flags & TRACEFS_EVENT_INODE))
+		goto out;
+
+	ef = dentry->d_fsdata;
+	if (!ef)
+		goto out;
+
+	dentry->d_fsdata = NULL;
+	ef->dentry = NULL;
+out:
+	mutex_unlock(&eventfs_mutex);
+}
+
+/**
+ * eventfs_post_create_dir - post create dir routine
+ * @ef: eventfs_file of recently created dir
+ *
+ * Map the meta-data of files within an eventfs dir to their parent dentry
+ */
+static void eventfs_post_create_dir(struct eventfs_file *ef)
+{
+	struct eventfs_file *ef_child;
+	struct tracefs_inode *ti;
+
+	/* srcu lock already held */
+	/* fill parent-child relation */
+	list_for_each_entry_srcu(ef_child, &ef->ei->e_top_files, list,
+				 srcu_read_lock_held(&eventfs_srcu)) {
+		ef_child->d_parent = ef->dentry;
+	}
+
+	ti = get_tracefs(ef->dentry->d_inode);
+	ti->private = ef->ei;
+}
+
+/**
+ * create_dentry - helper function to create dentry
+ * @ef: eventfs_file of file or directory to create
+ * @parent: parent dentry
+ * @lookup: true if called from lookup routine
+ *
+ * Used to create a dentry for file/dir, executes post dentry creation routine
+ */
+static struct dentry *
+create_dentry(struct eventfs_file *ef, struct dentry *parent, bool lookup)
+{
+	bool invalidate = false;
+	struct dentry *dentry;
+
+	mutex_lock(&eventfs_mutex);
+	if (ef->is_freed) {
+		mutex_unlock(&eventfs_mutex);
+		return NULL;
+	}
+	if (ef->dentry) {
+		dentry = ef->dentry;
+		/* On dir open, up the ref count */
+		if (!lookup)
+			dget(dentry);
+		mutex_unlock(&eventfs_mutex);
+		return dentry;
+	}
+	mutex_unlock(&eventfs_mutex);
+
+	if (!lookup)
+		inode_lock(parent->d_inode);
+
+	if (ef->ei)
+		dentry = create_dir(ef->name, parent, ef->data);
+	else
+		dentry = create_file(ef->name, ef->mode, parent,
+				     ef->data, ef->fop);
+
+	if (!lookup)
+		inode_unlock(parent->d_inode);
+
+	mutex_lock(&eventfs_mutex);
+	if (IS_ERR_OR_NULL(dentry)) {
+		/* If the ef was already updated get it */
+		dentry = ef->dentry;
+		if (dentry && !lookup)
+			dget(dentry);
+		mutex_unlock(&eventfs_mutex);
+		return dentry;
+	}
+
+	if (!ef->dentry && !ef->is_freed) {
+		ef->dentry = dentry;
+		if (ef->ei)
+			eventfs_post_create_dir(ef);
+		dentry->d_fsdata = ef;
+	} else {
+		/* A race here, should try again (unless freed) */
+		invalidate = true;
+	}
+	mutex_unlock(&eventfs_mutex);
+	if (invalidate)
+		d_invalidate(dentry);
+
+	if (lookup || invalidate)
+		dput(dentry);
+
+	return invalidate ? NULL : dentry;
+}
+
+static bool match_event_file(struct eventfs_file *ef, const char *name)
+{
+	bool ret;
+
+	mutex_lock(&eventfs_mutex);
+	ret = !ef->is_freed && strcmp(ef->name, name) == 0;
+	mutex_unlock(&eventfs_mutex);
+
+	return ret;
+}
+
+/**
+ * eventfs_root_lookup - lookup routine to create file/dir
+ * @dir: in which a lookup is being done
+ * @dentry: file/dir dentry
+ * @flags: to pass as flags parameter to simple lookup
+ *
+ * Used to create a dynamic file/dir within @dir. Use the eventfs_inode
+ * list of meta data to find the information needed to create the file/dir.
+ */
+static struct dentry *eventfs_root_lookup(struct inode *dir,
+					  struct dentry *dentry,
+					  unsigned int flags)
+{
+	struct tracefs_inode *ti;
+	struct eventfs_inode *ei;
+	struct eventfs_file *ef;
+	struct dentry *ret = NULL;
+	int idx;
+
+	ti = get_tracefs(dir);
+	if (!(ti->flags & TRACEFS_EVENT_INODE))
+		return NULL;
+
+	ei = ti->private;
+	idx = srcu_read_lock(&eventfs_srcu);
+	list_for_each_entry_srcu(ef, &ei->e_top_files, list,
+				 srcu_read_lock_held(&eventfs_srcu)) {
+		if (!match_event_file(ef, dentry->d_name.name))
+			continue;
+		ret = simple_lookup(dir, dentry, flags);
+		create_dentry(ef, ef->d_parent, true);
+		break;
+	}
+	srcu_read_unlock(&eventfs_srcu, idx);
+	return ret;
+}
+
+/**
+ * eventfs_release - called to release eventfs file/dir
+ * @inode: inode to be released
+ * @file: file to be released (not used)
+ */
+static int eventfs_release(struct inode *inode, struct file *file)
+{
+	struct tracefs_inode *ti;
+	struct eventfs_inode *ei;
+	struct eventfs_file *ef;
+	struct dentry *dentry;
+	int idx;
+
+	ti = get_tracefs(inode);
+	if (!(ti->flags & TRACEFS_EVENT_INODE))
+		return -EINVAL;
+
+	ei = ti->private;
+	idx = srcu_read_lock(&eventfs_srcu);
+	list_for_each_entry_srcu(ef, &ei->e_top_files, list,
+				 srcu_read_lock_held(&eventfs_srcu)) {
+		mutex_lock(&eventfs_mutex);
+		dentry = ef->dentry;
+		mutex_unlock(&eventfs_mutex);
+		if (dentry)
+			dput(dentry);
+	}
+	srcu_read_unlock(&eventfs_srcu, idx);
+	return dcache_dir_close(inode, file);
+}
+
+/**
+ * dcache_dir_open_wrapper - eventfs open wrapper
+ * @inode: not used
+ * @file: dir to be opened (to create its child)
+ *
+ * Used to dynamically create the file/dir within @file. @file is really a
+ * directory and all the files/dirs of the children within @file will be
+ * created. If any of the files/dirs have already been created, their
+ * reference count will be incremented.
+ */
+static int dcache_dir_open_wrapper(struct inode *inode, struct file *file)
+{
+	struct tracefs_inode *ti;
+	struct eventfs_inode *ei;
+	struct eventfs_file *ef;
+	struct dentry *dentry = file_dentry(file);
+	struct inode *f_inode = file_inode(file);
+	int idx;
+
+	ti = get_tracefs(f_inode);
+	if (!(ti->flags & TRACEFS_EVENT_INODE))
+		return -EINVAL;
+
+	ei = ti->private;
+	idx = srcu_read_lock(&eventfs_srcu);
+	list_for_each_entry_rcu(ef, &ei->e_top_files, list) {
+		create_dentry(ef, dentry, false);
+	}
+	srcu_read_unlock(&eventfs_srcu, idx);
+	return dcache_dir_open(inode, file);
+}
 
 /**
  * eventfs_prepare_ef - helper function to prepare eventfs_file
@@ -179,6 +479,7 @@ struct eventfs_file *eventfs_add_subsystem_dir(const char *name,
 
 	mutex_lock(&eventfs_mutex);
 	list_add_tail(&ef->list, &ei_parent->e_top_files);
+	ef->d_parent = parent;
 	mutex_unlock(&eventfs_mutex);
 	return ef;
 }
@@ -206,6 +507,7 @@ struct eventfs_file *eventfs_add_dir(const char *name,
 
 	mutex_lock(&eventfs_mutex);
 	list_add_tail(&ef->list, &ef_parent->ei->e_top_files);
+	ef->d_parent = ef_parent->dentry;
 	mutex_unlock(&eventfs_mutex);
 	return ef;
 }
@@ -254,6 +556,7 @@ int eventfs_add_events_file(const char *name, umode_t mode,
 
 	mutex_lock(&eventfs_mutex);
 	list_add_tail(&ef->list, &ei->e_top_files);
+	ef->d_parent = parent;
 	mutex_unlock(&eventfs_mutex);
 	return 0;
 }
@@ -292,6 +595,7 @@ int eventfs_add_file(const char *name, umode_t mode,
 
 	mutex_lock(&eventfs_mutex);
 	list_add_tail(&ef->list, &ef_parent->ei->e_top_files);
+	ef->d_parent = ef_parent->dentry;
 	mutex_unlock(&eventfs_mutex);
 	return 0;
 }
