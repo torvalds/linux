@@ -39,6 +39,7 @@
 #include <linux/types.h>
 #include <linux/skmsg.h>
 #include <net/tls.h>
+#include <net/tls_prot.h>
 
 #define TLS_PAGE_ORDER	(min_t(unsigned int, PAGE_ALLOC_COSTLY_ORDER,	\
 			       TLS_MAX_PAYLOAD_SIZE >> PAGE_SHIFT))
