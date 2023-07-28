@@ -130,7 +130,7 @@ static int bnxt_hwrm_queue_cos2bw_cfg(struct bnxt *bp, struct ieee_ets *ets,
 					    BW_VALUE_UNIT_PERCENT1_100);
 		}
 		data = &req->unused_0 + qidx * (sizeof(cos2bw) - 4);
-		memcpy(data, &cos2bw.queue_id, sizeof(cos2bw) - 4);
+		memcpy(data, &cos2bw.cfg, sizeof(cos2bw) - 4);
 		if (qidx == 0) {
 			req->queue_id0 = cos2bw.queue_id;
 			req->unused_0 = 0;
