@@ -384,8 +384,10 @@ void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
 	VMA_ITERATOR(vmi, mm, 0);
 
 	mmap_write_lock(mm);
-	for_each_vma(vmi, vma)
+	for_each_vma(vmi, vma) {
+		vma_start_write(vma);
 		mpol_rebind_policy(vma->vm_policy, new);
+	}
 	mmap_write_unlock(mm);
 }
 
@@ -758,6 +760,8 @@ static int vma_replace_policy(struct vm_area_struct *vma,
 	int err;
 	struct mempolicy *old;
 	struct mempolicy *new;
+
+	vma_assert_write_locked(vma);
 
 	pr_debug("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
 		 vma->vm_start, vma->vm_end, vma->vm_pgoff,
@@ -1259,6 +1263,8 @@ static long do_mbind(unsigned long start, unsigned long len,
 		     nodemask_t *nmask, unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+	struct vma_iterator vmi;
 	struct mempolicy *new;
 	unsigned long end;
 	int err;
@@ -1319,6 +1325,14 @@ static long do_mbind(unsigned long start, unsigned long len,
 	}
 	if (err)
 		goto mpol_out;
+
+	/*
+	 * Lock the VMAs before scanning for pages to migrate, to ensure we don't
+	 * miss a concurrently inserted page.
+	 */
+	vma_iter_init(&vmi, mm, start);
+	for_each_vma_range(vmi, vma, end)
+		vma_start_write(vma);
 
 	ret = queue_pages_range(mm, start, end, nmask,
 			  flags | MPOL_MF_INVERT, &pagelist);
@@ -1546,6 +1560,7 @@ SYSCALL_DEFINE4(set_mempolicy_home_node, unsigned long, start, unsigned long, le
 			break;
 		}
 
+		vma_start_write(vma);
 		new->home_node = home_node;
 		err = mbind_range(mm, vmstart, vmend, new);
 		mpol_put(new);
