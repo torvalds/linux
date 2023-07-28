@@ -151,8 +151,10 @@ static int ti_syscon_gate_clk_probe(struct platform_device *pdev)
 				 data[i].name);
 	}
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
-					   hw_data);
+	if (num_clks == 1)
+		return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
+						   hw_data->hws[0]);
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, hw_data);
 }
 
 #define TI_SYSCON_CLK_GATE(_name, _offset, _bit_idx)	\
