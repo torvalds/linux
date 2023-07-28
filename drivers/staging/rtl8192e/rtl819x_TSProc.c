@@ -109,8 +109,8 @@ static void ResetTxTsEntry(struct tx_ts_record *pTS)
 	pTS->bAddBaReqDelayed = false;
 	pTS->bUsingBa = false;
 	pTS->bDisable_AddBa = false;
-	ResetBaEntry(&pTS->TxAdmittedBARecord);
-	ResetBaEntry(&pTS->TxPendingBARecord);
+	rtllib_reset_ba_entry(&pTS->TxAdmittedBARecord);
+	rtllib_reset_ba_entry(&pTS->TxPendingBARecord);
 }
 
 static void ResetRxTsEntry(struct rx_ts_record *pTS)
@@ -118,7 +118,7 @@ static void ResetRxTsEntry(struct rx_ts_record *pTS)
 	ResetTsCommonInfo(&pTS->ts_common_info);
 	pTS->rx_indicate_seq = 0xffff;
 	pTS->rx_timeout_indicate_seq = 0xffff;
-	ResetBaEntry(&pTS->rx_admitted_ba_record);
+	rtllib_reset_ba_entry(&pTS->rx_admitted_ba_record);
 }
 
 void TSInitialize(struct rtllib_device *ieee)

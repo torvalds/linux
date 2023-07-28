@@ -54,7 +54,7 @@ static u8 rx_ts_delete_ba(struct rtllib_device *ieee, struct rx_ts_record *pRxTs
 	return bSendDELBA;
 }
 
-void ResetBaEntry(struct ba_record *pBA)
+void rtllib_reset_ba_entry(struct ba_record *pBA)
 {
 	pBA->b_valid			  = false;
 	pBA->ba_param_set.short_data	  = 0;
