@@ -174,7 +174,7 @@ BPF_MOV   0xb0   0        dst = src
 BPF_MOVSX 0xb0   8/16/32  dst = (s8,s16,s32)src
 BPF_ARSH  0xc0   0        sign extending dst >>= (src & mask)
 BPF_END   0xd0   0        byte swap operations (see `Byte swap instructions`_ below)
-========  =====  ============  ==========================================================
+========  =====  =======  ==========================================================
 
 Underflow and overflow are allowed during arithmetic operations, meaning
 the 64-bit or 32-bit value will wrap. If eBPF program execution would
@@ -201,26 +201,32 @@ where '(u32)' indicates that the upper 32 bits are zeroed.
 
   dst = dst ^ imm32
 
-Note that most instructions have instruction offset of 0. But three instructions
-(BPF_SDIV, BPF_SMOD, BPF_MOVSX) have non-zero offset.
+Note that most instructions have instruction offset of 0. Only three instructions
+(``BPF_SDIV``, ``BPF_SMOD``, ``BPF_MOVSX``) have a non-zero offset.
 
 The devision and modulo operations support both unsigned and signed flavors.
-For unsigned operation (BPF_DIV and BPF_MOD), for ``BPF_ALU``, 'imm' is first
-interpreted as an unsigned 32-bit value, whereas for ``BPF_ALU64``, 'imm' is
-first sign extended to 64 bits and the result interpreted as an unsigned 64-bit
-value.  For signed operation (BPF_SDIV and BPF_SMOD), for ``BPF_ALU``, 'imm' is
-interpreted as a signed value. For ``BPF_ALU64``, the 'imm' is sign extended
-from 32 to 64 and interpreted as a signed 64-bit value.
 
-Instruction BPF_MOVSX does move operation with sign extension.
-``BPF_ALU | MOVSX`` sign extendes 8-bit and 16-bit into 32-bit and upper 32-bit are zeroed.
-``BPF_ALU64 | MOVSX`` sign extends 8-bit, 16-bit and 32-bit into 64-bit.
+For unsigned operations (``BPF_DIV`` and ``BPF_MOD``), for ``BPF_ALU``,
+'imm' is interpreted as a 32-bit unsigned value. For ``BPF_ALU64``,
+'imm' is first sign extended from 32 to 64 bits, and then interpreted as
+a 64-bit unsigned value.
+
+For signed operations (``BPF_SDIV`` and ``BPF_SMOD``), for ``BPF_ALU``,
+'imm' is interpreted as a 32-bit signed value. For ``BPF_ALU64``, 'imm'
+is first sign extended from 32 to 64 bits, and then interpreted as a
+64-bit signed value.
+
+The ``BPF_MOVSX`` instruction does a move operation with sign extension.
+``BPF_ALU | BPF_MOVSX`` sign extends 8-bit and 16-bit operands into 32
+bit operands, and zeroes the remaining upper 32 bits.
+``BPF_ALU64 | BPF_MOVSX`` sign extends 8-bit, 16-bit, and 32-bit
+operands into 64 bit operands.
 
 Shift operations use a mask of 0x3F (63) for 64-bit operations and 0x1F (31)
 for 32-bit operations.
 
 Byte swap instructions
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 The byte swap instructions use instruction classes of ``BPF_ALU`` and ``BPF_ALU64``
 and a 4-bit 'code' field of ``BPF_END``.
@@ -228,16 +234,17 @@ and a 4-bit 'code' field of ``BPF_END``.
 The byte swap instructions operate on the destination register
 only and do not use a separate source register or immediate value.
 
-For ``BPF_ALU``, the 1-bit source operand field in the opcode is used to select what byte
-order the operation convert from or to. For ``BPF_ALU64``, the 1-bit source operand
-field in the opcode is not used and must be 0.
+For ``BPF_ALU``, the 1-bit source operand field in the opcode is used to
+select what byte order the operation converts from or to. For
+``BPF_ALU64``, the 1-bit source operand field in the opcode is reserved
+and must be set to 0.
 
 =========  =========  =====  =================================================
 class      source     value  description
 =========  =========  =====  =================================================
 BPF_ALU    BPF_TO_LE  0x00   convert between host byte order and little endian
 BPF_ALU    BPF_TO_BE  0x08   convert between host byte order and big endian
-BPF_ALU64  BPF_TO_LE  0x00   do byte swap unconditionally
+BPF_ALU64  Reserved   0x00   do byte swap unconditionally
 =========  =========  =====  =================================================
 
 The 'imm' field encodes the width of the swap operations.  The following widths
@@ -305,9 +312,12 @@ where 's>=' indicates a signed '>=' comparison.
 
 where 'imm' means the branch offset comes from insn 'imm' field.
 
-Note there are two flavors of BPF_JA instrions. BPF_JMP class permits 16-bit jump offset while
-BPF_JMP32 permits 32-bit jump offset. A >16bit conditional jmp can be converted to a <16bit
-conditional jmp plus a 32-bit unconditional jump.
+Note that there are two flavors of ``BPF_JA`` instructions. The
+``BPF_JMP`` class permits a 16-bit jump offset specified by the 'offset'
+field, whereas the ``BPF_JMP32`` class permits a 32-bit jump offset
+specified by the 'imm' field. A > 16-bit conditional jump may be
+converted to a < 16-bit conditional jump plus a 32-bit unconditional
+jump.
 
 Helper functions
 ~~~~~~~~~~~~~~~~
@@ -385,7 +395,7 @@ instructions that transfer data between a register and memory.
   dst = *(unsigned size *) (src + offset)
 
 Where size is one of: ``BPF_B``, ``BPF_H``, ``BPF_W``, or ``BPF_DW`` and
-'unsigned size' is one of u8, u16, u32 and u64.
+'unsigned size' is one of u8, u16, u32 or u64.
 
 The ``BPF_MEMSX`` mode modifier is used to encode sign-extension load
 instructions that transfer data between a register and memory.
@@ -395,7 +405,7 @@ instructions that transfer data between a register and memory.
   dst = *(signed size *) (src + offset)
 
 Where size is one of: ``BPF_B``, ``BPF_H`` or ``BPF_W``, and
-'signed size' is one of s8, s16 and s32.
+'signed size' is one of s8, s16 or s32.
 
 Atomic operations
 -----------------
