@@ -3380,6 +3380,7 @@ out:
 
 struct mlxsw_sp_switchdev_event_work {
 	struct work_struct work;
+	netdevice_tracker dev_tracker;
 	union {
 		struct switchdev_notifier_fdb_info fdb_info;
 		struct switchdev_notifier_vxlan_fdb_info vxlan_fdb_info;
@@ -3536,8 +3537,8 @@ static void mlxsw_sp_switchdev_bridge_fdb_event_work(struct work_struct *work)
 out:
 	rtnl_unlock();
 	kfree(switchdev_work->fdb_info.addr);
+	netdev_put(dev, &switchdev_work->dev_tracker);
 	kfree(switchdev_work);
-	dev_put(dev);
 }
 
 static void
@@ -3692,8 +3693,8 @@ static void mlxsw_sp_switchdev_vxlan_fdb_event_work(struct work_struct *work)
 
 out:
 	rtnl_unlock();
+	netdev_put(dev, &switchdev_work->dev_tracker);
 	kfree(switchdev_work);
-	dev_put(dev);
 }
 
 static int
@@ -3793,7 +3794,7 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 		 * upper device containig mlxsw_sp_port or just a
 		 * mlxsw_sp_port
 		 */
-		dev_hold(dev);
+		netdev_hold(dev, &switchdev_work->dev_tracker, GFP_ATOMIC);
 		break;
 	case SWITCHDEV_VXLAN_FDB_ADD_TO_DEVICE:
 	case SWITCHDEV_VXLAN_FDB_DEL_TO_DEVICE:
@@ -3803,7 +3804,7 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 							    info);
 		if (err)
 			goto err_vxlan_work_prepare;
-		dev_hold(dev);
+		netdev_hold(dev, &switchdev_work->dev_tracker, GFP_ATOMIC);
 		break;
 	default:
 		kfree(switchdev_work);

@@ -71,6 +71,7 @@ static const struct rhashtable_params mlxsw_sp_crif_ht_params = {
 
 struct mlxsw_sp_rif {
 	struct mlxsw_sp_crif *crif; /* NULL for underlay RIF */
+	netdevice_tracker dev_tracker;
 	struct list_head neigh_list;
 	struct mlxsw_sp_fid *fid;
 	unsigned char addr[ETH_ALEN];
@@ -7547,6 +7548,7 @@ struct mlxsw_sp_fib6_event_work {
 
 struct mlxsw_sp_fib_event_work {
 	struct work_struct work;
+	netdevice_tracker dev_tracker;
 	union {
 		struct mlxsw_sp_fib6_event_work fib6_work;
 		struct fib_entry_notifier_info fen_info;
@@ -7720,12 +7722,12 @@ static void mlxsw_sp_router_fibmr_event_work(struct work_struct *work)
 						    &fib_work->ven_info);
 		if (err)
 			dev_warn(mlxsw_sp->bus_info->dev, "MR VIF add failed.\n");
-		dev_put(fib_work->ven_info.dev);
+		netdev_put(fib_work->ven_info.dev, &fib_work->dev_tracker);
 		break;
 	case FIB_EVENT_VIF_DEL:
 		mlxsw_sp_router_fibmr_vif_del(mlxsw_sp,
 					      &fib_work->ven_info);
-		dev_put(fib_work->ven_info.dev);
+		netdev_put(fib_work->ven_info.dev, &fib_work->dev_tracker);
 		break;
 	}
 	mutex_unlock(&mlxsw_sp->router->lock);
@@ -7796,7 +7798,8 @@ mlxsw_sp_router_fibmr_event(struct mlxsw_sp_fib_event_work *fib_work,
 	case FIB_EVENT_VIF_ADD:
 	case FIB_EVENT_VIF_DEL:
 		memcpy(&fib_work->ven_info, info, sizeof(fib_work->ven_info));
-		dev_hold(fib_work->ven_info.dev);
+		netdev_hold(fib_work->ven_info.dev, &fib_work->dev_tracker,
+			    GFP_ATOMIC);
 		break;
 	}
 }
@@ -8306,6 +8309,7 @@ mlxsw_sp_router_port_l3_stats_report_delta(struct mlxsw_sp_rif *rif,
 struct mlxsw_sp_router_hwstats_notify_work {
 	struct work_struct work;
 	struct net_device *dev;
+	netdevice_tracker dev_tracker;
 };
 
 static void mlxsw_sp_router_hwstats_notify_work(struct work_struct *work)
@@ -8317,7 +8321,7 @@ static void mlxsw_sp_router_hwstats_notify_work(struct work_struct *work)
 	rtnl_lock();
 	rtnl_offload_xstats_notify(hws_work->dev);
 	rtnl_unlock();
-	dev_put(hws_work->dev);
+	netdev_put(hws_work->dev, &hws_work->dev_tracker);
 	kfree(hws_work);
 }
 
@@ -8337,7 +8341,7 @@ mlxsw_sp_router_hwstats_notify_schedule(struct net_device *dev)
 		return;
 
 	INIT_WORK(&hws_work->work, mlxsw_sp_router_hwstats_notify_work);
-	dev_hold(dev);
+	netdev_hold(dev, &hws_work->dev_tracker, GFP_KERNEL);
 	hws_work->dev = dev;
 	mlxsw_core_schedule_work(&hws_work->work);
 }
@@ -8409,7 +8413,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		err = -ENOMEM;
 		goto err_rif_alloc;
 	}
-	dev_hold(params->dev);
+	netdev_hold(params->dev, &rif->dev_tracker, GFP_KERNEL);
 	mlxsw_sp->router->rifs[rif_index] = rif;
 	rif->mlxsw_sp = mlxsw_sp;
 	rif->ops = ops;
@@ -8466,7 +8470,7 @@ err_configure:
 		mlxsw_sp_fid_put(fid);
 err_fid_get:
 	mlxsw_sp->router->rifs[rif_index] = NULL;
-	dev_put(params->dev);
+	netdev_put(params->dev, &rif->dev_tracker);
 	mlxsw_sp_rif_free(rif);
 err_rif_alloc:
 err_crif_lookup:
@@ -8508,7 +8512,7 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 		/* Loopback RIFs are not associated with a FID. */
 		mlxsw_sp_fid_put(fid);
 	mlxsw_sp->router->rifs[rif->rif_index] = NULL;
-	dev_put(dev);
+	netdev_put(dev, &rif->dev_tracker);
 	mlxsw_sp_rif_free(rif);
 	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 	vr->rif_count--;
@@ -9329,6 +9333,7 @@ struct mlxsw_sp_inet6addr_event_work {
 	struct work_struct work;
 	struct mlxsw_sp *mlxsw_sp;
 	struct net_device *dev;
+	netdevice_tracker dev_tracker;
 	unsigned long event;
 };
 
@@ -9352,7 +9357,7 @@ static void mlxsw_sp_inet6addr_event_work(struct work_struct *work)
 out:
 	mutex_unlock(&mlxsw_sp->router->lock);
 	rtnl_unlock();
-	dev_put(dev);
+	netdev_put(dev, &inet6addr_work->dev_tracker);
 	kfree(inet6addr_work);
 }
 
@@ -9378,7 +9383,7 @@ static int mlxsw_sp_inet6addr_event(struct notifier_block *nb,
 	inet6addr_work->mlxsw_sp = router->mlxsw_sp;
 	inet6addr_work->dev = dev;
 	inet6addr_work->event = event;
-	dev_hold(dev);
+	netdev_hold(dev, &inet6addr_work->dev_tracker, GFP_ATOMIC);
 	mlxsw_core_schedule_work(&inet6addr_work->work);
 
 	return NOTIFY_DONE;
