@@ -82,6 +82,28 @@ static void compare_vcpu_events(struct kvm_vcpu_events *left,
 #define INVALID_SYNC_FIELD 0x80000000
 
 /*
+ * Set an exception as pending *and* injected while KVM is processing events.
+ * KVM is supposed to ignore/drop pending exceptions if userspace is also
+ * requesting that an exception be injected.
+ */
+static void *race_events_inj_pen(void *arg)
+{
+	struct kvm_run *run = (struct kvm_run *)arg;
+	struct kvm_vcpu_events *events = &run->s.regs.events;
+
+	for (;;) {
+		WRITE_ONCE(run->kvm_dirty_regs, KVM_SYNC_X86_EVENTS);
+		WRITE_ONCE(events->flags, 0);
+		WRITE_ONCE(events->exception.injected, 1);
+		WRITE_ONCE(events->exception.pending, 1);
+
+		pthread_testcancel();
+	}
+
+	return NULL;
+}
+
+/*
  * Set an invalid exception vector while KVM is processing events.  KVM is
  * supposed to reject any vector >= 32, as well as NMIs (vector 2).
  */
@@ -311,6 +333,7 @@ int main(int argc, char *argv[])
 
 	race_sync_regs(race_sregs_cr4);
 	race_sync_regs(race_events_exc);
+	race_sync_regs(race_events_inj_pen);
 
 	return 0;
 }
