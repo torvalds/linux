@@ -558,8 +558,9 @@ static void wq_item_append(struct xe_engine *e)
 	struct xe_guc *guc = engine_to_guc(e);
 	struct xe_device *xe = guc_to_xe(guc);
 	struct iosys_map map = xe_lrc_parallel_map(e->lrc);
-	u32 wqi[XE_HW_ENGINE_MAX_INSTANCE + 3];
-	u32 wqi_size = (e->width + 3) * sizeof(u32);
+#define WQ_HEADER_SIZE	4	/* Includes 1 LRC address too */
+	u32 wqi[XE_HW_ENGINE_MAX_INSTANCE + (WQ_HEADER_SIZE - 1)];
+	u32 wqi_size = (e->width + (WQ_HEADER_SIZE - 1)) * sizeof(u32);
 	u32 len_dw = (wqi_size / sizeof(u32)) - 1;
 	int i = 0, j;
 
