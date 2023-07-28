@@ -260,6 +260,7 @@ struct dw_hdmi_plat_data {
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
 	struct drm_connector *connector;
+	struct drm_bridge *bridge;
 };
 
 struct dw_hdmi_cec_wake_ops {

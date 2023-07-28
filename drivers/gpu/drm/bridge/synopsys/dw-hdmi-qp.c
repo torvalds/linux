@@ -221,6 +221,7 @@ struct dw_hdmi_phy_data {
 struct dw_hdmi_qp {
 	struct drm_connector connector;
 	struct drm_bridge bridge;
+	struct drm_bridge *next_bridge;
 	struct drm_panel *panel;
 	struct platform_device *hdcp_dev;
 	struct platform_device *audio;
@@ -256,6 +257,7 @@ struct dw_hdmi_qp {
 	bool cec_enable;
 	bool allm_enable;
 	bool support_hdmi;
+	bool skip_connector;
 	int force_output;
 	int vp_id;
 	int old_vp_id;
@@ -2057,6 +2059,9 @@ dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	if (hdmi->panel)
 		return connector_status_connected;
 
+	if (hdmi->next_bridge && hdmi->next_bridge->ops & DRM_BRIDGE_OP_DETECT)
+		return drm_bridge_detect(hdmi->next_bridge);
+
 	if (hdmi->plat_data->left)
 		secondary = hdmi->plat_data->left;
 	else if (hdmi->plat_data->right)
@@ -2136,8 +2141,20 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	void *data = hdmi->plat_data->phy_data;
 	int i, ret = 0;
 
+	if (hdmi->plat_data->right && hdmi->plat_data->right->next_bridge) {
+		struct drm_bridge *bridge = hdmi->plat_data->right->next_bridge;
+
+		if (bridge->ops & DRM_BRIDGE_OP_MODES) {
+			if (!drm_bridge_get_modes(bridge, connector))
+				return 0;
+		}
+	}
+
 	if (hdmi->panel)
 		return drm_panel_get_modes(hdmi->panel, connector);
+
+	if (hdmi->next_bridge && hdmi->next_bridge->ops & DRM_BRIDGE_OP_MODES)
+		return drm_bridge_get_modes(hdmi->next_bridge, connector);
 
 	if (!hdmi->ddc)
 		return 0;
@@ -2682,13 +2699,31 @@ static int dw_hdmi_qp_bridge_attach(struct drm_bridge *bridge,
 	struct drm_connector *connector = &hdmi->connector;
 	struct cec_connector_info conn_info;
 	struct cec_notifier *notifier;
+	bool skip_connector = false;
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+	if (hdmi->next_bridge) {
+		struct drm_bridge *next_bridge = hdmi->next_bridge;
+		int ret;
+
+		ret = drm_bridge_attach(bridge->encoder, next_bridge, bridge,
+					next_bridge->ops & DRM_BRIDGE_OP_MODES ?
+					DRM_BRIDGE_ATTACH_NO_CONNECTOR : 0);
+		if (ret) {
+			DRM_ERROR("failed to attach next bridge: %d\n", ret);
+			return ret;
+		}
+
+		skip_connector = !(next_bridge->ops & DRM_BRIDGE_OP_MODES);
+	}
+
+	hdmi->skip_connector = skip_connector;
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR || skip_connector)
 		return 0;
 
 	connector->interlace_allowed = 1;
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
-
+	if (hdmi->next_bridge && hdmi->next_bridge->ops & DRM_BRIDGE_OP_DETECT)
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 	drm_connector_helper_add(connector, &dw_hdmi_connector_helper_funcs);
 
 	drm_connector_init(bridge->dev, connector, &dw_hdmi_connector_funcs,
@@ -3352,10 +3387,11 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	struct dw_hdmi_qp_cec_data cec;
 	struct resource *iores = NULL;
 	struct drm_panel *panel = NULL;
+	struct drm_bridge *bridge = NULL;
 	int irq;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(np, 1, -1, &panel, NULL);
+	ret = drm_of_find_panel_or_bridge(np, 1, -1, &panel, &bridge);
 	if (ret < 0 && ret != -ENODEV)
 		return ERR_PTR(ret);
 
@@ -3364,6 +3400,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		return ERR_PTR(-ENOMEM);
 
 	hdmi->panel = panel;
+	hdmi->next_bridge = bridge;
 	hdmi->connector.stereo_allowed = 1;
 	hdmi->plat_data = plat_data;
 	hdmi->dev = dev;
@@ -3646,6 +3683,10 @@ struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,
 		}
 
 		plat_data->connector = &hdmi->connector;
+		if (hdmi->skip_connector && hdmi->next_bridge)
+			plat_data->bridge = hdmi->next_bridge;
+		else
+			plat_data->bridge = NULL;
 	}
 
 	if (plat_data->split_mode && !hdmi->plat_data->first_screen) {

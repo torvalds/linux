@@ -3656,7 +3656,20 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 			drm_encoder_cleanup(&hdmi->encoder);
 		}
 
-		if (plat_data->connector) {
+		if (plat_data->bridge) {
+			struct drm_connector *connector = NULL;
+			struct list_head *connector_list =
+				&plat_data->bridge->dev->mode_config.connector_list;
+
+			list_for_each_entry(connector, connector_list, head)
+				if (drm_connector_has_possible_encoder(connector,
+							&hdmi->encoder))
+					break;
+
+			hdmi->sub_dev.connector = connector;
+			hdmi->sub_dev.of_node = dev->of_node;
+			rockchip_drm_register_sub_dev(&hdmi->sub_dev);
+		} else if (plat_data->connector) {
 			hdmi->sub_dev.connector = plat_data->connector;
 			hdmi->sub_dev.loader_protect = dw_hdmi_rockchip_encoder_loader_protect;
 			if (secondary && device_property_read_bool(secondary->dev, "split-mode"))
