@@ -17716,6 +17716,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
 		bpf_convert_ctx_access_t convert_ctx_access;
+		u8 mode;
 
 		if (insn->code == (BPF_LDX | BPF_MEM | BPF_B) ||
 		    insn->code == (BPF_LDX | BPF_MEM | BPF_H) ||
@@ -17797,6 +17798,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 
 		ctx_field_size = env->insn_aux_data[i + delta].ctx_field_size;
 		size = BPF_LDST_BYTES(insn);
+		mode = BPF_MODE(insn->code);
 
 		/* If the read access is a narrower load of the field,
 		 * convert to a 4/8-byte load, to minimum program type specific
@@ -17856,6 +17858,10 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 								(1ULL << size * 8) - 1);
 			}
 		}
+		if (mode == BPF_MEMSX)
+			insn_buf[cnt++] = BPF_RAW_INSN(BPF_ALU64 | BPF_MOV | BPF_X,
+						       insn->dst_reg, insn->dst_reg,
+						       size * 8, 0);
 
 		new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
 		if (!new_prog)
