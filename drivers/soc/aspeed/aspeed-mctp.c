@@ -2311,9 +2311,18 @@ static const struct aspeed_mctp_match_data ast2600_mctp_match_data = {
 	.fifo_auto_surround = true,
 };
 
+static const struct aspeed_mctp_match_data ast2700_mctp_match_data = {
+	.rx_cmd_size = sizeof(u32),
+	.packet_unit_size = sizeof(struct mctp_pcie_packet_data),
+	.need_address_mapping = false,
+	.vdm_hdr_direct_xfer = true,
+	.fifo_auto_surround = true,
+};
+
 static const struct of_device_id aspeed_mctp_match_table[] = {
 	{ .compatible = "aspeed,ast2500-mctp", .data = &ast2500_mctp_match_data},
 	{ .compatible = "aspeed,ast2600-mctp", .data = &ast2600_mctp_match_data},
+	{ .compatible = "aspeed,ast2700-mctp", .data = &ast2700_mctp_match_data},
 	{ }
 };
 
