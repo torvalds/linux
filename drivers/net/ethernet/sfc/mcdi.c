@@ -10,7 +10,6 @@
 #include "net_driver.h"
 #include "nic.h"
 #include "io.h"
-#include "farch_regs.h"
 #include "mcdi_pcol.h"
 
 /**************************************************************************
@@ -1353,12 +1352,6 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 	case MCDI_EVENT_CODE_MAC_STATS_DMA:
 		/* MAC stats are gather lazily.  We can ignore this. */
 		break;
-	case MCDI_EVENT_CODE_FLR:
-		if (efx->type->sriov_flr)
-			efx->type->sriov_flr(efx,
-					     MCDI_EVENT_FIELD(*event, FLR_VF));
-		break;
-	case MCDI_EVENT_CODE_PTP_RX:
 	case MCDI_EVENT_CODE_PTP_FAULT:
 	case MCDI_EVENT_CODE_PTP_PPS:
 		efx_ptp_event(efx, event);
