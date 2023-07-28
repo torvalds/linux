@@ -1815,16 +1815,24 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 			break;
 
 		case BPF_JMP | BPF_JA:
-			if (insn->off == -1)
-				/* -1 jmp instructions will always jump
-				 * backwards two bytes. Explicitly handling
-				 * this case avoids wasting too many passes
-				 * when there are long sequences of replaced
-				 * dead code.
-				 */
-				jmp_offset = -2;
-			else
-				jmp_offset = addrs[i + insn->off] - addrs[i];
+		case BPF_JMP32 | BPF_JA:
+			if (BPF_CLASS(insn->code) == BPF_JMP) {
+				if (insn->off == -1)
+					/* -1 jmp instructions will always jump
+					 * backwards two bytes. Explicitly handling
+					 * this case avoids wasting too many passes
+					 * when there are long sequences of replaced
+					 * dead code.
+					 */
+					jmp_offset = -2;
+				else
+					jmp_offset = addrs[i + insn->off] - addrs[i];
+			} else {
+				if (insn->imm == -1)
+					jmp_offset = -2;
+				else
+					jmp_offset = addrs[i + insn->imm] - addrs[i];
+			}
 
 			if (!jmp_offset) {
 				/*
