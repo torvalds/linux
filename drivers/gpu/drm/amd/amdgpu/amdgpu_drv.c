@@ -26,30 +26,29 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_generic.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_vblank.h>
 #include <drm/drm_managed.h>
-#include "amdgpu_drv.h"
-
 #include <drm/drm_pciids.h>
-#include <linux/module.h>
-#include <linux/pm_runtime.h>
-#include <linux/vga_switcheroo.h>
 #include <drm/drm_probe_helper.h>
-#include <linux/mmu_notifier.h>
-#include <linux/suspend.h>
+#include <drm/drm_vblank.h>
+
 #include <linux/cc_platform.h>
 #include <linux/dynamic_debug.h>
+#include <linux/module.h>
+#include <linux/mmu_notifier.h>
+#include <linux/pm_runtime.h>
+#include <linux/suspend.h>
+#include <linux/vga_switcheroo.h>
 
 #include "amdgpu.h"
-#include "amdgpu_irq.h"
-#include "amdgpu_dma_buf.h"
-#include "amdgpu_sched.h"
-#include "amdgpu_fdinfo.h"
 #include "amdgpu_amdkfd.h"
-
+#include "amdgpu_dma_buf.h"
+#include "amdgpu_drv.h"
+#include "amdgpu_fdinfo.h"
+#include "amdgpu_irq.h"
 #include "amdgpu_ras.h"
-#include "amdgpu_xgmi.h"
 #include "amdgpu_reset.h"
+#include "amdgpu_sched.h"
+#include "amdgpu_xgmi.h"
 #include "../amdxcp/amdgpu_xcp_drv.h"
 
 /*
