@@ -60,6 +60,7 @@
 #define SWRM_INTERRUPT_STATUS_BUS_RESET_FINISHED_V2		BIT(13)
 #define SWRM_INTERRUPT_STATUS_CLK_STOP_FINISHED_V2		BIT(14)
 #define SWRM_INTERRUPT_STATUS_EXT_CLK_STOP_WAKEUP		BIT(16)
+#define SWRM_INTERRUPT_STATUS_CMD_IGNORED_AND_EXEC_CONTINUED	BIT(19)
 #define SWRM_INTERRUPT_MAX					17
 #define SWRM_V1_3_INTERRUPT_MASK_ADDR				0x204
 #define SWRM_V1_3_INTERRUPT_CLEAR				0x208
@@ -775,6 +776,17 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 			case SWRM_INTERRUPT_STATUS_CLK_STOP_FINISHED_V2:
 				break;
 			case SWRM_INTERRUPT_STATUS_EXT_CLK_STOP_WAKEUP:
+				break;
+			case SWRM_INTERRUPT_STATUS_CMD_IGNORED_AND_EXEC_CONTINUED:
+				ctrl->reg_read(ctrl,
+					       ctrl->reg_layout[SWRM_REG_CMD_FIFO_STATUS],
+					       &value);
+				dev_err(ctrl->dev,
+					"%s: SWR CMD ignored, fifo status %x\n",
+					__func__, value);
+
+				/* Wait 3.5ms to clear */
+				usleep_range(3500, 3505);
 				break;
 			default:
 				dev_err_ratelimited(ctrl->dev,
