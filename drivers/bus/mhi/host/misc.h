@@ -271,6 +271,8 @@ void mhi_misc_exit(void);
 int mhi_misc_init_mmio(struct mhi_controller *mhi_cntrl);
 int mhi_misc_register_controller(struct mhi_controller *mhi_cntrl);
 void mhi_misc_unregister_controller(struct mhi_controller *mhi_cntrl);
+int mhi_misc_sysfs_create(struct mhi_controller *mhi_cntrl);
+void mhi_misc_sysfs_destroy(struct mhi_controller *mhi_cntrl);
 int mhi_process_misc_bw_ev_ring(struct mhi_controller *mhi_cntrl,
 				struct mhi_event *mhi_event, u32 event_quota);
 int mhi_process_misc_tsync_ev_ring(struct mhi_controller *mhi_cntrl,
@@ -307,6 +309,15 @@ static inline int mhi_misc_register_controller(struct mhi_controller *mhi_cntrl)
 
 static inline void mhi_misc_unregister_controller(struct mhi_controller
 						  *mhi_cntrl)
+{
+}
+
+static inline int mhi_misc_sysfs_create(struct mhi_controller *mhi_cntrl)
+{
+	return 0;
+}
+
+static inline void mhi_misc_sysfs_destroy(struct mhi_controller *mhi_cntrl)
 {
 }
 
