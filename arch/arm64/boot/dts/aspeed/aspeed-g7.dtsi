@@ -303,6 +303,28 @@
 			reg = <0 0x12c02a80 0 0x80>;
 		};
 
+		mctp0: mctp0@12c06000 {
+			compatible = "aspeed,ast2700-mctp";
+			reg = <0x0 0x12c06000 0x0 0x40>;
+			interrupts-extended = <&gic GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_AST2700_SCU_IC0_PCIE_PERST_LO_TO_HI>;
+			interrupt-names = "mctp", "pcie";
+			resets = <&cpu_clk ASPEED_RESET_MCTP0>;
+			aspeed,scu = <&syscon>;
+			aspeed,pcieh = <&pcie_config0>;
+			status = "disabled";
+		};
+
+		mctp1: mctp1@12c07000 {
+			compatible = "aspeed,ast2700-mctp";
+			reg = <0x0 0x12c07000 0x0 0x40>;
+			interrupts-extended = <&gic GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic1 ASPEED_AST2700_SCU_IC1_PCIE_RCRST_LO_TO_HI>;
+			interrupt-names = "mctp", "pcie";
+			resets = <&cpu_clk ASPEED_RESET_MCTP1>;
+			aspeed,scu = <&syscon>;
+			aspeed,pcieh = <&pcie_config1>;
+			status = "disabled";
+		};
+
 		rtc: rtc@12c0f000 {
 			compatible = "aspeed,ast2700-rtc";
 			reg = <0 0x12c0f000 0 0x18>;
