@@ -10,6 +10,7 @@
 #include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/reset.h>
 #include <linux/i3c/master.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -108,6 +109,86 @@
 
 #define EXT_CAPS_SECTION		0x40
 #define EXT_CAPS_OFFSET			GENMASK(15, 0)
+/* Aspeed in-house register */
+#define ASPEED_I3C_CTRL			0x0
+#define ASPEED_I3C_CTRL_STOP_QUEUE_PT	BIT(31) //Stop the queue read pointer.
+#define ASPEED_I3C_CTRL_INIT		BIT(4)
+#define ASPEED_I3C_CTRL_INIT_MODE	GENMASK(1, 0)
+#define INIT_MST_MODE 0
+#define INIT_SEC_MST_MODE 1
+#define INIT_SLV_MODE 2
+
+#define ASPEED_I3C_STS	0x4
+#define ASPEED_I3C_STS_SLV_DYNAMIC_ADDRESS_VALID	BIT(23)
+#define ASPEED_I3C_STS_SLV_DYNAMIC_ADDRESS		GENMASK(22, 16)
+#define ASPEED_I3C_STS_MODE_PURE_SLV			BIT(8)
+#define ASPEED_I3C_STS_MODE_SECONDARY_SLV_TO_MST	BIT(7)
+#define ASPEED_I3C_STS_MODE_SECONDARY_MST_TO_SLV	BIT(6)
+#define ASPEED_I3C_STS_MODE_SECONDARY_SLV		BIT(5)
+#define ASPEED_I3C_STS_MODE_SECONDARY_MST		BIT(4)
+#define ASPEED_I3C_STS_MODE_PRIMARY_SLV_TO_MST		BIT(3)
+#define ASPEED_I3C_STS_MODE_PRIMARY_MST_TO_SLV		BIT(2)
+#define ASPEED_I3C_STS_MODE_PRIMARY_SLV			BIT(1)
+#define ASPEED_I3C_STS_MODE_PRIMARY_MST			BIT(0)
+
+#define ASPEED_I3C_DAA_INDEX0	0x10
+#define ASPEED_I3C_DAA_INDEX1	0x14
+#define ASPEED_I3C_DAA_INDEX2	0x18
+#define ASPEED_I3C_DAA_INDEX3	0x1C
+
+#define ASPEED_I3C_AUTOCMD_0	0x20
+#define ASPEED_I3C_AUTOCMD_1	0x24
+#define ASPEED_I3C_AUTOCMD_2	0x28
+#define ASPEED_I3C_AUTOCMD_3	0x2C
+#define ASPEED_I3C_AUTOCMD_4	0x30
+#define ASPEED_I3C_AUTOCMD_5	0x34
+#define ASPEED_I3C_AUTOCMD_6	0x38
+#define ASPEED_I3C_AUTOCMD_7	0x3C
+
+#define ASPEED_I3C_AUTOCMD_SEL_0_7	0x40
+#define ASPEED_I3C_AUTOCMD_SEL_8_15	0x44
+#define ASPEED_I3C_AUTOCMD_SEL_16_23	0x48
+#define ASPEED_I3C_AUTOCMD_SEL_24_31	0x4C
+#define ASPEED_I3C_AUTOCMD_SEL_32_39	0x50
+#define ASPEED_I3C_AUTOCMD_SEL_40_47	0x54
+#define ASPEED_I3C_AUTOCMD_SEL_48_55	0x58
+#define ASPEED_I3C_AUTOCMD_SEL_56_63	0x5C
+#define ASPEED_I3C_AUTOCMD_SEL_64_71	0x60
+#define ASPEED_I3C_AUTOCMD_SEL_72_79	0x64
+#define ASPEED_I3C_AUTOCMD_SEL_80_87	0x68
+#define ASPEED_I3C_AUTOCMD_SEL_88_95	0x6C
+#define ASPEED_I3C_AUTOCMD_SEL_96_103	0x70
+#define ASPEED_I3C_AUTOCMD_SEL_104_111	0x74
+#define ASPEED_I3C_AUTOCMD_SEL_112_119	0x78
+#define ASPEED_I3C_AUTOCMD_SEL_120_127	0x7C
+
+#define ASPEED_I3C_INTR_STATUS		0xE0
+#define ASPEED_I3C_INTR_STATUS_ENABLE	0xE4
+#define ASPEED_I3C_INTR_SIGNAL_ENABLE	0xE8
+#define ASPEED_I3C_INTR_FORCE		0xEC
+#define ASPEED_I3C_INTR_I2C_SDA_STUCK_LOW	BIT(14)
+#define ASPEED_I3C_INTR_I3C_SDA_STUCK_HIGH	BIT(13)
+#define ASPEED_I3C_INTR_I3C_SDA_STUCK_LOW	BIT(12)
+#define ASPEED_I3C_INTR_MST_INTERNAL_DONE	BIT(10)
+#define ASPEED_I3C_INTR_MST_DDR_READ_DONE	BIT(9)
+#define ASPEED_I3C_INTR_MST_DDR_WRITE_DONE	BIT(8)
+#define ASPEED_I3C_INTR_MST_IBI_DONE		BIT(7)
+#define ASPEED_I3C_INTR_MST_READ_DONE		BIT(6)
+#define ASPEED_I3C_INTR_MST_WRITE_DONE		BIT(5)
+#define ASPEED_I3C_INTR_MST_DAA_DONE		BIT(4)
+#define ASPEED_I3C_INTR_SLV_SCL_STUCK		BIT(1)
+#define ASPEED_I3C_INTR_TGRST			BIT(0)
+
+#define ASPEED_I3C_INTR_SUM_STATUS	0xF0
+#define ASPEED_INTR_SUM_INHOUSE		BIT(3)
+#define ASPEED_INTR_SUM_RHS		BIT(2)
+#define ASPEED_INTR_SUM_PIO		BIT(1)
+#define ASPEED_INTR_SUM_CAP		BIT(0)
+
+#define ASPEED_I3C_INTR_RENEW		0xF4
+
+#define ast_inhouse_read(r)		readl(hci->EXTCAPS_regs + (r))
+#define ast_inhouse_write(r, v)		writel(v, hci->EXTCAPS_regs + (r))
 
 #define IBI_NOTIFY_CTRL			0x58	/* IBI Notify Control */
 #define IBI_NOTIFY_SIR_REJECTED		BIT(3)	/* Rejected Target Interrupt Request */
@@ -116,7 +197,6 @@
 
 #define DEV_CTX_BASE_LO			0x60
 #define DEV_CTX_BASE_HI			0x64
-
 
 static inline struct i3c_hci *to_i3c_hci(struct i3c_master_controller *m)
 {
@@ -387,7 +467,11 @@ static int i3c_hci_attach_i3c_dev(struct i3c_dev_desc *dev)
 	if (!dev_data)
 		return -ENOMEM;
 	if (hci->cmd == &mipi_i3c_hci_cmd_v1) {
+#ifdef CONFIG_ARCH_ASPEED
+		ret = mipi_i3c_hci_dat_v1.alloc_entry(hci, dev->info.dyn_addr);
+#else
 		ret = mipi_i3c_hci_dat_v1.alloc_entry(hci);
+#endif
 		if (ret < 0) {
 			kfree(dev_data);
 			return ret;
@@ -441,7 +525,11 @@ static int i3c_hci_attach_i2c_dev(struct i2c_dev_desc *dev)
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data)
 		return -ENOMEM;
-	ret = mipi_i3c_hci_dat_v1.alloc_entry(hci);
+	#ifdef CONFIG_ARCH_ASPEED
+		ret = mipi_i3c_hci_dat_v1.alloc_entry(hci, dev->addr);
+	#else
+		ret = mipi_i3c_hci_dat_v1.alloc_entry(hci);
+	#endif
 	if (ret < 0) {
 		kfree(dev_data);
 		return ret;
@@ -564,18 +652,52 @@ static irqreturn_t i3c_hci_irq_handler(int irq, void *dev_id)
 		dev_err(&hci->master.dev, "Host Controller Internal Error\n");
 		val &= ~INTR_HC_INTERNAL_ERR;
 	}
-	if (val & INTR_HC_PIO) {
-		hci->io->irq_handler(hci, 0);
-		val &= ~INTR_HC_PIO;
-	}
-	if (val & INTR_HC_RINGS) {
-		hci->io->irq_handler(hci, val & INTR_HC_RINGS);
-		val &= ~INTR_HC_RINGS;
-	}
 	if (val)
 		dev_err(&hci->master.dev, "unexpected INTR_STATUS %#x\n", val);
 	else
 		result = IRQ_HANDLED;
+
+	return result;
+}
+
+static irqreturn_t i3c_aspeed_irq_handler(int irqn, void *dev_id)
+{
+	struct i3c_hci *hci = dev_id;
+	u32 val, inhouse_val;
+	int result = -1;
+
+	val = ast_inhouse_read(ASPEED_I3C_INTR_SUM_STATUS);
+	dev_info(&hci->master.dev, "Global INTR_STATUS = %#x\n", val);
+
+	if (val & ASPEED_INTR_SUM_CAP) {
+		i3c_hci_irq_handler(irqn, dev_id);
+		val &= ~ASPEED_INTR_SUM_CAP;
+	}
+	if (val & ASPEED_INTR_SUM_PIO) {
+		hci->io->irq_handler(hci, 0);
+		val &= ~ASPEED_INTR_SUM_PIO;
+	}
+	if (val & ASPEED_INTR_SUM_RHS) {
+		hci->io->irq_handler(hci, 0);
+		val &= ~ASPEED_INTR_SUM_RHS;
+	}
+	if (val & ASPEED_INTR_SUM_INHOUSE) {
+		inhouse_val = ast_inhouse_read(ASPEED_I3C_INTR_STATUS);
+		dev_info(&hci->master.dev, "Inhouse INTR_STATUS = %#x/%#x\n",
+			 inhouse_val,
+			 ast_inhouse_read(ASPEED_I3C_INTR_SIGNAL_ENABLE));
+		ast_inhouse_write(ASPEED_I3C_INTR_STATUS, inhouse_val);
+		val &= ~ASPEED_INTR_SUM_INHOUSE;
+	}
+
+	if (val)
+		dev_err(&hci->master.dev, "unexpected INTR_SUN_STATUS %#x\n",
+			val);
+	else
+		result = IRQ_HANDLED;
+
+	/* W1 to trigger the INTC to check for interrupts again.*/
+	ast_inhouse_write(ASPEED_I3C_INTR_RENEW, 1);
 
 	return result;
 }
@@ -610,7 +732,7 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	offset = FIELD_GET(DAT_TABLE_OFFSET, regval);
 	hci->DAT_regs = offset ? hci->base_regs + offset : NULL;
 	hci->DAT_entries = FIELD_GET(DAT_TABLE_SIZE, regval);
-	hci->DAT_entry_size = FIELD_GET(DAT_ENTRY_SIZE, regval);
+	hci->DAT_entry_size = FIELD_GET(DAT_ENTRY_SIZE, regval) ? 0 : 8;
 	dev_info(&hci->master.dev, "DAT: %u %u-bytes entries at offset %#x\n",
 		 hci->DAT_entries, hci->DAT_entry_size * 4, offset);
 
@@ -618,15 +740,18 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	offset = FIELD_GET(DCT_TABLE_OFFSET, regval);
 	hci->DCT_regs = offset ? hci->base_regs + offset : NULL;
 	hci->DCT_entries = FIELD_GET(DCT_TABLE_SIZE, regval);
-	hci->DCT_entry_size = FIELD_GET(DCT_ENTRY_SIZE, regval);
+	hci->DCT_entry_size = FIELD_GET(DCT_ENTRY_SIZE, regval) ? 0 : 16;
 	dev_info(&hci->master.dev, "DCT: %u %u-bytes entries at offset %#x\n",
 		 hci->DCT_entries, hci->DCT_entry_size * 4, offset);
-
+#ifdef CONFIG_ARCH_ASPEED
+	/* Currently, doesn't support dma mode*/
+	hci->RHS_regs = NULL;
+#else
 	regval = reg_read(RING_HEADERS_SECTION);
 	offset = FIELD_GET(RING_HEADERS_OFFSET, regval);
 	hci->RHS_regs = offset ? hci->base_regs + offset : NULL;
 	dev_info(&hci->master.dev, "Ring Headers at offset %#x\n", offset);
-
+#endif
 	regval = reg_read(PIO_SECTION);
 	offset = FIELD_GET(PIO_REGS_OFFSET, regval);
 	hci->PIO_regs = offset ? hci->base_regs + offset : NULL;
@@ -637,9 +762,16 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	hci->EXTCAPS_regs = offset ? hci->base_regs + offset : NULL;
 	dev_info(&hci->master.dev, "Extended Caps at offset %#x\n", offset);
 
+#ifdef CONFIG_ARCH_ASPEED
+	ast_inhouse_write(ASPEED_I3C_CTRL,
+			  ASPEED_I3C_CTRL_INIT |
+				  FIELD_PREP(ASPEED_I3C_CTRL_INIT_MODE, INIT_MST_MODE));
+
+#else
 	ret = i3c_hci_parse_ext_caps(hci);
 	if (ret)
 		return ret;
+#endif
 
 	/*
 	 * Now let's reset the hardware.
@@ -659,6 +791,10 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	/* Disable all interrupts and allow all signal updates */
 	reg_write(INTR_SIGNAL_ENABLE, 0x0);
 	reg_write(INTR_STATUS_ENABLE, 0xffffffff);
+#ifdef CONFIG_ARCH_ASPEED
+	ast_inhouse_write(ASPEED_I3C_INTR_SIGNAL_ENABLE, 0);
+	ast_inhouse_write(ASPEED_I3C_INTR_STATUS_ENABLE, 0xffffffff);
+#endif
 
 	/* Make sure our data ordering fits the host's */
 	regval = reg_read(HC_CONTROL);
@@ -747,12 +883,20 @@ static int i3c_hci_probe(struct platform_device *pdev)
 	/* temporary for dev_printk's, to be replaced in i3c_master_register */
 	hci->master.dev.init_name = dev_name(&pdev->dev);
 
+	hci->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
+	if (IS_ERR(hci->rst)) {
+		dev_err(&hci->master.dev,
+			"missing or invalid reset controller device tree entry");
+		return PTR_ERR(hci->rst);
+	}
+	reset_control_deassert(hci->rst);
+
 	ret = i3c_hci_init(hci);
 	if (ret)
 		return ret;
 
 	irq = platform_get_irq(pdev, 0);
-	ret = devm_request_irq(&pdev->dev, irq, i3c_hci_irq_handler,
+	ret = devm_request_irq(&pdev->dev, irq, i3c_aspeed_irq_handler,
 			       0, NULL, hci);
 	if (ret)
 		return ret;
@@ -774,6 +918,7 @@ static void i3c_hci_remove(struct platform_device *pdev)
 
 static const __maybe_unused struct of_device_id i3c_hci_of_match[] = {
 	{ .compatible = "mipi-i3c-hci", },
+	{ .compatible = "aspeed-i3c-hci", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, i3c_hci_of_match);

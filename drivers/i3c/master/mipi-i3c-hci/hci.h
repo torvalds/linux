@@ -32,6 +32,7 @@ struct hci_cmd_ops;
 /* Our main structure */
 struct i3c_hci {
 	struct i3c_master_controller master;
+	struct reset_control *rst;
 	void __iomem *base_regs;
 	void __iomem *DAT_regs;
 	void __iomem *DCT_regs;

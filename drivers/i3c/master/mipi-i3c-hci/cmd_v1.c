@@ -100,6 +100,87 @@
 #define CMD_M0_VENDOR_INFO_PRESENT		   W0_BIT_( 7)
 #define CMD_M0_TID(v)			FIELD_PREP(W0_MASK( 6,  3), v)
 
+/* Aspeed in-house register */
+#define ASPEED_I3C_CTRL			0x0
+#define ASPEED_I3C_CTRL_STOP_QUEUE_PT	BIT(31) //Stop the queue read pointer.
+#define ASPEED_I3C_CTRL_INIT		BIT(4)
+#define ASPEED_I3C_CTRL_INIT_MODE	GENMASK(1, 0)
+#define INIT_MST_MODE 0
+#define INIT_SEC_MST_MODE 1
+#define INIT_SLV_MODE 2
+
+#define ASPEED_I3C_STS	0x4
+#define ASPEED_I3C_STS_SLV_DYNAMIC_ADDRESS_VALID	BIT(23)
+#define ASPEED_I3C_STS_SLV_DYNAMIC_ADDRESS		GENMASK(22, 16)
+#define ASPEED_I3C_STS_MODE_PURE_SLV			BIT(8)
+#define ASPEED_I3C_STS_MODE_SECONDARY_SLV_TO_MST	BIT(7)
+#define ASPEED_I3C_STS_MODE_SECONDARY_MST_TO_SLV	BIT(6)
+#define ASPEED_I3C_STS_MODE_SECONDARY_SLV		BIT(5)
+#define ASPEED_I3C_STS_MODE_SECONDARY_MST		BIT(4)
+#define ASPEED_I3C_STS_MODE_PRIMARY_SLV_TO_MST		BIT(3)
+#define ASPEED_I3C_STS_MODE_PRIMARY_MST_TO_SLV		BIT(2)
+#define ASPEED_I3C_STS_MODE_PRIMARY_SLV			BIT(1)
+#define ASPEED_I3C_STS_MODE_PRIMARY_MST			BIT(0)
+
+#define ASPEED_I3C_DAA_INDEX0	0x10
+#define ASPEED_I3C_DAA_INDEX1	0x14
+#define ASPEED_I3C_DAA_INDEX2	0x18
+#define ASPEED_I3C_DAA_INDEX3	0x1C
+
+#define ASPEED_I3C_AUTOCMD_0	0x20
+#define ASPEED_I3C_AUTOCMD_1	0x24
+#define ASPEED_I3C_AUTOCMD_2	0x28
+#define ASPEED_I3C_AUTOCMD_3	0x2C
+#define ASPEED_I3C_AUTOCMD_4	0x30
+#define ASPEED_I3C_AUTOCMD_5	0x34
+#define ASPEED_I3C_AUTOCMD_6	0x38
+#define ASPEED_I3C_AUTOCMD_7	0x3C
+
+#define ASPEED_I3C_AUTOCMD_SEL_0_7	0x40
+#define ASPEED_I3C_AUTOCMD_SEL_8_15	0x44
+#define ASPEED_I3C_AUTOCMD_SEL_16_23	0x48
+#define ASPEED_I3C_AUTOCMD_SEL_24_31	0x4C
+#define ASPEED_I3C_AUTOCMD_SEL_32_39	0x50
+#define ASPEED_I3C_AUTOCMD_SEL_40_47	0x54
+#define ASPEED_I3C_AUTOCMD_SEL_48_55	0x58
+#define ASPEED_I3C_AUTOCMD_SEL_56_63	0x5C
+#define ASPEED_I3C_AUTOCMD_SEL_64_71	0x60
+#define ASPEED_I3C_AUTOCMD_SEL_72_79	0x64
+#define ASPEED_I3C_AUTOCMD_SEL_80_87	0x68
+#define ASPEED_I3C_AUTOCMD_SEL_88_95	0x6C
+#define ASPEED_I3C_AUTOCMD_SEL_96_103	0x70
+#define ASPEED_I3C_AUTOCMD_SEL_104_111	0x74
+#define ASPEED_I3C_AUTOCMD_SEL_112_119	0x78
+#define ASPEED_I3C_AUTOCMD_SEL_120_127	0x7C
+
+#define ASPEED_I3C_INTR_STATUS		0xE0
+#define ASPEED_I3C_INTR_STATUS_ENABLE	0xE4
+#define ASPEED_I3C_INTR_SIGNAL_ENABLE	0xE8
+#define ASPEED_I3C_INTR_FORCE		0xEC
+#define ASPEED_I3C_INTR_I2C_SDA_STUCK_LOW	BIT(14)
+#define ASPEED_I3C_INTR_I3C_SDA_STUCK_HIGH	BIT(13)
+#define ASPEED_I3C_INTR_I3C_SDA_STUCK_LOW	BIT(12)
+#define ASPEED_I3C_INTR_MST_INTERNAL_DONE	BIT(10)
+#define ASPEED_I3C_INTR_MST_DDR_READ_DONE	BIT(9)
+#define ASPEED_I3C_INTR_MST_DDR_WRITE_DONE	BIT(8)
+#define ASPEED_I3C_INTR_MST_IBI_DONE		BIT(7)
+#define ASPEED_I3C_INTR_MST_READ_DONE		BIT(6)
+#define ASPEED_I3C_INTR_MST_WRITE_DONE		BIT(5)
+#define ASPEED_I3C_INTR_MST_DAA_DONE		BIT(4)
+#define ASPEED_I3C_INTR_SLV_SCL_STUCK		BIT(1)
+#define ASPEED_I3C_INTR_TGRST			BIT(0)
+
+#define ASPEED_I3C_INTR_SUM_STATUS	0xF0
+#define ASPEED_INTR_SUM_INHOUSE		BIT(3)
+#define ASPEED_INTR_SUM_RHS		BIT(2)
+#define ASPEED_INTR_SUM_PIO		BIT(1)
+#define ASPEED_INTR_SUM_CAP		BIT(0)
+
+#define ASPEED_I3C_INTR_RENEW		0xF4
+
+#define ast_inhouse_read(r)		readl(hci->EXTCAPS_regs + (r))
+#define ast_inhouse_write(r, v)		writel(v, hci->EXTCAPS_regs + (r))
+
 
 /* Data Transfer Speed and Mode */
 enum hci_cmd_mode {
@@ -289,11 +370,27 @@ static void hci_cmd_v1_prep_i2c_xfer(struct i3c_hci *hci,
 	}
 }
 
+static void i3c_aspeed_set_daa_index(struct i3c_hci *hci, u8 addr)
+{
+	if (addr < 32)
+		writel(BIT(addr),
+		       hci->EXTCAPS_regs + ASPEED_I3C_DAA_INDEX0);
+	else if ((addr >= 32) && (addr < 64))
+		writel(BIT(addr - 32),
+		       hci->EXTCAPS_regs + ASPEED_I3C_DAA_INDEX1);
+	else if ((addr >= 64) && (addr < 96))
+		writel(BIT(addr - 64),
+		       hci->EXTCAPS_regs + ASPEED_I3C_DAA_INDEX2);
+	else
+		writel(BIT(addr - 96),
+		       hci->EXTCAPS_regs + ASPEED_I3C_DAA_INDEX3);
+}
+
 static int hci_cmd_v1_daa(struct i3c_hci *hci)
 {
 	struct hci_xfer *xfer;
 	int ret, dat_idx = -1;
-	u8 next_addr = 0;
+	u8 next_addr = 0x9;
 	u64 pid;
 	unsigned int dcr, bcr;
 	DECLARE_COMPLETION_ONSTACK(done);
@@ -310,14 +407,28 @@ static int hci_cmd_v1_daa(struct i3c_hci *hci)
 	 * Yes, there is room for improvements.
 	 */
 	for (;;) {
+#ifndef CONFIG_ARCH_ASPEED
 		ret = mipi_i3c_hci_dat_v1.alloc_entry(hci);
 		if (ret < 0)
 			break;
 		dat_idx = ret;
+#endif
 		ret = i3c_master_get_free_addr(&hci->master, next_addr);
 		if (ret < 0)
 			break;
 		next_addr = ret;
+#ifdef CONFIG_ARCH_ASPEED
+		ret = mipi_i3c_hci_dat_v1.alloc_entry(hci, next_addr);
+		if (ret < 0)
+			break;
+		dat_idx = ret;
+		i3c_aspeed_set_daa_index(hci, dat_idx);
+		DBG("Dat index = %x %x %x %x\n",
+		    readl(hci->EXTCAPS_regs + ASPEED_I3C_DAA_INDEX0),
+		    readl(hci->EXTCAPS_regs + ASPEED_I3C_DAA_INDEX1),
+		    readl(hci->EXTCAPS_regs + ASPEED_I3C_DAA_INDEX2),
+		    readl(hci->EXTCAPS_regs + ASPEED_I3C_DAA_INDEX3));
+#endif
 
 		DBG("next_addr = 0x%02x, DAA using DAT %d", next_addr, dat_idx);
 		mipi_i3c_hci_dat_v1.set_dynamic_addr(hci, dat_idx, next_addr);

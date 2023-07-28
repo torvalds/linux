@@ -18,7 +18,11 @@
 struct hci_dat_ops {
 	int (*init)(struct i3c_hci *hci);
 	void (*cleanup)(struct i3c_hci *hci);
+#ifdef CONFIG_ARCH_ASPEED
+	int (*alloc_entry)(struct i3c_hci *hci, unsigned int address);
+#else
 	int (*alloc_entry)(struct i3c_hci *hci);
+#endif
 	void (*free_entry)(struct i3c_hci *hci, unsigned int dat_idx);
 	void (*set_dynamic_addr)(struct i3c_hci *hci, unsigned int dat_idx, u8 addr);
 	void (*set_static_addr)(struct i3c_hci *hci, unsigned int dat_idx, u8 addr);

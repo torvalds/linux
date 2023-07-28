@@ -251,6 +251,8 @@ static int hci_dma_init(struct i3c_hci *hci)
 		xfers_sz = rh->xfer_struct_sz * rh->xfer_entries;
 		resps_sz = rh->resp_struct_sz * rh->xfer_entries;
 
+		dma_set_coherent_mask(&hci->master.dev, DMA_BIT_MASK(64));
+
 		rh->xfer = dma_alloc_coherent(&hci->master.dev, xfers_sz,
 					      &rh->xfer_dma, GFP_KERNEL);
 		rh->resp = dma_alloc_coherent(&hci->master.dev, resps_sz,

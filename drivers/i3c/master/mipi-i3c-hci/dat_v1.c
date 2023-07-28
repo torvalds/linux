@@ -84,6 +84,22 @@ static void hci_dat_v1_cleanup(struct i3c_hci *hci)
 	hci->DAT_data = NULL;
 }
 
+#ifdef CONFIG_ARCH_ASPEED
+static int hci_dat_v1_alloc_entry(struct i3c_hci *hci, unsigned int address)
+{
+	unsigned int dat_idx;
+
+	if (test_bit_acquire(address, hci->DAT_data))
+		return -ENOENT;
+	dat_idx = address;
+	__set_bit(dat_idx, hci->DAT_data);
+
+	/* default flags */
+	dat_w0_write(dat_idx, DAT_0_SIR_REJECT | DAT_0_MR_REJECT);
+
+	return dat_idx;
+}
+#else
 static int hci_dat_v1_alloc_entry(struct i3c_hci *hci)
 {
 	unsigned int dat_idx;
@@ -98,7 +114,7 @@ static int hci_dat_v1_alloc_entry(struct i3c_hci *hci)
 
 	return dat_idx;
 }
-
+#endif
 static void hci_dat_v1_free_entry(struct i3c_hci *hci, unsigned int dat_idx)
 {
 	dat_w0_write(dat_idx, 0);
@@ -157,6 +173,10 @@ static void hci_dat_v1_clear_flags(struct i3c_hci *hci, unsigned int dat_idx,
 
 static int hci_dat_v1_get_index(struct i3c_hci *hci, u8 dev_addr)
 {
+#ifdef CONFIG_ARCH_ASPEED
+	if (test_bit_acquire(dev_addr, hci->DAT_data))
+		return dev_addr;
+#else
 	unsigned int dat_idx;
 	u32 dat_w0;
 
@@ -165,6 +185,7 @@ static int hci_dat_v1_get_index(struct i3c_hci *hci, u8 dev_addr)
 		if (FIELD_GET(DAT_0_DYNAMIC_ADDRESS, dat_w0) == dev_addr)
 			return dat_idx;
 	}
+#endif
 
 	return -ENODEV;
 }
