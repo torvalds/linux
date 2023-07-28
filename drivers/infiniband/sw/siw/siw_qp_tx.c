@@ -1208,10 +1208,45 @@ struct tx_task_t {
 
 static DEFINE_PER_CPU(struct tx_task_t, siw_tx_task_g);
 
-void siw_stop_tx_thread(int nr_cpu)
+int siw_create_tx_threads(void)
 {
-	kthread_stop(siw_tx_thread[nr_cpu]);
-	wake_up(&per_cpu(siw_tx_task_g, nr_cpu).waiting);
+	int cpu, assigned = 0;
+
+	for_each_online_cpu(cpu) {
+		struct tx_task_t *tx_task;
+
+		/* Skip HT cores */
+		if (cpu % cpumask_weight(topology_sibling_cpumask(cpu)))
+			continue;
+
+		tx_task = &per_cpu(siw_tx_task_g, cpu);
+		init_llist_head(&tx_task->active);
+		init_waitqueue_head(&tx_task->waiting);
+
+		siw_tx_thread[cpu] =
+			kthread_run_on_cpu(siw_run_sq,
+					   (unsigned long *)(long)cpu,
+					   cpu, "siw_tx/%u");
+		if (IS_ERR(siw_tx_thread[cpu])) {
+			siw_tx_thread[cpu] = NULL;
+			continue;
+		}
+		assigned++;
+	}
+	return assigned;
+}
+
+void siw_stop_tx_threads(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		if (siw_tx_thread[cpu]) {
+			kthread_stop(siw_tx_thread[cpu]);
+			wake_up(&per_cpu(siw_tx_task_g, cpu).waiting);
+			siw_tx_thread[cpu] = NULL;
+		}
+	}
 }
 
 int siw_run_sq(void *data)
@@ -1220,9 +1255,6 @@ int siw_run_sq(void *data)
 	struct llist_node *active;
 	struct siw_qp *qp;
 	struct tx_task_t *tx_task = &per_cpu(siw_tx_task_g, nr_cpu);
-
-	init_llist_head(&tx_task->active);
-	init_waitqueue_head(&tx_task->waiting);
 
 	while (1) {
 		struct llist_node *fifo_list = NULL;
