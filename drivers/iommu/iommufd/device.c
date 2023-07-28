@@ -753,12 +753,10 @@ void iommufd_access_destroy_object(struct iommufd_object *obj)
 	struct iommufd_access *access =
 		container_of(obj, struct iommufd_access, obj);
 
-	if (access->ioas) {
-		iopt_remove_access(&access->ioas->iopt, access,
-				   access->iopt_access_list_id);
-		refcount_dec(&access->ioas->obj.users);
-		access->ioas = NULL;
-	}
+	mutex_lock(&access->ioas_lock);
+	if (access->ioas)
+		WARN_ON(iommufd_access_change_ioas(access, NULL));
+	mutex_unlock(&access->ioas_lock);
 	iommufd_ctx_put(access->ictx);
 }
 
