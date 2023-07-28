@@ -26,6 +26,28 @@ static struct platform_driver fake_platform_driver = {
 	},
 };
 
+static void kunit_action_platform_driver_unregister(void *ptr)
+{
+	struct platform_driver *drv = ptr;
+
+	platform_driver_unregister(drv);
+
+}
+
+static void kunit_action_platform_device_put(void *ptr)
+{
+	struct platform_device *pdev = ptr;
+
+	platform_device_put(pdev);
+}
+
+static void kunit_action_platform_device_del(void *ptr)
+{
+	struct platform_device *pdev = ptr;
+
+	platform_device_del(pdev);
+}
+
 /**
  * drm_kunit_helper_alloc_device - Allocate a mock device for a KUnit test
  * @test: The test context object
@@ -35,8 +57,8 @@ static struct platform_driver fake_platform_driver = {
  * able to leverage the usual infrastructure and most notably the
  * device-managed resources just like a "real" device.
  *
- * Callers need to make sure drm_kunit_helper_free_device() on the
- * device when done.
+ * Resources will be cleaned up automatically, but the removal can be
+ * forced using @drm_kunit_helper_free_device.
  *
  * Returns:
  * A pointer to the new device, or an ERR_PTR() otherwise.
@@ -49,10 +71,25 @@ struct device *drm_kunit_helper_alloc_device(struct kunit *test)
 	ret = platform_driver_register(&fake_platform_driver);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
+	ret = kunit_add_action_or_reset(test,
+					kunit_action_platform_driver_unregister,
+					&fake_platform_driver);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
 	pdev = platform_device_alloc(KUNIT_DEVICE_NAME, PLATFORM_DEVID_NONE);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pdev);
 
+	ret = kunit_add_action_or_reset(test,
+					kunit_action_platform_device_put,
+					pdev);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
 	ret = platform_device_add(pdev);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	ret = kunit_add_action_or_reset(test,
+					kunit_action_platform_device_del,
+					pdev);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	return &pdev->dev;
@@ -70,8 +107,17 @@ void drm_kunit_helper_free_device(struct kunit *test, struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 
-	platform_device_unregister(pdev);
-	platform_driver_unregister(&fake_platform_driver);
+	kunit_release_action(test,
+			     kunit_action_platform_device_del,
+			     pdev);
+
+	kunit_release_action(test,
+			     kunit_action_platform_device_put,
+			     pdev);
+
+	kunit_release_action(test,
+			     kunit_action_platform_driver_unregister,
+			     pdev);
 }
 EXPORT_SYMBOL_GPL(drm_kunit_helper_free_device);
 
