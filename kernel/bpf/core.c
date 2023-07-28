@@ -1272,7 +1272,7 @@ static int bpf_jit_blind_insn(const struct bpf_insn *from,
 	case BPF_ALU | BPF_MOD | BPF_K:
 		*to++ = BPF_ALU32_IMM(BPF_MOV, BPF_REG_AX, imm_rnd ^ from->imm);
 		*to++ = BPF_ALU32_IMM(BPF_XOR, BPF_REG_AX, imm_rnd);
-		*to++ = BPF_ALU32_REG(from->code, from->dst_reg, BPF_REG_AX);
+		*to++ = BPF_ALU32_REG_OFF(from->code, from->dst_reg, BPF_REG_AX, from->off);
 		break;
 
 	case BPF_ALU64 | BPF_ADD | BPF_K:
@@ -1286,7 +1286,7 @@ static int bpf_jit_blind_insn(const struct bpf_insn *from,
 	case BPF_ALU64 | BPF_MOD | BPF_K:
 		*to++ = BPF_ALU64_IMM(BPF_MOV, BPF_REG_AX, imm_rnd ^ from->imm);
 		*to++ = BPF_ALU64_IMM(BPF_XOR, BPF_REG_AX, imm_rnd);
-		*to++ = BPF_ALU64_REG(from->code, from->dst_reg, BPF_REG_AX);
+		*to++ = BPF_ALU64_REG_OFF(from->code, from->dst_reg, BPF_REG_AX, from->off);
 		break;
 
 	case BPF_JMP | BPF_JEQ  | BPF_K:

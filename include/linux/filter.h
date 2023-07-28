@@ -93,21 +93,27 @@ struct ctl_table_header;
 
 /* ALU ops on registers, bpf_add|sub|...: dst_reg += src_reg */
 
-#define BPF_ALU64_REG(OP, DST, SRC)				\
+#define BPF_ALU64_REG_OFF(OP, DST, SRC, OFF)			\
 	((struct bpf_insn) {					\
 		.code  = BPF_ALU64 | BPF_OP(OP) | BPF_X,	\
 		.dst_reg = DST,					\
 		.src_reg = SRC,					\
-		.off   = 0,					\
+		.off   = OFF,					\
 		.imm   = 0 })
 
-#define BPF_ALU32_REG(OP, DST, SRC)				\
+#define BPF_ALU64_REG(OP, DST, SRC)				\
+	BPF_ALU64_REG_OFF(OP, DST, SRC, 0)
+
+#define BPF_ALU32_REG_OFF(OP, DST, SRC, OFF)			\
 	((struct bpf_insn) {					\
 		.code  = BPF_ALU | BPF_OP(OP) | BPF_X,		\
 		.dst_reg = DST,					\
 		.src_reg = SRC,					\
-		.off   = 0,					\
+		.off   = OFF,					\
 		.imm   = 0 })
+
+#define BPF_ALU32_REG(OP, DST, SRC)				\
+	BPF_ALU32_REG_OFF(OP, DST, SRC, 0)
 
 /* ALU ops on immediates, bpf_add|sub|...: dst_reg += imm32 */
 
