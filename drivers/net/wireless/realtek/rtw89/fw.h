@@ -3160,18 +3160,18 @@ struct rtw89_c2h_mac_bcnfltr_rpt {
 #define RTW89_C2H_MAC_BCNFLTR_RPT_W2_EVENT GENMASK(11, 10)
 #define RTW89_C2H_MAC_BCNFLTR_RPT_W2_MA GENMASK(23, 16)
 
-#define RTW89_GET_PHY_C2H_RA_RPT_MACID(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 0))
-#define RTW89_GET_PHY_C2H_RA_RPT_RETRY_RATIO(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(23, 16))
-#define RTW89_GET_PHY_C2H_RA_RPT_MCSNSS(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 3), GENMASK(6, 0))
-#define RTW89_GET_PHY_C2H_RA_RPT_MD_SEL(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 3), GENMASK(9, 8))
-#define RTW89_GET_PHY_C2H_RA_RPT_GILTF(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 3), GENMASK(12, 10))
-#define RTW89_GET_PHY_C2H_RA_RPT_BW(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 3), GENMASK(14, 13))
+struct rtw89_c2h_ra_rpt {
+	struct rtw89_c2h_hdr hdr;
+	__le32 w2;
+	__le32 w3;
+} __packed;
+
+#define RTW89_C2H_RA_RPT_W2_MACID GENMASK(15, 0)
+#define RTW89_C2H_RA_RPT_W2_RETRY_RATIO GENMASK(23, 16)
+#define RTW89_C2H_RA_RPT_W3_MCSNSS GENMASK(6, 0)
+#define RTW89_C2H_RA_RPT_W3_MD_SEL GENMASK(9, 8)
+#define RTW89_C2H_RA_RPT_W3_GILTF GENMASK(12, 10)
+#define RTW89_C2H_RA_RPT_W3_BW GENMASK(14, 13)
 
 /* VHT, HE, HT-old: [6:4]: NSS, [3:0]: MCS
  * HT-new: [6:5]: NA, [4:0]: MCS
