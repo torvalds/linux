@@ -287,18 +287,23 @@ struct mlx5_cmd_stats {
 struct mlx5_cmd {
 	struct mlx5_nb    nb;
 
+	/* members which needs to be queried or reinitialized each reload */
+	struct {
+		u16		cmdif_rev;
+		u8		log_sz;
+		u8		log_stride;
+		int		max_reg_cmds;
+		unsigned long	bitmask;
+		struct semaphore sem;
+		struct semaphore pages_sem;
+		struct semaphore throttle_sem;
+	} vars;
 	enum mlx5_cmdif_state	state;
 	void	       *cmd_alloc_buf;
 	dma_addr_t	alloc_dma;
 	int		alloc_size;
 	void	       *cmd_buf;
 	dma_addr_t	dma;
-	u16		cmdif_rev;
-	u8		log_sz;
-	u8		log_stride;
-	int		max_reg_cmds;
-	int		events;
-	u32 __iomem    *vector;
 
 	/* protect command queue allocations
 	 */
@@ -308,12 +313,8 @@ struct mlx5_cmd {
 	 */
 	spinlock_t	token_lock;
 	u8		token;
-	unsigned long	bitmask;
 	char		wq_name[MLX5_CMD_WQ_MAX_NAME];
 	struct workqueue_struct *wq;
-	struct semaphore sem;
-	struct semaphore pages_sem;
-	struct semaphore throttle_sem;
 	int	mode;
 	u16     allowed_opcode;
 	struct mlx5_cmd_work_ent *ent_arr[MLX5_MAX_COMMANDS];
@@ -321,7 +322,7 @@ struct mlx5_cmd {
 	struct mlx5_cmd_debug dbg;
 	struct cmd_msg_cache cache[MLX5_NUM_COMMAND_CACHES];
 	int checksum_disabled;
-	struct mlx5_cmd_stats stats[MLX5_CMD_OP_MAX];
+	struct xarray stats;
 };
 
 struct mlx5_cmd_mailbox {
@@ -501,7 +502,7 @@ struct mlx5_events;
 struct mlx5_mpfs;
 struct mlx5_eswitch;
 struct mlx5_lag;
-struct mlx5_devcom;
+struct mlx5_devcom_dev;
 struct mlx5_fw_reset;
 struct mlx5_eq_table;
 struct mlx5_irq_table;
@@ -618,7 +619,7 @@ struct mlx5_priv {
 	struct mlx5_core_sriov	sriov;
 	struct mlx5_lag		*lag;
 	u32			flags;
-	struct mlx5_devcom	*devcom;
+	struct mlx5_devcom_dev	*devc;
 	struct mlx5_fw_reset	*fw_reset;
 	struct mlx5_core_roce	roce;
 	struct mlx5_fc_stats		fc_stats;

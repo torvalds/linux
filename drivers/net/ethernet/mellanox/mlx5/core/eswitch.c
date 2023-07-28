@@ -1068,9 +1068,8 @@ static void mlx5_eswitch_clear_ec_vf_vports_info(struct mlx5_eswitch *esw)
 	}
 }
 
-/* Public E-Switch API */
-int mlx5_eswitch_load_vport(struct mlx5_eswitch *esw, u16 vport_num,
-			    enum mlx5_eswitch_vport_event enabled_events)
+static int mlx5_eswitch_load_vport(struct mlx5_eswitch *esw, u16 vport_num,
+				   enum mlx5_eswitch_vport_event enabled_events)
 {
 	int err;
 
@@ -1078,7 +1077,7 @@ int mlx5_eswitch_load_vport(struct mlx5_eswitch *esw, u16 vport_num,
 	if (err)
 		return err;
 
-	err = esw_offloads_load_rep(esw, vport_num);
+	err = mlx5_esw_offloads_load_rep(esw, vport_num);
 	if (err)
 		goto err_rep;
 
@@ -1089,9 +1088,9 @@ err_rep:
 	return err;
 }
 
-void mlx5_eswitch_unload_vport(struct mlx5_eswitch *esw, u16 vport_num)
+static void mlx5_eswitch_unload_vport(struct mlx5_eswitch *esw, u16 vport_num)
 {
-	esw_offloads_unload_rep(esw, vport_num);
+	mlx5_esw_offloads_unload_rep(esw, vport_num);
 	mlx5_esw_vport_disable(esw, vport_num);
 }
 

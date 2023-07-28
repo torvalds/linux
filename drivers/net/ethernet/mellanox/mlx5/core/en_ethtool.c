@@ -2163,8 +2163,8 @@ static u32 mlx5e_get_priv_flags(struct net_device *netdev)
 	return priv->channels.params.pflags;
 }
 
-int mlx5e_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
-		    u32 *rule_locs)
+static int mlx5e_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
+			   u32 *rule_locs)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
@@ -2181,7 +2181,7 @@ int mlx5e_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	return mlx5e_ethtool_get_rxnfc(priv, info, rule_locs);
 }
 
-int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+static int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
