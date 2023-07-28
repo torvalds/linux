@@ -1327,7 +1327,7 @@ int compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 		if (computed_streams[i])
 			continue;
 
-		if (!res_pool->funcs->remove_stream_from_ctx ||
+		if (res_pool->funcs->remove_stream_from_ctx &&
 		    res_pool->funcs->remove_stream_from_ctx(stream->ctx->dc, dc_state, stream) != DC_OK)
 			return -EINVAL;
 
