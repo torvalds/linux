@@ -799,13 +799,7 @@ parse_events_config_bpf(struct parse_events_state *parse_state,
 
 			parse_events_error__handle(parse_state->error, idx,
 						strdup(errbuf),
-						strdup(
-"Hint:\tValid config terms:\n"
-"     \tmap:[<arraymap>].value<indices>=[value]\n"
-"     \tmap:[<eventmap>].event<indices>=[event]\n"
-"\n"
-"     \twhere <indices> is something like [0,3...5] or [all]\n"
-"     \t(add -v to see detail)"));
+						NULL);
 			return err;
 		}
 	}
