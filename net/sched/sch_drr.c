@@ -149,8 +149,10 @@ static int drr_delete_class(struct Qdisc *sch, unsigned long arg,
 	struct drr_sched *q = qdisc_priv(sch);
 	struct drr_class *cl = (struct drr_class *)arg;
 
-	if (qdisc_class_in_use(&cl->common))
+	if (qdisc_class_in_use(&cl->common)) {
+		NL_SET_ERR_MSG(extack, "DRR class is in use");
 		return -EBUSY;
+	}
 
 	sch_tree_lock(sch);
 
