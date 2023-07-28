@@ -138,7 +138,8 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 		void *args)
 {
 	struct hashtab_node *cur, *tmp, *tail;
-	int i, rc;
+	u32 i;
+	int rc;
 
 	memset(new, 0, sizeof(*new));
 
