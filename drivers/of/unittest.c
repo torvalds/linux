@@ -3336,6 +3336,7 @@ OVERLAY_INFO_EXTERN(overlay_bad_add_dup_node);
 OVERLAY_INFO_EXTERN(overlay_bad_add_dup_prop);
 OVERLAY_INFO_EXTERN(overlay_bad_phandle);
 OVERLAY_INFO_EXTERN(overlay_bad_symbol);
+OVERLAY_INFO_EXTERN(overlay_bad_unresolved);
 
 /* entries found by name */
 static struct overlay_info overlays[] = {
@@ -3372,6 +3373,7 @@ static struct overlay_info overlays[] = {
 	OVERLAY_INFO(overlay_bad_add_dup_prop, -EINVAL, -ENODEV),
 	OVERLAY_INFO(overlay_bad_phandle, -EINVAL, 0),
 	OVERLAY_INFO(overlay_bad_symbol, -EINVAL, -ENODEV),
+	OVERLAY_INFO(overlay_bad_unresolved, -EINVAL, 0),
 	/* end marker */
 	{ }
 };
@@ -3775,6 +3777,21 @@ static __init void of_unittest_overlay_high_level(void)
 		   "OF: Error reverting changeset (-19)");
 	EXPECT_END(KERN_ERR,
 		   "OF: changeset: apply failed: REMOVE_PROPERTY /testcase-data-2/substation@100/hvac-medium-2:name");
+
+	/* ---  overlay_bad_unresolved  --- */
+
+	EXPECT_BEGIN(KERN_ERR,
+		     "OF: resolver: node label 'this_label_does_not_exist' not found in live devicetree symbols table");
+	EXPECT_BEGIN(KERN_ERR,
+		     "OF: resolver: overlay phandle fixup failed: -22");
+
+	unittest(overlay_data_apply("overlay_bad_unresolved", NULL),
+		 "Adding overlay 'overlay_bad_unresolved' failed\n");
+
+	EXPECT_END(KERN_ERR,
+		   "OF: resolver: overlay phandle fixup failed: -22");
+	EXPECT_END(KERN_ERR,
+		   "OF: resolver: node label 'this_label_does_not_exist' not found in live devicetree symbols table");
 
 	return;
 
