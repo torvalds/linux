@@ -3654,6 +3654,8 @@ static __init void of_unittest_overlay_high_level(void)
 
 	/* now do the normal overlay usage test */
 
+	/* ---  overlay  --- */
+
 	EXPECT_BEGIN(KERN_ERR,
 		     "OF: overlay: WARNING: memory leak will occur if overlay removed, property: /testcase-data-2/substation@100/status");
 	EXPECT_BEGIN(KERN_ERR,
@@ -3704,6 +3706,8 @@ static __init void of_unittest_overlay_high_level(void)
 
 	unittest(ret, "Adding overlay 'overlay' failed\n");
 
+	/* ---  overlay_bad_add_dup_node  --- */
+
 	EXPECT_BEGIN(KERN_ERR,
 		     "OF: overlay: ERROR: multiple fragments add and/or delete node /testcase-data-2/substation@100/motor-1/controller");
 	EXPECT_BEGIN(KERN_ERR,
@@ -3724,6 +3728,8 @@ static __init void of_unittest_overlay_high_level(void)
 		   "OF: overlay: ERROR: multiple fragments add, update, and/or delete property /testcase-data-2/substation@100/motor-1/controller/name");
 	EXPECT_END(KERN_ERR,
 		   "OF: overlay: ERROR: multiple fragments add and/or delete node /testcase-data-2/substation@100/motor-1/controller");
+
+	/* ---  overlay_bad_add_dup_prop  --- */
 
 	EXPECT_BEGIN(KERN_ERR,
 		     "OF: overlay: ERROR: multiple fragments add and/or delete node /testcase-data-2/substation@100/motor-1/electric");
@@ -3750,8 +3756,12 @@ static __init void of_unittest_overlay_high_level(void)
 	EXPECT_END(KERN_ERR,
 		   "OF: overlay: ERROR: multiple fragments add and/or delete node /testcase-data-2/substation@100/motor-1/electric");
 
+	/* ---  overlay_bad_phandle  --- */
+
 	unittest(overlay_data_apply("overlay_bad_phandle", NULL),
 		 "Adding overlay 'overlay_bad_phandle' failed\n");
+
+	/* ---  overlay_bad_symbol  --- */
 
 	EXPECT_BEGIN(KERN_ERR,
 		     "OF: changeset: apply failed: REMOVE_PROPERTY /testcase-data-2/substation@100/hvac-medium-2:name");
