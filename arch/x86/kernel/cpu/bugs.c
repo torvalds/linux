@@ -2415,6 +2415,12 @@ static void __init srso_select_mitigation(void)
 
 	case SRSO_CMD_SAFE_RET:
 		if (IS_ENABLED(CONFIG_CPU_SRSO)) {
+			/*
+			 * Enable the return thunk for generated code
+			 * like ftrace, static_call, etc.
+			 */
+			setup_force_cpu_cap(X86_FEATURE_RETHUNK);
+
 			if (boot_cpu_data.x86 == 0x19)
 				setup_force_cpu_cap(X86_FEATURE_SRSO_ALIAS);
 			else
