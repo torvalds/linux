@@ -151,6 +151,7 @@ SYM_CODE_END(__x86_indirect_jump_thunk_array)
 	.section .text.__x86.rethunk_untrain
 
 SYM_START(srso_untrain_ret_alias, SYM_L_GLOBAL, SYM_A_NONE)
+	ANNOTATE_NOENDBR
 	ASM_NOP2
 	lfence
 	jmp __x86_return_thunk
