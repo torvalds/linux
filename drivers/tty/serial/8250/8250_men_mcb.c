@@ -94,8 +94,11 @@ static int read_uarts_available_from_register(struct resource *mem_res,
 
 	mem = ioremap(mem_res->start + MEN_Z025_REGISTER_OFFSET,
 		      MEM_UART_REGISTER_SIZE);
-	if (IS_ERR(mem))
+	if (!mem) {
+		release_mem_region(mem_res->start + MEN_Z025_REGISTER_OFFSET,
+				   MEM_UART_REGISTER_SIZE);
 		return -ENOMEM;
+	}
 
 	reg_value = MEN_READ_REGISTER(mem);
 
