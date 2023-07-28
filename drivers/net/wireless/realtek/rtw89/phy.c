@@ -444,6 +444,12 @@ static bool __check_rate_pattern(struct rtw89_phy_rate_pattern *next,
 	return true;
 }
 
+#define RTW89_HW_RATE_BY_CHIP_GEN(rate) \
+	{ \
+		[RTW89_CHIP_AX] = RTW89_HW_RATE_ ## rate, \
+		[RTW89_CHIP_BE] = RTW89_HW_RATE_V1_ ## rate, \
+	}
+
 void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 				struct ieee80211_vif *vif,
 				const struct cfg80211_bitrate_mask *mask)
@@ -452,39 +458,46 @@ void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_phy_rate_pattern next_pattern = {0};
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
-	static const u16 hw_rate_he[] = {RTW89_HW_RATE_HE_NSS1_MCS0,
-					 RTW89_HW_RATE_HE_NSS2_MCS0,
-					 RTW89_HW_RATE_HE_NSS3_MCS0,
-					 RTW89_HW_RATE_HE_NSS4_MCS0};
-	static const u16 hw_rate_vht[] = {RTW89_HW_RATE_VHT_NSS1_MCS0,
-					  RTW89_HW_RATE_VHT_NSS2_MCS0,
-					  RTW89_HW_RATE_VHT_NSS3_MCS0,
-					  RTW89_HW_RATE_VHT_NSS4_MCS0};
-	static const u16 hw_rate_ht[] = {RTW89_HW_RATE_MCS0,
-					 RTW89_HW_RATE_MCS8,
-					 RTW89_HW_RATE_MCS16,
-					 RTW89_HW_RATE_MCS24};
+	static const u16 hw_rate_he[][RTW89_CHIP_GEN_NUM] = {
+		RTW89_HW_RATE_BY_CHIP_GEN(HE_NSS1_MCS0),
+		RTW89_HW_RATE_BY_CHIP_GEN(HE_NSS2_MCS0),
+		RTW89_HW_RATE_BY_CHIP_GEN(HE_NSS3_MCS0),
+		RTW89_HW_RATE_BY_CHIP_GEN(HE_NSS4_MCS0),
+	};
+	static const u16 hw_rate_vht[][RTW89_CHIP_GEN_NUM] = {
+		RTW89_HW_RATE_BY_CHIP_GEN(VHT_NSS1_MCS0),
+		RTW89_HW_RATE_BY_CHIP_GEN(VHT_NSS2_MCS0),
+		RTW89_HW_RATE_BY_CHIP_GEN(VHT_NSS3_MCS0),
+		RTW89_HW_RATE_BY_CHIP_GEN(VHT_NSS4_MCS0),
+	};
+	static const u16 hw_rate_ht[][RTW89_CHIP_GEN_NUM] = {
+		RTW89_HW_RATE_BY_CHIP_GEN(MCS0),
+		RTW89_HW_RATE_BY_CHIP_GEN(MCS8),
+		RTW89_HW_RATE_BY_CHIP_GEN(MCS16),
+		RTW89_HW_RATE_BY_CHIP_GEN(MCS24),
+	};
 	u8 band = chan->band_type;
 	enum nl80211_band nl_band = rtw89_hw_to_nl80211_band(band);
+	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
 	u8 tx_nss = rtwdev->hal.tx_nss;
 	u8 i;
 
 	for (i = 0; i < tx_nss; i++)
-		if (!__check_rate_pattern(&next_pattern, hw_rate_he[i],
+		if (!__check_rate_pattern(&next_pattern, hw_rate_he[i][chip_gen],
 					  RA_MASK_HE_RATES, RTW89_RA_MODE_HE,
 					  mask->control[nl_band].he_mcs[i],
 					  0, true))
 			goto out;
 
 	for (i = 0; i < tx_nss; i++)
-		if (!__check_rate_pattern(&next_pattern, hw_rate_vht[i],
+		if (!__check_rate_pattern(&next_pattern, hw_rate_vht[i][chip_gen],
 					  RA_MASK_VHT_RATES, RTW89_RA_MODE_VHT,
 					  mask->control[nl_band].vht_mcs[i],
 					  0, true))
 			goto out;
 
 	for (i = 0; i < tx_nss; i++)
-		if (!__check_rate_pattern(&next_pattern, hw_rate_ht[i],
+		if (!__check_rate_pattern(&next_pattern, hw_rate_ht[i][chip_gen],
 					  RA_MASK_HT_RATES, RTW89_RA_MODE_HT,
 					  mask->control[nl_band].ht_mcs[i],
 					  0, true))
