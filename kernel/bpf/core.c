@@ -61,6 +61,7 @@
 #define AX	regs[BPF_REG_AX]
 #define ARG1	regs[BPF_REG_ARG1]
 #define CTX	regs[BPF_REG_CTX]
+#define OFF	insn->off
 #define IMM	insn->imm
 
 struct bpf_mem_alloc bpf_global_ma;
@@ -1739,13 +1740,36 @@ select_insn:
 		DST = -DST;
 		CONT;
 	ALU_MOV_X:
-		DST = (u32) SRC;
+		switch (OFF) {
+		case 0:
+			DST = (u32) SRC;
+			break;
+		case 8:
+			DST = (u32)(s8) SRC;
+			break;
+		case 16:
+			DST = (u32)(s16) SRC;
+			break;
+		}
 		CONT;
 	ALU_MOV_K:
 		DST = (u32) IMM;
 		CONT;
 	ALU64_MOV_X:
-		DST = SRC;
+		switch (OFF) {
+		case 0:
+			DST = SRC;
+			break;
+		case 8:
+			DST = (s8) SRC;
+			break;
+		case 16:
+			DST = (s16) SRC;
+			break;
+		case 32:
+			DST = (s32) SRC;
+			break;
+		}
 		CONT;
 	ALU64_MOV_K:
 		DST = IMM;

@@ -3421,7 +3421,7 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 			return 0;
 		if (opcode == BPF_MOV) {
 			if (BPF_SRC(insn->code) == BPF_X) {
-				/* dreg = sreg
+				/* dreg = sreg or dreg = (s8, s16, s32)sreg
 				 * dreg needs precision after this insn
 				 * sreg needs precision before this insn
 				 */
@@ -5903,6 +5903,69 @@ static void coerce_reg_to_size_sx(struct bpf_reg_state *reg, int size)
 
 out:
 	set_sext64_default_val(reg, size);
+}
+
+static void set_sext32_default_val(struct bpf_reg_state *reg, int size)
+{
+	if (size == 1) {
+		reg->s32_min_value = S8_MIN;
+		reg->s32_max_value = S8_MAX;
+	} else {
+		/* size == 2 */
+		reg->s32_min_value = S16_MIN;
+		reg->s32_max_value = S16_MAX;
+	}
+	reg->u32_min_value = 0;
+	reg->u32_max_value = U32_MAX;
+}
+
+static void coerce_subreg_to_size_sx(struct bpf_reg_state *reg, int size)
+{
+	s32 init_s32_max, init_s32_min, s32_max, s32_min, u32_val;
+	u32 top_smax_value, top_smin_value;
+	u32 num_bits = size * 8;
+
+	if (tnum_is_const(reg->var_off)) {
+		u32_val = reg->var_off.value;
+		if (size == 1)
+			reg->var_off = tnum_const((s8)u32_val);
+		else
+			reg->var_off = tnum_const((s16)u32_val);
+
+		u32_val = reg->var_off.value;
+		reg->s32_min_value = reg->s32_max_value = u32_val;
+		reg->u32_min_value = reg->u32_max_value = u32_val;
+		return;
+	}
+
+	top_smax_value = ((u32)reg->s32_max_value >> num_bits) << num_bits;
+	top_smin_value = ((u32)reg->s32_min_value >> num_bits) << num_bits;
+
+	if (top_smax_value != top_smin_value)
+		goto out;
+
+	/* find the s32_min and s32_min after sign extension */
+	if (size == 1) {
+		init_s32_max = (s8)reg->s32_max_value;
+		init_s32_min = (s8)reg->s32_min_value;
+	} else {
+		/* size == 2 */
+		init_s32_max = (s16)reg->s32_max_value;
+		init_s32_min = (s16)reg->s32_min_value;
+	}
+	s32_max = max(init_s32_max, init_s32_min);
+	s32_min = min(init_s32_max, init_s32_min);
+
+	if (s32_min >= 0 == s32_max >= 0) {
+		reg->s32_min_value = s32_min;
+		reg->s32_max_value = s32_max;
+		reg->u32_min_value = (u32)s32_min;
+		reg->u32_max_value = (u32)s32_max;
+		return;
+	}
+
+out:
+	set_sext32_default_val(reg, size);
 }
 
 static bool bpf_map_is_rdonly(const struct bpf_map *map)
@@ -13038,9 +13101,22 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 	} else if (opcode == BPF_MOV) {
 
 		if (BPF_SRC(insn->code) == BPF_X) {
-			if (insn->imm != 0 || insn->off != 0) {
+			if (insn->imm != 0) {
 				verbose(env, "BPF_MOV uses reserved fields\n");
 				return -EINVAL;
+			}
+
+			if (BPF_CLASS(insn->code) == BPF_ALU) {
+				if (insn->off != 0 && insn->off != 8 && insn->off != 16) {
+					verbose(env, "BPF_MOV uses reserved fields\n");
+					return -EINVAL;
+				}
+			} else {
+				if (insn->off != 0 && insn->off != 8 && insn->off != 16 &&
+				    insn->off != 32) {
+					verbose(env, "BPF_MOV uses reserved fields\n");
+					return -EINVAL;
+				}
 			}
 
 			/* check src operand */
@@ -13066,18 +13142,33 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 				       !tnum_is_const(src_reg->var_off);
 
 			if (BPF_CLASS(insn->code) == BPF_ALU64) {
-				/* case: R1 = R2
-				 * copy register state to dest reg
-				 */
-				if (need_id)
-					/* Assign src and dst registers the same ID
-					 * that will be used by find_equal_scalars()
-					 * to propagate min/max range.
+				if (insn->off == 0) {
+					/* case: R1 = R2
+					 * copy register state to dest reg
 					 */
-					src_reg->id = ++env->id_gen;
-				copy_register_state(dst_reg, src_reg);
-				dst_reg->live |= REG_LIVE_WRITTEN;
-				dst_reg->subreg_def = DEF_NOT_SUBREG;
+					if (need_id)
+						/* Assign src and dst registers the same ID
+						 * that will be used by find_equal_scalars()
+						 * to propagate min/max range.
+						 */
+						src_reg->id = ++env->id_gen;
+					copy_register_state(dst_reg, src_reg);
+					dst_reg->live |= REG_LIVE_WRITTEN;
+					dst_reg->subreg_def = DEF_NOT_SUBREG;
+				} else {
+					/* case: R1 = (s8, s16 s32)R2 */
+					bool no_sext;
+
+					no_sext = src_reg->umax_value < (1ULL << (insn->off - 1));
+					if (no_sext && need_id)
+						src_reg->id = ++env->id_gen;
+					copy_register_state(dst_reg, src_reg);
+					if (!no_sext)
+						dst_reg->id = 0;
+					coerce_reg_to_size_sx(dst_reg, insn->off >> 3);
+					dst_reg->live |= REG_LIVE_WRITTEN;
+					dst_reg->subreg_def = DEF_NOT_SUBREG;
+				}
 			} else {
 				/* R1 = (u32) R2 */
 				if (is_pointer_value(env, insn->src_reg)) {
@@ -13086,19 +13177,33 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 						insn->src_reg);
 					return -EACCES;
 				} else if (src_reg->type == SCALAR_VALUE) {
-					bool is_src_reg_u32 = src_reg->umax_value <= U32_MAX;
+					if (insn->off == 0) {
+						bool is_src_reg_u32 = src_reg->umax_value <= U32_MAX;
 
-					if (is_src_reg_u32 && need_id)
-						src_reg->id = ++env->id_gen;
-					copy_register_state(dst_reg, src_reg);
-					/* Make sure ID is cleared if src_reg is not in u32 range otherwise
-					 * dst_reg min/max could be incorrectly
-					 * propagated into src_reg by find_equal_scalars()
-					 */
-					if (!is_src_reg_u32)
-						dst_reg->id = 0;
-					dst_reg->live |= REG_LIVE_WRITTEN;
-					dst_reg->subreg_def = env->insn_idx + 1;
+						if (is_src_reg_u32 && need_id)
+							src_reg->id = ++env->id_gen;
+						copy_register_state(dst_reg, src_reg);
+						/* Make sure ID is cleared if src_reg is not in u32
+						 * range otherwise dst_reg min/max could be incorrectly
+						 * propagated into src_reg by find_equal_scalars()
+						 */
+						if (!is_src_reg_u32)
+							dst_reg->id = 0;
+						dst_reg->live |= REG_LIVE_WRITTEN;
+						dst_reg->subreg_def = env->insn_idx + 1;
+					} else {
+						/* case: W1 = (s8, s16)W2 */
+						bool no_sext = src_reg->umax_value < (1ULL << (insn->off - 1));
+
+						if (no_sext && need_id)
+							src_reg->id = ++env->id_gen;
+						copy_register_state(dst_reg, src_reg);
+						if (!no_sext)
+							dst_reg->id = 0;
+						dst_reg->live |= REG_LIVE_WRITTEN;
+						dst_reg->subreg_def = env->insn_idx + 1;
+						coerce_subreg_to_size_sx(dst_reg, insn->off >> 3);
+					}
 				} else {
 					mark_reg_unknown(env, regs,
 							 insn->dst_reg);

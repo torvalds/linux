@@ -701,6 +701,38 @@ static void emit_mov_reg(u8 **pprog, bool is64, u32 dst_reg, u32 src_reg)
 	*pprog = prog;
 }
 
+static void emit_movsx_reg(u8 **pprog, int num_bits, bool is64, u32 dst_reg,
+			   u32 src_reg)
+{
+	u8 *prog = *pprog;
+
+	if (is64) {
+		/* movs[b,w,l]q dst, src */
+		if (num_bits == 8)
+			EMIT4(add_2mod(0x48, src_reg, dst_reg), 0x0f, 0xbe,
+			      add_2reg(0xC0, src_reg, dst_reg));
+		else if (num_bits == 16)
+			EMIT4(add_2mod(0x48, src_reg, dst_reg), 0x0f, 0xbf,
+			      add_2reg(0xC0, src_reg, dst_reg));
+		else if (num_bits == 32)
+			EMIT3(add_2mod(0x48, src_reg, dst_reg), 0x63,
+			      add_2reg(0xC0, src_reg, dst_reg));
+	} else {
+		/* movs[b,w]l dst, src */
+		if (num_bits == 8) {
+			EMIT4(add_2mod(0x40, src_reg, dst_reg), 0x0f, 0xbe,
+			      add_2reg(0xC0, src_reg, dst_reg));
+		} else if (num_bits == 16) {
+			if (is_ereg(dst_reg) || is_ereg(src_reg))
+				EMIT1(add_2mod(0x40, src_reg, dst_reg));
+			EMIT3(add_2mod(0x0f, src_reg, dst_reg), 0xbf,
+			      add_2reg(0xC0, src_reg, dst_reg));
+		}
+	}
+
+	*pprog = prog;
+}
+
 /* Emit the suffix (ModR/M etc) for addressing *(ptr_reg + off) and val_reg */
 static void emit_insn_suffix(u8 **pprog, u32 ptr_reg, u32 val_reg, int off)
 {
@@ -1051,9 +1083,14 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 
 		case BPF_ALU64 | BPF_MOV | BPF_X:
 		case BPF_ALU | BPF_MOV | BPF_X:
-			emit_mov_reg(&prog,
-				     BPF_CLASS(insn->code) == BPF_ALU64,
-				     dst_reg, src_reg);
+			if (insn->off == 0)
+				emit_mov_reg(&prog,
+					     BPF_CLASS(insn->code) == BPF_ALU64,
+					     dst_reg, src_reg);
+			else
+				emit_movsx_reg(&prog, insn->off,
+					       BPF_CLASS(insn->code) == BPF_ALU64,
+					       dst_reg, src_reg);
 			break;
 
 			/* neg dst */
