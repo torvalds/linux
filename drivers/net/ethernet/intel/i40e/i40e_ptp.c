@@ -1132,7 +1132,7 @@ int i40e_ptp_alloc_pins(struct i40e_pf *pf)
 
 	if (!pf->ptp_pins) {
 		dev_warn(&pf->pdev->dev, "Cannot allocate memory for PTP pins structure.\n");
-		return -I40E_ERR_NO_MEMORY;
+		return -ENOMEM;
 	}
 
 	pf->ptp_pins->sdp3_2 = off;

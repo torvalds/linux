@@ -344,7 +344,7 @@ int i40e_ddp_load(struct net_device *netdev, const u8 *data, size_t size,
 	if (is_add) {
 		status = i40e_write_profile(&pf->hw, profile_hdr, track_id);
 		if (status) {
-			if (status == I40E_ERR_DEVICE_NOT_SUPPORTED) {
+			if (status == -ENODEV) {
 				netdev_err(netdev,
 					   "Profile is not supported by the device.");
 				return -EPERM;

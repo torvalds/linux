@@ -4,7 +4,6 @@
 #ifndef _I40E_TYPE_H_
 #define _I40E_TYPE_H_
 
-#include "i40e_status.h"
 #include "i40e_osdep.h"
 #include "i40e_register.h"
 #include "i40e_adminq.h"
