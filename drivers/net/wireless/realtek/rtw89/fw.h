@@ -3168,16 +3168,24 @@ struct rtw89_c2h_ra_rpt {
 
 #define RTW89_C2H_RA_RPT_W2_MACID GENMASK(15, 0)
 #define RTW89_C2H_RA_RPT_W2_RETRY_RATIO GENMASK(23, 16)
+#define RTW89_C2H_RA_RPT_W2_MCSNSS_B7 BIT(31)
 #define RTW89_C2H_RA_RPT_W3_MCSNSS GENMASK(6, 0)
 #define RTW89_C2H_RA_RPT_W3_MD_SEL GENMASK(9, 8)
 #define RTW89_C2H_RA_RPT_W3_GILTF GENMASK(12, 10)
 #define RTW89_C2H_RA_RPT_W3_BW GENMASK(14, 13)
+#define RTW89_C2H_RA_RPT_W3_MD_SEL_B2 BIT(15)
+#define RTW89_C2H_RA_RPT_W3_BW_B2 BIT(16)
 
-/* VHT, HE, HT-old: [6:4]: NSS, [3:0]: MCS
- * HT-new: [6:5]: NA, [4:0]: MCS
+/* For WiFi 6 chips:
+ *   VHT, HE, HT-old: [6:4]: NSS, [3:0]: MCS
+ *   HT-new: [6:5]: NA, [4:0]: MCS
+ * For WiFi 7 chips (V1):
+ *   HT, VHT, HE, EHT: [7:5]: NSS, [4:0]: MCS
  */
 #define RTW89_RA_RATE_MASK_NSS GENMASK(6, 4)
 #define RTW89_RA_RATE_MASK_MCS GENMASK(3, 0)
+#define RTW89_RA_RATE_MASK_NSS_V1 GENMASK(7, 5)
+#define RTW89_RA_RATE_MASK_MCS_V1 GENMASK(4, 0)
 #define RTW89_RA_RATE_MASK_HT_MCS GENMASK(4, 0)
 #define RTW89_MK_HT_RATE(nss, mcs) (FIELD_PREP(GENMASK(4, 3), nss) | \
 				    FIELD_PREP(GENMASK(2, 0), mcs))
