@@ -9,6 +9,8 @@
 #include <linux/list.h>
 #include "bpf-filter.h"
 
+int perf_bpf_filter_lex(void);
+
 static void perf_bpf_filter_error(struct list_head *expr __maybe_unused,
 				  char const *msg)
 {
