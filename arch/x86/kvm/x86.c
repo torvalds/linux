@@ -11777,15 +11777,22 @@ static int sync_regs(struct kvm_vcpu *vcpu)
 		__set_regs(vcpu, &vcpu->run->s.regs.regs);
 		vcpu->run->kvm_dirty_regs &= ~KVM_SYNC_X86_REGS;
 	}
+
 	if (vcpu->run->kvm_dirty_regs & KVM_SYNC_X86_SREGS) {
-		if (__set_sregs(vcpu, &vcpu->run->s.regs.sregs))
+		struct kvm_sregs sregs = vcpu->run->s.regs.sregs;
+
+		if (__set_sregs(vcpu, &sregs))
 			return -EINVAL;
+
 		vcpu->run->kvm_dirty_regs &= ~KVM_SYNC_X86_SREGS;
 	}
+
 	if (vcpu->run->kvm_dirty_regs & KVM_SYNC_X86_EVENTS) {
-		if (kvm_vcpu_ioctl_x86_set_vcpu_events(
-				vcpu, &vcpu->run->s.regs.events))
+		struct kvm_vcpu_events events = vcpu->run->s.regs.events;
+
+		if (kvm_vcpu_ioctl_x86_set_vcpu_events(vcpu, &events))
 			return -EINVAL;
+
 		vcpu->run->kvm_dirty_regs &= ~KVM_SYNC_X86_EVENTS;
 	}
 
