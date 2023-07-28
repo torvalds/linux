@@ -757,7 +757,7 @@ int parse_events_load_bpf_obj(struct parse_events_state *parse_state,
 
 	return 0;
 errout:
-	parse_events_error__handle(parse_state->error, param.loc->first_column,
+	parse_events_error__handle(parse_state->error, param.loc ? param.loc->first_column : 0,
 				strdup(errbuf), strdup("(add -v to see detail)"));
 	return err;
 }
