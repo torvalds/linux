@@ -365,7 +365,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 #endif
 
 	/* Force users to call KVM_ARM_VCPU_INIT */
-	vcpu->arch.target = -1;
+	vcpu_clear_flag(vcpu, VCPU_INITIALIZED);
 	bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
 
 	vcpu->arch.mmu_page_cache.gfp_zero = __GFP_ZERO;
@@ -574,7 +574,7 @@ unsigned long kvm_arch_vcpu_get_ip(struct kvm_vcpu *vcpu)
 
 static int kvm_vcpu_initialized(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.target >= 0;
+	return vcpu_get_flag(vcpu, VCPU_INITIALIZED);
 }
 
 /*
@@ -1058,7 +1058,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 			 * invalid. The VMM can try and fix it by issuing  a
 			 * KVM_ARM_VCPU_INIT if it really wants to.
 			 */
-			vcpu->arch.target = -1;
+			vcpu_clear_flag(vcpu, VCPU_INITIALIZED);
 			ret = ARM_EXCEPTION_IL;
 		}
 
@@ -1219,8 +1219,7 @@ static bool kvm_vcpu_init_changed(struct kvm_vcpu *vcpu,
 {
 	unsigned long features = init->features[0];
 
-	return !bitmap_equal(vcpu->arch.features, &features, KVM_VCPU_MAX_FEATURES) ||
-			vcpu->arch.target != init->target;
+	return !bitmap_equal(vcpu->arch.features, &features, KVM_VCPU_MAX_FEATURES);
 }
 
 static int __kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
@@ -1236,20 +1235,18 @@ static int __kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 	    !bitmap_equal(kvm->arch.vcpu_features, &features, KVM_VCPU_MAX_FEATURES))
 		goto out_unlock;
 
-	vcpu->arch.target = init->target;
 	bitmap_copy(vcpu->arch.features, &features, KVM_VCPU_MAX_FEATURES);
 
 	/* Now we know what it is, we can reset it. */
 	ret = kvm_reset_vcpu(vcpu);
 	if (ret) {
-		vcpu->arch.target = -1;
 		bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
 		goto out_unlock;
 	}
 
 	bitmap_copy(kvm->arch.vcpu_features, &features, KVM_VCPU_MAX_FEATURES);
 	set_bit(KVM_ARCH_FLAG_VCPU_FEATURES_CONFIGURED, &kvm->arch.flags);
-
+	vcpu_set_flag(vcpu, VCPU_INITIALIZED);
 out_unlock:
 	mutex_unlock(&kvm->arch.config_lock);
 	return ret;
@@ -1260,14 +1257,15 @@ static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 {
 	int ret;
 
-	if (init->target != kvm_target_cpu())
+	if (init->target != KVM_ARM_TARGET_GENERIC_V8 &&
+	    init->target != kvm_target_cpu())
 		return -EINVAL;
 
 	ret = kvm_vcpu_init_check_features(vcpu, init);
 	if (ret)
 		return ret;
 
-	if (vcpu->arch.target == -1)
+	if (!kvm_vcpu_initialized(vcpu))
 		return __kvm_vcpu_set_target(vcpu, init);
 
 	if (kvm_vcpu_init_changed(vcpu, init))
@@ -1595,9 +1593,9 @@ int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 		return kvm_vm_ioctl_set_device_addr(kvm, &dev_addr);
 	}
 	case KVM_ARM_PREFERRED_TARGET: {
-		struct kvm_vcpu_init init;
-
-		kvm_vcpu_preferred_target(&init);
+		struct kvm_vcpu_init init = {
+			.target = KVM_ARM_TARGET_GENERIC_V8,
+		};
 
 		if (copy_to_user(argp, &init, sizeof(init)))
 			return -EFAULT;
