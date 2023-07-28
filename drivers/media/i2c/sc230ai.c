@@ -61,9 +61,6 @@
 #define SC230AI_REG_SEXPOSURE_L		0x3e05
 #define	SC230AI_EXPOSURE_MIN		1
 #define	SC230AI_EXPOSURE_STEP		1
-#define	SC230AI_EXPOSURE_LIN_MAX	(2 * 0x465 - 9)
-#define	SC230AI_EXPOSURE_HDR_MAX_S	(2 * 0x465 - 9)
-#define	SC230AI_EXPOSURE_HDR_MAX_L	(2 * 0x465 - 9)
 #define SC230AI_VTS_MAX			0x7fff
 
 #define SC230AI_REG_DIG_GAIN		0x3e06
@@ -74,7 +71,7 @@
 #define SC230AI_REG_SANA_GAIN		0x3e12
 #define SC230AI_REG_SANA_FINE_GAIN	0x3e13
 #define SC230AI_GAIN_MIN		1000
-#define SC230AI_GAIN_MAX		1722628       //108.512*15.875*1000
+#define SC230AI_GAIN_MAX		1574800       // 99.2*15.875*1000
 #define SC230AI_GAIN_STEP		1
 #define SC230AI_GAIN_DEFAULT		1000
 #define SC230AI_LGAIN			0
@@ -678,46 +675,46 @@ static int sc230ai_get_gain_reg(struct sc230ai *sc230ai, u32 *again, u32 *dgain,
 		*again = 0x00;
 		*dgain = 0x00;
 		*dgain_fine = total_gain * 128 / 1000;
-	} else if (total_gain < 3391) {	/* 2 ~ 3.391 gain*/
+	} else if (total_gain < 3100) {	/* 2 ~ 3.1 gain*/
 		*again = 0x01;
 		*dgain = 0x00;
 		*dgain_fine = total_gain * 128 / 1000 / 2;
-	} else if (total_gain < 3391 * 2) {	/* 3.391 ~ 6.782 gain*/
+	} else if (total_gain < 3100 * 2) {	/* 3.100 ~ 6.200 gain*/
 		*again = 0x40;
 		*dgain = 0x00;
-		*dgain_fine = total_gain * 128 / 3391;
-	} else if (total_gain < 3391 * 4) {	/* 6.782 ~ 13.564 gain*/
+		*dgain_fine = total_gain * 128 / 3100;
+	} else if (total_gain < 3100 * 4) {	/* 6.200 ~ 12.400 gain*/
 		*again = 0x48;
 		*dgain = 0x00;
-		*dgain_fine = total_gain * 128 / 3391 / 2;
-	} else if (total_gain < 3391 * 8) {	/* 13.564 ~ 27.128 gain*/
+		*dgain_fine = total_gain * 128 / 3100 / 2;
+	} else if (total_gain < 3100 * 8) {	/* 12.400 ~ 24.800 gain*/
 		*again = 0x49;
 		*dgain = 0x00;
-		*dgain_fine = total_gain * 128 / 3391 / 4;
-	} else if (total_gain < 3391 * 16) {	/* 27.128 ~ 54.256 gain*/
+		*dgain_fine = total_gain * 128 / 3100 / 4;
+	} else if (total_gain < 3100 * 16) {	/* 24.800 ~ 49.600 gain*/
 		*again = 0x4b;
 		*dgain = 0x00;
-		*dgain_fine = total_gain * 128 / 3391 / 8;
-	} else if (total_gain < 3391 * 32) {	/* 54.256 ~ 108.512 gain*/
+		*dgain_fine = total_gain * 128 / 3100 / 8;
+	} else if (total_gain < 3100 * 32) {	/* 49.600 ~ 99.200 gain*/
 		*again = 0x4f;
 		*dgain = 0x00;
-		*dgain_fine = total_gain * 128 / 3391 / 16;
-	} else if (total_gain < 3391 * 64) {	/* 108.512 ~ 217.024 gain*/
+		*dgain_fine = total_gain * 128 / 3100 / 16;
+	} else if (total_gain < 3100 * 64) {	/* 99.200 ~ 198.400 gain*/
 		*again = 0x5f;
 		*dgain = 0x00;
-		*dgain_fine = total_gain * 128 / 3391 / 32;
-	} else if (total_gain < 3391 * 128) {	/* 217.024 ~ 434.048 gain*/
+		*dgain_fine = total_gain * 128 / 3100 / 32;
+	} else if (total_gain < 3100 * 128) {	/* 198.400 ~ 396.800 gain*/
 		*again = 0x5f;
 		*dgain = 0x01;
-		*dgain_fine = total_gain * 128 / 3391 / 64;
-	} else if (total_gain < 3391 * 256) {	/* 434.048 ~ 868.096 gain*/
+		*dgain_fine = total_gain * 128 / 3100 / 64;
+	} else if (total_gain < 3100 * 256) {	/* 396.800 ~ 793.600 gain*/
 		*again = 0x5f;
 		*dgain = 0x03;
-		*dgain_fine = total_gain * 128 / 3391 / 128;
-	} else if (total_gain < 3391 * 512) {	/* 868.096 ~ 1736.192 gain*/
+		*dgain_fine = total_gain * 128 / 3100 / 128;
+	} else {				/* 793.600 ~ 1587.200 gain*/
 		*again = 0x5f;
 		*dgain = 0x07;
-		*dgain_fine = total_gain * 128 / 3391 / 128;
+		*dgain_fine = total_gain * 128 / 3100 / 128;
 	}
 
 	return ret;
@@ -1406,7 +1403,7 @@ static int sc230ai_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = sc230ai->cur_mode->height + ctrl->val - 4;
+		max = sc230ai->cur_mode->height + ctrl->val - 5;
 		__v4l2_ctrl_modify_range(sc230ai->exposure,
 					 sc230ai->exposure->minimum, max,
 					 sc230ai->exposure->step,
@@ -1545,7 +1542,7 @@ static int sc230ai_initialize_controls(struct sc230ai *sc230ai)
 					    V4L2_CID_VBLANK, vblank_def,
 					    SC230AI_VTS_MAX - mode->height,
 					    1, vblank_def);
-	exposure_max = SC230AI_EXPOSURE_LIN_MAX;
+	exposure_max = mode->vts_def - 5;
 	sc230ai->exposure = v4l2_ctrl_new_std(handler, &sc230ai_ctrl_ops,
 					      V4L2_CID_EXPOSURE, SC230AI_EXPOSURE_MIN,
 					      exposure_max, SC230AI_EXPOSURE_STEP,
