@@ -209,3 +209,89 @@ struct eventfs_file *eventfs_add_dir(const char *name,
 	mutex_unlock(&eventfs_mutex);
 	return ef;
 }
+
+/**
+ * eventfs_add_events_file - add the data needed to create a file for later reference
+ * @name: the name of the file to create.
+ * @mode: the permission that the file should have.
+ * @parent: parent dentry for this file.
+ * @data: something that the caller will want to get to later on.
+ * @fop: struct file_operations that should be used for this file.
+ *
+ * This function is used to add the information needed to create a
+ * dentry/inode within the top level events directory. The file created
+ * will have the @mode permissions. The @data will be used to fill the
+ * inode.i_private when the open() call is done. The dentry and inodes are
+ * all created when they are referenced, and removed when they are no
+ * longer referenced.
+ */
+int eventfs_add_events_file(const char *name, umode_t mode,
+			 struct dentry *parent, void *data,
+			 const struct file_operations *fop)
+{
+	struct tracefs_inode *ti;
+	struct eventfs_inode *ei;
+	struct eventfs_file *ef;
+
+	if (!parent)
+		return -EINVAL;
+
+	if (!(mode & S_IFMT))
+		mode |= S_IFREG;
+
+	if (!parent->d_inode)
+		return -EINVAL;
+
+	ti = get_tracefs(parent->d_inode);
+	if (!(ti->flags & TRACEFS_EVENT_INODE))
+		return -EINVAL;
+
+	ei = ti->private;
+	ef = eventfs_prepare_ef(name, mode, fop, NULL, data);
+
+	if (IS_ERR(ef))
+		return -ENOMEM;
+
+	mutex_lock(&eventfs_mutex);
+	list_add_tail(&ef->list, &ei->e_top_files);
+	mutex_unlock(&eventfs_mutex);
+	return 0;
+}
+
+/**
+ * eventfs_add_file - add eventfs file to list to create later
+ * @name: the name of the file to create.
+ * @mode: the permission that the file should have.
+ * @ef_parent: parent eventfs_file for this file.
+ * @data: something that the caller will want to get to later on.
+ * @fop: struct file_operations that should be used for this file.
+ *
+ * This function is used to add the information needed to create a
+ * file within a subdirectory of the events directory. The file created
+ * will have the @mode permissions. The @data will be used to fill the
+ * inode.i_private when the open() call is done. The dentry and inodes are
+ * all created when they are referenced, and removed when they are no
+ * longer referenced.
+ */
+int eventfs_add_file(const char *name, umode_t mode,
+		     struct eventfs_file *ef_parent,
+		     void *data,
+		     const struct file_operations *fop)
+{
+	struct eventfs_file *ef;
+
+	if (!ef_parent)
+		return -EINVAL;
+
+	if (!(mode & S_IFMT))
+		mode |= S_IFREG;
+
+	ef = eventfs_prepare_ef(name, mode, fop, NULL, data);
+	if (IS_ERR(ef))
+		return -ENOMEM;
+
+	mutex_lock(&eventfs_mutex);
+	list_add_tail(&ef->list, &ef_parent->ei->e_top_files);
+	mutex_unlock(&eventfs_mutex);
+	return 0;
+}
