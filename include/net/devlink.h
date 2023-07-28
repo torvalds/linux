@@ -1790,8 +1790,6 @@ devlink_port_region_create(struct devlink_port *port,
 			   u32 region_max_snapshots, u64 region_size);
 void devl_region_destroy(struct devlink_region *region);
 void devlink_region_destroy(struct devlink_region *region);
-void devlink_port_region_destroy(struct devlink_region *region);
-
 int devlink_region_snapshot_id_get(struct devlink *devlink, u32 *id);
 void devlink_region_snapshot_id_put(struct devlink *devlink, u32 id);
 int devlink_region_snapshot_create(struct devlink_region *region,
