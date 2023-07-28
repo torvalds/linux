@@ -215,8 +215,7 @@ int iavf_get_vf_config(struct iavf_adapter *adapter)
 	u16 len;
 	int err;
 
-	len = sizeof(struct virtchnl_vf_resource) +
-		IAVF_MAX_VF_VSI * sizeof(struct virtchnl_vsi_resource);
+	len = IAVF_VIRTCHNL_VF_RESOURCE_SIZE;
 	event.buf_len = len;
 	event.msg_buf = kzalloc(len, GFP_KERNEL);
 	if (!event.msg_buf)
@@ -284,7 +283,7 @@ void iavf_configure_queues(struct iavf_adapter *adapter)
 		return;
 	}
 	adapter->current_op = VIRTCHNL_OP_CONFIG_VSI_QUEUES;
-	len = struct_size(vqci, qpair, pairs);
+	len = virtchnl_struct_size(vqci, qpair, pairs);
 	vqci = kzalloc(len, GFP_KERNEL);
 	if (!vqci)
 		return;
@@ -397,7 +396,7 @@ void iavf_map_queues(struct iavf_adapter *adapter)
 
 	q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 
-	len = struct_size(vimi, vecmap, adapter->num_msix_vectors);
+	len = virtchnl_struct_size(vimi, vecmap, adapter->num_msix_vectors);
 	vimi = kzalloc(len, GFP_KERNEL);
 	if (!vimi)
 		return;
@@ -476,13 +475,11 @@ void iavf_add_ether_addrs(struct iavf_adapter *adapter)
 	}
 	adapter->current_op = VIRTCHNL_OP_ADD_ETH_ADDR;
 
-	len = struct_size(veal, list, count);
+	len = virtchnl_struct_size(veal, list, count);
 	if (len > IAVF_MAX_AQ_BUF_SIZE) {
 		dev_warn(&adapter->pdev->dev, "Too many add MAC changes in one request\n");
-		count = (IAVF_MAX_AQ_BUF_SIZE -
-			 sizeof(struct virtchnl_ether_addr_list)) /
-			sizeof(struct virtchnl_ether_addr);
-		len = struct_size(veal, list, count);
+		while (len > IAVF_MAX_AQ_BUF_SIZE)
+			len = virtchnl_struct_size(veal, list, --count);
 		more = true;
 	}
 
@@ -547,13 +544,11 @@ void iavf_del_ether_addrs(struct iavf_adapter *adapter)
 	}
 	adapter->current_op = VIRTCHNL_OP_DEL_ETH_ADDR;
 
-	len = struct_size(veal, list, count);
+	len = virtchnl_struct_size(veal, list, count);
 	if (len > IAVF_MAX_AQ_BUF_SIZE) {
 		dev_warn(&adapter->pdev->dev, "Too many delete MAC changes in one request\n");
-		count = (IAVF_MAX_AQ_BUF_SIZE -
-			 sizeof(struct virtchnl_ether_addr_list)) /
-			sizeof(struct virtchnl_ether_addr);
-		len = struct_size(veal, list, count);
+		while (len > IAVF_MAX_AQ_BUF_SIZE)
+			len = virtchnl_struct_size(veal, list, --count);
 		more = true;
 	}
 	veal = kzalloc(len, GFP_ATOMIC);
@@ -687,12 +682,12 @@ void iavf_add_vlans(struct iavf_adapter *adapter)
 
 		adapter->current_op = VIRTCHNL_OP_ADD_VLAN;
 
-		len = sizeof(*vvfl) + (count * sizeof(u16));
+		len = virtchnl_struct_size(vvfl, vlan_id, count);
 		if (len > IAVF_MAX_AQ_BUF_SIZE) {
 			dev_warn(&adapter->pdev->dev, "Too many add VLAN changes in one request\n");
-			count = (IAVF_MAX_AQ_BUF_SIZE - sizeof(*vvfl)) /
-				sizeof(u16);
-			len = sizeof(*vvfl) + (count * sizeof(u16));
+			while (len > IAVF_MAX_AQ_BUF_SIZE)
+				len = virtchnl_struct_size(vvfl, vlan_id,
+							   --count);
 			more = true;
 		}
 		vvfl = kzalloc(len, GFP_ATOMIC);
@@ -838,12 +833,12 @@ void iavf_del_vlans(struct iavf_adapter *adapter)
 
 		adapter->current_op = VIRTCHNL_OP_DEL_VLAN;
 
-		len = sizeof(*vvfl) + (count * sizeof(u16));
+		len = virtchnl_struct_size(vvfl, vlan_id, count);
 		if (len > IAVF_MAX_AQ_BUF_SIZE) {
 			dev_warn(&adapter->pdev->dev, "Too many delete VLAN changes in one request\n");
-			count = (IAVF_MAX_AQ_BUF_SIZE - sizeof(*vvfl)) /
-				sizeof(u16);
-			len = sizeof(*vvfl) + (count * sizeof(u16));
+			while (len > IAVF_MAX_AQ_BUF_SIZE)
+				len = virtchnl_struct_size(vvfl, vlan_id,
+							   --count);
 			more = true;
 		}
 		vvfl = kzalloc(len, GFP_ATOMIC);
@@ -2173,9 +2168,8 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 		}
 		break;
 	case VIRTCHNL_OP_GET_VF_RESOURCES: {
-		u16 len = sizeof(struct virtchnl_vf_resource) +
-			  IAVF_MAX_VF_VSI *
-			  sizeof(struct virtchnl_vsi_resource);
+		u16 len = IAVF_VIRTCHNL_VF_RESOURCE_SIZE;
+
 		memcpy(adapter->vf_res, msg, min(msglen, len));
 		iavf_validate_num_queues(adapter);
 		iavf_vf_parse_hw_config(&adapter->hw, adapter->vf_res);
