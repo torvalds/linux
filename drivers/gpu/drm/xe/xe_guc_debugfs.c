@@ -58,27 +58,9 @@ static int guc_log(struct seq_file *m, void *data)
 	return 0;
 }
 
-#ifdef XE_GUC_CT_SELFTEST
-static int guc_ct_selftest(struct seq_file *m, void *data)
-{
-	struct xe_guc *guc = node_to_guc(m->private);
-	struct xe_device *xe = guc_to_xe(guc);
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	xe_device_mem_access_get(xe);
-	xe_guc_ct_selftest(&guc->ct, &p);
-	xe_device_mem_access_put(xe);
-
-	return 0;
-}
-#endif
-
 static const struct drm_info_list debugfs_list[] = {
 	{"guc_info", guc_info, 0},
 	{"guc_log", guc_log, 0},
-#ifdef XE_GUC_CT_SELFTEST
-	{"guc_ct_selftest", guc_ct_selftest, 0},
-#endif
 };
 
 void xe_guc_debugfs_register(struct xe_guc *guc, struct dentry *parent)

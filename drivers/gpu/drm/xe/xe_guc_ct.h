@@ -25,13 +25,8 @@ void xe_guc_ct_print(struct xe_guc_ct *ct, struct drm_printer *p, bool atomic);
 static inline void xe_guc_ct_irq_handler(struct xe_guc_ct *ct)
 {
 	wake_up_all(&ct->wq);
-#ifdef XE_GUC_CT_SELFTEST
-	if (!ct->suppress_irq_handler && ct->enabled)
-		queue_work(system_unbound_wq, &ct->g2h_worker);
-#else
 	if (ct->enabled)
 		queue_work(system_unbound_wq, &ct->g2h_worker);
-#endif
 	xe_guc_ct_fast_path(ct);
 }
 
@@ -60,9 +55,5 @@ xe_guc_ct_send_block_no_fail(struct xe_guc_ct *ct, const u32 *action, u32 len)
 {
 	return xe_guc_ct_send_recv_no_fail(ct, action, len, NULL);
 }
-
-#ifdef XE_GUC_CT_SELFTEST
-void xe_guc_ct_selftest(struct xe_guc_ct *ct, struct drm_printer *p);
-#endif
 
 #endif
