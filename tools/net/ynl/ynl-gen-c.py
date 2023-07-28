@@ -2125,6 +2125,7 @@ def render_uapi(family, cw):
 
             if const.get('render-max', False):
                 cw.nl()
+                cw.p('/* private: */')
                 if const['type'] == 'flags':
                     max_name = c_upper(name_pfx + 'mask')
                     max_val = f' = {enum.get_mask()},'
