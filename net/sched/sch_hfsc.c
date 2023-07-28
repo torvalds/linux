@@ -1094,8 +1094,10 @@ hfsc_delete_class(struct Qdisc *sch, unsigned long arg,
 	struct hfsc_class *cl = (struct hfsc_class *)arg;
 
 	if (cl->level > 0 || qdisc_class_in_use(&cl->cl_common) ||
-	    cl == &q->root)
+	    cl == &q->root) {
+		NL_SET_ERR_MSG(extack, "HFSC class in use");
 		return -EBUSY;
+	}
 
 	sch_tree_lock(sch);
 
