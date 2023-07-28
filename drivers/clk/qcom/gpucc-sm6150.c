@@ -367,6 +367,7 @@ static struct clk_branch gpu_cc_cxo_aon_clk = {
 	},
 };
 
+/* CLK_DONT_HOLD_STATE flag is needed due to sync_state */
 static struct clk_branch gpu_cc_cxo_clk = {
 	.halt_reg = 0x109c,
 	.halt_check = BRANCH_HALT,
@@ -375,6 +376,7 @@ static struct clk_branch gpu_cc_cxo_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpu_cc_cxo_clk",
+			.flags = CLK_DONT_HOLD_STATE,
 			.ops = &clk_branch2_ops,
 		},
 	},

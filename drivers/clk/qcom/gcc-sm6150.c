@@ -1561,6 +1561,7 @@ static struct clk_branch gcc_ce1_axi_clk = {
 	},
 };
 
+/* CLK_DONT_HOLD_STATE flag is needed due to sync_state */
 static struct clk_branch gcc_ce1_clk = {
 	.halt_reg = 0x41004,
 	.halt_check = BRANCH_HALT_VOTED,
@@ -1569,6 +1570,7 @@ static struct clk_branch gcc_ce1_clk = {
 		.enable_mask = BIT(5),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ce1_clk",
+			.flags = CLK_DONT_HOLD_STATE,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1833,6 +1835,7 @@ static struct clk_branch gcc_gpu_iref_clk = {
 	},
 };
 
+/* CLK_DONT_HOLD_STATE flag is needed due to sync_state */
 static struct clk_branch gcc_gpu_memnoc_gfx_clk = {
 	.halt_reg = 0x7100c,
 	.halt_check = BRANCH_HALT_VOTED,
@@ -1841,11 +1844,13 @@ static struct clk_branch gcc_gpu_memnoc_gfx_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_gpu_memnoc_gfx_clk",
+			.flags = CLK_DONT_HOLD_STATE,
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
+/* CLK_DONT_HOLD_STATE flag is needed due to sync_state */
 static struct clk_branch gcc_gpu_snoc_dvm_gfx_clk = {
 	.halt_reg = 0x71018,
 	.halt_check = BRANCH_HALT,
@@ -1854,6 +1859,7 @@ static struct clk_branch gcc_gpu_snoc_dvm_gfx_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_gpu_snoc_dvm_gfx_clk",
+			.flags = CLK_DONT_HOLD_STATE,
 			.ops = &clk_branch2_ops,
 		},
 	},
