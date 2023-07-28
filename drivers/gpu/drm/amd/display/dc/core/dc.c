@@ -77,6 +77,8 @@
 
 #include "hw_sequencer_private.h"
 
+#include "dml2/dml2_internal_types.h"
+
 #include "dce/dmub_outbox.h"
 
 #define CTX \
@@ -2176,6 +2178,11 @@ struct dc_state *dc_create_state(struct dc *dc)
 
 	init_state(dc, context);
 
+#ifdef CONFIG_DRM_AMD_DC_FP
+	if (dc->debug.using_dml2) {
+		dml2_create(dc, &dc->dml2_options, &context->bw_ctx.dml2);
+	}
+#endif
 	kref_init(&context->refcount);
 
 	return context;
@@ -2185,10 +2192,24 @@ struct dc_state *dc_copy_state(struct dc_state *src_ctx)
 {
 	int i, j;
 	struct dc_state *new_ctx = kvmalloc(sizeof(struct dc_state), GFP_KERNEL);
+#ifdef CONFIG_DRM_AMD_DC_FP
+	struct dml2_context *dml2 =  NULL;
+#endif
 
 	if (!new_ctx)
 		return NULL;
 	memcpy(new_ctx, src_ctx, sizeof(struct dc_state));
+
+#ifdef CONFIG_DRM_AMD_DC_FP
+	if (new_ctx->bw_ctx.dml2) {
+		dml2 = kzalloc(sizeof(struct dml2_context), GFP_KERNEL);
+		if (!dml2)
+			return NULL;
+
+		memcpy(dml2, src_ctx->bw_ctx.dml2, sizeof(struct dml2_context));
+		new_ctx->bw_ctx.dml2 = dml2;
+	}
+#endif
 
 	for (i = 0; i < MAX_PIPES; i++) {
 			struct pipe_ctx *cur_pipe = &new_ctx->res_ctx.pipe_ctx[i];
@@ -2228,6 +2249,12 @@ static void dc_state_free(struct kref *kref)
 {
 	struct dc_state *context = container_of(kref, struct dc_state, refcount);
 	dc_resource_state_destruct(context);
+
+#ifdef CONFIG_DRM_AMD_DC_FP
+	dml2_destroy(context->bw_ctx.dml2);
+	context->bw_ctx.dml2 = 0;
+#endif
+
 	kvfree(context);
 }
 
@@ -4679,6 +4706,9 @@ bool dc_set_power_state(
 {
 	struct kref refcount;
 	struct display_mode_lib *dml;
+#ifdef CONFIG_DRM_AMD_DC_FP
+	struct dml2_context *dml2 = NULL;
+#endif
 
 	if (!dc->current_state)
 		return true;
@@ -4698,6 +4728,10 @@ bool dc_set_power_state(
 
 		break;
 	default:
+#ifdef CONFIG_DRM_AMD_DC_FP
+		if (dc->debug.using_dml2)
+			dml2 = dc->current_state->bw_ctx.dml2;
+#endif
 		ASSERT(dc->current_state->stream_count == 0);
 		/* Zero out the current context so that on resume we start with
 		 * clean state, and dc hw programming optimizations will not
@@ -4723,6 +4757,11 @@ bool dc_set_power_state(
 		dc->current_state->bw_ctx.dml = *dml;
 
 		kfree(dml);
+
+#ifdef CONFIG_DRM_AMD_DC_FP
+		if (dc->debug.using_dml2)
+			dc->current_state->bw_ctx.dml2 = dml2;
+#endif
 
 		break;
 	}

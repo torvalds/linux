@@ -41,6 +41,7 @@
 #include "dpcd_defs.h"
 #include "link_enc_cfg.h"
 #include "link.h"
+#include "clk_mgr.h"
 #include "virtual/virtual_link_hwss.h"
 #include "link/hwss/link_hwss_dio.h"
 #include "link/hwss/link_hwss_dpia.h"
@@ -85,6 +86,8 @@
 #define DC_LOGGER \
 	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
+
+#include "dml2/dml2_wrapper.h"
 
 #define UNABLE_TO_SPLIT -1
 
@@ -318,6 +321,10 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 				res_pool->ref_clocks.xtalin_clock_inKhz;
 			res_pool->ref_clocks.dchub_ref_clock_inKhz =
 				res_pool->ref_clocks.xtalin_clock_inKhz;
+			if ((res_pool->hubbub->funcs->get_dchub_ref_freq))
+				res_pool->hubbub->funcs->get_dchub_ref_freq(res_pool->hubbub,
+					res_pool->ref_clocks.dccg_ref_clock_inKhz,
+					&res_pool->ref_clocks.dchub_ref_clock_inKhz);
 		} else
 			ASSERT_CRITICAL(false);
 	}
@@ -4358,8 +4365,21 @@ void dc_resource_state_copy_construct(
 {
 	int i, j;
 	struct kref refcount = dst_ctx->refcount;
+#ifdef CONFIG_DRM_AMD_DC_FP
+	struct dml2_context *dml2 = NULL;
+
+	// Need to preserve allocated dml2 context
+	if (src_ctx->clk_mgr->ctx->dc->debug.using_dml2)
+		dml2 = dst_ctx->bw_ctx.dml2;
+#endif
 
 	*dst_ctx = *src_ctx;
+
+#ifdef CONFIG_DRM_AMD_DC_FP
+	// Preserve allocated dml2 context
+	if (src_ctx->clk_mgr->ctx->dc->debug.using_dml2)
+		dst_ctx->bw_ctx.dml2 = dml2;
+#endif
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *cur_pipe = &dst_ctx->res_ctx.pipe_ctx[i];

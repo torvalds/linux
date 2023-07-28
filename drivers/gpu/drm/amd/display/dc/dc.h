@@ -40,6 +40,8 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
+#include "dml2/dml2_wrapper.h"
+
 struct abm_save_restore;
 
 /* forward declaration */
@@ -942,6 +944,7 @@ struct dc_debug_options {
 	bool dml_disallow_alternate_prefetch_modes;
 	bool use_legacy_soc_bb_mechanism;
 	bool exit_idle_opt_for_cursor_updates;
+	bool using_dml2;
 	bool enable_single_display_2to1_odm_policy;
 	bool enable_double_buffered_dsc_pg_support;
 	bool enable_dp_dig_pixel_rate_div_policy;
@@ -1049,6 +1052,8 @@ struct dc {
 			struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
 		} update_bw_bounding_box;
 	} scratch;
+
+	struct dml2_configuration_options dml2_options;
 };
 
 enum frame_buffer_mode {
