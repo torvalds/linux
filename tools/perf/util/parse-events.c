@@ -2716,9 +2716,6 @@ int parse_events_term__clone(struct parse_events_term **new,
 
 void parse_events_term__delete(struct parse_events_term *term)
 {
-	if (term->array.nr_ranges)
-		zfree(&term->array.ranges);
-
 	if (term->type_val != PARSE_EVENTS__TERM_TYPE_NUM)
 		zfree(&term->val.str);
 
@@ -2767,11 +2764,6 @@ void parse_events_terms__delete(struct list_head *terms)
 		return;
 	parse_events_terms__purge(terms);
 	free(terms);
-}
-
-void parse_events__clear_array(struct parse_events_array *a)
-{
-	zfree(&a->ranges);
 }
 
 void parse_events_evlist_error(struct parse_events_state *parse_state,

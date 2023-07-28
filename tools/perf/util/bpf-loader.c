@@ -1088,16 +1088,12 @@ enum bpf_map_op_type {
 
 enum bpf_map_key_type {
 	BPF_MAP_KEY_ALL,
-	BPF_MAP_KEY_RANGES,
 };
 
 struct bpf_map_op {
 	struct list_head list;
 	enum bpf_map_op_type op_type;
 	enum bpf_map_key_type key_type;
-	union {
-		struct parse_events_array array;
-	} k;
 	union {
 		u64 value;
 		struct evsel *evsel;
@@ -1113,8 +1109,6 @@ bpf_map_op__delete(struct bpf_map_op *op)
 {
 	if (!list_empty(&op->list))
 		list_del_init(&op->list);
-	if (op->key_type == BPF_MAP_KEY_RANGES)
-		parse_events__clear_array(&op->k.array);
 	free(op);
 }
 
@@ -1193,18 +1187,6 @@ bpf_map_op_setkey(struct bpf_map_op *op, struct parse_events_term *term)
 	if (!term)
 		return 0;
 
-	if (term->array.nr_ranges) {
-		size_t memsz = term->array.nr_ranges *
-				sizeof(op->k.array.ranges[0]);
-
-		op->k.array.ranges = memdup(term->array.ranges, memsz);
-		if (!op->k.array.ranges) {
-			pr_debug("Not enough memory to alloc indices for map\n");
-			return -ENOMEM;
-		}
-		op->key_type = BPF_MAP_KEY_RANGES;
-		op->k.array.nr_ranges = term->array.nr_ranges;
-	}
 	return 0;
 }
 
@@ -1241,18 +1223,6 @@ bpf_map_op__clone(struct bpf_map_op *op)
 	}
 
 	INIT_LIST_HEAD(&newop->list);
-	if (op->key_type == BPF_MAP_KEY_RANGES) {
-		size_t memsz = op->k.array.nr_ranges *
-			       sizeof(op->k.array.ranges[0]);
-
-		newop->k.array.ranges = memdup(op->k.array.ranges, memsz);
-		if (!newop->k.array.ranges) {
-			pr_debug("Failed to alloc indices for map\n");
-			free(newop);
-			return NULL;
-		}
-	}
-
 	return newop;
 }
 
@@ -1454,40 +1424,6 @@ struct bpf_obj_config__map_func bpf_obj_config__map_funcs[] = {
 };
 
 static int
-config_map_indices_range_check(struct parse_events_term *term,
-			       struct bpf_map *map,
-			       const char *map_name)
-{
-	struct parse_events_array *array = &term->array;
-	unsigned int i;
-
-	if (!array->nr_ranges)
-		return 0;
-	if (!array->ranges) {
-		pr_debug("ERROR: map %s: array->nr_ranges is %d but range array is NULL\n",
-			 map_name, (int)array->nr_ranges);
-		return -BPF_LOADER_ERRNO__INTERNAL;
-	}
-
-	if (!map) {
-		pr_debug("Map '%s' is invalid\n", map_name);
-		return -BPF_LOADER_ERRNO__INTERNAL;
-	}
-
-	for (i = 0; i < array->nr_ranges; i++) {
-		unsigned int start = array->ranges[i].start;
-		size_t length = array->ranges[i].length;
-		unsigned int idx = start + length - 1;
-
-		if (idx >= bpf_map__max_entries(map)) {
-			pr_debug("ERROR: index %d too large\n", idx);
-			return -BPF_LOADER_ERRNO__OBJCONF_MAP_IDX2BIG;
-		}
-	}
-	return 0;
-}
-
-static int
 bpf__obj_config_map(struct bpf_object *obj,
 		    struct parse_events_term *term,
 		    struct evlist *evlist,
@@ -1521,12 +1457,6 @@ bpf__obj_config_map(struct bpf_object *obj,
 		err = -BPF_LOADER_ERRNO__OBJCONF_MAP_NOTEXIST;
 		goto out;
 	}
-
-	*key_scan_pos += strlen(map_opt);
-	err = config_map_indices_range_check(term, map, map_name);
-	if (err)
-		goto out;
-	*key_scan_pos -= strlen(map_opt);
 
 	for (i = 0; i < ARRAY_SIZE(bpf_obj_config__map_funcs); i++) {
 		struct bpf_obj_config__map_func *func =
@@ -1576,7 +1506,6 @@ typedef int (*map_config_func_t)(const char *name, int map_fd,
 				 const struct bpf_map *map,
 				 struct bpf_map_op *op,
 				 void *pkey, void *arg);
-
 static int
 foreach_key_array_all(map_config_func_t func,
 		      void *arg, const char *name,
@@ -1597,32 +1526,6 @@ foreach_key_array_all(map_config_func_t func,
 	return 0;
 }
 
-static int
-foreach_key_array_ranges(map_config_func_t func, void *arg,
-			 const char *name, int map_fd,
-			 const struct bpf_map *map,
-			 struct bpf_map_op *op)
-{
-	unsigned int i, j;
-	int err;
-
-	for (i = 0; i < op->k.array.nr_ranges; i++) {
-		unsigned int start = op->k.array.ranges[i].start;
-		size_t length = op->k.array.ranges[i].length;
-
-		for (j = 0; j < length; j++) {
-			unsigned int idx = start + j;
-
-			err = func(name, map_fd, map, op, &idx, arg);
-			if (err) {
-				pr_debug("ERROR: failed to insert value to %s[%u]\n",
-					 name, idx);
-				return err;
-			}
-		}
-	}
-	return 0;
-}
 
 static int
 bpf_map_config_foreach_key(struct bpf_map *map,
@@ -1662,10 +1565,6 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 			case BPF_MAP_KEY_ALL:
 				err = foreach_key_array_all(func, arg, name,
 							    map_fd, map, op);
-				break;
-			case BPF_MAP_KEY_RANGES:
-				err = foreach_key_array_ranges(func, arg, name,
-							       map_fd, map, op);
 				break;
 			default:
 				pr_debug("ERROR: keytype for map '%s' invalid\n",

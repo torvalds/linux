@@ -81,17 +81,8 @@ enum {
 	__PARSE_EVENTS__TERM_TYPE_NR,
 };
 
-struct parse_events_array {
-	size_t nr_ranges;
-	struct {
-		unsigned int start;
-		size_t length;
-	} *ranges;
-};
-
 struct parse_events_term {
 	char *config;
-	struct parse_events_array array;
 	union {
 		char *str;
 		u64  num;
@@ -162,7 +153,6 @@ int parse_events_term__clone(struct parse_events_term **new,
 void parse_events_term__delete(struct parse_events_term *term);
 void parse_events_terms__delete(struct list_head *terms);
 void parse_events_terms__purge(struct list_head *terms);
-void parse_events__clear_array(struct parse_events_array *a);
 int parse_events__modifier_event(struct list_head *list, char *str, bool add);
 int parse_events__modifier_group(struct list_head *list, char *event_mod);
 int parse_events_name(struct list_head *list, const char *name);
