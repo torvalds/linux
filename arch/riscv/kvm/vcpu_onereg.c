@@ -152,6 +152,9 @@ static int kvm_riscv_vcpu_get_reg_config(struct kvm_vcpu *vcpu,
 	case KVM_REG_RISCV_CONFIG_REG(mimpid):
 		reg_val = vcpu->arch.mimpid;
 		break;
+	case KVM_REG_RISCV_CONFIG_REG(satp_mode):
+		reg_val = satp_mode >> SATP_MODE_SHIFT;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -233,6 +236,10 @@ static int kvm_riscv_vcpu_set_reg_config(struct kvm_vcpu *vcpu,
 			vcpu->arch.mimpid = reg_val;
 		else
 			return -EBUSY;
+		break;
+	case KVM_REG_RISCV_CONFIG_REG(satp_mode):
+		if (reg_val != (satp_mode >> SATP_MODE_SHIFT))
+			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
