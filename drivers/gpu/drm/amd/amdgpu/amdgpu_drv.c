@@ -756,20 +756,6 @@ MODULE_PARM_DESC(debug_largebar,
 	"Debug large-bar flag used to simulate large-bar capability on non-large bar machine (0 = disable, 1 = enable)");
 
 /**
- * DOC: ignore_crat (int)
- * Ignore CRAT table during KFD initialization. By default, KFD uses the ACPI CRAT
- * table to get information about AMD APUs. This option can serve as a workaround on
- * systems with a broken CRAT table.
- *
- * Default is auto (according to asic type, iommu_v2, and crat table, to decide
- * whether use CRAT)
- */
-int ignore_crat;
-module_param(ignore_crat, int, 0444);
-MODULE_PARM_DESC(ignore_crat,
-	"Ignore CRAT table during KFD initialization (0 = auto (default), 1 = ignore CRAT)");
-
-/**
  * DOC: halt_if_hws_hang (int)
  * Halt if HWS hang is detected. Default value, 0, disables the halt on hang.
  * Setting 1 enables halt on hang.

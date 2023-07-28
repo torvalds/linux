@@ -34,31 +34,18 @@ static bool set_cache_memory_policy_cik(struct device_queue_manager *dqm,
 				   void __user *alternate_aperture_base,
 				   uint64_t alternate_aperture_size);
 static int update_qpd_cik(struct device_queue_manager *dqm,
-					struct qcm_process_device *qpd);
-static int update_qpd_cik_hawaii(struct device_queue_manager *dqm,
-					struct qcm_process_device *qpd);
-static void init_sdma_vm(struct device_queue_manager *dqm, struct queue *q,
-				struct qcm_process_device *qpd);
-static void init_sdma_vm_hawaii(struct device_queue_manager *dqm,
-				struct queue *q,
-				struct qcm_process_device *qpd);
+			  struct qcm_process_device *qpd);
+static void init_sdma_vm(struct device_queue_manager *dqm,
+			 struct queue *q,
+			 struct qcm_process_device *qpd);
 
 void device_queue_manager_init_cik(
-		struct device_queue_manager_asic_ops *asic_ops)
+	struct device_queue_manager_asic_ops *asic_ops)
 {
 	asic_ops->set_cache_memory_policy = set_cache_memory_policy_cik;
 	asic_ops->update_qpd = update_qpd_cik;
 	asic_ops->init_sdma_vm = init_sdma_vm;
 	asic_ops->mqd_manager_init = mqd_manager_init_cik;
-}
-
-void device_queue_manager_init_cik_hawaii(
-		struct device_queue_manager_asic_ops *asic_ops)
-{
-	asic_ops->set_cache_memory_policy = set_cache_memory_policy_cik;
-	asic_ops->update_qpd = update_qpd_cik_hawaii;
-	asic_ops->init_sdma_vm = init_sdma_vm_hawaii;
-	asic_ops->mqd_manager_init = mqd_manager_init_cik_hawaii;
 }
 
 static uint32_t compute_sh_mem_bases_64bit(unsigned int top_address_nybble)
@@ -115,41 +102,7 @@ static bool set_cache_memory_policy_cik(struct device_queue_manager *dqm,
 }
 
 static int update_qpd_cik(struct device_queue_manager *dqm,
-		struct qcm_process_device *qpd)
-{
-	struct kfd_process_device *pdd;
-	unsigned int temp;
-
-	pdd = qpd_to_pdd(qpd);
-
-	/* check if sh_mem_config register already configured */
-	if (qpd->sh_mem_config == 0) {
-		qpd->sh_mem_config =
-			ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED) |
-			DEFAULT_MTYPE(MTYPE_NONCACHED) |
-			APE1_MTYPE(MTYPE_NONCACHED);
-		qpd->sh_mem_ape1_limit = 0;
-		qpd->sh_mem_ape1_base = 0;
-	}
-
-	if (qpd->pqm->process->is_32bit_user_mode) {
-		temp = get_sh_mem_bases_32(pdd);
-		qpd->sh_mem_bases = SHARED_BASE(temp);
-		qpd->sh_mem_config |= PTR32;
-	} else {
-		temp = get_sh_mem_bases_nybble_64(pdd);
-		qpd->sh_mem_bases = compute_sh_mem_bases_64bit(temp);
-		qpd->sh_mem_config |= 1  << SH_MEM_CONFIG__PRIVATE_ATC__SHIFT;
-	}
-
-	pr_debug("is32bit process: %d sh_mem_bases nybble: 0x%X and register 0x%X\n",
-		qpd->pqm->process->is_32bit_user_mode, temp, qpd->sh_mem_bases);
-
-	return 0;
-}
-
-static int update_qpd_cik_hawaii(struct device_queue_manager *dqm,
-		struct qcm_process_device *qpd)
+			  struct qcm_process_device *qpd)
 {
 	struct kfd_process_device *pdd;
 	unsigned int temp;
@@ -178,25 +131,9 @@ static int update_qpd_cik_hawaii(struct device_queue_manager *dqm,
 	return 0;
 }
 
-static void init_sdma_vm(struct device_queue_manager *dqm, struct queue *q,
-				struct qcm_process_device *qpd)
-{
-	uint32_t value = (1 << SDMA0_RLC0_VIRTUAL_ADDR__ATC__SHIFT);
-
-	if (q->process->is_32bit_user_mode)
-		value |= (1 << SDMA0_RLC0_VIRTUAL_ADDR__PTR32__SHIFT) |
-				get_sh_mem_bases_32(qpd_to_pdd(qpd));
-	else
-		value |= ((get_sh_mem_bases_nybble_64(qpd_to_pdd(qpd))) <<
-				SDMA0_RLC0_VIRTUAL_ADDR__SHARED_BASE__SHIFT) &
-				SDMA0_RLC0_VIRTUAL_ADDR__SHARED_BASE_MASK;
-
-	q->properties.sdma_vm_addr = value;
-}
-
-static void init_sdma_vm_hawaii(struct device_queue_manager *dqm,
-				struct queue *q,
-				struct qcm_process_device *qpd)
+static void init_sdma_vm(struct device_queue_manager *dqm,
+			 struct queue *q,
+			 struct qcm_process_device *qpd)
 {
 	/* On dGPU we're always in GPUVM64 addressing mode with 64-bit
 	 * aperture addresses.

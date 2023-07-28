@@ -322,28 +322,19 @@ static void kfd_init_apertures_vi(struct kfd_process_device *pdd, uint8_t id)
 	pdd->lds_base = MAKE_LDS_APP_BASE_VI();
 	pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
 
-	if (!pdd->dev->kfd->use_iommu_v2) {
-		/* dGPUs: SVM aperture starting at 0
-		 * with small reserved space for kernel.
-		 * Set them to CANONICAL addresses.
-		 */
-		pdd->gpuvm_base = SVM_USER_BASE;
-		pdd->gpuvm_limit =
-			pdd->dev->kfd->shared_resources.gpuvm_size - 1;
+	/* dGPUs: SVM aperture starting at 0
+	 * with small reserved space for kernel.
+	 * Set them to CANONICAL addresses.
+	 */
+	pdd->gpuvm_base = SVM_USER_BASE;
+	pdd->gpuvm_limit =
+		pdd->dev->kfd->shared_resources.gpuvm_size - 1;
 
-		/* dGPUs: the reserved space for kernel
-		 * before SVM
-		 */
-		pdd->qpd.cwsr_base = SVM_CWSR_BASE;
-		pdd->qpd.ib_base = SVM_IB_BASE;
-	} else {
-		/* set them to non CANONICAL addresses, and no SVM is
-		 * allocated.
-		 */
-		pdd->gpuvm_base = MAKE_GPUVM_APP_BASE_VI(id + 1);
-		pdd->gpuvm_limit = MAKE_GPUVM_APP_LIMIT(pdd->gpuvm_base,
-				pdd->dev->kfd->shared_resources.gpuvm_size);
-	}
+	/* dGPUs: the reserved space for kernel
+	 * before SVM
+	 */
+	pdd->qpd.cwsr_base = SVM_CWSR_BASE;
+	pdd->qpd.ib_base = SVM_IB_BASE;
 
 	pdd->scratch_base = MAKE_SCRATCH_APP_BASE_VI();
 	pdd->scratch_limit = MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
@@ -361,13 +352,11 @@ static void kfd_init_apertures_v9(struct kfd_process_device *pdd, uint8_t id)
 	pdd->scratch_base = MAKE_SCRATCH_APP_BASE_V9();
 	pdd->scratch_limit = MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
 
-	if (!pdd->dev->kfd->use_iommu_v2) {
-		/*
-		 * Place TBA/TMA on opposite side of VM hole to prevent
-		 * stray faults from triggering SVM on these pages.
-		 */
-		pdd->qpd.cwsr_base = pdd->dev->kfd->shared_resources.gpuvm_size;
-	}
+	/*
+	 * Place TBA/TMA on opposite side of VM hole to prevent
+	 * stray faults from triggering SVM on these pages.
+	 */
+	pdd->qpd.cwsr_base = pdd->dev->kfd->shared_resources.gpuvm_size;
 }
 
 int kfd_init_apertures(struct kfd_process *process)

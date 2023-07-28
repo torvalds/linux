@@ -3236,12 +3236,6 @@ static int amdgpu_device_ip_resume(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (!adev->in_s0ix) {
-		r = amdgpu_amdkfd_resume_iommu(adev);
-		if (r)
-			return r;
-	}
-
 	r = amdgpu_device_ip_resume_phase1(adev);
 	if (r)
 		return r;
@@ -4946,9 +4940,6 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 				dev_warn(tmp_adev->dev, "asic atom init failed!");
 			} else {
 				dev_info(tmp_adev->dev, "GPU reset succeeded, trying to resume\n");
-				r = amdgpu_amdkfd_resume_iommu(tmp_adev);
-				if (r)
-					goto out;
 
 				r = amdgpu_device_ip_resume_phase1(tmp_adev);
 				if (r)

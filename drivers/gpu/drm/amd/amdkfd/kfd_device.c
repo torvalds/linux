@@ -29,7 +29,6 @@
 #include "kfd_pm4_headers_vi.h"
 #include "kfd_pm4_headers_aldebaran.h"
 #include "cwsr_trap_handler.h"
-#include "kfd_iommu.h"
 #include "amdgpu_amdkfd.h"
 #include "kfd_smi_events.h"
 #include "kfd_svm.h"
@@ -62,7 +61,6 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 				unsigned int chunk_size);
 static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
 
-static int kfd_resume_iommu(struct kfd_dev *kfd);
 static int kfd_resume(struct kfd_node *kfd);
 
 static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
@@ -755,15 +753,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd->noretry = kfd->adev->gmc.noretry;
 
-	/* If CRAT is broken, won't set iommu enabled */
-	kfd_double_confirm_iommu_support(kfd);
-
-	if (kfd_iommu_device_init(kfd)) {
-		kfd->use_iommu_v2 = false;
-		dev_err(kfd_device, "Error initializing iommuv2\n");
-		goto device_iommu_error;
-	}
-
 	kfd_cwsr_init(kfd);
 
 	dev_info(kfd_device, "Total number of KFD nodes to be created: %d\n",
@@ -838,9 +827,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	svm_range_set_max_pages(kfd->adev);
 
-	if (kfd_resume_iommu(kfd))
-		goto kfd_resume_iommu_error;
-
 	spin_lock_init(&kfd->watch_points_lock);
 
 	kfd->init_complete = true;
@@ -852,11 +838,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	goto out;
 
-kfd_resume_iommu_error:
 node_init_error:
 node_alloc_error:
 	kfd_cleanup_nodes(kfd, i);
-device_iommu_error:
 	kfd_doorbell_fini(kfd);
 kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
@@ -971,7 +955,6 @@ void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm)
 		node = kfd->nodes[i];
 		node->dqm->ops.stop(node->dqm);
 	}
-	kfd_iommu_suspend(kfd);
 }
 
 int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm)
@@ -999,26 +982,6 @@ int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm)
 	}
 
 	return ret;
-}
-
-int kgd2kfd_resume_iommu(struct kfd_dev *kfd)
-{
-	if (!kfd->init_complete)
-		return 0;
-
-	return kfd_resume_iommu(kfd);
-}
-
-static int kfd_resume_iommu(struct kfd_dev *kfd)
-{
-	int err = 0;
-
-	err = kfd_iommu_resume(kfd);
-	if (err)
-		dev_err(kfd_device,
-			"Failed to resume IOMMU for device %x:%x\n",
-			kfd->adev->pdev->vendor, kfd->adev->pdev->device);
-	return err;
 }
 
 static int kfd_resume(struct kfd_node *node)

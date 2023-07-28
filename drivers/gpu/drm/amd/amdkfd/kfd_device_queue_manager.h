@@ -269,11 +269,7 @@ struct device_queue_manager {
 
 void device_queue_manager_init_cik(
 		struct device_queue_manager_asic_ops *asic_ops);
-void device_queue_manager_init_cik_hawaii(
-		struct device_queue_manager_asic_ops *asic_ops);
 void device_queue_manager_init_vi(
-		struct device_queue_manager_asic_ops *asic_ops);
-void device_queue_manager_init_vi_tonga(
 		struct device_queue_manager_asic_ops *asic_ops);
 void device_queue_manager_init_v9(
 		struct device_queue_manager_asic_ops *asic_ops);

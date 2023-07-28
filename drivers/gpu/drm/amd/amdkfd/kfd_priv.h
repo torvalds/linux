@@ -175,12 +175,6 @@ extern int send_sigterm;
  */
 extern int debug_largebar;
 
-/*
- * Ignore CRAT table during KFD initialization, can be used to work around
- * broken CRAT tables on some AMD systems
- */
-extern int ignore_crat;
-
 /* Set sh_mem_config.retry_disable on GFX v9 */
 extern int amdgpu_noretry;
 
@@ -234,7 +228,6 @@ struct kfd_device_info {
 	uint8_t num_of_watch_points;
 	uint16_t mqd_size_aligned;
 	bool supports_cwsr;
-	bool needs_iommu_device;
 	bool needs_pci_atomics;
 	uint32_t no_atomic_fw_version;
 	unsigned int num_sdma_queues_per_engine;
@@ -356,9 +349,6 @@ struct kfd_dev {
 	uint64_t hive_id;
 
 	bool pci_atomic_requested;
-
-	/* Use IOMMU v2 flag */
-	bool use_iommu_v2;
 
 	/* Compute Profile ref. count */
 	atomic_t compute_profile;
@@ -1149,7 +1139,6 @@ static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
 }
 int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_node **kdev);
 int kfd_numa_node_to_apic_id(int numa_node_id);
-void kfd_double_confirm_iommu_support(struct kfd_dev *gpu);
 
 /* Interrupts */
 #define	KFD_IRQ_FENCE_CLIENTID	0xff
@@ -1296,11 +1285,7 @@ void print_queue(struct queue *q);
 
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
-struct mqd_manager *mqd_manager_init_cik_hawaii(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev);
 struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev);
-struct mqd_manager *mqd_manager_init_vi_tonga(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
 struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
@@ -1456,9 +1441,6 @@ int kfd_wait_on_events(struct kfd_process *p,
 		       uint32_t *wait_result);
 void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 				uint32_t valid_id_bits);
-void kfd_signal_iommu_event(struct kfd_node *dev,
-			    u32 pasid, unsigned long address,
-			    bool is_write_requested, bool is_execute_requested);
 void kfd_signal_hw_exception_event(u32 pasid);
 int kfd_set_event(struct kfd_process *p, uint32_t event_id);
 int kfd_reset_event(struct kfd_process *p, uint32_t event_id);

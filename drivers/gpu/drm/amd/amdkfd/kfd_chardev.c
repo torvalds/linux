@@ -1026,9 +1026,6 @@ bool kfd_dev_is_large_bar(struct kfd_node *dev)
 		return true;
 	}
 
-	if (dev->kfd->use_iommu_v2)
-		return false;
-
 	if (dev->local_mem_info.local_mem_size_private == 0 &&
 	    dev->local_mem_info.local_mem_size_public > 0)
 		return true;

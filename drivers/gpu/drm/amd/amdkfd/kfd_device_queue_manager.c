@@ -2560,7 +2560,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_node *dev)
 	switch (dev->adev->asic_type) {
 	case CHIP_KAVERI:
 	case CHIP_HAWAII:
-		device_queue_manager_init_cik_hawaii(&dqm->asic_ops);
+		device_queue_manager_init_cik(&dqm->asic_ops);
 		break;
 
 	case CHIP_CARRIZO:
@@ -2570,7 +2570,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_node *dev)
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
 	case CHIP_VEGAM:
-		device_queue_manager_init_vi_tonga(&dqm->asic_ops);
+		device_queue_manager_init_vi(&dqm->asic_ops);
 		break;
 
 	default:
