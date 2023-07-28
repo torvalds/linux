@@ -907,6 +907,38 @@ static int ethtool_rxnfc_copy_to_compat(void __user *useraddr,
 	return 0;
 }
 
+static int ethtool_rxnfc_copy_struct(u32 cmd, struct ethtool_rxnfc *info,
+				     size_t *info_size, void __user *useraddr)
+{
+	/* struct ethtool_rxnfc was originally defined for
+	 * ETHTOOL_{G,S}RXFH with only the cmd, flow_type and data
+	 * members.  User-space might still be using that
+	 * definition.
+	 */
+	if (cmd == ETHTOOL_GRXFH || cmd == ETHTOOL_SRXFH)
+		*info_size = (offsetof(struct ethtool_rxnfc, data) +
+			      sizeof(info->data));
+
+	if (ethtool_rxnfc_copy_from_user(info, useraddr, *info_size))
+		return -EFAULT;
+
+	if ((cmd == ETHTOOL_GRXFH || cmd == ETHTOOL_SRXFH) && info->flow_type & FLOW_RSS) {
+		*info_size = sizeof(*info);
+		if (ethtool_rxnfc_copy_from_user(info, useraddr, *info_size))
+			return -EFAULT;
+		/* Since malicious users may modify the original data,
+		 * we need to check whether FLOW_RSS is still requested.
+		 */
+		if (!(info->flow_type & FLOW_RSS))
+			return -EINVAL;
+	}
+
+	if (info->cmd != cmd)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int ethtool_rxnfc_copy_to_user(void __user *useraddr,
 				      const struct ethtool_rxnfc *rxnfc,
 				      size_t size, const u32 *rule_buf)
@@ -944,16 +976,9 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 	if (!dev->ethtool_ops->set_rxnfc)
 		return -EOPNOTSUPP;
 
-	/* struct ethtool_rxnfc was originally defined for
-	 * ETHTOOL_{G,S}RXFH with only the cmd, flow_type and data
-	 * members.  User-space might still be using that
-	 * definition. */
-	if (cmd == ETHTOOL_SRXFH)
-		info_size = (offsetof(struct ethtool_rxnfc, data) +
-			     sizeof(info.data));
-
-	if (ethtool_rxnfc_copy_from_user(&info, useraddr, info_size))
-		return -EFAULT;
+	rc = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
+	if (rc)
+		return rc;
 
 	rc = dev->ethtool_ops->set_rxnfc(dev, &info);
 	if (rc)
@@ -978,33 +1003,9 @@ static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
 	if (!ops->get_rxnfc)
 		return -EOPNOTSUPP;
 
-	/* struct ethtool_rxnfc was originally defined for
-	 * ETHTOOL_{G,S}RXFH with only the cmd, flow_type and data
-	 * members.  User-space might still be using that
-	 * definition. */
-	if (cmd == ETHTOOL_GRXFH)
-		info_size = (offsetof(struct ethtool_rxnfc, data) +
-			     sizeof(info.data));
-
-	if (ethtool_rxnfc_copy_from_user(&info, useraddr, info_size))
-		return -EFAULT;
-
-	/* If FLOW_RSS was requested then user-space must be using the
-	 * new definition, as FLOW_RSS is newer.
-	 */
-	if (cmd == ETHTOOL_GRXFH && info.flow_type & FLOW_RSS) {
-		info_size = sizeof(info);
-		if (ethtool_rxnfc_copy_from_user(&info, useraddr, info_size))
-			return -EFAULT;
-		/* Since malicious users may modify the original data,
-		 * we need to check whether FLOW_RSS is still requested.
-		 */
-		if (!(info.flow_type & FLOW_RSS))
-			return -EINVAL;
-	}
-
-	if (info.cmd != cmd)
-		return -EINVAL;
+	ret = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
+	if (ret)
+		return ret;
 
 	if (info.cmd == ETHTOOL_GRXCLSRLALL) {
 		if (info.rule_cnt > 0) {
