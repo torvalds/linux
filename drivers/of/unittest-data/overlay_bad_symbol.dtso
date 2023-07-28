@@ -8,8 +8,8 @@
 	// in the base tree
 	hvac_1: hvac-medium-2 {
 		compatible = "ot,hvac-medium";
-		heat-range = < 50 75 >;
-		cool-range = < 60 80 >;
+		heat-range = <50 75>;
+		cool-range = <60 80>;
 	};
 
 };
