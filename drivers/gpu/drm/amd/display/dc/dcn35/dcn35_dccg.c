@@ -641,24 +641,29 @@ static void dccg35_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst
 
 	switch (stream_enc_inst) {
 	case 0:
-		REG_UPDATE(SYMCLKA_CLOCK_ENABLE,
-				SYMCLKA_FE_EN, 0);
+		REG_UPDATE_2(SYMCLKA_CLOCK_ENABLE,
+				SYMCLKA_FE_EN, 0,
+				SYMCLKA_FE_SRC_SEL, 0);
 		break;
 	case 1:
-		REG_UPDATE(SYMCLKB_CLOCK_ENABLE,
-				SYMCLKB_FE_EN, 0);
+		REG_UPDATE_2(SYMCLKB_CLOCK_ENABLE,
+				SYMCLKB_FE_EN, 0,
+				SYMCLKB_FE_SRC_SEL, 0);
 		break;
 	case 2:
-		REG_UPDATE(SYMCLKC_CLOCK_ENABLE,
-				SYMCLKC_FE_EN, 0);
+		REG_UPDATE_2(SYMCLKC_CLOCK_ENABLE,
+				SYMCLKC_FE_EN, 0,
+				SYMCLKC_FE_SRC_SEL, 0);
 		break;
 	case 3:
-		REG_UPDATE(SYMCLKD_CLOCK_ENABLE,
-				SYMCLKD_FE_EN, 0);
+		REG_UPDATE_2(SYMCLKD_CLOCK_ENABLE,
+				SYMCLKD_FE_EN, 0,
+				SYMCLKD_FE_SRC_SEL, 0);
 		break;
 	case 4:
-		REG_UPDATE(SYMCLKE_CLOCK_ENABLE,
-				SYMCLKE_FE_EN, 0);
+		REG_UPDATE_2(SYMCLKE_CLOCK_ENABLE,
+				SYMCLKE_FE_EN, 0,
+				SYMCLKE_FE_SRC_SEL, 0);
 		break;
 	}
 
