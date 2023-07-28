@@ -1092,7 +1092,6 @@ static int lpg_add_pwm(struct lpg *lpg)
 {
 	int ret;
 
-	lpg->pwm.base = -1;
 	lpg->pwm.dev = lpg->dev;
 	lpg->pwm.npwm = lpg->num_channels;
 	lpg->pwm.ops = &lpg_pwm_ops;
