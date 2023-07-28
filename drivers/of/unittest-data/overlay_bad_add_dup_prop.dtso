@@ -32,7 +32,7 @@
 };
 
 &spin_ctrl_1 {
-		electric {
-			rpm_avail = < 100 200 >;
-		};
+	electric {
+		rpm_avail = < 100 200 >;
+	};
 };

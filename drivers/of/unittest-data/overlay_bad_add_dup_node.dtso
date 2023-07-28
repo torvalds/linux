@@ -21,7 +21,7 @@
 };
 
 &spin_ctrl_1 {
-		controller {
-			power_bus_emergency = < 0x101 0x102 >;
-		};
+	controller {
+		power_bus_emergency = < 0x101 0x102 >;
+	};
 };
