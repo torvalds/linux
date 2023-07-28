@@ -80,6 +80,7 @@
 	 TCAN4X5X_MCAN_IR_RF1F)
 
 #define TCAN4X5X_MRAM_START 0x8000
+#define TCAN4X5X_MRAM_SIZE 0x800
 #define TCAN4X5X_MCAN_OFFSET 0x1000
 
 #define TCAN4X5X_CLEAR_ALL_INT 0xffffffff
@@ -306,6 +307,10 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 					      sizeof(struct tcan4x5x_priv));
 	if (!mcan_class)
 		return -ENOMEM;
+
+	ret = m_can_check_mram_cfg(mcan_class, TCAN4X5X_MRAM_SIZE);
+	if (ret)
+		goto out_m_can_class_free_dev;
 
 	priv = cdev_to_priv(mcan_class);
 
