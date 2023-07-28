@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <pthread.h>
 
 #include "test_util.h"
 #include "kvm_util.h"
@@ -79,6 +80,75 @@ static void compare_vcpu_events(struct kvm_vcpu_events *left,
 
 #define TEST_SYNC_FIELDS   (KVM_SYNC_X86_REGS|KVM_SYNC_X86_SREGS|KVM_SYNC_X86_EVENTS)
 #define INVALID_SYNC_FIELD 0x80000000
+
+/*
+ * Toggle CR4.PAE while KVM is processing SREGS, EFER.LME=1 with CR4.PAE=0 is
+ * illegal, and KVM's MMU heavily relies on vCPU state being valid.
+ */
+static noinline void *race_sregs_cr4(void *arg)
+{
+	struct kvm_run *run = (struct kvm_run *)arg;
+	__u64 *cr4 = &run->s.regs.sregs.cr4;
+	__u64 pae_enabled = *cr4;
+	__u64 pae_disabled = *cr4 & ~X86_CR4_PAE;
+
+	for (;;) {
+		WRITE_ONCE(run->kvm_dirty_regs, KVM_SYNC_X86_SREGS);
+		WRITE_ONCE(*cr4, pae_enabled);
+		asm volatile(".rept 512\n\t"
+			     "nop\n\t"
+			     ".endr");
+		WRITE_ONCE(*cr4, pae_disabled);
+
+		pthread_testcancel();
+	}
+
+	return NULL;
+}
+
+static void race_sync_regs(void *racer)
+{
+	const time_t TIMEOUT = 2; /* seconds, roughly */
+	struct kvm_translation tr;
+	struct kvm_vcpu *vcpu;
+	struct kvm_run *run;
+	struct kvm_vm *vm;
+	pthread_t thread;
+	time_t t;
+
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	run = vcpu->run;
+
+	run->kvm_valid_regs = KVM_SYNC_X86_SREGS;
+	vcpu_run(vcpu);
+	run->kvm_valid_regs = 0;
+
+	/*
+	 * Selftests run 64-bit guests by default, both EFER.LME and CR4.PAE
+	 * should already be set in guest state.
+	 */
+	TEST_ASSERT((run->s.regs.sregs.cr4 & X86_CR4_PAE) &&
+		    (run->s.regs.sregs.efer & EFER_LME),
+		    "vCPU should be in long mode, CR4.PAE=%d, EFER.LME=%d",
+		    !!(run->s.regs.sregs.cr4 & X86_CR4_PAE),
+		    !!(run->s.regs.sregs.efer & EFER_LME));
+
+	ASSERT_EQ(pthread_create(&thread, NULL, racer, (void *)run), 0);
+
+	for (t = time(NULL) + TIMEOUT; time(NULL) < t;) {
+		__vcpu_run(vcpu);
+
+		if (racer == race_sregs_cr4) {
+			tr = (struct kvm_translation) { .linear_address = 0 };
+			__vcpu_ioctl(vcpu, KVM_TRANSLATE, &tr);
+		}
+	}
+
+	ASSERT_EQ(pthread_cancel(thread), 0);
+	ASSERT_EQ(pthread_join(thread, NULL), 0);
+
+	kvm_vm_free(vm);
+}
 
 int main(int argc, char *argv[])
 {
@@ -217,6 +287,8 @@ int main(int argc, char *argv[])
 		    regs.rbx);
 
 	kvm_vm_free(vm);
+
+	race_sync_regs(race_sregs_cr4);
 
 	return 0;
 }
