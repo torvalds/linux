@@ -690,7 +690,8 @@ void iommufd_access_destroy_object(struct iommufd_object *obj)
 		container_of(obj, struct iommufd_access, obj);
 
 	if (access->ioas) {
-		iopt_remove_access(&access->ioas->iopt, access);
+		iopt_remove_access(&access->ioas->iopt, access,
+				   access->iopt_access_list_id);
 		refcount_dec(&access->ioas->obj.users);
 		access->ioas = NULL;
 	}
@@ -776,7 +777,8 @@ void iommufd_access_detach(struct iommufd_access *access)
 		access->ops->unmap(access->data, 0, ULONG_MAX);
 		mutex_lock(&access->ioas_lock);
 	}
-	iopt_remove_access(&cur_ioas->iopt, access);
+	iopt_remove_access(&cur_ioas->iopt, access,
+			   access->iopt_access_list_id);
 	refcount_dec(&cur_ioas->obj.users);
 out:
 	access->ioas_unpin = NULL;
