@@ -1294,7 +1294,7 @@ static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 enum dc_status dcn20_build_mapped_resource(const struct dc *dc, struct dc_state *context, struct dc_stream_state *stream)
 {
 	enum dc_status status = DC_OK;
-	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
+	struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
 
 	if (!pipe_ctx)
 		return DC_ERROR_UNEXPECTED;
@@ -1948,7 +1948,7 @@ int dcn20_validate_apply_pipe_split_flags(
 			v->ODMCombineEnablePerState[vlevel][pipe_plane];
 
 		if (v->ODMCombineEnabled[pipe_plane] == dm_odm_combine_mode_disabled) {
-			if (get_num_mpc_splits(pipe) == 1) {
+			if (resource_get_num_mpc_splits(pipe) == 1) {
 				/*If need split for mpc but 2 way split already*/
 				if (split[i] == 4)
 					split[i] = 2; /* 2 -> 4 MPC */
@@ -1956,7 +1956,7 @@ int dcn20_validate_apply_pipe_split_flags(
 					split[i] = 0; /* 2 -> 2 MPC */
 				else if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state)
 					merge[i] = true; /* 2 -> 1 MPC */
-			} else if (get_num_mpc_splits(pipe) == 3) {
+			} else if (resource_get_num_mpc_splits(pipe) == 3) {
 				/*If need split for mpc but 4 way split already*/
 				if (split[i] == 2 && ((pipe->top_pipe && !pipe->top_pipe->top_pipe)
 						|| !pipe->bottom_pipe)) {
@@ -1965,7 +1965,7 @@ int dcn20_validate_apply_pipe_split_flags(
 						pipe->top_pipe->plane_state == pipe->plane_state)
 					merge[i] = true; /* 4 -> 1 MPC */
 				split[i] = 0;
-			} else if (get_num_odm_splits(pipe)) {
+			} else if (resource_get_num_odm_splits(pipe)) {
 				/* ODM -> MPC transition */
 				if (pipe->prev_odm_pipe) {
 					split[i] = 0;
@@ -1973,7 +1973,7 @@ int dcn20_validate_apply_pipe_split_flags(
 				}
 			}
 		} else {
-			if (get_num_odm_splits(pipe) == 1) {
+			if (resource_get_num_odm_splits(pipe) == 1) {
 				/*If need split for odm but 2 way split already*/
 				if (split[i] == 4)
 					split[i] = 2; /* 2 -> 4 ODM */
@@ -1983,7 +1983,7 @@ int dcn20_validate_apply_pipe_split_flags(
 					ASSERT(0); /* NOT expected yet */
 					merge[i] = true; /* exit ODM */
 				}
-			} else if (get_num_odm_splits(pipe) == 3) {
+			} else if (resource_get_num_odm_splits(pipe) == 3) {
 				/*If need split for odm but 4 way split already*/
 				if (split[i] == 2 && ((pipe->prev_odm_pipe && !pipe->prev_odm_pipe->prev_odm_pipe)
 						|| !pipe->next_odm_pipe)) {
@@ -1993,7 +1993,7 @@ int dcn20_validate_apply_pipe_split_flags(
 					merge[i] = true; /* exit ODM */
 				}
 				split[i] = 0;
-			} else if (get_num_mpc_splits(pipe)) {
+			} else if (resource_get_num_mpc_splits(pipe)) {
 				/* MPC -> ODM transition */
 				ASSERT(0); /* NOT expected yet */
 				if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state) {
@@ -2154,8 +2154,8 @@ struct pipe_ctx *dcn20_acquire_free_pipe_for_layer(
 		const struct pipe_ctx *opp_head)
 {
 	struct resource_context *res_ctx = &new_ctx->res_ctx;
-	struct pipe_ctx *otg_master = resource_get_head_pipe_for_stream(res_ctx, opp_head->stream);
-	struct pipe_ctx *sec_dpp_pipe = find_free_secondary_pipe_legacy(res_ctx, pool, otg_master);
+	struct pipe_ctx *otg_master = resource_get_otg_master_for_stream(res_ctx, opp_head->stream);
+	struct pipe_ctx *sec_dpp_pipe = resource_find_free_secondary_pipe_legacy(res_ctx, pool, otg_master);
 
 	ASSERT(otg_master);
 

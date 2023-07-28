@@ -646,10 +646,8 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
-			continue;
-
-		if (pipe->plane_state && !pipe->top_pipe) {
+		if (resource_is_pipe_type(pipe, OPP_HEAD) &&
+				resource_is_pipe_type(pipe, DPP_PIPE)) {
 			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				subvp_count++;
 
@@ -706,10 +704,8 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
-			continue;
-
-		if (pipe->plane_state && !pipe->top_pipe) {
+		if (resource_is_pipe_type(pipe, OPP_HEAD) &&
+				resource_is_pipe_type(pipe, DPP_PIPE)) {
 			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				subvp_count++;
 
