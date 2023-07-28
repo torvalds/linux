@@ -482,7 +482,7 @@ E2fsprogs
 JFSutils
 --------
 
-- <http://jfs.sourceforge.net/>
+- <https://jfs.sourceforge.net/>
 
 Reiserfsprogs
 -------------
@@ -503,7 +503,7 @@ Pcmciautils
 Quota-tools
 -----------
 
-- <http://sourceforge.net/projects/linuxquota/>
+- <https://sourceforge.net/projects/linuxquota/>
 
 
 Intel P6 microcode
@@ -524,7 +524,7 @@ FUSE
 mcelog
 ------
 
-- <http://www.mcelog.org/>
+- <https://www.mcelog.org/>
 
 cpio
 ----
@@ -544,8 +544,8 @@ PPP
 NFS-utils
 ---------
 
-- <http://sourceforge.net/project/showfiles.php?group_id=14>
-- <http://nfs.sourceforge.net/>
+- <https://sourceforge.net/project/showfiles.php?group_id=14>
+- <https://nfs.sourceforge.net/>
 
 Iptables
 --------
@@ -560,7 +560,7 @@ Ip-route2
 OProfile
 --------
 
-- <http://oprofile.sf.net/download/>
+- <https://oprofile.sf.net/download/>
 
 Kernel documentation
 ********************
