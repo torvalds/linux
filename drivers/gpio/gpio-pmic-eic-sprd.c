@@ -363,7 +363,6 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, pmic_eic);
 	return 0;
 }
 
