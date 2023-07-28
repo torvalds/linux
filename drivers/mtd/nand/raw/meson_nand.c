@@ -229,19 +229,19 @@ NAND_ECC_CAPS_SINGLE(meson_gxl_ecc_caps,
 		     meson_nand_calc_ecc_bytes, 1024, 8, 24, 30, 40, 50, 60);
 
 static const int axg_stepinfo_strengths[] = { 8 };
-static const struct nand_ecc_step_info axg_stepinfo_1024 = {
-	.stepsize = 1024,
-	.strengths = axg_stepinfo_strengths,
-	.nstrengths = ARRAY_SIZE(axg_stepinfo_strengths)
-};
 
-static const struct nand_ecc_step_info axg_stepinfo_512 = {
-	.stepsize = 512,
-	.strengths = axg_stepinfo_strengths,
-	.nstrengths = ARRAY_SIZE(axg_stepinfo_strengths)
+static const struct nand_ecc_step_info axg_stepinfo[] = {
+	{
+		.stepsize = 1024,
+		.strengths = axg_stepinfo_strengths,
+		.nstrengths = ARRAY_SIZE(axg_stepinfo_strengths)
+	},
+	{
+		.stepsize = 512,
+		.strengths = axg_stepinfo_strengths,
+		.nstrengths = ARRAY_SIZE(axg_stepinfo_strengths)
+	},
 };
-
-static const struct nand_ecc_step_info axg_stepinfo[] = { axg_stepinfo_1024, axg_stepinfo_512 };
 
 static const struct nand_ecc_caps meson_axg_ecc_caps = {
 	.stepinfos = axg_stepinfo,
