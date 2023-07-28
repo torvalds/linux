@@ -1890,13 +1890,15 @@ fail_unlock:
 fail:
 	trace_percpu_alloc_percpu_fail(reserved, is_atomic, size, align);
 
-	if (!is_atomic && do_warn && warn_limit) {
+	if (do_warn && warn_limit) {
 		pr_warn("allocation failed, size=%zu align=%zu atomic=%d, %s\n",
 			size, align, is_atomic, err);
-		dump_stack();
+		if (!is_atomic)
+			dump_stack();
 		if (!--warn_limit)
 			pr_info("limit reached, disable warning\n");
 	}
+
 	if (is_atomic) {
 		/* see the flag handling in pcpu_balance_workfn() */
 		pcpu_atomic_alloc_failed = true;
