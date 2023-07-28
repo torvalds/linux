@@ -2334,6 +2334,7 @@ static const struct wiphy_wowlan_support rtw_wowlan_stub_8851b = {
 
 const struct rtw89_chip_info rtw8851b_chip_info = {
 	.chip_id		= RTL8851B,
+	.chip_gen		= RTW89_CHIP_AX,
 	.ops			= &rtw8851b_chip_ops,
 	.fw_basename		= RTW8851B_FW_BASENAME,
 	.fw_format_max		= RTW8851B_FW_FORMAT_MAX,

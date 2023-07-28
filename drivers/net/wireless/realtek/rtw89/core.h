@@ -109,6 +109,14 @@ enum rtw89_core_chip_id {
 	RTL8852B,
 	RTL8852C,
 	RTL8851B,
+	RTL8922A,
+};
+
+enum rtw89_chip_gen {
+	RTW89_CHIP_AX,
+	RTW89_CHIP_BE,
+
+	RTW89_CHIP_GEN_NUM,
 };
 
 enum rtw89_cv {
@@ -3177,6 +3185,7 @@ struct rtw89_antdiv_info {
 
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
+	enum rtw89_chip_gen chip_gen;
 	const struct rtw89_chip_ops *ops;
 	const char *fw_basename;
 	u8 fw_format_max;
