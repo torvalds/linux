@@ -1192,8 +1192,10 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	 * The "Power-On Reset Override" facility prevents the RTC to do a reset
 	 * after power on. For normal operation the PORO must be disabled.
 	 */
-	regmap_clear_bits(pcf2127->regmap, PCF2127_REG_CTRL1,
+	ret = regmap_clear_bits(pcf2127->regmap, PCF2127_REG_CTRL1,
 				PCF2127_BIT_CTRL1_POR_OVRD);
+	if (ret < 0)
+		return ret;
 
 	ret = regmap_read(pcf2127->regmap, pcf2127->cfg->reg_clkout, &val);
 	if (ret < 0)
