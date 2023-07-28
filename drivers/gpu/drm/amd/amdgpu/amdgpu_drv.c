@@ -45,6 +45,7 @@
 #include "amdgpu_drv.h"
 #include "amdgpu_fdinfo.h"
 #include "amdgpu_irq.h"
+#include "amdgpu_psp.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_reset.h"
 #include "amdgpu_sched.h"

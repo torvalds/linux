@@ -39,6 +39,9 @@
 
 #define AMDGPU_POISON	0xd0bed0be
 
+extern const struct attribute_group amdgpu_vram_mgr_attr_group;
+extern const struct attribute_group amdgpu_gtt_mgr_attr_group;
+
 struct hmm_range;
 
 struct amdgpu_gtt_mgr {
