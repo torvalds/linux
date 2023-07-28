@@ -678,10 +678,12 @@ static int do_fchmodat(int dfd, const char __user *filename, umode_t mode,
 	int error;
 	unsigned int lookup_flags;
 
-	if (unlikely(flags & ~AT_SYMLINK_NOFOLLOW))
+	if (unlikely(flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)))
 		return -EINVAL;
 
 	lookup_flags = (flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	if (flags & AT_EMPTY_PATH)
+		lookup_flags |= LOOKUP_EMPTY;
 
 retry:
 	error = user_path_at(dfd, filename, lookup_flags, &path);
