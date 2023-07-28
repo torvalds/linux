@@ -1087,12 +1087,13 @@ static long get_params32(struct slgt_info *info, struct MGSL_PARAMS32 __user *us
 static long set_params32(struct slgt_info *info, struct MGSL_PARAMS32 __user *new_params)
 {
 	struct MGSL_PARAMS32 tmp_params;
+	unsigned long flags;
 
 	DBGINFO(("%s set_params32\n", info->device_name));
 	if (copy_from_user(&tmp_params, new_params, sizeof(struct MGSL_PARAMS32)))
 		return -EFAULT;
 
-	spin_lock(&info->lock);
+	spin_lock_irqsave(&info->lock, flags);
 	if (tmp_params.mode == MGSL_MODE_BASE_CLOCK) {
 		info->base_clock = tmp_params.clock_speed;
 	} else {
@@ -1110,7 +1111,7 @@ static long set_params32(struct slgt_info *info, struct MGSL_PARAMS32 __user *ne
 		info->params.stop_bits       = tmp_params.stop_bits;
 		info->params.parity          = tmp_params.parity;
 	}
-	spin_unlock(&info->lock);
+	spin_unlock_irqrestore(&info->lock, flags);
 
 	program_hw(info);
 
