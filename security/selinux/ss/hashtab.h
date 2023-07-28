@@ -142,7 +142,13 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 		int (*destroy)(void *k, void *d, void *args),
 		void *args);
 
+#ifdef CONFIG_SECURITY_SELINUX_DEBUG
 /* Fill info with some hash table statistics */
 void hashtab_stat(struct hashtab *h, struct hashtab_info *info);
+#else
+static inline void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
+{
+}
+#endif
 
 #endif	/* _SS_HASHTAB_H */

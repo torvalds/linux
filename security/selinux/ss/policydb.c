@@ -701,6 +701,9 @@ static void symtab_hash_eval(struct symtab *s)
 static inline void hash_eval(struct hashtab *h, const char *hash_name)
 {
 }
+static inline void symtab_hash_eval(struct symtab *s)
+{
+}
 #endif /* CONFIG_SECURITY_SELINUX_DEBUG */
 
 /*
@@ -725,10 +728,8 @@ static int policydb_index(struct policydb *p)
 	pr_debug("SELinux:  %d classes, %d rules\n",
 		 p->p_classes.nprim, p->te_avtab.nel);
 
-#ifdef CONFIG_SECURITY_SELINUX_DEBUG
 	avtab_hash_eval(&p->te_avtab, "rules");
 	symtab_hash_eval(p->symtab);
-#endif
 
 	p->class_val_to_struct = kcalloc(p->p_classes.nprim,
 					 sizeof(*p->class_val_to_struct),

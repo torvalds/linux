@@ -322,6 +322,7 @@ int avtab_alloc_dup(struct avtab *new, const struct avtab *orig)
 	return avtab_alloc_common(new, orig->nslot);
 }
 
+#ifdef CONFIG_SECURITY_SELINUX_DEBUG
 void avtab_hash_eval(struct avtab *h, const char *tag)
 {
 	int i, chain_len, slots_used, max_chain_len;
@@ -352,6 +353,7 @@ void avtab_hash_eval(struct avtab *h, const char *tag)
 	       tag, h->nel, slots_used, h->nslot, max_chain_len,
 	       chain2_len_sum);
 }
+#endif /* CONFIG_SECURITY_SELINUX_DEBUG */
 
 static const uint16_t spec_order[] = {
 	AVTAB_ALLOWED,
