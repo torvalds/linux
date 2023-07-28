@@ -545,6 +545,7 @@ NFS-utils
 ---------
 
 - <http://sourceforge.net/project/showfiles.php?group_id=14>
+- <http://nfs.sourceforge.net/>
 
 Iptables
 --------
@@ -560,11 +561,6 @@ OProfile
 --------
 
 - <http://oprofile.sf.net/download/>
-
-NFS-Utils
----------
-
-- <http://nfs.sourceforge.net/>
 
 Kernel documentation
 ********************
