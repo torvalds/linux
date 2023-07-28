@@ -1,3 +1,5 @@
+include $(srctree)/tools/scripts/utilities.mak
+
 perf-y += arm64-frame-pointer-unwind-support.o
 perf-y += addr_location.o
 perf-y += annotate.o
@@ -279,16 +281,26 @@ $(OUTPUT)util/bpf-filter-bison.c $(OUTPUT)util/bpf-filter-bison.h: util/bpf-filt
 	$(Q)$(call echo-cmd,bison)$(BISON) -v $< -d $(PARSER_DEBUG_BISON) $(BISON_FILE_PREFIX_MAP) \
 		-o $(OUTPUT)util/bpf-filter-bison.c -p perf_bpf_filter_
 
-FLEX_GE_26 := $(shell expr $(shell $(FLEX) --version | sed -e  's/flex \([0-9]\+\).\([0-9]\+\)/\1\2/g') \>\= 26)
-ifeq ($(FLEX_GE_26),1)
-  flex_flags := -Wno-switch-enum -Wno-switch-default -Wno-unused-function -Wno-redundant-decls -Wno-sign-compare -Wno-unused-parameter -Wno-missing-prototypes -Wno-missing-declarations
-  CC_HASNT_MISLEADING_INDENTATION := $(shell echo "int main(void) { return 0 }" | $(CC) -Werror -Wno-misleading-indentation -o /dev/null -xc - 2>&1 | grep -q -- -Wno-misleading-indentation ; echo $$?)
-  ifeq ($(CC_HASNT_MISLEADING_INDENTATION), 1)
-    flex_flags += -Wno-misleading-indentation
+FLEX_VERSION := $(shell $(FLEX) --version | cut -d' ' -f2)
+
+FLEX_GE_260 := $(call version-ge3,$(FLEX_VERSION),2.6.0)
+ifeq ($(FLEX_GE_260),1)
+  flex_flags := -Wno-redundant-decls -Wno-switch-default -Wno-unused-function -Wno-misleading-indentation
+
+  # Some newer clang and gcc version complain about this
+  # util/parse-events-bison.c:1317:9: error: variable 'parse_events_nerrs' set but not used [-Werror,-Wunused-but-set-variable]
+  #  int yynerrs = 0;
+
+  flex_flags += -Wno-unused-but-set-variable
+
+  FLEX_LT_262 := $(call version-lt3,$(FLEX_VERSION),2.6.2)
+  ifeq ($(FLEX_LT_262),1)
+    flex_flags += -Wno-sign-compare
   endif
 else
   flex_flags := -w
 endif
+
 CFLAGS_parse-events-flex.o  += $(flex_flags)
 CFLAGS_pmu-flex.o           += $(flex_flags)
 CFLAGS_expr-flex.o          += $(flex_flags)
