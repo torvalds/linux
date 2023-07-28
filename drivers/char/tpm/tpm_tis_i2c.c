@@ -394,7 +394,7 @@ static struct i2c_driver tpm_tis_i2c_driver = {
 		.pm = &tpm_tis_pm,
 		.of_match_table = of_match_ptr(of_tis_i2c_match),
 	},
-	.probe_new = tpm_tis_i2c_probe,
+	.probe = tpm_tis_i2c_probe,
 	.remove = tpm_tis_i2c_remove,
 	.id_table = tpm_tis_i2c_id,
 };
