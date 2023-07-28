@@ -3,7 +3,6 @@
 /plugin/;
 
 &electric_1 {
-
 	status = "okay";
 
 	hvac_2: hvac-large-1 {
@@ -57,7 +56,6 @@
 };
 
 &lights_2 {
-
 	status = "okay";
 	color = "purple", "white", "red", "green";
 	rate = < 3 256 >;

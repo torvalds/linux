@@ -3,7 +3,6 @@
 /plugin/;
 
 &electric_1 {
-
 	// This label should cause an error when the overlay
 	// is applied.  There is already a phandle value
 	// in the base tree for motor-1.

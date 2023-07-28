@@ -24,7 +24,6 @@
  */
 
 &electric_1 {
-
 	motor-1 {
 		electric {
 			rpm_avail = < 100 >;

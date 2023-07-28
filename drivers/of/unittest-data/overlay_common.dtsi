@@ -85,7 +85,5 @@
 			compatible = "ot,tickets";
 			status = "disabled";
 		};
-
 	};
 };
-

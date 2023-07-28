@@ -13,7 +13,6 @@
  */
 
 &electric_1 {
-
 	motor-1 {
 		controller {
 			power_bus = < 0x1 0x2 >;
