@@ -36,10 +36,11 @@ LDLIBS += -lelf -lz -lrt -lpthread
 ifneq ($(LLVM),)
 # Silence some warnings when compiled with clang
 CFLAGS += -Wno-unused-command-line-argument
-# Check whether cpu=v4 is supported or not by clang
+endif
+
+# Check whether bpf cpu=v4 is supported or not by clang
 ifneq ($(shell $(CLANG) --target=bpf -mcpu=help 2>&1 | grep 'v4'),)
 CLANG_CPUV4 := 1
-endif
 endif
 
 # Order correspond to 'make run_tests' order
