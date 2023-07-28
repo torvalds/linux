@@ -48,6 +48,18 @@
 		vin-supply = <&avcc_1v8_s0>;
 	};
 
+	vcc3v3_pcie_wifi: vcc3v3-pcie-wifi {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie_wifi";
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		vin-supply = <&vcc_3v3_s0>;
+	};
+
 	vcc5v0_host: vcc5v0-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
@@ -61,6 +73,19 @@
 		//pinctrl-names = "default";
 		//pinctrl-0 = <&vcc5v0_host_en>;
 		//TODO: should powered by MCU
+	};
+
+	wireless_bluetooth: wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		BT,reset_gpio = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		wifi_chip_type = "ap6398s";
+		WIFI,poweren_gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		status = "okay";
 	};
 };
 
@@ -142,7 +167,10 @@
 };
 
 &pcie2x1l2 {
+	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 	rockchip,skip-scan-in-resume;
+	rockchip,perst-inactive-ms = <500>;
+	vpcie3v3-supply = <&vcc3v3_pcie_wifi>;
 	status = "okay";
 };
 
@@ -162,6 +190,12 @@
 
 &sdmmc {
 	status = "disabled";
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1m1_xfer &uart1m1_ctsn &uart1m1_rtsn>;
 };
 
 &u2phy1_otg {
