@@ -1456,16 +1456,16 @@ static bool rtw89_core_rx_ppdu_match(struct rtw89_dev *rtwdev,
 	bool ret;
 
 	data_rate = desc_info->data_rate;
-	data_rate_mode = GET_DATA_RATE_MODE(data_rate);
+	data_rate_mode = rtw89_get_data_rate_mode(rtwdev, data_rate);
 	if (data_rate_mode == DATA_RATE_MODE_NON_HT) {
-		rate_idx = GET_DATA_RATE_NOT_HT_IDX(data_rate);
+		rate_idx = rtw89_get_data_not_ht_idx(rtwdev, data_rate);
 		/* rate_idx is still hardware value here */
 	} else if (data_rate_mode == DATA_RATE_MODE_HT) {
-		rate_idx = GET_DATA_RATE_HT_IDX(data_rate);
+		rate_idx = rtw89_get_data_ht_mcs(rtwdev, data_rate);
 	} else if (data_rate_mode == DATA_RATE_MODE_VHT) {
-		rate_idx = GET_DATA_RATE_VHT_HE_IDX(data_rate);
+		rate_idx = rtw89_get_data_mcs(rtwdev, data_rate);
 	} else if (data_rate_mode == DATA_RATE_MODE_HE) {
-		rate_idx = GET_DATA_RATE_VHT_HE_IDX(data_rate);
+		rate_idx = rtw89_get_data_mcs(rtwdev, data_rate);
 	} else {
 		rtw89_warn(rtwdev, "invalid RX rate mode %d\n", data_rate_mode);
 	}
@@ -1929,26 +1929,26 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 	rx_status->bw = rtw89_hw_to_rate_info_bw(desc_info->bw);
 
 	data_rate = desc_info->data_rate;
-	data_rate_mode = GET_DATA_RATE_MODE(data_rate);
+	data_rate_mode = rtw89_get_data_rate_mode(rtwdev, data_rate);
 	if (data_rate_mode == DATA_RATE_MODE_NON_HT) {
 		rx_status->encoding = RX_ENC_LEGACY;
-		rx_status->rate_idx = GET_DATA_RATE_NOT_HT_IDX(data_rate);
+		rx_status->rate_idx = rtw89_get_data_not_ht_idx(rtwdev, data_rate);
 		/* convert rate_idx after we get the correct band */
 	} else if (data_rate_mode == DATA_RATE_MODE_HT) {
 		rx_status->encoding = RX_ENC_HT;
-		rx_status->rate_idx = GET_DATA_RATE_HT_IDX(data_rate);
+		rx_status->rate_idx = rtw89_get_data_ht_mcs(rtwdev, data_rate);
 		if (desc_info->gi_ltf)
 			rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 	} else if (data_rate_mode == DATA_RATE_MODE_VHT) {
 		rx_status->encoding = RX_ENC_VHT;
-		rx_status->rate_idx = GET_DATA_RATE_VHT_HE_IDX(data_rate);
-		rx_status->nss = GET_DATA_RATE_NSS(data_rate) + 1;
+		rx_status->rate_idx = rtw89_get_data_mcs(rtwdev, data_rate);
+		rx_status->nss = rtw89_get_data_nss(rtwdev, data_rate) + 1;
 		if (desc_info->gi_ltf)
 			rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 	} else if (data_rate_mode == DATA_RATE_MODE_HE) {
 		rx_status->encoding = RX_ENC_HE;
-		rx_status->rate_idx = GET_DATA_RATE_VHT_HE_IDX(data_rate);
-		rx_status->nss = GET_DATA_RATE_NSS(data_rate) + 1;
+		rx_status->rate_idx = rtw89_get_data_mcs(rtwdev, data_rate);
+		rx_status->nss = rtw89_get_data_nss(rtwdev, data_rate) + 1;
 	} else {
 		rtw89_warn(rtwdev, "invalid RX rate mode %d\n", data_rate_mode);
 	}

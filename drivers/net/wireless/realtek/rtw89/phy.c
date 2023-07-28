@@ -3014,7 +3014,7 @@ static void rtw89_phy_antdiv_sts_instance_add(struct rtw89_dev *rtwdev,
 					      struct rtw89_rx_phy_ppdu *phy_ppdu,
 					      struct rtw89_antdiv_stats *stats)
 {
-	if (GET_DATA_RATE_MODE(phy_ppdu->rate) == DATA_RATE_MODE_NON_HT) {
+	if (rtw89_get_data_rate_mode(rtwdev, phy_ppdu->rate) == DATA_RATE_MODE_NON_HT) {
 		if (phy_ppdu->rate < RTW89_HW_RATE_OFDM6) {
 			ewma_rssi_add(&stats->cck_rssi_avg, phy_ppdu->rssi_avg);
 			stats->pkt_cnt_cck++;
