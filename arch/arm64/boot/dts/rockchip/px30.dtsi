@@ -2013,11 +2013,11 @@
 		downdifferential = <20>;
 		system-status-freq = <
 			/*system status         freq(KHz)*/
-			SYS_STATUS_NORMAL       528000
+			SYS_STATUS_NORMAL       666000
 			SYS_STATUS_REBOOT       450000
 			SYS_STATUS_SUSPEND      194000
 			SYS_STATUS_VIDEO_1080P  450000
-			SYS_STATUS_BOOST        528000
+			SYS_STATUS_BOOST        666000
 			SYS_STATUS_ISP          666000
 			SYS_STATUS_PERFORMANCE  1056000
 		>;
@@ -2087,14 +2087,6 @@
 			opp-microvolt-L2 = <950000>;
 			opp-microvolt-L3 = <950000>;
 		};
-		opp-528000000 {
-			opp-hz = /bits/ 64 <528000000>;
-			opp-microvolt = <975000>;
-			opp-microvolt-L0 = <975000>;
-			opp-microvolt-L1 = <975000>;
-			opp-microvolt-L2 = <950000>;
-			opp-microvolt-L3 = <950000>;
-		};
 		opp-666000000 {
 			opp-hz = /bits/ 64 <666000000>;
 			opp-microvolt = <1050000>;
@@ -2124,11 +2116,6 @@
 		opp-328000000 {
 			opp-hz = /bits/ 64 <328000000>;
 			opp-microvolt = <950000>;
-		};
-		opp-528000000 {
-			opp-hz = /bits/ 64 <528000000>;
-			opp-microvolt = <950000>;
-			status = "disabled";
 		};
 		opp-666000000 {
 			opp-hz = /bits/ 64 <666000000>;

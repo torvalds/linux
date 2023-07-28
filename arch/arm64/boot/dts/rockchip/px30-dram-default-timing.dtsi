@@ -70,8 +70,8 @@
 		phy_lpddr4_dq_drv = <PHY_DDR4_LPDDR3_2_RON_RTT_80ohm>;
 		phy_lpddr4_odt = <PHY_DDR4_LPDDR3_2_RON_RTT_60ohm>;
 
-		ddr4_odt_dis_freq = <666>;
-		phy_ddr4_odt_dis_freq = <666>;
+		ddr4_odt_dis_freq = <625>;
+		phy_ddr4_odt_dis_freq = <625>;
 		ddr4_drv = <DDR4_DS_34ohm>;
 		ddr4_odt = <DDR4_RTT_NOM_240ohm>;
 		phy_ddr4_ca_drv = <PHY_DDR4_LPDDR3_2_RON_RTT_34ohm>;
