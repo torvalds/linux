@@ -22,6 +22,7 @@
 
 #include "msm_drv.h"
 #include "msm_mmu.h"
+#include "msm_mdss.h"
 #include "msm_gem.h"
 #include "disp/msm_disp_snapshot.h"
 
@@ -1124,7 +1125,20 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		goto power_error;
 	}
 
-	rc = dpu_rm_init(&dpu_kms->rm, dpu_kms->catalog, dpu_kms->mmio);
+	dpu_kms->mdss = msm_mdss_get_mdss_data(dpu_kms->pdev->dev.parent);
+	if (IS_ERR(dpu_kms->mdss)) {
+		rc = PTR_ERR(dpu_kms->mdss);
+		DPU_ERROR("failed to get MDSS data: %d\n", rc);
+		goto power_error;
+	}
+
+	if (!dpu_kms->mdss) {
+		rc = -EINVAL;
+		DPU_ERROR("NULL MDSS data\n");
+		goto power_error;
+	}
+
+	rc = dpu_rm_init(&dpu_kms->rm, dpu_kms->catalog, dpu_kms->mdss, dpu_kms->mmio);
 	if (rc) {
 		DPU_ERROR("rm init failed: %d\n", rc);
 		goto power_error;
