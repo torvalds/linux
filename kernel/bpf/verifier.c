@@ -3012,8 +3012,10 @@ static bool is_reg64(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		}
 	}
 
+	if (class == BPF_ALU64 && op == BPF_END && (insn->imm == 16 || insn->imm == 32))
+		return false;
+
 	if (class == BPF_ALU64 || class == BPF_JMP ||
-	    /* BPF_END always use BPF_ALU class. */
 	    (class == BPF_ALU && op == BPF_END && insn->imm == 64))
 		return true;
 
@@ -13076,7 +13078,8 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 		} else {
 			if (insn->src_reg != BPF_REG_0 || insn->off != 0 ||
 			    (insn->imm != 16 && insn->imm != 32 && insn->imm != 64) ||
-			    BPF_CLASS(insn->code) == BPF_ALU64) {
+			    (BPF_CLASS(insn->code) == BPF_ALU64 &&
+			     BPF_SRC(insn->code) != BPF_TO_LE)) {
 				verbose(env, "BPF_END uses reserved fields\n");
 				return -EINVAL;
 			}

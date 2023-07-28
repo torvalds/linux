@@ -1524,6 +1524,7 @@ EXPORT_SYMBOL_GPL(__bpf_call_base);
 	INSN_3(ALU64, DIV,  X),			\
 	INSN_3(ALU64, MOD,  X),			\
 	INSN_2(ALU64, NEG),			\
+	INSN_3(ALU64, END, TO_LE),		\
 	/*   Immediate based. */		\
 	INSN_3(ALU64, ADD,  K),			\
 	INSN_3(ALU64, SUB,  K),			\
@@ -1845,6 +1846,19 @@ select_insn:
 			break;
 		case 64:
 			DST = (__force u64) cpu_to_le64(DST);
+			break;
+		}
+		CONT;
+	ALU64_END_TO_LE:
+		switch (IMM) {
+		case 16:
+			DST = (__force u16) __swab16(DST);
+			break;
+		case 32:
+			DST = (__force u32) __swab32(DST);
+			break;
+		case 64:
+			DST = (__force u64) __swab64(DST);
 			break;
 		}
 		CONT;
