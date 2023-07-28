@@ -1724,6 +1724,8 @@ error_param:
 				vf->vf_id, i);
 	}
 
+	ice_lag_move_new_vf_nodes(vf);
+
 	/* send the response to the VF */
 	return ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_CONFIG_VSI_QUEUES,
 				     VIRTCHNL_STATUS_ERR_PARAM, NULL, 0);
