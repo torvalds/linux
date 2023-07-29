@@ -7,6 +7,7 @@
  * hugetlbfs with a hole). It checks that the expected handling method is
  * called (e.g., uffd faults with the right address and write/read flag).
  */
+#define USE_GUEST_ASSERT_PRINTF 1
 
 #define _GNU_SOURCE
 #include <linux/bitmap.h>
@@ -293,12 +294,12 @@ static void guest_code(struct test_desc *test)
 
 static void no_dabt_handler(struct ex_regs *regs)
 {
-	GUEST_ASSERT_1(false, read_sysreg(far_el1));
+	GUEST_FAIL("Unexpected dabt, far_el1 = 0x%llx", read_sysreg(far_el1));
 }
 
 static void no_iabt_handler(struct ex_regs *regs)
 {
-	GUEST_ASSERT_1(false, regs->pc);
+	GUEST_FAIL("Unexpected iabt, pc = 0x%lx", regs->pc);
 }
 
 static struct uffd_args {
@@ -679,7 +680,7 @@ static void vcpu_run_loop(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 			}
 			break;
 		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
+			REPORT_GUEST_ASSERT(uc);
 			break;
 		case UCALL_DONE:
 			goto done;
