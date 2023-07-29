@@ -4,3 +4,6 @@
 
 obj-$(CONFIG_INTEL_VSC) += ivsc-csi.o
 ivsc-csi-y += mei_csi.o
+
+obj-$(CONFIG_INTEL_VSC) += ivsc-ace.o
+ivsc-ace-y += mei_ace.o
