@@ -4,6 +4,8 @@
  *
  * Copyright (C) 2020, Red Hat, Inc.
  */
+#define USE_GUEST_ASSERT_PRINTF 1
+
 #include <stdio.h>
 #include <string.h>
 #include "kvm_util.h"
@@ -84,7 +86,7 @@ static void run_vcpu(struct kvm_vcpu *vcpu, int stage)
 		ksft_test_result_pass("stage %d passed\n", stage + 1);
 		return;
 	case UCALL_ABORT:
-		REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
+		REPORT_GUEST_ASSERT(uc);
 	default:
 		TEST_ASSERT(false, "Unexpected exit: %s",
 			    exit_reason_str(vcpu->run->exit_reason));
