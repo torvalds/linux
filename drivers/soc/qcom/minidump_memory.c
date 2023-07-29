@@ -205,6 +205,9 @@ void md_dump_slabinfo(struct seq_buf *m)
 	if (!md_debug_slab_mutex)
 		return;
 
+	if (!mutex_trylock(md_debug_slab_mutex))
+		return;
+
 	/* print_slabinfo_header */
 	seq_buf_printf(m,
 			"# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
@@ -221,7 +224,6 @@ void md_dump_slabinfo(struct seq_buf *m)
 	seq_buf_printf(m, "\n");
 
 	/* Loop through all slabs */
-	mutex_lock(md_debug_slab_mutex);
 	list_for_each_entry(s, md_debug_slab_caches, list) {
 		memset(&sinfo, 0, sizeof(sinfo));
 		get_slabinfo(s, &sinfo);
