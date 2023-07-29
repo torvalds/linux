@@ -136,7 +136,7 @@ config FB_DEFERRED_IO
 	bool
 	depends on FB_CORE
 
-config FB_DMA_HELPERS
+config FB_DMAMEM_HELPERS
 	bool
 	depends on FB_CORE
 	select FB_SYS_COPYAREA

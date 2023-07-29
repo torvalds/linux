@@ -579,11 +579,11 @@ extern ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
  * Helpers for framebuffers in DMA-able memory
  */
 
-#define __FB_DEFAULT_DMA_OPS_RDWR \
+#define __FB_DEFAULT_DMAMEM_OPS_RDWR \
 	.fb_read	= fb_sys_read, \
 	.fb_write	= fb_sys_write
 
-#define __FB_DEFAULT_DMA_OPS_DRAW \
+#define __FB_DEFAULT_DMAMEM_OPS_DRAW \
 	.fb_fillrect	= sys_fillrect, \
 	.fb_copyarea	= sys_copyarea, \
 	.fb_imageblit	= sys_imageblit
