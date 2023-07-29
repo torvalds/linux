@@ -557,6 +557,7 @@ static int acpi_tad_disable_timer(struct device *dev, u32 timer_id)
 static int acpi_tad_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	acpi_handle handle = ACPI_HANDLE(dev);
 	struct acpi_tad_driver_data *dd = dev_get_drvdata(dev);
 
 	device_init_wakeup(dev, false);
@@ -577,6 +578,7 @@ static int acpi_tad_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
+	acpi_remove_cmos_rtc_space_handler(handle);
 	return 0;
 }
 
@@ -589,6 +591,11 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	unsigned long long caps;
 	int ret;
 
+	ret = acpi_install_cmos_rtc_space_handler(handle);
+	if (ret < 0) {
+		dev_info(dev, "Unable to install space handler\n");
+		return -ENODEV;
+	}
 	/*
 	 * Initialization failure messages are mostly about firmware issues, so
 	 * print them at the "info" level.
@@ -596,22 +603,27 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	status = acpi_evaluate_integer(handle, "_GCP", NULL, &caps);
 	if (ACPI_FAILURE(status)) {
 		dev_info(dev, "Unable to get capabilities\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto remove_handler;
 	}
 
 	if (!(caps & ACPI_TAD_AC_WAKE)) {
 		dev_info(dev, "Unsupported capabilities\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto remove_handler;
 	}
 
 	if (!acpi_has_method(handle, "_PRW")) {
 		dev_info(dev, "Missing _PRW\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto remove_handler;
 	}
 
 	dd = devm_kzalloc(dev, sizeof(*dd), GFP_KERNEL);
-	if (!dd)
-		return -ENOMEM;
+	if (!dd) {
+		ret = -ENOMEM;
+		goto remove_handler;
+	}
 
 	dd->capabilities = caps;
 	dev_set_drvdata(dev, dd);
@@ -653,6 +665,11 @@ static int acpi_tad_probe(struct platform_device *pdev)
 
 fail:
 	acpi_tad_remove(pdev);
+	/* Don't fallthrough because cmos rtc space handler is removed in acpi_tad_remove() */
+	return ret;
+
+remove_handler:
+	acpi_remove_cmos_rtc_space_handler(handle);
 	return ret;
 }
 
