@@ -1876,7 +1876,7 @@ static inline int ata_check_ready(u8 status)
 }
 
 static inline unsigned long ata_deadline(unsigned long from_jiffies,
-					 unsigned long timeout_msecs)
+					 unsigned int timeout_msecs)
 {
 	return from_jiffies + msecs_to_jiffies(timeout_msecs);
 }
