@@ -6,6 +6,8 @@
  *
  * Basic guest setup / host vCPU thread code lifted from set_memory_region_test.
  */
+#define USE_GUEST_ASSERT_PRINTF 1
+
 #include <pthread.h>
 #include <sched.h>
 #include <semaphore.h>
@@ -157,7 +159,7 @@ static void *vcpu_worker(void *__data)
 				goto done;
 			break;
 		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_1(uc, "val = %lu");
+			REPORT_GUEST_ASSERT(uc);
 			break;
 		case UCALL_DONE:
 			goto done;
@@ -560,7 +562,7 @@ static void guest_code_test_memslot_rw(void)
 		     ptr < MEM_TEST_GPA + MEM_TEST_SIZE; ptr += page_size) {
 			uint64_t val = *(uint64_t *)ptr;
 
-			GUEST_ASSERT_1(val == MEM_TEST_VAL_2, val);
+			GUEST_ASSERT_EQ(val, MEM_TEST_VAL_2);
 			*(uint64_t *)ptr = 0;
 		}
 
