@@ -324,16 +324,13 @@ static ssize_t type_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(type);
 
-static struct attribute *sysfs_attrs[] = {
+static struct attribute *exc3000_attrs[] = {
 	&dev_attr_fw_version.attr,
 	&dev_attr_model.attr,
 	&dev_attr_type.attr,
 	NULL
 };
-
-static struct attribute_group exc3000_attribute_group = {
-	.attrs = sysfs_attrs
-};
+ATTRIBUTE_GROUPS(exc3000);
 
 static int exc3000_probe(struct i2c_client *client)
 {
@@ -436,10 +433,6 @@ static int exc3000_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, data);
 
-	error = devm_device_add_group(&client->dev, &exc3000_attribute_group);
-	if (error)
-		return error;
-
 	return 0;
 }
 
@@ -464,6 +457,7 @@ MODULE_DEVICE_TABLE(of, exc3000_of_match);
 static struct i2c_driver exc3000_driver = {
 	.driver = {
 		.name	= "exc3000",
+		.dev_groups = exc3000_groups,
 		.of_match_table = of_match_ptr(exc3000_of_match),
 	},
 	.id_table	= exc3000_id,
