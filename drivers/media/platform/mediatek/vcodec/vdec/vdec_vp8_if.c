@@ -599,8 +599,6 @@ static void vdec_vp8_deinit(void *h_vdec)
 {
 	struct vdec_vp8_inst *inst = (struct vdec_vp8_inst *)h_vdec;
 
-	mtk_vcodec_debug_enter(inst);
-
 	vpu_dec_deinit(&inst->vpu);
 	free_working_buf(inst);
 	kfree(inst);

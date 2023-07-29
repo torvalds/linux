@@ -444,8 +444,6 @@ static void vdec_h264_slice_deinit(void *h_vdec)
 {
 	struct vdec_h264_slice_inst *inst = h_vdec;
 
-	mtk_vcodec_debug_enter(inst);
-
 	vpu_dec_deinit(&inst->vpu);
 	vdec_h264_slice_free_mv_buf(inst);
 	vdec_msg_queue_deinit(&inst->ctx->msg_queue, inst->ctx);

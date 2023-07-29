@@ -156,8 +156,6 @@ static void free_predication_buf(struct vdec_h264_inst *inst)
 {
 	struct mtk_vcodec_mem *mem = NULL;
 
-	mtk_vcodec_debug_enter(inst);
-
 	inst->vsi->pred_buf_dma = 0;
 	mem = &inst->pred_buf;
 	if (mem->va)
@@ -310,8 +308,6 @@ error_free_inst:
 static void vdec_h264_deinit(void *h_vdec)
 {
 	struct vdec_h264_inst *inst = (struct vdec_h264_inst *)h_vdec;
-
-	mtk_vcodec_debug_enter(inst);
 
 	vpu_dec_deinit(&inst->vpu);
 	free_predication_buf(inst);

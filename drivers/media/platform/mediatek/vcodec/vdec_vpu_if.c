@@ -183,8 +183,6 @@ int vpu_dec_init(struct vdec_vpu_inst *vpu)
 	struct vdec_ap_ipi_init msg;
 	int err;
 
-	mtk_vcodec_debug_enter(vpu);
-
 	init_waitqueue_head(&vpu->wq);
 	vpu->handler = vpu_dec_ipi_handler;
 
@@ -223,8 +221,6 @@ int vpu_dec_start(struct vdec_vpu_inst *vpu, uint32_t *data, unsigned int len)
 	int i;
 	int err = 0;
 
-	mtk_vcodec_debug_enter(vpu);
-
 	if (len > ARRAY_SIZE(msg.data)) {
 		mtk_vcodec_err(vpu, "invalid len = %d\n", len);
 		return -EINVAL;
@@ -251,8 +247,6 @@ int vpu_dec_get_param(struct vdec_vpu_inst *vpu, uint32_t *data,
 {
 	struct vdec_ap_ipi_get_param msg;
 	int err;
-
-	mtk_vcodec_debug_enter(vpu);
 
 	if (len > ARRAY_SIZE(msg.data)) {
 		mtk_vcodec_err(vpu, "invalid len = %d\n", len);

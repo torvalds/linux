@@ -911,8 +911,6 @@ static void vdec_hevc_slice_deinit(void *h_vdec)
 	struct vdec_hevc_slice_inst *inst = h_vdec;
 	struct mtk_vcodec_mem *mem;
 
-	mtk_vcodec_debug_enter(inst);
-
 	vpu_dec_deinit(&inst->vpu);
 	vdec_hevc_slice_free_mv_buf(inst);
 

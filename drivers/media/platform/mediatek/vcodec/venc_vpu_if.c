@@ -55,8 +55,10 @@ static void vpu_enc_ipi_handler(void *data, unsigned int len, void *priv)
 
 	vpu->signaled = 1;
 	vpu->failure = (msg->status != VENC_IPI_MSG_STATUS_OK);
-	if (vpu->failure)
-		goto failure;
+	if (vpu->failure) {
+		mtk_vcodec_err(vpu, "vpu enc status failure %d", vpu->failure);
+		return;
+	}
 
 	switch (msg->msg_id) {
 	case VPU_IPIMSG_ENC_INIT_DONE:
@@ -73,17 +75,12 @@ static void vpu_enc_ipi_handler(void *data, unsigned int len, void *priv)
 		mtk_vcodec_err(vpu, "unknown msg id %x", msg->msg_id);
 		break;
 	}
-
-failure:
-	mtk_vcodec_debug_leave(vpu);
 }
 
 static int vpu_enc_send_msg(struct venc_vpu_inst *vpu, void *msg,
 			    int len)
 {
 	int status;
-
-	mtk_vcodec_debug_enter(vpu);
 
 	if (!vpu->ctx->dev->fw_handler) {
 		mtk_vcodec_err(vpu, "inst dev is NULL");
@@ -100,8 +97,6 @@ static int vpu_enc_send_msg(struct venc_vpu_inst *vpu, void *msg,
 	if (vpu->failure)
 		return -EINVAL;
 
-	mtk_vcodec_debug_leave(vpu);
-
 	return 0;
 }
 
@@ -109,8 +104,6 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 {
 	int status;
 	struct venc_ap_ipi_msg_init out;
-
-	mtk_vcodec_debug_enter(vpu);
 
 	init_waitqueue_head(&vpu->wq_hd);
 	vpu->signaled = 0;
@@ -131,8 +124,6 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 		mtk_vcodec_err(vpu, "AP_IPIMSG_ENC_INIT fail");
 		return -EINVAL;
 	}
-
-	mtk_vcodec_debug_leave(vpu);
 
 	return 0;
 }
@@ -345,8 +336,6 @@ int vpu_enc_deinit(struct venc_vpu_inst *vpu)
 {
 	struct venc_ap_ipi_msg_deinit out;
 
-	mtk_vcodec_debug_enter(vpu);
-
 	memset(&out, 0, sizeof(out));
 	out.msg_id = AP_IPIMSG_ENC_DEINIT;
 	out.vpu_inst_addr = vpu->inst_addr;
@@ -354,8 +343,6 @@ int vpu_enc_deinit(struct venc_vpu_inst *vpu)
 		mtk_vcodec_err(vpu, "AP_IPIMSG_ENC_DEINIT fail");
 		return -EINVAL;
 	}
-
-	mtk_vcodec_debug_leave(vpu);
 
 	return 0;
 }

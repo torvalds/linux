@@ -421,8 +421,6 @@ static void vdec_vp8_slice_deinit(void *h_vdec)
 {
 	struct vdec_vp8_slice_inst *inst = h_vdec;
 
-	mtk_vcodec_debug_enter(inst);
-
 	vpu_dec_deinit(&inst->vpu);
 	vdec_vp8_slice_free_working_buf(inst);
 	kfree(inst);

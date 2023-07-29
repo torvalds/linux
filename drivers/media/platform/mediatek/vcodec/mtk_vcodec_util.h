@@ -62,12 +62,6 @@ extern int mtk_vcodec_dbg;
 		((struct mtk_vcodec_ctx *)(h)->ctx)->id, ##args)
 #endif
 
-#define mtk_v4l2_debug_enter()  mtk_v4l2_debug(3, "+")
-#define mtk_v4l2_debug_leave()  mtk_v4l2_debug(3, "-")
-
-#define mtk_vcodec_debug_enter(h)  mtk_vcodec_debug(h, "+")
-#define mtk_vcodec_debug_leave(h)  mtk_vcodec_debug(h, "-")
-
 void __iomem *mtk_vcodec_get_reg_addr(void __iomem **reg_base, unsigned int reg_idx);
 int mtk_vcodec_write_vdecsys(struct mtk_vcodec_ctx *ctx, unsigned int reg, unsigned int val);
 int mtk_vcodec_mem_alloc(void *priv, struct mtk_vcodec_mem *mem);

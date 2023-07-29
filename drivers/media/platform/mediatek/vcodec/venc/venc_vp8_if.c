@@ -141,16 +141,12 @@ static void vp8_enc_free_work_buf(struct venc_vp8_inst *inst)
 {
 	int i;
 
-	mtk_vcodec_debug_enter(inst);
-
 	/* Buffers need to be freed by AP. */
 	for (i = 0; i < VENC_VP8_VPU_WORK_BUF_MAX; i++) {
 		if (inst->work_bufs[i].size == 0)
 			continue;
 		mtk_vcodec_mem_free(inst->ctx, &inst->work_bufs[i]);
 	}
-
-	mtk_vcodec_debug_leave(inst);
 }
 
 static int vp8_enc_alloc_work_buf(struct venc_vp8_inst *inst)
@@ -158,8 +154,6 @@ static int vp8_enc_alloc_work_buf(struct venc_vp8_inst *inst)
 	int i;
 	int ret = 0;
 	struct venc_vp8_vpu_buf *wb = inst->vsi->work_bufs;
-
-	mtk_vcodec_debug_enter(inst);
 
 	for (i = 0; i < VENC_VP8_VPU_WORK_BUF_MAX; i++) {
 		if (wb[i].size == 0)
@@ -205,8 +199,6 @@ static int vp8_enc_alloc_work_buf(struct venc_vp8_inst *inst)
 				 &inst->work_bufs[i].dma_addr,
 				 inst->work_bufs[i].size);
 	}
-
-	mtk_vcodec_debug_leave(inst);
 
 	return ret;
 
@@ -338,13 +330,9 @@ static int vp8_enc_init(struct mtk_vcodec_ctx *ctx)
 	inst->vpu_inst.id = IPI_VENC_VP8;
 	inst->hw_base = mtk_vcodec_get_reg_addr(inst->ctx->dev->reg_base, VENC_LT_SYS);
 
-	mtk_vcodec_debug_enter(inst);
-
 	ret = vpu_enc_init(&inst->vpu_inst);
 
 	inst->vsi = (struct venc_vp8_vsi *)inst->vpu_inst.vsi;
-
-	mtk_vcodec_debug_leave(inst);
 
 	if (ret)
 		kfree(inst);
@@ -363,8 +351,6 @@ static int vp8_enc_encode(void *handle,
 	int ret = 0;
 	struct venc_vp8_inst *inst = (struct venc_vp8_inst *)handle;
 	struct mtk_vcodec_ctx *ctx = inst->ctx;
-
-	mtk_vcodec_debug_enter(inst);
 
 	enable_irq(ctx->dev->enc_irq);
 
@@ -386,8 +372,6 @@ static int vp8_enc_encode(void *handle,
 encode_err:
 
 	disable_irq(ctx->dev->enc_irq);
-	mtk_vcodec_debug_leave(inst);
-
 	return ret;
 }
 
@@ -437,8 +421,6 @@ static int vp8_enc_set_param(void *handle,
 		break;
 	}
 
-	mtk_vcodec_debug_leave(inst);
-
 	return ret;
 }
 
@@ -447,16 +429,12 @@ static int vp8_enc_deinit(void *handle)
 	int ret = 0;
 	struct venc_vp8_inst *inst = (struct venc_vp8_inst *)handle;
 
-	mtk_vcodec_debug_enter(inst);
-
 	ret = vpu_enc_deinit(&inst->vpu_inst);
 
 	if (inst->work_buf_allocated)
 		vp8_enc_free_work_buf(inst);
 
-	mtk_vcodec_debug_leave(inst);
 	kfree(inst);
-
 	return ret;
 }
 
