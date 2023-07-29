@@ -449,7 +449,7 @@ void rtllib_DisableIntelPromiscuousMode(struct net_device *dev,
 }
 EXPORT_SYMBOL(rtllib_DisableIntelPromiscuousMode);
 
-static void rtllib_send_probe(struct rtllib_device *ieee, u8 is_mesh)
+static void rtllib_send_probe(struct rtllib_device *ieee)
 {
 	struct sk_buff *skb;
 
@@ -464,8 +464,8 @@ static void rtllib_send_probe_requests(struct rtllib_device *ieee, u8 is_mesh)
 {
 	if (ieee->active_scan && (ieee->softmac_features &
 	    IEEE_SOFTMAC_PROBERQ)) {
-		rtllib_send_probe(ieee, 0);
-		rtllib_send_probe(ieee, 0);
+		rtllib_send_probe(ieee);
+		rtllib_send_probe(ieee);
 	}
 }
 
