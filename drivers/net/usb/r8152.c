@@ -1314,16 +1314,24 @@ static int generic_ocp_write(struct r8152 *tp, u16 index, u16 byteen,
 	byteen_end = byteen & BYTE_EN_END_MASK;
 
 	byen = byteen_start | (byteen_start << 4);
-	ret = set_registers(tp, index, type | byen, 4, data);
-	if (ret < 0)
-		goto error1;
 
-	index += 4;
-	data += 4;
-	size -= 4;
+	/* Split the first DWORD if the byte_en is not 0xff */
+	if (byen != BYTE_EN_DWORD) {
+		ret = set_registers(tp, index, type | byen, 4, data);
+		if (ret < 0)
+			goto error1;
+
+		index += 4;
+		data += 4;
+		size -= 4;
+	}
 
 	if (size) {
-		size -= 4;
+		byen = byteen_end | (byteen_end >> 4);
+
+		/* Split the last DWORD if the byte_en is not 0xff */
+		if (byen != BYTE_EN_DWORD)
+			size -= 4;
 
 		while (size) {
 			if (size > limit) {
@@ -1350,10 +1358,9 @@ static int generic_ocp_write(struct r8152 *tp, u16 index, u16 byteen,
 			}
 		}
 
-		byen = byteen_end | (byteen_end >> 4);
-		ret = set_registers(tp, index, type | byen, 4, data);
-		if (ret < 0)
-			goto error1;
+		/* Set the last DWORD */
+		if (byen != BYTE_EN_DWORD)
+			ret = set_registers(tp, index, type | byen, 4, data);
 	}
 
 error1:
@@ -3971,29 +3978,10 @@ static void rtl_reset_bmu(struct r8152 *tp)
 /* Clear the bp to stop the firmware before loading a new one */
 static void rtl_clear_bp(struct r8152 *tp, u16 type)
 {
-	switch (tp->version) {
-	case RTL_VER_01:
-	case RTL_VER_02:
-	case RTL_VER_07:
-		break;
-	case RTL_VER_03:
-	case RTL_VER_04:
-	case RTL_VER_05:
-	case RTL_VER_06:
-		ocp_write_byte(tp, type, PLA_BP_EN, 0);
-		break;
-	case RTL_VER_14:
-		ocp_write_word(tp, type, USB_BP2_EN, 0);
+	u16 bp[16] = {0};
+	u16 bp_num;
 
-		ocp_write_word(tp, type, USB_BP_8, 0);
-		ocp_write_word(tp, type, USB_BP_9, 0);
-		ocp_write_word(tp, type, USB_BP_10, 0);
-		ocp_write_word(tp, type, USB_BP_11, 0);
-		ocp_write_word(tp, type, USB_BP_12, 0);
-		ocp_write_word(tp, type, USB_BP_13, 0);
-		ocp_write_word(tp, type, USB_BP_14, 0);
-		ocp_write_word(tp, type, USB_BP_15, 0);
-		break;
+	switch (tp->version) {
 	case RTL_VER_08:
 	case RTL_VER_09:
 	case RTL_VER_10:
@@ -4001,32 +3989,31 @@ static void rtl_clear_bp(struct r8152 *tp, u16 type)
 	case RTL_VER_12:
 	case RTL_VER_13:
 	case RTL_VER_15:
-	default:
 		if (type == MCU_TYPE_USB) {
 			ocp_write_word(tp, MCU_TYPE_USB, USB_BP2_EN, 0);
-
-			ocp_write_word(tp, MCU_TYPE_USB, USB_BP_8, 0);
-			ocp_write_word(tp, MCU_TYPE_USB, USB_BP_9, 0);
-			ocp_write_word(tp, MCU_TYPE_USB, USB_BP_10, 0);
-			ocp_write_word(tp, MCU_TYPE_USB, USB_BP_11, 0);
-			ocp_write_word(tp, MCU_TYPE_USB, USB_BP_12, 0);
-			ocp_write_word(tp, MCU_TYPE_USB, USB_BP_13, 0);
-			ocp_write_word(tp, MCU_TYPE_USB, USB_BP_14, 0);
-			ocp_write_word(tp, MCU_TYPE_USB, USB_BP_15, 0);
-		} else {
-			ocp_write_byte(tp, MCU_TYPE_PLA, PLA_BP_EN, 0);
+			bp_num = 16;
+			break;
 		}
+		fallthrough;
+	case RTL_VER_03:
+	case RTL_VER_04:
+	case RTL_VER_05:
+	case RTL_VER_06:
+		ocp_write_byte(tp, type, PLA_BP_EN, 0);
+		fallthrough;
+	case RTL_VER_01:
+	case RTL_VER_02:
+	case RTL_VER_07:
+		bp_num = 8;
+		break;
+	case RTL_VER_14:
+	default:
+		ocp_write_word(tp, type, USB_BP2_EN, 0);
+		bp_num = 16;
 		break;
 	}
 
-	ocp_write_word(tp, type, PLA_BP_0, 0);
-	ocp_write_word(tp, type, PLA_BP_1, 0);
-	ocp_write_word(tp, type, PLA_BP_2, 0);
-	ocp_write_word(tp, type, PLA_BP_3, 0);
-	ocp_write_word(tp, type, PLA_BP_4, 0);
-	ocp_write_word(tp, type, PLA_BP_5, 0);
-	ocp_write_word(tp, type, PLA_BP_6, 0);
-	ocp_write_word(tp, type, PLA_BP_7, 0);
+	generic_ocp_write(tp, PLA_BP_0, BYTE_EN_DWORD, bp_num << 1, bp, type);
 
 	/* wait 3 ms to make sure the firmware is stopped */
 	usleep_range(3000, 6000);
@@ -5000,10 +4987,9 @@ static void rtl8152_fw_phy_nc_apply(struct r8152 *tp, struct fw_phy_nc *phy)
 
 static void rtl8152_fw_mac_apply(struct r8152 *tp, struct fw_mac *mac)
 {
-	u16 bp_en_addr, bp_index, type, bp_num, fw_ver_reg;
+	u16 bp_en_addr, type, fw_ver_reg;
 	u32 length;
 	u8 *data;
-	int i;
 
 	switch (__le32_to_cpu(mac->blk_hdr.type)) {
 	case RTL_FW_PLA:
@@ -5045,12 +5031,8 @@ static void rtl8152_fw_mac_apply(struct r8152 *tp, struct fw_mac *mac)
 	ocp_write_word(tp, type, __le16_to_cpu(mac->bp_ba_addr),
 		       __le16_to_cpu(mac->bp_ba_value));
 
-	bp_index = __le16_to_cpu(mac->bp_start);
-	bp_num = __le16_to_cpu(mac->bp_num);
-	for (i = 0; i < bp_num; i++) {
-		ocp_write_word(tp, type, bp_index, __le16_to_cpu(mac->bp[i]));
-		bp_index += 2;
-	}
+	generic_ocp_write(tp, __le16_to_cpu(mac->bp_start), BYTE_EN_DWORD,
+			  __le16_to_cpu(mac->bp_num) << 1, mac->bp, type);
 
 	bp_en_addr = __le16_to_cpu(mac->bp_en_addr);
 	if (bp_en_addr)
