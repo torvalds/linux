@@ -6,8 +6,6 @@
  *
  * Basic guest setup / host vCPU thread code lifted from set_memory_region_test.
  */
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #include <pthread.h>
 #include <sched.h>
 #include <semaphore.h>

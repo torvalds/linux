@@ -7,8 +7,6 @@
  * host to inject a specific intid via a GUEST_SYNC call, and then checks that
  * it received it.
  */
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #include <asm/kvm.h>
 #include <asm/kvm_para.h>
 #include <sys/eventfd.h>

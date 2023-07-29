@@ -4,8 +4,6 @@
  *
  * Copyright 2022, Google, Inc. and/or its affiliates.
  */
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

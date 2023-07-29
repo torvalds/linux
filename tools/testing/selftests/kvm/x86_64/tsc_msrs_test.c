@@ -4,8 +4,6 @@
  *
  * Copyright (C) 2020, Red Hat, Inc.
  */
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #include <stdio.h>
 #include <string.h>
 #include "kvm_util.h"

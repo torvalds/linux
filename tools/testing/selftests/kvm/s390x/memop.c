@@ -4,8 +4,6 @@
  *
  * Copyright (C) 2019, Red Hat, Inc.
  */
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

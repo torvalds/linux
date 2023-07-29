@@ -8,8 +8,6 @@
  *   Copyright (C) 2021, Red Hat, Inc.
  *
  */
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #include <stdatomic.h>
 #include <stdio.h>
 #include <unistd.h>

@@ -8,8 +8,6 @@
  * hypercalls are properly masked or unmasked to the guest when disabled or
  * enabled from the KVM userspace, respectively.
  */
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #include <errno.h>
 #include <linux/arm-smccc.h>
 #include <asm/kvm.h>

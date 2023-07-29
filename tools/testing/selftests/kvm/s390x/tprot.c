@@ -4,8 +4,6 @@
  *
  * Copyright IBM Corp. 2021
  */
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #include <sys/mman.h>
 #include "test_util.h"
 #include "kvm_util.h"

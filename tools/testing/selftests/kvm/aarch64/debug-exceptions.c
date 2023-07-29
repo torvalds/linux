@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #include <test_util.h>
 #include <kvm_util.h>
 #include <processor.h>

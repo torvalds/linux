@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #define _GNU_SOURCE /* for program_invocation_short_name */
 #include <fcntl.h>
 #include <pthread.h>

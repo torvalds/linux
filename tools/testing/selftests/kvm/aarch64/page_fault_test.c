@@ -7,8 +7,6 @@
  * hugetlbfs with a hole). It checks that the expected handling method is
  * called (e.g., uffd faults with the right address and write/read flag).
  */
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #define _GNU_SOURCE
 #include <linux/bitmap.h>
 #include <fcntl.h>

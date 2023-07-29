@@ -4,8 +4,6 @@
  *
  * Tests for KVM paravirtual feature disablement
  */
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #include <asm/kvm_para.h>
 #include <linux/kvm_para.h>
 #include <stdint.h>

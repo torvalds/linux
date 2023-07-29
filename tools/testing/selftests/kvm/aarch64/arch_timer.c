@@ -19,8 +19,6 @@
  *
  * Copyright (c) 2021, Google LLC.
  */
-#define USE_GUEST_ASSERT_PRINTF 1
-
 #define _GNU_SOURCE
 
 #include <stdlib.h>
