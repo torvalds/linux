@@ -144,7 +144,7 @@ config FB_DMA_HELPERS
 	select FB_SYS_FOPS
 	select FB_SYS_IMAGEBLIT
 
-config FB_IO_HELPERS
+config FB_IOMEM_HELPERS
 	bool
 	depends on FB_CORE
 	select FB_CFB_COPYAREA

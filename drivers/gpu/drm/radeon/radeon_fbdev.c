@@ -193,7 +193,7 @@ static const struct fb_ops radeon_fbdev_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_open = radeon_fbdev_fb_open,
 	.fb_release = radeon_fbdev_fb_release,
-	FB_DEFAULT_IO_OPS,
+	FB_DEFAULT_IOMEM_OPS,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_destroy = radeon_fbdev_fb_destroy,
 };
