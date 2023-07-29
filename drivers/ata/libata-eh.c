@@ -78,12 +78,12 @@ enum {
  * are mostly for error handling, hotplug and those outlier devices that
  * take an exceptionally long time to recover from reset.
  */
-static const unsigned long ata_eh_reset_timeouts[] = {
+static const unsigned int ata_eh_reset_timeouts[] = {
 	10000,	/* most drives spin up by 10sec */
 	10000,	/* > 99% working drives spin up before 20sec */
 	35000,	/* give > 30 secs of idleness for outlier devices */
 	 5000,	/* and sweet one last chance */
-	ULONG_MAX, /* > 1 min has elapsed, give up */
+	UINT_MAX, /* > 1 min has elapsed, give up */
 };
 
 static const unsigned int ata_eh_identify_timeouts[] = {
@@ -2575,7 +2575,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	/*
 	 * Prepare to reset
 	 */
-	while (ata_eh_reset_timeouts[max_tries] != ULONG_MAX)
+	while (ata_eh_reset_timeouts[max_tries] != UINT_MAX)
 		max_tries++;
 	if (link->flags & ATA_LFLAG_RST_ONCE)
 		max_tries = 1;
