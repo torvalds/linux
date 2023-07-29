@@ -460,7 +460,7 @@ static void rtllib_send_probe(struct rtllib_device *ieee)
 	}
 }
 
-static void rtllib_send_probe_requests(struct rtllib_device *ieee, u8 is_mesh)
+static void rtllib_send_probe_requests(struct rtllib_device *ieee)
 {
 	if (ieee->active_scan && (ieee->softmac_features &
 	    IEEE_SOFTMAC_PROBERQ)) {
@@ -525,7 +525,7 @@ static void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 
 		ieee->set_chan(ieee->dev, ch);
 		if (ieee->active_channel_map[ch] == 1)
-			rtllib_send_probe_requests(ieee, 0);
+			rtllib_send_probe_requests(ieee);
 
 		/* this prevent excessive time wait when we
 		 * need to wait for a syncro scan to end..
@@ -587,7 +587,7 @@ static void rtllib_softmac_scan_wq(void *data)
 	ieee->set_chan(ieee->dev, ieee->current_network.channel);
 
 	if (ieee->active_channel_map[ieee->current_network.channel] == 1)
-		rtllib_send_probe_requests(ieee, 0);
+		rtllib_send_probe_requests(ieee);
 
 	schedule_delayed_work(&ieee->softmac_scan_wq,
 			      msecs_to_jiffies(RTLLIB_SOFTMAC_SCAN_TIME));
