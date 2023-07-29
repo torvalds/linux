@@ -103,8 +103,4 @@ do {										\
 		    (const char *)(ucall).args[GUEST_FILE],			\
 		    (ucall).args[GUEST_LINE], "%s", (ucall).buffer)
 
-/* FIXME: Drop this alias once the param-based guest asserts are gone. */
-#define GUEST_ASSERT_1(_condition, arg1) \
-	__GUEST_ASSERT(_condition, "arg1 = 0x%lx", arg1)
-
 #endif /* SELFTEST_KVM_UCALL_COMMON_H */
