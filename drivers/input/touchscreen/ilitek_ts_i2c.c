@@ -537,10 +537,7 @@ static struct attribute *ilitek_sysfs_attrs[] = {
 	&dev_attr_product_id.attr,
 	NULL
 };
-
-static struct attribute_group ilitek_attrs_group = {
-	.attrs = ilitek_sysfs_attrs,
-};
+ATTRIBUTE_GROUPS(ilitek_sysfs);
 
 static int ilitek_ts_i2c_probe(struct i2c_client *client)
 {
@@ -592,12 +589,6 @@ static int ilitek_ts_i2c_probe(struct i2c_client *client)
 					  "ilitek_touch_irq", ts);
 	if (error) {
 		dev_err(dev, "request threaded irq failed: %d\n", error);
-		return error;
-	}
-
-	error = devm_device_add_group(dev, &ilitek_attrs_group);
-	if (error) {
-		dev_err(dev, "sysfs create group failed: %d\n", error);
 		return error;
 	}
 
@@ -675,6 +666,7 @@ MODULE_DEVICE_TABLE(of, ilitek_ts_i2c_match);
 static struct i2c_driver ilitek_ts_i2c_driver = {
 	.driver = {
 		.name = ILITEK_TS_NAME,
+		.dev_groups = ilitek_sysfs_groups,
 		.pm = pm_sleep_ptr(&ilitek_pm_ops),
 		.of_match_table = of_match_ptr(ilitek_ts_i2c_match),
 		.acpi_match_table = ACPI_PTR(ilitekts_acpi_id),
