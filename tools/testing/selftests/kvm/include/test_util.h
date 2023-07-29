@@ -185,4 +185,7 @@ static inline uint32_t atoi_non_negative(const char *name, const char *num_str)
 	return num;
 }
 
+int guest_vsnprintf(char *buf, int n, const char *fmt, va_list args);
+int guest_snprintf(char *buf, int n, const char *fmt, ...);
+
 #endif /* SELFTEST_KVM_TEST_UTIL_H */
