@@ -1445,12 +1445,6 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-static int rtllib_rx_Master(struct rtllib_device *ieee, struct sk_buff *skb,
-		 struct rtllib_rx_stats *rx_stats)
-{
-	return 0;
-}
-
 static int rtllib_rx_Monitor(struct rtllib_device *ieee, struct sk_buff *skb,
 		 struct rtllib_rx_stats *rx_stats)
 {
@@ -1510,7 +1504,6 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 		break;
 	case IW_MODE_MASTER:
 	case IW_MODE_REPEAT:
-		ret = rtllib_rx_Master(ieee, skb, rx_stats);
 		break;
 	case IW_MODE_MONITOR:
 		ret = rtllib_rx_Monitor(ieee, skb, rx_stats);
