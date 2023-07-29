@@ -86,13 +86,13 @@ static void clean_irq_status(unsigned int irq_status, void __iomem *addr)
 static irqreturn_t mtk_vcodec_enc_irq_handler(int irq, void *priv)
 {
 	struct mtk_vcodec_dev *dev = priv;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_enc_ctx *ctx;
 	unsigned long flags;
 	void __iomem *addr;
 	int core_id;
 
 	spin_lock_irqsave(&dev->irqlock, flags);
-	ctx = dev->curr_ctx;
+	ctx = dev->curr_enc_ctx;
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 
 	core_id = dev->venc_pdata->core_id;
@@ -110,14 +110,14 @@ static irqreturn_t mtk_vcodec_enc_irq_handler(int irq, void *priv)
 
 	clean_irq_status(ctx->irq_status, addr);
 
-	wake_up_ctx(ctx, MTK_INST_IRQ_RECEIVED, 0);
+	wake_up_enc_ctx(ctx, MTK_INST_IRQ_RECEIVED, 0);
 	return IRQ_HANDLED;
 }
 
 static int fops_vcodec_open(struct file *file)
 {
 	struct mtk_vcodec_dev *dev = video_drvdata(file);
-	struct mtk_vcodec_ctx *ctx = NULL;
+	struct mtk_vcodec_enc_ctx *ctx = NULL;
 	int ret = 0;
 	struct vb2_queue *src_vq;
 
@@ -204,7 +204,7 @@ err_ctrls_setup:
 static int fops_vcodec_release(struct file *file)
 {
 	struct mtk_vcodec_dev *dev = video_drvdata(file);
-	struct mtk_vcodec_ctx *ctx = fh_to_ctx(file->private_data);
+	struct mtk_vcodec_enc_ctx *ctx = fh_to_enc_ctx(file->private_data);
 
 	mtk_v4l2_venc_dbg(1, ctx, "[%d] encoder", ctx->id);
 	mutex_lock(&dev->dev_mutex);

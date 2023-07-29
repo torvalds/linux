@@ -344,7 +344,7 @@ struct vdec_hevc_slice_share_info {
  * struct vdec_hevc_slice_inst - hevc decoder instance
  *
  * @slice_dec_num:      how many picture be decoded
- * @ctx:                point to mtk_vcodec_ctx
+ * @ctx:                point to mtk_vcodec_dec_ctx
  * @mv_buf:             HW working motion vector buffer
  * @vpu:                VPU instance
  * @vsi:                vsi used for lat
@@ -359,7 +359,7 @@ struct vdec_hevc_slice_share_info {
  */
 struct vdec_hevc_slice_inst {
 	unsigned int slice_dec_num;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct mtk_vcodec_mem mv_buf[HEVC_MAX_MV_NUM];
 	struct vdec_vpu_inst vpu;
 	struct vdec_hevc_slice_vsi *vsi;
@@ -380,7 +380,7 @@ static unsigned int vdec_hevc_get_mv_buf_size(unsigned int width, unsigned int h
 	return 64 * unit_size;
 }
 
-static void *vdec_hevc_get_ctrl_ptr(struct mtk_vcodec_ctx *ctx, int id)
+static void *vdec_hevc_get_ctrl_ptr(struct mtk_vcodec_dec_ctx *ctx, int id)
 {
 	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(&ctx->ctrl_hdl, id);
 
@@ -390,7 +390,7 @@ static void *vdec_hevc_get_ctrl_ptr(struct mtk_vcodec_ctx *ctx, int id)
 	return ctrl->p_cur.p;
 }
 
-static void vdec_hevc_fill_dpb_info(struct mtk_vcodec_ctx *ctx,
+static void vdec_hevc_fill_dpb_info(struct mtk_vcodec_dec_ctx *ctx,
 				    struct slice_api_hevc_decode_param *decode_params,
 				    struct mtk_hevc_dpb_info *hevc_dpb_info)
 {
@@ -679,7 +679,7 @@ static void vdec_hevc_slice_free_mv_buf(struct vdec_hevc_slice_inst *inst)
 
 static void vdec_hevc_slice_get_pic_info(struct vdec_hevc_slice_inst *inst)
 {
-	struct mtk_vcodec_ctx *ctx = inst->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = inst->ctx;
 	u32 data[3];
 
 	data[0] = ctx->picinfo.pic_w;
@@ -798,7 +798,7 @@ static int vdec_hevc_slice_setup_core_buffer(struct vdec_hevc_slice_inst *inst,
 					     struct vdec_lat_buf *lat_buf)
 {
 	struct mtk_vcodec_mem *mem;
-	struct mtk_vcodec_ctx *ctx = inst->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = inst->ctx;
 	struct vb2_v4l2_buffer *vb2_v4l2;
 	struct vdec_fb *fb;
 	u64 y_fb_dma, c_fb_dma;
@@ -853,7 +853,7 @@ static int vdec_hevc_slice_setup_core_buffer(struct vdec_hevc_slice_inst *inst,
 	return 0;
 }
 
-static int vdec_hevc_slice_init(struct mtk_vcodec_ctx *ctx)
+static int vdec_hevc_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct vdec_hevc_slice_inst *inst;
 	int err, vsi_size;
@@ -924,7 +924,7 @@ static void vdec_hevc_slice_deinit(void *h_vdec)
 static int vdec_hevc_slice_core_decode(struct vdec_lat_buf *lat_buf)
 {
 	int err, timeout;
-	struct mtk_vcodec_ctx *ctx = lat_buf->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = lat_buf->ctx;
 	struct vdec_hevc_slice_inst *inst = ctx->drv_handle;
 	struct vdec_hevc_slice_share_info *share_info = lat_buf->private_data;
 	struct vdec_vpu_inst *vpu = &inst->vpu;

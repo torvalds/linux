@@ -10,7 +10,7 @@
 #include "mtk_vcodec_drv.h"
 #include "mtk_vcodec_util.h"
 
-static void mtk_vdec_dbgfs_get_format_type(struct mtk_vcodec_ctx *ctx, char *buf,
+static void mtk_vdec_dbgfs_get_format_type(struct mtk_vcodec_dec_ctx *ctx, char *buf,
 					   int *used, int total)
 {
 	int curr_len;
@@ -91,7 +91,7 @@ static ssize_t mtk_vdec_dbgfs_read(struct file *filp, char __user *ubuf,
 	struct mtk_vcodec_dev *vcodec_dev = filp->private_data;
 	struct mtk_vcodec_dbgfs *dbgfs = &vcodec_dev->dbgfs;
 	struct mtk_vcodec_dbgfs_inst *dbgfs_inst;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	int total_len = 200 * (dbgfs->inst_count == 0 ? 1 : dbgfs->inst_count);
 	int used_len = 0, curr_len, ret;
 	bool dbgfs_index[MTK_VDEC_DBGFS_MAX] = {0};
@@ -143,7 +143,7 @@ static const struct file_operations vdec_fops = {
 	.read = mtk_vdec_dbgfs_read,
 };
 
-void mtk_vcodec_dbgfs_create(struct mtk_vcodec_ctx *ctx)
+void mtk_vcodec_dbgfs_create(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct mtk_vcodec_dbgfs_inst *dbgfs_inst;
 	struct mtk_vcodec_dev *vcodec_dev = ctx->dev;

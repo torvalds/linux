@@ -133,7 +133,7 @@ struct vdec_h264_slice_share_info {
  * struct vdec_h264_slice_inst - h264 decoder instance
  *
  * @slice_dec_num:	how many picture be decoded
- * @ctx:		point to mtk_vcodec_ctx
+ * @ctx:		point to mtk_vcodec_dec_ctx
  * @pred_buf:		HW working predication buffer
  * @mv_buf:		HW working motion vector buffer
  * @vpu:		VPU instance
@@ -153,7 +153,7 @@ struct vdec_h264_slice_share_info {
  */
 struct vdec_h264_slice_inst {
 	unsigned int slice_dec_num;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct mtk_vcodec_mem pred_buf;
 	struct mtk_vcodec_mem mv_buf[H264_MAX_MV_NUM];
 	struct vdec_vpu_inst vpu;
@@ -344,7 +344,7 @@ static void vdec_h264_slice_free_mv_buf(struct vdec_h264_slice_inst *inst)
 
 static void vdec_h264_slice_get_pic_info(struct vdec_h264_slice_inst *inst)
 {
-	struct mtk_vcodec_ctx *ctx = inst->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = inst->ctx;
 	u32 data[3];
 
 	data[0] = ctx->picinfo.pic_w;
@@ -393,7 +393,7 @@ static void vdec_h264_slice_get_crop_info(struct vdec_h264_slice_inst *inst,
 		       cr->left, cr->top, cr->width, cr->height);
 }
 
-static int vdec_h264_slice_init(struct mtk_vcodec_ctx *ctx)
+static int vdec_h264_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct vdec_h264_slice_inst *inst;
 	int err, vsi_size;
@@ -457,7 +457,7 @@ static int vdec_h264_slice_core_decode(struct vdec_lat_buf *lat_buf)
 	u64 vdec_fb_va;
 	u64 y_fb_dma, c_fb_dma;
 	int err, timeout, i;
-	struct mtk_vcodec_ctx *ctx = lat_buf->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = lat_buf->ctx;
 	struct vdec_h264_slice_inst *inst = ctx->drv_handle;
 	struct vb2_v4l2_buffer *vb2_v4l2;
 	struct vdec_h264_slice_share_info *share_info = lat_buf->private_data;

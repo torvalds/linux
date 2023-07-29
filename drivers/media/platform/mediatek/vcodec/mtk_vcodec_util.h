@@ -25,7 +25,7 @@ struct mtk_vcodec_fb {
 	dma_addr_t dma_addr;
 };
 
-struct mtk_vcodec_ctx;
+struct mtk_vcodec_dec_ctx;
 struct mtk_vcodec_dev;
 
 #undef pr_fmt
@@ -85,13 +85,13 @@ extern int mtk_vcodec_dbg;
 	mtk_v4l2_debug((ctx)->dev->plat_dev, level, fmt, ##args)
 
 void __iomem *mtk_vcodec_get_reg_addr(void __iomem **reg_base, unsigned int reg_idx);
-int mtk_vcodec_write_vdecsys(struct mtk_vcodec_ctx *ctx, unsigned int reg, unsigned int val);
+int mtk_vcodec_write_vdecsys(struct mtk_vcodec_dec_ctx *ctx, unsigned int reg, unsigned int val);
 int mtk_vcodec_mem_alloc(void *priv, struct mtk_vcodec_mem *mem);
 void mtk_vcodec_mem_free(void *priv, struct mtk_vcodec_mem *mem);
 void mtk_vcodec_set_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
-			     struct mtk_vcodec_ctx *ctx, int hw_idx);
-struct mtk_vcodec_ctx *mtk_vcodec_get_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
-					       unsigned int hw_idx);
+			     struct mtk_vcodec_dec_ctx *ctx, int hw_idx);
+struct mtk_vcodec_dec_ctx *mtk_vcodec_get_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
+						   unsigned int hw_idx);
 void *mtk_vcodec_get_hw_dev(struct mtk_vcodec_dev *dev, int hw_idx);
 
 #endif /* _MTK_VCODEC_UTIL_H_ */

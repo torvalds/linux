@@ -142,7 +142,7 @@ static void mtk_vcodec_dec_disable_irq(struct mtk_vcodec_dev *vdec_dev, int hw_i
 	}
 }
 
-static void mtk_vcodec_load_racing_info(struct mtk_vcodec_ctx *ctx)
+static void mtk_vcodec_load_racing_info(struct mtk_vcodec_dec_ctx *ctx)
 {
 	void __iomem *vdec_racing_addr;
 	int j;
@@ -156,7 +156,7 @@ static void mtk_vcodec_load_racing_info(struct mtk_vcodec_ctx *ctx)
 	mutex_unlock(&ctx->dev->dec_racing_info_mutex);
 }
 
-static void mtk_vcodec_record_racing_info(struct mtk_vcodec_ctx *ctx)
+static void mtk_vcodec_record_racing_info(struct mtk_vcodec_dec_ctx *ctx)
 {
 	void __iomem *vdec_racing_addr;
 	int j;
@@ -230,7 +230,7 @@ static void mtk_vcodec_dec_child_dev_off(struct mtk_vcodec_dev *vdec_dev,
 	}
 }
 
-void mtk_vcodec_dec_enable_hardware(struct mtk_vcodec_ctx *ctx, int hw_idx)
+void mtk_vcodec_dec_enable_hardware(struct mtk_vcodec_dec_ctx *ctx, int hw_idx)
 {
 	mutex_lock(&ctx->dev->dec_mutex[hw_idx]);
 
@@ -246,7 +246,7 @@ void mtk_vcodec_dec_enable_hardware(struct mtk_vcodec_ctx *ctx, int hw_idx)
 }
 EXPORT_SYMBOL_GPL(mtk_vcodec_dec_enable_hardware);
 
-void mtk_vcodec_dec_disable_hardware(struct mtk_vcodec_ctx *ctx, int hw_idx)
+void mtk_vcodec_dec_disable_hardware(struct mtk_vcodec_dec_ctx *ctx, int hw_idx)
 {
 	if (IS_VDEC_INNER_RACING(ctx->dev->dec_capability))
 		mtk_vcodec_record_racing_info(ctx);

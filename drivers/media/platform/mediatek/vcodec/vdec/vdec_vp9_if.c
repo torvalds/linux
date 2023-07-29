@@ -196,7 +196,7 @@ struct vdec_vp9_inst {
 	struct list_head fb_free_list;
 	struct list_head fb_disp_list;
 	struct vdec_fb *cur_fb;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct vdec_vpu_inst vpu;
 	struct vdec_vp9_vsi *vsi;
 	unsigned int total_frm_cnt;
@@ -532,7 +532,7 @@ static void vp9_swap_frm_bufs(struct vdec_vp9_inst *inst)
 
 static bool vp9_wait_dec_end(struct vdec_vp9_inst *inst)
 {
-	struct mtk_vcodec_ctx *ctx = inst->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = inst->ctx;
 
 	mtk_vcodec_wait_for_done_ctx(inst->ctx,
 			MTK_INST_IRQ_RECEIVED,
@@ -544,7 +544,7 @@ static bool vp9_wait_dec_end(struct vdec_vp9_inst *inst)
 		return false;
 }
 
-static struct vdec_vp9_inst *vp9_alloc_inst(struct mtk_vcodec_ctx *ctx)
+static struct vdec_vp9_inst *vp9_alloc_inst(struct mtk_vcodec_dec_ctx *ctx)
 {
 	int result;
 	struct mtk_vcodec_mem mem;
@@ -772,7 +772,7 @@ static void vdec_vp9_deinit(void *h_vdec)
 	vp9_free_inst(inst);
 }
 
-static int vdec_vp9_init(struct mtk_vcodec_ctx *ctx)
+static int vdec_vp9_init(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct vdec_vp9_inst *inst;
 

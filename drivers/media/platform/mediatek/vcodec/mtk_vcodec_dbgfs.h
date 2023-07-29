@@ -8,7 +8,7 @@
 #define __MTK_VCODEC_DBGFS_H__
 
 struct mtk_vcodec_dev;
-struct mtk_vcodec_ctx;
+struct mtk_vcodec_dec_ctx;
 
 /*
  * enum mtk_vdec_dbgfs_log_index  - used to get different debug information
@@ -22,12 +22,12 @@ enum mtk_vdec_dbgfs_log_index {
 /**
  * struct mtk_vcodec_dbgfs_inst  - debugfs information for each inst
  * @node:       list node for each inst
- * @vcodec_ctx: struct mtk_vcodec_ctx
+ * @vcodec_ctx: struct mtk_vcodec_dec_ctx
  * @inst_id:    index of the context that the same with ctx->id
  */
 struct mtk_vcodec_dbgfs_inst {
 	struct list_head node;
-	struct mtk_vcodec_ctx *vcodec_ctx;
+	struct mtk_vcodec_dec_ctx *vcodec_ctx;
 	int inst_id;
 };
 
@@ -50,12 +50,12 @@ struct mtk_vcodec_dbgfs {
 };
 
 #if defined(CONFIG_DEBUG_FS)
-void mtk_vcodec_dbgfs_create(struct mtk_vcodec_ctx *ctx);
+void mtk_vcodec_dbgfs_create(struct mtk_vcodec_dec_ctx *ctx);
 void mtk_vcodec_dbgfs_remove(struct mtk_vcodec_dev *vcodec_dev, int ctx_id);
 void mtk_vcodec_dbgfs_init(struct mtk_vcodec_dev *vcodec_dev, bool is_encode);
 void mtk_vcodec_dbgfs_deinit(struct mtk_vcodec_dev *vcodec_dev);
 #else
-static inline void mtk_vcodec_dbgfs_create(struct mtk_vcodec_ctx *ctx)
+static inline void mtk_vcodec_dbgfs_create(struct mtk_vcodec_dec_ctx *ctx)
 {
 }
 

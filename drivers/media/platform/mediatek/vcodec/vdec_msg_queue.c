@@ -199,7 +199,7 @@ bool vdec_msg_queue_wait_lat_buf_full(struct vdec_msg_queue *msg_queue)
 }
 
 void vdec_msg_queue_deinit(struct vdec_msg_queue *msg_queue,
-			   struct mtk_vcodec_ctx *ctx)
+			   struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct vdec_lat_buf *lat_buf;
 	struct mtk_vcodec_mem *mem;
@@ -239,8 +239,8 @@ static void vdec_msg_queue_core_work(struct work_struct *work)
 {
 	struct vdec_msg_queue *msg_queue =
 		container_of(work, struct vdec_msg_queue, core_work);
-	struct mtk_vcodec_ctx *ctx =
-		container_of(msg_queue, struct mtk_vcodec_ctx, msg_queue);
+	struct mtk_vcodec_dec_ctx *ctx =
+		container_of(msg_queue, struct mtk_vcodec_dec_ctx, msg_queue);
 	struct mtk_vcodec_dev *dev = ctx->dev;
 	struct vdec_lat_buf *lat_buf;
 
@@ -280,7 +280,7 @@ static void vdec_msg_queue_core_work(struct work_struct *work)
 }
 
 int vdec_msg_queue_init(struct vdec_msg_queue *msg_queue,
-			struct mtk_vcodec_ctx *ctx, core_decode_cb_t core_decode,
+			struct mtk_vcodec_dec_ctx *ctx, core_decode_cb_t core_decode,
 			int private_size)
 {
 	struct vdec_lat_buf *lat_buf;

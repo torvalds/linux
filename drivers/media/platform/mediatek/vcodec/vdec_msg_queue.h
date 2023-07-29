@@ -17,7 +17,7 @@
 #define NUM_BUFFER_COUNT 3
 
 struct vdec_lat_buf;
-struct mtk_vcodec_ctx;
+struct mtk_vcodec_dec_ctx;
 struct mtk_vcodec_dev;
 typedef int (*core_decode_cb_t)(struct vdec_lat_buf *lat_buf);
 
@@ -76,7 +76,7 @@ struct vdec_lat_buf {
 	struct media_request *src_buf_req;
 
 	void *private_data;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	core_decode_cb_t core_decode;
 	struct list_head lat_list;
 	struct list_head core_list;
@@ -119,7 +119,7 @@ struct vdec_msg_queue {
 	struct vdec_lat_buf empty_lat_buf;
 	wait_queue_head_t core_dec_done;
 	int status;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 };
 
 /**
@@ -132,7 +132,7 @@ struct vdec_msg_queue {
  * Return: returns 0 if init successfully, or fail.
  */
 int vdec_msg_queue_init(struct vdec_msg_queue *msg_queue,
-			struct mtk_vcodec_ctx *ctx, core_decode_cb_t core_decode,
+			struct mtk_vcodec_dec_ctx *ctx, core_decode_cb_t core_decode,
 			int private_size);
 
 /**
@@ -188,6 +188,6 @@ bool vdec_msg_queue_wait_lat_buf_full(struct vdec_msg_queue *msg_queue);
  * @ctx: v4l2 ctx
  */
 void vdec_msg_queue_deinit(struct vdec_msg_queue *msg_queue,
-			   struct mtk_vcodec_ctx *ctx);
+			   struct mtk_vcodec_dec_ctx *ctx);
 
 #endif

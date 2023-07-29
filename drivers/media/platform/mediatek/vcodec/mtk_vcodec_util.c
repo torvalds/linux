@@ -31,7 +31,7 @@ void __iomem *mtk_vcodec_get_reg_addr(void __iomem **reg_base, unsigned int reg_
 }
 EXPORT_SYMBOL(mtk_vcodec_get_reg_addr);
 
-int mtk_vcodec_write_vdecsys(struct mtk_vcodec_ctx *ctx, unsigned int reg,
+int mtk_vcodec_write_vdecsys(struct mtk_vcodec_dec_ctx *ctx, unsigned int reg,
 			     unsigned int val)
 {
 	struct mtk_vcodec_dev *dev = ctx->dev;
@@ -48,7 +48,7 @@ EXPORT_SYMBOL(mtk_vcodec_write_vdecsys);
 int mtk_vcodec_mem_alloc(void *priv, struct mtk_vcodec_mem *mem)
 {
 	unsigned long size = mem->size;
-	struct mtk_vcodec_ctx *ctx = priv;
+	struct mtk_vcodec_dec_ctx *ctx = priv;
 	struct device *dev = &ctx->dev->plat_dev->dev;
 
 	mem->va = dma_alloc_coherent(dev, size, &mem->dma_addr, GFP_KERNEL);
@@ -69,7 +69,7 @@ EXPORT_SYMBOL(mtk_vcodec_mem_alloc);
 void mtk_vcodec_mem_free(void *priv, struct mtk_vcodec_mem *mem)
 {
 	unsigned long size = mem->size;
-	struct mtk_vcodec_ctx *ctx = priv;
+	struct mtk_vcodec_dec_ctx *ctx = priv;
 	struct device *dev = &ctx->dev->plat_dev->dev;
 
 	if (!mem->va) {
@@ -101,7 +101,7 @@ void *mtk_vcodec_get_hw_dev(struct mtk_vcodec_dev *dev, int hw_idx)
 EXPORT_SYMBOL(mtk_vcodec_get_hw_dev);
 
 void mtk_vcodec_set_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
-			     struct mtk_vcodec_ctx *ctx, int hw_idx)
+			     struct mtk_vcodec_dec_ctx *ctx, int hw_idx)
 {
 	unsigned long flags;
 	struct mtk_vdec_hw_dev *subdev_dev;
@@ -122,11 +122,11 @@ void mtk_vcodec_set_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
 }
 EXPORT_SYMBOL(mtk_vcodec_set_curr_ctx);
 
-struct mtk_vcodec_ctx *mtk_vcodec_get_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
-					       unsigned int hw_idx)
+struct mtk_vcodec_dec_ctx *mtk_vcodec_get_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
+						   unsigned int hw_idx)
 {
 	unsigned long flags;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct mtk_vdec_hw_dev *subdev_dev;
 
 	spin_lock_irqsave(&vdec_dev->irqlock, flags);

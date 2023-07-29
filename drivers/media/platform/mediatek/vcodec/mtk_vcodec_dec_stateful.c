@@ -55,7 +55,7 @@ static const unsigned int num_supported_formats =
  * Note the buffers returned from codec driver may still be in driver's
  * reference list.
  */
-static struct vb2_buffer *get_display_buffer(struct mtk_vcodec_ctx *ctx)
+static struct vb2_buffer *get_display_buffer(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct vdec_fb *disp_frame_buffer = NULL;
 	struct mtk_video_dec_buf *dstbuf;
@@ -98,7 +98,7 @@ static struct vb2_buffer *get_display_buffer(struct mtk_vcodec_ctx *ctx)
  * previous sps/pps/resolution change decode, or do nothing if user
  * space still owns this buffer
  */
-static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_ctx *ctx)
+static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct mtk_video_dec_buf *dstbuf;
 	struct vdec_fb *free_frame_buffer = NULL;
@@ -173,19 +173,19 @@ static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_ctx *ctx)
 	return &vb->vb2_buf;
 }
 
-static void clean_display_buffer(struct mtk_vcodec_ctx *ctx)
+static void clean_display_buffer(struct mtk_vcodec_dec_ctx *ctx)
 {
 	while (get_display_buffer(ctx))
 		;
 }
 
-static void clean_free_buffer(struct mtk_vcodec_ctx *ctx)
+static void clean_free_buffer(struct mtk_vcodec_dec_ctx *ctx)
 {
 	while (get_free_buffer(ctx))
 		;
 }
 
-static void mtk_vdec_queue_res_chg_event(struct mtk_vcodec_ctx *ctx)
+static void mtk_vdec_queue_res_chg_event(struct mtk_vcodec_dec_ctx *ctx)
 {
 	static const struct v4l2_event ev_src_ch = {
 		.type = V4L2_EVENT_SOURCE_CHANGE,
@@ -196,7 +196,7 @@ static void mtk_vdec_queue_res_chg_event(struct mtk_vcodec_ctx *ctx)
 	v4l2_event_queue_fh(&ctx->fh, &ev_src_ch);
 }
 
-static int mtk_vdec_flush_decoder(struct mtk_vcodec_ctx *ctx)
+static int mtk_vdec_flush_decoder(struct mtk_vcodec_dec_ctx *ctx)
 {
 	bool res_chg;
 	int ret;
@@ -211,7 +211,7 @@ static int mtk_vdec_flush_decoder(struct mtk_vcodec_ctx *ctx)
 	return 0;
 }
 
-static void mtk_vdec_update_fmt(struct mtk_vcodec_ctx *ctx,
+static void mtk_vdec_update_fmt(struct mtk_vcodec_dec_ctx *ctx,
 				unsigned int pixelformat)
 {
 	const struct mtk_video_fmt *fmt;
@@ -232,7 +232,7 @@ static void mtk_vdec_update_fmt(struct mtk_vcodec_ctx *ctx,
 	mtk_v4l2_vdec_err(ctx, "Cannot get fourcc(%d), using init value", pixelformat);
 }
 
-static int mtk_vdec_pic_info_update(struct mtk_vcodec_ctx *ctx)
+static int mtk_vdec_pic_info_update(struct mtk_vcodec_dec_ctx *ctx)
 {
 	unsigned int dpbsize = 0;
 	int ret;
@@ -277,8 +277,8 @@ static int mtk_vdec_pic_info_update(struct mtk_vcodec_ctx *ctx)
 
 static void mtk_vdec_worker(struct work_struct *work)
 {
-	struct mtk_vcodec_ctx *ctx =
-		container_of(work, struct mtk_vcodec_ctx, decode_work);
+	struct mtk_vcodec_dec_ctx *ctx =
+		container_of(work, struct mtk_vcodec_dec_ctx, decode_work);
 	struct mtk_vcodec_dev *dev = ctx->dev;
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	struct mtk_vcodec_mem buf;
@@ -420,7 +420,7 @@ static void vb2ops_vdec_stateful_buf_queue(struct vb2_buffer *vb)
 	bool res_chg = false;
 	int ret;
 	unsigned int dpbsize = 1, i;
-	struct mtk_vcodec_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	struct mtk_vcodec_dec_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct vb2_v4l2_buffer *vb2_v4l2;
 	struct mtk_q_data *dst_q_data;
 
@@ -528,7 +528,7 @@ static void vb2ops_vdec_stateful_buf_queue(struct vb2_buffer *vb)
 
 static int mtk_vdec_g_v_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct mtk_vcodec_ctx *ctx = ctrl_to_ctx(ctrl);
+	struct mtk_vcodec_dec_ctx *ctx = ctrl_to_dec_ctx(ctrl);
 	int ret = 0;
 
 	switch (ctrl->id) {
@@ -550,7 +550,7 @@ static const struct v4l2_ctrl_ops mtk_vcodec_dec_ctrl_ops = {
 	.g_volatile_ctrl = mtk_vdec_g_v_ctrl,
 };
 
-static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_ctx *ctx)
+static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct v4l2_ctrl *ctrl;
 
@@ -581,7 +581,7 @@ static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_ctx *ctx)
 	return 0;
 }
 
-static void mtk_init_vdec_params(struct mtk_vcodec_ctx *ctx)
+static void mtk_init_vdec_params(struct mtk_vcodec_dec_ctx *ctx)
 {
 	unsigned int i;
 

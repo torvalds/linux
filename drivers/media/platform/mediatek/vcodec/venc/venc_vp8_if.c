@@ -129,7 +129,7 @@ struct venc_vp8_inst {
 	unsigned int ts_mode;
 	struct venc_vpu_inst vpu_inst;
 	struct venc_vp8_vsi *vsi;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_enc_ctx *ctx;
 };
 
 static inline u32 vp8_enc_read_reg(struct venc_vp8_inst *inst, u32 addr)
@@ -209,7 +209,7 @@ err_alloc:
 static unsigned int vp8_enc_wait_venc_done(struct venc_vp8_inst *inst)
 {
 	unsigned int irq_status = 0;
-	struct mtk_vcodec_ctx *ctx = (struct mtk_vcodec_ctx *)inst->ctx;
+	struct mtk_vcodec_enc_ctx *ctx = (struct mtk_vcodec_enc_ctx *)inst->ctx;
 
 	if (!mtk_vcodec_wait_for_done_ctx(ctx, MTK_INST_IRQ_RECEIVED,
 					  WAIT_INTR_TIMEOUT_MS, 0)) {
@@ -312,7 +312,7 @@ static int vp8_enc_encode_frame(struct venc_vp8_inst *inst,
 	return ret;
 }
 
-static int vp8_enc_init(struct mtk_vcodec_ctx *ctx)
+static int vp8_enc_init(struct mtk_vcodec_enc_ctx *ctx)
 {
 	int ret = 0;
 	struct venc_vp8_inst *inst;
@@ -346,7 +346,7 @@ static int vp8_enc_encode(void *handle,
 {
 	int ret = 0;
 	struct venc_vp8_inst *inst = (struct venc_vp8_inst *)handle;
-	struct mtk_vcodec_ctx *ctx = inst->ctx;
+	struct mtk_vcodec_enc_ctx *ctx = inst->ctx;
 
 	enable_irq(ctx->dev->enc_irq);
 

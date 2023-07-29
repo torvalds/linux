@@ -117,7 +117,7 @@ struct vdec_h264_vsi {
 /**
  * struct vdec_h264_inst - h264 decoder instance
  * @num_nalu : how many nalus be decoded
- * @ctx      : point to mtk_vcodec_ctx
+ * @ctx      : point to mtk_vcodec_dec_ctx
  * @pred_buf : HW working predication buffer
  * @mv_buf   : HW working motion vector buffer
  * @vpu      : VPU instance
@@ -125,7 +125,7 @@ struct vdec_h264_vsi {
  */
 struct vdec_h264_inst {
 	unsigned int num_nalu;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct mtk_vcodec_mem pred_buf;
 	struct mtk_vcodec_mem mv_buf[H264_MAX_FB_NUM];
 	struct vdec_vpu_inst vpu;
@@ -266,7 +266,7 @@ static void get_dpb_size(struct vdec_h264_inst *inst, unsigned int *dpb_sz)
 	mtk_vdec_debug(inst->ctx, "sz=%d", *dpb_sz);
 }
 
-static int vdec_h264_init(struct mtk_vcodec_ctx *ctx)
+static int vdec_h264_init(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct vdec_h264_inst *inst = NULL;
 	int err;

@@ -11,6 +11,8 @@
 #include <media/videobuf2-core.h>
 #include <media/v4l2-mem2mem.h>
 
+#include "mtk_vcodec_enc_drv.h"
+
 #define MTK_VENC_IRQ_STATUS_SPS	0x1
 #define MTK_VENC_IRQ_STATUS_PPS	0x2
 #define MTK_VENC_IRQ_STATUS_FRM	0x4
@@ -39,12 +41,12 @@ struct mtk_video_enc_buf {
 extern const struct v4l2_ioctl_ops mtk_venc_ioctl_ops;
 extern const struct v4l2_m2m_ops mtk_venc_m2m_ops;
 
-int mtk_venc_unlock(struct mtk_vcodec_ctx *ctx);
-int mtk_venc_lock(struct mtk_vcodec_ctx *ctx);
+int mtk_venc_unlock(struct mtk_vcodec_enc_ctx *ctx);
+int mtk_venc_lock(struct mtk_vcodec_enc_ctx *ctx);
 int mtk_vcodec_enc_queue_init(void *priv, struct vb2_queue *src_vq,
 			      struct vb2_queue *dst_vq);
-void mtk_vcodec_enc_release(struct mtk_vcodec_ctx *ctx);
-int mtk_vcodec_enc_ctrls_setup(struct mtk_vcodec_ctx *ctx);
-void mtk_vcodec_enc_set_default_params(struct mtk_vcodec_ctx *ctx);
+void mtk_vcodec_enc_release(struct mtk_vcodec_enc_ctx *ctx);
+int mtk_vcodec_enc_ctrls_setup(struct mtk_vcodec_enc_ctx *ctx);
+void mtk_vcodec_enc_set_default_params(struct mtk_vcodec_enc_ctx *ctx);
 
 #endif /* _MTK_VCODEC_ENC_H_ */

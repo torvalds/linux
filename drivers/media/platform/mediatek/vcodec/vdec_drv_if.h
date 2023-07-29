@@ -69,14 +69,14 @@ extern const struct vdec_common_if vdec_av1_slice_lat_if;
  * @ctx	: [in] v4l2 context
  * @fourcc	: [in] video format fourcc, V4L2_PIX_FMT_H264/VP8/VP9..
  */
-int vdec_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc);
+int vdec_if_init(struct mtk_vcodec_dec_ctx *ctx, unsigned int fourcc);
 
 /**
  * vdec_if_deinit() - deinitialize decode driver
  * @ctx	: [in] v4l2 context
  *
  */
-void vdec_if_deinit(struct mtk_vcodec_ctx *ctx);
+void vdec_if_deinit(struct mtk_vcodec_dec_ctx *ctx);
 
 /**
  * vdec_if_decode() - trigger decode
@@ -90,7 +90,7 @@ void vdec_if_deinit(struct mtk_vcodec_ctx *ctx);
  *
  * Return: 0 on success. -EIO on unrecoverable error.
  */
-int vdec_if_decode(struct mtk_vcodec_ctx *ctx, struct mtk_vcodec_mem *bs,
+int vdec_if_decode(struct mtk_vcodec_dec_ctx *ctx, struct mtk_vcodec_mem *bs,
 		   struct vdec_fb *fb, bool *res_chg);
 
 /**
@@ -99,7 +99,7 @@ int vdec_if_decode(struct mtk_vcodec_ctx *ctx, struct mtk_vcodec_mem *bs,
  * @type	: [in] input parameter type
  * @out	: [out] buffer to store query result
  */
-int vdec_if_get_param(struct mtk_vcodec_ctx *ctx, enum vdec_get_param_type type,
+int vdec_if_get_param(struct mtk_vcodec_dec_ctx *ctx, enum vdec_get_param_type type,
 		      void *out);
 
 #endif

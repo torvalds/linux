@@ -218,7 +218,7 @@ static const struct v4l2_frmsize_stepwise stepwise_fhd = {
 	.step_height = 16
 };
 
-static void mtk_vdec_stateless_cap_to_disp(struct mtk_vcodec_ctx *ctx, int error,
+static void mtk_vdec_stateless_cap_to_disp(struct mtk_vcodec_dec_ctx *ctx, int error,
 					   struct media_request *src_buf_req)
 {
 	struct vb2_v4l2_buffer *vb2_dst;
@@ -242,7 +242,7 @@ static void mtk_vdec_stateless_cap_to_disp(struct mtk_vcodec_ctx *ctx, int error
 		v4l2_ctrl_request_complete(src_buf_req, &ctx->ctrl_hdl);
 }
 
-static struct vdec_fb *vdec_get_cap_buffer(struct mtk_vcodec_ctx *ctx)
+static struct vdec_fb *vdec_get_cap_buffer(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct mtk_video_dec_buf *framebuf;
 	struct vb2_v4l2_buffer *vb2_v4l2;
@@ -279,15 +279,15 @@ static struct vdec_fb *vdec_get_cap_buffer(struct mtk_vcodec_ctx *ctx)
 
 static void vb2ops_vdec_buf_request_complete(struct vb2_buffer *vb)
 {
-	struct mtk_vcodec_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	struct mtk_vcodec_dec_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 
 	v4l2_ctrl_request_complete(vb->req_obj.req, &ctx->ctrl_hdl);
 }
 
 static void mtk_vdec_worker(struct work_struct *work)
 {
-	struct mtk_vcodec_ctx *ctx =
-		container_of(work, struct mtk_vcodec_ctx, decode_work);
+	struct mtk_vcodec_dec_ctx *ctx =
+		container_of(work, struct mtk_vcodec_dec_ctx, decode_work);
 	struct mtk_vcodec_dev *dev = ctx->dev;
 	struct vb2_v4l2_buffer *vb2_v4l2_src;
 	struct vb2_buffer *vb2_src;
@@ -362,7 +362,7 @@ static void mtk_vdec_worker(struct work_struct *work)
 
 static void vb2ops_vdec_stateless_buf_queue(struct vb2_buffer *vb)
 {
-	struct mtk_vcodec_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	struct mtk_vcodec_dec_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct vb2_v4l2_buffer *vb2_v4l2 = to_vb2_v4l2_buffer(vb);
 
 	mtk_v4l2_vdec_dbg(3, ctx, "[%d] (%d) id=%d, vb=%p", ctx->id, vb->vb2_queue->type,
@@ -383,14 +383,14 @@ static void vb2ops_vdec_stateless_buf_queue(struct vb2_buffer *vb)
 	}
 }
 
-static int mtk_vdec_flush_decoder(struct mtk_vcodec_ctx *ctx)
+static int mtk_vdec_flush_decoder(struct mtk_vcodec_dec_ctx *ctx)
 {
 	bool res_chg;
 
 	return vdec_if_decode(ctx, NULL, NULL, &res_chg);
 }
 
-static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_ctx *ctx)
+static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_dec_ctx *ctx)
 {
 	unsigned int i;
 
@@ -442,7 +442,7 @@ const struct media_device_ops mtk_vcodec_media_ops = {
 };
 
 static void mtk_vcodec_add_formats(unsigned int fourcc,
-				   struct mtk_vcodec_ctx *ctx)
+				   struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct mtk_vcodec_dev *dev = ctx->dev;
 	const struct mtk_vcodec_dec_pdata *pdata = dev->vdec_pdata;
@@ -483,7 +483,7 @@ static void mtk_vcodec_add_formats(unsigned int fourcc,
 			  count_formats, ctx->dev->dec_capability);
 }
 
-static void mtk_vcodec_get_supported_formats(struct mtk_vcodec_ctx *ctx)
+static void mtk_vcodec_get_supported_formats(struct mtk_vcodec_dec_ctx *ctx)
 {
 	int cap_format_count = 0, out_format_count = 0;
 
@@ -526,7 +526,7 @@ static void mtk_vcodec_get_supported_formats(struct mtk_vcodec_ctx *ctx)
 			mtk_video_formats[cap_format_count + out_format_count - 1];
 }
 
-static void mtk_init_vdec_params(struct mtk_vcodec_ctx *ctx)
+static void mtk_init_vdec_params(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct vb2_queue *src_vq;
 

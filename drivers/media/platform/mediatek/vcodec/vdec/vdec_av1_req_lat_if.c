@@ -706,7 +706,7 @@ struct vdec_av1_slice_pfc {
  * @seq:                global picture sequence
  */
 struct vdec_av1_slice_instance {
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct vdec_vpu_inst vpu;
 
 	struct mtk_vcodec_mem iq_table;
@@ -756,7 +756,7 @@ static inline bool vdec_av1_slice_need_scale(u32 ref_width, u32 ref_height,
 		(this_height <= (ref_height << 4));
 }
 
-static void *vdec_av1_get_ctrl_ptr(struct mtk_vcodec_ctx *ctx, int id)
+static void *vdec_av1_get_ctrl_ptr(struct mtk_vcodec_dec_ctx *ctx, int id)
 {
 	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(&ctx->ctrl_hdl, id);
 
@@ -769,7 +769,7 @@ static void *vdec_av1_get_ctrl_ptr(struct mtk_vcodec_ctx *ctx, int id)
 static int vdec_av1_slice_init_cdf_table(struct vdec_av1_slice_instance *instance)
 {
 	u8 *remote_cdf_table;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct vdec_av1_slice_init_vsi *vsi;
 	int ret;
 
@@ -800,7 +800,7 @@ static int vdec_av1_slice_init_cdf_table(struct vdec_av1_slice_instance *instanc
 static int vdec_av1_slice_init_iq_table(struct vdec_av1_slice_instance *instance)
 {
 	u8 *remote_iq_table;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct vdec_av1_slice_init_vsi *vsi;
 	int ret;
 
@@ -937,7 +937,7 @@ static void vdec_av1_slice_setup_slot(struct vdec_av1_slice_instance *instance,
 static int vdec_av1_slice_alloc_working_buffer(struct vdec_av1_slice_instance *instance,
 					       struct vdec_av1_slice_vsi *vsi)
 {
-	struct mtk_vcodec_ctx *ctx = instance->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = instance->ctx;
 	enum vdec_av1_slice_resolution_level level;
 	u32 max_sb_w, max_sb_h, max_w, max_h, w, h;
 	int i, ret;
@@ -1020,7 +1020,7 @@ err:
 
 static void vdec_av1_slice_free_working_buffer(struct vdec_av1_slice_instance *instance)
 {
-	struct mtk_vcodec_ctx *ctx = instance->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = instance->ctx;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(instance->mv); i++)
@@ -1868,7 +1868,7 @@ static int vdec_av1_slice_update_core(struct vdec_av1_slice_instance *instance,
 	return 0;
 }
 
-static int vdec_av1_slice_init(struct mtk_vcodec_ctx *ctx)
+static int vdec_av1_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct vdec_av1_slice_instance *instance;
 	struct vdec_av1_slice_init_vsi *vsi;
@@ -1966,7 +1966,7 @@ static int vdec_av1_slice_flush(void *h_vdec, struct mtk_vcodec_mem *bs,
 
 static void vdec_av1_slice_get_pic_info(struct vdec_av1_slice_instance *instance)
 {
-	struct mtk_vcodec_ctx *ctx = instance->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = instance->ctx;
 	u32 data[3];
 
 	mtk_vdec_debug(ctx, "w %u h %u\n", ctx->picinfo.pic_w, ctx->picinfo.pic_h);
@@ -1992,7 +1992,7 @@ static inline void vdec_av1_slice_get_dpb_size(struct vdec_av1_slice_instance *i
 static void vdec_av1_slice_get_crop_info(struct vdec_av1_slice_instance *instance,
 					 struct v4l2_rect *cr)
 {
-	struct mtk_vcodec_ctx *ctx = instance->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = instance->ctx;
 
 	cr->left = 0;
 	cr->top = 0;
@@ -2032,7 +2032,7 @@ static int vdec_av1_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	struct vdec_lat_buf *lat_buf;
 	struct vdec_av1_slice_pfc *pfc;
 	struct vdec_av1_slice_vsi *vsi;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	int ret;
 
 	if (!instance || !instance->ctx)
@@ -2132,7 +2132,7 @@ static int vdec_av1_slice_core_decode(struct vdec_lat_buf *lat_buf)
 {
 	struct vdec_av1_slice_instance *instance;
 	struct vdec_av1_slice_pfc *pfc;
-	struct mtk_vcodec_ctx *ctx = NULL;
+	struct mtk_vcodec_dec_ctx *ctx = NULL;
 	struct vdec_fb *fb = NULL;
 	int ret = -EINVAL;
 

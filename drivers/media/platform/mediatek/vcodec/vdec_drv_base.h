@@ -15,7 +15,7 @@ struct vdec_common_if {
 	 * @ctx     : [in] mtk v4l2 context
 	 * @h_vdec  : [out] driver handle
 	 */
-	int (*init)(struct mtk_vcodec_ctx *ctx);
+	int (*init)(struct mtk_vcodec_dec_ctx *ctx);
 
 	/**
 	 * (*decode)() - trigger decode

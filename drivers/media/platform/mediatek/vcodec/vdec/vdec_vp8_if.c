@@ -158,7 +158,7 @@ struct vdec_vp8_inst {
 	struct mtk_vcodec_mem working_buf;
 	struct vdec_vp8_hw_reg_base reg_base;
 	unsigned int frm_cnt;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct vdec_vpu_inst vpu;
 	struct vdec_vp8_vsi *vsi;
 };
@@ -386,7 +386,7 @@ static void free_working_buf(struct vdec_vp8_inst *inst)
 	inst->vsi->dec.working_buf_dma = 0;
 }
 
-static int vdec_vp8_init(struct mtk_vcodec_ctx *ctx)
+static int vdec_vp8_init(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct vdec_vp8_inst *inst;
 	int err;

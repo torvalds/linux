@@ -9,7 +9,7 @@
 
 #include "mtk_vcodec_fw.h"
 
-struct mtk_vcodec_ctx;
+struct mtk_vcodec_dec_ctx;
 
 /**
  * struct vdec_vpu_inst - VPU instance for video codec
@@ -40,7 +40,7 @@ struct vdec_vpu_inst {
 	uint32_t fw_abi_version;
 	uint32_t inst_id;
 	unsigned int signaled;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	wait_queue_head_t wq;
 	mtk_vcodec_ipi_handler handler;
 	unsigned int codec_type;

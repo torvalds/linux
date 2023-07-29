@@ -35,7 +35,7 @@ struct venc_vpu_inst {
 	unsigned int inst_addr;
 	void *vsi;
 	int id;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_enc_ctx *ctx;
 };
 
 int vpu_enc_init(struct venc_vpu_inst *vpu);

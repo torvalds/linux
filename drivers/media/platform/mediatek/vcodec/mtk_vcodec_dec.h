@@ -11,6 +11,8 @@
 #include <media/videobuf2-core.h>
 #include <media/v4l2-mem2mem.h>
 
+#include "mtk_vcodec_dec_drv.h"
+
 #define VCODEC_DEC_ALIGNED_64 64
 #define VCODEC_CAPABILITY_4K_DISABLED	0x10
 #define VCODEC_DEC_4K_CODED_WIDTH	4096U
@@ -78,12 +80,12 @@ extern const struct mtk_vcodec_dec_pdata mtk_vdec_single_core_pdata;
  * mtk_vdec_lock get decoder hw lock and set curr_ctx
  * to ctx instance that get lock
  */
-void mtk_vdec_unlock(struct mtk_vcodec_ctx *ctx);
-void mtk_vdec_lock(struct mtk_vcodec_ctx *ctx);
+void mtk_vdec_unlock(struct mtk_vcodec_dec_ctx *ctx);
+void mtk_vdec_lock(struct mtk_vcodec_dec_ctx *ctx);
 int mtk_vcodec_dec_queue_init(void *priv, struct vb2_queue *src_vq,
 			   struct vb2_queue *dst_vq);
-void mtk_vcodec_dec_set_default_params(struct mtk_vcodec_ctx *ctx);
-void mtk_vcodec_dec_release(struct mtk_vcodec_ctx *ctx);
+void mtk_vcodec_dec_set_default_params(struct mtk_vcodec_dec_ctx *ctx);
+void mtk_vcodec_dec_release(struct mtk_vcodec_dec_ctx *ctx);
 
 /*
  * VB2 ops

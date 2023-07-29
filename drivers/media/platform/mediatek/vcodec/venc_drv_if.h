@@ -132,14 +132,14 @@ extern const struct venc_common_if venc_vp8_if;
  * @fourcc: encoder input format
  * Return: 0 if creating handle successfully, otherwise it is failed.
  */
-int venc_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc);
+int venc_if_init(struct mtk_vcodec_enc_ctx *ctx, unsigned int fourcc);
 
 /*
  * venc_if_deinit - Release the driver handle
  * @ctx: device context
  * Return: 0 if releasing handle successfully, otherwise it is failed.
  */
-int venc_if_deinit(struct mtk_vcodec_ctx *ctx);
+int venc_if_deinit(struct mtk_vcodec_enc_ctx *ctx);
 
 /*
  * venc_if_set_param - Set parameter to driver
@@ -148,7 +148,7 @@ int venc_if_deinit(struct mtk_vcodec_ctx *ctx);
  * @in: input parameter
  * Return: 0 if setting param successfully, otherwise it is failed.
  */
-int venc_if_set_param(struct mtk_vcodec_ctx *ctx,
+int venc_if_set_param(struct mtk_vcodec_enc_ctx *ctx,
 		      enum venc_set_param_type type,
 		      struct venc_enc_param *in);
 
@@ -161,7 +161,7 @@ int venc_if_set_param(struct mtk_vcodec_ctx *ctx,
  * @result: encode result
  * Return: 0 if encoding frame successfully, otherwise it is failed.
  */
-int venc_if_encode(struct mtk_vcodec_ctx *ctx,
+int venc_if_encode(struct mtk_vcodec_enc_ctx *ctx,
 		   enum venc_start_opt opt,
 		   struct venc_frm_buf *frm_buf,
 		   struct mtk_vcodec_mem *bs_buf,

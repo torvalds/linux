@@ -182,7 +182,7 @@ void mtk_vdec_h264_get_ref_list(u8 *ref_list,
  *
  * Return: returns CID ctrl address.
  */
-void *mtk_vdec_h264_get_ctrl_ptr(struct mtk_vcodec_ctx *ctx, int id);
+void *mtk_vdec_h264_get_ctrl_ptr(struct mtk_vcodec_dec_ctx *ctx, int id);
 
 /**
  * mtk_vdec_h264_fill_dpb_info - get each CID contrl address.
@@ -191,7 +191,7 @@ void *mtk_vdec_h264_get_ctrl_ptr(struct mtk_vcodec_ctx *ctx, int id);
  * @decode_params:	slice decode params
  * @h264_dpb_info:	dpb buffer information
  */
-void mtk_vdec_h264_fill_dpb_info(struct mtk_vcodec_ctx *ctx,
+void mtk_vdec_h264_fill_dpb_info(struct mtk_vcodec_dec_ctx *ctx,
 				 struct slice_api_h264_decode_param *decode_params,
 				 struct mtk_h264_dpb_info *h264_dpb_info);
 

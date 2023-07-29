@@ -101,12 +101,12 @@ struct vdec_vp8_slice_inst {
 	struct mtk_vcodec_mem wrap_y_buf;
 	struct mtk_vcodec_mem wrap_c_buf;
 	struct mtk_vcodec_mem vld_wrapper_buf;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct vdec_vpu_inst vpu;
 	struct vdec_vp8_slice_vsi *vsi;
 };
 
-static void *vdec_vp8_slice_get_ctrl_ptr(struct mtk_vcodec_ctx *ctx, int id)
+static void *vdec_vp8_slice_get_ctrl_ptr(struct mtk_vcodec_dec_ctx *ctx, int id)
 {
 	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(&ctx->ctrl_hdl, id);
 
@@ -118,7 +118,7 @@ static void *vdec_vp8_slice_get_ctrl_ptr(struct mtk_vcodec_ctx *ctx, int id)
 
 static void vdec_vp8_slice_get_pic_info(struct vdec_vp8_slice_inst *inst)
 {
-	struct mtk_vcodec_ctx *ctx = inst->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = inst->ctx;
 	unsigned int data[3];
 
 	data[0] = ctx->picinfo.pic_w;
@@ -233,7 +233,7 @@ static u64 vdec_vp8_slice_get_ref_by_ts(const struct v4l2_ctrl_vp8_frame *frame_
 static int vdec_vp8_slice_get_decode_parameters(struct vdec_vp8_slice_inst *inst)
 {
 	const struct v4l2_ctrl_vp8_frame *frame_header;
-	struct mtk_vcodec_ctx *ctx = inst->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = inst->ctx;
 	struct vb2_queue *vq;
 	struct vb2_buffer *vb;
 	u64 referenct_ts;
@@ -272,7 +272,7 @@ static int vdec_vp8_slice_get_decode_parameters(struct vdec_vp8_slice_inst *inst
 	return 0;
 }
 
-static int vdec_vp8_slice_init(struct mtk_vcodec_ctx *ctx)
+static int vdec_vp8_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct vdec_vp8_slice_inst *inst;
 	int err;

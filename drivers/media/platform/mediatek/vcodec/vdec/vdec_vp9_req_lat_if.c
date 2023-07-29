@@ -445,7 +445,7 @@ struct vdec_vp9_slice_ref {
  * @counts_helper:	counts table according to newest kernel spec
  */
 struct vdec_vp9_slice_instance {
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct vdec_vpu_inst vpu;
 
 	int seq;
@@ -506,7 +506,7 @@ static int vdec_vp9_slice_init_default_frame_ctx(struct vdec_vp9_slice_instance 
 {
 	struct vdec_vp9_slice_frame_ctx *remote_frame_ctx;
 	struct vdec_vp9_slice_frame_ctx *frame_ctx;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	struct vdec_vp9_slice_init_vsi *vsi;
 	int ret = 0;
 
@@ -543,7 +543,7 @@ out:
 static int vdec_vp9_slice_alloc_working_buffer(struct vdec_vp9_slice_instance *instance,
 					       struct vdec_vp9_slice_vsi *vsi)
 {
-	struct mtk_vcodec_ctx *ctx = instance->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = instance->ctx;
 	enum vdec_vp9_slice_resolution_level level;
 	/* super blocks */
 	unsigned int max_sb_w;
@@ -635,7 +635,7 @@ err:
 
 static void vdec_vp9_slice_free_working_buffer(struct vdec_vp9_slice_instance *instance)
 {
-	struct mtk_vcodec_ctx *ctx = instance->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = instance->ctx;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(instance->mv); i++) {
@@ -1850,7 +1850,7 @@ static int vdec_vp9_slice_update_core(struct vdec_vp9_slice_instance *instance,
 	return 0;
 }
 
-static int vdec_vp9_slice_init(struct mtk_vcodec_ctx *ctx)
+static int vdec_vp9_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct vdec_vp9_slice_instance *instance;
 	struct vdec_vp9_slice_init_vsi *vsi;
@@ -1933,7 +1933,7 @@ static int vdec_vp9_slice_flush(void *h_vdec, struct mtk_vcodec_mem *bs,
 
 static void vdec_vp9_slice_get_pic_info(struct vdec_vp9_slice_instance *instance)
 {
-	struct mtk_vcodec_ctx *ctx = instance->ctx;
+	struct mtk_vcodec_dec_ctx *ctx = instance->ctx;
 	unsigned int data[3];
 
 	mtk_vdec_debug(instance->ctx, "w %u h %u\n", ctx->picinfo.pic_w, ctx->picinfo.pic_h);
@@ -1984,7 +1984,7 @@ static int vdec_vp9_slice_single_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	struct vdec_vp9_slice_instance *instance = h_vdec;
 	struct vdec_vp9_slice_pfc *pfc = &instance->sc_pfc;
 	struct vdec_vp9_slice_vsi *vsi;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	int ret;
 
 	if (!instance || !instance->ctx)
@@ -2042,7 +2042,7 @@ static int vdec_vp9_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	struct vdec_lat_buf *lat_buf;
 	struct vdec_vp9_slice_pfc *pfc;
 	struct vdec_vp9_slice_vsi *vsi;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
 	int ret;
 
 	if (!instance || !instance->ctx)
@@ -2137,7 +2137,7 @@ static int vdec_vp9_slice_core_decode(struct vdec_lat_buf *lat_buf)
 {
 	struct vdec_vp9_slice_instance *instance;
 	struct vdec_vp9_slice_pfc *pfc;
-	struct mtk_vcodec_ctx *ctx = NULL;
+	struct mtk_vcodec_dec_ctx *ctx = NULL;
 	struct vdec_fb *fb = NULL;
 	int ret = -EINVAL;
 

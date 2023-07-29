@@ -16,7 +16,7 @@
 #include "mtk_vcodec_enc.h"
 #include "mtk_vcodec_enc_pm.h"
 
-int venc_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
+int venc_if_init(struct mtk_vcodec_enc_ctx *ctx, unsigned int fourcc)
 {
 	int ret = 0;
 
@@ -40,8 +40,8 @@ int venc_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 	return ret;
 }
 
-int venc_if_set_param(struct mtk_vcodec_ctx *ctx,
-		enum venc_set_param_type type, struct venc_enc_param *in)
+int venc_if_set_param(struct mtk_vcodec_enc_ctx *ctx,
+		      enum venc_set_param_type type, struct venc_enc_param *in)
 {
 	int ret = 0;
 
@@ -54,7 +54,7 @@ int venc_if_set_param(struct mtk_vcodec_ctx *ctx,
 	return ret;
 }
 
-int venc_if_encode(struct mtk_vcodec_ctx *ctx,
+int venc_if_encode(struct mtk_vcodec_enc_ctx *ctx,
 		   enum venc_start_opt opt, struct venc_frm_buf *frm_buf,
 		   struct mtk_vcodec_mem *bs_buf,
 		   struct venc_done_result *result)
@@ -65,7 +65,7 @@ int venc_if_encode(struct mtk_vcodec_ctx *ctx,
 	mtk_venc_lock(ctx);
 
 	spin_lock_irqsave(&ctx->dev->irqlock, flags);
-	ctx->dev->curr_ctx = ctx;
+	ctx->dev->curr_enc_ctx = ctx;
 	spin_unlock_irqrestore(&ctx->dev->irqlock, flags);
 
 	mtk_vcodec_enc_clock_on(&ctx->dev->pm);
@@ -74,14 +74,14 @@ int venc_if_encode(struct mtk_vcodec_ctx *ctx,
 	mtk_vcodec_enc_clock_off(&ctx->dev->pm);
 
 	spin_lock_irqsave(&ctx->dev->irqlock, flags);
-	ctx->dev->curr_ctx = NULL;
+	ctx->dev->curr_enc_ctx = NULL;
 	spin_unlock_irqrestore(&ctx->dev->irqlock, flags);
 
 	mtk_venc_unlock(ctx);
 	return ret;
 }
 
-int venc_if_deinit(struct mtk_vcodec_ctx *ctx)
+int venc_if_deinit(struct mtk_vcodec_enc_ctx *ctx)
 {
 	int ret = 0;
 

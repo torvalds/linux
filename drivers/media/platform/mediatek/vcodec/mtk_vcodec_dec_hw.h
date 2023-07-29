@@ -49,7 +49,7 @@ struct mtk_vdec_hw_dev {
 	struct mtk_vcodec_dev *main_dev;
 	void __iomem *reg_base[VDEC_HW_MAX];
 
-	struct mtk_vcodec_ctx *curr_ctx;
+	struct mtk_vcodec_dec_ctx *curr_ctx;
 
 	int dec_irq;
 	struct mtk_vcodec_pm pm;

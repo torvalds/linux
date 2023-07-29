@@ -14,7 +14,7 @@
 #include "vdec_drv_base.h"
 #include "mtk_vcodec_dec_pm.h"
 
-int vdec_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
+int vdec_if_init(struct mtk_vcodec_dec_ctx *ctx, unsigned int fourcc)
 {
 	enum mtk_vdec_hw_arch hw_arch = ctx->dev->vdec_pdata->hw_arch;
 	int ret = 0;
@@ -68,7 +68,7 @@ int vdec_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 	return ret;
 }
 
-int vdec_if_decode(struct mtk_vcodec_ctx *ctx, struct mtk_vcodec_mem *bs,
+int vdec_if_decode(struct mtk_vcodec_dec_ctx *ctx, struct mtk_vcodec_mem *bs,
 		   struct vdec_fb *fb, bool *res_chg)
 {
 	int ret = 0;
@@ -100,7 +100,7 @@ int vdec_if_decode(struct mtk_vcodec_ctx *ctx, struct mtk_vcodec_mem *bs,
 	return ret;
 }
 
-int vdec_if_get_param(struct mtk_vcodec_ctx *ctx, enum vdec_get_param_type type,
+int vdec_if_get_param(struct mtk_vcodec_dec_ctx *ctx, enum vdec_get_param_type type,
 		      void *out)
 {
 	int ret = 0;
@@ -115,7 +115,7 @@ int vdec_if_get_param(struct mtk_vcodec_ctx *ctx, enum vdec_get_param_type type,
 	return ret;
 }
 
-void vdec_if_deinit(struct mtk_vcodec_ctx *ctx)
+void vdec_if_deinit(struct mtk_vcodec_dec_ctx *ctx)
 {
 	if (!ctx->drv_handle)
 		return;

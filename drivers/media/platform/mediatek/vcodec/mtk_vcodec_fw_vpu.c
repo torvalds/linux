@@ -51,10 +51,25 @@ static void mtk_vcodec_vpu_release(struct mtk_vcodec_fw *fw)
 	put_device(&fw->pdev->dev);
 }
 
-static void mtk_vcodec_vpu_reset_handler(void *priv)
+static void mtk_vcodec_vpu_reset_dec_handler(void *priv)
 {
 	struct mtk_vcodec_dev *dev = priv;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_dec_ctx *ctx;
+
+	dev_err(&dev->plat_dev->dev, "Watchdog timeout!!");
+
+	mutex_lock(&dev->dev_mutex);
+	list_for_each_entry(ctx, &dev->ctx_list, list) {
+		ctx->state = MTK_STATE_ABORT;
+		mtk_v4l2_vdec_dbg(0, ctx, "[%d] Change to state MTK_STATE_ABORT", ctx->id);
+	}
+	mutex_unlock(&dev->dev_mutex);
+}
+
+static void mtk_vcodec_vpu_reset_enc_handler(void *priv)
+{
+	struct mtk_vcodec_dev *dev = priv;
+	struct mtk_vcodec_enc_ctx *ctx;
 
 	dev_err(&dev->plat_dev->dev, "Watchdog timeout!!");
 
@@ -84,14 +99,13 @@ struct mtk_vcodec_fw *mtk_vcodec_fw_vpu_init(void *priv, enum mtk_vcodec_fw_use 
 	struct mtk_vcodec_fw *fw;
 	enum rst_id rst_id;
 
-	switch (fw_use) {
-	case ENCODER:
+	if (fw_use == ENCODER) {
 		rst_id = VPU_RST_ENC;
-		break;
-	case DECODER:
-	default:
+	} else if (fw_use == DECODER) {
 		rst_id = VPU_RST_DEC;
-		break;
+	} else {
+		pr_err("Invalid fw_use %d (use a resonable fw id here)\n", fw_use);
+		return ERR_PTR(-EINVAL);
 	}
 
 	plat_dev = dev->plat_dev;
@@ -101,7 +115,10 @@ struct mtk_vcodec_fw *mtk_vcodec_fw_vpu_init(void *priv, enum mtk_vcodec_fw_use 
 		return ERR_PTR(-EINVAL);
 	}
 
-	vpu_wdt_reg_handler(fw_pdev, mtk_vcodec_vpu_reset_handler, dev, rst_id);
+	if (fw_use == DECODER)
+		vpu_wdt_reg_handler(fw_pdev, mtk_vcodec_vpu_reset_dec_handler, priv, rst_id);
+	else
+		vpu_wdt_reg_handler(fw_pdev, mtk_vcodec_vpu_reset_enc_handler, priv, rst_id);
 
 	fw = devm_kzalloc(&plat_dev->dev, sizeof(*fw), GFP_KERNEL);
 	if (!fw)

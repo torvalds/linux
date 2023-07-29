@@ -221,7 +221,7 @@ struct venc_h264_inst {
 	struct venc_vpu_inst vpu_inst;
 	struct venc_h264_vsi *vsi;
 	struct venc_h264_vsi_34 *vsi_34;
-	struct mtk_vcodec_ctx *ctx;
+	struct mtk_vcodec_enc_ctx *ctx;
 };
 
 static inline u32 h264_read_reg(struct venc_h264_inst *inst, u32 addr)
@@ -409,7 +409,7 @@ err_alloc:
 static unsigned int h264_enc_wait_venc_done(struct venc_h264_inst *inst)
 {
 	unsigned int irq_status = 0;
-	struct mtk_vcodec_ctx *ctx = (struct mtk_vcodec_ctx *)inst->ctx;
+	struct mtk_vcodec_enc_ctx *ctx = (struct mtk_vcodec_enc_ctx *)inst->ctx;
 
 	if (!mtk_vcodec_wait_for_done_ctx(ctx, MTK_INST_IRQ_RECEIVED,
 					  WAIT_INTR_TIMEOUT_MS, 0)) {
@@ -513,7 +513,7 @@ static int h264_encode_frame(struct venc_h264_inst *inst,
 	unsigned int intra_period;
 	unsigned int irq_status;
 	struct venc_frame_info frame_info;
-	struct mtk_vcodec_ctx *ctx = inst->ctx;
+	struct mtk_vcodec_enc_ctx *ctx = inst->ctx;
 
 	mtk_venc_debug(ctx, "frm_cnt = %d\n ", inst->frm_cnt);
 
@@ -582,7 +582,7 @@ static void h264_encode_filler(struct venc_h264_inst *inst, void *buf,
 	memset(p, 0xff, size);
 }
 
-static int h264_enc_init(struct mtk_vcodec_ctx *ctx)
+static int h264_enc_init(struct mtk_vcodec_enc_ctx *ctx)
 {
 	const bool is_ext = MTK_ENC_CTX_IS_EXT(ctx);
 	int ret = 0;
@@ -620,7 +620,7 @@ static int h264_enc_encode(void *handle,
 {
 	int ret = 0;
 	struct venc_h264_inst *inst = (struct venc_h264_inst *)handle;
-	struct mtk_vcodec_ctx *ctx = inst->ctx;
+	struct mtk_vcodec_enc_ctx *ctx = inst->ctx;
 
 	mtk_venc_debug(ctx, "opt %d ->", opt);
 
@@ -750,7 +750,7 @@ static int h264_enc_set_param(void *handle,
 {
 	int ret = 0;
 	struct venc_h264_inst *inst = (struct venc_h264_inst *)handle;
-	struct mtk_vcodec_ctx *ctx = inst->ctx;
+	struct mtk_vcodec_enc_ctx *ctx = inst->ctx;
 	const bool is_34bit = MTK_ENC_IOVA_IS_34BIT(ctx);
 
 	mtk_venc_debug(ctx, "->type=%d", type);

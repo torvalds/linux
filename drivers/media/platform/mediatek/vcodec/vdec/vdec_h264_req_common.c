@@ -33,7 +33,7 @@ void mtk_vdec_h264_get_ref_list(u8 *ref_list,
 	memset(&ref_list[num_valid], 0x20, 32 - num_valid);
 }
 
-void *mtk_vdec_h264_get_ctrl_ptr(struct mtk_vcodec_ctx *ctx, int id)
+void *mtk_vdec_h264_get_ctrl_ptr(struct mtk_vcodec_dec_ctx *ctx, int id)
 {
 	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(&ctx->ctrl_hdl, id);
 
@@ -43,7 +43,7 @@ void *mtk_vdec_h264_get_ctrl_ptr(struct mtk_vcodec_ctx *ctx, int id)
 	return ctrl->p_cur.p;
 }
 
-void mtk_vdec_h264_fill_dpb_info(struct mtk_vcodec_ctx *ctx,
+void mtk_vdec_h264_fill_dpb_info(struct mtk_vcodec_dec_ctx *ctx,
 				 struct slice_api_h264_decode_param *decode_params,
 				 struct mtk_h264_dpb_info *h264_dpb_info)
 {
