@@ -49,8 +49,7 @@ void rtl92e_enable_hw_security_config(struct net_device *dev)
 }
 
 void rtl92e_set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
-		      u16 KeyType, const u8 *MacAddr, u8 DefaultKey,
-		      u32 *KeyContent)
+		      u16 KeyType, const u8 *MacAddr, u32 *KeyContent)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -62,7 +61,7 @@ void rtl92e_set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 	ieee->swcamtable[EntryNo].key_index = KeyIndex;
 	ieee->swcamtable[EntryNo].key_type = KeyType;
 	memcpy(ieee->swcamtable[EntryNo].macaddr, MacAddr, 6);
-	ieee->swcamtable[EntryNo].useDK = DefaultKey;
+	ieee->swcamtable[EntryNo].useDK = 0;
 	memcpy(ieee->swcamtable[EntryNo].key_buf, (u8 *)KeyContent, 16);
 }
 
