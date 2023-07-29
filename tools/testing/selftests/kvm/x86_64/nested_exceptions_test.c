@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#define USE_GUEST_ASSERT_PRINTF 1
+
 #define _GNU_SOURCE /* for program_invocation_short_name */
 
 #include "test_util.h"
@@ -180,9 +182,7 @@ static void assert_ucall_vector(struct kvm_vcpu *vcpu, int vector)
 			    "Expected L2 to ask for %d, L2 says it's done", vector);
 		break;
 	case UCALL_ABORT:
-		TEST_FAIL("%s at %s:%ld (0x%lx != 0x%lx)",
-			  (const char *)uc.args[0], __FILE__, uc.args[1],
-			  uc.args[2], uc.args[3]);
+		REPORT_GUEST_ASSERT(uc);
 		break;
 	default:
 		TEST_FAIL("Expected L2 to ask for %d, got unexpected ucall %lu", vector, uc.cmd);
