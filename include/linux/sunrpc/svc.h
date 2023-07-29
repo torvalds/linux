@@ -222,16 +222,6 @@ struct svc_rqst {
 	u32			rq_proc;	/* procedure number */
 	u32			rq_prot;	/* IP protocol */
 	int			rq_cachetype;	/* catering to nfsd */
-#define	RQ_SECURE	(0)			/* secure port */
-#define	RQ_LOCAL	(1)			/* local request */
-#define	RQ_USEDEFERRAL	(2)			/* use deferral */
-#define	RQ_DROPME	(3)			/* drop current reply */
-#define	RQ_SPLICE_OK	(4)			/* turned off in gss privacy
-						 * to prevent encrypting page
-						 * cache pages */
-#define	RQ_VICTIM	(5)			/* about to be shut down */
-#define	RQ_BUSY		(6)			/* request is busy */
-#define	RQ_DATA		(7)			/* request has data */
 	unsigned long		rq_flags;	/* flags field */
 	ktime_t			rq_qtime;	/* enqueue time */
 
@@ -260,6 +250,19 @@ struct svc_rqst {
 						 * net namespace
 						 */
 	void **			rq_lease_breaker; /* The v4 client breaking a lease */
+};
+
+/* bits for rq_flags */
+enum {
+	RQ_SECURE,		/* secure port */
+	RQ_LOCAL,		/* local request */
+	RQ_USEDEFERRAL,		/* use deferral */
+	RQ_DROPME,		/* drop current reply */
+	RQ_SPLICE_OK,		/* turned off in gss privacy to prevent
+				 * encrypting page cache pages */
+	RQ_VICTIM,		/* about to be shut down */
+	RQ_BUSY,		/* request is busy */
+	RQ_DATA,		/* request has data */
 };
 
 #define SVC_NET(rqst) (rqst->rq_xprt ? rqst->rq_xprt->xpt_net : rqst->rq_bc_net)
