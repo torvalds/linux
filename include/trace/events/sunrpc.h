@@ -1918,25 +1918,42 @@ TRACE_EVENT(svc_stats_latency,
 		__get_str(procedure), __entry->execute)
 );
 
+/*
+ * from include/linux/sunrpc/svc_xprt.h
+ */
+#define SVC_XPRT_FLAG_LIST						\
+	svc_xprt_flag(BUSY)						\
+	svc_xprt_flag(CONN)						\
+	svc_xprt_flag(CLOSE)						\
+	svc_xprt_flag(DATA)						\
+	svc_xprt_flag(TEMP)						\
+	svc_xprt_flag(DEAD)						\
+	svc_xprt_flag(CHNGBUF)						\
+	svc_xprt_flag(DEFERRED)						\
+	svc_xprt_flag(OLD)						\
+	svc_xprt_flag(LISTENER)						\
+	svc_xprt_flag(CACHE_AUTH)					\
+	svc_xprt_flag(LOCAL)						\
+	svc_xprt_flag(KILL_TEMP)					\
+	svc_xprt_flag(CONG_CTRL)					\
+	svc_xprt_flag(HANDSHAKE)					\
+	svc_xprt_flag(TLS_SESSION)					\
+	svc_xprt_flag_end(PEER_AUTH)
+
+#undef svc_xprt_flag
+#undef svc_xprt_flag_end
+#define svc_xprt_flag(x)	TRACE_DEFINE_ENUM(XPT_##x);
+#define svc_xprt_flag_end(x)	TRACE_DEFINE_ENUM(XPT_##x);
+
+SVC_XPRT_FLAG_LIST
+
+#undef svc_xprt_flag
+#undef svc_xprt_flag_end
+#define svc_xprt_flag(x)	{ BIT(XPT_##x), #x },
+#define svc_xprt_flag_end(x)	{ BIT(XPT_##x), #x }
+
 #define show_svc_xprt_flags(flags)					\
-	__print_flags(flags, "|",					\
-		{ BIT(XPT_BUSY),		"BUSY" },		\
-		{ BIT(XPT_CONN),		"CONN" },		\
-		{ BIT(XPT_CLOSE),		"CLOSE" },		\
-		{ BIT(XPT_DATA),		"DATA" },		\
-		{ BIT(XPT_TEMP),		"TEMP" },		\
-		{ BIT(XPT_DEAD),		"DEAD" },		\
-		{ BIT(XPT_CHNGBUF),		"CHNGBUF" },		\
-		{ BIT(XPT_DEFERRED),		"DEFERRED" },		\
-		{ BIT(XPT_OLD),			"OLD" },		\
-		{ BIT(XPT_LISTENER),		"LISTENER" },		\
-		{ BIT(XPT_CACHE_AUTH),		"CACHE_AUTH" },		\
-		{ BIT(XPT_LOCAL),		"LOCAL" },		\
-		{ BIT(XPT_KILL_TEMP),		"KILL_TEMP" },		\
-		{ BIT(XPT_CONG_CTRL),		"CONG_CTRL" },		\
-		{ BIT(XPT_HANDSHAKE),		"HANDSHAKE" },		\
-		{ BIT(XPT_TLS_SESSION),		"TLS_SESSION" },	\
-		{ BIT(XPT_PEER_AUTH),		"PEER_AUTH" })
+	__print_flags(flags, "|", SVC_XPRT_FLAG_LIST)
 
 TRACE_EVENT(svc_xprt_create_err,
 	TP_PROTO(
