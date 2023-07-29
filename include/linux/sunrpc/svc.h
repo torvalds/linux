@@ -42,11 +42,15 @@ struct svc_pool {
 	struct percpu_counter	sp_sockets_queued;
 	struct percpu_counter	sp_threads_woken;
 
-#define	SP_TASK_PENDING		(0)		/* still work to do even if no
-						 * xprt is queued. */
-#define SP_CONGESTED		(1)
 	unsigned long		sp_flags;
 } ____cacheline_aligned_in_smp;
+
+/* bits for sp_flags */
+enum {
+	SP_TASK_PENDING,	/* still work to do even if no xprt is queued */
+	SP_CONGESTED,		/* all threads are busy, none idle */
+};
+
 
 /*
  * RPC service.
