@@ -282,6 +282,12 @@ please make a proposal on the linux-media mailing list.
       - This format is two-planar 10-Bit tile mode and having similitude with
         ``V4L2_PIX_FMT_MM21`` in term of alignment and tiling. Used for VP9, AV1
         and HEVC.
+    * .. _V4L2-PIX-FMT-MT2110R:
+
+      - ``V4L2_PIX_FMT_MT2110R``
+      - 'MT2110R'
+      - This format is two-planar 10-Bit raster mode and having similitude with
+        ``V4L2_PIX_FMT_MM21`` in term of alignment and tiling. Used for AVC.
 .. raw:: latex
 
     \normalsize
