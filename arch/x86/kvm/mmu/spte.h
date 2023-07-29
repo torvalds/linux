@@ -238,6 +238,9 @@ static inline struct kvm_mmu_page *sptep_to_sp(u64 *sptep)
 
 static inline struct kvm_mmu_page *root_to_sp(hpa_t root)
 {
+	if (kvm_mmu_is_dummy_root(root))
+		return NULL;
+
 	/*
 	 * The "root" may be a special root, e.g. a PAE entry, treat it as a
 	 * SPTE to ensure any non-PA bits are dropped.

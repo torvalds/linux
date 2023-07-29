@@ -651,6 +651,17 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 	if (WARN_ON_ONCE(!VALID_PAGE(vcpu->arch.mmu->root.hpa)))
 		goto out_gpte_changed;
 
+	/*
+	 * Load a new root and retry the faulting instruction in the extremely
+	 * unlikely scenario that the guest root gfn became visible between
+	 * loading a dummy root and handling the resulting page fault, e.g. if
+	 * userspace create a memslot in the interim.
+	 */
+	if (unlikely(kvm_mmu_is_dummy_root(vcpu->arch.mmu->root.hpa))) {
+		kvm_make_request(KVM_REQ_MMU_FREE_OBSOLETE_ROOTS, vcpu);
+		goto out_gpte_changed;
+	}
+
 	for_each_shadow_entry(vcpu, fault->addr, it) {
 		gfn_t table_gfn;
 
