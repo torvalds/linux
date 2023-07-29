@@ -1691,7 +1691,7 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 
 static void kvm_mmu_check_sptes_at_free(struct kvm_mmu_page *sp)
 {
-#ifdef MMU_DEBUG
+#ifdef CONFIG_KVM_PROVE_MMU
 	int i;
 
 	for (i = 0; i < SPTE_ENT_PER_PAGE; i++) {
