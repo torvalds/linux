@@ -19,11 +19,11 @@
 #include "libata-transport.h"
 
 /* debounce timing parameters in msecs { interval, duration, timeout } */
-const unsigned long sata_deb_timing_normal[]		= {   5,  100, 2000 };
+const unsigned int sata_deb_timing_normal[]		= {   5,  100, 2000 };
 EXPORT_SYMBOL_GPL(sata_deb_timing_normal);
-const unsigned long sata_deb_timing_hotplug[]		= {  25,  500, 2000 };
+const unsigned int sata_deb_timing_hotplug[]		= {  25,  500, 2000 };
 EXPORT_SYMBOL_GPL(sata_deb_timing_hotplug);
-const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
+const unsigned int sata_deb_timing_long[]		= { 100, 2000, 5000 };
 EXPORT_SYMBOL_GPL(sata_deb_timing_long);
 
 /**
@@ -232,11 +232,11 @@ EXPORT_SYMBOL_GPL(ata_tf_from_fis);
  *	RETURNS:
  *	0 on success, -errno on failure.
  */
-int sata_link_debounce(struct ata_link *link, const unsigned long *params,
+int sata_link_debounce(struct ata_link *link, const unsigned int *params,
 		       unsigned long deadline)
 {
-	unsigned long interval = params[0];
-	unsigned long duration = params[1];
+	unsigned int interval = params[0];
+	unsigned int duration = params[1];
 	unsigned long last_jiffies, t;
 	u32 last, cur;
 	int rc;
@@ -295,7 +295,7 @@ EXPORT_SYMBOL_GPL(sata_link_debounce);
  *	RETURNS:
  *	0 on success, -errno on failure.
  */
-int sata_link_resume(struct ata_link *link, const unsigned long *params,
+int sata_link_resume(struct ata_link *link, const unsigned int *params,
 		     unsigned long deadline)
 {
 	int tries = ATA_LINK_RESUME_TRIES;
@@ -528,7 +528,7 @@ EXPORT_SYMBOL_GPL(sata_set_spd);
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
+int sata_link_hardreset(struct ata_link *link, const unsigned int *timing,
 			unsigned long deadline,
 			bool *online, int (*check_ready)(struct ata_link *))
 {

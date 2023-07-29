@@ -1166,11 +1166,11 @@ extern void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *
  * SATA specific code - drivers/ata/libata-sata.c
  */
 #ifdef CONFIG_SATA_HOST
-extern const unsigned long sata_deb_timing_normal[];
-extern const unsigned long sata_deb_timing_hotplug[];
-extern const unsigned long sata_deb_timing_long[];
+extern const unsigned int sata_deb_timing_normal[];
+extern const unsigned int sata_deb_timing_hotplug[];
+extern const unsigned int sata_deb_timing_long[];
 
-static inline const unsigned long *
+static inline const unsigned int *
 sata_ehc_deb_timing(struct ata_eh_context *ehc)
 {
 	if (ehc->i.flags & ATA_EHI_HOTPLUGGED)
@@ -1185,14 +1185,14 @@ extern int sata_scr_write(struct ata_link *link, int reg, u32 val);
 extern int sata_scr_write_flush(struct ata_link *link, int reg, u32 val);
 extern int sata_set_spd(struct ata_link *link);
 extern int sata_link_hardreset(struct ata_link *link,
-			const unsigned long *timing, unsigned long deadline,
+			const unsigned int *timing, unsigned long deadline,
 			bool *online, int (*check_ready)(struct ata_link *));
-extern int sata_link_resume(struct ata_link *link, const unsigned long *params,
+extern int sata_link_resume(struct ata_link *link, const unsigned int *params,
 			    unsigned long deadline);
 extern int ata_eh_read_sense_success_ncq_log(struct ata_link *link);
 extern void ata_eh_analyze_ncq_error(struct ata_link *link);
 #else
-static inline const unsigned long *
+static inline const unsigned int *
 sata_ehc_deb_timing(struct ata_eh_context *ehc)
 {
 	return NULL;
@@ -1212,7 +1212,7 @@ static inline int sata_scr_write_flush(struct ata_link *link, int reg, u32 val)
 }
 static inline int sata_set_spd(struct ata_link *link) { return -EOPNOTSUPP; }
 static inline int sata_link_hardreset(struct ata_link *link,
-				      const unsigned long *timing,
+				      const unsigned int *timing,
 				      unsigned long deadline,
 				      bool *online,
 				      int (*check_ready)(struct ata_link *))
@@ -1222,7 +1222,7 @@ static inline int sata_link_hardreset(struct ata_link *link,
 	return -EOPNOTSUPP;
 }
 static inline int sata_link_resume(struct ata_link *link,
-				   const unsigned long *params,
+				   const unsigned int *params,
 				   unsigned long deadline)
 {
 	return -EOPNOTSUPP;
@@ -1234,7 +1234,7 @@ static inline int ata_eh_read_sense_success_ncq_log(struct ata_link *link)
 static inline void ata_eh_analyze_ncq_error(struct ata_link *link) { }
 #endif
 extern int sata_link_debounce(struct ata_link *link,
-			const unsigned long *params, unsigned long deadline);
+			      const unsigned int *params, unsigned long deadline);
 extern int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 			     bool spm_wakeup);
 extern int ata_slave_link_init(struct ata_port *ap);

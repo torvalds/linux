@@ -3782,7 +3782,7 @@ int ata_std_prereset(struct ata_link *link, unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
-	const unsigned long *timing = sata_ehc_deb_timing(ehc);
+	const unsigned int *timing = sata_ehc_deb_timing(ehc);
 	int rc;
 
 	/* if we're about to do hardreset, nothing more to do */
@@ -3824,7 +3824,7 @@ EXPORT_SYMBOL_GPL(ata_std_prereset);
 int sata_std_hardreset(struct ata_link *link, unsigned int *class,
 		       unsigned long deadline)
 {
-	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
+	const unsigned int *timing = sata_ehc_deb_timing(&link->eh_context);
 	bool online;
 	int rc;
 

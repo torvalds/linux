@@ -350,7 +350,7 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
 static int xgene_ahci_do_hardreset(struct ata_link *link,
 				   unsigned long deadline, bool *online)
 {
-	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
+	const unsigned int *timing = sata_ehc_deb_timing(&link->eh_context);
 	struct ata_port *ap = link->ap;
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 	struct xgene_ahci_context *ctx = hpriv->plat_data;

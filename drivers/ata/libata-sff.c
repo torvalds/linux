@@ -1971,7 +1971,7 @@ int sata_sff_hardreset(struct ata_link *link, unsigned int *class,
 		       unsigned long deadline)
 {
 	struct ata_eh_context *ehc = &link->eh_context;
-	const unsigned long *timing = sata_ehc_deb_timing(ehc);
+	const unsigned int *timing = sata_ehc_deb_timing(ehc);
 	bool online;
 	int rc;
 
