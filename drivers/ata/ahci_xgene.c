@@ -110,9 +110,8 @@ static int xgene_ahci_init_memram(struct xgene_ahci_context *ctx)
  * @timeout : timeout for achieving the value.
  */
 static int xgene_ahci_poll_reg_val(struct ata_port *ap,
-				   void __iomem *reg, unsigned
-				   int val, unsigned long interval,
-				   unsigned long timeout)
+				   void __iomem *reg, unsigned int val,
+				   unsigned int interval, unsigned int timeout)
 {
 	unsigned long deadline;
 	unsigned int tmp;
