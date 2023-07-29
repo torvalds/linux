@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2019, Red Hat, Inc.
  */
+#define USE_GUEST_ASSERT_PRINTF 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -279,7 +280,7 @@ enum stage {
 	vcpu_run(__vcpu);						\
 	get_ucall(__vcpu, &uc);						\
 	if (uc.cmd == UCALL_ABORT) {					\
-		REPORT_GUEST_ASSERT_2(uc, "hints: %lu, %lu");		\
+		REPORT_GUEST_ASSERT(uc);				\
 	}								\
 	TEST_ASSERT_EQ(uc.cmd, UCALL_SYNC);				\
 	TEST_ASSERT_EQ(uc.args[1], __stage);				\
@@ -469,7 +470,7 @@ static __uint128_t cut_to_size(int size, __uint128_t val)
 	case 16:
 		return val;
 	}
-	GUEST_ASSERT_1(false, "Invalid size");
+	GUEST_FAIL("Invalid size = %u", size);
 	return 0;
 }
 
@@ -598,7 +599,7 @@ static bool _cmpxchg(int size, void *target, __uint128_t *old_addr, __uint128_t 
 			return ret;
 		}
 	}
-	GUEST_ASSERT_1(false, "Invalid size");
+	GUEST_FAIL("Invalid size = %u", size);
 	return 0;
 }
 
