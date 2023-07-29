@@ -4,6 +4,8 @@
  *
  * Generic tests for KVM CPUID set/get ioctls
  */
+#define USE_GUEST_ASSERT_PRINTF 1
+
 #include <asm/kvm_para.h>
 #include <linux/kvm_para.h>
 #include <stdint.h>
@@ -35,10 +37,10 @@ static void test_guest_cpuids(struct kvm_cpuid2 *guest_cpuid)
 			guest_cpuid->entries[i].index,
 			&eax, &ebx, &ecx, &edx);
 
-		GUEST_ASSERT(eax == guest_cpuid->entries[i].eax &&
-			     ebx == guest_cpuid->entries[i].ebx &&
-			     ecx == guest_cpuid->entries[i].ecx &&
-			     edx == guest_cpuid->entries[i].edx);
+		GUEST_ASSERT_EQ(eax, guest_cpuid->entries[i].eax);
+		GUEST_ASSERT_EQ(ebx, guest_cpuid->entries[i].ebx);
+		GUEST_ASSERT_EQ(ecx, guest_cpuid->entries[i].ecx);
+		GUEST_ASSERT_EQ(edx, guest_cpuid->entries[i].edx);
 	}
 
 }
@@ -51,7 +53,7 @@ static void guest_main(struct kvm_cpuid2 *guest_cpuid)
 
 	GUEST_SYNC(2);
 
-	GUEST_ASSERT(this_cpu_property(X86_PROPERTY_MAX_KVM_LEAF) == 0x40000001);
+	GUEST_ASSERT_EQ(this_cpu_property(X86_PROPERTY_MAX_KVM_LEAF), 0x40000001);
 
 	GUEST_DONE();
 }
@@ -116,7 +118,7 @@ static void run_vcpu(struct kvm_vcpu *vcpu, int stage)
 	case UCALL_DONE:
 		return;
 	case UCALL_ABORT:
-		REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
+		REPORT_GUEST_ASSERT(uc);
 	default:
 		TEST_ASSERT(false, "Unexpected exit: %s",
 			    exit_reason_str(vcpu->run->exit_reason));
