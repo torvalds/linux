@@ -55,7 +55,6 @@ obj-$(CONFIG_MPC512X_DMA) += mpc512x_dma.o
 obj-$(CONFIG_MV_XOR) += mv_xor.o
 obj-$(CONFIG_MV_XOR_V2) += mv_xor_v2.o
 obj-$(CONFIG_MXS_DMA) += mxs-dma.o
-obj-$(CONFIG_MX3_IPU) += ipu/
 obj-$(CONFIG_NBPFAXI_DMA) += nbpfaxi.o
 obj-$(CONFIG_OWL_DMA) += owl-dma.o
 obj-$(CONFIG_PCH_DMA) += pch_dma.o
