@@ -4,6 +4,8 @@
  *
  * Copyright (C) 2020, Red Hat, Inc.
  */
+#define USE_GUEST_ASSERT_PRINTF 1
+
 #define _GNU_SOURCE /* for program_invocation_name */
 #include <fcntl.h>
 #include <stdio.h>
@@ -20,7 +22,7 @@ static void guest_bsp_vcpu(void *arg)
 {
 	GUEST_SYNC(1);
 
-	GUEST_ASSERT(get_bsp_flag() != 0);
+	GUEST_ASSERT_NE(get_bsp_flag(), 0);
 
 	GUEST_DONE();
 }
@@ -29,7 +31,7 @@ static void guest_not_bsp_vcpu(void *arg)
 {
 	GUEST_SYNC(1);
 
-	GUEST_ASSERT(get_bsp_flag() == 0);
+	GUEST_ASSERT_EQ(get_bsp_flag(), 0);
 
 	GUEST_DONE();
 }
@@ -65,7 +67,7 @@ static void run_vcpu(struct kvm_vcpu *vcpu)
 					stage);
 			break;
 		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
+			REPORT_GUEST_ASSERT(uc);
 		default:
 			TEST_ASSERT(false, "Unexpected exit: %s",
 				    exit_reason_str(vcpu->run->exit_reason));
