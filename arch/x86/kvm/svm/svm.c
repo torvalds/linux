@@ -569,15 +569,11 @@ static int svm_check_processor_compat(void)
 
 static void __svm_write_tsc_multiplier(u64 multiplier)
 {
-	preempt_disable();
-
 	if (multiplier == __this_cpu_read(current_tsc_ratio))
-		goto out;
+		return;
 
 	wrmsrl(MSR_AMD64_TSC_RATIO, multiplier);
 	__this_cpu_write(current_tsc_ratio, multiplier);
-out:
-	preempt_enable();
 }
 
 static inline void kvm_cpu_svm_disable(void)
@@ -1152,7 +1148,9 @@ static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 
 void svm_write_tsc_multiplier(struct kvm_vcpu *vcpu, u64 multiplier)
 {
+	preempt_disable();
 	__svm_write_tsc_multiplier(multiplier);
+	preempt_enable();
 }
 
 /* Evaluate instruction intercepts that depend on guest CPUID features. */
