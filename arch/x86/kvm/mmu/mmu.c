@@ -1689,21 +1689,19 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	return young;
 }
 
-#ifdef MMU_DEBUG
-static int is_empty_shadow_page(u64 *spt)
+static void kvm_mmu_check_sptes_at_free(struct kvm_mmu_page *sp)
 {
+#ifdef MMU_DEBUG
 	int i;
 
 	for (i = 0; i < SPTE_ENT_PER_PAGE; i++) {
-		if (is_shadow_present_pte(spt[i])) {
-			printk(KERN_ERR "%s: %p %llx\n", __func__,
-			       &spt[i], spt[i]);
-			return 0;
-		}
+		if (MMU_WARN_ON(is_shadow_present_pte(sp->spt[i])))
+			pr_err_ratelimited("SPTE %llx (@ %p) for gfn %llx shadow-present at free",
+					   sp->spt[i], &sp->spt[i],
+					   kvm_mmu_page_get_gfn(sp, i));
 	}
-	return 1;
-}
 #endif
+}
 
 /*
  * This value is the sum of all of the kvm instances's
@@ -1731,7 +1729,8 @@ static void kvm_unaccount_mmu_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 
 static void kvm_mmu_free_shadow_page(struct kvm_mmu_page *sp)
 {
-	MMU_WARN_ON(!is_empty_shadow_page(sp->spt));
+	kvm_mmu_check_sptes_at_free(sp);
+
 	hlist_del(&sp->hash_link);
 	list_del(&sp->link);
 	free_page((unsigned long)sp->spt);
