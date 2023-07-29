@@ -829,12 +829,11 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 static int parse_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 {
 	struct xe_device *xe = ct_to_xe(ct);
-	u32 header, hxg, origin, type;
+	u32 hxg, origin, type;
 	int ret;
 
 	lockdep_assert_held(&ct->lock);
 
-	header = msg[0];
 	hxg = msg[1];
 
 	origin = FIELD_GET(GUC_HXG_MSG_0_ORIGIN, hxg);
