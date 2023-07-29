@@ -478,7 +478,7 @@ static void rtllib_update_active_chan_map(struct rtllib_device *ieee)
 /* this performs syncro scan blocking the caller until all channels
  * in the allowed channel map has been checked.
  */
-static void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
+static void rtllib_softmac_scan_syncro(struct rtllib_device *ieee)
 {
 	union iwreq_data wrqu;
 	short ch = 0;
@@ -715,7 +715,7 @@ void rtllib_start_scan_syncro(struct rtllib_device *ieee)
 	}
 	ieee->sync_scan_hurryup = 0;
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN)
-		rtllib_softmac_scan_syncro(ieee, 0);
+		rtllib_softmac_scan_syncro(ieee);
 }
 EXPORT_SYMBOL(rtllib_start_scan_syncro);
 
