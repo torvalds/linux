@@ -974,10 +974,11 @@ static umode_t iqs5xx_attr_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static const struct attribute_group iqs5xx_attr_group = {
+static const struct attribute_group iqs5xx_group = {
 	.is_visible = iqs5xx_attr_is_visible,
 	.attrs = iqs5xx_attrs,
 };
+__ATTRIBUTE_GROUPS(iqs5xx);
 
 static int iqs5xx_suspend(struct device *dev)
 {
@@ -1053,12 +1054,6 @@ static int iqs5xx_probe(struct i2c_client *client)
 		return error;
 	}
 
-	error = devm_device_add_group(&client->dev, &iqs5xx_attr_group);
-	if (error) {
-		dev_err(&client->dev, "Failed to add attributes: %d\n", error);
-		return error;
-	}
-
 	if (iqs5xx->input) {
 		error = input_register_device(iqs5xx->input);
 		if (error)
@@ -1089,6 +1084,7 @@ MODULE_DEVICE_TABLE(of, iqs5xx_of_match);
 static struct i2c_driver iqs5xx_i2c_driver = {
 	.driver = {
 		.name		= "iqs5xx",
+		.dev_groups	= iqs5xx_groups,
 		.of_match_table	= iqs5xx_of_match,
 		.pm		= pm_sleep_ptr(&iqs5xx_pm),
 	},
