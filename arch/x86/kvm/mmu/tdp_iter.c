@@ -41,8 +41,8 @@ void tdp_iter_start(struct tdp_iter *iter, struct kvm_mmu_page *root,
 {
 	int root_level = root->role.level;
 
-	WARN_ON(root_level < 1);
-	WARN_ON(root_level > PT64_ROOT_MAX_LEVEL);
+	WARN_ON_ONCE(root_level < 1);
+	WARN_ON_ONCE(root_level > PT64_ROOT_MAX_LEVEL);
 
 	iter->next_last_level_gfn = next_last_level_gfn;
 	iter->root_level = root_level;

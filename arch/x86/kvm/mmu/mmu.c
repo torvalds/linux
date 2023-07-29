@@ -481,7 +481,7 @@ retry:
  */
 static void mmu_spte_set(u64 *sptep, u64 new_spte)
 {
-	WARN_ON(is_shadow_present_pte(*sptep));
+	WARN_ON_ONCE(is_shadow_present_pte(*sptep));
 	__set_spte(sptep, new_spte);
 }
 
@@ -493,7 +493,7 @@ static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
 {
 	u64 old_spte = *sptep;
 
-	WARN_ON(!is_shadow_present_pte(new_spte));
+	WARN_ON_ONCE(!is_shadow_present_pte(new_spte));
 	check_spte_writable_invariants(new_spte);
 
 	if (!is_shadow_present_pte(old_spte)) {
@@ -506,7 +506,7 @@ static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
 	else
 		old_spte = __update_clear_spte_slow(sptep, new_spte);
 
-	WARN_ON(spte_to_pfn(old_spte) != spte_to_pfn(new_spte));
+	WARN_ON_ONCE(spte_to_pfn(old_spte) != spte_to_pfn(new_spte));
 
 	return old_spte;
 }
@@ -588,7 +588,7 @@ static u64 mmu_spte_clear_track_bits(struct kvm *kvm, u64 *sptep)
 	 * by a refcounted page, the refcount is elevated.
 	 */
 	page = kvm_pfn_to_refcounted_page(pfn);
-	WARN_ON(page && !page_count(page));
+	WARN_ON_ONCE(page && !page_count(page));
 
 	if (is_accessed_spte(old_spte))
 		kvm_set_pfn_accessed(pfn);
@@ -803,7 +803,7 @@ static void update_gfn_disallow_lpage_count(const struct kvm_memory_slot *slot,
 	for (i = PG_LEVEL_2M; i <= KVM_MAX_HUGEPAGE_LEVEL; ++i) {
 		linfo = lpage_info_slot(gfn, slot, i);
 		linfo->disallow_lpage += count;
-		WARN_ON(linfo->disallow_lpage < 0);
+		WARN_ON_ONCE(linfo->disallow_lpage < 0);
 	}
 }
 
@@ -1198,7 +1198,7 @@ static void drop_large_spte(struct kvm *kvm, u64 *sptep, bool flush)
 	struct kvm_mmu_page *sp;
 
 	sp = sptep_to_sp(sptep);
-	WARN_ON(sp->role.level == PG_LEVEL_4K);
+	WARN_ON_ONCE(sp->role.level == PG_LEVEL_4K);
 
 	drop_spte(kvm, sptep);
 
@@ -1457,7 +1457,7 @@ static bool kvm_set_pte_rmap(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
 	u64 new_spte;
 	kvm_pfn_t new_pfn;
 
-	WARN_ON(pte_huge(pte));
+	WARN_ON_ONCE(pte_huge(pte));
 	new_pfn = pte_pfn(pte);
 
 restart:
@@ -1818,7 +1818,7 @@ static int mmu_pages_add(struct kvm_mmu_pages *pvec, struct kvm_mmu_page *sp,
 static inline void clear_unsync_child_bit(struct kvm_mmu_page *sp, int idx)
 {
 	--sp->unsync_children;
-	WARN_ON((int)sp->unsync_children < 0);
+	WARN_ON_ONCE((int)sp->unsync_children < 0);
 	__clear_bit(idx, sp->unsync_child_bitmap);
 }
 
@@ -1876,7 +1876,7 @@ static int mmu_unsync_walk(struct kvm_mmu_page *sp,
 
 static void kvm_unlink_unsync_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
-	WARN_ON(!sp->unsync);
+	WARN_ON_ONCE(!sp->unsync);
 	trace_kvm_mmu_sync_page(sp);
 	sp->unsync = 0;
 	--kvm->stat.mmu_unsync;
@@ -2051,11 +2051,11 @@ static int mmu_pages_first(struct kvm_mmu_pages *pvec,
 	if (pvec->nr == 0)
 		return 0;
 
-	WARN_ON(pvec->page[0].idx != INVALID_INDEX);
+	WARN_ON_ONCE(pvec->page[0].idx != INVALID_INDEX);
 
 	sp = pvec->page[0].sp;
 	level = sp->role.level;
-	WARN_ON(level == PG_LEVEL_4K);
+	WARN_ON_ONCE(level == PG_LEVEL_4K);
 
 	parents->parent[level-2] = sp;
 
@@ -2077,7 +2077,7 @@ static void mmu_pages_clear_parents(struct mmu_page_path *parents)
 		if (!sp)
 			return;
 
-		WARN_ON(idx == INVALID_INDEX);
+		WARN_ON_ONCE(idx == INVALID_INDEX);
 		clear_unsync_child_bit(sp, idx);
 		level++;
 	} while (!sp->unsync_children);
@@ -2198,7 +2198,7 @@ static struct kvm_mmu_page *kvm_mmu_find_shadow_page(struct kvm *kvm,
 			if (ret < 0)
 				break;
 
-			WARN_ON(!list_empty(&invalid_list));
+			WARN_ON_ONCE(!list_empty(&invalid_list));
 			if (ret > 0)
 				kvm_flush_remote_tlbs(kvm);
 		}
@@ -2653,7 +2653,7 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 	kvm_flush_remote_tlbs(kvm);
 
 	list_for_each_entry_safe(sp, nsp, invalid_list, link) {
-		WARN_ON(!sp->role.invalid || sp->root_count);
+		WARN_ON_ONCE(!sp->role.invalid || sp->root_count);
 		kvm_mmu_free_shadow_page(sp);
 	}
 }
@@ -2848,7 +2848,7 @@ int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 				continue;
 		}
 
-		WARN_ON(sp->role.level != PG_LEVEL_4K);
+		WARN_ON_ONCE(sp->role.level != PG_LEVEL_4K);
 		kvm_unsync_page(kvm, sp);
 	}
 	if (locked)
@@ -3001,7 +3001,7 @@ static void __direct_pte_prefetch(struct kvm_vcpu *vcpu,
 	u64 *spte, *start = NULL;
 	int i;
 
-	WARN_ON(!sp->role.direct);
+	WARN_ON_ONCE(!sp->role.direct);
 
 	i = spte_index(sptep) & ~(PTE_PREFETCH_NUM - 1);
 	spte = sp->spt + i;
@@ -3547,7 +3547,7 @@ static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
 	 * SPTE to ensure any non-PA bits are dropped.
 	 */
 	sp = spte_to_child_sp(*root_hpa);
-	if (WARN_ON(!sp))
+	if (WARN_ON_ONCE(!sp))
 		return;
 
 	if (is_tdp_mmu_page(sp))
@@ -4162,7 +4162,7 @@ static int handle_mmio_page_fault(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 		return RET_PF_EMULATE;
 
 	reserved = get_mmio_spte(vcpu, addr, &spte);
-	if (WARN_ON(reserved))
+	if (WARN_ON_ONCE(reserved))
 		return -EINVAL;
 
 	if (is_mmio_spte(spte)) {
@@ -5483,9 +5483,9 @@ void kvm_mmu_unload(struct kvm_vcpu *vcpu)
 	struct kvm *kvm = vcpu->kvm;
 
 	kvm_mmu_free_roots(kvm, &vcpu->arch.root_mmu, KVM_MMU_ROOTS_ALL);
-	WARN_ON(VALID_PAGE(vcpu->arch.root_mmu.root.hpa));
+	WARN_ON_ONCE(VALID_PAGE(vcpu->arch.root_mmu.root.hpa));
 	kvm_mmu_free_roots(kvm, &vcpu->arch.guest_mmu, KVM_MMU_ROOTS_ALL);
-	WARN_ON(VALID_PAGE(vcpu->arch.guest_mmu.root.hpa));
+	WARN_ON_ONCE(VALID_PAGE(vcpu->arch.guest_mmu.root.hpa));
 	vcpu_clear_mmio_info(vcpu, MMIO_GVA_ANY);
 }
 
@@ -5700,7 +5700,7 @@ int noinline kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 err
 	if (WARN_ON_ONCE(error_code & PFERR_IMPLICIT_ACCESS))
 		error_code &= ~PFERR_IMPLICIT_ACCESS;
 
-	if (WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root.hpa)))
+	if (WARN_ON_ONCE(!VALID_PAGE(vcpu->arch.mmu->root.hpa)))
 		return RET_PF_RETRY;
 
 	r = RET_PF_INVALID;
@@ -6057,7 +6057,7 @@ restart:
 		 * pages.  Skip the bogus page, otherwise we'll get stuck in an
 		 * infinite loop if the page gets put back on the list (again).
 		 */
-		if (WARN_ON(sp->role.invalid))
+		if (WARN_ON_ONCE(sp->role.invalid))
 			continue;
 
 		/*
@@ -6685,7 +6685,7 @@ void kvm_mmu_zap_all(struct kvm *kvm)
 	write_lock(&kvm->mmu_lock);
 restart:
 	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link) {
-		if (WARN_ON(sp->role.invalid))
+		if (WARN_ON_ONCE(sp->role.invalid))
 			continue;
 		if (__kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list, &ign))
 			goto restart;
@@ -6703,7 +6703,7 @@ restart:
 
 void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen)
 {
-	WARN_ON(gen & KVM_MEMSLOT_GEN_UPDATE_IN_PROGRESS);
+	WARN_ON_ONCE(gen & KVM_MEMSLOT_GEN_UPDATE_IN_PROGRESS);
 
 	gen &= MMIO_SPTE_GEN_MASK;
 

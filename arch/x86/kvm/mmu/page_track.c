@@ -94,7 +94,7 @@ static void update_gfn_track(struct kvm_memory_slot *slot, gfn_t gfn,
 
 	val = slot->arch.gfn_track[mode][index];
 
-	if (WARN_ON(val + count < 0 || val + count > USHRT_MAX))
+	if (WARN_ON_ONCE(val + count < 0 || val + count > USHRT_MAX))
 		return;
 
 	slot->arch.gfn_track[mode][index] += count;
@@ -117,11 +117,11 @@ void kvm_slot_page_track_add_page(struct kvm *kvm,
 				  enum kvm_page_track_mode mode)
 {
 
-	if (WARN_ON(!page_track_mode_is_valid(mode)))
+	if (WARN_ON_ONCE(!page_track_mode_is_valid(mode)))
 		return;
 
-	if (WARN_ON(mode == KVM_PAGE_TRACK_WRITE &&
-		    !kvm_page_track_write_tracking_enabled(kvm)))
+	if (WARN_ON_ONCE(mode == KVM_PAGE_TRACK_WRITE &&
+			 !kvm_page_track_write_tracking_enabled(kvm)))
 		return;
 
 	update_gfn_track(slot, gfn, mode, 1);
@@ -155,11 +155,11 @@ void kvm_slot_page_track_remove_page(struct kvm *kvm,
 				     struct kvm_memory_slot *slot, gfn_t gfn,
 				     enum kvm_page_track_mode mode)
 {
-	if (WARN_ON(!page_track_mode_is_valid(mode)))
+	if (WARN_ON_ONCE(!page_track_mode_is_valid(mode)))
 		return;
 
-	if (WARN_ON(mode == KVM_PAGE_TRACK_WRITE &&
-		    !kvm_page_track_write_tracking_enabled(kvm)))
+	if (WARN_ON_ONCE(mode == KVM_PAGE_TRACK_WRITE &&
+			 !kvm_page_track_write_tracking_enabled(kvm)))
 		return;
 
 	update_gfn_track(slot, gfn, mode, -1);
@@ -181,7 +181,7 @@ bool kvm_slot_page_track_is_active(struct kvm *kvm,
 {
 	int index;
 
-	if (WARN_ON(!page_track_mode_is_valid(mode)))
+	if (WARN_ON_ONCE(!page_track_mode_is_valid(mode)))
 		return false;
 
 	if (!slot)
