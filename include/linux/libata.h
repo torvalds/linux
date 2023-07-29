@@ -1116,7 +1116,7 @@ static inline void ata_sas_port_resume(struct ata_port *ap)
 extern int ata_ratelimit(void);
 extern void ata_msleep(struct ata_port *ap, unsigned int msecs);
 extern u32 ata_wait_register(struct ata_port *ap, void __iomem *reg, u32 mask,
-			u32 val, unsigned long interval, unsigned long timeout);
+			     u32 val, unsigned int interval, unsigned int timeout);
 extern int atapi_cmd_type(u8 opcode);
 extern unsigned int ata_pack_xfermask(unsigned int pio_mask,
 				      unsigned int mwdma_mask,

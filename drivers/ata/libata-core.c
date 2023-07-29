@@ -6684,7 +6684,7 @@ EXPORT_SYMBOL_GPL(ata_msleep);
  *	The final register value.
  */
 u32 ata_wait_register(struct ata_port *ap, void __iomem *reg, u32 mask, u32 val,
-		      unsigned long interval, unsigned long timeout)
+		      unsigned int interval, unsigned int timeout)
 {
 	unsigned long deadline;
 	u32 tmp;
