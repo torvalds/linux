@@ -1973,9 +1973,6 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags;
 	u32 inta;
-	u32 intb;
-
-	intb = 0;
 
 	if (priv->irq_enabled == 0)
 		goto done;
