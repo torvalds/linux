@@ -8,6 +8,7 @@
  * Copyright 2022 Google LLC
  * Author: Vipin Sharma <vipinsh@google.com>
  */
+#define USE_GUEST_ASSERT_PRINTF 1
 
 #include "kvm_util.h"
 #include "processor.h"
@@ -84,7 +85,7 @@ int main(void)
 
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
-		REPORT_GUEST_ASSERT_2(uc, "arg1 = %ld, arg2 = %ld");
+		REPORT_GUEST_ASSERT(uc);
 		break;
 	case UCALL_DONE:
 		break;
