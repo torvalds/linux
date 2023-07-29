@@ -151,7 +151,7 @@ config FB_IOMEM_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_IMAGEBLIT
 
-config FB_SYS_HELPERS
+config FB_SYSMEM_HELPERS
 	bool
 	depends on FB_CORE
 	select FB_SYS_COPYAREA
@@ -159,11 +159,11 @@ config FB_SYS_HELPERS
 	select FB_SYS_FOPS
 	select FB_SYS_IMAGEBLIT
 
-config FB_SYS_HELPERS_DEFERRED
+config FB_SYSMEM_HELPERS_DEFERRED
 	bool
 	depends on FB_CORE
 	select FB_DEFERRED_IO
-	select FB_SYS_HELPERS
+	select FB_SYSMEM_HELPERS
 
 config FB_BACKLIGHT
 	tristate
