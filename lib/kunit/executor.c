@@ -125,7 +125,8 @@ static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
 						char *filter_action,
 					    int *err)
 {
-	int i, j, k, filter_count;
+	int i, j, k;
+	int filter_count = 0;
 	struct kunit_suite **copy, *filtered_suite, *new_filtered_suite;
 	struct suite_set filtered;
 	struct kunit_glob_filter parsed_glob;
