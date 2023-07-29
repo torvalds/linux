@@ -1912,7 +1912,7 @@ void rtl92e_enable_tx(struct net_device *dev)
 		rtl92e_writel(dev, TX_DESC_BASE[i], priv->tx_ring[i].dma);
 }
 
-void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta, u32 *p_intb)
+void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta)
 {
 	*p_inta = rtl92e_readl(dev, ISR);
 	rtl92e_writel(dev, ISR, *p_inta);

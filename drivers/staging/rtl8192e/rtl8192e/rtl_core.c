@@ -1982,7 +1982,7 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 
 	spin_lock_irqsave(&priv->irq_th_lock, flags);
 
-	rtl92e_ack_irq(dev, &inta, &intb);
+	rtl92e_ack_irq(dev, &inta);
 
 	if (!inta) {
 		spin_unlock_irqrestore(&priv->irq_th_lock, flags);

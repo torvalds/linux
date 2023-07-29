@@ -13,7 +13,7 @@ bool rtl92e_is_halfn_supported_by_ap(struct net_device *dev);
 bool rtl92e_get_nmode_support_by_sec(struct net_device *dev);
 bool rtl92e_is_tx_stuck(struct net_device *dev);
 bool rtl92e_is_rx_stuck(struct net_device *dev);
-void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta, u32 *p_intb);
+void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta);
 void rtl92e_enable_rx(struct net_device *dev);
 void rtl92e_enable_tx(struct net_device *dev);
 void rtl92e_enable_irq(struct net_device *dev);
