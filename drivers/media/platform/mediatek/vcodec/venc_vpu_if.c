@@ -22,14 +22,13 @@ static void handle_enc_init_msg(struct venc_vpu_inst *vpu, const void *data)
 		return;
 
 	/* Check firmware version. */
-	mtk_vcodec_debug(vpu, "firmware version: 0x%x\n",
-			 msg->venc_abi_version);
+	mtk_venc_debug(vpu->ctx, "firmware version: 0x%x\n", msg->venc_abi_version);
 	switch (msg->venc_abi_version) {
 	case 1:
 		break;
 	default:
-		mtk_vcodec_err(vpu, "unhandled firmware version 0x%x\n",
-			       msg->venc_abi_version);
+		mtk_venc_err(vpu->ctx, "unhandled firmware version 0x%x\n",
+			     msg->venc_abi_version);
 		vpu->failure = 1;
 		break;
 	}
@@ -50,13 +49,12 @@ static void vpu_enc_ipi_handler(void *data, unsigned int len, void *priv)
 	struct venc_vpu_inst *vpu =
 		(struct venc_vpu_inst *)(unsigned long)msg->venc_inst;
 
-	mtk_vcodec_debug(vpu, "msg_id %x inst %p status %d",
-			 msg->msg_id, vpu, msg->status);
+	mtk_venc_debug(vpu->ctx, "msg_id %x inst %p status %d", msg->msg_id, vpu, msg->status);
 
 	vpu->signaled = 1;
 	vpu->failure = (msg->status != VENC_IPI_MSG_STATUS_OK);
 	if (vpu->failure) {
-		mtk_vcodec_err(vpu, "vpu enc status failure %d", vpu->failure);
+		mtk_venc_err(vpu->ctx, "vpu enc status failure %d", vpu->failure);
 		return;
 	}
 
@@ -72,7 +70,7 @@ static void vpu_enc_ipi_handler(void *data, unsigned int len, void *priv)
 	case VPU_IPIMSG_ENC_DEINIT_DONE:
 		break;
 	default:
-		mtk_vcodec_err(vpu, "unknown msg id %x", msg->msg_id);
+		mtk_venc_err(vpu->ctx, "unknown msg id %x", msg->msg_id);
 		break;
 	}
 }
@@ -83,15 +81,15 @@ static int vpu_enc_send_msg(struct venc_vpu_inst *vpu, void *msg,
 	int status;
 
 	if (!vpu->ctx->dev->fw_handler) {
-		mtk_vcodec_err(vpu, "inst dev is NULL");
+		mtk_venc_err(vpu->ctx, "inst dev is NULL");
 		return -EINVAL;
 	}
 
 	status = mtk_vcodec_fw_ipi_send(vpu->ctx->dev->fw_handler, vpu->id, msg,
 					len, 2000);
 	if (status) {
-		mtk_vcodec_err(vpu, "vpu_ipi_send msg_id %x len %d fail %d",
-			       *(uint32_t *)msg, len, status);
+		mtk_venc_err(vpu->ctx, "vpu_ipi_send msg_id %x len %d fail %d",
+			     *(uint32_t *)msg, len, status);
 		return -EINVAL;
 	}
 	if (vpu->failure)
@@ -113,7 +111,7 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 					    vpu_enc_ipi_handler, "venc", NULL);
 
 	if (status) {
-		mtk_vcodec_err(vpu, "vpu_ipi_register fail %d", status);
+		mtk_venc_err(vpu->ctx, "vpu_ipi_register fail %d", status);
 		return -EINVAL;
 	}
 
@@ -121,7 +119,7 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 	out.msg_id = AP_IPIMSG_ENC_INIT;
 	out.venc_inst = (unsigned long)vpu;
 	if (vpu_enc_send_msg(vpu, &out, sizeof(out))) {
-		mtk_vcodec_err(vpu, "AP_IPIMSG_ENC_INIT fail");
+		mtk_venc_err(vpu->ctx, "AP_IPIMSG_ENC_INIT fail");
 		return -EINVAL;
 	}
 
@@ -157,7 +155,7 @@ int vpu_enc_set_param(struct venc_vpu_inst *vpu,
 		sizeof(struct venc_ap_ipi_msg_set_param);
 	struct venc_ap_ipi_msg_set_param_ext out;
 
-	mtk_vcodec_debug(vpu, "id %d ->", id);
+	mtk_venc_debug(vpu->ctx, "id %d ->", id);
 
 	memset(&out, 0, sizeof(out));
 	out.base.msg_id = AP_IPIMSG_ENC_SET_PARAM;
@@ -199,16 +197,15 @@ int vpu_enc_set_param(struct venc_vpu_inst *vpu,
 		out.base.data_item = 0;
 		break;
 	default:
-		mtk_vcodec_err(vpu, "id %d not supported", id);
+		mtk_venc_err(vpu->ctx, "id %d not supported", id);
 		return -EINVAL;
 	}
 	if (vpu_enc_send_msg(vpu, &out, msg_size)) {
-		mtk_vcodec_err(vpu,
-			       "AP_IPIMSG_ENC_SET_PARAM %d fail", id);
+		mtk_venc_err(vpu->ctx, "AP_IPIMSG_ENC_SET_PARAM %d fail", id);
 		return -EINVAL;
 	}
 
-	mtk_vcodec_debug(vpu, "id %d <-", id);
+	mtk_venc_debug(vpu->ctx, "id %d <-", id);
 
 	return 0;
 }
@@ -225,7 +222,7 @@ static int vpu_enc_encode_32bits(struct venc_vpu_inst *vpu,
 		sizeof(struct venc_ap_ipi_msg_enc);
 	struct venc_ap_ipi_msg_enc_ext out;
 
-	mtk_vcodec_debug(vpu, "bs_mode %d ->", bs_mode);
+	mtk_venc_debug(vpu->ctx, "bs_mode %d ->", bs_mode);
 
 	memset(&out, 0, sizeof(out));
 	out.base.msg_id = AP_IPIMSG_ENC_ENCODE;
@@ -239,7 +236,7 @@ static int vpu_enc_encode_32bits(struct venc_vpu_inst *vpu,
 			out.base.input_addr[1] = frm_buf->fb_addr[1].dma_addr;
 			out.base.input_addr[2] = frm_buf->fb_addr[2].dma_addr;
 		} else {
-			mtk_vcodec_err(vpu, "dma_addr not align to 16");
+			mtk_venc_err(vpu->ctx, "dma_addr not align to 16");
 			return -EINVAL;
 		}
 	}
@@ -254,8 +251,7 @@ static int vpu_enc_encode_32bits(struct venc_vpu_inst *vpu,
 		out.data[2] = frame_info->frm_type;
 	}
 	if (vpu_enc_send_msg(vpu, &out, msg_size)) {
-		mtk_vcodec_err(vpu, "AP_IPIMSG_ENC_ENCODE %d fail",
-			       bs_mode);
+		mtk_venc_err(vpu->ctx, "AP_IPIMSG_ENC_ENCODE %d fail", bs_mode);
 		return -EINVAL;
 	}
 
@@ -271,7 +267,7 @@ static int vpu_enc_encode_34bits(struct venc_vpu_inst *vpu,
 	struct venc_ap_ipi_msg_enc_ext_34 out;
 	size_t msg_size = sizeof(struct venc_ap_ipi_msg_enc_ext_34);
 
-	mtk_vcodec_debug(vpu, "bs_mode %d ->", bs_mode);
+	mtk_venc_debug(vpu->ctx, "bs_mode %d ->", bs_mode);
 
 	memset(&out, 0, sizeof(out));
 	out.msg_id = AP_IPIMSG_ENC_ENCODE;
@@ -286,7 +282,7 @@ static int vpu_enc_encode_34bits(struct venc_vpu_inst *vpu,
 			out.input_addr[1] = frm_buf->fb_addr[1].dma_addr;
 			out.input_addr[2] = frm_buf->fb_addr[2].dma_addr;
 		} else {
-			mtk_vcodec_err(vpu, "dma_addr not align to 16");
+			mtk_venc_err(vpu->ctx, "dma_addr not align to 16");
 			return -EINVAL;
 		}
 	}
@@ -301,8 +297,7 @@ static int vpu_enc_encode_34bits(struct venc_vpu_inst *vpu,
 		out.data[2] = frame_info->frm_type;
 	}
 	if (vpu_enc_send_msg(vpu, &out, msg_size)) {
-		mtk_vcodec_err(vpu, "AP_IPIMSG_ENC_ENCODE %d fail",
-			       bs_mode);
+		mtk_venc_err(vpu->ctx, "AP_IPIMSG_ENC_ENCODE %d fail", bs_mode);
 		return -EINVAL;
 	}
 
@@ -326,8 +321,8 @@ int vpu_enc_encode(struct venc_vpu_inst *vpu, unsigned int bs_mode,
 	if (ret)
 		return ret;
 
-	mtk_vcodec_debug(vpu, "bs_mode %d state %d size %d key_frm %d <-",
-			 bs_mode, vpu->state, vpu->bs_size, vpu->is_key_frm);
+	mtk_venc_debug(vpu->ctx, "bs_mode %d state %d size %d key_frm %d <-",
+		       bs_mode, vpu->state, vpu->bs_size, vpu->is_key_frm);
 
 	return 0;
 }
@@ -340,7 +335,7 @@ int vpu_enc_deinit(struct venc_vpu_inst *vpu)
 	out.msg_id = AP_IPIMSG_ENC_DEINIT;
 	out.vpu_inst_addr = vpu->inst_addr;
 	if (vpu_enc_send_msg(vpu, &out, sizeof(out))) {
-		mtk_vcodec_err(vpu, "AP_IPIMSG_ENC_DEINIT fail");
+		mtk_venc_err(vpu->ctx, "AP_IPIMSG_ENC_DEINIT fail");
 		return -EINVAL;
 	}
 

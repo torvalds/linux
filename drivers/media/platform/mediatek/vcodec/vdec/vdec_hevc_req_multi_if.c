@@ -657,7 +657,7 @@ static int vdec_hevc_slice_alloc_mv_buf(struct vdec_hevc_slice_inst *inst,
 		mem->size = buf_sz;
 		err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 		if (err) {
-			mtk_vcodec_err(inst, "failed to allocate mv buf");
+			mtk_vdec_err(inst->ctx, "failed to allocate mv buf");
 			return err;
 		}
 	}
@@ -694,11 +694,11 @@ static void vdec_hevc_slice_get_pic_info(struct vdec_hevc_slice_inst *inst)
 	inst->cap_num_planes =
 		ctx->q_data[MTK_Q_DATA_DST].fmt->num_planes;
 
-	mtk_vcodec_debug(inst, "pic(%d, %d), buf(%d, %d)",
-			 ctx->picinfo.pic_w, ctx->picinfo.pic_h,
-			 ctx->picinfo.buf_w, ctx->picinfo.buf_h);
-	mtk_vcodec_debug(inst, "Y/C(%d, %d)", ctx->picinfo.fb_sz[0],
-			 ctx->picinfo.fb_sz[1]);
+	mtk_vdec_debug(ctx, "pic(%d, %d), buf(%d, %d)",
+		       ctx->picinfo.pic_w, ctx->picinfo.pic_h,
+		       ctx->picinfo.buf_w, ctx->picinfo.buf_h);
+	mtk_vdec_debug(ctx, "Y/C(%d, %d)", ctx->picinfo.fb_sz[0],
+		       ctx->picinfo.fb_sz[1]);
 
 	if (ctx->last_decoded_picinfo.pic_w != ctx->picinfo.pic_w ||
 	    ctx->last_decoded_picinfo.pic_h != ctx->picinfo.pic_h) {
@@ -724,8 +724,8 @@ static void vdec_hevc_slice_get_crop_info(struct vdec_hevc_slice_inst *inst,
 	cr->width = inst->ctx->picinfo.pic_w;
 	cr->height = inst->ctx->picinfo.pic_h;
 
-	mtk_vcodec_debug(inst, "l=%d, t=%d, w=%d, h=%d",
-			 cr->left, cr->top, cr->width, cr->height);
+	mtk_vdec_debug(inst->ctx, "l=%d, t=%d, w=%d, h=%d",
+		       cr->left, cr->top, cr->width, cr->height);
 }
 
 static int vdec_hevc_slice_setup_lat_buffer(struct vdec_hevc_slice_inst *inst,
@@ -747,7 +747,7 @@ static int vdec_hevc_slice_setup_lat_buffer(struct vdec_hevc_slice_inst *inst,
 
 	*res_chg = inst->resolution_changed;
 	if (inst->resolution_changed) {
-		mtk_vcodec_debug(inst, "- resolution changed -");
+		mtk_vdec_debug(inst->ctx, "- resolution changed -");
 		if (inst->realloc_mv_buf) {
 			err = vdec_hevc_slice_alloc_mv_buf(inst, &inst->ctx->picinfo);
 			inst->realloc_mv_buf = false;
@@ -779,16 +779,16 @@ static int vdec_hevc_slice_setup_lat_buffer(struct vdec_hevc_slice_inst *inst,
 	share_info->trans.dma_addr = inst->vsi->trans.dma_addr;
 	share_info->trans.dma_addr_end = inst->vsi->trans.dma_addr_end;
 
-	mtk_vcodec_debug(inst, "lat: ube addr/size(0x%llx 0x%llx) err:0x%llx",
-			 inst->vsi->ube.buf,
-			 inst->vsi->ube.padding,
-			 inst->vsi->err_map.buf);
+	mtk_vdec_debug(inst->ctx, "lat: ube addr/size(0x%llx 0x%llx) err:0x%llx",
+		       inst->vsi->ube.buf,
+		       inst->vsi->ube.padding,
+		       inst->vsi->err_map.buf);
 
-	mtk_vcodec_debug(inst, "slice addr/size(0x%llx 0x%llx) trans start/end((0x%llx 0x%llx))",
-			 inst->vsi->slice_bc.buf,
-			 inst->vsi->slice_bc.padding,
-			 inst->vsi->trans.buf,
-			 inst->vsi->trans.padding);
+	mtk_vdec_debug(inst->ctx, "slice addr/size(0x%llx 0x%llx) trans start/end((0x%llx 0x%llx))",
+		       inst->vsi->slice_bc.buf,
+		       inst->vsi->slice_bc.padding,
+		       inst->vsi->trans.buf,
+		       inst->vsi->trans.padding);
 
 	return 0;
 }
@@ -806,7 +806,7 @@ static int vdec_hevc_slice_setup_core_buffer(struct vdec_hevc_slice_inst *inst,
 
 	fb = ctx->dev->vdec_pdata->get_cap_buffer(ctx);
 	if (!fb) {
-		mtk_vcodec_err(inst, "fb buffer is NULL");
+		mtk_vdec_err(inst->ctx, "fb buffer is NULL");
 		return -EBUSY;
 	}
 
@@ -817,8 +817,7 @@ static int vdec_hevc_slice_setup_core_buffer(struct vdec_hevc_slice_inst *inst,
 	else
 		c_fb_dma = (u64)fb->base_c.dma_addr;
 
-	mtk_vcodec_debug(inst, "[hevc-core] y/c addr = 0x%llx 0x%llx", y_fb_dma,
-			 c_fb_dma);
+	mtk_vdec_debug(inst->ctx, "[hevc-core] y/c addr = 0x%llx 0x%llx", y_fb_dma, c_fb_dma);
 
 	inst->vsi_core->fb.y.dma_addr = y_fb_dma;
 	inst->vsi_core->fb.y.size = ctx->picinfo.fb_sz[0];
@@ -874,7 +873,7 @@ static int vdec_hevc_slice_init(struct mtk_vcodec_ctx *ctx)
 	ctx->drv_handle = inst;
 	err = vpu_dec_init(&inst->vpu);
 	if (err) {
-		mtk_vcodec_err(inst, "vdec_hevc init err=%d", err);
+		mtk_vdec_err(ctx, "vdec_hevc init err=%d", err);
 		goto error_free_inst;
 	}
 
@@ -891,14 +890,14 @@ static int vdec_hevc_slice_init(struct mtk_vcodec_ctx *ctx)
 	if (err)
 		goto error_free_inst;
 
-	mtk_vcodec_debug(inst, "lat struct size = %d,%d,%d,%d vsi: %d\n",
-			 (int)sizeof(struct mtk_hevc_sps_param),
-			 (int)sizeof(struct mtk_hevc_pps_param),
-			 (int)sizeof(struct vdec_hevc_slice_lat_dec_param),
-			 (int)sizeof(struct mtk_hevc_dpb_info),
+	mtk_vdec_debug(ctx, "lat struct size = %d,%d,%d,%d vsi: %d\n",
+		       (int)sizeof(struct mtk_hevc_sps_param),
+		       (int)sizeof(struct mtk_hevc_pps_param),
+		       (int)sizeof(struct vdec_hevc_slice_lat_dec_param),
+		       (int)sizeof(struct mtk_hevc_dpb_info),
 			 vsi_size);
-	mtk_vcodec_debug(inst, "lat hevc instance >> %p, codec_type = 0x%x",
-			 inst, inst->vpu.codec_type);
+	mtk_vdec_debug(ctx, "lat hevc instance >> %p, codec_type = 0x%x",
+		       inst, inst->vpu.codec_type);
 
 	return 0;
 error_free_inst:
@@ -930,7 +929,7 @@ static int vdec_hevc_slice_core_decode(struct vdec_lat_buf *lat_buf)
 	struct vdec_hevc_slice_share_info *share_info = lat_buf->private_data;
 	struct vdec_vpu_inst *vpu = &inst->vpu;
 
-	mtk_vcodec_debug(inst, "[hevc-core] vdec_hevc core decode");
+	mtk_vdec_debug(ctx, "[hevc-core] vdec_hevc core decode");
 	memcpy(&inst->vsi_core->hevc_slice_params, &share_info->hevc_slice_params,
 	       sizeof(share_info->hevc_slice_params));
 
@@ -942,7 +941,7 @@ static int vdec_hevc_slice_core_decode(struct vdec_lat_buf *lat_buf)
 					    share_info);
 	err = vpu_dec_core(vpu);
 	if (err) {
-		mtk_vcodec_err(inst, "core decode err=%d", err);
+		mtk_vdec_err(ctx, "core decode err=%d", err);
 		goto vdec_dec_end;
 	}
 
@@ -950,22 +949,21 @@ static int vdec_hevc_slice_core_decode(struct vdec_lat_buf *lat_buf)
 	timeout = mtk_vcodec_wait_for_done_ctx(inst->ctx, MTK_INST_IRQ_RECEIVED,
 					       WAIT_INTR_TIMEOUT_MS, MTK_VDEC_CORE);
 	if (timeout)
-		mtk_vcodec_err(inst, "core decode timeout: pic_%d",
-			       ctx->decoded_frame_cnt);
+		mtk_vdec_err(ctx, "core decode timeout: pic_%d", ctx->decoded_frame_cnt);
 	inst->vsi_core->dec.timeout = !!timeout;
 
 	vpu_dec_core_end(vpu);
-	mtk_vcodec_debug(inst, "pic[%d] crc: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
-			 ctx->decoded_frame_cnt,
-			 inst->vsi_core->dec.crc[0], inst->vsi_core->dec.crc[1],
-			 inst->vsi_core->dec.crc[2], inst->vsi_core->dec.crc[3],
-			 inst->vsi_core->dec.crc[4], inst->vsi_core->dec.crc[5],
-			 inst->vsi_core->dec.crc[6], inst->vsi_core->dec.crc[7]);
+	mtk_vdec_debug(ctx, "pic[%d] crc: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
+		       ctx->decoded_frame_cnt,
+		       inst->vsi_core->dec.crc[0], inst->vsi_core->dec.crc[1],
+		       inst->vsi_core->dec.crc[2], inst->vsi_core->dec.crc[3],
+		       inst->vsi_core->dec.crc[4], inst->vsi_core->dec.crc[5],
+		       inst->vsi_core->dec.crc[6], inst->vsi_core->dec.crc[7]);
 
 vdec_dec_end:
 	vdec_msg_queue_update_ube_rptr(&lat_buf->ctx->msg_queue, share_info->trans.dma_addr_end);
 	ctx->dev->vdec_pdata->cap_to_disp(ctx, !!err, lat_buf->src_buf_req);
-	mtk_vcodec_debug(inst, "core decode done err=%d", err);
+	mtk_vdec_debug(ctx, "core decode done err=%d", err);
 	ctx->decoded_frame_cnt++;
 	return 0;
 }
@@ -993,7 +991,7 @@ static int vdec_hevc_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 
 	lat_buf = vdec_msg_queue_dqbuf(&inst->ctx->msg_queue.lat_ctx);
 	if (!lat_buf) {
-		mtk_vcodec_debug(inst, "failed to get lat buffer");
+		mtk_vdec_debug(inst->ctx, "failed to get lat buffer");
 		return -EAGAIN;
 	}
 
@@ -1008,7 +1006,7 @@ static int vdec_hevc_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 
 	err = vpu_dec_start(vpu, data, 2);
 	if (err) {
-		mtk_vcodec_debug(inst, "lat decode err: %d", err);
+		mtk_vdec_debug(inst->ctx, "lat decode err: %d", err);
 		goto err_free_fb_out;
 	}
 
@@ -1022,7 +1020,7 @@ static int vdec_hevc_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	timeout = mtk_vcodec_wait_for_done_ctx(inst->ctx, MTK_INST_IRQ_RECEIVED,
 					       WAIT_INTR_TIMEOUT_MS, MTK_VDEC_LAT0);
 	if (timeout)
-		mtk_vcodec_err(inst, "lat decode timeout: pic_%d", inst->slice_dec_num);
+		mtk_vdec_err(inst->ctx, "lat decode timeout: pic_%d", inst->slice_dec_num);
 	inst->vsi->dec.timeout = !!timeout;
 
 	err = vpu_dec_end(vpu);
@@ -1030,7 +1028,7 @@ static int vdec_hevc_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 		if (!IS_VDEC_INNER_RACING(inst->ctx->dev->dec_capability))
 			vdec_msg_queue_qbuf(&inst->ctx->msg_queue.lat_ctx, lat_buf);
 		inst->slice_dec_num++;
-		mtk_vcodec_err(inst, "lat dec fail: pic_%d err:%d", inst->slice_dec_num, err);
+		mtk_vdec_err(inst->ctx, "lat dec fail: pic_%d err:%d", inst->slice_dec_num, err);
 		return -EINVAL;
 	}
 
@@ -1043,14 +1041,14 @@ static int vdec_hevc_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 		       sizeof(share_info->hevc_slice_params));
 		vdec_msg_queue_qbuf(&inst->ctx->msg_queue.core_ctx, lat_buf);
 	}
-	mtk_vcodec_debug(inst, "dec num: %d lat crc: 0x%x 0x%x 0x%x", inst->slice_dec_num,
-			 inst->vsi->dec.crc[0], inst->vsi->dec.crc[1], inst->vsi->dec.crc[2]);
+	mtk_vdec_debug(inst->ctx, "dec num: %d lat crc: 0x%x 0x%x 0x%x", inst->slice_dec_num,
+		       inst->vsi->dec.crc[0], inst->vsi->dec.crc[1], inst->vsi->dec.crc[2]);
 
 	inst->slice_dec_num++;
 	return 0;
 err_free_fb_out:
 	vdec_msg_queue_qbuf(&inst->ctx->msg_queue.lat_ctx, lat_buf);
-	mtk_vcodec_err(inst, "slice dec number: %d err: %d", inst->slice_dec_num, err);
+	mtk_vdec_err(inst->ctx, "slice dec number: %d err: %d", inst->slice_dec_num, err);
 	return err;
 }
 
@@ -1081,7 +1079,7 @@ static int vdec_hevc_slice_get_param(void *h_vdec, enum vdec_get_param_type type
 		vdec_hevc_slice_get_crop_info(inst, out);
 		break;
 	default:
-		mtk_vcodec_err(inst, "invalid get parameter type=%d", type);
+		mtk_vdec_err(inst->ctx, "invalid get parameter type=%d", type);
 		return -EINVAL;
 	}
 	return 0;

@@ -16,7 +16,7 @@ static void handle_init_ack_msg(const struct vdec_vpu_ipi_init_ack *msg)
 	struct vdec_vpu_inst *vpu = (struct vdec_vpu_inst *)
 					(unsigned long)msg->ap_inst_addr;
 
-	mtk_vcodec_debug(vpu, "+ ap_inst_addr = 0x%llx", msg->ap_inst_addr);
+	mtk_vdec_debug(vpu->ctx, "+ ap_inst_addr = 0x%llx", msg->ap_inst_addr);
 
 	/* mapping VPU address to kernel virtual address */
 	/* the content in vsi is initialized to 0 in VPU */
@@ -24,7 +24,7 @@ static void handle_init_ack_msg(const struct vdec_vpu_ipi_init_ack *msg)
 					     msg->vpu_inst_addr);
 	vpu->inst_addr = msg->vpu_inst_addr;
 
-	mtk_vcodec_debug(vpu, "- vpu_inst_addr = 0x%x", vpu->inst_addr);
+	mtk_vdec_debug(vpu->ctx, "- vpu_inst_addr = 0x%x", vpu->inst_addr);
 
 	/* Set default ABI version if dealing with unversioned firmware. */
 	vpu->fw_abi_version = 0;
@@ -40,7 +40,7 @@ static void handle_init_ack_msg(const struct vdec_vpu_ipi_init_ack *msg)
 
 	/* Check firmware version. */
 	vpu->fw_abi_version = msg->vdec_abi_version;
-	mtk_vcodec_debug(vpu, "firmware version 0x%x\n", vpu->fw_abi_version);
+	mtk_vdec_debug(vpu->ctx, "firmware version 0x%x\n", vpu->fw_abi_version);
 	switch (vpu->fw_abi_version) {
 	case 1:
 		break;
@@ -48,8 +48,7 @@ static void handle_init_ack_msg(const struct vdec_vpu_ipi_init_ack *msg)
 		vpu->inst_id = msg->inst_id;
 		break;
 	default:
-		mtk_vcodec_err(vpu, "unhandled firmware version 0x%x\n",
-			       vpu->fw_abi_version);
+		mtk_vdec_err(vpu->ctx, "unhandled firmware version 0x%x\n", vpu->fw_abi_version);
 		vpu->failure = 1;
 		break;
 	}
@@ -60,7 +59,7 @@ static void handle_get_param_msg_ack(const struct vdec_vpu_ipi_get_param_ack *ms
 	struct vdec_vpu_inst *vpu = (struct vdec_vpu_inst *)
 					(unsigned long)msg->ap_inst_addr;
 
-	mtk_vcodec_debug(vpu, "+ ap_inst_addr = 0x%llx", msg->ap_inst_addr);
+	mtk_vdec_debug(vpu->ctx, "+ ap_inst_addr = 0x%llx", msg->ap_inst_addr);
 
 	/* param_type is enum vdec_get_param_type */
 	switch (msg->param_type) {
@@ -69,7 +68,7 @@ static void handle_get_param_msg_ack(const struct vdec_vpu_ipi_get_param_ack *ms
 		vpu->fb_sz[1] = msg->data[1];
 		break;
 	default:
-		mtk_vcodec_err(vpu, "invalid get param type=%d", msg->param_type);
+		mtk_vdec_err(vpu->ctx, "invalid get param type=%d", msg->param_type);
 		vpu->failure = 1;
 		break;
 	}
@@ -96,7 +95,7 @@ static void vpu_dec_ipi_handler(void *data, unsigned int len, void *priv)
 		return;
 	}
 
-	mtk_vcodec_debug(vpu, "+ id=%X", msg->msg_id);
+	mtk_vdec_debug(vpu->ctx, "+ id=%X", msg->msg_id);
 
 	vpu->failure = msg->status;
 	vpu->signaled = 1;
@@ -119,12 +118,12 @@ static void vpu_dec_ipi_handler(void *data, unsigned int len, void *priv)
 			handle_get_param_msg_ack(data);
 			break;
 		default:
-			mtk_vcodec_err(vpu, "invalid msg=%X", msg->msg_id);
+			mtk_vdec_err(vpu->ctx, "invalid msg=%X", msg->msg_id);
 			break;
 		}
 	}
 
-	mtk_vcodec_debug(vpu, "- id=%X", msg->msg_id);
+	mtk_vdec_debug(vpu->ctx, "- id=%X", msg->msg_id);
 }
 
 static int vcodec_vpu_send_msg(struct vdec_vpu_inst *vpu, void *msg, int len)
@@ -132,7 +131,7 @@ static int vcodec_vpu_send_msg(struct vdec_vpu_inst *vpu, void *msg, int len)
 	int err, id, msgid;
 
 	msgid = *(uint32_t *)msg;
-	mtk_vcodec_debug(vpu, "id=%X", msgid);
+	mtk_vdec_debug(vpu->ctx, "id=%X", msgid);
 
 	vpu->failure = 0;
 	vpu->signaled = 0;
@@ -150,8 +149,8 @@ static int vcodec_vpu_send_msg(struct vdec_vpu_inst *vpu, void *msg, int len)
 	err = mtk_vcodec_fw_ipi_send(vpu->ctx->dev->fw_handler, id, msg,
 				     len, 2000);
 	if (err) {
-		mtk_vcodec_err(vpu, "send fail vpu_id=%d msg_id=%X status=%d",
-			       id, msgid, err);
+		mtk_vdec_err(vpu->ctx, "send fail vpu_id=%d msg_id=%X status=%d",
+			     id, msgid, err);
 		return err;
 	}
 
@@ -163,7 +162,7 @@ static int vcodec_send_ap_ipi(struct vdec_vpu_inst *vpu, unsigned int msg_id)
 	struct vdec_ap_ipi_cmd msg;
 	int err = 0;
 
-	mtk_vcodec_debug(vpu, "+ id=%X", msg_id);
+	mtk_vdec_debug(vpu->ctx, "+ id=%X", msg_id);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.msg_id = msg_id;
@@ -174,7 +173,7 @@ static int vcodec_send_ap_ipi(struct vdec_vpu_inst *vpu, unsigned int msg_id)
 	msg.codec_type = vpu->codec_type;
 
 	err = vcodec_vpu_send_msg(vpu, &msg, sizeof(msg));
-	mtk_vcodec_debug(vpu, "- id=%X ret=%d", msg_id, err);
+	mtk_vdec_debug(vpu->ctx, "- id=%X ret=%d", msg_id, err);
 	return err;
 }
 
@@ -189,7 +188,7 @@ int vpu_dec_init(struct vdec_vpu_inst *vpu)
 	err = mtk_vcodec_fw_ipi_register(vpu->ctx->dev->fw_handler, vpu->id,
 					 vpu->handler, "vdec", NULL);
 	if (err) {
-		mtk_vcodec_err(vpu, "vpu_ipi_register fail status=%d", err);
+		mtk_vdec_err(vpu->ctx, "vpu_ipi_register fail status=%d", err);
 		return err;
 	}
 
@@ -198,7 +197,7 @@ int vpu_dec_init(struct vdec_vpu_inst *vpu)
 						 vpu->core_id, vpu->handler,
 						 "vdec", NULL);
 		if (err) {
-			mtk_vcodec_err(vpu, "vpu_ipi_register core fail status=%d", err);
+			mtk_vdec_err(vpu->ctx, "vpu_ipi_register core fail status=%d", err);
 			return err;
 		}
 	}
@@ -208,10 +207,10 @@ int vpu_dec_init(struct vdec_vpu_inst *vpu)
 	msg.ap_inst_addr = (unsigned long)vpu;
 	msg.codec_type = vpu->codec_type;
 
-	mtk_vcodec_debug(vpu, "vdec_inst=%p", vpu);
+	mtk_vdec_debug(vpu->ctx, "vdec_inst=%p", vpu);
 
 	err = vcodec_vpu_send_msg(vpu, (void *)&msg, sizeof(msg));
-	mtk_vcodec_debug(vpu, "- ret=%d", err);
+	mtk_vdec_debug(vpu->ctx, "- ret=%d", err);
 	return err;
 }
 
@@ -222,7 +221,7 @@ int vpu_dec_start(struct vdec_vpu_inst *vpu, uint32_t *data, unsigned int len)
 	int err = 0;
 
 	if (len > ARRAY_SIZE(msg.data)) {
-		mtk_vcodec_err(vpu, "invalid len = %d\n", len);
+		mtk_vdec_err(vpu->ctx, "invalid len = %d\n", len);
 		return -EINVAL;
 	}
 
@@ -238,7 +237,7 @@ int vpu_dec_start(struct vdec_vpu_inst *vpu, uint32_t *data, unsigned int len)
 	msg.codec_type = vpu->codec_type;
 
 	err = vcodec_vpu_send_msg(vpu, (void *)&msg, sizeof(msg));
-	mtk_vcodec_debug(vpu, "- ret=%d", err);
+	mtk_vdec_debug(vpu->ctx, "- ret=%d", err);
 	return err;
 }
 
@@ -249,7 +248,7 @@ int vpu_dec_get_param(struct vdec_vpu_inst *vpu, uint32_t *data,
 	int err;
 
 	if (len > ARRAY_SIZE(msg.data)) {
-		mtk_vcodec_err(vpu, "invalid len = %d\n", len);
+		mtk_vdec_err(vpu->ctx, "invalid len = %d\n", len);
 		return -EINVAL;
 	}
 
@@ -261,7 +260,7 @@ int vpu_dec_get_param(struct vdec_vpu_inst *vpu, uint32_t *data,
 	msg.codec_type = vpu->codec_type;
 
 	err = vcodec_vpu_send_msg(vpu, (void *)&msg, sizeof(msg));
-	mtk_vcodec_debug(vpu, "- ret=%d", err);
+	mtk_vdec_debug(vpu->ctx, "- ret=%d", err);
 	return err;
 }
 

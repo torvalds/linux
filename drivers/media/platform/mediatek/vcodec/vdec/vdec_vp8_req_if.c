@@ -137,11 +137,11 @@ static void vdec_vp8_slice_get_pic_info(struct vdec_vp8_slice_inst *inst)
 	inst->vsi->pic.buf_h = ctx->picinfo.buf_h;
 	inst->vsi->pic.fb_sz[0] = ctx->picinfo.fb_sz[0];
 	inst->vsi->pic.fb_sz[1] = ctx->picinfo.fb_sz[1];
-	mtk_vcodec_debug(inst, "pic(%d, %d), buf(%d, %d)",
-			 ctx->picinfo.pic_w, ctx->picinfo.pic_h,
-			 ctx->picinfo.buf_w, ctx->picinfo.buf_h);
-	mtk_vcodec_debug(inst, "fb size: Y(%d), C(%d)",
-			 ctx->picinfo.fb_sz[0], ctx->picinfo.fb_sz[1]);
+	mtk_vdec_debug(inst->ctx, "pic(%d, %d), buf(%d, %d)",
+		       ctx->picinfo.pic_w, ctx->picinfo.pic_h,
+		       ctx->picinfo.buf_w, ctx->picinfo.buf_h);
+	mtk_vdec_debug(inst->ctx, "fb size: Y(%d), C(%d)",
+		       ctx->picinfo.fb_sz[0], ctx->picinfo.fb_sz[1]);
 }
 
 static int vdec_vp8_slice_alloc_working_buf(struct vdec_vp8_slice_inst *inst)
@@ -153,7 +153,7 @@ static int vdec_vp8_slice_alloc_working_buf(struct vdec_vp8_slice_inst *inst)
 	mem->size = VP8_SEG_ID_SZ;
 	err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 	if (err) {
-		mtk_vcodec_err(inst, "Cannot allocate working buffer");
+		mtk_vdec_err(inst->ctx, "Cannot allocate working buffer");
 		return err;
 	}
 	inst->vsi->dec.seg_id_buf_dma = (u64)mem->dma_addr;
@@ -162,7 +162,7 @@ static int vdec_vp8_slice_alloc_working_buf(struct vdec_vp8_slice_inst *inst)
 	mem->size = VP8_PP_WRAPY_SZ;
 	err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 	if (err) {
-		mtk_vcodec_err(inst, "cannot allocate WRAP Y buffer");
+		mtk_vdec_err(inst->ctx, "cannot allocate WRAP Y buffer");
 		return err;
 	}
 	inst->vsi->dec.wrap_y_dma = (u64)mem->dma_addr;
@@ -171,7 +171,7 @@ static int vdec_vp8_slice_alloc_working_buf(struct vdec_vp8_slice_inst *inst)
 	mem->size = VP8_PP_WRAPC_SZ;
 	err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 	if (err) {
-		mtk_vcodec_err(inst, "cannot allocate WRAP C buffer");
+		mtk_vdec_err(inst->ctx, "cannot allocate WRAP C buffer");
 		return err;
 	}
 	inst->vsi->dec.wrap_c_dma = (u64)mem->dma_addr;
@@ -180,7 +180,7 @@ static int vdec_vp8_slice_alloc_working_buf(struct vdec_vp8_slice_inst *inst)
 	mem->size = VP8_VLD_PRED_SZ;
 	err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 	if (err) {
-		mtk_vcodec_err(inst, "cannot allocate vld wrapper buffer");
+		mtk_vdec_err(inst->ctx, "cannot allocate vld wrapper buffer");
 		return err;
 	}
 	inst->vsi->dec.vld_wrapper_dma = (u64)mem->dma_addr;
@@ -249,8 +249,8 @@ static int vdec_vp8_slice_get_decode_parameters(struct vdec_vp8_slice_inst *inst
 		vb = vb2_find_buffer(vq, referenct_ts);
 		if (!vb) {
 			if (!V4L2_VP8_FRAME_IS_KEY_FRAME(frame_header))
-				mtk_vcodec_err(inst, "reference invalid: index(%d) ts(%lld)",
-					       index, referenct_ts);
+				mtk_vdec_err(inst->ctx, "reference invalid: index(%d) ts(%lld)",
+					     index, referenct_ts);
 			inst->vsi->vp8_dpb_info[index].reference_flag = 0;
 			continue;
 		}
@@ -291,7 +291,7 @@ static int vdec_vp8_slice_init(struct mtk_vcodec_ctx *ctx)
 
 	err = vpu_dec_init(&inst->vpu);
 	if (err) {
-		mtk_vcodec_err(inst, "vdec_vp8 init err=%d", err);
+		mtk_vdec_err(ctx, "vdec_vp8 init err=%d", err);
 		goto error_free_inst;
 	}
 
@@ -300,11 +300,11 @@ static int vdec_vp8_slice_init(struct mtk_vcodec_ctx *ctx)
 	if (err)
 		goto error_deinit;
 
-	mtk_vcodec_debug(inst, "vp8 struct size = %d vsi: %d\n",
-			 (int)sizeof(struct v4l2_ctrl_vp8_frame),
-			 (int)sizeof(struct vdec_vp8_slice_vsi));
-	mtk_vcodec_debug(inst, "vp8:%p, codec_type = 0x%x vsi: 0x%p",
-			 inst, inst->vpu.codec_type, inst->vpu.vsi);
+	mtk_vdec_debug(ctx, "vp8 struct size = %d vsi: %d\n",
+		       (int)sizeof(struct v4l2_ctrl_vp8_frame),
+		       (int)sizeof(struct vdec_vp8_slice_vsi));
+	mtk_vdec_debug(ctx, "vp8:%p, codec_type = 0x%x vsi: 0x%p",
+		       inst, inst->vpu.codec_type, inst->vpu.vsi);
 
 	ctx->drv_handle = inst;
 	return 0;
@@ -350,10 +350,10 @@ static int vdec_vp8_slice_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	inst->vsi->dec.cur_y_fb_dma = y_fb_dma;
 	inst->vsi->dec.cur_c_fb_dma = c_fb_dma;
 
-	mtk_vcodec_debug(inst, "frame[%d] bs(%zu 0x%llx) y/c(0x%llx 0x%llx)",
-			 inst->ctx->decoded_frame_cnt,
-			 bs->size, (u64)bs->dma_addr,
-			 y_fb_dma, c_fb_dma);
+	mtk_vdec_debug(inst->ctx, "frame[%d] bs(%zu 0x%llx) y/c(0x%llx 0x%llx)",
+		       inst->ctx->decoded_frame_cnt,
+		       bs->size, (u64)bs->dma_addr,
+		       y_fb_dma, c_fb_dma);
 
 	v4l2_m2m_buf_copy_metadata(&src_buf_info->m2m_buf.vb,
 				   &dst_buf_info->m2m_buf.vb, true);
@@ -364,12 +364,12 @@ static int vdec_vp8_slice_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 
 	err = vpu_dec_start(vpu, &data, 1);
 	if (err) {
-		mtk_vcodec_debug(inst, "vp8 dec start err!");
+		mtk_vdec_debug(inst->ctx, "vp8 dec start err!");
 		goto error;
 	}
 
 	if (inst->vsi->dec.resolution_changed) {
-		mtk_vcodec_debug(inst, "- resolution_changed -");
+		mtk_vdec_debug(inst->ctx, "- resolution_changed -");
 		*res_chg = true;
 		return 0;
 	}
@@ -380,15 +380,15 @@ static int vdec_vp8_slice_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 
 	err = vpu_dec_end(vpu);
 	if (err || timeout)
-		mtk_vcodec_debug(inst, "vp8 dec error timeout:%d err: %d pic_%d",
-				 timeout, err, inst->ctx->decoded_frame_cnt);
+		mtk_vdec_debug(inst->ctx, "vp8 dec error timeout:%d err: %d pic_%d",
+			       timeout, err, inst->ctx->decoded_frame_cnt);
 
-	mtk_vcodec_debug(inst, "pic[%d] crc: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
-			 inst->ctx->decoded_frame_cnt,
-			 inst->vsi->dec.crc[0], inst->vsi->dec.crc[1],
-			 inst->vsi->dec.crc[2], inst->vsi->dec.crc[3],
-			 inst->vsi->dec.crc[4], inst->vsi->dec.crc[5],
-			 inst->vsi->dec.crc[6], inst->vsi->dec.crc[7]);
+	mtk_vdec_debug(inst->ctx, "pic[%d] crc: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
+		       inst->ctx->decoded_frame_cnt,
+		       inst->vsi->dec.crc[0], inst->vsi->dec.crc[1],
+		       inst->vsi->dec.crc[2], inst->vsi->dec.crc[3],
+		       inst->vsi->dec.crc[4], inst->vsi->dec.crc[5],
+		       inst->vsi->dec.crc[6], inst->vsi->dec.crc[7]);
 
 	inst->ctx->decoded_frame_cnt++;
 error:
@@ -404,13 +404,13 @@ static int vdec_vp8_slice_get_param(void *h_vdec, enum vdec_get_param_type type,
 		vdec_vp8_slice_get_pic_info(inst);
 		break;
 	case GET_PARAM_CROP_INFO:
-		mtk_vcodec_debug(inst, "No need to get vp8 crop information.");
+		mtk_vdec_debug(inst->ctx, "No need to get vp8 crop information.");
 		break;
 	case GET_PARAM_DPB_SIZE:
 		*((unsigned int *)out) = VP8_DPB_SIZE;
 		break;
 	default:
-		mtk_vcodec_err(inst, "invalid get parameter type=%d", type);
+		mtk_vdec_err(inst->ctx, "invalid get parameter type=%d", type);
 		return -EINVAL;
 	}
 

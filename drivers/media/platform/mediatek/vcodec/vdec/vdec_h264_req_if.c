@@ -162,7 +162,7 @@ static int allocate_predication_buf(struct vdec_h264_slice_inst *inst)
 	inst->pred_buf.size = BUF_PREDICTION_SZ;
 	err = mtk_vcodec_mem_alloc(inst->ctx, &inst->pred_buf);
 	if (err) {
-		mtk_vcodec_err(inst, "failed to allocate ppl buf");
+		mtk_vdec_err(inst->ctx, "failed to allocate ppl buf");
 		return err;
 	}
 
@@ -195,7 +195,7 @@ static int alloc_mv_buf(struct vdec_h264_slice_inst *inst,
 		mem->size = buf_sz;
 		err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 		if (err) {
-			mtk_vcodec_err(inst, "failed to allocate mv buf");
+			mtk_vdec_err(inst->ctx, "failed to allocate mv buf");
 			return err;
 		}
 		inst->vsi_ctx.mv_buf_dma[i] = mem->dma_addr;
@@ -230,11 +230,11 @@ static void get_pic_info(struct vdec_h264_slice_inst *inst,
 		ctx->q_data[MTK_Q_DATA_DST].fmt->num_planes;
 
 	*pic = ctx->picinfo;
-	mtk_vcodec_debug(inst, "pic(%d, %d), buf(%d, %d)",
-			 ctx->picinfo.pic_w, ctx->picinfo.pic_h,
-			 ctx->picinfo.buf_w, ctx->picinfo.buf_h);
-	mtk_vcodec_debug(inst, "Y/C(%d, %d)", ctx->picinfo.fb_sz[0],
-			 ctx->picinfo.fb_sz[1]);
+	mtk_vdec_debug(inst->ctx, "pic(%d, %d), buf(%d, %d)",
+		       ctx->picinfo.pic_w, ctx->picinfo.pic_h,
+		       ctx->picinfo.buf_w, ctx->picinfo.buf_h);
+	mtk_vdec_debug(inst->ctx, "Y/C(%d, %d)", ctx->picinfo.fb_sz[0],
+		       ctx->picinfo.fb_sz[1]);
 
 	if (ctx->last_decoded_picinfo.pic_w != ctx->picinfo.pic_w ||
 	    ctx->last_decoded_picinfo.pic_h != ctx->picinfo.pic_h) {
@@ -259,14 +259,14 @@ static void get_crop_info(struct vdec_h264_slice_inst *inst, struct v4l2_rect *c
 	cr->width = inst->vsi_ctx.crop.width;
 	cr->height = inst->vsi_ctx.crop.height;
 
-	mtk_vcodec_debug(inst, "l=%d, t=%d, w=%d, h=%d",
-			 cr->left, cr->top, cr->width, cr->height);
+	mtk_vdec_debug(inst->ctx, "l=%d, t=%d, w=%d, h=%d",
+		       cr->left, cr->top, cr->width, cr->height);
 }
 
 static void get_dpb_size(struct vdec_h264_slice_inst *inst, unsigned int *dpb_sz)
 {
 	*dpb_sz = inst->vsi_ctx.dec.dpb_sz;
-	mtk_vcodec_debug(inst, "sz=%d", *dpb_sz);
+	mtk_vdec_debug(inst->ctx, "sz=%d", *dpb_sz);
 }
 
 static int vdec_h264_slice_init(struct mtk_vcodec_ctx *ctx)
@@ -285,7 +285,7 @@ static int vdec_h264_slice_init(struct mtk_vcodec_ctx *ctx)
 
 	err = vpu_dec_init(&inst->vpu);
 	if (err) {
-		mtk_vcodec_err(inst, "vdec_h264 init err=%d", err);
+		mtk_vdec_err(ctx, "vdec_h264 init err=%d", err);
 		goto error_free_inst;
 	}
 
@@ -297,13 +297,13 @@ static int vdec_h264_slice_init(struct mtk_vcodec_ctx *ctx)
 	if (err)
 		goto error_deinit;
 
-	mtk_vcodec_debug(inst, "struct size = %zu,%zu,%zu,%zu\n",
-			 sizeof(struct mtk_h264_sps_param),
-			 sizeof(struct mtk_h264_pps_param),
-			 sizeof(struct mtk_h264_dec_slice_param),
-			 sizeof(struct mtk_h264_dpb_info));
+	mtk_vdec_debug(ctx, "struct size = %zu,%zu,%zu,%zu\n",
+		       sizeof(struct mtk_h264_sps_param),
+		       sizeof(struct mtk_h264_pps_param),
+		       sizeof(struct mtk_h264_dec_slice_param),
+		       sizeof(struct mtk_h264_dpb_info));
 
-	mtk_vcodec_debug(inst, "H264 Instance >> %p", inst);
+	mtk_vdec_debug(ctx, "H264 Instance >> %p", inst);
 
 	ctx->drv_handle = inst;
 	return 0;
@@ -354,8 +354,8 @@ static int vdec_h264_slice_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	y_fb_dma = fb ? (u64)fb->base_y.dma_addr : 0;
 	c_fb_dma = fb ? (u64)fb->base_c.dma_addr : 0;
 
-	mtk_vcodec_debug(inst, "+ [%d] FB y_dma=%llx c_dma=%llx va=%p",
-			 inst->num_nalu, y_fb_dma, c_fb_dma, fb);
+	mtk_vdec_debug(inst->ctx, "+ [%d] FB y_dma=%llx c_dma=%llx va=%p",
+		       inst->num_nalu, y_fb_dma, c_fb_dma, fb);
 
 	inst->vsi_ctx.dec.bs_dma = (uint64_t)bs->dma_addr;
 	inst->vsi_ctx.dec.y_fb_dma = y_fb_dma;
@@ -380,7 +380,7 @@ static int vdec_h264_slice_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 
 	*res_chg = inst->vsi_ctx.dec.resolution_changed;
 	if (*res_chg) {
-		mtk_vcodec_debug(inst, "- resolution changed -");
+		mtk_vdec_debug(inst->ctx, "- resolution changed -");
 		if (inst->vsi_ctx.dec.realloc_mv_buf) {
 			err = alloc_mv_buf(inst, &inst->ctx->picinfo);
 			inst->vsi_ctx.dec.realloc_mv_buf = false;
@@ -404,11 +404,11 @@ static int vdec_h264_slice_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	vpu_dec_end(vpu);
 
 	memcpy(&inst->vsi_ctx, inst->vpu.vsi, sizeof(inst->vsi_ctx));
-	mtk_vcodec_debug(inst, "\n - NALU[%d]", inst->num_nalu);
+	mtk_vdec_debug(inst->ctx, "\n - NALU[%d]", inst->num_nalu);
 	return 0;
 
 err_free_fb_out:
-	mtk_vcodec_err(inst, "\n - NALU[%d] err=%d -\n", inst->num_nalu, err);
+	mtk_vdec_err(inst->ctx, "\n - NALU[%d] err=%d -\n", inst->num_nalu, err);
 	return err;
 }
 
@@ -430,7 +430,7 @@ static int vdec_h264_slice_get_param(void *h_vdec, enum vdec_get_param_type type
 		break;
 
 	default:
-		mtk_vcodec_err(inst, "invalid get parameter type=%d", type);
+		mtk_vdec_err(inst->ctx, "invalid get parameter type=%d", type);
 		return -EINVAL;
 	}
 

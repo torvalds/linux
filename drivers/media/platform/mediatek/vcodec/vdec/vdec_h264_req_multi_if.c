@@ -199,7 +199,7 @@ static int vdec_h264_slice_fill_decode_parameters(struct vdec_h264_slice_inst *i
 		return PTR_ERR(pps);
 
 	if (dec_params->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC) {
-		mtk_vcodec_err(inst, "No support for H.264 field decoding.");
+		mtk_vdec_err(inst->ctx, "No support for H.264 field decoding.");
 		inst->is_field_bitstream = true;
 		return -EINVAL;
 	}
@@ -322,7 +322,7 @@ static int vdec_h264_slice_alloc_mv_buf(struct vdec_h264_slice_inst *inst,
 		mem->size = buf_sz;
 		err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 		if (err) {
-			mtk_vcodec_err(inst, "failed to allocate mv buf");
+			mtk_vdec_err(inst->ctx, "failed to allocate mv buf");
 			return err;
 		}
 	}
@@ -359,11 +359,11 @@ static void vdec_h264_slice_get_pic_info(struct vdec_h264_slice_inst *inst)
 	inst->cap_num_planes =
 		ctx->q_data[MTK_Q_DATA_DST].fmt->num_planes;
 
-	mtk_vcodec_debug(inst, "pic(%d, %d), buf(%d, %d)",
-			 ctx->picinfo.pic_w, ctx->picinfo.pic_h,
-			 ctx->picinfo.buf_w, ctx->picinfo.buf_h);
-	mtk_vcodec_debug(inst, "Y/C(%d, %d)", ctx->picinfo.fb_sz[0],
-			 ctx->picinfo.fb_sz[1]);
+	mtk_vdec_debug(ctx, "pic(%d, %d), buf(%d, %d)",
+		       ctx->picinfo.pic_w, ctx->picinfo.pic_h,
+		       ctx->picinfo.buf_w, ctx->picinfo.buf_h);
+	mtk_vdec_debug(ctx, "Y/C(%d, %d)", ctx->picinfo.fb_sz[0],
+		       ctx->picinfo.fb_sz[1]);
 
 	if (ctx->last_decoded_picinfo.pic_w != ctx->picinfo.pic_w ||
 	    ctx->last_decoded_picinfo.pic_h != ctx->picinfo.pic_h) {
@@ -389,8 +389,8 @@ static void vdec_h264_slice_get_crop_info(struct vdec_h264_slice_inst *inst,
 	cr->width = inst->ctx->picinfo.pic_w;
 	cr->height = inst->ctx->picinfo.pic_h;
 
-	mtk_vcodec_debug(inst, "l=%d, t=%d, w=%d, h=%d",
-			 cr->left, cr->top, cr->width, cr->height);
+	mtk_vdec_debug(inst->ctx, "l=%d, t=%d, w=%d, h=%d",
+		       cr->left, cr->top, cr->width, cr->height);
 }
 
 static int vdec_h264_slice_init(struct mtk_vcodec_ctx *ctx)
@@ -412,7 +412,7 @@ static int vdec_h264_slice_init(struct mtk_vcodec_ctx *ctx)
 
 	err = vpu_dec_init(&inst->vpu);
 	if (err) {
-		mtk_vcodec_err(inst, "vdec_h264 init err=%d", err);
+		mtk_vdec_err(ctx, "vdec_h264 init err=%d", err);
 		goto error_free_inst;
 	}
 
@@ -423,14 +423,14 @@ static int vdec_h264_slice_init(struct mtk_vcodec_ctx *ctx)
 	inst->resolution_changed = true;
 	inst->realloc_mv_buf = true;
 
-	mtk_vcodec_debug(inst, "lat struct size = %d,%d,%d,%d vsi: %d\n",
-			 (int)sizeof(struct mtk_h264_sps_param),
-			 (int)sizeof(struct mtk_h264_pps_param),
-			 (int)sizeof(struct vdec_h264_slice_lat_dec_param),
-			 (int)sizeof(struct mtk_h264_dpb_info),
-			 vsi_size);
-	mtk_vcodec_debug(inst, "lat H264 instance >> %p, codec_type = 0x%x",
-			 inst, inst->vpu.codec_type);
+	mtk_vdec_debug(ctx, "lat struct size = %d,%d,%d,%d vsi: %d\n",
+		       (int)sizeof(struct mtk_h264_sps_param),
+		       (int)sizeof(struct mtk_h264_pps_param),
+		       (int)sizeof(struct vdec_h264_slice_lat_dec_param),
+		       (int)sizeof(struct mtk_h264_dpb_info),
+		       vsi_size);
+	mtk_vdec_debug(ctx, "lat H264 instance >> %p, codec_type = 0x%x",
+		       inst, inst->vpu.codec_type);
 
 	ctx->drv_handle = inst;
 	return 0;
@@ -464,14 +464,14 @@ static int vdec_h264_slice_core_decode(struct vdec_lat_buf *lat_buf)
 	struct mtk_vcodec_mem *mem;
 	struct vdec_vpu_inst *vpu = &inst->vpu;
 
-	mtk_vcodec_debug(inst, "[h264-core] vdec_h264 core decode");
+	mtk_vdec_debug(ctx, "[h264-core] vdec_h264 core decode");
 	memcpy(&inst->vsi_core->h264_slice_params, &share_info->h264_slice_params,
 	       sizeof(share_info->h264_slice_params));
 
 	fb = ctx->dev->vdec_pdata->get_cap_buffer(ctx);
 	if (!fb) {
 		err = -EBUSY;
-		mtk_vcodec_err(inst, "fb buffer is NULL");
+		mtk_vdec_err(ctx, "fb buffer is NULL");
 		goto vdec_dec_end;
 	}
 
@@ -483,8 +483,7 @@ static int vdec_h264_slice_core_decode(struct vdec_lat_buf *lat_buf)
 	else
 		c_fb_dma = (u64)fb->base_c.dma_addr;
 
-	mtk_vcodec_debug(inst, "[h264-core] y/c addr = 0x%llx 0x%llx", y_fb_dma,
-			 c_fb_dma);
+	mtk_vdec_debug(ctx, "[h264-core] y/c addr = 0x%llx 0x%llx", y_fb_dma, c_fb_dma);
 
 	inst->vsi_core->dec.y_fb_dma = y_fb_dma;
 	inst->vsi_core->dec.c_fb_dma = c_fb_dma;
@@ -514,7 +513,7 @@ static int vdec_h264_slice_core_decode(struct vdec_lat_buf *lat_buf)
 
 	err = vpu_dec_core(vpu);
 	if (err) {
-		mtk_vcodec_err(inst, "core decode err=%d", err);
+		mtk_vdec_err(ctx, "core decode err=%d", err);
 		goto vdec_dec_end;
 	}
 
@@ -522,22 +521,21 @@ static int vdec_h264_slice_core_decode(struct vdec_lat_buf *lat_buf)
 	timeout = mtk_vcodec_wait_for_done_ctx(inst->ctx, MTK_INST_IRQ_RECEIVED,
 					       WAIT_INTR_TIMEOUT_MS, MTK_VDEC_CORE);
 	if (timeout)
-		mtk_vcodec_err(inst, "core decode timeout: pic_%d",
-			       ctx->decoded_frame_cnt);
+		mtk_vdec_err(ctx, "core decode timeout: pic_%d", ctx->decoded_frame_cnt);
 	inst->vsi_core->dec.timeout = !!timeout;
 
 	vpu_dec_core_end(vpu);
-	mtk_vcodec_debug(inst, "pic[%d] crc: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
-			 ctx->decoded_frame_cnt,
-			 inst->vsi_core->dec.crc[0], inst->vsi_core->dec.crc[1],
-			 inst->vsi_core->dec.crc[2], inst->vsi_core->dec.crc[3],
-			 inst->vsi_core->dec.crc[4], inst->vsi_core->dec.crc[5],
-			 inst->vsi_core->dec.crc[6], inst->vsi_core->dec.crc[7]);
+	mtk_vdec_debug(ctx, "pic[%d] crc: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
+		       ctx->decoded_frame_cnt,
+		       inst->vsi_core->dec.crc[0], inst->vsi_core->dec.crc[1],
+		       inst->vsi_core->dec.crc[2], inst->vsi_core->dec.crc[3],
+		       inst->vsi_core->dec.crc[4], inst->vsi_core->dec.crc[5],
+		       inst->vsi_core->dec.crc[6], inst->vsi_core->dec.crc[7]);
 
 vdec_dec_end:
 	vdec_msg_queue_update_ube_rptr(&lat_buf->ctx->msg_queue, share_info->trans_end);
 	ctx->dev->vdec_pdata->cap_to_disp(ctx, !!err, lat_buf->src_buf_req);
-	mtk_vcodec_debug(inst, "core decode done err=%d", err);
+	mtk_vdec_debug(ctx, "core decode done err=%d", err);
 	ctx->decoded_frame_cnt++;
 	return 0;
 }
@@ -594,7 +592,7 @@ static int vdec_h264_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 
 	lat_buf = vdec_msg_queue_dqbuf(&inst->ctx->msg_queue.lat_ctx);
 	if (!lat_buf) {
-		mtk_vcodec_debug(inst, "failed to get lat buffer");
+		mtk_vdec_debug(inst->ctx, "failed to get lat buffer");
 		return -EAGAIN;
 	}
 	share_info = lat_buf->private_data;
@@ -623,7 +621,7 @@ static int vdec_h264_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 
 	*res_chg = inst->resolution_changed;
 	if (inst->resolution_changed) {
-		mtk_vcodec_debug(inst, "- resolution changed -");
+		mtk_vdec_debug(inst->ctx, "- resolution changed -");
 		if (inst->realloc_mv_buf) {
 			err = vdec_h264_slice_alloc_mv_buf(inst, &inst->ctx->picinfo);
 			inst->realloc_mv_buf = false;
@@ -646,19 +644,19 @@ static int vdec_h264_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 
 	inst->vsi->trans_end = inst->ctx->msg_queue.wdma_rptr_addr;
 	inst->vsi->trans_start = inst->ctx->msg_queue.wdma_wptr_addr;
-	mtk_vcodec_debug(inst, "lat:trans(0x%llx 0x%llx) err:0x%llx",
-			 inst->vsi->wdma_start_addr,
-			 inst->vsi->wdma_end_addr,
-			 inst->vsi->wdma_err_addr);
+	mtk_vdec_debug(inst->ctx, "lat:trans(0x%llx 0x%llx) err:0x%llx",
+		       inst->vsi->wdma_start_addr,
+		       inst->vsi->wdma_end_addr,
+		       inst->vsi->wdma_err_addr);
 
-	mtk_vcodec_debug(inst, "slice(0x%llx 0x%llx) rprt((0x%llx 0x%llx))",
-			 inst->vsi->slice_bc_start_addr,
-			 inst->vsi->slice_bc_end_addr,
-			 inst->vsi->trans_start,
-			 inst->vsi->trans_end);
+	mtk_vdec_debug(inst->ctx, "slice(0x%llx 0x%llx) rprt((0x%llx 0x%llx))",
+		       inst->vsi->slice_bc_start_addr,
+		       inst->vsi->slice_bc_end_addr,
+		       inst->vsi->trans_start,
+		       inst->vsi->trans_end);
 	err = vpu_dec_start(vpu, data, 2);
 	if (err) {
-		mtk_vcodec_debug(inst, "lat decode err: %d", err);
+		mtk_vdec_debug(inst->ctx, "lat decode err: %d", err);
 		goto err_free_fb_out;
 	}
 
@@ -677,7 +675,7 @@ static int vdec_h264_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	timeout = mtk_vcodec_wait_for_done_ctx(inst->ctx, MTK_INST_IRQ_RECEIVED,
 					       WAIT_INTR_TIMEOUT_MS, MTK_VDEC_LAT0);
 	if (timeout)
-		mtk_vcodec_err(inst, "lat decode timeout: pic_%d", inst->slice_dec_num);
+		mtk_vdec_err(inst->ctx, "lat decode timeout: pic_%d", inst->slice_dec_num);
 	inst->vsi->dec.timeout = !!timeout;
 
 	err = vpu_dec_end(vpu);
@@ -685,7 +683,7 @@ static int vdec_h264_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 		if (!IS_VDEC_INNER_RACING(inst->ctx->dev->dec_capability))
 			vdec_msg_queue_qbuf(&inst->ctx->msg_queue.lat_ctx, lat_buf);
 		inst->slice_dec_num++;
-		mtk_vcodec_err(inst, "lat dec fail: pic_%d err:%d", inst->slice_dec_num, err);
+		mtk_vdec_err(inst->ctx, "lat dec fail: pic_%d err:%d", inst->slice_dec_num, err);
 		return -EINVAL;
 	}
 
@@ -698,14 +696,14 @@ static int vdec_h264_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 		       sizeof(share_info->h264_slice_params));
 		vdec_msg_queue_qbuf(&inst->ctx->msg_queue.core_ctx, lat_buf);
 	}
-	mtk_vcodec_debug(inst, "dec num: %d lat crc: 0x%x 0x%x 0x%x", inst->slice_dec_num,
-			 inst->vsi->dec.crc[0], inst->vsi->dec.crc[1], inst->vsi->dec.crc[2]);
+	mtk_vdec_debug(inst->ctx, "dec num: %d lat crc: 0x%x 0x%x 0x%x", inst->slice_dec_num,
+		       inst->vsi->dec.crc[0], inst->vsi->dec.crc[1], inst->vsi->dec.crc[2]);
 
 	inst->slice_dec_num++;
 	return 0;
 err_free_fb_out:
 	vdec_msg_queue_qbuf(&inst->ctx->msg_queue.lat_ctx, lat_buf);
-	mtk_vcodec_err(inst, "slice dec number: %d err: %d", inst->slice_dec_num, err);
+	mtk_vdec_err(inst->ctx, "slice dec number: %d err: %d", inst->slice_dec_num, err);
 	return err;
 }
 
@@ -732,8 +730,8 @@ static int vdec_h264_slice_single_decode(void *h_vdec, struct mtk_vcodec_mem *bs
 
 	y_fb_dma = fb ? (u64)fb->base_y.dma_addr : 0;
 	c_fb_dma = fb ? (u64)fb->base_c.dma_addr : 0;
-	mtk_vcodec_debug(inst, "[h264-dec] [%d] y_dma=%llx c_dma=%llx",
-			 inst->ctx->decoded_frame_cnt, y_fb_dma, c_fb_dma);
+	mtk_vdec_debug(inst->ctx, "[h264-dec] [%d] y_dma=%llx c_dma=%llx",
+		       inst->ctx->decoded_frame_cnt, y_fb_dma, c_fb_dma);
 
 	inst->vsi_ctx.dec.bs_buf_addr = (u64)bs->dma_addr;
 	inst->vsi_ctx.dec.bs_buf_size = bs->size;
@@ -757,7 +755,7 @@ static int vdec_h264_slice_single_decode(void *h_vdec, struct mtk_vcodec_mem *bs
 
 	*res_chg = inst->resolution_changed;
 	if (inst->resolution_changed) {
-		mtk_vcodec_debug(inst, "- resolution changed -");
+		mtk_vdec_debug(inst->ctx, "- resolution changed -");
 		if (inst->realloc_mv_buf) {
 			err = vdec_h264_slice_alloc_mv_buf(inst, &inst->ctx->picinfo);
 			inst->realloc_mv_buf = false;
@@ -781,8 +779,7 @@ static int vdec_h264_slice_single_decode(void *h_vdec, struct mtk_vcodec_mem *bs
 	err = mtk_vcodec_wait_for_done_ctx(inst->ctx, MTK_INST_IRQ_RECEIVED,
 					   WAIT_INTR_TIMEOUT_MS, MTK_VDEC_CORE);
 	if (err)
-		mtk_vcodec_err(inst, "decode timeout: pic_%d",
-			       inst->ctx->decoded_frame_cnt);
+		mtk_vdec_err(inst->ctx, "decode timeout: pic_%d", inst->ctx->decoded_frame_cnt);
 
 	inst->vsi->dec.timeout = !!err;
 	err = vpu_dec_end(vpu);
@@ -790,19 +787,18 @@ static int vdec_h264_slice_single_decode(void *h_vdec, struct mtk_vcodec_mem *bs
 		goto err_free_fb_out;
 
 	memcpy(&inst->vsi_ctx, inst->vpu.vsi, sizeof(inst->vsi_ctx));
-	mtk_vcodec_debug(inst, "pic[%d] crc: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
-			 inst->ctx->decoded_frame_cnt,
-			 inst->vsi_ctx.dec.crc[0], inst->vsi_ctx.dec.crc[1],
-			 inst->vsi_ctx.dec.crc[2], inst->vsi_ctx.dec.crc[3],
-			 inst->vsi_ctx.dec.crc[4], inst->vsi_ctx.dec.crc[5],
-			 inst->vsi_ctx.dec.crc[6], inst->vsi_ctx.dec.crc[7]);
+	mtk_vdec_debug(inst->ctx, "pic[%d] crc: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
+		       inst->ctx->decoded_frame_cnt,
+		       inst->vsi_ctx.dec.crc[0], inst->vsi_ctx.dec.crc[1],
+		       inst->vsi_ctx.dec.crc[2], inst->vsi_ctx.dec.crc[3],
+		       inst->vsi_ctx.dec.crc[4], inst->vsi_ctx.dec.crc[5],
+		       inst->vsi_ctx.dec.crc[6], inst->vsi_ctx.dec.crc[7]);
 
 	inst->ctx->decoded_frame_cnt++;
 	return 0;
 
 err_free_fb_out:
-	mtk_vcodec_err(inst, "dec frame number: %d err: %d",
-		       inst->ctx->decoded_frame_cnt, err);
+	mtk_vdec_err(inst->ctx, "dec frame number: %d err: %d", inst->ctx->decoded_frame_cnt, err);
 	return err;
 }
 
@@ -839,7 +835,7 @@ static int vdec_h264_slice_get_param(void *h_vdec, enum vdec_get_param_type type
 		vdec_h264_slice_get_crop_info(inst, out);
 		break;
 	default:
-		mtk_vcodec_err(inst, "invalid get parameter type=%d", type);
+		mtk_vdec_err(inst->ctx, "invalid get parameter type=%d", type);
 		return -EINVAL;
 	}
 	return 0;
