@@ -7,6 +7,7 @@ config PHY_RTK_RTD_USB2PHY
 	depends on USB_SUPPORT
 	select GENERIC_PHY
 	select USB_PHY
+	select USB_COMMON
 	help
 	  Enable this to support Realtek SoC USB2 phy transceiver.
 	  The DHC (digital home center) RTD series SoCs used the Synopsys
@@ -18,6 +19,7 @@ config PHY_RTK_RTD_USB3PHY
 	depends on USB_SUPPORT
 	select GENERIC_PHY
 	select USB_PHY
+	select USB_COMMON
 	help
 	  Enable this to support Realtek SoC USB3 phy transceiver.
 	  The DHC (digital home center) RTD series SoCs used the Synopsys
