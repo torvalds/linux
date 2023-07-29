@@ -1137,19 +1137,19 @@ static u64 svm_get_l2_tsc_multiplier(struct kvm_vcpu *vcpu)
 	return svm->tsc_ratio_msr;
 }
 
-static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
+static void svm_write_tsc_offset(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb01.ptr->control.tsc_offset = vcpu->arch.l1_tsc_offset;
-	svm->vmcb->control.tsc_offset = offset;
+	svm->vmcb->control.tsc_offset = vcpu->arch.tsc_offset;
 	vmcb_mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
-void svm_write_tsc_multiplier(struct kvm_vcpu *vcpu, u64 multiplier)
+void svm_write_tsc_multiplier(struct kvm_vcpu *vcpu)
 {
 	preempt_disable();
-	__svm_write_tsc_multiplier(multiplier);
+	__svm_write_tsc_multiplier(vcpu->arch.tsc_scaling_ratio);
 	preempt_enable();
 }
 
