@@ -509,79 +509,30 @@ static void __init cpu_dev_register_generic(void)
 }
 
 #ifdef CONFIG_GENERIC_CPU_VULNERABILITIES
-
-ssize_t __weak cpu_show_meltdown(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_spectre_v1(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_spectre_v2(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_spec_store_bypass(struct device *dev,
-					  struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_l1tf(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_mds(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_tsx_async_abort(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
-{
-	return sysfs_emit(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_itlb_multihit(struct device *dev,
-				      struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_srbds(struct device *dev,
+ssize_t cpu_show_not_affected(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "Not affected\n");
 }
 
-ssize_t __weak cpu_show_mmio_stale_data(struct device *dev,
-					struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "Not affected\n");
-}
+#define CPU_SHOW_VULN_FALLBACK(func)					\
+	ssize_t cpu_show_##func(struct device *,			\
+				  struct device_attribute *, char *)	\
+		 __attribute__((weak, alias("cpu_show_not_affected")))
 
-ssize_t __weak cpu_show_retbleed(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_spec_rstack_overflow(struct device *dev,
-					     struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "Not affected\n");
-}
+CPU_SHOW_VULN_FALLBACK(meltdown);
+CPU_SHOW_VULN_FALLBACK(spectre_v1);
+CPU_SHOW_VULN_FALLBACK(spectre_v2);
+CPU_SHOW_VULN_FALLBACK(spec_store_bypass);
+CPU_SHOW_VULN_FALLBACK(l1tf);
+CPU_SHOW_VULN_FALLBACK(mds);
+CPU_SHOW_VULN_FALLBACK(tsx_async_abort);
+CPU_SHOW_VULN_FALLBACK(itlb_multihit);
+CPU_SHOW_VULN_FALLBACK(srbds);
+CPU_SHOW_VULN_FALLBACK(mmio_stale_data);
+CPU_SHOW_VULN_FALLBACK(retbleed);
+CPU_SHOW_VULN_FALLBACK(spec_rstack_overflow);
+CPU_SHOW_VULN_FALLBACK(gather_data_sampling);
 
 ssize_t __weak cpu_show_gds(struct device *dev,
 			    struct device_attribute *attr, char *buf)
