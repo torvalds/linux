@@ -11,11 +11,9 @@
 #ifdef MMU_DEBUG
 extern bool dbg;
 
-#define pgprintk(x...) do { if (dbg) printk(x); } while (0)
 #define rmap_printk(fmt, args...) do { if (dbg) printk("%s: " fmt, __func__, ## args); } while (0)
 #define MMU_WARN_ON(x) WARN_ON(x)
 #else
-#define pgprintk(x...) do { } while (0)
 #define rmap_printk(x...) do { } while (0)
 #define MMU_WARN_ON(x) do { } while (0)
 #endif
