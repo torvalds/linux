@@ -876,7 +876,7 @@ exit:
 
 static DEVICE_ATTR(firmware_update, 0200, NULL, ili210x_firmware_update_store);
 
-static struct attribute *ili210x_attributes[] = {
+static struct attribute *ili210x_attrs[] = {
 	&dev_attr_calibrate.attr,
 	&dev_attr_firmware_update.attr,
 	&dev_attr_firmware_version.attr,
@@ -904,10 +904,11 @@ static umode_t ili210x_attributes_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static const struct attribute_group ili210x_attr_group = {
-	.attrs = ili210x_attributes,
+static const struct attribute_group ili210x_group = {
+	.attrs = ili210x_attrs,
 	.is_visible = ili210x_attributes_visible,
 };
+__ATTRIBUTE_GROUPS(ili210x);
 
 static void ili210x_power_down(void *data)
 {
@@ -1013,13 +1014,6 @@ static int ili210x_i2c_probe(struct i2c_client *client)
 	if (error)
 		return error;
 
-	error = devm_device_add_group(dev, &ili210x_attr_group);
-	if (error) {
-		dev_err(dev, "Unable to create sysfs attributes, err: %d\n",
-			error);
-		return error;
-	}
-
 	error = input_register_device(priv->input);
 	if (error) {
 		dev_err(dev, "Cannot register input device, err: %d\n", error);
@@ -1050,6 +1044,7 @@ MODULE_DEVICE_TABLE(of, ili210x_dt_ids);
 static struct i2c_driver ili210x_ts_driver = {
 	.driver = {
 		.name = "ili210x_i2c",
+		.dev_groups = ili210x_groups,
 		.of_match_table = ili210x_dt_ids,
 	},
 	.id_table = ili210x_i2c_id,
