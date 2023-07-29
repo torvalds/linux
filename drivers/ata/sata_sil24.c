@@ -597,7 +597,7 @@ static int sil24_init_port(struct ata_port *ap)
 static int sil24_exec_polled_cmd(struct ata_port *ap, int pmp,
 				 const struct ata_taskfile *tf,
 				 int is_cmd, u32 ctrl,
-				 unsigned long timeout_msec)
+				 unsigned int timeout_msec)
 {
 	void __iomem *port = sil24_port_base(ap);
 	struct sil24_port_priv *pp = ap->private_data;
@@ -651,7 +651,7 @@ static int sil24_softreset(struct ata_link *link, unsigned int *class,
 {
 	struct ata_port *ap = link->ap;
 	int pmp = sata_srst_pmp(link);
-	unsigned long timeout_msec = 0;
+	unsigned int timeout_msec = 0;
 	struct ata_taskfile tf;
 	const char *reason;
 	int rc;
