@@ -1029,6 +1029,17 @@ config GPIO_FXL6408
 	  To compile this driver as a module, choose M here: the module will
 	  be called gpio-fxl6408.
 
+config GPIO_DS4520
+	tristate "DS4520 I2C GPIO expander"
+	select REGMAP_I2C
+	select GPIO_REGMAP
+	help
+	  GPIO driver for ADI DS4520 I2C-based GPIO expander.
+	  Say yes here to enable the GPIO driver for the ADI DS4520 chip.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-ds4520.
+
 config GPIO_GW_PLD
 	tristate "Gateworks PLD GPIO Expander"
 	depends on OF_GPIO
