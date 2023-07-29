@@ -18,7 +18,7 @@
 
 struct vdec_lat_buf;
 struct mtk_vcodec_dec_ctx;
-struct mtk_vcodec_dev;
+struct mtk_vcodec_dec_dev;
 typedef int (*core_decode_cb_t)(struct vdec_lat_buf *lat_buf);
 
 /**

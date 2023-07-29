@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "mtk_vcodec_dec_drv.h"
+#include "mtk_vcodec_enc_drv.h"
 #include "mtk_vcodec_fw_priv.h"
-#include "mtk_vcodec_util.h"
-#include "mtk_vcodec_drv.h"
 
 static int mtk_vcodec_scp_load_firmware(struct mtk_vcodec_fw *fw)
 {
@@ -56,14 +56,25 @@ static const struct mtk_vcodec_fw_ops mtk_vcodec_rproc_msg = {
 struct mtk_vcodec_fw *mtk_vcodec_fw_scp_init(void *priv, enum mtk_vcodec_fw_use fw_use)
 {
 	struct mtk_vcodec_fw *fw;
-	struct mtk_vcodec_dev *dev = priv;
 	struct platform_device *plat_dev;
 	struct mtk_scp *scp;
 
-	plat_dev = dev->plat_dev;
+	if (fw_use == ENCODER) {
+		struct mtk_vcodec_enc_dev *enc_dev = priv;
+
+		plat_dev = enc_dev->plat_dev;
+	} else if (fw_use == DECODER) {
+		struct mtk_vcodec_dec_dev *dec_dev = priv;
+
+		plat_dev = dec_dev->plat_dev;
+	} else {
+		pr_err("Invalid fw_use %d (use a resonable fw id here)\n", fw_use);
+		return ERR_PTR(-EINVAL);
+	}
+
 	scp = scp_get(plat_dev);
 	if (!scp) {
-		dev_err(&dev->plat_dev->dev, "could not get vdec scp handle");
+		dev_err(&plat_dev->dev, "could not get vdec scp handle");
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 

@@ -8,7 +8,8 @@
 
 #include "../vpu/mtk_vpu.h"
 
-struct mtk_vcodec_dev;
+struct mtk_vcodec_dec_dev;
+struct mtk_vcodec_enc_dev;
 
 enum mtk_vcodec_fw_type {
 	VPU,

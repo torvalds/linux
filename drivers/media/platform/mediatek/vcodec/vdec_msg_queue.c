@@ -8,8 +8,8 @@
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 
+#include "mtk_vcodec_dec_drv.h"
 #include "mtk_vcodec_dec_pm.h"
-#include "mtk_vcodec_drv.h"
 #include "vdec_msg_queue.h"
 
 #define VDEC_MSG_QUEUE_TIMEOUT_MS 1500
@@ -241,7 +241,7 @@ static void vdec_msg_queue_core_work(struct work_struct *work)
 		container_of(work, struct vdec_msg_queue, core_work);
 	struct mtk_vcodec_dec_ctx *ctx =
 		container_of(msg_queue, struct mtk_vcodec_dec_ctx, msg_queue);
-	struct mtk_vcodec_dev *dev = ctx->dev;
+	struct mtk_vcodec_dec_dev *dev = ctx->dev;
 	struct vdec_lat_buf *lat_buf;
 
 	spin_lock(&msg_queue->core_ctx.ready_lock);

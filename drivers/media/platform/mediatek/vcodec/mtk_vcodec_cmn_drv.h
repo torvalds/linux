@@ -17,6 +17,77 @@
 
 #define MTK_VCODEC_MAX_PLANES	3
 
+#define WAIT_INTR_TIMEOUT_MS	1000
+
+/*
+ * enum mtk_q_type - Type of queue
+ */
+enum mtk_q_type {
+	MTK_Q_DATA_SRC = 0,
+	MTK_Q_DATA_DST = 1,
+};
+
+/*
+ * enum mtk_hw_reg_idx - MTK hw register base index
+ */
+enum mtk_hw_reg_idx {
+	VDEC_SYS,
+	VDEC_MISC,
+	VDEC_LD,
+	VDEC_TOP,
+	VDEC_CM,
+	VDEC_AD,
+	VDEC_AV,
+	VDEC_PP,
+	VDEC_HWD,
+	VDEC_HWQ,
+	VDEC_HWB,
+	VDEC_HWG,
+	NUM_MAX_VDEC_REG_BASE,
+	/* h264 encoder */
+	VENC_SYS = NUM_MAX_VDEC_REG_BASE,
+	/* vp8 encoder */
+	VENC_LT_SYS,
+	NUM_MAX_VCODEC_REG_BASE
+};
+
+/*
+ * struct mtk_vcodec_clk_info - Structure used to store clock name
+ */
+struct mtk_vcodec_clk_info {
+	const char	*clk_name;
+	struct clk	*vcodec_clk;
+};
+
+/*
+ * struct mtk_vcodec_clk - Structure used to store vcodec clock information
+ */
+struct mtk_vcodec_clk {
+	struct mtk_vcodec_clk_info	*clk_info;
+	int	clk_num;
+};
+
+/*
+ * struct mtk_vcodec_pm - Power management data structure
+ */
+struct mtk_vcodec_pm {
+	struct mtk_vcodec_clk	vdec_clk;
+	struct mtk_vcodec_clk	venc_clk;
+	struct device	*dev;
+};
+
+/*
+ * enum mtk_vdec_hw_id - Hardware index used to separate
+ *                         different hardware
+ */
+enum mtk_vdec_hw_id {
+	MTK_VDEC_CORE,
+	MTK_VDEC_LAT0,
+	MTK_VDEC_LAT1,
+	MTK_VDEC_LAT_SOC,
+	MTK_VDEC_HW_MAX,
+};
+
 /**
  * enum mtk_instance_state - The state of an MTK Vcodec instance.
  * @MTK_STATE_FREE: default state when instance is created

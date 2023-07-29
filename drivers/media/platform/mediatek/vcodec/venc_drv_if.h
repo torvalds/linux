@@ -9,8 +9,7 @@
 #ifndef _VENC_DRV_IF_H_
 #define _VENC_DRV_IF_H_
 
-#include "mtk_vcodec_drv.h"
-#include "mtk_vcodec_util.h"
+#include "mtk_vcodec_enc_drv.h"
 
 /*
  * enum venc_yuv_fmt - The type of input yuv format

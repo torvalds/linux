@@ -21,7 +21,6 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-device.h>
 
-#include "mtk_vcodec_drv.h"
 #include "mtk_vcodec_dec.h"
 #include "mtk_vcodec_dec_hw.h"
 #include "mtk_vcodec_dec_pm.h"
@@ -29,7 +28,7 @@
 #include "mtk_vcodec_util.h"
 #include "mtk_vcodec_fw.h"
 
-static int mtk_vcodec_get_hw_count(struct mtk_vcodec_dec_ctx *ctx, struct mtk_vcodec_dev *dev)
+static int mtk_vcodec_get_hw_count(struct mtk_vcodec_dec_ctx *ctx, struct mtk_vcodec_dec_dev *dev)
 {
 	switch (dev->vdec_pdata->hw_arch) {
 	case MTK_VDEC_PURE_SINGLE_CORE:
@@ -42,7 +41,7 @@ static int mtk_vcodec_get_hw_count(struct mtk_vcodec_dec_ctx *ctx, struct mtk_vc
 	}
 }
 
-static bool mtk_vcodec_is_hw_active(struct mtk_vcodec_dev *dev)
+static bool mtk_vcodec_is_hw_active(struct mtk_vcodec_dec_dev *dev)
 {
 	u32 cg_status;
 
@@ -56,7 +55,7 @@ static bool mtk_vcodec_is_hw_active(struct mtk_vcodec_dev *dev)
 
 static irqreturn_t mtk_vcodec_dec_irq_handler(int irq, void *priv)
 {
-	struct mtk_vcodec_dev *dev = priv;
+	struct mtk_vcodec_dec_dev *dev = priv;
 	struct mtk_vcodec_dec_ctx *ctx;
 	unsigned int dec_done_status = 0;
 	void __iomem *vdec_misc_addr = dev->reg_base[VDEC_MISC] +
@@ -88,7 +87,7 @@ static irqreturn_t mtk_vcodec_dec_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static int mtk_vcodec_get_reg_bases(struct mtk_vcodec_dev *dev)
+static int mtk_vcodec_get_reg_bases(struct mtk_vcodec_dec_dev *dev)
 {
 	struct platform_device *pdev = dev->plat_dev;
 	int reg_num, i;
@@ -160,7 +159,7 @@ static int mtk_vcodec_get_reg_bases(struct mtk_vcodec_dev *dev)
 	return 0;
 }
 
-static int mtk_vcodec_init_dec_resources(struct mtk_vcodec_dev *dev)
+static int mtk_vcodec_init_dec_resources(struct mtk_vcodec_dec_dev *dev)
 {
 	struct platform_device *pdev = dev->plat_dev;
 	int ret;
@@ -197,7 +196,7 @@ static int mtk_vcodec_init_dec_resources(struct mtk_vcodec_dev *dev)
 
 static int fops_vcodec_open(struct file *file)
 {
-	struct mtk_vcodec_dev *dev = video_drvdata(file);
+	struct mtk_vcodec_dec_dev *dev = video_drvdata(file);
 	struct mtk_vcodec_dec_ctx *ctx = NULL;
 	int ret = 0, i, hw_count;
 	struct vb2_queue *src_vq;
@@ -294,7 +293,7 @@ err_ctrls_setup:
 
 static int fops_vcodec_release(struct file *file)
 {
-	struct mtk_vcodec_dev *dev = video_drvdata(file);
+	struct mtk_vcodec_dec_dev *dev = video_drvdata(file);
 	struct mtk_vcodec_dec_ctx *ctx = fh_to_dec_ctx(file->private_data);
 
 	mtk_v4l2_vdec_dbg(0, ctx, "[%d] decoder", ctx->id);
@@ -331,7 +330,7 @@ static const struct v4l2_file_operations mtk_vcodec_fops = {
 
 static int mtk_vcodec_probe(struct platform_device *pdev)
 {
-	struct mtk_vcodec_dev *dev;
+	struct mtk_vcodec_dec_dev *dev;
 	struct video_device *vfd_dec;
 	phandle rproc_phandle;
 	enum mtk_vcodec_fw_type fw_type;
@@ -538,7 +537,7 @@ MODULE_DEVICE_TABLE(of, mtk_vcodec_match);
 
 static void mtk_vcodec_dec_remove(struct platform_device *pdev)
 {
-	struct mtk_vcodec_dev *dev = platform_get_drvdata(pdev);
+	struct mtk_vcodec_dec_dev *dev = platform_get_drvdata(pdev);
 
 	destroy_workqueue(dev->decode_workqueue);
 
@@ -554,7 +553,7 @@ static void mtk_vcodec_dec_remove(struct platform_device *pdev)
 	if (dev->vfd_dec)
 		video_unregister_device(dev->vfd_dec);
 
-	mtk_vcodec_dbgfs_deinit(dev);
+	mtk_vcodec_dbgfs_deinit(&dev->dbgfs);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	if (!dev->vdec_pdata->is_subdev_supported)
 		pm_runtime_disable(dev->pm.dev);

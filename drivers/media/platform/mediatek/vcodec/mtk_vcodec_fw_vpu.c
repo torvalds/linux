@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "mtk_vcodec_dec_drv.h"
+#include "mtk_vcodec_enc_drv.h"
 #include "mtk_vcodec_fw_priv.h"
-#include "mtk_vcodec_util.h"
-#include "mtk_vcodec_drv.h"
 
 static int mtk_vcodec_vpu_load_firmware(struct mtk_vcodec_fw *fw)
 {
@@ -53,7 +53,7 @@ static void mtk_vcodec_vpu_release(struct mtk_vcodec_fw *fw)
 
 static void mtk_vcodec_vpu_reset_dec_handler(void *priv)
 {
-	struct mtk_vcodec_dev *dev = priv;
+	struct mtk_vcodec_dec_dev *dev = priv;
 	struct mtk_vcodec_dec_ctx *ctx;
 
 	dev_err(&dev->plat_dev->dev, "Watchdog timeout!!");
@@ -68,7 +68,7 @@ static void mtk_vcodec_vpu_reset_dec_handler(void *priv)
 
 static void mtk_vcodec_vpu_reset_enc_handler(void *priv)
 {
-	struct mtk_vcodec_dev *dev = priv;
+	struct mtk_vcodec_enc_dev *dev = priv;
 	struct mtk_vcodec_enc_ctx *ctx;
 
 	dev_err(&dev->plat_dev->dev, "Watchdog timeout!!");
@@ -94,24 +94,28 @@ static const struct mtk_vcodec_fw_ops mtk_vcodec_vpu_msg = {
 struct mtk_vcodec_fw *mtk_vcodec_fw_vpu_init(void *priv, enum mtk_vcodec_fw_use fw_use)
 {
 	struct platform_device *fw_pdev;
-	struct mtk_vcodec_dev *dev = priv;
 	struct platform_device *plat_dev;
 	struct mtk_vcodec_fw *fw;
 	enum rst_id rst_id;
 
 	if (fw_use == ENCODER) {
+		struct mtk_vcodec_enc_dev *enc_dev = priv;
+
+		plat_dev = enc_dev->plat_dev;
 		rst_id = VPU_RST_ENC;
 	} else if (fw_use == DECODER) {
+		struct mtk_vcodec_dec_dev *dec_dev = priv;
+
+		plat_dev = dec_dev->plat_dev;
 		rst_id = VPU_RST_DEC;
 	} else {
 		pr_err("Invalid fw_use %d (use a resonable fw id here)\n", fw_use);
 		return ERR_PTR(-EINVAL);
 	}
 
-	plat_dev = dev->plat_dev;
 	fw_pdev = vpu_get_plat_device(plat_dev);
 	if (!fw_pdev) {
-		dev_err(&dev->plat_dev->dev, "firmware device is not ready");
+		dev_err(&plat_dev->dev, "firmware device is not ready");
 		return ERR_PTR(-EINVAL);
 	}
 

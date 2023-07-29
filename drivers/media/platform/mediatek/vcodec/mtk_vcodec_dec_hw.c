@@ -12,7 +12,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
-#include "mtk_vcodec_drv.h"
 #include "mtk_vcodec_dec.h"
 #include "mtk_vcodec_dec_hw.h"
 #include "mtk_vcodec_dec_pm.h"
@@ -36,7 +35,7 @@ static const struct of_device_id mtk_vdec_hw_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mtk_vdec_hw_match);
 
-static int mtk_vdec_hw_prob_done(struct mtk_vcodec_dev *vdec_dev)
+static int mtk_vdec_hw_prob_done(struct mtk_vcodec_dec_dev *vdec_dev)
 {
 	struct platform_device *pdev = vdec_dev->plat_dev;
 	struct device_node *subdev_node;
@@ -123,7 +122,7 @@ static int mtk_vdec_hw_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mtk_vdec_hw_dev *subdev_dev;
-	struct mtk_vcodec_dev *main_dev;
+	struct mtk_vcodec_dec_dev *main_dev;
 	const struct of_device_id *of_id;
 	int hw_idx;
 	int ret;

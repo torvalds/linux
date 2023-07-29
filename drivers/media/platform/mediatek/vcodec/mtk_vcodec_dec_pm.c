@@ -106,7 +106,7 @@ static void mtk_vcodec_dec_clock_off(struct mtk_vcodec_pm *pm)
 		clk_disable_unprepare(dec_clk->clk_info[i].vcodec_clk);
 }
 
-static void mtk_vcodec_dec_enable_irq(struct mtk_vcodec_dev *vdec_dev, int hw_idx)
+static void mtk_vcodec_dec_enable_irq(struct mtk_vcodec_dec_dev *vdec_dev, int hw_idx)
 {
 	struct mtk_vdec_hw_dev *subdev_dev;
 
@@ -124,7 +124,7 @@ static void mtk_vcodec_dec_enable_irq(struct mtk_vcodec_dev *vdec_dev, int hw_id
 	}
 }
 
-static void mtk_vcodec_dec_disable_irq(struct mtk_vcodec_dev *vdec_dev, int hw_idx)
+static void mtk_vcodec_dec_disable_irq(struct mtk_vcodec_dec_dev *vdec_dev, int hw_idx)
 {
 	struct mtk_vdec_hw_dev *subdev_dev;
 
@@ -170,7 +170,7 @@ static void mtk_vcodec_record_racing_info(struct mtk_vcodec_dec_ctx *ctx)
 	mutex_unlock(&ctx->dev->dec_racing_info_mutex);
 }
 
-static struct mtk_vcodec_pm *mtk_vcodec_dec_get_pm(struct mtk_vcodec_dev *vdec_dev,
+static struct mtk_vcodec_pm *mtk_vcodec_dec_get_pm(struct mtk_vcodec_dec_dev *vdec_dev,
 						   int hw_idx)
 {
 	struct mtk_vdec_hw_dev *subdev_dev;
@@ -190,7 +190,7 @@ static struct mtk_vcodec_pm *mtk_vcodec_dec_get_pm(struct mtk_vcodec_dev *vdec_d
 	return &vdec_dev->pm;
 }
 
-static void mtk_vcodec_dec_child_dev_on(struct mtk_vcodec_dev *vdec_dev,
+static void mtk_vcodec_dec_child_dev_on(struct mtk_vcodec_dec_dev *vdec_dev,
 					int hw_idx)
 {
 	struct mtk_vcodec_pm *pm;
@@ -210,7 +210,7 @@ static void mtk_vcodec_dec_child_dev_on(struct mtk_vcodec_dev *vdec_dev,
 	}
 }
 
-static void mtk_vcodec_dec_child_dev_off(struct mtk_vcodec_dev *vdec_dev,
+static void mtk_vcodec_dec_child_dev_off(struct mtk_vcodec_dec_dev *vdec_dev,
 					 int hw_idx)
 {
 	struct mtk_vcodec_pm *pm;

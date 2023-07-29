@@ -16,7 +16,6 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-dma-contig.h>
 
-#include "mtk_vcodec_drv.h"
 #include "mtk_vcodec_enc.h"
 #include "mtk_vcodec_enc_pm.h"
 #include "mtk_vcodec_intr.h"
@@ -85,14 +84,14 @@ static void clean_irq_status(unsigned int irq_status, void __iomem *addr)
 }
 static irqreturn_t mtk_vcodec_enc_irq_handler(int irq, void *priv)
 {
-	struct mtk_vcodec_dev *dev = priv;
+	struct mtk_vcodec_enc_dev *dev = priv;
 	struct mtk_vcodec_enc_ctx *ctx;
 	unsigned long flags;
 	void __iomem *addr;
 	int core_id;
 
 	spin_lock_irqsave(&dev->irqlock, flags);
-	ctx = dev->curr_enc_ctx;
+	ctx = dev->curr_ctx;
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 
 	core_id = dev->venc_pdata->core_id;
@@ -116,7 +115,7 @@ static irqreturn_t mtk_vcodec_enc_irq_handler(int irq, void *priv)
 
 static int fops_vcodec_open(struct file *file)
 {
-	struct mtk_vcodec_dev *dev = video_drvdata(file);
+	struct mtk_vcodec_enc_dev *dev = video_drvdata(file);
 	struct mtk_vcodec_enc_ctx *ctx = NULL;
 	int ret = 0;
 	struct vb2_queue *src_vq;
@@ -203,7 +202,7 @@ err_ctrls_setup:
 
 static int fops_vcodec_release(struct file *file)
 {
-	struct mtk_vcodec_dev *dev = video_drvdata(file);
+	struct mtk_vcodec_enc_dev *dev = video_drvdata(file);
 	struct mtk_vcodec_enc_ctx *ctx = fh_to_enc_ctx(file->private_data);
 
 	mtk_v4l2_venc_dbg(1, ctx, "[%d] encoder", ctx->id);
@@ -232,7 +231,7 @@ static const struct v4l2_file_operations mtk_vcodec_fops = {
 
 static int mtk_vcodec_probe(struct platform_device *pdev)
 {
-	struct mtk_vcodec_dev *dev;
+	struct mtk_vcodec_enc_dev *dev;
 	struct video_device *vfd_enc;
 	phandle rproc_phandle;
 	enum mtk_vcodec_fw_type fw_type;
@@ -454,7 +453,7 @@ MODULE_DEVICE_TABLE(of, mtk_vcodec_enc_match);
 
 static void mtk_vcodec_enc_remove(struct platform_device *pdev)
 {
-	struct mtk_vcodec_dev *dev = platform_get_drvdata(pdev);
+	struct mtk_vcodec_enc_dev *dev = platform_get_drvdata(pdev);
 
 	destroy_workqueue(dev->encode_workqueue);
 	if (dev->m2m_dev_enc)
@@ -463,7 +462,7 @@ static void mtk_vcodec_enc_remove(struct platform_device *pdev)
 	if (dev->vfd_enc)
 		video_unregister_device(dev->vfd_enc);
 
-	mtk_vcodec_dbgfs_deinit(dev);
+	mtk_vcodec_dbgfs_deinit(&dev->dbgfs);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	pm_runtime_disable(dev->pm.dev);
 	mtk_vcodec_fw_release(dev->fw_handler);

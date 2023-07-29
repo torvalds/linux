@@ -65,7 +65,7 @@ int venc_if_encode(struct mtk_vcodec_enc_ctx *ctx,
 	mtk_venc_lock(ctx);
 
 	spin_lock_irqsave(&ctx->dev->irqlock, flags);
-	ctx->dev->curr_enc_ctx = ctx;
+	ctx->dev->curr_ctx = ctx;
 	spin_unlock_irqrestore(&ctx->dev->irqlock, flags);
 
 	mtk_vcodec_enc_clock_on(&ctx->dev->pm);
@@ -74,7 +74,7 @@ int venc_if_encode(struct mtk_vcodec_enc_ctx *ctx,
 	mtk_vcodec_enc_clock_off(&ctx->dev->pm);
 
 	spin_lock_irqsave(&ctx->dev->irqlock, flags);
-	ctx->dev->curr_enc_ctx = NULL;
+	ctx->dev->curr_ctx = NULL;
 	spin_unlock_irqrestore(&ctx->dev->irqlock, flags);
 
 	mtk_venc_unlock(ctx);

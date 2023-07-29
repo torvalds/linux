@@ -10,7 +10,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 
-#include "mtk_vcodec_drv.h"
+#include "mtk_vcodec_dec_drv.h"
 
 #define VDEC_HW_ACTIVE_ADDR 0x0
 #define VDEC_HW_ACTIVE_MASK BIT(4)
@@ -46,7 +46,7 @@ enum mtk_vdec_hw_reg_idx {
  */
 struct mtk_vdec_hw_dev {
 	struct platform_device *plat_dev;
-	struct mtk_vcodec_dev *main_dev;
+	struct mtk_vcodec_dec_dev *main_dev;
 	void __iomem *reg_base[VDEC_HW_MAX];
 
 	struct mtk_vcodec_dec_ctx *curr_ctx;

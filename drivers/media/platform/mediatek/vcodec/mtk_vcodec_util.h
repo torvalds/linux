@@ -26,7 +26,7 @@ struct mtk_vcodec_fb {
 };
 
 struct mtk_vcodec_dec_ctx;
-struct mtk_vcodec_dev;
+struct mtk_vcodec_dec_dev;
 
 #undef pr_fmt
 #define pr_fmt(fmt) "%s(),%d: " fmt, __func__, __LINE__
@@ -88,10 +88,10 @@ void __iomem *mtk_vcodec_get_reg_addr(void __iomem **reg_base, unsigned int reg_
 int mtk_vcodec_write_vdecsys(struct mtk_vcodec_dec_ctx *ctx, unsigned int reg, unsigned int val);
 int mtk_vcodec_mem_alloc(void *priv, struct mtk_vcodec_mem *mem);
 void mtk_vcodec_mem_free(void *priv, struct mtk_vcodec_mem *mem);
-void mtk_vcodec_set_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
+void mtk_vcodec_set_curr_ctx(struct mtk_vcodec_dec_dev *vdec_dev,
 			     struct mtk_vcodec_dec_ctx *ctx, int hw_idx);
-struct mtk_vcodec_dec_ctx *mtk_vcodec_get_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
+struct mtk_vcodec_dec_ctx *mtk_vcodec_get_curr_ctx(struct mtk_vcodec_dec_dev *vdec_dev,
 						   unsigned int hw_idx);
-void *mtk_vcodec_get_hw_dev(struct mtk_vcodec_dev *dev, int hw_idx);
+void *mtk_vcodec_get_hw_dev(struct mtk_vcodec_dec_dev *dev, int hw_idx);
 
 #endif /* _MTK_VCODEC_UTIL_H_ */

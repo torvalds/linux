@@ -5,7 +5,8 @@
 
 #include "mtk_vcodec_fw.h"
 
-struct mtk_vcodec_dev;
+struct mtk_vcodec_dec_dev;
+struct mtk_vcodec_enc_dev;
 
 struct mtk_vcodec_fw {
 	enum mtk_vcodec_fw_type type;

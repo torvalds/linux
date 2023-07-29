@@ -9,9 +9,9 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 
+#include "mtk_vcodec_dec_drv.h"
+#include "mtk_vcodec_enc_drv.h"
 #include "mtk_vcodec_dec_hw.h"
-#include "mtk_vcodec_drv.h"
-#include "mtk_vcodec_util.h"
 
 #if defined(CONFIG_DEBUG_FS)
 int mtk_vcodec_dbg;
@@ -34,7 +34,7 @@ EXPORT_SYMBOL(mtk_vcodec_get_reg_addr);
 int mtk_vcodec_write_vdecsys(struct mtk_vcodec_dec_ctx *ctx, unsigned int reg,
 			     unsigned int val)
 {
-	struct mtk_vcodec_dev *dev = ctx->dev;
+	struct mtk_vcodec_dec_dev *dev = ctx->dev;
 
 	if (dev->vdecsys_regmap)
 		return regmap_write(dev->vdecsys_regmap, reg, val);
@@ -89,7 +89,7 @@ void mtk_vcodec_mem_free(void *priv, struct mtk_vcodec_mem *mem)
 }
 EXPORT_SYMBOL(mtk_vcodec_mem_free);
 
-void *mtk_vcodec_get_hw_dev(struct mtk_vcodec_dev *dev, int hw_idx)
+void *mtk_vcodec_get_hw_dev(struct mtk_vcodec_dec_dev *dev, int hw_idx)
 {
 	if (hw_idx >= MTK_VDEC_HW_MAX || hw_idx < 0 || !dev->subdev_dev[hw_idx]) {
 		dev_err(&dev->plat_dev->dev, "hw idx is out of range:%d", hw_idx);
@@ -100,7 +100,7 @@ void *mtk_vcodec_get_hw_dev(struct mtk_vcodec_dev *dev, int hw_idx)
 }
 EXPORT_SYMBOL(mtk_vcodec_get_hw_dev);
 
-void mtk_vcodec_set_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
+void mtk_vcodec_set_curr_ctx(struct mtk_vcodec_dec_dev *vdec_dev,
 			     struct mtk_vcodec_dec_ctx *ctx, int hw_idx)
 {
 	unsigned long flags;
@@ -122,7 +122,7 @@ void mtk_vcodec_set_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
 }
 EXPORT_SYMBOL(mtk_vcodec_set_curr_ctx);
 
-struct mtk_vcodec_dec_ctx *mtk_vcodec_get_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
+struct mtk_vcodec_dec_ctx *mtk_vcodec_get_curr_ctx(struct mtk_vcodec_dec_dev *vdec_dev,
 						   unsigned int hw_idx)
 {
 	unsigned long flags;

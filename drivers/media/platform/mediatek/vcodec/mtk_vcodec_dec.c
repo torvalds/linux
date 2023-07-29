@@ -9,7 +9,7 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-dma-contig.h>
 
-#include "mtk_vcodec_drv.h"
+#include "mtk_vcodec_dec_drv.h"
 #include "mtk_vcodec_dec.h"
 #include "mtk_vcodec_intr.h"
 #include "mtk_vcodec_util.h"
@@ -890,7 +890,7 @@ void vb2ops_vdec_stop_streaming(struct vb2_queue *q)
 static void m2mops_vdec_device_run(void *priv)
 {
 	struct mtk_vcodec_dec_ctx *ctx = priv;
-	struct mtk_vcodec_dev *dev = ctx->dev;
+	struct mtk_vcodec_dec_dev *dev = ctx->dev;
 
 	queue_work(dev->decode_workqueue, &ctx->decode_work);
 }

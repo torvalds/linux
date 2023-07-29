@@ -7,7 +7,7 @@
 #ifndef __MTK_VCODEC_DBGFS_H__
 #define __MTK_VCODEC_DBGFS_H__
 
-struct mtk_vcodec_dev;
+struct mtk_vcodec_dec_dev;
 struct mtk_vcodec_dec_ctx;
 
 /*
@@ -51,23 +51,23 @@ struct mtk_vcodec_dbgfs {
 
 #if defined(CONFIG_DEBUG_FS)
 void mtk_vcodec_dbgfs_create(struct mtk_vcodec_dec_ctx *ctx);
-void mtk_vcodec_dbgfs_remove(struct mtk_vcodec_dev *vcodec_dev, int ctx_id);
-void mtk_vcodec_dbgfs_init(struct mtk_vcodec_dev *vcodec_dev, bool is_encode);
-void mtk_vcodec_dbgfs_deinit(struct mtk_vcodec_dev *vcodec_dev);
+void mtk_vcodec_dbgfs_remove(struct mtk_vcodec_dec_dev *vcodec_dev, int ctx_id);
+void mtk_vcodec_dbgfs_init(void *vcodec_dev, bool is_encode);
+void mtk_vcodec_dbgfs_deinit(struct mtk_vcodec_dbgfs *dbgfs);
 #else
 static inline void mtk_vcodec_dbgfs_create(struct mtk_vcodec_dec_ctx *ctx)
 {
 }
 
-static inline void mtk_vcodec_dbgfs_remove(struct mtk_vcodec_dev *vcodec_dev, int ctx_id)
+static inline void mtk_vcodec_dbgfs_remove(struct mtk_vcodec_dec_dev *vcodec_dev, int ctx_id)
 {
 }
 
-static inline void mtk_vcodec_dbgfs_init(struct mtk_vcodec_dev *vcodec_dev, bool is_encode)
+static inline void mtk_vcodec_dbgfs_init(void *vcodec_dev, bool is_encode)
 {
 }
 
-static inline void mtk_vcodec_dbgfs_deinit(struct mtk_vcodec_dev *vcodec_dev)
+static inline void mtk_vcodec_dbgfs_deinit(struct mtk_vcodec_dbgfs *dbgfs)
 {
 }
 #endif

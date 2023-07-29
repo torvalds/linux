@@ -9,7 +9,7 @@
 #ifndef _VENC_DRV_BASE_
 #define _VENC_DRV_BASE_
 
-#include "mtk_vcodec_drv.h"
+#include "mtk_vcodec_enc_drv.h"
 
 #include "venc_drv_if.h"
 

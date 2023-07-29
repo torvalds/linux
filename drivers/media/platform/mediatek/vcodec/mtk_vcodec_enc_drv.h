@@ -8,7 +8,39 @@
 #define _MTK_VCODEC_ENC_DRV_H_
 
 #include "mtk_vcodec_cmn_drv.h"
+#include "mtk_vcodec_dbgfs.h"
 #include "mtk_vcodec_fw_priv.h"
+#include "mtk_vcodec_util.h"
+
+#define MTK_VCODEC_ENC_NAME	"mtk-vcodec-enc"
+
+#define MTK_ENC_CTX_IS_EXT(ctx) ((ctx)->dev->venc_pdata->uses_ext)
+#define MTK_ENC_IOVA_IS_34BIT(ctx) ((ctx)->dev->venc_pdata->uses_34bit)
+
+/**
+ * struct mtk_vcodec_enc_pdata - compatible data for each IC
+ *
+ * @uses_ext: whether the encoder uses the extended firmware messaging format
+ * @min_bitrate: minimum supported encoding bitrate
+ * @max_bitrate: maximum supported encoding bitrate
+ * @capture_formats: array of supported capture formats
+ * @num_capture_formats: number of entries in capture_formats
+ * @output_formats: array of supported output formats
+ * @num_output_formats: number of entries in output_formats
+ * @core_id: stand for h264 or vp8 encode index
+ * @uses_34bit: whether the encoder uses 34-bit iova
+ */
+struct mtk_vcodec_enc_pdata {
+	bool uses_ext;
+	unsigned long min_bitrate;
+	unsigned long max_bitrate;
+	const struct mtk_video_fmt *capture_formats;
+	size_t num_capture_formats;
+	const struct mtk_video_fmt *output_formats;
+	size_t num_output_formats;
+	int core_id;
+	bool uses_34bit;
+};
 
 /*
  * enum mtk_encode_param - General encoding parameters type
@@ -61,8 +93,8 @@ struct mtk_enc_params {
  * struct mtk_vcodec_enc_ctx - Context (instance) private data.
  *
  * @type: type of encoder instance
- * @dev: pointer to the mtk_vcodec_dev of the device
- * @list: link to ctx_list of mtk_vcodec_dev
+ * @dev: pointer to the mtk_vcodec_enc_dev of the device
+ * @list: link to ctx_list of mtk_vcodec_enc_dev
  *
  * @fh: struct v4l2_fh
  * @m2m_ctx: pointer to the v4l2_m2m_ctx of the context
@@ -94,7 +126,7 @@ struct mtk_enc_params {
  */
 struct mtk_vcodec_enc_ctx {
 	enum mtk_instance_type type;
-	struct mtk_vcodec_dev *dev;
+	struct mtk_vcodec_enc_dev *dev;
 	struct list_head list;
 
 	struct v4l2_fh fh;
@@ -124,6 +156,61 @@ struct mtk_vcodec_enc_ctx {
 	enum v4l2_xfer_func xfer_func;
 
 	struct mutex q_mutex;
+};
+
+/**
+ * struct mtk_vcodec_enc_dev - driver data
+ * @v4l2_dev: V4L2 device to register video devices for.
+ * @vfd_enc: Video device for encoder.
+ *
+ * @m2m_dev_enc: m2m device for encoder.
+ * @plat_dev: platform device
+ * @ctx_list: list of struct mtk_vcodec_ctx
+ * @curr_ctx: The context that is waiting for codec hardware
+ *
+ * @reg_base: Mapped address of MTK Vcodec registers.
+ * @venc_pdata: encoder IC-specific data
+ *
+ * @fw_handler: used to communicate with the firmware.
+ * @id_counter: used to identify current opened instance
+ *
+ * @enc_mutex: encoder hardware lock.
+ * @dev_mutex: video_device lock
+ * @encode_workqueue: encode work queue
+ *
+ * @enc_irq: h264 encoder irq resource
+ * @irqlock: protect data access by irq handler and work thread
+ *
+ * @pm: power management control
+ * @enc_capability: used to identify encode capability
+ * @dbgfs: debug log related information
+ */
+struct mtk_vcodec_enc_dev {
+	struct v4l2_device v4l2_dev;
+	struct video_device *vfd_enc;
+
+	struct v4l2_m2m_dev *m2m_dev_enc;
+	struct platform_device *plat_dev;
+	struct list_head ctx_list;
+	struct mtk_vcodec_enc_ctx *curr_ctx;
+
+	void __iomem *reg_base[NUM_MAX_VCODEC_REG_BASE];
+	const struct mtk_vcodec_enc_pdata *venc_pdata;
+
+	struct mtk_vcodec_fw *fw_handler;
+	unsigned long id_counter;
+
+	/* encoder hardware mutex lock */
+	struct mutex enc_mutex;
+	struct mutex dev_mutex;
+	struct workqueue_struct *encode_workqueue;
+
+	int enc_irq;
+	spinlock_t irqlock;
+
+	struct mtk_vcodec_pm pm;
+	unsigned int enc_capability;
+	struct mtk_vcodec_dbgfs dbgfs;
 };
 
 static inline struct mtk_vcodec_enc_ctx *fh_to_enc_ctx(struct v4l2_fh *fh)

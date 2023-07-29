@@ -8,10 +8,10 @@
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
 
+#include "mtk_vcodec_enc_drv.h"
 #include "mtk_vcodec_enc_pm.h"
-#include "mtk_vcodec_util.h"
 
-int mtk_vcodec_init_enc_clk(struct mtk_vcodec_dev *mtkdev)
+int mtk_vcodec_init_enc_clk(struct mtk_vcodec_enc_dev *mtkdev)
 {
 	struct platform_device *pdev;
 	struct mtk_vcodec_pm *pm;

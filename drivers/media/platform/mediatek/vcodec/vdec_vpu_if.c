@@ -4,8 +4,7 @@
  * Author: PC Chen <pc.chen@mediatek.com>
  */
 
-#include "mtk_vcodec_drv.h"
-#include "mtk_vcodec_util.h"
+#include "mtk_vcodec_dec_drv.h"
 #include "vdec_drv_if.h"
 #include "vdec_ipi_msg.h"
 #include "vdec_vpu_if.h"

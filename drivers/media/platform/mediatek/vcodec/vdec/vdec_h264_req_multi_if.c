@@ -540,7 +540,7 @@ vdec_dec_end:
 	return 0;
 }
 
-static void vdec_h264_insert_startcode(struct mtk_vcodec_dev *vcodec_dev, unsigned char *buf,
+static void vdec_h264_insert_startcode(struct mtk_vcodec_dec_dev *vcodec_dev, unsigned char *buf,
 				       size_t *bs_size, struct mtk_h264_pps_param *pps)
 {
 	struct device *dev = &vcodec_dev->plat_dev->dev;

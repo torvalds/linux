@@ -7,7 +7,7 @@
 #ifndef _MTK_VCODEC_DEC_PM_H_
 #define _MTK_VCODEC_DEC_PM_H_
 
-#include "mtk_vcodec_drv.h"
+#include "mtk_vcodec_dec_drv.h"
 
 int mtk_vcodec_init_dec_clk(struct platform_device *pdev, struct mtk_vcodec_pm *pm);
 

@@ -7,7 +7,8 @@
 #include <linux/debugfs.h>
 
 #include "mtk_vcodec_dbgfs.h"
-#include "mtk_vcodec_drv.h"
+#include "mtk_vcodec_dec_drv.h"
+#include "mtk_vcodec_enc_drv.h"
 #include "mtk_vcodec_util.h"
 
 static void mtk_vdec_dbgfs_get_format_type(struct mtk_vcodec_dec_ctx *ctx, char *buf,
@@ -72,7 +73,7 @@ static void mtk_vdec_dbgfs_get_help(char *buf, int *used, int total)
 static ssize_t mtk_vdec_dbgfs_write(struct file *filp, const char __user *ubuf,
 				    size_t count, loff_t *ppos)
 {
-	struct mtk_vcodec_dev *vcodec_dev = filp->private_data;
+	struct mtk_vcodec_dec_dev *vcodec_dev = filp->private_data;
 	struct mtk_vcodec_dbgfs *dbgfs = &vcodec_dev->dbgfs;
 
 	mutex_lock(&dbgfs->dbgfs_lock);
@@ -88,7 +89,7 @@ static ssize_t mtk_vdec_dbgfs_write(struct file *filp, const char __user *ubuf,
 static ssize_t mtk_vdec_dbgfs_read(struct file *filp, char __user *ubuf,
 				   size_t count, loff_t *ppos)
 {
-	struct mtk_vcodec_dev *vcodec_dev = filp->private_data;
+	struct mtk_vcodec_dec_dev *vcodec_dev = filp->private_data;
 	struct mtk_vcodec_dbgfs *dbgfs = &vcodec_dev->dbgfs;
 	struct mtk_vcodec_dbgfs_inst *dbgfs_inst;
 	struct mtk_vcodec_dec_ctx *ctx;
@@ -146,7 +147,7 @@ static const struct file_operations vdec_fops = {
 void mtk_vcodec_dbgfs_create(struct mtk_vcodec_dec_ctx *ctx)
 {
 	struct mtk_vcodec_dbgfs_inst *dbgfs_inst;
-	struct mtk_vcodec_dev *vcodec_dev = ctx->dev;
+	struct mtk_vcodec_dec_dev *vcodec_dev = ctx->dev;
 
 	dbgfs_inst = kzalloc(sizeof(*dbgfs_inst), GFP_KERNEL);
 	if (!dbgfs_inst)
@@ -161,7 +162,7 @@ void mtk_vcodec_dbgfs_create(struct mtk_vcodec_dec_ctx *ctx)
 }
 EXPORT_SYMBOL_GPL(mtk_vcodec_dbgfs_create);
 
-void mtk_vcodec_dbgfs_remove(struct mtk_vcodec_dev *vcodec_dev, int ctx_id)
+void mtk_vcodec_dbgfs_remove(struct mtk_vcodec_dec_dev *vcodec_dev, int ctx_id)
 {
 	struct mtk_vcodec_dbgfs_inst *dbgfs_inst;
 
@@ -176,14 +177,11 @@ void mtk_vcodec_dbgfs_remove(struct mtk_vcodec_dev *vcodec_dev, int ctx_id)
 }
 EXPORT_SYMBOL_GPL(mtk_vcodec_dbgfs_remove);
 
-void mtk_vcodec_dbgfs_init(struct mtk_vcodec_dev *vcodec_dev, bool is_encode)
+static void mtk_vcodec_dbgfs_vdec_init(struct mtk_vcodec_dec_dev *vcodec_dev)
 {
 	struct dentry *vcodec_root;
 
-	if (is_encode)
-		vcodec_dev->dbgfs.vcodec_root = debugfs_create_dir("vcodec-enc", NULL);
-	else
-		vcodec_dev->dbgfs.vcodec_root = debugfs_create_dir("vcodec-dec", NULL);
+	vcodec_dev->dbgfs.vcodec_root = debugfs_create_dir("vcodec-dec", NULL);
 	if (IS_ERR(vcodec_dev->dbgfs.vcodec_root))
 		dev_err(&vcodec_dev->plat_dev->dev, "create vcodec dir err:%ld\n",
 			PTR_ERR(vcodec_dev->dbgfs.vcodec_root));
@@ -193,18 +191,39 @@ void mtk_vcodec_dbgfs_init(struct mtk_vcodec_dev *vcodec_dev, bool is_encode)
 	debugfs_create_x32("mtk_vcodec_dbg", 0644, vcodec_root, &mtk_vcodec_dbg);
 
 	vcodec_dev->dbgfs.inst_count = 0;
-	if (is_encode)
-		return;
-
 	INIT_LIST_HEAD(&vcodec_dev->dbgfs.dbgfs_head);
 	debugfs_create_file("vdec", 0200, vcodec_root, vcodec_dev, &vdec_fops);
 	mutex_init(&vcodec_dev->dbgfs.dbgfs_lock);
 }
+
+static void mtk_vcodec_dbgfs_venc_init(struct mtk_vcodec_enc_dev *vcodec_dev)
+{
+	struct dentry *vcodec_root;
+
+	vcodec_dev->dbgfs.vcodec_root = debugfs_create_dir("vcodec-enc", NULL);
+	if (IS_ERR(vcodec_dev->dbgfs.vcodec_root))
+		dev_err(&vcodec_dev->plat_dev->dev, "create venc dir err:%d\n",
+			IS_ERR(vcodec_dev->dbgfs.vcodec_root));
+
+	vcodec_root = vcodec_dev->dbgfs.vcodec_root;
+	debugfs_create_x32("mtk_v4l2_dbg_level", 0644, vcodec_root, &mtk_v4l2_dbg_level);
+	debugfs_create_x32("mtk_vcodec_dbg", 0644, vcodec_root, &mtk_vcodec_dbg);
+
+	vcodec_dev->dbgfs.inst_count = 0;
+}
+
+void mtk_vcodec_dbgfs_init(void *vcodec_dev, bool is_encode)
+{
+	if (is_encode)
+		mtk_vcodec_dbgfs_venc_init(vcodec_dev);
+	else
+		mtk_vcodec_dbgfs_vdec_init(vcodec_dev);
+}
 EXPORT_SYMBOL_GPL(mtk_vcodec_dbgfs_init);
 
-void mtk_vcodec_dbgfs_deinit(struct mtk_vcodec_dev *vcodec_dev)
+void mtk_vcodec_dbgfs_deinit(struct mtk_vcodec_dbgfs *dbgfs)
 {
-	debugfs_remove_recursive(vcodec_dev->dbgfs.vcodec_root);
+	debugfs_remove_recursive(dbgfs->vcodec_root);
 }
 EXPORT_SYMBOL_GPL(mtk_vcodec_dbgfs_deinit);
 

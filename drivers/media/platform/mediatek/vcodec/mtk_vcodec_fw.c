@@ -1,20 +1,28 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "mtk_vcodec_dec_drv.h"
+#include "mtk_vcodec_enc_drv.h"
 #include "mtk_vcodec_fw.h"
 #include "mtk_vcodec_fw_priv.h"
 #include "mtk_vcodec_util.h"
-#include "mtk_vcodec_drv.h"
 
 struct mtk_vcodec_fw *mtk_vcodec_fw_select(void *priv, enum mtk_vcodec_fw_type type,
 					   enum mtk_vcodec_fw_use fw_use)
 {
+	struct platform_device *plat_dev;
+
+	if (fw_use == ENCODER)
+		plat_dev = ((struct mtk_vcodec_enc_dev *)priv)->plat_dev;
+	else
+		plat_dev = ((struct mtk_vcodec_dec_dev *)priv)->plat_dev;
+
 	switch (type) {
 	case VPU:
 		return mtk_vcodec_fw_vpu_init(priv, fw_use);
 	case SCP:
 		return mtk_vcodec_fw_scp_init(priv, fw_use);
 	default:
-		pr_err(MTK_DBG_VCODEC_STR "Invalid vcodec fw type");
+		dev_err(&plat_dev->dev, "Invalid vcodec fw type");
 		return ERR_PTR(-EINVAL);
 	}
 }

@@ -6,7 +6,6 @@
 #include <media/v4l2-mem2mem.h>
 #include <linux/module.h>
 
-#include "mtk_vcodec_drv.h"
 #include "mtk_vcodec_dec.h"
 #include "mtk_vcodec_intr.h"
 #include "mtk_vcodec_util.h"
@@ -288,7 +287,7 @@ static void mtk_vdec_worker(struct work_struct *work)
 {
 	struct mtk_vcodec_dec_ctx *ctx =
 		container_of(work, struct mtk_vcodec_dec_ctx, decode_work);
-	struct mtk_vcodec_dev *dev = ctx->dev;
+	struct mtk_vcodec_dec_dev *dev = ctx->dev;
 	struct vb2_v4l2_buffer *vb2_v4l2_src;
 	struct vb2_buffer *vb2_src;
 	struct mtk_vcodec_mem *bs_src;
@@ -444,7 +443,7 @@ const struct media_device_ops mtk_vcodec_media_ops = {
 static void mtk_vcodec_add_formats(unsigned int fourcc,
 				   struct mtk_vcodec_dec_ctx *ctx)
 {
-	struct mtk_vcodec_dev *dev = ctx->dev;
+	struct mtk_vcodec_dec_dev *dev = ctx->dev;
 	const struct mtk_vcodec_dec_pdata *pdata = dev->vdec_pdata;
 	int count_formats = *pdata->num_formats;
 
