@@ -3543,11 +3543,7 @@ static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
 	if (!VALID_PAGE(*root_hpa))
 		return;
 
-	/*
-	 * The "root" may be a special root, e.g. a PAE entry, treat it as a
-	 * SPTE to ensure any non-PA bits are dropped.
-	 */
-	sp = spte_to_child_sp(*root_hpa);
+	sp = root_to_sp(*root_hpa);
 	if (WARN_ON_ONCE(!sp))
 		return;
 
@@ -3593,7 +3589,7 @@ void kvm_mmu_free_roots(struct kvm *kvm, struct kvm_mmu *mmu,
 					   &invalid_list);
 
 	if (free_active_root) {
-		if (to_shadow_page(mmu->root.hpa)) {
+		if (root_to_sp(mmu->root.hpa)) {
 			mmu_free_root_page(kvm, &mmu->root.hpa, &invalid_list);
 		} else if (mmu->pae_root) {
 			for (i = 0; i < 4; ++i) {
@@ -3617,6 +3613,7 @@ EXPORT_SYMBOL_GPL(kvm_mmu_free_roots);
 void kvm_mmu_free_guest_mode_roots(struct kvm *kvm, struct kvm_mmu *mmu)
 {
 	unsigned long roots_to_free = 0;
+	struct kvm_mmu_page *sp;
 	hpa_t root_hpa;
 	int i;
 
@@ -3631,8 +3628,8 @@ void kvm_mmu_free_guest_mode_roots(struct kvm *kvm, struct kvm_mmu *mmu)
 		if (!VALID_PAGE(root_hpa))
 			continue;
 
-		if (!to_shadow_page(root_hpa) ||
-			to_shadow_page(root_hpa)->role.guest_mode)
+		sp = root_to_sp(root_hpa);
+		if (!sp || sp->role.guest_mode)
 			roots_to_free |= KVM_MMU_ROOT_PREVIOUS(i);
 	}
 
@@ -3987,7 +3984,7 @@ static bool is_unsync_root(hpa_t root)
 	 * requirement isn't satisfied.
 	 */
 	smp_rmb();
-	sp = to_shadow_page(root);
+	sp = root_to_sp(root);
 
 	/*
 	 * PAE roots (somewhat arbitrarily) aren't backed by shadow pages, the
@@ -4017,10 +4014,11 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.mmu->cpu_role.base.level >= PT64_ROOT_4LEVEL) {
 		hpa_t root = vcpu->arch.mmu->root.hpa;
-		sp = to_shadow_page(root);
 
 		if (!is_unsync_root(root))
 			return;
+
+		sp = root_to_sp(root);
 
 		write_lock(&vcpu->kvm->mmu_lock);
 		mmu_sync_children(vcpu, sp, true);
@@ -4351,7 +4349,7 @@ static int kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 static bool is_page_fault_stale(struct kvm_vcpu *vcpu,
 				struct kvm_page_fault *fault)
 {
-	struct kvm_mmu_page *sp = to_shadow_page(vcpu->arch.mmu->root.hpa);
+	struct kvm_mmu_page *sp = root_to_sp(vcpu->arch.mmu->root.hpa);
 
 	/* Special roots, e.g. pae_root, are not backed by shadow pages. */
 	if (sp && is_obsolete_sp(vcpu->kvm, sp))
@@ -4531,7 +4529,7 @@ static inline bool is_root_usable(struct kvm_mmu_root_info *root, gpa_t pgd,
 {
 	return (role.direct || pgd == root->pgd) &&
 	       VALID_PAGE(root->hpa) &&
-	       role.word == to_shadow_page(root->hpa)->role.word;
+	       role.word == root_to_sp(root->hpa)->role.word;
 }
 
 /*
@@ -4605,7 +4603,7 @@ static bool fast_pgd_switch(struct kvm *kvm, struct kvm_mmu *mmu,
 	 * having to deal with PDPTEs. We may add support for 32-bit hosts/VMs
 	 * later if necessary.
 	 */
-	if (VALID_PAGE(mmu->root.hpa) && !to_shadow_page(mmu->root.hpa))
+	if (VALID_PAGE(mmu->root.hpa) && !root_to_sp(mmu->root.hpa))
 		kvm_mmu_free_roots(kvm, mmu, KVM_MMU_ROOT_CURRENT);
 
 	if (VALID_PAGE(mmu->root.hpa))
@@ -4653,7 +4651,7 @@ void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd)
 	 */
 	if (!new_role.direct)
 		__clear_sp_write_flooding_count(
-				to_shadow_page(vcpu->arch.mmu->root.hpa));
+				root_to_sp(vcpu->arch.mmu->root.hpa));
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_new_pgd);
 
@@ -5508,7 +5506,7 @@ static bool is_obsolete_root(struct kvm *kvm, hpa_t root_hpa)
 	 *  (c) KVM doesn't track previous roots for PAE paging, and the guest
 	 *      is unlikely to zap an in-use PGD.
 	 */
-	sp = to_shadow_page(root_hpa);
+	sp = root_to_sp(root_hpa);
 	return !sp || is_obsolete_sp(kvm, sp);
 }
 
