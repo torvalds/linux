@@ -37,7 +37,9 @@ static bool mtk_vdec_get_cap_fmt(struct mtk_vcodec_dec_ctx *ctx, int format_inde
 {
 	const struct mtk_vcodec_dec_pdata *dec_pdata = ctx->dev->vdec_pdata;
 	const struct mtk_video_fmt *fmt;
+	struct mtk_q_data *q_data;
 	int num_frame_count = 0, i;
+	bool ret = false;
 
 	fmt = &dec_pdata->vdec_formats[format_index];
 	for (i = 0; i < *dec_pdata->num_formats; i++) {
@@ -47,10 +49,26 @@ static bool mtk_vdec_get_cap_fmt(struct mtk_vcodec_dec_ctx *ctx, int format_inde
 		num_frame_count++;
 	}
 
-	if (num_frame_count == 1 || fmt->fourcc == V4L2_PIX_FMT_MM21)
+	if (num_frame_count == 1 || (!ctx->is_10bit_bitstream && fmt->fourcc == V4L2_PIX_FMT_MM21))
 		return true;
 
-	return false;
+	q_data = &ctx->q_data[MTK_Q_DATA_SRC];
+	switch (q_data->fmt->fourcc) {
+	case V4L2_PIX_FMT_H264_SLICE:
+		if (ctx->is_10bit_bitstream && fmt->fourcc == V4L2_PIX_FMT_MT2110R)
+			ret = true;
+		break;
+	case V4L2_PIX_FMT_VP9_FRAME:
+	case V4L2_PIX_FMT_AV1_FRAME:
+	case V4L2_PIX_FMT_HEVC_SLICE:
+		if (ctx->is_10bit_bitstream && fmt->fourcc == V4L2_PIX_FMT_MT2110T)
+			ret = true;
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 static struct mtk_q_data *mtk_vdec_get_q_data(struct mtk_vcodec_dec_ctx *ctx,

@@ -200,7 +200,7 @@ static const struct mtk_stateless_control mtk_stateless_controls[] = {
 
 #define NUM_CTRLS ARRAY_SIZE(mtk_stateless_controls)
 
-static struct mtk_video_fmt mtk_video_formats[7];
+static struct mtk_video_fmt mtk_video_formats[9];
 
 static struct mtk_video_fmt default_out_format;
 static struct mtk_video_fmt default_cap_format;
@@ -387,6 +387,138 @@ static int mtk_vdec_flush_decoder(struct mtk_vcodec_dec_ctx *ctx)
 	return vdec_if_decode(ctx, NULL, NULL, &res_chg);
 }
 
+static int mtk_vcodec_get_pic_info(struct mtk_vcodec_dec_ctx *ctx)
+{
+	struct mtk_q_data *q_data;
+	int ret = 0;
+
+	q_data = &ctx->q_data[MTK_Q_DATA_DST];
+	if (q_data->fmt->num_planes == 1) {
+		mtk_v4l2_vdec_err(ctx, "[%d]Error!! 10bit mode not support one plane", ctx->id);
+		return -EINVAL;
+	}
+
+	ctx->capture_fourcc = q_data->fmt->fourcc;
+	ret = vdec_if_get_param(ctx, GET_PARAM_PIC_INFO, &ctx->picinfo);
+	if (ret) {
+		mtk_v4l2_vdec_err(ctx, "[%d]Error!! Get GET_PARAM_PICTURE_INFO Fail", ctx->id);
+		return ret;
+	}
+
+	ctx->last_decoded_picinfo = ctx->picinfo;
+
+	q_data->sizeimage[0] = ctx->picinfo.fb_sz[0];
+	q_data->bytesperline[0] = ctx->picinfo.buf_w * 5 / 4;
+
+	q_data->sizeimage[1] = ctx->picinfo.fb_sz[1];
+	q_data->bytesperline[1] = ctx->picinfo.buf_w * 5 / 4;
+
+	q_data->coded_width = ctx->picinfo.buf_w;
+	q_data->coded_height = ctx->picinfo.buf_h;
+	mtk_v4l2_vdec_dbg(1, ctx, "[%d] wxh=%dx%d pic wxh=%dx%d sz[0]=0x%x sz[1]=0x%x",
+			  ctx->id, ctx->picinfo.buf_w, ctx->picinfo.buf_h,
+			  ctx->picinfo.pic_w, ctx->picinfo.pic_h,
+			  q_data->sizeimage[0], q_data->sizeimage[1]);
+
+	return ret;
+}
+
+static int mtk_vdec_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct mtk_vcodec_dec_ctx *ctx = ctrl_to_dec_ctx(ctrl);
+	struct v4l2_ctrl_h264_sps *h264;
+	struct v4l2_ctrl_hevc_sps *h265;
+	struct v4l2_ctrl_vp9_frame *frame;
+	struct v4l2_ctrl_av1_sequence *seq;
+	struct v4l2_ctrl *hdr_ctrl;
+	const struct mtk_vcodec_dec_pdata *dec_pdata = ctx->dev->vdec_pdata;
+	const struct mtk_video_fmt *fmt;
+	int i = 0, ret = 0;
+
+	hdr_ctrl = ctrl;
+	if (!hdr_ctrl || !hdr_ctrl->p_new.p)
+		return -EINVAL;
+
+	switch (hdr_ctrl->id) {
+	case V4L2_CID_STATELESS_H264_SPS:
+		h264 = (struct v4l2_ctrl_h264_sps *)hdr_ctrl->p_new.p;
+
+		if (h264->bit_depth_chroma_minus8 == 2 && h264->bit_depth_luma_minus8 == 2) {
+			ctx->is_10bit_bitstream = true;
+		} else if (h264->bit_depth_chroma_minus8 != 0 &&
+			   h264->bit_depth_luma_minus8 != 0) {
+			mtk_v4l2_vdec_err(ctx, "H264: chroma_minus8:%d, luma_minus8:%d",
+					  h264->bit_depth_chroma_minus8,
+					  h264->bit_depth_luma_minus8);
+			return -EINVAL;
+		}
+		break;
+	case V4L2_CID_STATELESS_HEVC_SPS:
+		h265 = (struct v4l2_ctrl_hevc_sps *)hdr_ctrl->p_new.p;
+
+		if (h265->bit_depth_chroma_minus8 == 2 && h265->bit_depth_luma_minus8 == 2) {
+			ctx->is_10bit_bitstream = true;
+		} else if (h265->bit_depth_chroma_minus8 != 0 &&
+			   h265->bit_depth_luma_minus8 != 0) {
+			mtk_v4l2_vdec_err(ctx, "HEVC: chroma_minus8:%d, luma_minus8:%d",
+					  h265->bit_depth_chroma_minus8,
+					  h265->bit_depth_luma_minus8);
+			return -EINVAL;
+		}
+		break;
+	case V4L2_CID_STATELESS_VP9_FRAME:
+		frame = (struct v4l2_ctrl_vp9_frame *)hdr_ctrl->p_new.p;
+
+		if (frame->bit_depth == 10) {
+			ctx->is_10bit_bitstream = true;
+		} else if (frame->bit_depth != 8) {
+			mtk_v4l2_vdec_err(ctx, "VP9: bit_depth:%d", frame->bit_depth);
+			return -EINVAL;
+		}
+		break;
+	case V4L2_CID_STATELESS_AV1_SEQUENCE:
+		seq = (struct v4l2_ctrl_av1_sequence *)hdr_ctrl->p_new.p;
+
+		if (seq->bit_depth == 10) {
+			ctx->is_10bit_bitstream = true;
+		} else if (seq->bit_depth != 8) {
+			mtk_v4l2_vdec_err(ctx, "AV1: bit_depth:%d", seq->bit_depth);
+			return -EINVAL;
+		}
+		break;
+	default:
+		mtk_v4l2_vdec_dbg(3, ctx, "Not supported to set ctrl id: 0x%x\n", hdr_ctrl->id);
+		return ret;
+	}
+
+	if (!ctx->is_10bit_bitstream)
+		return ret;
+
+	for (i = 0; i < *dec_pdata->num_formats; i++) {
+		fmt = &dec_pdata->vdec_formats[i];
+		if (fmt->fourcc == V4L2_PIX_FMT_MT2110R &&
+		    hdr_ctrl->id == V4L2_CID_STATELESS_H264_SPS) {
+			ctx->q_data[MTK_Q_DATA_DST].fmt = fmt;
+			break;
+		}
+
+		if (fmt->fourcc == V4L2_PIX_FMT_MT2110T &&
+		    (hdr_ctrl->id == V4L2_CID_STATELESS_HEVC_SPS ||
+		    hdr_ctrl->id == V4L2_CID_STATELESS_VP9_FRAME ||
+		    hdr_ctrl->id == V4L2_CID_STATELESS_AV1_SEQUENCE)) {
+			ctx->q_data[MTK_Q_DATA_DST].fmt = fmt;
+			break;
+		}
+	}
+	ret = mtk_vcodec_get_pic_info(ctx);
+
+	return ret;
+}
+
+static const struct v4l2_ctrl_ops mtk_vcodec_dec_ctrl_ops = {
+	.s_ctrl = mtk_vdec_s_ctrl,
+};
+
 static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_dec_ctx *ctx)
 {
 	unsigned int i;
@@ -399,7 +531,7 @@ static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_dec_ctx *ctx)
 
 	for (i = 0; i < NUM_CTRLS; i++) {
 		struct v4l2_ctrl_config cfg = mtk_stateless_controls[i].cfg;
-
+		cfg.ops = &mtk_vcodec_dec_ctrl_ops;
 		v4l2_ctrl_new_custom(&ctx->ctrl_hdl, &cfg, NULL);
 		if (ctx->ctrl_hdl.error) {
 			mtk_v4l2_vdec_err(ctx, "Adding control %d failed %d", i,
@@ -466,6 +598,8 @@ static void mtk_vcodec_add_formats(unsigned int fourcc,
 		break;
 	case V4L2_PIX_FMT_MM21:
 	case V4L2_PIX_FMT_MT21C:
+	case V4L2_PIX_FMT_MT2110T:
+	case V4L2_PIX_FMT_MT2110R:
 		mtk_video_formats[count_formats].fourcc = fourcc;
 		mtk_video_formats[count_formats].type = MTK_FMT_FRAME;
 		mtk_video_formats[count_formats].num_planes = 2;
@@ -489,6 +623,12 @@ static void mtk_vcodec_get_supported_formats(struct mtk_vcodec_dec_ctx *ctx)
 
 	if (ctx->dev->dec_capability & MTK_VDEC_FORMAT_MT21C) {
 		mtk_vcodec_add_formats(V4L2_PIX_FMT_MT21C, ctx);
+		cap_format_count++;
+	}
+	if (ctx->dev->dec_capability & MTK_VDEC_IS_SUPPORT_10BIT) {
+		mtk_vcodec_add_formats(V4L2_PIX_FMT_MT2110T, ctx);
+		cap_format_count++;
+		mtk_vcodec_add_formats(V4L2_PIX_FMT_MT2110R, ctx);
 		cap_format_count++;
 	}
 	if (ctx->dev->dec_capability & MTK_VDEC_FORMAT_MM21) {

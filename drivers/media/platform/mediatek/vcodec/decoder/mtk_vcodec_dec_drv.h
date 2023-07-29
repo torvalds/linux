@@ -31,6 +31,7 @@ enum mtk_vdec_format_types {
 	MTK_VDEC_FORMAT_AV1_FRAME = 0x800,
 	MTK_VDEC_FORMAT_HEVC_FRAME = 0x1000,
 	MTK_VCODEC_INNER_RACING = 0x20000,
+	MTK_VDEC_IS_SUPPORT_10BIT = 0x40000,
 };
 
 /*
@@ -160,6 +161,8 @@ struct mtk_vcodec_dec_pdata {
  * @hw_id: hardware index used to identify different hardware.
  *
  * @msg_queue: msg queue used to store lat buffer information.
+ *
+ * @is_10bit_bitstream: set to true if it's 10bit bitstream
  */
 struct mtk_vcodec_dec_ctx {
 	enum mtk_instance_type type;
@@ -202,6 +205,8 @@ struct mtk_vcodec_dec_ctx {
 	int hw_id;
 
 	struct vdec_msg_queue msg_queue;
+
+	bool is_10bit_bitstream;
 };
 
 /**
