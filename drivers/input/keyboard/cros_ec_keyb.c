@@ -686,10 +686,11 @@ static umode_t cros_ec_keyb_attr_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static const struct attribute_group cros_ec_keyb_attr_group = {
+static const struct attribute_group cros_ec_keyb_group = {
 	.is_visible = cros_ec_keyb_attr_is_visible,
 	.attrs = cros_ec_keyb_attrs,
 };
+__ATTRIBUTE_GROUPS(cros_ec_keyb);
 
 static int cros_ec_keyb_probe(struct platform_device *pdev)
 {
@@ -727,12 +728,6 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	err = cros_ec_keyb_register_bs(ckdev, buttons_switches_only);
 	if (err) {
 		dev_err(dev, "cannot register non-matrix inputs: %d\n", err);
-		return err;
-	}
-
-	err = devm_device_add_group(dev, &cros_ec_keyb_attr_group);
-	if (err) {
-		dev_err(dev, "failed to create attributes: %d\n", err);
 		return err;
 	}
 
@@ -782,6 +777,7 @@ static struct platform_driver cros_ec_keyb_driver = {
 	.remove = cros_ec_keyb_remove,
 	.driver = {
 		.name = "cros-ec-keyb",
+		.dev_groups = cros_ec_keyb_groups,
 		.of_match_table = of_match_ptr(cros_ec_keyb_of_match),
 		.acpi_match_table = ACPI_PTR(cros_ec_keyb_acpi_match),
 		.pm = pm_sleep_ptr(&cros_ec_keyb_pm_ops),
