@@ -707,7 +707,7 @@ static void rtllib_start_scan(struct rtllib_device *ieee)
 }
 
 /* called with wx_mutex held */
-void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
+void rtllib_start_scan_syncro(struct rtllib_device *ieee)
 {
 	if (IS_DOT11D_ENABLE(ieee)) {
 		if (IS_COUNTRY_IE_VALID(ieee))
@@ -715,7 +715,7 @@ void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 	}
 	ieee->sync_scan_hurryup = 0;
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN)
-		rtllib_softmac_scan_syncro(ieee, is_mesh);
+		rtllib_softmac_scan_syncro(ieee, 0);
 }
 EXPORT_SYMBOL(rtllib_start_scan_syncro);
 
@@ -2500,7 +2500,7 @@ static void rtllib_start_ibss_wq(void *data)
 	 * associated.
 	 */
 	if (ieee->link_state == MAC80211_NOLINK)
-		rtllib_start_scan_syncro(ieee, 0);
+		rtllib_start_scan_syncro(ieee);
 
 	/* the network definitively is not here.. create a new cell */
 	if (ieee->link_state == MAC80211_NOLINK) {

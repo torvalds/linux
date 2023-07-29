@@ -310,7 +310,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 
 	mutex_lock(&ieee->wx_mutex);
 	if (!(ieee->softmac_features & IEEE_SOFTMAC_SCAN)) {
-		rtllib_start_scan_syncro(ieee, 0);
+		rtllib_start_scan_syncro(ieee);
 		goto out;
 	}
 
@@ -339,7 +339,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 				       HT_EXTCHNL_OFFSET_NO_EXT);
 	}
 
-	rtllib_start_scan_syncro(ieee, 0);
+	rtllib_start_scan_syncro(ieee);
 
 	if (b40M) {
 		if (chan_offset == HT_EXTCHNL_OFFSET_UPPER)

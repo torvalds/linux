@@ -428,7 +428,7 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 
 			ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_BACKUP);
 
-			rtllib_start_scan_syncro(priv->rtllib, 0);
+			rtllib_start_scan_syncro(priv->rtllib);
 
 			ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_RESTORE);
 		}
