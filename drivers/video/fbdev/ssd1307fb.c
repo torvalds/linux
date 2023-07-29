@@ -317,9 +317,9 @@ static void ssd1307fb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
 	ssd1307fb_update_rect(par, x, y, width, height);
 }
 
-FB_GEN_DEFAULT_DEFERRED_SYS_OPS(ssd1307fb,
-				ssd1307fb_defio_damage_range,
-				ssd1307fb_defio_damage_area)
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(ssd1307fb,
+				   ssd1307fb_defio_damage_range,
+				   ssd1307fb_defio_damage_area)
 
 static const struct fb_ops ssd1307fb_ops = {
 	.owner		= THIS_MODULE,

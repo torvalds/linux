@@ -85,9 +85,9 @@ static void intel_fbdev_invalidate(struct intel_fbdev *ifbdev)
 	intel_frontbuffer_invalidate(to_frontbuffer(ifbdev), ORIGIN_CPU);
 }
 
-FB_GEN_DEFAULT_DEFERRED_IO_OPS(intel_fbdev,
-			       drm_fb_helper_damage_range,
-			       drm_fb_helper_damage_area)
+FB_GEN_DEFAULT_DEFERRED_IOMEM_OPS(intel_fbdev,
+				  drm_fb_helper_damage_range,
+				  drm_fb_helper_damage_area)
 
 static int intel_fbdev_set_par(struct fb_info *info)
 {
