@@ -232,10 +232,10 @@ static void mtk_vdec_stateless_cap_to_disp(struct mtk_vcodec_ctx *ctx, int error
 	vb2_dst = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 	if (vb2_dst) {
 		v4l2_m2m_buf_done(vb2_dst, state);
-		mtk_v4l2_debug(2, "free frame buffer id:%d to done list",
-			       vb2_dst->vb2_buf.index);
+		mtk_v4l2_vdec_dbg(2, ctx, "free frame buffer id:%d to done list",
+				  vb2_dst->vb2_buf.index);
 	} else {
-		mtk_v4l2_err("dst buffer is NULL");
+		mtk_v4l2_vdec_err(ctx, "dst buffer is NULL");
 	}
 
 	if (src_buf_req)
@@ -251,7 +251,7 @@ static struct vdec_fb *vdec_get_cap_buffer(struct mtk_vcodec_ctx *ctx)
 
 	vb2_v4l2 = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
 	if (!vb2_v4l2) {
-		mtk_v4l2_debug(1, "[%d] dst_buf empty!!", ctx->id);
+		mtk_v4l2_vdec_dbg(1, ctx, "[%d] dst_buf empty!!", ctx->id);
 		return NULL;
 	}
 
@@ -269,9 +269,10 @@ static struct vdec_fb *vdec_get_cap_buffer(struct mtk_vcodec_ctx *ctx)
 			vb2_dma_contig_plane_dma_addr(dst_buf, 1);
 		pfb->base_c.size = ctx->q_data[MTK_Q_DATA_DST].sizeimage[1];
 	}
-	mtk_v4l2_debug(1, "id=%d Framebuf  pfb=%p VA=%p Y_DMA=%pad C_DMA=%pad Size=%zx frame_count = %d",
-		       dst_buf->index, pfb, pfb->base_y.va, &pfb->base_y.dma_addr,
-		       &pfb->base_c.dma_addr, pfb->base_y.size, ctx->decoded_frame_cnt);
+	mtk_v4l2_vdec_dbg(1, ctx,
+			  "id=%d Framebuf pfb=%p VA=%p Y/C_DMA=%pad_%pad Sz=%zx frame_count = %d",
+			  dst_buf->index, pfb, pfb->base_y.va, &pfb->base_y.dma_addr,
+			  &pfb->base_c.dma_addr, pfb->base_y.size, ctx->decoded_frame_cnt);
 
 	return pfb;
 }
@@ -300,7 +301,7 @@ static void mtk_vdec_worker(struct work_struct *work)
 	vb2_v4l2_src = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
 	if (!vb2_v4l2_src) {
 		v4l2_m2m_job_finish(dev->m2m_dev_dec, ctx->m2m_ctx);
-		mtk_v4l2_debug(1, "[%d] no available source buffer", ctx->id);
+		mtk_v4l2_vdec_dbg(1, ctx, "[%d] no available source buffer", ctx->id);
 		return;
 	}
 
@@ -309,33 +310,34 @@ static void mtk_vdec_worker(struct work_struct *work)
 				   m2m_buf.vb);
 	bs_src = &dec_buf_src->bs_buffer;
 
-	mtk_v4l2_debug(3, "[%d] (%d) id=%d, vb=%p", ctx->id,
-		       vb2_src->vb2_queue->type, vb2_src->index, vb2_src);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d] (%d) id=%d, vb=%p", ctx->id,
+			  vb2_src->vb2_queue->type, vb2_src->index, vb2_src);
 
 	bs_src->va = vb2_plane_vaddr(vb2_src, 0);
 	bs_src->dma_addr = vb2_dma_contig_plane_dma_addr(vb2_src, 0);
 	bs_src->size = (size_t)vb2_src->planes[0].bytesused;
 	if (!bs_src->va) {
 		v4l2_m2m_job_finish(dev->m2m_dev_dec, ctx->m2m_ctx);
-		mtk_v4l2_err("[%d] id=%d source buffer is NULL", ctx->id,
-			     vb2_src->index);
+		mtk_v4l2_vdec_err(ctx, "[%d] id=%d source buffer is NULL", ctx->id,
+				  vb2_src->index);
 		return;
 	}
 
-	mtk_v4l2_debug(3, "[%d] Bitstream VA=%p DMA=%pad Size=%zx vb=%p",
-		       ctx->id, bs_src->va, &bs_src->dma_addr, bs_src->size, vb2_src);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d] Bitstream VA=%p DMA=%pad Size=%zx vb=%p",
+			  ctx->id, bs_src->va, &bs_src->dma_addr, bs_src->size, vb2_src);
 	/* Apply request controls. */
 	src_buf_req = vb2_src->req_obj.req;
 	if (src_buf_req)
 		v4l2_ctrl_request_setup(src_buf_req, &ctx->ctrl_hdl);
 	else
-		mtk_v4l2_err("vb2 buffer media request is NULL");
+		mtk_v4l2_vdec_err(ctx, "vb2 buffer media request is NULL");
 
 	ret = vdec_if_decode(ctx, bs_src, NULL, &res_chg);
 	if (ret && ret != -EAGAIN) {
-		mtk_v4l2_err(" <===[%d], src_buf[%d] sz=0x%zx pts=%llu vdec_if_decode() ret=%d res_chg=%d===>",
-			     ctx->id, vb2_src->index, bs_src->size,
-			     vb2_src->timestamp, ret, res_chg);
+		mtk_v4l2_vdec_err(ctx,
+				  "[%d] decode src_buf[%d] sz=0x%zx pts=%llu ret=%d res_chg=%d",
+				  ctx->id, vb2_src->index, bs_src->size,
+				  vb2_src->timestamp, ret, res_chg);
 		if (ret == -EIO) {
 			mutex_lock(&ctx->lock);
 			dec_buf_src->error = true;
@@ -363,7 +365,8 @@ static void vb2ops_vdec_stateless_buf_queue(struct vb2_buffer *vb)
 	struct mtk_vcodec_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct vb2_v4l2_buffer *vb2_v4l2 = to_vb2_v4l2_buffer(vb);
 
-	mtk_v4l2_debug(3, "[%d] (%d) id=%d, vb=%p", ctx->id, vb->vb2_queue->type, vb->index, vb);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d] (%d) id=%d, vb=%p", ctx->id, vb->vb2_queue->type,
+			  vb->index, vb);
 
 	mutex_lock(&ctx->lock);
 	v4l2_m2m_buf_queue(ctx->m2m_ctx, vb2_v4l2);
@@ -374,9 +377,9 @@ static void vb2ops_vdec_stateless_buf_queue(struct vb2_buffer *vb)
 	/* If an OUTPUT buffer, we may need to update the state */
 	if (ctx->state == MTK_STATE_INIT) {
 		ctx->state = MTK_STATE_HEADER;
-		mtk_v4l2_debug(1, "Init driver from init to header.");
+		mtk_v4l2_vdec_dbg(1, ctx, "Init driver from init to header.");
 	} else {
-		mtk_v4l2_debug(3, "[%d] already init driver %d", ctx->id, ctx->state);
+		mtk_v4l2_vdec_dbg(3, ctx, "[%d] already init driver %d", ctx->id, ctx->state);
 	}
 }
 
@@ -393,7 +396,7 @@ static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_ctx *ctx)
 
 	v4l2_ctrl_handler_init(&ctx->ctrl_hdl, NUM_CTRLS);
 	if (ctx->ctrl_hdl.error) {
-		mtk_v4l2_err("v4l2_ctrl_handler_init failed\n");
+		mtk_v4l2_vdec_err(ctx, "v4l2_ctrl_handler_init failed\n");
 		return ctx->ctrl_hdl.error;
 	}
 
@@ -402,7 +405,8 @@ static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_ctx *ctx)
 
 		v4l2_ctrl_new_custom(&ctx->ctrl_hdl, &cfg, NULL);
 		if (ctx->ctrl_hdl.error) {
-			mtk_v4l2_err("Adding control %d failed %d", i, ctx->ctrl_hdl.error);
+			mtk_v4l2_vdec_err(ctx, "Adding control %d failed %d", i,
+					  ctx->ctrl_hdl.error);
 			return ctx->ctrl_hdl.error;
 		}
 	}
@@ -421,11 +425,11 @@ static int fops_media_request_validate(struct media_request *mreq)
 		/* We expect exactly one buffer with the request */
 		break;
 	case 0:
-		mtk_v4l2_debug(1, "No buffer provided with the request");
+		pr_debug(MTK_DBG_VCODEC_STR "No buffer provided with the request.");
 		return -ENOENT;
 	default:
-		mtk_v4l2_debug(1, "Too many buffers (%d) provided with the request",
-			       buffer_cnt);
+		pr_debug(MTK_DBG_VCODEC_STR "Too many buffers (%d) provided with the request.",
+			 buffer_cnt);
 		return -EINVAL;
 	}
 
@@ -470,13 +474,13 @@ static void mtk_vcodec_add_formats(unsigned int fourcc,
 		mtk_video_formats[count_formats].num_planes = 2;
 		break;
 	default:
-		mtk_v4l2_err("Can not add unsupported format type");
+		mtk_v4l2_vdec_err(ctx, "Can not add unsupported format type");
 		return;
 	}
 
 	num_formats++;
-	mtk_v4l2_debug(3, "num_formats: %d dec_capability: 0x%x",
-		       count_formats, ctx->dev->dec_capability);
+	mtk_v4l2_vdec_dbg(3, ctx, "num_formats: %d dec_capability: 0x%x",
+			  count_formats, ctx->dev->dec_capability);
 }
 
 static void mtk_vcodec_get_supported_formats(struct mtk_vcodec_ctx *ctx)

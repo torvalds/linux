@@ -187,7 +187,7 @@ static int alloc_mv_buf(struct vdec_h264_slice_inst *inst,
 	struct mtk_vcodec_mem *mem = NULL;
 	unsigned int buf_sz = mtk_vdec_h264_get_mv_buf_size(pic->buf_w, pic->buf_h);
 
-	mtk_v4l2_debug(3, "size = 0x%x", buf_sz);
+	mtk_v4l2_vdec_dbg(3, inst->ctx, "size = 0x%x", buf_sz);
 	for (i = 0; i < H264_MAX_MV_NUM; i++) {
 		mem = &inst->mv_buf[i];
 		if (mem->va)
@@ -243,12 +243,12 @@ static void get_pic_info(struct vdec_h264_slice_inst *inst,
 		    ctx->last_decoded_picinfo.buf_h != ctx->picinfo.buf_h)
 			inst->vsi_ctx.dec.realloc_mv_buf = true;
 
-		mtk_v4l2_debug(1, "ResChg: (%d %d) : old(%d, %d) -> new(%d, %d)",
-			       inst->vsi_ctx.dec.resolution_changed,
-			       inst->vsi_ctx.dec.realloc_mv_buf,
-			       ctx->last_decoded_picinfo.pic_w,
-			       ctx->last_decoded_picinfo.pic_h,
-			       ctx->picinfo.pic_w, ctx->picinfo.pic_h);
+		mtk_v4l2_vdec_dbg(1, inst->ctx, "ResChg: (%d %d) : old(%d, %d) -> new(%d, %d)",
+				  inst->vsi_ctx.dec.resolution_changed,
+				  inst->vsi_ctx.dec.realloc_mv_buf,
+				  ctx->last_decoded_picinfo.pic_w,
+				  ctx->last_decoded_picinfo.pic_h,
+				  ctx->picinfo.pic_w, ctx->picinfo.pic_h);
 	}
 }
 

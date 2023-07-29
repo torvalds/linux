@@ -294,7 +294,7 @@ static void vdec_h264_slice_fill_decode_reflist(struct vdec_h264_slice_inst *ins
 	mtk_vdec_h264_fill_dpb_info(inst->ctx, &slice_param->decode_params,
 				    slice_param->h264_dpb_info);
 
-	mtk_v4l2_debug(3, "cur poc = %d\n", dec_params->bottom_field_order_cnt);
+	mtk_v4l2_vdec_dbg(3, inst->ctx, "cur poc = %d\n", dec_params->bottom_field_order_cnt);
 	/* Build the reference lists */
 	v4l2_h264_init_reflist_builder(&reflist_builder, dec_params, sps,
 				       inst->dpb);
@@ -314,7 +314,7 @@ static int vdec_h264_slice_alloc_mv_buf(struct vdec_h264_slice_inst *inst,
 	struct mtk_vcodec_mem *mem;
 	int i, err;
 
-	mtk_v4l2_debug(3, "size = 0x%x", buf_sz);
+	mtk_v4l2_vdec_dbg(3, inst->ctx, "size = 0x%x", buf_sz);
 	for (i = 0; i < H264_MAX_MV_NUM; i++) {
 		mem = &inst->mv_buf[i];
 		if (mem->va)
@@ -372,12 +372,12 @@ static void vdec_h264_slice_get_pic_info(struct vdec_h264_slice_inst *inst)
 		    ctx->last_decoded_picinfo.buf_h != ctx->picinfo.buf_h)
 			inst->realloc_mv_buf = true;
 
-		mtk_v4l2_debug(1, "resChg: (%d %d) : old(%d, %d) -> new(%d, %d)",
-			       inst->resolution_changed,
-			       inst->realloc_mv_buf,
-			       ctx->last_decoded_picinfo.pic_w,
-			       ctx->last_decoded_picinfo.pic_h,
-			       ctx->picinfo.pic_w, ctx->picinfo.pic_h);
+		mtk_v4l2_vdec_dbg(1, inst->ctx, "resChg: (%d %d) : old(%d, %d) -> new(%d, %d)",
+				  inst->resolution_changed,
+				  inst->realloc_mv_buf,
+				  ctx->last_decoded_picinfo.pic_w,
+				  ctx->last_decoded_picinfo.pic_h,
+				  ctx->picinfo.pic_w, ctx->picinfo.pic_h);
 	}
 }
 

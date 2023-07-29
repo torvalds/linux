@@ -34,7 +34,7 @@ int mtk_vcodec_init_enc_clk(struct mtk_vcodec_dev *mtkdev)
 		if (!enc_clk->clk_info)
 			return -ENOMEM;
 	} else {
-		mtk_v4l2_err("Failed to get venc clock count");
+		dev_err(pm->dev, "[MTK VCODEC] Failed to get venc clock count");
 		return -EINVAL;
 	}
 
@@ -43,13 +43,13 @@ int mtk_vcodec_init_enc_clk(struct mtk_vcodec_dev *mtkdev)
 		ret = of_property_read_string_index(pdev->dev.of_node,
 			"clock-names", i, &clk_info->clk_name);
 		if (ret) {
-			mtk_v4l2_err("venc failed to get clk name %d", i);
+			dev_err(pm->dev, "[MTK VCODEC] venc failed to get clk name %d", i);
 			return ret;
 		}
 		clk_info->vcodec_clk = devm_clk_get(&pdev->dev,
 			clk_info->clk_name);
 		if (IS_ERR(clk_info->vcodec_clk)) {
-			mtk_v4l2_err("venc devm_clk_get (%d)%s fail", i,
+			dev_err(pm->dev, "[MTK VCODEC] venc devm_clk_get (%d)%s fail", i,
 				clk_info->clk_name);
 			return PTR_ERR(clk_info->vcodec_clk);
 		}
@@ -66,7 +66,7 @@ void mtk_vcodec_enc_clock_on(struct mtk_vcodec_pm *pm)
 	for (i = 0; i < enc_clk->clk_num; i++) {
 		ret = clk_prepare_enable(enc_clk->clk_info[i].vcodec_clk);
 		if (ret) {
-			mtk_v4l2_err("venc clk_prepare_enable %d %s fail %d", i,
+			dev_err(pm->dev, "[MTK VCODEC] venc clk_prepare_enable %d %s fail %d", i,
 				enc_clk->clk_info[i].clk_name, ret);
 			goto clkerr;
 		}

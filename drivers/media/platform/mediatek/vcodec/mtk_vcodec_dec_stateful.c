@@ -61,15 +61,16 @@ static struct vb2_buffer *get_display_buffer(struct mtk_vcodec_ctx *ctx)
 	struct mtk_video_dec_buf *dstbuf;
 	struct vb2_v4l2_buffer *vb;
 
-	mtk_v4l2_debug(3, "[%d]", ctx->id);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d]", ctx->id);
 	if (vdec_if_get_param(ctx, GET_PARAM_DISP_FRAME_BUFFER,
 			      &disp_frame_buffer)) {
-		mtk_v4l2_err("[%d]Cannot get param : GET_PARAM_DISP_FRAME_BUFFER", ctx->id);
+		mtk_v4l2_vdec_err(ctx, "[%d]Cannot get param : GET_PARAM_DISP_FRAME_BUFFER",
+				  ctx->id);
 		return NULL;
 	}
 
 	if (!disp_frame_buffer) {
-		mtk_v4l2_debug(3, "No display frame buffer");
+		mtk_v4l2_vdec_dbg(3, ctx, "No display frame buffer");
 		return NULL;
 	}
 
@@ -78,9 +79,9 @@ static struct vb2_buffer *get_display_buffer(struct mtk_vcodec_ctx *ctx)
 	vb = &dstbuf->m2m_buf.vb;
 	mutex_lock(&ctx->lock);
 	if (dstbuf->used) {
-		mtk_v4l2_debug(2, "[%d]status=%x queue id=%d to done_list %d",
-			       ctx->id, disp_frame_buffer->status,
-			       vb->vb2_buf.index, dstbuf->queued_in_vb2);
+		mtk_v4l2_vdec_dbg(2, ctx, "[%d]status=%x queue id=%d to done_list %d",
+				  ctx->id, disp_frame_buffer->status,
+				  vb->vb2_buf.index, dstbuf->queued_in_vb2);
 
 		v4l2_m2m_buf_done(vb, VB2_BUF_STATE_DONE);
 		ctx->decoded_frame_cnt++;
@@ -105,16 +106,16 @@ static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_ctx *ctx)
 
 	if (vdec_if_get_param(ctx, GET_PARAM_FREE_FRAME_BUFFER,
 			      &free_frame_buffer)) {
-		mtk_v4l2_err("[%d] Error!! Cannot get param", ctx->id);
+		mtk_v4l2_vdec_err(ctx, "[%d] Error!! Cannot get param", ctx->id);
 		return NULL;
 	}
 	if (!free_frame_buffer) {
-		mtk_v4l2_debug(3, " No free frame buffer");
+		mtk_v4l2_vdec_dbg(3, ctx, " No free frame buffer");
 		return NULL;
 	}
 
-	mtk_v4l2_debug(3, "[%d] tmp_frame_addr = 0x%p", ctx->id,
-		       free_frame_buffer);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d] tmp_frame_addr = 0x%p", ctx->id,
+			  free_frame_buffer);
 
 	dstbuf = container_of(free_frame_buffer, struct mtk_video_dec_buf,
 			      frame_buffer);
@@ -131,9 +132,9 @@ static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_ctx *ctx)
 			 * This reduce overheads that dq/q unused capture
 			 * buffer. In this case, queued_in_vb2 = true.
 			 */
-			mtk_v4l2_debug(2, "[%d]status=%x queue id=%d to rdy_queue %d",
-				       ctx->id, free_frame_buffer->status,
-				       vb->vb2_buf.index, dstbuf->queued_in_vb2);
+			mtk_v4l2_vdec_dbg(2, ctx, "[%d]status=%x queue id=%d to rdy_queue %d",
+					  ctx->id, free_frame_buffer->status,
+					  vb->vb2_buf.index, dstbuf->queued_in_vb2);
 			v4l2_m2m_buf_queue(ctx->m2m_ctx, vb);
 		} else if (!dstbuf->queued_in_vb2 && dstbuf->queued_in_v4l2) {
 			/*
@@ -146,10 +147,10 @@ static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_ctx *ctx)
 			 * means this buffer is not from previous decode
 			 * output.
 			 */
-			mtk_v4l2_debug(2,
-				       "[%d]status=%x queue id=%d to rdy_queue",
-				       ctx->id, free_frame_buffer->status,
-				       vb->vb2_buf.index);
+			mtk_v4l2_vdec_dbg(2, ctx,
+					  "[%d]status=%x queue id=%d to rdy_queue",
+					  ctx->id, free_frame_buffer->status,
+					  vb->vb2_buf.index);
 			v4l2_m2m_buf_queue(ctx->m2m_ctx, vb);
 			dstbuf->queued_in_vb2 = true;
 		} else {
@@ -161,10 +162,10 @@ static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_ctx *ctx)
 			 * When this buffer q from user space, it could
 			 * directly q to vb2 buffer
 			 */
-			mtk_v4l2_debug(3, "[%d]status=%x err queue id=%d %d %d",
-				       ctx->id, free_frame_buffer->status,
-				       vb->vb2_buf.index, dstbuf->queued_in_vb2,
-				       dstbuf->queued_in_v4l2);
+			mtk_v4l2_vdec_dbg(3, ctx, "[%d]status=%x err queue id=%d %d %d",
+					  ctx->id, free_frame_buffer->status,
+					  vb->vb2_buf.index, dstbuf->queued_in_vb2,
+					  dstbuf->queued_in_v4l2);
 		}
 		dstbuf->used = false;
 	}
@@ -191,7 +192,7 @@ static void mtk_vdec_queue_res_chg_event(struct mtk_vcodec_ctx *ctx)
 		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
 	};
 
-	mtk_v4l2_debug(1, "[%d]", ctx->id);
+	mtk_v4l2_vdec_dbg(1, ctx, "[%d]", ctx->id);
 	v4l2_event_queue_fh(&ctx->fh, &ev_src_ch);
 }
 
@@ -202,7 +203,7 @@ static int mtk_vdec_flush_decoder(struct mtk_vcodec_ctx *ctx)
 
 	ret = vdec_if_decode(ctx, NULL, NULL, &res_chg);
 	if (ret)
-		mtk_v4l2_err("DecodeFinal failed, ret=%d", ret);
+		mtk_v4l2_vdec_err(ctx, "DecodeFinal failed, ret=%d", ret);
 
 	clean_display_buffer(ctx);
 	clean_free_buffer(ctx);
@@ -221,14 +222,14 @@ static void mtk_vdec_update_fmt(struct mtk_vcodec_ctx *ctx,
 	for (k = 0; k < num_supported_formats; k++) {
 		fmt = &mtk_video_formats[k];
 		if (fmt->fourcc == pixelformat) {
-			mtk_v4l2_debug(1, "Update cap fourcc(%d -> %d)",
-				       dst_q_data->fmt->fourcc, pixelformat);
+			mtk_v4l2_vdec_dbg(1, ctx, "Update cap fourcc(%d -> %d)",
+					  dst_q_data->fmt->fourcc, pixelformat);
 			dst_q_data->fmt = fmt;
 			return;
 		}
 	}
 
-	mtk_v4l2_err("Cannot get fourcc(%d), using init value", pixelformat);
+	mtk_v4l2_vdec_err(ctx, "Cannot get fourcc(%d), using init value", pixelformat);
 }
 
 static int mtk_vdec_pic_info_update(struct mtk_vcodec_ctx *ctx)
@@ -238,7 +239,8 @@ static int mtk_vdec_pic_info_update(struct mtk_vcodec_ctx *ctx)
 
 	if (vdec_if_get_param(ctx, GET_PARAM_PIC_INFO,
 			      &ctx->last_decoded_picinfo)) {
-		mtk_v4l2_err("[%d]Error!! Cannot get param : GET_PARAM_PICTURE_INFO ERR", ctx->id);
+		mtk_v4l2_vdec_err(ctx, "[%d]Error!! Cannot get param : GET_PARAM_PICTURE_INFO ERR",
+				  ctx->id);
 		return -EINVAL;
 	}
 
@@ -246,7 +248,7 @@ static int mtk_vdec_pic_info_update(struct mtk_vcodec_ctx *ctx)
 	    ctx->last_decoded_picinfo.pic_h == 0 ||
 	    ctx->last_decoded_picinfo.buf_w == 0 ||
 	    ctx->last_decoded_picinfo.buf_h == 0) {
-		mtk_v4l2_err("Cannot get correct pic info");
+		mtk_v4l2_vdec_err(ctx, "Cannot get correct pic info");
 		return -EINVAL;
 	}
 
@@ -258,15 +260,15 @@ static int mtk_vdec_pic_info_update(struct mtk_vcodec_ctx *ctx)
 	    ctx->last_decoded_picinfo.pic_h == ctx->picinfo.pic_h)
 		return 0;
 
-	mtk_v4l2_debug(1, "[%d]-> new(%d,%d), old(%d,%d), real(%d,%d)", ctx->id,
-		       ctx->last_decoded_picinfo.pic_w,
-		       ctx->last_decoded_picinfo.pic_h, ctx->picinfo.pic_w,
-		       ctx->picinfo.pic_h, ctx->last_decoded_picinfo.buf_w,
-		       ctx->last_decoded_picinfo.buf_h);
+	mtk_v4l2_vdec_dbg(1, ctx, "[%d]-> new(%d,%d), old(%d,%d), real(%d,%d)", ctx->id,
+			  ctx->last_decoded_picinfo.pic_w,
+			  ctx->last_decoded_picinfo.pic_h, ctx->picinfo.pic_w,
+			  ctx->picinfo.pic_h, ctx->last_decoded_picinfo.buf_w,
+			  ctx->last_decoded_picinfo.buf_h);
 
 	ret = vdec_if_get_param(ctx, GET_PARAM_DPB_SIZE, &dpbsize);
 	if (dpbsize == 0)
-		mtk_v4l2_err("Incorrect dpb size, ret=%d", ret);
+		mtk_v4l2_vdec_err(ctx, "Incorrect dpb size, ret=%d", ret);
 
 	ctx->dpb_size = dpbsize;
 
@@ -288,14 +290,14 @@ static void mtk_vdec_worker(struct work_struct *work)
 	src_buf = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
 	if (!src_buf) {
 		v4l2_m2m_job_finish(dev->m2m_dev_dec, ctx->m2m_ctx);
-		mtk_v4l2_debug(1, "[%d] src_buf empty!!", ctx->id);
+		mtk_v4l2_vdec_dbg(1, ctx, "[%d] src_buf empty!!", ctx->id);
 		return;
 	}
 
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
 	if (!dst_buf) {
 		v4l2_m2m_job_finish(dev->m2m_dev_dec, ctx->m2m_ctx);
-		mtk_v4l2_debug(1, "[%d] dst_buf empty!!", ctx->id);
+		mtk_v4l2_vdec_dbg(1, ctx, "[%d] dst_buf empty!!", ctx->id);
 		return;
 	}
 
@@ -313,15 +315,15 @@ static void mtk_vdec_worker(struct work_struct *work)
 		vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 1);
 	pfb->base_c.size = ctx->picinfo.fb_sz[1];
 	pfb->status = 0;
-	mtk_v4l2_debug(3, "===>[%d] vdec_if_decode() ===>", ctx->id);
+	mtk_v4l2_vdec_dbg(3, ctx, "===>[%d] vdec_if_decode() ===>", ctx->id);
 
-	mtk_v4l2_debug(3,
-		       "id=%d Framebuf  pfb=%p VA=%p Y_DMA=%pad C_DMA=%pad Size=%zx",
-		       dst_buf->vb2_buf.index, pfb, pfb->base_y.va,
-		       &pfb->base_y.dma_addr, &pfb->base_c.dma_addr, pfb->base_y.size);
+	mtk_v4l2_vdec_dbg(3, ctx,
+			  "id=%d Framebuf  pfb=%p VA=%p Y_DMA=%pad C_DMA=%pad Size=%zx",
+			  dst_buf->vb2_buf.index, pfb, pfb->base_y.va,
+			  &pfb->base_y.dma_addr, &pfb->base_c.dma_addr, pfb->base_y.size);
 
 	if (src_buf == &ctx->empty_flush_buf.vb) {
-		mtk_v4l2_debug(1, "Got empty flush input buffer.");
+		mtk_v4l2_vdec_dbg(1, ctx, "Got empty flush input buffer.");
 		src_buf = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 
 		/* update dst buf status */
@@ -350,12 +352,12 @@ static void mtk_vdec_worker(struct work_struct *work)
 	buf.size = (size_t)src_buf->vb2_buf.planes[0].bytesused;
 	if (!buf.va) {
 		v4l2_m2m_job_finish(dev->m2m_dev_dec, ctx->m2m_ctx);
-		mtk_v4l2_err("[%d] id=%d src_addr is NULL!!", ctx->id,
-			     src_buf->vb2_buf.index);
+		mtk_v4l2_vdec_err(ctx, "[%d] id=%d src_addr is NULL!!", ctx->id,
+				  src_buf->vb2_buf.index);
 		return;
 	}
-	mtk_v4l2_debug(3, "[%d] Bitstream VA=%p DMA=%pad Size=%zx vb=%p",
-		       ctx->id, buf.va, &buf.dma_addr, buf.size, src_buf);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d] Bitstream VA=%p DMA=%pad Size=%zx vb=%p",
+			  ctx->id, buf.va, &buf.dma_addr, buf.size, src_buf);
 	dst_buf->vb2_buf.timestamp = src_buf->vb2_buf.timestamp;
 	dst_buf->timecode = src_buf->timecode;
 	mutex_lock(&ctx->lock);
@@ -366,9 +368,10 @@ static void mtk_vdec_worker(struct work_struct *work)
 	ret = vdec_if_decode(ctx, &buf, pfb, &res_chg);
 
 	if (ret) {
-		mtk_v4l2_err(" <===[%d], src_buf[%d] sz=0x%zx pts=%llu dst_buf[%d] vdec_if_decode() ret=%d res_chg=%d===>",
-			     ctx->id, src_buf->vb2_buf.index, buf.size,
-			     src_buf->vb2_buf.timestamp, dst_buf->vb2_buf.index, ret, res_chg);
+		mtk_v4l2_vdec_err(ctx,
+				  "[%d] decode src[%d] sz=0x%zx pts=%llu dst[%d] ret=%d res_chg=%d",
+				  ctx->id, src_buf->vb2_buf.index, buf.size,
+				  src_buf->vb2_buf.timestamp, dst_buf->vb2_buf.index, ret, res_chg);
 		src_buf = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 		if (ret == -EIO) {
 			mutex_lock(&ctx->lock);
@@ -421,8 +424,8 @@ static void vb2ops_vdec_stateful_buf_queue(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vb2_v4l2;
 	struct mtk_q_data *dst_q_data;
 
-	mtk_v4l2_debug(3, "[%d] (%d) id=%d, vb=%p", ctx->id,
-		       vb->vb2_queue->type, vb->index, vb);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d] (%d) id=%d, vb=%p", ctx->id,
+			  vb->vb2_queue->type, vb->index, vb);
 	/*
 	 * check if this buffer is ready to be used after decode
 	 */
@@ -448,20 +451,19 @@ static void vb2ops_vdec_stateful_buf_queue(struct vb2_buffer *vb)
 	v4l2_m2m_buf_queue(ctx->m2m_ctx, to_vb2_v4l2_buffer(vb));
 
 	if (ctx->state != MTK_STATE_INIT) {
-		mtk_v4l2_debug(3, "[%d] already init driver %d", ctx->id,
-			       ctx->state);
+		mtk_v4l2_vdec_dbg(3, ctx, "[%d] already init driver %d", ctx->id, ctx->state);
 		return;
 	}
 
 	src_buf = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
 	if (!src_buf) {
-		mtk_v4l2_err("No src buffer");
+		mtk_v4l2_vdec_err(ctx, "No src buffer");
 		return;
 	}
 
 	if (src_buf == &ctx->empty_flush_buf.vb) {
 		/* This shouldn't happen. Just in case. */
-		mtk_v4l2_err("Invalid flush buffer.");
+		mtk_v4l2_vdec_err(ctx, "Invalid flush buffer.");
 		v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 		return;
 	}
@@ -469,9 +471,8 @@ static void vb2ops_vdec_stateful_buf_queue(struct vb2_buffer *vb)
 	src_mem.va = vb2_plane_vaddr(&src_buf->vb2_buf, 0);
 	src_mem.dma_addr = vb2_dma_contig_plane_dma_addr(&src_buf->vb2_buf, 0);
 	src_mem.size = (size_t)src_buf->vb2_buf.planes[0].bytesused;
-	mtk_v4l2_debug(2, "[%d] buf id=%d va=%p dma=%pad size=%zx", ctx->id,
-		       src_buf->vb2_buf.index, src_mem.va, &src_mem.dma_addr,
-		       src_mem.size);
+	mtk_v4l2_vdec_dbg(2, ctx, "[%d] buf id=%d va=%p dma=%pad size=%zx", ctx->id,
+			  src_buf->vb2_buf.index, src_mem.va, &src_mem.dma_addr, src_mem.size);
 
 	ret = vdec_if_decode(ctx, &src_mem, NULL, &res_chg);
 	if (ret || !res_chg) {
@@ -484,20 +485,22 @@ static void vb2ops_vdec_stateful_buf_queue(struct vb2_buffer *vb)
 
 		src_buf = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 		if (ret == -EIO) {
-			mtk_v4l2_err("[%d] Unrecoverable error in vdec_if_decode.", ctx->id);
+			mtk_v4l2_vdec_err(ctx, "[%d] Unrecoverable error in vdec_if_decode.",
+					  ctx->id);
 			ctx->state = MTK_STATE_ABORT;
 			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_ERROR);
 		} else {
 			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 		}
-		mtk_v4l2_debug(ret ? 0 : 1,
-			       "[%d] vdec_if_decode() src_buf=%d, size=%zu, fail=%d, res_chg=%d",
-			       ctx->id, src_buf->vb2_buf.index, src_mem.size, ret, res_chg);
+		mtk_v4l2_vdec_dbg(ret ? 0 : 1, ctx,
+				  "[%d] decode() src_buf=%d, size=%zu, fail=%d, res_chg=%d",
+				  ctx->id, src_buf->vb2_buf.index, src_mem.size, ret, res_chg);
 		return;
 	}
 
 	if (vdec_if_get_param(ctx, GET_PARAM_PIC_INFO, &ctx->picinfo)) {
-		mtk_v4l2_err("[%d]Error!! Cannot get param : GET_PARAM_PICTURE_INFO ERR", ctx->id);
+		mtk_v4l2_vdec_err(ctx, "[%d]Error!! Cannot get param : GET_PARAM_PICTURE_INFO ERR",
+				  ctx->id);
 		return;
 	}
 
@@ -508,17 +511,17 @@ static void vb2ops_vdec_stateful_buf_queue(struct vb2_buffer *vb)
 		dst_q_data->bytesperline[i] = ctx->picinfo.buf_w;
 	}
 
-	mtk_v4l2_debug(2, "[%d] vdec_if_init() OK wxh=%dx%d pic wxh=%dx%d sz[0]=0x%x sz[1]=0x%x",
-		       ctx->id, ctx->picinfo.buf_w, ctx->picinfo.buf_h, ctx->picinfo.pic_w,
-		       ctx->picinfo.pic_h, dst_q_data->sizeimage[0], dst_q_data->sizeimage[1]);
+	mtk_v4l2_vdec_dbg(2, ctx, "[%d] init OK wxh=%dx%d pic wxh=%dx%d sz[0]=0x%x sz[1]=0x%x",
+			  ctx->id, ctx->picinfo.buf_w, ctx->picinfo.buf_h, ctx->picinfo.pic_w,
+			  ctx->picinfo.pic_h, dst_q_data->sizeimage[0], dst_q_data->sizeimage[1]);
 
 	ret = vdec_if_get_param(ctx, GET_PARAM_DPB_SIZE, &dpbsize);
 	if (dpbsize == 0)
-		mtk_v4l2_err("[%d] GET_PARAM_DPB_SIZE fail=%d", ctx->id, ret);
+		mtk_v4l2_vdec_err(ctx, "[%d] GET_PARAM_DPB_SIZE fail=%d", ctx->id, ret);
 
 	ctx->dpb_size = dpbsize;
 	ctx->state = MTK_STATE_HEADER;
-	mtk_v4l2_debug(1, "[%d] dpbsize=%d", ctx->id, ctx->dpb_size);
+	mtk_v4l2_vdec_dbg(1, ctx, "[%d] dpbsize=%d", ctx->id, ctx->dpb_size);
 
 	mtk_vdec_queue_res_chg_event(ctx);
 }
@@ -533,7 +536,7 @@ static int mtk_vdec_g_v_ctrl(struct v4l2_ctrl *ctrl)
 		if (ctx->state >= MTK_STATE_HEADER) {
 			ctrl->val = ctx->dpb_size;
 		} else {
-			mtk_v4l2_debug(0, "Seqinfo not ready");
+			mtk_v4l2_vdec_dbg(0, ctx, "Seqinfo not ready");
 			ctrl->val = 0;
 		}
 		break;
@@ -570,7 +573,7 @@ static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_ctx *ctx)
 			       V4L2_MPEG_VIDEO_H264_PROFILE_MAIN);
 
 	if (ctx->ctrl_hdl.error) {
-		mtk_v4l2_err("Adding control failed %d", ctx->ctrl_hdl.error);
+		mtk_v4l2_vdec_err(ctx, "Adding control failed %d", ctx->ctrl_hdl.error);
 		return ctx->ctrl_hdl.error;
 	}
 

@@ -33,14 +33,14 @@ int mtk_vcodec_wait_for_done_ctx(void *priv, int command, unsigned int timeout_m
 
 	if (!ret) {
 		status = -1;	/* timeout */
-		mtk_v4l2_err("[%d] cmd=%d, type=%d, dec timeout=%ums (%d %d)",
-			     ctx_id, command, ctx_type, timeout_ms,
-			     ctx_int_cond[hw_id], ctx_int_type[hw_id]);
+		dev_err(&ctx->dev->plat_dev->dev, "[%d] cmd=%d, type=%d, dec timeout=%ums (%d %d)",
+			ctx_id, command, ctx_type, timeout_ms,
+			ctx_int_cond[hw_id], ctx_int_type[hw_id]);
 	} else if (-ERESTARTSYS == ret) {
 		status = -1;
-		mtk_v4l2_err("[%d] cmd=%d, type=%d, dec inter fail (%d %d)",
-			     ctx_id, command, ctx_type,
-			     ctx_int_cond[hw_id], ctx_int_type[hw_id]);
+		dev_err(&ctx->dev->plat_dev->dev, "[%d] cmd=%d, type=%d, dec inter fail (%d %d)",
+			ctx_id, command, ctx_type,
+			ctx_int_cond[hw_id], ctx_int_type[hw_id]);
 	}
 
 	ctx_int_cond[hw_id] = 0;

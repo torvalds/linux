@@ -31,7 +31,7 @@ int mtk_vcodec_init_dec_clk(struct platform_device *pdev, struct mtk_vcodec_pm *
 		if (!dec_clk->clk_info)
 			return -ENOMEM;
 	} else {
-		mtk_v4l2_err("Failed to get vdec clock count");
+		dev_err(&pdev->dev, "Failed to get vdec clock count");
 		return -EINVAL;
 	}
 
@@ -40,14 +40,13 @@ int mtk_vcodec_init_dec_clk(struct platform_device *pdev, struct mtk_vcodec_pm *
 		ret = of_property_read_string_index(pdev->dev.of_node,
 			"clock-names", i, &clk_info->clk_name);
 		if (ret) {
-			mtk_v4l2_err("Failed to get clock name id = %d", i);
+			dev_err(&pdev->dev, "Failed to get clock name id = %d", i);
 			return ret;
 		}
 		clk_info->vcodec_clk = devm_clk_get(&pdev->dev,
 			clk_info->clk_name);
 		if (IS_ERR(clk_info->vcodec_clk)) {
-			mtk_v4l2_err("devm_clk_get (%d)%s fail", i,
-				clk_info->clk_name);
+			dev_err(&pdev->dev, "devm_clk_get (%d)%s fail", i, clk_info->clk_name);
 			return PTR_ERR(clk_info->vcodec_clk);
 		}
 	}
@@ -62,7 +61,7 @@ static int mtk_vcodec_dec_pw_on(struct mtk_vcodec_pm *pm)
 
 	ret = pm_runtime_resume_and_get(pm->dev);
 	if (ret)
-		mtk_v4l2_err("pm_runtime_resume_and_get fail %d", ret);
+		dev_err(pm->dev, "pm_runtime_resume_and_get fail %d", ret);
 
 	return ret;
 }
@@ -73,7 +72,7 @@ static void mtk_vcodec_dec_pw_off(struct mtk_vcodec_pm *pm)
 
 	ret = pm_runtime_put(pm->dev);
 	if (ret && ret != -EAGAIN)
-		mtk_v4l2_err("pm_runtime_put fail %d", ret);
+		dev_err(pm->dev, "pm_runtime_put fail %d", ret);
 }
 
 static void mtk_vcodec_dec_clock_on(struct mtk_vcodec_pm *pm)
@@ -85,7 +84,7 @@ static void mtk_vcodec_dec_clock_on(struct mtk_vcodec_pm *pm)
 	for (i = 0; i < dec_clk->clk_num; i++) {
 		ret = clk_prepare_enable(dec_clk->clk_info[i].vcodec_clk);
 		if (ret) {
-			mtk_v4l2_err("clk_prepare_enable %d %s fail %d", i,
+			dev_err(pm->dev, "clk_prepare_enable %d %s fail %d", i,
 				dec_clk->clk_info[i].clk_name, ret);
 			goto error;
 		}
@@ -119,7 +118,7 @@ static void mtk_vcodec_dec_enable_irq(struct mtk_vcodec_dev *vdec_dev, int hw_id
 		if (subdev_dev)
 			enable_irq(subdev_dev->dec_irq);
 		else
-			mtk_v4l2_err("Failed to get hw dev\n");
+			dev_err(&vdec_dev->plat_dev->dev, "Failed to get hw dev\n");
 	} else {
 		enable_irq(vdec_dev->dec_irq);
 	}
@@ -137,7 +136,7 @@ static void mtk_vcodec_dec_disable_irq(struct mtk_vcodec_dev *vdec_dev, int hw_i
 		if (subdev_dev)
 			disable_irq(subdev_dev->dec_irq);
 		else
-			mtk_v4l2_err("Failed to get hw dev\n");
+			dev_err(&vdec_dev->plat_dev->dev, "Failed to get hw dev\n");
 	} else {
 		disable_irq(vdec_dev->dec_irq);
 	}
@@ -184,7 +183,7 @@ static struct mtk_vcodec_pm *mtk_vcodec_dec_get_pm(struct mtk_vcodec_dev *vdec_d
 		if (subdev_dev)
 			return &subdev_dev->pm;
 
-		mtk_v4l2_err("Failed to get hw dev\n");
+		dev_err(&vdec_dev->plat_dev->dev, "Failed to get hw dev\n");
 		return NULL;
 	}
 

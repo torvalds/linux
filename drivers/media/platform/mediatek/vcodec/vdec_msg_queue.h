@@ -100,6 +100,7 @@ struct vdec_lat_buf {
  * @empty_lat_buf: the last lat buf used to flush decode
  * @core_dec_done: core work queue decode done event
  * @status: current context decode status for core hardware
+ * @ctx: mtk vcodec context information
  */
 struct vdec_msg_queue {
 	struct vdec_lat_buf lat_buf[NUM_BUFFER_COUNT];
@@ -118,6 +119,7 @@ struct vdec_msg_queue {
 	struct vdec_lat_buf empty_lat_buf;
 	wait_queue_head_t core_dec_done;
 	int status;
+	struct mtk_vcodec_ctx *ctx;
 };
 
 /**

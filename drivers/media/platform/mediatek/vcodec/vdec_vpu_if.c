@@ -91,7 +91,7 @@ static void vpu_dec_ipi_handler(void *data, unsigned int len, void *priv)
 					(unsigned long)msg->ap_inst_addr;
 
 	if (!vpu) {
-		mtk_v4l2_err("ap_inst_addr is NULL, did the SCP hang or crash?");
+		mtk_v4l2_vdec_err(vpu->ctx, "ap_inst_addr is NULL, did the SCP hang or crash?");
 		return;
 	}
 

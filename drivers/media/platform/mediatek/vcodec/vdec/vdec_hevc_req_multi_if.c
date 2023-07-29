@@ -649,7 +649,7 @@ static int vdec_hevc_slice_alloc_mv_buf(struct vdec_hevc_slice_inst *inst,
 	struct mtk_vcodec_mem *mem;
 	int i, err;
 
-	mtk_v4l2_debug(3, "allocate mv buffer size = 0x%x", buf_sz);
+	mtk_v4l2_vdec_dbg(3, inst->ctx, "allocate mv buffer size = 0x%x", buf_sz);
 	for (i = 0; i < HEVC_MAX_MV_NUM; i++) {
 		mem = &inst->mv_buf[i];
 		if (mem->va)
@@ -707,12 +707,12 @@ static void vdec_hevc_slice_get_pic_info(struct vdec_hevc_slice_inst *inst)
 		    ctx->last_decoded_picinfo.buf_h != ctx->picinfo.buf_h)
 			inst->realloc_mv_buf = true;
 
-		mtk_v4l2_debug(1, "resChg: (%d %d) : old(%d, %d) -> new(%d, %d)",
-			       inst->resolution_changed,
-			       inst->realloc_mv_buf,
-			       ctx->last_decoded_picinfo.pic_w,
-			       ctx->last_decoded_picinfo.pic_h,
-			       ctx->picinfo.pic_w, ctx->picinfo.pic_h);
+		mtk_v4l2_vdec_dbg(1, inst->ctx, "resChg: (%d %d) : old(%d, %d) -> new(%d, %d)",
+				  inst->resolution_changed,
+				  inst->realloc_mv_buf,
+				  ctx->last_decoded_picinfo.pic_w,
+				  ctx->last_decoded_picinfo.pic_h,
+				  ctx->picinfo.pic_w, ctx->picinfo.pic_h);
 	}
 }
 

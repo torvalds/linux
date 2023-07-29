@@ -24,7 +24,7 @@ EXPORT_SYMBOL(mtk_v4l2_dbg_level);
 void __iomem *mtk_vcodec_get_reg_addr(void __iomem **reg_base, unsigned int reg_idx)
 {
 	if (reg_idx >= NUM_MAX_VCODEC_REG_BASE) {
-		mtk_v4l2_err("Invalid arguments, reg_idx=%d", reg_idx);
+		pr_err(MTK_DBG_V4L2_STR "Invalid arguments, reg_idx=%d", reg_idx);
 		return NULL;
 	}
 	return reg_base[reg_idx];
@@ -53,15 +53,14 @@ int mtk_vcodec_mem_alloc(void *priv, struct mtk_vcodec_mem *mem)
 
 	mem->va = dma_alloc_coherent(dev, size, &mem->dma_addr, GFP_KERNEL);
 	if (!mem->va) {
-		mtk_v4l2_err("%s dma_alloc size=%ld failed!", dev_name(dev),
-			     size);
+		mtk_v4l2_vdec_err(ctx, "%s dma_alloc size=%ld failed!", dev_name(dev), size);
 		return -ENOMEM;
 	}
 
-	mtk_v4l2_debug(3, "[%d]  - va      = %p", ctx->id, mem->va);
-	mtk_v4l2_debug(3, "[%d]  - dma     = 0x%lx", ctx->id,
-		       (unsigned long)mem->dma_addr);
-	mtk_v4l2_debug(3, "[%d]    size = 0x%lx", ctx->id, size);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d]  - va      = %p", ctx->id, mem->va);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d]  - dma     = 0x%lx", ctx->id,
+			  (unsigned long)mem->dma_addr);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d]    size = 0x%lx", ctx->id, size);
 
 	return 0;
 }
@@ -74,15 +73,14 @@ void mtk_vcodec_mem_free(void *priv, struct mtk_vcodec_mem *mem)
 	struct device *dev = &ctx->dev->plat_dev->dev;
 
 	if (!mem->va) {
-		mtk_v4l2_err("%s dma_free size=%ld failed!", dev_name(dev),
-			     size);
+		mtk_v4l2_vdec_err(ctx, "%s dma_free size=%ld failed!", dev_name(dev), size);
 		return;
 	}
 
-	mtk_v4l2_debug(3, "[%d]  - va      = %p", ctx->id, mem->va);
-	mtk_v4l2_debug(3, "[%d]  - dma     = 0x%lx", ctx->id,
-		       (unsigned long)mem->dma_addr);
-	mtk_v4l2_debug(3, "[%d]    size = 0x%lx", ctx->id, size);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d]  - va      = %p", ctx->id, mem->va);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d]  - dma     = 0x%lx", ctx->id,
+			  (unsigned long)mem->dma_addr);
+	mtk_v4l2_vdec_dbg(3, ctx, "[%d]    size = 0x%lx", ctx->id, size);
 
 	dma_free_coherent(dev, size, mem->va, mem->dma_addr);
 	mem->va = NULL;
@@ -94,7 +92,7 @@ EXPORT_SYMBOL(mtk_vcodec_mem_free);
 void *mtk_vcodec_get_hw_dev(struct mtk_vcodec_dev *dev, int hw_idx)
 {
 	if (hw_idx >= MTK_VDEC_HW_MAX || hw_idx < 0 || !dev->subdev_dev[hw_idx]) {
-		mtk_v4l2_err("hw idx is out of range:%d", hw_idx);
+		dev_err(&dev->plat_dev->dev, "hw idx is out of range:%d", hw_idx);
 		return NULL;
 	}
 
@@ -112,7 +110,7 @@ void mtk_vcodec_set_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
 	if (vdec_dev->vdec_pdata->is_subdev_supported) {
 		subdev_dev = mtk_vcodec_get_hw_dev(vdec_dev, hw_idx);
 		if (!subdev_dev) {
-			mtk_v4l2_err("Failed to get hw dev");
+			dev_err(&vdec_dev->plat_dev->dev, "Failed to get hw dev");
 			spin_unlock_irqrestore(&vdec_dev->irqlock, flags);
 			return;
 		}
@@ -135,7 +133,7 @@ struct mtk_vcodec_ctx *mtk_vcodec_get_curr_ctx(struct mtk_vcodec_dev *vdec_dev,
 	if (vdec_dev->vdec_pdata->is_subdev_supported) {
 		subdev_dev = mtk_vcodec_get_hw_dev(vdec_dev, hw_idx);
 		if (!subdev_dev) {
-			mtk_v4l2_err("Failed to get hw dev");
+			dev_err(&vdec_dev->plat_dev->dev, "Failed to get hw dev");
 			spin_unlock_irqrestore(&vdec_dev->irqlock, flags);
 			return NULL;
 		}

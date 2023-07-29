@@ -97,12 +97,11 @@ static irqreturn_t mtk_vcodec_enc_irq_handler(int irq, void *priv)
 
 	core_id = dev->venc_pdata->core_id;
 	if (core_id < 0 || core_id >= NUM_MAX_VCODEC_REG_BASE) {
-		mtk_v4l2_err("Invalid core id: %d, ctx id: %d",
-			     core_id, ctx->id);
+		mtk_v4l2_venc_err(ctx, "Invalid core id: %d, ctx id: %d", core_id, ctx->id);
 		return IRQ_HANDLED;
 	}
 
-	mtk_v4l2_debug(1, "id: %d, core id: %d", ctx->id, core_id);
+	mtk_v4l2_venc_dbg(1, ctx, "id: %d, core id: %d", ctx->id, core_id);
 
 	addr = dev->reg_base[core_id] + MTK_VENC_IRQ_ACK_OFFSET;
 
@@ -143,16 +142,14 @@ static int fops_vcodec_open(struct file *file)
 	ctx->type = MTK_INST_ENCODER;
 	ret = mtk_vcodec_enc_ctrls_setup(ctx);
 	if (ret) {
-		mtk_v4l2_err("Failed to setup controls() (%d)",
-				ret);
+		mtk_v4l2_venc_err(ctx, "Failed to setup controls() (%d)", ret);
 		goto err_ctrls_setup;
 	}
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev_enc, ctx,
 					 &mtk_vcodec_enc_queue_init);
 	if (IS_ERR((__force void *)ctx->m2m_ctx)) {
 		ret = PTR_ERR((__force void *)ctx->m2m_ctx);
-		mtk_v4l2_err("Failed to v4l2_m2m_ctx_init() (%d)",
-				ret);
+		mtk_v4l2_venc_err(ctx, "Failed to v4l2_m2m_ctx_init() (%d)", ret);
 		goto err_m2m_ctx_init;
 	}
 	src_vq = v4l2_m2m_get_vq(ctx->m2m_ctx,
@@ -171,23 +168,23 @@ static int fops_vcodec_open(struct file *file)
 			 * Return 0 if downloading firmware successfully,
 			 * otherwise it is failed
 			 */
-			mtk_v4l2_err("vpu_load_firmware failed!");
+			mtk_v4l2_venc_err(ctx, "vpu_load_firmware failed!");
 			goto err_load_fw;
 		}
 
 		dev->enc_capability =
 			mtk_vcodec_fw_get_venc_capa(dev->fw_handler);
-		mtk_v4l2_debug(0, "encoder capability %x", dev->enc_capability);
+		mtk_v4l2_venc_dbg(0, ctx, "encoder capability %x", dev->enc_capability);
 	}
 
-	mtk_v4l2_debug(2, "Create instance [%d]@%p m2m_ctx=%p ",
-			ctx->id, ctx, ctx->m2m_ctx);
+	mtk_v4l2_venc_dbg(2, ctx, "Create instance [%d]@%p m2m_ctx=%p ",
+			  ctx->id, ctx, ctx->m2m_ctx);
 
 	list_add(&ctx->list, &dev->ctx_list);
 
 	mutex_unlock(&dev->dev_mutex);
-	mtk_v4l2_debug(0, "%s encoder [%d]", dev_name(&dev->plat_dev->dev),
-			ctx->id);
+	mtk_v4l2_venc_dbg(0, ctx, "%s encoder [%d]", dev_name(&dev->plat_dev->dev),
+			  ctx->id);
 	return ret;
 
 	/* Deinit when failure occurred */
@@ -209,7 +206,7 @@ static int fops_vcodec_release(struct file *file)
 	struct mtk_vcodec_dev *dev = video_drvdata(file);
 	struct mtk_vcodec_ctx *ctx = fh_to_ctx(file->private_data);
 
-	mtk_v4l2_debug(1, "[%d] encoder", ctx->id);
+	mtk_v4l2_venc_dbg(1, ctx, "[%d] encoder", ctx->id);
 	mutex_lock(&dev->dev_mutex);
 
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
@@ -255,7 +252,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 					 &rproc_phandle)) {
 		fw_type = SCP;
 	} else {
-		mtk_v4l2_err("Could not get venc IPI device");
+		dev_err(&pdev->dev, "[MTK VCODEC] Could not get venc IPI device");
 		return -ENODEV;
 	}
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
@@ -267,7 +264,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	dev->venc_pdata = of_device_get_match_data(&pdev->dev);
 	ret = mtk_vcodec_init_enc_clk(dev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to get mtk vcodec clock source!");
+		dev_err(&pdev->dev, "[MTK VCODEC] Failed to get mtk vcodec clock source!");
 		goto err_enc_pm;
 	}
 
@@ -292,7 +289,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 			       0, pdev->name, dev);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"Failed to install dev->enc_irq %d (%d) core_id (%d)",
+			"[MTK VCODEC] Failed to install dev->enc_irq %d (%d) core_id (%d)",
 			dev->enc_irq, ret, dev->venc_pdata->core_id);
 		ret = -EINVAL;
 		goto err_res;
@@ -307,14 +304,14 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret) {
-		mtk_v4l2_err("v4l2_device_register err=%d", ret);
+		dev_err(&pdev->dev, "[MTK VCODEC] v4l2_device_register err=%d", ret);
 		goto err_res;
 	}
 
 	/* allocate video device for encoder and register it */
 	vfd_enc = video_device_alloc();
 	if (!vfd_enc) {
-		mtk_v4l2_err("Failed to allocate video device");
+		dev_err(&pdev->dev, "[MTK VCODEC] Failed to allocate video device");
 		ret = -ENOMEM;
 		goto err_enc_alloc;
 	}
@@ -335,7 +332,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 
 	dev->m2m_dev_enc = v4l2_m2m_init(&mtk_venc_m2m_ops);
 	if (IS_ERR((__force void *)dev->m2m_dev_enc)) {
-		mtk_v4l2_err("Failed to init mem2mem enc device");
+		dev_err(&pdev->dev, "[MTK VCODEC] Failed to init mem2mem enc device");
 		ret = PTR_ERR((__force void *)dev->m2m_dev_enc);
 		goto err_enc_mem_init;
 	}
@@ -345,20 +342,20 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 						WQ_MEM_RECLAIM |
 						WQ_FREEZABLE);
 	if (!dev->encode_workqueue) {
-		mtk_v4l2_err("Failed to create encode workqueue");
+		dev_err(&pdev->dev, "[MTK VCODEC] Failed to create encode workqueue");
 		ret = -EINVAL;
 		goto err_event_workq;
 	}
 
 	ret = video_register_device(vfd_enc, VFL_TYPE_VIDEO, -1);
 	if (ret) {
-		mtk_v4l2_err("Failed to register video device");
+		dev_err(&pdev->dev, "[MTK VCODEC] Failed to register video device");
 		goto err_enc_reg;
 	}
 
 	mtk_vcodec_dbgfs_init(dev, true);
-	mtk_v4l2_debug(0, "encoder %d registered as /dev/video%d",
-		       dev->venc_pdata->core_id, vfd_enc->num);
+	dev_dbg(&pdev->dev,  "[MTK VCODEC] encoder %d registered as /dev/video%d",
+		dev->venc_pdata->core_id, vfd_enc->num);
 
 	return 0;
 

@@ -77,7 +77,7 @@ int vdec_msg_queue_qbuf(struct vdec_msg_queue_ctx *msg_ctx, struct vdec_lat_buf 
 
 	head = vdec_get_buf_list(msg_ctx->hardware_index, buf);
 	if (!head) {
-		mtk_v4l2_err("fail to qbuf: %d", msg_ctx->hardware_index);
+		mtk_v4l2_vdec_err(buf->ctx, "fail to qbuf: %d", msg_ctx->hardware_index);
 		return -EINVAL;
 	}
 
@@ -95,8 +95,8 @@ int vdec_msg_queue_qbuf(struct vdec_msg_queue_ctx *msg_ctx, struct vdec_lat_buf 
 		}
 	}
 
-	mtk_v4l2_debug(3, "enqueue buf type: %d addr: 0x%p num: %d",
-		       msg_ctx->hardware_index, buf, msg_ctx->ready_num);
+	mtk_v4l2_vdec_dbg(3, buf->ctx, "enqueue buf type: %d addr: 0x%p num: %d",
+			  msg_ctx->hardware_index, buf, msg_ctx->ready_num);
 	spin_unlock(&msg_ctx->ready_lock);
 
 	return 0;
@@ -123,8 +123,6 @@ struct vdec_lat_buf *vdec_msg_queue_dqbuf(struct vdec_msg_queue_ctx *msg_ctx)
 
 	spin_lock(&msg_ctx->ready_lock);
 	if (list_empty(&msg_ctx->ready_queue)) {
-		mtk_v4l2_debug(3, "queue is NULL, type:%d num: %d",
-			       msg_ctx->hardware_index, msg_ctx->ready_num);
 		spin_unlock(&msg_ctx->ready_lock);
 
 		if (msg_ctx->hardware_index == MTK_VDEC_CORE)
@@ -146,15 +144,15 @@ struct vdec_lat_buf *vdec_msg_queue_dqbuf(struct vdec_msg_queue_ctx *msg_ctx)
 	head = vdec_get_buf_list(msg_ctx->hardware_index, buf);
 	if (!head) {
 		spin_unlock(&msg_ctx->ready_lock);
-		mtk_v4l2_err("fail to dqbuf: %d", msg_ctx->hardware_index);
+		mtk_v4l2_vdec_err(buf->ctx, "fail to dqbuf: %d", msg_ctx->hardware_index);
 		return NULL;
 	}
 	list_del(head);
 	vdec_msg_queue_dec(&buf->ctx->msg_queue, msg_ctx->hardware_index);
 
 	msg_ctx->ready_num--;
-	mtk_v4l2_debug(3, "dqueue buf type:%d addr: 0x%p num: %d",
-		       msg_ctx->hardware_index, buf, msg_ctx->ready_num);
+	mtk_v4l2_vdec_dbg(3, buf->ctx, "dqueue buf type:%d addr: 0x%p num: %d",
+			  msg_ctx->hardware_index, buf, msg_ctx->ready_num);
 	spin_unlock(&msg_ctx->ready_lock);
 
 	return buf;
@@ -164,7 +162,7 @@ void vdec_msg_queue_update_ube_rptr(struct vdec_msg_queue *msg_queue, uint64_t u
 {
 	spin_lock(&msg_queue->lat_ctx.ready_lock);
 	msg_queue->wdma_rptr_addr = ube_rptr;
-	mtk_v4l2_debug(3, "update ube rprt (0x%llx)", ube_rptr);
+	mtk_v4l2_vdec_dbg(3, msg_queue->ctx, "update ube rprt (0x%llx)", ube_rptr);
 	spin_unlock(&msg_queue->lat_ctx.ready_lock);
 }
 
@@ -172,20 +170,19 @@ void vdec_msg_queue_update_ube_wptr(struct vdec_msg_queue *msg_queue, uint64_t u
 {
 	spin_lock(&msg_queue->lat_ctx.ready_lock);
 	msg_queue->wdma_wptr_addr = ube_wptr;
-	mtk_v4l2_debug(3, "update ube wprt: (0x%llx 0x%llx) offset: 0x%llx",
-		       msg_queue->wdma_rptr_addr, msg_queue->wdma_wptr_addr,
-		       ube_wptr);
+	mtk_v4l2_vdec_dbg(3, msg_queue->ctx, "update ube wprt: (0x%llx 0x%llx) offset: 0x%llx",
+			  msg_queue->wdma_rptr_addr, msg_queue->wdma_wptr_addr,
+			  ube_wptr);
 	spin_unlock(&msg_queue->lat_ctx.ready_lock);
 }
 
 bool vdec_msg_queue_wait_lat_buf_full(struct vdec_msg_queue *msg_queue)
 {
 	if (atomic_read(&msg_queue->lat_list_cnt) == NUM_BUFFER_COUNT) {
-		mtk_v4l2_debug(3, "wait buf full: list(%d %d) ready_num:%d status:%d",
-			       atomic_read(&msg_queue->lat_list_cnt),
-			       atomic_read(&msg_queue->core_list_cnt),
-			       msg_queue->lat_ctx.ready_num,
-			       msg_queue->status);
+		mtk_v4l2_vdec_dbg(3, msg_queue->ctx, "wait buf full: (%d %d) ready:%d status:%d",
+				  atomic_read(&msg_queue->lat_list_cnt),
+				  atomic_read(&msg_queue->core_list_cnt),
+				  msg_queue->lat_ctx.ready_num, msg_queue->status);
 		return true;
 	}
 
@@ -193,10 +190,10 @@ bool vdec_msg_queue_wait_lat_buf_full(struct vdec_msg_queue *msg_queue)
 	vdec_msg_queue_qbuf(&msg_queue->core_ctx, &msg_queue->empty_lat_buf);
 	wait_event(msg_queue->core_dec_done, msg_queue->flush_done);
 
-	mtk_v4l2_debug(3, "flush done => ready_num:%d status:%d list(%d %d)",
-		       msg_queue->lat_ctx.ready_num, msg_queue->status,
-		       atomic_read(&msg_queue->lat_list_cnt),
-		       atomic_read(&msg_queue->core_list_cnt));
+	mtk_v4l2_vdec_dbg(3, msg_queue->ctx, "flush done => ready_num:%d status:%d list(%d %d)",
+			  msg_queue->lat_ctx.ready_num, msg_queue->status,
+			  atomic_read(&msg_queue->lat_list_cnt),
+			  atomic_read(&msg_queue->core_list_cnt));
 
 	return false;
 }
@@ -307,7 +304,7 @@ int vdec_msg_queue_init(struct vdec_msg_queue *msg_queue,
 					     ctx->picinfo.buf_h);
 	err = mtk_vcodec_mem_alloc(ctx, &msg_queue->wdma_addr);
 	if (err) {
-		mtk_v4l2_err("failed to allocate wdma_addr buf");
+		mtk_v4l2_vdec_err(ctx, "failed to allocate wdma_addr buf");
 		msg_queue->wdma_addr.size = 0;
 		return -ENOMEM;
 	}
@@ -318,20 +315,21 @@ int vdec_msg_queue_init(struct vdec_msg_queue *msg_queue,
 	msg_queue->empty_lat_buf.core_decode = NULL;
 	msg_queue->empty_lat_buf.is_last_frame = true;
 
+	msg_queue->ctx = ctx;
 	for (i = 0; i < NUM_BUFFER_COUNT; i++) {
 		lat_buf = &msg_queue->lat_buf[i];
 
 		lat_buf->wdma_err_addr.size = VDEC_ERR_MAP_SZ_AVC;
 		err = mtk_vcodec_mem_alloc(ctx, &lat_buf->wdma_err_addr);
 		if (err) {
-			mtk_v4l2_err("failed to allocate wdma_err_addr buf[%d]", i);
+			mtk_v4l2_vdec_err(ctx, "failed to allocate wdma_err_addr buf[%d]", i);
 			goto mem_alloc_err;
 		}
 
 		lat_buf->slice_bc_addr.size = VDEC_LAT_SLICE_HEADER_SZ;
 		err = mtk_vcodec_mem_alloc(ctx, &lat_buf->slice_bc_addr);
 		if (err) {
-			mtk_v4l2_err("failed to allocate wdma_addr buf[%d]", i);
+			mtk_v4l2_vdec_err(ctx, "failed to allocate wdma_addr buf[%d]", i);
 			goto mem_alloc_err;
 		}
 
@@ -339,14 +337,14 @@ int vdec_msg_queue_init(struct vdec_msg_queue *msg_queue,
 			lat_buf->rd_mv_addr.size = VDEC_RD_MV_BUFFER_SZ;
 			err = mtk_vcodec_mem_alloc(ctx, &lat_buf->rd_mv_addr);
 			if (err) {
-				mtk_v4l2_err("failed to allocate rd_mv_addr buf[%d]", i);
+				mtk_v4l2_vdec_err(ctx, "failed to allocate rd_mv_addr buf[%d]", i);
 				goto mem_alloc_err;
 			}
 
 			lat_buf->tile_addr.size = VDEC_LAT_TILE_SZ;
 			err = mtk_vcodec_mem_alloc(ctx, &lat_buf->tile_addr);
 			if (err) {
-				mtk_v4l2_err("failed to allocate tile_addr buf[%d]", i);
+				mtk_v4l2_vdec_err(ctx, "failed to allocate tile_addr buf[%d]", i);
 				goto mem_alloc_err;
 			}
 		}
@@ -362,7 +360,7 @@ int vdec_msg_queue_init(struct vdec_msg_queue *msg_queue,
 		lat_buf->is_last_frame = false;
 		err = vdec_msg_queue_qbuf(&msg_queue->lat_ctx, lat_buf);
 		if (err) {
-			mtk_v4l2_err("failed to qbuf buf[%d]", i);
+			mtk_v4l2_vdec_err(ctx, "failed to qbuf buf[%d]", i);
 			goto mem_alloc_err;
 		}
 	}

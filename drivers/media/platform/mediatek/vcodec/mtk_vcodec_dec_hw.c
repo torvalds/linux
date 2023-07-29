@@ -77,8 +77,7 @@ static irqreturn_t mtk_vdec_hw_irq_handler(int irq, void *priv)
 	/* check if HW active or not */
 	cg_status = readl(dev->reg_base[VDEC_HW_SYS] + VDEC_HW_ACTIVE_ADDR);
 	if (cg_status & VDEC_HW_ACTIVE_MASK) {
-		mtk_v4l2_err("vdec active is not 0x0 (0x%08x)",
-			     cg_status);
+		mtk_v4l2_vdec_err(ctx, "vdec active is not 0x0 (0x%08x)", cg_status);
 		return IRQ_HANDLED;
 	}
 
@@ -93,8 +92,8 @@ static irqreturn_t mtk_vdec_hw_irq_handler(int irq, void *priv)
 
 	wake_up_ctx(ctx, MTK_INST_IRQ_RECEIVED, dev->hw_idx);
 
-	mtk_v4l2_debug(3, "wake up ctx %d, dec_done_status=%x",
-		       ctx->id, dec_done_status);
+	mtk_v4l2_vdec_dbg(3, ctx, "wake up ctx %d, dec_done_status=%x",
+			  ctx->id, dec_done_status);
 
 	return IRQ_HANDLED;
 }

@@ -56,13 +56,12 @@ static void mtk_vcodec_vpu_reset_handler(void *priv)
 	struct mtk_vcodec_dev *dev = priv;
 	struct mtk_vcodec_ctx *ctx;
 
-	mtk_v4l2_err("Watchdog timeout!!");
+	dev_err(&dev->plat_dev->dev, "Watchdog timeout!!");
 
 	mutex_lock(&dev->dev_mutex);
 	list_for_each_entry(ctx, &dev->ctx_list, list) {
 		ctx->state = MTK_STATE_ABORT;
-		mtk_v4l2_debug(0, "[%d] Change to state MTK_STATE_ABORT",
-			       ctx->id);
+		mtk_v4l2_vdec_dbg(0, ctx, "[%d] Change to state MTK_STATE_ABORT", ctx->id);
 	}
 	mutex_unlock(&dev->dev_mutex);
 }
@@ -98,7 +97,7 @@ struct mtk_vcodec_fw *mtk_vcodec_fw_vpu_init(void *priv, enum mtk_vcodec_fw_use 
 	plat_dev = dev->plat_dev;
 	fw_pdev = vpu_get_plat_device(plat_dev);
 	if (!fw_pdev) {
-		mtk_v4l2_err("firmware device is not ready");
+		dev_err(&dev->plat_dev->dev, "firmware device is not ready");
 		return ERR_PTR(-EINVAL);
 	}
 

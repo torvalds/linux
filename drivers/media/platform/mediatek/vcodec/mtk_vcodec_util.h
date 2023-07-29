@@ -11,6 +11,9 @@
 #include <linux/types.h>
 #include <linux/dma-direction.h>
 
+#define MTK_DBG_VCODEC_STR "[MTK_VCODEC]"
+#define MTK_DBG_V4L2_STR "[MTK_V4L2]"
+
 struct mtk_vcodec_mem {
 	size_t size;
 	void *va;
@@ -28,8 +31,8 @@ struct mtk_vcodec_dev;
 #undef pr_fmt
 #define pr_fmt(fmt) "%s(),%d: " fmt, __func__, __LINE__
 
-#define mtk_v4l2_err(fmt, args...)                \
-	pr_err("[MTK_V4L2][ERROR] " fmt "\n", ##args)
+#define mtk_v4l2_err(plat_dev, fmt, args...)                            \
+	dev_err(&(plat_dev)->dev, "[MTK_V4L2][ERROR] " fmt "\n", ##args)
 
 #define mtk_vcodec_err(inst_id, plat_dev, fmt, args...)                                 \
 	dev_err(&(plat_dev)->dev, "[MTK_VCODEC][ERROR][%d]: " fmt "\n", inst_id, ##args)
@@ -38,11 +41,11 @@ struct mtk_vcodec_dev;
 extern int mtk_v4l2_dbg_level;
 extern int mtk_vcodec_dbg;
 
-#define mtk_v4l2_debug(level, fmt, args...)				\
-	do {								\
-		if (mtk_v4l2_dbg_level >= (level))			\
-			pr_debug("[MTK_V4L2] %s, %d: " fmt "\n",        \
-				 __func__, __LINE__, ##args);	        \
+#define mtk_v4l2_debug(plat_dev, level, fmt, args...)                             \
+	do {                                                                      \
+		if (mtk_v4l2_dbg_level >= (level))                                \
+			dev_dbg(&(plat_dev)->dev, "[MTK_V4L2] %s, %d: " fmt "\n", \
+				 __func__, __LINE__, ##args);                     \
 	} while (0)
 
 #define mtk_vcodec_debug(inst_id, plat_dev, fmt, args...)                               \
@@ -52,7 +55,8 @@ extern int mtk_vcodec_dbg;
 				inst_id, __func__, __LINE__, ##args);                   \
 	} while (0)
 #else
-#define mtk_v4l2_debug(level, fmt, args...) pr_debug(fmt, ##args)
+#define mtk_v4l2_debug(plat_dev, level, fmt, args...)              \
+	dev_dbg(&(plat_dev)->dev, "[MTK_V4L2]: " fmt "\n", ##args)
 
 #define mtk_vcodec_debug(inst_id, plat_dev, fmt, args...)			\
 	dev_dbg(&(plat_dev)->dev, "[MTK_VCODEC][%d]: " fmt "\n", inst_id, ##args)
@@ -69,6 +73,16 @@ extern int mtk_vcodec_dbg;
 
 #define mtk_venc_debug(ctx, fmt, args...)                              \
 	mtk_vcodec_debug((ctx)->id, (ctx)->dev->plat_dev, fmt, ##args)
+
+#define mtk_v4l2_vdec_err(ctx, fmt, args...) mtk_v4l2_err((ctx)->dev->plat_dev, fmt, ##args)
+
+#define mtk_v4l2_vdec_dbg(level, ctx, fmt, args...)             \
+	mtk_v4l2_debug((ctx)->dev->plat_dev, level, fmt, ##args)
+
+#define mtk_v4l2_venc_err(ctx, fmt, args...) mtk_v4l2_err((ctx)->dev->plat_dev, fmt, ##args)
+
+#define mtk_v4l2_venc_dbg(level, ctx, fmt, args...)             \
+	mtk_v4l2_debug((ctx)->dev->plat_dev, level, fmt, ##args)
 
 void __iomem *mtk_vcodec_get_reg_addr(void __iomem **reg_base, unsigned int reg_idx);
 int mtk_vcodec_write_vdecsys(struct mtk_vcodec_ctx *ctx, unsigned int reg, unsigned int val);

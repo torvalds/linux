@@ -861,8 +861,8 @@ static void vdec_av1_slice_decrease_ref_count(struct vdec_av1_slice_slot *slots,
 	frame_info[fb_idx].ref_count--;
 	if (frame_info[fb_idx].ref_count < 0) {
 		frame_info[fb_idx].ref_count = 0;
-		mtk_v4l2_err("av1_error: %s() fb_idx %d decrease ref_count error\n",
-			     __func__, fb_idx);
+		pr_err(MTK_DBG_V4L2_STR "av1_error: %s() fb_idx %d decrease ref_count error\n",
+		       __func__, fb_idx);
 	}
 
 	vdec_av1_slice_clear_fb(&frame_info[fb_idx]);
@@ -910,7 +910,7 @@ static void vdec_av1_slice_setup_slot(struct vdec_av1_slice_instance *instance,
 	vsi->slot_id = vdec_av1_slice_get_new_slot(vsi);
 
 	if (vsi->slot_id == AV1_INVALID_IDX) {
-		mtk_v4l2_err("warning:av1 get invalid index slot\n");
+		mtk_v4l2_vdec_err(instance->ctx, "warning:av1 get invalid index slot\n");
 		vsi->slot_id = 0;
 	}
 	cur_frame_info = &vsi->slots.frame_info[vsi->slot_id];
@@ -1504,8 +1504,8 @@ static void vdec_av1_slice_setup_ref(struct vdec_av1_slice_pfc *pfc,
 		slot_id = frame->ref_frame_map[ref_idx];
 		frame_info = &slots->frame_info[slot_id];
 		if (slot_id == AV1_INVALID_IDX) {
-			mtk_v4l2_err("cannot match reference[%d] 0x%llx\n", i,
-				     ctrl_fh->reference_frame_ts[ref_idx]);
+			pr_err(MTK_DBG_V4L2_STR "cannot match reference[%d] 0x%llx\n", i,
+			       ctrl_fh->reference_frame_ts[ref_idx]);
 			frame->order_hints[i] = 0;
 			frame->ref_frame_valid[i] = 0;
 			continue;
