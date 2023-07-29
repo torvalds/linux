@@ -1692,15 +1692,15 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 #ifdef MMU_DEBUG
 static int is_empty_shadow_page(u64 *spt)
 {
-	u64 *pos;
-	u64 *end;
+	int i;
 
-	for (pos = spt, end = pos + SPTE_ENT_PER_PAGE; pos != end; pos++)
-		if (is_shadow_present_pte(*pos)) {
+	for (i = 0; i < SPTE_ENT_PER_PAGE; i++) {
+		if (is_shadow_present_pte(spt[i])) {
 			printk(KERN_ERR "%s: %p %llx\n", __func__,
-			       pos, *pos);
+			       &spt[i], spt[i]);
 			return 0;
 		}
+	}
 	return 1;
 }
 #endif
