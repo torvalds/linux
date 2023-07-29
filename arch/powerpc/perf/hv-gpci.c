@@ -102,11 +102,21 @@ static ssize_t cpumask_show(struct device *dev,
 	return cpumap_print_to_pagebuf(true, buf, &hv_gpci_cpumask);
 }
 
-/* Counter request value to retrieve system information */
-#define PROCESSOR_BUS_TOPOLOGY 0XD0
-
 /* Interface attribute array index to store system information */
 #define INTERFACE_PROCESSOR_BUS_TOPOLOGY_ATTR	6
+#define INTERFACE_PROCESSOR_CONFIG_ATTR		7
+#define INTERFACE_NULL_ATTR			8
+
+/* Counter request value to retrieve system information */
+enum {
+	PROCESSOR_BUS_TOPOLOGY,
+	PROCESSOR_CONFIG
+};
+
+static int sysinfo_counter_request[] = {
+	[PROCESSOR_BUS_TOPOLOGY] = 0xD0,
+	[PROCESSOR_CONFIG] = 0x90,
+};
 
 static DEFINE_PER_CPU(char, hv_gpci_reqb[HGPCI_REQ_BUFFER_SIZE]) __aligned(sizeof(uint64_t));
 
@@ -187,7 +197,8 @@ static ssize_t processor_bus_topology_show(struct device *dev, struct device_att
 	 * starting_index value implies the starting hardware
 	 * chip id.
 	 */
-	ret = systeminfo_gpci_request(PROCESSOR_BUS_TOPOLOGY, 0, 0, buf, &n, arg);
+	ret = systeminfo_gpci_request(sysinfo_counter_request[PROCESSOR_BUS_TOPOLOGY],
+			0, 0, buf, &n, arg);
 
 	if (!ret)
 		return n;
@@ -220,8 +231,76 @@ static ssize_t processor_bus_topology_show(struct device *dev, struct device_att
 
 		memset(arg, 0, HGPCI_REQ_BUFFER_SIZE);
 
-		ret = systeminfo_gpci_request(PROCESSOR_BUS_TOPOLOGY, starting_index,
-				0, buf, &n, arg);
+		ret = systeminfo_gpci_request(sysinfo_counter_request[PROCESSOR_BUS_TOPOLOGY],
+				starting_index, 0, buf, &n, arg);
+
+		if (!ret)
+			return n;
+
+		if (ret != H_PARAMETER)
+			goto out;
+	}
+
+	return n;
+
+out:
+	put_cpu_var(hv_gpci_reqb);
+	return ret;
+}
+
+static ssize_t processor_config_show(struct device *dev, struct device_attribute *attr,
+					char *buf)
+{
+	struct hv_gpci_request_buffer *arg;
+	unsigned long ret;
+	size_t n = 0;
+
+	arg = (void *)get_cpu_var(hv_gpci_reqb);
+	memset(arg, 0, HGPCI_REQ_BUFFER_SIZE);
+
+	/*
+	 * Pass the counter request value 0x90 corresponds to request
+	 * type 'Processor_config', to retrieve
+	 * the system processor information.
+	 * starting_index value implies the starting hardware
+	 * processor index.
+	 */
+	ret = systeminfo_gpci_request(sysinfo_counter_request[PROCESSOR_CONFIG],
+			0, 0, buf, &n, arg);
+
+	if (!ret)
+		return n;
+
+	if (ret != H_PARAMETER)
+		goto out;
+
+	/*
+	 * ret value as 'H_PARAMETER' corresponds to 'GEN_BUF_TOO_SMALL', which
+	 * implies that buffer can't accommodate all information, and a partial buffer
+	 * returned. To handle that, we need to take subsequent requests
+	 * with next starting index to retrieve additional (missing) data.
+	 * Below loop do subsequent hcalls with next starting index and add it
+	 * to buffer util we get all the information.
+	 */
+	while (ret == H_PARAMETER) {
+		int returned_values = be16_to_cpu(arg->params.returned_values);
+		int elementsize = be16_to_cpu(arg->params.cv_element_size);
+		int last_element = (returned_values - 1) * elementsize;
+
+		/*
+		 * Since the starting index is part of counter_value
+		 * buffer elements, use the starting index value in the last
+		 * element and add 1 to subsequent hcalls.
+		 */
+		u32 starting_index = arg->bytes[last_element + 3] +
+				(arg->bytes[last_element + 2] << 8) +
+				(arg->bytes[last_element + 1] << 16) +
+				(arg->bytes[last_element] << 24) + 1;
+
+		memset(arg, 0, HGPCI_REQ_BUFFER_SIZE);
+
+		ret = systeminfo_gpci_request(sysinfo_counter_request[PROCESSOR_CONFIG],
+				starting_index, 0, buf, &n, arg);
 
 		if (!ret)
 			return n;
@@ -255,6 +334,11 @@ static struct attribute *interface_attrs[] = {
 	&hv_caps_attr_collect_privileged.attr,
 	/*
 	 * This NULL is a placeholder for the processor_bus_topology
+	 * attribute, set in init function if applicable.
+	 */
+	NULL,
+	/*
+	 * This NULL is a placeholder for the processor_config
 	 * attribute, set in init function if applicable.
 	 */
 	NULL,
@@ -463,17 +547,24 @@ static int hv_gpci_cpu_hotplug_init(void)
 			  ppc_hv_gpci_cpu_offline);
 }
 
-static void add_sysinfo_interface_files(void)
+static struct device_attribute *sysinfo_device_attr_create(int
+		sysinfo_interface_group_index, u32 req)
 {
 	struct device_attribute *attr = NULL;
 	unsigned long ret;
 	struct hv_gpci_request_buffer *arg;
 
-	/* Check for counter request type PROCESSOR_BUS_TOPOLOGY support */
+	if (sysinfo_interface_group_index < INTERFACE_PROCESSOR_BUS_TOPOLOGY_ATTR ||
+			sysinfo_interface_group_index >= INTERFACE_NULL_ATTR) {
+		pr_info("Wrong interface group index for system information\n");
+		return NULL;
+	}
+
+	/* Check for given counter request value support */
 	arg = (void *)get_cpu_var(hv_gpci_reqb);
 	memset(arg, 0, HGPCI_REQ_BUFFER_SIZE);
 
-	arg->params.counter_request = cpu_to_be32(PROCESSOR_BUS_TOPOLOGY);
+	arg->params.counter_request = cpu_to_be32(req);
 
 	ret = plpar_hcall_norets(H_GET_PERF_COUNTER_INFO,
 			virt_to_phys(arg), HGPCI_REQ_BUFFER_SIZE);
@@ -481,21 +572,68 @@ static void add_sysinfo_interface_files(void)
 	put_cpu_var(hv_gpci_reqb);
 
 	/*
-	 * Add processor_bus_topology attribute in the interface_attrs
+	 * Add given counter request value attribute in the interface_attrs
 	 * attribute array, only for valid return types.
 	 */
 	if (!ret || ret == H_AUTHORITY || ret == H_PARAMETER) {
 		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 		if (!attr)
-			return;
+			return NULL;
 
 		sysfs_attr_init(&attr->attr);
-		attr->attr.name = "processor_bus_topology";
 		attr->attr.mode = 0444;
-		attr->show = processor_bus_topology_show;
-		interface_attrs[INTERFACE_PROCESSOR_BUS_TOPOLOGY_ATTR] = &attr->attr;
+
+		switch (sysinfo_interface_group_index) {
+		case INTERFACE_PROCESSOR_BUS_TOPOLOGY_ATTR:
+			attr->attr.name = "processor_bus_topology";
+			attr->show = processor_bus_topology_show;
+		break;
+		case INTERFACE_PROCESSOR_CONFIG_ATTR:
+			attr->attr.name = "processor_config";
+			attr->show = processor_config_show;
+		break;
+		}
 	} else
 		pr_devel("hcall failed, with error: 0x%lx\n", ret);
+
+	return attr;
+}
+
+static void add_sysinfo_interface_files(void)
+{
+	int sysfs_count;
+	struct device_attribute *attr[INTERFACE_NULL_ATTR - INTERFACE_PROCESSOR_BUS_TOPOLOGY_ATTR];
+	int i;
+
+	sysfs_count = INTERFACE_NULL_ATTR - INTERFACE_PROCESSOR_BUS_TOPOLOGY_ATTR;
+
+	/* Get device attribute for a given counter request value */
+	for (i = 0; i < sysfs_count; i++) {
+		attr[i] = sysinfo_device_attr_create(i + INTERFACE_PROCESSOR_BUS_TOPOLOGY_ATTR,
+				sysinfo_counter_request[i]);
+
+		if (!attr[i])
+			goto out;
+	}
+
+	/* Add sysinfo interface attributes in the interface_attrs attribute array */
+	for (i = 0; i < sysfs_count; i++)
+		interface_attrs[i + INTERFACE_PROCESSOR_BUS_TOPOLOGY_ATTR] = &attr[i]->attr;
+
+	return;
+
+out:
+	/*
+	 * The sysinfo interface attributes will be added, only if hcall passed for
+	 * all the counter request values. Free the device attribute array incase
+	 * of any hcall failure.
+	 */
+	if (i > 0) {
+		while (i >= 0) {
+			kfree(attr[i]);
+			i--;
+		}
+	}
 }
 
 static int hv_gpci_init(void)
