@@ -854,10 +854,7 @@ static struct attribute *rohm_ts_attrs[] = {
 	&dev_attr_inv_y.attr,
 	NULL,
 };
-
-static const struct attribute_group rohm_ts_attr_group = {
-	.attrs = rohm_ts_attrs,
-};
+ATTRIBUTE_GROUPS(rohm_ts);
 
 static int rohm_ts_device_init(struct i2c_client *client, u8 setup2)
 {
@@ -1164,12 +1161,6 @@ static int rohm_bu21023_i2c_probe(struct i2c_client *client)
 		return error;
 	}
 
-	error = devm_device_add_group(dev, &rohm_ts_attr_group);
-	if (error) {
-		dev_err(dev, "failed to create sysfs group: %d\n", error);
-		return error;
-	}
-
 	return error;
 }
 
@@ -1182,6 +1173,7 @@ MODULE_DEVICE_TABLE(i2c, rohm_bu21023_i2c_id);
 static struct i2c_driver rohm_bu21023_i2c_driver = {
 	.driver = {
 		.name = BU21023_NAME,
+		.dev_groups = rohm_ts_groups,
 	},
 	.probe = rohm_bu21023_i2c_probe,
 	.id_table = rohm_bu21023_i2c_id,
