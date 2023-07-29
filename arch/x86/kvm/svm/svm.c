@@ -1149,7 +1149,8 @@ static void svm_write_tsc_offset(struct kvm_vcpu *vcpu)
 void svm_write_tsc_multiplier(struct kvm_vcpu *vcpu)
 {
 	preempt_disable();
-	__svm_write_tsc_multiplier(vcpu->arch.tsc_scaling_ratio);
+	if (to_svm(vcpu)->guest_state_loaded)
+		__svm_write_tsc_multiplier(vcpu->arch.tsc_scaling_ratio);
 	preempt_enable();
 }
 
