@@ -1251,7 +1251,7 @@ static bool spte_clear_dirty(u64 *sptep)
 {
 	u64 spte = *sptep;
 
-	MMU_WARN_ON(!spte_ad_enabled(spte));
+	KVM_MMU_WARN_ON(!spte_ad_enabled(spte));
 	spte &= ~shadow_dirty_mask;
 	return mmu_spte_update(sptep, spte);
 }
@@ -1695,7 +1695,7 @@ static void kvm_mmu_check_sptes_at_free(struct kvm_mmu_page *sp)
 	int i;
 
 	for (i = 0; i < SPTE_ENT_PER_PAGE; i++) {
-		if (MMU_WARN_ON(is_shadow_present_pte(sp->spt[i])))
+		if (KVM_MMU_WARN_ON(is_shadow_present_pte(sp->spt[i])))
 			pr_err_ratelimited("SPTE %llx (@ %p) for gfn %llx shadow-present at free",
 					   sp->spt[i], &sp->spt[i],
 					   kvm_mmu_page_get_gfn(sp, i));
