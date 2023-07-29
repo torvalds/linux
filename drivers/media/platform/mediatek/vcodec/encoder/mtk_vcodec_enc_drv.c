@@ -18,7 +18,7 @@
 
 #include "mtk_vcodec_enc.h"
 #include "mtk_vcodec_enc_pm.h"
-#include "mtk_vcodec_intr.h"
+#include "../common/mtk_vcodec_intr.h"
 
 static const struct mtk_video_fmt mtk_video_formats_output[] = {
 	{

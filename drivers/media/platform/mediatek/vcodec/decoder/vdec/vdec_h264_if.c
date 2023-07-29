@@ -9,7 +9,7 @@
 
 #include "../vdec_drv_if.h"
 #include "../mtk_vcodec_dec.h"
-#include "../mtk_vcodec_intr.h"
+#include "../../common/mtk_vcodec_intr.h"
 #include "../vdec_vpu_if.h"
 #include "../vdec_drv_base.h"
 

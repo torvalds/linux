@@ -7,8 +7,8 @@
 #include <linux/debugfs.h>
 
 #include "mtk_vcodec_dbgfs.h"
-#include "mtk_vcodec_dec_drv.h"
-#include "mtk_vcodec_enc_drv.h"
+#include "../decoder/mtk_vcodec_dec_drv.h"
+#include "../encoder/mtk_vcodec_enc_drv.h"
 #include "mtk_vcodec_util.h"
 
 static void mtk_vdec_dbgfs_get_format_type(struct mtk_vcodec_dec_ctx *ctx, char *buf,

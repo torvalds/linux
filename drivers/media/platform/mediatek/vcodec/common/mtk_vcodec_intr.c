@@ -7,8 +7,8 @@
 #include <linux/errno.h>
 #include <linux/wait.h>
 
-#include "mtk_vcodec_dec_drv.h"
-#include "mtk_vcodec_enc_drv.h"
+#include "../decoder/mtk_vcodec_dec_drv.h"
+#include "../encoder/mtk_vcodec_enc_drv.h"
 #include "mtk_vcodec_intr.h"
 
 int mtk_vcodec_wait_for_done_ctx(void *priv, int command, unsigned int timeout_ms,

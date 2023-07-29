@@ -9,9 +9,9 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 
-#include "mtk_vcodec_dec_drv.h"
-#include "mtk_vcodec_enc_drv.h"
-#include "mtk_vcodec_dec_hw.h"
+#include "../decoder/mtk_vcodec_dec_drv.h"
+#include "../encoder/mtk_vcodec_enc_drv.h"
+#include "../decoder/mtk_vcodec_dec_hw.h"
 
 #if defined(CONFIG_DEBUG_FS)
 int mtk_vcodec_dbg;

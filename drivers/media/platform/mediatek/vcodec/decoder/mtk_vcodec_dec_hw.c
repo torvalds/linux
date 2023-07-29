@@ -15,7 +15,7 @@
 #include "mtk_vcodec_dec.h"
 #include "mtk_vcodec_dec_hw.h"
 #include "mtk_vcodec_dec_pm.h"
-#include "mtk_vcodec_intr.h"
+#include "../common/mtk_vcodec_intr.h"
 
 static const struct of_device_id mtk_vdec_hw_match[] = {
 	{

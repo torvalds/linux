@@ -7,10 +7,10 @@
 #ifndef _MTK_VCODEC_ENC_DRV_H_
 #define _MTK_VCODEC_ENC_DRV_H_
 
-#include "mtk_vcodec_cmn_drv.h"
-#include "mtk_vcodec_dbgfs.h"
-#include "mtk_vcodec_fw_priv.h"
-#include "mtk_vcodec_util.h"
+#include "../common/mtk_vcodec_cmn_drv.h"
+#include "../common/mtk_vcodec_dbgfs.h"
+#include "../common/mtk_vcodec_fw_priv.h"
+#include "../common/mtk_vcodec_util.h"
 
 #define MTK_VCODEC_ENC_NAME	"mtk-vcodec-enc"
 
@@ -231,5 +231,16 @@ wake_up_enc_ctx(struct mtk_vcodec_enc_ctx *ctx, unsigned int reason, unsigned in
 	ctx->int_type[hw_id] = reason;
 	wake_up_interruptible(&ctx->queue[hw_id]);
 }
+
+#define mtk_venc_err(ctx, fmt, args...)                               \
+	mtk_vcodec_err((ctx)->id, (ctx)->dev->plat_dev, fmt, ##args)
+
+#define mtk_venc_debug(ctx, fmt, args...)                              \
+	mtk_vcodec_debug((ctx)->id, (ctx)->dev->plat_dev, fmt, ##args)
+
+#define mtk_v4l2_venc_err(ctx, fmt, args...) mtk_v4l2_err((ctx)->dev->plat_dev, fmt, ##args)
+
+#define mtk_v4l2_venc_dbg(level, ctx, fmt, args...)             \
+	mtk_v4l2_debug((ctx)->dev->plat_dev, level, fmt, ##args)
 
 #endif /* _MTK_VCODEC_ENC_DRV_H_ */

@@ -12,7 +12,7 @@
 #include <linux/delay.h>
 #include <linux/time.h>
 
-#include "../mtk_vcodec_intr.h"
+#include "../../common/mtk_vcodec_intr.h"
 #include "../vdec_drv_base.h"
 #include "../vdec_vpu_if.h"
 

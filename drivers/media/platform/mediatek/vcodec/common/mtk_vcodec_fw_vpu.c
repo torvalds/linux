@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include "mtk_vcodec_dec_drv.h"
-#include "mtk_vcodec_enc_drv.h"
+#include "../decoder/mtk_vcodec_dec_drv.h"
+#include "../encoder/mtk_vcodec_enc_drv.h"
 #include "mtk_vcodec_fw_priv.h"
 
 static int mtk_vcodec_vpu_load_firmware(struct mtk_vcodec_fw *fw)
