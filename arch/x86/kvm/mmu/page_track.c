@@ -15,10 +15,9 @@
 #include <linux/kvm_host.h>
 #include <linux/rculist.h>
 
-#include <asm/kvm_page_track.h>
-
 #include "mmu.h"
 #include "mmu_internal.h"
+#include "page_track.h"
 
 bool kvm_page_track_write_tracking_enabled(struct kvm *kvm)
 {
@@ -299,9 +298,4 @@ void kvm_page_track_delete_slot(struct kvm *kvm, struct kvm_memory_slot *slot)
 		if (n->track_remove_region)
 			n->track_remove_region(slot->base_gfn, slot->npages, n);
 	srcu_read_unlock(&head->track_srcu, idx);
-}
-
-bool kvm_page_track_has_external_user(struct kvm *kvm)
-{
-	return !hlist_empty(&kvm->arch.track_notifier_head.track_notifier_list);
 }
