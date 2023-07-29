@@ -36,6 +36,8 @@ void *ucall_arch_get_ucall(struct kvm_vcpu *vcpu);
 
 void ucall(uint64_t cmd, int nargs, ...);
 void ucall_fmt(uint64_t cmd, const char *fmt, ...);
+void ucall_assert(uint64_t cmd, const char *exp, const char *file,
+		  unsigned int line, const char *fmt, ...);
 uint64_t get_ucall(struct kvm_vcpu *vcpu, struct ucall *uc);
 void ucall_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa);
 int ucall_nr_pages_required(uint64_t page_size);
@@ -62,6 +64,50 @@ enum guest_assert_builtin_args {
 	GUEST_LINE,
 	GUEST_ASSERT_BUILTIN_NARGS
 };
+
+#ifdef USE_GUEST_ASSERT_PRINTF
+#define ____GUEST_ASSERT(_condition, _exp, _fmt, _args...)				\
+do {											\
+	if (!(_condition))								\
+		ucall_assert(UCALL_ABORT, _exp, __FILE__, __LINE__, _fmt, ##_args);	\
+} while (0)
+
+#define __GUEST_ASSERT(_condition, _fmt, _args...)				\
+	____GUEST_ASSERT(_condition, #_condition, _fmt, ##_args)
+
+#define GUEST_ASSERT(_condition)						\
+	__GUEST_ASSERT(_condition, #_condition)
+
+#define GUEST_FAIL(_fmt, _args...)						\
+	ucall_assert(UCALL_ABORT, "Unconditional guest failure",		\
+		     __FILE__, __LINE__, _fmt, ##_args)
+
+#define GUEST_ASSERT_EQ(a, b)							\
+do {										\
+	typeof(a) __a = (a);							\
+	typeof(b) __b = (b);							\
+	____GUEST_ASSERT(__a == __b, #a " == " #b, "%#lx != %#lx (%s != %s)",	\
+			 (unsigned long)(__a), (unsigned long)(__b), #a, #b);	\
+} while (0)
+
+#define GUEST_ASSERT_NE(a, b)							\
+do {										\
+	typeof(a) __a = (a);							\
+	typeof(b) __b = (b);							\
+	____GUEST_ASSERT(__a != __b, #a " != " #b, "%#lx == %#lx (%s == %s)",	\
+			 (unsigned long)(__a), (unsigned long)(__b), #a, #b);	\
+} while (0)
+
+#define REPORT_GUEST_ASSERT(ucall)						\
+	test_assert(false, (const char *)(ucall).args[GUEST_ERROR_STRING],	\
+		    (const char *)(ucall).args[GUEST_FILE],			\
+		    (ucall).args[GUEST_LINE], "%s", (ucall).buffer)
+
+/* FIXME: Drop this alias once the param-based guest asserts are gone. */
+#define GUEST_ASSERT_1(_condition, arg1) \
+	__GUEST_ASSERT(_condition, "arg1 = 0x%lx", arg1)
+
+#else
 
 #define __GUEST_ASSERT(_condition, _condstr, _nargs, _args...)		\
 do {									\
@@ -128,5 +174,7 @@ do {									\
 
 #define REPORT_GUEST_ASSERT_N(ucall, fmt, args...)	\
 	__REPORT_GUEST_ASSERT((ucall), fmt, ##args)
+
+#endif /* USE_GUEST_ASSERT_PRINTF */
 
 #endif /* SELFTEST_KVM_UCALL_COMMON_H */

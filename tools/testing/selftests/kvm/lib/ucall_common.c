@@ -75,6 +75,28 @@ static void ucall_free(struct ucall *uc)
 	clear_bit(uc - ucall_pool->ucalls, ucall_pool->in_use);
 }
 
+void ucall_assert(uint64_t cmd, const char *exp, const char *file,
+		  unsigned int line, const char *fmt, ...)
+{
+	struct ucall *uc;
+	va_list va;
+
+	uc = ucall_alloc();
+	uc->cmd = cmd;
+
+	WRITE_ONCE(uc->args[GUEST_ERROR_STRING], (uint64_t)(exp));
+	WRITE_ONCE(uc->args[GUEST_FILE], (uint64_t)(file));
+	WRITE_ONCE(uc->args[GUEST_LINE], line);
+
+	va_start(va, fmt);
+	guest_vsnprintf(uc->buffer, UCALL_BUFFER_LEN, fmt, va);
+	va_end(va);
+
+	ucall_arch_do_ucall((vm_vaddr_t)uc->hva);
+
+	ucall_free(uc);
+}
+
 void ucall_fmt(uint64_t cmd, const char *fmt, ...)
 {
 	struct ucall *uc;
