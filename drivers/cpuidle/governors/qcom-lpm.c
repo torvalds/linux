@@ -330,7 +330,7 @@ void clear_cpu_predict_history(void)
 		return;
 
 	for_each_possible_cpu(cpu) {
-		cpu_gov = this_cpu_ptr(&lpm_cpu_data);
+		cpu_gov = per_cpu_ptr(&lpm_cpu_data, cpu);
 		lpm_history = &cpu_gov->lpm_history;
 		for (i = 0; i < MAXSAMPLES; i++) {
 			lpm_history->resi[i]  = 0;
