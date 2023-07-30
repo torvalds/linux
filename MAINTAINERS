@@ -22955,8 +22955,10 @@ S:	Odd fixes
 F:	drivers/net/wireless/legacy/wl3501*
 
 WMI BINARY MOF DRIVER
-L:	platform-drivers-x86@vger.kernel.org
-S:	Orphan
+M:	Armin Wolf <W_Armin@gmx.de>
+R:	Thomas Weißschuh <linux@weissschuh.net>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
 F:	Documentation/ABI/stable/sysfs-platform-wmi-bmof
 F:	Documentation/wmi/devices/wmi-bmof.rst
 F:	drivers/platform/x86/wmi-bmof.c
