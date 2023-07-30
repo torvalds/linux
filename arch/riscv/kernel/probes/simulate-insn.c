@@ -249,3 +249,47 @@ bool __kprobes simulate_c_jalr(u32 opcode, unsigned long addr, struct pt_regs *r
 {
 	return simulate_c_jr_jalr(opcode, addr, regs, true);
 }
+
+static bool __kprobes simulate_c_bnez_beqz(u32 opcode, unsigned long addr, struct pt_regs *regs,
+					   bool is_bnez)
+{
+	/*
+	 *  15    13 12           10 9    7 6                 2 1  0
+	 * | funct3 | offset[8|4:3] | rs1' | offset[7:6|2:1|5] | op |
+	 *     3            3          3             5           2
+	 */
+
+	s32 offset;
+	u32 rs1;
+	unsigned long rs1_val;
+
+	rs1 = 0x8 | ((opcode >> 7) & 0x7);
+
+	if (!rv_insn_reg_get_val(regs, rs1, &rs1_val))
+		return false;
+
+	if ((rs1_val != 0 && is_bnez) || (rs1_val == 0 && !is_bnez)) {
+		offset =  ((opcode >> 3)  & 0x3) << 1;
+		offset |= ((opcode >> 10) & 0x3) << 3;
+		offset |= ((opcode >> 2)  & 0x1) << 5;
+		offset |= ((opcode >> 5)  & 0x3) << 6;
+		offset |= ((opcode >> 12) & 0x1) << 8;
+		offset = sign_extend32(offset, 8);
+	} else {
+		offset = 2;
+	}
+
+	instruction_pointer_set(regs, addr + offset);
+
+	return true;
+}
+
+bool __kprobes simulate_c_bnez(u32 opcode, unsigned long addr, struct pt_regs *regs)
+{
+	return simulate_c_bnez_beqz(opcode, addr, regs, true);
+}
+
+bool __kprobes simulate_c_beqz(u32 opcode, unsigned long addr, struct pt_regs *regs)
+{
+	return simulate_c_bnez_beqz(opcode, addr, regs, false);
+}
