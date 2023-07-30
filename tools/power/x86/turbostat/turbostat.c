@@ -2886,7 +2886,7 @@ static void dump_platform_info(void)
 	return;
 }
 
-static void dump_hsw_turbo_ratio_limits(void)
+static void dump_turbo_ratio_limit2(void)
 {
 	unsigned long long msr;
 	unsigned int ratio;
@@ -2905,7 +2905,7 @@ static void dump_hsw_turbo_ratio_limits(void)
 	return;
 }
 
-static void dump_ivt_turbo_ratio_limits(void)
+static void dump_turbo_ratio_limit1(void)
 {
 	unsigned long long msr;
 	unsigned int ratio;
@@ -4326,10 +4326,10 @@ static void dump_turbo_ratio_info(unsigned int family, unsigned int model)
 		return;
 
 	if (platform->trl_msrs & TRL_LIMIT2)
-		dump_hsw_turbo_ratio_limits();
+		dump_turbo_ratio_limit2();
 
 	if (platform->trl_msrs & TRL_LIMIT1)
-		dump_ivt_turbo_ratio_limits();
+		dump_turbo_ratio_limit1();
 
 	if (platform->trl_msrs & TRL_BASE) {
 		dump_turbo_ratio_limits(MSR_TURBO_RATIO_LIMIT);
