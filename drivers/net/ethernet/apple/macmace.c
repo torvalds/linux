@@ -77,7 +77,7 @@ struct mace_frame {
 	u8	pad4;
 	u32	pad5;
 	u32	pad6;
-	u8	data[1];
+	DECLARE_FLEX_ARRAY(u8, data);
 	/* And frame continues.. */
 };
 
