@@ -27,11 +27,12 @@ struct ts_dmi_data {
 /* NOTE: Please keep all entries sorted alphabetically */
 
 static const struct property_entry archos_101_cesium_educ_props[] = {
-	PROPERTY_ENTRY_U32("touchscreen-size-x", 1280),
-	PROPERTY_ENTRY_U32("touchscreen-size-y", 1850),
-	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1850),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
 	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-archos-101-cesium-educ.fw"),
 	{ }
 };
