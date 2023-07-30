@@ -1034,7 +1034,7 @@
 			reg = <0x05000000 0x40000>;
 			reg-names = "kgsl_3d0_reg_memory";
 
-			interrupts = <0 300 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_GPU_CFG_AHB_CLK>,
 				<&gpucc GPUCC_RBBMTIMER_CLK>,
@@ -2290,50 +2290,50 @@
 
 			frame@17921000 {
 				frame-number = <0>;
-				interrupts = <0 8 0x4>,
-						<0 7 0x4>;
+				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17921000 0x1000>,
 					<0x17922000 0x1000>;
 			};
 
 			frame@17923000 {
 				frame-number = <1>;
-				interrupts = <0 9 0x4>;
+				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17923000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17924000 {
 				frame-number = <2>;
-				interrupts = <0 10 0x4>;
+				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17924000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17925000 {
 				frame-number = <3>;
-				interrupts = <0 11 0x4>;
+				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17925000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17926000 {
 				frame-number = <4>;
-				interrupts = <0 12 0x4>;
+				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17926000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17927000 {
 				frame-number = <5>;
-				interrupts = <0 13 0x4>;
+				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17927000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17928000 {
 				frame-number = <6>;
-				interrupts = <0 14 0x4>;
+				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17928000 0x1000>;
 				status = "disabled";
 			};

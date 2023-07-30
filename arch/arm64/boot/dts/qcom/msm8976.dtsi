@@ -439,7 +439,7 @@
 
 		hexagon_smsm: hexagon@1 {
 			reg = <1>;
-			interrupts = <0 290 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 290 IRQ_TYPE_EDGE_RISING>;
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
