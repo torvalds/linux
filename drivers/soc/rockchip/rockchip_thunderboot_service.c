@@ -76,7 +76,7 @@ EXPORT_SYMBOL(rk_tb_client_register_cb_head);
 
 static void do_mcu_done(struct rk_tb_serv *serv)
 {
-	struct rk_tb_client *client, *client_s;
+	struct rk_tb_client *client;
 	struct rockchip_mbox_msg msg;
 
 	rockchip_mbox_read_msg(serv->mbox_rx_chan, &msg);
@@ -97,12 +97,13 @@ static void do_mcu_done(struct rk_tb_serv *serv)
 			return;
 		}
 
-		list_for_each_entry_safe(client, client_s, &clients_list, node) {
+		while (!list_empty(&clients_list)) {
+			client = list_first_entry(&clients_list, struct rk_tb_client, node);
+			list_del(&client->node);
 			spin_unlock(&lock);
 			if (client->cb)
 				client->cb(client->data);
 			spin_lock(&lock);
-			list_del(&client->node);
 		}
 		atomic_set(&mcu_done, 1);
 		spin_unlock(&lock);
