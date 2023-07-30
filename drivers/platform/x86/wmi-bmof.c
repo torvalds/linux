@@ -75,7 +75,7 @@ static int wmi_bmof_probe(struct wmi_device *wdev, const void *context)
 	priv->bmof_bin_attr.read = read_bmof;
 	priv->bmof_bin_attr.size = priv->bmofdata->buffer.length;
 
-	ret = sysfs_create_bin_file(&wdev->dev.kobj, &priv->bmof_bin_attr);
+	ret = device_create_bin_file(&wdev->dev, &priv->bmof_bin_attr);
 	if (ret)
 		goto err_free;
 
@@ -90,7 +90,7 @@ static void wmi_bmof_remove(struct wmi_device *wdev)
 {
 	struct bmof_priv *priv = dev_get_drvdata(&wdev->dev);
 
-	sysfs_remove_bin_file(&wdev->dev.kobj, &priv->bmof_bin_attr);
+	device_remove_bin_file(&wdev->dev, &priv->bmof_bin_attr);
 	kfree(priv->bmofdata);
 }
 
