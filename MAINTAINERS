@@ -21643,11 +21643,17 @@ F:	Documentation/translations/zh_TW/
 TTY LAYER
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	Jiri Slaby <jirislaby@kernel.org>
+L:	linux-kernel@vger.kernel.org
+L:	linux-serial@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/tty.git
 F:	Documentation/driver-api/serial/
 F:	drivers/tty/
+F:	drivers/tty/serial/serial_base.h
+F:	drivers/tty/serial/serial_base_bus.c
 F:	drivers/tty/serial/serial_core.c
+F:	drivers/tty/serial/serial_ctrl.c
+F:	drivers/tty/serial/serial_port.c
 F:	include/linux/selection.h
 F:	include/linux/serial.h
 F:	include/linux/serial_core.h
