@@ -879,14 +879,14 @@ static int max98927_i2c_probe(struct i2c_client *i2c)
 	i2c_set_clientdata(i2c, max98927);
 
 	/* update interleave mode info */
-	if (!of_property_read_u32(i2c->dev.of_node,
-		"interleave_mode", &value)) {
-		if (value > 0)
-			max98927->interleave_mode = true;
-		else
-			max98927->interleave_mode = false;
-	} else
-		max98927->interleave_mode = false;
+	if (of_property_read_bool(i2c->dev.of_node, "maxim,interleave-mode")) {
+		max98927->interleave_mode = true;
+	} else {
+		if (!of_property_read_u32(i2c->dev.of_node, "interleave_mode",
+					  &value))
+			if (value > 0)
+				max98927->interleave_mode = true;
+	}
 
 	/* regmap initialization */
 	max98927->regmap
