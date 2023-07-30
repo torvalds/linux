@@ -154,27 +154,27 @@ otherwise identical operations.
 The 'code' field encodes the operation as below, where 'src' and 'dst' refer
 to the values of the source and destination registers, respectively.
 
-========  =====  =======  ==========================================================
-code      value  offset   description
-========  =====  =======  ==========================================================
-BPF_ADD   0x00   0        dst += src
-BPF_SUB   0x10   0        dst -= src
-BPF_MUL   0x20   0        dst \*= src
-BPF_DIV   0x30   0        dst = (src != 0) ? (dst / src) : 0
-BPF_SDIV  0x30   1        dst = (src != 0) ? (dst s/ src) : 0
-BPF_OR    0x40   0        dst \|= src
-BPF_AND   0x50   0        dst &= src
-BPF_LSH   0x60   0        dst <<= (src & mask)
-BPF_RSH   0x70   0        dst >>= (src & mask)
-BPF_NEG   0x80   0        dst = -dst
-BPF_MOD   0x90   0        dst = (src != 0) ? (dst % src) : dst
-BPF_SMOD  0x90   1        dst = (src != 0) ? (dst s% src) : dst
-BPF_XOR   0xa0   0        dst ^= src
-BPF_MOV   0xb0   0        dst = src
-BPF_MOVSX 0xb0   8/16/32  dst = (s8,s16,s32)src
-BPF_ARSH  0xc0   0        sign extending dst >>= (src & mask)
-BPF_END   0xd0   0        byte swap operations (see `Byte swap instructions`_ below)
-========  =====  =======  ==========================================================
+=========  =====  =======  ==========================================================
+code       value  offset   description
+=========  =====  =======  ==========================================================
+BPF_ADD    0x00   0        dst += src
+BPF_SUB    0x10   0        dst -= src
+BPF_MUL    0x20   0        dst \*= src
+BPF_DIV    0x30   0        dst = (src != 0) ? (dst / src) : 0
+BPF_SDIV   0x30   1        dst = (src != 0) ? (dst s/ src) : 0
+BPF_OR     0x40   0        dst \|= src
+BPF_AND    0x50   0        dst &= src
+BPF_LSH    0x60   0        dst <<= (src & mask)
+BPF_RSH    0x70   0        dst >>= (src & mask)
+BPF_NEG    0x80   0        dst = -dst
+BPF_MOD    0x90   0        dst = (src != 0) ? (dst % src) : dst
+BPF_SMOD   0x90   1        dst = (src != 0) ? (dst s% src) : dst
+BPF_XOR    0xa0   0        dst ^= src
+BPF_MOV    0xb0   0        dst = src
+BPF_MOVSX  0xb0   8/16/32  dst = (s8,s16,s32)src
+BPF_ARSH   0xc0   0        sign extending dst >>= (src & mask)
+BPF_END    0xd0   0        byte swap operations (see `Byte swap instructions`_ below)
+=========  =====  =======  ==========================================================
 
 Underflow and overflow are allowed during arithmetic operations, meaning
 the 64-bit or 32-bit value will wrap. If eBPF program execution would
@@ -396,6 +396,9 @@ instructions that transfer data between a register and memory.
 
 Where size is one of: ``BPF_B``, ``BPF_H``, ``BPF_W``, or ``BPF_DW`` and
 'unsigned size' is one of u8, u16, u32 or u64.
+
+Sign-extension load operations
+------------------------------
 
 The ``BPF_MEMSX`` mode modifier is used to encode sign-extension load
 instructions that transfer data between a register and memory.
