@@ -25,25 +25,13 @@ struct bmof_priv {
 	struct bin_attribute bmof_bin_attr;
 };
 
-static ssize_t
-read_bmof(struct file *filp, struct kobject *kobj,
-	 struct bin_attribute *attr,
-	 char *buf, loff_t off, size_t count)
+static ssize_t read_bmof(struct file *filp, struct kobject *kobj, struct bin_attribute *attr,
+			 char *buf, loff_t off, size_t count)
 {
-	struct bmof_priv *priv =
-		container_of(attr, struct bmof_priv, bmof_bin_attr);
+	struct bmof_priv *priv = container_of(attr, struct bmof_priv, bmof_bin_attr);
 
-	if (off < 0)
-		return -EINVAL;
-
-	if (off >= priv->bmofdata->buffer.length)
-		return 0;
-
-	if (count > priv->bmofdata->buffer.length - off)
-		count = priv->bmofdata->buffer.length - off;
-
-	memcpy(buf, priv->bmofdata->buffer.pointer + off, count);
-	return count;
+	return memory_read_from_buffer(buf, count, &off, priv->bmofdata->buffer.pointer,
+				       priv->bmofdata->buffer.length);
 }
 
 static int wmi_bmof_probe(struct wmi_device *wdev, const void *context)
