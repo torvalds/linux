@@ -125,7 +125,7 @@
 
 		vmon-slot-no = <1>;
 		imon-slot-no = <1>;
-		interleave_mode = <0>;
+		maxim,interleave-mode;
 
 		#sound-dai-cells = <0>;
 	};
