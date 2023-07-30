@@ -837,10 +837,11 @@ hp_i2c: &i2c9 {
 };
 
 &pm6150_adc {
-	charger-thermistor@4f {
+	channel@4f {
 		reg = <ADC5_AMUX_THM3_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
+		label = "charger_therm";
 	};
 };
 

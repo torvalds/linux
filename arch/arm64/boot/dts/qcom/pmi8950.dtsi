@@ -20,37 +20,37 @@
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
 
-			adc-chan@0 {
+			channel@0 {
 				reg = <VADC_USBIN>;
 				qcom,pre-scaling = <1 4>;
 				label = "usbin";
 			};
 
-			adc-chan@1 {
+			channel@1 {
 				reg = <VADC_DCIN>;
 				qcom,pre-scaling = <1 4>;
 				label = "dcin";
 			};
 
-			adc-chan@2 {
+			channel@2 {
 				reg = <VADC_VCHG_SNS>;
 				qcom,pre-scaling = <1 1>;
 				label = "vchg_sns";
 			};
 
-			adc-chan@9 {
+			channel@9 {
 				reg = <VADC_REF_625MV>;
 				qcom,pre-scaling = <1 1>;
 				label = "ref_625mv";
 			};
 
-			adc-chan@a {
+			channel@a {
 				reg = <VADC_REF_1250MV>;
 				qcom,pre-scaling = <1 1>;
 				label = "ref_1250mv";
 			};
 
-			adc-chan@d {
+			channel@d {
 				reg = <VADC_SPARE2>;
 				qcom,pre-scaling = <1 1>;
 				label = "chg_temp";
