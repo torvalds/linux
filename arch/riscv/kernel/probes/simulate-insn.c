@@ -188,3 +188,27 @@ bool __kprobes simulate_branch(u32 opcode, unsigned long addr, struct pt_regs *r
 
 	return true;
 }
+
+bool __kprobes simulate_c_j(u32 opcode, unsigned long addr, struct pt_regs *regs)
+{
+	/*
+	 *  15    13 12                            2 1      0
+	 * | funct3 | offset[11|4|9:8|10|6|7|3:1|5] | opcode |
+	 *     3                   11                    2
+	 */
+
+	s32 offset;
+
+	offset  = ((opcode >> 3)  & 0x7) << 1;
+	offset |= ((opcode >> 11) & 0x1) << 4;
+	offset |= ((opcode >> 2)  & 0x1) << 5;
+	offset |= ((opcode >> 7)  & 0x1) << 6;
+	offset |= ((opcode >> 6)  & 0x1) << 7;
+	offset |= ((opcode >> 9)  & 0x3) << 8;
+	offset |= ((opcode >> 8)  & 0x1) << 10;
+	offset |= ((opcode >> 12) & 0x1) << 11;
+
+	instruction_pointer_set(regs, addr + sign_extend32(offset, 11));
+
+	return true;
+}
