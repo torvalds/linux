@@ -131,6 +131,24 @@
 
 		status = "disabled";
 	};
+
+	gt917d_ts: touchscreen@5d {
+		compatible = "goodix,gt917d";
+		reg = <0x5d>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <65 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_default>;
+
+		reset-gpios = <&tlmm 64 GPIO_ACTIVE_HIGH>;
+
+		VDDIO-supply = <&pm8953_l6>;
+		AVDD28-supply = <&pm8953_l10>;
+
+		status = "disabled";
+	};
 };
 
 &ibb {
@@ -364,6 +382,14 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-up;
+	};
+
+	ts_int_default: ts-int-default {
+		pins = "gpio65";
+		function = "gpio";
+		drive-strength = <16>;
+		input-enable;
+		bias-disable;
 	};
 
 	ts_int_suspend: ts-int-suspend-state {

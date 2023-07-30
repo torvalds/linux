@@ -101,6 +101,13 @@
 	touchscreen-size-y = <2280>;
 };
 
+&gt917d_ts {
+	status = "okay";
+
+	touchscreen-size-x = <1080>;
+	touchscreen-size-y = <2280>;
+};
+
 &panel {
 	compatible = "xiaomi,daisy-panel";
 };
