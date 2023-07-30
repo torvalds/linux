@@ -4187,7 +4187,7 @@ BROADCOM KONA GPIO DRIVER
 M:	Ray Jui <rjui@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/gpio/brcm,kona-gpio.txt
+F:	Documentation/devicetree/bindings/gpio/brcm,kona-gpio.yaml
 F:	drivers/gpio/gpio-bcm-kona.c
 
 BROADCOM MPI3 STORAGE CONTROLLER DRIVER
