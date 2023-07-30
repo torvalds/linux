@@ -506,7 +506,7 @@ static inline int is_callback(u32 proc)
 }
 
 
-static int lockd_authenticate(struct svc_rqst *rqstp)
+static enum svc_auth_status lockd_authenticate(struct svc_rqst *rqstp)
 {
 	rqstp->rq_client = NULL;
 	switch (rqstp->rq_authop->flavour) {

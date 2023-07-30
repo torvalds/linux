@@ -1706,7 +1706,7 @@ TRACE_DEFINE_ENUM(SVC_DENIED);
 TRACE_DEFINE_ENUM(SVC_PENDING);
 TRACE_DEFINE_ENUM(SVC_COMPLETE);
 
-#define svc_show_status(status)				\
+#define show_svc_auth_status(status)			\
 	__print_symbolic(status,			\
 		{ SVC_GARBAGE,	"SVC_GARBAGE" },	\
 		{ SVC_SYSERR,	"SVC_SYSERR" },		\
@@ -1743,7 +1743,10 @@ TRACE_DEFINE_ENUM(SVC_COMPLETE);
 		__entry->xid, __get_sockaddr(server), __get_sockaddr(client)
 
 TRACE_EVENT_CONDITION(svc_authenticate,
-	TP_PROTO(const struct svc_rqst *rqst, int auth_res),
+	TP_PROTO(
+		const struct svc_rqst *rqst,
+		enum svc_auth_status auth_res
+	),
 
 	TP_ARGS(rqst, auth_res),
 
@@ -1766,7 +1769,7 @@ TRACE_EVENT_CONDITION(svc_authenticate,
 	TP_printk(SVC_RQST_ENDPOINT_FORMAT
 		" auth_res=%s auth_stat=%s",
 		SVC_RQST_ENDPOINT_VARARGS,
-		svc_show_status(__entry->svc_status),
+		show_svc_auth_status(__entry->svc_status),
 		rpc_show_auth_stat(__entry->auth_stat))
 );
 

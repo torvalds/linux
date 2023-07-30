@@ -1275,8 +1275,9 @@ svc_process_common(struct svc_rqst *rqstp)
 	const struct svc_procedure *procp = NULL;
 	struct svc_serv		*serv = rqstp->rq_server;
 	struct svc_process_info process;
-	int			auth_res, rc;
+	enum svc_auth_status	auth_res;
 	unsigned int		aoffset;
+	int			rc;
 	__be32			*p;
 
 	/* Will be turned off by GSS integrity and privacy services */
@@ -1331,6 +1332,9 @@ svc_process_common(struct svc_rqst *rqstp)
 		goto dropit;
 	case SVC_COMPLETE:
 		goto sendit;
+	default:
+		pr_warn_once("Unexpected svc_auth_status (%d)\n", auth_res);
+		goto err_system_err;
 	}
 
 	if (progp == NULL)
