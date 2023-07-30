@@ -212,3 +212,40 @@ bool __kprobes simulate_c_j(u32 opcode, unsigned long addr, struct pt_regs *regs
 
 	return true;
 }
+
+static bool __kprobes simulate_c_jr_jalr(u32 opcode, unsigned long addr, struct pt_regs *regs,
+					 bool is_jalr)
+{
+	/*
+	 *  15    12 11  7 6   2 1  0
+	 * | funct4 | rs1 | rs2 | op |
+	 *     4       5     5    2
+	 */
+
+	unsigned long jump_addr;
+
+	u32 rs1 = (opcode >> 7) & 0x1f;
+
+	if (rs1 == 0) /* C.JR is only valid when rs1 != x0 */
+		return false;
+
+	if (!rv_insn_reg_get_val(regs, rs1, &jump_addr))
+		return false;
+
+	if (is_jalr && !rv_insn_reg_set_val(regs, 1, addr + 2))
+		return false;
+
+	instruction_pointer_set(regs, jump_addr);
+
+	return true;
+}
+
+bool __kprobes simulate_c_jr(u32 opcode, unsigned long addr, struct pt_regs *regs)
+{
+	return simulate_c_jr_jalr(opcode, addr, regs, false);
+}
+
+bool __kprobes simulate_c_jalr(u32 opcode, unsigned long addr, struct pt_regs *regs)
+{
+	return simulate_c_jr_jalr(opcode, addr, regs, true);
+}
