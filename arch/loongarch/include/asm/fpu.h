@@ -218,15 +218,8 @@ static inline void restore_lsx(struct task_struct *t)
 
 static inline void init_lsx_upper(void)
 {
-	/*
-	 * Check cpu_has_lsx only if it's a constant. This will allow the
-	 * compiler to optimise out code for CPUs without LSX without adding
-	 * an extra redundant check for CPUs with LSX.
-	 */
-	if (__builtin_constant_p(cpu_has_lsx) && !cpu_has_lsx)
-		return;
-
-	_init_lsx_upper();
+	if (cpu_has_lsx)
+		_init_lsx_upper();
 }
 
 static inline void restore_lsx_upper(struct task_struct *t)
@@ -294,7 +287,7 @@ static inline void restore_lasx_upper(struct task_struct *t) {}
 
 static inline int thread_lsx_context_live(void)
 {
-	if (__builtin_constant_p(cpu_has_lsx) && !cpu_has_lsx)
+	if (!cpu_has_lsx)
 		return 0;
 
 	return test_thread_flag(TIF_LSX_CTX_LIVE);
@@ -302,7 +295,7 @@ static inline int thread_lsx_context_live(void)
 
 static inline int thread_lasx_context_live(void)
 {
-	if (__builtin_constant_p(cpu_has_lasx) && !cpu_has_lasx)
+	if (!cpu_has_lasx)
 		return 0;
 
 	return test_thread_flag(TIF_LASX_CTX_LIVE);

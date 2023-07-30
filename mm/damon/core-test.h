@@ -320,25 +320,25 @@ static void damon_test_update_monitoring_result(struct kunit *test)
 
 static void damon_test_set_attrs(struct kunit *test)
 {
-	struct damon_ctx ctx;
+	struct damon_ctx *c = damon_new_ctx();
 	struct damon_attrs valid_attrs = {
 		.min_nr_regions = 10, .max_nr_regions = 1000,
 		.sample_interval = 5000, .aggr_interval = 100000,};
 	struct damon_attrs invalid_attrs;
 
-	KUNIT_EXPECT_EQ(test, damon_set_attrs(&ctx, &valid_attrs), 0);
+	KUNIT_EXPECT_EQ(test, damon_set_attrs(c, &valid_attrs), 0);
 
 	invalid_attrs = valid_attrs;
 	invalid_attrs.min_nr_regions = 1;
-	KUNIT_EXPECT_EQ(test, damon_set_attrs(&ctx, &invalid_attrs), -EINVAL);
+	KUNIT_EXPECT_EQ(test, damon_set_attrs(c, &invalid_attrs), -EINVAL);
 
 	invalid_attrs = valid_attrs;
 	invalid_attrs.max_nr_regions = 9;
-	KUNIT_EXPECT_EQ(test, damon_set_attrs(&ctx, &invalid_attrs), -EINVAL);
+	KUNIT_EXPECT_EQ(test, damon_set_attrs(c, &invalid_attrs), -EINVAL);
 
 	invalid_attrs = valid_attrs;
 	invalid_attrs.aggr_interval = 4999;
-	KUNIT_EXPECT_EQ(test, damon_set_attrs(&ctx, &invalid_attrs), -EINVAL);
+	KUNIT_EXPECT_EQ(test, damon_set_attrs(c, &invalid_attrs), -EINVAL);
 }
 
 static struct kunit_case damon_test_cases[] = {
