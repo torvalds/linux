@@ -3452,7 +3452,7 @@ endpoint_tests()
 		chk_mptcp_info subflows 1 subflows 1
 		chk_mptcp_info add_addr_signal 1 add_addr_accepted 1
 
-		pm_nl_add_endpoint $ns2 10.0.2.2 id 33
+		pm_nl_add_endpoint $ns2 10.0.2.2 id 33 2>/dev/null
 		pm_nl_check_endpoint "ID change is prevented" \
 			$ns2 10.0.2.2 id 1 flags implicit
 
