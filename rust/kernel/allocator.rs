@@ -51,6 +51,33 @@ unsafe impl GlobalAlloc for KernelAllocator {
             bindings::kfree(ptr as *const core::ffi::c_void);
         }
     }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        // SAFETY:
+        // - `new_size`, when rounded up to the nearest multiple of `layout.align()`, will not
+        //   overflow `isize` by the function safety requirement.
+        // - `layout.align()` is a proper alignment (i.e. not zero and must be a power of two).
+        let layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
+
+        // SAFETY:
+        // - `ptr` is either null or a pointer allocated by this allocator by the function safety
+        //   requirement.
+        // - the size of `layout` is not zero because `new_size` is not zero by the function safety
+        //   requirement.
+        unsafe { krealloc_aligned(ptr, layout, bindings::GFP_KERNEL) }
+    }
+
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        // SAFETY: `ptr::null_mut()` is null and `layout` has a non-zero size by the function safety
+        // requirement.
+        unsafe {
+            krealloc_aligned(
+                ptr::null_mut(),
+                layout,
+                bindings::GFP_KERNEL | bindings::__GFP_ZERO,
+            )
+        }
+    }
 }
 
 #[global_allocator]
