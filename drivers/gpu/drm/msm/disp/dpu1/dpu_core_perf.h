@@ -79,12 +79,6 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc);
 
 /**
- * dpu_core_perf_destroy - destroy the given core performance context
- * @perf: Pointer to core performance context
- */
-void dpu_core_perf_destroy(struct dpu_core_perf *perf);
-
-/**
  * dpu_core_perf_init - initialize the given core performance context
  * @perf: Pointer to core performance context
  * @perf_cfg: Pointer to platform performance configuration
