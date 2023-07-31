@@ -110,7 +110,7 @@ static void altera_jtaguart_set_termios(struct uart_port *port,
 
 static void altera_jtaguart_rx_chars(struct uart_port *port)
 {
-	unsigned long status;
+	u32 status;
 	u8 ch;
 
 	while ((status = readl(port->membase + ALTERA_JTAGUART_DATA_REG)) &
