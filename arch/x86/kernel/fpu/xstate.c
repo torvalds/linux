@@ -1736,7 +1736,6 @@ EXPORT_SYMBOL_GPL(xstate_get_guest_group_perm);
 
 /**
  * fpu_xstate_prctl - xstate permission operations
- * @tsk:	Redundant pointer to current
  * @option:	A subfunction of arch_prctl()
  * @arg2:	option argument
  * Return:	0 if successful; otherwise, an error code
