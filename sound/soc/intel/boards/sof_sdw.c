@@ -1584,12 +1584,12 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 {
 	struct device *dev = card->dev;
 	struct snd_soc_acpi_mach *mach = dev_get_platdata(card->dev);
-	int ssp_num, sdw_be_num = 0, hdmi_num = 0, dmic_num;
+	int sdw_be_num = 0, ssp_num = 0, dmic_num = 0, hdmi_num = 0, bt_num = 0;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai_link_component *idisp_components;
 	struct snd_soc_dai_link_component *ssp_components;
-	struct snd_soc_acpi_mach_params *mach_params;
-	const struct snd_soc_acpi_link_adr *adr_link;
+	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
+	const struct snd_soc_acpi_link_adr *adr_link = mach_params->links;
 	struct snd_soc_dai_link_component *cpus;
 	struct snd_soc_codec_conf *codec_conf;
 	bool append_dai_type = false;
@@ -1606,15 +1606,30 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	int i, j, be_id = 0;
 	int codec_index;
 	int cpu_id = 0;
-	int comp_num;
 	int ret;
-
-	mach_params = &mach->mach_params;
 
 	/* allocate codec conf, will be populated when dailinks are created */
 	ret = sof_card_codec_conf_alloc(dev, mach_params, &codec_conf, &codec_conf_count);
 	if (ret < 0)
 		return ret;
+
+	ret = get_sdw_dailink_info(dev, adr_link, &sdw_be_num, &sdw_cpu_dai_num);
+	if (ret < 0) {
+		dev_err(dev, "failed to get sdw link info %d\n", ret);
+		return ret;
+	}
+
+	/*
+	 * on generic tgl platform, I2S or sdw mode is supported
+	 * based on board rework. A ACPI device is registered in
+	 * system only when I2S mode is supported, not sdw mode.
+	 * Here check ACPI ID to confirm I2S is supported.
+	 */
+	ssp_codec_index = find_codec_info_acpi(mach->id);
+	if (ssp_codec_index >= 0) {
+		ssp_mask = SOF_SSP_GET_PORT(sof_sdw_quirk);
+		ssp_num = hweight_long(ssp_mask);
+	}
 
 	if (mach_params->codec_mask & IDISP_CODEC_MASK) {
 		ctx->idisp_codec = true;
@@ -1625,44 +1640,26 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 			hdmi_num = SOF_PRE_TGL_HDMI_COUNT;
 	}
 
-	ssp_mask = SOF_SSP_GET_PORT(sof_sdw_quirk);
-	/*
-	 * on generic tgl platform, I2S or sdw mode is supported
-	 * based on board rework. A ACPI device is registered in
-	 * system only when I2S mode is supported, not sdw mode.
-	 * Here check ACPI ID to confirm I2S is supported.
-	 */
-	ssp_codec_index = find_codec_info_acpi(mach->id);
-	ssp_num = ssp_codec_index >= 0 ? hweight_long(ssp_mask) : 0;
-	comp_num = hdmi_num + ssp_num;
-
-	ret = get_sdw_dailink_info(dev, mach_params->links,
-				   &sdw_be_num, &sdw_cpu_dai_num);
-	if (ret < 0) {
-		dev_err(dev, "failed to get sdw link info %d", ret);
-		return ret;
-	}
-
 	/* enable dmic01 & dmic16k */
-	dmic_num = (sof_sdw_quirk & SOF_SDW_PCH_DMIC || mach_params->dmic_num) ? 2 : 0;
-	comp_num += dmic_num;
+	if (sof_sdw_quirk & SOF_SDW_PCH_DMIC || mach_params->dmic_num)
+		dmic_num = 2;
 
 	if (sof_sdw_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
-		comp_num++;
+		bt_num = 1;
 
-	dev_dbg(dev, "sdw %d, ssp %d, dmic %d, hdmi %d", sdw_be_num, ssp_num,
-		dmic_num, ctx->idisp_codec ? hdmi_num : 0);
+	dev_dbg(dev, "sdw %d, ssp %d, dmic %d, hdmi %d, bt: %d\n",
+		sdw_be_num, ssp_num, dmic_num, hdmi_num, bt_num);
 
 	/* allocate BE dailinks */
-	num_links = comp_num + sdw_be_num;
+	num_links = sdw_be_num + ssp_num + dmic_num + hdmi_num + bt_num;
 	dai_links = devm_kcalloc(dev, num_links, sizeof(*dai_links), GFP_KERNEL);
+	if (!dai_links)
+		return -ENOMEM;
 
 	/* allocated CPU DAIs */
-	total_cpu_dai_num = comp_num + sdw_cpu_dai_num;
-	cpus = devm_kcalloc(dev, total_cpu_dai_num, sizeof(*cpus),
-			    GFP_KERNEL);
-
-	if (!dai_links || !cpus)
+	total_cpu_dai_num = sdw_cpu_dai_num + ssp_num + dmic_num + hdmi_num + bt_num;
+	cpus = devm_kcalloc(dev, total_cpu_dai_num, sizeof(*cpus), GFP_KERNEL);
+	if (!cpus)
 		return -ENOMEM;
 
 	/* SDW */
