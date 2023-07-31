@@ -335,9 +335,12 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 			password_data->max_password_length = int_value;
 			break;
 		case PSWD_SIZE:
-			password_data->encodings_size = int_value;
-			if (int_value > MAX_ENCODINGS_SIZE)
+
+			if (int_value > MAX_ENCODINGS_SIZE) {
 				pr_warn("Password Encoding size value exceeded the maximum number of elements supported or data may be malformed\n");
+				int_value = MAX_ENCODINGS_SIZE;
+			}
+			password_data->encodings_size = int_value;
 
 			/* This step is needed to keep the expected
 			 * element list pointing to the right obj[elem].type
