@@ -974,7 +974,7 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 	},
 };
 
-static inline int find_codec_info_part(u64 adr)
+static inline int find_codec_info_part(const u64 adr)
 {
 	unsigned int part_id, sdw_version;
 	int i;
