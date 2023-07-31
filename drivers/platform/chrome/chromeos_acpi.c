@@ -235,9 +235,9 @@ static int chromeos_acpi_device_probe(struct platform_device *pdev)
 	return 0;
 }
 
-/* GGL is valid PNP ID of Google. PNP ID can be used with the ACPI devices. */
 static const struct acpi_device_id chromeos_device_ids[] = {
 	{ "GGL0001", 0 },
+	{ "GOOG0016", 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, chromeos_device_ids);
