@@ -1157,6 +1157,15 @@ static int create_codec_dai_name(struct device *dev,
 
 		adr = adr_link->adr_d[i].adr;
 
+		codec_index = find_codec_info_part(adr);
+		if (codec_index < 0)
+			return codec_index;
+		if (_codec_index != -1 && codec_index != _codec_index) {
+			dev_dbg(dev, "Different devices on the same sdw link\n");
+			break;
+		}
+		_codec_index = codec_index;
+
 		sdw_version = SDW_VERSION(adr);
 		link_id = SDW_DISCO_LINK_ID(adr);
 		unique_id = SDW_UNIQUE_ID(adr);
@@ -1182,15 +1191,6 @@ static int create_codec_dai_name(struct device *dev,
 
 		if (!codec[comp_index].name)
 			return -ENOMEM;
-
-		codec_index = find_codec_info_part(adr);
-		if (codec_index < 0)
-			return codec_index;
-		if (_codec_index != -1 && codec_index != _codec_index) {
-			dev_dbg(dev, "Different devices on the same sdw link\n");
-			break;
-		}
-		_codec_index = codec_index;
 
 		codec[comp_index].dai_name =
 			codec_info_list[codec_index].dais[dai_index].dai_name;
