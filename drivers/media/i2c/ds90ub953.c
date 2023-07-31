@@ -25,6 +25,8 @@
 #include <media/i2c/ds90ub9xx.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
+#include <media/v4l2-fwnode.h>
+#include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
 #define UB953_PAD_SINK			0
@@ -1111,7 +1113,11 @@ static const struct regmap_config ub953_regmap_config = {
 static int ub953_parse_dt(struct ub953_data *priv)
 {
 	struct device *dev = &priv->client->dev;
+	struct v4l2_fwnode_endpoint vep = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY,
+	};
 	struct fwnode_handle *ep_fwnode;
+	unsigned char nlanes;
 	int ret;
 
 	ep_fwnode = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev),
@@ -1119,19 +1125,20 @@ static int ub953_parse_dt(struct ub953_data *priv)
 	if (!ep_fwnode)
 		return dev_err_probe(dev, -ENOENT, "no endpoint found\n");
 
-	ret = fwnode_property_count_u32(ep_fwnode, "data-lanes");
+	ret = v4l2_fwnode_endpoint_parse(ep_fwnode, &vep);
 
 	fwnode_handle_put(ep_fwnode);
 
-	if (ret < 0)
+	if (ret)
 		return dev_err_probe(dev, ret,
-				     "failed to parse property 'data-lanes'\n");
+				     "failed to parse sink endpoint data\n");
 
-	if (ret != 1 && ret != 2 && ret != 4)
+	nlanes = vep.bus.mipi_csi2.num_data_lanes;
+	if (nlanes != 1 && nlanes != 2 && nlanes != 4)
 		return dev_err_probe(dev, -EINVAL,
-				     "bad number of data-lanes: %d\n", ret);
+				     "bad number of data-lanes: %u\n", nlanes);
 
-	priv->num_data_lanes = ret;
+	priv->num_data_lanes = nlanes;
 
 	return 0;
 }
