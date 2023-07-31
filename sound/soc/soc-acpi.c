@@ -181,16 +181,16 @@ bool snd_soc_acpi_sdw_link_slaves_found(struct device *dev,
 				unique_id = SDW_UNIQUE_ID(adr);
 				if (reported_part_count == 1 ||
 				    ids[j].id.unique_id == unique_id) {
-					dev_dbg(dev, "found %x at link %d\n", part_id, link_id);
+					dev_dbg(dev, "found part_id %#x at link %d\n", part_id, link_id);
 					break;
 				}
 			} else {
-				dev_dbg(dev, "part %x reported %d expected %d on link %d, skipping\n",
+				dev_dbg(dev, "part_id %#x reported %d expected %d on link %d, skipping\n",
 					part_id, reported_part_count, expected_part_count, link_id);
 			}
 		}
 		if (j == num_slaves) {
-			dev_dbg(dev, "Slave %x not found\n", part_id);
+			dev_dbg(dev, "Slave part_id %#x not found\n", part_id);
 			return false;
 		}
 	}
