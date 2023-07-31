@@ -381,12 +381,6 @@ void stack_free(unsigned long stack)
 #endif
 }
 
-void __init __noreturn arch_call_rest_init(void)
-{
-	smp_reinit_ipl_cpu();
-	rest_init();
-}
-
 static unsigned long __init stack_alloc_early(void)
 {
 	unsigned long stack;
