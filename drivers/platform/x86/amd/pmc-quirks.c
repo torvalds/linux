@@ -11,7 +11,6 @@
 #include <linux/dmi.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 
 #include "pmc.h"
 
@@ -135,12 +134,10 @@ static const struct dmi_system_id fwbug_list[] = {
  */
 static void amd_pmc_skip_nvme_smi_handler(u32 s2idle_bug_mmio)
 {
-	struct resource *res;
 	void __iomem *addr;
 	u8 val;
 
-	res = request_mem_region_muxed(s2idle_bug_mmio, 1, "amd_pmc_pm80");
-	if (!res)
+	if (!request_mem_region_muxed(s2idle_bug_mmio, 1, "amd_pmc_pm80"))
 		return;
 
 	addr = ioremap(s2idle_bug_mmio, 1);
@@ -152,8 +149,7 @@ static void amd_pmc_skip_nvme_smi_handler(u32 s2idle_bug_mmio)
 
 	iounmap(addr);
 cleanup_resource:
-	release_resource(res);
-	kfree(res);
+	release_mem_region(s2idle_bug_mmio, 1);
 }
 
 void amd_pmc_process_restore_quirks(struct amd_pmc_dev *dev)

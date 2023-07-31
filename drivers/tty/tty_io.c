@@ -2285,7 +2285,7 @@ static int tiocsti(struct tty_struct *tty, char __user *p)
 	char ch, mbz = 0;
 	struct tty_ldisc *ld;
 
-	if (!tty_legacy_tiocsti)
+	if (!tty_legacy_tiocsti && !capable(CAP_SYS_ADMIN))
 		return -EIO;
 
 	if ((current->signal->tty != tty) && !capable(CAP_SYS_ADMIN))
