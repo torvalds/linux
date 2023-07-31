@@ -240,9 +240,11 @@ static int hp_populate_enumeration_elements_from_package(union acpi_object *enum
 				str_value, sizeof(enum_data->current_value));
 			break;
 		case ENUM_SIZE:
-			enum_data->possible_values_size = int_value;
-			if (int_value > MAX_VALUES_SIZE)
+			if (int_value > MAX_VALUES_SIZE) {
 				pr_warn("Possible number values size value exceeded the maximum number of elements supported or data may be malformed\n");
+				int_value = MAX_VALUES_SIZE;
+			}
+			enum_data->possible_values_size = int_value;
 
 			/*
 			 * This step is needed to keep the expected
