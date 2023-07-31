@@ -224,9 +224,8 @@ static inline void st_wakeup_ack(struct st_data_s *st_gdata,
  *	CH-8 packets from FM, CH-9 packets from GPS cores.
  */
 static void st_int_recv(void *disc_data,
-	const unsigned char *data, long count)
+	const unsigned char *ptr, long count)
 {
-	char *ptr;
 	struct st_proto_s *proto;
 	unsigned short payload_len = 0;
 	int len = 0;
@@ -235,7 +234,6 @@ static void st_int_recv(void *disc_data,
 	struct st_data_s *st_gdata = (struct st_data_s *)disc_data;
 	unsigned long flags;
 
-	ptr = (char *)data;
 	/* tty_receive sent null ? */
 	if (unlikely(ptr == NULL) || (st_gdata == NULL)) {
 		pr_err(" received null from TTY ");

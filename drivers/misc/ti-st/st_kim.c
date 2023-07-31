@@ -128,15 +128,13 @@ static inline int kim_check_data_len(struct kim_data_s *kim_gdata, int len)
  *	tty_receive and hence the logic
  */
 static void kim_int_recv(struct kim_data_s *kim_gdata,
-	const unsigned char *data, long count)
+	const unsigned char *ptr, long count)
 {
-	const unsigned char *ptr;
 	int len = 0;
 	unsigned char *plen;
 
 	pr_debug("%s", __func__);
 	/* Decode received bytes here */
-	ptr = data;
 	if (unlikely(ptr == NULL)) {
 		pr_err(" received null from TTY ");
 		return;
