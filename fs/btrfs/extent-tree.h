@@ -48,16 +48,11 @@ struct find_free_extent_ctl {
 	int loop;
 
 	/*
-	 * Whether we're refilling a cluster, if true we need to re-search
-	 * current block group but don't try to refill the cluster again.
+	 * Set to true if we're retrying the allocation on this block group
+	 * after waiting for caching progress, this is so that we retry only
+	 * once before moving on to another block group.
 	 */
-	bool retry_clustered;
-
-	/*
-	 * Whether we're updating free space cache, if true we need to re-search
-	 * current block group but don't try updating free space cache again.
-	 */
-	bool retry_unclustered;
+	bool retry_uncached;
 
 	/* If current block group is cached */
 	int cached;

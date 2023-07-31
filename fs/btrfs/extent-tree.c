@@ -3481,7 +3481,6 @@ btrfs_release_block_group(struct btrfs_block_group *cache,
  * Helper function for find_free_extent().
  *
  * Return -ENOENT to inform caller that we need fallback to unclustered mode.
- * Return -EAGAIN to inform caller that we need to re-search this block group
  * Return >0 to inform caller that we find nothing
  * Return 0 means we have found a location and set ffe_ctl->found_offset.
  */
@@ -3562,14 +3561,6 @@ refill_cluster:
 			trace_btrfs_reserve_extent_cluster(bg, ffe_ctl);
 			return 0;
 		}
-	} else if (!ffe_ctl->cached && ffe_ctl->loop > LOOP_CACHING_NOWAIT &&
-		   !ffe_ctl->retry_clustered) {
-		spin_unlock(&last_ptr->refill_lock);
-
-		ffe_ctl->retry_clustered = true;
-		btrfs_wait_block_group_cache_progress(bg, ffe_ctl->num_bytes +
-				ffe_ctl->empty_cluster + ffe_ctl->empty_size);
-		return -EAGAIN;
 	}
 	/*
 	 * At this point we either didn't find a cluster or we weren't able to
@@ -3584,7 +3575,6 @@ refill_cluster:
 /*
  * Return >0 to inform caller that we find nothing
  * Return 0 when we found an free extent and set ffe_ctrl->found_offset
- * Return -EAGAIN to inform caller that we need to re-search this block group
  */
 static int find_free_extent_unclustered(struct btrfs_block_group *bg,
 					struct find_free_extent_ctl *ffe_ctl)
@@ -3622,25 +3612,8 @@ static int find_free_extent_unclustered(struct btrfs_block_group *bg,
 	offset = btrfs_find_space_for_alloc(bg, ffe_ctl->search_start,
 			ffe_ctl->num_bytes, ffe_ctl->empty_size,
 			&ffe_ctl->max_extent_size);
-
-	/*
-	 * If we didn't find a chunk, and we haven't failed on this block group
-	 * before, and this block group is in the middle of caching and we are
-	 * ok with waiting, then go ahead and wait for progress to be made, and
-	 * set @retry_unclustered to true.
-	 *
-	 * If @retry_unclustered is true then we've already waited on this
-	 * block group once and should move on to the next block group.
-	 */
-	if (!offset && !ffe_ctl->retry_unclustered && !ffe_ctl->cached &&
-	    ffe_ctl->loop > LOOP_CACHING_NOWAIT) {
-		btrfs_wait_block_group_cache_progress(bg, ffe_ctl->num_bytes +
-						      ffe_ctl->empty_size);
-		ffe_ctl->retry_unclustered = true;
-		return -EAGAIN;
-	} else if (!offset) {
+	if (!offset)
 		return 1;
-	}
 	ffe_ctl->found_offset = offset;
 	return 0;
 }
@@ -3654,7 +3627,7 @@ static int do_allocation_clustered(struct btrfs_block_group *block_group,
 	/* We want to try and use the cluster allocator, so lets look there */
 	if (ffe_ctl->last_ptr && ffe_ctl->use_cluster) {
 		ret = find_free_extent_clustered(block_group, ffe_ctl, bg_ret);
-		if (ret >= 0 || ret == -EAGAIN)
+		if (ret >= 0)
 			return ret;
 		/* ret == -ENOENT case falls through */
 	}
@@ -3872,8 +3845,7 @@ static void release_block_group(struct btrfs_block_group *block_group,
 {
 	switch (ffe_ctl->policy) {
 	case BTRFS_EXTENT_ALLOC_CLUSTERED:
-		ffe_ctl->retry_clustered = false;
-		ffe_ctl->retry_unclustered = false;
+		ffe_ctl->retry_uncached = false;
 		break;
 	case BTRFS_EXTENT_ALLOC_ZONED:
 		/* Nothing to do */
@@ -4220,9 +4192,7 @@ static noinline int find_free_extent(struct btrfs_root *root,
 	ffe_ctl->orig_have_caching_bg = false;
 	ffe_ctl->index = btrfs_bg_flags_to_raid_index(ffe_ctl->flags);
 	ffe_ctl->loop = 0;
-	/* For clustered allocation */
-	ffe_ctl->retry_clustered = false;
-	ffe_ctl->retry_unclustered = false;
+	ffe_ctl->retry_uncached = false;
 	ffe_ctl->cached = 0;
 	ffe_ctl->max_extent_size = 0;
 	ffe_ctl->total_free_space = 0;
@@ -4373,16 +4343,12 @@ have_block_group:
 
 		bg_ret = NULL;
 		ret = do_allocation(block_group, ffe_ctl, &bg_ret);
-		if (ret == 0) {
-			if (bg_ret && bg_ret != block_group) {
-				btrfs_release_block_group(block_group,
-							  ffe_ctl->delalloc);
-				block_group = bg_ret;
-			}
-		} else if (ret == -EAGAIN) {
-			goto have_block_group;
-		} else if (ret > 0) {
+		if (ret > 0)
 			goto loop;
+
+		if (bg_ret && bg_ret != block_group) {
+			btrfs_release_block_group(block_group, ffe_ctl->delalloc);
+			block_group = bg_ret;
 		}
 
 		/* Checks */
@@ -4423,6 +4389,15 @@ have_block_group:
 		btrfs_release_block_group(block_group, ffe_ctl->delalloc);
 		break;
 loop:
+		if (!ffe_ctl->cached && ffe_ctl->loop > LOOP_CACHING_NOWAIT &&
+		    !ffe_ctl->retry_uncached) {
+			ffe_ctl->retry_uncached = true;
+			btrfs_wait_block_group_cache_progress(block_group,
+						ffe_ctl->num_bytes +
+						ffe_ctl->empty_cluster +
+						ffe_ctl->empty_size);
+			goto have_block_group;
+		}
 		release_block_group(block_group, ffe_ctl, ffe_ctl->delalloc);
 		cond_resched();
 	}
