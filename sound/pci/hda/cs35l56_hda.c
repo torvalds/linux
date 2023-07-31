@@ -536,10 +536,6 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	cs35l56_hda_request_firmware_files(cs35l56, &wmfw_firmware, &wmfw_filename,
 					   &coeff_firmware, &coeff_filename);
 
-	/* Nothing to do - no firmware files were found to download */
-	if (!wmfw_filename && !coeff_filename)
-		return 0;
-
 	mutex_lock(&cs35l56->base.irq_lock);
 	pm_runtime_get_sync(cs35l56->base.dev);
 
@@ -549,7 +545,7 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	 * shutdown the firmware to apply them and can use the lower cost
 	 * reinit sequence instead.
 	 */
-	if (!cs35l56->base.secured) {
+	if (!cs35l56->base.secured && (wmfw_firmware || coeff_firmware)) {
 		ret = cs35l56_firmware_shutdown(&cs35l56->base);
 		if (ret)
 			goto err;
@@ -572,8 +568,8 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 		ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_REINIT);
 		if (ret)
 			goto err;
-	} else {
-		/* Reset the device and wait for it to boot */
+	} else if (wmfw_firmware || coeff_firmware) {
+		/* If we downloaded firmware, reset the device and wait for it to boot */
 		cs35l56_system_reset(&cs35l56->base, false);
 		regcache_mark_dirty(cs35l56->base.regmap);
 		ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
