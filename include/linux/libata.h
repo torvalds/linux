@@ -344,7 +344,6 @@ enum {
 	ATA_LINK_RESUME_TRIES	= 5,
 
 	/* how hard are we gonna try to probe/recover devices */
-	ATA_PROBE_MAX_TRIES	= 3,
 	ATA_EH_DEV_TRIES	= 3,
 	ATA_EH_PMP_TRIES	= 5,
 	ATA_EH_PMP_LINK_TRIES	= 3,

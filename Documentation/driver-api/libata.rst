@@ -32,22 +32,6 @@ register blocks.
 :c:type:`struct ata_port_operations <ata_port_operations>`
 ----------------------------------------------------------
 
-Disable ATA port
-~~~~~~~~~~~~~~~~
-
-::
-
-    void (*port_disable) (struct ata_port *);
-
-
-Called from :c:func:`ata_bus_probe` error path, as well as when unregistering
-from the SCSI module (rmmod, hot unplug). This function should do
-whatever needs to be done to take the port out of use. In most cases,
-:c:func:`ata_port_disable` can be used as this hook.
-
-Called from :c:func:`ata_bus_probe` on a failed probe. Called from
-:c:func:`ata_scsi_release`.
-
 Post-IDENTIFY device configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
