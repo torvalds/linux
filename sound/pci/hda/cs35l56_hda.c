@@ -569,6 +569,7 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	} else {
 		/* Reset the device and wait for it to boot */
 		cs35l56_system_reset(&cs35l56->base, false);
+		regcache_mark_dirty(cs35l56->base.regmap);
 		ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
 		if (ret)
 			goto err;
@@ -579,7 +580,6 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	if (ret)
 		goto err;
 
-	regcache_mark_dirty(cs35l56->base.regmap);
 	regcache_sync(cs35l56->base.regmap);
 
 	regmap_clear_bits(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS,
