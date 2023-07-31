@@ -243,9 +243,12 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 			break;
 
 		case ORD_LIST_SIZE:
+			if (int_value > MAX_ELEMENTS_SIZE) {
+				pr_warn("Order List size value exceeded the maximum number of elements supported or data may be malformed\n");
+				int_value = MAX_ELEMENTS_SIZE;
+			}
 			ordered_list_data->elements_size = int_value;
-			if (int_value > MAX_ELEMENTS_SIZE)
-				pr_warn("Ordered List size value exceeded the maximum number of elements supported or data may be malformed\n");
+
 			/*
 			 * This step is needed to keep the expected
 			 * element list pointing to the right obj[elem].type
