@@ -983,9 +983,8 @@ ice_lag_set_swid(u16 primary_swid, struct ice_lag *local_lag,
 	/* if unlinnking need to free the shared resource */
 	if (!link && local_lag->bond_swid) {
 		buf->elem[0].e.sw_resp = cpu_to_le16(local_lag->bond_swid);
-		status = ice_aq_alloc_free_res(&local_lag->pf->hw, 1, buf,
-					       buf_len, ice_aqc_opc_free_res,
-					       NULL);
+		status = ice_aq_alloc_free_res(&local_lag->pf->hw, buf,
+					       buf_len, ice_aqc_opc_free_res);
 		if (status)
 			dev_err(ice_pf_to_dev(local_lag->pf), "Error freeing SWID during LAG unlink\n");
 		local_lag->bond_swid = 0;
@@ -1002,8 +1001,8 @@ ice_lag_set_swid(u16 primary_swid, struct ice_lag *local_lag,
 			cpu_to_le16(local_lag->pf->hw.port_info->sw_id);
 	}
 
-	status = ice_aq_alloc_free_res(&local_lag->pf->hw, 1, buf, buf_len,
-				       ice_aqc_opc_alloc_res, NULL);
+	status = ice_aq_alloc_free_res(&local_lag->pf->hw, buf, buf_len,
+				       ice_aqc_opc_alloc_res);
 	if (status)
 		dev_err(ice_pf_to_dev(local_lag->pf), "Error subscribing to SWID 0x%04X\n",
 			local_lag->bond_swid);

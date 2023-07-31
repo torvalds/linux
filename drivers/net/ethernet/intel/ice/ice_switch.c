@@ -1847,7 +1847,7 @@ ice_aq_alloc_free_vsi_list(struct ice_hw *hw, u16 *vsi_list_id,
 	if (opc == ice_aqc_opc_free_res)
 		sw_buf->elem[0].e.sw_resp = cpu_to_le16(*vsi_list_id);
 
-	status = ice_aq_alloc_free_res(hw, 1, sw_buf, buf_len, opc, NULL);
+	status = ice_aq_alloc_free_res(hw, sw_buf, buf_len, opc);
 	if (status)
 		goto ice_aq_alloc_free_vsi_list_exit;
 
@@ -2101,8 +2101,8 @@ int ice_alloc_recipe(struct ice_hw *hw, u16 *rid)
 	sw_buf->res_type = cpu_to_le16((ICE_AQC_RES_TYPE_RECIPE <<
 					ICE_AQC_RES_TYPE_S) |
 					ICE_AQC_RES_TYPE_FLAG_SHARED);
-	status = ice_aq_alloc_free_res(hw, 1, sw_buf, buf_len,
-				       ice_aqc_opc_alloc_res, NULL);
+	status = ice_aq_alloc_free_res(hw, sw_buf, buf_len,
+				       ice_aqc_opc_alloc_res);
 	if (!status)
 		*rid = le16_to_cpu(sw_buf->elem[0].e.sw_resp);
 	kfree(sw_buf);
@@ -4448,8 +4448,7 @@ ice_alloc_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
 	buf->res_type = cpu_to_le16(((type << ICE_AQC_RES_TYPE_S) &
 				      ICE_AQC_RES_TYPE_M) | alloc_shared);
 
-	status = ice_aq_alloc_free_res(hw, 1, buf, buf_len,
-				       ice_aqc_opc_alloc_res, NULL);
+	status = ice_aq_alloc_free_res(hw, buf, buf_len, ice_aqc_opc_alloc_res);
 	if (status)
 		goto exit;
 
@@ -4487,8 +4486,7 @@ ice_free_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
 				      ICE_AQC_RES_TYPE_M) | alloc_shared);
 	buf->elem[0].e.sw_resp = cpu_to_le16(counter_id);
 
-	status = ice_aq_alloc_free_res(hw, 1, buf, buf_len,
-				       ice_aqc_opc_free_res, NULL);
+	status = ice_aq_alloc_free_res(hw, buf, buf_len, ice_aqc_opc_free_res);
 	if (status)
 		ice_debug(hw, ICE_DBG_SW, "counter resource could not be freed\n");
 
@@ -4530,8 +4528,8 @@ int ice_share_res(struct ice_hw *hw, u16 type, u8 shared, u16 res_id)
 					    ~ICE_AQC_RES_TYPE_FLAG_SHARED);
 
 	buf->elem[0].e.sw_resp = cpu_to_le16(res_id);
-	status = ice_aq_alloc_free_res(hw, 1, buf, buf_len,
-				       ice_aqc_opc_share_res, NULL);
+	status = ice_aq_alloc_free_res(hw, buf, buf_len,
+				       ice_aqc_opc_share_res);
 	if (status)
 		ice_debug(hw, ICE_DBG_SW, "Could not set resource type %u id %u to %s\n",
 			  type, res_id, shared ? "SHARED" : "DEDICATED");
