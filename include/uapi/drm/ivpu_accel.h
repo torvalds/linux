@@ -60,6 +60,7 @@ extern "C" {
 #define DRM_IVPU_PARAM_UNIQUE_INFERENCE_ID  10
 #define DRM_IVPU_PARAM_TILE_CONFIG	    11
 #define DRM_IVPU_PARAM_SKU		    12
+#define DRM_IVPU_PARAM_CAPABILITIES	    13
 
 #define DRM_IVPU_PLATFORM_TYPE_SILICON	    0
 
@@ -67,6 +68,9 @@ extern "C" {
 #define DRM_IVPU_CONTEXT_PRIORITY_NORMAL    1
 #define DRM_IVPU_CONTEXT_PRIORITY_FOCUS	    2
 #define DRM_IVPU_CONTEXT_PRIORITY_REALTIME  3
+
+#define DRM_IVPU_CAP_METRIC_STREAMER	    1
+#define DRM_IVPU_CAP_DMA_MEMORY_RANGE       2
 
 /**
  * struct drm_ivpu_param - Get/Set VPU parameters

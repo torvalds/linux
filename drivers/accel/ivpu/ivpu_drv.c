@@ -115,6 +115,22 @@ void ivpu_file_priv_put(struct ivpu_file_priv **link)
 	kref_put(&file_priv->ref, file_priv_release);
 }
 
+static int ivpu_get_capabilities(struct ivpu_device *vdev, struct drm_ivpu_param *args)
+{
+	switch (args->index) {
+	case DRM_IVPU_CAP_METRIC_STREAMER:
+		args->value = 0;
+		break;
+	case DRM_IVPU_CAP_DMA_MEMORY_RANGE:
+		args->value = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
 	struct ivpu_file_priv *file_priv = file->driver_priv;
@@ -173,6 +189,9 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 		break;
 	case DRM_IVPU_PARAM_SKU:
 		args->value = vdev->hw->sku;
+		break;
+	case DRM_IVPU_PARAM_CAPABILITIES:
+		ret = ivpu_get_capabilities(vdev, args);
 		break;
 	default:
 		ret = -EINVAL;
