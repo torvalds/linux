@@ -1543,7 +1543,8 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 		mlx5e_ktls_handle_rx_skb(rq, skb, cqe, &cqe_bcnt);
 
 	if (unlikely(mlx5_ipsec_is_rx_flow(cqe)))
-		mlx5e_ipsec_offload_handle_rx_skb(netdev, skb, cqe);
+		mlx5e_ipsec_offload_handle_rx_skb(netdev, skb,
+						  be32_to_cpu(cqe->ft_metadata));
 
 	if (unlikely(mlx5e_macsec_is_rx_flow(cqe)))
 		mlx5e_macsec_offload_handle_rx_skb(netdev, skb, cqe);

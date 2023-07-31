@@ -309,9 +309,8 @@ enum {
 
 void mlx5e_ipsec_offload_handle_rx_skb(struct net_device *netdev,
 				       struct sk_buff *skb,
-				       struct mlx5_cqe64 *cqe)
+				       u32 ipsec_meta_data)
 {
-	u32 ipsec_meta_data = be32_to_cpu(cqe->ft_metadata);
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_ipsec *ipsec = priv->ipsec;
 	struct mlx5e_ipsec_sa_entry *sa_entry;
