@@ -229,6 +229,7 @@ static int msm8916_qdsp6_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_card *card = rtd->card;
 	struct apq8016_sbc_data *data = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	int mi2s, ret;
 
 	mi2s = qdsp6_dai_get_lpass_id(cpu_dai);
@@ -237,6 +238,16 @@ static int msm8916_qdsp6_startup(struct snd_pcm_substream *substream)
 
 	if (++data->mi2s_clk_count[mi2s] > 1)
 		return 0;
+
+
+	/* HACK For making external codecs work
+	 *
+	 * For some codecs in the Quinary DAI link we have to explicitly set the
+	 * format to I2S.
+	 */
+	if (cpu_dai->id == QUINARY_MI2S_RX) {
+		snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_BC_FC | SND_SOC_DAIFMT_I2S);
+	}
 
 	ret = snd_soc_dai_set_sysclk(cpu_dai, qdsp6_get_bit_clk_id(data, mi2s), MI2S_BCLK_RATE, 0);
 	if (ret)
