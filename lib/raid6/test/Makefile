@@ -35,6 +35,12 @@ ifeq ($(ARCH),aarch64)
         HAS_NEON = yes
 endif
 
+ifeq ($(findstring ppc,$(ARCH)),ppc)
+        CFLAGS += -I../../../arch/powerpc/include
+        HAS_ALTIVEC := $(shell printf '$(pound)include <altivec.h>\nvector int a;\n' |\
+                         gcc -c -x c - >/dev/null && rm ./-.o && echo yes)
+endif
+
 ifeq ($(IS_X86),yes)
         OBJS   += mmx.o sse1.o sse2.o avx2.o recov_ssse3.o recov_avx2.o avx512.o recov_avx512.o
         CFLAGS += -DCONFIG_X86
@@ -44,15 +50,10 @@ ifeq ($(IS_X86),yes)
 else ifeq ($(HAS_NEON),yes)
         OBJS   += neon.o neon1.o neon2.o neon4.o neon8.o recov_neon.o recov_neon_inner.o
         CFLAGS += -DCONFIG_KERNEL_MODE_NEON=1
-else
-        HAS_ALTIVEC := $(shell printf '$(pound)include <altivec.h>\nvector int a;\n' |\
-                         gcc -c -x c - >/dev/null && rm ./-.o && echo yes)
-        ifeq ($(HAS_ALTIVEC),yes)
-                CFLAGS += -I../../../arch/powerpc/include
-                CFLAGS += -DCONFIG_ALTIVEC
-                OBJS += altivec1.o altivec2.o altivec4.o altivec8.o \
-                        vpermxor1.o vpermxor2.o vpermxor4.o vpermxor8.o
-        endif
+else ifeq ($(HAS_ALTIVEC),yes)
+        CFLAGS += -DCONFIG_ALTIVEC
+        OBJS += altivec1.o altivec2.o altivec4.o altivec8.o \
+                vpermxor1.o vpermxor2.o vpermxor4.o vpermxor8.o
 endif
 
 .c.o:
