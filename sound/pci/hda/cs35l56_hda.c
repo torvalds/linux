@@ -649,6 +649,9 @@ static void cs35l56_hda_unbind(struct device *dev, struct device *master, void *
 	debugfs_remove_recursive(cs35l56->debugfs_root);
 #endif
 
+	if (cs35l56->base.fw_patched)
+		cs_dsp_power_down(&cs35l56->cs_dsp);
+
 	cs_dsp_remove(&cs35l56->cs_dsp);
 
 	if (comps[cs35l56->index].dev == dev)
