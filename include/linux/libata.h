@@ -1785,7 +1785,7 @@ static inline struct ata_queued_cmd *ata_qc_from_tag(struct ata_port *ap,
 {
 	struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
 
-	if (unlikely(!qc) || !ap->ops->error_handler)
+	if (unlikely(!qc))
 		return qc;
 
 	if ((qc->flags & (ATA_QCFLAG_ACTIVE |

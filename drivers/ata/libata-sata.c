@@ -1158,12 +1158,7 @@ EXPORT_SYMBOL_GPL(ata_sas_port_alloc);
  */
 int ata_sas_port_start(struct ata_port *ap)
 {
-	/*
-	 * the port is marked as frozen at allocation time, but if we don't
-	 * have new eh, we won't thaw it
-	 */
-	if (!ap->ops->error_handler)
-		ap->pflags &= ~ATA_PFLAG_FROZEN;
+	/* the port is marked as frozen at allocation time */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_start);
