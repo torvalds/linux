@@ -712,7 +712,7 @@ static struct drm_plane_state *ssd130x_primary_plane_duplicate_state(struct drm_
 
 	new_shadow_plane_state = &ssd130x_state->base;
 
-	 __drm_gem_duplicate_shadow_plane_state(plane, new_shadow_plane_state);
+	__drm_gem_duplicate_shadow_plane_state(plane, new_shadow_plane_state);
 
 	return &new_shadow_plane_state->base;
 }
