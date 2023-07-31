@@ -1174,7 +1174,11 @@ static int create_codec_dai_name(struct device *dev,
 		class_id = SDW_CLASS_ID(adr);
 
 		comp_index = i - adr_index + offset;
-		if (is_unique_device(adr_link, sdw_version, mfg_id, part_id,
+		if (codec_info_list[codec_index].codec_name) {
+			codec[comp_index].name =
+				devm_kstrdup(dev, codec_info_list[codec_index].codec_name,
+					     GFP_KERNEL);
+		} else if (is_unique_device(adr_link, sdw_version, mfg_id, part_id,
 				     class_id, i)) {
 			codec_str = "sdw:%01x:%04x:%04x:%02x";
 			codec[comp_index].name =

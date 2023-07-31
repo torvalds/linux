@@ -80,6 +80,7 @@ struct sof_sdw_dai_info {
 struct sof_sdw_codec_info {
 	const int part_id;
 	const int version_id;
+	const char *codec_name;
 	int amp_num;
 	const u8 acpi_id[ACPI_ID_LEN];
 	const bool ignore_pch_dmic;
