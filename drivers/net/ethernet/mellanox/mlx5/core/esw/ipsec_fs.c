@@ -12,6 +12,12 @@ enum {
 	MLX5_ESW_IPSEC_RX_ESP_FT_CHK_LEVEL,
 };
 
+enum {
+	MLX5_ESW_IPSEC_TX_POL_FT_LEVEL,
+	MLX5_ESW_IPSEC_TX_ESP_FT_LEVEL,
+	MLX5_ESW_IPSEC_TX_ESP_FT_CNT_LEVEL,
+};
+
 static void esw_ipsec_rx_status_drop_destroy(struct mlx5e_ipsec *ipsec,
 					     struct mlx5e_ipsec_rx *rx)
 {
@@ -250,4 +256,14 @@ int mlx5_esw_ipsec_rx_ipsec_obj_id_search(struct mlx5e_priv *priv, u32 id,
 	*ipsec_obj_id = xa_to_value(val);
 
 	return 0;
+}
+
+void mlx5_esw_ipsec_tx_create_attr_set(struct mlx5e_ipsec *ipsec,
+				       struct mlx5e_ipsec_tx_create_attr *attr)
+{
+	attr->prio = FDB_CRYPTO_EGRESS;
+	attr->pol_level = MLX5_ESW_IPSEC_TX_POL_FT_LEVEL;
+	attr->sa_level = MLX5_ESW_IPSEC_TX_ESP_FT_LEVEL;
+	attr->cnt_level = MLX5_ESW_IPSEC_TX_ESP_FT_CNT_LEVEL;
+	attr->chains_ns = MLX5_FLOW_NAMESPACE_FDB;
 }
