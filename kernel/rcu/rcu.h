@@ -568,10 +568,6 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
 static inline void rcu_gp_set_torture_wait(int duration) { }
 #endif
 
-#if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST)
-long rcutorture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask);
-#endif
-
 #ifdef CONFIG_TINY_SRCU
 
 static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,

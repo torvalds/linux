@@ -810,7 +810,7 @@ static void synchronize_rcu_trivial(void)
 	int cpu;
 
 	for_each_online_cpu(cpu) {
-		rcutorture_sched_setaffinity(current->pid, cpumask_of(cpu));
+		torture_sched_setaffinity(current->pid, cpumask_of(cpu));
 		WARN_ON_ONCE(raw_smp_processor_id() != cpu);
 	}
 }
