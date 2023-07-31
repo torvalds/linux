@@ -34,6 +34,7 @@ properties:
               - fsl,imx23-usb
               - fsl,imx25-usb
               - fsl,imx28-usb
+              - fsl,imx35-usb
               - fsl,imx50-usb
               - fsl,imx51-usb
               - fsl,imx53-usb
