@@ -297,3 +297,13 @@ SYM_CODE_START(__kvm_hyp_host_forward_smc)
 
 	ret
 SYM_CODE_END(__kvm_hyp_host_forward_smc)
+
+/*
+ * kvm_host_psci_cpu_entry is called through br instruction, which requires
+ * bti j instruction as compilers (gcc and llvm) doesn't insert bti j for external
+ * functions, but bti c instead.
+ */
+SYM_CODE_START(kvm_host_psci_cpu_entry)
+       bti j
+       b __kvm_host_psci_cpu_entry
+SYM_CODE_END(kvm_host_psci_cpu_entry)

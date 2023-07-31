@@ -43,7 +43,7 @@ run_tests: all
 	done
 
 # Avoid any output on non riscv on emit_tests
-emit_tests: all
+emit_tests:
 	@for DIR in $(RISCV_SUBTARGETS); do				\
 		BUILD_TARGET=$(OUTPUT)/$$DIR;			\
 		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$DIR $@;		\

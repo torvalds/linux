@@ -17,7 +17,7 @@
 /**
  * struct pie_params - contains pie parameters
  * @target:		target delay in pschedtime
- * @tudpate:		interval at which drop probability is calculated
+ * @tupdate:		interval at which drop probability is calculated
  * @limit:		total number of packets that can be in the queue
  * @alpha:		parameter to control drop probability
  * @beta:		parameter to control drop probability
