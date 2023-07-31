@@ -11271,8 +11271,7 @@ static int __net_init netdev_init(struct net *net)
 	if (net->dev_index_head == NULL)
 		goto err_idx;
 
-	net->ifindex = 1;
-	xa_init_flags(&net->dev_by_index, XA_FLAGS_ALLOC);
+	xa_init_flags(&net->dev_by_index, XA_FLAGS_ALLOC1);
 
 	RAW_INIT_NOTIFIER_HEAD(&net->netdev_chain);
 
