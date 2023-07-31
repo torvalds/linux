@@ -24,6 +24,8 @@
 
 #define PCI_DEVICE_ID_MTL   0x7d1d
 
+#define IVPU_HW_37XX	37
+
 #define IVPU_GLOBAL_CONTEXT_MMU_SSID 0
 /* SSID 1 is used by the VPU to represent invalid context */
 #define IVPU_USER_CONTEXT_MIN_SSID   2
@@ -146,11 +148,6 @@ void ivpu_file_priv_put(struct ivpu_file_priv **link);
 int ivpu_boot(struct ivpu_device *vdev);
 int ivpu_shutdown(struct ivpu_device *vdev);
 
-static inline bool ivpu_is_mtl(struct ivpu_device *vdev)
-{
-	return to_pci_dev(vdev->drm.dev)->device == PCI_DEVICE_ID_MTL;
-}
-
 static inline u8 ivpu_revision(struct ivpu_device *vdev)
 {
 	return to_pci_dev(vdev->drm.dev)->revision;
@@ -159,6 +156,17 @@ static inline u8 ivpu_revision(struct ivpu_device *vdev)
 static inline u16 ivpu_device_id(struct ivpu_device *vdev)
 {
 	return to_pci_dev(vdev->drm.dev)->device;
+}
+
+static inline int ivpu_hw_gen(struct ivpu_device *vdev)
+{
+	switch (ivpu_device_id(vdev)) {
+	case PCI_DEVICE_ID_MTL:
+		return IVPU_HW_37XX;
+	default:
+		ivpu_err(vdev, "Unknown VPU device\n");
+		return 0;
+	}
 }
 
 static inline struct ivpu_device *to_ivpu_device(struct drm_device *dev)

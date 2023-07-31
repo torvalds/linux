@@ -443,8 +443,8 @@ static int ivpu_pci_init(struct ivpu_device *vdev)
 	/* Clear any pending errors */
 	pcie_capability_clear_word(pdev, PCI_EXP_DEVSTA, 0x3f);
 
-	/* VPU MTL does not require PCI spec 10m D3hot delay */
-	if (ivpu_is_mtl(vdev))
+	/* VPU 37XX does not require 10m D3hot delay */
+	if (ivpu_hw_gen(vdev) == IVPU_HW_37XX)
 		pdev->d3hot_delay = 0;
 
 	ret = pcim_enable_device(pdev);
@@ -482,7 +482,7 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (!vdev->pm)
 		return -ENOMEM;
 
-	vdev->hw->ops = &ivpu_hw_mtl_ops;
+	vdev->hw->ops = &ivpu_hw_37xx_ops;
 	vdev->hw->dma_bits = 38;
 
 	vdev->platform = IVPU_PLATFORM_INVALID;
