@@ -300,12 +300,13 @@ static int dwc3_octeon_config_power(struct device *dev, void __iomem *base)
 	return 0;
 }
 
-static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
+static int dwc3_octeon_clocks_start(struct dwc3_octeon *octeon)
 {
 	int i, div, mpll_mul, ref_clk_fsel, ref_clk_sel = 2;
 	u32 clock_rate;
 	u64 val;
-	void __iomem *uctl_ctl_reg = base + USBDRD_UCTL_CTL;
+	struct device *dev = octeon->dev;
+	void __iomem *uctl_ctl_reg = octeon->base + USBDRD_UCTL_CTL;
 
 	if (dev->of_node) {
 		const char *ss_clock_type;
@@ -452,8 +453,8 @@ static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
 	/* Step 8b: Wait 10 controller-clock cycles. */
 	udelay(10);
 
-	/* Steo 8c: Setup power-power control. */
-	if (dwc3_octeon_config_power(dev, base))
+	/* Step 8c: Setup power control. */
+	if (dwc3_octeon_config_power(dev, octeon->base))
 		return -EINVAL;
 
 	/* Step 8d: Deassert UAHC reset signal. */
@@ -477,10 +478,10 @@ static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
 	return 0;
 }
 
-static void __init dwc3_octeon_set_endian_mode(void __iomem *base)
+static void dwc3_octeon_set_endian_mode(struct dwc3_octeon *octeon)
 {
 	u64 val;
-	void __iomem *uctl_shim_cfg_reg = base + USBDRD_UCTL_SHIM_CFG;
+	void __iomem *uctl_shim_cfg_reg = octeon->base + USBDRD_UCTL_SHIM_CFG;
 
 	val = dwc3_octeon_readq(uctl_shim_cfg_reg);
 	val &= ~USBDRD_UCTL_SHIM_CFG_DMA_ENDIAN_MODE;
@@ -492,10 +493,10 @@ static void __init dwc3_octeon_set_endian_mode(void __iomem *base)
 	dwc3_octeon_writeq(uctl_shim_cfg_reg, val);
 }
 
-static void __init dwc3_octeon_phy_reset(void __iomem *base)
+static void dwc3_octeon_phy_reset(struct dwc3_octeon *octeon)
 {
 	u64 val;
-	void __iomem *uctl_ctl_reg = base + USBDRD_UCTL_CTL;
+	void __iomem *uctl_ctl_reg = octeon->base + USBDRD_UCTL_CTL;
 
 	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val &= ~USBDRD_UCTL_CTL_UPHY_RST;
@@ -518,12 +519,12 @@ static int dwc3_octeon_probe(struct platform_device *pdev)
 	if (IS_ERR(octeon->base))
 		return PTR_ERR(octeon->base);
 
-	err = dwc3_octeon_clocks_start(dev, octeon->base);
+	err = dwc3_octeon_clocks_start(octeon);
 	if (err)
 		return err;
 
-	dwc3_octeon_set_endian_mode(octeon->base);
-	dwc3_octeon_phy_reset(octeon->base);
+	dwc3_octeon_set_endian_mode(octeon);
+	dwc3_octeon_phy_reset(octeon);
 
 	platform_set_drvdata(pdev, octeon);
 
