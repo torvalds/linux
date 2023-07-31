@@ -1066,7 +1066,7 @@ int mlx5_modify_rule_destination(struct mlx5_flow_handle *handle,
 	}
 
 	for (i = 0; i < handle->num_rules; i++) {
-		if (mlx5_flow_dests_cmp(new_dest, &handle->rule[i]->dest_attr))
+		if (mlx5_flow_dests_cmp(old_dest, &handle->rule[i]->dest_attr))
 			return _mlx5_modify_rule_destination(handle->rule[i],
 							     new_dest);
 	}
