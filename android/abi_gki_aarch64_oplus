@@ -1357,6 +1357,7 @@
   irq_work_queue
   irq_work_queue_on
   irq_work_sync
+  is_ashmem_file
   is_dma_buf_file
   isolate_and_split_free_page
   isolate_anon_lru_page
