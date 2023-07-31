@@ -1145,19 +1145,6 @@ struct ata_port *ata_sas_port_alloc(struct ata_host *host,
 EXPORT_SYMBOL_GPL(ata_sas_port_alloc);
 
 /**
- * ata_sas_async_probe - simply schedule probing and return
- * @ap: Port to probe
- *
- * For batch scheduling of probe for sas attached ata devices, assumes
- * the port has already been through ata_sas_port_init()
- */
-void ata_sas_async_probe(struct ata_port *ap)
-{
-	__ata_port_probe(ap);
-}
-EXPORT_SYMBOL_GPL(ata_sas_async_probe);
-
-/**
  *	ata_sas_port_init - Initialize a SATA device
  *	@ap: SATA port to initialize
  *
