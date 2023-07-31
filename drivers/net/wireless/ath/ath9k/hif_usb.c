@@ -1432,7 +1432,7 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
-	bool unplugged = (udev->state == USB_STATE_NOTATTACHED) ? true : false;
+	bool unplugged = udev->state == USB_STATE_NOTATTACHED;
 
 	if (!hif_dev)
 		return;
