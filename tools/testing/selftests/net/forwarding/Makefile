@@ -64,6 +64,7 @@ TEST_PROGS = bridge_igmp.sh \
 	q_in_vni_ipv6.sh \
 	q_in_vni.sh \
 	router_bridge.sh \
+	router_bridge_1d.sh \
 	router_bridge_vlan.sh \
 	router_bridge_pvid_vlan_upper.sh \
 	router_bridge_vlan_upper_pvid.sh \
