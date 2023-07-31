@@ -232,6 +232,8 @@ static inline void ufs_bsg_node_release(struct device *dev)
  * @hba: per adapter object
  *
  * Called during initial loading of the driver, and before scsi_scan_host.
+ *
+ * Returns: 0 (success).
  */
 int ufs_bsg_probe(struct ufs_hba *hba)
 {

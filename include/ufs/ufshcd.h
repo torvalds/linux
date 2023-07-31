@@ -20,6 +20,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/dma-direction.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_host.h>
 #include <ufs/unipro.h>
 #include <ufs/ufs.h>
 #include <ufs/ufs_quirks.h>
@@ -199,6 +200,25 @@ struct ufshcd_lrb {
 #endif
 
 	bool req_abort_skip;
+};
+
+/**
+ * struct ufs_query_req - parameters for building a query request
+ * @query_func: UPIU header query function
+ * @upiu_req: the query request data
+ */
+struct ufs_query_req {
+	u8 query_func;
+	struct utp_upiu_query upiu_req;
+};
+
+/**
+ * struct ufs_query_resp - UPIU QUERY
+ * @response: device response code
+ * @upiu_res: query response data
+ */
+struct ufs_query_res {
+	struct utp_upiu_query upiu_res;
 };
 
 /**
@@ -1356,12 +1376,6 @@ int ufshcd_get_vreg(struct device *dev, struct ufs_vreg *vreg);
 
 int ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd);
 
-int ufshcd_exec_raw_upiu_cmd(struct ufs_hba *hba,
-			     struct utp_upiu_req *req_upiu,
-			     struct utp_upiu_req *rsp_upiu,
-			     int msgcode,
-			     u8 *desc_buff, int *buff_len,
-			     enum query_opcode desc_op);
 int ufshcd_advanced_rpmb_req_handler(struct ufs_hba *hba, struct utp_upiu_req *req_upiu,
 				     struct utp_upiu_req *rsp_upiu, struct ufs_ehs *ehs_req,
 				     struct ufs_ehs *ehs_rsp, int sg_cnt,

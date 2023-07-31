@@ -105,7 +105,7 @@ EXPORT_SYMBOL_GPL(ufshcd_mcq_config_mac);
  * @hba: per adapter instance
  * @req: pointer to the request to be issued
  *
- * Returns the hardware queue instance on which the request would
+ * Return: the hardware queue instance on which the request would
  * be queued.
  */
 struct ufs_hw_queue *ufshcd_mcq_req_to_hwq(struct ufs_hba *hba,
@@ -121,7 +121,7 @@ struct ufs_hw_queue *ufshcd_mcq_req_to_hwq(struct ufs_hba *hba,
  * ufshcd_mcq_decide_queue_depth - decide the queue depth
  * @hba: per adapter instance
  *
- * Returns queue-depth on success, non-zero on error
+ * Return: queue-depth on success, non-zero on error
  *
  * MAC - Max. Active Command of the Host Controller (HC)
  * HC wouldn't send more than this commands to the device.
@@ -493,7 +493,7 @@ static int ufshcd_mcq_sq_start(struct ufs_hba *hba, struct ufs_hw_queue *hwq)
  * @hba: per adapter instance.
  * @task_tag: The command's task tag.
  *
- * Returns 0 for success; error code otherwise.
+ * Return: 0 for success; error code otherwise.
  */
 int ufshcd_mcq_sq_cleanup(struct ufs_hba *hba, int task_tag)
 {
@@ -558,12 +558,7 @@ unlock:
  */
 static void ufshcd_mcq_nullify_sqe(struct utp_transfer_req_desc *utrd)
 {
-	u32 dword_0;
-
-	dword_0 = le32_to_cpu(utrd->header.dword_0);
-	dword_0 &= ~UPIU_COMMAND_TYPE_MASK;
-	dword_0 |= FIELD_PREP(UPIU_COMMAND_TYPE_MASK, 0xF);
-	utrd->header.dword_0 = cpu_to_le32(dword_0);
+	utrd->header.command_type = 0xf;
 }
 
 /**
@@ -575,7 +570,7 @@ static void ufshcd_mcq_nullify_sqe(struct utp_transfer_req_desc *utrd)
  * @hwq: Hardware Queue to be searched.
  * @task_tag: The command's task tag.
  *
- * Returns true if the SQE containing the command is present in the SQ
+ * Return: true if the SQE containing the command is present in the SQ
  * (not fetched by the controller); returns false if the SQE is not in the SQ.
  */
 static bool ufshcd_mcq_sqe_search(struct ufs_hba *hba,
@@ -624,7 +619,7 @@ out:
  * ufshcd_mcq_abort - Abort the command in MCQ.
  * @cmd: The command to be aborted.
  *
- * Returns SUCCESS or FAILED error codes
+ * Return: SUCCESS or FAILED error codes
  */
 int ufshcd_mcq_abort(struct scsi_cmnd *cmd)
 {
