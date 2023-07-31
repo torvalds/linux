@@ -419,6 +419,18 @@
 		status = "disabled";
 	};
 
+	sfc: spi@ffc90000  {
+		compatible = "rockchip,sfc";
+		reg = <0xffc90000 0x4000>;
+		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+		assigned-clocks = <&cru SCLK_SFC>;
+		assigned-clock-rates = <80000000>;
+		clock-names = "clk_sfc", "hclk_sfc";
+		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
+		power-domains = <&power RV1126_PD_NVM>;
+		status = "disabled";
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rv1126-pinctrl";
 		rockchip,grf = <&grf>;
