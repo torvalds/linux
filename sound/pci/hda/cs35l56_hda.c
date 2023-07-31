@@ -562,12 +562,6 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	if (coeff_filename)
 		dev_dbg(cs35l56->base.dev, "Loaded Coefficients: %s\n", coeff_filename);
 
-	ret = cs_dsp_run(&cs35l56->cs_dsp);
-	if (ret) {
-		dev_dbg(cs35l56->base.dev, "%s: cs_dsp_run ret %d\n", __func__, ret);
-		goto err;
-	}
-
 	if (cs35l56->base.secured) {
 		ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_REINIT);
 		if (ret)
@@ -591,6 +585,11 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	regmap_clear_bits(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS,
 			  CS35L56_FIRMWARE_MISSING);
 	cs35l56->base.fw_patched = true;
+
+	ret = cs_dsp_run(&cs35l56->cs_dsp);
+	if (ret)
+		dev_dbg(cs35l56->base.dev, "%s: cs_dsp_run ret %d\n", __func__, ret);
+
 err:
 	pm_runtime_put(cs35l56->base.dev);
 	mutex_unlock(&cs35l56->base.irq_lock);
