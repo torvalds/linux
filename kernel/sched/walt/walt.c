@@ -2583,6 +2583,19 @@ static inline void assign_cluster_ids(struct list_head *head)
 		sched_cluster[pos++] = cluster;
 	}
 
+	if (pos == 4) {
+		if (arch_scale_cpu_capacity(
+					cpumask_first(&sched_cluster[1]->cpus)) <
+					arch_scale_cpu_capacity(
+					cpumask_first(&sched_cluster[2]->cpus))) {
+			cluster = sched_cluster[2];
+			sched_cluster[2] = sched_cluster[1];
+			sched_cluster[1] = cluster;
+			sched_cluster[1]->id = 2;
+			sched_cluster[2]->id = 1;
+		}
+	}
+
 	WARN_ON(pos > MAX_CLUSTERS);
 }
 
