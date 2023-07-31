@@ -852,8 +852,12 @@ static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
 			break;
 		}
 	}
+	/*
+	 * It's not an error for the ID to be missing: for I2C there can be
+	 * an alias address that is not a real device. So reject silently.
+	 */
 	if (cs35l56->index == -1) {
-		dev_err(cs35l56->base.dev, "No index found in %s\n", property);
+		dev_dbg(cs35l56->base.dev, "No index found in %s\n", property);
 		ret = -ENODEV;
 		goto err;
 	}
@@ -891,7 +895,8 @@ static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
 	return 0;
 
 err:
-	dev_err(cs35l56->base.dev, "Failed property %s: %d\n", property, ret);
+	if (ret != -ENODEV)
+		dev_err(cs35l56->base.dev, "Failed property %s: %d\n", property, ret);
 
 	return ret;
 }
@@ -904,10 +909,8 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int id)
 	dev_set_drvdata(cs35l56->base.dev, cs35l56);
 
 	ret = cs35l56_hda_read_acpi(cs35l56, id);
-	if (ret) {
-		dev_err_probe(cs35l56->base.dev, ret, "Platform not supported\n");
+	if (ret)
 		goto err;
-	}
 
 	cs35l56->amp_name = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL, "AMP%d",
 					   cs35l56->index + 1);
