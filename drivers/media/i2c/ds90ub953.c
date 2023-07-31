@@ -34,6 +34,8 @@
 
 #define UB953_NUM_GPIOS			4
 
+#define UB953_DEFAULT_CLKOUT_RATE	25000000UL
+
 #define UB953_REG_RESET_CTL			0x01
 #define UB953_REG_RESET_CTL_DIGITAL_RESET_1	BIT(1)
 #define UB953_REG_RESET_CTL_DIGITAL_RESET_0	BIT(0)
@@ -129,6 +131,13 @@ enum ub953_mode {
 struct ub953_hw_data {
 	const char *model;
 	bool is_ub971;
+};
+
+struct ub953_clkout_data {
+	u32 hs_div;
+	u32 m;
+	u32 n;
+	unsigned long rate;
 };
 
 struct ub953_data {
@@ -906,6 +915,62 @@ static unsigned long ub953_calc_clkout_ub971(struct ub953_data *priv,
 	return res;
 }
 
+static void ub953_calc_clkout_params(struct ub953_data *priv,
+				     unsigned long target_rate,
+				     struct ub953_clkout_data *clkout_data)
+{
+	struct device *dev = &priv->client->dev;
+	unsigned long clkout_rate;
+	u64 fc_rate;
+
+	fc_rate = ub953_get_fc_rate(priv);
+
+	if (priv->hw_data->is_ub971) {
+		u8 m, n;
+
+		clkout_rate = ub953_calc_clkout_ub971(priv, target_rate,
+						      fc_rate, &m, &n);
+
+		clkout_data->m = m;
+		clkout_data->n = n;
+
+		dev_dbg(dev, "%s %llu * %u / (8 * %u) = %lu (requested %lu)",
+			__func__, fc_rate, m, n, clkout_rate, target_rate);
+	} else {
+		u8 hs_div, m, n;
+
+		clkout_rate = ub953_calc_clkout_ub953(priv, target_rate,
+						      fc_rate, &hs_div, &m, &n);
+
+		clkout_data->hs_div = hs_div;
+		clkout_data->m = m;
+		clkout_data->n = n;
+
+		dev_dbg(dev, "%s %llu / %u * %u / %u = %lu (requested %lu)",
+			__func__, fc_rate, hs_div, m, n, clkout_rate,
+			target_rate);
+	}
+
+	clkout_data->rate = clkout_rate;
+}
+
+static void ub953_write_clkout_regs(struct ub953_data *priv,
+				    const struct ub953_clkout_data *clkout_data)
+{
+	u8 clkout_ctrl0, clkout_ctrl1;
+
+	if (priv->hw_data->is_ub971)
+		clkout_ctrl0 = clkout_data->m;
+	else
+		clkout_ctrl0 = (__ffs(clkout_data->hs_div) << 5) |
+			       clkout_data->m;
+
+	clkout_ctrl1 = clkout_data->n;
+
+	ub953_write(priv, UB953_REG_CLKOUT_CTRL0, clkout_ctrl0);
+	ub953_write(priv, UB953_REG_CLKOUT_CTRL1, clkout_ctrl1);
+}
+
 static unsigned long ub953_clkout_recalc_rate(struct clk_hw *hw,
 					      unsigned long parent_rate)
 {
@@ -965,52 +1030,25 @@ static long ub953_clkout_round_rate(struct clk_hw *hw, unsigned long rate,
 				    unsigned long *parent_rate)
 {
 	struct ub953_data *priv = container_of(hw, struct ub953_data, clkout_clk_hw);
-	struct device *dev = &priv->client->dev;
-	unsigned long res;
-	u64 fc_rate;
-	u8 hs_div, m, n;
+	struct ub953_clkout_data clkout_data;
 
-	fc_rate = ub953_get_fc_rate(priv);
+	ub953_calc_clkout_params(priv, rate, &clkout_data);
 
-	if (priv->hw_data->is_ub971) {
-		res = ub953_calc_clkout_ub971(priv, rate, fc_rate, &m, &n);
-
-		dev_dbg(dev, "%s %llu * %u / (8 * %u) = %lu (requested %lu)",
-			__func__, fc_rate, m, n, res, rate);
-	} else {
-		res = ub953_calc_clkout_ub953(priv, rate, fc_rate, &hs_div, &m, &n);
-
-		dev_dbg(dev, "%s %llu / %u * %u / %u = %lu (requested %lu)",
-			__func__, fc_rate, hs_div, m, n, res, rate);
-	}
-
-	return res;
+	return clkout_data.rate;
 }
 
 static int ub953_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
 				 unsigned long parent_rate)
 {
 	struct ub953_data *priv = container_of(hw, struct ub953_data, clkout_clk_hw);
-	u64 fc_rate;
-	u8 hs_div, m, n;
-	unsigned long res;
+	struct ub953_clkout_data clkout_data;
 
-	fc_rate = ub953_get_fc_rate(priv);
+	ub953_calc_clkout_params(priv, rate, &clkout_data);
 
-	if (priv->hw_data->is_ub971) {
-		res = ub953_calc_clkout_ub971(priv, rate, fc_rate, &m, &n);
+	dev_dbg(&priv->client->dev, "%s %lu (requested %lu)\n", __func__,
+		clkout_data.rate, rate);
 
-		ub953_write(priv, UB953_REG_CLKOUT_CTRL0, m);
-		ub953_write(priv, UB953_REG_CLKOUT_CTRL1, n);
-	} else {
-		res = ub953_calc_clkout_ub953(priv, rate, fc_rate, &hs_div, &m, &n);
-
-		ub953_write(priv, UB953_REG_CLKOUT_CTRL0, (__ffs(hs_div) << 5) | m);
-		ub953_write(priv, UB953_REG_CLKOUT_CTRL1, n);
-	}
-
-	dev_dbg(&priv->client->dev, "%s %lu (requested %lu)\n", __func__, res,
-		rate);
+	ub953_write_clkout_regs(priv, &clkout_data);
 
 	return 0;
 }
@@ -1021,32 +1059,6 @@ static const struct clk_ops ub953_clkout_ops = {
 	.set_rate	= ub953_clkout_set_rate,
 };
 
-static void ub953_init_clkout_ub953(struct ub953_data *priv)
-{
-	u64 fc_rate;
-	u8 hs_div, m, n;
-
-	fc_rate = ub953_get_fc_rate(priv);
-
-	ub953_calc_clkout_ub953(priv, 25000000, fc_rate, &hs_div, &m, &n);
-
-	ub953_write(priv, UB953_REG_CLKOUT_CTRL0, (__ffs(hs_div) << 5) | m);
-	ub953_write(priv, UB953_REG_CLKOUT_CTRL1, n);
-}
-
-static void ub953_init_clkout_ub971(struct ub953_data *priv)
-{
-	u64 fc_rate;
-	u8 m, n;
-
-	fc_rate = ub953_get_fc_rate(priv);
-
-	ub953_calc_clkout_ub971(priv, 25000000, fc_rate, &m, &n);
-
-	ub953_write(priv, UB953_REG_CLKOUT_CTRL0, m);
-	ub953_write(priv, UB953_REG_CLKOUT_CTRL1, n);
-}
-
 static int ub953_register_clkout(struct ub953_data *priv)
 {
 	struct device *dev = &priv->client->dev;
@@ -1055,16 +1067,15 @@ static int ub953_register_clkout(struct ub953_data *priv)
 				  priv->hw_data->model, dev_name(dev)),
 		.ops = &ub953_clkout_ops,
 	};
+	struct ub953_clkout_data clkout_data;
 	int ret;
 
 	if (!init.name)
 		return -ENOMEM;
 
 	/* Initialize clkout to 25MHz by default */
-	if (priv->hw_data->is_ub971)
-		ub953_init_clkout_ub971(priv);
-	else
-		ub953_init_clkout_ub953(priv);
+	ub953_calc_clkout_params(priv, UB953_DEFAULT_CLKOUT_RATE, &clkout_data);
+	ub953_write_clkout_regs(priv, &clkout_data);
 
 	priv->clkout_clk_hw.init = &init;
 
