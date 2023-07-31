@@ -255,7 +255,6 @@ out:
  * @mapping: The eCryptfs object
  * @pos: The file offset at which to start writing
  * @len: Length of the write
- * @flags: Various flags
  * @pagep: Pointer to return the page
  * @fsdata: Pointer to return fs data (unused)
  *
