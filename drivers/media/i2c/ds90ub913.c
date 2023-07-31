@@ -21,6 +21,8 @@
 #include <linux/regmap.h>
 
 #include <media/i2c/ds90ub9xx.h>
+#include <media/v4l2-fwnode.h>
+#include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
 #define UB913_PAD_SINK			0
@@ -83,7 +85,7 @@ struct ub913_data {
 
 	struct ds90ub9xx_platform_data *plat_data;
 
-	u32			pclk_polarity;
+	bool			pclk_polarity_rising;
 };
 
 static inline struct ub913_data *sd_to_ub913(struct v4l2_subdev *sd)
@@ -675,25 +677,32 @@ static int ub913_add_i2c_adapter(struct ub913_data *priv)
 static int ub913_parse_dt(struct ub913_data *priv)
 {
 	struct device *dev = &priv->client->dev;
+	struct v4l2_fwnode_endpoint vep = {
+		.bus_type = V4L2_MBUS_PARALLEL,
+	};
 	struct fwnode_handle *ep_fwnode;
 	int ret;
 
 	ep_fwnode = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev),
 						    UB913_PAD_SINK, 0, 0);
-	if (!ep_fwnode) {
-		dev_err_probe(dev, -ENOENT, "No sink endpoint\n");
-		return -ENOENT;
-	}
+	if (!ep_fwnode)
+		return dev_err_probe(dev, -ENOENT, "No sink endpoint\n");
 
-	ret = fwnode_property_read_u32(ep_fwnode, "pclk-sample",
-				       &priv->pclk_polarity);
+	ret = v4l2_fwnode_endpoint_parse(ep_fwnode, &vep);
 
 	fwnode_handle_put(ep_fwnode);
 
-	if (ret) {
-		dev_err_probe(dev, ret, "failed to parse 'pclk-sample'\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to parse sink endpoint data\n");
+
+	if (vep.bus.parallel.flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
+		priv->pclk_polarity_rising = true;
+	else if (vep.bus.parallel.flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
+		priv->pclk_polarity_rising = false;
+	else
+		return dev_err_probe(dev, -EINVAL,
+				     "bad value for 'pclk-sample'\n");
 
 	return 0;
 }
@@ -726,7 +735,7 @@ static int ub913_hw_init(struct ub913_data *priv)
 
 	ub913_read(priv, UB913_REG_GENERAL_CFG, &v);
 	v &= ~UB913_REG_GENERAL_CFG_PCLK_RISING;
-	v |= priv->pclk_polarity ? UB913_REG_GENERAL_CFG_PCLK_RISING : 0;
+	v |= priv->pclk_polarity_rising ? UB913_REG_GENERAL_CFG_PCLK_RISING : 0;
 	ub913_write(priv, UB913_REG_GENERAL_CFG, v);
 
 	return 0;
