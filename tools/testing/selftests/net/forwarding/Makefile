@@ -66,6 +66,7 @@ TEST_PROGS = bridge_igmp.sh \
 	router_bridge.sh \
 	router_bridge_1d.sh \
 	router_bridge_vlan.sh \
+	router_bridge_vlan_upper.sh \
 	router_bridge_pvid_vlan_upper.sh \
 	router_bridge_vlan_upper_pvid.sh \
 	router_broadcast.sh \
