@@ -605,9 +605,6 @@ int sas_ata_init(struct domain_device *found_dev)
 	ap->private_data = found_dev;
 	ap->cbl = ATA_CBL_SATA;
 	ap->scsi_host = shost;
-	rc = ata_sas_port_init(ap);
-	if (rc)
-		goto destroy_port;
 
 	rc = ata_sas_tport_add(ata_host->dev, ap);
 	if (rc)
