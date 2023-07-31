@@ -78,6 +78,12 @@ static struct {
 	{SIMATIC_IPC_IPCBX_21A,
 		SIMATIC_IPC_DEVICE_BX_21A, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_BX_21A,
 		{ "emc1403", NULL }},
+	{SIMATIC_IPC_IPCBX_56A,
+		SIMATIC_IPC_DEVICE_BX_59A, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_BX_59A,
+		{ "emc1403", "w83627hf_wdt" }},
+	{SIMATIC_IPC_IPCBX_59A,
+		SIMATIC_IPC_DEVICE_BX_59A, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_BX_59A,
+		{ "emc1403", "w83627hf_wdt" }},
 };
 
 static int register_platform_devices(u32 station_id)
@@ -103,7 +109,9 @@ static int register_platform_devices(u32 station_id)
 			pdevname = KBUILD_MODNAME "_batt_apollolake";
 		if (battmode == SIMATIC_IPC_DEVICE_BX_21A)
 			pdevname = KBUILD_MODNAME "_batt_elkhartlake";
-		if (battmode == SIMATIC_IPC_DEVICE_227G || battmode == SIMATIC_IPC_DEVICE_BX_39A)
+		if (battmode == SIMATIC_IPC_DEVICE_227G ||
+		    battmode == SIMATIC_IPC_DEVICE_BX_39A ||
+		    battmode == SIMATIC_IPC_DEVICE_BX_59A)
 			pdevname = KBUILD_MODNAME "_batt_f7188x";
 		platform_data.devmode = battmode;
 		ipc_batt_platform_device =
@@ -121,7 +129,7 @@ static int register_platform_devices(u32 station_id)
 		pdevname = KBUILD_MODNAME "_leds";
 		if (ledmode == SIMATIC_IPC_DEVICE_127E)
 			pdevname = KBUILD_MODNAME "_leds_gpio_apollolake";
-		if (ledmode == SIMATIC_IPC_DEVICE_227G)
+		if (ledmode == SIMATIC_IPC_DEVICE_227G || SIMATIC_IPC_DEVICE_BX_59A)
 			pdevname = KBUILD_MODNAME "_leds_gpio_f7188x";
 		if (ledmode == SIMATIC_IPC_DEVICE_BX_21A)
 			pdevname = KBUILD_MODNAME "_leds_gpio_elkhartlake";

@@ -92,19 +92,14 @@ static long simatic_ipc_batt_read_value(struct device *dev)
 
 	next_update = priv.last_updated_jiffies + msecs_to_jiffies(BATT_DELAY_MS);
 	if (time_after(jiffies, next_update) || !priv.last_updated_jiffies) {
-		switch (priv.devmode) {
-		case SIMATIC_IPC_DEVICE_127E:
-		case SIMATIC_IPC_DEVICE_227G:
-		case SIMATIC_IPC_DEVICE_BX_39A:
-			priv.current_state = simatic_ipc_batt_read_gpio();
-			break;
-		case SIMATIC_IPC_DEVICE_227E:
+		if (priv.devmode == SIMATIC_IPC_DEVICE_227E)
 			priv.current_state = simatic_ipc_batt_read_io(dev);
-			break;
-		}
+		else
+			priv.current_state = simatic_ipc_batt_read_gpio();
+
 		priv.last_updated_jiffies = jiffies;
 		if (priv.current_state < SIMATIC_IPC_BATT_LEVEL_FULL)
-			dev_warn(dev, "CMOS battery needs to be replaced.");
+			dev_warn(dev, "CMOS battery needs to be replaced.\n");
 	}
 
 	return priv.current_state;
@@ -163,6 +158,7 @@ int simatic_ipc_batt_probe(struct platform_device *pdev, struct gpiod_lookup_tab
 	struct simatic_ipc_platform *plat;
 	struct device *dev = &pdev->dev;
 	struct device *hwmon_dev;
+	unsigned long flags;
 	int err;
 
 	plat = pdev->dev.platform_data;
@@ -173,6 +169,7 @@ int simatic_ipc_batt_probe(struct platform_device *pdev, struct gpiod_lookup_tab
 	case SIMATIC_IPC_DEVICE_227G:
 	case SIMATIC_IPC_DEVICE_BX_39A:
 	case SIMATIC_IPC_DEVICE_BX_21A:
+	case SIMATIC_IPC_DEVICE_BX_59A:
 		table->dev_id = dev_name(dev);
 		gpiod_add_lookup_table(table);
 		break;
@@ -196,7 +193,10 @@ int simatic_ipc_batt_probe(struct platform_device *pdev, struct gpiod_lookup_tab
 	}
 
 	if (table->table[2].key) {
-		priv.gpios[2] = devm_gpiod_get_index(dev, "CMOSBattery meter", 2, GPIOD_OUT_HIGH);
+		flags = GPIOD_OUT_HIGH;
+		if (priv.devmode == SIMATIC_IPC_DEVICE_BX_21A || SIMATIC_IPC_DEVICE_BX_59A)
+			flags = GPIOD_OUT_LOW;
+		priv.gpios[2] = devm_gpiod_get_index(dev, "CMOSBattery meter", 2, flags);
 		if (IS_ERR(priv.gpios[2])) {
 			err = PTR_ERR(priv.gpios[1]);
 			priv.gpios[2] = NULL;
