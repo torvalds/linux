@@ -4417,7 +4417,6 @@ static void *raid10_takeover_raid0(struct mddev *mddev, sector_t size, int devs)
 				rdev->new_raid_disk = rdev->raid_disk * 2;
 				rdev->sectors = size;
 			}
-		WRITE_ONCE(conf->barrier, 1);
 	}
 
 	return conf;
