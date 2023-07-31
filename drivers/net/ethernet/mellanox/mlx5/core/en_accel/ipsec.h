@@ -169,6 +169,17 @@ struct mlx5e_ipsec_aso {
 	spinlock_t lock;
 };
 
+struct mlx5e_ipsec_rx_create_attr {
+	struct mlx5_flow_namespace *ns;
+	struct mlx5_ttc_table *ttc;
+	u32 family;
+	int prio;
+	int pol_level;
+	int sa_level;
+	int status_level;
+	enum mlx5_flow_namespace_type chains_ns;
+};
+
 struct mlx5e_ipsec {
 	struct mlx5_core_dev *mdev;
 	struct xarray sadb;

@@ -249,13 +249,19 @@ out:
 	return err;
 }
 
-static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
-		       struct mlx5e_ipsec_rx *rx, u32 family)
+static void ipsec_rx_ft_disconnect(struct mlx5e_ipsec *ipsec, u32 family)
 {
 	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
 
-	/* disconnect */
 	mlx5_ttc_fwd_default_dest(ttc, family2tt(family));
+}
+
+static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
+		       struct mlx5e_ipsec_rx *rx, u32 family)
+{
+
+	/* disconnect */
+	ipsec_rx_ft_disconnect(ipsec, family);
 
 	if (rx->chains) {
 		ipsec_chains_destroy(rx->chains);
@@ -277,40 +283,77 @@ static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family);
 }
 
+static void ipsec_rx_create_attr_set(struct mlx5e_ipsec *ipsec,
+				     struct mlx5e_ipsec_rx *rx,
+				     u32 family,
+				     struct mlx5e_ipsec_rx_create_attr *attr)
+{
+	attr->ns = mlx5e_fs_get_ns(ipsec->fs, false);
+	attr->ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
+	attr->family = family;
+	attr->prio = MLX5E_NIC_PRIO;
+	attr->pol_level = MLX5E_ACCEL_FS_POL_FT_LEVEL;
+	attr->sa_level = MLX5E_ACCEL_FS_ESP_FT_LEVEL;
+	attr->status_level = MLX5E_ACCEL_FS_ESP_FT_ERR_LEVEL;
+	attr->chains_ns = MLX5_FLOW_NAMESPACE_KERNEL;
+}
+
+static int ipsec_rx_status_pass_dest_get(struct mlx5e_ipsec *ipsec,
+					 struct mlx5e_ipsec_rx *rx,
+					 struct mlx5e_ipsec_rx_create_attr *attr,
+					 struct mlx5_flow_destination *dest)
+{
+	struct mlx5_flow_table *ft;
+	int err;
+
+	*dest = mlx5_ttc_get_default_dest(attr->ttc, family2tt(attr->family));
+	err = mlx5_ipsec_fs_roce_rx_create(ipsec->mdev, ipsec->roce, attr->ns, dest,
+					   attr->family, MLX5E_ACCEL_FS_ESP_FT_ROCE_LEVEL,
+					   attr->prio);
+	if (err)
+		return err;
+
+	ft = mlx5_ipsec_fs_roce_ft_get(ipsec->roce, attr->family);
+	if (ft) {
+		dest->type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+		dest->ft = ft;
+	}
+
+	return 0;
+}
+
+static void ipsec_rx_ft_connect(struct mlx5e_ipsec *ipsec,
+				struct mlx5e_ipsec_rx *rx,
+				struct mlx5e_ipsec_rx_create_attr *attr)
+{
+	struct mlx5_flow_destination dest = {};
+
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest.ft = rx->ft.pol;
+	mlx5_ttc_fwd_dest(attr->ttc, family2tt(attr->family), &dest);
+}
+
 static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		     struct mlx5e_ipsec_rx *rx, u32 family)
 {
-	struct mlx5_flow_namespace *ns = mlx5e_fs_get_ns(ipsec->fs, false);
-	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
-	struct mlx5_flow_destination default_dest;
+	struct mlx5e_ipsec_rx_create_attr attr;
 	struct mlx5_flow_destination dest[2];
 	struct mlx5_flow_table *ft;
 	u32 flags = 0;
 	int err;
 
-	default_dest = mlx5_ttc_get_default_dest(ttc, family2tt(family));
-	err = mlx5_ipsec_fs_roce_rx_create(mdev, ipsec->roce, ns, &default_dest,
-					   family, MLX5E_ACCEL_FS_ESP_FT_ROCE_LEVEL,
-					   MLX5E_NIC_PRIO);
+	ipsec_rx_create_attr_set(ipsec, rx, family, &attr);
+
+	err = ipsec_rx_status_pass_dest_get(ipsec, rx, &attr, &dest[0]);
 	if (err)
 		return err;
 
-	ft = ipsec_ft_create(ns, MLX5E_ACCEL_FS_ESP_FT_ERR_LEVEL,
-			     MLX5E_NIC_PRIO, 1, 0);
+	ft = ipsec_ft_create(attr.ns, attr.status_level, attr.prio, 1, 0);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_fs_ft_status;
 	}
-
 	rx->ft.status = ft;
-
-	ft = mlx5_ipsec_fs_roce_ft_get(ipsec->roce, family);
-	if (ft) {
-		dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-		dest[0].ft = ft;
-	} else {
-		dest[0] = default_dest;
-	}
 
 	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
 	dest[1].counter_id = mlx5_fc_id(rx->fc->cnt);
@@ -323,8 +366,7 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		rx->allow_tunnel_mode = mlx5_eswitch_block_encap(mdev);
 	if (rx->allow_tunnel_mode)
 		flags = MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-	ft = ipsec_ft_create(ns, MLX5E_ACCEL_FS_ESP_FT_LEVEL, MLX5E_NIC_PRIO, 2,
-			     flags);
+	ft = ipsec_ft_create(attr.ns, attr.sa_level, attr.prio, 2, flags);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_fs_ft;
@@ -337,9 +379,9 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 
 	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PRIO) {
 		rx->chains = ipsec_chains_create(mdev, rx->ft.sa,
-						 MLX5_FLOW_NAMESPACE_KERNEL,
-						 MLX5E_NIC_PRIO,
-						 MLX5E_ACCEL_FS_POL_FT_LEVEL,
+						 attr.chains_ns,
+						 attr.prio,
+						 attr.pol_level,
 						 &rx->ft.pol);
 		if (IS_ERR(rx->chains)) {
 			err = PTR_ERR(rx->chains);
@@ -349,8 +391,7 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		goto connect;
 	}
 
-	ft = ipsec_ft_create(ns, MLX5E_ACCEL_FS_POL_FT_LEVEL, MLX5E_NIC_PRIO,
-			     2, 0);
+	ft = ipsec_ft_create(attr.ns, attr.pol_level, attr.prio, 2, 0);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_pol_ft;
@@ -365,10 +406,7 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 
 connect:
 	/* connect */
-	memset(dest, 0x00, sizeof(*dest));
-	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest[0].ft = rx->ft.pol;
-	mlx5_ttc_fwd_dest(ttc, family2tt(family), &dest[0]);
+	ipsec_rx_ft_connect(ipsec, rx, &attr);
 	return 0;
 
 err_pol_miss:
