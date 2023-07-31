@@ -749,19 +749,9 @@ static int ub913_subdev_init(struct ub913_data *priv)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to init pads\n");
 
-	priv->sd.fwnode = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev),
-							  UB913_PAD_SOURCE, 0,
-							  0);
-
-	if (!priv->sd.fwnode) {
-		ret = -ENODEV;
-		dev_err_probe(dev, ret, "Missing TX endpoint\n");
-		goto err_entity_cleanup;
-	}
-
 	ret = v4l2_subdev_init_finalize(&priv->sd);
 	if (ret)
-		goto err_fwnode_put;
+		goto err_entity_cleanup;
 
 	ret = ub913_v4l2_notifier_register(priv);
 	if (ret) {
@@ -782,8 +772,6 @@ err_unreg_notif:
 	ub913_v4l2_nf_unregister(priv);
 err_subdev_cleanup:
 	v4l2_subdev_cleanup(&priv->sd);
-err_fwnode_put:
-	fwnode_handle_put(priv->sd.fwnode);
 err_entity_cleanup:
 	media_entity_cleanup(&priv->sd.entity);
 
