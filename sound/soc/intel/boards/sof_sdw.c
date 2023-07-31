@@ -2045,6 +2045,12 @@ static void mc_remove(struct platform_device *pdev)
 	mc_dailink_exit_loop(card);
 }
 
+static const struct platform_device_id mc_id_table[] = {
+	{ "sof_sdw", },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, mc_id_table);
+
 static struct platform_driver sof_sdw_driver = {
 	.driver = {
 		.name = "sof_sdw",
@@ -2052,6 +2058,7 @@ static struct platform_driver sof_sdw_driver = {
 	},
 	.probe = mc_probe,
 	.remove_new = mc_remove,
+	.id_table = mc_id_table,
 };
 
 module_platform_driver(sof_sdw_driver);
@@ -2061,6 +2068,5 @@ MODULE_AUTHOR("Bard Liao <yung-chuan.liao@linux.intel.com>");
 MODULE_AUTHOR("Rander Wang <rander.wang@linux.intel.com>");
 MODULE_AUTHOR("Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:sof_sdw");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_MAXIM_COMMON);
