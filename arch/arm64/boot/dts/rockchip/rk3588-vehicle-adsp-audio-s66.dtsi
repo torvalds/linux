@@ -37,9 +37,7 @@
 	sound1 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,bt";
-		simple-audio-card,format = "dsp_a";
-		simple-audio-card,bitclock-inversion = <1>;
-		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,format = "i2s";
 		simple-audio-card,cpu {
 			sound-dai = <&i2s3_2ch>;
 		};
@@ -78,7 +76,7 @@
 };
 
 &mclkin_i2s3 {
-	clock-frequency = <12288000>;
+	clock-frequency = <24576000>;
 };
 
 &spi3 {
