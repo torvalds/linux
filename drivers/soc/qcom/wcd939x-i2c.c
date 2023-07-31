@@ -1327,6 +1327,13 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 	regmap_update_bits(priv->regmap, WCD_USBSS_DP_EN, 0x0E, 0x08);
 	regmap_update_bits(priv->regmap, WCD_USBSS_DN_EN, 0x0E, 0x08);
 
+	/* Display common mode and OVP 4V updates */
+	regmap_update_bits(priv->regmap, WCD_USBSS_DISP_AUXP_CTL, 0x07, 0x01);
+	regmap_update_bits(priv->regmap, WCD_USBSS_DISP_AUXP_THRESH, 0xE0, 0xE0);
+	regmap_update_bits(priv->regmap, WCD_USBSS_DISP_AUXM_THRESH, 0xE0, 0xE0);
+	regmap_update_bits(priv->regmap, WCD_USBSS_MG1_EN, 0x0C, 0x0C);
+	regmap_update_bits(priv->regmap, WCD_USBSS_MG2_EN, 0x0C, 0x0C);
+
 	regmap_read(priv->regmap, WCD_USBSS_CHIP_ID1, &ver);
 	if (ver == 0x1) { /* Harmonium 2.0 */
 		regmap_update_bits(priv->regmap, WCD_USBSS_MG1_EN, 0x2, 0x0);
