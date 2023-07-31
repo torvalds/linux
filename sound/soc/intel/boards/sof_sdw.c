@@ -1027,9 +1027,9 @@ static inline int find_codec_info_acpi(const u8 *acpi_id)
  * Since some sdw slaves may be aggregated, the CPU DAI number
  * may be larger than the number of BE dailinks.
  */
-static int get_sdw_dailink_info(struct device *dev,
-				const struct snd_soc_acpi_link_adr *adr_link,
-				int *sdw_be_num, int *sdw_cpu_dai_num)
+static int get_dailink_info(struct device *dev,
+			    const struct snd_soc_acpi_link_adr *adr_link,
+			    int *sdw_be_num, int *sdw_cpu_dai_num, int *codecs_num)
 {
 	bool group_visited[SDW_MAX_GROUPS];
 	bool no_aggregation;
@@ -1058,7 +1058,16 @@ static int get_sdw_dailink_info(struct device *dev,
 			codec_index = find_codec_info_part(adr);
 			if (codec_index < 0)
 				return codec_index;
+
 			codec_info = &codec_info_list[codec_index];
+
+			*codecs_num += codec_info->dai_num;
+
+			if (!adr_link->adr_d[i].name_prefix) {
+				dev_err(dev, "codec 0x%llx does not have a name prefix\n",
+					adr_link->adr_d[i].adr);
+				return -EINVAL;
+			}
 
 			endpoint = adr_link->adr_d[i].endpoints;
 
@@ -1540,46 +1549,6 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 
 #define IDISP_CODEC_MASK	0x4
 
-static int sof_card_codec_conf_alloc(struct device *dev,
-				     struct snd_soc_acpi_mach_params *mach_params,
-				     struct snd_soc_codec_conf **codec_conf,
-				     int *codec_conf_count)
-{
-	const struct snd_soc_acpi_link_adr *adr_link;
-	struct snd_soc_codec_conf *c_conf;
-	int num_codecs = 0;
-	int codec_index;
-	int i;
-
-	adr_link = mach_params->links;
-	if (!adr_link)
-		return -EINVAL;
-
-	/* generate DAI links by each sdw link */
-	for (; adr_link->num_adr; adr_link++) {
-		for (i = 0; i < adr_link->num_adr; i++) {
-			if (!adr_link->adr_d[i].name_prefix) {
-				dev_err(dev, "codec 0x%llx does not have a name prefix\n",
-					adr_link->adr_d[i].adr);
-				return -EINVAL;
-			}
-			codec_index = find_codec_info_part(adr_link->adr_d[i].adr);
-			if (codec_index < 0)
-				return codec_index;
-			num_codecs += codec_info_list[codec_index].dai_num;
-		}
-	}
-
-	c_conf = devm_kzalloc(dev, num_codecs * sizeof(*c_conf), GFP_KERNEL);
-	if (!c_conf)
-		return -ENOMEM;
-
-	*codec_conf = c_conf;
-	*codec_conf_count = num_codecs;
-
-	return 0;
-}
-
 static int sof_card_dai_links_create(struct snd_soc_card *card)
 {
 	struct device *dev = card->dev;
@@ -1594,7 +1563,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	struct snd_soc_codec_conf *codec_conf;
 	bool append_dai_type = false;
 	bool ignore_pch_dmic = false;
-	int codec_conf_count;
+	int codec_conf_num = 0;
 	int codec_conf_index = 0;
 	bool group_generated[SDW_MAX_GROUPS];
 	int ssp_codec_index, ssp_mask;
@@ -1608,12 +1577,8 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	int cpu_id = 0;
 	int ret;
 
-	/* allocate codec conf, will be populated when dailinks are created */
-	ret = sof_card_codec_conf_alloc(dev, mach_params, &codec_conf, &codec_conf_count);
-	if (ret < 0)
-		return ret;
-
-	ret = get_sdw_dailink_info(dev, adr_link, &sdw_be_num, &sdw_cpu_dai_num);
+	ret = get_dailink_info(dev, adr_link, &sdw_be_num, &sdw_cpu_dai_num,
+			       &codec_conf_num);
 	if (ret < 0) {
 		dev_err(dev, "failed to get sdw link info %d\n", ret);
 		return ret;
@@ -1660,6 +1625,12 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	total_cpu_dai_num = sdw_cpu_dai_num + ssp_num + dmic_num + hdmi_num + bt_num;
 	cpus = devm_kcalloc(dev, total_cpu_dai_num, sizeof(*cpus), GFP_KERNEL);
 	if (!cpus)
+		return -ENOMEM;
+
+	/* allocate codec conf, will be populated when dailinks are created */
+	codec_conf = devm_kcalloc(dev, codec_conf_num, sizeof(*codec_conf),
+				  GFP_KERNEL);
+	if (!codec_conf)
 		return -ENOMEM;
 
 	/* SDW */
@@ -1736,7 +1707,7 @@ out:
 				ret = create_sdw_dailink(card, &link_index, dai_links,
 							 sdw_be_num, sdw_cpu_dai_num, cpus,
 							 adr_link, &cpu_id, group_generated,
-							 codec_conf, codec_conf_count,
+							 codec_conf, codec_conf_num,
 							 &be_id, &codec_conf_index,
 							 &ignore_pch_dmic, append_dai_type, i, j);
 				if (ret < 0) {
@@ -1888,7 +1859,7 @@ HDMI:
 	card->num_links = num_links;
 
 	card->codec_conf = codec_conf;
-	card->num_configs = codec_conf_count;
+	card->num_configs = codec_conf_num;
 
 	return 0;
 }
