@@ -79,7 +79,7 @@ static int spk_ttyio_receive_buf2(struct tty_struct *tty,
 	struct spk_synth *synth = ldisc_data->synth;
 
 	if (synth->read_buff_add) {
-		int i;
+		unsigned int i;
 
 		for (i = 0; i < count; i++)
 			synth->read_buff_add(cp[i]);
