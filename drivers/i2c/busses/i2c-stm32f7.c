@@ -2121,12 +2121,12 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 	phy_addr = (dma_addr_t)res->start;
 
 	irq_event = platform_get_irq(pdev, 0);
-	if (irq_event <= 0)
-		return irq_event ? : -ENOENT;
+	if (irq_event < 0)
+		return irq_event;
 
 	irq_error = platform_get_irq(pdev, 1);
-	if (irq_error <= 0)
-		return irq_error ? : -ENOENT;
+	if (irq_error < 0)
+		return irq_error;
 
 	i2c_dev->wakeup_src = of_property_read_bool(pdev->dev.of_node,
 						    "wakeup-source");
