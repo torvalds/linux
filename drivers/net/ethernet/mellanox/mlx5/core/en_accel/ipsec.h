@@ -143,7 +143,7 @@ struct mlx5e_ipsec_sw_stats {
 	atomic64_t ipsec_tx_drop_trailer;
 };
 
-struct mlx5e_ipsec_rx;
+struct mlx5e_ipsec_fc;
 struct mlx5e_ipsec_tx;
 
 struct mlx5e_ipsec_work {
@@ -180,6 +180,38 @@ struct mlx5e_ipsec_rx_create_attr {
 	enum mlx5_flow_namespace_type chains_ns;
 };
 
+struct mlx5e_ipsec_ft {
+	struct mutex mutex; /* Protect changes to this struct */
+	struct mlx5_flow_table *pol;
+	struct mlx5_flow_table *sa;
+	struct mlx5_flow_table *status;
+	u32 refcnt;
+};
+
+struct mlx5e_ipsec_rule {
+	struct mlx5_flow_handle *rule;
+	struct mlx5_modify_hdr *modify_hdr;
+	struct mlx5_pkt_reformat *pkt_reformat;
+	struct mlx5_fc *fc;
+};
+
+struct mlx5e_ipsec_miss {
+	struct mlx5_flow_group *group;
+	struct mlx5_flow_handle *rule;
+};
+
+struct mlx5e_ipsec_rx {
+	struct mlx5e_ipsec_ft ft;
+	struct mlx5e_ipsec_miss pol;
+	struct mlx5e_ipsec_miss sa;
+	struct mlx5e_ipsec_rule status;
+	struct mlx5e_ipsec_miss status_drop;
+	struct mlx5_fc *status_drop_cnt;
+	struct mlx5e_ipsec_fc *fc;
+	struct mlx5_fs_chains *chains;
+	u8 allow_tunnel_mode : 1;
+};
+
 struct mlx5e_ipsec {
 	struct mlx5_core_dev *mdev;
 	struct xarray sadb;
@@ -203,13 +235,6 @@ struct mlx5e_ipsec_esn_state {
 	u32 esn;
 	u32 esn_msb;
 	u8 overlap: 1;
-};
-
-struct mlx5e_ipsec_rule {
-	struct mlx5_flow_handle *rule;
-	struct mlx5_modify_hdr *modify_hdr;
-	struct mlx5_pkt_reformat *pkt_reformat;
-	struct mlx5_fc *fc;
 };
 
 struct mlx5e_ipsec_limits {

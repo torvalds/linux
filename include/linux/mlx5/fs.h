@@ -109,6 +109,7 @@ enum mlx5_flow_namespace_type {
 
 enum {
 	FDB_BYPASS_PATH,
+	FDB_CRYPTO_INGRESS,
 	FDB_TC_OFFLOAD,
 	FDB_FT_OFFLOAD,
 	FDB_TC_MISS,
