@@ -322,7 +322,7 @@ struct slgt_info {
 
 };
 
-static MGSL_PARAMS default_params = {
+static const MGSL_PARAMS default_params = {
 	.mode            = MGSL_MODE_HDLC,
 	.loopback        = 0,
 	.flags           = HDLC_FLAG_UNDERRUN_ABORT15,
