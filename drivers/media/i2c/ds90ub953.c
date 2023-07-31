@@ -138,6 +138,7 @@ struct ub953_data {
 	struct regmap		*regmap;
 
 	u32			num_data_lanes;
+	bool			non_continous_clk;
 
 	struct gpio_chip	gpio_chip;
 
@@ -1140,6 +1141,9 @@ static int ub953_parse_dt(struct ub953_data *priv)
 
 	priv->num_data_lanes = nlanes;
 
+	priv->non_continous_clk = vep.bus.mipi_csi2.flags &
+				  V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
+
 	return 0;
 }
 
@@ -1202,7 +1206,7 @@ static int ub953_hw_init(struct ub953_data *priv)
 		return dev_err_probe(dev, ret, "i2c init failed\n");
 
 	ub953_write(priv, UB953_REG_GENERAL_CFG,
-		    UB953_REG_GENERAL_CFG_CONT_CLK |
+		    (priv->non_continous_clk ? 0 : UB953_REG_GENERAL_CFG_CONT_CLK) |
 		    ((priv->num_data_lanes - 1) << UB953_REG_GENERAL_CFG_CSI_LANE_SEL_SHIFT) |
 		    UB953_REG_GENERAL_CFG_CRC_TX_GEN_ENABLE);
 
