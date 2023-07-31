@@ -63,6 +63,10 @@
 	memory-region = <&mctp1_reserved>;
 };
 
+&i3c0 {
+	status = "okay";
+};
+
 &jtag0 {
 	status = "okay";
 };
