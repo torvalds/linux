@@ -7,6 +7,7 @@
 #ifndef SELFTEST_KVM_UCALL_COMMON_H
 #define SELFTEST_KVM_UCALL_COMMON_H
 #include "test_util.h"
+#include "ucall.h"
 
 /* Common ucalls */
 enum {

@@ -8,10 +8,6 @@
 
 #define UCALL_PIO_PORT ((uint16_t)0x1000)
 
-void ucall_arch_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa)
-{
-}
-
 void ucall_arch_do_ucall(vm_vaddr_t uc)
 {
 	/*
