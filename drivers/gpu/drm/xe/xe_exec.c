@@ -95,19 +95,19 @@
 
 #define XE_EXEC_BIND_RETRY_TIMEOUT_MS 1000
 
-static int xe_exec_begin(struct xe_engine *e, struct ww_acquire_ctx *ww,
+static int xe_exec_begin(struct xe_exec_queue *q, struct ww_acquire_ctx *ww,
 			 struct ttm_validate_buffer tv_onstack[],
 			 struct ttm_validate_buffer **tv,
 			 struct list_head *objs)
 {
-	struct xe_vm *vm = e->vm;
+	struct xe_vm *vm = q->vm;
 	struct xe_vma *vma;
 	LIST_HEAD(dups);
 	ktime_t end = 0;
 	int err = 0;
 
 	*tv = NULL;
-	if (xe_vm_no_dma_fences(e->vm))
+	if (xe_vm_no_dma_fences(q->vm))
 		return 0;
 
 retry:
@@ -153,14 +153,14 @@ retry:
 	return err;
 }
 
-static void xe_exec_end(struct xe_engine *e,
+static void xe_exec_end(struct xe_exec_queue *q,
 			struct ttm_validate_buffer *tv_onstack,
 			struct ttm_validate_buffer *tv,
 			struct ww_acquire_ctx *ww,
 			struct list_head *objs)
 {
-	if (!xe_vm_no_dma_fences(e->vm))
-		xe_vm_unlock_dma_resv(e->vm, tv_onstack, tv, ww, objs);
+	if (!xe_vm_no_dma_fences(q->vm))
+		xe_vm_unlock_dma_resv(q->vm, tv_onstack, tv, ww, objs);
 }
 
 int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
@@ -170,7 +170,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct drm_xe_exec *args = data;
 	struct drm_xe_sync __user *syncs_user = u64_to_user_ptr(args->syncs);
 	u64 __user *addresses_user = u64_to_user_ptr(args->address);
-	struct xe_engine *engine;
+	struct xe_exec_queue *q;
 	struct xe_sync_entry *syncs = NULL;
 	u64 addresses[XE_HW_ENGINE_MAX_INSTANCE];
 	struct ttm_validate_buffer tv_onstack[XE_ONSTACK_TV];
@@ -189,30 +189,30 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
-	engine = xe_engine_lookup(xef, args->engine_id);
-	if (XE_IOCTL_DBG(xe, !engine))
+	q = xe_exec_queue_lookup(xef, args->exec_queue_id);
+	if (XE_IOCTL_DBG(xe, !q))
 		return -ENOENT;
 
-	if (XE_IOCTL_DBG(xe, engine->flags & ENGINE_FLAG_VM))
+	if (XE_IOCTL_DBG(xe, q->flags & EXEC_QUEUE_FLAG_VM))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, engine->width != args->num_batch_buffer))
+	if (XE_IOCTL_DBG(xe, q->width != args->num_batch_buffer))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, engine->flags & ENGINE_FLAG_BANNED)) {
+	if (XE_IOCTL_DBG(xe, q->flags & EXEC_QUEUE_FLAG_BANNED)) {
 		err = -ECANCELED;
-		goto err_engine;
+		goto err_exec_queue;
 	}
 
 	if (args->num_syncs) {
 		syncs = kcalloc(args->num_syncs, sizeof(*syncs), GFP_KERNEL);
 		if (!syncs) {
 			err = -ENOMEM;
-			goto err_engine;
+			goto err_exec_queue;
 		}
 	}
 
-	vm = engine->vm;
+	vm = q->vm;
 
 	for (i = 0; i < args->num_syncs; i++) {
 		err = xe_sync_entry_parse(xe, xef, &syncs[num_syncs++],
@@ -222,9 +222,9 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			goto err_syncs;
 	}
 
-	if (xe_engine_is_parallel(engine)) {
+	if (xe_exec_queue_is_parallel(q)) {
 		err = __copy_from_user(addresses, addresses_user, sizeof(u64) *
-				       engine->width);
+				       q->width);
 		if (err) {
 			err = -EFAULT;
 			goto err_syncs;
@@ -294,26 +294,26 @@ retry:
 			goto err_unlock_list;
 	}
 
-	err = xe_exec_begin(engine, &ww, tv_onstack, &tv, &objs);
+	err = xe_exec_begin(q, &ww, tv_onstack, &tv, &objs);
 	if (err)
 		goto err_unlock_list;
 
-	if (xe_vm_is_closed_or_banned(engine->vm)) {
+	if (xe_vm_is_closed_or_banned(q->vm)) {
 		drm_warn(&xe->drm, "Trying to schedule after vm is closed or banned\n");
 		err = -ECANCELED;
-		goto err_engine_end;
+		goto err_exec_queue_end;
 	}
 
-	if (xe_engine_is_lr(engine) && xe_engine_ring_full(engine)) {
+	if (xe_exec_queue_is_lr(q) && xe_exec_queue_ring_full(q)) {
 		err = -EWOULDBLOCK;
-		goto err_engine_end;
+		goto err_exec_queue_end;
 	}
 
-	job = xe_sched_job_create(engine, xe_engine_is_parallel(engine) ?
+	job = xe_sched_job_create(q, xe_exec_queue_is_parallel(q) ?
 				  addresses : &args->address);
 	if (IS_ERR(job)) {
 		err = PTR_ERR(job);
-		goto err_engine_end;
+		goto err_exec_queue_end;
 	}
 
 	/*
@@ -395,8 +395,8 @@ retry:
 		xe_sync_entry_signal(&syncs[i], job,
 				     &job->drm.s_fence->finished);
 
-	if (xe_engine_is_lr(engine))
-		engine->ring_ops->emit_job(job);
+	if (xe_exec_queue_is_lr(q))
+		q->ring_ops->emit_job(job);
 	xe_sched_job_push(job);
 	xe_vm_reactivate_rebind(vm);
 
@@ -412,8 +412,8 @@ err_repin:
 err_put_job:
 	if (err)
 		xe_sched_job_put(job);
-err_engine_end:
-	xe_exec_end(engine, tv_onstack, tv, &ww, &objs);
+err_exec_queue_end:
+	xe_exec_end(q, tv_onstack, tv, &ww, &objs);
 err_unlock_list:
 	if (write_locked)
 		up_write(&vm->lock);
@@ -425,8 +425,8 @@ err_syncs:
 	for (i = 0; i < num_syncs; i++)
 		xe_sync_entry_cleanup(&syncs[i]);
 	kfree(syncs);
-err_engine:
-	xe_engine_put(engine);
+err_exec_queue:
+	xe_exec_queue_put(q);
 
 	return err;
 }

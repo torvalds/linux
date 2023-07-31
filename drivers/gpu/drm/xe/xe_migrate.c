@@ -34,8 +34,8 @@
  * struct xe_migrate - migrate context.
  */
 struct xe_migrate {
-	/** @eng: Default engine used for migration */
-	struct xe_engine *eng;
+	/** @q: Default exec queue used for migration */
+	struct xe_exec_queue *q;
 	/** @tile: Backpointer to the tile this struct xe_migrate belongs to. */
 	struct xe_tile *tile;
 	/** @job_mutex: Timeline mutex for @eng. */
@@ -78,9 +78,9 @@ struct xe_migrate {
  *
  * Return: The default migrate engine
  */
-struct xe_engine *xe_tile_migrate_engine(struct xe_tile *tile)
+struct xe_exec_queue *xe_tile_migrate_engine(struct xe_tile *tile)
 {
-	return tile->migrate->eng;
+	return tile->migrate->q;
 }
 
 static void xe_migrate_fini(struct drm_device *dev, void *arg)
@@ -88,11 +88,11 @@ static void xe_migrate_fini(struct drm_device *dev, void *arg)
 	struct xe_migrate *m = arg;
 	struct ww_acquire_ctx ww;
 
-	xe_vm_lock(m->eng->vm, &ww, 0, false);
+	xe_vm_lock(m->q->vm, &ww, 0, false);
 	xe_bo_unpin(m->pt_bo);
 	if (m->cleared_bo)
 		xe_bo_unpin(m->cleared_bo);
-	xe_vm_unlock(m->eng->vm, &ww);
+	xe_vm_unlock(m->q->vm, &ww);
 
 	dma_fence_put(m->fence);
 	if (m->cleared_bo)
@@ -100,8 +100,8 @@ static void xe_migrate_fini(struct drm_device *dev, void *arg)
 	xe_bo_put(m->pt_bo);
 	drm_suballoc_manager_fini(&m->vm_update_sa);
 	mutex_destroy(&m->job_mutex);
-	xe_vm_close_and_put(m->eng->vm);
-	xe_engine_put(m->eng);
+	xe_vm_close_and_put(m->q->vm);
+	xe_exec_queue_put(m->q);
 }
 
 static u64 xe_migrate_vm_addr(u64 slot, u32 level)
@@ -341,20 +341,20 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 		if (!hwe)
 			return ERR_PTR(-EINVAL);
 
-		m->eng = xe_engine_create(xe, vm,
-					  BIT(hwe->logical_instance), 1,
-					  hwe, ENGINE_FLAG_KERNEL);
+		m->q = xe_exec_queue_create(xe, vm,
+					    BIT(hwe->logical_instance), 1,
+					    hwe, EXEC_QUEUE_FLAG_KERNEL);
 	} else {
-		m->eng = xe_engine_create_class(xe, primary_gt, vm,
-						XE_ENGINE_CLASS_COPY,
-						ENGINE_FLAG_KERNEL);
+		m->q = xe_exec_queue_create_class(xe, primary_gt, vm,
+						  XE_ENGINE_CLASS_COPY,
+						  EXEC_QUEUE_FLAG_KERNEL);
 	}
-	if (IS_ERR(m->eng)) {
+	if (IS_ERR(m->q)) {
 		xe_vm_close_and_put(vm);
-		return ERR_CAST(m->eng);
+		return ERR_CAST(m->q);
 	}
 	if (xe->info.supports_usm)
-		m->eng->priority = XE_ENGINE_PRIORITY_KERNEL;
+		m->q->priority = XE_EXEC_QUEUE_PRIORITY_KERNEL;
 
 	mutex_init(&m->job_mutex);
 
@@ -456,7 +456,7 @@ static void emit_pte(struct xe_migrate *m,
 			addr = xe_res_dma(cur) & PAGE_MASK;
 			if (is_vram) {
 				/* Is this a 64K PTE entry? */
-				if ((m->eng->vm->flags & XE_VM_FLAG_64K) &&
+				if ((m->q->vm->flags & XE_VM_FLAG_64K) &&
 				    !(cur_ofs & (16 * 8 - 1))) {
 					XE_WARN_ON(!IS_ALIGNED(addr, SZ_64K));
 					addr |= XE_PTE_PS64;
@@ -714,7 +714,7 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 						  src_L0, ccs_ofs, copy_ccs);
 
 		mutex_lock(&m->job_mutex);
-		job = xe_bb_create_migration_job(m->eng, bb,
+		job = xe_bb_create_migration_job(m->q, bb,
 						 xe_migrate_batch_base(m, usm),
 						 update_idx);
 		if (IS_ERR(job)) {
@@ -938,7 +938,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		}
 
 		mutex_lock(&m->job_mutex);
-		job = xe_bb_create_migration_job(m->eng, bb,
+		job = xe_bb_create_migration_job(m->q, bb,
 						 xe_migrate_batch_base(m, usm),
 						 update_idx);
 		if (IS_ERR(job)) {
@@ -1024,7 +1024,7 @@ static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 
 struct xe_vm *xe_migrate_get_vm(struct xe_migrate *m)
 {
-	return xe_vm_get(m->eng->vm);
+	return xe_vm_get(m->q->vm);
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
@@ -1106,7 +1106,7 @@ static bool no_in_syncs(struct xe_sync_entry *syncs, u32 num_syncs)
  * @m: The migrate context.
  * @vm: The vm we'll be updating.
  * @bo: The bo whose dma-resv we will await before updating, or NULL if userptr.
- * @eng: The engine to be used for the update or NULL if the default
+ * @q: The exec queue to be used for the update or NULL if the default
  * migration engine is to be used.
  * @updates: An array of update descriptors.
  * @num_updates: Number of descriptors in @updates.
@@ -1132,7 +1132,7 @@ struct dma_fence *
 xe_migrate_update_pgtables(struct xe_migrate *m,
 			   struct xe_vm *vm,
 			   struct xe_bo *bo,
-			   struct xe_engine *eng,
+			   struct xe_exec_queue *q,
 			   const struct xe_vm_pgtable_update *updates,
 			   u32 num_updates,
 			   struct xe_sync_entry *syncs, u32 num_syncs,
@@ -1150,13 +1150,13 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	u32 i, batch_size, ppgtt_ofs, update_idx, page_ofs = 0;
 	u64 addr;
 	int err = 0;
-	bool usm = !eng && xe->info.supports_usm;
+	bool usm = !q && xe->info.supports_usm;
 	bool first_munmap_rebind = vma &&
 		vma->gpuva.flags & XE_VMA_FIRST_REBIND;
-	struct xe_engine *eng_override = !eng ? m->eng : eng;
+	struct xe_exec_queue *q_override = !q ? m->q : q;
 
 	/* Use the CPU if no in syncs and engine is idle */
-	if (no_in_syncs(syncs, num_syncs) && xe_engine_is_idle(eng_override)) {
+	if (no_in_syncs(syncs, num_syncs) && xe_exec_queue_is_idle(q_override)) {
 		fence =  xe_migrate_update_pgtables_cpu(m, vm, bo, updates,
 							num_updates,
 							first_munmap_rebind,
@@ -1186,14 +1186,14 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	 */
 	XE_WARN_ON(batch_size >= SZ_128K);
 
-	bb = xe_bb_new(gt, batch_size, !eng && xe->info.supports_usm);
+	bb = xe_bb_new(gt, batch_size, !q && xe->info.supports_usm);
 	if (IS_ERR(bb))
 		return ERR_CAST(bb);
 
 	/* For sysmem PTE's, need to map them in our hole.. */
 	if (!IS_DGFX(xe)) {
 		ppgtt_ofs = NUM_KERNEL_PDE - 1;
-		if (eng) {
+		if (q) {
 			XE_WARN_ON(num_updates > NUM_VMUSA_WRITES_PER_UNIT);
 
 			sa_bo = drm_suballoc_new(&m->vm_update_sa, 1,
@@ -1249,10 +1249,10 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 			write_pgtable(tile, bb, 0, &updates[i], pt_update);
 	}
 
-	if (!eng)
+	if (!q)
 		mutex_lock(&m->job_mutex);
 
-	job = xe_bb_create_migration_job(eng ?: m->eng, bb,
+	job = xe_bb_create_migration_job(q ?: m->q, bb,
 					 xe_migrate_batch_base(m, usm),
 					 update_idx);
 	if (IS_ERR(job)) {
@@ -1295,7 +1295,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	fence = dma_fence_get(&job->drm.s_fence->finished);
 	xe_sched_job_push(job);
 
-	if (!eng)
+	if (!q)
 		mutex_unlock(&m->job_mutex);
 
 	xe_bb_free(bb, fence);
@@ -1306,7 +1306,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 err_job:
 	xe_sched_job_put(job);
 err_bb:
-	if (!eng)
+	if (!q)
 		mutex_unlock(&m->job_mutex);
 	xe_bb_free(bb, NULL);
 err:

@@ -1307,7 +1307,7 @@ static void xe_pt_calc_rfence_interval(struct xe_vma *vma,
  * address range.
  * @tile: The tile to bind for.
  * @vma: The vma to bind.
- * @e: The engine with which to do pipelined page-table updates.
+ * @q: The exec_queue with which to do pipelined page-table updates.
  * @syncs: Entries to sync on before binding the built tree to the live vm tree.
  * @num_syncs: Number of @sync entries.
  * @rebind: Whether we're rebinding this vma to the same address range without
@@ -1325,7 +1325,7 @@ static void xe_pt_calc_rfence_interval(struct xe_vma *vma,
  * on success, an error pointer on error.
  */
 struct dma_fence *
-__xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
+__xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue *q,
 		 struct xe_sync_entry *syncs, u32 num_syncs,
 		 bool rebind)
 {
@@ -1351,7 +1351,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 
 	vm_dbg(&xe_vma_vm(vma)->xe->drm,
 	       "Preparing bind, with range [%llx...%llx) engine %p.\n",
-	       xe_vma_start(vma), xe_vma_end(vma) - 1, e);
+	       xe_vma_start(vma), xe_vma_end(vma) - 1, q);
 
 	err = xe_pt_prepare_bind(tile, vma, entries, &num_entries, rebind);
 	if (err)
@@ -1388,7 +1388,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 	}
 
 	fence = xe_migrate_update_pgtables(tile->migrate,
-					   vm, xe_vma_bo(vma), e,
+					   vm, xe_vma_bo(vma), q,
 					   entries, num_entries,
 					   syncs, num_syncs,
 					   &bind_pt_update.base);
@@ -1663,7 +1663,7 @@ static const struct xe_migrate_pt_update_ops userptr_unbind_ops = {
  * address range.
  * @tile: The tile to unbind for.
  * @vma: The vma to unbind.
- * @e: The engine with which to do pipelined page-table updates.
+ * @q: The exec_queue with which to do pipelined page-table updates.
  * @syncs: Entries to sync on before disconnecting the tree to be destroyed.
  * @num_syncs: Number of @sync entries.
  *
@@ -1679,7 +1679,7 @@ static const struct xe_migrate_pt_update_ops userptr_unbind_ops = {
  * on success, an error pointer on error.
  */
 struct dma_fence *
-__xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
+__xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue *q,
 		   struct xe_sync_entry *syncs, u32 num_syncs)
 {
 	struct xe_vm_pgtable_update entries[XE_VM_MAX_LEVEL * 2 + 1];
@@ -1704,7 +1704,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 
 	vm_dbg(&xe_vma_vm(vma)->xe->drm,
 	       "Preparing unbind, with range [%llx...%llx) engine %p.\n",
-	       xe_vma_start(vma), xe_vma_end(vma) - 1, e);
+	       xe_vma_start(vma), xe_vma_end(vma) - 1, q);
 
 	num_entries = xe_pt_stage_unbind(tile, vma, entries);
 	XE_WARN_ON(num_entries > ARRAY_SIZE(entries));
@@ -1729,8 +1729,8 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 	 * lower level, because it needs to be more conservative.
 	 */
 	fence = xe_migrate_update_pgtables(tile->migrate,
-					   vm, NULL, e ? e :
-					   vm->eng[tile->id],
+					   vm, NULL, q ? q :
+					   vm->q[tile->id],
 					   entries, num_entries,
 					   syncs, num_syncs,
 					   &unbind_pt_update.base);

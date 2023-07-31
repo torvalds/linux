@@ -14,7 +14,7 @@ struct ttm_resource;
 
 struct xe_bo;
 struct xe_gt;
-struct xe_engine;
+struct xe_exec_queue;
 struct xe_migrate;
 struct xe_migrate_pt_update;
 struct xe_sync_entry;
@@ -97,7 +97,7 @@ struct dma_fence *
 xe_migrate_update_pgtables(struct xe_migrate *m,
 			   struct xe_vm *vm,
 			   struct xe_bo *bo,
-			   struct xe_engine *eng,
+			   struct xe_exec_queue *q,
 			   const struct xe_vm_pgtable_update *updates,
 			   u32 num_updates,
 			   struct xe_sync_entry *syncs, u32 num_syncs,
@@ -105,5 +105,5 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 
 void xe_migrate_wait(struct xe_migrate *m);
 
-struct xe_engine *xe_tile_migrate_engine(struct xe_tile *tile);
+struct xe_exec_queue *xe_tile_migrate_engine(struct xe_tile *tile);
 #endif

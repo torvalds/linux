@@ -33,8 +33,8 @@ struct xe_guc {
 	struct xe_guc_pc pc;
 	/** @submission_state: GuC submission state */
 	struct {
-		/** @engine_lookup: Lookup an xe_engine from guc_id */
-		struct xarray engine_lookup;
+		/** @exec_queue_lookup: Lookup an xe_engine from guc_id */
+		struct xarray exec_queue_lookup;
 		/** @guc_ids: used to allocate new guc_ids, single-lrc */
 		struct ida guc_ids;
 		/** @guc_ids_bitmap: used to allocate new guc_ids, multi-lrc */

@@ -15,19 +15,19 @@ static void preempt_fence_work_func(struct work_struct *w)
 	bool cookie = dma_fence_begin_signalling();
 	struct xe_preempt_fence *pfence =
 		container_of(w, typeof(*pfence), preempt_work);
-	struct xe_engine *e = pfence->engine;
+	struct xe_exec_queue *q = pfence->q;
 
 	if (pfence->error)
 		dma_fence_set_error(&pfence->base, pfence->error);
 	else
-		e->ops->suspend_wait(e);
+		q->ops->suspend_wait(q);
 
 	dma_fence_signal(&pfence->base);
 	dma_fence_end_signalling(cookie);
 
-	xe_vm_queue_rebind_worker(e->vm);
+	xe_vm_queue_rebind_worker(q->vm);
 
-	xe_engine_put(e);
+	xe_exec_queue_put(q);
 }
 
 static const char *
@@ -46,9 +46,9 @@ static bool preempt_fence_enable_signaling(struct dma_fence *fence)
 {
 	struct xe_preempt_fence *pfence =
 		container_of(fence, typeof(*pfence), base);
-	struct xe_engine *e = pfence->engine;
+	struct xe_exec_queue *q = pfence->q;
 
-	pfence->error = e->ops->suspend(e);
+	pfence->error = q->ops->suspend(q);
 	queue_work(system_unbound_wq, &pfence->preempt_work);
 	return true;
 }
@@ -104,43 +104,43 @@ void xe_preempt_fence_free(struct xe_preempt_fence *pfence)
  * xe_preempt_fence_alloc().
  * @pfence: The struct xe_preempt_fence pointer returned from
  *          xe_preempt_fence_alloc().
- * @e: The struct xe_engine used for arming.
+ * @q: The struct xe_exec_queue used for arming.
  * @context: The dma-fence context used for arming.
  * @seqno: The dma-fence seqno used for arming.
  *
  * Inserts the preempt fence into @context's timeline, takes @link off any
- * list, and registers the struct xe_engine as the xe_engine to be preempted.
+ * list, and registers the struct xe_exec_queue as the xe_engine to be preempted.
  *
  * Return: A pointer to a struct dma_fence embedded into the preempt fence.
  * This function doesn't error.
  */
 struct dma_fence *
-xe_preempt_fence_arm(struct xe_preempt_fence *pfence, struct xe_engine *e,
+xe_preempt_fence_arm(struct xe_preempt_fence *pfence, struct xe_exec_queue *q,
 		     u64 context, u32 seqno)
 {
 	list_del_init(&pfence->link);
-	pfence->engine = xe_engine_get(e);
+	pfence->q = xe_exec_queue_get(q);
 	dma_fence_init(&pfence->base, &preempt_fence_ops,
-		      &e->compute.lock, context, seqno);
+		      &q->compute.lock, context, seqno);
 
 	return &pfence->base;
 }
 
 /**
  * xe_preempt_fence_create() - Helper to create and arm a preempt fence.
- * @e: The struct xe_engine used for arming.
+ * @q: The struct xe_exec_queue used for arming.
  * @context: The dma-fence context used for arming.
  * @seqno: The dma-fence seqno used for arming.
  *
  * Allocates and inserts the preempt fence into @context's timeline,
- * and registers @e as the struct xe_engine to be preempted.
+ * and registers @e as the struct xe_exec_queue to be preempted.
  *
  * Return: A pointer to the resulting struct dma_fence on success. An error
  * pointer on error. In particular if allocation fails it returns
  * ERR_PTR(-ENOMEM);
  */
 struct dma_fence *
-xe_preempt_fence_create(struct xe_engine *e,
+xe_preempt_fence_create(struct xe_exec_queue *q,
 			u64 context, u32 seqno)
 {
 	struct xe_preempt_fence *pfence;
@@ -149,7 +149,7 @@ xe_preempt_fence_create(struct xe_engine *e,
 	if (IS_ERR(pfence))
 		return ERR_CAST(pfence);
 
-	return xe_preempt_fence_arm(pfence, e, context, seqno);
+	return xe_preempt_fence_arm(pfence, q, context, seqno);
 }
 
 bool xe_fence_is_xe_preempt(const struct dma_fence *fence)

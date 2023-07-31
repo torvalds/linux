@@ -888,11 +888,11 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		ret = xe_guc_deregister_done_handler(guc, payload, adj_len);
 		break;
 	case XE_GUC_ACTION_CONTEXT_RESET_NOTIFICATION:
-		ret = xe_guc_engine_reset_handler(guc, payload, adj_len);
+		ret = xe_guc_exec_queue_reset_handler(guc, payload, adj_len);
 		break;
 	case XE_GUC_ACTION_ENGINE_FAILURE_NOTIFICATION:
-		ret = xe_guc_engine_reset_failure_handler(guc, payload,
-							  adj_len);
+		ret = xe_guc_exec_queue_reset_failure_handler(guc, payload,
+							      adj_len);
 		break;
 	case XE_GUC_ACTION_SCHED_ENGINE_MODE_DONE:
 		/* Selftest only at the moment */
@@ -902,8 +902,8 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		/* FIXME: Handle this */
 		break;
 	case XE_GUC_ACTION_NOTIFY_MEMORY_CAT_ERROR:
-		ret = xe_guc_engine_memory_cat_error_handler(guc, payload,
-							     adj_len);
+		ret = xe_guc_exec_queue_memory_cat_error_handler(guc, payload,
+								 adj_len);
 		break;
 	case XE_GUC_ACTION_REPORT_PAGE_FAULT_REQ_DESC:
 		ret = xe_guc_pagefault_handler(guc, payload, adj_len);

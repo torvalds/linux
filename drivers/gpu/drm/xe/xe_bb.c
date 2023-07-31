@@ -7,7 +7,7 @@
 
 #include "regs/xe_gpu_commands.h"
 #include "xe_device.h"
-#include "xe_engine_types.h"
+#include "xe_exec_queue_types.h"
 #include "xe_gt.h"
 #include "xe_hw_fence.h"
 #include "xe_sa.h"
@@ -60,30 +60,30 @@ err:
 }
 
 static struct xe_sched_job *
-__xe_bb_create_job(struct xe_engine *kernel_eng, struct xe_bb *bb, u64 *addr)
+__xe_bb_create_job(struct xe_exec_queue *q, struct xe_bb *bb, u64 *addr)
 {
 	u32 size = drm_suballoc_size(bb->bo);
 
 	bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 
-	WARN_ON(bb->len * 4 + bb_prefetch(kernel_eng->gt) > size);
+	WARN_ON(bb->len * 4 + bb_prefetch(q->gt) > size);
 
 	xe_sa_bo_flush_write(bb->bo);
 
-	return xe_sched_job_create(kernel_eng, addr);
+	return xe_sched_job_create(q, addr);
 }
 
-struct xe_sched_job *xe_bb_create_wa_job(struct xe_engine *wa_eng,
+struct xe_sched_job *xe_bb_create_wa_job(struct xe_exec_queue *q,
 					 struct xe_bb *bb, u64 batch_base_ofs)
 {
 	u64 addr = batch_base_ofs + drm_suballoc_soffset(bb->bo);
 
-	XE_WARN_ON(!(wa_eng->vm->flags & XE_VM_FLAG_MIGRATION));
+	XE_WARN_ON(!(q->vm->flags & XE_VM_FLAG_MIGRATION));
 
-	return __xe_bb_create_job(wa_eng, bb, &addr);
+	return __xe_bb_create_job(q, bb, &addr);
 }
 
-struct xe_sched_job *xe_bb_create_migration_job(struct xe_engine *kernel_eng,
+struct xe_sched_job *xe_bb_create_migration_job(struct xe_exec_queue *q,
 						struct xe_bb *bb,
 						u64 batch_base_ofs,
 						u32 second_idx)
@@ -95,18 +95,18 @@ struct xe_sched_job *xe_bb_create_migration_job(struct xe_engine *kernel_eng,
 	};
 
 	XE_WARN_ON(second_idx > bb->len);
-	XE_WARN_ON(!(kernel_eng->vm->flags & XE_VM_FLAG_MIGRATION));
+	XE_WARN_ON(!(q->vm->flags & XE_VM_FLAG_MIGRATION));
 
-	return __xe_bb_create_job(kernel_eng, bb, addr);
+	return __xe_bb_create_job(q, bb, addr);
 }
 
-struct xe_sched_job *xe_bb_create_job(struct xe_engine *kernel_eng,
+struct xe_sched_job *xe_bb_create_job(struct xe_exec_queue *q,
 				      struct xe_bb *bb)
 {
 	u64 addr = xe_sa_bo_gpu_addr(bb->bo);
 
-	XE_WARN_ON(kernel_eng->vm && kernel_eng->vm->flags & XE_VM_FLAG_MIGRATION);
-	return __xe_bb_create_job(kernel_eng, bb, &addr);
+	XE_WARN_ON(q->vm && q->vm->flags & XE_VM_FLAG_MIGRATION);
+	return __xe_bb_create_job(q, bb, &addr);
 }
 
 void xe_bb_free(struct xe_bb *bb, struct dma_fence *fence)

@@ -14,7 +14,7 @@
 int xe_sched_job_module_init(void);
 void xe_sched_job_module_exit(void);
 
-struct xe_sched_job *xe_sched_job_create(struct xe_engine *e,
+struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 					 u64 *batch_addr);
 void xe_sched_job_destroy(struct kref *ref);
 
@@ -71,6 +71,6 @@ xe_sched_job_add_migrate_flush(struct xe_sched_job *job, u32 flags)
 	job->migrate_flush_flags = flags;
 }
 
-bool xe_sched_job_is_migration(struct xe_engine *e);
+bool xe_sched_job_is_migration(struct xe_exec_queue *q);
 
 #endif

@@ -18,7 +18,7 @@ struct drm_file;
 struct ttm_buffer_object;
 struct ttm_validate_buffer;
 
-struct xe_engine;
+struct xe_exec_queue;
 struct xe_file;
 struct xe_sync_entry;
 
@@ -164,7 +164,7 @@ static inline bool xe_vm_no_dma_fences(struct xe_vm *vm)
 	return xe_vm_in_compute_mode(vm) || xe_vm_in_fault_mode(vm);
 }
 
-int xe_vm_add_compute_engine(struct xe_vm *vm, struct xe_engine *e);
+int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q);
 
 int xe_vm_userptr_pin(struct xe_vm *vm);
 

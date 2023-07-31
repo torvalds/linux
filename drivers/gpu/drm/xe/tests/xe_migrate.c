@@ -38,7 +38,7 @@ static int run_sanity_job(struct xe_migrate *m, struct xe_device *xe,
 			  struct kunit *test)
 {
 	u64 batch_base = xe_migrate_batch_base(m, xe->info.supports_usm);
-	struct xe_sched_job *job = xe_bb_create_migration_job(m->eng, bb,
+	struct xe_sched_job *job = xe_bb_create_migration_job(m->q, bb,
 							      batch_base,
 							      second_idx);
 	struct dma_fence *fence;
@@ -215,7 +215,7 @@ static void test_pt_update(struct xe_migrate *m, struct xe_bo *pt,
 	xe_map_memset(xe, &pt->vmap, 0, (u8)expected, pt->size);
 
 	then = ktime_get();
-	fence = xe_migrate_update_pgtables(m, NULL, NULL, m->eng, &update, 1,
+	fence = xe_migrate_update_pgtables(m, NULL, NULL, m->q, &update, 1,
 					   NULL, 0, &pt_update);
 	now = ktime_get();
 	if (sanity_fence_failed(xe, fence, "Migration pagetable update", test))
@@ -257,7 +257,7 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		return;
 	}
 
-	big = xe_bo_create_pin_map(xe, tile, m->eng->vm, SZ_4M,
+	big = xe_bo_create_pin_map(xe, tile, m->q->vm, SZ_4M,
 				   ttm_bo_type_kernel,
 				   XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				   XE_BO_CREATE_PINNED_BIT);
@@ -266,7 +266,7 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		goto vunmap;
 	}
 
-	pt = xe_bo_create_pin_map(xe, tile, m->eng->vm, XE_PAGE_SIZE,
+	pt = xe_bo_create_pin_map(xe, tile, m->q->vm, XE_PAGE_SIZE,
 				  ttm_bo_type_kernel,
 				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				  XE_BO_CREATE_PINNED_BIT);
@@ -276,7 +276,7 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		goto free_big;
 	}
 
-	tiny = xe_bo_create_pin_map(xe, tile, m->eng->vm,
+	tiny = xe_bo_create_pin_map(xe, tile, m->q->vm,
 				    2 * SZ_4K,
 				    ttm_bo_type_kernel,
 				    XE_BO_CREATE_VRAM_IF_DGFX(tile) |
@@ -295,14 +295,14 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 	}
 
 	kunit_info(test, "Starting tests, top level PT addr: %lx, special pagetable base addr: %lx\n",
-		   (unsigned long)xe_bo_main_addr(m->eng->vm->pt_root[id]->bo, XE_PAGE_SIZE),
+		   (unsigned long)xe_bo_main_addr(m->q->vm->pt_root[id]->bo, XE_PAGE_SIZE),
 		   (unsigned long)xe_bo_main_addr(m->pt_bo, XE_PAGE_SIZE));
 
 	/* First part of the test, are we updating our pagetable bo with a new entry? */
 	xe_map_wr(xe, &bo->vmap, XE_PAGE_SIZE * (NUM_KERNEL_PDE - 1), u64,
 		  0xdeaddeadbeefbeef);
 	expected = xe_pte_encode(pt, 0, XE_CACHE_WB, 0);
-	if (m->eng->vm->flags & XE_VM_FLAG_64K)
+	if (m->q->vm->flags & XE_VM_FLAG_64K)
 		expected |= XE_PTE_PS64;
 	if (xe_bo_is_vram(pt))
 		xe_res_first(pt->ttm.resource, 0, pt->size, &src_it);
@@ -399,11 +399,11 @@ static int migrate_test_run_device(struct xe_device *xe)
 		struct ww_acquire_ctx ww;
 
 		kunit_info(test, "Testing tile id %d.\n", id);
-		xe_vm_lock(m->eng->vm, &ww, 0, true);
+		xe_vm_lock(m->q->vm, &ww, 0, true);
 		xe_device_mem_access_get(xe);
 		xe_migrate_sanity_test(m, test);
 		xe_device_mem_access_put(xe);
-		xe_vm_unlock(m->eng->vm, &ww);
+		xe_vm_unlock(m->q->vm, &ww);
 	}
 
 	return 0;

@@ -103,14 +103,14 @@ struct xe_user_extension {
 #define DRM_XE_VM_CREATE		0x03
 #define DRM_XE_VM_DESTROY		0x04
 #define DRM_XE_VM_BIND			0x05
-#define DRM_XE_ENGINE_CREATE		0x06
-#define DRM_XE_ENGINE_DESTROY		0x07
+#define DRM_XE_EXEC_QUEUE_CREATE		0x06
+#define DRM_XE_EXEC_QUEUE_DESTROY		0x07
 #define DRM_XE_EXEC			0x08
 #define DRM_XE_MMIO			0x09
-#define DRM_XE_ENGINE_SET_PROPERTY	0x0a
+#define DRM_XE_EXEC_QUEUE_SET_PROPERTY	0x0a
 #define DRM_XE_WAIT_USER_FENCE		0x0b
 #define DRM_XE_VM_MADVISE		0x0c
-#define DRM_XE_ENGINE_GET_PROPERTY	0x0d
+#define DRM_XE_EXEC_QUEUE_GET_PROPERTY	0x0d
 
 /* Must be kept compact -- no holes */
 #define DRM_IOCTL_XE_DEVICE_QUERY		DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_DEVICE_QUERY, struct drm_xe_device_query)
@@ -119,12 +119,12 @@ struct xe_user_extension {
 #define DRM_IOCTL_XE_VM_CREATE			DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_VM_CREATE, struct drm_xe_vm_create)
 #define DRM_IOCTL_XE_VM_DESTROY			 DRM_IOW(DRM_COMMAND_BASE + DRM_XE_VM_DESTROY, struct drm_xe_vm_destroy)
 #define DRM_IOCTL_XE_VM_BIND			 DRM_IOW(DRM_COMMAND_BASE + DRM_XE_VM_BIND, struct drm_xe_vm_bind)
-#define DRM_IOCTL_XE_ENGINE_CREATE		DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_ENGINE_CREATE, struct drm_xe_engine_create)
-#define DRM_IOCTL_XE_ENGINE_GET_PROPERTY	DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_ENGINE_GET_PROPERTY, struct drm_xe_engine_get_property)
-#define DRM_IOCTL_XE_ENGINE_DESTROY		 DRM_IOW(DRM_COMMAND_BASE + DRM_XE_ENGINE_DESTROY, struct drm_xe_engine_destroy)
+#define DRM_IOCTL_XE_EXEC_QUEUE_CREATE		DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_EXEC_QUEUE_CREATE, struct drm_xe_exec_queue_create)
+#define DRM_IOCTL_XE_EXEC_QUEUE_GET_PROPERTY	DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_EXEC_QUEUE_GET_PROPERTY, struct drm_xe_exec_queue_get_property)
+#define DRM_IOCTL_XE_EXEC_QUEUE_DESTROY		 DRM_IOW(DRM_COMMAND_BASE + DRM_XE_EXEC_QUEUE_DESTROY, struct drm_xe_exec_queue_destroy)
 #define DRM_IOCTL_XE_EXEC			 DRM_IOW(DRM_COMMAND_BASE + DRM_XE_EXEC, struct drm_xe_exec)
 #define DRM_IOCTL_XE_MMIO			DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_MMIO, struct drm_xe_mmio)
-#define DRM_IOCTL_XE_ENGINE_SET_PROPERTY	 DRM_IOW(DRM_COMMAND_BASE + DRM_XE_ENGINE_SET_PROPERTY, struct drm_xe_engine_set_property)
+#define DRM_IOCTL_XE_EXEC_QUEUE_SET_PROPERTY	 DRM_IOW(DRM_COMMAND_BASE + DRM_XE_EXEC_QUEUE_SET_PROPERTY, struct drm_xe_exec_queue_set_property)
 #define DRM_IOCTL_XE_WAIT_USER_FENCE		DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_WAIT_USER_FENCE, struct drm_xe_wait_user_fence)
 #define DRM_IOCTL_XE_VM_MADVISE			 DRM_IOW(DRM_COMMAND_BASE + DRM_XE_VM_MADVISE, struct drm_xe_vm_madvise)
 
@@ -649,11 +649,11 @@ struct drm_xe_vm_bind {
 	__u32 vm_id;
 
 	/**
-	 * @engine_id: engine_id, must be of class DRM_XE_ENGINE_CLASS_VM_BIND
-	 * and engine must have same vm_id. If zero, the default VM bind engine
+	 * @exec_queue_id: exec_queue_id, must be of class DRM_XE_ENGINE_CLASS_VM_BIND
+	 * and exec queue must have same vm_id. If zero, the default VM bind engine
 	 * is used.
 	 */
-	__u32 engine_id;
+	__u32 exec_queue_id;
 
 	/** @num_binds: number of binds in this IOCTL */
 	__u32 num_binds;
@@ -685,8 +685,8 @@ struct drm_xe_vm_bind {
 	__u64 reserved[2];
 };
 
-/** struct drm_xe_ext_engine_set_property - engine set property extension */
-struct drm_xe_ext_engine_set_property {
+/** struct drm_xe_ext_exec_queue_set_property - exec queue set property extension */
+struct drm_xe_ext_exec_queue_set_property {
 	/** @base: base user extension */
 	struct xe_user_extension base;
 
@@ -701,32 +701,32 @@ struct drm_xe_ext_engine_set_property {
 };
 
 /**
- * struct drm_xe_engine_set_property - engine set property
+ * struct drm_xe_exec_queue_set_property - exec queue set property
  *
- * Same namespace for extensions as drm_xe_engine_create
+ * Same namespace for extensions as drm_xe_exec_queue_create
  */
-struct drm_xe_engine_set_property {
+struct drm_xe_exec_queue_set_property {
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
 
-	/** @engine_id: Engine ID */
-	__u32 engine_id;
+	/** @exec_queue_id: Exec queue ID */
+	__u32 exec_queue_id;
 
-#define XE_ENGINE_SET_PROPERTY_PRIORITY			0
-#define XE_ENGINE_SET_PROPERTY_TIMESLICE		1
-#define XE_ENGINE_SET_PROPERTY_PREEMPTION_TIMEOUT	2
+#define XE_EXEC_QUEUE_SET_PROPERTY_PRIORITY			0
+#define XE_EXEC_QUEUE_SET_PROPERTY_TIMESLICE		1
+#define XE_EXEC_QUEUE_SET_PROPERTY_PREEMPTION_TIMEOUT	2
 	/*
 	 * Long running or ULLS engine mode. DMA fences not allowed in this
 	 * mode. Must match the value of DRM_XE_VM_CREATE_COMPUTE_MODE, serves
 	 * as a sanity check the UMD knows what it is doing. Can only be set at
 	 * engine create time.
 	 */
-#define XE_ENGINE_SET_PROPERTY_COMPUTE_MODE		3
-#define XE_ENGINE_SET_PROPERTY_PERSISTENCE		4
-#define XE_ENGINE_SET_PROPERTY_JOB_TIMEOUT		5
-#define XE_ENGINE_SET_PROPERTY_ACC_TRIGGER		6
-#define XE_ENGINE_SET_PROPERTY_ACC_NOTIFY		7
-#define XE_ENGINE_SET_PROPERTY_ACC_GRANULARITY		8
+#define XE_EXEC_QUEUE_SET_PROPERTY_COMPUTE_MODE		3
+#define XE_EXEC_QUEUE_SET_PROPERTY_PERSISTENCE		4
+#define XE_EXEC_QUEUE_SET_PROPERTY_JOB_TIMEOUT		5
+#define XE_EXEC_QUEUE_SET_PROPERTY_ACC_TRIGGER		6
+#define XE_EXEC_QUEUE_SET_PROPERTY_ACC_NOTIFY		7
+#define XE_EXEC_QUEUE_SET_PROPERTY_ACC_GRANULARITY		8
 	/** @property: property to set */
 	__u32 property;
 
@@ -755,25 +755,25 @@ struct drm_xe_engine_class_instance {
 	__u16 gt_id;
 };
 
-struct drm_xe_engine_create {
-#define XE_ENGINE_EXTENSION_SET_PROPERTY               0
+struct drm_xe_exec_queue_create {
+#define XE_EXEC_QUEUE_EXTENSION_SET_PROPERTY               0
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
 
-	/** @width: submission width (number BB per exec) for this engine */
+	/** @width: submission width (number BB per exec) for this exec queue */
 	__u16 width;
 
-	/** @num_placements: number of valid placements for this engine */
+	/** @num_placements: number of valid placements for this exec queue */
 	__u16 num_placements;
 
-	/** @vm_id: VM to use for this engine */
+	/** @vm_id: VM to use for this exec queue */
 	__u32 vm_id;
 
 	/** @flags: MBZ */
 	__u32 flags;
 
-	/** @engine_id: Returned engine ID */
-	__u32 engine_id;
+	/** @exec_queue_id: Returned exec queue ID */
+	__u32 exec_queue_id;
 
 	/**
 	 * @instances: user pointer to a 2-d array of struct
@@ -788,14 +788,14 @@ struct drm_xe_engine_create {
 	__u64 reserved[2];
 };
 
-struct drm_xe_engine_get_property {
+struct drm_xe_exec_queue_get_property {
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
 
-	/** @engine_id: Engine ID */
-	__u32 engine_id;
+	/** @exec_queue_id: Exec queue ID */
+	__u32 exec_queue_id;
 
-#define XE_ENGINE_GET_PROPERTY_BAN			0
+#define XE_EXEC_QUEUE_GET_PROPERTY_BAN			0
 	/** @property: property to get */
 	__u32 property;
 
@@ -806,9 +806,9 @@ struct drm_xe_engine_get_property {
 	__u64 reserved[2];
 };
 
-struct drm_xe_engine_destroy {
-	/** @engine_id: Engine ID */
-	__u32 engine_id;
+struct drm_xe_exec_queue_destroy {
+	/** @exec_queue_id: Exec queue ID */
+	__u32 exec_queue_id;
 
 	/** @pad: MBZ */
 	__u32 pad;
@@ -855,8 +855,8 @@ struct drm_xe_exec {
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
 
-	/** @engine_id: Engine ID for the batch buffer */
-	__u32 engine_id;
+	/** @exec_queue_id: Exec queue ID for the batch buffer */
+	__u32 exec_queue_id;
 
 	/** @num_syncs: Amount of struct drm_xe_sync in array. */
 	__u32 num_syncs;

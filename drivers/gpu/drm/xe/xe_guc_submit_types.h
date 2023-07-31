@@ -79,20 +79,20 @@ struct pending_list_snapshot {
 };
 
 /**
- * struct xe_guc_submit_engine_snapshot - Snapshot for devcoredump
+ * struct xe_guc_submit_exec_queue_snapshot - Snapshot for devcoredump
  */
-struct xe_guc_submit_engine_snapshot {
-	/** @name: name of this engine */
+struct xe_guc_submit_exec_queue_snapshot {
+	/** @name: name of this exec queue */
 	char name[MAX_FENCE_NAME_LEN];
-	/** @class: class of this engine */
+	/** @class: class of this exec queue */
 	enum xe_engine_class class;
 	/**
-	 * @logical_mask: logical mask of where job submitted to engine can run
+	 * @logical_mask: logical mask of where job submitted to exec queue can run
 	 */
 	u32 logical_mask;
-	/** @width: width (number BB submitted per exec) of this engine */
+	/** @width: width (number BB submitted per exec) of this exec queue */
 	u16 width;
-	/** @refcount: ref count of this engine */
+	/** @refcount: ref count of this exec queue */
 	u32 refcount;
 	/**
 	 * @sched_timeout: the time after which a job is removed from the
@@ -113,8 +113,8 @@ struct xe_guc_submit_engine_snapshot {
 
 	/** @schedule_state: Schedule State at the moment of Crash */
 	u32 schedule_state;
-	/** @engine_flags: Flags of the faulty engine */
-	unsigned long engine_flags;
+	/** @exec_queue_flags: Flags of the faulty exec_queue */
+	unsigned long exec_queue_flags;
 
 	/** @guc: GuC Engine Snapshot */
 	struct {
@@ -122,7 +122,7 @@ struct xe_guc_submit_engine_snapshot {
 		u32 wqi_head;
 		/** @wqi_tail: work queue item tail */
 		u32 wqi_tail;
-		/** @id: GuC id for this xe_engine */
+		/** @id: GuC id for this exec_queue */
 		u16 id;
 	} guc;
 

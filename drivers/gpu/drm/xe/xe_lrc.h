@@ -8,7 +8,7 @@
 #include "xe_lrc_types.h"
 
 struct xe_device;
-struct xe_engine;
+struct xe_exec_queue;
 enum xe_engine_class;
 struct xe_hw_engine;
 struct xe_vm;
@@ -16,7 +16,7 @@ struct xe_vm;
 #define LRC_PPHWSP_SCRATCH_ADDR (0x34 * 4)
 
 int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
-		struct xe_engine *e, struct xe_vm *vm, u32 ring_size);
+		struct xe_exec_queue *q, struct xe_vm *vm, u32 ring_size);
 void xe_lrc_finish(struct xe_lrc *lrc);
 
 size_t xe_lrc_size(struct xe_device *xe, enum xe_engine_class class);

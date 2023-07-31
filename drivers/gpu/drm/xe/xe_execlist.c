@@ -91,7 +91,7 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 }
 
 static void __xe_execlist_port_start(struct xe_execlist_port *port,
-				     struct xe_execlist_engine *exl)
+				     struct xe_execlist_exec_queue *exl)
 {
 	struct xe_device *xe = gt_to_xe(port->hwe->gt);
 	int max_ctx = FIELD_MAX(GEN11_SW_CTX_ID);
@@ -109,7 +109,7 @@ static void __xe_execlist_port_start(struct xe_execlist_port *port,
 			port->last_ctx_id = 1;
 	}
 
-	__start_lrc(port->hwe, exl->engine->lrc, port->last_ctx_id);
+	__start_lrc(port->hwe, exl->q->lrc, port->last_ctx_id);
 	port->running_exl = exl;
 	exl->has_run = true;
 }
@@ -128,16 +128,16 @@ static void __xe_execlist_port_idle(struct xe_execlist_port *port)
 	port->running_exl = NULL;
 }
 
-static bool xe_execlist_is_idle(struct xe_execlist_engine *exl)
+static bool xe_execlist_is_idle(struct xe_execlist_exec_queue *exl)
 {
-	struct xe_lrc *lrc = exl->engine->lrc;
+	struct xe_lrc *lrc = exl->q->lrc;
 
 	return lrc->ring.tail == lrc->ring.old_tail;
 }
 
 static void __xe_execlist_port_start_next_active(struct xe_execlist_port *port)
 {
-	struct xe_execlist_engine *exl = NULL;
+	struct xe_execlist_exec_queue *exl = NULL;
 	int i;
 
 	xe_execlist_port_assert_held(port);
@@ -145,12 +145,12 @@ static void __xe_execlist_port_start_next_active(struct xe_execlist_port *port)
 	for (i = ARRAY_SIZE(port->active) - 1; i >= 0; i--) {
 		while (!list_empty(&port->active[i])) {
 			exl = list_first_entry(&port->active[i],
-					       struct xe_execlist_engine,
+					       struct xe_execlist_exec_queue,
 					       active_link);
 			list_del(&exl->active_link);
 
 			if (xe_execlist_is_idle(exl)) {
-				exl->active_priority = XE_ENGINE_PRIORITY_UNSET;
+				exl->active_priority = XE_EXEC_QUEUE_PRIORITY_UNSET;
 				continue;
 			}
 
@@ -198,7 +198,7 @@ static void xe_execlist_port_irq_handler(struct xe_hw_engine *hwe,
 }
 
 static void xe_execlist_port_wake_locked(struct xe_execlist_port *port,
-					 enum xe_engine_priority priority)
+					 enum xe_exec_queue_priority priority)
 {
 	xe_execlist_port_assert_held(port);
 
@@ -208,25 +208,25 @@ static void xe_execlist_port_wake_locked(struct xe_execlist_port *port,
 	__xe_execlist_port_start_next_active(port);
 }
 
-static void xe_execlist_make_active(struct xe_execlist_engine *exl)
+static void xe_execlist_make_active(struct xe_execlist_exec_queue *exl)
 {
 	struct xe_execlist_port *port = exl->port;
-	enum xe_engine_priority priority = exl->active_priority;
+	enum xe_exec_queue_priority priority = exl->active_priority;
 
-	XE_WARN_ON(priority == XE_ENGINE_PRIORITY_UNSET);
+	XE_WARN_ON(priority == XE_EXEC_QUEUE_PRIORITY_UNSET);
 	XE_WARN_ON(priority < 0);
 	XE_WARN_ON(priority >= ARRAY_SIZE(exl->port->active));
 
 	spin_lock_irq(&port->lock);
 
 	if (exl->active_priority != priority &&
-	    exl->active_priority != XE_ENGINE_PRIORITY_UNSET) {
+	    exl->active_priority != XE_EXEC_QUEUE_PRIORITY_UNSET) {
 		/* Priority changed, move it to the right list */
 		list_del(&exl->active_link);
-		exl->active_priority = XE_ENGINE_PRIORITY_UNSET;
+		exl->active_priority = XE_EXEC_QUEUE_PRIORITY_UNSET;
 	}
 
-	if (exl->active_priority == XE_ENGINE_PRIORITY_UNSET) {
+	if (exl->active_priority == XE_EXEC_QUEUE_PRIORITY_UNSET) {
 		exl->active_priority = priority;
 		list_add_tail(&exl->active_link, &port->active[priority]);
 	}
@@ -293,10 +293,10 @@ static struct dma_fence *
 execlist_run_job(struct drm_sched_job *drm_job)
 {
 	struct xe_sched_job *job = to_xe_sched_job(drm_job);
-	struct xe_engine *e = job->engine;
-	struct xe_execlist_engine *exl = job->engine->execlist;
+	struct xe_exec_queue *q = job->q;
+	struct xe_execlist_exec_queue *exl = job->q->execlist;
 
-	e->ring_ops->emit_job(job);
+	q->ring_ops->emit_job(job);
 	xe_execlist_make_active(exl);
 
 	return dma_fence_get(job->fence);
@@ -314,11 +314,11 @@ static const struct drm_sched_backend_ops drm_sched_ops = {
 	.free_job = execlist_job_free,
 };
 
-static int execlist_engine_init(struct xe_engine *e)
+static int execlist_exec_queue_init(struct xe_exec_queue *q)
 {
 	struct drm_gpu_scheduler *sched;
-	struct xe_execlist_engine *exl;
-	struct xe_device *xe = gt_to_xe(e->gt);
+	struct xe_execlist_exec_queue *exl;
+	struct xe_device *xe = gt_to_xe(q->gt);
 	int err;
 
 	XE_WARN_ON(xe_device_guc_submission_enabled(xe));
@@ -329,13 +329,13 @@ static int execlist_engine_init(struct xe_engine *e)
 	if (!exl)
 		return -ENOMEM;
 
-	exl->engine = e;
+	exl->q = q;
 
 	err = drm_sched_init(&exl->sched, &drm_sched_ops, NULL, 1,
-			     e->lrc[0].ring.size / MAX_JOB_SIZE_BYTES,
+			     q->lrc[0].ring.size / MAX_JOB_SIZE_BYTES,
 			     XE_SCHED_HANG_LIMIT, XE_SCHED_JOB_TIMEOUT,
-			     NULL, NULL, e->hwe->name,
-			     gt_to_xe(e->gt)->drm.dev);
+			     NULL, NULL, q->hwe->name,
+			     gt_to_xe(q->gt)->drm.dev);
 	if (err)
 		goto err_free;
 
@@ -344,30 +344,30 @@ static int execlist_engine_init(struct xe_engine *e)
 	if (err)
 		goto err_sched;
 
-	exl->port = e->hwe->exl_port;
+	exl->port = q->hwe->exl_port;
 	exl->has_run = false;
-	exl->active_priority = XE_ENGINE_PRIORITY_UNSET;
-	e->execlist = exl;
-	e->entity = &exl->entity;
+	exl->active_priority = XE_EXEC_QUEUE_PRIORITY_UNSET;
+	q->execlist = exl;
+	q->entity = &exl->entity;
 
-	switch (e->class) {
+	switch (q->class) {
 	case XE_ENGINE_CLASS_RENDER:
-		sprintf(e->name, "rcs%d", ffs(e->logical_mask) - 1);
+		sprintf(q->name, "rcs%d", ffs(q->logical_mask) - 1);
 		break;
 	case XE_ENGINE_CLASS_VIDEO_DECODE:
-		sprintf(e->name, "vcs%d", ffs(e->logical_mask) - 1);
+		sprintf(q->name, "vcs%d", ffs(q->logical_mask) - 1);
 		break;
 	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
-		sprintf(e->name, "vecs%d", ffs(e->logical_mask) - 1);
+		sprintf(q->name, "vecs%d", ffs(q->logical_mask) - 1);
 		break;
 	case XE_ENGINE_CLASS_COPY:
-		sprintf(e->name, "bcs%d", ffs(e->logical_mask) - 1);
+		sprintf(q->name, "bcs%d", ffs(q->logical_mask) - 1);
 		break;
 	case XE_ENGINE_CLASS_COMPUTE:
-		sprintf(e->name, "ccs%d", ffs(e->logical_mask) - 1);
+		sprintf(q->name, "ccs%d", ffs(q->logical_mask) - 1);
 		break;
 	default:
-		XE_WARN_ON(e->class);
+		XE_WARN_ON(q->class);
 	}
 
 	return 0;
@@ -379,96 +379,96 @@ err_free:
 	return err;
 }
 
-static void execlist_engine_fini_async(struct work_struct *w)
+static void execlist_exec_queue_fini_async(struct work_struct *w)
 {
-	struct xe_execlist_engine *ee =
-		container_of(w, struct xe_execlist_engine, fini_async);
-	struct xe_engine *e = ee->engine;
-	struct xe_execlist_engine *exl = e->execlist;
+	struct xe_execlist_exec_queue *ee =
+		container_of(w, struct xe_execlist_exec_queue, fini_async);
+	struct xe_exec_queue *q = ee->q;
+	struct xe_execlist_exec_queue *exl = q->execlist;
 	unsigned long flags;
 
-	XE_WARN_ON(xe_device_guc_submission_enabled(gt_to_xe(e->gt)));
+	XE_WARN_ON(xe_device_guc_submission_enabled(gt_to_xe(q->gt)));
 
 	spin_lock_irqsave(&exl->port->lock, flags);
-	if (WARN_ON(exl->active_priority != XE_ENGINE_PRIORITY_UNSET))
+	if (WARN_ON(exl->active_priority != XE_EXEC_QUEUE_PRIORITY_UNSET))
 		list_del(&exl->active_link);
 	spin_unlock_irqrestore(&exl->port->lock, flags);
 
-	if (e->flags & ENGINE_FLAG_PERSISTENT)
-		xe_device_remove_persistent_engines(gt_to_xe(e->gt), e);
+	if (q->flags & EXEC_QUEUE_FLAG_PERSISTENT)
+		xe_device_remove_persistent_exec_queues(gt_to_xe(q->gt), q);
 	drm_sched_entity_fini(&exl->entity);
 	drm_sched_fini(&exl->sched);
 	kfree(exl);
 
-	xe_engine_fini(e);
+	xe_exec_queue_fini(q);
 }
 
-static void execlist_engine_kill(struct xe_engine *e)
+static void execlist_exec_queue_kill(struct xe_exec_queue *q)
 {
 	/* NIY */
 }
 
-static void execlist_engine_fini(struct xe_engine *e)
+static void execlist_exec_queue_fini(struct xe_exec_queue *q)
 {
-	INIT_WORK(&e->execlist->fini_async, execlist_engine_fini_async);
-	queue_work(system_unbound_wq, &e->execlist->fini_async);
+	INIT_WORK(&q->execlist->fini_async, execlist_exec_queue_fini_async);
+	queue_work(system_unbound_wq, &q->execlist->fini_async);
 }
 
-static int execlist_engine_set_priority(struct xe_engine *e,
-					enum xe_engine_priority priority)
-{
-	/* NIY */
-	return 0;
-}
-
-static int execlist_engine_set_timeslice(struct xe_engine *e, u32 timeslice_us)
+static int execlist_exec_queue_set_priority(struct xe_exec_queue *q,
+					    enum xe_exec_queue_priority priority)
 {
 	/* NIY */
 	return 0;
 }
 
-static int execlist_engine_set_preempt_timeout(struct xe_engine *e,
-					       u32 preempt_timeout_us)
+static int execlist_exec_queue_set_timeslice(struct xe_exec_queue *q, u32 timeslice_us)
 {
 	/* NIY */
 	return 0;
 }
 
-static int execlist_engine_set_job_timeout(struct xe_engine *e,
-					   u32 job_timeout_ms)
+static int execlist_exec_queue_set_preempt_timeout(struct xe_exec_queue *q,
+						   u32 preempt_timeout_us)
 {
 	/* NIY */
 	return 0;
 }
 
-static int execlist_engine_suspend(struct xe_engine *e)
+static int execlist_exec_queue_set_job_timeout(struct xe_exec_queue *q,
+					       u32 job_timeout_ms)
 {
 	/* NIY */
 	return 0;
 }
 
-static void execlist_engine_suspend_wait(struct xe_engine *e)
+static int execlist_exec_queue_suspend(struct xe_exec_queue *q)
+{
+	/* NIY */
+	return 0;
+}
+
+static void execlist_exec_queue_suspend_wait(struct xe_exec_queue *q)
 
 {
 	/* NIY */
 }
 
-static void execlist_engine_resume(struct xe_engine *e)
+static void execlist_exec_queue_resume(struct xe_exec_queue *q)
 {
 	/* NIY */
 }
 
-static const struct xe_engine_ops execlist_engine_ops = {
-	.init = execlist_engine_init,
-	.kill = execlist_engine_kill,
-	.fini = execlist_engine_fini,
-	.set_priority = execlist_engine_set_priority,
-	.set_timeslice = execlist_engine_set_timeslice,
-	.set_preempt_timeout = execlist_engine_set_preempt_timeout,
-	.set_job_timeout = execlist_engine_set_job_timeout,
-	.suspend = execlist_engine_suspend,
-	.suspend_wait = execlist_engine_suspend_wait,
-	.resume = execlist_engine_resume,
+static const struct xe_exec_queue_ops execlist_exec_queue_ops = {
+	.init = execlist_exec_queue_init,
+	.kill = execlist_exec_queue_kill,
+	.fini = execlist_exec_queue_fini,
+	.set_priority = execlist_exec_queue_set_priority,
+	.set_timeslice = execlist_exec_queue_set_timeslice,
+	.set_preempt_timeout = execlist_exec_queue_set_preempt_timeout,
+	.set_job_timeout = execlist_exec_queue_set_job_timeout,
+	.suspend = execlist_exec_queue_suspend,
+	.suspend_wait = execlist_exec_queue_suspend_wait,
+	.resume = execlist_exec_queue_resume,
 };
 
 int xe_execlist_init(struct xe_gt *gt)
@@ -477,7 +477,7 @@ int xe_execlist_init(struct xe_gt *gt)
 	if (xe_device_guc_submission_enabled(gt_to_xe(gt)))
 		return 0;
 
-	gt->engine_ops = &execlist_engine_ops;
+	gt->exec_queue_ops = &execlist_exec_queue_ops;
 
 	return 0;
 }

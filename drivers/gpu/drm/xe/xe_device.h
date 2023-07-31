@@ -6,7 +6,7 @@
 #ifndef _XE_DEVICE_H_
 #define _XE_DEVICE_H_
 
-struct xe_engine;
+struct xe_exec_queue;
 struct xe_file;
 
 #include <drm/drm_util.h>
@@ -41,9 +41,9 @@ int xe_device_probe(struct xe_device *xe);
 void xe_device_remove(struct xe_device *xe);
 void xe_device_shutdown(struct xe_device *xe);
 
-void xe_device_add_persistent_engines(struct xe_device *xe, struct xe_engine *e);
-void xe_device_remove_persistent_engines(struct xe_device *xe,
-					 struct xe_engine *e);
+void xe_device_add_persistent_exec_queues(struct xe_device *xe, struct xe_exec_queue *q);
+void xe_device_remove_persistent_exec_queues(struct xe_device *xe,
+					     struct xe_exec_queue *q);
 
 void xe_device_wmb(struct xe_device *xe);
 

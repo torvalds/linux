@@ -10,7 +10,7 @@
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
 #include "regs/xe_regs.h"
-#include "xe_engine_types.h"
+#include "xe_exec_queue_types.h"
 #include "xe_gt.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
@@ -156,7 +156,7 @@ static int emit_store_imm_ppgtt_posted(u64 addr, u64 value,
 
 static int emit_render_cache_flush(struct xe_sched_job *job, u32 *dw, int i)
 {
-	struct xe_gt *gt = job->engine->gt;
+	struct xe_gt *gt = job->q->gt;
 	bool lacks_render = !(gt->info.engine_mask & XE_HW_ENGINE_RCS_MASK);
 	u32 flags;
 
@@ -172,7 +172,7 @@ static int emit_render_cache_flush(struct xe_sched_job *job, u32 *dw, int i)
 
 	if (lacks_render)
 		flags &= ~PIPE_CONTROL_3D_ARCH_FLAGS;
-	else if (job->engine->class == XE_ENGINE_CLASS_COMPUTE)
+	else if (job->q->class == XE_ENGINE_CLASS_COMPUTE)
 		flags &= ~PIPE_CONTROL_3D_ENGINE_FLAGS;
 
 	dw[i++] = GFX_OP_PIPE_CONTROL(6) | PIPE_CONTROL0_HDC_PIPELINE_FLUSH;
@@ -202,7 +202,7 @@ static int emit_pipe_imm_ggtt(u32 addr, u32 value, bool stall_only, u32 *dw,
 
 static u32 get_ppgtt_flag(struct xe_sched_job *job)
 {
-	return !(job->engine->flags & ENGINE_FLAG_WA) ? BIT(8) : 0;
+	return !(job->q->flags & EXEC_QUEUE_FLAG_WA) ? BIT(8) : 0;
 }
 
 static void __emit_job_gen12_copy(struct xe_sched_job *job, struct xe_lrc *lrc,
@@ -210,7 +210,7 @@ static void __emit_job_gen12_copy(struct xe_sched_job *job, struct xe_lrc *lrc,
 {
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 	u32 ppgtt_flag = get_ppgtt_flag(job);
-	struct xe_vm *vm = job->engine->vm;
+	struct xe_vm *vm = job->q->vm;
 
 	if (vm->batch_invalidate_tlb) {
 		dw[i++] = preparser_disable(true);
@@ -255,10 +255,10 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 {
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 	u32 ppgtt_flag = get_ppgtt_flag(job);
-	struct xe_gt *gt = job->engine->gt;
+	struct xe_gt *gt = job->q->gt;
 	struct xe_device *xe = gt_to_xe(gt);
-	bool decode = job->engine->class == XE_ENGINE_CLASS_VIDEO_DECODE;
-	struct xe_vm *vm = job->engine->vm;
+	bool decode = job->q->class == XE_ENGINE_CLASS_VIDEO_DECODE;
+	struct xe_vm *vm = job->q->vm;
 
 	dw[i++] = preparser_disable(true);
 
@@ -302,16 +302,16 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 {
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 	u32 ppgtt_flag = get_ppgtt_flag(job);
-	struct xe_gt *gt = job->engine->gt;
+	struct xe_gt *gt = job->q->gt;
 	struct xe_device *xe = gt_to_xe(gt);
 	bool lacks_render = !(gt->info.engine_mask & XE_HW_ENGINE_RCS_MASK);
-	struct xe_vm *vm = job->engine->vm;
+	struct xe_vm *vm = job->q->vm;
 	u32 mask_flags = 0;
 
 	dw[i++] = preparser_disable(true);
 	if (lacks_render)
 		mask_flags = PIPE_CONTROL_3D_ARCH_FLAGS;
-	else if (job->engine->class == XE_ENGINE_CLASS_COMPUTE)
+	else if (job->q->class == XE_ENGINE_CLASS_COMPUTE)
 		mask_flags = PIPE_CONTROL_3D_ENGINE_FLAGS;
 
 	/* See __xe_pt_bind_vma() for a discussion on TLB invalidations. */
@@ -378,14 +378,14 @@ static void emit_job_gen12_copy(struct xe_sched_job *job)
 {
 	int i;
 
-	if (xe_sched_job_is_migration(job->engine)) {
-		emit_migration_job_gen12(job, job->engine->lrc,
+	if (xe_sched_job_is_migration(job->q)) {
+		emit_migration_job_gen12(job, job->q->lrc,
 					 xe_sched_job_seqno(job));
 		return;
 	}
 
-	for (i = 0; i < job->engine->width; ++i)
-		__emit_job_gen12_copy(job, job->engine->lrc + i,
+	for (i = 0; i < job->q->width; ++i)
+		__emit_job_gen12_copy(job, job->q->lrc + i,
 				      job->batch_addr[i],
 				      xe_sched_job_seqno(job));
 }
@@ -395,8 +395,8 @@ static void emit_job_gen12_video(struct xe_sched_job *job)
 	int i;
 
 	/* FIXME: Not doing parallel handshake for now */
-	for (i = 0; i < job->engine->width; ++i)
-		__emit_job_gen12_video(job, job->engine->lrc + i,
+	for (i = 0; i < job->q->width; ++i)
+		__emit_job_gen12_video(job, job->q->lrc + i,
 				       job->batch_addr[i],
 				       xe_sched_job_seqno(job));
 }
@@ -405,8 +405,8 @@ static void emit_job_gen12_render_compute(struct xe_sched_job *job)
 {
 	int i;
 
-	for (i = 0; i < job->engine->width; ++i)
-		__emit_job_gen12_render_compute(job, job->engine->lrc + i,
+	for (i = 0; i < job->q->width; ++i)
+		__emit_job_gen12_render_compute(job, job->q->lrc + i,
 						job->batch_addr[i],
 						xe_sched_job_seqno(job));
 }

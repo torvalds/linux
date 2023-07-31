@@ -30,7 +30,7 @@ struct xe_devcoredump_snapshot {
 	/** @ct: GuC CT snapshot */
 	struct xe_guc_ct_snapshot *ct;
 	/** @ge: Guc Engine snapshot */
-	struct xe_guc_submit_engine_snapshot *ge;
+	struct xe_guc_submit_exec_queue_snapshot *ge;
 	/** @hwe: HW Engine snapshot array */
 	struct xe_hw_engine_snapshot *hwe[XE_NUM_HW_ENGINES];
 };

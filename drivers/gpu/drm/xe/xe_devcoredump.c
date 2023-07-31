@@ -53,9 +53,9 @@ static struct xe_device *coredump_to_xe(const struct xe_devcoredump *coredump)
 	return container_of(coredump, struct xe_device, devcoredump);
 }
 
-static struct xe_guc *engine_to_guc(struct xe_engine *e)
+static struct xe_guc *exec_queue_to_guc(struct xe_exec_queue *q)
 {
-	return &e->gt->uc.guc;
+	return &q->gt->uc.guc;
 }
 
 static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
@@ -91,7 +91,7 @@ static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
 
 	drm_printf(&p, "\n**** GuC CT ****\n");
 	xe_guc_ct_snapshot_print(coredump->snapshot.ct, &p);
-	xe_guc_engine_snapshot_print(coredump->snapshot.ge, &p);
+	xe_guc_exec_queue_snapshot_print(coredump->snapshot.ge, &p);
 
 	drm_printf(&p, "\n**** HW Engines ****\n");
 	for (i = 0; i < XE_NUM_HW_ENGINES; i++)
@@ -112,7 +112,7 @@ static void xe_devcoredump_free(void *data)
 		return;
 
 	xe_guc_ct_snapshot_free(coredump->snapshot.ct);
-	xe_guc_engine_snapshot_free(coredump->snapshot.ge);
+	xe_guc_exec_queue_snapshot_free(coredump->snapshot.ge);
 	for (i = 0; i < XE_NUM_HW_ENGINES; i++)
 		if (coredump->snapshot.hwe[i])
 			xe_hw_engine_snapshot_free(coredump->snapshot.hwe[i]);
@@ -123,14 +123,14 @@ static void xe_devcoredump_free(void *data)
 }
 
 static void devcoredump_snapshot(struct xe_devcoredump *coredump,
-				 struct xe_engine *e)
+				 struct xe_exec_queue *q)
 {
 	struct xe_devcoredump_snapshot *ss = &coredump->snapshot;
-	struct xe_guc *guc = engine_to_guc(e);
+	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
-	u32 adj_logical_mask = e->logical_mask;
-	u32 width_mask = (0x1 << e->width) - 1;
+	u32 adj_logical_mask = q->logical_mask;
+	u32 width_mask = (0x1 << q->width) - 1;
 	int i;
 	bool cookie;
 
@@ -138,22 +138,22 @@ static void devcoredump_snapshot(struct xe_devcoredump *coredump,
 	ss->boot_time = ktime_get_boottime();
 
 	cookie = dma_fence_begin_signalling();
-	for (i = 0; e->width > 1 && i < XE_HW_ENGINE_MAX_INSTANCE;) {
+	for (i = 0; q->width > 1 && i < XE_HW_ENGINE_MAX_INSTANCE;) {
 		if (adj_logical_mask & BIT(i)) {
 			adj_logical_mask |= width_mask << i;
-			i += e->width;
+			i += q->width;
 		} else {
 			++i;
 		}
 	}
 
-	xe_force_wake_get(gt_to_fw(e->gt), XE_FORCEWAKE_ALL);
+	xe_force_wake_get(gt_to_fw(q->gt), XE_FORCEWAKE_ALL);
 
 	coredump->snapshot.ct = xe_guc_ct_snapshot_capture(&guc->ct, true);
-	coredump->snapshot.ge = xe_guc_engine_snapshot_capture(e);
+	coredump->snapshot.ge = xe_guc_exec_queue_snapshot_capture(q);
 
-	for_each_hw_engine(hwe, e->gt, id) {
-		if (hwe->class != e->hwe->class ||
+	for_each_hw_engine(hwe, q->gt, id) {
+		if (hwe->class != q->hwe->class ||
 		    !(BIT(hwe->logical_instance) & adj_logical_mask)) {
 			coredump->snapshot.hwe[id] = NULL;
 			continue;
@@ -161,21 +161,21 @@ static void devcoredump_snapshot(struct xe_devcoredump *coredump,
 		coredump->snapshot.hwe[id] = xe_hw_engine_snapshot_capture(hwe);
 	}
 
-	xe_force_wake_put(gt_to_fw(e->gt), XE_FORCEWAKE_ALL);
+	xe_force_wake_put(gt_to_fw(q->gt), XE_FORCEWAKE_ALL);
 	dma_fence_end_signalling(cookie);
 }
 
 /**
  * xe_devcoredump - Take the required snapshots and initialize coredump device.
- * @e: The faulty xe_engine, where the issue was detected.
+ * @q: The faulty xe_exec_queue, where the issue was detected.
  *
  * This function should be called at the crash time within the serialized
  * gt_reset. It is skipped if we still have the core dump device available
  * with the information of the 'first' snapshot.
  */
-void xe_devcoredump(struct xe_engine *e)
+void xe_devcoredump(struct xe_exec_queue *q)
 {
-	struct xe_device *xe = gt_to_xe(e->gt);
+	struct xe_device *xe = gt_to_xe(q->gt);
 	struct xe_devcoredump *coredump = &xe->devcoredump;
 
 	if (coredump->captured) {
@@ -184,7 +184,7 @@ void xe_devcoredump(struct xe_engine *e)
 	}
 
 	coredump->captured = true;
-	devcoredump_snapshot(coredump, e);
+	devcoredump_snapshot(coredump, q);
 
 	drm_info(&xe->drm, "Xe device coredump has been created\n");
 	drm_info(&xe->drm, "Check your /sys/class/drm/card%d/device/devcoredump/data\n",

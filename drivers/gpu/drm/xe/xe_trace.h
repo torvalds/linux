@@ -13,11 +13,11 @@
 #include <linux/types.h>
 
 #include "xe_bo_types.h"
-#include "xe_engine_types.h"
+#include "xe_exec_queue_types.h"
 #include "xe_gpu_scheduler_types.h"
 #include "xe_gt_tlb_invalidation_types.h"
 #include "xe_gt_types.h"
-#include "xe_guc_engine_types.h"
+#include "xe_guc_exec_queue_types.h"
 #include "xe_sched_job.h"
 #include "xe_vm.h"
 
@@ -105,9 +105,9 @@ DEFINE_EVENT(xe_bo, xe_bo_move,
 	     TP_ARGS(bo)
 );
 
-DECLARE_EVENT_CLASS(xe_engine,
-		    TP_PROTO(struct xe_engine *e),
-		    TP_ARGS(e),
+DECLARE_EVENT_CLASS(xe_exec_queue,
+		    TP_PROTO(struct xe_exec_queue *q),
+		    TP_ARGS(q),
 
 		    TP_STRUCT__entry(
 			     __field(enum xe_engine_class, class)
@@ -120,13 +120,13 @@ DECLARE_EVENT_CLASS(xe_engine,
 			     ),
 
 		    TP_fast_assign(
-			   __entry->class = e->class;
-			   __entry->logical_mask = e->logical_mask;
-			   __entry->gt_id = e->gt->info.id;
-			   __entry->width = e->width;
-			   __entry->guc_id = e->guc->id;
-			   __entry->guc_state = atomic_read(&e->guc->state);
-			   __entry->flags = e->flags;
+			   __entry->class = q->class;
+			   __entry->logical_mask = q->logical_mask;
+			   __entry->gt_id = q->gt->info.id;
+			   __entry->width = q->width;
+			   __entry->guc_id = q->guc->id;
+			   __entry->guc_state = atomic_read(&q->guc->state);
+			   __entry->flags = q->flags;
 			   ),
 
 		    TP_printk("%d:0x%x, gt=%d, width=%d, guc_id=%d, guc_state=0x%x, flags=0x%x",
@@ -135,94 +135,94 @@ DECLARE_EVENT_CLASS(xe_engine,
 			      __entry->guc_state, __entry->flags)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_create,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_create,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_supress_resume,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_supress_resume,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_submit,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_submit,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_scheduling_enable,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_scheduling_enable,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_scheduling_disable,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_scheduling_disable,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_scheduling_done,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_scheduling_done,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_register,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_register,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_deregister,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_deregister,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_deregister_done,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_deregister_done,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_close,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_close,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_kill,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_kill,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_cleanup_entity,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_cleanup_entity,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_destroy,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_destroy,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_reset,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_reset,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_memory_cat_error,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_memory_cat_error,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_stop,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_stop,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_resubmit,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_resubmit,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
-DEFINE_EVENT(xe_engine, xe_engine_lr_cleanup,
-	     TP_PROTO(struct xe_engine *e),
-	     TP_ARGS(e)
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_lr_cleanup,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
 );
 
 DECLARE_EVENT_CLASS(xe_sched_job,
@@ -241,10 +241,10 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 
 		    TP_fast_assign(
 			   __entry->seqno = xe_sched_job_seqno(job);
-			   __entry->guc_id = job->engine->guc->id;
+			   __entry->guc_id = job->q->guc->id;
 			   __entry->guc_state =
-			   atomic_read(&job->engine->guc->state);
-			   __entry->flags = job->engine->flags;
+			   atomic_read(&job->q->guc->state);
+			   __entry->flags = job->q->flags;
 			   __entry->error = job->fence->error;
 			   __entry->fence = (unsigned long)job->fence;
 			   __entry->batch_addr = (u64)job->batch_addr[0];
@@ -303,7 +303,7 @@ DECLARE_EVENT_CLASS(xe_sched_msg,
 		    TP_fast_assign(
 			   __entry->opcode = msg->opcode;
 			   __entry->guc_id =
-			   ((struct xe_engine *)msg->private_data)->guc->id;
+			   ((struct xe_exec_queue *)msg->private_data)->guc->id;
 			   ),
 
 		    TP_printk("guc_id=%d, opcode=%u", __entry->guc_id,

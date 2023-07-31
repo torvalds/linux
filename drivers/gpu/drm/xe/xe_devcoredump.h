@@ -7,12 +7,12 @@
 #define _XE_DEVCOREDUMP_H_
 
 struct xe_device;
-struct xe_engine;
+struct xe_exec_queue;
 
 #ifdef CONFIG_DEV_COREDUMP
-void xe_devcoredump(struct xe_engine *e);
+void xe_devcoredump(struct xe_exec_queue *q);
 #else
-static inline void xe_devcoredump(struct xe_engine *e)
+static inline void xe_devcoredump(struct xe_exec_queue *q)
 {
 }
 #endif

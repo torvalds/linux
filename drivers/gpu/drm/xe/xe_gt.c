@@ -26,7 +26,7 @@
 #include "xe_gt_sysfs.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_gt_topology.h"
-#include "xe_guc_engine_types.h"
+#include "xe_guc_exec_queue_types.h"
 #include "xe_hw_fence.h"
 #include "xe_irq.h"
 #include "xe_lrc.h"
@@ -81,7 +81,7 @@ static void gt_fini(struct drm_device *drm, void *arg)
 
 static void gt_reset_worker(struct work_struct *w);
 
-static int emit_nop_job(struct xe_gt *gt, struct xe_engine *e)
+static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
 {
 	struct xe_sched_job *job;
 	struct xe_bb *bb;
@@ -94,7 +94,7 @@ static int emit_nop_job(struct xe_gt *gt, struct xe_engine *e)
 		return PTR_ERR(bb);
 
 	batch_ofs = xe_bo_ggtt_addr(gt_to_tile(gt)->mem.kernel_bb_pool->bo);
-	job = xe_bb_create_wa_job(e, bb, batch_ofs);
+	job = xe_bb_create_wa_job(q, bb, batch_ofs);
 	if (IS_ERR(job)) {
 		xe_bb_free(bb, NULL);
 		return PTR_ERR(job);
@@ -115,9 +115,9 @@ static int emit_nop_job(struct xe_gt *gt, struct xe_engine *e)
 	return 0;
 }
 
-static int emit_wa_job(struct xe_gt *gt, struct xe_engine *e)
+static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 {
-	struct xe_reg_sr *sr = &e->hwe->reg_lrc;
+	struct xe_reg_sr *sr = &q->hwe->reg_lrc;
 	struct xe_reg_sr_entry *entry;
 	unsigned long reg;
 	struct xe_sched_job *job;
@@ -143,7 +143,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_engine *e)
 	}
 
 	batch_ofs = xe_bo_ggtt_addr(gt_to_tile(gt)->mem.kernel_bb_pool->bo);
-	job = xe_bb_create_wa_job(e, bb, batch_ofs);
+	job = xe_bb_create_wa_job(q, bb, batch_ofs);
 	if (IS_ERR(job)) {
 		xe_bb_free(bb, NULL);
 		return PTR_ERR(job);
@@ -173,7 +173,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 	int err = 0;
 
 	for_each_hw_engine(hwe, gt, id) {
-		struct xe_engine *e, *nop_e;
+		struct xe_exec_queue *q, *nop_q;
 		struct xe_vm *vm;
 		void *default_lrc;
 
@@ -192,58 +192,58 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 			return -ENOMEM;
 
 		vm = xe_migrate_get_vm(tile->migrate);
-		e = xe_engine_create(xe, vm, BIT(hwe->logical_instance), 1,
-				     hwe, ENGINE_FLAG_WA);
-		if (IS_ERR(e)) {
-			err = PTR_ERR(e);
-			xe_gt_err(gt, "hwe %s: xe_engine_create failed (%pe)\n",
-				  hwe->name, e);
+		q = xe_exec_queue_create(xe, vm, BIT(hwe->logical_instance), 1,
+					 hwe, EXEC_QUEUE_FLAG_WA);
+		if (IS_ERR(q)) {
+			err = PTR_ERR(q);
+			xe_gt_err(gt, "hwe %s: xe_exec_queue_create failed (%pe)\n",
+				  hwe->name, q);
 			goto put_vm;
 		}
 
 		/* Prime golden LRC with known good state */
-		err = emit_wa_job(gt, e);
+		err = emit_wa_job(gt, q);
 		if (err) {
 			xe_gt_err(gt, "hwe %s: emit_wa_job failed (%pe) guc_id=%u\n",
-				  hwe->name, ERR_PTR(err), e->guc->id);
-			goto put_engine;
+				  hwe->name, ERR_PTR(err), q->guc->id);
+			goto put_exec_queue;
 		}
 
-		nop_e = xe_engine_create(xe, vm, BIT(hwe->logical_instance),
-					 1, hwe, ENGINE_FLAG_WA);
-		if (IS_ERR(nop_e)) {
-			err = PTR_ERR(nop_e);
-			xe_gt_err(gt, "hwe %s: nop xe_engine_create failed (%pe)\n",
-				  hwe->name, nop_e);
-			goto put_engine;
+		nop_q = xe_exec_queue_create(xe, vm, BIT(hwe->logical_instance),
+					     1, hwe, EXEC_QUEUE_FLAG_WA);
+		if (IS_ERR(nop_q)) {
+			err = PTR_ERR(nop_q);
+			xe_gt_err(gt, "hwe %s: nop xe_exec_queue_create failed (%pe)\n",
+				  hwe->name, nop_q);
+			goto put_exec_queue;
 		}
 
 		/* Switch to different LRC */
-		err = emit_nop_job(gt, nop_e);
+		err = emit_nop_job(gt, nop_q);
 		if (err) {
 			xe_gt_err(gt, "hwe %s: nop emit_nop_job failed (%pe) guc_id=%u\n",
-				  hwe->name, ERR_PTR(err), nop_e->guc->id);
-			goto put_nop_e;
+				  hwe->name, ERR_PTR(err), nop_q->guc->id);
+			goto put_nop_q;
 		}
 
 		/* Reload golden LRC to record the effect of any indirect W/A */
-		err = emit_nop_job(gt, e);
+		err = emit_nop_job(gt, q);
 		if (err) {
 			xe_gt_err(gt, "hwe %s: emit_nop_job failed (%pe) guc_id=%u\n",
-				  hwe->name, ERR_PTR(err), e->guc->id);
-			goto put_nop_e;
+				  hwe->name, ERR_PTR(err), q->guc->id);
+			goto put_nop_q;
 		}
 
 		xe_map_memcpy_from(xe, default_lrc,
-				   &e->lrc[0].bo->vmap,
-				   xe_lrc_pphwsp_offset(&e->lrc[0]),
+				   &q->lrc[0].bo->vmap,
+				   xe_lrc_pphwsp_offset(&q->lrc[0]),
 				   xe_lrc_size(xe, hwe->class));
 
 		gt->default_lrc[hwe->class] = default_lrc;
-put_nop_e:
-		xe_engine_put(nop_e);
-put_engine:
-		xe_engine_put(e);
+put_nop_q:
+		xe_exec_queue_put(nop_q);
+put_exec_queue:
+		xe_exec_queue_put(q);
 put_vm:
 		xe_vm_put(vm);
 		if (err)

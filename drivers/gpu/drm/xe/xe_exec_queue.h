@@ -3,10 +3,10 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#ifndef _XE_ENGINE_H_
-#define _XE_ENGINE_H_
+#ifndef _XE_EXEC_QUEUE_H_
+#define _XE_EXEC_QUEUE_H_
 
-#include "xe_engine_types.h"
+#include "xe_exec_queue_types.h"
 #include "xe_vm_types.h"
 
 struct drm_device;
@@ -14,50 +14,50 @@ struct drm_file;
 struct xe_device;
 struct xe_file;
 
-struct xe_engine *xe_engine_create(struct xe_device *xe, struct xe_vm *vm,
-				   u32 logical_mask, u16 width,
-				   struct xe_hw_engine *hw_engine, u32 flags);
-struct xe_engine *xe_engine_create_class(struct xe_device *xe, struct xe_gt *gt,
-					 struct xe_vm *vm,
-					 enum xe_engine_class class, u32 flags);
+struct xe_exec_queue *xe_exec_queue_create(struct xe_device *xe, struct xe_vm *vm,
+					   u32 logical_mask, u16 width,
+					   struct xe_hw_engine *hw_engine, u32 flags);
+struct xe_exec_queue *xe_exec_queue_create_class(struct xe_device *xe, struct xe_gt *gt,
+						 struct xe_vm *vm,
+						 enum xe_engine_class class, u32 flags);
 
-void xe_engine_fini(struct xe_engine *e);
-void xe_engine_destroy(struct kref *ref);
+void xe_exec_queue_fini(struct xe_exec_queue *q);
+void xe_exec_queue_destroy(struct kref *ref);
 
-struct xe_engine *xe_engine_lookup(struct xe_file *xef, u32 id);
+struct xe_exec_queue *xe_exec_queue_lookup(struct xe_file *xef, u32 id);
 
-static inline struct xe_engine *xe_engine_get(struct xe_engine *engine)
+static inline struct xe_exec_queue *xe_exec_queue_get(struct xe_exec_queue *q)
 {
-	kref_get(&engine->refcount);
-	return engine;
+	kref_get(&q->refcount);
+	return q;
 }
 
-static inline void xe_engine_put(struct xe_engine *engine)
+static inline void xe_exec_queue_put(struct xe_exec_queue *q)
 {
-	kref_put(&engine->refcount, xe_engine_destroy);
+	kref_put(&q->refcount, xe_exec_queue_destroy);
 }
 
-static inline bool xe_engine_is_parallel(struct xe_engine *engine)
+static inline bool xe_exec_queue_is_parallel(struct xe_exec_queue *q)
 {
-	return engine->width > 1;
+	return q->width > 1;
 }
 
-bool xe_engine_is_lr(struct xe_engine *e);
+bool xe_exec_queue_is_lr(struct xe_exec_queue *q);
 
-bool xe_engine_ring_full(struct xe_engine *e);
+bool xe_exec_queue_ring_full(struct xe_exec_queue *q);
 
-bool xe_engine_is_idle(struct xe_engine *engine);
+bool xe_exec_queue_is_idle(struct xe_exec_queue *q);
 
-void xe_engine_kill(struct xe_engine *e);
+void xe_exec_queue_kill(struct xe_exec_queue *q);
 
-int xe_engine_create_ioctl(struct drm_device *dev, void *data,
-			   struct drm_file *file);
-int xe_engine_destroy_ioctl(struct drm_device *dev, void *data,
-			    struct drm_file *file);
-int xe_engine_set_property_ioctl(struct drm_device *dev, void *data,
-				 struct drm_file *file);
-int xe_engine_get_property_ioctl(struct drm_device *dev, void *data,
-				 struct drm_file *file);
-enum xe_engine_priority xe_engine_device_get_max_priority(struct xe_device *xe);
+int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file);
+int xe_exec_queue_destroy_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file);
+int xe_exec_queue_set_property_ioctl(struct drm_device *dev, void *data,
+				     struct drm_file *file);
+int xe_exec_queue_get_property_ioctl(struct drm_device *dev, void *data,
+				     struct drm_file *file);
+enum xe_exec_queue_priority xe_exec_queue_device_get_max_priority(struct xe_device *xe);
 
 #endif

@@ -11,7 +11,7 @@
 struct list_head;
 
 struct dma_fence *
-xe_preempt_fence_create(struct xe_engine *e,
+xe_preempt_fence_create(struct xe_exec_queue *q,
 			u64 context, u32 seqno);
 
 struct xe_preempt_fence *xe_preempt_fence_alloc(void);
@@ -19,7 +19,7 @@ struct xe_preempt_fence *xe_preempt_fence_alloc(void);
 void xe_preempt_fence_free(struct xe_preempt_fence *pfence);
 
 struct dma_fence *
-xe_preempt_fence_arm(struct xe_preempt_fence *pfence, struct xe_engine *e,
+xe_preempt_fence_arm(struct xe_preempt_fence *pfence, struct xe_exec_queue *q,
 		     u64 context, u32 seqno);
 
 static inline struct xe_preempt_fence *

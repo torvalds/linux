@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-struct xe_engine;
+struct xe_exec_queue;
 struct xe_gt;
 
 void xe_mocs_init_early(struct xe_gt *gt);

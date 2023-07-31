@@ -12,7 +12,7 @@
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
-#include "xe_engine_types.h"
+#include "xe_exec_queue_types.h"
 #include "xe_gt.h"
 #include "xe_hw_fence.h"
 #include "xe_map.h"
@@ -604,7 +604,7 @@ static void xe_lrc_set_ppgtt(struct xe_lrc *lrc, struct xe_vm *vm)
 #define ACC_NOTIFY_S            16
 
 int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
-		struct xe_engine *e, struct xe_vm *vm, u32 ring_size)
+		struct xe_exec_queue *q, struct xe_vm *vm, u32 ring_size)
 {
 	struct xe_gt *gt = hwe->gt;
 	struct xe_tile *tile = gt_to_tile(gt);
@@ -669,12 +669,12 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 			     RING_CTL_SIZE(lrc->ring.size) | RING_VALID);
 	if (xe->info.has_asid && vm)
 		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ASID,
-				     (e->usm.acc_granularity <<
+				     (q->usm.acc_granularity <<
 				      ACC_GRANULARITY_S) | vm->usm.asid);
 	if (xe->info.supports_usm && vm)
 		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ACC_CTR_THOLD,
-				     (e->usm.acc_notify << ACC_NOTIFY_S) |
-				     e->usm.acc_trigger);
+				     (q->usm.acc_notify << ACC_NOTIFY_S) |
+				     q->usm.acc_trigger);
 
 	lrc->desc = GEN8_CTX_VALID;
 	lrc->desc |= INTEL_LEGACY_64B_CONTEXT << GEN8_CTX_ADDRESSING_MODE_SHIFT;

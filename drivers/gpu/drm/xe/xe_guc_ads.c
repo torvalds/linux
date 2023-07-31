@@ -495,7 +495,7 @@ static void guc_mmio_reg_state_init(struct xe_guc_ads *ads)
 		u8 gc;
 
 		/*
-		 * 1. Write all MMIO entries for this engine to the table. No
+		 * 1. Write all MMIO entries for this exec queue to the table. No
 		 * need to worry about fused-off engines and when there are
 		 * entries in the regset: the reg_state_list has been zero'ed
 		 * by xe_guc_ads_populate()

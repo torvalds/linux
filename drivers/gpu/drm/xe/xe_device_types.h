@@ -377,13 +377,13 @@ struct xe_file {
 		struct mutex lock;
 	} vm;
 
-	/** @engine: Submission engine state for file */
+	/** @exec_queue: Submission exec queue state for file */
 	struct {
 		/** @xe: xarray to store engines */
 		struct xarray xa;
 		/** @lock: protects file engine state */
 		struct mutex lock;
-	} engine;
+	} exec_queue;
 };
 
 #endif

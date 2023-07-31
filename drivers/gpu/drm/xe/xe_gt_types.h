@@ -14,7 +14,7 @@
 #include "xe_sa_types.h"
 #include "xe_uc_types.h"
 
-struct xe_engine_ops;
+struct xe_exec_queue_ops;
 struct xe_migrate;
 struct xe_ring_ops;
 
@@ -269,8 +269,8 @@ struct xe_gt {
 	/** @gtidle: idle properties of GT */
 	struct xe_gt_idle gtidle;
 
-	/** @engine_ops: submission backend engine operations */
-	const struct xe_engine_ops *engine_ops;
+	/** @exec_queue_ops: submission backend exec queue operations */
+	const struct xe_exec_queue_ops *exec_queue_ops;
 
 	/**
 	 * @ring_ops: ring operations for this hw engine (1 per engine class)

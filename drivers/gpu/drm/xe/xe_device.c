@@ -53,33 +53,33 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	mutex_init(&xef->vm.lock);
 	xa_init_flags(&xef->vm.xa, XA_FLAGS_ALLOC1);
 
-	mutex_init(&xef->engine.lock);
-	xa_init_flags(&xef->engine.xa, XA_FLAGS_ALLOC1);
+	mutex_init(&xef->exec_queue.lock);
+	xa_init_flags(&xef->exec_queue.xa, XA_FLAGS_ALLOC1);
 
 	file->driver_priv = xef;
 	return 0;
 }
 
-static void device_kill_persistent_engines(struct xe_device *xe,
-					   struct xe_file *xef);
+static void device_kill_persistent_exec_queues(struct xe_device *xe,
+					       struct xe_file *xef);
 
 static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct xe_device *xe = to_xe_device(dev);
 	struct xe_file *xef = file->driver_priv;
 	struct xe_vm *vm;
-	struct xe_engine *e;
+	struct xe_exec_queue *q;
 	unsigned long idx;
 
-	mutex_lock(&xef->engine.lock);
-	xa_for_each(&xef->engine.xa, idx, e) {
-		xe_engine_kill(e);
-		xe_engine_put(e);
+	mutex_lock(&xef->exec_queue.lock);
+	xa_for_each(&xef->exec_queue.xa, idx, q) {
+		xe_exec_queue_kill(q);
+		xe_exec_queue_put(q);
 	}
-	mutex_unlock(&xef->engine.lock);
-	xa_destroy(&xef->engine.xa);
-	mutex_destroy(&xef->engine.lock);
-	device_kill_persistent_engines(xe, xef);
+	mutex_unlock(&xef->exec_queue.lock);
+	xa_destroy(&xef->exec_queue.xa);
+	mutex_destroy(&xef->exec_queue.lock);
+	device_kill_persistent_exec_queues(xe, xef);
 
 	mutex_lock(&xef->vm.lock);
 	xa_for_each(&xef->vm.xa, idx, vm)
@@ -99,15 +99,15 @@ static const struct drm_ioctl_desc xe_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(XE_VM_CREATE, xe_vm_create_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(XE_VM_DESTROY, xe_vm_destroy_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(XE_VM_BIND, xe_vm_bind_ioctl, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(XE_ENGINE_CREATE, xe_engine_create_ioctl,
+	DRM_IOCTL_DEF_DRV(XE_EXEC_QUEUE_CREATE, xe_exec_queue_create_ioctl,
 			  DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(XE_ENGINE_GET_PROPERTY, xe_engine_get_property_ioctl,
+	DRM_IOCTL_DEF_DRV(XE_EXEC_QUEUE_GET_PROPERTY, xe_exec_queue_get_property_ioctl,
 			  DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(XE_ENGINE_DESTROY, xe_engine_destroy_ioctl,
+	DRM_IOCTL_DEF_DRV(XE_EXEC_QUEUE_DESTROY, xe_exec_queue_destroy_ioctl,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(XE_EXEC, xe_exec_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(XE_MMIO, xe_mmio_ioctl, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(XE_ENGINE_SET_PROPERTY, xe_engine_set_property_ioctl,
+	DRM_IOCTL_DEF_DRV(XE_EXEC_QUEUE_SET_PROPERTY, xe_exec_queue_set_property_ioctl,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(XE_WAIT_USER_FENCE, xe_wait_user_fence_ioctl,
 			  DRM_RENDER_ALLOW),
@@ -324,33 +324,33 @@ void xe_device_shutdown(struct xe_device *xe)
 {
 }
 
-void xe_device_add_persistent_engines(struct xe_device *xe, struct xe_engine *e)
+void xe_device_add_persistent_exec_queues(struct xe_device *xe, struct xe_exec_queue *q)
 {
 	mutex_lock(&xe->persistent_engines.lock);
-	list_add_tail(&e->persistent.link, &xe->persistent_engines.list);
+	list_add_tail(&q->persistent.link, &xe->persistent_engines.list);
 	mutex_unlock(&xe->persistent_engines.lock);
 }
 
-void xe_device_remove_persistent_engines(struct xe_device *xe,
-					 struct xe_engine *e)
+void xe_device_remove_persistent_exec_queues(struct xe_device *xe,
+					     struct xe_exec_queue *q)
 {
 	mutex_lock(&xe->persistent_engines.lock);
-	if (!list_empty(&e->persistent.link))
-		list_del(&e->persistent.link);
+	if (!list_empty(&q->persistent.link))
+		list_del(&q->persistent.link);
 	mutex_unlock(&xe->persistent_engines.lock);
 }
 
-static void device_kill_persistent_engines(struct xe_device *xe,
-					   struct xe_file *xef)
+static void device_kill_persistent_exec_queues(struct xe_device *xe,
+					       struct xe_file *xef)
 {
-	struct xe_engine *e, *next;
+	struct xe_exec_queue *q, *next;
 
 	mutex_lock(&xe->persistent_engines.lock);
-	list_for_each_entry_safe(e, next, &xe->persistent_engines.list,
+	list_for_each_entry_safe(q, next, &xe->persistent_engines.list,
 				 persistent.link)
-		if (e->persistent.xef == xef) {
-			xe_engine_kill(e);
-			list_del_init(&e->persistent.link);
+		if (q->persistent.xef == xef) {
+			xe_exec_queue_kill(q);
+			list_del_init(&q->persistent.link);
 		}
 	mutex_unlock(&xe->persistent_engines.lock);
 }

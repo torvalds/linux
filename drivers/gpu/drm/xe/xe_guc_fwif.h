@@ -69,13 +69,13 @@ struct guc_klv_generic_dw_t {
 } __packed;
 
 /* Format of the UPDATE_CONTEXT_POLICIES H2G data packet */
-struct guc_update_engine_policy_header {
+struct guc_update_exec_queue_policy_header {
 	u32 action;
 	u32 guc_id;
 } __packed;
 
-struct guc_update_engine_policy {
-	struct guc_update_engine_policy_header header;
+struct guc_update_exec_queue_policy {
+	struct guc_update_exec_queue_policy_header header;
 	struct guc_klv_generic_dw_t klv[GUC_CONTEXT_POLICIES_KLV_NUM_IDS];
 } __packed;
 

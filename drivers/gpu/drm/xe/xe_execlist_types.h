@@ -10,27 +10,27 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
-#include "xe_engine_types.h"
+#include "xe_exec_queue_types.h"
 
 struct xe_hw_engine;
-struct xe_execlist_engine;
+struct xe_execlist_exec_queue;
 
 struct xe_execlist_port {
 	struct xe_hw_engine *hwe;
 
 	spinlock_t lock;
 
-	struct list_head active[XE_ENGINE_PRIORITY_COUNT];
+	struct list_head active[XE_EXEC_QUEUE_PRIORITY_COUNT];
 
 	u32 last_ctx_id;
 
-	struct xe_execlist_engine *running_exl;
+	struct xe_execlist_exec_queue *running_exl;
 
 	struct timer_list irq_fail;
 };
 
-struct xe_execlist_engine {
-	struct xe_engine *engine;
+struct xe_execlist_exec_queue {
+	struct xe_exec_queue *q;
 
 	struct drm_gpu_scheduler sched;
 
@@ -42,7 +42,7 @@ struct xe_execlist_engine {
 
 	struct work_struct fini_async;
 
-	enum xe_engine_priority active_priority;
+	enum xe_exec_queue_priority active_priority;
 	struct list_head active_link;
 };
 

@@ -10,7 +10,7 @@
 
 #include <drm/gpu_scheduler.h>
 
-struct xe_engine;
+struct xe_exec_queue;
 
 /**
  * struct xe_sched_job - XE schedule job (batch buffer tracking)
@@ -18,8 +18,8 @@ struct xe_engine;
 struct xe_sched_job {
 	/** @drm: base DRM scheduler job */
 	struct drm_sched_job drm;
-	/** @engine: XE submission engine */
-	struct xe_engine *engine;
+	/** @q: Exec queue */
+	struct xe_exec_queue *q;
 	/** @refcount: ref count of this job */
 	struct kref refcount;
 	/**
