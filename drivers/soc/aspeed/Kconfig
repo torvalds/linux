@@ -91,7 +91,7 @@ config ASPEED_SBC
 	  debugfs.
 
 config ASPEED_ESPI
-	bool "ASPEED eSPI slave driver"
+	tristate "ASPEED eSPI slave driver"
 	select AST2500_ESPI if MACH_ASPEED_G5
 	select AST2600_ESPI if MACH_ASPEED_G6
 	select AST2700_ESPI if MACH_ASPEED_G7
@@ -103,19 +103,19 @@ config ASPEED_ESPI
 	  virtual wire, out-of-band, and flash are supported.
 
 config AST2500_ESPI
-	bool
+	tristate
 	depends on ASPEED_ESPI
 	help
 	  Enable driver support for Aspeed AST2500 eSPI engine.
 
 config AST2600_ESPI
-	bool
+	tristate
 	depends on ASPEED_ESPI
 	help
 	  Enable driver support for Aspeed AST2600 eSPI engine.
 
 config AST2700_ESPI
-	bool
+	tristate
 	depends on ASPEED_ESPI
 	help
 	  Enable driver support for Aspeed AST2600 eSPI engine.
