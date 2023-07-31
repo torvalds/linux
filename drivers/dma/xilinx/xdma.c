@@ -668,6 +668,8 @@ static int xdma_set_vector_reg(struct xdma_device *xdev, u32 vec_tbl_start,
 			val |= irq_start << shift;
 			irq_start++;
 			irq_num--;
+			if (!irq_num)
+				break;
 		}
 
 		/* write IRQ register */
