@@ -133,7 +133,7 @@ static int hp_populate_string_elements_from_package(union acpi_object *string_ob
 	char *str_value = NULL;
 	int value_len;
 	int ret = 0;
-	u32 int_value;
+	u32 int_value = 0;
 	int elem;
 	int reqs;
 	int eloc;

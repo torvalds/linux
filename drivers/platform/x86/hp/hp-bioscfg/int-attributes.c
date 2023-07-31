@@ -143,7 +143,7 @@ static int hp_populate_integer_elements_from_package(union acpi_object *integer_
 	char *str_value = NULL;
 	int value_len;
 	int ret;
-	u32 int_value;
+	u32 int_value = 0;
 	int elem;
 	int reqs;
 	int eloc;

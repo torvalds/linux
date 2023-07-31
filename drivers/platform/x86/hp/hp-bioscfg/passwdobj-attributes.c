@@ -227,7 +227,7 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 	int value_len;
 	int ret;
 	u32 size;
-	u32 int_value;
+	u32 int_value = 0;
 	int elem;
 	int reqs;
 	int eloc;

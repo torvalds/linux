@@ -129,7 +129,7 @@ static int hp_populate_enumeration_elements_from_package(union acpi_object *enum
 	char *str_value = NULL;
 	int value_len;
 	u32 size = 0;
-	u32 int_value;
+	u32 int_value = 0;
 	int elem = 0;
 	int reqs;
 	int pos_values;

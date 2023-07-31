@@ -131,10 +131,10 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 							  int instance_id)
 {
 	char *str_value = NULL;
-	int value_len;
+	int value_len = 0;
 	int ret;
 	u32 size;
-	u32 int_value;
+	u32 int_value = 0;
 	int elem;
 	int reqs;
 	int eloc;
