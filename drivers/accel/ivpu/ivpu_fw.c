@@ -43,12 +43,18 @@ static char *ivpu_firmware;
 module_param_named_unsafe(firmware, ivpu_firmware, charp, 0644);
 MODULE_PARM_DESC(firmware, "VPU firmware binary in /lib/firmware/..");
 
+/* TODO: Remove mtl_vpu.bin from names after transition to generation based FW names */
+static struct {
+	int gen;
+	const char *name;
+} fw_names[] = {
+	{ IVPU_HW_37XX, "vpu_37xx.bin" },
+	{ IVPU_HW_37XX, "mtl_vpu.bin" },
+	{ IVPU_HW_37XX, "intel/vpu/vpu_37xx_v0.0.bin" },
+};
+
 static int ivpu_fw_request(struct ivpu_device *vdev)
 {
-	static const char * const fw_names[] = {
-		"mtl_vpu.bin",
-		"intel/vpu/mtl_vpu_v0.0.bin"
-	};
 	int ret = -ENOENT;
 	int i;
 
@@ -60,9 +66,12 @@ static int ivpu_fw_request(struct ivpu_device *vdev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fw_names); i++) {
-		ret = firmware_request_nowarn(&vdev->fw->file, fw_names[i], vdev->drm.dev);
+		if (fw_names[i].gen != ivpu_hw_gen(vdev))
+			continue;
+
+		ret = firmware_request_nowarn(&vdev->fw->file, fw_names[i].name, vdev->drm.dev);
 		if (!ret) {
-			vdev->fw->name = fw_names[i];
+			vdev->fw->name = fw_names[i].name;
 			return 0;
 		}
 	}
