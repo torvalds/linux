@@ -3,6 +3,7 @@
 #ifndef __DRM_EXEC_H__
 #define __DRM_EXEC_H__
 
+#include <linux/compiler.h>
 #include <linux/ww_mutex.h>
 
 #define DRM_EXEC_INTERRUPTIBLE_WAIT	BIT(0)
@@ -74,13 +75,12 @@ struct drm_exec {
  * Since labels can't be defined local to the loops body we use a jump pointer
  * to make sure that the retry is only used from within the loops body.
  */
-#define drm_exec_until_all_locked(exec)				\
-	for (void *__drm_exec_retry_ptr; ({			\
-		__label__ __drm_exec_retry;			\
-__drm_exec_retry:						\
-		__drm_exec_retry_ptr = &&__drm_exec_retry;	\
-		(void)__drm_exec_retry_ptr;			\
-		drm_exec_cleanup(exec);				\
+#define drm_exec_until_all_locked(exec)					\
+__PASTE(__drm_exec_, __LINE__):						\
+	for (void *__drm_exec_retry_ptr; ({				\
+		__drm_exec_retry_ptr = &&__PASTE(__drm_exec_, __LINE__);\
+		(void)__drm_exec_retry_ptr;				\
+		drm_exec_cleanup(exec);					\
 	});)
 
 /**
