@@ -1378,7 +1378,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 	int cpu_dai_id[SDW_MAX_CPU_DAIS];
 	int cpu_dai_num, cpu_dai_index;
 	unsigned int group_id;
-	int codec_idx = 0;
+	int codec_dlc_index = 0;
 	int codec_index;
 	int codec_num;
 	int stream;
@@ -1409,7 +1409,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		if (cpu_dai_id[i] != ffs(adr_link_next->mask) - 1)
 			continue;
 
-		ret = create_codec_dai_name(dev, adr_link_next, codecs, codec_idx,
+		ret = create_codec_dai_name(dev, adr_link_next, codecs, codec_dlc_index,
 					    codec_conf, codec_count, codec_conf_index,
 					    adr_index, dai_index);
 		if (ret < 0)
@@ -1417,7 +1417,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 
 		/* check next link to create codec dai in the processed group */
 		i++;
-		codec_idx += adr_link_next->num_adr;
+		codec_dlc_index += adr_link_next->num_adr;
 	}
 
 	/* find codec info to create BE DAI */
