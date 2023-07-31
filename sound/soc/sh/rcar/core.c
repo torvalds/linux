@@ -1260,13 +1260,13 @@ int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name
 	return i;
 }
 
-static struct device_node *rsnd_dai_of_node(struct rsnd_priv *priv,
-					    int *is_graph)
+static int rsnd_dai_of_node(struct rsnd_priv *priv, int *is_graph)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct device_node *np = dev->of_node;
-	struct device_node *dai_node;
-	struct device_node *ret;
+	struct device_node *ports, *node;
+	int nr = 0;
+	int i = 0;
 
 	*is_graph = 0;
 
@@ -1274,26 +1274,51 @@ static struct device_node *rsnd_dai_of_node(struct rsnd_priv *priv,
 	 * parse both previous dai (= rcar_sound,dai), and
 	 * graph dai (= ports/port)
 	 */
-	dai_node = of_get_child_by_name(np, RSND_NODE_DAI);
-	if (dai_node) {
-		ret = dai_node;
-		goto of_node_compatible;
+
+	/*
+	 * Simple-Card
+	 */
+	node = of_get_child_by_name(np, RSND_NODE_DAI);
+	if (!node)
+		goto audio_graph;
+
+	of_node_put(node);
+
+	for_each_child_of_node(np, node) {
+		if (!of_node_name_eq(node, RSND_NODE_DAI))
+			continue;
+
+		priv->component_dais[i] = of_get_child_count(node);
+		nr += priv->component_dais[i];
+		i++;
+		if (i >= RSND_MAX_COMPONENT) {
+			dev_info(dev, "reach to max component\n");
+			break;
+		}
 	}
 
-	ret = np;
+	return nr;
 
-	dai_node = of_graph_get_next_endpoint(np, NULL);
-	if (dai_node)
-		goto of_node_graph;
+audio_graph:
+	/*
+	 * Audio-Graph-Card
+	 */
+	for_each_child_of_node(np, ports) {
+		if (!of_node_name_eq(ports, "ports") &&
+		    !of_node_name_eq(ports, "port"))
+			continue;
+		priv->component_dais[i] = of_graph_get_endpoint_count(ports);
+		nr += priv->component_dais[i];
+		i++;
+		if (i >= RSND_MAX_COMPONENT) {
+			dev_info(dev, "reach to max component\n");
+			break;
+		}
+	}
 
-	return NULL;
-
-of_node_graph:
 	*is_graph = 1;
-of_node_compatible:
-	of_node_put(dai_node);
 
-	return ret;
+	return nr;
 }
 
 
@@ -1357,6 +1382,8 @@ static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd,
 
 static void __rsnd_dai_probe(struct rsnd_priv *priv,
 			     struct device_node *dai_np,
+			     struct device_node *node_np,
+			     uint32_t node_arg,
 			     int dai_i)
 {
 	struct rsnd_dai_stream *io_playback;
@@ -1374,10 +1401,17 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 
 	snprintf(rdai->name, RSND_DAI_NAME_SIZE, "rsnd-dai.%d", dai_i);
 
+	/* for multi Component */
+	rdai->dai_args.np		= node_np;
+	rdai->dai_args.args_count	= 1;
+	rdai->dai_args.args[0]		= node_arg;
+
 	rdai->priv	= priv;
 	drv->name	= rdai->name;
 	drv->ops	= &rsnd_soc_dai_ops;
 	drv->pcm_new	= rsnd_pcm_new;
+	drv->id		= dai_i;
+	drv->dai_args	= &rdai->dai_args;
 
 	io_playback->rdai		= rdai;
 	io_capture->rdai		= rdai;
@@ -1441,21 +1475,15 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 
 static int rsnd_dai_probe(struct rsnd_priv *priv)
 {
-	struct device_node *dai_node;
-	struct device_node *dai_np;
 	struct snd_soc_dai_driver *rdrv;
 	struct device *dev = rsnd_priv_to_dev(priv);
+	struct device_node *np = dev->of_node;
 	struct rsnd_dai *rdai;
-	int nr;
+	int nr = 0;
 	int is_graph;
 	int dai_i;
 
-	dai_node = rsnd_dai_of_node(priv, &is_graph);
-	if (is_graph)
-		nr = of_graph_get_endpoint_count(dai_node);
-	else
-		nr = of_get_child_count(dai_node);
-
+	nr = rsnd_dai_of_node(priv, &is_graph);
 	if (!nr)
 		return -EINVAL;
 
@@ -1473,26 +1501,42 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	 */
 	dai_i = 0;
 	if (is_graph) {
-		for_each_endpoint_of_node(dai_node, dai_np) {
-			__rsnd_dai_probe(priv, dai_np, dai_i);
-			if (rsnd_is_gen3(priv) || rsnd_is_gen4(priv)) {
-				rdai = rsnd_rdai_get(priv, dai_i);
+		struct device_node *ports;
+		struct device_node *dai_np;
 
-				rsnd_parse_connect_graph(priv, &rdai->playback, dai_np);
-				rsnd_parse_connect_graph(priv, &rdai->capture,  dai_np);
+		for_each_child_of_node(np, ports) {
+			if (!of_node_name_eq(ports, "ports") &&
+			    !of_node_name_eq(ports, "port"))
+				continue;
+			for_each_endpoint_of_node(ports, dai_np) {
+				__rsnd_dai_probe(priv, dai_np, dai_np, 0, dai_i);
+				if (rsnd_is_gen3(priv) || rsnd_is_gen4(priv)) {
+					rdai = rsnd_rdai_get(priv, dai_i);
+
+					rsnd_parse_connect_graph(priv, &rdai->playback, dai_np);
+					rsnd_parse_connect_graph(priv, &rdai->capture,  dai_np);
+				}
+				dai_i++;
 			}
-			dai_i++;
 		}
 	} else {
-		for_each_child_of_node(dai_node, dai_np) {
-			__rsnd_dai_probe(priv, dai_np, dai_i);
-			if (rsnd_is_gen3(priv) || rsnd_is_gen4(priv)) {
-				rdai = rsnd_rdai_get(priv, dai_i);
+		struct device_node *node;
+		struct device_node *dai_np;
 
-				rsnd_parse_connect_simple(priv, &rdai->playback, dai_np);
-				rsnd_parse_connect_simple(priv, &rdai->capture,  dai_np);
+		for_each_child_of_node(np, node) {
+			if (!of_node_name_eq(node, RSND_NODE_DAI))
+				continue;
+
+			for_each_child_of_node(node, dai_np) {
+				__rsnd_dai_probe(priv, dai_np, np, dai_i, dai_i);
+				if (rsnd_is_gen3(priv) || rsnd_is_gen4(priv)) {
+					rdai = rsnd_rdai_get(priv, dai_i);
+
+					rsnd_parse_connect_simple(priv, &rdai->playback, dai_np);
+					rsnd_parse_connect_simple(priv, &rdai->capture,  dai_np);
+				}
+				dai_i++;
 			}
-			dai_i++;
 		}
 	}
 
@@ -1922,6 +1966,7 @@ static int rsnd_probe(struct platform_device *pdev)
 		rsnd_dai_probe,
 	};
 	int ret, i;
+	int ci;
 
 	/*
 	 *	init priv data
@@ -1958,11 +2003,18 @@ static int rsnd_probe(struct platform_device *pdev)
 	/*
 	 *	asoc register
 	 */
-	ret = devm_snd_soc_register_component(dev, &rsnd_soc_component,
-					 priv->daidrv, rsnd_rdai_nr(priv));
-	if (ret < 0) {
-		dev_err(dev, "cannot snd dai register\n");
-		goto exit_snd_probe;
+	ci = 0;
+	for (i = 0; priv->component_dais[i] > 0; i++) {
+		int nr = priv->component_dais[i];
+
+		ret = devm_snd_soc_register_component(dev, &rsnd_soc_component,
+						      priv->daidrv + ci, nr);
+		if (ret < 0) {
+			dev_err(dev, "cannot snd component register\n");
+			goto exit_snd_probe;
+		}
+
+		ci += nr;
 	}
 
 	pm_runtime_enable(dev);
