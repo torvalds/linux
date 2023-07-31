@@ -19,7 +19,7 @@
 #include <dt-bindings/clock/qcom,rpmcc.h>
 
 #define __DEFINE_CLK_SMD_RPM_PREFIX(_prefix, _name, _active,		      \
-				    type, r_id, key)			      \
+				    type, r_id, key, ao_rate, ao_flags)			      \
 	static struct clk_smd_rpm clk_smd_rpm_##_prefix##_active;	      \
 	static struct clk_smd_rpm clk_smd_rpm_##_prefix##_name = {	      \
 		.rpm_res_type = (type),					      \
@@ -43,7 +43,7 @@
 		.active_only = true,					      \
 		.rpm_key = (key),					      \
 		.peer = &clk_smd_rpm_##_prefix##_name,			      \
-		.rate = INT_MAX,					      \
+		.rate = (ao_rate),					      \
 		.hw.init = &(struct clk_init_data){			      \
 			.ops = &clk_smd_rpm_ops,			      \
 			.name = #_active,				      \
@@ -52,12 +52,14 @@
 					.name = "xo_board",		      \
 			},						      \
 			.num_parents = 1,				      \
+			.flags = (ao_flags),				      \
 		},							      \
 	}
 
-#define __DEFINE_CLK_SMD_RPM(_name, _active, type, r_id, key)		      \
+#define __DEFINE_CLK_SMD_RPM(_name, _active, type, r_id, key,\
+			     ao_rate, ao_flags)				      \
 	__DEFINE_CLK_SMD_RPM_PREFIX(/* empty */, _name, _active,	      \
-				    type, r_id, key)
+				    type, r_id, key, ao_rate, ao_flags)
 
 #define __DEFINE_CLK_SMD_RPM_BRANCH_PREFIX(_prefix, _name, _active,\
 					   type, r_id, r, key, ao_flags)      \
@@ -105,17 +107,22 @@
 
 #define DEFINE_CLK_SMD_RPM(_name, type, r_id)				      \
 		__DEFINE_CLK_SMD_RPM(_name##_clk, _name##_a_clk,	      \
-		type, r_id, QCOM_RPM_SMD_KEY_RATE)
+		type, r_id, QCOM_RPM_SMD_KEY_RATE, INT_MAX, 0)
 
 #define DEFINE_CLK_SMD_RPM_BUS(_name, r_id)				      \
 		__DEFINE_CLK_SMD_RPM_PREFIX(bus_##r_id##_,		      \
 		_name##_clk, _name##_a_clk, QCOM_SMD_RPM_BUS_CLK, r_id,	      \
-		QCOM_RPM_SMD_KEY_RATE)
+		QCOM_RPM_SMD_KEY_RATE, INT_MAX, 0)
+
+#define DEFINE_CLK_SMD_RPM_BUS_A(_name, r_id, ao_rate, ao_flags)		      \
+		__DEFINE_CLK_SMD_RPM_PREFIX(bus_##r_id##_,		      \
+		_name##_clk, _name##_a_clk, QCOM_SMD_RPM_BUS_CLK, r_id,	      \
+		QCOM_RPM_SMD_KEY_RATE, ao_rate, ao_flags)
 
 #define DEFINE_CLK_SMD_RPM_CLK_SRC(_name, type, r_id)			      \
 		__DEFINE_CLK_SMD_RPM(					      \
 		_name##_clk_src, _name##_a_clk_src,			      \
-		type, r_id, QCOM_RPM_SMD_KEY_RATE)
+		type, r_id, QCOM_RPM_SMD_KEY_RATE, INT_MAX, 0)
 
 #define DEFINE_CLK_SMD_RPM_BRANCH(_name, type, r_id, r)			      \
 		__DEFINE_CLK_SMD_RPM_BRANCH_PREFIX(branch_,		      \
@@ -129,7 +136,7 @@
 
 #define DEFINE_CLK_SMD_RPM_QDSS(_name, type, r_id)			      \
 		__DEFINE_CLK_SMD_RPM(_name##_clk, _name##_a_clk,	      \
-		type, r_id, QCOM_RPM_SMD_KEY_STATE)
+		type, r_id, QCOM_RPM_SMD_KEY_STATE, INT_MAX, 0)
 
 #define DEFINE_CLK_SMD_RPM_XO_BUFFER(_name, r_id, r)			      \
 		__DEFINE_CLK_SMD_RPM_BRANCH(_name, _name##_a,		      \
