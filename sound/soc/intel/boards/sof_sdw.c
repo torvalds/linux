@@ -1348,8 +1348,7 @@ static void set_dailink_map(struct snd_soc_dai_link_codec_ch_map *sdw_codec_ch_m
 
 static const char * const type_strings[] = {"SimpleJack", "SmartAmp", "SmartMic"};
 
-static int create_sdw_dailink(struct snd_soc_card *card,
-			      struct device *dev, int *link_index,
+static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 			      struct snd_soc_dai_link *dai_links,
 			      int sdw_be_num, int sdw_cpu_dai_num,
 			      struct snd_soc_dai_link_component *cpus,
@@ -1363,6 +1362,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 			      int adr_index,
 			      int dai_index)
 {
+	struct device *dev = card->dev;
 	const struct snd_soc_acpi_link_adr *adr_link_next;
 	struct snd_soc_dai_link_component *codecs;
 	struct sof_sdw_codec_info *codec_info;
@@ -1563,10 +1563,10 @@ static int sof_card_codec_conf_alloc(struct device *dev,
 	return 0;
 }
 
-static int sof_card_dai_links_create(struct device *dev,
-				     struct snd_soc_acpi_mach *mach,
-				     struct snd_soc_card *card)
+static int sof_card_dai_links_create(struct snd_soc_card *card)
 {
+	struct device *dev = card->dev;
+	struct snd_soc_acpi_mach *mach = dev_get_platdata(card->dev);
 	int ssp_num, sdw_be_num = 0, hdmi_num = 0, dmic_num;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai_link_component *idisp_components;
@@ -1723,7 +1723,7 @@ out:
 				return codec_index;
 
 			for (j = 0; j < codec_info_list[codec_index].dai_num ; j++) {
-				ret = create_sdw_dailink(card, dev, &link_index, dai_links,
+				ret = create_sdw_dailink(card, &link_index, dai_links,
 							 sdw_be_num, sdw_cpu_dai_num, cpus,
 							 adr_link, &cpu_id, group_generated,
 							 codec_conf, codec_conf_count,
@@ -1991,7 +1991,7 @@ static int mc_probe(struct platform_device *pdev)
 
 	log_quirks(card->dev);
 
-	ret = sof_card_dai_links_create(card->dev, mach, card);
+	ret = sof_card_dai_links_create(card);
 	if (ret < 0)
 		return ret;
 
