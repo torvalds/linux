@@ -65,6 +65,7 @@ phy-qcom-ufs.ko
 phy-qcom-ufs-qmp-v3-660.ko
 phy-qcom-ufs-qmp-v4.ko
 ufs_qcom.ko
+crypto-qti.ko
 crypto-qti-common.ko
 ufshcd-crypto-qti.ko
 crypto-qti-tz.ko
