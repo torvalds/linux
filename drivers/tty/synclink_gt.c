@@ -87,8 +87,8 @@
 /*
  * module identification
  */
-static char *driver_name     = "SyncLink GT";
-static char *tty_dev_prefix  = "ttySLG";
+static const char driver_name[] = "SyncLink GT";
+static const char tty_dev_prefix[] = "ttySLG";
 MODULE_LICENSE("GPL");
 #define MAX_DEVICES 32
 
