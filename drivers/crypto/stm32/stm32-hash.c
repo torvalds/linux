@@ -2112,7 +2112,7 @@ err_reset:
 	return ret;
 }
 
-static int stm32_hash_remove(struct platform_device *pdev)
+static void stm32_hash_remove(struct platform_device *pdev)
 {
 	struct stm32_hash_dev *hdev = platform_get_drvdata(pdev);
 	int ret;
@@ -2135,8 +2135,6 @@ static int stm32_hash_remove(struct platform_device *pdev)
 
 	if (ret >= 0)
 		clk_disable_unprepare(hdev->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -2173,7 +2171,7 @@ static const struct dev_pm_ops stm32_hash_pm_ops = {
 
 static struct platform_driver stm32_hash_driver = {
 	.probe		= stm32_hash_probe,
-	.remove		= stm32_hash_remove,
+	.remove_new	= stm32_hash_remove,
 	.driver		= {
 		.name	= "stm32-hash",
 		.pm = &stm32_hash_pm_ops,
