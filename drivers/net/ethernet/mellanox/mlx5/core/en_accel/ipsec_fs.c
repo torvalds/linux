@@ -254,8 +254,6 @@ static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	mlx5_del_flow_rules(rx->sa.rule);
 	mlx5_destroy_flow_group(rx->sa.group);
 	mlx5_destroy_flow_table(rx->ft.sa);
-	if (rx->allow_tunnel_mode)
-		mlx5_eswitch_unblock_encap(mdev);
 	if (rx == ipsec->rx_esw) {
 		mlx5_esw_ipsec_rx_status_destroy(ipsec, rx);
 	} else {
@@ -359,8 +357,6 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		goto err_add;
 
 	/* Create FT */
-	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_TUNNEL)
-		rx->allow_tunnel_mode = mlx5_eswitch_block_encap(mdev);
 	if (rx->allow_tunnel_mode)
 		flags = MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
 	ft = ipsec_ft_create(attr.ns, attr.sa_level, attr.prio, 2, flags);
@@ -415,8 +411,6 @@ err_pol_ft:
 err_fs:
 	mlx5_destroy_flow_table(rx->ft.sa);
 err_fs_ft:
-	if (rx->allow_tunnel_mode)
-		mlx5_eswitch_unblock_encap(mdev);
 	mlx5_del_flow_rules(rx->status.rule);
 	mlx5_modify_header_dealloc(mdev, rx->status.modify_hdr);
 err_add:
@@ -434,13 +428,26 @@ static int rx_get(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	if (rx->ft.refcnt)
 		goto skip;
 
-	err = rx_create(mdev, ipsec, rx, family);
+	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_TUNNEL)
+		rx->allow_tunnel_mode = mlx5_eswitch_block_encap(mdev);
+
+	err = mlx5_eswitch_block_mode_trylock(mdev);
 	if (err)
-		return err;
+		goto err_out;
+
+	err = rx_create(mdev, ipsec, rx, family);
+	mlx5_eswitch_block_mode_unlock(mdev, err);
+	if (err)
+		goto err_out;
 
 skip:
 	rx->ft.refcnt++;
 	return 0;
+
+err_out:
+	if (rx->allow_tunnel_mode)
+		mlx5_eswitch_unblock_encap(mdev);
+	return err;
 }
 
 static void rx_put(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_rx *rx,
@@ -449,7 +456,12 @@ static void rx_put(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_rx *rx,
 	if (--rx->ft.refcnt)
 		return;
 
+	mlx5_eswitch_unblock_mode_lock(ipsec->mdev);
 	rx_destroy(ipsec->mdev, ipsec, rx, family);
+	mlx5_eswitch_unblock_mode_unlock(ipsec->mdev);
+
+	if (rx->allow_tunnel_mode)
+		mlx5_eswitch_unblock_encap(ipsec->mdev);
 }
 
 static struct mlx5e_ipsec_rx *rx_ft_get(struct mlx5_core_dev *mdev,
@@ -569,8 +581,6 @@ static void tx_destroy(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_tx *tx,
 		mlx5_destroy_flow_group(tx->sa.group);
 	}
 	mlx5_destroy_flow_table(tx->ft.sa);
-	if (tx->allow_tunnel_mode)
-		mlx5_eswitch_unblock_encap(ipsec->mdev);
 	mlx5_del_flow_rules(tx->status.rule);
 	mlx5_destroy_flow_table(tx->ft.status);
 }
@@ -611,8 +621,6 @@ static int tx_create(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_tx *tx,
 	if (err)
 		goto err_status_rule;
 
-	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_TUNNEL)
-		tx->allow_tunnel_mode = mlx5_eswitch_block_encap(mdev);
 	if (tx->allow_tunnel_mode)
 		flags = MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
 	ft = ipsec_ft_create(tx->ns, attr.sa_level, attr.prio, 4, flags);
@@ -679,8 +687,6 @@ err_pol_ft:
 err_sa_miss:
 	mlx5_destroy_flow_table(tx->ft.sa);
 err_sa_ft:
-	if (tx->allow_tunnel_mode)
-		mlx5_eswitch_unblock_encap(mdev);
 	mlx5_del_flow_rules(tx->status.rule);
 err_status_rule:
 	mlx5_destroy_flow_table(tx->ft.status);
@@ -714,16 +720,32 @@ static int tx_get(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	if (tx->ft.refcnt)
 		goto skip;
 
-	err = tx_create(ipsec, tx, ipsec->roce);
+	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_TUNNEL)
+		tx->allow_tunnel_mode = mlx5_eswitch_block_encap(mdev);
+
+	err = mlx5_eswitch_block_mode_trylock(mdev);
 	if (err)
-		return err;
+		goto err_out;
+
+	err = tx_create(ipsec, tx, ipsec->roce);
+	if (err) {
+		mlx5_eswitch_block_mode_unlock(mdev, err);
+		goto err_out;
+	}
 
 	if (tx == ipsec->tx_esw)
 		ipsec_esw_tx_ft_policy_set(mdev, tx->ft.pol);
 
+	mlx5_eswitch_block_mode_unlock(mdev, err);
+
 skip:
 	tx->ft.refcnt++;
 	return 0;
+
+err_out:
+	if (tx->allow_tunnel_mode)
+		mlx5_eswitch_unblock_encap(mdev);
+	return err;
 }
 
 static void tx_put(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_tx *tx)
@@ -731,10 +753,17 @@ static void tx_put(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_tx *tx)
 	if (--tx->ft.refcnt)
 		return;
 
+	mlx5_eswitch_unblock_mode_lock(ipsec->mdev);
+
 	if (tx == ipsec->tx_esw)
 		ipsec_esw_tx_ft_policy_set(ipsec->mdev, NULL);
 
 	tx_destroy(ipsec, tx, ipsec->roce);
+
+	mlx5_eswitch_unblock_mode_unlock(ipsec->mdev);
+
+	if (tx->allow_tunnel_mode)
+		mlx5_eswitch_unblock_encap(ipsec->mdev);
 }
 
 static struct mlx5_flow_table *tx_ft_get_policy(struct mlx5_core_dev *mdev,
