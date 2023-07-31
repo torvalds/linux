@@ -525,6 +525,7 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	const struct firmware *wmfw_firmware = NULL;
 	char *coeff_filename = NULL;
 	char *wmfw_filename = NULL;
+	unsigned int firmware_missing;
 	int ret = 0;
 
 	/* Prepare for a new DSP power-up */
@@ -533,11 +534,28 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 
 	cs35l56->base.fw_patched = false;
 
-	cs35l56_hda_request_firmware_files(cs35l56, &wmfw_firmware, &wmfw_filename,
-					   &coeff_firmware, &coeff_filename);
+	pm_runtime_get_sync(cs35l56->base.dev);
+
+	ret = regmap_read(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS, &firmware_missing);
+	if (ret) {
+		dev_err(cs35l56->base.dev, "Failed to read PROTECTION_STATUS: %d\n", ret);
+		goto err_pm_put;
+	}
+
+	firmware_missing &= CS35L56_FIRMWARE_MISSING;
+
+	/*
+	 * Firmware can only be downloaded if the CS35L56 is secured or is
+	 * running from the built-in ROM. If it is secured the BIOS will have
+	 * downloaded firmware, and the wmfw/bin files will only contain
+	 * tunings that are safe to download with the firmware running.
+	 */
+	if (cs35l56->base.secured || firmware_missing) {
+		cs35l56_hda_request_firmware_files(cs35l56, &wmfw_firmware, &wmfw_filename,
+						   &coeff_firmware, &coeff_filename);
+	}
 
 	mutex_lock(&cs35l56->base.irq_lock);
-	pm_runtime_get_sync(cs35l56->base.dev);
 
 	/*
 	 * When the device is running in secure mode the firmware files can
@@ -596,11 +614,12 @@ err_powered_up:
 	if (!cs35l56->base.fw_patched)
 		cs_dsp_power_down(&cs35l56->cs_dsp);
 err:
-	pm_runtime_put(cs35l56->base.dev);
 	mutex_unlock(&cs35l56->base.irq_lock);
 
 	cs35l56_hda_release_firmware_files(wmfw_firmware, wmfw_filename,
 					   coeff_firmware, coeff_filename);
+err_pm_put:
+	pm_runtime_put(cs35l56->base.dev);
 
 	return ret;
 }
