@@ -305,8 +305,8 @@ EXPORT_SYMBOL_GPL(ufshcd_get_pwr_dev_param);
 void ufshcd_init_pwr_dev_param(struct ufs_dev_params *dev_param)
 {
 	*dev_param = (struct ufs_dev_params){
-		.tx_lanes = 2,
-		.rx_lanes = 2,
+		.tx_lanes = UFS_LANE_2,
+		.rx_lanes = UFS_LANE_2,
 		.hs_rx_gear = UFS_HS_G3,
 		.hs_tx_gear = UFS_HS_G3,
 		.pwm_rx_gear = UFS_PWM_G4,
