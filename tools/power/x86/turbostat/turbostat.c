@@ -4163,6 +4163,10 @@ static void intel_uncore_frequency_probe(void)
 	if (access("/sys/devices/system/cpu/intel_uncore_frequency/package_00_die_00", R_OK))
 		return;
 
+	/* Cluster level sysfs not supported yet. */
+	if (!access("/sys/devices/system/cpu/intel_uncore_frequency/uncore00", R_OK))
+		return;
+
 	if (!access("/sys/devices/system/cpu/intel_uncore_frequency/package_00_die_00/current_freq_khz", R_OK))
 		BIC_PRESENT(BIC_UNCORE_MHZ);
 
