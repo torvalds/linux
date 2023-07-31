@@ -178,11 +178,14 @@ struct mlx5e_ipsec {
 	struct mlx5e_flow_steering *fs;
 	struct mlx5e_ipsec_rx *rx_ipv4;
 	struct mlx5e_ipsec_rx *rx_ipv6;
+	struct mlx5e_ipsec_rx *rx_esw;
 	struct mlx5e_ipsec_tx *tx;
+	struct mlx5e_ipsec_tx *tx_esw;
 	struct mlx5e_ipsec_aso *aso;
 	struct notifier_block nb;
 	struct notifier_block netevent_nb;
 	struct mlx5_ipsec_fs *roce;
+	u8 is_uplink_rep: 1;
 };
 
 struct mlx5e_ipsec_esn_state {

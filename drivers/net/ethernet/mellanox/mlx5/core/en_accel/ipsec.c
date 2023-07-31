@@ -40,6 +40,7 @@
 #include "en.h"
 #include "ipsec.h"
 #include "ipsec_rxtx.h"
+#include "en_rep.h"
 
 #define MLX5_IPSEC_RESCHED msecs_to_jiffies(1000)
 #define MLX5E_IPSEC_TUNNEL_SA XA_MARK_1
@@ -858,6 +859,7 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 			goto clear_aso;
 	}
 
+	ipsec->is_uplink_rep = mlx5e_is_uplink_rep(priv);
 	ret = mlx5e_accel_ipsec_fs_init(ipsec);
 	if (ret)
 		goto err_fs_init;
