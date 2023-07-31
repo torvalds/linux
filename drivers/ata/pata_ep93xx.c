@@ -1004,7 +1004,7 @@ err_rel_gpio:
 	return err;
 }
 
-static int ep93xx_pata_remove(struct platform_device *pdev)
+static void ep93xx_pata_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 	struct ep93xx_pata_data *drv_data = host->private_data;
@@ -1013,7 +1013,6 @@ static int ep93xx_pata_remove(struct platform_device *pdev)
 	ep93xx_pata_release_dma(drv_data);
 	ep93xx_pata_clear_regs(drv_data->ide_base);
 	ep93xx_ide_release_gpio(pdev);
-	return 0;
 }
 
 static struct platform_driver ep93xx_pata_platform_driver = {
@@ -1021,7 +1020,7 @@ static struct platform_driver ep93xx_pata_platform_driver = {
 		.name = DRV_NAME,
 	},
 	.probe = ep93xx_pata_probe,
-	.remove = ep93xx_pata_remove,
+	.remove_new = ep93xx_pata_remove,
 };
 
 module_platform_driver(ep93xx_pata_platform_driver);
