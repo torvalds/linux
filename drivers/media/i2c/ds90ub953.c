@@ -145,6 +145,7 @@ struct ub953_data {
 
 	struct i2c_client	*client;
 	struct regmap		*regmap;
+	struct clk		*clkin;
 
 	u32			num_data_lanes;
 	bool			non_continous_clk;
@@ -844,15 +845,21 @@ static int ub953_i2c_master_init(struct ub953_data *priv)
 
 static u64 ub953_get_fc_rate(struct ub953_data *priv)
 {
-	if (priv->mode != UB953_MODE_SYNC) {
+	switch (priv->mode) {
+	case UB953_MODE_SYNC:
+		if (priv->hw_data->is_ub971)
+			return priv->plat_data->bc_rate * 160ull;
+		else
+			return priv->plat_data->bc_rate / 2 * 160ull;
+
+	case UB953_MODE_NONSYNC_EXT:
+		/* CLKIN_DIV = 1 always */
+		return clk_get_rate(priv->clkin) * 80ull;
+
+	default:
 		/* Not supported */
 		return 0;
 	}
-
-	if (priv->hw_data->is_ub971)
-		return priv->plat_data->bc_rate * 160ull;
-	else
-		return priv->plat_data->bc_rate / 2 * 160ull;
 }
 
 static unsigned long ub953_calc_clkout_ub953(struct ub953_data *priv,
@@ -1195,9 +1202,15 @@ static int ub953_hw_init(struct ub953_data *priv)
 	dev_dbg(dev, "mode from %s: %#x\n", mode_override ? "reg" : "strap",
 		priv->mode);
 
-	if (priv->mode != UB953_MODE_SYNC)
+	if (priv->mode != UB953_MODE_SYNC &&
+	    priv->mode != UB953_MODE_NONSYNC_EXT)
 		return dev_err_probe(dev, -ENODEV,
-				     "Only synchronous mode supported\n");
+				     "Unsupported mode selected: %u\n",
+				     priv->mode);
+
+	if (priv->mode == UB953_MODE_NONSYNC_EXT && !priv->clkin)
+		return dev_err_probe(dev, -EINVAL,
+				     "clkin required for non-sync ext mode\n");
 
 	ret = ub953_read(priv, UB953_REG_REV_MASK_ID, &v);
 	if (ret)
@@ -1311,6 +1324,13 @@ static int ub953_probe(struct i2c_client *client)
 	if (IS_ERR(priv->regmap)) {
 		ret = PTR_ERR(priv->regmap);
 		dev_err_probe(dev, ret, "Failed to init regmap\n");
+		goto err_mutex_destroy;
+	}
+
+	priv->clkin = devm_clk_get_optional(dev, "clkin");
+	if (IS_ERR(priv->clkin)) {
+		ret = PTR_ERR(priv->clkin);
+		dev_err_probe(dev, ret, "failed to parse 'clkin'\n");
 		goto err_mutex_destroy;
 	}
 
