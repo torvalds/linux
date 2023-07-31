@@ -135,11 +135,6 @@ static void kim_int_recv(struct kim_data_s *kim_gdata,
 
 	pr_debug("%s", __func__);
 	/* Decode received bytes here */
-	if (unlikely(ptr == NULL)) {
-		pr_err(" received null from TTY ");
-		return;
-	}
-
 	while (count) {
 		if (kim_gdata->rx_count) {
 			len = min_t(unsigned int, kim_gdata->rx_count, count);
