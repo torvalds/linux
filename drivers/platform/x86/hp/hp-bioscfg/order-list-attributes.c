@@ -136,6 +136,7 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 	u32 size;
 	u32 int_value = 0;
 	int elem;
+	int olist_elem;
 	int reqs;
 	int eloc;
 	char *tmpstr = NULL;
@@ -147,10 +148,7 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 	if (!order_obj)
 		return -EINVAL;
 
-	for (elem = 1, eloc = 1; elem < order_obj_count; elem++, eloc++) {
-		/* ONLY look at the first ORDERED_ELEM_CNT elements */
-		if (eloc == ORD_ELEM_CNT)
-			goto exit_list;
+	for (elem = 1, eloc = 1; eloc < ORD_ELEM_CNT; elem++, eloc++) {
 
 		switch (order_obj[elem].type) {
 		case ACPI_TYPE_STRING:
@@ -277,10 +275,10 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 					tmpstr,
 					sizeof(ordered_list_data->elements[0]));
 
-			for (elem = 1; elem < MAX_ELEMENTS_SIZE && part; elem++) {
-				strscpy(ordered_list_data->elements[elem],
+			for (olist_elem = 1; olist_elem < MAX_ELEMENTS_SIZE && part; olist_elem++) {
+				strscpy(ordered_list_data->elements[olist_elem],
 					part,
-					sizeof(ordered_list_data->elements[elem]));
+					sizeof(ordered_list_data->elements[olist_elem]));
 				part = strsep(&part_tmp, SEMICOLON_SEP);
 			}
 
