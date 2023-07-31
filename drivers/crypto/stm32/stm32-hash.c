@@ -2114,12 +2114,8 @@ err_reset:
 
 static int stm32_hash_remove(struct platform_device *pdev)
 {
-	struct stm32_hash_dev *hdev;
+	struct stm32_hash_dev *hdev = platform_get_drvdata(pdev);
 	int ret;
-
-	hdev = platform_get_drvdata(pdev);
-	if (!hdev)
-		return -ENODEV;
 
 	ret = pm_runtime_get_sync(hdev->dev);
 
