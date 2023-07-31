@@ -192,6 +192,8 @@ struct dwc3_octeon {
 	void __iomem *base;
 };
 
+#define DWC3_GPIO_POWER_NONE	(-1)
+
 #ifdef CONFIG_CAVIUM_OCTEON_SOC
 #include <asm/octeon/octeon.h>
 static inline uint64_t dwc3_octeon_readq(void __iomem *addr)
@@ -258,55 +260,15 @@ static int dwc3_octeon_get_divider(void)
 	return div;
 }
 
-static int dwc3_octeon_config_power(struct device *dev, void __iomem *base)
-{
-	uint32_t gpio_pwr[3];
-	int gpio, len, power_active_low;
-	struct device_node *node = dev->of_node;
-	u64 val;
-	void __iomem *uctl_host_cfg_reg = base + USBDRD_UCTL_HOST_CFG;
-
-	if (of_find_property(node, "power", &len) != NULL) {
-		if (len == 12) {
-			of_property_read_u32_array(node, "power", gpio_pwr, 3);
-			power_active_low = gpio_pwr[2] & 0x01;
-			gpio = gpio_pwr[1];
-		} else if (len == 8) {
-			of_property_read_u32_array(node, "power", gpio_pwr, 2);
-			power_active_low = 0;
-			gpio = gpio_pwr[1];
-		} else {
-			dev_err(dev, "invalid power configuration\n");
-			return -EINVAL;
-		}
-		dwc3_octeon_config_gpio(((u64)base >> 24) & 1, gpio);
-
-		/* Enable XHCI power control and set if active high or low. */
-		val = dwc3_octeon_readq(uctl_host_cfg_reg);
-		val |= USBDRD_UCTL_HOST_PPC_EN;
-		if (power_active_low)
-			val &= ~USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
-		else
-			val |= USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
-		dwc3_octeon_writeq(uctl_host_cfg_reg, val);
-	} else {
-		/* Disable XHCI power control and set if active high. */
-		val = dwc3_octeon_readq(uctl_host_cfg_reg);
-		val &= ~USBDRD_UCTL_HOST_PPC_EN;
-		val &= ~USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
-		dwc3_octeon_writeq(uctl_host_cfg_reg, val);
-		dev_info(dev, "power control disabled\n");
-	}
-	return 0;
-}
-
-static int dwc3_octeon_clocks_start(struct dwc3_octeon *octeon)
+static int dwc3_octeon_setup(struct dwc3_octeon *octeon,
+			     int power_gpio, int power_active_low)
 {
 	int i, div, mpll_mul, ref_clk_fsel, ref_clk_sel = 2;
 	u32 clock_rate;
 	u64 val;
 	struct device *dev = octeon->dev;
 	void __iomem *uctl_ctl_reg = octeon->base + USBDRD_UCTL_CTL;
+	void __iomem *uctl_host_cfg_reg = octeon->base + USBDRD_UCTL_HOST_CFG;
 
 	if (dev->of_node) {
 		const char *ss_clock_type;
@@ -454,8 +416,21 @@ static int dwc3_octeon_clocks_start(struct dwc3_octeon *octeon)
 	udelay(10);
 
 	/* Step 8c: Setup power control. */
-	if (dwc3_octeon_config_power(dev, octeon->base))
-		return -EINVAL;
+	val = dwc3_octeon_readq(uctl_host_cfg_reg);
+	val |= USBDRD_UCTL_HOST_PPC_EN;
+	if (power_gpio == DWC3_GPIO_POWER_NONE) {
+		val &= ~USBDRD_UCTL_HOST_PPC_EN;
+	} else {
+		val |= USBDRD_UCTL_HOST_PPC_EN;
+		dwc3_octeon_config_gpio(((__force uintptr_t)octeon->base >> 24) & 1,
+					power_gpio);
+		dev_dbg(dev, "power control is using gpio%d\n", power_gpio);
+	}
+	if (power_active_low)
+		val &= ~USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
+	else
+		val |= USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
+	dwc3_octeon_writeq(uctl_host_cfg_reg, val);
 
 	/* Step 8d: Deassert UAHC reset signal. */
 	val = dwc3_octeon_readq(uctl_ctl_reg);
@@ -508,7 +483,28 @@ static int dwc3_octeon_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct dwc3_octeon *octeon;
-	int err;
+	int power_active_low, power_gpio;
+	int err, len;
+
+	power_gpio = DWC3_GPIO_POWER_NONE;
+	power_active_low = 0;
+	if (of_find_property(node, "power", &len)) {
+		u32 gpio_pwr[3];
+
+		switch (len) {
+		case 8:
+			of_property_read_u32_array(node, "power", gpio_pwr, 2);
+			break;
+		case 12:
+			of_property_read_u32_array(node, "power", gpio_pwr, 3);
+			power_active_low = gpio_pwr[2] & 0x01;
+			break;
+		default:
+			dev_err(dev, "invalid power configuration\n");
+			return -EINVAL;
+		}
+		power_gpio = gpio_pwr[1];
+	}
 
 	octeon = devm_kzalloc(dev, sizeof(*octeon), GFP_KERNEL);
 	if (!octeon)
@@ -519,7 +515,7 @@ static int dwc3_octeon_probe(struct platform_device *pdev)
 	if (IS_ERR(octeon->base))
 		return PTR_ERR(octeon->base);
 
-	err = dwc3_octeon_clocks_start(octeon);
+	err = dwc3_octeon_setup(octeon, power_gpio, power_active_low);
 	if (err)
 		return err;
 
