@@ -3628,8 +3628,6 @@ static void slgt_cleanup(void)
 	struct slgt_info *info;
 	struct slgt_info *tmp;
 
-	printk(KERN_INFO "unload %s\n", driver_name);
-
 	if (serial_driver) {
 		for (info=slgt_device_list ; info != NULL ; info=info->next_device)
 			tty_unregister_device(serial_driver, info->line);
@@ -3671,8 +3669,6 @@ static int __init slgt_init(void)
 {
 	int rc;
 
-	printk(KERN_INFO "%s\n", driver_name);
-
 	serial_driver = tty_alloc_driver(MAX_DEVICES, TTY_DRIVER_REAL_RAW |
 			TTY_DRIVER_DYNAMIC_DEV);
 	if (IS_ERR(serial_driver)) {
@@ -3701,18 +3697,12 @@ static int __init slgt_init(void)
 		goto error;
 	}
 
-	printk(KERN_INFO "%s, tty major#%d\n",
-	       driver_name, serial_driver->major);
-
 	slgt_device_count = 0;
 	if ((rc = pci_register_driver(&pci_driver)) < 0) {
 		printk("%s pci_register_driver error=%d\n", driver_name, rc);
 		goto error;
 	}
 	pci_registered = true;
-
-	if (!slgt_device_list)
-		printk("%s no devices found\n",driver_name);
 
 	return 0;
 
