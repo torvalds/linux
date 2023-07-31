@@ -389,6 +389,7 @@ static int max17040_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
+	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = max17040_get_online(chip);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
@@ -399,6 +400,9 @@ static int max17040_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN:
 		val->intval = chip->low_soc_alert;
+		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		power_supply_get_property_from_supplier(psy, psp, val);
 		break;
 	default:
 		return -EINVAL;
@@ -415,9 +419,11 @@ static const struct regmap_config max17040_regmap = {
 
 static enum power_supply_property max17040_battery_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN,
+	POWER_SUPPLY_PROP_STATUS,
 };
 
 static const struct power_supply_desc max17040_battery_desc = {
