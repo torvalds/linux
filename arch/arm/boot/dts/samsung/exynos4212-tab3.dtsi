@@ -300,34 +300,33 @@
 		mic-bias-supply = <&mic_bias_reg>;
 		submic-bias-supply = <&submic_bias_reg>;
 
-		samsung,audio-routing =
-			"HP", "HPOUT1L",
-			"HP", "HPOUT1R",
+		audio-routing = "HP", "HPOUT1L",
+				"HP", "HPOUT1R",
 
-			"SPK", "SPKOUTLN",
-			"SPK", "SPKOUTLP",
-			"SPK", "SPKOUTRN",
-			"SPK", "SPKOUTRP",
+				"SPK", "SPKOUTLN",
+				"SPK", "SPKOUTLP",
+				"SPK", "SPKOUTRN",
+				"SPK", "SPKOUTRP",
 
-			"RCV", "HPOUT2N",
-			"RCV", "HPOUT2P",
+				"RCV", "HPOUT2N",
+				"RCV", "HPOUT2P",
 
-			"LINE", "LINEOUT2N",
-			"LINE", "LINEOUT2P",
+				"LINE", "LINEOUT2N",
+				"LINE", "LINEOUT2P",
 
-			"HDMI", "LINEOUT1N",
-			"HDMI", "LINEOUT1P",
+				"HDMI", "LINEOUT1N",
+				"HDMI", "LINEOUT1P",
 
-			"IN2LP:VXRN", "MICBIAS1",
-			"IN2LN", "MICBIAS1",
-			"Main Mic", "MICBIAS1",
+				"IN2LP:VXRN", "MICBIAS1",
+				"IN2LN", "MICBIAS1",
+				"Main Mic", "MICBIAS1",
 
-			"IN1RP", "MICBIAS2",
-			"IN1RN", "MICBIAS2",
-			"Sub Mic", "MICBIAS2",
+				"IN1RP", "MICBIAS2",
+				"IN1RN", "MICBIAS2",
+				"Sub Mic", "MICBIAS2",
 
-			"IN1LP", "Headset Mic",
-			"IN1LN", "Headset Mic";
+				"IN1LP", "Headset Mic",
+				"IN1LN", "Headset Mic";
 
 		cpu {
 			sound-dai = <&i2s0 0>;
