@@ -1261,7 +1261,7 @@ struct platform_driver cdn_dp_driver = {
 	.driver = {
 		   .name = "cdn-dp",
 		   .owner = THIS_MODULE,
-		   .of_match_table = of_match_ptr(cdn_dp_dt_ids),
+		   .of_match_table = cdn_dp_dt_ids,
 		   .pm = &cdn_dp_pm_ops,
 	},
 };
