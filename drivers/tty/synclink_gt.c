@@ -3734,47 +3734,47 @@ module_exit(slgt_exit);
  * register access routines
  */
 
-#define CALC_REGADDR() \
-	unsigned long reg_addr = ((unsigned long)info->reg_addr) + addr; \
-	if (addr >= 0x80) \
-		reg_addr += (info->port_num) * 32; \
-	else if (addr >= 0x40)	\
-		reg_addr += (info->port_num) * 16;
+static inline void __iomem *calc_regaddr(struct slgt_info *info,
+					 unsigned int addr)
+{
+	void __iomem *reg_addr = info->reg_addr + addr;
+
+	if (addr >= 0x80)
+		reg_addr += info->port_num * 32;
+	else if (addr >= 0x40)
+		reg_addr += info->port_num * 16;
+
+	return reg_addr;
+}
 
 static __u8 rd_reg8(struct slgt_info *info, unsigned int addr)
 {
-	CALC_REGADDR();
-	return readb((void __iomem *)reg_addr);
+	return readb(calc_regaddr(info, addr));
 }
 
 static void wr_reg8(struct slgt_info *info, unsigned int addr, __u8 value)
 {
-	CALC_REGADDR();
-	writeb(value, (void __iomem *)reg_addr);
+	writeb(value, calc_regaddr(info, addr));
 }
 
 static __u16 rd_reg16(struct slgt_info *info, unsigned int addr)
 {
-	CALC_REGADDR();
-	return readw((void __iomem *)reg_addr);
+	return readw(calc_regaddr(info, addr));
 }
 
 static void wr_reg16(struct slgt_info *info, unsigned int addr, __u16 value)
 {
-	CALC_REGADDR();
-	writew(value, (void __iomem *)reg_addr);
+	writew(value, calc_regaddr(info, addr));
 }
 
 static __u32 rd_reg32(struct slgt_info *info, unsigned int addr)
 {
-	CALC_REGADDR();
-	return readl((void __iomem *)reg_addr);
+	return readl(calc_regaddr(info, addr));
 }
 
 static void wr_reg32(struct slgt_info *info, unsigned int addr, __u32 value)
 {
-	CALC_REGADDR();
-	writel(value, (void __iomem *)reg_addr);
+	writel(value, calc_regaddr(info, addr));
 }
 
 static void rdma_reset(struct slgt_info *info)
