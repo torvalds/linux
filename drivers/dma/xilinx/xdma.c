@@ -717,7 +717,7 @@ static int xdma_irq_init(struct xdma_device *xdev)
 		ret = request_irq(irq, xdma_channel_isr, 0,
 				  "xdma-c2h-channel", &xdev->c2h_chans[j]);
 		if (ret) {
-			xdma_err(xdev, "H2C channel%d request irq%d failed: %d",
+			xdma_err(xdev, "C2H channel%d request irq%d failed: %d",
 				 j, irq, ret);
 			goto failed_init_c2h;
 		}
