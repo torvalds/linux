@@ -222,12 +222,4 @@ static inline void set_prefix(__u32 address)
 	asm volatile("spx %0" : : "Q" (address) : "memory");
 }
 
-static inline __u32 store_prefix(void)
-{
-	__u32 address;
-
-	asm volatile("stpx %0" : "=Q" (address));
-	return address;
-}
-
 #endif /* _ASM_S390_LOWCORE_H */
