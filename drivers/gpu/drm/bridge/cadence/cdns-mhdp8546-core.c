@@ -2655,7 +2655,7 @@ MODULE_DEVICE_TABLE(of, mhdp_ids);
 static struct platform_driver mhdp_driver = {
 	.driver	= {
 		.name		= "cdns-mhdp8546",
-		.of_match_table	= of_match_ptr(mhdp_ids),
+		.of_match_table	= mhdp_ids,
 	},
 	.probe	= cdns_mhdp_probe,
 	.remove	= cdns_mhdp_remove,
