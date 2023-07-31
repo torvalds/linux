@@ -27,6 +27,7 @@ int ddr_stats_get_ss_count(void);
 int ddr_stats_get_ss_vote_info(int ss_count,
 			       struct ddr_stats_ss_vote_info *vote_info);
 
+int qcom_stats_ddr_freqsync_msg(void);
 int ddr_stats_get_freq_count(void);
 int ddr_stats_get_residency(int freq_count, struct ddr_freq_residency *data);
 
@@ -43,6 +44,8 @@ static inline int ddr_stats_get_ss_count(void)
 { return -ENODEV; }
 static inline int ddr_stats_get_ss_vote_info(int ss_count,
 					     struct ddr_stats_ss_vote_info *vote_info)
+{ return -ENODEV; }
+static inline int qcom_stats_ddr_freqsync_msg(void)
 { return -ENODEV; }
 static inline int ddr_stats_get_freq_count(void)
 { return -ENODEV; }
