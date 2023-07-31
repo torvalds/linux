@@ -293,7 +293,7 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 			if (int_value > MAX_PREREQUISITES_SIZE)
 				pr_warn("Prerequisites size value exceeded the maximum number of elements supported or data may be malformed\n");
 
-			/* This HACK is needed to keep the expected
+			/* This step is needed to keep the expected
 			 * element list pointing to the right obj[elem].type
 			 * when the size is zero. PREREQUISITES
 			 * object is omitted by BIOS when the size is
@@ -337,7 +337,7 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 			if (int_value > MAX_ENCODINGS_SIZE)
 				pr_warn("Password Encoding size value exceeded the maximum number of elements supported or data may be malformed\n");
 
-			/* This HACK is needed to keep the expected
+			/* This step is needed to keep the expected
 			 * element list pointing to the right obj[elem].type
 			 * when the size is zero. PSWD_ENCODINGS
 			 * object is omitted by BIOS when the size is

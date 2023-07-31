@@ -203,7 +203,7 @@ static int hp_populate_string_elements_from_package(union acpi_object *string_ob
 			if (string_data->common.prerequisites_size > MAX_PREREQUISITES_SIZE)
 				pr_warn("Prerequisites size value exceeded the maximum number of elements supported or data may be malformed\n");
 			/*
-			 * This HACK is needed to keep the expected
+			 * This step is needed to keep the expected
 			 * element list pointing to the right obj[elem].type
 			 * when the size is zero. PREREQUISITES
 			 * object is omitted by BIOS when the size is

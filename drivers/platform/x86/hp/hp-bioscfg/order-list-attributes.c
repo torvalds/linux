@@ -207,7 +207,7 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 				pr_warn("Prerequisites size value exceeded the maximum number of elements supported or data may be malformed\n");
 
 			/*
-			 * This HACK is needed to keep the expected
+			 * This step is needed to keep the expected
 			 * element list pointing to the right obj[elem].type
 			 * when the size is zero. PREREQUISITES
 			 * object is omitted by BIOS when the size is
@@ -245,7 +245,7 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 			if (int_value > MAX_ELEMENTS_SIZE)
 				pr_warn("Ordered List size value exceeded the maximum number of elements supported or data may be malformed\n");
 			/*
-			 * This HACK is needed to keep the expected
+			 * This step is needed to keep the expected
 			 * element list pointing to the right obj[elem].type
 			 * when the size is zero. ORD_LIST_ELEMENTS
 			 * object is omitted by BIOS when the size is
