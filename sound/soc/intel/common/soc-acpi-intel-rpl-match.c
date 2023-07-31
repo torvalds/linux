@@ -331,6 +331,11 @@ static const struct snd_soc_acpi_codecs rpl_rt5682_hp = {
 	.codecs = {"10EC5682", "RTL5682"},
 };
 
+static const struct snd_soc_acpi_codecs rpl_max98357a_amp = {
+	.num_codecs = 1,
+	.codecs = {"MX98357A"}
+};
+
 static const struct snd_soc_acpi_codecs rpl_max98360a_amp = {
 	.num_codecs = 1,
 	.codecs = {"MX98360A"},
@@ -347,6 +352,13 @@ static const struct snd_soc_acpi_codecs rpl_rt1019p_amp = {
 };
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
+	{
+		.comp_ids = &rpl_rt5682_hp,
+		.drv_name = "rpl_mx98357_rt5682",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rpl_max98357a_amp,
+		.sof_tplg_filename = "sof-rpl-max98357a-rt5682.tplg",
+	},
 	{
 		.comp_ids = &rpl_rt5682_hp,
 		.drv_name = "rpl_mx98360_rt5682",
