@@ -7,7 +7,7 @@
 #include <linux/highmem.h>
 
 #include "ivpu_drv.h"
-#include "ivpu_hw_mtl_reg.h"
+#include "ivpu_hw_37xx_reg.h"
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"

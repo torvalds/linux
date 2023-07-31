@@ -5,7 +5,7 @@
 
 #include "ivpu_drv.h"
 #include "ivpu_fw.h"
-#include "ivpu_hw_mtl_reg.h"
+#include "ivpu_hw_37xx_reg.h"
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
