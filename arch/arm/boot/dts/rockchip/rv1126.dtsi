@@ -83,6 +83,11 @@
 		clock-frequency = <24000000>;
 	};
 
+	display_subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
+	};
+
 	xin24m: oscillator {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
@@ -369,6 +374,43 @@
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_TIMER>, <&cru CLK_TIMER0>;
 		clock-names = "pclk", "timer";
+	};
+
+	vop: vop@ffb00000 {
+		compatible = "rockchip,rv1126-vop";
+		reg = <0xffb00000 0x200>, <0xffb00a00 0x400>;
+		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
+		reset-names = "axi", "ahb", "dclk";
+		resets = <&cru SRST_VOP_A>, <&cru SRST_VOP_H>, <&cru SRST_VOP_D>;
+		iommus = <&vop_mmu>;
+		power-domains = <&power RV1126_PD_VO>;
+		status = "disabled";
+
+		vop_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vop_out_rgb: endpoint@0 {
+				reg = <0>;
+			};
+
+			vop_out_dsi: endpoint@1 {
+				reg = <1>;
+			};
+		};
+	};
+
+	vop_mmu: iommu@ffb00f00 {
+		compatible = "rockchip,iommu";
+		reg = <0xffb00f00 0x100>;
+		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		clock-names = "aclk", "iface";
+		clocks = <&cru ACLK_VOP>, <&cru HCLK_VOP>;
+		#iommu-cells = <0>;
+		power-domains = <&power RV1126_PD_VO>;
+		status = "disabled";
 	};
 
 	gmac: ethernet@ffc40000 {
