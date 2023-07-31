@@ -569,15 +569,29 @@ static void tx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx,
 	mlx5_destroy_flow_table(tx->ft.status);
 }
 
-static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx,
+static void ipsec_tx_create_attr_set(struct mlx5e_ipsec *ipsec,
+				     struct mlx5e_ipsec_tx *tx,
+				     struct mlx5e_ipsec_tx_create_attr *attr)
+{
+	attr->prio = 0;
+	attr->pol_level = 0;
+	attr->sa_level = 1;
+	attr->cnt_level = 2;
+	attr->chains_ns = MLX5_FLOW_NAMESPACE_EGRESS_IPSEC;
+}
+
+static int tx_create(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_tx *tx,
 		     struct mlx5_ipsec_fs *roce)
 {
+	struct mlx5_core_dev *mdev = ipsec->mdev;
+	struct mlx5e_ipsec_tx_create_attr attr;
 	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_table *ft;
 	u32 flags = 0;
 	int err;
 
-	ft = ipsec_ft_create(tx->ns, 2, 0, 1, 0);
+	ipsec_tx_create_attr_set(ipsec, tx, &attr);
+	ft = ipsec_ft_create(tx->ns, attr.cnt_level, attr.prio, 1, 0);
 	if (IS_ERR(ft))
 		return PTR_ERR(ft);
 	tx->ft.status = ft;
@@ -590,7 +604,7 @@ static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx,
 		tx->allow_tunnel_mode = mlx5_eswitch_block_encap(mdev);
 	if (tx->allow_tunnel_mode)
 		flags = MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-	ft = ipsec_ft_create(tx->ns, 1, 0, 4, flags);
+	ft = ipsec_ft_create(tx->ns, attr.sa_level, attr.prio, 4, flags);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_sa_ft;
@@ -599,7 +613,7 @@ static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx,
 
 	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PRIO) {
 		tx->chains = ipsec_chains_create(
-			mdev, tx->ft.sa, MLX5_FLOW_NAMESPACE_EGRESS_IPSEC, 0, 0,
+			mdev, tx->ft.sa, attr.chains_ns, attr.prio, attr.pol_level,
 			&tx->ft.pol);
 		if (IS_ERR(tx->chains)) {
 			err = PTR_ERR(tx->chains);
@@ -609,7 +623,7 @@ static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx,
 		goto connect_roce;
 	}
 
-	ft = ipsec_ft_create(tx->ns, 0, 0, 2, 0);
+	ft = ipsec_ft_create(tx->ns, attr.pol_level, attr.prio, 2, 0);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_pol_ft;
@@ -656,7 +670,7 @@ static int tx_get(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	if (tx->ft.refcnt)
 		goto skip;
 
-	err = tx_create(mdev, tx, ipsec->roce);
+	err = tx_create(ipsec, tx, ipsec->roce);
 	if (err)
 		return err;
 

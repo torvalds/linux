@@ -213,6 +213,14 @@ struct mlx5e_ipsec_rx {
 	struct xarray ipsec_obj_id_map;
 };
 
+struct mlx5e_ipsec_tx_create_attr {
+	int prio;
+	int pol_level;
+	int sa_level;
+	int cnt_level;
+	enum mlx5_flow_namespace_type chains_ns;
+};
+
 struct mlx5e_ipsec {
 	struct mlx5_core_dev *mdev;
 	struct xarray sadb;
