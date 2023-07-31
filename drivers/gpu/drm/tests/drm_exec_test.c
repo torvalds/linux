@@ -167,6 +167,26 @@ static void test_prepare_array(struct kunit *test)
 	drm_exec_fini(&exec);
 }
 
+static void test_multiple_loops(struct kunit *test)
+{
+	struct drm_exec exec;
+
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
+	drm_exec_until_all_locked(&exec)
+	{
+		break;
+	}
+	drm_exec_fini(&exec);
+
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
+	drm_exec_until_all_locked(&exec)
+	{
+		break;
+	}
+	drm_exec_fini(&exec);
+	KUNIT_SUCCEED(test);
+}
+
 static struct kunit_case drm_exec_tests[] = {
 	KUNIT_CASE(sanitycheck),
 	KUNIT_CASE(test_lock),
@@ -174,6 +194,7 @@ static struct kunit_case drm_exec_tests[] = {
 	KUNIT_CASE(test_duplicates),
 	KUNIT_CASE(test_prepare),
 	KUNIT_CASE(test_prepare_array),
+	KUNIT_CASE(test_multiple_loops),
 	{}
 };
 
