@@ -697,11 +697,8 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
  * service thread and marking it BUSY is atomic with respect to
  * other calls to svc_pool_wake_idle_thread().
  *
- * Return value:
- *   %true: An idle thread was awoken
- *   %false: No idle thread was found
  */
-bool svc_pool_wake_idle_thread(struct svc_pool *pool)
+void svc_pool_wake_idle_thread(struct svc_pool *pool)
 {
 	struct svc_rqst	*rqstp;
 
@@ -715,12 +712,11 @@ bool svc_pool_wake_idle_thread(struct svc_pool *pool)
 		rcu_read_unlock();
 		percpu_counter_inc(&pool->sp_threads_woken);
 		trace_svc_wake_up(rqstp->rq_task->pid);
-		return true;
+		return;
 	}
 	rcu_read_unlock();
 
 	set_bit(SP_CONGESTED, &pool->sp_flags);
-	return false;
 }
 
 static struct svc_pool *
