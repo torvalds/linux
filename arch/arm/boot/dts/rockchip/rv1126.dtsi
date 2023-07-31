@@ -125,6 +125,26 @@
 		reg = <0xfe86c000 0x20>;
 	};
 
+	qos_iep: qos@fe8a0000 {
+		compatible = "rockchip,rv1126-qos", "syscon";
+		reg = <0xfe8a0000 0x20>;
+	};
+
+	qos_rga_rd: qos@fe8a0080 {
+		compatible = "rockchip,rv1126-qos", "syscon";
+		reg = <0xfe8a0080 0x20>;
+	};
+
+	qos_rga_wr: qos@fe8a0100 {
+		compatible = "rockchip,rv1126-qos", "syscon";
+		reg = <0xfe8a0100 0x20>;
+	};
+
+	qos_vop: qos@fe8a0180 {
+		compatible = "rockchip,rv1126-qos", "syscon";
+		reg = <0xfe8a0180 0x20>;
+	};
+
 	gic: interrupt-controller@feff0000 {
 		compatible = "arm,gic-400";
 		interrupt-controller;
@@ -168,6 +188,25 @@
 				clocks = <&cru HCLK_SDIO>,
 					 <&cru CLK_SDIO>;
 				pm_qos = <&qos_sdio>;
+				#power-domain-cells = <0>;
+			};
+
+			power-domain@RV1126_PD_VO {
+				reg = <RV1126_PD_VO>;
+				clocks = <&cru ACLK_RGA>,
+					 <&cru HCLK_RGA>,
+					 <&cru CLK_RGA_CORE>,
+					 <&cru ACLK_VOP>,
+					 <&cru HCLK_VOP>,
+					 <&cru DCLK_VOP>,
+					 <&cru PCLK_DSIHOST>,
+					 <&cru ACLK_IEP>,
+					 <&cru HCLK_IEP>,
+					 <&cru CLK_IEP_CORE>;
+				pm_qos = <&qos_rga_rd>,
+					 <&qos_rga_wr>,
+					 <&qos_vop>,
+					 <&qos_iep>;
 				#power-domain-cells = <0>;
 			};
 		};
