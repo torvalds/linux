@@ -976,12 +976,6 @@ struct ata_port_operations {
 					ssize_t size);
 
 	/*
-	 * Obsolete
-	 */
-	void (*phy_reset)(struct ata_port *ap);
-	void (*eng_timeout)(struct ata_port *ap);
-
-	/*
 	 * ->inherits must be the last field and all the preceding
 	 * fields must be pointers.
 	 */
