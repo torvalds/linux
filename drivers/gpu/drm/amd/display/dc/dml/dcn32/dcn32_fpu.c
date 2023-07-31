@@ -37,7 +37,7 @@
 
 static const struct subvp_high_refresh_list subvp_high_refresh_list = {
 			.min_refresh = 120,
-			.max_refresh = 165,
+			.max_refresh = 175,
 			.res = {
 				{.width = 3840, .height = 2160, },
 				{.width = 3440, .height = 1440, },
@@ -1064,7 +1064,8 @@ static bool subvp_subvp_admissable(struct dc *dc,
 	}
 
 	if (subvp_count == 2 && ((min_refresh < 120 && max_refresh < 120) ||
-		(min_refresh >= 120 && max_refresh <= 165)))
+		(min_refresh >= subvp_high_refresh_list.min_refresh &&
+				max_refresh <= subvp_high_refresh_list.max_refresh)))
 		result = true;
 
 	return result;
