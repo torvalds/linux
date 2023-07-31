@@ -1964,34 +1964,34 @@ static void mc_dailink_exit_loop(struct snd_soc_card *card)
 static int mc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &card_sof_sdw;
-	struct snd_soc_acpi_mach *mach;
+	struct snd_soc_acpi_mach *mach = dev_get_platdata(&pdev->dev);
 	struct mc_private *ctx;
 	int amp_num = 0, i;
 	int ret;
 
-	dev_dbg(&pdev->dev, "Entry\n");
+	card->dev = &pdev->dev;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	dev_dbg(card->dev, "Entry\n");
+
+	ctx = devm_kzalloc(card->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
+
+	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
+
+	snd_soc_card_set_drvdata(card, ctx);
 
 	dmi_check_system(sof_sdw_quirk_table);
 
 	if (quirk_override != -1) {
-		dev_info(&pdev->dev, "Overriding quirk 0x%lx => 0x%x\n",
+		dev_info(card->dev, "Overriding quirk 0x%lx => 0x%x\n",
 			 sof_sdw_quirk, quirk_override);
 		sof_sdw_quirk = quirk_override;
 	}
-	log_quirks(&pdev->dev);
 
-	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
+	log_quirks(card->dev);
 
-	card->dev = &pdev->dev;
-	snd_soc_card_set_drvdata(card, ctx);
-
-	mach = pdev->dev.platform_data;
-	ret = sof_card_dai_links_create(&pdev->dev, mach,
-					card);
+	ret = sof_card_dai_links_create(card->dev, mach, card);
 	if (ret < 0)
 		return ret;
 
@@ -2022,7 +2022,7 @@ static int mc_probe(struct platform_device *pdev)
 	card->long_name = sdw_card_long_name;
 
 	/* Register the card */
-	ret = devm_snd_soc_register_card(&pdev->dev, card);
+	ret = devm_snd_soc_register_card(card->dev, card);
 	if (ret) {
 		dev_err(card->dev, "snd_soc_register_card failed %d\n", ret);
 		mc_dailink_exit_loop(card);
