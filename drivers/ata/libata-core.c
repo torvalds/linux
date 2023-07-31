@@ -5884,14 +5884,6 @@ void __ata_port_probe(struct ata_port *ap)
 	spin_unlock_irqrestore(ap->lock, flags);
 }
 
-int ata_port_probe(struct ata_port *ap)
-{
-	__ata_port_probe(ap);
-	ata_port_wait_eh(ap);
-	return 0;
-}
-
-
 static void async_port_probe(void *data, async_cookie_t cookie)
 {
 	struct ata_port *ap = data;
@@ -5906,7 +5898,8 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 	if (!(ap->host->flags & ATA_HOST_PARALLEL_SCAN) && ap->port_no != 0)
 		async_synchronize_cookie(cookie);
 
-	(void)ata_port_probe(ap);
+	__ata_port_probe(ap);
+	ata_port_wait_eh(ap);
 
 	/* in order to keep device order, we need to synchronize at this point */
 	async_synchronize_cookie(cookie);
