@@ -1747,14 +1747,17 @@ static int tb_usb3_activate(struct tb_tunnel *tunnel, bool activate)
 static int tb_usb3_consumed_bandwidth(struct tb_tunnel *tunnel,
 		int *consumed_up, int *consumed_down)
 {
-	int pcie_enabled = tb_acpi_may_tunnel_pcie();
+	int pcie_weight = tb_acpi_may_tunnel_pcie() ? TB_PCI_WEIGHT : 0;
 
 	/*
 	 * PCIe tunneling, if enabled, affects the USB3 bandwidth so
 	 * take that it into account here.
 	 */
-	*consumed_up = tunnel->allocated_up * (3 + pcie_enabled) / 3;
-	*consumed_down = tunnel->allocated_down * (3 + pcie_enabled) / 3;
+	*consumed_up = tunnel->allocated_up *
+		(TB_USB3_WEIGHT + pcie_weight) / TB_USB3_WEIGHT;
+	*consumed_down = tunnel->allocated_down *
+		(TB_USB3_WEIGHT + pcie_weight) / TB_USB3_WEIGHT;
+
 	return 0;
 }
 
