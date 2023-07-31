@@ -162,7 +162,8 @@ static bool is_sdiv_smod(const struct bpf_insn *insn)
 
 static bool is_movsx(const struct bpf_insn *insn)
 {
-	return BPF_OP(insn->code) == BPF_MOV && insn->off != 0;
+	return BPF_OP(insn->code) == BPF_MOV &&
+	       (insn->off == 8 || insn->off == 16 || insn->off == 32);
 }
 
 void print_bpf_insn(const struct bpf_insn_cbs *cbs,
