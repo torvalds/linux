@@ -852,6 +852,50 @@ static int ast2600_espi_perif_probe(struct ast2600_espi *espi)
 	return 0;
 }
 
+static int ast2600_espi_perif_remove(struct ast2600_espi *espi)
+{
+	struct ast2600_espi_perif_mmbi *mmbi;
+	struct ast2600_espi_perif *perif;
+	struct device *dev;
+	int i;
+
+	dev = espi->dev;
+
+	perif = &espi->perif;
+
+	if (perif->mmbi.enable) {
+		for (i = 0; i < PERIF_MMBI_INST_NUM; ++i) {
+			mmbi = &perif->mmbi.inst[i];
+			misc_deregister(&mmbi->b2h_mdev);
+			misc_deregister(&mmbi->h2b_mdev);
+		}
+
+		dmam_free_coherent(dev, perif->mmbi.size, perif->mmbi.virt,
+				   perif->mmbi.taddr);
+	}
+
+	if (perif->mcyc.enable)
+		dmam_free_coherent(dev, perif->mcyc.size, perif->mcyc.virt,
+				   perif->mcyc.taddr);
+
+	if (perif->dma.enable) {
+		dmam_free_coherent(dev, PAGE_SIZE, perif->dma.np_tx_virt,
+				   perif->dma.np_tx_addr);
+		dmam_free_coherent(dev, PAGE_SIZE, perif->dma.pc_tx_virt,
+				   perif->dma.pc_tx_addr);
+		dmam_free_coherent(dev, PAGE_SIZE, perif->dma.pc_rx_virt,
+				   perif->dma.pc_rx_addr);
+	}
+
+	mutex_destroy(&perif->np_tx_mtx);
+	mutex_destroy(&perif->pc_tx_mtx);
+	mutex_destroy(&perif->pc_rx_mtx);
+
+	misc_deregister(&perif->mdev);
+
+	return 0;
+}
+
 /* virtual wire channel (CH1) */
 static long ast2600_espi_vw_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
@@ -943,6 +987,17 @@ static int ast2600_espi_vw_probe(struct ast2600_espi *espi)
 	}
 
 	ast2600_espi_vw_reset(espi);
+
+	return 0;
+}
+
+static int ast2600_espi_vw_remove(struct ast2600_espi *espi)
+{
+	struct ast2600_espi_vw *vw;
+
+	vw = &espi->vw;
+
+	misc_deregister(&vw->mdev);
 
 	return 0;
 }
@@ -1393,6 +1448,34 @@ static int ast2600_espi_oob_probe(struct ast2600_espi *espi)
 	return 0;
 }
 
+static int ast2600_espi_oob_remove(struct ast2600_espi *espi)
+{
+	struct ast2600_espi_oob *oob;
+	struct device *dev;
+
+	dev = espi->dev;
+
+	oob = &espi->oob;
+
+	if (oob->dma.enable) {
+		dmam_free_coherent(dev, sizeof(*oob->dma.txd_virt) * OOB_DMA_DESC_NUM,
+				   oob->dma.txd_virt, oob->dma.txd_addr);
+		dmam_free_coherent(dev, PAGE_SIZE * OOB_DMA_DESC_NUM,
+				   oob->dma.tx_virt, oob->dma.tx_addr);
+		dmam_free_coherent(dev, sizeof(*oob->dma.rxd_virt) * OOB_DMA_DESC_NUM,
+				   oob->dma.rxd_virt, oob->dma.rxd_addr);
+		dmam_free_coherent(dev, PAGE_SIZE * OOB_DMA_DESC_NUM,
+				   oob->dma.rx_virt, oob->dma.rx_addr);
+	}
+
+	mutex_destroy(&oob->tx_mtx);
+	mutex_destroy(&oob->rx_mtx);
+
+	misc_deregister(&oob->mdev);
+
+	return 0;
+}
+
 /* flash channel (CH3) */
 static long ast2600_espi_flash_get_rx(struct file *fp,
 				      struct ast2600_espi_flash *flash,
@@ -1636,8 +1719,10 @@ static void ast2600_espi_flash_isr(struct ast2600_espi *espi)
 
 static void ast2600_espi_flash_reset(struct ast2600_espi *espi)
 {
+	struct ast2600_espi_flash *flash;
 	uint32_t reg;
-	struct ast2600_espi_flash *flash = &espi->flash;
+
+	flash = &espi->flash;
 
 	reg = readl(espi->regs + ESPI_CTRL)
 	      | FIELD_PREP(ESPI_CTRL_FLASH_SAFS_MODE, flash->safs.mode);
@@ -1726,6 +1811,28 @@ static int ast2600_espi_flash_probe(struct ast2600_espi *espi)
 	}
 
 	ast2600_espi_flash_reset(espi);
+
+	return 0;
+}
+
+static int ast2600_espi_flash_remove(struct ast2600_espi *espi)
+{
+	struct ast2600_espi_flash *flash;
+	struct device *dev;
+
+	dev = espi->dev;
+
+	flash = &espi->flash;
+
+	if (flash->dma.enable) {
+		dmam_free_coherent(dev, PAGE_SIZE, flash->dma.tx_virt, flash->dma.tx_addr);
+		dmam_free_coherent(dev, PAGE_SIZE, flash->dma.rx_virt, flash->dma.rx_addr);
+	}
+
+	mutex_destroy(&flash->tx_mtx);
+	mutex_destroy(&flash->rx_mtx);
+
+	misc_deregister(&flash->mdev);
 
 	return 0;
 }
@@ -1863,6 +1970,35 @@ static int ast2600_espi_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int ast2600_espi_remove(struct platform_device *pdev)
+{
+	struct ast2600_espi *espi;
+	struct device *dev;
+	int rc;
+
+	dev = &pdev->dev;
+
+	espi = (struct ast2600_espi *)dev_get_drvdata(dev);
+
+	rc = ast2600_espi_perif_remove(espi);
+	if (rc)
+		dev_warn(dev, "cannot remove peripheral channel, rc=%d\n", rc);
+
+	rc = ast2600_espi_vw_remove(espi);
+	if (rc)
+		dev_warn(dev, "cannot remove peripheral channel, rc=%d\n", rc);
+
+	rc = ast2600_espi_oob_remove(espi);
+	if (rc)
+		dev_warn(dev, "cannot remove peripheral channel, rc=%d\n", rc);
+
+	rc = ast2600_espi_flash_remove(espi);
+	if (rc)
+		dev_warn(dev, "cannot remove peripheral channel, rc=%d\n", rc);
+
+	return 0;
+}
+
 static const struct of_device_id ast2600_espi_of_matches[] = {
 	{ .compatible = "aspeed,ast2600-espi" },
 	{ },
@@ -1874,6 +2010,7 @@ static struct platform_driver ast2600_espi_driver = {
 		.of_match_table = ast2600_espi_of_matches,
 	},
 	.probe = ast2600_espi_probe,
+	.remove = ast2600_espi_remove,
 };
 
 module_platform_driver(ast2600_espi_driver);
