@@ -3974,16 +3974,13 @@ int bnxt_re_dealloc_mw(struct ib_mw *ib_mw)
 	return rc;
 }
 
-/* uverbs */
-struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
-				  u64 virt_addr, int mr_access_flags,
-				  struct ib_udata *udata)
+static struct ib_mr *__bnxt_re_user_reg_mr(struct ib_pd *ib_pd, u64 length, u64 virt_addr,
+					   int mr_access_flags, struct ib_umem *umem)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
-	struct bnxt_re_mr *mr;
-	struct ib_umem *umem;
 	unsigned long page_size;
+	struct bnxt_re_mr *mr;
 	int umem_pgs, rc;
 	u32 active_mrs;
 
@@ -3991,6 +3988,12 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 		ibdev_err(&rdev->ibdev, "MR Size: %lld > Max supported:%lld\n",
 			  length, BNXT_RE_MAX_MR_SIZE);
 		return ERR_PTR(-ENOMEM);
+	}
+
+	page_size = ib_umem_find_best_pgsz(umem, BNXT_RE_PAGE_SIZE_SUPPORTED, virt_addr);
+	if (!page_size) {
+		ibdev_err(&rdev->ibdev, "umem page size unsupported!");
+		return ERR_PTR(-EINVAL);
 	}
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
@@ -4004,36 +4007,23 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 
 	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
 	if (rc) {
-		ibdev_err(&rdev->ibdev, "Failed to allocate MR");
+		ibdev_err(&rdev->ibdev, "Failed to allocate MR rc = %d", rc);
+		rc = -EIO;
 		goto free_mr;
 	}
 	/* The fixed portion of the rkey is the same as the lkey */
 	mr->ib_mr.rkey = mr->qplib_mr.rkey;
-
-	umem = ib_umem_get(&rdev->ibdev, start, length, mr_access_flags);
-	if (IS_ERR(umem)) {
-		ibdev_err(&rdev->ibdev, "Failed to get umem");
-		rc = -EFAULT;
-		goto free_mrw;
-	}
 	mr->ib_umem = umem;
-
 	mr->qplib_mr.va = virt_addr;
-	page_size = ib_umem_find_best_pgsz(
-		umem, BNXT_RE_PAGE_SIZE_SUPPORTED, virt_addr);
-	if (!page_size) {
-		ibdev_err(&rdev->ibdev, "umem page size unsupported!");
-		rc = -EFAULT;
-		goto free_umem;
-	}
 	mr->qplib_mr.total_size = length;
 
 	umem_pgs = ib_umem_num_dma_blocks(umem, page_size);
 	rc = bnxt_qplib_reg_mr(&rdev->qplib_res, &mr->qplib_mr, umem,
 			       umem_pgs, page_size);
 	if (rc) {
-		ibdev_err(&rdev->ibdev, "Failed to register user MR");
-		goto free_umem;
+		ibdev_err(&rdev->ibdev, "Failed to register user MR - rc = %d\n", rc);
+		rc = -EIO;
+		goto free_mrw;
 	}
 
 	mr->ib_mr.lkey = mr->qplib_mr.lkey;
@@ -4043,13 +4033,54 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 		rdev->stats.res.mr_watermark = active_mrs;
 
 	return &mr->ib_mr;
-free_umem:
-	ib_umem_release(umem);
+
 free_mrw:
 	bnxt_qplib_free_mrw(&rdev->qplib_res, &mr->qplib_mr);
 free_mr:
 	kfree(mr);
 	return ERR_PTR(rc);
+}
+
+struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
+				  u64 virt_addr, int mr_access_flags,
+				  struct ib_udata *udata)
+{
+	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
+	struct bnxt_re_dev *rdev = pd->rdev;
+	struct ib_umem *umem;
+	struct ib_mr *ib_mr;
+
+	umem = ib_umem_get(&rdev->ibdev, start, length, mr_access_flags);
+	if (IS_ERR(umem))
+		return ERR_CAST(umem);
+
+	ib_mr = __bnxt_re_user_reg_mr(ib_pd, length, virt_addr, mr_access_flags, umem);
+	if (IS_ERR(ib_mr))
+		ib_umem_release(umem);
+	return ib_mr;
+}
+
+struct ib_mr *bnxt_re_reg_user_mr_dmabuf(struct ib_pd *ib_pd, u64 start,
+					 u64 length, u64 virt_addr, int fd,
+					 int mr_access_flags, struct ib_udata *udata)
+{
+	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
+	struct bnxt_re_dev *rdev = pd->rdev;
+	struct ib_umem_dmabuf *umem_dmabuf;
+	struct ib_umem *umem;
+	struct ib_mr *ib_mr;
+
+	umem_dmabuf = ib_umem_dmabuf_get_pinned(&rdev->ibdev, start, length,
+						fd, mr_access_flags);
+	if (IS_ERR(umem_dmabuf))
+		return ERR_CAST(umem_dmabuf);
+
+	umem = &umem_dmabuf->umem;
+
+	ib_mr = __bnxt_re_user_reg_mr(ib_pd, length, virt_addr, mr_access_flags, umem);
+	if (IS_ERR(ib_mr))
+		ib_umem_release(umem);
+	return ib_mr;
 }
 
 int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
