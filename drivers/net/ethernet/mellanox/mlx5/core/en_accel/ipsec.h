@@ -210,6 +210,7 @@ struct mlx5e_ipsec_rx {
 	struct mlx5e_ipsec_fc *fc;
 	struct mlx5_fs_chains *chains;
 	u8 allow_tunnel_mode : 1;
+	struct xarray ipsec_obj_id_map;
 };
 
 struct mlx5e_ipsec {
@@ -256,6 +257,7 @@ struct mlx5e_ipsec_sa_entry {
 	struct mlx5e_ipsec_work *work;
 	struct mlx5e_ipsec_dwork *dwork;
 	struct mlx5e_ipsec_limits limits;
+	u32 rx_mapped_id;
 };
 
 struct mlx5_accel_pol_xfrm_attrs {

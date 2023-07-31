@@ -182,3 +182,72 @@ int mlx5_esw_ipsec_rx_status_pass_dest_get(struct mlx5e_ipsec *ipsec,
 
 	return 0;
 }
+
+int mlx5_esw_ipsec_rx_setup_modify_header(struct mlx5e_ipsec_sa_entry *sa_entry,
+					  struct mlx5_flow_act *flow_act)
+{
+	u8 action[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
+	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
+	struct mlx5_core_dev *mdev = ipsec->mdev;
+	struct mlx5_modify_hdr *modify_hdr;
+	u32 mapped_id;
+	int err;
+
+	err = xa_alloc_bh(&ipsec->rx_esw->ipsec_obj_id_map, &mapped_id,
+			  xa_mk_value(sa_entry->ipsec_obj_id),
+			  XA_LIMIT(1, ESW_IPSEC_RX_MAPPED_ID_MASK), 0);
+	if (err)
+		return err;
+
+	/* reuse tunnel bits for ipsec,
+	 * tun_id is always 0 and tun_opts is mapped to ipsec_obj_id.
+	 */
+	MLX5_SET(set_action_in, action, action_type, MLX5_ACTION_TYPE_SET);
+	MLX5_SET(set_action_in, action, field,
+		 MLX5_ACTION_IN_FIELD_METADATA_REG_C_1);
+	MLX5_SET(set_action_in, action, offset, ESW_ZONE_ID_BITS);
+	MLX5_SET(set_action_in, action, length,
+		 ESW_TUN_ID_BITS + ESW_TUN_OPTS_BITS);
+	MLX5_SET(set_action_in, action, data, mapped_id);
+
+	modify_hdr = mlx5_modify_header_alloc(mdev, MLX5_FLOW_NAMESPACE_FDB,
+					      1, action);
+	if (IS_ERR(modify_hdr)) {
+		err = PTR_ERR(modify_hdr);
+		goto err_header_alloc;
+	}
+
+	sa_entry->rx_mapped_id = mapped_id;
+	flow_act->modify_hdr = modify_hdr;
+	flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+
+	return 0;
+
+err_header_alloc:
+	xa_erase_bh(&ipsec->rx_esw->ipsec_obj_id_map, mapped_id);
+	return err;
+}
+
+void mlx5_esw_ipsec_rx_id_mapping_remove(struct mlx5e_ipsec_sa_entry *sa_entry)
+{
+	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
+
+	if (sa_entry->rx_mapped_id)
+		xa_erase_bh(&ipsec->rx_esw->ipsec_obj_id_map,
+			    sa_entry->rx_mapped_id);
+}
+
+int mlx5_esw_ipsec_rx_ipsec_obj_id_search(struct mlx5e_priv *priv, u32 id,
+					  u32 *ipsec_obj_id)
+{
+	struct mlx5e_ipsec *ipsec = priv->ipsec;
+	void *val;
+
+	val = xa_load(&ipsec->rx_esw->ipsec_obj_id_map, id);
+	if (!val)
+		return -ENOENT;
+
+	*ipsec_obj_id = xa_to_value(val);
+
+	return 0;
+}

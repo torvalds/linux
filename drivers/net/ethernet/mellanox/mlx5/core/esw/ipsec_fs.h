@@ -5,6 +5,7 @@
 #define __MLX5_ESW_IPSEC_FS_H__
 
 struct mlx5e_ipsec;
+struct mlx5e_ipsec_sa_entry;
 
 #ifdef CONFIG_MLX5_ESWITCH
 void mlx5_esw_ipsec_rx_status_destroy(struct mlx5e_ipsec *ipsec,
@@ -16,6 +17,11 @@ void mlx5_esw_ipsec_rx_create_attr_set(struct mlx5e_ipsec *ipsec,
 				       struct mlx5e_ipsec_rx_create_attr *attr);
 int mlx5_esw_ipsec_rx_status_pass_dest_get(struct mlx5e_ipsec *ipsec,
 					   struct mlx5_flow_destination *dest);
+int mlx5_esw_ipsec_rx_setup_modify_header(struct mlx5e_ipsec_sa_entry *sa_entry,
+					  struct mlx5_flow_act *flow_act);
+void mlx5_esw_ipsec_rx_id_mapping_remove(struct mlx5e_ipsec_sa_entry *sa_entry);
+int mlx5_esw_ipsec_rx_ipsec_obj_id_search(struct mlx5e_priv *priv, u32 id,
+					  u32 *ipsec_obj_id);
 #else
 static inline void mlx5_esw_ipsec_rx_status_destroy(struct mlx5e_ipsec *ipsec,
 						    struct mlx5e_ipsec_rx *rx) {}
@@ -32,6 +38,20 @@ static inline void mlx5_esw_ipsec_rx_create_attr_set(struct mlx5e_ipsec *ipsec,
 
 static inline int mlx5_esw_ipsec_rx_status_pass_dest_get(struct mlx5e_ipsec *ipsec,
 							 struct mlx5_flow_destination *dest)
+{
+	return -EINVAL;
+}
+
+static inline int mlx5_esw_ipsec_rx_setup_modify_header(struct mlx5e_ipsec_sa_entry *sa_entry,
+							struct mlx5_flow_act *flow_act)
+{
+	return -EINVAL;
+}
+
+static inline void mlx5_esw_ipsec_rx_id_mapping_remove(struct mlx5e_ipsec_sa_entry *sa_entry) {}
+
+static inline int mlx5_esw_ipsec_rx_ipsec_obj_id_search(struct mlx5e_priv *priv, u32 id,
+							u32 *ipsec_obj_id)
 {
 	return -EINVAL;
 }

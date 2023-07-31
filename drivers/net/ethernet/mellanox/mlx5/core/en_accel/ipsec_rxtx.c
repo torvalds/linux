@@ -37,6 +37,7 @@
 #include "ipsec.h"
 #include "ipsec_rxtx.h"
 #include "en.h"
+#include "esw/ipsec_fs.h"
 
 enum {
 	MLX5E_IPSEC_TX_SYNDROME_OFFLOAD = 0x8,
@@ -354,4 +355,25 @@ void mlx5e_ipsec_offload_handle_rx_skb(struct net_device *netdev,
 	default:
 		atomic64_inc(&ipsec->sw_stats.ipsec_rx_drop_syndrome);
 	}
+}
+
+int mlx5_esw_ipsec_rx_make_metadata(struct mlx5e_priv *priv, u32 id, u32 *metadata)
+{
+	struct mlx5e_ipsec *ipsec = priv->ipsec;
+	u32 ipsec_obj_id;
+	int err;
+
+	if (!ipsec || !ipsec->is_uplink_rep)
+		return -EINVAL;
+
+	err = mlx5_esw_ipsec_rx_ipsec_obj_id_search(priv, id, &ipsec_obj_id);
+	if (err) {
+		atomic64_inc(&ipsec->sw_stats.ipsec_rx_drop_sadb_miss);
+		return err;
+	}
+
+	*metadata = MLX5_IPSEC_METADATA_CREATE(ipsec_obj_id,
+					       MLX5E_IPSEC_OFFLOAD_RX_SYNDROME_DECRYPTED);
+
+	return 0;
 }

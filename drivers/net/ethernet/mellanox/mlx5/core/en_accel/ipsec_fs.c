@@ -1153,6 +1153,9 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 		err = setup_modify_header(ipsec, attrs->type,
 					  sa_entry->ipsec_obj_id | BIT(31),
 					  XFRM_DEV_OFFLOAD_IN, &flow_act);
+	else
+		err = mlx5_esw_ipsec_rx_setup_modify_header(sa_entry, &flow_act);
+
 	if (err)
 		goto err_mod_header;
 
@@ -1641,6 +1644,7 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	}
 
 	mlx5_modify_header_dealloc(mdev, ipsec_rule->modify_hdr);
+	mlx5_esw_ipsec_rx_id_mapping_remove(sa_entry);
 	rx_ft_put(sa_entry->ipsec, sa_entry->attrs.family, sa_entry->attrs.type);
 }
 
@@ -1693,6 +1697,8 @@ void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec)
 	kfree(ipsec->rx_ipv6);
 
 	if (ipsec->is_uplink_rep) {
+		xa_destroy(&ipsec->rx_esw->ipsec_obj_id_map);
+
 		mutex_destroy(&ipsec->tx_esw->ft.mutex);
 		WARN_ON(ipsec->tx_esw->ft.refcnt);
 		kfree(ipsec->tx_esw);
@@ -1753,6 +1759,7 @@ int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec)
 		mutex_init(&ipsec->tx_esw->ft.mutex);
 		mutex_init(&ipsec->rx_esw->ft.mutex);
 		ipsec->tx_esw->ns = ns_esw;
+		xa_init_flags(&ipsec->rx_esw->ipsec_obj_id_map, XA_FLAGS_ALLOC1);
 	} else if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_ROCE) {
 		ipsec->roce = mlx5_ipsec_fs_roce_init(mdev);
 	}
