@@ -374,7 +374,7 @@ config AXP288_FUEL_GAUGE
 
 config BATTERY_MAX17040
 	tristate "Maxim MAX17040/17041/17043 family Fuel Gauge"
-	depends on I2C
+	depends on I2C && IIO
 	select REGMAP_I2C
 	help
 	  Driver supports Maxim fuel-gauge systems for lithium-ion (Li+)
