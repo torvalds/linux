@@ -52,7 +52,7 @@
 	bus-width = <8>;
 	non-removable;
 	pinctrl-names = "default";
-	pinctrl-0 = <&emmc_bus8 &emmc_cmd &emmc_clk &emmc_rstnout>;
+	pinctrl-0 = <&emmc_bus8 &emmc_cmd &emmc_clk>;
 	rockchip,default-sample-phase = <90>;
 	vmmc-supply = <&vcc_3v3>;
 	vqmmc-supply = <&vccio_flash>;
