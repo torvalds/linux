@@ -31,7 +31,7 @@
 #define TB_USB3_PATH_UP			1
 
 #define TB_USB3_PRIORITY		3
-#define TB_USB3_WEIGHT			3
+#define TB_USB3_WEIGHT			2
 
 /* DP adapters use HopID 8 for AUX and 9 for Video */
 #define TB_DP_AUX_TX_HOPID		8
@@ -60,6 +60,15 @@
 
 #define TB_DMA_PRIORITY			5
 #define TB_DMA_WEIGHT			1
+
+/*
+ * Reserve additional bandwidth for USB 3.x and PCIe bulk traffic
+ * according to USB4 v2 Connection Manager guide. This ends up reserving
+ * 1500 Mb/s for PCIe and 3000 Mb/s for USB 3.x taking weights into
+ * account.
+ */
+#define USB4_V2_PCI_MIN_BANDWIDTH	(1500 * TB_PCI_WEIGHT)
+#define USB4_V2_USB3_MIN_BANDWIDTH	(1500 * TB_USB3_WEIGHT)
 
 static unsigned int dma_credits = TB_DMA_CREDITS;
 module_param(dma_credits, uint, 0444);
@@ -150,11 +159,11 @@ static struct tb_tunnel *tb_tunnel_alloc(struct tb *tb, size_t npaths,
 
 static int tb_pci_set_ext_encapsulation(struct tb_tunnel *tunnel, bool enable)
 {
+	struct tb_port *port = tb_upstream_port(tunnel->dst_port->sw);
 	int ret;
 
 	/* Only supported of both routers are at least USB4 v2 */
-	if (usb4_switch_version(tunnel->src_port->sw) < 2 ||
-	    usb4_switch_version(tunnel->dst_port->sw) < 2)
+	if (tb_port_get_link_generation(port) < 4)
 		return 0;
 
 	ret = usb4_pci_port_set_ext_encapsulation(tunnel->src_port, enable);
@@ -368,6 +377,51 @@ struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 err_free:
 	tb_tunnel_free(tunnel);
 	return NULL;
+}
+
+/**
+ * tb_tunnel_reserved_pci() - Amount of bandwidth to reserve for PCIe
+ * @port: Lane 0 adapter
+ * @reserved_up: Upstream bandwidth in Mb/s to reserve
+ * @reserved_down: Downstream bandwidth in Mb/s to reserve
+ *
+ * Can be called to any connected lane 0 adapter to find out how much
+ * bandwidth needs to be left in reserve for possible PCIe bulk traffic.
+ * Returns true if there is something to be reserved and writes the
+ * amount to @reserved_down/@reserved_up. Otherwise returns false and
+ * does not touch the parameters.
+ */
+bool tb_tunnel_reserved_pci(struct tb_port *port, int *reserved_up,
+			    int *reserved_down)
+{
+	if (WARN_ON_ONCE(!port->remote))
+		return false;
+
+	if (!tb_acpi_may_tunnel_pcie())
+		return false;
+
+	if (tb_port_get_link_generation(port) < 4)
+		return false;
+
+	/* Must have PCIe adapters */
+	if (tb_is_upstream_port(port)) {
+		if (!tb_switch_find_port(port->sw, TB_TYPE_PCIE_UP))
+			return false;
+		if (!tb_switch_find_port(port->remote->sw, TB_TYPE_PCIE_DOWN))
+			return false;
+	} else {
+		if (!tb_switch_find_port(port->sw, TB_TYPE_PCIE_DOWN))
+			return false;
+		if (!tb_switch_find_port(port->remote->sw, TB_TYPE_PCIE_UP))
+			return false;
+	}
+
+	*reserved_up = USB4_V2_PCI_MIN_BANDWIDTH;
+	*reserved_down = USB4_V2_PCI_MIN_BANDWIDTH;
+
+	tb_port_dbg(port, "reserving %u/%u Mb/s for PCIe\n", *reserved_up,
+		    *reserved_down);
+	return true;
 }
 
 static bool tb_dp_is_usb4(const struct tb_switch *sw)
@@ -1747,6 +1801,7 @@ static int tb_usb3_activate(struct tb_tunnel *tunnel, bool activate)
 static int tb_usb3_consumed_bandwidth(struct tb_tunnel *tunnel,
 		int *consumed_up, int *consumed_down)
 {
+	struct tb_port *port = tb_upstream_port(tunnel->dst_port->sw);
 	int pcie_weight = tb_acpi_may_tunnel_pcie() ? TB_PCI_WEIGHT : 0;
 
 	/*
@@ -1757,6 +1812,11 @@ static int tb_usb3_consumed_bandwidth(struct tb_tunnel *tunnel,
 		(TB_USB3_WEIGHT + pcie_weight) / TB_USB3_WEIGHT;
 	*consumed_down = tunnel->allocated_down *
 		(TB_USB3_WEIGHT + pcie_weight) / TB_USB3_WEIGHT;
+
+	if (tb_port_get_link_generation(port) >= 4) {
+		*consumed_up = max(*consumed_up, USB4_V2_USB3_MIN_BANDWIDTH);
+		*consumed_down = max(*consumed_down, USB4_V2_USB3_MIN_BANDWIDTH);
+	}
 
 	return 0;
 }

@@ -602,6 +602,7 @@ static int tb_available_bandwidth(struct tb *tb, struct tb_port *src_port,
 	/* Find the minimum available bandwidth over all links */
 	tb_for_each_port_on_path(src_port, dst_port, port) {
 		int link_speed, link_width, up_bw, down_bw;
+		int pci_reserved_up, pci_reserved_down;
 
 		if (!tb_port_is_null(port))
 			continue;
@@ -694,6 +695,16 @@ static int tb_available_bandwidth(struct tb *tb, struct tb_port *src_port,
 		 */
 		up_bw -= usb3_consumed_up;
 		down_bw -= usb3_consumed_down;
+
+		/*
+		 * If there is anything reserved for PCIe bulk traffic
+		 * take it into account here too.
+		 */
+		if (tb_tunnel_reserved_pci(port, &pci_reserved_up,
+					   &pci_reserved_down)) {
+			up_bw -= pci_reserved_up;
+			down_bw -= pci_reserved_down;
+		}
 
 		if (up_bw < *available_up)
 			*available_up = up_bw;
