@@ -72,6 +72,7 @@ description: |
         sdx65
         sdx75
         sm4250
+        sm4450
         sm6115
         sm6115p
         sm6125
@@ -902,6 +903,11 @@ properties:
               - qcom,qrb4210-rb2
           - const: qcom,qrb4210
           - const: qcom,sm4250
+
+      - items:
+          - enum:
+              - qcom,sm4450-qrd
+          - const: qcom,sm4450
 
       - items:
           - enum:
