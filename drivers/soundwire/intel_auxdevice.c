@@ -23,9 +23,6 @@
 #include "intel.h"
 #include "intel_auxdevice.h"
 
-/* IDA min selected to avoid conflicts with HDaudio/iDISP SDI values */
-#define INTEL_DEV_NUM_IDA_MIN           4
-
 #define INTEL_MASTER_SUSPEND_DELAY_MS	3000
 
 /*
@@ -43,6 +40,39 @@
 static int md_flags;
 module_param_named(sdw_md_flags, md_flags, int, 0444);
 MODULE_PARM_DESC(sdw_md_flags, "SoundWire Intel Master device flags (0x0 all off)");
+
+struct wake_capable_part {
+	const u16 mfg_id;
+	const u16 part_id;
+};
+
+static struct wake_capable_part wake_capable_list[] = {
+	{0x025d, 0x5682},
+	{0x025d, 0x700},
+	{0x025d, 0x711},
+	{0x025d, 0x1712},
+	{0x025d, 0x1713},
+	{0x025d, 0x1716},
+	{0x025d, 0x1717},
+	{0x025d, 0x712},
+	{0x025d, 0x713},
+	{0x025d, 0x714},
+	{0x025d, 0x715},
+	{0x025d, 0x716},
+	{0x025d, 0x717},
+	{0x025d, 0x722},
+};
+
+static bool is_wake_capable(struct sdw_slave *slave)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wake_capable_list); i++)
+		if (slave->id.part_id == wake_capable_list[i].part_id &&
+		    slave->id.mfg_id == wake_capable_list[i].mfg_id)
+			return true;
+	return false;
+}
 
 static int generic_pre_bank_switch(struct sdw_bus *bus)
 {
@@ -66,14 +96,26 @@ static void generic_new_peripheral_assigned(struct sdw_bus *bus,
 {
 	struct sdw_cdns *cdns = bus_to_cdns(bus);
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	int dev_num_min;
+	int dev_num_max;
+	bool wake_capable = slave->prop.wake_capable || is_wake_capable(slave);
+
+	if (wake_capable) {
+		dev_num_min = SDW_INTEL_DEV_NUM_IDA_MIN;
+		dev_num_max = SDW_MAX_DEVICES;
+	} else {
+		dev_num_min = 1;
+		dev_num_max = SDW_INTEL_DEV_NUM_IDA_MIN - 1;
+	}
 
 	/* paranoia check, this should never happen */
-	if (dev_num < INTEL_DEV_NUM_IDA_MIN || dev_num > SDW_MAX_DEVICES)  {
-		dev_err(bus->dev, "%s: invalid dev_num %d\n", __func__, dev_num);
+	if (dev_num < dev_num_min || dev_num > dev_num_max)  {
+		dev_err(bus->dev, "%s: invalid dev_num %d, wake supported %d\n",
+			__func__, dev_num, slave->prop.wake_capable);
 		return;
 	}
 
-	if (sdw->link_res->hw_ops->program_sdi)
+	if (sdw->link_res->hw_ops->program_sdi && wake_capable)
 		sdw->link_res->hw_ops->program_sdi(sdw, dev_num);
 }
 
@@ -129,14 +171,24 @@ static DEFINE_IDA(intel_peripheral_ida);
 
 static int intel_get_device_num_ida(struct sdw_bus *bus, struct sdw_slave *slave)
 {
-	return ida_alloc_range(&intel_peripheral_ida,
-			       INTEL_DEV_NUM_IDA_MIN, SDW_MAX_DEVICES,
-			       GFP_KERNEL);
+	int bit;
+
+	if (slave->prop.wake_capable || is_wake_capable(slave))
+		return ida_alloc_range(&intel_peripheral_ida,
+				       SDW_INTEL_DEV_NUM_IDA_MIN, SDW_MAX_DEVICES,
+				       GFP_KERNEL);
+
+	bit = find_first_zero_bit(slave->bus->assigned, SDW_MAX_DEVICES);
+	if (bit == SDW_MAX_DEVICES)
+		return -ENODEV;
+
+	return bit;
 }
 
 static void intel_put_device_num_ida(struct sdw_bus *bus, struct sdw_slave *slave)
 {
-	return ida_free(&intel_peripheral_ida, slave->dev_num);
+	if (slave->prop.wake_capable || is_wake_capable(slave))
+		ida_free(&intel_peripheral_ida, slave->dev_num);
 }
 
 static struct sdw_master_ops sdw_intel_ops = {
