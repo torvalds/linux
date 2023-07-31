@@ -570,7 +570,6 @@ static void irdma_destroy_irq(struct irdma_pci_f *rf,
 /**
  * irdma_destroy_cqp  - destroy control qp
  * @rf: RDMA PCI function
- * @free_hwcqp: 1 if hw cqp should be freed
  *
  * Issue destroy cqp request and
  * free the resources associated with the cqp
