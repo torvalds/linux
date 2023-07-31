@@ -527,6 +527,12 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	char *wmfw_filename = NULL;
 	int ret = 0;
 
+	/* Prepare for a new DSP power-up */
+	if (cs35l56->base.fw_patched)
+		cs_dsp_power_down(&cs35l56->cs_dsp);
+
+	cs35l56->base.fw_patched = false;
+
 	cs35l56_hda_request_firmware_files(cs35l56, &wmfw_firmware, &wmfw_filename,
 					   &coeff_firmware, &coeff_filename);
 
