@@ -779,6 +779,182 @@
 			ranges = <0x0 0x0 0x14c0f000 0x1100>;
 		};
 
+		i3c0: i3c0@14c20000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c20000 0x0 0x1000>;
+			interrupts-extended = <&intc3 0>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C0CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C0>;
+			status = "disabled";
+		};
+
+		i3c1: i3c1@14c21000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c21000 0x0 0x1000>;
+			interrupts-extended = <&intc3 1>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C1CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C1>;
+			status = "disabled";
+		};
+
+		i3c2: i3c2@14c22000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c22000 0x0 0x1000>;
+			interrupts-extended = <&intc3 2>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C2CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C2>;
+			status = "disabled";
+		};
+
+		i3c3: i3c3@14c23000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c23000 0x0 0x1000>;
+			interrupts-extended = <&intc3 3>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C3CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C3>;
+			status = "disabled";
+		};
+
+		i3c4: i3c4@14c24000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c24000 0x0 0x1000>;
+			interrupts-extended = <&intc3 4>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C4CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C4>;
+			status = "disabled";
+		};
+
+		i3c5: i3c5@14c25000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c25000 0x0 0x1000>;
+			interrupts-extended = <&intc3 5>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C5CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C5>;
+			status = "disabled";
+		};
+
+		i3c6: i3c6@14c26000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c26000 0x0 0x1000>;
+			interrupts-extended = <&intc3 6>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C6CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C6>;
+			status = "disabled";
+		};
+
+		i3c7: i3c7@14c27000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c27000 0x0 0x1000>;
+			interrupts-extended = <&intc3 7>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C7CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C7>;
+			status = "disabled";
+		};
+
+		i3c8: i3c8@14c28000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c28000 0x0 0x1000>;
+			interrupts-extended = <&intc3 8>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C8CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C8>;
+			status = "disabled";
+		};
+
+		i3c9: i3c9@14c29000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c29000 0x0 0x1000>;
+			interrupts-extended = <&intc3 9>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C9CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C9>;
+			status = "disabled";
+		};
+
+		i3c10: i3c10@14c2a000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c2a000 0x0 0x1000>;
+			interrupts-extended = <&intc3 10>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C10CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C10>;
+			status = "disabled";
+		};
+
+		i3c11: i3c11@14c2b000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c2b000 0x0 0x1000>;
+			interrupts-extended = <&intc3 11>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C11CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C11>;
+			status = "disabled";
+		};
+
+		i3c12: i3c12@14c2c000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c2c000 0x0 0x1000>;
+			interrupts-extended = <&intc3 12>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C12CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C12>;
+			status = "disabled";
+		};
+
+		i3c13: i3c13@14c2d000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c2d000 0x0 0x1000>;
+			interrupts-extended = <&intc3 13>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C13CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C13>;
+			status = "disabled";
+		};
+
+		i3c14: i3c14@14c2e000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c2e000 0x0 0x1000>;
+			interrupts-extended = <&intc3 14>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C14CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C14>;
+			status = "disabled";
+		};
+
+		i3c15: i3c15@14c2f000 {
+			compatible = "aspeed-i3c-hci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x14c2f000 0x0 0x1000>;
+			interrupts-extended = <&intc3 15>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C15CLK>;
+			resets = <&io_clk ASPEED_RESET_I3C15>;
+			status = "disabled";
+		};
+
 		vuart0: serial@14c30000 {
 			compatible = "aspeed,ast2600-uart";
 			reg = <0x0 0x14c30000 0x0 0x40>;
