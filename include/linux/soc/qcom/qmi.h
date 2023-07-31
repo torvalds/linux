@@ -158,7 +158,6 @@ struct qmi_ops {
  * struct qmi_txn - transaction context
  * @qmi:	QMI handle this transaction is associated with
  * @id:		transaction id
- * @lock:	for synchronization between handler and waiter of messages
  * @completion:	completion object as the transaction receives a response
  * @result:	result code for the completed transaction
  * @ei:		description of the QMI encoded response (optional)
@@ -169,7 +168,6 @@ struct qmi_txn {
 
 	u16 id;
 
-	struct mutex lock;
 	struct completion completion;
 	int result;
 
