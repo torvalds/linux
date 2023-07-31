@@ -567,20 +567,20 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	if (cs35l56->base.secured) {
 		ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_REINIT);
 		if (ret)
-			goto err;
+			goto err_powered_up;
 	} else if (wmfw_firmware || coeff_firmware) {
 		/* If we downloaded firmware, reset the device and wait for it to boot */
 		cs35l56_system_reset(&cs35l56->base, false);
 		regcache_mark_dirty(cs35l56->base.regmap);
 		ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
 		if (ret)
-			goto err;
+			goto err_powered_up;
 	}
 
 	/* Disable auto-hibernate so that runtime_pm has control */
 	ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE);
 	if (ret)
-		goto err;
+		goto err_powered_up;
 
 	regcache_sync(cs35l56->base.regmap);
 
@@ -592,6 +592,9 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	if (ret)
 		dev_dbg(cs35l56->base.dev, "%s: cs_dsp_run ret %d\n", __func__, ret);
 
+err_powered_up:
+	if (!cs35l56->base.fw_patched)
+		cs_dsp_power_down(&cs35l56->cs_dsp);
 err:
 	pm_runtime_put(cs35l56->base.dev);
 	mutex_unlock(&cs35l56->base.irq_lock);
