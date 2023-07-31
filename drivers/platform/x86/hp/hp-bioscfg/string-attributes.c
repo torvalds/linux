@@ -198,10 +198,12 @@ static int hp_populate_string_elements_from_package(union acpi_object *string_ob
 			string_data->common.sequence = int_value;
 			break;
 		case PREREQUISITES_SIZE:
+			if (int_value > MAX_PREREQUISITES_SIZE) {
+				pr_warn("Prerequisites size value exceeded the maximum number of elements supported or data may be malformed\n");
+				int_value = MAX_PREREQUISITES_SIZE;
+			}
 			string_data->common.prerequisites_size = int_value;
 
-			if (string_data->common.prerequisites_size > MAX_PREREQUISITES_SIZE)
-				pr_warn("Prerequisites size value exceeded the maximum number of elements supported or data may be malformed\n");
 			/*
 			 * This step is needed to keep the expected
 			 * element list pointing to the right obj[elem].type

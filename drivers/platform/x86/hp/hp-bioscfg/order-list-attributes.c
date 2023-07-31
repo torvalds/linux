@@ -202,9 +202,11 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 			ordered_list_data->common.sequence = int_value;
 			break;
 		case PREREQUISITES_SIZE:
-			ordered_list_data->common.prerequisites_size = int_value;
-			if (int_value > MAX_PREREQUISITES_SIZE)
+			if (int_value > MAX_PREREQUISITES_SIZE) {
 				pr_warn("Prerequisites size value exceeded the maximum number of elements supported or data may be malformed\n");
+				int_value = MAX_PREREQUISITES_SIZE;
+			}
+			ordered_list_data->common.prerequisites_size = int_value;
 
 			/*
 			 * This step is needed to keep the expected
