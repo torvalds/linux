@@ -95,6 +95,14 @@
 				<0 RK_PC0 3 &pcfg_pull_none>;
 		};
 	};
+	pwm11 {
+		/omit-if-no-ref/
+		pwm11m0_pins: pwm11m0-pins {
+			rockchip,pins =
+				/* pwm11_pin_m0 */
+				<3 RK_PA7 6 &pcfg_pull_none>;
+		};
+	};
 	rgmii {
 		/omit-if-no-ref/
 		rgmiim1_pins: rgmiim1-pins {
