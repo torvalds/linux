@@ -3240,7 +3240,6 @@ ub960_parse_dt_rxport_link_properties(struct ub960_data *priv,
 	switch (rx_mode) {
 	case RXPORT_MODE_RAW12_HF:
 	case RXPORT_MODE_RAW12_LF:
-	case RXPORT_MODE_CSI2_ASYNC:
 		dev_err(dev, "rx%u: unsupported 'ti,rx-mode' %u\n", nport,
 			rx_mode);
 		return -EINVAL;
