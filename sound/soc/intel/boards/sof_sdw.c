@@ -942,10 +942,10 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 		.version_id = 0,
 		.dais = {
 			{
-				.direction = {true, false},
+				.direction = {true, true},
 				.dai_name = "sdw-mockup-aif1",
 				.dai_type = SOF_SDW_DAI_TYPE_AMP,
-				.dailink = {SDW_AMP_OUT_DAI_ID, SDW_UNUSED_DAI_ID},
+				.dailink = {SDW_AMP_OUT_DAI_ID, SDW_AMP_IN_DAI_ID},
 				.init = NULL,
 			},
 		},
