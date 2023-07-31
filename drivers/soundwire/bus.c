@@ -12,7 +12,6 @@
 #include "sysfs_local.h"
 
 static DEFINE_IDA(sdw_bus_ida);
-static DEFINE_IDA(sdw_peripheral_ida);
 
 static int sdw_get_id(struct sdw_bus *bus)
 {
@@ -168,8 +167,8 @@ static int sdw_delete_slave(struct device *dev, void *data)
 
 	if (slave->dev_num) { /* clear dev_num if assigned */
 		clear_bit(slave->dev_num, bus->assigned);
-		if (bus->dev_num_ida_min)
-			ida_free(&sdw_peripheral_ida, slave->dev_num);
+		if (bus->ops && bus->ops->put_device_num)
+			bus->ops->put_device_num(bus, slave);
 	}
 	list_del_init(&slave->node);
 	mutex_unlock(&bus->bus_lock);
@@ -710,16 +709,15 @@ EXPORT_SYMBOL(sdw_compare_devid);
 /* called with bus_lock held */
 static int sdw_get_device_num(struct sdw_slave *slave)
 {
+	struct sdw_bus *bus = slave->bus;
 	int bit;
 
-	if (slave->bus->dev_num_ida_min) {
-		bit = ida_alloc_range(&sdw_peripheral_ida,
-				      slave->bus->dev_num_ida_min, SDW_MAX_DEVICES,
-				      GFP_KERNEL);
+	if (bus->ops && bus->ops->get_device_num) {
+		bit = bus->ops->get_device_num(bus, slave);
 		if (bit < 0)
 			goto err;
 	} else {
-		bit = find_first_zero_bit(slave->bus->assigned, SDW_MAX_DEVICES);
+		bit = find_first_zero_bit(bus->assigned, SDW_MAX_DEVICES);
 		if (bit == SDW_MAX_DEVICES) {
 			bit = -ENODEV;
 			goto err;
@@ -730,7 +728,7 @@ static int sdw_get_device_num(struct sdw_slave *slave)
 	 * Do not update dev_num in Slave data structure here,
 	 * Update once program dev_num is successful
 	 */
-	set_bit(bit, slave->bus->assigned);
+	set_bit(bit, bus->assigned);
 
 err:
 	return bit;

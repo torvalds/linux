@@ -125,6 +125,20 @@ static int intel_prop_read(struct sdw_bus *bus)
 	return 0;
 }
 
+static DEFINE_IDA(intel_peripheral_ida);
+
+static int intel_get_device_num_ida(struct sdw_bus *bus, struct sdw_slave *slave)
+{
+	return ida_alloc_range(&intel_peripheral_ida,
+			       INTEL_DEV_NUM_IDA_MIN, SDW_MAX_DEVICES,
+			       GFP_KERNEL);
+}
+
+static void intel_put_device_num_ida(struct sdw_bus *bus, struct sdw_slave *slave)
+{
+	return ida_free(&intel_peripheral_ida, slave->dev_num);
+}
+
 static struct sdw_master_ops sdw_intel_ops = {
 	.read_prop = intel_prop_read,
 	.override_adr = sdw_dmi_override_adr,
@@ -134,6 +148,8 @@ static struct sdw_master_ops sdw_intel_ops = {
 	.pre_bank_switch = generic_pre_bank_switch,
 	.post_bank_switch = generic_post_bank_switch,
 	.read_ping_status = cdns_read_ping_status,
+	.get_device_num =  intel_get_device_num_ida,
+	.put_device_num = intel_put_device_num_ida,
 	.new_peripheral_assigned = generic_new_peripheral_assigned,
 };
 
@@ -167,7 +183,6 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 	cdns->msg_count = 0;
 
 	bus->link_id = auxdev->id;
-	bus->dev_num_ida_min = INTEL_DEV_NUM_IDA_MIN;
 	bus->clk_stop_timeout = 1;
 
 	sdw_cdns_probe(cdns);
