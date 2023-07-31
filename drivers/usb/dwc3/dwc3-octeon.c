@@ -299,8 +299,8 @@ static int dwc3_octeon_setup(struct dwc3_octeon *octeon,
 	val = dwc3_octeon_readq(uctl_ctl_reg);
 	if ((div != FIELD_GET(USBDRD_UCTL_CTL_H_CLKDIV_SEL, val)) ||
 	    (!(FIELD_GET(USBDRD_UCTL_CTL_H_CLK_EN, val)))) {
-		dev_err(dev, "dwc3 controller clock init failure.\n");
-			return -EINVAL;
+		dev_err(dev, "clock init failure (UCTL_CTL=%016llx)\n", val);
+		return -EINVAL;
 	}
 
 	/* Step 4c: Deassert the controller clock divider reset. */
