@@ -236,7 +236,7 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 			}
 			if (!label)
 				block->label = devm_kasprintf(sram->dev, GFP_KERNEL,
-							      "%s", dev_name(sram->dev));
+							      "%s", of_node_full_name(child));
 			else
 				block->label = devm_kstrdup(sram->dev,
 							    label, GFP_KERNEL);

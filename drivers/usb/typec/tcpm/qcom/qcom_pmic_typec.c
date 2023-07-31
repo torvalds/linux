@@ -209,8 +209,8 @@ static int qcom_pmic_typec_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tcpm);
 
 	tcpm->tcpc.fwnode = device_get_named_child_node(tcpm->dev, "connector");
-	if (IS_ERR(tcpm->tcpc.fwnode))
-		return PTR_ERR(tcpm->tcpc.fwnode);
+	if (!tcpm->tcpc.fwnode)
+		return -EINVAL;
 
 	tcpm->tcpm_port = tcpm_register_port(tcpm->dev, &tcpm->tcpc);
 	if (IS_ERR(tcpm->tcpm_port)) {
