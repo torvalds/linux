@@ -433,8 +433,8 @@ int bnxt_re_hwrm_qcaps(struct bnxt_re_dev *rdev)
 	cctx->modes.db_push = le32_to_cpu(resp.flags) & FUNC_QCAPS_RESP_FLAGS_WCB_PUSH_MODE;
 
 	cctx->modes.dbr_pacing =
-		le32_to_cpu(resp.flags_ext2) & FUNC_QCAPS_RESP_FLAGS_EXT2_DBR_PACING_EXT_SUPPORTED ?
-		true : false;
+		le32_to_cpu(resp.flags_ext2) &
+		FUNC_QCAPS_RESP_FLAGS_EXT2_DBR_PACING_EXT_SUPPORTED;
 	return 0;
 }
 
@@ -1333,8 +1333,7 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 	 */
 	if ((prio_map == 0 && rdev->qplib_res.prio) ||
 	    (prio_map != 0 && !rdev->qplib_res.prio)) {
-		rdev->qplib_res.prio = prio_map ? true : false;
-
+		rdev->qplib_res.prio = prio_map;
 		bnxt_re_update_gid(rdev);
 	}
 

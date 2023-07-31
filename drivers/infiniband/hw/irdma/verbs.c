@@ -1004,7 +1004,7 @@ static int irdma_create_qp(struct ib_qp *ibqp,
 	refcount_set(&iwqp->refcnt, 1);
 	spin_lock_init(&iwqp->lock);
 	spin_lock_init(&iwqp->sc_qp.pfpdu.lock);
-	iwqp->sig_all = (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR) ? 1 : 0;
+	iwqp->sig_all = init_attr->sq_sig_type == IB_SIGNAL_ALL_WR;
 	rf->qp_table[qp_num] = iwqp;
 
 	if (rdma_protocol_roce(&iwdev->ibdev, 1)) {
@@ -3547,8 +3547,7 @@ static void irdma_process_cqe(struct ib_wc *entry,
 		set_ib_wc_op_sq(cq_poll_info, entry);
 	} else {
 		set_ib_wc_op_rq(cq_poll_info, entry,
-				qp->qp_uk.qp_caps & IRDMA_SEND_WITH_IMM ?
-				true : false);
+				qp->qp_uk.qp_caps & IRDMA_SEND_WITH_IMM);
 		if (qp->qp_uk.qp_type != IRDMA_QP_TYPE_ROCE_UD &&
 		    cq_poll_info->stag_invalid_set) {
 			entry->ex.invalidate_rkey = cq_poll_info->inv_stag;

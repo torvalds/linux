@@ -1336,8 +1336,7 @@ static int bnxt_re_init_qp_attr(struct bnxt_re_qp *qp, struct bnxt_re_pd *pd,
 	qplqp->pd = &pd->qplib_pd;
 	qplqp->qp_handle = (u64)qplqp;
 	qplqp->max_inline_data = init_attr->cap.max_inline_data;
-	qplqp->sig_type = ((init_attr->sq_sig_type == IB_SIGNAL_ALL_WR) ?
-			    true : false);
+	qplqp->sig_type = init_attr->sq_sig_type == IB_SIGNAL_ALL_WR;
 	qptype = bnxt_re_init_qp_type(rdev, init_attr);
 	if (qptype < 0) {
 		rc = qptype;
@@ -2261,7 +2260,7 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 	}
 
 	is_eth = true;
-	is_vlan = (vlan_id && (vlan_id < 0x1000)) ? true : false;
+	is_vlan = vlan_id && (vlan_id < 0x1000);
 
 	ib_ud_header_init(payload_size, !is_eth, is_eth, is_vlan, is_grh,
 			  ip_version, is_udp, 0, &qp->qp1_hdr);

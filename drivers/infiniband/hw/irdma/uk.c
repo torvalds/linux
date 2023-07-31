@@ -282,7 +282,7 @@ int irdma_uk_rdma_write(struct irdma_qp_uk *qp, struct irdma_post_sq_info *info,
 	bool read_fence = false;
 	u16 quanta;
 
-	info->push_wqe = qp->push_db ? true : false;
+	info->push_wqe = qp->push_db;
 
 	op_info = &info->op.rdma_write;
 	if (op_info->num_lo_sges > qp->max_sq_frag_cnt)
@@ -383,7 +383,7 @@ int irdma_uk_rdma_read(struct irdma_qp_uk *qp, struct irdma_post_sq_info *info,
 	u16 quanta;
 	u64 hdr;
 
-	info->push_wqe = qp->push_db ? true : false;
+	info->push_wqe = qp->push_db;
 
 	op_info = &info->op.rdma_read;
 	if (qp->max_sq_frag_cnt < op_info->num_lo_sges)
@@ -468,7 +468,7 @@ int irdma_uk_send(struct irdma_qp_uk *qp, struct irdma_post_sq_info *info,
 	bool read_fence = false;
 	u16 quanta;
 
-	info->push_wqe = qp->push_db ? true : false;
+	info->push_wqe = qp->push_db;
 
 	op_info = &info->op.send;
 	if (qp->max_sq_frag_cnt < op_info->num_sges)
@@ -720,7 +720,7 @@ int irdma_uk_inline_rdma_write(struct irdma_qp_uk *qp,
 	u32 i, total_size = 0;
 	u16 quanta;
 
-	info->push_wqe = qp->push_db ? true : false;
+	info->push_wqe = qp->push_db;
 	op_info = &info->op.rdma_write;
 
 	if (unlikely(qp->max_sq_frag_cnt < op_info->num_lo_sges))
@@ -794,7 +794,7 @@ int irdma_uk_inline_send(struct irdma_qp_uk *qp,
 	u32 i, total_size = 0;
 	u16 quanta;
 
-	info->push_wqe = qp->push_db ? true : false;
+	info->push_wqe = qp->push_db;
 	op_info = &info->op.send;
 
 	if (unlikely(qp->max_sq_frag_cnt < op_info->num_sges))
@@ -872,7 +872,7 @@ int irdma_uk_stag_local_invalidate(struct irdma_qp_uk *qp,
 	bool local_fence = false;
 	struct ib_sge sge = {};
 
-	info->push_wqe = qp->push_db ? true : false;
+	info->push_wqe = qp->push_db;
 	op_info = &info->op.inv_local_stag;
 	local_fence = info->local_fence;
 

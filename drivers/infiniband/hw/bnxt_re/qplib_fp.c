@@ -1373,8 +1373,7 @@ int bnxt_qplib_query_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	qp->state = sb->en_sqd_async_notify_state &
 			CREQ_QUERY_QP_RESP_SB_STATE_MASK;
 	qp->en_sqd_async_notify = sb->en_sqd_async_notify_state &
-				  CREQ_QUERY_QP_RESP_SB_EN_SQD_ASYNC_NOTIFY ?
-				  true : false;
+				  CREQ_QUERY_QP_RESP_SB_EN_SQD_ASYNC_NOTIFY;
 	qp->access = sb->access;
 	qp->pkey_index = le16_to_cpu(sb->pkey);
 	qp->qkey = le32_to_cpu(sb->qkey);
