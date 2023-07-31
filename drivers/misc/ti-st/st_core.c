@@ -16,8 +16,6 @@
 
 #include <linux/ti_wilink_st.h>
 
-extern void st_kim_recv(void *, const unsigned char *, long);
-void st_int_recv(void *, const unsigned char *, long);
 /*
  * function pointer pointing to either,
  * st_kim_recv during registration to receive fw download responses
@@ -225,7 +223,7 @@ static inline void st_wakeup_ack(struct st_data_s *st_gdata,
  *	HCI-Events, ACL, SCO, 4 types of HCI-LL PM packets
  *	CH-8 packets from FM, CH-9 packets from GPS cores.
  */
-void st_int_recv(void *disc_data,
+static void st_int_recv(void *disc_data,
 	const unsigned char *data, long count)
 {
 	char *ptr;
