@@ -555,6 +555,16 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 						   &coeff_firmware, &coeff_filename);
 	}
 
+	/*
+	 * If the BIOS didn't patch the firmware a bin file is mandatory to
+	 * enable the ASP·
+	 */
+	if (!coeff_firmware && firmware_missing) {
+		dev_err(cs35l56->base.dev, ".bin file required but not found\n");
+		ret = -ENOENT;
+		goto err_fw_release;
+	}
+
 	mutex_lock(&cs35l56->base.irq_lock);
 
 	/*
@@ -615,7 +625,7 @@ err_powered_up:
 		cs_dsp_power_down(&cs35l56->cs_dsp);
 err:
 	mutex_unlock(&cs35l56->base.irq_lock);
-
+err_fw_release:
 	cs35l56_hda_release_firmware_files(wmfw_firmware, wmfw_filename,
 					   coeff_firmware, coeff_filename);
 err_pm_put:
