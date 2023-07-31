@@ -179,6 +179,7 @@ static int hp_populate_integer_elements_from_package(union acpi_object *integer_
 		if (expected_integer_types[eloc] != integer_obj[elem].type) {
 			pr_err("Error expected type %d for elem %d, but got type %d instead\n",
 			       expected_integer_types[eloc], elem, integer_obj[elem].type);
+			kfree(str_value);
 			return -EIO;
 		}
 		/* Assign appropriate element value to corresponding field*/
@@ -239,6 +240,7 @@ static int hp_populate_integer_elements_from_package(union acpi_object *integer_
 					str_value,
 					sizeof(integer_data->common.prerequisites[reqs]));
 				kfree(str_value);
+				str_value = NULL;
 			}
 			break;
 
@@ -258,6 +260,9 @@ static int hp_populate_integer_elements_from_package(union acpi_object *integer_
 			pr_warn("Invalid element: %d found in Integer attribute or data may be malformed\n", elem);
 			break;
 		}
+
+		kfree(str_value);
+		str_value = NULL;
 	}
 exit_integer_package:
 	kfree(str_value);

@@ -164,6 +164,7 @@ static int hp_populate_enumeration_elements_from_package(union acpi_object *enum
 		if (expected_enum_types[eloc] != enum_obj[elem].type) {
 			pr_err("Error expected type %d for elem %d, but got type %d instead\n",
 			       expected_enum_types[eloc], elem, enum_obj[elem].type);
+			kfree(str_value);
 			return -EIO;
 		}
 
@@ -224,6 +225,7 @@ static int hp_populate_enumeration_elements_from_package(union acpi_object *enum
 					sizeof(enum_data->common.prerequisites[reqs]));
 
 				kfree(str_value);
+				str_value = NULL;
 			}
 			break;
 
@@ -275,6 +277,9 @@ static int hp_populate_enumeration_elements_from_package(union acpi_object *enum
 					strscpy(enum_data->possible_values[pos_values],
 						str_value,
 						sizeof(enum_data->possible_values[pos_values]));
+
+				kfree(str_value);
+				str_value = NULL;
 			}
 			break;
 		default:
@@ -283,6 +288,7 @@ static int hp_populate_enumeration_elements_from_package(union acpi_object *enum
 		}
 
 		kfree(str_value);
+		str_value = NULL;
 	}
 
 exit_enumeration_package:

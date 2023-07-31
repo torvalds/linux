@@ -171,6 +171,7 @@ static int hp_populate_string_elements_from_package(union acpi_object *string_ob
 		if (expected_string_types[eloc] != string_obj[elem].type) {
 			pr_err("Error expected type %d for elem %d, but got type %d instead\n",
 			       expected_string_types[eloc], elem, string_obj[elem].type);
+			kfree(str_value);
 			return -EIO;
 		}
 
@@ -232,6 +233,7 @@ static int hp_populate_string_elements_from_package(union acpi_object *string_ob
 					str_value,
 					sizeof(string_data->common.prerequisites[reqs]));
 				kfree(str_value);
+				str_value = NULL;
 			}
 			break;
 
@@ -250,6 +252,7 @@ static int hp_populate_string_elements_from_package(union acpi_object *string_ob
 		}
 
 		kfree(str_value);
+		str_value = NULL;
 	}
 
 exit_string_package:

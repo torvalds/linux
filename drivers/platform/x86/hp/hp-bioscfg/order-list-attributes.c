@@ -174,6 +174,7 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 		if (expected_order_types[eloc] != order_obj[elem].type) {
 			pr_err("Error expected type %d for elem %d, but got type %d instead\n",
 			       expected_order_types[eloc], elem, order_obj[elem].type);
+			kfree(str_value);
 			return -EIO;
 		}
 
@@ -231,6 +232,7 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 					sizeof(ordered_list_data->common.prerequisites[reqs]));
 
 				kfree(str_value);
+				str_value = NULL;
 			}
 			break;
 
@@ -277,13 +279,17 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 				part = strsep(&part_tmp, SEMICOLON_SEP);
 			}
 
+			kfree(str_value);
+			str_value = NULL;
 			break;
 		default:
 			pr_warn("Invalid element: %d found in Ordered_List attribute or data may be malformed\n", elem);
 			break;
 		}
 		kfree(tmpstr);
+		tmpstr = NULL;
 		kfree(str_value);
+		str_value = NULL;
 	}
 
 exit_list:

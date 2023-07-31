@@ -264,6 +264,7 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 		if (expected_password_types[eloc] != password_obj[elem].type) {
 			pr_err("Error expected type %d for elem %d, but got type %d instead\n",
 			       expected_password_types[eloc], elem, password_obj[elem].type);
+			kfree(str_value);
 			return -EIO;
 		}
 
@@ -318,6 +319,8 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 					sizeof(password_data->common.prerequisites[reqs]));
 
 				kfree(str_value);
+				str_value = NULL;
+
 			}
 			break;
 		case SECURITY_LEVEL:
@@ -356,6 +359,8 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 					str_value,
 					sizeof(password_data->encodings[pos_values]));
 				kfree(str_value);
+				str_value = NULL;
+
 			}
 			break;
 		case PSWD_IS_SET:
@@ -365,6 +370,9 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 			pr_warn("Invalid element: %d found in Password attribute or data may be malformed\n", elem);
 			break;
 		}
+
+		kfree(str_value);
+		str_value = NULL;
 	}
 
 exit_package:
