@@ -122,7 +122,7 @@ static int ivpu_get_capabilities(struct ivpu_device *vdev, struct drm_ivpu_param
 		args->value = 0;
 		break;
 	case DRM_IVPU_CAP_DMA_MEMORY_RANGE:
-		args->value = 0;
+		args->value = 1;
 		break;
 	default:
 		return -EINVAL;
@@ -160,7 +160,7 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 		args->value = ivpu_get_context_count(vdev);
 		break;
 	case DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS:
-		args->value = vdev->hw->ranges.user_low.start;
+		args->value = vdev->hw->ranges.user.start;
 		break;
 	case DRM_IVPU_PARAM_CONTEXT_PRIORITY:
 		args->value = file_priv->priority;

@@ -38,11 +38,10 @@ struct ivpu_addr_range {
 struct ivpu_hw_info {
 	const struct ivpu_hw_ops *ops;
 	struct {
-		struct ivpu_addr_range global_low;
-		struct ivpu_addr_range global_high;
-		struct ivpu_addr_range user_low;
-		struct ivpu_addr_range user_high;
-		struct ivpu_addr_range global_aliased_pio;
+		struct ivpu_addr_range global;
+		struct ivpu_addr_range user;
+		struct ivpu_addr_range shave;
+		struct ivpu_addr_range dma;
 	} ranges;
 	struct {
 		u8 min_ratio;

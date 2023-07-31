@@ -204,7 +204,7 @@ static int ivpu_fw_update_global_range(struct ivpu_device *vdev)
 		return -EINVAL;
 	}
 
-	ivpu_hw_init_range(&vdev->hw->ranges.global_low, start, size);
+	ivpu_hw_init_range(&vdev->hw->ranges.global, start, size);
 	return 0;
 }
 
@@ -245,7 +245,7 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	}
 
 	if (fw->shave_nn_size) {
-		fw->mem_shave_nn = ivpu_bo_alloc_internal(vdev, vdev->hw->ranges.global_high.start,
+		fw->mem_shave_nn = ivpu_bo_alloc_internal(vdev, vdev->hw->ranges.shave.start,
 							  fw->shave_nn_size, DRM_IVPU_BO_UNCACHED);
 		if (!fw->mem_shave_nn) {
 			ivpu_err(vdev, "Failed to allocate shavenn buffer\n");
@@ -443,9 +443,9 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	 * Uncached region of VPU address space, covers IPC buffers, job queues
 	 * and log buffers, programmable to L2$ Uncached by VPU MTRR
 	 */
-	boot_params->shared_region_base = vdev->hw->ranges.global_low.start;
-	boot_params->shared_region_size = vdev->hw->ranges.global_low.end -
-					  vdev->hw->ranges.global_low.start;
+	boot_params->shared_region_base = vdev->hw->ranges.global.start;
+	boot_params->shared_region_size = vdev->hw->ranges.global.end -
+					  vdev->hw->ranges.global.start;
 
 	boot_params->ipc_header_area_start = ipc_mem_rx->vpu_addr;
 	boot_params->ipc_header_area_size = ipc_mem_rx->base.size / 2;
@@ -453,10 +453,8 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->ipc_payload_area_start = ipc_mem_rx->vpu_addr + ipc_mem_rx->base.size / 2;
 	boot_params->ipc_payload_area_size = ipc_mem_rx->base.size / 2;
 
-	boot_params->global_aliased_pio_base =
-		vdev->hw->ranges.global_aliased_pio.start;
-	boot_params->global_aliased_pio_size =
-		ivpu_hw_range_size(&vdev->hw->ranges.global_aliased_pio);
+	boot_params->global_aliased_pio_base = vdev->hw->ranges.user.start;
+	boot_params->global_aliased_pio_size = ivpu_hw_range_size(&vdev->hw->ranges.user);
 
 	/* Allow configuration for L2C_PAGE_TABLE with boot param value */
 	boot_params->autoconfig = 1;
@@ -464,7 +462,7 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	/* Enable L2 cache for first 2GB of high memory */
 	boot_params->cache_defaults[VPU_BOOT_L2_CACHE_CFG_NN].use = 1;
 	boot_params->cache_defaults[VPU_BOOT_L2_CACHE_CFG_NN].cfg =
-		ADDR_TO_L2_CACHE_CFG(vdev->hw->ranges.global_high.start);
+		ADDR_TO_L2_CACHE_CFG(vdev->hw->ranges.shave.start);
 
 	if (vdev->fw->mem_shave_nn)
 		boot_params->shave_nn_fw_base = vdev->fw->mem_shave_nn->vpu_addr;

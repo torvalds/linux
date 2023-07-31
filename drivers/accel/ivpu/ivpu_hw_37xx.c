@@ -620,11 +620,10 @@ static int ivpu_hw_37xx_info_init(struct ivpu_device *vdev)
 
 	ivpu_pll_init_frequency_ratios(vdev);
 
-	ivpu_hw_init_range(&hw->ranges.global_low, 0x80000000, SZ_512M);
-	ivpu_hw_init_range(&hw->ranges.global_high, 0x180000000, SZ_2M);
-	ivpu_hw_init_range(&hw->ranges.user_low, 0xc0000000, 255 * SZ_1M);
-	ivpu_hw_init_range(&hw->ranges.user_high, 0x180000000, SZ_2G);
-	hw->ranges.global_aliased_pio = hw->ranges.user_low;
+	ivpu_hw_init_range(&hw->ranges.global, 0x80000000, SZ_512M);
+	ivpu_hw_init_range(&hw->ranges.user,   0xc0000000, 255 * SZ_1M);
+	ivpu_hw_init_range(&hw->ranges.shave, 0x180000000, SZ_2G);
+	ivpu_hw_init_range(&hw->ranges.dma,   0x200000000, SZ_8G);
 
 	return 0;
 }
