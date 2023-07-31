@@ -203,7 +203,7 @@ err:
 	return ret;
 }
 
-static int pata_imx_remove(struct platform_device *pdev)
+static void pata_imx_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 	struct pata_imx_priv *priv = host->private_data;
@@ -213,8 +213,6 @@ static int pata_imx_remove(struct platform_device *pdev)
 	__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
 
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -265,7 +263,7 @@ MODULE_DEVICE_TABLE(of, imx_pata_dt_ids);
 
 static struct platform_driver pata_imx_driver = {
 	.probe		= pata_imx_probe,
-	.remove		= pata_imx_remove,
+	.remove_new	= pata_imx_remove,
 	.driver = {
 		.name		= DRV_NAME,
 		.of_match_table	= imx_pata_dt_ids,
