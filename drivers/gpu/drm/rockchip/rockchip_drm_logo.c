@@ -1060,7 +1060,7 @@ void rockchip_drm_show_logo(struct drm_device *drm_dev)
 				if (priv->crtc_funcs[pipe] &&
 				    priv->crtc_funcs[pipe]->loader_protect)
 					priv->crtc_funcs[pipe]->loader_protect(crtc, true,
-									       &set->csc);
+									       &unset->csc);
 				priv->crtc_funcs[pipe]->crtc_close(crtc);
 				if (priv->crtc_funcs[pipe] &&
 				    priv->crtc_funcs[pipe]->loader_protect)
