@@ -9,6 +9,7 @@
 #include <linux/stddef.h>
 #include <linux/acpi.h>
 #include <linux/mod_devicetable.h>
+#include <linux/soundwire/sdw.h>
 
 struct snd_soc_acpi_package_context {
 	char *name;           /* package name */
@@ -207,5 +208,10 @@ static inline bool snd_soc_acpi_sof_parent(struct device *dev)
 	return dev->parent && dev->parent->driver && dev->parent->driver->name &&
 		!strncmp(dev->parent->driver->name, "sof-audio-acpi", strlen("sof-audio-acpi"));
 }
+
+bool snd_soc_acpi_sdw_link_slaves_found(struct device *dev,
+					const struct snd_soc_acpi_link_adr *link,
+					struct sdw_extended_slave_id *ids,
+					int num_slaves);
 
 #endif

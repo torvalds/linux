@@ -1429,78 +1429,6 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
-#define SDW_CODEC_ADR_MASK(_adr) ((_adr) & (SDW_DISCO_LINK_ID_MASK | SDW_VERSION_MASK | \
-				  SDW_MFG_ID_MASK | SDW_PART_ID_MASK))
-
-/* Check if all Slaves defined on the link can be found */
-static bool link_slaves_found(struct device *dev,
-			      const struct snd_soc_acpi_link_adr *link,
-			      struct sdw_intel_slave_id *ids,
-			      int num_slaves)
-{
-	unsigned int part_id, link_id, unique_id, mfg_id, version;
-	int i, j, k;
-
-	for (i = 0; i < link->num_adr; i++) {
-		u64 adr = link->adr_d[i].adr;
-		int reported_part_count = 0;
-
-		mfg_id = SDW_MFG_ID(adr);
-		part_id = SDW_PART_ID(adr);
-		link_id = SDW_DISCO_LINK_ID(adr);
-		version = SDW_VERSION(adr);
-
-		for (j = 0; j < num_slaves; j++) {
-			/* find out how many identical parts were reported on that link */
-			if (ids[j].link_id == link_id &&
-			    ids[j].id.part_id == part_id &&
-			    ids[j].id.mfg_id == mfg_id &&
-			    ids[j].id.sdw_version == version)
-				reported_part_count++;
-		}
-
-		for (j = 0; j < num_slaves; j++) {
-			int expected_part_count = 0;
-
-			if (ids[j].link_id != link_id ||
-			    ids[j].id.part_id != part_id ||
-			    ids[j].id.mfg_id != mfg_id ||
-			    ids[j].id.sdw_version != version)
-				continue;
-
-			/* find out how many identical parts are expected */
-			for (k = 0; k < link->num_adr; k++) {
-				u64 adr2 = link->adr_d[k].adr;
-
-				if (SDW_CODEC_ADR_MASK(adr2) == SDW_CODEC_ADR_MASK(adr))
-					expected_part_count++;
-			}
-
-			if (reported_part_count == expected_part_count) {
-				/*
-				 * we have to check unique id
-				 * if there is more than one
-				 * Slave on the link
-				 */
-				unique_id = SDW_UNIQUE_ID(adr);
-				if (reported_part_count == 1 ||
-				    ids[j].id.unique_id == unique_id) {
-					dev_dbg(dev, "found %x at link %d\n", part_id, link_id);
-					break;
-				}
-			} else {
-				dev_dbg(dev, "part %x reported %d expected %d on link %d, skipping\n",
-					part_id, reported_part_count, expected_part_count, link_id);
-			}
-		}
-		if (j == num_slaves) {
-			dev_dbg(dev, "Slave %x not found\n", part_id);
-			return false;
-		}
-	}
-	return true;
-}
-
 static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *pdata = sdev->pdata;
@@ -1544,7 +1472,9 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 				 * Try next machine if any expected Slaves
 				 * are not found on this link.
 				 */
-				if (!link_slaves_found(sdev->dev, link, hdev->sdw->ids, hdev->sdw->num_slaves))
+				if (!snd_soc_acpi_sdw_link_slaves_found(sdev->dev, link,
+									hdev->sdw->ids,
+									hdev->sdw->num_slaves))
 					break;
 			}
 			/* Found if all Slaves are checked */

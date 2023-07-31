@@ -264,11 +264,6 @@ struct sdw_intel_link_dev;
  */
 #define SDW_INTEL_CLK_STOP_BUS_RESET		BIT(3)
 
-struct sdw_intel_slave_id {
-	int link_id;
-	struct sdw_slave_id id;
-};
-
 struct hdac_bus;
 
 /**
@@ -298,7 +293,7 @@ struct sdw_intel_ctx {
 	int num_slaves;
 	acpi_handle handle;
 	struct sdw_intel_link_dev **ldev;
-	struct sdw_intel_slave_id *ids;
+	struct sdw_extended_slave_id *ids;
 	struct list_head link_list;
 	struct mutex shim_lock; /* lock for access to shared SHIM registers */
 	u32 shim_mask;
