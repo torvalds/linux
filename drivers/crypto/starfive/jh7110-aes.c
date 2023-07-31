@@ -496,8 +496,8 @@ static int starfive_aes_prepare_req(struct skcipher_request *req,
 
 	if (cryp->assoclen) {
 		rctx->adata = kzalloc(ALIGN(cryp->assoclen, AES_BLOCK_SIZE), GFP_KERNEL);
-		if (IS_ERR(rctx->adata))
-			return dev_err_probe(cryp->dev, PTR_ERR(rctx->adata),
+		if (!rctx->adata)
+			return dev_err_probe(cryp->dev, -ENOMEM,
 					     "Failed to alloc memory for adata");
 
 		scatterwalk_copychunks(rctx->adata, &cryp->in_walk, cryp->assoclen, 0);
