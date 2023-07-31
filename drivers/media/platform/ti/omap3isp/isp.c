@@ -2392,10 +2392,8 @@ static int isp_probe(struct platform_device *pdev)
 
 	/* Interrupt */
 	ret = platform_get_irq(pdev, 0);
-	if (ret <= 0) {
-		ret = -ENODEV;
+	if (ret < 0)
 		goto error_iommu;
-	}
 	isp->irq_num = ret;
 
 	if (devm_request_irq(isp->dev, isp->irq_num, isp_isr, IRQF_SHARED,

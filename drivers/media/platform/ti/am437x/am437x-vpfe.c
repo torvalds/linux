@@ -2426,10 +2426,8 @@ static int vpfe_probe(struct platform_device *pdev)
 	}
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret <= 0) {
-		ret = -ENODEV;
+	if (ret < 0)
 		goto probe_out_cleanup;
-	}
 	vpfe->irq = ret;
 
 	ret = devm_request_irq(vpfe->pdev, vpfe->irq, vpfe_isr, 0,
