@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/suspend.h>
 #include <linux/types.h>
 #include <soc/qcom/rpm-smd.h>
 #include <soc/qcom/mpm.h>
@@ -1430,7 +1431,7 @@ static int smd_mask_receive_interrupt(bool mask,
 
 	if (mask) {
 		irq_chip->irq_mask(irq_data);
-		if (cpumask)
+		if (cpumask && irq_chip->irq_set_affinity)
 			irq_chip->irq_set_affinity(irq_data, cpumask, true);
 	} else {
 		irq_chip->irq_unmask(irq_data);
@@ -1499,6 +1500,23 @@ static int rpm_smd_power_cb(struct notifier_block *nb, unsigned long action, voi
 
 	return NOTIFY_OK;
 }
+
+static int rpm_smd_pm_notifier(struct notifier_block *nb, unsigned long event, void *unused)
+{
+	int ret;
+
+	if (event == PM_SUSPEND_PREPARE) {
+		ret = msm_rpm_flush_requests();
+		pr_debug("ret = %d\n", ret);
+	}
+
+	/* continue to suspend */
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rpm_smd_pm_nb = {
+	.notifier_call = rpm_smd_pm_notifier,
+};
 
 static int qcom_smd_rpm_callback(struct rpmsg_device *rpdev, void *ptr,
 				int size, void *priv, u32 addr)
@@ -1590,6 +1608,13 @@ static int qcom_smd_rpm_probe(struct rpmsg_device *rpdev)
 	rpm = devm_kzalloc(&rpdev->dev, sizeof(*rpm), GFP_KERNEL);
 	if (!rpm) {
 		probe_status = -ENOMEM;
+		goto fail;
+	}
+
+	ret = register_pm_notifier(&rpm_smd_pm_nb);
+	if (ret) {
+		pr_err("%s: power state notif error %d\n", __func__, ret);
+		probe_status = -ENODEV;
 		goto fail;
 	}
 
