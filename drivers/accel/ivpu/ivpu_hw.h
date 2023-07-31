@@ -60,6 +60,7 @@ struct ivpu_hw_info {
 };
 
 extern const struct ivpu_hw_ops ivpu_hw_37xx_ops;
+extern const struct ivpu_hw_ops ivpu_hw_40xx_ops;
 
 static inline int ivpu_hw_info_init(struct ivpu_device *vdev)
 {

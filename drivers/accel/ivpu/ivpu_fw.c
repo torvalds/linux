@@ -51,6 +51,8 @@ static struct {
 	{ IVPU_HW_37XX, "vpu_37xx.bin" },
 	{ IVPU_HW_37XX, "mtl_vpu.bin" },
 	{ IVPU_HW_37XX, "intel/vpu/vpu_37xx_v0.0.bin" },
+	{ IVPU_HW_40XX, "vpu_40xx.bin" },
+	{ IVPU_HW_40XX, "intel/vpu/vpu_40xx_v0.0.bin" },
 };
 
 static int ivpu_fw_request(struct ivpu_device *vdev)

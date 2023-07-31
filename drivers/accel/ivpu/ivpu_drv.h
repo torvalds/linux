@@ -23,8 +23,10 @@
 #define DRIVER_DATE "20230117"
 
 #define PCI_DEVICE_ID_MTL   0x7d1d
+#define PCI_DEVICE_ID_LNL   0x643e
 
 #define IVPU_HW_37XX	37
+#define IVPU_HW_40XX	40
 
 #define IVPU_GLOBAL_CONTEXT_MMU_SSID 0
 /* SSID 1 is used by the VPU to represent invalid context */
@@ -78,6 +80,7 @@ struct ivpu_wa_table {
 	bool clear_runtime_mem;
 	bool d3hot_after_power_off;
 	bool interrupt_clear_with_0;
+	bool disable_clock_relinquish;
 };
 
 struct ivpu_hw_info;
@@ -163,6 +166,8 @@ static inline int ivpu_hw_gen(struct ivpu_device *vdev)
 	switch (ivpu_device_id(vdev)) {
 	case PCI_DEVICE_ID_MTL:
 		return IVPU_HW_37XX;
+	case PCI_DEVICE_ID_LNL:
+		return IVPU_HW_40XX;
 	default:
 		ivpu_err(vdev, "Unknown VPU device\n");
 		return 0;

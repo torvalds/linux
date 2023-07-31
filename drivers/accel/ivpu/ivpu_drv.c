@@ -501,8 +501,13 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (!vdev->pm)
 		return -ENOMEM;
 
-	vdev->hw->ops = &ivpu_hw_37xx_ops;
-	vdev->hw->dma_bits = 38;
+	if (ivpu_hw_gen(vdev) >= IVPU_HW_40XX) {
+		vdev->hw->ops = &ivpu_hw_40xx_ops;
+		vdev->hw->dma_bits = 48;
+	} else {
+		vdev->hw->ops = &ivpu_hw_37xx_ops;
+		vdev->hw->dma_bits = 38;
+	}
 
 	vdev->platform = IVPU_PLATFORM_INVALID;
 	vdev->context_xa_limit.min = IVPU_USER_CONTEXT_MIN_SSID;
@@ -629,6 +634,7 @@ static void ivpu_dev_fini(struct ivpu_device *vdev)
 
 static struct pci_device_id ivpu_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_MTL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_LNL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, ivpu_pci_ids);
