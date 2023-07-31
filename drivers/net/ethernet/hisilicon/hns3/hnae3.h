@@ -31,6 +31,7 @@
 #include <linux/pci.h>
 #include <linux/pkt_sched.h>
 #include <linux/types.h>
+#include <linux/bitmap.h>
 #include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 
@@ -101,6 +102,7 @@ enum HNAE3_DEV_CAP_BITS {
 	HNAE3_DEV_SUPPORT_FEC_STATS_B,
 	HNAE3_DEV_SUPPORT_LANE_NUM_B,
 	HNAE3_DEV_SUPPORT_WOL_B,
+	HNAE3_DEV_SUPPORT_TM_FLUSH_B,
 };
 
 #define hnae3_ae_dev_fd_supported(ae_dev) \
@@ -171,6 +173,9 @@ enum HNAE3_DEV_CAP_BITS {
 
 #define hnae3_ae_dev_wol_supported(ae_dev) \
 	test_bit(HNAE3_DEV_SUPPORT_WOL_B, (ae_dev)->caps)
+
+#define hnae3_ae_dev_tm_flush_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_TM_FLUSH_B, (hdev)->ae_dev->caps)
 
 enum HNAE3_PF_CAP_BITS {
 	HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B = 0,
@@ -407,7 +412,7 @@ struct hnae3_ae_dev {
 	unsigned long hw_err_reset_req;
 	struct hnae3_dev_specs dev_specs;
 	u32 dev_version;
-	unsigned long caps[BITS_TO_LONGS(HNAE3_DEV_CAPS_MAX_NUM)];
+	DECLARE_BITMAP(caps, HNAE3_DEV_CAPS_MAX_NUM);
 	void *priv;
 };
 
