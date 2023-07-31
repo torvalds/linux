@@ -1429,6 +1429,14 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 	if (IS_ERR(wm8960->mclk)) {
 		if (PTR_ERR(wm8960->mclk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
+	} else {
+		ret = clk_get_rate(wm8960->mclk);
+		if (ret >= 0) {
+			wm8960->freq_in = ret;
+		} else {
+			dev_err(&i2c->dev, "Failed to read MCLK rate: %d\n",
+				ret);
+		}
 	}
 
 	wm8960->regmap = devm_regmap_init_i2c(i2c, &wm8960_regmap);
