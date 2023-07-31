@@ -149,6 +149,7 @@
 
 #define UB960_TR_CSI_CTL			0x33
 #define UB960_TR_CSI_CTL_CSI_CAL_EN		BIT(6)
+#define UB960_TR_CSI_CTL_CSI_CONTS_CLOCK	BIT(1)
 #define UB960_TR_CSI_CTL_CSI_ENABLE		BIT(0)
 
 #define UB960_TR_CSI_CTL2			0x34
@@ -485,6 +486,7 @@ struct ub960_txport {
 	u8                      nport;	/* TX port number, and index in priv->txport[] */
 
 	u32 num_data_lanes;
+	bool non_continous_clk;
 };
 
 struct ub960_data {
@@ -1133,6 +1135,9 @@ static int ub960_parse_dt_txport(struct ub960_data *priv,
 		goto err_free_txport;
 	}
 
+	txport->non_continous_clk = vep.bus.mipi_csi2.flags &
+				    V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
+
 	txport->num_data_lanes = vep.bus.mipi_csi2.num_data_lanes;
 
 	if (vep.nr_of_link_frequencies != 1) {
@@ -1743,6 +1748,9 @@ static void ub960_init_tx_port(struct ub960_data *priv,
 		csi_ctl |= UB960_TR_CSI_CTL_CSI_CAL_EN;
 
 	csi_ctl |= (4 - txport->num_data_lanes) << 4;
+
+	if (!txport->non_continous_clk)
+		csi_ctl |= UB960_TR_CSI_CTL_CSI_CONTS_CLOCK;
 
 	ub960_txport_write(priv, nport, UB960_TR_CSI_CTL, csi_ctl);
 }
