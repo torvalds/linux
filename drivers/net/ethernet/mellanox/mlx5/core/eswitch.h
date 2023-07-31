@@ -811,6 +811,8 @@ mlx5_eswitch_get_slow_fdb(struct mlx5_eswitch *esw)
 	return esw->fdb_table.offloads.slow_fdb;
 }
 
+int mlx5_eswitch_restore_ipsec_rule(struct mlx5_eswitch *esw, struct mlx5_flow_handle *rule,
+				    struct mlx5_esw_flow_attr *esw_attr, int attr_idx);
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }

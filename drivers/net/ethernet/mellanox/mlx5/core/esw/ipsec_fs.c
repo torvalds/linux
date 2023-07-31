@@ -5,6 +5,9 @@
 #include "eswitch.h"
 #include "en_accel/ipsec.h"
 #include "esw/ipsec_fs.h"
+#if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
+#include "en/tc_priv.h"
+#endif
 
 enum {
 	MLX5_ESW_IPSEC_RX_POL_FT_LEVEL,
@@ -266,4 +269,57 @@ void mlx5_esw_ipsec_tx_create_attr_set(struct mlx5e_ipsec *ipsec,
 	attr->sa_level = MLX5_ESW_IPSEC_TX_ESP_FT_LEVEL;
 	attr->cnt_level = MLX5_ESW_IPSEC_TX_ESP_FT_CNT_LEVEL;
 	attr->chains_ns = MLX5_FLOW_NAMESPACE_FDB;
+}
+
+#if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
+static int mlx5_esw_ipsec_modify_flow_dests(struct mlx5_eswitch *esw,
+					    struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_esw_flow_attr *esw_attr;
+	struct mlx5_flow_attr *attr;
+	int err;
+
+	attr = flow->attr;
+	esw_attr = attr->esw_attr;
+	if (esw_attr->out_count - esw_attr->split_count > 1)
+		return 0;
+
+	err = mlx5_eswitch_restore_ipsec_rule(esw, flow->rule[0], esw_attr,
+					      esw_attr->out_count - 1);
+
+	return err;
+}
+#endif
+
+void mlx5_esw_ipsec_restore_dest_uplink(struct mlx5_core_dev *mdev)
+{
+#if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+	struct mlx5_eswitch_rep *rep;
+	struct mlx5e_rep_priv *rpriv;
+	struct rhashtable_iter iter;
+	struct mlx5e_tc_flow *flow;
+	unsigned long i;
+	int err;
+
+	xa_for_each(&esw->offloads.vport_reps, i, rep) {
+		rpriv = rep->rep_data[REP_ETH].priv;
+		if (!rpriv || !rpriv->netdev)
+			continue;
+
+		rhashtable_walk_enter(&rpriv->tc_ht, &iter);
+		rhashtable_walk_start(&iter);
+		while ((flow = rhashtable_walk_next(&iter)) != NULL) {
+			if (IS_ERR(flow))
+				continue;
+
+			err = mlx5_esw_ipsec_modify_flow_dests(esw, flow);
+			if (err)
+				mlx5_core_warn_once(mdev,
+						    "Faided to modify flow dests for IPsec");
+		}
+		rhashtable_walk_stop(&iter);
+		rhashtable_walk_exit(&iter);
+	}
+#endif
 }

@@ -755,8 +755,10 @@ static void tx_put(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_tx *tx)
 
 	mlx5_eswitch_unblock_mode_lock(ipsec->mdev);
 
-	if (tx == ipsec->tx_esw)
+	if (tx == ipsec->tx_esw) {
+		mlx5_esw_ipsec_restore_dest_uplink(ipsec->mdev);
 		ipsec_esw_tx_ft_policy_set(ipsec->mdev, NULL);
+	}
 
 	tx_destroy(ipsec, tx, ipsec->roce);
 
