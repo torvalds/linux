@@ -904,6 +904,19 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 		.dai_num = 1,
 	},
 	{
+		.part_id = 0x3556,
+		.dais = {
+			{
+				.direction = {true, true},
+				.dai_name = "cs35l56-sdw1",
+				.dai_type = SOF_SDW_DAI_TYPE_AMP,
+				.dailink = {SDW_AMP_OUT_DAI_ID, SDW_AMP_IN_DAI_ID},
+				.init = sof_sdw_cs_amp_init,
+			},
+		},
+		.dai_num = 1,
+	},
+	{
 		.part_id = 0x4242,
 		.dais = {
 			{
