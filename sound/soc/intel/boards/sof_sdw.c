@@ -1599,10 +1599,6 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	if (ret < 0)
 		return ret;
 
-	/* reset amp_num to ensure amp_num++ starts from 0 in each probe */
-	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++)
-		codec_info_list[i].amp_num = 0;
-
 	if (mach_params->codec_mask & IDISP_CODEC_MASK) {
 		ctx->idisp_codec = true;
 
@@ -1990,6 +1986,10 @@ static int mc_probe(struct platform_device *pdev)
 	}
 
 	log_quirks(card->dev);
+
+	/* reset amp_num to ensure amp_num++ starts from 0 in each probe */
+	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++)
+		codec_info_list[i].amp_num = 0;
 
 	ret = sof_card_dai_links_create(card);
 	if (ret < 0)
