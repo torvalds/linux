@@ -1060,7 +1060,7 @@ static int pcf2127_enable_ts(struct device *dev, int ts_id)
 	if (pcf2127->cfg->ts[ts_id].gnd_detect_bit == 0) {
 		dev_err(dev, "%s: tamper detection to GND configuration invalid\n",
 			__func__);
-		return ret;
+		return -EINVAL;
 	}
 
 	/*
