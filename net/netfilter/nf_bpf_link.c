@@ -28,6 +28,7 @@ struct bpf_nf_link {
 	const struct nf_defrag_hook *defrag_hook;
 };
 
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4) || IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
 static const struct nf_defrag_hook *
 get_proto_defrag_hook(struct bpf_nf_link *link,
 		      const struct nf_defrag_hook __rcu *global_hook,
@@ -68,6 +69,7 @@ get_proto_defrag_hook(struct bpf_nf_link *link,
 
 	return hook;
 }
+#endif
 
 static int bpf_nf_enable_defrag(struct bpf_nf_link *link)
 {
