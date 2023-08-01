@@ -652,6 +652,7 @@ early_param("l1d_flush", l1d_flush_parse_cmdline);
 enum gds_mitigations {
 	GDS_MITIGATION_OFF,
 	GDS_MITIGATION_UCODE_NEEDED,
+	GDS_MITIGATION_FORCE,
 	GDS_MITIGATION_FULL,
 	GDS_MITIGATION_FULL_LOCKED,
 	GDS_MITIGATION_HYPERVISOR,
@@ -662,6 +663,7 @@ static enum gds_mitigations gds_mitigation __ro_after_init = GDS_MITIGATION_FULL
 static const char * const gds_strings[] = {
 	[GDS_MITIGATION_OFF]		= "Vulnerable",
 	[GDS_MITIGATION_UCODE_NEEDED]	= "Vulnerable: No microcode",
+	[GDS_MITIGATION_FORCE]		= "Mitigation: AVX disabled, no microcode",
 	[GDS_MITIGATION_FULL]		= "Mitigation: Microcode",
 	[GDS_MITIGATION_FULL_LOCKED]	= "Mitigation: Microcode (locked)",
 	[GDS_MITIGATION_HYPERVISOR]	= "Unknown: Dependent on hypervisor status",
@@ -687,6 +689,7 @@ void update_gds_msr(void)
 		rdmsrl(MSR_IA32_MCU_OPT_CTRL, mcu_ctrl);
 		mcu_ctrl &= ~GDS_MITG_DIS;
 		break;
+	case GDS_MITIGATION_FORCE:
 	case GDS_MITIGATION_UCODE_NEEDED:
 	case GDS_MITIGATION_HYPERVISOR:
 		return;
@@ -721,9 +724,22 @@ static void __init gds_select_mitigation(void)
 
 	/* No microcode */
 	if (!(x86_read_arch_cap_msr() & ARCH_CAP_GDS_CTRL)) {
-		gds_mitigation = GDS_MITIGATION_UCODE_NEEDED;
+		if (gds_mitigation == GDS_MITIGATION_FORCE) {
+			/*
+			 * This only needs to be done on the boot CPU so do it
+			 * here rather than in update_gds_msr()
+			 */
+			setup_clear_cpu_cap(X86_FEATURE_AVX);
+			pr_warn("Microcode update needed! Disabling AVX as mitigation.\n");
+		} else {
+			gds_mitigation = GDS_MITIGATION_UCODE_NEEDED;
+		}
 		goto out;
 	}
+
+	/* Microcode has mitigation, use it */
+	if (gds_mitigation == GDS_MITIGATION_FORCE)
+		gds_mitigation = GDS_MITIGATION_FULL;
 
 	rdmsrl(MSR_IA32_MCU_OPT_CTRL, mcu_ctrl);
 	if (mcu_ctrl & GDS_MITG_LOCKED) {
@@ -755,6 +771,8 @@ static int __init gds_parse_cmdline(char *str)
 
 	if (!strcmp(str, "off"))
 		gds_mitigation = GDS_MITIGATION_OFF;
+	else if (!strcmp(str, "force"))
+		gds_mitigation = GDS_MITIGATION_FORCE;
 
 	return 0;
 }
