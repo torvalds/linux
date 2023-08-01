@@ -11,3 +11,4 @@ spdif-y := starfive_spdif.o
 spdif-$(CONFIG_SND_SOC_STARFIVE_SPDIF_PCM) += starfive_spdif_pcm.o
 
 obj-$(CONFIG_SND_SOC_STARFIVE_I2S) += starfive_i2s.o
+obj-$(CONFIG_SND_SOC_STARFIVE_SOF_TDM_DAI) += starfive_sof_dai.o
