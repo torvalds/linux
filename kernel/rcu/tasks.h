@@ -570,10 +570,12 @@ static void rcu_tasks_one_gp(struct rcu_tasks *rtp, bool midboot)
 	if (unlikely(midboot)) {
 		needgpcb = 0x2;
 	} else {
+		mutex_unlock(&rtp->tasks_gp_mutex);
 		set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
 		rcuwait_wait_event(&rtp->cbs_wait,
 				   (needgpcb = rcu_tasks_need_gpcb(rtp)),
 				   TASK_IDLE);
+		mutex_lock(&rtp->tasks_gp_mutex);
 	}
 
 	if (needgpcb & 0x2) {
