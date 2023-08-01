@@ -44,6 +44,7 @@
 #include "gem/i915_gem_stolen.h"
 
 #include "gt/intel_engine.h"
+#include "gt/intel_gt_defines.h"
 #include "gt/intel_gt_types.h"
 #include "gt/intel_region_lmem.h"
 #include "gt/intel_workarounds.h"
@@ -313,7 +314,6 @@ struct drm_i915_private {
 	/*
 	 * i915->gt[0] == &i915->gt0
 	 */
-#define I915_MAX_GT 2
 	struct intel_gt *gt[I915_MAX_GT];
 
 	struct kobject *sysfs_gt;
