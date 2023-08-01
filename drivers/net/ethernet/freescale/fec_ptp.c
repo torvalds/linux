@@ -605,18 +605,6 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
 	}
 }
 
-/**
- * fec_ptp_disable_hwts - disable hardware time stamping
- * @ndev: pointer to net_device
- */
-void fec_ptp_disable_hwts(struct net_device *ndev)
-{
-	struct fec_enet_private *fep = netdev_priv(ndev);
-
-	fep->hwts_tx_en = 0;
-	fep->hwts_rx_en = 0;
-}
-
 int fec_ptp_set(struct net_device *ndev, struct kernel_hwtstamp_config *config,
 		struct netlink_ext_ack *extack)
 {

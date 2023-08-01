@@ -3895,11 +3895,8 @@ static int fec_hwtstamp_set(struct net_device *ndev,
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	struct phy_device *phydev = ndev->phydev;
 
-	if (phy_has_hwtstamp(phydev)) {
-		fec_ptp_disable_hwts(ndev);
-
+	if (phy_has_hwtstamp(phydev))
 		return phy_mii_ioctl(phydev, config->ifr, SIOCSHWTSTAMP);
-	}
 
 	if (!netif_running(ndev))
 		return -EINVAL;
