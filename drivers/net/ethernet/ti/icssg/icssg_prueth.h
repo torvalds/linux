@@ -52,6 +52,7 @@
 /* Number of ICSSG related stats */
 #define ICSSG_NUM_STATS 60
 #define ICSSG_NUM_STANDARD_STATS 31
+#define ICSSG_NUM_ETHTOOL_STATS (ICSSG_NUM_STATS - ICSSG_NUM_STANDARD_STATS)
 
 /* Firmware status codes */
 #define ICSS_HS_FW_READY 0x55555555
@@ -229,6 +230,8 @@ static inline int prueth_emac_slice(struct prueth_emac *emac)
 		return -EINVAL;
 	}
 }
+
+extern const struct ethtool_ops icssg_ethtool_ops;
 
 /* Classifier helpers */
 void icssg_class_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac);
