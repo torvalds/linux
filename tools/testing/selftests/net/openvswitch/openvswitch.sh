@@ -12,6 +12,7 @@ TRACING=0
 
 tests="
 	arp_ping				eth-arp: Basic arp ping between two NS
+	ct_connect_v4				ip4-ct-xon: Basic ipv4 tcp connection using ct
 	connect_v4				ip4-xon: Basic ipv4 ping between two NS
 	netlink_checks				ovsnl: validate netlink attrs and settings
 	upcall_interfaces			ovs: test the upcall interfaces"
@@ -190,6 +191,73 @@ test_arp_ping () {
 
 	ovs_sbx "test_arp_ping" ip netns exec client arping -I c1 172.31.110.20 -c 1 || return 1
 
+	return 0
+}
+
+# ct_connect_v4 test
+#  - client has 1500 byte MTU
+#  - server has 1500 byte MTU
+#  - use ICMP to ping in each direction
+#  - only allow CT state stuff to pass through new in c -> s
+test_ct_connect_v4 () {
+
+	which nc >/dev/null 2>/dev/null || return $ksft_skip
+
+	sbx_add "test_ct_connect_v4" || return $?
+
+	ovs_add_dp "test_ct_connect_v4" ct4 || return 1
+	info "create namespaces"
+	for ns in client server; do
+		ovs_add_netns_and_veths "test_ct_connect_v4" "ct4" "$ns" \
+		    "${ns:0:1}0" "${ns:0:1}1" || return 1
+	done
+
+	ip netns exec client ip addr add 172.31.110.10/24 dev c1
+	ip netns exec client ip link set c1 up
+	ip netns exec server ip addr add 172.31.110.20/24 dev s1
+	ip netns exec server ip link set s1 up
+
+	# Add forwarding for ARP and ip packets - completely wildcarded
+	ovs_add_flow "test_ct_connect_v4" ct4 \
+		'in_port(1),eth(),eth_type(0x0806),arp()' '2' || return 1
+	ovs_add_flow "test_ct_connect_v4" ct4 \
+		'in_port(2),eth(),eth_type(0x0806),arp()' '1' || return 1
+	ovs_add_flow "test_ct_connect_v4" ct4 \
+		     'ct_state(-trk),eth(),eth_type(0x0800),ipv4()' \
+		     'ct(commit),recirc(0x1)' || return 1
+	ovs_add_flow "test_ct_connect_v4" ct4 \
+		     'recirc_id(0x1),ct_state(+trk+new),in_port(1),eth(),eth_type(0x0800),ipv4(src=172.31.110.10)' \
+		     '2' || return 1
+	ovs_add_flow "test_ct_connect_v4" ct4 \
+		     'recirc_id(0x1),ct_state(+trk+est),in_port(1),eth(),eth_type(0x0800),ipv4(src=172.31.110.10)' \
+		     '2' || return 1
+	ovs_add_flow "test_ct_connect_v4" ct4 \
+		     'recirc_id(0x1),ct_state(+trk+est),in_port(2),eth(),eth_type(0x0800),ipv4(dst=172.31.110.10)' \
+		     '1' || return 1
+	ovs_add_flow "test_ct_connect_v4" ct4 \
+		     'recirc_id(0x1),ct_state(+trk+inv),eth(),eth_type(0x0800),ipv4()' 'drop' || \
+		     return 1
+
+	# do a ping
+	ovs_sbx "test_ct_connect_v4" ip netns exec client ping 172.31.110.20 -c 3 || return 1
+
+	# create an echo server in 'server'
+	echo "server" | \
+		ovs_netns_spawn_daemon "test_ct_connect_v4" "server" \
+				nc -lvnp 4443
+	ovs_sbx "test_ct_connect_v4" ip netns exec client nc -i 1 -zv 172.31.110.20 4443 || return 1
+
+	# Now test in the other direction (should fail)
+	echo "client" | \
+		ovs_netns_spawn_daemon "test_ct_connect_v4" "client" \
+				nc -lvnp 4443
+	ovs_sbx "test_ct_connect_v4" ip netns exec client nc -i 1 -zv 172.31.110.10 4443
+	if [ $? == 0 ]; then
+	   info "ct connect to client was successful"
+	   return 1
+	fi
+
+	info "done..."
 	return 0
 }
 

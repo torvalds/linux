@@ -62,6 +62,15 @@ def macstr(mac):
     return outstr
 
 
+def strcspn(str1, str2):
+    tot = 0
+    for char in str1:
+        if str2.find(char) != -1:
+            return tot
+        tot += 1
+    return tot
+
+
 def strspn(str1, str2):
     tot = 0
     for char in str1:
@@ -496,6 +505,36 @@ class ovsactions(nla):
                     actstr = actstr[strspn(actstr, ", ") :]
                     parsed = True
 
+            if parse_starts_block(actstr, "ct(", False):
+                actstr = actstr[len("ct(") :]
+                ctact = ovsactions.ctact()
+
+                for scan in (
+                    ("commit", "OVS_CT_ATTR_COMMIT", None),
+                    ("force_commit", "OVS_CT_ATTR_FORCE_COMMIT", None),
+                    ("zone", "OVS_CT_ATTR_ZONE", int),
+                    ("mark", "OVS_CT_ATTR_MARK", int),
+                    ("helper", "OVS_CT_ATTR_HELPER", lambda x, y: str(x)),
+                    ("timeout", "OVS_CT_ATTR_TIMEOUT", lambda x, y: str(x)),
+                ):
+                    if actstr.startswith(scan[0]):
+                        actstr = actstr[len(scan[0]) :]
+                        if scan[2] is not None:
+                            if actstr[0] != "=":
+                                raise ValueError("Invalid ct attr")
+                            actstr = actstr[1:]
+                            pos = strcspn(actstr, ",)")
+                            datum = scan[2](actstr[:pos], 0)
+                            ctact["attrs"].append([scan[1], datum])
+                            actstr = actstr[pos:]
+                        else:
+                            ctact["attrs"].append([scan[1], None])
+                        actstr = actstr[strspn(actstr, ", ") :]
+
+                self["attrs"].append(["OVS_ACTION_ATTR_CT", ctact])
+                parsed = True
+
+            actstr = actstr[strspn(actstr, "), ") :]
             if not parsed:
                 raise ValueError("Action str: '%s' not supported" % actstr)
 
