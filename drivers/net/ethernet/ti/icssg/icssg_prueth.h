@@ -34,12 +34,41 @@
 
 #include <net/devlink.h>
 
+#include "icssg_config.h"
 #include "icssg_switch_map.h"
+
+#define PRUETH_MAX_MTU          (2000 - ETH_HLEN - ETH_FCS_LEN)
+#define PRUETH_MIN_PKT_SIZE     (VLAN_ETH_ZLEN)
+#define PRUETH_MAX_PKT_SIZE     (PRUETH_MAX_MTU + ETH_HLEN + ETH_FCS_LEN)
 
 #define ICSS_SLICE0	0
 #define ICSS_SLICE1	1
 
+#define ICSS_FW_PRU	0
+#define ICSS_FW_RTU	1
+
 #define ICSSG_MAX_RFLOWS	8	/* per slice */
+
+/* Firmware status codes */
+#define ICSS_HS_FW_READY 0x55555555
+#define ICSS_HS_FW_DEAD 0xDEAD0000	/* lower 16 bits contain error code */
+
+/* Firmware command codes */
+#define ICSS_HS_CMD_BUSY 0x40000000
+#define ICSS_HS_CMD_DONE 0x80000000
+#define ICSS_HS_CMD_CANCEL 0x10000000
+
+/* Firmware commands */
+#define ICSS_CMD_SPAD 0x20
+#define ICSS_CMD_RXTX 0x10
+#define ICSS_CMD_ADD_FDB 0x1
+#define ICSS_CMD_DEL_FDB 0x2
+#define ICSS_CMD_SET_RUN 0x4
+#define ICSS_CMD_GET_FDB_SLOT 0x5
+#define ICSS_CMD_ENABLE_VLAN 0x5
+#define ICSS_CMD_DISABLE_VLAN 0x6
+#define ICSS_CMD_ADD_FILTER 0x7
+#define ICSS_CMD_ADD_MAC 0x8
 
 /* In switch mode there are 3 real ports i.e. 3 mac addrs.
  * however Linux sees only the host side port. The other 2 ports
@@ -213,5 +242,8 @@ void icssg_config_set_speed(struct prueth_emac *emac);
 int icssg_queue_pop(struct prueth *prueth, u8 queue);
 void icssg_queue_push(struct prueth *prueth, int queue, u16 addr);
 u32 icssg_queue_level(struct prueth *prueth, int queue);
+
+#define prueth_napi_to_tx_chn(pnapi) \
+	container_of(pnapi, struct prueth_tx_chn, napi_tx)
 
 #endif /* __NET_TI_ICSSG_PRUETH_H */
