@@ -673,6 +673,13 @@ static const char * const gds_strings[] = {
 	[GDS_MITIGATION_HYPERVISOR]	= "Unknown: Dependent on hypervisor status",
 };
 
+bool gds_ucode_mitigated(void)
+{
+	return (gds_mitigation == GDS_MITIGATION_FULL ||
+		gds_mitigation == GDS_MITIGATION_FULL_LOCKED);
+}
+EXPORT_SYMBOL_GPL(gds_ucode_mitigated);
+
 void update_gds_msr(void)
 {
 	u64 mcu_ctrl_after;
