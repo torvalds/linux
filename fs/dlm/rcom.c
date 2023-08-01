@@ -472,21 +472,25 @@ int dlm_send_rcom_lock(struct dlm_rsb *r, struct dlm_lkb *lkb, uint64_t seq)
 static void receive_rcom_lock(struct dlm_ls *ls, struct dlm_rcom *rc_in,
 			      uint64_t seq)
 {
+	__le32 rl_remid, rl_result;
+	struct rcom_lock *rl;
 	struct dlm_rcom *rc;
 	struct dlm_mhandle *mh;
 	int error, nodeid = le32_to_cpu(rc_in->rc_header.h_nodeid);
 
-	dlm_recover_master_copy(ls, rc_in);
+	dlm_recover_master_copy(ls, rc_in, &rl_remid, &rl_result);
 
 	error = create_rcom(ls, nodeid, DLM_RCOM_LOCK_REPLY,
 			    sizeof(struct rcom_lock), &rc, &mh, seq);
 	if (error)
 		return;
 
-	/* We send back the same rcom_lock struct we received, but
-	   dlm_recover_master_copy() has filled in rl_remid and rl_result */
-
 	memcpy(rc->rc_buf, rc_in->rc_buf, sizeof(struct rcom_lock));
+	rl = (struct rcom_lock *)rc->rc_buf;
+	/* set rl_remid and rl_result from dlm_recover_master_copy() */
+	rl->rl_remid = rl_remid;
+	rl->rl_result = rl_result;
+
 	rc->rc_id = rc_in->rc_id;
 	rc->rc_seq_reply = rc_in->rc_seq;
 

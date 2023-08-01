@@ -5384,7 +5384,8 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
    back the rcom_lock struct we got but with the remid field filled in. */
 
 /* needs at least dlm_rcom + rcom_lock */
-int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
+int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc,
+			    __le32 *rl_remid, __le32 *rl_result)
 {
 	struct rcom_lock *rl = (struct rcom_lock *) rc->rc_buf;
 	struct dlm_rsb *r;
@@ -5392,6 +5393,9 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	uint32_t remid = 0;
 	int from_nodeid = le32_to_cpu(rc->rc_header.h_nodeid);
 	int error;
+
+	/* init rl_remid with rcom lock rl_remid */
+	*rl_remid = rl->rl_remid;
 
 	if (rl->rl_parent_lkid) {
 		error = -EOPNOTSUPP;
@@ -5448,7 +5452,7 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
  out_remid:
 	/* this is the new value returned to the lock holder for
 	   saving in its process-copy lkb */
-	rl->rl_remid = cpu_to_le32(lkb->lkb_id);
+	*rl_remid = cpu_to_le32(lkb->lkb_id);
 
 	lkb->lkb_recover_seq = ls->ls_recover_seq;
 
@@ -5459,7 +5463,7 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	if (error && error != -EEXIST)
 		log_rinfo(ls, "dlm_recover_master_copy remote %d %x error %d",
 			  from_nodeid, remid, error);
-	rl->rl_result = cpu_to_le32(error);
+	*rl_result = cpu_to_le32(error);
 	return error;
 }
 
