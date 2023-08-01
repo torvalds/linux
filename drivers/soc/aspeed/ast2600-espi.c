@@ -1939,25 +1939,25 @@ static int ast2600_espi_probe(struct platform_device *pdev)
 	rc = ast2600_espi_vw_probe(espi);
 	if (rc) {
 		dev_err(dev, "cannot init vw channel, rc=%d\n", rc);
-		return rc;
+		goto err_remove_perif;
 	}
 
 	rc = ast2600_espi_oob_probe(espi);
 	if (rc) {
 		dev_err(dev, "cannot init oob channel, rc=%d\n", rc);
-		return rc;
+		goto err_remove_vw;
 	}
 
 	rc = ast2600_espi_flash_probe(espi);
 	if (rc) {
 		dev_err(dev, "cannot init flash channel, rc=%d\n", rc);
-		return rc;
+		goto err_remove_oob;
 	}
 
 	rc = devm_request_irq(dev, espi->irq, ast2600_espi_isr, 0, dev_name(dev), espi);
 	if (rc) {
 		dev_err(dev, "cannot request IRQ\n");
-		return rc;
+		goto err_remove_flash;
 	}
 
 	reg = readl(espi->regs + ESPI_INT_EN) | ESPI_INT_EN_RST_DEASSERT;
@@ -1968,6 +1968,17 @@ static int ast2600_espi_probe(struct platform_device *pdev)
 	dev_info(dev, "module loaded\n");
 
 	return 0;
+
+err_remove_flash:
+	ast2600_espi_flash_remove(espi);
+err_remove_oob:
+	ast2600_espi_oob_remove(espi);
+err_remove_vw:
+	ast2600_espi_vw_remove(espi);
+err_remove_perif:
+	ast2600_espi_perif_remove(espi);
+
+	return rc;
 }
 
 static int ast2600_espi_remove(struct platform_device *pdev)
