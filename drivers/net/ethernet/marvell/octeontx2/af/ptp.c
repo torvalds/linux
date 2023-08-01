@@ -61,12 +61,12 @@ static const struct pci_device_id ptp_id_table[];
 
 static bool is_ptp_dev_cnf10kb(struct ptp *ptp)
 {
-	return (ptp->pdev->subsystem_device == PCI_SUBSYS_DEVID_CNF10K_B_PTP) ? true : false;
+	return ptp->pdev->subsystem_device == PCI_SUBSYS_DEVID_CNF10K_B_PTP;
 }
 
 static bool is_ptp_dev_cn10k(struct ptp *ptp)
 {
-	return (ptp->pdev->device == PCI_DEVID_CN10K_PTP) ? true : false;
+	return ptp->pdev->device == PCI_DEVID_CN10K_PTP;
 }
 
 static bool cn10k_ptp_errata(struct ptp *ptp)
