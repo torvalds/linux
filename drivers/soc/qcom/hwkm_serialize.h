@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __HWKM_SERIALIZE_H_
@@ -13,10 +13,8 @@
 #define SYSTEM_KDF_CMD_MIN_WORDS 4
 #define SYSTEM_KDF_CMD_MAX_WORDS 29
 #define KEYSLOT_CLEAR_CMD_WORDS 2
-#define UNWRAP_IMPORT_CMD_WORDS 25
 #define WRAP_EXPORT_CMD_WORDS 5
 #define SET_TPKEY_CMD_WORDS 2
-#define KEYSLOT_RDWR_CMD_WORDS 20
 #define QFPROM_RDWR_CMD_WORDS 2
 
 /* Response lengths (words) */
@@ -26,7 +24,6 @@
 #define UNWRAP_IMPORT_RSP_WORDS 2
 #define WRAP_EXPORT_RSP_WORDS 19
 #define SET_TPKEY_RSP_WORDS 2
-#define KEYSLOT_RDWR_RSP_WORDS 21
 #define QFPROM_RDWR_RSP_WORDS 2
 
 /* Field lengths (words) */
@@ -34,8 +31,20 @@
 #define KEY_POLICY_WORDS 2
 #define BSVE_WORDS 3
 #define MAX_SWC_WORDS 16
-#define RESPONSE_KEY_WORDS 16
 #define KEY_BLOB_WORDS 17
+
+#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+#define UNWRAP_IMPORT_CMD_WORDS 25	/* Command lengths (words) */
+#define KEYSLOT_RDWR_CMD_WORDS 20	/* Command lengths (words) */
+#define KEYSLOT_RDWR_RSP_WORDS 21	/* Response lengths (words) */
+#define RESPONSE_KEY_WORDS 16		/* Field lengths (words) */
+#endif
+#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1)
+#define UNWRAP_IMPORT_CMD_WORDS 19	/* Command lengths (words) */
+#define KEYSLOT_RDWR_CMD_WORDS 12	/* Command lengths (words) */
+#define KEYSLOT_RDWR_RSP_WORDS 12	/* Response lengths (words) */
+#define RESPONSE_KEY_WORDS 8		/* Field lengths (words) */
+#endif
 
 /* Field lengths (bytes) */
 #define UNWRAP_CMD_LENGTH (UNWRAP_IMPORT_CMD_WORDS * sizeof(uint32_t))

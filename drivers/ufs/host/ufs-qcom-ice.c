@@ -3,7 +3,7 @@
  * Qualcomm ICE (Inline Crypto Engine) support.
  *
  * Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright 2019 Google LLC
  */
 
@@ -102,7 +102,7 @@ int ufs_qcom_ice_init(struct ufs_qcom_host *host)
 	struct device *dev = hba->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *ice_base_res;
-#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+#if (IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER) || IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1))
 	struct resource *ice_hwkm_res;
 #endif
 	int err;
@@ -128,7 +128,7 @@ int ufs_qcom_ice_init(struct ufs_qcom_host *host)
 		return err;
 	}
 
-#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+#if (IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER) || IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1))
 	ice_hwkm_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ufs_ice_hwkm");
 	if (!ice_hwkm_res) {
 		dev_warn(dev, "ICE HWKM registers not found\n");
@@ -204,7 +204,7 @@ void ufs_qcom_ice_debug(struct ufs_qcom_host *host)
 		return;
 
 	mmio_data.ice_base_mmio = host->ice_mmio;
-#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+#if (IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER) || IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1))
 	mmio_data.ice_hwkm_mmio = host->ice_hwkm_mmio;
 #endif
 
