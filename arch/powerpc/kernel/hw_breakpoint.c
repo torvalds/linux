@@ -43,16 +43,6 @@ int hw_breakpoint_slots(int type)
 	return 0;		/* no instruction breakpoints available */
 }
 
-static bool single_step_pending(void)
-{
-	int i;
-
-	for (i = 0; i < nr_wp_slots(); i++) {
-		if (current->thread.last_hit_ubp[i])
-			return true;
-	}
-	return false;
-}
 
 /*
  * Install a perf counter breakpoint.
@@ -84,7 +74,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 	 * Do not install DABR values if the instruction must be single-stepped.
 	 * If so, DABR will be populated in single_step_dabr_instruction().
 	 */
-	if (!single_step_pending())
+	if (!info->perf_single_step)
 		__set_breakpoint(i, info);
 
 	return 0;
@@ -372,28 +362,6 @@ void arch_release_bp_slot(struct perf_event *bp)
 }
 
 /*
- * Perform cleanup of arch-specific counters during unregistration
- * of the perf-event
- */
-void arch_unregister_hw_breakpoint(struct perf_event *bp)
-{
-	/*
-	 * If the breakpoint is unregistered between a hw_breakpoint_handler()
-	 * and the single_step_dabr_instruction(), then cleanup the breakpoint
-	 * restoration variables to prevent dangling pointers.
-	 * FIXME, this should not be using bp->ctx at all! Sayeth peterz.
-	 */
-	if (bp->ctx && bp->ctx->task && bp->ctx->task != ((void *)-1L)) {
-		int i;
-
-		for (i = 0; i < nr_wp_slots(); i++) {
-			if (bp->ctx->task->thread.last_hit_ubp[i] == bp)
-				bp->ctx->task->thread.last_hit_ubp[i] = NULL;
-		}
-	}
-}
-
-/*
  * Check for virtual address in kernel space.
  */
 int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw)
@@ -510,7 +478,9 @@ void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
 	int i;
 
 	for (i = 0; i < nr_wp_slots(); i++) {
-		if (unlikely(tsk->thread.last_hit_ubp[i]))
+		struct perf_event *bp = __this_cpu_read(bp_per_reg[i]);
+
+		if (unlikely(bp && counter_arch_bp(bp)->perf_single_step))
 			goto reset;
 	}
 	return;
@@ -520,7 +490,7 @@ reset:
 	for (i = 0; i < nr_wp_slots(); i++) {
 		info = counter_arch_bp(__this_cpu_read(bp_per_reg[i]));
 		__set_breakpoint(i, info);
-		tsk->thread.last_hit_ubp[i] = NULL;
+		info->perf_single_step = false;
 	}
 }
 
@@ -563,7 +533,8 @@ static bool stepping_handler(struct pt_regs *regs, struct perf_event **bp,
 		for (i = 0; i < nr_wp_slots(); i++) {
 			if (!hit[i])
 				continue;
-			current->thread.last_hit_ubp[i] = bp[i];
+
+			counter_arch_bp(bp[i])->perf_single_step = true;
 			bp[i] = NULL;
 		}
 		regs_set_return_msr(regs, regs->msr | MSR_SE);
@@ -770,23 +741,27 @@ NOKPROBE_SYMBOL(hw_breakpoint_handler);
 static int single_step_dabr_instruction(struct die_args *args)
 {
 	struct pt_regs *regs = args->regs;
-	struct perf_event *bp = NULL;
-	struct arch_hw_breakpoint *info;
-	int i;
 	bool found = false;
 
 	/*
 	 * Check if we are single-stepping as a result of a
 	 * previous HW Breakpoint exception
 	 */
-	for (i = 0; i < nr_wp_slots(); i++) {
-		bp = current->thread.last_hit_ubp[i];
+	for (int i = 0; i < nr_wp_slots(); i++) {
+		struct perf_event *bp;
+		struct arch_hw_breakpoint *info;
+
+		bp = __this_cpu_read(bp_per_reg[i]);
 
 		if (!bp)
 			continue;
 
-		found = true;
 		info = counter_arch_bp(bp);
+
+		if (!info->perf_single_step)
+			continue;
+
+		found = true;
 
 		/*
 		 * We shall invoke the user-defined callback function in the
@@ -795,19 +770,19 @@ static int single_step_dabr_instruction(struct die_args *args)
 		 */
 		if (!(info->type & HW_BRK_TYPE_EXTRANEOUS_IRQ))
 			perf_bp_event(bp, regs);
-		current->thread.last_hit_ubp[i] = NULL;
+
+		info->perf_single_step = false;
 	}
 
 	if (!found)
 		return NOTIFY_DONE;
 
-	for (i = 0; i < nr_wp_slots(); i++) {
-		bp = __this_cpu_read(bp_per_reg[i]);
+	for (int i = 0; i < nr_wp_slots(); i++) {
+		struct perf_event *bp = __this_cpu_read(bp_per_reg[i]);
 		if (!bp)
 			continue;
 
-		info = counter_arch_bp(bp);
-		__set_breakpoint(i, info);
+		__set_breakpoint(i, counter_arch_bp(bp));
 	}
 
 	/*
