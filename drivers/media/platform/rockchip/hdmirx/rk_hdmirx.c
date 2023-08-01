@@ -3172,7 +3172,7 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 							struct rk_hdmirx_dev,
 							delayed_work_audio);
 	struct hdmirx_audiostate *as = &hdmirx_dev->audio_state;
-	u32 fs_audio, ch_audio;
+	u32 fs_audio, ch_audio, sample_flat;
 	int cur_state, init_state, pre_state, fifo_status2;
 	unsigned long delay = 200;
 
@@ -3237,6 +3237,10 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 		}
 	}
 	as->pre_state = cur_state;
+
+	sample_flat = hdmirx_readl(hdmirx_dev, AUDIO_PROC_STATUS1) & AUD_SAMPLE_FLAT;
+	hdmirx_update_bits(hdmirx_dev, AUDIO_PROC_CONFIG0, I2S_EN, sample_flat ? 0 : I2S_EN);
+
 exit:
 	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
 			&hdmirx_dev->delayed_work_audio,
