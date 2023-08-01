@@ -3613,6 +3613,13 @@ struct rtw89_fw_log {
 	const char *(*fmts)[];
 };
 
+struct rtw89_fw_elm_info {
+	struct rtw89_phy_table *bb_tbl;
+	struct rtw89_phy_table *bb_gain;
+	struct rtw89_phy_table *rf_radio[RF_PATH_MAX];
+	struct rtw89_phy_table *rf_nctl;
+};
+
 struct rtw89_fw_info {
 	struct rtw89_fw_req_info req;
 	int fw_format;
@@ -3626,6 +3633,7 @@ struct rtw89_fw_info {
 	struct rtw89_fw_suit bbmcu1;
 	struct rtw89_fw_log log;
 	u32 feature_map;
+	struct rtw89_fw_elm_info elm_info;
 };
 
 #define RTW89_CHK_FW_FEATURE(_feat, _fw) \

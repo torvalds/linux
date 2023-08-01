@@ -1355,12 +1355,16 @@ static void rtw89_phy_init_reg(struct rtw89_dev *rtwdev,
 
 void rtw89_phy_init_bb_reg(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	const struct rtw89_phy_table *bb_table = chip->bb_table;
-	const struct rtw89_phy_table *bb_gain_table = chip->bb_gain_table;
+	const struct rtw89_phy_table *bb_table;
+	const struct rtw89_phy_table *bb_gain_table;
 
+	bb_table = elm_info->bb_tbl ? elm_info->bb_tbl : chip->bb_table;
 	rtw89_phy_init_reg(rtwdev, bb_table, rtw89_phy_config_bb_reg, NULL);
 	rtw89_chip_init_txpwr_unit(rtwdev, RTW89_PHY_0);
+
+	bb_gain_table = elm_info->bb_gain ? elm_info->bb_gain : chip->bb_gain_table;
 	if (bb_gain_table)
 		rtw89_phy_init_reg(rtwdev, bb_gain_table,
 				   rtw89_phy_config_bb_gain, NULL);
@@ -1378,6 +1382,7 @@ void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev, bool noio)
 {
 	void (*config)(struct rtw89_dev *rtwdev, const struct rtw89_reg2_def *reg,
 		       enum rtw89_rf_path rf_path, void *data);
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_phy_table *rf_table;
 	struct rtw89_fw_h2c_rf_reg_info *rf_reg_info;
@@ -1388,7 +1393,8 @@ void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev, bool noio)
 		return;
 
 	for (path = RF_PATH_A; path < chip->rf_path_num; path++) {
-		rf_table = chip->rf_table[path];
+		rf_table = elm_info->rf_radio[path] ?
+			   elm_info->rf_radio[path] : chip->rf_table[path];
 		rf_reg_info->rf_path = rf_table->rf_path;
 		if (noio)
 			config = rtw89_phy_config_rf_reg_noio;
@@ -1405,6 +1411,7 @@ void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev, bool noio)
 
 static void rtw89_phy_init_rf_nctl(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_phy_table *nctl_table;
 	u32 val;
@@ -1427,7 +1434,7 @@ static void rtw89_phy_init_rf_nctl(struct rtw89_dev *rtwdev)
 	if (ret)
 		rtw89_err(rtwdev, "failed to poll nctl block\n");
 
-	nctl_table = chip->nctl_table;
+	nctl_table = elm_info->rf_nctl ? elm_info->rf_nctl : chip->nctl_table;
 	rtw89_phy_init_reg(rtwdev, nctl_table, rtw89_phy_config_bb_reg, NULL);
 
 	if (chip->nctl_post_table)

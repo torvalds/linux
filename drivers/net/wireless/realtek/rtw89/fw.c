@@ -544,6 +544,68 @@ normal_done:
 	return 0;
 }
 
+static
+int rtw89_build_phy_tbl_from_elm(struct rtw89_dev *rtwdev,
+				 const struct rtw89_fw_element_hdr *elm,
+				 const void *data)
+{
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	struct rtw89_phy_table *tbl;
+	struct rtw89_reg2_def *regs;
+	enum rtw89_rf_path rf_path;
+	u32 n_regs, i;
+	u8 idx;
+
+	tbl = kzalloc(sizeof(*tbl), GFP_KERNEL);
+	if (!tbl)
+		return -ENOMEM;
+
+	switch (le32_to_cpu(elm->id)) {
+	case RTW89_FW_ELEMENT_ID_BB_REG:
+		elm_info->bb_tbl = tbl;
+		break;
+	case RTW89_FW_ELEMENT_ID_BB_GAIN:
+		elm_info->bb_gain = tbl;
+		break;
+	case RTW89_FW_ELEMENT_ID_RADIO_A:
+	case RTW89_FW_ELEMENT_ID_RADIO_B:
+	case RTW89_FW_ELEMENT_ID_RADIO_C:
+	case RTW89_FW_ELEMENT_ID_RADIO_D:
+		rf_path = (enum rtw89_rf_path)data;
+		idx = elm->u.reg2.idx;
+
+		elm_info->rf_radio[idx] = tbl;
+		tbl->rf_path = rf_path;
+		tbl->config = rtw89_phy_config_rf_reg_v1;
+		break;
+	case RTW89_FW_ELEMENT_ID_RF_NCTL:
+		elm_info->rf_nctl = tbl;
+		break;
+	default:
+		kfree(tbl);
+		return -ENOENT;
+	}
+
+	n_regs = le32_to_cpu(elm->size) / sizeof(tbl->regs[0]);
+	regs = kcalloc(n_regs, sizeof(tbl->regs[0]), GFP_KERNEL);
+	if (!regs)
+		goto out;
+
+	for (i = 0; i < n_regs; i++) {
+		regs[i].addr = le32_to_cpu(elm->u.reg2.regs[i].addr);
+		regs[i].data = le32_to_cpu(elm->u.reg2.regs[i].data);
+	}
+
+	tbl->n_regs = n_regs;
+	tbl->regs = regs;
+
+	return 0;
+
+out:
+	kfree(tbl);
+	return -ENOMEM;
+}
+
 struct rtw89_fw_element_handler {
 	int (*fn)(struct rtw89_dev *rtwdev,
 		  const struct rtw89_fw_element_hdr *elm, const void *data);
@@ -556,6 +618,17 @@ static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 					(const void *)RTW89_FW_BBMCU0, NULL},
 	[RTW89_FW_ELEMENT_ID_BBMCU1] = {__rtw89_fw_recognize_from_elm,
 					(const void *)RTW89_FW_BBMCU1, NULL},
+	[RTW89_FW_ELEMENT_ID_BB_REG] = {rtw89_build_phy_tbl_from_elm, NULL, "BB"},
+	[RTW89_FW_ELEMENT_ID_BB_GAIN] = {rtw89_build_phy_tbl_from_elm, NULL, NULL},
+	[RTW89_FW_ELEMENT_ID_RADIO_A] = {rtw89_build_phy_tbl_from_elm,
+					 (const void *)RF_PATH_A, "radio A"},
+	[RTW89_FW_ELEMENT_ID_RADIO_B] = {rtw89_build_phy_tbl_from_elm,
+					 (const void *)RF_PATH_B, NULL},
+	[RTW89_FW_ELEMENT_ID_RADIO_C] = {rtw89_build_phy_tbl_from_elm,
+					 (const void *)RF_PATH_C, NULL},
+	[RTW89_FW_ELEMENT_ID_RADIO_D] = {rtw89_build_phy_tbl_from_elm,
+					 (const void *)RF_PATH_D, NULL},
+	[RTW89_FW_ELEMENT_ID_RF_NCTL] = {rtw89_build_phy_tbl_from_elm, NULL, "NCTL"},
 };
 
 int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev)
@@ -903,6 +976,27 @@ void rtw89_load_firmware_work(struct work_struct *work)
 	rtw89_load_firmware_req(rtwdev, &rtwdev->fw.req, fw_name, false);
 }
 
+static void rtw89_free_phy_tbl_from_elm(struct rtw89_phy_table *tbl)
+{
+	if (!tbl)
+		return;
+
+	kfree(tbl->regs);
+	kfree(tbl);
+}
+
+static void rtw89_unload_firmware_elements(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	int i;
+
+	rtw89_free_phy_tbl_from_elm(elm_info->bb_tbl);
+	rtw89_free_phy_tbl_from_elm(elm_info->bb_gain);
+	for (i = 0; i < ARRAY_SIZE(elm_info->rf_radio); i++)
+		rtw89_free_phy_tbl_from_elm(elm_info->rf_radio[i]);
+	rtw89_free_phy_tbl_from_elm(elm_info->rf_nctl);
+}
+
 void rtw89_unload_firmware(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_fw_info *fw = &rtwdev->fw;
@@ -919,6 +1013,7 @@ void rtw89_unload_firmware(struct rtw89_dev *rtwdev)
 	}
 
 	kfree(fw->log.fmts);
+	rtw89_unload_firmware_elements(rtwdev);
 }
 
 static u32 rtw89_fw_log_get_fmt_idx(struct rtw89_dev *rtwdev, u32 fmt_id)
