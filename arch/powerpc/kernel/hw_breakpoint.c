@@ -538,23 +538,22 @@ static bool is_octword_vsx_instr(int type, int size)
  * We've failed in reliably handling the hw-breakpoint. Unregister
  * it and throw a warning message to let the user know about it.
  */
-static void handler_error(struct perf_event *bp, struct arch_hw_breakpoint *info)
+static void handler_error(struct perf_event *bp)
 {
 	WARN(1, "Unable to handle hardware breakpoint. Breakpoint at 0x%lx will be disabled.",
-	     info->address);
+	     counter_arch_bp(bp)->address);
 	perf_event_disable_inatomic(bp);
 }
 
-static void larx_stcx_err(struct perf_event *bp, struct arch_hw_breakpoint *info)
+static void larx_stcx_err(struct perf_event *bp)
 {
 	printk_ratelimited("Breakpoint hit on instruction that can't be emulated. Breakpoint at 0x%lx will be disabled.\n",
-			   info->address);
+			   counter_arch_bp(bp)->address);
 	perf_event_disable_inatomic(bp);
 }
 
 static bool stepping_handler(struct pt_regs *regs, struct perf_event **bp,
-			     struct arch_hw_breakpoint **info, int *hit,
-			     ppc_inst_t instr)
+			     int *hit, ppc_inst_t instr)
 {
 	int i;
 	int stepped;
@@ -565,7 +564,7 @@ static bool stepping_handler(struct pt_regs *regs, struct perf_event **bp,
 			if (!hit[i])
 				continue;
 			current->thread.last_hit_ubp[i] = bp[i];
-			info[i] = NULL;
+			bp[i] = NULL;
 		}
 		regs_set_return_msr(regs, regs->msr | MSR_SE);
 		return false;
@@ -576,15 +575,15 @@ static bool stepping_handler(struct pt_regs *regs, struct perf_event **bp,
 		for (i = 0; i < nr_wp_slots(); i++) {
 			if (!hit[i])
 				continue;
-			handler_error(bp[i], info[i]);
-			info[i] = NULL;
+			handler_error(bp[i]);
+			bp[i] = NULL;
 		}
 		return false;
 	}
 	return true;
 }
 
-static void handle_p10dd1_spurious_exception(struct arch_hw_breakpoint **info,
+static void handle_p10dd1_spurious_exception(struct perf_event **bp,
 					     int *hit, unsigned long ea)
 {
 	int i;
@@ -596,10 +595,14 @@ static void handle_p10dd1_spurious_exception(struct arch_hw_breakpoint **info,
 	 * spurious exception.
 	 */
 	for (i = 0; i < nr_wp_slots(); i++) {
-		if (!info[i])
+		struct arch_hw_breakpoint *info;
+
+		if (!bp[i])
 			continue;
 
-		hw_end_addr = ALIGN(info[i]->address + info[i]->len, HW_BREAKPOINT_SIZE);
+		info = counter_arch_bp(bp[i]);
+
+		hw_end_addr = ALIGN(info->address + info->len, HW_BREAKPOINT_SIZE);
 
 		/*
 		 * Ending address of DAWR range is less than starting
@@ -629,9 +632,9 @@ static void handle_p10dd1_spurious_exception(struct arch_hw_breakpoint **info,
 		return;
 
 	for (i = 0; i < nr_wp_slots(); i++) {
-		if (info[i]) {
+		if (bp[i]) {
 			hit[i] = 1;
-			info[i]->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
+			counter_arch_bp(bp[i])->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
 		}
 	}
 }
@@ -642,7 +645,6 @@ int hw_breakpoint_handler(struct die_args *args)
 	int rc = NOTIFY_STOP;
 	struct perf_event *bp[HBP_NUM_MAX] = { NULL };
 	struct pt_regs *regs = args->regs;
-	struct arch_hw_breakpoint *info[HBP_NUM_MAX] = { NULL };
 	int i;
 	int hit[HBP_NUM_MAX] = {0};
 	int nr_hit = 0;
@@ -667,18 +669,20 @@ int hw_breakpoint_handler(struct die_args *args)
 		wp_get_instr_detail(regs, &instr, &type, &size, &ea);
 
 	for (i = 0; i < nr_wp_slots(); i++) {
+		struct arch_hw_breakpoint *info;
+
 		bp[i] = __this_cpu_read(bp_per_reg[i]);
 		if (!bp[i])
 			continue;
 
-		info[i] = counter_arch_bp(bp[i]);
-		info[i]->type &= ~HW_BRK_TYPE_EXTRANEOUS_IRQ;
+		info = counter_arch_bp(bp[i]);
+		info->type &= ~HW_BRK_TYPE_EXTRANEOUS_IRQ;
 
-		if (wp_check_constraints(regs, instr, ea, type, size, info[i])) {
+		if (wp_check_constraints(regs, instr, ea, type, size, info)) {
 			if (!IS_ENABLED(CONFIG_PPC_8xx) &&
 			    ppc_inst_equal(instr, ppc_inst(0))) {
-				handler_error(bp[i], info[i]);
-				info[i] = NULL;
+				handler_error(bp[i]);
+				bp[i] = NULL;
 				err = 1;
 				continue;
 			}
@@ -697,7 +701,7 @@ int hw_breakpoint_handler(struct die_args *args)
 		/* Workaround for Power10 DD1 */
 		if (!IS_ENABLED(CONFIG_PPC_8xx) && mfspr(SPRN_PVR) == 0x800100 &&
 		    is_octword_vsx_instr(type, size)) {
-			handle_p10dd1_spurious_exception(info, hit, ea);
+			handle_p10dd1_spurious_exception(bp, hit, ea);
 		} else {
 			rc = NOTIFY_DONE;
 			goto out;
@@ -715,7 +719,7 @@ int hw_breakpoint_handler(struct die_args *args)
 			if (!hit[i])
 				continue;
 			perf_bp_event(bp[i], regs);
-			info[i] = NULL;
+			bp[i] = NULL;
 		}
 		rc = NOTIFY_DONE;
 		goto reset;
@@ -726,13 +730,13 @@ int hw_breakpoint_handler(struct die_args *args)
 			for (i = 0; i < nr_wp_slots(); i++) {
 				if (!hit[i])
 					continue;
-				larx_stcx_err(bp[i], info[i]);
-				info[i] = NULL;
+				larx_stcx_err(bp[i]);
+				bp[i] = NULL;
 			}
 			goto reset;
 		}
 
-		if (!stepping_handler(regs, bp, info, hit, instr))
+		if (!stepping_handler(regs, bp, hit, instr))
 			goto reset;
 	}
 
@@ -743,15 +747,15 @@ int hw_breakpoint_handler(struct die_args *args)
 	for (i = 0; i < nr_wp_slots(); i++) {
 		if (!hit[i])
 			continue;
-		if (!(info[i]->type & HW_BRK_TYPE_EXTRANEOUS_IRQ))
+		if (!(counter_arch_bp(bp[i])->type & HW_BRK_TYPE_EXTRANEOUS_IRQ))
 			perf_bp_event(bp[i], regs);
 	}
 
 reset:
 	for (i = 0; i < nr_wp_slots(); i++) {
-		if (!info[i])
+		if (!bp[i])
 			continue;
-		__set_breakpoint(i, info[i]);
+		__set_breakpoint(i, counter_arch_bp(bp[i]));
 	}
 
 out:
