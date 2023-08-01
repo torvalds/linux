@@ -264,7 +264,7 @@ EOF
 fi
 
 cat <<EOF > debian/rules
-#!$(command -v $MAKE) -f
+#!/usr/bin/make -f
 
 srctree ?= .
 KERNELRELEASE = ${KERNELRELEASE}
