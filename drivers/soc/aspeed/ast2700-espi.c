@@ -1511,11 +1511,13 @@ static void ast2700_espi_flash_reset(struct ast2700_espi *espi)
 	writel(0x0, espi->regs + ESPI_CH3_INT_EN);
 	writel(0xffffffff, espi->regs + ESPI_CH3_INT_STS);
 
-	mask = ~(flash->edaf.size - 1);
-	writel(mask >> 32, espi->regs + ESPI_CH3_EDAF_MASKH);
-	writel(mask & 0xffffffff, espi->regs + ESPI_CH3_EDAF_MASKL);
-	writel(flash->edaf.taddr >> 32, espi->regs + ESPI_CH3_EDAF_TADDRH);
-	writel(flash->edaf.taddr & 0xffffffff, espi->regs + ESPI_CH3_EDAF_TADDRL);
+	if (flash->edaf.mode == EDAF_MODE_MIX) {
+		mask = ~(flash->edaf.size - 1);
+		writel(mask >> 32, espi->regs + ESPI_CH3_EDAF_MASKH);
+		writel(mask & 0xffffffff, espi->regs + ESPI_CH3_EDAF_MASKL);
+		writel(flash->edaf.taddr >> 32, espi->regs + ESPI_CH3_EDAF_TADDRH);
+		writel(flash->edaf.taddr & 0xffffffff, espi->regs + ESPI_CH3_EDAF_TADDRL);
+	}
 
 	reg = readl(espi->regs + ESPI_CH3_CTRL)
 	      | FIELD_PREP(ESPI_CH3_CTRL_EDAF_MODE, flash->edaf.mode);
@@ -1559,7 +1561,7 @@ static int ast2700_espi_flash_probe(struct ast2700_espi *espi)
 	flash->edaf.mode = EDAF_MODE_HW;
 
 	of_property_read_u32(dev->of_node, "flash-edaf-mode", &flash->edaf.mode);
-	if (flash->edaf.mode != EDAF_MODE_SW) {
+	if (flash->edaf.mode == EDAF_MODE_MIX) {
 		rc = of_property_read_u64(dev->of_node, "flash-edaf-tgt-addr", &flash->edaf.taddr);
 		if (rc || !IS_ALIGNED(flash->edaf.taddr, FLASH_EDAF_ALIGN)) {
 			dev_err(dev, "cannot get 16MB-aligned eDAF address\n");
