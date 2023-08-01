@@ -253,8 +253,9 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 
 static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 {
-	struct lowcore *lc = lowcore_ptr[cpu];
+	struct lowcore *lc, *abs_lc;
 
+	lc = lowcore_ptr[cpu];
 	cpumask_set_cpu(cpu, &init_mm.context.cpu_attach_mask);
 	cpumask_set_cpu(cpu, mm_cpumask(&init_mm));
 	lc->cpu_nr = cpu;
@@ -267,7 +268,9 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	lc->machine_flags = S390_lowcore.machine_flags;
 	lc->user_timer = lc->system_timer =
 		lc->steal_timer = lc->avg_steal_timer = 0;
-	__ctl_store(lc->cregs_save_area, 0, 15);
+	abs_lc = get_abs_lowcore();
+	memcpy(lc->cregs_save_area, abs_lc->cregs_save_area, sizeof(lc->cregs_save_area));
+	put_abs_lowcore(abs_lc);
 	lc->cregs_save_area[1] = lc->kernel_asce;
 	lc->cregs_save_area[7] = lc->user_asce;
 	save_access_regs((unsigned int *) lc->access_regs_save_area);
@@ -607,8 +610,8 @@ void smp_ctl_set_clear_bit(int cr, int bit, bool set)
 	ctlreg = (ctlreg & parms.andval) | parms.orval;
 	abs_lc->cregs_save_area[cr] = ctlreg;
 	put_abs_lowcore(abs_lc);
-	spin_unlock(&ctl_lock);
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
+	spin_unlock(&ctl_lock);
 }
 EXPORT_SYMBOL(smp_ctl_set_clear_bit);
 
@@ -928,12 +931,18 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	rc = pcpu_alloc_lowcore(pcpu, cpu);
 	if (rc)
 		return rc;
+	/*
+	 * Make sure global control register contents do not change
+	 * until new CPU has initialized control registers.
+	 */
+	spin_lock(&ctl_lock);
 	pcpu_prepare_secondary(pcpu, cpu);
 	pcpu_attach_task(pcpu, tidle);
 	pcpu_start_fn(pcpu, smp_start_secondary, NULL);
 	/* Wait until cpu puts itself in the online & active maps */
 	while (!cpu_online(cpu))
 		cpu_relax();
+	spin_unlock(&ctl_lock);
 	return 0;
 }
 
