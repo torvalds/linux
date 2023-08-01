@@ -457,9 +457,10 @@ static int get_phy_data_by_efuse(struct rtk_phy *rtk_phy,
 		size_t buf_size;
 
 		buf = nvmem_cell_read(cell, &buf_size);
-		value = buf[0] & USB_U3_TX_LFPS_SWING_TRIM_MASK;
-
-		kfree(buf);
+		if (!IS_ERR(buf)) {
+			value = buf[0] & USB_U3_TX_LFPS_SWING_TRIM_MASK;
+			kfree(buf);
+		}
 		nvmem_cell_put(cell);
 	}
 

@@ -898,9 +898,10 @@ static int get_phy_data_by_efuse(struct rtk_phy *rtk_phy,
 		size_t buf_size;
 
 		buf = nvmem_cell_read(cell, &buf_size);
-		value = buf[0] & phy_cfg->dc_driving_mask;
-
-		kfree(buf);
+		if (!IS_ERR(buf)) {
+			value = buf[0] & phy_cfg->dc_driving_mask;
+			kfree(buf);
+		}
 		nvmem_cell_put(cell);
 	}
 
@@ -939,9 +940,10 @@ static int get_phy_data_by_efuse(struct rtk_phy *rtk_phy,
 		size_t buf_size;
 
 		buf = nvmem_cell_read(cell, &buf_size);
-		value = buf[0] & phy_cfg->dc_disconnect_mask;
-
-		kfree(buf);
+		if (!IS_ERR(buf)) {
+			value = buf[0] & phy_cfg->dc_disconnect_mask;
+			kfree(buf);
+		}
 		nvmem_cell_put(cell);
 	}
 
