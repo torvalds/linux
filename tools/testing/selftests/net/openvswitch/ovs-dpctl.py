@@ -160,25 +160,45 @@ def parse_ct_state(statestr):
     return parse_flags(statestr, ct_flags)
 
 
-def convert_mac(mac_str, mask=False):
-    if mac_str is None or mac_str == "":
-        mac_str = "00:00:00:00:00:00"
-    if mask is True and mac_str != "00:00:00:00:00:00":
-        mac_str = "FF:FF:FF:FF:FF:FF"
-    mac_split = mac_str.split(":")
-    ret = bytearray([int(i, 16) for i in mac_split])
-    return bytes(ret)
+def convert_mac(data):
+    def to_bytes(mac):
+        mac_split = mac.split(":")
+        ret = bytearray([int(i, 16) for i in mac_split])
+        return bytes(ret)
 
+    mac_str, _, mask_str = data.partition('/')
 
-def convert_ipv4(ip, mask=False):
-    if ip is None:
-        ip = 0
-    if mask is True:
-        if ip != 0:
-            ip = int(ipaddress.IPv4Address(ip)) & 0xFFFFFFFF
+    if not mac_str:
+        mac_str = mask_str = "00:00:00:00:00:00"
+    elif not mask_str:
+        mask_str = "FF:FF:FF:FF:FF:FF"
 
-    return int(ipaddress.IPv4Address(ip))
+    return to_bytes(mac_str), to_bytes(mask_str)
 
+def convert_ipv4(data):
+    ip, _, mask = data.partition('/')
+
+    if not ip:
+        ip = mask = 0
+    elif not mask:
+        mask = 0xFFFFFFFF
+    elif mask.isdigit():
+        mask = (0xFFFFFFFF << (32 - int(mask))) & 0xFFFFFFFF
+
+    return int(ipaddress.IPv4Address(ip)), int(ipaddress.IPv4Address(mask))
+
+def convert_int(size):
+    def convert_int_sized(data):
+        value, _, mask = data.partition('/')
+
+        if not value:
+            return 0, 0
+        elif not mask:
+            return int(value, 0), pow(2, size) - 1
+        else:
+            return int(value, 0), int(mask, 0)
+
+    return convert_int_sized
 
 def parse_starts_block(block_str, scanstr, returnskipped, scanregex=False):
     if scanregex:
@@ -525,8 +545,10 @@ class ovskey(nla):
         )
 
         fields_map = (
-            ("src", "src", "%d", lambda x: int(x) if x is not None else 0),
-            ("dst", "dst", "%d", lambda x: int(x) if x is not None else 0),
+            ("src", "src", "%d", lambda x: int(x) if x else 0,
+                convert_int(16)),
+            ("dst", "dst", "%d", lambda x: int(x) if x else 0,
+                convert_int(16)),
         )
 
         def __init__(
@@ -575,17 +597,13 @@ class ovskey(nla):
                     data = flowstr[:splitchar]
                     flowstr = flowstr[splitchar:]
                 else:
-                    data = None
+                    data = ""
 
                 if len(f) > 4:
-                    func = f[4]
+                    k[f[0]], m[f[0]] = f[4](data)
                 else:
-                    func = f[3]
-                k[f[0]] = func(data)
-                if len(f) > 4:
-                    m[f[0]] = func(data, True)
-                else:
-                    m[f[0]] = func(data)
+                    k[f[0]] = f[3](data)
+                    m[f[0]] = f[3](data)
 
                 flowstr = flowstr[strspn(flowstr, ", ") :]
                 if len(flowstr) == 0:
@@ -689,10 +707,14 @@ class ovskey(nla):
                 int,
                 convert_ipv4,
             ),
-            ("proto", "proto", "%d", lambda x: int(x) if x is not None else 0),
-            ("tos", "tos", "%d", lambda x: int(x) if x is not None else 0),
-            ("ttl", "ttl", "%d", lambda x: int(x) if x is not None else 0),
-            ("frag", "frag", "%d", lambda x: int(x) if x is not None else 0),
+            ("proto", "proto", "%d", lambda x: int(x) if x else 0,
+                convert_int(8)),
+            ("tos", "tos", "%d", lambda x: int(x) if x else 0,
+                convert_int(8)),
+            ("ttl", "ttl", "%d", lambda x: int(x) if x else 0,
+                convert_int(8)),
+            ("frag", "frag", "%d", lambda x: int(x) if x else 0,
+                convert_int(8)),
         )
 
         def __init__(
@@ -828,8 +850,8 @@ class ovskey(nla):
         )
 
         fields_map = (
-            ("type", "type", "%d", int),
-            ("code", "code", "%d", int),
+            ("type", "type", "%d", lambda x: int(x) if x else 0),
+            ("code", "code", "%d", lambda x: int(x) if x else 0),
         )
 
         def __init__(
@@ -894,7 +916,7 @@ class ovskey(nla):
                 int,
                 convert_ipv4,
             ),
-            ("op", "op", "%d", lambda x: int(x) if x is not None else 0),
+            ("op", "op", "%d", lambda x: int(x) if x else 0),
             (
                 "sha",
                 "sha",
@@ -1097,6 +1119,16 @@ class ovskey(nla):
                 "OVS_KEY_ATTR_TCP",
                 "tcp",
                 ovskey.ovs_key_tcp,
+            ),
+            (
+                "OVS_KEY_ATTR_UDP",
+                "udp",
+                ovskey.ovs_key_udp,
+            ),
+            (
+                "OVS_KEY_ATTR_ICMP",
+                "icmp",
+                ovskey.ovs_key_icmp,
             ),
             (
                 "OVS_KEY_ATTR_TCP_FLAGS",
