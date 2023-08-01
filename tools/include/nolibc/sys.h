@@ -753,6 +753,30 @@ int open(const char *path, int flags, ...)
 
 
 /*
+ * int pipe2(int pipefd[2], int flags);
+ * int pipe(int pipefd[2]);
+ */
+
+static __attribute__((unused))
+int sys_pipe2(int pipefd[2], int flags)
+{
+	return my_syscall2(__NR_pipe2, pipefd, flags);
+}
+
+static __attribute__((unused))
+int pipe2(int pipefd[2], int flags)
+{
+	return __sysret(sys_pipe2(pipefd, flags));
+}
+
+static __attribute__((unused))
+int pipe(int pipefd[2])
+{
+	return pipe2(pipefd, 0);
+}
+
+
+/*
  * int prctl(int option, unsigned long arg2, unsigned long arg3,
  *                       unsigned long arg4, unsigned long arg5);
  */
