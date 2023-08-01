@@ -5128,6 +5128,11 @@ static inline bool netif_is_ovs_port(const struct net_device *dev)
 	return dev->priv_flags & IFF_OVS_DATAPATH;
 }
 
+static inline bool netif_is_any_bridge_master(const struct net_device *dev)
+{
+	return netif_is_bridge_master(dev) || netif_is_ovs_master(dev);
+}
+
 static inline bool netif_is_any_bridge_port(const struct net_device *dev)
 {
 	return netif_is_bridge_port(dev) || netif_is_ovs_port(dev);
