@@ -2151,28 +2151,27 @@ struct pipe_ctx *dcn20_acquire_free_pipe_for_layer(
 		const struct dc_state *cur_ctx,
 		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
-		const struct pipe_ctx *opp_head_pipe)
+		const struct pipe_ctx *opp_head)
 {
 	struct resource_context *res_ctx = &new_ctx->res_ctx;
-	struct pipe_ctx *head_pipe = resource_get_head_pipe_for_stream(res_ctx, opp_head_pipe->stream);
-	struct pipe_ctx *idle_pipe = find_free_secondary_pipe_legacy(res_ctx, pool, head_pipe);
+	struct pipe_ctx *otg_master = resource_get_head_pipe_for_stream(res_ctx, opp_head->stream);
+	struct pipe_ctx *sec_dpp_pipe = find_free_secondary_pipe_legacy(res_ctx, pool, otg_master);
 
-	if (!head_pipe)
-		ASSERT(0);
+	ASSERT(otg_master);
 
-	if (!idle_pipe)
+	if (!sec_dpp_pipe)
 		return NULL;
 
-	idle_pipe->stream = head_pipe->stream;
-	idle_pipe->stream_res.tg = head_pipe->stream_res.tg;
-	idle_pipe->stream_res.opp = head_pipe->stream_res.opp;
+	sec_dpp_pipe->stream = opp_head->stream;
+	sec_dpp_pipe->stream_res.tg = opp_head->stream_res.tg;
+	sec_dpp_pipe->stream_res.opp = opp_head->stream_res.opp;
 
-	idle_pipe->plane_res.hubp = pool->hubps[idle_pipe->pipe_idx];
-	idle_pipe->plane_res.ipp = pool->ipps[idle_pipe->pipe_idx];
-	idle_pipe->plane_res.dpp = pool->dpps[idle_pipe->pipe_idx];
-	idle_pipe->plane_res.mpcc_inst = pool->dpps[idle_pipe->pipe_idx]->inst;
+	sec_dpp_pipe->plane_res.hubp = pool->hubps[sec_dpp_pipe->pipe_idx];
+	sec_dpp_pipe->plane_res.ipp = pool->ipps[sec_dpp_pipe->pipe_idx];
+	sec_dpp_pipe->plane_res.dpp = pool->dpps[sec_dpp_pipe->pipe_idx];
+	sec_dpp_pipe->plane_res.mpcc_inst = pool->dpps[sec_dpp_pipe->pipe_idx]->inst;
 
-	return idle_pipe;
+	return sec_dpp_pipe;
 }
 
 bool dcn20_get_dcc_compression_cap(const struct dc *dc,
