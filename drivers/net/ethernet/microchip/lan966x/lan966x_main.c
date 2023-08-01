@@ -450,39 +450,44 @@ static int lan966x_port_get_parent_id(struct net_device *dev,
 	return 0;
 }
 
-static int lan966x_port_ioctl(struct net_device *dev, struct ifreq *ifr,
-			      int cmd)
+static int lan966x_port_hwtstamp_get(struct net_device *dev,
+				     struct kernel_hwtstamp_config *cfg)
+{
+	struct lan966x_port *port = netdev_priv(dev);
+
+	if (phy_has_hwtstamp(dev->phydev))
+		return phy_mii_ioctl(dev->phydev, cfg->ifr, SIOCGHWTSTAMP);
+
+	if (!port->lan966x->ptp)
+		return -EOPNOTSUPP;
+
+	lan966x_ptp_hwtstamp_get(port, cfg);
+
+	return 0;
+}
+
+static int lan966x_port_hwtstamp_set(struct net_device *dev,
+				     struct kernel_hwtstamp_config *cfg,
+				     struct netlink_ext_ack *extack)
 {
 	struct lan966x_port *port = netdev_priv(dev);
 	int err;
 
-	if (cmd == SIOCSHWTSTAMP) {
-		err = lan966x_ptp_setup_traps(port, ifr);
+	err = lan966x_ptp_setup_traps(port, cfg);
+	if (err)
+		return err;
+
+	if (phy_has_hwtstamp(dev->phydev)) {
+		err = phy_mii_ioctl(dev->phydev, cfg->ifr, SIOCSHWTSTAMP);
 		if (err)
-			return err;
+			lan966x_ptp_del_traps(port);
+		return err;
 	}
 
-	if (!phy_has_hwtstamp(dev->phydev) && port->lan966x->ptp) {
-		switch (cmd) {
-		case SIOCSHWTSTAMP:
-			err = lan966x_ptp_hwtstamp_set(port, ifr);
-			if (err)
-				lan966x_ptp_del_traps(port);
+	if (!port->lan966x->ptp)
+		return -EOPNOTSUPP;
 
-			return err;
-		case SIOCGHWTSTAMP:
-			return lan966x_ptp_hwtstamp_get(port, ifr);
-		}
-	}
-
-	if (!dev->phydev)
-		return -ENODEV;
-
-	err = phy_mii_ioctl(dev->phydev, ifr, cmd);
-	if (err && cmd == SIOCSHWTSTAMP)
-		lan966x_ptp_del_traps(port);
-
-	return err;
+	return lan966x_ptp_hwtstamp_set(port, cfg, extack);
 }
 
 static const struct net_device_ops lan966x_port_netdev_ops = {
@@ -495,10 +500,12 @@ static const struct net_device_ops lan966x_port_netdev_ops = {
 	.ndo_get_stats64		= lan966x_stats_get,
 	.ndo_set_mac_address		= lan966x_port_set_mac_address,
 	.ndo_get_port_parent_id		= lan966x_port_get_parent_id,
-	.ndo_eth_ioctl			= lan966x_port_ioctl,
+	.ndo_eth_ioctl			= phy_do_ioctl,
 	.ndo_setup_tc			= lan966x_tc_setup,
 	.ndo_bpf			= lan966x_xdp,
 	.ndo_xdp_xmit			= lan966x_xdp_xmit,
+	.ndo_hwtstamp_get		= lan966x_port_hwtstamp_get,
+	.ndo_hwtstamp_set		= lan966x_port_hwtstamp_set,
 };
 
 bool lan966x_netdevice_check(const struct net_device *dev)
