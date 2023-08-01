@@ -209,4 +209,9 @@ int emac_set_port_state(struct prueth_emac *emac,
 			enum icssg_port_state_cmd state);
 void icssg_config_set_speed(struct prueth_emac *emac);
 
+/* Buffer queue helpers */
+int icssg_queue_pop(struct prueth *prueth, u8 queue);
+void icssg_queue_push(struct prueth *prueth, int queue, u16 addr);
+u32 icssg_queue_level(struct prueth *prueth, int queue);
+
 #endif /* __NET_TI_ICSSG_PRUETH_H */
