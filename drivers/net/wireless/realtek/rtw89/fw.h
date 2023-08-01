@@ -475,6 +475,22 @@ struct rtw89_fw_hdr {
 #define FW_HDR_W7_DYN_HDR BIT(16)
 #define FW_HDR_W7_CMD_VERSERION GENMASK(31, 24)
 
+struct rtw89_fw_hdr_section_v1 {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+} __packed;
+
+#define FWSECTION_HDR_V1_W0_DL_ADDR GENMASK(31, 0)
+#define FWSECTION_HDR_V1_W1_METADATA GENMASK(31, 24)
+#define FWSECTION_HDR_V1_W1_SECTIONTYPE GENMASK(27, 24)
+#define FWSECTION_HDR_V1_W1_SEC_SIZE GENMASK(23, 0)
+#define FWSECTION_HDR_V1_W1_CHECKSUM BIT(28)
+#define FWSECTION_HDR_V1_W1_REDL BIT(29)
+#define FWSECTION_HDR_V1_W2_MSSC GENMASK(7, 0)
+#define FWSECTION_HDR_V1_W2_BBMCU_IDX GENMASK(27, 24)
+
 struct rtw89_fw_hdr_v1 {
 	__le32 w0;
 	__le32 w1;
@@ -488,6 +504,7 @@ struct rtw89_fw_hdr_v1 {
 	__le32 w9;
 	__le32 w10;
 	__le32 w11;
+	struct rtw89_fw_hdr_section_v1 sections[];
 } __packed;
 
 #define FW_HDR_V1_W1_MAJOR_VERSION GENMASK(7, 0)

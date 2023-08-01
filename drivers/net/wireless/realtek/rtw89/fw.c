@@ -86,8 +86,8 @@ int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static int rtw89_fw_hdr_parser(struct rtw89_dev *rtwdev, const u8 *fw, u32 len,
-			       struct rtw89_fw_bin_info *info)
+static int rtw89_fw_hdr_parser_v0(struct rtw89_dev *rtwdev, const u8 *fw, u32 len,
+				  struct rtw89_fw_bin_info *info)
 {
 	const struct rtw89_fw_hdr *fw_hdr = (const struct rtw89_fw_hdr *)fw;
 	struct rtw89_fw_hdr_section_info *section_info;
@@ -152,6 +152,94 @@ static int rtw89_fw_hdr_parser(struct rtw89_dev *rtwdev, const u8 *fw, u32 len,
 	}
 
 	return 0;
+}
+
+static int rtw89_fw_hdr_parser_v1(struct rtw89_dev *rtwdev, const u8 *fw, u32 len,
+				  struct rtw89_fw_bin_info *info)
+{
+	const struct rtw89_fw_hdr_v1 *fw_hdr = (const struct rtw89_fw_hdr_v1 *)fw;
+	struct rtw89_fw_hdr_section_info *section_info;
+	const struct rtw89_fw_dynhdr_hdr *fwdynhdr;
+	const struct rtw89_fw_hdr_section_v1 *section;
+	const u8 *fw_end = fw + len;
+	const u8 *bin;
+	u32 base_hdr_len;
+	u32 mssc_len = 0;
+	u32 i;
+
+	info->section_num = le32_get_bits(fw_hdr->w6, FW_HDR_V1_W6_SEC_NUM);
+	base_hdr_len = struct_size(fw_hdr, sections, info->section_num);
+	info->dynamic_hdr_en = le32_get_bits(fw_hdr->w7, FW_HDR_V1_W7_DYN_HDR);
+
+	if (info->dynamic_hdr_en) {
+		info->hdr_len = le32_get_bits(fw_hdr->w5, FW_HDR_V1_W5_HDR_SIZE);
+		info->dynamic_hdr_len = info->hdr_len - base_hdr_len;
+		fwdynhdr = (const struct rtw89_fw_dynhdr_hdr *)(fw + base_hdr_len);
+		if (le32_to_cpu(fwdynhdr->hdr_len) != info->dynamic_hdr_len) {
+			rtw89_err(rtwdev, "[ERR]invalid fw dynamic header len\n");
+			return -EINVAL;
+		}
+	} else {
+		info->hdr_len = base_hdr_len;
+		info->dynamic_hdr_len = 0;
+	}
+
+	bin = fw + info->hdr_len;
+
+	/* jump to section header */
+	section_info = info->section_info;
+	for (i = 0; i < info->section_num; i++) {
+		section = &fw_hdr->sections[i];
+		section_info->type =
+			le32_get_bits(section->w1, FWSECTION_HDR_V1_W1_SECTIONTYPE);
+		if (section_info->type == FWDL_SECURITY_SECTION_TYPE) {
+			section_info->mssc =
+				le32_get_bits(section->w2, FWSECTION_HDR_V1_W2_MSSC);
+			mssc_len += section_info->mssc * FWDL_SECURITY_SIGLEN;
+		} else {
+			section_info->mssc = 0;
+		}
+
+		section_info->len =
+			le32_get_bits(section->w1, FWSECTION_HDR_V1_W1_SEC_SIZE);
+		if (le32_get_bits(section->w1, FWSECTION_HDR_V1_W1_CHECKSUM))
+			section_info->len += FWDL_SECTION_CHKSUM_LEN;
+		section_info->redl = le32_get_bits(section->w1, FWSECTION_HDR_V1_W1_REDL);
+		section_info->dladdr =
+			le32_get_bits(section->w0, FWSECTION_HDR_V1_W0_DL_ADDR);
+		section_info->addr = bin;
+		bin += section_info->len;
+		section_info++;
+	}
+
+	if (fw_end != bin + mssc_len) {
+		rtw89_err(rtwdev, "[ERR]fw bin size\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rtw89_fw_hdr_parser(struct rtw89_dev *rtwdev,
+			       const struct rtw89_fw_suit *fw_suit,
+			       struct rtw89_fw_bin_info *info)
+{
+	const u8 *fw = fw_suit->data;
+	u32 len = fw_suit->size;
+
+	if (!fw || !len) {
+		rtw89_err(rtwdev, "fw type %d isn't recognized\n", fw_suit->type);
+		return -ENOENT;
+	}
+
+	switch (fw_suit->hdr_ver) {
+	case 0:
+		return rtw89_fw_hdr_parser_v0(rtwdev, fw, len, info);
+	case 1:
+		return rtw89_fw_hdr_parser_v1(rtwdev, fw, len, info);
+	default:
+		return -ENOENT;
+	}
 }
 
 static
@@ -621,8 +709,6 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 	struct rtw89_fw_suit *fw_suit = rtw89_fw_suit_get(rtwdev, type);
 	struct rtw89_fw_bin_info info;
-	const u8 *fw = fw_suit->data;
-	u32 len = fw_suit->size;
 	u8 val;
 	int ret;
 
@@ -631,12 +717,7 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 	if (ret)
 		return ret;
 
-	if (!fw || !len) {
-		rtw89_err(rtwdev, "fw type %d isn't recognized\n", type);
-		return -ENOENT;
-	}
-
-	ret = rtw89_fw_hdr_parser(rtwdev, fw, len, &info);
+	ret = rtw89_fw_hdr_parser(rtwdev, fw_suit, &info);
 	if (ret) {
 		rtw89_err(rtwdev, "parse fw header fail\n");
 		goto fwdl_err;
@@ -650,13 +731,14 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 		goto fwdl_err;
 	}
 
-	ret = rtw89_fw_download_hdr(rtwdev, fw, info.hdr_len - info.dynamic_hdr_len);
+	ret = rtw89_fw_download_hdr(rtwdev, fw_suit->data, info.hdr_len -
+							   info.dynamic_hdr_len);
 	if (ret) {
 		ret = -EBUSY;
 		goto fwdl_err;
 	}
 
-	ret = rtw89_fw_download_main(rtwdev, fw, &info);
+	ret = rtw89_fw_download_main(rtwdev, fw_suit->data, &info);
 	if (ret) {
 		ret = -EBUSY;
 		goto fwdl_err;
