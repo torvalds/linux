@@ -463,7 +463,9 @@ struct rtw89_fw_hdr {
 #define FW_HDR_W1_MINOR_VERSION GENMASK(15, 8)
 #define FW_HDR_W1_SUBVERSION GENMASK(23, 16)
 #define FW_HDR_W1_SUBINDEX GENMASK(31, 24)
+#define FW_HDR_W2_COMMITID GENMASK(31, 0)
 #define FW_HDR_W3_LEN GENMASK(23, 16)
+#define FW_HDR_W3_HDR_VER GENMASK(31, 24)
 #define FW_HDR_W4_MONTH GENMASK(7, 0)
 #define FW_HDR_W4_DATE GENMASK(15, 8)
 #define FW_HDR_W4_HOUR GENMASK(23, 16)
@@ -472,6 +474,37 @@ struct rtw89_fw_hdr {
 #define FW_HDR_W6_SEC_NUM GENMASK(15, 8)
 #define FW_HDR_W7_DYN_HDR BIT(16)
 #define FW_HDR_W7_CMD_VERSERION GENMASK(31, 24)
+
+struct rtw89_fw_hdr_v1 {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+	__le32 w4;
+	__le32 w5;
+	__le32 w6;
+	__le32 w7;
+	__le32 w8;
+	__le32 w9;
+	__le32 w10;
+	__le32 w11;
+} __packed;
+
+#define FW_HDR_V1_W1_MAJOR_VERSION GENMASK(7, 0)
+#define FW_HDR_V1_W1_MINOR_VERSION GENMASK(15, 8)
+#define FW_HDR_V1_W1_SUBVERSION GENMASK(23, 16)
+#define FW_HDR_V1_W1_SUBINDEX GENMASK(31, 24)
+#define FW_HDR_V1_W2_COMMITID GENMASK(31, 0)
+#define FW_HDR_V1_W3_CMD_VERSERION GENMASK(23, 16)
+#define FW_HDR_V1_W3_HDR_VER GENMASK(31, 24)
+#define FW_HDR_V1_W4_MONTH GENMASK(7, 0)
+#define FW_HDR_V1_W4_DATE GENMASK(15, 8)
+#define FW_HDR_V1_W4_HOUR GENMASK(23, 16)
+#define FW_HDR_V1_W4_MIN GENMASK(31, 24)
+#define FW_HDR_V1_W5_YEAR GENMASK(15, 0)
+#define FW_HDR_V1_W5_HDR_SIZE GENMASK(31, 16)
+#define FW_HDR_V1_W6_SEC_NUM GENMASK(15, 8)
+#define FW_HDR_V1_W7_DYN_HDR BIT(16)
 
 static inline void SET_FW_HDR_PART_SIZE(void *fwhdr, u32 val)
 {

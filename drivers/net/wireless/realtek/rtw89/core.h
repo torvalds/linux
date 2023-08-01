@@ -3563,6 +3563,7 @@ enum rtw89_fw_feature {
 };
 
 struct rtw89_fw_suit {
+	enum rtw89_fw_type type;
 	const u8 *data;
 	u32 size;
 	u8 major_ver;
@@ -3575,6 +3576,8 @@ struct rtw89_fw_suit {
 	u16 build_hour;
 	u16 build_min;
 	u8 cmd_ver;
+	u8 hdr_ver;
+	u32 commitid;
 };
 
 #define RTW89_FW_VER_CODE(major, minor, sub, idx)	\
