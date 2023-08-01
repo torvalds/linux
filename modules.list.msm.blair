@@ -83,3 +83,7 @@ cqhci.ko
 sdhci-msm.ko
 gcc-holi.ko
 dispcc-holi.ko
+crypto-qti.ko
+crypto-qti-common.ko
+crypto-qti-hwkm.ko
+hwkm_v1.ko
