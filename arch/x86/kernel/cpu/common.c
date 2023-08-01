@@ -1575,7 +1575,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	sld_setup(c);
 
-	fpu__init_system(c);
+	fpu__init_system();
 
 #ifdef CONFIG_X86_32
 	/*
