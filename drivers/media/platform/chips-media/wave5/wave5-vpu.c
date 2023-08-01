@@ -25,39 +25,10 @@
 #define WAVE5_IS_ENC BIT(0)
 #define WAVE5_IS_DEC BIT(1)
 
-struct clk_bulk_data vpu_clks[] = {
-               { .id = "apb_clk" },
-               { .id = "axi_clk" },
-               { .id = "bpu_clk" },
-               { .id = "vce_clk" },
-               { .id = "noc_bus" },
-};
-
 struct wave5_match_data {
 	int flags;
 	const char *fw_name;
 };
-
-static int vpu_clk_get(struct platform_device *pdev, struct vpu_device *vpu)
-{
-	struct device *dev = &pdev->dev;
-	int ret;
-
-	vpu->clks = vpu_clks;
-	vpu->num_clks = ARRAY_SIZE(vpu_clks);
-
-	vpu->resets = devm_reset_control_array_get_exclusive(dev);
-	if (IS_ERR(vpu->resets)) {
-		ret = PTR_ERR(vpu->resets);
-		dev_err(dev, "faied to get vpu reset controls\n");
-	}
-
-	ret = devm_clk_bulk_get(dev, vpu->num_clks, vpu->clks);
-	if (ret)
-		dev_err(dev, "faied to get vpu clk controls\n");
-
-	return 0;
-}
 
 int wave5_vpu_wait_interrupt(struct vpu_instance *inst, unsigned int timeout)
 {
@@ -229,12 +200,19 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, dev);
 	dev->dev = &pdev->dev;
 
-	ret = vpu_clk_get(pdev, dev);
+	ret = devm_clk_bulk_get_all(&pdev->dev, &dev->clks);
 
 	/* continue without clock, assume externally managed */
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Getting clocks, fail: %d\n", ret);
 		return ret;
+	}
+	dev->num_clks = ret;
+
+	dev->resets = devm_reset_control_array_get_exclusive(&pdev->dev);
+	if (IS_ERR(dev->resets)) {
+		dev_err(&pdev->dev, "faied to get vpu reset controls\n");
+		return -ENODEV;
 	}
 
 	dev->sram_buf.daddr = VDI_SRAM_BASE_ADDR;
