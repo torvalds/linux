@@ -525,17 +525,47 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	const struct firmware *wmfw_firmware = NULL;
 	char *coeff_filename = NULL;
 	char *wmfw_filename = NULL;
+	unsigned int firmware_missing;
 	int ret = 0;
 
-	cs35l56_hda_request_firmware_files(cs35l56, &wmfw_firmware, &wmfw_filename,
-					   &coeff_firmware, &coeff_filename);
+	/* Prepare for a new DSP power-up */
+	if (cs35l56->base.fw_patched)
+		cs_dsp_power_down(&cs35l56->cs_dsp);
 
-	/* Nothing to do - no firmware files were found to download */
-	if (!wmfw_filename && !coeff_filename)
-		return 0;
+	cs35l56->base.fw_patched = false;
+
+	pm_runtime_get_sync(cs35l56->base.dev);
+
+	ret = regmap_read(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS, &firmware_missing);
+	if (ret) {
+		dev_err(cs35l56->base.dev, "Failed to read PROTECTION_STATUS: %d\n", ret);
+		goto err_pm_put;
+	}
+
+	firmware_missing &= CS35L56_FIRMWARE_MISSING;
+
+	/*
+	 * Firmware can only be downloaded if the CS35L56 is secured or is
+	 * running from the built-in ROM. If it is secured the BIOS will have
+	 * downloaded firmware, and the wmfw/bin files will only contain
+	 * tunings that are safe to download with the firmware running.
+	 */
+	if (cs35l56->base.secured || firmware_missing) {
+		cs35l56_hda_request_firmware_files(cs35l56, &wmfw_firmware, &wmfw_filename,
+						   &coeff_firmware, &coeff_filename);
+	}
+
+	/*
+	 * If the BIOS didn't patch the firmware a bin file is mandatory to
+	 * enable the ASP·
+	 */
+	if (!coeff_firmware && firmware_missing) {
+		dev_err(cs35l56->base.dev, ".bin file required but not found\n");
+		ret = -ENOENT;
+		goto err_fw_release;
+	}
 
 	mutex_lock(&cs35l56->base.irq_lock);
-	pm_runtime_get_sync(cs35l56->base.dev);
 
 	/*
 	 * When the device is running in secure mode the firmware files can
@@ -543,7 +573,7 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	 * shutdown the firmware to apply them and can use the lower cost
 	 * reinit sequence instead.
 	 */
-	if (!cs35l56->base.secured) {
+	if (!cs35l56->base.secured && (wmfw_firmware || coeff_firmware)) {
 		ret = cs35l56_firmware_shutdown(&cs35l56->base);
 		if (ret)
 			goto err;
@@ -562,41 +592,44 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	if (coeff_filename)
 		dev_dbg(cs35l56->base.dev, "Loaded Coefficients: %s\n", coeff_filename);
 
-	ret = cs_dsp_run(&cs35l56->cs_dsp);
-	if (ret) {
-		dev_dbg(cs35l56->base.dev, "%s: cs_dsp_run ret %d\n", __func__, ret);
-		goto err;
-	}
-
 	if (cs35l56->base.secured) {
 		ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_REINIT);
 		if (ret)
-			goto err;
-	} else {
-		/* Reset the device and wait for it to boot */
+			goto err_powered_up;
+	} else if (wmfw_firmware || coeff_firmware) {
+		/* If we downloaded firmware, reset the device and wait for it to boot */
 		cs35l56_system_reset(&cs35l56->base, false);
+		regcache_mark_dirty(cs35l56->base.regmap);
 		ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
 		if (ret)
-			goto err;
+			goto err_powered_up;
 	}
 
 	/* Disable auto-hibernate so that runtime_pm has control */
 	ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE);
 	if (ret)
-		goto err;
+		goto err_powered_up;
 
-	regcache_mark_dirty(cs35l56->base.regmap);
 	regcache_sync(cs35l56->base.regmap);
 
 	regmap_clear_bits(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS,
 			  CS35L56_FIRMWARE_MISSING);
 	cs35l56->base.fw_patched = true;
-err:
-	pm_runtime_put(cs35l56->base.dev);
-	mutex_unlock(&cs35l56->base.irq_lock);
 
+	ret = cs_dsp_run(&cs35l56->cs_dsp);
+	if (ret)
+		dev_dbg(cs35l56->base.dev, "%s: cs_dsp_run ret %d\n", __func__, ret);
+
+err_powered_up:
+	if (!cs35l56->base.fw_patched)
+		cs_dsp_power_down(&cs35l56->cs_dsp);
+err:
+	mutex_unlock(&cs35l56->base.irq_lock);
+err_fw_release:
 	cs35l56_hda_release_firmware_files(wmfw_firmware, wmfw_filename,
 					   coeff_firmware, coeff_filename);
+err_pm_put:
+	pm_runtime_put(cs35l56->base.dev);
 
 	return ret;
 }
@@ -647,6 +680,9 @@ static void cs35l56_hda_unbind(struct device *dev, struct device *master, void *
 	cs_dsp_cleanup_debugfs(&cs35l56->cs_dsp);
 	debugfs_remove_recursive(cs35l56->debugfs_root);
 #endif
+
+	if (cs35l56->base.fw_patched)
+		cs_dsp_power_down(&cs35l56->cs_dsp);
 
 	cs_dsp_remove(&cs35l56->cs_dsp);
 
@@ -816,8 +852,12 @@ static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
 			break;
 		}
 	}
+	/*
+	 * It's not an error for the ID to be missing: for I2C there can be
+	 * an alias address that is not a real device. So reject silently.
+	 */
 	if (cs35l56->index == -1) {
-		dev_err(cs35l56->base.dev, "No index found in %s\n", property);
+		dev_dbg(cs35l56->base.dev, "No index found in %s\n", property);
 		ret = -ENODEV;
 		goto err;
 	}
@@ -855,7 +895,8 @@ static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
 	return 0;
 
 err:
-	dev_err(cs35l56->base.dev, "Failed property %s: %d\n", property, ret);
+	if (ret != -ENODEV)
+		dev_err(cs35l56->base.dev, "Failed property %s: %d\n", property, ret);
 
 	return ret;
 }
@@ -868,10 +909,8 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int id)
 	dev_set_drvdata(cs35l56->base.dev, cs35l56);
 
 	ret = cs35l56_hda_read_acpi(cs35l56, id);
-	if (ret) {
-		dev_err_probe(cs35l56->base.dev, ret, "Platform not supported\n");
+	if (ret)
 		goto err;
-	}
 
 	cs35l56->amp_name = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL, "AMP%d",
 					   cs35l56->index + 1);
