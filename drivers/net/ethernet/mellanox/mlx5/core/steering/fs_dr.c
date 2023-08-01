@@ -336,7 +336,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 		if (fte->action.pkt_reformat->owner == MLX5_FLOW_RESOURCE_OWNER_FW) {
 			err = -EINVAL;
 			mlx5dr_err(domain, "FW-owned reformat can't be used in SW rule\n");
-				goto free_actions;
+			goto free_actions;
 		}
 
 		is_decap = fte->action.pkt_reformat->reformat_type ==
