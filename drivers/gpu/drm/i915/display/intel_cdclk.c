@@ -3155,7 +3155,7 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
  */
 void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 {
-	if (IS_JSL_EHL(dev_priv)) {
+	if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) {
 		if (dev_priv->display.cdclk.hw.ref == 24000)
 			dev_priv->display.cdclk.max_cdclk_freq = 552000;
 		else
@@ -3583,7 +3583,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 	} else if (DISPLAY_VER(dev_priv) >= 12) {
 		dev_priv->display.funcs.cdclk = &tgl_cdclk_funcs;
 		dev_priv->display.cdclk.table = icl_cdclk_table;
-	} else if (IS_JSL_EHL(dev_priv)) {
+	} else if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) {
 		dev_priv->display.funcs.cdclk = &ehl_cdclk_funcs;
 		dev_priv->display.cdclk.table = icl_cdclk_table;
 	} else if (DISPLAY_VER(dev_priv) >= 11) {

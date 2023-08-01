@@ -1749,7 +1749,7 @@ bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy)
 		return phy <= PHY_E;
 	else if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
 		return phy <= PHY_D;
-	else if (IS_JSL_EHL(dev_priv))
+	else if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv))
 		return phy <= PHY_C;
 	else if (IS_ALDERLAKE_P(dev_priv) || IS_DISPLAY_VER(dev_priv, 11, 12))
 		return phy <= PHY_B;
@@ -1801,7 +1801,8 @@ enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port)
 		return PHY_B + port - PORT_TC1;
 	else if ((IS_DG1(i915) || IS_ROCKETLAKE(i915)) && port >= PORT_TC1)
 		return PHY_C + port - PORT_TC1;
-	else if (IS_JSL_EHL(i915) && port == PORT_D)
+	else if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) &&
+		 port == PORT_D)
 		return PHY_A;
 
 	return PHY_A + port - PORT_A;

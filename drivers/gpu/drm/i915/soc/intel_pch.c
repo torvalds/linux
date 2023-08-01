@@ -115,7 +115,8 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		return PCH_ICP;
 	case INTEL_PCH_MCC_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found Mule Creek Canyon PCH\n");
-		drm_WARN_ON(&dev_priv->drm, !IS_JSL_EHL(dev_priv));
+		drm_WARN_ON(&dev_priv->drm, !(IS_JASPERLAKE(dev_priv) ||
+					      IS_ELKHARTLAKE(dev_priv)));
 		/* MCC is TGP compatible */
 		return PCH_TGP;
 	case INTEL_PCH_TGP_DEVICE_ID_TYPE:
@@ -127,7 +128,8 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		return PCH_TGP;
 	case INTEL_PCH_JSP_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found Jasper Lake PCH\n");
-		drm_WARN_ON(&dev_priv->drm, !IS_JSL_EHL(dev_priv));
+		drm_WARN_ON(&dev_priv->drm, !(IS_JASPERLAKE(dev_priv) ||
+					      IS_ELKHARTLAKE(dev_priv)));
 		/* JSP is ICP compatible */
 		return PCH_ICP;
 	case INTEL_PCH_ADP_DEVICE_ID_TYPE:
@@ -177,7 +179,7 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv,
 		id = INTEL_PCH_ADP_DEVICE_ID_TYPE;
 	else if (IS_TIGERLAKE(dev_priv) || IS_ROCKETLAKE(dev_priv))
 		id = INTEL_PCH_TGP_DEVICE_ID_TYPE;
-	else if (IS_JSL_EHL(dev_priv))
+	else if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv))
 		id = INTEL_PCH_MCC_DEVICE_ID_TYPE;
 	else if (IS_ICELAKE(dev_priv))
 		id = INTEL_PCH_ICP_DEVICE_ID_TYPE;

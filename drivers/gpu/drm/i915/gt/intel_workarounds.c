@@ -1460,7 +1460,8 @@ icl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 
 	/* Wa_1607087056:icl,ehl,jsl */
 	if (IS_ICELAKE(i915) ||
-	    IS_JSL_EHL_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
+		((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) &&
+		IS_GRAPHICS_STEP(i915, STEP_A0, STEP_B0)))
 		wa_write_or(wal,
 			    GEN11_SLICE_UNIT_LEVEL_CLKGATE,
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);

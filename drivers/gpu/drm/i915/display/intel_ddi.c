@@ -3583,7 +3583,8 @@ void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 {
 	if (DISPLAY_VER(dev_priv) >= 12 && crtc_state->port_clock > 594000)
 		crtc_state->min_voltage_level = 2;
-	else if (IS_JSL_EHL(dev_priv) && crtc_state->port_clock > 594000)
+	else if ((IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) &&
+		 crtc_state->port_clock > 594000)
 		crtc_state->min_voltage_level = 3;
 	else if (DISPLAY_VER(dev_priv) >= 11 && crtc_state->port_clock > 594000)
 		crtc_state->min_voltage_level = 1;
@@ -4878,7 +4879,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 		encoder->disable_clock = dg1_ddi_disable_clock;
 		encoder->is_clock_enabled = dg1_ddi_is_clock_enabled;
 		encoder->get_config = dg1_ddi_get_config;
-	} else if (IS_JSL_EHL(dev_priv)) {
+	} else if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) {
 		if (intel_ddi_is_tc(dev_priv, port)) {
 			encoder->enable_clock = jsl_ddi_tc_enable_clock;
 			encoder->disable_clock = jsl_ddi_tc_disable_clock;
@@ -4949,7 +4950,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 		encoder->hpd_pin = rkl_hpd_pin(dev_priv, port);
 	else if (DISPLAY_VER(dev_priv) >= 12)
 		encoder->hpd_pin = tgl_hpd_pin(dev_priv, port);
-	else if (IS_JSL_EHL(dev_priv))
+	else if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv))
 		encoder->hpd_pin = ehl_hpd_pin(dev_priv, port);
 	else if (DISPLAY_VER(dev_priv) == 11)
 		encoder->hpd_pin = icl_hpd_pin(dev_priv, port);

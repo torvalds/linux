@@ -219,7 +219,7 @@ void intel_step_init(struct drm_i915_private *i915)
 	} else if (IS_TIGERLAKE(i915)) {
 		revids = tgl_revids;
 		size = ARRAY_SIZE(tgl_revids);
-	} else if (IS_JSL_EHL(i915)) {
+	} else if (IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) {
 		revids = jsl_ehl_revids;
 		size = ARRAY_SIZE(jsl_ehl_revids);
 	} else if (IS_ICELAKE(i915)) {
