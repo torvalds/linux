@@ -3400,6 +3400,36 @@ struct rtw89_fw_logsuit_hdr {
 	__le32 ids[];
 } __packed;
 
+#define RTW89_FW_ELEMENT_ALIGN 16
+
+enum rtw89_fw_element_id {
+	RTW89_FW_ELEMENT_ID_BBMCU0 = 0,
+	RTW89_FW_ELEMENT_ID_BBMCU1 = 1,
+};
+
+struct rtw89_fw_element_hdr {
+	__le32 id; /* enum rtw89_fw_element_id */
+	__le32 size; /* exclude header size */
+	u8 ver[4];
+	__le32 rsvd0;
+	__le32 rsvd1;
+	__le32 rsvd2;
+	union {
+		struct {
+			u8 priv[8];
+			u8 contents[];
+		} __packed common;
+		struct {
+			u8 idx;
+			u8 rsvd[7];
+			struct {
+				__le32 addr;
+				__le32 data;
+			} __packed regs[];
+		} __packed reg2;
+	} __packed u;
+} __packed;
+
 struct fwcmd_hdr {
 	__le32 hdr0;
 	__le32 hdr1;
@@ -3581,6 +3611,7 @@ struct rtw89_fw_h2c_rf_get_mccch {
 
 int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev);
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev);
+int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev);
 const struct firmware *
 rtw89_early_fw_feature_recognize(struct device *device,
 				 const struct rtw89_chip_info *chip,

@@ -3779,6 +3779,12 @@ int rtw89_chip_info_setup(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 
+	ret = rtw89_fw_recognize_elements(rtwdev);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to recognize firmware elements\n");
+		return ret;
+	}
+
 	ret = rtw89_chip_efuse_info_setup(rtwdev);
 	if (ret)
 		return ret;
