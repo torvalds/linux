@@ -245,9 +245,8 @@ void dlm_copy_master_names(struct dlm_ls *ls, char *inbuf, int inlen,
 	if (inlen > 1) {
 		r = find_rsb_root(ls, inbuf, inlen);
 		if (!r) {
-			inbuf[inlen - 1] = '\0';
-			log_error(ls, "copy_master_names from %d start %d %s",
-				  nodeid, inlen, inbuf);
+			log_error(ls, "copy_master_names from %d start %d %.*s",
+				  nodeid, inlen, inlen, inbuf);
 			goto out;
 		}
 		list = r->res_root_list.next;
