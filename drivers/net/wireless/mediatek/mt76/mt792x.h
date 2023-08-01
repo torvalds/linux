@@ -36,9 +36,11 @@
 
 #define MT7921_FIRMWARE_WM	"mediatek/WIFI_RAM_CODE_MT7961_1.bin"
 #define MT7922_FIRMWARE_WM	"mediatek/WIFI_RAM_CODE_MT7922_1.bin"
+#define MT7925_FIRMWARE_WM	"mediatek/mt7925/WIFI_RAM_CODE_MT7925_1_1.bin"
 
 #define MT7921_ROM_PATCH	"mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin"
 #define MT7922_ROM_PATCH	"mediatek/WIFI_MT7922_patch_mcu_1_1_hdr.bin"
+#define MT7925_ROM_PATCH	"mediatek/mt7925/WIFI_MT7925_PATCH_MCU_1_1_hdr.bin"
 
 struct mt792x_vif;
 struct mt792x_sta;
@@ -308,6 +310,8 @@ static inline char *mt792x_ram_name(struct mt792x_dev *dev)
 	switch (mt76_chip(&dev->mt76)) {
 	case 0x7922:
 		return MT7922_FIRMWARE_WM;
+	case 0x7925:
+		return MT7925_FIRMWARE_WM;
 	default:
 		return MT7921_FIRMWARE_WM;
 	}
@@ -318,6 +322,8 @@ static inline char *mt792x_patch_name(struct mt792x_dev *dev)
 	switch (mt76_chip(&dev->mt76)) {
 	case 0x7922:
 		return MT7922_ROM_PATCH;
+	case 0x7925:
+		return MT7925_ROM_PATCH;
 	default:
 		return MT7921_ROM_PATCH;
 	}
