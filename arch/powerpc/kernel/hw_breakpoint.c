@@ -772,16 +772,6 @@ static int single_step_dabr_instruction(struct die_args *args)
 			perf_bp_event(bp, regs);
 
 		info->perf_single_step = false;
-	}
-
-	if (!found)
-		return NOTIFY_DONE;
-
-	for (int i = 0; i < nr_wp_slots(); i++) {
-		struct perf_event *bp = __this_cpu_read(bp_per_reg[i]);
-		if (!bp)
-			continue;
-
 		__set_breakpoint(i, counter_arch_bp(bp));
 	}
 
@@ -789,7 +779,7 @@ static int single_step_dabr_instruction(struct die_args *args)
 	 * If the process was being single-stepped by ptrace, let the
 	 * other single-step actions occur (e.g. generate SIGTRAP).
 	 */
-	if (test_thread_flag(TIF_SINGLESTEP))
+	if (!found || test_thread_flag(TIF_SINGLESTEP))
 		return NOTIFY_DONE;
 
 	return NOTIFY_STOP;
