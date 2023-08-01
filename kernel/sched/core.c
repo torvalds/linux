@@ -1097,25 +1097,22 @@ int get_nohz_timer_target(void)
 
 	hk_mask = housekeeping_cpumask(HK_TYPE_TIMER);
 
-	rcu_read_lock();
+	guard(rcu)();
+
 	for_each_domain(cpu, sd) {
 		for_each_cpu_and(i, sched_domain_span(sd), hk_mask) {
 			if (cpu == i)
 				continue;
 
-			if (!idle_cpu(i)) {
-				cpu = i;
-				goto unlock;
-			}
+			if (!idle_cpu(i))
+				return i;
 		}
 	}
 
 	if (default_cpu == -1)
 		default_cpu = housekeeping_any_cpu(HK_TYPE_TIMER);
-	cpu = default_cpu;
-unlock:
-	rcu_read_unlock();
-	return cpu;
+
+	return default_cpu;
 }
 
 /*
