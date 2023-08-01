@@ -41,6 +41,7 @@ static const char * const npc_flow_names[] = {
 	[NPC_SPORT_SCTP] = "sctp source port",
 	[NPC_DPORT_SCTP] = "sctp destination port",
 	[NPC_LXMB]	= "Mcast/Bcast header ",
+	[NPC_IPSEC_SPI] = "SPI ",
 	[NPC_UNKNOWN]	= "unknown",
 };
 
@@ -513,6 +514,10 @@ do {									       \
 	NPC_SCAN_HDR(NPC_VLAN_TAG1, NPC_LID_LB, NPC_LT_LB_CTAG, 2, 2);
 	NPC_SCAN_HDR(NPC_VLAN_TAG2, NPC_LID_LB, NPC_LT_LB_STAG_QINQ, 2, 2);
 	NPC_SCAN_HDR(NPC_DMAC, NPC_LID_LA, la_ltype, la_start, 6);
+
+	NPC_SCAN_HDR(NPC_IPSEC_SPI, NPC_LID_LD, NPC_LT_LD_AH, 4, 4);
+	NPC_SCAN_HDR(NPC_IPSEC_SPI, NPC_LID_LE, NPC_LT_LE_ESP, 0, 4);
+
 	/* SMAC follows the DMAC(which is 6 bytes) */
 	NPC_SCAN_HDR(NPC_SMAC, NPC_LID_LA, la_ltype, la_start + 6, 6);
 	/* PF_FUNC is 2 bytes at 0th byte of NPC_LT_LA_IH_NIX_ETHER */
@@ -563,6 +568,9 @@ static void npc_set_features(struct rvu *rvu, int blkaddr, u8 intf)
 	if (*features & BIT_ULL(NPC_OUTER_VID))
 		if (!npc_check_field(rvu, blkaddr, NPC_LB, intf))
 			*features &= ~BIT_ULL(NPC_OUTER_VID);
+
+	if (*features & (BIT_ULL(NPC_IPPROTO_AH) | BIT_ULL(NPC_IPPROTO_ESP)))
+		*features |= BIT_ULL(NPC_IPSEC_SPI);
 
 	/* for vlan ethertypes corresponding layer type should be in the key */
 	if (npc_check_field(rvu, blkaddr, NPC_LB, intf))
@@ -929,6 +937,9 @@ do {									      \
 		       ntohs(mask->sport), 0);
 	NPC_WRITE_FLOW(NPC_DPORT_SCTP, dport, ntohs(pkt->dport), 0,
 		       ntohs(mask->dport), 0);
+
+	NPC_WRITE_FLOW(NPC_IPSEC_SPI, spi, ntohl(pkt->spi), 0,
+		       ntohl(mask->spi), 0);
 
 	NPC_WRITE_FLOW(NPC_OUTER_VID, vlan_tci, ntohs(pkt->vlan_tci), 0,
 		       ntohs(mask->vlan_tci), 0);

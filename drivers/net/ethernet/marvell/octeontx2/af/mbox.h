@@ -1451,6 +1451,10 @@ struct flow_msg {
 		__be32 ip4dst;
 		__be32 ip6dst[4];
 	};
+	union {
+		__be32 spi;
+	};
+
 	u8 tos;
 	u8 ip_ver;
 	u8 ip_proto;

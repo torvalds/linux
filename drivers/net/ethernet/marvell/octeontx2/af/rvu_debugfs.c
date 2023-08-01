@@ -2827,6 +2827,10 @@ static void rvu_dbg_npc_mcam_show_flows(struct seq_file *s,
 			seq_printf(s, "%d ", ntohs(rule->packet.dport));
 			seq_printf(s, "mask 0x%x\n", ntohs(rule->mask.dport));
 			break;
+		case NPC_IPSEC_SPI:
+			seq_printf(s, "0x%x ", ntohl(rule->packet.spi));
+			seq_printf(s, "mask 0x%x\n", ntohl(rule->mask.spi));
+			break;
 		default:
 			seq_puts(s, "\n");
 			break;
