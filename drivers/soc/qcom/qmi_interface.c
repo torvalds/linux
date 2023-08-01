@@ -346,6 +346,9 @@ int qmi_txn_wait(struct qmi_txn *txn, unsigned long timeout)
 
 	ret = wait_for_completion_timeout(&txn->completion, timeout);
 
+	if (txn->result == -ENETRESET)
+		return txn->result;
+
 	mutex_lock(&qmi->txn_lock);
 	idr_remove(&qmi->txns, txn->id);
 	mutex_unlock(&qmi->txn_lock);
@@ -675,6 +678,8 @@ void qmi_handle_release(struct qmi_handle *qmi)
 {
 	struct socket *sock = qmi->sock;
 	struct qmi_service *svc, *tmp;
+	struct qmi_txn *txn;
+	int txn_id;
 
 	sock->sk->sk_user_data = NULL;
 	cancel_work_sync(&qmi->work);
@@ -688,6 +693,13 @@ void qmi_handle_release(struct qmi_handle *qmi)
 
 	destroy_workqueue(qmi->wq);
 
+	mutex_lock(&qmi->txn_lock);
+	idr_for_each_entry(&qmi->txns, txn, txn_id) {
+		idr_remove(&qmi->txns, txn->id);
+		txn->result = -ENETRESET;
+		complete(&txn->completion);
+	}
+	mutex_unlock(&qmi->txn_lock);
 	idr_destroy(&qmi->txns);
 
 	kfree(qmi->recv_buf);
