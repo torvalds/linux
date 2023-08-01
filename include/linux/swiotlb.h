@@ -110,7 +110,6 @@ struct io_tlb_mem {
 	atomic_long_t used_hiwater;
 #endif
 };
-extern struct io_tlb_mem io_tlb_default_mem;
 
 static inline bool is_swiotlb_buffer(struct device *dev, phys_addr_t paddr)
 {
@@ -128,13 +127,22 @@ static inline bool is_swiotlb_force_bounce(struct device *dev)
 
 void swiotlb_init(bool addressing_limited, unsigned int flags);
 void __init swiotlb_exit(void);
+void swiotlb_dev_init(struct device *dev);
 size_t swiotlb_max_mapping_size(struct device *dev);
+bool is_swiotlb_allocated(void);
 bool is_swiotlb_active(struct device *dev);
 void __init swiotlb_adjust_size(unsigned long size);
+phys_addr_t default_swiotlb_base(void);
+phys_addr_t default_swiotlb_limit(void);
 #else
 static inline void swiotlb_init(bool addressing_limited, unsigned int flags)
 {
 }
+
+static inline void swiotlb_dev_init(struct device *dev)
+{
+}
+
 static inline bool is_swiotlb_buffer(struct device *dev, phys_addr_t paddr)
 {
 	return false;
@@ -151,6 +159,11 @@ static inline size_t swiotlb_max_mapping_size(struct device *dev)
 	return SIZE_MAX;
 }
 
+static inline bool is_swiotlb_allocated(void)
+{
+	return false;
+}
+
 static inline bool is_swiotlb_active(struct device *dev)
 {
 	return false;
@@ -158,6 +171,16 @@ static inline bool is_swiotlb_active(struct device *dev)
 
 static inline void swiotlb_adjust_size(unsigned long size)
 {
+}
+
+static inline phys_addr_t default_swiotlb_base(void)
+{
+	return 0;
+}
+
+static inline phys_addr_t default_swiotlb_limit(void)
+{
+	return 0;
 }
 #endif /* CONFIG_SWIOTLB */
 

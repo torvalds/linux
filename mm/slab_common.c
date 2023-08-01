@@ -864,10 +864,9 @@ void __init setup_kmalloc_cache_index_table(void)
 
 static unsigned int __kmalloc_minalign(void)
 {
-#ifdef CONFIG_DMA_BOUNCE_UNALIGNED_KMALLOC
-	if (io_tlb_default_mem.nslabs)
+	if (IS_ENABLED(CONFIG_DMA_BOUNCE_UNALIGNED_KMALLOC) &&
+	    is_swiotlb_allocated())
 		return ARCH_KMALLOC_MINALIGN;
-#endif
 	return dma_get_cache_alignment();
 }
 
