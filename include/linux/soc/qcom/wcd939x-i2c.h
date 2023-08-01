@@ -84,6 +84,7 @@ int wcd_usbss_set_switch_settings_enable(enum wcd_usbss_switch_type switch_type,
 					 enum wcd_usbss_switch_state switch_state);
 int wcd_usbss_linearizer_rdac_cal_code_select(enum linearizer_rdac_cal_code_select source);
 int wcd_usbss_set_linearizer_sw_tap(uint32_t aud_tap, uint32_t gnd_tap);
+int wcd_usbss_register_update(uint32_t reg_arr[][2], bool write, size_t arr_size);
 #else
 static inline int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 					  enum wcd_usbss_cable_status status)
@@ -136,6 +137,11 @@ int wcd_usbss_linearizer_rdac_cal_code_select(enum linearizer_rdac_cal_code_sele
 }
 
 int wcd_usbss_set_linearizer_sw_tap(uint32_t aud_tap, uint32_t gnd_tap)
+{
+	return 0;
+}
+
+int wcd_usbss_register_update(uint32_t reg_arr[][2], bool write, size_t arr_size)
 {
 	return 0;
 }
