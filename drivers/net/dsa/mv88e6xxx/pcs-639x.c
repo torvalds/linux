@@ -20,6 +20,7 @@ struct mv88e639x_pcs {
 	struct mdio_device mdio;
 	struct phylink_pcs sgmii_pcs;
 	struct phylink_pcs xg_pcs;
+	bool erratum_3_14;
 	bool supports_5g;
 	phy_interface_t interface;
 	unsigned int irq;
@@ -205,12 +206,52 @@ static void mv88e639x_sgmii_pcs_pre_config(struct phylink_pcs *pcs,
 	mv88e639x_sgmii_pcs_control_pwr(mpcs, false);
 }
 
+static int mv88e6390_erratum_3_14(struct mv88e639x_pcs *mpcs)
+{
+	const int lanes[] = { MV88E6390_PORT9_LANE0, MV88E6390_PORT9_LANE1,
+		MV88E6390_PORT9_LANE2, MV88E6390_PORT9_LANE3,
+		MV88E6390_PORT10_LANE0, MV88E6390_PORT10_LANE1,
+		MV88E6390_PORT10_LANE2, MV88E6390_PORT10_LANE3 };
+	int err, i;
+
+	/* 88e6190x and 88e6390x errata 3.14:
+	 * After chip reset, SERDES reconfiguration or SERDES core
+	 * Software Reset, the SERDES lanes may not be properly aligned
+	 * resulting in CRC errors
+	 */
+
+	for (i = 0; i < ARRAY_SIZE(lanes); i++) {
+		err = mdiobus_c45_write(mpcs->mdio.bus, lanes[i],
+					MDIO_MMD_PHYXS,
+					0xf054, 0x400C);
+		if (err)
+			return err;
+
+		err = mdiobus_c45_write(mpcs->mdio.bus, lanes[i],
+					MDIO_MMD_PHYXS,
+					0xf054, 0x4000);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int mv88e639x_sgmii_pcs_post_config(struct phylink_pcs *pcs,
 					   phy_interface_t interface)
 {
 	struct mv88e639x_pcs *mpcs = sgmii_pcs_to_mv88e639x_pcs(pcs);
+	int err;
 
 	mv88e639x_sgmii_pcs_control_pwr(mpcs, true);
+
+	if (mpcs->erratum_3_14) {
+		err = mv88e6390_erratum_3_14(mpcs);
+		if (err)
+			dev_err(mpcs->mdio.dev.parent,
+				"failed to apply erratum 3.14: %pe\n",
+				ERR_PTR(err));
+	}
 
 	return 0;
 }
@@ -523,6 +564,10 @@ static int mv88e6390_pcs_init(struct mv88e6xxx_chip *chip, int port)
 	mpcs->sgmii_pcs.neg_mode = true;
 	mpcs->xg_pcs.ops = &mv88e6390_xg_pcs_ops;
 	mpcs->xg_pcs.neg_mode = true;
+
+	if (chip->info->prod_num == MV88E6XXX_PORT_SWITCH_ID_PROD_6190X ||
+	    chip->info->prod_num == MV88E6XXX_PORT_SWITCH_ID_PROD_6390X)
+		mpcs->erratum_3_14 = true;
 
 	err = mv88e639x_pcs_setup_irq(mpcs, chip, port);
 	if (err)
