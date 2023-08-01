@@ -1228,7 +1228,6 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub)
 {
 	struct platform_device *pdev = to_platform_device(dpsub->dev);
 	struct zynqmp_disp *disp;
-	struct resource *res;
 	int ret;
 
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
@@ -1238,22 +1237,19 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub)
 	disp->dev = &pdev->dev;
 	disp->dpsub = dpsub;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "blend");
-	disp->blend.base = devm_ioremap_resource(disp->dev, res);
+	disp->blend.base = devm_platform_ioremap_resource_byname(pdev, "blend");
 	if (IS_ERR(disp->blend.base)) {
 		ret = PTR_ERR(disp->blend.base);
 		goto error;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "av_buf");
-	disp->avbuf.base = devm_ioremap_resource(disp->dev, res);
+	disp->avbuf.base = devm_platform_ioremap_resource_byname(pdev, "av_buf");
 	if (IS_ERR(disp->avbuf.base)) {
 		ret = PTR_ERR(disp->avbuf.base);
 		goto error;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "aud");
-	disp->audio.base = devm_ioremap_resource(disp->dev, res);
+	disp->audio.base = devm_platform_ioremap_resource_byname(pdev, "aud");
 	if (IS_ERR(disp->audio.base)) {
 		ret = PTR_ERR(disp->audio.base);
 		goto error;
