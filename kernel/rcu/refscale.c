@@ -655,12 +655,12 @@ retry:
 			goto retry;
 		}
 		un_delay(udl, ndl);
+		b = READ_ONCE(rtsp->a);
 		// Remember, seqlock read-side release can fail.
 		if (!rts_release(rtsp, start)) {
 			rcu_read_unlock();
 			goto retry;
 		}
-		b = READ_ONCE(rtsp->a);
 		WARN_ONCE(a != b, "Re-read of ->a changed from %u to %u.\n", a, b);
 		b = rtsp->b;
 		rcu_read_unlock();
