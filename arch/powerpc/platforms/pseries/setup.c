@@ -1118,6 +1118,13 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
 	return PCI_PROBE_NORMAL;
 }
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+static unsigned long pseries_memory_block_size(void)
+{
+	return memory_block_size;
+}
+#endif
+
 struct pci_controller_ops pseries_pci_controller_ops = {
 	.probe_mode		= pSeries_pci_probe_mode,
 #ifdef CONFIG_SPAPR_TCE_IOMMU
