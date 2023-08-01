@@ -888,7 +888,7 @@ static bool can327_is_valid_rx_char(u8 c)
 static void can327_ldisc_rx(struct tty_struct *tty, const unsigned char *cp,
 			    const char *fp, int count)
 {
-	struct can327 *elm = (struct can327 *)tty->disc_data;
+	struct can327 *elm = tty->disc_data;
 	size_t first_new_char_idx;
 
 	if (elm->uart_side_failure)
@@ -990,7 +990,7 @@ static void can327_ldisc_tx_worker(struct work_struct *work)
 /* Called by the driver when there's room for more data. */
 static void can327_ldisc_tx_wakeup(struct tty_struct *tty)
 {
-	struct can327 *elm = (struct can327 *)tty->disc_data;
+	struct can327 *elm = tty->disc_data;
 
 	schedule_work(&elm->tx_work);
 }
@@ -1067,7 +1067,7 @@ static int can327_ldisc_open(struct tty_struct *tty)
  */
 static void can327_ldisc_close(struct tty_struct *tty)
 {
-	struct can327 *elm = (struct can327 *)tty->disc_data;
+	struct can327 *elm = tty->disc_data;
 
 	/* unregister_netdev() calls .ndo_stop() so we don't have to. */
 	unregister_candev(elm->dev);
@@ -1092,7 +1092,7 @@ static void can327_ldisc_close(struct tty_struct *tty)
 static int can327_ldisc_ioctl(struct tty_struct *tty, unsigned int cmd,
 			      unsigned long arg)
 {
-	struct can327 *elm = (struct can327 *)tty->disc_data;
+	struct can327 *elm = tty->disc_data;
 	unsigned int tmp;
 
 	switch (cmd) {
