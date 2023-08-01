@@ -986,6 +986,7 @@ config SM_GPUCC_8450
 
 config SM_GPUCC_8550
 	tristate "SM8550 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8550
 	help
 	  Support for the graphics clock controller on SM8550 devices.
@@ -1022,6 +1023,7 @@ config SM_VIDEOCC_8250
 
 config SM_VIDEOCC_8350
 	tristate "SM8350 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8350
 	select QCOM_GDSC
 	help
@@ -1031,6 +1033,7 @@ config SM_VIDEOCC_8350
 
 config SM_VIDEOCC_8550
 	tristate "SM8550 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8550
 	select QCOM_GDSC
 	help
@@ -1079,6 +1082,7 @@ config CLK_GFM_LPASS_SM8250
 
 config SM_VIDEOCC_8450
 	tristate "SM8450 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8450
 	select QCOM_GDSC
 	help
