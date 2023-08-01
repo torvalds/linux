@@ -372,9 +372,9 @@ static int get_mm_clock_voltage_table(
 	return 0;
 }
 
-static void get_scl_sda_value(uint8_t line, uint8_t *scl, uint8_t* sda)
+static void get_scl_sda_value(uint8_t line, uint8_t *scl, uint8_t *sda)
 {
-	switch(line){
+	switch (line) {
 	case Vega10_I2CLineID_DDC1:
 		*scl = Vega10_I2C_DDC1CLK;
 		*sda = Vega10_I2C_DDC1DATA;
@@ -954,7 +954,7 @@ static int init_powerplay_extended_tables(
 	if (!result && powerplay_table->usPixclkDependencyTableOffset)
 		result = get_pix_clk_voltage_dependency_table(hwmgr,
 				&pp_table_info->vdd_dep_on_pixclk,
-				(const ATOM_Vega10_PIXCLK_Dependency_Table*)
+				(const ATOM_Vega10_PIXCLK_Dependency_Table *)
 				pixclk_dep_table);
 
 	if (!result && powerplay_table->usPhyClkDependencyTableOffset)
