@@ -33,7 +33,7 @@ Media Bus Formats
     * - __u32
       - ``field``
       - Field order, from enum :c:type:`v4l2_field`. See
-	:ref:`field-order` for details.
+	:ref:`field-order` for details. Zero for metadata mbus codes.
     * - __u32
       - ``colorspace``
       - Image colorspace, from enum :c:type:`v4l2_colorspace`.
@@ -45,7 +45,7 @@ Media Bus Formats
 	conversion is supported by setting the flag
 	V4L2_SUBDEV_MBUS_CODE_CSC_COLORSPACE in the corresponding struct
 	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
-	See :ref:`v4l2-subdev-mbus-code-flags`.
+	See :ref:`v4l2-subdev-mbus-code-flags`. Zero for metadata mbus codes.
     * - union {
       - (anonymous)
     * - __u16
@@ -61,7 +61,7 @@ Media Bus Formats
 	that ycbcr_enc conversion is supported by setting the flag
 	V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC in the corresponding struct
 	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
-	See :ref:`v4l2-subdev-mbus-code-flags`.
+	See :ref:`v4l2-subdev-mbus-code-flags`. Zero for metadata mbus codes.
     * - __u16
       - ``hsv_enc``
       - HSV encoding, from enum :c:type:`v4l2_hsv_encoding`.
@@ -75,7 +75,7 @@ Media Bus Formats
 	that hsv_enc conversion is supported by setting the flag
 	V4L2_SUBDEV_MBUS_CODE_CSC_HSV_ENC in the corresponding struct
 	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
-	See :ref:`v4l2-subdev-mbus-code-flags`
+	See :ref:`v4l2-subdev-mbus-code-flags`. Zero for metadata mbus codes.
     * - }
       -
     * - __u16
@@ -90,8 +90,8 @@ Media Bus Formats
 	The driver indicates that quantization conversion is supported by
 	setting the flag V4L2_SUBDEV_MBUS_CODE_CSC_QUANTIZATION in the
 	corresponding struct :c:type:`v4l2_subdev_mbus_code_enum`
-	during enumeration. See :ref:`v4l2-subdev-mbus-code-flags`.
-
+	during enumeration. See :ref:`v4l2-subdev-mbus-code-flags`. Zero for
+	metadata mbus codes.
     * - __u16
       - ``xfer_func``
       - Transfer function, from enum :c:type:`v4l2_xfer_func`.
@@ -104,7 +104,8 @@ Media Bus Formats
 	The driver indicates that the transfer function conversion is supported by
 	setting the flag V4L2_SUBDEV_MBUS_CODE_CSC_XFER_FUNC in the
 	corresponding struct :c:type:`v4l2_subdev_mbus_code_enum`
-	during enumeration. See :ref:`v4l2-subdev-mbus-code-flags`.
+	during enumeration. See :ref:`v4l2-subdev-mbus-code-flags`. Zero for
+	metadata mbus codes.
     * - __u16
       - ``flags``
       - flags See:  :ref:v4l2-mbus-framefmt-flags
