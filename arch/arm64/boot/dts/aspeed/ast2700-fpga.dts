@@ -209,6 +209,7 @@
 	perif-dma-mode;
 	oob-dma-mode;
 	flash-dma-mode;
+	flash-edaf-mode = <1>;
 };
 
 &lpc0_kcs2 {
