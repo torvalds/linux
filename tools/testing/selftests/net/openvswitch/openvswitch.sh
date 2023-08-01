@@ -11,6 +11,7 @@ VERBOSE=0
 TRACING=0
 
 tests="
+	arp_ping				eth-arp: Basic arp ping between two NS
 	netlink_checks				ovsnl: validate netlink attrs and settings
 	upcall_interfaces			ovs: test the upcall interfaces"
 
@@ -127,6 +128,16 @@ ovs_add_netns_and_veths () {
 	return 0
 }
 
+ovs_add_flow () {
+	info "Adding flow to DP: sbx:$1 br:$2 flow:$3 act:$4"
+	ovs_sbx "$1" python3 $ovs_base/ovs-dpctl.py add-flow "$2" "$3" "$4"
+	if [ $? -ne 0 ]; then
+		echo "Flow [ $3 : $4 ] failed" >> ${ovs_dir}/debug.log
+		return 1
+	fi
+	return 0
+}
+
 usage() {
 	echo
 	echo "$0 [OPTIONS] [TEST]..."
@@ -139,6 +150,46 @@ usage() {
 	echo
 	echo "Available tests${tests}"
 	exit 1
+}
+
+# arp_ping test
+# - client has 1500 byte MTU
+# - server has 1500 byte MTU
+# - send ARP ping between two ns
+test_arp_ping () {
+
+	which arping >/dev/null 2>&1 || return $ksft_skip
+
+	sbx_add "test_arp_ping" || return $?
+
+	ovs_add_dp "test_arp_ping" arpping || return 1
+
+	info "create namespaces"
+	for ns in client server; do
+		ovs_add_netns_and_veths "test_arp_ping" "arpping" "$ns" \
+		    "${ns:0:1}0" "${ns:0:1}1" || return 1
+	done
+
+	# Setup client namespace
+	ip netns exec client ip addr add 172.31.110.10/24 dev c1
+	ip netns exec client ip link set c1 up
+	HW_CLIENT=`ip netns exec client ip link show dev c1 | grep -E 'link/ether [0-9a-f:]+' | awk '{print $2;}'`
+	info "Client hwaddr: $HW_CLIENT"
+
+	# Setup server namespace
+	ip netns exec server ip addr add 172.31.110.20/24 dev s1
+	ip netns exec server ip link set s1 up
+	HW_SERVER=`ip netns exec server ip link show dev s1 | grep -E 'link/ether [0-9a-f:]+' | awk '{print $2;}'`
+	info "Server hwaddr: $HW_SERVER"
+
+	ovs_add_flow "test_arp_ping" arpping \
+		"in_port(1),eth(),eth_type(0x0806),arp(sip=172.31.110.10,tip=172.31.110.20,sha=$HW_CLIENT,tha=ff:ff:ff:ff:ff:ff)" '2' || return 1
+	ovs_add_flow "test_arp_ping" arpping \
+		"in_port(2),eth(),eth_type(0x0806),arp()" '1' || return 1
+
+	ovs_sbx "test_arp_ping" ip netns exec client arping -I c1 172.31.110.20 -c 1 || return 1
+
+	return 0
 }
 
 # netlink_validation
