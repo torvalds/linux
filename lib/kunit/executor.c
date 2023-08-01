@@ -151,7 +151,7 @@ static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
 		for (j = 0; j < filter_count; j++)
 			parsed_filters[j] = kunit_next_attr_filter(&filters, err);
 		if (*err)
-			return filtered;
+			goto err;
 	}
 
 	for (i = 0; &suite_set->start[i] != suite_set->end; i++) {
@@ -163,7 +163,7 @@ static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
 					parsed_glob.test_glob);
 			if (IS_ERR(filtered_suite)) {
 				*err = PTR_ERR(filtered_suite);
-				return filtered;
+				goto err;
 			}
 		}
 		if (filter_count) {
@@ -172,15 +172,18 @@ static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
 						parsed_filters[k], filter_action, err);
 
 				/* Free previous copy of suite */
-				if (k > 0 || filter_glob)
+				if (k > 0 || filter_glob) {
+					kfree(filtered_suite->test_cases);
 					kfree(filtered_suite);
+				}
+
 				filtered_suite = new_filtered_suite;
 
 				if (*err)
-					return filtered;
+					goto err;
 				if (IS_ERR(filtered_suite)) {
 					*err = PTR_ERR(filtered_suite);
-					return filtered;
+					goto err;
 				}
 				if (!filtered_suite)
 					break;
@@ -193,6 +196,10 @@ static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
 		*copy++ = filtered_suite;
 	}
 	filtered.end = copy;
+
+err:
+	if (*err)
+		kfree(copy);
 
 	if (filter_glob) {
 		kfree(parsed_glob.suite_glob);
