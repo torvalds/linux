@@ -67,7 +67,7 @@ static bool max77857_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-struct regmap_config max77857_regmap_config = {
+static struct regmap_config max77857_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.cache_type = REGCACHE_MAPLE,
@@ -443,7 +443,7 @@ static const struct of_device_id max77857_of_id[] = {
 };
 MODULE_DEVICE_TABLE(of, max77857_of_id);
 
-struct i2c_driver max77857_driver = {
+static struct i2c_driver max77857_driver = {
 	.driver = {
 		.name = "max77857",
 		.of_match_table = max77857_of_id,
