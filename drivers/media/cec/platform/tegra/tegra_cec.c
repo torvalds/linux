@@ -348,8 +348,8 @@ static int tegra_cec_probe(struct platform_device *pdev)
 
 	cec->tegra_cec_irq = platform_get_irq(pdev, 0);
 
-	if (cec->tegra_cec_irq <= 0)
-		return -EBUSY;
+	if (cec->tegra_cec_irq < 0)
+		return cec->tegra_cec_irq;
 
 	cec->cec_base = devm_ioremap(&pdev->dev, res->start,
 					     resource_size(res));
