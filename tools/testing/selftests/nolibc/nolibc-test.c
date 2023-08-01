@@ -768,6 +768,27 @@ end:
 	return !!ret;
 }
 
+static int test_pipe(void)
+{
+	const char *const msg = "hello, nolibc";
+	int pipefd[2];
+	char buf[32];
+	size_t len;
+
+	if (pipe(pipefd) == -1)
+		return 1;
+
+	write(pipefd[1], msg, strlen(msg));
+	close(pipefd[1]);
+	len = read(pipefd[0], buf, sizeof(buf));
+	close(pipefd[0]);
+
+	if (len != strlen(msg))
+		return 1;
+
+	return !!memcmp(buf, msg, len);
+}
+
 
 /* Run syscall tests between IDs <min> and <max>.
  * Return 0 on success, non-zero on failure.
@@ -853,6 +874,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(mmap_munmap_good);  EXPECT_SYSZR(1, test_mmap_munmap()); break;
 		CASE_TEST(open_tty);          EXPECT_SYSNE(1, tmp = open("/dev/null", 0), -1); if (tmp != -1) close(tmp); break;
 		CASE_TEST(open_blah);         EXPECT_SYSER(1, tmp = open("/proc/self/blah", 0), -1, ENOENT); if (tmp != -1) close(tmp); break;
+		CASE_TEST(pipe);              EXPECT_SYSZR(1, test_pipe()); break;
 		CASE_TEST(poll_null);         EXPECT_SYSZR(1, poll(NULL, 0, 0)); break;
 		CASE_TEST(poll_stdout);       EXPECT_SYSNE(1, ({ struct pollfd fds = { 1, POLLOUT, 0}; poll(&fds, 1, 0); }), -1); break;
 		CASE_TEST(poll_fault);        EXPECT_SYSER(1, poll((void *)1, 1, 0), -1, EFAULT); break;
