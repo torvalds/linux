@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/limits.h>
 #include <linux/spinlock.h>
+#include <linux/workqueue.h>
 
 struct device;
 struct page;
@@ -104,12 +105,16 @@ struct io_tlb_pool {
 /**
  * struct io_tlb_mem - Software IO TLB allocator
  * @defpool:	Default (initial) IO TLB memory pool descriptor.
+ * @pool:	IO TLB memory pool descriptor (if not dynamic).
  * @nslabs:	Total number of IO TLB slabs in all pools.
  * @debugfs:	The dentry to debugfs.
  * @force_bounce: %true if swiotlb bouncing is forced
  * @for_alloc:  %true if the pool is used for memory allocation
  * @can_grow:	%true if more pools can be allocated dynamically.
  * @phys_limit:	Maximum allowed physical address.
+ * @lock:	Lock to synchronize changes to the list.
+ * @pools:	List of IO TLB memory pool descriptors (if dynamic).
+ * @dyn_alloc:	Dynamic IO TLB pool allocation work.
  * @total_used:	The total number of slots in the pool that are currently used
  *		across all areas. Used only for calculating used_hiwater in
  *		debugfs.
@@ -125,6 +130,9 @@ struct io_tlb_mem {
 #ifdef CONFIG_SWIOTLB_DYNAMIC
 	bool can_grow;
 	u64 phys_limit;
+	spinlock_t lock;
+	struct list_head pools;
+	struct work_struct dyn_alloc;
 #endif
 #ifdef CONFIG_DEBUG_FS
 	atomic_long_t total_used;
