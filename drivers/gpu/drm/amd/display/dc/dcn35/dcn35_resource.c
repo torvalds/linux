@@ -1677,6 +1677,7 @@ static bool dcn35_validate_bandwidth(struct dc *dc,
 	return out;
 }
 
+
 static struct resource_funcs dcn35_res_pool_funcs = {
 	.destroy = dcn35_destroy_resource_pool,
 	.link_enc_create = dcn35_link_encoder_create,
@@ -1685,7 +1686,7 @@ static struct resource_funcs dcn35_res_pool_funcs = {
 	.link_enc_unassign = link_enc_cfg_link_enc_unassign,
 	.panel_cntl_create = dcn31_panel_cntl_create,
 	.validate_bandwidth = dcn35_validate_bandwidth,
-	.calculate_wm_and_dlg = dcn31_calculate_wm_and_dlg,
+	.calculate_wm_and_dlg = NULL,
 	.update_soc_for_wm_a = dcn31_update_soc_for_wm_a,
 	.populate_dml_pipes = dcn35_populate_dml_pipes_from_context_fpu,
 	.acquire_free_pipe_as_secondary_dpp_pipe = dcn20_acquire_free_pipe_for_layer,
