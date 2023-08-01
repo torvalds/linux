@@ -958,7 +958,14 @@ static int wave5_vpu_dec_queue_setup(struct vb2_queue *q, unsigned int *num_buff
 			struct frame_buffer *frame = &inst->frame_buf[i];
 			struct vpu_buf *vframe = &inst->frame_vbuf[i];
 
-			fb_stride = inst->dst_fmt.width;
+			if (inst->codec_info->dec_info.initial_info.luma_bitdepth > 8 ||
+				inst->codec_info->dec_info.initial_info.chroma_bitdepth > 8) {
+				fb_stride = ALIGN(ALIGN(inst->dst_fmt.width, 16) * 5, 32) / 4;
+				fb_stride = ALIGN(fb_stride, 32);
+			} else {
+				fb_stride = inst->dst_fmt.width;
+			}
+
 			fb_height = ALIGN(inst->dst_fmt.height, 32);
 			luma_size = fb_stride * fb_height;
 			chroma_size = ALIGN(fb_stride / 2, 16) * fb_height;
