@@ -927,7 +927,7 @@ static int hsw_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 	switch (wrpll & WRPLL_REF_MASK) {
 	case WRPLL_REF_SPECIAL_HSW:
 		/* Muxed-SSC for BDW, non-SSC for non-ULT HSW. */
-		if (IS_HASWELL(dev_priv) && !IS_HSW_ULT(dev_priv)) {
+		if (IS_HASWELL(dev_priv) && !IS_HASWELL_ULT(dev_priv)) {
 			refclk = dev_priv->display.dpll.ref_clks.nssc;
 			break;
 		}
