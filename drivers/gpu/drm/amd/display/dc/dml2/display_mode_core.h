@@ -85,6 +85,8 @@ dml_get_var_decl(wm_stutter_exit, dml_float_t);
 dml_get_var_decl(wm_stutter_enter_exit, dml_float_t);
 dml_get_var_decl(wm_memory_trip, dml_float_t);
 dml_get_var_decl(wm_dram_clock_change, dml_float_t);
+dml_get_var_decl(wm_z8_stutter_enter_exit, dml_float_t);
+dml_get_var_decl(wm_z8_stutter, dml_float_t);
 dml_get_var_decl(urgent_latency, dml_float_t);
 dml_get_var_decl(clk_dcf_deepsleep, dml_float_t);
 dml_get_var_decl(wm_fclk_change, dml_float_t);

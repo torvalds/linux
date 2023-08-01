@@ -717,6 +717,8 @@ bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options
 
 	initialize_dml2_soc_states(*dml2, in_dc, &(*dml2)->v20.dml_core_ctx.soc, &(*dml2)->v20.dml_core_ctx.states);
 
+	/*Initialize DML20 instance which calls dml2_core_create, and core_dcn3_populate_informative*/
+	//dml2_initialize_instance(&(*dml_ctx)->v20.dml_init);
 	return true;
 }
 

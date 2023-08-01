@@ -369,6 +369,8 @@ void dml2_extract_watermark_set(struct dcn_watermarks *watermark, struct display
 	watermark->urgent_latency_ns = dml_get_urgent_latency(dml_core_ctx) * 1000;
 	watermark->cstate_pstate.fclk_pstate_change_ns = dml_get_wm_fclk_change(dml_core_ctx) * 1000;
 	watermark->usr_retraining_ns = dml_get_wm_usr_retraining(dml_core_ctx) * 1000;
+	watermark->cstate_pstate.cstate_enter_plus_exit_z8_ns = dml_get_wm_z8_stutter_enter_exit(dml_core_ctx) * 1000;
+	watermark->cstate_pstate.cstate_exit_z8_ns = dml_get_wm_z8_stutter(dml_core_ctx) * 1000;
 }
 
 void dml2_initialize_det_scratch(struct dml2_context *in_ctx)

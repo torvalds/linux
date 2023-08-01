@@ -10169,6 +10169,8 @@ dml_get_var_func(wm_memory_trip, dml_float_t, mode_lib->mp.UrgentLatency);
 dml_get_var_func(wm_fclk_change, dml_float_t, mode_lib->mp.Watermark.FCLKChangeWatermark);
 dml_get_var_func(wm_usr_retraining, dml_float_t, mode_lib->mp.Watermark.USRRetrainingWatermark);
 dml_get_var_func(wm_dram_clock_change, dml_float_t, mode_lib->mp.Watermark.DRAMClockChangeWatermark);
+dml_get_var_func(wm_z8_stutter_enter_exit, dml_float_t, mode_lib->mp.Watermark.Z8StutterEnterPlusExitWatermark);
+dml_get_var_func(wm_z8_stutter, dml_float_t, mode_lib->mp.Watermark.Z8StutterExitWatermark);
 dml_get_var_func(fraction_of_urgent_bandwidth, dml_float_t, mode_lib->mp.FractionOfUrgentBandwidth);
 dml_get_var_func(fraction_of_urgent_bandwidth_imm_flip, dml_float_t, mode_lib->mp.FractionOfUrgentBandwidthImmediateFlip);
 dml_get_var_func(urgent_latency, dml_float_t, mode_lib->mp.UrgentLatency);

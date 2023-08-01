@@ -63,6 +63,7 @@ struct dml2_dcn_clocks {
 	unsigned int ref_dtbclk_khz;
 	bool p_state_supported;
 	unsigned int cab_num_ways_required;
+	unsigned int dcfclk_khz_ds;
 };
 
 struct dml2_dc_callbacks {
