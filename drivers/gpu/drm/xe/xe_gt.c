@@ -14,7 +14,7 @@
 #include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_device.h"
-#include "xe_engine.h"
+#include "xe_exec_queue.h"
 #include "xe_execlist.h"
 #include "xe_force_wake.h"
 #include "xe_ggtt.h"

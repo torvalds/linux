@@ -54,9 +54,9 @@ xe-y += xe_bb.o \
 	xe_device.o \
 	xe_device_sysfs.o \
 	xe_dma_buf.o \
-	xe_engine.o \
 	xe_exec.o \
 	xe_execlist.o \
+	xe_exec_queue.o \
 	xe_force_wake.o \
 	xe_ggtt.o \
 	xe_gpu_scheduler.o \

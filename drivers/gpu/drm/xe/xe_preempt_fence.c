@@ -7,7 +7,7 @@
 
 #include <linux/slab.h>
 
-#include "xe_engine.h"
+#include "xe_exec_queue.h"
 #include "xe_vm.h"
 
 static void preempt_fence_work_func(struct work_struct *w)

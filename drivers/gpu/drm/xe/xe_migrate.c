@@ -16,7 +16,7 @@
 #include "tests/xe_test.h"
 #include "xe_bb.h"
 #include "xe_bo.h"
-#include "xe_engine.h"
+#include "xe_exec_queue.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_hw_engine.h"

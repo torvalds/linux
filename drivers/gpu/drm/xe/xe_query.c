@@ -12,7 +12,7 @@
 
 #include "xe_bo.h"
 #include "xe_device.h"
-#include "xe_engine.h"
+#include "xe_exec_queue.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_guc_hwconfig.h"

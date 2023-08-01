@@ -18,7 +18,7 @@
 
 #include "xe_bo.h"
 #include "xe_device.h"
-#include "xe_engine.h"
+#include "xe_exec_queue.h"
 #include "xe_gt.h"
 #include "xe_gt_pagefault.h"
 #include "xe_gt_tlb_invalidation.h"

@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 
 #include "xe_device.h"
-#include "xe_engine.h"
+#include "xe_exec_queue.h"
 #include "xe_gt.h"
 #include "xe_hw_engine_types.h"
 #include "xe_hw_fence.h"

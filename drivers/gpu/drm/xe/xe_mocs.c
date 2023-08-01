@@ -8,7 +8,7 @@
 #include "regs/xe_gt_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
-#include "xe_engine.h"
+#include "xe_exec_queue.h"
 #include "xe_gt.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"

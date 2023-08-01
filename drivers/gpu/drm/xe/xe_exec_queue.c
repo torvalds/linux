@@ -3,7 +3,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include "xe_engine.h"
+#include "xe_exec_queue.h"
 
 #include <linux/nospec.h>
 
