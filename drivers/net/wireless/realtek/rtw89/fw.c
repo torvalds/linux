@@ -635,12 +635,16 @@ int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 	const struct firmware *firmware = fw_info->req.firmware;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 unrecognized_elements = chip->needed_fw_elms;
 	const struct rtw89_fw_element_handler *handler;
 	const struct rtw89_fw_element_hdr *hdr;
 	u32 elm_size;
 	u32 elem_id;
 	u32 offset;
 	int ret;
+
+	BUILD_BUG_ON(sizeof(chip->needed_fw_elms) * 8 < RTW89_FW_ELEMENT_ID_NUM);
 
 	offset = rtw89_mfw_get_size(rtwdev);
 	offset = ALIGN(offset, RTW89_FW_ELEMENT_ALIGN);
@@ -672,9 +676,16 @@ int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev)
 			rtw89_info(rtwdev, "Firmware element %s version: %4ph\n",
 				   handler->name, hdr->ver);
 
+		unrecognized_elements &= ~BIT(elem_id);
 next:
 		offset += sizeof(*hdr) + elm_size;
 		offset = ALIGN(offset, RTW89_FW_ELEMENT_ALIGN);
+	}
+
+	if (unrecognized_elements) {
+		rtw89_err(rtwdev, "Firmware elements 0x%08x are unrecognized\n",
+			  unrecognized_elements);
+		return -ENOENT;
 	}
 
 	return 0;

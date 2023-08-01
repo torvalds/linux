@@ -3412,6 +3412,8 @@ enum rtw89_fw_element_id {
 	RTW89_FW_ELEMENT_ID_RADIO_C = 6,
 	RTW89_FW_ELEMENT_ID_RADIO_D = 7,
 	RTW89_FW_ELEMENT_ID_RF_NCTL = 8,
+
+	RTW89_FW_ELEMENT_ID_NUM,
 };
 
 struct rtw89_fw_element_hdr {
