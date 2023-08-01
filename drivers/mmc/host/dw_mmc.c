@@ -527,8 +527,7 @@ static void dw_mci_dmac_complete_dma(void *arg)
 		tasklet_schedule(&host->tasklet);
 	}
 
-	if (host->need_xfer_timer &&
-	    host->dir_status == DW_MCI_RECV_STATUS)
+	if (host->need_xfer_timer)
 		del_timer(&host->xfer_timer);
 }
 
@@ -1871,6 +1870,9 @@ static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
 
 	WARN_ON(host->cmd || host->data);
 
+	if (host->need_xfer_timer)
+		del_timer(&host->xfer_timer);
+
 	host->slot->mrq = NULL;
 	host->mrq = NULL;
 	if (!list_empty(&host->queue)) {
@@ -2016,8 +2018,10 @@ static void dw_mci_set_xfer_timeout(struct dw_mci *host)
 				   host->bus_hz);
 
 	/* add a bit spare time */
-	xfer_ms += 100;
-
+	if (host->dir_status == DW_MCI_RECV_STATUS)
+		xfer_ms += 100;
+	else
+		xfer_ms += 2500;
 	spin_lock_irqsave(&host->irq_lock, irqflags);
 	if (!test_bit(EVENT_XFER_COMPLETE, &host->pending_events))
 		mod_timer(&host->xfer_timer,
@@ -2152,6 +2156,13 @@ static void dw_mci_tasklet_func(unsigned long priv)
 					send_stop_abort(host, data);
 				dw_mci_stop_dma(host);
 				state = STATE_DATA_ERROR;
+				if (host->dir_status == DW_MCI_SEND_STATUS) {
+					data->bytes_xfered = 0;
+					data->error = -ETIMEDOUT;
+					host->data = NULL;
+					dw_mci_request_end(host, mrq);
+					goto unlock;
+				}
 				break;
 			}
 
@@ -2163,8 +2174,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				 */
 				if (host->dir_status == DW_MCI_RECV_STATUS)
 					dw_mci_set_drto(host);
-				if (host->need_xfer_timer &&
-				    host->dir_status == DW_MCI_RECV_STATUS)
+				if (host->need_xfer_timer)
 					dw_mci_set_xfer_timeout(host);
 				break;
 			}
@@ -2206,6 +2216,8 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				 */
 				if (host->dir_status == DW_MCI_RECV_STATUS)
 					dw_mci_set_drto(host);
+				if (host->need_xfer_timer && host->dir_status == DW_MCI_SEND_STATUS)
+					dw_mci_set_xfer_timeout(host);
 				break;
 			}
 
@@ -2765,8 +2777,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			del_timer(&host->cto_timer);
 			mci_writel(host, RINTSTS, DW_MCI_CMD_ERROR_FLAGS);
 			host->cmd_status = pending;
-			if ((host->need_xfer_timer) &&
-			     host->dir_status == DW_MCI_RECV_STATUS)
+			if (host->need_xfer_timer)
 				del_timer(&host->xfer_timer);
 			smp_wmb(); /* drain writebuffer */
 			set_bit(EVENT_CMD_COMPLETE, &host->pending_events);

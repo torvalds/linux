@@ -416,7 +416,7 @@ static int mmc_blk_ioctl_copy_to_user(struct mmc_ioc_cmd __user *ic_ptr,
 static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
 			    u32 *resp_errs)
 {
-	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms);
+	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms > 2000 ? 2000 : timeout_ms);
 	int err = 0;
 	u32 status;
 
@@ -1784,8 +1784,15 @@ static void mmc_blk_mq_rw_recovery(struct mmc_queue *mq, struct request *req)
 	 * bytes transferred to zero in that case.
 	 */
 	err = __mmc_send_status(card, &status, 0);
-	if (err || mmc_blk_status_error(req, status))
+	if (err || mmc_blk_status_error(req, status)) {
 		brq->data.bytes_xfered = 0;
+		if (mmc_card_sd(card) && !mmc_card_removed(card)) {
+			mmc_blk_reset_success(mq->blkdata, type);
+			if (!mmc_blk_reset(md, card->host, type))
+				return;
+			pr_err("%s: pre recovery failed!\n", req->rq_disk->disk_name);
+		}
+	}
 
 	mmc_retune_release(card->host);
 
