@@ -5464,7 +5464,8 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 }
 
 /* needs at least dlm_rcom + rcom_lock */
-int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
+int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc,
+			     uint64_t seq)
 {
 	struct rcom_lock *rl = (struct rcom_lock *) rc->rc_buf;
 	struct dlm_rsb *r;
@@ -5509,7 +5510,7 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 			  lkid, le32_to_cpu(rc->rc_header.h_nodeid), remid,
 			  result);
 	
-		dlm_send_rcom_lock(r, lkb);
+		dlm_send_rcom_lock(r, lkb, seq);
 		goto out;
 	case -EEXIST:
 	case 0:

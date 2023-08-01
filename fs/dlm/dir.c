@@ -58,7 +58,7 @@ void dlm_recover_dir_nodeid(struct dlm_ls *ls)
 	up_read(&ls->ls_root_sem);
 }
 
-int dlm_recover_directory(struct dlm_ls *ls)
+int dlm_recover_directory(struct dlm_ls *ls, uint64_t seq)
 {
 	struct dlm_member *memb;
 	char *b, *last_name = NULL;
@@ -90,7 +90,7 @@ int dlm_recover_directory(struct dlm_ls *ls)
 			}
 
 			error = dlm_rcom_names(ls, memb->nodeid,
-					       last_name, last_len);
+					       last_name, last_len, seq);
 			if (error)
 				goto out_free;
 
