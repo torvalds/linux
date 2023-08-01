@@ -194,4 +194,19 @@ static inline int prueth_emac_slice(struct prueth_emac *emac)
 	}
 }
 
+/* Classifier helpers */
+void icssg_class_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac);
+void icssg_class_set_host_mac_addr(struct regmap *miig_rt, const u8 *mac);
+void icssg_class_disable(struct regmap *miig_rt, int slice);
+void icssg_class_default(struct regmap *miig_rt, int slice, bool allmulti);
+void icssg_ft1_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac_addr);
+
+/* config helpers */
+void icssg_config_ipg(struct prueth_emac *emac);
+int icssg_config(struct prueth *prueth, struct prueth_emac *emac,
+		 int slice);
+int emac_set_port_state(struct prueth_emac *emac,
+			enum icssg_port_state_cmd state);
+void icssg_config_set_speed(struct prueth_emac *emac);
+
 #endif /* __NET_TI_ICSSG_PRUETH_H */
