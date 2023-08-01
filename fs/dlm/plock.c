@@ -398,6 +398,7 @@ int dlm_posix_cancel(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 		 */
 		op = plock_lookup_waiter(&info);
 		if (WARN_ON_ONCE(!op)) {
+			spin_unlock(&ops_lock);
 			rv = -ENOLCK;
 			break;
 		}
