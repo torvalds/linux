@@ -80,6 +80,9 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
  * @area_nslabs: Number of slots in each area.
  * @areas:	Array of memory area descriptors.
  * @slots:	Array of slot descriptors.
+ * @node:	Member of the IO TLB memory pool list.
+ * @rcu:	RCU head for swiotlb_dyn_free().
+ * @transient:  %true if transient memory pool.
  */
 struct io_tlb_pool {
 	phys_addr_t start;
@@ -91,6 +94,11 @@ struct io_tlb_pool {
 	unsigned int area_nslabs;
 	struct io_tlb_area *areas;
 	struct io_tlb_slot *slots;
+#ifdef CONFIG_SWIOTLB_DYNAMIC
+	struct list_head node;
+	struct rcu_head rcu;
+	bool transient;
+#endif
 };
 
 /**
@@ -122,6 +130,20 @@ struct io_tlb_mem {
 #endif
 };
 
+#ifdef CONFIG_SWIOTLB_DYNAMIC
+
+struct io_tlb_pool *swiotlb_find_pool(struct device *dev, phys_addr_t paddr);
+
+#else
+
+static inline struct io_tlb_pool *swiotlb_find_pool(struct device *dev,
+						    phys_addr_t paddr)
+{
+	return &dev->dma_io_tlb_mem->defpool;
+}
+
+#endif
+
 /**
  * is_swiotlb_buffer() - check if a physical address belongs to a swiotlb
  * @dev:        Device which has mapped the buffer.
@@ -137,7 +159,12 @@ static inline bool is_swiotlb_buffer(struct device *dev, phys_addr_t paddr)
 {
 	struct io_tlb_mem *mem = dev->dma_io_tlb_mem;
 
-	return mem && paddr >= mem->defpool.start && paddr < mem->defpool.end;
+	if (!mem)
+		return false;
+
+	if (IS_ENABLED(CONFIG_SWIOTLB_DYNAMIC))
+		return swiotlb_find_pool(dev, paddr);
+	return paddr >= mem->defpool.start && paddr < mem->defpool.end;
 }
 
 static inline bool is_swiotlb_force_bounce(struct device *dev)
