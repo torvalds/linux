@@ -916,6 +916,16 @@ static const struct tegra_mc_client tegra234_mc_clients[] = {
 		.name = "sw_cluster2",
 		.bpmp_id = TEGRA_ICC_BPMP_CPU_CLUSTER2,
 		.type = TEGRA_ICC_NISO,
+	}, {
+		.id = TEGRA234_MEMORY_CLIENT_NVL1R,
+		.name = "nvl1r",
+		.bpmp_id = TEGRA_ICC_BPMP_GPU,
+		.type = TEGRA_ICC_NISO,
+	}, {
+		.id = TEGRA234_MEMORY_CLIENT_NVL1W,
+		.name = "nvl1w",
+		.bpmp_id = TEGRA_ICC_BPMP_GPU,
+		.type = TEGRA_ICC_NISO,
 	},
 };
 
