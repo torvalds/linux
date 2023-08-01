@@ -304,11 +304,26 @@ static inline void arch_tlbbatch_add_pending(struct arch_tlbflush_unmap_batch *b
 	__flush_tlb_page_nosync(mm, uaddr);
 }
 
+/*
+ * If mprotect/munmap/etc occurs during TLB batched flushing, we need to
+ * synchronise all the TLBI issued with a DSB to avoid the race mentioned in
+ * flush_tlb_batched_pending().
+ */
 static inline void arch_flush_tlb_batched_pending(struct mm_struct *mm)
 {
 	dsb(ish);
 }
 
+/*
+ * To support TLB batched flush for multiple pages unmapping, we only send
+ * the TLBI for each page in arch_tlbbatch_add_pending() and wait for the
+ * completion at the end in arch_tlbbatch_flush(). Since we've already issued
+ * TLBI for each page so only a DSB is needed to synchronise its effect on the
+ * other CPUs.
+ *
+ * This will save the time waiting on DSB comparing issuing a TLBI;DSB sequence
+ * for each page.
+ */
 static inline void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
 {
 	dsb(ish);
