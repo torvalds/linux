@@ -62,8 +62,7 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
 #ifdef CONFIG_SWIOTLB
 
 /**
- * struct io_tlb_mem - IO TLB Memory Pool Descriptor
- *
+ * struct io_tlb_pool - IO TLB memory pool descriptor
  * @start:	The start address of the swiotlb memory pool. Used to do a quick
  *		range check to see if the memory was in fact allocated by this
  *		API.
@@ -73,15 +72,34 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
  * @vaddr:	The vaddr of the swiotlb memory pool. The swiotlb memory pool
  *		may be remapped in the memory encrypted case and store virtual
  *		address for bounce buffer operation.
- * @nslabs:	The number of IO TLB blocks (in groups of 64) between @start and
- *		@end. For default swiotlb, this is command line adjustable via
- *		setup_io_tlb_npages.
+ * @nslabs:	The number of IO TLB slots between @start and @end. For the
+ *		default swiotlb, this can be adjusted with a boot parameter,
+ *		see setup_io_tlb_npages().
+ * @late_alloc:	%true if allocated using the page allocator.
+ * @nareas:	Number of areas in the pool.
+ * @area_nslabs: Number of slots in each area.
+ * @areas:	Array of memory area descriptors.
+ * @slots:	Array of slot descriptors.
+ */
+struct io_tlb_pool {
+	phys_addr_t start;
+	phys_addr_t end;
+	void *vaddr;
+	unsigned long nslabs;
+	bool late_alloc;
+	unsigned int nareas;
+	unsigned int area_nslabs;
+	struct io_tlb_area *areas;
+	struct io_tlb_slot *slots;
+};
+
+/**
+ * struct io_tlb_mem - Software IO TLB allocator
+ * @defpool:	Default (initial) IO TLB memory pool descriptor.
+ * @nslabs:	Total number of IO TLB slabs in all pools.
  * @debugfs:	The dentry to debugfs.
- * @late_alloc:	%true if allocated using the page allocator
  * @force_bounce: %true if swiotlb bouncing is forced
  * @for_alloc:  %true if the pool is used for memory allocation
- * @nareas:  The area number in the pool.
- * @area_nslabs: The slot number in the area.
  * @total_used:	The total number of slots in the pool that are currently used
  *		across all areas. Used only for calculating used_hiwater in
  *		debugfs.
@@ -89,18 +107,11 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
  *		in debugfs.
  */
 struct io_tlb_mem {
-	phys_addr_t start;
-	phys_addr_t end;
-	void *vaddr;
+	struct io_tlb_pool defpool;
 	unsigned long nslabs;
 	struct dentry *debugfs;
-	bool late_alloc;
 	bool force_bounce;
 	bool for_alloc;
-	unsigned int nareas;
-	unsigned int area_nslabs;
-	struct io_tlb_area *areas;
-	struct io_tlb_slot *slots;
 #ifdef CONFIG_DEBUG_FS
 	atomic_long_t total_used;
 	atomic_long_t used_hiwater;
@@ -122,7 +133,7 @@ static inline bool is_swiotlb_buffer(struct device *dev, phys_addr_t paddr)
 {
 	struct io_tlb_mem *mem = dev->dma_io_tlb_mem;
 
-	return mem && paddr >= mem->start && paddr < mem->end;
+	return mem && paddr >= mem->defpool.start && paddr < mem->defpool.end;
 }
 
 static inline bool is_swiotlb_force_bounce(struct device *dev)
