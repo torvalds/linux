@@ -3548,6 +3548,7 @@ enum rtw89_fw_type {
 	RTW89_FW_NORMAL = 1,
 	RTW89_FW_WOWLAN = 3,
 	RTW89_FW_NORMAL_CE = 5,
+	RTW89_FW_LOGFMT = 255,
 };
 
 enum rtw89_fw_feature {
@@ -3607,6 +3608,7 @@ struct rtw89_fw_info {
 	u8 c2h_counter;
 	struct rtw89_fw_suit normal;
 	struct rtw89_fw_suit wowlan;
+	struct rtw89_fw_suit logfmt;
 	bool fw_log_enable;
 	u32 feature_map;
 };
@@ -5143,6 +5145,8 @@ static inline struct rtw89_fw_suit *rtw89_fw_suit_get(struct rtw89_dev *rtwdev,
 
 	if (type == RTW89_FW_WOWLAN)
 		return &fw_info->wowlan;
+	else if (type == RTW89_FW_LOGFMT)
+		return &fw_info->logfmt;
 	return &fw_info->normal;
 }
 

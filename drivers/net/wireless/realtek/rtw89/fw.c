@@ -178,19 +178,22 @@ int rtw89_mfw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
 
 	for (i = 0; i < mfw_hdr->fw_nr; i++) {
 		mfw_info = &mfw_hdr->info[i];
-		if (mfw_info->cv != rtwdev->hal.cv ||
-		    mfw_info->type != type ||
-		    mfw_info->mp)
-			continue;
-
-		fw_suit->data = mfw + le32_to_cpu(mfw_info->shift);
-		fw_suit->size = le32_to_cpu(mfw_info->size);
-		return 0;
+		if (mfw_info->type == type) {
+			if (mfw_info->cv == rtwdev->hal.cv && !mfw_info->mp)
+				goto found;
+			if (type == RTW89_FW_LOGFMT)
+				goto found;
+		}
 	}
 
 	if (!nowarn)
 		rtw89_err(rtwdev, "no suitable firmware found\n");
 	return -ENOENT;
+
+found:
+	fw_suit->data = mfw + le32_to_cpu(mfw_info->shift);
+	fw_suit->size = le32_to_cpu(mfw_info->size);
+	return 0;
 }
 
 static void rtw89_fw_update_ver(struct rtw89_dev *rtwdev,
@@ -198,6 +201,9 @@ static void rtw89_fw_update_ver(struct rtw89_dev *rtwdev,
 				struct rtw89_fw_suit *fw_suit)
 {
 	const struct rtw89_fw_hdr *hdr = (const struct rtw89_fw_hdr *)fw_suit->data;
+
+	if (type == RTW89_FW_LOGFMT)
+		return;
 
 	fw_suit->major_ver = le32_get_bits(hdr->w1, FW_HDR_W1_MAJOR_VERSION);
 	fw_suit->minor_ver = le32_get_bits(hdr->w1, FW_HDR_W1_MINOR_VERSION);
@@ -364,6 +370,9 @@ int rtw89_fw_recognize(struct rtw89_dev *rtwdev)
 normal_done:
 	/* It still works if wowlan firmware isn't existing. */
 	__rtw89_fw_recognize(rtwdev, RTW89_FW_WOWLAN, false);
+
+	/* It still works if log format file isn't existing. */
+	__rtw89_fw_recognize(rtwdev, RTW89_FW_LOGFMT, true);
 
 	rtw89_fw_recognize_features(rtwdev);
 
