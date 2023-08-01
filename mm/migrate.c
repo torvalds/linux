@@ -684,7 +684,7 @@ int migrate_folio(struct address_space *mapping, struct folio *dst,
 }
 EXPORT_SYMBOL(migrate_folio);
 
-#ifdef CONFIG_BLOCK
+#ifdef CONFIG_BUFFER_HEAD
 /* Returns true if all buffers are successfully locked */
 static bool buffer_migrate_lock_buffers(struct buffer_head *head,
 							enum migrate_mode mode)
@@ -837,7 +837,7 @@ int buffer_migrate_folio_norefs(struct address_space *mapping,
 	return __buffer_migrate_folio(mapping, dst, src, mode, true);
 }
 EXPORT_SYMBOL_GPL(buffer_migrate_folio_norefs);
-#endif
+#endif /* CONFIG_BUFFER_HEAD */
 
 int filemap_migrate_folio(struct address_space *mapping,
 		struct folio *dst, struct folio *src, enum migrate_mode mode)

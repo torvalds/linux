@@ -15,6 +15,7 @@ if MD
 config BLK_DEV_MD
 	tristate "RAID support"
 	select BLOCK_HOLDER_DEPRECATED if SYSFS
+	select BUFFER_HEAD
 	# BLOCK_LEGACY_AUTOLOAD requirement should be removed
 	# after relevant mdadm enhancements - to make "names=yes"
 	# the default - are widely available.
