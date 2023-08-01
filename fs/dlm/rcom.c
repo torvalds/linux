@@ -221,7 +221,8 @@ retry:
 	return error;
 }
 
-static void receive_rcom_status(struct dlm_ls *ls, struct dlm_rcom *rc_in,
+static void receive_rcom_status(struct dlm_ls *ls,
+				const struct dlm_rcom *rc_in,
 				uint64_t seq)
 {
 	struct dlm_rcom *rc;
@@ -283,7 +284,7 @@ static void receive_rcom_status(struct dlm_ls *ls, struct dlm_rcom *rc_in,
 	send_rcom_stateless(msg, rc);
 }
 
-static void receive_sync_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
+static void receive_sync_reply(struct dlm_ls *ls, const struct dlm_rcom *rc_in)
 {
 	spin_lock(&ls->ls_rcom_spin);
 	if (!test_bit(LSFL_RCOM_WAIT, &ls->ls_flags) ||
@@ -333,7 +334,7 @@ retry:
 	return error;
 }
 
-static void receive_rcom_names(struct dlm_ls *ls, struct dlm_rcom *rc_in,
+static void receive_rcom_names(struct dlm_ls *ls, const struct dlm_rcom *rc_in,
 			       uint64_t seq)
 {
 	struct dlm_rcom *rc;
@@ -376,8 +377,8 @@ int dlm_send_rcom_lookup(struct dlm_rsb *r, int dir_nodeid, uint64_t seq)
 	return error;
 }
 
-static void receive_rcom_lookup(struct dlm_ls *ls, struct dlm_rcom *rc_in,
-				uint64_t seq)
+static void receive_rcom_lookup(struct dlm_ls *ls,
+				const struct dlm_rcom *rc_in, uint64_t seq)
 {
 	struct dlm_rcom *rc;
 	struct dlm_mhandle *mh;
@@ -408,7 +409,8 @@ static void receive_rcom_lookup(struct dlm_ls *ls, struct dlm_rcom *rc_in,
 	send_rcom(mh, rc);
 }
 
-static void receive_rcom_lookup_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
+static void receive_rcom_lookup_reply(struct dlm_ls *ls,
+				      const struct dlm_rcom *rc_in)
 {
 	dlm_recover_master_reply(ls, rc_in);
 }
@@ -469,7 +471,7 @@ int dlm_send_rcom_lock(struct dlm_rsb *r, struct dlm_lkb *lkb, uint64_t seq)
 }
 
 /* needs at least dlm_rcom + rcom_lock */
-static void receive_rcom_lock(struct dlm_ls *ls, struct dlm_rcom *rc_in,
+static void receive_rcom_lock(struct dlm_ls *ls, const struct dlm_rcom *rc_in,
 			      uint64_t seq)
 {
 	__le32 rl_remid, rl_result;
@@ -500,7 +502,7 @@ static void receive_rcom_lock(struct dlm_ls *ls, struct dlm_rcom *rc_in,
 /* If the lockspace doesn't exist then still send a status message
    back; it's possible that it just doesn't have its global_id yet. */
 
-int dlm_send_ls_not_ready(int nodeid, struct dlm_rcom *rc_in)
+int dlm_send_ls_not_ready(int nodeid, const struct dlm_rcom *rc_in)
 {
 	struct dlm_rcom *rc;
 	struct rcom_config *rf;
@@ -578,7 +580,7 @@ int dlm_send_ls_not_ready(int nodeid, struct dlm_rcom *rc_in)
 /* Called by dlm_recv; corresponds to dlm_receive_message() but special
    recovery-only comms are sent through here. */
 
-void dlm_receive_rcom(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
+void dlm_receive_rcom(struct dlm_ls *ls, const struct dlm_rcom *rc, int nodeid)
 {
 	int lock_size = sizeof(struct dlm_rcom) + sizeof(struct rcom_lock);
 	int stop, reply = 0, names = 0, lookup = 0, lock = 0;

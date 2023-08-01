@@ -196,7 +196,8 @@ int dlm_recover_directory(struct dlm_ls *ls, uint64_t seq)
 	return error;
 }
 
-static struct dlm_rsb *find_rsb_root(struct dlm_ls *ls, char *name, int len)
+static struct dlm_rsb *find_rsb_root(struct dlm_ls *ls, const char *name,
+				     int len)
 {
 	struct dlm_rsb *r;
 	uint32_t hash, bucket;
@@ -232,7 +233,7 @@ static struct dlm_rsb *find_rsb_root(struct dlm_ls *ls, char *name, int len)
    for rsb's we're master of and whose directory node matches the requesting
    node.  inbuf is the rsb name last sent, inlen is the name's length */
 
-void dlm_copy_master_names(struct dlm_ls *ls, char *inbuf, int inlen,
+void dlm_copy_master_names(struct dlm_ls *ls, const char *inbuf, int inlen,
  			   char *outbuf, int outlen, int nodeid)
 {
 	struct list_head *list;

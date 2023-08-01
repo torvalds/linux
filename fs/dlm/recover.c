@@ -564,7 +564,7 @@ int dlm_recover_masters(struct dlm_ls *ls, uint64_t seq)
 	return error;
 }
 
-int dlm_recover_master_reply(struct dlm_ls *ls, struct dlm_rcom *rc)
+int dlm_recover_master_reply(struct dlm_ls *ls, const struct dlm_rcom *rc)
 {
 	struct dlm_rsb *r;
 	int ret_nodeid, new_master;

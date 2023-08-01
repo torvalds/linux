@@ -18,7 +18,7 @@
 #include "midcomms.h"
 #include "lowcomms.h"
 
-int dlm_slots_version(struct dlm_header *h)
+int dlm_slots_version(const struct dlm_header *h)
 {
 	if ((le32_to_cpu(h->h_version) & 0x0000FFFF) < DLM_HEADER_SLOTS)
 		return 0;

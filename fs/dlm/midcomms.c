@@ -499,7 +499,8 @@ static void dlm_pas_fin_ack_rcv(struct midcomms_node *node)
 	spin_unlock(&node->state_lock);
 }
 
-static void dlm_receive_buffer_3_2_trace(uint32_t seq, union dlm_packet *p)
+static void dlm_receive_buffer_3_2_trace(uint32_t seq,
+					 const union dlm_packet *p)
 {
 	switch (p->header.h_cmd) {
 	case DLM_MSG:
@@ -513,7 +514,7 @@ static void dlm_receive_buffer_3_2_trace(uint32_t seq, union dlm_packet *p)
 	}
 }
 
-static void dlm_midcomms_receive_buffer(union dlm_packet *p,
+static void dlm_midcomms_receive_buffer(const union dlm_packet *p,
 					struct midcomms_node *node,
 					uint32_t seq)
 {
@@ -708,7 +709,8 @@ static int dlm_midcomms_version_check_3_2(struct midcomms_node *node)
 	return 0;
 }
 
-static int dlm_opts_check_msglen(union dlm_packet *p, uint16_t msglen, int nodeid)
+static int dlm_opts_check_msglen(const union dlm_packet *p, uint16_t msglen,
+				 int nodeid)
 {
 	int len = msglen;
 
@@ -757,7 +759,7 @@ static int dlm_opts_check_msglen(union dlm_packet *p, uint16_t msglen, int nodei
 	return 0;
 }
 
-static void dlm_midcomms_receive_buffer_3_2(union dlm_packet *p, int nodeid)
+static void dlm_midcomms_receive_buffer_3_2(const union dlm_packet *p, int nodeid)
 {
 	uint16_t msglen = le16_to_cpu(p->header.h_length);
 	struct midcomms_node *node;
@@ -878,7 +880,7 @@ static int dlm_midcomms_version_check_3_1(struct midcomms_node *node)
 	return 0;
 }
 
-static void dlm_midcomms_receive_buffer_3_1(union dlm_packet *p, int nodeid)
+static void dlm_midcomms_receive_buffer_3_1(const union dlm_packet *p, int nodeid)
 {
 	uint16_t msglen = le16_to_cpu(p->header.h_length);
 	struct midcomms_node *node;
@@ -977,10 +979,10 @@ int dlm_process_incoming_buffer(int nodeid, unsigned char *buf, int len)
 
 		switch (hd->h_version) {
 		case cpu_to_le32(DLM_VERSION_3_1):
-			dlm_midcomms_receive_buffer_3_1((union dlm_packet *)ptr, nodeid);
+			dlm_midcomms_receive_buffer_3_1((const union dlm_packet *)ptr, nodeid);
 			break;
 		case cpu_to_le32(DLM_VERSION_3_2):
-			dlm_midcomms_receive_buffer_3_2((union dlm_packet *)ptr, nodeid);
+			dlm_midcomms_receive_buffer_3_2((const union dlm_packet *)ptr, nodeid);
 			break;
 		default:
 			log_print("received invalid version header: %u from node %d, will skip this message",
