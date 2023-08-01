@@ -645,15 +645,12 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_ICL_WITH_PORT_F(i915) \
 	IS_SUBPLATFORM(i915, INTEL_ICELAKE, INTEL_SUBPLATFORM_PORTF)
 
-#define IS_TGL_UY(i915) \
+#define IS_TIGERLAKE_UY(i915) \
 	IS_SUBPLATFORM(i915, INTEL_TIGERLAKE, INTEL_SUBPLATFORM_UY)
 
 
 
 
-#define IS_TGL_DISPLAY_STEP(__i915, since, until) \
-	(IS_TIGERLAKE(__i915) && \
-	 IS_DISPLAY_STEP(__i915, since, until))
 
 
 #define IS_ADLS_DISPLAY_STEP(__i915, since, until) \
