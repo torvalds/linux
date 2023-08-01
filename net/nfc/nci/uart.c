@@ -172,7 +172,7 @@ static int nci_uart_tty_open(struct tty_struct *tty)
  */
 static void nci_uart_tty_close(struct tty_struct *tty)
 {
-	struct nci_uart *nu = (void *)tty->disc_data;
+	struct nci_uart *nu = tty->disc_data;
 
 	/* Detach from the tty */
 	tty->disc_data = NULL;
@@ -204,7 +204,7 @@ static void nci_uart_tty_close(struct tty_struct *tty)
  */
 static void nci_uart_tty_wakeup(struct tty_struct *tty)
 {
-	struct nci_uart *nu = (void *)tty->disc_data;
+	struct nci_uart *nu = tty->disc_data;
 
 	if (!nu)
 		return;
@@ -298,7 +298,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 static void nci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
 				 const char *flags, int count)
 {
-	struct nci_uart *nu = (void *)tty->disc_data;
+	struct nci_uart *nu = tty->disc_data;
 
 	if (!nu || tty != nu->tty)
 		return;
@@ -325,7 +325,7 @@ static void nci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
 static int nci_uart_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			      unsigned long arg)
 {
-	struct nci_uart *nu = (void *)tty->disc_data;
+	struct nci_uart *nu = tty->disc_data;
 	int err = 0;
 
 	switch (cmd) {
