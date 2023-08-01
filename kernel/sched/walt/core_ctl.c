@@ -1292,14 +1292,23 @@ static bool core_ctl_check_masks_set(void)
 }
 
 /* is the system in a single-big-thread case? */
-static inline bool is_sbt(void)
+static inline bool is_sbt(bool prev_is_sbt, int prev_is_sbt_windows)
 {
 	struct cluster_data *cluster = &cluster_state[MAX_CLUSTERS - 1];
+	bool ret = false;
 
-	if (last_nr_big == 1 && cluster->nr_big == 1)
-		return true;
+	if (last_nr_big != 1)
+		goto out;
 
-	return false;
+	if (cluster->nr_big != 1)
+		goto out;
+
+	ret = true;
+out:
+	trace_core_ctl_sbt(&cpus_for_sbt_pause, prev_is_sbt, ret,
+			    prev_is_sbt_windows, cluster->nr_big);
+
+	return ret;
 }
 
 /**
@@ -1316,7 +1325,7 @@ void sbt_ctl_check(void)
 {
 	static bool prev_is_sbt;
 	static int prev_is_sbt_windows;
-	bool now_is_sbt = is_sbt();
+	bool now_is_sbt = is_sbt(prev_is_sbt, prev_is_sbt_windows);
 
 	/* if there are cpus to adjust */
 	if (cpumask_weight(&cpus_for_sbt_pause) != 0) {

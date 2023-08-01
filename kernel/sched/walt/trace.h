@@ -598,6 +598,34 @@ TRACE_EVENT(core_ctl_notif_data,
 		  __entry->cur_cap[1], __entry->cur_cap[2])
 );
 
+TRACE_EVENT(core_ctl_sbt,
+
+	TP_PROTO(cpumask_t *sbt_cpus, bool prev_is_sbt, bool now_is_sbt,
+		 int prev_is_sbt_windows, int prime_big_tasks),
+
+	TP_ARGS(sbt_cpus, prev_is_sbt, now_is_sbt, prev_is_sbt_windows, prime_big_tasks),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, sbt_cpus)
+		__field(unsigned int, prev_is_sbt)
+		__field(unsigned int, now_is_sbt)
+		__field(int, prev_is_sbt_windows)
+		__field(int, prime_big_tasks)
+		),
+
+	TP_fast_assign(
+		__entry->sbt_cpus = cpumask_bits(sbt_cpus)[0];
+		__entry->prev_is_sbt = prev_is_sbt;
+		__entry->now_is_sbt = now_is_sbt;
+		__entry->prev_is_sbt_windows = prev_is_sbt_windows;
+		__entry->prime_big_tasks = prime_big_tasks;
+		),
+
+	TP_printk("sbt_cpus=0x%x prev_is_sbt=%d now_is_sbt=%d prev_is_sbt_windows=%d prime_big_tasks=%d",
+		__entry->sbt_cpus, __entry->prev_is_sbt,  __entry->now_is_sbt,
+		__entry->prev_is_sbt_windows, __entry->prime_big_tasks)
+);
+
 /*
  * Tracepoint for sched_get_nr_running_avg
  */
