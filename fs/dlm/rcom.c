@@ -308,15 +308,15 @@ static void receive_sync_reply(struct dlm_ls *ls, const struct dlm_rcom *rc_in)
 int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name,
 		   int last_len, uint64_t seq)
 {
+	struct dlm_mhandle *mh;
 	struct dlm_rcom *rc;
-	struct dlm_msg *msg;
 	int error = 0;
 
 	ls->ls_recover_nodeid = nodeid;
 
 retry:
-	error = create_rcom_stateless(ls, nodeid, DLM_RCOM_NAMES, last_len,
-				      &rc, &msg, seq);
+	error = create_rcom(ls, nodeid, DLM_RCOM_NAMES, last_len,
+			    &rc, &mh, seq);
 	if (error)
 		goto out;
 	memcpy(rc->rc_buf, last_name, last_len);
@@ -324,7 +324,7 @@ retry:
 	allow_sync_reply(ls, &rc->rc_id);
 	memset(ls->ls_recover_buf, 0, DLM_MAX_SOCKET_BUFSIZE);
 
-	send_rcom_stateless(msg, rc);
+	send_rcom(mh, rc);
 
 	error = dlm_wait_function(ls, &rcom_response);
 	disallow_sync_reply(ls);
@@ -337,17 +337,17 @@ retry:
 static void receive_rcom_names(struct dlm_ls *ls, const struct dlm_rcom *rc_in,
 			       uint64_t seq)
 {
+	struct dlm_mhandle *mh;
 	struct dlm_rcom *rc;
 	int error, inlen, outlen, nodeid;
-	struct dlm_msg *msg;
 
 	nodeid = le32_to_cpu(rc_in->rc_header.h_nodeid);
 	inlen = le16_to_cpu(rc_in->rc_header.h_length) -
 		sizeof(struct dlm_rcom);
 	outlen = DLM_MAX_APP_BUFSIZE - sizeof(struct dlm_rcom);
 
-	error = create_rcom_stateless(ls, nodeid, DLM_RCOM_NAMES_REPLY, outlen,
-				      &rc, &msg, seq);
+	error = create_rcom(ls, nodeid, DLM_RCOM_NAMES_REPLY, outlen,
+			    &rc, &mh, seq);
 	if (error)
 		return;
 	rc->rc_id = rc_in->rc_id;
@@ -355,7 +355,7 @@ static void receive_rcom_names(struct dlm_ls *ls, const struct dlm_rcom *rc_in,
 
 	dlm_copy_master_names(ls, rc_in->rc_buf, inlen, rc->rc_buf, outlen,
 			      nodeid);
-	send_rcom_stateless(msg, rc);
+	send_rcom(mh, rc);
 }
 
 int dlm_send_rcom_lookup(struct dlm_rsb *r, int dir_nodeid, uint64_t seq)
