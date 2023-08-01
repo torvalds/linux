@@ -11,6 +11,10 @@
  * @flags: see struct hwtstamp_config
  * @tx_type: see struct hwtstamp_config
  * @rx_filter: see struct hwtstamp_config
+ * @ifr: pointer to ifreq structure from the original ioctl request, to pass to
+ *	a legacy implementation of a lower driver
+ * @copied_to_user: request was passed to a legacy implementation which already
+ *	copied the ioctl request back to user space
  *
  * Prefer using this structure for in-kernel processing of hardware
  * timestamping configuration, over the inextensible struct hwtstamp_config
@@ -20,6 +24,8 @@ struct kernel_hwtstamp_config {
 	int flags;
 	int tx_type;
 	int rx_filter;
+	struct ifreq *ifr;
+	bool copied_to_user;
 };
 
 static inline void hwtstamp_config_to_kernel(struct kernel_hwtstamp_config *kernel_cfg,
