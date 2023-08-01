@@ -3599,6 +3599,15 @@ struct rtw89_fw_req_info {
 	struct completion completion;
 };
 
+struct rtw89_fw_log {
+	struct rtw89_fw_suit suit;
+	bool enable;
+	u32 last_fmt_id;
+	u32 fmt_count;
+	const __le32 *fmt_ids;
+	const char *(*fmts)[];
+};
+
 struct rtw89_fw_info {
 	struct rtw89_fw_req_info req;
 	int fw_format;
@@ -3608,8 +3617,7 @@ struct rtw89_fw_info {
 	u8 c2h_counter;
 	struct rtw89_fw_suit normal;
 	struct rtw89_fw_suit wowlan;
-	struct rtw89_fw_suit logfmt;
-	bool fw_log_enable;
+	struct rtw89_fw_log log;
 	u32 feature_map;
 };
 
@@ -5146,7 +5154,7 @@ static inline struct rtw89_fw_suit *rtw89_fw_suit_get(struct rtw89_dev *rtwdev,
 	if (type == RTW89_FW_WOWLAN)
 		return &fw_info->wowlan;
 	else if (type == RTW89_FW_LOGFMT)
-		return &fw_info->logfmt;
+		return &fw_info->log.suit;
 	return &fw_info->normal;
 }
 

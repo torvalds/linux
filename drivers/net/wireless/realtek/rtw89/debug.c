@@ -3204,20 +3204,22 @@ static ssize_t rtw89_debug_priv_btc_manual_set(struct file *filp,
 	return count;
 }
 
-static ssize_t rtw89_debug_fw_log_btc_manual_set(struct file *filp,
-						 const char __user *user_buf,
-						 size_t count, loff_t *loff)
+static ssize_t rtw89_debug_fw_log_manual_set(struct file *filp,
+					     const char __user *user_buf,
+					     size_t count, loff_t *loff)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = filp->private_data;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
-	struct rtw89_fw_info *fw_info = &rtwdev->fw;
+	struct rtw89_fw_log *log = &rtwdev->fw.log;
 	bool fw_log_manual;
 
 	if (kstrtobool_from_user(user_buf, count, &fw_log_manual))
 		goto out;
 
 	mutex_lock(&rtwdev->mutex);
-	fw_info->fw_log_enable = fw_log_manual;
+	log->enable = fw_log_manual;
+	if (log->enable)
+		rtw89_fw_log_prepare(rtwdev);
 	rtw89_fw_h2c_fw_log(rtwdev, fw_log_manual);
 	mutex_unlock(&rtwdev->mutex);
 out:
@@ -3584,7 +3586,7 @@ static struct rtw89_debugfs_priv rtw89_debug_priv_btc_manual = {
 };
 
 static struct rtw89_debugfs_priv rtw89_debug_priv_fw_log_manual = {
-	.cb_write = rtw89_debug_fw_log_btc_manual_set,
+	.cb_write = rtw89_debug_fw_log_manual_set,
 };
 
 static struct rtw89_debugfs_priv rtw89_debug_priv_phy_info = {

@@ -3125,9 +3125,6 @@ static inline struct rtw89_fw_c2h_attr *RTW89_SKB_C2H_CB(struct sk_buff *skb)
 	return (struct rtw89_fw_c2h_attr *)skb->cb;
 }
 
-#define RTW89_GET_C2H_LOG_SRT_PRT(c2h) (char *)((__le32 *)(c2h) + 2)
-#define RTW89_GET_C2H_LOG_LEN(len) ((len) - RTW89_C2H_HEADER_LEN)
-
 struct rtw89_c2h_done_ack {
 	__le32 w0;
 	__le32 w1;
@@ -3148,6 +3145,26 @@ struct rtw89_c2h_done_ack {
 	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 8))
 #define RTW89_GET_MAC_C2H_REV_ACK_H2C_SEQ(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(23, 16))
+
+struct rtw89_fw_c2h_log_fmt {
+	__le16 signature;
+	u8 feature;
+	u8 syntax;
+	__le32 fmt_id;
+	u8 file_num;
+	__le16 line_num;
+	u8 argc;
+	union {
+		DECLARE_FLEX_ARRAY(u8, raw);
+		DECLARE_FLEX_ARRAY(__le32, argv);
+	} __packed u;
+} __packed;
+
+#define RTW89_C2H_FW_FORMATTED_LOG_MIN_LEN 11
+#define RTW89_C2H_FW_LOG_FEATURE_PARA_INT BIT(2)
+#define RTW89_C2H_FW_LOG_MAX_PARA_NUM 16
+#define RTW89_C2H_FW_LOG_SIGNATURE 0xA5A5
+#define RTW89_C2H_FW_LOG_STR_BUF_SIZE 512
 
 struct rtw89_c2h_mac_bcnfltr_rpt {
 	__le32 w0;
@@ -3325,6 +3342,12 @@ struct rtw89_mfw_hdr {
 	} ver;
 	u8 rsvd1[8];
 	struct rtw89_mfw_info info[];
+} __packed;
+
+struct rtw89_fw_logsuit_hdr {
+	__le32 rsvd;
+	__le32 count;
+	__le32 ids[];
 } __packed;
 
 struct fwcmd_hdr {
@@ -3517,6 +3540,8 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type);
 void rtw89_load_firmware_work(struct work_struct *work);
 void rtw89_unload_firmware(struct rtw89_dev *rtwdev);
 int rtw89_wait_firmware_completion(struct rtw89_dev *rtwdev);
+int rtw89_fw_log_prepare(struct rtw89_dev *rtwdev);
+void rtw89_fw_log_dump(struct rtw89_dev *rtwdev, u8 *buf, u32 len);
 void rtw89_h2c_pkt_set_hdr(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			   u8 type, u8 cat, u8 class, u8 func,
 			   bool rack, bool dack, u32 len);
