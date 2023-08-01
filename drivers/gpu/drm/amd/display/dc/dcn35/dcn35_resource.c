@@ -308,7 +308,7 @@ static const struct dcn31_apg_mask apg_mask = {
 };
 
 #define stream_enc_regs_init(id)\
-	SE_DCN32_REG_LIST_RI(id)
+	SE_DCN35_REG_LIST_RI(id)
 
 static struct dcn10_stream_enc_registers stream_enc_regs[5];
 
