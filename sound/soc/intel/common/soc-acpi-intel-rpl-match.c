@@ -308,6 +308,15 @@ static const struct snd_soc_acpi_link_adr rpl_sdw_rt1316_link12_rt714_link0[] = 
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr rpl_sdca_rvp[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt711_sdca_0_adr),
+		.adr_d = rt711_sdca_0_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr rplp_crb[] = {
 	{
 		.mask = BIT(2),
@@ -320,6 +329,11 @@ static const struct snd_soc_acpi_link_adr rplp_crb[] = {
 static const struct snd_soc_acpi_codecs rpl_rt5682_hp = {
 	.num_codecs = 2,
 	.codecs = {"10EC5682", "RTL5682"},
+};
+
+static const struct snd_soc_acpi_codecs rpl_max98357a_amp = {
+	.num_codecs = 1,
+	.codecs = {"MX98357A"}
 };
 
 static const struct snd_soc_acpi_codecs rpl_max98360a_amp = {
@@ -338,6 +352,13 @@ static const struct snd_soc_acpi_codecs rpl_rt1019p_amp = {
 };
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
+	{
+		.comp_ids = &rpl_rt5682_hp,
+		.drv_name = "rpl_mx98357_rt5682",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rpl_max98357a_amp,
+		.sof_tplg_filename = "sof-rpl-max98357a-rt5682.tplg",
+	},
 	{
 		.comp_ids = &rpl_rt5682_hp,
 		.drv_name = "rpl_mx98360_rt5682",
@@ -410,6 +431,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_sdw_machines[] = {
 	{
 		.link_mask = 0x1, /* link0 required */
 		.links = rpl_rvp,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-rpl-rt711-l0.tplg",
+	},
+	{
+		.link_mask = 0x1, /* link0 required */
+		.links = rpl_sdca_rvp,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-rpl-rt711-l0.tplg",
 	},
