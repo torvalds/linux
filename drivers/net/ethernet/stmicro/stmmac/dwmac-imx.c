@@ -42,6 +42,7 @@
 
 struct imx_dwmac_ops {
 	u32 addr_width;
+	u32 flags;
 	bool mac_rgmii_txclk_auto_adj;
 
 	int (*fix_soc_reset)(void *priv, void __iomem *ioaddr);
@@ -311,6 +312,9 @@ static int imx_dwmac_probe(struct platform_device *pdev)
 		goto err_parse_dt;
 	}
 
+	if (data->flags & STMMAC_FLAG_HWTSTAMP_CORRECT_LATENCY)
+		plat_dat->flags |= STMMAC_FLAG_HWTSTAMP_CORRECT_LATENCY;
+
 	plat_dat->host_dma_width = dwmac->ops->addr_width;
 	plat_dat->init = imx_dwmac_init;
 	plat_dat->exit = imx_dwmac_exit;
@@ -350,6 +354,7 @@ static struct imx_dwmac_ops imx8mp_dwmac_data = {
 	.addr_width = 34,
 	.mac_rgmii_txclk_auto_adj = false,
 	.set_intf_mode = imx8mp_set_intf_mode,
+	.flags = STMMAC_FLAG_HWTSTAMP_CORRECT_LATENCY,
 };
 
 static struct imx_dwmac_ops imx8dxl_dwmac_data = {
