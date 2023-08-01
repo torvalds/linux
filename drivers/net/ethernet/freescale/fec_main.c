@@ -3872,10 +3872,6 @@ static int fec_hwtstamp_get(struct net_device *ndev,
 			    struct kernel_hwtstamp_config *config)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct phy_device *phydev = ndev->phydev;
-
-	if (phy_has_hwtstamp(phydev))
-		return phy_mii_ioctl(phydev, config->ifr, SIOCGHWTSTAMP);
 
 	if (!netif_running(ndev))
 		return -EINVAL;
@@ -3893,10 +3889,6 @@ static int fec_hwtstamp_set(struct net_device *ndev,
 			    struct netlink_ext_ack *extack)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct phy_device *phydev = ndev->phydev;
-
-	if (phy_has_hwtstamp(phydev))
-		return phy_mii_ioctl(phydev, config->ifr, SIOCSHWTSTAMP);
 
 	if (!netif_running(ndev))
 		return -EINVAL;

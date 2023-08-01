@@ -455,9 +455,6 @@ static int lan966x_port_hwtstamp_get(struct net_device *dev,
 {
 	struct lan966x_port *port = netdev_priv(dev);
 
-	if (phy_has_hwtstamp(dev->phydev))
-		return phy_mii_ioctl(dev->phydev, cfg->ifr, SIOCGHWTSTAMP);
-
 	if (!port->lan966x->ptp)
 		return -EOPNOTSUPP;
 
@@ -473,21 +470,26 @@ static int lan966x_port_hwtstamp_set(struct net_device *dev,
 	struct lan966x_port *port = netdev_priv(dev);
 	int err;
 
+	if (cfg->source != HWTSTAMP_SOURCE_NETDEV &&
+	    cfg->source != HWTSTAMP_SOURCE_PHYLIB)
+		return -EOPNOTSUPP;
+
 	err = lan966x_ptp_setup_traps(port, cfg);
 	if (err)
 		return err;
 
-	if (phy_has_hwtstamp(dev->phydev)) {
-		err = phy_mii_ioctl(dev->phydev, cfg->ifr, SIOCSHWTSTAMP);
-		if (err)
+	if (cfg->source == HWTSTAMP_SOURCE_NETDEV) {
+		if (!port->lan966x->ptp)
+			return -EOPNOTSUPP;
+
+		err = lan966x_ptp_hwtstamp_set(port, cfg, extack);
+		if (err) {
 			lan966x_ptp_del_traps(port);
-		return err;
+			return err;
+		}
 	}
 
-	if (!port->lan966x->ptp)
-		return -EOPNOTSUPP;
-
-	return lan966x_ptp_hwtstamp_set(port, cfg, extack);
+	return 0;
 }
 
 static const struct net_device_ops lan966x_port_netdev_ops = {
@@ -815,6 +817,7 @@ static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
 			 NETIF_F_HW_VLAN_STAG_TX |
 			 NETIF_F_HW_TC;
 	dev->hw_features |= NETIF_F_HW_TC;
+	dev->priv_flags |= IFF_SEE_ALL_HWTSTAMP_REQUESTS;
 	dev->needed_headroom = IFH_LEN_BYTES;
 
 	eth_hw_addr_gen(dev, lan966x->base_mac, p + 1);

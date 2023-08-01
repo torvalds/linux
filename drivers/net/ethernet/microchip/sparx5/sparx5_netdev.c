@@ -216,9 +216,6 @@ static int sparx5_port_hwtstamp_get(struct net_device *dev,
 	struct sparx5_port *sparx5_port = netdev_priv(dev);
 	struct sparx5 *sparx5 = sparx5_port->sparx5;
 
-	if (phy_has_hwtstamp(dev->phydev))
-		return phy_mii_ioctl(dev->phydev, cfg->ifr, SIOCGHWTSTAMP);
-
 	if (!sparx5->ptp)
 		return -EOPNOTSUPP;
 
@@ -233,9 +230,6 @@ static int sparx5_port_hwtstamp_set(struct net_device *dev,
 {
 	struct sparx5_port *sparx5_port = netdev_priv(dev);
 	struct sparx5 *sparx5 = sparx5_port->sparx5;
-
-	if (phy_has_hwtstamp(dev->phydev))
-		return phy_mii_ioctl(dev->phydev, cfg->ifr, SIOCSHWTSTAMP);
 
 	if (!sparx5->ptp)
 		return -EOPNOTSUPP;
