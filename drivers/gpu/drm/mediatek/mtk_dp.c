@@ -2694,7 +2694,7 @@ static int mtk_dp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtk_dp_remove(struct platform_device *pdev)
+static void mtk_dp_remove(struct platform_device *pdev)
 {
 	struct mtk_dp *mtk_dp = platform_get_drvdata(pdev);
 
@@ -2705,8 +2705,6 @@ static int mtk_dp_remove(struct platform_device *pdev)
 	platform_device_unregister(mtk_dp->phy_dev);
 	if (mtk_dp->audio_pdev)
 		platform_device_unregister(mtk_dp->audio_pdev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2767,7 +2765,7 @@ MODULE_DEVICE_TABLE(of, mtk_dp_of_match);
 
 static struct platform_driver mtk_dp_driver = {
 	.probe = mtk_dp_probe,
-	.remove = mtk_dp_remove,
+	.remove_new = mtk_dp_remove,
 	.driver = {
 		.name = "mediatek-drm-dp",
 		.of_match_table = mtk_dp_of_match,

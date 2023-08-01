@@ -183,11 +183,9 @@ static int mtk_disp_gamma_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mtk_disp_gamma_remove(struct platform_device *pdev)
+static void mtk_disp_gamma_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &mtk_disp_gamma_component_ops);
-
-	return 0;
 }
 
 static const struct mtk_disp_gamma_data mt8173_gamma_driver_data = {
@@ -209,7 +207,7 @@ MODULE_DEVICE_TABLE(of, mtk_disp_gamma_driver_dt_match);
 
 struct platform_driver mtk_disp_gamma_driver = {
 	.probe		= mtk_disp_gamma_probe,
-	.remove		= mtk_disp_gamma_remove,
+	.remove_new	= mtk_disp_gamma_remove,
 	.driver		= {
 		.name	= "mediatek-disp-gamma",
 		.owner	= THIS_MODULE,

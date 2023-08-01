@@ -195,11 +195,9 @@ static int mtk_disp_ccorr_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mtk_disp_ccorr_remove(struct platform_device *pdev)
+static void mtk_disp_ccorr_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &mtk_disp_ccorr_component_ops);
-
-	return 0;
 }
 
 static const struct mtk_disp_ccorr_data mt8183_ccorr_driver_data = {
@@ -221,7 +219,7 @@ MODULE_DEVICE_TABLE(of, mtk_disp_ccorr_driver_dt_match);
 
 struct platform_driver mtk_disp_ccorr_driver = {
 	.probe		= mtk_disp_ccorr_probe,
-	.remove		= mtk_disp_ccorr_remove,
+	.remove_new	= mtk_disp_ccorr_remove,
 	.driver		= {
 		.name	= "mediatek-disp-ccorr",
 		.owner	= THIS_MODULE,
