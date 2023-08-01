@@ -380,7 +380,7 @@ test_announce()
 	:>"$server_evts"
 	ip netns exec "$ns2"\
 	   ./pm_nl_ctl ann 10.0.2.2 token "$client4_token" id $client_addr_id dev\
-	   ns2eth1 > /dev/null 2>&1
+	   ns2eth1
 	print_test "ADD_ADDR id:${client_addr_id} 10.0.2.2 (ns2) => ns1, reuse port"
 	sleep 0.5
 	verify_announce_event $server_evts $ANNOUNCED $server4_token "10.0.2.2" $client_addr_id \
@@ -389,7 +389,7 @@ test_announce()
 	# ADD_ADDR6 from the client to server machine reusing the subflow port
 	:>"$server_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl ann\
-	   dead:beef:2::2 token "$client6_token" id $client_addr_id dev ns2eth1 > /dev/null 2>&1
+	   dead:beef:2::2 token "$client6_token" id $client_addr_id dev ns2eth1
 	print_test "ADD_ADDR6 id:${client_addr_id} dead:beef:2::2 (ns2) => ns1, reuse port"
 	sleep 0.5
 	verify_announce_event "$server_evts" "$ANNOUNCED" "$server6_token" "dead:beef:2::2"\
@@ -399,7 +399,7 @@ test_announce()
 	:>"$server_evts"
 	client_addr_id=$((client_addr_id+1))
 	ip netns exec "$ns2" ./pm_nl_ctl ann 10.0.2.2 token "$client4_token" id\
-	   $client_addr_id dev ns2eth1 port $new4_port > /dev/null 2>&1
+	   $client_addr_id dev ns2eth1 port $new4_port
 	print_test "ADD_ADDR id:${client_addr_id} 10.0.2.2 (ns2) => ns1, new port"
 	sleep 0.5
 	verify_announce_event "$server_evts" "$ANNOUNCED" "$server4_token" "10.0.2.2"\
@@ -410,7 +410,7 @@ test_announce()
 
 	# ADD_ADDR from the server to client machine reusing the subflow port
 	ip netns exec "$ns1" ./pm_nl_ctl ann 10.0.2.1 token "$server4_token" id\
-	   $server_addr_id dev ns1eth2 > /dev/null 2>&1
+	   $server_addr_id dev ns1eth2
 	print_test "ADD_ADDR id:${server_addr_id} 10.0.2.1 (ns1) => ns2, reuse port"
 	sleep 0.5
 	verify_announce_event "$client_evts" "$ANNOUNCED" "$client4_token" "10.0.2.1"\
@@ -419,7 +419,7 @@ test_announce()
 	# ADD_ADDR6 from the server to client machine reusing the subflow port
 	:>"$client_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl ann dead:beef:2::1 token "$server6_token" id\
-	   $server_addr_id dev ns1eth2 > /dev/null 2>&1
+	   $server_addr_id dev ns1eth2
 	print_test "ADD_ADDR6 id:${server_addr_id} dead:beef:2::1 (ns1) => ns2, reuse port"
 	sleep 0.5
 	verify_announce_event "$client_evts" "$ANNOUNCED" "$client6_token" "dead:beef:2::1"\
@@ -429,7 +429,7 @@ test_announce()
 	:>"$client_evts"
 	server_addr_id=$((server_addr_id+1))
 	ip netns exec "$ns1" ./pm_nl_ctl ann 10.0.2.1 token "$server4_token" id\
-	   $server_addr_id dev ns1eth2 port $new4_port > /dev/null 2>&1
+	   $server_addr_id dev ns1eth2 port $new4_port
 	print_test "ADD_ADDR id:${server_addr_id} 10.0.2.1 (ns1) => ns2, new port"
 	sleep 0.5
 	verify_announce_event "$client_evts" "$ANNOUNCED" "$client4_token" "10.0.2.1"\
@@ -490,7 +490,7 @@ test_remove()
 	# RM_ADDR from the client to server machine
 	:>"$server_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl rem token "$client4_token" id\
-	   $client_addr_id > /dev/null 2>&1
+	   $client_addr_id
 	print_test "RM_ADDR id:${client_addr_id} ns2 => ns1"
 	sleep 0.5
 	verify_remove_event "$server_evts" "$REMOVED" "$server4_token" "$client_addr_id"
@@ -499,7 +499,7 @@ test_remove()
 	:>"$server_evts"
 	client_addr_id=$(( client_addr_id - 1 ))
 	ip netns exec "$ns2" ./pm_nl_ctl rem token "$client4_token" id\
-	   $client_addr_id > /dev/null 2>&1
+	   $client_addr_id
 	print_test "RM_ADDR id:${client_addr_id} ns2 => ns1"
 	sleep 0.5
 	verify_remove_event "$server_evts" "$REMOVED" "$server4_token" "$client_addr_id"
@@ -507,7 +507,7 @@ test_remove()
 	# RM_ADDR6 from the client to server machine
 	:>"$server_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl rem token "$client6_token" id\
-	   $client_addr_id > /dev/null 2>&1
+	   $client_addr_id
 	print_test "RM_ADDR6 id:${client_addr_id} ns2 => ns1"
 	sleep 0.5
 	verify_remove_event "$server_evts" "$REMOVED" "$server6_token" "$client_addr_id"
@@ -517,7 +517,7 @@ test_remove()
 
 	# RM_ADDR from the server to client machine
 	ip netns exec "$ns1" ./pm_nl_ctl rem token "$server4_token" id\
-	   $server_addr_id > /dev/null 2>&1
+	   $server_addr_id
 	print_test "RM_ADDR id:${server_addr_id} ns1 => ns2"
 	sleep 0.5
 	verify_remove_event "$client_evts" "$REMOVED" "$client4_token" "$server_addr_id"
@@ -526,7 +526,7 @@ test_remove()
 	:>"$client_evts"
 	server_addr_id=$(( server_addr_id - 1 ))
 	ip netns exec "$ns1" ./pm_nl_ctl rem token "$server4_token" id\
-	   $server_addr_id > /dev/null 2>&1
+	   $server_addr_id
 	print_test "RM_ADDR id:${server_addr_id} ns1 => ns2"
 	sleep 0.5
 	verify_remove_event "$client_evts" "$REMOVED" "$client4_token" "$server_addr_id"
@@ -534,7 +534,7 @@ test_remove()
 	# RM_ADDR6 from the server to client machine
 	:>"$client_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl rem token "$server6_token" id\
-	   $server_addr_id > /dev/null 2>&1
+	   $server_addr_id
 	print_test "RM_ADDR6 id:${server_addr_id} ns1 => ns2"
 	sleep 0.5
 	verify_remove_event "$client_evts" "$REMOVED" "$client6_token" "$server_addr_id"
@@ -610,18 +610,18 @@ test_subflows()
 
 	# Attempt to add a listener at 10.0.2.2:<subflow-port>
 	ip netns exec "$ns2" ./pm_nl_ctl listen 10.0.2.2\
-	   "$client4_port" > /dev/null 2>&1 &
+	   "$client4_port" &
 	local listener_pid=$!
 
 	# ADD_ADDR from client to server machine reusing the subflow port
 	ip netns exec "$ns2" ./pm_nl_ctl ann 10.0.2.2 token "$client4_token" id\
-	   $client_addr_id > /dev/null 2>&1
+	   $client_addr_id
 	sleep 0.5
 
 	# CREATE_SUBFLOW from server to client machine
 	:>"$server_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl csf lip 10.0.2.1 lid 23 rip 10.0.2.2\
-	   rport "$client4_port" token "$server4_token" > /dev/null 2>&1
+	   rport "$client4_port" token "$server4_token"
 	sleep 0.5
 	verify_subflow_events $server_evts $SUB_ESTABLISHED $server4_token $AF_INET "10.0.2.1" \
 			      "10.0.2.2" "$client4_port" "23" "$client_addr_id" "ns1" "ns2"
@@ -635,31 +635,31 @@ test_subflows()
 	# DESTROY_SUBFLOW from server to client machine
 	:>"$server_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl dsf lip 10.0.2.1 lport "$sport" rip 10.0.2.2 rport\
-	   "$client4_port" token "$server4_token" > /dev/null 2>&1
+	   "$client4_port" token "$server4_token"
 	sleep 0.5
 	verify_subflow_events "$server_evts" "$SUB_CLOSED" "$server4_token" "$AF_INET" "10.0.2.1"\
 			      "10.0.2.2" "$client4_port" "23" "$client_addr_id" "ns1" "ns2"
 
 	# RM_ADDR from client to server machine
 	ip netns exec "$ns2" ./pm_nl_ctl rem id $client_addr_id token\
-	   "$client4_token" > /dev/null 2>&1
+	   "$client4_token"
 	sleep 0.5
 
 	# Attempt to add a listener at dead:beef:2::2:<subflow-port>
 	ip netns exec "$ns2" ./pm_nl_ctl listen dead:beef:2::2\
-	   "$client6_port" > /dev/null 2>&1 &
+	   "$client6_port" &
 	listener_pid=$!
 
 	# ADD_ADDR6 from client to server machine reusing the subflow port
 	:>"$server_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl ann dead:beef:2::2 token "$client6_token" id\
-	   $client_addr_id > /dev/null 2>&1
+	   $client_addr_id
 	sleep 0.5
 
 	# CREATE_SUBFLOW6 from server to client machine
 	:>"$server_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl csf lip dead:beef:2::1 lid 23 rip\
-	   dead:beef:2::2 rport "$client6_port" token "$server6_token" > /dev/null 2>&1
+	   dead:beef:2::2 rport "$client6_port" token "$server6_token"
 	sleep 0.5
 	verify_subflow_events "$server_evts" "$SUB_ESTABLISHED" "$server6_token" "$AF_INET6"\
 			      "dead:beef:2::1" "dead:beef:2::2" "$client6_port" "23"\
@@ -673,7 +673,7 @@ test_subflows()
 	# DESTROY_SUBFLOW6 from server to client machine
 	:>"$server_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl dsf lip dead:beef:2::1 lport "$sport" rip\
-	   dead:beef:2::2 rport "$client6_port" token "$server6_token" > /dev/null 2>&1
+	   dead:beef:2::2 rport "$client6_port" token "$server6_token"
 	sleep 0.5
 	verify_subflow_events "$server_evts" "$SUB_CLOSED" "$server6_token" "$AF_INET6"\
 			      "dead:beef:2::1" "dead:beef:2::2" "$client6_port" "23"\
@@ -681,24 +681,24 @@ test_subflows()
 
 	# RM_ADDR from client to server machine
 	ip netns exec "$ns2" ./pm_nl_ctl rem id $client_addr_id token\
-	   "$client6_token" > /dev/null 2>&1
+	   "$client6_token"
 	sleep 0.5
 
 	# Attempt to add a listener at 10.0.2.2:<new-port>
 	ip netns exec "$ns2" ./pm_nl_ctl listen 10.0.2.2\
-	   $new4_port > /dev/null 2>&1 &
+	   $new4_port &
 	listener_pid=$!
 
 	# ADD_ADDR from client to server machine using a new port
 	:>"$server_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl ann 10.0.2.2 token "$client4_token" id\
-	   $client_addr_id port $new4_port > /dev/null 2>&1
+	   $client_addr_id port $new4_port
 	sleep 0.5
 
 	# CREATE_SUBFLOW from server to client machine
 	:>"$server_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl csf lip 10.0.2.1 lid 23 rip 10.0.2.2 rport\
-	   $new4_port token "$server4_token" > /dev/null 2>&1
+	   $new4_port token "$server4_token"
 	sleep 0.5
 	verify_subflow_events "$server_evts" "$SUB_ESTABLISHED" "$server4_token" "$AF_INET"\
 			      "10.0.2.1" "10.0.2.2" "$new4_port" "23"\
@@ -712,32 +712,32 @@ test_subflows()
 	# DESTROY_SUBFLOW from server to client machine
 	:>"$server_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl dsf lip 10.0.2.1 lport "$sport" rip 10.0.2.2 rport\
-	   $new4_port token "$server4_token" > /dev/null 2>&1
+	   $new4_port token "$server4_token"
 	sleep 0.5
 	verify_subflow_events "$server_evts" "$SUB_CLOSED" "$server4_token" "$AF_INET" "10.0.2.1"\
 			      "10.0.2.2" "$new4_port" "23" "$client_addr_id" "ns1" "ns2"
 
 	# RM_ADDR from client to server machine
 	ip netns exec "$ns2" ./pm_nl_ctl rem id $client_addr_id token\
-	   "$client4_token" > /dev/null 2>&1
+	   "$client4_token"
 
 	# Capture events on the network namespace running the client
 	:>"$client_evts"
 
 	# Attempt to add a listener at 10.0.2.1:<subflow-port>
 	ip netns exec "$ns1" ./pm_nl_ctl listen 10.0.2.1\
-	   $app4_port > /dev/null 2>&1 &
+	   $app4_port &
 	listener_pid=$!
 
 	# ADD_ADDR from server to client machine reusing the subflow port
 	ip netns exec "$ns1" ./pm_nl_ctl ann 10.0.2.1 token "$server4_token" id\
-	   $server_addr_id > /dev/null 2>&1
+	   $server_addr_id
 	sleep 0.5
 
 	# CREATE_SUBFLOW from client to server machine
 	:>"$client_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl csf lip 10.0.2.2 lid 23 rip 10.0.2.1 rport\
-	   $app4_port token "$client4_token" > /dev/null 2>&1
+	   $app4_port token "$client4_token"
 	sleep 0.5
 	verify_subflow_events $client_evts $SUB_ESTABLISHED $client4_token $AF_INET "10.0.2.2"\
 			      "10.0.2.1" "$app4_port" "23" "$server_addr_id" "ns2" "ns1"
@@ -750,31 +750,31 @@ test_subflows()
 	# DESTROY_SUBFLOW from client to server machine
 	:>"$client_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl dsf lip 10.0.2.2 lport "$sport" rip 10.0.2.1 rport\
-	   $app4_port token "$client4_token" > /dev/null 2>&1
+	   $app4_port token "$client4_token"
 	sleep 0.5
 	verify_subflow_events "$client_evts" "$SUB_CLOSED" "$client4_token" "$AF_INET" "10.0.2.2"\
 			      "10.0.2.1" "$app4_port" "23" "$server_addr_id" "ns2" "ns1"
 
 	# RM_ADDR from server to client machine
 	ip netns exec "$ns1" ./pm_nl_ctl rem id $server_addr_id token\
-	   "$server4_token" > /dev/null 2>&1
+	   "$server4_token"
 	sleep 0.5
 
 	# Attempt to add a listener at dead:beef:2::1:<subflow-port>
 	ip netns exec "$ns1" ./pm_nl_ctl listen dead:beef:2::1\
-	   $app6_port > /dev/null 2>&1 &
+	   $app6_port &
 	listener_pid=$!
 
 	# ADD_ADDR6 from server to client machine reusing the subflow port
 	:>"$client_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl ann dead:beef:2::1 token "$server6_token" id\
-	   $server_addr_id > /dev/null 2>&1
+	   $server_addr_id
 	sleep 0.5
 
 	# CREATE_SUBFLOW6 from client to server machine
 	:>"$client_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl csf lip dead:beef:2::2 lid 23 rip\
-	   dead:beef:2::1 rport $app6_port token "$client6_token" > /dev/null 2>&1
+	   dead:beef:2::1 rport $app6_port token "$client6_token"
 	sleep 0.5
 	verify_subflow_events "$client_evts" "$SUB_ESTABLISHED" "$client6_token"\
 			      "$AF_INET6" "dead:beef:2::2"\
@@ -789,31 +789,31 @@ test_subflows()
 	# DESTROY_SUBFLOW6 from client to server machine
 	:>"$client_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl dsf lip dead:beef:2::2 lport "$sport" rip\
-	   dead:beef:2::1 rport $app6_port token "$client6_token" > /dev/null 2>&1
+	   dead:beef:2::1 rport $app6_port token "$client6_token"
 	sleep 0.5
 	verify_subflow_events $client_evts $SUB_CLOSED $client6_token $AF_INET6 "dead:beef:2::2"\
 			      "dead:beef:2::1" "$app6_port" "23" "$server_addr_id" "ns2" "ns1"
 
 	# RM_ADDR6 from server to client machine
 	ip netns exec "$ns1" ./pm_nl_ctl rem id $server_addr_id token\
-	   "$server6_token" > /dev/null 2>&1
+	   "$server6_token"
 	sleep 0.5
 
 	# Attempt to add a listener at 10.0.2.1:<new-port>
 	ip netns exec "$ns1" ./pm_nl_ctl listen 10.0.2.1\
-	   $new4_port > /dev/null 2>&1 &
+	   $new4_port &
 	listener_pid=$!
 
 	# ADD_ADDR from server to client machine using a new port
 	:>"$client_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl ann 10.0.2.1 token "$server4_token" id\
-	   $server_addr_id port $new4_port > /dev/null 2>&1
+	   $server_addr_id port $new4_port
 	sleep 0.5
 
 	# CREATE_SUBFLOW from client to server machine
 	:>"$client_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl csf lip 10.0.2.2 lid 23 rip 10.0.2.1 rport\
-	   $new4_port token "$client4_token" > /dev/null 2>&1
+	   $new4_port token "$client4_token"
 	sleep 0.5
 	verify_subflow_events "$client_evts" "$SUB_ESTABLISHED" "$client4_token" "$AF_INET"\
 			      "10.0.2.2" "10.0.2.1" "$new4_port" "23" "$server_addr_id" "ns2" "ns1"
@@ -826,14 +826,14 @@ test_subflows()
 	# DESTROY_SUBFLOW from client to server machine
 	:>"$client_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl dsf lip 10.0.2.2 lport "$sport" rip 10.0.2.1 rport\
-	   $new4_port token "$client4_token" > /dev/null 2>&1
+	   $new4_port token "$client4_token"
 	sleep 0.5
 	verify_subflow_events "$client_evts" "$SUB_CLOSED" "$client4_token" "$AF_INET" "10.0.2.2"\
 			      "10.0.2.1" "$new4_port" "23" "$server_addr_id" "ns2" "ns1"
 
 	# RM_ADDR from server to client machine
 	ip netns exec "$ns1" ./pm_nl_ctl rem id $server_addr_id token\
-	   "$server4_token" > /dev/null 2>&1
+	   "$server4_token"
 }
 
 test_subflows_v4_v6_mix()
@@ -842,14 +842,14 @@ test_subflows_v4_v6_mix()
 
 	# Attempt to add a listener at 10.0.2.1:<subflow-port>
 	ip netns exec "$ns1" ./pm_nl_ctl listen 10.0.2.1\
-	   $app6_port > /dev/null 2>&1 &
+	   $app6_port &
 	local listener_pid=$!
 
 	# ADD_ADDR4 from server to client machine reusing the subflow port on
 	# the established v6 connection
 	:>"$client_evts"
 	ip netns exec "$ns1" ./pm_nl_ctl ann 10.0.2.1 token "$server6_token" id\
-	   $server_addr_id dev ns1eth2 > /dev/null 2>&1
+	   $server_addr_id dev ns1eth2
 	print_test "ADD_ADDR4 id:${server_addr_id} 10.0.2.1 (ns1) => ns2, reuse port"
 	sleep 0.5
 	verify_announce_event "$client_evts" "$ANNOUNCED" "$client6_token" "10.0.2.1"\
@@ -858,7 +858,7 @@ test_subflows_v4_v6_mix()
 	# CREATE_SUBFLOW from client to server machine
 	:>"$client_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl csf lip 10.0.2.2 lid 23 rip 10.0.2.1 rport\
-	   $app6_port token "$client6_token" > /dev/null 2>&1
+	   $app6_port token "$client6_token"
 	sleep 0.5
 	verify_subflow_events "$client_evts" "$SUB_ESTABLISHED" "$client6_token"\
 			      "$AF_INET" "10.0.2.2" "10.0.2.1" "$app6_port" "23"\
@@ -872,7 +872,7 @@ test_subflows_v4_v6_mix()
 	# DESTROY_SUBFLOW from client to server machine
 	:>"$client_evts"
 	ip netns exec "$ns2" ./pm_nl_ctl dsf lip 10.0.2.2 lport "$sport" rip 10.0.2.1 rport\
-	   $app6_port token "$client6_token" > /dev/null 2>&1
+	   $app6_port token "$client6_token"
 	sleep 0.5
 	verify_subflow_events "$client_evts" "$SUB_CLOSED" "$client6_token" \
 			      "$AF_INET" "10.0.2.2" "10.0.2.1" "$app6_port" "23"\
@@ -880,7 +880,7 @@ test_subflows_v4_v6_mix()
 
 	# RM_ADDR from server to client machine
 	ip netns exec "$ns1" ./pm_nl_ctl rem id $server_addr_id token\
-	   "$server6_token" > /dev/null 2>&1
+	   "$server6_token"
 	sleep 0.5
 }
 
@@ -965,7 +965,7 @@ test_listener()
 
 	# Attempt to add a listener at 10.0.2.2:<subflow-port>
 	ip netns exec $ns2 ./pm_nl_ctl listen 10.0.2.2\
-		$client4_port > /dev/null 2>&1 &
+		$client4_port &
 	local listener_pid=$!
 
 	sleep 0.5
@@ -973,12 +973,12 @@ test_listener()
 
 	# ADD_ADDR from client to server machine reusing the subflow port
 	ip netns exec $ns2 ./pm_nl_ctl ann 10.0.2.2 token $client4_token id\
-		$client_addr_id > /dev/null 2>&1
+		$client_addr_id
 	sleep 0.5
 
 	# CREATE_SUBFLOW from server to client machine
 	ip netns exec $ns1 ./pm_nl_ctl csf lip 10.0.2.1 lid 23 rip 10.0.2.2\
-		rport $client4_port token $server4_token > /dev/null 2>&1
+		rport $client4_port token $server4_token
 	sleep 0.5
 
 	# Delete the listener from the client ns, if one was created
