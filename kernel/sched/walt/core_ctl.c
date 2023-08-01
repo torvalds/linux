@@ -1326,6 +1326,7 @@ void sbt_ctl_check(void)
 	static bool prev_is_sbt;
 	static int prev_is_sbt_windows;
 	bool now_is_sbt = is_sbt(prev_is_sbt, prev_is_sbt_windows);
+	cpumask_t local_cpus;
 
 	/* if there are cpus to adjust */
 	if (cpumask_weight(&cpus_for_sbt_pause) != 0) {
@@ -1339,12 +1340,14 @@ void sbt_ctl_check(void)
 		if (now_is_sbt && prev_is_sbt_windows-- > 0)
 			return;
 
+		cpumask_copy(&local_cpus, &cpus_for_sbt_pause);
+
 		if (!prev_is_sbt && now_is_sbt)
 			/*sbt entry*/
-			walt_pause_cpus(&cpus_for_sbt_pause, PAUSE_SBT);
+			walt_pause_cpus(&local_cpus, PAUSE_SBT);
 		else if (prev_is_sbt && !now_is_sbt)
 			/* sbt exit */
-			walt_resume_cpus(&cpus_for_sbt_pause, PAUSE_SBT);
+			walt_resume_cpus(&local_cpus, PAUSE_SBT);
 
 		prev_is_sbt_windows = sysctl_sched_sbt_delay_windows;
 		prev_is_sbt = now_is_sbt;
