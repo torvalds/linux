@@ -1492,7 +1492,7 @@ long module_get_offset_and_type(struct module *mod, enum mod_mem_type type,
 	return offset | mask;
 }
 
-static bool module_init_layout_section(const char *sname)
+bool module_init_layout_section(const char *sname)
 {
 #ifndef CONFIG_MODULE_UNLOAD
 	if (module_exit_section(sname))
