@@ -64,6 +64,7 @@ tests = [
     'lklfuse.sh -t xfs',
     'config',
     'hijack-test.sh',
+    'LKL_HIJACK_ZPOLINE=1 hijack-test.sh',
     'disk-vfio-pci.sh -t ext4 run',
     'disk-vfio-pci.sh -t btrfs run',
     'disk-vfio-pci.sh -t vfat run',

@@ -686,10 +686,21 @@ if [[ ! -e ${basedir}/lib/hijack/liblkl-hijack.so ]]; then
     exit 0
 fi
 
+if [ -n "${LKL_HIJACK_ZPOLINE}" ]
+then
+    if [ -z "$LKL_HOST_CONFIG_ZPOLINE_DIR" ];  then
+       lkl_test_plan 0 "zpoline tests"
+       echo "missing zpoline configuration"
+       exit $TEST_SKIP
+    fi
+    test_header=" (zpoline)"
+fi
+
+
 if [ -n "$LKL_HOST_CONFIG_ANDROID" ]; then
     wdir=$ANDROID_WDIR
     adb_push lib/hijack/liblkl-hijack.so bin/lkl-hijack.sh tests/net-setup.sh \
-             tests/run_netperf.sh tests/hijack-test.sh
+             tests/run_netperf.sh tests/hijack-test.sh tests/autoconf.sh
     ping="ping"
     ping6="ping6"
     hijack="$wdir/bin/lkl-hijack.sh"
@@ -713,7 +724,7 @@ VDESWITCH=${wdir}/vde_switch
 # And make sure we clean up when we're done
 trap "clear_wdir &>/dev/null" EXIT
 
-lkl_test_plan 5 "hijack basic tests"
+lkl_test_plan 5 "hijack basic tests${test_header}"
 lkl_test_run 1 run_hijack ip addr
 lkl_test_run 2 run_hijack ip route
 lkl_test_run 3 test_ping

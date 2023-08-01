@@ -9,6 +9,7 @@ extern "C" {
 #include <lkl.h>
 
 extern struct lkl_host_operations lkl_host_ops;
+extern void lkl_change_tls_mode(void);
 
 /**
  * lkl_printf - print a message via the host print operation

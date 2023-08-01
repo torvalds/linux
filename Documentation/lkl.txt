@@ -460,6 +460,71 @@ The following are the list of keys to describe a JSON file.
      "nameserver":"8.8.8.8"
 ```
 
+LKL hijack library with zpoline
+-------------------------------
+
+[zpoline](https://github.com/yasukata/zpoline) is an alternative to
+syscall hijack based on LD_PRELOAD, which is still default on LKL.
+The zpoline library works with binary rewrites to the loaded programs
+upon instantiation, then load hook function for the original syscalls.
+The LKL hijack library works together with zpoline by loading LKL.
+
+zpoline currently only works on x86_64 machines.
+
+To use the zpoline-enabled hijack library, please follow the
+instruction below.
+
+- Build
+```
+make -C tools/lkl -j8 zpoline=../zpoline
+```
+
+Suppose `zpoline` is downloaded at `../zpoline` and already build
+before LKL build.
+
+- Execution
+
+zpoline rewrites the memory address 0x0 to hook syscalls, but non-root
+users don't have a privilege to operate that address.  The following
+configuration allows us to use zpoline without root privilege.
+
+```
+sudo sh -c "echo 0 > /proc/sys/vm/mmap_min_addr"
+```
+
+then, execute command with the environment variable `LKL_HIJACK_ZPOLINE=1`.
+
+```
+LKL_HIJACK_ZPOLINE=1 LKL_HIJACK_CONFIG_FILE=lkl-tap.json \
+  ./tools/lkl/bin/lkl-hijack.sh ping www.google.com
+```
+
+The file `lkl-tap.json` can be prepared like this.
+
+```
+{
+    "gateway": "172.17.0.1",
+    "nameserver": "8.8.8.8",
+    "interfaces": [
+        {
+            "ip": "172.17.0.39",
+            "masklen": "16",
+            "mac": "00:0d:0b:94:4e:97",
+            "param": "tap0",
+            "type": "tap"
+        }
+    ],
+}
+```
+
+With the preload hijack library, which is the default one, it uses the
+host name resolver and if the host uses a nameserver, defined at
+`/etc/resolv.conf`, like 127.0.0.53, is not accepting DNS requests, in
+a view of the LKL instance.
+
+But with zpoline, it can successfully replace all syscalls for name
+resolution so can `ping` with a name.
+
 FAQ
 ===
 
