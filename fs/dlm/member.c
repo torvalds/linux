@@ -393,14 +393,9 @@ static void remove_remote_member(int nodeid)
 	dlm_midcomms_remove_member(nodeid);
 }
 
-static void clear_members_cb(int nodeid)
-{
-	remove_remote_member(nodeid);
-}
-
 void dlm_clear_members(struct dlm_ls *ls)
 {
-	clear_memb_list(&ls->ls_nodes, clear_members_cb);
+	clear_memb_list(&ls->ls_nodes, remove_remote_member);
 	ls->ls_num_nodes = 0;
 }
 
