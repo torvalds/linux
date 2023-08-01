@@ -8,6 +8,7 @@
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma/ti-cppi5.h>
 #include <linux/etherdevice.h>
@@ -1090,6 +1091,8 @@ static int emac_ndo_open(struct net_device *ndev)
 
 	prueth->emacs_initialized++;
 
+	queue_work(system_long_wq, &emac->stats_work.work);
+
 	return 0;
 
 reset_tx_chan:
@@ -1163,6 +1166,9 @@ static int emac_ndo_stop(struct net_device *ndev)
 	napi_disable(&emac->napi_rx);
 
 	cancel_work_sync(&emac->rx_mode_work);
+
+	/* Destroying the queued work in ndo_stop() */
+	cancel_delayed_work_sync(&emac->stats_work);
 
 	/* stop PRUs */
 	prueth_emac_stop(emac);
@@ -1312,6 +1318,8 @@ static int prueth_netdev_init(struct prueth *prueth,
 		goto free_ndev;
 	}
 	INIT_WORK(&emac->rx_mode_work, emac_ndo_set_rx_mode_work);
+
+	INIT_DELAYED_WORK(&emac->stats_work, emac_stats_work_handler);
 
 	ret = pruss_request_mem_region(prueth->pruss,
 				       port == PRUETH_PORT_MII0 ?
