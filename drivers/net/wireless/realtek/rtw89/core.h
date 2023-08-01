@@ -3548,6 +3548,8 @@ enum rtw89_fw_type {
 	RTW89_FW_NORMAL = 1,
 	RTW89_FW_WOWLAN = 3,
 	RTW89_FW_NORMAL_CE = 5,
+	RTW89_FW_BBMCU0 = 64,
+	RTW89_FW_BBMCU1 = 65,
 	RTW89_FW_LOGFMT = 255,
 };
 
@@ -3620,6 +3622,8 @@ struct rtw89_fw_info {
 	u8 c2h_counter;
 	struct rtw89_fw_suit normal;
 	struct rtw89_fw_suit wowlan;
+	struct rtw89_fw_suit bbmcu0;
+	struct rtw89_fw_suit bbmcu1;
 	struct rtw89_fw_log log;
 	u32 feature_map;
 };
@@ -5154,10 +5158,19 @@ static inline struct rtw89_fw_suit *rtw89_fw_suit_get(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 
-	if (type == RTW89_FW_WOWLAN)
+	switch (type) {
+	case RTW89_FW_WOWLAN:
 		return &fw_info->wowlan;
-	else if (type == RTW89_FW_LOGFMT)
+	case RTW89_FW_LOGFMT:
 		return &fw_info->log.suit;
+	case RTW89_FW_BBMCU0:
+		return &fw_info->bbmcu0;
+	case RTW89_FW_BBMCU1:
+		return &fw_info->bbmcu1;
+	default:
+		break;
+	}
+
 	return &fw_info->normal;
 }
 
