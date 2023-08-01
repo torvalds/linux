@@ -780,19 +780,21 @@ mt76_connac_mcu_sta_he_tlv_v2(struct sk_buff *skb, struct ieee80211_sta *sta)
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_he_tlv_v2);
 
-static u8
+u8
 mt76_connac_get_phy_mode_v2(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 			    enum nl80211_band band, struct ieee80211_sta *sta)
 {
 	struct ieee80211_sta_ht_cap *ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap;
 	const struct ieee80211_sta_he_cap *he_cap;
+	const struct ieee80211_sta_eht_cap *eht_cap;
 	u8 mode = 0;
 
 	if (sta) {
 		ht_cap = &sta->deflink.ht_cap;
 		vht_cap = &sta->deflink.vht_cap;
 		he_cap = &sta->deflink.he_cap;
+		eht_cap = &sta->deflink.eht_cap;
 	} else {
 		struct ieee80211_supported_band *sband;
 
@@ -800,6 +802,7 @@ mt76_connac_get_phy_mode_v2(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 		ht_cap = &sband->ht_cap;
 		vht_cap = &sband->vht_cap;
 		he_cap = ieee80211_get_he_iftype_cap(sband, vif->type);
+		eht_cap = ieee80211_get_eht_iftype_cap(sband, vif->type);
 	}
 
 	if (band == NL80211_BAND_2GHZ) {
@@ -810,6 +813,9 @@ mt76_connac_get_phy_mode_v2(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 
 		if (he_cap && he_cap->has_he)
 			mode |= PHY_TYPE_BIT_HE;
+
+		if (eht_cap && eht_cap->has_eht)
+			mode |= PHY_TYPE_BIT_BE;
 	} else if (band == NL80211_BAND_5GHZ || band == NL80211_BAND_6GHZ) {
 		mode |= PHY_TYPE_BIT_OFDM;
 
@@ -821,10 +827,14 @@ mt76_connac_get_phy_mode_v2(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 
 		if (he_cap && he_cap->has_he)
 			mode |= PHY_TYPE_BIT_HE;
+
+		if (eht_cap && eht_cap->has_eht)
+			mode |= PHY_TYPE_BIT_BE;
 	}
 
 	return mode;
 }
+EXPORT_SYMBOL_GPL(mt76_connac_get_phy_mode_v2);
 
 void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 			     struct ieee80211_sta *sta,

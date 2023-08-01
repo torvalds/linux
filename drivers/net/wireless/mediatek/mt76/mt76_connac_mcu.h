@@ -919,6 +919,7 @@ enum {
 	PHY_TYPE_HT_INDEX,
 	PHY_TYPE_VHT_INDEX,
 	PHY_TYPE_HE_INDEX,
+	PHY_TYPE_BE_INDEX,
 	PHY_TYPE_INDEX_NUM
 };
 
@@ -928,6 +929,7 @@ enum {
 #define PHY_TYPE_BIT_HT				BIT(PHY_TYPE_HT_INDEX)
 #define PHY_TYPE_BIT_VHT			BIT(PHY_TYPE_VHT_INDEX)
 #define PHY_TYPE_BIT_HE				BIT(PHY_TYPE_HE_INDEX)
+#define PHY_TYPE_BIT_BE				BIT(PHY_TYPE_BE_INDEX)
 
 #define MT_WTBL_RATE_TX_MODE			GENMASK(9, 6)
 #define MT_WTBL_RATE_MCS			GENMASK(5, 0)
@@ -1808,6 +1810,8 @@ int mt76_connac_mcu_sta_update_hdr_trans(struct mt76_dev *dev,
 					 struct ieee80211_vif *vif,
 					 struct mt76_wcid *wcid, int cmd);
 void mt76_connac_mcu_sta_he_tlv_v2(struct sk_buff *skb, struct ieee80211_sta *sta);
+u8 mt76_connac_get_phy_mode_v2(struct mt76_phy *mphy, struct ieee80211_vif *vif,
+			       enum nl80211_band band, struct ieee80211_sta *sta);
 int mt76_connac_mcu_wtbl_update_hdr_trans(struct mt76_dev *dev,
 					  struct ieee80211_vif *vif,
 					  struct ieee80211_sta *sta);
