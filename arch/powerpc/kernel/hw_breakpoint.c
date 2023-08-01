@@ -499,6 +499,10 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
  * Restores the breakpoint on the debug registers.
  * Invoke this function if it is known that the execution context is
  * about to change to cause loss of MSR_SE settings.
+ *
+ * The perf watchpoint will simply re-trigger once the thread is started again,
+ * and the watchpoint handler will set up MSR_SE and perf_single_step as
+ * needed.
  */
 void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
 {
