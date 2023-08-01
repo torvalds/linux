@@ -1103,7 +1103,7 @@ static int pcf2127_configure_interrupt_pins(struct device *dev)
 }
 
 static int pcf2127_probe(struct device *dev, struct regmap *regmap,
-			 int alarm_irq, const char *name, const struct pcf21xx_config *config)
+			 int alarm_irq, const struct pcf21xx_config *config)
 {
 	struct pcf2127 *pcf2127;
 	int ret = 0;
@@ -1402,8 +1402,7 @@ static int pcf2127_i2c_probe(struct i2c_client *client)
 		return PTR_ERR(regmap);
 	}
 
-	return pcf2127_probe(&client->dev, regmap, client->irq,
-			     pcf2127_i2c_driver.driver.name, variant);
+	return pcf2127_probe(&client->dev, regmap, client->irq, variant);
 }
 
 static struct i2c_driver pcf2127_i2c_driver = {
@@ -1475,9 +1474,7 @@ static int pcf2127_spi_probe(struct spi_device *spi)
 		return PTR_ERR(regmap);
 	}
 
-	return pcf2127_probe(&spi->dev, regmap, spi->irq,
-			     pcf2127_spi_driver.driver.name,
-			     variant);
+	return pcf2127_probe(&spi->dev, regmap, spi->irq, variant);
 }
 
 static const struct spi_device_id pcf2127_spi_id[] = {
