@@ -191,6 +191,7 @@ struct mt76_connac2_fw_region {
 struct tlv {
 	__le16 tag;
 	__le16 len;
+	u8 data[];
 } __packed;
 
 struct bss_info_omac {
