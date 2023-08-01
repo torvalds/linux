@@ -290,10 +290,18 @@ static const struct st_asm330lhhx_fs_table_entry st_asm330lhhx_fs_table[] = {
 				.addr = ST_ASM330LHHX_CTRL2_G_ADDR,
 				.mask = GENMASK(3, 0),
 			},
+			.gain = ST_ASM330LHHX_GYRO_FS_125_GAIN,
+			.val = 0x02,
+		},
+		.fs_avl[1] = {
+			.reg = {
+				.addr = ST_ASM330LHHX_CTRL2_G_ADDR,
+				.mask = GENMASK(3, 0),
+			},
 			.gain = ST_ASM330LHHX_GYRO_FS_250_GAIN,
 			.val = 0x0,
 		},
-		.fs_avl[1] = {
+		.fs_avl[2] = {
 			.reg = {
 				.addr = ST_ASM330LHHX_CTRL2_G_ADDR,
 				.mask = GENMASK(3, 0),
@@ -301,7 +309,7 @@ static const struct st_asm330lhhx_fs_table_entry st_asm330lhhx_fs_table[] = {
 			.gain = ST_ASM330LHHX_GYRO_FS_500_GAIN,
 			.val = 0x4,
 		},
-		.fs_avl[2] = {
+		.fs_avl[3] = {
 			.reg = {
 				.addr = ST_ASM330LHHX_CTRL2_G_ADDR,
 				.mask = GENMASK(3, 0),
@@ -309,7 +317,7 @@ static const struct st_asm330lhhx_fs_table_entry st_asm330lhhx_fs_table[] = {
 			.gain = ST_ASM330LHHX_GYRO_FS_1000_GAIN,
 			.val = 0x8,
 		},
-		.fs_avl[3] = {
+		.fs_avl[4] = {
 			.reg = {
 				.addr = ST_ASM330LHHX_CTRL2_G_ADDR,
 				.mask = GENMASK(3, 0),
@@ -317,7 +325,7 @@ static const struct st_asm330lhhx_fs_table_entry st_asm330lhhx_fs_table[] = {
 			.gain = ST_ASM330LHHX_GYRO_FS_2000_GAIN,
 			.val = 0x0C,
 		},
-		.fs_avl[4] = {
+		.fs_avl[5] = {
 			.reg = {
 				.addr = ST_ASM330LHHX_CTRL2_G_ADDR,
 				.mask = GENMASK(3, 0),
