@@ -1740,8 +1740,8 @@ bool dcn314_validate_bandwidth(struct dc *dc,
 		BW_VAL_TRACE_SKIP(fast);
 		goto validate_out;
 	}
-
-	dc->res_pool->funcs->calculate_wm_and_dlg(dc, context, pipes, pipe_cnt, vlevel);
+	if (dc->res_pool->funcs->calculate_wm_and_dlg)
+		dc->res_pool->funcs->calculate_wm_and_dlg(dc, context, pipes, pipe_cnt, vlevel);
 
 	BW_VAL_TRACE_END_WATERMARKS();
 

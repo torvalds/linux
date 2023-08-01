@@ -49,6 +49,8 @@ struct dcn_hubbub_wm_set {
 	uint32_t dram_clk_change;
 	uint32_t usr_retrain;
 	uint32_t fclk_pstate_change;
+	uint32_t sr_enter_exit_Z8;
+	uint32_t sr_enter_Z8;
 };
 
 struct dcn_hubbub_wm {
