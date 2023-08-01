@@ -1489,12 +1489,12 @@ int dlm_midcomms_close(int nodeid)
 
 	synchronize_srcu(&nodes_srcu);
 
-	idx = srcu_read_lock(&nodes_srcu);
 	mutex_lock(&close_lock);
+	idx = srcu_read_lock(&nodes_srcu);
 	node = nodeid2node(nodeid, 0);
 	if (!node) {
-		mutex_unlock(&close_lock);
 		srcu_read_unlock(&nodes_srcu, idx);
+		mutex_unlock(&close_lock);
 		return dlm_lowcomms_close(nodeid);
 	}
 
