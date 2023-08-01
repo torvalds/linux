@@ -248,8 +248,6 @@ static int syscon_gpio_probe(struct platform_device *pdev)
 		priv->chip.direction_output = syscon_gpio_dir_out;
 	}
 
-	platform_set_drvdata(pdev, priv);
-
 	return devm_gpiochip_add_data(&pdev->dev, &priv->chip, priv);
 }
 
