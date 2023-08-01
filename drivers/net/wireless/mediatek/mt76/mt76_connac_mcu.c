@@ -2177,10 +2177,14 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
 		209, 211, 213, 215, 217, 219, 221,
 		225, 227, 229, 233
 	};
-	int i, n_chan, batch_size, idx = 0, tx_power, last_ch;
+	int i, n_chan, batch_size, idx = 0, tx_power, last_ch, err = 0;
 	struct mt76_connac_sku_tlv sku_tlbv;
-	struct mt76_power_limits limits;
+	struct mt76_power_limits *limits;
 	const u8 *ch_list;
+
+	limits = devm_kmalloc(dev->dev, sizeof(*limits), GFP_KERNEL);
+	if (!limits)
+		return -ENOMEM;
 
 	sku_len = is_mt7921(dev) ? sizeof(sku_tlbv) : sizeof(sku_tlbv) - 92;
 	tx_power = 2 * phy->hw->conf.power_level;
@@ -2208,14 +2212,16 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
 
 	for (i = 0; i < batch_size; i++) {
 		struct mt76_connac_tx_power_limit_tlv tx_power_tlv = {};
-		int j, err, msg_len, num_ch;
+		int j, msg_len, num_ch;
 		struct sk_buff *skb;
 
 		num_ch = i == batch_size - 1 ? n_chan % batch_len : batch_len;
 		msg_len = sizeof(tx_power_tlv) + num_ch * sizeof(sku_tlbv);
 		skb = mt76_mcu_msg_alloc(dev, NULL, msg_len);
-		if (!skb)
-			return -ENOMEM;
+		if (!skb) {
+			err = -ENOMEM;
+			goto out;
+		}
 
 		skb_reserve(skb, sizeof(tx_power_tlv));
 
@@ -2246,14 +2252,14 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
 							     tx_power);
 			sar_power = mt76_get_sar_power(phy, &chan, reg_power);
 
-			mt76_get_rate_power_limits(phy, &chan, &limits,
+			mt76_get_rate_power_limits(phy, &chan, limits,
 						   sar_power);
 
 			tx_power_tlv.last_msg = ch_list[idx] == last_ch;
 			sku_tlbv.channel = ch_list[idx];
 
 			mt76_connac_mcu_build_sku(dev, sku_tlbv.pwr_limit,
-						  &limits, band);
+						  limits, band);
 			skb_put_data(skb, &sku_tlbv, sku_len);
 		}
 		__skb_push(skb, sizeof(tx_power_tlv));
@@ -2263,10 +2269,12 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
 					    MCU_CE_CMD(SET_RATE_TX_POWER),
 					    false);
 		if (err < 0)
-			return err;
+			goto out;
 	}
 
-	return 0;
+out:
+	devm_kfree(dev->dev, limits);
+	return err;
 }
 
 int mt76_connac_mcu_set_rate_txpower(struct mt76_phy *phy)
