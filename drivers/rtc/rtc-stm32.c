@@ -891,7 +891,6 @@ static void stm32_rtc_remove(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, false);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int stm32_rtc_suspend(struct device *dev)
 {
 	struct stm32_rtc *rtc = dev_get_drvdata(dev);
@@ -922,7 +921,6 @@ static int stm32_rtc_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
 static const struct dev_pm_ops stm32_rtc_pm_ops = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(stm32_rtc_suspend, stm32_rtc_resume)
