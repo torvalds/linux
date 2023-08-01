@@ -42,3 +42,16 @@ void emac_stats_work_handler(struct work_struct *work)
 	queue_delayed_work(system_long_wq, &emac->stats_work,
 			   msecs_to_jiffies((STATS_TIME_LIMIT_1G_MS * 1000) / emac->speed));
 }
+
+int emac_get_stat_by_name(struct prueth_emac *emac, char *stat_name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(icssg_all_stats); i++) {
+		if (!strcmp(icssg_all_stats[i].name, stat_name))
+			return emac->stats[icssg_all_stats[i].offset / sizeof(u32)];
+	}
+
+	netdev_err(emac->ndev, "Invalid stats %s\n", stat_name);
+	return -EINVAL;
+}

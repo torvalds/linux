@@ -51,6 +51,7 @@
 
 /* Number of ICSSG related stats */
 #define ICSSG_NUM_STATS 60
+#define ICSSG_NUM_STANDARD_STATS 31
 
 /* Firmware status codes */
 #define ICSS_HS_FW_READY 0x55555555
@@ -254,4 +255,5 @@ u32 icssg_queue_level(struct prueth *prueth, int queue);
 
 void emac_stats_work_handler(struct work_struct *work);
 void emac_update_hardware_stats(struct prueth_emac *emac);
+int emac_get_stat_by_name(struct prueth_emac *emac, char *stat_name);
 #endif /* __NET_TI_ICSSG_PRUETH_H */

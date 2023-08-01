@@ -1240,6 +1240,27 @@ static int emac_ndo_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 	return phy_do_ioctl(ndev, ifr, cmd);
 }
 
+static void emac_ndo_get_stats64(struct net_device *ndev,
+				 struct rtnl_link_stats64 *stats)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+
+	emac_update_hardware_stats(emac);
+
+	stats->rx_packets     = emac_get_stat_by_name(emac, "rx_packets");
+	stats->rx_bytes       = emac_get_stat_by_name(emac, "rx_bytes");
+	stats->tx_packets     = emac_get_stat_by_name(emac, "tx_packets");
+	stats->tx_bytes       = emac_get_stat_by_name(emac, "tx_bytes");
+	stats->rx_crc_errors  = emac_get_stat_by_name(emac, "rx_crc_errors");
+	stats->rx_over_errors = emac_get_stat_by_name(emac, "rx_over_errors");
+	stats->multicast      = emac_get_stat_by_name(emac, "rx_multicast_frames");
+
+	stats->rx_errors  = ndev->stats.rx_errors;
+	stats->rx_dropped = ndev->stats.rx_dropped;
+	stats->tx_errors  = ndev->stats.tx_errors;
+	stats->tx_dropped = ndev->stats.tx_dropped;
+}
+
 static const struct net_device_ops emac_netdev_ops = {
 	.ndo_open = emac_ndo_open,
 	.ndo_stop = emac_ndo_stop,
@@ -1249,6 +1270,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_tx_timeout = emac_ndo_tx_timeout,
 	.ndo_set_rx_mode = emac_ndo_set_rx_mode,
 	.ndo_eth_ioctl = emac_ndo_ioctl,
+	.ndo_get_stats64 = emac_ndo_get_stats64,
 };
 
 /* get emac_port corresponding to eth_node name */
