@@ -194,7 +194,7 @@ int smu_set_watermarks_for_clocks_ranges(void *wt_table,
 #define PHM_WAIT_INDIRECT_FIELD_UNEQUAL(hwmgr, port, reg, field, fieldval)                          \
 		PHM_WAIT_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, \
 				(fieldval) << PHM_FIELD_SHIFT(reg, field), \
-					PHM_FIELD_MASK(reg, field) )
+					PHM_FIELD_MASK(reg, field))
 
 
 #define PHM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr,	\
