@@ -63,7 +63,7 @@ GDS can also be mitigated on systems that don't have updated microcode by
 disabling AVX. This can be done by setting gather_data_sampling="force" or
 "clearcpuid=avx" on the kernel command-line.
 
-If used, these options will disable AVX use by turning on XSAVE YMM support.
+If used, these options will disable AVX use by turning off XSAVE YMM support.
 However, the processor will still enumerate AVX support.  Userspace that
 does not follow proper AVX enumeration to check both AVX *and* XSAVE YMM
 support will break.
