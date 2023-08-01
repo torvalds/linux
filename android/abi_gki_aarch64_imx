@@ -822,6 +822,7 @@
   flush_delayed_work
   flush_work
   __flush_workqueue
+  __folio_put
   fortify_panic
   fput
   free_candev
@@ -969,7 +970,9 @@
   i2c_smbus_read_i2c_block_data
   i2c_smbus_write_byte
   i2c_smbus_write_byte_data
+  __i2c_smbus_xfer
   i2c_smbus_xfer
+  __i2c_transfer
   i2c_transfer
   i2c_transfer_buffer_flags
   i2c_unregister_device
@@ -1143,6 +1146,7 @@
   kstrtoull
   kthread_bind
   kthread_create_on_node
+  kthread_freezable_should_stop
   kthread_park
   kthread_parkme
   kthread_should_park
@@ -1324,6 +1328,9 @@
   nsecs_to_jiffies
   ns_to_timespec64
   __num_online_cpus
+  nvmem_cell_get
+  nvmem_cell_put
+  nvmem_cell_read
   nvmem_cell_read_u32
   nvmem_cell_read_u64
   nvmem_device_read
@@ -1377,6 +1384,7 @@
   of_gen_pool_get
   of_get_child_by_name
   of_get_compatible_child
+  of_get_cpu_node
   of_get_display_timing
   of_get_i2c_adapter_by_node
   of_get_mac_address
@@ -1442,6 +1450,8 @@
   of_usb_update_otg_caps
   oops_in_progress
   open_candev
+  page_pinner_inited
+  __page_pinner_put_page
   page_pool_alloc_pages
   page_pool_create
   page_pool_destroy
@@ -1586,6 +1596,7 @@
   platform_irqchip_probe
   platform_irq_count
   platform_msi_create_irq_domain
+  pm_genpd_add_subdomain
   pm_genpd_init
   pm_genpd_remove
   pm_genpd_remove_device
@@ -1597,6 +1608,7 @@
   pm_runtime_forbid
   pm_runtime_force_resume
   pm_runtime_force_suspend
+  pm_runtime_get_if_active
   __pm_runtime_idle
   pm_runtime_no_callbacks
   __pm_runtime_resume
@@ -1796,10 +1808,14 @@
   rtc_time64_to_tm
   rtc_tm_to_time64
   rtc_update_irq
+  rt_mutex_lock
+  rt_mutex_trylock
+  rt_mutex_unlock
   rtnl_is_locked
   rtnl_lock
   rtnl_unlock
   sched_clock
+  sched_setattr_nocheck
   sched_set_fifo_low
   schedule
   schedule_hrtimeout
@@ -2248,6 +2264,7 @@
   __v4l2_device_register_subdev_nodes
   v4l2_device_unregister
   v4l2_device_unregister_subdev
+  v4l2_enum_dv_timings_cap
   v4l2_event_dequeue
   v4l2_event_pending
   v4l2_event_queue
@@ -2298,6 +2315,7 @@
   v4l2_m2m_unregister_media_controller
   v4l2_m2m_update_start_streaming_state
   v4l2_m2m_update_stop_streaming_state
+  v4l2_match_dv_timings
   v4l2_s_parm_cap
   v4l2_src_change_event_subscribe
   v4l2_subdev_call_wrappers
@@ -2414,6 +2432,7 @@
   xdp_do_redirect
   xdp_master_redirect
   xdp_return_frame
+  xdp_return_frame_rx_napi
   xdp_rxq_info_is_reg
   __xdp_rxq_info_reg
   xdp_rxq_info_reg_mem_model
