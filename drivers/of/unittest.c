@@ -797,6 +797,7 @@ static void __init of_unittest_property_copy(void)
 static void __init of_unittest_changeset(void)
 {
 #ifdef CONFIG_OF_DYNAMIC
+	int ret;
 	struct property *ppadd, padd = { .name = "prop-add", .length = 1, .value = "" };
 	struct property *ppname_n1,  pname_n1  = { .name = "name", .length = 3, .value = "n1"  };
 	struct property *ppname_n2,  pname_n2  = { .name = "name", .length = 3, .value = "n2"  };
@@ -807,6 +808,7 @@ static void __init of_unittest_changeset(void)
 	static const char * const str_array[] = { "str1", "str2", "str3" };
 	const u32 u32_array[] = { 1, 2, 3 };
 	struct of_changeset chgset;
+	const char *propstr = NULL;
 
 	n1 = __of_node_dup(NULL, "n1");
 	unittest(n1, "testcase setup failure\n");
@@ -885,6 +887,17 @@ static void __init of_unittest_changeset(void)
 	of_node_put(np);
 
 	unittest(!of_changeset_revert(&chgset), "revert failed\n");
+
+	unittest(!of_find_node_by_path("/testcase-data/changeset/n2/n21"),
+		 "'%pOF' still present after revert\n", n21);
+
+	ppremove = of_find_property(parent, "prop-remove", NULL);
+	unittest(ppremove, "failed to find removed prop after revert\n");
+
+	ret = of_property_read_string(parent, "prop-update", &propstr);
+	unittest(!ret, "failed to find updated prop after revert\n");
+	if (!ret)
+		unittest(strcmp(propstr, "hello") == 0, "original value not in updated property after revert");
 
 	of_changeset_destroy(&chgset);
 
