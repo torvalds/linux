@@ -628,5 +628,7 @@ int dlm_plock_init(void)
 void dlm_plock_exit(void)
 {
 	misc_deregister(&plock_dev_misc);
+	WARN_ON(!list_empty(&send_list));
+	WARN_ON(!list_empty(&recv_list));
 }
 
