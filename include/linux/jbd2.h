@@ -631,11 +631,6 @@ struct transaction_s
 	struct list_head	t_inode_list;
 
 	/*
-	 * Protects info related to handles
-	 */
-	spinlock_t		t_handle_lock;
-
-	/*
 	 * Longest time some handle had to wait for running transaction
 	 */
 	unsigned long		t_max_wait;
