@@ -183,12 +183,10 @@ send_request:
 			if (req != IDH_REQ_GPU_INIT_DATA) {
 				pr_err("Doesn't get msg:%d from pf, error=%d\n", event, r);
 				return r;
-			}
-			else /* host doesn't support REQ_GPU_INIT_DATA handshake */
+			} else /* host doesn't support REQ_GPU_INIT_DATA handshake */
 				adev->virt.req_init_data_ver = 0;
 		} else {
-			if (req == IDH_REQ_GPU_INIT_DATA)
-			{
+			if (req == IDH_REQ_GPU_INIT_DATA) {
 				adev->virt.req_init_data_ver =
 					RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW1);
 
