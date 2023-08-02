@@ -147,8 +147,13 @@ static const struct wdt_params gxbb_params = {
 	.rst = BIT(21),
 };
 
+static const struct wdt_params t7_params = {
+	.rst = BIT(22),
+};
+
 static const struct of_device_id meson_gxbb_wdt_dt_ids[] = {
 	 { .compatible = "amlogic,meson-gxbb-wdt", .data = &gxbb_params, },
+	 { .compatible = "amlogic,t7-wdt", .data = &t7_params, },
 	 { /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, meson_gxbb_wdt_dt_ids);
