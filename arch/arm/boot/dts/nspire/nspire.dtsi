@@ -172,7 +172,14 @@
 			};
 
 			misc: misc@900a0000 {
+				compatible = "ti,nspire-misc", "syscon", "simple-mfd";
 				reg = <0x900a0000 0x1000>;
+
+				reboot {
+					compatible = "syscon-reboot";
+					offset = <0x08>;
+					value = <0x02>;
+				};
 			};
 
 			pwr: pwr@900b0000 {
