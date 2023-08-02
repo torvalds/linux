@@ -1632,7 +1632,7 @@ static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 
 	for (i = 0; i < max_irqs; i++) {
 		ret = platform_get_irq(pdev, i);
-		if (ret <= 0) {
+		if (ret < 0) {
 			if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
 				max_irqs = i;
 				pdata->rxq_cnt = max_irqs / 2;
@@ -1640,7 +1640,7 @@ static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 				pdata->cq_cnt = max_irqs / 2;
 				break;
 			}
-			return ret ? : -ENXIO;
+			return ret;
 		}
 		pdata->irqs[i] = ret;
 	}
