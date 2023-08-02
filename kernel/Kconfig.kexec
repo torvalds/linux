@@ -17,7 +17,6 @@ config HAVE_IMA_KEXEC
 
 config KEXEC
 	bool "Enable kexec system call"
-	default ARCH_DEFAULT_KEXEC
 	depends on ARCH_SUPPORTS_KEXEC
 	select KEXEC_CORE
 	help

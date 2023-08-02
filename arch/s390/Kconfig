@@ -245,9 +245,6 @@ config PGTABLE_LEVELS
 
 source "kernel/livepatch/Kconfig"
 
-config ARCH_DEFAULT_KEXEC
-	def_bool y
-
 config ARCH_SUPPORTS_KEXEC
 	def_bool y
 
