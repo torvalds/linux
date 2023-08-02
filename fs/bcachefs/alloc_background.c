@@ -79,36 +79,6 @@ static inline u64 alloc_field_v1_get(const struct bch_alloc *a,
 	return v;
 }
 
-static inline void alloc_field_v1_put(struct bkey_i_alloc *a, void **p,
-				      unsigned field, u64 v)
-{
-	unsigned bytes = BCH_ALLOC_V1_FIELD_BYTES[field];
-
-	if (!v)
-		return;
-
-	a->v.fields |= 1 << field;
-
-	switch (bytes) {
-	case 1:
-		*((u8 *) *p) = v;
-		break;
-	case 2:
-		*((__le16 *) *p) = cpu_to_le16(v);
-		break;
-	case 4:
-		*((__le32 *) *p) = cpu_to_le32(v);
-		break;
-	case 8:
-		*((__le64 *) *p) = cpu_to_le64(v);
-		break;
-	default:
-		BUG();
-	}
-
-	*p += bytes;
-}
-
 static void bch2_alloc_unpack_v1(struct bkey_alloc_unpacked *out,
 				 struct bkey_s_c k)
 {
@@ -1334,7 +1304,7 @@ static int bch2_check_discard_freespace_key(struct btree_trans *trans,
 					    struct btree_iter *iter,
 					    struct bpos end)
 {
-	if (!btree_node_type_is_extents(iter->btree_id)) {
+	if (!btree_id_is_extents(iter->btree_id)) {
 		return __bch2_check_discard_freespace_key(trans, iter);
 	} else {
 		int ret = 0;

@@ -188,7 +188,7 @@ static void bch2_btree_node_free_inmem(struct btree_trans *trans,
 	bch2_btree_node_hash_remove(&c->btree_cache, b);
 	__btree_node_free(c, b);
 	six_unlock_write(&b->c.lock);
-	mark_btree_node_locked_noreset(path, level, SIX_LOCK_intent);
+	mark_btree_node_locked_noreset(path, level, BTREE_NODE_INTENT_LOCKED);
 
 	trans_for_each_path(trans, path)
 		if (path->l[level].b == b) {
@@ -720,7 +720,7 @@ err:
 
 		mutex_unlock(&c->btree_interior_update_lock);
 
-		mark_btree_node_locked_noreset(path, b->c.level, SIX_LOCK_intent);
+		mark_btree_node_locked_noreset(path, b->c.level, BTREE_NODE_INTENT_LOCKED);
 		six_unlock_write(&b->c.lock);
 
 		btree_node_write_if_need(c, b, SIX_LOCK_intent);

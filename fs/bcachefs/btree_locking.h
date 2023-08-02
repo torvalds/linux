@@ -180,7 +180,7 @@ bch2_btree_node_unlock_write_inlined(struct btree_trans *trans, struct btree_pat
 	EBUG_ON(path->l[b->c.level].lock_seq != six_lock_seq(&b->c.lock));
 	EBUG_ON(btree_node_locked_type(path, b->c.level) != SIX_LOCK_write);
 
-	mark_btree_node_locked_noreset(path, b->c.level, SIX_LOCK_intent);
+	mark_btree_node_locked_noreset(path, b->c.level, BTREE_NODE_INTENT_LOCKED);
 
 	trans_for_each_path_with_node(trans, b, linked)
 		linked->l[b->c.level].lock_seq++;
@@ -293,7 +293,7 @@ static inline int __btree_node_lock_write(struct btree_trans *trans,
 	 * write lock: thus, we need to tell the cycle detector we have a write
 	 * lock _before_ taking the lock:
 	 */
-	mark_btree_node_locked_noreset(path, b->level, SIX_LOCK_write);
+	mark_btree_node_locked_noreset(path, b->level, BTREE_NODE_WRITE_LOCKED);
 
 	return likely(six_trylock_write(&b->lock))
 		? 0

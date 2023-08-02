@@ -2138,7 +2138,7 @@ struct jset_entry_dev_usage {
 	__le64			_buckets_unavailable; /* No longer used */
 
 	struct jset_entry_dev_usage_type d[];
-} __packed;
+};
 
 static inline unsigned jset_entry_dev_usage_nr_types(struct jset_entry_dev_usage *u)
 {

@@ -35,18 +35,6 @@ static inline unsigned long btree_iter_ip_allocated(struct btree_iter *iter)
 
 static struct btree_path *btree_path_alloc(struct btree_trans *, struct btree_path *);
 
-/*
- * Unlocks before scheduling
- * Note: does not revalidate iterator
- */
-static inline int bch2_trans_cond_resched(struct btree_trans *trans)
-{
-	if (need_resched() || race_fault())
-		return drop_locks_do(trans, (schedule(), 0));
-	else
-		return 0;
-}
-
 static inline int __btree_path_cmp(const struct btree_path *l,
 				   enum btree_id	r_btree_id,
 				   bool			r_cached,
@@ -2730,16 +2718,6 @@ void bch2_trans_iter_exit(struct btree_trans *trans, struct btree_iter *iter)
 	iter->path = NULL;
 	iter->update_path = NULL;
 	iter->key_cache_path = NULL;
-}
-
-static inline void bch2_trans_iter_init_inlined(struct btree_trans *trans,
-			  struct btree_iter *iter,
-			  unsigned btree_id, struct bpos pos,
-			  unsigned flags)
-{
-	bch2_trans_iter_init_common(trans, iter, btree_id, pos, 0, 0,
-			       bch2_btree_iter_flags(trans, btree_id, flags),
-			       _RET_IP_);
 }
 
 void bch2_trans_iter_init_outlined(struct btree_trans *trans,

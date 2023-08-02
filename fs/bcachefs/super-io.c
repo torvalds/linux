@@ -265,15 +265,12 @@ struct bch_sb_field *bch2_sb_field_resize(struct bch_sb_handle *sb,
 
 /* Superblock validate: */
 
-static inline void __bch2_sb_layout_size_assert(void)
-{
-	BUILD_BUG_ON(sizeof(struct bch_sb_layout) != 512);
-}
-
 static int validate_sb_layout(struct bch_sb_layout *layout, struct printbuf *out)
 {
 	u64 offset, prev_offset, max_sectors;
 	unsigned i;
+
+	BUILD_BUG_ON(sizeof(struct bch_sb_layout) != 512);
 
 	if (!uuid_equal(&layout->magic, &BCACHE_MAGIC) &&
 	    !uuid_equal(&layout->magic, &BCHFS_MAGIC)) {

@@ -32,7 +32,7 @@ enum bch_watermark {
 };
 
 #define BCH_WATERMARK_BITS	3
-#define BCH_WATERMARK_MASK	~(~0 << BCH_WATERMARK_BITS)
+#define BCH_WATERMARK_MASK	~(~0U << BCH_WATERMARK_BITS)
 
 #define OPEN_BUCKETS_COUNT	1024
 

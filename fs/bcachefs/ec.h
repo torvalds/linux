@@ -138,10 +138,7 @@ struct ec_stripe_buf {
 
 	void			*data[BCH_BKEY_PTRS_MAX];
 
-	union {
-		struct bkey_i_stripe	key;
-		u64			pad[255];
-	};
+	__BKEY_PADDED(key, 255);
 };
 
 struct ec_stripe_head;

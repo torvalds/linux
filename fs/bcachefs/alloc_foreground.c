@@ -1042,8 +1042,12 @@ static bool should_drop_bucket(struct open_bucket *ob, struct bch_fs *c,
 		unsigned i;
 
 		if (!drop && ob->ec) {
+			unsigned nr_blocks;
+
 			mutex_lock(&ob->ec->lock);
-			for (i = 0; i < ob->ec->new_stripe.key.v.nr_blocks; i++) {
+			nr_blocks = bkey_i_to_stripe(&ob->ec->new_stripe.key)->v.nr_blocks;
+
+			for (i = 0; i < nr_blocks; i++) {
 				if (!ob->ec->blocks[i])
 					continue;
 

@@ -121,10 +121,10 @@ static void bch2_opt_fix_errors_to_text(struct printbuf *out,
 	prt_str(out, bch2_fsck_fix_opts[v]);
 }
 
-static const struct bch_opt_fn bch2_opt_fix_errors = {
-	.parse = bch2_opt_fix_errors_parse,
-	.to_text = bch2_opt_fix_errors_to_text,
-};
+#define bch2_opt_fix_errors (struct bch_opt_fn) {	\
+	.parse = bch2_opt_fix_errors_parse,		\
+	.to_text = bch2_opt_fix_errors_to_text,		\
+}
 
 const char * const bch2_d_types[BCH_DT_MAX] = {
 	[DT_UNKNOWN]	= "unknown",
