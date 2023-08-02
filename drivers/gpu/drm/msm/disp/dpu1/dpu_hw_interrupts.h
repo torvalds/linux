@@ -58,7 +58,7 @@ struct dpu_hw_intr {
 	const struct dpu_intr_reg *intr_set;
 
 	struct {
-		void (*cb)(void *arg, int irq_idx);
+		void (*cb)(void *arg);
 		void *arg;
 		atomic_t count;
 	} irq_tbl[];
