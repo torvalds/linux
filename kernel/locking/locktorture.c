@@ -33,6 +33,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
 
+torture_param(int, acq_writer_lim, 0, "Write_acquisition time limit (jiffies).");
 torture_param(int, long_hold, 100, "Do occasional long hold of lock (ms), 0=disable");
 torture_param(int, nested_locks, 0, "Number of nested locks (max = 8)");
 torture_param(int, nreaders_stress, -1, "Number of read-locking stress-test threads");
@@ -852,11 +853,13 @@ static struct lock_torture_ops percpu_rwsem_lock_ops = {
  */
 static int lock_torture_writer(void *arg)
 {
-	struct lock_stress_stats *lwsp = arg;
-	int tid = lwsp - cxt.lwsa;
-	DEFINE_TORTURE_RANDOM(rand);
+	unsigned long j;
+	unsigned long j1;
 	u32 lockset_mask;
+	struct lock_stress_stats *lwsp = arg;
+	DEFINE_TORTURE_RANDOM(rand);
 	bool skip_main_lock;
+	int tid = lwsp - cxt.lwsa;
 
 	VERBOSE_TOROUT_STRING("lock_torture_writer task started");
 	if (!rt_task(current))
@@ -883,12 +886,20 @@ static int lock_torture_writer(void *arg)
 			cxt.cur_ops->nested_lock(tid, lockset_mask);
 
 		if (!skip_main_lock) {
+			if (acq_writer_lim > 0)
+				j = jiffies;
 			cxt.cur_ops->writelock(tid);
 			if (WARN_ON_ONCE(lock_is_write_held))
 				lwsp->n_lock_fail++;
 			lock_is_write_held = true;
 			if (WARN_ON_ONCE(atomic_read(&lock_is_read_held)))
 				lwsp->n_lock_fail++; /* rare, but... */
+			if (acq_writer_lim > 0) {
+				j1 = jiffies;
+				WARN_ONCE(time_after(j1, j + acq_writer_lim),
+					  "%s: Lock acquisition took %lu jiffies.\n",
+					  __func__, j1 - j);
+			}
 			lwsp->n_lock_acquired++;
 
 			cxt.cur_ops->write_delay(&rand);
