@@ -112,6 +112,7 @@ static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
 #define pte_present(pte)	(pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROTNONE))
 #define pte_clear(mm,addr,ptep)		({ pte_val(*(ptep)) = 0; })
 
+#define PFN_PTE_SHIFT		PAGE_SHIFT
 #define pte_page(pte)		virt_to_page(__va(pte_val(pte)))
 #define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
 #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
