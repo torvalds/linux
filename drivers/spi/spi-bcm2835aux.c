@@ -520,8 +520,8 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 	}
 
 	bs->irq = platform_get_irq(pdev, 0);
-	if (bs->irq <= 0)
-		return bs->irq ? bs->irq : -ENODEV;
+	if (bs->irq < 0)
+		return bs->irq;
 
 	/* this also enables the HW block */
 	err = clk_prepare_enable(bs->clk);

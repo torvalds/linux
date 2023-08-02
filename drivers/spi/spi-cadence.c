@@ -627,8 +627,8 @@ static int cdns_spi_probe(struct platform_device *pdev)
 	cdns_spi_init_hw(xspi, spi_controller_is_slave(ctlr));
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		ret = -ENXIO;
+	if (irq < 0) {
+		ret = irq;
 		goto clk_dis_all;
 	}
 
