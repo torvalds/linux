@@ -316,3 +316,15 @@
 # required by SAGT module
   __traceiter_android_rvh_before_do_sched_yield
   __tracepoint_android_rvh_before_do_sched_yield
+
+#required by minetwork.ko
+  sock_wake_async
+  bpf_map_put
+  bpf_map_inc
+  __dev_direct_xmit
+  napi_busy_loop
+  int_active_memcg
+  bpf_redirect_info
+  dma_need_sync
+  page_pool_put_page_bulk
+  build_skb_around
