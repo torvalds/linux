@@ -499,7 +499,7 @@ static inline void __set_pte_at(struct mm_struct *mm,
 static inline void set_pte_at(struct mm_struct *mm,
 	unsigned long addr, pte_t *ptep, pte_t pteval)
 {
-	page_table_check_pte_set(mm, ptep, pteval);
+	page_table_check_ptes_set(mm, ptep, pteval, 1);
 	__set_pte_at(mm, addr, ptep, pteval);
 }
 

@@ -1023,7 +1023,7 @@ static inline pud_t native_local_pudp_get_and_clear(pud_t *pudp)
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
-	page_table_check_pte_set(mm, ptep, pte);
+	page_table_check_ptes_set(mm, ptep, pte, 1);
 	set_pte(ptep, pte);
 }
 

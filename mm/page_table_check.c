@@ -182,18 +182,20 @@ void __page_table_check_pud_clear(struct mm_struct *mm, pud_t pud)
 }
 EXPORT_SYMBOL(__page_table_check_pud_clear);
 
-void __page_table_check_pte_set(struct mm_struct *mm, pte_t *ptep, pte_t pte)
+void __page_table_check_ptes_set(struct mm_struct *mm, pte_t *ptep, pte_t pte,
+		unsigned int nr)
 {
+	unsigned int i;
+
 	if (&init_mm == mm)
 		return;
 
-	__page_table_check_pte_clear(mm, ptep_get(ptep));
-	if (pte_user_accessible_page(pte)) {
-		page_table_check_set(pte_pfn(pte), PAGE_SIZE >> PAGE_SHIFT,
-				     pte_write(pte));
-	}
+	for (i = 0; i < nr; i++)
+		__page_table_check_pte_clear(mm, ptep_get(ptep + i));
+	if (pte_user_accessible_page(pte))
+		page_table_check_set(pte_pfn(pte), nr, pte_write(pte));
 }
-EXPORT_SYMBOL(__page_table_check_pte_set);
+EXPORT_SYMBOL(__page_table_check_ptes_set);
 
 void __page_table_check_pmd_set(struct mm_struct *mm, pmd_t *pmdp, pmd_t pmd)
 {
