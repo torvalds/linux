@@ -377,17 +377,6 @@ disable_dax:
 	return 0;
 }
 
-static void
-xfs_bdev_mark_dead(
-	struct block_device	*bdev)
-{
-	xfs_force_shutdown(bdev->bd_holder, SHUTDOWN_DEVICE_REMOVED);
-}
-
-static const struct blk_holder_ops xfs_holder_ops = {
-	.mark_dead		= xfs_bdev_mark_dead,
-};
-
 STATIC int
 xfs_blkdev_get(
 	xfs_mount_t		*mp,
@@ -396,8 +385,8 @@ xfs_blkdev_get(
 {
 	int			error = 0;
 
-	*bdevp = blkdev_get_by_path(name, BLK_OPEN_READ | BLK_OPEN_WRITE, mp,
-				    &xfs_holder_ops);
+	*bdevp = blkdev_get_by_path(name, BLK_OPEN_READ | BLK_OPEN_WRITE,
+				    mp->m_super, &fs_holder_ops);
 	if (IS_ERR(*bdevp)) {
 		error = PTR_ERR(*bdevp);
 		xfs_warn(mp, "Invalid device [%s], error=%d", name, error);
@@ -529,10 +518,10 @@ out_relock:
 	xfs_free_buftarg(mp->m_ddev_targp);
  out_close_rtdev:
 	 if (rtdev)
-		 blkdev_put(rtdev, mp);
+		 blkdev_put(rtdev, sb);
  out_close_logdev:
 	if (logdev && logdev != ddev)
-		blkdev_put(logdev, mp);
+		blkdev_put(logdev, sb);
 	goto out_relock;
 }
 
