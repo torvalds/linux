@@ -19,6 +19,8 @@
 	};
 
 	aliases {
+		can0 = &main_mcan0;
+		can1 = &mcu_mcan0;
 		ethernet0 = &cpsw_port1;
 		ethernet1 = &cpsw_port2;
 		i2c0 = &main_i2c0;
@@ -732,6 +734,14 @@
 		>;
 	};
 
+	/* Verdin CAN_2 */
+	pinctrl_mcu_mcan0: mcu-mcan0-default-pins {
+		pinctrl-single,pins = <
+			AM62X_MCU_IOPAD(0x0038, PIN_INPUT,  0) /* (B3) MCU_MCAN0_RX */ /* SODIMM 26 */
+			AM62X_MCU_IOPAD(0x0034, PIN_OUTPUT, 0) /* (D6) MCU_MCAN0_TX */ /* SODIMM 24 */
+		>;
+	};
+
 	/* Verdin UART_4 - Reserved to Cortex-M4 */
 	pinctrl_mcu_uart0: mcu-uart0-default-pins {
 		pinctrl-single,pins = <
@@ -1238,8 +1248,6 @@
 	status = "disabled";
 };
 
-/* Verdin CAN_2 - Reserved to Cortex-M4 */
-
 /* Verdin SPI_1 */
 &main_spi1 {
 	pinctrl-names = "default";
@@ -1331,6 +1339,13 @@
 		"",
 		"",
 		"";
+};
+
+/* Verdin CAN_2 */
+&mcu_mcan0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mcu_mcan0>;
+	status = "disabled";
 };
 
 /* Verdin UART_4 - Cortex-M4 UART */
