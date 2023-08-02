@@ -35,6 +35,7 @@
   class_create_file_ns
   class_find_device
   class_remove_file_ns
+  cleancache_register_ops
   __const_udelay
   copy_from_kernel_nofault
   cpu_hwcaps
