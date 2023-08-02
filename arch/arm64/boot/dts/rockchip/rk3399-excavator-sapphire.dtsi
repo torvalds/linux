@@ -10,23 +10,34 @@
 	compatible = "rockchip,rk3399-sapphire-excavator", "rockchip,rk3399";
 
 	rt5651_sound: rt5651-sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "realtek,rt5651-codec";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,widgets =
-			"Microphone", "Mic Jack",
-			"Headphone", "Headphone Jack";
-		simple-audio-card,routing =
-			"Mic Jack", "MICBIAS1",
-			"IN1P", "Mic Jack",
-			"Headphone Jack", "HPOL",
-			"Headphone Jack", "HPOR";
-		simple-audio-card,cpu {
-			sound-dai = <&i2s0>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&rt5651>;
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "realtek,rt5651-codec";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+		spk-con-gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+		hp-det-gpio = <&gpio4 28 GPIO_ACTIVE_HIGH>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s0>;
+		rockchip,codec = <&rt5651>;
+		rockchip,audio-routing =
+			"Headphone", "HPOL",
+			"Headphone", "HPOR",
+			"Speaker", "HPOL",
+			"Speaker", "HPOR",
+			"Headphone", "Headphone Power",
+			"Headphone", "Headphone Power",
+			"Speaker", "Speaker Power",
+			"Speaker", "Speaker Power",
+			"IN1P", "Main Mic",
+			"IN2P", "Headset Mic",
+			"IN2N", "Headset Mic";
+			"Headset Mic", "micbias1";
+		play-pause-key {
+			label = "playpause";
+			linux,code = <KEY_PLAYPAUSE>;
+			press-threshold-microvolt = <2000>;
 		};
 	};
 
@@ -152,8 +163,6 @@
 		clock-names = "mclk";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_8ch_mclk>;
-		spk-con-gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
-		hp-det-gpio = <&gpio4 28 GPIO_ACTIVE_LOW>;
 	};
 };
 
