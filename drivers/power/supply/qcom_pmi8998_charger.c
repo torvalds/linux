@@ -517,9 +517,9 @@ static int smb2_get_prop_status(struct smb2_chip *chip, int *val)
 		*val = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		return rc;
 	case TERMINATE_CHARGE:
+	case INHIBIT_CHARGE:
 		*val = POWER_SUPPLY_STATUS_FULL;
 		return rc;
-	case INHIBIT_CHARGE:
 	default:
 		*val = POWER_SUPPLY_STATUS_UNKNOWN;
 		return rc;
