@@ -2396,7 +2396,7 @@ struct vcap_rule *vcap_decode_rule(struct vcap_rule_internal *elem)
 
 	ri = vcap_dup_rule(elem, elem->state == VCAP_RS_DISABLED);
 	if (IS_ERR(ri))
-		return ERR_PTR(PTR_ERR(ri));
+		return ERR_CAST(ri);
 
 	if (ri->state == VCAP_RS_DISABLED)
 		goto out;
