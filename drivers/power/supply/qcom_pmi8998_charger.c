@@ -409,8 +409,6 @@ static enum power_supply_property smb2_properties[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_USB_TYPE,
-	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT,
-	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX,
 };
 
 static enum power_supply_usb_type smb2_usb_types[] = {
@@ -674,11 +672,7 @@ static int smb2_get_property(struct power_supply *psy,
 		val->strval = chip->name;
 		return 0;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
 		return smb2_get_current_limit(chip, &val->intval);
-	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX:
-		val->intval = DCP_CURRENT_UA;
-		return 0;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		return smb2_get_iio_chan(chip, chip->usb_in_i_chan,
 					 &val->intval);
@@ -707,7 +701,6 @@ static int smb2_set_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
 		return smb2_set_current_limit(chip, val->intval);
 	default:
 		dev_err(chip->dev, "No setter for property: %d\n", psp);
@@ -720,7 +713,6 @@ static int smb2_property_is_writable(struct power_supply *psy,
 {
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
 		return 1;
 	default:
 		return 0;
