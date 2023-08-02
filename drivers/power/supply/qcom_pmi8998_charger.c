@@ -556,7 +556,8 @@ static int smb2_set_current_limit(struct smb2_chip *chip, unsigned int val)
 static void smb2_status_change_work(struct work_struct *work)
 {
 	unsigned int charger_type, current_ua;
-	int usb_online, count, rc;
+	int usb_online = 0;
+	int count, rc;
 	struct smb2_chip *chip;
 
 	chip = container_of(work, struct smb2_chip, status_change_work.work);
