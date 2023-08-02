@@ -1018,11 +1018,6 @@ static int swiotlb_area_find_slots(struct device *dev, struct io_tlb_pool *pool,
 			continue;
 		}
 
-		/*
-		 * If we find a slot that indicates we have 'nslots' number of
-		 * contiguous buffers, we allocate the buffers from that slot
-		 * and mark the entries as '0' indicating unavailable.
-		 */
 		if (!iommu_is_span_boundary(slot_index, nslots,
 					    nr_slots(tbl_dma_addr),
 					    max_slots)) {
@@ -1038,6 +1033,11 @@ not_found:
 	return -1;
 
 found:
+	/*
+	 * If we find a slot that indicates we have 'nslots' number of
+	 * contiguous buffers, we allocate the buffers from that slot onwards
+	 * and set the list of free entries to '0' indicating unavailable.
+	 */
 	for (i = slot_index; i < slot_index + nslots; i++) {
 		pool->slots[i].list = 0;
 		pool->slots[i].alloc_size = alloc_size - (offset +
