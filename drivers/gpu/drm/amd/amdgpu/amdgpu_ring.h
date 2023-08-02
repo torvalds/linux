@@ -389,7 +389,7 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
 	occupied = ring->wptr & ring->buf_mask;
 	dst = (void *)&ring->ring[occupied];
 	chunk1 = ring->buf_mask + 1 - occupied;
-	chunk1 = (chunk1 >= count_dw) ? count_dw: chunk1;
+	chunk1 = (chunk1 >= count_dw) ? count_dw : chunk1;
 	chunk2 = count_dw - chunk1;
 	chunk1 <<= 2;
 	chunk2 <<= 2;
