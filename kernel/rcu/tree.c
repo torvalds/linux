@@ -4083,6 +4083,82 @@ retry:
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
 
+static unsigned long rcu_barrier_last_throttle;
+
+/**
+ * rcu_barrier_throttled - Do rcu_barrier(), but limit to one per second
+ *
+ * This can be thought of as guard rails around rcu_barrier() that
+ * permits unrestricted userspace use, at least assuming the hardware's
+ * try_cmpxchg() is robust.  There will be at most one call per second to
+ * rcu_barrier() system-wide from use of this function, which means that
+ * callers might needlessly wait a second or three.
+ *
+ * This is intended for use by test suites to avoid OOM by flushing RCU
+ * callbacks from the previous test before starting the next.  See the
+ * rcutree.do_rcu_barrier module parameter for more information.
+ *
+ * Why not simply make rcu_barrier() more scalable?  That might be
+ * the eventual endpoint, but let's keep it simple for the time being.
+ * Note that the module parameter infrastructure serializes calls to a
+ * given .set() function, but should concurrent .set() invocation ever be
+ * possible, we are ready!
+ */
+static void rcu_barrier_throttled(void)
+{
+	unsigned long j = jiffies;
+	unsigned long old = READ_ONCE(rcu_barrier_last_throttle);
+	unsigned long s = rcu_seq_snap(&rcu_state.barrier_sequence);
+
+	while (time_in_range(j, old, old + HZ / 16) ||
+	       !try_cmpxchg(&rcu_barrier_last_throttle, &old, j)) {
+		schedule_timeout_idle(HZ / 16);
+		if (rcu_seq_done(&rcu_state.barrier_sequence, s)) {
+			smp_mb(); /* caller's subsequent code after above check. */
+			return;
+		}
+		j = jiffies;
+		old = READ_ONCE(rcu_barrier_last_throttle);
+	}
+	rcu_barrier();
+}
+
+/*
+ * Invoke rcu_barrier_throttled() when a rcutree.do_rcu_barrier
+ * request arrives.  We insist on a true value to allow for possible
+ * future expansion.
+ */
+static int param_set_do_rcu_barrier(const char *val, const struct kernel_param *kp)
+{
+	bool b;
+	int ret;
+
+	if (rcu_scheduler_active != RCU_SCHEDULER_RUNNING)
+		return -EAGAIN;
+	ret = kstrtobool(val, &b);
+	if (!ret && b) {
+		atomic_inc((atomic_t *)kp->arg);
+		rcu_barrier_throttled();
+		atomic_dec((atomic_t *)kp->arg);
+	}
+	return ret;
+}
+
+/*
+ * Output the number of outstanding rcutree.do_rcu_barrier requests.
+ */
+static int param_get_do_rcu_barrier(char *buffer, const struct kernel_param *kp)
+{
+	return sprintf(buffer, "%d\n", atomic_read((atomic_t *)kp->arg));
+}
+
+static const struct kernel_param_ops do_rcu_barrier_ops = {
+	.set = param_set_do_rcu_barrier,
+	.get = param_get_do_rcu_barrier,
+};
+static atomic_t do_rcu_barrier;
+module_param_cb(do_rcu_barrier, &do_rcu_barrier_ops, &do_rcu_barrier, 0644);
+
 /*
  * Compute the mask of online CPUs for the specified rcu_node structure.
  * This will not be stable unless the rcu_node structure's ->lock is

@@ -4769,6 +4769,13 @@
 			Set maximum number of finished RCU callbacks to
 			process in one batch.
 
+	rcutree.do_rcu_barrier=	[KNL]
+			Request a call to rcu_barrier().  This is
+			throttled so that userspace tests can safely
+			hammer on the sysfs variable if they so choose.
+			If triggered before the RCU grace-period machinery
+			is fully active, this will error out with EAGAIN.
+
 	rcutree.dump_tree=	[KNL]
 			Dump the structure of the rcu_node combining tree
 			out at early boot.  This is used for diagnostic
