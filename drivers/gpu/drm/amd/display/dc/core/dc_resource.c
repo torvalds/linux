@@ -1825,7 +1825,7 @@ static int acquire_first_split_pipe(
 			return i;
 		}
 	}
-	return UNABLE_TO_SPLIT;
+	return FREE_PIPE_INDEX_NOT_FOUND;
 }
 
 /* For each OPP head of an OTG master, add top plane at plane index 0.
@@ -1951,6 +1951,66 @@ static bool acquire_secondary_dpp_pipes_and_add_plane(
 		opp_head_pipe = opp_head_pipe->next_odm_pipe;
 	}
 	return true;
+}
+
+/*
+ * Acquire a pipe as OTG master and assign to the stream in new dc context.
+ * return - true if OTG master pipe is acquired and new dc context is updated.
+ * false if it fails to acquire an OTG master pipe for this stream.
+ *
+ * In the example below, we acquired pipe 0 as OTG master pipe for the stream.
+ * After the function its Inter-pipe Relation is represented by the diagram
+ * below.
+ *
+ *       Inter-pipe Relation
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |               |           |             |
+ *       |   0    |               |blank ------------------ |
+ *       |________|_______________|___________|_____________|
+ */
+static bool acquire_otg_master_pipe_for_stream(
+		struct dc_state *new_ctx,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream)
+{
+	/* TODO: Move this function to DCN specific resource file and acquire
+	 * DSC resource here. The reason is that the function should have the
+	 * same level of responsibility as when we acquire secondary OPP head.
+	 * We acquire DSC when we acquire secondary OPP head, so we should
+	 * acquire DSC when we acquire OTG master.
+	 */
+	int pipe_idx;
+	struct pipe_ctx *pipe_ctx = NULL;
+
+	pipe_idx = resource_find_any_free_pipe(&new_ctx->res_ctx, pool);
+	if (pipe_idx != FREE_PIPE_INDEX_NOT_FOUND) {
+		pipe_ctx = &new_ctx->res_ctx.pipe_ctx[pipe_idx];
+		memset(pipe_ctx, 0, sizeof(*pipe_ctx));
+		pipe_ctx->pipe_idx = pipe_idx;
+		pipe_ctx->stream_res.tg = pool->timing_generators[pipe_idx];
+		pipe_ctx->plane_res.mi = pool->mis[pipe_idx];
+		pipe_ctx->plane_res.hubp = pool->hubps[pipe_idx];
+		pipe_ctx->plane_res.ipp = pool->ipps[pipe_idx];
+		pipe_ctx->plane_res.xfm = pool->transforms[pipe_idx];
+		pipe_ctx->plane_res.dpp = pool->dpps[pipe_idx];
+		pipe_ctx->stream_res.opp = pool->opps[pipe_idx];
+		if (pool->dpps[pipe_idx])
+			pipe_ctx->plane_res.mpcc_inst = pool->dpps[pipe_idx]->inst;
+
+		if (pipe_idx >= pool->timing_generator_count) {
+			int tg_inst = pool->timing_generator_count - 1;
+
+			pipe_ctx->stream_res.tg = pool->timing_generators[tg_inst];
+			pipe_ctx->stream_res.opp = pool->opps[tg_inst];
+		}
+
+		pipe_ctx->stream = stream;
+	} else {
+		pipe_idx = acquire_first_split_pipe(&new_ctx->res_ctx, pool, stream);
+	}
+
+	return pipe_idx != FREE_PIPE_INDEX_NOT_FOUND;
 }
 
 bool dc_add_plane_to_context(
@@ -2372,42 +2432,6 @@ void update_audio_usage(
 	}
 }
 
-static int acquire_first_free_pipe(
-		struct resource_context *res_ctx,
-		const struct resource_pool *pool,
-		struct dc_stream_state *stream)
-{
-	int i;
-
-	for (i = 0; i < pool->pipe_count; i++) {
-		if (!res_ctx->pipe_ctx[i].stream) {
-			struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
-
-			pipe_ctx->stream_res.tg = pool->timing_generators[i];
-			pipe_ctx->plane_res.mi = pool->mis[i];
-			pipe_ctx->plane_res.hubp = pool->hubps[i];
-			pipe_ctx->plane_res.ipp = pool->ipps[i];
-			pipe_ctx->plane_res.xfm = pool->transforms[i];
-			pipe_ctx->plane_res.dpp = pool->dpps[i];
-			pipe_ctx->stream_res.opp = pool->opps[i];
-			if (pool->dpps[i])
-				pipe_ctx->plane_res.mpcc_inst = pool->dpps[i]->inst;
-			pipe_ctx->pipe_idx = i;
-
-			if (i >= pool->timing_generator_count) {
-				int tg_inst = pool->timing_generator_count - 1;
-
-				pipe_ctx->stream_res.tg = pool->timing_generators[tg_inst];
-				pipe_ctx->stream_res.opp = pool->opps[tg_inst];
-			}
-
-			pipe_ctx->stream = stream;
-			return i;
-		}
-	}
-	return -1;
-}
-
 static struct hpo_dp_stream_encoder *find_first_free_match_hpo_dp_stream_enc_for_link(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
@@ -2770,6 +2794,7 @@ enum dc_status resource_map_pool_resources(
 	struct dc_context *dc_ctx = dc->ctx;
 	struct pipe_ctx *pipe_ctx = NULL;
 	int pipe_idx = -1;
+	bool acquired = false;
 
 	calculate_phy_pix_clks(stream);
 
@@ -2783,19 +2808,19 @@ enum dc_status resource_map_pool_resources(
 		if (pipe_idx < 0)
 			/* hw resource was assigned to other stream */
 			stream->apply_seamless_boot_optimization = false;
+		else
+			acquired = true;
 	}
 
-	if (pipe_idx < 0)
+	if (!acquired)
 		/* acquire new resources */
-		pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
+		acquired = acquire_otg_master_pipe_for_stream(
+				context, pool, stream);
 
-	if (pipe_idx < 0)
-		pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
+	pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
 
-	if (pipe_idx < 0 || context->res_ctx.pipe_ctx[pipe_idx].stream_res.tg == NULL)
+	if (!pipe_ctx || pipe_ctx->stream_res.tg == NULL)
 		return DC_NO_CONTROLLER_RESOURCE;
-
-	pipe_ctx = &context->res_ctx.pipe_ctx[pipe_idx];
 
 	pipe_ctx->stream_res.stream_enc =
 		dc->res_pool->funcs->find_first_free_match_stream_enc_for_link(
