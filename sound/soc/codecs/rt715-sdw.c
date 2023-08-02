@@ -513,10 +513,7 @@ static int rt715_sdw_probe(struct sdw_slave *slave,
 
 static int rt715_sdw_remove(struct sdw_slave *slave)
 {
-	struct rt715_priv *rt715 = dev_get_drvdata(&slave->dev);
-
-	if (rt715->first_hw_init)
-		pm_runtime_disable(&slave->dev);
+	pm_runtime_disable(&slave->dev);
 
 	return 0;
 }
