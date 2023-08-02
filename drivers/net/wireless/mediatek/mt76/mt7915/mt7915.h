@@ -34,6 +34,10 @@
 #define MT7916_FIRMWARE_WM		"mediatek/mt7916_wm.bin"
 #define MT7916_ROM_PATCH		"mediatek/mt7916_rom_patch.bin"
 
+#define MT7981_FIRMWARE_WA		"mediatek/mt7981_wa.bin"
+#define MT7981_FIRMWARE_WM		"mediatek/mt7981_wm.bin"
+#define MT7981_ROM_PATCH		"mediatek/mt7981_rom_patch.bin"
+
 #define MT7986_FIRMWARE_WA		"mediatek/mt7986_wa.bin"
 #define MT7986_FIRMWARE_WM		"mediatek/mt7986_wm.bin"
 #define MT7986_FIRMWARE_WM_MT7975	"mediatek/mt7986_wm_mt7975.bin"
@@ -43,6 +47,9 @@
 #define MT7915_EEPROM_DEFAULT		"mediatek/mt7915_eeprom.bin"
 #define MT7915_EEPROM_DEFAULT_DBDC	"mediatek/mt7915_eeprom_dbdc.bin"
 #define MT7916_EEPROM_DEFAULT		"mediatek/mt7916_eeprom.bin"
+
+#define MT7981_EEPROM_MT7976_DEFAULT_DBDC	"mediatek/mt7981_eeprom_mt7976_dbdc.bin"
+
 #define MT7986_EEPROM_MT7975_DEFAULT		"mediatek/mt7986_eeprom_mt7975.bin"
 #define MT7986_EEPROM_MT7975_DUAL_DEFAULT	"mediatek/mt7986_eeprom_mt7975_dual.bin"
 #define MT7986_EEPROM_MT7976_DEFAULT		"mediatek/mt7986_eeprom_mt7976.bin"
@@ -129,7 +136,6 @@ struct mt7915_sta {
 
 	struct mt7915_vif *vif;
 
-	struct list_head poll_list;
 	struct list_head rc_list;
 	u32 airtime_ac[8];
 
@@ -138,7 +144,6 @@ struct mt7915_sta {
 
 	unsigned long changed;
 	unsigned long jiffies;
-	unsigned long ampdu_state;
 	struct mt76_connac_sta_key_conf bip;
 
 	struct {
@@ -147,75 +152,28 @@ struct mt7915_sta {
 	} twt;
 };
 
+struct mt7915_vif_cap {
+	bool ht_ldpc:1;
+	bool vht_ldpc:1;
+	bool he_ldpc:1;
+	bool vht_su_ebfer:1;
+	bool vht_su_ebfee:1;
+	bool vht_mu_ebfer:1;
+	bool vht_mu_ebfee:1;
+	bool he_su_ebfer:1;
+	bool he_su_ebfee:1;
+	bool he_mu_ebfer:1;
+};
+
 struct mt7915_vif {
 	struct mt76_vif mt76; /* must be first */
 
+	struct mt7915_vif_cap cap;
 	struct mt7915_sta sta;
 	struct mt7915_phy *phy;
 
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
 	struct cfg80211_bitrate_mask bitrate_mask;
-};
-
-/* per-phy stats.  */
-struct mib_stats {
-	u32 ack_fail_cnt;
-	u32 fcs_err_cnt;
-	u32 rts_cnt;
-	u32 rts_retries_cnt;
-	u32 ba_miss_cnt;
-	u32 tx_bf_cnt;
-	u32 tx_mu_mpdu_cnt;
-	u32 tx_mu_acked_mpdu_cnt;
-	u32 tx_su_acked_mpdu_cnt;
-	u32 tx_bf_ibf_ppdu_cnt;
-	u32 tx_bf_ebf_ppdu_cnt;
-
-	u32 tx_bf_rx_fb_all_cnt;
-	u32 tx_bf_rx_fb_he_cnt;
-	u32 tx_bf_rx_fb_vht_cnt;
-	u32 tx_bf_rx_fb_ht_cnt;
-
-	u32 tx_bf_rx_fb_bw; /* value of last sample, not cumulative */
-	u32 tx_bf_rx_fb_nc_cnt;
-	u32 tx_bf_rx_fb_nr_cnt;
-	u32 tx_bf_fb_cpl_cnt;
-	u32 tx_bf_fb_trig_cnt;
-
-	u32 tx_ampdu_cnt;
-	u32 tx_stop_q_empty_cnt;
-	u32 tx_mpdu_attempts_cnt;
-	u32 tx_mpdu_success_cnt;
-	u32 tx_pkt_ebf_cnt;
-	u32 tx_pkt_ibf_cnt;
-
-	u32 tx_rwp_fail_cnt;
-	u32 tx_rwp_need_cnt;
-
-	/* rx stats */
-	u32 rx_fifo_full_cnt;
-	u32 channel_idle_cnt;
-	u32 primary_cca_busy_time;
-	u32 secondary_cca_busy_time;
-	u32 primary_energy_detect_time;
-	u32 cck_mdrdy_time;
-	u32 ofdm_mdrdy_time;
-	u32 green_mdrdy_time;
-	u32 rx_vector_mismatch_cnt;
-	u32 rx_delimiter_fail_cnt;
-	u32 rx_mrdy_cnt;
-	u32 rx_len_mismatch_cnt;
-	u32 rx_mpdu_cnt;
-	u32 rx_ampdu_cnt;
-	u32 rx_ampdu_bytes_cnt;
-	u32 rx_ampdu_valid_subframe_cnt;
-	u32 rx_ampdu_valid_subframe_bytes_cnt;
-	u32 rx_pfdrop_cnt;
-	u32 rx_vec_queue_overflow_drop_cnt;
-	u32 rx_ba_cnt;
-
-	u32 tx_amsdu[8];
-	u32 tx_amsdu_cnt;
 };
 
 /* crash-dump */
@@ -263,7 +221,7 @@ struct mt7915_phy {
 	u32 rx_ampdu_ts;
 	u32 ampdu_ref;
 
-	struct mib_stats mib;
+	struct mt76_mib_stats mib;
 	struct mt76_channel_state state_ts;
 
 #ifdef CONFIG_NL80211_TESTMODE
@@ -328,9 +286,7 @@ struct mt7915_dev {
 #endif
 
 	struct list_head sta_rc_list;
-	struct list_head sta_poll_list;
 	struct list_head twt_list;
-	spinlock_t sta_poll_lock;
 
 	u32 hw_pattern;
 
@@ -420,8 +376,7 @@ mt7915_ext_phy(struct mt7915_dev *dev)
 static inline u32 mt7915_check_adie(struct mt7915_dev *dev, bool sku)
 {
 	u32 mask = sku ? MT_CONNINFRA_SKU_MASK : MT_ADIE_TYPE_MASK;
-
-	if (!is_mt7986(&dev->mt76))
+	if (!is_mt798x(&dev->mt76))
 		return 0;
 
 	return mt76_rr(dev, MT_CONNINFRA_SKU_DEC_ADDR) & mask;
@@ -431,9 +386,9 @@ extern const struct ieee80211_ops mt7915_ops;
 extern const struct mt76_testmode_ops mt7915_testmode_ops;
 extern struct pci_driver mt7915_pci_driver;
 extern struct pci_driver mt7915_hif_driver;
-extern struct platform_driver mt7986_wmac_driver;
+extern struct platform_driver mt798x_wmac_driver;
 
-#ifdef CONFIG_MT7986_WMAC
+#ifdef CONFIG_MT798X_WMAC
 int mt7986_wmac_enable(struct mt7915_dev *dev);
 void mt7986_wmac_disable(struct mt7915_dev *dev);
 #else
@@ -466,6 +421,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2);
 void mt7915_dma_prefetch(struct mt7915_dev *dev);
 void mt7915_dma_cleanup(struct mt7915_dev *dev);
 int mt7915_dma_reset(struct mt7915_dev *dev, bool force);
+int mt7915_dma_start(struct mt7915_dev *dev, bool reset, bool wed_reset);
 int mt7915_txbf_init(struct mt7915_dev *dev);
 void mt7915_init_txpower(struct mt7915_dev *dev,
 			 struct ieee80211_supported_band *sband);
@@ -539,6 +495,7 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, struct rate_info *rate);
 int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
 				     struct cfg80211_chan_def *chandef);
+int mt7915_mcu_wed_wa_tx_stats(struct mt7915_dev *dev, u16 wcid);
 int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set);
 int mt7915_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
 int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
@@ -612,7 +569,6 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta,
 			  struct mt76_tx_info *tx_info);
-void mt7915_tx_token_put(struct mt7915_dev *dev);
 void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb, u32 *info);
 bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len);
@@ -623,7 +579,7 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy);
 void mt7915_set_stream_vht_txbf_caps(struct mt7915_phy *phy);
 void mt7915_update_channel(struct mt76_phy *mphy);
 int mt7915_mcu_muru_debug_set(struct mt7915_dev *dev, bool enable);
-int mt7915_mcu_muru_debug_get(struct mt7915_phy *phy, void *ms);
+int mt7915_mcu_muru_debug_get(struct mt7915_phy *phy);
 int mt7915_mcu_wed_enable_rx_stats(struct mt7915_dev *dev);
 int mt7915_init_debugfs(struct mt7915_phy *phy);
 void mt7915_debugfs_rx_fw_monitor(struct mt7915_dev *dev, const void *data, int len);

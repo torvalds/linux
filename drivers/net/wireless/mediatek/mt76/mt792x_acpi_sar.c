@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: ISC
-/* Copyright (C) 2022 MediaTek Inc. */
+/* Copyright (C) 2023 MediaTek Inc. */
 
 #include <linux/acpi.h>
-#include "mt7921.h"
+#include "mt792x.h"
 
 static int
-mt7921_acpi_read(struct mt7921_dev *dev, u8 *method, u8 **tbl, u32 *len)
+mt792x_acpi_read(struct mt792x_dev *dev, u8 *method, u8 **tbl, u32 *len)
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *sar_root, *sar_unit;
 	struct mt76_dev *mdev = &dev->mt76;
+	union acpi_object *sar_root;
 	acpi_handle root, handle;
 	acpi_status status;
 	u32 i = 0;
@@ -45,18 +45,20 @@ mt7921_acpi_read(struct mt7921_dev *dev, u8 *method, u8 **tbl, u32 *len)
 			goto free;
 		}
 	}
+
 	if (len)
 		*len = sar_root->package.count;
 
 	for (i = 0; i < sar_root->package.count; i++) {
-		sar_unit = &sar_root->package.elements[i];
+		union acpi_object *sar_unit = &sar_root->package.elements[i];
 
 		if (sar_unit->type != ACPI_TYPE_INTEGER)
 			break;
+
 		*(*tbl + i) = (u8)sar_unit->integer.value;
 	}
-	ret = (i == sar_root->package.count) ? 0 : -EINVAL;
 
+	ret = i == sar_root->package.count ? 0 : -EINVAL;
 free:
 	kfree(sar_root);
 
@@ -64,36 +66,37 @@ free:
 }
 
 /* MTCL : Country List Table for 6G band */
-static int
-mt7921_asar_acpi_read_mtcl(struct mt7921_dev *dev, u8 **table, u8 *version)
+static void
+mt792x_asar_acpi_read_mtcl(struct mt792x_dev *dev, u8 **table, u8 *version)
 {
-	*version = (mt7921_acpi_read(dev, MT7921_ACPI_MTCL, table, NULL) < 0)
-		   ? 1 : 2;
-	return 0;
+	if (mt792x_acpi_read(dev, MT792x_ACPI_MTCL, table, NULL) < 0)
+		*version = 1;
+	else
+		*version = 2;
 }
 
 /* MTDS : Dynamic SAR Power Table */
 static int
-mt7921_asar_acpi_read_mtds(struct mt7921_dev *dev, u8 **table, u8 version)
+mt792x_asar_acpi_read_mtds(struct mt792x_dev *dev, u8 **table, u8 version)
 {
 	int len, ret, sarlen, prelen, tblcnt;
 	bool enable;
 
-	ret = mt7921_acpi_read(dev, MT7921_ACPI_MTDS, table, &len);
+	ret = mt792x_acpi_read(dev, MT792x_ACPI_MTDS, table, &len);
 	if (ret)
 		return ret;
 
 	/* Table content validation */
 	switch (version) {
 	case 1:
-		enable = ((struct mt7921_asar_dyn *)*table)->enable;
-		sarlen = sizeof(struct mt7921_asar_dyn_limit);
-		prelen = sizeof(struct mt7921_asar_dyn);
+		enable = ((struct mt792x_asar_dyn *)*table)->enable;
+		sarlen = sizeof(struct mt792x_asar_dyn_limit);
+		prelen = sizeof(struct mt792x_asar_dyn);
 		break;
 	case 2:
-		enable = ((struct mt7921_asar_dyn_v2 *)*table)->enable;
-		sarlen = sizeof(struct mt7921_asar_dyn_limit_v2);
-		prelen = sizeof(struct mt7921_asar_dyn_v2);
+		enable = ((struct mt792x_asar_dyn_v2 *)*table)->enable;
+		sarlen = sizeof(struct mt792x_asar_dyn_limit_v2);
+		prelen = sizeof(struct mt792x_asar_dyn_v2);
 		break;
 	default:
 		return -EINVAL;
@@ -101,88 +104,89 @@ mt7921_asar_acpi_read_mtds(struct mt7921_dev *dev, u8 **table, u8 version)
 
 	tblcnt = (len - prelen) / sarlen;
 	if (!enable ||
-	    tblcnt > MT7921_ASAR_MAX_DYN || tblcnt < MT7921_ASAR_MIN_DYN)
-		ret = -EINVAL;
+	    tblcnt > MT792x_ASAR_MAX_DYN || tblcnt < MT792x_ASAR_MIN_DYN)
+		return -EINVAL;
 
-	return ret;
+	return 0;
 }
 
 /* MTGS : Geo SAR Power Table */
 static int
-mt7921_asar_acpi_read_mtgs(struct mt7921_dev *dev, u8 **table, u8 version)
+mt792x_asar_acpi_read_mtgs(struct mt792x_dev *dev, u8 **table, u8 version)
 {
-	int len, ret = 0, sarlen, prelen, tblcnt;
+	int len, ret, sarlen, prelen, tblcnt;
 
-	ret = mt7921_acpi_read(dev, MT7921_ACPI_MTGS, table, &len);
+	ret = mt792x_acpi_read(dev, MT792x_ACPI_MTGS, table, &len);
 	if (ret)
 		return ret;
 
 	/* Table content validation */
 	switch (version) {
 	case 1:
-		sarlen = sizeof(struct mt7921_asar_geo_limit);
-		prelen = sizeof(struct mt7921_asar_geo);
+		sarlen = sizeof(struct mt792x_asar_geo_limit);
+		prelen = sizeof(struct mt792x_asar_geo);
 		break;
 	case 2:
-		sarlen = sizeof(struct mt7921_asar_geo_limit_v2);
-		prelen = sizeof(struct mt7921_asar_geo_v2);
+		sarlen = sizeof(struct mt792x_asar_geo_limit_v2);
+		prelen = sizeof(struct mt792x_asar_geo_v2);
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	tblcnt = (len - prelen) / sarlen;
-	if (tblcnt > MT7921_ASAR_MAX_GEO || tblcnt < MT7921_ASAR_MIN_GEO)
-		ret = -EINVAL;
+	if (tblcnt > MT792x_ASAR_MAX_GEO || tblcnt < MT792x_ASAR_MIN_GEO)
+		return -EINVAL;
 
-	return ret;
+	return 0;
 }
 
 /* MTFG : Flag Table */
 static int
-mt7921_asar_acpi_read_mtfg(struct mt7921_dev *dev, u8 **table)
+mt792x_asar_acpi_read_mtfg(struct mt792x_dev *dev, u8 **table)
 {
 	int len, ret;
 
-	ret = mt7921_acpi_read(dev, MT7921_ACPI_MTFG, table, &len);
+	ret = mt792x_acpi_read(dev, MT792x_ACPI_MTFG, table, &len);
 	if (ret)
 		return ret;
 
-	if (len < MT7921_ASAR_MIN_FG)
-		ret = -EINVAL;
+	if (len < MT792x_ASAR_MIN_FG)
+		return -EINVAL;
 
-	return ret;
+	return 0;
 }
 
-int mt7921_init_acpi_sar(struct mt7921_dev *dev)
+int mt792x_init_acpi_sar(struct mt792x_dev *dev)
 {
-	struct mt7921_acpi_sar *asar;
+	struct mt792x_acpi_sar *asar;
 	int ret;
 
 	asar = devm_kzalloc(dev->mt76.dev, sizeof(*asar), GFP_KERNEL);
 	if (!asar)
 		return -ENOMEM;
 
-	mt7921_asar_acpi_read_mtcl(dev, (u8 **)&asar->countrylist, &asar->ver);
+	mt792x_asar_acpi_read_mtcl(dev, (u8 **)&asar->countrylist, &asar->ver);
 
 	/* MTDS is mandatory. Return error if table is invalid */
-	ret = mt7921_asar_acpi_read_mtds(dev, (u8 **)&asar->dyn, asar->ver);
+	ret = mt792x_asar_acpi_read_mtds(dev, (u8 **)&asar->dyn, asar->ver);
 	if (ret) {
 		devm_kfree(dev->mt76.dev, asar->dyn);
 		devm_kfree(dev->mt76.dev, asar->countrylist);
 		devm_kfree(dev->mt76.dev, asar);
+
 		return ret;
 	}
 
 	/* MTGS is optional */
-	ret = mt7921_asar_acpi_read_mtgs(dev, (u8 **)&asar->geo, asar->ver);
+	ret = mt792x_asar_acpi_read_mtgs(dev, (u8 **)&asar->geo, asar->ver);
 	if (ret) {
 		devm_kfree(dev->mt76.dev, asar->geo);
 		asar->geo = NULL;
 	}
 
 	/* MTFG is optional */
-	ret = mt7921_asar_acpi_read_mtfg(dev, (u8 **)&asar->fg);
+	ret = mt792x_asar_acpi_read_mtfg(dev, (u8 **)&asar->fg);
 	if (ret) {
 		devm_kfree(dev->mt76.dev, asar->fg);
 		asar->fg = NULL;
@@ -191,13 +195,14 @@ int mt7921_init_acpi_sar(struct mt7921_dev *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt792x_init_acpi_sar);
 
 static s8
-mt7921_asar_get_geo_pwr(struct mt7921_phy *phy,
+mt792x_asar_get_geo_pwr(struct mt792x_phy *phy,
 			enum nl80211_band band, s8 dyn_power)
 {
-	struct mt7921_acpi_sar *asar = phy->acpisar;
-	struct mt7921_asar_geo_band *band_pwr;
+	struct mt792x_acpi_sar *asar = phy->acpisar;
+	struct mt792x_asar_geo_band *band_pwr;
 	s8 geo_power;
 	u8 idx, max;
 
@@ -248,12 +253,12 @@ mt7921_asar_get_geo_pwr(struct mt7921_phy *phy,
 }
 
 static s8
-mt7921_asar_range_pwr(struct mt7921_phy *phy,
+mt792x_asar_range_pwr(struct mt792x_phy *phy,
 		      const struct cfg80211_sar_freq_ranges *range,
 		      u8 idx)
 {
 	const struct cfg80211_sar_capa *capa = phy->mt76->hw->wiphy->sar_capa;
-	struct mt7921_acpi_sar *asar = phy->acpisar;
+	struct mt792x_acpi_sar *asar = phy->acpisar;
 	u8 *limit, band, max;
 
 	if (!capa)
@@ -277,10 +282,10 @@ mt7921_asar_range_pwr(struct mt7921_phy *phy,
 	else
 		band = NL80211_BAND_2GHZ;
 
-	return mt7921_asar_get_geo_pwr(phy, band, limit[idx]);
+	return mt792x_asar_get_geo_pwr(phy, band, limit[idx]);
 }
 
-int mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default)
+int mt792x_init_acpi_sar_power(struct mt792x_phy *phy, bool set_default)
 {
 	const struct cfg80211_sar_capa *capa = phy->mt76->hw->wiphy->sar_capa;
 	int i;
@@ -300,41 +305,46 @@ int mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default)
 			continue;
 
 		frp->power = min_t(s8, set_default ? 127 : frp->power,
-				   mt7921_asar_range_pwr(phy, frp->range, i));
+				   mt792x_asar_range_pwr(phy, frp->range, i));
 	}
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt792x_init_acpi_sar_power);
 
-u8 mt7921_acpi_get_flags(struct mt7921_phy *phy)
+u8 mt792x_acpi_get_flags(struct mt792x_phy *phy)
 {
-	struct mt7921_asar_fg *fg;
+	struct mt792x_acpi_sar *acpisar = phy->acpisar;
+	struct mt792x_asar_fg *fg;
 	struct {
 		u8 acpi_idx;
 		u8 chip_idx;
 	} map[] = {
-		{1, 1},
-		{4, 2},
+		{ 1, 1 },
+		{ 4, 2 },
 	};
 	u8 flags = BIT(0);
 	int i, j;
 
-	if (!phy->acpisar)
+	if (!acpisar)
 		return 0;
 
-	fg = phy->acpisar->fg;
+	fg = acpisar->fg;
 	if (!fg)
 		return flags;
 
 	/* pickup necessary settings per device and
 	 * translate the index of bitmap for chip command.
 	 */
-	for (i = 0; i < fg->nr_flag; i++)
-		for (j = 0; j < ARRAY_SIZE(map); j++)
+	for (i = 0; i < fg->nr_flag; i++) {
+		for (j = 0; j < ARRAY_SIZE(map); j++) {
 			if (fg->flag[i] == map[j].acpi_idx) {
 				flags |= BIT(map[j].chip_idx);
 				break;
 			}
+		}
+	}
 
 	return flags;
 }
+EXPORT_SYMBOL_GPL(mt792x_acpi_get_flags);
