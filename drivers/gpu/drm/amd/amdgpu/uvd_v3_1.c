@@ -815,8 +815,7 @@ static const struct amd_ip_funcs uvd_v3_1_ip_funcs = {
 	.set_powergating_state = uvd_v3_1_set_powergating_state,
 };
 
-const struct amdgpu_ip_block_version uvd_v3_1_ip_block =
-{
+const struct amdgpu_ip_block_version uvd_v3_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_UVD,
 	.major = 3,
 	.minor = 1,
