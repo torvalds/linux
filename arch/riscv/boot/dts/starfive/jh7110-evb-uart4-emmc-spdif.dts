@@ -38,6 +38,7 @@
 	mmc-hs200-1_8v;
 	non-removable;
 	cap-mmc-hw-reset;
+	board-is-evb;
 	post-power-on-delay-ms = <200>;
 	status = "okay";
 };
