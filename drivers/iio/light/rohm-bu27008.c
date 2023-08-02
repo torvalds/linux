@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * BU27008 ROHM Colour Sensor
+ * ROHM Colour Sensor driver for
+ * - BU27008 RGBC sensor
+ * - BU27010 RGBC + Flickering sensor
  *
  * Copyright (c) 2023, ROHM Semiconductor.
  */
@@ -22,6 +24,25 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
+/*
+ * A word about register address and mask definitions.
+ *
+ * At a quick glance to the data-sheet register tables, the BU27010 has all the
+ * registers that the BU27008 has. On top of that the BU27010 adds couple of new
+ * ones.
+ *
+ * So, all definitions BU27008_REG_* are there also for BU27010 but none of the
+ * BU27010_REG_* are present on BU27008. This makes sense as BU27010 just adds
+ * some features (Flicker FIFO, more power control) on top of the BU27008.
+ *
+ * Unfortunately, some of the wheel has been re-invented. Even though the names
+ * of the registers have stayed the same, pretty much all of the functionality
+ * provided by the registers has changed place. Contents of all MODE_CONTROL
+ * registers on BU27008 and BU27010 are different.
+ *
+ * Chip-specific mapping from register addresses/bits to functionality is done
+ * in bu27_chip_data structures.
+ */
 #define BU27008_REG_SYSTEM_CONTROL	0x40
 #define BU27008_MASK_SW_RESET		BIT(7)
 #define BU27008_MASK_PART_ID		GENMASK(5, 0)
@@ -51,6 +72,56 @@
 #define BU27008_REG_DATA3_HI		0x57
 #define BU27008_REG_MANUFACTURER_ID	0x92
 #define BU27008_REG_MAX BU27008_REG_MANUFACTURER_ID
+
+/* BU27010 specific definitions */
+
+#define BU27010_MASK_SW_RESET		BIT(7)
+#define BU27010_ID			0x1b
+#define BU27010_REG_POWER		0x3e
+#define BU27010_MASK_POWER		BIT(0)
+
+#define BU27010_REG_RESET		0x3f
+#define BU27010_MASK_RESET		BIT(0)
+#define BU27010_RESET_RELEASE		BU27010_MASK_RESET
+
+#define BU27010_MASK_MEAS_EN		BIT(1)
+
+#define BU27010_MASK_CHAN_SEL		GENMASK(7, 6)
+#define BU27010_MASK_MEAS_MODE		GENMASK(5, 4)
+#define BU27010_MASK_RGBC_GAIN		GENMASK(3, 0)
+
+#define BU27010_MASK_DATA3_GAIN		GENMASK(7, 6)
+#define BU27010_MASK_DATA2_GAIN		GENMASK(5, 4)
+#define BU27010_MASK_DATA1_GAIN		GENMASK(3, 2)
+#define BU27010_MASK_DATA0_GAIN		GENMASK(1, 0)
+
+#define BU27010_MASK_FLC_MODE		BIT(7)
+#define BU27010_MASK_FLC_GAIN		GENMASK(4, 0)
+
+#define BU27010_REG_MODE_CONTROL4	0x44
+/* If flicker is ever to be supported the IRQ must be handled as a field */
+#define BU27010_IRQ_DIS_ALL		GENMASK(1, 0)
+#define BU27010_DRDY_EN			BIT(0)
+#define BU27010_MASK_INT_SEL		GENMASK(1, 0)
+
+#define BU27010_REG_MODE_CONTROL5	0x45
+#define BU27010_MASK_RGB_VALID		BIT(7)
+#define BU27010_MASK_FLC_VALID		BIT(6)
+#define BU27010_MASK_WAIT_EN		BIT(3)
+#define BU27010_MASK_FIFO_EN		BIT(2)
+#define BU27010_MASK_RGB_EN		BIT(1)
+#define BU27010_MASK_FLC_EN		BIT(0)
+
+#define BU27010_REG_DATA_FLICKER_LO	0x56
+#define BU27010_MASK_DATA_FLICKER_HI	GENMASK(2, 0)
+#define BU27010_REG_FLICKER_COUNT	0x5a
+#define BU27010_REG_FIFO_LEVEL_LO	0x5b
+#define BU27010_MASK_FIFO_LEVEL_HI	BIT(0)
+#define BU27010_REG_FIFO_DATA_LO	0x5d
+#define BU27010_REG_FIFO_DATA_HI	0x5e
+#define BU27010_MASK_FIFO_DATA_HI	GENMASK(2, 0)
+#define BU27010_REG_MANUFACTURER_ID	0x92
+#define BU27010_REG_MAX BU27010_REG_MANUFACTURER_ID
 
 /**
  * enum bu27008_chan_type - BU27008 channel types
@@ -117,6 +188,17 @@ static const unsigned long bu27008_scan_masks[] = {
  */
 #define BU27008_SCALE_1X 16
 
+/*
+ * On BU27010 available scales with gain 1x - 4096x,
+ * timings 55, 100, 200, 400 mS. Time impacts to gain: 1x, 2x, 4x, 8x.
+ *
+ * => Max total gain is HWGAIN * gain by integration time (8 * 4096)
+ *
+ * Using NANO precision for scale we must use scale 64x corresponding gain 1x
+ * to avoid precision loss.
+ */
+#define BU27010_SCALE_1X 64
+
 /* See the data sheet for the "Gain Setting" table */
 #define BU27008_GSEL_1X		0x00
 #define BU27008_GSEL_4X		0x08
@@ -152,10 +234,44 @@ static const struct iio_gain_sel_pair bu27008_gains_ir[] = {
 	GAIN_SCALE_GAIN(1024, BU27008_GSEL_1024X),
 };
 
+#define BU27010_GSEL_1X		0x00	/* 000000 */
+#define BU27010_GSEL_4X		0x08	/* 001000 */
+#define BU27010_GSEL_16X	0x09	/* 001001 */
+#define BU27010_GSEL_64X	0x0e	/* 001110 */
+#define BU27010_GSEL_256X	0x1e	/* 011110 */
+#define BU27010_GSEL_1024X	0x2e	/* 101110 */
+#define BU27010_GSEL_4096X	0x3f	/* 111111 */
+
+static const struct iio_gain_sel_pair bu27010_gains[] = {
+	GAIN_SCALE_GAIN(1, BU27010_GSEL_1X),
+	GAIN_SCALE_GAIN(4, BU27010_GSEL_4X),
+	GAIN_SCALE_GAIN(16, BU27010_GSEL_16X),
+	GAIN_SCALE_GAIN(64, BU27010_GSEL_64X),
+	GAIN_SCALE_GAIN(256, BU27010_GSEL_256X),
+	GAIN_SCALE_GAIN(1024, BU27010_GSEL_1024X),
+	GAIN_SCALE_GAIN(4096, BU27010_GSEL_4096X),
+};
+
+static const struct iio_gain_sel_pair bu27010_gains_ir[] = {
+	GAIN_SCALE_GAIN(2, BU27010_GSEL_1X),
+	GAIN_SCALE_GAIN(4, BU27010_GSEL_4X),
+	GAIN_SCALE_GAIN(16, BU27010_GSEL_16X),
+	GAIN_SCALE_GAIN(64, BU27010_GSEL_64X),
+	GAIN_SCALE_GAIN(256, BU27010_GSEL_256X),
+	GAIN_SCALE_GAIN(1024, BU27010_GSEL_1024X),
+	GAIN_SCALE_GAIN(4096, BU27010_GSEL_4096X),
+};
+
 #define BU27008_MEAS_MODE_100MS		0x00
 #define BU27008_MEAS_MODE_55MS		0x01
 #define BU27008_MEAS_MODE_200MS		0x02
 #define BU27008_MEAS_MODE_400MS		0x04
+
+#define BU27010_MEAS_MODE_100MS		0x00
+#define BU27010_MEAS_MODE_55MS		0x03
+#define BU27010_MEAS_MODE_200MS		0x01
+#define BU27010_MEAS_MODE_400MS		0x02
+
 #define BU27008_MEAS_TIME_MAX_MS	400
 
 static const struct iio_itime_sel_mul bu27008_itimes[] = {
@@ -163,6 +279,13 @@ static const struct iio_itime_sel_mul bu27008_itimes[] = {
 	GAIN_SCALE_ITIME_US(200000, BU27008_MEAS_MODE_200MS, 4),
 	GAIN_SCALE_ITIME_US(100000, BU27008_MEAS_MODE_100MS, 2),
 	GAIN_SCALE_ITIME_US(55000, BU27008_MEAS_MODE_55MS, 1),
+};
+
+static const struct iio_itime_sel_mul bu27010_itimes[] = {
+	GAIN_SCALE_ITIME_US(400000, BU27010_MEAS_MODE_400MS, 8),
+	GAIN_SCALE_ITIME_US(200000, BU27010_MEAS_MODE_200MS, 4),
+	GAIN_SCALE_ITIME_US(100000, BU27010_MEAS_MODE_100MS, 2),
+	GAIN_SCALE_ITIME_US(55000, BU27010_MEAS_MODE_55MS, 1),
 };
 
 /*
@@ -268,9 +391,27 @@ static const struct regmap_range bu27008_volatile_ranges[] = {
 	},
 };
 
+static const struct regmap_range bu27010_volatile_ranges[] = {
+	{
+		.range_min = BU27010_REG_RESET,			/* RSTB */
+		.range_max = BU27008_REG_SYSTEM_CONTROL,	/* RESET */
+	}, {
+		.range_min = BU27010_REG_MODE_CONTROL5,		/* VALID bits */
+		.range_max = BU27010_REG_MODE_CONTROL5,
+	}, {
+		.range_min = BU27008_REG_DATA0_LO,
+		.range_max = BU27010_REG_FIFO_DATA_HI,
+	},
+};
+
 static const struct regmap_access_table bu27008_volatile_regs = {
 	.yes_ranges = &bu27008_volatile_ranges[0],
 	.n_yes_ranges = ARRAY_SIZE(bu27008_volatile_ranges),
+};
+
+static const struct regmap_access_table bu27010_volatile_regs = {
+	.yes_ranges = &bu27010_volatile_ranges[0],
+	.n_yes_ranges = ARRAY_SIZE(bu27010_volatile_ranges),
 };
 
 static const struct regmap_range bu27008_read_only_ranges[] = {
@@ -283,9 +424,24 @@ static const struct regmap_range bu27008_read_only_ranges[] = {
 	},
 };
 
+static const struct regmap_range bu27010_read_only_ranges[] = {
+	{
+		.range_min = BU27008_REG_DATA0_LO,
+		.range_max = BU27010_REG_FIFO_DATA_HI,
+	}, {
+		.range_min = BU27010_REG_MANUFACTURER_ID,
+		.range_max = BU27010_REG_MANUFACTURER_ID,
+	}
+};
+
 static const struct regmap_access_table bu27008_ro_regs = {
 	.no_ranges = &bu27008_read_only_ranges[0],
 	.n_no_ranges = ARRAY_SIZE(bu27008_read_only_ranges),
+};
+
+static const struct regmap_access_table bu27010_ro_regs = {
+	.no_ranges = &bu27010_read_only_ranges[0],
+	.n_no_ranges = ARRAY_SIZE(bu27010_read_only_ranges),
 };
 
 static const struct regmap_config bu27008_regmap = {
@@ -307,6 +463,17 @@ static const struct regmap_config bu27008_regmap = {
 	 * read-modify-write cycle (eg. regmap_update_bits()). Please, revise
 	 * this when adding features to the driver.
 	 */
+	.disable_locking = true,
+};
+
+static const struct regmap_config bu27010_regmap = {
+	.reg_bits	= 8,
+	.val_bits	= 8,
+
+	.max_register	= BU27010_REG_MAX,
+	.cache_type	= REGCACHE_RBTREE,
+	.volatile_table = &bu27010_volatile_regs,
+	.wr_table	= &bu27010_ro_regs,
 	.disable_locking = true,
 };
 
@@ -351,6 +518,41 @@ static int bu27008_write_gain_sel(struct bu27008_data *data, int sel)
 				  BU27008_MASK_RGBC_GAIN, regval);
 }
 
+static int bu27010_write_gain_sel(struct bu27008_data *data, int sel)
+{
+	unsigned int regval;
+	int ret, chan_selector;
+
+	/*
+	 * Gain 'selector' is composed of two registers. Selector is 6bit value,
+	 * 4 high bits being the RGBC gain fieild in MODE_CONTROL1 register and
+	 * two low bits being the channel specific gain in MODE_CONTROL2.
+	 *
+	 * Let's take the 4 high bits of whole 6 bit selector, and prepare
+	 * the MODE_CONTROL1 value (RGBC gain part).
+	 */
+	regval = FIELD_PREP(BU27010_MASK_RGBC_GAIN, (sel >> 2));
+
+	ret = regmap_update_bits(data->regmap, BU27008_REG_MODE_CONTROL1,
+				  BU27010_MASK_RGBC_GAIN, regval);
+	if (ret)
+		return ret;
+
+	/*
+	 * Two low two bits of the selector must be written for all 4
+	 * channels in the MODE_CONTROL2 register. Copy these two bits for
+	 * all channels.
+	 */
+	chan_selector = sel & GENMASK(1, 0);
+
+	regval = FIELD_PREP(BU27010_MASK_DATA0_GAIN, chan_selector);
+	regval |= FIELD_PREP(BU27010_MASK_DATA1_GAIN, chan_selector);
+	regval |= FIELD_PREP(BU27010_MASK_DATA2_GAIN, chan_selector);
+	regval |= FIELD_PREP(BU27010_MASK_DATA3_GAIN, chan_selector);
+
+	return regmap_write(data->regmap, BU27008_REG_MODE_CONTROL2, regval);
+}
+
 static int bu27008_get_gain_sel(struct bu27008_data *data, int *sel)
 {
 	int ret;
@@ -377,6 +579,40 @@ static int bu27008_get_gain_sel(struct bu27008_data *data, int *sel)
 	return 0;
 }
 
+static int bu27010_get_gain_sel(struct bu27008_data *data, int *sel)
+{
+	int ret, tmp;
+
+	/*
+	 * We always "lock" the gain selectors for all channels to prevent
+	 * unsupported configs. It does not matter which channel is used
+	 * we can just return selector from any of them.
+	 *
+	 * Read the channel0 gain.
+	 */
+	ret = regmap_read(data->regmap, BU27008_REG_MODE_CONTROL2, sel);
+	if (ret)
+		return ret;
+
+	*sel = FIELD_GET(BU27010_MASK_DATA0_GAIN, *sel);
+
+	/* Read the shared gain */
+	ret = regmap_read(data->regmap, BU27008_REG_MODE_CONTROL1, &tmp);
+	if (ret)
+		return ret;
+
+	/*
+	 * The gain selector is made as a combination of common RGBC gain and
+	 * the channel specific gain. The channel specific gain forms the low
+	 * bits of selector and RGBC gain is appended right after it.
+	 *
+	 * Compose the selector from channel0 gain and shared RGBC gain.
+	 */
+	*sel |= FIELD_GET(BU27010_MASK_RGBC_GAIN, tmp) << fls(BU27010_MASK_DATA0_GAIN);
+
+	return ret;
+}
+
 static int bu27008_chip_init(struct bu27008_data *data)
 {
 	int ret;
@@ -400,6 +636,78 @@ static int bu27008_chip_init(struct bu27008_data *data)
 
 	return ret;
 }
+
+static int bu27010_chip_init(struct bu27008_data *data)
+{
+	int ret;
+
+	ret = regmap_write_bits(data->regmap, BU27008_REG_SYSTEM_CONTROL,
+				BU27010_MASK_SW_RESET, BU27010_MASK_SW_RESET);
+	if (ret)
+		return dev_err_probe(data->dev, ret, "Sensor reset failed\n");
+
+	msleep(1);
+
+	/* Power ON*/
+	ret = regmap_write_bits(data->regmap, BU27010_REG_POWER,
+				BU27010_MASK_POWER, BU27010_MASK_POWER);
+	if (ret)
+		return dev_err_probe(data->dev, ret, "Sensor power-on failed\n");
+
+	msleep(1);
+
+	/* Release blocks from reset */
+	ret = regmap_write_bits(data->regmap, BU27010_REG_RESET,
+				BU27010_MASK_RESET, BU27010_RESET_RELEASE);
+	if (ret)
+		return dev_err_probe(data->dev, ret, "Sensor powering failed\n");
+
+	msleep(1);
+
+	/*
+	 * The IRQ enabling on BU27010 is done in a peculiar way. The IRQ
+	 * enabling is not a bit mask where individual IRQs could be enabled but
+	 * a field which values are:
+	 * 00 => IRQs disabled
+	 * 01 => Data-ready (RGBC/IR)
+	 * 10 => Data-ready (flicker)
+	 * 11 => Flicker FIFO
+	 *
+	 * So, only one IRQ can be enabled at a time and enabling for example
+	 * flicker FIFO would automagically disable data-ready IRQ.
+	 *
+	 * Currently the driver does not support the flicker. Hence, we can
+	 * just treat the RGBC data-ready as single bit which can be enabled /
+	 * disabled. This works for as long as the second bit in the field
+	 * stays zero. Here we ensure it gets zeroed.
+	 */
+	return regmap_clear_bits(data->regmap, BU27010_REG_MODE_CONTROL4,
+				 BU27010_IRQ_DIS_ALL);
+}
+
+static const struct bu27_chip_data bu27010_chip = {
+	.name = "bu27010",
+	.chip_init = bu27010_chip_init,
+	.get_gain_sel = bu27010_get_gain_sel,
+	.write_gain_sel = bu27010_write_gain_sel,
+	.regmap_cfg = &bu27010_regmap,
+	.gains = &bu27010_gains[0],
+	.gains_ir = &bu27010_gains_ir[0],
+	.itimes = &bu27010_itimes[0],
+	.num_gains = ARRAY_SIZE(bu27010_gains),
+	.num_gains_ir = ARRAY_SIZE(bu27010_gains_ir),
+	.num_itimes = ARRAY_SIZE(bu27010_itimes),
+	.scale1x = BU27010_SCALE_1X,
+	.drdy_en_reg = BU27010_REG_MODE_CONTROL4,
+	.drdy_en_mask = BU27010_DRDY_EN,
+	.meas_en_reg = BU27010_REG_MODE_CONTROL5,
+	.meas_en_mask = BU27010_MASK_MEAS_EN,
+	.valid_reg = BU27010_REG_MODE_CONTROL5,
+	.chan_sel_reg = BU27008_REG_MODE_CONTROL1,
+	.chan_sel_mask = BU27010_MASK_CHAN_SEL,
+	.int_time_mask = BU27010_MASK_MEAS_MODE,
+	.part_id = BU27010_ID,
+};
 
 static const struct bu27_chip_data bu27008_chip = {
 	.name = "bu27008",
@@ -1099,6 +1407,7 @@ static int bu27008_probe(struct i2c_client *i2c)
 
 static const struct of_device_id bu27008_of_match[] = {
 	{ .compatible = "rohm,bu27008", .data = &bu27008_chip },
+	{ .compatible = "rohm,bu27010", .data = &bu27010_chip },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, bu27008_of_match);
@@ -1113,7 +1422,7 @@ static struct i2c_driver bu27008_i2c_driver = {
 };
 module_i2c_driver(bu27008_i2c_driver);
 
-MODULE_DESCRIPTION("ROHM BU27008 colour sensor driver");
+MODULE_DESCRIPTION("ROHM BU27008 and BU27010 colour sensor driver");
 MODULE_AUTHOR("Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(IIO_GTS_HELPER);
