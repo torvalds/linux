@@ -9,7 +9,6 @@
 
 #include <linux/atomic.h>
 #include <linux/byteorder/generic.h>
-#include <linux/errno.h>
 #include <linux/kstrtox.h>
 #include <linux/limits.h>
 #include <linux/math64.h>
@@ -91,42 +90,6 @@ bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
 }
 
 /**
- * batadv_parse_gw_bandwidth() - parse supplied string buffer to extract
- *  download and upload bandwidth information
- * @net_dev: the soft interface net device
- * @buff: string buffer to parse
- * @down: pointer holding the returned download bandwidth information
- * @up: pointer holding the returned upload bandwidth information
- *
- * Return: false on parse error and true otherwise.
- */
-static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
-				      u32 *down, u32 *up)
-{
-	char *slash_ptr;
-	bool ret;
-
-	slash_ptr = strchr(buff, '/');
-	if (slash_ptr)
-		*slash_ptr = 0;
-
-	ret = batadv_parse_throughput(net_dev, buff, "download gateway speed",
-				      down);
-	if (!ret)
-		return false;
-
-	/* we also got some upload info */
-	if (slash_ptr) {
-		ret = batadv_parse_throughput(net_dev, slash_ptr + 1,
-					      "upload gateway speed", up);
-		if (!ret)
-			return false;
-	}
-
-	return true;
-}
-
-/**
  * batadv_gw_tvlv_container_update() - update the gw tvlv container after
  *  gateway setting change
  * @bat_priv: the bat priv with all the soft interface information
@@ -153,57 +116,6 @@ void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
 					       &gw, sizeof(gw));
 		break;
 	}
-}
-
-/**
- * batadv_gw_bandwidth_set() - Parse and set download/upload gateway bandwidth
- *  from supplied string buffer
- * @net_dev: netdev struct of the soft interface
- * @buff: the buffer containing the user data
- * @count: number of bytes in the buffer
- *
- * Return: 'count' on success or a negative error code in case of failure
- */
-ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
-				size_t count)
-{
-	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	u32 down_curr;
-	u32 up_curr;
-	u32 down_new = 0;
-	u32 up_new = 0;
-	bool ret;
-
-	down_curr = (unsigned int)atomic_read(&bat_priv->gw.bandwidth_down);
-	up_curr = (unsigned int)atomic_read(&bat_priv->gw.bandwidth_up);
-
-	ret = batadv_parse_gw_bandwidth(net_dev, buff, &down_new, &up_new);
-	if (!ret)
-		return -EINVAL;
-
-	if (!down_new)
-		down_new = 1;
-
-	if (!up_new)
-		up_new = down_new / 5;
-
-	if (!up_new)
-		up_new = 1;
-
-	if (down_curr == down_new && up_curr == up_new)
-		return count;
-
-	batadv_gw_reselect(bat_priv);
-	batadv_info(net_dev,
-		    "Changing gateway bandwidth from: '%u.%u/%u.%u MBit' to: '%u.%u/%u.%u MBit'\n",
-		    down_curr / 10, down_curr % 10, up_curr / 10, up_curr % 10,
-		    down_new / 10, down_new % 10, up_new / 10, up_new % 10);
-
-	atomic_set(&bat_priv->gw.bandwidth_down, down_new);
-	atomic_set(&bat_priv->gw.bandwidth_up, up_new);
-	batadv_gw_tvlv_container_update(bat_priv);
-
-	return count;
 }
 
 /**
