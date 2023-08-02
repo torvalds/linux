@@ -992,6 +992,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	if (!ctlr)
 		return -ENOMEM;
 
+	ctlr->rt = device_property_read_bool(&pdev->dev, "rockchip,rt");
 	platform_set_drvdata(pdev, ctlr);
 
 	rs = spi_controller_get_devdata(ctlr);
