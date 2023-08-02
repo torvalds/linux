@@ -174,4 +174,40 @@
 #define MICFIL_HWVAD_ENVELOPE_MODE	0
 #define MICFIL_HWVAD_ENERGY_MODE	1
 
+/**
+ * struct fsl_micfil_verid - version id data
+ * @version: version number
+ * @feature: feature specification number
+ */
+struct fsl_micfil_verid {
+	u32 version;
+	u32 feature;
+};
+
+/**
+ * struct fsl_micfil_param - parameter data
+ * @hwvad_num: the number of HWVADs
+ * @hwvad_zcd: HWVAD zero-cross detector is active
+ * @hwvad_energy_mode: HWVAD energy mode is active
+ * @hwvad: HWVAD is active
+ * @dc_out_bypass: points out if the output DC remover is disabled
+ * @dc_in_bypass: points out if the input DC remover is disabled
+ * @low_power: low power decimation filter
+ * @fil_out_width: filter output width
+ * @fifo_ptrwid: FIFO pointer width
+ * @npair: number of microphone pairs
+ */
+struct fsl_micfil_param {
+	u32 hwvad_num;
+	bool hwvad_zcd;
+	bool hwvad_energy_mode;
+	bool hwvad;
+	bool dc_out_bypass;
+	bool dc_in_bypass;
+	bool low_power;
+	bool fil_out_width;
+	u32 fifo_ptrwid;
+	u32 npair;
+};
+
 #endif /* _FSL_MICFIL_H */
