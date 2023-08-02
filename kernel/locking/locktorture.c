@@ -889,11 +889,10 @@ static int lock_torture_writer(void *arg)
 			lock_is_write_held = true;
 			if (WARN_ON_ONCE(atomic_read(&lock_is_read_held)))
 				lwsp->n_lock_fail++; /* rare, but... */
-
 			lwsp->n_lock_acquired++;
-		}
-		if (!skip_main_lock) {
+
 			cxt.cur_ops->write_delay(&rand);
+
 			lock_is_write_held = false;
 			WRITE_ONCE(last_lock_release, jiffies);
 			cxt.cur_ops->writeunlock(tid);
