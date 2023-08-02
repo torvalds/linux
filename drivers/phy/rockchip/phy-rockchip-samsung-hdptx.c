@@ -318,6 +318,7 @@
 
 /* lane_reg031E */
 #define LN_POLARITY_INV				BIT(2)
+#define LN_LANE_MODE				BIT(1)
 
 #define LANE_REG(lane, offset)			(0x400 * (lane) + (offset))
 
@@ -1059,8 +1060,9 @@ static int rockchip_hdptx_phy_power_on(struct phy *phy)
 		u32 invert = hdptx->lane_polarity_invert[lane];
 
 		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c78),
-				   LN_POLARITY_INV,
-				   FIELD_PREP(LN_POLARITY_INV, invert));
+				   LN_POLARITY_INV | LN_LANE_MODE,
+				   FIELD_PREP(LN_POLARITY_INV, invert) |
+				   FIELD_PREP(LN_LANE_MODE, 1));
 	}
 
 	if (mode == PHY_MODE_DP) {
