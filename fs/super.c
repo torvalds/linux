@@ -1136,7 +1136,7 @@ static int test_single_super(struct super_block *s, struct fs_context *fc)
 	return 1;
 }
 
-static int vfs_get_super(struct fs_context *fc, bool reconf,
+static int vfs_get_super(struct fs_context *fc,
 		int (*test)(struct super_block *, struct fs_context *),
 		int (*fill_super)(struct super_block *sb,
 				  struct fs_context *fc))
@@ -1154,19 +1154,9 @@ static int vfs_get_super(struct fs_context *fc, bool reconf,
 			goto error;
 
 		sb->s_flags |= SB_ACTIVE;
-		fc->root = dget(sb->s_root);
-	} else {
-		fc->root = dget(sb->s_root);
-		if (reconf) {
-			err = reconfigure_super(fc);
-			if (err < 0) {
-				dput(fc->root);
-				fc->root = NULL;
-				goto error;
-			}
-		}
 	}
 
+	fc->root = dget(sb->s_root);
 	return 0;
 
 error:
@@ -1178,7 +1168,7 @@ int get_tree_nodev(struct fs_context *fc,
 		  int (*fill_super)(struct super_block *sb,
 				    struct fs_context *fc))
 {
-	return vfs_get_super(fc, false, NULL, fill_super);
+	return vfs_get_super(fc, NULL, fill_super);
 }
 EXPORT_SYMBOL(get_tree_nodev);
 
@@ -1186,17 +1176,9 @@ int get_tree_single(struct fs_context *fc,
 		  int (*fill_super)(struct super_block *sb,
 				    struct fs_context *fc))
 {
-	return vfs_get_super(fc, false, test_single_super, fill_super);
+	return vfs_get_super(fc, test_single_super, fill_super);
 }
 EXPORT_SYMBOL(get_tree_single);
-
-int get_tree_single_reconf(struct fs_context *fc,
-		  int (*fill_super)(struct super_block *sb,
-				    struct fs_context *fc))
-{
-	return vfs_get_super(fc, true, test_single_super, fill_super);
-}
-EXPORT_SYMBOL(get_tree_single_reconf);
 
 int get_tree_keyed(struct fs_context *fc,
 		  int (*fill_super)(struct super_block *sb,
@@ -1204,7 +1186,7 @@ int get_tree_keyed(struct fs_context *fc,
 		void *key)
 {
 	fc->s_fs_info = key;
-	return vfs_get_super(fc, false, test_keyed_super, fill_super);
+	return vfs_get_super(fc, test_keyed_super, fill_super);
 }
 EXPORT_SYMBOL(get_tree_keyed);
 
