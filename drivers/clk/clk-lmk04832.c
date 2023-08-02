@@ -134,6 +134,11 @@
 /* 0x14b - 0x152 Holdover */
 
 /* 0x153 - 0x15f PLL1 Configuration */
+#define LMK04832_REG_PLL1_LD		0x15f
+#define LMK04832_BIT_PLL1_LD_MUX		GENMASK(7, 3)
+#define LMK04832_VAL_PLL1_LD_MUX_SPI_RDBK		0x07
+#define LMK04832_BIT_PLL1_LD_TYPE		GENMASK(2, 0)
+#define LMK04832_VAL_PLL1_LD_TYPE_OUT_PP		0x03
 
 /* 0x160 - 0x16e PLL2 Configuration */
 #define LMK04832_REG_PLL2_R_MSB		0x160
@@ -206,6 +211,7 @@ enum lmk04832_rdbk_type {
 	RDBK_CLKIN_SEL0,
 	RDBK_CLKIN_SEL1,
 	RDBK_RESET,
+	RDBK_PLL1_LD,
 };
 
 struct lmk_dclk {
@@ -1346,6 +1352,10 @@ static int lmk04832_set_spi_rdbk(const struct lmk04832 *lmk, const int rdbk_pin)
 {
 	int reg;
 	int ret;
+	int val = FIELD_PREP(LMK04832_BIT_CLKIN_SEL_MUX,
+			     LMK04832_VAL_CLKIN_SEL_MUX_SPI_RDBK) |
+		  FIELD_PREP(LMK04832_BIT_CLKIN_SEL_TYPE,
+			     LMK04832_VAL_CLKIN_SEL_TYPE_OUT);
 
 	dev_info(lmk->dev, "setting up 4-wire mode\n");
 	ret = regmap_write(lmk->regmap, LMK04832_REG_RST3W,
@@ -1363,15 +1373,18 @@ static int lmk04832_set_spi_rdbk(const struct lmk04832 *lmk, const int rdbk_pin)
 	case RDBK_RESET:
 		reg = LMK04832_REG_CLKIN_RST;
 		break;
+	case RDBK_PLL1_LD:
+		reg = LMK04832_REG_PLL1_LD;
+		val = FIELD_PREP(LMK04832_BIT_PLL1_LD_MUX,
+				 LMK04832_VAL_PLL1_LD_MUX_SPI_RDBK) |
+		      FIELD_PREP(LMK04832_BIT_PLL1_LD_TYPE,
+				 LMK04832_VAL_PLL1_LD_TYPE_OUT_PP);
+		break;
 	default:
 		return -EINVAL;
 	}
 
-	return regmap_write(lmk->regmap, reg,
-			    FIELD_PREP(LMK04832_BIT_CLKIN_SEL_MUX,
-				       LMK04832_VAL_CLKIN_SEL_MUX_SPI_RDBK) |
-			    FIELD_PREP(LMK04832_BIT_CLKIN_SEL_TYPE,
-				       LMK04832_VAL_CLKIN_SEL_TYPE_OUT));
+	return regmap_write(lmk->regmap, reg, val);
 }
 
 static int lmk04832_probe(struct spi_device *spi)
