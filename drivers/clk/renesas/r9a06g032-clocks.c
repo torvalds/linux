@@ -1269,11 +1269,10 @@ static void r9a06g032_clocks_del_clk_provider(void *data)
 
 static void __init r9a06g032_init_h2mode(struct r9a06g032_priv *clocks)
 {
-	struct device_node *usbf_np = NULL;
+	struct device_node *usbf_np;
 	u32 usb;
 
-	while ((usbf_np = of_find_compatible_node(usbf_np, NULL,
-						  "renesas,rzn1-usbf"))) {
+	for_each_compatible_node(usbf_np, NULL, "renesas,rzn1-usbf") {
 		if (of_device_is_available(usbf_np))
 			break;
 	}
