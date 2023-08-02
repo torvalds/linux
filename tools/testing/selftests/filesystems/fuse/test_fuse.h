@@ -64,6 +64,9 @@ int s_setxattr(struct s pathname, const char name[], const void *value,
 	       size_t size, int flags);
 int s_removexattr(struct s pathname, const char name[]);
 int s_rename(struct s oldpathname, struct s newpathname);
+int s_mount(struct s source, struct s target, struct s filesystem,
+	    unsigned long mountflags, struct s data);
+int s_umount(struct s target);
 
 struct s tracing_folder(void);
 int tracing_on(void);
