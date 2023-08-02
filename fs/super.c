@@ -1209,17 +1209,39 @@ int get_tree_keyed(struct fs_context *fc,
 EXPORT_SYMBOL(get_tree_keyed);
 
 #ifdef CONFIG_BLOCK
+/*
+ * Lock a super block that the callers holds a reference to.
+ *
+ * The caller needs to ensure that the super_block isn't being freed while
+ * calling this function, e.g. by holding a lock over the call to this function
+ * and the place that clears the pointer to the superblock used by this function
+ * before freeing the superblock.
+ */
+static bool lock_active_super(struct super_block *sb)
+{
+	down_read(&sb->s_umount);
+	if (!sb->s_root ||
+	    (sb->s_flags & (SB_ACTIVE | SB_BORN)) != (SB_ACTIVE | SB_BORN)) {
+		up_read(&sb->s_umount);
+		return false;
+	}
+	return true;
+}
+
 static void fs_mark_dead(struct block_device *bdev)
 {
-	struct super_block *sb;
+	struct super_block *sb = bdev->bd_holder;
 
-	sb = get_super(bdev);
-	if (!sb)
+	/* bd_holder_lock ensures that the sb isn't freed */
+	lockdep_assert_held(&bdev->bd_holder_lock);
+
+	if (!lock_active_super(sb))
 		return;
 
 	if (sb->s_op->shutdown)
 		sb->s_op->shutdown(sb);
-	drop_super(sb);
+
+	up_read(&sb->s_umount);
 }
 
 static const struct blk_holder_ops fs_holder_ops = {
