@@ -445,6 +445,13 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 	if (!options)
 		return 0;
 
+	/*
+	 * sys_fsconfig() is now occasionally providing us with option lists
+	 * starting with a comma - weird.
+	 */
+	if (*options == ',')
+		options++;
+
 	copied_opts = kstrdup(options, GFP_KERNEL);
 	if (!copied_opts)
 		return -1;
