@@ -596,6 +596,7 @@
 	assigned-clock-rates = <50000000>;
 	card-detect-delay = <300>;
 	bus-width = <4>;
+	cap-sd-highspeed;
 	no-sdio;
 	no-mmc;
 	broken-cd;
