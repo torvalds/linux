@@ -2957,7 +2957,6 @@ init_vf_frameinfo_defaults(struct ia_css_pipe *pipe,
 	return err;
 }
 
-#ifdef ISP2401
 static unsigned int
 get_crop_lines_for_bayer_order(const struct ia_css_stream_config *config)
 {
@@ -3059,11 +3058,11 @@ ia_css_get_crop_offsets(
 			     pipe->config.input_effective_res.height);
 
 	input_res = &pipe->stream->config.input_config.input_res;
-#ifndef ISP2401
-	effective_res = &pipe->stream->config.input_config.effective_res;
-#else
-	effective_res = &pipe->config.input_effective_res;
-#endif
+
+	if (IS_ISP2401)
+		effective_res = &pipe->config.input_effective_res;
+	else
+		effective_res = &pipe->stream->config.input_config.effective_res;
 
 	get_pipe_extra_pixel(pipe, &extra_row, &extra_col);
 
@@ -3101,7 +3100,6 @@ ia_css_get_crop_offsets(
 
 	return;
 }
-#endif
 
 static int
 init_in_frameinfo_memory_defaults(struct ia_css_pipe *pipe,
