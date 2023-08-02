@@ -467,9 +467,8 @@ ia_css_stream_input_format_bits_per_pixel(struct ia_css_stream *stream)
 /* TODO: move define to proper file in tools */
 #define GP_ISEL_TPG_MODE 0x90058
 
-#if !defined(ISP2401)
 static int
-sh_css_config_input_network(struct ia_css_stream *stream)
+sh_css_config_input_network_2400(struct ia_css_stream *stream)
 {
 	unsigned int fmt_type;
 	struct ia_css_pipe *pipe = stream->last_pipe;
@@ -523,7 +522,7 @@ sh_css_config_input_network(struct ia_css_stream *stream)
 			    "sh_css_config_input_network() leave:\n");
 	return 0;
 }
-#elif defined(ISP2401)
+
 static unsigned int csi2_protocol_calculate_max_subpixels_per_line(
     enum atomisp_input_format	format,
     unsigned int			pixels_per_line)
@@ -819,9 +818,10 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_attr(
 		    stream_cfg->source.port.num_lanes;
 		isys_stream_descr->csi_port_attr.fmt_type = fmt_type;
 		isys_stream_descr->csi_port_attr.ch_id = stream_cfg->channel_id;
-#ifdef ISP2401
-		isys_stream_descr->online = stream_cfg->online;
-#endif
+
+		if (IS_ISP2401)
+			isys_stream_descr->online = stream_cfg->online;
+
 		err |= ia_css_isys_convert_compressed_format(
 			   &stream_cfg->source.port.compression,
 			   isys_stream_descr);
@@ -844,15 +844,15 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_attr(
 			    stream_cfg->metadata_config.resolution.width;
 			isys_stream_descr->metadata.lines_per_frame =
 			    stream_cfg->metadata_config.resolution.height;
-#ifdef ISP2401
+
 			/*
 			 * For new input system, number of str2mmio requests must be even.
 			 * So we round up number of metadata lines to be even.
 			 */
-			if (isys_stream_descr->metadata.lines_per_frame > 0)
+			if (IS_ISP2401 && isys_stream_descr->metadata.lines_per_frame > 0)
 				isys_stream_descr->metadata.lines_per_frame +=
 				    (isys_stream_descr->metadata.lines_per_frame & 1);
-#endif
+
 			isys_stream_descr->metadata.align_req_in_bytes =
 			    ia_css_csi2_calculate_input_system_alignment(
 				stream_cfg->metadata_config.data_type);
@@ -967,7 +967,7 @@ static bool sh_css_translate_binary_info_to_input_system_output_port_attr(
 }
 
 static int
-sh_css_config_input_network(struct ia_css_stream *stream)
+sh_css_config_input_network_2401(struct ia_css_stream *stream)
 {
 	bool					rc;
 	ia_css_isys_descr_t			isys_stream_descr;
@@ -1176,7 +1176,6 @@ static inline int stream_unregister_with_csi_rx(
 {
 	return stream_csi_rx_helper(stream, ia_css_isys_csi_rx_unregister_stream);
 }
-#endif
 
 
 static void
@@ -1189,14 +1188,11 @@ start_binary(struct ia_css_pipe *pipe,
 	if (binary)
 		sh_css_metrics_start_binary(&binary->metrics);
 
-
-#if !defined(ISP2401)
-	if (pipe->stream->reconfigure_css_rx) {
+	if (!IS_ISP2401 && pipe->stream->reconfigure_css_rx) {
 		ia_css_isys_rx_configure(&pipe->stream->csi_rx_config,
 					 pipe->stream->config.mode);
 		pipe->stream->reconfigure_css_rx = false;
 	}
-#endif
 }
 
 /* start the copy function on the SP */
@@ -1209,22 +1205,18 @@ start_copy_on_sp(struct ia_css_pipe *pipe,
 	if ((!pipe) || (!pipe->stream))
 		return -EINVAL;
 
-#if !defined(ISP2401)
-	if (pipe->stream->reconfigure_css_rx)
+	if (!IS_ISP2401 && pipe->stream->reconfigure_css_rx)
 		ia_css_isys_rx_disable();
-#endif
 
 	if (pipe->stream->config.input_config.format != ATOMISP_INPUT_FORMAT_BINARY_8)
 		return -EINVAL;
 	sh_css_sp_start_binary_copy(ia_css_pipe_get_pipe_num(pipe), out_frame, pipe->stream->config.pixels_per_clock == 2);
 
-#if !defined(ISP2401)
-	if (pipe->stream->reconfigure_css_rx) {
+	if (!IS_ISP2401 && pipe->stream->reconfigure_css_rx) {
 		ia_css_isys_rx_configure(&pipe->stream->csi_rx_config,
 					 pipe->stream->config.mode);
 		pipe->stream->reconfigure_css_rx = false;
 	}
-#endif
 
 	return 0;
 }
@@ -4466,7 +4458,6 @@ ia_css_stream_get_buffer_depth(struct ia_css_stream *stream,
 	return 0;
 }
 
-#if !defined(ISP2401)
 unsigned int
 sh_css_get_mipi_sizes_for_check(const unsigned int port, const unsigned int idx)
 {
@@ -4477,7 +4468,6 @@ sh_css_get_mipi_sizes_for_check(const unsigned int port, const unsigned int idx)
 			    port, idx, my_css.mipi_sizes_for_check[port][idx]);
 	return my_css.mipi_sizes_for_check[port][idx];
 }
-#endif
 
 static int sh_css_pipe_configure_output(
     struct ia_css_pipe *pipe,
@@ -8592,15 +8582,13 @@ ia_css_stream_start(struct ia_css_stream *stream)
 		return err;
 	}
 
-#if defined(ISP2401)
-	if ((stream->config.mode == IA_CSS_INPUT_MODE_SENSOR) ||
-	    (stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR))
+	if (IS_ISP2401 &&
+	    ((stream->config.mode == IA_CSS_INPUT_MODE_SENSOR) ||
+	     (stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR)))
 		stream_register_with_csi_rx(stream);
-#endif
 
-#if !defined(ISP2401)
 	/* Initialize mipi size checks */
-	if (stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
+	if (!IS_ISP2401 && stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
 		unsigned int idx;
 		unsigned int port = (unsigned int)(stream->config.source.port.port);
 
@@ -8609,10 +8597,12 @@ ia_css_stream_start(struct ia_css_stream *stream)
 			sh_css_get_mipi_sizes_for_check(port, idx);
 		}
 	}
-#endif
 
 	if (stream->config.mode != IA_CSS_INPUT_MODE_MEMORY) {
-		err = sh_css_config_input_network(stream);
+		if (IS_ISP2401)
+			err = sh_css_config_input_network_2401(stream);
+		else
+			err = sh_css_config_input_network_2400(stream);
 		if (err)
 			return err;
 	}
