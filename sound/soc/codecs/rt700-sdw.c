@@ -464,8 +464,7 @@ static int rt700_sdw_remove(struct sdw_slave *slave)
 		cancel_delayed_work_sync(&rt700->jack_btn_check_work);
 	}
 
-	if (rt700->first_hw_init)
-		pm_runtime_disable(&slave->dev);
+	pm_runtime_disable(&slave->dev);
 
 	return 0;
 }
