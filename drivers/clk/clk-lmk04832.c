@@ -1297,6 +1297,7 @@ static int lmk04832_register_clkout(struct lmk04832 *lmk, const int num)
 		sprintf(dclk_name, "lmk-dclk%02d_%02d", num, num + 1);
 		init.name = dclk_name;
 		parent_names[0] = clk_hw_get_name(&lmk->vco);
+		init.parent_names = parent_names;
 		init.ops = &lmk04832_dclk_ops;
 		init.flags = CLK_SET_RATE_PARENT;
 		init.num_parents = 1;
