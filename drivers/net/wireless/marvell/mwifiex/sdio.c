@@ -1083,17 +1083,17 @@ cont:
 		    "info: SDIO FUNC1 IO port: %#x\n", adapter->ioport);
 
 	/* Set Host interrupt reset to read to clear */
-	if (!mwifiex_read_reg(adapter, card->reg->host_int_rsr_reg, &reg))
-		mwifiex_write_reg(adapter, card->reg->host_int_rsr_reg,
-				  reg | card->reg->sdio_int_mask);
-	else
+	if (mwifiex_read_reg(adapter, card->reg->host_int_rsr_reg, &reg))
+		return -1;
+	if (mwifiex_write_reg(adapter, card->reg->host_int_rsr_reg,
+			      reg | card->reg->sdio_int_mask))
 		return -1;
 
 	/* Dnld/Upld ready set to auto reset */
-	if (!mwifiex_read_reg(adapter, card->reg->card_misc_cfg_reg, &reg))
-		mwifiex_write_reg(adapter, card->reg->card_misc_cfg_reg,
-				  reg | AUTO_RE_ENABLE_INT);
-	else
+	if (mwifiex_read_reg(adapter, card->reg->card_misc_cfg_reg, &reg))
+		return -1;
+	if (mwifiex_write_reg(adapter, card->reg->card_misc_cfg_reg,
+			      reg | AUTO_RE_ENABLE_INT))
 		return -1;
 
 	return 0;
@@ -2525,7 +2525,8 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	mwifiex_read_reg(adapter, card->reg->host_int_status_reg, &sdio_ireg);
 
 	/* Get SDIO ioport */
-	mwifiex_init_sdio_ioport(adapter);
+	if (mwifiex_init_sdio_ioport(adapter))
+		return -EIO;
 
 	/* Initialize SDIO variables in card */
 	card->mp_rd_bitmap = 0;
@@ -3141,7 +3142,8 @@ static void mwifiex_sdio_up_dev(struct mwifiex_adapter *adapter)
 	 */
 	mwifiex_read_reg(adapter, card->reg->host_int_status_reg, &sdio_ireg);
 
-	mwifiex_init_sdio_ioport(adapter);
+	if (mwifiex_init_sdio_ioport(adapter))
+		dev_err(&card->func->dev, "error enabling SDIO port\n");
 }
 
 static struct mwifiex_if_ops sdio_ops = {
