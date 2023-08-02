@@ -5542,7 +5542,7 @@ err:
 
 static void ath12k_mac_vif_unref(struct ath12k_dp *dp, struct ieee80211_vif *vif)
 {
-	struct ath12k_tx_desc_info *tx_desc_info, *tmp1;
+	struct ath12k_tx_desc_info *tx_desc_info;
 	struct ath12k_skb_cb *skb_cb;
 	struct sk_buff *skb;
 	int i;
@@ -5550,8 +5550,8 @@ static void ath12k_mac_vif_unref(struct ath12k_dp *dp, struct ieee80211_vif *vif
 	for (i = 0; i < ATH12K_HW_MAX_QUEUES; i++) {
 		spin_lock_bh(&dp->tx_desc_lock[i]);
 
-		list_for_each_entry_safe(tx_desc_info, tmp1, &dp->tx_desc_used_list[i],
-					 list) {
+		list_for_each_entry(tx_desc_info, &dp->tx_desc_used_list[i],
+				    list) {
 			skb = tx_desc_info->skb;
 			if (!skb)
 				continue;
