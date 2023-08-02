@@ -18,9 +18,7 @@
 
 #include <system_global.h>
 #include <type_support.h>
-#if !defined(ISP2401)
 #include "input_formatter.h"
-#endif
 
 #include "ia_css_binary.h"
 #include "ia_css_types.h"
