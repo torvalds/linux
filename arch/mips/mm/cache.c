@@ -99,13 +99,15 @@ SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, bytes,
 	return 0;
 }
 
-void __flush_dcache_page(struct page *page)
+void __flush_dcache_pages(struct page *page, unsigned int nr)
 {
-	struct address_space *mapping = page_mapping_file(page);
+	struct folio *folio = page_folio(page);
+	struct address_space *mapping = folio_flush_mapping(folio);
 	unsigned long addr;
+	unsigned int i;
 
 	if (mapping && !mapping_mapped(mapping)) {
-		SetPageDcacheDirty(page);
+		folio_set_dcache_dirty(folio);
 		return;
 	}
 
@@ -114,25 +116,21 @@ void __flush_dcache_page(struct page *page)
 	 * case is for exec env/arg pages and those are %99 certainly going to
 	 * get faulted into the tlb (and thus flushed) anyways.
 	 */
-	if (PageHighMem(page))
-		addr = (unsigned long)kmap_atomic(page);
-	else
-		addr = (unsigned long)page_address(page);
-
-	flush_data_cache_page(addr);
-
-	if (PageHighMem(page))
-		kunmap_atomic((void *)addr);
+	for (i = 0; i < nr; i++) {
+		addr = (unsigned long)kmap_local_page(page + i);
+		flush_data_cache_page(addr);
+		kunmap_local((void *)addr);
+	}
 }
-
-EXPORT_SYMBOL(__flush_dcache_page);
+EXPORT_SYMBOL(__flush_dcache_pages);
 
 void __flush_anon_page(struct page *page, unsigned long vmaddr)
 {
 	unsigned long addr = (unsigned long) page_address(page);
+	struct folio *folio = page_folio(page);
 
 	if (pages_do_alias(addr, vmaddr)) {
-		if (page_mapcount(page) && !Page_dcache_dirty(page)) {
+		if (folio_mapped(folio) && !folio_test_dcache_dirty(folio)) {
 			void *kaddr;
 
 			kaddr = kmap_coherent(page, vmaddr);
@@ -147,27 +145,29 @@ EXPORT_SYMBOL(__flush_anon_page);
 
 void __update_cache(unsigned long address, pte_t pte)
 {
-	struct page *page;
+	struct folio *folio;
 	unsigned long pfn, addr;
 	int exec = !pte_no_exec(pte) && !cpu_has_ic_fills_f_dc;
+	unsigned int i;
 
 	pfn = pte_pfn(pte);
 	if (unlikely(!pfn_valid(pfn)))
 		return;
-	page = pfn_to_page(pfn);
-	if (Page_dcache_dirty(page)) {
-		if (PageHighMem(page))
-			addr = (unsigned long)kmap_atomic(page);
-		else
-			addr = (unsigned long)page_address(page);
 
-		if (exec || pages_do_alias(addr, address & PAGE_MASK))
-			flush_data_cache_page(addr);
+	folio = page_folio(pfn_to_page(pfn));
+	address &= PAGE_MASK;
+	address -= offset_in_folio(folio, pfn << PAGE_SHIFT);
 
-		if (PageHighMem(page))
-			kunmap_atomic((void *)addr);
+	if (folio_test_dcache_dirty(folio)) {
+		for (i = 0; i < folio_nr_pages(folio); i++) {
+			addr = (unsigned long)kmap_local_folio(folio, i);
 
-		ClearPageDcacheDirty(page);
+			if (exec || pages_do_alias(addr, address))
+				flush_data_cache_page(addr);
+			kunmap_local((void *)addr);
+			address += PAGE_SIZE;
+		}
+		folio_clear_dcache_dirty(folio);
 	}
 }
 
