@@ -1505,21 +1505,21 @@ static int lmk04832_probe(struct spi_device *spi)
 		ret = clk_set_rate(lmk->vco.clk, lmk->vco_rate);
 		if (ret) {
 			dev_err(lmk->dev, "failed to set VCO rate\n");
-			goto err_disable_vco;
+			goto err_disable_oscin;
 		}
 	}
 
 	ret = lmk04832_register_sclk(lmk);
 	if (ret) {
 		dev_err(lmk->dev, "failed to init SYNC/SYSREF clock path\n");
-		goto err_disable_vco;
+		goto err_disable_oscin;
 	}
 
 	for (i = 0; i < info->num_channels; i++) {
 		ret = lmk04832_register_clkout(lmk, i);
 		if (ret) {
 			dev_err(lmk->dev, "failed to register clk %d\n", i);
-			goto err_disable_vco;
+			goto err_disable_oscin;
 		}
 	}
 
@@ -1528,15 +1528,12 @@ static int lmk04832_probe(struct spi_device *spi)
 					  lmk->clk_data);
 	if (ret) {
 		dev_err(lmk->dev, "failed to add provider (%d)\n", ret);
-		goto err_disable_vco;
+		goto err_disable_oscin;
 	}
 
 	spi_set_drvdata(spi, lmk);
 
 	return 0;
-
-err_disable_vco:
-	clk_disable_unprepare(lmk->vco.clk);
 
 err_disable_oscin:
 	clk_disable_unprepare(lmk->oscin);
