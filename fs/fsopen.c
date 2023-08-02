@@ -242,6 +242,34 @@ static int vfs_cmd_create(struct fs_context *fc)
 	return 0;
 }
 
+static int vfs_cmd_reconfigure(struct fs_context *fc)
+{
+	struct super_block *sb;
+	int ret;
+
+	if (fc->phase != FS_CONTEXT_RECONF_PARAMS)
+		return -EBUSY;
+
+	fc->phase = FS_CONTEXT_RECONFIGURING;
+
+	sb = fc->root->d_sb;
+	if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
+		fc->phase = FS_CONTEXT_FAILED;
+		return -EPERM;
+	}
+
+	down_write(&sb->s_umount);
+	ret = reconfigure_super(fc);
+	up_write(&sb->s_umount);
+	if (ret) {
+		fc->phase = FS_CONTEXT_FAILED;
+		return ret;
+	}
+
+	vfs_clean_context(fc);
+	return 0;
+}
+
 /*
  * Check the state and apply the configuration.  Note that this function is
  * allowed to 'steal' the value by setting param->xxx to NULL before returning.
@@ -249,7 +277,6 @@ static int vfs_cmd_create(struct fs_context *fc)
 static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
 			       struct fs_parameter *param)
 {
-	struct super_block *sb;
 	int ret;
 
 	ret = finish_clean_context(fc);
@@ -259,21 +286,7 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
 	case FSCONFIG_CMD_CREATE:
 		return vfs_cmd_create(fc);
 	case FSCONFIG_CMD_RECONFIGURE:
-		if (fc->phase != FS_CONTEXT_RECONF_PARAMS)
-			return -EBUSY;
-		fc->phase = FS_CONTEXT_RECONFIGURING;
-		sb = fc->root->d_sb;
-		if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
-			ret = -EPERM;
-			break;
-		}
-		down_write(&sb->s_umount);
-		ret = reconfigure_super(fc);
-		up_write(&sb->s_umount);
-		if (ret)
-			break;
-		vfs_clean_context(fc);
-		return 0;
+		return vfs_cmd_reconfigure(fc);
 	default:
 		if (fc->phase != FS_CONTEXT_CREATE_PARAMS &&
 		    fc->phase != FS_CONTEXT_RECONF_PARAMS)
@@ -281,8 +294,6 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
 
 		return vfs_parse_fs_param(fc, param);
 	}
-	fc->phase = FS_CONTEXT_FAILED;
-	return ret;
 }
 
 /**
