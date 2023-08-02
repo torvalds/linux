@@ -87,7 +87,6 @@ struct ast2600_espi_perif {
 struct ast2600_espi_vw {
 	struct {
 		bool hw_mode;
-		uint32_t grp;
 		uint32_t dir;
 		uint32_t val;
 	} gpio;
@@ -950,7 +949,6 @@ static void ast2600_espi_vw_reset(struct ast2600_espi *espi)
 	uint32_t reg;
 	struct ast2600_espi_vw *vw = &espi->vw;
 
-	writel(vw->gpio.grp, espi->regs + ESPI_VW_GPIO_GRP);
 	writel(vw->gpio.dir, espi->regs + ESPI_VW_GPIO_DIR);
 
 	vw->gpio.val = readl(espi->regs + ESPI_VW_GPIO_VAL);
@@ -973,7 +971,6 @@ static int ast2600_espi_vw_probe(struct ast2600_espi *espi)
 	struct ast2600_espi_vw *vw = &espi->vw;
 
 	vw->gpio.hw_mode = of_property_read_bool(dev->of_node, "vw-gpio-hw-mode");
-	of_property_read_u32(dev->of_node, "vw-gpio-group", &vw->gpio.grp);
 	of_property_read_u32(dev->of_node, "vw-gpio-direction", &vw->gpio.dir);
 
 	vw->mdev.parent = dev;
