@@ -1969,7 +1969,7 @@ config X86_USER_SHADOW_STACK
 
 	  CPUs supporting shadow stacks were first released in 2020.
 
-	  See Documentation/x86/shstk.rst for more information.
+	  See Documentation/arch/x86/shstk.rst for more information.
 
 	  If unsure, say N.
 
