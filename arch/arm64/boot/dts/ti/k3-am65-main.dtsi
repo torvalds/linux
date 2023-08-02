@@ -502,7 +502,7 @@
 			reg = <0x000041e0 0x14>;
 		};
 
-		ehrpwm_tbclk: clock@4140 {
+		ehrpwm_tbclk: clock-controller@4140 {
 			compatible = "ti,am654-ehrpwm-tbclk";
 			reg = <0x4140 0x18>;
 			#clock-cells = <1>;

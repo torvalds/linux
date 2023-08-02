@@ -55,7 +55,7 @@
 			#phy-cells = <1>;
 		};
 
-		epwm_tbclk: clock@4130 {
+		epwm_tbclk: clock-controller@4130 {
 			compatible = "ti,am62-epwm-tbclk";
 			reg = <0x4130 0x4>;
 			#clock-cells = <1>;
