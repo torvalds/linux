@@ -53,9 +53,6 @@ static inline void flush_dcache_page(struct page *page)
 	flush_dcache_folio(page_folio(page));
 }
 
-#define flush_icache_page(vma, pg)	do { } while(0)
-#define flush_icache_pages(vma, pg, nr)	do { } while(0)
-
 void flush_ptrace_access(struct vm_area_struct *, struct page *,
 			 unsigned long uaddr, void *kaddr,
 			 unsigned long len, int write);

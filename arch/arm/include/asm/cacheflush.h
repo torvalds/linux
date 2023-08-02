@@ -322,13 +322,6 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
 #define flush_dcache_mmap_unlock(mapping)	xa_unlock_irq(&mapping->i_pages)
 
 /*
- * We don't appear to need to do anything here.  In fact, if we did, we'd
- * duplicate cache flushing elsewhere performed by flush_dcache_page().
- */
-#define flush_icache_page(vma,page)	do { } while (0)
-#define flush_icache_pages(vma, page, nr)	do { } while (0)
-
-/*
  * flush_cache_vmap() is used when creating mappings (eg, via vmap,
  * vmalloc, ioremap etc) in kernel space for pages.  On non-VIPT
  * caches, since the direct-mappings of these pages may contain cached

@@ -60,7 +60,7 @@ static inline void flush_dcache_page(struct page *page)
 
 void flush_icache_pages(struct vm_area_struct *vma, struct page *page,
 		unsigned int nr);
-#define flush_icache_page(vma, page)	flush_icache_pages(vma, page, 1)
+#define flush_icache_pages flush_icache_pages
 
 #define flush_icache_range(s,e)		do { 		\
 	flush_kernel_dcache_range_asm(s,e); 		\

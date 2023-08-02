@@ -45,7 +45,6 @@ extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, u
 #define flush_cache_vmap(start, end)		cache_wbinv_all()
 #define flush_cache_vunmap(start, end)		cache_wbinv_all()
 
-#define flush_icache_page(vma, page)		do {} while (0);
 #define flush_icache_range(start, end)		cache_wbinv_range(start, end)
 #define flush_icache_mm_range(mm, start, end)	cache_wbinv_range(start, end)
 #define flush_icache_deferred(mm)		do {} while (0);

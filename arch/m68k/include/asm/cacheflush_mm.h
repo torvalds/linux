@@ -261,7 +261,6 @@ static inline void __flush_pages_to_ram(void *vaddr, unsigned int nr)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 #define flush_icache_pages(vma, page, nr)	\
 	__flush_pages_to_ram(page_address(page), nr)
-#define flush_icache_page(vma, page) flush_icache_pages(vma, page, 1)
 
 extern void flush_icache_user_page(struct vm_area_struct *vma, struct page *page,
 				    unsigned long addr, int len);

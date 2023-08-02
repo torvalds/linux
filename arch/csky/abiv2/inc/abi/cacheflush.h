@@ -33,7 +33,6 @@ static inline void flush_dcache_page(struct page *page)
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
-#define flush_icache_page(vma, page)		do { } while (0)
 
 #define flush_icache_range(start, end)		cache_wbinv_range(start, end)
 
