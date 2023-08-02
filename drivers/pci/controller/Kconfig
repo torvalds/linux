@@ -47,6 +47,15 @@ config PCIE_APPLE
 
 	  If unsure, say Y if you have an Apple Silicon system.
 
+config PCIE_ASPEED
+	bool "ASPEED PCIe controller"
+	depends on PCI
+	depends on OF || COMPILE_TEST
+	select PCI_MSI_ARCH_FALLBACKS
+	help
+	  Say Y here if you want PCIe controller support on
+	  ASPEED SoCs.
+
 config PCI_VERSATILE
 	bool "ARM Versatile PB PCI controller"
 	depends on ARCH_VERSATILE || COMPILE_TEST
