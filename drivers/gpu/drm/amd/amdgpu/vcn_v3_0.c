@@ -1105,7 +1105,7 @@ static int vcn_v3_0_start(struct amdgpu_device *adev)
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
-		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG){
+		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
 			r = vcn_v3_0_start_dpg_mode(adev, i, adev->vcn.indirect_sram);
 			continue;
 		}
@@ -1789,7 +1789,7 @@ static int vcn_v3_0_dec_msg(struct amdgpu_cs_parser *p, struct amdgpu_job *job,
 	struct amdgpu_bo *bo;
 	uint64_t start, end;
 	unsigned int i;
-	void * ptr;
+	void *ptr;
 	int r;
 
 	addr &= AMDGPU_GMC_HOLE_MASK;
@@ -2129,7 +2129,7 @@ static int vcn_v3_0_set_powergating_state(void *handle,
 		return 0;
 	}
 
-	if(state == adev->vcn.cur_state)
+	if (state == adev->vcn.cur_state)
 		return 0;
 
 	if (state == AMD_PG_STATE_GATE)
@@ -2137,7 +2137,7 @@ static int vcn_v3_0_set_powergating_state(void *handle,
 	else
 		ret = vcn_v3_0_start(adev);
 
-	if(!ret)
+	if (!ret)
 		adev->vcn.cur_state = state;
 
 	return ret;
@@ -2228,8 +2228,7 @@ static const struct amd_ip_funcs vcn_v3_0_ip_funcs = {
 	.set_powergating_state = vcn_v3_0_set_powergating_state,
 };
 
-const struct amdgpu_ip_block_version vcn_v3_0_ip_block =
-{
+const struct amdgpu_ip_block_version vcn_v3_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCN,
 	.major = 3,
 	.minor = 0,
