@@ -4222,18 +4222,69 @@ static __le16 ath12k_mac_setup_he_6ghz_cap(struct ath12k_pdev_cap *pcap,
 	return cpu_to_le16(bcap->he_6ghz_capa);
 }
 
+static void ath12k_mac_copy_he_cap(struct ath12k_band_cap *band_cap,
+				   int iftype, u8 num_tx_chains,
+				   struct ieee80211_sta_he_cap *he_cap)
+{
+	struct ieee80211_he_cap_elem *he_cap_elem = &he_cap->he_cap_elem;
+	struct ieee80211_he_mcs_nss_supp *mcs_nss = &he_cap->he_mcs_nss_supp;
+
+	he_cap->has_he = true;
+	memcpy(he_cap_elem->mac_cap_info, band_cap->he_cap_info,
+	       sizeof(he_cap_elem->mac_cap_info));
+	memcpy(he_cap_elem->phy_cap_info, band_cap->he_cap_phy_info,
+	       sizeof(he_cap_elem->phy_cap_info));
+
+	he_cap_elem->mac_cap_info[1] &=
+		IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_MASK;
+
+	he_cap_elem->phy_cap_info[5] &=
+		~IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_MASK;
+	he_cap_elem->phy_cap_info[5] &=
+		~IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_MASK;
+	he_cap_elem->phy_cap_info[5] |= num_tx_chains - 1;
+
+	switch (iftype) {
+	case NL80211_IFTYPE_AP:
+		he_cap_elem->phy_cap_info[3] &=
+			~IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK;
+		he_cap_elem->phy_cap_info[9] |=
+			IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU;
+		break;
+	case NL80211_IFTYPE_STATION:
+		he_cap_elem->mac_cap_info[0] &= ~IEEE80211_HE_MAC_CAP0_TWT_RES;
+		he_cap_elem->mac_cap_info[0] |= IEEE80211_HE_MAC_CAP0_TWT_REQ;
+		he_cap_elem->phy_cap_info[9] |=
+			IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU;
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		ath12k_mac_filter_he_cap_mesh(he_cap_elem);
+		break;
+	}
+
+	mcs_nss->rx_mcs_80 = cpu_to_le16(band_cap->he_mcs & 0xffff);
+	mcs_nss->tx_mcs_80 = cpu_to_le16(band_cap->he_mcs & 0xffff);
+	mcs_nss->rx_mcs_160 = cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
+	mcs_nss->tx_mcs_160 = cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
+	mcs_nss->rx_mcs_80p80 = cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
+	mcs_nss->tx_mcs_80p80 = cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
+
+	memset(he_cap->ppe_thres, 0, sizeof(he_cap->ppe_thres));
+	if (he_cap_elem->phy_cap_info[6] &
+	    IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT)
+		ath12k_gen_ppe_thresh(&band_cap->he_ppet, he_cap->ppe_thres);
+}
+
 static int ath12k_mac_copy_sband_iftype_data(struct ath12k *ar,
 					     struct ath12k_pdev_cap *cap,
 					     struct ieee80211_sband_iftype_data *data,
 					     int band)
 {
+	struct ath12k_band_cap *band_cap = &cap->band[band];
 	int i, idx = 0;
 
 	for (i = 0; i < NUM_NL80211_IFTYPES; i++) {
 		struct ieee80211_sta_he_cap *he_cap = &data[idx].he_cap;
-		struct ath12k_band_cap *band_cap = &cap->band[band];
-		struct ieee80211_he_cap_elem *he_cap_elem =
-				&he_cap->he_cap_elem;
 
 		switch (i) {
 		case NL80211_IFTYPE_STATION:
@@ -4246,60 +4297,8 @@ static int ath12k_mac_copy_sband_iftype_data(struct ath12k *ar,
 		}
 
 		data[idx].types_mask = BIT(i);
-		he_cap->has_he = true;
-		memcpy(he_cap_elem->mac_cap_info, band_cap->he_cap_info,
-		       sizeof(he_cap_elem->mac_cap_info));
-		memcpy(he_cap_elem->phy_cap_info, band_cap->he_cap_phy_info,
-		       sizeof(he_cap_elem->phy_cap_info));
 
-		he_cap_elem->mac_cap_info[1] &=
-			IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_MASK;
-
-		he_cap_elem->phy_cap_info[5] &=
-			~IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_MASK;
-		he_cap_elem->phy_cap_info[5] &=
-			~IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_MASK;
-		he_cap_elem->phy_cap_info[5] |= ar->num_tx_chains - 1;
-
-		switch (i) {
-		case NL80211_IFTYPE_AP:
-			he_cap_elem->phy_cap_info[3] &=
-				~IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK;
-			he_cap_elem->phy_cap_info[9] |=
-				IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU;
-			break;
-		case NL80211_IFTYPE_STATION:
-			he_cap_elem->mac_cap_info[0] &=
-				~IEEE80211_HE_MAC_CAP0_TWT_RES;
-			he_cap_elem->mac_cap_info[0] |=
-				IEEE80211_HE_MAC_CAP0_TWT_REQ;
-			he_cap_elem->phy_cap_info[9] |=
-				IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU;
-			break;
-		case NL80211_IFTYPE_MESH_POINT:
-			ath12k_mac_filter_he_cap_mesh(he_cap_elem);
-			break;
-		}
-
-		he_cap->he_mcs_nss_supp.rx_mcs_80 =
-			cpu_to_le16(band_cap->he_mcs & 0xffff);
-		he_cap->he_mcs_nss_supp.tx_mcs_80 =
-			cpu_to_le16(band_cap->he_mcs & 0xffff);
-		he_cap->he_mcs_nss_supp.rx_mcs_160 =
-			cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
-		he_cap->he_mcs_nss_supp.tx_mcs_160 =
-			cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
-		he_cap->he_mcs_nss_supp.rx_mcs_80p80 =
-			cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
-		he_cap->he_mcs_nss_supp.tx_mcs_80p80 =
-			cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
-
-		memset(he_cap->ppe_thres, 0, sizeof(he_cap->ppe_thres));
-		if (he_cap_elem->phy_cap_info[6] &
-		    IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT)
-			ath12k_gen_ppe_thresh(&band_cap->he_ppet,
-					      he_cap->ppe_thres);
-
+		ath12k_mac_copy_he_cap(band_cap, i, ar->num_tx_chains, he_cap);
 		if (band == NL80211_BAND_6GHZ) {
 			data[idx].he_6ghz_capa.capa =
 				ath12k_mac_setup_he_6ghz_cap(cap, band_cap);
