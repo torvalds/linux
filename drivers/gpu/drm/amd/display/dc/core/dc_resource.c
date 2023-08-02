@@ -1828,6 +1828,30 @@ static int acquire_first_split_pipe(
 	return UNABLE_TO_SPLIT;
 }
 
+/* For each OPP head of an OTG master, add top plane at plane index 0.
+ *
+ * In the following example, the stream has 2 ODM slices without a top plane.
+ * By adding a plane 0 to OPP heads, we are configuring our hardware to render
+ * plane 0 by using each OPP head's DPP.
+ *
+ *       Inter-pipe Relation (Before Adding Plane)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |               | slice 0   |             |
+ *       |   0    |               |blank ----ODM----------- |
+ *       |        |               | slice 1 | |             |
+ *       |   1    |               |blank ---- |             |
+ *       |________|_______________|___________|_____________|
+ *
+ *       Inter-pipe Relation (After Adding Plane)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |  plane 0      | slice 0   |             |
+ *       |   0    | -------------------------ODM----------- |
+ *       |        |  plane 0      | slice 1 | |             |
+ *       |   1    | ------------------------- |             |
+ *       |________|_______________|___________|_____________|
+ */
 static bool add_plane_to_opp_head_pipes(struct pipe_ctx *otg_master_pipe,
 		struct dc_plane_state *plane_state,
 		struct dc_state *context)
@@ -1846,24 +1870,36 @@ static bool add_plane_to_opp_head_pipes(struct pipe_ctx *otg_master_pipe,
 	return true;
 }
 
-static void insert_secondary_dpp_pipe_with_plane(struct pipe_ctx *opp_head_pipe,
-		struct pipe_ctx *sec_pipe, struct dc_plane_state *plane_state)
-{
-	struct pipe_ctx *tail_pipe = get_tail_pipe(opp_head_pipe);
-
-	tail_pipe->bottom_pipe = sec_pipe;
-	sec_pipe->top_pipe = tail_pipe;
-	if (tail_pipe->prev_odm_pipe) {
-		ASSERT(tail_pipe->prev_odm_pipe->bottom_pipe);
-		sec_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
-		tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = sec_pipe;
-	}
-	sec_pipe->plane_state = plane_state;
-}
-
-/* for each opp head pipe of an otg master pipe, acquire a secondary dpp pipe
- * and add the plane. So the plane is added to all MPC blend trees associated
- * with the otg master pipe.
+/* For each OPP head of an OTG master, acquire a secondary DPP pipe and add
+ * the plane. So the plane is added to all ODM slices associated with the OTG
+ * master pipe in the bottom layer.
+ *
+ * In the following example, the stream has 2 ODM slices and a top plane 0.
+ * By acquiring secondary DPP pipes and adding a plane 1, we are configuring our
+ * hardware to render the plane 1 by acquiring a new pipe for each ODM slice and
+ * render plane 1 using new pipes' DPP in the Z axis below plane 0.
+ *
+ *       Inter-pipe Relation (Before Adding Plane)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |  plane 0      | slice 0   |             |
+ *       |   0    | -------------------------ODM----------- |
+ *       |        |  plane 0      | slice 1 | |             |
+ *       |   1    | ------------------------- |             |
+ *       |________|_______________|___________|_____________|
+ *
+ *       Inter-pipe Relation (After Acquiring and Adding Plane)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |  plane 0      | slice 0   |             |
+ *       |   0    | -------------MPC---------ODM----------- |
+ *       |        |  plane 1    | |         | |             |
+ *       |   2    | ------------- |         | |             |
+ *       |        |  plane 0      | slice 1 | |             |
+ *       |   1    | -------------MPC--------- |             |
+ *       |        |  plane 1    | |           |             |
+ *       |   3    | ------------- |           |             |
+ *       |________|_______________|___________|_____________|
  */
 static bool acquire_secondary_dpp_pipes_and_add_plane(
 		struct pipe_ctx *otg_master_pipe,
@@ -1872,7 +1908,7 @@ static bool acquire_secondary_dpp_pipes_and_add_plane(
 		struct dc_state *cur_ctx,
 		struct resource_pool *pool)
 {
-	struct pipe_ctx *opp_head_pipe, *sec_pipe;
+	struct pipe_ctx *opp_head_pipe, *sec_pipe, *tail_pipe;
 
 	if (!pool->funcs->acquire_free_pipe_as_secondary_dpp_pipe)
 		return false;
@@ -1897,8 +1933,21 @@ static bool acquire_secondary_dpp_pipes_and_add_plane(
 		if (!sec_pipe)
 			return false;
 
-		insert_secondary_dpp_pipe_with_plane(opp_head_pipe, sec_pipe,
-				plane_state);
+		sec_pipe->plane_state = plane_state;
+
+		/* establish pipe relationship */
+		tail_pipe = get_tail_pipe(opp_head_pipe);
+		tail_pipe->bottom_pipe = sec_pipe;
+		sec_pipe->top_pipe = tail_pipe;
+		sec_pipe->bottom_pipe = NULL;
+		if (tail_pipe->prev_odm_pipe) {
+			ASSERT(tail_pipe->prev_odm_pipe->bottom_pipe);
+			sec_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
+			tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = sec_pipe;
+		} else {
+			sec_pipe->prev_odm_pipe = NULL;
+		}
+
 		opp_head_pipe = opp_head_pipe->next_odm_pipe;
 	}
 	return true;
