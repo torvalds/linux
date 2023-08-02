@@ -8450,46 +8450,48 @@ ia_css_stream_destroy(struct ia_css_stream *stream)
 
 	if ((stream->last_pipe) &&
 	    ia_css_pipeline_is_mapped(stream->last_pipe->pipe_num)) {
-#if defined(ISP2401)
-		for (i = 0; i < stream->num_pipes; i++) {
-			struct ia_css_pipe *entry = stream->pipes[i];
-			unsigned int sp_thread_id;
-			struct sh_css_sp_pipeline_terminal *sp_pipeline_input_terminal;
-
-			assert(entry);
-			if (entry) {
-				/* get the SP thread id */
-				if (!ia_css_pipeline_get_sp_thread_id(
-					ia_css_pipe_get_pipe_num(entry), &sp_thread_id))
-					return -EINVAL;
-				/* get the target input terminal */
-				sp_pipeline_input_terminal =
-				&sh_css_sp_group.pipe_io[sp_thread_id].input;
-
-				for (i = 0; i < IA_CSS_STREAM_MAX_ISYS_STREAM_PER_CH; i++) {
-					ia_css_isys_stream_h isys_stream =
-					&sp_pipeline_input_terminal->context.virtual_input_system_stream[i];
-					if (stream->config.isys_config[i].valid && isys_stream->valid)
-						ia_css_isys_stream_destroy(isys_stream);
-				}
-			}
-		}
-		if (stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
+		if (IS_ISP2401) {
 			for (i = 0; i < stream->num_pipes; i++) {
 				struct ia_css_pipe *entry = stream->pipes[i];
-				/*
-				 * free any mipi frames that are remaining:
-				 * some test stream create-destroy cycles do
-				 * not generate output frames
-				 * and the mipi buffer is not freed in the
-				 * deque function
-				 */
-				if (entry)
-					free_mipi_frames(entry);
+				unsigned int sp_thread_id;
+				struct sh_css_sp_pipeline_terminal *sp_pipeline_input_terminal;
+
+				assert(entry);
+				if (entry) {
+					/* get the SP thread id */
+					if (!ia_css_pipeline_get_sp_thread_id(
+							ia_css_pipe_get_pipe_num(entry), &sp_thread_id))
+						return -EINVAL;
+
+					/* get the target input terminal */
+					sp_pipeline_input_terminal =
+						&sh_css_sp_group.pipe_io[sp_thread_id].input;
+
+					for (i = 0; i < IA_CSS_STREAM_MAX_ISYS_STREAM_PER_CH; i++) {
+						ia_css_isys_stream_h isys_stream =
+							&sp_pipeline_input_terminal->context.virtual_input_system_stream[i];
+						if (stream->config.isys_config[i].valid && isys_stream->valid)
+							ia_css_isys_stream_destroy(isys_stream);
+					}
+				}
 			}
+
+			if (stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
+				for (i = 0; i < stream->num_pipes; i++) {
+					struct ia_css_pipe *entry = stream->pipes[i];
+					/*
+					 * free any mipi frames that are remaining:
+					 * some test stream create-destroy cycles do
+					 * not generate output frames
+					 * and the mipi buffer is not freed in the
+					 * deque function
+					 */
+					if (entry)
+						free_mipi_frames(entry);
+				}
+			}
+			stream_unregister_with_csi_rx(stream);
 		}
-		stream_unregister_with_csi_rx(stream);
-#endif
 
 		for (i = 0; i < stream->num_pipes; i++) {
 			struct ia_css_pipe *curr_pipe = stream->pipes[i];
