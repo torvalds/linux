@@ -570,17 +570,15 @@ static int __qcom_scm_set_dload_mode(struct device *dev, enum qcom_download_mode
 
 void qcom_scm_set_download_mode(enum qcom_download_mode mode, phys_addr_t tcsr_boot_misc)
 {
-	bool avail;
 	int ret = 0;
 	struct device *dev = __scm ? __scm->dev : NULL;
 
-	avail = __qcom_scm_is_call_available(dev,
-					     QCOM_SCM_SVC_BOOT,
-					     QCOM_SCM_BOOT_SET_DLOAD_MODE);
-	if (avail) {
-		ret = __qcom_scm_set_dload_mode(dev, mode);
-	} else if (tcsr_boot_misc || (__scm && __scm->dload_mode_addr)) {
+	if (tcsr_boot_misc || (__scm && __scm->dload_mode_addr)) {
 		ret = qcom_scm_io_writel(tcsr_boot_misc ? : __scm->dload_mode_addr, mode);
+	} else if (__qcom_scm_is_call_available(dev,
+				QCOM_SCM_SVC_BOOT,
+				QCOM_SCM_BOOT_SET_DLOAD_MODE)) {
+		ret = __qcom_scm_set_dload_mode(dev, mode);
 	} else {
 		dev_err(dev,
 			"No available mechanism for setting download mode\n");
