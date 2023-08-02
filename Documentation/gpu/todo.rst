@@ -465,7 +465,8 @@ Clean up checks for already prepared/enabled in panels
 
 In a whole pile of panel drivers, we have code to make the
 prepare/unprepare/enable/disable callbacks behave as no-ops if they've already
-been called. To get some idea of the duplicated code, try:
+been called. To get some idea of the duplicated code, try::
+
   git grep 'if.*>prepared' -- drivers/gpu/drm/panel
   git grep 'if.*>enabled' -- drivers/gpu/drm/panel
 
