@@ -752,17 +752,17 @@ static inline void arc_slc_enable(void)
  * There's a corollary case, where kernel READs from a userspace mapped page.
  * If the U-mapping is not congruent to K-mapping, former needs flushing.
  */
-void flush_dcache_page(struct page *page)
+void flush_dcache_folio(struct folio *folio)
 {
 	struct address_space *mapping;
 
 	if (!cache_is_vipt_aliasing()) {
-		clear_bit(PG_dc_clean, &page->flags);
+		clear_bit(PG_dc_clean, &folio->flags);
 		return;
 	}
 
 	/* don't handle anon pages here */
-	mapping = page_mapping_file(page);
+	mapping = folio_flush_mapping(folio);
 	if (!mapping)
 		return;
 
@@ -771,16 +771,26 @@ void flush_dcache_page(struct page *page)
 	 * Make a note that K-mapping is dirty
 	 */
 	if (!mapping_mapped(mapping)) {
-		clear_bit(PG_dc_clean, &page->flags);
-	} else if (page_mapcount(page)) {
-
+		clear_bit(PG_dc_clean, &folio->flags);
+	} else if (folio_mapped(folio)) {
 		/* kernel reading from page with U-mapping */
-		phys_addr_t paddr = (unsigned long)page_address(page);
-		unsigned long vaddr = page->index << PAGE_SHIFT;
+		phys_addr_t paddr = (unsigned long)folio_address(folio);
+		unsigned long vaddr = folio_pos(folio);
 
+		/*
+		 * vaddr is not actually the virtual address, but is
+		 * congruent to every user mapping.
+		 */
 		if (addr_not_cache_congruent(paddr, vaddr))
-			__flush_dcache_page(paddr, vaddr);
+			__flush_dcache_pages(paddr, vaddr,
+						folio_nr_pages(folio));
 	}
+}
+EXPORT_SYMBOL(flush_dcache_folio);
+
+void flush_dcache_page(struct page *page)
+{
+	return flush_dcache_folio(page_folio(page));
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
@@ -921,18 +931,18 @@ void __sync_icache_dcache(phys_addr_t paddr, unsigned long vaddr, int len)
 }
 
 /* wrapper to compile time eliminate alignment checks in flush loop */
-void __inv_icache_page(phys_addr_t paddr, unsigned long vaddr)
+void __inv_icache_pages(phys_addr_t paddr, unsigned long vaddr, unsigned nr)
 {
-	__ic_line_inv_vaddr(paddr, vaddr, PAGE_SIZE);
+	__ic_line_inv_vaddr(paddr, vaddr, nr * PAGE_SIZE);
 }
 
 /*
  * wrapper to clearout kernel or userspace mappings of a page
  * For kernel mappings @vaddr == @paddr
  */
-void __flush_dcache_page(phys_addr_t paddr, unsigned long vaddr)
+void __flush_dcache_pages(phys_addr_t paddr, unsigned long vaddr, unsigned nr)
 {
-	__dc_line_op(paddr, vaddr & PAGE_MASK, PAGE_SIZE, OP_FLUSH_N_INV);
+	__dc_line_op(paddr, vaddr & PAGE_MASK, nr * PAGE_SIZE, OP_FLUSH_N_INV);
 }
 
 noinline void flush_cache_all(void)
@@ -962,10 +972,10 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long u_vaddr,
 
 	u_vaddr &= PAGE_MASK;
 
-	__flush_dcache_page(paddr, u_vaddr);
+	__flush_dcache_pages(paddr, u_vaddr, 1);
 
 	if (vma->vm_flags & VM_EXEC)
-		__inv_icache_page(paddr, u_vaddr);
+		__inv_icache_pages(paddr, u_vaddr, 1);
 }
 
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
@@ -978,9 +988,9 @@ void flush_anon_page(struct vm_area_struct *vma, struct page *page,
 		     unsigned long u_vaddr)
 {
 	/* TBD: do we really need to clear the kernel mapping */
-	__flush_dcache_page((phys_addr_t)page_address(page), u_vaddr);
-	__flush_dcache_page((phys_addr_t)page_address(page),
-			    (phys_addr_t)page_address(page));
+	__flush_dcache_pages((phys_addr_t)page_address(page), u_vaddr, 1);
+	__flush_dcache_pages((phys_addr_t)page_address(page),
+			    (phys_addr_t)page_address(page), 1);
 
 }
 
@@ -989,6 +999,8 @@ void flush_anon_page(struct vm_area_struct *vma, struct page *page,
 void copy_user_highpage(struct page *to, struct page *from,
 	unsigned long u_vaddr, struct vm_area_struct *vma)
 {
+	struct folio *src = page_folio(from);
+	struct folio *dst = page_folio(to);
 	void *kfrom = kmap_atomic(from);
 	void *kto = kmap_atomic(to);
 	int clean_src_k_mappings = 0;
@@ -1005,7 +1017,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 	 * addr_not_cache_congruent() is 0
 	 */
 	if (page_mapcount(from) && addr_not_cache_congruent(kfrom, u_vaddr)) {
-		__flush_dcache_page((unsigned long)kfrom, u_vaddr);
+		__flush_dcache_pages((unsigned long)kfrom, u_vaddr, 1);
 		clean_src_k_mappings = 1;
 	}
 
@@ -1019,17 +1031,17 @@ void copy_user_highpage(struct page *to, struct page *from,
 	 * non copied user pages (e.g. read faults which wire in pagecache page
 	 * directly).
 	 */
-	clear_bit(PG_dc_clean, &to->flags);
+	clear_bit(PG_dc_clean, &dst->flags);
 
 	/*
 	 * if SRC was already usermapped and non-congruent to kernel mapping
 	 * sync the kernel mapping back to physical page
 	 */
 	if (clean_src_k_mappings) {
-		__flush_dcache_page((unsigned long)kfrom, (unsigned long)kfrom);
-		set_bit(PG_dc_clean, &from->flags);
+		__flush_dcache_pages((unsigned long)kfrom,
+					(unsigned long)kfrom, 1);
 	} else {
-		clear_bit(PG_dc_clean, &from->flags);
+		clear_bit(PG_dc_clean, &src->flags);
 	}
 
 	kunmap_atomic(kto);
@@ -1038,8 +1050,9 @@ void copy_user_highpage(struct page *to, struct page *from,
 
 void clear_user_page(void *to, unsigned long u_vaddr, struct page *page)
 {
+	struct folio *folio = page_folio(page);
 	clear_page(to);
-	clear_bit(PG_dc_clean, &page->flags);
+	clear_bit(PG_dc_clean, &folio->flags);
 }
 EXPORT_SYMBOL(clear_user_page);
 

@@ -25,17 +25,20 @@
  * in update_mmu_cache()
  */
 #define flush_icache_page(vma, page)
+#define flush_icache_pages(vma, page, nr)
 
 void flush_cache_all(void);
 
 void flush_icache_range(unsigned long kstart, unsigned long kend);
 void __sync_icache_dcache(phys_addr_t paddr, unsigned long vaddr, int len);
-void __inv_icache_page(phys_addr_t paddr, unsigned long vaddr);
-void __flush_dcache_page(phys_addr_t paddr, unsigned long vaddr);
+void __inv_icache_pages(phys_addr_t paddr, unsigned long vaddr, unsigned nr);
+void __flush_dcache_pages(phys_addr_t paddr, unsigned long vaddr, unsigned nr);
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 
 void flush_dcache_page(struct page *page);
+void flush_dcache_folio(struct folio *folio);
+#define flush_dcache_folio flush_dcache_folio
 
 void dma_cache_wback_inv(phys_addr_t start, unsigned long sz);
 void dma_cache_inv(phys_addr_t start, unsigned long sz);
