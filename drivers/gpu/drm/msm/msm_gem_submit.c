@@ -384,6 +384,7 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 
 static int submit_pin_objects(struct msm_gem_submit *submit)
 {
+	struct msm_drm_private *priv = submit->dev->dev_private;
 	int i, ret = 0;
 
 	submit->valid = true;
@@ -403,7 +404,7 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 		if (ret)
 			break;
 
-		submit->bos[i].flags |= BO_OBJ_PINNED | BO_VMA_PINNED;
+		submit->bos[i].flags |= BO_VMA_PINNED;
 		submit->bos[i].vma = vma;
 
 		if (vma->iova == submit->bos[i].iova) {
@@ -415,6 +416,20 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 			submit->valid = false;
 		}
 	}
+
+	/*
+	 * A second loop while holding the LRU lock (a) avoids acquiring/dropping
+	 * the LRU lock for each individual bo, while (b) avoiding holding the
+	 * LRU lock while calling msm_gem_pin_vma_locked() (which could trigger
+	 * get_pages() which could trigger reclaim.. and if we held the LRU lock
+	 * could trigger deadlock with the shrinker).
+	 */
+	mutex_lock(&priv->lru.lock);
+	for (i = 0; i < submit->nr_bos; i++) {
+		msm_gem_pin_obj_locked(submit->bos[i].obj);
+		submit->bos[i].flags |= BO_OBJ_PINNED;
+	}
+	mutex_unlock(&priv->lru.lock);
 
 	return ret;
 }
