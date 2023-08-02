@@ -409,7 +409,7 @@ int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 	} else {
 		ret = 0;
 		trace_dpu_enc_irq_wait_success(DRMID(phys_enc->parent),
-			func, irq_idx,
+			func, DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx),
 			phys_enc->hw_pp->idx - PINGPONG_0,
 			atomic_read(wait_info->atomic_cnt));
 	}
@@ -1550,7 +1550,9 @@ static int dpu_encoder_helper_wait_event_timeout(
 				atomic_read(info->atomic_cnt) == 0, jiffies);
 		time = ktime_to_ms(ktime_get());
 
-		trace_dpu_enc_wait_event_timeout(drm_id, irq_idx, rc, time,
+		trace_dpu_enc_wait_event_timeout(drm_id,
+						 DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx),
+						 rc, time,
 						 expected_time,
 						 atomic_read(info->atomic_cnt));
 	/* If we timed out, counter is valid and time is less, wait again */
