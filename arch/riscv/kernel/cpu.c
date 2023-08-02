@@ -222,21 +222,21 @@ static void print_isa(struct seq_file *f)
 
 static void print_mmu(struct seq_file *f)
 {
-	char sv_type[16];
+	const char *sv_type;
 
 #ifdef CONFIG_MMU
 #if defined(CONFIG_32BIT)
-	strncpy(sv_type, "sv32", 5);
+	sv_type = "sv32";
 #elif defined(CONFIG_64BIT)
 	if (pgtable_l5_enabled)
-		strncpy(sv_type, "sv57", 5);
+		sv_type = "sv57";
 	else if (pgtable_l4_enabled)
-		strncpy(sv_type, "sv48", 5);
+		sv_type = "sv48";
 	else
-		strncpy(sv_type, "sv39", 5);
+		sv_type = "sv39";
 #endif
 #else
-	strncpy(sv_type, "none", 5);
+	sv_type = "none";
 #endif /* CONFIG_MMU */
 	seq_printf(f, "mmu\t\t: %s\n", sv_type);
 }
