@@ -231,14 +231,15 @@ vivt_flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned
 					vma->vm_flags);
 }
 
-static inline void
-vivt_flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned long pfn)
+static inline void vivt_flush_cache_pages(struct vm_area_struct *vma,
+		unsigned long user_addr, unsigned long pfn, unsigned int nr)
 {
 	struct mm_struct *mm = vma->vm_mm;
 
 	if (!mm || cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm))) {
 		unsigned long addr = user_addr & PAGE_MASK;
-		__cpuc_flush_user_range(addr, addr + PAGE_SIZE, vma->vm_flags);
+		__cpuc_flush_user_range(addr, addr + nr * PAGE_SIZE,
+				vma->vm_flags);
 	}
 }
 
@@ -247,15 +248,17 @@ vivt_flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsig
 		vivt_flush_cache_mm(mm)
 #define flush_cache_range(vma,start,end) \
 		vivt_flush_cache_range(vma,start,end)
-#define flush_cache_page(vma,addr,pfn) \
-		vivt_flush_cache_page(vma,addr,pfn)
+#define flush_cache_pages(vma, addr, pfn, nr) \
+		vivt_flush_cache_pages(vma, addr, pfn, nr)
 #else
-extern void flush_cache_mm(struct mm_struct *mm);
-extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
-extern void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned long pfn);
+void flush_cache_mm(struct mm_struct *mm);
+void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
+void flush_cache_pages(struct vm_area_struct *vma, unsigned long user_addr,
+		unsigned long pfn, unsigned int nr);
 #endif
 
 #define flush_cache_dup_mm(mm) flush_cache_mm(mm)
+#define flush_cache_page(vma, addr, pfn) flush_cache_pages(vma, addr, pfn, 1)
 
 /*
  * flush_icache_user_range is used when we want to ensure that the
@@ -289,7 +292,9 @@ extern void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr
  * See update_mmu_cache for the user space part.
  */
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
-extern void flush_dcache_page(struct page *);
+void flush_dcache_page(struct page *);
+void flush_dcache_folio(struct folio *folio);
+#define flush_dcache_folio flush_dcache_folio
 
 #define ARCH_IMPLEMENTS_FLUSH_KERNEL_VMAP_RANGE 1
 static inline void flush_kernel_vmap_range(void *addr, int size)
@@ -321,6 +326,7 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
  * duplicate cache flushing elsewhere performed by flush_dcache_page().
  */
 #define flush_icache_page(vma,page)	do { } while (0)
+#define flush_icache_pages(vma, page, nr)	do { } while (0)
 
 /*
  * flush_cache_vmap() is used when creating mappings (eg, via vmap,
