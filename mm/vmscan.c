@@ -3020,6 +3020,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	fraction[1] = fp;
 	denominator = ap + fp;
 out:
+	trace_android_vh_tune_scan_type(&scan_balance);
 	for_each_evictable_lru(lru) {
 		int file = is_file_lru(lru);
 		unsigned long lruvec_size;
