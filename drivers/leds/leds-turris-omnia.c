@@ -166,7 +166,7 @@ static ssize_t brightness_show(struct device *dev, struct device_attribute *a,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", ret);
+	return sysfs_emit(buf, "%d\n", ret);
 }
 
 static ssize_t brightness_store(struct device *dev, struct device_attribute *a,
