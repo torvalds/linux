@@ -207,7 +207,7 @@
 		     &gmac1m1_rgmii_bus
 		     &eth1m1_pins>;
 
-	tx_delay = <0x47>;
+	tx_delay = <0x30>;
 	rx_delay = <0x28>;
 
 	phy-handle = <&rgmii_phy1>;
