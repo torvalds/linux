@@ -100,6 +100,8 @@
   __free_pages
   free_pages
   free_pages_exact
+  fsnotify
+  __fsnotify_parent
   generic_file_read_iter
   generic_mii_ioctl
   generic_perform_write
@@ -150,6 +152,8 @@
   kasan_flag_enabled
   kasprintf
   kernel_cpustat
+  kernel_neon_begin
+  kernel_neon_end
   kernfs_find_and_get_ns
   kfree
   __kfree_skb
@@ -165,6 +169,7 @@
   kobject_put
   kstrdup
   kstrtoint
+  kstrtos16
   kstrtouint
   kstrtoull
   kthread_create_on_node
@@ -258,6 +263,7 @@
   register_reboot_notifier
   register_restart_handler
   register_syscore_ops
+  regulator_get_current_limit
   remove_cpu
   rtc_class_open
   rtc_read_time
@@ -278,6 +284,9 @@
   single_open
   single_release
   skb_copy_ubufs
+  smpboot_register_percpu_thread
+  smpboot_unregister_percpu_thread
+  snd_soc_add_card_controls
   snd_soc_find_dai
   snd_soc_info_volsw_sx
   snd_soc_put_volsw_sx
@@ -286,6 +295,7 @@
   sprintf
   sscanf
   __stack_chk_fail
+  stack_trace_save_regs
   stpcpy
   strcmp
   strim
@@ -307,6 +317,12 @@
   system_long_wq
   system_unbound_wq
   sys_tz
+  tcp_register_congestion_control
+  tcp_reno_cong_avoid
+  tcp_reno_ssthresh
+  tcp_reno_undo_cwnd
+  tcp_slow_start
+  tcp_unregister_congestion_control
   time64_to_tm
   __traceiter_android_rvh_arm64_serror_panic
   __traceiter_android_rvh_die_kernel_fault
@@ -340,6 +356,7 @@
   __traceiter_android_vh_try_to_freeze_todo
   __traceiter_android_vh_try_to_freeze_todo_unfrozen
   __traceiter_android_vh_watchdog_timer_softlockup
+  __traceiter_android_vh_wq_lockup_pool
   __traceiter_block_rq_insert
   __traceiter_console
   __traceiter_hrtimer_expire_entry
@@ -381,6 +398,7 @@
   __tracepoint_android_vh_try_to_freeze_todo
   __tracepoint_android_vh_try_to_freeze_todo_unfrozen
   __tracepoint_android_vh_watchdog_timer_softlockup
+  __tracepoint_android_vh_wq_lockup_pool
   __tracepoint_block_rq_insert
   __tracepoint_console
   __tracepoint_hrtimer_expire_entry
@@ -400,6 +418,7 @@
   up_write
   usb_alloc_dev
   usb_gstrings_attach
+  usb_set_configuration
   usbnet_get_endpoints
   usbnet_link_change
   usb_set_device_state
