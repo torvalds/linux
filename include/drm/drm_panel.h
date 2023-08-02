@@ -238,7 +238,7 @@ struct drm_panel {
 	struct list_head followers;
 
 	/**
-	 * @followers_lock:
+	 * @follower_lock:
 	 *
 	 * Lock for followers list.
 	 */
