@@ -244,7 +244,7 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 
 	sp_rtc->irq = platform_get_irq(plat_dev, 0);
 	if (sp_rtc->irq < 0)
-		return dev_err_probe(&plat_dev->dev, sp_rtc->irq, "platform_get_irq failed\n");
+		return sp_rtc->irq;
 
 	ret = devm_request_irq(&plat_dev->dev, sp_rtc->irq, sp_rtc_irq_handler,
 			       IRQF_TRIGGER_RISING, "rtc irq", plat_dev);
