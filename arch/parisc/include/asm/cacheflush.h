@@ -43,8 +43,13 @@ void invalidate_kernel_vmap_range(void *vaddr, int size);
 #define flush_cache_vmap(start, end)		flush_cache_all()
 #define flush_cache_vunmap(start, end)		flush_cache_all()
 
+void flush_dcache_folio(struct folio *folio);
+#define flush_dcache_folio flush_dcache_folio
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
-void flush_dcache_page(struct page *page);
+static inline void flush_dcache_page(struct page *page)
+{
+	flush_dcache_folio(page_folio(page));
+}
 
 #define flush_dcache_mmap_lock(mapping)		xa_lock_irq(&mapping->i_pages)
 #define flush_dcache_mmap_unlock(mapping)	xa_unlock_irq(&mapping->i_pages)
@@ -53,10 +58,9 @@ void flush_dcache_page(struct page *page);
 #define flush_dcache_mmap_unlock_irqrestore(mapping, flags)	\
 		xa_unlock_irqrestore(&mapping->i_pages, flags)
 
-#define flush_icache_page(vma,page)	do { 		\
-	flush_kernel_dcache_page_addr(page_address(page)); \
-	flush_kernel_icache_page(page_address(page)); 	\
-} while (0)
+void flush_icache_pages(struct vm_area_struct *vma, struct page *page,
+		unsigned int nr);
+#define flush_icache_page(vma, page)	flush_icache_pages(vma, page, 1)
 
 #define flush_icache_range(s,e)		do { 		\
 	flush_kernel_dcache_range_asm(s,e); 		\
