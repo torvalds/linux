@@ -674,9 +674,7 @@ static int rt5682_sdw_probe(struct sdw_slave *slave,
 	if (IS_ERR(regmap))
 		return -EINVAL;
 
-	rt5682_sdw_init(&slave->dev, regmap, slave);
-
-	return 0;
+	return rt5682_sdw_init(&slave->dev, regmap, slave);
 }
 
 static int rt5682_sdw_remove(struct sdw_slave *slave)

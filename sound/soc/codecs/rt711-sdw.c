@@ -453,9 +453,7 @@ static int rt711_sdw_probe(struct sdw_slave *slave,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	rt711_init(&slave->dev, sdw_regmap, regmap, slave);
-
-	return 0;
+	return rt711_init(&slave->dev, sdw_regmap, regmap, slave);
 }
 
 static int rt711_sdw_remove(struct sdw_slave *slave)
