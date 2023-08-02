@@ -92,7 +92,6 @@ static int mtk_ppe_mib_wait_busy(struct mtk_ppe *ppe)
 
 static int mtk_mib_entry_read(struct mtk_ppe *ppe, u16 index, u64 *bytes, u64 *packets)
 {
-	u32 byte_cnt_low, byte_cnt_high, pkt_cnt_low, pkt_cnt_high;
 	u32 val, cnt_r0, cnt_r1, cnt_r2;
 	int ret;
 
@@ -107,12 +106,20 @@ static int mtk_mib_entry_read(struct mtk_ppe *ppe, u16 index, u64 *bytes, u64 *p
 	cnt_r1 = readl(ppe->base + MTK_PPE_MIB_SER_R1);
 	cnt_r2 = readl(ppe->base + MTK_PPE_MIB_SER_R2);
 
-	byte_cnt_low = FIELD_GET(MTK_PPE_MIB_SER_R0_BYTE_CNT_LOW, cnt_r0);
-	byte_cnt_high = FIELD_GET(MTK_PPE_MIB_SER_R1_BYTE_CNT_HIGH, cnt_r1);
-	pkt_cnt_low = FIELD_GET(MTK_PPE_MIB_SER_R1_PKT_CNT_LOW, cnt_r1);
-	pkt_cnt_high = FIELD_GET(MTK_PPE_MIB_SER_R2_PKT_CNT_HIGH, cnt_r2);
-	*bytes = ((u64)byte_cnt_high << 32) | byte_cnt_low;
-	*packets = (pkt_cnt_high << 16) | pkt_cnt_low;
+	if (mtk_is_netsys_v3_or_greater(ppe->eth)) {
+		/* 64 bit for each counter */
+		u32 cnt_r3 = readl(ppe->base + MTK_PPE_MIB_SER_R3);
+		*bytes = ((u64)cnt_r1 << 32) | cnt_r0;
+		*packets = ((u64)cnt_r3 << 32) | cnt_r2;
+	} else {
+		/* 48 bit byte counter, 40 bit packet counter */
+		u32 byte_cnt_low = FIELD_GET(MTK_PPE_MIB_SER_R0_BYTE_CNT_LOW, cnt_r0);
+		u32 byte_cnt_high = FIELD_GET(MTK_PPE_MIB_SER_R1_BYTE_CNT_HIGH, cnt_r1);
+		u32 pkt_cnt_low = FIELD_GET(MTK_PPE_MIB_SER_R1_PKT_CNT_LOW, cnt_r1);
+		u32 pkt_cnt_high = FIELD_GET(MTK_PPE_MIB_SER_R2_PKT_CNT_HIGH, cnt_r2);
+		*bytes = ((u64)byte_cnt_high << 32) | byte_cnt_low;
+		*packets = ((u64)pkt_cnt_high << 16) | pkt_cnt_low;
+	}
 
 	return 0;
 }

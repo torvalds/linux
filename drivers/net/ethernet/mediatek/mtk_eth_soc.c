@@ -5064,6 +5064,7 @@ static const struct mtk_soc_data mt7988_data = {
 	.version = 3,
 	.offload_version = 2,
 	.hash_offset = 4,
+	.has_accounting = true,
 	.foe_entry_size = MTK_FOE_ENTRY_V3_SIZE,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma_v2),
