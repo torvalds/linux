@@ -462,7 +462,7 @@ static ssize_t vendor_id_show(struct device *dev,
 
 	return sysfs_emit(buf, "%08x", codec->vendor_id);
 }
-DEVICE_ATTR_RO(vendor_id);
+static DEVICE_ATTR_RO(vendor_id);
 
 static struct attribute *ac97_dev_attrs[] = {
 	&dev_attr_vendor_id.attr,
