@@ -291,7 +291,7 @@ mlx4_en_filter_alloc(struct mlx4_en_priv *priv, int rxq_index, __be32 src_ip,
 		     __be32 dst_ip, u8 ip_proto, __be16 src_port,
 		     __be16 dst_port, u32 flow_id)
 {
-	struct mlx4_en_filter *filter = NULL;
+	struct mlx4_en_filter *filter;
 
 	filter = kzalloc(sizeof(struct mlx4_en_filter), GFP_ATOMIC);
 	if (!filter)
@@ -2935,7 +2935,7 @@ static void mlx4_en_bond_work(struct work_struct *work)
 static int mlx4_en_queue_bond_work(struct mlx4_en_priv *priv, int is_bonded,
 				   u8 v2p_p1, u8 v2p_p2)
 {
-	struct mlx4_en_bond *bond = NULL;
+	struct mlx4_en_bond *bond;
 
 	bond = kzalloc(sizeof(*bond), GFP_ATOMIC);
 	if (!bond)

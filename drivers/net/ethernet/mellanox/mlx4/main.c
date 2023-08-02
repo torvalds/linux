@@ -864,7 +864,7 @@ static void mlx4_slave_destroy_special_qp_cap(struct mlx4_dev *dev)
 
 static int mlx4_slave_special_qp_cap(struct mlx4_dev *dev)
 {
-	struct mlx4_func_cap *func_cap = NULL;
+	struct mlx4_func_cap *func_cap;
 	struct mlx4_caps *caps = &dev->caps;
 	int i, err = 0;
 
@@ -908,9 +908,9 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 {
 	int			   err;
 	u32			   page_size;
-	struct mlx4_dev_cap	   *dev_cap = NULL;
-	struct mlx4_func_cap	   *func_cap = NULL;
-	struct mlx4_init_hca_param *hca_param = NULL;
+	struct mlx4_dev_cap	   *dev_cap;
+	struct mlx4_func_cap	   *func_cap;
+	struct mlx4_init_hca_param *hca_param;
 
 	hca_param = kzalloc(sizeof(*hca_param), GFP_KERNEL);
 	func_cap = kzalloc(sizeof(*func_cap), GFP_KERNEL);
