@@ -13,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <soc/imx/revision.h>
 
 #include "clk.h"
 
@@ -219,6 +220,8 @@ static int __init __mx25_clocks_init(void __iomem *ccm_base)
 	clk_set_parent(clk[cko_sel], clk[ipg]);
 
 	imx_register_uart_clocks();
+
+	imx_print_silicon_rev("i.MX25", mx25_revision());
 
 	return 0;
 }
