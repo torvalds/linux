@@ -3753,6 +3753,7 @@ unlock:
 
 /**
  * cpuset_hotplug_workfn - handle CPU/memory hotunplug for a cpuset
+ * @work: unused
  *
  * This function is called after either CPU or memory configuration has
  * changed and updates cpuset accordingly.  The top_cpuset is always
@@ -4135,6 +4136,7 @@ bool cpuset_node_allowed(int node, gfp_t gfp_mask)
 
 /**
  * cpuset_spread_node() - On which node to begin search for a page
+ * @rotor: round robin rotor
  *
  * If a task is marked PF_SPREAD_PAGE or PF_SPREAD_SLAB (as for
  * tasks in a cpuset with is_spread_page or is_spread_slab set),
