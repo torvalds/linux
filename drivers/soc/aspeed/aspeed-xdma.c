@@ -327,8 +327,10 @@ static void aspeed_xdma_init_eng(struct aspeed_xdma *ctx)
 	aspeed_xdma_writel(ctx, ctx->chip->regs.bmc_cmdq_writep, 0);
 	aspeed_xdma_writel(ctx, ctx->chip->regs.control, ctx->chip->control);
 	aspeed_xdma_writel(ctx, ctx->chip->regs.bmc_cmdq_addr, ctx->cmdq_phys);
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	if (ctx->chip->regs.bmc_cmdq_addr_ext)
 		aspeed_xdma_writel(ctx, ctx->chip->regs.bmc_cmdq_addr_ext, ctx->cmdq_phys >> 32);
+#endif
 
 	ctx->cmd_idx = 0;
 	spin_unlock_irqrestore(&ctx->engine_lock, flags);
