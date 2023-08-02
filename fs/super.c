@@ -546,17 +546,31 @@ bool mount_capable(struct fs_context *fc)
  * @test: Comparison callback
  * @set: Setup callback
  *
- * Find or create a superblock using the parameters stored in the filesystem
- * context and the two callback functions.
+ * Create a new superblock or find an existing one.
  *
- * If an extant superblock is matched, then that will be returned with an
- * elevated reference count that the caller must transfer or discard.
+ * The @test callback is used to find a matching existing superblock.
+ * Whether or not the requested parameters in @fc are taken into account
+ * is specific to the @test callback that is used. They may even be
+ * completely ignored.
+ *
+ * If an extant superblock is matched, it will be returned unless:
+ *
+ * (1) the namespace the filesystem context @fc and the extant
+ *     superblock's namespace differ
+ *
+ * (2) the filesystem context @fc has requested that reusing an extant
+ *     superblock is not allowed
+ *
+ * In both cases EBUSY will be returned.
  *
  * If no match is made, a new superblock will be allocated and basic
- * initialisation will be performed (s_type, s_fs_info and s_id will be set and
- * the set() callback will be invoked), the superblock will be published and it
- * will be returned in a partially constructed state with SB_BORN and SB_ACTIVE
- * as yet unset.
+ * initialisation will be performed (s_type, s_fs_info and s_id will be
+ * set and the @set callback will be invoked), the superblock will be
+ * published and it will be returned in a partially constructed state
+ * with SB_BORN and SB_ACTIVE as yet unset.
+ *
+ * Return: On success, an extant or newly created superblock is
+ *         returned. On failure an error pointer is returned.
  */
 struct super_block *sget_fc(struct fs_context *fc,
 			    int (*test)(struct super_block *, struct fs_context *),
@@ -603,9 +617,13 @@ retry:
 	return s;
 
 share_extant_sb:
-	if (user_ns != old->s_user_ns) {
+	if (user_ns != old->s_user_ns || fc->exclusive) {
 		spin_unlock(&sb_lock);
 		destroy_unused_super(s);
+		if (fc->exclusive)
+			warnfc(fc, "reusing existing filesystem not allowed");
+		else
+			warnfc(fc, "reusing existing filesystem in another namespace not allowed");
 		return ERR_PTR(-EBUSY);
 	}
 	if (!grab_super(old))

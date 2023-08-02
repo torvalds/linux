@@ -209,7 +209,7 @@ err:
 	return ret;
 }
 
-static int vfs_cmd_create(struct fs_context *fc)
+static int vfs_cmd_create(struct fs_context *fc, bool exclusive)
 {
 	struct super_block *sb;
 	int ret;
@@ -220,7 +220,12 @@ static int vfs_cmd_create(struct fs_context *fc)
 	if (!mount_capable(fc))
 		return -EPERM;
 
+	/* require the new mount api */
+	if (exclusive && fc->ops == &legacy_fs_context_ops)
+		return -EOPNOTSUPP;
+
 	fc->phase = FS_CONTEXT_CREATING;
+	fc->exclusive = exclusive;
 
 	ret = vfs_get_tree(fc);
 	if (ret) {
@@ -284,7 +289,9 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
 		return ret;
 	switch (cmd) {
 	case FSCONFIG_CMD_CREATE:
-		return vfs_cmd_create(fc);
+		return vfs_cmd_create(fc, false);
+	case FSCONFIG_CMD_CREATE_EXCL:
+		return vfs_cmd_create(fc, true);
 	case FSCONFIG_CMD_RECONFIGURE:
 		return vfs_cmd_reconfigure(fc);
 	default:
@@ -381,6 +388,7 @@ SYSCALL_DEFINE5(fsconfig,
 			return -EINVAL;
 		break;
 	case FSCONFIG_CMD_CREATE:
+	case FSCONFIG_CMD_CREATE_EXCL:
 	case FSCONFIG_CMD_RECONFIGURE:
 		if (_key || _value || aux)
 			return -EINVAL;
