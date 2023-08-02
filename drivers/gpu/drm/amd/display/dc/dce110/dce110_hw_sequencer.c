@@ -219,7 +219,7 @@ static bool dce110_enable_display_power_gating(
 	if (controller_id == underlay_idx)
 		controller_id = CONTROLLER_ID_UNDERLAY0 - 1;
 
-	if (power_gating != PIPE_GATING_CONTROL_INIT || controller_id == 0){
+	if (power_gating != PIPE_GATING_CONTROL_INIT || controller_id == 0) {
 
 		bp_result = dcb->funcs->enable_disp_power_gating(
 						dcb, controller_id + 1, cntl);
