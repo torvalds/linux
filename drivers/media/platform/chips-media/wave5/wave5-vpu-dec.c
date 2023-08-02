@@ -29,27 +29,6 @@ static const struct vpu_format dec_fmt_list[FMT_TYPES][MAX_FMTS] = {
 		},
 	},
 	[VPU_FMT_TYPE_RAW] = {
-		/*{
-			.v4l2_pix_fmt = V4L2_PIX_FMT_YUV420,
-			.max_width = 8192,
-			.min_width = 8,
-			.max_height = 4320,
-			.min_height = 8,
-		},
-		{
-			.v4l2_pix_fmt = V4L2_PIX_FMT_NV12,
-			.max_width = 8192,
-			.min_width = 8,
-			.max_height = 4320,
-			.min_height = 8,
-		},
-		{
-			.v4l2_pix_fmt = V4L2_PIX_FMT_NV21,
-			.max_width = 8192,
-			.min_width = 8,
-			.max_height = 4320,
-			.min_height = 8,
-		},*/
 		{
 			.v4l2_pix_fmt = V4L2_PIX_FMT_YUV420M,
 			.max_width = 8192,
@@ -66,6 +45,27 @@ static const struct vpu_format dec_fmt_list[FMT_TYPES][MAX_FMTS] = {
 		},
 		{
 			.v4l2_pix_fmt = V4L2_PIX_FMT_NV21M,
+			.max_width = 8192,
+			.min_width = 8,
+			.max_height = 4320,
+			.min_height = 8,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_YUV420,
+			.max_width = 8192,
+			.min_width = 8,
+			.max_height = 4320,
+			.min_height = 8,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_NV12,
+			.max_width = 8192,
+			.min_width = 8,
+			.max_height = 4320,
+			.min_height = 8,
+		},
+		{
+			.v4l2_pix_fmt = V4L2_PIX_FMT_NV21,
 			.max_width = 8192,
 			.min_width = 8,
 			.max_height = 4320,
