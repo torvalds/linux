@@ -5842,7 +5842,10 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 	if (WARN_ON_ONCE(!ext4_has_feature_journal(sb)))
 		return NULL;
 
+	/* see get_tree_bdev why this is needed and safe */
+	up_write(&sb->s_umount);
 	bdev = ext4_blkdev_get(j_dev, sb);
+	down_write(&sb->s_umount);
 	if (bdev == NULL)
 		return NULL;
 
