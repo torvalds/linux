@@ -1491,7 +1491,7 @@ struct i40e_profile_segment {
 
 struct i40e_section_table {
 	u32 section_count;
-	u32 section_offset[1];
+	u32 section_offset[];
 };
 
 struct i40e_profile_section_header {
