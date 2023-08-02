@@ -1243,7 +1243,7 @@ static int test_bdev_super_fc(struct super_block *s, struct fs_context *fc)
 		s->s_dev == *(dev_t *)fc->sget_key;
 }
 
-static int setup_bdev_super(struct super_block *sb, int sb_flags,
+int setup_bdev_super(struct super_block *sb, int sb_flags,
 		struct fs_context *fc)
 {
 	blk_mode_t mode = sb_open_mode(sb_flags);
@@ -1295,6 +1295,7 @@ static int setup_bdev_super(struct super_block *sb, int sb_flags,
 	sb_set_blocksize(sb, block_size(bdev));
 	return 0;
 }
+EXPORT_SYMBOL_GPL(setup_bdev_super);
 
 /**
  * get_tree_bdev - Get a superblock based on a single block device
