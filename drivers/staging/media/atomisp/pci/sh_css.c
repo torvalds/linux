@@ -1298,9 +1298,7 @@ sh_css_invalidate_shading_tables(struct ia_css_stream *stream)
 static void
 enable_interrupts(enum ia_css_irq_type irq_type)
 {
-#ifndef ISP2401
 	enum mipi_port_id port;
-#endif
 	bool enable_pulse = irq_type != IA_CSS_IRQ_TYPE_EDGE;
 
 	IA_CSS_ENTER_PRIVATE("");
@@ -1321,10 +1319,10 @@ enable_interrupts(enum ia_css_irq_type irq_type)
 	    (enum virq_id)(IRQ_SW_CHANNEL1_ID + IRQ_SW_CHANNEL_OFFSET),
 	    true);
 
-#ifndef ISP2401
-	for (port = 0; port < N_MIPI_PORT_ID; port++)
-		ia_css_isys_rx_enable_all_interrupts(port);
-#endif
+	if (!IS_ISP2401) {
+		for (port = 0; port < N_MIPI_PORT_ID; port++)
+			ia_css_isys_rx_enable_all_interrupts(port);
+	}
 
 	IA_CSS_LEAVE_PRIVATE("");
 }
@@ -2160,10 +2158,10 @@ ia_css_uninit(void)
 
 	ia_css_rmgr_uninit();
 
-#if !defined(ISP2401)
-	/* needed for reprogramming the inputformatter after power cycle of css */
-	ifmtr_set_if_blocking_mode_reset = true;
-#endif
+	if (!IS_ISP2401) {
+		/* needed for reprogramming the inputformatter after power cycle of css */
+		ifmtr_set_if_blocking_mode_reset = true;
+	}
 
 	if (!fw_explicitly_loaded)
 		ia_css_unload_firmware();
@@ -3117,9 +3115,10 @@ init_in_frameinfo_memory_defaults(struct ia_css_pipe *pipe,
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_INPUT_FRAME, thread_id, &queue_id);
 	in_frame->dynamic_queue_id = queue_id;
 	in_frame->buf_type = IA_CSS_BUFFER_TYPE_INPUT_FRAME;
-#ifdef ISP2401
-	ia_css_get_crop_offsets(pipe, &in_frame->frame_info);
-#endif
+
+	if (IS_ISP2401)
+		ia_css_get_crop_offsets(pipe, &in_frame->frame_info);
+
 	err = ia_css_frame_init_planes(in_frame);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "%s() bayer_order = %d\n",
@@ -7365,19 +7364,18 @@ static int capture_start(struct ia_css_pipe *pipe)
 
 	start_pipe(pipe, copy_ovrd, pipe->stream->config.mode);
 
-#if !defined(ISP2401)
 	/*
 	 * old isys: for IA_CSS_PIPE_MODE_COPY pipe, isys rx has to be configured,
 	 * which is currently done in start_binary(); but COPY pipe contains no binary,
 	 * and does not call start_binary(); so we need to configure the rx here.
 	 */
-	if (pipe->config.mode == IA_CSS_PIPE_MODE_COPY &&
+	if (!IS_ISP2401 &&
+	    pipe->config.mode == IA_CSS_PIPE_MODE_COPY &&
 	    pipe->stream->reconfigure_css_rx) {
 		ia_css_isys_rx_configure(&pipe->stream->csi_rx_config,
 					 pipe->stream->config.mode);
 		pipe->stream->reconfigure_css_rx = false;
 	}
-#endif
 
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
 	return err;
@@ -7599,11 +7597,8 @@ void ia_css_stream_request_flash(struct ia_css_stream *stream)
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 			    "ia_css_stream_request_flash() enter: void\n");
 
-#ifndef ISP2401
-	sh_css_write_host2sp_command(host2sp_cmd_start_flash);
-#else
-	if (sh_css_sp_is_running()) {
-		if (!sh_css_write_host2sp_command(host2sp_cmd_start_flash)) {
+	if (!IS_ISP2401 || sh_css_sp_is_running()) {
+		if (!sh_css_write_host2sp_command(host2sp_cmd_start_flash) && IS_ISP2401) {
 			IA_CSS_ERROR("Call to 'sh-css_write_host2sp_command()' failed");
 			ia_css_debug_dump_sp_sw_debug_info();
 		}
@@ -7611,7 +7606,6 @@ void ia_css_stream_request_flash(struct ia_css_stream *stream)
 		IA_CSS_LOG("SP is not running!");
 	}
 
-#endif
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 			    "ia_css_stream_request_flash() leave: return_void\n");
 }
@@ -8625,16 +8619,14 @@ ia_css_stream_stop(struct ia_css_stream *stream)
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_stream_stop: stopping %d\n",
 			    stream->last_pipe->mode);
 
-#if !defined(ISP2401)
 	/* De-initialize mipi size checks */
-	if (stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
+	if (!IS_ISP2401 && stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
 		unsigned int idx;
 		unsigned int port = (unsigned int)(stream->config.source.port.port);
 
 		for (idx = 0; idx < IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT; idx++)
 			sh_css_sp_group.config.mipi_sizes_for_check[port][idx] = 0;
 	}
-#endif
 
 	err = ia_css_pipeline_request_stop(&stream->last_pipe->pipeline);
 	if (err)
