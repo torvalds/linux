@@ -58,7 +58,7 @@ enum {
 	MODE_MAX,
 };
 
-struct __ufs_qcom_bw_table {
+static const struct __ufs_qcom_bw_table {
 	u32 mem_bw;
 	u32 cfg_bw;
 } ufs_qcom_bw_table[MODE_MAX + 1][QCOM_UFS_MAX_GEAR + 1][QCOM_UFS_MAX_LANE + 1] = {
