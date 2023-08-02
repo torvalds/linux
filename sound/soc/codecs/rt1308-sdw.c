@@ -218,10 +218,9 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt1308->hw_init)
 		return 0;
 
-	if (rt1308->first_hw_init) {
-		regcache_cache_only(rt1308->regmap, false);
+	regcache_cache_only(rt1308->regmap, false);
+	if (rt1308->first_hw_init)
 		regcache_cache_bypass(rt1308->regmap, true);
-	}
 
 	/*
 	 * PM runtime is only enabled when a Slave reports as Attached
@@ -687,6 +686,8 @@ static int rt1308_sdw_init(struct device *dev, struct regmap *regmap,
 	dev_set_drvdata(dev, rt1308);
 	rt1308->sdw_slave = slave;
 	rt1308->regmap = regmap;
+
+	regcache_cache_only(rt1308->regmap, true);
 
 	/*
 	 * Mark hw_init to false

@@ -361,10 +361,9 @@ static int max98373_io_init(struct sdw_slave *slave)
 	struct device *dev = &slave->dev;
 	struct max98373_priv *max98373 = dev_get_drvdata(dev);
 
-	if (max98373->first_hw_init) {
-		regcache_cache_only(max98373->regmap, false);
+	regcache_cache_only(max98373->regmap, false);
+	if (max98373->first_hw_init)
 		regcache_cache_bypass(max98373->regmap, true);
-	}
 
 	/*
 	 * PM runtime is only enabled when a Slave reports as Attached
@@ -752,6 +751,8 @@ static int max98373_init(struct sdw_slave *slave, struct regmap *regmap)
 	dev_set_drvdata(dev, max98373);
 	max98373->regmap = regmap;
 	max98373->slave = slave;
+
+	regcache_cache_only(max98373->regmap, true);
 
 	max98373->cache_num = ARRAY_SIZE(max98373_sdw_cache_reg);
 	max98373->cache = devm_kcalloc(dev, max98373->cache_num,

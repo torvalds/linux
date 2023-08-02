@@ -272,8 +272,8 @@ static int rt1316_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt1316->hw_init)
 		return 0;
 
+	regcache_cache_only(rt1316->regmap, false);
 	if (rt1316->first_hw_init) {
-		regcache_cache_only(rt1316->regmap, false);
 		regcache_cache_bypass(rt1316->regmap, true);
 	} else {
 		/*
@@ -673,6 +673,8 @@ static int rt1316_sdw_init(struct device *dev, struct regmap *regmap,
 	dev_set_drvdata(dev, rt1316);
 	rt1316->sdw_slave = slave;
 	rt1316->regmap = regmap;
+
+	regcache_cache_only(rt1316->regmap, true);
 
 	/*
 	 * Mark hw_init to false

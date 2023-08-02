@@ -182,10 +182,10 @@ static int rt712_sdca_dmic_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt712->hw_init)
 		return 0;
 
+	regcache_cache_only(rt712->regmap, false);
+	regcache_cache_only(rt712->mbq_regmap, false);
 	if (rt712->first_hw_init) {
-		regcache_cache_only(rt712->regmap, false);
 		regcache_cache_bypass(rt712->regmap, true);
-		regcache_cache_only(rt712->mbq_regmap, false);
 		regcache_cache_bypass(rt712->mbq_regmap, true);
 	} else {
 		/*
@@ -776,6 +776,9 @@ static int rt712_sdca_dmic_init(struct device *dev, struct regmap *regmap,
 	rt712->slave = slave;
 	rt712->regmap = regmap;
 	rt712->mbq_regmap = mbq_regmap;
+
+	regcache_cache_only(rt712->regmap, true);
+	regcache_cache_only(rt712->mbq_regmap, true);
 
 	/*
 	 * Mark hw_init to false

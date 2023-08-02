@@ -977,6 +977,10 @@ int rt715_sdca_init(struct device *dev, struct regmap *mbq_regmap,
 	rt715->regmap = regmap;
 	rt715->mbq_regmap = mbq_regmap;
 	rt715->hw_sdw_ver = slave->id.sdw_version;
+
+	regcache_cache_only(rt715->regmap, true);
+	regcache_cache_only(rt715->mbq_regmap, true);
+
 	/*
 	 * Mark hw_init to false
 	 * HW init will be performed when device reports present
@@ -999,6 +1003,9 @@ int rt715_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 
 	if (rt715->hw_init)
 		return 0;
+
+	regcache_cache_only(rt715->regmap, false);
+	regcache_cache_only(rt715->mbq_regmap, false);
 
 	/*
 	 * PM runtime is only enabled when a Slave reports as Attached

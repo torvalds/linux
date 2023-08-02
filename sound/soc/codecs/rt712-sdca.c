@@ -1183,6 +1183,9 @@ int rt712_sdca_init(struct device *dev, struct regmap *regmap,
 	rt712->regmap = regmap;
 	rt712->mbq_regmap = mbq_regmap;
 
+	regcache_cache_only(rt712->regmap, true);
+	regcache_cache_only(rt712->mbq_regmap, true);
+
 	mutex_init(&rt712->calibrate_mutex);
 	mutex_init(&rt712->disable_irq_lock);
 
@@ -1224,10 +1227,10 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt712->hw_init)
 		return 0;
 
+	regcache_cache_only(rt712->regmap, false);
+	regcache_cache_only(rt712->mbq_regmap, false);
 	if (rt712->first_hw_init) {
-		regcache_cache_only(rt712->regmap, false);
 		regcache_cache_bypass(rt712->regmap, true);
-		regcache_cache_only(rt712->mbq_regmap, false);
 		regcache_cache_bypass(rt712->mbq_regmap, true);
 	} else {
 		/*
