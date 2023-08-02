@@ -302,6 +302,14 @@ struct flow_dissector_key_l2tpv3 {
 };
 
 /**
+ * struct flow_dissector_key_ipsec:
+ * @spi: identifier for a ipsec connection
+ */
+struct flow_dissector_key_ipsec {
+	__be32 spi;
+};
+
+/**
  * struct flow_dissector_key_cfm
  * @mdl_ver: maintenance domain level (mdl) and cfm protocol version
  * @opcode: code specifying a type of cfm protocol packet
@@ -354,6 +362,7 @@ enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_PPPOE, /* struct flow_dissector_key_pppoe */
 	FLOW_DISSECTOR_KEY_L2TPV3, /* struct flow_dissector_key_l2tpv3 */
 	FLOW_DISSECTOR_KEY_CFM, /* struct flow_dissector_key_cfm */
+	FLOW_DISSECTOR_KEY_IPSEC, /* struct flow_dissector_key_ipsec */
 
 	FLOW_DISSECTOR_KEY_MAX,
 };

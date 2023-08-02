@@ -461,6 +461,7 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_IPSEC) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IP))))  {
 		netdev_info(nic->netdev, "unsupported flow used key 0x%llx",
 			    dissector->used_keys);
@@ -482,6 +483,8 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 		     match.key->ip_proto != IPPROTO_UDP &&
 		     match.key->ip_proto != IPPROTO_SCTP &&
 		     match.key->ip_proto != IPPROTO_ICMP &&
+		     match.key->ip_proto != IPPROTO_ESP &&
+		     match.key->ip_proto != IPPROTO_AH &&
 		     match.key->ip_proto != IPPROTO_ICMPV6)) {
 			netdev_info(nic->netdev,
 				    "ip_proto=0x%x not supported\n",
@@ -501,6 +504,10 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 			req->features |= BIT_ULL(NPC_IPPROTO_ICMP);
 		else if (ip_proto == IPPROTO_ICMPV6)
 			req->features |= BIT_ULL(NPC_IPPROTO_ICMP6);
+		else if (ip_proto == IPPROTO_ESP)
+			req->features |= BIT_ULL(NPC_IPPROTO_ESP);
+		else if (ip_proto == IPPROTO_AH)
+			req->features |= BIT_ULL(NPC_IPPROTO_AH);
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
@@ -543,6 +550,26 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 					(u8 *)&match.mask->dst);
 			req->features |= BIT_ULL(NPC_DMAC);
 		}
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPSEC)) {
+		struct flow_match_ipsec match;
+
+		flow_rule_match_ipsec(rule, &match);
+		if (!match.mask->spi) {
+			NL_SET_ERR_MSG_MOD(extack, "spi index not specified");
+			return -EOPNOTSUPP;
+		}
+		if (ip_proto != IPPROTO_ESP &&
+		    ip_proto != IPPROTO_AH) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "SPI index is valid only for ESP/AH proto");
+			return -EOPNOTSUPP;
+		}
+
+		flow_spec->spi = match.key->spi;
+		flow_mask->spi = match.mask->spi;
+		req->features |= BIT_ULL(NPC_IPSEC_SPI);
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP)) {
