@@ -348,7 +348,6 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	struct clk *clk, *icnclk;
 	int ret = 0;
 	u16 host_version;
-	struct resource *res;
 	struct reset_control *rstc;
 
 	clk =  devm_clk_get(&pdev->dev, "mmc");
@@ -397,9 +396,7 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	}
 
 	/* Configure the FlashSS Top registers for setting eMMC TX/RX delay */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "top-mmc-delay");
-	pdata->top_ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	pdata->top_ioaddr = devm_platform_ioremap_resource_byname(pdev, "top-mmc-delay");
 	if (IS_ERR(pdata->top_ioaddr))
 		pdata->top_ioaddr = NULL;
 
