@@ -26,8 +26,15 @@
 	};
 
 	sram: sram@a4000000 {
-		device = "memory";
-		reg = <0xa4000000 0x20000>;
+		compatible = "mmio-sram";
+		reg = <0xa4000000 0x20000>; /* 128k */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0xa4000000 0x20000>;
+
+		sram@0 {
+			reg = <0x0 0x20000>;
+		};
 	};
 
 	timer_clk: timer_clk {
