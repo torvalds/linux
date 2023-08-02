@@ -58,6 +58,17 @@ static const char pp_stats[][ETH_GSTRING_LEN] = {
 	"rx_pp_recycle_released_ref",
 };
 
+/**
+ * page_pool_get_stats() - fetch page pool stats
+ * @pool:	pool from which page was allocated
+ * @stats:	struct page_pool_stats to fill in
+ *
+ * Retrieve statistics about the page_pool. This API is only available
+ * if the kernel has been configured with ``CONFIG_PAGE_POOL_STATS=y``.
+ * A pointer to a caller allocated struct page_pool_stats structure
+ * is passed to this API which is filled in. The caller can then report
+ * those stats to the user (perhaps via ethtool, debugfs, etc.).
+ */
 bool page_pool_get_stats(struct page_pool *pool,
 			 struct page_pool_stats *stats)
 {
@@ -224,6 +235,10 @@ static int page_pool_init(struct page_pool *pool,
 	return 0;
 }
 
+/**
+ * page_pool_create() - create a page pool.
+ * @params: parameters, see struct page_pool_params
+ */
 struct page_pool *page_pool_create(const struct page_pool_params *params)
 {
 	struct page_pool *pool;
@@ -626,7 +641,21 @@ void page_pool_put_defragged_page(struct page_pool *pool, struct page *page,
 }
 EXPORT_SYMBOL(page_pool_put_defragged_page);
 
-/* Caller must not use data area after call, as this function overwrites it */
+/**
+ * page_pool_put_page_bulk() - release references on multiple pages
+ * @pool:	pool from which pages were allocated
+ * @data:	array holding page pointers
+ * @count:	number of pages in @data
+ *
+ * Tries to refill a number of pages into the ptr_ring cache holding ptr_ring
+ * producer lock. If the ptr_ring is full, page_pool_put_page_bulk()
+ * will release leftover pages to the page allocator.
+ * page_pool_put_page_bulk() is suitable to be run inside the driver NAPI tx
+ * completion loop for the XDP_REDIRECT use case.
+ *
+ * Please note the caller must not use data area after running
+ * page_pool_put_page_bulk(), as this function overwrites it.
+ */
 void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 			     int count)
 {
