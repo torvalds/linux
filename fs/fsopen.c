@@ -209,6 +209,39 @@ err:
 	return ret;
 }
 
+static int vfs_cmd_create(struct fs_context *fc)
+{
+	struct super_block *sb;
+	int ret;
+
+	if (fc->phase != FS_CONTEXT_CREATE_PARAMS)
+		return -EBUSY;
+
+	if (!mount_capable(fc))
+		return -EPERM;
+
+	fc->phase = FS_CONTEXT_CREATING;
+
+	ret = vfs_get_tree(fc);
+	if (ret) {
+		fc->phase = FS_CONTEXT_FAILED;
+		return ret;
+	}
+
+	sb = fc->root->d_sb;
+	ret = security_sb_kern_mount(sb);
+	if (unlikely(ret)) {
+		fc_drop_locked(fc);
+		fc->phase = FS_CONTEXT_FAILED;
+		return ret;
+	}
+
+	/* vfs_get_tree() callchains will have grabbed @s_umount */
+	up_write(&sb->s_umount);
+	fc->phase = FS_CONTEXT_AWAITING_MOUNT;
+	return 0;
+}
+
 /*
  * Check the state and apply the configuration.  Note that this function is
  * allowed to 'steal' the value by setting param->xxx to NULL before returning.
@@ -224,23 +257,7 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
 		return ret;
 	switch (cmd) {
 	case FSCONFIG_CMD_CREATE:
-		if (fc->phase != FS_CONTEXT_CREATE_PARAMS)
-			return -EBUSY;
-		if (!mount_capable(fc))
-			return -EPERM;
-		fc->phase = FS_CONTEXT_CREATING;
-		ret = vfs_get_tree(fc);
-		if (ret)
-			break;
-		sb = fc->root->d_sb;
-		ret = security_sb_kern_mount(sb);
-		if (unlikely(ret)) {
-			fc_drop_locked(fc);
-			break;
-		}
-		up_write(&sb->s_umount);
-		fc->phase = FS_CONTEXT_AWAITING_MOUNT;
-		return 0;
+		return vfs_cmd_create(fc);
 	case FSCONFIG_CMD_RECONFIGURE:
 		if (fc->phase != FS_CONTEXT_RECONF_PARAMS)
 			return -EBUSY;
