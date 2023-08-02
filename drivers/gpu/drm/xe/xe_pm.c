@@ -154,8 +154,11 @@ void xe_pm_init(struct xe_device *xe)
 	drmm_mutex_init(&xe->drm, &xe->d3cold.lock);
 
 	xe->d3cold.capable = xe_pm_pci_d3cold_capable(pdev);
-	xe_device_sysfs_init(xe);
-	xe_pm_set_vram_threshold(xe, DEFAULT_VRAM_THRESHOLD);
+
+	if (xe->d3cold.capable) {
+		xe_device_sysfs_init(xe);
+		xe_pm_set_vram_threshold(xe, DEFAULT_VRAM_THRESHOLD);
+	}
 
 	xe_pm_runtime_init(xe);
 }
