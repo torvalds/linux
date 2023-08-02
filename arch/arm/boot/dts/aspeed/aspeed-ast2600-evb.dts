@@ -41,6 +41,13 @@
 			compatible = "shared-dma-pool";
 			reusable;
 		};
+
+		bmc_dev_memory: bmc_dev_memory {
+			size = <0x00100000>;
+			alignment = <0x00100000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
 	};
 
 	vcc_sdhci0: regulator-vcc-sdhci0 {
@@ -347,6 +354,14 @@
 &gfx {
 	status = "okay";
 	memory-region = <&gfx_memory>;
+};
+
+&pciecfg {
+	status = "okay";
+};
+
+&pcie1 {
+	status = "okay";
 };
 
 &espi {
