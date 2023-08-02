@@ -22,10 +22,16 @@
 ALL_TESTS="
 	ping_ipv4
 	ping_ipv6
+	config_remaster
+	ping_ipv4
+	ping_ipv6
 	config_remove_pvid
 	ping_ipv4_fails
 	ping_ipv6_fails
 	config_add_pvid
+	ping_ipv4
+	ping_ipv6
+	config_late_pvid
 	ping_ipv4
 	ping_ipv6
 "
@@ -86,6 +92,15 @@ router_destroy()
 	ip link del dev br1
 }
 
+config_remaster()
+{
+	log_info "Remaster bridge slave"
+
+	ip link set dev $swp1 nomaster
+	sleep 2
+	ip link set dev $swp1 master br1
+}
+
 config_remove_pvid()
 {
 	log_info "Remove PVID from the bridge"
@@ -100,6 +115,17 @@ config_add_pvid()
 
 	bridge vlan add dev br1 vid 1 self pvid untagged
 	sleep 2
+}
+
+config_late_pvid()
+{
+	log_info "Add bridge PVID after enslaving port"
+
+	ip link set dev $swp1 nomaster
+	ip link set dev br1 type bridge vlan_default_pvid 0
+	sleep 2
+	ip link set dev $swp1 master br1
+	ip link set dev br1 type bridge vlan_default_pvid 1
 }
 
 setup_prepare()
