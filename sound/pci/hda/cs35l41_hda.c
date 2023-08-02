@@ -1124,6 +1124,13 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
+	dev_info(cs35l41->dev,
+		 "CS35L41 Bound - SSID: %s, BST: %d, VSPK: %d, CH: %c, FW EN: %d, SPKID: %d\n",
+		 cs35l41->acpi_subsystem_id, cs35l41->hw_cfg.bst_type,
+		 cs35l41->hw_cfg.gpio1.func == CS35l41_VSPK_SWITCH,
+		 cs35l41->hw_cfg.spk_pos ? 'R' : 'L',
+		 cs35l41->firmware_running, cs35l41->speaker_id);
+
 	return ret;
 }
 
