@@ -339,7 +339,25 @@ static int rt5682_sdw_init(struct device *dev, struct regmap *regmap,
 	ret = devm_snd_soc_register_component(dev,
 					      &rt5682_soc_component_dev,
 					      rt5682_dai, ARRAY_SIZE(rt5682_dai));
-	dev_dbg(&slave->dev, "%s\n", __func__);
+	if (ret < 0)
+		return ret;
+
+	/* set autosuspend parameters */
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+
+	/* make sure the device does not suspend immediately */
+	pm_runtime_mark_last_busy(dev);
+
+	pm_runtime_enable(dev);
+
+	/* important note: the device is NOT tagged as 'active' and will remain
+	 * 'suspended' until the hardware is enumerated/initialized. This is required
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * fail with -EACCESS because of race conditions between card creation and enumeration
+	 */
+
+	dev_dbg(dev, "%s\n", __func__);
 
 	return ret;
 }
@@ -361,21 +379,11 @@ static int rt5682_io_init(struct device *dev, struct sdw_slave *slave)
 		regcache_cache_bypass(rt5682->regmap, true);
 
 	/*
-	 * PM runtime is only enabled when a Slave reports as Attached
+	 * PM runtime status is marked as 'active' only when a Slave reports as Attached
 	 */
-	if (!rt5682->first_hw_init) {
-		/* set autosuspend parameters */
-		pm_runtime_set_autosuspend_delay(&slave->dev, 3000);
-		pm_runtime_use_autosuspend(&slave->dev);
-
+	if (!rt5682->first_hw_init)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
-
-		/* make sure the device does not suspend immediately */
-		pm_runtime_mark_last_busy(&slave->dev);
-
-		pm_runtime_enable(&slave->dev);
-	}
 
 	pm_runtime_get_noresume(&slave->dev);
 
@@ -687,8 +695,7 @@ static int rt5682_sdw_remove(struct sdw_slave *slave)
 	if (rt5682->hw_init)
 		cancel_delayed_work_sync(&rt5682->jack_detect_work);
 
-	if (rt5682->first_hw_init)
-		pm_runtime_disable(&slave->dev);
+	pm_runtime_disable(&slave->dev);
 
 	return 0;
 }

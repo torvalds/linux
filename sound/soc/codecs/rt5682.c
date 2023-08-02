@@ -1017,6 +1017,9 @@ static int rt5682_set_jack_detect(struct snd_soc_component *component,
 
 	rt5682->hs_jack = hs_jack;
 
+	if (rt5682->is_sdw && !rt5682->first_hw_init)
+		return 0;
+
 	if (!hs_jack) {
 		regmap_update_bits(rt5682->regmap, RT5682_IRQ_CTRL_2,
 			RT5682_JD1_EN_MASK, RT5682_JD1_DIS);
