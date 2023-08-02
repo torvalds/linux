@@ -1244,9 +1244,10 @@ static void fs_mark_dead(struct block_device *bdev)
 	up_read(&sb->s_umount);
 }
 
-static const struct blk_holder_ops fs_holder_ops = {
+const struct blk_holder_ops fs_holder_ops = {
 	.mark_dead		= fs_mark_dead,
 };
+EXPORT_SYMBOL_GPL(fs_holder_ops);
 
 static int set_bdev_super(struct super_block *s, void *data)
 {
