@@ -343,8 +343,10 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 		return dev_err_probe(ocmem->dev, ret, "Failed to enable core clock\n");
 
 	ret = clk_prepare_enable(ocmem->iface_clk);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(ocmem->core_clk);
 		return dev_err_probe(ocmem->dev, ret, "Failed to enable iface clock\n");
+	}
 
 	if (qcom_scm_restore_sec_cfg_available()) {
 		dev_dbg(dev, "configuring scm\n");
