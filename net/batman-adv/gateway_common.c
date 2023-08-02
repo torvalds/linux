@@ -9,85 +9,13 @@
 
 #include <linux/atomic.h>
 #include <linux/byteorder/generic.h>
-#include <linux/kstrtox.h>
-#include <linux/limits.h>
-#include <linux/math64.h>
-#include <linux/netdevice.h>
 #include <linux/stddef.h>
-#include <linux/string.h>
+#include <linux/types.h>
 #include <uapi/linux/batadv_packet.h>
 #include <uapi/linux/batman_adv.h>
 
 #include "gateway_client.h"
-#include "log.h"
 #include "tvlv.h"
-
-/**
- * batadv_parse_throughput() - parse supplied string buffer to extract
- *  throughput information
- * @net_dev: the soft interface net device
- * @buff: string buffer to parse
- * @description: text shown when throughput string cannot be parsed
- * @throughput: pointer holding the returned throughput information
- *
- * Return: false on parse error and true otherwise.
- */
-bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
-			     const char *description, u32 *throughput)
-{
-	enum batadv_bandwidth_units bw_unit_type = BATADV_BW_UNIT_KBIT;
-	u64 lthroughput;
-	char *tmp_ptr;
-	int ret;
-
-	if (strlen(buff) > 4) {
-		tmp_ptr = buff + strlen(buff) - 4;
-
-		if (strncasecmp(tmp_ptr, "mbit", 4) == 0)
-			bw_unit_type = BATADV_BW_UNIT_MBIT;
-
-		if (strncasecmp(tmp_ptr, "kbit", 4) == 0 ||
-		    bw_unit_type == BATADV_BW_UNIT_MBIT)
-			*tmp_ptr = '\0';
-	}
-
-	ret = kstrtou64(buff, 10, &lthroughput);
-	if (ret) {
-		batadv_err(net_dev,
-			   "Invalid throughput speed for %s: %s\n",
-			   description, buff);
-		return false;
-	}
-
-	switch (bw_unit_type) {
-	case BATADV_BW_UNIT_MBIT:
-		/* prevent overflow */
-		if (U64_MAX / 10 < lthroughput) {
-			batadv_err(net_dev,
-				   "Throughput speed for %s too large: %s\n",
-				   description, buff);
-			return false;
-		}
-
-		lthroughput *= 10;
-		break;
-	case BATADV_BW_UNIT_KBIT:
-	default:
-		lthroughput = div_u64(lthroughput, 100);
-		break;
-	}
-
-	if (lthroughput > U32_MAX) {
-		batadv_err(net_dev,
-			   "Throughput speed for %s too large: %s\n",
-			   description, buff);
-		return false;
-	}
-
-	*throughput = lthroughput;
-
-	return true;
-}
 
 /**
  * batadv_gw_tvlv_container_update() - update the gw tvlv container after

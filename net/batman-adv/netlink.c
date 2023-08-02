@@ -548,14 +548,11 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		 * algorithm in use implements the GW API
 		 */
 
-		u32 sel_class_max = 0xffffffffu;
+		u32 sel_class_max = bat_priv->algo_ops->gw.sel_class_max;
 		u32 sel_class;
 
 		attr = info->attrs[BATADV_ATTR_GW_SEL_CLASS];
 		sel_class = nla_get_u32(attr);
-
-		if (!bat_priv->algo_ops->gw.store_sel_class)
-			sel_class_max = BATADV_TQ_MAX_VALUE;
 
 		if (sel_class >= 1 && sel_class <= sel_class_max) {
 			atomic_set(&bat_priv->gw.sel_class, sel_class);
