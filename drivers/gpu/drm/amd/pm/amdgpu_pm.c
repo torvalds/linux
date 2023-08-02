@@ -743,7 +743,7 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 		type = PP_OD_EDIT_CCLK_VDDC_TABLE;
 	else if (*buf == 'm')
 		type = PP_OD_EDIT_MCLK_VDDC_TABLE;
-	else if(*buf == 'r')
+	else if (*buf == 'r')
 		type = PP_OD_RESTORE_DEFAULT_TABLE;
 	else if (*buf == 'c')
 		type = PP_OD_COMMIT_DPM_TABLE;
@@ -3536,7 +3536,8 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 #if defined(CONFIG_DEBUG_FS)
 
 static void amdgpu_debugfs_prints_cpu_info(struct seq_file *m,
-					   struct amdgpu_device *adev) {
+					   struct amdgpu_device *adev)
+{
 	uint16_t *p_val;
 	uint32_t size;
 	int i;
