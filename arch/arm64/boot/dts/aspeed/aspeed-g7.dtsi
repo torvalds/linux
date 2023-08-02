@@ -567,6 +567,32 @@
 			resets = <&cpu_clk ASPEED_RESET_HACE>;
 			status = "disabled";
 		};
+
+		xdma0: xdma@12c04000 {
+			compatible = "aspeed,ast2700-xdma";
+			reg = <0x0 0x12c04000 0x0 0x100>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_BCLK>;
+			resets = <&cpu_clk ASPEED_RESET_XDMA0>;
+			reset-names = "device";
+			interrupts-extended = <&gic GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+					      <&scu_ic0 ASPEED_AST2700_SCU_IC0_PCIE_PERST_LO_TO_HI>;
+			aspeed,pcie-device = "bmc";
+			aspeed,scu = <&syscon>;
+			status = "disabled";
+		};
+
+		xdma1: xdma@12c05000 {
+			compatible = "aspeed,ast2700-xdma";
+			reg = <0x0 0x12c05000 0x0 0x100>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_BCLK>;
+			resets = <&cpu_clk ASPEED_RESET_XDMA1>;
+			reset-names = "device";
+			interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+					      <&scu_ic1 ASPEED_AST2700_SCU_IC1_PCIE_RCRST_LO_TO_HI>;
+			aspeed,pcie-device = "bmc";
+			aspeed,scu = <&syscon>;
+			status = "disabled";
+		};
 	};
 
 	soc1: soc@14000000 {
