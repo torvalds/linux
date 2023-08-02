@@ -444,15 +444,6 @@ struct mwifiex_current_bss_params {
 	u8 data_rates[MWIFIEX_SUPPORTED_RATES];
 };
 
-struct mwifiex_sleep_params {
-	u16 sp_error;
-	u16 sp_offset;
-	u16 sp_stable_time;
-	u8 sp_cal_control;
-	u8 sp_ext_sleep_clk;
-	u16 sp_reserved;
-};
-
 struct mwifiex_sleep_period {
 	u16 period;
 	u16 reserved;
@@ -681,7 +672,6 @@ struct mwifiex_private {
 	struct cfg80211_chan_def dfs_chandef;
 	struct workqueue_struct *dfs_cac_workqueue;
 	struct delayed_work dfs_cac_work;
-	struct timer_list dfs_chan_switch_timer;
 	struct workqueue_struct *dfs_chan_sw_workqueue;
 	struct delayed_work dfs_chan_sw_work;
 	struct cfg80211_beacon_data beacon_after;
@@ -955,7 +945,6 @@ struct mwifiex_adapter {
 	u8 config_bands;
 	struct mwifiex_chan_scan_param_set *scan_channels;
 	u8 tx_lock_flag;
-	struct mwifiex_sleep_params sleep_params;
 	struct mwifiex_sleep_period sleep_period;
 	u16 ps_mode;
 	u32 ps_state;

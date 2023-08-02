@@ -474,7 +474,6 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 	if (!skb->len) {
 		mwifiex_dbg(adapter, ERROR,
 			    "Tx: bad packet length: %d\n", skb->len);
-		tx_info->status_code = -1;
 		return skb->data;
 	}
 
