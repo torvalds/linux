@@ -419,6 +419,7 @@
   __traceiter_android_vh_try_to_freeze_todo
   __traceiter_android_vh_try_to_freeze_todo_unfrozen
   __traceiter_android_vh_try_to_unmap_one
+  __traceiter_android_vh_tune_scan_type
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_clock_scaling
   __traceiter_android_vh_ufs_compl_command
@@ -588,6 +589,7 @@
   __tracepoint_android_vh_try_to_unmap_one
   __tracepoint_android_vh_try_to_freeze_todo
   __tracepoint_android_vh_try_to_freeze_todo_unfrozen
+  __tracepoint_android_vh_tune_scan_type
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_clock_scaling
   __tracepoint_android_vh_ufs_compl_command
