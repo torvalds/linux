@@ -301,7 +301,7 @@ struct msm_gem_submit {
 #define BO_VMA_PINNED	0x1000	/* vma (virtual address) is pinned */
 		uint32_t flags;
 		union {
-			struct msm_gem_object *obj;
+			struct drm_gem_object *obj;
 			uint32_t handle;
 		};
 		uint64_t iova;

@@ -24,7 +24,7 @@ static struct dma_fence *msm_job_run(struct drm_sched_job *job)
 	mutex_lock(&priv->lru.lock);
 
 	for (i = 0; i < submit->nr_bos; i++) {
-		struct drm_gem_object *obj = &submit->bos[i].obj->base;
+		struct drm_gem_object *obj = submit->bos[i].obj;
 
 		msm_gem_vma_unpin_fenced(submit->bos[i].vma, fctx);
 		msm_gem_unpin_active(obj);

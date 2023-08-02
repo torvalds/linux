@@ -66,7 +66,7 @@ void a5xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 {
 	struct msm_ringbuffer *ring = submit->ring;
-	struct msm_gem_object *obj;
+	struct drm_gem_object *obj;
 	uint32_t *ptr, dwords;
 	unsigned int i;
 
@@ -83,7 +83,7 @@ static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit
 			obj = submit->bos[submit->cmd[i].idx].obj;
 			dwords = submit->cmd[i].size;
 
-			ptr = msm_gem_get_vaddr(&obj->base);
+			ptr = msm_gem_get_vaddr(obj);
 
 			/* _get_vaddr() shouldn't fail at this point,
 			 * since we've already mapped it once in
@@ -103,7 +103,7 @@ static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit
 				OUT_RING(ring, ptr[i]);
 			}
 
-			msm_gem_put_vaddr(&obj->base);
+			msm_gem_put_vaddr(obj);
 
 			break;
 		}
