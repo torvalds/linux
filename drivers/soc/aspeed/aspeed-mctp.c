@@ -2135,23 +2135,6 @@ static int aspeed_mctp_irq_init(struct aspeed_mctp *priv)
 
 static void aspeed_mctp_hw_reset(struct aspeed_mctp *priv)
 {
-	u32 reg;
-
-	/*
-	 * XXX: We need to skip the reset when we probe multiple times.
-	 * Currently calling reset more than once seems to make the HW upset,
-	 * however, we do need to reset once after the first boot before we're
-	 * able to use the HW.
-	 */
-	if (!priv->rc_f) {
-		regmap_read(priv->map, ASPEED_MCTP_TX_BUF_ADDR, &reg);
-
-		if (reg) {
-			dev_info(priv->dev, "Already initialized - skipping hardware reset\n");
-			return;
-		}
-	}
-
 	if (reset_control_deassert(priv->reset) != 0)
 		dev_warn(priv->dev, "Failed to deassert reset\n");
 
