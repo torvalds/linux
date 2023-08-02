@@ -1948,7 +1948,7 @@ xfs_free_buftarg(
 	fs_put_dax(btp->bt_daxdev, btp->bt_mount);
 	/* the main block device is closed by kill_block_super */
 	if (bdev != btp->bt_mount->m_super->s_bdev)
-		blkdev_put(bdev, btp->bt_mount);
+		blkdev_put(bdev, btp->bt_mount->m_super);
 
 	kmem_free(btp);
 }
