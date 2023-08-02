@@ -273,7 +273,7 @@
 		>;
 	};
 
-	mcu_rpi_header_gpio0_pins0_default: mcu-rpi-header-gpio0-pins0-default {
+	mcu_rpi_header_gpio0_pins0_default: mcu-rpi-header-gpio0-default-pins-0 {
 		pinctrl-single,pins = <
 			J721S2_WKUP_IOPAD(0x118, PIN_INPUT, 7) /* (G25) WKUP_GPIO0_66 */
 			J721S2_WKUP_IOPAD(0x05C, PIN_INPUT, 7) /* (E24) MCU_SPI1_D0.WKUP_GPIO0_1 */
@@ -289,7 +289,7 @@
 };
 
 &wkup_pmx3 {
-	mcu_rpi_header_gpio0_pins1_default: mcu-rpi-header-gpio0-pins1-default {
+	mcu_rpi_header_gpio0_pins1_default: mcu-rpi-header-gpio0-default-pins-1 {
 		pinctrl-single,pins = <
 			J721S2_WKUP_IOPAD(0x000, PIN_INPUT, 7) /* (K26) WKUP_GPIO0_49 */
 		>;
