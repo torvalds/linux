@@ -56,9 +56,7 @@
 #include "assert_support.h"
 #include "math_support.h"
 #include "sw_event_global.h"			/* Event IDs.*/
-#if !defined(ISP2401)
 #include "ia_css_ifmtr.h"
-#endif
 #include "input_system.h"
 #include "mmu_device.h"		/* mmu_set_page_table_base_index(), ... */
 #include "ia_css_mmu_private.h" /* sh_css_mmu_set_page_table_base_index() */
@@ -345,15 +343,12 @@ static struct sh_css_hmm_buffer_record
 *sh_css_hmm_buffer_record_validate(ia_css_ptr ddr_buffer_addr,
 				   enum ia_css_buffer_type type);
 
-#ifdef ISP2401
 static unsigned int get_crop_lines_for_bayer_order(const struct
 	ia_css_stream_config *config);
 static unsigned int get_crop_columns_for_bayer_order(const struct
 	ia_css_stream_config *config);
 static void get_pipe_extra_pixel(struct ia_css_pipe *pipe,
 				 unsigned int *extra_row, unsigned int *extra_column);
-
-#endif
 
 static void
 sh_css_pipe_free_shading_table(struct ia_css_pipe *pipe)
@@ -7971,7 +7966,6 @@ ia_css_pipe_override_frame_format(struct ia_css_pipe *pipe,
 	return err;
 }
 
-#if !defined(ISP2401)
 /* Configuration of INPUT_SYSTEM_VERSION_2401 is done on SP */
 static int
 ia_css_stream_configure_rx(struct ia_css_stream *stream)
@@ -8014,7 +8008,6 @@ ia_css_stream_configure_rx(struct ia_css_stream *stream)
 	stream->reconfigure_css_rx = true;
 	return 0;
 }
-#endif
 
 static struct ia_css_pipe *
 find_pipe(struct ia_css_pipe *pipes[], unsigned int num_pipes,
@@ -8100,9 +8093,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 
 	/* check if mipi size specified */
 	if (stream_config->mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR)
-#ifdef ISP2401
-		if (!stream_config->online)
-#endif
+		if (!IS_ISP2401 || (IS_ISP2401 && !stream_config->online))
 		{
 			unsigned int port = (unsigned int)stream_config->source.port.port;
 
@@ -8203,32 +8194,31 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 	switch (curr_stream->config.mode) {
 	case IA_CSS_INPUT_MODE_SENSOR:
 	case IA_CSS_INPUT_MODE_BUFFERED_SENSOR:
-#if !defined(ISP2401)
-		ia_css_stream_configure_rx(curr_stream);
-#endif
+		if (!IS_ISP2401)
+			ia_css_stream_configure_rx(curr_stream);
 		break;
 	case IA_CSS_INPUT_MODE_TPG:
-#if !defined(ISP2401)
-		IA_CSS_LOG("tpg_configuration: x_mask=%d, y_mask=%d, x_delta=%d, y_delta=%d, xy_mask=%d",
-			   curr_stream->config.source.tpg.x_mask,
-			   curr_stream->config.source.tpg.y_mask,
-			   curr_stream->config.source.tpg.x_delta,
-			   curr_stream->config.source.tpg.y_delta,
-			   curr_stream->config.source.tpg.xy_mask);
+		if (!IS_ISP2401) {
+			IA_CSS_LOG("tpg_configuration: x_mask=%d, y_mask=%d, x_delta=%d, y_delta=%d, xy_mask=%d",
+				   curr_stream->config.source.tpg.x_mask,
+				   curr_stream->config.source.tpg.y_mask,
+				   curr_stream->config.source.tpg.x_delta,
+				   curr_stream->config.source.tpg.y_delta,
+				   curr_stream->config.source.tpg.xy_mask);
 
-		sh_css_sp_configure_tpg(
-		    curr_stream->config.source.tpg.x_mask,
-		    curr_stream->config.source.tpg.y_mask,
-		    curr_stream->config.source.tpg.x_delta,
-		    curr_stream->config.source.tpg.y_delta,
-		    curr_stream->config.source.tpg.xy_mask);
-#endif
+			sh_css_sp_configure_tpg(
+			    curr_stream->config.source.tpg.x_mask,
+			    curr_stream->config.source.tpg.y_mask,
+			    curr_stream->config.source.tpg.x_delta,
+			    curr_stream->config.source.tpg.y_delta,
+			    curr_stream->config.source.tpg.xy_mask);
+		}
 		break;
 	case IA_CSS_INPUT_MODE_PRBS:
-#if !defined(ISP2401)
-		IA_CSS_LOG("mode prbs");
-		sh_css_sp_configure_prbs(curr_stream->config.source.prbs.seed);
-#endif
+		if (!IS_ISP2401) {
+			IA_CSS_LOG("mode prbs");
+			sh_css_sp_configure_prbs(curr_stream->config.source.prbs.seed);
+		}
 		break;
 	case IA_CSS_INPUT_MODE_MEMORY:
 		IA_CSS_LOG("mode memory");
