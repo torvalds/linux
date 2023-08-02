@@ -115,7 +115,7 @@ static __always_inline nodemask_t get_memtier_nodemask(struct memory_tier *memti
 	nodemask_t nodes = NODE_MASK_NONE;
 	struct memory_dev_type *memtype;
 
-	list_for_each_entry(memtype, &memtier->memory_types, tier_sibiling)
+	list_for_each_entry(memtype, &memtier->memory_types, tier_sibling)
 		nodes_or(nodes, nodes, memtype->nodes);
 
 	return nodes;
@@ -174,7 +174,7 @@ static struct memory_tier *find_create_memory_tier(struct memory_dev_type *memty
 	 * If the memtype is already part of a memory tier,
 	 * just return that.
 	 */
-	if (!list_empty(&memtype->tier_sibiling)) {
+	if (!list_empty(&memtype->tier_sibling)) {
 		list_for_each_entry(memtier, &memory_tiers, list) {
 			if (adistance == memtier->adistance_start)
 				return memtier;
@@ -218,7 +218,7 @@ static struct memory_tier *find_create_memory_tier(struct memory_dev_type *memty
 	memtier = new_memtier;
 
 link_memtype:
-	list_add(&memtype->tier_sibiling, &memtier->memory_types);
+	list_add(&memtype->tier_sibling, &memtier->memory_types);
 	return memtier;
 }
 
@@ -527,7 +527,7 @@ static bool clear_node_memory_tier(int node)
 		memtype = node_memory_types[node].memtype;
 		node_clear(node, memtype->nodes);
 		if (nodes_empty(memtype->nodes)) {
-			list_del_init(&memtype->tier_sibiling);
+			list_del_init(&memtype->tier_sibling);
 			if (list_empty(&memtier->memory_types))
 				destroy_memory_tier(memtier);
 		}
@@ -553,7 +553,7 @@ struct memory_dev_type *alloc_memory_type(int adistance)
 		return ERR_PTR(-ENOMEM);
 
 	memtype->adistance = adistance;
-	INIT_LIST_HEAD(&memtype->tier_sibiling);
+	INIT_LIST_HEAD(&memtype->tier_sibling);
 	memtype->nodes  = NODE_MASK_NONE;
 	kref_init(&memtype->kref);
 	return memtype;
