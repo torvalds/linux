@@ -85,7 +85,6 @@
 
 #include "sched.h"
 #include "stats.h"
-#include "autogroup.h"
 
 #include "autogroup.h"
 #include "pelt.h"
