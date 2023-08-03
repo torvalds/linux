@@ -293,8 +293,10 @@ static const unsigned int max77857_switch_freq[] = {
 	1200000, 1500000, 1800000, 2100000
 };
 
+#define RAMAP_DELAY_INIT_VAL 1333
+
 static const unsigned int max77857_ramp_table[2][4] = {
-	{ 1333, 667, 333, 227 }, /* when switch freq is 1.8MHz or 2.1MHz */
+	{ RAMAP_DELAY_INIT_VAL, 667, 333, 227 }, /* when switch freq is 1.8MHz or 2.1MHz */
 	{ 1166, 667, 333, 167 }, /* when switch freq is 1.2MHz or 1.5MHz */
 };
 
@@ -309,7 +311,7 @@ static struct regulator_desc max77857_regulator_desc = {
 	.n_ramp_values = ARRAY_SIZE(max77857_ramp_table[0]),
 	.ramp_reg = MAX77857_REG_CONT3,
 	.ramp_mask = GENMASK(1, 0),
-	.ramp_delay = max77857_ramp_table[0][0],
+	.ramp_delay = RAMAP_DELAY_INIT_VAL,
 	.owner = THIS_MODULE,
 };
 
