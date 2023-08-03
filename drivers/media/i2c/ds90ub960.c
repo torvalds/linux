@@ -1771,6 +1771,7 @@ static int ub960_init_tx_ports(struct ub960_data *priv)
 		break;
 	case MHZ(1200):
 		speed_select = 1;
+		pll_div = 0x18;
 		break;
 	case MHZ(800):
 		speed_select = 2;
