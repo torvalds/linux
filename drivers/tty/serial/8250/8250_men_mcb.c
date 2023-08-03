@@ -222,11 +222,13 @@ static int serial_8250_men_mcb_probe(struct mcb_device *mdev,
 					    + data->offset[i];
 
 		/* ok, register the port */
-		data->line[i] = serial8250_register_8250_port(&uart);
-		if (data->line[i] < 0) {
+		res = serial8250_register_8250_port(&uart);
+		if (res < 0) {
 			dev_err(&mdev->dev, "unable to register UART port\n");
-			return data->line[i];
+			return res;
 		}
+
+		data->line[i] = res;
 		dev_info(&mdev->dev, "found MCB UART: ttyS%d\n", data->line[i]);
 	}
 
