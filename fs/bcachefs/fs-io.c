@@ -3830,6 +3830,7 @@ static bool folio_hole_offset(struct address_space *mapping, loff_t *offset,
 	ret = false;
 unlock:
 	folio_unlock(folio);
+	folio_put(folio);
 	return ret;
 }
 
