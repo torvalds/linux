@@ -5871,7 +5871,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	/*
 	 * Mark @cgrp and the associated csets dead.  The former prevents
 	 * further task migration and child creation by disabling
-	 * cgroup_lock_live_group().  The latter makes the csets ignored by
+	 * cgroup_kn_lock_live().  The latter makes the csets ignored by
 	 * the migration path.
 	 */
 	cgrp->self.flags &= ~CSS_ONLINE;
