@@ -1731,7 +1731,6 @@ static int f_midi2_create_usb_configs(struct f_midi2 *midi2,
 		midi1_out_eps = midi2_midi1_ep_out_descs;
 		break;
 	case USB_SPEED_SUPER:
-	case USB_SPEED_SUPER_PLUS:
 		midi2_midi1_ep_out_desc.wMaxPacketSize = cpu_to_le16(1024);
 		midi2_midi1_ep_in_desc.wMaxPacketSize = cpu_to_le16(1024);
 		for (i = 0; i < midi2->num_eps; i++)
@@ -2001,36 +2000,25 @@ static int f_midi2_bind(struct usb_configuration *c, struct usb_function *f)
 	}
 	f_midi2_free_usb_configs(&config);
 
-	if (gadget_is_dualspeed(midi2->gadget)) {
-		status = f_midi2_create_usb_configs(midi2, &config, USB_SPEED_HIGH);
-		if (status < 0)
-			goto fail;
-		f->hs_descriptors = usb_copy_descriptors(config.list);
-		if (!f->hs_descriptors) {
-			status = -ENOMEM;
-			goto fail;
-		}
-		f_midi2_free_usb_configs(&config);
+	status = f_midi2_create_usb_configs(midi2, &config, USB_SPEED_HIGH);
+	if (status < 0)
+		goto fail;
+	f->hs_descriptors = usb_copy_descriptors(config.list);
+	if (!f->hs_descriptors) {
+		status = -ENOMEM;
+		goto fail;
 	}
+	f_midi2_free_usb_configs(&config);
 
-	if (gadget_is_superspeed(midi2->gadget)) {
-		status = f_midi2_create_usb_configs(midi2, &config, USB_SPEED_SUPER);
-		if (status < 0)
-			goto fail;
-		f->ss_descriptors = usb_copy_descriptors(config.list);
-		if (!f->ss_descriptors) {
-			status = -ENOMEM;
-			goto fail;
-		}
-		if (gadget_is_superspeed_plus(midi2->gadget)) {
-			f->ssp_descriptors = usb_copy_descriptors(config.list);
-			if (!f->ssp_descriptors) {
-				status = -ENOMEM;
-				goto fail;
-			}
-		}
-		f_midi2_free_usb_configs(&config);
+	status = f_midi2_create_usb_configs(midi2, &config, USB_SPEED_SUPER);
+	if (status < 0)
+		goto fail;
+	f->ss_descriptors = usb_copy_descriptors(config.list);
+	if (!f->ss_descriptors) {
+		status = -ENOMEM;
+		goto fail;
 	}
+	f_midi2_free_usb_configs(&config);
 
 	mutex_unlock(&f_midi2_desc_mutex);
 	return 0;
