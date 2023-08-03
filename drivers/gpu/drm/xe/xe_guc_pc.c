@@ -825,7 +825,7 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	if (ret)
-		return ret;
+		goto out_fail_force_wake;
 
 	ret = pc_action_reset(pc);
 	if (ret)
@@ -851,6 +851,7 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 
 out:
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
+out_fail_force_wake:
 	xe_device_mem_access_put(pc_to_xe(pc));
 	return ret;
 }
