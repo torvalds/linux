@@ -192,6 +192,7 @@ struct teo_bin {
  * @total: Grand total of the "intercepts" and "hits" metrics for all bins.
  * @next_recent_idx: Index of the next @recent_idx entry to update.
  * @recent_idx: Indices of bins corresponding to recent "intercepts".
+ * @tick_hits: Number of "hits" after TICK_NSEC.
  * @util_threshold: Threshold above which the CPU is considered utilized
  */
 struct teo_cpu {
@@ -201,6 +202,7 @@ struct teo_cpu {
 	unsigned int total;
 	int next_recent_idx;
 	int recent_idx[NR_RECENT];
+	unsigned int tick_hits;
 	unsigned long util_threshold;
 };
 
@@ -232,6 +234,7 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 {
 	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
 	int i, idx_timer = 0, idx_duration = 0;
+	s64 target_residency_ns;
 	u64 measured_ns;
 
 	if (cpu_data->time_span_ns >= cpu_data->sleep_length_ns) {
@@ -272,13 +275,14 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 * fall into.
 	 */
 	for (i = 0; i < drv->state_count; i++) {
-		s64 target_residency_ns = drv->states[i].target_residency_ns;
 		struct teo_bin *bin = &cpu_data->state_bins[i];
 
 		bin->hits -= bin->hits >> DECAY_SHIFT;
 		bin->intercepts -= bin->intercepts >> DECAY_SHIFT;
 
 		cpu_data->total += bin->hits + bin->intercepts;
+
+		target_residency_ns = drv->states[i].target_residency_ns;
 
 		if (target_residency_ns <= cpu_data->sleep_length_ns) {
 			idx_timer = i;
@@ -295,6 +299,26 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		cpu_data->state_bins[cpu_data->recent_idx[i]].recent--;
 
 	/*
+	 * If the deepest state's target residency is below the tick length,
+	 * make a record of it to help teo_select() decide whether or not
+	 * to stop the tick.  This effectively adds an extra hits-only bin
+	 * beyond the last state-related one.
+	 */
+	if (target_residency_ns < TICK_NSEC) {
+		cpu_data->tick_hits -= cpu_data->tick_hits >> DECAY_SHIFT;
+
+		cpu_data->total += cpu_data->tick_hits;
+
+		if (TICK_NSEC <= cpu_data->sleep_length_ns) {
+			idx_timer = drv->state_count;
+			if (TICK_NSEC <= measured_ns) {
+				cpu_data->tick_hits += PULSE;
+				goto end;
+			}
+		}
+	}
+
+	/*
 	 * If the measured idle duration falls into the same bin as the sleep
 	 * length, this is a "hit", so update the "hits" metric for that bin.
 	 * Otherwise, update the "intercepts" metric for the bin fallen into by
@@ -309,6 +333,7 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		cpu_data->recent_idx[i] = idx_duration;
 	}
 
+end:
 	cpu_data->total += PULSE;
 }
 
@@ -356,6 +381,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
 	s64 latency_req = cpuidle_governor_latency_req(dev->cpu);
 	ktime_t delta_tick = TICK_NSEC / 2;
+	unsigned int tick_intercept_sum = 0;
 	unsigned int idx_intercept_sum = 0;
 	unsigned int intercept_sum = 0;
 	unsigned int idx_recent_sum = 0;
@@ -429,6 +455,8 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		hit_sum += prev_bin->hits;
 		recent_sum += prev_bin->recent;
 
+		tick_intercept_sum = intercept_sum;
+
 		if (dev->states_usage[i].disable)
 			continue;
 
@@ -460,6 +488,8 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		duration_ns = drv->states[idx].target_residency_ns;
 		goto end;
 	}
+
+	tick_intercept_sum += cpu_data->state_bins[drv->state_count-1].intercepts;
 
 	/*
 	 * If the sum of the intercepts metric for all of the idle states
@@ -576,6 +606,15 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		if (teo_state_ok(i, drv))
 			idx = i;
 	}
+
+	/*
+	 * If the selected state's target residency is below the tick length
+	 * and intercepts occurring before the tick length are the majority of
+	 * total wakeup events, do not stop the tick.
+	 */
+	if (drv->states[idx].target_residency_ns < TICK_NSEC &&
+	    tick_intercept_sum > cpu_data->total / 2 + cpu_data->total / 8)
+		duration_ns = TICK_NSEC / 2;
 
 end:
 	/*
