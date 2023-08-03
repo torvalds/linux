@@ -11,7 +11,6 @@
 #define CPM_UART_H
 
 #include <linux/platform_device.h>
-#include <linux/fs_uart_pd.h>
 
 struct gpio_desc;
 
@@ -28,7 +27,7 @@ struct gpio_desc;
 #define FLAG_SMC	0x00000002
 #define FLAG_CONSOLE	0x00000001
 
-#define UART_NR		fs_uart_nr
+#define UART_NR		6
 
 #define RX_NUM_FIFO	4
 #define RX_BUF_SIZE	32
