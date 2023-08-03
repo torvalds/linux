@@ -52,6 +52,9 @@ properties:
   power-domains:
     maxItems: 1
 
+  label:
+    description: Descriptive name of the SPI controller.
+
 required:
   - compatible
   - reg
