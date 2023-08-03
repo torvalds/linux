@@ -15,10 +15,12 @@
 struct gpio_desc;
 
 #if defined(CONFIG_CPM2)
-#include "cpm_uart_cpm2.h"
+#include "asm/cpm2.h"
 #elif defined(CONFIG_CPM1)
-#include "cpm_uart_cpm1.h"
+#include "asm/cpm1.h"
 #endif
+
+#define DPRAM_BASE	((u8 __iomem *)cpm_muram_addr(0))
 
 #define SERIAL_CPM_MAJOR	204
 #define SERIAL_CPM_MINOR	46

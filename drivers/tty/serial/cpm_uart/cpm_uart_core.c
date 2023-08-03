@@ -603,7 +603,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	if (pinfo->clk)
 		clk_set_rate(pinfo->clk, baud);
 	else
-		cpm_set_brg(pinfo->brg - 1, baud);
+		cpm_setbrg(pinfo->brg - 1, baud);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -769,7 +769,8 @@ static void cpm_uart_init_scc(struct uart_cpm_port *pinfo)
 	 * parameter ram.
 	 */
 
-	cpm_set_scc_fcr(sup);
+	out_8(&sup->scc_genscc.scc_rfcr, CPMFCR_GBL | CPMFCR_EB);
+	out_8(&sup->scc_genscc.scc_tfcr, CPMFCR_GBL | CPMFCR_EB);
 
 	out_be16(&sup->scc_genscc.scc_mrblr, pinfo->rx_fifosize);
 	out_be16(&sup->scc_maxidl, 0x10);
@@ -840,7 +841,8 @@ static void cpm_uart_init_smc(struct uart_cpm_port *pinfo)
 	/* Set up the uart parameters in the
 	 * parameter ram.
 	 */
-	cpm_set_smc_fcr(up);
+	out_8(&up->smc_rfcr, CPMFCR_GBL | CPMFCR_EB);
+	out_8(&up->smc_tfcr, CPMFCR_GBL | CPMFCR_EB);
 
 	/* Using idle character time requires some additional tuning.  */
 	out_be16(&up->smc_mrblr, pinfo->rx_fifosize);
