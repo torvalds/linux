@@ -681,6 +681,8 @@ struct dce_hwseq_registers {
 	uint32_t DMU_MEM_PWR_CNTL;
 	uint32_t DCHUBBUB_ARB_HOSTVM_CNTL;
 	uint32_t HPO_TOP_HW_CONTROL;
+	uint32_t DMU_CLK_CNTL;
+	uint32_t DCCG_GATE_DISABLE_CNTL5;
 };
  /* set field name */
 #define HWS_SF(blk_name, reg_name, field_name, post_fix)\
@@ -1167,12 +1169,29 @@ struct dce_hwseq_registers {
 	type I2C_LIGHT_SLEEP_FORCE;\
 	type HPO_IO_EN;
 
+#define HWSEQ_DCN35_REG_FIELD_LIST(type) \
+	type DISPCLK_R_DMU_GATE_DIS;\
+	type DISPCLK_G_RBBMIF_GATE_DIS;\
+	type RBBMIF_FGCG_REP_DIS;\
+	type IHC_FGCG_REP_DIS;\
+	type DPREFCLK_ALLOW_DS_CLKSTOP;\
+	type DISPCLK_ALLOW_DS_CLKSTOP;\
+	type DPPCLK_ALLOW_DS_CLKSTOP;\
+	type DTBCLK_ALLOW_DS_CLKSTOP;\
+	type DCFCLK_ALLOW_DS_CLKSTOP;\
+	type DPIACLK_ALLOW_DS_CLKSTOP;\
+	type LONO_FGCG_REP_DIS;\
+	type LONO_DISPCLK_GATE_DISABLE;\
+	type LONO_SOCCLK_GATE_DISABLE;\
+	type LONO_DMCUBCLK_GATE_DISABLE;
+
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN3_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN301_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN31_REG_FIELD_LIST(uint8_t)
+	HWSEQ_DCN35_REG_FIELD_LIST(uint8_t)
 };
 
 struct dce_hwseq_mask {
@@ -1181,6 +1200,7 @@ struct dce_hwseq_mask {
 	HWSEQ_DCN3_REG_FIELD_LIST(uint32_t)
 	HWSEQ_DCN301_REG_FIELD_LIST(uint32_t)
 	HWSEQ_DCN31_REG_FIELD_LIST(uint32_t)
+	HWSEQ_DCN35_REG_FIELD_LIST(uint32_t)
 };
 
 
