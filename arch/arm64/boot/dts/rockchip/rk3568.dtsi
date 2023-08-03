@@ -1744,7 +1744,7 @@
 		clock-names = "pclk_csi2host";
 		resets = <&cru SRST_P_CSI2HOST1>;
 		reset-names = "srst_csihost_p";
-		status = "disabled";
+		status = "okay";
 	};
 
 	rkcif: rkcif@fdfe0000 {
