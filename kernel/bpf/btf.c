@@ -29,6 +29,7 @@
 #include <net/netfilter/nf_bpf_link.h>
 
 #include <net/sock.h>
+#include <net/xdp.h>
 #include "../tools/lib/bpf/relo_core.h"
 
 /* BTF (BPF Type Format) is the meta data format which describes
