@@ -178,7 +178,6 @@ static void devlink_nl_post_doit(const struct genl_split_ops *ops,
 }
 
 static const struct devlink_cmd *devl_cmds[] = {
-	[DEVLINK_CMD_GET]		= &devl_cmd_get,
 	[DEVLINK_CMD_PORT_GET]		= &devl_cmd_port_get,
 	[DEVLINK_CMD_SB_GET]		= &devl_cmd_sb_get,
 	[DEVLINK_CMD_SB_POOL_GET]	= &devl_cmd_sb_pool_get,
@@ -186,7 +185,6 @@ static const struct devlink_cmd *devl_cmds[] = {
 	[DEVLINK_CMD_SB_TC_POOL_BIND_GET] = &devl_cmd_sb_tc_pool_bind_get,
 	[DEVLINK_CMD_PARAM_GET]		= &devl_cmd_param_get,
 	[DEVLINK_CMD_REGION_GET]	= &devl_cmd_region_get,
-	[DEVLINK_CMD_INFO_GET]		= &devl_cmd_info_get,
 	[DEVLINK_CMD_HEALTH_REPORTER_GET] = &devl_cmd_health_reporter_get,
 	[DEVLINK_CMD_TRAP_GET]		= &devl_cmd_trap_get,
 	[DEVLINK_CMD_TRAP_GROUP_GET]	= &devl_cmd_trap_group_get,
@@ -196,23 +194,19 @@ static const struct devlink_cmd *devl_cmds[] = {
 	[DEVLINK_CMD_SELFTESTS_GET]	= &devl_cmd_selftests_get,
 };
 
-int devlink_nl_instance_iter_dumpit(struct sk_buff *msg,
-				    struct netlink_callback *cb)
+int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
+		      devlink_nl_dump_one_func_t *dump_one)
 {
-	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
-	const struct devlink_cmd *cmd;
 	struct devlink *devlink;
 	int err = 0;
-
-	cmd = devl_cmds[info->op.cmd];
 
 	while ((devlink = devlinks_xa_find_get(sock_net(msg->sk),
 					       &state->instance))) {
 		devl_lock(devlink);
 
 		if (devl_is_registered(devlink))
-			err = cmd->dump_one(msg, devlink, cb);
+			err = dump_one(msg, devlink, cb);
 		else
 			err = 0;
 
@@ -231,6 +225,15 @@ int devlink_nl_instance_iter_dumpit(struct sk_buff *msg,
 	if (err != -EMSGSIZE)
 		return err;
 	return msg->len;
+}
+
+int devlink_nl_instance_iter_dumpit(struct sk_buff *msg,
+				    struct netlink_callback *cb)
+{
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	const struct devlink_cmd *cmd = devl_cmds[info->op.cmd];
+
+	return devlink_nl_dumpit(msg, cb, cmd->dump_one);
 }
 
 struct genl_family devlink_nl_family __ro_after_init = {
