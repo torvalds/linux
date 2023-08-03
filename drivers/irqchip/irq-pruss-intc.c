@@ -565,8 +565,8 @@ static int pruss_intc_probe(struct platform_device *pdev)
 			continue;
 
 		irq = platform_get_irq_byname(pdev, irq_names[i]);
-		if (irq <= 0) {
-			ret = (irq == 0) ? -EINVAL : irq;
+		if (irq < 0) {
+			ret = irq;
 			goto fail_irq;
 		}
 
