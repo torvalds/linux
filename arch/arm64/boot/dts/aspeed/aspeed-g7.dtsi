@@ -144,6 +144,24 @@
 			};
 		};
 
+		ufs_controller: cnr@12c08000 {
+			compatible = "aspeed,ast2700-ufscnr";
+			reg = <0 0x12c08000 0 0x100>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0 0 0 0x12c08000 0 0x300>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_UFSCLK>;
+			resets = <&cpu_clk ASPEED_RESET_UFS>;
+			status = "disable";
+
+			ufs: ufshc@12c08200 {
+				compatible = "aspeed,ast2700-ufshc";
+				reg = <0 0x200 0 0x100>;
+				interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disable";
+			};
+		};
+
 		intc: interrupt-controller@12100000 {
 			compatible = "simple-mfd";
 			#address-cells = <2>;
@@ -1598,4 +1616,3 @@
 		status = "disabled";
 	};
 };
-
