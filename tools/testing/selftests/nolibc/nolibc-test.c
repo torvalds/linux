@@ -1108,7 +1108,8 @@ static int smash_stack(void)
 	return 1;
 }
 
-static int run_protection(int min, int max)
+static int run_protection(int min __attribute__((unused)),
+			  int max __attribute__((unused)))
 {
 	pid_t pid;
 	int llen = 0, status;
