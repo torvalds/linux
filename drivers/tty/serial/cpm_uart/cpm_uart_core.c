@@ -54,6 +54,11 @@ static void cpm_uart_initbd(struct uart_cpm_port *pinfo);
 
 #define HW_BUF_SPD_THRESHOLD    2400
 
+static void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
+{
+	cpm_command(port->command, cmd);
+}
+
 /*
  * Check, if transmit buffers are processed
 */

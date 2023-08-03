@@ -36,11 +36,6 @@
 
 /**************************************************************/
 
-void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
-{
-	cpm_command(port->command, cmd);
-}
-
 void __iomem *cpm_uart_map_pram(struct uart_cpm_port *port,
 				struct device_node *np)
 {
