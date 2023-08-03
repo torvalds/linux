@@ -40,7 +40,7 @@
 #define MEN_UART3_OFFSET	(MEN_UART2_OFFSET + MEN_UART_MEM_SIZE)
 #define MEN_UART4_OFFSET	(MEN_UART3_OFFSET + MEN_UART_MEM_SIZE)
 
-#define MEN_READ_REGISTER(addr)	readb((void *)addr)
+#define MEN_READ_REGISTER(addr)	readb(addr)
 
 #define MAX_PORTS	4
 
