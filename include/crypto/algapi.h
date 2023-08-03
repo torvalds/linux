@@ -10,6 +10,7 @@
 #include <linux/crypto.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
+#include <linux/workqueue.h>
 
 /*
  * Maximum values for blocksize and alignmask, used to allocate
@@ -54,6 +55,8 @@ struct crypto_instance {
 		/* List of attached spawns before registration. */
 		struct crypto_spawn *spawns;
 	};
+
+	struct work_struct free_work;
 
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
