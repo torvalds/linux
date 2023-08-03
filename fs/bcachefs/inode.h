@@ -219,6 +219,20 @@ static inline u32 bch2_inode_flags(struct bkey_s_c k)
 	}
 }
 
+static inline unsigned bkey_inode_mode(struct bkey_s_c k)
+{
+	switch (k.k->type) {
+	case KEY_TYPE_inode:
+		return le16_to_cpu(bkey_s_c_to_inode(k).v->bi_mode);
+	case KEY_TYPE_inode_v2:
+		return le16_to_cpu(bkey_s_c_to_inode_v2(k).v->bi_mode);
+	case KEY_TYPE_inode_v3:
+		return INODEv3_MODE(bkey_s_c_to_inode_v3(k).v);
+	default:
+		return 0;
+	}
+}
+
 /* i_nlink: */
 
 static inline unsigned nlink_bias(umode_t mode)

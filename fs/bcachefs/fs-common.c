@@ -170,6 +170,10 @@ int bch2_create_trans(struct btree_trans *trans,
 		new_inode->bi_dir_offset	= dir_offset;
 	}
 
+	if (S_ISDIR(mode) &&
+	    !new_inode->bi_subvol)
+		new_inode->bi_depth = dir_u->bi_depth + 1;
+
 	inode_iter.flags &= ~BTREE_ITER_all_snapshots;
 	bch2_btree_iter_set_snapshot(&inode_iter, snapshot);
 
@@ -509,6 +513,15 @@ int bch2_rename_trans(struct btree_trans *trans,
 		src_dir_u->bi_nlink--;
 		dst_dir_u->bi_nlink++;
 	}
+
+	if (S_ISDIR(src_inode_u->bi_mode) &&
+	    !src_inode_u->bi_subvol)
+		src_inode_u->bi_depth = dst_dir_u->bi_depth + 1;
+
+	if (mode == BCH_RENAME_EXCHANGE &&
+	    S_ISDIR(dst_inode_u->bi_mode) &&
+	    !dst_inode_u->bi_subvol)
+		dst_inode_u->bi_depth = src_dir_u->bi_depth + 1;
 
 	if (dst_inum.inum && is_subdir_for_nlink(dst_inode_u)) {
 		dst_dir_u->bi_nlink--;

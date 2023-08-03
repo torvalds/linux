@@ -101,7 +101,8 @@ struct bch_inode_generation {
 	x(bi_dir_offset,		64)	\
 	x(bi_subvol,			32)	\
 	x(bi_parent_subvol,		32)	\
-	x(bi_nocow,			8)
+	x(bi_nocow,			8)	\
+	x(bi_depth,			32)
 
 /* subset of BCH_INODE_FIELDS */
 #define BCH_INODE_OPTS()			\

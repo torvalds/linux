@@ -2597,6 +2597,48 @@ struct pathbuf_entry {
 
 typedef DARRAY(struct pathbuf_entry) pathbuf;
 
+static int bch2_bi_depth_renumber_one(struct btree_trans *trans, struct pathbuf_entry *p,
+				      u32 new_depth)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
+					       SPOS(0, p->inum, p->snapshot), 0);
+
+	struct bch_inode_unpacked inode;
+	int ret = bkey_err(k) ?:
+		!bkey_is_inode(k.k) ? -BCH_ERR_ENOENT_inode
+		: bch2_inode_unpack(k, &inode);
+	if (ret)
+		goto err;
+
+	if (inode.bi_depth != new_depth) {
+		inode.bi_depth = new_depth;
+		ret = __bch2_fsck_write_inode(trans, &inode) ?:
+			bch2_trans_commit(trans, NULL, NULL, 0);
+	}
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+static int bch2_bi_depth_renumber(struct btree_trans *trans, pathbuf *path, u32 new_bi_depth)
+{
+	u32 restart_count = trans->restart_count;
+	int ret = 0;
+
+	darray_for_each_reverse(*path, i) {
+		ret = nested_lockrestart_do(trans,
+				bch2_bi_depth_renumber_one(trans, i, new_bi_depth));
+		bch_err_fn(trans->c, ret);
+		if (ret)
+			break;
+
+		new_bi_depth++;
+	}
+
+	return ret ?: trans_was_restarted(trans, restart_count);
+}
+
 static bool path_is_dup(pathbuf *p, u64 inum, u32 snapshot)
 {
 	darray_for_each(*p, i)
@@ -2606,23 +2648,21 @@ static bool path_is_dup(pathbuf *p, u64 inum, u32 snapshot)
 	return false;
 }
 
-static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c inode_k)
+static int check_path_loop(struct btree_trans *trans, struct bkey_s_c inode_k)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter inode_iter = {};
+	pathbuf path = {};
 	struct printbuf buf = PRINTBUF;
 	u32 snapshot = inode_k.k->p.snapshot;
+	bool redo_bi_depth = false;
+	u32 min_bi_depth = U32_MAX;
 	int ret = 0;
-
-	p->nr = 0;
 
 	struct bch_inode_unpacked inode;
 	ret = bch2_inode_unpack(inode_k, &inode);
 	if (ret)
 		return ret;
-
-	if (!S_ISDIR(inode.bi_mode))
-		return 0;
 
 	while (!inode.bi_subvol) {
 		struct btree_iter dirent_iter;
@@ -2632,7 +2672,7 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 		d = inode_get_dirent(trans, &dirent_iter, &inode, &parent_snapshot);
 		ret = bkey_err(d.s_c);
 		if (ret && !bch2_err_matches(ret, ENOENT))
-			break;
+			goto out;
 
 		if (!ret && (ret = dirent_points_to_inode(c, d, &inode)))
 			bch2_trans_iter_exit(trans, &dirent_iter);
@@ -2647,7 +2687,7 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 
 		bch2_trans_iter_exit(trans, &dirent_iter);
 
-		ret = darray_push(p, ((struct pathbuf_entry) {
+		ret = darray_push(&path, ((struct pathbuf_entry) {
 			.inum		= inode.bi_inum,
 			.snapshot	= snapshot,
 		}));
@@ -2659,22 +2699,32 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 		bch2_trans_iter_exit(trans, &inode_iter);
 		inode_k = bch2_bkey_get_iter(trans, &inode_iter, BTREE_ID_inodes,
 					     SPOS(0, inode.bi_dir, snapshot), 0);
+
+		struct bch_inode_unpacked parent_inode;
 		ret = bkey_err(inode_k) ?:
 			!bkey_is_inode(inode_k.k) ? -BCH_ERR_ENOENT_inode
-			: bch2_inode_unpack(inode_k, &inode);
+			: bch2_inode_unpack(inode_k, &parent_inode);
 		if (ret) {
 			/* Should have been caught in dirents pass */
 			bch_err_msg(c, ret, "error looking up parent directory");
-			break;
+			goto out;
 		}
 
-		snapshot = inode_k.k->p.snapshot;
+		min_bi_depth = parent_inode.bi_depth;
 
-		if (path_is_dup(p, inode.bi_inum, snapshot)) {
+		if (parent_inode.bi_depth < inode.bi_depth &&
+		    min_bi_depth < U16_MAX)
+			break;
+
+		inode = parent_inode;
+		snapshot = inode_k.k->p.snapshot;
+		redo_bi_depth = true;
+
+		if (path_is_dup(&path, inode.bi_inum, snapshot)) {
 			/* XXX print path */
 			bch_err(c, "directory structure loop");
 
-			darray_for_each(*p, i)
+			darray_for_each(path, i)
 				pr_err("%llu:%u", i->inum, i->snapshot);
 			pr_err("%llu:%u", inode.bi_inum, snapshot);
 
@@ -2687,12 +2737,20 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 				ret = reattach_inode(trans, &inode);
 				bch_err_msg(c, ret, "reattaching inode %llu", inode.bi_inum);
 			}
-			break;
+
+			goto out;
 		}
 	}
+
+	if (inode.bi_subvol)
+		min_bi_depth = 0;
+
+	if (redo_bi_depth)
+		ret = bch2_bi_depth_renumber(trans, &path, min_bi_depth);
 out:
 fsck_err:
 	bch2_trans_iter_exit(trans, &inode_iter);
+	darray_exit(&path);
 	printbuf_exit(&buf);
 	bch_err_fn(c, ret);
 	return ret;
@@ -2704,24 +2762,20 @@ fsck_err:
  */
 int bch2_check_directory_structure(struct bch_fs *c)
 {
-	pathbuf path = { 0, };
-	int ret;
-
-	ret = bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_inodes, POS_MIN,
 					  BTREE_ITER_intent|
 					  BTREE_ITER_prefetch|
 					  BTREE_ITER_all_snapshots, k,
 					  NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
-			if (!bkey_is_inode(k.k))
+			if (!S_ISDIR(bkey_inode_mode(k)))
 				continue;
 
 			if (bch2_inode_flags(k) & BCH_INODE_unlinked)
 				continue;
 
-			check_path(trans, &path, k);
+			check_path_loop(trans, k);
 		})));
-	darray_exit(&path);
 
 	bch_err_fn(c, ret);
 	return ret;
