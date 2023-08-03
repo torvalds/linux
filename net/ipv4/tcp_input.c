@@ -4126,9 +4126,8 @@ void tcp_parse_options(const struct net *net,
 				break;
 #ifdef CONFIG_TCP_MD5SIG
 			case TCPOPT_MD5SIG:
-				/*
-				 * The MD5 Hash has already been
-				 * checked (see tcp_v{4,6}_do_rcv()).
+				/* The MD5 Hash has already been
+				 * checked (see tcp_v{4,6}_rcv()).
 				 */
 				break;
 #endif
