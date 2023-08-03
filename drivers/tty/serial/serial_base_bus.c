@@ -29,9 +29,15 @@ static const struct device_type serial_port_type = {
 
 static int serial_base_match(struct device *dev, struct device_driver *drv)
 {
-	int len = strlen(drv->name);
+	if (dev->type == &serial_ctrl_type &&
+	    str_has_prefix(drv->name, serial_ctrl_type.name))
+		return 1;
 
-	return !strncmp(dev_name(dev), drv->name, len);
+	if (dev->type == &serial_port_type &&
+	    str_has_prefix(drv->name, serial_port_type.name))
+		return 1;
+
+	return 0;
 }
 
 static struct bus_type serial_base_bus_type = {
