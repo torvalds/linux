@@ -35,7 +35,7 @@
 
 #include <trace/events/writeback.h>
 
-static void bch2_clamp_data_hole(struct inode *, u64 *, u64 *, unsigned);
+static int bch2_clamp_data_hole(struct inode *, u64 *, u64 *, unsigned, bool);
 
 struct folio_vec {
 	struct folio	*fv_folio;
@@ -3407,11 +3407,19 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		}
 
 		if (!(mode & FALLOC_FL_ZERO_RANGE)) {
-			ret = drop_locks_do(&trans,
-				(bch2_clamp_data_hole(&inode->v,
-						      &hole_start,
-						      &hole_end,
-						      opts.data_replicas), 0));
+			/*
+			 * Lock ordering - can't be holding btree locks while
+			 * blocking on a folio lock:
+			 */
+			if (bch2_clamp_data_hole(&inode->v,
+						 &hole_start,
+						 &hole_end,
+						 opts.data_replicas, true))
+				ret = drop_locks_do(&trans,
+					(bch2_clamp_data_hole(&inode->v,
+							      &hole_start,
+							      &hole_end,
+							      opts.data_replicas, false), 0));
 			bch2_btree_iter_set_pos(&iter, POS(iter.pos.inode, hole_start));
 
 			if (ret)
@@ -3711,7 +3719,8 @@ static int folio_data_offset(struct folio *folio, loff_t pos,
 static loff_t bch2_seek_pagecache_data(struct inode *vinode,
 				       loff_t start_offset,
 				       loff_t end_offset,
-				       unsigned min_replicas)
+				       unsigned min_replicas,
+				       bool nonblock)
 {
 	struct folio_batch fbatch;
 	pgoff_t start_index	= start_offset >> PAGE_SHIFT;
@@ -3728,7 +3737,13 @@ static loff_t bch2_seek_pagecache_data(struct inode *vinode,
 		for (i = 0; i < folio_batch_count(&fbatch); i++) {
 			struct folio *folio = fbatch.folios[i];
 
-			folio_lock(folio);
+			if (!nonblock) {
+				folio_lock(folio);
+			} else if (!folio_trylock(folio)) {
+				folio_batch_release(&fbatch);
+				return -EAGAIN;
+			}
+
 			offset = folio_data_offset(folio,
 					max(folio_pos(folio), start_offset),
 					min_replicas);
@@ -3793,7 +3808,7 @@ err:
 
 	if (next_data > offset)
 		next_data = bch2_seek_pagecache_data(&inode->v,
-						     offset, next_data, 0);
+					offset, next_data, 0, false);
 
 	if (next_data >= isize)
 		return -ENXIO;
@@ -3801,15 +3816,18 @@ err:
 	return vfs_setpos(file, next_data, MAX_LFS_FILESIZE);
 }
 
-static bool folio_hole_offset(struct address_space *mapping, loff_t *offset,
-			      unsigned min_replicas)
+static int folio_hole_offset(struct address_space *mapping, loff_t *offset,
+			      unsigned min_replicas, bool nonblock)
 {
 	struct folio *folio;
 	struct bch_folio *s;
 	unsigned i, sectors;
 	bool ret = true;
 
-	folio = filemap_lock_folio(mapping, *offset >> PAGE_SHIFT);
+	folio = __filemap_get_folio(mapping, *offset >> PAGE_SHIFT,
+				    FGP_LOCK|(nonblock ? FGP_NOWAIT : 0), 0);
+	if (folio == ERR_PTR(-EAGAIN))
+		return -EAGAIN;
 	if (IS_ERR_OR_NULL(folio))
 		return true;
 
@@ -3837,31 +3855,44 @@ unlock:
 static loff_t bch2_seek_pagecache_hole(struct inode *vinode,
 				       loff_t start_offset,
 				       loff_t end_offset,
-				       unsigned min_replicas)
+				       unsigned min_replicas,
+				       bool nonblock)
 {
 	struct address_space *mapping = vinode->i_mapping;
 	loff_t offset = start_offset;
 
 	while (offset < end_offset &&
-	       !folio_hole_offset(mapping, &offset, min_replicas))
+	       !folio_hole_offset(mapping, &offset, min_replicas, nonblock))
 		;
 
 	return min(offset, end_offset);
 }
 
-static void bch2_clamp_data_hole(struct inode *inode,
-				 u64 *hole_start,
-				 u64 *hole_end,
-				 unsigned min_replicas)
+static int bch2_clamp_data_hole(struct inode *inode,
+				u64 *hole_start,
+				u64 *hole_end,
+				unsigned min_replicas,
+				bool nonblock)
 {
-	*hole_start = bch2_seek_pagecache_hole(inode,
-		*hole_start << 9, *hole_end << 9, min_replicas) >> 9;
+	loff_t ret;
+
+	ret = bch2_seek_pagecache_hole(inode,
+		*hole_start << 9, *hole_end << 9, min_replicas, nonblock) >> 9;
+	if (ret < 0)
+		return ret;
+
+	*hole_start = ret;
 
 	if (*hole_start == *hole_end)
-		return;
+		return 0;
 
-	*hole_end = bch2_seek_pagecache_data(inode,
-		*hole_start << 9, *hole_end << 9, min_replicas) >> 9;
+	ret = bch2_seek_pagecache_data(inode,
+		*hole_start << 9, *hole_end << 9, min_replicas, nonblock) >> 9;
+	if (ret < 0)
+		return ret;
+
+	*hole_end = ret;
+	return 0;
 }
 
 static loff_t bch2_seek_hole(struct file *file, u64 offset)
@@ -3893,12 +3924,12 @@ retry:
 			   BTREE_ITER_SLOTS, k, ret) {
 		if (k.k->p.inode != inode->v.i_ino) {
 			next_hole = bch2_seek_pagecache_hole(&inode->v,
-					offset, MAX_LFS_FILESIZE, 0);
+					offset, MAX_LFS_FILESIZE, 0, false);
 			break;
 		} else if (!bkey_extent_is_data(k.k)) {
 			next_hole = bch2_seek_pagecache_hole(&inode->v,
 					max(offset, bkey_start_offset(k.k) << 9),
-					k.k->p.offset << 9, 0);
+					k.k->p.offset << 9, 0, false);
 
 			if (next_hole < k.k->p.offset << 9)
 				break;
