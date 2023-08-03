@@ -740,8 +740,8 @@ static int plat_mpc8xxx_spi_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
-		return -EINVAL;
+	if (irq < 0)
+		return irq;
 
 	master = fsl_spi_probe(&pdev->dev, mem, irq);
 	return PTR_ERR_OR_ZERO(master);
