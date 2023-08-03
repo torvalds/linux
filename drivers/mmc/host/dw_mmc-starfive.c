@@ -15,6 +15,8 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 
 #include "dw_mmc.h"
@@ -112,11 +114,39 @@ static int dw_mci_starfive_execute_tuning(struct dw_mci_slot *slot,
 	return err;
 }
 
+static int dw_mci_starfive_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+
+	struct dw_mci_slot *slot = mmc_priv(mmc);
+	struct dw_mci *host = slot->host;
+	u32 ret;
+
+	if (device_property_read_bool(host->dev, "board-is-evb")) {
+		if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330)
+			ret = gpio_direction_output(25, 0);
+		else if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)
+			ret = gpio_direction_output(25, 1);
+		if (ret)
+			return ret;
+	}
+
+	if (!IS_ERR(mmc->supply.vqmmc)) {
+		ret = mmc_regulator_set_vqmmc(mmc, ios);
+		if (ret < 0) {
+			dev_err(host->dev, "Regulator set error %d\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static const struct dw_mci_drv_data starfive_data = {
 	.caps = dw_mci_starfive_caps,
 	.num_caps = ARRAY_SIZE(dw_mci_starfive_caps),
 	.set_ios = dw_mci_starfive_set_ios,
 	.execute_tuning = dw_mci_starfive_execute_tuning,
+	.switch_voltage = dw_mci_starfive_switch_voltage,
 };
 
 static const struct of_device_id dw_mci_starfive_match[] = {
@@ -130,10 +160,45 @@ static int dw_mci_starfive_probe(struct platform_device *pdev)
 {
 	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
+	struct gpio_desc *power_gpio;
+	int gpio_wl_reg_on = -1;
 	int ret;
 
 	match = of_match_node(dw_mci_starfive_match, pdev->dev.of_node);
 	drv_data = match->data;
+
+	if (device_property_read_bool(&pdev->dev, "board-is-devkits")) {
+		power_gpio = devm_gpiod_get_optional(&pdev->dev, "power", GPIOD_OUT_LOW);
+		if (IS_ERR(power_gpio)) {
+			dev_err(&pdev->dev, "Failed to get power-gpio\n");
+			return -EINVAL;
+		}
+
+		gpiod_set_value_cansleep(power_gpio, 1);
+	}
+
+	gpio_wl_reg_on = of_get_named_gpio(pdev->dev.of_node, "gpio_wl_reg_on", 0);
+	if (gpio_wl_reg_on >= 0) {
+		ret = gpio_request(gpio_wl_reg_on, "WL_REG_ON");
+		if (ret < 0) {
+			dev_err(&pdev->dev, "gpio_request(%d) for WL_REG_ON failed %d\n",
+				 gpio_wl_reg_on, ret);
+			gpio_wl_reg_on = -1;
+			return -EINVAL;
+		}
+		ret = gpio_direction_output(gpio_wl_reg_on, 0);
+		if (ret) {
+			dev_err(&pdev->dev, "WL_REG_ON didn't output high\n");
+			return -EIO;
+		}
+		mdelay(10);
+		ret = gpio_direction_output(gpio_wl_reg_on, 1);
+		if (ret) {
+			dev_err(&pdev->dev, "WL_REG_ON didn't output high\n");
+			return -EIO;
+		}
+		mdelay(10);
+	}
 
 	pm_runtime_get_noresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
