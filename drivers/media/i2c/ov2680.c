@@ -220,6 +220,18 @@ static void ov2680_set_bayer_order(struct ov2680_dev *sensor,
 	fmt->code = ov2680_hv_flip_bayer_order[hv_flip];
 }
 
+static struct v4l2_mbus_framefmt *
+__ov2680_get_pad_format(struct ov2680_dev *sensor,
+			struct v4l2_subdev_state *state,
+			unsigned int pad,
+			enum v4l2_subdev_format_whence which)
+{
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_get_try_format(&sensor->sd, state, pad);
+
+	return &sensor->mode.fmt;
+}
+
 static void ov2680_fill_format(struct ov2680_dev *sensor,
 			       struct v4l2_mbus_framefmt *fmt,
 			       unsigned int width, unsigned int height)
@@ -508,22 +520,16 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
-	struct v4l2_mbus_framefmt *fmt = NULL;
+	struct v4l2_mbus_framefmt *fmt;
 
 	if (format->pad != 0)
 		return -EINVAL;
 
+	fmt = __ov2680_get_pad_format(sensor, sd_state, format->pad,
+				      format->which);
+
 	mutex_lock(&sensor->lock);
-
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		fmt = v4l2_subdev_get_try_format(&sensor->sd, sd_state,
-						 format->pad);
-	} else {
-		fmt = &sensor->mode.fmt;
-	}
-
 	format->format = *fmt;
-
 	mutex_unlock(&sensor->lock);
 
 	return 0;
