@@ -185,6 +185,28 @@ static u64 get_inc_field(struct unpack_state *state, unsigned field)
 }
 
 __always_inline
+static void __set_inc_field(struct pack_state *state, unsigned field, u64 v)
+{
+	unsigned bits = state->format->bits_per_field[field];
+
+	if (bits) {
+		if (bits > state->bits) {
+			bits -= state->bits;
+			/* avoid shift by 64 if bits is 64 - bits is never 0 here: */
+			state->w |= (v >> 1) >> (bits - 1);
+
+			*state->p = state->w;
+			state->p = next_word(state->p);
+			state->w = 0;
+			state->bits = 64;
+		}
+
+		state->bits -= bits;
+		state->w |= v << state->bits;
+	}
+}
+
+__always_inline
 static bool set_inc_field(struct pack_state *state, unsigned field, u64 v)
 {
 	unsigned bits = state->format->bits_per_field[field];
@@ -198,20 +220,7 @@ static bool set_inc_field(struct pack_state *state, unsigned field, u64 v)
 	if (fls64(v) > bits)
 		return false;
 
-	if (bits > state->bits) {
-		bits -= state->bits;
-		/* avoid shift by 64 if bits is 0 - bits is never 64 here: */
-		state->w |= (v >> 1) >> (bits - 1);
-
-		*state->p = state->w;
-		state->p = next_word(state->p);
-		state->w = 0;
-		state->bits = 64;
-	}
-
-	state->bits -= bits;
-	state->w |= v << state->bits;
-
+	__set_inc_field(state, field, v);
 	return true;
 }
 
@@ -380,19 +389,7 @@ static bool set_inc_field_lossy(struct pack_state *state, unsigned field, u64 v)
 		ret = false;
 	}
 
-	if (bits > state->bits) {
-		bits -= state->bits;
-		state->w |= (v >> 1) >> (bits - 1);
-
-		*state->p = state->w;
-		state->p = next_word(state->p);
-		state->w = 0;
-		state->bits = 64;
-	}
-
-	state->bits -= bits;
-	state->w |= v << state->bits;
-
+	__set_inc_field(state, field, v);
 	return ret;
 }
 
