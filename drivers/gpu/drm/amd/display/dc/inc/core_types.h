@@ -38,6 +38,7 @@
 #include "mcif_wb.h"
 #include "panel_cntl.h"
 #include "dmub/inc/dmub_cmd.h"
+#include "pg_cntl.h"
 
 #define MAX_CLOCK_SOURCES 7
 #define MAX_SVP_PHANTOM_STREAMS 2
@@ -285,6 +286,7 @@ struct resource_pool {
 	struct audio_support audio_support;
 
 	struct dccg *dccg;
+	struct pg_cntl *pg_cntl;
 	struct irq_service *irqs;
 
 	struct abm *abm;
