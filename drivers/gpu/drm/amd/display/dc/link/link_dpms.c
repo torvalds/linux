@@ -2353,6 +2353,14 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 
 	if (vpg && vpg->funcs->vpg_powerdown)
 		vpg->funcs->vpg_powerdown(vpg);
+
+	/* for psp not exist case */
+	if (link->connector_signal == SIGNAL_TYPE_EDP && dc->debug.psp_disabled_wa) {
+		/* reset internal save state to default since eDP is  off */
+		enum dp_panel_mode panel_mode = dp_get_panel_mode(pipe_ctx->stream->link);
+		/* since current psp not loaded, we need to reset it to default*/
+		link->panel_mode = panel_mode;
+	}
 }
 
 void link_set_dpms_on(
@@ -2394,10 +2402,17 @@ void link_set_dpms_on(
 
 	if (!dc_is_virtual_signal(pipe_ctx->stream->signal)
 			&& !dp_is_128b_132b_signal(pipe_ctx)) {
+		struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
+
 		if (link_enc)
 			link_enc->funcs->setup(
 				link_enc,
 				pipe_ctx->stream->signal);
+
+		if (stream_enc && stream_enc->funcs->dig_stream_enable)
+			stream_enc->funcs->dig_stream_enable(
+				stream_enc,
+				pipe_ctx->stream->signal, 1);
 	}
 
 	pipe_ctx->stream->link->link_state_valid = true;
@@ -2498,10 +2513,18 @@ void link_set_dpms_on(
 	 */
 	if (!(dc_is_virtual_signal(pipe_ctx->stream->signal) ||
 			dp_is_128b_132b_signal(pipe_ctx))) {
+			struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
+
 			if (link_enc)
 				link_enc->funcs->setup(
 					link_enc,
 					pipe_ctx->stream->signal);
+
+			if (stream_enc && stream_enc->funcs->dig_stream_enable)
+				stream_enc->funcs->dig_stream_enable(
+					stream_enc,
+					pipe_ctx->stream->signal, 1);
+
 		}
 
 	dc->hwss.enable_stream(pipe_ctx);
