@@ -12,6 +12,8 @@
 #include <net/devlink.h>
 #include <net/net_namespace.h>
 
+#include "netlink_gen.h"
+
 #define DEVLINK_REGISTERED XA_MARK_1
 
 #define DEVLINK_RELOAD_STATS_ARRAY_SIZE \
@@ -216,18 +218,9 @@ struct devlink_rate *
 devlink_rate_node_get_from_info(struct devlink *devlink,
 				struct genl_info *info);
 /* Devlink nl cmds */
-int devlink_nl_pre_doit(const struct genl_split_ops *ops,
-			struct sk_buff *skb, struct genl_info *info);
-void devlink_nl_post_doit(const struct genl_split_ops *ops,
-			  struct sk_buff *skb, struct genl_info *info);
-int devlink_nl_get_doit(struct sk_buff *skb, struct genl_info *info);
-int devlink_nl_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb);
 int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb, struct genl_info *info);
-int devlink_nl_info_get_doit(struct sk_buff *skb, struct genl_info *info);
-int devlink_nl_info_get_dumpit(struct sk_buff *skb,
-			       struct netlink_callback *cb);
 int devlink_nl_cmd_flash_update(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_selftests_get_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_selftests_run(struct sk_buff *skb, struct genl_info *info);
