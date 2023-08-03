@@ -111,7 +111,7 @@
 };
 
 &gpio1 {
-	gpio-line-names = "nINT_ETHPHY", "", "WDOG_INT", "X_RTC_INT",
+	gpio-line-names = "", "", "WDOG_INT", "X_RTC_INT",
 		"", "", "", "RESET_ETHPHY",
 		"", "", "nENABLE_FLATLINK";
 };
@@ -210,7 +210,7 @@
 				};
 			};
 
-			reg_vdd_gpu: buck3 {
+			reg_vdd_vpu: buck3 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-max-microvolt = <1000000>;

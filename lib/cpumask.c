@@ -45,6 +45,7 @@ EXPORT_SYMBOL(cpumask_next_wrap);
  * alloc_cpumask_var_node - allocate a struct cpumask on a given node
  * @mask: pointer to cpumask_var_t where the cpumask is returned
  * @flags: GFP_ flags
+ * @node: memory node from which to allocate or %NUMA_NO_NODE
  *
  * Only defined when CONFIG_CPUMASK_OFFSTACK=y, otherwise is
  * a nop returning a constant 1 (in <linux/cpumask.h>)
@@ -157,7 +158,9 @@ EXPORT_SYMBOL(cpumask_local_spread);
 static DEFINE_PER_CPU(int, distribute_cpu_mask_prev);
 
 /**
- * cpumask_any_and_distribute - Return an arbitrary cpu within srcp1 & srcp2.
+ * cpumask_any_and_distribute - Return an arbitrary cpu within src1p & src2p.
+ * @src1p: first &cpumask for intersection
+ * @src2p: second &cpumask for intersection
  *
  * Iterated calls using the same srcp1 and srcp2 will be distributed within
  * their intersection.

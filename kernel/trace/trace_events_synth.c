@@ -1230,6 +1230,7 @@ EXPORT_SYMBOL_GPL(__synth_event_gen_cmd_start);
  * synth_event_gen_cmd_array_start - Start synthetic event command from an array
  * @cmd: A pointer to the dynevent_cmd struct representing the new event
  * @name: The name of the synthetic event
+ * @mod: The module creating the event, NULL if not created from a module
  * @fields: An array of type/name field descriptions
  * @n_fields: The number of field descriptions contained in the fields array
  *

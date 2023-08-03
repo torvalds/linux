@@ -64,7 +64,7 @@ void mlx5_esw_bridge_debugfs_init(struct net_device *br_netdev, struct mlx5_esw_
 
 	bridge->debugfs_dir = debugfs_create_dir(br_netdev->name,
 						 bridge->br_offloads->debugfs_root);
-	debugfs_create_file("fdb", 0444, bridge->debugfs_dir, bridge,
+	debugfs_create_file("fdb", 0400, bridge->debugfs_dir, bridge,
 			    &mlx5_esw_bridge_debugfs_fops);
 }
 

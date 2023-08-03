@@ -1686,8 +1686,15 @@ int dsa_port_phylink_create(struct dsa_port *dp)
 	if (err)
 		mode = PHY_INTERFACE_MODE_NA;
 
-	if (ds->ops->phylink_get_caps)
+	if (ds->ops->phylink_get_caps) {
 		ds->ops->phylink_get_caps(ds, dp->index, &dp->pl_config);
+	} else {
+		/* For legacy drivers */
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  dp->pl_config.supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_GMII,
+			  dp->pl_config.supported_interfaces);
+	}
 
 	pl = phylink_create(&dp->pl_config, of_fwnode_handle(dp->dn),
 			    mode, &dsa_port_phylink_mac_ops);

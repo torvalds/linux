@@ -592,7 +592,7 @@ void __ip_sock_set_tos(struct sock *sk, int val)
 	}
 	if (inet_sk(sk)->tos != val) {
 		inet_sk(sk)->tos = val;
-		sk->sk_priority = rt_tos2priority(val);
+		WRITE_ONCE(sk->sk_priority, rt_tos2priority(val));
 		sk_dst_reset(sk);
 	}
 }

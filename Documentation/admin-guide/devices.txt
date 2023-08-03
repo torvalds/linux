@@ -2691,7 +2691,7 @@
 		 45 = /dev/ttyMM1		Marvell MPSC - port 1 (obsolete unused)
 		 46 = /dev/ttyCPM0		PPC CPM (SCC or SMC) - port 0
 		    ...
-		 47 = /dev/ttyCPM5		PPC CPM (SCC or SMC) - port 5
+		 49 = /dev/ttyCPM5		PPC CPM (SCC or SMC) - port 3
 		 50 = /dev/ttyIOC0		Altix serial card
 		    ...
 		 81 = /dev/ttyIOC31		Altix serial card
