@@ -97,7 +97,7 @@ struct ov2680_dev {
 	u32				xvclk_freq;
 	struct regulator_bulk_data	supplies[OV2680_NUM_SUPPLIES];
 
-	struct gpio_desc		*reset_gpio;
+	struct gpio_desc		*pwdn_gpio;
 	struct mutex			lock; /* protect members */
 
 	bool				is_enabled;
@@ -180,19 +180,19 @@ static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
 
 static void ov2680_power_up(struct ov2680_dev *sensor)
 {
-	if (!sensor->reset_gpio)
+	if (!sensor->pwdn_gpio)
 		return;
 
-	gpiod_set_value(sensor->reset_gpio, 0);
+	gpiod_set_value(sensor->pwdn_gpio, 0);
 	usleep_range(5000, 10000);
 }
 
 static void ov2680_power_down(struct ov2680_dev *sensor)
 {
-	if (!sensor->reset_gpio)
+	if (!sensor->pwdn_gpio)
 		return;
 
-	gpiod_set_value(sensor->reset_gpio, 1);
+	gpiod_set_value(sensor->pwdn_gpio, 1);
 	usleep_range(5000, 10000);
 }
 
@@ -336,7 +336,7 @@ static int ov2680_power_on(struct ov2680_dev *sensor)
 		return ret;
 	}
 
-	if (!sensor->reset_gpio) {
+	if (!sensor->pwdn_gpio) {
 		ret = cci_write(sensor->regmap, OV2680_REG_SOFT_RESET, 0x01,
 				NULL);
 		if (ret != 0) {
@@ -697,15 +697,26 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 static int ov2680_parse_dt(struct ov2680_dev *sensor)
 {
 	struct device *dev = sensor->dev;
+	struct gpio_desc *gpio;
 	int ret;
 
-	sensor->reset_gpio = devm_gpiod_get_optional(dev, "reset",
-						     GPIOD_OUT_HIGH);
-	ret = PTR_ERR_OR_ZERO(sensor->reset_gpio);
+	/*
+	 * The pin we want is named XSHUTDN in the datasheet. Linux sensor
+	 * drivers have standardized on using "powerdown" as con-id name
+	 * for powerdown or shutdown pins. Older DTB files use "reset",
+	 * so fallback to that if there is no "powerdown" pin.
+	 */
+	gpio = devm_gpiod_get_optional(dev, "powerdown", GPIOD_OUT_HIGH);
+	if (!gpio)
+		gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+
+	ret = PTR_ERR_OR_ZERO(gpio);
 	if (ret < 0) {
 		dev_dbg(dev, "error while getting reset gpio: %d\n", ret);
 		return ret;
 	}
+
+	sensor->pwdn_gpio = gpio;
 
 	sensor->xvclk = devm_clk_get(dev, "xvclk");
 	if (IS_ERR(sensor->xvclk)) {
