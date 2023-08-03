@@ -29,7 +29,6 @@
 #include <linux/of_irq.h>
 #include <linux/dma-mapping.h>
 
-#include <linux/fs_uart_pd.h>
 #include <soc/fsl/qe/ucc_slow.h>
 
 #include <linux/firmware.h>

@@ -22,7 +22,6 @@
 #include <linux/delay.h>
 
 #include <linux/fs_enet_pd.h>
-#include <linux/fs_uart_pd.h>
 #include <linux/fsl_devices.h>
 #include <linux/mii.h>
 #include <linux/of_address.h>
