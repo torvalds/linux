@@ -676,6 +676,7 @@ static int get_plane_modifiers(struct amdgpu_device *adev, unsigned int plane_ty
 		break;
 	case AMDGPU_FAMILY_GC_11_0_0:
 	case AMDGPU_FAMILY_GC_11_0_1:
+	case AMDGPU_FAMILY_GC_11_5_0:
 		add_gfx11_modifiers(adev, mods, &size, &capacity);
 		break;
 	}

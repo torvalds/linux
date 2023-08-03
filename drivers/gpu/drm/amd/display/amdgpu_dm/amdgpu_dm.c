@@ -142,6 +142,9 @@ MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
 #define FIRMWARE_NAVI12_DMCU            "amdgpu/navi12_dmcu.bin"
 MODULE_FIRMWARE(FIRMWARE_NAVI12_DMCU);
 
+#define FIRMWARE_DCN_35_DMUB "amdgpu/dcn_3_5_dmcub.bin"
+MODULE_FIRMWARE(FIRMWARE_DCN_35_DMUB);
+
 /* Number of bytes in PSP header for firmware. */
 #define PSP_HEADER_BYTES 0x100
 
@@ -1173,6 +1176,7 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	switch (adev->ip_versions[DCE_HWIP][0]) {
 	case IP_VERSION(3, 1, 3):
 	case IP_VERSION(3, 1, 4):
+	case IP_VERSION(3, 5, 0):
 		hw_params.dpia_supported = true;
 		hw_params.disable_dpia = adev->dm.dc->debug.dpia_debug.bits.disable_dpia;
 		break;
@@ -1638,6 +1642,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		case IP_VERSION(3, 1, 4):
 		case IP_VERSION(3, 1, 5):
 		case IP_VERSION(3, 1, 6):
+		case IP_VERSION(3, 5, 0):
 			init_data.flags.gpu_vm_support = true;
 			break;
 		default:
@@ -2021,6 +2026,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 		case IP_VERSION(3, 1, 6):
 		case IP_VERSION(3, 2, 0):
 		case IP_VERSION(3, 2, 1):
+		case IP_VERSION(3, 5, 0):
 			return 0;
 		default:
 			break;
@@ -2128,6 +2134,9 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(3, 2, 1):
 		dmub_asic = DMUB_ASIC_DCN321;
+		break;
+	case IP_VERSION(3, 5, 0):
+		dmub_asic = DMUB_ASIC_DCN35;
 		break;
 	default:
 		/* ASIC doesn't support DMUB. */
@@ -2776,6 +2785,10 @@ static int dm_resume(void *handle)
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	struct dc_state *dc_state;
 	int i, r, j;
+
+	if (dm->dc->caps.ips_support) {
+		dc_dmub_srv_exit_low_power_state(dm->dc);
+	}
 
 	if (amdgpu_in_reset(adev)) {
 		dc_state = dm->cached_dc_state;
@@ -4354,6 +4367,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case IP_VERSION(3, 2, 0):
 	case IP_VERSION(3, 2, 1):
 	case IP_VERSION(2, 1, 0):
+	case IP_VERSION(3, 5, 0):
 		if (register_outbox_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -4374,6 +4388,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 1, 6):
 		case IP_VERSION(3, 2, 0):
 		case IP_VERSION(3, 2, 1):
+		case IP_VERSION(3, 5, 0):
 			psr_feature_enabled = true;
 			break;
 		default:
@@ -4516,6 +4531,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 1, 6):
 		case IP_VERSION(3, 2, 0):
 		case IP_VERSION(3, 2, 1):
+		case IP_VERSION(3, 5, 0):
 			if (dcn10_register_irq_handlers(dm->adev)) {
 				DRM_ERROR("DM: Failed to initialize IRQ\n");
 				goto fail;
@@ -4646,6 +4662,9 @@ static int dm_init_microcode(struct amdgpu_device *adev)
 	case IP_VERSION(3, 2, 1):
 		fw_name_dmub = FIRMWARE_DCN_V3_2_1_DMCUB;
 		break;
+	case IP_VERSION(3, 5, 0):
+		fw_name_dmub = FIRMWARE_DCN_35_DMUB;
+		break;
 	default:
 		/* ASIC doesn't support DMUB. */
 		return 0;
@@ -4770,6 +4789,7 @@ static int dm_early_init(void *handle)
 		case IP_VERSION(3, 1, 6):
 		case IP_VERSION(3, 2, 0):
 		case IP_VERSION(3, 2, 1):
+		case IP_VERSION(3, 5, 0):
 			adev->mode_info.num_crtc = 4;
 			adev->mode_info.num_hpd = 4;
 			adev->mode_info.num_dig = 4;
@@ -8621,6 +8641,17 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	int crtc_disable_count = 0;
 
 	trace_amdgpu_dm_atomic_commit_tail_begin(state);
+
+	if (dm->dc->caps.ips_support) {
+		for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
+			if (new_con_state->crtc &&
+				new_con_state->crtc->state->active &&
+				drm_atomic_crtc_needs_modeset(new_con_state->crtc->state)) {
+				dc_dmub_srv_exit_low_power_state(dm->dc);
+				break;
+			}
+		}
+	}
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
 	drm_dp_mst_atomic_wait_for_dependencies(state);
