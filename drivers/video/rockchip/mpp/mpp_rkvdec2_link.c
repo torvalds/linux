@@ -517,11 +517,6 @@ static int rkvdec2_link_irq(struct mpp_dev *mpp)
 	struct rkvdec_link_dev *link_dec = dec->link_dec;
 	u32 irq_status = 0;
 
-	if (!atomic_read(&link_dec->power_enabled)) {
-		dev_info(link_dec->dev, "irq on power off\n");
-		return -1;
-	}
-
 	irq_status = readl(link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
 
 	if (irq_status & RKVDEC_LINK_BIT_IRQ_RAW) {
