@@ -30,6 +30,7 @@
 static int ksm_fd;
 static int ksm_full_scans_fd;
 static int proc_self_ksm_stat_fd;
+static int proc_self_ksm_merging_pages_fd;
 static int ksm_use_zero_pages_fd;
 static int pagemap_fd;
 static size_t pagesize;
@@ -88,6 +89,22 @@ static long get_my_ksm_zero_pages(void)
 	return my_ksm_zero_pages;
 }
 
+static long get_my_merging_pages(void)
+{
+	char buf[10];
+	ssize_t ret;
+
+	if (proc_self_ksm_merging_pages_fd < 0)
+		return proc_self_ksm_merging_pages_fd;
+
+	ret = pread(proc_self_ksm_merging_pages_fd, buf, sizeof(buf) - 1, 0);
+	if (ret <= 0)
+		return -errno;
+	buf[ret] = 0;
+
+	return strtol(buf, NULL, 10);
+}
+
 static long ksm_get_full_scans(void)
 {
 	char buf[10];
@@ -120,10 +137,28 @@ static int ksm_merge(void)
 	return 0;
 }
 
+static int ksm_unmerge(void)
+{
+	if (write(ksm_fd, "2", 1) != 1)
+		return -errno;
+	return 0;
+}
+
 static char *mmap_and_merge_range(char val, unsigned long size, bool use_prctl)
 {
 	char *map;
 	int ret;
+
+	/* Stabilize accounting by disabling KSM completely. */
+	if (ksm_unmerge()) {
+		ksft_test_result_fail("Disabling (unmerging) KSM failed\n");
+		goto unmap;
+	}
+
+	if (get_my_merging_pages() > 0) {
+		ksft_test_result_fail("Still pages merged\n");
+		goto unmap;
+	}
 
 	map = mmap(NULL, size, PROT_READ|PROT_WRITE,
 		   MAP_PRIVATE|MAP_ANON, -1, 0);
@@ -160,6 +195,16 @@ static char *mmap_and_merge_range(char val, unsigned long size, bool use_prctl)
 		ksft_test_result_fail("Running KSM failed\n");
 		goto unmap;
 	}
+
+	/*
+	 * Check if anything was merged at all. Ignore the zero page that is
+	 * accounted differently (depending on kernel support).
+	 */
+	if (val && !get_my_merging_pages()) {
+		ksft_test_result_fail("No pages got merged\n");
+		goto unmap;
+	}
+
 	return map;
 unmap:
 	munmap(map, size);
@@ -473,6 +518,8 @@ int main(int argc, char **argv)
 	if (pagemap_fd < 0)
 		ksft_exit_skip("open(\"/proc/self/pagemap\") failed\n");
 	proc_self_ksm_stat_fd = open("/proc/self/ksm_stat", O_RDONLY);
+	proc_self_ksm_merging_pages_fd = open("/proc/self/ksm_merging_pages",
+					      O_RDONLY);
 	ksm_use_zero_pages_fd = open("/sys/kernel/mm/ksm/use_zero_pages", O_RDWR);
 
 	test_unmerge();
