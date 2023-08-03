@@ -53,7 +53,12 @@ enum ipu_sensor_swnodes {
 	SWNODE_SENSOR_ENDPOINT,
 	SWNODE_IPU_PORT,
 	SWNODE_IPU_ENDPOINT,
-	/* Must be last because it is optional / maybe empty */
+	/* below are optional / maybe empty */
+	SWNODE_IVSC_HID,
+	SWNODE_IVSC_SENSOR_PORT,
+	SWNODE_IVSC_SENSOR_ENDPOINT,
+	SWNODE_IVSC_IPU_PORT,
+	SWNODE_IVSC_IPU_ENDPOINT,
 	SWNODE_VCM,
 	SWNODE_COUNT
 };
@@ -100,6 +105,8 @@ struct ipu_property_names {
 
 struct ipu_node_names {
 	char port[7];
+	char ivsc_sensor_port[7];
+	char ivsc_ipu_port[7];
 	char endpoint[11];
 	char remote_port[7];
 	char vcm[16];
@@ -115,6 +122,10 @@ struct ipu_sensor {
 	/* append ssdb.link(u8) in "-%u" format as suffix of HID */
 	char name[ACPI_ID_LEN + 4];
 	struct acpi_device *adev;
+
+	struct device *csi_dev;
+	struct acpi_device *ivsc_adev;
+	char ivsc_name[ACPI_ID_LEN + 4];
 
 	/* SWNODE_COUNT + 1 for terminating NULL */
 	const struct software_node *group[SWNODE_COUNT + 1];
@@ -132,9 +143,15 @@ struct ipu_sensor {
 	struct property_entry ep_properties[5];
 	struct property_entry dev_properties[5];
 	struct property_entry ipu_properties[3];
+	struct property_entry ivsc_properties[1];
+	struct property_entry ivsc_sensor_ep_properties[4];
+	struct property_entry ivsc_ipu_ep_properties[4];
+
 	struct software_node_ref_args local_ref[1];
 	struct software_node_ref_args remote_ref[1];
 	struct software_node_ref_args vcm_ref[1];
+	struct software_node_ref_args ivsc_sensor_ref[1];
+	struct software_node_ref_args ivsc_ipu_ref[1];
 };
 
 typedef int (*ipu_parse_sensor_fwnode_t)(struct acpi_device *adev,
