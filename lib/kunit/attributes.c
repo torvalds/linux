@@ -102,7 +102,7 @@ static int int_filter(long val, const char *op, int input, int *err)
 static int attr_enum_filter(void *attr, const char *input, int *err,
 		const char * const str_list[], int max)
 {
-	int i, j, input_int;
+	int i, j, input_int = -1;
 	long test_val = (long)attr;
 	const char *input_val = NULL;
 
@@ -124,7 +124,7 @@ static int attr_enum_filter(void *attr, const char *input, int *err,
 			input_int = j;
 	}
 
-	if (!input_int) {
+	if (input_int < 0) {
 		*err = -EINVAL;
 		pr_err("kunit executor: invalid filter input: %s\n", input);
 		return false;
@@ -186,8 +186,10 @@ static void *attr_module_get(void *test_or_suite, bool is_test)
 	// Suites get their module attribute from their first test_case
 	if (test)
 		return ((void *) test->module_name);
-	else
+	else if (kunit_suite_num_test_cases(suite) > 0)
 		return ((void *) suite->test_cases[0].module_name);
+	else
+		return (void *) "";
 }
 
 /* List of all Test Attributes */
@@ -221,7 +223,7 @@ const char *kunit_attr_filter_name(struct kunit_attr_filter filter)
 void kunit_print_attr(void *test_or_suite, bool is_test, unsigned int test_level)
 {
 	int i;
-	bool to_free;
+	bool to_free = false;
 	void *attr;
 	const char *attr_name, *attr_str;
 	struct kunit_suite *suite = is_test ? NULL : test_or_suite;
@@ -255,7 +257,7 @@ void kunit_print_attr(void *test_or_suite, bool is_test, unsigned int test_level
 
 int kunit_get_filter_count(char *input)
 {
-	int i, comma_index, count = 0;
+	int i, comma_index = 0, count = 0;
 
 	for (i = 0; input[i]; i++) {
 		if (input[i] == ',') {
@@ -272,7 +274,7 @@ int kunit_get_filter_count(char *input)
 struct kunit_attr_filter kunit_next_attr_filter(char **filters, int *err)
 {
 	struct kunit_attr_filter filter = {};
-	int i, j, comma_index, new_start_index;
+	int i, j, comma_index = 0, new_start_index = 0;
 	int op_index = -1, attr_index = -1;
 	char op;
 	char *input = *filters;
@@ -316,7 +318,7 @@ struct kunit_attr_filter kunit_next_attr_filter(char **filters, int *err)
 		filter.attr = &kunit_attr_list[attr_index];
 	}
 
-	if (comma_index) {
+	if (comma_index > 0) {
 		input[comma_index] = '\0';
 		filter.input = input + op_index;
 		input = input + new_start_index;
@@ -356,31 +358,22 @@ struct kunit_suite *kunit_filter_attr_tests(const struct kunit_suite *const suit
 
 	/* Save filtering result on default value */
 	default_result = filter.attr->filter(filter.attr->attr_default, filter.input, err);
-	if (*err) {
-		kfree(copy);
-		kfree(filtered);
-		return NULL;
-	}
+	if (*err)
+		goto err;
 
 	/* Save suite attribute value and filtering result on that value */
 	suite_val = filter.attr->get_attr((void *)suite, false);
 	suite_result = filter.attr->filter(suite_val, filter.input, err);
-	if (*err) {
-		kfree(copy);
-		kfree(filtered);
-		return NULL;
-	}
+	if (*err)
+		goto err;
 
 	/* For each test case, save test case if passes filtering. */
 	kunit_suite_for_each_test_case(suite, test_case) {
 		test_val = filter.attr->get_attr((void *) test_case, true);
 		test_result = filter.attr->filter(filter.attr->get_attr(test_case, true),
 				filter.input, err);
-		if (*err) {
-			kfree(copy);
-			kfree(filtered);
-			return NULL;
-		}
+		if (*err)
+			goto err;
 
 		/*
 		 * If attribute value of test case is set, filter on that value.
@@ -406,7 +399,8 @@ struct kunit_suite *kunit_filter_attr_tests(const struct kunit_suite *const suit
 		}
 	}
 
-	if (n == 0) {
+err:
+	if (n == 0 || *err) {
 		kfree(copy);
 		kfree(filtered);
 		return NULL;

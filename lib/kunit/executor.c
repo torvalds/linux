@@ -127,19 +127,18 @@ static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
 {
 	int i, j, k;
 	int filter_count = 0;
-	struct kunit_suite **copy, *filtered_suite, *new_filtered_suite;
-	struct suite_set filtered;
+	struct kunit_suite **copy, **copy_start, *filtered_suite, *new_filtered_suite;
+	struct suite_set filtered = {NULL, NULL};
 	struct kunit_glob_filter parsed_glob;
-	struct kunit_attr_filter *parsed_filters;
+	struct kunit_attr_filter *parsed_filters = NULL;
 
 	const size_t max = suite_set->end - suite_set->start;
 
 	copy = kmalloc_array(max, sizeof(*filtered.start), GFP_KERNEL);
-	filtered.start = copy;
 	if (!copy) { /* won't be able to run anything, return an empty set */
-		filtered.end = copy;
 		return filtered;
 	}
+	copy_start = copy;
 
 	if (filter_glob)
 		kunit_parse_glob_filter(&parsed_glob, filter_glob);
@@ -147,7 +146,11 @@ static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
 	/* Parse attribute filters */
 	if (filters) {
 		filter_count = kunit_get_filter_count(filters);
-		parsed_filters = kcalloc(filter_count + 1, sizeof(*parsed_filters), GFP_KERNEL);
+		parsed_filters = kcalloc(filter_count, sizeof(*parsed_filters), GFP_KERNEL);
+		if (!parsed_filters) {
+			kfree(copy);
+			return filtered;
+		}
 		for (j = 0; j < filter_count; j++)
 			parsed_filters[j] = kunit_next_attr_filter(&filters, err);
 		if (*err)
@@ -166,7 +169,7 @@ static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
 				goto err;
 			}
 		}
-		if (filter_count) {
+		if (filter_count > 0 && parsed_filters != NULL) {
 			for (k = 0; k < filter_count; k++) {
 				new_filtered_suite = kunit_filter_attr_tests(filtered_suite,
 						parsed_filters[k], filter_action, err);
@@ -195,6 +198,7 @@ static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
 
 		*copy++ = filtered_suite;
 	}
+	filtered.start = copy_start;
 	filtered.end = copy;
 
 err:

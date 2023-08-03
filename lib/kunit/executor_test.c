@@ -119,7 +119,7 @@ static void parse_filter_attr_test(struct kunit *test)
 	filter_count = kunit_get_filter_count(filters);
 	KUNIT_EXPECT_EQ(test, filter_count, 2);
 
-	parsed_filters = kunit_kcalloc(test, filter_count + 1, sizeof(*parsed_filters),
+	parsed_filters = kunit_kcalloc(test, filter_count, sizeof(*parsed_filters),
 			GFP_KERNEL);
 	for (j = 0; j < filter_count; j++) {
 		parsed_filters[j] = kunit_next_attr_filter(&filters, &err);
