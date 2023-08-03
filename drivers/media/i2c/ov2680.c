@@ -33,6 +33,7 @@
 #define OV2680_REG_SOFT_RESET			CCI_REG8(0x0103)
 
 #define OV2680_REG_CHIP_ID			CCI_REG16(0x300a)
+#define OV2680_REG_SC_CMMN_SUB_ID		CCI_REG8(0x302a)
 #define OV2680_REG_PLL_MULTIPLIER		CCI_REG16(0x3081)
 
 #define OV2680_REG_EXPOSURE_PK			CCI_REG24(0x3500)
@@ -966,13 +967,14 @@ static int ov2680_get_regulators(struct ov2680_dev *sensor)
 
 static int ov2680_check_id(struct ov2680_dev *sensor)
 {
-	u64 chip_id;
-	int ret;
+	u64 chip_id, rev;
+	int ret = 0;
 
-	ret = cci_read(sensor->regmap, OV2680_REG_CHIP_ID, &chip_id, NULL);
+	cci_read(sensor->regmap, OV2680_REG_CHIP_ID, &chip_id, &ret);
+	cci_read(sensor->regmap, OV2680_REG_SC_CMMN_SUB_ID, &rev, &ret);
 	if (ret < 0) {
 		dev_err(sensor->dev, "failed to read chip id\n");
-		return -ENODEV;
+		return ret;
 	}
 
 	if (chip_id != OV2680_CHIP_ID) {
@@ -980,6 +982,9 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 			chip_id, OV2680_CHIP_ID);
 		return -ENODEV;
 	}
+
+	dev_info(sensor->dev, "sensor_revision id = 0x%llx, rev= %lld\n",
+		 chip_id, rev & 0x0f);
 
 	return 0;
 }
@@ -1120,8 +1125,6 @@ static int ov2680_probe(struct i2c_client *client)
 	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
 	pm_runtime_use_autosuspend(&client->dev);
 	pm_runtime_put_autosuspend(&client->dev);
-
-	dev_info(dev, "ov2680 init correctly\n");
 
 	return 0;
 
