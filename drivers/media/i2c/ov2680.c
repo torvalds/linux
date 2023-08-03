@@ -27,14 +27,13 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
-#define OV2680_XVCLK_VALUE			24000000
-
 #define OV2680_CHIP_ID				0x2680
 
 #define OV2680_REG_STREAM_CTRL			CCI_REG8(0x0100)
 #define OV2680_REG_SOFT_RESET			CCI_REG8(0x0103)
 
 #define OV2680_REG_CHIP_ID			CCI_REG16(0x300a)
+#define OV2680_REG_PLL_MULTIPLIER		CCI_REG16(0x3081)
 
 #define OV2680_REG_EXPOSURE_PK			CCI_REG24(0x3500)
 #define OV2680_REG_R_MANUAL			CCI_REG8(0x3503)
@@ -69,6 +68,21 @@ static const char * const ov2680_supply_name[] = {
 
 #define OV2680_NUM_SUPPLIES ARRAY_SIZE(ov2680_supply_name)
 
+enum {
+	OV2680_19_2_MHZ,
+	OV2680_24_MHZ,
+};
+
+static const unsigned long ov2680_xvclk_freqs[] = {
+	[OV2680_19_2_MHZ] = 19200000,
+	[OV2680_24_MHZ] = 24000000,
+};
+
+static const u8 ov2680_pll_multipliers[] = {
+	[OV2680_19_2_MHZ] = 69,
+	[OV2680_24_MHZ] = 55,
+};
+
 struct ov2680_mode_info {
 	const char *name;
 	enum ov2680_mode_id id;
@@ -95,6 +109,7 @@ struct ov2680_dev {
 	struct media_pad		pad;
 	struct clk			*xvclk;
 	u32				xvclk_freq;
+	u8				pll_mult;
 	struct regulator_bulk_data	supplies[OV2680_NUM_SUPPLIES];
 
 	struct gpio_desc		*pwdn_gpio;
@@ -283,6 +298,11 @@ static int ov2680_exposure_set(struct ov2680_dev *sensor, u32 exp)
 static int ov2680_stream_enable(struct ov2680_dev *sensor)
 {
 	int ret;
+
+	ret = cci_write(sensor->regmap, OV2680_REG_PLL_MULTIPLIER,
+			sensor->pll_mult, NULL);
+	if (ret < 0)
+		return ret;
 
 	ret = regmap_multi_reg_write(sensor->regmap,
 				     ov2680_mode_init_data.reg_data,
@@ -699,7 +719,7 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 	struct device *dev = sensor->dev;
 	struct gpio_desc *gpio;
 	unsigned int rate = 0;
-	int ret;
+	int i, ret;
 
 	/*
 	 * The pin we want is named XSHUTDN in the datasheet. Linux sensor
@@ -747,11 +767,18 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 	}
 
 	sensor->xvclk_freq = rate ?: clk_get_rate(sensor->xvclk);
-	if (sensor->xvclk_freq != OV2680_XVCLK_VALUE) {
-		dev_err(dev, "wrong xvclk frequency %d HZ, expected: %d Hz\n",
-			sensor->xvclk_freq, OV2680_XVCLK_VALUE);
-		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(ov2680_xvclk_freqs); i++) {
+		if (sensor->xvclk_freq == ov2680_xvclk_freqs[i])
+			break;
 	}
+
+	if (i == ARRAY_SIZE(ov2680_xvclk_freqs))
+		return dev_err_probe(dev, -EINVAL,
+				     "unsupported xvclk frequency %d Hz\n",
+				     sensor->xvclk_freq);
+
+	sensor->pll_mult = ov2680_pll_multipliers[i];
 
 	return 0;
 }
