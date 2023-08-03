@@ -508,7 +508,7 @@ static void rockchip_rtc_compensation_delay_work(struct work_struct *work)
 	c_mon = DIV_ROUND_CLOSEST(30 * 24 * tcamp, 32768);
 
 	if (c_hour > 1)
-		rockchip_rtc_write(rtc->regmap, RTC_COMP_H, (c_hour - 1) | trim_dir);
+		rockchip_rtc_write(rtc->regmap, RTC_COMP_H, bin2bcd((c_hour - 1)) | trim_dir);
 	else
 		rockchip_rtc_write(rtc->regmap, RTC_COMP_H, CLK32K_NO_COMP);
 
@@ -522,7 +522,7 @@ static void rockchip_rtc_compensation_delay_work(struct work_struct *work)
 
 	if (c_det_day > 1)
 		rockchip_rtc_write(rtc->regmap, RTC_COMP_D,
-				   (c_det_day - 1) | trim_dir);
+				   bin2bcd((c_det_day - 1)) | trim_dir);
 	else
 		rockchip_rtc_write(rtc->regmap, RTC_COMP_D, CLK32K_NO_COMP);
 
@@ -536,7 +536,7 @@ static void rockchip_rtc_compensation_delay_work(struct work_struct *work)
 
 	if (c_det_mon)
 		rockchip_rtc_write(rtc->regmap, RTC_COMP_M,
-				   (c_det_mon - 1) | trim_dir);
+				   bin2bcd((c_det_mon - 1)) | trim_dir);
 	else
 		rockchip_rtc_write(rtc->regmap, RTC_COMP_M, CLK32K_NO_COMP);
 
