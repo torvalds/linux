@@ -48,6 +48,7 @@
 #include "dcn315/dcn315_clk_mgr.h"
 #include "dcn316/dcn316_clk_mgr.h"
 #include "dcn32/dcn32_clk_mgr.h"
+#include "dcn35/dcn35_clk_mgr.h"
 
 int clk_mgr_helper_get_active_display_cnt(
 		struct dc *dc,
@@ -403,6 +404,10 @@ void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 
 	case AMDGPU_FAMILY_GC_11_0_1:
 		dcn314_clk_mgr_destroy(clk_mgr);
+		break;
+
+	case AMDGPU_FAMILY_GC_11_5_0:
+		dcn35_clk_mgr_destroy(clk_mgr);
 		break;
 
 	default:

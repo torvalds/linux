@@ -808,6 +808,7 @@ struct dc_context {
 	struct cp_psp cp_psp;
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
+	uint32_t *clk_reg_offsets;
 };
 
 /* DSC DPCD capabilities */
