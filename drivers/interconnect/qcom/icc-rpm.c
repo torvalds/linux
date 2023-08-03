@@ -497,7 +497,7 @@ regmap_done:
 
 	ret = devm_clk_bulk_get(dev, qp->num_intf_clks, qp->intf_clks);
 	if (ret)
-		return ret;
+		goto err_disable_unprepare_clk;
 
 	provider = &qp->provider;
 	provider->dev = dev;
@@ -512,13 +512,15 @@ regmap_done:
 	/* If this fails, bus accesses will crash the platform! */
 	ret = clk_bulk_prepare_enable(qp->num_intf_clks, qp->intf_clks);
 	if (ret)
-		return ret;
+		goto err_disable_unprepare_clk;
 
 	for (i = 0; i < num_nodes; i++) {
 		size_t j;
 
 		node = icc_node_create(qnodes[i]->id);
 		if (IS_ERR(node)) {
+			clk_bulk_disable_unprepare(qp->num_intf_clks,
+						   qp->intf_clks);
 			ret = PTR_ERR(node);
 			goto err_remove_nodes;
 		}
@@ -534,8 +536,11 @@ regmap_done:
 		if (qnodes[i]->qos.ap_owned &&
 		    qnodes[i]->qos.qos_mode != NOC_QOS_MODE_INVALID) {
 			ret = qcom_icc_qos_set(node);
-			if (ret)
-				return ret;
+			if (ret) {
+				clk_bulk_disable_unprepare(qp->num_intf_clks,
+							   qp->intf_clks);
+				goto err_remove_nodes;
+			}
 		}
 
 		data->nodes[i] = node;
@@ -563,6 +568,7 @@ err_deregister_provider:
 	icc_provider_deregister(provider);
 err_remove_nodes:
 	icc_nodes_remove(provider);
+err_disable_unprepare_clk:
 	clk_disable_unprepare(qp->bus_clk);
 
 	return ret;
