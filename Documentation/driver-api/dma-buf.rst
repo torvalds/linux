@@ -22,6 +22,14 @@ interact with the three main primitives offered by dma-buf:
    allowing implicit (kernel-ordered) synchronization of work to
    preserve the illusion of coherent access
 
+
+Userspace API principles and use
+--------------------------------
+
+For more details on how to design your subsystem's API for dma-buf use, please
+see Documentation/userspace-api/dma-buf-alloc-exchange.rst.
+
+
 Shared DMA Buffers
 ------------------
 
