@@ -827,8 +827,8 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	mtd->name = DRV_NAME;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
-		return -EINVAL;
+	if (irq < 0)
+		return irq;
 
 	nfc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(nfc->regs))
