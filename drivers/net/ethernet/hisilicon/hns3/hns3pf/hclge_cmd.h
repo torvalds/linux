@@ -886,8 +886,4 @@ struct hclge_query_wol_supported_cmd {
 
 struct hclge_hw;
 int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num);
-enum hclge_comm_cmd_status hclge_cmd_mdio_write(struct hclge_hw *hw,
-						struct hclge_desc *desc);
-enum hclge_comm_cmd_status hclge_cmd_mdio_read(struct hclge_hw *hw,
-					       struct hclge_desc *desc);
 #endif
