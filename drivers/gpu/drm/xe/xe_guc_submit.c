@@ -802,8 +802,18 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 	/* Kill the run_job / process_msg entry points */
 	xe_sched_submission_stop(sched);
 
-	/* Engine state now stable, disable scheduling / deregister if needed */
-	if (exec_queue_registered(q)) {
+	/*
+	 * Engine state now mostly stable, disable scheduling / deregister if
+	 * needed. This cleanup routine might be called multiple times, where
+	 * the actual async engine deregister drops the final engine ref.
+	 * Calling disable_scheduling_deregister will mark the engine as
+	 * destroyed and fire off the CT requests to disable scheduling /
+	 * deregister, which we only want to do once. We also don't want to mark
+	 * the engine as pending_disable again as this may race with the
+	 * xe_guc_deregister_done_handler() which treats it as an unexpected
+	 * state.
+	 */
+	if (exec_queue_registered(q) && !exec_queue_destroyed(q)) {
 		struct xe_guc *guc = exec_queue_to_guc(q);
 		int ret;
 
