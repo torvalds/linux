@@ -94,7 +94,7 @@ static int find_free_gsl_group(const struct dc *dc)
  * gsl_0 <=> pipe_ctx->stream_res.gsl_group == 1
  * Using a magic value like -1 would require tracking all inits/resets
  */
-static void dcn20_setup_gsl_group_as_lock(
+ void dcn20_setup_gsl_group_as_lock(
 		const struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		bool enable)
@@ -1735,7 +1735,11 @@ static void dcn20_program_pipe(
 		hws->funcs.update_odm(dc, context, pipe_ctx);
 
 	if (pipe_ctx->update_flags.bits.enable) {
-		dcn20_enable_plane(dc, pipe_ctx, context);
+		if (hws->funcs.enable_plane)
+			hws->funcs.enable_plane(dc, pipe_ctx, context);
+		else
+			dcn20_enable_plane(dc, pipe_ctx, context);
+
 		if (dc->res_pool->hubbub->funcs->force_wm_propagate_to_pipes)
 			dc->res_pool->hubbub->funcs->force_wm_propagate_to_pipes(dc->res_pool->hubbub);
 	}
