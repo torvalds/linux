@@ -39,6 +39,18 @@ static void cssc_sigill(void)
 	asm volatile(".inst 0xdac01c00" : : : "x0");
 }
 
+static void ilrcpc_sigill(void)
+{
+	/* LDAPUR W0, [SP, #8] */
+	asm volatile(".inst 0x994083e0" : : : );
+}
+
+static void lrcpc_sigill(void)
+{
+	/* LDAPR W0, [SP, #0] */
+	asm volatile(".inst 0xb8bfc3e0" : : : );
+}
+
 static void mops_sigill(void)
 {
 	char dst[1], src[1];
@@ -222,6 +234,20 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_CSSC,
 		.cpuinfo = "cssc",
 		.sigill_fn = cssc_sigill,
+	},
+	{
+		.name = "LRCPC",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_LRCPC,
+		.cpuinfo = "lrcpc",
+		.sigill_fn = lrcpc_sigill,
+	},
+	{
+		.name = "LRCPC2",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_ILRCPC,
+		.cpuinfo = "ilrcpc",
+		.sigill_fn = ilrcpc_sigill,
 	},
 	{
 		.name = "MOPS",
