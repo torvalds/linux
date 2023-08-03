@@ -25,6 +25,7 @@
 #include <media/v4l2-cci.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 #define OV2680_CHIP_ID				0x2680
@@ -1008,6 +1009,9 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 
 static int ov2680_parse_dt(struct ov2680_dev *sensor)
 {
+	struct v4l2_fwnode_endpoint bus_cfg = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY,
+	};
 	struct device *dev = sensor->dev;
 	struct fwnode_handle *ep_fwnode;
 	struct gpio_desc *gpio;
@@ -1023,7 +1027,10 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 		return dev_err_probe(dev, -EPROBE_DEFER,
 				     "waiting for fwnode graph endpoint\n");
 
+	ret = v4l2_fwnode_endpoint_alloc_parse(ep_fwnode, &bus_cfg);
 	fwnode_handle_put(ep_fwnode);
+	if (ret)
+		return ret;
 
 	/*
 	 * The pin we want is named XSHUTDN in the datasheet. Linux sensor
@@ -1038,15 +1045,16 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 	ret = PTR_ERR_OR_ZERO(gpio);
 	if (ret < 0) {
 		dev_dbg(dev, "error while getting reset gpio: %d\n", ret);
-		return ret;
+		goto out_free_bus_cfg;
 	}
 
 	sensor->pwdn_gpio = gpio;
 
 	sensor->xvclk = devm_clk_get_optional(dev, "xvclk");
 	if (IS_ERR(sensor->xvclk)) {
-		dev_err(dev, "xvclk clock missing or invalid\n");
-		return PTR_ERR(sensor->xvclk);
+		ret = dev_err_probe(dev, PTR_ERR(sensor->xvclk),
+				    "xvclk clock missing or invalid\n");
+		goto out_free_bus_cfg;
 	}
 
 	/*
@@ -1060,14 +1068,17 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 	 */
 	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
 				       &rate);
-	if (ret && !sensor->xvclk)
-		return dev_err_probe(dev, ret, "invalid clock config\n");
+	if (ret && !sensor->xvclk) {
+		dev_err_probe(dev, ret, "invalid clock config\n");
+		goto out_free_bus_cfg;
+	}
 
 	if (!ret && sensor->xvclk) {
 		ret = clk_set_rate(sensor->xvclk, rate);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "failed to set clock rate\n");
+		if (ret) {
+			dev_err_probe(dev, ret, "failed to set clock rate\n");
+			goto out_free_bus_cfg;
+		}
 	}
 
 	sensor->xvclk_freq = rate ?: clk_get_rate(sensor->xvclk);
@@ -1077,10 +1088,12 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(ov2680_xvclk_freqs))
-		return dev_err_probe(dev, -EINVAL,
-				     "unsupported xvclk frequency %d Hz\n",
-				     sensor->xvclk_freq);
+	if (i == ARRAY_SIZE(ov2680_xvclk_freqs)) {
+		ret = dev_err_probe(dev, -EINVAL,
+				    "unsupported xvclk frequency %d Hz\n",
+				    sensor->xvclk_freq);
+		goto out_free_bus_cfg;
+	}
 
 	sensor->pll_mult = ov2680_pll_multipliers[i];
 
@@ -1091,7 +1104,28 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 	sensor->pixel_rate = sensor->link_freq[0] * 2;
 	do_div(sensor->pixel_rate, 10);
 
-	return 0;
+	/* Verify bus cfg */
+	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 1) {
+		ret = dev_err_probe(dev, -EINVAL,
+				    "only a 1-lane CSI2 config is supported");
+		goto out_free_bus_cfg;
+	}
+
+	for (i = 0; i < bus_cfg.nr_of_link_frequencies; i++)
+		if (bus_cfg.link_frequencies[i] == sensor->link_freq[0])
+			break;
+
+	if (bus_cfg.nr_of_link_frequencies == 0 ||
+	    bus_cfg.nr_of_link_frequencies == i) {
+		ret = dev_err_probe(dev, -EINVAL,
+				    "supported link freq %lld not found\n",
+				    sensor->link_freq[0]);
+		goto out_free_bus_cfg;
+	}
+
+out_free_bus_cfg:
+	v4l2_fwnode_endpoint_free(&bus_cfg);
+	return ret;
 }
 
 static int ov2680_probe(struct i2c_client *client)
