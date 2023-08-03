@@ -168,6 +168,8 @@ struct dcn10_link_enc_registers {
 	uint32_t DIO_LINKE_CNTL;
 	uint32_t DIO_LINKF_CNTL;
 	uint32_t DIG_FIFO_CTRL0;
+	uint32_t DIO_CLK_CNTL;
+	uint32_t DIG_BE_CLK_CNTL;
 };
 
 #define LE_SF(reg_name, field_name, post_fix)\
@@ -476,12 +478,42 @@ struct dcn10_link_enc_registers {
 #define DCN32_LINK_ENCODER_REG_FIELD_LIST(type) \
 	type DIG_FIFO_OUTPUT_PIXEL_MODE
 
+#define DCN35_LINK_ENCODER_REG_FIELD_LIST(type) \
+	type DIG_BE_ENABLE;\
+	type DIG_RB_SWITCH_EN;\
+	type DIG_BE_MODE;\
+	type DIG_BE_CLK_EN;\
+	type DIG_BE_SOFT_RESET;\
+	type HDCP_SOFT_RESET;\
+	type DIG_BE_SYMCLK_G_CLOCK_ON;\
+	type DIG_BE_SYMCLK_G_HDCP_CLOCK_ON;\
+	type DIG_BE_SYMCLK_G_TMDS_CLOCK_ON;\
+	type DISPCLK_R_GATE_DIS;\
+	type DISPCLK_G_GATE_DIS;\
+	type REFCLK_R_GATE_DIS;\
+	type REFCLK_G_GATE_DIS;\
+	type SOCCLK_G_GATE_DIS;\
+	type SYMCLK_FE_R_GATE_DIS;\
+	type SYMCLK_FE_G_GATE_DIS;\
+	type SYMCLK_R_GATE_DIS;\
+	type SYMCLK_G_GATE_DIS;\
+	type DIO_FGCG_REP_DIS;\
+	type DISPCLK_G_HDCP_GATE_DIS;\
+	type SYMCLKA_G_HDCP_GATE_DIS;\
+	type SYMCLKB_G_HDCP_GATE_DIS;\
+	type SYMCLKC_G_HDCP_GATE_DIS;\
+	type SYMCLKD_G_HDCP_GATE_DIS;\
+	type SYMCLKE_G_HDCP_GATE_DIS;\
+	type SYMCLKF_G_HDCP_GATE_DIS;\
+	type SYMCLKG_G_HDCP_GATE_DIS
+
 struct dcn10_link_enc_shift {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN31_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN32_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
+	DCN35_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 };
 
 struct dcn10_link_enc_mask {
@@ -490,6 +522,7 @@ struct dcn10_link_enc_mask {
 	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 	DCN31_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 	DCN32_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
+	DCN35_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 };
 
 struct dcn10_link_encoder {

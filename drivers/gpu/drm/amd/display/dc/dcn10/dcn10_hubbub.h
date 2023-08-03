@@ -196,6 +196,9 @@ struct dcn_hubbub_registers {
 		type DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_C;\
 		type DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_D
 
+#define HUBBUB_REG_FIELD_LIST_DCN35(type) \
+		type DCHUBBUB_FGCG_REP_DIS
+
 /* set field name */
 #define HUBBUB_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -381,6 +384,7 @@ struct dcn_hubbub_shift {
 	HUBBUB_HVM_REG_FIELD_LIST(uint8_t);
 	HUBBUB_RET_REG_FIELD_LIST(uint8_t);
 	HUBBUB_REG_FIELD_LIST_DCN32(uint8_t);
+	HUBBUB_REG_FIELD_LIST_DCN35(uint8_t);
 };
 
 struct dcn_hubbub_mask {
@@ -389,6 +393,7 @@ struct dcn_hubbub_mask {
 	HUBBUB_HVM_REG_FIELD_LIST(uint32_t);
 	HUBBUB_RET_REG_FIELD_LIST(uint32_t);
 	HUBBUB_REG_FIELD_LIST_DCN32(uint32_t);
+	HUBBUB_REG_FIELD_LIST_DCN35(uint8_t);
 };
 
 struct dc;
