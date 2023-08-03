@@ -375,7 +375,7 @@ EXPORT_SYMBOL_GPL(aspeed_mctp_packet_free);
 static u16 _get_bdf(struct aspeed_mctp *priv)
 {
 	u32 reg;
-	u16 bdf;
+	u16 bdf, devfn;
 
 	regmap_read(priv->pcie.map, ASPEED_PCIE_LINK, &reg);
 	if (!(reg & PCIE_LINK_STS))
@@ -383,7 +383,9 @@ static u16 _get_bdf(struct aspeed_mctp *priv)
 	regmap_read(priv->pcie.map, ASPEED_PCIE_MISC_STS_1, &reg);
 
 	reg = reg & (PCI_BUS_NUM_MASK | PCI_DEV_NUM_MASK);
-	bdf = PCI_DEVID(GET_PCI_BUS_NUM(reg), GET_PCI_DEV_NUM(reg));
+	/* only support function 0 */
+	devfn = GET_PCI_DEV_NUM(reg) << 3;
+	bdf = PCI_DEVID(GET_PCI_BUS_NUM(reg), devfn);
 
 	return bdf;
 }
