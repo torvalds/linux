@@ -1988,9 +1988,17 @@ def print_kernel_op_table(family, cw):
                 cw.block_start()
                 members = [('cmd', op.enum_name)]
                 if 'dont-validate' in op:
+                    dont_validate = []
+                    for x in op['dont-validate']:
+                        if op_mode == 'do' and x in ['dump', 'dump-strict']:
+                            continue
+                        if op_mode == "dump" and x == 'strict':
+                            continue
+                        dont_validate.append(x)
+
                     members.append(('validate',
                                     ' | '.join([c_upper('genl-dont-validate-' + x)
-                                                for x in op['dont-validate']])), )
+                                                for x in dont_validate])), )
                 name = c_lower(f"{family.name}-nl-{op_name}-{op_mode}it")
                 if 'pre' in op[op_mode]:
                     members.append((cb_names[op_mode]['pre'], c_lower(op[op_mode]['pre'])))
