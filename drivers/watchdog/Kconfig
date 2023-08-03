@@ -1797,6 +1797,19 @@ config OCTEON_WDT
 	  from the first interrupt, it is then only poked when the
 	  device is written.
 
+config MARVELL_GTI_WDT
+	tristate "Marvell GTI Watchdog driver"
+	depends on ARCH_THUNDER || (COMPILE_TEST && 64BIT)
+	default y
+	select WATCHDOG_CORE
+	help
+	  Marvell GTI hardware supports watchdog timer. First timeout
+	  works as watchdog pretimeout and installed interrupt handler
+	  will be called on first timeout. Hardware can generate interrupt
+	  to SCP on second timeout but it is not enabled, so second
+	  timeout is ignored. If device poke does not happen then system
+	  will reboot on third timeout.
+
 config BCM2835_WDT
 	tristate "Broadcom BCM2835 hardware watchdog"
 	depends on ARCH_BCM2835 || (OF && COMPILE_TEST)
