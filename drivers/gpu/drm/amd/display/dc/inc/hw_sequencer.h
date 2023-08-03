@@ -45,6 +45,7 @@ struct dpp;
 struct dce_hwseq;
 struct link_resource;
 struct dc_dmub_cmd;
+struct pg_block_update;
 
 struct subvp_pipe_control_lock_fast_params {
 	struct dc *dc;
@@ -404,6 +405,15 @@ struct hw_sequencer_funcs {
 			struct dc_state *context,
 			struct pipe_ctx *phantom_pipe);
 	void (*apply_update_flags_for_phantom)(struct pipe_ctx *phantom_pipe);
+
+	void (*calc_blocks_to_gate)(struct dc *dc, struct dc_state *context,
+		struct pg_block_update *update_state);
+	void (*calc_blocks_to_ungate)(struct dc *dc, struct dc_state *context,
+		struct pg_block_update *update_state);
+	void (*block_power_control)(struct dc *dc,
+		struct pg_block_update *update_state, bool power_on);
+	void (*root_clock_control)(struct dc *dc,
+		struct pg_block_update *update_state, bool power_on);
 
 	void (*commit_subvp_config)(struct dc *dc, struct dc_state *context);
 	void (*enable_phantom_streams)(struct dc *dc, struct dc_state *context);
