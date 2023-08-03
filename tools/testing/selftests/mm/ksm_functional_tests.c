@@ -27,6 +27,7 @@
 #define KiB 1024u
 #define MiB (1024 * KiB)
 
+static int mem_fd;
 static int ksm_fd;
 static int ksm_full_scans_fd;
 static int proc_self_ksm_stat_fd;
@@ -144,7 +145,8 @@ static int ksm_unmerge(void)
 	return 0;
 }
 
-static char *mmap_and_merge_range(char val, unsigned long size, bool use_prctl)
+static char *mmap_and_merge_range(char val, unsigned long size, int prot,
+				  bool use_prctl)
 {
 	char *map;
 	int ret;
@@ -175,6 +177,11 @@ static char *mmap_and_merge_range(char val, unsigned long size, bool use_prctl)
 
 	/* Make sure each page contains the same values to merge them. */
 	memset(map, val, size);
+
+	if (mprotect(map, size, prot)) {
+		ksft_test_result_skip("mprotect() failed\n");
+		goto unmap;
+	}
 
 	if (use_prctl) {
 		ret = prctl(PR_SET_MEMORY_MERGE, 1, 0, 0, 0);
@@ -218,7 +225,7 @@ static void test_unmerge(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0xcf, size, false);
+	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, false);
 	if (map == MAP_FAILED)
 		return;
 
@@ -256,7 +263,7 @@ static void test_unmerge_zero_pages(void)
 	}
 
 	/* Let KSM deduplicate zero pages. */
-	map = mmap_and_merge_range(0x00, size, false);
+	map = mmap_and_merge_range(0x00, size, PROT_READ | PROT_WRITE, false);
 	if (map == MAP_FAILED)
 		return;
 
@@ -304,7 +311,7 @@ static void test_unmerge_discarded(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0xcf, size, false);
+	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, false);
 	if (map == MAP_FAILED)
 		return;
 
@@ -336,7 +343,7 @@ static void test_unmerge_uffd_wp(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0xcf, size, false);
+	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, false);
 	if (map == MAP_FAILED)
 		return;
 
@@ -479,7 +486,7 @@ static void test_prctl_unmerge(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0xcf, size, true);
+	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, true);
 	if (map == MAP_FAILED)
 		return;
 
@@ -494,9 +501,42 @@ unmap:
 	munmap(map, size);
 }
 
+static void test_prot_none(void)
+{
+	const unsigned int size = 2 * MiB;
+	char *map;
+	int i;
+
+	ksft_print_msg("[RUN] %s\n", __func__);
+
+	map = mmap_and_merge_range(0x11, size, PROT_NONE, false);
+	if (map == MAP_FAILED)
+		goto unmap;
+
+	/* Store a unique value in each page on one half using ptrace */
+	for (i = 0; i < size / 2; i += pagesize) {
+		lseek(mem_fd, (uintptr_t) map + i, SEEK_SET);
+		if (write(mem_fd, &i, sizeof(i)) != sizeof(i)) {
+			ksft_test_result_fail("ptrace write failed\n");
+			goto unmap;
+		}
+	}
+
+	/* Trigger unsharing on the other half. */
+	if (madvise(map + size / 2, size / 2, MADV_UNMERGEABLE)) {
+		ksft_test_result_fail("MADV_UNMERGEABLE failed\n");
+		goto unmap;
+	}
+
+	ksft_test_result(!range_maps_duplicates(map, size),
+			 "Pages were unmerged\n");
+unmap:
+	munmap(map, size);
+}
+
 int main(int argc, char **argv)
 {
-	unsigned int tests = 6;
+	unsigned int tests = 7;
 	int err;
 
 #ifdef __NR_userfaultfd
@@ -508,6 +548,9 @@ int main(int argc, char **argv)
 
 	pagesize = getpagesize();
 
+	mem_fd = open("/proc/self/mem", O_RDWR);
+	if (mem_fd < 0)
+		ksft_exit_fail_msg("opening /proc/self/mem failed\n");
 	ksm_fd = open("/sys/kernel/mm/ksm/run", O_RDWR);
 	if (ksm_fd < 0)
 		ksft_exit_skip("open(\"/sys/kernel/mm/ksm/run\") failed\n");
@@ -528,6 +571,8 @@ int main(int argc, char **argv)
 #ifdef __NR_userfaultfd
 	test_unmerge_uffd_wp();
 #endif
+
+	test_prot_none();
 
 	test_prctl();
 	test_prctl_fork();
