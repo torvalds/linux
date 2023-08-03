@@ -356,7 +356,10 @@ void perror(const char *msg)
 }
 
 static __attribute__((unused))
-int setvbuf(FILE *stream, char *buf, int mode, size_t size)
+int setvbuf(FILE *stream __attribute__((unused)),
+	    char *buf __attribute__((unused)),
+	    int mode,
+	    size_t size __attribute__((unused)))
 {
 	/*
 	 * nolibc does not support buffering so this is a nop. Just check mode
