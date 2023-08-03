@@ -1120,6 +1120,35 @@ static int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 	return ret;
 }
 
+static const char * const recovery_pass_names[] = {
+#define x(_fn, _when)	#_fn,
+	BCH_RECOVERY_PASSES()
+#undef x
+	NULL
+};
+
+static int bch2_check_allocations(struct bch_fs *c)
+{
+	return bch2_gc(c, true, c->opts.norecovery);
+}
+
+static int bch2_set_may_go_rw(struct bch_fs *c)
+{
+	set_bit(BCH_FS_MAY_GO_RW, &c->flags);
+	return 0;
+}
+
+struct recovery_pass_fn {
+	int		(*fn)(struct bch_fs *);
+	unsigned	when;
+};
+
+static struct recovery_pass_fn recovery_passes[] = {
+#define x(_fn, _when)	{ .fn = bch2_##_fn, .when = _when },
+	BCH_RECOVERY_PASSES()
+#undef x
+};
+
 static void check_version_upgrade(struct bch_fs *c)
 {
 	unsigned latest_compatible = bch2_version_compatible(c->sb.version);
@@ -1172,7 +1201,12 @@ static void check_version_upgrade(struct bch_fs *c)
 
 		recovery_passes = bch2_upgrade_recovery_passes(c, old_version, new_version);
 		if (recovery_passes) {
-			prt_str(&buf, "fsck required");
+			if ((recovery_passes & RECOVERY_PASS_ALL_FSCK) == RECOVERY_PASS_ALL_FSCK)
+				prt_str(&buf, "fsck required");
+			else {
+				prt_str(&buf, "running recovery passses: ");
+				prt_bitflags(&buf, recovery_pass_names, recovery_passes);
+			}
 
 			c->recovery_passes_explicit |= recovery_passes;
 			c->opts.fix_errors = FSCK_FIX_yes;
@@ -1187,29 +1221,6 @@ static void check_version_upgrade(struct bch_fs *c)
 		printbuf_exit(&buf);
 	}
 }
-
-static int bch2_check_allocations(struct bch_fs *c)
-{
-	return bch2_gc(c, true, c->opts.norecovery);
-}
-
-static int bch2_set_may_go_rw(struct bch_fs *c)
-{
-	set_bit(BCH_FS_MAY_GO_RW, &c->flags);
-	return 0;
-}
-
-struct recovery_pass_fn {
-	int		(*fn)(struct bch_fs *);
-	const char	*name;
-	unsigned	when;
-};
-
-static struct recovery_pass_fn recovery_passes[] = {
-#define x(_fn, _when)	{ .fn = bch2_##_fn, .name = #_fn, .when = _when },
-	BCH_RECOVERY_PASSES()
-#undef x
-};
 
 u64 bch2_fsck_recovery_passes(void)
 {
@@ -1248,7 +1259,8 @@ static int bch2_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 		struct recovery_pass_fn *p = recovery_passes + pass;
 
 		if (!(p->when & PASS_SILENT))
-			printk(KERN_INFO bch2_log_msg(c, "%s..."), p->name);
+			printk(KERN_INFO bch2_log_msg(c, "%s..."),
+			       recovery_pass_names[pass]);
 		ret = p->fn(c);
 		if (ret)
 			return ret;
