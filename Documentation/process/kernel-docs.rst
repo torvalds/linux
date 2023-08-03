@@ -118,6 +118,15 @@ Published books
       :ISBN: 978-0672329463
       :Notes: Foundational book
 
+    * Title: **Practical Linux System Administration: A Guide to Installation, Configuration, and Management, 1st Edition**
+
+      :Author: Kenneth Hess
+      :Publisher: O'Reilly Media
+      :Date: May, 2023
+      :Pages: 246
+      :ISBN: 978-1098109035
+      :Notes: System administration
+
 .. _ldd3_published:
 
     * Title: **Linux Device Drivers, 3rd Edition**
