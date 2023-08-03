@@ -32,6 +32,7 @@
 #include "../basics/conversion.h"
 #include "cursor_reg_cache.h"
 #include "resource.h"
+#include "clk_mgr.h"
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger
@@ -1062,3 +1063,64 @@ void dc_dmub_srv_subvp_save_surf_addr(const struct dc_dmub_srv *dc_dmub_srv, con
 {
 	dmub_srv_subvp_save_surf_addr(dc_dmub_srv->dmub, addr, subvp_index);
 }
+
+bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	enum dmub_status status;
+
+	if (dc_dmub_srv->ctx->dc->debug.dmcub_emulation)
+		return true;
+
+	if (wait) {
+		status = dmub_srv_wait_for_hw_pwr_up(dc_dmub_srv->dmub, 500000);
+		if (status != DMUB_STATUS_OK) {
+			DC_ERROR("Error querying DMUB hw power up status: error=%d\n", status);
+			return false;
+		}
+	} else
+		return dmub_srv_is_hw_pwr_up(dc_dmub_srv->dmub);
+
+	return true;
+}
+
+void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
+{
+	union dmub_rb_cmd cmd = {0};
+
+	if (dc->debug.dmcub_emulation)
+		return;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.idle_opt_notify_idle.header.type = DMUB_CMD__IDLE_OPT;
+	cmd.idle_opt_notify_idle.header.sub_type = DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE;
+	cmd.idle_opt_notify_idle.header.payload_bytes =
+		sizeof(cmd.idle_opt_notify_idle) -
+		sizeof(cmd.idle_opt_notify_idle.header);
+
+	cmd.idle_opt_notify_idle.cntl_data.driver_idle = allow_idle;
+
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+
+	if (allow_idle)
+		udelay(500);
+}
+
+void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
+{
+	if (dc->debug.dmcub_emulation)
+		return;
+	// Tell PMFW to exit low power state
+	if (dc->clk_mgr->funcs->exit_low_power_state)
+		dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+
+	// Wait for dmcub to load up
+	dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true);
+
+	// Notify dmcub disallow idle
+	dc_dmub_srv_notify_idle(dc, false);
+
+	// Confirm dmu is powered up
+	dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true);
+}
+
