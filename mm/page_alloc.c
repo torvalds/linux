@@ -538,8 +538,6 @@ out:
 
 static inline unsigned int order_to_pindex(int migratetype, int order)
 {
-	int base = order;
-
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	if (order > PAGE_ALLOC_COSTLY_ORDER) {
 		VM_BUG_ON(order != pageblock_order);
@@ -549,7 +547,7 @@ static inline unsigned int order_to_pindex(int migratetype, int order)
 	VM_BUG_ON(order > PAGE_ALLOC_COSTLY_ORDER);
 #endif
 
-	return (MIGRATE_PCPTYPES * base) + migratetype;
+	return (MIGRATE_PCPTYPES * order) + migratetype;
 }
 
 static inline int pindex_to_order(unsigned int pindex)
