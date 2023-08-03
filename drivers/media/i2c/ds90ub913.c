@@ -471,7 +471,7 @@ static int ub913_log_status(struct v4l2_subdev *sd)
 {
 	struct ub913_data *priv = sd_to_ub913(sd);
 	struct device *dev = &priv->client->dev;
-	u8 v = 0, v1, v2;
+	u8 v = 0, v1 = 0, v2 = 0;
 
 	ub913_read(priv, UB913_REG_MODE_SEL, &v);
 	dev_info(dev, "MODE_SEL %#02x\n", v);
