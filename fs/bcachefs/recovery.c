@@ -1458,6 +1458,29 @@ use_clean:
 	if (ret)
 		goto err;
 
+	/* If we fixed errors, verify that fs is actually clean now: */
+	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
+	    test_bit(BCH_FS_ERRORS_FIXED, &c->flags) &&
+	    !test_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags) &&
+	    !test_bit(BCH_FS_ERROR, &c->flags)) {
+		bch_info(c, "Fixed errors, running fsck a second time to verify fs is clean");
+		clear_bit(BCH_FS_ERRORS_FIXED, &c->flags);
+
+		c->curr_recovery_pass = BCH_RECOVERY_PASS_check_alloc_info;
+
+		ret = bch2_run_recovery_passes(c);
+		if (ret)
+			goto err;
+
+		if (test_bit(BCH_FS_ERRORS_FIXED, &c->flags) ||
+		    test_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags)) {
+			bch_err(c, "Second fsck run was not clean");
+			set_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags);
+		}
+
+		set_bit(BCH_FS_ERRORS_FIXED, &c->flags);
+	}
+
 	if (enabled_qtypes(c)) {
 		bch_verbose(c, "reading quotas");
 		ret = bch2_fs_quota_read(c);
