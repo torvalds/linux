@@ -745,25 +745,27 @@ static int pc_adjust_requested_freq(struct xe_guc_pc *pc)
 int xe_guc_pc_gucrc_disable(struct xe_guc_pc *pc)
 {
 	struct xe_gt *gt = pc_to_gt(pc);
-	int ret;
+	int ret = 0;
 
 	xe_device_mem_access_get(pc_to_xe(pc));
 
 	ret = pc_action_setup_gucrc(pc, XE_GUCRC_HOST_CONTROL);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	if (ret)
-		return ret;
+		goto out;
 
 	xe_mmio_write32(gt, PG_ENABLE, 0);
 	xe_mmio_write32(gt, RC_CONTROL, 0);
 	xe_mmio_write32(gt, RC_STATE, 0);
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
+
+out:
 	xe_device_mem_access_put(pc_to_xe(pc));
-	return 0;
+	return ret;
 }
 
 static void pc_init_pcode_freq(struct xe_guc_pc *pc)
