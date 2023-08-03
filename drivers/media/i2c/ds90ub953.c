@@ -606,9 +606,9 @@ static int ub953_log_status(struct v4l2_subdev *sd)
 	u8 v = 0, v1 = 0, v2 = 0;
 	unsigned int i;
 	char id[UB953_REG_FPD3_RX_ID_LEN];
-	u8 gpio_local_data;
-	u8 gpio_input_ctrl;
-	u8 gpio_pin_sts;
+	u8 gpio_local_data = 0;
+	u8 gpio_input_ctrl = 0;
+	u8 gpio_pin_sts = 0;
 
 	for (i = 0; i < sizeof(id); i++)
 		ub953_read(priv, UB953_REG_FPD3_RX_ID(i), &id[i]);
