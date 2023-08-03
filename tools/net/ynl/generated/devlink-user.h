@@ -207,4 +207,14 @@ void devlink_info_get_rsp_free(struct devlink_info_get_rsp *rsp);
 struct devlink_info_get_rsp *
 devlink_info_get(struct ynl_sock *ys, struct devlink_info_get_req *req);
 
+/* DEVLINK_CMD_INFO_GET - dump */
+struct devlink_info_get_list {
+	struct devlink_info_get_list *next;
+	struct devlink_info_get_rsp obj __attribute__ ((aligned (8)));
+};
+
+void devlink_info_get_list_free(struct devlink_info_get_list *rsp);
+
+struct devlink_info_get_list *devlink_info_get_dump(struct ynl_sock *ys);
+
 #endif /* _LINUX_DEVLINK_GEN_H */
