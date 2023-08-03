@@ -713,8 +713,6 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
       SRI2_ARR(MCIF_WB_BUF_4_STATUS2, MCIF_WB, inst),                          \
       SRI2_ARR(MCIF_WB_ARBITRATION_CONTROL, MCIF_WB, inst),                    \
       SRI2_ARR(MCIF_WB_SCLK_CHANGE, MCIF_WB, inst),                            \
-      SRI2_ARR(MCIF_WB_TEST_DEBUG_INDEX, MCIF_WB, inst),                       \
-      SRI2_ARR(MCIF_WB_TEST_DEBUG_DATA, MCIF_WB, inst),                        \
       SRI2_ARR(MCIF_WB_BUF_1_ADDR_Y, MCIF_WB, inst),                           \
       SRI2_ARR(MCIF_WB_BUF_1_ADDR_C, MCIF_WB, inst),                           \
       SRI2_ARR(MCIF_WB_BUF_2_ADDR_Y, MCIF_WB, inst),                           \
