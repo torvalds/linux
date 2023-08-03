@@ -56,16 +56,17 @@ If ``rustup`` is being used, run::
 The components are installed per toolchain, thus upgrading the Rust compiler
 version later on requires re-adding the component.
 
-Otherwise, if a standalone installer is used, the Rust repository may be cloned
-into the installation folder of the toolchain::
+Otherwise, if a standalone installer is used, the Rust source tree may be
+downloaded into the toolchain's installation folder::
 
-	git clone --recurse-submodules \
-		--branch $(scripts/min-tool-version.sh rustc) \
-		https://github.com/rust-lang/rust \
-		$(rustc --print sysroot)/lib/rustlib/src/rust
+	curl -L "https://static.rust-lang.org/dist/rust-src-$(scripts/min-tool-version.sh rustc).tar.gz" |
+		tar -xzf - -C "$(rustc --print sysroot)/lib" \
+		"rust-src-$(scripts/min-tool-version.sh rustc)/rust-src/lib/" \
+		--strip-components=3
 
 In this case, upgrading the Rust compiler version later on requires manually
-updating this clone.
+updating the source tree (this can be done by removing ``$(rustc --print
+sysroot)/lib/rustlib/src/rust`` then rerunning the above command).
 
 
 libclang
