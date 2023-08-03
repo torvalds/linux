@@ -245,7 +245,7 @@ static void dccg314_set_dtbclk_dto(
 	}
 }
 
-static void dccg314_set_dpstreamclk(
+void dccg314_set_dpstreamclk(
 		struct dccg *dccg,
 		enum streamclk_source src,
 		int otg_inst,
