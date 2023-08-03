@@ -244,6 +244,7 @@ struct dc_caps {
 	bool extended_aux_timeout_support;
 	bool dmcub_support;
 	bool zstate_support;
+	bool ips_support;
 	uint32_t num_of_internal_disp;
 	enum dp_protocol_version max_dp_protocol_version;
 	unsigned int mall_size_per_mem_channel;
@@ -643,6 +644,53 @@ union root_clock_optimization_options {
 	uint32_t u32All;
 };
 
+union fine_grain_clock_gating_enable_options {
+	struct {
+		bool dccg_global_fgcg_rep : 1; /* Global fine grain clock gating of repeaters */
+		bool dchub : 1;	   /* Display controller hub */
+		bool dchubbub : 1;
+		bool dpp : 1;	   /* Display pipes and planes */
+		bool opp : 1;	   /* Output pixel processing */
+		bool optc : 1;	   /* Output pipe timing combiner */
+		bool dio : 1;	   /* Display output */
+		bool dwb : 1;	   /* Display writeback */
+		bool mmhubbub : 1; /* Multimedia hub */
+		bool dmu : 1;	   /* Display core management unit */
+		bool az : 1;	   /* Azalia */
+		bool dchvm : 1;
+		bool dsc : 1;	   /* Display stream compression */
+
+		uint32_t reserved : 19;
+	} bits;
+	uint32_t u32All;
+};
+
+enum pg_hw_pipe_resources {
+	PG_HUBP = 0,
+	PG_DPP,
+	PG_DSC,
+	PG_MPCC,
+	PG_OPP,
+	PG_OPTC,
+	PG_HW_PIPE_RESOURCES_NUM_ELEMENT
+};
+
+enum pg_hw_resources {
+	PG_DCCG = 0,
+	PG_DCIO,
+	PG_DIO,
+	PG_DCHUBBUB,
+	PG_DCHVM,
+	PG_DWB,
+	PG_HPO,
+	PG_HW_RESOURCES_NUM_ELEMENT
+};
+
+struct pg_block_update {
+	bool pg_pipe_res_update[PG_HW_PIPE_RESOURCES_NUM_ELEMENT][MAX_PIPES];
+	bool pg_res_update[PG_HW_RESOURCES_NUM_ELEMENT];
+};
+
 union dpia_debug_options {
 	struct {
 		uint32_t disable_dpia:1; /* bit 0 */
@@ -772,6 +820,7 @@ struct dc_debug_options {
 	bool disable_dpp_power_gate;
 	bool disable_hubp_power_gate;
 	bool disable_dsc_power_gate;
+	bool disable_optc_power_gate;
 	int dsc_min_slice_height_override;
 	int dsc_bpp_increment_div;
 	bool disable_pplib_wm_range;
@@ -847,6 +896,7 @@ struct dc_debug_options {
 	bool ignore_cable_id;
 	union mem_low_power_enable_options enable_mem_low_power;
 	union root_clock_optimization_options root_clock_optimization;
+	union fine_grain_clock_gating_enable_options enable_fine_grain_clock_gating;
 	bool hpo_optimization;
 	bool force_vblank_alignment;
 
@@ -860,6 +910,7 @@ struct dc_debug_options {
 	enum det_size crb_alloc_policy;
 	int crb_alloc_policy_min_disp_count;
 	bool disable_z10;
+	unsigned int disable_ips;
 	bool enable_z9_disable_interface;
 	bool psr_skip_crtc_disable;
 	union dpia_debug_options dpia_debug;
@@ -893,6 +944,8 @@ struct dc_debug_options {
 	bool dig_fifo_off_in_blank;
 	bool temp_mst_deallocation_sequence;
 	bool override_dispclk_programming;
+	bool otg_crc_db;
+	bool disallow_dispclk_dppclk_ds;
 	bool disable_fpo_optimizations;
 	bool support_eDP1_5;
 	uint32_t fpo_vactive_margin_us;
@@ -904,9 +957,12 @@ struct dc_debug_options {
 	bool disable_dp_plus_plus_wa;
 	uint32_t fpo_vactive_min_active_margin_us;
 	uint32_t fpo_vactive_max_blank_us;
+	bool enable_hpo_pg_support;
 	bool enable_legacy_fast_update;
 	bool disable_dc_mode_overwrite;
 	bool replay_skip_crtc_disabled;
+	bool ignore_pg;/*do nothing, let pmfw control it*/
+	bool psp_disabled_wa;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
