@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # This scripts adds local version information from the version
-# control systems git, mercurial (hg) and subversion (svn).
+# control system git.
 #
 # If something goes wrong, send a mail the kernel build mailinglist
 # (see MAINTAINERS) and CC Nico Schottelius
