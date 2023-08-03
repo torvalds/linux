@@ -46,7 +46,7 @@
 
 struct serial_8250_men_mcb_data {
 	int num_ports;
-	unsigned int line[MAX_PORTS];
+	int line[MAX_PORTS];
 	unsigned int offset[MAX_PORTS];
 };
 
