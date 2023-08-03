@@ -2777,8 +2777,7 @@ static void scrub_workers_put(struct btrfs_fs_info *fs_info)
 /*
  * get a reference count on fs_info->scrub_workers. start worker if necessary
  */
-static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
-						int is_dev_replace)
+static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info)
 {
 	struct workqueue_struct *scrub_workers = NULL;
 	unsigned int flags = WQ_FREEZABLE | WQ_UNBOUND;
@@ -2788,10 +2787,7 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	if (refcount_inc_not_zero(&fs_info->scrub_workers_refcnt))
 		return 0;
 
-	if (is_dev_replace)
-		scrub_workers = alloc_ordered_workqueue("btrfs-scrub", flags);
-	else
-		scrub_workers = alloc_workqueue("btrfs-scrub", flags, max_active);
+	scrub_workers = alloc_workqueue("btrfs-scrub", flags, max_active);
 	if (!scrub_workers)
 		return -ENOMEM;
 
@@ -2843,7 +2839,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	if (IS_ERR(sctx))
 		return PTR_ERR(sctx);
 
-	ret = scrub_workers_get(fs_info, is_dev_replace);
+	ret = scrub_workers_get(fs_info);
 	if (ret)
 		goto out_free_ctx;
 
