@@ -9,6 +9,7 @@
 #include <linux/qcom_scm.h>
 #include <linux/types.h>
 #include <linux/uuid.h>
+#include <linux/mm.h>
 
 #define QCOM_SCM_RM_MANAGED_VMID	0x3A
 #define QCOM_SCM_MAX_MANAGED_VMID	0x3F
@@ -17,7 +18,7 @@ static int qcom_scm_gh_rm_pre_mem_share(void *rm, struct gh_rm_mem_parcel *mem_p
 {
 	struct qcom_scm_vmperm *new_perms;
 	u64 src, src_cpy;
-	int ret = 0, i, n;
+	int ret = 0, i, n, rb_ret;
 	u16 vmid;
 
 	new_perms = kcalloc(mem_parcel->n_acl_entries, sizeof(*new_perms), GFP_KERNEL);
@@ -65,10 +66,15 @@ static int qcom_scm_gh_rm_pre_mem_share(void *rm, struct gh_rm_mem_parcel *mem_p
 
 	for (i--; i >= 0; i--) {
 		src_cpy = src;
-		WARN_ON_ONCE(qcom_scm_assign_mem(
+		rb_ret = qcom_scm_assign_mem(
 				le64_to_cpu(mem_parcel->mem_entries[i].phys_addr),
 				le64_to_cpu(mem_parcel->mem_entries[i].size),
-				&src_cpy, new_perms, 1));
+				&src_cpy, new_perms, 1);
+		WARN_ON_ONCE(rb_ret);
+		if (rb_ret)
+			get_page(pfn_to_page(
+			__phys_to_pfn(le64_to_cpu(
+			mem_parcel->mem_entries[i].phys_addr))));
 	}
 
 out:
@@ -100,6 +106,9 @@ static int qcom_scm_gh_rm_post_mem_reclaim(void *rm, struct gh_rm_mem_parcel *me
 						le64_to_cpu(mem_parcel->mem_entries[i].size),
 						&src_cpy, &new_perms, 1);
 		WARN_ON_ONCE(ret);
+		if (ret)
+			get_page(pfn_to_page(
+			__phys_to_pfn(le64_to_cpu(mem_parcel->mem_entries[i].phys_addr))));
 	}
 
 	return ret;
