@@ -243,8 +243,8 @@ static int zynqmp_pm_probe(struct platform_device *pdev)
 		}
 	} else if (of_property_present(pdev->dev.of_node, "interrupts")) {
 		irq = platform_get_irq(pdev, 0);
-		if (irq <= 0)
-			return -ENXIO;
+		if (irq < 0)
+			return irq;
 
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						zynqmp_pm_isr,
