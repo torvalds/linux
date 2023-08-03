@@ -1019,7 +1019,8 @@ int run_stdlib(int min, int max)
 
 static int expect_vfprintf(int llen, int c, const char *expected, const char *fmt, ...)
 {
-	int ret, fd, w, r;
+	int ret, fd;
+	ssize_t w, r;
 	char buf[100];
 	FILE *memfile;
 	va_list args;
@@ -1041,7 +1042,7 @@ static int expect_vfprintf(int llen, int c, const char *expected, const char *fm
 	va_end(args);
 
 	if (w != c) {
-		llen += printf(" written(%d) != %d", w, c);
+		llen += printf(" written(%d) != %d", (int)w, c);
 		result(llen, FAIL);
 		return 1;
 	}
@@ -1055,7 +1056,7 @@ static int expect_vfprintf(int llen, int c, const char *expected, const char *fm
 	fclose(memfile);
 
 	if (r != w) {
-		llen += printf(" written(%d) != read(%d)", w, r);
+		llen += printf(" written(%d) != read(%d)", (int)w, (int)r);
 		result(llen, FAIL);
 		return 1;
 	}
