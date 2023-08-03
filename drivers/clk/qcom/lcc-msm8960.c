@@ -23,7 +23,7 @@
 #include "clk-regmap-divider.h"
 #include "clk-regmap-mux.h"
 
-struct clk_parent_data pxo_parent_data = {
+static struct clk_parent_data pxo_parent_data = {
 	.fw_name = "pxo", .name = "pxo_board",
 };
 
