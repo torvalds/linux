@@ -3378,7 +3378,6 @@ MODULE_DEVICE_TABLE(of, usbf_match);
 static struct platform_driver udc_driver = {
 	.driver = {
 		.name = "usbf_renesas",
-		.owner = THIS_MODULE,
 		.of_match_table = usbf_match,
 	},
 	.probe          = usbf_probe,
