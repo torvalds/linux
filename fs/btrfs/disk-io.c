@@ -1300,6 +1300,16 @@ static struct btrfs_root *btrfs_get_root_ref(struct btrfs_fs_info *fs_info,
 	root = btrfs_get_global_root(fs_info, objectid);
 	if (root)
 		return root;
+
+	/*
+	 * If we're called for non-subvolume trees, and above function didn't
+	 * find one, do not try to read it from disk.
+	 *
+	 * This is namely for free-space-tree and quota tree, which can change
+	 * at runtime and should only be grabbed from fs_info.
+	 */
+	if (!is_fstree(objectid) && objectid != BTRFS_DATA_RELOC_TREE_OBJECTID)
+		return ERR_PTR(-ENOENT);
 again:
 	root = btrfs_lookup_fs_root(fs_info, objectid);
 	if (root) {
