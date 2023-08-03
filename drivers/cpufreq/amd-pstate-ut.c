@@ -145,8 +145,6 @@ static void amd_pstate_ut_check_perf(u32 index)
 	struct cpufreq_policy *policy = NULL;
 	struct amd_cpudata *cpudata = NULL;
 
-	highest_perf = amd_get_highest_perf();
-
 	for_each_possible_cpu(cpu) {
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
@@ -161,6 +159,7 @@ static void amd_pstate_ut_check_perf(u32 index)
 				return;
 			}
 
+			highest_perf = cppc_perf.highest_perf;
 			nominal_perf = cppc_perf.nominal_perf;
 			lowest_nonlinear_perf = cppc_perf.lowest_nonlinear_perf;
 			lowest_perf = cppc_perf.lowest_perf;
@@ -172,6 +171,7 @@ static void amd_pstate_ut_check_perf(u32 index)
 				return;
 			}
 
+			highest_perf = AMD_CPPC_HIGHEST_PERF(cap1);
 			nominal_perf = AMD_CPPC_NOMINAL_PERF(cap1);
 			lowest_nonlinear_perf = AMD_CPPC_LOWNONLIN_PERF(cap1);
 			lowest_perf = AMD_CPPC_LOWEST_PERF(cap1);
