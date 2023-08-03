@@ -87,7 +87,7 @@ struct ov2680_ctrls {
 };
 
 struct ov2680_dev {
-	struct i2c_client		*i2c_client;
+	struct device			*dev;
 	struct regmap			*regmap;
 	struct v4l2_subdev		sd;
 
@@ -170,11 +170,6 @@ static const struct ov2680_mode_info ov2680_mode_data[OV2680_MODE_MAX] = {
 static struct ov2680_dev *to_ov2680_dev(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct ov2680_dev, sd);
-}
-
-static struct device *ov2680_to_dev(struct ov2680_dev *sensor)
-{
-	return &sensor->i2c_client->dev;
 }
 
 static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
@@ -344,7 +339,6 @@ static int ov2680_power_off(struct ov2680_dev *sensor)
 
 static int ov2680_power_on(struct ov2680_dev *sensor)
 {
-	struct device *dev = ov2680_to_dev(sensor);
 	int ret;
 
 	if (sensor->is_enabled)
@@ -352,7 +346,7 @@ static int ov2680_power_on(struct ov2680_dev *sensor)
 
 	ret = regulator_bulk_enable(OV2680_NUM_SUPPLIES, sensor->supplies);
 	if (ret < 0) {
-		dev_err(dev, "failed to enable regulators: %d\n", ret);
+		dev_err(sensor->dev, "failed to enable regulators: %d\n", ret);
 		return ret;
 	}
 
@@ -360,7 +354,7 @@ static int ov2680_power_on(struct ov2680_dev *sensor)
 		ret = cci_write(sensor->regmap, OV2680_REG_SOFT_RESET, 0x01,
 				NULL);
 		if (ret != 0) {
-			dev_err(dev, "sensor soft reset failed\n");
+			dev_err(sensor->dev, "sensor soft reset failed\n");
 			goto err_disable_regulators;
 		}
 		usleep_range(1000, 2000);
@@ -656,13 +650,13 @@ static int ov2680_mode_init(struct ov2680_dev *sensor)
 
 static int ov2680_v4l2_register(struct ov2680_dev *sensor)
 {
+	struct i2c_client *client = to_i2c_client(sensor->dev);
 	const struct v4l2_ctrl_ops *ops = &ov2680_ctrl_ops;
 	struct ov2680_ctrls *ctrls = &sensor->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
 	int ret = 0;
 
-	v4l2_i2c_subdev_init(&sensor->sd, sensor->i2c_client,
-			     &ov2680_subdev_ops);
+	v4l2_i2c_subdev_init(&sensor->sd, client, &ov2680_subdev_ops);
 
 	sensor->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
@@ -719,14 +713,12 @@ static int ov2680_get_regulators(struct ov2680_dev *sensor)
 	for (i = 0; i < OV2680_NUM_SUPPLIES; i++)
 		sensor->supplies[i].supply = ov2680_supply_name[i];
 
-	return devm_regulator_bulk_get(&sensor->i2c_client->dev,
-				       OV2680_NUM_SUPPLIES,
-				       sensor->supplies);
+	return devm_regulator_bulk_get(sensor->dev,
+				       OV2680_NUM_SUPPLIES, sensor->supplies);
 }
 
 static int ov2680_check_id(struct ov2680_dev *sensor)
 {
-	struct device *dev = ov2680_to_dev(sensor);
 	u64 chip_id;
 	int ret;
 
@@ -734,12 +726,12 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 
 	ret = cci_read(sensor->regmap, OV2680_REG_CHIP_ID, &chip_id, NULL);
 	if (ret < 0) {
-		dev_err(dev, "failed to read chip id\n");
+		dev_err(sensor->dev, "failed to read chip id\n");
 		return -ENODEV;
 	}
 
 	if (chip_id != OV2680_CHIP_ID) {
-		dev_err(dev, "chip id: 0x%04llx does not match expected 0x%04x\n",
+		dev_err(sensor->dev, "chip id: 0x%04llx does not match expected 0x%04x\n",
 			chip_id, OV2680_CHIP_ID);
 		return -ENODEV;
 	}
@@ -749,7 +741,7 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 
 static int ov2680_parse_dt(struct ov2680_dev *sensor)
 {
-	struct device *dev = ov2680_to_dev(sensor);
+	struct device *dev = sensor->dev;
 	int ret;
 
 	sensor->reset_gpio = devm_gpiod_get_optional(dev, "reset",
@@ -786,7 +778,7 @@ static int ov2680_probe(struct i2c_client *client)
 	if (!sensor)
 		return -ENOMEM;
 
-	sensor->i2c_client = client;
+	sensor->dev = &client->dev;
 
 	sensor->regmap = devm_cci_regmap_init_i2c(client, 16);
 	if (IS_ERR(sensor->regmap))
