@@ -160,6 +160,12 @@ properties:
     description:
       The MIO bank number in which the command and data lines are configured.
 
+  iommus:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
 dependencies:
   '#clock-cells': [ clock-output-names ]
 
