@@ -747,8 +747,10 @@ void __init vmem_map_init(void)
 	}
 
 #ifdef CONFIG_KASAN
-	for_each_mem_range(i, &base, &end)
-		set_memory_kasan(base, end);
+	for_each_mem_range(i, &base, &end) {
+		set_memory_kasan((unsigned long)__va(base),
+				 (unsigned long)__va(end));
+	}
 #endif
 	set_memory_rox((unsigned long)_stext,
 		       (unsigned long)(_etext - _stext) >> PAGE_SHIFT);
@@ -763,8 +765,10 @@ void __init vmem_map_init(void)
 	if (static_key_enabled(&cpu_has_bear))
 		set_memory_nx(0, 1);
 	set_memory_nx(PAGE_SIZE, 1);
-	if (debug_pagealloc_enabled())
-		set_memory_4k(0, ident_map_size >> PAGE_SHIFT);
+	if (debug_pagealloc_enabled()) {
+		set_memory_4k((unsigned long)__va(0),
+			      ident_map_size >> PAGE_SHIFT);
+	}
 
 	pr_info("Write protected kernel read-only data: %luk\n",
 		(unsigned long)(__end_rodata - _stext) >> 10);
