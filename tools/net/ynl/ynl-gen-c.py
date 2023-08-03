@@ -2317,7 +2317,7 @@ def main():
         return
 
     supported_models = ['unified']
-    if args.mode == 'user':
+    if args.mode in ['user', 'kernel']:
         supported_models += ['directional']
     if parsed.msg_id_model not in supported_models:
         print(f'Message enum-model {parsed.msg_id_model} not supported for {args.mode} generation')
