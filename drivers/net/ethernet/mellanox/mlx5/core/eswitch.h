@@ -254,6 +254,7 @@ struct mlx5_esw_offload {
 	struct mlx5_flow_group *vport_rx_group;
 	struct mlx5_flow_group *vport_rx_drop_group;
 	struct mlx5_flow_handle *vport_rx_drop_rule;
+	struct mlx5_flow_table *ft_ipsec_tx_pol;
 	struct xarray vport_reps;
 	struct list_head peer_flows[MLX5_MAX_PORTS];
 	struct mutex peer_mutex;
@@ -269,6 +270,7 @@ struct mlx5_esw_offload {
 	u8 inline_mode;
 	atomic64_t num_flows;
 	u64 num_block_encap;
+	u64 num_block_mode;
 	enum devlink_eswitch_encap_mode encap;
 	struct ida vport_metadata_ida;
 	unsigned int host_number; /* ECPF supports one external host */
@@ -783,6 +785,11 @@ int mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw);
 bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev);
 void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev);
 
+int mlx5_eswitch_block_mode_trylock(struct mlx5_core_dev *dev);
+void mlx5_eswitch_block_mode_unlock(struct mlx5_core_dev *dev, int err);
+void mlx5_eswitch_unblock_mode_lock(struct mlx5_core_dev *dev);
+void mlx5_eswitch_unblock_mode_unlock(struct mlx5_core_dev *dev);
+
 static inline int mlx5_eswitch_num_vfs(struct mlx5_eswitch *esw)
 {
 	if (mlx5_esw_allowed(esw))
@@ -804,6 +811,8 @@ mlx5_eswitch_get_slow_fdb(struct mlx5_eswitch *esw)
 	return esw->fdb_table.offloads.slow_fdb;
 }
 
+int mlx5_eswitch_restore_ipsec_rule(struct mlx5_eswitch *esw, struct mlx5_flow_handle *rule,
+				    struct mlx5_esw_flow_attr *esw_attr, int attr_idx);
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
@@ -862,6 +871,14 @@ static inline bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev)
 static inline void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev)
 {
 }
+
+static inline int mlx5_eswitch_block_mode_trylock(struct mlx5_core_dev *dev) { return 0; }
+
+static inline void mlx5_eswitch_block_mode_unlock(struct mlx5_core_dev *dev, int err) {}
+
+static inline void mlx5_eswitch_unblock_mode_lock(struct mlx5_core_dev *dev) {}
+
+static inline void mlx5_eswitch_unblock_mode_unlock(struct mlx5_core_dev *dev) {}
 #endif /* CONFIG_MLX5_ESWITCH */
 
 #endif /* __MLX5_ESWITCH_H__ */
