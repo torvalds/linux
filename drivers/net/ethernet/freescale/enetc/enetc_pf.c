@@ -1186,13 +1186,8 @@ static int enetc_init_port_rss_memory(struct enetc_si *si)
 
 static int enetc_pf_register_with_ierb(struct pci_dev *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
 	struct platform_device *ierb_pdev;
 	struct device_node *ierb_node;
-
-	/* Don't register with the IERB if the PF itself is disabled */
-	if (!node || !of_device_is_available(node))
-		return 0;
 
 	ierb_node = of_find_compatible_node(NULL, NULL,
 					    "fsl,ls1028a-enetc-ierb");
@@ -1285,12 +1280,6 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 		goto err_psi_create;
 	}
 
-	if (node && !of_device_is_available(node)) {
-		dev_info(&pdev->dev, "device is disabled, skipping\n");
-		err = -ENODEV;
-		goto err_device_disabled;
-	}
-
 	pf = enetc_si_priv(si);
 	pf->si = si;
 	pf->total_vfs = pci_sriov_get_totalvfs(pdev);
@@ -1370,7 +1359,6 @@ err_alloc_si_res:
 	si->ndev = NULL;
 	free_netdev(ndev);
 err_alloc_netdev:
-err_device_disabled:
 err_setup_mac_addresses:
 	enetc_psi_destroy(pdev);
 err_psi_create:
