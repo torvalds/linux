@@ -717,9 +717,21 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 static int ov2680_parse_dt(struct ov2680_dev *sensor)
 {
 	struct device *dev = sensor->dev;
+	struct fwnode_handle *ep_fwnode;
 	struct gpio_desc *gpio;
 	unsigned int rate = 0;
 	int i, ret;
+
+	/*
+	 * Sometimes the fwnode graph is initialized by the bridge driver.
+	 * Bridge drivers doing this may also add GPIO mappings, wait for this.
+	 */
+	ep_fwnode = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	if (!ep_fwnode)
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "waiting for fwnode graph endpoint\n");
+
+	fwnode_handle_put(ep_fwnode);
 
 	/*
 	 * The pin we want is named XSHUTDN in the datasheet. Linux sensor
@@ -801,7 +813,7 @@ static int ov2680_probe(struct i2c_client *client)
 
 	ret = ov2680_parse_dt(sensor);
 	if (ret < 0)
-		return -EINVAL;
+		return ret;
 
 	ret = ov2680_mode_init(sensor);
 	if (ret < 0)
