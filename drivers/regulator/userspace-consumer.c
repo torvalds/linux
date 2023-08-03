@@ -29,6 +29,10 @@ struct userspace_consumer_data {
 
 	int num_supplies;
 	struct regulator_bulk_data *supplies;
+
+	struct kobject *kobj;
+	struct notifier_block nb;
+	unsigned long events;
 };
 
 static ssize_t name_show(struct device *dev,
@@ -89,12 +93,30 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static DEFINE_MUTEX(events_lock);
+
+static ssize_t events_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct userspace_consumer_data *data = dev_get_drvdata(dev);
+	unsigned long e;
+
+	mutex_lock(&events_lock);
+	e = data->events;
+	data->events = 0;
+	mutex_unlock(&events_lock);
+
+	return sprintf(buf, "0x%lx\n", e);
+}
+
 static DEVICE_ATTR_RO(name);
 static DEVICE_ATTR_RW(state);
+static DEVICE_ATTR_RO(events);
 
 static struct attribute *attributes[] = {
 	&dev_attr_name.attr,
 	&dev_attr_state.attr,
+	&dev_attr_events.attr,
 	NULL,
 };
 
@@ -115,12 +137,28 @@ static const struct attribute_group attr_group = {
 	.is_visible =  attr_visible,
 };
 
+static int regulator_userspace_notify(struct notifier_block *nb,
+				      unsigned long event,
+				      void *ignored)
+{
+	struct userspace_consumer_data *data =
+		container_of(nb, struct userspace_consumer_data, nb);
+
+	mutex_lock(&events_lock);
+	data->events |= event;
+	mutex_unlock(&events_lock);
+
+	sysfs_notify(data->kobj, NULL, dev_attr_events.attr.name);
+
+	return NOTIFY_OK;
+}
+
 static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 {
 	struct regulator_userspace_consumer_data tmpdata;
 	struct regulator_userspace_consumer_data *pdata;
 	struct userspace_consumer_data *drvdata;
-	int ret;
+	int i, ret;
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
@@ -153,6 +191,7 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 	drvdata->num_supplies = pdata->num_supplies;
 	drvdata->supplies = pdata->supplies;
 	drvdata->no_autoswitch = pdata->no_autoswitch;
+	drvdata->kobj = &pdev->dev.kobj;
 
 	mutex_init(&drvdata->lock);
 
@@ -186,6 +225,13 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 	}
 	drvdata->enabled = !!ret;
 
+	drvdata->nb.notifier_call = regulator_userspace_notify;
+	for (i = 0; i < drvdata->num_supplies; i++) {
+		ret = devm_regulator_register_notifier(drvdata->supplies[i].consumer, &drvdata->nb);
+		if (ret)
+			goto err_enable;
+	}
+
 	return 0;
 
 err_enable:
@@ -197,6 +243,10 @@ err_enable:
 static int regulator_userspace_consumer_remove(struct platform_device *pdev)
 {
 	struct userspace_consumer_data *data = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < data->num_supplies; i++)
+		devm_regulator_unregister_notifier(data->supplies[i].consumer, &data->nb);
 
 	sysfs_remove_group(&pdev->dev.kobj, &attr_group);
 
