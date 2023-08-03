@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
@@ -99,7 +100,6 @@ struct ov2680_dev {
 	struct gpio_desc		*reset_gpio;
 	struct mutex			lock; /* protect members */
 
-	bool				mode_pending_changes;
 	bool				is_enabled;
 	bool				is_streaming;
 
@@ -283,17 +283,13 @@ static int ov2680_exposure_set(struct ov2680_dev *sensor, u32 exp)
 
 static int ov2680_stream_enable(struct ov2680_dev *sensor)
 {
-	return cci_write(sensor->regmap, OV2680_REG_STREAM_CTRL, 1, NULL);
-}
-
-static int ov2680_stream_disable(struct ov2680_dev *sensor)
-{
-	return cci_write(sensor->regmap, OV2680_REG_STREAM_CTRL, 0, NULL);
-}
-
-static int ov2680_mode_set(struct ov2680_dev *sensor)
-{
 	int ret;
+
+	ret = regmap_multi_reg_write(sensor->regmap,
+				     ov2680_mode_init_data.reg_data,
+				     ov2680_mode_init_data.reg_data_size);
+	if (ret < 0)
+		return ret;
 
 	ret = regmap_multi_reg_write(sensor->regmap,
 				     sensor->current_mode->reg_data,
@@ -306,22 +302,12 @@ static int ov2680_mode_set(struct ov2680_dev *sensor)
 	if (ret < 0)
 		return ret;
 
-	sensor->mode_pending_changes = false;
-
-	return 0;
+	return cci_write(sensor->regmap, OV2680_REG_STREAM_CTRL, 1, NULL);
 }
 
-static int ov2680_mode_restore(struct ov2680_dev *sensor)
+static int ov2680_stream_disable(struct ov2680_dev *sensor)
 {
-	int ret;
-
-	ret = regmap_multi_reg_write(sensor->regmap,
-				     ov2680_mode_init_data.reg_data,
-				     ov2680_mode_init_data.reg_data_size);
-	if (ret < 0)
-		return ret;
-
-	return ov2680_mode_set(sensor);
+	return cci_write(sensor->regmap, OV2680_REG_STREAM_CTRL, 0, NULL);
 }
 
 static int ov2680_power_off(struct ov2680_dev *sensor)
@@ -369,35 +355,10 @@ static int ov2680_power_on(struct ov2680_dev *sensor)
 
 	sensor->is_enabled = true;
 
-	/* Set clock lane into LP-11 state */
-	ov2680_stream_enable(sensor);
-	usleep_range(1000, 2000);
-	ov2680_stream_disable(sensor);
-
 	return 0;
 
 err_disable_regulators:
 	regulator_bulk_disable(OV2680_NUM_SUPPLIES, sensor->supplies);
-	return ret;
-}
-
-static int ov2680_s_power(struct v4l2_subdev *sd, int on)
-{
-	struct ov2680_dev *sensor = to_ov2680_dev(sd);
-	int ret = 0;
-
-	mutex_lock(&sensor->lock);
-
-	if (on)
-		ret = ov2680_power_on(sensor);
-	else
-		ret = ov2680_power_off(sensor);
-
-	if (on && ret == 0)
-		ret = ov2680_mode_restore(sensor);
-
-	mutex_unlock(&sensor->lock);
-
 	return ret;
 }
 
@@ -423,16 +384,20 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 	if (sensor->is_streaming == !!enable)
 		goto unlock;
 
-	if (enable && sensor->mode_pending_changes) {
-		ret = ov2680_mode_set(sensor);
+	if (enable) {
+		ret = pm_runtime_resume_and_get(sensor->sd.dev);
 		if (ret < 0)
 			goto unlock;
-	}
 
-	if (enable)
 		ret = ov2680_stream_enable(sensor);
-	else
+		if (ret < 0) {
+			pm_runtime_put(sensor->sd.dev);
+			goto unlock;
+		}
+	} else {
 		ret = ov2680_stream_disable(sensor);
+		pm_runtime_put(sensor->sd.dev);
+	}
 
 	sensor->is_streaming = !!enable;
 
@@ -519,7 +484,6 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 
 	sensor->current_mode = mode;
 	sensor->fmt = format->format;
-	sensor->mode_pending_changes = true;
 
 unlock:
 	mutex_unlock(&sensor->lock);
@@ -603,10 +567,6 @@ static const struct v4l2_ctrl_ops ov2680_ctrl_ops = {
 	.s_ctrl = ov2680_s_ctrl,
 };
 
-static const struct v4l2_subdev_core_ops ov2680_core_ops = {
-	.s_power = ov2680_s_power,
-};
-
 static const struct v4l2_subdev_video_ops ov2680_video_ops = {
 	.g_frame_interval	= ov2680_s_g_frame_interval,
 	.s_frame_interval	= ov2680_s_g_frame_interval,
@@ -623,7 +583,6 @@ static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops ov2680_subdev_ops = {
-	.core	= &ov2680_core_ops,
 	.video	= &ov2680_video_ops,
 	.pad	= &ov2680_pad_ops,
 };
@@ -642,8 +601,6 @@ static int ov2680_mode_init(struct ov2680_dev *sensor)
 	init_mode = &ov2680_mode_init_data;
 
 	sensor->current_mode = init_mode;
-
-	sensor->mode_pending_changes = true;
 
 	return 0;
 }
@@ -722,8 +679,6 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 	u64 chip_id;
 	int ret;
 
-	ov2680_power_on(sensor);
-
 	ret = cci_read(sensor->regmap, OV2680_REG_CHIP_ID, &chip_id, NULL);
 	if (ret < 0) {
 		dev_err(sensor->dev, "failed to read chip id\n");
@@ -800,18 +755,39 @@ static int ov2680_probe(struct i2c_client *client)
 
 	mutex_init(&sensor->lock);
 
-	ret = ov2680_check_id(sensor);
+	/*
+	 * Power up and verify the chip now, so that if runtime pm is
+	 * disabled the chip is left on and streaming will work.
+	 */
+	ret = ov2680_power_on(sensor);
 	if (ret < 0)
 		goto lock_destroy;
 
+	ret = ov2680_check_id(sensor);
+	if (ret < 0)
+		goto err_powerdown;
+
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_enable(&client->dev);
+
 	ret = ov2680_v4l2_register(sensor);
 	if (ret < 0)
-		goto lock_destroy;
+		goto err_pm_runtime;
+
+	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
+	pm_runtime_use_autosuspend(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
 
 	dev_info(dev, "ov2680 init correctly\n");
 
 	return 0;
 
+err_pm_runtime:
+	pm_runtime_disable(&client->dev);
+	pm_runtime_put_noidle(&client->dev);
+err_powerdown:
+	ov2680_power_off(sensor);
 lock_destroy:
 	dev_err(dev, "ov2680 init fail: %d\n", ret);
 	mutex_destroy(&sensor->lock);
@@ -828,9 +804,18 @@ static void ov2680_remove(struct i2c_client *client)
 	mutex_destroy(&sensor->lock);
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
+
+	/*
+	 * Disable runtime PM. In case runtime PM is disabled in the kernel,
+	 * make sure to turn power off manually.
+	 */
+	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		ov2680_power_off(sensor);
+	pm_runtime_set_suspended(&client->dev);
 }
 
-static int __maybe_unused ov2680_suspend(struct device *dev)
+static int ov2680_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
@@ -838,14 +823,18 @@ static int __maybe_unused ov2680_suspend(struct device *dev)
 	if (sensor->is_streaming)
 		ov2680_stream_disable(sensor);
 
-	return 0;
+	return ov2680_power_off(sensor);
 }
 
-static int __maybe_unused ov2680_resume(struct device *dev)
+static int ov2680_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 	int ret;
+
+	ret = ov2680_power_on(sensor);
+	if (ret < 0)
+		goto stream_disable;
 
 	if (sensor->is_streaming) {
 		ret = ov2680_stream_enable(sensor);
@@ -862,9 +851,8 @@ stream_disable:
 	return ret;
 }
 
-static const struct dev_pm_ops ov2680_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov2680_suspend, ov2680_resume)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(ov2680_pm_ops, ov2680_suspend, ov2680_resume,
+				 NULL);
 
 static const struct of_device_id ov2680_dt_ids[] = {
 	{ .compatible = "ovti,ov2680" },
@@ -875,7 +863,7 @@ MODULE_DEVICE_TABLE(of, ov2680_dt_ids);
 static struct i2c_driver ov2680_i2c_driver = {
 	.driver = {
 		.name  = "ov2680",
-		.pm = &ov2680_pm_ops,
+		.pm = pm_sleep_ptr(&ov2680_pm_ops),
 		.of_match_table	= ov2680_dt_ids,
 	},
 	.probe		= ov2680_probe,
