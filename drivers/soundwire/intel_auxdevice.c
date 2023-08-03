@@ -248,13 +248,6 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 
 	sdw_intel_debugfs_init(sdw);
 
-	/* start bus */
-	ret = sdw_intel_start_bus(sdw);
-	if (ret) {
-		dev_err(dev, "bus start failed: %d\n", ret);
-		goto err_power_up;
-	}
-
 	/* Enable runtime PM */
 	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME)) {
 		pm_runtime_set_autosuspend_delay(dev,
@@ -264,6 +257,13 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
+	}
+
+	/* start bus */
+	ret = sdw_intel_start_bus(sdw);
+	if (ret) {
+		dev_err(dev, "bus start failed: %d\n", ret);
+		goto err_pm_runtime;
 	}
 
 	clock_stop_quirks = sdw->link_res->clock_stop_quirks;
@@ -293,12 +293,17 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 	 * with a delay. A more complete solution would require the
 	 * definition of Master properties.
 	 */
-	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME_IDLE))
+	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME_IDLE)) {
+		pm_runtime_mark_last_busy(dev);
 		pm_runtime_idle(dev);
+	}
 
 	sdw->startup_done = true;
 	return 0;
 
+err_pm_runtime:
+	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME))
+		pm_runtime_disable(dev);
 err_power_up:
 	sdw_intel_link_power_down(sdw);
 err_init:
