@@ -636,7 +636,7 @@ int test_getdents64(const char *dir)
 
 static int test_getpagesize(void)
 {
-	long x = getpagesize();
+	int x = getpagesize();
 	int c;
 
 	if (x < 0)

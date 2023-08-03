@@ -460,11 +460,11 @@ pid_t gettid(void)
 static unsigned long getauxval(unsigned long key);
 
 /*
- * long getpagesize(void);
+ * int getpagesize(void);
  */
 
 static __attribute__((unused))
-long getpagesize(void)
+int getpagesize(void)
 {
 	return __sysret(getauxval(AT_PAGESZ) ?: -ENOENT);
 }
