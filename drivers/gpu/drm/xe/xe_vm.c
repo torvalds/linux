@@ -29,6 +29,8 @@
 #include "xe_res_cursor.h"
 #include "xe_sync.h"
 #include "xe_trace.h"
+#include "generated/xe_wa_oob.h"
+#include "xe_wa.h"
 
 #define TEST_VM_ASYNC_OPS_ERROR
 
@@ -1979,6 +1981,13 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	int err;
 	u32 flags = 0;
 
+	if (XE_WA(xe_root_mmio_gt(xe), 14016763929))
+		args->flags |= DRM_XE_VM_CREATE_SCRATCH_PAGE;
+
+	if (XE_IOCTL_DBG(xe, args->flags & DRM_XE_VM_CREATE_FAULT_MODE &&
+			 !xe->info.supports_usm))
+		return -EINVAL;
+
 	if (XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
@@ -1999,10 +2008,6 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 
 	if (XE_IOCTL_DBG(xe, !(args->flags & DRM_XE_VM_CREATE_FAULT_MODE) &&
 			 xe_device_in_fault_mode(xe)))
-		return -EINVAL;
-
-	if (XE_IOCTL_DBG(xe, args->flags & DRM_XE_VM_CREATE_FAULT_MODE &&
-			 !xe->info.supports_usm))
 		return -EINVAL;
 
 	if (args->flags & DRM_XE_VM_CREATE_SCRATCH_PAGE)
