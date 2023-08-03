@@ -34,11 +34,6 @@ int pci_set_of_node(struct pci_dev *dev)
 	if (!node)
 		return 0;
 
-	if (!of_device_is_available(node)) {
-		of_node_put(node);
-		return -ENODEV;
-	}
-
 	device_set_node(&dev->dev, of_fwnode_handle(node));
 	return 0;
 }
