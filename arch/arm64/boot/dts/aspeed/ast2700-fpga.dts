@@ -132,6 +132,15 @@
 	max-frequency = <100000000>;
 };
 
+&ufs_controller {
+	status = "okay";
+};
+
+&ufs {
+	status = "okay";
+	lanes-per-direction = <2>;
+};
+
 &spi0 {
 	fmc-spi-user-mode;
 	status = "okay";
