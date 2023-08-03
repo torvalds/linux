@@ -2244,13 +2244,6 @@ static bool is_valid_gup_args(struct page **pages, int *locked,
 		gup_flags |= FOLL_UNLOCKABLE;
 	}
 
-	/*
-	 * For now, always trigger NUMA hinting faults. Some GUP users like
-	 * KVM require the hint to be as the calling context of GUP is
-	 * functionally similar to a memory reference from task context.
-	 */
-	gup_flags |= FOLL_HONOR_NUMA_FAULT;
-
 	/* FOLL_GET and FOLL_PIN are mutually exclusive. */
 	if (WARN_ON_ONCE((gup_flags & (FOLL_PIN | FOLL_GET)) ==
 			 (FOLL_PIN | FOLL_GET)))
