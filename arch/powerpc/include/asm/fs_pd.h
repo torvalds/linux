@@ -36,14 +36,4 @@ extern immap_t __iomem *mpc8xx_immr;
 #define immr_unmap(addr) do {} while (0)
 #endif
 
-static inline int uart_baudrate(void)
-{
-        return get_baudrate();
-}
-
-static inline int uart_clock(void)
-{
-        return ppc_proc_freq;
-}
-
 #endif

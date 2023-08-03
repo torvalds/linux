@@ -32,10 +32,11 @@
 #include <linux/gpio/consumer.h>
 #include <linux/clk.h>
 
+#include <sysdev/fsl_soc.h>
+
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
-#include <asm/fs_pd.h>
 #include <asm/udbg.h>
 
 #include <linux/serial_core.h>
@@ -1311,7 +1312,8 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	if (options) {
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	} else {
-		if ((baud = uart_baudrate()) == -1)
+		baud = get_baudrate();
+		if (baud == -1)
 			baud = 9600;
 	}
 
