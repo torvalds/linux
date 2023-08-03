@@ -175,6 +175,7 @@ struct scrub_ctx {
 	struct scrub_stripe	stripes[SCRUB_STRIPES_PER_SCTX];
 	struct scrub_stripe	*raid56_data_stripes;
 	struct btrfs_fs_info	*fs_info;
+	struct btrfs_path	extent_path;
 	int			first_free;
 	int			cur_stripe;
 	atomic_t		cancel_req;
@@ -339,6 +340,8 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	refcount_set(&sctx->refs, 1);
 	sctx->is_dev_replace = is_dev_replace;
 	sctx->fs_info = fs_info;
+	sctx->extent_path.search_commit_root = 1;
+	sctx->extent_path.skip_locking = 1;
 	for (i = 0; i < SCRUB_STRIPES_PER_SCTX; i++) {
 		int ret;
 
@@ -1467,6 +1470,7 @@ static void scrub_stripe_reset_bitmaps(struct scrub_stripe *stripe)
  * Return <0 for error.
  */
 static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
+					struct btrfs_path *extent_path,
 					struct btrfs_device *dev, u64 physical,
 					int mirror_num, u64 logical_start,
 					u32 logical_len,
@@ -1476,7 +1480,6 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, bg->start);
 	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, bg->start);
 	const u64 logical_end = logical_start + logical_len;
-	struct btrfs_path path = { 0 };
 	u64 cur_logical = logical_start;
 	u64 stripe_end;
 	u64 extent_start;
@@ -1492,14 +1495,13 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 	/* The range must be inside the bg. */
 	ASSERT(logical_start >= bg->start && logical_end <= bg->start + bg->length);
 
-	path.search_commit_root = 1;
-	path.skip_locking = 1;
-
-	ret = find_first_extent_item(extent_root, &path, logical_start, logical_len);
+	ret = find_first_extent_item(extent_root, extent_path, logical_start,
+				     logical_len);
 	/* Either error or not found. */
 	if (ret)
 		goto out;
-	get_extent_info(&path, &extent_start, &extent_len, &extent_flags, &extent_gen);
+	get_extent_info(extent_path, &extent_start, &extent_len, &extent_flags,
+			&extent_gen);
 	if (extent_flags & BTRFS_EXTENT_FLAG_TREE_BLOCK)
 		stripe->nr_meta_extents++;
 	if (extent_flags & BTRFS_EXTENT_FLAG_DATA)
@@ -1527,7 +1529,7 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 
 	/* Fill the extent info for the remaining sectors. */
 	while (cur_logical <= stripe_end) {
-		ret = find_first_extent_item(extent_root, &path, cur_logical,
+		ret = find_first_extent_item(extent_root, extent_path, cur_logical,
 					     stripe_end - cur_logical + 1);
 		if (ret < 0)
 			goto out;
@@ -1535,7 +1537,7 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 			ret = 0;
 			break;
 		}
-		get_extent_info(&path, &extent_start, &extent_len,
+		get_extent_info(extent_path, &extent_start, &extent_len,
 				&extent_flags, &extent_gen);
 		if (extent_flags & BTRFS_EXTENT_FLAG_TREE_BLOCK)
 			stripe->nr_meta_extents++;
@@ -1575,7 +1577,6 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 	}
 	set_bit(SCRUB_STRIPE_FLAG_INITIALIZED, &stripe->state);
 out:
-	btrfs_release_path(&path);
 	return ret;
 }
 
@@ -1765,8 +1766,9 @@ static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *
 
 	/* We can queue one stripe using the remaining slot. */
 	scrub_reset_stripe(stripe);
-	ret = scrub_find_fill_first_stripe(bg, dev, physical, mirror_num,
-					   logical, length, stripe);
+	ret = scrub_find_fill_first_stripe(bg, &sctx->extent_path, dev,
+					   physical, mirror_num, logical,
+					   length, stripe);
 	/* Either >0 as no more extents or <0 for error. */
 	if (ret)
 		return ret;
@@ -1784,6 +1786,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct btrfs_raid_bio *rbio;
 	struct btrfs_io_context *bioc = NULL;
+	struct btrfs_path extent_path = { 0 };
 	struct bio *bio;
 	struct scrub_stripe *stripe;
 	bool all_empty = true;
@@ -1793,6 +1796,14 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	int ret;
 
 	ASSERT(sctx->raid56_data_stripes);
+
+	/*
+	 * For data stripe search, we cannot re-use the same extent path, as
+	 * the data stripe bytenr may be smaller than previous extent.  Thus we
+	 * have to use our own extent path.
+	 */
+	extent_path.search_commit_root = 1;
+	extent_path.skip_locking = 1;
 
 	for (int i = 0; i < data_stripes; i++) {
 		int stripe_index;
@@ -1808,7 +1819,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 
 		scrub_reset_stripe(stripe);
 		set_bit(SCRUB_STRIPE_FLAG_NO_REPORT, &stripe->state);
-		ret = scrub_find_fill_first_stripe(bg,
+		ret = scrub_find_fill_first_stripe(bg, &extent_path,
 				map->stripes[stripe_index].dev, physical, 1,
 				full_stripe_start + btrfs_stripe_nr_to_offset(i),
 				BTRFS_STRIPE_LEN, stripe);
@@ -1936,6 +1947,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	bio_put(bio);
 	btrfs_bio_counter_dec(fs_info);
 
+	btrfs_release_path(&extent_path);
 out:
 	return ret;
 }
@@ -2103,6 +2115,9 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	u64 stripe_logical;
 	int stop_loop = 0;
 
+	/* Extent_path should be released by now. */
+	ASSERT(sctx->extent_path.nodes[0] == NULL);
+
 	scrub_blocked_if_needed(fs_info);
 
 	if (sctx->is_dev_replace &&
@@ -2221,6 +2236,8 @@ out:
 	ret2 = flush_scrub_stripes(sctx);
 	if (!ret)
 		ret = ret2;
+	btrfs_release_path(&sctx->extent_path);
+
 	if (sctx->raid56_data_stripes) {
 		for (int i = 0; i < nr_data_stripes(map); i++)
 			release_scrub_stripe(&sctx->raid56_data_stripes[i]);
