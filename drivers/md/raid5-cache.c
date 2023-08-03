@@ -3168,7 +3168,7 @@ void r5l_exit_log(struct r5conf *conf)
 {
 	struct r5l_log *log = conf->log;
 
-	md_unregister_thread(&log->reclaim_thread);
+	md_unregister_thread(conf->mddev, &log->reclaim_thread);
 
 	/*
 	 * 'reconfig_mutex' is held by caller, set 'confg->log' to NULL to
