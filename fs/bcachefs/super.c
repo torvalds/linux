@@ -30,6 +30,8 @@
 #include "error.h"
 #include "fs.h"
 #include "fs-io.h"
+#include "fs-io-buffered.h"
+#include "fs-io-direct.h"
 #include "fsck.h"
 #include "inode.h"
 #include "io.h"
@@ -469,6 +471,8 @@ static void __bch2_fs_free(struct bch_fs *c)
 	bch2_fs_counters_exit(c);
 	bch2_fs_snapshots_exit(c);
 	bch2_fs_quota_exit(c);
+	bch2_fs_fs_io_direct_exit(c);
+	bch2_fs_fs_io_buffered_exit(c);
 	bch2_fs_fsio_exit(c);
 	bch2_fs_ec_exit(c);
 	bch2_fs_encryption_exit(c);
@@ -842,7 +846,9 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_encryption_init(c) ?:
 	    bch2_fs_compress_init(c) ?:
 	    bch2_fs_ec_init(c) ?:
-	    bch2_fs_fsio_init(c);
+	    bch2_fs_fsio_init(c) ?:
+	    bch2_fs_fs_io_buffered_init(c);
+	    bch2_fs_fs_io_direct_init(c);
 	if (ret)
 		goto err;
 

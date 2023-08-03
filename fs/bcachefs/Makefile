@@ -38,6 +38,9 @@ bcachefs-y		:=	\
 	fs-common.o		\
 	fs-ioctl.o		\
 	fs-io.o			\
+	fs-io-buffered.o	\
+	fs-io-direct.o		\
+	fs-io-pagecache.o	\
 	fsck.o			\
 	inode.o			\
 	io.o			\
