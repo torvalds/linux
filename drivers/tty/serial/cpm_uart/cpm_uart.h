@@ -25,17 +25,8 @@ struct gpio_desc;
 #define SERIAL_CPM_MINOR	46
 
 #define IS_SMC(pinfo)		(pinfo->flags & FLAG_SMC)
-#define IS_DISCARDING(pinfo)	(pinfo->flags & FLAG_DISCARDING)
-#define FLAG_DISCARDING	0x00000004	/* when set, don't discard */
 #define FLAG_SMC	0x00000002
 #define FLAG_CONSOLE	0x00000001
-
-#define UART_SMC1	fsid_smc1_uart
-#define UART_SMC2	fsid_smc2_uart
-#define UART_SCC1	fsid_scc1_uart
-#define UART_SCC2	fsid_scc2_uart
-#define UART_SCC3	fsid_scc3_uart
-#define UART_SCC4	fsid_scc4_uart
 
 #define UART_NR		fs_uart_nr
 
@@ -43,8 +34,6 @@ struct gpio_desc;
 #define RX_BUF_SIZE	32
 #define TX_NUM_FIFO	4
 #define TX_BUF_SIZE	32
-
-#define SCC_WAIT_CLOSING 100
 
 #define GPIO_CTS	0
 #define GPIO_RTS	1
@@ -85,23 +74,13 @@ struct uart_cpm_port {
 	struct gpio_desc	*gpios[NUM_GPIOS];
 };
 
-extern struct uart_cpm_port cpm_uart_ports[UART_NR];
-
 /* these are located in their respective files */
 void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd);
 void __iomem *cpm_uart_map_pram(struct uart_cpm_port *port,
 				struct device_node *np);
 void cpm_uart_unmap_pram(struct uart_cpm_port *port, void __iomem *pram);
-int cpm_uart_init_portdesc(void);
 int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con);
 void cpm_uart_freebuf(struct uart_cpm_port *pinfo);
-
-void smc1_lineif(struct uart_cpm_port *pinfo);
-void smc2_lineif(struct uart_cpm_port *pinfo);
-void scc1_lineif(struct uart_cpm_port *pinfo);
-void scc2_lineif(struct uart_cpm_port *pinfo);
-void scc3_lineif(struct uart_cpm_port *pinfo);
-void scc4_lineif(struct uart_cpm_port *pinfo);
 
 /*
    virtual to phys transtalion

@@ -48,8 +48,6 @@
 /**************************************************************/
 
 static int  cpm_uart_tx_pump(struct uart_port *port);
-static void cpm_uart_init_smc(struct uart_cpm_port *pinfo);
-static void cpm_uart_init_scc(struct uart_cpm_port *pinfo);
 static void cpm_uart_initbd(struct uart_cpm_port *pinfo);
 
 /**************************************************************/
@@ -1128,7 +1126,7 @@ static const struct uart_ops cpm_uart_pops = {
 #endif
 };
 
-struct uart_cpm_port cpm_uart_ports[UART_NR];
+static struct uart_cpm_port cpm_uart_ports[UART_NR];
 
 static int cpm_uart_init_port(struct device_node *np,
                               struct uart_cpm_port *pinfo)
