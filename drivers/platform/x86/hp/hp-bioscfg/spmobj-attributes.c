@@ -230,11 +230,9 @@ static ssize_t sk_store(struct kobject *kobj,
 		length--;
 
 	/* allocate space and copy current signing key */
-	bioscfg_drv.spm_data.signing_key = kmalloc(length, GFP_KERNEL);
+	bioscfg_drv.spm_data.signing_key = kmemdup(buf, length, GFP_KERNEL);
 	if (!bioscfg_drv.spm_data.signing_key)
 		return -ENOMEM;
-
-	memcpy(bioscfg_drv.spm_data.signing_key, buf, length);
 
 	/* submit signing key payload */
 	ret = hp_wmi_perform_query(HPWMI_SECUREPLATFORM_SET_SK,
@@ -267,13 +265,11 @@ static ssize_t kek_store(struct kobject *kobj,
 		length--;
 
 	/* allocate space and copy current signing key */
-	bioscfg_drv.spm_data.endorsement_key = kmalloc(length, GFP_KERNEL);
+	bioscfg_drv.spm_data.endorsement_key = kmemdup(buf, length, GFP_KERNEL);
 	if (!bioscfg_drv.spm_data.endorsement_key) {
 		ret = -ENOMEM;
 		goto exit_kek;
 	}
-
-	memcpy(bioscfg_drv.spm_data.endorsement_key, buf, length);
 
 	ret = hp_wmi_perform_query(HPWMI_SECUREPLATFORM_SET_KEK,
 				   HPWMI_SECUREPLATFORM,
@@ -314,13 +310,12 @@ static ssize_t auth_token_store(struct kobject *kobj,
 		length--;
 
 	/* allocate space and copy current auth token */
-	bioscfg_drv.spm_data.auth_token = kmalloc(length, GFP_KERNEL);
+	bioscfg_drv.spm_data.auth_token = kmemdup(buf, length, GFP_KERNEL);
 	if (!bioscfg_drv.spm_data.auth_token) {
 		ret = -ENOMEM;
 		goto exit_token;
 	}
 
-	memcpy(bioscfg_drv.spm_data.auth_token, buf, length);
 	return count;
 
 exit_token:
