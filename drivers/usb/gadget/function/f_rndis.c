@@ -84,19 +84,6 @@ static inline struct f_rndis *func_to_rndis(struct usb_function *f)
 	return container_of(f, struct f_rndis, port.func);
 }
 
-/* peak (theoretical) bulk transfer rate in bits-per-second */
-static unsigned int bitrate(struct usb_gadget *g)
-{
-	if (g->speed >= USB_SPEED_SUPER_PLUS)
-		return 4250000000U;
-	if (g->speed == USB_SPEED_SUPER)
-		return 3750000000U;
-	else if (g->speed == USB_SPEED_HIGH)
-		return 13 * 512 * 8 * 1000 * 8;
-	else
-		return 19 * 64 * 1 * 1000 * 8;
-}
-
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -640,7 +627,7 @@ static void rndis_open(struct gether *geth)
 	DBG(cdev, "%s\n", __func__);
 
 	rndis_set_param_medium(rndis->params, RNDIS_MEDIUM_802_3,
-				bitrate(cdev->gadget) / 100);
+				gether_bitrate(cdev->gadget) / 100);
 	rndis_signal_connect(rndis->params);
 }
 
