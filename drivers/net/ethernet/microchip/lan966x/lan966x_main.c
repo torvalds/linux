@@ -1119,8 +1119,8 @@ static int lan966x_probe(struct platform_device *pdev)
 
 	/* set irq */
 	lan966x->xtr_irq = platform_get_irq_byname(pdev, "xtr");
-	if (lan966x->xtr_irq <= 0)
-		return -EINVAL;
+	if (lan966x->xtr_irq < 0)
+		return lan966x->xtr_irq;
 
 	err = devm_request_threaded_irq(&pdev->dev, lan966x->xtr_irq, NULL,
 					lan966x_xtr_irq_handler, IRQF_ONESHOT,
