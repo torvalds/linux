@@ -466,7 +466,7 @@ static unsigned long getauxval(unsigned long key);
 static __attribute__((unused))
 int getpagesize(void)
 {
-	return __sysret(getauxval(AT_PAGESZ) ?: -ENOENT);
+	return __sysret((int)getauxval(AT_PAGESZ) ?: -ENOENT);
 }
 
 
