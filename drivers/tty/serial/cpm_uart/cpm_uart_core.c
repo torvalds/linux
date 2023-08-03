@@ -869,6 +869,78 @@ static void cpm_uart_init_smc(struct uart_cpm_port *pinfo)
 }
 
 /*
+ * Allocate DP-Ram and memory buffers. We need to allocate a transmit and
+ * receive buffer descriptors from dual port ram, and a character
+ * buffer area from host mem. If we are allocating for the console we need
+ * to do it from bootmem
+ */
+static int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
+{
+	int dpmemsz, memsz;
+	u8 __iomem *dp_mem;
+	unsigned long dp_offset;
+	u8 *mem_addr;
+	dma_addr_t dma_addr = 0;
+
+	pr_debug("CPM uart[%d]:allocbuf\n", pinfo->port.line);
+
+	dpmemsz = sizeof(cbd_t) * (pinfo->rx_nrfifos + pinfo->tx_nrfifos);
+	dp_offset = cpm_muram_alloc(dpmemsz, 8);
+	if (IS_ERR_VALUE(dp_offset)) {
+		pr_err("%s: could not allocate buffer descriptors\n", __func__);
+		return -ENOMEM;
+	}
+
+	dp_mem = cpm_muram_addr(dp_offset);
+
+	memsz = L1_CACHE_ALIGN(pinfo->rx_nrfifos * pinfo->rx_fifosize) +
+	    L1_CACHE_ALIGN(pinfo->tx_nrfifos * pinfo->tx_fifosize);
+	if (IS_ENABLED(CONFIG_CPM1) && is_con) {
+		/* was hostalloc but changed cause it blows away the */
+		/* large tlb mapping when pinning the kernel area    */
+		mem_addr = (u8 __force *)cpm_muram_addr(cpm_muram_alloc(memsz, 8));
+		dma_addr = cpm_muram_dma((void __iomem *)mem_addr);
+	} else if (is_con) {
+		mem_addr = kzalloc(memsz, GFP_NOWAIT);
+		dma_addr = virt_to_bus(mem_addr);
+	} else {
+		mem_addr = dma_alloc_coherent(pinfo->port.dev, memsz, &dma_addr,
+					      GFP_KERNEL);
+	}
+
+	if (!mem_addr) {
+		cpm_muram_free(dp_offset);
+		pr_err("%s: could not allocate coherent memory\n", __func__);
+		return -ENOMEM;
+	}
+
+	pinfo->dp_addr = dp_offset;
+	pinfo->mem_addr = mem_addr;
+	pinfo->dma_addr = dma_addr;
+	pinfo->mem_size = memsz;
+
+	pinfo->rx_buf = mem_addr;
+	pinfo->tx_buf = pinfo->rx_buf + L1_CACHE_ALIGN(pinfo->rx_nrfifos
+						       * pinfo->rx_fifosize);
+
+	pinfo->rx_bd_base = (cbd_t __iomem *)dp_mem;
+	pinfo->tx_bd_base = pinfo->rx_bd_base + pinfo->rx_nrfifos;
+
+	return 0;
+}
+
+static void cpm_uart_freebuf(struct uart_cpm_port *pinfo)
+{
+	dma_free_coherent(pinfo->port.dev, L1_CACHE_ALIGN(pinfo->rx_nrfifos *
+							  pinfo->rx_fifosize) +
+			  L1_CACHE_ALIGN(pinfo->tx_nrfifos *
+					 pinfo->tx_fifosize), (void __force *)pinfo->mem_addr,
+			  pinfo->dma_addr);
+
+	cpm_muram_free(pinfo->dp_addr);
+}
+
+/*
  * Initialize port. This is called from early_console stuff
  * so we have to be careful here !
  */
