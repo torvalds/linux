@@ -698,6 +698,7 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 {
 	struct device *dev = sensor->dev;
 	struct gpio_desc *gpio;
+	unsigned int rate = 0;
 	int ret;
 
 	/*
@@ -718,13 +719,34 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 
 	sensor->pwdn_gpio = gpio;
 
-	sensor->xvclk = devm_clk_get(dev, "xvclk");
+	sensor->xvclk = devm_clk_get_optional(dev, "xvclk");
 	if (IS_ERR(sensor->xvclk)) {
 		dev_err(dev, "xvclk clock missing or invalid\n");
 		return PTR_ERR(sensor->xvclk);
 	}
 
-	sensor->xvclk_freq = clk_get_rate(sensor->xvclk);
+	/*
+	 * We could have either a 24MHz or 19.2MHz clock rate from either DT or
+	 * ACPI... but we also need to support the weird IPU3 case which will
+	 * have an external clock AND a clock-frequency property. Check for the
+	 * clock-frequency property and if found, set that rate if we managed
+	 * to acquire a clock. This should cover the ACPI case. If the system
+	 * uses devicetree then the configured rate should already be set, so
+	 * we can just read it.
+	 */
+	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+				       &rate);
+	if (ret && !sensor->xvclk)
+		return dev_err_probe(dev, ret, "invalid clock config\n");
+
+	if (!ret && sensor->xvclk) {
+		ret = clk_set_rate(sensor->xvclk, rate);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "failed to set clock rate\n");
+	}
+
+	sensor->xvclk_freq = rate ?: clk_get_rate(sensor->xvclk);
 	if (sensor->xvclk_freq != OV2680_XVCLK_VALUE) {
 		dev_err(dev, "wrong xvclk frequency %d HZ, expected: %d Hz\n",
 			sensor->xvclk_freq, OV2680_XVCLK_VALUE);
