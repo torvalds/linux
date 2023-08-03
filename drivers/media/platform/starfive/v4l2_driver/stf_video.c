@@ -340,8 +340,10 @@ static int video_buf_init(struct vb2_buffer *vb)
 	}
 
 	if (stf_vin_map_isp_pad(video->id, STF_ISP_PAD_SRC)
-		== STF_ISP_PAD_SRC_SCD_Y)
+		== STF_ISP_PAD_SRC_SCD_Y) {
 		buffer->addr[1] = buffer->addr[0] + ISP_YHIST_BUFFER_SIZE;
+		buffer->vaddr_sc = vb2_plane_vaddr(vb, 0);
+	}
 
 	return 0;
 }
