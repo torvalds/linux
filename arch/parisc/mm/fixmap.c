@@ -19,9 +19,6 @@ void notrace set_fixmap(enum fixed_addresses idx, phys_addr_t phys)
 	pmd_t *pmd = pmd_offset(pud, vaddr);
 	pte_t *pte;
 
-	if (pmd_none(*pmd))
-		pte = pte_alloc_kernel(pmd, vaddr);
-
 	pte = pte_offset_kernel(pmd, vaddr);
 	set_pte_at(&init_mm, vaddr, pte, __mk_pte(phys, PAGE_KERNEL_RWX));
 	flush_tlb_kernel_range(vaddr, vaddr + PAGE_SIZE);
