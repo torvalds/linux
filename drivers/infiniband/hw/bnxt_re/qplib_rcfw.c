@@ -488,7 +488,7 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 	struct bnxt_qplib_crsqe *crsqe;
 	unsigned long flags;
 	u16 cookie;
-	int rc = 0;
+	int rc;
 	u8 opcode;
 
 	opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);

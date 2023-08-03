@@ -72,7 +72,7 @@ static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
 	struct creq_query_version_resp resp = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
 	struct cmdq_query_version req = {};
-	int rc = 0;
+	int rc;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_BASE_OPCODE_QUERY_VERSION,
@@ -97,7 +97,7 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	struct bnxt_qplib_rcfw_sbuf sbuf;
 	struct cmdq_query_func req = {};
 	u8 *tqm_alloc;
-	int i, rc = 0;
+	int i, rc;
 	u32 temp;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
@@ -184,7 +184,7 @@ int bnxt_qplib_set_func_resources(struct bnxt_qplib_res *res,
 	struct creq_set_func_resources_resp resp = {};
 	struct cmdq_set_func_resources req = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
-	int rc = 0;
+	int rc;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_BASE_OPCODE_SET_FUNC_RESOURCES,
@@ -717,7 +717,7 @@ int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
 	struct cmdq_query_roce_stats req = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
 	struct bnxt_qplib_rcfw_sbuf sbuf;
-	int rc = 0;
+	int rc;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_BASE_OPCODE_QUERY_ROCE_STATS,

@@ -284,7 +284,7 @@ int bnxt_re_query_gid(struct ib_device *ibdev, u32 port_num,
 		      int index, union ib_gid *gid)
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
-	int rc = 0;
+	int rc;
 
 	/* Ignore port_num */
 	memset(gid, 0, sizeof(*gid));
@@ -684,7 +684,7 @@ int bnxt_re_destroy_ah(struct ib_ah *ib_ah, u32 flags)
 	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ib_ah);
 	struct bnxt_re_dev *rdev = ah->rdev;
 	bool block = true;
-	int rc = 0;
+	int rc;
 
 	block = !(flags & RDMA_DESTROY_AH_SLEEPABLE);
 	rc = bnxt_qplib_destroy_ah(&rdev->qplib_res, &ah->qplib_ah, block);
@@ -834,7 +834,7 @@ static int bnxt_re_destroy_gsi_sqp(struct bnxt_re_qp *qp)
 	struct bnxt_re_qp *gsi_sqp;
 	struct bnxt_re_ah *gsi_sah;
 	struct bnxt_re_dev *rdev;
-	int rc = 0;
+	int rc;
 
 	rdev = qp->rdev;
 	gsi_sqp = rdev->gsi_ctx.gsi_sqp;
@@ -1441,7 +1441,7 @@ static int bnxt_re_create_gsi_qp(struct bnxt_re_qp *qp, struct bnxt_re_pd *pd,
 {
 	struct bnxt_re_dev *rdev;
 	struct bnxt_qplib_qp *qplqp;
-	int rc = 0;
+	int rc;
 
 	rdev = qp->rdev;
 	qplqp = &qp->qplib_qp;
@@ -1872,7 +1872,7 @@ static int bnxt_re_modify_shadow_qp(struct bnxt_re_dev *rdev,
 				    int qp_attr_mask)
 {
 	struct bnxt_re_qp *qp = rdev->gsi_ctx.gsi_sqp;
-	int rc = 0;
+	int rc;
 
 	if (qp_attr_mask & IB_QP_STATE) {
 		qp->qplib_qp.modify_flags |= CMDQ_MODIFY_QP_MODIFY_MASK_STATE;
@@ -2222,7 +2222,7 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 	u8 ip_version = 0;
 	u16 vlan_id = 0xFFFF;
 	void *buf;
-	int i, rc = 0;
+	int i, rc;
 
 	memset(&qp->qp1_hdr, 0, sizeof(qp->qp1_hdr));
 
@@ -3586,7 +3586,7 @@ static int send_phantom_wqe(struct bnxt_re_qp *qp)
 {
 	struct bnxt_qplib_qp *lib_qp = &qp->qplib_qp;
 	unsigned long flags;
-	int rc = 0;
+	int rc;
 
 	spin_lock_irqsave(&qp->sq_lock, flags);
 

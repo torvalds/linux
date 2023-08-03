@@ -517,7 +517,7 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 			 cqn_handler_t cqn_handler,
 			 srqn_handler_t srqn_handler)
 {
-	int rc = -1;
+	int rc;
 
 	nq->pdev = pdev;
 	nq->cqn_handler = cqn_handler;
@@ -712,7 +712,7 @@ int bnxt_qplib_query_srq(struct bnxt_qplib_res *res,
 	struct bnxt_qplib_rcfw_sbuf sbuf;
 	struct creq_query_srq_resp_sb *sb;
 	struct cmdq_query_srq req = {};
-	int rc = 0;
+	int rc;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_BASE_OPCODE_QUERY_SRQ,
@@ -1354,7 +1354,7 @@ int bnxt_qplib_query_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	struct creq_query_qp_resp_sb *sb;
 	struct cmdq_query_qp req = {};
 	u32 temp32[4];
-	int i, rc = 0;
+	int i, rc;
 
 	sbuf.size = ALIGN(sizeof(*sb), BNXT_QPLIB_CMDQE_UNITS);
 	sbuf.sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf.size,

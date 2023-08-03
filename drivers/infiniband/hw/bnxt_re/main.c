@@ -360,7 +360,7 @@ static struct bnxt_ulp_ops bnxt_re_ulp_ops = {
 static int bnxt_re_register_netdev(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_en_dev *en_dev;
-	int rc = 0;
+	int rc;
 
 	en_dev = rdev->en_dev;
 
@@ -1145,7 +1145,7 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_re_ring_attr rattr = {};
 	int num_vec_created = 0;
-	int rc = 0, i;
+	int rc, i;
 	u8 type;
 
 	/* Configure and allocate resources for qplib */
@@ -1343,7 +1343,7 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 	struct hwrm_ver_get_input req = {};
 	struct bnxt_qplib_chip_ctx *cctx;
 	struct bnxt_fw_msg fw_msg = {};
-	int rc = 0;
+	int rc;
 
 	bnxt_re_init_hwrm_hdr((void *)&req, HWRM_VER_GET);
 	req.hwrm_intf_maj = HWRM_VERSION_MAJOR;
@@ -1373,7 +1373,7 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 
 static int bnxt_re_ib_init(struct bnxt_re_dev *rdev)
 {
-	int rc = 0;
+	int rc;
 	u32 event;
 
 	/* Register ib dev */
@@ -1613,7 +1613,7 @@ static int bnxt_re_add_device(struct auxiliary_device *adev, u8 wqe_mode)
 		container_of(adev, struct bnxt_aux_priv, aux_dev);
 	struct bnxt_en_dev *en_dev;
 	struct bnxt_re_dev *rdev;
-	int rc = 0;
+	int rc;
 
 	/* en_dev should never be NULL as long as adev and aux_dev are valid. */
 	en_dev = aux_priv->edev;
@@ -1859,7 +1859,7 @@ static struct auxiliary_driver bnxt_re_driver = {
 
 static int __init bnxt_re_mod_init(void)
 {
-	int rc = 0;
+	int rc;
 
 	pr_info("%s: %s", ROCE_DRV_MODULE_NAME, version);
 	rc = auxiliary_driver_register(&bnxt_re_driver);
