@@ -3333,25 +3333,20 @@ static int bnxt_re_process_raw_qp_pkt_rx(struct bnxt_re_qp *gsi_qp,
 	struct bnxt_re_dev *rdev = gsi_qp->rdev;
 	struct bnxt_re_sqp_entries *sqp_entry = NULL;
 	struct bnxt_re_qp *gsi_sqp = rdev->gsi_ctx.gsi_sqp;
-	struct bnxt_re_ah *gsi_sah;
-	struct ib_send_wr *swr;
-	struct ib_ud_wr udwr;
-	struct ib_recv_wr rwr;
-	int pkt_type = 0;
-	u32 tbl_idx;
-	void *rq_hdr_buf;
-	dma_addr_t rq_hdr_buf_map;
 	dma_addr_t shrq_hdr_buf_map;
-	u32 offset = 0;
+	struct ib_sge s_sge[2] = {};
+	struct ib_sge r_sge[2] = {};
+	struct bnxt_re_ah *gsi_sah;
+	struct ib_recv_wr rwr = {};
+	dma_addr_t rq_hdr_buf_map;
+	struct ib_ud_wr udwr = {};
+	struct ib_send_wr *swr;
 	u32 skip_bytes = 0;
-	struct ib_sge s_sge[2];
-	struct ib_sge r_sge[2];
+	int pkt_type = 0;
+	void *rq_hdr_buf;
+	u32 offset = 0;
+	u32 tbl_idx;
 	int rc;
-
-	memset(&udwr, 0, sizeof(udwr));
-	memset(&rwr, 0, sizeof(rwr));
-	memset(&s_sge, 0, sizeof(s_sge));
-	memset(&r_sge, 0, sizeof(r_sge));
 
 	swr = &udwr.wr;
 	tbl_idx = cqe->wr_id;
