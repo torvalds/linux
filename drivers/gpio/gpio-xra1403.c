@@ -194,7 +194,7 @@ static const struct spi_device_id xra1403_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, xra1403_ids);
 
-static const struct of_device_id xra1403_spi_of_match[] __maybe_unused = {
+static const struct of_device_id xra1403_spi_of_match[] = {
 	{ .compatible = "exar,xra1403" },
 	{},
 };
@@ -205,7 +205,7 @@ static struct spi_driver xra1403_driver = {
 	.id_table = xra1403_ids,
 	.driver   = {
 		.name           = "xra1403",
-		.of_match_table = of_match_ptr(xra1403_spi_of_match),
+		.of_match_table = xra1403_spi_of_match,
 	},
 };
 
