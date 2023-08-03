@@ -124,7 +124,7 @@ struct devlink_cmd {
 	devlink_nl_dump_one_func_t *dump_one;
 };
 
-extern const struct genl_small_ops devlink_nl_small_ops[56];
+extern const struct genl_small_ops devlink_nl_small_ops[54];
 
 struct devlink *
 devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs);
