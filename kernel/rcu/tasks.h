@@ -1086,7 +1086,7 @@ void rcu_barrier_tasks(void)
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_tasks);
 
-int rcu_tasks_lazy_ms = -1;
+static int rcu_tasks_lazy_ms = -1;
 module_param(rcu_tasks_lazy_ms, int, 0444);
 
 static int __init rcu_spawn_tasks_kthread(void)
