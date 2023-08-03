@@ -213,6 +213,12 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_quota)			\
 	x(BCH_ERR_invalid,		invalid_bkey)				\
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
+	x(EIO,				btree_node_read_err)			\
+	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_fixable)		\
+	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
+	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\
+	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_bad_node)		\
+	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_incompatible)
 
 enum bch_errcode {
 	BCH_ERR_START		= 2048,

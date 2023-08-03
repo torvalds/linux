@@ -542,31 +542,7 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 	prt_str(out, ": ");
 }
 
-enum btree_err_type {
-	/*
-	 * We can repair this locally, and we're after the checksum check so
-	 * there's no need to try another replica:
-	 */
-	BTREE_ERR_FIXABLE,
-	/*
-	 * We can repair this if we have to, but we should try reading another
-	 * replica if we can:
-	 */
-	BTREE_ERR_WANT_RETRY,
-	/*
-	 * Read another replica if we have one, otherwise consider the whole
-	 * node bad:
-	 */
-	BTREE_ERR_MUST_RETRY,
-	BTREE_ERR_BAD_NODE,
-	BTREE_ERR_INCOMPATIBLE,
-};
-
-enum btree_validate_ret {
-	BTREE_RETRY_READ = 64,
-};
-
-static int __btree_err(enum btree_err_type type,
+static int __btree_err(int ret,
 		       struct bch_fs *c,
 		       struct bch_dev *ca,
 		       struct btree *b,
@@ -577,7 +553,6 @@ static int __btree_err(enum btree_err_type type,
 {
 	struct printbuf out = PRINTBUF;
 	va_list args;
-	int ret = -BCH_ERR_fsck_fix;
 
 	btree_err_msg(&out, c, ca, b, i, b->written, write);
 
@@ -593,27 +568,26 @@ static int __btree_err(enum btree_err_type type,
 		goto out;
 	}
 
-	if (!have_retry && type == BTREE_ERR_WANT_RETRY)
-		type = BTREE_ERR_FIXABLE;
-	if (!have_retry && type == BTREE_ERR_MUST_RETRY)
-		type = BTREE_ERR_BAD_NODE;
+	if (!have_retry && ret == -BCH_ERR_btree_node_read_err_want_retry)
+		ret = -BCH_ERR_btree_node_read_err_fixable;
+	if (!have_retry && ret == -BCH_ERR_btree_node_read_err_must_retry)
+		ret = -BCH_ERR_btree_node_read_err_bad_node;
 
-	switch (type) {
-	case BTREE_ERR_FIXABLE:
+	switch (ret) {
+	case -BCH_ERR_btree_node_read_err_fixable:
 		mustfix_fsck_err(c, "%s", out.buf);
 		ret = -BCH_ERR_fsck_fix;
 		break;
-	case BTREE_ERR_WANT_RETRY:
-	case BTREE_ERR_MUST_RETRY:
+	case -BCH_ERR_btree_node_read_err_want_retry:
+	case -BCH_ERR_btree_node_read_err_must_retry:
 		bch2_print_string_as_lines(KERN_ERR, out.buf);
-		ret = BTREE_RETRY_READ;
 		break;
-	case BTREE_ERR_BAD_NODE:
+	case -BCH_ERR_btree_node_read_err_bad_node:
 		bch2_print_string_as_lines(KERN_ERR, out.buf);
 		bch2_topology_error(c);
 		ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology) ?: -EIO;
 		break;
-	case BTREE_ERR_INCOMPATIBLE:
+	case -BCH_ERR_btree_node_read_err_incompatible:
 		bch2_print_string_as_lines(KERN_ERR, out.buf);
 		ret = -BCH_ERR_fsck_errors_not_fixed;
 		break;
@@ -703,13 +677,13 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 	int ret = 0;
 
 	btree_err_on(!bch2_version_compatible(version),
-		     BTREE_ERR_INCOMPATIBLE, c, ca, b, i,
+		     -BCH_ERR_btree_node_read_err_incompatible, c, ca, b, i,
 		     "unsupported bset version %u.%u",
 		     BCH_VERSION_MAJOR(version),
 		     BCH_VERSION_MINOR(version));
 
 	if (btree_err_on(version < c->sb.version_min,
-			 BTREE_ERR_FIXABLE, c, NULL, b, i,
+			 -BCH_ERR_btree_node_read_err_fixable, c, NULL, b, i,
 			 "bset version %u older than superblock version_min %u",
 			 version, c->sb.version_min)) {
 		mutex_lock(&c->sb_lock);
@@ -720,7 +694,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 
 	if (btree_err_on(BCH_VERSION_MAJOR(version) >
 			 BCH_VERSION_MAJOR(c->sb.version),
-			 BTREE_ERR_FIXABLE, c, NULL, b, i,
+			 -BCH_ERR_btree_node_read_err_fixable, c, NULL, b, i,
 			 "bset version %u newer than superblock version %u",
 			 version, c->sb.version)) {
 		mutex_lock(&c->sb_lock);
@@ -730,11 +704,11 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 	}
 
 	btree_err_on(BSET_SEPARATE_WHITEOUTS(i),
-		     BTREE_ERR_INCOMPATIBLE, c, ca, b, i,
+		     -BCH_ERR_btree_node_read_err_incompatible, c, ca, b, i,
 		     "BSET_SEPARATE_WHITEOUTS no longer supported");
 
 	if (btree_err_on(offset + sectors > btree_sectors(c),
-			 BTREE_ERR_FIXABLE, c, ca, b, i,
+			 -BCH_ERR_btree_node_read_err_fixable, c, ca, b, i,
 			 "bset past end of btree node")) {
 		i->u64s = 0;
 		ret = 0;
@@ -742,12 +716,12 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 	}
 
 	btree_err_on(offset && !i->u64s,
-		     BTREE_ERR_FIXABLE, c, ca, b, i,
+		     -BCH_ERR_btree_node_read_err_fixable, c, ca, b, i,
 		     "empty bset");
 
 	btree_err_on(BSET_OFFSET(i) &&
 		     BSET_OFFSET(i) != offset,
-		     BTREE_ERR_WANT_RETRY, c, ca, b, i,
+		     -BCH_ERR_btree_node_read_err_want_retry, c, ca, b, i,
 		     "bset at wrong sector offset");
 
 	if (!offset) {
@@ -761,16 +735,16 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 
 			/* XXX endianness */
 			btree_err_on(bp->seq != bn->keys.seq,
-				     BTREE_ERR_MUST_RETRY, c, ca, b, NULL,
+				     -BCH_ERR_btree_node_read_err_must_retry, c, ca, b, NULL,
 				     "incorrect sequence number (wrong btree node)");
 		}
 
 		btree_err_on(BTREE_NODE_ID(bn) != b->c.btree_id,
-			     BTREE_ERR_MUST_RETRY, c, ca, b, i,
+			     -BCH_ERR_btree_node_read_err_must_retry, c, ca, b, i,
 			     "incorrect btree id");
 
 		btree_err_on(BTREE_NODE_LEVEL(bn) != b->c.level,
-			     BTREE_ERR_MUST_RETRY, c, ca, b, i,
+			     -BCH_ERR_btree_node_read_err_must_retry, c, ca, b, i,
 			     "incorrect level");
 
 		if (!write)
@@ -787,7 +761,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			}
 
 			btree_err_on(!bpos_eq(b->data->min_key, bp->min_key),
-				     BTREE_ERR_MUST_RETRY, c, ca, b, NULL,
+				     -BCH_ERR_btree_node_read_err_must_retry, c, ca, b, NULL,
 				     "incorrect min_key: got %s should be %s",
 				     (printbuf_reset(&buf1),
 				      bch2_bpos_to_text(&buf1, bn->min_key), buf1.buf),
@@ -796,7 +770,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 		}
 
 		btree_err_on(!bpos_eq(bn->max_key, b->key.k.p),
-			     BTREE_ERR_MUST_RETRY, c, ca, b, i,
+			     -BCH_ERR_btree_node_read_err_must_retry, c, ca, b, i,
 			     "incorrect max key %s",
 			     (printbuf_reset(&buf1),
 			      bch2_bpos_to_text(&buf1, bn->max_key), buf1.buf));
@@ -806,7 +780,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 					  BSET_BIG_ENDIAN(i), write, bn);
 
 		btree_err_on(bch2_bkey_format_validate(&bn->format, &buf1),
-			     BTREE_ERR_BAD_NODE, c, ca, b, i,
+			     -BCH_ERR_btree_node_read_err_bad_node, c, ca, b, i,
 			     "invalid bkey format: %s\n  %s", buf1.buf,
 			     (printbuf_reset(&buf2),
 			      bch2_bkey_format_to_text(&buf2, &bn->format), buf2.buf));
@@ -850,14 +824,14 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 		struct bkey tmp;
 
 		if (btree_err_on(bkey_p_next(k) > vstruct_last(i),
-				 BTREE_ERR_FIXABLE, c, NULL, b, i,
+				 -BCH_ERR_btree_node_read_err_fixable, c, NULL, b, i,
 				 "key extends past end of bset")) {
 			i->u64s = cpu_to_le16((u64 *) k - i->_data);
 			break;
 		}
 
 		if (btree_err_on(k->format > KEY_FORMAT_CURRENT,
-				 BTREE_ERR_FIXABLE, c, NULL, b, i,
+				 -BCH_ERR_btree_node_read_err_fixable, c, NULL, b, i,
 				 "invalid bkey format %u", k->format)) {
 			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
 			memmove_u64s_down(k, bkey_p_next(k),
@@ -881,7 +855,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 			prt_printf(&buf, "\n  ");
 			bch2_bkey_val_to_text(&buf, c, u.s_c);
 
-			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf);
+			btree_err(-BCH_ERR_btree_node_read_err_fixable, c, NULL, b, i, "%s", buf.buf);
 
 			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
 			memmove_u64s_down(k, bkey_p_next(k),
@@ -905,7 +879,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 
 			bch2_dump_bset(c, b, i, 0);
 
-			if (btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf)) {
+			if (btree_err(-BCH_ERR_btree_node_read_err_fixable, c, NULL, b, i, "%s", buf.buf)) {
 				i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
 				memmove_u64s_down(k, bkey_p_next(k),
 						  (u64 *) vstruct_end(i) - (u64 *) k);
@@ -948,16 +922,16 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	iter->size = (btree_blocks(c) + 1) * 2;
 
 	if (bch2_meta_read_fault("btree"))
-		btree_err(BTREE_ERR_MUST_RETRY, c, ca, b, NULL,
+		btree_err(-BCH_ERR_btree_node_read_err_must_retry, c, ca, b, NULL,
 			  "dynamic fault");
 
 	btree_err_on(le64_to_cpu(b->data->magic) != bset_magic(c),
-		     BTREE_ERR_MUST_RETRY, c, ca, b, NULL,
+		     -BCH_ERR_btree_node_read_err_must_retry, c, ca, b, NULL,
 		     "bad magic: want %llx, got %llx",
 		     bset_magic(c), le64_to_cpu(b->data->magic));
 
 	btree_err_on(!b->data->keys.seq,
-		     BTREE_ERR_MUST_RETRY, c, ca, b, NULL,
+		     -BCH_ERR_btree_node_read_err_must_retry, c, ca, b, NULL,
 		     "bad btree header: seq 0");
 
 	if (b->key.k.type == KEY_TYPE_btree_ptr_v2) {
@@ -965,7 +939,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			&bkey_i_to_btree_ptr_v2(&b->key)->v;
 
 		btree_err_on(b->data->keys.seq != bp->seq,
-			     BTREE_ERR_MUST_RETRY, c, ca, b, NULL,
+			     -BCH_ERR_btree_node_read_err_must_retry, c, ca, b, NULL,
 			     "got wrong btree node (seq %llx want %llx)",
 			     b->data->keys.seq, bp->seq);
 	}
@@ -980,7 +954,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			i = &b->data->keys;
 
 			btree_err_on(!bch2_checksum_type_valid(c, BSET_CSUM_TYPE(i)),
-				     BTREE_ERR_WANT_RETRY, c, ca, b, i,
+				     -BCH_ERR_btree_node_read_err_want_retry, c, ca, b, i,
 				     "unknown checksum type %llu",
 				     BSET_CSUM_TYPE(i));
 
@@ -988,7 +962,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, b->data);
 
 			btree_err_on(bch2_crc_cmp(csum, b->data->csum),
-				     BTREE_ERR_WANT_RETRY, c, ca, b, i,
+				     -BCH_ERR_btree_node_read_err_want_retry, c, ca, b, i,
 				     "invalid checksum");
 
 			ret = bset_encrypt(c, i, b->written << 9);
@@ -998,7 +972,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 			btree_err_on(btree_node_type_is_extents(btree_node_type(b)) &&
 				     !BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data),
-				     BTREE_ERR_INCOMPATIBLE, c, NULL, b, NULL,
+				     -BCH_ERR_btree_node_read_err_incompatible, c, NULL, b, NULL,
 				     "btree node does not have NEW_EXTENT_OVERWRITE set");
 
 			sectors = vstruct_sectors(b->data, c->block_bits);
@@ -1010,7 +984,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 				break;
 
 			btree_err_on(!bch2_checksum_type_valid(c, BSET_CSUM_TYPE(i)),
-				     BTREE_ERR_WANT_RETRY, c, ca, b, i,
+				     -BCH_ERR_btree_node_read_err_want_retry, c, ca, b, i,
 				     "unknown checksum type %llu",
 				     BSET_CSUM_TYPE(i));
 
@@ -1018,7 +992,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, bne);
 
 			btree_err_on(bch2_crc_cmp(csum, bne->csum),
-				     BTREE_ERR_WANT_RETRY, c, ca, b, i,
+				     -BCH_ERR_btree_node_read_err_want_retry, c, ca, b, i,
 				     "invalid checksum");
 
 			ret = bset_encrypt(c, i, b->written << 9);
@@ -1051,12 +1025,12 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 					true);
 
 		btree_err_on(blacklisted && first,
-			     BTREE_ERR_FIXABLE, c, ca, b, i,
+			     -BCH_ERR_btree_node_read_err_fixable, c, ca, b, i,
 			     "first btree node bset has blacklisted journal seq (%llu)",
 			     le64_to_cpu(i->journal_seq));
 
 		btree_err_on(blacklisted && ptr_written,
-			     BTREE_ERR_FIXABLE, c, ca, b, i,
+			     -BCH_ERR_btree_node_read_err_fixable, c, ca, b, i,
 			     "found blacklisted bset (journal seq %llu) in btree node at offset %u-%u/%u",
 			     le64_to_cpu(i->journal_seq),
 			     b->written, b->written + sectors, ptr_written);
@@ -1075,7 +1049,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 	if (ptr_written) {
 		btree_err_on(b->written < ptr_written,
-			     BTREE_ERR_WANT_RETRY, c, ca, b, NULL,
+			     -BCH_ERR_btree_node_read_err_want_retry, c, ca, b, NULL,
 			     "btree node data missing: expected %u sectors, found %u",
 			     ptr_written, b->written);
 	} else {
@@ -1086,7 +1060,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 				     !bch2_journal_seq_is_blacklisted(c,
 								      le64_to_cpu(bne->keys.journal_seq),
 								      true),
-				     BTREE_ERR_WANT_RETRY, c, ca, b, NULL,
+				     -BCH_ERR_btree_node_read_err_want_retry, c, ca, b, NULL,
 				     "found bset signature after last bset");
 
 		/*
@@ -1140,7 +1114,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			prt_printf(&buf, "\n  ");
 			bch2_bkey_val_to_text(&buf, c, u.s_c);
 
-			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf);
+			btree_err(-BCH_ERR_btree_node_read_err_fixable, c, NULL, b, i, "%s", buf.buf);
 
 			btree_keys_account_key_drop(&b->nr, 0, k);
 
@@ -1180,7 +1154,8 @@ out:
 	printbuf_exit(&buf);
 	return retry_read;
 fsck_err:
-	if (ret == BTREE_RETRY_READ)
+	if (ret == -BCH_ERR_btree_node_read_err_want_retry ||
+	    ret == -BCH_ERR_btree_node_read_err_must_retry)
 		retry_read = 1;
 	else
 		set_btree_node_read_error(b);
@@ -1366,14 +1341,14 @@ static void btree_node_read_all_replicas_done(struct closure *cl)
 		}
 
 		written2 = btree_node_sectors_written(c, ra->buf[i]);
-		if (btree_err_on(written2 != written, BTREE_ERR_FIXABLE, c, NULL, b, NULL,
+		if (btree_err_on(written2 != written, -BCH_ERR_btree_node_read_err_fixable, c, NULL, b, NULL,
 				 "btree node sectors written mismatch: %u != %u",
 				 written, written2) ||
 		    btree_err_on(btree_node_has_extra_bsets(c, written2, ra->buf[i]),
-				 BTREE_ERR_FIXABLE, c, NULL, b, NULL,
+				 -BCH_ERR_btree_node_read_err_fixable, c, NULL, b, NULL,
 				 "found bset signature after last bset") ||
 		    btree_err_on(memcmp(ra->buf[best], ra->buf[i], written << 9),
-				 BTREE_ERR_FIXABLE, c, NULL, b, NULL,
+				 -BCH_ERR_btree_node_read_err_fixable, c, NULL, b, NULL,
 				 "btree node replicas content mismatch"))
 			dump_bset_maps = true;
 
