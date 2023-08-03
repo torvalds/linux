@@ -1180,6 +1180,8 @@ static int zt_set(struct task_struct *target,
 	if (ret == 0)
 		target->thread.svcr |= SVCR_ZA_MASK;
 
+	fpsimd_flush_task_state(target);
+
 	return ret;
 }
 
