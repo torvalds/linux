@@ -604,7 +604,6 @@ trace_buffer_iter(struct trace_iterator *iter, int cpu)
 int tracer_init(struct tracer *t, struct trace_array *tr);
 int tracing_is_enabled(void);
 void tracing_reset_online_cpus(struct array_buffer *buf);
-void tracing_reset_current(int cpu);
 void tracing_reset_all_online_cpus(void);
 void tracing_reset_all_online_cpus_unlocked(void);
 int tracing_open_generic(struct inode *inode, struct file *filp);
@@ -705,7 +704,6 @@ void trace_filter_add_remove_task(struct trace_pid_list *pid_list,
 void *trace_pid_next(struct trace_pid_list *pid_list, void *v, loff_t *pos);
 void *trace_pid_start(struct trace_pid_list *pid_list, loff_t *pos);
 int trace_pid_show(struct seq_file *m, void *v);
-void trace_free_pid_list(struct trace_pid_list *pid_list);
 int trace_pid_write(struct trace_pid_list *filtered_pids,
 		    struct trace_pid_list **new_pid_list,
 		    const char __user *ubuf, size_t cnt);
