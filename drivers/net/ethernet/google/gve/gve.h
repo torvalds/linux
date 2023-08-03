@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/u64_stats_sync.h>
+#include <net/xdp.h>
 
 #include "gve_desc.h"
 #include "gve_desc_dqo.h"

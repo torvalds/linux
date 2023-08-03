@@ -4,6 +4,8 @@
 #ifndef _MANA_H
 #define _MANA_H
 
+#include <net/xdp.h>
+
 #include "gdma.h"
 #include "hw_channel.h"
 
