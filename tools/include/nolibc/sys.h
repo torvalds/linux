@@ -738,7 +738,6 @@ static __attribute__((unused))
 int open(const char *path, int flags, ...)
 {
 	mode_t mode = 0;
-	int ret;
 
 	if (flags & O_CREAT) {
 		va_list args;
