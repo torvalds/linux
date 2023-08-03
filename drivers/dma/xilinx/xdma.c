@@ -883,7 +883,7 @@ static int xdma_probe(struct platform_device *pdev)
 		goto failed;
 	}
 	xdev->irq_start = res->start;
-	xdev->irq_num = res->end - res->start + 1;
+	xdev->irq_num = resource_size(res);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
