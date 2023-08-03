@@ -689,7 +689,6 @@ iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio,
 		return PTR_ERR(bip);
 	}
 
-	bip->bip_iter.bi_size = bio_integrity_bytes(bi, bio_sectors(bio));
 	/* virtual start sector must be in integrity interval units */
 	bip_set_seed(bip, bio->bi_iter.bi_sector >>
 				  (bi->interval_exp - SECTOR_SHIFT));
@@ -697,7 +696,7 @@ iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio,
 	pr_debug("IBLOCK BIP Size: %u Sector: %llu\n", bip->bip_iter.bi_size,
 		 (unsigned long long)bip->bip_iter.bi_sector);
 
-	resid = bip->bip_iter.bi_size;
+	resid = bio_integrity_bytes(bi, bio_sectors(bio));
 	while (resid > 0 && sg_miter_next(miter)) {
 
 		len = min_t(size_t, miter->length, resid);

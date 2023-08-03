@@ -118,7 +118,6 @@ static void *nvme_add_user_metadata(struct request *req, void __user *ubuf,
 		goto out_free_meta;
 	}
 
-	bip->bip_iter.bi_size = len;
 	bip->bip_iter.bi_sector = seed;
 	ret = bio_integrity_add_page(bio, virt_to_page(buf), len,
 			offset_in_page(buf));
