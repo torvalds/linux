@@ -608,12 +608,15 @@ struct bkey_format bch2_bkey_format_done(struct bkey_format_state *s)
 	return ret;
 }
 
-const char *bch2_bkey_format_validate(struct bkey_format *f)
+int bch2_bkey_format_validate(struct bkey_format *f, struct printbuf *err)
 {
 	unsigned i, bits = KEY_PACKED_BITS_START;
 
-	if (f->nr_fields != BKEY_NR_FIELDS)
-		return "incorrect number of fields";
+	if (f->nr_fields != BKEY_NR_FIELDS) {
+		prt_printf(err, "incorrect number of fields: got %u, should be %u",
+			   f->nr_fields, BKEY_NR_FIELDS);
+		return -BCH_ERR_invalid;
+	}
 
 	/*
 	 * Verify that the packed format can't represent fields larger than the
@@ -628,16 +631,35 @@ const char *bch2_bkey_format_validate(struct bkey_format *f)
 		u64 field_offset = le64_to_cpu(f->field_offset[i]);
 
 		if (packed_max + field_offset < packed_max ||
-		    packed_max + field_offset > unpacked_max)
-			return "field too large";
+		    packed_max + field_offset > unpacked_max) {
+			prt_printf(err, "field %u too large: %llu + %llu > %llu",
+				   i, packed_max, field_offset, unpacked_max);
+			return -BCH_ERR_invalid;
+		}
 
 		bits += f->bits_per_field[i];
 	}
 
-	if (f->key_u64s != DIV_ROUND_UP(bits, 64))
-		return "incorrect key_u64s";
+	if (f->key_u64s != DIV_ROUND_UP(bits, 64)) {
+		prt_printf(err, "incorrect key_u64s: got %u, should be %u",
+			   f->key_u64s, DIV_ROUND_UP(bits, 64));
+		return -BCH_ERR_invalid;
+	}
 
-	return NULL;
+	return 0;
+}
+
+void bch2_bkey_format_to_text(struct printbuf *out, const struct bkey_format *f)
+{
+	prt_printf(out, "u64s %u fields ", f->key_u64s);
+
+	for (unsigned i = 0; i < ARRAY_SIZE(f->bits_per_field); i++) {
+		if (i)
+			prt_str(out, ", ");
+		prt_printf(out, "%u:%llu",
+			   f->bits_per_field[i],
+			   le64_to_cpu(f->field_offset[i]));
+	}
 }
 
 /*

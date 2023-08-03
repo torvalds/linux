@@ -769,6 +769,7 @@ static inline void bch2_bkey_format_add_key(struct bkey_format_state *s, const s
 
 void bch2_bkey_format_add_pos(struct bkey_format_state *, struct bpos);
 struct bkey_format bch2_bkey_format_done(struct bkey_format_state *);
-const char *bch2_bkey_format_validate(struct bkey_format *);
+int bch2_bkey_format_validate(struct bkey_format *, struct printbuf *);
+void bch2_bkey_format_to_text(struct printbuf *, const struct bkey_format *);
 
 #endif /* _BCACHEFS_BKEY_H */

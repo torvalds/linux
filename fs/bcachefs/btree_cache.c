@@ -1165,7 +1165,6 @@ wait_on_io:
 void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 			     const struct btree *b)
 {
-	const struct bkey_format *f = &b->format;
 	struct bset_stats stats;
 
 	memset(&stats, 0, sizeof(stats));
@@ -1179,9 +1178,13 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 	prt_printf(out, ":\n"
 	       "    ptrs: ");
 	bch2_val_to_text(out, c, bkey_i_to_s_c(&b->key));
+	prt_newline(out);
 
-	prt_printf(out, "\n"
-	       "    format: u64s %u fields %u %u %u %u %u\n"
+	prt_printf(out,
+	       "    format: ");
+	bch2_bkey_format_to_text(out, &b->format);
+
+	prt_printf(out,
 	       "    unpack fn len: %u\n"
 	       "    bytes used %zu/%zu (%zu%% full)\n"
 	       "    sib u64s: %u, %u (merge threshold %u)\n"
@@ -1189,12 +1192,6 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 	       "    nr unpacked keys %u\n"
 	       "    floats %zu\n"
 	       "    failed unpacked %zu\n",
-	       f->key_u64s,
-	       f->bits_per_field[0],
-	       f->bits_per_field[1],
-	       f->bits_per_field[2],
-	       f->bits_per_field[3],
-	       f->bits_per_field[4],
 	       b->unpack_fn_len,
 	       b->nr.live_u64s * sizeof(u64),
 	       btree_bytes(c) - sizeof(struct btree_node),

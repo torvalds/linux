@@ -694,7 +694,6 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			 int write, bool have_retry, bool *saw_error)
 {
 	unsigned version = le16_to_cpu(i->version);
-	const char *err;
 	struct printbuf buf1 = PRINTBUF;
 	struct printbuf buf2 = PRINTBUF;
 	int ret = 0;
@@ -802,10 +801,12 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			compat_btree_node(b->c.level, b->c.btree_id, version,
 					  BSET_BIG_ENDIAN(i), write, bn);
 
-		err = bch2_bkey_format_validate(&bn->format);
-		btree_err_on(err,
+		btree_err_on(bch2_bkey_format_validate(&bn->format, &buf1),
 			     BTREE_ERR_BAD_NODE, c, ca, b, i,
-			     "invalid bkey format: %s", err);
+			     "invalid bkey format: %s\n  %s", buf1.buf,
+			     (printbuf_reset(&buf2),
+			      bch2_bkey_format_to_text(&buf2, &bn->format), buf2.buf));
+		printbuf_reset(&buf1);
 
 		compat_bformat(b->c.level, b->c.btree_id, version,
 			       BSET_BIG_ENDIAN(i), write,
