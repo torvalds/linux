@@ -70,6 +70,7 @@
 #include "dcn316/dcn316_resource.h"
 #include "../dcn32/dcn32_resource.h"
 #include "../dcn321/dcn321_resource.h"
+#include "dcn35/dcn35_resource.h"
 
 #define VISUAL_CONFIRM_BASE_DEFAULT 3
 #define VISUAL_CONFIRM_BASE_MIN 1
@@ -186,6 +187,9 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	case AMDGPU_FAMILY_GC_11_0_1:
 		dc_version = DCN_VERSION_3_14;
 		break;
+	case AMDGPU_FAMILY_GC_11_5_0:
+		dc_version = DCN_VERSION_3_5;
+		break;
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -289,6 +293,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_3_21:
 		res_pool = dcn321_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_5:
+		res_pool = dcn35_create_resource_pool(init_data, dc);
 		break;
 #endif /* CONFIG_DRM_AMD_DC_FP */
 	default:
