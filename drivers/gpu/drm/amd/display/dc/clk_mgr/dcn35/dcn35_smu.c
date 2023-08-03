@@ -230,9 +230,6 @@ int dcn35_smu_set_min_deep_sleep_dcfclk(struct clk_mgr_internal *clk_mgr, int re
 {
 	int actual_min_ds_dcfclk_mhz = -1;
 
-	if (!clk_mgr->base.ctx->dc->debug.pstate_enabled)
-		return -1;
-
 	if (!clk_mgr->smu_present)
 		return requested_min_ds_dcfclk_khz;
 
