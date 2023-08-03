@@ -40,7 +40,6 @@
 #include <net/dcbnl.h>
 #endif
 #include <net/netprio_cgroup.h>
-#include <net/xdp.h>
 
 #include <linux/netdev_features.h>
 #include <linux/neighbour.h>
@@ -77,7 +76,11 @@ struct udp_tunnel_nic_info;
 struct udp_tunnel_nic;
 struct bpf_prog;
 struct xdp_buff;
+struct xdp_frame;
+struct xdp_metadata_ops;
 struct xdp_md;
+
+typedef u32 xdp_features_t;
 
 void synchronize_net(void);
 void netdev_set_default_ethtool_ops(struct net_device *dev,
@@ -782,32 +785,6 @@ bool rps_may_expire_flow(struct net_device *dev, u16 rxq_index, u32 flow_id,
 			 u16 filter_id);
 #endif
 #endif /* CONFIG_RPS */
-
-/* This structure contains an instance of an RX queue. */
-struct netdev_rx_queue {
-	struct xdp_rxq_info		xdp_rxq;
-#ifdef CONFIG_RPS
-	struct rps_map __rcu		*rps_map;
-	struct rps_dev_flow_table __rcu	*rps_flow_table;
-#endif
-	struct kobject			kobj;
-	struct net_device		*dev;
-	netdevice_tracker		dev_tracker;
-
-#ifdef CONFIG_XDP_SOCKETS
-	struct xsk_buff_pool            *pool;
-#endif
-} ____cacheline_aligned_in_smp;
-
-/*
- * RX queue sysfs structures and functions.
- */
-struct rx_queue_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct netdev_rx_queue *queue, char *buf);
-	ssize_t (*store)(struct netdev_rx_queue *queue,
-			 const char *buf, size_t len);
-};
 
 /* XPS map type and offset of the xps map within net_device->xps_maps[]. */
 enum xps_map_type {
@@ -1668,12 +1645,6 @@ struct net_device_ops {
 	int			(*ndo_hwtstamp_set)(struct net_device *dev,
 						    struct kernel_hwtstamp_config *kernel_config,
 						    struct netlink_ext_ack *extack);
-};
-
-struct xdp_metadata_ops {
-	int	(*xmo_rx_timestamp)(const struct xdp_md *ctx, u64 *timestamp);
-	int	(*xmo_rx_hash)(const struct xdp_md *ctx, u32 *hash,
-			       enum xdp_rss_hash_type *rss_type);
 };
 
 /**
@@ -3850,24 +3821,6 @@ static inline int netif_set_real_num_rx_queues(struct net_device *dev,
 #endif
 int netif_set_real_num_queues(struct net_device *dev,
 			      unsigned int txq, unsigned int rxq);
-
-static inline struct netdev_rx_queue *
-__netif_get_rx_queue(struct net_device *dev, unsigned int rxq)
-{
-	return dev->_rx + rxq;
-}
-
-#ifdef CONFIG_SYSFS
-static inline unsigned int get_netdev_rx_queue_index(
-		struct netdev_rx_queue *queue)
-{
-	struct net_device *dev = queue->dev;
-	int index = queue - dev->_rx;
-
-	BUG_ON(index >= dev->num_rx_queues);
-	return index;
-}
-#endif
 
 int netif_get_num_default_rss_queues(void);
 

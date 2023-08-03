@@ -25,6 +25,7 @@
 #include <linux/rhashtable.h>
 #include <linux/rtnetlink.h>
 #include <linux/rwsem.h>
+#include <net/xdp.h>
 
 /* Protects offdevs, members of bpf_offload_netdev and offload members
  * of all progs.

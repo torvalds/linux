@@ -183,11 +183,11 @@ static void inc_active(struct bpf_mem_cache *c, unsigned long *flags)
 	WARN_ON_ONCE(local_inc_return(&c->active) != 1);
 }
 
-static void dec_active(struct bpf_mem_cache *c, unsigned long flags)
+static void dec_active(struct bpf_mem_cache *c, unsigned long *flags)
 {
 	local_dec(&c->active);
 	if (IS_ENABLED(CONFIG_PREEMPT_RT))
-		local_irq_restore(flags);
+		local_irq_restore(*flags);
 }
 
 static void add_obj_to_free_list(struct bpf_mem_cache *c, void *obj)
@@ -197,15 +197,19 @@ static void add_obj_to_free_list(struct bpf_mem_cache *c, void *obj)
 	inc_active(c, &flags);
 	__llist_add(obj, &c->free_llist);
 	c->free_cnt++;
-	dec_active(c, flags);
+	dec_active(c, &flags);
 }
 
 /* Mostly runs from irq_work except __init phase. */
-static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int node)
+static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int node, bool atomic)
 {
 	struct mem_cgroup *memcg = NULL, *old_memcg;
+	gfp_t gfp;
 	void *obj;
 	int i;
+
+	gfp = __GFP_NOWARN | __GFP_ACCOUNT;
+	gfp |= atomic ? GFP_NOWAIT : GFP_KERNEL;
 
 	for (i = 0; i < cnt; i++) {
 		/*
@@ -238,7 +242,7 @@ static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int node)
 		 * will allocate from the current numa node which is what we
 		 * want here.
 		 */
-		obj = __alloc(c, node, GFP_NOWAIT | __GFP_NOWARN | __GFP_ACCOUNT);
+		obj = __alloc(c, node, gfp);
 		if (!obj)
 			break;
 		add_obj_to_free_list(c, obj);
@@ -344,7 +348,7 @@ static void free_bulk(struct bpf_mem_cache *c)
 			cnt = --c->free_cnt;
 		else
 			cnt = 0;
-		dec_active(c, flags);
+		dec_active(c, &flags);
 		if (llnode)
 			enque_to_free(tgt, llnode);
 	} while (cnt > (c->high_watermark + c->low_watermark) / 2);
@@ -384,7 +388,7 @@ static void check_free_by_rcu(struct bpf_mem_cache *c)
 		llist_for_each_safe(llnode, t, llist_del_all(&c->free_llist_extra_rcu))
 			if (__llist_add(llnode, &c->free_by_rcu))
 				c->free_by_rcu_tail = llnode;
-		dec_active(c, flags);
+		dec_active(c, &flags);
 	}
 
 	if (llist_empty(&c->free_by_rcu))
@@ -408,7 +412,7 @@ static void check_free_by_rcu(struct bpf_mem_cache *c)
 	inc_active(c, &flags);
 	WRITE_ONCE(c->waiting_for_gp.first, __llist_del_all(&c->free_by_rcu));
 	c->waiting_for_gp_tail = c->free_by_rcu_tail;
-	dec_active(c, flags);
+	dec_active(c, &flags);
 
 	if (unlikely(READ_ONCE(c->draining))) {
 		free_all(llist_del_all(&c->waiting_for_gp), !!c->percpu_size);
@@ -429,7 +433,7 @@ static void bpf_mem_refill(struct irq_work *work)
 		/* irq_work runs on this cpu and kmalloc will allocate
 		 * from the current numa node which is what we want here.
 		 */
-		alloc_bulk(c, c->batch, NUMA_NO_NODE);
+		alloc_bulk(c, c->batch, NUMA_NO_NODE, true);
 	else if (cnt > c->high_watermark)
 		free_bulk(c);
 
@@ -477,7 +481,7 @@ static void prefill_mem_cache(struct bpf_mem_cache *c, int cpu)
 	 * prog won't be doing more than 4 map_update_elem from
 	 * irq disabled region
 	 */
-	alloc_bulk(c, c->unit_size <= 256 ? 4 : 1, cpu_to_node(cpu));
+	alloc_bulk(c, c->unit_size <= 256 ? 4 : 1, cpu_to_node(cpu), false);
 }
 
 /* When size != 0 bpf_mem_cache for each cpu.

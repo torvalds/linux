@@ -3704,7 +3704,7 @@ M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	Andrii Nakryiko <andrii@kernel.org>
 R:	Martin KaFai Lau <martin.lau@linux.dev>
 R:	Song Liu <song@kernel.org>
-R:	Yonghong Song <yhs@fb.com>
+R:	Yonghong Song <yonghong.song@linux.dev>
 R:	John Fastabend <john.fastabend@gmail.com>
 R:	KP Singh <kpsingh@kernel.org>
 R:	Stanislav Fomichev <sdf@google.com>
@@ -3743,7 +3743,7 @@ F:	tools/lib/bpf/
 F:	tools/testing/selftests/bpf/
 
 BPF [ITERATOR]
-M:	Yonghong Song <yhs@fb.com>
+M:	Yonghong Song <yonghong.song@linux.dev>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	kernel/bpf/*iter.c
