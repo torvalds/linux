@@ -781,15 +781,15 @@ void drm_buddy_print(struct drm_buddy *mm, struct drm_printer *p)
 			count++;
 		}
 
-		drm_printf(p, "order-%d ", order);
+		drm_printf(p, "order-%2d ", order);
 
 		free = count * (mm->chunk_size << order);
 		if (free < SZ_1M)
-			drm_printf(p, "free: %lluKiB", free >> 10);
+			drm_printf(p, "free: %8llu KiB", free >> 10);
 		else
-			drm_printf(p, "free: %lluMiB", free >> 20);
+			drm_printf(p, "free: %8llu MiB", free >> 20);
 
-		drm_printf(p, ", pages: %llu\n", count);
+		drm_printf(p, ", blocks: %llu\n", count);
 	}
 }
 EXPORT_SYMBOL(drm_buddy_print);
