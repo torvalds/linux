@@ -591,7 +591,7 @@ static int ov2680_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 
-	if (code->pad != 0 || code->index != 0)
+	if (code->index != 0)
 		return -EINVAL;
 
 	code->code = sensor->mode.fmt.code;
@@ -605,9 +605,6 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 	struct v4l2_mbus_framefmt *fmt;
-
-	if (format->pad != 0)
-		return -EINVAL;
 
 	fmt = __ov2680_get_pad_format(sensor, sd_state, format->pad,
 				      format->which);
@@ -628,9 +625,6 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	const struct v4l2_rect *crop;
 	unsigned int width, height;
 	int ret = 0;
-
-	if (format->pad != 0)
-		return -EINVAL;
 
 	crop = __ov2680_get_pad_crop(sensor, sd_state, format->pad,
 				     format->which);
