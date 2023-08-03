@@ -661,6 +661,8 @@ config VIDEO_MAX96722
 	  To compile this driver as a module, choose M here: the
 	  module will be called max96722.
 
+source "drivers/media/i2c/maxim4c/Kconfig"
+
 comment "Video and audio decoders"
 
 config VIDEO_SAA717X
