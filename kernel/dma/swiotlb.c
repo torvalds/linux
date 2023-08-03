@@ -903,9 +903,7 @@ static inline phys_addr_t slot_addr(phys_addr_t start, phys_addr_t idx)
  */
 static inline unsigned long get_max_slots(unsigned long boundary_mask)
 {
-	if (boundary_mask == ~0UL)
-		return 1UL << (BITS_PER_LONG - IO_TLB_SHIFT);
-	return nr_slots(boundary_mask + 1);
+	return (boundary_mask >> IO_TLB_SHIFT) + 1;
 }
 
 static unsigned int wrap_area_index(struct io_tlb_pool *mem, unsigned int index)
