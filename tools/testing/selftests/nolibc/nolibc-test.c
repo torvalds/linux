@@ -80,7 +80,7 @@ char *itoa(int i)
 /* returns the error name (e.g. "ENOENT") for common errors, "SUCCESS" for 0,
  * or the decimal value for less common ones.
  */
-const char *errorname(int err)
+static const char *errorname(int err)
 {
 	switch (err) {
 	case 0: return "SUCCESS";
@@ -659,7 +659,7 @@ int test_getdents64(const char *dir)
 	return ret;
 }
 
-static int test_getpagesize(void)
+int test_getpagesize(void)
 {
 	int x = getpagesize();
 	int c;
@@ -688,7 +688,7 @@ static int test_getpagesize(void)
 	return !c;
 }
 
-static int test_fork(void)
+int test_fork(void)
 {
 	int status;
 	pid_t pid;
@@ -713,7 +713,7 @@ static int test_fork(void)
 	}
 }
 
-static int test_stat_timestamps(void)
+int test_stat_timestamps(void)
 {
 	struct stat st;
 
@@ -793,7 +793,7 @@ end:
 	return !!ret;
 }
 
-static int test_pipe(void)
+int test_pipe(void)
 {
 	const char *const msg = "hello, nolibc";
 	int pipefd[2];
@@ -1227,7 +1227,7 @@ static const struct test test_names[] = {
 	{ 0 }
 };
 
-int is_setting_valid(char *test)
+static int is_setting_valid(char *test)
 {
 	int idx, len, test_len, valid = 0;
 	char delimiter;
