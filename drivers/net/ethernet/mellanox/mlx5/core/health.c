@@ -365,6 +365,8 @@ static const char *hsynd_str(u8 synd)
 		return "FFSER error";
 	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_HIGH_TEMP_ERR:
 		return "High temperature";
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_ICM_PCI_POISONED_ERR:
+		return "ICM fetch PCI data poisoned error";
 	default:
 		return "unrecognized error";
 	}
