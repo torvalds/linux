@@ -2329,10 +2329,22 @@ static int ptrace_stop(int exit_code, int why, unsigned long message,
 		do_notify_parent_cldstop(current, false, why);
 
 	/*
-	 * Don't want to allow preemption here, because
-	 * sys_ptrace() needs this task to be inactive.
+	 * The previous do_notify_parent_cldstop() invocation woke ptracer.
+	 * One a PREEMPTION kernel this can result in preemption requirement
+	 * which will be fulfilled after read_unlock() and the ptracer will be
+	 * put on the CPU.
+	 * The ptracer is in wait_task_inactive(, __TASK_TRACED) waiting for
+	 * this task wait in schedule(). If this task gets preempted then it
+	 * remains enqueued on the runqueue. The ptracer will observe this and
+	 * then sleep for a delay of one HZ tick. In the meantime this task
+	 * gets scheduled, enters schedule() and will wait for the ptracer.
 	 *
-	 * XXX: implement read_unlock_no_resched().
+	 * This preemption point is not bad from a correctness point of
+	 * view but extends the runtime by one HZ tick time due to the
+	 * ptracer's sleep.  The preempt-disable section ensures that there
+	 * will be no preemption between unlock and schedule() and so
+	 * improving the performance since the ptracer will observe that
+	 * the tracee is scheduled out once it gets on the CPU.
 	 */
 	preempt_disable();
 	read_unlock(&tasklist_lock);
