@@ -2097,7 +2097,7 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 		const struct edid *edid = drm_edid_raw(drm_edid);
 
 		/* DDC bus is shared, match EDID to connector type */
-		if (edid->input & DRM_EDID_INPUT_DIGITAL)
+		if (edid && edid->input & DRM_EDID_INPUT_DIGITAL)
 			status = connector_status_connected;
 		else
 			status = connector_status_disconnected;
