@@ -205,7 +205,7 @@ enum sparx5_core_clockfreq {
 struct sparx5_phc {
 	struct ptp_clock *clock;
 	struct ptp_clock_info info;
-	struct hwtstamp_config hwtstamp_config;
+	struct kernel_hwtstamp_config hwtstamp_config;
 	struct sparx5 *sparx5;
 	u8 index;
 };
@@ -388,8 +388,11 @@ void sparx5_unregister_netdevs(struct sparx5 *sparx5);
 /* sparx5_ptp.c */
 int sparx5_ptp_init(struct sparx5 *sparx5);
 void sparx5_ptp_deinit(struct sparx5 *sparx5);
-int sparx5_ptp_hwtstamp_set(struct sparx5_port *port, struct ifreq *ifr);
-int sparx5_ptp_hwtstamp_get(struct sparx5_port *port, struct ifreq *ifr);
+int sparx5_ptp_hwtstamp_set(struct sparx5_port *port,
+			    struct kernel_hwtstamp_config *cfg,
+			    struct netlink_ext_ack *extack);
+void sparx5_ptp_hwtstamp_get(struct sparx5_port *port,
+			     struct kernel_hwtstamp_config *cfg);
 void sparx5_ptp_rxtstamp(struct sparx5 *sparx5, struct sk_buff *skb,
 			 u64 timestamp);
 int sparx5_ptp_txtstamp_request(struct sparx5_port *port,
