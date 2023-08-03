@@ -176,6 +176,7 @@ struct scrub_ctx {
 	struct scrub_stripe	*raid56_data_stripes;
 	struct btrfs_fs_info	*fs_info;
 	struct btrfs_path	extent_path;
+	struct btrfs_path	csum_path;
 	int			first_free;
 	int			cur_stripe;
 	atomic_t		cancel_req;
@@ -342,6 +343,8 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	sctx->fs_info = fs_info;
 	sctx->extent_path.search_commit_root = 1;
 	sctx->extent_path.skip_locking = 1;
+	sctx->csum_path.search_commit_root = 1;
+	sctx->csum_path.skip_locking = 1;
 	for (i = 0; i < SCRUB_STRIPES_PER_SCTX; i++) {
 		int ret;
 
@@ -1471,6 +1474,7 @@ static void scrub_stripe_reset_bitmaps(struct scrub_stripe *stripe)
  */
 static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 					struct btrfs_path *extent_path,
+					struct btrfs_path *csum_path,
 					struct btrfs_device *dev, u64 physical,
 					int mirror_num, u64 logical_start,
 					u32 logical_len,
@@ -1562,9 +1566,9 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 		 */
 		ASSERT(BITS_PER_LONG >= BTRFS_STRIPE_LEN >> fs_info->sectorsize_bits);
 
-		ret = btrfs_lookup_csums_bitmap(csum_root, stripe->logical,
-						stripe_end, stripe->csums,
-						&csum_bitmap, true);
+		ret = btrfs_lookup_csums_bitmap(csum_root, csum_path,
+						stripe->logical, stripe_end,
+						stripe->csums, &csum_bitmap);
 		if (ret < 0)
 			goto out;
 		if (ret > 0)
@@ -1766,9 +1770,9 @@ static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *
 
 	/* We can queue one stripe using the remaining slot. */
 	scrub_reset_stripe(stripe);
-	ret = scrub_find_fill_first_stripe(bg, &sctx->extent_path, dev,
-					   physical, mirror_num, logical,
-					   length, stripe);
+	ret = scrub_find_fill_first_stripe(bg, &sctx->extent_path,
+					   &sctx->csum_path, dev, physical,
+					   mirror_num, logical, length, stripe);
 	/* Either >0 as no more extents or <0 for error. */
 	if (ret)
 		return ret;
@@ -1787,6 +1791,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	struct btrfs_raid_bio *rbio;
 	struct btrfs_io_context *bioc = NULL;
 	struct btrfs_path extent_path = { 0 };
+	struct btrfs_path csum_path = { 0 };
 	struct bio *bio;
 	struct scrub_stripe *stripe;
 	bool all_empty = true;
@@ -1798,12 +1803,14 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	ASSERT(sctx->raid56_data_stripes);
 
 	/*
-	 * For data stripe search, we cannot re-use the same extent path, as
-	 * the data stripe bytenr may be smaller than previous extent.  Thus we
-	 * have to use our own extent path.
+	 * For data stripe search, we cannot re-use the same extent/csum paths,
+	 * as the data stripe bytenr may be smaller than previous extent.  Thus
+	 * we have to use our own extent/csum paths.
 	 */
 	extent_path.search_commit_root = 1;
 	extent_path.skip_locking = 1;
+	csum_path.search_commit_root = 1;
+	csum_path.skip_locking = 1;
 
 	for (int i = 0; i < data_stripes; i++) {
 		int stripe_index;
@@ -1819,7 +1826,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 
 		scrub_reset_stripe(stripe);
 		set_bit(SCRUB_STRIPE_FLAG_NO_REPORT, &stripe->state);
-		ret = scrub_find_fill_first_stripe(bg, &extent_path,
+		ret = scrub_find_fill_first_stripe(bg, &extent_path, &csum_path,
 				map->stripes[stripe_index].dev, physical, 1,
 				full_stripe_start + btrfs_stripe_nr_to_offset(i),
 				BTRFS_STRIPE_LEN, stripe);
@@ -1948,6 +1955,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	btrfs_bio_counter_dec(fs_info);
 
 	btrfs_release_path(&extent_path);
+	btrfs_release_path(&csum_path);
 out:
 	return ret;
 }
@@ -2237,6 +2245,7 @@ out:
 	if (!ret)
 		ret = ret2;
 	btrfs_release_path(&sctx->extent_path);
+	btrfs_release_path(&sctx->csum_path);
 
 	if (sctx->raid56_data_stripes) {
 		for (int i = 0; i < nr_data_stripes(map); i++)
