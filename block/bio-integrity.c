@@ -252,26 +252,17 @@ bool bio_integrity_prep(struct bio *bio)
 
 	/* Map it */
 	offset = offset_in_page(buf);
-	for (i = 0 ; i < nr_pages ; i++) {
-		int ret;
+	for (i = 0; i < nr_pages && len > 0; i++) {
 		bytes = PAGE_SIZE - offset;
-
-		if (len <= 0)
-			break;
 
 		if (bytes > len)
 			bytes = len;
 
-		ret = bio_integrity_add_page(bio, virt_to_page(buf),
-					     bytes, offset);
-
-		if (ret == 0) {
+		if (bio_integrity_add_page(bio, virt_to_page(buf),
+					   bytes, offset) < bytes) {
 			printk(KERN_ERR "could not attach integrity payload\n");
 			goto err_end_io;
 		}
-
-		if (ret < bytes)
-			break;
 
 		buf += bytes;
 		len -= bytes;
@@ -291,7 +282,6 @@ err_end_io:
 	bio->bi_status = BLK_STS_RESOURCE;
 	bio_endio(bio);
 	return false;
-
 }
 EXPORT_SYMBOL(bio_integrity_prep);
 
