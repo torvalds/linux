@@ -395,10 +395,9 @@ static int bnxt_re_hwrm_qcfg(struct bnxt_re_dev *rdev, u32 *db_len,
 	struct bnxt_en_dev *en_dev = rdev->en_dev;
 	struct hwrm_func_qcfg_output resp = {0};
 	struct hwrm_func_qcfg_input req = {0};
-	struct bnxt_fw_msg fw_msg;
+	struct bnxt_fw_msg fw_msg = {};
 	int rc;
 
-	memset(&fw_msg, 0, sizeof(fw_msg));
 	bnxt_re_init_hwrm_hdr((void *)&req, HWRM_FUNC_QCFG);
 	req.fid = cpu_to_le16(0xffff);
 	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
@@ -969,7 +968,7 @@ static int bnxt_re_handle_unaffi_async_event(struct creq_func_event
 static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 					 struct bnxt_re_qp *qp)
 {
-	struct ib_event event;
+	struct ib_event event = {};
 	unsigned int flags;
 
 	if (qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_ERR &&
@@ -979,7 +978,6 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 		bnxt_re_unlock_cqs(qp, flags);
 	}
 
-	memset(&event, 0, sizeof(event));
 	if (qp->qplib_qp.srq) {
 		event.device = &qp->rdev->ibdev;
 		event.element.qp = &qp->ib_qp;
@@ -1299,11 +1297,10 @@ static u32 bnxt_re_get_priority_mask(struct bnxt_re_dev *rdev)
 {
 	u32 prio_map = 0, tmp_map = 0;
 	struct net_device *netdev;
-	struct dcb_app app;
+	struct dcb_app app = {};
 
 	netdev = rdev->netdev;
 
-	memset(&app, 0, sizeof(app));
 	app.selector = IEEE_8021QAZ_APP_SEL_ETHERTYPE;
 	app.protocol = ETH_P_IBOE;
 	tmp_map = dcb_ieee_getapp_mask(netdev, &app);
@@ -1445,15 +1442,14 @@ static void bnxt_re_worker(struct work_struct *work)
 
 static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 {
+	struct bnxt_re_ring_attr rattr = {};
 	struct bnxt_qplib_creq_ctx *creq;
-	struct bnxt_re_ring_attr rattr;
 	u32 db_offt;
 	int vid;
 	u8 type;
 	int rc;
 
 	/* Registered a new RoCE device instance to netdev */
-	memset(&rattr, 0, sizeof(rattr));
 	rc = bnxt_re_register_netdev(rdev);
 	if (rc) {
 		ibdev_err(&rdev->ibdev,
