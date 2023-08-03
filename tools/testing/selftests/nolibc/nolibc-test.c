@@ -737,9 +737,9 @@ int test_stat_timestamps(void)
 
 int test_mmap_munmap(void)
 {
-	int ret, fd, i;
+	int ret, fd, i, page_size;
 	void *mem;
-	size_t page_size, file_size, length;
+	size_t file_size, length;
 	off_t offset, pa_offset;
 	struct stat stat_buf;
 	const char * const files[] = {
@@ -1017,7 +1017,7 @@ int run_stdlib(int min, int max)
 #define EXPECT_VFPRINTF(c, expected, fmt, ...)				\
 	ret += expect_vfprintf(llen, c, expected, fmt, ##__VA_ARGS__)
 
-static int expect_vfprintf(int llen, size_t c, const char *expected, const char *fmt, ...)
+static int expect_vfprintf(int llen, int c, const char *expected, const char *fmt, ...)
 {
 	int ret, fd, w, r;
 	char buf[100];
@@ -1041,7 +1041,7 @@ static int expect_vfprintf(int llen, size_t c, const char *expected, const char 
 	va_end(args);
 
 	if (w != c) {
-		llen += printf(" written(%d) != %d", w, (int) c);
+		llen += printf(" written(%d) != %d", w, c);
 		result(llen, FAIL);
 		return 1;
 	}
