@@ -166,6 +166,12 @@
  */
 #define NR_RECENT	9
 
+/*
+ * Idle state target residency threshold used for deciding whether or not to
+ * check the time till the closest expected timer event.
+ */
+#define RESIDENCY_THRESHOLD_NS	(15 * NSEC_PER_USEC)
+
 /**
  * struct teo_bin - Metrics used by the TEO cpuidle governor.
  * @intercepts: The "intercepts" metric.
@@ -541,6 +547,22 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		if (teo_state_ok(i, drv))
 			idx = i;
 	}
+
+	/*
+	 * Skip the timers check if state 0 is the current candidate one,
+	 * because an immediate non-timer wakeup is expected in that case.
+	 */
+	if (!idx)
+		goto out_tick;
+
+	/*
+	 * If state 0 is a polling one, check if the target residency of
+	 * the current candidate state is low enough and skip the timers
+	 * check in that case too.
+	 */
+	if ((drv->states[0].flags & CPUIDLE_FLAG_POLLING) &&
+	    drv->states[idx].target_residency_ns < RESIDENCY_THRESHOLD_NS)
+		goto out_tick;
 
 	duration_ns = tick_nohz_get_sleep_length(&delta_tick);
 	cpu_data->sleep_length_ns = duration_ns;
