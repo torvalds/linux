@@ -14,6 +14,7 @@
 #include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 #include <net/switchdev.h>
+#include <net/xdp.h>
 
 #include <vcap_api.h>
 #include <vcap_api_client.h>
