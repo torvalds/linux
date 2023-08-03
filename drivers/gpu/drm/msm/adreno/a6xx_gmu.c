@@ -1454,8 +1454,15 @@ void a6xx_gmu_remove(struct a6xx_gpu *a6xx_gpu)
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	struct platform_device *pdev = to_platform_device(gmu->dev);
 
-	if (!gmu->initialized)
+	mutex_lock(&gmu->lock);
+	if (!gmu->initialized) {
+		mutex_unlock(&gmu->lock);
 		return;
+	}
+
+	gmu->initialized = false;
+
+	mutex_unlock(&gmu->lock);
 
 	pm_runtime_force_suspend(gmu->dev);
 
@@ -1485,8 +1492,6 @@ void a6xx_gmu_remove(struct a6xx_gpu *a6xx_gpu)
 
 	/* Drop reference taken in of_find_device_by_node */
 	put_device(gmu->dev);
-
-	gmu->initialized = false;
 }
 
 static int cxpd_notifier_cb(struct notifier_block *nb,
