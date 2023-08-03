@@ -1058,8 +1058,8 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 				     "Failed to get tvdpll clock\n");
 
 	dpi->irq = platform_get_irq(pdev, 0);
-	if (dpi->irq <= 0)
-		return -EINVAL;
+	if (dpi->irq < 0)
+		return dpi->irq;
 
 	dpi->next_bridge = devm_drm_of_get_bridge(dev, dev->of_node, 0, 0);
 	if (IS_ERR(dpi->next_bridge))
