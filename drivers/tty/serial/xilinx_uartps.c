@@ -1562,8 +1562,8 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		rc = -ENXIO;
+	if (irq < 0) {
+		rc = irq;
 		goto err_out_clk_disable;
 	}
 
