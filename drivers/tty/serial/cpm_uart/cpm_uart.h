@@ -75,11 +75,6 @@ struct uart_cpm_port {
 	struct gpio_desc	*gpios[NUM_GPIOS];
 };
 
-/* these are located in their respective files */
-void __iomem *cpm_uart_map_pram(struct uart_cpm_port *port,
-				struct device_node *np);
-void cpm_uart_unmap_pram(struct uart_cpm_port *port, void __iomem *pram);
-
 /*
    virtual to phys transtalion
 */

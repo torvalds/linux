@@ -1207,6 +1207,54 @@ static const struct uart_ops cpm_uart_pops = {
 
 static struct uart_cpm_port cpm_uart_ports[UART_NR];
 
+static void __iomem *cpm_uart_map_pram(struct uart_cpm_port *port,
+				       struct device_node *np)
+{
+	void __iomem *pram;
+	unsigned long offset;
+	struct resource res;
+	resource_size_t len;
+
+	/* Don't remap parameter RAM if it has already been initialized
+	 * during console setup.
+	 */
+	if (IS_SMC(port) && port->smcup)
+		return port->smcup;
+	else if (!IS_SMC(port) && port->sccup)
+		return port->sccup;
+
+	if (of_address_to_resource(np, 1, &res))
+		return NULL;
+
+	len = resource_size(&res);
+	pram = ioremap(res.start, len);
+	if (!pram)
+		return NULL;
+
+	if (!IS_ENABLED(CONFIG_CPM2) || !IS_SMC(port))
+		return pram;
+
+	if (len != 2) {
+		pr_warn("cpm_uart[%d]: device tree references "
+			"SMC pram, using boot loader/wrapper pram mapping. "
+			"Please fix your device tree to reference the pram "
+			"base register instead.\n",
+			port->port.line);
+		return pram;
+	}
+
+	offset = cpm_muram_alloc(64, 64);
+	out_be16(pram, offset);
+	iounmap(pram);
+	return cpm_muram_addr(offset);
+}
+
+static void cpm_uart_unmap_pram(struct uart_cpm_port *port, void __iomem *pram)
+{
+	if (!IS_ENABLED(CONFIG_CPM2) || !IS_SMC(port))
+		iounmap(pram);
+}
+
 static int cpm_uart_init_port(struct device_node *np,
                               struct uart_cpm_port *pinfo)
 {
