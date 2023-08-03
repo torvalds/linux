@@ -46,6 +46,9 @@
 #define SW_SA_TRAP (ASIC_FAMILY >= CHIP_PLUM_BONITO)
 #define SAVE_AFTER_XNACK_ERROR (HAVE_XNACK && !NO_SQC_STORE) // workaround for TCP store failure after XNACK error when ALLOW_REPLAY=0, for debugger
 
+#define S_COHERENCE glc:1
+#define V_COHERENCE slc:1 glc:1
+
 var SINGLE_STEP_MISSED_WORKAROUND		= 1	//workaround for lost MODE.DEBUG_EN exception when SAVECTX raised
 
 var SQ_WAVE_STATUS_SPI_PRIO_MASK		= 0x00000006
@@ -298,15 +301,15 @@ L_FETCH_2ND_TRAP:
 	s_or_b32	ttmp15, ttmp15, 0xFFFF0000
 L_NO_SIGN_EXTEND_TMA:
 
-	s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 glc:1			// debug trap enabled flag
+	s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 S_COHERENCE		// debug trap enabled flag
 	s_waitcnt       lgkmcnt(0)
 	s_lshl_b32      ttmp2, ttmp2, TTMP11_DEBUG_TRAP_ENABLED_SHIFT
 	s_andn2_b32     ttmp11, ttmp11, TTMP11_DEBUG_TRAP_ENABLED_MASK
 	s_or_b32        ttmp11, ttmp11, ttmp2
 
-	s_load_dwordx2	[ttmp2, ttmp3], [ttmp14, ttmp15], 0x0 glc:1		// second-level TBA
+	s_load_dwordx2	[ttmp2, ttmp3], [ttmp14, ttmp15], 0x0 S_COHERENCE	// second-level TBA
 	s_waitcnt	lgkmcnt(0)
-	s_load_dwordx2	[ttmp14, ttmp15], [ttmp14, ttmp15], 0x8 glc:1		// second-level TMA
+	s_load_dwordx2	[ttmp14, ttmp15], [ttmp14, ttmp15], 0x8 S_COHERENCE	// second-level TMA
 	s_waitcnt	lgkmcnt(0)
 
 	s_and_b64	[ttmp2, ttmp3], [ttmp2, ttmp3], [ttmp2, ttmp3]
@@ -399,7 +402,7 @@ L_SLEEP:
 	s_and_b32	s_save_ttmps_hi, exec_hi, 0xFFFF
 	s_mov_b32	exec_lo, 0xFFFFFFFF
 	s_mov_b32	exec_hi, 0xFFFFFFFF
-	global_store_dword_addtid	v0, [s_save_ttmps_lo, s_save_ttmps_hi] slc:1 glc:1
+	global_store_dword_addtid	v0, [s_save_ttmps_lo, s_save_ttmps_hi] V_COHERENCE
 	v_mov_b32	v0, 0x0
 	s_mov_b32	exec_lo, s_save_ttmps_lo
 	s_mov_b32	exec_hi, s_save_ttmps_hi
@@ -431,15 +434,15 @@ L_SLEEP:
 
 	s_mov_b32	exec_lo, 0x3FFF
 	s_mov_b32	exec_hi, 0x0
-	global_store_dword_addtid	v0, [s_save_ttmps_lo, s_save_ttmps_hi] inst_offset:0x40 slc:1 glc:1
+	global_store_dword_addtid	v0, [s_save_ttmps_lo, s_save_ttmps_hi] inst_offset:0x40 V_COHERENCE
 	v_readlane_b32	ttmp14, v0, 0xE
 	v_readlane_b32	ttmp15, v0, 0xF
 	s_mov_b32	exec_lo, ttmp14
 	s_mov_b32	exec_hi, ttmp15
 #else
-	s_store_dwordx4	[ttmp4, ttmp5, ttmp6, ttmp7], [s_save_ttmps_lo, s_save_ttmps_hi], 0x50 glc:1
-	s_store_dwordx4	[ttmp8, ttmp9, ttmp10, ttmp11], [s_save_ttmps_lo, s_save_ttmps_hi], 0x60 glc:1
-	s_store_dword   ttmp13, [s_save_ttmps_lo, s_save_ttmps_hi], 0x74 glc:1
+	s_store_dwordx4	[ttmp4, ttmp5, ttmp6, ttmp7], [s_save_ttmps_lo, s_save_ttmps_hi], 0x50 S_COHERENCE
+	s_store_dwordx4	[ttmp8, ttmp9, ttmp10, ttmp11], [s_save_ttmps_lo, s_save_ttmps_hi], 0x60 S_COHERENCE
+	s_store_dword   ttmp13, [s_save_ttmps_lo, s_save_ttmps_hi], 0x74 S_COHERENCE
 #endif
 
 	/* setup Resource Contants */
@@ -488,11 +491,11 @@ L_SAVE_FIRST_VGPRS32_WITH_TCP:
 #endif
 
 #if !NO_SQC_STORE
-	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
+	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE
 #endif
-	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:128
-	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:128*2
-	buffer_store_dword	v3, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:128*3
+	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:128
+	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:128*2
+	buffer_store_dword	v3, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:128*3
 	s_branch	L_SAVE_HWREG
 
 L_SAVE_4VGPR_WAVE64:
@@ -511,11 +514,11 @@ L_SAVE_FIRST_VGPRS64_WITH_TCP:
 #endif
 
 #if !NO_SQC_STORE
-	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
+	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE
 #endif
-	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256
-	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256*2
-	buffer_store_dword	v3, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256*3
+	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:256
+	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:256*2
+	buffer_store_dword	v3, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:256*3
 
 	/* save HW registers */
 
@@ -562,7 +565,7 @@ L_SAVE_HWREG:
 	// Write HWREGs with 16 VGPR lanes. TTMPs occupy space after this.
 	s_mov_b32       exec_lo, 0xFFFF
 	s_mov_b32	exec_hi, 0x0
-	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
+	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE
 
 	// Write SGPRs with 32 VGPR lanes. This works in wave32 and wave64 mode.
 	s_mov_b32       exec_lo, 0xFFFFFFFF
@@ -605,7 +608,7 @@ L_SAVE_SGPR_LOOP:
 	s_cmp_eq_u32	ttmp13, 0x20						//have 32 VGPR lanes filled?
 	s_cbranch_scc0	L_SAVE_SGPR_SKIP_TCP_STORE
 
-	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
+	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE
 	s_add_u32	s_save_mem_offset, s_save_mem_offset, 0x80
 	s_mov_b32	ttmp13, 0x0
 	v_mov_b32	v2, 0x0
@@ -626,7 +629,7 @@ L_SAVE_SGPR_SKIP_TCP_STORE:
 	write_12sgpr_to_mem(s0, s_save_buf_rsrc0, s_save_mem_offset)
 
 #if NO_SQC_STORE
-	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
+	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE
 #else
 	// restore s_save_buf_rsrc0,1
 	s_mov_b32	s_save_buf_rsrc0, s_save_xnack_mask
@@ -709,7 +712,7 @@ L_SAVE_LDS_WITH_TCP_W32:
 L_SAVE_LDS_LOOP_W32:
 	ds_read_b32	v1, v0
 	s_waitcnt	0
-	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
+	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE
 
 	s_add_u32	m0, m0, s3						//every buffer_store_lds does 128 bytes
 	s_add_u32	s_save_mem_offset, s_save_mem_offset, s3
@@ -747,7 +750,7 @@ L_SAVE_LDS_WITH_TCP_W64:
 L_SAVE_LDS_LOOP_W64:
 	ds_read_b32	v1, v0
 	s_waitcnt	0
-	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
+	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE
 
 	s_add_u32	m0, m0, s3						//every buffer_store_lds does 256 bytes
 	s_add_u32	s_save_mem_offset, s_save_mem_offset, s3
@@ -814,10 +817,10 @@ L_SAVE_VGPR_W32_LOOP:
 	v_movrels_b32	v2, v2							//v2 = v[2+m0]
 	v_movrels_b32	v3, v3							//v3 = v[3+m0]
 
-	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
-	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:128
-	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:128*2
-	buffer_store_dword	v3, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:128*3
+	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE
+	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:128
+	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:128*2
+	buffer_store_dword	v3, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:128*3
 
 	s_add_u32	m0, m0, 4						//next vgpr index
 	s_add_u32	s_save_mem_offset, s_save_mem_offset, 128*4		//every buffer_store_dword does 128 bytes
@@ -859,10 +862,10 @@ L_SAVE_VGPR_W64_LOOP:
 	v_movrels_b32	v2, v2							//v2 = v[2+m0]
 	v_movrels_b32	v3, v3							//v3 = v[3+m0]
 
-	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
-	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256
-	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256*2
-	buffer_store_dword	v3, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256*3
+	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE
+	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:256
+	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:256*2
+	buffer_store_dword	v3, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE offset:256*3
 
 	s_add_u32	m0, m0, 4						//next vgpr index
 	s_add_u32	s_save_mem_offset, s_save_mem_offset, 256*4		//every buffer_store_dword does 256 bytes
@@ -899,7 +902,7 @@ L_SAVE_SHARED_VGPR_WAVE64_LOOP_SQC:
 
 L_SAVE_SHARED_VGPR_WAVE64_LOOP:
 	v_movrels_b32	v0, v0							//v0 = v[0+m0]
-	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
+	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset V_COHERENCE
 	s_add_u32	m0, m0, 1						//next vgpr index
 	s_add_u32	s_save_mem_offset, s_save_mem_offset, 128
 	s_cmp_lt_u32	m0, s_save_alloc_size					//scc = (m0 < s_save_alloc_size) ? 1 : 0
@@ -1017,10 +1020,10 @@ L_RESTORE_VGPR_NORMAL:
 	s_cbranch_scc0	L_RESTORE_SGPR
 
 L_RESTORE_VGPR_WAVE32_LOOP:
-	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1
-	buffer_load_dword	v1, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1 offset:128
-	buffer_load_dword	v2, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1 offset:128*2
-	buffer_load_dword	v3, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1 offset:128*3
+	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset V_COHERENCE
+	buffer_load_dword	v1, v0, s_restore_buf_rsrc0, s_restore_mem_offset V_COHERENCE offset:128
+	buffer_load_dword	v2, v0, s_restore_buf_rsrc0, s_restore_mem_offset V_COHERENCE offset:128*2
+	buffer_load_dword	v3, v0, s_restore_buf_rsrc0, s_restore_mem_offset V_COHERENCE offset:128*3
 	s_waitcnt	vmcnt(0)
 	v_movreld_b32	v0, v0							//v[0+m0] = v0
 	v_movreld_b32	v1, v1
@@ -1032,10 +1035,10 @@ L_RESTORE_VGPR_WAVE32_LOOP:
 	s_cbranch_scc1	L_RESTORE_VGPR_WAVE32_LOOP				//VGPR restore (except v0) is complete?
 
 	/* VGPR restore on v0 */
-	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save slc:1 glc:1
-	buffer_load_dword	v1, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save slc:1 glc:1 offset:128
-	buffer_load_dword	v2, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save slc:1 glc:1 offset:128*2
-	buffer_load_dword	v3, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save slc:1 glc:1 offset:128*3
+	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save V_COHERENCE
+	buffer_load_dword	v1, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save V_COHERENCE offset:128
+	buffer_load_dword	v2, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save V_COHERENCE offset:128*2
+	buffer_load_dword	v3, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save V_COHERENCE offset:128*3
 	s_waitcnt	vmcnt(0)
 
 	s_branch	L_RESTORE_SGPR
@@ -1051,10 +1054,10 @@ L_RESTORE_VGPR_WAVE64:
 	s_cbranch_scc0	L_RESTORE_SHARED_VGPR
 
 L_RESTORE_VGPR_WAVE64_LOOP:
-	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1
-	buffer_load_dword	v1, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1 offset:256
-	buffer_load_dword	v2, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1 offset:256*2
-	buffer_load_dword	v3, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1 offset:256*3
+	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset V_COHERENCE
+	buffer_load_dword	v1, v0, s_restore_buf_rsrc0, s_restore_mem_offset V_COHERENCE offset:256
+	buffer_load_dword	v2, v0, s_restore_buf_rsrc0, s_restore_mem_offset V_COHERENCE offset:256*2
+	buffer_load_dword	v3, v0, s_restore_buf_rsrc0, s_restore_mem_offset V_COHERENCE offset:256*3
 	s_waitcnt	vmcnt(0)
 	v_movreld_b32	v0, v0							//v[0+m0] = v0
 	v_movreld_b32	v1, v1
@@ -1077,7 +1080,7 @@ L_RESTORE_SHARED_VGPR:
 	s_mov_b32	exec_lo, 0xFFFFFFFF
 	s_mov_b32	exec_hi, 0x00000000
 L_RESTORE_SHARED_VGPR_WAVE64_LOOP:
-	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1
+	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset V_COHERENCE
 	s_waitcnt	vmcnt(0)
 	v_movreld_b32	v0, v0							//v[0+m0] = v0
 	s_add_u32	m0, m0, 1						//next vgpr index
@@ -1089,10 +1092,10 @@ L_RESTORE_SHARED_VGPR_WAVE64_LOOP:
 
 	/* VGPR restore on v0 */
 L_RESTORE_V0:
-	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save slc:1 glc:1
-	buffer_load_dword	v1, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save slc:1 glc:1 offset:256
-	buffer_load_dword	v2, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save slc:1 glc:1 offset:256*2
-	buffer_load_dword	v3, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save slc:1 glc:1 offset:256*3
+	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save V_COHERENCE
+	buffer_load_dword	v1, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save V_COHERENCE offset:256
+	buffer_load_dword	v2, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save V_COHERENCE offset:256*2
+	buffer_load_dword	v3, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save V_COHERENCE offset:256*3
 	s_waitcnt	vmcnt(0)
 
 	/* restore SGPRs */
@@ -1207,9 +1210,9 @@ L_RESTORE_HWREG:
 	s_add_u32	s_restore_ttmps_lo, s_restore_ttmps_lo, s_restore_buf_rsrc0
 	s_addc_u32	s_restore_ttmps_hi, s_restore_buf_rsrc1, 0x0
 	s_and_b32	s_restore_ttmps_hi, s_restore_ttmps_hi, 0xFFFF
-	s_load_dwordx4	[ttmp4, ttmp5, ttmp6, ttmp7], [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x50 glc:1
-	s_load_dwordx4	[ttmp8, ttmp9, ttmp10, ttmp11], [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x60 glc:1
-	s_load_dword	ttmp13, [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x74 glc:1
+	s_load_dwordx4	[ttmp4, ttmp5, ttmp6, ttmp7], [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x50 S_COHERENCE
+	s_load_dwordx4	[ttmp8, ttmp9, ttmp10, ttmp11], [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x60 S_COHERENCE
+	s_load_dword	ttmp13, [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x74 S_COHERENCE
 	s_waitcnt	lgkmcnt(0)
 
 #if HAVE_XNACK
@@ -1247,7 +1250,7 @@ function write_hwreg_to_mem(s, s_rsrc, s_mem_offset)
 #else
 	s_mov_b32	exec_lo, m0
 	s_mov_b32	m0, s_mem_offset
-	s_buffer_store_dword	s, s_rsrc, m0 glc:1
+	s_buffer_store_dword	s, s_rsrc, m0 S_COHERENCE
 	s_add_u32	s_mem_offset, s_mem_offset, 4
 	s_mov_b32	m0, exec_lo
 #endif
@@ -1262,10 +1265,10 @@ function write_16sgpr_to_mem(s, s_rsrc, s_mem_offset)
 		s_add_u32	ttmp13, ttmp13, 0x1
 	end
 #else
-	s_buffer_store_dwordx4	s[0], s_rsrc, 0 glc:1
-	s_buffer_store_dwordx4	s[4], s_rsrc, 16 glc:1
-	s_buffer_store_dwordx4	s[8], s_rsrc, 32 glc:1
-	s_buffer_store_dwordx4	s[12], s_rsrc, 48 glc:1
+	s_buffer_store_dwordx4	s[0], s_rsrc, 0 S_COHERENCE
+	s_buffer_store_dwordx4	s[4], s_rsrc, 16 S_COHERENCE
+	s_buffer_store_dwordx4	s[8], s_rsrc, 32 S_COHERENCE
+	s_buffer_store_dwordx4	s[12], s_rsrc, 48 S_COHERENCE
 	s_add_u32	s_rsrc[0], s_rsrc[0], 4*16
 	s_addc_u32	s_rsrc[1], s_rsrc[1], 0x0
 #endif
@@ -1279,32 +1282,32 @@ function write_12sgpr_to_mem(s, s_rsrc, s_mem_offset)
 		s_add_u32	ttmp13, ttmp13, 0x1
 	end
 #else
-	s_buffer_store_dwordx4	s[0], s_rsrc, 0 glc:1
-	s_buffer_store_dwordx4	s[4], s_rsrc, 16 glc:1
-	s_buffer_store_dwordx4	s[8], s_rsrc, 32 glc:1
+	s_buffer_store_dwordx4	s[0], s_rsrc, 0 S_COHERENCE
+	s_buffer_store_dwordx4	s[4], s_rsrc, 16 S_COHERENCE
+	s_buffer_store_dwordx4	s[8], s_rsrc, 32 S_COHERENCE
 	s_add_u32	s_rsrc[0], s_rsrc[0], 4*12
 	s_addc_u32	s_rsrc[1], s_rsrc[1], 0x0
 #endif
 end
 
 function read_hwreg_from_mem(s, s_rsrc, s_mem_offset)
-	s_buffer_load_dword	s, s_rsrc, s_mem_offset glc:1
+	s_buffer_load_dword	s, s_rsrc, s_mem_offset S_COHERENCE
 	s_add_u32	s_mem_offset, s_mem_offset, 4
 end
 
 function read_16sgpr_from_mem(s, s_rsrc, s_mem_offset)
 	s_sub_u32	s_mem_offset, s_mem_offset, 4*16
-	s_buffer_load_dwordx16	s, s_rsrc, s_mem_offset glc:1
+	s_buffer_load_dwordx16	s, s_rsrc, s_mem_offset S_COHERENCE
 end
 
 function read_8sgpr_from_mem(s, s_rsrc, s_mem_offset)
 	s_sub_u32	s_mem_offset, s_mem_offset, 4*8
-	s_buffer_load_dwordx8	s, s_rsrc, s_mem_offset glc:1
+	s_buffer_load_dwordx8	s, s_rsrc, s_mem_offset S_COHERENCE
 end
 
 function read_4sgpr_from_mem(s, s_rsrc, s_mem_offset)
 	s_sub_u32	s_mem_offset, s_mem_offset, 4*4
-	s_buffer_load_dwordx4	s, s_rsrc, s_mem_offset glc:1
+	s_buffer_load_dwordx4	s, s_rsrc, s_mem_offset S_COHERENCE
 end
 
 #if SAVE_AFTER_XNACK_ERROR
