@@ -103,6 +103,76 @@ void dml2_init_ip_params(struct dml2_context *dml2, const struct dc *in_dc, stru
 		out->max_num_dp2p0_streams = 4;
 		break;
 
+	case dml_project_dcn35:
+	case dml_project_dcn351:
+		out->rob_buffer_size_kbytes = 64;
+		out->config_return_buffer_size_in_kbytes = 1792;
+		out->compressed_buffer_segment_size_in_kbytes = 64;
+		out->meta_fifo_size_in_kentries = 32;
+		out->zero_size_buffer_entries = 512;
+		out->pixel_chunk_size_kbytes = 8;
+		out->alpha_pixel_chunk_size_kbytes = 4;
+		out->min_pixel_chunk_size_bytes = 1024;
+		out->meta_chunk_size_kbytes = 2;
+		out->min_meta_chunk_size_bytes = 256;
+		out->writeback_chunk_size_kbytes = 8;
+		out->dpte_buffer_size_in_pte_reqs_luma = 68;
+		out->dpte_buffer_size_in_pte_reqs_chroma = 36;
+		out->dcc_meta_buffer_size_bytes = 6272;
+		out->gpuvm_enable = 1;
+		out->hostvm_enable = 1;
+		out->gpuvm_max_page_table_levels = 1;
+		out->hostvm_max_page_table_levels = 2;
+		out->num_dsc = 4;
+		out->maximum_dsc_bits_per_component = 12;
+		out->maximum_pixels_per_line_per_dsc_unit = 6016;
+		out->dsc422_native_support = 1;
+		out->line_buffer_size_bits = 986880;
+		out->dcc_supported = 1;
+		out->max_line_buffer_lines = 32;
+		out->writeback_interface_buffer_size_kbytes = 90;
+		out->max_num_dpp = 4;
+		out->max_num_otg = 4;
+		out->max_num_hdmi_frl_outputs = 1;
+		out->max_num_dp2p0_outputs = 2;
+		out->max_num_dp2p0_streams = 4;
+		out->max_num_wb = 1;
+
+		out->max_dchub_pscl_bw_pix_per_clk = 4;
+		out->max_pscl_lb_bw_pix_per_clk = 2;
+		out->max_lb_vscl_bw_pix_per_clk = 4;
+		out->max_vscl_hscl_bw_pix_per_clk = 4;
+		out->max_hscl_ratio = 6;
+		out->max_vscl_ratio = 6;
+		out->max_hscl_taps = 8;
+		out->max_vscl_taps = 8;
+		out->dispclk_ramp_margin_percent = 1.11;
+
+		out->dppclk_delay_subtotal = 47;
+		out->dppclk_delay_scl = 50;
+		out->dppclk_delay_scl_lb_only = 16;
+		out->dppclk_delay_cnvc_formatter = 28;
+		out->dppclk_delay_cnvc_cursor = 6;
+		out->dispclk_delay_subtotal = 125;
+
+		out->dynamic_metadata_vm_enabled = false;
+		out->max_inter_dcn_tile_repeaters = 8;
+		out->cursor_buffer_size = 16; // kBytes
+		out->cursor_chunk_size = 2; // kBytes
+
+		out->writeback_line_buffer_buffer_size = 0;
+		out->writeback_max_hscl_ratio = 1;
+		out->writeback_max_vscl_ratio = 1;
+		out->writeback_min_hscl_ratio = 1;
+		out->writeback_min_vscl_ratio = 1;
+		out->writeback_max_hscl_taps  = 1;
+		out->writeback_max_vscl_taps  = 1;
+		out->ptoi_supported	= 0;
+
+		out->vblank_nom_default_us = 668; /*not in dml, but in programming guide, hard coded in dml2_translate_ip_params*/
+		out->config_return_buffer_segment_size_in_kbytes = 64; /*required, but not exist,, hard coded in dml2_translate_ip_params*/
+		break;
+
 	}
 }
 
@@ -155,6 +225,17 @@ void dml2_init_socbb_params(struct dml2_context *dml2, const struct dc *in_dc, s
 		out->smn_latency_us = 0;
 		break;
 
+	case dml_project_dcn35:
+		out->num_chans = 4;
+		out->round_trip_ping_latency_dcfclk_cycles = 106;
+		out->smn_latency_us = 2;
+		break;
+
+	case dml_project_dcn351:
+		out->num_chans = 16;
+		out->round_trip_ping_latency_dcfclk_cycles = 1100;
+		out->smn_latency_us = 2;
+		break;
 	}
 	/* ---Overrides if available--- */
 	if (dml2->config.bbox_overrides.dram_num_chan)
@@ -255,7 +336,6 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 		p->in_states->state_array[1].dcfclk_mhz = 1434.0;
 		p->in_states->state_array[1].dram_speed_mts = 1000 * transactions_per_mem_clock;
 		break;
-
 	}
 
 	/* Override from passed values, mainly for debugging purposes, if available */
@@ -287,6 +367,13 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 		p->dcfclk_stas_mhz[2] = 906;
 		p->dcfclk_stas_mhz[3] = 1324;
 		p->dcfclk_stas_mhz[4] = p->in_states->state_array[1].dcfclk_mhz;
+	} else if (dml2->v20.dml_core_ctx.project != dml_project_dcn35 &&
+			dml2->v20.dml_core_ctx.project != dml_project_dcn351) {
+		p->dcfclk_stas_mhz[0] = 300;
+		p->dcfclk_stas_mhz[1] = 615;
+		p->dcfclk_stas_mhz[2] = 906;
+		p->dcfclk_stas_mhz[3] = 1324;
+		p->dcfclk_stas_mhz[4] = 1500;
 	}
 	/* Copy clocks tables entries, if available */
 	if (dml2->config.bbox_overrides.clks_table.num_states) {

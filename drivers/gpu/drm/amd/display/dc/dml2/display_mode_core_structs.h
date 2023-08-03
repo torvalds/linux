@@ -32,6 +32,8 @@ enum dml_project_id {
 	dml_project_default = 1,
 	dml_project_dcn32 = dml_project_default,
 	dml_project_dcn321 = 2,
+	dml_project_dcn35 = 3,
+	dml_project_dcn351 = 4,
 };
 enum dml_prefetch_modes {
 	dml_prefetch_support_uclk_fclk_and_stutter_if_possible = 0,

@@ -694,6 +694,12 @@ bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options
 	(*dml2)->config = *config;
 
 	switch (in_dc->ctx->dce_version) {
+	case DCN_VERSION_3_5:
+		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn35;
+		break;
+	case DCN_VERSION_3_51:
+		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn351;
+		break;
 	case DCN_VERSION_3_2:
 		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn32;
 		break;
