@@ -141,4 +141,12 @@ config SCSI_UFS_SPRD
 	  specific registers.
 
 	  Select this if you have UFS controller on Unisoc chipset.
+
+config SCSI_UFS_ASPEED
+	tristate "Aspeed specific hooks to UFS controller platform driver"
+	depends on SCSI_UFSHCD_PLATFORM
+	help
+	  This selects the Aspeed specific additions to UFSHCD platform driver.
+
+	  Selects this if you have Aspeed platform with UFS controller.
 	  If unsure, say N.
