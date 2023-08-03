@@ -151,6 +151,7 @@ struct snd_soc_acpi_link_adr {
  * all firmware/topology related fields.
  *
  * @id: ACPI ID (usually the codec's) used to find a matching machine driver.
+ * @uid: ACPI Unique ID, can be used to disambiguate matches.
  * @comp_ids: list of compatible audio codecs using the same machine driver,
  * firmware and topology
  * @link_mask: describes required board layout, e.g. for SoundWire.
