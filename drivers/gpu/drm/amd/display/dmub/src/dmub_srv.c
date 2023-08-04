@@ -564,7 +564,8 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		 * DMCUB when backdoor loading if the write from x86 hasn't been
 		 * flushed yet. This only occurs in backdoor loading.
 		 */
-		dmub_flush_buffer_mem(inst_fb);
+		if (params->mem_access_type == DMUB_MEMORY_ACCESS_CPU)
+			dmub_flush_buffer_mem(inst_fb);
 
 		if (params->fw_in_system_memory && dmub->hw_funcs.backdoor_load_zfb_mode)
 			dmub->hw_funcs.backdoor_load_zfb_mode(dmub, &cw0, &cw1);
