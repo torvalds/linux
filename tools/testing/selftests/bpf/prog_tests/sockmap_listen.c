@@ -1432,7 +1432,7 @@ static void vsock_unix_redir_connectible(int sock_mapfd, int verd_mapfd,
 	if (n < 1)
 		goto out;
 
-	n = recv(mode == REDIR_INGRESS ? u0 : u1, &b, sizeof(b), MSG_DONTWAIT);
+	n = xrecv_nonblock(mode == REDIR_INGRESS ? u0 : u1, &b, sizeof(b), 0);
 	if (n < 0)
 		FAIL("%s: recv() err, errno=%d", log_prefix, errno);
 	if (n == 0)
