@@ -204,7 +204,7 @@ static unsigned long setup_kernel_memory_layout(void)
 	/* force vmalloc and modules below kasan shadow */
 	vmax = min(vmax, KASAN_SHADOW_START);
 #endif
-	__memcpy_real_area = round_down(vmax - PAGE_SIZE, PAGE_SIZE);
+	__memcpy_real_area = round_down(vmax - MEMCPY_REAL_SIZE, PAGE_SIZE);
 	__abs_lowcore = round_down(__memcpy_real_area - ABS_LOWCORE_MAP_SIZE,
 				   sizeof(struct lowcore));
 	MODULES_END = round_down(__abs_lowcore, _SEGMENT_SIZE);
