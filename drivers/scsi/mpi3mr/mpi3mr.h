@@ -66,11 +66,12 @@ extern atomic64_t event_counter;
 #define MPI3MR_NAME_LENGTH	32
 #define IOCNAME			"%s: "
 
-#define MPI3MR_MAX_SECTORS	2048
+#define MPI3MR_DEFAULT_MAX_IO_SIZE	(1 * 1024 * 1024)
 
 /* Definitions for internal SGL and Chain SGL buffers */
 #define MPI3MR_PAGE_SIZE_4K		4096
-#define MPI3MR_SG_DEPTH		(MPI3MR_PAGE_SIZE_4K / sizeof(struct mpi3_sge_common))
+#define MPI3MR_DEFAULT_SGL_ENTRIES	256
+#define MPI3MR_MAX_SGL_ENTRIES		2048
 
 /* Definitions for MAX values for shost */
 #define MPI3MR_MAX_CMDS_LUN	128
@@ -323,6 +324,7 @@ struct mpi3mr_ioc_facts {
 	u16 max_perids;
 	u16 max_pds;
 	u16 max_sasexpanders;
+	u32 max_data_length;
 	u16 max_sasinitiators;
 	u16 max_enclosures;
 	u16 max_pcie_switches;
@@ -959,6 +961,7 @@ struct scmd_priv {
  * @stop_drv_processing: Stop all command processing
  * @device_refresh_on: Don't process the events until devices are refreshed
  * @max_host_ios: Maximum host I/O count
+ * @max_sgl_entries: Max SGL entries per I/O
  * @chain_buf_count: Chain buffer count
  * @chain_buf_pool: Chain buffer pool
  * @chain_sgl_list: Chain SGL list
@@ -1129,6 +1132,7 @@ struct mpi3mr_ioc {
 	u16 max_host_ios;
 	spinlock_t tgtdev_lock;
 	struct list_head tgtdev_list;
+	u16 max_sgl_entries;
 
 	u32 chain_buf_count;
 	struct dma_pool *chain_buf_pool;
