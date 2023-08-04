@@ -207,6 +207,9 @@ extern atomic64_t event_counter;
  */
 #define MPI3MR_MAX_APP_XFER_SECTORS	(2048 + 512)
 
+#define MPI3MR_WRITE_SAME_MAX_LEN_256_BLKS 256
+#define MPI3MR_WRITE_SAME_MAX_LEN_2048_BLKS 2048
+
 /**
  * struct mpi3mr_nvme_pt_sge -  Structure to store SGEs for NVMe
  * Encapsulated commands.
@@ -678,6 +681,7 @@ enum mpi3mr_dev_state {
  * @io_unit_port: IO Unit port ID
  * @non_stl: Is this device not to be attached with SAS TL
  * @io_throttle_enabled: I/O throttling needed or not
+ * @wslen: Write same max length
  * @q_depth: Device specific Queue Depth
  * @wwid: World wide ID
  * @enclosure_logical_id: Enclosure logical identifier
@@ -700,6 +704,7 @@ struct mpi3mr_tgt_dev {
 	u8 io_unit_port;
 	u8 non_stl;
 	u8 io_throttle_enabled;
+	u16 wslen;
 	u16 q_depth;
 	u64 wwid;
 	u64 enclosure_logical_id;
@@ -753,6 +758,8 @@ static inline void mpi3mr_tgtdev_put(struct mpi3mr_tgt_dev *s)
  * @dev_removed: Device removed in the Firmware
  * @dev_removedelay: Device is waiting to be removed in FW
  * @dev_type: Device type
+ * @dev_nvme_dif: Device is NVMe DIF enabled
+ * @wslen: Write same max length
  * @io_throttle_enabled: I/O throttling needed or not
  * @io_divert: Flag indicates io divert is on or off for the dev
  * @throttle_group: Pointer to throttle group info
@@ -769,6 +776,8 @@ struct mpi3mr_stgt_priv_data {
 	u8 dev_removed;
 	u8 dev_removedelay;
 	u8 dev_type;
+	u8 dev_nvme_dif;
+	u16 wslen;
 	u8 io_throttle_enabled;
 	u8 io_divert;
 	struct mpi3mr_throttle_group_info *throttle_group;
@@ -784,12 +793,14 @@ struct mpi3mr_stgt_priv_data {
  * @ncq_prio_enable: NCQ priority enable for SATA device
  * @pend_count: Counter to track pending I/Os during error
  *		handling
+ * @wslen: Write same max length
  */
 struct mpi3mr_sdev_priv_data {
 	struct mpi3mr_stgt_priv_data *tgt_priv_data;
 	u32 lun_id;
 	u8 ncq_prio_enable;
 	u32 pend_count;
+	u16 wslen;
 };
 
 /**
