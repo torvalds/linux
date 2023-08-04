@@ -3690,6 +3690,23 @@ struct rtw89_sar_info {
 	};
 };
 
+enum rtw89_tas_state {
+	RTW89_TAS_STATE_DPR_OFF,
+	RTW89_TAS_STATE_DPR_ON,
+	RTW89_TAS_STATE_DPR_FORBID,
+};
+
+#define RTW89_TAS_MAX_WINDOW 50
+struct rtw89_tas_info {
+	s16 txpwr_history[RTW89_TAS_MAX_WINDOW];
+	s32 total_txpwr;
+	u8 cur_idx;
+	s8 dpr_gap;
+	s8 delta;
+	enum rtw89_tas_state state;
+	bool enable;
+};
+
 struct rtw89_chanctx_cfg {
 	enum rtw89_sub_entity_idx idx;
 };
@@ -4365,6 +4382,7 @@ struct rtw89_dev {
 
 	struct rtw89_regulatory_info regulatory;
 	struct rtw89_sar_info sar;
+	struct rtw89_tas_info tas;
 
 	struct rtw89_btc btc;
 	enum rtw89_ps_mode ps_mode;

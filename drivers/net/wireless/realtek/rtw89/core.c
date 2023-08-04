@@ -2682,6 +2682,7 @@ static void rtw89_track_work(struct work_struct *work)
 	rtw89_phy_tx_path_div_track(rtwdev);
 	rtw89_phy_antdiv_track(rtwdev);
 	rtw89_phy_ul_tb_ctrl_track(rtwdev);
+	rtw89_tas_track(rtwdev);
 
 	if (rtwdev->lps_enabled && !rtwdev->btc.lps)
 		rtw89_enter_lps_track(rtwdev);
@@ -3496,6 +3497,8 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 	rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
 	rtw89_mac_update_rts_threshold(rtwdev, RTW89_MAC_0);
 
+	rtw89_tas_reset(rtwdev);
+
 	ret = rtw89_hci_start(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to start hci\n");
@@ -3612,6 +3615,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 
 	rtw89_ser_init(rtwdev);
 	rtw89_entity_init(rtwdev);
+	rtw89_tas_init(rtwdev);
 
 	return 0;
 }
