@@ -831,9 +831,10 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 	val = ioread32(addr);
 	pci_iounmap(pdev, addr);
 
-	if (val == 0)
-		/* Platform doesn't have display */
+	if (val == 0) {
+		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
 		return &no_display;
+	}
 
 	*ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val);
 	*rel = REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
