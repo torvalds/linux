@@ -108,6 +108,11 @@ static void enable_hpo_dp_link_output(struct dc_link *link,
 		enum clock_source_id clock_source,
 		const struct dc_link_settings *link_settings)
 {
+	if (link->dc->res_pool->dccg->funcs->set_symclk32_le_root_clock_gating)
+		link->dc->res_pool->dccg->funcs->set_symclk32_le_root_clock_gating(
+				link->dc->res_pool->dccg,
+				link_res->hpo_dp_link_enc->inst,
+				true);
 	link_res->hpo_dp_link_enc->funcs->enable_link_phy(
 			link_res->hpo_dp_link_enc,
 			link_settings,
@@ -122,6 +127,11 @@ static void disable_hpo_dp_link_output(struct dc_link *link,
 		link_res->hpo_dp_link_enc->funcs->link_disable(link_res->hpo_dp_link_enc);
 		link_res->hpo_dp_link_enc->funcs->disable_link_phy(
 				link_res->hpo_dp_link_enc, signal);
+		if (link->dc->res_pool->dccg->funcs->set_symclk32_le_root_clock_gating)
+			link->dc->res_pool->dccg->funcs->set_symclk32_le_root_clock_gating(
+					link->dc->res_pool->dccg,
+					link_res->hpo_dp_link_enc->inst,
+					false);
 }
 
 static void set_hpo_dp_link_test_pattern(struct dc_link *link,

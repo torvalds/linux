@@ -226,9 +226,10 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 	queue_input.paging = false;
 	queue_input.tba_addr = qpd->tba_addr;
 	queue_input.tma_addr = qpd->tma_addr;
-	queue_input.trap_en = KFD_GC_VERSION(q->device) < IP_VERSION(11, 0, 0) ||
-			      KFD_GC_VERSION(q->device) > IP_VERSION(11, 0, 3);
+	queue_input.trap_en = !kfd_dbg_has_cwsr_workaround(q->device);
 	queue_input.skip_process_ctx_clear = qpd->pqm->process->debug_trap_enabled;
+	queue_input.skip_process_ctx_clear = qpd->pqm->process->debug_trap_enabled ||
+					     kfd_dbg_has_ttmps_always_setup(q->device);
 
 	queue_type = convert_to_mes_queue_type(q->properties.type);
 	if (queue_type < 0) {
@@ -238,10 +239,7 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 	}
 	queue_input.queue_type = (uint32_t)queue_type;
 
-	if (q->gws) {
-		queue_input.gws_base = 0;
-		queue_input.gws_size = qpd->num_gws;
-	}
+	queue_input.exclusively_scheduled = q->properties.is_gws;
 
 	amdgpu_mes_lock(&adev->mes);
 	r = adev->mes.funcs->add_hw_queue(&adev->mes, &queue_input);
@@ -251,7 +249,7 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 			q->properties.doorbell_off);
 		pr_err("MES might be in unrecoverable state, issue a GPU reset\n");
 		kfd_hws_hang(dqm);
-}
+	}
 
 	return r;
 }
@@ -1621,7 +1619,8 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 
 	if (dqm->dev->kfd2kgd->get_iq_wait_times)
 		dqm->dev->kfd2kgd->get_iq_wait_times(dqm->dev->adev,
-					&dqm->wait_times);
+					&dqm->wait_times,
+					ffs(dqm->dev->xcc_mask) - 1);
 	return 0;
 }
 
@@ -1663,6 +1662,26 @@ static int start_cpsch(struct device_queue_manager *dqm)
 
 	if (!dqm->dev->kfd->shared_resources.enable_mes)
 		execute_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0, USE_DEFAULT_GRACE_PERIOD);
+
+	/* Set CWSR grace period to 1x1000 cycle for GFX9.4.3 APU */
+	if (amdgpu_emu_mode == 0 && dqm->dev->adev->gmc.is_app_apu &&
+	    (KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 4, 3))) {
+		uint32_t reg_offset = 0;
+		uint32_t grace_period = 1;
+
+		retval = pm_update_grace_period(&dqm->packet_mgr,
+						grace_period);
+		if (retval)
+			pr_err("Setting grace timeout failed\n");
+		else if (dqm->dev->kfd2kgd->build_grace_period_packet_info)
+			/* Update dqm->wait_times maintained in software */
+			dqm->dev->kfd2kgd->build_grace_period_packet_info(
+					dqm->dev->adev,	dqm->wait_times,
+					grace_period, &reg_offset,
+					&dqm->wait_times,
+					ffs(dqm->dev->xcc_mask) - 1);
+	}
+
 	dqm_unlock(dqm);
 
 	return 0;
@@ -1806,8 +1825,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	 */
 	q->properties.is_evicted = !!qpd->evicted;
 	q->properties.is_dbg_wa = qpd->pqm->process->debug_trap_enabled &&
-			KFD_GC_VERSION(q->device) >= IP_VERSION(11, 0, 0) &&
-			KFD_GC_VERSION(q->device) <= IP_VERSION(11, 0, 3);
+				  kfd_dbg_has_cwsr_workaround(q->device);
 
 	if (qd)
 		mqd_mgr->restore_mqd(mqd_mgr, &q->mqd, q->mqd_mem_obj, &q->gart_mqd_addr,

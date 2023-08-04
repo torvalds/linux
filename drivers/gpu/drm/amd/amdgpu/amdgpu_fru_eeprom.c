@@ -60,10 +60,10 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
 		/* D161 and D163 are the VG20 server SKUs */
-		if (strnstr(atom_ctx->vbios_version, "D161",
-			    sizeof(atom_ctx->vbios_version)) ||
-		    strnstr(atom_ctx->vbios_version, "D163",
-			    sizeof(atom_ctx->vbios_version))) {
+		if (strnstr(atom_ctx->vbios_pn, "D161",
+			    sizeof(atom_ctx->vbios_pn)) ||
+		    strnstr(atom_ctx->vbios_pn, "D163",
+			    sizeof(atom_ctx->vbios_pn))) {
 			if (fru_addr)
 				*fru_addr = FRU_EEPROM_MADDR_6;
 			return true;
@@ -72,22 +72,23 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 		}
 	case CHIP_ALDEBARAN:
 		/* All Aldebaran SKUs have an FRU */
-		if (!strnstr(atom_ctx->vbios_version, "D673",
-			     sizeof(atom_ctx->vbios_version)))
+		if (!strnstr(atom_ctx->vbios_pn, "D673",
+			     sizeof(atom_ctx->vbios_pn)))
 			if (fru_addr)
 				*fru_addr = FRU_EEPROM_MADDR_6;
 		return true;
 	case CHIP_SIENNA_CICHLID:
-		if (strnstr(atom_ctx->vbios_version, "D603",
-			    sizeof(atom_ctx->vbios_version))) {
-			if (strnstr(atom_ctx->vbios_version, "D603GLXE",
-				    sizeof(atom_ctx->vbios_version))) {
+		if (strnstr(atom_ctx->vbios_pn, "D603",
+			    sizeof(atom_ctx->vbios_pn))) {
+			if (strnstr(atom_ctx->vbios_pn, "D603GLXE",
+				    sizeof(atom_ctx->vbios_pn))) {
 				return false;
-			} else {
-				if (fru_addr)
-					*fru_addr = FRU_EEPROM_MADDR_6;
-				return true;
 			}
+
+			if (fru_addr)
+				*fru_addr = FRU_EEPROM_MADDR_6;
+			return true;
+
 		} else {
 			return false;
 		}

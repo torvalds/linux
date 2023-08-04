@@ -298,7 +298,8 @@ static int pm_set_grace_period_v9(struct packet_manager *pm,
 			pm->dqm->wait_times,
 			grace_period,
 			&reg_offset,
-			&reg_data);
+			&reg_data,
+			0);
 
 	if (grace_period == USE_DEFAULT_GRACE_PERIOD)
 		reg_data = pm->dqm->wait_times;

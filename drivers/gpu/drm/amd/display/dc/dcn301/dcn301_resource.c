@@ -42,7 +42,7 @@
 #include "dcn30/dcn30_hubp.h"
 #include "irq/dcn30/irq_service_dcn30.h"
 #include "dcn30/dcn30_dpp.h"
-#include "dcn30/dcn30_optc.h"
+#include "dcn301/dcn301_optc.h"
 #include "dcn20/dcn20_hwseq.h"
 #include "dcn30/dcn30_hwseq.h"
 #include "dce110/dce110_hw_sequencer.h"
@@ -855,7 +855,7 @@ static struct timing_generator *dcn301_timing_generator_create(
 	tgn10->tg_shift = &optc_shift;
 	tgn10->tg_mask = &optc_mask;
 
-	dcn30_timing_generator_init(tgn10);
+	dcn301_timing_generator_init(tgn10);
 
 	return &tgn10->base;
 }
@@ -1425,9 +1425,9 @@ static bool dcn301_resource_construct(
 	dc->caps.max_cursor_size = 256;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
-	dc->caps.max_slave_planes = 1;
-	dc->caps.max_slave_yuv_planes = 1;
-	dc->caps.max_slave_rgb_planes = 1;
+	dc->caps.max_slave_planes = 2;
+	dc->caps.max_slave_yuv_planes = 2;
+	dc->caps.max_slave_rgb_planes = 2;
 	dc->caps.is_apu = true;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;

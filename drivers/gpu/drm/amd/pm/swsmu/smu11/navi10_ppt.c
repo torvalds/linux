@@ -136,7 +136,7 @@ static struct cmn2asic_msg_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(PowerDownJpeg,			PPSMC_MSG_PowerDownJpeg,		0),
 	MSG_MAP(BacoAudioD3PME,			PPSMC_MSG_BacoAudioD3PME,		0),
 	MSG_MAP(ArmD3,				PPSMC_MSG_ArmD3,			0),
-	MSG_MAP(DAL_DISABLE_DUMMY_PSTATE_CHANGE,PPSMC_MSG_DALDisableDummyPstateChange,	0),
+	MSG_MAP(DAL_DISABLE_DUMMY_PSTATE_CHANGE, PPSMC_MSG_DALDisableDummyPstateChange,	0),
 	MSG_MAP(DAL_ENABLE_DUMMY_PSTATE_CHANGE,	PPSMC_MSG_DALEnableDummyPstateChange,	0),
 	MSG_MAP(GetVoltageByDpm,		PPSMC_MSG_GetVoltageByDpm,		0),
 	MSG_MAP(GetVoltageByDpmOverdrive,	PPSMC_MSG_GetVoltageByDpmOverdrive,	0),
@@ -556,7 +556,7 @@ static int navi10_get_legacy_smu_metrics_data(struct smu_context *smu,
 					      MetricsMember_t member,
 					      uint32_t *value)
 {
-	struct smu_table_context *smu_table= &smu->smu_table;
+	struct smu_table_context *smu_table = &smu->smu_table;
 	SmuMetrics_legacy_t *metrics =
 		(SmuMetrics_legacy_t *)smu_table->metrics_table;
 	int ret = 0;
@@ -642,7 +642,7 @@ static int navi10_get_smu_metrics_data(struct smu_context *smu,
 				       MetricsMember_t member,
 				       uint32_t *value)
 {
-	struct smu_table_context *smu_table= &smu->smu_table;
+	struct smu_table_context *smu_table = &smu->smu_table;
 	SmuMetrics_t *metrics =
 		(SmuMetrics_t *)smu_table->metrics_table;
 	int ret = 0;
@@ -731,7 +731,7 @@ static int navi12_get_legacy_smu_metrics_data(struct smu_context *smu,
 					      MetricsMember_t member,
 					      uint32_t *value)
 {
-	struct smu_table_context *smu_table= &smu->smu_table;
+	struct smu_table_context *smu_table = &smu->smu_table;
 	SmuMetrics_NV12_legacy_t *metrics =
 		(SmuMetrics_NV12_legacy_t *)smu_table->metrics_table;
 	int ret = 0;
@@ -817,7 +817,7 @@ static int navi12_get_smu_metrics_data(struct smu_context *smu,
 				       MetricsMember_t member,
 				       uint32_t *value)
 {
-	struct smu_table_context *smu_table= &smu->smu_table;
+	struct smu_table_context *smu_table = &smu->smu_table;
 	SmuMetrics_NV12_t *metrics =
 		(SmuMetrics_NV12_t *)smu_table->metrics_table;
 	int ret = 0;
@@ -1686,7 +1686,7 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 			return 0;
 		break;
 	case SMU_DCEFCLK:
-		dev_info(smu->adev->dev,"Setting DCEFCLK min/max dpm level is not supported!\n");
+		dev_info(smu->adev->dev, "Setting DCEFCLK min/max dpm level is not supported!\n");
 		break;
 
 	default:
@@ -2182,7 +2182,7 @@ static int navi10_read_sensor(struct smu_context *smu,
 	struct smu_table_context *table_context = &smu->smu_table;
 	PPTable_t *pptable = table_context->driver_pptable;
 
-	if(!data || !size)
+	if (!data || !size)
 		return -EINVAL;
 
 	switch (sensor) {
@@ -2317,15 +2317,15 @@ static int navi10_display_disable_memory_clock_switch(struct smu_context *smu,
 	uint32_t min_memory_clock = smu->hard_min_uclk_req_from_dal;
 	uint32_t max_memory_clock = max_sustainable_clocks->uclock;
 
-	if(smu->disable_uclk_switch == disable_memory_clock_switch)
+	if (smu->disable_uclk_switch == disable_memory_clock_switch)
 		return 0;
 
-	if(disable_memory_clock_switch)
+	if (disable_memory_clock_switch)
 		ret = smu_v11_0_set_hard_freq_limited_range(smu, SMU_UCLK, max_memory_clock, 0);
 	else
 		ret = smu_v11_0_set_hard_freq_limited_range(smu, SMU_UCLK, min_memory_clock, 0);
 
-	if(!ret)
+	if (!ret)
 		smu->disable_uclk_switch = disable_memory_clock_switch;
 
 	return ret;
@@ -2559,7 +2559,8 @@ static int navi10_set_default_od_settings(struct smu_context *smu)
 	return 0;
 }
 
-static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABLE_COMMAND type, long input[], uint32_t size) {
+static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABLE_COMMAND type, long input[], uint32_t size)
+{
 	int i;
 	int ret = 0;
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -3368,7 +3369,7 @@ static ssize_t navi1x_get_gpu_metrics(struct smu_context *smu,
 		      ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 0)) && smu_version > 0x002A3B00))
 			ret = navi10_get_gpu_metrics(smu, table);
 		else
-			ret =navi10_get_legacy_gpu_metrics(smu, table);
+			ret = navi10_get_legacy_gpu_metrics(smu, table);
 		break;
 	}
 

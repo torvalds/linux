@@ -908,15 +908,15 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.root_clock_optimization = {
 			.bits = {
 					.dpp = true,
-					.dsc = false,
-					.hdmistream = false,
-					.hdmichar = false,
-					.dpstream = false,
-					.symclk32_se = false,
-					.symclk32_le = false,
-					.symclk_fe = false,
-					.physymclk = false,
-					.dpiasymclk = false,
+					.dsc = true,
+					.hdmistream = true,
+					.hdmichar = true,
+					.dpstream = true,
+					.symclk32_se = true,
+					.symclk32_le = true,
+					.symclk_fe = true,
+					.physymclk = true,
+					.dpiasymclk = true,
 			}
 	},
 

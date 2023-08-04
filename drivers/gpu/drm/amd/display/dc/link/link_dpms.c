@@ -1079,8 +1079,14 @@ static struct fixed31_32 get_pbn_from_bw_in_kbps(uint64_t kbps)
 static struct fixed31_32 get_pbn_from_timing(struct pipe_ctx *pipe_ctx)
 {
 	uint64_t kbps;
+	enum dc_link_encoding_format link_encoding;
 
-	kbps = dc_bandwidth_in_kbps_from_timing(&pipe_ctx->stream->timing);
+	if (dp_is_128b_132b_signal(pipe_ctx))
+		link_encoding = DC_LINK_ENCODING_DP_128b_132b;
+	else
+		link_encoding = DC_LINK_ENCODING_DP_8b_10b;
+
+	kbps = dc_bandwidth_in_kbps_from_timing(&pipe_ctx->stream->timing, link_encoding);
 	return get_pbn_from_bw_in_kbps(kbps);
 }
 
@@ -1538,7 +1544,8 @@ struct fixed31_32 link_calculate_sst_avg_time_slots_per_mtp(
 			dc_fixpt_div_int(link_bw_effective, MAX_MTP_SLOT_COUNT);
 	struct fixed31_32 timing_bw =
 			dc_fixpt_from_int(
-					dc_bandwidth_in_kbps_from_timing(&stream->timing));
+					dc_bandwidth_in_kbps_from_timing(&stream->timing,
+							dc_link_get_highest_encoding_format(link)));
 	struct fixed31_32 avg_time_slots_per_mtp =
 			dc_fixpt_div(timing_bw, timeslot_bw_effective);
 
@@ -1971,6 +1978,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 	bool is_vga_mode = (stream->timing.h_addressable == 640)
 			&& (stream->timing.v_addressable == 480);
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 
 	if (stream->phy_pix_clk == 0)
 		stream->phy_pix_clk = stream->timing.pix_clk_100hz / 10;
@@ -2009,6 +2017,12 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 	display_color_depth = stream->timing.display_color_depth;
 	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
 		display_color_depth = COLOR_DEPTH_888;
+
+	/* We need to enable stream encoder for TMDS first to apply 1/4 TMDS
+	 * character clock in case that beyond 340MHz.
+	 */
+	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
+		link_hwss->setup_stream_encoder(pipe_ctx);
 
 	dc->hwss.enable_tmds_link_output(
 			link,
@@ -2129,7 +2143,8 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	if (link->dpcd_sink_ext_caps.bits.oled == 1 ||
 		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1 ||
 		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1) {
-		set_default_brightness_aux(link); // TODO: use cached if known
+		set_cached_brightness_aux(link);
+
 		if (link->dpcd_sink_ext_caps.bits.oled == 1)
 			msleep(bl_oled_enable_delay);
 		edp_backlight_enable_aux(link, true);

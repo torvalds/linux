@@ -170,6 +170,95 @@ extern "C" {
 #endif
 
 #pragma pack(push, 1)
+#define ABM_NUM_OF_ACE_SEGMENTS         5
+
+union abm_flags {
+	struct {
+		/**
+		 * @abm_enabled: Indicates if ABM is enabled.
+		 */
+		unsigned int abm_enabled : 1;
+
+		/**
+		 * @disable_abm_requested: Indicates if driver has requested ABM to be disabled.
+		 */
+		unsigned int disable_abm_requested : 1;
+
+		/**
+		 * @disable_abm_immediately: Indicates if driver has requested ABM to be disabled
+		 * immediately.
+		 */
+		unsigned int disable_abm_immediately : 1;
+
+		/**
+		 * @disable_abm_immediate_keep_gain: Indicates if driver has requested ABM
+		 * to be disabled immediately and keep gain.
+		 */
+		unsigned int disable_abm_immediate_keep_gain : 1;
+
+		/**
+		 * @fractional_pwm: Indicates if fractional duty cycle for backlight PWM is enabled.
+		 */
+		unsigned int fractional_pwm : 1;
+
+		/**
+		 * @abm_gradual_bl_change: Indicates if algorithm has completed gradual adjustment
+		 * of user backlight level.
+		 */
+		unsigned int abm_gradual_bl_change : 1;
+	} bitfields;
+
+	unsigned int u32All;
+};
+
+struct abm_save_restore {
+	/**
+	 * @flags: Misc. ABM flags.
+	 */
+	union abm_flags flags;
+
+	/**
+	 * @pause: true:  pause ABM and get state
+	 *         false: unpause ABM after setting state
+	 */
+	uint32_t pause;
+
+	/**
+	 * @next_ace_slope: Next ACE slopes to be programmed in HW (u3.13)
+	 */
+	uint32_t next_ace_slope[ABM_NUM_OF_ACE_SEGMENTS];
+
+	/**
+	 * @next_ace_thresh: Next ACE thresholds to be programmed in HW (u10.6)
+	 */
+	uint32_t next_ace_thresh[ABM_NUM_OF_ACE_SEGMENTS];
+
+	/**
+	 * @next_ace_offset: Next ACE offsets to be programmed in HW (u10.6)
+	 */
+	uint32_t next_ace_offset[ABM_NUM_OF_ACE_SEGMENTS];
+
+
+	/**
+	 * @knee_threshold: Current x-position of ACE knee (u0.16).
+	 */
+	uint32_t knee_threshold;
+	/**
+	 * @current_gain: Current backlight reduction (u16.16).
+	 */
+	uint32_t current_gain;
+	/**
+	 * @curr_bl_level: Current actual backlight level converging to target backlight level.
+	 */
+	uint16_t curr_bl_level;
+
+	/**
+	 * @curr_user_bl_level: Current nominal backlight level converging to level requested by user.
+	 */
+	uint16_t curr_user_bl_level;
+
+};
+
 /**
  * union dmub_addr - DMUB physical/virtual 64-bit address.
  */
@@ -2672,6 +2761,12 @@ enum dmub_cmd_abm_type {
 	 * unregister vertical interrupt after steady state is reached
 	 */
 	DMUB_CMD__ABM_PAUSE	= 6,
+
+	/**
+	 * Save and Restore ABM state. On save we save parameters, and
+	 * on restore we update state with passed in data.
+	 */
+	DMUB_CMD__ABM_SAVE_RESTORE	= 7,
 };
 
 /**
@@ -3056,6 +3151,7 @@ struct dmub_cmd_abm_pause_data {
 	uint8_t pad[1];
 };
 
+
 /**
  * Definition of a DMUB_CMD__ABM_PAUSE command.
  */
@@ -3069,6 +3165,36 @@ struct dmub_rb_cmd_abm_pause {
 	 * Data passed from driver to FW in a DMUB_CMD__ABM_PAUSE command.
 	 */
 	struct dmub_cmd_abm_pause_data abm_pause_data;
+};
+
+/**
+ * Definition of a DMUB_CMD__ABM_SAVE_RESTORE command.
+ */
+struct dmub_rb_cmd_abm_save_restore {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * OTG hw instance
+	 */
+	uint8_t otg_inst;
+
+	/**
+	 * Enable or disable ABM pause
+	 */
+	uint8_t freeze;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t debug;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__ABM_INIT_CONFIG command.
+	 */
+	struct dmub_cmd_abm_init_config_data abm_init_config_data;
 };
 
 /**
@@ -3507,6 +3633,11 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__ABM_PAUSE command.
 	 */
 	struct dmub_rb_cmd_abm_pause abm_pause;
+
+	/**
+	 * Definition of a DMUB_CMD__ABM_SAVE_RESTORE command.
+	 */
+	struct dmub_rb_cmd_abm_save_restore abm_save_restore;
 
 	/**
 	 * Definition of a DMUB_CMD__DP_AUX_ACCESS command.

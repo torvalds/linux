@@ -90,8 +90,7 @@ struct amdgpu_doorbell_index {
 	uint32_t xcc_doorbell_range;
 };
 
-typedef enum _AMDGPU_DOORBELL_ASSIGNMENT
-{
+enum AMDGPU_DOORBELL_ASSIGNMENT {
 	AMDGPU_DOORBELL_KIQ                     = 0x000,
 	AMDGPU_DOORBELL_HIQ                     = 0x001,
 	AMDGPU_DOORBELL_DIQ                     = 0x002,
@@ -109,10 +108,10 @@ typedef enum _AMDGPU_DOORBELL_ASSIGNMENT
 	AMDGPU_DOORBELL_IH                      = 0x1E8,
 	AMDGPU_DOORBELL_MAX_ASSIGNMENT          = 0x3FF,
 	AMDGPU_DOORBELL_INVALID                 = 0xFFFF
-} AMDGPU_DOORBELL_ASSIGNMENT;
+};
 
-typedef enum _AMDGPU_VEGA20_DOORBELL_ASSIGNMENT
-{
+enum AMDGPU_VEGA20_DOORBELL_ASSIGNMENT {
+
 	/* Compute + GFX: 0~255 */
 	AMDGPU_VEGA20_DOORBELL_KIQ                     = 0x000,
 	AMDGPU_VEGA20_DOORBELL_HIQ                     = 0x001,
@@ -176,10 +175,10 @@ typedef enum _AMDGPU_VEGA20_DOORBELL_ASSIGNMENT
 
 	AMDGPU_VEGA20_DOORBELL_MAX_ASSIGNMENT            = 0x1F7,
 	AMDGPU_VEGA20_DOORBELL_INVALID                   = 0xFFFF
-} AMDGPU_VEGA20_DOORBELL_ASSIGNMENT;
+};
 
-typedef enum _AMDGPU_NAVI10_DOORBELL_ASSIGNMENT
-{
+enum AMDGPU_NAVI10_DOORBELL_ASSIGNMENT {
+
 	/* Compute + GFX: 0~255 */
 	AMDGPU_NAVI10_DOORBELL_KIQ			= 0x000,
 	AMDGPU_NAVI10_DOORBELL_HIQ			= 0x001,
@@ -227,13 +226,12 @@ typedef enum _AMDGPU_NAVI10_DOORBELL_ASSIGNMENT
 
 	AMDGPU_NAVI10_DOORBELL_MAX_ASSIGNMENT		= 0x18F,
 	AMDGPU_NAVI10_DOORBELL_INVALID			= 0xFFFF
-} AMDGPU_NAVI10_DOORBELL_ASSIGNMENT;
+};
 
 /*
  * 64bit doorbell, offset are in QWORD, occupy 2KB doorbell space
  */
-typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
-{
+enum AMDGPU_DOORBELL64_ASSIGNMENT {
 	/*
 	 * All compute related doorbells: kiq, hiq, diq, traditional compute queue, user queue, should locate in
 	 * a continues range so that programming CP_MEC_DOORBELL_RANGE_LOWER/UPPER can cover this range.
@@ -309,9 +307,10 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 
 	AMDGPU_DOORBELL64_MAX_ASSIGNMENT          = 0xFF,
 	AMDGPU_DOORBELL64_INVALID                 = 0xFFFF
-} AMDGPU_DOORBELL64_ASSIGNMENT;
+};
 
-typedef enum _AMDGPU_DOORBELL_ASSIGNMENT_LAYOUT1 {
+enum AMDGPU_DOORBELL_ASSIGNMENT_LAYOUT1 {
+
 	/* XCC0: 0x00 ~20, XCC1: 20 ~ 2F ... */
 
 	/* KIQ/HIQ/DIQ */
@@ -339,12 +338,18 @@ typedef enum _AMDGPU_DOORBELL_ASSIGNMENT_LAYOUT1 {
 
 	AMDGPU_DOORBELL_LAYOUT1_MAX_ASSIGNMENT          = 0x1D4,
 	AMDGPU_DOORBELL_LAYOUT1_INVALID                 = 0xFFFF
-} AMDGPU_DOORBELL_ASSIGNMENT_LAYOUT1;
+};
 
 u32 amdgpu_mm_rdoorbell(struct amdgpu_device *adev, u32 index);
 void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v);
 u64 amdgpu_mm_rdoorbell64(struct amdgpu_device *adev, u32 index);
 void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v);
+
+/*
+ * GPU doorbell aperture helpers function.
+ */
+int amdgpu_doorbell_init(struct amdgpu_device *adev);
+void amdgpu_doorbell_fini(struct amdgpu_device *adev);
 
 #define RDOORBELL32(index) amdgpu_mm_rdoorbell(adev, (index))
 #define WDOORBELL32(index, v) amdgpu_mm_wdoorbell(adev, (index), (v))

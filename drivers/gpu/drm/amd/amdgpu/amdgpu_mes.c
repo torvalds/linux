@@ -643,6 +643,8 @@ int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
 	unsigned long flags;
 	int r;
 
+	memset(&queue_input, 0, sizeof(struct mes_add_queue_input));
+
 	/* allocate the mes queue buffer */
 	queue = kzalloc(sizeof(struct amdgpu_mes_queue), GFP_KERNEL);
 	if (!queue) {
@@ -1378,7 +1380,7 @@ int amdgpu_mes_self_test(struct amdgpu_device *adev)
 		goto error_pasid;
 	}
 
-	r = amdgpu_vm_init(adev, vm);
+	r = amdgpu_vm_init(adev, vm, -1);
 	if (r) {
 		DRM_ERROR("failed to initialize vm\n");
 		goto error_pasid;

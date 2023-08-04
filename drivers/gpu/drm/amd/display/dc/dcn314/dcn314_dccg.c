@@ -362,6 +362,7 @@ static const struct dccg_funcs dccg314_funcs = {
 	.disable_symclk32_se = dccg31_disable_symclk32_se,
 	.enable_symclk32_le = dccg31_enable_symclk32_le,
 	.disable_symclk32_le = dccg31_disable_symclk32_le,
+	.set_symclk32_le_root_clock_gating = dccg31_set_symclk32_le_root_clock_gating,
 	.set_physymclk = dccg31_set_physymclk,
 	.set_dtbclk_dto = dccg314_set_dtbclk_dto,
 	.set_audio_dtbclk_dto = dccg31_set_audio_dtbclk_dto,

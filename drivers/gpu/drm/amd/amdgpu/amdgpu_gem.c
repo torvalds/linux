@@ -182,11 +182,10 @@ static int amdgpu_gem_object_open(struct drm_gem_object *obj,
 		return r;
 
 	bo_va = amdgpu_vm_bo_find(vm, abo);
-	if (!bo_va) {
+	if (!bo_va)
 		bo_va = amdgpu_vm_bo_add(adev, vm, abo);
-	} else {
+	else
 		++bo_va->ref_count;
-	}
 	amdgpu_bo_unreserve(abo);
 	return 0;
 }
@@ -461,9 +460,9 @@ int amdgpu_mode_dumb_mmap(struct drm_file *filp,
 	struct amdgpu_bo *robj;
 
 	gobj = drm_gem_object_lookup(filp, handle);
-	if (gobj == NULL) {
+	if (!gobj)
 		return -ENOENT;
-	}
+
 	robj = gem_to_amdgpu_bo(gobj);
 	if (amdgpu_ttm_tt_get_usermm(robj->tbo.ttm) ||
 	    (robj->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)) {
@@ -480,6 +479,7 @@ int amdgpu_gem_mmap_ioctl(struct drm_device *dev, void *data,
 {
 	union drm_amdgpu_gem_mmap *args = data;
 	uint32_t handle = args->in.handle;
+
 	memset(args, 0, sizeof(*args));
 	return amdgpu_mode_dumb_mmap(filp, dev, handle, &args->out.addr_ptr);
 }
@@ -506,7 +506,7 @@ unsigned long amdgpu_gem_timeout(uint64_t timeout_ns)
 
 	timeout_jiffies = nsecs_to_jiffies(ktime_to_ns(timeout));
 	/*  clamp timeout to avoid unsigned-> signed overflow */
-	if (timeout_jiffies > MAX_SCHEDULE_TIMEOUT )
+	if (timeout_jiffies > MAX_SCHEDULE_TIMEOUT)
 		return MAX_SCHEDULE_TIMEOUT - 1;
 
 	return timeout_jiffies;
@@ -524,9 +524,9 @@ int amdgpu_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	long ret;
 
 	gobj = drm_gem_object_lookup(filp, handle);
-	if (gobj == NULL) {
+	if (!gobj)
 		return -ENOENT;
-	}
+
 	robj = gem_to_amdgpu_bo(gobj);
 	ret = dma_resv_wait_timeout(robj->tbo.base.resv, DMA_RESV_USAGE_READ,
 				    true, timeout);
@@ -553,7 +553,7 @@ int amdgpu_gem_metadata_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_bo *robj;
 	int r = -1;
 
-	DRM_DEBUG("%d \n", args->handle);
+	DRM_DEBUG("%d\n", args->handle);
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL)
 		return -ENOENT;
@@ -680,7 +680,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 
 	if (args->va_address < AMDGPU_VA_RESERVED_SIZE) {
 		dev_dbg(dev->dev,
-			"va_address 0x%LX is in reserved area 0x%LX\n",
+			"va_address 0x%llx is in reserved area 0x%llx\n",
 			args->va_address, AMDGPU_VA_RESERVED_SIZE);
 		return -EINVAL;
 	}
@@ -688,7 +688,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	if (args->va_address >= AMDGPU_GMC_HOLE_START &&
 	    args->va_address < AMDGPU_GMC_HOLE_END) {
 		dev_dbg(dev->dev,
-			"va_address 0x%LX is in VA hole 0x%LX-0x%LX\n",
+			"va_address 0x%llx is in VA hole 0x%llx-0x%llx\n",
 			args->va_address, AMDGPU_GMC_HOLE_START,
 			AMDGPU_GMC_HOLE_END);
 		return -EINVAL;
@@ -808,9 +808,9 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 	int r;
 
 	gobj = drm_gem_object_lookup(filp, args->handle);
-	if (gobj == NULL) {
+	if (!gobj)
 		return -ENOENT;
-	}
+
 	robj = gem_to_amdgpu_bo(gobj);
 
 	r = amdgpu_bo_reserve(robj, false);
@@ -936,9 +936,9 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	r = drm_gem_handle_create(file_priv, gobj, &handle);
 	/* drop reference from allocate - handle holds it now */
 	drm_gem_object_put(gobj);
-	if (r) {
+	if (r)
 		return r;
-	}
+
 	args->handle = handle;
 	return 0;
 }

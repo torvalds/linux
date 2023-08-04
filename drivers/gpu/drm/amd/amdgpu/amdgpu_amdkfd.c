@@ -830,3 +830,53 @@ u64 amdgpu_amdkfd_xcp_memory_size(struct amdgpu_device *adev, int xcp_id)
 		return adev->gmc.real_vram_size;
 	}
 }
+
+int amdgpu_amdkfd_unmap_hiq(struct amdgpu_device *adev, u32 doorbell_off,
+			    u32 inst)
+{
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[inst];
+	struct amdgpu_ring *kiq_ring = &kiq->ring;
+	struct amdgpu_ring_funcs *ring_funcs;
+	struct amdgpu_ring *ring;
+	int r = 0;
+
+	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
+		return -EINVAL;
+
+	ring_funcs = kzalloc(sizeof(*ring_funcs), GFP_KERNEL);
+	if (!ring_funcs)
+		return -ENOMEM;
+
+	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
+	if (!ring) {
+		r = -ENOMEM;
+		goto free_ring_funcs;
+	}
+
+	ring_funcs->type = AMDGPU_RING_TYPE_COMPUTE;
+	ring->doorbell_index = doorbell_off;
+	ring->funcs = ring_funcs;
+
+	spin_lock(&kiq->ring_lock);
+
+	if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size)) {
+		spin_unlock(&kiq->ring_lock);
+		r = -ENOMEM;
+		goto free_ring;
+	}
+
+	kiq->pmf->kiq_unmap_queues(kiq_ring, ring, RESET_QUEUES, 0, 0);
+
+	if (kiq_ring->sched.ready && !adev->job_hang)
+		r = amdgpu_ring_test_helper(kiq_ring);
+
+	spin_unlock(&kiq->ring_lock);
+
+free_ring:
+	kfree(ring);
+
+free_ring_funcs:
+	kfree(ring_funcs);
+
+	return r;
+}

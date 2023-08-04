@@ -1033,7 +1033,6 @@ struct amdgpu_device {
 	bool                            has_pr3;
 
 	bool                            ucode_sysfs_en;
-	bool                            psp_sysfs_en;
 
 	/* Chip product information */
 	char				product_number[20];
@@ -1128,7 +1127,7 @@ void amdgpu_device_wreg(struct amdgpu_device *adev,
 void amdgpu_device_indirect_wreg_ext(struct amdgpu_device *adev,
 				     u64 reg_addr, u32 reg_data);
 void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev,
-			     uint32_t reg, uint32_t v);
+			     uint32_t reg, uint32_t v, uint32_t xcc_id);
 void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value);
 uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset);
 
@@ -1505,5 +1504,9 @@ static inline bool amdgpu_is_tmz(struct amdgpu_device *adev)
 }
 
 int amdgpu_in_reset(struct amdgpu_device *adev);
+
+extern const struct attribute_group amdgpu_vram_mgr_attr_group;
+extern const struct attribute_group amdgpu_gtt_mgr_attr_group;
+extern const struct attribute_group amdgpu_flash_attr_group;
 
 #endif

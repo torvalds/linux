@@ -56,6 +56,15 @@ enum amdgpu_ring_mux_offset_type {
 	AMDGPU_MUX_OFFSET_TYPE_CE,
 };
 
+enum ib_complete_status {
+	/* IB not started/reset value, default value. */
+	IB_COMPLETION_STATUS_DEFAULT = 0,
+	/* IB preempted, started but not completed. */
+	IB_COMPLETION_STATUS_PREEMPTED = 1,
+	/* IB completed. */
+	IB_COMPLETION_STATUS_COMPLETED = 2,
+};
+
 struct amdgpu_ring_mux {
 	struct amdgpu_ring      *real_ring;
 

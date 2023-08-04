@@ -340,9 +340,8 @@ static struct atom_display_object_path_v2 *get_bios_object(
 }
 
 /* from graphics_object_id, find display path which includes the object_id */
-static struct atom_display_object_path_v3 *get_bios_object_from_path_v3(
-	struct bios_parser *bp,
-	struct graphics_object_id id)
+static struct atom_display_object_path_v3 *get_bios_object_from_path_v3(struct bios_parser *bp,
+									struct graphics_object_id id)
 {
 	unsigned int i;
 	struct graphics_object_id obj_id = {0};
@@ -521,9 +520,8 @@ static enum bp_result get_gpio_i2c_info(
 	return BP_RESULT_OK;
 }
 
-static struct atom_hpd_int_record *get_hpd_record_for_path_v3(
-	struct bios_parser *bp,
-	struct atom_display_object_path_v3 *object)
+static struct atom_hpd_int_record *get_hpd_record_for_path_v3(struct bios_parser *bp,
+							      struct atom_display_object_path_v3 *object)
 {
 	struct atom_common_record_header *header;
 	uint32_t offset;
@@ -2175,9 +2173,8 @@ static struct atom_disp_connector_caps_record *get_disp_connector_caps_record(
 	return NULL;
 }
 
-static struct atom_connector_caps_record *get_connector_caps_record(
-	struct bios_parser *bp,
-	struct atom_display_object_path_v3 *object)
+static struct atom_connector_caps_record *get_connector_caps_record(struct bios_parser *bp,
+								    struct atom_display_object_path_v3 *object)
 {
 	struct atom_common_record_header *header;
 	uint32_t offset;
@@ -2264,9 +2261,8 @@ static enum bp_result bios_parser_get_disp_connector_caps_info(
 	return BP_RESULT_OK;
 }
 
-static struct atom_connector_speed_record *get_connector_speed_cap_record(
-	struct bios_parser *bp,
-	struct atom_display_object_path_v3 *object)
+static struct atom_connector_speed_record *get_connector_speed_cap_record(struct bios_parser *bp,
+									  struct atom_display_object_path_v3 *object)
 {
 	struct atom_common_record_header *header;
 	uint32_t offset;

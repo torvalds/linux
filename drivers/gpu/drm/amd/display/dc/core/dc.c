@@ -1047,8 +1047,10 @@ static void disable_all_writeback_pipes_for_stream(
 		stream->writeback_info[i].wb_enabled = false;
 }
 
-static void apply_ctx_interdependent_lock(struct dc *dc, struct dc_state *context,
-					  struct dc_stream_state *stream, bool lock)
+static void apply_ctx_interdependent_lock(struct dc *dc,
+					  struct dc_state *context,
+					  struct dc_stream_state *stream,
+					  bool lock)
 {
 	int i;
 
@@ -3582,9 +3584,9 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 			context->block_sequence_steps);
 	/* Clear update flags so next flip doesn't have redundant programming
 	 * (if there's no stream update, the update flags are not cleared).
+	 * Surface updates are cleared unconditionally at the beginning of each flip,
+	 * so no need to clear here.
 	 */
-	if (top_pipe_to_program->plane_state)
-		top_pipe_to_program->plane_state->update_flags.raw = 0;
 	if (top_pipe_to_program->stream)
 		top_pipe_to_program->stream->update_flags.raw = 0;
 }
@@ -4088,9 +4090,9 @@ static bool commit_minimal_transition_state(struct dc *dc,
 		struct dc_state *transition_base_context)
 {
 	struct dc_state *transition_context = dc_create_state(dc);
-	enum pipe_split_policy tmp_mpc_policy;
-	bool temp_dynamic_odm_policy;
-	bool temp_subvp_policy;
+	enum pipe_split_policy tmp_mpc_policy = 0;
+	bool temp_dynamic_odm_policy = 0;
+	bool temp_subvp_policy = 0;
 	enum dc_status ret = DC_ERROR_UNEXPECTED;
 	unsigned int i, j;
 	unsigned int pipe_in_use = 0;
@@ -4284,7 +4286,8 @@ static bool fast_updates_exist(struct dc_fast_update *fast_update, int surface_c
 	return false;
 }
 
-static bool full_update_required(struct dc_surface_update *srf_updates,
+static bool full_update_required(struct dc *dc,
+		struct dc_surface_update *srf_updates,
 		int surface_count,
 		struct dc_stream_update *stream_update,
 		struct dc_stream_state *stream)
@@ -4292,6 +4295,7 @@ static bool full_update_required(struct dc_surface_update *srf_updates,
 
 	int i;
 	struct dc_stream_status *stream_status;
+	const struct dc_state *context = dc->current_state;
 
 	for (i = 0; i < surface_count; i++) {
 		if (srf_updates &&
@@ -4302,7 +4306,11 @@ static bool full_update_required(struct dc_surface_update *srf_updates,
 				srf_updates[i].in_transfer_func ||
 				srf_updates[i].func_shaper ||
 				srf_updates[i].lut3d_func ||
-				srf_updates[i].blend_tf))
+				srf_updates[i].blend_tf ||
+				srf_updates[i].surface->force_full_update ||
+				(srf_updates[i].flip_addr &&
+				srf_updates[i].flip_addr->address.tmz_surface != srf_updates[i].surface->address.tmz_surface) ||
+				!is_surface_in_context(context, srf_updates[i].surface)))
 			return true;
 	}
 
@@ -4340,18 +4348,21 @@ static bool full_update_required(struct dc_surface_update *srf_updates,
 		if (stream_status == NULL || stream_status->plane_count != surface_count)
 			return true;
 	}
+	if (dc->idle_optimizations_allowed)
+		return true;
 
 	return false;
 }
 
-static bool fast_update_only(struct dc_fast_update *fast_update,
+static bool fast_update_only(struct dc *dc,
+		struct dc_fast_update *fast_update,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
 		struct dc_stream_update *stream_update,
 		struct dc_stream_state *stream)
 {
 	return fast_updates_exist(fast_update, surface_count)
-			&& !full_update_required(srf_updates, surface_count, stream_update, stream);
+			&& !full_update_required(dc, srf_updates, surface_count, stream_update, stream);
 }
 
 bool dc_update_planes_and_stream(struct dc *dc,
@@ -4369,8 +4380,8 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	 * cause underflow. Apply stream configuration with minimal pipe
 	 * split first to avoid unsupported transitions for active pipes.
 	 */
-	bool force_minimal_pipe_splitting;
-	bool is_plane_addition;
+	bool force_minimal_pipe_splitting = 0;
+	bool is_plane_addition = 0;
 
 	populate_fast_updates(fast_update, srf_updates, surface_count, stream_update);
 	force_minimal_pipe_splitting = could_mpcc_tree_change_for_active_pipes(
@@ -4423,7 +4434,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	}
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update, stream) &&
+	if (fast_update_only(dc, fast_update, srf_updates, surface_count, stream_update, stream) &&
 			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
@@ -4569,7 +4580,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update, stream) &&
+	if (fast_update_only(dc, fast_update, srf_updates, surface_count, stream_update, stream) &&
 			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
@@ -5273,3 +5284,56 @@ void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bo
 	if (pipe->stream_res.abm && pipe->stream_res.abm->funcs->set_abm_pause)
 		pipe->stream_res.abm->funcs->set_abm_pause(pipe->stream_res.abm, !enable, i, pipe->stream_res.tg->inst);
 }
+
+/*****************************************************************************
+ *  dc_abm_save_restore() - Interface to DC for save+pause and restore+un-pause
+ *                          ABM
+ *  @dc: dc structure
+ *	@stream: stream where vsync int state changed
+ *  @pData: abm hw states
+ *
+ ****************************************************************************/
+bool dc_abm_save_restore(
+		struct dc *dc,
+		struct dc_stream_state *stream,
+		struct abm_save_restore *pData)
+{
+	int i;
+	int edp_num;
+	struct pipe_ctx *pipe = NULL;
+	struct dc_link *link = stream->sink->link;
+	struct dc_link *edp_links[MAX_NUM_EDP];
+
+
+	/*find primary pipe associated with stream*/
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == stream && pipe->stream_res.tg)
+			break;
+	}
+
+	if (i == MAX_PIPES) {
+		ASSERT(0);
+		return false;
+	}
+
+	dc_get_edp_links(dc, edp_links, &edp_num);
+
+	/* Determine panel inst */
+	for (i = 0; i < edp_num; i++)
+		if (edp_links[i] == link)
+			break;
+
+	if (i == edp_num)
+		return false;
+
+	if (pipe->stream_res.abm &&
+		pipe->stream_res.abm->funcs->save_restore)
+		return pipe->stream_res.abm->funcs->save_restore(
+				pipe->stream_res.abm,
+				i,
+				pData);
+	return false;
+}
+

@@ -47,11 +47,9 @@
 #include "clk_mgr.h"
 #include "dsc.h"
 #include "dcn20/dcn20_optc.h"
-#include "dmub_subvp_state.h"
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dcn32_resource.h"
 #include "link.h"
-#include "dmub/inc/dmub_subvp_state.h"
 
 #define DC_LOGGER_INIT(logger)
 

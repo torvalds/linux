@@ -46,43 +46,42 @@ void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 {
 	union dpcd_edp_config edp_config_set;
 	bool panel_mode_edp = false;
+	enum dc_status result;
 
 	memset(&edp_config_set, '\0', sizeof(union dpcd_edp_config));
 
-	if (panel_mode != DP_PANEL_MODE_DEFAULT) {
+	switch (panel_mode) {
+	case DP_PANEL_MODE_EDP:
+	case DP_PANEL_MODE_SPECIAL:
+		panel_mode_edp = true;
+		break;
 
-		switch (panel_mode) {
-		case DP_PANEL_MODE_EDP:
-		case DP_PANEL_MODE_SPECIAL:
-			panel_mode_edp = true;
-			break;
+	default:
+		break;
+	}
 
-		default:
-				break;
-		}
+	/*set edp panel mode in receiver*/
+	result = core_link_read_dpcd(
+		link,
+		DP_EDP_CONFIGURATION_SET,
+		&edp_config_set.raw,
+		sizeof(edp_config_set.raw));
 
-		/*set edp panel mode in receiver*/
-		core_link_read_dpcd(
+	if (result == DC_OK &&
+		edp_config_set.bits.PANEL_MODE_EDP
+		!= panel_mode_edp) {
+
+		edp_config_set.bits.PANEL_MODE_EDP =
+		panel_mode_edp;
+		result = core_link_write_dpcd(
 			link,
 			DP_EDP_CONFIGURATION_SET,
 			&edp_config_set.raw,
 			sizeof(edp_config_set.raw));
 
-		if (edp_config_set.bits.PANEL_MODE_EDP
-			!= panel_mode_edp) {
-			enum dc_status result;
-
-			edp_config_set.bits.PANEL_MODE_EDP =
-			panel_mode_edp;
-			result = core_link_write_dpcd(
-				link,
-				DP_EDP_CONFIGURATION_SET,
-				&edp_config_set.raw,
-				sizeof(edp_config_set.raw));
-
-			ASSERT(result == DC_OK);
-		}
+		ASSERT(result == DC_OK);
 	}
+
 	link->panel_mode = panel_mode;
 	DC_LOG_DETECTION_DP_CAPS("Link: %d eDP panel mode supported: %d "
 		 "eDP panel mode enabled: %d \n",
@@ -164,6 +163,7 @@ bool edp_set_backlight_level_nits(struct dc_link *link,
 	*(uint32_t *)&dpcd_backlight_set.backlight_level_millinits = backlight_millinits;
 	*(uint16_t *)&dpcd_backlight_set.backlight_transition_time_ms = (uint16_t)transition_time_in_ms;
 
+	link->backlight_settings.backlight_millinits = backlight_millinits;
 
 	if (!link->dpcd_caps.panel_luminance_control) {
 		if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
@@ -251,10 +251,20 @@ static bool read_default_bl_aux(struct dc_link *link, uint32_t *backlight_millin
 		link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
 		return false;
 
-	if (!core_link_read_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
-		(uint8_t *) backlight_millinits,
-		sizeof(uint32_t)))
-		return false;
+	if (!link->dpcd_caps.panel_luminance_control) {
+		if (!core_link_read_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
+			(uint8_t *)backlight_millinits,
+			sizeof(uint32_t)))
+			return false;
+	} else {
+		//setting to 0 as a precaution, since target_luminance_value is 3 bytes
+		memset(backlight_millinits, 0, sizeof(uint32_t));
+
+		if (!core_link_read_dpcd(link, DP_EDP_PANEL_TARGET_LUMINANCE_VALUE,
+			(uint8_t *)backlight_millinits,
+			sizeof(struct target_luminance_value)))
+			return false;
+	}
 
 	return true;
 }
@@ -273,6 +283,16 @@ bool set_default_brightness_aux(struct dc_link *link)
 		return edp_set_backlight_level_nits(link, true,
 				default_backlight, 0);
 	}
+	return false;
+}
+
+bool set_cached_brightness_aux(struct dc_link *link)
+{
+	if (link->backlight_settings.backlight_millinits)
+		return edp_set_backlight_level_nits(link, true,
+						    link->backlight_settings.backlight_millinits, 0);
+	else
+		return set_default_brightness_aux(link);
 	return false;
 }
 
@@ -309,7 +329,7 @@ bool edp_is_ilr_optimization_required(struct dc_link *link,
 	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
 				&lane_count_set.raw, sizeof(lane_count_set));
 
-	req_bw = dc_bandwidth_in_kbps_from_timing(crtc_timing);
+	req_bw = dc_bandwidth_in_kbps_from_timing(crtc_timing, dc_link_get_highest_encoding_format(link));
 
 	if (!crtc_timing->flags.DSC)
 		edp_decide_link_settings(link, &link_setting, req_bw);

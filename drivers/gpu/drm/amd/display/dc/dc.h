@@ -40,12 +40,14 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
+struct abm_save_restore;
+
 /* forward declaration */
 struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.241"
+#define DC_VER "3.2.244"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -506,7 +508,7 @@ enum dcn_zstate_support_state {
 	DCN_ZSTATE_SUPPORT_DISALLOW,
 };
 
-/**
+/*
  * struct dc_clocks - DC pipe clocks
  *
  * For any clocks that may differ per pipe only the max is stored in this
@@ -728,7 +730,7 @@ struct resource_pool;
 struct dce_hwseq;
 struct link_service;
 
-/**
+/*
  * struct dc_debug_options - DC debug struct
  *
  * This struct provides a simple mechanism for developers to change some
@@ -756,7 +758,7 @@ struct dc_debug_options {
 	bool use_max_lb;
 	enum dcc_option disable_dcc;
 
-	/**
+	/*
 	 * @pipe_split_policy: Define which pipe split policy is used by the
 	 * display core.
 	 */
@@ -861,6 +863,7 @@ struct dc_debug_options {
 	bool psr_skip_crtc_disable;
 	union dpia_debug_options dpia_debug;
 	bool disable_fixed_vs_aux_timeout_wa;
+	uint32_t fixed_vs_aux_delay_config_wa;
 	bool force_disable_subvp;
 	bool force_subvp_mclk_switch;
 	bool allow_sw_cursor_fallback;
@@ -1334,7 +1337,7 @@ struct dc_validation_set {
 	struct dc_stream_state *stream;
 
 	/**
-	 * @plane_state: Surface state
+	 * @plane_states: Surface state
 	 */
 	struct dc_plane_state *plane_states[MAX_SURFACES];
 
@@ -1409,10 +1412,14 @@ struct dc_plane_state *dc_get_surface_for_mpcc(struct dc *dc,
 
 uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
 
+void dc_set_disable_128b_132b_stream_overhead(bool disable);
+
 /* The function returns minimum bandwidth required to drive a given timing
  * return - minimum required timing bandwidth in kbps.
  */
-uint32_t dc_bandwidth_in_kbps_from_timing(const struct dc_crtc_timing *timing);
+uint32_t dc_bandwidth_in_kbps_from_timing(
+		const struct dc_crtc_timing *timing,
+		const enum dc_link_encoding_format link_encoding);
 
 /* Link Interfaces */
 /*
@@ -1514,6 +1521,7 @@ struct dc_link {
 	enum edp_revision edp_revision;
 	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
 
+	struct backlight_settings backlight_settings;
 	struct psr_settings psr_settings;
 
 	/* Drive settings read from integrated info table */
@@ -1848,6 +1856,14 @@ enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(
  *
  */
 const struct dc_link_settings *dc_link_get_link_cap(const struct dc_link *link);
+
+/* Get the highest encoding format that the link supports; highest meaning the
+ * encoding format which supports the maximum bandwidth.
+ *
+ * @link - a link with DP RX connection
+ * return - highest encoding format link supports.
+ */
+enum dc_link_encoding_format dc_link_get_highest_encoding_format(const struct dc_link *link);
 
 /* Check if a RX (ex. DP sink, MST hub, passive or active dongle) is connected
  * to a link with dp connector signal type.
@@ -2229,6 +2245,11 @@ void dc_z10_save_init(struct dc *dc);
 
 bool dc_is_dmub_outbox_supported(struct dc *dc);
 bool dc_enable_dmub_notifications(struct dc *dc);
+
+bool dc_abm_save_restore(
+		struct dc *dc,
+		struct dc_stream_state *stream,
+		struct abm_save_restore *pData);
 
 void dc_enable_dmub_outbox(struct dc *dc);
 

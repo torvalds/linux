@@ -1892,7 +1892,7 @@ int dcn32_populate_dml_pipes_from_context(
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
-	struct pipe_ctx *pipe;
+	struct pipe_ctx *pipe = NULL;
 	bool subvp_in_use = false;
 	struct dc_crtc_timing *timing;
 	bool vsr_odm_support = false;

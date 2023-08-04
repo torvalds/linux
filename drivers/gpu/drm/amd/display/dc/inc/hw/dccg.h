@@ -123,6 +123,11 @@ struct dccg_funcs {
 			struct dccg *dccg,
 			int hpo_le_inst);
 
+	void (*set_symclk32_le_root_clock_gating)(
+			struct dccg *dccg,
+			int hpo_le_inst,
+			bool enable);
+
 	void (*set_physymclk)(
 			struct dccg *dccg,
 			int phy_inst,

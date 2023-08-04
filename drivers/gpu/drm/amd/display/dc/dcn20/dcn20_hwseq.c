@@ -1054,9 +1054,9 @@ void dcn20_blank_pixel_data(
 	enum controller_dp_color_space test_pattern_color_space = CONTROLLER_DP_COLOR_SPACE_UDEFINED;
 	struct pipe_ctx *odm_pipe;
 	int odm_cnt = 1;
-
-	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
-	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
+	int h_active = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+	int v_active = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
+	int odm_slice_width, last_odm_slice_width, offset = 0;
 
 	if (stream->link->test_pattern_enabled)
 		return;
@@ -1066,8 +1066,8 @@ void dcn20_blank_pixel_data(
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 		odm_cnt++;
-
-	width = width / odm_cnt;
+	odm_slice_width = h_active / odm_cnt;
+	last_odm_slice_width = h_active - odm_slice_width * (odm_cnt - 1);
 
 	if (blank) {
 		dc->hwss.set_abm_immediate_disable(pipe_ctx);
@@ -1080,28 +1080,31 @@ void dcn20_blank_pixel_data(
 		test_pattern = CONTROLLER_DP_TEST_PATTERN_VIDEOMODE;
 	}
 
+	odm_pipe = pipe_ctx;
+
+	while (odm_pipe->next_odm_pipe) {
+		dc->hwss.set_disp_pattern_generator(dc,
+				pipe_ctx,
+				test_pattern,
+				test_pattern_color_space,
+				stream->timing.display_color_depth,
+				&black_color,
+				odm_slice_width,
+				v_active,
+				offset);
+		offset += odm_slice_width;
+		odm_pipe = odm_pipe->next_odm_pipe;
+	}
+
 	dc->hwss.set_disp_pattern_generator(dc,
-			pipe_ctx,
+			odm_pipe,
 			test_pattern,
 			test_pattern_color_space,
 			stream->timing.display_color_depth,
 			&black_color,
-			width,
-			height,
-			0);
-
-	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
-		dc->hwss.set_disp_pattern_generator(dc,
-				odm_pipe,
-				dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE && blank ?
-						CONTROLLER_DP_TEST_PATTERN_COLORRAMP : test_pattern,
-				test_pattern_color_space,
-				stream->timing.display_color_depth,
-				&black_color,
-				width,
-				height,
-				0);
-	}
+			last_odm_slice_width,
+			v_active,
+			offset);
 
 	if (!blank && dc->debug.enable_single_display_2to1_odm_policy) {
 		/* when exiting dynamic ODM need to reinit DPG state for unused pipes */
@@ -2122,6 +2125,15 @@ void dcn20_optimize_bandwidth(
 	/* increase compbuf size */
 	if (hubbub->funcs->program_compbuf_size)
 		hubbub->funcs->program_compbuf_size(hubbub, context->bw_ctx.bw.dcn.compbuf_size_kb, true);
+
+	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching) {
+		dc_dmub_srv_p_state_delegate(dc,
+			true, context);
+		context->bw_ctx.bw.dcn.clk.p_state_change_support = true;
+		dc->clk_mgr->clks.fw_based_mclk_switching = true;
+	} else {
+		dc->clk_mgr->clks.fw_based_mclk_switching = false;
+	}
 
 	dc->clk_mgr->funcs->update_clocks(
 			dc->clk_mgr,

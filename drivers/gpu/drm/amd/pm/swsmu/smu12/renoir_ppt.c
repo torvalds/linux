@@ -262,15 +262,15 @@ static int renoir_get_profiling_clk_mask(struct smu_context *smu,
 			/* mclk levels are in reverse order */
 			*mclk_mask = NUM_MEMCLK_DPM_LEVELS - 1;
 	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
-		if(sclk_mask)
+		if (sclk_mask)
 			/* The sclk as gfxclk and has three level about max/min/current */
 			*sclk_mask = 3 - 1;
 
-		if(mclk_mask)
+		if (mclk_mask)
 			/* mclk levels are in reverse order */
 			*mclk_mask = 0;
 
-		if(soc_mask)
+		if (soc_mask)
 			*soc_mask = NUM_SOCCLK_DPM_LEVELS - 1;
 	}
 

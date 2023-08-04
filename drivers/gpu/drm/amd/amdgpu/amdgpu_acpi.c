@@ -868,7 +868,7 @@ static struct amdgpu_numa_info *amdgpu_acpi_get_numa_info(uint32_t pxm)
 	if (!numa_info) {
 		struct sysinfo info;
 
-		numa_info = kzalloc(sizeof *numa_info, GFP_KERNEL);
+		numa_info = kzalloc(sizeof(*numa_info), GFP_KERNEL);
 		if (!numa_info)
 			return NULL;
 

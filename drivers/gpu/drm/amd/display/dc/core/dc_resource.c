@@ -69,8 +69,15 @@
 #include "../dcn32/dcn32_resource.h"
 #include "../dcn321/dcn321_resource.h"
 
+#define VISUAL_CONFIRM_BASE_DEFAULT 3
+#define VISUAL_CONFIRM_BASE_MIN 1
+#define VISUAL_CONFIRM_BASE_MAX 10
+#define VISUAL_CONFIRM_DPP_OFFSET 3
 
 #define DC_LOGGER_INIT(logger)
+
+#define HEAD_NOT_IN_ODM -2
+#define UNABLE_TO_SPLIT -1
 
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 {
@@ -740,7 +747,12 @@ int get_num_mpc_splits(struct pipe_ctx *pipe)
 int get_num_odm_splits(struct pipe_ctx *pipe)
 {
 	int odm_split_count = 0;
-	struct pipe_ctx *next_pipe = pipe->next_odm_pipe;
+	struct pipe_ctx *next_pipe = NULL;
+
+	while (pipe->top_pipe)
+		pipe = pipe->top_pipe;
+
+	next_pipe = pipe->next_odm_pipe;
 	while (next_pipe) {
 		odm_split_count++;
 		next_pipe = next_pipe->next_odm_pipe;
@@ -753,32 +765,35 @@ int get_num_odm_splits(struct pipe_ctx *pipe)
 	return odm_split_count;
 }
 
-static void calculate_split_count_and_index(struct pipe_ctx *pipe_ctx, int *split_count, int *split_idx)
+static int get_odm_split_index(struct pipe_ctx *pipe_ctx)
 {
-	*split_count = get_num_odm_splits(pipe_ctx);
-	*split_idx = 0;
-	if (*split_count == 0) {
-		/*Check for mpc split*/
-		struct pipe_ctx *split_pipe = pipe_ctx->top_pipe;
+	struct pipe_ctx *split_pipe = NULL;
+	int index = 0;
 
-		*split_count = get_num_mpc_splits(pipe_ctx);
-		while (split_pipe && split_pipe->plane_state == pipe_ctx->plane_state) {
-			(*split_idx)++;
-			split_pipe = split_pipe->top_pipe;
-		}
+	while (pipe_ctx->top_pipe)
+		pipe_ctx = pipe_ctx->top_pipe;
 
-		/* MPO window on right side of ODM split */
-		if (split_pipe && split_pipe->prev_odm_pipe && !pipe_ctx->prev_odm_pipe)
-			(*split_idx)++;
-	} else {
-		/*Get odm split index*/
-		struct pipe_ctx *split_pipe = pipe_ctx->prev_odm_pipe;
+	split_pipe = pipe_ctx->prev_odm_pipe;
 
-		while (split_pipe) {
-			(*split_idx)++;
-			split_pipe = split_pipe->prev_odm_pipe;
-		}
+	while (split_pipe) {
+		index++;
+		split_pipe = split_pipe->prev_odm_pipe;
 	}
+
+	return index;
+}
+
+static int get_mpc_split_index(struct pipe_ctx *pipe_ctx)
+{
+	struct pipe_ctx *split_pipe = pipe_ctx->top_pipe;
+	int index = 0;
+
+	while (split_pipe && split_pipe->plane_state == pipe_ctx->plane_state) {
+		index++;
+		split_pipe = split_pipe->top_pipe;
+	}
+
+	return index;
 }
 
 /*
@@ -800,82 +815,357 @@ static void calculate_viewport_size(struct pipe_ctx *pipe_ctx)
 	}
 }
 
+static struct rect intersect_rec(const struct rect *r0, const struct rect *r1)
+{
+	struct rect rec;
+	int r0_x_end = r0->x + r0->width;
+	int r1_x_end = r1->x + r1->width;
+	int r0_y_end = r0->y + r0->height;
+	int r1_y_end = r1->y + r1->height;
+
+	rec.x = r0->x > r1->x ? r0->x : r1->x;
+	rec.width = r0_x_end > r1_x_end ? r1_x_end - rec.x : r0_x_end - rec.x;
+	rec.y = r0->y > r1->y ? r0->y : r1->y;
+	rec.height = r0_y_end > r1_y_end ? r1_y_end - rec.y : r0_y_end - rec.y;
+
+	/* in case that there is no intersection */
+	if (rec.width < 0 || rec.height < 0)
+		memset(&rec, 0, sizeof(rec));
+
+	return rec;
+}
+
+static struct rect shift_rec(const struct rect *rec_in, int x, int y)
+{
+	struct rect rec_out = *rec_in;
+
+	rec_out.x += x;
+	rec_out.y += y;
+
+	return rec_out;
+}
+
+static struct rect calculate_odm_slice_in_timing_active(struct pipe_ctx *pipe_ctx)
+{
+	const struct dc_stream_state *stream = pipe_ctx->stream;
+	int odm_slice_count = get_num_odm_splits(pipe_ctx) + 1;
+	int odm_slice_idx = get_odm_split_index(pipe_ctx);
+	bool is_last_odm_slice = (odm_slice_idx + 1) == odm_slice_count;
+	int h_active = stream->timing.h_addressable +
+			stream->timing.h_border_left +
+			stream->timing.h_border_right;
+	int odm_slice_width = h_active / odm_slice_count;
+	struct rect odm_rec;
+
+	odm_rec.x = odm_slice_width * odm_slice_idx;
+	odm_rec.width = is_last_odm_slice ?
+			/* last slice width is the reminder of h_active */
+			h_active - odm_slice_width * (odm_slice_count - 1) :
+			/* odm slice width is the floor of h_active / count */
+			odm_slice_width;
+	odm_rec.y = 0;
+	odm_rec.height = stream->timing.v_addressable +
+			stream->timing.v_border_bottom +
+			stream->timing.v_border_top;
+
+	return odm_rec;
+}
+
+static struct rect calculate_plane_rec_in_timing_active(
+		struct pipe_ctx *pipe_ctx,
+		const struct rect *rec_in)
+{
+	/*
+	 * The following diagram shows an example where we map a 1920x1200
+	 * desktop to a 2560x1440 timing with a plane rect in the middle
+	 * of the screen. To map a plane rect from Stream Source to Timing
+	 * Active space, we first multiply stream scaling ratios (i.e 2304/1920
+	 * horizontal and 1440/1200 vertical) to the plane's x and y, then
+	 * we add stream destination offsets (i.e 128 horizontal, 0 vertical).
+	 * This will give us a plane rect's position in Timing Active. However
+	 * we have to remove the fractional. The rule is that we find left/right
+	 * and top/bottom positions and round the value to the adjacent integer.
+	 *
+	 * Stream Source Space
+	 * ------------
+	 *        __________________________________________________
+	 *       |Stream Source (1920 x 1200) ^                     |
+	 *       |                            y                     |
+	 *       |         <------- w --------|>                    |
+	 *       |          __________________V                     |
+	 *       |<-- x -->|Plane//////////////| ^                  |
+	 *       |         |(pre scale)////////| |                  |
+	 *       |         |///////////////////| |                  |
+	 *       |         |///////////////////| h                  |
+	 *       |         |///////////////////| |                  |
+	 *       |         |///////////////////| |                  |
+	 *       |         |///////////////////| V                  |
+	 *       |                                                  |
+	 *       |                                                  |
+	 *       |__________________________________________________|
+	 *
+	 *
+	 * Timing Active Space
+	 * ---------------------------------
+	 *
+	 *       Timing Active (2560 x 1440)
+	 *        __________________________________________________
+	 *       |*****|  Stteam Destination (2304 x 1440)    |*****|
+	 *       |*****|                                      |*****|
+	 *       |<128>|                                      |*****|
+	 *       |*****|     __________________               |*****|
+	 *       |*****|    |Plane/////////////|              |*****|
+	 *       |*****|    |(post scale)//////|              |*****|
+	 *       |*****|    |//////////////////|              |*****|
+	 *       |*****|    |//////////////////|              |*****|
+	 *       |*****|    |//////////////////|              |*****|
+	 *       |*****|    |//////////////////|              |*****|
+	 *       |*****|                                      |*****|
+	 *       |*****|                                      |*****|
+	 *       |*****|                                      |*****|
+	 *       |*****|______________________________________|*****|
+	 *
+	 * So the resulting formulas are shown below:
+	 *
+	 * recout_x = 128 + round(plane_x * 2304 / 1920)
+	 * recout_w = 128 + round((plane_x + plane_w) * 2304 / 1920) - recout_x
+	 * recout_y = 0 + round(plane_y * 1440 / 1280)
+	 * recout_h = 0 + round((plane_y + plane_h) * 1440 / 1200) - recout_y
+	 *
+	 * NOTE: fixed point division is not error free. To reduce errors
+	 * introduced by fixed point division, we divide only after
+	 * multiplication is complete.
+	 */
+	const struct dc_stream_state *stream = pipe_ctx->stream;
+	struct rect rec_out = {0};
+	struct fixed31_32 temp;
+
+	temp = dc_fixpt_from_fraction(rec_in->x * stream->dst.width,
+			stream->src.width);
+	rec_out.x = stream->dst.x + dc_fixpt_round(temp);
+
+	temp = dc_fixpt_from_fraction(
+			(rec_in->x + rec_in->width) * stream->dst.width,
+			stream->src.width);
+	rec_out.width = stream->dst.x + dc_fixpt_round(temp) - rec_out.x;
+
+	temp = dc_fixpt_from_fraction(rec_in->y * stream->dst.height,
+			stream->src.height);
+	rec_out.y = stream->dst.y + dc_fixpt_round(temp);
+
+	temp = dc_fixpt_from_fraction(
+			(rec_in->y + rec_in->height) * stream->dst.height,
+			stream->src.height);
+	rec_out.height = stream->dst.y + dc_fixpt_round(temp) - rec_out.y;
+
+	return rec_out;
+}
+
+static struct rect calculate_mpc_slice_in_timing_active(
+		struct pipe_ctx *pipe_ctx,
+		struct rect *plane_clip_rec)
+{
+	const struct dc_stream_state *stream = pipe_ctx->stream;
+	int mpc_slice_count = get_num_mpc_splits(pipe_ctx) + 1;
+	int mpc_slice_idx = get_mpc_split_index(pipe_ctx);
+	int epimo = mpc_slice_count - plane_clip_rec->width % mpc_slice_count - 1;
+	struct rect mpc_rec;
+
+	mpc_rec.width = plane_clip_rec->width / mpc_slice_count;
+	mpc_rec.x = plane_clip_rec->x + mpc_rec.width * mpc_slice_idx;
+	mpc_rec.height = plane_clip_rec->height;
+	mpc_rec.y = plane_clip_rec->y;
+	ASSERT(mpc_slice_count == 1 ||
+			stream->view_format != VIEW_3D_FORMAT_SIDE_BY_SIDE ||
+			mpc_rec.width % 2 == 0);
+
+	/* extra pixels in the division remainder need to go to pipes after
+	 * the extra pixel index minus one(epimo) defined here as:
+	 */
+	if (mpc_slice_idx > epimo) {
+		mpc_rec.x += mpc_slice_idx - epimo - 1;
+		mpc_rec.width += 1;
+	}
+
+	if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
+		ASSERT(mpc_rec.height % 2 == 0);
+		mpc_rec.height /= 2;
+	}
+	return mpc_rec;
+}
+
+static void adjust_recout_for_visual_confirm(struct rect *recout,
+		struct pipe_ctx *pipe_ctx)
+{
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	int dpp_offset, base_offset;
+
+	if (dc->debug.visual_confirm == VISUAL_CONFIRM_DISABLE)
+		return;
+
+	dpp_offset = pipe_ctx->plane_res.dpp->inst * VISUAL_CONFIRM_DPP_OFFSET;
+
+	if ((dc->debug.visual_confirm_rect_height >= VISUAL_CONFIRM_BASE_MIN) &&
+			dc->debug.visual_confirm_rect_height <= VISUAL_CONFIRM_BASE_MAX)
+		base_offset = dc->debug.visual_confirm_rect_height;
+	else
+		base_offset = VISUAL_CONFIRM_BASE_DEFAULT;
+
+	recout->height -= base_offset;
+	recout->height -= dpp_offset;
+}
+
+/*
+ * The function maps a plane clip from Stream Source Space to ODM Slice Space
+ * and calculates the rec of the overlapping area of MPC slice of the plane
+ * clip, ODM slice associated with the pipe context and stream destination rec.
+ */
 static void calculate_recout(struct pipe_ctx *pipe_ctx)
 {
-	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	const struct dc_stream_state *stream = pipe_ctx->stream;
-	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
-	struct rect surf_clip = plane_state->clip_rect;
-	bool split_tb = stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM;
-	int split_count, split_idx;
-
-	calculate_split_count_and_index(pipe_ctx, &split_count, &split_idx);
-	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
-		split_idx = 0;
-
 	/*
-	 * Only the leftmost ODM pipe should be offset by a nonzero distance
+	 * A plane clip represents the desired plane size and position in Stream
+	 * Source Space. Stream Source is the destination where all planes are
+	 * blended (i.e. positioned, scaled and overlaid). It is a canvas where
+	 * all planes associated with the current stream are drawn together.
+	 * After Stream Source is completed, we will further scale and
+	 * reposition the entire canvas of the stream source to Stream
+	 * Destination in Timing Active Space. This could be due to display
+	 * overscan adjustment where we will need to rescale and reposition all
+	 * the planes so they can fit into a TV with overscan or downscale
+	 * upscale features such as GPU scaling or VSR.
+	 *
+	 * This two step blending is a virtual procedure in software. In
+	 * hardware there is no such thing as Stream Source. all planes are
+	 * blended once in Timing Active Space. Software virtualizes a Stream
+	 * Source space to decouple the math complicity so scaling param
+	 * calculation focuses on one step at a time.
+	 *
+	 * In the following two diagrams, user applied 10% overscan adjustment
+	 * so the Stream Source needs to be scaled down a little before mapping
+	 * to Timing Active Space. As a result the Plane Clip is also scaled
+	 * down by the same ratio, Plane Clip position (i.e. x and y) with
+	 * respect to Stream Source is also scaled down. To map it in Timing
+	 * Active Space additional x and y offsets from Stream Destination are
+	 * added to Plane Clip as well.
+	 *
+	 * Stream Source Space
+	 * ------------
+	 *        __________________________________________________
+	 *       |Stream Source (3840 x 2160) ^                     |
+	 *       |                            y                     |
+	 *       |                            |                     |
+	 *       |          __________________V                     |
+	 *       |<-- x -->|Plane Clip/////////|                    |
+	 *       |         |(pre scale)////////|                    |
+	 *       |         |///////////////////|                    |
+	 *       |         |///////////////////|                    |
+	 *       |         |///////////////////|                    |
+	 *       |         |///////////////////|                    |
+	 *       |         |///////////////////|                    |
+	 *       |                                                  |
+	 *       |                                                  |
+	 *       |__________________________________________________|
+	 *
+	 *
+	 * Timing Active Space (3840 x 2160)
+	 * ---------------------------------
+	 *
+	 *       Timing Active
+	 *        __________________________________________________
+	 *       | y_____________________________________________   |
+	 *       |x |Stream Destination (3456 x 1944)            |  |
+	 *       |  |                                            |  |
+	 *       |  |        __________________                  |  |
+	 *       |  |       |Plane Clip////////|                 |  |
+	 *       |  |       |(post scale)//////|                 |  |
+	 *       |  |       |//////////////////|                 |  |
+	 *       |  |       |//////////////////|                 |  |
+	 *       |  |       |//////////////////|                 |  |
+	 *       |  |       |//////////////////|                 |  |
+	 *       |  |                                            |  |
+	 *       |  |                                            |  |
+	 *       |  |____________________________________________|  |
+	 *       |__________________________________________________|
+	 *
+	 *
+	 * In Timing Active Space a plane clip could be further sliced into
+	 * pieces called MPC slices. Each Pipe Context is responsible for
+	 * processing only one MPC slice so the plane processing workload can be
+	 * distributed to multiple DPP Pipes. MPC slices could be blended
+	 * together to a single ODM slice. Each ODM slice is responsible for
+	 * processing a portion of Timing Active divided horizontally so the
+	 * output pixel processing workload can be distributed to multiple OPP
+	 * pipes. All ODM slices are mapped together in ODM block so all MPC
+	 * slices belong to different ODM slices could be pieced together to
+	 * form a single image in Timing Active. MPC slices must belong to
+	 * single ODM slice. If an MPC slice goes across ODM slice boundary, it
+	 * needs to be divided into two MPC slices one for each ODM slice.
+	 *
+	 * In the following diagram the output pixel processing workload is
+	 * divided horizontally into two ODM slices one for each OPP blend tree.
+	 * OPP0 blend tree is responsible for processing left half of Timing
+	 * Active, while OPP2 blend tree is responsible for processing right
+	 * half.
+	 *
+	 * The plane has two MPC slices. However since the right MPC slice goes
+	 * across ODM boundary, two DPP pipes are needed one for each OPP blend
+	 * tree. (i.e. DPP1 for OPP0 blend tree and DPP2 for OPP2 blend tree).
+	 *
+	 * Assuming that we have a Pipe Context associated with OPP0 and DPP1
+	 * working on processing the plane in the diagram. We want to know the
+	 * width and height of the shaded rectangle and its relative position
+	 * with respect to the ODM slice0. This is called the recout of the pipe
+	 * context.
+	 *
+	 * Planes can be at arbitrary size and position and there could be an
+	 * arbitrary number of MPC and ODM slices. The algorithm needs to take
+	 * all scenarios into account.
+	 *
+	 * Timing Active Space (3840 x 2160)
+	 * ---------------------------------
+	 *
+	 *       Timing Active
+	 *        __________________________________________________
+	 *       |OPP0(ODM slice0)^        |OPP2(ODM slice1)        |
+	 *       |                y        |                        |
+	 *       |                |  <- w ->                        |
+	 *       |           _____V________|____                    |
+	 *       |          |DPP0 ^  |DPP1 |DPP2|                   |
+	 *       |<------ x |-----|->|/////|    |                   |
+	 *       |          |     |  |/////|    |                   |
+	 *       |          |     h  |/////|    |                   |
+	 *       |          |     |  |/////|    |                   |
+	 *       |          |_____V__|/////|____|                   |
+	 *       |                         |                        |
+	 *       |                         |                        |
+	 *       |                         |                        |
+	 *       |_________________________|________________________|
+	 *
+	 *
 	 */
-	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->prev_odm_pipe && !pipe_ctx->prev_odm_pipe) {
-		/* MPO window on right side of ODM split */
-		data->recout.x = stream->dst.x + (surf_clip.x - stream->src.x - stream->src.width/2) *
-				stream->dst.width / stream->src.width;
-	} else if (!pipe_ctx->prev_odm_pipe || split_idx == split_count) {
-		data->recout.x = stream->dst.x;
-		if (stream->src.x < surf_clip.x)
-			data->recout.x += (surf_clip.x - stream->src.x) * stream->dst.width
-						/ stream->src.width;
-	} else
-		data->recout.x = 0;
+	struct rect plane_clip;
+	struct rect mpc_slice_of_plane_clip;
+	struct rect odm_slice;
+	struct rect overlapping_area;
 
-	if (stream->src.x > surf_clip.x)
-		surf_clip.width -= stream->src.x - surf_clip.x;
-	data->recout.width = surf_clip.width * stream->dst.width / stream->src.width;
-	if (data->recout.width + data->recout.x > stream->dst.x + stream->dst.width)
-		data->recout.width = stream->dst.x + stream->dst.width - data->recout.x;
+	plane_clip = calculate_plane_rec_in_timing_active(pipe_ctx,
+			&pipe_ctx->plane_state->clip_rect);
+	/* guard plane clip from drawing beyond stream dst here */
+	plane_clip = intersect_rec(&plane_clip,
+				&pipe_ctx->stream->dst);
+	mpc_slice_of_plane_clip = calculate_mpc_slice_in_timing_active(
+			pipe_ctx, &plane_clip);
+	odm_slice = calculate_odm_slice_in_timing_active(pipe_ctx);
+	overlapping_area = intersect_rec(&mpc_slice_of_plane_clip, &odm_slice);
+	/* shift the overlapping area so it is with respect to current ODM
+	 * slice's position
+	 */
+	pipe_ctx->plane_res.scl_data.recout = shift_rec(
+			&overlapping_area,
+			-odm_slice.x, -odm_slice.y);
 
-	data->recout.y = stream->dst.y;
-	if (stream->src.y < surf_clip.y)
-		data->recout.y += (surf_clip.y - stream->src.y) * stream->dst.height
-						/ stream->src.height;
-	else if (stream->src.y > surf_clip.y)
-		surf_clip.height -= stream->src.y - surf_clip.y;
-
-	data->recout.height = surf_clip.height * stream->dst.height / stream->src.height;
-	if (data->recout.height + data->recout.y > stream->dst.y + stream->dst.height)
-		data->recout.height = stream->dst.y + stream->dst.height - data->recout.y;
-
-	/* Handle h & v split */
-	if (split_tb) {
-		ASSERT(data->recout.height % 2 == 0);
-		data->recout.height /= 2;
-	} else if (split_count) {
-		if (!pipe_ctx->next_odm_pipe && !pipe_ctx->prev_odm_pipe) {
-			/* extra pixels in the division remainder need to go to pipes after
-			 * the extra pixel index minus one(epimo) defined here as:
-			 */
-			int epimo = split_count - data->recout.width % (split_count + 1);
-
-			data->recout.x += (data->recout.width / (split_count + 1)) * split_idx;
-			if (split_idx > epimo)
-				data->recout.x += split_idx - epimo - 1;
-			ASSERT(stream->view_format != VIEW_3D_FORMAT_SIDE_BY_SIDE || data->recout.width % 2 == 0);
-			data->recout.width = data->recout.width / (split_count + 1) + (split_idx > epimo ? 1 : 0);
-		} else {
-			/* odm */
-			if (split_idx == split_count) {
-				/* rightmost pipe is the remainder recout */
-				data->recout.width -= data->h_active * split_count - data->recout.x;
-
-				/* ODM combine cases with MPO we can get negative widths */
-				if (data->recout.width < 0)
-					data->recout.width = 0;
-
-				data->recout.x = 0;
-			} else
-				data->recout.width = data->h_active - data->recout.x;
-		}
-	}
+	adjust_recout_for_visual_confirm(&pipe_ctx->plane_res.scl_data.recout,
+			pipe_ctx);
 }
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
@@ -997,34 +1287,25 @@ static void calculate_init_and_vp(
 static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
 	struct rect src = plane_state->src_rect;
+	struct rect recout_dst_in_active_timing;
+	struct rect recout_clip_in_active_timing;
+	struct rect recout_clip_in_recout_dst;
+	struct rect odm_slice = calculate_odm_slice_in_timing_active(pipe_ctx);
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
 				|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
-	int split_count, split_idx, ro_lb, ro_tb, recout_full_x, recout_full_y;
 	bool orthogonal_rotation, flip_vert_scan_dir, flip_horz_scan_dir;
 
-	calculate_split_count_and_index(pipe_ctx, &split_count, &split_idx);
-	/*
-	 * recout full is what the recout would have been if we didnt clip
-	 * the source plane at all. We only care about left(ro_lb) and top(ro_tb)
-	 * offsets of recout within recout full because those are the directions
-	 * we scan from and therefore the only ones that affect inits.
-	 */
-	recout_full_x = stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
-			* stream->dst.width / stream->src.width;
-	recout_full_y = stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
-			* stream->dst.height / stream->src.height;
-	if (pipe_ctx->prev_odm_pipe && split_idx)
-		ro_lb = data->h_active * split_idx - recout_full_x;
-	else if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->prev_odm_pipe)
-		ro_lb = data->h_active * split_idx - recout_full_x + data->recout.x;
-	else
-		ro_lb = data->recout.x - recout_full_x;
-	ro_tb = data->recout.y - recout_full_y;
-	ASSERT(ro_lb >= 0 && ro_tb >= 0);
-
+	recout_clip_in_active_timing = shift_rec(
+			&data->recout, odm_slice.x, odm_slice.y);
+	recout_dst_in_active_timing = calculate_plane_rec_in_timing_active(
+			pipe_ctx, &plane_state->dst_rect);
+	recout_clip_in_recout_dst = shift_rec(&recout_clip_in_active_timing,
+			-recout_dst_in_active_timing.x,
+			-recout_dst_in_active_timing.y);
+	ASSERT(recout_clip_in_recout_dst.x >= 0 &&
+			recout_clip_in_recout_dst.y >= 0);
 	/*
 	 * Work in recout rotation since that requires less transformations
 	 */
@@ -1042,7 +1323,7 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 
 	calculate_init_and_vp(
 			flip_horz_scan_dir,
-			ro_lb,
+			recout_clip_in_recout_dst.x,
 			data->recout.width,
 			src.width,
 			data->taps.h_taps,
@@ -1052,7 +1333,7 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 			&data->viewport.width);
 	calculate_init_and_vp(
 			flip_horz_scan_dir,
-			ro_lb,
+			recout_clip_in_recout_dst.x,
 			data->recout.width,
 			src.width / vpc_div,
 			data->taps.h_taps_c,
@@ -1062,7 +1343,7 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 			&data->viewport_c.width);
 	calculate_init_and_vp(
 			flip_vert_scan_dir,
-			ro_tb,
+			recout_clip_in_recout_dst.y,
 			data->recout.height,
 			src.height,
 			data->taps.v_taps,
@@ -1072,7 +1353,7 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 			&data->viewport.height);
 	calculate_init_and_vp(
 			flip_vert_scan_dir,
-			ro_tb,
+			recout_clip_in_recout_dst.y,
 			data->recout.height,
 			src.height / vpc_div,
 			data->taps.v_taps_c,
@@ -1097,6 +1378,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
+	const struct rect odm_slice_rec = calculate_odm_slice_in_timing_active(pipe_ctx);
 	bool res = false;
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
@@ -1121,30 +1403,9 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->stream->dst.y += timing->v_border_top;
 
 	/* Calculate H and V active size */
-	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable +
-			timing->h_border_left + timing->h_border_right;
-	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable +
-		timing->v_border_top + timing->v_border_bottom;
-	if (pipe_ctx->next_odm_pipe || pipe_ctx->prev_odm_pipe) {
-		pipe_ctx->plane_res.scl_data.h_active /= get_num_odm_splits(pipe_ctx) + 1;
+	pipe_ctx->plane_res.scl_data.h_active = odm_slice_rec.width;
+	pipe_ctx->plane_res.scl_data.v_active = odm_slice_rec.height;
 
-		DC_LOG_SCALER("%s pipe %d: next_odm_pipe:%d   prev_odm_pipe:%d\n",
-				__func__,
-				pipe_ctx->pipe_idx,
-				pipe_ctx->next_odm_pipe ? pipe_ctx->next_odm_pipe->pipe_idx : -1,
-				pipe_ctx->prev_odm_pipe ? pipe_ctx->prev_odm_pipe->pipe_idx : -1);
-	}	/* ODM + windows MPO, where window is on either right or left ODM half */
-	else if (pipe_ctx->top_pipe && (pipe_ctx->top_pipe->next_odm_pipe || pipe_ctx->top_pipe->prev_odm_pipe)) {
-
-		pipe_ctx->plane_res.scl_data.h_active /= get_num_odm_splits(pipe_ctx->top_pipe) + 1;
-
-		DC_LOG_SCALER("%s ODM + windows MPO: pipe:%d top_pipe:%d   top_pipe->next_odm_pipe:%d   top_pipe->prev_odm_pipe:%d\n",
-				__func__,
-				pipe_ctx->pipe_idx,
-				pipe_ctx->top_pipe->pipe_idx,
-				pipe_ctx->top_pipe->next_odm_pipe ? pipe_ctx->top_pipe->next_odm_pipe->pipe_idx : -1,
-				pipe_ctx->top_pipe->prev_odm_pipe ? pipe_ctx->top_pipe->prev_odm_pipe->pipe_idx : -1);
-	}
 	/* depends on h_active */
 	calculate_recout(pipe_ctx);
 	/* depends on pixel format */
@@ -1449,7 +1710,24 @@ static int acquire_first_split_pipe(
 			return i;
 		} else if (split_pipe->prev_odm_pipe &&
 				split_pipe->prev_odm_pipe->plane_state == split_pipe->plane_state) {
+
+			// Fix case where ODM slice has child planes
+			// Re-attach child planes
+			struct pipe_ctx *temp_head_pipe = resource_get_head_pipe_for_stream(res_ctx, split_pipe->stream);
+
+			if (split_pipe->bottom_pipe && temp_head_pipe) {
+
+				struct pipe_ctx *temp_tail_pipe = resource_get_tail_pipe(res_ctx, temp_head_pipe);
+
+				if (temp_tail_pipe) {
+
+					split_pipe->bottom_pipe->top_pipe = temp_tail_pipe;
+					temp_tail_pipe->bottom_pipe = split_pipe->bottom_pipe;
+				}
+			}
+
 			split_pipe->prev_odm_pipe->next_odm_pipe = split_pipe->next_odm_pipe;
+
 			if (split_pipe->next_odm_pipe)
 				split_pipe->next_odm_pipe->prev_odm_pipe = split_pipe->prev_odm_pipe;
 
@@ -1457,6 +1735,11 @@ static int acquire_first_split_pipe(
 				resource_build_scaling_params(split_pipe->prev_odm_pipe);
 
 			memset(split_pipe, 0, sizeof(*split_pipe));
+
+			// We cannot split if head pipe is not odm
+			if (temp_head_pipe && !temp_head_pipe->next_odm_pipe && !temp_head_pipe->prev_odm_pipe)
+				return HEAD_NOT_IN_ODM;
+
 			split_pipe->stream_res.tg = pool->timing_generators[i];
 			split_pipe->plane_res.hubp = pool->hubps[i];
 			split_pipe->plane_res.ipp = pool->ipps[i];
@@ -1469,7 +1752,7 @@ static int acquire_first_split_pipe(
 			return i;
 		}
 	}
-	return -1;
+	return UNABLE_TO_SPLIT;
 }
 
 bool dc_add_plane_to_context(
@@ -1521,6 +1804,10 @@ bool dc_add_plane_to_context(
 			int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
 			if (pipe_idx >= 0)
 				free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
+			else if (pipe_idx == HEAD_NOT_IN_ODM)
+				break;
+			else
+				ASSERT(false);
 		}
 
 		if (!free_pipe) {
@@ -1677,12 +1964,14 @@ bool dc_add_plane_to_context(
 						(free_pipe->plane_state->clip_rect.x + free_pipe->plane_state->clip_rect.width <=
 						free_pipe->stream->src.x + free_pipe->stream->src.width/2))) {
 					if (!free_pipe->next_odm_pipe &&
-						tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
+						tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe &&
+						tail_pipe->next_odm_pipe->bottom_pipe->plane_state == free_pipe->plane_state) {
 						free_pipe->next_odm_pipe = tail_pipe->next_odm_pipe->bottom_pipe;
 						tail_pipe->next_odm_pipe->bottom_pipe->prev_odm_pipe = free_pipe;
 					}
 					if (!free_pipe->prev_odm_pipe &&
-						tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe) {
+						tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe &&
+						tail_pipe->prev_odm_pipe->bottom_pipe->plane_state == free_pipe->plane_state) {
 						free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
 						tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
 					}

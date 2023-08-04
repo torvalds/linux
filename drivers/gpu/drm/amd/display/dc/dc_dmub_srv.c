@@ -381,6 +381,9 @@ void dc_dmub_srv_query_caps_cmd(struct dc_dmub_srv *dc_dmub_srv)
 {
 	union dmub_rb_cmd cmd = { 0 };
 
+	if (dc_dmub_srv->ctx->dc->debug.dmcub_emulation)
+		return;
+
 	memset(&cmd, 0, sizeof(cmd));
 
 	/* Prepare fw command */

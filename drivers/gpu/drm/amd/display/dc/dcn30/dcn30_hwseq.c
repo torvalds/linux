@@ -949,13 +949,36 @@ void dcn30_set_disp_pattern_generator(const struct dc *dc,
 }
 
 void dcn30_prepare_bandwidth(struct dc *dc,
-			     struct dc_state *context)
+	struct dc_state *context)
 {
+	bool p_state_change_support = context->bw_ctx.bw.dcn.clk.p_state_change_support;
+	/* Any transition into an FPO config should disable MCLK switching first to avoid
+	 * driver and FW P-State synchronization issues.
+	 */
+	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching || dc->clk_mgr->clks.fw_based_mclk_switching) {
+		dc->optimized_required = true;
+		context->bw_ctx.bw.dcn.clk.p_state_change_support = false;
+	}
+
 	if (dc->clk_mgr->dc_mode_softmax_enabled)
 		if (dc->clk_mgr->clks.dramclk_khz <= dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000 &&
 				context->bw_ctx.bw.dcn.clk.dramclk_khz > dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000)
 			dc->clk_mgr->funcs->set_max_memclk(dc->clk_mgr, dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz);
 
 	dcn20_prepare_bandwidth(dc, context);
+	/*
+	 * enabled -> enabled: do not disable
+	 * enabled -> disabled: disable
+	 * disabled -> enabled: don't care
+	 * disabled -> disabled: don't care
+	 */
+	if (!context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching)
+		dc_dmub_srv_p_state_delegate(dc, false, context);
+
+	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching || dc->clk_mgr->clks.fw_based_mclk_switching) {
+		/* After disabling P-State, restore the original value to ensure we get the correct P-State
+		 * on the next optimize. */
+		context->bw_ctx.bw.dcn.clk.p_state_change_support = p_state_change_support;
+	}
 }
 

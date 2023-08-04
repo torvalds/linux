@@ -309,8 +309,8 @@ struct psp_runtime_scpm_entry {
 
 struct psp_context
 {
-	struct amdgpu_device            *adev;
-	struct psp_ring                 km_ring;
+	struct amdgpu_device		*adev;
+	struct psp_ring			km_ring;
 	struct psp_gfx_cmd_resp		*cmd;
 
 	const struct psp_funcs		*funcs;
@@ -339,7 +339,7 @@ struct psp_context
 	uint64_t			tmr_mc_addr;
 
 	/* asd firmware */
-	const struct firmware	*asd_fw;
+	const struct firmware		*asd_fw;
 
 	/* toc firmware */
 	const struct firmware		*toc_fw;
@@ -384,9 +384,13 @@ struct psp_context
 
 	uint32_t			boot_cfg_bitmask;
 
-	char *vbflash_tmp_buf;
-	size_t vbflash_image_size;
-	bool vbflash_done;
+	/* firmware upgrades supported */
+	bool				sup_pd_fw_up;
+	bool				sup_ifwi_up;
+
+	char				*vbflash_tmp_buf;
+	size_t				vbflash_image_size;
+	bool				vbflash_done;
 };
 
 struct amdgpu_psp_funcs {
@@ -458,9 +462,10 @@ extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 extern int psp_wait_for_spirom_update(struct psp_context *psp, uint32_t reg_index,
 			uint32_t field_val, uint32_t mask, uint32_t msec_timeout);
 
+int psp_execute_ip_fw_load(struct psp_context *psp,
+			   struct amdgpu_firmware_info *ucode);
+
 int psp_gpu_reset(struct amdgpu_device *adev);
-int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
-			uint64_t cmd_gpu_addr, int cmd_size);
 
 int psp_ta_init_shared_buf(struct psp_context *psp,
 				  struct ta_mem_context *mem_ctx);
@@ -525,6 +530,4 @@ int psp_spatial_partition(struct psp_context *psp, int mode);
 
 int is_psp_fw_valid(struct psp_bin_desc bin);
 
-int amdgpu_psp_sysfs_init(struct amdgpu_device *adev);
-void amdgpu_psp_sysfs_fini(struct amdgpu_device *adev);
 #endif

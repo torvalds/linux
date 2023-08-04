@@ -113,6 +113,11 @@ void amdgpu_dm_plane_fill_blending_from_plane_state(const struct drm_plane_state
 			DRM_FORMAT_ARGB8888,
 			DRM_FORMAT_RGBA8888,
 			DRM_FORMAT_ABGR8888,
+			DRM_FORMAT_ARGB2101010,
+			DRM_FORMAT_ABGR2101010,
+			DRM_FORMAT_ARGB16161616,
+			DRM_FORMAT_ABGR16161616,
+			DRM_FORMAT_ARGB16161616F,
 		};
 		uint32_t format = plane_state->fb->format->format;
 		unsigned int i;
@@ -164,7 +169,7 @@ static bool modifier_has_dcc(uint64_t modifier)
 	return IS_AMD_FMT_MOD(modifier) && AMD_FMT_MOD_GET(DCC, modifier);
 }
 
-static unsigned modifier_gfx9_swizzle_mode(uint64_t modifier)
+static unsigned int modifier_gfx9_swizzle_mode(uint64_t modifier)
 {
 	if (modifier == DRM_FORMAT_MOD_LINEAR)
 		return 0;
@@ -581,7 +586,7 @@ static void add_gfx11_modifiers(struct amdgpu_device *adev,
 	int pkrs = 0;
 	u32 gb_addr_config;
 	u8 i = 0;
-	unsigned swizzle_r_x;
+	unsigned int swizzle_r_x;
 	uint64_t modifier_r_x;
 	uint64_t modifier_dcc_best;
 	uint64_t modifier_dcc_4k;
@@ -698,8 +703,8 @@ static int get_plane_formats(const struct drm_plane *plane,
 	 * caps list.
 	 */
 
-	switch (plane->type) {
-	case DRM_PLANE_TYPE_PRIMARY:
+	if (plane->type == DRM_PLANE_TYPE_PRIMARY ||
+		(plane_cap && plane_cap->type == DC_PLANE_TYPE_DCN_UNIVERSAL && plane->type != DRM_PLANE_TYPE_CURSOR)) {
 		for (i = 0; i < ARRAY_SIZE(rgb_formats); ++i) {
 			if (num_formats >= max_formats)
 				break;
@@ -717,25 +722,29 @@ static int get_plane_formats(const struct drm_plane *plane,
 			formats[num_formats++] = DRM_FORMAT_XBGR16161616F;
 			formats[num_formats++] = DRM_FORMAT_ABGR16161616F;
 		}
-		break;
+	} else {
+		switch (plane->type) {
+		case DRM_PLANE_TYPE_OVERLAY:
+			for (i = 0; i < ARRAY_SIZE(overlay_formats); ++i) {
+				if (num_formats >= max_formats)
+					break;
 
-	case DRM_PLANE_TYPE_OVERLAY:
-		for (i = 0; i < ARRAY_SIZE(overlay_formats); ++i) {
-			if (num_formats >= max_formats)
-				break;
+				formats[num_formats++] = overlay_formats[i];
+			}
+			break;
 
-			formats[num_formats++] = overlay_formats[i];
+		case DRM_PLANE_TYPE_CURSOR:
+			for (i = 0; i < ARRAY_SIZE(cursor_formats); ++i) {
+				if (num_formats >= max_formats)
+					break;
+
+				formats[num_formats++] = cursor_formats[i];
+			}
+			break;
+
+		default:
+			break;
 		}
-		break;
-
-	case DRM_PLANE_TYPE_CURSOR:
-		for (i = 0; i < ARRAY_SIZE(cursor_formats); ++i) {
-			if (num_formats >= max_formats)
-				break;
-
-			formats[num_formats++] = cursor_formats[i];
-		}
-		break;
 	}
 
 	return num_formats;
@@ -1457,6 +1466,15 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 
 		drm_plane_create_alpha_property(plane);
 		drm_plane_create_blend_mode_property(plane, blend_caps);
+	}
+
+	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
+		drm_plane_create_zpos_immutable_property(plane, 0);
+	} else if (plane->type == DRM_PLANE_TYPE_OVERLAY) {
+		unsigned int zpos = 1 + drm_plane_index(plane);
+		drm_plane_create_zpos_property(plane, zpos, 1, 254);
+	} else if (plane->type == DRM_PLANE_TYPE_CURSOR) {
+		drm_plane_create_zpos_immutable_property(plane, 255);
 	}
 
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY &&
