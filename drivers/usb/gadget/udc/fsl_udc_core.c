@@ -671,7 +671,7 @@ static int fsl_ep_disable(struct usb_ep *_ep)
 static struct usb_request *
 fsl_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 {
-	struct fsl_req *req = NULL;
+	struct fsl_req *req;
 
 	req = kzalloc(sizeof *req, gfp_flags);
 	if (!req)

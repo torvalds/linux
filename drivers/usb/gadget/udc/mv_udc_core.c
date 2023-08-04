@@ -595,7 +595,7 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 static struct usb_request *
 mv_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 {
-	struct mv_req *req = NULL;
+	struct mv_req *req;
 
 	req = kzalloc(sizeof *req, gfp_flags);
 	if (!req)
