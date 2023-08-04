@@ -241,6 +241,12 @@ struct gve_rx_ring {
 
 			/* qpl assigned to this queue */
 			struct gve_queue_page_list *qpl;
+
+			/* index into queue page list */
+			u32 next_qpl_page_idx;
+
+			/* track number of used buffers */
+			u16 used_buf_states_cnt;
 		} dqo;
 	};
 
