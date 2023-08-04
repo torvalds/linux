@@ -1444,8 +1444,6 @@ fast_isolate_around(struct compact_control *cc, unsigned long pfn)
 	/* Skip this pageblock in the future as it's full or nearly full */
 	if (start_pfn == end_pfn)
 		set_pageblock_skip(page);
-
-	return;
 }
 
 /* Search orders in round-robin fashion */
@@ -2898,7 +2896,7 @@ int compaction_register_node(struct node *node)
 
 void compaction_unregister_node(struct node *node)
 {
-	return device_remove_file(&node->dev, &dev_attr_compact);
+	device_remove_file(&node->dev, &dev_attr_compact);
 }
 #endif /* CONFIG_SYSFS && CONFIG_NUMA */
 
