@@ -462,16 +462,6 @@ static inline void init_vma_prep(struct vma_prepare *vp,
  */
 static inline void vma_prepare(struct vma_prepare *vp)
 {
-	vma_start_write(vp->vma);
-	if (vp->adj_next)
-		vma_start_write(vp->adj_next);
-	if (vp->insert)
-		vma_start_write(vp->insert);
-	if (vp->remove)
-		vma_start_write(vp->remove);
-	if (vp->remove2)
-		vma_start_write(vp->remove2);
-
 	if (vp->file) {
 		uprobe_munmap(vp->vma, vp->vma->vm_start, vp->vma->vm_end);
 
@@ -605,7 +595,7 @@ static inline int dup_anon_vma(struct vm_area_struct *dst,
 	 * anon pages imported.
 	 */
 	if (src->anon_vma && !dst->anon_vma) {
-		vma_start_write(dst);
+		vma_assert_write_locked(dst);
 		dst->anon_vma = src->anon_vma;
 		return anon_vma_clone(dst, src);
 	}
@@ -637,10 +627,12 @@ int vma_expand(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	bool remove_next = false;
 	struct vma_prepare vp;
 
+	vma_start_write(vma);
 	if (next && (vma != next) && (end == next->vm_end)) {
 		int ret;
 
 		remove_next = true;
+		vma_start_write(next);
 		ret = dup_anon_vma(vma, next);
 		if (ret)
 			return ret;
@@ -695,6 +687,8 @@ int vma_shrink(struct vma_iterator *vmi, struct vm_area_struct *vma,
 
 	if (vma_iter_prealloc(vmi, NULL))
 		return -ENOMEM;
+
+	vma_start_write(vma);
 
 	init_vma_prep(&vp, vma);
 	vma_prepare(&vp);
@@ -921,16 +915,21 @@ struct vm_area_struct *vma_merge(struct vma_iterator *vmi, struct mm_struct *mm,
 	if (!merge_prev && !merge_next)
 		return NULL; /* Not mergeable. */
 
+	if (merge_prev)
+		vma_start_write(prev);
+
 	res = vma = prev;
 	remove = remove2 = adjust = NULL;
 
 	/* Can we merge both the predecessor and the successor? */
 	if (merge_prev && merge_next &&
 	    is_mergeable_anon_vma(prev->anon_vma, next->anon_vma, NULL)) {
+		vma_start_write(next);
 		remove = next;				/* case 1 */
 		vma_end = next->vm_end;
 		err = dup_anon_vma(prev, next);
 		if (curr) {				/* case 6 */
+			vma_start_write(curr);
 			remove = curr;
 			remove2 = next;
 			if (!next->anon_vma)
@@ -938,6 +937,7 @@ struct vm_area_struct *vma_merge(struct vma_iterator *vmi, struct mm_struct *mm,
 		}
 	} else if (merge_prev) {			/* case 2 */
 		if (curr) {
+			vma_start_write(curr);
 			err = dup_anon_vma(prev, curr);
 			if (end == curr->vm_end) {	/* case 7 */
 				remove = curr;
@@ -947,8 +947,10 @@ struct vm_area_struct *vma_merge(struct vma_iterator *vmi, struct mm_struct *mm,
 			}
 		}
 	} else { /* merge_next */
+		vma_start_write(next);
 		res = next;
 		if (prev && addr < prev->vm_end) {	/* case 4 */
+			vma_start_write(prev);
 			vma_end = addr;
 			adjust = next;
 			adj_start = -(prev->vm_end - addr);
@@ -964,6 +966,7 @@ struct vm_area_struct *vma_merge(struct vma_iterator *vmi, struct mm_struct *mm,
 			vma_pgoff = next->vm_pgoff - pglen;
 			if (curr) {			/* case 8 */
 				vma_pgoff = curr->vm_pgoff;
+				vma_start_write(curr);
 				remove = curr;
 				err = dup_anon_vma(next, curr);
 			}
@@ -2366,6 +2369,9 @@ int __split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	if (new->vm_ops && new->vm_ops->open)
 		new->vm_ops->open(new);
 
+	vma_start_write(vma);
+	vma_start_write(new);
+
 	init_vma_prep(&vp, vma);
 	vp.insert = new;
 	vma_prepare(&vp);
@@ -3070,6 +3076,8 @@ static int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		vma_iter_config(vmi, vma->vm_start, addr + len);
 		if (vma_iter_prealloc(vmi, vma))
 			goto unacct_fail;
+
+		vma_start_write(vma);
 
 		init_vma_prep(&vp, vma);
 		vma_prepare(&vp);
