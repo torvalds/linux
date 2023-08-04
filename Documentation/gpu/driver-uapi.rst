@@ -13,4 +13,7 @@ drm/nouveau uAPI
 VM_BIND / EXEC uAPI
 -------------------
 
+.. kernel-doc:: drivers/gpu/drm/nouveau/nouveau_exec.c
+    :doc: Overview
+
 .. kernel-doc:: include/uapi/drm/nouveau_drm.h

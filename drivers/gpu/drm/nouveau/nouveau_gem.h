@@ -37,5 +37,6 @@ extern void nouveau_gem_prime_unpin(struct drm_gem_object *);
 extern struct sg_table *nouveau_gem_prime_get_sg_table(struct drm_gem_object *);
 extern struct drm_gem_object *nouveau_gem_prime_import_sg_table(
 	struct drm_device *, struct dma_buf_attachment *, struct sg_table *);
-
+struct dma_buf *nouveau_gem_prime_export(struct drm_gem_object *gobj,
+					 int flags);
 #endif

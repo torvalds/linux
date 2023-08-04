@@ -35,6 +35,7 @@
 #include "nouveau_chan.h"
 #include "nouveau_abi16.h"
 #include "nouveau_vmm.h"
+#include "nouveau_sched.h"
 
 static struct nouveau_abi16 *
 nouveau_abi16(struct drm_file *file_priv)
@@ -124,6 +125,17 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 			struct nouveau_abi16_chan *chan)
 {
 	struct nouveau_abi16_ntfy *ntfy, *temp;
+
+	/* When a client exits without waiting for it's queued up jobs to
+	 * finish it might happen that we fault the channel. This is due to
+	 * drm_file_free() calling drm_gem_release() before the postclose()
+	 * callback. Hence, we can't tear down this scheduler entity before
+	 * uvmm mappings are unmapped. Currently, we can't detect this case.
+	 *
+	 * However, this should be rare and harmless, since the channel isn't
+	 * needed anymore.
+	 */
+	nouveau_sched_entity_fini(&chan->sched_entity);
 
 	/* wait for all activity to stop before cleaning up */
 	if (chan->chan)
@@ -261,6 +273,13 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (!drm->channel)
 		return nouveau_abi16_put(abi16, -ENODEV);
 
+	/* If uvmm wasn't initialized until now disable it completely to prevent
+	 * userspace from mixing up UAPIs.
+	 *
+	 * The client lock is already acquired by nouveau_abi16_get().
+	 */
+	__nouveau_cli_disable_uvmm_noinit(cli);
+
 	device = &abi16->device;
 	engine = NV_DEVICE_HOST_RUNLIST_ENGINES_GR;
 
@@ -301,6 +320,11 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	/* create channel object and initialise dma and fence management */
 	ret = nouveau_channel_new(drm, device, false, runm, init->fb_ctxdma_handle,
 				  init->tt_ctxdma_handle, &chan->chan);
+	if (ret)
+		goto done;
+
+	ret = nouveau_sched_entity_init(&chan->sched_entity, &drm->sched,
+					drm->sched_wq);
 	if (ret)
 		goto done;
 
