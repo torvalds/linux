@@ -1041,6 +1041,19 @@ mpi3mr_update_sdev(struct scsi_device *sdev, void *data)
 void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc)
 {
 	struct mpi3mr_tgt_dev *tgtdev, *tgtdev_next;
+	struct mpi3mr_stgt_priv_data *tgt_priv;
+
+	dprint_reset(mrioc, "refresh target devices: check for removals\n");
+	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
+	    list) {
+		if ((tgtdev->dev_handle == MPI3MR_INVALID_DEV_HANDLE) &&
+		    tgtdev->host_exposed && tgtdev->starget &&
+		    tgtdev->starget->hostdata) {
+			tgt_priv = tgtdev->starget->hostdata;
+			tgt_priv->dev_removed = 1;
+			atomic_set(&tgt_priv->block_io, 0);
+		}
+	}
 
 	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
 	    list) {
