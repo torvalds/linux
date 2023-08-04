@@ -53,6 +53,8 @@
 bool probe_event_dry_run;	/* Dry run flag */
 struct probe_conf probe_conf = { .magic_num = DEFAULT_PROBE_MAGIC_NUM };
 
+static char *synthesize_perf_probe_point(struct perf_probe_point *pp);
+
 #define semantic_error(msg ...) pr_err("Semantic error :" msg)
 
 int e_snprintf(char *str, size_t size, const char *format, ...)
@@ -2010,7 +2012,7 @@ out:
 }
 
 /* Compose only probe point (not argument) */
-char *synthesize_perf_probe_point(struct perf_probe_point *pp)
+static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 {
 	struct strbuf buf;
 	char *tmp, *ret = NULL;
