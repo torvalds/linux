@@ -1266,6 +1266,8 @@ static int bch2_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 			return ret;
 		if (!(p->when & PASS_SILENT))
 			printk(KERN_CONT " done\n");
+
+		c->recovery_passes_complete |= BIT_ULL(pass);
 	}
 
 	return 0;

@@ -68,6 +68,7 @@ static inline int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 
 	if (c->curr_recovery_pass >= pass) {
 		c->curr_recovery_pass = pass;
+		c->recovery_passes_complete &= (1ULL << pass) >> 1;
 		return -BCH_ERR_restart_recovery;
 	} else {
 		return 0;

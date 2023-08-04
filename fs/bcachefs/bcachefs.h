@@ -995,6 +995,7 @@ struct bch_fs {
 	enum bch_recovery_pass	curr_recovery_pass;
 	/* bitmap of explicitly enabled recovery passes: */
 	u64			recovery_passes_explicit;
+	u64			recovery_passes_complete;
 
 	/* DEBUG JUNK */
 	struct dentry		*fs_debug_dir;

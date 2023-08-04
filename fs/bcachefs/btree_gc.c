@@ -43,7 +43,7 @@
 static bool should_restart_for_topology_repair(struct bch_fs *c)
 {
 	return c->opts.fix_errors != FSCK_FIX_no &&
-		!(c->recovery_passes_explicit & BIT_ULL(BCH_RECOVERY_PASS_check_topology));
+		!(c->recovery_passes_complete & BIT_ULL(BCH_RECOVERY_PASS_check_topology));
 }
 
 static inline void __gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
