@@ -151,15 +151,4 @@ struct fs_mii_fec_platform_info {
 	u32 mii_speed;
 };
 
-static inline int fs_get_id(struct fs_platform_info *fpi)
-{
-	if(strstr(fpi->fs_type, "SCC"))
-		return fs_scc_index2id(fpi->fs_no);
-	if(strstr(fpi->fs_type, "FCC"))
-		return fs_fcc_index2id(fpi->fs_no);
-	if(strstr(fpi->fs_type, "FEC"))
-		return fs_fec_index2id(fpi->fs_no);
-	return fpi->fs_no;
-}
-
 #endif
