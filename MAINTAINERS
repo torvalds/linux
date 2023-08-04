@@ -9660,6 +9660,7 @@ F:	tools/hv/
 
 HYPERBUS SUPPORT
 M:	Vignesh Raghavendra <vigneshr@ti.com>
+R:	Tudor Ambarus <tudor.ambarus@linaro.org>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
