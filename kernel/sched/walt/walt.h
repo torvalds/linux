@@ -74,9 +74,9 @@ enum migrate_types {
 };
 
 enum pipeline_types {
-	NO_PIPELINE = 0,
-	MANUAL_PIPELINE = 1,
-	AUTO_PIPELINE = 2,
+	MANUAL_PIPELINE,
+	AUTO_PIPELINE,
+	MAX_PIPELINE_TYPES,
 };
 
 #define WALT_LOW_LATENCY_PROCFS		BIT(0)
