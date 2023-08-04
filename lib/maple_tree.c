@@ -6833,11 +6833,27 @@ static void mt_dump_arange64(const struct maple_tree *mt, void *entry,
 	int i;
 
 	pr_cont(" contents: ");
-	for (i = 0; i < MAPLE_ARANGE64_SLOTS; i++)
-		pr_cont("%lu ", node->gap[i]);
+	for (i = 0; i < MAPLE_ARANGE64_SLOTS; i++) {
+		switch (format) {
+		case mt_dump_hex:
+			pr_cont("%lx ", node->gap[i]);
+			break;
+		default:
+		case mt_dump_dec:
+			pr_cont("%lu ", node->gap[i]);
+		}
+	}
 	pr_cont("| %02X %02X| ", node->meta.end, node->meta.gap);
-	for (i = 0; i < MAPLE_ARANGE64_SLOTS - 1; i++)
-		pr_cont("%p %lu ", node->slot[i], node->pivot[i]);
+	for (i = 0; i < MAPLE_ARANGE64_SLOTS - 1; i++) {
+		switch (format) {
+		case mt_dump_hex:
+			pr_cont("%p %lX ", node->slot[i], node->pivot[i]);
+			break;
+		default:
+		case mt_dump_dec:
+			pr_cont("%p %lu ", node->slot[i], node->pivot[i]);
+		}
+	}
 	pr_cont("%p\n", node->slot[i]);
 	for (i = 0; i < MAPLE_ARANGE64_SLOTS; i++) {
 		unsigned long last = max;
