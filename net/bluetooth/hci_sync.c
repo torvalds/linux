@@ -2672,27 +2672,6 @@ done:
 	return filter_policy;
 }
 
-/* Returns true if an le connection is in the scanning state */
-static inline bool hci_is_le_conn_scanning(struct hci_dev *hdev)
-{
-	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct hci_conn  *c;
-
-	rcu_read_lock();
-
-	list_for_each_entry_rcu(c, &h->list, list) {
-		if (c->type == LE_LINK && c->state == BT_CONNECT &&
-		    test_bit(HCI_CONN_SCANNING, &c->flags)) {
-			rcu_read_unlock();
-			return true;
-		}
-	}
-
-	rcu_read_unlock();
-
-	return false;
-}
-
 static int hci_le_set_ext_scan_param_sync(struct hci_dev *hdev, u8 type,
 					  u16 interval, u16 window,
 					  u8 own_addr_type, u8 filter_policy)
