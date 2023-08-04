@@ -173,8 +173,8 @@ config PWM_CLPS711X
 	  will be called pwm-clps711x.
 
 config PWM_CRC
-	bool "Intel Crystalcove (CRC) PWM support"
-	depends on X86 && INTEL_SOC_PMIC
+	tristate "Intel Crystalcove (CRC) PWM support"
+	depends on INTEL_SOC_PMIC
 	help
 	  Generic PWM framework driver for Crystalcove (CRC) PMIC based PWM
 	  control.
