@@ -207,7 +207,7 @@ static int rockchip_amp_boot_cpus(struct device *dev,
 				  struct device_node *cpu_node, int idx)
 {
 	u64 cpu_entry, cpu_id;
-	u32 cpu_mode;
+	u32 cpu_mode, boot_on;
 	int ret;
 
 	if (idx >= CONFIG_NR_CPUS)
@@ -233,6 +233,9 @@ static int rockchip_amp_boot_cpus(struct device *dev,
 		return -1;
 	}
 
+	if (of_property_read_u32_array(cpu_node, "boot-on", &boot_on, 1))
+		boot_on = 1; /* compatible old action */
+
 	cpu_boot_info[idx].entry = cpu_entry;
 	cpu_boot_info[idx].mode = cpu_mode;
 	cpu_boot_info[idx].cpu_id = cpu_id;
@@ -243,10 +246,12 @@ static int rockchip_amp_boot_cpus(struct device *dev,
 		return ret;
 	}
 
-	ret = sip_smc_amp_config(RK_AMP_SUB_FUNC_CPU_ON, cpu_id, cpu_entry, 0);
-	if (ret) {
-		dev_warn(dev, "booting up a cpu is error(%d)!\n", ret);
-		return ret;
+	if (boot_on) {
+		ret = sip_smc_amp_config(RK_AMP_SUB_FUNC_CPU_ON, cpu_id, cpu_entry, 0);
+		if (ret) {
+			dev_warn(dev, "booting up a cpu is error(%d)!\n", ret);
+			return ret;
+		}
 	}
 
 	cpu_boot_info[idx].en = 1;
