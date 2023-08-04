@@ -1561,8 +1561,7 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 
-	/* remove export size restrictions in case not explicitly defined */
-	cur_size_to_export = exported_size ? exported_size : (npages * page_size);
+	cur_size_to_export = exported_size;
 
 	/* If the size of each page is larger than the dma max segment size,
 	 * then we can't combine pages and the number of entries in the SGL
@@ -1728,7 +1727,7 @@ static struct sg_table *hl_map_dmabuf(struct dma_buf_attachment *attachment,
 						&hl_dmabuf->device_address,
 						1,
 						hl_dmabuf->dmabuf->size,
-						0,
+						hl_dmabuf->dmabuf->size,
 						attachment->dev,
 						dir);
 
