@@ -99,6 +99,7 @@ void serial_base_ctrl_device_remove(struct serial_ctrl_device *ctrl_dev)
 		return;
 
 	device_del(&ctrl_dev->dev);
+	put_device(&ctrl_dev->dev);
 }
 
 struct serial_ctrl_device *serial_base_ctrl_add(struct uart_port *port,
@@ -174,6 +175,7 @@ void serial_base_port_device_remove(struct serial_port_device *port_dev)
 		return;
 
 	device_del(&port_dev->dev);
+	put_device(&port_dev->dev);
 }
 
 static int serial_base_init(void)
