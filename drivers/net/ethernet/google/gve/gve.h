@@ -58,6 +58,20 @@
 /* Maximum TSO size supported on DQO */
 #define GVE_DQO_TX_MAX	0x3FFFF
 
+#define GVE_TX_BUF_SHIFT_DQO 11
+
+/* 2K buffers for DQO-QPL */
+#define GVE_TX_BUF_SIZE_DQO BIT(GVE_TX_BUF_SHIFT_DQO)
+#define GVE_TX_BUFS_PER_PAGE_DQO (PAGE_SIZE >> GVE_TX_BUF_SHIFT_DQO)
+#define GVE_MAX_TX_BUFS_PER_PKT (DIV_ROUND_UP(GVE_DQO_TX_MAX, GVE_TX_BUF_SIZE_DQO))
+
+/* If number of free/recyclable buffers are less than this threshold; driver
+ * allocs and uses a non-qpl page on the receive path of DQO QPL to free
+ * up buffers.
+ * Value is set big enough to post at least 3 64K LRO packet via 2K buffer to NIC.
+ */
+#define GVE_DQO_QPL_ONDEMAND_ALLOC_THRESHOLD 96
+
 /* Each slot in the desc ring has a 1:1 mapping to a slot in the data ring */
 struct gve_rx_desc_queue {
 	struct gve_rx_desc *desc_ring; /* the descriptor ring */
@@ -338,8 +352,14 @@ struct gve_tx_pending_packet_dqo {
 	 * All others correspond to `skb`'s frags and should be unmapped with
 	 * `dma_unmap_page`.
 	 */
-	DEFINE_DMA_UNMAP_ADDR(dma[MAX_SKB_FRAGS + 1]);
-	DEFINE_DMA_UNMAP_LEN(len[MAX_SKB_FRAGS + 1]);
+	union {
+		struct {
+			DEFINE_DMA_UNMAP_ADDR(dma[MAX_SKB_FRAGS + 1]);
+			DEFINE_DMA_UNMAP_LEN(len[MAX_SKB_FRAGS + 1]);
+		};
+		s16 tx_qpl_buf_ids[GVE_MAX_TX_BUFS_PER_PKT];
+	};
+
 	u16 num_bufs;
 
 	/* Linked list index to next element in the list, or -1 if none */
@@ -394,6 +414,32 @@ struct gve_tx_ring {
 			 * set.
 			 */
 			u32 last_re_idx;
+
+			/* free running number of packet buf descriptors posted */
+			u16 posted_packet_desc_cnt;
+			/* free running number of packet buf descriptors completed */
+			u16 completed_packet_desc_cnt;
+
+			/* QPL fields */
+			struct {
+			       /* Linked list of gve_tx_buf_dqo. Index into
+				* tx_qpl_buf_next, or -1 if empty.
+				*
+				* This is a consumer list owned by the TX path. When it
+				* runs out, the producer list is stolen from the
+				* completion handling path
+				* (dqo_compl.free_tx_qpl_buf_head).
+				*/
+				s16 free_tx_qpl_buf_head;
+
+			       /* Free running count of the number of QPL tx buffers
+				* allocated
+				*/
+				u32 alloc_tx_qpl_buf_cnt;
+
+				/* Cached value of `dqo_compl.free_tx_qpl_buf_cnt` */
+				u32 free_tx_qpl_buf_cnt;
+			};
 		} dqo_tx;
 	};
 
@@ -437,6 +483,24 @@ struct gve_tx_ring {
 			 * reached a specified timeout.
 			 */
 			struct gve_index_list timed_out_completions;
+
+			/* QPL fields */
+			struct {
+				/* Linked list of gve_tx_buf_dqo. Index into
+				 * tx_qpl_buf_next, or -1 if empty.
+				 *
+				 * This is the producer list, owned by the completion
+				 * handling path. When the consumer list
+				 * (dqo_tx.free_tx_qpl_buf_head) is runs out, this list
+				 * will be stolen.
+				 */
+				atomic_t free_tx_qpl_buf_head;
+
+				/* Free running count of the number of tx buffers
+				 * freed
+				 */
+				atomic_t free_tx_qpl_buf_cnt;
+			};
 		} dqo_compl;
 	} ____cacheline_aligned;
 	u64 pkt_done; /* free-running - total packets completed */
@@ -468,6 +532,15 @@ struct gve_tx_ring {
 			struct {
 				/* qpl assigned to this queue */
 				struct gve_queue_page_list *qpl;
+
+				/* Each QPL page is divided into TX bounce buffers
+				 * of size GVE_TX_BUF_SIZE_DQO. tx_qpl_buf_next is
+				 * an array to manage linked lists of TX buffers.
+				 * An entry j at index i implies that j'th buffer
+				 * is next on the list after i
+				 */
+				s16 *tx_qpl_buf_next;
+				u32 num_tx_qpl_bufs;
 			};
 		} dqo;
 	} ____cacheline_aligned;
