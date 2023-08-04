@@ -166,11 +166,11 @@ prestera_util_neigh2nc_key(struct prestera_switch *sw, struct neighbour *n,
 
 static bool __prestera_fi_is_direct(struct fib_info *fi)
 {
-	struct fib_nh *fib_nh;
+	struct fib_nh_common *fib_nhc;
 
 	if (fib_info_num_path(fi) == 1) {
-		fib_nh = fib_info_nh(fi, 0);
-		if (fib_nh->fib_nh_gw_family == AF_UNSPEC)
+		fib_nhc = fib_info_nhc(fi, 0);
+		if (fib_nhc->nhc_gw_family == AF_UNSPEC)
 			return true;
 	}
 
@@ -261,7 +261,7 @@ static bool
 __prestera_util_kern_n_is_reachable_v4(u32 tb_id, __be32 *addr,
 				       struct net_device *dev)
 {
-	struct fib_nh *fib_nh;
+	struct fib_nh_common *fib_nhc;
 	struct fib_result res;
 	bool reachable;
 
@@ -269,8 +269,8 @@ __prestera_util_kern_n_is_reachable_v4(u32 tb_id, __be32 *addr,
 
 	if (!prestera_util_kern_get_route(&res, tb_id, addr))
 		if (prestera_fi_is_direct(res.fi)) {
-			fib_nh = fib_info_nh(res.fi, 0);
-			if (dev == fib_nh->fib_nh_dev)
+			fib_nhc = fib_info_nhc(res.fi, 0);
+			if (dev == fib_nhc->nhc_dev)
 				reachable = true;
 		}
 
@@ -324,7 +324,7 @@ prestera_kern_fib_info_nhc(struct fib_notifier_info *info, int n)
 	if (info->family == AF_INET) {
 		fen4_info = container_of(info, struct fib_entry_notifier_info,
 					 info);
-		return &fib_info_nh(fen4_info->fi, n)->nh_common;
+		return fib_info_nhc(fen4_info->fi, n);
 	} else if (info->family == AF_INET6) {
 		fen6_info = container_of(info, struct fib6_entry_notifier_info,
 					 info);
