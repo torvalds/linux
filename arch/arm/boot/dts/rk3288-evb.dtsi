@@ -47,43 +47,49 @@
 		};
 	};
 
-	sound: sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,rt5640-codec";
-		simple-audio-card,mclk-fs = <512>;
+	rt5640_sound: rt5640-sound {
 		status = "okay";
-
-		simple-audio-card,dai-link@0 {
-			format = "i2s";
-			cpu {
-				sound-dai = <&i2s>;
-			};
-
-			codec {
-				sound-dai = <&rt5640>;
-			};
-		};
-
-		simple-audio-card,dai-link@1 {
-			format = "i2s";
-			cpu {
-				sound-dai = <&i2s>;
-			};
-
-			codec {
-				sound-dai = <&hdmi>;
-			};
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-rt5640";
+		hp-det-gpio = <&gpio7 RK_PA7 GPIO_ACTIVE_HIGH>;
+		io-channels = <&saradc 2>;
+		io-channel-names = "adc-detect";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <512>;
+		rockchip,cpu = <&i2s>;
+		rockchip,codec = <&rt5640>;
+		rockchip,audio-routing =
+			"Headphone", "HPOL",
+			"Headphone", "HPOR",
+			"Speaker", "SPOLP",
+			"Speaker", "SPOLN",
+			"Speaker", "SPORP",
+			"Speaker", "SPORN",
+			"Headphone", "Headphone Power",
+			"Headphone", "Headphone Power",
+			"Speaker", "Speaker Power",
+			"Speaker", "Speaker Power",
+			"DMIC L1", "Main Mic",
+			"DMIC R1", "Main Mic",
+			"IN3P", "Headset Mic",
+			"Headset Mic", "MICBIAS1";
+		play-pause-key {
+			label = "playpause";
+			linux,code = <KEY_PLAYPAUSE>;
+			press-threshold-microvolt = <2000>;
 		};
 	};
 
-	hdmi_analog_sound: hdmi-analog-sound {
-		compatible = "rockchip,rk3288-hdmi-analog",
-			     "rockchip,rk3368-hdmi-analog";
-		rockchip,model = "rockchip,rt5640-codec";
-		rockchip,cpu = <&i2s>;
-		rockchip,codec = <&rt5640>, <&hdmi>;
+	hdmi_sound: hdmi-sound {
 		status = "disabled";
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <256>;
+		rockchip,card-name = "rockchip-hdmi0";
+		rockchip,cpu = <&i2s>;
+		rockchip,codec = <&hdmi>;
+		rockchip,jack-det;
 	};
 
 	backlight: backlight {
@@ -368,8 +374,6 @@
 		reg = <0x1c>;
 		clocks = <&cru SCLK_I2S0_OUT>;
 		clock-names = "mclk";
-		interrupt-parent = <&gpio7>;
-		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_mclk>;
 	};
