@@ -961,8 +961,9 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	debuginfo__delete(dinfo);
 
 	if (ntevs == 0)	{	/* No error but failed to find probe point. */
-		pr_warning("Probe point '%s' not found.\n",
-			   synthesize_perf_probe_point(&pev->point));
+		char *probe_point = synthesize_perf_probe_point(&pev->point);
+		pr_warning("Probe point '%s' not found.\n", probe_point);
+		free(probe_point);
 		return -ENODEV;
 	} else if (ntevs < 0) {
 		/* Error path : ntevs < 0 */
