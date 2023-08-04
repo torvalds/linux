@@ -258,7 +258,6 @@ MODULE_DEVICE_TABLE(mcb, serial_8250_men_mcb_ids);
 static struct mcb_driver mcb_driver = {
 	.driver = {
 		.name = "8250_men_mcb",
-		.owner = THIS_MODULE,
 	},
 	.probe = serial_8250_men_mcb_probe,
 	.remove = serial_8250_men_mcb_remove,
