@@ -3291,9 +3291,7 @@ int tcp_sock_set_syncnt(struct sock *sk, int val)
 	if (val < 1 || val > MAX_TCP_SYNCNT)
 		return -EINVAL;
 
-	lock_sock(sk);
 	WRITE_ONCE(inet_csk(sk)->icsk_syn_retries, val);
-	release_sock(sk);
 	return 0;
 }
 EXPORT_SYMBOL(tcp_sock_set_syncnt);
@@ -3462,6 +3460,12 @@ int do_tcp_setsockopt(struct sock *sk, int level, int optname,
 	if (copy_from_sockptr(&val, optval, sizeof(val)))
 		return -EFAULT;
 
+	/* Handle options that can be set without locking the socket. */
+	switch (optname) {
+	case TCP_SYNCNT:
+		return tcp_sock_set_syncnt(sk, val);
+	}
+
 	sockopt_lock_sock(sk);
 
 	switch (optname) {
@@ -3569,13 +3573,6 @@ int do_tcp_setsockopt(struct sock *sk, int level, int optname,
 		else
 			WRITE_ONCE(tp->keepalive_probes, val);
 		break;
-	case TCP_SYNCNT:
-		if (val < 1 || val > MAX_TCP_SYNCNT)
-			err = -EINVAL;
-		else
-			WRITE_ONCE(icsk->icsk_syn_retries, val);
-		break;
-
 	case TCP_SAVE_SYN:
 		/* 0: disable, 1: enable, 2: start from ether_header */
 		if (val < 0 || val > 2)

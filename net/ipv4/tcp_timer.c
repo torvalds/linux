@@ -239,7 +239,8 @@ static int tcp_write_timeout(struct sock *sk)
 	if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
 		if (icsk->icsk_retransmits)
 			__dst_negative_advice(sk);
-		retry_until = icsk->icsk_syn_retries ? :
+		/* Paired with WRITE_ONCE() in tcp_sock_set_syncnt() */
+		retry_until = READ_ONCE(icsk->icsk_syn_retries) ? :
 			READ_ONCE(net->ipv4.sysctl_tcp_syn_retries);
 
 		max_retransmits = retry_until;
@@ -421,8 +422,10 @@ static void tcp_fastopen_synack_timer(struct sock *sk, struct request_sock *req)
 
 	req->rsk_ops->syn_ack_timeout(req);
 
-	/* add one more retry for fastopen */
-	max_retries = icsk->icsk_syn_retries ? :
+	/* Add one more retry for fastopen.
+	 * Paired with WRITE_ONCE() in tcp_sock_set_syncnt()
+	 */
+	max_retries = READ_ONCE(icsk->icsk_syn_retries) ? :
 		READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_synack_retries) + 1;
 
 	if (req->num_timeout >= max_retries) {
