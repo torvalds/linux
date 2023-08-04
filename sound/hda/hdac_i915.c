@@ -75,14 +75,20 @@ static bool connectivity_check(struct pci_dev *i915, struct pci_dev *hdac)
 	if (bus_a == bus_b)
 		return true;
 
+	bus_a = bus_a->parent;
+	bus_b = bus_b->parent;
+
+	/* connected via parent bus (may be NULL!) */
+	if (bus_a == bus_b)
+		return true;
+
+	if (!bus_a || !bus_b)
+		return false;
+
 	/*
 	 * on i915 discrete GPUs with embedded HDA audio, the two
 	 * devices are connected via 2nd level PCI bridge
 	 */
-	bus_a = bus_a->parent;
-	bus_b = bus_b->parent;
-	if (!bus_a || !bus_b)
-		return false;
 	bus_a = bus_a->parent;
 	bus_b = bus_b->parent;
 	if (bus_a && bus_a == bus_b)
