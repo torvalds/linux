@@ -64,6 +64,41 @@ struct xe_execlist_port;
 struct xe_gt;
 
 /**
+ * struct xe_hw_engine_class_intf - per hw engine class struct interface
+ *
+ * Contains all the hw engine properties per engine class.
+ *
+ * @sched_props: scheduling properties
+ * @defaults: default scheduling properties
+ */
+struct xe_hw_engine_class_intf {
+	/**
+	 * @sched_props: scheduling properties
+	 * @defaults: default scheduling properties
+	 */
+	struct {
+		/** @set_job_timeout: Set job timeout in ms for engine */
+		u32 job_timeout_ms;
+		/** @job_timeout_min: Min job timeout in ms for engine */
+		u32 job_timeout_min;
+		/** @job_timeout_max: Max job timeout in ms for engine */
+		u32 job_timeout_max;
+		/** @timeslice_us: timeslice period in micro-seconds */
+		u32 timeslice_us;
+		/** @timeslice_min: min timeslice period in micro-seconds */
+		u32 timeslice_min;
+		/** @timeslice_max: max timeslice period in micro-seconds */
+		u32 timeslice_max;
+		/** @preempt_timeout_us: preemption timeout in micro-seconds */
+		u32 preempt_timeout_us;
+		/** @preempt_timeout_min: min preemption timeout in micro-seconds */
+		u32 preempt_timeout_min;
+		/** @preempt_timeout_max: max preemption timeout in micro-seconds */
+		u32 preempt_timeout_max;
+	} sched_props, defaults;
+};
+
+/**
  * struct xe_hw_engine - Hardware engine
  *
  * Contains all the hardware engine state for physical instances.
@@ -107,6 +142,8 @@ struct xe_hw_engine {
 	void (*irq_handler)(struct xe_hw_engine *hwe, u16 intr_vec);
 	/** @engine_id: id  for this hw engine */
 	enum xe_hw_engine_id engine_id;
+	/** @eclass: pointer to per hw engine class interface */
+	struct xe_hw_engine_class_intf *eclass;
 };
 
 /**

@@ -11,6 +11,9 @@
 #include "xe_hw_engine_class_sysfs.h"
 
 #define MAX_ENGINE_CLASS_NAME_LEN    16
+static int xe_add_hw_engine_class_defaults(struct xe_device *xe,
+					   struct kobject *parent);
+
 static void kobj_xe_hw_engine_release(struct kobject *kobj)
 {
 	kfree(kobj);
@@ -21,37 +24,116 @@ static const struct kobj_type kobj_xe_hw_engine_type = {
 	.sysfs_ops = &kobj_sysfs_ops
 };
 
-static void kobj_xe_hw_engine_fini(struct drm_device *drm, void *arg)
+static void kobj_xe_hw_engine_class_fini(struct drm_device *drm, void *arg)
 {
 	struct kobject *kobj = arg;
 
 	kobject_put(kobj);
 }
 
-	static struct kobject *
-kobj_xe_hw_engine(struct xe_device *xe, struct kobject *parent, char *name)
+	static struct kobj_eclass *
+kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, char *name)
+{
+	struct kobj_eclass *keclass;
+	int err = 0;
+
+	keclass = kzalloc(sizeof(*keclass), GFP_KERNEL);
+	if (!keclass)
+		return NULL;
+
+	kobject_init(&keclass->base, &kobj_xe_hw_engine_type);
+	if (kobject_add(&keclass->base, parent, "%s", name)) {
+		kobject_put(&keclass->base);
+		return NULL;
+	}
+
+	err = drmm_add_action_or_reset(&xe->drm, kobj_xe_hw_engine_class_fini,
+				       &keclass->base);
+	if (err)
+		drm_warn(&xe->drm,
+			 "%s: drmm_add_action_or_reset failed, err: %d\n",
+			 __func__, err);
+	return keclass;
+}
+
+static ssize_t job_timeout_default(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
+
+	return sprintf(buf, "%u\n", eclass->defaults.job_timeout_ms);
+}
+
+static struct kobj_attribute job_timeout_def =
+__ATTR(job_timeout_ms, 0444, job_timeout_default, NULL);
+
+static ssize_t timeslice_default(struct kobject *kobj,
+				 struct kobj_attribute *attr, char *buf)
+{
+	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
+
+	return sprintf(buf, "%u\n", eclass->defaults.timeslice_us);
+}
+
+static struct kobj_attribute timeslice_duration_def =
+__ATTR(timeslice_duration_us, 0444, timeslice_default, NULL);
+
+static ssize_t preempt_timeout_default(struct kobject *kobj,
+				       struct kobj_attribute *attr,
+				       char *buf)
+{
+	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
+
+	return sprintf(buf, "%u\n", eclass->defaults.preempt_timeout_us);
+}
+
+static struct kobj_attribute preempt_timeout_def =
+__ATTR(preempt_timeout_us, 0444, preempt_timeout_default, NULL);
+
+static const struct attribute *defaults[] = {
+	&job_timeout_def.attr,
+	&timeslice_duration_def.attr,
+	&preempt_timeout_def.attr,
+	NULL
+};
+
+static void hw_engine_class_defaults_fini(struct drm_device *drm, void *arg)
+{
+	struct kobject *kobj = arg;
+
+	sysfs_remove_files(kobj, defaults);
+	kobject_put(kobj);
+}
+
+static int xe_add_hw_engine_class_defaults(struct xe_device *xe,
+					   struct kobject *parent)
 {
 	struct kobject *kobj;
 	int err = 0;
 
 	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
 	if (!kobj)
-		return NULL;
+		return -ENOMEM;
 
 	kobject_init(kobj, &kobj_xe_hw_engine_type);
-	if (kobject_add(kobj, parent, "%s", name)) {
-		kobject_put(kobj);
-		return NULL;
-	}
+	err = kobject_add(kobj, parent, "%s", ".defaults");
+	if (err)
+		goto err_object;
 
-	err = drmm_add_action_or_reset(&xe->drm, kobj_xe_hw_engine_fini,
+	err = sysfs_create_files(kobj, defaults);
+	if (err)
+		goto err_object;
+
+	err = drmm_add_action_or_reset(&xe->drm, hw_engine_class_defaults_fini,
 				       kobj);
 	if (err)
 		drm_warn(&xe->drm,
 			 "%s: drmm_add_action_or_reset failed, err: %d\n",
 			 __func__, err);
-
-	return kobj;
+	return err;
+err_object:
+	kobject_put(kobj);
+	return err;
 }
 
 static void xe_hw_engine_sysfs_kobj_release(struct kobject *kobj)
@@ -96,14 +178,12 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 	kobject_init(kobj, &xe_hw_engine_sysfs_kobj_type);
 
 	err = kobject_add(kobj, gt->sysfs, "engines");
-	if (err) {
-		kobject_put(kobj);
-		return err;
-	}
+	if (err)
+		goto err_object;
 
 	for_each_hw_engine(hwe, gt, id) {
 		char name[MAX_ENGINE_CLASS_NAME_LEN];
-		struct kobject *khwe;
+		struct kobj_eclass *keclass;
 
 		if (hwe->class == XE_ENGINE_CLASS_OTHER ||
 		    hwe->class == XE_ENGINE_CLASS_MAX)
@@ -131,14 +211,23 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 			strcpy(name, "ccs");
 			break;
 		default:
-			kobject_put(kobj);
-			return -EINVAL;
+			err = -EINVAL;
+			goto err_object;
 		}
 
-		khwe = kobj_xe_hw_engine(xe, kobj, name);
-		if (!khwe) {
-			kobject_put(kobj);
-			return -EINVAL;
+		keclass = kobj_xe_hw_engine_class(xe, kobj, name);
+		if (!keclass) {
+			err = -EINVAL;
+			goto err_object;
+		}
+
+		keclass->eclass = hwe->eclass;
+		err = xe_add_hw_engine_class_defaults(xe, &keclass->base);
+		if (err) {
+			drm_warn(&xe->drm,
+				 "Add .defaults to engines failed!, err: %d\n",
+				 err);
+			goto err_object;
 		}
 	}
 
@@ -149,5 +238,8 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 			 "%s: drmm_add_action_or_reset failed, err: %d\n",
 			 __func__, err);
 
+	return err;
+err_object:
+	kobject_put(kobj);
 	return err;
 }

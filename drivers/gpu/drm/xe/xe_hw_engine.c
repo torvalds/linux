@@ -362,6 +362,15 @@ static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	hwe->fence_irq = &gt->fence_irq[info->class];
 	hwe->engine_id = id;
 
+	if (!gt->eclass[hwe->class].sched_props.job_timeout_ms) {
+		gt->eclass[hwe->class].sched_props.job_timeout_ms = 5 * 1000;
+		gt->eclass[hwe->class].sched_props.timeslice_us = 1 * 1000;
+		gt->eclass[hwe->class].sched_props.preempt_timeout_us = 640 * 1000;
+		/* Record default props */
+		gt->eclass[hwe->class].defaults = gt->eclass[hwe->class].sched_props;
+	}
+	hwe->eclass = &gt->eclass[hwe->class];
+
 	xe_reg_sr_init(&hwe->reg_sr, hwe->name, gt_to_xe(gt));
 	xe_wa_process_engine(hwe);
 	hw_engine_setup_default_state(hwe);

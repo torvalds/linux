@@ -53,9 +53,9 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 	INIT_LIST_HEAD(&q->compute.link);
 	INIT_LIST_HEAD(&q->multi_gt_link);
 
-	/* FIXME: Wire up to configurable default value */
-	q->sched_props.timeslice_us = 1 * 1000;
-	q->sched_props.preempt_timeout_us = 640 * 1000;
+	q->sched_props.timeslice_us = hwe->eclass->sched_props.timeslice_us;
+	q->sched_props.preempt_timeout_us =
+				hwe->eclass->sched_props.preempt_timeout_us;
 
 	if (xe_exec_queue_is_parallel(q)) {
 		q->parallel.composite_fence_ctx = dma_fence_context_alloc(1);

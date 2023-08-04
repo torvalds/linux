@@ -286,6 +286,9 @@ struct xe_gt {
 	/** @hw_engines: hardware engines on the GT */
 	struct xe_hw_engine hw_engines[XE_NUM_HW_ENGINES];
 
+	/** @eclass: per hardware engine class interface on the GT */
+	struct xe_hw_engine_class_intf  eclass[XE_ENGINE_CLASS_MAX];
+
 	/** @pcode: GT's PCODE */
 	struct {
 		/** @lock: protecting GT's PCODE mailbox data */
