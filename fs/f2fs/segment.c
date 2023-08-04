@@ -1260,8 +1260,16 @@ static int __submit_discard_cmd(struct f2fs_sb_info *sbi,
 
 #ifdef CONFIG_BLK_DEV_ZONED
 	if (f2fs_sb_has_blkzoned(sbi) && bdev_is_zoned(bdev)) {
-		__submit_zone_reset_cmd(sbi, dc, flag, wait_list, issued);
-		return 0;
+		int devi = f2fs_bdev_index(sbi, bdev);
+
+		if (devi < 0)
+			return -EINVAL;
+
+		if (f2fs_blkz_is_seq(sbi, devi, dc->di.start)) {
+			__submit_zone_reset_cmd(sbi, dc, flag,
+						wait_list, issued);
+			return 0;
+		}
 	}
 #endif
 
@@ -1787,15 +1795,24 @@ static void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 	dc = __lookup_discard_cmd(sbi, blkaddr);
 #ifdef CONFIG_BLK_DEV_ZONED
 	if (dc && f2fs_sb_has_blkzoned(sbi) && bdev_is_zoned(dc->bdev)) {
-		/* force submit zone reset */
-		if (dc->state == D_PREP)
-			__submit_zone_reset_cmd(sbi, dc, REQ_SYNC,
-						&dcc->wait_list, NULL);
-		dc->ref++;
-		mutex_unlock(&dcc->cmd_lock);
-		/* wait zone reset */
-		__wait_one_discard_bio(sbi, dc);
-		return;
+		int devi = f2fs_bdev_index(sbi, dc->bdev);
+
+		if (devi < 0) {
+			mutex_unlock(&dcc->cmd_lock);
+			return;
+		}
+
+		if (f2fs_blkz_is_seq(sbi, devi, dc->di.start)) {
+			/* force submit zone reset */
+			if (dc->state == D_PREP)
+				__submit_zone_reset_cmd(sbi, dc, REQ_SYNC,
+							&dcc->wait_list, NULL);
+			dc->ref++;
+			mutex_unlock(&dcc->cmd_lock);
+			/* wait zone reset */
+			__wait_one_discard_bio(sbi, dc);
+			return;
+		}
 	}
 #endif
 	if (dc) {

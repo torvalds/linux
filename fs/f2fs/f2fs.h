@@ -4423,6 +4423,22 @@ static inline bool f2fs_blkz_is_seq(struct f2fs_sb_info *sbi, int devi,
 }
 #endif
 
+static inline int f2fs_bdev_index(struct f2fs_sb_info *sbi,
+				  struct block_device *bdev)
+{
+	int i;
+
+	if (!f2fs_is_multi_device(sbi))
+		return 0;
+
+	for (i = 0; i < sbi->s_ndevs; i++)
+		if (FDEV(i).bdev == bdev)
+			return i;
+
+	WARN_ON(1);
+	return -1;
+}
+
 static inline bool f2fs_hw_should_discard(struct f2fs_sb_info *sbi)
 {
 	return f2fs_sb_has_blkzoned(sbi);
