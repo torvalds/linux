@@ -18,6 +18,7 @@ properties:
     enum:
       - edt,et028013dma
       - inanbo,t28cp45tn89-v17
+      - jasonic,jt240mhqs-hwt-ek-e3
       - sitronix,st7789v
 
   reg: true
