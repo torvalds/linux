@@ -547,7 +547,7 @@ static void tx_restart(struct net_device *dev)
 	}
 	/* Now update the TBPTR and dirty flag to the current buffer */
 	W32(ep, fen_genfcc.fcc_tbptr,
-		(uint) (((void *)recheck_bd - fep->ring_base) +
+		(uint)(((void __iomem *)recheck_bd - fep->ring_base) +
 		fep->ring_mem_addr));
 	fep->dirty_tx = recheck_bd;
 
