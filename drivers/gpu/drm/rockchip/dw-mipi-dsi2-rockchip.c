@@ -246,6 +246,7 @@ struct dw_mipi_dsi2 {
 	struct phy *dcphy;
 	union phy_configure_opts phy_opts;
 
+	bool disable_hold_mode;
 	bool c_option;
 	bool scrambling_en;
 	unsigned int slice_width;
@@ -954,7 +955,7 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO)) {
 		s->output_flags |= ROCKCHIP_OUTPUT_MIPI_DS_MODE;
 		s->soft_te = dsi2->te_gpio ? true : false;
-		s->hold_mode = true;
+		s->hold_mode = dsi2->disable_hold_mode ? false : true;
 	}
 
 	if (dsi2->slave) {
@@ -1638,6 +1639,9 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 	dsi2->id = id;
 	dsi2->pdata = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, dsi2);
+
+	if (device_property_read_bool(dev, "disable-hold-mode"))
+		dsi2->disable_hold_mode = true;
 
 	if (device_property_read_bool(dev, "dual-connector-split")) {
 		dsi2->dual_connector_split = true;
