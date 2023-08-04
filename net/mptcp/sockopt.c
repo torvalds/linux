@@ -103,7 +103,7 @@ static void mptcp_sol_socket_sync_intval(struct mptcp_sock *msk, int optname, in
 			break;
 		case SO_MARK:
 			if (READ_ONCE(ssk->sk_mark) != sk->sk_mark) {
-				ssk->sk_mark = sk->sk_mark;
+				WRITE_ONCE(ssk->sk_mark, sk->sk_mark);
 				sk_dst_reset(ssk);
 			}
 			break;

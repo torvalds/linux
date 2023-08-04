@@ -586,7 +586,7 @@ nct6775_check_fan_inputs(struct nct6775_data *data, struct nct6775_sio_data *sio
 		int creb;
 		int cred;
 
-		cre6 = sio_data->sio_inb(sio_data, 0xe0);
+		cre6 = sio_data->sio_inb(sio_data, 0xe6);
 
 		sio_data->sio_select(sio_data, NCT6775_LD_12);
 		cre0 = sio_data->sio_inb(sio_data, 0xe0);

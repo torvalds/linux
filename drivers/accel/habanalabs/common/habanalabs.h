@@ -3980,6 +3980,15 @@ static inline void hl_debugfs_fini(void)
 {
 }
 
+static inline int hl_debugfs_device_init(struct hl_device *hdev)
+{
+	return 0;
+}
+
+static inline void hl_debugfs_device_fini(struct hl_device *hdev)
+{
+}
+
 static inline void hl_debugfs_add_device(struct hl_device *hdev)
 {
 }

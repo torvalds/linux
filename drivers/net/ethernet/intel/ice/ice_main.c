@@ -4430,9 +4430,9 @@ static int ice_start_eth(struct ice_vsi *vsi)
 	if (err)
 		return err;
 
-	rtnl_lock();
 	err = ice_vsi_open(vsi);
-	rtnl_unlock();
+	if (err)
+		ice_fltr_remove_all(vsi);
 
 	return err;
 }
@@ -4895,6 +4895,7 @@ int ice_load(struct ice_pf *pf)
 	params = ice_vsi_to_params(vsi);
 	params.flags = ICE_VSI_FLAG_INIT;
 
+	rtnl_lock();
 	err = ice_vsi_cfg(vsi, &params);
 	if (err)
 		goto err_vsi_cfg;
@@ -4902,6 +4903,7 @@ int ice_load(struct ice_pf *pf)
 	err = ice_start_eth(ice_get_main_vsi(pf));
 	if (err)
 		goto err_start_eth;
+	rtnl_unlock();
 
 	err = ice_init_rdma(pf);
 	if (err)
@@ -4916,9 +4918,11 @@ int ice_load(struct ice_pf *pf)
 
 err_init_rdma:
 	ice_vsi_close(ice_get_main_vsi(pf));
+	rtnl_lock();
 err_start_eth:
 	ice_vsi_decfg(ice_get_main_vsi(pf));
 err_vsi_cfg:
+	rtnl_unlock();
 	ice_deinit_dev(pf);
 	return err;
 }
@@ -4931,8 +4935,10 @@ void ice_unload(struct ice_pf *pf)
 {
 	ice_deinit_features(pf);
 	ice_deinit_rdma(pf);
+	rtnl_lock();
 	ice_stop_eth(ice_get_main_vsi(pf));
 	ice_vsi_decfg(ice_get_main_vsi(pf));
+	rtnl_unlock();
 	ice_deinit_dev(pf);
 }
 
@@ -8807,6 +8813,7 @@ ice_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_pf *pf = np->vsi->back;
+	bool locked = false;
 	int err;
 
 	switch (type) {
@@ -8816,10 +8823,27 @@ ice_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 						  ice_setup_tc_block_cb,
 						  np, np, true);
 	case TC_SETUP_QDISC_MQPRIO:
+		if (pf->adev) {
+			mutex_lock(&pf->adev_mutex);
+			device_lock(&pf->adev->dev);
+			locked = true;
+			if (pf->adev->dev.driver) {
+				netdev_err(netdev, "Cannot change qdisc when RDMA is active\n");
+				err = -EBUSY;
+				goto adev_unlock;
+			}
+		}
+
 		/* setup traffic classifier for receive side */
 		mutex_lock(&pf->tc_mutex);
 		err = ice_setup_tc_mqprio_qdisc(netdev, type_data);
 		mutex_unlock(&pf->tc_mutex);
+
+adev_unlock:
+		if (locked) {
+			device_unlock(&pf->adev->dev);
+			mutex_unlock(&pf->adev_mutex);
+		}
 		return err;
 	default:
 		return -EOPNOTSUPP;

@@ -362,8 +362,10 @@ static inline void read_stats_header(int stats_fd, struct kvm_stats_header *head
 {
 	ssize_t ret;
 
-	ret = read(stats_fd, header, sizeof(*header));
-	TEST_ASSERT(ret == sizeof(*header), "Read stats header");
+	ret = pread(stats_fd, header, sizeof(*header), 0);
+	TEST_ASSERT(ret == sizeof(*header),
+		    "Failed to read '%lu' header bytes, ret = '%ld'",
+		    sizeof(*header), ret);
 }
 
 struct kvm_stats_desc *read_stats_descriptors(int stats_fd,

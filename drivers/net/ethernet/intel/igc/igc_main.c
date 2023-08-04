@@ -316,6 +316,33 @@ static void igc_clean_all_tx_rings(struct igc_adapter *adapter)
 			igc_clean_tx_ring(adapter->tx_ring[i]);
 }
 
+static void igc_disable_tx_ring_hw(struct igc_ring *ring)
+{
+	struct igc_hw *hw = &ring->q_vector->adapter->hw;
+	u8 idx = ring->reg_idx;
+	u32 txdctl;
+
+	txdctl = rd32(IGC_TXDCTL(idx));
+	txdctl &= ~IGC_TXDCTL_QUEUE_ENABLE;
+	txdctl |= IGC_TXDCTL_SWFLUSH;
+	wr32(IGC_TXDCTL(idx), txdctl);
+}
+
+/**
+ * igc_disable_all_tx_rings_hw - Disable all transmit queue operation
+ * @adapter: board private structure
+ */
+static void igc_disable_all_tx_rings_hw(struct igc_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct igc_ring *tx_ring = adapter->tx_ring[i];
+
+		igc_disable_tx_ring_hw(tx_ring);
+	}
+}
+
 /**
  * igc_setup_tx_resources - allocate Tx resources (Descriptors)
  * @tx_ring: tx descriptor ring (for a specific queue) to setup
@@ -2828,9 +2855,8 @@ static void igc_xdp_xmit_zc(struct igc_ring *ring)
 	struct netdev_queue *nq = txring_txq(ring);
 	union igc_adv_tx_desc *tx_desc = NULL;
 	int cpu = smp_processor_id();
-	u16 ntu = ring->next_to_use;
 	struct xdp_desc xdp_desc;
-	u16 budget;
+	u16 budget, ntu;
 
 	if (!netif_carrier_ok(ring->netdev))
 		return;
@@ -2840,6 +2866,7 @@ static void igc_xdp_xmit_zc(struct igc_ring *ring)
 	/* Avoid transmit queue timeout since we share it with the slow path */
 	txq_trans_cond_update(nq);
 
+	ntu = ring->next_to_use;
 	budget = igc_desc_unused(ring);
 
 	while (xsk_tx_peek_desc(pool, &xdp_desc) && budget--) {
@@ -5058,6 +5085,7 @@ void igc_down(struct igc_adapter *adapter)
 	/* clear VLAN promisc flag so VFTA will be updated if necessary */
 	adapter->flags &= ~IGC_FLAG_VLAN_PROMISC;
 
+	igc_disable_all_tx_rings_hw(adapter);
 	igc_clean_all_tx_rings(adapter);
 	igc_clean_all_rx_rings(adapter);
 }
@@ -7288,18 +7316,6 @@ void igc_enable_rx_ring(struct igc_ring *ring)
 		igc_alloc_rx_buffers_zc(ring, igc_desc_unused(ring));
 	else
 		igc_alloc_rx_buffers(ring, igc_desc_unused(ring));
-}
-
-static void igc_disable_tx_ring_hw(struct igc_ring *ring)
-{
-	struct igc_hw *hw = &ring->q_vector->adapter->hw;
-	u8 idx = ring->reg_idx;
-	u32 txdctl;
-
-	txdctl = rd32(IGC_TXDCTL(idx));
-	txdctl &= ~IGC_TXDCTL_QUEUE_ENABLE;
-	txdctl |= IGC_TXDCTL_SWFLUSH;
-	wr32(IGC_TXDCTL(idx), txdctl);
 }
 
 void igc_disable_tx_ring(struct igc_ring *ring)

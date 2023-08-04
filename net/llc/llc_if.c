@@ -92,7 +92,7 @@ int llc_establish_connection(struct sock *sk, const u8 *lmac, u8 *dmac, u8 dsap)
 	daddr.lsap = dsap;
 	memcpy(daddr.mac, dmac, sizeof(daddr.mac));
 	memcpy(laddr.mac, lmac, sizeof(laddr.mac));
-	existing = llc_lookup_established(llc->sap, &daddr, &laddr);
+	existing = llc_lookup_established(llc->sap, &daddr, &laddr, sock_net(sk));
 	if (existing) {
 		if (existing->sk_state == TCP_ESTABLISHED) {
 			sk = existing;

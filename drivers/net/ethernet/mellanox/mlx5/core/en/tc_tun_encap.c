@@ -1030,9 +1030,6 @@ int mlx5e_tc_tun_encap_dests_set(struct mlx5e_priv *priv,
 	int out_index;
 	int err = 0;
 
-	if (!mlx5e_is_eswitch_flow(flow))
-		return 0;
-
 	parse_attr = attr->parse_attr;
 	esw_attr = attr->esw_attr;
 	*vf_tun = false;

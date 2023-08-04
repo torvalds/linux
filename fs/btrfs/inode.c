@@ -3482,15 +3482,21 @@ zeroit:
 void btrfs_add_delayed_iput(struct btrfs_inode *inode)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	unsigned long flags;
 
 	if (atomic_add_unless(&inode->vfs_inode.i_count, -1, 1))
 		return;
 
 	atomic_inc(&fs_info->nr_delayed_iputs);
-	spin_lock(&fs_info->delayed_iput_lock);
+	/*
+	 * Need to be irq safe here because we can be called from either an irq
+	 * context (see bio.c and btrfs_put_ordered_extent()) or a non-irq
+	 * context.
+	 */
+	spin_lock_irqsave(&fs_info->delayed_iput_lock, flags);
 	ASSERT(list_empty(&inode->delayed_iput));
 	list_add_tail(&inode->delayed_iput, &fs_info->delayed_iputs);
-	spin_unlock(&fs_info->delayed_iput_lock);
+	spin_unlock_irqrestore(&fs_info->delayed_iput_lock, flags);
 	if (!test_bit(BTRFS_FS_CLEANER_RUNNING, &fs_info->flags))
 		wake_up_process(fs_info->cleaner_kthread);
 }
@@ -3499,37 +3505,46 @@ static void run_delayed_iput_locked(struct btrfs_fs_info *fs_info,
 				    struct btrfs_inode *inode)
 {
 	list_del_init(&inode->delayed_iput);
-	spin_unlock(&fs_info->delayed_iput_lock);
+	spin_unlock_irq(&fs_info->delayed_iput_lock);
 	iput(&inode->vfs_inode);
 	if (atomic_dec_and_test(&fs_info->nr_delayed_iputs))
 		wake_up(&fs_info->delayed_iputs_wait);
-	spin_lock(&fs_info->delayed_iput_lock);
+	spin_lock_irq(&fs_info->delayed_iput_lock);
 }
 
 static void btrfs_run_delayed_iput(struct btrfs_fs_info *fs_info,
 				   struct btrfs_inode *inode)
 {
 	if (!list_empty(&inode->delayed_iput)) {
-		spin_lock(&fs_info->delayed_iput_lock);
+		spin_lock_irq(&fs_info->delayed_iput_lock);
 		if (!list_empty(&inode->delayed_iput))
 			run_delayed_iput_locked(fs_info, inode);
-		spin_unlock(&fs_info->delayed_iput_lock);
+		spin_unlock_irq(&fs_info->delayed_iput_lock);
 	}
 }
 
 void btrfs_run_delayed_iputs(struct btrfs_fs_info *fs_info)
 {
-
-	spin_lock(&fs_info->delayed_iput_lock);
+	/*
+	 * btrfs_put_ordered_extent() can run in irq context (see bio.c), which
+	 * calls btrfs_add_delayed_iput() and that needs to lock
+	 * fs_info->delayed_iput_lock. So we need to disable irqs here to
+	 * prevent a deadlock.
+	 */
+	spin_lock_irq(&fs_info->delayed_iput_lock);
 	while (!list_empty(&fs_info->delayed_iputs)) {
 		struct btrfs_inode *inode;
 
 		inode = list_first_entry(&fs_info->delayed_iputs,
 				struct btrfs_inode, delayed_iput);
 		run_delayed_iput_locked(fs_info, inode);
-		cond_resched_lock(&fs_info->delayed_iput_lock);
+		if (need_resched()) {
+			spin_unlock_irq(&fs_info->delayed_iput_lock);
+			cond_resched();
+			spin_lock_irq(&fs_info->delayed_iput_lock);
+		}
 	}
-	spin_unlock(&fs_info->delayed_iput_lock);
+	spin_unlock_irq(&fs_info->delayed_iput_lock);
 }
 
 /*
@@ -3659,11 +3674,14 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		found_key.type = BTRFS_INODE_ITEM_KEY;
 		found_key.offset = 0;
 		inode = btrfs_iget(fs_info->sb, last_objectid, root);
-		ret = PTR_ERR_OR_ZERO(inode);
-		if (ret && ret != -ENOENT)
-			goto out;
+		if (IS_ERR(inode)) {
+			ret = PTR_ERR(inode);
+			inode = NULL;
+			if (ret != -ENOENT)
+				goto out;
+		}
 
-		if (ret == -ENOENT && root == fs_info->tree_root) {
+		if (!inode && root == fs_info->tree_root) {
 			struct btrfs_root *dead_root;
 			int is_dead_root = 0;
 
@@ -3724,17 +3742,17 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		 * deleted but wasn't. The inode number may have been reused,
 		 * but either way, we can delete the orphan item.
 		 */
-		if (ret == -ENOENT || inode->i_nlink) {
-			if (!ret) {
+		if (!inode || inode->i_nlink) {
+			if (inode) {
 				ret = btrfs_drop_verity_items(BTRFS_I(inode));
 				iput(inode);
+				inode = NULL;
 				if (ret)
 					goto out;
 			}
 			trans = btrfs_start_transaction(root, 1);
 			if (IS_ERR(trans)) {
 				ret = PTR_ERR(trans);
-				iput(inode);
 				goto out;
 			}
 			btrfs_debug(fs_info, "auto deleting %Lu",
@@ -3742,10 +3760,8 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 			ret = btrfs_del_orphan_item(trans, root,
 						    found_key.objectid);
 			btrfs_end_transaction(trans);
-			if (ret) {
-				iput(inode);
+			if (ret)
 				goto out;
-			}
 			continue;
 		}
 
@@ -4847,9 +4863,6 @@ again:
 		ret = -ENOMEM;
 		goto out;
 	}
-	ret = set_page_extent_mapped(page);
-	if (ret < 0)
-		goto out_unlock;
 
 	if (!PageUptodate(page)) {
 		ret = btrfs_read_folio(NULL, page_folio(page));
@@ -4864,6 +4877,17 @@ again:
 			goto out_unlock;
 		}
 	}
+
+	/*
+	 * We unlock the page after the io is completed and then re-lock it
+	 * above.  release_folio() could have come in between that and cleared
+	 * PagePrivate(), but left the page in the mapping.  Set the page mapped
+	 * here to make sure it's properly set for the subpage stuff.
+	 */
+	ret = set_page_extent_mapped(page);
+	if (ret < 0)
+		goto out_unlock;
+
 	wait_on_page_writeback(page);
 
 	lock_extent(io_tree, block_start, block_end, &cached_state);
@@ -7849,8 +7873,11 @@ static void btrfs_dio_submit_io(const struct iomap_iter *iter, struct bio *bio,
 
 		ret = btrfs_extract_ordered_extent(bbio, dio_data->ordered);
 		if (ret) {
-			bbio->bio.bi_status = errno_to_blk_status(ret);
-			btrfs_dio_end_io(bbio);
+			btrfs_finish_ordered_extent(dio_data->ordered, NULL,
+						    file_offset, dip->bytes,
+						    !ret);
+			bio->bi_status = errno_to_blk_status(ret);
+			iomap_dio_bio_end_io(bio);
 			return;
 		}
 	}
