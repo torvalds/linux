@@ -363,7 +363,7 @@ struct mlx5e_cq {
 	/* control */
 	struct net_device         *netdev;
 	struct mlx5_core_dev      *mdev;
-	struct mlx5e_priv         *priv;
+	struct workqueue_struct   *workqueue;
 	struct mlx5_wq_ctrl        wq_ctrl;
 } ____cacheline_aligned_in_smp;
 
@@ -1043,6 +1043,8 @@ int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
 void mlx5e_close_xdpsq(struct mlx5e_xdpsq *sq);
 
 struct mlx5e_create_cq_param {
+	struct net_device *netdev;
+	struct workqueue_struct *wq;
 	struct napi_struct *napi;
 	struct mlx5e_ch_stats *ch_stats;
 	int node;
@@ -1050,7 +1052,7 @@ struct mlx5e_create_cq_param {
 };
 
 struct mlx5e_cq_param;
-int mlx5e_open_cq(struct mlx5e_priv *priv, struct dim_cq_moder moder,
+int mlx5e_open_cq(struct mlx5_core_dev *mdev, struct dim_cq_moder moder,
 		  struct mlx5e_cq_param *param, struct mlx5e_create_cq_param *ccp,
 		  struct mlx5e_cq *cq);
 void mlx5e_close_cq(struct mlx5e_cq *cq);

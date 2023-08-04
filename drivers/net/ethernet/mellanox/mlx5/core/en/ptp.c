@@ -557,6 +557,8 @@ static int mlx5e_ptp_open_tx_cqs(struct mlx5e_ptp *c,
 
 	num_tc = mlx5e_get_dcb_num_tc(params);
 
+	ccp.netdev   = c->netdev;
+	ccp.wq       = c->priv->wq;
 	ccp.node     = dev_to_node(mlx5_core_dma_dev(c->mdev));
 	ccp.ch_stats = c->stats;
 	ccp.napi     = &c->napi;
@@ -567,7 +569,7 @@ static int mlx5e_ptp_open_tx_cqs(struct mlx5e_ptp *c,
 	for (tc = 0; tc < num_tc; tc++) {
 		struct mlx5e_cq *cq = &c->ptpsq[tc].txqsq.cq;
 
-		err = mlx5e_open_cq(c->priv, ptp_moder, cq_param, &ccp, cq);
+		err = mlx5e_open_cq(c->mdev, ptp_moder, cq_param, &ccp, cq);
 		if (err)
 			goto out_err_txqsq_cq;
 	}
@@ -576,7 +578,7 @@ static int mlx5e_ptp_open_tx_cqs(struct mlx5e_ptp *c,
 		struct mlx5e_cq *cq = &c->ptpsq[tc].ts_cq;
 		struct mlx5e_ptpsq *ptpsq = &c->ptpsq[tc];
 
-		err = mlx5e_open_cq(c->priv, ptp_moder, cq_param, &ccp, cq);
+		err = mlx5e_open_cq(c->mdev, ptp_moder, cq_param, &ccp, cq);
 		if (err)
 			goto out_err_ts_cq;
 
@@ -604,6 +606,8 @@ static int mlx5e_ptp_open_rx_cq(struct mlx5e_ptp *c,
 	struct mlx5e_cq_param *cq_param;
 	struct mlx5e_cq *cq = &c->rq.cq;
 
+	ccp.netdev   = c->netdev;
+	ccp.wq       = c->priv->wq;
 	ccp.node     = dev_to_node(mlx5_core_dma_dev(c->mdev));
 	ccp.ch_stats = c->stats;
 	ccp.napi     = &c->napi;
@@ -611,7 +615,7 @@ static int mlx5e_ptp_open_rx_cq(struct mlx5e_ptp *c,
 
 	cq_param = &cparams->rq_param.cqp;
 
-	return mlx5e_open_cq(c->priv, ptp_moder, cq_param, &ccp, cq);
+	return mlx5e_open_cq(c->mdev, ptp_moder, cq_param, &ccp, cq);
 }
 
 static void mlx5e_ptp_close_tx_cqs(struct mlx5e_ptp *c)

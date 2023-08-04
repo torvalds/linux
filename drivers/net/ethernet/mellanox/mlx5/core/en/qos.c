@@ -124,7 +124,7 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 	memset(&param_cq, 0, sizeof(param_cq));
 	mlx5e_build_sq_param(priv->mdev, params, &param_sq);
 	mlx5e_build_tx_cq_param(priv->mdev, params, &param_cq);
-	err = mlx5e_open_cq(priv, params->tx_cq_moderation, &param_cq, &ccp, &sq->cq);
+	err = mlx5e_open_cq(c->mdev, params->tx_cq_moderation, &param_cq, &ccp, &sq->cq);
 	if (err)
 		goto err_free_sq;
 

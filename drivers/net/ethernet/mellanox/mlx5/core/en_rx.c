@@ -1039,7 +1039,7 @@ int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 						     (struct mlx5_err_cqe *)cqe);
 				mlx5_wq_cyc_wqe_dump(&sq->wq, ci, wi->num_wqebbs);
 				if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state))
-					queue_work(cq->priv->wq, &sq->recover_work);
+					queue_work(cq->workqueue, &sq->recover_work);
 				break;
 			}
 
