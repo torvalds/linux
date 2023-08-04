@@ -1719,7 +1719,7 @@ static struct sg_table *hl_map_dmabuf(struct dma_buf_attachment *attachment,
 						phys_pg_pack->pages,
 						phys_pg_pack->npages,
 						phys_pg_pack->page_size,
-						phys_pg_pack->exported_size,
+						hl_dmabuf->dmabuf->size,
 						attachment->dev,
 						dir);
 	else
@@ -2044,7 +2044,6 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 addr, u64 size, u64 o
 		if (rc)
 			goto dec_memhash_export_cnt;
 
-		phys_pg_pack->exported_size = size;
 		hl_dmabuf->phys_pg_pack = phys_pg_pack;
 		hl_dmabuf->memhash_hnode = hnode;
 	} else {
