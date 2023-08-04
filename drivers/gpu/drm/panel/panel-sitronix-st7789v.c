@@ -118,6 +118,9 @@ struct st7789_panel_info {
 	u32 bus_format;
 	u32 bus_flags;
 	bool invert_mode;
+	bool partial_mode;
+	u16 partial_start;
+	u16 partial_end;
 };
 
 struct st7789v {
@@ -345,8 +348,13 @@ static enum drm_panel_orientation st7789v_get_orientation(struct drm_panel *p)
 static int st7789v_prepare(struct drm_panel *panel)
 {
 	struct st7789v *ctx = panel_to_st7789v(panel);
-	u8 pixel_fmt, polarity;
+	u8 mode, pixel_fmt, polarity;
 	int ret;
+
+	if (!ctx->info->partial_mode)
+		mode = ST7789V_RGBCTRL_WO;
+	else
+		mode = 0;
 
 	switch (ctx->info->bus_format) {
 	case MEDIA_BUS_FMT_RGB666_1X18:
@@ -487,6 +495,37 @@ static int st7789v_prepare(struct drm_panel *panel)
 						MIPI_DCS_EXIT_INVERT_MODE));
 	}
 
+	if (ctx->info->partial_mode) {
+		u8 area_data[4] = {
+			(ctx->info->partial_start >> 8) & 0xff,
+			(ctx->info->partial_start >> 0) & 0xff,
+			((ctx->info->partial_end - 1) >> 8) & 0xff,
+			((ctx->info->partial_end - 1) >> 0) & 0xff,
+		};
+
+		/* Caution: if userspace ever pushes a mode different from the
+		 * expected one (i.e., the one advertised by get_modes), we'll
+		 * add margins.
+		 */
+
+		ST7789V_TEST(ret, st7789v_write_command(
+					  ctx, MIPI_DCS_ENTER_PARTIAL_MODE));
+
+		ST7789V_TEST(ret, st7789v_write_command(
+					  ctx, MIPI_DCS_SET_PAGE_ADDRESS));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[0]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[1]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[2]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[3]));
+
+		ST7789V_TEST(ret, st7789v_write_command(
+					  ctx, MIPI_DCS_SET_PARTIAL_ROWS));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[0]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[1]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[2]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[3]));
+	}
+
 	ST7789V_TEST(ret, st7789v_write_command(ctx, ST7789V_RAMCTRL_CMD));
 	ST7789V_TEST(ret, st7789v_write_data(ctx, ST7789V_RAMCTRL_DM_RGB |
 					     ST7789V_RAMCTRL_RM_RGB));
@@ -494,7 +533,7 @@ static int st7789v_prepare(struct drm_panel *panel)
 					     ST7789V_RAMCTRL_MAGIC));
 
 	ST7789V_TEST(ret, st7789v_write_command(ctx, ST7789V_RGBCTRL_CMD));
-	ST7789V_TEST(ret, st7789v_write_data(ctx, ST7789V_RGBCTRL_WO |
+	ST7789V_TEST(ret, st7789v_write_data(ctx, mode |
 					     ST7789V_RGBCTRL_RCM(2) |
 					     polarity));
 	ST7789V_TEST(ret, st7789v_write_data(ctx, ST7789V_RGBCTRL_VBP(8)));
