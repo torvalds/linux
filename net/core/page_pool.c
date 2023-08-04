@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 #include <net/xdp.h>
 
 #include <linux/dma-direction.h>

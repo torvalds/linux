@@ -26,6 +26,7 @@
 #include <linux/bitfield.h>
 #include <net/dsa.h>
 #include <net/dst_metadata.h>
+#include <net/page_pool/helpers.h>
 
 #include "mtk_eth_soc.h"
 #include "mtk_wed.h"

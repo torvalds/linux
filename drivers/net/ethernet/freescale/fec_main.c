@@ -38,6 +38,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <net/ip.h>
+#include <net/page_pool/helpers.h>
 #include <net/selftests.h>
 #include <net/tso.h>
 #include <linux/tcp.h>

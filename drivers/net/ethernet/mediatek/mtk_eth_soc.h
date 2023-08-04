@@ -18,7 +18,7 @@
 #include <linux/rhashtable.h>
 #include <linux/dim.h>
 #include <linux/bitfield.h>
-#include <net/page_pool.h>
+#include <net/page_pool/types.h>
 #include <linux/bpf_trace.h>
 #include "mtk_ppe.h"
 

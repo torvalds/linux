@@ -73,7 +73,7 @@
 #include <net/mpls.h>
 #include <net/mptcp.h>
 #include <net/mctp.h>
-#include <net/page_pool.h>
+#include <net/page_pool/types.h>
 #include <net/dropreason.h>
 
 #include <linux/uaccess.h>
