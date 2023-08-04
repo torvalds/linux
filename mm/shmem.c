@@ -3864,8 +3864,7 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
 	struct mempolicy *mpol;
 
 	if (sbinfo->max_blocks != shmem_default_max_blocks())
-		seq_printf(seq, ",size=%luk",
-			sbinfo->max_blocks << (PAGE_SHIFT - 10));
+		seq_printf(seq, ",size=%luk", K(sbinfo->max_blocks));
 	if (sbinfo->max_inodes != shmem_default_max_inodes())
 		seq_printf(seq, ",nr_inodes=%lu", sbinfo->max_inodes);
 	if (sbinfo->mode != (0777 | S_ISVTX))
