@@ -100,6 +100,7 @@ class IocStat:
         self.period_at = ioc.period_at.value_() / 1_000_000
         self.vperiod_at = ioc.period_at_vtime.value_() / VTIME_PER_SEC
         self.vrate_pct = ioc.vtime_base_rate.value_() * 100 / VTIME_PER_USEC
+        self.ivrate_pct = ioc.vtime_rate.counter.value_() * 100 / VTIME_PER_USEC
         self.busy_level = ioc.busy_level.value_()
         self.autop_idx = ioc.autop_idx.value_()
         self.user_cost_model = ioc.user_cost_model.value_()
@@ -119,7 +120,9 @@ class IocStat:
                  'period_at'            : self.period_at,
                  'period_vtime_at'      : self.vperiod_at,
                  'busy_level'           : self.busy_level,
-                 'vrate_pct'            : self.vrate_pct, }
+                 'vrate_pct'            : self.vrate_pct,
+                 'ivrate_pct'           : self.ivrate_pct,
+                }
 
     def table_preamble_str(self):
         state = ('RUN' if self.running else 'IDLE') if self.enabled else 'OFF'
@@ -127,7 +130,7 @@ class IocStat:
                  f'per={self.period_ms}ms ' \
                  f'cur_per={self.period_at:.3f}:v{self.vperiod_at:.3f} ' \
                  f'busy={self.busy_level:+3} ' \
-                 f'vrate={self.vrate_pct:6.2f}% ' \
+                 f'vrate={self.vrate_pct:6.2f}%:{self.ivrate_pct:6.2f}% ' \
                  f'params={self.autop_name}'
         if self.user_cost_model or self.user_qos_params:
             output += f'({"C" if self.user_cost_model else ""}{"Q" if self.user_qos_params else ""})'
