@@ -80,13 +80,19 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 	int bpc = vdsc_cfg->bits_per_component;
 	int bpp = vdsc_cfg->bits_per_pixel >> 4;
 	int qp_bpc_modifier = (bpc - 8) * 2;
+	int uncompressed_bpg_rate;
+	int first_line_bpg_offset;
 	u32 res, buf_i, bpp_i;
 
 	if (vdsc_cfg->slice_height >= 8)
-		vdsc_cfg->first_line_bpg_offset =
-			12 + DIV_ROUND_UP((9 * min(34, vdsc_cfg->slice_height - 8)), 100);
+		first_line_bpg_offset =
+			12 + (9 * min(34, vdsc_cfg->slice_height - 8)) / 100;
 	else
-		vdsc_cfg->first_line_bpg_offset = 2 * (vdsc_cfg->slice_height - 1);
+		first_line_bpg_offset = 2 * (vdsc_cfg->slice_height - 1);
+
+	uncompressed_bpg_rate = (3 * bpc + (vdsc_cfg->convert_rgb ? 0 : 2)) * 3;
+	vdsc_cfg->first_line_bpg_offset = clamp(first_line_bpg_offset, 0,
+						uncompressed_bpg_rate - 3 * bpp);
 
 	/*
 	 * According to DSC 1.2 spec in Section 4.1 if native_420 is set:
