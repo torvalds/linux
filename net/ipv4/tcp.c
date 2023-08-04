@@ -3479,6 +3479,12 @@ int do_tcp_setsockopt(struct sock *sk, int level, int optname,
 		else
 			WRITE_ONCE(tp->linger2, val * HZ);
 		return 0;
+	case TCP_DEFER_ACCEPT:
+		/* Translate value in seconds to number of retransmits */
+		WRITE_ONCE(icsk->icsk_accept_queue.rskq_defer_accept,
+			   secs_to_retrans(val, TCP_TIMEOUT_INIT / HZ,
+					   TCP_RTO_MAX / HZ));
+		return 0;
 	}
 
 	sockopt_lock_sock(sk);
@@ -3582,13 +3588,6 @@ int do_tcp_setsockopt(struct sock *sk, int level, int optname,
 			err = -EINVAL;
 		else
 			tp->save_syn = val;
-		break;
-
-	case TCP_DEFER_ACCEPT:
-		/* Translate value in seconds to number of retransmits */
-		WRITE_ONCE(icsk->icsk_accept_queue.rskq_defer_accept,
-			   secs_to_retrans(val, TCP_TIMEOUT_INIT / HZ,
-					   TCP_RTO_MAX / HZ));
 		break;
 
 	case TCP_WINDOW_CLAMP:
