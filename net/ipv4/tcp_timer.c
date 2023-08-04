@@ -714,7 +714,7 @@ static void tcp_keepalive_timer (struct timer_list *t)
 
 	tcp_mstamp_refresh(tp);
 	if (sk->sk_state == TCP_FIN_WAIT2 && sock_flag(sk, SOCK_DEAD)) {
-		if (tp->linger2 >= 0) {
+		if (READ_ONCE(tp->linger2) >= 0) {
 			const int tmo = tcp_fin_time(sk) - TCP_TIMEWAIT_LEN;
 
 			if (tmo > 0) {
