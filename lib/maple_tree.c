@@ -1715,45 +1715,32 @@ static inline void mas_adopt_children(struct ma_state *mas,
 }
 
 /*
- * mas_replace() - Replace a maple node in the tree with mas->node.  Uses the
- * parent encoding to locate the maple node in the tree.
- * @mas - the ma_state to use for operations.
- * @advanced - boolean to adopt the child nodes and free the old node (false) or
- * leave the node (true) and handle the adoption and free elsewhere.
+ * mas_put_in_tree() - Put a new node in the tree, smp_wmb(), and mark the old
+ * node as dead.
+ * @mas - the maple state with the new node
+ * @old_enode - The old maple encoded node to replace.
  */
-static inline void mas_replace(struct ma_state *mas, bool advanced)
+static inline void mas_put_in_tree(struct ma_state *mas,
+		struct maple_enode *old_enode)
 	__must_hold(mas->tree->ma_lock)
 {
-	struct maple_node *mn = mas_mn(mas);
-	struct maple_enode *old_enode;
-	unsigned char offset = 0;
-	void __rcu **slots = NULL;
-
-	if (ma_is_root(mn)) {
-		old_enode = mas_root_locked(mas);
-	} else {
-		offset = mte_parent_slot(mas->node);
-		slots = ma_slots(mte_parent(mas->node),
-				 mas_parent_type(mas, mas->node));
-		old_enode = mas_slot_locked(mas, slots, offset);
-	}
-
-	if (!advanced && !mte_is_leaf(mas->node))
-		mas_adopt_children(mas, mas->node);
+	unsigned char offset;
+	void __rcu **slots;
 
 	if (mte_is_root(mas->node)) {
-		mn->parent = ma_parent_ptr(
+		mas_mn(mas)->parent = ma_parent_ptr(
 			      ((unsigned long)mas->tree | MA_ROOT_PARENT));
 		rcu_assign_pointer(mas->tree->ma_root, mte_mk_root(mas->node));
 		mas_set_height(mas);
 	} else {
+
+		offset = mte_parent_slot(mas->node);
+		slots = ma_slots(mte_parent(mas->node),
+				 mas_parent_type(mas, mas->node));
 		rcu_assign_pointer(slots[offset], mas->node);
 	}
 
-	if (!advanced) {
-		mte_set_node_dead(old_enode);
-		mas_free(mas, old_enode);
-	}
+	mte_set_node_dead(old_enode);
 }
 
 /*
@@ -1767,22 +1754,7 @@ static inline void mas_replace_node(struct ma_state *mas,
 		struct maple_enode *old_enode)
 	__must_hold(mas->tree->ma_lock)
 {
-	if (mte_is_root(mas->node)) {
-		mas_mn(mas)->parent = ma_parent_ptr(
-			      ((unsigned long)mas->tree | MA_ROOT_PARENT));
-		rcu_assign_pointer(mas->tree->ma_root, mte_mk_root(mas->node));
-		mas_set_height(mas);
-	} else {
-		unsigned char offset = 0;
-		void __rcu **slots = NULL;
-
-		offset = mte_parent_slot(mas->node);
-		slots = ma_slots(mte_parent(mas->node),
-				 mas_parent_type(mas, mas->node));
-		rcu_assign_pointer(slots[offset], mas->node);
-	}
-
-	mte_set_node_dead(old_enode);
+	mas_put_in_tree(mas, old_enode);
 	mas_free(mas, old_enode);
 }
 
@@ -2789,11 +2761,20 @@ static inline void mas_wmb_replace(struct ma_state *mas,
 				   struct ma_topiary *free,
 				   struct ma_topiary *destroy)
 {
-	/* All nodes must see old data as dead prior to replacing that data */
-	smp_wmb(); /* Needed for RCU */
+	struct maple_enode *old_enode;
+
+	if (mte_is_root(mas->node)) {
+		old_enode = mas_root_locked(mas);
+	} else {
+		unsigned char offset = mte_parent_slot(mas->node);
+		void __rcu **slots = ma_slots(mte_parent(mas->node),
+					      mas_parent_type(mas, mas->node));
+
+		old_enode = mas_slot_locked(mas, slots, offset);
+	}
 
 	/* Insert the new data in the tree */
-	mas_replace(mas, true);
+	mas_put_in_tree(mas, old_enode);
 
 	if (!mte_is_leaf(mas->node))
 		mas_descend_adopt(mas);
