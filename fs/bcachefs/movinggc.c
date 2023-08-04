@@ -220,8 +220,10 @@ static int bch2_copygc(struct btree_trans *trans,
 
 		f = move_bucket_in_flight_add(buckets_in_flight, *i);
 		ret = PTR_ERR_OR_ZERO(f);
-		if (ret == -EEXIST) /* rare race: copygc_get_buckets returned same bucket more than once */
+		if (ret == -EEXIST) { /* rare race: copygc_get_buckets returned same bucket more than once */
+			ret = 0;
 			continue;
+		}
 		if (ret == -ENOMEM) { /* flush IO, continue later */
 			ret = 0;
 			break;
