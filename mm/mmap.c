@@ -484,6 +484,8 @@ static int vma_link(struct mm_struct *mm, struct vm_area_struct *vma)
 	if (mas_preallocate(&mas, vma, GFP_KERNEL))
 		return -ENOMEM;
 
+	vma_start_write(vma);
+
 	if (vma->vm_file) {
 		mapping = vma->vm_file->f_mapping;
 		i_mmap_lock_write(mapping);
@@ -744,8 +746,10 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 	if (adjust_next < 0)
 		mas_set_range(&mas, next->vm_start + adjust_next,
 			      next->vm_end - 1);
-	else if (insert)
+	else if (insert) {
+		vma_start_write(insert);
 		mas_set_range(&mas, insert->vm_start, insert->vm_end - 1);
+	}
 
 
 	if (mas_preallocate(&mas, vma, GFP_KERNEL))
@@ -843,6 +847,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 		 * (it may either follow vma or precede it).
 		 */
 		mas_reset(&mas);
+		vma_start_write(insert);
 		vma_mas_store(insert, &mas);
 		mm->map_count++;
 	}
@@ -3204,6 +3209,7 @@ static int do_brk_flags(struct ma_state *mas, struct vm_area_struct *vma,
 	vma->vm_pgoff = addr >> PAGE_SHIFT;
 	vm_flags_init(vma, flags);
 	vma->vm_page_prot = vm_get_page_prot(flags);
+	vma_start_write(vma);
 	mas_set_range(mas, vma->vm_start, addr + len - 1);
 	if (mas_store_gfp(mas, vma, GFP_KERNEL))
 		goto mas_store_fail;
@@ -3450,7 +3456,6 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 			get_file(new_vma->vm_file);
 		if (new_vma->vm_ops && new_vma->vm_ops->open)
 			new_vma->vm_ops->open(new_vma);
-		vma_start_write(new_vma);
 		if (vma_link(mm, new_vma))
 			goto out_vma_link;
 		*need_rmap_locks = false;
