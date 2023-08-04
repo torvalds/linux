@@ -63,9 +63,8 @@ static atomic_t swapin_readahead_hits = ATOMIC_INIT(4);
 void show_swap_cache_info(void)
 {
 	printk("%lu pages in swap cache\n", total_swapcache_pages());
-	printk("Free swap  = %ldkB\n",
-		get_nr_swap_pages() << (PAGE_SHIFT - 10));
-	printk("Total swap = %lukB\n", total_swap_pages << (PAGE_SHIFT - 10));
+	printk("Free swap  = %ldkB\n", K(get_nr_swap_pages()));
+	printk("Total swap = %lukB\n", K(total_swap_pages));
 }
 
 void *get_shadow_from_swap_cache(swp_entry_t entry)
