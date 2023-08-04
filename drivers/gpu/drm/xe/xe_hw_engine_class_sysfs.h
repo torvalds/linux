@@ -12,6 +12,7 @@ struct xe_gt;
 struct xe_hw_engine_class_intf;
 
 int xe_hw_engine_class_sysfs_init(struct xe_gt *gt);
+bool xe_hw_engine_timeout_in_range(u64 timeout, u64 min, u64 max);
 
 /**
  * struct kobj_eclass - A eclass's kobject struct that connects the kobject and the

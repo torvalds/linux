@@ -13,6 +13,7 @@
 
 #include "xe_device.h"
 #include "xe_gt.h"
+#include "xe_hw_engine_class_sysfs.h"
 #include "xe_hw_fence.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
@@ -21,6 +22,13 @@
 #include "xe_ring_ops_types.h"
 #include "xe_trace.h"
 #include "xe_vm.h"
+
+enum xe_exec_queue_sched_prop {
+	XE_EXEC_QUEUE_JOB_TIMEOUT = 0,
+	XE_EXEC_QUEUE_TIMESLICE = 1,
+	XE_EXEC_QUEUE_PREEMPT_TIMEOUT = 2,
+	XE_EXEC_QUEUE_SCHED_PROP_MAX = 3,
+};
 
 static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 						    struct xe_vm *vm,
@@ -201,11 +209,69 @@ static int exec_queue_set_priority(struct xe_device *xe, struct xe_exec_queue *q
 	return q->ops->set_priority(q, value);
 }
 
+static bool xe_exec_queue_enforce_schedule_limit(void)
+{
+#if IS_ENABLED(CONFIG_DRM_XE_ENABLE_SCHEDTIMEOUT_LIMIT)
+	return true;
+#else
+	return !capable(CAP_SYS_NICE);
+#endif
+}
+
+static void
+xe_exec_queue_get_prop_minmax(struct xe_hw_engine_class_intf *eclass,
+			      enum xe_exec_queue_sched_prop prop,
+			      u32 *min, u32 *max)
+{
+	switch (prop) {
+	case XE_EXEC_QUEUE_JOB_TIMEOUT:
+		*min = eclass->sched_props.job_timeout_min;
+		*max = eclass->sched_props.job_timeout_max;
+		break;
+	case XE_EXEC_QUEUE_TIMESLICE:
+		*min = eclass->sched_props.timeslice_min;
+		*max = eclass->sched_props.timeslice_max;
+		break;
+	case XE_EXEC_QUEUE_PREEMPT_TIMEOUT:
+		*min = eclass->sched_props.preempt_timeout_min;
+		*max = eclass->sched_props.preempt_timeout_max;
+		break;
+	default:
+		break;
+	}
+#if IS_ENABLED(CONFIG_DRM_XE_ENABLE_SCHEDTIMEOUT_LIMIT)
+	if (capable(CAP_SYS_NICE)) {
+		switch (prop) {
+		case XE_EXEC_QUEUE_JOB_TIMEOUT:
+			*min = XE_HW_ENGINE_JOB_TIMEOUT_MIN;
+			*max = XE_HW_ENGINE_JOB_TIMEOUT_MAX;
+			break;
+		case XE_EXEC_QUEUE_TIMESLICE:
+			*min = XE_HW_ENGINE_TIMESLICE_MIN;
+			*max = XE_HW_ENGINE_TIMESLICE_MAX;
+			break;
+		case XE_EXEC_QUEUE_PREEMPT_TIMEOUT:
+			*min = XE_HW_ENGINE_PREEMPT_TIMEOUT_MIN;
+			*max = XE_HW_ENGINE_PREEMPT_TIMEOUT_MAX;
+			break;
+		default:
+			break;
+		}
+	}
+#endif
+}
+
 static int exec_queue_set_timeslice(struct xe_device *xe, struct xe_exec_queue *q,
 				    u64 value, bool create)
 {
-	if (!capable(CAP_SYS_NICE))
-		return -EPERM;
+	u32 min = 0, max = 0;
+
+	xe_exec_queue_get_prop_minmax(q->hwe->eclass,
+				      XE_EXEC_QUEUE_TIMESLICE, &min, &max);
+
+	if (xe_exec_queue_enforce_schedule_limit() &&
+	    !xe_hw_engine_timeout_in_range(value, min, max))
+		return -EINVAL;
 
 	return q->ops->set_timeslice(q, value);
 }
@@ -214,8 +280,14 @@ static int exec_queue_set_preemption_timeout(struct xe_device *xe,
 					     struct xe_exec_queue *q, u64 value,
 					     bool create)
 {
-	if (!capable(CAP_SYS_NICE))
-		return -EPERM;
+	u32 min = 0, max = 0;
+
+	xe_exec_queue_get_prop_minmax(q->hwe->eclass,
+				      XE_EXEC_QUEUE_PREEMPT_TIMEOUT, &min, &max);
+
+	if (xe_exec_queue_enforce_schedule_limit() &&
+	    !xe_hw_engine_timeout_in_range(value, min, max))
+		return -EINVAL;
 
 	return q->ops->set_preempt_timeout(q, value);
 }
@@ -279,11 +351,17 @@ static int exec_queue_set_persistence(struct xe_device *xe, struct xe_exec_queue
 static int exec_queue_set_job_timeout(struct xe_device *xe, struct xe_exec_queue *q,
 				      u64 value, bool create)
 {
+	u32 min = 0, max = 0;
+
 	if (XE_IOCTL_DBG(xe, !create))
 		return -EINVAL;
 
-	if (!capable(CAP_SYS_NICE))
-		return -EPERM;
+	xe_exec_queue_get_prop_minmax(q->hwe->eclass,
+				      XE_EXEC_QUEUE_JOB_TIMEOUT, &min, &max);
+
+	if (xe_exec_queue_enforce_schedule_limit() &&
+	    !xe_hw_engine_timeout_in_range(value, min, max))
+		return -EINVAL;
 
 	return q->ops->set_job_timeout(q, value);
 }
