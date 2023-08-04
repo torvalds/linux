@@ -126,6 +126,7 @@ struct st7789v {
 	struct spi_device *spi;
 	struct gpio_desc *reset;
 	struct regulator *power;
+	enum drm_panel_orientation orientation;
 };
 
 enum st7789v_prefix {
@@ -325,7 +326,20 @@ static int st7789v_get_modes(struct drm_panel *panel,
 	drm_display_info_set_bus_formats(&connector->display_info,
 					 &ctx->info->bus_format, 1);
 
+	/*
+	 * TODO: Remove once all drm drivers call
+	 * drm_connector_set_orientation_from_panel()
+	 */
+	drm_connector_set_panel_orientation(connector, ctx->orientation);
+
 	return 1;
+}
+
+static enum drm_panel_orientation st7789v_get_orientation(struct drm_panel *p)
+{
+	struct st7789v *ctx = panel_to_st7789v(p);
+
+	return ctx->orientation;
 }
 
 static int st7789v_prepare(struct drm_panel *panel)
@@ -522,6 +536,7 @@ static const struct drm_panel_funcs st7789v_drm_funcs = {
 	.disable = st7789v_disable,
 	.enable	= st7789v_enable,
 	.get_modes = st7789v_get_modes,
+	.get_orientation = st7789v_get_orientation,
 	.prepare = st7789v_prepare,
 	.unprepare = st7789v_unprepare,
 };
@@ -562,6 +577,8 @@ static int st7789v_probe(struct spi_device *spi)
 	ret = drm_panel_of_backlight(&ctx->panel);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to get backlight\n");
+
+	of_drm_get_panel_orientation(spi->dev.of_node, &ctx->orientation);
 
 	drm_panel_add(&ctx->panel);
 
