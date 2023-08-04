@@ -28,6 +28,7 @@
 #include "xe_gt_topology.h"
 #include "xe_guc_exec_queue_types.h"
 #include "xe_hw_fence.h"
+#include "xe_hw_engine_class_sysfs.h"
 #include "xe_irq.h"
 #include "xe_lrc.h"
 #include "xe_map.h"
@@ -322,6 +323,12 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	err = xe_hw_engines_init_early(gt);
 	if (err)
 		goto err_force_wake;
+
+	err = xe_hw_engine_class_sysfs_init(gt);
+	if (err)
+		drm_warn(&gt_to_xe(gt)->drm,
+			 "failed to register engines sysfs directory, err: %d\n",
+			 err);
 
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 	XE_WARN_ON(err);
