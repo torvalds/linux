@@ -733,7 +733,6 @@ struct iso_list_data {
 		u16 sync_handle;
 	};
 	int count;
-	struct iso_cig_params pdu;
 	bool big_term;
 	bool big_sync_term;
 };
@@ -1703,42 +1702,6 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	return sco;
 }
 
-static void cis_add(struct iso_list_data *d, struct bt_iso_qos *qos)
-{
-	struct hci_cis_params *cis = &d->pdu.cis[d->pdu.cp.num_cis];
-
-	cis->cis_id = qos->ucast.cis;
-	cis->c_sdu  = cpu_to_le16(qos->ucast.out.sdu);
-	cis->p_sdu  = cpu_to_le16(qos->ucast.in.sdu);
-	cis->c_phy  = qos->ucast.out.phy ? qos->ucast.out.phy : qos->ucast.in.phy;
-	cis->p_phy  = qos->ucast.in.phy ? qos->ucast.in.phy : qos->ucast.out.phy;
-	cis->c_rtn  = qos->ucast.out.rtn;
-	cis->p_rtn  = qos->ucast.in.rtn;
-
-	d->pdu.cp.num_cis++;
-}
-
-static void cis_list(struct hci_conn *conn, void *data)
-{
-	struct iso_list_data *d = data;
-
-	/* Skip if broadcast/ANY address */
-	if (!bacmp(&conn->dst, BDADDR_ANY))
-		return;
-
-	if (d->cig != conn->iso_qos.ucast.cig || d->cis == BT_ISO_QOS_CIS_UNSET ||
-	    d->cis != conn->iso_qos.ucast.cis)
-		return;
-
-	d->count++;
-
-	if (d->pdu.cp.cig_id == BT_ISO_QOS_CIG_UNSET ||
-	    d->count >= ARRAY_SIZE(d->pdu.cis))
-		return;
-
-	cis_add(d, &conn->iso_qos);
-}
-
 static int hci_le_create_big(struct hci_conn *conn, struct bt_iso_qos *qos)
 {
 	struct hci_dev *hdev = conn->hdev;
@@ -1771,25 +1734,62 @@ static int hci_le_create_big(struct hci_conn *conn, struct bt_iso_qos *qos)
 	return hci_send_cmd(hdev, HCI_OP_LE_CREATE_BIG, sizeof(cp), &cp);
 }
 
-static void set_cig_params_complete(struct hci_dev *hdev, void *data, int err)
-{
-	struct iso_cig_params *pdu = data;
-
-	bt_dev_dbg(hdev, "");
-
-	if (err)
-		bt_dev_err(hdev, "Unable to set CIG parameters: %d", err);
-
-	kfree(pdu);
-}
-
 static int set_cig_params_sync(struct hci_dev *hdev, void *data)
 {
-	struct iso_cig_params *pdu = data;
-	u32 plen;
+	u8 cig_id = PTR_ERR(data);
+	struct hci_conn *conn;
+	struct bt_iso_qos *qos;
+	struct iso_cig_params pdu;
+	u8 cis_id;
 
-	plen = sizeof(pdu->cp) + pdu->cp.num_cis * sizeof(pdu->cis[0]);
-	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_CIG_PARAMS, plen, pdu,
+	conn = hci_conn_hash_lookup_cig(hdev, cig_id);
+	if (!conn)
+		return 0;
+
+	memset(&pdu, 0, sizeof(pdu));
+
+	qos = &conn->iso_qos;
+	pdu.cp.cig_id = cig_id;
+	hci_cpu_to_le24(qos->ucast.out.interval, pdu.cp.c_interval);
+	hci_cpu_to_le24(qos->ucast.in.interval, pdu.cp.p_interval);
+	pdu.cp.sca = qos->ucast.sca;
+	pdu.cp.packing = qos->ucast.packing;
+	pdu.cp.framing = qos->ucast.framing;
+	pdu.cp.c_latency = cpu_to_le16(qos->ucast.out.latency);
+	pdu.cp.p_latency = cpu_to_le16(qos->ucast.in.latency);
+
+	/* Reprogram all CIS(s) with the same CIG, valid range are:
+	 * num_cis: 0x00 to 0x1F
+	 * cis_id: 0x00 to 0xEF
+	 */
+	for (cis_id = 0x00; cis_id < 0xf0 &&
+	     pdu.cp.num_cis < ARRAY_SIZE(pdu.cis); cis_id++) {
+		struct hci_cis_params *cis;
+
+		conn = hci_conn_hash_lookup_cis(hdev, NULL, 0, cig_id, cis_id);
+		if (!conn)
+			continue;
+
+		qos = &conn->iso_qos;
+
+		cis = &pdu.cis[pdu.cp.num_cis++];
+		cis->cis_id = cis_id;
+		cis->c_sdu  = cpu_to_le16(conn->iso_qos.ucast.out.sdu);
+		cis->p_sdu  = cpu_to_le16(conn->iso_qos.ucast.in.sdu);
+		cis->c_phy  = qos->ucast.out.phy ? qos->ucast.out.phy :
+			      qos->ucast.in.phy;
+		cis->p_phy  = qos->ucast.in.phy ? qos->ucast.in.phy :
+			      qos->ucast.out.phy;
+		cis->c_rtn  = qos->ucast.out.rtn;
+		cis->p_rtn  = qos->ucast.in.rtn;
+	}
+
+	if (!pdu.cp.num_cis)
+		return 0;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_CIG_PARAMS,
+				     sizeof(pdu.cp) +
+				     pdu.cp.num_cis * sizeof(pdu.cis[0]), &pdu,
 				     HCI_CMD_TIMEOUT);
 }
 
@@ -1797,7 +1797,6 @@ static bool hci_le_set_cig_params(struct hci_conn *conn, struct bt_iso_qos *qos)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct iso_list_data data;
-	struct iso_cig_params *pdu;
 
 	memset(&data, 0, sizeof(data));
 
@@ -1824,61 +1823,31 @@ static bool hci_le_set_cig_params(struct hci_conn *conn, struct bt_iso_qos *qos)
 		qos->ucast.cig = data.cig;
 	}
 
-	data.pdu.cp.cig_id = qos->ucast.cig;
-	hci_cpu_to_le24(qos->ucast.out.interval, data.pdu.cp.c_interval);
-	hci_cpu_to_le24(qos->ucast.in.interval, data.pdu.cp.p_interval);
-	data.pdu.cp.sca = qos->ucast.sca;
-	data.pdu.cp.packing = qos->ucast.packing;
-	data.pdu.cp.framing = qos->ucast.framing;
-	data.pdu.cp.c_latency = cpu_to_le16(qos->ucast.out.latency);
-	data.pdu.cp.p_latency = cpu_to_le16(qos->ucast.in.latency);
-
 	if (qos->ucast.cis != BT_ISO_QOS_CIS_UNSET) {
-		data.count = 0;
-		data.cig = qos->ucast.cig;
-		data.cis = qos->ucast.cis;
-
-		hci_conn_hash_list_state(hdev, cis_list, ISO_LINK, BT_BOUND,
-					 &data);
-		if (data.count)
+		if (hci_conn_hash_lookup_cis(hdev, NULL, 0, qos->ucast.cig,
+					     qos->ucast.cis))
 			return false;
-
-		cis_add(&data, qos);
+		goto done;
 	}
 
-	/* Reprogram all CIS(s) with the same CIG, valid range are:
-	 * num_cis: 0x00 to 0x1F
-	 * cis_id: 0x00 to 0xEF
-	 */
-	for (data.cig = qos->ucast.cig, data.cis = 0x00; data.cis < 0xf0 &&
-	     data.pdu.cp.num_cis < ARRAY_SIZE(data.pdu.cis); data.cis++) {
-		data.count = 0;
-
-		hci_conn_hash_list_state(hdev, cis_list, ISO_LINK, BT_BOUND,
-					 &data);
-		if (data.count)
-			continue;
-
-		/* Allocate a CIS if not set */
-		if (qos->ucast.cis == BT_ISO_QOS_CIS_UNSET) {
+	/* Allocate first available CIS if not set */
+	for (data.cig = qos->ucast.cig, data.cis = 0x00; data.cis < 0xf0;
+	     data.cis++) {
+		if (!hci_conn_hash_lookup_cis(hdev, NULL, 0, data.cig,
+					      data.cis)) {
 			/* Update CIS */
 			qos->ucast.cis = data.cis;
-			cis_add(&data, qos);
+			break;
 		}
 	}
 
-	if (qos->ucast.cis == BT_ISO_QOS_CIS_UNSET || !data.pdu.cp.num_cis)
+	if (qos->ucast.cis == BT_ISO_QOS_CIS_UNSET)
 		return false;
 
-	pdu = kmemdup(&data.pdu, sizeof(*pdu), GFP_KERNEL);
-	if (!pdu)
+done:
+	if (hci_cmd_sync_queue(hdev, set_cig_params_sync,
+			       ERR_PTR(qos->ucast.cig), NULL) < 0)
 		return false;
-
-	if (hci_cmd_sync_queue(hdev, set_cig_params_sync, pdu,
-			       set_cig_params_complete) < 0) {
-		kfree(pdu);
-		return false;
-	}
 
 	return true;
 }
