@@ -111,33 +111,14 @@ struct fs_mii_bb_platform_info {
 };
 
 struct fs_platform_info {
-
-	void(*init_ioports)(struct fs_platform_info *);
 	/* device specific information */
-	int fs_no;		/* controller index            */
-	char fs_type[4];	/* controller type             */
-
-	u32 cp_page;		/* CPM page */
-	u32 cp_block;		/* CPM sblock */
 	u32 cp_command;		/* CPM page/sblock/mcn */
 
-	u32 clk_trx;		/* some stuff for pins & mux configuration*/
-	u32 clk_rx;
-	u32 clk_tx;
-	u32 clk_route;
-	u32 clk_mask;
-
-	u32 mem_offset;
 	u32 dpram_offset;
-	u32 fcc_regs_c;
 	
-	u32 device_flags;
-
 	struct device_node *phy_node;
-	const struct fs_mii_bus_info *bus_info;
 
 	int rx_ring, tx_ring;	/* number of buffers on rx     */
-	__u8 macaddr[ETH_ALEN];	/* mac address                 */
 	int rx_copybreak;	/* limit we copy small frames  */
 	int napi_weight;	/* NAPI weight                 */
 
