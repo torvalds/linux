@@ -1463,7 +1463,7 @@ static int ep_disable(struct usb_ep *ep)
  */
 static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 {
-	struct ci_hw_req *hwreq = NULL;
+	struct ci_hw_req *hwreq;
 
 	if (ep == NULL)
 		return NULL;
