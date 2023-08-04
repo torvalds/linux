@@ -447,10 +447,11 @@ static int otx2_tc_process_vlan(struct otx2_nic *nic, struct flow_msg *flow_spec
 	u16 vlan_tci, vlan_tci_mask;
 
 	if (is_inner)
-		return -EOPNOTSUPP;
+		flow_rule_match_cvlan(rule, &match);
+	else
+		flow_rule_match_vlan(rule, &match);
 
-	flow_rule_match_vlan(rule, &match);
-	if (ntohs(match.key->vlan_tpid) != ETH_P_8021Q) {
+	if (!eth_type_vlan(match.key->vlan_tpid)) {
 		netdev_err(nic->netdev, "vlan tpid 0x%x not supported\n",
 			   ntohs(match.key->vlan_tpid));
 		return -EOPNOTSUPP;
@@ -480,9 +481,15 @@ static int otx2_tc_process_vlan(struct otx2_nic *nic, struct flow_msg *flow_spec
 		vlan_tci_mask = match.mask->vlan_id |
 				match.mask->vlan_dei << 12 |
 				match.mask->vlan_priority << 13;
-		flow_spec->vlan_tci = htons(vlan_tci);
-		flow_mask->vlan_tci = htons(vlan_tci_mask);
-		req->features |= BIT_ULL(NPC_OUTER_VID);
+		if (is_inner) {
+			flow_spec->vlan_itci = htons(vlan_tci);
+			flow_mask->vlan_itci = htons(vlan_tci_mask);
+			req->features |= BIT_ULL(NPC_INNER_VID);
+		} else {
+			flow_spec->vlan_tci = htons(vlan_tci);
+			flow_mask->vlan_tci = htons(vlan_tci_mask);
+			req->features |= BIT_ULL(NPC_OUTER_VID);
+		}
 	}
 
 	return 0;
@@ -507,6 +514,7 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_VLAN) |
+	      BIT(FLOW_DISSECTOR_KEY_CVLAN) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS) |
@@ -643,6 +651,14 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 		int ret;
 
 		ret = otx2_tc_process_vlan(nic, flow_spec, flow_mask, rule, req, false);
+		if (ret)
+			return ret;
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CVLAN)) {
+		int ret;
+
+		ret = otx2_tc_process_vlan(nic, flow_spec, flow_mask, rule, req, true);
 		if (ret)
 			return ret;
 	}
