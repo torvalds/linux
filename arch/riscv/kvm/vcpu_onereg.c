@@ -645,8 +645,7 @@ int kvm_riscv_vcpu_set_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_RISCV_SBI_EXT:
 		return kvm_riscv_vcpu_set_reg_sbi_ext(vcpu, reg);
 	case KVM_REG_RISCV_VECTOR:
-		return kvm_riscv_vcpu_set_reg_vector(vcpu, reg,
-						 KVM_REG_RISCV_VECTOR);
+		return kvm_riscv_vcpu_set_reg_vector(vcpu, reg);
 	default:
 		break;
 	}
@@ -677,8 +676,7 @@ int kvm_riscv_vcpu_get_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_RISCV_SBI_EXT:
 		return kvm_riscv_vcpu_get_reg_sbi_ext(vcpu, reg);
 	case KVM_REG_RISCV_VECTOR:
-		return kvm_riscv_vcpu_get_reg_vector(vcpu, reg,
-						 KVM_REG_RISCV_VECTOR);
+		return kvm_riscv_vcpu_get_reg_vector(vcpu, reg);
 	default:
 		break;
 	}
