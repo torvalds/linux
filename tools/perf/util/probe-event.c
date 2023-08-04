@@ -2063,14 +2063,18 @@ char *synthesize_perf_probe_command(struct perf_probe_event *pev)
 			goto out;
 
 	tmp = synthesize_perf_probe_point(&pev->point);
-	if (!tmp || strbuf_addstr(&buf, tmp) < 0)
+	if (!tmp || strbuf_addstr(&buf, tmp) < 0) {
+		free(tmp);
 		goto out;
+	}
 	free(tmp);
 
 	for (i = 0; i < pev->nargs; i++) {
 		tmp = synthesize_perf_probe_arg(pev->args + i);
-		if (!tmp || strbuf_addf(&buf, " %s", tmp) < 0)
+		if (!tmp || strbuf_addf(&buf, " %s", tmp) < 0) {
+			free(tmp);
 			goto out;
+		}
 		free(tmp);
 	}
 
