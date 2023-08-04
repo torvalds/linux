@@ -904,7 +904,7 @@ static int smu7_setup_dpm_tables_v1(struct pp_hwmgr *hwmgr)
 					dep_sclk_table->entries[i].clk;
 
 			data->dpm_table.sclk_table.dpm_levels[data->dpm_table.sclk_table.count].enabled =
-					(i == 0) ? true : false;
+					i == 0;
 			data->dpm_table.sclk_table.count++;
 		}
 	}
@@ -919,7 +919,7 @@ static int smu7_setup_dpm_tables_v1(struct pp_hwmgr *hwmgr)
 			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].value =
 							dep_mclk_table->entries[i].clk;
 			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].enabled =
-							(i == 0) ? true : false;
+							i == 0;
 			data->dpm_table.mclk_table.count++;
 		}
 	}

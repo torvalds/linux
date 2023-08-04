@@ -1103,7 +1103,7 @@ int smu7_enable_smc_cac(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE((0 == smc_result),
 				"Failed to enable CAC in SMC.", result = -1);
 
-		data->cac_enabled = (0 == smc_result) ? true : false;
+		data->cac_enabled = smc_result == 0;
 	}
 	return result;
 }
