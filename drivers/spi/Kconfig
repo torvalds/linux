@@ -281,6 +281,13 @@ config SPI_COLDFIRE_QSPI
 	  This enables support for the Coldfire QSPI controller in master
 	  mode.
 
+config SPI_CS42L43
+	tristate "Cirrus Logic CS42L43 SPI controller"
+	depends on MFD_CS42L43 && PINCTRL_CS42L43
+	help
+	  This enables support for the SPI controller inside the Cirrus Logic
+	  CS42L43 audio codec.
+
 config SPI_DAVINCI
 	tristate "Texas Instruments DaVinci/DA8x/OMAP-L/AM1x SoC SPI controller"
 	depends on ARCH_DAVINCI || ARCH_KEYSTONE || COMPILE_TEST
