@@ -630,8 +630,11 @@ fsck_err:
 ({									\
 	int _ret = __btree_err(type, c, ca, b, i, write, have_retry, msg, ##__VA_ARGS__);\
 									\
-	if (_ret != -BCH_ERR_fsck_fix)					\
+	if (_ret != -BCH_ERR_fsck_fix) {				\
+		ret = _ret;						\
 		goto fsck_err;						\
+	}								\
+									\
 	*saw_error = true;						\
 })
 
