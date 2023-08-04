@@ -279,6 +279,21 @@ static const struct drm_display_mode et028013dma_mode = {
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
+static const struct drm_display_mode jt240mhqs_hwt_ek_e3_mode = {
+	.clock = 6000,
+	.hdisplay = 240,
+	.hsync_start = 240 + 28,
+	.hsync_end = 240 + 28 + 10,
+	.htotal = 240 + 28 + 10 + 10,
+	.vdisplay = 280,
+	.vsync_start = 280 + 8,
+	.vsync_end = 280 + 8 + 4,
+	.vtotal = 280 + 8 + 4 + 4,
+	.width_mm = 43,
+	.height_mm = 37,
+	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
+};
+
 static const struct st7789_panel_info default_panel = {
 	.mode = &default_mode,
 	.invert_mode = true,
@@ -301,6 +316,17 @@ static const struct st7789_panel_info et028013dma_panel = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH |
 		     DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
+};
+
+static const struct st7789_panel_info jt240mhqs_hwt_ek_e3_panel = {
+	.mode = &jt240mhqs_hwt_ek_e3_mode,
+	.invert_mode = true,
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH |
+		     DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
+	.partial_mode = true,
+	.partial_start = 38,
+	.partial_end = 318,
 };
 
 static int st7789v_get_modes(struct drm_panel *panel,
@@ -635,6 +661,7 @@ static const struct spi_device_id st7789v_spi_id[] = {
 	{ "st7789v", (unsigned long) &default_panel },
 	{ "t28cp45tn89-v17", (unsigned long) &t28cp45tn89_panel },
 	{ "et028013dma", (unsigned long) &et028013dma_panel },
+	{ "jt240mhqs-hwt-ek-e3", (unsigned long) &jt240mhqs_hwt_ek_e3_panel },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, st7789v_spi_id);
@@ -643,6 +670,8 @@ static const struct of_device_id st7789v_of_match[] = {
 	{ .compatible = "sitronix,st7789v", .data = &default_panel },
 	{ .compatible = "inanbo,t28cp45tn89-v17", .data = &t28cp45tn89_panel },
 	{ .compatible = "edt,et028013dma", .data = &et028013dma_panel },
+	{ .compatible = "jasonic,jt240mhqs-hwt-ek-e3",
+	  .data = &jt240mhqs_hwt_ek_e3_panel },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, st7789v_of_match);
