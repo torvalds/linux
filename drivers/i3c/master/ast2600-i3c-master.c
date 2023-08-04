@@ -504,14 +504,15 @@ static void aspeed_i3c_gen_stop_to_internal(struct aspeed_i3c_master *master)
 			  SDA_IN_SW_MODE_VAL, SDA_IN_SW_MODE_VAL);
 }
 
-static bool aspeed_i3c_fsm_is_idle(struct aspeed_i3c_master *master)
+static bool aspeed_i3c_fsm_exit_serv_ibi(struct aspeed_i3c_master *master)
 {
 	/*
 	 * Clear the IBI queue to enable the hardware to generate SCL and
 	 * begin detecting the T-bit low to stop reading IBI data.
 	 */
 	readl(master->regs + IBI_QUEUE_DATA);
-	if (FIELD_GET(CM_TFR_STS, readl(master->regs + PRESENT_STATE)))
+	if (FIELD_GET(CM_TFR_STS, readl(master->regs + PRESENT_STATE)) ==
+	    CM_TFR_STS_MASTER_SERV_IBI)
 		return false;
 	return true;
 }
@@ -528,13 +529,13 @@ static void aspeed_i3c_gen_tbits_in(struct aspeed_i3c_master *master)
 
 	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
 			  SDA_IN_SW_MODE_VAL, 0);
-	ret = readx_poll_timeout_atomic(aspeed_i3c_fsm_is_idle, master, is_idle,
+	ret = readx_poll_timeout_atomic(aspeed_i3c_fsm_exit_serv_ibi, master, is_idle,
 					is_idle, 0, 2000000);
 	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
 			  SDA_IN_SW_MODE_EN, 0);
 	if (ret)
 		dev_err(master->dev,
-			"Failed to recovery the i3c fsm from %lx to idle: %d",
+			"Failed to exit the I3C fsm from %lx(MASTER_SERV_IBI): %d",
 			FIELD_GET(CM_TFR_STS,
 				  readl(master->regs + PRESENT_STATE)),
 			ret);
