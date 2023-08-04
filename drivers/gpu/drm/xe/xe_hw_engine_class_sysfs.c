@@ -24,37 +24,33 @@ static const struct kobj_type kobj_xe_hw_engine_type = {
 	.sysfs_ops = &kobj_sysfs_ops
 };
 
-static void kobj_xe_hw_engine_class_fini(struct drm_device *drm, void *arg)
+static ssize_t job_timeout_store(struct kobject *kobj,
+				 struct kobj_attribute *attr,
+				 const char *buf, size_t count)
 {
-	struct kobject *kobj = arg;
+	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj);
+	u32 timeout;
+	int err;
 
-	kobject_put(kobj);
-}
-
-	static struct kobj_eclass *
-kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, char *name)
-{
-	struct kobj_eclass *keclass;
-	int err = 0;
-
-	keclass = kzalloc(sizeof(*keclass), GFP_KERNEL);
-	if (!keclass)
-		return NULL;
-
-	kobject_init(&keclass->base, &kobj_xe_hw_engine_type);
-	if (kobject_add(&keclass->base, parent, "%s", name)) {
-		kobject_put(&keclass->base);
-		return NULL;
-	}
-
-	err = drmm_add_action_or_reset(&xe->drm, kobj_xe_hw_engine_class_fini,
-				       &keclass->base);
+	err = kstrtou32(buf, 0, &timeout);
 	if (err)
-		drm_warn(&xe->drm,
-			 "%s: drmm_add_action_or_reset failed, err: %d\n",
-			 __func__, err);
-	return keclass;
+		return err;
+
+	WRITE_ONCE(eclass->sched_props.job_timeout_ms, timeout);
+
+	return count;
 }
+
+static ssize_t job_timeout_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buf)
+{
+	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj);
+
+	return sprintf(buf, "%u\n", eclass->sched_props.job_timeout_ms);
+}
+
+static struct kobj_attribute job_timeout_attr =
+__ATTR(job_timeout_ms, 0644, job_timeout_show, job_timeout_store);
 
 static ssize_t job_timeout_default(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *buf)
@@ -96,6 +92,44 @@ static const struct attribute *defaults[] = {
 	&preempt_timeout_def.attr,
 	NULL
 };
+
+static const struct attribute *files[] = {
+	&job_timeout_attr.attr,
+	NULL
+};
+
+static void kobj_xe_hw_engine_class_fini(struct drm_device *drm, void *arg)
+{
+	struct kobject *kobj = arg;
+
+	sysfs_remove_files(kobj, files);
+	kobject_put(kobj);
+}
+
+	static struct kobj_eclass *
+kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, char *name)
+{
+	struct kobj_eclass *keclass;
+	int err = 0;
+
+	keclass = kzalloc(sizeof(*keclass), GFP_KERNEL);
+	if (!keclass)
+		return NULL;
+
+	kobject_init(&keclass->base, &kobj_xe_hw_engine_type);
+	if (kobject_add(&keclass->base, parent, "%s", name)) {
+		kobject_put(&keclass->base);
+		return NULL;
+	}
+
+	err = drmm_add_action_or_reset(&xe->drm, kobj_xe_hw_engine_class_fini,
+				       &keclass->base);
+	if (err)
+		drm_warn(&xe->drm,
+			 "%s: drmm_add_action_or_reset failed, err: %d\n",
+			 __func__, err);
+	return keclass;
+}
 
 static void hw_engine_class_defaults_fini(struct drm_device *drm, void *arg)
 {
@@ -229,6 +263,10 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 				 err);
 			goto err_object;
 		}
+
+		err = sysfs_create_files(&keclass->base, files);
+		if (err)
+			goto err_object;
 	}
 
 	err = drmm_add_action_or_reset(&xe->drm, hw_engine_class_sysfs_fini,
