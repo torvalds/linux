@@ -307,17 +307,17 @@ static int cytherm_probe(struct usb_interface *interface,
 	struct usb_cytherm *dev = NULL;
 	int retval = -ENOMEM;
 
-	dev = kzalloc (sizeof(struct usb_cytherm), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct usb_cytherm), GFP_KERNEL);
 	if (!dev)
 		goto error_mem;
 
 	dev->udev = usb_get_dev(udev);
 
-	usb_set_intfdata (interface, dev);
+	usb_set_intfdata(interface, dev);
 
 	dev->brightness = 0xFF;
 
-	dev_info (&interface->dev,
+	dev_info(&interface->dev,
 		  "Cypress thermometer device now attached\n");
 	return 0;
 
@@ -329,10 +329,10 @@ static void cytherm_disconnect(struct usb_interface *interface)
 {
 	struct usb_cytherm *dev;
 
-	dev = usb_get_intfdata (interface);
+	dev = usb_get_intfdata(interface);
 
 	/* first remove the files, then NULL the pointer */
-	usb_set_intfdata (interface, NULL);
+	usb_set_intfdata(interface, NULL);
 
 	usb_put_dev(dev->udev);
 
