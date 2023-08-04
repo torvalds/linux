@@ -1540,6 +1540,7 @@
   iommu_group_set_iommudata
   iommu_iova_to_phys
   iommu_map
+  iommu_map_atomic
   iommu_map_sg
   iommu_present
   iommu_put_resv_regions
