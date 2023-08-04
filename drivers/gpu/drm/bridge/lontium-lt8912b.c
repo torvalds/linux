@@ -589,9 +589,6 @@ static void lt8912_bridge_detach(struct drm_bridge *bridge)
 
 	if (lt->hdmi_port->ops & DRM_BRIDGE_OP_HPD)
 		drm_bridge_hpd_disable(lt->hdmi_port);
-
-	drm_connector_unregister(&lt->connector);
-	drm_connector_cleanup(&lt->connector);
 }
 
 static enum drm_connector_status
