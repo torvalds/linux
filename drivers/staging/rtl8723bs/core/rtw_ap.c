@@ -1238,7 +1238,6 @@ void rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 	struct __queue	*pacl_node_q = &pacl_list->acl_node_q;
-	u8 baddr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };	/* Baddr is used for clearing acl_list */
 
 	spin_lock_bh(&(pacl_node_q->lock));
 
@@ -1248,7 +1247,7 @@ void rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 
 		if (
 			!memcmp(paclnode->addr, addr, ETH_ALEN) ||
-			!memcmp(baddr, addr, ETH_ALEN)
+			is_broadcast_ether_addr(addr)
 		) {
 			if (paclnode->valid) {
 				paclnode->valid = false;
