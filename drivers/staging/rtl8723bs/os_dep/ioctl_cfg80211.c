@@ -1850,9 +1850,8 @@ static int cfg80211_rtw_set_pmksa(struct wiphy *wiphy,
 	u8 index, blInserted = false;
 	struct adapter *padapter = rtw_netdev_priv(ndev);
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-	u8 strZeroMacAddress[ETH_ALEN] = { 0x00 };
 
-	if (!memcmp((u8 *)pmksa->bssid, strZeroMacAddress, ETH_ALEN))
+	if (is_zero_ether_addr((u8 *)pmksa->bssid))
 		return -EINVAL;
 
 	blInserted = false;
