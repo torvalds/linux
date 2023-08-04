@@ -716,6 +716,59 @@ err_free:
 	return NULL;
 }
 
+/* DEVLINK_CMD_INFO_GET - dump */
+void devlink_info_get_list_free(struct devlink_info_get_list *rsp)
+{
+	struct devlink_info_get_list *next = rsp;
+
+	while ((void *)next != YNL_LIST_END) {
+		unsigned int i;
+
+		rsp = next;
+		next = rsp->next;
+
+		free(rsp->obj.bus_name);
+		free(rsp->obj.dev_name);
+		free(rsp->obj.info_driver_name);
+		free(rsp->obj.info_serial_number);
+		for (i = 0; i < rsp->obj.n_info_version_fixed; i++)
+			devlink_dl_info_version_free(&rsp->obj.info_version_fixed[i]);
+		free(rsp->obj.info_version_fixed);
+		for (i = 0; i < rsp->obj.n_info_version_running; i++)
+			devlink_dl_info_version_free(&rsp->obj.info_version_running[i]);
+		free(rsp->obj.info_version_running);
+		for (i = 0; i < rsp->obj.n_info_version_stored; i++)
+			devlink_dl_info_version_free(&rsp->obj.info_version_stored[i]);
+		free(rsp->obj.info_version_stored);
+		free(rsp);
+	}
+}
+
+struct devlink_info_get_list *devlink_info_get_dump(struct ynl_sock *ys)
+{
+	struct ynl_dump_state yds = {};
+	struct nlmsghdr *nlh;
+	int err;
+
+	yds.ys = ys;
+	yds.alloc_sz = sizeof(struct devlink_info_get_list);
+	yds.cb = devlink_info_get_rsp_parse;
+	yds.rsp_cmd = DEVLINK_CMD_INFO_GET;
+	yds.rsp_policy = &devlink_nest;
+
+	nlh = ynl_gemsg_start_dump(ys, ys->family_id, DEVLINK_CMD_INFO_GET, 1);
+
+	err = ynl_exec_dump(ys, nlh, &yds);
+	if (err < 0)
+		goto free_list;
+
+	return yds.first;
+
+free_list:
+	devlink_info_get_list_free(yds.first);
+	return NULL;
+}
+
 const struct ynl_family ynl_devlink_family =  {
 	.name		= "devlink",
 };

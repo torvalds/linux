@@ -1843,13 +1843,13 @@ def print_ntf_type_free(ri):
 
 
 def print_req_policy_fwd(cw, struct, ri=None, terminate=True):
-    if terminate and ri and kernel_can_gen_family_struct(struct.family):
+    if terminate and ri and policy_should_be_static(struct.family):
         return
 
     if terminate:
         prefix = 'extern '
     else:
-        if kernel_can_gen_family_struct(struct.family) and ri:
+        if ri and policy_should_be_static(struct.family):
             prefix = 'static '
         else:
             prefix = ''
@@ -1875,6 +1875,10 @@ def print_req_policy(cw, struct, ri=None):
 
 def kernel_can_gen_family_struct(family):
     return family.proto == 'genetlink'
+
+
+def policy_should_be_static(family):
+    return family.kernel_policy == 'split' or kernel_can_gen_family_struct(family)
 
 
 def print_kernel_op_table_fwd(family, cw, terminate):
@@ -1988,9 +1992,17 @@ def print_kernel_op_table(family, cw):
                 cw.block_start()
                 members = [('cmd', op.enum_name)]
                 if 'dont-validate' in op:
+                    dont_validate = []
+                    for x in op['dont-validate']:
+                        if op_mode == 'do' and x in ['dump', 'dump-strict']:
+                            continue
+                        if op_mode == "dump" and x == 'strict':
+                            continue
+                        dont_validate.append(x)
+
                     members.append(('validate',
                                     ' | '.join([c_upper('genl-dont-validate-' + x)
-                                                for x in op['dont-validate']])), )
+                                                for x in dont_validate])), )
                 name = c_lower(f"{family.name}-nl-{op_name}-{op_mode}it")
                 if 'pre' in op[op_mode]:
                     members.append((cb_names[op_mode]['pre'], c_lower(op[op_mode]['pre'])))
@@ -2309,7 +2321,7 @@ def main():
         return
 
     supported_models = ['unified']
-    if args.mode == 'user':
+    if args.mode in ['user', 'kernel']:
         supported_models += ['directional']
     if parsed.msg_id_model not in supported_models:
         print(f'Message enum-model {parsed.msg_id_model} not supported for {args.mode} generation')

@@ -196,7 +196,7 @@ void devlink_notify(struct devlink *devlink, enum devlink_command cmd)
 				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
-int devlink_nl_cmd_get_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct sk_buff *msg;
@@ -217,17 +217,18 @@ int devlink_nl_cmd_get_doit(struct sk_buff *skb, struct genl_info *info)
 }
 
 static int
-devlink_nl_cmd_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
-			    struct netlink_callback *cb)
+devlink_nl_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
+			struct netlink_callback *cb)
 {
 	return devlink_nl_fill(msg, devlink, DEVLINK_CMD_NEW,
 			       NETLINK_CB(cb->skb).portid,
 			       cb->nlh->nlmsg_seq, NLM_F_MULTI);
 }
 
-const struct devlink_cmd devl_cmd_get = {
-	.dump_one		= devlink_nl_cmd_get_dump_one,
-};
+int devlink_nl_get_dumpit(struct sk_buff *msg, struct netlink_callback *cb)
+{
+	return devlink_nl_dumpit(msg, cb, devlink_nl_get_dump_one);
+}
 
 static void devlink_reload_failed_set(struct devlink *devlink,
 				      bool reload_failed)
@@ -804,7 +805,7 @@ err_cancel_msg:
 	return err;
 }
 
-int devlink_nl_cmd_info_get_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_info_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct sk_buff *msg;
@@ -826,8 +827,8 @@ int devlink_nl_cmd_info_get_doit(struct sk_buff *skb, struct genl_info *info)
 }
 
 static int
-devlink_nl_cmd_info_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
-				 struct netlink_callback *cb)
+devlink_nl_info_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
+			     struct netlink_callback *cb)
 {
 	int err;
 
@@ -840,9 +841,10 @@ devlink_nl_cmd_info_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
 	return err;
 }
 
-const struct devlink_cmd devl_cmd_info_get = {
-	.dump_one		= devlink_nl_cmd_info_get_dump_one,
-};
+int devlink_nl_info_get_dumpit(struct sk_buff *msg, struct netlink_callback *cb)
+{
+	return devlink_nl_dumpit(msg, cb, devlink_nl_info_get_dump_one);
+}
 
 static int devlink_nl_flash_update_fill(struct sk_buff *msg,
 					struct devlink *devlink,

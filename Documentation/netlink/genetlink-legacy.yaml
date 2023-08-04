@@ -321,7 +321,7 @@ properties:
               description: Kernel attribute validation flags.
               type: array
               items:
-                enum: [ strict, dump ]
+                enum: [ strict, dump, dump-strict ]
             # Start genetlink-legacy
             fixed-header: *fixed-header
             # End genetlink-legacy

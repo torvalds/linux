@@ -12,6 +12,8 @@
 #include <net/devlink.h>
 #include <net/net_namespace.h>
 
+#include "netlink_gen.h"
+
 #define DEVLINK_REGISTERED XA_MARK_1
 
 #define DEVLINK_RELOAD_STATS_ARRAY_SIZE \
@@ -114,12 +116,15 @@ struct devlink_nl_dump_state {
 	};
 };
 
+typedef int devlink_nl_dump_one_func_t(struct sk_buff *msg,
+				       struct devlink *devlink,
+				       struct netlink_callback *cb);
+
 struct devlink_cmd {
-	int (*dump_one)(struct sk_buff *msg, struct devlink *devlink,
-			struct netlink_callback *cb);
+	devlink_nl_dump_one_func_t *dump_one;
 };
 
-extern const struct genl_small_ops devlink_nl_ops[56];
+extern const struct genl_small_ops devlink_nl_small_ops[54];
 
 struct devlink *
 devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs);
@@ -127,8 +132,9 @@ devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs);
 void devlink_notify_unregister(struct devlink *devlink);
 void devlink_notify_register(struct devlink *devlink);
 
-int devlink_nl_instance_iter_dumpit(struct sk_buff *msg,
-				    struct netlink_callback *cb);
+int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
+		      devlink_nl_dump_one_func_t *dump_one);
+int devlink_nl_instance_iter_dumpit(struct sk_buff *msg, struct netlink_callback *cb);
 
 static inline struct devlink_nl_dump_state *
 devlink_dump_state(struct netlink_callback *cb)
@@ -149,7 +155,6 @@ devlink_nl_put_handle(struct sk_buff *msg, struct devlink *devlink)
 }
 
 /* Commands */
-extern const struct devlink_cmd devl_cmd_get;
 extern const struct devlink_cmd devl_cmd_port_get;
 extern const struct devlink_cmd devl_cmd_sb_get;
 extern const struct devlink_cmd devl_cmd_sb_pool_get;
@@ -157,7 +162,6 @@ extern const struct devlink_cmd devl_cmd_sb_port_pool_get;
 extern const struct devlink_cmd devl_cmd_sb_tc_pool_bind_get;
 extern const struct devlink_cmd devl_cmd_param_get;
 extern const struct devlink_cmd devl_cmd_region_get;
-extern const struct devlink_cmd devl_cmd_info_get;
 extern const struct devlink_cmd devl_cmd_health_reporter_get;
 extern const struct devlink_cmd devl_cmd_trap_get;
 extern const struct devlink_cmd devl_cmd_trap_group_get;
@@ -214,11 +218,9 @@ struct devlink_rate *
 devlink_rate_node_get_from_info(struct devlink *devlink,
 				struct genl_info *info);
 /* Devlink nl cmds */
-int devlink_nl_cmd_get_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb, struct genl_info *info);
-int devlink_nl_cmd_info_get_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_flash_update(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_selftests_get_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_selftests_run(struct sk_buff *skb, struct genl_info *info);
