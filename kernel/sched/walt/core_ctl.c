@@ -1292,14 +1292,23 @@ static bool core_ctl_check_masks_set(void)
 }
 
 /* is the system in a single-big-thread case? */
-static inline bool is_sbt(void)
+static inline bool is_sbt(bool prev_is_sbt, int prev_is_sbt_windows)
 {
 	struct cluster_data *cluster = &cluster_state[MAX_CLUSTERS - 1];
+	bool ret = false;
 
-	if (last_nr_big == 1 && cluster->nr_big == 1)
-		return true;
+	if (last_nr_big != 1)
+		goto out;
 
-	return false;
+	if (cluster->nr_big != 1)
+		goto out;
+
+	ret = true;
+out:
+	trace_core_ctl_sbt(&cpus_for_sbt_pause, prev_is_sbt, ret,
+			    prev_is_sbt_windows, cluster->nr_big);
+
+	return ret;
 }
 
 /**
@@ -1316,7 +1325,8 @@ void sbt_ctl_check(void)
 {
 	static bool prev_is_sbt;
 	static int prev_is_sbt_windows;
-	bool now_is_sbt = is_sbt();
+	bool now_is_sbt = is_sbt(prev_is_sbt, prev_is_sbt_windows);
+	cpumask_t local_cpus;
 
 	/* if there are cpus to adjust */
 	if (cpumask_weight(&cpus_for_sbt_pause) != 0) {
@@ -1330,12 +1340,14 @@ void sbt_ctl_check(void)
 		if (now_is_sbt && prev_is_sbt_windows-- > 0)
 			return;
 
+		cpumask_copy(&local_cpus, &cpus_for_sbt_pause);
+
 		if (!prev_is_sbt && now_is_sbt)
 			/*sbt entry*/
-			walt_pause_cpus(&cpus_for_sbt_pause, PAUSE_SBT);
+			walt_pause_cpus(&local_cpus, PAUSE_SBT);
 		else if (prev_is_sbt && !now_is_sbt)
 			/* sbt exit */
-			walt_resume_cpus(&cpus_for_sbt_pause, PAUSE_SBT);
+			walt_resume_cpus(&local_cpus, PAUSE_SBT);
 
 		prev_is_sbt_windows = sysctl_sched_sbt_delay_windows;
 		prev_is_sbt = now_is_sbt;
