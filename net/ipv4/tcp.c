@@ -3296,11 +3296,16 @@ int tcp_sock_set_syncnt(struct sock *sk, int val)
 }
 EXPORT_SYMBOL(tcp_sock_set_syncnt);
 
-void tcp_sock_set_user_timeout(struct sock *sk, u32 val)
+int tcp_sock_set_user_timeout(struct sock *sk, int val)
 {
-	lock_sock(sk);
+	/* Cap the max time in ms TCP will retry or probe the window
+	 * before giving up and aborting (ETIMEDOUT) a connection.
+	 */
+	if (val < 0)
+		return -EINVAL;
+
 	WRITE_ONCE(inet_csk(sk)->icsk_user_timeout, val);
-	release_sock(sk);
+	return 0;
 }
 EXPORT_SYMBOL(tcp_sock_set_user_timeout);
 
@@ -3464,6 +3469,8 @@ int do_tcp_setsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case TCP_SYNCNT:
 		return tcp_sock_set_syncnt(sk, val);
+	case TCP_USER_TIMEOUT:
+		return tcp_sock_set_user_timeout(sk, val);
 	}
 
 	sockopt_lock_sock(sk);
@@ -3611,16 +3618,6 @@ int do_tcp_setsockopt(struct sock *sk, int level, int optname,
 		err = tp->af_specific->md5_parse(sk, optname, optval, optlen);
 		break;
 #endif
-	case TCP_USER_TIMEOUT:
-		/* Cap the max time in ms TCP will retry or probe the window
-		 * before giving up and aborting (ETIMEDOUT) a connection.
-		 */
-		if (val < 0)
-			err = -EINVAL;
-		else
-			WRITE_ONCE(icsk->icsk_user_timeout, val);
-		break;
-
 	case TCP_FASTOPEN:
 		if (val >= 0 && ((1 << sk->sk_state) & (TCPF_CLOSE |
 		    TCPF_LISTEN))) {

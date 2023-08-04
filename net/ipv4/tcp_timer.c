@@ -26,14 +26,15 @@
 static u32 tcp_clamp_rto_to_user_timeout(const struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
-	u32 elapsed, start_ts;
+	u32 elapsed, start_ts, user_timeout;
 	s32 remaining;
 
 	start_ts = tcp_sk(sk)->retrans_stamp;
-	if (!icsk->icsk_user_timeout)
+	user_timeout = READ_ONCE(icsk->icsk_user_timeout);
+	if (!user_timeout)
 		return icsk->icsk_rto;
 	elapsed = tcp_time_stamp(tcp_sk(sk)) - start_ts;
-	remaining = icsk->icsk_user_timeout - elapsed;
+	remaining = user_timeout - elapsed;
 	if (remaining <= 0)
 		return 1; /* user timeout has passed; fire ASAP */
 
@@ -43,16 +44,17 @@ static u32 tcp_clamp_rto_to_user_timeout(const struct sock *sk)
 u32 tcp_clamp_probe0_to_user_timeout(const struct sock *sk, u32 when)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
-	u32 remaining;
+	u32 remaining, user_timeout;
 	s32 elapsed;
 
-	if (!icsk->icsk_user_timeout || !icsk->icsk_probes_tstamp)
+	user_timeout = READ_ONCE(icsk->icsk_user_timeout);
+	if (!user_timeout || !icsk->icsk_probes_tstamp)
 		return when;
 
 	elapsed = tcp_jiffies32 - icsk->icsk_probes_tstamp;
 	if (unlikely(elapsed < 0))
 		elapsed = 0;
-	remaining = msecs_to_jiffies(icsk->icsk_user_timeout) - elapsed;
+	remaining = msecs_to_jiffies(user_timeout) - elapsed;
 	remaining = max_t(u32, remaining, TCP_TIMEOUT_MIN);
 
 	return min_t(u32, remaining, when);
@@ -270,7 +272,7 @@ static int tcp_write_timeout(struct sock *sk)
 	}
 	if (!expired)
 		expired = retransmits_timed_out(sk, retry_until,
-						icsk->icsk_user_timeout);
+						READ_ONCE(icsk->icsk_user_timeout));
 	tcp_fastopen_active_detect_blackhole(sk, expired);
 
 	if (BPF_SOCK_OPS_TEST_FLAG(tp, BPF_SOCK_OPS_RTO_CB_FLAG))
@@ -384,13 +386,16 @@ static void tcp_probe_timer(struct sock *sk)
 	 * corresponding system limit. We also implement similar policy when
 	 * we use RTO to probe window in tcp_retransmit_timer().
 	 */
-	if (!icsk->icsk_probes_tstamp)
+	if (!icsk->icsk_probes_tstamp) {
 		icsk->icsk_probes_tstamp = tcp_jiffies32;
-	else if (icsk->icsk_user_timeout &&
-		 (s32)(tcp_jiffies32 - icsk->icsk_probes_tstamp) >=
-		 msecs_to_jiffies(icsk->icsk_user_timeout))
-		goto abort;
+	} else {
+		u32 user_timeout = READ_ONCE(icsk->icsk_user_timeout);
 
+		if (user_timeout &&
+		    (s32)(tcp_jiffies32 - icsk->icsk_probes_tstamp) >=
+		     msecs_to_jiffies(user_timeout))
+		goto abort;
+	}
 	max_probes = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_retries2);
 	if (sock_flag(sk, SOCK_DEAD)) {
 		const bool alive = inet_csk_rto_backoff(icsk, TCP_RTO_MAX) < TCP_RTO_MAX;
@@ -734,13 +739,15 @@ static void tcp_keepalive_timer (struct timer_list *t)
 	elapsed = keepalive_time_elapsed(tp);
 
 	if (elapsed >= keepalive_time_when(tp)) {
+		u32 user_timeout = READ_ONCE(icsk->icsk_user_timeout);
+
 		/* If the TCP_USER_TIMEOUT option is enabled, use that
 		 * to determine when to timeout instead.
 		 */
-		if ((icsk->icsk_user_timeout != 0 &&
-		    elapsed >= msecs_to_jiffies(icsk->icsk_user_timeout) &&
+		if ((user_timeout != 0 &&
+		    elapsed >= msecs_to_jiffies(user_timeout) &&
 		    icsk->icsk_probes_out > 0) ||
-		    (icsk->icsk_user_timeout == 0 &&
+		    (user_timeout == 0 &&
 		    icsk->icsk_probes_out >= keepalive_probes(tp))) {
 			tcp_send_active_reset(sk, GFP_ATOMIC);
 			tcp_write_err(sk);
