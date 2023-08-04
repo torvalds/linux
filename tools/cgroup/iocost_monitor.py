@@ -221,7 +221,7 @@ ioc = None
 for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree.address_of_()):
     blkg = drgn.Object(prog, 'struct blkcg_gq', address=ptr)
     try:
-        if devname == blkg.q.kobj.parent.name.string_().decode('utf-8'):
+        if devname == blkg.q.mq_kobj.parent.name.string_().decode('utf-8'):
             q_id = blkg.q.id.value_()
             if blkg.pd[plid]:
                 root_iocg = container_of(blkg.pd[plid], 'struct ioc_gq', 'pd')
