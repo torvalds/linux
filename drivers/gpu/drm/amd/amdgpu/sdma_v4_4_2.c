@@ -154,13 +154,13 @@ static int sdma_v4_4_2_init_microcode(struct amdgpu_device *adev)
  */
 static uint64_t sdma_v4_4_2_ring_get_rptr(struct amdgpu_ring *ring)
 {
-	u64 *rptr;
+	u64 rptr;
 
 	/* XXX check if swapping is necessary on BE */
-	rptr = ((u64 *)&ring->adev->wb.wb[ring->rptr_offs]);
+	rptr = READ_ONCE(*((u64 *)&ring->adev->wb.wb[ring->rptr_offs]));
 
-	DRM_DEBUG("rptr before shift == 0x%016llx\n", *rptr);
-	return ((*rptr) >> 2);
+	DRM_DEBUG("rptr before shift == 0x%016llx\n", rptr);
+	return rptr >> 2;
 }
 
 /**
