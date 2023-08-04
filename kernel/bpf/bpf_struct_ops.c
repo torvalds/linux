@@ -374,9 +374,9 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	struct bpf_struct_ops_value *uvalue, *kvalue;
 	const struct btf_member *member;
 	const struct btf_type *t = st_ops->type;
-	struct bpf_tramp_links *tlinks = NULL;
+	struct bpf_tramp_links *tlinks;
 	void *udata, *kdata;
-	int prog_fd, err = 0;
+	int prog_fd, err;
 	void *image, *image_end;
 	u32 i;
 
@@ -815,7 +815,7 @@ static int bpf_struct_ops_map_link_update(struct bpf_link *link, struct bpf_map 
 	struct bpf_struct_ops_map *st_map, *old_st_map;
 	struct bpf_map *old_map;
 	struct bpf_struct_ops_link *st_link;
-	int err = 0;
+	int err;
 
 	st_link = container_of(link, struct bpf_struct_ops_link, link);
 	st_map = container_of(new_map, struct bpf_struct_ops_map, map);
