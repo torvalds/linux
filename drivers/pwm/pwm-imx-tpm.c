@@ -332,7 +332,6 @@ static const struct pwm_ops imx_tpm_pwm_ops = {
 	.free = pwm_imx_tpm_free,
 	.get_state = pwm_imx_tpm_get_state,
 	.apply = pwm_imx_tpm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int pwm_imx_tpm_probe(struct platform_device *pdev)

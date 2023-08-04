@@ -227,7 +227,6 @@ static int mtk_disp_pwm_get_state(struct pwm_chip *chip,
 static const struct pwm_ops mtk_disp_pwm_ops = {
 	.apply = mtk_disp_pwm_apply,
 	.get_state = mtk_disp_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static int mtk_disp_pwm_probe(struct platform_device *pdev)

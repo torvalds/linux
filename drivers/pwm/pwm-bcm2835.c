@@ -129,7 +129,6 @@ static const struct pwm_ops bcm2835_pwm_ops = {
 	.request = bcm2835_pwm_request,
 	.free = bcm2835_pwm_free,
 	.apply = bcm2835_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int bcm2835_pwm_probe(struct platform_device *pdev)

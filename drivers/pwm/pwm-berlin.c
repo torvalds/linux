@@ -205,7 +205,6 @@ static const struct pwm_ops berlin_pwm_ops = {
 	.request = berlin_pwm_request,
 	.free = berlin_pwm_free,
 	.apply = berlin_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id berlin_pwm_match[] = {

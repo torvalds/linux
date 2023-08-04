@@ -163,7 +163,6 @@ static int sunplus_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops sunplus_pwm_ops = {
 	.apply = sunplus_pwm_apply,
 	.get_state = sunplus_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static void sunplus_pwm_clk_release(void *data)

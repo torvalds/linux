@@ -135,7 +135,6 @@ static int pxa_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops pxa_pwm_ops = {
 	.apply = pxa_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 #ifdef CONFIG_OF

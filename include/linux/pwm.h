@@ -267,7 +267,6 @@ struct pwm_capture {
  * @get_state: get the current PWM state. This function is only
  *	       called once per PWM device when the PWM chip is
  *	       registered.
- * @owner: helps prevent removal of modules exporting active PWMs
  */
 struct pwm_ops {
 	int (*request)(struct pwm_chip *chip, struct pwm_device *pwm);
@@ -278,13 +277,13 @@ struct pwm_ops {
 		     const struct pwm_state *state);
 	int (*get_state)(struct pwm_chip *chip, struct pwm_device *pwm,
 			 struct pwm_state *state);
-	struct module *owner;
 };
 
 /**
  * struct pwm_chip - abstract a PWM controller
  * @dev: device providing the PWMs
  * @ops: callbacks for this PWM controller
+ * @owner: module providing this chip
  * @base: number of first PWM controlled by this chip
  * @npwm: number of PWMs controlled by this chip
  * @of_xlate: request a PWM device given a device tree PWM specifier
@@ -295,6 +294,7 @@ struct pwm_ops {
 struct pwm_chip {
 	struct device *dev;
 	const struct pwm_ops *ops;
+	struct module *owner;
 	int base;
 	unsigned int npwm;
 
@@ -386,10 +386,12 @@ int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
 int pwm_set_chip_data(struct pwm_device *pwm, void *data);
 void *pwm_get_chip_data(struct pwm_device *pwm);
 
-int pwmchip_add(struct pwm_chip *chip);
+int __pwmchip_add(struct pwm_chip *chip, struct module *owner);
+#define pwmchip_add(chip) __pwmchip_add(chip, THIS_MODULE)
 void pwmchip_remove(struct pwm_chip *chip);
 
-int devm_pwmchip_add(struct device *dev, struct pwm_chip *chip);
+int __devm_pwmchip_add(struct device *dev, struct pwm_chip *chip, struct module *owner);
+#define devm_pwmchip_add(dev, chip) __devm_pwmchip_add(dev, chip, THIS_MODULE)
 
 struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
 					 unsigned int index,

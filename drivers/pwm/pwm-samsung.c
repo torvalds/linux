@@ -475,7 +475,6 @@ static const struct pwm_ops pwm_samsung_ops = {
 	.request	= pwm_samsung_request,
 	.free		= pwm_samsung_free,
 	.apply		= pwm_samsung_apply,
-	.owner		= THIS_MODULE,
 };
 
 #ifdef CONFIG_OF

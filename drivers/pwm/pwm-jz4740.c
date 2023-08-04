@@ -216,7 +216,6 @@ static const struct pwm_ops jz4740_pwm_ops = {
 	.request = jz4740_pwm_request,
 	.free = jz4740_pwm_free,
 	.apply = jz4740_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int jz4740_pwm_probe(struct platform_device *pdev)

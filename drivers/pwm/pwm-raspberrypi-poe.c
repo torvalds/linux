@@ -135,7 +135,6 @@ static int raspberrypi_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops raspberrypi_pwm_ops = {
 	.get_state = raspberrypi_pwm_get_state,
 	.apply = raspberrypi_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int raspberrypi_pwm_probe(struct platform_device *pdev)

@@ -195,7 +195,6 @@ static int dwc_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops dwc_pwm_ops = {
 	.apply = dwc_pwm_apply,
 	.get_state = dwc_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static struct dwc_pwm *dwc_pwm_alloc(struct device *dev)

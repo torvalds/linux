@@ -216,7 +216,6 @@ static const struct pwm_ops lp3943_pwm_ops = {
 	.request	= lp3943_pwm_request,
 	.free		= lp3943_pwm_free,
 	.apply		= lp3943_pwm_apply,
-	.owner		= THIS_MODULE,
 };
 
 static int lp3943_pwm_parse_dt(struct device *dev,

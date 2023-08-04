@@ -350,7 +350,6 @@ static const struct pwm_ops fsl_pwm_ops = {
 	.request = fsl_pwm_request,
 	.free = fsl_pwm_free,
 	.apply = fsl_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int fsl_pwm_init(struct fsl_pwm_chip *fpc)

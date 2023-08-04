@@ -210,7 +210,6 @@ static int sprd_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops sprd_pwm_ops = {
 	.apply = sprd_pwm_apply,
 	.get_state = sprd_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static int sprd_pwm_clk_init(struct sprd_pwm_chip *spc)

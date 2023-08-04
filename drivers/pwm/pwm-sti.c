@@ -420,7 +420,6 @@ static const struct pwm_ops sti_pwm_ops = {
 	.capture = sti_pwm_capture,
 	.apply = sti_pwm_apply,
 	.free = sti_pwm_free,
-	.owner = THIS_MODULE,
 };
 
 static irqreturn_t sti_pwm_interrupt(int irq, void *data)

@@ -311,7 +311,6 @@ unlock_mutex:
 
 static const struct pwm_ops pwm_omap_dmtimer_ops = {
 	.apply = pwm_omap_dmtimer_apply,
-	.owner = THIS_MODULE,
 };
 
 static int pwm_omap_dmtimer_probe(struct platform_device *pdev)

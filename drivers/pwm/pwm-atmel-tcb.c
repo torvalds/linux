@@ -364,7 +364,6 @@ static const struct pwm_ops atmel_tcb_pwm_ops = {
 	.request = atmel_tcb_pwm_request,
 	.free = atmel_tcb_pwm_free,
 	.apply = atmel_tcb_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static struct atmel_tcb_config tcb_rm9200_config = {

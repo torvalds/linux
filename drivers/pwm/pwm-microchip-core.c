@@ -435,7 +435,6 @@ static int mchp_core_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm
 static const struct pwm_ops mchp_core_pwm_ops = {
 	.apply = mchp_core_pwm_apply,
 	.get_state = mchp_core_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id mchp_core_of_match[] = {

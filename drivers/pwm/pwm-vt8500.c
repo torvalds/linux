@@ -221,7 +221,6 @@ static int vt8500_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops vt8500_pwm_ops = {
 	.apply = vt8500_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id vt8500_pwm_dt_ids[] = {

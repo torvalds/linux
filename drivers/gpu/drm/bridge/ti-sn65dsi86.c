@@ -1580,7 +1580,6 @@ static const struct pwm_ops ti_sn_pwm_ops = {
 	.free = ti_sn_pwm_free,
 	.apply = ti_sn_pwm_apply,
 	.get_state = ti_sn_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static int ti_sn_pwm_probe(struct auxiliary_device *adev,

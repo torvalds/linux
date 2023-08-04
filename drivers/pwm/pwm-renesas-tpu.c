@@ -431,7 +431,6 @@ static const struct pwm_ops tpu_pwm_ops = {
 	.request = tpu_pwm_request,
 	.free = tpu_pwm_free,
 	.apply = tpu_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 /* -----------------------------------------------------------------------------
