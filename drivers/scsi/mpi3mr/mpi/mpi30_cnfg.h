@@ -1482,7 +1482,7 @@ struct mpi3_security_page0 {
 #define MPI3_SECURITY1_KEY_RECORD_MAX      1
 #endif
 #ifndef MPI3_SECURITY1_PAD_MAX
-#define MPI3_SECURITY1_PAD_MAX      1
+#define MPI3_SECURITY1_PAD_MAX      4
 #endif
 union mpi3_security1_key_data {
 	__le32                             dword[128];
