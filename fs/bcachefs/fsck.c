@@ -11,6 +11,7 @@
 #include "fsck.h"
 #include "inode.h"
 #include "keylist.h"
+#include "recovery.h"
 #include "subvolume.h"
 #include "super.h"
 #include "xattr.h"

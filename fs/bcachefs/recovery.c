@@ -1120,7 +1120,7 @@ static int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 	return ret;
 }
 
-static const char * const recovery_pass_names[] = {
+const char * const bch2_recovery_passes[] = {
 #define x(_fn, _when)	#_fn,
 	BCH_RECOVERY_PASSES()
 #undef x
@@ -1143,7 +1143,7 @@ struct recovery_pass_fn {
 	unsigned	when;
 };
 
-static struct recovery_pass_fn recovery_passes[] = {
+static struct recovery_pass_fn recovery_pass_fns[] = {
 #define x(_fn, _when)	{ .fn = bch2_##_fn, .when = _when },
 	BCH_RECOVERY_PASSES()
 #undef x
@@ -1205,7 +1205,7 @@ static void check_version_upgrade(struct bch_fs *c)
 				prt_str(&buf, "fsck required");
 			else {
 				prt_str(&buf, "running recovery passses: ");
-				prt_bitflags(&buf, recovery_pass_names, recovery_passes);
+				prt_bitflags(&buf, bch2_recovery_passes, recovery_passes);
 			}
 
 			c->recovery_passes_explicit |= recovery_passes;
@@ -1226,15 +1226,15 @@ u64 bch2_fsck_recovery_passes(void)
 {
 	u64 ret = 0;
 
-	for (unsigned i = 0; i < ARRAY_SIZE(recovery_passes); i++)
-		if (recovery_passes[i].when & PASS_FSCK)
+	for (unsigned i = 0; i < ARRAY_SIZE(recovery_pass_fns); i++)
+		if (recovery_pass_fns[i].when & PASS_FSCK)
 			ret |= BIT_ULL(i);
 	return ret;
 }
 
 static bool should_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 {
-	struct recovery_pass_fn *p = recovery_passes + c->curr_recovery_pass;
+	struct recovery_pass_fn *p = recovery_pass_fns + c->curr_recovery_pass;
 
 	if (c->opts.norecovery && pass > BCH_RECOVERY_PASS_snapshots_read)
 		return false;
@@ -1256,11 +1256,11 @@ static int bch2_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 	c->curr_recovery_pass = pass;
 
 	if (should_run_recovery_pass(c, pass)) {
-		struct recovery_pass_fn *p = recovery_passes + pass;
+		struct recovery_pass_fn *p = recovery_pass_fns + pass;
 
 		if (!(p->when & PASS_SILENT))
 			printk(KERN_INFO bch2_log_msg(c, "%s..."),
-			       recovery_pass_names[pass]);
+			       bch2_recovery_passes[pass]);
 		ret = p->fn(c);
 		if (ret)
 			return ret;
@@ -1275,7 +1275,7 @@ static int bch2_run_recovery_passes(struct bch_fs *c)
 {
 	int ret = 0;
 
-	while (c->curr_recovery_pass < ARRAY_SIZE(recovery_passes)) {
+	while (c->curr_recovery_pass < ARRAY_SIZE(recovery_pass_fns)) {
 		ret = bch2_run_recovery_pass(c, c->curr_recovery_pass);
 		if (bch2_err_matches(ret, BCH_ERR_restart_recovery))
 			continue;
@@ -1593,7 +1593,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	}
 	mutex_unlock(&c->sb_lock);
 
-	c->curr_recovery_pass = ARRAY_SIZE(recovery_passes);
+	c->curr_recovery_pass = ARRAY_SIZE(recovery_pass_fns);
 	set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 	set_bit(BCH_FS_FSCK_DONE, &c->flags);
 

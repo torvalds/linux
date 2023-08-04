@@ -1139,22 +1139,6 @@ static inline bool bch2_dev_exists2(const struct bch_fs *c, unsigned dev)
 	return dev < c->sb.nr_devices && c->devs[dev];
 }
 
-/*
- * For when we need to rewind recovery passes and run a pass we skipped:
- */
-static inline int bch2_run_explicit_recovery_pass(struct bch_fs *c,
-						  enum bch_recovery_pass pass)
-{
-	c->recovery_passes_explicit |= BIT_ULL(pass);
-
-	if (c->curr_recovery_pass >= pass) {
-		c->curr_recovery_pass = pass;
-		return -BCH_ERR_restart_recovery;
-	} else {
-		return 0;
-	}
-}
-
 #define BKEY_PADDED_ONSTACK(key, pad)				\
 	struct { struct bkey_i key; __u64 key ## _pad[pad]; }
 

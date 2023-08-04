@@ -17,6 +17,7 @@
 #include "io.h"
 #include "journal_reclaim.h"
 #include "journal_seq_blacklist.h"
+#include "recovery.h"
 #include "super-io.h"
 #include "trace.h"
 
