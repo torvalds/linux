@@ -203,7 +203,7 @@ static inline void shmem_unacct_blocks(unsigned long flags, long pages)
 		vm_unacct_memory(pages * VM_ACCT(PAGE_SIZE));
 }
 
-static inline int shmem_inode_acct_block(struct inode *inode, long pages)
+static int shmem_inode_acct_block(struct inode *inode, long pages)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
@@ -212,6 +212,7 @@ static inline int shmem_inode_acct_block(struct inode *inode, long pages)
 	if (shmem_acct_block(info->flags, pages))
 		return err;
 
+	might_sleep();	/* when quotas */
 	if (sbinfo->max_blocks) {
 		if (percpu_counter_compare(&sbinfo->used_blocks,
 					   sbinfo->max_blocks - pages) > 0)
@@ -235,11 +236,12 @@ unacct:
 	return err;
 }
 
-static inline void shmem_inode_unacct_blocks(struct inode *inode, long pages)
+static void shmem_inode_unacct_blocks(struct inode *inode, long pages)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
 
+	might_sleep();	/* when quotas */
 	dquot_free_block_nodirty(inode, pages);
 
 	if (sbinfo->max_blocks)
@@ -400,30 +402,45 @@ static void shmem_free_inode(struct super_block *sb)
 /**
  * shmem_recalc_inode - recalculate the block usage of an inode
  * @inode: inode to recalc
+ * @alloced: the change in number of pages allocated to inode
+ * @swapped: the change in number of pages swapped from inode
  *
  * We have to calculate the free blocks since the mm can drop
  * undirtied hole pages behind our back.
  *
  * But normally   info->alloced == inode->i_mapping->nrpages + info->swapped
  * So mm freed is info->alloced - (inode->i_mapping->nrpages + info->swapped)
- *
- * It has to be called with the spinlock held.
  */
-static void shmem_recalc_inode(struct inode *inode)
+static void shmem_recalc_inode(struct inode *inode, long alloced, long swapped)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	long freed;
 
-	freed = info->alloced - info->swapped - inode->i_mapping->nrpages;
-	if (freed > 0) {
+	spin_lock(&info->lock);
+	info->alloced += alloced;
+	info->swapped += swapped;
+	freed = info->alloced - info->swapped -
+		READ_ONCE(inode->i_mapping->nrpages);
+	/*
+	 * Special case: whereas normally shmem_recalc_inode() is called
+	 * after i_mapping->nrpages has already been adjusted (up or down),
+	 * shmem_writepage() has to raise swapped before nrpages is lowered -
+	 * to stop a racing shmem_recalc_inode() from thinking that a page has
+	 * been freed.  Compensate here, to avoid the need for a followup call.
+	 */
+	if (swapped > 0)
+		freed += swapped;
+	if (freed > 0)
 		info->alloced -= freed;
+	spin_unlock(&info->lock);
+
+	/* The quota case may block */
+	if (freed > 0)
 		shmem_inode_unacct_blocks(inode, freed);
-	}
 }
 
 bool shmem_charge(struct inode *inode, long pages)
 {
-	struct shmem_inode_info *info = SHMEM_I(inode);
 	struct address_space *mapping = inode->i_mapping;
 
 	if (shmem_inode_acct_block(inode, pages))
@@ -434,24 +451,16 @@ bool shmem_charge(struct inode *inode, long pages)
 	mapping->nrpages += pages;
 	xa_unlock_irq(&mapping->i_pages);
 
-	spin_lock_irq(&info->lock);
-	info->alloced += pages;
-	shmem_recalc_inode(inode);
-	spin_unlock_irq(&info->lock);
-
+	shmem_recalc_inode(inode, pages, 0);
 	return true;
 }
 
 void shmem_uncharge(struct inode *inode, long pages)
 {
-	struct shmem_inode_info *info = SHMEM_I(inode);
-
+	/* pages argument is currently unused: keep it to help debugging */
 	/* nrpages adjustment done by __filemap_remove_folio() or caller */
 
-	spin_lock_irq(&info->lock);
-	shmem_recalc_inode(inode);
-	/* which has called shmem_inode_unacct_blocks() if necessary */
-	spin_unlock_irq(&info->lock);
+	shmem_recalc_inode(inode, 0, 0);
 }
 
 /*
@@ -1091,10 +1100,7 @@ whole_folios:
 		folio_batch_release(&fbatch);
 	}
 
-	spin_lock_irq(&info->lock);
-	info->swapped -= nr_swaps_freed;
-	shmem_recalc_inode(inode);
-	spin_unlock_irq(&info->lock);
+	shmem_recalc_inode(inode, 0, -nr_swaps_freed);
 }
 
 void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
@@ -1112,11 +1118,9 @@ static int shmem_getattr(struct mnt_idmap *idmap,
 	struct inode *inode = path->dentry->d_inode;
 	struct shmem_inode_info *info = SHMEM_I(inode);
 
-	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {
-		spin_lock_irq(&info->lock);
-		shmem_recalc_inode(inode);
-		spin_unlock_irq(&info->lock);
-	}
+	if (info->alloced - info->swapped != inode->i_mapping->nrpages)
+		shmem_recalc_inode(inode, 0, 0);
+
 	if (info->fsflags & FS_APPEND_FL)
 		stat->attributes |= STATX_ATTR_APPEND;
 	if (info->fsflags & FS_IMMUTABLE_FL)
@@ -1501,11 +1505,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	if (add_to_swap_cache(folio, swap,
 			__GFP_HIGH | __GFP_NOMEMALLOC | __GFP_NOWARN,
 			NULL) == 0) {
-		spin_lock_irq(&info->lock);
-		shmem_recalc_inode(inode);
-		info->swapped++;
-		spin_unlock_irq(&info->lock);
-
+		shmem_recalc_inode(inode, 0, 1);
 		swap_shmem_alloc(swap);
 		shmem_delete_from_page_cache(folio, swp_to_radix_entry(swap));
 
@@ -1776,7 +1776,6 @@ static void shmem_set_folio_swapin_error(struct inode *inode, pgoff_t index,
 					 struct folio *folio, swp_entry_t swap)
 {
 	struct address_space *mapping = inode->i_mapping;
-	struct shmem_inode_info *info = SHMEM_I(inode);
 	swp_entry_t swapin_error;
 	void *old;
 
@@ -1789,16 +1788,12 @@ static void shmem_set_folio_swapin_error(struct inode *inode, pgoff_t index,
 
 	folio_wait_writeback(folio);
 	delete_from_swap_cache(folio);
-	spin_lock_irq(&info->lock);
 	/*
-	 * Don't treat swapin error folio as alloced. Otherwise inode->i_blocks won't
-	 * be 0 when inode is released and thus trigger WARN_ON(inode->i_blocks) in
-	 * shmem_evict_inode.
+	 * Don't treat swapin error folio as alloced. Otherwise inode->i_blocks
+	 * won't be 0 when inode is released and thus trigger WARN_ON(i_blocks)
+	 * in shmem_evict_inode().
 	 */
-	info->alloced--;
-	info->swapped--;
-	shmem_recalc_inode(inode);
-	spin_unlock_irq(&info->lock);
+	shmem_recalc_inode(inode, -1, -1);
 	swap_free(swap);
 }
 
@@ -1885,10 +1880,7 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 	if (error)
 		goto failed;
 
-	spin_lock_irq(&info->lock);
-	info->swapped--;
-	shmem_recalc_inode(inode);
-	spin_unlock_irq(&info->lock);
+	shmem_recalc_inode(inode, 0, -1);
 
 	if (sgp == SGP_WRITE)
 		folio_mark_accessed(folio);
@@ -2053,12 +2045,9 @@ alloc_nohuge:
 					charge_mm);
 	if (error)
 		goto unacct;
-	folio_add_lru(folio);
 
-	spin_lock_irq(&info->lock);
-	info->alloced += folio_nr_pages(folio);
-	shmem_recalc_inode(inode);
-	spin_unlock_irq(&info->lock);
+	folio_add_lru(folio);
+	shmem_recalc_inode(inode, folio_nr_pages(folio), 0);
 	alloced = true;
 
 	if (folio_test_pmd_mappable(folio) &&
@@ -2107,9 +2096,7 @@ clear:
 		if (alloced) {
 			folio_clear_dirty(folio);
 			filemap_remove_folio(folio);
-			spin_lock_irq(&info->lock);
-			shmem_recalc_inode(inode);
-			spin_unlock_irq(&info->lock);
+			shmem_recalc_inode(inode, 0, 0);
 		}
 		error = -EINVAL;
 		goto unlock;
@@ -2135,9 +2122,7 @@ unlock:
 		folio_put(folio);
 	}
 	if (error == -ENOSPC && !once++) {
-		spin_lock_irq(&info->lock);
-		shmem_recalc_inode(inode);
-		spin_unlock_irq(&info->lock);
+		shmem_recalc_inode(inode, 0, 0);
 		goto repeat;
 	}
 	if (error == -EEXIST)
@@ -2650,11 +2635,7 @@ int shmem_mfill_atomic_pte(pmd_t *dst_pmd,
 	if (ret)
 		goto out_delete_from_cache;
 
-	spin_lock_irq(&info->lock);
-	info->alloced++;
-	shmem_recalc_inode(inode);
-	spin_unlock_irq(&info->lock);
-
+	shmem_recalc_inode(inode, 1, 0);
 	folio_unlock(folio);
 	return 0;
 out_delete_from_cache:
