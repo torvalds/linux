@@ -52,6 +52,12 @@
 
 #define GVE_GQ_TX_MIN_PKT_DESC_BYTES 182
 
+#define DQO_QPL_DEFAULT_TX_PAGES 512
+#define DQO_QPL_DEFAULT_RX_PAGES 2048
+
+/* Maximum TSO size supported on DQO */
+#define GVE_DQO_TX_MAX	0x3FFFF
+
 /* Each slot in the desc ring has a 1:1 mapping to a slot in the data ring */
 struct gve_rx_desc_queue {
 	struct gve_rx_desc *desc_ring; /* the descriptor ring */
@@ -218,6 +224,9 @@ struct gve_rx_ring {
 			 * which cannot be reused yet.
 			 */
 			struct gve_index_list used_buf_states;
+
+			/* qpl assigned to this queue */
+			struct gve_queue_page_list *qpl;
 		} dqo;
 	};
 
@@ -454,6 +463,12 @@ struct gve_tx_ring {
 			s16 num_pending_packets;
 
 			u32 complq_mask; /* complq size is complq_mask + 1 */
+
+			/* QPL fields */
+			struct {
+				/* qpl assigned to this queue */
+				struct gve_queue_page_list *qpl;
+			};
 		} dqo;
 	} ____cacheline_aligned;
 	struct netdev_queue *netdev_txq;
@@ -532,6 +547,7 @@ enum gve_queue_format {
 	GVE_GQI_RDA_FORMAT		= 0x1,
 	GVE_GQI_QPL_FORMAT		= 0x2,
 	GVE_DQO_RDA_FORMAT		= 0x3,
+	GVE_DQO_QPL_FORMAT		= 0x4,
 };
 
 struct gve_priv {
@@ -551,7 +567,8 @@ struct gve_priv {
 	u16 num_event_counters;
 	u16 tx_desc_cnt; /* num desc per ring */
 	u16 rx_desc_cnt; /* num desc per ring */
-	u16 tx_pages_per_qpl; /* tx buffer length */
+	u16 tx_pages_per_qpl; /* Suggested number of pages per qpl for TX queues by NIC */
+	u16 rx_pages_per_qpl; /* Suggested number of pages per qpl for RX queues by NIC */
 	u16 rx_data_slot_cnt; /* rx buffer length */
 	u64 max_registered_pages;
 	u64 num_registered_pages; /* num pages registered with NIC */
@@ -809,11 +826,17 @@ static inline u32 gve_rx_idx_to_ntfy(struct gve_priv *priv, u32 queue_idx)
 	return (priv->num_ntfy_blks / 2) + queue_idx;
 }
 
+static inline bool gve_is_qpl(struct gve_priv *priv)
+{
+	return priv->queue_format == GVE_GQI_QPL_FORMAT ||
+		priv->queue_format == GVE_DQO_QPL_FORMAT;
+}
+
 /* Returns the number of tx queue page lists
  */
 static inline u32 gve_num_tx_qpls(struct gve_priv *priv)
 {
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
+	if (!gve_is_qpl(priv))
 		return 0;
 
 	return priv->tx_cfg.num_queues + priv->num_xdp_queues;
@@ -833,7 +856,7 @@ static inline u32 gve_num_xdp_qpls(struct gve_priv *priv)
  */
 static inline u32 gve_num_rx_qpls(struct gve_priv *priv)
 {
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
+	if (!gve_is_qpl(priv))
 		return 0;
 
 	return priv->rx_cfg.num_queues;
