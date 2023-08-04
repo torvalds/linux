@@ -2304,9 +2304,8 @@ static void idle_worker_timeout(struct timer_list *t)
 static void idle_cull_fn(struct work_struct *work)
 {
 	struct worker_pool *pool = container_of(work, struct worker_pool, idle_cull_work);
-	struct list_head cull_list;
+	LIST_HEAD(cull_list);
 
-	INIT_LIST_HEAD(&cull_list);
 	/*
 	 * Grabbing wq_pool_attach_mutex here ensures an already-running worker
 	 * cannot proceed beyong worker_detach_from_pool() in its self-destruct
@@ -3872,10 +3871,8 @@ static void rcu_free_pool(struct rcu_head *rcu)
 static void put_unbound_pool(struct worker_pool *pool)
 {
 	DECLARE_COMPLETION_ONSTACK(detach_completion);
-	struct list_head cull_list;
 	struct worker *worker;
-
-	INIT_LIST_HEAD(&cull_list);
+	LIST_HEAD(cull_list);
 
 	lockdep_assert_held(&wq_pool_mutex);
 
