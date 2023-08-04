@@ -110,11 +110,12 @@ static int connect_client_server_v6(int client_fd, int listen_fd)
 		.sin6_family = AF_INET6,
 		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
 	};
-	int err;
+	int err, port;
 
-	addr.sin6_port = htons(get_sock_port_v6(listen_fd));
-	if (addr.sin6_port < 0)
+	port = get_sock_port_v6(listen_fd);
+	if (port < 0)
 		return -1;
+	addr.sin6_port = htons(port);
 
 	err = connect(client_fd, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0) {
