@@ -2045,13 +2045,13 @@ static void update_history(struct rq *rq, struct task_struct *p,
 	}
 
 	wts->sum = 0;
+	avg = div64_u64(sum, RAVG_HIST_SIZE);
 
 	if (sysctl_sched_window_stats_policy == WINDOW_STATS_RECENT) {
 		demand = runtime;
 	} else if (sysctl_sched_window_stats_policy == WINDOW_STATS_MAX) {
 		demand = max;
 	} else {
-		avg = div64_u64(sum, RAVG_HIST_SIZE);
 		if (sysctl_sched_window_stats_policy == WINDOW_STATS_AVG)
 			demand = avg;
 		else
@@ -2080,7 +2080,7 @@ static void update_history(struct rq *rq, struct task_struct *p,
 
 	wts->demand = demand;
 	wts->demand_scaled = demand_scaled;
-	wts->coloc_demand = div64_u64(sum, RAVG_HIST_SIZE);
+	wts->coloc_demand = avg;
 	wts->pred_demand_scaled = pred_demand_scaled;
 
 	if (demand_scaled > sysctl_sched_min_task_util_for_colocation)
