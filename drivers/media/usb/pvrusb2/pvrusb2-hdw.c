@@ -3285,12 +3285,14 @@ int pvr2_hdw_get_cropcap(struct pvr2_hdw *hdw, struct v4l2_cropcap *pp)
 /* Return information about the tuner */
 int pvr2_hdw_get_tuner_status(struct pvr2_hdw *hdw,struct v4l2_tuner *vtp)
 {
-	LOCK_TAKE(hdw->big_lock); do {
+	LOCK_TAKE(hdw->big_lock);
+	do {
 		if (hdw->tuner_signal_stale) {
 			pvr2_hdw_status_poll(hdw);
 		}
 		memcpy(vtp,&hdw->tuner_signal_info,sizeof(struct v4l2_tuner));
-	} while (0); LOCK_GIVE(hdw->big_lock);
+	} while (0);
+	LOCK_GIVE(hdw->big_lock);
 	return 0;
 }
 
