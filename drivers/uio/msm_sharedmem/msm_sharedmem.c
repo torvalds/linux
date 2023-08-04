@@ -83,12 +83,21 @@ static void setup_shared_ram_perms(u32 client_id, phys_addr_t addr, u32 size,
 	if (vm_nav_path) {
 		nr = 3;
 		dest_vmids = kcalloc(nr, sizeof(struct qcom_scm_vmperm), GFP_KERNEL);
+		if (!dest_vmids) {
+			pr_err("failed to alloc memory when vm_nav_path=true\n");
+			return;
+		}
+
 		*dest_vmids = (struct qcom_scm_vmperm){VMID_HLOS, PERM_READ|PERM_WRITE};
 		*(dest_vmids + 1) = (struct qcom_scm_vmperm){VMID_MSS_MSA, PERM_READ|PERM_WRITE};
 		*(dest_vmids + 2) = (struct qcom_scm_vmperm){VMID_NAV, PERM_READ|PERM_WRITE};
 	} else {
 		nr = 2;
 		dest_vmids = kcalloc(nr, sizeof(struct qcom_scm_vmperm), GFP_KERNEL);
+		if (!dest_vmids) {
+			pr_err("failed to alloc memory when vm_nav_path=false\n");
+			return;
+		}
 		*dest_vmids = (struct qcom_scm_vmperm){VMID_HLOS, PERM_READ|PERM_WRITE};
 		*(dest_vmids + 1) = (struct qcom_scm_vmperm){VMID_MSS_MSA, PERM_READ|PERM_WRITE};
 	}
