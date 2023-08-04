@@ -123,7 +123,6 @@ struct fs_platform_info {
 	int napi_weight;	/* NAPI weight                 */
 
 	int use_rmii;		/* use RMII mode 	       */
-	int has_phy;            /* if the network is phy container as well...*/
 
 	struct clk *clk_per;	/* 'per' clock for register access */
 };
