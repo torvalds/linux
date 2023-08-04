@@ -177,8 +177,25 @@ static void waltgov_calc_avg_cap(struct waltgov_policy *wg_policy, u64 curr_ws,
 {
 	u64 last_ws = wg_policy->last_ws;
 	unsigned int avg_freq;
+	int cpu;
 
-	BUG_ON(curr_ws < last_ws);
+	if (curr_ws < last_ws) {
+		printk_deferred("============ WALT CPUFREQ DUMP START ==============\n");
+		for_each_online_cpu(cpu) {
+			struct waltgov_cpu *wg_cpu = &per_cpu(waltgov_cpu, cpu);
+			struct waltgov_policy *wg_policy_internal = wg_cpu->wg_policy;
+
+			printk_deferred("cpu=%d walt_load->ws=%llu and policy->last_ws=%llu\n",
+					wg_cpu->cpu, wg_cpu->walt_load.ws,
+					wg_policy_internal->last_ws);
+		}
+		printk_deferred("============ WALT CPUFREQ DUMP END  ==============\n");
+		WALT_BUG(WALT_BUG_WALT, NULL,
+				"policy->related_cpus=0x%x curr_ws=%llu < last_ws=%llu",
+				cpumask_bits(wg_policy->policy->related_cpus)[0], curr_ws,
+				last_ws);
+	}
+
 	if (curr_ws <= last_ws)
 		return;
 
