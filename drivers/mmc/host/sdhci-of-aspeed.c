@@ -235,6 +235,12 @@ aspeed_sdhci_configure_phase(struct sdhci_host *host, unsigned long rate)
 
 static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
+#if defined(CONFIG_MACH_ASPEED_G6) || defined(CONFIG_MACH_ASPEED_G7)
+	if (clock >= 50000000)
+		aspeed_sdhci_configure_phase(host, clock);
+
+	sdhci_set_clock(host, clock);
+#else
 	struct sdhci_pltfm_host *pltfm_host;
 	unsigned long parent, bus;
 	struct aspeed_sdhci *sdhci;
@@ -283,6 +289,7 @@ static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	aspeed_sdhci_configure_phase(host, bus);
 
 	sdhci_enable_clk(host, clk);
+#endif
 }
 
 static unsigned int aspeed_sdhci_get_max_clock(struct sdhci_host *host)
@@ -413,11 +420,13 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 	    of_property_read_bool(np, "sd-uhs-sdr104")) {
 		aspeed_sdc_set_slot_capability(host, dev->parent, ASPEED_SDC_CAP1_1_8V,
 					       true, slot);
-	}
-
-	if (of_property_read_bool(np, "sd-uhs-sdr104")) {
 		aspeed_sdc_set_slot_capability(host, dev->parent, ASPEED_SDC_CAP2_SDR104,
 					       true, slot);
+	} else {
+		aspeed_sdc_set_slot_capability(host, dev->parent, ASPEED_SDC_CAP1_1_8V,
+					       0, slot);
+		aspeed_sdc_set_slot_capability(host, dev->parent, ASPEED_SDC_CAP2_SDR104,
+					       0, slot);
 	}
 
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
