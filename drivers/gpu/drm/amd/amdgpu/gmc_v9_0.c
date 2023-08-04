@@ -1998,6 +1998,19 @@ static int gmc_v9_0_init_mem_ranges(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void gmc_v9_4_3_init_vram_info(struct amdgpu_device *adev)
+{
+	static const u32 regBIF_BIOS_SCRATCH_4 = 0x50;
+	u32 vram_info;
+
+	if (!amdgpu_sriov_vf(adev)) {
+		vram_info = RREG32(regBIF_BIOS_SCRATCH_4);
+		adev->gmc.vram_vendor = vram_info & 0xF;
+	}
+	adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
+	adev->gmc.vram_width = 128 * 64;
+}
+
 static int gmc_v9_0_sw_init(void *handle)
 {
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0, dma_addr_bits;
@@ -2010,15 +2023,12 @@ static int gmc_v9_0_sw_init(void *handle)
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
-	if (!(adev->bios) || adev->gmc.is_app_apu) {
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) {
+		gmc_v9_4_3_init_vram_info(adev);
+	} else if (!adev->bios) {
 		if (adev->flags & AMD_IS_APU) {
-			if (adev->gmc.is_app_apu) {
-				adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
-				adev->gmc.vram_width = 128 * 64;
-			} else {
-				adev->gmc.vram_type = AMDGPU_VRAM_TYPE_DDR4;
-				adev->gmc.vram_width = 64 * 64;
-			}
+			adev->gmc.vram_type = AMDGPU_VRAM_TYPE_DDR4;
+			adev->gmc.vram_width = 64 * 64;
 		} else {
 			adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
 			adev->gmc.vram_width = 128 * 64;
