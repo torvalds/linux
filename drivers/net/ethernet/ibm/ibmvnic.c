@@ -191,9 +191,8 @@ static void ibmvnic_clean_affinity(struct ibmvnic_adapter *adapter)
 	struct ibmvnic_sub_crq_queue **rxqs;
 	struct ibmvnic_sub_crq_queue **txqs;
 	int num_rxqs, num_txqs;
-	int rc, i;
+	int i;
 
-	rc = 0;
 	rxqs = adapter->rx_scrq;
 	txqs = adapter->tx_scrq;
 	num_txqs = adapter->num_active_tx_scrqs;
