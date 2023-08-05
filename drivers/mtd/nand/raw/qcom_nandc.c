@@ -1554,7 +1554,7 @@ check_for_erased_page(struct qcom_nand_host *host, u8 *data_buf,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	u8 *cw_data_buf, *cw_oob_buf;
-	int cw, data_size, oob_size, ret = 0;
+	int cw, data_size, oob_size, ret;
 
 	if (!data_buf)
 		data_buf = nand_get_data_buf(chip);
@@ -2684,7 +2684,7 @@ static int qcom_read_status_exec(struct nand_chip *chip,
 	const struct nand_op_instr *instr = NULL;
 	unsigned int op_id = 0;
 	unsigned int len = 0;
-	int ret = 0, num_cw, i;
+	int ret, num_cw, i;
 	u32 flash_status;
 
 	host->status = NAND_STATUS_READY | NAND_STATUS_WP;
@@ -2747,7 +2747,7 @@ static int qcom_read_id_type_exec(struct nand_chip *chip, const struct nand_subo
 	const struct nand_op_instr *instr = NULL;
 	unsigned int op_id = 0;
 	unsigned int len = 0;
-	int ret = 0;
+	int ret;
 
 	qcom_parse_instructions(chip, subop, &q_op);
 
@@ -2795,7 +2795,7 @@ static int qcom_misc_cmd_type_exec(struct nand_chip *chip, const struct nand_sub
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_op q_op = {};
-	int ret = 0;
+	int ret;
 
 	qcom_parse_instructions(chip, subop, &q_op);
 
@@ -2841,7 +2841,7 @@ static int qcom_param_page_type_exec(struct nand_chip *chip,  const struct nand_
 	const struct nand_op_instr *instr = NULL;
 	unsigned int op_id = 0;
 	unsigned int len = 0;
-	int ret = 0;
+	int ret;
 
 	qcom_parse_instructions(chip, subop, &q_op);
 
@@ -2935,7 +2935,7 @@ static int qcom_erase_cmd_type_exec(struct nand_chip *chip, const struct nand_su
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct qcom_op q_op = {};
-	int ret = 0;
+	int ret;
 
 	qcom_parse_instructions(chip, subop, &q_op);
 
