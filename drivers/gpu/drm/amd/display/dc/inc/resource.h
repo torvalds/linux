@@ -213,6 +213,21 @@ bool resource_attach_surfaces_to_context(
  *       |        |               |           |             |
  *       |   5    |  (FREE)       |           |             |
  *       |________|_______________|___________|_____________|
+ *
+ * The following is a quick reference of the class relation:
+ *
+ *	DC state            ---1--------0..N---           streams
+ *
+ *	stream              ---1-----------1---           OTG Master pipe
+ *
+ *	OTG Master pipe     ---1--------1..N---           OPP Head pipes
+ *
+ *	OPP Head pipe       ---1--------0..N---           DPP pipes
+ *
+ *	stream              ---1--------0..N---           Planes
+ *
+ *	Plane               ---1--------1..N---           DPP pipes
+ *
  */
 enum pipe_type {
 	/* free pipe - free pipe is an uninitialized pipe without a stream
@@ -354,6 +369,9 @@ struct pipe_ctx *resource_find_free_secondary_pipe_legacy(
  */
 int resource_get_num_mpc_splits(const struct pipe_ctx *pipe);
 
+int resource_get_mpc_split_index(struct pipe_ctx *pipe_ctx);
+
+
 /*
  * Get number of ODM "cuts" of the timing associated with the pipe. ODM slice
  * count is equal to ODM splits + 1. For example if a timing is cut 3 times, it
@@ -362,6 +380,8 @@ int resource_get_num_mpc_splits(const struct pipe_ctx *pipe);
  * the number of ODM "cuts" for the timing.
  */
 int resource_get_num_odm_splits(const struct pipe_ctx *pipe);
+
+int resource_get_odm_split_index(struct pipe_ctx *pipe_ctx);
 
 /*
  * Get the OTG master pipe in resource context associated with the stream.
@@ -386,6 +406,53 @@ struct pipe_ctx *resource_get_otg_master(const struct pipe_ctx *pipe_ctx);
  */
 struct pipe_ctx *resource_get_opp_head(const struct pipe_ctx *pipe_ctx);
 
+/*
+ * Update ODM slice count by acquiring or releasing pipes. If new slices need
+ * to be added, it is going to add them to the last ODM index. If existing
+ * slices need to be removed, it is going to remove them from the last ODM
+ * index.
+ *
+ * return - true if ODM slices are updated and required pipes are acquired. All
+ * affected pipe parameters are updated.
+ *
+ * false if resource fails to complete this update. The function is not designed
+ * to recover the creation of invalid topologies. Returning false is typically
+ * an indication of insufficient validation in caller's stack. The function will
+ * return the new_ctx up until the last valid step performed in the function.
+ * Caller may use the returned new_ctx for debugging the error or it may attempt
+ * to restore new_ctx by calling this function again with original slice count.
+ */
+bool resource_update_pipes_with_odm_slice_count(
+		struct pipe_ctx *otg_master_pipe,
+		struct dc_state *new_ctx,
+		const struct dc_state *cur_ctx,
+		const struct resource_pool *pool,
+		int slice_count);
+
+/*
+ * Update MPC slice count by acquiring or releasing DPP pipes. If new slices
+ * need to be added it is going to add to the last MPC index. If existing
+ * slices need to be removed, it is going to remove them from the last MPC
+ * index.
+ *
+ * @dpp_pipe - top most dpp pipe for MPCC combine.
+ *
+ * return - true if MPC slices are updated and required pipes are acquired. All
+ * affected pipe parameters are updated.
+ *
+ * false if resource fails to complete this update. The function is not designed
+ * to recover the creation of invalid topologies. Returning false is typically
+ * an indication of insufficient validation in caller's stack. The function will
+ * return the new_ctx up until the last valid step performed in the function.
+ * Caller may use the returned new_ctx for debugging the error or it may attempt
+ * to restore new_ctx by calling this function again with original slice count.
+ */
+bool resource_update_pipes_with_mpc_slice_count(
+		struct pipe_ctx *dpp_pipe,
+		struct dc_state *new_ctx,
+		const struct dc_state *cur_ctx,
+		const struct resource_pool *pool,
+		int slice_count);
 
 bool resource_validate_attach_surfaces(
 		const struct dc_validation_set set[],
@@ -451,7 +518,7 @@ const struct link_hwss *get_link_hwss(const struct dc_link *link,
 
 bool is_h_timing_divisible_by_2(struct dc_stream_state *stream);
 
-bool dc_resource_acquire_secondary_pipe_for_mpc_odm(
+bool dc_resource_acquire_secondary_pipe_for_mpc_odm_legacy(
 		const struct dc *dc,
 		struct dc_state *state,
 		struct pipe_ctx *pri_pipe,

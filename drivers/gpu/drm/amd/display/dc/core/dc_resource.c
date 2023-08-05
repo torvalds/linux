@@ -763,7 +763,7 @@ int resource_get_num_odm_splits(const struct pipe_ctx *pipe)
 	return odm_split_count;
 }
 
-static int get_odm_split_index(struct pipe_ctx *pipe_ctx)
+int resource_get_odm_split_index(struct pipe_ctx *pipe_ctx)
 {
 	int index = 0;
 
@@ -779,7 +779,7 @@ static int get_odm_split_index(struct pipe_ctx *pipe_ctx)
 	return index;
 }
 
-static int get_mpc_split_index(struct pipe_ctx *pipe_ctx)
+int resource_get_mpc_split_index(struct pipe_ctx *pipe_ctx)
 {
 	struct pipe_ctx *split_pipe = pipe_ctx->top_pipe;
 	int index = 0;
@@ -845,7 +845,7 @@ static struct rect calculate_odm_slice_in_timing_active(struct pipe_ctx *pipe_ct
 {
 	const struct dc_stream_state *stream = pipe_ctx->stream;
 	int odm_slice_count = resource_get_num_odm_splits(pipe_ctx) + 1;
-	int odm_slice_idx = get_odm_split_index(pipe_ctx);
+	int odm_slice_idx = resource_get_odm_split_index(pipe_ctx);
 	bool is_last_odm_slice = (odm_slice_idx + 1) == odm_slice_count;
 	int h_active = stream->timing.h_addressable +
 			stream->timing.h_border_left +
@@ -963,7 +963,7 @@ static struct rect calculate_mpc_slice_in_timing_active(
 {
 	const struct dc_stream_state *stream = pipe_ctx->stream;
 	int mpc_slice_count = resource_get_num_mpc_splits(pipe_ctx) + 1;
-	int mpc_slice_idx = get_mpc_split_index(pipe_ctx);
+	int mpc_slice_idx = resource_get_mpc_split_index(pipe_ctx);
 	int epimo = mpc_slice_count - plane_clip_rec->width % mpc_slice_count - 1;
 	struct rect mpc_rec;
 
@@ -1814,6 +1814,59 @@ static struct pipe_ctx *get_tail_pipe(
 	return head_pipe;
 }
 
+static struct pipe_ctx *get_last_opp_head(
+		struct pipe_ctx *opp_head)
+{
+	ASSERT(resource_is_pipe_type(opp_head, OPP_HEAD));
+	while (opp_head->next_odm_pipe)
+		opp_head = opp_head->next_odm_pipe;
+	return opp_head;
+}
+
+static struct pipe_ctx *get_last_dpp_pipe_in_mpcc_combine(
+		struct pipe_ctx *dpp_pipe)
+{
+	ASSERT(resource_is_pipe_type(dpp_pipe, DPP_PIPE));
+	while (dpp_pipe->bottom_pipe &&
+			dpp_pipe->plane_state == dpp_pipe->bottom_pipe->plane_state)
+		dpp_pipe = dpp_pipe->bottom_pipe;
+	return dpp_pipe;
+}
+
+static bool update_pipe_params_after_odm_slice_count_change(
+		const struct dc_stream_state *stream,
+		struct dc_state *context,
+		const struct resource_pool *pool)
+{
+	int i;
+	struct pipe_ctx *pipe;
+	bool result = true;
+
+	for (i = 0; i < pool->pipe_count && result; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+		if (pipe->stream == stream && pipe->plane_state)
+			result = resource_build_scaling_params(pipe);
+	}
+	return result;
+}
+
+static bool update_pipe_params_after_mpc_slice_count_change(
+		const struct dc_plane_state *plane,
+		struct dc_state *context,
+		const struct resource_pool *pool)
+{
+	int i;
+	struct pipe_ctx *pipe;
+	bool result = true;
+
+	for (i = 0; i < pool->pipe_count && result; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+		if (pipe->plane_state == plane)
+			result = resource_build_scaling_params(pipe);
+	}
+	return result;
+}
+
 static int acquire_first_split_pipe(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
@@ -2032,6 +2085,302 @@ static bool acquire_otg_master_pipe_for_stream(
 	}
 
 	return pipe_idx != FREE_PIPE_INDEX_NOT_FOUND;
+}
+
+/*
+ * Increase ODM slice count by 1 by acquiring pipes and adding a new ODM slice
+ * at the last index.
+ * return - true if a new ODM slice is added and required pipes are acquired.
+ * false if new_ctx is no longer a valid state after new ODM slice is added.
+ *
+ * This is achieved by duplicating MPC blending tree from previous ODM slice.
+ * In the following example, we have a single MPC tree and 1 ODM slice 0. We
+ * want to add a new odm slice by duplicating the MPC blending tree and add
+ * ODM slice 1.
+ *
+ *       Inter-pipe Relation (Before Acquiring and Adding ODM Slice)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |  plane 0      | slice 0   |             |
+ *       |   0    | -------------MPC---------ODM----------- |
+ *       |        |  plane 1    | |           |             |
+ *       |   1    | ------------- |           |             |
+ *       |________|_______________|___________|_____________|
+ *
+ *       Inter-pipe Relation (After Acquiring and Adding ODM Slice)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |  plane 0      | slice 0   |             |
+ *       |   0    | -------------MPC---------ODM----------- |
+ *       |        |  plane 1    | |         | |             |
+ *       |   1    | ------------- |         | |             |
+ *       |        |  plane 0      | slice 1 | |             |
+ *       |   2    | -------------MPC--------- |             |
+ *       |        |  plane 1    | |           |             |
+ *       |   3    | ------------- |           |             |
+ *       |________|_______________|___________|_____________|
+ */
+static bool acquire_pipes_and_add_odm_slice(
+		struct pipe_ctx *otg_master_pipe,
+		struct dc_state *new_ctx,
+		const struct dc_state *cur_ctx,
+		const struct resource_pool *pool)
+{
+	struct pipe_ctx *last_opp_head = get_last_opp_head(otg_master_pipe);
+	struct pipe_ctx *new_opp_head = pool->funcs->acquire_free_pipe_as_secondary_opp_head(
+					cur_ctx, new_ctx, pool,
+					otg_master_pipe);
+	struct pipe_ctx *last_top_dpp_pipe, *last_bottom_dpp_pipe,
+			*new_top_dpp_pipe, *new_bottom_dpp_pipe;
+
+	if (!new_opp_head)
+		return false;
+
+	last_opp_head->next_odm_pipe = new_opp_head;
+	new_opp_head->prev_odm_pipe = last_opp_head;
+	new_opp_head->next_odm_pipe = NULL;
+	new_opp_head->plane_state = last_opp_head->plane_state;
+	last_top_dpp_pipe = last_opp_head;
+	new_top_dpp_pipe = new_opp_head;
+
+	while (last_top_dpp_pipe->bottom_pipe) {
+		last_bottom_dpp_pipe = last_top_dpp_pipe->bottom_pipe;
+		new_bottom_dpp_pipe = pool->funcs->acquire_free_pipe_as_secondary_dpp_pipe(
+				cur_ctx, new_ctx, pool,
+				new_opp_head);
+		if (!new_bottom_dpp_pipe)
+			return false;
+
+		new_bottom_dpp_pipe->plane_state = last_bottom_dpp_pipe->plane_state;
+		new_top_dpp_pipe->bottom_pipe = new_bottom_dpp_pipe;
+		new_bottom_dpp_pipe->top_pipe = new_top_dpp_pipe;
+		last_bottom_dpp_pipe->next_odm_pipe = new_bottom_dpp_pipe;
+		new_bottom_dpp_pipe->prev_odm_pipe = last_bottom_dpp_pipe;
+		new_bottom_dpp_pipe->next_odm_pipe = NULL;
+		last_top_dpp_pipe = last_bottom_dpp_pipe;
+	}
+
+	return true;
+}
+
+/*
+ * Decrease ODM slice count by 1 by releasing pipes and removing the ODM slice
+ * at the last index.
+ * return - true if the last ODM slice is removed and related pipes are
+ * released. false if there is no removable ODM slice.
+ *
+ * In the following example, we have 2 MPC trees and ODM slice 0 and slice 1.
+ * We want to remove the last ODM i.e slice 1. We are releasing secondary DPP
+ * pipe 3 and OPP head pipe 2.
+ *
+ *       Inter-pipe Relation (Before Releasing and Removing ODM Slice)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |  plane 0      | slice 0   |             |
+ *       |   0    | -------------MPC---------ODM----------- |
+ *       |        |  plane 1    | |         | |             |
+ *       |   1    | ------------- |         | |             |
+ *       |        |  plane 0      | slice 1 | |             |
+ *       |   2    | -------------MPC--------- |             |
+ *       |        |  plane 1    | |           |             |
+ *       |   3    | ------------- |           |             |
+ *       |________|_______________|___________|_____________|
+ *
+ *       Inter-pipe Relation (After Releasing and Removing ODM Slice)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |  plane 0      | slice 0   |             |
+ *       |   0    | -------------MPC---------ODM----------- |
+ *       |        |  plane 1    | |           |             |
+ *       |   1    | ------------- |           |             |
+ *       |________|_______________|___________|_____________|
+ */
+static bool release_pipes_and_remove_odm_slice(
+		struct pipe_ctx *otg_master_pipe,
+		struct dc_state *context,
+		const struct resource_pool *pool)
+{
+	struct pipe_ctx *last_opp_head = get_last_opp_head(otg_master_pipe);
+	struct pipe_ctx *tail_pipe = get_tail_pipe(last_opp_head);
+
+	if (resource_is_pipe_type(last_opp_head, OTG_MASTER))
+		return false;
+
+	while (tail_pipe->top_pipe) {
+		tail_pipe->prev_odm_pipe->next_odm_pipe = NULL;
+		tail_pipe = tail_pipe->top_pipe;
+		pool->funcs->release_pipe(context, tail_pipe->bottom_pipe, pool);
+		tail_pipe->bottom_pipe = NULL;
+	}
+	last_opp_head->prev_odm_pipe->next_odm_pipe = NULL;
+	pool->funcs->release_pipe(context, last_opp_head, pool);
+
+	return true;
+}
+
+/*
+ * Increase MPC slice count by 1 by acquiring a new DPP pipe and add it as the
+ * last MPC slice of the plane associated with dpp_pipe.
+ *
+ * return - true if a new MPC slice is added and required pipes are acquired.
+ * false if new_ctx is no longer a valid state after new MPC slice is added.
+ *
+ * In the following example, we add a new MPC slice for plane 0 into the
+ * new_ctx. To do so we pass pipe 0 as dpp_pipe. The function acquires a new DPP
+ * pipe 2 for plane 0 as the bottom most pipe for plane 0.
+ *
+ *       Inter-pipe Relation (Before Acquiring and Adding MPC Slice)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |  plane 0      |           |             |
+ *       |   0    | -------------MPC----------------------- |
+ *       |        |  plane 1    | |           |             |
+ *       |   1    | ------------- |           |             |
+ *       |________|_______________|___________|_____________|
+ *
+ *       Inter-pipe Relation (After Acquiring and Adding MPC Slice)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |  plane 0      |           |             |
+ *       |   0    | -------------MPC----------------------- |
+ *       |        |  plane 0    | |           |             |
+ *       |   2    | ------------- |           |             |
+ *       |        |  plane 1    | |           |             |
+ *       |   1    | ------------- |           |             |
+ *       |________|_______________|___________|_____________|
+ */
+static bool acquire_dpp_pipe_and_add_mpc_slice(
+		struct pipe_ctx *dpp_pipe,
+		struct dc_state *new_ctx,
+		const struct dc_state *cur_ctx,
+		const struct resource_pool *pool)
+{
+	struct pipe_ctx *last_dpp_pipe =
+			get_last_dpp_pipe_in_mpcc_combine(dpp_pipe);
+	struct pipe_ctx *opp_head = resource_get_opp_head(dpp_pipe);
+	struct pipe_ctx *new_dpp_pipe = pool->funcs->acquire_free_pipe_as_secondary_dpp_pipe(
+			cur_ctx, new_ctx, pool, opp_head);
+
+	if (!new_dpp_pipe || resource_get_num_odm_splits(dpp_pipe) > 0)
+		return false;
+
+	new_dpp_pipe->bottom_pipe = last_dpp_pipe->bottom_pipe;
+	if (new_dpp_pipe->bottom_pipe)
+		new_dpp_pipe->bottom_pipe->top_pipe = new_dpp_pipe;
+	new_dpp_pipe->top_pipe = last_dpp_pipe;
+	last_dpp_pipe->bottom_pipe = new_dpp_pipe;
+	new_dpp_pipe->plane_state = last_dpp_pipe->plane_state;
+
+	return true;
+}
+
+/*
+ * Reduce MPC slice count by 1 by releasing the bottom DPP pipe in MPCC combine
+ * with dpp_pipe and removing last MPC slice of the plane associated with
+ * dpp_pipe.
+ *
+ * return - true if the last MPC slice of the plane associated with dpp_pipe is
+ * removed and last DPP pipe in MPCC combine with dpp_pipe is released.
+ * false if there is no removable MPC slice.
+ *
+ * In the following example, we remove an MPC slice for plane 0 from the
+ * context. To do so we pass pipe 0 as dpp_pipe. The function releases pipe 1 as
+ * it is the last pipe for plane 0.
+ *
+ *       Inter-pipe Relation (Before Releasing and Removing MPC Slice)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |  plane 0      |           |             |
+ *       |   0    | -------------MPC----------------------- |
+ *       |        |  plane 0    | |           |             |
+ *       |   1    | ------------- |           |             |
+ *       |        |  plane 1    | |           |             |
+ *       |   2    | ------------- |           |             |
+ *       |________|_______________|___________|_____________|
+ *
+ *       Inter-pipe Relation (After Releasing and Removing MPC Slice)
+ *        __________________________________________________
+ *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
+ *       |        |  plane 0      |           |             |
+ *       |   0    | -------------MPC----------------------- |
+ *       |        |  plane 1    | |           |             |
+ *       |   2    | ------------- |           |             |
+ *       |________|_______________|___________|_____________|
+ */
+static bool release_dpp_pipe_and_remove_mpc_slice(
+		struct pipe_ctx *dpp_pipe,
+		struct dc_state *context,
+		const struct resource_pool *pool)
+{
+	struct pipe_ctx *last_dpp_pipe =
+			get_last_dpp_pipe_in_mpcc_combine(dpp_pipe);
+
+	if (resource_is_pipe_type(last_dpp_pipe, OPP_HEAD) ||
+			resource_get_num_odm_splits(dpp_pipe) > 0)
+		return false;
+
+	last_dpp_pipe->top_pipe->bottom_pipe = last_dpp_pipe->bottom_pipe;
+	if (last_dpp_pipe->bottom_pipe)
+		last_dpp_pipe->bottom_pipe->top_pipe = last_dpp_pipe->top_pipe;
+	pool->funcs->release_pipe(context, last_dpp_pipe, pool);
+
+	return true;
+}
+
+bool resource_update_pipes_with_odm_slice_count(
+		struct pipe_ctx *otg_master,
+		struct dc_state *new_ctx,
+		const struct dc_state *cur_ctx,
+		const struct resource_pool *pool,
+		int new_slice_count)
+{
+	int i;
+	int cur_slice_count = resource_get_num_odm_splits(otg_master) + 1;
+	bool result = true;
+
+	if (new_slice_count == cur_slice_count)
+		return result;
+
+	if (new_slice_count > cur_slice_count)
+		for (i = 0; i < new_slice_count - cur_slice_count && result; i++)
+			result = acquire_pipes_and_add_odm_slice(
+					otg_master, new_ctx, cur_ctx, pool);
+	else
+		for (i = 0; i < cur_slice_count - new_slice_count && result; i++)
+			result = release_pipes_and_remove_odm_slice(
+					otg_master, new_ctx, pool);
+	if (result)
+		result = update_pipe_params_after_odm_slice_count_change(
+				otg_master->stream, new_ctx, pool);
+	return result;
+}
+
+bool resource_update_pipes_with_mpc_slice_count(
+		struct pipe_ctx *dpp_pipe,
+		struct dc_state *new_ctx,
+		const struct dc_state *cur_ctx,
+		const struct resource_pool *pool,
+		int new_slice_count)
+{
+	int i;
+	int cur_slice_count = resource_get_num_mpc_splits(dpp_pipe) + 1;
+	bool result = true;
+
+	if (new_slice_count == cur_slice_count)
+		return result;
+
+	if (new_slice_count > cur_slice_count)
+		for (i = 0; i < new_slice_count - cur_slice_count && result; i++)
+			result = acquire_dpp_pipe_and_add_mpc_slice(
+					dpp_pipe, new_ctx, cur_ctx, pool);
+	else
+		for (i = 0; i < cur_slice_count - new_slice_count && result; i++)
+			result = release_dpp_pipe_and_remove_mpc_slice(
+					dpp_pipe, new_ctx, pool);
+	if (result)
+		result = update_pipe_params_after_mpc_slice_count_change(
+				dpp_pipe->plane_state, new_ctx, pool);
+	return result;
 }
 
 bool dc_add_plane_to_context(
@@ -4342,7 +4691,17 @@ bool is_h_timing_divisible_by_2(struct dc_stream_state *stream)
 	return divisible;
 }
 
-bool dc_resource_acquire_secondary_pipe_for_mpc_odm(
+/* This interface is deprecated for new DCNs. It is replaced by the following
+ * new interfaces. These two interfaces encapsulate pipe selection priority
+ * with DCN specific minimum hardware transition optimization algorithm. With
+ * the new interfaces caller no longer needs to know the implementation detail
+ * of a pipe topology.
+ *
+ * resource_update_pipes_with_odm_slice_count
+ * resource_update_pipes_with_mpc_slice_count
+ *
+ */
+bool dc_resource_acquire_secondary_pipe_for_mpc_odm_legacy(
 		const struct dc *dc,
 		struct dc_state *state,
 		struct pipe_ctx *pri_pipe,
