@@ -9,26 +9,6 @@
 
 #include "../kselftest.h"
 
-#ifndef __NR_fchmodat2
-	#if defined __alpha__
-		#define __NR_fchmodat2 562
-	#elif defined _MIPS_SIM
-		#if _MIPS_SIM == _MIPS_SIM_ABI32	/* o32 */
-			#define __NR_fchmodat2 (452 + 4000)
-		#endif
-		#if _MIPS_SIM == _MIPS_SIM_NABI32	/* n32 */
-			#define __NR_fchmodat2 (452 + 6000)
-		#endif
-		#if _MIPS_SIM == _MIPS_SIM_ABI64	/* n64 */
-			#define __NR_fchmodat2 (452 + 5000)
-		#endif
-	#elif defined __ia64__
-		#define __NR_fchmodat2 (452 + 1024)
-	#else
-		#define __NR_fchmodat2 452
-	#endif
-#endif
-
 int sys_fchmodat2(int dfd, const char *filename, mode_t mode, int flags)
 {
 	int ret = syscall(__NR_fchmodat2, dfd, filename, mode, flags);
