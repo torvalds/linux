@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
-#include "btree_update_interior.h"
-#include "buckets.h"
 #include "checksum.h"
 #include "counters.h"
 #include "disk_groups.h"
@@ -10,12 +8,12 @@
 #include "error.h"
 #include "io.h"
 #include "journal.h"
-#include "journal_io.h"
 #include "journal_sb.h"
 #include "journal_seq_blacklist.h"
 #include "recovery.h"
 #include "replicas.h"
 #include "quota.h"
+#include "sb-clean.h"
 #include "sb-members.h"
 #include "super-io.h"
 #include "super.h"
@@ -1016,27 +1014,6 @@ void __bch2_check_set_feature(struct bch_fs *c, unsigned feat)
 	mutex_unlock(&c->sb_lock);
 }
 
-/* BCH_SB_FIELD_clean: */
-
-int bch2_sb_clean_validate_late(struct bch_fs *c, struct bch_sb_field_clean *clean, int write)
-{
-	struct jset_entry *entry;
-	int ret;
-
-	for (entry = clean->start;
-	     entry < (struct jset_entry *) vstruct_end(&clean->field);
-	     entry = vstruct_next(entry)) {
-		ret = bch2_journal_entry_validate(c, NULL, entry,
-						  le16_to_cpu(c->disk_sb.sb->version),
-						  BCH_SB_BIG_ENDIAN(c->disk_sb.sb),
-						  write);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 /* Downgrade if superblock is at a higher version than currently supported: */
 void bch2_sb_maybe_downgrade(struct bch_fs *c)
 {
@@ -1062,232 +1039,6 @@ void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version)
 	c->disk_sb.sb->version = cpu_to_le16(new_version);
 	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 }
-
-int bch2_fs_mark_dirty(struct bch_fs *c)
-{
-	int ret;
-
-	/*
-	 * Unconditionally write superblock, to verify it hasn't changed before
-	 * we go rw:
-	 */
-
-	mutex_lock(&c->sb_lock);
-	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
-
-	bch2_sb_maybe_downgrade(c);
-	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALWAYS);
-
-	ret = bch2_write_super(c);
-	mutex_unlock(&c->sb_lock);
-
-	return ret;
-}
-
-static struct jset_entry *jset_entry_init(struct jset_entry **end, size_t size)
-{
-	struct jset_entry *entry = *end;
-	unsigned u64s = DIV_ROUND_UP(size, sizeof(u64));
-
-	memset(entry, 0, u64s * sizeof(u64));
-	/*
-	 * The u64s field counts from the start of data, ignoring the shared
-	 * fields.
-	 */
-	entry->u64s = cpu_to_le16(u64s - 1);
-
-	*end = vstruct_next(*end);
-	return entry;
-}
-
-void bch2_journal_super_entries_add_common(struct bch_fs *c,
-					   struct jset_entry **end,
-					   u64 journal_seq)
-{
-	struct bch_dev *ca;
-	unsigned i, dev;
-
-	percpu_down_read(&c->mark_lock);
-
-	if (!journal_seq) {
-		for (i = 0; i < ARRAY_SIZE(c->usage); i++)
-			bch2_fs_usage_acc_to_base(c, i);
-	} else {
-		bch2_fs_usage_acc_to_base(c, journal_seq & JOURNAL_BUF_MASK);
-	}
-
-	{
-		struct jset_entry_usage *u =
-			container_of(jset_entry_init(end, sizeof(*u)),
-				     struct jset_entry_usage, entry);
-
-		u->entry.type	= BCH_JSET_ENTRY_usage;
-		u->entry.btree_id = BCH_FS_USAGE_inodes;
-		u->v		= cpu_to_le64(c->usage_base->nr_inodes);
-	}
-
-	{
-		struct jset_entry_usage *u =
-			container_of(jset_entry_init(end, sizeof(*u)),
-				     struct jset_entry_usage, entry);
-
-		u->entry.type	= BCH_JSET_ENTRY_usage;
-		u->entry.btree_id = BCH_FS_USAGE_key_version;
-		u->v		= cpu_to_le64(atomic64_read(&c->key_version));
-	}
-
-	for (i = 0; i < BCH_REPLICAS_MAX; i++) {
-		struct jset_entry_usage *u =
-			container_of(jset_entry_init(end, sizeof(*u)),
-				     struct jset_entry_usage, entry);
-
-		u->entry.type	= BCH_JSET_ENTRY_usage;
-		u->entry.btree_id = BCH_FS_USAGE_reserved;
-		u->entry.level	= i;
-		u->v		= cpu_to_le64(c->usage_base->persistent_reserved[i]);
-	}
-
-	for (i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry *e =
-			cpu_replicas_entry(&c->replicas, i);
-		struct jset_entry_data_usage *u =
-			container_of(jset_entry_init(end, sizeof(*u) + e->nr_devs),
-				     struct jset_entry_data_usage, entry);
-
-		u->entry.type	= BCH_JSET_ENTRY_data_usage;
-		u->v		= cpu_to_le64(c->usage_base->replicas[i]);
-		unsafe_memcpy(&u->r, e, replicas_entry_bytes(e),
-			      "embedded variable length struct");
-	}
-
-	for_each_member_device(ca, c, dev) {
-		unsigned b = sizeof(struct jset_entry_dev_usage) +
-			sizeof(struct jset_entry_dev_usage_type) * BCH_DATA_NR;
-		struct jset_entry_dev_usage *u =
-			container_of(jset_entry_init(end, b),
-				     struct jset_entry_dev_usage, entry);
-
-		u->entry.type = BCH_JSET_ENTRY_dev_usage;
-		u->dev = cpu_to_le32(dev);
-		u->buckets_ec		= cpu_to_le64(ca->usage_base->buckets_ec);
-
-		for (i = 0; i < BCH_DATA_NR; i++) {
-			u->d[i].buckets = cpu_to_le64(ca->usage_base->d[i].buckets);
-			u->d[i].sectors	= cpu_to_le64(ca->usage_base->d[i].sectors);
-			u->d[i].fragmented = cpu_to_le64(ca->usage_base->d[i].fragmented);
-		}
-	}
-
-	percpu_up_read(&c->mark_lock);
-
-	for (i = 0; i < 2; i++) {
-		struct jset_entry_clock *clock =
-			container_of(jset_entry_init(end, sizeof(*clock)),
-				     struct jset_entry_clock, entry);
-
-		clock->entry.type = BCH_JSET_ENTRY_clock;
-		clock->rw	= i;
-		clock->time	= cpu_to_le64(atomic64_read(&c->io_clock[i].now));
-	}
-}
-
-void bch2_fs_mark_clean(struct bch_fs *c)
-{
-	struct bch_sb_field_clean *sb_clean;
-	struct jset_entry *entry;
-	unsigned u64s;
-	int ret;
-
-	mutex_lock(&c->sb_lock);
-	if (BCH_SB_CLEAN(c->disk_sb.sb))
-		goto out;
-
-	SET_BCH_SB_CLEAN(c->disk_sb.sb, true);
-
-	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_alloc_info);
-	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_alloc_metadata);
-	c->disk_sb.sb->features[0] &= cpu_to_le64(~(1ULL << BCH_FEATURE_extents_above_btree_updates));
-	c->disk_sb.sb->features[0] &= cpu_to_le64(~(1ULL << BCH_FEATURE_btree_updates_journalled));
-
-	u64s = sizeof(*sb_clean) / sizeof(u64) + c->journal.entry_u64s_reserved;
-
-	sb_clean = bch2_sb_resize_clean(&c->disk_sb, u64s);
-	if (!sb_clean) {
-		bch_err(c, "error resizing superblock while setting filesystem clean");
-		goto out;
-	}
-
-	sb_clean->flags		= 0;
-	sb_clean->journal_seq	= cpu_to_le64(atomic64_read(&c->journal.seq));
-
-	/* Trying to catch outstanding bug: */
-	BUG_ON(le64_to_cpu(sb_clean->journal_seq) > S64_MAX);
-
-	entry = sb_clean->start;
-	bch2_journal_super_entries_add_common(c, &entry, 0);
-	entry = bch2_btree_roots_to_journal_entries(c, entry, entry);
-	BUG_ON((void *) entry > vstruct_end(&sb_clean->field));
-
-	memset(entry, 0,
-	       vstruct_end(&sb_clean->field) - (void *) entry);
-
-	/*
-	 * this should be in the write path, and we should be validating every
-	 * superblock section:
-	 */
-	ret = bch2_sb_clean_validate_late(c, sb_clean, WRITE);
-	if (ret) {
-		bch_err(c, "error writing marking filesystem clean: validate error");
-		goto out;
-	}
-
-	bch2_write_super(c);
-out:
-	mutex_unlock(&c->sb_lock);
-}
-
-static int bch2_sb_clean_validate(struct bch_sb *sb,
-				  struct bch_sb_field *f,
-				  struct printbuf *err)
-{
-	struct bch_sb_field_clean *clean = field_to_type(f, clean);
-
-	if (vstruct_bytes(&clean->field) < sizeof(*clean)) {
-		prt_printf(err, "wrong size (got %zu should be %zu)",
-		       vstruct_bytes(&clean->field), sizeof(*clean));
-		return -BCH_ERR_invalid_sb_clean;
-	}
-
-	return 0;
-}
-
-static void bch2_sb_clean_to_text(struct printbuf *out, struct bch_sb *sb,
-				  struct bch_sb_field *f)
-{
-	struct bch_sb_field_clean *clean = field_to_type(f, clean);
-	struct jset_entry *entry;
-
-	prt_printf(out, "flags:          %x",	le32_to_cpu(clean->flags));
-	prt_newline(out);
-	prt_printf(out, "journal_seq:    %llu",	le64_to_cpu(clean->journal_seq));
-	prt_newline(out);
-
-	for (entry = clean->start;
-	     entry != vstruct_end(&clean->field);
-	     entry = vstruct_next(entry)) {
-		if (entry->type == BCH_JSET_ENTRY_btree_keys &&
-		    !entry->u64s)
-			continue;
-
-		bch2_journal_entry_to_text(out, NULL, entry);
-		prt_newline(out);
-	}
-}
-
-static const struct bch_sb_field_ops bch_sb_field_ops_clean = {
-	.validate	= bch2_sb_clean_validate,
-	.to_text	= bch2_sb_clean_to_text,
-};
 
 static const struct bch_sb_field_ops *bch2_sb_field_ops[] = {
 #define x(f, nr)					\

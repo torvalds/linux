@@ -23,6 +23,7 @@
 #include "quota.h"
 #include "recovery.h"
 #include "replicas.h"
+#include "sb-clean.h"
 #include "subvolume.h"
 #include "super-io.h"
 
@@ -846,134 +847,6 @@ static int journal_replay_early(struct bch_fs *c,
 
 /* sb clean section: */
 
-static struct bkey_i *btree_root_find(struct bch_fs *c,
-				      struct bch_sb_field_clean *clean,
-				      struct jset *j,
-				      enum btree_id id, unsigned *level)
-{
-	struct bkey_i *k;
-	struct jset_entry *entry, *start, *end;
-
-	if (clean) {
-		start = clean->start;
-		end = vstruct_end(&clean->field);
-	} else {
-		start = j->start;
-		end = vstruct_last(j);
-	}
-
-	for (entry = start; entry < end; entry = vstruct_next(entry))
-		if (entry->type == BCH_JSET_ENTRY_btree_root &&
-		    entry->btree_id == id)
-			goto found;
-
-	return NULL;
-found:
-	if (!entry->u64s)
-		return ERR_PTR(-EINVAL);
-
-	k = entry->start;
-	*level = entry->level;
-	return k;
-}
-
-static int verify_superblock_clean(struct bch_fs *c,
-				   struct bch_sb_field_clean **cleanp,
-				   struct jset *j)
-{
-	unsigned i;
-	struct bch_sb_field_clean *clean = *cleanp;
-	struct printbuf buf1 = PRINTBUF;
-	struct printbuf buf2 = PRINTBUF;
-	int ret = 0;
-
-	if (mustfix_fsck_err_on(j->seq != clean->journal_seq, c,
-			"superblock journal seq (%llu) doesn't match journal (%llu) after clean shutdown",
-			le64_to_cpu(clean->journal_seq),
-			le64_to_cpu(j->seq))) {
-		kfree(clean);
-		*cleanp = NULL;
-		return 0;
-	}
-
-	for (i = 0; i < BTREE_ID_NR; i++) {
-		struct bkey_i *k1, *k2;
-		unsigned l1 = 0, l2 = 0;
-
-		k1 = btree_root_find(c, clean, NULL, i, &l1);
-		k2 = btree_root_find(c, NULL, j, i, &l2);
-
-		if (!k1 && !k2)
-			continue;
-
-		printbuf_reset(&buf1);
-		printbuf_reset(&buf2);
-
-		if (k1)
-			bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(k1));
-		else
-			prt_printf(&buf1, "(none)");
-
-		if (k2)
-			bch2_bkey_val_to_text(&buf2, c, bkey_i_to_s_c(k2));
-		else
-			prt_printf(&buf2, "(none)");
-
-		mustfix_fsck_err_on(!k1 || !k2 ||
-				    IS_ERR(k1) ||
-				    IS_ERR(k2) ||
-				    k1->k.u64s != k2->k.u64s ||
-				    memcmp(k1, k2, bkey_bytes(&k1->k)) ||
-				    l1 != l2, c,
-			"superblock btree root %u doesn't match journal after clean shutdown\n"
-			"sb:      l=%u %s\n"
-			"journal: l=%u %s\n", i,
-			l1, buf1.buf,
-			l2, buf2.buf);
-	}
-fsck_err:
-	printbuf_exit(&buf2);
-	printbuf_exit(&buf1);
-	return ret;
-}
-
-static struct bch_sb_field_clean *read_superblock_clean(struct bch_fs *c)
-{
-	struct bch_sb_field_clean *clean, *sb_clean;
-	int ret;
-
-	mutex_lock(&c->sb_lock);
-	sb_clean = bch2_sb_get_clean(c->disk_sb.sb);
-
-	if (fsck_err_on(!sb_clean, c,
-			"superblock marked clean but clean section not present")) {
-		SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
-		c->sb.clean = false;
-		mutex_unlock(&c->sb_lock);
-		return NULL;
-	}
-
-	clean = kmemdup(sb_clean, vstruct_bytes(&sb_clean->field),
-			GFP_KERNEL);
-	if (!clean) {
-		mutex_unlock(&c->sb_lock);
-		return ERR_PTR(-BCH_ERR_ENOMEM_read_superblock_clean);
-	}
-
-	ret = bch2_sb_clean_validate_late(c, clean, READ);
-	if (ret) {
-		mutex_unlock(&c->sb_lock);
-		return ERR_PTR(ret);
-	}
-
-	mutex_unlock(&c->sb_lock);
-
-	return clean;
-fsck_err:
-	mutex_unlock(&c->sb_lock);
-	return ERR_PTR(ret);
-}
-
 static bool btree_id_is_alloc(enum btree_id id)
 {
 	switch (id) {
@@ -1297,17 +1170,17 @@ int bch2_fs_recovery(struct bch_fs *c)
 	bool write_sb = false;
 	int ret = 0;
 
-	if (c->sb.clean)
-		clean = read_superblock_clean(c);
-	ret = PTR_ERR_OR_ZERO(clean);
-	if (ret)
-		goto err;
+	if (c->sb.clean) {
+		clean = bch2_read_superblock_clean(c);
+		ret = PTR_ERR_OR_ZERO(clean);
+		if (ret)
+			goto err;
 
-	if (c->sb.clean)
 		bch_info(c, "recovering from clean shutdown, journal seq %llu",
 			 le64_to_cpu(clean->journal_seq));
-	else
+	} else {
 		bch_info(c, "recovering from unclean shutdown");
+	}
 
 	if (!(c->sb.features & (1ULL << BCH_FEATURE_new_extent_overwrite))) {
 		bch_err(c, "feature new_extent_overwrite not set, filesystem no longer supported");
@@ -1386,7 +1259,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 			goto err;
 
 		if (c->sb.clean && last_journal_entry) {
-			ret = verify_superblock_clean(c, &clean,
+			ret = bch2_verify_superblock_clean(c, &clean,
 						      last_journal_entry);
 			if (ret)
 				goto err;

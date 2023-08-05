@@ -46,6 +46,7 @@
 #include "rebalance.h"
 #include "recovery.h"
 #include "replicas.h"
+#include "sb-clean.h"
 #include "subvolume.h"
 #include "super.h"
 #include "super-io.h"
