@@ -8561,7 +8561,7 @@ static void rt2800_r_calibration(struct rt2x00_dev *rt2x00dev)
 		rt2x00_warn(rt2x00dev, "Wait MAC Tx Status to MAX !!!\n");
 
 	maccfg = rt2800_register_read(rt2x00dev, MAC_SYS_CTRL);
-	maccfg &= (~0x04);
+	maccfg &= (~0x08);
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, maccfg);
 
 	if (unlikely(rt2800_wait_bbp_rf_ready(rt2x00dev, MAC_STATUS_CFG_BBP_RF_BUSY_RX)))
