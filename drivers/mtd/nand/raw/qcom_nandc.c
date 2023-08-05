@@ -2016,13 +2016,12 @@ static int qcom_nandc_write_page(struct nand_chip *chip, const u8 *buf,
 	}
 
 	ret = submit_descs(nandc);
-	if (ret)
+	if (ret) {
 		dev_err(nandc->dev, "failure to write page\n");
+		return ret;
+	}
 
-	if (!ret)
-		ret = nand_prog_page_end_op(chip);
-
-	return ret;
+	return nand_prog_page_end_op(chip);
 }
 
 /* implements ecc->write_page_raw() */
@@ -2090,13 +2089,12 @@ static int qcom_nandc_write_page_raw(struct nand_chip *chip,
 	}
 
 	ret = submit_descs(nandc);
-	if (ret)
+	if (ret) {
 		dev_err(nandc->dev, "failure to write raw page\n");
+		return ret;
+	}
 
-	if (!ret)
-		ret = nand_prog_page_end_op(chip);
-
-	return ret;
+	return nand_prog_page_end_op(chip);
 }
 
 /*
