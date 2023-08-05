@@ -417,14 +417,6 @@ void *arch_dma_alloc(struct device *dev, size_t size,
 	map_uncached_pages(vaddr, size, paddr);
 	*dma_handle = (dma_addr_t) paddr;
 
-#if 0
-/* This probably isn't needed to support EISA cards.
-** ISA cards will certainly only support 24-bit DMA addressing.
-** Not clear if we can, want, or need to support ISA.
-*/
-	if (!dev || *dev->coherent_dma_mask < 0xffffffff)
-		gfp |= GFP_DMA;
-#endif
 	return (void *)vaddr;
 }
 
