@@ -39,8 +39,7 @@ Procedure for submitting patches to the -stable tree
    process but should follow the procedures in
    :ref:`Documentation/process/security-bugs.rst <securitybugs>`.
 
-For all other submissions, choose one of the following procedures
------------------------------------------------------------------
+There are three options to submit a change to -stable trees:
 
 .. _option_1:
 
@@ -153,13 +152,15 @@ problems:
 
      Cc: <stable@vger.kernel.org> # see patch description, needs adjustments for >= 6.3
 
-Following the submission:
+Following the submission
+------------------------
 
- - The sender will receive an ACK when the patch has been accepted into the
-   queue, or a NAK if the patch is rejected.  This response might take a few
-   days, according to the developer's schedules.
- - If accepted, the patch will be added to the -stable queue, for review by
-   other developers and by the relevant subsystem maintainer.
+The sender will receive an ACK when the patch has been accepted into the
+queue, or a NAK if the patch is rejected.  This response might take a few
+days, according to the developer's schedules.
+
+If accepted, the patch will be added to the -stable queue, for review by other
+developers and by the relevant subsystem maintainer.
 
 
 Review cycle
