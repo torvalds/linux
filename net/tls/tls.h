@@ -87,10 +87,6 @@ void tls_ctx_free(struct sock *sk, struct tls_context *ctx);
 void update_sk_prot(struct sock *sk, struct tls_context *ctx);
 
 int wait_on_pending_writer(struct sock *sk, long *timeo);
-int tls_sk_query(struct sock *sk, int optname, char __user *optval,
-		 int __user *optlen);
-int tls_sk_attach(struct sock *sk, int optname, char __user *optval,
-		  unsigned int optlen);
 void tls_err_abort(struct sock *sk, int err);
 
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx);
