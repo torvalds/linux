@@ -10,7 +10,7 @@
 char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
 
-void __stack_chk_init(void);
+static void __stack_chk_init(void);
 static void exit(int);
 
 void _start_c(long *sp)

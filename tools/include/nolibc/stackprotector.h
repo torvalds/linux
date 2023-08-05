@@ -37,8 +37,7 @@ void __stack_chk_fail_local(void)
 __attribute__((weak,section(".data.nolibc_stack_chk")))
 uintptr_t __stack_chk_guard;
 
-__attribute__((weak,section(".text.nolibc_stack_chk"))) __no_stack_protector
-void __stack_chk_init(void)
+static __no_stack_protector void __stack_chk_init(void)
 {
 	my_syscall3(__NR_getrandom, &__stack_chk_guard, sizeof(__stack_chk_guard), 0);
 	/* a bit more randomness in case getrandom() fails, ensure the guard is never 0 */
@@ -46,7 +45,7 @@ void __stack_chk_init(void)
 		__stack_chk_guard ^= (uintptr_t) &__stack_chk_guard;
 }
 #else /* !defined(_NOLIBC_STACKPROTECTOR) */
-__inline__ void __stack_chk_init(void) {}
+static void __stack_chk_init(void) {}
 #endif /* defined(_NOLIBC_STACKPROTECTOR) */
 
 #endif /* _NOLIBC_STACKPROTECTOR_H */
