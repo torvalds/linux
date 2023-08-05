@@ -195,8 +195,9 @@ static unsigned long setup_kernel_memory_layout(void)
 		asce_limit = _REGION2_SIZE;
 		rte_size = _REGION3_SIZE;
 	}
+
 	/*
-	 * forcing modules and vmalloc area under the ultravisor
+	 * Forcing modules and vmalloc area under the ultravisor
 	 * secure storage limit, so that any vmalloc allocation
 	 * we do could be used to back secure guest storage.
 	 */
@@ -288,8 +289,9 @@ void startup_kernel(void)
 
 	setup_lpp();
 	safe_addr = mem_safe_offset();
+
 	/*
-	 * reserve decompressor memory together with decompression heap, buffer and
+	 * Reserve decompressor memory together with decompression heap, buffer and
 	 * memory which might be occupied by uncompressed kernel at default 1Mb
 	 * position (if KASLR is off or failed).
 	 */
