@@ -59,16 +59,18 @@ To have the patch automatically included in the stable tree, add the tag
 
      Cc: stable@vger.kernel.org
 
-in the sign-off area. To accompany a note to the stable team, use a shell-style
-inline comment (see below for details). Once the patch is merged it will be
-applied to the stable tree without anything else needing to be done by the
-author or subsystem maintainer.
+in the sign-off area. Once the patch is merged it will be applied to the
+stable tree without anything else needing to be done by the author or
+subsystem maintainer.
 
-Additionally, some patches submitted via :ref:`option_1` may have additional
-patch prerequisites which can be cherry-picked. This can be specified in the
-following format in the sign-off area:
+To accompany a note to the stable team, use a shell-style inline comment (see
+below for details):
 
-.. code-block:: none
+ * Additionally, some patches submitted via :ref:`option_1` may have additional
+   patch prerequisites which can be cherry-picked. This can be specified in the
+   following format in the sign-off area:
+
+   .. code-block:: none
 
      Cc: <stable@vger.kernel.org> # 3.3.x: a1f84a3: sched: Check for idle
      Cc: <stable@vger.kernel.org> # 3.3.x: 1b9508f: sched: Rate-limit newidle
@@ -76,42 +78,42 @@ following format in the sign-off area:
      Cc: <stable@vger.kernel.org> # 3.3.x
      Signed-off-by: Ingo Molnar <mingo@elte.hu>
 
-The tag sequence has the meaning of:
+   The tag sequence has the meaning of:
 
-.. code-block:: none
+   .. code-block:: none
 
      git cherry-pick a1f84a3
      git cherry-pick 1b9508f
      git cherry-pick fd21073
      git cherry-pick <this commit>
 
-Also, some patches may have kernel version prerequisites.  This can be
-specified in the following format in the sign-off area:
+ * Also, some patches may have kernel version prerequisites.  This can be
+    specified in the following format in the sign-off area:
 
-.. code-block:: none
+   .. code-block:: none
 
      Cc: <stable@vger.kernel.org> # 3.3.x
 
-The tag has the meaning of:
+   The tag has the meaning of:
 
-.. code-block:: none
+   .. code-block:: none
 
      git cherry-pick <this commit>
 
-For each "-stable" tree starting with the specified version.
+   For each "-stable" tree starting with the specified version.
 
-To delay pick up of patches submitted via :ref:`option_1`, use the following
-format:
+ * To delay pick up of patches submitted via :ref:`option_1`, use the following
+   format:
 
-.. code-block:: none
+   .. code-block:: none
 
      Cc: <stable@vger.kernel.org> # after 4 weeks in mainline
 
-For any other requests related to patches submitted via :ref:`option_1`, just
-add a note to the stable tag. This for example can be used to point out known
-problems:
+ * For any other requests related to patches submitted via :ref:`option_1`, just
+   add a note to the stable tag. This for example can be used to point out known
+   problems:
 
-.. code-block:: none
+   .. code-block:: none
 
      Cc: <stable@vger.kernel.org> # see patch description, needs adjustments for >= 6.3
 
