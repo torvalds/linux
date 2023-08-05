@@ -2,19 +2,19 @@
 /*
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
  */
-#include <linux/clk.h>
-#include <linux/slab.h>
 #include <linux/bitops.h>
-#include <linux/dma/qcom_adm.h>
-#include <linux/dma-mapping.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/dmaengine.h>
+#include <linux/dma-mapping.h>
+#include <linux/dma/qcom_adm.h>
+#include <linux/dma/qcom_bam_dma.h>
 #include <linux/module.h>
-#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/delay.h>
-#include <linux/dma/qcom_bam_dma.h>
+#include <linux/slab.h>
 
 /* NANDc reg offsets */
 #define	NAND_FLASH_CMD			0x00
