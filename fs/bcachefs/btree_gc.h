@@ -2,6 +2,7 @@
 #ifndef _BCACHEFS_BTREE_GC_H
 #define _BCACHEFS_BTREE_GC_H
 
+#include "bkey.h"
 #include "btree_types.h"
 
 int bch2_check_topology(struct bch_fs *);

@@ -221,6 +221,22 @@ struct btree_path *bch2_path_get(struct btree_trans *, enum btree_id, struct bpo
 				 unsigned, unsigned, unsigned, unsigned long);
 struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *, struct bkey *);
 
+/*
+ * bch2_btree_path_peek_slot() for a cached iterator might return a key in a
+ * different snapshot:
+ */
+static inline struct bkey_s_c bch2_btree_path_peek_slot_exact(struct btree_path *path, struct bkey *u)
+{
+	struct bkey_s_c k = bch2_btree_path_peek_slot(path, u);
+
+	if (k.k && bpos_eq(path->pos, k.k->p))
+		return k;
+
+	bkey_init(u);
+	u->p = path->pos;
+	return (struct bkey_s_c) { u, NULL };
+}
+
 struct bkey_i *bch2_btree_journal_peek_slot(struct btree_trans *,
 					struct btree_iter *, struct bpos);
 
