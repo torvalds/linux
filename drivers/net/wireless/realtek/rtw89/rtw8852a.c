@@ -2071,10 +2071,12 @@ static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 
 const struct rtw89_chip_info rtw8852a_chip_info = {
 	.chip_id		= RTL8852A,
+	.chip_gen		= RTW89_CHIP_AX,
 	.ops			= &rtw8852a_chip_ops,
 	.fw_basename		= RTW8852A_FW_BASENAME,
 	.fw_format_max		= RTW8852A_FW_FORMAT_MAX,
 	.try_ce_fw		= false,
+	.needed_fw_elms		= 0,
 	.fifo_size		= 458752,
 	.small_fifo_size	= false,
 	.dle_scc_rsvd_size	= 0,

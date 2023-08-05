@@ -3193,29 +3193,33 @@ static ssize_t rtw89_debug_priv_btc_manual_set(struct file *filp,
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	bool btc_manual;
+	int ret;
 
-	if (kstrtobool_from_user(user_buf, count, &btc_manual))
-		goto out;
+	ret = kstrtobool_from_user(user_buf, count, &btc_manual);
+	if (ret)
+		return ret;
 
 	btc->ctrl.manual = btc_manual;
-out:
+
 	return count;
 }
 
-static ssize_t rtw89_debug_fw_log_btc_manual_set(struct file *filp,
-						 const char __user *user_buf,
-						 size_t count, loff_t *loff)
+static ssize_t rtw89_debug_fw_log_manual_set(struct file *filp,
+					     const char __user *user_buf,
+					     size_t count, loff_t *loff)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = filp->private_data;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
-	struct rtw89_fw_info *fw_info = &rtwdev->fw;
+	struct rtw89_fw_log *log = &rtwdev->fw.log;
 	bool fw_log_manual;
 
 	if (kstrtobool_from_user(user_buf, count, &fw_log_manual))
 		goto out;
 
 	mutex_lock(&rtwdev->mutex);
-	fw_info->fw_log_enable = fw_log_manual;
+	log->enable = fw_log_manual;
+	if (log->enable)
+		rtw89_fw_log_prepare(rtwdev);
 	rtw89_fw_h2c_fw_log(rtwdev, fw_log_manual);
 	mutex_unlock(&rtwdev->mutex);
 out:
@@ -3323,20 +3327,26 @@ rtw89_debug_append_rx_rate(struct seq_file *m, struct rtw89_pkt_stat *pkt_stat,
 			   pkt_stat->rx_rate_cnt[first_rate + i]);
 }
 
+#define FIRST_RATE_SAME(rate) {RTW89_HW_RATE_ ## rate, RTW89_HW_RATE_ ## rate}
+#define FIRST_RATE_ENUM(rate) {RTW89_HW_RATE_ ## rate, RTW89_HW_RATE_V1_ ## rate}
+#define FIRST_RATE_GEV1(rate) {RTW89_HW_RATE_INVAL, RTW89_HW_RATE_V1_ ## rate}
+
 static const struct rtw89_rx_rate_cnt_info {
-	enum rtw89_hw_rate first_rate;
+	enum rtw89_hw_rate first_rate[RTW89_CHIP_GEN_NUM];
 	int len;
 	int ext;
 	const char *rate_mode;
 } rtw89_rx_rate_cnt_infos[] = {
-	{RTW89_HW_RATE_CCK1, 4, 0, "Legacy:"},
-	{RTW89_HW_RATE_OFDM6, 8, 0, "OFDM:"},
-	{RTW89_HW_RATE_MCS0, 8, 0, "HT 0:"},
-	{RTW89_HW_RATE_MCS8, 8, 0, "HT 1:"},
-	{RTW89_HW_RATE_VHT_NSS1_MCS0, 10, 2, "VHT 1SS:"},
-	{RTW89_HW_RATE_VHT_NSS2_MCS0, 10, 2, "VHT 2SS:"},
-	{RTW89_HW_RATE_HE_NSS1_MCS0, 12, 0, "HE 1SS:"},
-	{RTW89_HW_RATE_HE_NSS2_MCS0, 12, 0, "HE 2ss:"},
+	{FIRST_RATE_SAME(CCK1), 4, 0, "Legacy:"},
+	{FIRST_RATE_SAME(OFDM6), 8, 0, "OFDM:"},
+	{FIRST_RATE_ENUM(MCS0), 8, 0, "HT 0:"},
+	{FIRST_RATE_ENUM(MCS8), 8, 0, "HT 1:"},
+	{FIRST_RATE_ENUM(VHT_NSS1_MCS0), 10, 2, "VHT 1SS:"},
+	{FIRST_RATE_ENUM(VHT_NSS2_MCS0), 10, 2, "VHT 2SS:"},
+	{FIRST_RATE_ENUM(HE_NSS1_MCS0), 12, 0, "HE 1SS:"},
+	{FIRST_RATE_ENUM(HE_NSS2_MCS0), 12, 0, "HE 2SS:"},
+	{FIRST_RATE_GEV1(EHT_NSS1_MCS0), 14, 2, "EHT 1SS:"},
+	{FIRST_RATE_GEV1(EHT_NSS2_MCS0), 14, 0, "EHT 2SS:"},
 };
 
 static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
@@ -3345,7 +3355,9 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
 	struct rtw89_traffic_stats *stats = &rtwdev->stats;
 	struct rtw89_pkt_stat *pkt_stat = &rtwdev->phystat.last_pkt_stat;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_rx_rate_cnt_info *info;
+	enum rtw89_hw_rate first_rate;
 	int i;
 
 	seq_printf(m, "TP TX: %u [%u] Mbps (lv: %d), RX: %u [%u] Mbps (lv: %d)\n",
@@ -3357,15 +3369,20 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 		   stats->rx_avg_len);
 
 	seq_puts(m, "RX count:\n");
+
 	for (i = 0; i < ARRAY_SIZE(rtw89_rx_rate_cnt_infos); i++) {
 		info = &rtw89_rx_rate_cnt_infos[i];
+		first_rate = info->first_rate[chip->chip_gen];
+		if (first_rate >= RTW89_HW_RATE_NR)
+			continue;
+
 		seq_printf(m, "%10s [", info->rate_mode);
 		rtw89_debug_append_rx_rate(m, pkt_stat,
-					   info->first_rate, info->len);
+					   first_rate, info->len);
 		if (info->ext) {
 			seq_puts(m, "][");
 			rtw89_debug_append_rx_rate(m, pkt_stat,
-						   info->first_rate + info->len, info->ext);
+						   first_rate + info->len, info->ext);
 		}
 		seq_puts(m, "]\n");
 	}
@@ -3569,7 +3586,7 @@ static struct rtw89_debugfs_priv rtw89_debug_priv_btc_manual = {
 };
 
 static struct rtw89_debugfs_priv rtw89_debug_priv_fw_log_manual = {
-	.cb_write = rtw89_debug_fw_log_btc_manual_set,
+	.cb_write = rtw89_debug_fw_log_manual_set,
 };
 
 static struct rtw89_debugfs_priv rtw89_debug_priv_phy_info = {

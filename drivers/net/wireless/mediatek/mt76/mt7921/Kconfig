@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: ISC
 config MT7921_COMMON
 	tristate
-	select MT76_CONNAC_LIB
+	select MT792x_LIB
 	select WANT_DEV_COREDUMP
 
 config MT7921E
@@ -27,7 +27,7 @@ config MT7921S
 
 config MT7921U
 	tristate "MediaTek MT7921U (USB) support"
-	select MT76_USB
+	select MT792x_USB
 	select MT7921_COMMON
 	depends on MAC80211
 	depends on USB

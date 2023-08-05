@@ -14,6 +14,7 @@
 #include "ahb.h"
 #include "debug.h"
 #include "hif.h"
+#include "qmi.h"
 #include <linux/remoteproc.h>
 #include "pcic.h"
 #include <linux/soc/qcom/smem.h>
@@ -416,32 +417,6 @@ static void ath11k_ahb_power_down(struct ath11k_base *ab)
 	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
 
 	rproc_shutdown(ab_ahb->tgt_rproc);
-}
-
-static int ath11k_ahb_fwreset_from_cold_boot(struct ath11k_base *ab)
-{
-	int timeout;
-
-	if (ath11k_cold_boot_cal == 0 || ab->qmi.cal_done ||
-	    ab->hw_params.cold_boot_calib == 0 ||
-	    ab->hw_params.cbcal_restart_fw == 0)
-		return 0;
-
-	ath11k_dbg(ab, ATH11K_DBG_AHB, "wait for cold boot done\n");
-	timeout = wait_event_timeout(ab->qmi.cold_boot_waitq,
-				     (ab->qmi.cal_done  == 1),
-				     ATH11K_COLD_BOOT_FW_RESET_DELAY);
-	if (timeout <= 0) {
-		ath11k_cold_boot_cal = 0;
-		ath11k_warn(ab, "Coldboot Calibration failed timed out\n");
-	}
-
-	/* reset the firmware */
-	ath11k_ahb_power_down(ab);
-	ath11k_ahb_power_up(ab);
-
-	ath11k_dbg(ab, ATH11K_DBG_AHB, "exited from cold boot mode\n");
-	return 0;
 }
 
 static void ath11k_ahb_init_qmi_ce_config(struct ath11k_base *ab)
@@ -1226,7 +1201,7 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 		goto err_ce_free;
 	}
 
-	ath11k_ahb_fwreset_from_cold_boot(ab);
+	ath11k_qmi_fwreset_from_cold_boot(ab);
 
 	return 0;
 

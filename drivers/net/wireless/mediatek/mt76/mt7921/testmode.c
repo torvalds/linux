@@ -31,7 +31,7 @@ static const struct nla_policy mt7921_tm_policy[NUM_MT7921_TM_ATTRS] = {
 };
 
 static int
-mt7921_tm_set(struct mt7921_dev *dev, struct mt7921_tm_cmd *req)
+mt7921_tm_set(struct mt792x_dev *dev, struct mt7921_tm_cmd *req)
 {
 	struct mt7921_rftest_cmd cmd = {
 		.action = req->action,
@@ -57,7 +57,7 @@ mt7921_tm_set(struct mt7921_dev *dev, struct mt7921_tm_cmd *req)
 		pm->enable = false;
 		cancel_delayed_work_sync(&pm->ps_work);
 		cancel_work_sync(&pm->wake_work);
-		__mt7921_mcu_drv_pmctrl(dev);
+		__mt792x_mcu_drv_pmctrl(dev);
 
 		phy->test.state = MT76_TM_STATE_ON;
 	}
@@ -82,7 +82,7 @@ out:
 }
 
 static int
-mt7921_tm_query(struct mt7921_dev *dev, struct mt7921_tm_cmd *req,
+mt7921_tm_query(struct mt792x_dev *dev, struct mt7921_tm_cmd *req,
 		struct mt7921_tm_evt *evt_resp)
 {
 	struct mt7921_rftest_cmd cmd = {
@@ -113,7 +113,7 @@ int mt7921_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct nlattr *tb[NUM_MT76_TM_ATTRS];
 	struct mt76_phy *mphy = hw->priv;
-	struct mt7921_phy *phy = mphy->priv;
+	struct mt792x_phy *phy = mphy->priv;
 	int err;
 
 	if (!test_bit(MT76_STATE_RUNNING, &mphy->state) ||
@@ -150,7 +150,7 @@ int mt7921_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 {
 	struct nlattr *tb[NUM_MT76_TM_ATTRS];
 	struct mt76_phy *mphy = hw->priv;
-	struct mt7921_phy *phy = mphy->priv;
+	struct mt792x_phy *phy = mphy->priv;
 	int err;
 
 	if (!test_bit(MT76_STATE_RUNNING, &mphy->state) ||

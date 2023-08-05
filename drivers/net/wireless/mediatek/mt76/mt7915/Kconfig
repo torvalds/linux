@@ -14,12 +14,12 @@ config MT7915E
 
 	  To compile this driver as a module, choose M here.
 
-config MT7986_WMAC
-	bool "MT7986 (SoC) WMAC support"
+config MT798X_WMAC
+	bool "MT798x (SoC) WMAC support"
 	depends on MT7915E
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select REGMAP
 	help
-	  This adds support for the built-in WMAC on MT7986 SoC device
+	  This adds support for the built-in WMAC on MT7981 and MT7986 SoC device
 	  which has the same feature set as a MT7915, but enables 6E
 	  support.
