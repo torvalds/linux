@@ -1219,7 +1219,7 @@ static inline struct hci_conn *hci_conn_hash_lookup_cis(struct hci_dev *hdev,
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(c, &h->list, list) {
-		if (c->type != ISO_LINK)
+		if (c->type != ISO_LINK || !bacmp(&c->dst, BDADDR_ANY))
 			continue;
 
 		/* Match CIG ID if set */
@@ -1251,7 +1251,7 @@ static inline struct hci_conn *hci_conn_hash_lookup_cig(struct hci_dev *hdev,
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(c, &h->list, list) {
-		if (c->type != ISO_LINK)
+		if (c->type != ISO_LINK || !bacmp(&c->dst, BDADDR_ANY))
 			continue;
 
 		if (handle == c->iso_qos.ucast.cig) {
