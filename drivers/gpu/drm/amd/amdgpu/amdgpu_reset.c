@@ -26,14 +26,6 @@
 #include "sienna_cichlid.h"
 #include "smu_v13_0_10.h"
 
-int amdgpu_reset_add_handler(struct amdgpu_reset_control *reset_ctl,
-			     struct amdgpu_reset_handler *handler)
-{
-	/* TODO: Check if handler exists? */
-	list_add_tail(&handler->handler_list, &reset_ctl->reset_handlers);
-	return 0;
-}
-
 int amdgpu_reset_init(struct amdgpu_device *adev)
 {
 	int ret = 0;

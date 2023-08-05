@@ -44,10 +44,10 @@ smu_v13_0_10_get_reset_handler(struct amdgpu_reset_control *reset_ctl,
 {
 	struct amdgpu_reset_handler *handler;
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
+	int i;
 
 	if (reset_context->method != AMD_RESET_METHOD_NONE) {
-		list_for_each_entry(handler, &reset_ctl->reset_handlers,
-				     handler_list) {
+		for_each_handler(i, handler, reset_ctl) {
 			if (handler->reset_method == reset_context->method)
 				return handler;
 		}
@@ -55,8 +55,7 @@ smu_v13_0_10_get_reset_handler(struct amdgpu_reset_control *reset_ctl,
 
 	if (smu_v13_0_10_is_mode2_default(reset_ctl) &&
 		amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_MODE2) {
-		list_for_each_entry (handler, &reset_ctl->reset_handlers,
-				     handler_list) {
+		for_each_handler(i, handler, reset_ctl)	{
 			if (handler->reset_method == AMD_RESET_METHOD_MODE2)
 				return handler;
 		}
@@ -119,9 +118,9 @@ static void smu_v13_0_10_async_reset(struct work_struct *work)
 	struct amdgpu_reset_control *reset_ctl =
 		container_of(work, struct amdgpu_reset_control, reset_work);
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
+	int i;
 
-	list_for_each_entry(handler, &reset_ctl->reset_handlers,
-			     handler_list) {
+	for_each_handler(i, handler, reset_ctl)	{
 		if (handler->reset_method == reset_ctl->active_reset) {
 			dev_dbg(adev->dev, "Resetting device\n");
 			handler->do_reset(adev);
@@ -272,6 +271,11 @@ static struct amdgpu_reset_handler smu_v13_0_10_mode2_handler = {
 	.do_reset		= smu_v13_0_10_mode2_reset,
 };
 
+static struct amdgpu_reset_handler
+	*smu_v13_0_10_rst_handlers[AMDGPU_RESET_MAX_HANDLERS] = {
+		&smu_v13_0_10_mode2_handler,
+	};
+
 int smu_v13_0_10_reset_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_reset_control *reset_ctl;
@@ -285,10 +289,9 @@ int smu_v13_0_10_reset_init(struct amdgpu_device *adev)
 	reset_ctl->active_reset = AMD_RESET_METHOD_NONE;
 	reset_ctl->get_reset_handler = smu_v13_0_10_get_reset_handler;
 
-	INIT_LIST_HEAD(&reset_ctl->reset_handlers);
 	INIT_WORK(&reset_ctl->reset_work, reset_ctl->async_reset);
 	/* Only mode2 is handled through reset control now */
-	amdgpu_reset_add_handler(reset_ctl, &smu_v13_0_10_mode2_handler);
+	reset_ctl->reset_handlers = &smu_v13_0_10_rst_handlers;
 
 	adev->reset_cntl = reset_ctl;
 

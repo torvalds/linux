@@ -48,20 +48,19 @@ aldebaran_get_reset_handler(struct amdgpu_reset_control *reset_ctl,
 {
 	struct amdgpu_reset_handler *handler;
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
+	int i;
 
 	if (reset_context->method != AMD_RESET_METHOD_NONE) {
 		dev_dbg(adev->dev, "Getting reset handler for method %d\n",
 			reset_context->method);
-		list_for_each_entry(handler, &reset_ctl->reset_handlers,
-				     handler_list) {
+		for_each_handler(i, handler, reset_ctl) {
 			if (handler->reset_method == reset_context->method)
 				return handler;
 		}
 	}
 
 	if (aldebaran_is_mode2_default(reset_ctl)) {
-		list_for_each_entry(handler, &reset_ctl->reset_handlers,
-				     handler_list) {
+		for_each_handler(i, handler, reset_ctl)	{
 			if (handler->reset_method == AMD_RESET_METHOD_MODE2) {
 				reset_context->method = AMD_RESET_METHOD_MODE2;
 				return handler;
@@ -124,9 +123,9 @@ static void aldebaran_async_reset(struct work_struct *work)
 	struct amdgpu_reset_control *reset_ctl =
 		container_of(work, struct amdgpu_reset_control, reset_work);
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
+	int i;
 
-	list_for_each_entry(handler, &reset_ctl->reset_handlers,
-			     handler_list) {
+	for_each_handler(i, handler, reset_ctl)	{
 		if (handler->reset_method == reset_ctl->active_reset) {
 			dev_dbg(adev->dev, "Resetting device\n");
 			handler->do_reset(adev);
@@ -395,6 +394,11 @@ static struct amdgpu_reset_handler aldebaran_mode2_handler = {
 	.do_reset		= aldebaran_mode2_reset,
 };
 
+static struct amdgpu_reset_handler
+	*aldebaran_rst_handlers[AMDGPU_RESET_MAX_HANDLERS] = {
+		&aldebaran_mode2_handler,
+	};
+
 int aldebaran_reset_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_reset_control *reset_ctl;
@@ -408,10 +412,9 @@ int aldebaran_reset_init(struct amdgpu_device *adev)
 	reset_ctl->active_reset = AMD_RESET_METHOD_NONE;
 	reset_ctl->get_reset_handler = aldebaran_get_reset_handler;
 
-	INIT_LIST_HEAD(&reset_ctl->reset_handlers);
 	INIT_WORK(&reset_ctl->reset_work, reset_ctl->async_reset);
 	/* Only mode2 is handled through reset control now */
-	amdgpu_reset_add_handler(reset_ctl, &aldebaran_mode2_handler);
+	reset_ctl->reset_handlers = &aldebaran_rst_handlers;
 
 	adev->reset_cntl = reset_ctl;
 
