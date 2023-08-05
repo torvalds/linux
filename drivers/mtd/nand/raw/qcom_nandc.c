@@ -2585,20 +2585,23 @@ static int qcom_op_cmd_mapping(struct qcom_nand_controller *nandc, u8 opcode,
 		q_op->flag = OP_PROGRAM_PAGE;
 		nandc->exec_opwrite = true;
 		break;
+	default:
+		dev_err(nandc->dev, "Opcode not supported: %u\n", opcode);
+		return -EOPNOTSUPP;
 	}
 
 	return cmd;
 }
 
 /* NAND framework ->exec_op() hooks and related helpers */
-static void qcom_parse_instructions(struct nand_chip *chip,
+static int qcom_parse_instructions(struct nand_chip *chip,
 				    const struct nand_subop *subop,
 				    struct qcom_op *q_op)
 {
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	const struct nand_op_instr *instr = NULL;
 	unsigned int op_id;
-	int i;
+	int i, ret;
 
 	for (op_id = 0; op_id < subop->ninstrs; op_id++) {
 		unsigned int offset, naddrs;
@@ -2608,7 +2611,11 @@ static void qcom_parse_instructions(struct nand_chip *chip,
 
 		switch (instr->type) {
 		case NAND_OP_CMD_INSTR:
-			q_op->cmd_reg = qcom_op_cmd_mapping(nandc, instr->ctx.cmd.opcode, q_op);
+			ret = qcom_op_cmd_mapping(nandc, instr->ctx.cmd.opcode, q_op);
+			if (ret < 0)
+				return ret;
+
+			q_op->cmd_reg = ret;
 			q_op->rdy_delay_ns = instr->delay_ns;
 			break;
 
@@ -2641,6 +2648,8 @@ static void qcom_parse_instructions(struct nand_chip *chip,
 			break;
 		}
 	}
+
+	return 0;
 }
 
 static void qcom_delay_ns(unsigned int ns)
@@ -2689,7 +2698,9 @@ static int qcom_read_status_exec(struct nand_chip *chip,
 
 	host->status = NAND_STATUS_READY | NAND_STATUS_WP;
 
-	qcom_parse_instructions(chip, subop, &q_op);
+	ret = qcom_parse_instructions(chip, subop, &q_op);
+	if (ret)
+		return ret;
 
 	num_cw = nandc->exec_opwrite ? ecc->steps : 1;
 	nandc->exec_opwrite = false;
@@ -2749,7 +2760,9 @@ static int qcom_read_id_type_exec(struct nand_chip *chip, const struct nand_subo
 	unsigned int len = 0;
 	int ret;
 
-	qcom_parse_instructions(chip, subop, &q_op);
+	ret = qcom_parse_instructions(chip, subop, &q_op);
+	if (ret)
+		return ret;
 
 	nandc->buf_count = 0;
 	nandc->buf_start = 0;
@@ -2797,7 +2810,9 @@ static int qcom_misc_cmd_type_exec(struct nand_chip *chip, const struct nand_sub
 	struct qcom_op q_op = {};
 	int ret;
 
-	qcom_parse_instructions(chip, subop, &q_op);
+	ret = qcom_parse_instructions(chip, subop, &q_op);
+	if (ret)
+		return ret;
 
 	if (q_op.flag == OP_PROGRAM_PAGE)
 		goto wait_rdy;
@@ -2843,7 +2858,9 @@ static int qcom_param_page_type_exec(struct nand_chip *chip,  const struct nand_
 	unsigned int len = 0;
 	int ret;
 
-	qcom_parse_instructions(chip, subop, &q_op);
+	ret = qcom_parse_instructions(chip, subop, &q_op);
+	if (ret)
+		return ret;
 
 	q_op.cmd_reg |= PAGE_ACC | LAST_PAGE;
 
@@ -2937,7 +2954,9 @@ static int qcom_erase_cmd_type_exec(struct nand_chip *chip, const struct nand_su
 	struct qcom_op q_op = {};
 	int ret;
 
-	qcom_parse_instructions(chip, subop, &q_op);
+	ret = qcom_parse_instructions(chip, subop, &q_op);
+	if (ret)
+		return ret;
 
 	q_op.cmd_reg |= PAGE_ACC | LAST_PAGE;
 
