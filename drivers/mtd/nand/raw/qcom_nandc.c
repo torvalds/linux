@@ -3033,12 +3033,12 @@ static int qcom_check_op(struct nand_chip *chip,
 
 		switch (instr->type) {
 		case NAND_OP_CMD_INSTR:
-			if (instr->ctx.cmd.opcode != NAND_CMD_RESET ||
-			    instr->ctx.cmd.opcode != NAND_CMD_READID ||
-			    instr->ctx.cmd.opcode != NAND_CMD_PARAM ||
-			    instr->ctx.cmd.opcode != NAND_CMD_ERASE1 ||
-			    instr->ctx.cmd.opcode != NAND_CMD_ERASE2 ||
-			    instr->ctx.cmd.opcode != NAND_CMD_STATUS ||
+			if (instr->ctx.cmd.opcode != NAND_CMD_RESET  &&
+			    instr->ctx.cmd.opcode != NAND_CMD_READID &&
+			    instr->ctx.cmd.opcode != NAND_CMD_PARAM  &&
+			    instr->ctx.cmd.opcode != NAND_CMD_ERASE1 &&
+			    instr->ctx.cmd.opcode != NAND_CMD_ERASE2 &&
+			    instr->ctx.cmd.opcode != NAND_CMD_STATUS &&
 			    instr->ctx.cmd.opcode != NAND_CMD_PAGEPROG)
 				return -ENOTSUPP;
 			break;
