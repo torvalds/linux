@@ -41,6 +41,13 @@ Procedure for submitting patches to the -stable tree
 
 There are three options to submit a change to -stable trees:
 
+:ref:`option_1` is **strongly** preferred, is the easiest and most common.
+:ref:`option_2` and :ref:`option_3` are more useful if the patch isn't deemed
+worthy at the time it is applied to a public git tree (for instance, because
+it deserves more regression testing first).  :ref:`option_3` is especially
+useful if the original upstream patch needs to be backported (for example
+the backport needs some special handling due to e.g. API changes).
+
 .. _option_1:
 
 Option 1
@@ -56,50 +63,6 @@ in the sign-off area. To accompany a note to the stable team, use a shell-style
 inline comment (see below for details). Once the patch is merged it will be
 applied to the stable tree without anything else needing to be done by the
 author or subsystem maintainer.
-
-.. _option_2:
-
-Option 2
-********
-
-After the patch has been merged to Linus' tree, send an email to
-stable@vger.kernel.org containing the subject of the patch, the commit ID,
-why you think it should be applied, and what kernel version you wish it to
-be applied to.
-
-.. _option_3:
-
-Option 3
-********
-
-Send the patch, after verifying that it follows the above rules, to
-stable@vger.kernel.org.  You must note the upstream commit ID in the
-changelog of your submission, as well as the kernel version you wish
-it to be applied to.
-
-:ref:`option_1` is **strongly** preferred, is the easiest and most common.
-:ref:`option_2` and :ref:`option_3` are more useful if the patch isn't deemed
-worthy at the time it is applied to a public git tree (for instance, because
-it deserves more regression testing first).  :ref:`option_3` is especially
-useful if the original upstream patch needs to be backported (for example
-the backport needs some special handling due to e.g. API changes).
-
-Note that for :ref:`option_3`, if the patch deviates from the original
-upstream patch (for example because it had to be backported) this must be very
-clearly documented and justified in the patch description.
-
-The upstream commit ID must be specified with a separate line above the commit
-text, like this:
-
-.. code-block:: none
-
-    commit <sha1> upstream.
-
-or alternatively:
-
-.. code-block:: none
-
-    [ Upstream commit <sha1> ]
 
 Additionally, some patches submitted via :ref:`option_1` may have additional
 patch prerequisites which can be cherry-picked. This can be specified in the
@@ -151,6 +114,43 @@ problems:
 .. code-block:: none
 
      Cc: <stable@vger.kernel.org> # see patch description, needs adjustments for >= 6.3
+
+.. _option_2:
+
+Option 2
+********
+
+After the patch has been merged to Linus' tree, send an email to
+stable@vger.kernel.org containing the subject of the patch, the commit ID,
+why you think it should be applied, and what kernel version you wish it to
+be applied to.
+
+.. _option_3:
+
+Option 3
+********
+
+Send the patch, after verifying that it follows the above rules, to
+stable@vger.kernel.org.  You must note the upstream commit ID in the
+changelog of your submission, as well as the kernel version you wish
+it to be applied to.
+
+Note that for :ref:`option_3`, if the patch deviates from the original
+upstream patch (for example because it had to be backported) this must be very
+clearly documented and justified in the patch description.
+
+The upstream commit ID must be specified with a separate line above the commit
+text, like this:
+
+.. code-block:: none
+
+    commit <sha1> upstream.
+
+or alternatively:
+
+.. code-block:: none
+
+    [ Upstream commit <sha1> ]
 
 Following the submission
 ------------------------
