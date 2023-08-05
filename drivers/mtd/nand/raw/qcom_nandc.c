@@ -2140,7 +2140,7 @@ static int qcom_nandc_write_oob(struct nand_chip *chip, int page)
 	ret = submit_descs(nandc);
 	if (ret) {
 		dev_err(nandc->dev, "failure to write oob\n");
-		return -EIO;
+		return ret;
 	}
 
 	return nand_prog_page_end_op(chip);
@@ -2216,7 +2216,7 @@ static int qcom_nandc_block_markbad(struct nand_chip *chip, loff_t ofs)
 	ret = submit_descs(nandc);
 	if (ret) {
 		dev_err(nandc->dev, "failure to update BBM\n");
-		return -EIO;
+		return ret;
 	}
 
 	return nand_prog_page_end_op(chip);
