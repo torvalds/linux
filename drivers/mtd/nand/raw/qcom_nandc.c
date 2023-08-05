@@ -3040,7 +3040,7 @@ static int qcom_check_op(struct nand_chip *chip,
 			    instr->ctx.cmd.opcode != NAND_CMD_ERASE2 &&
 			    instr->ctx.cmd.opcode != NAND_CMD_STATUS &&
 			    instr->ctx.cmd.opcode != NAND_CMD_PAGEPROG)
-				return -ENOTSUPP;
+				return -EOPNOTSUPP;
 			break;
 		default:
 			break;
