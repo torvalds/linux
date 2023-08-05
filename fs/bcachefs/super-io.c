@@ -1016,48 +1016,6 @@ void __bch2_check_set_feature(struct bch_fs *c, unsigned feat)
 	mutex_unlock(&c->sb_lock);
 }
 
-/* BCH_SB_FIELD_crypt: */
-
-static int bch2_sb_crypt_validate(struct bch_sb *sb,
-				  struct bch_sb_field *f,
-				  struct printbuf *err)
-{
-	struct bch_sb_field_crypt *crypt = field_to_type(f, crypt);
-
-	if (vstruct_bytes(&crypt->field) < sizeof(*crypt)) {
-		prt_printf(err, "wrong size (got %zu should be %zu)",
-		       vstruct_bytes(&crypt->field), sizeof(*crypt));
-		return -BCH_ERR_invalid_sb_crypt;
-	}
-
-	if (BCH_CRYPT_KDF_TYPE(crypt)) {
-		prt_printf(err, "bad kdf type %llu", BCH_CRYPT_KDF_TYPE(crypt));
-		return -BCH_ERR_invalid_sb_crypt;
-	}
-
-	return 0;
-}
-
-static void bch2_sb_crypt_to_text(struct printbuf *out, struct bch_sb *sb,
-				  struct bch_sb_field *f)
-{
-	struct bch_sb_field_crypt *crypt = field_to_type(f, crypt);
-
-	prt_printf(out, "KFD:               %llu", BCH_CRYPT_KDF_TYPE(crypt));
-	prt_newline(out);
-	prt_printf(out, "scrypt n:          %llu", BCH_KDF_SCRYPT_N(crypt));
-	prt_newline(out);
-	prt_printf(out, "scrypt r:          %llu", BCH_KDF_SCRYPT_R(crypt));
-	prt_newline(out);
-	prt_printf(out, "scrypt p:          %llu", BCH_KDF_SCRYPT_P(crypt));
-	prt_newline(out);
-}
-
-static const struct bch_sb_field_ops bch_sb_field_ops_crypt = {
-	.validate	= bch2_sb_crypt_validate,
-	.to_text	= bch2_sb_crypt_to_text,
-};
-
 /* BCH_SB_FIELD_clean: */
 
 int bch2_sb_clean_validate_late(struct bch_fs *c, struct bch_sb_field_clean *clean, int write)

@@ -72,6 +72,8 @@ static inline int bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 		: 0;
 }
 
+extern const struct bch_sb_field_ops bch_sb_field_ops_crypt;
+
 int bch2_decrypt_sb_key(struct bch_fs *, struct bch_sb_field_crypt *,
 			struct bch_key *);
 
