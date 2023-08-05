@@ -1306,30 +1306,30 @@ static void config_nand_cw_write(struct nand_chip *chip)
 /* helpers to submit/free our list of dma descriptors */
 static int submit_descs(struct qcom_nand_controller *nandc)
 {
-	struct desc_info *desc;
+	struct desc_info *desc, *n;
 	dma_cookie_t cookie = 0;
 	struct bam_transaction *bam_txn = nandc->bam_txn;
-	int r;
+	int ret = 0;
 
 	if (nandc->props->is_bam) {
 		if (bam_txn->rx_sgl_pos > bam_txn->rx_sgl_start) {
-			r = prepare_bam_async_desc(nandc, nandc->rx_chan, 0);
-			if (r)
-				return r;
+			ret = prepare_bam_async_desc(nandc, nandc->rx_chan, 0);
+			if (ret)
+				goto err_unmap_free_desc;
 		}
 
 		if (bam_txn->tx_sgl_pos > bam_txn->tx_sgl_start) {
-			r = prepare_bam_async_desc(nandc, nandc->tx_chan,
+			ret = prepare_bam_async_desc(nandc, nandc->tx_chan,
 						   DMA_PREP_INTERRUPT);
-			if (r)
-				return r;
+			if (ret)
+				goto err_unmap_free_desc;
 		}
 
 		if (bam_txn->cmd_sgl_pos > bam_txn->cmd_sgl_start) {
-			r = prepare_bam_async_desc(nandc, nandc->cmd_chan,
+			ret = prepare_bam_async_desc(nandc, nandc->cmd_chan,
 						   DMA_PREP_CMD);
-			if (r)
-				return r;
+			if (ret)
+				goto err_unmap_free_desc;
 		}
 	}
 
@@ -1351,19 +1351,17 @@ static int submit_descs(struct qcom_nand_controller *nandc)
 
 		if (!wait_for_completion_timeout(&bam_txn->txn_done,
 						 QPIC_NAND_COMPLETION_TIMEOUT))
-			return -ETIMEDOUT;
+			ret = -ETIMEDOUT;
 	} else {
 		if (dma_sync_wait(nandc->chan, cookie) != DMA_COMPLETE)
-			return -ETIMEDOUT;
+			ret = -ETIMEDOUT;
 	}
 
-	return 0;
-}
-
-static void free_descs(struct qcom_nand_controller *nandc)
-{
-	struct desc_info *desc, *n;
-
+err_unmap_free_desc:
+	/*
+	 * Unmap the dma sg_list and free the desc allocated by both
+	 * prepare_bam_async_desc() and prep_adm_dma_desc() functions.
+	 */
 	list_for_each_entry_safe(desc, n, &nandc->desc_list, node) {
 		list_del(&desc->node);
 
@@ -1376,6 +1374,8 @@ static void free_descs(struct qcom_nand_controller *nandc)
 
 		kfree(desc);
 	}
+
+	return ret;
 }
 
 /* reset the register read buffer for next NAND operation */
@@ -1521,7 +1521,6 @@ qcom_nandc_read_cw_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	read_data_dma(nandc, reg_off, oob_buf + oob_size1, oob_size2, 0);
 
 	ret = submit_descs(nandc);
-	free_descs(nandc);
 	if (ret) {
 		dev_err(nandc->dev, "failure to read raw cw %d\n", cw);
 		return ret;
@@ -1775,8 +1774,6 @@ static int read_page_ecc(struct qcom_nand_host *host, u8 *data_buf,
 	}
 
 	ret = submit_descs(nandc);
-	free_descs(nandc);
-
 	if (ret) {
 		dev_err(nandc->dev, "failure to read page/oob\n");
 		return ret;
@@ -1814,8 +1811,6 @@ static int copy_last_cw(struct qcom_nand_host *host, int page)
 	ret = submit_descs(nandc);
 	if (ret)
 		dev_err(nandc->dev, "failed to copy last codeword\n");
-
-	free_descs(nandc);
 
 	return ret;
 }
@@ -2024,8 +2019,6 @@ static int qcom_nandc_write_page(struct nand_chip *chip, const u8 *buf,
 	if (ret)
 		dev_err(nandc->dev, "failure to write page\n");
 
-	free_descs(nandc);
-
 	if (!ret)
 		ret = nand_prog_page_end_op(chip);
 
@@ -2100,8 +2093,6 @@ static int qcom_nandc_write_page_raw(struct nand_chip *chip,
 	if (ret)
 		dev_err(nandc->dev, "failure to write raw page\n");
 
-	free_descs(nandc);
-
 	if (!ret)
 		ret = nand_prog_page_end_op(chip);
 
@@ -2149,9 +2140,6 @@ static int qcom_nandc_write_oob(struct nand_chip *chip, int page)
 	config_nand_cw_write(chip);
 
 	ret = submit_descs(nandc);
-
-	free_descs(nandc);
-
 	if (ret) {
 		dev_err(nandc->dev, "failure to write oob\n");
 		return -EIO;
@@ -2228,9 +2216,6 @@ static int qcom_nandc_block_markbad(struct nand_chip *chip, loff_t ofs)
 	config_nand_cw_write(chip);
 
 	ret = submit_descs(nandc);
-
-	free_descs(nandc);
-
 	if (ret) {
 		dev_err(nandc->dev, "failure to update BBM\n");
 		return -EIO;
@@ -2722,10 +2707,8 @@ static int qcom_read_status_exec(struct nand_chip *chip,
 	ret = submit_descs(nandc);
 	if (ret) {
 		dev_err(nandc->dev, "failure in submitting status descriptor\n");
-		free_descs(nandc);
 		goto err_out;
 	}
-	free_descs(nandc);
 
 	nandc_read_buffer_sync(nandc, true);
 
@@ -2787,10 +2770,8 @@ static int qcom_read_id_type_exec(struct nand_chip *chip, const struct nand_subo
 	ret = submit_descs(nandc);
 	if (ret) {
 		dev_err(nandc->dev, "failure in submitting read id descriptor\n");
-		free_descs(nandc);
 		goto err_out;
 	}
-	free_descs(nandc);
 
 	instr = q_op.data_instr;
 	op_id = q_op.data_instr_idx;
@@ -2835,10 +2816,8 @@ static int qcom_misc_cmd_type_exec(struct nand_chip *chip, const struct nand_sub
 	ret = submit_descs(nandc);
 	if (ret) {
 		dev_err(nandc->dev, "failure in submitting misc descriptor\n");
-		free_descs(nandc);
 		goto err_out;
 	}
-	free_descs(nandc);
 
 wait_rdy:
 	qcom_delay_ns(q_op.rdy_delay_ns);
@@ -2932,10 +2911,8 @@ static int qcom_param_page_type_exec(struct nand_chip *chip,  const struct nand_
 	ret = submit_descs(nandc);
 	if (ret) {
 		dev_err(nandc->dev, "failure in submitting param page descriptor\n");
-		free_descs(nandc);
 		goto err_out;
 	}
-	free_descs(nandc);
 
 	ret = qcom_wait_rdy_poll(chip, q_op.rdy_timeout_ms);
 	if (ret)
@@ -2981,10 +2958,8 @@ static int qcom_erase_cmd_type_exec(struct nand_chip *chip, const struct nand_su
 	ret = submit_descs(nandc);
 	if (ret) {
 		dev_err(nandc->dev, "failure in submitting erase descriptor\n");
-		free_descs(nandc);
 		goto err_out;
 	}
-	free_descs(nandc);
 
 	ret = qcom_wait_rdy_poll(chip, q_op.rdy_timeout_ms);
 	if (ret)
