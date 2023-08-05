@@ -3051,14 +3051,12 @@ static int qcom_check_op(struct nand_chip *chip,
 }
 
 static int qcom_nand_exec_op(struct nand_chip *chip,
-			     const struct nand_operation *op,
-			bool check_only)
+			     const struct nand_operation *op, bool check_only)
 {
 	if (check_only)
 		return qcom_check_op(chip, op);
 
-	return nand_op_parser_exec_op(chip, &qcom_op_parser,
-			op, check_only);
+	return nand_op_parser_exec_op(chip, &qcom_op_parser, op, check_only);
 }
 
 static const struct nand_controller_ops qcom_nandc_ops = {
