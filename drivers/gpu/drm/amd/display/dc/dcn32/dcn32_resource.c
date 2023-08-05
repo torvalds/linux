@@ -2039,6 +2039,8 @@ static struct resource_funcs dcn32_res_pool_funcs = {
 	.calculate_wm_and_dlg = dcn32_calculate_wm_and_dlg,
 	.populate_dml_pipes = dcn32_populate_dml_pipes_from_context,
 	.acquire_free_pipe_as_secondary_dpp_pipe = dcn32_acquire_free_pipe_as_secondary_dpp_pipe,
+	.acquire_free_pipe_as_secondary_opp_head = dcn32_acquire_free_pipe_as_secondary_opp_head,
+	.release_pipe = dcn32_release_pipe,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
@@ -2669,6 +2671,33 @@ static struct pipe_ctx *dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
 	return idle_pipe;
 }
 
+static int find_optimal_free_pipe_as_secondary_opp_head(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool,
+		const struct pipe_ctx *new_otg_master)
+{
+	const struct pipe_ctx *cur_otg_master;
+	int free_pipe_idx;
+
+	cur_otg_master =  &cur_res_ctx->pipe_ctx[new_otg_master->pipe_idx];
+	free_pipe_idx = resource_find_free_pipe_used_as_sec_opp_head_by_cur_otg_master(
+			cur_res_ctx, new_res_ctx, cur_otg_master);
+
+	/* Up until here if we have not found a free secondary pipe, we will
+	 * need to wait for at least one frame to complete the transition
+	 * sequence.
+	 */
+	if (free_pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
+		free_pipe_idx = recource_find_free_pipe_not_used_in_cur_res_ctx(
+				cur_res_ctx, new_res_ctx, pool);
+
+	if (free_pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
+		free_pipe_idx = resource_find_any_free_pipe(new_res_ctx, pool);
+
+	return free_pipe_idx;
+}
+
 struct pipe_ctx *dcn32_acquire_free_pipe_as_secondary_dpp_pipe(
 		const struct dc_state *cur_ctx,
 		struct dc_state *new_ctx,
@@ -2704,6 +2733,58 @@ struct pipe_ctx *dcn32_acquire_free_pipe_as_secondary_dpp_pipe(
 	}
 
 	return free_pipe;
+}
+
+struct pipe_ctx *dcn32_acquire_free_pipe_as_secondary_opp_head(
+		const struct dc_state *cur_ctx,
+		struct dc_state *new_ctx,
+		const struct resource_pool *pool,
+		const struct pipe_ctx *otg_master)
+{
+	int free_pipe_idx = find_optimal_free_pipe_as_secondary_opp_head(
+			&cur_ctx->res_ctx, &new_ctx->res_ctx,
+			pool, otg_master);
+	struct pipe_ctx *free_pipe;
+
+	if (free_pipe_idx >= 0) {
+		free_pipe = &new_ctx->res_ctx.pipe_ctx[free_pipe_idx];
+		free_pipe->pipe_idx = free_pipe_idx;
+		free_pipe->stream = otg_master->stream;
+		free_pipe->stream_res.tg = otg_master->stream_res.tg;
+		free_pipe->stream_res.dsc = NULL;
+		free_pipe->stream_res.opp = pool->opps[free_pipe_idx];
+		free_pipe->plane_res.mi = pool->mis[free_pipe_idx];
+		free_pipe->plane_res.hubp = pool->hubps[free_pipe_idx];
+		free_pipe->plane_res.ipp = pool->ipps[free_pipe_idx];
+		free_pipe->plane_res.xfm = pool->transforms[free_pipe_idx];
+		free_pipe->plane_res.dpp = pool->dpps[free_pipe_idx];
+		free_pipe->plane_res.mpcc_inst = pool->dpps[free_pipe_idx]->inst;
+		if (free_pipe->stream->timing.flags.DSC == 1) {
+			dcn20_acquire_dsc(free_pipe->stream->ctx->dc,
+					&new_ctx->res_ctx,
+					&free_pipe->stream_res.dsc,
+					free_pipe_idx);
+			ASSERT(free_pipe->stream_res.dsc);
+			if (free_pipe->stream_res.dsc == NULL) {
+				memset(free_pipe, 0, sizeof(*free_pipe));
+				free_pipe = NULL;
+			}
+		}
+	} else {
+		ASSERT(otg_master);
+		free_pipe = NULL;
+	}
+
+	return free_pipe;
+}
+
+void dcn32_release_pipe(struct dc_state *context,
+			struct pipe_ctx *pipe,
+			const struct resource_pool *pool)
+{
+	if (resource_is_pipe_type(pipe, OPP_HEAD) && pipe->stream_res.dsc)
+		dcn20_release_dsc(&context->res_ctx, pool, &pipe->stream_res.dsc);
+	memset(pipe, 0, sizeof(*pipe));
 }
 
 unsigned int dcn32_calc_num_avail_chans_for_mall(struct dc *dc, int num_chans)

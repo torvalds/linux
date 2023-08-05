@@ -132,6 +132,16 @@ struct resource_funcs {
 			const struct resource_pool *pool,
 			const struct pipe_ctx *opp_head_pipe);
 
+	struct pipe_ctx *(*acquire_free_pipe_as_secondary_opp_head)(
+			const struct dc_state *cur_ctx,
+			struct dc_state *new_ctx,
+			const struct resource_pool *pool,
+			const struct pipe_ctx *otg_master);
+
+	void (*release_pipe)(struct dc_state *context,
+			struct pipe_ctx *pipe,
+			const struct resource_pool *pool);
+
 	enum dc_status (*validate_plane)(
 			const struct dc_plane_state *plane_state,
 			struct dc_caps *caps);

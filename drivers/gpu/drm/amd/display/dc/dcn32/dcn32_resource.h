@@ -142,6 +142,16 @@ struct pipe_ctx *dcn32_acquire_free_pipe_as_secondary_dpp_pipe(
 		const struct resource_pool *pool,
 		const struct pipe_ctx *opp_head_pipe);
 
+struct pipe_ctx *dcn32_acquire_free_pipe_as_secondary_opp_head(
+		const struct dc_state *cur_ctx,
+		struct dc_state *new_ctx,
+		const struct resource_pool *pool,
+		const struct pipe_ctx *otg_master);
+
+void dcn32_release_pipe(struct dc_state *context,
+			struct pipe_ctx *pipe,
+			const struct resource_pool *pool);
+
 void dcn32_determine_det_override(struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes);

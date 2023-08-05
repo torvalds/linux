@@ -1615,6 +1615,27 @@ struct pipe_ctx *resource_find_free_secondary_pipe_legacy(
 	return secondary_pipe;
 }
 
+int resource_find_free_pipe_used_as_sec_opp_head_by_cur_otg_master(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct pipe_ctx *cur_otg_master)
+{
+	const struct pipe_ctx *cur_sec_opp_head = cur_otg_master->next_odm_pipe;
+	struct pipe_ctx *new_pipe;
+	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
+
+	while (cur_sec_opp_head) {
+		new_pipe = &new_res_ctx->pipe_ctx[cur_sec_opp_head->pipe_idx];
+		if (resource_is_pipe_type(new_pipe, FREE_PIPE)) {
+			free_pipe_idx = cur_sec_opp_head->pipe_idx;
+			break;
+		}
+		cur_sec_opp_head = cur_sec_opp_head->next_odm_pipe;
+	}
+
+	return free_pipe_idx;
+}
+
 int resource_find_free_pipe_used_in_cur_mpc_blending_tree(
 		const struct resource_context *cur_res_ctx,
 		struct resource_context *new_res_ctx,

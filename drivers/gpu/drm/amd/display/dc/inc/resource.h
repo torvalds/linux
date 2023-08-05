@@ -281,6 +281,18 @@ bool resource_is_pipe_type(const struct pipe_ctx *pipe_ctx, enum pipe_type type)
 bool resource_is_for_mpcc_combine(const struct pipe_ctx *pipe_ctx);
 
 /*
+ * Look for a free pipe in new resource context that is used as a secondary OPP
+ * head by cur_otg_master.
+ *
+ * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
+ * pipe idx of the free pipe
+ */
+int resource_find_free_pipe_used_as_sec_opp_head_by_cur_otg_master(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct pipe_ctx *cur_otg_master);
+
+/*
  * Look for a free pipe in new resource context that is used as a secondary DPP
  * pipe in MPC blending tree associated with input OPP head pipe.
  *
