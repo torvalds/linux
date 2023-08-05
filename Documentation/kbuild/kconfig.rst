@@ -210,6 +210,10 @@ Searching in menuconfig:
 	first (and in alphabetical order), then come all other symbols,
 	sorted in alphabetical order.
 
+	In this menu, pressing the key in the (#) prefix will jump
+	directly to that location. You will be returned to the current
+	search results after exiting this new menu.
+
 ----------------------------------------------------------------------
 
 User interface options for 'menuconfig'
@@ -261,6 +265,10 @@ Searching in nconfig:
 
 	F8 (SymSearch) searches the configuration symbols for the
 	given string or regular expression (regex).
+
+	In the SymSearch, pressing the key in the (#) prefix will
+	jump directly to that location. You will be returned to the
+	current search results after exiting this new menu.
 
 NCONFIG_MODE
 ------------
