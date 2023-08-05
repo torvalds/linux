@@ -5382,6 +5382,8 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	features = MLX5E_RX_RES_FEATURE_PTP;
 	if (mlx5_tunnel_inner_ft_supported(mdev))
 		features |= MLX5E_RX_RES_FEATURE_INNER_FT;
+	if (mlx5_get_sd(priv->mdev))
+		features |= MLX5E_RX_RES_FEATURE_MULTI_VHCA;
 
 	priv->rx_res = mlx5e_rx_res_create(priv->mdev, features, priv->max_nch, priv->drop_rq.rqn,
 					   &priv->channels.params.packet_merge,
