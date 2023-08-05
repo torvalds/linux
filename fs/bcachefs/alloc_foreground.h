@@ -5,7 +5,7 @@
 #include "bcachefs.h"
 #include "alloc_types.h"
 #include "extents.h"
-#include "super.h"
+#include "sb-members.h"
 
 #include <linux/hash.h>
 

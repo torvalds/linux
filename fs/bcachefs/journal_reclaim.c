@@ -3,13 +3,14 @@
 #include "bcachefs.h"
 #include "btree_key_cache.h"
 #include "btree_update.h"
+#include "buckets.h"
 #include "errcode.h"
 #include "error.h"
 #include "journal.h"
 #include "journal_io.h"
 #include "journal_reclaim.h"
 #include "replicas.h"
-#include "super.h"
+#include "sb-members.h"
 #include "trace.h"
 
 #include <linux/kthread.h>

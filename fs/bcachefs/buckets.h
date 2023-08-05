@@ -10,7 +10,31 @@
 
 #include "buckets_types.h"
 #include "extents.h"
-#include "super.h"
+#include "sb-members.h"
+
+static inline size_t sector_to_bucket(const struct bch_dev *ca, sector_t s)
+{
+	return div_u64(s, ca->mi.bucket_size);
+}
+
+static inline sector_t bucket_to_sector(const struct bch_dev *ca, size_t b)
+{
+	return ((sector_t) b) * ca->mi.bucket_size;
+}
+
+static inline sector_t bucket_remainder(const struct bch_dev *ca, sector_t s)
+{
+	u32 remainder;
+
+	div_u64_rem(s, ca->mi.bucket_size, &remainder);
+	return remainder;
+}
+
+static inline size_t sector_to_bucket_and_offset(const struct bch_dev *ca, sector_t s,
+						 u32 *offset)
+{
+	return div_u64_rem(s, ca->mi.bucket_size, offset);
+}
 
 #define for_each_bucket(_b, _buckets)				\
 	for (_b = (_buckets)->b + (_buckets)->first_bucket;	\
@@ -291,6 +315,27 @@ int bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *
 int bch2_trans_mark_metadata_bucket(struct btree_trans *, struct bch_dev *,
 				    size_t, enum bch_data_type, unsigned);
 int bch2_trans_mark_dev_sb(struct bch_fs *, struct bch_dev *);
+
+static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)
+{
+	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
+	u64 b_offset	= bucket_to_sector(ca, b);
+	u64 b_end	= bucket_to_sector(ca, b + 1);
+	unsigned i;
+
+	if (!b)
+		return true;
+
+	for (i = 0; i < layout->nr_superblocks; i++) {
+		u64 offset = le64_to_cpu(layout->sb_offset[i]);
+		u64 end = offset + (1 << layout->sb_max_size_bits);
+
+		if (!(offset >= b_end || end <= b_offset))
+			return true;
+	}
+
+	return false;
+}
 
 /* disk reservations: */
 
