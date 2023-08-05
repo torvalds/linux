@@ -260,7 +260,7 @@ static_assert(ARRAY_SIZE(skl_int3472_regulator_map_supplies) ==
  * This DMI table contains the name of the second sensor. This is used to add
  * entries for the second sensor to the supply_map.
  */
-const struct dmi_system_id skl_int3472_regulator_second_sensor[] = {
+static const struct dmi_system_id skl_int3472_regulator_second_sensor[] = {
 	{
 		/* Lenovo Miix 510-12IKB */
 		.matches = {

@@ -201,4 +201,6 @@ static struct pi_protocol comm = {
 };
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
+MODULE_DESCRIPTION("DataStor Commuter parallel port IDE adapter protocol driver");
 module_pata_parport_driver(comm);

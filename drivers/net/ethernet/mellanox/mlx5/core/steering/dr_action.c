@@ -2079,7 +2079,7 @@ mlx5dr_action_create_dest_vport(struct mlx5dr_domain *dmn,
 
 	peer_vport = vhca_id_valid && mlx5_core_is_pf(dmn->mdev) &&
 		(vhca_id != dmn->info.caps.gvmi);
-	vport_dmn = peer_vport ? dmn->peer_dmn[vhca_id] : dmn;
+	vport_dmn = peer_vport ? xa_load(&dmn->peer_dmn_xa, vhca_id) : dmn;
 	if (!vport_dmn) {
 		mlx5dr_dbg(dmn, "No peer vport domain for given vhca_id\n");
 		return NULL;

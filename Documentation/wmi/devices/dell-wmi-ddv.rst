@@ -187,7 +187,8 @@ WMI method BatteryeRawAnalytics()
 
 Returns a buffer usually containg 12 blocks of analytics data.
 Those blocks contain:
-- block number starting with 0 (u8)
+
+- a block number starting with 0 (u8)
 - 31 bytes of unknown data
 
 .. note::

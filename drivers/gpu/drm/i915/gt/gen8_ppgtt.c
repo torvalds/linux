@@ -37,9 +37,6 @@ static u64 gen8_pte_encode(dma_addr_t addr,
 	if (unlikely(flags & PTE_READ_ONLY))
 		pte &= ~GEN8_PAGE_RW;
 
-	if (flags & PTE_LM)
-		pte |= GEN12_PPGTT_PTE_LM;
-
 	/*
 	 * For pre-gen12 platforms pat_index is the same as enum
 	 * i915_cache_level, so the switch-case here is still valid.

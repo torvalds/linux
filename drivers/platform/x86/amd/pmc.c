@@ -28,6 +28,8 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 
+#include "pmc.h"
+
 /* SMU communication registers */
 #define AMD_PMC_REGISTER_MESSAGE	0x538
 #define AMD_PMC_REGISTER_RESPONSE	0x980
@@ -94,6 +96,7 @@
 #define AMD_CPU_ID_CB			0x14D8
 #define AMD_CPU_ID_PS			0x14E8
 #define AMD_CPU_ID_SP			0x14A4
+#define PCI_DEVICE_ID_AMD_1AH_M20H_ROOT 0x1507
 
 #define PMC_MSG_DELAY_MIN_US		50
 #define RESPONSE_REGISTER_LOOP_MAX	20000
@@ -144,29 +147,6 @@ static const struct amd_pmc_bit_map soc15_ip_blk[] = {
 	{"IPU",		BIT(19)},
 	{"UMSCH",	BIT(20)},
 	{}
-};
-
-struct amd_pmc_dev {
-	void __iomem *regbase;
-	void __iomem *smu_virt_addr;
-	void __iomem *stb_virt_addr;
-	void __iomem *fch_virt_addr;
-	bool msg_port;
-	u32 base_addr;
-	u32 cpu_id;
-	u32 active_ips;
-	u32 dram_size;
-	u32 num_ips;
-	u32 s2d_msg_id;
-/* SMU version information */
-	u8 smu_program;
-	u8 major;
-	u8 minor;
-	u8 rev;
-	struct device *dev;
-	struct pci_dev *rdev;
-	struct mutex lock; /* generic mutex lock */
-	struct dentry *dbgfs_dir;
 };
 
 static bool enable_stb;
@@ -891,6 +871,8 @@ static void amd_pmc_s2idle_restore(void)
 
 	/* Notify on failed entry */
 	amd_pmc_validate_deepest(pdev);
+
+	amd_pmc_process_restore_quirks(pdev);
 }
 
 static struct acpi_s2idle_dev_ops amd_pmc_s2idle_dev_ops = {
@@ -926,6 +908,7 @@ static const struct pci_device_id pmc_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_PCO) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_RV) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_SP) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_1AH_M20H_ROOT) },
 	{ }
 };
 
@@ -1087,6 +1070,8 @@ static int amd_pmc_probe(struct platform_device *pdev)
 		err = acpi_register_lps0_dev(&amd_pmc_s2idle_dev_ops);
 		if (err)
 			dev_warn(dev->dev, "failed to register LPS0 sleep handler, expect increased power consumption\n");
+		if (!disable_workarounds)
+			amd_pmc_quirks_init(dev);
 	}
 
 	amd_pmc_dbgfs_register(dev);
@@ -1115,6 +1100,7 @@ static const struct acpi_device_id amd_pmc_acpi_ids[] = {
 	{"AMDI0007", 0},
 	{"AMDI0008", 0},
 	{"AMDI0009", 0},
+	{"AMDI000A", 0},
 	{"AMD0004", 0},
 	{"AMD0005", 0},
 	{ }

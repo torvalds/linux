@@ -1545,7 +1545,8 @@ mlx5_tc_ct_parse_action(struct mlx5_tc_ct_priv *priv,
 
 	attr->ct_attr.ct_action |= act->ct.action; /* So we can have clear + ct */
 	attr->ct_attr.zone = act->ct.zone;
-	attr->ct_attr.nf_ft = act->ct.flow_table;
+	if (!(act->ct.action & TCA_CT_ACT_CLEAR))
+		attr->ct_attr.nf_ft = act->ct.flow_table;
 	attr->ct_attr.act_miss_cookie = act->miss_cookie;
 
 	return 0;
@@ -1990,6 +1991,9 @@ mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *priv, struct mlx5_flow_attr *att
 	if (!priv)
 		return -EOPNOTSUPP;
 
+	if (attr->ct_attr.offloaded)
+		return 0;
+
 	if (attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR) {
 		err = mlx5_tc_ct_entry_set_registers(priv, &attr->parse_attr->mod_hdr_acts,
 						     0, 0, 0, 0);
@@ -1999,11 +2003,15 @@ mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *priv, struct mlx5_flow_attr *att
 		attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 	}
 
-	if (!attr->ct_attr.nf_ft) /* means only ct clear action, and not ct_clear,ct() */
+	if (!attr->ct_attr.nf_ft) { /* means only ct clear action, and not ct_clear,ct() */
+		attr->ct_attr.offloaded = true;
 		return 0;
+	}
 
 	mutex_lock(&priv->control_lock);
 	err = __mlx5_tc_ct_flow_offload(priv, attr);
+	if (!err)
+		attr->ct_attr.offloaded = true;
 	mutex_unlock(&priv->control_lock);
 
 	return err;
@@ -2021,7 +2029,7 @@ void
 mlx5_tc_ct_delete_flow(struct mlx5_tc_ct_priv *priv,
 		       struct mlx5_flow_attr *attr)
 {
-	if (!attr->ct_attr.ft) /* no ct action, return */
+	if (!attr->ct_attr.offloaded) /* no ct action, return */
 		return;
 	if (!attr->ct_attr.nf_ft) /* means only ct clear action, and not ct_clear,ct() */
 		return;

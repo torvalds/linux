@@ -66,6 +66,12 @@ static int get_session(struct cifs_mount_ctx *mnt_ctx, const char *full_path)
 	return rc;
 }
 
+/*
+ * Track individual DFS referral servers used by new DFS mount.
+ *
+ * On success, their lifetime will be shared by final tcon (dfs_ses_list).
+ * Otherwise, they will be put by dfs_put_root_smb_sessions() in cifs_mount().
+ */
 static int add_root_smb_session(struct cifs_mount_ctx *mnt_ctx)
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
@@ -80,11 +86,12 @@ static int add_root_smb_session(struct cifs_mount_ctx *mnt_ctx)
 		INIT_LIST_HEAD(&root_ses->list);
 
 		spin_lock(&cifs_tcp_ses_lock);
-		ses->ses_count++;
+		cifs_smb_ses_inc_refcount(ses);
 		spin_unlock(&cifs_tcp_ses_lock);
 		root_ses->ses = ses;
 		list_add_tail(&root_ses->list, &mnt_ctx->dfs_ses_list);
 	}
+	/* Select new DFS referral server so that new referrals go through it */
 	ctx->dfs_root_ses = ses;
 	return 0;
 }
@@ -242,7 +249,6 @@ out:
 int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
-	struct cifs_ses *ses;
 	bool nodfs = ctx->nodfs;
 	int rc;
 
@@ -276,20 +282,8 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 	}
 
 	*isdfs = true;
-	/*
-	 * Prevent DFS root session of being put in the first call to
-	 * cifs_mount_put_conns().  If another DFS root server was not found
-	 * while chasing the referrals (@ctx->dfs_root_ses == @ses), then we
-	 * can safely put extra refcount of @ses.
-	 */
-	ses = mnt_ctx->ses;
-	mnt_ctx->ses = NULL;
-	mnt_ctx->server = NULL;
-	rc = __dfs_mount_share(mnt_ctx);
-	if (ses == ctx->dfs_root_ses)
-		cifs_put_smb_ses(ses);
-
-	return rc;
+	add_root_smb_session(mnt_ctx);
+	return __dfs_mount_share(mnt_ctx);
 }
 
 /* Update dfs referral path of superblock */

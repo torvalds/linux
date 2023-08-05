@@ -363,7 +363,7 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 	if (!adev->xcp_mgr)
 		return 0;
 
-	fpriv->xcp_id = ~0;
+	fpriv->xcp_id = AMDGPU_XCP_NO_PARTITION;
 	for (i = 0; i < MAX_XCP; ++i) {
 		if (!adev->xcp_mgr->xcp[i].ddev)
 			break;
@@ -381,7 +381,7 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 		}
 	}
 
-	fpriv->vm.mem_id = fpriv->xcp_id == ~0 ? -1 :
+	fpriv->vm.mem_id = fpriv->xcp_id == AMDGPU_XCP_NO_PARTITION ? -1 :
 				adev->xcp_mgr->xcp[fpriv->xcp_id].mem_id;
 	return 0;
 }

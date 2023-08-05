@@ -105,5 +105,4 @@ void sharpsl_pm_led(int val);
 #define MAX1111_ACIN_VOLT   6u
 int sharpsl_pm_pxa_read_max1111(int channel);
 
-void corgi_lcd_limit_intensity(int limit);
 #endif

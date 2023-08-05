@@ -383,10 +383,6 @@ void radeon_fbdev_setup(struct radeon_device *rdev)
 		goto err_drm_client_init;
 	}
 
-	ret = radeon_fbdev_client_hotplug(&fb_helper->client);
-	if (ret)
-		drm_dbg_kms(rdev->ddev, "client hotplug ret=%d\n", ret);
-
 	drm_client_register(&fb_helper->client);
 
 	return;

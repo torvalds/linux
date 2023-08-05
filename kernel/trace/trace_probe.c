@@ -67,7 +67,7 @@ int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s, void *data, void *ent)
 	int len = *(u32 *)data >> 16;
 
 	if (!len)
-		trace_seq_puts(s, "(fault)");
+		trace_seq_puts(s, FAULT_STRING);
 	else
 		trace_seq_printf(s, "\"%s\"",
 				 (const char *)get_loc_data(data, ent));
@@ -386,12 +386,12 @@ static const struct btf_type *find_btf_func_proto(const char *funcname)
 
 	/* Get BTF_KIND_FUNC type */
 	t = btf_type_by_id(btf, id);
-	if (!btf_type_is_func(t))
+	if (!t || !btf_type_is_func(t))
 		return ERR_PTR(-ENOENT);
 
 	/* The type of BTF_KIND_FUNC is BTF_KIND_FUNC_PROTO */
 	t = btf_type_by_id(btf, t->type);
-	if (!btf_type_is_func_proto(t))
+	if (!t || !btf_type_is_func_proto(t))
 		return ERR_PTR(-ENOENT);
 
 	return t;
@@ -443,7 +443,7 @@ static int parse_btf_arg(const char *varname, struct fetch_insn *code,
 	if (!ctx->params) {
 		params = find_btf_func_param(ctx->funcname, &ctx->nr_params,
 					     ctx->flags & TPARG_FL_TPOINT);
-		if (IS_ERR(params)) {
+		if (IS_ERR_OR_NULL(params)) {
 			trace_probe_log_err(ctx->offset, NO_BTF_ENTRY);
 			return PTR_ERR(params);
 		}
@@ -1273,7 +1273,7 @@ const char **traceprobe_expand_meta_args(int argc, const char *argv[],
 
 	params = find_btf_func_param(ctx->funcname, &nr_params,
 				     ctx->flags & TPARG_FL_TPOINT);
-	if (IS_ERR(params)) {
+	if (IS_ERR_OR_NULL(params)) {
 		if (args_idx != -1) {
 			/* $arg* requires BTF info */
 			trace_probe_log_err(0, NOSUP_BTFARG);
