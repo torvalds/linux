@@ -56,6 +56,12 @@ at the time of submission. :ref:`option_3` is an alternative to the two earlier
 options for cases where a mainlined patch needs adjustments to apply in older
 series (for example due to API changes).
 
+When using option 2 or 3 you can ask for your change to be included in specific
+stable series. When doing so, ensure the fix or an equivalent is applicable,
+submitted, or already present in all newer stable trees still supported. This is
+meant to prevent regressions that users might later encounter on updating, if
+e.g. a fix merged for 5.19-rc1 would be backported to 5.10.y, but not to 5.15.y.
+
 .. _option_1:
 
 Option 1
@@ -133,7 +139,7 @@ Option 2
 
 If the patch already has been merged to mainline, send an email to
 stable@vger.kernel.org containing the subject of the patch, the commit ID,
-why you think it should be applied, and what kernel version you wish it to
+why you think it should be applied, and what kernel versions you wish it to
 be applied to.
 
 .. _option_3:
@@ -142,7 +148,7 @@ Option 3
 ********
 
 Send the patch, after verifying that it follows the above rules, to
-stable@vger.kernel.org and mention the kernel version you wish it to be applied
+stable@vger.kernel.org and mention the kernel versions you wish it to be applied
 to. When doing so, you must note the upstream commit ID in the changelog of your
 submission with a separate line above the commit text, like this:
 
