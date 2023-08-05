@@ -1535,9 +1535,10 @@ const struct inode_operations jfs_dir_inode_operations = {
 #endif
 };
 
+WRAP_DIR_ITER(jfs_readdir) // FIXME!
 const struct file_operations jfs_dir_operations = {
 	.read		= generic_read_dir,
-	.iterate	= jfs_readdir,
+	.iterate_shared	= shared_jfs_readdir,
 	.fsync		= jfs_fsync,
 	.unlocked_ioctl = jfs_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
