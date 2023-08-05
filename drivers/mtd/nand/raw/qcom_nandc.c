@@ -2555,39 +2555,39 @@ static int qcom_nand_attach_chip(struct nand_chip *chip)
 	return 0;
 }
 
-static int qcom_op_cmd_mapping(struct qcom_nand_controller *nandc, u8 cmd,
+static int qcom_op_cmd_mapping(struct qcom_nand_controller *nandc, u8 opcode,
 			       struct qcom_op *q_op)
 {
-	int ret;
+	int cmd;
 
-	switch (cmd) {
+	switch (opcode) {
 	case NAND_CMD_RESET:
-		ret = OP_RESET_DEVICE;
+		cmd = OP_RESET_DEVICE;
 		break;
 	case NAND_CMD_READID:
-		ret = OP_FETCH_ID;
+		cmd = OP_FETCH_ID;
 		break;
 	case NAND_CMD_PARAM:
 		if (nandc->props->qpic_v2)
-			ret = OP_PAGE_READ_ONFI_READ;
+			cmd = OP_PAGE_READ_ONFI_READ;
 		else
-			ret = OP_PAGE_READ;
+			cmd = OP_PAGE_READ;
 		break;
 	case NAND_CMD_ERASE1:
 	case NAND_CMD_ERASE2:
-		ret = OP_BLOCK_ERASE;
+		cmd = OP_BLOCK_ERASE;
 		break;
 	case NAND_CMD_STATUS:
-		ret = OP_CHECK_STATUS;
+		cmd = OP_CHECK_STATUS;
 		break;
 	case NAND_CMD_PAGEPROG:
-		ret = OP_PROGRAM_PAGE;
+		cmd = OP_PROGRAM_PAGE;
 		q_op->flag = OP_PROGRAM_PAGE;
 		nandc->exec_opwrite = true;
 		break;
 	}
 
-	return ret;
+	return cmd;
 }
 
 /* NAND framework ->exec_op() hooks and related helpers */
