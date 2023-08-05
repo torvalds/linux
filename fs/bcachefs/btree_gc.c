@@ -9,6 +9,7 @@
 #include "alloc_foreground.h"
 #include "bkey_methods.h"
 #include "bkey_buf.h"
+#include "btree_journal_iter.h"
 #include "btree_key_cache.h"
 #include "btree_locking.h"
 #include "btree_update_interior.h"

@@ -3,6 +3,7 @@
 #include "bcachefs.h"
 #include "btree_update.h"
 #include "btree_iter.h"
+#include "btree_journal_iter.h"
 #include "btree_locking.h"
 #include "buckets.h"
 #include "debug.h"
@@ -10,7 +11,6 @@
 #include "error.h"
 #include "extents.h"
 #include "keylist.h"
-#include "recovery.h"
 #include "subvolume.h"
 #include "trace.h"
 

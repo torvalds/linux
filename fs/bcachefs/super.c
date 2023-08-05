@@ -13,6 +13,7 @@
 #include "bkey_sort.h"
 #include "btree_cache.h"
 #include "btree_gc.h"
+#include "btree_journal_iter.h"
 #include "btree_key_cache.h"
 #include "btree_update_interior.h"
 #include "btree_io.h"

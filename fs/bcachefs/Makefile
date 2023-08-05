@@ -13,6 +13,7 @@ bcachefs-y		:=	\
 	btree_gc.o		\
 	btree_io.o		\
 	btree_iter.o		\
+	btree_journal_iter.o	\
 	btree_key_cache.o	\
 	btree_locking.o		\
 	btree_trans_commit.o	\
