@@ -6,11 +6,11 @@
  * Functions to copy from and to user space.
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
 #include <asm/asm.h>
-#include <asm/export.h>
 
 /*
  * rep_movs_alternative - memory copy with exception handling.

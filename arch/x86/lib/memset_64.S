@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright 2002 Andi Kleen, SuSE Labs */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
-#include <asm/export.h>
 
 .section .noinstr.text, "ax"
 

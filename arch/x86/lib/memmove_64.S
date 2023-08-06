@@ -6,10 +6,10 @@
  * This assembly file is re-written from memmove_64.c file.
  *	- Copyright 2011 Fenghua Yu <fenghua.yu@intel.com>
  */
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
-#include <asm/export.h>
 
 #undef memmove
 

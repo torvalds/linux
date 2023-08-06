@@ -4,9 +4,9 @@
  * Copyright 2008 by Steven Rostedt, Red Hat, Inc
  *  (inspired by Andi Kleen's thunk_64.S)
  */
+	#include <linux/export.h>
 	#include <linux/linkage.h>
 	#include <asm/asm.h>
-	#include <asm/export.h>
 
 	/* put return address in eax (arg1) */
 	.macro THUNK name, func, put_ret_addr_in_eax=0

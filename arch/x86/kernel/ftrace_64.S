@@ -3,12 +3,12 @@
  *  Copyright (C) 2014  Steven Rostedt, Red Hat Inc
  */
 
+#include <linux/export.h>
 #include <linux/cfi_types.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
 #include <asm/ftrace.h>
-#include <asm/export.h>
 #include <asm/nospec-branch.h>
 #include <asm/unwind_hints.h>
 #include <asm/frame.h>

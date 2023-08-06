@@ -18,6 +18,7 @@
  * - SYM_FUNC_START/END:Define functions in the symbol table.
  * - idtentry:		Define exception entry points.
  */
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/cache.h>
@@ -34,7 +35,6 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 #include <asm/pgtable_types.h>
-#include <asm/export.h>
 #include <asm/frame.h>
 #include <asm/trapnr.h>
 #include <asm/nospec-branch.h>
