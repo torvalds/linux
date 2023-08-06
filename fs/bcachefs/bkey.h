@@ -9,6 +9,12 @@
 #include "util.h"
 #include "vstructs.h"
 
+enum bkey_invalid_flags {
+	BKEY_INVALID_WRITE		= (1U << 0),
+	BKEY_INVALID_COMMIT		= (1U << 1),
+	BKEY_INVALID_JOURNAL		= (1U << 2),
+};
+
 #if 0
 
 /*
@@ -769,7 +775,8 @@ static inline void bch2_bkey_format_add_key(struct bkey_format_state *s, const s
 
 void bch2_bkey_format_add_pos(struct bkey_format_state *, struct bpos);
 struct bkey_format bch2_bkey_format_done(struct bkey_format_state *);
-int bch2_bkey_format_validate(struct bkey_format *, struct printbuf *);
+int bch2_bkey_format_invalid(struct bch_fs *, struct bkey_format *,
+			     enum bkey_invalid_flags, struct printbuf *);
 void bch2_bkey_format_to_text(struct printbuf *, const struct bkey_format *);
 
 #endif /* _BCACHEFS_BKEY_H */

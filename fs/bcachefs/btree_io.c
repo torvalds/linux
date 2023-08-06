@@ -779,7 +779,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			compat_btree_node(b->c.level, b->c.btree_id, version,
 					  BSET_BIG_ENDIAN(i), write, bn);
 
-		btree_err_on(bch2_bkey_format_validate(&bn->format, &buf1),
+		btree_err_on(bch2_bkey_format_invalid(c, &bn->format, write, &buf1),
 			     -BCH_ERR_btree_node_read_err_bad_node, c, ca, b, i,
 			     "invalid bkey format: %s\n  %s", buf1.buf,
 			     (printbuf_reset(&buf2),

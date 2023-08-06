@@ -424,6 +424,24 @@ static bool bkey_packed_successor(struct bkey_packed *out,
 
 	return false;
 }
+
+static bool bkey_format_has_too_big_fields(const struct bkey_format *f)
+{
+	for (unsigned i = 0; i < f->nr_fields; i++) {
+		unsigned unpacked_bits = bch2_bkey_format_current.bits_per_field[i];
+		u64 unpacked_max = ~((~0ULL << 1) << (unpacked_bits - 1));
+		u64 packed_max = f->bits_per_field[i]
+			? ~((~0ULL << 1) << (f->bits_per_field[i] - 1))
+			: 0;
+		u64 field_offset = le64_to_cpu(f->field_offset[i]);
+
+		if (packed_max + field_offset < packed_max ||
+		    packed_max + field_offset > unpacked_max)
+			return true;
+	}
+
+	return false;
+}
 #endif
 
 /*
@@ -504,7 +522,8 @@ enum bkey_pack_pos_ret bch2_bkey_pack_pos_lossy(struct bkey_packed *out,
 
 		BUG_ON(bkey_cmp_left_packed(b, out, &orig) >= 0);
 		BUG_ON(bkey_packed_successor(&successor, b, *out) &&
-		       bkey_cmp_left_packed(b, &successor, &orig) < 0);
+		       bkey_cmp_left_packed(b, &successor, &orig) < 0 &&
+		       !bkey_format_has_too_big_fields(f));
 	}
 #endif
 
@@ -597,14 +616,17 @@ struct bkey_format bch2_bkey_format_done(struct bkey_format_state *s)
 	{
 		struct printbuf buf = PRINTBUF;
 
-		BUG_ON(bch2_bkey_format_validate(&ret, &buf));
+		BUG_ON(bch2_bkey_format_invalid(NULL, &ret, 0, &buf));
 		printbuf_exit(&buf);
 	}
 #endif
 	return ret;
 }
 
-int bch2_bkey_format_validate(struct bkey_format *f, struct printbuf *err)
+int bch2_bkey_format_invalid(struct bch_fs *c,
+			     struct bkey_format *f,
+			     enum bkey_invalid_flags flags,
+			     struct printbuf *err)
 {
 	unsigned i, bits = KEY_PACKED_BITS_START;
 
@@ -619,18 +641,20 @@ int bch2_bkey_format_validate(struct bkey_format *f, struct printbuf *err)
 	 * unpacked format:
 	 */
 	for (i = 0; i < f->nr_fields; i++) {
-		unsigned unpacked_bits = bch2_bkey_format_current.bits_per_field[i];
-		u64 unpacked_max = ~((~0ULL << 1) << (unpacked_bits - 1));
-		u64 packed_max = f->bits_per_field[i]
-			? ~((~0ULL << 1) << (f->bits_per_field[i] - 1))
-			: 0;
-		u64 field_offset = le64_to_cpu(f->field_offset[i]);
+		if (!c || c->sb.version_min >= bcachefs_metadata_version_snapshot) {
+			unsigned unpacked_bits = bch2_bkey_format_current.bits_per_field[i];
+			u64 unpacked_max = ~((~0ULL << 1) << (unpacked_bits - 1));
+			u64 packed_max = f->bits_per_field[i]
+				? ~((~0ULL << 1) << (f->bits_per_field[i] - 1))
+				: 0;
+			u64 field_offset = le64_to_cpu(f->field_offset[i]);
 
-		if (packed_max + field_offset < packed_max ||
-		    packed_max + field_offset > unpacked_max) {
-			prt_printf(err, "field %u too large: %llu + %llu > %llu",
-				   i, packed_max, field_offset, unpacked_max);
-			return -BCH_ERR_invalid;
+			if (packed_max + field_offset < packed_max ||
+			    packed_max + field_offset > unpacked_max) {
+				prt_printf(err, "field %u too large: %llu + %llu > %llu",
+					   i, packed_max, field_offset, unpacked_max);
+				return -BCH_ERR_invalid;
+			}
 		}
 
 		bits += f->bits_per_field[i];

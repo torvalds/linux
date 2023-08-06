@@ -13,12 +13,6 @@ enum btree_node_type;
 extern const char * const bch2_bkey_types[];
 extern const struct bkey_ops bch2_bkey_null_ops;
 
-enum bkey_invalid_flags {
-	BKEY_INVALID_WRITE		= (1U << 0),
-	BKEY_INVALID_COMMIT		= (1U << 1),
-	BKEY_INVALID_JOURNAL		= (1U << 2),
-};
-
 /*
  * key_invalid: checks validity of @k, returns 0 if good or -EINVAL if bad. If
  * invalid, entire key will be deleted.

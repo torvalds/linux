@@ -1996,6 +1996,7 @@ err:
 BCH_DEBUG_PARAMS()
 #undef BCH_DEBUG_PARAM
 
+__maybe_unused
 static unsigned bch2_metadata_version = bcachefs_metadata_version_current;
 module_param_named(version, bch2_metadata_version, uint, 0400);
 

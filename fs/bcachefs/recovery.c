@@ -1322,12 +1322,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
-	if (!(c->sb.compat & (1ULL << BCH_COMPAT_bformat_overflow_done))) {
-		bch_err(c, "filesystem may have incompatible bkey formats; run fsck from the compat branch to fix");
-		ret = -EINVAL;
-		goto err;
-	}
-
 	if (c->opts.fsck || !(c->opts.nochanges && c->opts.norecovery))
 		check_version_upgrade(c);
 
@@ -1527,7 +1521,6 @@ use_clean:
 	mutex_unlock(&c->sb_lock);
 
 	if (!(c->sb.compat & (1ULL << BCH_COMPAT_extents_above_btree_updates_done)) ||
-	    !(c->sb.compat & (1ULL << BCH_COMPAT_bformat_overflow_done)) ||
 	    c->sb.version_min < bcachefs_metadata_version_btree_ptr_sectors_written) {
 		struct bch_move_stats stats;
 
