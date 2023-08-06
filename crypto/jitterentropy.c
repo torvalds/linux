@@ -89,10 +89,14 @@ struct rand_data {
 	unsigned int rct_count;			/* Number of stuck values */
 
 	/* Intermittent health test failure threshold of 2^-30 */
-#define JENT_RCT_CUTOFF		30	/* Taken from SP800-90B sec 4.4.1 */
-#define JENT_APT_CUTOFF		325	/* Taken from SP800-90B sec 4.4.2 */
+	/* From an SP800-90B perspective, this RCT cutoff value is equal to 31. */
+	/* However, our RCT implementation starts at 1, so we subtract 1 here. */
+#define JENT_RCT_CUTOFF		(31 - 1)	/* Taken from SP800-90B sec 4.4.1 */
+#define JENT_APT_CUTOFF		325			/* Taken from SP800-90B sec 4.4.2 */
 	/* Permanent health test failure threshold of 2^-60 */
-#define JENT_RCT_CUTOFF_PERMANENT	60
+	/* From an SP800-90B perspective, this RCT cutoff value is equal to 61. */
+	/* However, our RCT implementation starts at 1, so we subtract 1 here. */
+#define JENT_RCT_CUTOFF_PERMANENT	(61 - 1)
 #define JENT_APT_CUTOFF_PERMANENT	355
 #define JENT_APT_WINDOW_SIZE	512	/* Data window size */
 	/* LSB of time stamp to process */
