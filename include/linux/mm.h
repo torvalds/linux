@@ -751,17 +751,17 @@ static inline struct vm_area_struct *lock_vma_under_rcu(struct mm_struct *mm,
 
 #endif /* CONFIG_PER_VMA_LOCK */
 
+extern const struct vm_operations_struct vma_dummy_vm_ops;
+
 /*
  * WARNING: vma_init does not initialize vma->vm_lock.
  * Use vm_area_alloc()/vm_area_free() if vma needs locking.
  */
 static inline void vma_init(struct vm_area_struct *vma, struct mm_struct *mm)
 {
-	static const struct vm_operations_struct dummy_vm_ops = {};
-
 	memset(vma, 0, sizeof(*vma));
 	vma->vm_mm = mm;
-	vma->vm_ops = &dummy_vm_ops;
+	vma->vm_ops = &vma_dummy_vm_ops;
 	INIT_LIST_HEAD(&vma->anon_vma_chain);
 	vma_mark_detached(vma, false);
 	vma_numab_state_init(vma);
