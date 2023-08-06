@@ -22,6 +22,7 @@ properties:
       - enum:
           - qcom,pmi8998-haptics
           - qcom,pmi8996-haptics
+          - qcom,pmi8950-haptics
           - qcom,pmi8941-haptics
       - const: qcom,spmi-haptics
 
