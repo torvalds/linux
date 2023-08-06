@@ -89,6 +89,7 @@ TARGETS += tmpfs
 TARGETS += tpm2
 TARGETS += tty
 TARGETS += user
+TARGETS += user_events
 TARGETS += vDSO
 TARGETS += mm
 TARGETS += x86
