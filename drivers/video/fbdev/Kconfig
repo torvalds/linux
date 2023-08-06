@@ -527,9 +527,7 @@ config FB_SBUS_HELPERS
 config FB_BW2
 	bool "BWtwo support"
 	depends on (FB = y) && (SPARC && FB_SBUS)
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	select FB_SBUS_HELPERS
 	help
 	  This is the frame buffer device driver for the BWtwo frame buffer.
 
