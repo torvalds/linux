@@ -2,6 +2,8 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
+#include <linux/slab.h>
+
 #include "fp_printk.h"
 
 #define OURMODNAME "fp_printk"
@@ -11,9 +13,14 @@ MODULE_DESCRIPTION("This lib will convert int to string float");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.1.1-BETA");
 
-void fp_printk(int number, int decimal_places, char *destination)
+char *fp_printk(int number, int decimal_places)
 {
-	static char buffer[32] = { 0 };
+	char *buffer = kmalloc(32, GFP_KERNEL);
+    if (!buffer) {
+        pr_err("Error: Memory allocation failed.\n");
+        return NULL;
+    }
+
 	int buf_index = 30;
 	int count_decimal_place = 0;
 	int point_include = 0;
@@ -29,7 +36,7 @@ void fp_printk(int number, int decimal_places, char *destination)
 		buffer[buf_index] = "0123456789"[number % 10];
 	}
 
-	destination = &buffer[buf_index + 1];
+	return &buffer[buf_index + 1];
 }
 
 EXPORT_SYMBOL(fp_printk);
