@@ -8,7 +8,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/ftrace.h>
 #include <asm/ppc-opcode.h>
-#include <asm/export.h>
 #include <asm/thread_info.h>
 #include <asm/bug.h>
 #include <asm/ptrace.h>

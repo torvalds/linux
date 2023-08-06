@@ -29,7 +29,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/ptrace.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 #include <asm/barrier.h>
 #include <asm/kup.h>

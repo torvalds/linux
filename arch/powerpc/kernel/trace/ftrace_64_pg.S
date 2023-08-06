@@ -8,7 +8,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/ftrace.h>
 #include <asm/ppc-opcode.h>
-#include <asm/export.h>
 
 _GLOBAL_TOC(ftrace_caller)
 	lbz	r3, PACA_FTRACE_ENABLED(r13)

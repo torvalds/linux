@@ -40,7 +40,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 #include <asm/ptrace.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 #include "head_booke.h"
 
