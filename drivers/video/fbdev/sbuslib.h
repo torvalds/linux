@@ -29,4 +29,35 @@ int sbusfb_ioctl_helper(unsigned long cmd, unsigned long arg,
 int sbusfb_compat_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg);
 
+/*
+ * Initialize struct fb_ops for SBUS I/O.
+ */
+
+#define __FB_DEFAULT_SBUS_OPS_RDWR(__prefix) \
+	.fb_read	= fb_io_read, \
+	.fb_write	= fb_io_write
+
+#define __FB_DEFAULT_SBUS_OPS_DRAW(__prefix) \
+	.fb_fillrect	= cfb_fillrect, \
+	.fb_copyarea	= cfb_copyarea, \
+	.fb_imageblit	= cfb_imageblit
+
+#ifdef CONFIG_COMPAT
+#define __FB_DEFAULT_SBUS_OPS_IOCTL(__prefix) \
+	.fb_ioctl		= __prefix ## _sbusfb_ioctl, \
+	.fb_compat_ioctl	= sbusfb_compat_ioctl
+#else
+#define __FB_DEFAULT_SBUS_OPS_IOCTL(__prefix) \
+	.fb_ioctl	= __prefix ## _sbusfb_ioctl
+#endif
+
+#define __FB_DEFAULT_SBUS_OPS_MMAP(__prefix) \
+	.fb_mmap	= __prefix ## _sbusfb_mmap
+
+#define FB_DEFAULT_SBUS_OPS(__prefix) \
+	__FB_DEFAULT_SBUS_OPS_RDWR(__prefix), \
+	__FB_DEFAULT_SBUS_OPS_DRAW(__prefix), \
+	__FB_DEFAULT_SBUS_OPS_IOCTL(__prefix), \
+	__FB_DEFAULT_SBUS_OPS_MMAP(__prefix)
+
 #endif /* _SBUSLIB_H */
