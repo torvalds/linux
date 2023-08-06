@@ -679,7 +679,7 @@
 	status = "okay";
 
 	wifi@0 {
-		compatible = "brcm,bcm43455-fmac";
+		compatible = "brcm,bcm43455-fmac", "brcm,bcm4329-fmac";
 		reg = <0>;
 	};
 };
