@@ -1352,6 +1352,17 @@ void mlx5e_close_rq(struct mlx5e_rq *rq)
 	mlx5e_free_rq(rq);
 }
 
+u32 mlx5e_profile_get_tisn(struct mlx5_core_dev *mdev,
+			   struct mlx5e_priv *priv,
+			   const struct mlx5e_profile *profile,
+			   u8 lag_port, u8 tc)
+{
+	if (profile->get_tisn)
+		return profile->get_tisn(mdev, priv, lag_port, tc);
+
+	return mdev->mlx5e_res.hw_objs.tisn[lag_port][tc];
+}
+
 static void mlx5e_free_xdpsq_db(struct mlx5e_xdpsq *sq)
 {
 	kvfree(sq->db.xdpi_fifo.xi);
@@ -1920,7 +1931,8 @@ int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
 		return err;
 
 	csp.tis_lst_sz      = 1;
-	csp.tisn            = c->priv->tisn[c->lag_port][0]; /* tc = 0 */
+	csp.tisn            = mlx5e_profile_get_tisn(c->mdev, c->priv, c->priv->profile,
+						     c->lag_port, 0); /* tc = 0 */
 	csp.cqn             = sq->cq.mcq.cqn;
 	csp.wq_ctrl         = &sq->wq_ctrl;
 	csp.min_inline_mode = sq->min_inline_mode;
@@ -2204,12 +2216,15 @@ static int mlx5e_open_sqs(struct mlx5e_channel *c,
 	for (tc = 0; tc < mlx5e_get_dcb_num_tc(params); tc++) {
 		int txq_ix = c->ix + tc * params->num_channels;
 		u32 qos_queue_group_id;
+		u32 tisn;
 
+		tisn = mlx5e_profile_get_tisn(c->mdev, c->priv, c->priv->profile,
+					      c->lag_port, tc);
 		err = mlx5e_txq_get_qos_node_hw_id(params, txq_ix, &qos_queue_group_id);
 		if (err)
 			goto err_close_sqs;
 
-		err = mlx5e_open_txqsq(c, c->priv->tisn[c->lag_port][tc], txq_ix,
+		err = mlx5e_open_txqsq(c, tisn, txq_ix,
 				       params, &cparam->txq_sq, &c->sq[tc], tc,
 				       qos_queue_group_id,
 				       &c->priv->channel_stats[c->ix]->sq[tc]);
@@ -3351,72 +3366,6 @@ void mlx5e_close_drop_rq(struct mlx5e_rq *drop_rq)
 	mlx5e_free_cq(&drop_rq->cq);
 }
 
-int mlx5e_create_tis(struct mlx5_core_dev *mdev, void *in, u32 *tisn)
-{
-	void *tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
-
-	MLX5_SET(tisc, tisc, transport_domain, mdev->mlx5e_res.hw_objs.td.tdn);
-
-	if (mlx5_lag_is_lacp_owner(mdev))
-		MLX5_SET(tisc, tisc, strict_lag_tx_port_affinity, 1);
-
-	return mlx5_core_create_tis(mdev, in, tisn);
-}
-
-void mlx5e_destroy_tis(struct mlx5_core_dev *mdev, u32 tisn)
-{
-	mlx5_core_destroy_tis(mdev, tisn);
-}
-
-void mlx5e_destroy_tises(struct mlx5e_priv *priv)
-{
-	int tc, i;
-
-	for (i = 0; i < mlx5e_get_num_lag_ports(priv->mdev); i++)
-		for (tc = 0; tc < priv->profile->max_tc; tc++)
-			mlx5e_destroy_tis(priv->mdev, priv->tisn[i][tc]);
-}
-
-static bool mlx5e_lag_should_assign_affinity(struct mlx5_core_dev *mdev)
-{
-	return MLX5_CAP_GEN(mdev, lag_tx_port_affinity) && mlx5e_get_num_lag_ports(mdev) > 1;
-}
-
-int mlx5e_create_tises(struct mlx5e_priv *priv)
-{
-	int tc, i;
-	int err;
-
-	for (i = 0; i < mlx5e_get_num_lag_ports(priv->mdev); i++) {
-		for (tc = 0; tc < priv->profile->max_tc; tc++) {
-			u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};
-			void *tisc;
-
-			tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
-
-			MLX5_SET(tisc, tisc, prio, tc << 1);
-
-			if (mlx5e_lag_should_assign_affinity(priv->mdev))
-				MLX5_SET(tisc, tisc, lag_tx_port_affinity, i + 1);
-
-			err = mlx5e_create_tis(priv->mdev, in, &priv->tisn[i][tc]);
-			if (err)
-				goto err_close_tises;
-		}
-	}
-
-	return 0;
-
-err_close_tises:
-	for (; i >= 0; i--) {
-		for (tc--; tc >= 0; tc--)
-			mlx5e_destroy_tis(priv->mdev, priv->tisn[i][tc]);
-		tc = priv->profile->max_tc;
-	}
-
-	return err;
-}
-
 static void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv)
 {
 	if (priv->mqprio_rl) {
@@ -3425,7 +3374,6 @@ static void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv)
 		priv->mqprio_rl = NULL;
 	}
 	mlx5e_accel_cleanup_tx(priv);
-	mlx5e_destroy_tises(priv);
 }
 
 static int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd)
@@ -3527,7 +3475,7 @@ static int mlx5e_setup_tc_mqprio_dcb(struct mlx5e_priv *priv,
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 
-	if (tc && tc != MLX5E_MAX_NUM_TC)
+	if (tc && tc != MLX5_MAX_NUM_TC)
 		return -EINVAL;
 
 	new_params = priv->channels.params;
@@ -5482,23 +5430,13 @@ static int mlx5e_init_nic_tx(struct mlx5e_priv *priv)
 {
 	int err;
 
-	err = mlx5e_create_tises(priv);
-	if (err) {
-		mlx5_core_warn(priv->mdev, "create tises failed, %d\n", err);
-		return err;
-	}
-
 	err = mlx5e_accel_init_tx(priv);
 	if (err)
-		goto err_destroy_tises;
+		return err;
 
 	mlx5e_set_mqprio_rl(priv);
 	mlx5e_dcbnl_initialize(priv);
 	return 0;
-
-err_destroy_tises:
-	mlx5e_destroy_tises(priv);
-	return err;
 }
 
 static void mlx5e_nic_enable(struct mlx5e_priv *priv)
@@ -5593,7 +5531,7 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.update_stats	   = mlx5e_stats_update_ndo_stats,
 	.update_carrier	   = mlx5e_update_carrier,
 	.rx_handlers       = &mlx5e_rx_handlers_nic,
-	.max_tc		   = MLX5E_MAX_NUM_TC,
+	.max_tc		   = MLX5_MAX_NUM_TC,
 	.stats_grps	   = mlx5e_nic_stats_grps,
 	.stats_grps_num	   = mlx5e_nic_stats_grps_num,
 	.features          = BIT(MLX5E_PROFILE_FEATURE_PTP_RX) |

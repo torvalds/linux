@@ -518,9 +518,11 @@ static int mlx5e_ptp_open_txqsqs(struct mlx5e_ptp *c,
 
 	for (tc = 0; tc < num_tc; tc++) {
 		int txq_ix = ix_base + tc;
+		u32 tisn;
 
-		err = mlx5e_ptp_open_txqsq(c, c->priv->tisn[c->lag_port][tc], txq_ix,
-					   cparams, tc, &c->ptpsq[tc]);
+		tisn = mlx5e_profile_get_tisn(c->mdev, c->priv, c->priv->profile,
+					      c->lag_port, tc);
+		err = mlx5e_ptp_open_txqsq(c, tisn, txq_ix, cparams, tc, &c->ptpsq[tc]);
 		if (err)
 			goto close_txqsq;
 	}

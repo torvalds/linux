@@ -77,6 +77,7 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 	struct mlx5e_params *params;
 	struct mlx5e_channel *c;
 	struct mlx5e_txqsq *sq;
+	u32 tisn;
 
 	params = &chs->params;
 
@@ -126,8 +127,10 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 	err = mlx5e_open_cq(priv, params->tx_cq_moderation, &param_cq, &ccp, &sq->cq);
 	if (err)
 		goto err_free_sq;
-	err = mlx5e_open_txqsq(c, priv->tisn[c->lag_port][0], txq_ix, params,
-			       &param_sq, sq, 0, hw_id,
+
+	tisn = mlx5e_profile_get_tisn(c->mdev, c->priv, c->priv->profile,
+				      c->lag_port, 0);
+	err = mlx5e_open_txqsq(c, tisn, txq_ix, params, &param_sq, sq, 0, hw_id,
 			       priv->htb_qos_sq_stats[node_qid]);
 	if (err)
 		goto err_close_cq;
