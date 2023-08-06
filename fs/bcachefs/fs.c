@@ -203,7 +203,7 @@ struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
 
 	if (ret) {
 		iget_failed(&inode->v);
-		return ERR_PTR(ret);
+		return ERR_PTR(bch2_err_class(ret));
 	}
 
 	mutex_lock(&c->vfs_inodes_lock);
@@ -1000,11 +1000,16 @@ static int bch2_vfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	int ret;
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	return bch2_readdir(c, inode_inum(inode), ctx);
+	ret = bch2_readdir(c, inode_inum(inode), ctx);
+	if (ret)
+		bch_err_fn(c, ret);
+
+	return bch2_err_class(ret);
 }
 
 static const struct file_operations bch_file_operations = {
