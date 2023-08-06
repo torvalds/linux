@@ -50,7 +50,8 @@ static inline struct jset_entry *__jset_entry_type_next(struct jset *jset,
 		jset_entry_for_each_key(entry, k)
 
 int bch2_journal_entry_validate(struct bch_fs *, struct jset *,
-				struct jset_entry *, unsigned, int, int);
+				struct jset_entry *, unsigned, int,
+				enum bkey_invalid_flags);
 void bch2_journal_entry_to_text(struct printbuf *, struct bch_fs *,
 				struct jset_entry *);
 
