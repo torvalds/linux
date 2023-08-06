@@ -103,6 +103,10 @@ properties:
     description: GPIO spec for the spi slave ready signal.
     maxItems: 1
 
+  rockchip,autosuspend-delay-ms:
+    default: 0
+    description: Set pm runtime autosuspend value in milliseconds.
+
 required:
   - compatible
   - reg
