@@ -5043,7 +5043,7 @@ _base_get_event_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi26DriverTriggerPage2_t trigger_pg2;
 	struct SL_WH_EVENT_TRIGGER_T *event_tg;
-	MPI26_DRIVER_MPI_EVENT_TIGGER_ENTRY *mpi_event_tg;
+	MPI26_DRIVER_MPI_EVENT_TRIGGER_ENTRY *mpi_event_tg;
 	Mpi2ConfigReply_t mpi_reply;
 	int r = 0, i = 0;
 	u16 count = 0;
@@ -5095,7 +5095,7 @@ _base_get_scsi_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi26DriverTriggerPage3_t trigger_pg3;
 	struct SL_WH_SCSI_TRIGGER_T *scsi_tg;
-	MPI26_DRIVER_SCSI_SENSE_TIGGER_ENTRY *mpi_scsi_tg;
+	MPI26_DRIVER_SCSI_SENSE_TRIGGER_ENTRY *mpi_scsi_tg;
 	Mpi2ConfigReply_t mpi_reply;
 	int r = 0, i = 0;
 	u16 count = 0;
@@ -5147,7 +5147,7 @@ _base_get_mpi_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi26DriverTriggerPage4_t trigger_pg4;
 	struct SL_WH_MPI_TRIGGER_T *status_tg;
-	MPI26_DRIVER_IOCSTATUS_LOGINFO_TIGGER_ENTRY *mpi_status_tg;
+	MPI26_DRIVER_IOCSTATUS_LOGINFO_TRIGGER_ENTRY *mpi_status_tg;
 	Mpi2ConfigReply_t mpi_reply;
 	int r = 0, i = 0;
 	u16 count = 0;
