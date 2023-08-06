@@ -28,6 +28,7 @@
 #include <linux/serial.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
+#include <linux/tty_ldisc.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
@@ -324,8 +325,17 @@ static void acm_process_notification(struct acm *acm, unsigned char *buf)
 
 		if (difference & USB_CDC_SERIAL_STATE_DSR)
 			acm->iocount.dsr++;
-		if (difference & USB_CDC_SERIAL_STATE_DCD)
+		if (difference & USB_CDC_SERIAL_STATE_DCD) {
+			if (acm->port.tty) {
+				struct tty_ldisc *ld = tty_ldisc_ref(acm->port.tty);
+				if (ld) {
+					if (ld->ops->dcd_change)
+						ld->ops->dcd_change(acm->port.tty, newctrl & USB_CDC_SERIAL_STATE_DCD);
+					tty_ldisc_deref(ld);
+				}
+			}
 			acm->iocount.dcd++;
+		}
 		if (newctrl & USB_CDC_SERIAL_STATE_BREAK) {
 			acm->iocount.brk++;
 			tty_insert_flip_char(&acm->port, 0, TTY_BREAK);
