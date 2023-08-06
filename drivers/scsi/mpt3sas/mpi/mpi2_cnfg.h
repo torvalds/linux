@@ -2249,12 +2249,9 @@ typedef struct _MPI2_SAS_IO_UNIT1_PHY_DATA {
 	*pMpi2SasIOUnit1PhyData_t;
 
 /*
- *Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- *one and check the value returned for NumPhys at runtime.
+ *Host code (drivers, BIOS, utilities, etc.) should check the value returned
+ *for NumPhys at runtime before using PhyData[].
  */
-#ifndef MPI2_SAS_IOUNIT1_PHY_MAX
-#define MPI2_SAS_IOUNIT1_PHY_MAX        (1)
-#endif
 
 typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_1 {
 	MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header; /*0x00 */
@@ -2275,7 +2272,7 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_1 {
 	U8
 		IODeviceMissingDelay;               /*0x13 */
 	MPI2_SAS_IO_UNIT1_PHY_DATA
-		PhyData[MPI2_SAS_IOUNIT1_PHY_MAX];  /*0x14 */
+		PhyData[];                          /*0x14 */
 } MPI2_CONFIG_PAGE_SASIOUNIT_1,
 	*PTR_MPI2_CONFIG_PAGE_SASIOUNIT_1,
 	Mpi2SasIOUnitPage1_t, *pMpi2SasIOUnitPage1_t;
