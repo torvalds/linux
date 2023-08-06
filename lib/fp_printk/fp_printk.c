@@ -44,6 +44,13 @@ EXPORT_SYMBOL(fp_printk);
 static int __init fp_printk_init(void)
 {
 	pr_info("%s: initial execute module", OURMODNAME);
+	int n = 123334;
+	char *s = fp_printk(n, 4);
+	if(s){
+		pr_info("%s: test for fp_printk: %s", OURMODNAME, s);
+		kfree(s);
+	}
+
 	return 0;
 }
 
