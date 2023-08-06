@@ -6,10 +6,10 @@
  * Copyright 2011 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
  */
 
+#include <linux/export.h>
 #include <asm/reg.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 #include <asm/tm.h>
 #include <asm/cputable.h>
 

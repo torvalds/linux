@@ -3,12 +3,12 @@
  * Split from entry_64.S
  */
 
+#include <linux/export.h>
 #include <linux/magic.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/ftrace.h>
 #include <asm/ppc-opcode.h>
-#include <asm/export.h>
 
 #ifdef CONFIG_PPC64
 .pushsection ".tramp.ftrace.text","aw",@progbits;
