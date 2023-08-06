@@ -7,14 +7,6 @@
 #include "bset.h"
 #include "util.h"
 
-#undef EBUG_ON
-
-#ifdef DEBUG_BKEYS
-#define EBUG_ON(cond)		BUG_ON(cond)
-#else
-#define EBUG_ON(cond)
-#endif
-
 const struct bkey_format bch2_bkey_format_current = BKEY_FORMAT_CURRENT;
 
 void bch2_bkey_packed_to_binary_text(struct printbuf *out,
@@ -601,7 +593,14 @@ struct bkey_format bch2_bkey_format_done(struct bkey_format_state *s)
 		}
 	}
 
-	EBUG_ON(bch2_bkey_format_validate(&ret));
+#ifdef CONFIG_BCACHEFS_DEBUG
+	{
+		struct printbuf buf = PRINTBUF;
+
+		BUG_ON(bch2_bkey_format_validate(&ret, &buf));
+		printbuf_exit(&buf);
+	}
+#endif
 	return ret;
 }
 
