@@ -9,8 +9,6 @@
 #include <asm/ftrace.h>
 #include <asm/nospec-insn.h>
 #include <asm/ptrace.h>
-#include <asm/export.h>
-
 
 #define STACK_FRAME_SIZE_PTREGS		(STACK_FRAME_OVERHEAD + __PT_SIZE)
 #define STACK_PTREGS			(STACK_FRAME_OVERHEAD)
