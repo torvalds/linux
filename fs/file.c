@@ -1049,7 +1049,7 @@ unsigned long __fdget_raw(unsigned int fd)
 static inline bool file_needs_f_pos_lock(struct file *file)
 {
 	return (file->f_mode & FMODE_ATOMIC_POS) &&
-		(file_count(file) > 1 || S_ISDIR(file_inode(file)->i_mode));
+		(file_count(file) > 1 || file->f_op->iterate_shared);
 }
 
 unsigned long __fdget_pos(unsigned int fd)
