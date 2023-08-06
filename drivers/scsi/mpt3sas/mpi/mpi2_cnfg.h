@@ -1801,12 +1801,9 @@ typedef struct _MPI2_RAIDVOL0_SETTINGS {
 #define MPI2_RAIDVOL0_SETTING_ENABLE_WRITE_CACHING      (0x0002)
 
 /*
- *Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- *one and check the value returned for NumPhysDisks at runtime.
+ *Host code (drivers, BIOS, utilities, etc.) should check the value returned
+ *for NumPhysDisks at runtime before using PhysDisk[].
  */
-#ifndef MPI2_RAID_VOL_PAGE_0_PHYSDISK_MAX
-#define MPI2_RAID_VOL_PAGE_0_PHYSDISK_MAX       (1)
-#endif
 
 typedef struct _MPI2_CONFIG_PAGE_RAID_VOL_0 {
 	MPI2_CONFIG_PAGE_HEADER Header;            /*0x00 */
@@ -1826,8 +1823,7 @@ typedef struct _MPI2_CONFIG_PAGE_RAID_VOL_0 {
 	U8                      Reserved2;         /*0x25 */
 	U8                      Reserved3;         /*0x26 */
 	U8                      InactiveStatus;    /*0x27 */
-	MPI2_RAIDVOL0_PHYS_DISK
-	PhysDisk[MPI2_RAID_VOL_PAGE_0_PHYSDISK_MAX]; /*0x28 */
+	MPI2_RAIDVOL0_PHYS_DISK PhysDisk[];        /*0x28 */
 } MPI2_CONFIG_PAGE_RAID_VOL_0,
 	*PTR_MPI2_CONFIG_PAGE_RAID_VOL_0,
 	Mpi2RaidVolPage0_t, *pMpi2RaidVolPage0_t;
