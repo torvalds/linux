@@ -3,6 +3,11 @@
 #ifndef _SBUSLIB_H
 #define _SBUSLIB_H
 
+struct device_node;
+struct fb_info;
+struct fb_var_screeninfo;
+struct vm_area_struct;
+
 struct sbus_mmap_map {
 	unsigned long voff;
 	unsigned long poff;
@@ -14,7 +19,6 @@ struct sbus_mmap_map {
 
 extern void sbusfb_fill_var(struct fb_var_screeninfo *var,
 			    struct device_node *dp, int bpp);
-struct vm_area_struct;
 extern int sbusfb_mmap_helper(struct sbus_mmap_map *map,
 			      unsigned long physbase, unsigned long fbsize,
 			      unsigned long iospace,
