@@ -6,6 +6,9 @@
 /dts-v1/;
 
 #include "sdx75.dtsi"
+#include "pm7550ba.dtsi"
+#include "pmk8550.dtsi"
+#include "pmx75.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. SDX75 IDP";
