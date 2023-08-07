@@ -16,6 +16,45 @@ struct _ccu_nkm {
 	unsigned long	m, min_m, max_m;
 };
 
+static unsigned long ccu_nkm_find_best_with_parent_adj(struct clk_hw *parent_hw,
+						       unsigned long *parent, unsigned long rate,
+						       struct _ccu_nkm *nkm)
+{
+	unsigned long best_rate = 0, best_parent_rate = *parent, tmp_parent = *parent;
+	unsigned long best_n = 0, best_k = 0, best_m = 0;
+	unsigned long _n, _k, _m;
+
+	for (_k = nkm->min_k; _k <= nkm->max_k; _k++) {
+		for (_n = nkm->min_n; _n <= nkm->max_n; _n++) {
+			for (_m = nkm->min_m; _m <= nkm->max_m; _m++) {
+				unsigned long tmp_rate;
+
+				tmp_parent = clk_hw_round_rate(parent_hw, rate * _m / (_n * _k));
+
+				tmp_rate = tmp_parent * _n * _k / _m;
+				if (tmp_rate > rate)
+					continue;
+
+				if ((rate - tmp_rate) < (rate - best_rate)) {
+					best_rate = tmp_rate;
+					best_parent_rate = tmp_parent;
+					best_n = _n;
+					best_k = _k;
+					best_m = _m;
+				}
+			}
+		}
+	}
+
+	nkm->n = best_n;
+	nkm->k = best_k;
+	nkm->m = best_m;
+
+	*parent = best_parent_rate;
+
+	return best_rate;
+}
+
 static unsigned long ccu_nkm_find_best(unsigned long parent, unsigned long rate,
 				       struct _ccu_nkm *nkm)
 {
@@ -124,7 +163,10 @@ static unsigned long ccu_nkm_round_rate(struct ccu_mux_internal *mux,
 	if (nkm->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate *= nkm->fixed_post_div;
 
-	rate = ccu_nkm_find_best(*parent_rate, rate, &_nkm);
+	if (!clk_hw_can_set_rate_parent(&nkm->common.hw))
+		rate = ccu_nkm_find_best(*parent_rate, rate, &_nkm);
+	else
+		rate = ccu_nkm_find_best_with_parent_adj(parent_hw, parent_rate, rate, &_nkm);
 
 	if (nkm->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate /= nkm->fixed_post_div;
