@@ -23,6 +23,7 @@ qnoc-sdx55-objs				:= sdx55.o
 qnoc-sdx65-objs				:= sdx65.o
 qnoc-sm6350-objs			:= sm6350.o
 qnoc-sm6150-objs			:= sm6150.o
+qnoc-lemans-objs                        := lemans.o
 qnoc-monaco-auto-objs			:= monaco_auto.o
 qnoc-sm8150-objs			:= sm8150.o
 qnoc-sm8250-objs			:= sm8250.o
