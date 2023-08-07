@@ -362,22 +362,20 @@ static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	hwe->fence_irq = &gt->fence_irq[info->class];
 	hwe->engine_id = id;
 
-	if (!gt->eclass[hwe->class].sched_props.job_timeout_ms) {
-		gt->eclass[hwe->class].sched_props.job_timeout_ms = 5 * 1000;
-		gt->eclass[hwe->class].sched_props.job_timeout_min = XE_HW_ENGINE_JOB_TIMEOUT_MIN;
-		gt->eclass[hwe->class].sched_props.job_timeout_max = XE_HW_ENGINE_JOB_TIMEOUT_MAX;
-		gt->eclass[hwe->class].sched_props.timeslice_us = 1 * 1000;
-		gt->eclass[hwe->class].sched_props.timeslice_min = XE_HW_ENGINE_TIMESLICE_MIN;
-		gt->eclass[hwe->class].sched_props.timeslice_max = XE_HW_ENGINE_TIMESLICE_MAX;
-		gt->eclass[hwe->class].sched_props.preempt_timeout_us = 640 * 1000;
-		gt->eclass[hwe->class].sched_props.preempt_timeout_min =
-								XE_HW_ENGINE_PREEMPT_TIMEOUT_MIN;
-		gt->eclass[hwe->class].sched_props.preempt_timeout_max =
-								XE_HW_ENGINE_PREEMPT_TIMEOUT_MAX;
-		/* Record default props */
-		gt->eclass[hwe->class].defaults = gt->eclass[hwe->class].sched_props;
-	}
 	hwe->eclass = &gt->eclass[hwe->class];
+	if (!hwe->eclass->sched_props.job_timeout_ms) {
+		hwe->eclass->sched_props.job_timeout_ms = 5 * 1000;
+		hwe->eclass->sched_props.job_timeout_min = XE_HW_ENGINE_JOB_TIMEOUT_MIN;
+		hwe->eclass->sched_props.job_timeout_max = XE_HW_ENGINE_JOB_TIMEOUT_MAX;
+		hwe->eclass->sched_props.timeslice_us = 1 * 1000;
+		hwe->eclass->sched_props.timeslice_min = XE_HW_ENGINE_TIMESLICE_MIN;
+		hwe->eclass->sched_props.timeslice_max = XE_HW_ENGINE_TIMESLICE_MAX;
+		hwe->eclass->sched_props.preempt_timeout_us = 640 * 1000;
+		hwe->eclass->sched_props.preempt_timeout_min = XE_HW_ENGINE_PREEMPT_TIMEOUT_MIN;
+		hwe->eclass->sched_props.preempt_timeout_max = XE_HW_ENGINE_PREEMPT_TIMEOUT_MAX;
+		/* Record default props */
+		hwe->eclass->defaults = hwe->eclass->sched_props;
+	}
 
 	xe_reg_sr_init(&hwe->reg_sr, hwe->name, gt_to_xe(gt));
 	xe_wa_process_engine(hwe);
