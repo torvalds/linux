@@ -973,6 +973,7 @@ static void rkvdec2_link_try_dequeue(struct mpp_dev *mpp)
 
 		list_move_tail(&task->table->link, &link_dec->unused_list);
 		list_del_init(&mpp_task->queue_link);
+		link_dec->task_running--;
 
 		set_bit(TASK_STATE_HANDLE, &mpp_task->state);
 		set_bit(TASK_STATE_PROC_DONE, &mpp_task->state);
@@ -981,13 +982,10 @@ static void rkvdec2_link_try_dequeue(struct mpp_dev *mpp)
 		if (test_bit(TASK_STATE_ABORT, &mpp_task->state))
 			set_bit(TASK_STATE_ABORT_READY, &mpp_task->state);
 
-		wake_up(&mpp_task->wait);
-		kref_put(&mpp_task->ref, rkvdec2_link_free_task);
-		link_dec->task_running--;
-
 		mpp_dbg_link("session %d task %d irq_status %#08x timeout %d abort %d\n",
 			     mpp_task->session->index, mpp_task->task_index,
 			     irq_status, timeout_flag, abort_flag);
+
 		if (irq_status & RKVDEC_INT_ERROR_MASK) {
 			dev_err(mpp->dev,
 				"session %d task %d irq_status %#08x timeout %u abort %u\n",
@@ -996,6 +994,9 @@ static void rkvdec2_link_try_dequeue(struct mpp_dev *mpp)
 			if (!reset_flag)
 				atomic_inc(&mpp->reset_request);
 		}
+
+		wake_up(&mpp_task->wait);
+		kref_put(&mpp_task->ref, rkvdec2_link_free_task);
 	}
 
 	/* resend running task after reset */
