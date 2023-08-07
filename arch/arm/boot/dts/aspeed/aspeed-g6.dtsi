@@ -1125,6 +1125,16 @@
 				#dma-cells = <1>;
 				status = "disabled";
 			};
+
+			bmc_dev: bmc_dev@1e7e0000 {
+				compatible = "aspeed,ast2600-bmc-device";
+				reg = <0x1e7e0000 0xB000>;
+				interrupts-extended = <&gic GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+						      <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>;
+				aspeed,scu = <&syscon>;
+				pcie2lpc;
+				status = "disabled";
+			};
 		};
 	};
 };
