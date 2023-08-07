@@ -2881,6 +2881,17 @@ static void encode_mclientrequest_tail(void **p,
 	}
 }
 
+static inline u16 mds_supported_head_version(struct ceph_mds_session *session)
+{
+	if (!test_bit(CEPHFS_FEATURE_32BITS_RETRY_FWD, &session->s_features))
+		return 1;
+
+	if (!test_bit(CEPHFS_FEATURE_HAS_OWNER_UIDGID, &session->s_features))
+		return 2;
+
+	return CEPH_MDS_REQUEST_HEAD_VERSION;
+}
+
 static struct ceph_mds_request_head_legacy *
 find_legacy_request_head(void *p, u64 features)
 {
@@ -2902,6 +2913,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 {
 	int mds = session->s_mds;
 	struct ceph_mds_client *mdsc = session->s_mdsc;
+	struct ceph_client *cl = mdsc->fsc->client;
 	struct ceph_msg *msg;
 	struct ceph_mds_request_head_legacy *lhead;
 	const char *path1 = NULL;
@@ -2915,8 +2927,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	void *p, *end;
 	int ret;
 	bool legacy = !(session->s_con.peer_features & CEPH_FEATURE_FS_BTIME);
-	bool old_version = !test_bit(CEPHFS_FEATURE_32BITS_RETRY_FWD,
-				     &session->s_features);
+	u16 request_head_version = mds_supported_head_version(session);
 
 	ret = set_request_path_attr(mdsc, req->r_inode, req->r_dentry,
 			      req->r_parent, req->r_path1, req->r_ino1.ino,
@@ -2957,8 +2968,10 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	 */
 	if (legacy)
 		len = sizeof(struct ceph_mds_request_head_legacy);
-	else if (old_version)
+	else if (request_head_version == 1)
 		len = sizeof(struct ceph_mds_request_head_old);
+	else if (request_head_version == 2)
+		len = offsetofend(struct ceph_mds_request_head, ext_num_fwd);
 	else
 		len = sizeof(struct ceph_mds_request_head);
 
@@ -3008,6 +3021,18 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	lhead = find_legacy_request_head(msg->front.iov_base,
 					 session->s_con.peer_features);
 
+	if ((req->r_mnt_idmap != &nop_mnt_idmap) &&
+	    !test_bit(CEPHFS_FEATURE_HAS_OWNER_UIDGID, &session->s_features)) {
+		WARN_ON_ONCE(!IS_CEPH_MDS_OP_NEWINODE(req->r_op));
+
+		pr_err_ratelimited_client(cl,
+			"idmapped mount is used and CEPHFS_FEATURE_HAS_OWNER_UIDGID"
+			" is not supported by MDS. Fail request with -EIO.\n");
+
+		ret = -EIO;
+		goto out_err;
+	}
+
 	/*
 	 * The ceph_mds_request_head_legacy didn't contain a version field, and
 	 * one was added when we moved the message version from 3->4.
@@ -3015,17 +3040,40 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	if (legacy) {
 		msg->hdr.version = cpu_to_le16(3);
 		p = msg->front.iov_base + sizeof(*lhead);
-	} else if (old_version) {
+	} else if (request_head_version == 1) {
 		struct ceph_mds_request_head_old *ohead = msg->front.iov_base;
 
 		msg->hdr.version = cpu_to_le16(4);
 		ohead->version = cpu_to_le16(1);
 		p = msg->front.iov_base + sizeof(*ohead);
-	} else {
+	} else if (request_head_version == 2) {
 		struct ceph_mds_request_head *nhead = msg->front.iov_base;
 
 		msg->hdr.version = cpu_to_le16(6);
+		nhead->version = cpu_to_le16(2);
+
+		p = msg->front.iov_base + offsetofend(struct ceph_mds_request_head, ext_num_fwd);
+	} else {
+		struct ceph_mds_request_head *nhead = msg->front.iov_base;
+		kuid_t owner_fsuid;
+		kgid_t owner_fsgid;
+
+		msg->hdr.version = cpu_to_le16(6);
 		nhead->version = cpu_to_le16(CEPH_MDS_REQUEST_HEAD_VERSION);
+		nhead->struct_len = cpu_to_le32(sizeof(struct ceph_mds_request_head));
+
+		if (IS_CEPH_MDS_OP_NEWINODE(req->r_op)) {
+			owner_fsuid = from_vfsuid(req->r_mnt_idmap, &init_user_ns,
+						VFSUIDT_INIT(req->r_cred->fsuid));
+			owner_fsgid = from_vfsgid(req->r_mnt_idmap, &init_user_ns,
+						VFSGIDT_INIT(req->r_cred->fsgid));
+			nhead->owner_uid = cpu_to_le32(from_kuid(&init_user_ns, owner_fsuid));
+			nhead->owner_gid = cpu_to_le32(from_kgid(&init_user_ns, owner_fsgid));
+		} else {
+			nhead->owner_uid = cpu_to_le32(-1);
+			nhead->owner_gid = cpu_to_le32(-1);
+		}
+
 		p = msg->front.iov_base + sizeof(*nhead);
 	}
 
