@@ -1397,13 +1397,7 @@ int ubifs_update_time(struct inode *inode, struct timespec64 *time,
 		return err;
 
 	mutex_lock(&ui->ui_mutex);
-	if (flags & S_ATIME)
-		inode->i_atime = *time;
-	if (flags & S_CTIME)
-		inode_set_ctime_to_ts(inode, *time);
-	if (flags & S_MTIME)
-		inode->i_mtime = *time;
-
+	inode_update_timestamps(inode, flags);
 	release = ui->dirty;
 	__mark_inode_dirty(inode, I_DIRTY_SYNC);
 	mutex_unlock(&ui->ui_mutex);
