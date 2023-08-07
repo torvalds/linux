@@ -147,6 +147,16 @@
 			#size-cells = <0>;
 			status = "disabled";
 		};
+
+		pm7250b_gpios: pinctrl@c000 {
+			compatible = "qcom,pm7250b-gpio", "qcom,spmi-gpio";
+			reg = <0xc000>;
+			gpio-controller;
+			gpio-ranges = <&pm7250b_gpios 0 0 12>;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 	};
 
 	pmic@3 {
