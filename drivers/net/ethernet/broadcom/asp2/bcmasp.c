@@ -640,7 +640,7 @@ bool bcmasp_netfilt_check_dup(struct bcmasp_intf *intf,
  * If no more open filters return NULL
  */
 struct bcmasp_net_filter *bcmasp_netfilt_get_init(struct bcmasp_intf *intf,
-						  int loc, bool wake_filter,
+						  u32 loc, bool wake_filter,
 						  bool init)
 {
 	struct bcmasp_net_filter *nfilter = NULL;
