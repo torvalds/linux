@@ -81,11 +81,13 @@ struct thermal_zone_device_ops {
  * @temperature: temperature value in miliCelsius
  * @hysteresis: relative hysteresis in miliCelsius
  * @type: trip point type
+ * @priv: pointer to driver data associated with this trip
  */
 struct thermal_trip {
 	int temperature;
 	int hysteresis;
 	enum thermal_trip_type type;
+	void *priv;
 };
 
 struct thermal_cooling_device_ops {
