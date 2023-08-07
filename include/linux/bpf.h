@@ -1819,6 +1819,7 @@ struct bpf_cg_run_ctx {
 struct bpf_trace_run_ctx {
 	struct bpf_run_ctx run_ctx;
 	u64 bpf_cookie;
+	bool is_uprobe;
 };
 
 struct bpf_tramp_run_ctx {
@@ -1867,6 +1868,8 @@ bpf_prog_run_array(const struct bpf_prog_array *array,
 	if (unlikely(!array))
 		return ret;
 
+	run_ctx.is_uprobe = false;
+
 	migrate_disable();
 	old_run_ctx = bpf_set_run_ctx(&run_ctx.run_ctx);
 	item = &array->items[0];
@@ -1891,8 +1894,8 @@ bpf_prog_run_array(const struct bpf_prog_array *array,
  * rcu-protected dynamically sized maps.
  */
 static __always_inline u32
-bpf_prog_run_array_sleepable(const struct bpf_prog_array __rcu *array_rcu,
-			     const void *ctx, bpf_prog_run_fn run_prog)
+bpf_prog_run_array_uprobe(const struct bpf_prog_array __rcu *array_rcu,
+			  const void *ctx, bpf_prog_run_fn run_prog)
 {
 	const struct bpf_prog_array_item *item;
 	const struct bpf_prog *prog;
@@ -1905,6 +1908,8 @@ bpf_prog_run_array_sleepable(const struct bpf_prog_array __rcu *array_rcu,
 
 	rcu_read_lock_trace();
 	migrate_disable();
+
+	run_ctx.is_uprobe = true;
 
 	array = rcu_dereference_check(array_rcu, rcu_read_lock_trace_held());
 	if (unlikely(!array))

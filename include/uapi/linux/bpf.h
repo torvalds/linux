@@ -5086,9 +5086,14 @@ union bpf_attr {
  * u64 bpf_get_func_ip(void *ctx)
  * 	Description
  * 		Get address of the traced function (for tracing and kprobe programs).
+ *
+ * 		When called for kprobe program attached as uprobe it returns
+ * 		probe address for both entry and return uprobe.
+ *
  * 	Return
- * 		Address of the traced function.
+ * 		Address of the traced function for kprobe.
  * 		0 for kprobes placed within the function (not at the entry).
+ * 		Address of the probe for uprobe and return uprobe.
  *
  * u64 bpf_get_attach_cookie(void *ctx)
  * 	Description
