@@ -7,6 +7,9 @@ menu "ASPEED SoC drivers"
 config ASPEED_BMC_DEV
 	tristate "ASPEED BMC Device"
 
+config ASPEED_HOST_BMC_DEV
+	tristate "ASPEED Host BMC Device"
+
 config ASPEED_LPC_CTRL
 	tristate "ASPEED LPC firmware cycle control"
 	select REGMAP
