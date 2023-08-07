@@ -61,5 +61,7 @@ struct drm_plane *rockchip_drm_direct_show_get_plane(struct drm_device *drm, con
 int rockchip_drm_direct_show_commit(struct drm_device *drm,
 				    struct rockchip_drm_direct_show_commit_info *commit_info);
 int rockchip_drm_direct_show_disable_plane(struct drm_device *drm, struct drm_plane *plane);
+int rockchip_drm_direct_show_buf_begin_cpu_access(struct rockchip_drm_direct_show_buffer *buffer);
+int rockchip_drm_direct_show_buf_end_cpu_access(struct rockchip_drm_direct_show_buffer *buffer);
 
 #endif

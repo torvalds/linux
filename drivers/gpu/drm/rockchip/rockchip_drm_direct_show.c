@@ -316,3 +316,18 @@ int rockchip_drm_direct_show_disable_plane(struct drm_device *drm, struct drm_pl
 
 	return ret;
 }
+
+int rockchip_drm_direct_show_buf_begin_cpu_access(struct rockchip_drm_direct_show_buffer *buffer)
+{
+	struct drm_gem_object *obj = &buffer->rk_gem_obj->base;
+
+	return rockchip_gem_prime_begin_cpu_access(obj, DMA_FROM_DEVICE);
+}
+
+int rockchip_drm_direct_show_buf_end_cpu_access(struct rockchip_drm_direct_show_buffer *buffer)
+{
+	struct drm_gem_object *obj = &buffer->rk_gem_obj->base;
+
+	return rockchip_gem_prime_end_cpu_access(obj, DMA_TO_DEVICE);
+}
+
