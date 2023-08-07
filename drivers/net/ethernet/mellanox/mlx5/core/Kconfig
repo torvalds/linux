@@ -12,6 +12,7 @@ config MLX5_CORE
 	depends on MLXFW || !MLXFW
 	depends on PTP_1588_CLOCK_OPTIONAL
 	depends on PCI_HYPERV_INTERFACE || !PCI_HYPERV_INTERFACE
+	depends on HWMON || !HWMON
 	help
 	  Core driver for low level functionality of the ConnectX-4 and
 	  Connect-IB cards by Mellanox Technologies.
