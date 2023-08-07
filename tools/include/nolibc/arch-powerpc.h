@@ -187,9 +187,17 @@
 void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector _start(void)
 {
 #ifdef __powerpc64__
-	/* On 64-bit PowerPC, save TOC/GOT pointer to r2 */
-	extern char TOC __asm__ (".TOC.");
-	register volatile long r2 __asm__ ("r2") = (void *)&TOC - (void *)_start;
+#if _CALL_ELF == 2
+	/* with -mabi=elfv2, save TOC/GOT pointer to r2
+	 * r12 is global entry pointer, we use it to compute TOC from r12
+	 * https://www.llvm.org/devmtg/2014-04/PDFs/Talks/Euro-LLVM-2014-Weigand.pdf
+	 * https://refspecs.linuxfoundation.org/ELF/ppc64/PPC-elf64abi.pdf
+	 */
+	__asm__ volatile (
+		"addis  2, 12, .TOC. - _start@ha\n"
+		"addi   2,  2, .TOC. - _start@l\n"
+	);
+#endif /* _CALL_ELF == 2 */
 
 	__asm__ volatile (
 		"mr     3, 1\n"         /* save stack pointer to r3, as arg1 of _start_c */
