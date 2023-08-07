@@ -37,11 +37,14 @@ struct nouveau_uvma_region {
 struct nouveau_uvma {
 	struct drm_gpuva va;
 
-	struct nouveau_uvmm *uvmm;
 	struct nouveau_uvma_region *region;
-
 	u8 kind;
 };
+
+#define uvmm_from_mgr(x) container_of((x), struct nouveau_uvmm, umgr)
+#define uvma_from_va(x) container_of((x), struct nouveau_uvma, va)
+
+#define to_uvmm(x) uvmm_from_mgr((x)->va.mgr)
 
 struct nouveau_uvmm_bind_job {
 	struct nouveau_job base;
@@ -78,9 +81,6 @@ struct nouveau_uvmm_bind_job_args {
 };
 
 #define to_uvmm_bind_job(job) container_of((job), struct nouveau_uvmm_bind_job, base)
-
-#define uvmm_from_mgr(x) container_of((x), struct nouveau_uvmm, umgr)
-#define uvma_from_va(x) container_of((x), struct nouveau_uvma, va)
 
 int nouveau_uvmm_init(struct nouveau_uvmm *uvmm, struct nouveau_cli *cli,
 		      u64 kernel_managed_addr, u64 kernel_managed_size);

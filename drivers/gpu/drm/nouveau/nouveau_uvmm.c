@@ -181,7 +181,7 @@ nouveau_uvma_vmm_put(struct nouveau_uvma *uvma)
 	u64 addr = uvma->va.va.addr;
 	u64 range = uvma->va.va.range;
 
-	return nouveau_uvmm_vmm_put(uvma->uvmm, addr, range);
+	return nouveau_uvmm_vmm_put(to_uvmm(uvma), addr, range);
 }
 
 static int
@@ -192,7 +192,7 @@ nouveau_uvma_map(struct nouveau_uvma *uvma,
 	u64 offset = uvma->va.gem.offset;
 	u64 range = uvma->va.va.range;
 
-	return nouveau_uvmm_vmm_map(uvma->uvmm, addr, range,
+	return nouveau_uvmm_vmm_map(to_uvmm(uvma), addr, range,
 				    offset, uvma->kind, mem);
 }
 
@@ -206,7 +206,7 @@ nouveau_uvma_unmap(struct nouveau_uvma *uvma)
 	if (drm_gpuva_invalidated(&uvma->va))
 		return 0;
 
-	return nouveau_uvmm_vmm_unmap(uvma->uvmm, addr, range, sparse);
+	return nouveau_uvmm_vmm_unmap(to_uvmm(uvma), addr, range, sparse);
 }
 
 static int
@@ -586,7 +586,6 @@ op_map_prepare(struct nouveau_uvmm *uvmm,
 	if (ret)
 		return ret;
 
-	uvma->uvmm = uvmm;
 	uvma->region = args->region;
 	uvma->kind = args->kind;
 
@@ -794,7 +793,7 @@ op_unmap_range(struct drm_gpuva_op_unmap *u,
 	bool sparse = !!uvma->region;
 
 	if (!drm_gpuva_invalidated(u->va))
-		nouveau_uvmm_vmm_unmap(uvma->uvmm, addr, range, sparse);
+		nouveau_uvmm_vmm_unmap(to_uvmm(uvma), addr, range, sparse);
 }
 
 static void
