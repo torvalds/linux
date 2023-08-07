@@ -35,9 +35,6 @@
 
 #define RESET_MAX_RETRIES 3
 
-/* XXX How to handle concurrent GGTT updates using tiling registers? */
-#define RESET_UNDER_STOP_MACHINE 0
-
 static void client_mark_guilty(struct i915_gem_context *ctx, bool banned)
 {
 	struct drm_i915_file_private *file_priv = ctx->file_priv;
