@@ -487,6 +487,7 @@ VEHICLE_EXIT:
 #endif
 	// msleep(1000);
 	vehicle_exit_complete_notify(v);
+	vechile_module_exit();
 	return 0;
 }
 

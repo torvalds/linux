@@ -14,5 +14,6 @@ void vehicle_gpio_stat_change_notify(void);
 void vehicle_cif_error_notify(int last_line);
 void vehicle_android_is_ready_notify(void);
 void vehicle_apk_state_change(char crtc[22]);
+void vechile_module_exit(void);
 
 #endif

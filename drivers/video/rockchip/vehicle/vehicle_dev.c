@@ -106,12 +106,11 @@ static int __init vechile_module_init(void)
 	return 0;
 }
 
-static void __exit vechile_module_exit(void)
+void vechile_module_exit(void)
 {
 	misc_deregister(&vechile_dev);
 }
 
 module_init(vechile_module_init);
-module_exit(vechile_module_exit);
 
 MODULE_LICENSE("GPL");
