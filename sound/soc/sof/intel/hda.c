@@ -71,6 +71,11 @@ static u32 hda_get_interface_mask(struct snd_sof_dev *sdev)
 				    BIT(SOF_DAI_INTEL_HDA) | BIT(SOF_DAI_INTEL_ALH);
 		interface_mask[1] = BIT(SOF_DAI_INTEL_HDA);
 		break;
+	case SOF_INTEL_ACE_2_0:
+		interface_mask[0] = BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC) |
+				    BIT(SOF_DAI_INTEL_HDA) | BIT(SOF_DAI_INTEL_ALH);
+		interface_mask[1] = interface_mask[0]; /* all interfaces accessible without DSP */
+		break;
 	default:
 		break;
 	}
