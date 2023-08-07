@@ -1,0 +1,4 @@
+comment "Chips&Media media platform drivers"
+
+source "drivers/media/platform/chips-media/wave5/Kconfig"
+
