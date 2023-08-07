@@ -348,7 +348,8 @@ static void handle_thermal_trip(struct thermal_zone_device *tz, int trip_id)
 	struct thermal_trip trip;
 
 	/* Ignore disabled trip points */
-	if (test_bit(trip_id, &tz->trips_disabled))
+	if (test_bit(trip_id, &tz->trips_disabled) ||
+	    trip.temperature == THERMAL_TEMP_INVALID)
 		return;
 
 	__thermal_zone_get_trip(tz, trip_id, &trip);
