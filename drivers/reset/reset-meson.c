@@ -128,8 +128,6 @@ static int meson_reset_probe(struct platform_device *pdev)
 	if (!data->param)
 		return -ENODEV;
 
-	platform_set_drvdata(pdev, data);
-
 	spin_lock_init(&data->lock);
 
 	data->rcdev.owner = THIS_MODULE;
