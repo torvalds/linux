@@ -517,7 +517,7 @@ static void bch2_extent_crc_pack(union bch_extent_crc *dst,
 	switch (type) {
 	case BCH_EXTENT_ENTRY_crc32:
 		set_common_fields(dst->crc32, src);
-		dst->crc32.csum	 	= (u32 __force) *((__le32 *) &src.csum.lo);
+		dst->crc32.csum		= (u32 __force) *((__le32 *) &src.csum.lo);
 		break;
 	case BCH_EXTENT_ENTRY_crc64:
 		set_common_fields(dst->crc64, src);
@@ -915,11 +915,11 @@ bool bch2_extents_match(struct bkey_s_c k1, struct bkey_s_c k2)
 
 		bkey_for_each_ptr_decode(k1.k, ptrs1, p1, entry1)
 			bkey_for_each_ptr_decode(k2.k, ptrs2, p2, entry2)
-			if (p1.ptr.dev		== p2.ptr.dev &&
-			    p1.ptr.gen		== p2.ptr.gen &&
-			    (s64) p1.ptr.offset + p1.crc.offset - bkey_start_offset(k1.k) ==
-			    (s64) p2.ptr.offset + p2.crc.offset - bkey_start_offset(k2.k))
-				return true;
+				if (p1.ptr.dev		== p2.ptr.dev &&
+				    p1.ptr.gen		== p2.ptr.gen &&
+				    (s64) p1.ptr.offset + p1.crc.offset - bkey_start_offset(k1.k) ==
+				    (s64) p2.ptr.offset + p2.crc.offset - bkey_start_offset(k2.k))
+					return true;
 
 		return false;
 	} else {

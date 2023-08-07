@@ -643,7 +643,8 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 static u64 compression_opt_to_feature(unsigned v)
 {
 	unsigned type = bch2_compression_decode(v).type;
-	return 1ULL << bch2_compression_opt_to_feature[type];
+
+	return BIT_ULL(bch2_compression_opt_to_feature[type]);
 }
 
 int bch2_fs_compress_init(struct bch_fs *c)

@@ -143,8 +143,8 @@ enum btree_write_flags {
 	__BTREE_WRITE_ONLY_IF_NEED = BTREE_WRITE_TYPE_BITS,
 	__BTREE_WRITE_ALREADY_STARTED,
 };
-#define BTREE_WRITE_ONLY_IF_NEED	(1U << __BTREE_WRITE_ONLY_IF_NEED )
-#define BTREE_WRITE_ALREADY_STARTED	(1U << __BTREE_WRITE_ALREADY_STARTED)
+#define BTREE_WRITE_ONLY_IF_NEED	BIT(__BTREE_WRITE_ONLY_IF_NEED)
+#define BTREE_WRITE_ALREADY_STARTED	BIT(__BTREE_WRITE_ALREADY_STARTED)
 
 void __bch2_btree_node_write(struct bch_fs *, struct btree *, unsigned);
 void bch2_btree_node_write(struct bch_fs *, struct btree *,

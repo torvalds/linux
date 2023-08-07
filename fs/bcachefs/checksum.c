@@ -265,9 +265,10 @@ static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
 
 #ifdef CONFIG_HIGHMEM
 		__bio_for_each_segment(bv, bio, *iter, *iter) {
-			void *p = kmap_atomic(bv.bv_page) + bv.bv_offset;
+			void *p = kmap_local_page(bv.bv_page) + bv.bv_offset;
+
 			bch2_checksum_update(&state, p, bv.bv_len);
-			kunmap_atomic(p);
+			kunmap_local(p);
 		}
 #else
 		__bio_for_each_bvec(bv, bio, *iter, *iter)
@@ -287,10 +288,10 @@ static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
 
 #ifdef CONFIG_HIGHMEM
 		__bio_for_each_segment(bv, bio, *iter, *iter) {
-			void *p = kmap_atomic(bv.bv_page) + bv.bv_offset;
+			void *p = kmap_local_page(bv.bv_page) + bv.bv_offset;
 
 			crypto_shash_update(desc, p, bv.bv_len);
-			kunmap_atomic(p);
+			kunmap_local(p);
 		}
 #else
 		__bio_for_each_bvec(bv, bio, *iter, *iter)
@@ -427,8 +428,9 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 				extent_nonce(version, crc_old), bio);
 
 	if (bch2_crc_cmp(merged, crc_old.csum) && !c->opts.no_data_io) {
-		bch_err(c, "checksum error in bch2_rechecksum_bio() (memory corruption or bug?)\n"
+		bch_err(c, "checksum error in %s() (memory corruption or bug?)\n"
 			"expected %0llx:%0llx got %0llx:%0llx (old type %s new type %s)",
+			__func__,
 			crc_old.csum.hi,
 			crc_old.csum.lo,
 			merged.hi,

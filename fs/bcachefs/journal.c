@@ -63,6 +63,7 @@ journal_seq_to_buf(struct journal *j, u64 seq)
 static void journal_pin_list_init(struct journal_entry_pin_list *p, int count)
 {
 	unsigned i;
+
 	for (i = 0; i < ARRAY_SIZE(p->list); i++)
 		INIT_LIST_HEAD(&p->list[i]);
 	INIT_LIST_HEAD(&p->flushed);
@@ -514,8 +515,7 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 	int ret;
 
 	closure_wait_event(&j->async_wait,
-		   (ret = __journal_res_get(j, res, flags)) !=
-		   -BCH_ERR_journal_res_get_blocked||
+		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK));
 	return ret;
 }

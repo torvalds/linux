@@ -467,8 +467,10 @@ struct bch_pd_controller {
 	s64			last_change;
 	s64			last_target;
 
-	/* If true, the rate will not increase if bch2_ratelimit_delay()
-	 * is not being called often enough. */
+	/*
+	 * If true, the rate will not increase if bch2_ratelimit_delay()
+	 * is not being called often enough.
+	 */
 	bool			backpressure;
 };
 
@@ -604,6 +606,7 @@ static inline void __memcpy_u64s(void *dst, const void *src,
 {
 #ifdef CONFIG_X86_64
 	long d0, d1, d2;
+
 	asm volatile("rep ; movsq"
 		     : "=&c" (d0), "=&D" (d1), "=&S" (d2)
 		     : "0" (u64s), "1" (dst), "2" (src)
@@ -680,6 +683,7 @@ static inline void __memmove_u64s_up(void *_dst, const void *_src,
 
 #ifdef CONFIG_X86_64
 	long d0, d1, d2;
+
 	asm volatile("std ;\n"
 		     "rep ; movsq\n"
 		     "cld ;\n"

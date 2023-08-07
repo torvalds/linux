@@ -58,6 +58,7 @@ struct bch_sb_field_ops {
 static inline __le64 bch2_sb_magic(struct bch_fs *c)
 {
 	__le64 ret;
+
 	memcpy(&ret, &c->sb.uuid, sizeof(ret));
 	return ret;
 }

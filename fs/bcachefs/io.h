@@ -52,7 +52,7 @@ enum __bch_write_flags {
 };
 
 enum bch_write_flags {
-#define x(f)	BCH_WRITE_##f = 1U << __BCH_WRITE_##f,
+#define x(f)	BCH_WRITE_##f = BIT(__BCH_WRITE_##f),
 	BCH_WRITE_FLAGS()
 #undef x
 };

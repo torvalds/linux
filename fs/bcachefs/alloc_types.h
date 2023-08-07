@@ -105,7 +105,7 @@ struct write_point {
 		struct dev_stripe_state	stripe;
 
 		u64			sectors_allocated;
-	} __attribute__((__aligned__(SMP_CACHE_BYTES)));
+	} __aligned(SMP_CACHE_BYTES);
 
 	struct {
 		struct work_struct	index_update_work;
@@ -116,7 +116,7 @@ struct write_point {
 		enum write_point_state	state;
 		u64			last_state_change;
 		u64			time[WRITE_POINT_STATE_NR];
-	} __attribute__((__aligned__(SMP_CACHE_BYTES)));
+	} __aligned(SMP_CACHE_BYTES);
 };
 
 struct write_point_specifier {

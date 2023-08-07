@@ -216,6 +216,7 @@ u64 bch2_read_flag_list(char *opt, const char * const list[])
 
 	while ((p = strsep(&s, ","))) {
 		int flag = match_string(list, -1, p);
+
 		if (flag < 0) {
 			ret = -1;
 			break;
@@ -797,9 +798,10 @@ void memcpy_to_bio(struct bio *dst, struct bvec_iter dst_iter, const void *src)
 	struct bvec_iter iter;
 
 	__bio_for_each_segment(bv, dst, iter, dst_iter) {
-		void *dstp = kmap_atomic(bv.bv_page);
+		void *dstp = kmap_local_page(bv.bv_page);
+
 		memcpy(dstp + bv.bv_offset, src, bv.bv_len);
-		kunmap_atomic(dstp);
+		kunmap_local(dstp);
 
 		src += bv.bv_len;
 	}
@@ -811,9 +813,10 @@ void memcpy_from_bio(void *dst, struct bio *src, struct bvec_iter src_iter)
 	struct bvec_iter iter;
 
 	__bio_for_each_segment(bv, src, iter, src_iter) {
-		void *srcp = kmap_atomic(bv.bv_page);
+		void *srcp = kmap_local_page(bv.bv_page);
+
 		memcpy(dst, srcp + bv.bv_offset, bv.bv_len);
-		kunmap_atomic(srcp);
+		kunmap_local(srcp);
 
 		dst += bv.bv_len;
 	}

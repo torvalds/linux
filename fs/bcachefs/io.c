@@ -2435,6 +2435,7 @@ static void __bch2_read_endio(struct work_struct *work)
 
 		if (rbio->bounce) {
 			struct bvec_iter src_iter = src->bi_iter;
+
 			bio_copy_data_iter(dst, &dst_iter, src, &src_iter);
 		}
 	}

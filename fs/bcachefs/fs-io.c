@@ -2867,7 +2867,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 
 		folio = __filemap_get_folio(mapping, index,
 					    FGP_LOCK|FGP_CREAT, GFP_KERNEL);
-		if (unlikely(IS_ERR_OR_NULL(folio))) {
+		if (IS_ERR_OR_NULL(folio)) {
 			ret = -ENOMEM;
 			goto out;
 		}

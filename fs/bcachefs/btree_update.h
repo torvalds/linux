@@ -268,10 +268,10 @@ static inline struct bkey_i *__bch2_bkey_get_mut_noupdate(struct btree_trans *tr
 {
 	struct bkey_s_c k = __bch2_bkey_get_iter(trans, iter,
 				btree_id, pos, flags|BTREE_ITER_INTENT, type);
-	struct bkey_i *ret = unlikely(IS_ERR(k.k))
+	struct bkey_i *ret = IS_ERR(k.k)
 		? ERR_CAST(k.k)
 		: __bch2_bkey_make_mut_noupdate(trans, k, 0, min_bytes);
-	if (unlikely(IS_ERR(ret)))
+	if (IS_ERR(ret))
 		bch2_trans_iter_exit(trans, iter);
 	return ret;
 }

@@ -345,7 +345,7 @@ static inline bool __journal_pin_drop(struct journal *j,
 	list_del_init(&pin->list);
 
 	/*
-	 * Unpinning a journal entry make make journal_next_bucket() succeed, if
+	 * Unpinning a journal entry may make journal_next_bucket() succeed, if
 	 * writing a new last_seq will now make another bucket available:
 	 */
 	return atomic_dec_and_test(&pin_list->count) &&

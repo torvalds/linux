@@ -648,7 +648,7 @@ static int bch2_journal_replay(struct bch_fs *c)
 	move_gap(keys->d, keys->nr, keys->size, keys->gap, keys->nr);
 	keys->gap = keys->nr;
 
-	keys_sorted = kvmalloc_array(sizeof(*keys_sorted), keys->nr, GFP_KERNEL);
+	keys_sorted = kvmalloc_array(keys->nr, sizeof(*keys_sorted), GFP_KERNEL);
 	if (!keys_sorted)
 		return -BCH_ERR_ENOMEM_journal_replay;
 
@@ -1403,7 +1403,7 @@ use_clean:
 	}
 
 	c->journal_replay_seq_start	= last_seq;
-	c->journal_replay_seq_end	= blacklist_seq - 1;;
+	c->journal_replay_seq_end	= blacklist_seq - 1;
 
 	if (c->opts.reconstruct_alloc) {
 		c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);

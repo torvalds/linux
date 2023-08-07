@@ -1053,6 +1053,7 @@ found:
 		bch_err(c, "cur_idx %u/%u", ja->cur_idx, ja->nr);
 		for (i = 0; i < 3; i++) {
 			unsigned idx = (ja->cur_idx + ja->nr - 1 + i) % ja->nr;
+
 			bch_err(c, "bucket_seq[%u] = %llu", idx, ja->bucket_seq[idx]);
 		}
 		ja->sectors_free = 0;
@@ -1629,7 +1630,6 @@ static void do_journal_write(struct closure *cl)
 	}
 
 	continue_at(cl, journal_write_done, c->io_complete_wq);
-	return;
 }
 
 static void bch2_journal_entries_postprocess(struct bch_fs *c, struct jset *jset)

@@ -59,6 +59,7 @@ int bch2_varint_decode(const u8 *in, const u8 *end, u64 *out)
 
 	if (likely(bytes < 9)) {
 		__le64 v_le = 0;
+
 		memcpy(&v_le, in, bytes);
 		v = le64_to_cpu(v_le);
 		v >>= bytes;

@@ -553,7 +553,9 @@ static int __copy_super(struct bch_sb_handle *dst_handle, struct bch_sb *src)
 		d = (src_f ? le32_to_cpu(src_f->u64s) : 0) -
 		    (dst_f ? le32_to_cpu(dst_f->u64s) : 0);
 		if (d > 0) {
-			int ret = bch2_sb_realloc(dst_handle, le32_to_cpu(dst_handle->sb->u64s) + d);
+			int ret = bch2_sb_realloc(dst_handle,
+					le32_to_cpu(dst_handle->sb->u64s) + d);
+
 			if (ret)
 				return ret;
 

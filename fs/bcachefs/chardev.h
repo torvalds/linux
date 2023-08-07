@@ -17,7 +17,7 @@ int __init bch2_chardev_init(void);
 static inline long bch2_fs_ioctl(struct bch_fs *c,
 				unsigned cmd, void __user * arg)
 {
-	return -ENOSYS;
+	return -ENOTTY;
 }
 
 static inline void bch2_fs_chardev_exit(struct bch_fs *c) {}

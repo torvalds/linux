@@ -535,7 +535,7 @@ int bch2_check_topology(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for (i = 0; i < btree_id_nr_alive(c)&& !ret; i++) {
+	for (i = 0; i < btree_id_nr_alive(c) && !ret; i++) {
 		struct btree_root *r = bch2_btree_id_root(c, i);
 
 		if (!r->alive)

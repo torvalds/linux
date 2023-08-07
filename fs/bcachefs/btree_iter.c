@@ -1008,7 +1008,7 @@ retry_all:
 	/*
 	 * We used to assert that all paths had been traversed here
 	 * (path->uptodate < BTREE_ITER_NEED_TRAVERSE); however, since
-	 * path->Should_be_locked is not set yet, we we might have unlocked and
+	 * path->should_be_locked is not set yet, we might have unlocked and
 	 * then failed to relock a path - that's fine.
 	 */
 err:
@@ -2738,9 +2738,9 @@ void bch2_trans_node_iter_init(struct btree_trans *trans,
 			       unsigned depth,
 			       unsigned flags)
 {
-       flags |= BTREE_ITER_NOT_EXTENTS;
-       flags |= __BTREE_ITER_ALL_SNAPSHOTS;
-       flags |= BTREE_ITER_ALL_SNAPSHOTS;
+	flags |= BTREE_ITER_NOT_EXTENTS;
+	flags |= __BTREE_ITER_ALL_SNAPSHOTS;
+	flags |= BTREE_ITER_ALL_SNAPSHOTS;
 
 	bch2_trans_iter_init_common(trans, iter, btree_id, pos, locks_want, depth,
 			       __bch2_btree_iter_flags(trans, btree_id, flags),
