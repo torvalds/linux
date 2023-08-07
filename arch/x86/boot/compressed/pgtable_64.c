@@ -103,7 +103,7 @@ static unsigned long find_trampoline_placement(void)
 
 asmlinkage void configure_5level_paging(struct boot_params *bp)
 {
-	void (*toggle_la57)(void *trampoline, bool enable_5lvl);
+	void (*toggle_la57)(void *trampoline);
 	bool l5_required = false;
 
 	/* Initialize boot_params. Required for cmdline_find_option_bool(). */
@@ -133,6 +133,13 @@ asmlinkage void configure_5level_paging(struct boot_params *bp)
 		ptrs_per_p4d = 512;
 	}
 
+	/*
+	 * The trampoline will not be used if the paging mode is already set to
+	 * the desired one.
+	 */
+	if (l5_required == !!(native_read_cr4() & X86_CR4_LA57))
+		return;
+
 	trampoline_32bit = (unsigned long *)find_trampoline_placement();
 
 	/* Preserve trampoline memory */
@@ -160,17 +167,7 @@ asmlinkage void configure_5level_paging(struct boot_params *bp)
 	 *
 	 * The new page table will be used by trampoline code for switching
 	 * from 4- to 5-level paging or vice versa.
-	 *
-	 * If switching is not required, the page table is unused: trampoline
-	 * code wouldn't touch CR3.
 	 */
-
-	/*
-	 * We are not going to use the page table in trampoline memory if we
-	 * are already in the desired paging mode.
-	 */
-	if (l5_required == !!(native_read_cr4() & X86_CR4_LA57))
-		goto out;
 
 	if (l5_required) {
 		/*
@@ -194,8 +191,7 @@ asmlinkage void configure_5level_paging(struct boot_params *bp)
 		       (void *)src, PAGE_SIZE);
 	}
 
-out:
-	toggle_la57(trampoline_32bit, l5_required);
+	toggle_la57(trampoline_32bit);
 }
 
 void cleanup_trampoline(void *pgtable)
