@@ -104,7 +104,7 @@
         "cmdUnderTest": "$TC qdisc add dev $ETH root handle 1: taprio num_tc 3 map 2 2 1 0 2 2 2 2 2 2 2 2 2 2 2 2 queues 1@0 1@0 1@0 base-time 1000000000 sched-entry S 01 300000 flags 0x1 clockid CLOCK_TAI",
         "expExitCode": "0",
         "verifyCmd": "$TC class show dev $ETH",
-        "matchPattern": "class taprio 1:[0-9]+ root leaf 1:",
+        "matchPattern": "class taprio 1:[0-9]+ root",
         "matchCount": "8",
         "teardown": [
             "echo \"1\" > /sys/bus/netdevsim/del_device"
