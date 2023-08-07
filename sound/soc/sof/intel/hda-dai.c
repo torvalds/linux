@@ -422,6 +422,13 @@ static const struct snd_soc_dai_ops ssp_dai_ops = {
 	.prepare = non_hda_dai_prepare,
 };
 
+static const struct snd_soc_dai_ops dmic_dai_ops = {
+	.hw_params = non_hda_dai_hw_params,
+	.hw_free = hda_dai_hw_free,
+	.trigger = hda_dai_trigger,
+	.prepare = non_hda_dai_prepare,
+};
+
 static int hda_dai_suspend(struct hdac_bus *bus)
 {
 	struct snd_soc_pcm_runtime *rtd;
@@ -491,9 +498,25 @@ static void ssp_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops
 	}
 }
 
+static void dmic_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
+{
+	const struct sof_intel_dsp_desc *chip;
+	int i;
+
+	chip = get_chip_info(sdev->pdata);
+
+	if (chip->hw_ip_version >= SOF_INTEL_ACE_2_0) {
+		for (i = 0; i < ops->num_drv; i++) {
+			if (strstr(ops->drv[i].name, "DMIC"))
+				ops->drv[i].ops = &dmic_dai_ops;
+		}
+	}
+}
+
 #else
 
 static inline void ssp_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops) {}
+static inline void dmic_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops) {}
 
 #endif /* CONFIG_SND_SOC_SOF_HDA_LINK */
 
@@ -511,6 +534,7 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 	}
 
 	ssp_set_dai_drv_ops(sdev, ops);
+	dmic_set_dai_drv_ops(sdev, ops);
 
 	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4 && !hda_use_tplg_nhlt) {
 		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
