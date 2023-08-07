@@ -145,9 +145,17 @@ static struct hdac_ext_stream *hda_assign_hext_stream(struct snd_sof_dev *sdev,
 						      struct snd_soc_dai *cpu_dai,
 						      struct snd_pcm_substream *substream)
 {
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *dai;
 	struct hdac_ext_stream *hext_stream;
 
-	hext_stream = hda_link_stream_assign(sof_to_bus(sdev), substream);
+	/* only allocate a stream_tag for the first DAI in the dailink */
+	dai = asoc_rtd_to_cpu(rtd, 0);
+	if (dai == cpu_dai)
+		hext_stream = hda_link_stream_assign(sof_to_bus(sdev), substream);
+	else
+		hext_stream = snd_soc_dai_get_dma_data(dai, substream);
+
 	if (!hext_stream)
 		return NULL;
 
@@ -160,9 +168,14 @@ static void hda_release_hext_stream(struct snd_sof_dev *sdev, struct snd_soc_dai
 				    struct snd_pcm_substream *substream)
 {
 	struct hdac_ext_stream *hext_stream = hda_get_hext_stream(sdev, cpu_dai, substream);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *dai;
 
+	/* only release a stream_tag for the first DAI in the dailink */
+	dai = asoc_rtd_to_cpu(rtd, 0);
+	if (dai == cpu_dai)
+		snd_hdac_ext_stream_release(hext_stream, HDAC_EXT_STREAM_TYPE_LINK);
 	snd_soc_dai_set_dma_data(cpu_dai, substream, NULL);
-	snd_hdac_ext_stream_release(hext_stream, HDAC_EXT_STREAM_TYPE_LINK);
 }
 
 static void hda_setup_hext_stream(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream,
