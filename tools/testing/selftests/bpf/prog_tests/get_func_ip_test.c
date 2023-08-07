@@ -51,11 +51,17 @@ cleanup:
 	get_func_ip_test__destroy(skel);
 }
 
-/* test6 is x86_64 specific because of the instruction
- * offset, disabling it for all other archs
- */
 #ifdef __x86_64__
-static void test_function_body(void)
+extern void uprobe_trigger_body(void);
+asm(
+".globl uprobe_trigger_body\n"
+".type uprobe_trigger_body, @function\n"
+"uprobe_trigger_body:\n"
+"	nop\n"
+"	ret\n"
+);
+
+static void test_function_body_kprobe(void)
 {
 	struct get_func_ip_test *skel = NULL;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
@@ -67,6 +73,9 @@ static void test_function_body(void)
 	if (!ASSERT_OK_PTR(skel, "get_func_ip_test__open"))
 		return;
 
+	/* test6 is x86_64 specific and is disabled by default,
+	 * enable it for body test.
+	 */
 	bpf_program__set_autoload(skel->progs.test6, true);
 
 	err = get_func_ip_test__load(skel);
@@ -89,6 +98,35 @@ static void test_function_body(void)
 cleanup:
 	bpf_link__destroy(link6);
 	get_func_ip_test__destroy(skel);
+}
+
+static void test_function_body_uprobe(void)
+{
+	struct get_func_ip_uprobe_test *skel = NULL;
+	int err;
+
+	skel = get_func_ip_uprobe_test__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "get_func_ip_uprobe_test__open_and_load"))
+		return;
+
+	err = get_func_ip_uprobe_test__attach(skel);
+	if (!ASSERT_OK(err, "get_func_ip_test__attach"))
+		goto cleanup;
+
+	skel->bss->uprobe_trigger_body = (unsigned long) uprobe_trigger_body;
+
+	uprobe_trigger_body();
+
+	ASSERT_EQ(skel->bss->test1_result, 1, "test1_result");
+
+cleanup:
+	get_func_ip_uprobe_test__destroy(skel);
+}
+
+static void test_function_body(void)
+{
+	test_function_body_kprobe();
+	test_function_body_uprobe();
 }
 #else
 #define test_function_body()
