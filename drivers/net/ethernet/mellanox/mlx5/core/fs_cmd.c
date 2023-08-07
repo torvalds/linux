@@ -1144,3 +1144,17 @@ const struct mlx5_flow_cmds *mlx5_fs_cmd_get_default(enum fs_flow_table_type typ
 		return mlx5_fs_cmd_get_stub_cmds();
 	}
 }
+
+int mlx5_fs_cmd_set_l2table_entry_silent(struct mlx5_core_dev *dev, u8 silent_mode)
+{
+	u32 in[MLX5_ST_SZ_DW(set_l2_table_entry_in)] = {};
+
+	if (silent_mode && !MLX5_CAP_GEN(dev, silent_mode))
+		return -EOPNOTSUPP;
+
+	MLX5_SET(set_l2_table_entry_in, in, opcode, MLX5_CMD_OP_SET_L2_TABLE_ENTRY);
+	MLX5_SET(set_l2_table_entry_in, in, silent_mode_valid, 1);
+	MLX5_SET(set_l2_table_entry_in, in, silent_mode, silent_mode);
+
+	return mlx5_cmd_exec_in(dev, set_l2_table_entry, in);
+}
