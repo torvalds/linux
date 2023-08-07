@@ -140,12 +140,26 @@ struct efx_tc_action_set_list {
 	u32 fw_id;
 };
 
+struct efx_tc_lhs_action {
+	struct efx_tc_recirc_id *rid;
+	struct efx_tc_ct_zone *zone;
+	struct efx_tc_counter_index *count;
+};
+
 struct efx_tc_flow_rule {
 	unsigned long cookie;
 	struct rhash_head linkage;
 	struct efx_tc_match match;
 	struct efx_tc_action_set_list acts;
 	struct efx_tc_action_set_list *fallback; /* what to use when unready? */
+	u32 fw_id;
+};
+
+struct efx_tc_lhs_rule {
+	unsigned long cookie;
+	struct efx_tc_match match;
+	struct efx_tc_lhs_action lhs_act;
+	struct rhash_head linkage;
 	u32 fw_id;
 };
 
@@ -208,6 +222,7 @@ struct efx_tc_table_ct { /* TABLE_ID_CONNTRACK_TABLE */
  * @encap_ht: Hashtable of TC encap actions
  * @encap_match_ht: Hashtable of TC encap matches
  * @match_action_ht: Hashtable of TC match-action rules
+ * @lhs_rule_ht: Hashtable of TC left-hand (act ct & goto chain) rules
  * @ct_zone_ht: Hashtable of TC conntrack flowtable bindings
  * @ct_ht: Hashtable of TC conntrack flow entries
  * @neigh_ht: Hashtable of neighbour watches (&struct efx_neigh_binder)
@@ -244,6 +259,7 @@ struct efx_tc_state {
 	struct rhashtable encap_ht;
 	struct rhashtable encap_match_ht;
 	struct rhashtable match_action_ht;
+	struct rhashtable lhs_rule_ht;
 	struct rhashtable ct_zone_ht;
 	struct rhashtable ct_ht;
 	struct rhashtable neigh_ht;

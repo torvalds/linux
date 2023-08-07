@@ -84,6 +84,9 @@ int efx_mae_get_caps(struct efx_nic *efx, struct mae_caps *caps);
 int efx_mae_match_check_caps(struct efx_nic *efx,
 			     const struct efx_tc_match_fields *mask,
 			     struct netlink_ext_ack *extack);
+int efx_mae_match_check_caps_lhs(struct efx_nic *efx,
+				 const struct efx_tc_match_fields *mask,
+				 struct netlink_ext_ack *extack);
 int efx_mae_check_encap_match_caps(struct efx_nic *efx, bool ipv6,
 				   u8 ip_tos_mask, __be16 udp_sport_mask,
 				   struct netlink_ext_ack *extack);
@@ -112,6 +115,9 @@ int efx_mae_register_encap_match(struct efx_nic *efx,
 				 struct efx_tc_encap_match *encap);
 int efx_mae_unregister_encap_match(struct efx_nic *efx,
 				   struct efx_tc_encap_match *encap);
+int efx_mae_insert_lhs_rule(struct efx_nic *efx, struct efx_tc_lhs_rule *rule,
+			    u32 prio);
+int efx_mae_remove_lhs_rule(struct efx_nic *efx, struct efx_tc_lhs_rule *rule);
 struct efx_tc_ct_entry; /* see tc_conntrack.h */
 int efx_mae_insert_ct(struct efx_nic *efx, struct efx_tc_ct_entry *conn);
 int efx_mae_remove_ct(struct efx_nic *efx, struct efx_tc_ct_entry *conn);

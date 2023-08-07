@@ -12,6 +12,7 @@
 #include <net/pkt_cls.h>
 #include <net/vxlan.h>
 #include <net/geneve.h>
+#include <net/tc_act/tc_ct.h>
 #include "tc.h"
 #include "tc_bindings.h"
 #include "tc_encap_actions.h"
@@ -95,6 +96,12 @@ static const struct rhashtable_params efx_tc_match_action_ht_params = {
 	.key_len	= sizeof(unsigned long),
 	.key_offset	= offsetof(struct efx_tc_flow_rule, cookie),
 	.head_offset	= offsetof(struct efx_tc_flow_rule, linkage),
+};
+
+static const struct rhashtable_params efx_tc_lhs_rule_ht_params = {
+	.key_len	= sizeof(unsigned long),
+	.key_offset	= offsetof(struct efx_tc_lhs_rule, cookie),
+	.head_offset	= offsetof(struct efx_tc_lhs_rule, linkage),
 };
 
 static const struct rhashtable_params efx_tc_recirc_ht_params = {
@@ -736,6 +743,163 @@ static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
 	}
 }
 
+/**
+ * DOC: TC conntrack sequences
+ *
+ * The MAE hardware can handle at most two rounds of action rule matching,
+ * consequently we support conntrack through the notion of a "left-hand side
+ * rule".  This is a rule which typically contains only the actions "ct" and
+ * "goto chain N", and corresponds to one or more "right-hand side rules" in
+ * chain N, which typically match on +trk+est, and may perform ct(nat) actions.
+ * RHS rules go in the Action Rule table as normal but with a nonzero recirc_id
+ * (the hardware equivalent of chain_index), while LHS rules may go in either
+ * the Action Rule or the Outer Rule table, the latter being preferred for
+ * performance reasons, and set both DO_CT and a recirc_id in their response.
+ *
+ * Besides the RHS rules, there are often also similar rules matching on
+ * +trk+new which perform the ct(commit) action.  These are not offloaded.
+ */
+
+static bool efx_tc_rule_is_lhs_rule(struct flow_rule *fr,
+				    struct efx_tc_match *match)
+{
+	const struct flow_action_entry *fa;
+	int i;
+
+	flow_action_for_each(i, fa, &fr->action) {
+		switch (fa->id) {
+		case FLOW_ACTION_GOTO:
+			return true;
+		case FLOW_ACTION_CT:
+			/* If rule is -trk, or doesn't mention trk at all, then
+			 * a CT action implies a conntrack lookup (hence it's an
+			 * LHS rule).  If rule is +trk, then a CT action could
+			 * just be ct(nat) or even ct(commit) (though the latter
+			 * can't be offloaded).
+			 */
+			if (!match->mask.ct_state_trk || !match->value.ct_state_trk)
+				return true;
+			break;
+		default:
+			break;
+		}
+	}
+	return false;
+}
+
+static int efx_tc_flower_handle_lhs_actions(struct efx_nic *efx,
+					    struct flow_cls_offload *tc,
+					    struct flow_rule *fr,
+					    struct net_device *net_dev,
+					    struct efx_tc_lhs_rule *rule)
+
+{
+	struct netlink_ext_ack *extack = tc->common.extack;
+	struct efx_tc_lhs_action *act = &rule->lhs_act;
+	const struct flow_action_entry *fa;
+	bool pipe = true;
+	int i;
+
+	flow_action_for_each(i, fa, &fr->action) {
+		struct efx_tc_ct_zone *ct_zone;
+		struct efx_tc_recirc_id *rid;
+
+		if (!pipe) {
+			/* more actions after a non-pipe action */
+			NL_SET_ERR_MSG_MOD(extack, "Action follows non-pipe action");
+			return -EINVAL;
+		}
+		switch (fa->id) {
+		case FLOW_ACTION_GOTO:
+			if (!fa->chain_index) {
+				NL_SET_ERR_MSG_MOD(extack, "Can't goto chain 0, no looping in hw");
+				return -EOPNOTSUPP;
+			}
+			rid = efx_tc_get_recirc_id(efx, fa->chain_index,
+						   net_dev);
+			if (IS_ERR(rid)) {
+				NL_SET_ERR_MSG_MOD(extack, "Failed to allocate a hardware recirculation ID for this chain_index");
+				return PTR_ERR(rid);
+			}
+			act->rid = rid;
+			if (fa->hw_stats) {
+				struct efx_tc_counter_index *cnt;
+
+				if (!(fa->hw_stats & FLOW_ACTION_HW_STATS_DELAYED)) {
+					NL_SET_ERR_MSG_FMT_MOD(extack,
+							       "hw_stats_type %u not supported (only 'delayed')",
+							       fa->hw_stats);
+					return -EOPNOTSUPP;
+				}
+				cnt = efx_tc_flower_get_counter_index(efx, tc->cookie,
+								      EFX_TC_COUNTER_TYPE_OR);
+				if (IS_ERR(cnt)) {
+					NL_SET_ERR_MSG_MOD(extack, "Failed to obtain a counter");
+					return PTR_ERR(cnt);
+				}
+				WARN_ON(act->count); /* can't happen */
+				act->count = cnt;
+			}
+			pipe = false;
+			break;
+		case FLOW_ACTION_CT:
+			if (act->zone) {
+				NL_SET_ERR_MSG_MOD(extack, "Can't offload multiple ct actions");
+				return -EOPNOTSUPP;
+			}
+			if (fa->ct.action & (TCA_CT_ACT_COMMIT |
+					     TCA_CT_ACT_FORCE)) {
+				NL_SET_ERR_MSG_MOD(extack, "Can't offload ct commit/force");
+				return -EOPNOTSUPP;
+			}
+			if (fa->ct.action & TCA_CT_ACT_CLEAR) {
+				NL_SET_ERR_MSG_MOD(extack, "Can't clear ct in LHS rule");
+				return -EOPNOTSUPP;
+			}
+			if (fa->ct.action & (TCA_CT_ACT_NAT |
+					     TCA_CT_ACT_NAT_SRC |
+					     TCA_CT_ACT_NAT_DST)) {
+				NL_SET_ERR_MSG_MOD(extack, "Can't perform NAT in LHS rule - packet isn't conntracked yet");
+				return -EOPNOTSUPP;
+			}
+			if (fa->ct.action) {
+				NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled ct.action %u for LHS rule\n",
+						       fa->ct.action);
+				return -EOPNOTSUPP;
+			}
+			ct_zone = efx_tc_ct_register_zone(efx, fa->ct.zone,
+							  fa->ct.flow_table);
+			if (IS_ERR(ct_zone)) {
+				NL_SET_ERR_MSG_MOD(extack, "Failed to register for CT updates");
+				return PTR_ERR(ct_zone);
+			}
+			act->zone = ct_zone;
+			break;
+		default:
+			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u for LHS rule\n",
+					       fa->id);
+			return -EOPNOTSUPP;
+		}
+	}
+
+	if (pipe) {
+		NL_SET_ERR_MSG_MOD(extack, "Missing goto chain in LHS rule");
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static void efx_tc_flower_release_lhs_actions(struct efx_nic *efx,
+					      struct efx_tc_lhs_action *act)
+{
+	if (act->rid)
+		efx_tc_put_recirc_id(efx, act->rid);
+	if (act->zone)
+		efx_tc_ct_unregister_zone(efx, act->zone);
+	if (act->count)
+		efx_tc_flower_put_counter_index(efx, act->count);
+}
+
 static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 					 struct net_device *net_dev,
 					 struct flow_cls_offload *tc)
@@ -1050,6 +1214,78 @@ release:
 	return rc;
 }
 
+static int efx_tc_flower_replace_lhs(struct efx_nic *efx,
+				     struct flow_cls_offload *tc,
+				     struct flow_rule *fr,
+				     struct efx_tc_match *match,
+				     struct efx_rep *efv,
+				     struct net_device *net_dev)
+{
+	struct netlink_ext_ack *extack = tc->common.extack;
+	struct efx_tc_lhs_rule *rule, *old;
+	int rc;
+
+	if (tc->common.chain_index) {
+		NL_SET_ERR_MSG_MOD(extack, "LHS rule only allowed in chain 0");
+		return -EOPNOTSUPP;
+	}
+
+	if (match->mask.ct_state_trk && match->value.ct_state_trk) {
+		NL_SET_ERR_MSG_MOD(extack, "LHS rule can never match +trk");
+		return -EOPNOTSUPP;
+	}
+	/* LHS rules are always -trk, so we don't need to match on that */
+	match->mask.ct_state_trk = 0;
+	match->value.ct_state_trk = 0;
+
+	rc = efx_mae_match_check_caps_lhs(efx, &match->mask, extack);
+	if (rc)
+		return rc;
+
+	rule = kzalloc(sizeof(*rule), GFP_USER);
+	if (!rule)
+		return -ENOMEM;
+	rule->cookie = tc->cookie;
+	old = rhashtable_lookup_get_insert_fast(&efx->tc->lhs_rule_ht,
+						&rule->linkage,
+						efx_tc_lhs_rule_ht_params);
+	if (old) {
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Already offloaded rule (cookie %lx)\n", tc->cookie);
+		rc = -EEXIST;
+		NL_SET_ERR_MSG_MOD(extack, "Rule already offloaded");
+		goto release;
+	}
+
+	/* Parse actions */
+	/* See note in efx_tc_flower_replace() regarding passed net_dev
+	 * (used for efx_tc_get_recirc_id()).
+	 */
+	rc = efx_tc_flower_handle_lhs_actions(efx, tc, fr, efx->net_dev, rule);
+	if (rc)
+		goto release;
+
+	rule->match = *match;
+
+	rc = efx_mae_insert_lhs_rule(efx, rule, EFX_TC_PRIO_TC);
+	if (rc) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to insert rule in hw");
+		goto release;
+	}
+	netif_dbg(efx, drv, efx->net_dev,
+		  "Successfully parsed lhs rule (cookie %lx)\n",
+		  tc->cookie);
+	return 0;
+
+release:
+	efx_tc_flower_release_lhs_actions(efx, &rule->lhs_act);
+	if (!old)
+		rhashtable_remove_fast(&efx->tc->lhs_rule_ht, &rule->linkage,
+				       efx_tc_lhs_rule_ht_params);
+	kfree(rule);
+	return rc;
+}
+
 static int efx_tc_flower_replace(struct efx_nic *efx,
 				 struct net_device *net_dev,
 				 struct flow_cls_offload *tc,
@@ -1104,6 +1340,10 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		NL_SET_ERR_MSG_MOD(extack, "Ingress enc_key matches not supported");
 		return -EOPNOTSUPP;
 	}
+
+	if (efx_tc_rule_is_lhs_rule(fr, &match))
+		return efx_tc_flower_replace_lhs(efx, tc, fr, &match, efv,
+						 net_dev);
 
 	/* chain_index 0 is always recirc_id 0 (and does not appear in recirc_ht).
 	 * Conveniently, match.rid == NULL and match.value.recirc_id == 0 owing
@@ -1512,7 +1752,25 @@ static int efx_tc_flower_destroy(struct efx_nic *efx,
 				 struct flow_cls_offload *tc)
 {
 	struct netlink_ext_ack *extack = tc->common.extack;
+	struct efx_tc_lhs_rule *lhs_rule;
 	struct efx_tc_flow_rule *rule;
+
+	lhs_rule = rhashtable_lookup_fast(&efx->tc->lhs_rule_ht, &tc->cookie,
+					  efx_tc_lhs_rule_ht_params);
+	if (lhs_rule) {
+		/* Remove it from HW */
+		efx_mae_remove_lhs_rule(efx, lhs_rule);
+		/* Delete it from SW */
+		efx_tc_flower_release_lhs_actions(efx, &lhs_rule->lhs_act);
+		rhashtable_remove_fast(&efx->tc->lhs_rule_ht, &lhs_rule->linkage,
+				       efx_tc_lhs_rule_ht_params);
+		if (lhs_rule->match.encap)
+			efx_tc_flower_release_encap_match(efx, lhs_rule->match.encap);
+		netif_dbg(efx, drv, efx->net_dev, "Removed (lhs) filter %lx\n",
+			  lhs_rule->cookie);
+		kfree(lhs_rule);
+		return 0;
+	}
 
 	rule = rhashtable_lookup_fast(&efx->tc->match_action_ht, &tc->cookie,
 				      efx_tc_match_action_ht_params);
@@ -1880,6 +2138,24 @@ static void efx_tc_recirc_free(void *ptr, void *arg)
 	kfree(rid);
 }
 
+static void efx_tc_lhs_free(void *ptr, void *arg)
+{
+	struct efx_tc_lhs_rule *rule = ptr;
+	struct efx_nic *efx = arg;
+
+	netif_err(efx, drv, efx->net_dev,
+		  "tc lhs_rule %lx still present at teardown, removing\n",
+		  rule->cookie);
+
+	if (rule->lhs_act.zone)
+		efx_tc_ct_unregister_zone(efx, rule->lhs_act.zone);
+	if (rule->lhs_act.count)
+		efx_tc_flower_put_counter_index(efx, rule->lhs_act.count);
+	efx_mae_remove_lhs_rule(efx, rule);
+
+	kfree(rule);
+}
+
 static void efx_tc_flow_free(void *ptr, void *arg)
 {
 	struct efx_tc_flow_rule *rule = ptr;
@@ -1926,6 +2202,9 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	rc = rhashtable_init(&efx->tc->match_action_ht, &efx_tc_match_action_ht_params);
 	if (rc < 0)
 		goto fail_match_action_ht;
+	rc = rhashtable_init(&efx->tc->lhs_rule_ht, &efx_tc_lhs_rule_ht_params);
+	if (rc < 0)
+		goto fail_lhs_rule_ht;
 	rc = efx_tc_init_conntrack(efx);
 	if (rc < 0)
 		goto fail_conntrack;
@@ -1948,6 +2227,8 @@ int efx_init_struct_tc(struct efx_nic *efx)
 fail_recirc_ht:
 	efx_tc_destroy_conntrack(efx);
 fail_conntrack:
+	rhashtable_destroy(&efx->tc->lhs_rule_ht);
+fail_lhs_rule_ht:
 	rhashtable_destroy(&efx->tc->match_action_ht);
 fail_match_action_ht:
 	rhashtable_destroy(&efx->tc->encap_match_ht);
@@ -1978,6 +2259,7 @@ void efx_fini_struct_tc(struct efx_nic *efx)
 			     MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
 	EFX_WARN_ON_PARANOID(efx->tc->facts.reps.fw_id !=
 			     MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
+	rhashtable_free_and_destroy(&efx->tc->lhs_rule_ht, efx_tc_lhs_free, efx);
 	rhashtable_free_and_destroy(&efx->tc->match_action_ht, efx_tc_flow_free,
 				    efx);
 	rhashtable_free_and_destroy(&efx->tc->encap_match_ht,
