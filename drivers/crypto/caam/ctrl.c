@@ -841,7 +841,7 @@ static int caam_ctrl_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(caam_ctrl_pm_ops, caam_ctrl_suspend, caam_ctrl_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(caam_ctrl_pm_ops, caam_ctrl_suspend, caam_ctrl_resume);
 
 /* Probe routine for CAAM top (controller) level */
 static int caam_probe(struct platform_device *pdev)
@@ -1138,7 +1138,7 @@ static struct platform_driver caam_driver = {
 	.driver = {
 		.name = "caam",
 		.of_match_table = caam_match,
-		.pm = &caam_ctrl_pm_ops,
+		.pm = pm_ptr(&caam_ctrl_pm_ops),
 	},
 	.probe       = caam_probe,
 };

@@ -794,7 +794,7 @@ add_jr:
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(caam_jr_pm_ops, caam_jr_suspend, caam_jr_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(caam_jr_pm_ops, caam_jr_suspend, caam_jr_resume);
 
 static const struct of_device_id caam_jr_match[] = {
 	{
@@ -811,7 +811,7 @@ static struct platform_driver caam_jr_driver = {
 	.driver = {
 		.name = "caam_jr",
 		.of_match_table = caam_jr_match,
-		.pm = &caam_jr_pm_ops,
+		.pm = pm_ptr(&caam_jr_pm_ops),
 	},
 	.probe       = caam_jr_probe,
 	.remove      = caam_jr_remove,
