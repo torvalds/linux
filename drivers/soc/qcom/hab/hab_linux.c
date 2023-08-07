@@ -328,6 +328,8 @@ static int __init hab_init(void)
 	int result;
 	dev_t dev;
 
+	pr_info("starts\n");
+
 	result = alloc_chrdev_region(&hab_driver.major, 0, 1, "hab");
 
 	if (result < 0) {
@@ -372,31 +374,36 @@ static int __init hab_init(void)
 	/* read in hab config, then configure pchans */
 	result = do_hab_parse();
 
-	if (!result) {
-		hab_driver.kctx = hab_ctx_alloc(1);
-		if (!hab_driver.kctx) {
-			pr_err("hab_ctx_alloc failed\n");
-			result = -ENOMEM;
-			hab_hypervisor_unregister();
-			goto err;
-		} else {
-			/* First, try to configure system dma_ops */
-			result = dma_coerce_mask_and_coherent(
-					hab_driver.dev,
-					DMA_BIT_MASK(64));
+	if (result)
+		goto err;
 
-			/* System dma_ops failed, fallback to dma_ops of hab */
-			if (result) {
-				pr_warn("config system dma_ops failed %d, fallback to hab\n",
-						result);
-				hab_driver.dev->bus = NULL;
-				set_dma_ops(hab_driver.dev, &hab_dma_ops);
-			}
-		}
+	hab_driver.kctx = hab_ctx_alloc(1);
+	if (!hab_driver.kctx) {
+		pr_err("hab_ctx_alloc failed\n");
+		result = -ENOMEM;
+		hab_hypervisor_unregister();
+		goto err;
+	}
+	/* First, try to configure system dma_ops */
+	result = dma_coerce_mask_and_coherent(
+			hab_driver.dev,
+			DMA_BIT_MASK(64));
+
+	/* System dma_ops failed, fallback to dma_ops of hab */
+	if (result) {
+		pr_warn("config system dma_ops failed %d, fallback to hab\n",
+				result);
+		hab_driver.dev->bus = NULL;
+		set_dma_ops(hab_driver.dev, &hab_dma_ops);
 	}
 	hab_hypervisor_register_post();
 	hab_stat_init(&hab_driver);
-	return result;
+
+	WRITE_ONCE(hab_driver.hab_init_success, 1);
+
+	pr_info("succeeds\n");
+
+	return 0;
 
 err:
 	if (!IS_ERR_OR_NULL(hab_driver.dev))

@@ -338,6 +338,8 @@ struct hab_driver {
 	void *hyp_priv; /* hypervisor plug-in storage */
 
 	void *hab_vmm_handle;
+
+	int hab_init_success;
 };
 
 struct virtual_channel {
