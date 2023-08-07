@@ -87,7 +87,7 @@ xchg16(__volatile__ unsigned short *m, unsigned short val)
 	return (load32 & mask) >> bit_shift;
 }
 
-static inline unsigned long
+static __always_inline unsigned long
 __arch_xchg(unsigned long x, __volatile__ void * ptr, int size)
 {
 	switch (size) {

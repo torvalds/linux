@@ -6,6 +6,7 @@
 #include <linux/acpi.h>
 #include <linux/bitfield.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <net/rtnetlink.h>
 
 #include "iosm_ipc_imem.h"
@@ -437,7 +438,8 @@ static int __maybe_unused ipc_pcie_resume_cb(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(iosm_ipc_pm, ipc_pcie_suspend_cb, ipc_pcie_resume_cb);
+static DEFINE_RUNTIME_DEV_PM_OPS(iosm_ipc_pm, ipc_pcie_suspend_cb,
+				 ipc_pcie_resume_cb, NULL);
 
 static struct pci_driver iosm_ipc_driver = {
 	.name = KBUILD_MODNAME,

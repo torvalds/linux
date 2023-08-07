@@ -467,10 +467,6 @@ ap_i2c_tpm: &i2c14 {
 	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000>;
 };
 
-&mdss_mdp {
-	status = "okay";
-};
-
 /* NVMe drive, enabled on a per-board basis */
 &pcie1 {
 	pinctrl-names = "default";

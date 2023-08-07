@@ -183,9 +183,7 @@ ivpu_ipc_send(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons, struct v
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	int ret;
 
-	ret = mutex_lock_interruptible(&ipc->lock);
-	if (ret)
-		return ret;
+	mutex_lock(&ipc->lock);
 
 	if (!ipc->on) {
 		ret = -EAGAIN;

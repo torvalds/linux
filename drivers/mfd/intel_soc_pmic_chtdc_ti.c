@@ -172,7 +172,7 @@ static struct i2c_driver chtdc_ti_i2c_driver = {
 		.pm = pm_sleep_ptr(&chtdc_ti_pm_ops),
 		.acpi_match_table = chtdc_ti_acpi_ids,
 	},
-	.probe_new = chtdc_ti_probe,
+	.probe = chtdc_ti_probe,
 	.shutdown = chtdc_ti_shutdown,
 };
 module_i2c_driver(chtdc_ti_i2c_driver);

@@ -618,3 +618,27 @@ out:
 	fclose(f);
 	return rc;
 }
+
+struct sigaction push_signal_handler(int sig, void (*fn)(int, siginfo_t *, void *))
+{
+	struct sigaction sa;
+	struct sigaction old_handler;
+
+	sa.sa_sigaction = fn;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_SIGINFO;
+	FAIL_IF_EXIT_MSG(sigaction(sig, &sa, &old_handler),
+			 "failed to push signal handler");
+
+	return old_handler;
+}
+
+struct sigaction pop_signal_handler(int sig, struct sigaction old_handler)
+{
+	struct sigaction popped;
+
+	FAIL_IF_EXIT_MSG(sigaction(sig, &old_handler, &popped),
+			 "failed to pop signal handler");
+
+	return popped;
+}

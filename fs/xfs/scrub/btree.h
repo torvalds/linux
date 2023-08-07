@@ -60,7 +60,7 @@ struct xchk_btree {
 static inline size_t
 xchk_btree_sizeof(unsigned int nlevels)
 {
-	return struct_size((struct xchk_btree *)NULL, lastkey, nlevels - 1);
+	return struct_size_t(struct xchk_btree, lastkey, nlevels - 1);
 }
 
 int xchk_btree(struct xfs_scrub *sc, struct xfs_btree_cur *cur,

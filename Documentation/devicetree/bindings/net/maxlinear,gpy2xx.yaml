@@ -17,11 +17,12 @@ properties:
   maxlinear,use-broken-interrupts:
     description: |
       Interrupts are broken on some GPY2xx PHYs in that they keep the
-      interrupt line asserted even after the interrupt status register is
-      cleared. Thus it is blocking the interrupt line which is usually bad
-      for shared lines. By default interrupts are disabled for this PHY and
-      polling mode is used. If one can live with the consequences, this
-      property can be used to enable interrupt handling.
+      interrupt line asserted for a random amount of time even after the
+      interrupt status register is cleared. Thus it is blocking the
+      interrupt line which is usually bad for shared lines. By default,
+      interrupts are disabled for this PHY and polling mode is used. If one
+      can live with the consequences, this property can be used to enable
+      interrupt handling.
 
       Affected PHYs (as far as known) are GPY215B and GPY215C.
     type: boolean

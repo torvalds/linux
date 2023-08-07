@@ -487,7 +487,7 @@ static struct i2c_driver rt6190_driver = {
 		.of_match_table = rt6190_of_dev_table,
 		.pm = pm_ptr(&rt6190_dev_pm),
 	},
-	.probe_new = rt6190_probe,
+	.probe = rt6190_probe,
 };
 module_i2c_driver(rt6190_driver);
 

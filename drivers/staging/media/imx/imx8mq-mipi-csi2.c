@@ -354,7 +354,7 @@ static int imx8mq_mipi_csi_start_stream(struct csi_state *state,
 					struct v4l2_subdev_state *sd_state)
 {
 	int ret;
-	u32 hs_settle;
+	u32 hs_settle = 0;
 
 	ret = imx8mq_mipi_csi_sw_reset(state);
 	if (ret)

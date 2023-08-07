@@ -3,5 +3,7 @@ Date:		September 2022
 KernelVersion:	6.1
 Contact:	Armin Wolf <W_Armin@gmx.de>
 Description:
-		Reports the Dell ePPID (electronic Dell Piece Part Identification)
+		Reports the Dell ePPID (electronic Piece Part Identification)
 		of the ACPI battery.
+
+		See Documentation/wmi/devices/dell-wmi-ddv.rst for details.

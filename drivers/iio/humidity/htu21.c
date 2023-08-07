@@ -244,7 +244,7 @@ static const struct of_device_id htu21_of_match[] = {
 MODULE_DEVICE_TABLE(of, htu21_of_match);
 
 static struct i2c_driver htu21_driver = {
-	.probe_new = htu21_probe,
+	.probe = htu21_probe,
 	.id_table = htu21_id,
 	.driver = {
 		   .name = "htu21",

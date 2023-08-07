@@ -623,7 +623,7 @@ static struct i2c_driver mt6360_driver = {
 		.pm = &mt6360_pm_ops,
 		.of_match_table = of_match_ptr(mt6360_of_id),
 	},
-	.probe_new = mt6360_probe,
+	.probe = mt6360_probe,
 };
 module_i2c_driver(mt6360_driver);
 

@@ -191,11 +191,10 @@ static size_t setup_test_cache(struct kunit *test, size_t size, slab_flags_t fla
 	kunit_info(test, "%s: size=%zu, ctor=%ps\n", __func__, size, ctor);
 
 	/*
-	 * Use SLAB_NOLEAKTRACE to prevent merging with existing caches. Any
-	 * other flag in SLAB_NEVER_MERGE also works. Use SLAB_ACCOUNT to
-	 * allocate via memcg, if enabled.
+	 * Use SLAB_NO_MERGE to prevent merging with existing caches.
+	 * Use SLAB_ACCOUNT to allocate via memcg, if enabled.
 	 */
-	flags |= SLAB_NOLEAKTRACE | SLAB_ACCOUNT;
+	flags |= SLAB_NO_MERGE | SLAB_ACCOUNT;
 	test_cache = kmem_cache_create("test", size, 1, flags, ctor);
 	KUNIT_ASSERT_TRUE_MSG(test, test_cache, "could not create cache");
 

@@ -184,7 +184,7 @@ static int pic32mzda_clk_probe(struct platform_device *pdev)
 	clks[UPLLCLK] = clk_register_fixed_rate(&pdev->dev, "usbphy_clk", NULL,
 						0, 24000000);
 	/* fixed rate (optional) clock */
-	if (of_find_property(np, "microchip,pic32mzda-sosc", NULL)) {
+	if (of_property_read_bool(np, "microchip,pic32mzda-sosc")) {
 		pr_info("pic32-clk: dt requests SOSC.\n");
 		clks[SOSCCLK] = pic32_sosc_clk_register(&sosc_clk, core);
 	}

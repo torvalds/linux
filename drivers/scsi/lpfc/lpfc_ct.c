@@ -287,7 +287,7 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 	u32 ulp_status = get_job_ulpstatus(phba, ctiocbq);
 	u32 ulp_word4 = get_job_word4(phba, ctiocbq);
 	u32 did;
-	u32 mi_cmd;
+	u16 mi_cmd;
 
 	did = bf_get(els_rsp64_sid, &ctiocbq->wqe.xmit_els_rsp);
 	if (ulp_status) {
@@ -311,7 +311,7 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 
 	ct_req = (struct lpfc_sli_ct_request *)ctiocbq->cmd_dmabuf->virt;
 
-	mi_cmd = ct_req->CommandResponse.bits.CmdRsp;
+	mi_cmd = be16_to_cpu(ct_req->CommandResponse.bits.CmdRsp);
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "6442 : MI Cmd : x%x Not Supported\n", mi_cmd);
 	lpfc_ct_reject_event(ndlp, ct_req,
@@ -486,7 +486,7 @@ lpfc_free_ct_rsp(struct lpfc_hba *phba, struct lpfc_dmabuf *mlist)
 }
 
 static struct lpfc_dmabuf *
-lpfc_alloc_ct_rsp(struct lpfc_hba *phba, int cmdcode, struct ulp_bde64 *bpl,
+lpfc_alloc_ct_rsp(struct lpfc_hba *phba, __be16 cmdcode, struct ulp_bde64 *bpl,
 		  uint32_t size, int *entries)
 {
 	struct lpfc_dmabuf *mlist = NULL;
@@ -507,8 +507,8 @@ lpfc_alloc_ct_rsp(struct lpfc_hba *phba, int cmdcode, struct ulp_bde64 *bpl,
 
 		INIT_LIST_HEAD(&mp->list);
 
-		if (cmdcode == be16_to_cpu(SLI_CTNS_GID_FT) ||
-		    cmdcode == be16_to_cpu(SLI_CTNS_GFF_ID))
+		if (be16_to_cpu(cmdcode) == SLI_CTNS_GID_FT ||
+		    be16_to_cpu(cmdcode) == SLI_CTNS_GFF_ID)
 			mp->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &(mp->phys));
 		else
 			mp->virt = lpfc_mbuf_alloc(phba, 0, &(mp->phys));
@@ -671,7 +671,7 @@ lpfc_ct_cmd(struct lpfc_vport *vport, struct lpfc_dmabuf *inmp,
 	struct ulp_bde64 *bpl = (struct ulp_bde64 *) bmp->virt;
 	struct lpfc_dmabuf *outmp;
 	int cnt = 0, status;
-	int cmdcode = ((struct lpfc_sli_ct_request *) inmp->virt)->
+	__be16 cmdcode = ((struct lpfc_sli_ct_request *)inmp->virt)->
 		CommandResponse.bits.CmdRsp;
 
 	bpl++;			/* Skip past ct request */
@@ -1043,8 +1043,8 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				    outp,
 				    CTreq->un.gid.Fc4Type,
 				    get_job_data_placed(phba, rspiocb));
-		} else if (CTrsp->CommandResponse.bits.CmdRsp ==
-			   be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
+		} else if (be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp) ==
+			   SLI_CT_RESPONSE_FS_RJT) {
 			/* NameServer Rsp Error */
 			if ((CTrsp->ReasonCode == SLI_CT_UNABLE_TO_PERFORM_REQ)
 			    && (CTrsp->Explanation == SLI_CT_NO_FC4_TYPES)) {
@@ -1052,14 +1052,14 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					LOG_DISCOVERY,
 					"0269 No NameServer Entries "
 					"Data: x%x x%x x%x x%x\n",
-					CTrsp->CommandResponse.bits.CmdRsp,
+					be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 					(uint32_t) CTrsp->ReasonCode,
 					(uint32_t) CTrsp->Explanation,
 					vport->fc_flag);
 
 				lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"GID_FT no entry  cmd:x%x rsn:x%x exp:x%x",
-				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
+				be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 				(uint32_t) CTrsp->ReasonCode,
 				(uint32_t) CTrsp->Explanation);
 			} else {
@@ -1067,14 +1067,14 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					LOG_DISCOVERY,
 					"0240 NameServer Rsp Error "
 					"Data: x%x x%x x%x x%x\n",
-					CTrsp->CommandResponse.bits.CmdRsp,
+					be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 					(uint32_t) CTrsp->ReasonCode,
 					(uint32_t) CTrsp->Explanation,
 					vport->fc_flag);
 
 				lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"GID_FT rsp err1  cmd:x%x rsn:x%x exp:x%x",
-				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
+				be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 				(uint32_t) CTrsp->ReasonCode,
 				(uint32_t) CTrsp->Explanation);
 			}
@@ -1085,14 +1085,14 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					"0241 NameServer Rsp Error "
 					"Data: x%x x%x x%x x%x\n",
-					CTrsp->CommandResponse.bits.CmdRsp,
+					be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 					(uint32_t) CTrsp->ReasonCode,
 					(uint32_t) CTrsp->Explanation,
 					vport->fc_flag);
 
 			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"GID_FT rsp err2  cmd:x%x rsn:x%x exp:x%x",
-				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
+				be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 				(uint32_t) CTrsp->ReasonCode,
 				(uint32_t) CTrsp->Explanation);
 		}
@@ -1247,8 +1247,8 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		/* Good status, continue checking */
 		CTreq = (struct lpfc_sli_ct_request *)inp->virt;
 		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
-		if (CTrsp->CommandResponse.bits.CmdRsp ==
-		    cpu_to_be16(SLI_CT_RESPONSE_FS_ACC)) {
+		if (be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp) ==
+		    SLI_CT_RESPONSE_FS_ACC) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "4105 NameServer Rsp Data: x%x x%x "
 					 "x%x x%x sz x%x\n",
@@ -1262,8 +1262,8 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				    outp,
 				    CTreq->un.gid.Fc4Type,
 				    get_job_data_placed(phba, rspiocb));
-		} else if (CTrsp->CommandResponse.bits.CmdRsp ==
-			   be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
+		} else if (be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp) ==
+			   SLI_CT_RESPONSE_FS_RJT) {
 			/* NameServer Rsp Error */
 			if ((CTrsp->ReasonCode == SLI_CT_UNABLE_TO_PERFORM_REQ)
 			    && (CTrsp->Explanation == SLI_CT_NO_FC4_TYPES)) {
@@ -1271,7 +1271,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					vport, KERN_INFO, LOG_DISCOVERY,
 					"4106 No NameServer Entries "
 					"Data: x%x x%x x%x x%x\n",
-					CTrsp->CommandResponse.bits.CmdRsp,
+					be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 					(uint32_t)CTrsp->ReasonCode,
 					(uint32_t)CTrsp->Explanation,
 					vport->fc_flag);
@@ -1279,7 +1279,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				lpfc_debugfs_disc_trc(
 				vport, LPFC_DISC_TRC_CT,
 				"GID_PT no entry  cmd:x%x rsn:x%x exp:x%x",
-				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
+				be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 				(uint32_t)CTrsp->ReasonCode,
 				(uint32_t)CTrsp->Explanation);
 			} else {
@@ -1287,7 +1287,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					vport, KERN_INFO, LOG_DISCOVERY,
 					"4107 NameServer Rsp Error "
 					"Data: x%x x%x x%x x%x\n",
-					CTrsp->CommandResponse.bits.CmdRsp,
+					be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 					(uint32_t)CTrsp->ReasonCode,
 					(uint32_t)CTrsp->Explanation,
 					vport->fc_flag);
@@ -1295,7 +1295,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				lpfc_debugfs_disc_trc(
 				vport, LPFC_DISC_TRC_CT,
 				"GID_PT rsp err1  cmd:x%x rsn:x%x exp:x%x",
-				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
+				be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 				(uint32_t)CTrsp->ReasonCode,
 				(uint32_t)CTrsp->Explanation);
 			}
@@ -1304,7 +1304,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "4109 NameServer Rsp Error "
 					 "Data: x%x x%x x%x x%x\n",
-					 CTrsp->CommandResponse.bits.CmdRsp,
+					 be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 					 (uint32_t)CTrsp->ReasonCode,
 					 (uint32_t)CTrsp->Explanation,
 					 vport->fc_flag);
@@ -1312,7 +1312,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_debugfs_disc_trc(
 				vport, LPFC_DISC_TRC_CT,
 				"GID_PT rsp err2  cmd:x%x rsn:x%x exp:x%x",
-				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
+				be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 				(uint32_t)CTrsp->ReasonCode,
 				(uint32_t)CTrsp->Explanation);
 		}
@@ -1391,8 +1391,8 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 (fbits & FC4_FEATURE_INIT) ? "Initiator" : " ",
 				 (fbits & FC4_FEATURE_TARGET) ? "Target" : " ");
 
-		if (CTrsp->CommandResponse.bits.CmdRsp ==
-		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC)) {
+		if (be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp) ==
+		    SLI_CT_RESPONSE_FS_ACC) {
 			if ((fbits & FC4_FEATURE_INIT) &&
 			    !(fbits & FC4_FEATURE_TARGET)) {
 				lpfc_printf_vlog(vport, KERN_INFO,
@@ -1631,7 +1631,7 @@ lpfc_cmpl_ct(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 "0209 CT Request completes, latt %d, "
 			 "ulp_status x%x CmdRsp x%x, Context x%x, Tag x%x\n",
 			 latt, ulp_status,
-			 CTrsp->CommandResponse.bits.CmdRsp,
+			 be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp),
 			 get_job_ulpcontext(phba, cmdiocb), cmdiocb->iotag);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
@@ -1681,8 +1681,8 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		outp = cmdiocb->rsp_dmabuf;
 		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
-		if (CTrsp->CommandResponse.bits.CmdRsp ==
-		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
+		if (be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp) ==
+		    SLI_CT_RESPONSE_FS_ACC)
 			vport->ct_flags |= FC_CT_RFT_ID;
 	}
 	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
@@ -1702,8 +1702,8 @@ lpfc_cmpl_ct_cmd_rnn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		outp = cmdiocb->rsp_dmabuf;
 		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
-		if (CTrsp->CommandResponse.bits.CmdRsp ==
-		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
+		if (be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp) ==
+		    SLI_CT_RESPONSE_FS_ACC)
 			vport->ct_flags |= FC_CT_RNN_ID;
 	}
 	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
@@ -1723,8 +1723,8 @@ lpfc_cmpl_ct_cmd_rspn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		outp = cmdiocb->rsp_dmabuf;
 		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
-		if (CTrsp->CommandResponse.bits.CmdRsp ==
-		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
+		if (be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp) ==
+		    SLI_CT_RESPONSE_FS_ACC)
 			vport->ct_flags |= FC_CT_RSPN_ID;
 	}
 	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
@@ -1744,8 +1744,8 @@ lpfc_cmpl_ct_cmd_rsnn_nn(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		outp = cmdiocb->rsp_dmabuf;
 		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
-		if (CTrsp->CommandResponse.bits.CmdRsp ==
-		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
+		if (be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp) ==
+		    SLI_CT_RESPONSE_FS_ACC)
 			vport->ct_flags |= FC_CT_RSNN_NN;
 	}
 	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
@@ -1777,8 +1777,8 @@ lpfc_cmpl_ct_cmd_rff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		outp = cmdiocb->rsp_dmabuf;
 		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
-		if (CTrsp->CommandResponse.bits.CmdRsp ==
-		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
+		if (be16_to_cpu(CTrsp->CommandResponse.bits.CmdRsp) ==
+		    SLI_CT_RESPONSE_FS_ACC)
 			vport->ct_flags |= FC_CT_RFF_ID;
 	}
 	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
@@ -2217,8 +2217,8 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *outp = cmdiocb->rsp_dmabuf;
 	struct lpfc_sli_ct_request *CTcmd = inp->virt;
 	struct lpfc_sli_ct_request *CTrsp = outp->virt;
-	uint16_t fdmi_cmd = CTcmd->CommandResponse.bits.CmdRsp;
-	uint16_t fdmi_rsp = CTrsp->CommandResponse.bits.CmdRsp;
+	__be16 fdmi_cmd = CTcmd->CommandResponse.bits.CmdRsp;
+	__be16 fdmi_rsp = CTrsp->CommandResponse.bits.CmdRsp;
 	struct lpfc_nodelist *ndlp, *free_ndlp = NULL;
 	uint32_t latt, cmd, err;
 	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
@@ -2278,7 +2278,7 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* Check for a CT LS_RJT response */
 	cmd =  be16_to_cpu(fdmi_cmd);
-	if (fdmi_rsp == cpu_to_be16(SLI_CT_RESPONSE_FS_RJT)) {
+	if (be16_to_cpu(fdmi_rsp) == SLI_CT_RESPONSE_FS_RJT) {
 		/* FDMI rsp failed */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY | LOG_ELS,
 				 "0220 FDMI cmd failed FS_RJT Data: x%x", cmd);
@@ -3110,7 +3110,7 @@ lpfc_fdmi_vendor_attr_mi(struct lpfc_vport *vport, void *attr)
 }
 
 /* RHBA attribute jump table */
-int (*lpfc_fdmi_hba_action[])
+static int (*lpfc_fdmi_hba_action[])
 	(struct lpfc_vport *vport, void *attrbuf) = {
 	/* Action routine                 Mask bit     Attribute type */
 	lpfc_fdmi_hba_attr_wwnn,	  /* bit0     RHBA_NODENAME           */
@@ -3134,7 +3134,7 @@ int (*lpfc_fdmi_hba_action[])
 };
 
 /* RPA / RPRT attribute jump table */
-int (*lpfc_fdmi_port_action[])
+static int (*lpfc_fdmi_port_action[])
 	(struct lpfc_vport *vport, void *attrbuf) = {
 	/* Action routine                   Mask bit   Attribute type */
 	lpfc_fdmi_port_attr_fc4type,        /* bit0   RPRT_SUPPORT_FC4_TYPES  */
@@ -3570,7 +3570,7 @@ lpfc_cmpl_ct_cmd_vmid(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *outp = cmdiocb->rsp_dmabuf;
 	struct lpfc_sli_ct_request *ctcmd = inp->virt;
 	struct lpfc_sli_ct_request *ctrsp = outp->virt;
-	u16 rsp = ctrsp->CommandResponse.bits.CmdRsp;
+	__be16 rsp = ctrsp->CommandResponse.bits.CmdRsp;
 	struct app_id_object *app;
 	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
 	u32 cmd, hash, bucket;
@@ -3587,7 +3587,7 @@ lpfc_cmpl_ct_cmd_vmid(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			goto free_res;
 	}
 	/* Check for a CT LS_RJT response */
-	if (rsp == be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
+	if (be16_to_cpu(rsp) == SLI_CT_RESPONSE_FS_RJT) {
 		if (cmd != SLI_CTAS_DALLAPP_ID)
 			lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,
 					 "3306 VMID FS_RJT Data: x%x x%x x%x\n",
@@ -3748,7 +3748,7 @@ lpfc_vmid_cmd(struct lpfc_vport *vport,
 		rap->obj[0].entity_id_len = vmid->vmid_len;
 		memcpy(rap->obj[0].entity_id, vmid->host_vmid, vmid->vmid_len);
 		size = RAPP_IDENT_OFFSET +
-			sizeof(struct lpfc_vmid_rapp_ident_list);
+		       struct_size(rap, obj, be32_to_cpu(rap->no_of_objects));
 		retry = 1;
 		break;
 
@@ -3767,7 +3767,7 @@ lpfc_vmid_cmd(struct lpfc_vport *vport,
 		dap->obj[0].entity_id_len = vmid->vmid_len;
 		memcpy(dap->obj[0].entity_id, vmid->host_vmid, vmid->vmid_len);
 		size = DAPP_IDENT_OFFSET +
-			sizeof(struct lpfc_vmid_dapp_ident_list);
+		       struct_size(dap, obj, be32_to_cpu(dap->no_of_objects));
 		write_lock(&vport->vmid_lock);
 		vmid->flag &= ~LPFC_VMID_REGISTERED;
 		write_unlock(&vport->vmid_lock);

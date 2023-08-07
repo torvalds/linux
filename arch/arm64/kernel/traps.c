@@ -514,6 +514,63 @@ void do_el1_fpac(struct pt_regs *regs, unsigned long esr)
 	die("Oops - FPAC", regs, esr);
 }
 
+void do_el0_mops(struct pt_regs *regs, unsigned long esr)
+{
+	bool wrong_option = esr & ESR_ELx_MOPS_ISS_WRONG_OPTION;
+	bool option_a = esr & ESR_ELx_MOPS_ISS_OPTION_A;
+	int dstreg = ESR_ELx_MOPS_ISS_DESTREG(esr);
+	int srcreg = ESR_ELx_MOPS_ISS_SRCREG(esr);
+	int sizereg = ESR_ELx_MOPS_ISS_SIZEREG(esr);
+	unsigned long dst, src, size;
+
+	dst = pt_regs_read_reg(regs, dstreg);
+	src = pt_regs_read_reg(regs, srcreg);
+	size = pt_regs_read_reg(regs, sizereg);
+
+	/*
+	 * Put the registers back in the original format suitable for a
+	 * prologue instruction, using the generic return routine from the
+	 * Arm ARM (DDI 0487I.a) rules CNTMJ and MWFQH.
+	 */
+	if (esr & ESR_ELx_MOPS_ISS_MEM_INST) {
+		/* SET* instruction */
+		if (option_a ^ wrong_option) {
+			/* Format is from Option A; forward set */
+			pt_regs_write_reg(regs, dstreg, dst + size);
+			pt_regs_write_reg(regs, sizereg, -size);
+		}
+	} else {
+		/* CPY* instruction */
+		if (!(option_a ^ wrong_option)) {
+			/* Format is from Option B */
+			if (regs->pstate & PSR_N_BIT) {
+				/* Backward copy */
+				pt_regs_write_reg(regs, dstreg, dst - size);
+				pt_regs_write_reg(regs, srcreg, src - size);
+			}
+		} else {
+			/* Format is from Option A */
+			if (size & BIT(63)) {
+				/* Forward copy */
+				pt_regs_write_reg(regs, dstreg, dst + size);
+				pt_regs_write_reg(regs, srcreg, src + size);
+				pt_regs_write_reg(regs, sizereg, -size);
+			}
+		}
+	}
+
+	if (esr & ESR_ELx_MOPS_ISS_FROM_EPILOGUE)
+		regs->pc -= 8;
+	else
+		regs->pc -= 4;
+
+	/*
+	 * If single stepping then finish the step before executing the
+	 * prologue instruction.
+	 */
+	user_fastforward_single_step(current);
+}
+
 #define __user_cache_maint(insn, address, res)			\
 	if (address >= TASK_SIZE_MAX) {				\
 		res = -EFAULT;					\
@@ -824,6 +881,7 @@ static const char *esr_class_str[] = {
 	[ESR_ELx_EC_DABT_LOW]		= "DABT (lower EL)",
 	[ESR_ELx_EC_DABT_CUR]		= "DABT (current EL)",
 	[ESR_ELx_EC_SP_ALIGN]		= "SP Alignment",
+	[ESR_ELx_EC_MOPS]		= "MOPS",
 	[ESR_ELx_EC_FP_EXC32]		= "FP (AArch32)",
 	[ESR_ELx_EC_FP_EXC64]		= "FP (AArch64)",
 	[ESR_ELx_EC_SERROR]		= "SError",
@@ -947,7 +1005,7 @@ void do_serror(struct pt_regs *regs, unsigned long esr)
 }
 
 /* GENERIC_BUG traps */
-
+#ifdef CONFIG_GENERIC_BUG
 int is_valid_bugaddr(unsigned long addr)
 {
 	/*
@@ -959,6 +1017,7 @@ int is_valid_bugaddr(unsigned long addr)
 	 */
 	return 1;
 }
+#endif
 
 static int bug_handler(struct pt_regs *regs, unsigned long esr)
 {
@@ -1044,7 +1103,7 @@ static int kasan_handler(struct pt_regs *regs, unsigned long esr)
 	bool recover = esr & KASAN_ESR_RECOVER;
 	bool write = esr & KASAN_ESR_WRITE;
 	size_t size = KASAN_ESR_SIZE(esr);
-	u64 addr = regs->regs[0];
+	void *addr = (void *)regs->regs[0];
 	u64 pc = regs->pc;
 
 	kasan_report(addr, size, write, pc);

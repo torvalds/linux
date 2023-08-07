@@ -143,6 +143,7 @@ static inline int child_join(struct child *child, struct error *err)
 		r = -1;
 	}
 
+	ksft_print_msg("waitpid WEXITSTATUS=%d\n", r);
 	return r;
 }
 

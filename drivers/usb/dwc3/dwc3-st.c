@@ -305,7 +305,7 @@ undo_platform_dev_alloc:
 	return ret;
 }
 
-static int st_dwc3_remove(struct platform_device *pdev)
+static void st_dwc3_remove(struct platform_device *pdev)
 {
 	struct st_dwc3 *dwc3_data = platform_get_drvdata(pdev);
 
@@ -313,8 +313,6 @@ static int st_dwc3_remove(struct platform_device *pdev)
 
 	reset_control_assert(dwc3_data->rstc_pwrdn);
 	reset_control_assert(dwc3_data->rstc_rst);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -364,7 +362,7 @@ MODULE_DEVICE_TABLE(of, st_dwc3_match);
 
 static struct platform_driver st_dwc3_driver = {
 	.probe = st_dwc3_probe,
-	.remove = st_dwc3_remove,
+	.remove_new = st_dwc3_remove,
 	.driver = {
 		.name = "usb-st-dwc3",
 		.of_match_table = st_dwc3_match,

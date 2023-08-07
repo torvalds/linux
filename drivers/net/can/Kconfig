@@ -95,7 +95,7 @@ config CAN_AT91
 
 config CAN_BXCAN
 	tristate "STM32 Basic Extended CAN (bxCAN) devices"
-	depends on OF || ARCH_STM32 || COMPILE_TEST
+	depends on ARCH_STM32 || COMPILE_TEST
 	depends on HAS_IOMEM
 	select CAN_RX_OFFLOAD
 	help
@@ -153,8 +153,7 @@ config CAN_JANZ_ICAN3
 config CAN_KVASER_PCIEFD
 	depends on PCI
 	tristate "Kvaser PCIe FD cards"
-	select CRC32
-	  help
+	help
 	  This is a driver for the Kvaser PCI Express CAN FD family.
 
 	  Supported devices:

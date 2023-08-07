@@ -68,7 +68,7 @@ static struct i2c_driver cs35l56_i2c_driver = {
 		.pm = &cs35l56_pm_ops_i2c_spi,
 	},
 	.id_table	= cs35l56_id_i2c,
-	.probe_new	= cs35l56_i2c_probe,
+	.probe		= cs35l56_i2c_probe,
 	.remove		= cs35l56_i2c_remove,
 };
 

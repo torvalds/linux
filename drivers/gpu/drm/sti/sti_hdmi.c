@@ -1472,7 +1472,7 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int sti_hdmi_remove(struct platform_device *pdev)
+static void sti_hdmi_remove(struct platform_device *pdev)
 {
 	struct sti_hdmi *hdmi = dev_get_drvdata(&pdev->dev);
 
@@ -1480,8 +1480,6 @@ static int sti_hdmi_remove(struct platform_device *pdev)
 	if (hdmi->audio_pdev)
 		platform_device_unregister(hdmi->audio_pdev);
 	component_del(&pdev->dev, &sti_hdmi_ops);
-
-	return 0;
 }
 
 struct platform_driver sti_hdmi_driver = {
@@ -1491,7 +1489,7 @@ struct platform_driver sti_hdmi_driver = {
 		.of_match_table = hdmi_of_match,
 	},
 	.probe = sti_hdmi_probe,
-	.remove = sti_hdmi_remove,
+	.remove_new = sti_hdmi_remove,
 };
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");

@@ -4,7 +4,7 @@
 #
 
 config UNIX
-	tristate "Unix domain sockets"
+	bool "Unix domain sockets"
 	help
 	  If you say Y here, you will include support for Unix domain sockets;
 	  sockets are the standard Unix mechanism for establishing and
@@ -13,10 +13,6 @@ config UNIX
 	  machine is not connected to any network.  Unless you are working on
 	  an embedded system or something similar, you therefore definitely
 	  want to say Y here.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called unix.  Note that several important services won't work
-	  correctly if you say M here and then neglect to load the module.
 
 	  Say Y unless you know what you are doing.
 

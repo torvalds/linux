@@ -147,8 +147,6 @@ static inline void init_proc_vtable(const struct processor *p)
 
 extern void cpu_resume(void);
 
-#include <asm/memory.h>
-
 #ifdef CONFIG_MMU
 
 #define cpu_switch_mm(pgd,mm) cpu_do_switch_mm(virt_to_phys(pgd),mm)

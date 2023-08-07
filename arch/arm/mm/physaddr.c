@@ -6,7 +6,7 @@
 #include <linux/mm.h>
 
 #include <asm/sections.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/fixmap.h>
 #include <asm/dma.h>
 

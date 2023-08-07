@@ -576,6 +576,26 @@ static void sfp_upstream_clear(struct sfp_bus *bus)
 }
 
 /**
+ * sfp_upstream_set_signal_rate() - set data signalling rate
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ * @rate_kbd: signalling rate in units of 1000 baud
+ *
+ * Configure the rate select settings on the SFP module for the signalling
+ * rate (not the same as the data rate).
+ *
+ * Locks that may be held:
+ *  Phylink's state_mutex
+ *  rtnl lock
+ *  SFP's sm_mutex
+ */
+void sfp_upstream_set_signal_rate(struct sfp_bus *bus, unsigned int rate_kbd)
+{
+	if (bus->registered)
+		bus->socket_ops->set_signal_rate(bus->sfp, rate_kbd);
+}
+EXPORT_SYMBOL_GPL(sfp_upstream_set_signal_rate);
+
+/**
  * sfp_bus_find_fwnode() - parse and locate the SFP bus from fwnode
  * @fwnode: firmware node for the parent device (MAC or PHY)
  *

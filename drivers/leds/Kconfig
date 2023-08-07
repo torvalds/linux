@@ -94,6 +94,19 @@ config LEDS_ARIEL
 
 	  Say Y to if your machine is a Dell Wyse 3020 thin client.
 
+config LEDS_AW200XX
+	tristate "LED support for Awinic AW20036/AW20054/AW20072"
+	depends on LEDS_CLASS
+	depends on I2C
+	help
+	  This option enables support for the AW20036/AW20054/AW20072 LED driver.
+	  It is a 3x12/6x9/6x12 matrix LED driver programmed via
+	  an I2C interface, up to 36/54/72 LEDs or 12/18/24 RGBs,
+	  3 pattern controllers for auto breathing or group dimming control.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-aw200xx.
+
 config LEDS_AW2013
 	tristate "LED support for Awinic AW2013"
 	depends on LEDS_CLASS && I2C && OF
@@ -121,6 +134,17 @@ config LEDS_BCM6358
 	help
 	  This option enables support for LEDs connected to the BCM6358
 	  LED HW controller accessed via MMIO registers.
+
+config LEDS_CHT_WCOVE
+	tristate "LED support for Intel Cherry Trail Whiskey Cove PMIC"
+	depends on LEDS_CLASS
+	depends on INTEL_SOC_PMIC_CHTWC
+	help
+	  This option enables support for charger and general purpose LEDs
+	  connected to the Intel Cherrytrail Whiskey Cove PMIC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-cht-wcove.
 
 config LEDS_CPCAP
 	tristate "LED Support for Motorola CPCAP"
@@ -676,7 +700,7 @@ config LEDS_LM355x
 
 config LEDS_OT200
 	tristate "LED support for the Bachmann OT200"
-	depends on LEDS_CLASS && HAS_IOMEM && (X86_32 || COMPILE_TEST)
+	depends on LEDS_CLASS && HAS_IOPORT && (X86_32 || COMPILE_TEST)
 	help
 	  This option enables support for the LEDs on the Bachmann OT200.
 	  Say Y to enable LEDs on the Bachmann OT200.
@@ -807,8 +831,7 @@ config LEDS_SPI_BYTE
 	  supported: Ubiquiti airCube ISP microcontroller based LED controller.
 
 config LEDS_TI_LMU_COMMON
-	tristate "LED driver for TI LMU"
-	depends on LEDS_CLASS
+	tristate "LED driver for TI LMU" if COMPILE_TEST
 	select REGMAP
 	help
 	  Say Y to enable the LED driver for TI LMU devices.
@@ -817,16 +840,16 @@ config LEDS_TI_LMU_COMMON
 
 config LEDS_LM3697
 	tristate "LED driver for LM3697"
-	depends on LEDS_TI_LMU_COMMON
-	depends on I2C && OF
+	depends on LEDS_CLASS && I2C && OF
+	select LEDS_TI_LMU_COMMON
 	help
 	  Say Y to enable the LM3697 LED driver for TI LMU devices.
 	  This supports the LED device LM3697.
 
 config LEDS_LM36274
 	tristate "LED driver for LM36274"
-	depends on LEDS_TI_LMU_COMMON
-	depends on MFD_TI_LMU
+	depends on LEDS_CLASS && MFD_TI_LMU
+	select LEDS_TI_LMU_COMMON
 	help
 	  Say Y to enable the LM36274 LED driver for TI LMU devices.
 	  This supports the LED device LM36274.

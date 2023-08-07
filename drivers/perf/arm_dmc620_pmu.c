@@ -227,9 +227,31 @@ static const struct attribute_group dmc620_pmu_format_attr_group = {
 	.attrs	= dmc620_pmu_formats_attrs,
 };
 
+static ssize_t dmc620_pmu_cpumask_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct dmc620_pmu *dmc620_pmu = to_dmc620_pmu(dev_get_drvdata(dev));
+
+	return cpumap_print_to_pagebuf(true, buf,
+				       cpumask_of(dmc620_pmu->irq->cpu));
+}
+
+static struct device_attribute dmc620_pmu_cpumask_attr =
+	__ATTR(cpumask, 0444, dmc620_pmu_cpumask_show, NULL);
+
+static struct attribute *dmc620_pmu_cpumask_attrs[] = {
+	&dmc620_pmu_cpumask_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group dmc620_pmu_cpumask_attr_group = {
+	.attrs = dmc620_pmu_cpumask_attrs,
+};
+
 static const struct attribute_group *dmc620_pmu_attr_groups[] = {
 	&dmc620_pmu_events_attr_group,
 	&dmc620_pmu_format_attr_group,
+	&dmc620_pmu_cpumask_attr_group,
 	NULL,
 };
 

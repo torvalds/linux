@@ -690,8 +690,7 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	info->fbops = &gxt4500_ops;
-	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_HWACCEL_XPAN |
-					    FBINFO_HWACCEL_YPAN;
+	info->flags = FBINFO_HWACCEL_XPAN | FBINFO_HWACCEL_YPAN;
 
 	err = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (err) {

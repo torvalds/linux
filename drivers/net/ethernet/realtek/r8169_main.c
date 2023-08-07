@@ -616,10 +616,10 @@ struct rtl8169_private {
 		struct work_struct work;
 	} wk;
 
-	spinlock_t config25_lock;
-	spinlock_t mac_ocp_lock;
+	raw_spinlock_t config25_lock;
+	raw_spinlock_t mac_ocp_lock;
 
-	spinlock_t cfg9346_usage_lock;
+	raw_spinlock_t cfg9346_usage_lock;
 	int cfg9346_usage_count;
 
 	unsigned supports_gmii:1;
@@ -671,20 +671,20 @@ static void rtl_lock_config_regs(struct rtl8169_private *tp)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&tp->cfg9346_usage_lock, flags);
+	raw_spin_lock_irqsave(&tp->cfg9346_usage_lock, flags);
 	if (!--tp->cfg9346_usage_count)
 		RTL_W8(tp, Cfg9346, Cfg9346_Lock);
-	spin_unlock_irqrestore(&tp->cfg9346_usage_lock, flags);
+	raw_spin_unlock_irqrestore(&tp->cfg9346_usage_lock, flags);
 }
 
 static void rtl_unlock_config_regs(struct rtl8169_private *tp)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&tp->cfg9346_usage_lock, flags);
+	raw_spin_lock_irqsave(&tp->cfg9346_usage_lock, flags);
 	if (!tp->cfg9346_usage_count++)
 		RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
-	spin_unlock_irqrestore(&tp->cfg9346_usage_lock, flags);
+	raw_spin_unlock_irqrestore(&tp->cfg9346_usage_lock, flags);
 }
 
 static void rtl_pci_commit(struct rtl8169_private *tp)
@@ -698,10 +698,10 @@ static void rtl_mod_config2(struct rtl8169_private *tp, u8 clear, u8 set)
 	unsigned long flags;
 	u8 val;
 
-	spin_lock_irqsave(&tp->config25_lock, flags);
+	raw_spin_lock_irqsave(&tp->config25_lock, flags);
 	val = RTL_R8(tp, Config2);
 	RTL_W8(tp, Config2, (val & ~clear) | set);
-	spin_unlock_irqrestore(&tp->config25_lock, flags);
+	raw_spin_unlock_irqrestore(&tp->config25_lock, flags);
 }
 
 static void rtl_mod_config5(struct rtl8169_private *tp, u8 clear, u8 set)
@@ -709,10 +709,10 @@ static void rtl_mod_config5(struct rtl8169_private *tp, u8 clear, u8 set)
 	unsigned long flags;
 	u8 val;
 
-	spin_lock_irqsave(&tp->config25_lock, flags);
+	raw_spin_lock_irqsave(&tp->config25_lock, flags);
 	val = RTL_R8(tp, Config5);
 	RTL_W8(tp, Config5, (val & ~clear) | set);
-	spin_unlock_irqrestore(&tp->config25_lock, flags);
+	raw_spin_unlock_irqrestore(&tp->config25_lock, flags);
 }
 
 static bool rtl_is_8125(struct rtl8169_private *tp)
@@ -899,9 +899,9 @@ static void r8168_mac_ocp_write(struct rtl8169_private *tp, u32 reg, u32 data)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&tp->mac_ocp_lock, flags);
+	raw_spin_lock_irqsave(&tp->mac_ocp_lock, flags);
 	__r8168_mac_ocp_write(tp, reg, data);
-	spin_unlock_irqrestore(&tp->mac_ocp_lock, flags);
+	raw_spin_unlock_irqrestore(&tp->mac_ocp_lock, flags);
 }
 
 static u16 __r8168_mac_ocp_read(struct rtl8169_private *tp, u32 reg)
@@ -919,9 +919,9 @@ static u16 r8168_mac_ocp_read(struct rtl8169_private *tp, u32 reg)
 	unsigned long flags;
 	u16 val;
 
-	spin_lock_irqsave(&tp->mac_ocp_lock, flags);
+	raw_spin_lock_irqsave(&tp->mac_ocp_lock, flags);
 	val = __r8168_mac_ocp_read(tp, reg);
-	spin_unlock_irqrestore(&tp->mac_ocp_lock, flags);
+	raw_spin_unlock_irqrestore(&tp->mac_ocp_lock, flags);
 
 	return val;
 }
@@ -932,10 +932,10 @@ static void r8168_mac_ocp_modify(struct rtl8169_private *tp, u32 reg, u16 mask,
 	unsigned long flags;
 	u16 data;
 
-	spin_lock_irqsave(&tp->mac_ocp_lock, flags);
+	raw_spin_lock_irqsave(&tp->mac_ocp_lock, flags);
 	data = __r8168_mac_ocp_read(tp, reg);
 	__r8168_mac_ocp_write(tp, reg, (data & ~mask) | set);
-	spin_unlock_irqrestore(&tp->mac_ocp_lock, flags);
+	raw_spin_unlock_irqrestore(&tp->mac_ocp_lock, flags);
 }
 
 /* Work around a hw issue with RTL8168g PHY, the quirk disables
@@ -1420,14 +1420,14 @@ static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
 			r8168_mac_ocp_modify(tp, 0xc0b6, BIT(0), 0);
 	}
 
-	spin_lock_irqsave(&tp->config25_lock, flags);
+	raw_spin_lock_irqsave(&tp->config25_lock, flags);
 	for (i = 0; i < tmp; i++) {
 		options = RTL_R8(tp, cfg[i].reg) & ~cfg[i].mask;
 		if (wolopts & cfg[i].opt)
 			options |= cfg[i].mask;
 		RTL_W8(tp, cfg[i].reg, options);
 	}
-	spin_unlock_irqrestore(&tp->config25_lock, flags);
+	raw_spin_unlock_irqrestore(&tp->config25_lock, flags);
 
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_02 ... RTL_GIGA_MAC_VER_06:
@@ -5164,6 +5164,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int jumbo_max, region, rc;
 	enum mac_version chipset;
 	struct net_device *dev;
+	u32 txconfig;
 	u16 xid;
 
 	dev = devm_alloc_etherdev(&pdev->dev, sizeof (*tp));
@@ -5179,9 +5180,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->eee_adv = -1;
 	tp->ocp_base = OCP_STD_PHY_BASE;
 
-	spin_lock_init(&tp->cfg9346_usage_lock);
-	spin_lock_init(&tp->config25_lock);
-	spin_lock_init(&tp->mac_ocp_lock);
+	raw_spin_lock_init(&tp->cfg9346_usage_lock);
+	raw_spin_lock_init(&tp->config25_lock);
+	raw_spin_lock_init(&tp->mac_ocp_lock);
 
 	dev->tstats = devm_netdev_alloc_pcpu_stats(&pdev->dev,
 						   struct pcpu_sw_netstats);
@@ -5195,38 +5196,35 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
 	rc = pcim_enable_device(pdev);
-	if (rc < 0) {
-		dev_err(&pdev->dev, "enable failure\n");
-		return rc;
-	}
+	if (rc < 0)
+		return dev_err_probe(&pdev->dev, rc, "enable failure\n");
 
 	if (pcim_set_mwi(pdev) < 0)
 		dev_info(&pdev->dev, "Mem-Wr-Inval unavailable\n");
 
 	/* use first MMIO region */
 	region = ffs(pci_select_bars(pdev, IORESOURCE_MEM)) - 1;
-	if (region < 0) {
-		dev_err(&pdev->dev, "no MMIO resource found\n");
-		return -ENODEV;
-	}
+	if (region < 0)
+		return dev_err_probe(&pdev->dev, -ENODEV, "no MMIO resource found\n");
 
 	rc = pcim_iomap_regions(pdev, BIT(region), KBUILD_MODNAME);
-	if (rc < 0) {
-		dev_err(&pdev->dev, "cannot remap MMIO, aborting\n");
-		return rc;
-	}
+	if (rc < 0)
+		return dev_err_probe(&pdev->dev, rc, "cannot remap MMIO, aborting\n");
 
 	tp->mmio_addr = pcim_iomap_table(pdev)[region];
 
-	xid = (RTL_R32(tp, TxConfig) >> 20) & 0xfcf;
+	txconfig = RTL_R32(tp, TxConfig);
+	if (txconfig == ~0U)
+		return dev_err_probe(&pdev->dev, -EIO, "PCI read failed\n");
+
+	xid = (txconfig >> 20) & 0xfcf;
 
 	/* Identify chip attached to board */
 	chipset = rtl8169_get_mac_version(xid, tp->supports_gmii);
-	if (chipset == RTL_GIGA_MAC_NONE) {
-		dev_err(&pdev->dev, "unknown chip XID %03x, contact r8169 maintainers (see MAINTAINERS file)\n", xid);
-		return -ENODEV;
-	}
-
+	if (chipset == RTL_GIGA_MAC_NONE)
+		return dev_err_probe(&pdev->dev, -ENODEV,
+				     "unknown chip XID %03x, contact r8169 maintainers (see MAINTAINERS file)\n",
+				     xid);
 	tp->mac_version = chipset;
 
 	tp->dash_type = rtl_check_dash(tp);
@@ -5246,10 +5244,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rtl_hw_reset(tp);
 
 	rc = rtl_alloc_irq(tp);
-	if (rc < 0) {
-		dev_err(&pdev->dev, "Can't allocate interrupt\n");
-		return rc;
-	}
+	if (rc < 0)
+		return dev_err_probe(&pdev->dev, rc, "Can't allocate interrupt\n");
+
 	tp->irq = pci_irq_vector(pdev, 0);
 
 	INIT_WORK(&tp->wk.work, rtl_task);

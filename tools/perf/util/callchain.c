@@ -58,7 +58,8 @@ struct callchain_param callchain_param_default = {
 	CALLCHAIN_PARAM_DEFAULT
 };
 
-__thread struct callchain_cursor callchain_cursor;
+/* Used for thread-local struct callchain_cursor. */
+static pthread_key_t callchain_cursor;
 
 int parse_callchain_record_opt(const char *arg, struct callchain_param *param)
 {
@@ -590,6 +591,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 		call->ip = cursor_node->ip;
 		call->ms = cursor_node->ms;
 		call->ms.map = map__get(call->ms.map);
+		call->ms.maps = maps__get(call->ms.maps);
 		call->srcline = cursor_node->srcline;
 
 		if (cursor_node->branch) {
@@ -649,6 +651,7 @@ add_child(struct callchain_node *parent,
 		list_for_each_entry_safe(call, tmp, &new->val, list) {
 			list_del_init(&call->list);
 			map__zput(call->ms.map);
+			maps__zput(call->ms.maps);
 			free(call);
 		}
 		free(new);
@@ -984,6 +987,9 @@ int callchain_append(struct callchain_root *root,
 		     struct callchain_cursor *cursor,
 		     u64 period)
 {
+	if (cursor == NULL)
+		return -1;
+
 	if (!cursor->nr)
 		return 0;
 
@@ -1010,10 +1016,16 @@ merge_chain_branch(struct callchain_cursor *cursor,
 	int err = 0;
 
 	list_for_each_entry_safe(list, next_list, &src->val, list) {
-		callchain_cursor_append(cursor, list->ip, &list->ms,
-					false, NULL, 0, 0, 0, list->srcline);
+		struct map_symbol ms = {
+			.maps = maps__get(list->ms.maps),
+			.map = map__get(list->ms.map),
+		};
+		callchain_cursor_append(cursor, list->ip, &ms, false, NULL, 0, 0, 0, list->srcline);
 		list_del_init(&list->list);
+		map__zput(ms.map);
+		maps__zput(ms.maps);
 		map__zput(list->ms.map);
+		maps__zput(list->ms.maps);
 		free(list);
 	}
 
@@ -1065,9 +1077,11 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 	}
 
 	node->ip = ip;
+	maps__zput(node->ms.maps);
 	map__zput(node->ms.map);
 	node->ms = *ms;
-	node->ms.map = map__get(node->ms.map);
+	node->ms.maps = maps__get(ms->maps);
+	node->ms.map = map__get(ms->map);
 	node->branch = branch;
 	node->nr_loop_iter = nr_loop_iter;
 	node->iter_cycles = iter_cycles;
@@ -1106,7 +1120,7 @@ int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *samp
 	if ((!symbol_conf.use_callchain || sample->callchain == NULL) &&
 		!symbol_conf.show_branchflag_count)
 		return 0;
-	return callchain_append(he->callchain, &callchain_cursor, sample->period);
+	return callchain_append(he->callchain, get_tls_callchain_cursor(), sample->period);
 }
 
 int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *node,
@@ -1114,7 +1128,8 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 {
 	struct machine *machine = maps__machine(node->ms.maps);
 
-	al->maps = node->ms.maps;
+	maps__put(al->maps);
+	al->maps = maps__get(node->ms.maps);
 	map__put(al->map);
 	al->map = map__get(node->ms.map);
 	al->sym = node->ms.sym;
@@ -1127,7 +1142,7 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 		if (al->map == NULL)
 			goto out;
 	}
-	if (al->maps == machine__kernel_maps(machine)) {
+	if (RC_CHK_ACCESS(al->maps) == RC_CHK_ACCESS(machine__kernel_maps(machine))) {
 		if (machine__is_host(machine)) {
 			al->cpumode = PERF_RECORD_MISC_KERNEL;
 			al->level = 'k';
@@ -1460,12 +1475,14 @@ static void free_callchain_node(struct callchain_node *node)
 	list_for_each_entry_safe(list, tmp, &node->parent_val, list) {
 		list_del_init(&list->list);
 		map__zput(list->ms.map);
+		maps__zput(list->ms.maps);
 		free(list);
 	}
 
 	list_for_each_entry_safe(list, tmp, &node->val, list) {
 		list_del_init(&list->list);
 		map__zput(list->ms.map);
+		maps__zput(list->ms.maps);
 		free(list);
 	}
 
@@ -1551,9 +1568,47 @@ out:
 	list_for_each_entry_safe(chain, new, &head, list) {
 		list_del_init(&chain->list);
 		map__zput(chain->ms.map);
+		maps__zput(chain->ms.maps);
 		free(chain);
 	}
 	return -ENOMEM;
+}
+
+static void callchain_cursor__delete(void *vcursor)
+{
+	struct callchain_cursor *cursor = vcursor;
+	struct callchain_cursor_node *node, *next;
+
+	callchain_cursor_reset(cursor);
+	for (node = cursor->first; node != NULL; node = next) {
+		next = node->next;
+		free(node);
+	}
+	free(cursor);
+}
+
+static void init_callchain_cursor_key(void)
+{
+	if (pthread_key_create(&callchain_cursor, callchain_cursor__delete)) {
+		pr_err("callchain cursor creation failed");
+		abort();
+	}
+}
+
+struct callchain_cursor *get_tls_callchain_cursor(void)
+{
+	static pthread_once_t once_control = PTHREAD_ONCE_INIT;
+	struct callchain_cursor *cursor;
+
+	pthread_once(&once_control, init_callchain_cursor_key);
+	cursor = pthread_getspecific(callchain_cursor);
+	if (!cursor) {
+		cursor = zalloc(sizeof(*cursor));
+		if (!cursor)
+			pr_debug3("%s: not enough memory\n", __func__);
+		pthread_setspecific(callchain_cursor, cursor);
+	}
+	return cursor;
 }
 
 int callchain_cursor__copy(struct callchain_cursor *dst,
@@ -1596,8 +1651,10 @@ void callchain_cursor_reset(struct callchain_cursor *cursor)
 	cursor->nr = 0;
 	cursor->last = &cursor->first;
 
-	for (node = cursor->first; node != NULL; node = node->next)
+	for (node = cursor->first; node != NULL; node = node->next) {
 		map__zput(node->ms.map);
+		maps__zput(node->ms.maps);
+	}
 }
 
 void callchain_param_setup(u64 sample_type, const char *arch)

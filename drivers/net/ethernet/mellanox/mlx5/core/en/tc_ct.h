@@ -29,6 +29,7 @@ struct mlx5_ct_attr {
 	u32 ct_labels_id;
 	u32 act_miss_mapping;
 	u64 act_miss_cookie;
+	bool offloaded;
 	struct mlx5_ct_ft *ft;
 };
 

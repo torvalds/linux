@@ -154,7 +154,7 @@ static struct i2c_driver mt6311_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(mt6311_dt_ids),
 	},
-	.probe_new = mt6311_i2c_probe,
+	.probe = mt6311_i2c_probe,
 	.id_table = mt6311_i2c_id,
 };
 

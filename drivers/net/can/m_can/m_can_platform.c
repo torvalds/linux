@@ -164,7 +164,7 @@ static __maybe_unused int m_can_resume(struct device *dev)
 	return m_can_class_resume(dev);
 }
 
-static int m_can_plat_remove(struct platform_device *pdev)
+static void m_can_plat_remove(struct platform_device *pdev)
 {
 	struct m_can_plat_priv *priv = platform_get_drvdata(pdev);
 	struct m_can_classdev *mcan_class = &priv->cdev;
@@ -172,8 +172,6 @@ static int m_can_plat_remove(struct platform_device *pdev)
 	m_can_class_unregister(mcan_class);
 
 	m_can_class_free_dev(mcan_class->net);
-
-	return 0;
 }
 
 static int __maybe_unused m_can_runtime_suspend(struct device *dev)
@@ -223,7 +221,7 @@ static struct platform_driver m_can_plat_driver = {
 		.pm     = &m_can_pmops,
 	},
 	.probe = m_can_plat_probe,
-	.remove = m_can_plat_remove,
+	.remove_new = m_can_plat_remove,
 };
 
 module_platform_driver(m_can_plat_driver);

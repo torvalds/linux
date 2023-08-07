@@ -17,6 +17,7 @@ properties:
     items:
       - enum:
           - raspberrypi,bootloader-config
+          - raspberrypi,bootloader-public-key
       - const: nvmem-rmem
 
   reg:

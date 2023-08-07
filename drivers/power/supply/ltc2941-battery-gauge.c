@@ -635,7 +635,7 @@ static struct i2c_driver ltc294x_driver = {
 		.of_match_table = ltc294x_i2c_of_match,
 		.pm	= LTC294X_PM_OPS,
 	},
-	.probe_new	= ltc294x_i2c_probe,
+	.probe		= ltc294x_i2c_probe,
 	.shutdown	= ltc294x_i2c_shutdown,
 	.id_table	= ltc294x_i2c_id,
 };

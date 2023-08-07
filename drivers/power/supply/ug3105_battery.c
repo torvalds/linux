@@ -476,7 +476,7 @@ static struct i2c_driver ug3105_i2c_driver = {
 		.name = "ug3105",
 		.pm = &ug3105_pm_ops,
 	},
-	.probe_new = ug3105_probe,
+	.probe = ug3105_probe,
 	.id_table = ug3105_id,
 };
 module_i2c_driver(ug3105_i2c_driver);

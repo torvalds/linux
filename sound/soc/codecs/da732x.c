@@ -1555,7 +1555,7 @@ static struct i2c_driver da732x_i2c_driver = {
 	.driver		= {
 		.name	= "da7320",
 	},
-	.probe_new	= da732x_i2c_probe,
+	.probe		= da732x_i2c_probe,
 	.id_table	= da732x_i2c_id,
 };
 

@@ -27,7 +27,18 @@ Description:	(RW) Reports the current configuration of the QAT device.
 
 		* sym;asym: the device is configured for running crypto
 		  services
+		* asym;sym: identical to sym;asym
 		* dc: the device is configured for running compression services
+		* sym: the device is configured for running symmetric crypto
+		  services
+		* asym: the device is configured for running asymmetric crypto
+		  services
+		* asym;dc: the device is configured for running asymmetric
+		  crypto services and compression services
+		* dc;asym: identical to asym;dc
+		* sym;dc: the device is configured for running symmetric crypto
+		  services and compression services
+		* dc;sym: identical to sym;dc
 
 		It is possible to set the configuration only if the device
 		is in the `down` state (see /sys/bus/pci/devices/<BDF>/qat/state)
@@ -45,5 +56,40 @@ Description:	(RW) Reports the current configuration of the QAT device.
 			# echo up > /sys/bus/pci/devices/<BDF>/qat/state
 			# cat /sys/bus/pci/devices/<BDF>/qat/cfg_services
 			dc
+
+		This attribute is only available for qat_4xxx devices.
+
+What:		/sys/bus/pci/devices/<BDF>/qat/pm_idle_enabled
+Date:		June 2023
+KernelVersion:	6.5
+Contact:	qat-linux@intel.com
+Description:	(RW) This configuration option provides a way to force the device into remaining in
+		the MAX power state.
+		If idle support is enabled the device will transition to the `MIN` power state when
+		idle, otherwise will stay in the MAX power state.
+		Write to the file to enable or disable idle support.
+
+		The values are:
+
+		* 0: idle support is disabled
+		* 1: idle support is enabled
+
+		Default value is 1.
+
+		It is possible to set the pm_idle_enabled value only if the device
+		is in the `down` state (see /sys/bus/pci/devices/<BDF>/qat/state)
+
+		The following example shows how to change the pm_idle_enabled of
+		a device::
+
+			# cat /sys/bus/pci/devices/<BDF>/qat/state
+			up
+			# cat /sys/bus/pci/devices/<BDF>/qat/pm_idle_enabled
+			1
+			# echo down > /sys/bus/pci/devices/<BDF>/qat/state
+			# echo 0 > /sys/bus/pci/devices/<BDF>/qat/pm_idle_enabled
+			# echo up > /sys/bus/pci/devices/<BDF>/qat/state
+			# cat /sys/bus/pci/devices/<BDF>/qat/pm_idle_enabled
+			0
 
 		This attribute is only available for qat_4xxx devices.

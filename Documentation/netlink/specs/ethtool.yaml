@@ -9,8 +9,13 @@ doc: Partial family for Ethtool Netlink.
 definitions:
   -
     name: udp-tunnel-type
+    enum-name:
     type: enum
     entries: [ vxlan, geneve, vxlan-gpe ]
+  -
+    name: stringset
+    type: enum
+    entries: []
 
 attribute-sets:
   -
@@ -60,22 +65,6 @@ attribute-sets:
         type: nest
         nested-attributes: bitset-bits
 
-  -
-    name: u64-array
-    attributes:
-      -
-        name: u64
-        type: nest
-        multi-attr: true
-        nested-attributes: u64
-  -
-    name: s32-array
-    attributes:
-      -
-        name: s32
-        type: nest
-        multi-attr: true
-        nested-attributes: s32
   -
     name: string
     attributes:
@@ -239,7 +228,7 @@ attribute-sets:
         name: tx-min-frag-size
         type: u32
       -
-        name: tx-min-frag-size
+        name: rx-min-frag-size
         type: u32
       -
         name: verify-enabled
@@ -310,7 +299,7 @@ attribute-sets:
         name: master-slave-state
         type: u8
       -
-        name: master-slave-lanes
+        name: lanes
         type: u32
       -
         name: rate-matching
@@ -338,7 +327,7 @@ attribute-sets:
         name: ext-substate
         type: u8
       -
-        name: down-cnt
+        name: ext-down-cnt
         type: u32
   -
     name: debug
@@ -513,7 +502,7 @@ attribute-sets:
     attributes:
       -
         name: pad
-        type: u32
+        type: pad
       -
         name: tx-frames
         type: u64
@@ -593,7 +582,7 @@ attribute-sets:
         name: phc-index
         type: u32
   -
-    name: cable-test-nft-nest-result
+    name: cable-result
     attributes:
       -
         name: pair
@@ -602,7 +591,7 @@ attribute-sets:
         name: code
         type: u8
   -
-    name: cable-test-nft-nest-fault-length
+    name: cable-fault-length
     attributes:
       -
         name: pair
@@ -611,18 +600,25 @@ attribute-sets:
         name: cm
         type: u32
   -
-    name: cable-test-nft-nest
+    name: cable-nest
     attributes:
       -
         name: result
         type: nest
-        nested-attributes: cable-test-nft-nest-result
+        nested-attributes: cable-result
       -
         name: fault-length
         type: nest
-        nested-attributes: cable-test-nft-nest-fault-length
+        nested-attributes: cable-fault-length
   -
     name: cable-test
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+  -
+    name: cable-test-ntf
     attributes:
       -
         name: header
@@ -634,7 +630,7 @@ attribute-sets:
       -
         name: nest
         type: nest
-        nested-attributes: cable-test-nft-nest
+        nested-attributes: cable-nest
   -
     name: cable-test-tdr-cfg
     attributes:
@@ -648,8 +644,22 @@ attribute-sets:
         name: step
         type: u32
       -
-        name: pari
+        name: pair
         type: u8
+  -
+    name: cable-test-tdr-ntf
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: status
+        type: u8
+      -
+        name: nest
+        type: nest
+        nested-attributes: cable-nest
   -
     name: cable-test-tdr
     attributes:
@@ -662,7 +672,7 @@ attribute-sets:
         type: nest
         nested-attributes: cable-test-tdr-cfg
   -
-    name: tunnel-info-udp-entry
+    name: tunnel-udp-entry
     attributes:
       -
         name: port
@@ -673,7 +683,7 @@ attribute-sets:
         type: u32
         enum: udp-tunnel-type
   -
-    name: tunnel-info-udp-table
+    name: tunnel-udp-table
     attributes:
       -
         name: size
@@ -683,9 +693,17 @@ attribute-sets:
         type: nest
         nested-attributes: bitset
       -
-        name: udp-ports
+        name: entry
         type: nest
-        nested-attributes: tunnel-info-udp-entry
+        multi-attr: true
+        nested-attributes: tunnel-udp-entry
+  -
+    name: tunnel-udp
+    attributes:
+      -
+        name: table
+        type: nest
+        nested-attributes: tunnel-udp-table
   -
     name: tunnel-info
     attributes:
@@ -696,25 +714,25 @@ attribute-sets:
       -
         name: udp-ports
         type: nest
-        nested-attributes: tunnel-info-udp-table
+        nested-attributes: tunnel-udp
   -
     name: fec-stat
     attributes:
       -
         name: pad
-        type: u8
+        type: pad
       -
         name: corrected
-        type: nest
-        nested-attributes: u64-array
+        type: binary
+        sub-type: u64
       -
         name: uncorr
-        type: nest
-        nested-attributes: u64-array
+        type: binary
+        sub-type: u64
       -
         name: corr-bits
-        type: nest
-        nested-attributes: u64-array
+        type: binary
+        sub-type: u64
   -
     name: fec
     attributes:
@@ -766,7 +784,7 @@ attribute-sets:
     attributes:
       -
         name: pad
-        type: u32
+        type: pad
       -
         name: id
         type: u32
@@ -775,16 +793,16 @@ attribute-sets:
         type: u32
       -
         name: stat
-        type: nest
-        nested-attributes: u64
+        type: u64
+        type-value: [ id ]
       -
         name: hist-rx
         type: nest
-        nested-attributes: u64
+        nested-attributes: stats-grp-hist
       -
         name: hist-tx
         type: nest
-        nested-attributes: u64
+        nested-attributes: stats-grp-hist
       -
         name: hist-bkt-low
         type: u32
@@ -792,14 +810,27 @@ attribute-sets:
         name: hist-bkt-hi
         type: u32
       -
-        name: hist-bkt-val
+        name: hist-val
+        type: u64
+  -
+    name: stats-grp-hist
+    subset-of: stats-grp
+    attributes:
+      -
+        name: hist-bkt-low
+        type: u32
+      -
+        name: hist-bkt-hi
+        type: u32
+      -
+        name: hist-val
         type: u64
   -
     name: stats
     attributes:
       -
         name: pad
-        type: u32
+        type: pad
       -
         name: header
         type: nest
@@ -827,8 +858,8 @@ attribute-sets:
         type: u32
       -
         name: index
-        type: nest
-        nested-attributes: s32-array
+        type: binary
+        sub-type: s32
   -
     name: module
     attributes:
@@ -852,12 +883,15 @@ attribute-sets:
       -
         name: admin-state
         type: u32
+        name-prefix: ethtool-a-podl-pse-
       -
         name: admin-control
         type: u32
+        name-prefix: ethtool-a-podl-pse-
       -
         name: pw-d-status
         type: u32
+        name-prefix: ethtool-a-podl-pse-
   -
     name: rss
     attributes:
@@ -911,6 +945,7 @@ attribute-sets:
 
 operations:
   enum-model: directional
+  name-prefix: ethtool-msg-
   list:
     -
       name: strset-get
@@ -981,7 +1016,7 @@ operations:
             - duplex
             - master-slave-cfg
             - master-slave-state
-            - master-slave-lanes
+            - lanes
             - rate-matching
       dump: *linkmodes-get-op
     -
@@ -1015,7 +1050,7 @@ operations:
             - sqi-max
             - ext-state
             - ext-substate
-            - down-cnt
+            - ext-down-cnt
       dump: *linkstate-get-op
     -
       name: debug-get
@@ -1364,10 +1399,16 @@ operations:
         request:
           attributes:
             - header
-        reply:
-          attributes:
-            - header
-            - cable-test-nft-nest
+    -
+      name: cable-test-ntf
+      doc: Cable test notification.
+
+      attribute-set: cable-test-ntf
+
+      event:
+        attributes:
+          - header
+          - status
     -
       name: cable-test-tdr-act
       doc: Cable test TDR.
@@ -1378,10 +1419,17 @@ operations:
         request:
           attributes:
             - header
-        reply:
-          attributes:
-            - header
-            - cable-test-tdr-cfg
+    -
+      name: cable-test-tdr-ntf
+      doc: Cable test TDR notification.
+
+      attribute-set: cable-test-tdr-ntf
+
+      event:
+        attributes:
+          - header
+          - status
+          - nest
     -
       name: tunnel-info-get
       doc: Get tsinfo params.
@@ -1555,7 +1603,7 @@ operations:
             - hkey
       dump: *rss-get-op
     -
-      name: plca-get
+      name: plca-get-cfg
       doc: Get PLCA params.
 
       attribute-set: plca
@@ -1577,7 +1625,7 @@ operations:
             - burst-tmr
       dump: *plca-get-op
     -
-      name: plca-set
+      name: plca-set-cfg
       doc: Set PLCA params.
 
       attribute-set: plca
@@ -1601,7 +1649,7 @@ operations:
     -
       name: plca-ntf
       doc: Notification for change in PLCA params.
-      notify: plca-get
+      notify: plca-get-cfg
     -
       name: mm-get
       doc: Get MAC Merge configuration and state

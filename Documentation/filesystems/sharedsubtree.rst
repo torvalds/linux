@@ -147,6 +147,7 @@ replicas continue to be exactly same.
 
 
 3) Setting mount states
+-----------------------
 
 	The mount command (util-linux package) can be used to set mount
 	states::
@@ -612,6 +613,7 @@ replicas continue to be exactly same.
 
 
 6) Quiz
+-------
 
 	A. What is the result of the following command sequence?
 
@@ -673,6 +675,7 @@ replicas continue to be exactly same.
 		/mnt/1/test be?
 
 7) FAQ
+------
 
 	Q1. Why is bind mount needed? How is it different from symbolic links?
 		symbolic links can get stale if the destination mount gets
@@ -841,6 +844,7 @@ replicas continue to be exactly same.
 			     tmp  usr tmp usr tmp usr
 
 8) Implementation
+-----------------
 
 8A) Datastructure
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2020, 2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
@@ -34,20 +34,20 @@
 #define IWL3160_DCCM_LEN		0x10000
 #define IWL7265_DCCM_LEN		0x17A00
 
-#define IWL7260_FW_PRE "iwlwifi-7260-"
-#define IWL7260_MODULE_FIRMWARE(api) IWL7260_FW_PRE __stringify(api) ".ucode"
+#define IWL7260_FW_PRE "iwlwifi-7260"
+#define IWL7260_MODULE_FIRMWARE(api) IWL7260_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL3160_FW_PRE "iwlwifi-3160-"
-#define IWL3160_MODULE_FIRMWARE(api) IWL3160_FW_PRE __stringify(api) ".ucode"
+#define IWL3160_FW_PRE "iwlwifi-3160"
+#define IWL3160_MODULE_FIRMWARE(api) IWL3160_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL3168_FW_PRE "iwlwifi-3168-"
-#define IWL3168_MODULE_FIRMWARE(api) IWL3168_FW_PRE __stringify(api) ".ucode"
+#define IWL3168_FW_PRE "iwlwifi-3168"
+#define IWL3168_MODULE_FIRMWARE(api) IWL3168_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL7265_FW_PRE "iwlwifi-7265-"
-#define IWL7265_MODULE_FIRMWARE(api) IWL7265_FW_PRE __stringify(api) ".ucode"
+#define IWL7265_FW_PRE "iwlwifi-7265"
+#define IWL7265_MODULE_FIRMWARE(api) IWL7265_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL7265D_FW_PRE "iwlwifi-7265D-"
-#define IWL7265D_MODULE_FIRMWARE(api) IWL7265D_FW_PRE __stringify(api) ".ucode"
+#define IWL7265D_FW_PRE "iwlwifi-7265D"
+#define IWL7265D_MODULE_FIRMWARE(api) IWL7265D_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl7000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_16K,

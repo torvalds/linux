@@ -204,23 +204,6 @@ static int acp6x_power_on(void __iomem *base)
 	return -ETIMEDOUT;
 }
 
-static int acp6x_power_off(void __iomem *base)
-{
-	u32 val;
-	int timeout;
-
-	writel(ACP_PGFSM_CNTL_POWER_OFF_MASK,
-	       base + ACP6X_PGFSM_CONTROL);
-	timeout = 0;
-	while (++timeout < 500) {
-		val = readl(base + ACP6X_PGFSM_STATUS);
-		if ((val & ACP_PGFSM_STATUS_MASK) == ACP_POWERED_OFF)
-			return 0;
-		udelay(1);
-	}
-	return -ETIMEDOUT;
-}
-
 static int acp6x_reset(void __iomem *base)
 {
 	u32 val;
@@ -299,14 +282,6 @@ static int rmb_acp_deinit(void __iomem *base)
 	}
 
 	writel(0x00, base + ACP_CONTROL);
-
-	/* power off */
-	ret = acp6x_power_off(base);
-	if (ret) {
-		pr_err("ACP power off failed\n");
-		return ret;
-	}
-
 	return 0;
 }
 

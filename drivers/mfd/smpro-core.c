@@ -125,7 +125,7 @@ static const struct of_device_id smpro_core_of_match[] = {
 MODULE_DEVICE_TABLE(of, smpro_core_of_match);
 
 static struct i2c_driver smpro_core_driver = {
-	.probe_new = smpro_core_probe,
+	.probe = smpro_core_probe,
 	.driver = {
 		.name = "smpro-core",
 		.of_match_table = smpro_core_of_match,

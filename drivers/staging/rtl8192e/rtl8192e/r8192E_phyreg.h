@@ -7,7 +7,6 @@
 #ifndef _R819XU_PHYREG_H
 #define _R819XU_PHYREG_H
 
-
 #define RF_DATA			0x1d4
 
 #define rPMAC_Reset		0x100
@@ -125,7 +124,6 @@
 #define rOFDM0_TxCoeff5			0xcb4
 #define rOFDM0_TxCoeff6			0xcb8
 
-
 #define rOFDM1_LSTF			0xd00
 #define rOFDM1_TRxPathEnable		0xd04
 #define rOFDM1_CFO			0xd08
@@ -162,7 +160,6 @@
 #define rTxAGC_Mcs07_Mcs04		0xe14
 #define rTxAGC_Mcs11_Mcs08		0xe18
 #define rTxAGC_Mcs15_Mcs12		0xe1c
-
 
 #define rZebra1_HSSIEnable		0x0
 #define rZebra1_TRxEnable1		0x1
@@ -269,7 +266,6 @@
 #define b3WireAddressLength		0x400
 #define b3WireRFPowerDown		0x1
 /*#define bHWSISelect			0x8 */
-#define b5GPAPEPolarity			0x40000000
 #define b2GPAPEPolarity			0x80000000
 #define bRFSW_TxDefaultAnt		0x3
 #define bRFSW_TxOptionAnt		0x30
@@ -287,7 +283,6 @@
 #define bRFSI_ANTSW			0x100
 #define bRFSI_ANTSWB			0x200
 #define bRFSI_PAPE			0x400
-#define bRFSI_PAPE5G			0x800
 #define bBandSelect			0x1
 #define bHTSIG2_GI			0x80
 #define bHTSIG2_Smoothing		0x01
@@ -818,7 +813,6 @@
 #define bCCKPHY0_End	0xaff
 #define bOFDMPHY0_End	0xcff
 #define bOFDMPHY1_End	0xdff
-
 
 #define bPMACControl	0x0
 #define bWMACControl	0x1

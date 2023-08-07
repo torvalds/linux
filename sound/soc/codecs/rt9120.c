@@ -633,7 +633,7 @@ static struct i2c_driver rt9120_driver = {
 		.of_match_table = rt9120_device_table,
 		.pm = &rt9120_pm_ops,
 	},
-	.probe_new = rt9120_probe,
+	.probe = rt9120_probe,
 	.remove = rt9120_remove,
 };
 module_i2c_driver(rt9120_driver);

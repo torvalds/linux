@@ -7,6 +7,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/stpmic1.h>
 #include <linux/module.h>
+#include <linux/reboot.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -19,7 +20,7 @@
 
 static const struct regmap_range stpmic1_readable_ranges[] = {
 	regmap_reg_range(TURN_ON_SR, VERSION_SR),
-	regmap_reg_range(SWOFF_PWRCTRL_CR, LDO6_STDBY_CR),
+	regmap_reg_range(MAIN_CR, LDO6_STDBY_CR),
 	regmap_reg_range(BST_SW_CR, BST_SW_CR),
 	regmap_reg_range(INT_PENDING_R1, INT_PENDING_R4),
 	regmap_reg_range(INT_CLEAR_R1, INT_CLEAR_R4),
@@ -30,7 +31,7 @@ static const struct regmap_range stpmic1_readable_ranges[] = {
 };
 
 static const struct regmap_range stpmic1_writeable_ranges[] = {
-	regmap_reg_range(SWOFF_PWRCTRL_CR, LDO6_STDBY_CR),
+	regmap_reg_range(MAIN_CR, LDO6_STDBY_CR),
 	regmap_reg_range(BST_SW_CR, BST_SW_CR),
 	regmap_reg_range(INT_CLEAR_R1, INT_CLEAR_R4),
 	regmap_reg_range(INT_SET_MASK_R1, INT_SET_MASK_R4),
@@ -117,6 +118,16 @@ static const struct regmap_irq_chip stpmic1_regmap_irq_chip = {
 	.num_irqs = ARRAY_SIZE(stpmic1_irqs),
 };
 
+static int stpmic1_power_off(struct sys_off_data *data)
+{
+	struct stpmic1 *ddata = data->cb_data;
+
+	regmap_update_bits(ddata->regmap, MAIN_CR,
+			   SOFTWARE_SWITCH_OFF, SOFTWARE_SWITCH_OFF);
+
+	return NOTIFY_DONE;
+}
+
 static int stpmic1_probe(struct i2c_client *i2c)
 {
 	struct stpmic1 *ddata;
@@ -156,6 +167,16 @@ static int stpmic1_probe(struct i2c_client *i2c)
 				       &ddata->irq_data);
 	if (ret) {
 		dev_err(dev, "IRQ Chip registration failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = devm_register_sys_off_handler(ddata->dev,
+					    SYS_OFF_MODE_POWER_OFF,
+					    SYS_OFF_PRIO_DEFAULT,
+					    stpmic1_power_off,
+					    ddata);
+	if (ret) {
+		dev_err(ddata->dev, "failed to register sys-off handler: %d\n", ret);
 		return ret;
 	}
 
@@ -201,7 +222,7 @@ static struct i2c_driver stpmic1_driver = {
 		.of_match_table = of_match_ptr(stpmic1_of_match),
 		.pm = pm_sleep_ptr(&stpmic1_pm),
 	},
-	.probe_new = stpmic1_probe,
+	.probe = stpmic1_probe,
 };
 
 module_i2c_driver(stpmic1_driver);

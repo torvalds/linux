@@ -548,12 +548,12 @@ static inline void kvmppc_set_host_ipi(int cpu)
 	 * pairs with the barrier in kvmppc_clear_host_ipi()
 	 */
 	smp_mb();
-	paca_ptrs[cpu]->kvm_hstate.host_ipi = 1;
+	WRITE_ONCE(paca_ptrs[cpu]->kvm_hstate.host_ipi, 1);
 }
 
 static inline void kvmppc_clear_host_ipi(int cpu)
 {
-	paca_ptrs[cpu]->kvm_hstate.host_ipi = 0;
+	WRITE_ONCE(paca_ptrs[cpu]->kvm_hstate.host_ipi, 0);
 	/*
 	 * order clearing of host_ipi flag vs. processing of IPI messages
 	 *

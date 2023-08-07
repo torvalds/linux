@@ -734,4 +734,4 @@
 };
 
 #include "exynos7-pinctrl.dtsi"
-#include "arm/exynos-syscon-restart.dtsi"
+#include "arm/samsung/exynos-syscon-restart.dtsi"

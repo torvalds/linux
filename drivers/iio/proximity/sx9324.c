@@ -1152,7 +1152,7 @@ static struct i2c_driver sx9324_driver = {
 		 */
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new	= sx9324_probe,
+	.probe		= sx9324_probe,
 	.id_table	= sx9324_id,
 };
 module_i2c_driver(sx9324_driver);

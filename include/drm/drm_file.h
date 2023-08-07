@@ -50,16 +50,16 @@ struct file;
  * header include loops we need it here for now.
  */
 
-/* Note that the order of this enum is ABI (it determines
+/* Note that the values of this enum are ABI (it determines
  * /dev/dri/renderD* numbers).
  *
  * Setting DRM_MINOR_ACCEL to 32 gives enough space for more drm minors to
  * be implemented before we hit any future
  */
 enum drm_minor_type {
-	DRM_MINOR_PRIMARY,
-	DRM_MINOR_CONTROL,
-	DRM_MINOR_RENDER,
+	DRM_MINOR_PRIMARY = 0,
+	DRM_MINOR_CONTROL = 1,
+	DRM_MINOR_RENDER = 2,
 	DRM_MINOR_ACCEL = 32,
 };
 

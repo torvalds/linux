@@ -280,14 +280,8 @@ bool cs_needs_timeout(struct hl_cs *cs)
 
 static bool is_cb_patched(struct hl_device *hdev, struct hl_cs_job *job)
 {
-	/*
-	 * Patched CB is created for external queues jobs, and for H/W queues
-	 * jobs if the user CB was allocated by driver and MMU is disabled.
-	 */
-	return (job->queue_type == QUEUE_TYPE_EXT ||
-			(job->queue_type == QUEUE_TYPE_HW &&
-					job->is_kernel_allocated_cb &&
-					!hdev->mmu_enable));
+	/* Patched CB is created for external queues jobs */
+	return (job->queue_type == QUEUE_TYPE_EXT);
 }
 
 /*
@@ -363,14 +357,13 @@ static void hl_complete_job(struct hl_device *hdev, struct hl_cs_job *job)
 		}
 	}
 
-	/* For H/W queue jobs, if a user CB was allocated by driver and MMU is
-	 * enabled, the user CB isn't released in cs_parser() and thus should be
+	/* For H/W queue jobs, if a user CB was allocated by driver,
+	 * the user CB isn't released in cs_parser() and thus should be
 	 * released here. This is also true for INT queues jobs which were
 	 * allocated by driver.
 	 */
-	if ((job->is_kernel_allocated_cb &&
-		((job->queue_type == QUEUE_TYPE_HW && hdev->mmu_enable) ||
-				job->queue_type == QUEUE_TYPE_INT))) {
+	if (job->is_kernel_allocated_cb &&
+			(job->queue_type == QUEUE_TYPE_HW || job->queue_type == QUEUE_TYPE_INT)) {
 		atomic_dec(&job->user_cb->cs_cnt);
 		hl_cb_put(job->user_cb);
 	}
@@ -804,12 +797,14 @@ out:
 
 static void cs_timedout(struct work_struct *work)
 {
+	struct hl_cs *cs = container_of(work, struct hl_cs, work_tdr.work);
+	bool skip_reset_on_timeout, device_reset = false;
 	struct hl_device *hdev;
 	u64 event_mask = 0x0;
+	uint timeout_sec;
 	int rc;
-	struct hl_cs *cs = container_of(work, struct hl_cs,
-						 work_tdr.work);
-	bool skip_reset_on_timeout = cs->skip_reset_on_timeout, device_reset = false;
+
+	skip_reset_on_timeout = cs->skip_reset_on_timeout;
 
 	rc = cs_get_unless_zero(cs);
 	if (!rc)
@@ -840,29 +835,31 @@ static void cs_timedout(struct work_struct *work)
 		event_mask |= HL_NOTIFIER_EVENT_CS_TIMEOUT;
 	}
 
+	timeout_sec = jiffies_to_msecs(hdev->timeout_jiffies) / 1000;
+
 	switch (cs->type) {
 	case CS_TYPE_SIGNAL:
 		dev_err(hdev->dev,
-			"Signal command submission %llu has not finished in time!\n",
-			cs->sequence);
+			"Signal command submission %llu has not finished in %u seconds!\n",
+			cs->sequence, timeout_sec);
 		break;
 
 	case CS_TYPE_WAIT:
 		dev_err(hdev->dev,
-			"Wait command submission %llu has not finished in time!\n",
-			cs->sequence);
+			"Wait command submission %llu has not finished in %u seconds!\n",
+			cs->sequence, timeout_sec);
 		break;
 
 	case CS_TYPE_COLLECTIVE_WAIT:
 		dev_err(hdev->dev,
-			"Collective Wait command submission %llu has not finished in time!\n",
-			cs->sequence);
+			"Collective Wait command submission %llu has not finished in %u seconds!\n",
+			cs->sequence, timeout_sec);
 		break;
 
 	default:
 		dev_err(hdev->dev,
-			"Command submission %llu has not finished in time!\n",
-			cs->sequence);
+			"Command submission %llu has not finished in %u seconds!\n",
+			cs->sequence, timeout_sec);
 		break;
 	}
 
@@ -1139,11 +1136,10 @@ static void force_complete_cs(struct hl_device *hdev)
 	spin_unlock(&hdev->cs_mirror_lock);
 }
 
-void hl_abort_waitings_for_completion(struct hl_device *hdev)
+void hl_abort_waiting_for_cs_completions(struct hl_device *hdev)
 {
 	force_complete_cs(hdev);
 	force_complete_multi_cs(hdev);
-	hl_release_pending_user_interrupts(hdev);
 }
 
 static void job_wq_completion(struct work_struct *work)
@@ -1948,8 +1944,7 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 	else
 		cb_size = hdev->asic_funcs->get_signal_cb_size(hdev);
 
-	cb = hl_cb_kernel_create(hdev, cb_size,
-				q_type == QUEUE_TYPE_HW && hdev->mmu_enable);
+	cb = hl_cb_kernel_create(hdev, cb_size, q_type == QUEUE_TYPE_HW);
 	if (!cb) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&cntr->out_of_mem_drop_cnt);
@@ -2152,7 +2147,7 @@ static int cs_ioctl_unreserve_signals(struct hl_fpriv *hpriv, u32 handle_id)
 
 			hdev->asic_funcs->hw_queues_unlock(hdev);
 			rc = -EINVAL;
-			goto out;
+			goto out_unlock;
 		}
 
 		/*
@@ -2167,15 +2162,21 @@ static int cs_ioctl_unreserve_signals(struct hl_fpriv *hpriv, u32 handle_id)
 
 		/* Release the id and free allocated memory of the handle */
 		idr_remove(&mgr->handles, handle_id);
+
+		/* unlock before calling ctx_put, where we might sleep */
+		spin_unlock(&mgr->lock);
 		hl_ctx_put(encaps_sig_hdl->ctx);
 		kfree(encaps_sig_hdl);
+		goto out;
 	} else {
 		rc = -EINVAL;
 		dev_err(hdev->dev, "failed to unreserve signals, cannot find handler\n");
 	}
-out:
+
+out_unlock:
 	spin_unlock(&mgr->lock);
 
+out:
 	return rc;
 }
 

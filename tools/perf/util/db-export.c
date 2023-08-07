@@ -64,13 +64,13 @@ int db_export__thread(struct db_export *dbe, struct thread *thread,
 {
 	u64 main_thread_db_id = 0;
 
-	if (thread->db_id)
+	if (thread__db_id(thread))
 		return 0;
 
-	thread->db_id = ++dbe->thread_last_db_id;
+	thread__set_db_id(thread, ++dbe->thread_last_db_id);
 
 	if (main_thread)
-		main_thread_db_id = main_thread->db_id;
+		main_thread_db_id = thread__db_id(main_thread);
 
 	if (dbe->export_thread)
 		return dbe->export_thread(dbe, thread, main_thread_db_id,
@@ -215,6 +215,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 	u64 kernel_start = machine__kernel_start(machine);
 	struct call_path *current = &dbe->cpr->call_path;
 	enum chain_order saved_order = callchain_param.order;
+	struct callchain_cursor *cursor;
 	int err;
 
 	if (!symbol_conf.use_callchain || !sample->callchain)
@@ -226,32 +227,34 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 	 * the callchain starting with the root node and ending with the leaf.
 	 */
 	callchain_param.order = ORDER_CALLER;
-	err = thread__resolve_callchain(thread, &callchain_cursor, evsel,
+	cursor = get_tls_callchain_cursor();
+	err = thread__resolve_callchain(thread, cursor, evsel,
 					sample, NULL, NULL, PERF_MAX_STACK_DEPTH);
 	if (err) {
 		callchain_param.order = saved_order;
 		return NULL;
 	}
-	callchain_cursor_commit(&callchain_cursor);
+	callchain_cursor_commit(cursor);
 
 	while (1) {
 		struct callchain_cursor_node *node;
 		struct addr_location al;
 		u64 dso_db_id = 0, sym_db_id = 0, offset = 0;
 
-		memset(&al, 0, sizeof(al));
 
-		node = callchain_cursor_current(&callchain_cursor);
+		node = callchain_cursor_current(cursor);
 		if (!node)
 			break;
+
 		/*
 		 * Handle export of symbol and dso for this node by
 		 * constructing an addr_location struct and then passing it to
 		 * db_ids_from_al() to perform the export.
 		 */
+		addr_location__init(&al);
 		al.sym = node->ms.sym;
 		al.map = node->ms.map;
-		al.maps = thread->maps;
+		al.maps = thread__maps(thread);
 		al.addr = node->ip;
 
 		if (al.map && !al.sym)
@@ -264,7 +267,8 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 					     al.sym, node->ip,
 					     kernel_start);
 
-		callchain_cursor_advance(&callchain_cursor);
+		callchain_cursor_advance(cursor);
+		addr_location__exit(&al);
 	}
 
 	/* Reset the callchain order to its prior value. */
@@ -321,7 +325,7 @@ static int db_export__threads(struct db_export *dbe, struct thread *thread,
 		 * For a non-main thread, db_export__comm_thread() must be
 		 * called only if thread has not previously been exported.
 		 */
-		bool export_comm_thread = comm && !thread->db_id;
+		bool export_comm_thread = comm && !thread__db_id(thread);
 
 		err = db_export__thread(dbe, thread, machine, main_thread);
 		if (err)
@@ -529,16 +533,16 @@ static int db_export__pid_tid(struct db_export *dbe, struct machine *machine,
 	struct thread *main_thread;
 	int err = 0;
 
-	if (!thread || !thread->comm_set)
+	if (!thread || !thread__comm_set(thread))
 		goto out_put;
 
-	*is_idle = !thread->pid_ && !thread->tid;
+	*is_idle = !thread__pid(thread) && !thread__tid(thread);
 
 	main_thread = thread__main_thread(machine, thread);
 
 	err = db_export__threads(dbe, thread, main_thread, machine, comm_ptr);
 
-	*db_id = thread->db_id;
+	*db_id = thread__db_id(thread);
 
 	thread__put(main_thread);
 out_put:

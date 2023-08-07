@@ -122,12 +122,6 @@ patternProperties:
       compatible:
         const: gw,gsc-fan
 
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
       reg:
         description: The fan controller base address
         maxItems: 1
@@ -135,8 +129,6 @@ patternProperties:
     required:
       - compatible
       - reg
-      - "#address-cells"
-      - "#size-cells"
 
 required:
   - compatible
@@ -194,8 +186,6 @@ examples:
             };
 
             fan-controller@2c {
-                #address-cells = <1>;
-                #size-cells = <0>;
                 compatible = "gw,gsc-fan";
                 reg = <0x2c>;
             };

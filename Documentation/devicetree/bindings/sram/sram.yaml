@@ -94,6 +94,7 @@ patternProperties:
             - samsung,exynos4210-sysram
             - samsung,exynos4210-sysram-ns
             - socionext,milbeaut-smp-sram
+            - stericsson,u8500-esram
 
       reg:
         description:

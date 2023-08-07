@@ -638,7 +638,7 @@ static struct i2c_driver mms114_driver = {
 		.pm	= pm_sleep_ptr(&mms114_pm_ops),
 		.of_match_table = of_match_ptr(mms114_dt_match),
 	},
-	.probe_new	= mms114_probe,
+	.probe		= mms114_probe,
 	.id_table	= mms114_id,
 };
 

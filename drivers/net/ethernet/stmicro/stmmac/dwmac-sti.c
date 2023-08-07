@@ -317,15 +317,13 @@ err_remove_config_dt:
 	return ret;
 }
 
-static int sti_dwmac_remove(struct platform_device *pdev)
+static void sti_dwmac_remove(struct platform_device *pdev)
 {
 	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
 
 	stmmac_dvr_remove(&pdev->dev);
 
 	clk_disable_unprepare(dwmac->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -365,7 +363,7 @@ MODULE_DEVICE_TABLE(of, sti_dwmac_match);
 
 static struct platform_driver sti_dwmac_driver = {
 	.probe  = sti_dwmac_probe,
-	.remove = sti_dwmac_remove,
+	.remove_new = sti_dwmac_remove,
 	.driver = {
 		.name           = "sti-dwmac",
 		.pm		= &sti_dwmac_pm_ops,

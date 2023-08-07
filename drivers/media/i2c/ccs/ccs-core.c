@@ -3731,7 +3731,7 @@ static struct i2c_driver ccs_i2c_driver = {
 		.name = CCS_NAME,
 		.pm = &ccs_pm_ops,
 	},
-	.probe_new = ccs_probe,
+	.probe = ccs_probe,
 	.remove	= ccs_remove,
 };
 

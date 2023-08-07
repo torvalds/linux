@@ -584,7 +584,7 @@ static struct i2c_driver max31760_driver = {
 		.of_match_table = max31760_of_match,
 		.pm = pm_ptr(&max31760_pm_ops)
 	},
-	.probe_new	= max31760_probe,
+	.probe		= max31760_probe,
 	.id_table	= max31760_id
 };
 module_i2c_driver(max31760_driver);

@@ -15,12 +15,13 @@ properties:
     oneOf:
       - items:
           - enum:
-              - st,stm32mp157-syscfg
-              - st,stm32mp151-pwr-mcu
-              - st,stm32-syscfg
               - st,stm32-power-config
+              - st,stm32-syscfg
               - st,stm32-tamp
               - st,stm32f4-gcan
+              - st,stm32mp151-pwr-mcu
+              - st,stm32mp157-syscfg
+              - st,stm32mp25-syscfg
           - const: syscon
       - items:
           - const: st,stm32-tamp

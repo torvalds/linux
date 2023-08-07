@@ -504,7 +504,7 @@ static struct i2c_driver apds9300_driver = {
 		.name	= APDS9300_DRV_NAME,
 		.pm	= pm_sleep_ptr(&apds9300_pm_ops),
 	},
-	.probe_new	= apds9300_probe,
+	.probe		= apds9300_probe,
 	.remove		= apds9300_remove,
 	.id_table	= apds9300_id,
 };

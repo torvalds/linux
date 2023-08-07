@@ -10,19 +10,19 @@
 };
 
 &button_restart {
-	gpios = <&msmgpio 37 GPIO_ACTIVE_HIGH>;
+	gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
 };
 
 &led_r {
-	gpios = <&msmgpio 22 GPIO_ACTIVE_HIGH>;
+	gpios = <&tlmm 22 GPIO_ACTIVE_HIGH>;
 };
 
 &led_g {
-	gpios = <&msmgpio 21 GPIO_ACTIVE_HIGH>;
+	gpios = <&tlmm 21 GPIO_ACTIVE_HIGH>;
 };
 
 &led_b {
-	gpios = <&msmgpio 20 GPIO_ACTIVE_HIGH>;
+	gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
 };
 
 &mpss {
@@ -40,7 +40,7 @@
 };
 
 /* This selects the external SIM card slot by default */
-&msmgpio {
+&tlmm {
 	sim_ctrl_default: sim-ctrl-default-state {
 		esim-sel-pins {
 			pins = "gpio0", "gpio3";

@@ -3473,7 +3473,7 @@ static struct i2c_driver tscs454_i2c_driver = {
 		.name = "tscs454",
 		.of_match_table = tscs454_of_match,
 	},
-	.probe_new = tscs454_i2c_probe,
+	.probe = tscs454_i2c_probe,
 	.id_table = tscs454_i2c_id,
 };
 

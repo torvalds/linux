@@ -23,7 +23,7 @@
 #include "../../../util/mmap.h"
 #include <subcmd/parse-options.h>
 #include "../../../util/parse-events.h"
-#include "../../../util/pmu.h"
+#include "../../../util/pmus.h"
 #include "../../../util/debug.h"
 #include "../../../util/auxtrace.h"
 #include "../../../util/perf_api_probe.h"
@@ -1185,7 +1185,7 @@ static u64 intel_pt_reference(struct auxtrace_record *itr __maybe_unused)
 
 struct auxtrace_record *intel_pt_recording_init(int *err)
 {
-	struct perf_pmu *intel_pt_pmu = perf_pmu__find(INTEL_PT_PMU_NAME);
+	struct perf_pmu *intel_pt_pmu = perf_pmus__find(INTEL_PT_PMU_NAME);
 	struct intel_pt_recording *ptr;
 
 	if (!intel_pt_pmu)

@@ -97,7 +97,7 @@ properties:
       - enum: [ ick, fck, sys_clk ]
       - items:
           - const: fck
-          - enum: [ ick. dbclk, osc, sys_clk, dss_clk, ahclkx ]
+          - enum: [ ick, dbclk, osc, sys_clk, dss_clk, ahclkx ]
       - items:
           - const: fck
           - const: phy-clk

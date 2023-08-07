@@ -1,13 +1,13 @@
 What:		/sys/fs/ocfs2/
 Date:		April 2008
-Contact:	ocfs2-devel@oss.oracle.com
+Contact:	ocfs2-devel@lists.linux.dev
 Description:
 		The /sys/fs/ocfs2 directory contains knobs used by the
 		ocfs2-tools to interact with the filesystem.
 
 What:		/sys/fs/ocfs2/max_locking_protocol
 Date:		April 2008
-Contact:	ocfs2-devel@oss.oracle.com
+Contact:	ocfs2-devel@lists.linux.dev
 Description:
 		The /sys/fs/ocfs2/max_locking_protocol file displays version
 		of ocfs2 locking supported by the filesystem.  This version
@@ -28,7 +28,7 @@ Description:
 
 What:		/sys/fs/ocfs2/loaded_cluster_plugins
 Date:		April 2008
-Contact:	ocfs2-devel@oss.oracle.com
+Contact:	ocfs2-devel@lists.linux.dev
 Description:
 		The /sys/fs/ocfs2/loaded_cluster_plugins file describes
 		the available plugins to support ocfs2 cluster operation.
@@ -48,7 +48,7 @@ Description:
 
 What:		/sys/fs/ocfs2/active_cluster_plugin
 Date:		April 2008
-Contact:	ocfs2-devel@oss.oracle.com
+Contact:	ocfs2-devel@lists.linux.dev
 Description:
 		The /sys/fs/ocfs2/active_cluster_plugin displays which
 		cluster plugin is currently in use by the filesystem.
@@ -65,7 +65,7 @@ Description:
 
 What:		/sys/fs/ocfs2/cluster_stack
 Date:		April 2008
-Contact:	ocfs2-devel@oss.oracle.com
+Contact:	ocfs2-devel@lists.linux.dev
 Description:
 		The /sys/fs/ocfs2/cluster_stack file contains the name
 		of current ocfs2 cluster stack.  This value is set by
@@ -86,4 +86,4 @@ Description:
 		stack return an error.
 
 Users:
-	ocfs2-tools <ocfs2-tools-devel@oss.oracle.com>
+	ocfs2-tools <ocfs2-tools-devel@lists.linux.dev>

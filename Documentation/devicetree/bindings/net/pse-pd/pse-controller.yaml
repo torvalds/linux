@@ -16,7 +16,7 @@ maintainers:
 
 properties:
   $nodename:
-    pattern: "^ethernet-pse(@.*)?$"
+    pattern: "^ethernet-pse(@.*|-([0-9]|[1-9][0-9]+))?$"
 
   "#pse-cells":
     description:

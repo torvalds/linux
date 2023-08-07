@@ -258,7 +258,7 @@ PCM stream related controls
 
 ``name='EMU10K1 PCM Volume',index 0-31``
 ----------------------------------------
-Channel volume attenuation in range 0-0xffff. The maximum value (no
+Channel volume attenuation in range 0-0x1fffd. The middle value (no
 attenuation) is default. The channel mapping for three values is
 as follows:
 

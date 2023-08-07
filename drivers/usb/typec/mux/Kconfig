@@ -35,4 +35,14 @@ config TYPEC_MUX_INTEL_PMC
 	  control the USB role switch and also the multiplexer/demultiplexer
 	  switches used with USB Type-C Alternate Modes.
 
+config TYPEC_MUX_NB7VPQ904M
+	tristate "On Semiconductor NB7VPQ904M Type-C redriver driver"
+	depends on I2C
+	depends on DRM || DRM=n
+	select DRM_PANEL_BRIDGE if DRM
+	select REGMAP_I2C
+	help
+	  Say Y or M if your system has a On Semiconductor NB7VPQ904M Type-C
+	  redriver chip found on some devices with a Type-C port.
+
 endmenu

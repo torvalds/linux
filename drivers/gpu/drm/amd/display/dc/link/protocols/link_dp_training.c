@@ -1653,10 +1653,19 @@ bool perform_link_training_with_retries(
 				break;
 		}
 
-		DC_LOG_WARNING("%s: Link(%d) training attempt %u of %d failed @ rate(%d) x lane(%d) @ spread = %x : fail reason:(%d)\n",
-			       __func__, link->link_index, (unsigned int)j + 1, attempts,
-			      cur_link_settings.link_rate, cur_link_settings.lane_count,
-			      cur_link_settings.link_spread, status);
+		if (j == (attempts - 1)) {
+			DC_LOG_WARNING(
+				"%s: Link(%d) training attempt %u of %d failed @ rate(%d) x lane(%d) @ spread = %x : fail reason:(%d)\n",
+				__func__, link->link_index, (unsigned int)j + 1, attempts,
+				cur_link_settings.link_rate, cur_link_settings.lane_count,
+				cur_link_settings.link_spread, status);
+		} else {
+			DC_LOG_HW_LINK_TRAINING(
+				"%s: Link(%d) training attempt %u of %d failed @ rate(%d) x lane(%d) @ spread = %x : fail reason:(%d)\n",
+				__func__, link->link_index, (unsigned int)j + 1, attempts,
+				cur_link_settings.link_rate, cur_link_settings.lane_count,
+				cur_link_settings.link_spread, status);
+		}
 
 		dp_disable_link_phy(link, &pipe_ctx->link_res, signal);
 
@@ -1690,13 +1699,20 @@ bool perform_link_training_with_retries(
 		} else if (do_fallback) { /* Try training at lower link bandwidth if doing fallback. */
 			uint32_t req_bw;
 			uint32_t link_bw;
+			enum dc_link_encoding_format link_encoding = DC_LINK_ENCODING_UNSPECIFIED;
 
 			decide_fallback_link_setting(link, &max_link_settings,
 					&cur_link_settings, status);
+
+			if (link_dp_get_encoding_format(&cur_link_settings) == DP_8b_10b_ENCODING)
+				link_encoding = DC_LINK_ENCODING_DP_8b_10b;
+			else if (link_dp_get_encoding_format(&cur_link_settings) == DP_128b_132b_ENCODING)
+				link_encoding = DC_LINK_ENCODING_DP_128b_132b;
+
 			/* Flag if reduced link bandwidth no longer meets stream requirements or fallen back to
 			 * minimum link bandwidth.
 			 */
-			req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing);
+			req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing, link_encoding);
 			link_bw = dp_link_bandwidth_kbps(link, &cur_link_settings);
 			is_link_bw_low = (req_bw > link_bw);
 			is_link_bw_min = ((cur_link_settings.link_rate <= LINK_RATE_LOW) &&

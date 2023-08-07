@@ -27,12 +27,6 @@ static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 		return -EINVAL;
 	}
 
-	if (!hdev->mmu_enable) {
-		dev_err_ratelimited(hdev->dev,
-				"Cannot map CB because MMU is disabled\n");
-		return -EINVAL;
-	}
-
 	if (cb->is_mmu_mapped)
 		return 0;
 

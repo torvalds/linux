@@ -106,6 +106,16 @@ will occupy those chip-select rows.
 This term is avoided because it is unclear when needing to distinguish
 between chip-select rows and socket sets.
 
+* High Bandwidth Memory (HBM)
+
+HBM is a new memory type with low power consumption and ultra-wide
+communication lanes. It uses vertically stacked memory chips (DRAM dies)
+interconnected by microscopic wires called "through-silicon vias," or
+TSVs.
+
+Several stacks of HBM chips connect to the CPU or GPU through an ultra-fast
+interconnect called the "interposer". Therefore, HBM's characteristics
+are nearly indistinguishable from on-chip integrated RAM.
 
 Memory Controllers
 ------------------
@@ -176,3 +186,113 @@ nodes::
 	the L1 and L2 directories would be "edac_device_block's"
 
 .. kernel-doc:: drivers/edac/edac_device.h
+
+
+Heterogeneous system support
+----------------------------
+
+An AMD heterogeneous system is built by connecting the data fabrics of
+both CPUs and GPUs via custom xGMI links. Thus, the data fabric on the
+GPU nodes can be accessed the same way as the data fabric on CPU nodes.
+
+The MI200 accelerators are data center GPUs. They have 2 data fabrics,
+and each GPU data fabric contains four Unified Memory Controllers (UMC).
+Each UMC contains eight channels. Each UMC channel controls one 128-bit
+HBM2e (2GB) channel (equivalent to 8 X 2GB ranks).  This creates a total
+of 4096-bits of DRAM data bus.
+
+While the UMC is interfacing a 16GB (8high X 2GB DRAM) HBM stack, each UMC
+channel is interfacing 2GB of DRAM (represented as rank).
+
+Memory controllers on AMD GPU nodes can be represented in EDAC thusly:
+
+	GPU DF / GPU Node -> EDAC MC
+	GPU UMC           -> EDAC CSROW
+	GPU UMC channel   -> EDAC CHANNEL
+
+For example: a heterogeneous system with 1 AMD CPU is connected to
+4 MI200 (Aldebaran) GPUs using xGMI.
+
+Some more heterogeneous hardware details:
+
+- The CPU UMC (Unified Memory Controller) is mostly the same as the GPU UMC.
+  They have chip selects (csrows) and channels. However, the layouts are different
+  for performance, physical layout, or other reasons.
+- CPU UMCs use 1 channel, In this case UMC = EDAC channel. This follows the
+  marketing speak. CPU has X memory channels, etc.
+- CPU UMCs use up to 4 chip selects, So UMC chip select = EDAC CSROW.
+- GPU UMCs use 1 chip select, So UMC = EDAC CSROW.
+- GPU UMCs use 8 channels, So UMC channel = EDAC channel.
+
+The EDAC subsystem provides a mechanism to handle AMD heterogeneous
+systems by calling system specific ops for both CPUs and GPUs.
+
+AMD GPU nodes are enumerated in sequential order based on the PCI
+hierarchy, and the first GPU node is assumed to have a Node ID value
+following those of the CPU nodes after latter are fully populated::
+
+	$ ls /sys/devices/system/edac/mc/
+		mc0   - CPU MC node 0
+		mc1  |
+		mc2  |- GPU card[0] => node 0(mc1), node 1(mc2)
+		mc3  |
+		mc4  |- GPU card[1] => node 0(mc3), node 1(mc4)
+		mc5  |
+		mc6  |- GPU card[2] => node 0(mc5), node 1(mc6)
+		mc7  |
+		mc8  |- GPU card[3] => node 0(mc7), node 1(mc8)
+
+For example, a heterogeneous system with one AMD CPU is connected to
+four MI200 (Aldebaran) GPUs using xGMI. This topology can be represented
+via the following sysfs entries::
+
+	/sys/devices/system/edac/mc/..
+
+	CPU			# CPU node
+	├── mc 0
+
+	GPU Nodes are enumerated sequentially after CPU nodes have been populated
+	GPU card 1		# Each MI200 GPU has 2 nodes/mcs
+	├── mc 1		# GPU node 0 == mc1, Each MC node has 4 UMCs/CSROWs
+	│   ├── csrow 0		# UMC 0
+	│   │   ├── channel 0	# Each UMC has 8 channels
+	│   │   ├── channel 1   # size of each channel is 2 GB, so each UMC has 16 GB
+	│   │   ├── channel 2
+	│   │   ├── channel 3
+	│   │   ├── channel 4
+	│   │   ├── channel 5
+	│   │   ├── channel 6
+	│   │   ├── channel 7
+	│   ├── csrow 1		# UMC 1
+	│   │   ├── channel 0
+	│   │   ├── ..
+	│   │   ├── channel 7
+	│   ├── ..		..
+	│   ├── csrow 3		# UMC 3
+	│   │   ├── channel 0
+	│   │   ├── ..
+	│   │   ├── channel 7
+	│   ├── rank 0
+	│   ├── ..		..
+	│   ├── rank 31		# total 32 ranks/dimms from 4 UMCs
+	├
+	├── mc 2		# GPU node 1 == mc2
+	│   ├── ..		# each GPU has total 64 GB
+
+	GPU card 2
+	├── mc 3
+	│   ├── ..
+	├── mc 4
+	│   ├── ..
+
+	GPU card 3
+	├── mc 5
+	│   ├── ..
+	├── mc 6
+	│   ├── ..
+
+	GPU card 4
+	├── mc 7
+	│   ├── ..
+	├── mc 8
+	│   ├── ..

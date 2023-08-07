@@ -3680,7 +3680,7 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int octeon_usb_remove(struct platform_device *pdev)
+static void octeon_usb_remove(struct platform_device *pdev)
 {
 	int status;
 	struct device *dev = &pdev->dev;
@@ -3696,8 +3696,6 @@ static int octeon_usb_remove(struct platform_device *pdev)
 		dev_dbg(dev, "USB shutdown failed with %d\n", status);
 
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 static const struct of_device_id octeon_usb_match[] = {
@@ -3714,7 +3712,7 @@ static struct platform_driver octeon_usb_driver = {
 		.of_match_table = octeon_usb_match,
 	},
 	.probe      = octeon_usb_probe,
-	.remove     = octeon_usb_remove,
+	.remove_new = octeon_usb_remove,
 };
 
 static int __init octeon_usb_driver_init(void)

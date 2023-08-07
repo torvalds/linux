@@ -350,7 +350,7 @@ static struct i2c_driver tca6416_keypad_driver = {
 		.name	= "tca6416-keypad",
 		.pm	= pm_sleep_ptr(&tca6416_keypad_dev_pm_ops),
 	},
-	.probe_new	= tca6416_keypad_probe,
+	.probe		= tca6416_keypad_probe,
 	.remove		= tca6416_keypad_remove,
 	.id_table	= tca6416_id,
 };

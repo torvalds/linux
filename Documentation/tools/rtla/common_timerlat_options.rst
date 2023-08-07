@@ -26,3 +26,10 @@
         Set the /dev/cpu_dma_latency to *us*, aiming to bound exit from idle latencies.
         *cyclictest* sets this value to *0* by default, use **--dma-latency** *0* to have
         similar results.
+
+**-u**, **--user-threads**
+
+        Set timerlat to run without a workload, and then dispatches user-space workloads
+        to wait on the timerlat_fd. Once the workload is awakes, it goes to sleep again
+        adding so the measurement for the kernel-to-user and user-to-kernel to the tracer
+        output.

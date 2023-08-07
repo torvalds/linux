@@ -706,6 +706,7 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 		idr_for_each(&ar->txmgmt_idr,
 			     ath12k_mac_tx_mgmt_pending_free, ar);
 		idr_destroy(&ar->txmgmt_idr);
+		wake_up(&ar->txmgmt_empty_waitq);
 	}
 
 	wake_up(&ab->wmi_ab.tx_credits_wq);
@@ -885,6 +886,7 @@ void ath12k_core_deinit(struct ath12k_base *ab)
 
 void ath12k_core_free(struct ath12k_base *ab)
 {
+	timer_delete_sync(&ab->rx_replenish_retry);
 	destroy_workqueue(ab->workqueue_aux);
 	destroy_workqueue(ab->workqueue);
 	kfree(ab);

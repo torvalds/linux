@@ -136,12 +136,6 @@ static inline int hash__pmd_trans_huge(pmd_t pmd)
 	return 0;
 }
 
-static inline int hash__pmd_same(pmd_t pmd_a, pmd_t pmd_b)
-{
-	BUG();
-	return 0;
-}
-
 static inline pmd_t hash__pmd_mkhuge(pmd_t pmd)
 {
 	BUG();

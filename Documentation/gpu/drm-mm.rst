@@ -466,6 +466,42 @@ DRM MM Range Allocator Function References
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
    :export:
 
+DRM GPU VA Manager
+==================
+
+Overview
+--------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpuva_mgr.c
+   :doc: Overview
+
+Split and Merge
+---------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpuva_mgr.c
+   :doc: Split and Merge
+
+Locking
+-------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpuva_mgr.c
+   :doc: Locking
+
+Examples
+--------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpuva_mgr.c
+   :doc: Examples
+
+DRM GPU VA Manager Function References
+--------------------------------------
+
+.. kernel-doc:: include/drm/drm_gpuva_mgr.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpuva_mgr.c
+   :export:
+
 DRM Buddy Allocator
 ===================
 
@@ -481,6 +517,8 @@ DRM Cache Handling and Fast WC memcpy()
 .. kernel-doc:: drivers/gpu/drm/drm_cache.c
    :export:
 
+.. _drm_sync_objects:
+
 DRM Sync Objects
 ===========================
 
@@ -491,6 +529,18 @@ DRM Sync Objects
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_syncobj.c
+   :export:
+
+DRM Execution context
+=====================
+
+.. kernel-doc:: drivers/gpu/drm/drm_exec.c
+   :doc: Overview
+
+.. kernel-doc:: include/drm/drm_exec.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_exec.c
    :export:
 
 GPU Scheduler

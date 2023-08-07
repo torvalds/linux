@@ -168,7 +168,7 @@ static struct clk_hw *mtk_clk_register_mux(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = mux->name;
-	init.flags = mux->flags | CLK_SET_RATE_PARENT;
+	init.flags = mux->flags;
 	init.parent_names = mux->parent_names;
 	init.num_parents = mux->num_parents;
 	init.ops = mux->ops;

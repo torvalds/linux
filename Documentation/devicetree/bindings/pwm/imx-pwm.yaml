@@ -43,6 +43,7 @@ properties:
               - fsl,imx8mn-pwm
               - fsl,imx8mp-pwm
               - fsl,imx8mq-pwm
+              - fsl,imx8qxp-pwm
           - const: fsl,imx27-pwm
 
   reg:
@@ -59,6 +60,9 @@ properties:
       - const: per
 
   interrupts:
+    maxItems: 1
+
+  power-domains:
     maxItems: 1
 
 required:

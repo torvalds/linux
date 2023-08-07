@@ -420,7 +420,7 @@ static const struct of_device_id wusb3801_of_match[] = {
 MODULE_DEVICE_TABLE(of, wusb3801_of_match);
 
 static struct i2c_driver wusb3801_driver = {
-	.probe_new	= wusb3801_probe,
+	.probe		= wusb3801_probe,
 	.remove		= wusb3801_remove,
 	.driver		= {
 		.name		= "wusb3801",

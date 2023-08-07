@@ -362,7 +362,7 @@ static struct i2c_driver i2c_driver = {
 	.driver = {
 		.name = "hdm_i2c",
 	},
-	.probe_new = i2c_probe,
+	.probe = i2c_probe,
 	.remove = i2c_remove,
 	.id_table = i2c_id,
 };

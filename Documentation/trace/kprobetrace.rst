@@ -66,6 +66,8 @@ Synopsis of kprobe_events
   (\*3) this is useful for fetching a field of data structures.
   (\*4) "u" means user-space dereference. See :ref:`user_mem_access`.
 
+.. _kprobetrace_types:
+
 Types
 -----
 Several types are supported for fetchargs. Kprobe tracer will access memory

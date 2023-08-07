@@ -166,17 +166,15 @@ void dm_error(const char *message);
 struct dm_dev {
 	struct block_device *bdev;
 	struct dax_device *dax_dev;
-	fmode_t mode;
+	blk_mode_t mode;
 	char name[16];
 };
-
-dev_t dm_get_dev_t(const char *path);
 
 /*
  * Constructors should call these functions to ensure destination devices
  * are opened/closed correctly.
  */
-int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
+int dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 		  struct dm_dev **result);
 void dm_put_device(struct dm_target *ti, struct dm_dev *d);
 
@@ -545,7 +543,7 @@ int dm_set_geometry(struct mapped_device *md, struct hd_geometry *geo);
 /*
  * First create an empty table.
  */
-int dm_table_create(struct dm_table **result, fmode_t mode,
+int dm_table_create(struct dm_table **result, blk_mode_t mode,
 		    unsigned int num_targets, struct mapped_device *md);
 
 /*
@@ -588,7 +586,7 @@ void dm_sync_table(struct mapped_device *md);
  * Queries
  */
 sector_t dm_table_get_size(struct dm_table *t);
-fmode_t dm_table_get_mode(struct dm_table *t);
+blk_mode_t dm_table_get_mode(struct dm_table *t);
 struct mapped_device *dm_table_get_md(struct dm_table *t);
 const char *dm_table_device_name(struct dm_table *t);
 

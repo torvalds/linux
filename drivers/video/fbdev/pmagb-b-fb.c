@@ -273,7 +273,6 @@ static int pmagbbfb_probe(struct device *dev)
 	info->fbops = &pmagbbfb_ops;
 	info->fix = pmagbbfb_fix;
 	info->var = pmagbbfb_defined;
-	info->flags = FBINFO_DEFAULT;
 
 	/* Request the I/O MEM resource.  */
 	start = tdev->resource.start;

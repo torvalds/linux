@@ -331,8 +331,16 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	}
 
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT) {
-		bool is_decap = fte->action.pkt_reformat->reformat_type ==
-			MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2;
+		bool is_decap;
+
+		if (fte->action.pkt_reformat->owner == MLX5_FLOW_RESOURCE_OWNER_FW) {
+			err = -EINVAL;
+			mlx5dr_err(domain, "FW-owned reformat can't be used in SW rule\n");
+				goto free_actions;
+		}
+
+		is_decap = fte->action.pkt_reformat->reformat_type ==
+			   MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2;
 
 		if (is_decap)
 			actions[num_actions++] =
@@ -661,6 +669,7 @@ static int mlx5_cmd_dr_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns
 		return -EINVAL;
 	}
 
+	pkt_reformat->owner = MLX5_FLOW_RESOURCE_OWNER_SW;
 	pkt_reformat->action.dr_action = action;
 
 	return 0;
@@ -691,6 +700,7 @@ static int mlx5_cmd_dr_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
 		return -EINVAL;
 	}
 
+	modify_hdr->owner = MLX5_FLOW_RESOURCE_OWNER_SW;
 	modify_hdr->action.dr_action = action;
 
 	return 0;
@@ -770,14 +780,15 @@ restore_fte:
 }
 
 static int mlx5_cmd_dr_set_peer(struct mlx5_flow_root_namespace *ns,
-				struct mlx5_flow_root_namespace *peer_ns)
+				struct mlx5_flow_root_namespace *peer_ns,
+				u8 peer_idx)
 {
 	struct mlx5dr_domain *peer_domain = NULL;
 
 	if (peer_ns)
 		peer_domain = peer_ns->fs_dr_domain.dr_domain;
 	mlx5dr_domain_set_peer(ns->fs_dr_domain.dr_domain,
-			       peer_domain);
+			       peer_domain, peer_idx);
 	return 0;
 }
 
@@ -814,6 +825,19 @@ static u32 mlx5_cmd_dr_get_capabilities(struct mlx5_flow_root_namespace *ns,
 		steering_caps |= MLX5_FLOW_STEERING_CAP_MATCH_RANGES;
 
 	return steering_caps;
+}
+
+int mlx5_fs_dr_action_get_pkt_reformat_id(struct mlx5_pkt_reformat *pkt_reformat)
+{
+	switch (pkt_reformat->reformat_type) {
+	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
+	case MLX5_REFORMAT_TYPE_L2_TO_NVGRE:
+	case MLX5_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
+	case MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
+	case MLX5_REFORMAT_TYPE_INSERT_HDR:
+		return mlx5dr_action_get_pkt_reformat_id(pkt_reformat->action.dr_action);
+	}
+	return -EOPNOTSUPP;
 }
 
 bool mlx5_fs_dr_is_supported(struct mlx5_core_dev *dev)

@@ -2999,7 +2999,7 @@ static struct i2c_driver hi847_i2c_driver = {
 		.pm = &hi847_pm_ops,
 		.acpi_match_table = ACPI_PTR(hi847_acpi_ids),
 	},
-	.probe_new = hi847_probe,
+	.probe = hi847_probe,
 	.remove = hi847_remove,
 };
 

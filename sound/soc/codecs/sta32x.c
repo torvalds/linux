@@ -1167,7 +1167,7 @@ static struct i2c_driver sta32x_i2c_driver = {
 		.name = "sta32x",
 		.of_match_table = of_match_ptr(st32x_dt_ids),
 	},
-	.probe_new = sta32x_i2c_probe,
+	.probe = sta32x_i2c_probe,
 	.id_table = sta32x_i2c_id,
 };
 

@@ -20,7 +20,7 @@ static inline unsigned int tdx_io_in(int size, u16 port)
 {
 	struct tdx_hypercall_args args = {
 		.r10 = TDX_HYPERCALL_STANDARD,
-		.r11 = EXIT_REASON_IO_INSTRUCTION,
+		.r11 = hcall_func(EXIT_REASON_IO_INSTRUCTION),
 		.r12 = size,
 		.r13 = 0,
 		.r14 = port,
@@ -36,7 +36,7 @@ static inline void tdx_io_out(int size, u16 port, u32 value)
 {
 	struct tdx_hypercall_args args = {
 		.r10 = TDX_HYPERCALL_STANDARD,
-		.r11 = EXIT_REASON_IO_INSTRUCTION,
+		.r11 = hcall_func(EXIT_REASON_IO_INSTRUCTION),
 		.r12 = size,
 		.r13 = 1,
 		.r14 = port,

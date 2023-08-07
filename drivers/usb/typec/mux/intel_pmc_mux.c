@@ -15,6 +15,8 @@
 #include <linux/usb/typec_mux.h>
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_tbt.h>
+#include <linux/debugfs.h>
+#include <linux/usb.h>
 
 #include <asm/intel_scu_ipc.h>
 
@@ -143,7 +145,11 @@ struct pmc_usb {
 	struct acpi_device *iom_adev;
 	void __iomem *iom_base;
 	u32 iom_port_status_offset;
+
+	struct dentry *dentry;
 };
+
+static struct dentry *pmc_mux_debugfs_root;
 
 static void update_port_status(struct pmc_usb_port *port)
 {
@@ -639,6 +645,29 @@ static int pmc_usb_probe_iom(struct pmc_usb *pmc)
 	return 0;
 }
 
+static int port_iom_status_show(struct seq_file *s, void *unused)
+{
+	struct pmc_usb_port *port = s->private;
+
+	update_port_status(port);
+	seq_printf(s, "0x%08x\n", port->iom_status);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(port_iom_status);
+
+static void pmc_mux_port_debugfs_init(struct pmc_usb_port *port)
+{
+	struct dentry *debugfs_dir;
+	char name[6];
+
+	snprintf(name, sizeof(name), "port%d", port->usb3_port - 1);
+
+	debugfs_dir = debugfs_create_dir(name, port->pmc->dentry);
+	debugfs_create_file("iom_status", 0400, debugfs_dir, port,
+			    &port_iom_status_fops);
+}
+
 static int pmc_usb_probe(struct platform_device *pdev)
 {
 	struct fwnode_handle *fwnode = NULL;
@@ -674,6 +703,8 @@ static int pmc_usb_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	pmc->dentry = debugfs_create_dir(dev_name(pmc->dev), pmc_mux_debugfs_root);
+
 	/*
 	 * For every physical USB connector (USB2 and USB3 combo) there is a
 	 * child ACPI device node under the PMC mux ACPI device object.
@@ -688,6 +719,8 @@ static int pmc_usb_probe(struct platform_device *pdev)
 			fwnode_handle_put(fwnode);
 			goto err_remove_ports;
 		}
+
+		pmc_mux_port_debugfs_init(&pmc->port[i]);
 	}
 
 	platform_set_drvdata(pdev, pmc);
@@ -703,10 +736,12 @@ err_remove_ports:
 
 	acpi_dev_put(pmc->iom_adev);
 
+	debugfs_remove(pmc->dentry);
+
 	return ret;
 }
 
-static int pmc_usb_remove(struct platform_device *pdev)
+static void pmc_usb_remove(struct platform_device *pdev)
 {
 	struct pmc_usb *pmc = platform_get_drvdata(pdev);
 	int i;
@@ -719,7 +754,7 @@ static int pmc_usb_remove(struct platform_device *pdev)
 
 	acpi_dev_put(pmc->iom_adev);
 
-	return 0;
+	debugfs_remove(pmc->dentry);
 }
 
 static const struct acpi_device_id pmc_usb_acpi_ids[] = {
@@ -734,10 +769,23 @@ static struct platform_driver pmc_usb_driver = {
 		.acpi_match_table = ACPI_PTR(pmc_usb_acpi_ids),
 	},
 	.probe = pmc_usb_probe,
-	.remove = pmc_usb_remove,
+	.remove_new = pmc_usb_remove,
 };
 
-module_platform_driver(pmc_usb_driver);
+static int __init pmc_usb_init(void)
+{
+	pmc_mux_debugfs_root = debugfs_create_dir("intel_pmc_mux", usb_debug_root);
+
+	return platform_driver_register(&pmc_usb_driver);
+}
+module_init(pmc_usb_init);
+
+static void __exit pmc_usb_exit(void)
+{
+	platform_driver_unregister(&pmc_usb_driver);
+	debugfs_remove(pmc_mux_debugfs_root);
+}
+module_exit(pmc_usb_exit);
 
 MODULE_AUTHOR("Heikki Krogerus <heikki.krogerus@linux.intel.com>");
 MODULE_LICENSE("GPL v2");

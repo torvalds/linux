@@ -399,7 +399,7 @@ static struct i2c_driver attiny_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(attiny_dt_ids),
 	},
-	.probe_new = attiny_i2c_probe,
+	.probe = attiny_i2c_probe,
 	.remove	= attiny_i2c_remove,
 };
 

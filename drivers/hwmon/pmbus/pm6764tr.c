@@ -64,7 +64,7 @@ static struct i2c_driver pm6764tr_driver = {
 		   .name = "pm6764tr",
 		   .of_match_table = of_match_ptr(pm6764tr_of_match),
 		   },
-	.probe_new = pm6764tr_probe,
+	.probe = pm6764tr_probe,
 	.id_table = pm6764tr_id,
 };
 

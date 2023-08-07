@@ -221,7 +221,7 @@ static struct i2c_driver migor_ts_driver = {
 		.name = "migor_ts",
 		.pm = pm_sleep_ptr(&migor_ts_pm),
 	},
-	.probe_new = migor_ts_probe,
+	.probe = migor_ts_probe,
 	.remove = migor_ts_remove,
 	.id_table = migor_ts_id,
 };

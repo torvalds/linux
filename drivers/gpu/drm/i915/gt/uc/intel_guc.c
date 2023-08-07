@@ -16,6 +16,7 @@
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 
 /**
  * DOC: GuC

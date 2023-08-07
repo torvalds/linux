@@ -616,7 +616,7 @@ static struct i2c_driver wm8741_i2c_driver = {
 		.name = "wm8741",
 		.of_match_table = wm8741_of_match,
 	},
-	.probe_new = wm8741_i2c_probe,
+	.probe = wm8741_i2c_probe,
 	.id_table = wm8741_i2c_id,
 };
 #endif

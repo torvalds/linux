@@ -38,13 +38,11 @@
 #define SMU_13_0_7_PP_THERMALCONTROLLER_NONE 0
 #define SMU_13_0_7_PP_THERMALCONTROLLER_NAVI21 28
 
-#define SMU_13_0_7_PP_OVERDRIVE_VERSION 0x81        // OverDrive 8 Table Version 0.2
+#define SMU_13_0_7_PP_OVERDRIVE_VERSION 0x83        // OverDrive 8 Table Version 0.2
 #define SMU_13_0_7_PP_POWERSAVINGCLOCK_VERSION 0x01 // Power Saving Clock Table Version 1.00
 
-enum SMU_13_0_7_ODFEATURE_CAP
-{
+enum SMU_13_0_7_ODFEATURE_CAP {
     SMU_13_0_7_ODCAP_GFXCLK_LIMITS = 0,
-    SMU_13_0_7_ODCAP_GFXCLK_CURVE,
     SMU_13_0_7_ODCAP_UCLK_LIMITS,
     SMU_13_0_7_ODCAP_POWER_LIMIT,
     SMU_13_0_7_ODCAP_FAN_ACOUSTIC_LIMIT,
@@ -59,13 +57,12 @@ enum SMU_13_0_7_ODFEATURE_CAP
     SMU_13_0_7_ODCAP_FAN_CURVE,
     SMU_13_0_7_ODCAP_AUTO_FAN_ACOUSTIC_LIMIT,
     SMU_13_0_7_ODCAP_POWER_MODE,
+    SMU_13_0_7_ODCAP_PER_ZONE_GFX_VOLTAGE_OFFSET,
     SMU_13_0_7_ODCAP_COUNT,
 };
 
-enum SMU_13_0_7_ODFEATURE_ID
-{
+enum SMU_13_0_7_ODFEATURE_ID {
     SMU_13_0_7_ODFEATURE_GFXCLK_LIMITS           = 1 << SMU_13_0_7_ODCAP_GFXCLK_LIMITS,           //GFXCLK Limit feature
-    SMU_13_0_7_ODFEATURE_GFXCLK_CURVE            = 1 << SMU_13_0_7_ODCAP_GFXCLK_CURVE,            //GFXCLK Curve feature
     SMU_13_0_7_ODFEATURE_UCLK_LIMITS             = 1 << SMU_13_0_7_ODCAP_UCLK_LIMITS,             //UCLK Limit feature
     SMU_13_0_7_ODFEATURE_POWER_LIMIT             = 1 << SMU_13_0_7_ODCAP_POWER_LIMIT,             //Power Limit feature
     SMU_13_0_7_ODFEATURE_FAN_ACOUSTIC_LIMIT      = 1 << SMU_13_0_7_ODCAP_FAN_ACOUSTIC_LIMIT,      //Fan Acoustic RPM feature
@@ -80,19 +77,15 @@ enum SMU_13_0_7_ODFEATURE_ID
     SMU_13_0_7_ODFEATURE_FAN_CURVE               = 1 << SMU_13_0_7_ODCAP_FAN_CURVE,               //Fan Curve feature
     SMU_13_0_7_ODFEATURE_AUTO_FAN_ACOUSTIC_LIMIT = 1 << SMU_13_0_7_ODCAP_AUTO_FAN_ACOUSTIC_LIMIT, //Auto Fan Acoustic RPM feature
     SMU_13_0_7_ODFEATURE_POWER_MODE              = 1 << SMU_13_0_7_ODCAP_POWER_MODE,              //Optimized GPU Power Mode feature
+    SMU_13_0_7_ODFEATURE_PER_ZONE_GFX_VOLTAGE_OFFSET  = 1 << SMU_13_0_7_ODCAP_PER_ZONE_GFX_VOLTAGE_OFFSET,  //Perzone voltage offset feature
     SMU_13_0_7_ODFEATURE_COUNT                   = 16,
 };
 
 #define SMU_13_0_7_MAX_ODFEATURE 32 //Maximum Number of OD Features
 
-enum SMU_13_0_7_ODSETTING_ID
-{
+enum SMU_13_0_7_ODSETTING_ID {
     SMU_13_0_7_ODSETTING_GFXCLKFMAX = 0,
     SMU_13_0_7_ODSETTING_GFXCLKFMIN,
-    SMU_13_0_7_ODSETTING_CUSTOM_GFX_VF_CURVE_A,
-    SMU_13_0_7_ODSETTING_CUSTOM_GFX_VF_CURVE_B,
-    SMU_13_0_7_ODSETTING_CUSTOM_GFX_VF_CURVE_C,
-    SMU_13_0_7_ODSETTING_CUSTOM_CURVE_VFT_FMIN,
     SMU_13_0_7_ODSETTING_UCLKFMIN,
     SMU_13_0_7_ODSETTING_UCLKFMAX,
     SMU_13_0_7_ODSETTING_POWERPERCENTAGE,
@@ -117,12 +110,17 @@ enum SMU_13_0_7_ODSETTING_ID
     SMU_13_0_7_ODSETTING_FAN_CURVE_SPEED_5,
     SMU_13_0_7_ODSETTING_AUTO_FAN_ACOUSTIC_LIMIT,
     SMU_13_0_7_ODSETTING_POWER_MODE,
+    SMU_13_0_7_ODSETTING_PER_ZONE_GFX_VOLTAGE_OFFSET_POINT_1,
+    SMU_13_0_7_ODSETTING_PER_ZONE_GFX_VOLTAGE_OFFSET_POINT_2,
+    SMU_13_0_7_ODSETTING_PER_ZONE_GFX_VOLTAGE_OFFSET_POINT_3,
+    SMU_13_0_7_ODSETTING_PER_ZONE_GFX_VOLTAGE_OFFSET_POINT_4,
+    SMU_13_0_7_ODSETTING_PER_ZONE_GFX_VOLTAGE_OFFSET_POINT_5,
+    SMU_13_0_7_ODSETTING_PER_ZONE_GFX_VOLTAGE_OFFSET_POINT_6,
     SMU_13_0_7_ODSETTING_COUNT,
 };
 #define SMU_13_0_7_MAX_ODSETTING 64 //Maximum Number of ODSettings
 
-enum SMU_13_0_7_PWRMODE_SETTING
-{
+enum SMU_13_0_7_PWRMODE_SETTING {
     SMU_13_0_7_PMSETTING_POWER_LIMIT_QUIET = 0,
     SMU_13_0_7_PMSETTING_POWER_LIMIT_BALANCE,
     SMU_13_0_7_PMSETTING_POWER_LIMIT_TURBO,
@@ -142,8 +140,7 @@ enum SMU_13_0_7_PWRMODE_SETTING
 };
 #define SMU_13_0_7_MAX_PMSETTING 32 //Maximum Number of PowerMode Settings
 
-struct smu_13_0_7_overdrive_table
-{
+struct smu_13_0_7_overdrive_table {
     uint8_t revision;                             //Revision = SMU_13_0_7_PP_OVERDRIVE_VERSION
     uint8_t reserve[3];                           //Zero filled field reserved for future use
     uint32_t feature_count;                       //Total number of supported features
@@ -154,8 +151,7 @@ struct smu_13_0_7_overdrive_table
     int16_t pm_setting[SMU_13_0_7_MAX_PMSETTING]; //Optimized power mode feature settings
 };
 
-enum SMU_13_0_7_PPCLOCK_ID
-{
+enum SMU_13_0_7_PPCLOCK_ID {
     SMU_13_0_7_PPCLOCK_GFXCLK = 0,
     SMU_13_0_7_PPCLOCK_SOCCLK,
     SMU_13_0_7_PPCLOCK_UCLK,
@@ -173,8 +169,7 @@ enum SMU_13_0_7_PPCLOCK_ID
 };
 #define SMU_13_0_7_MAX_PPCLOCK 16 //Maximum Number of PP Clocks
 
-struct smu_13_0_7_powerplay_table
-{
+struct smu_13_0_7_powerplay_table {
     struct atom_common_table_header header; //For PLUM_BONITO, header.format_revision = 15, header.content_revision = 0
     uint8_t table_revision;                 //For PLUM_BONITO, table_revision = 2
     uint8_t padding;

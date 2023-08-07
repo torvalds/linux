@@ -980,7 +980,7 @@ static void dml_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 
 	unsigned int vstartup_start = 0;
 	unsigned int dst_x_after_scaler = 0;
-	unsigned int dst_y_after_scaler = 0;
+	int dst_y_after_scaler = 0;
 	double line_wait = 0;
 	double dst_y_prefetch = 0;
 	double dst_y_per_vm_vblank = 0;
@@ -1171,6 +1171,8 @@ static void dml_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 
 	dst_x_after_scaler = get_dst_x_after_scaler(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
 	dst_y_after_scaler = get_dst_y_after_scaler(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
+	if (dst_y_after_scaler < 0)
+		dst_y_after_scaler = 0;
 
 	// do some adjustment on the dst_after scaler to account for odm combine mode
 	dml_print("DML_DLG: %s: input dst_x_after_scaler                     = %d\n",

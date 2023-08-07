@@ -488,7 +488,7 @@ static struct i2c_driver pcf8523_driver = {
 		.name = "rtc-pcf8523",
 		.of_match_table = pcf8523_of_match,
 	},
-	.probe_new = pcf8523_probe,
+	.probe = pcf8523_probe,
 	.id_table = pcf8523_id,
 };
 module_i2c_driver(pcf8523_driver);

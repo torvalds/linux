@@ -1,9 +1,9 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. include:: <isonum.txt>
 
-==========================================
-README file for the Linux g_NCR5380 driver
-==========================================
+================
+g_NCR5380 driver
+================
 
 Copyright |copy| 1993 Drew Eckhard
 

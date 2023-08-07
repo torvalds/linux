@@ -69,6 +69,7 @@ asmlinkage __visible void __init __noreturn i386_start_kernel(void)
  * to the first kernel PMD. Note the upper half of each PMD or PTE are
  * always zero at this stage.
  */
+void __init mk_early_pgtbl_32(void);
 void __init mk_early_pgtbl_32(void)
 {
 #ifdef __pa

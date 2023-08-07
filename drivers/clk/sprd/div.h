@@ -64,11 +64,6 @@ static inline struct sprd_div *hw_to_sprd_div(const struct clk_hw *hw)
 	return container_of(common, struct sprd_div, common);
 }
 
-long sprd_div_helper_round_rate(struct sprd_clk_common *common,
-				const struct sprd_div_internal *div,
-				unsigned long rate,
-				unsigned long *parent_rate);
-
 unsigned long sprd_div_helper_recalc_rate(struct sprd_clk_common *common,
 					  const struct sprd_div_internal *div,
 					  unsigned long parent_rate);

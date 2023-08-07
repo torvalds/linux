@@ -192,9 +192,9 @@ static int dma_test_start_rings(struct dma_test *dt)
 	}
 
 	ret = tb_xdomain_enable_paths(dt->xd, dt->tx_hopid,
-				      dt->tx_ring ? dt->tx_ring->hop : 0,
+				      dt->tx_ring ? dt->tx_ring->hop : -1,
 				      dt->rx_hopid,
-				      dt->rx_ring ? dt->rx_ring->hop : 0);
+				      dt->rx_ring ? dt->rx_ring->hop : -1);
 	if (ret) {
 		dma_test_free_rings(dt);
 		return ret;
@@ -218,9 +218,9 @@ static void dma_test_stop_rings(struct dma_test *dt)
 		tb_ring_stop(dt->tx_ring);
 
 	ret = tb_xdomain_disable_paths(dt->xd, dt->tx_hopid,
-				       dt->tx_ring ? dt->tx_ring->hop : 0,
+				       dt->tx_ring ? dt->tx_ring->hop : -1,
 				       dt->rx_hopid,
-				       dt->rx_ring ? dt->rx_ring->hop : 0);
+				       dt->rx_ring ? dt->rx_ring->hop : -1);
 	if (ret)
 		dev_warn(&dt->svc->dev, "failed to disable DMA paths\n");
 
@@ -412,6 +412,7 @@ static void speed_get(const struct dma_test *dt, u64 *val)
 static int speed_validate(u64 val)
 {
 	switch (val) {
+	case 40:
 	case 20:
 	case 10:
 	case 0:
@@ -489,9 +490,12 @@ static void dma_test_check_errors(struct dma_test *dt, int ret)
 	if (!dt->error_code) {
 		if (dt->link_speed && dt->xd->link_speed != dt->link_speed) {
 			dt->error_code = DMA_TEST_SPEED_ERROR;
-		} else if (dt->link_width &&
-			   dt->xd->link_width != dt->link_width) {
-			dt->error_code = DMA_TEST_WIDTH_ERROR;
+		} else if (dt->link_width) {
+			const struct tb_xdomain *xd = dt->xd;
+
+			if ((dt->link_width == 1 && xd->link_width != TB_LINK_WIDTH_SINGLE) ||
+			    (dt->link_width == 2 && xd->link_width < TB_LINK_WIDTH_DUAL))
+				dt->error_code = DMA_TEST_WIDTH_ERROR;
 		} else if (dt->packets_to_send != dt->packets_sent ||
 			 dt->packets_to_receive != dt->packets_received ||
 			 dt->crc_errors || dt->buffer_overflow_errors) {
@@ -756,5 +760,5 @@ module_exit(dma_test_exit);
 
 MODULE_AUTHOR("Isaac Hazan <isaac.hazan@intel.com>");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
-MODULE_DESCRIPTION("DMA traffic test driver");
+MODULE_DESCRIPTION("Thunderbolt/USB4 DMA traffic test driver");
 MODULE_LICENSE("GPL v2");

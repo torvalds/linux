@@ -485,7 +485,7 @@ static struct i2c_driver tc3589x_driver = {
 		.pm	= pm_sleep_ptr(&tc3589x_dev_pm_ops),
 		.of_match_table = of_match_ptr(tc3589x_match),
 	},
-	.probe_new	= tc3589x_probe,
+	.probe		= tc3589x_probe,
 	.remove		= tc3589x_remove,
 	.id_table	= tc3589x_id,
 };

@@ -1395,7 +1395,7 @@ static struct i2c_driver imx258_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(imx258_acpi_ids),
 		.of_match_table	= imx258_dt_ids,
 	},
-	.probe_new = imx258_probe,
+	.probe = imx258_probe,
 	.remove = imx258_remove,
 };
 

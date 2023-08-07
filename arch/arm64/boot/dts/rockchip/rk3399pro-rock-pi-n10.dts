@@ -8,7 +8,7 @@
 /dts-v1/;
 #include "rk3399.dtsi"
 #include "rk3399-opp.dtsi"
-#include <arm/rockchip-radxa-dalang-carrier.dtsi>
+#include <arm/rockchip/rockchip-radxa-dalang-carrier.dtsi>
 #include "rk3399pro-vmarc-som.dtsi"
 
 / {

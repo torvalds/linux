@@ -43,10 +43,9 @@ void enetc_sched_speed_set(struct enetc_ndev_priv *priv, int speed)
 	enetc_port_wr(hw, ENETC_PMR, (tmp & ~ENETC_PMR_PSPEED_MASK) | pspeed);
 }
 
-static int enetc_setup_taprio(struct net_device *ndev,
+static int enetc_setup_taprio(struct enetc_ndev_priv *priv,
 			      struct tc_taprio_qopt_offload *admin_conf)
 {
-	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct enetc_hw *hw = &priv->si->hw;
 	struct enetc_cbd cbd = {.cmd = 0};
 	struct tgs_gcl_conf *gcl_config;
@@ -60,19 +59,13 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	int err;
 	int i;
 
+	/* TSD and Qbv are mutually exclusive in hardware */
+	for (i = 0; i < priv->num_tx_rings; i++)
+		if (priv->tx_ring[i]->tsd_enable)
+			return -EBUSY;
+
 	if (admin_conf->num_entries > enetc_get_max_gcl_len(hw))
 		return -EINVAL;
-	gcl_len = admin_conf->num_entries;
-
-	tge = enetc_rd(hw, ENETC_PTGCR);
-	if (!admin_conf->enable) {
-		enetc_wr(hw, ENETC_PTGCR, tge & ~ENETC_PTGCR_TGE);
-		enetc_reset_ptcmsdur(hw);
-
-		priv->active_offloads &= ~ENETC_F_QBV;
-
-		return 0;
-	}
 
 	if (admin_conf->cycle_time > U32_MAX ||
 	    admin_conf->cycle_time_extension > U32_MAX)
@@ -82,6 +75,7 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	 * control BD descriptor.
 	 */
 	gcl_config = &cbd.gcl_conf;
+	gcl_len = admin_conf->num_entries;
 
 	data_size = struct_size(gcl_data, entry, gcl_len);
 	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
@@ -115,6 +109,7 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	cbd.cls = BDCR_CMD_PORT_GCL;
 	cbd.status_flags = 0;
 
+	tge = enetc_rd(hw, ENETC_PTGCR);
 	enetc_wr(hw, ENETC_PTGCR, tge | ENETC_PTGCR_TGE);
 
 	err = enetc_send_cmd(priv->si, &cbd);
@@ -132,25 +127,95 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	return 0;
 }
 
-int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data)
+static void enetc_reset_taprio_stats(struct enetc_ndev_priv *priv)
 {
-	struct tc_taprio_qopt_offload *taprio = type_data;
-	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	int err, i;
+	int i;
 
-	/* TSD and Qbv are mutually exclusive in hardware */
 	for (i = 0; i < priv->num_tx_rings; i++)
-		if (priv->tx_ring[i]->tsd_enable)
-			return -EBUSY;
+		priv->tx_ring[i]->stats.win_drop = 0;
+}
 
-	err = enetc_setup_tc_mqprio(ndev, &taprio->mqprio);
+static void enetc_reset_taprio(struct enetc_ndev_priv *priv)
+{
+	struct enetc_hw *hw = &priv->si->hw;
+	u32 val;
+
+	val = enetc_rd(hw, ENETC_PTGCR);
+	enetc_wr(hw, ENETC_PTGCR, val & ~ENETC_PTGCR_TGE);
+	enetc_reset_ptcmsdur(hw);
+
+	priv->active_offloads &= ~ENETC_F_QBV;
+}
+
+static void enetc_taprio_destroy(struct net_device *ndev)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+
+	enetc_reset_taprio(priv);
+	enetc_reset_tc_mqprio(ndev);
+	enetc_reset_taprio_stats(priv);
+}
+
+static void enetc_taprio_stats(struct net_device *ndev,
+			       struct tc_taprio_qopt_stats *stats)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	u64 window_drops = 0;
+	int i;
+
+	for (i = 0; i < priv->num_tx_rings; i++)
+		window_drops += priv->tx_ring[i]->stats.win_drop;
+
+	stats->window_drops = window_drops;
+}
+
+static void enetc_taprio_queue_stats(struct net_device *ndev,
+				     struct tc_taprio_qopt_queue_stats *queue_stats)
+{
+	struct tc_taprio_qopt_stats *stats = &queue_stats->stats;
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int queue = queue_stats->queue;
+
+	stats->window_drops = priv->tx_ring[queue]->stats.win_drop;
+}
+
+static int enetc_taprio_replace(struct net_device *ndev,
+				struct tc_taprio_qopt_offload *offload)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int err;
+
+	err = enetc_setup_tc_mqprio(ndev, &offload->mqprio);
 	if (err)
 		return err;
 
-	err = enetc_setup_taprio(ndev, taprio);
-	if (err) {
-		taprio->mqprio.qopt.num_tc = 0;
-		enetc_setup_tc_mqprio(ndev, &taprio->mqprio);
+	err = enetc_setup_taprio(priv, offload);
+	if (err)
+		enetc_reset_tc_mqprio(ndev);
+
+	return err;
+}
+
+int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data)
+{
+	struct tc_taprio_qopt_offload *offload = type_data;
+	int err = 0;
+
+	switch (offload->cmd) {
+	case TAPRIO_CMD_REPLACE:
+		err = enetc_taprio_replace(ndev, offload);
+		break;
+	case TAPRIO_CMD_DESTROY:
+		enetc_taprio_destroy(ndev);
+		break;
+	case TAPRIO_CMD_STATS:
+		enetc_taprio_stats(ndev, &offload->stats);
+		break;
+	case TAPRIO_CMD_QUEUE_STATS:
+		enetc_taprio_queue_stats(ndev, &offload->queue_stats);
+		break;
+	default:
+		err = -EOPNOTSUPP;
 	}
 
 	return err;
@@ -181,8 +246,8 @@ int enetc_setup_tc_cbs(struct net_device *ndev, void *type_data)
 	int bw_sum = 0;
 	u8 bw;
 
-	prio_top = netdev_get_prio_tc_map(ndev, tc_nums - 1);
-	prio_next = netdev_get_prio_tc_map(ndev, tc_nums - 2);
+	prio_top = tc_nums - 1;
+	prio_next = tc_nums - 2;
 
 	/* Support highest prio and second prio tc in cbs mode */
 	if (tc != prio_top && tc != prio_next)

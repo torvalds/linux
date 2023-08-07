@@ -97,7 +97,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 		goto out;
 
 	err = -EINVAL;
-	if ((len=qword_get(&mesg, buf, PAGE_SIZE)) <= 0)
+	if (qword_get(&mesg, buf, PAGE_SIZE) <= 0)
 		goto out;
 
 	err = -ENOENT;
@@ -107,7 +107,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	dprintk("found domain %s\n", buf);
 
 	err = -EINVAL;
-	if ((len=qword_get(&mesg, buf, PAGE_SIZE)) <= 0)
+	if (qword_get(&mesg, buf, PAGE_SIZE) <= 0)
 		goto out;
 	fsidtype = simple_strtoul(buf, &ep, 10);
 	if (*ep)
@@ -593,7 +593,6 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 {
 	/* client path expiry [flags anonuid anongid fsid] */
 	char *buf;
-	int len;
 	int err;
 	struct auth_domain *dom = NULL;
 	struct svc_export exp = {}, *expp;
@@ -609,8 +608,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 	/* client */
 	err = -EINVAL;
-	len = qword_get(&mesg, buf, PAGE_SIZE);
-	if (len <= 0)
+	if (qword_get(&mesg, buf, PAGE_SIZE) <= 0)
 		goto out;
 
 	err = -ENOENT;
@@ -620,7 +618,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 	/* path */
 	err = -EINVAL;
-	if ((len = qword_get(&mesg, buf, PAGE_SIZE)) <= 0)
+	if (qword_get(&mesg, buf, PAGE_SIZE) <= 0)
 		goto out1;
 
 	err = kern_path(buf, 0, &exp.ex_path);
@@ -665,7 +663,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 			goto out3;
 		exp.ex_fsid = an_int;
 
-		while ((len = qword_get(&mesg, buf, PAGE_SIZE)) > 0) {
+		while (qword_get(&mesg, buf, PAGE_SIZE) > 0) {
 			if (strcmp(buf, "fsloc") == 0)
 				err = fsloc_parse(&mesg, buf, &exp.ex_fslocs);
 			else if (strcmp(buf, "uuid") == 0)

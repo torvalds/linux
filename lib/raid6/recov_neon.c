@@ -8,6 +8,7 @@
 
 #ifdef __KERNEL__
 #include <asm/neon.h>
+#include "neon.h"
 #else
 #define kernel_neon_begin()
 #define kernel_neon_end()
@@ -18,13 +19,6 @@ static int raid6_has_neon(void)
 {
 	return cpu_has_neon();
 }
-
-void __raid6_2data_recov_neon(int bytes, uint8_t *p, uint8_t *q, uint8_t *dp,
-			      uint8_t *dq, const uint8_t *pbmul,
-			      const uint8_t *qmul);
-
-void __raid6_datap_recov_neon(int bytes, uint8_t *p, uint8_t *q, uint8_t *dq,
-			      const uint8_t *qmul);
 
 static void raid6_2data_recov_neon(int disks, size_t bytes, int faila,
 		int failb, void **ptrs)

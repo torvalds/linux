@@ -170,12 +170,19 @@ static int __handle_encls_ecreate(struct kvm_vcpu *vcpu,
 		return 1;
 	}
 
-	/* Enforce CPUID restrictions on MISCSELECT, ATTRIBUTES and XFRM. */
+	/*
+	 * Enforce CPUID restrictions on MISCSELECT, ATTRIBUTES and XFRM.  Note
+	 * that the allowed XFRM (XFeature Request Mask) isn't strictly bound
+	 * by the supported XCR0.  FP+SSE *must* be set in XFRM, even if XSAVE
+	 * is unsupported, i.e. even if XCR0 itself is completely unsupported.
+	 */
 	if ((u32)miscselect & ~sgx_12_0->ebx ||
 	    (u32)attributes & ~sgx_12_1->eax ||
 	    (u32)(attributes >> 32) & ~sgx_12_1->ebx ||
 	    (u32)xfrm & ~sgx_12_1->ecx ||
-	    (u32)(xfrm >> 32) & ~sgx_12_1->edx) {
+	    (u32)(xfrm >> 32) & ~sgx_12_1->edx ||
+	    xfrm & ~(vcpu->arch.guest_supported_xcr0 | XFEATURE_MASK_FPSSE) ||
+	    (xfrm & XFEATURE_MASK_FPSSE) != XFEATURE_MASK_FPSSE) {
 		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
@@ -350,11 +357,12 @@ static int handle_encls_einit(struct kvm_vcpu *vcpu)
 
 static inline bool encls_leaf_enabled_in_guest(struct kvm_vcpu *vcpu, u32 leaf)
 {
-	if (!enable_sgx || !guest_cpuid_has(vcpu, X86_FEATURE_SGX))
-		return false;
-
+	/*
+	 * ENCLS generates a #UD if SGX1 isn't supported, i.e. this point will
+	 * be reached if and only if the SGX1 leafs are enabled.
+	 */
 	if (leaf >= ECREATE && leaf <= ETRACK)
-		return guest_cpuid_has(vcpu, X86_FEATURE_SGX1);
+		return true;
 
 	if (leaf >= EAUG && leaf <= EMODT)
 		return guest_cpuid_has(vcpu, X86_FEATURE_SGX2);
@@ -373,9 +381,11 @@ int handle_encls(struct kvm_vcpu *vcpu)
 {
 	u32 leaf = (u32)kvm_rax_read(vcpu);
 
-	if (!encls_leaf_enabled_in_guest(vcpu, leaf)) {
+	if (!enable_sgx || !guest_cpuid_has(vcpu, X86_FEATURE_SGX) ||
+	    !guest_cpuid_has(vcpu, X86_FEATURE_SGX1)) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
-	} else if (!sgx_enabled_in_guest_bios(vcpu)) {
+	} else if (!encls_leaf_enabled_in_guest(vcpu, leaf) ||
+		   !sgx_enabled_in_guest_bios(vcpu) || !is_paging(vcpu)) {
 		kvm_inject_gp(vcpu, 0);
 	} else {
 		if (leaf == ECREATE)

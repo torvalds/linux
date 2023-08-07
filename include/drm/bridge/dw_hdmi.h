@@ -206,4 +206,6 @@ void dw_hdmi_phy_update_hpd(struct dw_hdmi *hdmi, void *data,
 			    bool force, bool disabled, bool rxsense);
 void dw_hdmi_phy_setup_hpd(struct dw_hdmi *hdmi, void *data);
 
+bool dw_hdmi_bus_fmt_is_420(struct dw_hdmi *hdmi);
+
 #endif /* __IMX_HDMI_H__ */

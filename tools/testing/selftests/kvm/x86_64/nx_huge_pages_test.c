@@ -226,7 +226,7 @@ static void help(char *name)
 	puts("");
 	printf("usage: %s [-h] [-p period_ms] [-t token]\n", name);
 	puts("");
-	printf(" -p: The NX reclaim period in miliseconds.\n");
+	printf(" -p: The NX reclaim period in milliseconds.\n");
 	printf(" -t: The magic token to indicate environment setup is done.\n");
 	printf(" -r: The test has reboot permissions and can disable NX huge pages.\n");
 	puts("");

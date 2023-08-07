@@ -106,7 +106,7 @@ nv04_sw_chan = {
 };
 
 static int
-nv04_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifo,
+nv04_sw_chan_new(struct nvkm_sw *sw, struct nvkm_chan *fifo,
 		 const struct nvkm_oclass *oclass, struct nvkm_object **pobject)
 {
 	struct nv04_sw_chan *chan;

@@ -1399,7 +1399,6 @@ static int sstfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	f_ddprintk("membase_phys: %#lx\n", fix->smem_start);
 	f_ddprintk("fbbase_virt: %p\n", info->screen_base);
 
-	info->flags	= FBINFO_DEFAULT;
 	info->fbops	= &sstfb_ops;
 	info->pseudo_palette = par->palette;
 

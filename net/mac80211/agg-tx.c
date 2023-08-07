@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2022 Intel Corporation
+ * Copyright (C) 2018 - 2023 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -457,6 +457,12 @@ static void ieee80211_send_addba_with_timeout(struct sta_info *sta,
 	u8 tid = tid_tx->tid;
 	u16 buf_size;
 
+	if (WARN_ON_ONCE(test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state) ||
+			 test_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state)))
+		return;
+
+	lockdep_assert_held(&sta->ampdu_mlme.mtx);
+
 	/* activate the timer for the recipient's addBA response */
 	mod_timer(&tid_tx->addba_resp_timer, jiffies + ADDBA_RESP_INTERVAL);
 	ht_dbg(sdata, "activated addBA response timer on %pM tid %d\n",
@@ -795,7 +801,13 @@ void ieee80211_start_tx_ba_cb(struct sta_info *sta, int tid,
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
 
+	lockdep_assert_held(&sta->ampdu_mlme.mtx);
+
 	if (WARN_ON(test_and_set_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state)))
+		return;
+
+	if (test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state) ||
+	    test_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state))
 		return;
 
 	if (!test_bit(HT_AGG_STATE_SENT_ADDBA, &tid_tx->state)) {

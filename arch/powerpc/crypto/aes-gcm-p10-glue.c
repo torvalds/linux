@@ -30,15 +30,15 @@ MODULE_AUTHOR("Danny Tsen <dtsen@linux.ibm.com");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("aes");
 
-asmlinkage int aes_p8_set_encrypt_key(const u8 *userKey, const int bits,
+asmlinkage int aes_p10_set_encrypt_key(const u8 *userKey, const int bits,
 				      void *key);
-asmlinkage void aes_p8_encrypt(const u8 *in, u8 *out, const void *key);
+asmlinkage void aes_p10_encrypt(const u8 *in, u8 *out, const void *key);
 asmlinkage void aes_p10_gcm_encrypt(u8 *in, u8 *out, size_t len,
 				    void *rkey, u8 *iv, void *Xi);
 asmlinkage void aes_p10_gcm_decrypt(u8 *in, u8 *out, size_t len,
 				    void *rkey, u8 *iv, void *Xi);
 asmlinkage void gcm_init_htable(unsigned char htable[256], unsigned char Xi[16]);
-asmlinkage void gcm_ghash_p8(unsigned char *Xi, unsigned char *Htable,
+asmlinkage void gcm_ghash_p10(unsigned char *Xi, unsigned char *Htable,
 		unsigned char *aad, unsigned int alen);
 
 struct aes_key {
@@ -93,7 +93,7 @@ static void set_aad(struct gcm_ctx *gctx, struct Hash_ctx *hash,
 	gctx->aadLen = alen;
 	i = alen & ~0xf;
 	if (i) {
-		gcm_ghash_p8(nXi, hash->Htable+32, aad, i);
+		gcm_ghash_p10(nXi, hash->Htable+32, aad, i);
 		aad += i;
 		alen -= i;
 	}
@@ -102,7 +102,7 @@ static void set_aad(struct gcm_ctx *gctx, struct Hash_ctx *hash,
 			nXi[i] ^= aad[i];
 
 		memset(gctx->aad_hash, 0, 16);
-		gcm_ghash_p8(gctx->aad_hash, hash->Htable+32, nXi, 16);
+		gcm_ghash_p10(gctx->aad_hash, hash->Htable+32, nXi, 16);
 	} else {
 		memcpy(gctx->aad_hash, nXi, 16);
 	}
@@ -115,7 +115,7 @@ static void gcmp10_init(struct gcm_ctx *gctx, u8 *iv, unsigned char *rdkey,
 {
 	__be32 counter = cpu_to_be32(1);
 
-	aes_p8_encrypt(hash->H, hash->H, rdkey);
+	aes_p10_encrypt(hash->H, hash->H, rdkey);
 	set_subkey(hash->H);
 	gcm_init_htable(hash->Htable+32, hash->H);
 
@@ -126,7 +126,7 @@ static void gcmp10_init(struct gcm_ctx *gctx, u8 *iv, unsigned char *rdkey,
 	/*
 	 * Encrypt counter vector as iv tag and increment counter.
 	 */
-	aes_p8_encrypt(iv, gctx->ivtag, rdkey);
+	aes_p10_encrypt(iv, gctx->ivtag, rdkey);
 
 	counter = cpu_to_be32(2);
 	*((__be32 *)(iv+12)) = counter;
@@ -160,7 +160,7 @@ static void finish_tag(struct gcm_ctx *gctx, struct Hash_ctx *hash, int len)
 	/*
 	 * hash (AAD len and len)
 	 */
-	gcm_ghash_p8(hash->Htable, hash->Htable+32, aclen, 16);
+	gcm_ghash_p10(hash->Htable, hash->Htable+32, aclen, 16);
 
 	for (i = 0; i < 16; i++)
 		hash->Htable[i] ^= gctx->ivtag[i];
@@ -192,7 +192,7 @@ static int p10_aes_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	int ret;
 
 	vsx_begin();
-	ret = aes_p8_set_encrypt_key(key, keylen * 8, &ctx->enc_key);
+	ret = aes_p10_set_encrypt_key(key, keylen * 8, &ctx->enc_key);
 	vsx_end();
 
 	return ret ? -EINVAL : 0;

@@ -135,7 +135,7 @@ static struct i2c_driver adxl34x_driver = {
 		.pm = pm_sleep_ptr(&adxl34x_pm),
 		.of_match_table = adxl34x_of_id,
 	},
-	.probe_new = adxl34x_i2c_probe,
+	.probe    = adxl34x_i2c_probe,
 	.remove   = adxl34x_i2c_remove,
 	.id_table = adxl34x_id,
 };

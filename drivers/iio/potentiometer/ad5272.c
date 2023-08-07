@@ -218,7 +218,7 @@ static struct i2c_driver ad5272_driver = {
 		.name	= "ad5272",
 		.of_match_table = ad5272_dt_ids,
 	},
-	.probe_new	= ad5272_probe,
+	.probe		= ad5272_probe,
 	.id_table	= ad5272_id,
 };
 

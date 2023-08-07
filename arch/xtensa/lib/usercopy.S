@@ -283,6 +283,7 @@ EX(10f)	s8i	a6, a5,  0
 	abi_ret(STACK_SIZE)
 
 ENDPROC(__xtensa_copy_user)
+EXPORT_SYMBOL(__xtensa_copy_user)
 
 	.section .fixup, "ax"
 	.align	4

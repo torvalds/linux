@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 /* "API" level of the ath11k testmode interface. Bump it after every
@@ -11,9 +12,10 @@
 /* Bump this after every _compatible_ interface change, for example
  * addition of a new command or an attribute.
  */
-#define ATH11K_TESTMODE_VERSION_MINOR 0
+#define ATH11K_TESTMODE_VERSION_MINOR 1
 
 #define ATH11K_TM_DATA_MAX_LEN		5000
+#define ATH11K_FTM_EVENT_MAX_BUF_LENGTH 2048
 
 enum ath11k_tm_attr {
 	__ATH11K_TM_ATTR_INVALID		= 0,
@@ -47,4 +49,18 @@ enum ath11k_tm_cmd {
 	 * ATH11K_TM_ATTR_DATA.
 	 */
 	ATH11K_TM_CMD_WMI = 1,
+
+	/* Boots the UTF firmware, the netdev interface must be down at the
+	 * time.
+	 */
+	ATH11K_TM_CMD_TESTMODE_START = 2,
+
+	/* The command used to transmit a FTM WMI command to the firmware
+	 * and the event to receive WMI events from the firmware. The data
+	 * received only contain the payload, need to add the tlv header
+	 * and send the cmd to firmware with command id WMI_PDEV_UTF_CMDID.
+	 * The data payload size could be large and the driver needs to
+	 * send segmented data to firmware.
+	 */
+	ATH11K_TM_CMD_WMI_FTM = 3,
 };

@@ -8,6 +8,7 @@ Required properties:
     * marvell,armada380-thermal
     * marvell,armadaxp-thermal
     * marvell,armada-ap806-thermal
+    * marvell,armada-ap807-thermal
     * marvell,armada-cp110-thermal
 
 Note: these bindings are deprecated for AP806/CP110 and should instead

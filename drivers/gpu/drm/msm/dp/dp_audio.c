@@ -6,7 +6,7 @@
 
 #define pr_fmt(fmt)	"[drm-dp] %s: " fmt, __func__
 
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_edid.h>
@@ -592,6 +592,18 @@ static struct hdmi_codec_pdata codec_data = {
 	.max_i2s_channels = 8,
 	.i2s = 1,
 };
+
+void dp_unregister_audio_driver(struct device *dev, struct dp_audio *dp_audio)
+{
+	struct dp_audio_private *audio_priv;
+
+	audio_priv = container_of(dp_audio, struct dp_audio_private, dp_audio);
+
+	if (audio_priv->audio_pdev) {
+		platform_device_unregister(audio_priv->audio_pdev);
+		audio_priv->audio_pdev = NULL;
+	}
+}
 
 int dp_register_audio_driver(struct device *dev,
 		struct dp_audio *dp_audio)

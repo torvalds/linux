@@ -14,6 +14,67 @@
 	compatible = "avnet,sm2s-imx8mp-14N0600E-ep1",
 		     "avnet,sm2s-imx8mp-14N0600E", "avnet,sm2s-imx8mp",
 		     "fsl,imx8mp";
+
+	reg_vcc_3v3_audio: 3v3-audio-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3V3_AUD";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	reg_vcc_1v8_audio: 1v8-audio-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_1V8_AUD";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "sgtl5000-audio";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,frame-master = <&codec_dai>;
+		simple-audio-card,bitclock-master = <&codec_dai>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai2>;
+		};
+
+		codec_dai: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
+	};
+};
+
+&i2c1 {
+	sgtl5000: audio-codec@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+
+		assigned-clocks = <&clk IMX8MP_CLK_CLKOUT1_SEL>;
+		assigned-clock-parents = <&clk IMX8MP_CLK_24M>;
+		assigned-clock-rates = <24000000>;
+		clocks = <&clk IMX8MP_CLK_CLKOUT1>;
+		clock-names = "mclk";
+		#sound-dai-cells = <0>;
+
+		VDDA-supply  = <&reg_vcc_3v3_audio>;
+		VDDD-supply  = <&reg_vcc_1v8_audio>;
+		VDDIO-supply = <&reg_vcc_1v8_audio>;
+	};
+};
+
+/* I2S-0 = sai2 */
+&sai2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai2>;
+
+	assigned-clocks = <&clk IMX8MP_CLK_SAI2>;
+	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
+	assigned-clock-rates = <12288000>;
+
+	fsl,sai-mclk-direction-output;
+	status = "okay";
 };
 
 &flexcan1 {
@@ -31,6 +92,15 @@
 &iomuxc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_smarc_gpio>;
+
+	pinctrl_sai2: sai2grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI2_TXFS__AUDIOMIX_SAI2_TX_SYNC   0xd6
+			MX8MP_IOMUXC_SAI2_TXC__AUDIOMIX_SAI2_TX_BCLK    0xd6
+			MX8MP_IOMUXC_SAI2_RXD0__AUDIOMIX_SAI2_RX_DATA00 0xd6
+			MX8MP_IOMUXC_SAI2_TXD0__AUDIOMIX_SAI2_TX_DATA00 0xd6
+		>;
+	};
 
 	pinctrl_smarc_gpio: smarcgpiosgrp {
 		fsl,pins =

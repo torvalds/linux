@@ -76,7 +76,7 @@ static struct i2c_driver zpa2326_i2c_driver = {
 		.of_match_table = zpa2326_i2c_matches,
 		.pm             = ZPA2326_PM_OPS,
 	},
-	.probe_new = zpa2326_probe_i2c,
+	.probe = zpa2326_probe_i2c,
 	.remove   = zpa2326_remove_i2c,
 	.id_table = zpa2326_i2c_ids,
 };

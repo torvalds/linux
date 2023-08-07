@@ -31,6 +31,9 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info,
 					      unsigned int flags,
 					      int limit_active,
 					      int thresh);
+struct btrfs_workqueue *btrfs_alloc_ordered_workqueue(
+				struct btrfs_fs_info *fs_info, const char *name,
+				unsigned int flags);
 void btrfs_init_work(struct btrfs_work *work, btrfs_func_t func,
 		     btrfs_func_t ordered_func, btrfs_func_t ordered_free);
 void btrfs_queue_work(struct btrfs_workqueue *wq,

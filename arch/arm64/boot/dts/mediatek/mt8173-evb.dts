@@ -10,6 +10,7 @@
 
 / {
 	model = "MediaTek MT8173 evaluation board";
+	chassis-type = "embedded";
 	compatible = "mediatek,mt8173-evb", "mediatek,mt8173";
 
 	aliases {

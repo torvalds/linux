@@ -374,6 +374,7 @@ static void irq_restore_context(void)
 static void irq_save_secure_context(void)
 {
 	u32 ret;
+
 	ret = omap_secure_dispatcher(OMAP4_HAL_SAVEGIC_INDEX,
 				FLAG_START_CRITICAL,
 				0, 0, 0, 0, 0);

@@ -178,7 +178,7 @@ static struct i2c_driver bd957x_drv = {
 		.name = "rohm-bd957x",
 		.of_match_table = bd957x_of_match,
 	},
-	.probe_new = &bd957x_i2c_probe,
+	.probe = bd957x_i2c_probe,
 };
 module_i2c_driver(bd957x_drv);
 

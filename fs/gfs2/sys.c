@@ -82,6 +82,7 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     "RO Recovery:              %d\n"
 		     "Skip DLM Unlock:          %d\n"
 		     "Force AIL Flush:          %d\n"
+		     "FS Freeze Initiator:      %d\n"
 		     "FS Frozen:                %d\n"
 		     "Withdrawing:              %d\n"
 		     "Withdraw In Prog:         %d\n"
@@ -111,7 +112,8 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     test_bit(SDF_RORECOVERY, &f),
 		     test_bit(SDF_SKIP_DLM_UNLOCK, &f),
 		     test_bit(SDF_FORCE_AIL_FLUSH, &f),
-		     test_bit(SDF_FS_FROZEN, &f),
+		     test_bit(SDF_FREEZE_INITIATOR, &f),
+		     test_bit(SDF_FROZEN, &f),
 		     test_bit(SDF_WITHDRAWING, &f),
 		     test_bit(SDF_WITHDRAW_IN_PROG, &f),
 		     test_bit(SDF_REMOTE_WITHDRAW, &f),

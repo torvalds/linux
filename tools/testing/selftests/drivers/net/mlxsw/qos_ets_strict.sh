@@ -138,11 +138,15 @@ switch_create()
 	vlan_create $swp3 111
 	vlan_create $swp3 222
 
-	ip link add name br111 up type bridge vlan_filtering 0
+	ip link add name br111 type bridge vlan_filtering 0
+	ip link set dev br111 addrgenmode none
+	ip link set dev br111 up
 	ip link set dev $swp1.111 master br111
 	ip link set dev $swp3.111 master br111
 
-	ip link add name br222 up type bridge vlan_filtering 0
+	ip link add name br222 type bridge vlan_filtering 0
+	ip link set dev br222 addrgenmode none
+	ip link set dev br222 up
 	ip link set dev $swp2.222 master br222
 	ip link set dev $swp3.222 master br222
 

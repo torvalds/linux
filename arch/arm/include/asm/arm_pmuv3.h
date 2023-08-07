@@ -92,7 +92,7 @@
 
 #define RETURN_READ_PMEVCNTRN(n) \
 	return read_sysreg(PMEVCNTR##n)
-static unsigned long read_pmevcntrn(int n)
+static inline unsigned long read_pmevcntrn(int n)
 {
 	PMEVN_SWITCH(n, RETURN_READ_PMEVCNTRN);
 	return 0;
@@ -100,14 +100,14 @@ static unsigned long read_pmevcntrn(int n)
 
 #define WRITE_PMEVCNTRN(n) \
 	write_sysreg(val, PMEVCNTR##n)
-static void write_pmevcntrn(int n, unsigned long val)
+static inline void write_pmevcntrn(int n, unsigned long val)
 {
 	PMEVN_SWITCH(n, WRITE_PMEVCNTRN);
 }
 
 #define WRITE_PMEVTYPERN(n) \
 	write_sysreg(val, PMEVTYPER##n)
-static void write_pmevtypern(int n, unsigned long val)
+static inline void write_pmevtypern(int n, unsigned long val)
 {
 	PMEVN_SWITCH(n, WRITE_PMEVTYPERN);
 }
@@ -218,6 +218,11 @@ static inline u32 read_pmceid1(void)
 static inline void kvm_set_pmu_events(u32 set, struct perf_event_attr *attr) {}
 static inline void kvm_clr_pmu_events(u32 clr) {}
 static inline bool kvm_pmu_counter_deferred(struct perf_event_attr *attr)
+{
+	return false;
+}
+
+static inline bool kvm_set_pmuserenr(u64 val)
 {
 	return false;
 }

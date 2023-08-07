@@ -45,22 +45,17 @@ int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 	}
 }
 
-#define IB_ACCESS_REMOTE	(IB_ACCESS_REMOTE_READ		\
-				| IB_ACCESS_REMOTE_WRITE	\
-				| IB_ACCESS_REMOTE_ATOMIC)
-
 static void rxe_mr_init(int access, struct rxe_mr *mr)
 {
-	u32 lkey = mr->elem.index << 8 | rxe_get_next_key(-1);
-	u32 rkey = (access & IB_ACCESS_REMOTE) ? lkey : 0;
+	u32 key = mr->elem.index << 8 | rxe_get_next_key(-1);
 
 	/* set ibmr->l/rkey and also copy into private l/rkey
 	 * for user MRs these will always be the same
 	 * for cases where caller 'owns' the key portion
 	 * they may be different until REG_MR WQE is executed.
 	 */
-	mr->lkey = mr->ibmr.lkey = lkey;
-	mr->rkey = mr->ibmr.rkey = rkey;
+	mr->lkey = mr->ibmr.lkey = key;
+	mr->rkey = mr->ibmr.rkey = key;
 
 	mr->access = access;
 	mr->ibmr.page_size = PAGE_SIZE;
@@ -195,7 +190,7 @@ int rxe_mr_init_fast(int max_pages, struct rxe_mr *mr)
 	int err;
 
 	/* always allow remote access for FMRs */
-	rxe_mr_init(IB_ACCESS_REMOTE, mr);
+	rxe_mr_init(RXE_ACCESS_REMOTE, mr);
 
 	err = rxe_mr_alloc(mr, max_pages);
 	if (err)
@@ -644,6 +639,7 @@ int rxe_invalidate_mr(struct rxe_qp *qp, u32 key)
 {
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	struct rxe_mr *mr;
+	int remote;
 	int ret;
 
 	mr = rxe_pool_get_index(&rxe->mr_pool, key >> 8);
@@ -653,9 +649,10 @@ int rxe_invalidate_mr(struct rxe_qp *qp, u32 key)
 		goto err;
 	}
 
-	if (mr->rkey ? (key != mr->rkey) : (key != mr->lkey)) {
+	remote = mr->access & RXE_ACCESS_REMOTE;
+	if (remote ? (key != mr->rkey) : (key != mr->lkey)) {
 		rxe_dbg_mr(mr, "wr key (%#x) doesn't match mr key (%#x)\n",
-			key, (mr->rkey ? mr->rkey : mr->lkey));
+			key, (remote ? mr->rkey : mr->lkey));
 		ret = -EINVAL;
 		goto err_drop_ref;
 	}
@@ -715,7 +712,7 @@ int rxe_reg_fast_mr(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 
 	mr->access = access;
 	mr->lkey = key;
-	mr->rkey = (access & IB_ACCESS_REMOTE) ? key : 0;
+	mr->rkey = key;
 	mr->ibmr.iova = wqe->wr.wr.reg.mr->iova;
 	mr->state = RXE_MR_STATE_VALID;
 

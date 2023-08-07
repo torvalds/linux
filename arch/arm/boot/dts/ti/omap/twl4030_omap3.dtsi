@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2013 Linaro, Ltd.
+ */
+
+&twl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&twl4030_pins &twl4030_vpins>;
+};
+
+&omap3_pmx_core {
+	/*
+	 * On most OMAP3 platforms, the twl4030 IRQ line is connected
+	 * to the SYS_NIRQ line on OMAP.  Therefore, configure the
+	 * defaults for the SYS_NIRQ pin here.
+	 */
+	twl4030_pins: twl4030-pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21e0, PIN_INPUT_PULLUP | PIN_OFF_WAKEUPENABLE | MUX_MODE0) /* sys_nirq.sys_nirq */
+		>;
+	};
+};
+
+/*
+ * If your board is not using the I2C4 pins with twl4030, then don't include
+ * this file. For proper idle mode signaling with sys_clkreq and sys_off_mode
+ * pins we need to configure I2C4, or else use the legacy sys_nvmode1 and
+ * sys_nvmode2 signaling.
+ */
+&omap3_pmx_wkup {
+	twl4030_vpins: twl4030-vpins-pins {
+		pinctrl-single,pins = <
+			OMAP3_WKUP_IOPAD(0x2a00, PIN_INPUT | MUX_MODE0)		/* i2c4_scl.i2c4_scl */
+			OMAP3_WKUP_IOPAD(0x2a02, PIN_INPUT | MUX_MODE0)		/* i2c4_sda.i2c4_sda */
+			OMAP3_WKUP_IOPAD(0x2a06, PIN_OUTPUT | MUX_MODE0)	/* sys_clkreq.sys_clkreq */
+			OMAP3_WKUP_IOPAD(0x2a18, PIN_OUTPUT | MUX_MODE0)	/* sys_off_mode.sys_off_mode */
+		>;
+	};
+};

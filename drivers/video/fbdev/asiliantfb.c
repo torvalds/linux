@@ -516,7 +516,6 @@ static int init_asiliant(struct fb_info *p, unsigned long addr)
 	p->fix.smem_start	= addr;
 	p->var			= asiliantfb_var;
 	p->fbops		= &asiliantfb_ops;
-	p->flags		= FBINFO_DEFAULT;
 
 	err = fb_alloc_cmap(&p->cmap, 256, 0);
 	if (err) {

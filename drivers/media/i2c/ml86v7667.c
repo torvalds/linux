@@ -433,7 +433,7 @@ static struct i2c_driver ml86v7667_i2c_driver = {
 	.driver = {
 		.name	= DRV_NAME,
 	},
-	.probe_new	= ml86v7667_probe,
+	.probe		= ml86v7667_probe,
 	.remove		= ml86v7667_remove,
 	.id_table	= ml86v7667_id,
 };

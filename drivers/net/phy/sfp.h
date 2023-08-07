@@ -19,6 +19,7 @@ struct sfp_socket_ops {
 	void (*detach)(struct sfp *sfp);
 	void (*start)(struct sfp *sfp);
 	void (*stop)(struct sfp *sfp);
+	void (*set_signal_rate)(struct sfp *sfp, unsigned int rate_kbd);
 	int (*module_info)(struct sfp *sfp, struct ethtool_modinfo *modinfo);
 	int (*module_eeprom)(struct sfp *sfp, struct ethtool_eeprom *ee,
 			     u8 *data);

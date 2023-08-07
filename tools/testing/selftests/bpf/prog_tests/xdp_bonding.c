@@ -18,6 +18,7 @@
 #include <linux/if_bonding.h>
 #include <linux/limits.h>
 #include <linux/udp.h>
+#include <uapi/linux/netdev.h>
 
 #include "xdp_dummy.skel.h"
 #include "xdp_redirect_multi_kern.skel.h"
@@ -492,6 +493,123 @@ out:
 	system("ip link del bond_nest2");
 }
 
+static void test_xdp_bonding_features(struct skeletons *skeletons)
+{
+	LIBBPF_OPTS(bpf_xdp_query_opts, query_opts);
+	int bond_idx, veth1_idx, err;
+	struct bpf_link *link = NULL;
+
+	if (!ASSERT_OK(system("ip link add bond type bond"), "add bond"))
+		goto out;
+
+	bond_idx = if_nametoindex("bond");
+	if (!ASSERT_GE(bond_idx, 0, "if_nametoindex bond"))
+		goto out;
+
+	/* query default xdp-feature for bond device */
+	err = bpf_xdp_query(bond_idx, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (!ASSERT_OK(err, "bond bpf_xdp_query"))
+		goto out;
+
+	if (!ASSERT_EQ(query_opts.feature_flags, NETDEV_XDP_ACT_MASK,
+		       "bond query_opts.feature_flags"))
+		goto out;
+
+	if (!ASSERT_OK(system("ip link add veth0 type veth peer name veth1"),
+		       "add veth{0,1} pair"))
+		goto out;
+
+	if (!ASSERT_OK(system("ip link add veth2 type veth peer name veth3"),
+		       "add veth{2,3} pair"))
+		goto out;
+
+	if (!ASSERT_OK(system("ip link set veth0 master bond"),
+		       "add veth0 to master bond"))
+		goto out;
+
+	/* xdp-feature for bond device should be obtained from the single slave
+	 * device (veth0)
+	 */
+	err = bpf_xdp_query(bond_idx, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (!ASSERT_OK(err, "bond bpf_xdp_query"))
+		goto out;
+
+	if (!ASSERT_EQ(query_opts.feature_flags,
+		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+		       NETDEV_XDP_ACT_RX_SG,
+		       "bond query_opts.feature_flags"))
+		goto out;
+
+	veth1_idx = if_nametoindex("veth1");
+	if (!ASSERT_GE(veth1_idx, 0, "if_nametoindex veth1"))
+		goto out;
+
+	link = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog,
+				       veth1_idx);
+	if (!ASSERT_OK_PTR(link, "attach program to veth1"))
+		goto out;
+
+	/* xdp-feature for veth0 are changed */
+	err = bpf_xdp_query(bond_idx, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (!ASSERT_OK(err, "bond bpf_xdp_query"))
+		goto out;
+
+	if (!ASSERT_EQ(query_opts.feature_flags,
+		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+		       NETDEV_XDP_ACT_RX_SG | NETDEV_XDP_ACT_NDO_XMIT |
+		       NETDEV_XDP_ACT_NDO_XMIT_SG,
+		       "bond query_opts.feature_flags"))
+		goto out;
+
+	if (!ASSERT_OK(system("ip link set veth2 master bond"),
+		       "add veth2 to master bond"))
+		goto out;
+
+	err = bpf_xdp_query(bond_idx, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (!ASSERT_OK(err, "bond bpf_xdp_query"))
+		goto out;
+
+	/* xdp-feature for bond device should be set to the most restrict
+	 * value obtained from attached slave devices (veth0 and veth2)
+	 */
+	if (!ASSERT_EQ(query_opts.feature_flags,
+		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+		       NETDEV_XDP_ACT_RX_SG,
+		       "bond query_opts.feature_flags"))
+		goto out;
+
+	if (!ASSERT_OK(system("ip link set veth2 nomaster"),
+		       "del veth2 to master bond"))
+		goto out;
+
+	err = bpf_xdp_query(bond_idx, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (!ASSERT_OK(err, "bond bpf_xdp_query"))
+		goto out;
+
+	if (!ASSERT_EQ(query_opts.feature_flags,
+		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+		       NETDEV_XDP_ACT_RX_SG | NETDEV_XDP_ACT_NDO_XMIT |
+		       NETDEV_XDP_ACT_NDO_XMIT_SG,
+		       "bond query_opts.feature_flags"))
+		goto out;
+
+	if (!ASSERT_OK(system("ip link set veth0 nomaster"),
+		       "del veth0 to master bond"))
+		goto out;
+
+	err = bpf_xdp_query(bond_idx, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (!ASSERT_OK(err, "bond bpf_xdp_query"))
+		goto out;
+
+	ASSERT_EQ(query_opts.feature_flags, NETDEV_XDP_ACT_MASK,
+		  "bond query_opts.feature_flags");
+out:
+	bpf_link__destroy(link);
+	system("ip link del veth0");
+	system("ip link del veth2");
+	system("ip link del bond");
+}
+
 static int libbpf_debug_print(enum libbpf_print_level level,
 			      const char *format, va_list args)
 {
@@ -545,6 +663,9 @@ void serial_test_xdp_bonding(void)
 
 	if (test__start_subtest("xdp_bonding_nested"))
 		test_xdp_bonding_nested(&skeletons);
+
+	if (test__start_subtest("xdp_bonding_features"))
+		test_xdp_bonding_features(&skeletons);
 
 	for (i = 0; i < ARRAY_SIZE(bond_test_cases); i++) {
 		struct bond_test_case *test_case = &bond_test_cases[i];

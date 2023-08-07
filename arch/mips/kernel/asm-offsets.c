@@ -23,6 +23,7 @@
 
 #include <linux/kvm_host.h>
 
+void output_ptreg_defines(void);
 void output_ptreg_defines(void)
 {
 	COMMENT("MIPS pt_regs offsets.");
@@ -75,6 +76,7 @@ void output_ptreg_defines(void)
 	BLANK();
 }
 
+void output_task_defines(void);
 void output_task_defines(void)
 {
 	COMMENT("MIPS task_struct offsets.");
@@ -89,6 +91,7 @@ void output_task_defines(void)
 	BLANK();
 }
 
+void output_thread_info_defines(void);
 void output_thread_info_defines(void)
 {
 	COMMENT("MIPS thread_info offsets.");
@@ -105,6 +108,7 @@ void output_thread_info_defines(void)
 	BLANK();
 }
 
+void output_thread_defines(void);
 void output_thread_defines(void)
 {
 	COMMENT("MIPS specific thread_struct offsets.");
@@ -133,6 +137,7 @@ void output_thread_defines(void)
 }
 
 #ifdef CONFIG_MIPS_FP_SUPPORT
+void output_thread_fpu_defines(void);
 void output_thread_fpu_defines(void)
 {
 	OFFSET(THREAD_FPU, task_struct, thread.fpu);
@@ -176,6 +181,7 @@ void output_thread_fpu_defines(void)
 }
 #endif
 
+void output_mm_defines(void);
 void output_mm_defines(void)
 {
 	COMMENT("Size of struct page");
@@ -210,6 +216,7 @@ void output_mm_defines(void)
 }
 
 #ifdef CONFIG_32BIT
+void output_sc_defines(void);
 void output_sc_defines(void)
 {
 	COMMENT("Linux sigcontext offsets.");
@@ -232,6 +239,7 @@ void output_sc_defines(void)
 #endif
 
 #ifdef CONFIG_64BIT
+void output_sc_defines(void);
 void output_sc_defines(void)
 {
 	COMMENT("Linux sigcontext offsets.");
@@ -245,6 +253,7 @@ void output_sc_defines(void)
 }
 #endif
 
+void output_signal_defined(void);
 void output_signal_defined(void)
 {
 	COMMENT("Linux signal numbers.");
@@ -284,6 +293,7 @@ void output_signal_defined(void)
 }
 
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
+void output_octeon_cop2_state_defines(void);
 void output_octeon_cop2_state_defines(void)
 {
 	COMMENT("Octeon specific octeon_cop2_state offsets.");
@@ -315,6 +325,7 @@ void output_octeon_cop2_state_defines(void)
 #endif
 
 #ifdef CONFIG_HIBERNATION
+void output_pbe_defines(void);
 void output_pbe_defines(void)
 {
 	COMMENT(" Linux struct pbe offsets. ");
@@ -327,6 +338,7 @@ void output_pbe_defines(void)
 #endif
 
 #ifdef CONFIG_CPU_PM
+void output_pm_defines(void);
 void output_pm_defines(void)
 {
 	COMMENT(" PM offsets. ");
@@ -341,6 +353,7 @@ void output_pm_defines(void)
 #endif
 
 #ifdef CONFIG_MIPS_FP_SUPPORT
+void output_kvm_defines(void);
 void output_kvm_defines(void)
 {
 	COMMENT(" KVM/MIPS Specific offsets. ");
@@ -385,6 +398,7 @@ void output_kvm_defines(void)
 #endif
 
 #ifdef CONFIG_MIPS_CPS
+void output_cps_defines(void);
 void output_cps_defines(void)
 {
 	COMMENT(" MIPS CPS offsets. ");

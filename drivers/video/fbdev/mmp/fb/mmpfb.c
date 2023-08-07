@@ -502,7 +502,7 @@ static int fb_info_setup(struct fb_info *info,
 {
 	int ret = 0;
 	/* Initialise static fb parameters.*/
-	info->flags = FBINFO_DEFAULT | FBINFO_PARTIAL_PAN_OK |
+	info->flags = FBINFO_PARTIAL_PAN_OK |
 		FBINFO_HWACCEL_XPAN | FBINFO_HWACCEL_YPAN;
 	info->node = -1;
 	strcpy(info->fix.id, fbi->name);

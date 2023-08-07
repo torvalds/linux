@@ -36,6 +36,7 @@
 #include "netns.h"
 
 #define RPCBIND_SOCK_PATHNAME	"/var/run/rpcbind.sock"
+#define RPCBIND_SOCK_ABSTRACT_NAME "\0/run/rpcbind.sock"
 
 #define RPCBIND_PROGRAM		(100000u)
 #define RPCBIND_PORT		(111u)
@@ -216,21 +217,22 @@ static void rpcb_set_local(struct net *net, struct rpc_clnt *clnt,
 	sn->rpcb_users = 1;
 }
 
+/* Evaluate to actual length of the `sockaddr_un' structure.  */
+# define SUN_LEN(ptr) (offsetof(struct sockaddr_un, sun_path)		\
+		      + 1 + strlen((ptr)->sun_path + 1))
+
 /*
  * Returns zero on success, otherwise a negative errno value
  * is returned.
  */
-static int rpcb_create_local_unix(struct net *net)
+static int rpcb_create_af_local(struct net *net,
+				const struct sockaddr_un *addr)
 {
-	static const struct sockaddr_un rpcb_localaddr_rpcbind = {
-		.sun_family		= AF_LOCAL,
-		.sun_path		= RPCBIND_SOCK_PATHNAME,
-	};
 	struct rpc_create_args args = {
 		.net		= net,
 		.protocol	= XPRT_TRANSPORT_LOCAL,
-		.address	= (struct sockaddr *)&rpcb_localaddr_rpcbind,
-		.addrsize	= sizeof(rpcb_localaddr_rpcbind),
+		.address	= (struct sockaddr *)addr,
+		.addrsize	= SUN_LEN(addr),
 		.servername	= "localhost",
 		.program	= &rpcb_program,
 		.version	= RPCBVERS_2,
@@ -267,6 +269,26 @@ static int rpcb_create_local_unix(struct net *net)
 
 out:
 	return result;
+}
+
+static int rpcb_create_local_abstract(struct net *net)
+{
+	static const struct sockaddr_un rpcb_localaddr_abstract = {
+		.sun_family		= AF_LOCAL,
+		.sun_path		= RPCBIND_SOCK_ABSTRACT_NAME,
+	};
+
+	return rpcb_create_af_local(net, &rpcb_localaddr_abstract);
+}
+
+static int rpcb_create_local_unix(struct net *net)
+{
+	static const struct sockaddr_un rpcb_localaddr_unix = {
+		.sun_family		= AF_LOCAL,
+		.sun_path		= RPCBIND_SOCK_PATHNAME,
+	};
+
+	return rpcb_create_af_local(net, &rpcb_localaddr_unix);
 }
 
 /*
@@ -332,7 +354,8 @@ int rpcb_create_local(struct net *net)
 	if (rpcb_get_local(net))
 		goto out;
 
-	if (rpcb_create_local_unix(net) != 0)
+	if (rpcb_create_local_abstract(net) != 0 &&
+	    rpcb_create_local_unix(net) != 0)
 		result = rpcb_create_local_net(net);
 
 out:

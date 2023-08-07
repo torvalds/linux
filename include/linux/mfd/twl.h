@@ -593,9 +593,6 @@ struct twl4030_gpio_platform_data {
 	 */
 	u32		pullups;
 	u32		pulldowns;
-
-	int		(*setup)(struct device *dev,
-				unsigned gpio, unsigned ngpio);
 };
 
 struct twl4030_madc_platform_data {

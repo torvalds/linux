@@ -10,6 +10,7 @@
 
 #include "tc_bindings.h"
 #include "tc.h"
+#include "tc_encap_actions.h"
 
 struct efx_tc_block_binding {
 	struct list_head list;
@@ -225,4 +226,16 @@ int efx_tc_setup(struct net_device *net_dev, enum tc_setup_type type,
 		return efx_tc_setup_block(net_dev, efx, type_data, NULL);
 
 	return -EOPNOTSUPP;
+}
+
+int efx_tc_netdev_event(struct efx_nic *efx, unsigned long event,
+			struct net_device *net_dev)
+{
+	if (efx->type->is_vf)
+		return NOTIFY_DONE;
+
+	if (event == NETDEV_UNREGISTER)
+		efx_tc_unregister_egdev(efx, net_dev);
+
+	return NOTIFY_OK;
 }

@@ -288,7 +288,7 @@ static struct i2c_driver atxp1_driver = {
 	.driver = {
 		.name	= "atxp1",
 	},
-	.probe_new	= atxp1_probe,
+	.probe		= atxp1_probe,
 	.id_table	= atxp1_id,
 };
 

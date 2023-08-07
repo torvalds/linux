@@ -508,12 +508,16 @@ static void __init fixup_port_irq(int index,
 
 	port->irq = virq;
 
-#ifdef CONFIG_SERIAL_8250_FSL
-	if (of_device_is_compatible(np, "fsl,ns16550")) {
-		port->handle_irq = fsl8250_handle_irq;
-		port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
+	if (IS_ENABLED(CONFIG_SERIAL_8250) &&
+	    of_device_is_compatible(np, "fsl,ns16550")) {
+		if (IS_REACHABLE(CONFIG_SERIAL_8250_FSL)) {
+			port->handle_irq = fsl8250_handle_irq;
+			port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
+		} else {
+			pr_warn_once("Not activating Freescale specific workaround for device %pOFP\n",
+				     np);
+		}
 	}
-#endif
 }
 
 static void __init fixup_port_pio(int index,

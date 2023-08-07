@@ -264,7 +264,7 @@ static struct i2c_driver wacom_i2c_driver = {
 		.pm	= pm_sleep_ptr(&wacom_i2c_pm),
 	},
 
-	.probe_new	= wacom_i2c_probe,
+	.probe		= wacom_i2c_probe,
 	.id_table	= wacom_i2c_id,
 };
 module_i2c_driver(wacom_i2c_driver);

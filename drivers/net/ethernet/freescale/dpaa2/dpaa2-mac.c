@@ -54,6 +54,9 @@ static int phy_mode(enum dpmac_eth_if eth_if, phy_interface_t *if_mode)
 	case DPMAC_ETH_IF_XFI:
 		*if_mode = PHY_INTERFACE_MODE_10GBASER;
 		break;
+	case DPMAC_ETH_IF_CAUI:
+		*if_mode = PHY_INTERFACE_MODE_25GBASER;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -79,6 +82,8 @@ static enum dpmac_eth_if dpmac_eth_if_mode(phy_interface_t if_mode)
 		return DPMAC_ETH_IF_XFI;
 	case PHY_INTERFACE_MODE_1000BASEX:
 		return DPMAC_ETH_IF_1000BASEX;
+	case PHY_INTERFACE_MODE_25GBASER:
+		return DPMAC_ETH_IF_CAUI;
 	default:
 		return DPMAC_ETH_IF_MII;
 	}
@@ -247,8 +252,8 @@ static int dpaa2_pcs_create(struct dpaa2_mac *mac,
 			    struct fwnode_handle *dpmac_node,
 			    int id)
 {
-	struct mdio_device *mdiodev;
 	struct fwnode_handle *node;
+	struct phylink_pcs *pcs;
 
 	node = fwnode_find_reference(dpmac_node, "pcs-handle", 0);
 	if (IS_ERR(node)) {
@@ -257,25 +262,26 @@ static int dpaa2_pcs_create(struct dpaa2_mac *mac,
 		return 0;
 	}
 
-	if (!fwnode_device_is_available(node)) {
-		netdev_err(mac->net_dev, "pcs-handle node not available\n");
-		fwnode_handle_put(node);
-		return -ENODEV;
-	}
-
-	mdiodev = fwnode_mdio_find_device(node);
+	pcs = lynx_pcs_create_fwnode(node);
 	fwnode_handle_put(node);
-	if (!mdiodev) {
+
+	if (pcs == ERR_PTR(-EPROBE_DEFER)) {
 		netdev_dbg(mac->net_dev, "missing PCS device\n");
 		return -EPROBE_DEFER;
 	}
 
-	mac->pcs = lynx_pcs_create(mdiodev);
-	if (!mac->pcs) {
-		netdev_err(mac->net_dev, "lynx_pcs_create() failed\n");
-		put_device(&mdiodev->dev);
-		return -ENOMEM;
+	if (pcs == ERR_PTR(-ENODEV)) {
+		netdev_err(mac->net_dev, "pcs-handle node not available\n");
+		return PTR_ERR(pcs);
 	}
+
+	if (IS_ERR(pcs)) {
+		netdev_err(mac->net_dev,
+			   "lynx_pcs_create_fwnode() failed: %pe\n", pcs);
+		return PTR_ERR(pcs);
+	}
+
+	mac->pcs = pcs;
 
 	return 0;
 }
@@ -285,11 +291,7 @@ static void dpaa2_pcs_destroy(struct dpaa2_mac *mac)
 	struct phylink_pcs *phylink_pcs = mac->pcs;
 
 	if (phylink_pcs) {
-		struct mdio_device *mdio = lynx_get_mdio_device(phylink_pcs);
-		struct device *dev = &mdio->dev;
-
 		lynx_pcs_destroy(phylink_pcs);
-		put_device(dev);
 		mac->pcs = NULL;
 	}
 }
@@ -418,7 +420,7 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 
 	mac->phylink_config.mac_capabilities = MAC_SYM_PAUSE | MAC_ASYM_PAUSE |
 		MAC_10FD | MAC_100FD | MAC_1000FD | MAC_2500FD | MAC_5000FD |
-		MAC_10000FD;
+		MAC_10000FD | MAC_25000FD;
 
 	dpaa2_mac_set_supported_interfaces(mac);
 

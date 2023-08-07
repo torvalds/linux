@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
-  * This file configures the internal USB PHY in OMAP4430. Used
-  * with TWL6030 transceiver and MUSB on OMAP4430.
-  *
-  * Copyright (C) 2010 Texas Instruments Incorporated - https://www.ti.com
-  * Author: Hema HK <hemahk@ti.com>
-  */
+ * This file configures the internal USB PHY in OMAP4430. Used
+ * with TWL6030 transceiver and MUSB on OMAP4430.
+ *
+ * Copyright (C) 2010 Texas Instruments Incorporated - https://www.ti.com
+ * Author: Hema HK <hemahk@ti.com>
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 

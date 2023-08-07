@@ -62,6 +62,12 @@ unsigned long long eval_flag(const char *flag);
 
 int read_tracing_data(int fd, struct list_head *pattrs);
 
+/*
+ * Return the tracepoint name in the format "subsystem:event_name",
+ * callers should free the returned string.
+ */
+char *tracepoint_id_to_name(u64 config);
+
 struct tracing_data {
 	/* size is only valid if temp is 'true' */
 	ssize_t size;

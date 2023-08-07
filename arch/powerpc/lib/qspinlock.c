@@ -161,6 +161,8 @@ static __always_inline u32 publish_tail_cpu(struct qspinlock *lock, u32 tail)
 {
 	u32 prev, tmp;
 
+	kcsan_release();
+
 	asm volatile(
 "\t"	PPC_RELEASE_BARRIER "						\n"
 "1:	lwarx	%0,0,%2		# publish_tail_cpu			\n"
@@ -435,7 +437,7 @@ yield_prev:
 
 	smp_rmb(); /* See __yield_to_locked_owner comment */
 
-	if (!node->locked) {
+	if (!READ_ONCE(node->locked)) {
 		yield_to_preempted(prev_cpu, yield_count);
 		spin_begin();
 		return preempted;
@@ -570,6 +572,11 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 
 	tail = encode_tail_cpu(node->cpu);
 
+	/*
+	 * Assign all attributes of a node before it can be published.
+	 * Issues an lwsync, serving as a release barrier, as well as a
+	 * compiler barrier.
+	 */
 	old = publish_tail_cpu(lock, tail);
 
 	/*
@@ -584,7 +591,7 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 
 		/* Wait for mcs node lock to be released */
 		spin_begin();
-		while (!node->locked) {
+		while (!READ_ONCE(node->locked)) {
 			spec_barrier();
 
 			if (yield_to_prev(lock, node, old, paravirt))

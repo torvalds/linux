@@ -1226,7 +1226,7 @@ static struct i2c_driver cs42l52_i2c_driver = {
 		.of_match_table = cs42l52_of_match,
 	},
 	.id_table = cs42l52_id,
-	.probe_new = cs42l52_i2c_probe,
+	.probe = cs42l52_i2c_probe,
 };
 
 module_i2c_driver(cs42l52_i2c_driver);

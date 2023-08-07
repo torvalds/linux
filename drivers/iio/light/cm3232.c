@@ -417,7 +417,7 @@ static struct i2c_driver cm3232_driver = {
 		.pm	= pm_sleep_ptr(&cm3232_pm_ops),
 	},
 	.id_table	= cm3232_id,
-	.probe_new	= cm3232_probe,
+	.probe		= cm3232_probe,
 	.remove		= cm3232_remove,
 };
 

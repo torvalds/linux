@@ -180,8 +180,8 @@ void do_syscall_trace_leave(struct pt_regs *regs);
 static inline void set_return_regs_changed(void)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
-	local_paca->hsrr_valid = 0;
-	local_paca->srr_valid = 0;
+	WRITE_ONCE(local_paca->hsrr_valid, 0);
+	WRITE_ONCE(local_paca->srr_valid, 0);
 #endif
 }
 

@@ -2103,10 +2103,13 @@ static int sof_ipc3_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 	 * For the case of PAUSE/HW_FREE, since there are no quirks, flags can be used as is.
 	 */
 
-	if (flags & SOF_DAI_CONFIG_FLAGS_HW_PARAMS)
+	if (flags & SOF_DAI_CONFIG_FLAGS_HW_PARAMS) {
+		/* Clear stale command */
+		config->flags &= ~SOF_DAI_CONFIG_FLAGS_CMD_MASK;
 		config->flags |= flags;
-	else
+	} else {
 		config->flags = flags;
+	}
 
 	/* only send the IPC if the widget is set up in the DSP */
 	if (swidget->use_count > 0) {

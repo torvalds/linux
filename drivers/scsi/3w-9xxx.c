@@ -617,7 +617,7 @@ static int twa_check_srl(TW_Device_Extension *tw_dev, int *flashed)
 	}
 
 	/* Load rest of compatibility struct */
-	strlcpy(tw_dev->tw_compat_info.driver_version, TW_DRIVER_VERSION,
+	strscpy(tw_dev->tw_compat_info.driver_version, TW_DRIVER_VERSION,
 		sizeof(tw_dev->tw_compat_info.driver_version));
 	tw_dev->tw_compat_info.driver_srl_high = TW_CURRENT_DRIVER_SRL;
 	tw_dev->tw_compat_info.driver_branch_high = TW_CURRENT_DRIVER_BRANCH;

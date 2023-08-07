@@ -6,7 +6,7 @@
  *		 Bo Shen <voice.shen@atmel.com>
  *
  * Links to reference manuals for the supported PWM chips can be found in
- * Documentation/arm/microchip.rst.
+ * Documentation/arch/arm/microchip.rst.
  *
  * Limitations:
  * - Periods start with the inactive level.

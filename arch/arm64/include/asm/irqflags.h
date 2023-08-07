@@ -24,7 +24,7 @@
 static __always_inline bool __irqflags_uses_pmr(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) &&
-	       alternative_has_feature_unlikely(ARM64_HAS_GIC_PRIO_MASKING);
+	       alternative_has_cap_unlikely(ARM64_HAS_GIC_PRIO_MASKING);
 }
 
 static __always_inline void __daif_local_irq_enable(void)

@@ -43,7 +43,6 @@ static int snd_emu10k1_synth_probe(struct device *_dev)
 	emux->hw = hw;
 	emux->max_voices = arg->max_voices;
 	emux->num_ports = arg->seq_ports;
-	emux->pitch_shift = -501;
 	emux->memhdr = hw->memhdr;
 	/* maximum two ports */
 	emux->midi_ports = arg->seq_ports < 2 ? arg->seq_ports : 2;

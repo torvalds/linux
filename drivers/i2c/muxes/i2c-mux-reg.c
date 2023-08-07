@@ -233,14 +233,12 @@ err_put_parent:
 	return ret;
 }
 
-static int i2c_mux_reg_remove(struct platform_device *pdev)
+static void i2c_mux_reg_remove(struct platform_device *pdev)
 {
 	struct i2c_mux_core *muxc = platform_get_drvdata(pdev);
 
 	i2c_mux_del_adapters(muxc);
 	i2c_put_adapter(muxc->parent);
-
-	return 0;
 }
 
 static const struct of_device_id i2c_mux_reg_of_match[] = {
@@ -251,7 +249,7 @@ MODULE_DEVICE_TABLE(of, i2c_mux_reg_of_match);
 
 static struct platform_driver i2c_mux_reg_driver = {
 	.probe	= i2c_mux_reg_probe,
-	.remove	= i2c_mux_reg_remove,
+	.remove_new = i2c_mux_reg_remove,
 	.driver	= {
 		.name	= "i2c-mux-reg",
 		.of_match_table = of_match_ptr(i2c_mux_reg_of_match),

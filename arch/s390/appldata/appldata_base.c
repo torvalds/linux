@@ -26,10 +26,10 @@
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/workqueue.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 #include <asm/appldata.h>
 #include <asm/vtimer.h>
-#include <linux/uaccess.h>
-#include <asm/io.h>
 #include <asm/smp.h>
 
 #include "appldata.h"

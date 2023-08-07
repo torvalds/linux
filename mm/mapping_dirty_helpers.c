@@ -35,7 +35,7 @@ static int wp_pte(pte_t *pte, unsigned long addr, unsigned long end,
 		  struct mm_walk *walk)
 {
 	struct wp_walk *wpwalk = walk->private;
-	pte_t ptent = *pte;
+	pte_t ptent = ptep_get(pte);
 
 	if (pte_write(ptent)) {
 		pte_t old_pte = ptep_modify_prot_start(walk->vma, addr, pte);
@@ -91,7 +91,7 @@ static int clean_record_pte(pte_t *pte, unsigned long addr,
 {
 	struct wp_walk *wpwalk = walk->private;
 	struct clean_walk *cwalk = to_clean_walk(wpwalk);
-	pte_t ptent = *pte;
+	pte_t ptent = ptep_get(pte);
 
 	if (pte_dirty(ptent)) {
 		pgoff_t pgoff = ((addr - walk->vma->vm_start) >> PAGE_SHIFT) +
@@ -128,19 +128,11 @@ static int wp_clean_pmd_entry(pmd_t *pmd, unsigned long addr, unsigned long end,
 {
 	pmd_t pmdval = pmdp_get_lockless(pmd);
 
-	if (!pmd_trans_unstable(&pmdval))
-		return 0;
-
-	if (pmd_none(pmdval)) {
-		walk->action = ACTION_AGAIN;
-		return 0;
-	}
-
-	/* Huge pmd, present or migrated */
-	walk->action = ACTION_CONTINUE;
-	if (pmd_trans_huge(pmdval) || pmd_devmap(pmdval))
+	/* Do not split a huge pmd, present or migrated */
+	if (pmd_trans_huge(pmdval) || pmd_devmap(pmdval)) {
 		WARN_ON(pmd_write(pmdval) || pmd_dirty(pmdval));
-
+		walk->action = ACTION_CONTINUE;
+	}
 	return 0;
 }
 
@@ -156,23 +148,15 @@ static int wp_clean_pmd_entry(pmd_t *pmd, unsigned long addr, unsigned long end,
 static int wp_clean_pud_entry(pud_t *pud, unsigned long addr, unsigned long end,
 			      struct mm_walk *walk)
 {
+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
 	pud_t pudval = READ_ONCE(*pud);
 
-	if (!pud_trans_unstable(&pudval))
-		return 0;
-
-	if (pud_none(pudval)) {
-		walk->action = ACTION_AGAIN;
-		return 0;
-	}
-
-#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-	/* Huge pud */
-	walk->action = ACTION_CONTINUE;
-	if (pud_trans_huge(pudval) || pud_devmap(pudval))
+	/* Do not split a huge pud */
+	if (pud_trans_huge(pudval) || pud_devmap(pudval)) {
 		WARN_ON(pud_write(pudval) || pud_dirty(pudval));
+		walk->action = ACTION_CONTINUE;
+	}
 #endif
-
 	return 0;
 }
 

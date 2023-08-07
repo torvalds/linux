@@ -76,13 +76,6 @@ static int __init fpe_setup(char *line)
 __setup("fpe=", fpe_setup);
 #endif
 
-extern void init_default_cache_policy(unsigned long);
-extern void paging_init(const struct machine_desc *desc);
-extern void early_mm_init(const struct machine_desc *);
-extern void adjust_lowmem_bounds(void);
-extern enum reboot_mode reboot_mode;
-extern void setup_dma_zone(const struct machine_desc *desc);
-
 unsigned int processor_id;
 EXPORT_SYMBOL(processor_id);
 unsigned int __machine_arch_type __read_mostly;
@@ -1142,7 +1135,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_initial_init_mm(_text, _etext, _edata, _end);
 
 	/* populate cmd_line too for later use, preserving boot_command_line */
-	strlcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
+	strscpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = cmd_line;
 
 	early_fixmap_init();
@@ -1197,10 +1190,6 @@ void __init setup_arch(char **cmdline_p)
 		hyp_mode_check();
 
 	reserve_crashkernel();
-
-#ifdef CONFIG_GENERIC_IRQ_MULTI_HANDLER
-	handle_arch_irq = mdesc->handle_irq;
-#endif
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)

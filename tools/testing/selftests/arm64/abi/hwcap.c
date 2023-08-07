@@ -39,6 +39,20 @@ static void cssc_sigill(void)
 	asm volatile(".inst 0xdac01c00" : : : "x0");
 }
 
+static void mops_sigill(void)
+{
+	char dst[1], src[1];
+	register char *dstp asm ("x0") = dst;
+	register char *srcp asm ("x1") = src;
+	register long size asm ("x2") = 1;
+
+	/* CPYP [x0]!, [x1]!, x2! */
+	asm volatile(".inst 0x1d010440"
+		     : "+r" (dstp), "+r" (srcp), "+r" (size)
+		     :
+		     : "cc", "memory");
+}
+
 static void rng_sigill(void)
 {
 	asm volatile("mrs x0, S3_3_C2_C4_0" : : : "x0");
@@ -208,6 +222,14 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_CSSC,
 		.cpuinfo = "cssc",
 		.sigill_fn = cssc_sigill,
+	},
+	{
+		.name = "MOPS",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_MOPS,
+		.cpuinfo = "mops",
+		.sigill_fn = mops_sigill,
+		.sigill_reliable = true,
 	},
 	{
 		.name = "RNG",

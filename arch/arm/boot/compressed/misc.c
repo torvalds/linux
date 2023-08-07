@@ -103,9 +103,6 @@ static void putstr(const char *ptr)
 /*
  * gzip declarations
  */
-extern char input_data[];
-extern char input_data_end[];
-
 unsigned char *output_data;
 
 unsigned long free_mem_ptr;
@@ -130,9 +127,6 @@ asmlinkage void __div0(void)
 {
 	error("Attempting division by 0!");
 }
-
-extern int do_decompress(u8 *input, int len, u8 *output, void (*error)(char *x));
-
 
 void
 decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,

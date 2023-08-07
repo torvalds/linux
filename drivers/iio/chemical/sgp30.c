@@ -575,7 +575,7 @@ static struct i2c_driver sgp_driver = {
 		.name = "sgp30",
 		.of_match_table = sgp_dt_ids,
 	},
-	.probe_new = sgp_probe,
+	.probe = sgp_probe,
 	.remove = sgp_remove,
 	.id_table = sgp_id,
 };

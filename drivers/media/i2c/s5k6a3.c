@@ -373,7 +373,7 @@ static struct i2c_driver s5k6a3_driver = {
 		.of_match_table	= of_match_ptr(s5k6a3_of_match),
 		.name		= S5K6A3_DRV_NAME,
 	},
-	.probe_new	= s5k6a3_probe,
+	.probe		= s5k6a3_probe,
 	.remove		= s5k6a3_remove,
 	.id_table	= s5k6a3_ids,
 };

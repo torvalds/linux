@@ -30,7 +30,6 @@ struct sparx5_serdes_private {
 	struct device *dev;
 	void __iomem *regs[NUM_TARGETS];
 	struct phy *phys[SPX5_SERDES_MAX];
-	bool cmu_enabled;
 	unsigned long coreclock;
 };
 

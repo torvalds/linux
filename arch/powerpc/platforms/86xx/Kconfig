@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-config PPC_86xx
 menuconfig PPC_86xx
 	bool "86xx-based boards"
 	depends on PPC_BOOK3S_32

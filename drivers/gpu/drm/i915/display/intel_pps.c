@@ -787,7 +787,7 @@ void intel_pps_vdd_on(struct intel_dp *intel_dp)
 	vdd = false;
 	with_intel_pps_lock(intel_dp, wakeref)
 		vdd = intel_pps_vdd_on_unlocked(intel_dp);
-	I915_STATE_WARN(!vdd, "[ENCODER:%d:%s] %s VDD already requested on\n",
+	I915_STATE_WARN(i915, !vdd, "[ENCODER:%d:%s] %s VDD already requested on\n",
 			dp_to_dig_port(intel_dp)->base.base.base.id,
 			dp_to_dig_port(intel_dp)->base.base.name,
 			pps_name(i915, &intel_dp->pps));
@@ -867,6 +867,7 @@ static void edp_panel_vdd_work(struct work_struct *__work)
 
 static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	unsigned long delay;
 
 	/*
@@ -882,7 +883,8 @@ static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
 	 * operations.
 	 */
 	delay = msecs_to_jiffies(intel_dp->pps.panel_power_cycle_delay * 5);
-	schedule_delayed_work(&intel_dp->pps.panel_vdd_work, delay);
+	queue_delayed_work(i915->unordered_wq,
+			   &intel_dp->pps.panel_vdd_work, delay);
 }
 
 /*
@@ -899,7 +901,8 @@ void intel_pps_vdd_off_unlocked(struct intel_dp *intel_dp, bool sync)
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	I915_STATE_WARN(!intel_dp->pps.want_panel_vdd, "[ENCODER:%d:%s] %s VDD not forced on",
+	I915_STATE_WARN(dev_priv, !intel_dp->pps.want_panel_vdd,
+			"[ENCODER:%d:%s] %s VDD not forced on",
 			dp_to_dig_port(intel_dp)->base.base.base.id,
 			dp_to_dig_port(intel_dp)->base.base.name,
 			pps_name(dev_priv, &intel_dp->pps));
@@ -1653,12 +1656,9 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
 	 */
 	pps_num = intel_num_pps(dev_priv);
 
-	for (pps_idx = 0; pps_idx < pps_num; pps_idx++) {
-		u32 val = intel_de_read(dev_priv, PP_CONTROL(pps_idx));
-
-		val = (val & ~PANEL_UNLOCK_MASK) | PANEL_UNLOCK_REGS;
-		intel_de_write(dev_priv, PP_CONTROL(pps_idx), val);
-	}
+	for (pps_idx = 0; pps_idx < pps_num; pps_idx++)
+		intel_de_rmw(dev_priv, PP_CONTROL(pps_idx),
+			     PANEL_UNLOCK_MASK, PANEL_UNLOCK_REGS);
 }
 
 void intel_pps_setup(struct drm_i915_private *i915)
@@ -1724,7 +1724,7 @@ void assert_pps_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 	    ((val & PANEL_UNLOCK_MASK) == PANEL_UNLOCK_REGS))
 		locked = false;
 
-	I915_STATE_WARN(panel_pipe == pipe && locked,
+	I915_STATE_WARN(dev_priv, panel_pipe == pipe && locked,
 			"panel assertion failure, pipe %c regs locked\n",
 			pipe_name(pipe));
 }

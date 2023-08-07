@@ -54,18 +54,20 @@ static void __tpda_enable(struct tpda_drvdata *drvdata, int port)
 	CS_LOCK(drvdata->base);
 }
 
-static int tpda_enable(struct coresight_device *csdev, int inport, int outport)
+static int tpda_enable(struct coresight_device *csdev,
+		       struct coresight_connection *in,
+		       struct coresight_connection *out)
 {
 	struct tpda_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	spin_lock(&drvdata->spinlock);
-	if (atomic_read(&csdev->refcnt[inport]) == 0)
-		__tpda_enable(drvdata, inport);
+	if (atomic_read(&in->dest_refcnt) == 0)
+		__tpda_enable(drvdata, in->dest_port);
 
-	atomic_inc(&csdev->refcnt[inport]);
+	atomic_inc(&in->dest_refcnt);
 	spin_unlock(&drvdata->spinlock);
 
-	dev_dbg(drvdata->dev, "TPDA inport %d enabled.\n", inport);
+	dev_dbg(drvdata->dev, "TPDA inport %d enabled.\n", in->dest_port);
 	return 0;
 }
 
@@ -82,18 +84,19 @@ static void __tpda_disable(struct tpda_drvdata *drvdata, int port)
 	CS_LOCK(drvdata->base);
 }
 
-static void tpda_disable(struct coresight_device *csdev, int inport,
-			   int outport)
+static void tpda_disable(struct coresight_device *csdev,
+			 struct coresight_connection *in,
+			 struct coresight_connection *out)
 {
 	struct tpda_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	spin_lock(&drvdata->spinlock);
-	if (atomic_dec_return(&csdev->refcnt[inport]) == 0)
-		__tpda_disable(drvdata, inport);
+	if (atomic_dec_return(&in->dest_refcnt) == 0)
+		__tpda_disable(drvdata, in->dest_port);
 
 	spin_unlock(&drvdata->spinlock);
 
-	dev_dbg(drvdata->dev, "TPDA inport %d disabled\n", inport);
+	dev_dbg(drvdata->dev, "TPDA inport %d disabled\n", in->dest_port);
 }
 
 static const struct coresight_ops_link tpda_link_ops = {

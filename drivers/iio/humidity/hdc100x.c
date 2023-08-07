@@ -428,7 +428,7 @@ static struct i2c_driver hdc100x_driver = {
 		.of_match_table = hdc100x_dt_ids,
 		.acpi_match_table = hdc100x_acpi_match,
 	},
-	.probe_new = hdc100x_probe,
+	.probe = hdc100x_probe,
 	.id_table = hdc100x_id,
 };
 module_i2c_driver(hdc100x_driver);

@@ -368,7 +368,7 @@ static struct i2c_driver sgp40_driver = {
 		.name = "sgp40",
 		.of_match_table = sgp40_dt_ids,
 	},
-	.probe_new = sgp40_probe,
+	.probe = sgp40_probe,
 	.id_table = sgp40_id,
 };
 module_i2c_driver(sgp40_driver);

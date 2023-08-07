@@ -168,19 +168,13 @@ static int twl4030_madc_bat_get_property(struct power_supply *psy,
 	return 0;
 }
 
-static void twl4030_madc_bat_ext_changed(struct power_supply *psy)
-{
-	power_supply_changed(psy);
-}
-
 static const struct power_supply_desc twl4030_madc_bat_desc = {
 	.name			= "twl4030_battery",
 	.type			= POWER_SUPPLY_TYPE_BATTERY,
 	.properties		= twl4030_madc_bat_props,
 	.num_properties		= ARRAY_SIZE(twl4030_madc_bat_props),
 	.get_property		= twl4030_madc_bat_get_property,
-	.external_power_changed	= twl4030_madc_bat_ext_changed,
-
+	.external_power_changed	= power_supply_changed,
 };
 
 static int twl4030_cmp(const void *a, const void *b)

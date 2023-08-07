@@ -15,7 +15,7 @@
 	compatible = "google,quackingstick-sku1537", "qcom,sc7180";
 };
 
-&dsi_phy {
+&mdss_dsi0_phy {
 	qcom,phy-rescode-offset-top = /bits/ 8 <(-13) (-13) (-13) (-13) (-13)>;
 	qcom,phy-rescode-offset-bot = /bits/ 8 <(-13) (-13) (-13) (-13) (-13)>;
 	qcom,phy-drive-ldo-level = <375>;

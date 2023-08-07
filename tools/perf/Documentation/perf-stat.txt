@@ -308,6 +308,14 @@ use --per-die in addition to -a. (system-wide).  The output includes the
 die number and the number of online processors on that die. This is
 useful to gauge the amount of aggregation.
 
+--per-cache::
+Aggregate counts per cache instance for system-wide mode measurements.  By
+default, the aggregation happens for the cache level at the highest index
+in the system. To specify a particular level, mention the cache level
+alongside the option in the format [Ll][1-9][0-9]*. For example:
+Using option "--per-cache=l3" or "--per-cache=L3" will aggregate the
+information at the boundary of the level 3 cache in the system.
+
 --per-core::
 Aggregate counts per physical processor for system-wide mode measurements.  This
 is a useful mode to detect imbalance between physical cores.  To enable this mode,
@@ -353,6 +361,15 @@ small group that need not have multiplexing is lowered. This option
 forbids the event merging logic from sharing events between groups and
 may be used to increase accuracy in this case.
 
+--metric-no-threshold::
+Metric thresholds may increase the number of events necessary to
+compute whether a metric has exceeded its threshold expression. This
+may not be desirable, for example, as the events can introduce
+multiplexing. This option disables the adding of threshold expression
+events for a metric. However, if there are sufficient events to
+compute the threshold then the threshold is still computed and used to
+color the metric's computed value.
+
 --quiet::
 Don't print output, warnings or messages. This is useful with perf stat
 record below to only write data to the perf.data file.
@@ -379,6 +396,14 @@ Aggregate counts per processor socket for system-wide mode measurements.
 --per-die::
 Aggregate counts per processor die for system-wide mode measurements.
 
+--per-cache::
+Aggregate counts per cache instance for system-wide mode measurements.  By
+default, the aggregation happens for the cache level at the highest index
+in the system. To specify a particular level, mention the cache level
+alongside the option in the format [Ll][1-9][0-9]*. For example: Using
+option "--per-cache=l3" or "--per-cache=L3" will aggregate the
+information at the boundary of the level 3 cache in the system.
+
 --per-core::
 Aggregate counts per physical processor for system-wide mode measurements.
 
@@ -388,6 +413,12 @@ Print metrics or metricgroups specified in a comma separated list.
 For a group all metrics from the group are added.
 The events from the metrics are automatically measured.
 See perf list output for the possible metrics and metricgroups.
+
+	When threshold information is available for a metric, the
+	color red is used to signify a metric has exceeded a threshold
+	while green shows it hasn't. The default color means that
+	no threshold information was available or the threshold
+	couldn't be computed.
 
 -A::
 --no-aggr::

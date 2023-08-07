@@ -73,11 +73,11 @@ bool rtl92e_config_rf(struct net_device *dev)
 			break;
 		case RF90_PATH_B:
 			u4RegValue = rtl92e_get_bb_reg(dev, pPhyReg->rfintfs,
-						       bRFSI_RFENV<<16);
+						       bRFSI_RFENV << 16);
 			break;
 		}
 
-		rtl92e_set_bb_reg(dev, pPhyReg->rfintfe, bRFSI_RFENV<<16, 0x1);
+		rtl92e_set_bb_reg(dev, pPhyReg->rfintfe, bRFSI_RFENV << 16, 0x1);
 
 		rtl92e_set_bb_reg(dev, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
 
@@ -117,7 +117,7 @@ bool rtl92e_config_rf(struct net_device *dev)
 			break;
 		case RF90_PATH_B:
 			rtl92e_set_bb_reg(dev, pPhyReg->rfintfs,
-					  bRFSI_RFENV<<16, u4RegValue);
+					  bRFSI_RFENV << 16, u4RegValue);
 			break;
 		}
 

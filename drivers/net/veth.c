@@ -176,12 +176,27 @@ static int veth_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
+static void veth_get_page_pool_stats(struct net_device *dev, u64 *data)
+{
+#ifdef CONFIG_PAGE_POOL_STATS
+	struct veth_priv *priv = netdev_priv(dev);
+	struct page_pool_stats pp_stats = {};
+	int i;
+
+	for (i = 0; i < dev->real_num_rx_queues; i++) {
+		if (!priv->rq[i].page_pool)
+			continue;
+		page_pool_get_stats(priv->rq[i].page_pool, &pp_stats);
+	}
+	page_pool_ethtool_stats_get(data, &pp_stats);
+#endif /* CONFIG_PAGE_POOL_STATS */
+}
+
 static void veth_get_ethtool_stats(struct net_device *dev,
 		struct ethtool_stats *stats, u64 *data)
 {
 	struct veth_priv *rcv_priv, *priv = netdev_priv(dev);
 	struct net_device *peer = rtnl_dereference(priv->peer);
-	struct page_pool_stats pp_stats = {};
 	int i, j, idx, pp_idx;
 
 	data[0] = peer ? peer->ifindex : 0;
@@ -225,12 +240,7 @@ static void veth_get_ethtool_stats(struct net_device *dev,
 	}
 
 page_pool_stats:
-	for (i = 0; i < dev->real_num_rx_queues; i++) {
-		if (!priv->rq[i].page_pool)
-			continue;
-		page_pool_get_stats(priv->rq[i].page_pool, &pp_stats);
-	}
-	page_pool_ethtool_stats_get(&data[pp_idx], &pp_stats);
+	veth_get_page_pool_stats(dev, &data[pp_idx]);
 }
 
 static void veth_get_channels(struct net_device *dev,
@@ -747,7 +757,7 @@ static int veth_convert_skb_to_xdp_buff(struct veth_rq *rq,
 		if (!page)
 			goto drop;
 
-		nskb = build_skb(page_address(page), PAGE_SIZE);
+		nskb = napi_build_skb(page_address(page), PAGE_SIZE);
 		if (!nskb) {
 			page_pool_put_full_page(rq->page_pool, page, true);
 			goto drop;

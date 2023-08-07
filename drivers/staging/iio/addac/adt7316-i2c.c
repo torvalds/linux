@@ -138,7 +138,7 @@ static struct i2c_driver adt7316_driver = {
 		.of_match_table = adt7316_of_match,
 		.pm = ADT7316_PM_OPS,
 	},
-	.probe_new = adt7316_i2c_probe,
+	.probe = adt7316_i2c_probe,
 	.id_table = adt7316_i2c_id,
 };
 module_i2c_driver(adt7316_driver);

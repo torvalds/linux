@@ -427,7 +427,7 @@ static void kvm_s390_pci_dev_release(struct zpci_dev *zdev)
 
 
 /*
- * Register device with the specified KVM. If interpetation facilities are
+ * Register device with the specified KVM. If interpretation facilities are
  * available, enable them and let userspace indicate whether or not they will
  * be used (specify SHM bit to disable).
  */

@@ -143,6 +143,16 @@
 #define IVPU_MMU_CD_0_ASET		BIT(47)
 #define IVPU_MMU_CD_0_ASID		GENMASK_ULL(63, 48)
 
+#define IVPU_MMU_T0SZ_48BIT             16
+#define IVPU_MMU_T0SZ_38BIT             26
+
+#define IVPU_MMU_IPS_48BIT		5
+#define IVPU_MMU_IPS_44BIT		4
+#define IVPU_MMU_IPS_42BIT		3
+#define IVPU_MMU_IPS_40BIT		2
+#define IVPU_MMU_IPS_36BIT		1
+#define IVPU_MMU_IPS_32BIT		0
+
 #define IVPU_MMU_CD_1_TTB0_MASK		GENMASK_ULL(51, 4)
 
 #define IVPU_MMU_STE_0_S1CDMAX		GENMASK_ULL(63, 59)
@@ -587,16 +597,11 @@ static int ivpu_mmu_strtab_init(struct ivpu_device *vdev)
 int ivpu_mmu_invalidate_tlb(struct ivpu_device *vdev, u16 ssid)
 {
 	struct ivpu_mmu_info *mmu = vdev->mmu;
-	int ret;
+	int ret = 0;
 
-	ret = mutex_lock_interruptible(&mmu->lock);
-	if (ret)
-		return ret;
-
-	if (!mmu->on) {
-		ret = 0;
+	mutex_lock(&mmu->lock);
+	if (!mmu->on)
 		goto unlock;
-	}
 
 	ret = ivpu_mmu_cmdq_write_tlbi_nh_asid(vdev, ssid);
 	if (ret)
@@ -614,7 +619,7 @@ static int ivpu_mmu_cd_add(struct ivpu_device *vdev, u32 ssid, u64 cd_dma)
 	struct ivpu_mmu_cdtab *cdtab = &mmu->cdtab;
 	u64 *entry;
 	u64 cd[4];
-	int ret;
+	int ret = 0;
 
 	if (ssid > IVPU_MMU_CDTAB_ENT_COUNT)
 		return -EINVAL;
@@ -622,12 +627,12 @@ static int ivpu_mmu_cd_add(struct ivpu_device *vdev, u32 ssid, u64 cd_dma)
 	entry = cdtab->base + (ssid * IVPU_MMU_CDTAB_ENT_SIZE);
 
 	if (cd_dma != 0) {
-		cd[0] = FIELD_PREP(IVPU_MMU_CD_0_TCR_T0SZ, 26) |
+		cd[0] = FIELD_PREP(IVPU_MMU_CD_0_TCR_T0SZ, IVPU_MMU_T0SZ_48BIT) |
 			FIELD_PREP(IVPU_MMU_CD_0_TCR_TG0, 0) |
 			FIELD_PREP(IVPU_MMU_CD_0_TCR_IRGN0, 0) |
 			FIELD_PREP(IVPU_MMU_CD_0_TCR_ORGN0, 0) |
 			FIELD_PREP(IVPU_MMU_CD_0_TCR_SH0, 0) |
-			FIELD_PREP(IVPU_MMU_CD_0_TCR_IPS, 3) |
+			FIELD_PREP(IVPU_MMU_CD_0_TCR_IPS, IVPU_MMU_IPS_48BIT) |
 			FIELD_PREP(IVPU_MMU_CD_0_ASID, ssid) |
 			IVPU_MMU_CD_0_TCR_EPD1 |
 			IVPU_MMU_CD_0_AA64 |
@@ -655,14 +660,9 @@ static int ivpu_mmu_cd_add(struct ivpu_device *vdev, u32 ssid, u64 cd_dma)
 	ivpu_dbg(vdev, MMU, "CDTAB %s entry (SSID=%u, dma=%pad): 0x%llx, 0x%llx, 0x%llx, 0x%llx\n",
 		 cd_dma ? "write" : "clear", ssid, &cd_dma, cd[0], cd[1], cd[2], cd[3]);
 
-	ret = mutex_lock_interruptible(&mmu->lock);
-	if (ret)
-		return ret;
-
-	if (!mmu->on) {
-		ret = 0;
+	mutex_lock(&mmu->lock);
+	if (!mmu->on)
 		goto unlock;
-	}
 
 	ret = ivpu_mmu_cmdq_write_cfgi_all(vdev);
 	if (ret)

@@ -47,8 +47,6 @@ properties:
       - isil,isl1218
       # Intersil ISL12022 Real-time Clock
       - isil,isl12022
-      # Loongson-2K Socs/LS7A bridge Real-time Clock
-      - loongson,ls2x-rtc
       # Real Time Clock Module with I2C-Bus
       - microcrystal,rv3029
       # Real Time Clock

@@ -275,6 +275,10 @@
 	remote-endpoint = <&anx7625_in>;
 };
 
+&gic {
+	mediatek,broken-save-restore-fw;
+};
+
 &gpu {
 	mali-supply = <&mt6315_7_vbuck1>;
 	status = "okay";

@@ -246,11 +246,6 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_queue *zq,
 	    copy_from_user(inp, mex->inputdata, mod_len))
 		return -EFAULT;
 
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (ap_msg->fi.flags & AP_FI_FLAG_TOGGLE_SPECIAL)
-		ap_msg->flags ^= AP_MSG_FLAG_SPECIAL;
-#endif
-
 	return 0;
 }
 
@@ -337,11 +332,6 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_queue *zq,
 	    copy_from_user(u, crt->u_mult_inv + MSGTYPE_ADJUSTMENT, short_len) ||
 	    copy_from_user(inp, crt->inputdata, mod_len))
 		return -EFAULT;
-
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (ap_msg->fi.flags & AP_FI_FLAG_TOGGLE_SPECIAL)
-		ap_msg->flags ^= AP_MSG_FLAG_SPECIAL;
-#endif
 
 	return 0;
 }

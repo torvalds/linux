@@ -25,6 +25,7 @@
 #include <asm/thread_notify.h>
 #include <asm/traps.h>
 #include <asm/vfp.h>
+#include <asm/neon.h>
 
 #include "vfpinstr.h"
 #include "vfp.h"

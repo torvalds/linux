@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/mod_devicetable.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -247,13 +248,20 @@ static const struct of_device_id al3320a_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, al3320a_of_match);
 
+static const struct acpi_device_id al3320a_acpi_match[] = {
+	{"CALS0001"},
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, al3320a_acpi_match);
+
 static struct i2c_driver al3320a_driver = {
 	.driver = {
 		.name = AL3320A_DRV_NAME,
 		.of_match_table = al3320a_of_match,
 		.pm = pm_sleep_ptr(&al3320a_pm_ops),
+		.acpi_match_table = al3320a_acpi_match,
 	},
-	.probe_new	= al3320a_probe,
+	.probe		= al3320a_probe,
 	.id_table	= al3320a_id,
 };
 

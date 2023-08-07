@@ -90,7 +90,6 @@ again:
 	}
 
 	ret = WEXITSTATUS(status);
-	ksft_print_msg("waitpid WEXITSTATUS=%d\n", ret);
 	return ret;
 }
 

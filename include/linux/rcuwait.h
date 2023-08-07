@@ -49,9 +49,9 @@ static inline void prepare_to_rcuwait(struct rcuwait *w)
 
 extern void finish_rcuwait(struct rcuwait *w);
 
-#define rcuwait_wait_event(w, condition, state)				\
+#define ___rcuwait_wait_event(w, condition, state, ret, cmd)		\
 ({									\
-	int __ret = 0;							\
+	long __ret = ret;						\
 	prepare_to_rcuwait(w);						\
 	for (;;) {							\
 		/*							\
@@ -67,9 +67,26 @@ extern void finish_rcuwait(struct rcuwait *w);
 			break;						\
 		}							\
 									\
-		schedule();						\
+		cmd;							\
 	}								\
 	finish_rcuwait(w);						\
+	__ret;								\
+})
+
+#define rcuwait_wait_event(w, condition, state)				\
+	___rcuwait_wait_event(w, condition, state, 0, schedule())
+
+#define __rcuwait_wait_event_timeout(w, condition, state, timeout)	\
+	___rcuwait_wait_event(w, ___wait_cond_timeout(condition),	\
+			      state, timeout,				\
+			      __ret = schedule_timeout(__ret))
+
+#define rcuwait_wait_event_timeout(w, condition, state, timeout)	\
+({									\
+	long __ret = timeout;						\
+	if (!___wait_cond_timeout(condition))				\
+		__ret = __rcuwait_wait_event_timeout(w, condition,	\
+						     state, timeout);	\
 	__ret;								\
 })
 

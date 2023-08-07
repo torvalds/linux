@@ -138,11 +138,6 @@
 			no-map;
 		};
 
-		reserved@85800000 {
-			reg = <0x00 0x85800000 0x00 0x3700000>;
-			no-map;
-		};
-
 		cont_splash_mem: splash@9d400000 {
 			reg = <0 0x9d400000 0 (1920 * 1080 * 4)>;
 			no-map;
@@ -254,6 +249,10 @@
 	status = "okay";
 
 	linux,code = <KEY_VOLUMEUP>;
+};
+
+&qhee_code {
+	reg = <0x00 0x85800000 0x00 0x3700000>;
 };
 
 &qusb2phy0 {

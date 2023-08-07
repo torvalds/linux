@@ -96,7 +96,7 @@ extern void alternative_instructions(void);
 extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 extern void apply_retpolines(s32 *start, s32 *end);
 extern void apply_returns(s32 *start, s32 *end);
-extern void apply_ibt_endbr(s32 *start, s32 *end);
+extern void apply_seal_endbr(s32 *start, s32 *end);
 extern void apply_fineibt(s32 *start_retpoline, s32 *end_retpoine,
 			  s32 *start_cfi, s32 *end_cfi);
 
@@ -113,7 +113,6 @@ extern void callthunks_patch_builtin_calls(void);
 extern void callthunks_patch_module_calls(struct callthunk_sites *sites,
 					  struct module *mod);
 extern void *callthunks_translate_call_dest(void *dest);
-extern bool is_callthunk(void *addr);
 extern int x86_call_depth_emit_accounting(u8 **pprog, void *func);
 #else
 static __always_inline void callthunks_patch_builtin_calls(void) {}
@@ -123,10 +122,6 @@ callthunks_patch_module_calls(struct callthunk_sites *sites,
 static __always_inline void *callthunks_translate_call_dest(void *dest)
 {
 	return dest;
-}
-static __always_inline bool is_callthunk(void *addr)
-{
-	return false;
 }
 static __always_inline int x86_call_depth_emit_accounting(u8 **pprog,
 							  void *func)

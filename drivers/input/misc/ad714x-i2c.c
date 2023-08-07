@@ -86,7 +86,7 @@ static struct i2c_driver ad714x_i2c_driver = {
 		.name = "ad714x_captouch",
 		.pm   = pm_sleep_ptr(&ad714x_pm),
 	},
-	.probe_new = ad714x_i2c_probe,
+	.probe = ad714x_i2c_probe,
 	.id_table = ad714x_id,
 };
 

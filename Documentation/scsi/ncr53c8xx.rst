@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=================================================
-The Linux NCR53C8XX/SYM53C8XX drivers README file
-=================================================
+===========================
+NCR53C8XX/SYM53C8XX drivers
+===========================
 
 Written by Gerard Roudier <groudier@free.fr>
 

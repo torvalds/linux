@@ -171,7 +171,7 @@ struct maps *maps__new(struct machine *machine)
 	return result;
 }
 
-void maps__delete(struct maps *maps)
+static void maps__delete(struct maps *maps)
 {
 	maps__exit(maps);
 	unwind__finish_access(maps);
@@ -374,6 +374,7 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 		}
 put_map:
 		map__put(pos->map);
+		free(pos);
 	}
 	up_write(maps__lock(maps));
 	return err;
@@ -384,7 +385,7 @@ put_map:
  */
 int maps__clone(struct thread *thread, struct maps *parent)
 {
-	struct maps *maps = thread->maps;
+	struct maps *maps = thread__maps(thread);
 	int err;
 	struct map_rb_node *rb_node;
 

@@ -48,8 +48,32 @@ static void __exit drm_sched_fence_slab_fini(void)
 	kmem_cache_destroy(sched_fence_slab);
 }
 
-void drm_sched_fence_scheduled(struct drm_sched_fence *fence)
+static void drm_sched_fence_set_parent(struct drm_sched_fence *s_fence,
+				       struct dma_fence *fence)
 {
+	/*
+	 * smp_store_release() to ensure another thread racing us
+	 * in drm_sched_fence_set_deadline_finished() sees the
+	 * fence's parent set before test_bit()
+	 */
+	smp_store_release(&s_fence->parent, dma_fence_get(fence));
+	if (test_bit(DRM_SCHED_FENCE_FLAG_HAS_DEADLINE_BIT,
+		     &s_fence->finished.flags))
+		dma_fence_set_deadline(fence, s_fence->deadline);
+}
+
+void drm_sched_fence_scheduled(struct drm_sched_fence *fence,
+			       struct dma_fence *parent)
+{
+	/* Set the parent before signaling the scheduled fence, such that,
+	 * any waiter expecting the parent to be filled after the job has
+	 * been scheduled (which is the case for drivers delegating waits
+	 * to some firmware) doesn't have to busy wait for parent to show
+	 * up.
+	 */
+	if (!IS_ERR_OR_NULL(parent))
+		drm_sched_fence_set_parent(fence, parent);
+
 	dma_fence_signal(&fence->scheduled);
 }
 
@@ -180,20 +204,6 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f)
 	return NULL;
 }
 EXPORT_SYMBOL(to_drm_sched_fence);
-
-void drm_sched_fence_set_parent(struct drm_sched_fence *s_fence,
-				struct dma_fence *fence)
-{
-	/*
-	 * smp_store_release() to ensure another thread racing us
-	 * in drm_sched_fence_set_deadline_finished() sees the
-	 * fence's parent set before test_bit()
-	 */
-	smp_store_release(&s_fence->parent, dma_fence_get(fence));
-	if (test_bit(DRM_SCHED_FENCE_FLAG_HAS_DEADLINE_BIT,
-		     &s_fence->finished.flags))
-		dma_fence_set_deadline(fence, s_fence->deadline);
-}
 
 struct drm_sched_fence *drm_sched_fence_alloc(struct drm_sched_entity *entity,
 					      void *owner)
