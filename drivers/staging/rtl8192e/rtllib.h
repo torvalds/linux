@@ -2007,7 +2007,7 @@ void rtllib_ts_init_add_ba(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
 			   struct ts_common_info *pTsCommonInfo,
 			   enum tr_select TxRxSelect);
-void BaSetupTimeOut(struct timer_list *t);
+void rtllib_ba_setup_timeout(struct timer_list *t);
 void TxBaInactTimeout(struct timer_list *t);
 void RxBaInactTimeout(struct timer_list *t);
 void rtllib_reset_ba_entry(struct ba_record *pBA);

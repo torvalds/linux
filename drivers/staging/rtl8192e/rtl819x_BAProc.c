@@ -508,7 +508,7 @@ void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
 	}
 }
 
-void BaSetupTimeOut(struct timer_list *t)
+void rtllib_ba_setup_timeout(struct timer_list *t)
 {
 	struct tx_ts_record *pTxTs = from_timer(pTxTs, t,
 					      TxPendingBARecord.timer);
