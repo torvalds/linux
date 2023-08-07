@@ -399,6 +399,8 @@ nvkm_uvmm_mthd_raw_map(struct nvkm_uvmm *uvmm, struct nvif_vmm_raw_v0 *args)
 		.no_comp = true,
 	};
 	struct nvkm_memory *memory;
+	void *argv = (void *)(uintptr_t)args->argv;
+	unsigned int argc = args->argc;
 	u64 handle = args->memory;
 	u8 refd;
 	int ret;
@@ -418,8 +420,7 @@ nvkm_uvmm_mthd_raw_map(struct nvkm_uvmm *uvmm, struct nvif_vmm_raw_v0 *args)
 		return PTR_ERR(memory);
 	}
 
-	ret = nvkm_memory_map(memory, args->offset, vmm, &vma,
-			      (void *)args->argv, args->argc);
+	ret = nvkm_memory_map(memory, args->offset, vmm, &vma, argv, argc);
 
 	nvkm_memory_unref(&vma.memory);
 	nvkm_memory_unref(&memory);
