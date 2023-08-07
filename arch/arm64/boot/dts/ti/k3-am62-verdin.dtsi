@@ -768,6 +768,11 @@
 	};
 };
 
+/* VERDIN I2S_1_MCLK */
+&audio_refclk1 {
+	assigned-clock-rates = <25000000>;
+};
+
 &cpsw3g {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rgmii1>;
