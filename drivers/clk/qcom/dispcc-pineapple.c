@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -29,7 +29,7 @@
 #define DISP_CC_MISC_CMD	0xF000
 
 static DEFINE_VDD_REGULATORS(vdd_mm, VDD_HIGH + 1, 1, vdd_corner);
-static DEFINE_VDD_REGULATORS(vdd_mxa, VDD_NOMINAL + 1, 1, vdd_corner);
+static DEFINE_VDD_REGULATORS(vdd_mxa, VDD_HIGH + 1, 1, vdd_corner);
 
 static struct clk_vdd_class *disp_cc_pineapple_regulators[] = {
 	&vdd_mm,
@@ -57,7 +57,7 @@ enum {
 };
 
 static const struct pll_vco lucid_ole_vco[] = {
-	{ 249600000, 2100000000, 0 },
+	{ 249600000, 2300000000, 0 },
 };
 
 static const struct alpha_pll_config disp_cc_pll0_config = {
@@ -99,7 +99,7 @@ static struct clk_alpha_pll disp_cc_pll0 = {
 				[VDD_LOW] = 1100000000,
 				[VDD_LOW_L1] = 1600000000,
 				[VDD_NOMINAL] = 2000000000,
-				[VDD_HIGH_L1] = 2100000000},
+				[VDD_HIGH_L1] = 2300000000},
 		},
 	},
 };
@@ -143,7 +143,7 @@ static struct clk_alpha_pll disp_cc_pll1 = {
 				[VDD_LOW] = 1100000000,
 				[VDD_LOW_L1] = 1600000000,
 				[VDD_NOMINAL] = 2000000000,
-				[VDD_HIGH_L1] = 2100000000},
+				[VDD_HIGH_L1] = 2300000000},
 		},
 	},
 };
@@ -335,7 +335,8 @@ static struct clk_rcg2 disp_cc_mdss_byte0_clk_src = {
 		.ops = &clk_byte2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_mm,
+		.vdd_classes = disp_cc_pineapple_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_pineapple_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 140630000,
@@ -359,7 +360,8 @@ static struct clk_rcg2 disp_cc_mdss_byte1_clk_src = {
 		.ops = &clk_byte2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_mm,
+		.vdd_classes = disp_cc_pineapple_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_pineapple_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 140630000,
@@ -404,7 +406,8 @@ static struct clk_rcg2 disp_cc_mdss_dptx0_link_clk_src = {
 		.ops = &clk_byte2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_mm,
+		.vdd_classes = disp_cc_pineapple_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_pineapple_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 19200000,
@@ -428,7 +431,8 @@ static struct clk_rcg2 disp_cc_mdss_dptx0_pixel0_clk_src = {
 		.ops = &clk_dp_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_mm,
+		.vdd_classes = disp_cc_pineapple_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_pineapple_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 19200000,
@@ -452,7 +456,8 @@ static struct clk_rcg2 disp_cc_mdss_dptx0_pixel1_clk_src = {
 		.ops = &clk_dp_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_mm,
+		.vdd_classes = disp_cc_pineapple_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_pineapple_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 19200000,
@@ -731,7 +736,8 @@ static struct clk_rcg2 disp_cc_mdss_esc0_clk_src = {
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_mm,
+		.vdd_classes = disp_cc_pineapple_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_pineapple_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 19200000},
@@ -752,7 +758,8 @@ static struct clk_rcg2 disp_cc_mdss_esc1_clk_src = {
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_mm,
+		.vdd_classes = disp_cc_pineapple_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_pineapple_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 19200000},
@@ -768,6 +775,19 @@ static const struct freq_tbl ftbl_disp_cc_mdss_mdp_clk_src[] = {
 	F(325000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
 	F(402000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
 	F(514000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	{ }
+};
+
+static const struct freq_tbl ftbl_disp_cc_mdss_mdp_clk_src_cliffs[] = {
+	F(19200000, P_BI_TCXO, 1, 0, 0),
+	F(85714286, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(100000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(155000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(200000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(342000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(402000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(514000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(600000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
 	{ }
 };
 
@@ -813,7 +833,8 @@ static struct clk_rcg2 disp_cc_mdss_pclk0_clk_src = {
 		.ops = &clk_pixel_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_mm,
+		.vdd_classes = disp_cc_pineapple_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_pineapple_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 225000000,
@@ -837,7 +858,8 @@ static struct clk_rcg2 disp_cc_mdss_pclk1_clk_src = {
 		.ops = &clk_pixel_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_mm,
+		.vdd_classes = disp_cc_pineapple_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_pineapple_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 225000000,
@@ -1940,9 +1962,33 @@ static struct qcom_cc_desc disp_cc_pineapple_desc = {
 
 static const struct of_device_id disp_cc_pineapple_match_table[] = {
 	{ .compatible = "qcom,pineapple-dispcc" },
+	{ .compatible = "qcom,cliffs-dispcc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, disp_cc_pineapple_match_table);
+
+static void disp_cc_pineapple_fixup_cliffs(struct regmap *regmap)
+{
+	disp_cc_mdss_mdp_clk_src.freq_tbl = ftbl_disp_cc_mdss_mdp_clk_src_cliffs;
+	disp_cc_mdss_mdp_clk_src.clkr.vdd_data.rate_max[VDD_LOWER_D1] = 155000000;
+	disp_cc_mdss_mdp_clk_src.clkr.vdd_data.rate_max[VDD_LOW] = 342000000;
+	disp_cc_mdss_mdp_clk_src.clkr.vdd_data.rate_max[VDD_HIGH] = 600000000;
+}
+
+static int disp_cc_pineapple_fixup(struct platform_device *pdev, struct regmap *regmap)
+{
+	const char *compat = NULL;
+	int compatlen = 0;
+
+	compat = of_get_property(pdev->dev.of_node, "compatible", &compatlen);
+	if (!compat || compatlen <= 0)
+		return -EINVAL;
+
+	if (!strcmp(compat, "qcom,cliffs-dispcc"))
+		disp_cc_pineapple_fixup_cliffs(regmap);
+
+	return 0;
+}
 
 static int disp_cc_pineapple_probe(struct platform_device *pdev)
 {
@@ -1963,6 +2009,10 @@ static int disp_cc_pineapple_probe(struct platform_device *pdev)
 
 	clk_lucid_ole_pll_configure(&disp_cc_pll0, regmap, &disp_cc_pll0_config);
 	clk_lucid_ole_pll_configure(&disp_cc_pll1, regmap, &disp_cc_pll1_config);
+
+	ret = disp_cc_pineapple_fixup(pdev, regmap);
+	if (ret)
+		return ret;
 
 	/* Enable clock gating for MDP clocks */
 	regmap_update_bits(regmap, DISP_CC_MISC_CMD, 0x10, 0x10);
