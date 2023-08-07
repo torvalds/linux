@@ -433,19 +433,13 @@ SYM_CODE_START(startup_64)
 	 * a trampoline in 32-bit addressable memory if the current number does
 	 * not match the desired number.
 	 *
-	 * Pass the boot_params pointer as the first argument.
+	 * Pass the boot_params pointer as the first argument. The second
+	 * argument is the relocated address of the page table to use instead
+	 * of the page table in trampoline memory (if required).
 	 */
 	movq	%r15, %rdi
+	leaq	rva(top_pgtable)(%rbx), %rsi
 	call	configure_5level_paging
-
-	/*
-	 * cleanup_trampoline() would restore trampoline memory.
-	 *
-	 * RDI is address of the page table to use instead of page table
-	 * in trampoline memory (if required).
-	 */
-	leaq	rva(top_pgtable)(%rbx), %rdi
-	call	cleanup_trampoline
 
 	/* Zero EFLAGS */
 	pushq	$0
