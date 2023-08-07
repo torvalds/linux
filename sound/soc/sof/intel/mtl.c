@@ -91,7 +91,7 @@ static bool mtl_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
 	return false;
 }
 
-static int mtl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
+int mtl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
 	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	struct sof_ipc4_msg *msg_data = msg->msg_data;
@@ -230,7 +230,7 @@ int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 }
 
 /* pre fw run operations */
-static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
+int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	u32 dsphfpwrsts;
@@ -279,7 +279,7 @@ static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 	return ret;
 }
 
-static int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
+int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 {
 	int ret;
 
@@ -301,7 +301,7 @@ static int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 	return 0;
 }
 
-static void mtl_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
+void mtl_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 {
 	char *level = (flags & SOF_DBG_DUMP_OPTIONAL) ? KERN_DEBUG : KERN_ERR;
 	u32 romdbgsts;
@@ -495,7 +495,7 @@ err:
 	return ret;
 }
 
-static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
+irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 {
 	struct sof_ipc4_msg notification_data = {{ 0 }};
 	struct snd_sof_dev *sdev = context;
@@ -578,17 +578,17 @@ static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 	return IRQ_HANDLED;
 }
 
-static int mtl_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev)
+int mtl_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev)
 {
 	return MTL_DSP_MBOX_UPLINK_OFFSET;
 }
 
-static int mtl_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
+int mtl_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
 {
 	return MTL_SRAM_WINDOW_OFFSET(id);
 }
 
-static void mtl_ipc_dump(struct snd_sof_dev *sdev)
+void mtl_ipc_dump(struct snd_sof_dev *sdev)
 {
 	u32 hipcidr, hipcidd, hipcida, hipctdr, hipctdd, hipctda, hipcctl;
 
@@ -612,9 +612,9 @@ static int mtl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 	return mtl_enable_interrupts(sdev, false);
 }
 
-static u64 mtl_dsp_get_stream_hda_link_position(struct snd_sof_dev *sdev,
-						struct snd_soc_component *component,
-						struct snd_pcm_substream *substream)
+u64 mtl_dsp_get_stream_hda_link_position(struct snd_sof_dev *sdev,
+					 struct snd_soc_component *component,
+					 struct snd_pcm_substream *substream)
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
 	u32 llp_l, llp_u;

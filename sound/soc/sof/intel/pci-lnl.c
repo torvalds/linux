@@ -42,9 +42,8 @@ static const struct sof_dev_desc lnl_desc = {
 		[SOF_INTEL_IPC4] = "sof-lnl.ri",
 	},
 	.nocodec_tplg_filename = "sof-lnl-nocodec.tplg",
-	/* the MTL ops are still used for now */
-	.ops = &sof_mtl_ops,
-	.ops_init = sof_mtl_ops_init,
+	.ops = &sof_lnl_ops,
+	.ops_init = sof_lnl_ops_init,
 };
 
 /* PCI IDs */
