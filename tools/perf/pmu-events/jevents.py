@@ -347,12 +347,15 @@ class JsonEvent:
       if self.desc and not self.desc.endswith('. '):
         self.desc += '. '
       self.desc = (self.desc if self.desc else '') + ('Unit: ' + self.pmu + ' ')
-    if arch_std and arch_std.lower() in _arch_std_events:
-      event = _arch_std_events[arch_std.lower()].event
-      # Copy from the architecture standard event to self for undefined fields.
-      for attr, value in _arch_std_events[arch_std.lower()].__dict__.items():
-        if hasattr(self, attr) and not getattr(self, attr):
-          setattr(self, attr, value)
+    if arch_std:
+      if arch_std.lower() in _arch_std_events:
+        event = _arch_std_events[arch_std.lower()].event
+        # Copy from the architecture standard event to self for undefined fields.
+        for attr, value in _arch_std_events[arch_std.lower()].__dict__.items():
+          if hasattr(self, attr) and not getattr(self, attr):
+            setattr(self, attr, value)
+      else:
+        raise argparse.ArgumentTypeError('Cannot find arch std event:', arch_std)
 
     self.event = real_event(self.name, event)
 
