@@ -22,6 +22,8 @@ struct efx_tc_ct_zone {
 	refcount_t ref;
 	struct nf_flowtable *nf_ft;
 	struct efx_nic *efx;
+	struct mutex mutex; /* protects cts list */
+	struct list_head cts; /* list of efx_tc_ct_entry in this zone */
 };
 
 /* create/teardown hashtables */
@@ -45,6 +47,7 @@ struct efx_tc_ct_entry {
 	struct efx_tc_ct_zone *zone;
 	u32 mark;
 	struct efx_tc_counter *cnt;
+	struct list_head list; /* entry on zone->cts */
 };
 
 #endif /* CONFIG_SFC_SRIOV */
