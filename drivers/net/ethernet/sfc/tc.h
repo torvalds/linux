@@ -196,6 +196,7 @@ struct efx_tc_table_ct { /* TABLE_ID_CONNTRACK_TABLE */
  * @encap_ht: Hashtable of TC encap actions
  * @encap_match_ht: Hashtable of TC encap matches
  * @match_action_ht: Hashtable of TC match-action rules
+ * @ct_zone_ht: Hashtable of TC conntrack flowtable bindings
  * @neigh_ht: Hashtable of neighbour watches (&struct efx_neigh_binder)
  * @meta_ct: MAE table layout for conntrack table
  * @reps_mport_id: MAE port allocated for representor RX
@@ -228,6 +229,7 @@ struct efx_tc_state {
 	struct rhashtable encap_ht;
 	struct rhashtable encap_match_ht;
 	struct rhashtable match_action_ht;
+	struct rhashtable ct_zone_ht;
 	struct rhashtable neigh_ht;
 	struct efx_tc_table_ct meta_ct;
 	u32 reps_mport_id, reps_mport_vport_id;

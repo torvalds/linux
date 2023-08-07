@@ -15,6 +15,7 @@
 #include "tc.h"
 #include "tc_bindings.h"
 #include "tc_encap_actions.h"
+#include "tc_conntrack.h"
 #include "mae.h"
 #include "ef100_rep.h"
 #include "efx.h"
@@ -1747,6 +1748,9 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	rc = rhashtable_init(&efx->tc->match_action_ht, &efx_tc_match_action_ht_params);
 	if (rc < 0)
 		goto fail_match_action_ht;
+	rc = efx_tc_init_conntrack(efx);
+	if (rc < 0)
+		goto fail_conntrack;
 	efx->tc->reps_filter_uc = -1;
 	efx->tc->reps_filter_mc = -1;
 	INIT_LIST_HEAD(&efx->tc->dflt.pf.acts.list);
@@ -1759,6 +1763,8 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	efx->tc->facts.reps.fw_id = MC_CMD_MAE_ACTION_SET_ALLOC_OUT_ACTION_SET_ID_NULL;
 	efx->extra_channel_type[EFX_EXTRA_CHANNEL_TC] = &efx_tc_channel_type;
 	return 0;
+fail_conntrack:
+	rhashtable_destroy(&efx->tc->match_action_ht);
 fail_match_action_ht:
 	rhashtable_destroy(&efx->tc->encap_match_ht);
 fail_encap_match_ht:
@@ -1792,6 +1798,7 @@ void efx_fini_struct_tc(struct efx_nic *efx)
 				    efx);
 	rhashtable_free_and_destroy(&efx->tc->encap_match_ht,
 				    efx_tc_encap_match_free, NULL);
+	efx_tc_fini_conntrack(efx);
 	efx_tc_fini_counters(efx);
 	efx_tc_fini_encap_actions(efx);
 	mutex_unlock(&efx->tc->mutex);
