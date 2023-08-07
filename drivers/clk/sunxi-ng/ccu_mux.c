@@ -139,7 +139,7 @@ int ccu_mux_helper_determine_rate(struct ccu_common *common,
 			goto out;
 		}
 
-		if ((req->rate - tmp_rate) < (req->rate - best_rate)) {
+		if (ccu_is_better_rate(common, req->rate, tmp_rate, best_rate)) {
 			best_rate = tmp_rate;
 			best_parent_rate = parent_rate;
 			best_parent = parent;
