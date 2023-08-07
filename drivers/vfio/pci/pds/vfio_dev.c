@@ -5,6 +5,7 @@
 #include <linux/vfio_pci_core.h>
 
 #include "lm.h"
+#include "dirty.h"
 #include "vfio_dev.h"
 
 struct pci_dev *pds_vfio_to_pci_dev(struct pds_vfio_pci_device *pds_vfio)
@@ -25,7 +26,7 @@ struct pds_vfio_pci_device *pds_vfio_pci_drvdata(struct pci_dev *pdev)
 			    vfio_coredev);
 }
 
-static void pds_vfio_state_mutex_unlock(struct pds_vfio_pci_device *pds_vfio)
+void pds_vfio_state_mutex_unlock(struct pds_vfio_pci_device *pds_vfio)
 {
 again:
 	spin_lock(&pds_vfio->reset_lock);
@@ -35,6 +36,7 @@ again:
 			pds_vfio->state = VFIO_DEVICE_STATE_RUNNING;
 			pds_vfio_put_restore_file(pds_vfio);
 			pds_vfio_put_save_file(pds_vfio);
+			pds_vfio_dirty_disable(pds_vfio, false);
 		}
 		spin_unlock(&pds_vfio->reset_lock);
 		goto again;
@@ -117,6 +119,12 @@ static const struct vfio_migration_ops pds_vfio_lm_ops = {
 	.migration_get_data_size = pds_vfio_get_device_state_size
 };
 
+static const struct vfio_log_ops pds_vfio_log_ops = {
+	.log_start = pds_vfio_dma_logging_start,
+	.log_stop = pds_vfio_dma_logging_stop,
+	.log_read_and_clear = pds_vfio_dma_logging_report,
+};
+
 static int pds_vfio_init_device(struct vfio_device *vdev)
 {
 	struct pds_vfio_pci_device *pds_vfio =
@@ -137,6 +145,7 @@ static int pds_vfio_init_device(struct vfio_device *vdev)
 
 	vdev->migration_flags = VFIO_MIGRATION_STOP_COPY | VFIO_MIGRATION_P2P;
 	vdev->mig_ops = &pds_vfio_lm_ops;
+	vdev->log_ops = &pds_vfio_log_ops;
 
 	pci_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
 	dev_dbg(&pdev->dev,
@@ -175,6 +184,7 @@ static void pds_vfio_close_device(struct vfio_device *vdev)
 	mutex_lock(&pds_vfio->state_mutex);
 	pds_vfio_put_restore_file(pds_vfio);
 	pds_vfio_put_save_file(pds_vfio);
+	pds_vfio_dirty_disable(pds_vfio, true);
 	mutex_unlock(&pds_vfio->state_mutex);
 	mutex_destroy(&pds_vfio->state_mutex);
 	vfio_pci_core_close_device(vdev);

@@ -382,3 +382,128 @@ void pds_vfio_send_host_vf_lm_status_cmd(struct pds_vfio_pci_device *pds_vfio,
 		dev_warn(dev, "failed to send host VF migration status: %pe\n",
 			 ERR_PTR(err));
 }
+
+int pds_vfio_dirty_status_cmd(struct pds_vfio_pci_device *pds_vfio,
+			      u64 regions_dma, u8 *max_regions, u8 *num_regions)
+{
+	union pds_core_adminq_cmd cmd = {
+		.lm_dirty_status = {
+			.opcode = PDS_LM_CMD_DIRTY_STATUS,
+			.vf_id = cpu_to_le16(pds_vfio->vf_id),
+		},
+	};
+	struct device *dev = pds_vfio_to_dev(pds_vfio);
+	union pds_core_adminq_comp comp = {};
+	int err;
+
+	dev_dbg(dev, "vf%u: Dirty status\n", pds_vfio->vf_id);
+
+	cmd.lm_dirty_status.regions_dma = cpu_to_le64(regions_dma);
+	cmd.lm_dirty_status.max_regions = *max_regions;
+
+	err = pds_vfio_client_adminq_cmd(pds_vfio, &cmd, &comp, false);
+	if (err) {
+		dev_err(dev, "failed to get dirty status: %pe\n", ERR_PTR(err));
+		return err;
+	}
+
+	/* only support seq_ack approach for now */
+	if (!(le32_to_cpu(comp.lm_dirty_status.bmp_type_mask) &
+	      BIT(PDS_LM_DIRTY_BMP_TYPE_SEQ_ACK))) {
+		dev_err(dev, "Dirty bitmap tracking SEQ_ACK not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	*num_regions = comp.lm_dirty_status.num_regions;
+	*max_regions = comp.lm_dirty_status.max_regions;
+
+	dev_dbg(dev,
+		"Page Tracking Status command successful, max_regions: %d, num_regions: %d, bmp_type: %s\n",
+		*max_regions, *num_regions, "PDS_LM_DIRTY_BMP_TYPE_SEQ_ACK");
+
+	return 0;
+}
+
+int pds_vfio_dirty_enable_cmd(struct pds_vfio_pci_device *pds_vfio,
+			      u64 regions_dma, u8 num_regions)
+{
+	union pds_core_adminq_cmd cmd = {
+		.lm_dirty_enable = {
+			.opcode = PDS_LM_CMD_DIRTY_ENABLE,
+			.vf_id = cpu_to_le16(pds_vfio->vf_id),
+			.regions_dma = cpu_to_le64(regions_dma),
+			.bmp_type = PDS_LM_DIRTY_BMP_TYPE_SEQ_ACK,
+			.num_regions = num_regions,
+		},
+	};
+	struct device *dev = pds_vfio_to_dev(pds_vfio);
+	union pds_core_adminq_comp comp = {};
+	int err;
+
+	err = pds_vfio_client_adminq_cmd(pds_vfio, &cmd, &comp, false);
+	if (err) {
+		dev_err(dev, "failed dirty tracking enable: %pe\n",
+			ERR_PTR(err));
+		return err;
+	}
+
+	return 0;
+}
+
+int pds_vfio_dirty_disable_cmd(struct pds_vfio_pci_device *pds_vfio)
+{
+	union pds_core_adminq_cmd cmd = {
+		.lm_dirty_disable = {
+			.opcode = PDS_LM_CMD_DIRTY_DISABLE,
+			.vf_id = cpu_to_le16(pds_vfio->vf_id),
+		},
+	};
+	struct device *dev = pds_vfio_to_dev(pds_vfio);
+	union pds_core_adminq_comp comp = {};
+	int err;
+
+	err = pds_vfio_client_adminq_cmd(pds_vfio, &cmd, &comp, false);
+	if (err || comp.lm_dirty_status.num_regions != 0) {
+		/* in case num_regions is still non-zero after disable */
+		err = err ? err : -EIO;
+		dev_err(dev,
+			"failed dirty tracking disable: %pe, num_regions %d\n",
+			ERR_PTR(err), comp.lm_dirty_status.num_regions);
+		return err;
+	}
+
+	return 0;
+}
+
+int pds_vfio_dirty_seq_ack_cmd(struct pds_vfio_pci_device *pds_vfio,
+			       u64 sgl_dma, u16 num_sge, u32 offset,
+			       u32 total_len, bool read_seq)
+{
+	const char *cmd_type_str = read_seq ? "read_seq" : "write_ack";
+	union pds_core_adminq_cmd cmd = {
+		.lm_dirty_seq_ack = {
+			.vf_id = cpu_to_le16(pds_vfio->vf_id),
+			.len_bytes = cpu_to_le32(total_len),
+			.off_bytes = cpu_to_le32(offset),
+			.sgl_addr = cpu_to_le64(sgl_dma),
+			.num_sge = cpu_to_le16(num_sge),
+		},
+	};
+	struct device *dev = pds_vfio_to_dev(pds_vfio);
+	union pds_core_adminq_comp comp = {};
+	int err;
+
+	if (read_seq)
+		cmd.lm_dirty_seq_ack.opcode = PDS_LM_CMD_DIRTY_READ_SEQ;
+	else
+		cmd.lm_dirty_seq_ack.opcode = PDS_LM_CMD_DIRTY_WRITE_ACK;
+
+	err = pds_vfio_client_adminq_cmd(pds_vfio, &cmd, &comp, false);
+	if (err) {
+		dev_err(dev, "failed cmd Page Tracking %s: %pe\n", cmd_type_str,
+			ERR_PTR(err));
+		return err;
+	}
+
+	return 0;
+}
