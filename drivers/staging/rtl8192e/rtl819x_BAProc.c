@@ -518,7 +518,7 @@ void rtllib_ba_setup_timeout(struct timer_list *t)
 	pTxTs->TxPendingBARecord.b_valid = false;
 }
 
-void TxBaInactTimeout(struct timer_list *t)
+void rtllib_tx_ba_inact_timeout(struct timer_list *t)
 {
 	struct tx_ts_record *pTxTs = from_timer(pTxTs, t,
 					      TxAdmittedBARecord.timer);

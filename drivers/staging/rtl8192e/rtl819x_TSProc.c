@@ -139,7 +139,7 @@ void TSInitialize(struct rtllib_device *ieee)
 		timer_setup(&pTxTS->TxPendingBARecord.timer, rtllib_ba_setup_timeout,
 			    0);
 		timer_setup(&pTxTS->TxAdmittedBARecord.timer,
-			    TxBaInactTimeout, 0);
+			    rtllib_tx_ba_inact_timeout, 0);
 
 		ResetTxTsEntry(pTxTS);
 		list_add_tail(&pTxTS->TsCommonInfo.List,
