@@ -2383,14 +2383,13 @@ static void __init srso_select_mitigation(void)
 		 * flags for guests.
 		 */
 		setup_force_cpu_cap(X86_FEATURE_IBPB_BRTYPE);
-		setup_force_cpu_cap(X86_FEATURE_SBPB);
 
 		/*
 		 * Zen1/2 with SMT off aren't vulnerable after the right
 		 * IBPB microcode has been applied.
 		 */
 		if ((boot_cpu_data.x86 < 0x19) &&
-		    (cpu_smt_control == CPU_SMT_DISABLED))
+		    (!cpu_smt_possible() || (cpu_smt_control == CPU_SMT_DISABLED)))
 			setup_force_cpu_cap(X86_FEATURE_SRSO_NO);
 	}
 
@@ -2463,8 +2462,8 @@ static void __init srso_select_mitigation(void)
 	pr_info("%s%s\n", srso_strings[srso_mitigation], (has_microcode ? "" : ", no microcode"));
 
 pred_cmd:
-	if (boot_cpu_has(X86_FEATURE_SRSO_NO) ||
-	    srso_cmd == SRSO_CMD_OFF)
+	if ((boot_cpu_has(X86_FEATURE_SRSO_NO) || srso_cmd == SRSO_CMD_OFF) &&
+	     boot_cpu_has(X86_FEATURE_SBPB))
 		x86_pred_cmd = PRED_CMD_SBPB;
 }
 
