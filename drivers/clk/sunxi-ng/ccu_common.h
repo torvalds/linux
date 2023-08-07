@@ -53,6 +53,11 @@ struct sunxi_ccu_desc {
 
 void ccu_helper_wait_for_lock(struct ccu_common *common, u32 lock);
 
+bool ccu_is_better_rate(struct ccu_common *common,
+			unsigned long target_rate,
+			unsigned long current_rate,
+			unsigned long best_rate);
+
 struct ccu_pll_nb {
 	struct notifier_block	clk_nb;
 	struct ccu_common	*common;

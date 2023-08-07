@@ -39,6 +39,18 @@ void ccu_helper_wait_for_lock(struct ccu_common *common, u32 lock)
 }
 EXPORT_SYMBOL_NS_GPL(ccu_helper_wait_for_lock, SUNXI_CCU);
 
+bool ccu_is_better_rate(struct ccu_common *common,
+			unsigned long target_rate,
+			unsigned long current_rate,
+			unsigned long best_rate)
+{
+	if (common->features & CCU_FEATURE_CLOSEST_RATE)
+		return abs(current_rate - target_rate) < abs(best_rate - target_rate);
+
+	return current_rate <= target_rate && current_rate > best_rate;
+}
+EXPORT_SYMBOL_NS_GPL(ccu_is_better_rate, SUNXI_CCU);
+
 /*
  * This clock notifier is called when the frequency of a PLL clock is
  * changed. In common PLL designs, changes to the dividers take effect
