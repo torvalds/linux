@@ -17,13 +17,17 @@
 /* from BPP 6 to 36 in steps of 0.5 */
 #define RC_RANGE_QP444_12BPC_MAX_NUM_BPP	61
 
-/* from BPP 6 to 24 in steps of 0.5 */
+/* For YCbCr420 the bits_per_pixel sent in PPS params
+ * is double the target bpp. The below values represent
+ * the target bpp.
+ */
+/* from BPP 4 to 12 in steps of 0.5 */
 #define RC_RANGE_QP420_8BPC_MAX_NUM_BPP		17
 
-/* from BPP 6 to 30 in steps of 0.5 */
+/* from BPP 4 to 15 in steps of 0.5 */
 #define RC_RANGE_QP420_10BPC_MAX_NUM_BPP	23
 
-/* from BPP 6 to 36 in steps of 0.5 */
+/* from BPP 4 to 18 in steps of 0.5 */
 #define RC_RANGE_QP420_12BPC_MAX_NUM_BPP	29
 
 /*

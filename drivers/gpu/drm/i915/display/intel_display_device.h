@@ -11,6 +11,7 @@
 #include "intel_display_limits.h"
 
 struct drm_i915_private;
+struct drm_printer;
 
 #define DEV_INFO_DISPLAY_FOR_EACH_FLAG(func) \
 	/* Keep in alphabetical order */ \
@@ -79,6 +80,7 @@ struct intel_display_runtime_info {
 
 	u8 pipe_mask;
 	u8 cpu_transcoder_mask;
+	u16 port_mask;
 
 	u8 num_sprites[I915_MAX_PIPES];
 	u8 num_scalers[I915_MAX_PIPES];
@@ -125,5 +127,9 @@ const struct intel_display_device_info *
 intel_display_device_probe(struct drm_i915_private *i915, bool has_gmdid,
 			   u16 *ver, u16 *rel, u16 *step);
 void intel_display_device_info_runtime_init(struct drm_i915_private *i915);
+
+void intel_display_device_info_print(const struct intel_display_device_info *info,
+				     const struct intel_display_runtime_info *runtime,
+				     struct drm_printer *p);
 
 #endif

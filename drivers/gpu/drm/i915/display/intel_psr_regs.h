@@ -7,6 +7,7 @@
 #define __INTEL_PSR_REGS_H__
 
 #include "intel_display_reg_defs.h"
+#include "intel_dp_aux_regs.h"
 
 #define TRANS_EXITLINE(trans)	_MMIO_TRANS2((trans), _TRANS_EXITLINE_A)
 #define   EXITLINE_ENABLE	REG_BIT(31)
@@ -19,6 +20,7 @@
  * HSW PSR registers are relative to DDIA(_DDI_BUF_CTL_A + 0x800) with just one
  * instance of it
  */
+#define HSW_SRD_CTL				_MMIO(0x64800)
 #define _SRD_CTL_A				0x60800
 #define _SRD_CTL_EDP				0x6f800
 #define EDP_PSR_CTL(tran)			_MMIO_TRANS2(tran, _SRD_CTL_A)
@@ -79,10 +81,22 @@
 #define   EDP_PSR_PRE_ENTRY(trans)	(TGL_PSR_PRE_ENTRY <<		\
 					 _EDP_PSR_TRANS_SHIFT(trans))
 
+#define HSW_SRD_AUX_CTL				_MMIO(0x64810)
+#define _SRD_AUX_CTL_A				0x60810
+#define _SRD_AUX_CTL_EDP			0x6f810
+#define EDP_PSR_AUX_CTL(tran)			_MMIO_TRANS2(tran, _SRD_AUX_CTL_A)
+#define   EDP_PSR_AUX_CTL_TIME_OUT_MASK		DP_AUX_CH_CTL_TIME_OUT_MASK
+#define   EDP_PSR_AUX_CTL_MESSAGE_SIZE_MASK	DP_AUX_CH_CTL_MESSAGE_SIZE_MASK
+#define   EDP_PSR_AUX_CTL_PRECHARGE_2US_MASK	DP_AUX_CH_CTL_PRECHARGE_2US_MASK
+#define   EDP_PSR_AUX_CTL_ERROR_INTERRUPT	REG_BIT(11)
+#define   EDP_PSR_AUX_CTL_BIT_CLOCK_2X_MASK	DP_AUX_CH_CTL_BIT_CLOCK_2X_MASK
+
+#define HSW_SRD_AUX_DATA(i)			_MMIO(0x64814 + (i) * 4) /* 5 registers */
 #define _SRD_AUX_DATA_A				0x60814
 #define _SRD_AUX_DATA_EDP			0x6f814
 #define EDP_PSR_AUX_DATA(tran, i)		_MMIO_TRANS2(tran, _SRD_AUX_DATA_A + (i) * 4) /* 5 registers */
 
+#define HSW_SRD_STATUS				_MMIO(0x64840)
 #define _SRD_STATUS_A				0x60840
 #define _SRD_STATUS_EDP				0x6f840
 #define EDP_PSR_STATUS(tran)			_MMIO_TRANS2(tran, _SRD_STATUS_A)
@@ -107,12 +121,14 @@
 #define   EDP_PSR_STATUS_SENDING_TP1		REG_BIT(4)
 #define   EDP_PSR_STATUS_IDLE_MASK		REG_GENMASK(3, 0)
 
+#define HSW_SRD_PERF_CNT		_MMIO(0x64844)
 #define _SRD_PERF_CNT_A			0x60844
 #define _SRD_PERF_CNT_EDP		0x6f844
 #define EDP_PSR_PERF_CNT(tran)		_MMIO_TRANS2(tran, _SRD_PERF_CNT_A)
 #define   EDP_PSR_PERF_CNT_MASK		REG_GENMASK(23, 0)
 
 /* PSR_MASK on SKL+ */
+#define HSW_SRD_DEBUG				_MMIO(0x64860)
 #define _SRD_DEBUG_A				0x60860
 #define _SRD_DEBUG_EDP				0x6f860
 #define EDP_PSR_DEBUG(tran)			_MMIO_TRANS2(tran, _SRD_DEBUG_A)

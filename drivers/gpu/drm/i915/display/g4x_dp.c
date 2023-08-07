@@ -1259,6 +1259,9 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 
+	if (!assert_port_valid(dev_priv, port))
+		return false;
+
 	devdata = intel_bios_encoder_data_lookup(dev_priv, port);
 
 	/* FIXME bail? */
@@ -1269,6 +1272,8 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
 	if (!dig_port)
 		return false;
+
+	dig_port->aux_ch = AUX_CH_NONE;
 
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
@@ -1373,6 +1378,9 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 		intel_infoframe_init(dig_port);
 
 	dig_port->aux_ch = intel_dp_aux_ch(intel_encoder);
+	if (dig_port->aux_ch == AUX_CH_NONE)
+		goto err_init_connector;
+
 	if (!intel_dp_init_connector(dig_port, intel_connector))
 		goto err_init_connector;
 

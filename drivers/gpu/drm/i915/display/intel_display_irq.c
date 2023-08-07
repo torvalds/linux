@@ -749,6 +749,20 @@ void ivb_display_irq_handler(struct drm_i915_private *dev_priv, u32 de_iir)
 	if (de_iir & DE_ERR_INT_IVB)
 		ivb_err_int_handler(dev_priv);
 
+	if (de_iir & DE_EDP_PSR_INT_HSW) {
+		struct intel_encoder *encoder;
+
+		for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
+			struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+			u32 psr_iir;
+
+			psr_iir = intel_uncore_rmw(&dev_priv->uncore,
+						   EDP_PSR_IIR, 0, 0);
+			intel_psr_irq_handler(intel_dp, psr_iir);
+			break;
+		}
+	}
+
 	if (de_iir & DE_AUX_CHANNEL_A_IVB)
 		intel_dp_aux_irq_handler(dev_priv);
 
@@ -1135,7 +1149,7 @@ void gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 
 u32 gen11_gu_misc_irq_ack(struct drm_i915_private *i915, const u32 master_ctl)
 {
-	void __iomem * const regs = i915->uncore.regs;
+	void __iomem * const regs = intel_uncore_regs(&i915->uncore);
 	u32 iir;
 
 	if (!(master_ctl & GEN11_GU_MISC_IRQ))
@@ -1156,7 +1170,7 @@ void gen11_gu_misc_irq_handler(struct drm_i915_private *i915, const u32 iir)
 
 void gen11_display_irq_handler(struct drm_i915_private *i915)
 {
-	void __iomem * const regs = i915->uncore.regs;
+	void __iomem * const regs = intel_uncore_regs(&i915->uncore);
 	const u32 disp_ctl = raw_reg_read(regs, GEN11_DISPLAY_INT_CTL);
 
 	disable_rpm_wakeref_asserts(&i915->runtime_pm);

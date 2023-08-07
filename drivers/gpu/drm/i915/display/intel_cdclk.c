@@ -37,6 +37,7 @@
 #include "intel_pci_config.h"
 #include "intel_pcode.h"
 #include "intel_psr.h"
+#include "intel_vdsc.h"
 #include "vlv_sideband.h"
 
 /**
@@ -2607,9 +2608,16 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	 * When we decide to use only one VDSC engine, since
 	 * each VDSC operates with 1 ppc throughput, pixel clock
 	 * cannot be higher than the VDSC clock (cdclk)
+	 * If there 2 VDSC engines, then pixel clock can't be higher than
+	 * VDSC clock(cdclk) * 2 and so on.
 	 */
-	if (crtc_state->dsc.compression_enable && !crtc_state->dsc.dsc_split)
-		min_cdclk = max(min_cdclk, (int)crtc_state->pixel_rate);
+	if (crtc_state->dsc.compression_enable) {
+		int num_vdsc_instances = intel_dsc_get_num_vdsc_instances(crtc_state);
+
+		min_cdclk = max_t(int, min_cdclk,
+				  DIV_ROUND_UP(crtc_state->pixel_rate,
+					       num_vdsc_instances));
+	}
 
 	/*
 	 * HACK. Currently for TGL/DG2 platforms we calculate
