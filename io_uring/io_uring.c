@@ -3470,6 +3470,8 @@ static unsigned long io_uring_mmu_get_unmapped_area(struct file *filp,
 	 * - use the kernel virtual address of the shared io_uring context
 	 *   (instead of the userspace-provided address, which has to be 0UL
 	 *   anyway).
+	 * - use the same pgoff which the get_unmapped_area() uses to
+	 *   calculate the page colouring.
 	 * For architectures without such aliasing requirements, the
 	 * architecture will return any suitable mapping because addr is 0.
 	 */
@@ -3478,6 +3480,7 @@ static unsigned long io_uring_mmu_get_unmapped_area(struct file *filp,
 	pgoff = 0;	/* has been translated to ptr above */
 #ifdef SHM_COLOUR
 	addr = (uintptr_t) ptr;
+	pgoff = addr >> PAGE_SHIFT;
 #else
 	addr = 0UL;
 #endif
