@@ -369,7 +369,9 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 
 	dws->max_freq = clk_get_rate(dwsmmio->clk);
 
-	device_property_read_u32(&pdev->dev, "reg-io-width", &dws->reg_io_width);
+	if (device_property_read_u32(&pdev->dev, "reg-io-width",
+				     &dws->reg_io_width))
+		dws->reg_io_width = 4;
 
 	num_cs = 4;
 
