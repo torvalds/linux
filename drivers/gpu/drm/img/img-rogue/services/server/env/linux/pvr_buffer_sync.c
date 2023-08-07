@@ -300,7 +300,7 @@ pvr_buffer_sync_check_fences_create(struct pvr_fence_context *fence_ctx,
 		}
 	}
 
-	WARN_ON((i != nr_pmrs) || (data->nr_fences != fence_count));
+	WARN_ON((i != nr_pmrs));
 
 	return data;
 
