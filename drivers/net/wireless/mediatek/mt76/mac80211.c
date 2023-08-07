@@ -4,7 +4,6 @@
  */
 #include <linux/sched.h>
 #include <linux/of.h>
-#include <net/page_pool.h>
 #include "mt76.h"
 
 #define CHAN2G(_idx, _freq) {			\

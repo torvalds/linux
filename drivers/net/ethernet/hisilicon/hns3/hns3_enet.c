@@ -18,6 +18,7 @@
 #include <net/gre.h>
 #include <net/gro.h>
 #include <net/ip6_checksum.h>
+#include <net/page_pool/helpers.h>
 #include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 #include <net/tcp.h>

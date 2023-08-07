@@ -38,7 +38,7 @@
 #include "en/port.h"
 
 #ifdef CONFIG_PAGE_POOL_STATS
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 #endif
 
 static unsigned int stats_grps_num(struct mlx5e_priv *priv)

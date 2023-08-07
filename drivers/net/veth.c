@@ -26,7 +26,7 @@
 #include <linux/ptr_ring.h>
 #include <linux/bpf_trace.h>
 #include <linux/net_tstamp.h>
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 
 #define DRV_NAME	"veth"
 #define DRV_VERSION	"1.0"

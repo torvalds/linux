@@ -7,6 +7,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <net/page_pool/helpers.h>
 #include <net/tso.h>
 #include <linux/bitfield.h>
 

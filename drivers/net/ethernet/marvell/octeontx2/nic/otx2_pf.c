@@ -16,6 +16,7 @@
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
 #include <linux/bitfield.h>
+#include <net/page_pool/types.h>
 
 #include "otx2_reg.h"
 #include "otx2_common.h"

@@ -36,7 +36,7 @@
 #include <linux/bitmap.h>
 #include <linux/filter.h>
 #include <net/ip6_checksum.h>
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 #include <net/inet_ecn.h>
 #include <net/gro.h>
 #include <net/udp.h>

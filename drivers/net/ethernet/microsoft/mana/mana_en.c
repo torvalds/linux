@@ -11,6 +11,7 @@
 
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
+#include <net/page_pool/helpers.h>
 #include <net/xdp.h>
 
 #include <net/mana/mana.h>
