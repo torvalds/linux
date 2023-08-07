@@ -15,6 +15,7 @@
 
 struct ucsi;
 struct ucsi_altmode;
+struct dentry;
 
 /* UCSI offsets (Bytes) */
 #define UCSI_VERSION			0
@@ -277,6 +278,16 @@ struct ucsi_connector_status {
 
 /* -------------------------------------------------------------------------- */
 
+struct ucsi_debugfs_entry {
+	u64 command;
+	struct ucsi_data {
+		u64 low;
+		u64 high;
+	} response;
+	u32 status;
+	struct dentry *dentry;
+};
+
 struct ucsi {
 	u16 version;
 	struct device *dev;
@@ -286,6 +297,7 @@ struct ucsi {
 
 	struct ucsi_capability cap;
 	struct ucsi_connector *connector;
+	struct ucsi_debugfs_entry *debugfs;
 
 	struct work_struct resume_work;
 	struct delayed_work work;
@@ -387,6 +399,18 @@ ucsi_register_displayport(struct ucsi_connector *con,
 static inline void
 ucsi_displayport_remove_partner(struct typec_altmode *adev) { }
 #endif /* CONFIG_TYPEC_DP_ALTMODE */
+
+#ifdef CONFIG_DEBUG_FS
+void ucsi_debugfs_init(void);
+void ucsi_debugfs_exit(void);
+void ucsi_debugfs_register(struct ucsi *ucsi);
+void ucsi_debugfs_unregister(struct ucsi *ucsi);
+#else
+static inline void ucsi_debugfs_init(void) { }
+static inline void ucsi_debugfs_exit(void) { }
+static inline void ucsi_debugfs_register(struct ucsi *ucsi) { }
+static inline void ucsi_debugfs_unregister(struct ucsi *ucsi) { }
+#endif /* CONFIG_DEBUG_FS */
 
 /*
  * NVIDIA VirtualLink (svid 0x955) has two altmode. VirtualLink
