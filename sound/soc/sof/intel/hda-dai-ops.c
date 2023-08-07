@@ -7,6 +7,7 @@
 
 #include <sound/pcm_params.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/hda-mlink.h>
 #include <sound/sof/ipc4/header.h>
 #include <uapi/sound/sof/header.h>
 #include "../ipc4-priv.h"
@@ -219,6 +220,31 @@ static struct hdac_ext_link *hda_get_hlink(struct snd_sof_dev *sdev,
 	return snd_hdac_ext_bus_get_hlink_by_name(bus, codec_dai->component->name);
 }
 
+static unsigned int generic_calc_stream_format(struct snd_sof_dev *sdev,
+					       struct snd_pcm_substream *substream,
+					       struct snd_pcm_hw_params *params)
+{
+	unsigned int format_val;
+
+	format_val = snd_hdac_calc_stream_format(params_rate(params), params_channels(params),
+						 params_format(params),
+						 params_physical_width(params),
+						 0);
+
+	dev_dbg(sdev->dev, "format_val=%#x, rate=%d, ch=%d, format=%d\n", format_val,
+		params_rate(params), params_channels(params), params_format(params));
+
+	return format_val;
+}
+
+static struct hdac_ext_link *ssp_get_hlink(struct snd_sof_dev *sdev,
+					   struct snd_pcm_substream *substream)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+
+	return hdac_bus_eml_ssp_get_hlink(bus);
+}
+
 static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 				struct snd_pcm_substream *substream, int cmd)
 {
@@ -363,6 +389,19 @@ static const struct hda_dai_widget_dma_ops hda_ipc4_dma_ops = {
 	.get_hlink = hda_get_hlink,
 };
 
+static const struct hda_dai_widget_dma_ops ssp_ipc4_dma_ops = {
+	.get_hext_stream = hda_ipc4_get_hext_stream,
+	.assign_hext_stream = hda_assign_hext_stream,
+	.release_hext_stream = hda_release_hext_stream,
+	.setup_hext_stream = hda_setup_hext_stream,
+	.reset_hext_stream = hda_reset_hext_stream,
+	.pre_trigger = hda_ipc4_pre_trigger,
+	.trigger = hda_trigger,
+	.post_trigger = hda_ipc4_post_trigger,
+	.calc_stream_format = generic_calc_stream_format,
+	.get_hlink = ssp_get_hlink,
+};
+
 static const struct hda_dai_widget_dma_ops hda_ipc4_chain_dma_ops = {
 	.get_hext_stream = hda_get_hext_stream,
 	.assign_hext_stream = hda_assign_hext_stream,
@@ -465,8 +504,13 @@ hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidg
 	case SOF_INTEL_IPC4:
 	{
 		struct sof_ipc4_copier *ipc4_copier = sdai->private;
+		const struct sof_intel_dsp_desc *chip;
 
-		if (ipc4_copier->dai_type == SOF_DAI_INTEL_HDA) {
+		chip = get_chip_info(sdev->pdata);
+
+		switch (ipc4_copier->dai_type) {
+		case SOF_DAI_INTEL_HDA:
+		{
 			struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 			struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 
@@ -474,6 +518,13 @@ hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidg
 				return &hda_ipc4_chain_dma_ops;
 
 			return &hda_ipc4_dma_ops;
+		}
+		case SOF_DAI_INTEL_SSP:
+			if (chip->hw_ip_version < SOF_INTEL_ACE_2_0)
+				return NULL;
+			return &ssp_ipc4_dma_ops;
+		default:
+			break;
 		}
 		break;
 	}
