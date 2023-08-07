@@ -2240,7 +2240,6 @@ int tls_sw_read_sock(struct sock *sk, read_descriptor_t *desc,
 			tlm = tls_msg(skb);
 		} else {
 			struct tls_decrypt_arg darg;
-			int to_decrypt;
 
 			err = tls_rx_rec_wait(sk, NULL, true, released);
 			if (err <= 0)
@@ -2248,20 +2247,18 @@ int tls_sw_read_sock(struct sock *sk, read_descriptor_t *desc,
 
 			memset(&darg.inargs, 0, sizeof(darg.inargs));
 
-			rxm = strp_msg(tls_strp_msg(ctx));
-			tlm = tls_msg(tls_strp_msg(ctx));
-
-			to_decrypt = rxm->full_len - prot->overhead_size;
-
 			err = tls_rx_one_record(sk, NULL, &darg);
 			if (err < 0) {
 				tls_err_abort(sk, -EBADMSG);
 				goto read_sock_end;
 			}
 
-			released = tls_read_flush_backlog(sk, prot, rxm->full_len, to_decrypt,
-							  decrypted, &flushed_at);
+			released = tls_read_flush_backlog(sk, prot, INT_MAX,
+							  0, decrypted,
+							  &flushed_at);
 			skb = darg.skb;
+			rxm = strp_msg(skb);
+			tlm = tls_msg(skb);
 			decrypted += rxm->full_len;
 
 			tls_rx_rec_done(ctx);
