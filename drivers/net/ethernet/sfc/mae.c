@@ -695,8 +695,13 @@ int efx_mae_match_check_caps(struct efx_nic *efx,
 	    CHECK(L4_SPORT, l4_sport) ||
 	    CHECK(L4_DPORT, l4_dport) ||
 	    CHECK(TCP_FLAGS, tcp_flags) ||
+	    CHECK_BIT(TCP_SYN_FIN_RST, tcp_syn_fin_rst) ||
 	    CHECK_BIT(IS_IP_FRAG, ip_frag) ||
 	    CHECK_BIT(IP_FIRST_FRAG, ip_firstfrag) ||
+	    CHECK_BIT(DO_CT, ct_state_trk) ||
+	    CHECK_BIT(CT_HIT, ct_state_est) ||
+	    CHECK(CT_MARK, ct_mark) ||
+	    CHECK(CT_DOMAIN, ct_zone) ||
 	    CHECK(RECIRC_ID, recirc_id))
 		return rc;
 	/* Matches on outer fields are done in a separate hardware table,
@@ -1672,20 +1677,40 @@ static int efx_mae_populate_match_criteria(MCDI_DECLARE_STRUCT_PTR(match_crit),
 	}
 	MCDI_STRUCT_SET_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_INGRESS_MPORT_SELECTOR_MASK,
 			      match->mask.ingress_port);
-	EFX_POPULATE_DWORD_2(*_MCDI_STRUCT_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_FLAGS),
+	EFX_POPULATE_DWORD_5(*_MCDI_STRUCT_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_FLAGS),
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_DO_CT,
+			     match->value.ct_state_trk,
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_HIT,
+			     match->value.ct_state_est,
 			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IS_IP_FRAG,
 			     match->value.ip_frag,
 			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IP_FIRST_FRAG,
-			     match->value.ip_firstfrag);
-	EFX_POPULATE_DWORD_2(*_MCDI_STRUCT_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_FLAGS_MASK),
+			     match->value.ip_firstfrag,
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_TCP_SYN_FIN_RST,
+			     match->value.tcp_syn_fin_rst);
+	EFX_POPULATE_DWORD_5(*_MCDI_STRUCT_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_FLAGS_MASK),
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_DO_CT,
+			     match->mask.ct_state_trk,
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_HIT,
+			     match->mask.ct_state_est,
 			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IS_IP_FRAG,
 			     match->mask.ip_frag,
 			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IP_FIRST_FRAG,
-			     match->mask.ip_firstfrag);
+			     match->mask.ip_firstfrag,
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_TCP_SYN_FIN_RST,
+			     match->mask.tcp_syn_fin_rst);
 	MCDI_STRUCT_SET_BYTE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_RECIRC_ID,
 			     match->value.recirc_id);
 	MCDI_STRUCT_SET_BYTE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_RECIRC_ID_MASK,
 			     match->mask.recirc_id);
+	MCDI_STRUCT_SET_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_MARK,
+			      match->value.ct_mark);
+	MCDI_STRUCT_SET_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_MARK_MASK,
+			      match->mask.ct_mark);
+	MCDI_STRUCT_SET_WORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_DOMAIN,
+			     match->value.ct_zone);
+	MCDI_STRUCT_SET_WORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_DOMAIN_MASK,
+			     match->mask.ct_zone);
 	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_ETHER_TYPE_BE,
 				match->value.eth_proto);
 	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_ETHER_TYPE_BE_MASK,

@@ -60,6 +60,7 @@ struct efx_tc_match_fields {
 	/* L4 */
 	__be16 l4_sport, l4_dport; /* Ports (UDP, TCP) */
 	__be16 tcp_flags;
+	bool tcp_syn_fin_rst; /* true if ANY of SYN/FIN/RST are set */
 	/* Encap.  The following are *outer* fields.  Note that there are no
 	 * outer eth (L2) fields; this is because TC doesn't have them.
 	 */
@@ -68,6 +69,10 @@ struct efx_tc_match_fields {
 	u8 enc_ip_tos, enc_ip_ttl;
 	__be16 enc_sport, enc_dport;
 	__be32 enc_keyid; /* e.g. VNI, VSID */
+	/* Conntrack. */
+	u16 ct_state_trk:1, ct_state_est:1;
+	u32 ct_mark;
+	u16 ct_zone;
 };
 
 static inline bool efx_tc_match_is_encap(const struct efx_tc_match_fields *mask)
