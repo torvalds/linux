@@ -513,21 +513,22 @@ static struct shield_device *thunderstrike_create(struct hid_device *hdev)
 
 	hid_set_drvdata(hdev, shield_dev);
 
+	ts->haptics_dev = shield_haptics_create(shield_dev, thunderstrike_play_effect);
+	if (IS_ERR(ts->haptics_dev))
+		return ERR_CAST(ts->haptics_dev);
+
 	ret = thunderstrike_led_create(ts);
 	if (ret) {
 		hid_err(hdev, "Failed to create Thunderstrike LED instance\n");
-		return ERR_PTR(ret);
-	}
-
-	ts->haptics_dev = shield_haptics_create(shield_dev, thunderstrike_play_effect);
-	if (IS_ERR(ts->haptics_dev))
 		goto err;
+	}
 
 	hid_info(hdev, "Registered Thunderstrike controller\n");
 	return shield_dev;
 
 err:
-	led_classdev_unregister(&ts->led_dev);
+	if (ts->haptics_dev)
+		input_unregister_device(ts->haptics_dev);
 	return ERR_CAST(ts->haptics_dev);
 }
 
