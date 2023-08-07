@@ -67,7 +67,7 @@ struct cqspi_flash_pdata {
 
 struct cqspi_st {
 	struct platform_device	*pdev;
-	struct spi_master	*master;
+	struct spi_controller	*host;
 	struct clk		*clk;
 	struct clk		*clks[CLK_QSPI_NUM];
 	unsigned int		sclk;
@@ -1379,7 +1379,7 @@ static ssize_t cqspi_read(struct cqspi_flash_pdata *f_pdata,
 
 static int cqspi_mem_process(struct spi_mem *mem, const struct spi_mem_op *op)
 {
-	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
+	struct cqspi_st *cqspi = spi_controller_get_devdata(mem->spi->controller);
 	struct cqspi_flash_pdata *f_pdata;
 
 	f_pdata = &cqspi->f_pdata[spi_get_chipselect(mem->spi, 0)];
@@ -1585,7 +1585,7 @@ static int cqspi_request_mmap_dma(struct cqspi_st *cqspi)
 
 static const char *cqspi_get_name(struct spi_mem *mem)
 {
-	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
+	struct cqspi_st *cqspi = spi_controller_get_devdata(mem->spi->controller);
 	struct device *dev = &cqspi->pdev->dev;
 
 	return devm_kasprintf(dev, GFP_KERNEL, "%s.%d", dev_name(dev),
@@ -1690,26 +1690,26 @@ static int cqspi_probe(struct platform_device *pdev)
 	const struct cqspi_driver_platdata *ddata;
 	struct reset_control *rstc, *rstc_ocp, *rstc_ref;
 	struct device *dev = &pdev->dev;
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct resource *res_ahb;
 	struct cqspi_st *cqspi;
 	int ret;
 	int irq;
 
-	master = devm_spi_alloc_master(&pdev->dev, sizeof(*cqspi));
-	if (!master) {
-		dev_err(&pdev->dev, "spi_alloc_master failed\n");
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*cqspi));
+	if (!host) {
+		dev_err(&pdev->dev, "devm_spi_alloc_host failed\n");
 		return -ENOMEM;
 	}
-	master->mode_bits = SPI_RX_QUAD | SPI_RX_DUAL;
-	master->mem_ops = &cqspi_mem_ops;
-	master->mem_caps = &cqspi_mem_caps;
-	master->dev.of_node = pdev->dev.of_node;
+	host->mode_bits = SPI_RX_QUAD | SPI_RX_DUAL;
+	host->mem_ops = &cqspi_mem_ops;
+	host->mem_caps = &cqspi_mem_caps;
+	host->dev.of_node = pdev->dev.of_node;
 
-	cqspi = spi_master_get_devdata(master);
+	cqspi = spi_controller_get_devdata(host);
 
 	cqspi->pdev = pdev;
-	cqspi->master = master;
+	cqspi->host = host;
 	cqspi->is_jh7110 = false;
 	platform_set_drvdata(pdev, cqspi);
 
@@ -1797,7 +1797,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	reset_control_deassert(rstc_ocp);
 
 	cqspi->master_ref_clk_hz = clk_get_rate(cqspi->clk);
-	master->max_speed_hz = cqspi->master_ref_clk_hz;
+	host->max_speed_hz = cqspi->master_ref_clk_hz;
 
 	/* write completion is supported by default */
 	cqspi->wr_completion = true;
@@ -1808,7 +1808,7 @@ static int cqspi_probe(struct platform_device *pdev)
 			cqspi->wr_delay = 50 * DIV_ROUND_UP(NSEC_PER_SEC,
 						cqspi->master_ref_clk_hz);
 		if (ddata->hwcaps_mask & CQSPI_SUPPORTS_OCTAL)
-			master->mode_bits |= SPI_RX_OCTAL | SPI_TX_OCTAL;
+			host->mode_bits |= SPI_RX_OCTAL | SPI_TX_OCTAL;
 		if (!(ddata->quirks & CQSPI_DISABLE_DAC_MODE)) {
 			cqspi->use_direct_mode = true;
 			cqspi->use_direct_mode_wr = true;
@@ -1848,7 +1848,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	cqspi->current_cs = -1;
 	cqspi->sclk = 0;
 
-	master->num_chipselect = cqspi->num_chipselect;
+	host->num_chipselect = cqspi->num_chipselect;
 
 	ret = cqspi_setup_flash(cqspi);
 	if (ret) {
@@ -1862,7 +1862,7 @@ static int cqspi_probe(struct platform_device *pdev)
 			goto probe_setup_failed;
 	}
 
-	ret = spi_register_master(master);
+	ret = spi_register_controller(host);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register SPI ctlr %d\n", ret);
 		goto probe_setup_failed;
@@ -1884,7 +1884,7 @@ static void cqspi_remove(struct platform_device *pdev)
 {
 	struct cqspi_st *cqspi = platform_get_drvdata(pdev);
 
-	spi_unregister_master(cqspi->master);
+	spi_unregister_controller(cqspi->host);
 	cqspi_controller_enable(cqspi, 0);
 
 	if (cqspi->rx_chan)
@@ -1902,10 +1902,10 @@ static void cqspi_remove(struct platform_device *pdev)
 static int cqspi_suspend(struct device *dev)
 {
 	struct cqspi_st *cqspi = dev_get_drvdata(dev);
-	struct spi_master *master = dev_get_drvdata(dev);
+	struct spi_controller *host = dev_get_drvdata(dev);
 	int ret;
 
-	ret = spi_master_suspend(master);
+	ret = spi_controller_suspend(host);
 	cqspi_controller_enable(cqspi, 0);
 
 	clk_disable_unprepare(cqspi->clk);
@@ -1916,7 +1916,7 @@ static int cqspi_suspend(struct device *dev)
 static int cqspi_resume(struct device *dev)
 {
 	struct cqspi_st *cqspi = dev_get_drvdata(dev);
-	struct spi_master *master = dev_get_drvdata(dev);
+	struct spi_controller *host = dev_get_drvdata(dev);
 
 	clk_prepare_enable(cqspi->clk);
 	cqspi_wait_idle(cqspi);
@@ -1925,7 +1925,7 @@ static int cqspi_resume(struct device *dev)
 	cqspi->current_cs = -1;
 	cqspi->sclk = 0;
 
-	return spi_master_resume(master);
+	return spi_controller_resume(host);
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(cqspi_dev_pm_ops, cqspi_suspend, cqspi_resume);
