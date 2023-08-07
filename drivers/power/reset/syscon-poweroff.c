@@ -93,9 +93,4 @@ static struct platform_driver syscon_poweroff_driver = {
 		.of_match_table = syscon_poweroff_of_match,
 	},
 };
-
-static int __init syscon_poweroff_register(void)
-{
-	return platform_driver_register(&syscon_poweroff_driver);
-}
-device_initcall(syscon_poweroff_register);
+builtin_platform_driver(syscon_poweroff_driver);
