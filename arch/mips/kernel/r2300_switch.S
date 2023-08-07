@@ -13,7 +13,6 @@
  */
 #include <asm/asm.h>
 #include <asm/cachectl.h>
-#include <asm/export.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 #include <asm/asm-offsets.h>
