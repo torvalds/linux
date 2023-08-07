@@ -4,22 +4,8 @@
 Page Pool API
 =============
 
-The page_pool allocator is optimized for the XDP mode that uses one frame
-per-page, but it can fallback on the regular page allocator APIs.
-
-Basic use involves replacing alloc_pages() calls with the
-page_pool_alloc_pages() call.  Drivers should use page_pool_dev_alloc_pages()
-replacing dev_alloc_pages().
-
-API keeps track of in-flight pages, in order to let API user know
-when it is safe to free a page_pool object.  Thus, API users
-must call page_pool_put_page() to free the page, or attach
-the page to a page_pool-aware objects like skbs marked with
-skb_mark_for_recycle().
-
-API user must call page_pool_put_page() once on a page, as it
-will either recycle the page, or in case of refcnt > 1, it will
-release the DMA mapping and in-flight state accounting.
+.. kernel-doc:: include/net/page_pool/helpers.h
+   :doc: page_pool allocator
 
 Architecture overview
 =====================

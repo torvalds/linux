@@ -8,23 +8,23 @@
 /**
  * DOC: page_pool allocator
  *
- * This page_pool allocator is optimized for the XDP mode that
- * uses one-frame-per-page, but have fallbacks that act like the
+ * The page_pool allocator is optimized for the XDP mode that
+ * uses one frame per-page, but it can fallback on the
  * regular page allocator APIs.
  *
- * Basic use involve replacing alloc_pages() calls with the
- * page_pool_alloc_pages() call.  Drivers should likely use
+ * Basic use involves replacing alloc_pages() calls with the
+ * page_pool_alloc_pages() call.  Drivers should use
  * page_pool_dev_alloc_pages() replacing dev_alloc_pages().
  *
- * API keeps track of in-flight pages, in-order to let API user know
- * when it is safe to dealloactor page_pool object.  Thus, API users
- * must call page_pool_put_page() where appropriate and only attach
- * the page to a page_pool-aware objects, like skbs marked for recycling.
+ * API keeps track of in-flight pages, in order to let API user know
+ * when it is safe to free a page_pool object.  Thus, API users
+ * must call page_pool_put_page() to free the page, or attach
+ * the page to a page_pool-aware objects like skbs marked with
+ * skb_mark_for_recycle().
  *
- * API user must only call page_pool_put_page() once on a page, as it
- * will either recycle the page, or in case of elevated refcnt, it
- * will release the DMA mapping and in-flight state accounting.  We
- * hope to lift this requirement in the future.
+ * API user must call page_pool_put_page() once on a page, as it
+ * will either recycle the page, or in case of refcnt > 1, it will
+ * release the DMA mapping and in-flight state accounting.
  */
 #ifndef _NET_PAGE_POOL_HELPERS_H
 #define _NET_PAGE_POOL_HELPERS_H
