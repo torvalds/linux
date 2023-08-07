@@ -293,7 +293,7 @@ err_job_fini:
 
 static int
 nouveau_exec_ucopy(struct nouveau_exec_job_args *args,
-		   struct drm_nouveau_exec __user *req)
+		   struct drm_nouveau_exec *req)
 {
 	struct drm_nouveau_sync **s;
 	u32 inc = req->wait_count;
@@ -352,7 +352,7 @@ nouveau_exec_ufree(struct nouveau_exec_job_args *args)
 
 int
 nouveau_exec_ioctl_exec(struct drm_device *dev,
-			void __user *data,
+			void *data,
 			struct drm_file *file_priv)
 {
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
@@ -360,7 +360,7 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	struct nouveau_abi16_chan *chan16;
 	struct nouveau_channel *chan = NULL;
 	struct nouveau_exec_job_args args = {};
-	struct drm_nouveau_exec __user *req = data;
+	struct drm_nouveau_exec *req = data;
 	int ret = 0;
 
 	if (unlikely(!abi16))

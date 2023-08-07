@@ -1687,7 +1687,7 @@ err_job_fini:
 
 static int
 nouveau_uvmm_vm_bind_ucopy(struct nouveau_uvmm_bind_job_args *args,
-			   struct drm_nouveau_vm_bind __user *req)
+			   struct drm_nouveau_vm_bind *req)
 {
 	struct drm_nouveau_sync **s;
 	u32 inc = req->wait_count;
@@ -1749,12 +1749,12 @@ nouveau_uvmm_vm_bind_ufree(struct nouveau_uvmm_bind_job_args *args)
 
 int
 nouveau_uvmm_ioctl_vm_bind(struct drm_device *dev,
-			   void __user *data,
+			   void *data,
 			   struct drm_file *file_priv)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_uvmm_bind_job_args args = {};
-	struct drm_nouveau_vm_bind __user *req = data;
+	struct drm_nouveau_vm_bind *req = data;
 	int ret = 0;
 
 	if (unlikely(!nouveau_cli_uvmm_locked(cli)))

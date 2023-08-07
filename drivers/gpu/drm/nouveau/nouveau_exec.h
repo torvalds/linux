@@ -48,7 +48,7 @@ struct nouveau_exec_job {
 int nouveau_exec_job_init(struct nouveau_exec_job **job,
 			  struct nouveau_exec_job_args *args);
 
-int nouveau_exec_ioctl_exec(struct drm_device *dev, void __user *data,
+int nouveau_exec_ioctl_exec(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 
 #endif
