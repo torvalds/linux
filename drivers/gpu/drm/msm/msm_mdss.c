@@ -603,7 +603,6 @@ static const struct msm_mdss_data sm8550_data = {
 	.highest_bank_bit = 3,
 	.macrotile_mode = 1,
 };
-
 static const struct of_device_id mdss_dt_match[] = {
 	{ .compatible = "qcom,mdss" },
 	{ .compatible = "qcom,msm8998-mdss", .data = &msm8998_data },
