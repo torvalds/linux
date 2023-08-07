@@ -4415,8 +4415,8 @@ static void update_cpu_capacity_helper(int cpu)
 
 	cluster = cpu_cluster(cpu);
 	/* reduce the fmax_capacity under cpufreq constraints */
-	if (cluster->max_freq != cluster->max_possible_freq)
-		fmax_capacity = mult_frac(fmax_capacity, cluster->max_freq,
+	if (cluster->walt_internal_freq_limit != cluster->max_possible_freq)
+		fmax_capacity = mult_frac(fmax_capacity, cluster->walt_internal_freq_limit,
 					 cluster->max_possible_freq);
 
 	old = rq->cpu_capacity_orig;
@@ -4436,6 +4436,23 @@ static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long
 
 	update_cpu_capacity_helper(cpu);
 	*capacity = max((int)(cpu_rq(cpu)->cpu_capacity_orig - rt_pressure), 0);
+}
+
+static inline bool has_internal_freq_limit_changed(int cpu)
+{
+	unsigned int internal_freq;
+	struct walt_sched_cluster *cluster;
+	int i;
+
+	cluster = cpu_cluster(cpu);
+	internal_freq = cluster->walt_internal_freq_limit;
+
+	cluster->walt_internal_freq_limit = cluster->max_freq;
+	for (i = 0; i < MAX_FREQ_CAP; i++)
+		cluster->walt_internal_freq_limit = min(fmax_cap[i][cluster->id],
+					     cluster->walt_internal_freq_limit);
+
+	return cluster->walt_internal_freq_limit != internal_freq;
 }
 
 DEFINE_PER_CPU(u32, wakeup_ctr);
@@ -4500,6 +4517,9 @@ static void walt_irq_work(struct irq_work *irq_work)
 		for_each_cpu(cpu, cpu_online_mask) {
 			wakeup_ctr_sum += per_cpu(wakeup_ctr, cpu);
 			per_cpu(wakeup_ctr, cpu) = 0;
+
+			if (has_internal_freq_limit_changed(cpu))
+				update_cpu_capacity_helper(cpu);
 		}
 	}
 

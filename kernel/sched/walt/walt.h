@@ -181,6 +181,7 @@ struct walt_sched_cluster {
 	unsigned int		cur_freq;
 	unsigned int		max_possible_freq;
 	unsigned int		max_freq;
+	unsigned int		walt_internal_freq_limit;
 	u64			aggr_grp_load;
 	unsigned long		util_to_cost[1024];
 };
