@@ -361,7 +361,7 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 static void RemoveTsEntry(struct rtllib_device *ieee,
 			  struct ts_common_info *pTs, enum tr_select TxRxSelect)
 {
-	TsInitDelBA(ieee, pTs, TxRxSelect);
+	rtllib_ts_init_del_ba(ieee, pTs, TxRxSelect);
 
 	if (TxRxSelect == RX_DIR) {
 		struct rx_reorder_entry *pRxReorderEntry;
