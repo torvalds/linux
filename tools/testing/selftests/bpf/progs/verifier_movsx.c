@@ -198,6 +198,28 @@ l0_%=:							\
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("MOV64SX, S16, R10 Sign Extension")
+__failure __msg("R1 type=scalar expected=fp, pkt, pkt_meta, map_key, map_value, mem, ringbuf_mem, buf, trusted_ptr_")
+__failure_unpriv __msg_unpriv("R10 sign-extension part of pointer")
+__naked void mov64sx_s16_r10(void)
+{
+	asm volatile ("					\
+	r1 = 553656332;					\
+	*(u32 *)(r10 - 8) = r1; 			\
+	r1 = (s16)r10;					\
+	r1 += -8;					\
+	r2 = 3;						\
+	if r2 <= r1 goto l0_%=;				\
+l0_%=:							\
+	call %[bpf_trace_printk];			\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_trace_printk)
+	: __clobber_all);
+}
+
 #else
 
 SEC("socket")
