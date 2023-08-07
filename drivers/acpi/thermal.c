@@ -92,34 +92,27 @@ MODULE_PARM_DESC(psv, "Disable or override all passive trip points.");
 
 static struct workqueue_struct *acpi_thermal_pm_queue;
 
-struct acpi_thermal_critical {
-	unsigned long temperature;
-	bool valid;
-};
-
-struct acpi_thermal_hot {
+struct acpi_thermal_trip {
 	unsigned long temperature;
 	bool valid;
 };
 
 struct acpi_thermal_passive {
+	struct acpi_thermal_trip trip;
 	struct acpi_handle_list devices;
-	unsigned long temperature;
 	unsigned long tc1;
 	unsigned long tc2;
 	unsigned long tsp;
-	bool valid;
 };
 
 struct acpi_thermal_active {
+	struct acpi_thermal_trip trip;
 	struct acpi_handle_list devices;
-	unsigned long temperature;
-	bool valid;
 };
 
 struct acpi_thermal_trips {
-	struct acpi_thermal_critical critical;
-	struct acpi_thermal_hot hot;
+	struct acpi_thermal_trip critical;
+	struct acpi_thermal_trip hot;
 	struct acpi_thermal_passive passive;
 	struct acpi_thermal_active active[ACPI_THERMAL_MAX_ACTIVE];
 };
@@ -250,9 +243,9 @@ static void __acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 	}
 
 	/* Passive (optional) */
-	if (((flag & ACPI_TRIPS_PASSIVE) && tz->trips.passive.valid) ||
+	if (((flag & ACPI_TRIPS_PASSIVE) && tz->trips.passive.trip.valid) ||
 	    flag == ACPI_TRIPS_INIT) {
-		valid = tz->trips.passive.valid;
+		valid = tz->trips.passive.trip.valid;
 		if (psv == -1) {
 			status = AE_SUPPORT;
 		} else if (psv > 0) {
@@ -264,44 +257,44 @@ static void __acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 		}
 
 		if (ACPI_FAILURE(status)) {
-			tz->trips.passive.valid = false;
+			tz->trips.passive.trip.valid = false;
 		} else {
-			tz->trips.passive.temperature = tmp;
-			tz->trips.passive.valid = true;
+			tz->trips.passive.trip.temperature = tmp;
+			tz->trips.passive.trip.valid = true;
 			if (flag == ACPI_TRIPS_INIT) {
 				status = acpi_evaluate_integer(tz->device->handle,
 							       "_TC1", NULL, &tmp);
 				if (ACPI_FAILURE(status))
-					tz->trips.passive.valid = false;
+					tz->trips.passive.trip.valid = false;
 				else
 					tz->trips.passive.tc1 = tmp;
 
 				status = acpi_evaluate_integer(tz->device->handle,
 							       "_TC2", NULL, &tmp);
 				if (ACPI_FAILURE(status))
-					tz->trips.passive.valid = false;
+					tz->trips.passive.trip.valid = false;
 				else
 					tz->trips.passive.tc2 = tmp;
 
 				status = acpi_evaluate_integer(tz->device->handle,
 							       "_TSP", NULL, &tmp);
 				if (ACPI_FAILURE(status))
-					tz->trips.passive.valid = false;
+					tz->trips.passive.trip.valid = false;
 				else
 					tz->trips.passive.tsp = tmp;
 			}
 		}
 	}
-	if ((flag & ACPI_TRIPS_DEVICES) && tz->trips.passive.valid) {
+	if ((flag & ACPI_TRIPS_DEVICES) && tz->trips.passive.trip.valid) {
 		memset(&devices, 0, sizeof(struct acpi_handle_list));
 		status = acpi_evaluate_reference(tz->device->handle, "_PSL",
 						 NULL, &devices);
 		if (ACPI_FAILURE(status)) {
 			acpi_handle_info(tz->device->handle,
 					 "Invalid passive threshold\n");
-			tz->trips.passive.valid = false;
+			tz->trips.passive.trip.valid = false;
 		} else {
-			tz->trips.passive.valid = true;
+			tz->trips.passive.trip.valid = true;
 		}
 
 		if (memcmp(&tz->trips.passive.devices, &devices,
@@ -312,24 +305,24 @@ static void __acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 		}
 	}
 	if ((flag & ACPI_TRIPS_PASSIVE) || (flag & ACPI_TRIPS_DEVICES)) {
-		if (valid != tz->trips.passive.valid)
+		if (valid != tz->trips.passive.trip.valid)
 			ACPI_THERMAL_TRIPS_EXCEPTION(flag, tz, "state");
 	}
 
 	/* Active (optional) */
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
 		char name[5] = { '_', 'A', 'C', ('0' + i), '\0' };
-		valid = tz->trips.active[i].valid;
+		valid = tz->trips.active[i].trip.valid;
 
 		if (act == -1)
 			break; /* disable all active trip points */
 
 		if (flag == ACPI_TRIPS_INIT || ((flag & ACPI_TRIPS_ACTIVE) &&
-		    tz->trips.active[i].valid)) {
+		    tz->trips.active[i].trip.valid)) {
 			status = acpi_evaluate_integer(tz->device->handle,
 						       name, NULL, &tmp);
 			if (ACPI_FAILURE(status)) {
-				tz->trips.active[i].valid = false;
+				tz->trips.active[i].trip.valid = false;
 				if (i == 0)
 					break;
 
@@ -337,35 +330,36 @@ static void __acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 					break;
 
 				if (i == 1)
-					tz->trips.active[0].temperature = celsius_to_deci_kelvin(act);
+					tz->trips.active[0].trip.temperature =
+							celsius_to_deci_kelvin(act);
 				else
 					/*
 					 * Don't allow override higher than
 					 * the next higher trip point
 					 */
-					tz->trips.active[i-1].temperature =
+					tz->trips.active[i-1].trip.temperature =
 						min_t(unsigned long,
-						      tz->trips.active[i-2].temperature,
+						      tz->trips.active[i-2].trip.temperature,
 						      celsius_to_deci_kelvin(act));
 
 				break;
 			} else {
-				tz->trips.active[i].temperature = tmp;
-				tz->trips.active[i].valid = true;
+				tz->trips.active[i].trip.temperature = tmp;
+				tz->trips.active[i].trip.valid = true;
 			}
 		}
 
 		name[2] = 'L';
-		if ((flag & ACPI_TRIPS_DEVICES) && tz->trips.active[i].valid) {
+		if ((flag & ACPI_TRIPS_DEVICES) && tz->trips.active[i].trip.valid) {
 			memset(&devices, 0, sizeof(struct acpi_handle_list));
 			status = acpi_evaluate_reference(tz->device->handle,
 							 name, NULL, &devices);
 			if (ACPI_FAILURE(status)) {
 				acpi_handle_info(tz->device->handle,
 						 "Invalid active%d threshold\n", i);
-				tz->trips.active[i].valid = false;
+				tz->trips.active[i].trip.valid = false;
 			} else {
-				tz->trips.active[i].valid = true;
+				tz->trips.active[i].trip.valid = true;
 			}
 
 			if (memcmp(&tz->trips.active[i].devices, &devices,
@@ -376,10 +370,10 @@ static void __acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 			}
 		}
 		if ((flag & ACPI_TRIPS_ACTIVE) || (flag & ACPI_TRIPS_DEVICES))
-			if (valid != tz->trips.active[i].valid)
+			if (valid != tz->trips.active[i].trip.valid)
 				ACPI_THERMAL_TRIPS_EXCEPTION(flag, tz, "state");
 
-		if (!tz->trips.active[i].valid)
+		if (!tz->trips.active[i].trip.valid)
 			break;
 	}
 
@@ -430,10 +424,10 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 
 	valid = tz->trips.critical.valid |
 		tz->trips.hot.valid |
-		tz->trips.passive.valid;
+		tz->trips.passive.trip.valid;
 
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++)
-		valid = valid || tz->trips.active[i].valid;
+		valid = valid || tz->trips.active[i].trip.valid;
 
 	if (!valid) {
 		pr_warn(FW_BUG "No valid trip found\n");
@@ -486,7 +480,7 @@ static int thermal_get_trip_type(struct thermal_zone_device *thermal,
 		trip--;
 	}
 
-	if (tz->trips.passive.valid) {
+	if (tz->trips.passive.trip.valid) {
 		if (!trip) {
 			*type = THERMAL_TRIP_PASSIVE;
 			return 0;
@@ -494,7 +488,7 @@ static int thermal_get_trip_type(struct thermal_zone_device *thermal,
 		trip--;
 	}
 
-	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE && tz->trips.active[i].valid; i++) {
+	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE && tz->trips.active[i].trip.valid; i++) {
 		if (!trip) {
 			*type = THERMAL_TRIP_ACTIVE;
 			return 0;
@@ -534,10 +528,10 @@ static int thermal_get_trip_temp(struct thermal_zone_device *thermal,
 		trip--;
 	}
 
-	if (tz->trips.passive.valid) {
+	if (tz->trips.passive.trip.valid) {
 		if (!trip) {
 			*temp = deci_kelvin_to_millicelsius_with_offset(
-					tz->trips.passive.temperature,
+					tz->trips.passive.trip.temperature,
 					tz->kelvin_offset);
 			return 0;
 		}
@@ -545,10 +539,10 @@ static int thermal_get_trip_temp(struct thermal_zone_device *thermal,
 	}
 
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE &&
-		tz->trips.active[i].valid; i++) {
+		tz->trips.active[i].trip.valid; i++) {
 		if (!trip) {
 			*temp = deci_kelvin_to_millicelsius_with_offset(
-					tz->trips.active[i].temperature,
+					tz->trips.active[i].trip.temperature,
 					tz->kelvin_offset);
 			return 0;
 		}
@@ -604,7 +598,7 @@ static int thermal_get_trend(struct thermal_zone_device *thermal,
 	 * before this callback being invoked
 	 */
 	i = tz->trips.passive.tc1 * (tz->temperature - tz->last_temperature) +
-	    tz->trips.passive.tc2 * (tz->temperature - tz->trips.passive.temperature);
+	    tz->trips.passive.tc2 * (tz->temperature - tz->trips.passive.trip.temperature);
 
 	if (i > 0)
 		*trend = THERMAL_TREND_RAISING;
@@ -655,7 +649,7 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 	if (tz->trips.hot.valid)
 		trip++;
 
-	if (tz->trips.passive.valid) {
+	if (tz->trips.passive.trip.valid) {
 		trip++;
 		for (i = 0; i < tz->trips.passive.devices.count; i++) {
 			handle = tz->trips.passive.devices.handles[i];
@@ -680,7 +674,7 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 	}
 
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
-		if (!tz->trips.active[i].valid)
+		if (!tz->trips.active[i].trip.valid)
 			break;
 
 		trip++;
@@ -774,12 +768,12 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 	if (tz->trips.hot.valid)
 		trip_count++;
 
-	if (tz->trips.passive.valid) {
+	if (tz->trips.passive.trip.valid) {
 		trip_count++;
 		passive_delay = tz->trips.passive.tsp * 100;
 	}
 
-	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE && tz->trips.active[i].valid; i++)
+	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE && tz->trips.active[i].trip.valid; i++)
 		trip_count++;
 
 	tz->thermal_zone = thermal_zone_device_register("acpitz", trip_count, 0,
@@ -1049,7 +1043,7 @@ static int acpi_thermal_resume(struct device *dev)
 		return -EINVAL;
 
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
-		if (!tz->trips.active[i].valid)
+		if (!tz->trips.active[i].trip.valid)
 			break;
 
 		for (j = 0; j < tz->trips.active[i].devices.count; j++) {
