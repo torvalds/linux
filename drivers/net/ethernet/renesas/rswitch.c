@@ -1664,6 +1664,8 @@ static int rswitch_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *
 
 static const struct ethtool_ops rswitch_ethtool_ops = {
 	.get_ts_info = rswitch_get_ts_info,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 static const struct of_device_id renesas_eth_sw_of_table[] = {
