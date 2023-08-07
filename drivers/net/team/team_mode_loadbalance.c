@@ -30,8 +30,6 @@ static rx_handler_result_t lb_receive(struct team *team, struct team_port *port,
 struct lb_priv;
 
 typedef struct team_port *lb_select_tx_port_func_t(struct team *,
-						   struct lb_priv *,
-						   struct sk_buff *,
 						   unsigned char);
 
 #define LB_TX_HASHTABLE_SIZE 256 /* hash is a char */
@@ -118,8 +116,6 @@ static void lb_tx_hash_to_port_mapping_null_port(struct team *team,
 
 /* Basic tx selection based solely by hash */
 static struct team_port *lb_hash_select_tx_port(struct team *team,
-						struct lb_priv *lb_priv,
-						struct sk_buff *skb,
 						unsigned char hash)
 {
 	int port_index = team_num_to_port_index(team, hash);
@@ -129,17 +125,16 @@ static struct team_port *lb_hash_select_tx_port(struct team *team,
 
 /* Hash to port mapping select tx port */
 static struct team_port *lb_htpm_select_tx_port(struct team *team,
-						struct lb_priv *lb_priv,
-						struct sk_buff *skb,
 						unsigned char hash)
 {
+	struct lb_priv *lb_priv = get_lb_priv(team);
 	struct team_port *port;
 
 	port = rcu_dereference_bh(LB_HTPM_PORT_BY_HASH(lb_priv, hash));
 	if (likely(port))
 		return port;
 	/* If no valid port in the table, fall back to simple hash */
-	return lb_hash_select_tx_port(team, lb_priv, skb, hash);
+	return lb_hash_select_tx_port(team, hash);
 }
 
 struct lb_select_tx_port {
@@ -229,7 +224,7 @@ static bool lb_transmit(struct team *team, struct sk_buff *skb)
 
 	hash = lb_get_skb_hash(lb_priv, skb);
 	select_tx_port_func = rcu_dereference_bh(lb_priv->select_tx_port_func);
-	port = select_tx_port_func(team, lb_priv, skb, hash);
+	port = select_tx_port_func(team, hash);
 	if (unlikely(!port))
 		goto drop;
 	if (team_dev_queue_xmit(team, port, skb))
