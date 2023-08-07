@@ -27,23 +27,36 @@ const char *kunit_action(void)
 	return action_param;
 }
 
-#if IS_BUILTIN(CONFIG_KUNIT)
-
 static char *filter_glob_param;
 static char *filter_param;
 static char *filter_action_param;
 
-module_param_named(filter_glob, filter_glob_param, charp, 0);
+module_param_named(filter_glob, filter_glob_param, charp, 0400);
 MODULE_PARM_DESC(filter_glob,
 		"Filter which KUnit test suites/tests run at boot-time, e.g. list* or list*.*del_test");
-module_param_named(filter, filter_param, charp, 0);
+module_param_named(filter, filter_param, charp, 0400);
 MODULE_PARM_DESC(filter,
 		"Filter which KUnit test suites/tests run at boot-time using attributes, e.g. speed>slow");
-module_param_named(filter_action, filter_action_param, charp, 0);
+module_param_named(filter_action, filter_action_param, charp, 0400);
 MODULE_PARM_DESC(filter_action,
 		"Changes behavior of filtered tests using attributes, valid values are:\n"
 		"<none>: do not run filtered tests as normal\n"
 		"'skip': skip all filtered tests instead so tests will appear in output\n");
+
+const char *kunit_filter_glob(void)
+{
+	return filter_glob_param;
+}
+
+char *kunit_filter(void)
+{
+	return filter_param;
+}
+
+char *kunit_filter_action(void)
+{
+	return filter_action_param;
+}
 
 /* glob_match() needs NULL terminated strings, so we need a copy of filter_glob_param. */
 struct kunit_glob_filter {
@@ -108,10 +121,7 @@ kunit_filter_glob_tests(const struct kunit_suite *const suite, const char *test_
 	return copy;
 }
 
-static char *kunit_shutdown;
-core_param(kunit_shutdown, kunit_shutdown, charp, 0644);
-
-static void kunit_free_suite_set(struct kunit_suite_set suite_set)
+void kunit_free_suite_set(struct kunit_suite_set suite_set)
 {
 	struct kunit_suite * const *suites;
 
@@ -120,7 +130,7 @@ static void kunit_free_suite_set(struct kunit_suite_set suite_set)
 	kfree(suite_set.start);
 }
 
-static struct kunit_suite_set
+struct kunit_suite_set
 kunit_filter_suites(const struct kunit_suite_set *suite_set,
 		    const char *filter_glob,
 		    char *filters,
@@ -218,22 +228,6 @@ err:
 	return filtered;
 }
 
-static void kunit_handle_shutdown(void)
-{
-	if (!kunit_shutdown)
-		return;
-
-	if (!strcmp(kunit_shutdown, "poweroff"))
-		kernel_power_off();
-	else if (!strcmp(kunit_shutdown, "halt"))
-		kernel_halt();
-	else if (!strcmp(kunit_shutdown, "reboot"))
-		kernel_restart(NULL);
-
-}
-
-#endif
-
 void kunit_exec_run_tests(struct kunit_suite_set *suite_set, bool builtin)
 {
 	size_t num_suites = suite_set->end - suite_set->start;
@@ -270,6 +264,23 @@ void kunit_exec_list_tests(struct kunit_suite_set *suite_set, bool include_attr)
 }
 
 #if IS_BUILTIN(CONFIG_KUNIT)
+
+static char *kunit_shutdown;
+core_param(kunit_shutdown, kunit_shutdown, charp, 0644);
+
+static void kunit_handle_shutdown(void)
+{
+	if (!kunit_shutdown)
+		return;
+
+	if (!strcmp(kunit_shutdown, "poweroff"))
+		kernel_power_off();
+	else if (!strcmp(kunit_shutdown, "halt"))
+		kernel_halt();
+	else if (!strcmp(kunit_shutdown, "reboot"))
+		kernel_restart(NULL);
+
+}
 
 int kunit_run_all_tests(void)
 {

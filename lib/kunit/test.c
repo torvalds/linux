@@ -740,6 +740,17 @@ static void kunit_module_init(struct module *mod)
 		mod->kunit_suites, mod->kunit_suites + mod->num_kunit_suites,
 	};
 	const char *action = kunit_action();
+	int err = 0;
+
+	suite_set = kunit_filter_suites(&suite_set,
+					kunit_filter_glob() ?: "*.*",
+					kunit_filter(), kunit_filter_action(),
+					&err);
+	if (err)
+		pr_err("kunit module: error filtering suites: %d\n", err);
+
+	mod->kunit_suites = (struct kunit_suite **)suite_set.start;
+	mod->num_kunit_suites = suite_set.end - suite_set.start;
 
 	if (!action)
 		kunit_exec_run_tests(&suite_set, false);
@@ -753,11 +764,17 @@ static void kunit_module_init(struct module *mod)
 
 static void kunit_module_exit(struct module *mod)
 {
+	struct kunit_suite_set suite_set = {
+		mod->kunit_suites, mod->kunit_suites + mod->num_kunit_suites,
+	};
 	const char *action = kunit_action();
 
 	if (!action)
 		__kunit_test_suites_exit(mod->kunit_suites,
 					 mod->num_kunit_suites);
+
+	if (suite_set.start)
+		kunit_free_suite_set(suite_set);
 }
 
 static int kunit_module_notify(struct notifier_block *nb, unsigned long val,

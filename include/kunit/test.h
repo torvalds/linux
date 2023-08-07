@@ -310,6 +310,9 @@ static inline void kunit_set_failure(struct kunit *test)
 
 bool kunit_enabled(void);
 const char *kunit_action(void);
+const char *kunit_filter_glob(void);
+char *kunit_filter(void);
+char *kunit_filter_action(void);
 
 void kunit_init_test(struct kunit *test, const char *name, char *log);
 
@@ -319,6 +322,14 @@ size_t kunit_suite_num_test_cases(struct kunit_suite *suite);
 
 unsigned int kunit_test_case_num(struct kunit_suite *suite,
 				 struct kunit_case *test_case);
+
+struct kunit_suite_set
+kunit_filter_suites(const struct kunit_suite_set *suite_set,
+		    const char *filter_glob,
+		    char *filters,
+		    char *filter_action,
+		    int *err);
+void kunit_free_suite_set(struct kunit_suite_set suite_set);
 
 int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_suites);
 
