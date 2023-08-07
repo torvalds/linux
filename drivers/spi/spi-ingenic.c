@@ -392,7 +392,7 @@ static int spi_ingenic_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ctlr = devm_spi_alloc_master(dev, sizeof(*priv));
+	ctlr = devm_spi_alloc_host(dev, sizeof(*priv));
 	if (!ctlr) {
 		dev_err(dev, "Unable to allocate SPI controller.\n");
 		return -ENOMEM;
