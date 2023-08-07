@@ -6,6 +6,11 @@
 
 #include "vfio_dev.h"
 
+struct pci_dev *pds_vfio_to_pci_dev(struct pds_vfio_pci_device *pds_vfio)
+{
+	return pds_vfio->vfio_coredev.pdev;
+}
+
 struct pds_vfio_pci_device *pds_vfio_pci_drvdata(struct pci_dev *pdev)
 {
 	struct vfio_pci_core_device *core_device = dev_get_drvdata(&pdev->dev);
@@ -20,7 +25,7 @@ static int pds_vfio_init_device(struct vfio_device *vdev)
 		container_of(vdev, struct pds_vfio_pci_device,
 			     vfio_coredev.vdev);
 	struct pci_dev *pdev = to_pci_dev(vdev->dev);
-	int err, vf_id;
+	int err, vf_id, pci_id;
 
 	vf_id = pci_iov_vf_id(pdev);
 	if (vf_id < 0)
@@ -31,6 +36,12 @@ static int pds_vfio_init_device(struct vfio_device *vdev)
 		return err;
 
 	pds_vfio->vf_id = vf_id;
+
+	pci_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
+	dev_dbg(&pdev->dev,
+		"%s: PF %#04x VF %#04x vf_id %d domain %d pds_vfio %p\n",
+		__func__, pci_dev_id(pdev->physfn), pci_id, vf_id,
+		pci_domain_nr(pdev->bus), pds_vfio);
 
 	return 0;
 }
