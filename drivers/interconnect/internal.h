@@ -41,4 +41,6 @@ struct icc_path {
 	struct icc_req reqs[];
 };
 
+struct icc_path *icc_get(struct device *dev, const char *src, const char *dst);
+
 #endif
