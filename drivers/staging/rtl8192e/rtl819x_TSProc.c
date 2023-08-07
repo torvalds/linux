@@ -154,7 +154,7 @@ void TSInitialize(struct rtllib_device *ieee)
 		pRxTS->num = count;
 		INIT_LIST_HEAD(&pRxTS->rx_pending_pkt_list);
 		timer_setup(&pRxTS->rx_admitted_ba_record.timer,
-			    RxBaInactTimeout, 0);
+			    rtllib_rx_ba_inact_timeout, 0);
 
 		timer_setup(&pRxTS->rx_pkt_pending_timer, RxPktPendingTimeout, 0);
 

@@ -530,7 +530,7 @@ void rtllib_tx_ba_inact_timeout(struct timer_list *t)
 			  DELBA_REASON_TIMEOUT);
 }
 
-void RxBaInactTimeout(struct timer_list *t)
+void rtllib_rx_ba_inact_timeout(struct timer_list *t)
 {
 	struct rx_ts_record *pRxTs = from_timer(pRxTs, t,
 					      rx_admitted_ba_record.timer);
