@@ -306,9 +306,9 @@ static void xenfb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
 	xenfb_refresh(xenfb_info, x, y, width, height);
 }
 
-FB_GEN_DEFAULT_DEFERRED_SYS_OPS(xenfb,
-				xenfb_defio_damage_range,
-				xenfb_defio_damage_area)
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(xenfb,
+				   xenfb_defio_damage_range,
+				   xenfb_defio_damage_area)
 
 static const struct fb_ops xenfb_fb_ops = {
 	.owner		= THIS_MODULE,

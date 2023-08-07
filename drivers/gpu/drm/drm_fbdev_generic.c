@@ -34,9 +34,9 @@ static int drm_fbdev_generic_fb_release(struct fb_info *info, int user)
 	return 0;
 }
 
-FB_GEN_DEFAULT_DEFERRED_SYS_OPS(drm_fbdev_generic,
-				drm_fb_helper_damage_range,
-				drm_fb_helper_damage_area);
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(drm_fbdev_generic,
+				   drm_fb_helper_damage_range,
+				   drm_fb_helper_damage_area);
 
 static void drm_fbdev_generic_fb_destroy(struct fb_info *info)
 {

@@ -537,22 +537,22 @@ extern ssize_t fb_io_read(struct fb_info *info, char __user *buf,
 extern ssize_t fb_io_write(struct fb_info *info, const char __user *buf,
 			   size_t count, loff_t *ppos);
 
-#define __FB_DEFAULT_IO_OPS_RDWR \
+#define __FB_DEFAULT_IOMEM_OPS_RDWR \
 	.fb_read	= fb_io_read, \
 	.fb_write	= fb_io_write
 
-#define __FB_DEFAULT_IO_OPS_DRAW \
+#define __FB_DEFAULT_IOMEM_OPS_DRAW \
 	.fb_fillrect	= cfb_fillrect, \
 	.fb_copyarea	= cfb_copyarea, \
 	.fb_imageblit	= cfb_imageblit
 
-#define __FB_DEFAULT_IO_OPS_MMAP \
+#define __FB_DEFAULT_IOMEM_OPS_MMAP \
 	.fb_mmap	= NULL /* default implementation */
 
-#define FB_DEFAULT_IO_OPS \
-	__FB_DEFAULT_IO_OPS_RDWR, \
-	__FB_DEFAULT_IO_OPS_DRAW, \
-	__FB_DEFAULT_IO_OPS_MMAP
+#define FB_DEFAULT_IOMEM_OPS \
+	__FB_DEFAULT_IOMEM_OPS_RDWR, \
+	__FB_DEFAULT_IOMEM_OPS_DRAW, \
+	__FB_DEFAULT_IOMEM_OPS_MMAP
 
 /*
  * Helpers for framebuffers in system memory
@@ -566,11 +566,11 @@ extern ssize_t fb_sys_read(struct fb_info *info, char __user *buf,
 extern ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
 			    size_t count, loff_t *ppos);
 
-#define __FB_DEFAULT_SYS_OPS_RDWR \
+#define __FB_DEFAULT_SYSMEM_OPS_RDWR \
 	.fb_read	= fb_sys_read, \
 	.fb_write	= fb_sys_write
 
-#define __FB_DEFAULT_SYS_OPS_DRAW \
+#define __FB_DEFAULT_SYSMEM_OPS_DRAW \
 	.fb_fillrect	= sys_fillrect, \
 	.fb_copyarea	= sys_copyarea, \
 	.fb_imageblit	= sys_imageblit
@@ -579,11 +579,11 @@ extern ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
  * Helpers for framebuffers in DMA-able memory
  */
 
-#define __FB_DEFAULT_DMA_OPS_RDWR \
+#define __FB_DEFAULT_DMAMEM_OPS_RDWR \
 	.fb_read	= fb_sys_read, \
 	.fb_write	= fb_sys_write
 
-#define __FB_DEFAULT_DMA_OPS_DRAW \
+#define __FB_DEFAULT_DMAMEM_OPS_DRAW \
 	.fb_fillrect	= sys_fillrect, \
 	.fb_copyarea	= sys_copyarea, \
 	.fb_imageblit	= sys_imageblit
@@ -682,11 +682,11 @@ extern int fb_deferred_io_fsync(struct file *file, loff_t start,
 		__damage_area(info, image->dx, image->dy, image->width, image->height); \
 	}
 
-#define FB_GEN_DEFAULT_DEFERRED_IO_OPS(__prefix, __damage_range, __damage_area) \
+#define FB_GEN_DEFAULT_DEFERRED_IOMEM_OPS(__prefix, __damage_range, __damage_area) \
 	__FB_GEN_DEFAULT_DEFERRED_OPS_RDWR(__prefix, __damage_range, io) \
 	__FB_GEN_DEFAULT_DEFERRED_OPS_DRAW(__prefix, __damage_area, cfb)
 
-#define FB_GEN_DEFAULT_DEFERRED_SYS_OPS(__prefix, __damage_range, __damage_area) \
+#define FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(__prefix, __damage_range, __damage_area) \
 	__FB_GEN_DEFAULT_DEFERRED_OPS_RDWR(__prefix, __damage_range, sys) \
 	__FB_GEN_DEFAULT_DEFERRED_OPS_DRAW(__prefix, __damage_area, sys)
 

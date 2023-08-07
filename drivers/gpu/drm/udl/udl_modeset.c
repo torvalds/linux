@@ -12,6 +12,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
@@ -310,16 +311,6 @@ static const struct drm_plane_funcs udl_primary_plane_funcs = {
  * CRTC
  */
 
-static int udl_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
-{
-	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
-
-	if (!new_crtc_state->enable)
-		return 0;
-
-	return drm_atomic_helper_check_crtc_primary_plane(new_crtc_state);
-}
-
 static void udl_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
@@ -381,7 +372,7 @@ out:
 }
 
 static const struct drm_crtc_helper_funcs udl_crtc_helper_funcs = {
-	.atomic_check = udl_crtc_helper_atomic_check,
+	.atomic_check = drm_crtc_helper_atomic_check,
 	.atomic_enable = udl_crtc_helper_atomic_enable,
 	.atomic_disable = udl_crtc_helper_atomic_disable,
 };

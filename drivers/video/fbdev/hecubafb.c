@@ -135,9 +135,9 @@ static void hecubafb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
 	hecubafb_dpy_update(par);
 }
 
-FB_GEN_DEFAULT_DEFERRED_SYS_OPS(hecubafb,
-				hecubafb_defio_damage_range,
-				hecubafb_defio_damage_area)
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(hecubafb,
+				   hecubafb_defio_damage_range,
+				   hecubafb_defio_damage_area)
 
 static const struct fb_ops hecubafb_ops = {
 	.owner	= THIS_MODULE,

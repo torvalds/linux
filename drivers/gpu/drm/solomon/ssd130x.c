@@ -142,7 +142,7 @@ const struct ssd130x_deviceinfo ssd130x_variants[] = {
 EXPORT_SYMBOL_NS_GPL(ssd130x_variants, DRM_SSD130X);
 
 struct ssd130x_plane_state {
-	struct drm_plane_state base;
+	struct drm_shadow_plane_state base;
 	/* Intermediate buffer to convert pixels from XRGB8888 to HW format */
 	u8 *buffer;
 	/* Buffer to store pixels in HW format and written to the panel */
@@ -151,7 +151,7 @@ struct ssd130x_plane_state {
 
 static inline struct ssd130x_plane_state *to_ssd130x_plane_state(struct drm_plane_state *state)
 {
-	return container_of(state, struct ssd130x_plane_state, base);
+	return container_of(state, struct ssd130x_plane_state, base.base);
 }
 
 static inline struct ssd130x_device *drm_to_ssd130x(struct drm_device *drm)
@@ -689,11 +689,12 @@ static void ssd130x_primary_plane_reset(struct drm_plane *plane)
 	if (!ssd130x_state)
 		return;
 
-	__drm_atomic_helper_plane_reset(plane, &ssd130x_state->base);
+	__drm_gem_reset_shadow_plane(plane, &ssd130x_state->base);
 }
 
 static struct drm_plane_state *ssd130x_primary_plane_duplicate_state(struct drm_plane *plane)
 {
+	struct drm_shadow_plane_state *new_shadow_plane_state;
 	struct ssd130x_plane_state *old_ssd130x_state;
 	struct ssd130x_plane_state *ssd130x_state;
 
@@ -709,9 +710,11 @@ static struct drm_plane_state *ssd130x_primary_plane_duplicate_state(struct drm_
 	ssd130x_state->buffer = NULL;
 	ssd130x_state->data_array = NULL;
 
-	__drm_atomic_helper_plane_duplicate_state(plane, &ssd130x_state->base);
+	new_shadow_plane_state = &ssd130x_state->base;
 
-	return &ssd130x_state->base;
+	__drm_gem_duplicate_shadow_plane_state(plane, new_shadow_plane_state);
+
+	return &new_shadow_plane_state->base;
 }
 
 static void ssd130x_primary_plane_destroy_state(struct drm_plane *plane,
@@ -722,7 +725,7 @@ static void ssd130x_primary_plane_destroy_state(struct drm_plane *plane,
 	kfree(ssd130x_state->data_array);
 	kfree(ssd130x_state->buffer);
 
-	__drm_atomic_helper_plane_destroy_state(&ssd130x_state->base);
+	__drm_gem_destroy_shadow_plane_state(&ssd130x_state->base);
 
 	kfree(ssd130x_state);
 }
@@ -741,7 +744,6 @@ static const struct drm_plane_funcs ssd130x_primary_plane_funcs = {
 	.atomic_duplicate_state = ssd130x_primary_plane_duplicate_state,
 	.atomic_destroy_state = ssd130x_primary_plane_destroy_state,
 	.destroy = drm_plane_cleanup,
-	DRM_GEM_SHADOW_PLANE_FUNCS,
 };
 
 static enum drm_mode_status ssd130x_crtc_helper_mode_valid(struct drm_crtc *crtc,

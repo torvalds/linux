@@ -448,7 +448,7 @@ MODULE_DEVICE_TABLE(i2c, tfp410_i2c_ids);
 static struct i2c_driver tfp410_i2c_driver = {
 	.driver = {
 		.name	= "tfp410",
-		.of_match_table = of_match_ptr(tfp410_match),
+		.of_match_table = tfp410_match,
 	},
 	.id_table	= tfp410_i2c_ids,
 	.probe		= tfp410_i2c_probe,

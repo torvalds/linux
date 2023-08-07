@@ -271,15 +271,13 @@ u32 ipu_pre_get_baddr(struct ipu_pre *pre)
 static int ipu_pre_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct ipu_pre *pre;
 
 	pre = devm_kzalloc(dev, sizeof(*pre), GFP_KERNEL);
 	if (!pre)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pre->regs = devm_ioremap_resource(&pdev->dev, res);
+	pre->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pre->regs))
 		return PTR_ERR(pre->regs);
 

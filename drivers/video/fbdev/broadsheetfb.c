@@ -985,9 +985,9 @@ static void broadsheetfb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
 	broadsheetfb_dpy_update(par);
 }
 
-FB_GEN_DEFAULT_DEFERRED_SYS_OPS(broadsheetfb,
-				broadsheetfb_defio_damage_range,
-				broadsheetfb_defio_damage_area)
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(broadsheetfb,
+				   broadsheetfb_defio_damage_range,
+				   broadsheetfb_defio_damage_area)
 
 static const struct fb_ops broadsheetfb_ops = {
 	.owner	= THIS_MODULE,

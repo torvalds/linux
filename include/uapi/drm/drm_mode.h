@@ -488,6 +488,9 @@ struct drm_mode_get_connector {
 	 * This is not an object ID. This is a per-type connector number. Each
 	 * (type, type_id) combination is unique across all connectors of a DRM
 	 * device.
+	 *
+	 * The (type, type_id) combination is not a stable identifier: the
+	 * type_id can change depending on the driver probe order.
 	 */
 	__u32 connector_type_id;
 

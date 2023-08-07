@@ -79,6 +79,14 @@ int host1x_memory_context_list_init(struct host1x *host1x)
 		    !device_iommu_mapped(&ctx->dev)) {
 			dev_err(host1x->dev, "Context device %d has no IOMMU!\n", i);
 			device_unregister(&ctx->dev);
+
+			/*
+			 * This means that if IOMMU is disabled but context devices
+			 * are defined in the device tree, Host1x will fail to probe.
+			 * That's probably OK in this time and age.
+			 */
+			err = -EINVAL;
+
 			goto unreg_devices;
 		}
 	}

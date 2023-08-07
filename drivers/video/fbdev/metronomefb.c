@@ -498,9 +498,9 @@ static void metronomefb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
 	metronomefb_dpy_update(par);
 }
 
-FB_GEN_DEFAULT_DEFERRED_SYS_OPS(metronomefb,
-				metronomefb_defio_damage_range,
-				metronomefb_defio_damage_area)
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(metronomefb,
+				   metronomefb_defio_damage_range,
+				   metronomefb_defio_damage_area)
 
 static const struct fb_ops metronomefb_ops = {
 	.owner	= THIS_MODULE,
