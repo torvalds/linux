@@ -29,12 +29,64 @@ static const struct snd_sof_debugfs_map lnl_dsp_debugfs[] = {
 	{"dsp", HDA_DSP_BAR,  0, 0x10000, SOF_DEBUGFS_ACCESS_ALWAYS},
 };
 
+/* this helps allows the DSP to setup DMIC/SSP */
+static int hdac_bus_offload_dmic_ssp(struct hdac_bus *bus)
+{
+	int ret;
+
+	ret = hdac_bus_eml_enable_offload(bus, true,  AZX_REG_ML_LEPTR_ID_INTEL_SSP, true);
+	if (ret < 0)
+		return ret;
+
+	ret = hdac_bus_eml_enable_offload(bus, true,  AZX_REG_ML_LEPTR_ID_INTEL_DMIC, true);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int lnl_hda_dsp_probe(struct snd_sof_dev *sdev)
+{
+	int ret;
+
+	ret = hda_dsp_probe(sdev);
+	if (ret < 0)
+		return ret;
+
+	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev));
+}
+
+static int lnl_hda_dsp_resume(struct snd_sof_dev *sdev)
+{
+	int ret;
+
+	ret = hda_dsp_resume(sdev);
+	if (ret < 0)
+		return ret;
+
+	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev));
+}
+
+static int lnl_hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
+{
+	int ret;
+
+	ret = hda_dsp_runtime_resume(sdev);
+	if (ret < 0)
+		return ret;
+
+	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev));
+}
+
 int sof_lnl_ops_init(struct snd_sof_dev *sdev)
 {
 	struct sof_ipc4_fw_data *ipc4_data;
 
 	/* common defaults */
 	memcpy(&sof_lnl_ops, &sof_hda_common_ops, sizeof(struct snd_sof_dsp_ops));
+
+	/* probe */
+	sof_lnl_ops.probe = lnl_hda_dsp_probe;
 
 	/* shutdown */
 	sof_lnl_ops.shutdown = hda_dsp_shutdown;
@@ -62,6 +114,10 @@ int sof_lnl_ops_init(struct snd_sof_dev *sdev)
 
 	/* dsp core get/put */
 	/* TODO: add core_get and core_put */
+
+	/* PM */
+	sof_lnl_ops.resume			= lnl_hda_dsp_resume;
+	sof_lnl_ops.runtime_resume		= lnl_hda_dsp_runtime_resume;
 
 	sof_lnl_ops.get_stream_position = mtl_dsp_get_stream_hda_link_position;
 
