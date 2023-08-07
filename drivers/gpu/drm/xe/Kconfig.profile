@@ -22,6 +22,14 @@ config DRM_XE_TIMESLICE_MIN
 	help
 	  Configures the default min timeslice duration between multiple
 	  contexts by guc scheduling.
+config DRM_XE_PREEMPT_TIMEOUT
+	int "Preempt timeout (us, jiffy granularity)"
+	default 640000 # microseconds
+	help
+	  How long to wait (in microseconds) for a preemption event to occur
+	  when submitting a new context. If the current context does not hit
+	  an arbitration point and yield to HW before the timer expires, the
+	  HW will be reset to allow the more important context to execute.
 config DRM_XE_PREEMPT_TIMEOUT_MAX
 	int "Default max preempt timeout (us)"
 	default 10000000 # microseconds
