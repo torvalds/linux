@@ -341,6 +341,11 @@
 	clk-phase-sd-hs = <7>, <200>;
 };
 
+&bmc_dev {
+	status = "okay";
+	memory-region = <&bmc_dev_memory>;
+};
+
 &vhub {
 	status = "okay";
 	pinctrl-names = "default";
