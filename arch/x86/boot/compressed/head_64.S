@@ -539,8 +539,9 @@ SYM_FUNC_END(.Lrelocated)
  * running in 64-bit mode.
  *
  * Return address is at the top of the stack (might be above 4G).
- * The first argument (EDI) contains the 32-bit addressable base of the
- * trampoline memory.
+ * The first argument (EDI) contains the address of the temporary PGD level
+ * page table in 32-bit addressable memory which will be programmed into
+ * register CR3.
  */
 	.section ".rodata", "a", @progbits
 SYM_CODE_START(trampoline_32bit_src)
@@ -593,8 +594,7 @@ SYM_CODE_START(trampoline_32bit_src)
 	movl	%eax, %cr0
 
 	/* Point CR3 to the trampoline's new top level page table */
-	leal	TRAMPOLINE_32BIT_PGTABLE_OFFSET(%edi), %eax
-	movl	%eax, %cr3
+	movl	%edi, %cr3
 
 	/* Set EFER.LME=1 as a precaution in case hypervsior pulls the rug */
 	movl	$MSR_EFER, %ecx

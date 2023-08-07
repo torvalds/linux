@@ -103,7 +103,7 @@ static unsigned long find_trampoline_placement(void)
 
 asmlinkage void configure_5level_paging(struct boot_params *bp)
 {
-	void (*toggle_la57)(void *trampoline);
+	void (*toggle_la57)(void *cr3);
 	bool l5_required = false;
 
 	/* Initialize boot_params. Required for cmdline_find_option_bool(). */
@@ -174,7 +174,7 @@ asmlinkage void configure_5level_paging(struct boot_params *bp)
 		 * For 4- to 5-level paging transition, set up current CR3 as
 		 * the first and the only entry in a new top-level page table.
 		 */
-		trampoline_32bit[TRAMPOLINE_32BIT_PGTABLE_OFFSET] = __native_read_cr3() | _PAGE_TABLE_NOENC;
+		*trampoline_32bit = __native_read_cr3() | _PAGE_TABLE_NOENC;
 	} else {
 		unsigned long src;
 
@@ -187,8 +187,7 @@ asmlinkage void configure_5level_paging(struct boot_params *bp)
 		 * may be above 4G.
 		 */
 		src = *(unsigned long *)__native_read_cr3() & PAGE_MASK;
-		memcpy(trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET / sizeof(unsigned long),
-		       (void *)src, PAGE_SIZE);
+		memcpy(trampoline_32bit, (void *)src, PAGE_SIZE);
 	}
 
 	toggle_la57(trampoline_32bit);
@@ -198,7 +197,7 @@ void cleanup_trampoline(void *pgtable)
 {
 	void *trampoline_pgtable;
 
-	trampoline_pgtable = trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET / sizeof(unsigned long);
+	trampoline_pgtable = trampoline_32bit;
 
 	/*
 	 * Move the top level page table out of trampoline memory,
