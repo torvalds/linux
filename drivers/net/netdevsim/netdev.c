@@ -291,13 +291,19 @@ static void nsim_setup(struct net_device *dev)
 
 static int nsim_init_netdevsim(struct netdevsim *ns)
 {
+	struct mock_phc *phc;
 	int err;
 
+	phc = mock_phc_create(&ns->nsim_bus_dev->dev);
+	if (IS_ERR(phc))
+		return PTR_ERR(phc);
+
+	ns->phc = phc;
 	ns->netdev->netdev_ops = &nsim_netdev_ops;
 
 	err = nsim_udp_tunnels_info_create(ns->nsim_dev, ns->netdev);
 	if (err)
-		return err;
+		goto err_phc_destroy;
 
 	rtnl_lock();
 	err = nsim_bpf_init(ns);
@@ -320,6 +326,8 @@ err_ipsec_teardown:
 err_utn_destroy:
 	rtnl_unlock();
 	nsim_udp_tunnels_info_destroy(ns->netdev);
+err_phc_destroy:
+	mock_phc_destroy(ns->phc);
 	return err;
 }
 
@@ -383,6 +391,7 @@ void nsim_destroy(struct netdevsim *ns)
 	rtnl_unlock();
 	if (nsim_dev_port_is_pf(ns->nsim_dev_port))
 		nsim_udp_tunnels_info_destroy(dev);
+	mock_phc_destroy(ns->phc);
 	free_netdev(dev);
 }
 
