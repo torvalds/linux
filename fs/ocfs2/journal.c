@@ -557,7 +557,7 @@ static void ocfs2_abort_trigger(struct jbd2_buffer_trigger_type *triggers,
 	     (unsigned long)bh,
 	     (unsigned long long)bh->b_blocknr);
 
-	ocfs2_error(bh->b_bdev->bd_super,
+	ocfs2_error(bh->b_assoc_map->host->i_sb,
 		    "JBD2 has aborted our journal, ocfs2 cannot continue\n");
 }
 
@@ -780,14 +780,14 @@ void ocfs2_journal_dirty(handle_t *handle, struct buffer_head *bh)
 		mlog_errno(status);
 		if (!is_handle_aborted(handle)) {
 			journal_t *journal = handle->h_transaction->t_journal;
-			struct super_block *sb = bh->b_bdev->bd_super;
 
 			mlog(ML_ERROR, "jbd2_journal_dirty_metadata failed. "
 					"Aborting transaction and journal.\n");
 			handle->h_err = status;
 			jbd2_journal_abort_handle(handle);
 			jbd2_journal_abort(journal, status);
-			ocfs2_abort(sb, "Journal already aborted.\n");
+			ocfs2_abort(bh->b_assoc_map->host->i_sb,
+				    "Journal already aborted.\n");
 		}
 	}
 }
