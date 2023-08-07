@@ -13165,17 +13165,26 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 					dst_reg->subreg_def = DEF_NOT_SUBREG;
 				} else {
 					/* case: R1 = (s8, s16 s32)R2 */
-					bool no_sext;
+					if (is_pointer_value(env, insn->src_reg)) {
+						verbose(env,
+							"R%d sign-extension part of pointer\n",
+							insn->src_reg);
+						return -EACCES;
+					} else if (src_reg->type == SCALAR_VALUE) {
+						bool no_sext;
 
-					no_sext = src_reg->umax_value < (1ULL << (insn->off - 1));
-					if (no_sext && need_id)
-						src_reg->id = ++env->id_gen;
-					copy_register_state(dst_reg, src_reg);
-					if (!no_sext)
-						dst_reg->id = 0;
-					coerce_reg_to_size_sx(dst_reg, insn->off >> 3);
-					dst_reg->live |= REG_LIVE_WRITTEN;
-					dst_reg->subreg_def = DEF_NOT_SUBREG;
+						no_sext = src_reg->umax_value < (1ULL << (insn->off - 1));
+						if (no_sext && need_id)
+							src_reg->id = ++env->id_gen;
+						copy_register_state(dst_reg, src_reg);
+						if (!no_sext)
+							dst_reg->id = 0;
+						coerce_reg_to_size_sx(dst_reg, insn->off >> 3);
+						dst_reg->live |= REG_LIVE_WRITTEN;
+						dst_reg->subreg_def = DEF_NOT_SUBREG;
+					} else {
+						mark_reg_unknown(env, regs, insn->dst_reg);
+					}
 				}
 			} else {
 				/* R1 = (u32) R2 */
