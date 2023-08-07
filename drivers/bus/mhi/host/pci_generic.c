@@ -604,6 +604,9 @@ static const struct pci_device_id mhi_pci_id_table[] = {
 	/* RM520N-GL (sdx6x), eSIM */
 	{ PCI_DEVICE(PCI_VENDOR_ID_QUECTEL, 0x1004),
 		.driver_data = (kernel_ulong_t) &mhi_quectel_rm5xx_info },
+	/* RM520N-GL (sdx6x), Lenovo variant */
+	{ PCI_DEVICE(PCI_VENDOR_ID_QUECTEL, 0x1007),
+		.driver_data = (kernel_ulong_t) &mhi_quectel_rm5xx_info },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QUECTEL, 0x100d), /* EM160R-GL (sdx24) */
 		.driver_data = (kernel_ulong_t) &mhi_quectel_em1xx_info },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QUECTEL, 0x2001), /* EM120R-GL for FCCL (sdx24) */
