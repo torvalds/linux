@@ -1748,30 +1748,35 @@ out:
 }
 
 bool btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
-				    struct extent_buffer *eb,
-				    struct btrfs_block_group **cache_ret)
+				    struct btrfs_eb_write_context *ctx)
 {
-	struct btrfs_block_group *cache;
-	bool ret = true;
+	const struct extent_buffer *eb = ctx->eb;
+	struct btrfs_block_group *block_group = ctx->zoned_bg;
 
 	if (!btrfs_is_zoned(fs_info))
 		return true;
 
-	cache = btrfs_lookup_block_group(fs_info, eb->start);
-	if (!cache)
-		return true;
-
-	if (cache->meta_write_pointer != eb->start) {
-		btrfs_put_block_group(cache);
-		cache = NULL;
-		ret = false;
-	} else {
-		cache->meta_write_pointer = eb->start + eb->len;
+	if (block_group) {
+		if (block_group->start > eb->start ||
+		    block_group->start + block_group->length <= eb->start) {
+			btrfs_put_block_group(block_group);
+			block_group = NULL;
+			ctx->zoned_bg = NULL;
+		}
 	}
 
-	*cache_ret = cache;
+	if (!block_group) {
+		block_group = btrfs_lookup_block_group(fs_info, eb->start);
+		if (!block_group)
+			return true;
+		ctx->zoned_bg = block_group;
+	}
 
-	return ret;
+	if (block_group->meta_write_pointer != eb->start)
+		return false;
+	block_group->meta_write_pointer = eb->start + eb->len;
+
+	return true;
 }
 
 void btrfs_revert_meta_write_pointer(struct btrfs_block_group *cache,

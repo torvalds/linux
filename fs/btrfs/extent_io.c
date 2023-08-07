@@ -1809,7 +1809,6 @@ static int submit_eb_page(struct page *page, struct btrfs_eb_write_context *ctx)
 {
 	struct writeback_control *wbc = ctx->wbc;
 	struct address_space *mapping = page->mapping;
-	struct btrfs_block_group *cache = NULL;
 	struct extent_buffer *eb;
 	int ret;
 
@@ -1847,7 +1846,7 @@ static int submit_eb_page(struct page *page, struct btrfs_eb_write_context *ctx)
 
 	ctx->eb = eb;
 
-	if (!btrfs_check_meta_write_pointer(eb->fs_info, eb, &cache)) {
+	if (!btrfs_check_meta_write_pointer(eb->fs_info, ctx)) {
 		/*
 		 * If for_sync, this hole will be filled with
 		 * trasnsaction commit.
@@ -1861,18 +1860,15 @@ static int submit_eb_page(struct page *page, struct btrfs_eb_write_context *ctx)
 	}
 
 	if (!lock_extent_buffer_for_io(eb, wbc)) {
-		btrfs_revert_meta_write_pointer(cache, eb);
-		if (cache)
-			btrfs_put_block_group(cache);
+		btrfs_revert_meta_write_pointer(ctx->zoned_bg, eb);
 		free_extent_buffer(eb);
 		return 0;
 	}
-	if (cache) {
+	if (ctx->zoned_bg) {
 		/*
 		 * Implies write in zoned mode. Mark the last eb in a block group.
 		 */
-		btrfs_schedule_zone_finish_bg(cache, eb);
-		btrfs_put_block_group(cache);
+		btrfs_schedule_zone_finish_bg(ctx->zoned_bg, eb);
 	}
 	write_one_eb(eb, wbc);
 	free_extent_buffer(eb);
@@ -1985,6 +1981,9 @@ retry:
 		ret = 0;
 	if (!ret && BTRFS_FS_ERROR(fs_info))
 		ret = -EROFS;
+
+	if (ctx.zoned_bg)
+		btrfs_put_block_group(ctx.zoned_bg);
 	btrfs_zoned_meta_io_unlock(fs_info);
 	return ret;
 }

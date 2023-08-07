@@ -96,6 +96,8 @@ struct extent_buffer {
 struct btrfs_eb_write_context {
 	struct writeback_control *wbc;
 	struct extent_buffer *eb;
+	/* Block group @eb resides in. Only used for zoned mode. */
+	struct btrfs_block_group *zoned_bg;
 };
 
 /*
