@@ -114,6 +114,7 @@ properties:
 patternProperties:
   "^nand@[a-f0-9]$":
     type: object
+    $ref: raw-nand-chip.yaml
     properties:
       compatible:
         const: brcm,nandcs
@@ -135,6 +136,8 @@ patternProperties:
           number of available options for its default ECC
           layout.
         $ref: /schemas/types.yaml#/definitions/uint32
+
+    unevaluatedProperties: false
 
 allOf:
   - $ref: nand-controller.yaml#

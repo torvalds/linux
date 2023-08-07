@@ -146,13 +146,15 @@ impl<T: ?Sized + Unsize<U>, U: ?Sized> core::ops::DispatchFromDyn<Arc<U>> for Ar
 
 // SAFETY: It is safe to send `Arc<T>` to another thread when the underlying `T` is `Sync` because
 // it effectively means sharing `&T` (which is safe because `T` is `Sync`); additionally, it needs
-// `T` to be `Send` because any thread that has an `Arc<T>` may ultimately access `T` directly, for
-// example, when the reference count reaches zero and `T` is dropped.
+// `T` to be `Send` because any thread that has an `Arc<T>` may ultimately access `T` using a
+// mutable reference when the reference count reaches zero and `T` is dropped.
 unsafe impl<T: ?Sized + Sync + Send> Send for Arc<T> {}
 
-// SAFETY: It is safe to send `&Arc<T>` to another thread when the underlying `T` is `Sync` for the
-// same reason as above. `T` needs to be `Send` as well because a thread can clone an `&Arc<T>`
-// into an `Arc<T>`, which may lead to `T` being accessed by the same reasoning as above.
+// SAFETY: It is safe to send `&Arc<T>` to another thread when the underlying `T` is `Sync`
+// because it effectively means sharing `&T` (which is safe because `T` is `Sync`); additionally,
+// it needs `T` to be `Send` because any thread that has a `&Arc<T>` may clone it and get an
+// `Arc<T>` on that thread, so the thread may ultimately access `T` using a mutable reference when
+// the reference count reaches zero and `T` is dropped.
 unsafe impl<T: ?Sized + Sync + Send> Sync for Arc<T> {}
 
 impl<T> Arc<T> {
@@ -185,7 +187,7 @@ impl<T> Arc<T> {
 
     /// Use the given initializer to in-place initialize a `T`.
     ///
-    /// This is equivalent to [`pin_init`], since an [`Arc`] is always pinned.
+    /// This is equivalent to [`Arc<T>::pin_init`], since an [`Arc`] is always pinned.
     #[inline]
     pub fn init<E>(init: impl Init<T, E>) -> error::Result<Self>
     where
@@ -220,6 +222,11 @@ impl<T: ?Sized> Arc<T> {
         // the returned `ArcBorrow` ensures that the object remains alive and that no mutable
         // reference can be created.
         unsafe { ArcBorrow::new(self.ptr) }
+    }
+
+    /// Compare whether two [`Arc`] pointers reference the same underlying object.
+    pub fn ptr_eq(this: &Self, other: &Self) -> bool {
+        core::ptr::eq(this.ptr.as_ptr(), other.ptr.as_ptr())
     }
 }
 
@@ -256,6 +263,12 @@ impl<T: ?Sized> Deref for Arc<T> {
         // SAFETY: By the type invariant, there is necessarily a reference to the object, so it is
         // safe to dereference it.
         unsafe { &self.ptr.as_ref().data }
+    }
+}
+
+impl<T: ?Sized> AsRef<T> for Arc<T> {
+    fn as_ref(&self) -> &T {
+        self.deref()
     }
 }
 

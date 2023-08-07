@@ -204,9 +204,9 @@ aoedisk_rm_debugfs(struct aoedev *d)
 }
 
 static int
-aoeblk_open(struct block_device *bdev, fmode_t mode)
+aoeblk_open(struct gendisk *disk, blk_mode_t mode)
 {
-	struct aoedev *d = bdev->bd_disk->private_data;
+	struct aoedev *d = disk->private_data;
 	ulong flags;
 
 	if (!virt_addr_valid(d)) {
@@ -232,7 +232,7 @@ aoeblk_open(struct block_device *bdev, fmode_t mode)
 }
 
 static void
-aoeblk_release(struct gendisk *disk, fmode_t mode)
+aoeblk_release(struct gendisk *disk)
 {
 	struct aoedev *d = disk->private_data;
 	ulong flags;
@@ -285,7 +285,7 @@ aoeblk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 static int
-aoeblk_ioctl(struct block_device *bdev, fmode_t mode, uint cmd, ulong arg)
+aoeblk_ioctl(struct block_device *bdev, blk_mode_t mode, uint cmd, ulong arg)
 {
 	struct aoedev *d;
 

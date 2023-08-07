@@ -8,9 +8,9 @@
  * based on code
  *      Copyright (C) 2011 RICOH COMPANY,LTD
  */
+#include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/i2c.h>
 #include <linux/mfd/rc5t583.h>
 
 enum int_type {

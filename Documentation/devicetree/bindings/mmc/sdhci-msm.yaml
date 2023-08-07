@@ -36,11 +36,14 @@ properties:
           - enum:
               - qcom,ipq5018-sdhci
               - qcom,ipq5332-sdhci
+              - qcom,ipq6018-sdhci
               - qcom,ipq9574-sdhci
               - qcom,qcm2290-sdhci
               - qcom,qcs404-sdhci
+              - qcom,qdu1000-sdhci
               - qcom,sc7180-sdhci
               - qcom,sc7280-sdhci
+              - qcom,sc8280xp-sdhci
               - qcom,sdm630-sdhci
               - qcom,sdm670-sdhci
               - qcom,sdm845-sdhci

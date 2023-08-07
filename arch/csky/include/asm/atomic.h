@@ -195,41 +195,6 @@ arch_atomic_dec_if_positive(atomic_t *v)
 }
 #define arch_atomic_dec_if_positive arch_atomic_dec_if_positive
 
-#define ATOMIC_OP()							\
-static __always_inline							\
-int arch_atomic_xchg_relaxed(atomic_t *v, int n)			\
-{									\
-	return __xchg_relaxed(n, &(v->counter), 4);			\
-}									\
-static __always_inline							\
-int arch_atomic_cmpxchg_relaxed(atomic_t *v, int o, int n)		\
-{									\
-	return __cmpxchg_relaxed(&(v->counter), o, n, 4);		\
-}									\
-static __always_inline							\
-int arch_atomic_cmpxchg_acquire(atomic_t *v, int o, int n)		\
-{									\
-	return __cmpxchg_acquire(&(v->counter), o, n, 4);		\
-}									\
-static __always_inline							\
-int arch_atomic_cmpxchg(atomic_t *v, int o, int n)			\
-{									\
-	return __cmpxchg(&(v->counter), o, n, 4);			\
-}
-
-#define ATOMIC_OPS()							\
-	ATOMIC_OP()
-
-ATOMIC_OPS()
-
-#define arch_atomic_xchg_relaxed	arch_atomic_xchg_relaxed
-#define arch_atomic_cmpxchg_relaxed	arch_atomic_cmpxchg_relaxed
-#define arch_atomic_cmpxchg_acquire	arch_atomic_cmpxchg_acquire
-#define arch_atomic_cmpxchg		arch_atomic_cmpxchg
-
-#undef ATOMIC_OPS
-#undef ATOMIC_OP
-
 #else
 #include <asm-generic/atomic.h>
 #endif

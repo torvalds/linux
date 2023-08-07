@@ -11,6 +11,8 @@
 
 #include <linux/idr.h>
 
+extern struct acpi_device *acpi_root;
+
 int early_acpi_osi_init(void);
 int acpi_osi_init(void);
 acpi_status acpi_os_initialize1(void);
@@ -119,7 +121,7 @@ int acpi_bus_register_early_device(int type);
 /* --------------------------------------------------------------------------
                      Device Matching and Notification
    -------------------------------------------------------------------------- */
-struct acpi_device *acpi_companion_match(const struct device *dev);
+const struct acpi_device *acpi_companion_match(const struct device *dev);
 int __acpi_device_uevent_modalias(const struct acpi_device *adev,
 				  struct kobj_uevent_env *env);
 

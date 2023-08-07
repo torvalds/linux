@@ -373,50 +373,32 @@ static int get_cs_ranges(struct device *dev)
 {
 	int ret = -ENODEV;
 	struct device_node *lb_node;
-	const u32 *addr_cells_p;
-	const u32 *size_cells_p;
-	int proplen;
-	size_t i;
+	size_t i = 0;
+	struct of_range_parser parser;
+	struct of_range range;
 
 	lb_node = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-localbus");
 	if (!lb_node)
 		return ret;
 
-	/*
-	 * The node defined as compatible with 'fsl,mpc5121-localbus'
-	 * should have two address cells and one size cell.
-	 * Every item of its ranges property should consist of:
-	 * - the first address cell which is the chipselect number;
-	 * - the second address cell which is the offset in the chipselect,
-	 *    must be zero.
-	 * - CPU address of the beginning of an access window;
-	 * - the only size cell which is the size of an access window.
-	 */
-	addr_cells_p = of_get_property(lb_node, "#address-cells", NULL);
-	size_cells_p = of_get_property(lb_node, "#size-cells", NULL);
-	if (addr_cells_p == NULL || *addr_cells_p != 2 ||
-				size_cells_p == NULL ||	*size_cells_p != 1) {
-		goto end;
-	}
+	of_range_parser_init(&parser, lb_node);
+	lpbfifo.cs_n = of_range_count(&parser);
 
-	proplen = of_property_count_u32_elems(lb_node, "ranges");
-	if (proplen <= 0 || proplen % 4 != 0)
-		goto end;
-
-	lpbfifo.cs_n = proplen / 4;
 	lpbfifo.cs_ranges = devm_kcalloc(dev, lpbfifo.cs_n,
 					sizeof(struct cs_range), GFP_KERNEL);
 	if (!lpbfifo.cs_ranges)
 		goto end;
 
-	if (of_property_read_u32_array(lb_node, "ranges",
-				(u32 *)lpbfifo.cs_ranges, proplen) != 0) {
-		goto end;
-	}
-
-	for (i = 0; i < lpbfifo.cs_n; i++) {
-		if (lpbfifo.cs_ranges[i].base != 0)
+	for_each_of_range(&parser, &range) {
+		u32 base = lower_32_bits(range.bus_addr);
+		if (base)
 			goto end;
+
+		lpbfifo.cs_ranges[i].csnum = upper_32_bits(range.bus_addr);
+		lpbfifo.cs_ranges[i].base = base;
+		lpbfifo.cs_ranges[i].addr = range.cpu_addr;
+		lpbfifo.cs_ranges[i].size = range.size;
+		i++;
 	}
 
 	ret = 0;

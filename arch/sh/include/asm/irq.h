@@ -22,7 +22,6 @@ extern unsigned short *irq_mask_register;
 /*
  * PINT IRQs
  */
-void init_IRQ_pint(void);
 void make_imask_irq(unsigned int irq);
 
 static inline int generic_irq_demux(int irq)

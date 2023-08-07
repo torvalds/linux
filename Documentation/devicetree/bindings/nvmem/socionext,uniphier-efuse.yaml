@@ -14,9 +14,6 @@ allOf:
   - $ref: nvmem.yaml#
 
 properties:
-  "#address-cells": true
-  "#size-cells": true
-
   compatible:
     const: socionext,uniphier-efuse
 

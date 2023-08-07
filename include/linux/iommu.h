@@ -65,6 +65,7 @@ struct iommu_domain_geometry {
 
 #define __IOMMU_DOMAIN_SVA	(1U << 4)  /* Shared process address space */
 
+#define IOMMU_DOMAIN_ALLOC_FLAGS ~__IOMMU_DOMAIN_DMA_FQ
 /*
  * This are the possible domain-types
  *
@@ -127,6 +128,11 @@ enum iommu_cap {
 	 * this device.
 	 */
 	IOMMU_CAP_ENFORCE_CACHE_COHERENCY,
+	/*
+	 * IOMMU driver does not issue TLB maintenance during .unmap, so can
+	 * usefully support the non-strict DMA flush queue.
+	 */
+	IOMMU_CAP_DEFERRED_FLUSH,
 };
 
 /* These are the possible reserved region types */

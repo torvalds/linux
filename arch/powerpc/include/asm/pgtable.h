@@ -165,9 +165,6 @@ static inline bool is_ioremap_addr(const void *x)
 
 	return addr >= IOREMAP_BASE && addr < IOREMAP_END;
 }
-
-struct seq_file;
-void arch_report_meminfo(struct seq_file *m);
 #endif /* CONFIG_PPC64 */
 
 #endif /* __ASSEMBLY__ */

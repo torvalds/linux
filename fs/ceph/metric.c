@@ -36,6 +36,14 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	s32 items = 0;
 	s32 len;
 
+	/* Do not send the metrics until the MDS rank is ready */
+	mutex_lock(&mdsc->mutex);
+	if (ceph_mdsmap_get_state(mdsc->mdsmap, s->s_mds) != CEPH_MDS_STATE_ACTIVE) {
+		mutex_unlock(&mdsc->mutex);
+		return false;
+	}
+	mutex_unlock(&mdsc->mutex);
+
 	len = sizeof(*head) + sizeof(*cap) + sizeof(*read) + sizeof(*write)
 	      + sizeof(*meta) + sizeof(*dlease) + sizeof(*files)
 	      + sizeof(*icaps) + sizeof(*inodes) + sizeof(*rsize)

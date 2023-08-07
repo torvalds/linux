@@ -472,9 +472,6 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 
 #define pte_same(A,B)	(pte_val(A) == pte_val(B))
 
-struct seq_file;
-extern void arch_report_meminfo(struct seq_file *m);
-
 #endif /* !__ASSEMBLY__ */
 
 

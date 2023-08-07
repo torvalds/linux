@@ -325,6 +325,36 @@ static ssize_t amdgpu_xgmi_show_device_id(struct device *dev,
 
 }
 
+static ssize_t amdgpu_xgmi_show_num_hops(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
+	int i;
+
+	for (i = 0; i < top->num_nodes; i++)
+		sprintf(buf + 3 * i, "%02x ", top->nodes[i].num_hops);
+
+	return sysfs_emit(buf, "%s\n", buf);
+}
+
+static ssize_t amdgpu_xgmi_show_num_links(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
+	int i;
+
+	for (i = 0; i < top->num_nodes; i++)
+		sprintf(buf + 3 * i, "%02x ", top->nodes[i].num_links);
+
+	return sysfs_emit(buf, "%s\n", buf);
+}
+
 #define AMDGPU_XGMI_SET_FICAA(o)	((o) | 0x456801)
 static ssize_t amdgpu_xgmi_show_error(struct device *dev,
 				      struct device_attribute *attr,
@@ -361,6 +391,8 @@ static ssize_t amdgpu_xgmi_show_error(struct device *dev,
 
 static DEVICE_ATTR(xgmi_device_id, S_IRUGO, amdgpu_xgmi_show_device_id, NULL);
 static DEVICE_ATTR(xgmi_error, S_IRUGO, amdgpu_xgmi_show_error, NULL);
+static DEVICE_ATTR(xgmi_num_hops, S_IRUGO, amdgpu_xgmi_show_num_hops, NULL);
+static DEVICE_ATTR(xgmi_num_links, S_IRUGO, amdgpu_xgmi_show_num_links, NULL);
 
 static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 					 struct amdgpu_hive_info *hive)
@@ -380,6 +412,15 @@ static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 	if (ret)
 		pr_err("failed to create xgmi_error\n");
 
+	/* Create xgmi num hops file */
+	ret = device_create_file(adev->dev, &dev_attr_xgmi_num_hops);
+	if (ret)
+		pr_err("failed to create xgmi_num_hops\n");
+
+	/* Create xgmi num links file */
+	ret = device_create_file(adev->dev, &dev_attr_xgmi_num_links);
+	if (ret)
+		pr_err("failed to create xgmi_num_links\n");
 
 	/* Create sysfs link to hive info folder on the first device */
 	if (hive->kobj.parent != (&adev->dev->kobj)) {
@@ -407,6 +448,9 @@ remove_link:
 
 remove_file:
 	device_remove_file(adev->dev, &dev_attr_xgmi_device_id);
+	device_remove_file(adev->dev, &dev_attr_xgmi_error);
+	device_remove_file(adev->dev, &dev_attr_xgmi_num_hops);
+	device_remove_file(adev->dev, &dev_attr_xgmi_num_links);
 
 success:
 	return ret;
@@ -420,6 +464,8 @@ static void amdgpu_xgmi_sysfs_rem_dev_info(struct amdgpu_device *adev,
 
 	device_remove_file(adev->dev, &dev_attr_xgmi_device_id);
 	device_remove_file(adev->dev, &dev_attr_xgmi_error);
+	device_remove_file(adev->dev, &dev_attr_xgmi_num_hops);
+	device_remove_file(adev->dev, &dev_attr_xgmi_num_links);
 
 	if (hive->kobj.parent != (&adev->dev->kobj))
 		sysfs_remove_link(&adev->dev->kobj,"xgmi_hive_info");
@@ -454,6 +500,7 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 	hive = kzalloc(sizeof(*hive), GFP_KERNEL);
 	if (!hive) {
 		dev_err(adev->dev, "XGMI: allocation failed\n");
+		ret = -ENOMEM;
 		hive = NULL;
 		goto pro_end;
 	}
@@ -1014,7 +1061,8 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 }
 
 /* Trigger XGMI/WAFL error */
-static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,  void *inject_if)
+static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,
+			void *inject_if, uint32_t instance_mask)
 {
 	int ret = 0;
 	struct ta_ras_trigger_error_input *block_info =
@@ -1026,7 +1074,7 @@ static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,  void *injec
 	if (amdgpu_dpm_allow_xgmi_power_down(adev, false))
 		dev_warn(adev->dev, "Failed to disallow XGMI power down");
 
-	ret = psp_ras_trigger_error(&adev->psp, block_info);
+	ret = psp_ras_trigger_error(&adev->psp, block_info, instance_mask);
 
 	if (amdgpu_ras_intr_triggered())
 		return ret;

@@ -15,7 +15,7 @@
 #define RREQ_STATE_SR		0x5
 #define VERSION_SR		0x6
 
-#define SWOFF_PWRCTRL_CR	0x10
+#define MAIN_CR			0x10
 #define PADS_PULL_CR		0x11
 #define BUCKS_PD_CR		0x12
 #define LDO14_PD_CR		0x13
@@ -148,14 +148,14 @@
 #define LDO_BYPASS_MASK			BIT(7)
 
 /* Main PMIC Control Register
- * SWOFF_PWRCTRL_CR
+ * MAIN_CR
  * Address : 0x10
  */
-#define ICC_EVENT_ENABLED		BIT(4)
+#define OCP_OFF_DBG			BIT(4)
 #define PWRCTRL_POLARITY_HIGH		BIT(3)
-#define PWRCTRL_PIN_VALID		BIT(2)
-#define RESTART_REQUEST_ENABLED		BIT(1)
-#define SOFTWARE_SWITCH_OFF_ENABLED	BIT(0)
+#define PWRCTRL_ENABLE			BIT(2)
+#define RESTART_REQUEST_ENABLE		BIT(1)
+#define SOFTWARE_SWITCH_OFF		BIT(0)
 
 /* Main PMIC PADS Control Register
  * PADS_PULL_CR

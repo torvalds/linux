@@ -27,10 +27,14 @@ properties:
 
   interrupt-names:
     minItems: 1
-    items:
-      - const: usb_id
-      - const: usb_vbus
-
+    anyOf:
+      - items:
+          - const: usb_id
+          - const: usb_vbus
+      - items:
+          - const: usb_id
+      - items:
+          - const: usb_vbus
 required:
   - compatible
   - reg
@@ -49,7 +53,7 @@ examples:
             interrupt-controller;
             #interrupt-cells = <4>;
 
-            usb_id: misc@900 {
+            usb_id: usb-detect@900 {
                     compatible = "qcom,pm8941-misc";
                     reg = <0x900>;
                     interrupts = <0x0 0x9 0 IRQ_TYPE_EDGE_BOTH>;

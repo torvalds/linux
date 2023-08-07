@@ -174,8 +174,6 @@ static int si_dma_start(struct amdgpu_device *adev)
 		WREG32(DMA_RB_WPTR + sdma_offsets[i], ring->wptr << 2);
 		WREG32(DMA_RB_CNTL + sdma_offsets[i], rb_cntl | DMA_RB_ENABLE);
 
-		ring->sched.ready = true;
-
 		r = amdgpu_ring_test_helper(ring);
 		if (r)
 			return r;

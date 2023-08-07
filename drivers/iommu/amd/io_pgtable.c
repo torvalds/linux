@@ -310,8 +310,8 @@ static u64 *fetch_pte(struct amd_io_pgtable *pgtable,
 			return NULL;
 
 		/* Large PTE */
-		if (PM_PTE_LEVEL(*pte) == 7 ||
-		    PM_PTE_LEVEL(*pte) == 0)
+		if (PM_PTE_LEVEL(*pte) == PAGE_MODE_7_LEVEL ||
+		    PM_PTE_LEVEL(*pte) == PAGE_MODE_NONE)
 			break;
 
 		/* No level skipping support yet */

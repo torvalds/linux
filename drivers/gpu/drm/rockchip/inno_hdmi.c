@@ -11,9 +11,10 @@
 #include <linux/err.h>
 #include <linux/hdmi.h>
 #include <linux/mfd/syscon.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
@@ -797,7 +798,7 @@ static struct i2c_adapter *inno_hdmi_i2c_adapter(struct inno_hdmi *hdmi)
 	adap->dev.parent = hdmi->dev;
 	adap->dev.of_node = hdmi->dev->of_node;
 	adap->algo = &inno_hdmi_algorithm;
-	strlcpy(adap->name, "Inno HDMI", sizeof(adap->name));
+	strscpy(adap->name, "Inno HDMI", sizeof(adap->name));
 	i2c_set_adapdata(adap, hdmi);
 
 	ret = i2c_add_adapter(adap);
@@ -919,11 +920,9 @@ static int inno_hdmi_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &inno_hdmi_ops);
 }
 
-static int inno_hdmi_remove(struct platform_device *pdev)
+static void inno_hdmi_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &inno_hdmi_ops);
-
-	return 0;
 }
 
 static const struct of_device_id inno_hdmi_dt_ids[] = {
@@ -935,7 +934,7 @@ MODULE_DEVICE_TABLE(of, inno_hdmi_dt_ids);
 
 struct platform_driver inno_hdmi_driver = {
 	.probe  = inno_hdmi_probe,
-	.remove = inno_hdmi_remove,
+	.remove_new = inno_hdmi_remove,
 	.driver = {
 		.name = "innohdmi-rockchip",
 		.of_match_table = inno_hdmi_dt_ids,

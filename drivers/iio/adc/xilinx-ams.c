@@ -1263,7 +1263,7 @@ static int ams_parse_firmware(struct iio_dev *indio_dev)
 	struct device *dev = indio_dev->dev.parent;
 	struct fwnode_handle *child = NULL;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	size_t ams_size, dev_size;
+	size_t ams_size;
 	int ret, ch_cnt = 0, i, rising_off, falling_off;
 	unsigned int num_channels = 0;
 
@@ -1320,11 +1320,8 @@ static int ams_parse_firmware(struct iio_dev *indio_dev)
 		}
 	}
 
-	dev_size = array_size(sizeof(*dev_channels), num_channels);
-	if (dev_size == SIZE_MAX)
-		return -ENOMEM;
-
-	dev_channels = devm_krealloc(dev, ams_channels, dev_size, GFP_KERNEL);
+	dev_channels = devm_krealloc_array(dev, ams_channels, num_channels,
+					   sizeof(*dev_channels), GFP_KERNEL);
 	if (!dev_channels)
 		return -ENOMEM;
 

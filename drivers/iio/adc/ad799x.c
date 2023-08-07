@@ -968,7 +968,7 @@ static struct i2c_driver ad799x_driver = {
 		.name = "ad799x",
 		.pm = pm_sleep_ptr(&ad799x_pm_ops),
 	},
-	.probe_new = ad799x_probe,
+	.probe = ad799x_probe,
 	.remove = ad799x_remove,
 	.id_table = ad799x_id,
 };

@@ -49,6 +49,14 @@
 		startup-delay-us = <100>;
 		vin-supply = <&buck4>;
 	};
+
+	reg_vdd_3p3v_awo: regulator-vdd-3p3v-awo {	/* VDD_3V3_AWO */
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "VDD_3P3V_AWO";
+	};
 };
 
 &A53_0 {
@@ -232,6 +240,36 @@
 	sda-gpios = <&gpio5 19 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
+	tc_bridge: bridge@f {
+		compatible = "toshiba,tc9595", "toshiba,tc358767";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tc9595>;
+		reg = <0xf>;
+		clock-names = "ref";
+		clocks = <&clk IMX8MP_CLK_CLKOUT2>;
+		assigned-clocks = <&clk IMX8MP_CLK_CLKOUT2_SEL>,
+				  <&clk IMX8MP_CLK_CLKOUT2>,
+				  <&clk IMX8MP_AUDIO_PLL2_OUT>;
+		assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL2_OUT>;
+		assigned-clock-rates = <13000000>, <13000000>, <156000000>;
+		reset-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tc_bridge_in: endpoint {
+					data-lanes = <1 2 3 4>;
+					remote-endpoint = <&dsi_out>;
+				};
+			};
+		};
+	};
+
 	pmic: pmic@25 {
 		compatible = "nxp,pca9450c";
 		reg = <0x25>;
@@ -396,6 +434,22 @@
 	scl-gpios = <&gpio3 26 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	sda-gpios = <&gpio3 27 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
+};
+
+&mipi_dsi {
+	samsung,burst-clock-frequency = <160000000>;
+	samsung,esc-clock-frequency = <10000000>;
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			dsi_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&tc_bridge_in>;
+			};
+		};
+	};
 };
 
 &pwm1 {
@@ -860,6 +914,24 @@
 		fsl,pins = <
 			/* RTC_#INT Interrupt */
 			MX8MP_IOMUXC_SPDIF_EXT_CLK__GPIO5_IO05		0x40000080
+		>;
+	};
+
+	pinctrl_tc9595: dhcom-tc9595-grp {
+		fsl,pins = <
+			/* RESET_DSIBRIDGE */
+			MX8MP_IOMUXC_SAI1_RXC__GPIO4_IO01		0x40000146
+			/* DSI-CONV_INT Interrupt */
+			MX8MP_IOMUXC_SAI5_RXD0__GPIO3_IO21		0x141
+		>;
+	};
+
+	pinctrl_sai3: dhcom-sai3-grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI3_TXFS__AUDIOMIX_SAI3_TX_SYNC	0xd6
+			MX8MP_IOMUXC_SAI3_TXC__AUDIOMIX_SAI3_TX_BCLK	0xd6
+			MX8MP_IOMUXC_SAI3_RXD__AUDIOMIX_SAI3_RX_DATA00	0xd6
+			MX8MP_IOMUXC_SAI3_TXD__AUDIOMIX_SAI3_TX_DATA00	0xd6
 		>;
 	};
 

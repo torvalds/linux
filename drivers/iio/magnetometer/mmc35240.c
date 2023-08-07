@@ -575,7 +575,7 @@ static struct i2c_driver mmc35240_driver = {
 		.pm = pm_sleep_ptr(&mmc35240_pm_ops),
 		.acpi_match_table = ACPI_PTR(mmc35240_acpi_match),
 	},
-	.probe_new	= mmc35240_probe,
+	.probe		= mmc35240_probe,
 	.id_table	= mmc35240_id,
 };
 

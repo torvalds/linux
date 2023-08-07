@@ -2853,7 +2853,7 @@ static struct i2c_driver ov5670_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(ov5670_acpi_ids),
 		.of_match_table = ov5670_of_ids,
 	},
-	.probe_new = ov5670_probe,
+	.probe = ov5670_probe,
 	.remove = ov5670_remove,
 	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };

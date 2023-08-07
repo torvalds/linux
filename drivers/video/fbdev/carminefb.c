@@ -561,7 +561,6 @@ static int alloc_carmine_fb(void __iomem *regs, void __iomem *smem_base,
 
 	info->fix = carminefb_fix;
 	info->pseudo_palette = par->pseudo_palette;
-	info->flags = FBINFO_DEFAULT;
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 1);
 	if (ret < 0)

@@ -377,7 +377,7 @@ static int grvga_probe(struct platform_device *dev)
 	info->fbops = &grvga_ops;
 	info->fix = grvga_fix;
 	info->pseudo_palette = par->color_palette;
-	info->flags = FBINFO_DEFAULT | FBINFO_PARTIAL_PAN_OK | FBINFO_HWACCEL_YPAN;
+	info->flags = FBINFO_PARTIAL_PAN_OK | FBINFO_HWACCEL_YPAN;
 	info->fix.smem_len = grvga_mem_size;
 
 	if (!devm_request_mem_region(&dev->dev, dev->resource[0].start,

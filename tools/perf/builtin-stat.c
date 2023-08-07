@@ -44,10 +44,10 @@
 #include "util/cgroup.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
+#include "util/pmus.h"
 #include "util/pmu.h"
 #include "util/event.h"
 #include "util/evlist.h"
-#include "util/evlist-hybrid.h"
 #include "util/evsel.h"
 #include "util/debug.h"
 #include "util/color.h"
@@ -69,7 +69,6 @@
 #include "util/pfm.h"
 #include "util/bpf_counter.h"
 #include "util/iostat.h"
-#include "util/pmu-hybrid.h"
 #include "util/util.h"
 #include "asm/bug.h"
 
@@ -101,6 +100,10 @@
 static void print_counters(struct timespec *ts, int argc, const char **argv);
 
 static struct evlist	*evsel_list;
+static struct parse_events_option_args parse_events_option_args = {
+	.evlistp = &evsel_list,
+};
+
 static bool all_counters_use_bpf = true;
 
 static struct target target = {
@@ -138,6 +141,7 @@ struct perf_stat {
 	struct perf_cpu_map	*cpus;
 	struct perf_thread_map *threads;
 	enum aggr_mode		 aggr_mode;
+	u32			 aggr_level;
 };
 
 static struct perf_stat		perf_stat;
@@ -147,6 +151,7 @@ static volatile sig_atomic_t done = 0;
 
 static struct perf_stat_config stat_config = {
 	.aggr_mode		= AGGR_GLOBAL,
+	.aggr_level		= MAX_CACHE_LVL + 1,
 	.scale			= true,
 	.unit_width		= 4, /* strlen("unit") */
 	.run_count		= 1,
@@ -182,9 +187,6 @@ static bool cpus_map_matched(struct evsel *a, struct evsel *b)
 static void evlist__check_cpu_maps(struct evlist *evlist)
 {
 	struct evsel *evsel, *warned_leader = NULL;
-
-	if (evlist__has_hybrid(evlist))
-		evlist__warn_hybrid_group(evlist);
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct evsel *leader = evsel__leader(evsel);
@@ -667,6 +669,13 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 			evsel_list->core.threads->err_thread = -1;
 			return COUNTER_RETRY;
 		}
+	} else if (counter->skippable) {
+		if (verbose > 0)
+			ui__warning("skipping event %s that kernel failed to open .\n",
+				    evsel__name(counter));
+		counter->supported = false;
+		counter->errored = true;
+		return COUNTER_SKIP;
 	}
 
 	evsel__open_strerror(counter, &target, errno, msg, sizeof(msg));
@@ -715,6 +724,8 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 		if (!(evsel__is_bperf(counter)))
 			all_counters_use_bpf = false;
 	}
+
+	evlist__reset_aggr_stats(evsel_list);
 
 	evlist__for_each_cpu(evlist_cpu_itr, evsel_list, affinity) {
 		counter = evlist_cpu_itr.evsel;
@@ -1078,10 +1089,11 @@ static int parse_stat_cgroups(const struct option *opt,
 	return parse_cgroups(opt, str, unset);
 }
 
-static int parse_hybrid_type(const struct option *opt,
+static int parse_cputype(const struct option *opt,
 			     const char *str,
 			     int unset __maybe_unused)
 {
+	const struct perf_pmu *pmu;
 	struct evlist *evlist = *(struct evlist **)opt->value;
 
 	if (!list_empty(&evlist->core.entries)) {
@@ -1089,19 +1101,69 @@ static int parse_hybrid_type(const struct option *opt,
 		return -1;
 	}
 
-	evlist->hybrid_pmu_name = perf_pmu__hybrid_type_to_pmu(str);
-	if (!evlist->hybrid_pmu_name) {
+	pmu = perf_pmus__pmu_for_pmu_filter(str);
+	if (!pmu) {
 		fprintf(stderr, "--cputype %s is not supported!\n", str);
 		return -1;
 	}
+	parse_events_option_args.pmu_filter = pmu->name;
 
+	return 0;
+}
+
+static int parse_cache_level(const struct option *opt,
+			     const char *str,
+			     int unset __maybe_unused)
+{
+	int level;
+	u32 *aggr_mode = (u32 *)opt->value;
+	u32 *aggr_level = (u32 *)opt->data;
+
+	/*
+	 * If no string is specified, aggregate based on the topology of
+	 * Last Level Cache (LLC). Since the LLC level can change from
+	 * architecture to architecture, set level greater than
+	 * MAX_CACHE_LVL which will be interpreted as LLC.
+	 */
+	if (str == NULL) {
+		level = MAX_CACHE_LVL + 1;
+		goto out;
+	}
+
+	/*
+	 * The format to specify cache level is LX or lX where X is the
+	 * cache level.
+	 */
+	if (strlen(str) != 2 || (str[0] != 'l' && str[0] != 'L')) {
+		pr_err("Cache level must be of form L[1-%d], or l[1-%d]\n",
+		       MAX_CACHE_LVL,
+		       MAX_CACHE_LVL);
+		return -EINVAL;
+	}
+
+	level = atoi(&str[1]);
+	if (level < 1) {
+		pr_err("Cache level must be of form L[1-%d], or l[1-%d]\n",
+		       MAX_CACHE_LVL,
+		       MAX_CACHE_LVL);
+		return -EINVAL;
+	}
+
+	if (level > MAX_CACHE_LVL) {
+		pr_err("perf only supports max cache level of %d.\n"
+		       "Consider increasing MAX_CACHE_LVL\n", MAX_CACHE_LVL);
+		return -EINVAL;
+	}
+out:
+	*aggr_mode = AGGR_CACHE;
+	*aggr_level = level;
 	return 0;
 }
 
 static struct option stat_options[] = {
 	OPT_BOOLEAN('T', "transaction", &transaction_run,
 		    "hardware transaction statistics"),
-	OPT_CALLBACK('e', "event", &evsel_list, "event",
+	OPT_CALLBACK('e', "event", &parse_events_option_args, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &evsel_list, "filter",
@@ -1175,6 +1237,9 @@ static struct option stat_options[] = {
 		     "aggregate counts per processor socket", AGGR_SOCKET),
 	OPT_SET_UINT(0, "per-die", &stat_config.aggr_mode,
 		     "aggregate counts per processor die", AGGR_DIE),
+	OPT_CALLBACK_OPTARG(0, "per-cache", &stat_config.aggr_mode, &stat_config.aggr_level,
+			    "cache level", "aggregate count at this cache level (Default: LLC)",
+			    parse_cache_level),
 	OPT_SET_UINT(0, "per-core", &stat_config.aggr_mode,
 		     "aggregate counts per physical processor core", AGGR_CORE),
 	OPT_SET_UINT(0, "per-thread", &stat_config.aggr_mode,
@@ -1219,7 +1284,7 @@ static struct option stat_options[] = {
 	OPT_CALLBACK(0, "cputype", &evsel_list, "hybrid cpu type",
 		     "Only enable events on applying cpu with this type "
 		     "for hybrid platform (e.g. core or atom)",
-		     parse_hybrid_type),
+		     parse_cputype),
 #ifdef HAVE_LIBPFM
 	OPT_CALLBACK(0, "pfm-events", &evsel_list, "event",
 		"libpfm4 event selector. use 'perf list' to list available events",
@@ -1236,8 +1301,132 @@ static struct option stat_options[] = {
 	OPT_END()
 };
 
+/**
+ * Calculate the cache instance ID from the map in
+ * /sys/devices/system/cpu/cpuX/cache/indexY/shared_cpu_list
+ * Cache instance ID is the first CPU reported in the shared_cpu_list file.
+ */
+static int cpu__get_cache_id_from_map(struct perf_cpu cpu, char *map)
+{
+	int id;
+	struct perf_cpu_map *cpu_map = perf_cpu_map__new(map);
+
+	/*
+	 * If the map contains no CPU, consider the current CPU to
+	 * be the first online CPU in the cache domain else use the
+	 * first online CPU of the cache domain as the ID.
+	 */
+	if (perf_cpu_map__empty(cpu_map))
+		id = cpu.cpu;
+	else
+		id = perf_cpu_map__cpu(cpu_map, 0).cpu;
+
+	/* Free the perf_cpu_map used to find the cache ID */
+	perf_cpu_map__put(cpu_map);
+
+	return id;
+}
+
+/**
+ * cpu__get_cache_id - Returns 0 if successful in populating the
+ * cache level and cache id. Cache level is read from
+ * /sys/devices/system/cpu/cpuX/cache/indexY/level where as cache instance ID
+ * is the first CPU reported by
+ * /sys/devices/system/cpu/cpuX/cache/indexY/shared_cpu_list
+ */
+static int cpu__get_cache_details(struct perf_cpu cpu, struct perf_cache *cache)
+{
+	int ret = 0;
+	u32 cache_level = stat_config.aggr_level;
+	struct cpu_cache_level caches[MAX_CACHE_LVL];
+	u32 i = 0, caches_cnt = 0;
+
+	cache->cache_lvl = (cache_level > MAX_CACHE_LVL) ? 0 : cache_level;
+	cache->cache = -1;
+
+	ret = build_caches_for_cpu(cpu.cpu, caches, &caches_cnt);
+	if (ret) {
+		/*
+		 * If caches_cnt is not 0, cpu_cache_level data
+		 * was allocated when building the topology.
+		 * Free the allocated data before returning.
+		 */
+		if (caches_cnt)
+			goto free_caches;
+
+		return ret;
+	}
+
+	if (!caches_cnt)
+		return -1;
+
+	/*
+	 * Save the data for the highest level if no
+	 * level was specified by the user.
+	 */
+	if (cache_level > MAX_CACHE_LVL) {
+		int max_level_index = 0;
+
+		for (i = 1; i < caches_cnt; ++i) {
+			if (caches[i].level > caches[max_level_index].level)
+				max_level_index = i;
+		}
+
+		cache->cache_lvl = caches[max_level_index].level;
+		cache->cache = cpu__get_cache_id_from_map(cpu, caches[max_level_index].map);
+
+		/* Reset i to 0 to free entire caches[] */
+		i = 0;
+		goto free_caches;
+	}
+
+	for (i = 0; i < caches_cnt; ++i) {
+		if (caches[i].level == cache_level) {
+			cache->cache_lvl = cache_level;
+			cache->cache = cpu__get_cache_id_from_map(cpu, caches[i].map);
+		}
+
+		cpu_cache_level__free(&caches[i]);
+	}
+
+free_caches:
+	/*
+	 * Free all the allocated cpu_cache_level data.
+	 */
+	while (i < caches_cnt)
+		cpu_cache_level__free(&caches[i++]);
+
+	return ret;
+}
+
+/**
+ * aggr_cpu_id__cache - Create an aggr_cpu_id with cache instache ID, cache
+ * level, die and socket populated with the cache instache ID, cache level,
+ * die and socket for cpu. The function signature is compatible with
+ * aggr_cpu_id_get_t.
+ */
+static struct aggr_cpu_id aggr_cpu_id__cache(struct perf_cpu cpu, void *data)
+{
+	int ret;
+	struct aggr_cpu_id id;
+	struct perf_cache cache;
+
+	id = aggr_cpu_id__die(cpu, data);
+	if (aggr_cpu_id__is_empty(&id))
+		return id;
+
+	ret = cpu__get_cache_details(cpu, &cache);
+	if (ret)
+		return id;
+
+	id.cache_lvl = cache.cache_lvl;
+	id.cache = cache.cache;
+	return id;
+}
+
 static const char *const aggr_mode__string[] = {
 	[AGGR_CORE] = "core",
+	[AGGR_CACHE] = "cache",
 	[AGGR_DIE] = "die",
 	[AGGR_GLOBAL] = "global",
 	[AGGR_NODE] = "node",
@@ -1257,6 +1446,12 @@ static struct aggr_cpu_id perf_stat__get_die(struct perf_stat_config *config __m
 					     struct perf_cpu cpu)
 {
 	return aggr_cpu_id__die(cpu, /*data=*/NULL);
+}
+
+static struct aggr_cpu_id perf_stat__get_cache_id(struct perf_stat_config *config __maybe_unused,
+						  struct perf_cpu cpu)
+{
+	return aggr_cpu_id__cache(cpu, /*data=*/NULL);
 }
 
 static struct aggr_cpu_id perf_stat__get_core(struct perf_stat_config *config __maybe_unused,
@@ -1311,6 +1506,12 @@ static struct aggr_cpu_id perf_stat__get_die_cached(struct perf_stat_config *con
 	return perf_stat__get_aggr(config, perf_stat__get_die, cpu);
 }
 
+static struct aggr_cpu_id perf_stat__get_cache_id_cached(struct perf_stat_config *config,
+							 struct perf_cpu cpu)
+{
+	return perf_stat__get_aggr(config, perf_stat__get_cache_id, cpu);
+}
+
 static struct aggr_cpu_id perf_stat__get_core_cached(struct perf_stat_config *config,
 						     struct perf_cpu cpu)
 {
@@ -1342,6 +1543,8 @@ static aggr_cpu_id_get_t aggr_mode__get_aggr(enum aggr_mode aggr_mode)
 		return aggr_cpu_id__socket;
 	case AGGR_DIE:
 		return aggr_cpu_id__die;
+	case AGGR_CACHE:
+		return aggr_cpu_id__cache;
 	case AGGR_CORE:
 		return aggr_cpu_id__core;
 	case AGGR_NODE:
@@ -1365,6 +1568,8 @@ static aggr_get_id_t aggr_mode__get_id(enum aggr_mode aggr_mode)
 		return perf_stat__get_socket_cached;
 	case AGGR_DIE:
 		return perf_stat__get_die_cached;
+	case AGGR_CACHE:
+		return perf_stat__get_cache_id_cached;
 	case AGGR_CORE:
 		return perf_stat__get_core_cached;
 	case AGGR_NODE:
@@ -1391,7 +1596,7 @@ static int perf_stat_init_aggr_mode(void)
 		stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.user_requested_cpus,
 							 get_id, /*data=*/NULL, needs_sort);
 		if (!stat_config.aggr_map) {
-			pr_err("cannot build %s map", aggr_mode__string[stat_config.aggr_mode]);
+			pr_err("cannot build %s map\n", aggr_mode__string[stat_config.aggr_mode]);
 			return -1;
 		}
 		stat_config.aggr_get_id = aggr_mode__get_id(stat_config.aggr_mode);
@@ -1477,6 +1682,60 @@ static struct aggr_cpu_id perf_env__get_die_aggr_by_cpu(struct perf_cpu cpu, voi
 	return id;
 }
 
+static void perf_env__get_cache_id_for_cpu(struct perf_cpu cpu, struct perf_env *env,
+					   u32 cache_level, struct aggr_cpu_id *id)
+{
+	int i;
+	int caches_cnt = env->caches_cnt;
+	struct cpu_cache_level *caches = env->caches;
+
+	id->cache_lvl = (cache_level > MAX_CACHE_LVL) ? 0 : cache_level;
+	id->cache = -1;
+
+	if (!caches_cnt)
+		return;
+
+	for (i = caches_cnt - 1; i > -1; --i) {
+		struct perf_cpu_map *cpu_map;
+		int map_contains_cpu;
+
+		/*
+		 * If user has not specified a level, find the fist level with
+		 * the cpu in the map. Since building the map is expensive, do
+		 * this only if levels match.
+		 */
+		if (cache_level <= MAX_CACHE_LVL && caches[i].level != cache_level)
+			continue;
+
+		cpu_map = perf_cpu_map__new(caches[i].map);
+		map_contains_cpu = perf_cpu_map__idx(cpu_map, cpu);
+		perf_cpu_map__put(cpu_map);
+
+		if (map_contains_cpu != -1) {
+			id->cache_lvl = caches[i].level;
+			id->cache = cpu__get_cache_id_from_map(cpu, caches[i].map);
+			return;
+		}
+	}
+}
+
+static struct aggr_cpu_id perf_env__get_cache_aggr_by_cpu(struct perf_cpu cpu,
+							  void *data)
+{
+	struct perf_env *env = data;
+	struct aggr_cpu_id id = aggr_cpu_id__empty();
+
+	if (cpu.cpu != -1) {
+		u32 cache_level = (perf_stat.aggr_level) ?: stat_config.aggr_level;
+
+		id.socket = env->cpu[cpu.cpu].socket_id;
+		id.die = env->cpu[cpu.cpu].die_id;
+		perf_env__get_cache_id_for_cpu(cpu, env, cache_level, &id);
+	}
+
+	return id;
+}
+
 static struct aggr_cpu_id perf_env__get_core_aggr_by_cpu(struct perf_cpu cpu, void *data)
 {
 	struct perf_env *env = data;
@@ -1545,6 +1804,12 @@ static struct aggr_cpu_id perf_stat__get_die_file(struct perf_stat_config *confi
 	return perf_env__get_die_aggr_by_cpu(cpu, &perf_stat.session->header.env);
 }
 
+static struct aggr_cpu_id perf_stat__get_cache_file(struct perf_stat_config *config __maybe_unused,
+						    struct perf_cpu cpu)
+{
+	return perf_env__get_cache_aggr_by_cpu(cpu, &perf_stat.session->header.env);
+}
+
 static struct aggr_cpu_id perf_stat__get_core_file(struct perf_stat_config *config __maybe_unused,
 						   struct perf_cpu cpu)
 {
@@ -1576,6 +1841,8 @@ static aggr_cpu_id_get_t aggr_mode__get_aggr_file(enum aggr_mode aggr_mode)
 		return perf_env__get_socket_aggr_by_cpu;
 	case AGGR_DIE:
 		return perf_env__get_die_aggr_by_cpu;
+	case AGGR_CACHE:
+		return perf_env__get_cache_aggr_by_cpu;
 	case AGGR_CORE:
 		return perf_env__get_core_aggr_by_cpu;
 	case AGGR_NODE:
@@ -1599,6 +1866,8 @@ static aggr_get_id_t aggr_mode__get_id_file(enum aggr_mode aggr_mode)
 		return perf_stat__get_socket_file;
 	case AGGR_DIE:
 		return perf_stat__get_die_file;
+	case AGGR_CACHE:
+		return perf_stat__get_cache_file;
 	case AGGR_CORE:
 		return perf_stat__get_core_file;
 	case AGGR_NODE:
@@ -1643,7 +1912,7 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 	stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.user_requested_cpus,
 						 get_id, env, needs_sort);
 	if (!stat_config.aggr_map) {
-		pr_err("cannot build %s map", aggr_mode__string[stat_config.aggr_mode]);
+		pr_err("cannot build %s map\n", aggr_mode__string[stat_config.aggr_mode]);
 		return -1;
 	}
 	stat_config.aggr_get_id = aggr_mode__get_id_file(stat_config.aggr_mode);
@@ -1770,6 +2039,7 @@ static int add_default_attributes(void)
 };
 
 	struct perf_event_attr default_null_attrs[] = {};
+	const char *pmu = parse_events_option_args.pmu_filter ?: "all";
 
 	/* Set attrs if no event is selected and !null_run: */
 	if (stat_config.null_run)
@@ -1781,11 +2051,11 @@ static int add_default_attributes(void)
 		 * will use this approach. To determine transaction support
 		 * on an architecture test for such a metric name.
 		 */
-		if (!metricgroup__has_metric("transaction")) {
-			pr_err("Missing transaction metrics");
+		if (!metricgroup__has_metric(pmu, "transaction")) {
+			pr_err("Missing transaction metrics\n");
 			return -1;
 		}
-		return metricgroup__parse_groups(evsel_list, "transaction",
+		return metricgroup__parse_groups(evsel_list, pmu, "transaction",
 						stat_config.metric_no_group,
 						stat_config.metric_no_merge,
 						stat_config.metric_no_threshold,
@@ -1798,7 +2068,7 @@ static int add_default_attributes(void)
 		int smi;
 
 		if (sysfs__read_int(FREEZE_ON_SMI_PATH, &smi) < 0) {
-			pr_err("freeze_on_smi is not supported.");
+			pr_err("freeze_on_smi is not supported.\n");
 			return -1;
 		}
 
@@ -1810,15 +2080,15 @@ static int add_default_attributes(void)
 			smi_reset = true;
 		}
 
-		if (!metricgroup__has_metric("smi")) {
-			pr_err("Missing smi metrics");
+		if (!metricgroup__has_metric(pmu, "smi")) {
+			pr_err("Missing smi metrics\n");
 			return -1;
 		}
 
 		if (!force_metric_only)
 			stat_config.metric_only = true;
 
-		return metricgroup__parse_groups(evsel_list, "smi",
+		return metricgroup__parse_groups(evsel_list, pmu, "smi",
 						stat_config.metric_no_group,
 						stat_config.metric_no_merge,
 						stat_config.metric_no_threshold,
@@ -1836,7 +2106,7 @@ static int add_default_attributes(void)
 
 		if (!max_level) {
 			pr_err("Topdown requested but the topdown metric groups aren't present.\n"
-				"(See perf list the metric groups have names like TopdownL1)");
+				"(See perf list the metric groups have names like TopdownL1)\n");
 			return -1;
 		}
 		if (stat_config.topdown_level > max_level) {
@@ -1851,7 +2121,8 @@ static int add_default_attributes(void)
 				"Please print the result regularly, e.g. -I1000\n");
 		}
 		str[8] = stat_config.topdown_level + '0';
-		if (metricgroup__parse_groups(evsel_list, str,
+		if (metricgroup__parse_groups(evsel_list,
+						pmu, str,
 						/*metric_no_group=*/false,
 						/*metric_no_merge=*/false,
 						/*metric_no_threshold=*/true,
@@ -1871,11 +2142,11 @@ static int add_default_attributes(void)
 
 		if (evlist__add_default_attrs(evsel_list, default_attrs0) < 0)
 			return -1;
-		if (pmu_have_event("cpu", "stalled-cycles-frontend")) {
+		if (perf_pmus__have_event("cpu", "stalled-cycles-frontend")) {
 			if (evlist__add_default_attrs(evsel_list, frontend_attrs) < 0)
 				return -1;
 		}
-		if (pmu_have_event("cpu", "stalled-cycles-backend")) {
+		if (perf_pmus__have_event("cpu", "stalled-cycles-backend")) {
 			if (evlist__add_default_attrs(evsel_list, backend_attrs) < 0)
 				return -1;
 		}
@@ -1885,20 +2156,29 @@ static int add_default_attributes(void)
 		 * Add TopdownL1 metrics if they exist. To minimize
 		 * multiplexing, don't request threshold computation.
 		 */
-		/*
-		 * TODO: TopdownL1 is disabled on hybrid CPUs to avoid a crashes
-		 * caused by exposing latent bugs. This is fixed properly in:
-		 * https://lore.kernel.org/lkml/bff481ba-e60a-763f-0aa0-3ee53302c480@linux.intel.com/
-		 */
-		if (metricgroup__has_metric("TopdownL1") && !perf_pmu__has_hybrid() &&
-		    metricgroup__parse_groups(evsel_list, "TopdownL1",
-					    /*metric_no_group=*/false,
-					    /*metric_no_merge=*/false,
-					    /*metric_no_threshold=*/true,
-					    stat_config.user_requested_cpu_list,
-					    stat_config.system_wide,
-					    &stat_config.metric_events) < 0)
-			return -1;
+		if (metricgroup__has_metric(pmu, "Default")) {
+			struct evlist *metric_evlist = evlist__new();
+			struct evsel *metric_evsel;
+
+			if (!metric_evlist)
+				return -1;
+
+			if (metricgroup__parse_groups(metric_evlist, pmu, "Default",
+							/*metric_no_group=*/false,
+							/*metric_no_merge=*/false,
+							/*metric_no_threshold=*/true,
+							stat_config.user_requested_cpu_list,
+							stat_config.system_wide,
+							&stat_config.metric_events) < 0)
+				return -1;
+
+			evlist__for_each_entry(metric_evlist, metric_evsel) {
+				metric_evsel->skippable = true;
+				metric_evsel->default_metricgroup = true;
+			}
+			evlist__splice_list_tail(evsel_list, &metric_evlist->core.entries);
+			evlist__delete(metric_evlist);
+		}
 
 		/* Platform specific attrs */
 		if (evlist__add_default_attrs(evsel_list, default_null_attrs) < 0)
@@ -2104,7 +2384,8 @@ static struct perf_stat perf_stat = {
 		.stat		= perf_event__process_stat_event,
 		.stat_round	= process_stat_round_event,
 	},
-	.aggr_mode = AGGR_UNSET,
+	.aggr_mode	= AGGR_UNSET,
+	.aggr_level	= 0,
 };
 
 static int __cmd_report(int argc, const char **argv)
@@ -2116,6 +2397,10 @@ static int __cmd_report(int argc, const char **argv)
 		     "aggregate counts per processor socket", AGGR_SOCKET),
 	OPT_SET_UINT(0, "per-die", &perf_stat.aggr_mode,
 		     "aggregate counts per processor die", AGGR_DIE),
+	OPT_CALLBACK_OPTARG(0, "per-cache", &perf_stat.aggr_mode, &perf_stat.aggr_level,
+			    "cache level",
+			    "aggregate count at this cache level (Default: LLC)",
+			    parse_cache_level),
 	OPT_SET_UINT(0, "per-core", &perf_stat.aggr_mode,
 		     "aggregate counts per physical processor core", AGGR_CORE),
 	OPT_SET_UINT(0, "per-node", &perf_stat.aggr_mode,
@@ -2145,6 +2430,7 @@ static int __cmd_report(int argc, const char **argv)
 
 	perf_stat.session  = session;
 	stat_config.output = stderr;
+	evlist__delete(evsel_list);
 	evsel_list         = session->evlist;
 
 	ret = perf_session__process_events(session);
@@ -2408,7 +2694,9 @@ int cmd_stat(int argc, const char **argv)
 	 * knowing the target is system-wide.
 	 */
 	if (metrics) {
-		metricgroup__parse_groups(evsel_list, metrics,
+		const char *pmu = parse_events_option_args.pmu_filter ?: "all";
+
+		metricgroup__parse_groups(evsel_list, pmu, metrics,
 					stat_config.metric_no_group,
 					stat_config.metric_no_merge,
 					stat_config.metric_no_threshold,
@@ -2437,12 +2725,8 @@ int cmd_stat(int argc, const char **argv)
 		}
 	}
 
-	if (evlist__fix_hybrid_cpus(evsel_list, target.cpu_list)) {
-		pr_err("failed to use cpu list %s\n", target.cpu_list);
-		goto out;
-	}
+	evlist__warn_user_requested_cpus(evsel_list, target.cpu_list);
 
-	target.hybrid = perf_pmu__has_hybrid();
 	if (evlist__create_maps(evsel_list, &target) < 0) {
 		if (target__has_task(&target)) {
 			pr_err("Problems finding threads of monitor\n");
@@ -2547,8 +2831,11 @@ int cmd_stat(int argc, const char **argv)
 		}
 	}
 
-	if (!forever && status != -1 && (!interval || stat_config.summary))
+	if (!forever && status != -1 && (!interval || stat_config.summary)) {
+		if (stat_config.run_count > 1)
+			evlist__copy_res_stats(&stat_config, evsel_list);
 		print_counters(NULL, argc, argv);
+	}
 
 	evlist__finalize_ctlfd(evsel_list);
 

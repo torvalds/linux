@@ -36,6 +36,9 @@ COMMON OPTIONS
 --input=<file>::
         Input file name. (default: perf.data unless stdin is a fifo)
 
+--output=<file>::
+        Output file name for perf lock contention and report.
+
 -v::
 --verbose::
         Be more verbose (show symbol address, etc).
@@ -199,6 +202,11 @@ CONTENTION OPTIONS
 	Show lock contention only if the callstack contains the given string.
 	Note that it matches the substring so 'rq' would match both 'raw_spin_rq_lock'
 	and 'irq_enter_rcu'.
+
+-x::
+--field-separator=<SEP>::
+	Show results using a CSV-style output to make it easy to import directly
+	into spreadsheets. Columns are separated by the string specified in SEP.
 
 
 SEE ALSO

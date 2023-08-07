@@ -170,6 +170,95 @@ extern "C" {
 #endif
 
 #pragma pack(push, 1)
+#define ABM_NUM_OF_ACE_SEGMENTS         5
+
+union abm_flags {
+	struct {
+		/**
+		 * @abm_enabled: Indicates if ABM is enabled.
+		 */
+		unsigned int abm_enabled : 1;
+
+		/**
+		 * @disable_abm_requested: Indicates if driver has requested ABM to be disabled.
+		 */
+		unsigned int disable_abm_requested : 1;
+
+		/**
+		 * @disable_abm_immediately: Indicates if driver has requested ABM to be disabled
+		 * immediately.
+		 */
+		unsigned int disable_abm_immediately : 1;
+
+		/**
+		 * @disable_abm_immediate_keep_gain: Indicates if driver has requested ABM
+		 * to be disabled immediately and keep gain.
+		 */
+		unsigned int disable_abm_immediate_keep_gain : 1;
+
+		/**
+		 * @fractional_pwm: Indicates if fractional duty cycle for backlight PWM is enabled.
+		 */
+		unsigned int fractional_pwm : 1;
+
+		/**
+		 * @abm_gradual_bl_change: Indicates if algorithm has completed gradual adjustment
+		 * of user backlight level.
+		 */
+		unsigned int abm_gradual_bl_change : 1;
+	} bitfields;
+
+	unsigned int u32All;
+};
+
+struct abm_save_restore {
+	/**
+	 * @flags: Misc. ABM flags.
+	 */
+	union abm_flags flags;
+
+	/**
+	 * @pause: true:  pause ABM and get state
+	 *         false: unpause ABM after setting state
+	 */
+	uint32_t pause;
+
+	/**
+	 * @next_ace_slope: Next ACE slopes to be programmed in HW (u3.13)
+	 */
+	uint32_t next_ace_slope[ABM_NUM_OF_ACE_SEGMENTS];
+
+	/**
+	 * @next_ace_thresh: Next ACE thresholds to be programmed in HW (u10.6)
+	 */
+	uint32_t next_ace_thresh[ABM_NUM_OF_ACE_SEGMENTS];
+
+	/**
+	 * @next_ace_offset: Next ACE offsets to be programmed in HW (u10.6)
+	 */
+	uint32_t next_ace_offset[ABM_NUM_OF_ACE_SEGMENTS];
+
+
+	/**
+	 * @knee_threshold: Current x-position of ACE knee (u0.16).
+	 */
+	uint32_t knee_threshold;
+	/**
+	 * @current_gain: Current backlight reduction (u16.16).
+	 */
+	uint32_t current_gain;
+	/**
+	 * @curr_bl_level: Current actual backlight level converging to target backlight level.
+	 */
+	uint16_t curr_bl_level;
+
+	/**
+	 * @curr_user_bl_level: Current nominal backlight level converging to level requested by user.
+	 */
+	uint16_t curr_user_bl_level;
+
+};
+
 /**
  * union dmub_addr - DMUB physical/virtual 64-bit address.
  */
@@ -257,7 +346,9 @@ struct dmub_feature_caps {
 	 */
 	uint8_t psr;
 	uint8_t fw_assisted_mclk_switch;
-	uint8_t reserved[6];
+	uint8_t reserved[4];
+	uint8_t subvp_psr_support;
+	uint8_t gecc_enable;
 };
 
 struct dmub_visual_confirm_color {
@@ -360,7 +451,7 @@ union dmub_fw_boot_status {
 		uint32_t optimized_init_done : 1; /**< 1 if optimized init done */
 		uint32_t restore_required : 1; /**< 1 if driver should call restore */
 		uint32_t defer_load : 1; /**< 1 if VBIOS data is deferred programmed */
-		uint32_t reserved : 1;
+		uint32_t fams_enabled : 1; /**< 1 if VBIOS data is deferred programmed */
 		uint32_t detection_required: 1; /**<  if detection need to be triggered by driver */
 		uint32_t hw_power_init_done: 1; /**< 1 if hw power init is completed */
 	} bits; /**< status bits */
@@ -376,6 +467,7 @@ enum dmub_fw_boot_status_bit {
 	DMUB_FW_BOOT_STATUS_BIT_OPTIMIZED_INIT_DONE = (1 << 2), /**< 1 if init done */
 	DMUB_FW_BOOT_STATUS_BIT_RESTORE_REQUIRED = (1 << 3), /**< 1 if driver should call restore */
 	DMUB_FW_BOOT_STATUS_BIT_DEFERRED_LOADED = (1 << 4), /**< 1 if VBIOS data is deferred programmed */
+	DMUB_FW_BOOT_STATUS_BIT_FAMS_ENABLED = (1 << 5), /**< 1 if FAMS is enabled*/
 	DMUB_FW_BOOT_STATUS_BIT_DETECTION_REQUIRED = (1 << 6), /**< 1 if detection need to be triggered by driver*/
 	DMUB_FW_BOOT_STATUS_BIT_HW_POWER_INIT_DONE = (1 << 7), /**< 1 if hw power init is completed */
 };
@@ -393,6 +485,12 @@ union dmub_lvtma_status {
 enum dmub_lvtma_status_bit {
 	DMUB_LVTMA_STATUS_BIT_PSP_OK = (1 << 0),
 	DMUB_LVTMA_STATUS_BIT_EDP_ON = (1 << 1),
+};
+
+enum dmub_ips_disable_type {
+	DMUB_IPS_DISABLE_IPS1 = 1,
+	DMUB_IPS_DISABLE_IPS2 = 2,
+	DMUB_IPS_DISABLE_IPS2_Z10 = 3,
 };
 
 /**
@@ -419,7 +517,10 @@ union dmub_fw_boot_options {
 		uint32_t dpia_hpd_int_enable_supported: 1; /* 1 if dpia hpd int enable supported */
 		uint32_t usb4_dpia_bw_alloc_supported: 1; /* 1 if USB4 dpia BW allocation supported */
 		uint32_t disable_clk_ds: 1; /* 1 if disallow dispclk_ds and dppclk_ds*/
-		uint32_t reserved : 14; /**< reserved */
+		uint32_t disable_timeout_recovery : 1; /* 1 if timeout recovery should be disabled */
+		uint32_t ips_pg_disable: 1; /* 1 to disable ONO domains power gating*/
+		uint32_t ips_disable: 2; /* options to disable ips support*/
+		uint32_t reserved : 10; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -988,16 +1089,25 @@ struct dmub_rb_cmd_mall {
 };
 
 /**
- * enum dmub_cmd_cab_type - TODO:
+ * enum dmub_cmd_cab_type - CAB command data.
  */
 enum dmub_cmd_cab_type {
+	/**
+	 * No idle optimizations (i.e. no CAB)
+	 */
 	DMUB_CMD__CAB_NO_IDLE_OPTIMIZATION = 0,
+	/**
+	 * No DCN requests for memory
+	 */
 	DMUB_CMD__CAB_NO_DCN_REQ = 1,
+	/**
+	 * Fit surfaces in CAB (i.e. CAB enable)
+	 */
 	DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB = 2,
 };
 
 /**
- * struct dmub_rb_cmd_cab_for_ss - TODO:
+ * struct dmub_rb_cmd_cab - CAB command data.
  */
 struct dmub_rb_cmd_cab_for_ss {
 	struct dmub_cmd_header header;
@@ -1005,6 +1115,9 @@ struct dmub_rb_cmd_cab_for_ss {
 	uint8_t debug_bits;     /* debug bits */
 };
 
+/**
+ * Enum for indicating which MCLK switch mode per pipe
+ */
 enum mclk_switch_mode {
 	NONE = 0,
 	FPO = 1,
@@ -1125,8 +1238,6 @@ struct dmub_rb_cmd_idle_opt_dcn_restore {
  */
 struct dmub_dcn_notify_idle_cntl_data {
 	uint8_t driver_idle;
-	uint8_t d3_entry;
-	uint8_t trigger;
 	uint8_t pad[1];
 };
 
@@ -2650,6 +2761,12 @@ enum dmub_cmd_abm_type {
 	 * unregister vertical interrupt after steady state is reached
 	 */
 	DMUB_CMD__ABM_PAUSE	= 6,
+
+	/**
+	 * Save and Restore ABM state. On save we save parameters, and
+	 * on restore we update state with passed in data.
+	 */
+	DMUB_CMD__ABM_SAVE_RESTORE	= 7,
 };
 
 /**
@@ -3034,6 +3151,7 @@ struct dmub_cmd_abm_pause_data {
 	uint8_t pad[1];
 };
 
+
 /**
  * Definition of a DMUB_CMD__ABM_PAUSE command.
  */
@@ -3047,6 +3165,36 @@ struct dmub_rb_cmd_abm_pause {
 	 * Data passed from driver to FW in a DMUB_CMD__ABM_PAUSE command.
 	 */
 	struct dmub_cmd_abm_pause_data abm_pause_data;
+};
+
+/**
+ * Definition of a DMUB_CMD__ABM_SAVE_RESTORE command.
+ */
+struct dmub_rb_cmd_abm_save_restore {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * OTG hw instance
+	 */
+	uint8_t otg_inst;
+
+	/**
+	 * Enable or disable ABM pause
+	 */
+	uint8_t freeze;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t debug;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__ABM_INIT_CONFIG command.
+	 */
+	struct dmub_cmd_abm_init_config_data abm_init_config_data;
 };
 
 /**
@@ -3487,6 +3635,11 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_abm_pause abm_pause;
 
 	/**
+	 * Definition of a DMUB_CMD__ABM_SAVE_RESTORE command.
+	 */
+	struct dmub_rb_cmd_abm_save_restore abm_save_restore;
+
+	/**
 	 * Definition of a DMUB_CMD__DP_AUX_ACCESS command.
 	 */
 	struct dmub_rb_cmd_dp_aux_access dp_aux_access;
@@ -3550,6 +3703,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__DPIA_HPD_INT_ENABLE command.
 	 */
 	struct dmub_rb_cmd_dpia_hpd_int_enable dpia_hpd_int_enable;
+	/**
+	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE command.
+	 */
+	struct dmub_rb_cmd_idle_opt_dcn_notify_idle idle_opt_notify_idle;
 };
 
 /**

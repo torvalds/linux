@@ -376,7 +376,7 @@ static struct i2c_driver lm3697_driver = {
 		.name	= "lm3697",
 		.of_match_table = of_lm3697_leds_match,
 	},
-	.probe_new	= lm3697_probe,
+	.probe		= lm3697_probe,
 	.remove		= lm3697_remove,
 	.id_table	= lm3697_id,
 };

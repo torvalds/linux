@@ -70,7 +70,7 @@ static void *uffd_handler_thread_fn(void *arg)
 			r = read(pollfd[1].fd, &tmp_chr, 1);
 			TEST_ASSERT(r == 1,
 				    "Error reading pipefd in UFFD thread\n");
-			return NULL;
+			break;
 		}
 
 		if (!(pollfd[0].revents & POLLIN))
@@ -103,7 +103,7 @@ static void *uffd_handler_thread_fn(void *arg)
 	ts_diff = timespec_elapsed(start);
 	PER_VCPU_DEBUG("userfaulted %ld pages over %ld.%.9lds. (%f/sec)\n",
 		       pages, ts_diff.tv_sec, ts_diff.tv_nsec,
-		       pages / ((double)ts_diff.tv_sec + (double)ts_diff.tv_nsec / 100000000.0));
+		       pages / ((double)ts_diff.tv_sec + (double)ts_diff.tv_nsec / NSEC_PER_SEC));
 
 	return NULL;
 }

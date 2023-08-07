@@ -9,6 +9,7 @@
 
 / {
 	model = "MediaTek kakadu board sku22";
+	chassis-type = "tablet";
 	compatible = "google,kakadu-rev3-sku22", "google,kakadu-rev2-sku22",
 		     "google,kakadu", "mediatek,mt8183";
 };

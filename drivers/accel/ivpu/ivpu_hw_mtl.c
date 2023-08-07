@@ -101,6 +101,9 @@ static void ivpu_hw_wa_init(struct ivpu_device *vdev)
 	vdev->wa.punit_disabled = ivpu_is_fpga(vdev);
 	vdev->wa.clear_runtime_mem = false;
 	vdev->wa.d3hot_after_power_off = true;
+
+	if (ivpu_device_id(vdev) == PCI_DEVICE_ID_MTL && ivpu_revision(vdev) < 4)
+		vdev->wa.interrupt_clear_with_0 = true;
 }
 
 static void ivpu_hw_timeouts_init(struct ivpu_device *vdev)
@@ -197,6 +200,11 @@ static void ivpu_pll_init_frequency_ratios(struct ivpu_device *vdev)
 	hw->pll.pn_ratio = clamp_t(u8, fuse_pn_ratio, hw->pll.min_ratio, hw->pll.max_ratio);
 }
 
+static int ivpu_hw_mtl_wait_for_vpuip_bar(struct ivpu_device *vdev)
+{
+	return REGV_POLL_FLD(MTL_VPU_HOST_SS_CPR_RST_CLR, AON, 0, 100);
+}
+
 static int ivpu_pll_drive(struct ivpu_device *vdev, bool enable)
 {
 	struct ivpu_hw_info *hw = vdev->hw;
@@ -239,6 +247,12 @@ static int ivpu_pll_drive(struct ivpu_device *vdev, bool enable)
 			ivpu_err(vdev, "Timed out waiting for PLL ready status\n");
 			return ret;
 		}
+
+		ret = ivpu_hw_mtl_wait_for_vpuip_bar(vdev);
+		if (ret) {
+			ivpu_err(vdev, "Timed out waiting for VPUIP bar\n");
+			return ret;
+		}
 	}
 
 	return 0;
@@ -256,7 +270,7 @@ static int ivpu_pll_disable(struct ivpu_device *vdev)
 
 static void ivpu_boot_host_ss_rst_clr_assert(struct ivpu_device *vdev)
 {
-	u32 val = REGV_RD32(MTL_VPU_HOST_SS_CPR_RST_CLR);
+	u32 val = 0;
 
 	val = REG_SET_FLD(MTL_VPU_HOST_SS_CPR_RST_CLR, TOP_NOC, val);
 	val = REG_SET_FLD(MTL_VPU_HOST_SS_CPR_RST_CLR, DSS_MAS, val);
@@ -537,21 +551,10 @@ static void ivpu_boot_tbu_mmu_enable(struct ivpu_device *vdev)
 {
 	u32 val = REGV_RD32(MTL_VPU_HOST_IF_TBU_MMUSSIDV);
 
-	if (ivpu_is_fpga(vdev)) {
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU0_AWMMUSSIDV, val);
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU0_ARMMUSSIDV, val);
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU2_AWMMUSSIDV, val);
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU2_ARMMUSSIDV, val);
-	} else {
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU0_AWMMUSSIDV, val);
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU0_ARMMUSSIDV, val);
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU1_AWMMUSSIDV, val);
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU1_ARMMUSSIDV, val);
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU2_AWMMUSSIDV, val);
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU2_ARMMUSSIDV, val);
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU3_AWMMUSSIDV, val);
-		val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU3_ARMMUSSIDV, val);
-	}
+	val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU0_AWMMUSSIDV, val);
+	val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU0_ARMMUSSIDV, val);
+	val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU2_AWMMUSSIDV, val);
+	val = REG_SET_FLD(MTL_VPU_HOST_IF_TBU_MMUSSIDV, TBU2_ARMMUSSIDV, val);
 
 	REGV_WR32(MTL_VPU_HOST_IF_TBU_MMUSSIDV, val);
 }
@@ -754,9 +757,8 @@ static int ivpu_hw_mtl_power_down(struct ivpu_device *vdev)
 {
 	int ret = 0;
 
-	if (ivpu_hw_mtl_reset(vdev)) {
+	if (!ivpu_hw_mtl_is_idle(vdev) && ivpu_hw_mtl_reset(vdev)) {
 		ivpu_err(vdev, "Failed to reset the VPU\n");
-		ret = -EIO;
 	}
 
 	if (ivpu_pll_disable(vdev)) {
@@ -764,8 +766,10 @@ static int ivpu_hw_mtl_power_down(struct ivpu_device *vdev)
 		ret = -EIO;
 	}
 
-	if (ivpu_hw_mtl_d0i3_enable(vdev))
-		ivpu_warn(vdev, "Failed to enable D0I3\n");
+	if (ivpu_hw_mtl_d0i3_enable(vdev)) {
+		ivpu_err(vdev, "Failed to enter D0I3\n");
+		ret = -EIO;
+	}
 
 	return ret;
 }
@@ -873,7 +877,7 @@ static void ivpu_hw_mtl_irq_disable(struct ivpu_device *vdev)
 	REGB_WR32(MTL_BUTTRESS_GLOBAL_INT_MASK, 0x1);
 	REGB_WR32(MTL_BUTTRESS_LOCAL_INT_MASK, BUTTRESS_IRQ_DISABLE_MASK);
 	REGV_WR64(MTL_VPU_HOST_SS_ICB_ENABLE_0, 0x0ull);
-	REGB_WR32(MTL_VPU_HOST_SS_FW_SOC_IRQ_EN, 0x0);
+	REGV_WR32(MTL_VPU_HOST_SS_FW_SOC_IRQ_EN, 0x0);
 }
 
 static void ivpu_hw_mtl_irq_wdt_nce_handler(struct ivpu_device *vdev)
@@ -961,12 +965,15 @@ static u32 ivpu_hw_mtl_irqb_handler(struct ivpu_device *vdev, int irq)
 		schedule_recovery = true;
 	}
 
-	/*
-	 * Clear local interrupt status by writing 0 to all bits.
-	 * This must be done after interrupts are cleared at the source.
-	 * Writing 1 triggers an interrupt, so we can't perform read update write.
-	 */
-	REGB_WR32(MTL_BUTTRESS_INTERRUPT_STAT, 0x0);
+	/* This must be done after interrupts are cleared at the source. */
+	if (IVPU_WA(interrupt_clear_with_0))
+		/*
+		 * Writing 1 triggers an interrupt, so we can't perform read update write.
+		 * Clear local interrupt status by writing 0 to all bits.
+		 */
+		REGB_WR32(MTL_BUTTRESS_INTERRUPT_STAT, 0x0);
+	else
+		REGB_WR32(MTL_BUTTRESS_INTERRUPT_STAT, status);
 
 	/* Re-enable global interrupt */
 	REGB_WR32(MTL_BUTTRESS_GLOBAL_INT_MASK, 0x0);

@@ -296,6 +296,8 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 
 	*cmdline_p = boot_command_line;
 
+	kaslr_init();
+
 	/*
 	 * If know now we are going to need KPTI then use non-global
 	 * mappings from the start, avoiding the cost of rewriting

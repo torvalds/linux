@@ -365,7 +365,7 @@ static struct i2c_driver lidar_driver = {
 		.of_match_table	= lidar_dt_ids,
 		.pm	= pm_ptr(&lidar_pm_ops),
 	},
-	.probe_new	= lidar_probe,
+	.probe		= lidar_probe,
 	.remove		= lidar_remove,
 	.id_table	= lidar_id,
 };

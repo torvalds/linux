@@ -1212,7 +1212,7 @@ static struct i2c_driver ov7740_i2c_driver = {
 		.pm = &ov7740_pm_ops,
 		.of_match_table = of_match_ptr(ov7740_of_match),
 	},
-	.probe_new = ov7740_probe,
+	.probe    = ov7740_probe,
 	.remove   = ov7740_remove,
 	.id_table = ov7740_id,
 };

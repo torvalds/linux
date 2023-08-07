@@ -12,7 +12,6 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
@@ -1044,13 +1043,11 @@ static int rcar_mipi_dsi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rcar_mipi_dsi_remove(struct platform_device *pdev)
+static void rcar_mipi_dsi_remove(struct platform_device *pdev)
 {
 	struct rcar_mipi_dsi *dsi = platform_get_drvdata(pdev);
 
 	mipi_dsi_host_unregister(&dsi->host);
-
-	return 0;
 }
 
 static const struct rcar_mipi_dsi_device_info v3u_data = {
@@ -1093,7 +1090,7 @@ MODULE_DEVICE_TABLE(of, rcar_mipi_dsi_of_table);
 
 static struct platform_driver rcar_mipi_dsi_platform_driver = {
 	.probe          = rcar_mipi_dsi_probe,
-	.remove         = rcar_mipi_dsi_remove,
+	.remove_new     = rcar_mipi_dsi_remove,
 	.driver         = {
 		.name   = "rcar-mipi-dsi",
 		.of_match_table = rcar_mipi_dsi_of_table,

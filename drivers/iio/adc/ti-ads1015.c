@@ -1195,7 +1195,7 @@ static struct i2c_driver ads1015_driver = {
 		.of_match_table = ads1015_of_match,
 		.pm = &ads1015_pm_ops,
 	},
-	.probe_new	= ads1015_probe,
+	.probe		= ads1015_probe,
 	.remove		= ads1015_remove,
 	.id_table	= ads1015_id,
 };

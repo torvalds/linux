@@ -44,6 +44,7 @@ properties:
               - hpe,gxp-ohci
               - ibm,476gtr-ohci
               - ingenic,jz4740-ohci
+              - rockchip,rk3588-ohci
               - snps,hsdk-v1.0-ohci
           - const: generic-ohci
       - enum:
@@ -69,7 +70,7 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 3
+    maxItems: 4
     description: |
       In case the Renesas R-Car Gen3 SoCs:
         - if a host only channel: first clock should be host.
@@ -147,6 +148,20 @@ allOf:
     then:
       properties:
         transceiver: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3588-ohci
+    then:
+      properties:
+        clocks:
+          minItems: 4
+    else:
+      properties:
+        clocks:
+          minItems: 1
+          maxItems: 3
 
 unevaluatedProperties: false
 

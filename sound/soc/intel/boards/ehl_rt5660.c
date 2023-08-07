@@ -254,7 +254,6 @@ static void hdmi_link_init(struct snd_soc_card *card,
 			   struct sof_card_private *ctx,
 			   struct snd_soc_acpi_mach *mach)
 {
-	struct snd_soc_dai_link *link;
 	int i;
 
 	if (mach->mach_params.common_hdmi_codec_drv &&
@@ -267,11 +266,8 @@ static void hdmi_link_init(struct snd_soc_card *card,
 	 * if HDMI is not enabled in kernel config, or
 	 * hdmi codec is not supported
 	 */
-	for (i = HDMI_LINK_START; i <= HDMI_LINE_END; i++) {
-		link = &card->dai_link[i];
-		link->codecs[0].name = "snd-soc-dummy";
-		link->codecs[0].dai_name = "snd-soc-dummy-dai";
-	}
+	for (i = HDMI_LINK_START; i <= HDMI_LINE_END; i++)
+		card->dai_link[i].codecs[0] = asoc_dummy_dlc;
 }
 
 static int snd_ehl_rt5660_probe(struct platform_device *pdev)

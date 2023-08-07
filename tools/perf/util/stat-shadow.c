@@ -403,12 +403,25 @@ static int prepare_metric(struct evsel **metric_events,
 			if (!aggr)
 				break;
 
-			/*
-			 * If an event was scaled during stat gathering, reverse
-			 * the scale before computing the metric.
-			 */
-			val = aggr->counts.val * (1.0 / metric_events[i]->scale);
-			source_count = evsel__source_count(metric_events[i]);
+                        if (!metric_events[i]->supported) {
+				/*
+				 * Not supported events will have a count of 0,
+				 * which can be confusing in a
+				 * metric. Explicitly set the value to NAN. Not
+				 * counted events (enable time of 0) are read as
+				 * 0.
+				 */
+				val = NAN;
+				source_count = 0;
+			} else {
+				/*
+				 * If an event was scaled during stat gathering,
+				 * reverse the scale before computing the
+				 * metric.
+				 */
+				val = aggr->counts.val * (1.0 / metric_events[i]->scale);
+				source_count = evsel__source_count(metric_events[i]);
+			}
 		}
 		n = strdup(evsel__metric_id(metric_events[i]));
 		if (!n)
@@ -526,6 +539,106 @@ out:
 	return ratio;
 }
 
+static void perf_stat__print_metricgroup_header(struct perf_stat_config *config,
+						struct evsel *evsel,
+						void *ctxp,
+						const char *name,
+						struct perf_stat_output_ctx *out)
+{
+	bool need_full_name = perf_pmus__num_core_pmus() > 1;
+	static const char *last_name;
+	static const char *last_pmu;
+	char full_name[64];
+
+	/*
+	 * A metricgroup may have several metric events,
+	 * e.g.,TopdownL1 on e-core of ADL.
+	 * The name has been output by the first metric
+	 * event. Only align with other metics from
+	 * different metric events.
+	 */
+	if (last_name && !strcmp(last_name, name)) {
+		if (!need_full_name || !strcmp(last_pmu, evsel->pmu_name)) {
+			out->print_metricgroup_header(config, ctxp, NULL);
+			return;
+		}
+	}
+
+	if (need_full_name)
+		scnprintf(full_name, sizeof(full_name), "%s (%s)", name, evsel->pmu_name);
+	else
+		scnprintf(full_name, sizeof(full_name), "%s", name);
+
+	out->print_metricgroup_header(config, ctxp, full_name);
+
+	last_name = name;
+	last_pmu = evsel->pmu_name;
+}
+
+/**
+ * perf_stat__print_shadow_stats_metricgroup - Print out metrics associated with the evsel
+ *					       For the non-default, all metrics associated
+ *					       with the evsel are printed.
+ *					       For the default mode, only the metrics from
+ *					       the same metricgroup and the name of the
+ *					       metricgroup are printed. To print the metrics
+ *					       from the next metricgroup (if available),
+ *					       invoke the function with correspoinding
+ *					       metric_expr.
+ */
+void *perf_stat__print_shadow_stats_metricgroup(struct perf_stat_config *config,
+						struct evsel *evsel,
+						int aggr_idx,
+						int *num,
+						void *from,
+						struct perf_stat_output_ctx *out,
+						struct rblist *metric_events)
+{
+	struct metric_event *me;
+	struct metric_expr *mexp = from;
+	void *ctxp = out->ctx;
+	bool header_printed = false;
+	const char *name = NULL;
+
+	me = metricgroup__lookup(metric_events, evsel, false);
+	if (me == NULL)
+		return NULL;
+
+	if (!mexp)
+		mexp = list_first_entry(&me->head, typeof(*mexp), nd);
+
+	list_for_each_entry_from(mexp, &me->head, nd) {
+		/* Print the display name of the Default metricgroup */
+		if (!config->metric_only && me->is_default) {
+			if (!name)
+				name = mexp->default_metricgroup_name;
+			/*
+			 * Two or more metricgroup may share the same metric
+			 * event, e.g., TopdownL1 and TopdownL2 on SPR.
+			 * Return and print the prefix, e.g., noise, running
+			 * for the next metricgroup.
+			 */
+			if (strcmp(name, mexp->default_metricgroup_name))
+				return (void *)mexp;
+			/* Only print the name of the metricgroup once */
+			if (!header_printed) {
+				header_printed = true;
+				perf_stat__print_metricgroup_header(config, evsel, ctxp,
+								    name, out);
+			}
+		}
+
+		if ((*num)++ > 0)
+			out->new_line(config, ctxp);
+		generic_metric(config, mexp->metric_expr, mexp->metric_threshold,
+			       mexp->metric_events, mexp->metric_refs, evsel->name,
+			       mexp->metric_name, mexp->metric_unit, mexp->runtime,
+			       aggr_idx, out);
+	}
+
+	return NULL;
+}
+
 void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct evsel *evsel,
 				   double avg, int aggr_idx,
@@ -552,7 +665,6 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 	};
 	print_metric_t print_metric = out->print_metric;
 	void *ctxp = out->ctx;
-	struct metric_event *me;
 	int num = 1;
 
 	if (config->iostat_run) {
@@ -579,18 +691,26 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		}
 	}
 
-	if ((me = metricgroup__lookup(metric_events, evsel, false)) != NULL) {
-		struct metric_expr *mexp;
+	perf_stat__print_shadow_stats_metricgroup(config, evsel, aggr_idx,
+						  &num, NULL, out, metric_events);
 
-		list_for_each_entry (mexp, &me->head, nd) {
-			if (num++ > 0)
-				out->new_line(config, ctxp);
-			generic_metric(config, mexp->metric_expr, mexp->metric_threshold,
-				       mexp->metric_events, mexp->metric_refs, evsel->name,
-				       mexp->metric_name, mexp->metric_unit, mexp->runtime,
-				       aggr_idx, out);
-		}
-	}
 	if (num == 0)
 		print_metric(config, ctxp, NULL, NULL, NULL, 0);
+}
+
+/**
+ * perf_stat__skip_metric_event - Skip the evsel in the Default metricgroup,
+ *				  if it's not running or not the metric event.
+ */
+bool perf_stat__skip_metric_event(struct evsel *evsel,
+				  struct rblist *metric_events,
+				  u64 ena, u64 run)
+{
+	if (!evsel->default_metricgroup)
+		return false;
+
+	if (!ena || !run)
+		return true;
+
+	return !metricgroup__lookup(metric_events, evsel, false);
 }

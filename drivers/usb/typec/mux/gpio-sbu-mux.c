@@ -3,14 +3,11 @@
  * Copyright (C) 2022 Linaro Ltd.
  */
 
-#include <linux/bits.h>
-#include <linux/i2c.h>
-#include <linux/kernel.h>
+#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
-#include <linux/regmap.h>
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_mux.h>
 
@@ -140,7 +137,7 @@ static int gpio_sbu_mux_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int gpio_sbu_mux_remove(struct platform_device *pdev)
+static void gpio_sbu_mux_remove(struct platform_device *pdev)
 {
 	struct gpio_sbu_mux *sbu_mux = platform_get_drvdata(pdev);
 
@@ -148,8 +145,6 @@ static int gpio_sbu_mux_remove(struct platform_device *pdev)
 
 	typec_mux_unregister(sbu_mux->mux);
 	typec_switch_unregister(sbu_mux->sw);
-
-	return 0;
 }
 
 static const struct of_device_id gpio_sbu_mux_match[] = {
@@ -160,7 +155,7 @@ MODULE_DEVICE_TABLE(of, gpio_sbu_mux_match);
 
 static struct platform_driver gpio_sbu_mux_driver = {
 	.probe = gpio_sbu_mux_probe,
-	.remove = gpio_sbu_mux_remove,
+	.remove_new = gpio_sbu_mux_remove,
 	.driver = {
 		.name = "gpio_sbu_mux",
 		.of_match_table = gpio_sbu_mux_match,

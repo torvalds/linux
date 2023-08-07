@@ -34,7 +34,7 @@ static void armada_fbdev_fb_destroy(struct fb_info *info)
 
 static const struct fb_ops armada_fb_ops = {
 	.owner		= THIS_MODULE,
-	FB_DEFAULT_IO_OPS,
+	FB_DEFAULT_IOMEM_OPS,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_destroy	= armada_fbdev_fb_destroy,
 };
@@ -208,10 +208,6 @@ void armada_fbdev_setup(struct drm_device *dev)
 		drm_err(dev, "Failed to register client: %d\n", ret);
 		goto err_drm_client_init;
 	}
-
-	ret = armada_fbdev_client_hotplug(&fbh->client);
-	if (ret)
-		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
 
 	drm_client_register(&fbh->client);
 

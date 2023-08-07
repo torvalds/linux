@@ -260,7 +260,7 @@ static void intel_shim_init(struct sdw_intel *sdw)
 {
 	void __iomem *shim = sdw->link_res->shim;
 	unsigned int link_id = sdw->instance;
-	u16 ioctl = 0, act = 0;
+	u16 ioctl = 0, act;
 
 	/* Initialize Shim */
 	ioctl |= SDW_SHIM_IOCTL_BKE;
@@ -281,6 +281,7 @@ static void intel_shim_init(struct sdw_intel *sdw)
 
 	intel_shim_glue_to_master_ip(sdw);
 
+	act = intel_readw(shim, SDW_SHIM_CTMCTL(link_id));
 	u16p_replace_bits(&act, 0x1, SDW_SHIM_CTMCTL_DOAIS);
 	act |= SDW_SHIM_CTMCTL_DACTQE;
 	act |= SDW_SHIM_CTMCTL_DODS;
@@ -643,7 +644,7 @@ intel_pdi_alh_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
 }
 
 static int intel_params_stream(struct sdw_intel *sdw,
-			       int stream,
+			       struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai,
 			       struct snd_pcm_hw_params *hw_params,
 			       int link_id, int alh_stream_id)
@@ -651,7 +652,7 @@ static int intel_params_stream(struct sdw_intel *sdw,
 	struct sdw_intel_link_res *res = sdw->link_res;
 	struct sdw_intel_stream_params_data params_data;
 
-	params_data.stream = stream; /* direction */
+	params_data.substream = substream;
 	params_data.dai = dai;
 	params_data.hw_params = hw_params;
 	params_data.link_id = link_id;
@@ -661,25 +662,6 @@ static int intel_params_stream(struct sdw_intel *sdw,
 		return res->ops->params_stream(res->dev,
 					       &params_data);
 	return -EIO;
-}
-
-static int intel_free_stream(struct sdw_intel *sdw,
-			     int stream,
-			     struct snd_soc_dai *dai,
-			     int link_id)
-{
-	struct sdw_intel_link_res *res = sdw->link_res;
-	struct sdw_intel_stream_free_data free_data;
-
-	free_data.stream = stream; /* direction */
-	free_data.dai = dai;
-	free_data.link_id = link_id;
-
-	if (res->ops && res->ops->free_stream && res->dev)
-		return res->ops->free_stream(res->dev,
-					     &free_data);
-
-	return 0;
 }
 
 /*
@@ -727,7 +709,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	dai_runtime->pdi = pdi;
 
 	/* Inform DSP about PDI stream number */
-	ret = intel_params_stream(sdw, substream->stream, dai, params,
+	ret = intel_params_stream(sdw, substream, dai, params,
 				  sdw->instance,
 				  pdi->intel_alh_id);
 	if (ret)
@@ -804,7 +786,7 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 		sdw_cdns_config_stream(cdns, ch, dir, dai_runtime->pdi);
 
 		/* Inform DSP about PDI stream number */
-		ret = intel_params_stream(sdw, substream->stream, dai,
+		ret = intel_params_stream(sdw, substream, dai,
 					  hw_params,
 					  sdw->instance,
 					  dai_runtime->pdi->intel_alh_id);
@@ -817,7 +799,6 @@ static int
 intel_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
-	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_cdns_dai_runtime *dai_runtime;
 	int ret;
 
@@ -835,12 +816,6 @@ intel_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 	if (ret < 0) {
 		dev_err(dai->dev, "remove master from stream %s failed: %d\n",
 			dai_runtime->stream->name, ret);
-		return ret;
-	}
-
-	ret = intel_free_stream(sdw, substream->stream, dai, sdw->instance);
-	if (ret < 0) {
-		dev_err(dai->dev, "intel_free_stream: failed %d\n", ret);
 		return ret;
 	}
 
@@ -871,18 +846,8 @@ static void *intel_get_sdw_stream(struct snd_soc_dai *dai,
 static int intel_trigger(struct snd_pcm_substream *substream, int cmd, struct snd_soc_dai *dai)
 {
 	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
-	struct sdw_intel *sdw = cdns_to_intel(cdns);
-	struct sdw_intel_link_res *res = sdw->link_res;
 	struct sdw_cdns_dai_runtime *dai_runtime;
 	int ret = 0;
-
-	/*
-	 * The .trigger callback is used to send required IPC to audio
-	 * firmware. The .free_stream callback will still be called
-	 * by intel_free_stream() in the TRIGGER_SUSPEND case.
-	 */
-	if (res->ops && res->ops->trigger)
-		res->ops->trigger(dai, cmd, substream->stream);
 
 	dai_runtime = cdns->dai_runtime_array[dai->id];
 	if (!dai_runtime) {
@@ -903,7 +868,6 @@ static int intel_trigger(struct snd_pcm_substream *substream, int cmd, struct sn
 
 		dai_runtime->suspended = true;
 
-		ret = intel_free_stream(sdw, substream->stream, dai, sdw->instance);
 		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -949,9 +913,7 @@ static int intel_component_dais_suspend(struct snd_soc_component *component)
 	 */
 	for_each_component_dais(component, dai) {
 		struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
-		struct sdw_intel *sdw = cdns_to_intel(cdns);
 		struct sdw_cdns_dai_runtime *dai_runtime;
-		int ret;
 
 		dai_runtime = cdns->dai_runtime_array[dai->id];
 
@@ -961,13 +923,8 @@ static int intel_component_dais_suspend(struct snd_soc_component *component)
 		if (dai_runtime->suspended)
 			continue;
 
-		if (dai_runtime->paused) {
+		if (dai_runtime->paused)
 			dai_runtime->suspended = true;
-
-			ret = intel_free_stream(sdw, dai_runtime->direction, dai, sdw->instance);
-			if (ret < 0)
-				return ret;
-		}
 	}
 
 	return 0;

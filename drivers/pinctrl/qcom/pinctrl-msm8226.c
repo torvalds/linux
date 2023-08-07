@@ -6,7 +6,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-msm.h"
 
@@ -263,27 +262,20 @@ static const unsigned int sdc2_clk_pins[] = { 120 };
 static const unsigned int sdc2_cmd_pins[] = { 121 };
 static const unsigned int sdc2_data_pins[] = { 122 };
 
-#define FUNCTION(fname)					\
-	[MSM_MUX_##fname] = {				\
-		.name = #fname,				\
-		.groups = fname##_groups,		\
-		.ngroups = ARRAY_SIZE(fname##_groups),	\
-	}
-
 #define PINGROUP(id, f1, f2, f3, f4, f5, f6, f7)	\
 	{						\
-		.name = "gpio" #id,			\
-		.pins = gpio##id##_pins,		\
-		.npins = ARRAY_SIZE(gpio##id##_pins),	\
+		.grp = PINCTRL_PINGROUP("gpio" #id, 	\
+			gpio##id##_pins, 		\
+			ARRAY_SIZE(gpio##id##_pins)),	\
 		.funcs = (int[]){			\
-			MSM_MUX_gpio,			\
-			MSM_MUX_##f1,			\
-			MSM_MUX_##f2,			\
-			MSM_MUX_##f3,			\
-			MSM_MUX_##f4,			\
-			MSM_MUX_##f5,			\
-			MSM_MUX_##f6,			\
-			MSM_MUX_##f7			\
+			msm_mux_gpio,			\
+			msm_mux_##f1,			\
+			msm_mux_##f2,			\
+			msm_mux_##f3,			\
+			msm_mux_##f4,			\
+			msm_mux_##f5,			\
+			msm_mux_##f6,			\
+			msm_mux_##f7			\
 		},					\
 		.nfuncs = 8,				\
 		.ctl_reg = 0x1000 + 0x10 * id,		\
@@ -309,9 +301,9 @@ static const unsigned int sdc2_data_pins[] = { 122 };
 
 #define SDC_PINGROUP(pg_name, ctl, pull, drv)		\
 	{						\
-		.name = #pg_name,			\
-		.pins = pg_name##_pins,			\
-		.npins = ARRAY_SIZE(pg_name##_pins),	\
+		.grp = PINCTRL_PINGROUP(#pg_name, 	\
+			pg_name##_pins, 		\
+			ARRAY_SIZE(pg_name##_pins)),	\
 		.ctl_reg = ctl,				\
 		.io_reg = 0,				\
 		.intr_cfg_reg = 0,			\
@@ -338,36 +330,36 @@ static const unsigned int sdc2_data_pins[] = { 122 };
  * the pingroup table below.
  */
 enum msm8226_functions {
-	MSM_MUX_audio_pcm,
-	MSM_MUX_blsp_i2c1,
-	MSM_MUX_blsp_i2c2,
-	MSM_MUX_blsp_i2c3,
-	MSM_MUX_blsp_i2c4,
-	MSM_MUX_blsp_i2c5,
-	MSM_MUX_blsp_spi1,
-	MSM_MUX_blsp_spi2,
-	MSM_MUX_blsp_spi3,
-	MSM_MUX_blsp_spi4,
-	MSM_MUX_blsp_spi5,
-	MSM_MUX_blsp_uart1,
-	MSM_MUX_blsp_uart2,
-	MSM_MUX_blsp_uart3,
-	MSM_MUX_blsp_uart4,
-	MSM_MUX_blsp_uart5,
-	MSM_MUX_blsp_uim1,
-	MSM_MUX_blsp_uim2,
-	MSM_MUX_blsp_uim3,
-	MSM_MUX_blsp_uim4,
-	MSM_MUX_blsp_uim5,
-	MSM_MUX_cam_mclk0,
-	MSM_MUX_cam_mclk1,
-	MSM_MUX_cci_i2c0,
-	MSM_MUX_gp0_clk,
-	MSM_MUX_gp1_clk,
-	MSM_MUX_gpio,
-	MSM_MUX_sdc3,
-	MSM_MUX_wlan,
-	MSM_MUX_NA,
+	msm_mux_audio_pcm,
+	msm_mux_blsp_i2c1,
+	msm_mux_blsp_i2c2,
+	msm_mux_blsp_i2c3,
+	msm_mux_blsp_i2c4,
+	msm_mux_blsp_i2c5,
+	msm_mux_blsp_spi1,
+	msm_mux_blsp_spi2,
+	msm_mux_blsp_spi3,
+	msm_mux_blsp_spi4,
+	msm_mux_blsp_spi5,
+	msm_mux_blsp_uart1,
+	msm_mux_blsp_uart2,
+	msm_mux_blsp_uart3,
+	msm_mux_blsp_uart4,
+	msm_mux_blsp_uart5,
+	msm_mux_blsp_uim1,
+	msm_mux_blsp_uim2,
+	msm_mux_blsp_uim3,
+	msm_mux_blsp_uim4,
+	msm_mux_blsp_uim5,
+	msm_mux_cam_mclk0,
+	msm_mux_cam_mclk1,
+	msm_mux_cci_i2c0,
+	msm_mux_gp0_clk,
+	msm_mux_gp1_clk,
+	msm_mux_gpio,
+	msm_mux_sdc3,
+	msm_mux_wlan,
+	msm_mux_NA,
 };
 
 static const char * const gpio_groups[] = {
@@ -460,36 +452,36 @@ static const char * const wlan_groups[] = {
 	"gpio40", "gpio41", "gpio42", "gpio43", "gpio44"
 };
 
-static const struct msm_function msm8226_functions[] = {
-	FUNCTION(audio_pcm),
-	FUNCTION(blsp_i2c1),
-	FUNCTION(blsp_i2c2),
-	FUNCTION(blsp_i2c3),
-	FUNCTION(blsp_i2c4),
-	FUNCTION(blsp_i2c5),
-	FUNCTION(blsp_spi1),
-	FUNCTION(blsp_spi2),
-	FUNCTION(blsp_spi3),
-	FUNCTION(blsp_spi4),
-	FUNCTION(blsp_spi5),
-	FUNCTION(blsp_uart1),
-	FUNCTION(blsp_uart2),
-	FUNCTION(blsp_uart3),
-	FUNCTION(blsp_uart4),
-	FUNCTION(blsp_uart5),
-	FUNCTION(blsp_uim1),
-	FUNCTION(blsp_uim2),
-	FUNCTION(blsp_uim3),
-	FUNCTION(blsp_uim4),
-	FUNCTION(blsp_uim5),
-	FUNCTION(cam_mclk0),
-	FUNCTION(cam_mclk1),
-	FUNCTION(cci_i2c0),
-	FUNCTION(gp0_clk),
-	FUNCTION(gp1_clk),
-	FUNCTION(gpio),
-	FUNCTION(sdc3),
-	FUNCTION(wlan),
+static const struct pinfunction msm8226_functions[] = {
+	MSM_PIN_FUNCTION(audio_pcm),
+	MSM_PIN_FUNCTION(blsp_i2c1),
+	MSM_PIN_FUNCTION(blsp_i2c2),
+	MSM_PIN_FUNCTION(blsp_i2c3),
+	MSM_PIN_FUNCTION(blsp_i2c4),
+	MSM_PIN_FUNCTION(blsp_i2c5),
+	MSM_PIN_FUNCTION(blsp_spi1),
+	MSM_PIN_FUNCTION(blsp_spi2),
+	MSM_PIN_FUNCTION(blsp_spi3),
+	MSM_PIN_FUNCTION(blsp_spi4),
+	MSM_PIN_FUNCTION(blsp_spi5),
+	MSM_PIN_FUNCTION(blsp_uart1),
+	MSM_PIN_FUNCTION(blsp_uart2),
+	MSM_PIN_FUNCTION(blsp_uart3),
+	MSM_PIN_FUNCTION(blsp_uart4),
+	MSM_PIN_FUNCTION(blsp_uart5),
+	MSM_PIN_FUNCTION(blsp_uim1),
+	MSM_PIN_FUNCTION(blsp_uim2),
+	MSM_PIN_FUNCTION(blsp_uim3),
+	MSM_PIN_FUNCTION(blsp_uim4),
+	MSM_PIN_FUNCTION(blsp_uim5),
+	MSM_PIN_FUNCTION(cam_mclk0),
+	MSM_PIN_FUNCTION(cam_mclk1),
+	MSM_PIN_FUNCTION(cci_i2c0),
+	MSM_PIN_FUNCTION(gp0_clk),
+	MSM_PIN_FUNCTION(gp1_clk),
+	MSM_PIN_FUNCTION(gpio),
+	MSM_PIN_FUNCTION(sdc3),
+	MSM_PIN_FUNCTION(wlan),
 };
 
 static const struct msm_pingroup msm8226_groups[] = {

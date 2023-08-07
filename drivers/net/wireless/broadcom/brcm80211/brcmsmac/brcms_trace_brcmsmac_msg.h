@@ -24,6 +24,11 @@
 
 #define MAX_MSG_LEN	100
 
+#pragma GCC diagnostic push
+#ifndef __clang__
+#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
+#endif
+
 DECLARE_EVENT_CLASS(brcms_msg_event,
 	TP_PROTO(struct va_format *vaf),
 	TP_ARGS(vaf),
@@ -71,6 +76,9 @@ TRACE_EVENT(brcms_dbg,
 	),
 	TP_printk("%s: %s", __get_str(func), __get_str(msg))
 );
+
+#pragma GCC diagnostic pop
+
 #endif /* __TRACE_BRCMSMAC_MSG_H */
 
 #ifdef CONFIG_BRCM_TRACING

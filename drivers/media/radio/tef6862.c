@@ -183,7 +183,7 @@ static struct i2c_driver tef6862_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
 	},
-	.probe_new	= tef6862_probe,
+	.probe		= tef6862_probe,
 	.remove		= tef6862_remove,
 	.id_table	= tef6862_id,
 };

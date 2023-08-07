@@ -211,6 +211,13 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 #ifdef CONFIG_X86_MCE_THRESHOLD
 	sum += irq_stats(cpu)->irq_threshold_count;
 #endif
+#ifdef CONFIG_X86_HV_CALLBACK_VECTOR
+	sum += irq_stats(cpu)->irq_hv_callback_count;
+#endif
+#if IS_ENABLED(CONFIG_HYPERV)
+	sum += irq_stats(cpu)->irq_hv_reenlightenment_count;
+	sum += irq_stats(cpu)->hyperv_stimer0_count;
+#endif
 #ifdef CONFIG_X86_MCE
 	sum += per_cpu(mce_exception_count, cpu);
 	sum += per_cpu(mce_poll_count, cpu);

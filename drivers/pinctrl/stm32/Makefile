@@ -10,3 +10,4 @@ obj-$(CONFIG_PINCTRL_STM32F769)	+= pinctrl-stm32f769.o
 obj-$(CONFIG_PINCTRL_STM32H743)	+= pinctrl-stm32h743.o
 obj-$(CONFIG_PINCTRL_STM32MP135) += pinctrl-stm32mp135.o
 obj-$(CONFIG_PINCTRL_STM32MP157) += pinctrl-stm32mp157.o
+obj-$(CONFIG_PINCTRL_STM32MP257) += pinctrl-stm32mp257.o

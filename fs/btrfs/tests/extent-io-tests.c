@@ -159,7 +159,7 @@ static int test_find_delalloc(u32 sectorsize)
 	 * |--- delalloc ---|
 	 * |---  search  ---|
 	 */
-	set_extent_delalloc(tmp, 0, sectorsize - 1, 0, NULL);
+	set_extent_bit(tmp, 0, sectorsize - 1, EXTENT_DELALLOC, NULL);
 	start = 0;
 	end = start + PAGE_SIZE - 1;
 	found = find_lock_delalloc_range(inode, locked_page, &start,
@@ -190,7 +190,7 @@ static int test_find_delalloc(u32 sectorsize)
 		test_err("couldn't find the locked page");
 		goto out_bits;
 	}
-	set_extent_delalloc(tmp, sectorsize, max_bytes - 1, 0, NULL);
+	set_extent_bit(tmp, sectorsize, max_bytes - 1, EXTENT_DELALLOC, NULL);
 	start = test_start;
 	end = start + PAGE_SIZE - 1;
 	found = find_lock_delalloc_range(inode, locked_page, &start,
@@ -245,7 +245,7 @@ static int test_find_delalloc(u32 sectorsize)
 	 *
 	 * We are re-using our test_start from above since it works out well.
 	 */
-	set_extent_delalloc(tmp, max_bytes, total_dirty - 1, 0, NULL);
+	set_extent_bit(tmp, max_bytes, total_dirty - 1, EXTENT_DELALLOC, NULL);
 	start = test_start;
 	end = start + PAGE_SIZE - 1;
 	found = find_lock_delalloc_range(inode, locked_page, &start,
@@ -503,8 +503,8 @@ static int test_find_first_clear_extent_bit(void)
 	 * Set 1M-4M alloc/discard and 32M-64M thus leaving a hole between
 	 * 4M-32M
 	 */
-	set_extent_bits(&tree, SZ_1M, SZ_4M - 1,
-			CHUNK_TRIMMED | CHUNK_ALLOCATED);
+	set_extent_bit(&tree, SZ_1M, SZ_4M - 1,
+		       CHUNK_TRIMMED | CHUNK_ALLOCATED, NULL);
 
 	find_first_clear_extent_bit(&tree, SZ_512K, &start, &end,
 				    CHUNK_TRIMMED | CHUNK_ALLOCATED);
@@ -516,8 +516,8 @@ static int test_find_first_clear_extent_bit(void)
 	}
 
 	/* Now add 32M-64M so that we have a hole between 4M-32M */
-	set_extent_bits(&tree, SZ_32M, SZ_64M - 1,
-			CHUNK_TRIMMED | CHUNK_ALLOCATED);
+	set_extent_bit(&tree, SZ_32M, SZ_64M - 1,
+		       CHUNK_TRIMMED | CHUNK_ALLOCATED, NULL);
 
 	/*
 	 * Request first hole starting at 12M, we should get 4M-32M
@@ -548,7 +548,7 @@ static int test_find_first_clear_extent_bit(void)
 	 * Set 64M-72M with CHUNK_ALLOC flag, then search for CHUNK_TRIMMED flag
 	 * being unset in this range, we should get the entry in range 64M-72M
 	 */
-	set_extent_bits(&tree, SZ_64M, SZ_64M + SZ_8M - 1, CHUNK_ALLOCATED);
+	set_extent_bit(&tree, SZ_64M, SZ_64M + SZ_8M - 1, CHUNK_ALLOCATED, NULL);
 	find_first_clear_extent_bit(&tree, SZ_64M + SZ_1M, &start, &end,
 				    CHUNK_TRIMMED);
 

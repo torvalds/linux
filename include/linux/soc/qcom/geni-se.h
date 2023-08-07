@@ -490,8 +490,12 @@ int geni_se_clk_freq_match(struct geni_se *se, unsigned long req_freq,
 			   unsigned int *index, unsigned long *res_freq,
 			   bool exact);
 
+void geni_se_tx_init_dma(struct geni_se *se, dma_addr_t iova, size_t len);
+
 int geni_se_tx_dma_prep(struct geni_se *se, void *buf, size_t len,
 			dma_addr_t *iova);
+
+void geni_se_rx_init_dma(struct geni_se *se, dma_addr_t iova, size_t len);
 
 int geni_se_rx_dma_prep(struct geni_se *se, void *buf, size_t len,
 			dma_addr_t *iova);

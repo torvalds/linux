@@ -52,15 +52,15 @@ struct cs_etm_decoder {
 static u32
 cs_etm_decoder__mem_access(const void *context,
 			   const ocsd_vaddr_t address,
-			   const ocsd_mem_space_acc_t mem_space __maybe_unused,
+			   const ocsd_mem_space_acc_t mem_space,
 			   const u8 trace_chan_id,
 			   const u32 req_size,
 			   u8 *buffer)
 {
 	struct cs_etm_decoder *decoder = (struct cs_etm_decoder *) context;
 
-	return decoder->mem_access(decoder->data, trace_chan_id,
-				   address, req_size, buffer);
+	return decoder->mem_access(decoder->data, trace_chan_id, address,
+				   req_size, buffer, mem_space);
 }
 
 int cs_etm_decoder__add_mem_access_cb(struct cs_etm_decoder *decoder,
@@ -541,43 +541,32 @@ cs_etm_decoder__set_tid(struct cs_etm_queue *etmq,
 			const uint8_t trace_chan_id)
 {
 	pid_t tid = -1;
-	static u64 pid_fmt;
-	int ret;
-
-	/*
-	 * As all the ETMs run at the same exception level, the system should
-	 * have the same PID format crossing CPUs.  So cache the PID format
-	 * and reuse it for sequential decoding.
-	 */
-	if (!pid_fmt) {
-		ret = cs_etm__get_pid_fmt(trace_chan_id, &pid_fmt);
-		if (ret)
-			return OCSD_RESP_FATAL_SYS_ERR;
-	}
 
 	/*
 	 * Process the PE_CONTEXT packets if we have a valid contextID or VMID.
 	 * If the kernel is running at EL2, the PID is traced in CONTEXTIDR_EL2
 	 * as VMID, Bit ETM_OPT_CTXTID2 is set in this case.
 	 */
-	switch (pid_fmt) {
-	case BIT(ETM_OPT_CTXTID):
+	switch (cs_etm__get_pid_fmt(etmq)) {
+	case CS_ETM_PIDFMT_CTXTID:
 		if (elem->context.ctxt_id_valid)
 			tid = elem->context.context_id;
 		break;
-	case BIT(ETM_OPT_CTXTID2):
+	case CS_ETM_PIDFMT_CTXTID2:
 		if (elem->context.vmid_valid)
 			tid = elem->context.vmid;
 		break;
+	case CS_ETM_PIDFMT_NONE:
 	default:
 		break;
 	}
 
+	if (cs_etm__etmq_set_tid_el(etmq, tid, trace_chan_id,
+				    elem->context.exception_level))
+		return OCSD_RESP_FATAL_SYS_ERR;
+
 	if (tid == -1)
 		return OCSD_RESP_CONT;
-
-	if (cs_etm__etmq_set_tid(etmq, tid, trace_chan_id))
-		return OCSD_RESP_FATAL_SYS_ERR;
 
 	/*
 	 * A timestamp is generated after a PE_CONTEXT element so make sure

@@ -1,17 +1,17 @@
-	acpi=		[HW,ACPI,X86,ARM64]
+	acpi=		[HW,ACPI,X86,ARM64,RISCV64]
 			Advanced Configuration and Power Interface
 			Format: { force | on | off | strict | noirq | rsdt |
 				  copy_dsdt }
 			force -- enable ACPI if default was off
-			on -- enable ACPI but allow fallback to DT [arm64]
+			on -- enable ACPI but allow fallback to DT [arm64,riscv64]
 			off -- disable ACPI if default was on
 			noirq -- do not use ACPI for IRQ routing
 			strict -- Be less tolerant of platforms that are not
 				strictly ACPI specification compliant.
 			rsdt -- prefer RSDT over (default) XSDT
 			copy_dsdt -- copy DSDT to memory
-			For ARM64, ONLY "acpi=off", "acpi=on" or "acpi=force"
-			are available
+			For ARM64 and RISCV64, ONLY "acpi=off", "acpi=on" or
+			"acpi=force" are available
 
 			See also Documentation/power/runtime_pm.rst, pci=noacpi
 
@@ -304,7 +304,7 @@
 			EL0 is indicated by /sys/devices/system/cpu/aarch32_el0
 			and hot-unplug operations may be restricted.
 
-			See Documentation/arm64/asymmetric-32bit.rst for more
+			See Documentation/arch/arm64/asymmetric-32bit.rst for more
 			information.
 
 	amd_iommu=	[HW,X86-64]
@@ -323,6 +323,7 @@
 				       option with care.
 			pgtbl_v1     - Use v1 page table for DMA-API (Default).
 			pgtbl_v2     - Use v2 page table for DMA-API.
+			irtcachedis  - Disable Interrupt Remapping Table (IRT) caching.
 
 	amd_iommu_dump=	[HW,X86-64]
 			Enable AMD IOMMU driver option to dump the ACPI table
@@ -428,6 +429,9 @@
 
 	arm64.nosme	[ARM64] Unconditionally disable Scalable Matrix
 			Extension support
+
+	arm64.nomops	[ARM64] Unconditionally disable Memory Copy and Memory
+			Set instructions support
 
 	ataflop=	[HW,M68k]
 
@@ -818,20 +822,6 @@
 			Format:
 			<first_slot>,<last_slot>,<port>,<enum_bit>[,<debug>]
 
-	cpu0_hotplug	[X86] Turn on CPU0 hotplug feature when
-			CONFIG_BOOTPARAM_HOTPLUG_CPU0 is off.
-			Some features depend on CPU0. Known dependencies are:
-			1. Resume from suspend/hibernate depends on CPU0.
-			Suspend/hibernate will fail if CPU0 is offline and you
-			need to online CPU0 before suspend/hibernate.
-			2. PIC interrupts also depend on CPU0. CPU0 can't be
-			removed if a PIC interrupt is detected.
-			It's said poweroff/reboot may depend on CPU0 on some
-			machines although I haven't seen such issues so far
-			after CPU0 is offline on a few tested machines.
-			If the dependencies are under your control, you can
-			turn on cpu0_hotplug.
-
 	cpuidle.off=1	[CPU_IDLE]
 			disable the cpuidle sub-system
 
@@ -851,6 +841,12 @@
 			of APIC INIT to start processors.  This delay occurs
 			on every CPU online, such as boot, and resume from suspend.
 			Default: 10000
+
+	cpuhp.parallel=
+			[SMP] Enable/disable parallel bringup of secondary CPUs
+			Format: <bool>
+			Default is enabled if CONFIG_HOTPLUG_PARALLEL=y. Otherwise
+			the parameter has no effect.
 
 	crash_kexec_post_notifiers
 			Run kdump after running panic-notifiers and dumping
@@ -2117,6 +2113,16 @@
 			disable
 			  Do not enable intel_pstate as the default
 			  scaling driver for the supported processors
+                        active
+                          Use intel_pstate driver to bypass the scaling
+                          governors layer of cpufreq and provides it own
+                          algorithms for p-state selection. There are two
+                          P-state selection algorithms provided by
+                          intel_pstate in the active mode: powersave and
+                          performance.  The way they both operate depends
+                          on whether or not the hardware managed P-states
+                          (HWP) feature has been enabled in the processor
+                          and possibly on the processor model.
 			passive
 			  Use intel_pstate as a scaling driver, but configure it
 			  to work with generic cpufreq governors (instead of
@@ -2551,12 +2557,13 @@
 			If the value is 0 (the default), KVM will pick a period based
 			on the ratio, such that a page is zapped after 1 hour on average.
 
-	kvm-amd.nested=	[KVM,AMD] Allow nested virtualization in KVM/SVM.
-			Default is 1 (enabled)
+	kvm-amd.nested=	[KVM,AMD] Control nested virtualization feature in
+			KVM/SVM. Default is 1 (enabled).
 
-	kvm-amd.npt=	[KVM,AMD] Disable nested paging (virtualized MMU)
-			for all guests.
-			Default is 1 (enabled) if in 64-bit or 32-bit PAE mode.
+	kvm-amd.npt=	[KVM,AMD] Control KVM's use of Nested Page Tables,
+			a.k.a. Two-Dimensional Page Tables. Default is 1
+			(enabled). Disable by KVM if hardware lacks support
+			for NPT.
 
 	kvm-arm.mode=
 			[KVM,ARM] Select one of KVM/arm64's modes of operation.
@@ -2602,30 +2609,33 @@
 			Format: <integer>
 			Default: 5
 
-	kvm-intel.ept=	[KVM,Intel] Disable extended page tables
-			(virtualized MMU) support on capable Intel chips.
-			Default is 1 (enabled)
+	kvm-intel.ept=	[KVM,Intel] Control KVM's use of Extended Page Tables,
+			a.k.a. Two-Dimensional Page Tables.  Default is 1
+			(enabled). Disable by KVM if hardware lacks support
+			for EPT.
 
 	kvm-intel.emulate_invalid_guest_state=
-			[KVM,Intel] Disable emulation of invalid guest state.
-			Ignored if kvm-intel.enable_unrestricted_guest=1, as
-			guest state is never invalid for unrestricted guests.
-			This param doesn't apply to nested guests (L2), as KVM
-			never emulates invalid L2 guest state.
-			Default is 1 (enabled)
+			[KVM,Intel] Control whether to emulate invalid guest
+			state. Ignored if kvm-intel.enable_unrestricted_guest=1,
+			as guest state is never invalid for unrestricted
+			guests. This param doesn't apply to nested guests (L2),
+			as KVM never emulates invalid L2 guest state.
+			Default is 1 (enabled).
 
 	kvm-intel.flexpriority=
-			[KVM,Intel] Disable FlexPriority feature (TPR shadow).
-			Default is 1 (enabled)
+			[KVM,Intel] Control KVM's use of FlexPriority feature
+			(TPR shadow). Default is 1 (enabled). Disalbe by KVM if
+			hardware lacks support for it.
 
 	kvm-intel.nested=
-			[KVM,Intel] Enable VMX nesting (nVMX).
-			Default is 0 (disabled)
+			[KVM,Intel] Control nested virtualization feature in
+			KVM/VMX. Default is 1 (enabled).
 
 	kvm-intel.unrestricted_guest=
-			[KVM,Intel] Disable unrestricted guest feature
-			(virtualized real and unpaged mode) on capable
-			Intel chips. Default is 1 (enabled)
+			[KVM,Intel] Control KVM's use of unrestricted guest
+			feature (virtualized real and unpaged mode). Default
+			is 1 (enabled). Disable by KVM if EPT is disabled or
+			hardware lacks support for it.
 
 	kvm-intel.vmentry_l1d_flush=[KVM,Intel] Mitigation for L1 Terminal Fault
 			CVE-2018-3620.
@@ -2639,9 +2649,10 @@
 
 			Default is cond (do L1 cache flush in specific instances)
 
-	kvm-intel.vpid=	[KVM,Intel] Disable Virtual Processor Identification
-			feature (tagged TLBs) on capable Intel chips.
-			Default is 1 (enabled)
+	kvm-intel.vpid=	[KVM,Intel] Control KVM's use of Virtual Processor
+			Identification feature (tagged TLBs). Default is 1
+			(enabled). Disable by KVM if hardware lacks support
+			for it.
 
 	l1d_flush=	[X86,INTEL]
 			Control mitigation for L1D based snooping vulnerability.
@@ -3423,6 +3434,10 @@
 			[HW] Make the MicroTouch USB driver use raw coordinates
 			('y', default) or cooked coordinates ('n')
 
+	mtrr=debug	[X86]
+			Enable printing debug information related to MTRR
+			registers at boot time.
+
 	mtrr_chunk_size=nn[KMG] [X86]
 			used for mtrr cleanup. It is largest continuous chunk
 			that could hold holes aka. UC entries.
@@ -3702,8 +3717,8 @@
 
 	nohibernate	[HIBERNATION] Disable hibernation and resume.
 
-	nohlt		[ARM,ARM64,MICROBLAZE,SH] Forces the kernel to busy wait
-			in do_idle() and not use the arch_cpu_idle()
+	nohlt		[ARM,ARM64,MICROBLAZE,MIPS,SH] Forces the kernel to
+			busy wait in do_idle() and not use the arch_cpu_idle()
 			implementation; requires CONFIG_GENERIC_IDLE_POLL_SETUP
 			to be effective. This is useful on platforms where the
 			sleep(SH) or wfi(ARM,ARM64) instructions do not work
@@ -3838,7 +3853,7 @@
 	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel,
 			and disable the IO APIC.  legacy for "maxcpus=0".
 
-	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
+	nosmt		[KNL,MIPS,S390] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
 
 			[KNL,X86] Disable symmetric multithreading (SMT).
@@ -4049,7 +4064,7 @@
 			extra details on the taint flags that users can pick
 			to compose the bitmask to assign to panic_on_taint.
 
-	panic_on_warn	panic() instead of WARN().  Useful to cause kdump
+	panic_on_warn=1	panic() instead of WARN().  Useful to cause kdump
 			on a WARN().
 
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
@@ -4736,43 +4751,6 @@
 			the propagation of recent CPU-hotplug changes up
 			the rcu_node combining tree.
 
-	rcutree.use_softirq=	[KNL]
-			If set to zero, move all RCU_SOFTIRQ processing to
-			per-CPU rcuc kthreads.  Defaults to a non-zero
-			value, meaning that RCU_SOFTIRQ is used by default.
-			Specify rcutree.use_softirq=0 to use rcuc kthreads.
-
-			But note that CONFIG_PREEMPT_RT=y kernels disable
-			this kernel boot parameter, forcibly setting it
-			to zero.
-
-	rcutree.rcu_fanout_exact= [KNL]
-			Disable autobalancing of the rcu_node combining
-			tree.  This is used by rcutorture, and might
-			possibly be useful for architectures having high
-			cache-to-cache transfer latencies.
-
-	rcutree.rcu_fanout_leaf= [KNL]
-			Change the number of CPUs assigned to each
-			leaf rcu_node structure.  Useful for very
-			large systems, which will choose the value 64,
-			and for NUMA systems with large remote-access
-			latencies, which will choose a value aligned
-			with the appropriate hardware boundaries.
-
-	rcutree.rcu_min_cached_objs= [KNL]
-			Minimum number of objects which are cached and
-			maintained per one CPU. Object size is equal
-			to PAGE_SIZE. The cache allows to reduce the
-			pressure to page allocator, also it makes the
-			whole algorithm to behave better in low memory
-			condition.
-
-	rcutree.rcu_delay_page_cache_fill_msec= [KNL]
-			Set the page-cache refill delay (in milliseconds)
-			in response to low-memory conditions.  The range
-			of permitted values is in the range 0:100000.
-
 	rcutree.jiffies_till_first_fqs= [KNL]
 			Set delay from grace-period initialization to
 			first attempt to force quiescent states.
@@ -4811,21 +4789,6 @@
 			When RCU_NOCB_CPU is set, also adjust the
 			priority of NOCB callback kthreads.
 
-	rcutree.rcu_divisor= [KNL]
-			Set the shift-right count to use to compute
-			the callback-invocation batch limit bl from
-			the number of callbacks queued on this CPU.
-			The result will be bounded below by the value of
-			the rcutree.blimit kernel parameter.  Every bl
-			callbacks, the softirq handler will exit in
-			order to allow the CPU to do other work.
-
-			Please note that this callback-invocation batch
-			limit applies only to non-offloaded callback
-			invocation.  Offloaded callbacks are instead
-			invoked in the context of an rcuoc kthread, which
-			scheduler will preempt as it does any other task.
-
 	rcutree.nocb_nobypass_lim_per_jiffy= [KNL]
 			On callback-offloaded (rcu_nocbs) CPUs,
 			RCU reduces the lock contention that would
@@ -4838,14 +4801,6 @@
 			a single jiffy, RCU pre-queues the callbacks into
 			the ->nocb_bypass queue.  The definition of "too
 			many" is supplied by this kernel boot parameter.
-
-	rcutree.rcu_nocb_gp_stride= [KNL]
-			Set the number of NOCB callback kthreads in
-			each group, which defaults to the square root
-			of the number of CPUs.	Larger numbers reduce
-			the wakeup overhead on the global grace-period
-			kthread, but increases that same overhead on
-			each group's NOCB grace-period kthread.
 
 	rcutree.qhimark= [KNL]
 			Set threshold of queued RCU callbacks beyond which
@@ -4864,12 +4819,69 @@
 			on rcutree.qhimark at boot time and to zero to
 			disable more aggressive help enlistment.
 
+	rcutree.rcu_delay_page_cache_fill_msec= [KNL]
+			Set the page-cache refill delay (in milliseconds)
+			in response to low-memory conditions.  The range
+			of permitted values is in the range 0:100000.
+
+	rcutree.rcu_divisor= [KNL]
+			Set the shift-right count to use to compute
+			the callback-invocation batch limit bl from
+			the number of callbacks queued on this CPU.
+			The result will be bounded below by the value of
+			the rcutree.blimit kernel parameter.  Every bl
+			callbacks, the softirq handler will exit in
+			order to allow the CPU to do other work.
+
+			Please note that this callback-invocation batch
+			limit applies only to non-offloaded callback
+			invocation.  Offloaded callbacks are instead
+			invoked in the context of an rcuoc kthread, which
+			scheduler will preempt as it does any other task.
+
+	rcutree.rcu_fanout_exact= [KNL]
+			Disable autobalancing of the rcu_node combining
+			tree.  This is used by rcutorture, and might
+			possibly be useful for architectures having high
+			cache-to-cache transfer latencies.
+
+	rcutree.rcu_fanout_leaf= [KNL]
+			Change the number of CPUs assigned to each
+			leaf rcu_node structure.  Useful for very
+			large systems, which will choose the value 64,
+			and for NUMA systems with large remote-access
+			latencies, which will choose a value aligned
+			with the appropriate hardware boundaries.
+
+	rcutree.rcu_min_cached_objs= [KNL]
+			Minimum number of objects which are cached and
+			maintained per one CPU. Object size is equal
+			to PAGE_SIZE. The cache allows to reduce the
+			pressure to page allocator, also it makes the
+			whole algorithm to behave better in low memory
+			condition.
+
+	rcutree.rcu_nocb_gp_stride= [KNL]
+			Set the number of NOCB callback kthreads in
+			each group, which defaults to the square root
+			of the number of CPUs.	Larger numbers reduce
+			the wakeup overhead on the global grace-period
+			kthread, but increases that same overhead on
+			each group's NOCB grace-period kthread.
+
 	rcutree.rcu_kick_kthreads= [KNL]
 			Cause the grace-period kthread to get an extra
 			wake_up() if it sleeps three times longer than
 			it should at force-quiescent-state time.
 			This wake_up() will be accompanied by a
 			WARN_ONCE() splat and an ftrace_dump().
+
+	rcutree.rcu_resched_ns= [KNL]
+			Limit the time spend invoking a batch of RCU
+			callbacks to the specified number of nanoseconds.
+			By default, this limit is checked only once
+			every 32 callbacks in order to limit the pain
+			inflicted by local_clock() overhead.
 
 	rcutree.rcu_unlock_delay= [KNL]
 			In CONFIG_RCU_STRICT_GRACE_PERIOD=y kernels,
@@ -4884,6 +4896,16 @@
 			Commandeer a sysrq key to dump out Tree RCU's
 			rcu_node tree with an eye towards determining
 			why a new grace period has not yet started.
+
+	rcutree.use_softirq=	[KNL]
+			If set to zero, move all RCU_SOFTIRQ processing to
+			per-CPU rcuc kthreads.  Defaults to a non-zero
+			value, meaning that RCU_SOFTIRQ is used by default.
+			Specify rcutree.use_softirq=0 to use rcuc kthreads.
+
+			But note that CONFIG_PREEMPT_RT=y kernels disable
+			this kernel boot parameter, forcibly setting it
+			to zero.
 
 	rcuscale.gp_async= [KNL]
 			Measure performance of asynchronous
@@ -5087,8 +5109,17 @@
 
 	rcutorture.stall_cpu_block= [KNL]
 			Sleep while stalling if set.  This will result
-			in warnings from preemptible RCU in addition
-			to any other stall-related activity.
+			in warnings from preemptible RCU in addition to
+			any other stall-related activity.  Note that
+			in kernels built with CONFIG_PREEMPTION=n and
+			CONFIG_PREEMPT_COUNT=y, this parameter will
+			cause the CPU to pass through a quiescent state.
+			Given CONFIG_PREEMPTION=n, this will suppress
+			RCU CPU stall warnings, but will instead result
+			in scheduling-while-atomic splats.
+
+			Use of this module parameter results in splats.
+
 
 	rcutorture.stall_cpu_holdoff= [KNL]
 			Time to wait (s) after boot before inducing stall.
@@ -5452,7 +5483,12 @@
 			port and the regular usb controller gets disabled.
 
 	root=		[KNL] Root filesystem
-			See name_to_dev_t comment in init/do_mounts.c.
+			Usually this a a block device specifier of some kind,
+			see the early_lookup_bdev comment in
+			block/early-lookup.c for details.
+			Alternatively this can be "ram" for the legacy initial
+			ramdisk, "nfs" and "cifs" for root on a network file
+			system, or "mtd" and "ubi" for mounting from raw flash.
 
 	rootdelay=	[KNL] Delay (in seconds) to pause before attempting to
 			mount the root filesystem
@@ -5735,7 +5771,7 @@
 				1: Fast pin select (default)
 				2: ATC IRMode
 
-	smt=		[KNL,S390] Set the maximum number of threads (logical
+	smt=		[KNL,MIPS,S390] Set the maximum number of threads (logical
 			CPUs) to use per physical CPU on systems capable of
 			symmetric multithreading (SMT). Will be capped to the
 			actual hardware limit.
@@ -6563,6 +6599,12 @@
 	unknown_nmi_panic
 			[X86] Cause panic on unknown NMI.
 
+	unwind_debug	[X86-64]
+			Enable unwinder debug output.  This can be
+			useful for debugging certain unwinder error
+			conditions, including corrupt stacks and
+			bad/missing unwinder metadata.
+
 	usbcore.authorized_default=
 			[USB] Default USB device authorization:
 			(default -1 = authorized except for wireless USB,
@@ -6930,6 +6972,18 @@
 			duration in seconds.  The default value is 30 and
 			it can be updated at runtime by writing to the
 			corresponding sysfs file.
+
+	workqueue.cpu_intensive_thresh_us=
+			Per-cpu work items which run for longer than this
+			threshold are automatically considered CPU intensive
+			and excluded from concurrency management to prevent
+			them from noticeably delaying other per-cpu work
+			items. Default is 10000 (10ms).
+
+			If CONFIG_WQ_CPU_INTENSIVE_REPORT is set, the kernel
+			will report the work functions which violate this
+			threshold repeatedly. They are likely good
+			candidates for using WQ_UNBOUND workqueues instead.
 
 	workqueue.disable_numa
 			By default, all work items queued to unbound

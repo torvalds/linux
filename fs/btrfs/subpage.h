@@ -8,17 +8,17 @@
 /*
  * Extra info for subpapge bitmap.
  *
- * For subpage we pack all uptodate/error/dirty/writeback/ordered bitmaps into
+ * For subpage we pack all uptodate/dirty/writeback/ordered bitmaps into
  * one larger bitmap.
  *
  * This structure records how they are organized in the bitmap:
  *
- * /- uptodate_offset	/- error_offset	/- dirty_offset
+ * /- uptodate_offset	/- dirty_offset	/- ordered_offset
  * |			|		|
  * v			v		v
- * |u|u|u|u|........|u|u|e|e|.......|e|e| ...	|o|o|
+ * |u|u|u|u|........|u|u|d|d|.......|d|d|o|o|.......|o|o|
  * |<- bitmap_nr_bits ->|
- * |<--------------- total_nr_bits ---------------->|
+ * |<----------------- total_nr_bits ------------------>|
  */
 struct btrfs_subpage_info {
 	/* Number of bits for each bitmap */
@@ -32,7 +32,6 @@ struct btrfs_subpage_info {
 	 * @bitmap_size, which is calculated from PAGE_SIZE / sectorsize.
 	 */
 	unsigned int uptodate_offset;
-	unsigned int error_offset;
 	unsigned int dirty_offset;
 	unsigned int writeback_offset;
 	unsigned int ordered_offset;
@@ -141,7 +140,6 @@ bool btrfs_page_clamp_test_##name(const struct btrfs_fs_info *fs_info,	\
 		struct page *page, u64 start, u32 len);
 
 DECLARE_BTRFS_SUBPAGE_OPS(uptodate);
-DECLARE_BTRFS_SUBPAGE_OPS(error);
 DECLARE_BTRFS_SUBPAGE_OPS(dirty);
 DECLARE_BTRFS_SUBPAGE_OPS(writeback);
 DECLARE_BTRFS_SUBPAGE_OPS(ordered);
@@ -154,5 +152,7 @@ void btrfs_page_assert_not_dirty(const struct btrfs_fs_info *fs_info,
 				 struct page *page);
 void btrfs_page_unlock_writer(struct btrfs_fs_info *fs_info, struct page *page,
 			      u64 start, u32 len);
+void __cold btrfs_subpage_dump_bitmap(const struct btrfs_fs_info *fs_info,
+				      struct page *page, u64 start, u32 len);
 
 #endif

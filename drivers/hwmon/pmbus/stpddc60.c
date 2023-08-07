@@ -237,7 +237,7 @@ static struct i2c_driver stpddc60_driver = {
 	.driver = {
 		   .name = "stpddc60",
 		   },
-	.probe_new = stpddc60_probe,
+	.probe = stpddc60_probe,
 	.id_table = stpddc60_id,
 };
 

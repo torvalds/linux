@@ -16,6 +16,7 @@
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
 #include <adf_cfg.h>
+#include <adf_dbgfs.h>
 #include "adf_c62xvf_hw_data.h"
 
 static const struct pci_device_id adf_pci_tbl[] = {
@@ -64,8 +65,8 @@ static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 		kfree(accel_dev->hw_device);
 		accel_dev->hw_device = NULL;
 	}
+	adf_dbgfs_exit(accel_dev);
 	adf_cfg_dev_remove(accel_dev);
-	debugfs_remove(accel_dev->debugfs_dir);
 	pf = adf_devmgr_pci_to_accel_dev(accel_pci_dev->pci_dev->physfn);
 	adf_devmgr_rm_dev(accel_dev, pf);
 }
@@ -76,7 +77,6 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct adf_accel_dev *pf;
 	struct adf_accel_pci *accel_pci_dev;
 	struct adf_hw_device_data *hw_data;
-	char name[ADF_DEVICE_NAME_LENGTH];
 	unsigned int i, bar_nr;
 	unsigned long bar_mask;
 	int ret;
@@ -123,12 +123,6 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw_data->ae_mask = hw_data->get_ae_mask(hw_data);
 	accel_pci_dev->sku = hw_data->get_sku(hw_data);
 
-	/* Create dev top level debugfs entry */
-	snprintf(name, sizeof(name), "%s%s_%s", ADF_DEVICE_NAME_PREFIX,
-		 hw_data->dev_class->name, pci_name(pdev));
-
-	accel_dev->debugfs_dir = debugfs_create_dir(name, NULL);
-
 	/* Create device configuration table */
 	ret = adf_cfg_dev_add(accel_dev);
 	if (ret)
@@ -172,6 +166,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 	/* Completion for VF2PF request/response message exchange */
 	init_completion(&accel_dev->vf.msg_received);
+
+	adf_dbgfs_init(accel_dev);
 
 	ret = adf_dev_up(accel_dev, false);
 	if (ret)

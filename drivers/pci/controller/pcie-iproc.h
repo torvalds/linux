@@ -111,7 +111,7 @@ struct iproc_pcie {
 };
 
 int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res);
-int iproc_pcie_remove(struct iproc_pcie *pcie);
+void iproc_pcie_remove(struct iproc_pcie *pcie);
 int iproc_pcie_shutdown(struct iproc_pcie *pcie);
 
 #ifdef CONFIG_PCIE_IPROC_MSI

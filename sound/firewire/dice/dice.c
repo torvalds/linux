@@ -9,7 +9,7 @@
 
 MODULE_DESCRIPTION("DICE driver");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 
 #define OUI_WEISS		0x001c6a
 #define OUI_LOUD		0x000ff2

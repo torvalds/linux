@@ -260,7 +260,6 @@ static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.tx_polling = rtl92se_tx_polling,
 	.enable_hw_sec = rtl92se_enable_hw_security_config,
 	.set_key = rtl92se_set_key,
-	.init_sw_leds = rtl92se_init_sw_leds,
 	.get_bbreg = rtl92s_phy_query_bb_reg,
 	.set_bbreg = rtl92s_phy_set_bb_reg,
 	.get_rfreg = rtl92s_phy_query_rf_reg,

@@ -113,7 +113,6 @@ void dml_init_instance(struct display_mode_lib *lib,
 		lib->funcs = dml30_funcs;
 		break;
 	case DML_PROJECT_DCN31:
-	case DML_PROJECT_DCN31_FPGA:
 	case DML_PROJECT_DCN315:
 		lib->funcs = dml31_funcs;
 		break;

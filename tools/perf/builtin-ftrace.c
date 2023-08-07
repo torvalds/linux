@@ -650,6 +650,8 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace)
 				break;
 			if (fwrite(buf, n, 1, stdout) != 1)
 				break;
+			/* flush output since stdout is in full buffering mode due to pager */
+			fflush(stdout);
 		}
 	}
 
@@ -1175,7 +1177,7 @@ int cmd_ftrace(int argc, const char **argv)
 	OPT_BOOLEAN('b', "use-bpf", &ftrace.target.use_bpf,
 		    "Use BPF to measure function latency"),
 #endif
-	OPT_BOOLEAN('n', "--use-nsec", &ftrace.use_nsec,
+	OPT_BOOLEAN('n', "use-nsec", &ftrace.use_nsec,
 		    "Use nano-second histogram"),
 	OPT_PARENT(common_options),
 	};

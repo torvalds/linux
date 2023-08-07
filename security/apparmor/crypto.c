@@ -28,15 +28,15 @@ unsigned int aa_hash_size(void)
 char *aa_calc_hash(void *data, size_t len)
 {
 	SHASH_DESC_ON_STACK(desc, apparmor_tfm);
-	char *hash = NULL;
-	int error = -ENOMEM;
+	char *hash;
+	int error;
 
 	if (!apparmor_tfm)
 		return NULL;
 
 	hash = kzalloc(apparmor_hash_size, GFP_KERNEL);
 	if (!hash)
-		goto fail;
+		return ERR_PTR(-ENOMEM);
 
 	desc->tfm = apparmor_tfm;
 
@@ -62,7 +62,7 @@ int aa_calc_profile_hash(struct aa_profile *profile, u32 version, void *start,
 			 size_t len)
 {
 	SHASH_DESC_ON_STACK(desc, apparmor_tfm);
-	int error = -ENOMEM;
+	int error;
 	__le32 le32_version = cpu_to_le32(version);
 
 	if (!aa_g_hash_policy)
@@ -73,7 +73,7 @@ int aa_calc_profile_hash(struct aa_profile *profile, u32 version, void *start,
 
 	profile->hash = kzalloc(apparmor_hash_size, GFP_KERNEL);
 	if (!profile->hash)
-		goto fail;
+		return -ENOMEM;
 
 	desc->tfm = apparmor_tfm;
 

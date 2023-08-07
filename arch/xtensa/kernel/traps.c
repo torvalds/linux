@@ -54,9 +54,10 @@ static void do_interrupt(struct pt_regs *regs);
 #if XTENSA_FAKE_NMI
 static void do_nmi(struct pt_regs *regs);
 #endif
-#if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
-static void do_unaligned_user(struct pt_regs *regs);
+#ifdef CONFIG_XTENSA_LOAD_STORE
+static void do_load_store(struct pt_regs *regs);
 #endif
+static void do_unaligned_user(struct pt_regs *regs);
 static void do_multihit(struct pt_regs *regs);
 #if XTENSA_HAVE_COPROCESSORS
 static void do_coprocessor(struct pt_regs *regs);
@@ -91,20 +92,24 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 { EXCCAUSE_SYSTEM_CALL,		USER,	   fast_syscall_user },
 { EXCCAUSE_SYSTEM_CALL,		0,	   system_call },
 /* EXCCAUSE_INSTRUCTION_FETCH unhandled */
-/* EXCCAUSE_LOAD_STORE_ERROR unhandled*/
+#ifdef CONFIG_XTENSA_LOAD_STORE
+{ EXCCAUSE_LOAD_STORE_ERROR,	USER|KRNL, fast_load_store },
+{ EXCCAUSE_LOAD_STORE_ERROR,	0,	   do_load_store },
+#endif
 { EXCCAUSE_LEVEL1_INTERRUPT,	0,	   do_interrupt },
 #ifdef SUPPORT_WINDOWED
 { EXCCAUSE_ALLOCA,		USER|KRNL, fast_alloca },
 #endif
 { EXCCAUSE_INTEGER_DIVIDE_BY_ZERO, 0,	   do_div0 },
 /* EXCCAUSE_PRIVILEGED unhandled */
-#if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
+#if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION || \
+		IS_ENABLED(CONFIG_XTENSA_LOAD_STORE)
 #ifdef CONFIG_XTENSA_UNALIGNED_USER
 { EXCCAUSE_UNALIGNED,		USER,	   fast_unaligned },
 #endif
-{ EXCCAUSE_UNALIGNED,		0,	   do_unaligned_user },
 { EXCCAUSE_UNALIGNED,		KRNL,	   fast_unaligned },
 #endif
+{ EXCCAUSE_UNALIGNED,		0,	   do_unaligned_user },
 #ifdef CONFIG_MMU
 { EXCCAUSE_ITLB_MISS,			0,	   do_page_fault },
 { EXCCAUSE_ITLB_MISS,			USER|KRNL, fast_second_level_miss},
@@ -171,6 +176,23 @@ __die_if_kernel(const char *str, struct pt_regs *regs, long err)
 		die(str, regs, err);
 }
 
+#ifdef CONFIG_PRINT_USER_CODE_ON_UNHANDLED_EXCEPTION
+static inline void dump_user_code(struct pt_regs *regs)
+{
+	char buf[32];
+
+	if (copy_from_user(buf, (void __user *)(regs->pc & -16), sizeof(buf)) == 0) {
+		print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_NONE,
+			       32, 1, buf, sizeof(buf), false);
+
+	}
+}
+#else
+static inline void dump_user_code(struct pt_regs *regs)
+{
+}
+#endif
+
 /*
  * Unhandled Exceptions. Kill user task or panic if in kernel space.
  */
@@ -186,6 +208,7 @@ void do_unhandled(struct pt_regs *regs)
 			    "\tEXCCAUSE is %ld\n",
 			    current->comm, task_pid_nr(current), regs->pc,
 			    regs->exccause);
+	dump_user_code(regs);
 	force_sig(SIGILL);
 }
 
@@ -349,6 +372,19 @@ static void do_div0(struct pt_regs *regs)
 	force_sig_fault(SIGFPE, FPE_INTDIV, (void __user *)regs->pc);
 }
 
+#ifdef CONFIG_XTENSA_LOAD_STORE
+static void do_load_store(struct pt_regs *regs)
+{
+	__die_if_kernel("Unhandled load/store exception in kernel",
+			regs, SIGKILL);
+
+	pr_info_ratelimited("Load/store error to %08lx in '%s' (pid = %d, pc = %#010lx)\n",
+			    regs->excvaddr, current->comm,
+			    task_pid_nr(current), regs->pc);
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void *)regs->excvaddr);
+}
+#endif
+
 /*
  * Handle unaligned memory accesses from user space. Kill task.
  *
@@ -356,7 +392,6 @@ static void do_div0(struct pt_regs *regs)
  * accesses causes from user space.
  */
 
-#if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
 static void do_unaligned_user(struct pt_regs *regs)
 {
 	__die_if_kernel("Unhandled unaligned exception in kernel",
@@ -368,7 +403,6 @@ static void do_unaligned_user(struct pt_regs *regs)
 			    task_pid_nr(current), regs->pc);
 	force_sig_fault(SIGBUS, BUS_ADRALN, (void *) regs->excvaddr);
 }
-#endif
 
 #if XTENSA_HAVE_COPROCESSORS
 static void do_coprocessor(struct pt_regs *regs)
@@ -534,31 +568,58 @@ static void show_trace(struct task_struct *task, unsigned long *sp,
 }
 
 #define STACK_DUMP_ENTRY_SIZE 4
-#define STACK_DUMP_LINE_SIZE 32
+#define STACK_DUMP_LINE_SIZE 16
 static size_t kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
+
+struct stack_fragment
+{
+	size_t len;
+	size_t off;
+	u8 *sp;
+	const char *loglvl;
+};
+
+static int show_stack_fragment_cb(struct stackframe *frame, void *data)
+{
+	struct stack_fragment *sf = data;
+
+	while (sf->off < sf->len) {
+		u8 line[STACK_DUMP_LINE_SIZE];
+		size_t line_len = sf->len - sf->off > STACK_DUMP_LINE_SIZE ?
+			STACK_DUMP_LINE_SIZE : sf->len - sf->off;
+		bool arrow = sf->off == 0;
+
+		if (frame && frame->sp == (unsigned long)(sf->sp + sf->off))
+			arrow = true;
+
+		__memcpy(line, sf->sp + sf->off, line_len);
+		print_hex_dump(sf->loglvl, arrow ? "> " : "  ", DUMP_PREFIX_NONE,
+			       STACK_DUMP_LINE_SIZE, STACK_DUMP_ENTRY_SIZE,
+			       line, line_len, false);
+		sf->off += STACK_DUMP_LINE_SIZE;
+		if (arrow)
+			return 0;
+	}
+	return 1;
+}
 
 void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 {
-	size_t len, off = 0;
+	struct stack_fragment sf;
 
 	if (!sp)
 		sp = stack_pointer(task);
 
-	len = min((-(size_t)sp) & (THREAD_SIZE - STACK_DUMP_ENTRY_SIZE),
-		  kstack_depth_to_print * STACK_DUMP_ENTRY_SIZE);
+	sf.len = min((-(size_t)sp) & (THREAD_SIZE - STACK_DUMP_ENTRY_SIZE),
+		     kstack_depth_to_print * STACK_DUMP_ENTRY_SIZE);
+	sf.off = 0;
+	sf.sp = (u8 *)sp;
+	sf.loglvl = loglvl;
 
 	printk("%sStack:\n", loglvl);
-	while (off < len) {
-		u8 line[STACK_DUMP_LINE_SIZE];
-		size_t line_len = len - off > STACK_DUMP_LINE_SIZE ?
-			STACK_DUMP_LINE_SIZE : len - off;
-
-		__memcpy(line, (u8 *)sp + off, line_len);
-		print_hex_dump(loglvl, " ", DUMP_PREFIX_NONE,
-			       STACK_DUMP_LINE_SIZE, STACK_DUMP_ENTRY_SIZE,
-			       line, line_len, false);
-		off += STACK_DUMP_LINE_SIZE;
-	}
+	walk_stackframe(sp, show_stack_fragment_cb, &sf);
+	while (sf.off < sf.len)
+		show_stack_fragment_cb(NULL, &sf);
 	show_trace(task, sp, loglvl);
 }
 

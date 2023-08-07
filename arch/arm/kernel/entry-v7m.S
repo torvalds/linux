@@ -6,7 +6,7 @@
  *
  * Low-level vector interface routines for the ARMv7-M architecture
  */
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/glue.h>
 #include <asm/thread_notify.h>
 #include <asm/v7m.h>

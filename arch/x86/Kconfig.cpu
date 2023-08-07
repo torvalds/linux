@@ -389,7 +389,7 @@ config IA32_FEAT_CTL
 
 config X86_VMX_FEATURE_NAMES
 	def_bool y
-	depends on IA32_FEAT_CTL && X86_FEATURE_NAMES
+	depends on IA32_FEAT_CTL
 
 menuconfig PROCESSOR_SELECT
 	bool "Supported processor vendors" if EXPERT

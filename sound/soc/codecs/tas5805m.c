@@ -597,7 +597,7 @@ MODULE_DEVICE_TABLE(of, tas5805m_of_match);
 #endif
 
 static struct i2c_driver tas5805m_i2c_driver = {
-	.probe_new	= tas5805m_i2c_probe,
+	.probe		= tas5805m_i2c_probe,
 	.remove		= tas5805m_i2c_remove,
 	.id_table	= tas5805m_i2c_id,
 	.driver		= {

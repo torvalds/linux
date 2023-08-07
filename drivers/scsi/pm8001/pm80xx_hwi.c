@@ -3239,9 +3239,9 @@ hw_event_sata_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	struct pm8001_port *port = &pm8001_ha->port[port_id];
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 	unsigned long flags;
-	pm8001_dbg(pm8001_ha, DEVIO,
-		   "port id %d, phy id %d link_rate %d portstate 0x%x\n",
-		   port_id, phy_id, link_rate, portstate);
+	pm8001_dbg(pm8001_ha, EVENT,
+		   "HW_EVENT_SATA_PHY_UP phyid:%#x port_id:%#x link_rate:%d portstate:%#x\n",
+		   phy_id, port_id, link_rate, portstate);
 
 	phy->port = port;
 	port->port_id = port_id;
@@ -3291,10 +3291,14 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	phy->phy_attached = 0;
 	switch (portstate) {
 	case PORT_VALID:
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate: PORT_VALID\n",
+			phy_id, port_id);
 		break;
 	case PORT_INVALID:
-		pm8001_dbg(pm8001_ha, MSG, " PortInvalid portID %d\n",
-			   port_id);
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate: PORT_INVALID\n",
+			phy_id, port_id);
 		pm8001_dbg(pm8001_ha, MSG,
 			   " Last phy Down and port invalid\n");
 		if (port_sata) {
@@ -3306,18 +3310,21 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		sas_phy_disconnected(&phy->sas_phy);
 		break;
 	case PORT_IN_RESET:
-		pm8001_dbg(pm8001_ha, MSG, " Port In Reset portID %d\n",
-			   port_id);
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate: PORT_IN_RESET\n",
+			phy_id, port_id);
 		break;
 	case PORT_NOT_ESTABLISHED:
-		pm8001_dbg(pm8001_ha, MSG,
-			   " Phy Down and PORT_NOT_ESTABLISHED\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate: PORT_NOT_ESTABLISHED\n",
+			phy_id, port_id);
 		port->port_attached = 0;
 		break;
 	case PORT_LOSTCOMM:
-		pm8001_dbg(pm8001_ha, MSG, " Phy Down and PORT_LOSTCOMM\n");
-		pm8001_dbg(pm8001_ha, MSG,
-			   " Last phy Down and port invalid\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate: PORT_LOSTCOMM\n",
+			phy_id, port_id);
+		pm8001_dbg(pm8001_ha, MSG, " Last phy Down and port invalid\n");
 		if (port_sata) {
 			port->port_attached = 0;
 			phy->phy_type = 0;
@@ -3328,9 +3335,9 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	default:
 		port->port_attached = 0;
-		pm8001_dbg(pm8001_ha, DEVIO,
-			   " Phy Down and(default) = 0x%x\n",
-			   portstate);
+		pm8001_dbg(pm8001_ha, EVENT,
+			"HW_EVENT_PHY_DOWN phyid:%#x port_id:%#x portstate:%#x\n",
+			phy_id, port_id, portstate);
 		break;
 
 	}
@@ -3410,6 +3417,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u8 port_id = (u8)(lr_status_evt_portid & 0x000000FF);
 	u8 phy_id =
 		(u8)((phyid_npip_portstate & 0xFF0000) >> 16);
+	u8 portstate = (u8)(phyid_npip_portstate & 0x0000000F);
 	u16 eventType =
 		(u16)((lr_status_evt_portid & 0x00FFFF00) >> 8);
 	u8 status =
@@ -3425,26 +3433,29 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	switch (eventType) {
 
 	case HW_EVENT_SAS_PHY_UP:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PHY_START_STATUS\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_SAS_PHY_UP phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		hw_event_sas_phy_up(pm8001_ha, piomb);
 		break;
 	case HW_EVENT_SATA_PHY_UP:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_SATA_PHY_UP\n");
 		hw_event_sata_phy_up(pm8001_ha, piomb);
 		break;
 	case HW_EVENT_SATA_SPINUP_HOLD:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_SATA_SPINUP_HOLD\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_SATA_SPINUP_HOLD phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		sas_notify_phy_event(&phy->sas_phy, PHYE_SPINUP_HOLD,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PHY_DOWN:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PHY_DOWN\n");
 		hw_event_phy_down(pm8001_ha, piomb);
-		phy->phy_attached = 0;
 		phy->phy_state = PHY_LINK_DISABLE;
 		break;
 	case HW_EVENT_PORT_INVALID:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_INVALID\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_PORT_INVALID phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
 		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
@@ -3463,7 +3474,9 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PHY_ERROR:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PHY_ERROR\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_PHY_ERROR phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		sas_phy_disconnected(&phy->sas_phy);
 		phy->phy_attached = 0;
 		sas_notify_phy_event(&phy->sas_phy, PHYE_OOB_ERROR, GFP_ATOMIC);
@@ -3477,34 +3490,39 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_LINK_ERR_INVALID_DWORD:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_LINK_ERR_INVALID_DWORD\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_LINK_ERR_INVALID_DWORD phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_LINK_ERR_INVALID_DWORD, port_id, phy_id, 0, 0);
 		break;
 	case HW_EVENT_LINK_ERR_DISPARITY_ERROR:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_LINK_ERR_DISPARITY_ERROR\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_LINK_ERR_DISPARITY_ERROR phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_LINK_ERR_DISPARITY_ERROR,
 			port_id, phy_id, 0, 0);
 		break;
 	case HW_EVENT_LINK_ERR_CODE_VIOLATION:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_LINK_ERR_CODE_VIOLATION\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_LINK_ERR_CODE_VIOLATION phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_LINK_ERR_CODE_VIOLATION,
 			port_id, phy_id, 0, 0);
 		break;
 	case HW_EVENT_LINK_ERR_LOSS_OF_DWORD_SYNCH:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_LINK_ERR_LOSS_OF_DWORD_SYNCH\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_LINK_ERR_LOSS_OF_DWORD_SYNCH phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_LINK_ERR_LOSS_OF_DWORD_SYNCH,
 			port_id, phy_id, 0, 0);
 		break;
 	case HW_EVENT_MALFUNCTION:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_MALFUNCTION\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_MALFUNCTION phyid:%#x\n", phy_id);
 		break;
 	case HW_EVENT_BROADCAST_SES:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_BROADCAST_SES\n");
@@ -3515,25 +3533,30 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_INBOUND_CRC_ERROR:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_INBOUND_CRC_ERROR\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_INBOUND_CRC_ERROR phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_INBOUND_CRC_ERROR,
 			port_id, phy_id, 0, 0);
 		break;
 	case HW_EVENT_HARD_RESET_RECEIVED:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_HARD_RESET_RECEIVED\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_HARD_RESET_RECEIVED phyid:%#x\n", phy_id);
 		sas_notify_port_event(sas_phy, PORTE_HARD_RESET, GFP_ATOMIC);
 		break;
 	case HW_EVENT_ID_FRAME_TIMEOUT:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_ID_FRAME_TIMEOUT\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_ID_FRAME_TIMEOUT phyid:%#x\n", phy_id);
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
 		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_LINK_ERR_PHY_RESET_FAILED:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_LINK_ERR_PHY_RESET_FAILED\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_LINK_ERR_PHY_RESET_FAILED phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_LINK_ERR_PHY_RESET_FAILED,
 			port_id, phy_id, 0, 0);
@@ -3543,13 +3566,16 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PORT_RESET_TIMER_TMO:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_RESET_TIMER_TMO\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_PORT_RESET_TIMER_TMO phyid:%#x port_id:%#x portstate:%#x\n",
+			   phy_id, port_id, portstate);
 		if (!pm8001_ha->phy[phy_id].reset_completion) {
 			pm80xx_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
 				port_id, phy_id, 0, 0);
 		}
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
+		port->port_state = portstate;
 		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		if (pm8001_ha->phy[phy_id].reset_completion) {
@@ -3560,8 +3586,9 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		}
 		break;
 	case HW_EVENT_PORT_RECOVERY_TIMER_TMO:
-		pm8001_dbg(pm8001_ha, MSG,
-			   "HW_EVENT_PORT_RECOVERY_TIMER_TMO\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_PORT_RECOVERY_TIMER_TMO phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		pm80xx_hw_event_ack_req(pm8001_ha, 0,
 			HW_EVENT_PORT_RECOVERY_TIMER_TMO,
 			port_id, phy_id, 0, 0);
@@ -3575,24 +3602,32 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		}
 		break;
 	case HW_EVENT_PORT_RECOVER:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_RECOVER\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_PORT_RECOVER phyid:%#x port_id:%#x\n",
+			   phy_id, port_id);
 		hw_event_port_recover(pm8001_ha, piomb);
 		break;
 	case HW_EVENT_PORT_RESET_COMPLETE:
-		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_RESET_COMPLETE\n");
+		pm8001_dbg(pm8001_ha, EVENT,
+			   "HW_EVENT_PORT_RESET_COMPLETE phyid:%#x port_id:%#x portstate:%#x\n",
+			   phy_id, port_id, portstate);
 		if (pm8001_ha->phy[phy_id].reset_completion) {
 			pm8001_ha->phy[phy_id].port_reset_status =
 					PORT_RESET_SUCCESS;
 			complete(pm8001_ha->phy[phy_id].reset_completion);
 			pm8001_ha->phy[phy_id].reset_completion = NULL;
 		}
+		phy->phy_attached = 1;
+		phy->phy_state = PHY_STATE_LINK_UP_SPCV;
+		port->port_state = portstate;
 		break;
 	case EVENT_BROADCAST_ASYNCH_EVENT:
 		pm8001_dbg(pm8001_ha, MSG, "EVENT_BROADCAST_ASYNCH_EVENT\n");
 		break;
 	default:
-		pm8001_dbg(pm8001_ha, DEVIO, "Unknown event type 0x%x\n",
-			   eventType);
+		pm8001_dbg(pm8001_ha, DEVIO,
+			   "Unknown event portid:%d phyid:%d event:0x%x status:0x%x\n",
+			   port_id, phy_id, eventType, status);
 		break;
 	}
 	return 0;
@@ -4726,6 +4761,9 @@ static int pm80xx_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 	memcpy(payload.sas_addr, pm8001_dev->sas_device->sas_addr,
 		SAS_ADDR_SIZE);
 
+	pm8001_dbg(pm8001_ha, INIT,
+		   "register device req phy_id 0x%x port_id 0x%x\n", phy_id,
+		   (port->port_id & 0xFF));
 	rc = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &payload,
 			sizeof(payload), 0);
 	if (rc)
@@ -4815,7 +4853,7 @@ static void mpi_set_phy_profile_req(struct pm8001_hba_info *pm8001_ha,
 	payload.tag = cpu_to_le32(tag);
 	payload.ppc_phyid =
 		cpu_to_le32(((operation & 0xF) << 8) | (phyid  & 0xFF));
-	pm8001_dbg(pm8001_ha, INIT,
+	pm8001_dbg(pm8001_ha, DISC,
 		   " phy profile command for phy %x ,length is %d\n",
 		   le32_to_cpu(payload.ppc_phyid), length);
 	for (i = length; i < (length + PHY_DWORD_LENGTH - 1); i++) {

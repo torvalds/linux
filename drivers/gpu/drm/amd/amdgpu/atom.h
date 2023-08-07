@@ -33,7 +33,6 @@ struct drm_device;
 #define ATOM_ATI_MAGIC_PTR	0x30
 #define ATOM_ATI_MAGIC		" 761295520"
 #define ATOM_ROM_TABLE_PTR	0x48
-#define ATOM_ROM_PART_NUMBER_PTR	0x6E
 
 #define ATOM_ROM_MAGIC		"ATOM"
 #define ATOM_ROM_MAGIC_PTR	4
@@ -143,7 +142,6 @@ struct atom_context {
 	int io_mode;
 	uint32_t *scratch;
 	int scratch_size_bytes;
-	char vbios_version[20];
 
 	uint8_t name[STRLEN_LONG];
 	uint8_t vbios_pn[STRLEN_LONG];

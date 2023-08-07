@@ -19,7 +19,7 @@
 #include <linux/highmem.h>
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
-#include <linux/radix-tree.h>
+#include <linux/xarray.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/backing-dev.h>
@@ -28,7 +28,7 @@
 #include <linux/uaccess.h>
 
 /*
- * Each block ramdisk device has a radix_tree brd_pages of pages that stores
+ * Each block ramdisk device has a xarray brd_pages of pages that stores
  * the pages containing the block device's contents. A brd page's ->index is
  * its offset in PAGE_SIZE units. This is similar to, but in no way connected
  * with, the kernel's pagecache or buffer cache (which sit above our block
@@ -40,11 +40,9 @@ struct brd_device {
 	struct list_head	brd_list;
 
 	/*
-	 * Backing store of pages and lock to protect it. This is the contents
-	 * of the block device.
+	 * Backing store of pages. This is the contents of the block device.
 	 */
-	spinlock_t		brd_lock;
-	struct radix_tree_root	brd_pages;
+	struct xarray	        brd_pages;
 	u64			brd_nr_pages;
 };
 
@@ -56,21 +54,8 @@ static struct page *brd_lookup_page(struct brd_device *brd, sector_t sector)
 	pgoff_t idx;
 	struct page *page;
 
-	/*
-	 * The page lifetime is protected by the fact that we have opened the
-	 * device node -- brd pages will never be deleted under us, so we
-	 * don't need any further locking or refcounting.
-	 *
-	 * This is strictly true for the radix-tree nodes as well (ie. we
-	 * don't actually need the rcu_read_lock()), however that is not a
-	 * documented feature of the radix-tree API so it is better to be
-	 * safe here (we don't have total exclusion from radix tree updates
-	 * here, only deletes).
-	 */
-	rcu_read_lock();
 	idx = sector >> PAGE_SECTORS_SHIFT; /* sector to page index */
-	page = radix_tree_lookup(&brd->brd_pages, idx);
-	rcu_read_unlock();
+	page = xa_load(&brd->brd_pages, idx);
 
 	BUG_ON(page && page->index != idx);
 
@@ -83,7 +68,7 @@ static struct page *brd_lookup_page(struct brd_device *brd, sector_t sector)
 static int brd_insert_page(struct brd_device *brd, sector_t sector, gfp_t gfp)
 {
 	pgoff_t idx;
-	struct page *page;
+	struct page *page, *cur;
 	int ret = 0;
 
 	page = brd_lookup_page(brd, sector);
@@ -94,71 +79,42 @@ static int brd_insert_page(struct brd_device *brd, sector_t sector, gfp_t gfp)
 	if (!page)
 		return -ENOMEM;
 
-	if (radix_tree_maybe_preload(gfp)) {
-		__free_page(page);
-		return -ENOMEM;
-	}
+	xa_lock(&brd->brd_pages);
 
-	spin_lock(&brd->brd_lock);
 	idx = sector >> PAGE_SECTORS_SHIFT;
 	page->index = idx;
-	if (radix_tree_insert(&brd->brd_pages, idx, page)) {
+
+	cur = __xa_cmpxchg(&brd->brd_pages, idx, NULL, page, gfp);
+
+	if (unlikely(cur)) {
 		__free_page(page);
-		page = radix_tree_lookup(&brd->brd_pages, idx);
-		if (!page)
-			ret = -ENOMEM;
-		else if (page->index != idx)
+		ret = xa_err(cur);
+		if (!ret && (cur->index != idx))
 			ret = -EIO;
 	} else {
 		brd->brd_nr_pages++;
 	}
-	spin_unlock(&brd->brd_lock);
 
-	radix_tree_preload_end();
+	xa_unlock(&brd->brd_pages);
+
 	return ret;
 }
 
 /*
- * Free all backing store pages and radix tree. This must only be called when
+ * Free all backing store pages and xarray. This must only be called when
  * there are no other users of the device.
  */
-#define FREE_BATCH 16
 static void brd_free_pages(struct brd_device *brd)
 {
-	unsigned long pos = 0;
-	struct page *pages[FREE_BATCH];
-	int nr_pages;
+	struct page *page;
+	pgoff_t idx;
 
-	do {
-		int i;
-
-		nr_pages = radix_tree_gang_lookup(&brd->brd_pages,
-				(void **)pages, pos, FREE_BATCH);
-
-		for (i = 0; i < nr_pages; i++) {
-			void *ret;
-
-			BUG_ON(pages[i]->index < pos);
-			pos = pages[i]->index;
-			ret = radix_tree_delete(&brd->brd_pages, pos);
-			BUG_ON(!ret || ret != pages[i]);
-			__free_page(pages[i]);
-		}
-
-		pos++;
-
-		/*
-		 * It takes 3.4 seconds to remove 80GiB ramdisk.
-		 * So, we need cond_resched to avoid stalling the CPU.
-		 */
+	xa_for_each(&brd->brd_pages, idx, page) {
+		__free_page(page);
 		cond_resched();
+	}
 
-		/*
-		 * This assumes radix_tree_gang_lookup always returns as
-		 * many pages as possible. If the radix-tree code changes,
-		 * so will this have to.
-		 */
-	} while (nr_pages == FREE_BATCH);
+	xa_destroy(&brd->brd_pages);
 }
 
 /*
@@ -372,8 +328,7 @@ static int brd_alloc(int i)
 	brd->brd_number		= i;
 	list_add_tail(&brd->brd_list, &brd_devices);
 
-	spin_lock_init(&brd->brd_lock);
-	INIT_RADIX_TREE(&brd->brd_pages, GFP_ATOMIC);
+	xa_init(&brd->brd_pages);
 
 	snprintf(buf, DISK_NAME_LEN, "ram%d", i);
 	if (!IS_ERR_OR_NULL(brd_debugfs_dir))

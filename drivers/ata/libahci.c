@@ -975,44 +975,43 @@ int ahci_reset_controller(struct ata_host *host)
 	void __iomem *mmio = hpriv->mmio;
 	u32 tmp;
 
-	/* we must be in AHCI mode, before using anything
-	 * AHCI-specific, such as HOST_RESET.
+	/*
+	 * We must be in AHCI mode, before using anything AHCI-specific, such
+	 * as HOST_RESET.
 	 */
 	ahci_enable_ahci(mmio);
 
-	/* global controller reset */
-	if (!ahci_skip_host_reset) {
-		tmp = readl(mmio + HOST_CTL);
-		if ((tmp & HOST_RESET) == 0) {
-			writel(tmp | HOST_RESET, mmio + HOST_CTL);
-			readl(mmio + HOST_CTL); /* flush */
-		}
+	/* Global controller reset */
+	if (ahci_skip_host_reset) {
+		dev_info(host->dev, "Skipping global host reset\n");
+		return 0;
+	}
 
-		/*
-		 * to perform host reset, OS should set HOST_RESET
-		 * and poll until this bit is read to be "0".
-		 * reset must complete within 1 second, or
-		 * the hardware should be considered fried.
-		 */
-		tmp = ata_wait_register(NULL, mmio + HOST_CTL, HOST_RESET,
-					HOST_RESET, 10, 1000);
+	tmp = readl(mmio + HOST_CTL);
+	if (!(tmp & HOST_RESET)) {
+		writel(tmp | HOST_RESET, mmio + HOST_CTL);
+		readl(mmio + HOST_CTL); /* flush */
+	}
 
-		if (tmp & HOST_RESET) {
-			dev_err(host->dev, "controller reset failed (0x%x)\n",
-				tmp);
-			return -EIO;
-		}
+	/*
+	 * To perform host reset, OS should set HOST_RESET and poll until this
+	 * bit is read to be "0". Reset must complete within 1 second, or the
+	 * hardware should be considered fried.
+	 */
+	tmp = ata_wait_register(NULL, mmio + HOST_CTL, HOST_RESET,
+				HOST_RESET, 10, 1000);
+	if (tmp & HOST_RESET) {
+		dev_err(host->dev, "Controller reset failed (0x%x)\n",
+			tmp);
+		return -EIO;
+	}
 
-		/* turn on AHCI mode */
-		ahci_enable_ahci(mmio);
+	/* Turn on AHCI mode */
+	ahci_enable_ahci(mmio);
 
-		/* Some registers might be cleared on reset.  Restore
-		 * initial values.
-		 */
-		if (!(hpriv->flags & AHCI_HFLAG_NO_WRITE_TO_RO))
-			ahci_restore_initial_config(host);
-	} else
-		dev_info(host->dev, "skipping global host reset\n");
+	/* Some registers might be cleared on reset. Restore initial values. */
+	if (!(hpriv->flags & AHCI_HFLAG_NO_WRITE_TO_RO))
+		ahci_restore_initial_config(host);
 
 	return 0;
 }

@@ -1164,7 +1164,7 @@ static struct i2c_driver lm63_driver = {
 		.name	= "lm63",
 		.of_match_table = of_match_ptr(lm63_of_match),
 	},
-	.probe_new	= lm63_probe,
+	.probe		= lm63_probe,
 	.id_table	= lm63_id,
 	.detect		= lm63_detect,
 	.address_list	= normal_i2c,

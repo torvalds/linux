@@ -36,7 +36,8 @@ properties:
     const: i2sclk
 
   resets:
-    maxItems: 1
+    items:
+      - description: Optional controller resets
 
   dmas:
     items:

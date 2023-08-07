@@ -314,6 +314,24 @@ const struct dc_link_settings *dc_link_get_link_cap(const struct dc_link *link)
 	return link->dc->link_srv->dp_get_verified_link_cap(link);
 }
 
+enum dc_link_encoding_format dc_link_get_highest_encoding_format(const struct dc_link *link)
+{
+	if (dc_is_dp_signal(link->connector_signal)) {
+		if (link->dpcd_caps.dongle_type >= DISPLAY_DONGLE_DP_DVI_DONGLE &&
+				link->dpcd_caps.dongle_type <= DISPLAY_DONGLE_DP_HDMI_MISMATCHED_DONGLE)
+			return DC_LINK_ENCODING_HDMI_TMDS;
+		else if (link->dc->link_srv->dp_get_encoding_format(&link->verified_link_cap) ==
+				DP_8b_10b_ENCODING)
+			return DC_LINK_ENCODING_DP_8b_10b;
+		else if (link->dc->link_srv->dp_get_encoding_format(&link->verified_link_cap) ==
+				DP_128b_132b_ENCODING)
+			return DC_LINK_ENCODING_DP_128b_132b;
+	} else if (dc_is_hdmi_signal(link->connector_signal)) {
+	}
+
+	return DC_LINK_ENCODING_UNSPECIFIED;
+}
+
 bool dc_link_is_dp_sink_present(struct dc_link *link)
 {
 	return link->dc->link_srv->dp_is_sink_present(link);

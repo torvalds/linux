@@ -409,7 +409,7 @@ static struct i2c_driver tda7432_driver = {
 	.driver = {
 		.name	= "tda7432",
 	},
-	.probe_new	= tda7432_probe,
+	.probe		= tda7432_probe,
 	.remove		= tda7432_remove,
 	.id_table	= tda7432_id,
 };

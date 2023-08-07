@@ -222,7 +222,7 @@ void ttm_tt_mgr_init(unsigned long num_pages, unsigned long num_dma32_pages);
 
 struct ttm_kmap_iter *ttm_kmap_iter_tt_init(struct ttm_kmap_iter_tt *iter_tt,
 					    struct ttm_tt *tt);
-
+unsigned long ttm_tt_pages_limit(void);
 #if IS_ENABLED(CONFIG_AGP)
 #include <linux/agp_backend.h>
 

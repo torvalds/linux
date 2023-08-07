@@ -82,8 +82,15 @@ bool dp_parse_link_loss_status(
 	}
 
 	/* Check interlane align.*/
-	if (sink_status_changed ||
-		!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.INTERLANE_ALIGN_DONE) {
+	if (link_dp_get_encoding_format(&link->cur_link_settings) == DP_128b_132b_ENCODING &&
+			(!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.EQ_INTERLANE_ALIGN_DONE_128b_132b ||
+			 !hpd_irq_dpcd_data->bytes.lane_status_updated.bits.CDS_INTERLANE_ALIGN_DONE_128b_132b)) {
+		sink_status_changed = true;
+	} else if (!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.INTERLANE_ALIGN_DONE) {
+		sink_status_changed = true;
+	}
+
+	if (sink_status_changed) {
 
 		DC_LOG_HW_HPD_IRQ("%s: Link Status changed.\n", __func__);
 
@@ -201,6 +208,25 @@ void dp_handle_link_loss(struct dc_link *link)
 	}
 }
 
+static void read_dpcd204h_on_irq_hpd(struct dc_link *link, union hpd_irq_data *irq_data)
+{
+	enum dc_status retval;
+	union lane_align_status_updated dpcd_lane_status_updated;
+
+	retval = core_link_read_dpcd(
+			link,
+			DP_LANE_ALIGN_STATUS_UPDATED,
+			&dpcd_lane_status_updated.raw,
+			sizeof(union lane_align_status_updated));
+
+	if (retval == DC_OK) {
+		irq_data->bytes.lane_status_updated.bits.EQ_INTERLANE_ALIGN_DONE_128b_132b =
+				dpcd_lane_status_updated.bits.EQ_INTERLANE_ALIGN_DONE_128b_132b;
+		irq_data->bytes.lane_status_updated.bits.CDS_INTERLANE_ALIGN_DONE_128b_132b =
+				dpcd_lane_status_updated.bits.CDS_INTERLANE_ALIGN_DONE_128b_132b;
+	}
+}
+
 enum dc_status dp_read_hpd_rx_irq_data(
 	struct dc_link *link,
 	union hpd_irq_data *irq_data)
@@ -242,6 +268,13 @@ enum dc_status dp_read_hpd_rx_irq_data(
 		irq_data->bytes.lane23_status.raw = tmp[DP_LANE2_3_STATUS_ESI - DP_SINK_COUNT_ESI];
 		irq_data->bytes.lane_status_updated.raw = tmp[DP_LANE_ALIGN_STATUS_UPDATED_ESI - DP_SINK_COUNT_ESI];
 		irq_data->bytes.sink_status.raw = tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI];
+
+		/*
+		 * This display doesn't have correct values in DPCD200Eh.
+		 * Read and check DPCD204h instead.
+		 */
+		if (link->wa_flags.read_dpcd204h_on_irq_hpd)
+			read_dpcd204h_on_irq_hpd(link, irq_data);
 	}
 
 	return retval;

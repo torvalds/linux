@@ -105,11 +105,11 @@ static inline void cdns_imx_writel(struct cdns_imx *data, u32 offset, u32 value)
 }
 
 static const struct clk_bulk_data imx_cdns3_core_clks[] = {
-	{ .id = "usb3_lpm_clk" },
-	{ .id = "usb3_bus_clk" },
-	{ .id = "usb3_aclk" },
-	{ .id = "usb3_ipg_clk" },
-	{ .id = "usb3_core_pclk" },
+	{ .id = "lpm" },
+	{ .id = "bus" },
+	{ .id = "aclk" },
+	{ .id = "ipg" },
+	{ .id = "core" },
 };
 
 static int cdns_imx_noncore_init(struct cdns_imx *data)
@@ -218,7 +218,7 @@ err:
 	return ret;
 }
 
-static int cdns_imx_remove(struct platform_device *pdev)
+static void cdns_imx_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cdns_imx *data = dev_get_drvdata(dev);
@@ -229,8 +229,6 @@ static int cdns_imx_remove(struct platform_device *pdev)
 	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -375,14 +373,22 @@ static inline bool cdns_imx_is_power_lost(struct cdns_imx *data)
 		return false;
 }
 
+static int __maybe_unused cdns_imx_system_suspend(struct device *dev)
+{
+	pm_runtime_put_sync(dev);
+	return 0;
+}
+
 static int __maybe_unused cdns_imx_system_resume(struct device *dev)
 {
 	struct cdns_imx *data = dev_get_drvdata(dev);
 	int ret;
 
-	ret = cdns_imx_resume(dev);
-	if (ret)
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		dev_err(dev, "Could not get runtime PM.\n");
 		return ret;
+	}
 
 	if (cdns_imx_is_power_lost(data)) {
 		dev_dbg(dev, "resume from power lost\n");
@@ -405,7 +411,7 @@ static int cdns_imx_platform_suspend(struct device *dev,
 
 static const struct dev_pm_ops cdns_imx_pm_ops = {
 	SET_RUNTIME_PM_OPS(cdns_imx_suspend, cdns_imx_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(cdns_imx_suspend, cdns_imx_system_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(cdns_imx_system_suspend, cdns_imx_system_resume)
 };
 
 static const struct of_device_id cdns_imx_of_match[] = {
@@ -416,7 +422,7 @@ MODULE_DEVICE_TABLE(of, cdns_imx_of_match);
 
 static struct platform_driver cdns_imx_driver = {
 	.probe		= cdns_imx_probe,
-	.remove		= cdns_imx_remove,
+	.remove_new	= cdns_imx_remove,
 	.driver		= {
 		.name	= "cdns3-imx",
 		.of_match_table	= cdns_imx_of_match,

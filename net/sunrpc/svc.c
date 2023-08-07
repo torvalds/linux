@@ -109,15 +109,15 @@ param_get_pool_mode(char *buf, const struct kernel_param *kp)
 	switch (*ip)
 	{
 	case SVC_POOL_AUTO:
-		return strlcpy(buf, "auto\n", 20);
+		return sysfs_emit(buf, "auto\n");
 	case SVC_POOL_GLOBAL:
-		return strlcpy(buf, "global\n", 20);
+		return sysfs_emit(buf, "global\n");
 	case SVC_POOL_PERCPU:
-		return strlcpy(buf, "percpu\n", 20);
+		return sysfs_emit(buf, "percpu\n");
 	case SVC_POOL_PERNODE:
-		return strlcpy(buf, "pernode\n", 20);
+		return sysfs_emit(buf, "pernode\n");
 	default:
-		return sprintf(buf, "%d\n", *ip);
+		return sysfs_emit(buf, "%d\n", *ip);
 	}
 }
 
@@ -597,34 +597,25 @@ svc_destroy(struct kref *ref)
 }
 EXPORT_SYMBOL_GPL(svc_destroy);
 
-/*
- * Allocate an RPC server's buffer space.
- * We allocate pages and place them in rq_pages.
- */
-static int
+static bool
 svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
 {
-	unsigned int pages, arghi;
+	unsigned long pages, ret;
 
 	/* bc_xprt uses fore channel allocated buffers */
 	if (svc_is_backchannel(rqstp))
-		return 1;
+		return true;
 
 	pages = size / PAGE_SIZE + 1; /* extra page as we hold both request and reply.
 				       * We assume one is at most one page
 				       */
-	arghi = 0;
 	WARN_ON_ONCE(pages > RPCSVC_MAXPAGES);
 	if (pages > RPCSVC_MAXPAGES)
 		pages = RPCSVC_MAXPAGES;
-	while (pages) {
-		struct page *p = alloc_pages_node(node, GFP_KERNEL, 0);
-		if (!p)
-			break;
-		rqstp->rq_pages[arghi++] = p;
-		pages--;
-	}
-	return pages == 0;
+
+	ret = alloc_pages_bulk_array_node(GFP_KERNEL, node, pages,
+					  rqstp->rq_pages);
+	return ret == pages;
 }
 
 /*
@@ -649,7 +640,7 @@ svc_rqst_alloc(struct svc_serv *serv, struct svc_pool *pool, int node)
 	if (!rqstp)
 		return rqstp;
 
-	pagevec_init(&rqstp->rq_pvec);
+	folio_batch_init(&rqstp->rq_fbatch);
 
 	__set_bit(RQ_BUSY, &rqstp->rq_flags);
 	rqstp->rq_server = serv;
@@ -860,9 +851,9 @@ bool svc_rqst_replace_page(struct svc_rqst *rqstp, struct page *page)
 	}
 
 	if (*rqstp->rq_next_page) {
-		if (!pagevec_space(&rqstp->rq_pvec))
-			__pagevec_release(&rqstp->rq_pvec);
-		pagevec_add(&rqstp->rq_pvec, *rqstp->rq_next_page);
+		if (!folio_batch_add(&rqstp->rq_fbatch,
+				page_folio(*rqstp->rq_next_page)))
+			__folio_batch_release(&rqstp->rq_fbatch);
 	}
 
 	get_page(page);
@@ -896,7 +887,7 @@ void svc_rqst_release_pages(struct svc_rqst *rqstp)
 void
 svc_rqst_free(struct svc_rqst *rqstp)
 {
-	pagevec_release(&rqstp->rq_pvec);
+	folio_batch_release(&rqstp->rq_fbatch);
 	svc_release_buffer(rqstp);
 	if (rqstp->rq_scratch_page)
 		put_page(rqstp->rq_scratch_page);
@@ -1052,7 +1043,7 @@ static int __svc_register(struct net *net, const char *progname,
 #endif
 	}
 
-	trace_svc_register(progname, version, protocol, port, family, error);
+	trace_svc_register(progname, version, family, protocol, port, error);
 	return error;
 }
 
@@ -1173,6 +1164,7 @@ static void __svc_unregister(struct net *net, const u32 program, const u32 versi
  */
 static void svc_unregister(const struct svc_serv *serv, struct net *net)
 {
+	struct sighand_struct *sighand;
 	struct svc_program *progp;
 	unsigned long flags;
 	unsigned int i;
@@ -1189,9 +1181,12 @@ static void svc_unregister(const struct svc_serv *serv, struct net *net)
 		}
 	}
 
-	spin_lock_irqsave(&current->sighand->siglock, flags);
+	rcu_read_lock();
+	sighand = rcu_dereference(current->sighand);
+	spin_lock_irqsave(&sighand->siglock, flags);
 	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
+	spin_unlock_irqrestore(&sighand->siglock, flags);
+	rcu_read_unlock();
 }
 
 /*
@@ -1416,7 +1411,7 @@ err_bad_rpc:
 	/* Only RPCv2 supported */
 	xdr_stream_encode_u32(xdr, RPC_VERSION);
 	xdr_stream_encode_u32(xdr, RPC_VERSION);
-	goto sendit;
+	return 1;	/* don't wrap */
 
 err_bad_auth:
 	dprintk("svc: authentication failed (%d)\n",
@@ -1432,7 +1427,7 @@ err_bad_auth:
 err_bad_prog:
 	dprintk("svc: unknown program %d\n", rqstp->rq_prog);
 	serv->sv_stats->rpcbadfmt++;
-	xdr_stream_encode_u32(xdr, RPC_PROG_UNAVAIL);
+	*rqstp->rq_accept_statp = rpc_prog_unavail;
 	goto sendit;
 
 err_bad_vers:
@@ -1440,7 +1435,12 @@ err_bad_vers:
 		       rqstp->rq_vers, rqstp->rq_prog, progp->pg_name);
 
 	serv->sv_stats->rpcbadfmt++;
-	xdr_stream_encode_u32(xdr, RPC_PROG_MISMATCH);
+	*rqstp->rq_accept_statp = rpc_prog_mismatch;
+
+	/*
+	 * svc_authenticate() has already added the verifier and
+	 * advanced the stream just past rq_accept_statp.
+	 */
 	xdr_stream_encode_u32(xdr, process.mismatch.lovers);
 	xdr_stream_encode_u32(xdr, process.mismatch.hivers);
 	goto sendit;
@@ -1449,19 +1449,19 @@ err_bad_proc:
 	svc_printk(rqstp, "unknown procedure (%d)\n", rqstp->rq_proc);
 
 	serv->sv_stats->rpcbadfmt++;
-	xdr_stream_encode_u32(xdr, RPC_PROC_UNAVAIL);
+	*rqstp->rq_accept_statp = rpc_proc_unavail;
 	goto sendit;
 
 err_garbage_args:
 	svc_printk(rqstp, "failed to decode RPC header\n");
 
 	serv->sv_stats->rpcbadfmt++;
-	xdr_stream_encode_u32(xdr, RPC_GARBAGE_ARGS);
+	*rqstp->rq_accept_statp = rpc_garbage_args;
 	goto sendit;
 
 err_system_err:
 	serv->sv_stats->rpcbadfmt++;
-	xdr_stream_encode_u32(xdr, RPC_SYSTEM_ERR);
+	*rqstp->rq_accept_statp = rpc_system_err;
 	goto sendit;
 }
 

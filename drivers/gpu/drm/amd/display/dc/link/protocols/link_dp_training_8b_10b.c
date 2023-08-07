@@ -388,6 +388,8 @@ enum link_training_result dp_perform_8b_10b_link_training(
 					link_res,
 					lt_settings,
 					repeater_id);
+			if (status == LINK_TRAINING_SUCCESS)
+				DC_LOG_HW_LINK_TRAINING("%s: Channel EQ done.\n", __func__);
 
 			repeater_training_done(link, repeater_id);
 
@@ -409,6 +411,8 @@ enum link_training_result dp_perform_8b_10b_link_training(
 					link_res,
 					lt_settings,
 					DPRX);
+			if (status == LINK_TRAINING_SUCCESS)
+				DC_LOG_HW_LINK_TRAINING("%s: Channel EQ done.\n", __func__);
 		}
 	}
 

@@ -12,7 +12,7 @@
 	compatible = "qcom,msm8916-mtp", "qcom,msm8916-mtp/1", "qcom,msm8916";
 
 	aliases {
-		serial0 = &blsp1_uart2;
+		serial0 = &blsp_uart2;
 		usid0 = &pm8916_0;
 	};
 
@@ -21,6 +21,6 @@
 	};
 };
 
-&blsp1_uart2 {
+&blsp_uart2 {
 	status = "okay";
 };

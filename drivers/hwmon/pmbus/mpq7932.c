@@ -145,7 +145,7 @@ static struct i2c_driver mpq7932_regulator_driver = {
 		.name = "mpq7932",
 		.of_match_table = mpq7932_of_match,
 	},
-	.probe_new = mpq7932_probe,
+	.probe = mpq7932_probe,
 	.id_table = mpq7932_id,
 };
 module_i2c_driver(mpq7932_regulator_driver);

@@ -351,14 +351,15 @@ In addition to the above kfuncs, there is also a set of read-only kfuncs that
 can be used to query the contents of cpumasks.
 
 .. kernel-doc:: kernel/bpf/cpumask.c
-   :identifiers: bpf_cpumask_first bpf_cpumask_first_zero bpf_cpumask_test_cpu
+   :identifiers: bpf_cpumask_first bpf_cpumask_first_zero bpf_cpumask_first_and
+                 bpf_cpumask_test_cpu
 
 .. kernel-doc:: kernel/bpf/cpumask.c
    :identifiers: bpf_cpumask_equal bpf_cpumask_intersects bpf_cpumask_subset
                  bpf_cpumask_empty bpf_cpumask_full
 
 .. kernel-doc:: kernel/bpf/cpumask.c
-   :identifiers: bpf_cpumask_any bpf_cpumask_any_and
+   :identifiers: bpf_cpumask_any_distribute bpf_cpumask_any_and_distribute
 
 ----
 

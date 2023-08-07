@@ -283,7 +283,7 @@ int acpi_device_uevent_modalias(const struct device *dev, struct kobj_uevent_env
 }
 EXPORT_SYMBOL_GPL(acpi_device_uevent_modalias);
 
-static int __acpi_device_modalias(struct acpi_device *adev, char *buf, int size)
+static int __acpi_device_modalias(const struct acpi_device *adev, char *buf, int size)
 {
 	int len, count;
 

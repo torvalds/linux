@@ -864,7 +864,7 @@ static struct i2c_driver gc2235_driver = {
 		.name = "gc2235",
 		.acpi_match_table = gc2235_acpi_match,
 	},
-	.probe_new = gc2235_probe,
+	.probe = gc2235_probe,
 	.remove = gc2235_remove,
 };
 module_i2c_driver(gc2235_driver);

@@ -130,6 +130,8 @@ struct psmouse {
 	void (*pt_deactivate)(struct psmouse *psmouse);
 };
 
+struct psmouse *psmouse_from_serio(struct serio *serio);
+
 void psmouse_queue_work(struct psmouse *psmouse, struct delayed_work *work,
 		unsigned long delay);
 int psmouse_reset(struct psmouse *psmouse);

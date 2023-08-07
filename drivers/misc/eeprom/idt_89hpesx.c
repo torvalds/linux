@@ -1556,7 +1556,7 @@ static struct i2c_driver idt_driver = {
 		.name = IDT_NAME,
 		.of_match_table = idt_of_match,
 	},
-	.probe_new = idt_probe,
+	.probe = idt_probe,
 	.remove = idt_remove,
 	.id_table = idt_ids,
 };

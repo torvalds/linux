@@ -459,7 +459,7 @@ static struct i2c_driver isl29003_driver = {
 		.name	= ISL29003_DRV_NAME,
 		.pm	= ISL29003_PM_OPS,
 	},
-	.probe_new = isl29003_probe,
+	.probe = isl29003_probe,
 	.remove	= isl29003_remove,
 	.id_table = isl29003_id,
 };

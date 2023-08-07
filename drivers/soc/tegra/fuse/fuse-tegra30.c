@@ -663,7 +663,7 @@ static const struct nvmem_keepout tegra234_fuse_keepouts[] = {
 
 static const struct tegra_fuse_info tegra234_fuse_info = {
 	.read = tegra30_fuse_read,
-	.size = 0x98c,
+	.size = 0xf90,
 	.spare = 0x280,
 };
 

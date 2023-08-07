@@ -47,8 +47,6 @@ static inline void i915_drm_client_put(struct i915_drm_client *client)
 
 struct i915_drm_client *i915_drm_client_alloc(void);
 
-#ifdef CONFIG_PROC_FS
 void i915_drm_client_fdinfo(struct drm_printer *p, struct drm_file *file);
-#endif
 
 #endif /* !__I915_DRM_CLIENT_H__ */

@@ -152,6 +152,7 @@ config IOMMU_DMA
 	select IOMMU_IOVA
 	select IRQ_MSI_IOMMU
 	select NEED_SG_DMA_LENGTH
+	select NEED_SG_DMA_FLAGS if SWIOTLB
 
 # Shared Virtual Addressing
 config IOMMU_SVA
@@ -282,6 +283,7 @@ config EXYNOS_IOMMU_DEBUG
 config IPMMU_VMSA
 	bool "Renesas VMSA-compatible IPMMU"
 	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on ARM || ARM64 || COMPILE_TEST
 	depends on !GENERIC_ATOMIC64	# for IOMMU_IO_PGTABLE_LPAE
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
@@ -416,22 +418,6 @@ config S390_IOMMU
 	select IOMMU_API
 	help
 	  Support for the IOMMU API for s390 PCI devices.
-
-config S390_CCW_IOMMU
-	bool "S390 CCW IOMMU Support"
-	depends on S390 && CCW || COMPILE_TEST
-	select IOMMU_API
-	help
-	  Enables bits of IOMMU API required by VFIO. The iommu_ops
-	  is not implemented as it is not necessary for VFIO.
-
-config S390_AP_IOMMU
-	bool "S390 AP IOMMU Support"
-	depends on S390 && ZCRYPT || COMPILE_TEST
-	select IOMMU_API
-	help
-	  Enables bits of IOMMU API required by VFIO. The iommu_ops
-	  is not implemented as it is not necessary for VFIO.
 
 config MTK_IOMMU
 	tristate "MediaTek IOMMU Support"

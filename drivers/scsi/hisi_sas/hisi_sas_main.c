@@ -2560,7 +2560,7 @@ err_out_ha:
 }
 EXPORT_SYMBOL_GPL(hisi_sas_probe);
 
-int hisi_sas_remove(struct platform_device *pdev)
+void hisi_sas_remove(struct platform_device *pdev)
 {
 	struct sas_ha_struct *sha = platform_get_drvdata(pdev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
@@ -2573,7 +2573,6 @@ int hisi_sas_remove(struct platform_device *pdev)
 
 	hisi_sas_free(hisi_hba);
 	scsi_host_put(shost);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(hisi_sas_remove);
 

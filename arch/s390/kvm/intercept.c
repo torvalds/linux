@@ -630,7 +630,7 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 	}
 
-	/* process PER, also if the instrution is processed in user space */
+	/* process PER, also if the instruction is processed in user space */
 	if (vcpu->arch.sie_block->icptstatus & 0x02 &&
 	    (!rc || rc == -EOPNOTSUPP))
 		per_rc = kvm_s390_handle_per_ifetch_icpt(vcpu);

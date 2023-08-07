@@ -1223,7 +1223,7 @@ static struct i2c_driver nct7802_driver = {
 		.name = DRVNAME,
 	},
 	.detect = nct7802_detect,
-	.probe_new = nct7802_probe,
+	.probe = nct7802_probe,
 	.id_table = nct7802_idtable,
 	.address_list = nct7802_address_list,
 };

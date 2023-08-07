@@ -331,9 +331,25 @@ static int hclge_comm_cmd_csq_done(struct hclge_comm_hw *hw)
 	return head == hw->cmq.csq.next_to_use;
 }
 
-static void hclge_comm_wait_for_resp(struct hclge_comm_hw *hw,
+static u32 hclge_get_cmdq_tx_timeout(u16 opcode, u32 tx_timeout)
+{
+	static const struct hclge_cmdq_tx_timeout_map cmdq_tx_timeout_map[] = {
+		{HCLGE_OPC_CFG_RST_TRIGGER, HCLGE_COMM_CMDQ_TX_TIMEOUT_500MS},
+	};
+	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(cmdq_tx_timeout_map); i++)
+		if (cmdq_tx_timeout_map[i].opcode == opcode)
+			return cmdq_tx_timeout_map[i].tx_timeout;
+
+	return tx_timeout;
+}
+
+static void hclge_comm_wait_for_resp(struct hclge_comm_hw *hw, u16 opcode,
 				     bool *is_completed)
 {
+	u32 cmdq_tx_timeout = hclge_get_cmdq_tx_timeout(opcode,
+							hw->cmq.tx_timeout);
 	u32 timeout = 0;
 
 	do {
@@ -343,7 +359,7 @@ static void hclge_comm_wait_for_resp(struct hclge_comm_hw *hw,
 		}
 		udelay(1);
 		timeout++;
-	} while (timeout < hw->cmq.tx_timeout);
+	} while (timeout < cmdq_tx_timeout);
 }
 
 static int hclge_comm_cmd_convert_err_code(u16 desc_ret)
@@ -407,7 +423,8 @@ static int hclge_comm_cmd_check_result(struct hclge_comm_hw *hw,
 	 * if multi descriptors to be sent, use the first one to check
 	 */
 	if (HCLGE_COMM_SEND_SYNC(le16_to_cpu(desc->flag)))
-		hclge_comm_wait_for_resp(hw, &is_completed);
+		hclge_comm_wait_for_resp(hw, le16_to_cpu(desc->opcode),
+					 &is_completed);
 
 	if (!is_completed)
 		ret = -EBADE;
@@ -529,7 +546,7 @@ int hclge_comm_cmd_queue_init(struct pci_dev *pdev, struct hclge_comm_hw *hw)
 	cmdq->crq.desc_num = HCLGE_COMM_NIC_CMQ_DESC_NUM;
 
 	/* Setup Tx write back timeout */
-	cmdq->tx_timeout = HCLGE_COMM_CMDQ_TX_TIMEOUT;
+	cmdq->tx_timeout = HCLGE_COMM_CMDQ_TX_TIMEOUT_DEFAULT;
 
 	/* Setup queue rings */
 	ret = hclge_comm_alloc_cmd_queue(hw, HCLGE_COMM_TYPE_CSQ);

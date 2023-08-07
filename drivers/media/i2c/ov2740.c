@@ -1215,7 +1215,7 @@ static struct i2c_driver ov2740_i2c_driver = {
 		.pm = pm_sleep_ptr(&ov2740_pm_ops),
 		.acpi_match_table = ov2740_acpi_ids,
 	},
-	.probe_new = ov2740_probe,
+	.probe = ov2740_probe,
 	.remove = ov2740_remove,
 	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };

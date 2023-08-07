@@ -23,6 +23,7 @@
 static DEFINE_SPINLOCK(mt8365_clk_lock);
 
 static const struct mtk_fixed_clk top_fixed_clks[] = {
+	FIXED_CLK(CLK_TOP_CLK_NULL, "clk_null", NULL, 0),
 	FIXED_CLK(CLK_TOP_I2S0_BCK, "i2s0_bck", NULL, 26000000),
 	FIXED_CLK(CLK_TOP_DSI0_LNTC_DSICK, "dsi0_lntc_dsick", "clk26m",
 		  75000000),
@@ -410,7 +411,7 @@ static const struct mtk_mux top_muxes[] = {
 	/* CLK_CFG_0 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI_SEL, "axi_sel", axi_parents,
 				   0x040, 0x044, 0x048, 0, 2, 7, CLK_CFG_UPDATE,
-				   0, CLK_IS_CRITICAL),
+				   0, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MEM_SEL, "mem_sel", mem_parents, 0x040,
 			     0x044, 0x048, 8, 2, 15, CLK_CFG_UPDATE, 1),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MM_SEL, "mm_sel", mm_parents, 0x040, 0x044,
@@ -431,22 +432,22 @@ static const struct mtk_mux top_muxes[] = {
 			     0x064, 0x068, 0, 1, 7, CLK_CFG_UPDATE, 8),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPI_SEL, "spi_sel", spi_parents, 0x060,
 			     0x064, 0x068, 8, 2, 15, CLK_CFG_UPDATE, 9),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0_HC_SEL, "msdc50_0_hc_sel",
-			     msdc50_0_hc_parents, 0x060, 0x064, 0x068, 16, 2,
-			     23, CLK_CFG_UPDATE, 10),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC2_2_HC_SEL, "msdc2_2_hc_sel",
-			     msdc50_0_hc_parents, 0x060, 0x064, 0x068, 24, 2,
-			     31, CLK_CFG_UPDATE, 11),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0_HC_SEL, "msdc50_0_hc_sel",
+				   msdc50_0_hc_parents, 0x060, 0x064, 0x068, 16, 2,
+				   23, CLK_CFG_UPDATE, 10, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC2_2_HC_SEL, "msdc2_2_hc_sel",
+				   msdc50_0_hc_parents, 0x060, 0x064, 0x068, 24, 2,
+				   31, CLK_CFG_UPDATE, 11, 0),
 	/* CLK_CFG_3 */
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0_SEL, "msdc50_0_sel",
-			     msdc50_0_parents, 0x070, 0x074, 0x078, 0, 3, 7,
-			     CLK_CFG_UPDATE, 12),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_2_SEL, "msdc50_2_sel",
-			     msdc50_2_parents, 0x070, 0x074, 0x078, 8, 3, 15,
-			     CLK_CFG_UPDATE, 13),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC30_1_SEL, "msdc30_1_sel",
-			     msdc30_1_parents, 0x070, 0x074, 0x078, 16, 3, 23,
-			     CLK_CFG_UPDATE, 14),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0_SEL, "msdc50_0_sel",
+				   msdc50_0_parents, 0x070, 0x074, 0x078, 0, 3, 7,
+				   CLK_CFG_UPDATE, 12, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_2_SEL, "msdc50_2_sel",
+				   msdc50_2_parents, 0x070, 0x074, 0x078, 8, 3, 15,
+				   CLK_CFG_UPDATE, 13, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC30_1_SEL, "msdc30_1_sel",
+				   msdc30_1_parents, 0x070, 0x074, 0x078, 16, 3, 23,
+				   CLK_CFG_UPDATE, 14, 0),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_AUDIO_SEL, "audio_sel", audio_parents,
 			     0x070, 0x074, 0x078, 24, 2, 31, CLK_CFG_UPDATE,
 			     15),
@@ -475,7 +476,7 @@ static const struct mtk_mux top_muxes[] = {
 	/* CLK_CFG_6 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_DXCC_SEL, "dxcc_sel", dxcc_parents,
 				   0x0a0, 0x0a4, 0x0a8, 0, 2, 7, CLK_CFG_UPDATE,
-				   24, CLK_IS_CRITICAL),
+				   24, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SSUSB_SYS_SEL, "ssusb_sys_sel",
 			     ssusb_sys_parents, 0x0a0, 0x0a4, 0x0a8, 8, 2, 15,
 			     CLK_CFG_UPDATE, 25),
@@ -483,8 +484,8 @@ static const struct mtk_mux top_muxes[] = {
 			     ssusb_sys_parents, 0x0a0, 0x0a4, 0x0a8, 16, 2, 23,
 			     CLK_CFG_UPDATE, 26),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SPM_SEL, "spm_sel", spm_parents,
-				   0x0a0, 0x0a4, 0x0a8, 24, 1, 31,
-				   CLK_CFG_UPDATE, 27, CLK_IS_CRITICAL),
+				   0x0a0, 0x0a4, 0x0a8, 24, 1, 31, CLK_CFG_UPDATE,
+				   27, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	/* CLK_CFG_7 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_I2C_SEL, "i2c_sel", i2c_parents, 0x0b0,
 			     0x0b4, 0x0b8, 0, 3, 7, CLK_CFG_UPDATE, 28),
@@ -559,6 +560,14 @@ static const struct mtk_clk_divider top_adj_divs[] = {
 		  0x324, 16, 8, CLK_DIVIDER_ROUND_CLOSEST),
 	DIV_ADJ_F(CLK_TOP_APLL12_CK_DIV3, "apll12_ck_div3", "apll_i2s3_sel",
 		  0x324, 24, 8, CLK_DIVIDER_ROUND_CLOSEST),
+	DIV_ADJ_F(CLK_TOP_APLL12_CK_DIV4, "apll12_ck_div4", "apll_tdmout_sel",
+		  0x328, 0, 8, CLK_DIVIDER_ROUND_CLOSEST),
+	DIV_ADJ_F(CLK_TOP_APLL12_CK_DIV4B, "apll12_ck_div4b", "apll_tdmout_sel",
+		  0x328, 8, 8, CLK_DIVIDER_ROUND_CLOSEST),
+	DIV_ADJ_F(CLK_TOP_APLL12_CK_DIV5, "apll12_ck_div5", "apll_tdmin_sel",
+		  0x328, 16, 8, CLK_DIVIDER_ROUND_CLOSEST),
+	DIV_ADJ_F(CLK_TOP_APLL12_CK_DIV5B, "apll12_ck_div5b", "apll_tdmin_sel",
+		  0x328, 24, 8, CLK_DIVIDER_ROUND_CLOSEST),
 	DIV_ADJ_F(CLK_TOP_APLL12_CK_DIV6, "apll12_ck_div6", "apll_spdif_sel",
 		  0x32c, 0, 8, CLK_DIVIDER_ROUND_CLOSEST),
 };
@@ -583,15 +592,15 @@ static const struct mtk_gate_regs top2_cg_regs = {
 
 #define GATE_TOP0(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &top0_cg_regs,		\
-		 _shift, &mtk_clk_gate_ops_no_setclr_inv)
+		 _shift, &mtk_clk_gate_ops_no_setclr)
 
 #define GATE_TOP1(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &top1_cg_regs,		\
-		 _shift, &mtk_clk_gate_ops_no_setclr)
+		 _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 #define GATE_TOP2(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &top2_cg_regs,		\
-		 _shift, &mtk_clk_gate_ops_no_setclr)
+		 _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate top_clk_gates[] = {
 	GATE_TOP0(CLK_TOP_CONN_32K, "conn_32k", "clk32k", 10),
@@ -696,6 +705,7 @@ static const struct mtk_gate ifr_clks[] = {
 	GATE_IFR3(CLK_IFR_GCPU, "ifr_gcpu", "axi_sel", 8),
 	GATE_IFR3(CLK_IFR_TRNG, "ifr_trng", "axi_sel", 9),
 	GATE_IFR3(CLK_IFR_AUXADC, "ifr_auxadc", "clk26m", 10),
+	GATE_IFR3(CLK_IFR_CPUM, "ifr_cpum", "clk26m", 11),
 	GATE_IFR3(CLK_IFR_AUXADC_MD, "ifr_auxadc_md", "clk26m", 14),
 	GATE_IFR3(CLK_IFR_AP_DMA, "ifr_ap_dma", "axi_sel", 18),
 	GATE_IFR3(CLK_IFR_DEBUGSYS, "ifr_debugsys", "axi_sel", 24),
@@ -717,6 +727,8 @@ static const struct mtk_gate ifr_clks[] = {
 	GATE_IFR5(CLK_IFR_PWRAP_TMR, "ifr_pwrap_tmr", "clk26m", 12),
 	GATE_IFR5(CLK_IFR_PWRAP_SPI, "ifr_pwrap_spi", "clk26m", 13),
 	GATE_IFR5(CLK_IFR_PWRAP_SYS, "ifr_pwrap_sys", "clk26m", 14),
+	GATE_MTK_FLAGS(CLK_IFR_MCU_PM_BK, "ifr_mcu_pm_bk", NULL, &ifr5_cg_regs,
+			17, &mtk_clk_gate_ops_setclr, CLK_IGNORE_UNUSED),
 	GATE_IFR5(CLK_IFR_IRRX_26M, "ifr_irrx_26m", "clk26m", 22),
 	GATE_IFR5(CLK_IFR_IRRX_32K, "ifr_irrx_32k", "clk32k", 23),
 	GATE_IFR5(CLK_IFR_I2C0_AXI, "ifr_i2c0_axi", "i2c_sel", 24),
@@ -799,7 +811,7 @@ static struct platform_driver clk_mt8365_drv = {
 		.of_match_table = of_match_clk_mt8365,
 	},
 	.probe = mtk_clk_simple_probe,
-	.remove = mtk_clk_simple_remove,
+	.remove_new = mtk_clk_simple_remove,
 };
 module_platform_driver(clk_mt8365_drv);
 MODULE_LICENSE("GPL");

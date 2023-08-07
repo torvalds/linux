@@ -12,6 +12,7 @@
 #include <linux/nospec.h>
 #include <linux/vmalloc.h>
 #include <linux/percpu.h>
+#include <net/gso.h>
 #include <net/ip.h>
 #include <net/dst.h>
 #include <net/sock.h>

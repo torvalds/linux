@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Lattice Slave SPI sysCONFIG FPGA manager
 
 maintainers:
-  - Ivan Bornyakov <i.bornyakov@metrotek.ru>
+  - Vladimir Georgiev <v.georgiev@metrotek.ru>
 
 description: |
   Lattice sysCONFIG port, which is used for FPGA configuration, among others,

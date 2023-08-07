@@ -357,7 +357,7 @@ static struct i2c_driver imagis_ts_driver = {
 		.pm = pm_sleep_ptr(&imagis_pm_ops),
 		.of_match_table = of_match_ptr(imagis_of_match),
 	},
-	.probe_new = imagis_probe,
+	.probe = imagis_probe,
 };
 
 module_i2c_driver(imagis_ts_driver);

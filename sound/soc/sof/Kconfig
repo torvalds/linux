@@ -236,6 +236,17 @@ config SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR
 	  Say Y if you want to enable the IPC message injector.
 	  If unsure, select "N".
 
+config SND_SOC_SOF_DEBUG_IPC_KERNEL_INJECTOR
+	tristate "SOF enable IPC kernel injector"
+	depends on SND_SOC_SOF
+	select SND_SOC_SOF_CLIENT
+	help
+	  This option enables the IPC kernel injector which can be used to send
+	  crafted IPC messages to the kernel to test its robustness against
+	  DSP messages.
+	  Say Y if you want to enable the IPC kernel injector.
+	  If unsure, select "N".
+
 config SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT
 	bool "SOF retain DSP context on any FW exceptions"
 	help

@@ -334,7 +334,7 @@ int ext4_mpage_readpages(struct inode *inode,
 					  folio_size(folio));
 			if (first_hole == 0) {
 				if (ext4_need_verity(inode, folio->index) &&
-				    !fsverity_verify_page(&folio->page))
+				    !fsverity_verify_folio(folio))
 					goto set_error_page;
 				folio_mark_uptodate(folio);
 				folio_unlock(folio);

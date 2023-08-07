@@ -497,7 +497,7 @@ static void ap_tasklet_fn(unsigned long dummy)
 	enum ap_sm_wait wait = AP_SM_WAIT_NONE;
 
 	/* Reset the indicator if interrupts are used. Thus new interrupts can
-	 * be received. Doing it in the beginning of the tasklet is therefor
+	 * be received. Doing it in the beginning of the tasklet is therefore
 	 * important that no requests on any AP get lost.
 	 */
 	if (ap_irq_flag)
@@ -2289,7 +2289,7 @@ static int __init ap_module_init(void)
 	timer_setup(&ap_config_timer, ap_config_timeout, 0);
 
 	/*
-	 * Setup the high resultion poll timer.
+	 * Setup the high resolution poll timer.
 	 * If we are running under z/VM adjust polling to z/VM polling rate.
 	 */
 	if (MACHINE_IS_VM)

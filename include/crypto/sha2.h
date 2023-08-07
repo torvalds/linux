@@ -128,7 +128,7 @@ static inline void sha224_init(struct sha256_state *sctx)
 	sctx->state[7] = SHA224_H7;
 	sctx->count = 0;
 }
-void sha224_update(struct sha256_state *sctx, const u8 *data, unsigned int len);
+/* Simply use sha256_update as it is equivalent to sha224_update. */
 void sha224_final(struct sha256_state *sctx, u8 *out);
 
 #endif /* _CRYPTO_SHA2_H */

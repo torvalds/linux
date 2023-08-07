@@ -2096,7 +2096,8 @@
 
 			ports {
 				usb2-0 {
-					mode = "host";
+					mode = "otg";
+					usb-role-switch;
 					status = "okay";
 					port {
 						hs_typec_p1: endpoint {
@@ -2150,6 +2151,14 @@
 					status = "okay";
 				};
 			};
+		};
+
+		usb@3550000 {
+			status = "okay";
+
+			phys = <&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-0}>,
+			       <&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-1}>;
+			phy-names = "usb2-0", "usb3-0";
 		};
 
 		usb@3610000 {
@@ -2238,6 +2247,7 @@
 
 		i2c@c240000 {
 			status = "okay";
+
 			typec@8 {
 				compatible = "cypress,cypd4226";
 				reg = <0x08>;
@@ -2245,22 +2255,27 @@
 				interrupts = <TEGRA234_MAIN_GPIO(Y, 4) IRQ_TYPE_LEVEL_LOW>;
 				firmware-name = "nvidia,jetson-agx-xavier";
 				status = "okay";
+
 				#address-cells = <1>;
 				#size-cells = <0>;
+
 				ccg_typec_con0: connector@0 {
 					compatible = "usb-c-connector";
 					reg = <0>;
 					label = "USB-C";
 					data-role = "host";
+
 					ports {
 						#address-cells = <1>;
 						#size-cells = <0>;
+
 						port@0 {
 							reg = <0>;
 							hs_ucsi_ccg_p0: endpoint {
 								remote-endpoint = <&hs_typec_p0>;
 							};
 						};
+
 						port@1 {
 							reg = <1>;
 							ss_ucsi_ccg_p0: endpoint {
@@ -2269,20 +2284,24 @@
 						};
 					};
 				};
+
 				ccg_typec_con1: connector@1 {
 					compatible = "usb-c-connector";
 					reg = <1>;
 					label = "USB-C";
 					data-role = "dual";
+
 					ports {
 						#address-cells = <1>;
 						#size-cells = <0>;
+
 						port@0 {
 							reg = <0>;
 							hs_ucsi_ccg_p1: endpoint {
 								remote-endpoint = <&hs_typec_p1>;
 							};
 						};
+
 						port@1 {
 							reg = <1>;
 							ss_ucsi_ccg_p1: endpoint {
@@ -2324,11 +2343,7 @@
 	};
 
 	pwm-fan {
-		compatible = "pwm-fan";
-		pwms = <&pwm3 0 45334>;
-
-		cooling-levels = <0 95 178 255>;
-		#cooling-cells = <2>;
+		cooling-levels = <66 215 255>;
 	};
 
 	serial {
@@ -2336,9 +2351,8 @@
 	};
 
 	sound {
-		status = "okay";
-
 		compatible = "nvidia,tegra186-audio-graph-card";
+		status = "okay";
 
 		dais = /* ADMAIF (FE) Ports */
 		       <&admaif0_port>, <&admaif1_port>, <&admaif2_port>, <&admaif3_port>,
@@ -2414,5 +2428,21 @@
 			  "CVB-RT SPK",			"CVB-RT SPORP",
 			  "CVB-RT DMIC1",		"CVB-RT MIC",
 			  "CVB-RT DMIC2",		"CVB-RT MIC";
+	};
+
+	thermal-zones {
+		tj-thermal {
+			cooling-maps {
+				map-active-0 {
+					cooling-device = <&fan 0 1>;
+					trip = <&tj_trip_active0>;
+				};
+
+				map-active-1 {
+					cooling-device = <&fan 1 2>;
+					trip = <&tj_trip_active1>;
+				};
+			};
+		};
 	};
 };

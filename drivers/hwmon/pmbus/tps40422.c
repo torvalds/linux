@@ -42,7 +42,7 @@ static struct i2c_driver tps40422_driver = {
 	.driver = {
 		   .name = "tps40422",
 		   },
-	.probe_new = tps40422_probe,
+	.probe = tps40422_probe,
 	.id_table = tps40422_id,
 };
 

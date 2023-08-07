@@ -40,22 +40,33 @@ struct btrfs_tree_parent_check {
 	u8 level;
 };
 
-/*
- * Comprehensive leaf checker.
- * Will check not only the item pointers, but also every possible member
- * in item data.
- */
-int btrfs_check_leaf_full(struct extent_buffer *leaf);
+enum btrfs_tree_block_status {
+	BTRFS_TREE_BLOCK_CLEAN,
+	BTRFS_TREE_BLOCK_INVALID_NRITEMS,
+	BTRFS_TREE_BLOCK_INVALID_PARENT_KEY,
+	BTRFS_TREE_BLOCK_BAD_KEY_ORDER,
+	BTRFS_TREE_BLOCK_INVALID_LEVEL,
+	BTRFS_TREE_BLOCK_INVALID_FREE_SPACE,
+	BTRFS_TREE_BLOCK_INVALID_OFFSETS,
+	BTRFS_TREE_BLOCK_INVALID_BLOCKPTR,
+	BTRFS_TREE_BLOCK_INVALID_ITEM,
+	BTRFS_TREE_BLOCK_INVALID_OWNER,
+};
 
 /*
- * Less strict leaf checker.
- * Will only check item pointers, not reading item data.
+ * Exported simply for btrfs-progs which wants to have the
+ * btrfs_tree_block_status return codes.
  */
-int btrfs_check_leaf_relaxed(struct extent_buffer *leaf);
+enum btrfs_tree_block_status __btrfs_check_leaf(struct extent_buffer *leaf);
+enum btrfs_tree_block_status __btrfs_check_node(struct extent_buffer *node);
+
+int btrfs_check_leaf(struct extent_buffer *leaf);
 int btrfs_check_node(struct extent_buffer *node);
 
 int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 			    struct btrfs_chunk *chunk, u64 logical);
 int btrfs_check_eb_owner(const struct extent_buffer *eb, u64 root_owner);
+int btrfs_verify_level_key(struct extent_buffer *eb, int level,
+			   struct btrfs_key *first_key, u64 parent_transid);
 
 #endif

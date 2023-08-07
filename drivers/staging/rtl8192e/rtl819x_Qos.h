@@ -104,7 +104,6 @@ struct acm {
 };
 
 union qos_tclas {
-
 	struct _TYPE_GENERAL {
 		u8		Priority;
 		u8		ClassifierType;

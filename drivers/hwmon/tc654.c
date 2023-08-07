@@ -561,7 +561,7 @@ static struct i2c_driver tc654_driver = {
 	.driver = {
 		   .name = "tc654",
 		   },
-	.probe_new = tc654_probe,
+	.probe = tc654_probe,
 	.id_table = tc654_id,
 };
 

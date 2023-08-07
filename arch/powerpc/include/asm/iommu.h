@@ -205,7 +205,6 @@ extern void iommu_register_group(struct iommu_table_group *table_group,
 				 int pci_domain_number, unsigned long pe_num);
 extern int iommu_add_device(struct iommu_table_group *table_group,
 		struct device *dev);
-extern void iommu_del_device(struct device *dev);
 extern long iommu_tce_xchg(struct mm_struct *mm, struct iommu_table *tbl,
 		unsigned long entry, unsigned long *hpa,
 		enum dma_data_direction *direction);
@@ -228,10 +227,6 @@ static inline int iommu_add_device(struct iommu_table_group *table_group,
 		struct device *dev)
 {
 	return 0;
-}
-
-static inline void iommu_del_device(struct device *dev)
-{
 }
 #endif /* !CONFIG_IOMMU_API */
 

@@ -288,7 +288,7 @@ static int mt8173_rt5650_dev_probe(struct platform_device *pdev)
 
 	np = of_get_child_by_name(pdev->dev.of_node, "codec-capture");
 	if (np) {
-		ret = snd_soc_of_get_dai_name(np, &codec_capture_dai);
+		ret = snd_soc_of_get_dai_name(np, &codec_capture_dai, 0);
 		of_node_put(np);
 		if (ret < 0) {
 			dev_err(&pdev->dev,

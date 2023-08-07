@@ -148,7 +148,7 @@ static struct i2c_driver fxl6408_driver = {
 		.name	= "fxl6408",
 		.of_match_table = fxl6408_dt_ids,
 	},
-	.probe_new	= fxl6408_probe,
+	.probe		= fxl6408_probe,
 	.id_table	= fxl6408_id,
 };
 module_i2c_driver(fxl6408_driver);

@@ -143,7 +143,7 @@ MODULE_DEVICE_TABLE(acpi, hps_acpi_id);
 #endif /* CONFIG_ACPI */
 
 static struct i2c_driver hps_i2c_driver = {
-	.probe_new = hps_i2c_probe,
+	.probe = hps_i2c_probe,
 	.remove = hps_i2c_remove,
 	.id_table = hps_i2c_id,
 	.driver = {

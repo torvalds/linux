@@ -14,7 +14,7 @@ static int __init nobp_setup_early(char *str)
 		return rc;
 	if (enabled && test_facility(82)) {
 		/*
-		 * The user explicitely requested nobp=1, enable it and
+		 * The user explicitly requested nobp=1, enable it and
 		 * disable the expoline support.
 		 */
 		__set_facility(82, alt_stfle_fac_list);

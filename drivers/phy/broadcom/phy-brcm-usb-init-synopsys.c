@@ -59,6 +59,8 @@
 #define   USB_CTLR_TP_DIAG1_wake_MASK			BIT(1)
 #define USB_CTRL_CTLR_CSHCR		0x50
 #define   USB_CTRL_CTLR_CSHCR_ctl_pme_en_MASK		BIT(18)
+#define USB_CTRL_P0_U2PHY_CFG1		0x68
+#define   USB_CTRL_P0_U2PHY_CFG1_COMMONONN_MASK		BIT(10)
 
 /* Register definitions for the USB_PHY block in 7211b0 */
 #define USB_PHY_PLL_CTL			0x00
@@ -90,6 +92,8 @@
 #define   BDC_EC_AXIRDA_RTS_MASK			GENMASK(31, 28)
 #define   BDC_EC_AXIRDA_RTS_SHIFT			28
 
+#define USB_XHCI_GBL_GUSB2PHYCFG	0x100
+#define   USB_XHCI_GBL_GUSB2PHYCFG_U2_FREECLK_EXISTS_MASK	BIT(30)
 
 static void usb_mdio_write_7211b0(struct brcm_usb_init_params *params,
 				  uint8_t addr, uint16_t data)
@@ -140,13 +144,17 @@ static void xhci_soft_reset(struct brcm_usb_init_params *params,
 			int on_off)
 {
 	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
+	void __iomem *xhci_gbl = params->regs[BRCM_REGS_XHCI_GBL];
 
 	/* Assert reset */
-	if (on_off)
+	if (on_off) {
 		USB_CTRL_UNSET(ctrl, USB_PM, XHC_SOFT_RESETB);
 	/* De-assert reset */
-	else
+	} else {
 		USB_CTRL_SET(ctrl, USB_PM, XHC_SOFT_RESETB);
+		/* Required for COMMONONN to be set */
+		USB_XHCI_GBL_UNSET(xhci_gbl, GUSB2PHYCFG, U2_FREECLK_EXISTS);
+	}
 }
 
 static void usb_init_ipp(struct brcm_usb_init_params *params)
@@ -319,6 +327,9 @@ static void usb_init_common_7216(struct brcm_usb_init_params *params)
 
 	/* 1 millisecond - for USB clocks to settle down */
 	usleep_range(1000, 2000);
+
+	/* Disable PHY when port is suspended */
+	USB_CTRL_SET(ctrl, P0_U2PHY_CFG1, COMMONONN);
 
 	usb_wake_enable_7216(params, false);
 	usb_init_common(params);

@@ -73,6 +73,7 @@
 		L2_0: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -114,6 +115,16 @@
 		#size-cells = <2>;
 		ranges;
 
+		bootloader@4a100000 {
+			reg = <0x0 0x4a100000 0x0 0x400000>;
+			no-map;
+		};
+
+		sbl@4a500000 {
+			reg = <0x0 0x4a500000 0x0 0x100000>;
+			no-map;
+		};
+
 		tz_mem: tz@4a600000 {
 			reg = <0x0 0x4a600000 0x0 0x200000>;
 			no-map;
@@ -121,7 +132,7 @@
 
 		smem@4a800000 {
 			compatible = "qcom,smem";
-			reg = <0x0 0x4a800000 0x0 0x00100000>;
+			reg = <0x0 0x4a800000 0x0 0x100000>;
 			no-map;
 
 			hwlocks = <&tcsr_mutex 0>;
@@ -133,6 +144,13 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
+
+		qfprom: efuse@a4000 {
+			compatible = "qcom,ipq5332-qfprom", "qcom,qfprom";
+			reg = <0x000a4000 0x721>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
 
 		rng: rng@e3000 {
 			compatible = "qcom,prng-ee";
@@ -215,6 +233,18 @@
 			clocks = <&gcc GCC_BLSP1_UART1_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			status = "disabled";
+		};
+
+		blsp1_uart1: serial@78b0000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x078b0000 0x200>;
+			interrupts = <GIC_SPI 291 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>,
+				 <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 2>, <&blsp_dma 3>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 

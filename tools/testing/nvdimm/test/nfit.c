@@ -3240,11 +3240,6 @@ static int nfit_test_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int nfit_test_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static void nfit_test_release(struct device *dev)
 {
 	struct nfit_test *nfit_test = to_nfit_test(dev);
@@ -3259,7 +3254,6 @@ static const struct platform_device_id nfit_test_id[] = {
 
 static struct platform_driver nfit_test_driver = {
 	.probe = nfit_test_probe,
-	.remove = nfit_test_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},

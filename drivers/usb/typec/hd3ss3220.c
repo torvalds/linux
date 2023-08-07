@@ -292,8 +292,8 @@ static struct i2c_driver hd3ss3220_driver = {
 		.name = "hd3ss3220",
 		.of_match_table = dev_ids,
 	},
-	.probe_new = hd3ss3220_probe,
-	.remove =  hd3ss3220_remove,
+	.probe = hd3ss3220_probe,
+	.remove = hd3ss3220_remove,
 };
 
 module_i2c_driver(hd3ss3220_driver);

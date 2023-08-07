@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/dts-v1/;
+
+#include "dra62x.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	model = "DRA62x J5 Eco EVM";
+	compatible = "ti,dra62x-j5eco-evm", "ti,dra62x", "ti,dm8148", "ti,dm814";
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>;	/* 1 GB */
+	};
+
+	/* MIC94060YC6 controlled by SD1_POW pin */
+	vmmcsd_fixed: fixedregulator0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcsd_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+};
+
+&cpsw_emac0 {
+	phy-handle = <&ethphy0>;
+	phy-mode = "rgmii-id";
+};
+
+&cpsw_emac1 {
+	phy-handle = <&ethphy1>;
+	phy-mode = "rgmii-id";
+};
+
+&davinci_mdio {
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+&gpmc {
+	ranges = <0 0 0x04000000 0x01000000>;	/* CS0: 16MB for NAND */
+
+	nand@0,0 {
+		compatible = "ti,omap2-nand";
+		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>; /* termcount */
+		linux,mtd-name = "micron,mt29f2g16aadwp";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ti,nand-ecc-opt = "bch8";
+		nand-bus-width = <16>;
+		gpmc,device-width = <2>;
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-on-ns = <0>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+		partition@0 {
+			label = "X-Loader";
+			reg = <0 0x80000>;
+		};
+		partition@80000 {
+			label = "U-Boot";
+			reg = <0x80000 0x1c0000>;
+		};
+		partition@1c0000 {
+			label = "Environment";
+			reg = <0x240000 0x40000>;
+		};
+		partition@280000 {
+			label = "Kernel";
+			reg = <0x280000 0x500000>;
+		};
+		partition@780000 {
+			label = "Filesystem";
+			reg = <0x780000 0xf880000>;
+		};
+	};
+};
+
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd1_pins>;
+	vmmc-supply = <&vmmcsd_fixed>;
+	bus-width = <4>;
+	cd-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
+};
+
+&pincntl {
+	sd1_pins: sd1-pins {
+		pinctrl-single,pins = <
+			DM814X_IOPAD(0x0800, PIN_INPUT | 0x1)	/* SD1_CLK */
+			DM814X_IOPAD(0x0804, PIN_INPUT_PULLUP |  0x1)	/* SD1_CMD */
+			DM814X_IOPAD(0x0808, PIN_INPUT_PULLUP |  0x1)	/* SD1_DAT[0] */
+			DM814X_IOPAD(0x080c, PIN_INPUT_PULLUP |  0x1)	/* SD1_DAT[1] */
+			DM814X_IOPAD(0x0810, PIN_INPUT_PULLUP |  0x1)	/* SD1_DAT[2] */
+			DM814X_IOPAD(0x0814, PIN_INPUT_PULLUP |  0x1)	/* SD1_DAT[3] */
+			DM814X_IOPAD(0x0924, PIN_OUTPUT |  0x40)	/* SD1_POW */
+			DM814X_IOPAD(0x093C, PIN_INPUT_PULLUP |  0x80)	/* GP1[6] */
+			>;
+	};
+
+	usb0_pins: usb0-pins {
+		pinctrl-single,pins = <
+			DM814X_IOPAD(0x0c34, PIN_OUTPUT | 0x1)	/* USB0_DRVVBUS */
+			>;
+	};
+};
+
+/* USB0_ID pin state: SW10[1] = 0 cable detection, SW10[1] = 1 ID grounded */
+&usb0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_pins>;
+	dr_mode = "otg";
+};
+
+&usb1_phy {
+	status = "disabled";
+};
+
+&usb1 {
+	status = "disabled";
+};

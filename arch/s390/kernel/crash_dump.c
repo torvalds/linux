@@ -568,9 +568,9 @@ static size_t get_elfcorehdr_size(int mem_chunk_cnt)
 int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 {
 	Elf64_Phdr *phdr_notes, *phdr_loads;
+	size_t alloc_size;
 	int mem_chunk_cnt;
 	void *ptr, *hdr;
-	u32 alloc_size;
 	u64 hdr_off;
 
 	/* If we are not in kdump or zfcp/nvme dump mode return */

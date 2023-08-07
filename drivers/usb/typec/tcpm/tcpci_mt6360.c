@@ -178,13 +178,12 @@ static int mt6360_tcpc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mt6360_tcpc_remove(struct platform_device *pdev)
+static void mt6360_tcpc_remove(struct platform_device *pdev)
 {
 	struct mt6360_tcpc_info *mti = platform_get_drvdata(pdev);
 
 	disable_irq(mti->irq);
 	tcpci_unregister_port(mti->tcpci);
-	return 0;
 }
 
 static int __maybe_unused mt6360_tcpc_suspend(struct device *dev)
@@ -222,7 +221,7 @@ static struct platform_driver mt6360_tcpc_driver = {
 		.of_match_table = mt6360_tcpc_of_id,
 	},
 	.probe = mt6360_tcpc_probe,
-	.remove = mt6360_tcpc_remove,
+	.remove_new = mt6360_tcpc_remove,
 };
 module_platform_driver(mt6360_tcpc_driver);
 

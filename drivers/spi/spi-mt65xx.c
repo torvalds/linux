@@ -1144,7 +1144,8 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	if (mdata->dev_comp->must_tx)
 		master->flags = SPI_MASTER_MUST_TX;
 	if (mdata->dev_comp->ipm_design)
-		master->mode_bits |= SPI_LOOP;
+		master->mode_bits |= SPI_LOOP | SPI_RX_DUAL | SPI_TX_DUAL |
+				     SPI_RX_QUAD | SPI_TX_QUAD;
 
 	if (mdata->dev_comp->ipm_design) {
 		mdata->dev = dev;
@@ -1269,27 +1270,34 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtk_spi_remove(struct platform_device *pdev)
+static void mtk_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct mtk_spi *mdata = spi_master_get_devdata(master);
 	int ret;
 
-	ret = pm_runtime_resume_and_get(&pdev->dev);
-	if (ret < 0)
-		return ret;
+	if (mdata->use_spimem && !completion_done(&mdata->spimem_done))
+		complete(&mdata->spimem_done);
 
-	mtk_spi_reset(mdata);
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0) {
+		dev_warn(&pdev->dev, "Failed to resume hardware (%pe)\n", ERR_PTR(ret));
+	} else {
+		/*
+		 * If pm runtime resume failed, clks are disabled and
+		 * unprepared. So don't access the hardware and skip clk
+		 * unpreparing.
+		 */
+		mtk_spi_reset(mdata);
 
-	if (mdata->dev_comp->no_need_unprepare) {
-		clk_unprepare(mdata->spi_clk);
-		clk_unprepare(mdata->spi_hclk);
+		if (mdata->dev_comp->no_need_unprepare) {
+			clk_unprepare(mdata->spi_clk);
+			clk_unprepare(mdata->spi_hclk);
+		}
 	}
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1308,7 +1316,7 @@ static int mtk_spi_suspend(struct device *dev)
 		clk_disable_unprepare(mdata->spi_hclk);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int mtk_spi_resume(struct device *dev)
@@ -1409,7 +1417,7 @@ static struct platform_driver mtk_spi_driver = {
 		.of_match_table = mtk_spi_of_match,
 	},
 	.probe = mtk_spi_probe,
-	.remove = mtk_spi_remove,
+	.remove_new = mtk_spi_remove,
 };
 
 module_platform_driver(mtk_spi_driver);

@@ -183,7 +183,7 @@ static void nft_tproxy_eval(const struct nft_expr *expr,
 }
 
 static const struct nla_policy nft_tproxy_policy[NFTA_TPROXY_MAX + 1] = {
-	[NFTA_TPROXY_FAMILY]   = { .type = NLA_U32 },
+	[NFTA_TPROXY_FAMILY]   = NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_TPROXY_REG_ADDR] = { .type = NLA_U32 },
 	[NFTA_TPROXY_REG_PORT] = { .type = NLA_U32 },
 };

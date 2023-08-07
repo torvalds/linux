@@ -77,7 +77,6 @@ static int s3d_set_fbinfo(struct s3d_info *sp)
 	struct fb_info *info = sp->info;
 	struct fb_var_screeninfo *var = &info->var;
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &s3d_ops;
 	info->screen_base = sp->fb_base;
 	info->screen_size = sp->fb_size;

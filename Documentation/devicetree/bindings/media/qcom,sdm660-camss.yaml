@@ -227,7 +227,7 @@ examples:
     #include <dt-bindings/clock/qcom,gcc-sdm660.h>
     #include <dt-bindings/clock/qcom,mmcc-sdm660.h>
 
-    camss: camss@ca00000 {
+    camss: camss@ca00020 {
       compatible = "qcom,sdm660-camss";
 
       clocks = <&mmcc CAMSS_AHB_CLK>,

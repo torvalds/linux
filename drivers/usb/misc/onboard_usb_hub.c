@@ -278,7 +278,7 @@ static int onboard_hub_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int onboard_hub_remove(struct platform_device *pdev)
+static void onboard_hub_remove(struct platform_device *pdev)
 {
 	struct onboard_hub *hub = dev_get_drvdata(&pdev->dev);
 	struct usbdev_node *node;
@@ -306,7 +306,7 @@ static int onboard_hub_remove(struct platform_device *pdev)
 
 	mutex_unlock(&hub->lock);
 
-	return onboard_hub_power_off(hub);
+	onboard_hub_power_off(hub);
 }
 
 MODULE_DEVICE_TABLE(of, onboard_hub_match);
@@ -317,7 +317,7 @@ static const struct dev_pm_ops __maybe_unused onboard_hub_pm_ops = {
 
 static struct platform_driver onboard_hub_driver = {
 	.probe = onboard_hub_probe,
-	.remove = onboard_hub_remove,
+	.remove_new = onboard_hub_remove,
 
 	.driver = {
 		.name = "onboard-usb-hub",

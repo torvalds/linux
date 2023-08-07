@@ -1425,12 +1425,15 @@ int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 EXPORT_SYMBOL(genphy_c45_ethtool_get_eee);
 
 /**
- * genphy_c45_ethtool_set_eee - get EEE supported and status
+ * genphy_c45_ethtool_set_eee - set EEE supported and status
  * @phydev: target phy_device struct
  * @data: ethtool_eee data
  *
- * Description: it reportes the Supported/Advertisement/LP Advertisement
- * capabilities.
+ * Description: sets the Supported/Advertisement/LP Advertisement
+ * capabilities. If eee_enabled is false, no links modes are
+ * advertised, but the previously advertised link modes are
+ * retained. This allows EEE to be enabled/disabled in a
+ * non-destructive way.
  */
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 			       struct ethtool_eee *data)

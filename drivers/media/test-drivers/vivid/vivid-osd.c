@@ -310,7 +310,6 @@ static int vivid_fb_init_vidmode(struct vivid_dev *dev)
 	/* Generate valid fb_info */
 
 	dev->fb_info.node = -1;
-	dev->fb_info.flags = FBINFO_FLAG_DEFAULT;
 	dev->fb_info.par = dev;
 	dev->fb_info.var = dev->fb_defined;
 	dev->fb_info.fix = dev->fb_fix;

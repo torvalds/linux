@@ -4,6 +4,7 @@
 #include <test_progs.h>
 #include <stdbool.h>
 #include "test_module_attach.skel.h"
+#include "testing_helpers.h"
 
 static int duration;
 
@@ -30,11 +31,6 @@ static int trigger_module_test_writable(int *val)
 	close(fd);
 
 	return 0;
-}
-
-static int delete_module(const char *name, int flags)
-{
-	return syscall(__NR_delete_module, name, flags);
 }
 
 void test_module_attach(void)
@@ -93,21 +89,21 @@ void test_module_attach(void)
 	if (!ASSERT_OK_PTR(link, "attach_fentry"))
 		goto cleanup;
 
-	ASSERT_ERR(delete_module("bpf_testmod", 0), "delete_module");
+	ASSERT_ERR(unload_bpf_testmod(false), "unload_bpf_testmod");
 	bpf_link__destroy(link);
 
 	link = bpf_program__attach(skel->progs.handle_fexit);
 	if (!ASSERT_OK_PTR(link, "attach_fexit"))
 		goto cleanup;
 
-	ASSERT_ERR(delete_module("bpf_testmod", 0), "delete_module");
+	ASSERT_ERR(unload_bpf_testmod(false), "unload_bpf_testmod");
 	bpf_link__destroy(link);
 
 	link = bpf_program__attach(skel->progs.kprobe_multi);
 	if (!ASSERT_OK_PTR(link, "attach_kprobe_multi"))
 		goto cleanup;
 
-	ASSERT_ERR(delete_module("bpf_testmod", 0), "delete_module");
+	ASSERT_ERR(unload_bpf_testmod(false), "unload_bpf_testmod");
 	bpf_link__destroy(link);
 
 cleanup:

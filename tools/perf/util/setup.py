@@ -36,6 +36,10 @@ if cc_is_clang:
             vars[var] = sub("-fno-semantic-interposition", "", vars[var])
         if not clang_has_option("-ffat-lto-objects"):
             vars[var] = sub("-ffat-lto-objects", "", vars[var])
+        if not clang_has_option("-ftree-loop-distribute-patterns"):
+            vars[var] = sub("-ftree-loop-distribute-patterns", "", vars[var])
+        if not clang_has_option("-gno-variable-location-views"):
+            vars[var] = sub("-gno-variable-location-views", "", vars[var])
 
 from setuptools import setup, Extension
 

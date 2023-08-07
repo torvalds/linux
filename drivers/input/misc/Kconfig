@@ -609,7 +609,7 @@ config INPUT_PWM_VIBRA
 
 config INPUT_RK805_PWRKEY
 	tristate "Rockchip RK805 PMIC power key support"
-	depends on MFD_RK808
+	depends on MFD_RK8XX
 	help
 	  Select this option to enable power key driver for RK805.
 

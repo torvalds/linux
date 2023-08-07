@@ -605,9 +605,8 @@ static int usb4_drom_parse(struct tb_switch *sw)
 	crc = tb_crc32(sw->drom + TB_DROM_DATA_START, header->data_len);
 	if (crc != header->data_crc32) {
 		tb_sw_warn(sw,
-			   "DROM data CRC32 mismatch (expected: %#x, got: %#x), aborting\n",
+			   "DROM data CRC32 mismatch (expected: %#x, got: %#x), continuing\n",
 			   header->data_crc32, crc);
-		return -EINVAL;
 	}
 
 	return tb_drom_parse_entries(sw, USB4_DROM_HEADER_SIZE);

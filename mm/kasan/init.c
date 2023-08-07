@@ -286,7 +286,7 @@ static void kasan_free_pte(pte_t *pte_start, pmd_t *pmd)
 
 	for (i = 0; i < PTRS_PER_PTE; i++) {
 		pte = pte_start + i;
-		if (!pte_none(*pte))
+		if (!pte_none(ptep_get(pte)))
 			return;
 	}
 
@@ -343,16 +343,19 @@ static void kasan_remove_pte_table(pte_t *pte, unsigned long addr,
 				unsigned long end)
 {
 	unsigned long next;
+	pte_t ptent;
 
 	for (; addr < end; addr = next, pte++) {
 		next = (addr + PAGE_SIZE) & PAGE_MASK;
 		if (next > end)
 			next = end;
 
-		if (!pte_present(*pte))
+		ptent = ptep_get(pte);
+
+		if (!pte_present(ptent))
 			continue;
 
-		if (WARN_ON(!kasan_early_shadow_page_entry(*pte)))
+		if (WARN_ON(!kasan_early_shadow_page_entry(ptent)))
 			continue;
 		pte_clear(&init_mm, addr, pte);
 	}

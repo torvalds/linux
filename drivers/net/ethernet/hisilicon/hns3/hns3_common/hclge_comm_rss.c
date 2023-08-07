@@ -305,8 +305,7 @@ int hclge_comm_set_rss_indir_table(struct hnae3_ae_dev *ae_dev,
 	return 0;
 }
 
-int hclge_comm_set_rss_input_tuple(struct hnae3_handle *nic,
-				   struct hclge_comm_hw *hw, bool is_pf,
+int hclge_comm_set_rss_input_tuple(struct hclge_comm_hw *hw,
 				   struct hclge_comm_rss_cfg *rss_cfg)
 {
 	struct hclge_comm_rss_input_tuple_cmd *req;

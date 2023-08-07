@@ -1265,7 +1265,7 @@ static struct i2c_driver mt9v111_driver = {
 		.name = "mt9v111",
 		.of_match_table = mt9v111_of_match,
 	},
-	.probe_new	= mt9v111_probe,
+	.probe		= mt9v111_probe,
 	.remove		= mt9v111_remove,
 };
 

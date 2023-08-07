@@ -713,7 +713,7 @@ static void default_mock_decoder(struct cxl_decoder *cxld)
 
 	cxld->interleave_ways = 1;
 	cxld->interleave_granularity = 256;
-	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 	cxld->commit = mock_decoder_commit;
 	cxld->reset = mock_decoder_reset;
 }
@@ -754,7 +754,7 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 		/* check is endpoint is attach to host-bridge0 */
 		port = cxled_to_port(cxled);
 		do {
-			if (port->uport == &cxl_host_bridge[0]->dev) {
+			if (port->uport_dev == &cxl_host_bridge[0]->dev) {
 				hb0 = true;
 				break;
 			}
@@ -787,7 +787,7 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 
 	cxld->interleave_ways = 2;
 	eig_to_granularity(window->granularity, &cxld->interleave_granularity);
-	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 	cxld->flags = CXL_DECODER_F_ENABLE;
 	cxled->state = CXL_DECODER_STATE_AUTO;
 	port->commit_end = cxld->id;
@@ -820,7 +820,7 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 		} else
 			cxlsd->target[0] = dport;
 		cxld = &cxlsd->cxld;
-		cxld->target_type = CXL_DECODER_EXPANDER;
+		cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 		cxld->flags = CXL_DECODER_F_ENABLE;
 		iter->commit_end = 0;
 		/*
@@ -889,7 +889,7 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 		mock_init_hdm_decoder(cxld);
 
 		if (target_count) {
-			rc = device_for_each_child(port->uport, &ctx,
+			rc = device_for_each_child(port->uport_dev, &ctx,
 						   map_targets);
 			if (rc) {
 				put_device(&cxld->dev);
@@ -919,29 +919,29 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 	int i, array_size;
 
 	if (port->depth == 1) {
-		if (is_multi_bridge(port->uport)) {
+		if (is_multi_bridge(port->uport_dev)) {
 			array_size = ARRAY_SIZE(cxl_root_port);
 			array = cxl_root_port;
-		} else if (is_single_bridge(port->uport)) {
+		} else if (is_single_bridge(port->uport_dev)) {
 			array_size = ARRAY_SIZE(cxl_root_single);
 			array = cxl_root_single;
 		} else {
 			dev_dbg(&port->dev, "%s: unknown bridge type\n",
-				dev_name(port->uport));
+				dev_name(port->uport_dev));
 			return -ENXIO;
 		}
 	} else if (port->depth == 2) {
 		struct cxl_port *parent = to_cxl_port(port->dev.parent);
 
-		if (is_multi_bridge(parent->uport)) {
+		if (is_multi_bridge(parent->uport_dev)) {
 			array_size = ARRAY_SIZE(cxl_switch_dport);
 			array = cxl_switch_dport;
-		} else if (is_single_bridge(parent->uport)) {
+		} else if (is_single_bridge(parent->uport_dev)) {
 			array_size = ARRAY_SIZE(cxl_swd_single);
 			array = cxl_swd_single;
 		} else {
 			dev_dbg(&port->dev, "%s: unknown bridge type\n",
-				dev_name(port->uport));
+				dev_name(port->uport_dev));
 			return -ENXIO;
 		}
 	} else {
@@ -954,9 +954,9 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 		struct platform_device *pdev = array[i];
 		struct cxl_dport *dport;
 
-		if (pdev->dev.parent != port->uport) {
+		if (pdev->dev.parent != port->uport_dev) {
 			dev_dbg(&port->dev, "%s: mismatch parent %s\n",
-				dev_name(port->uport),
+				dev_name(port->uport_dev),
 				dev_name(pdev->dev.parent));
 			continue;
 		}
@@ -971,15 +971,6 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 	return 0;
 }
 
-resource_size_t mock_cxl_rcrb_to_component(struct device *dev,
-					   resource_size_t rcrb,
-					   enum cxl_rcrb which)
-{
-	dev_dbg(dev, "rcrb: %pa which: %d\n", &rcrb, which);
-
-	return (resource_size_t) which + 1;
-}
-
 static struct cxl_mock_ops cxl_mock_ops = {
 	.is_mock_adev = is_mock_adev,
 	.is_mock_bridge = is_mock_bridge,
@@ -988,7 +979,6 @@ static struct cxl_mock_ops cxl_mock_ops = {
 	.is_mock_dev = is_mock_dev,
 	.acpi_table_parse_cedt = mock_acpi_table_parse_cedt,
 	.acpi_evaluate_integer = mock_acpi_evaluate_integer,
-	.cxl_rcrb_to_component = mock_cxl_rcrb_to_component,
 	.acpi_pci_find_root = mock_acpi_pci_find_root,
 	.devm_cxl_port_enumerate_dports = mock_cxl_port_enumerate_dports,
 	.devm_cxl_setup_hdm = mock_cxl_setup_hdm,

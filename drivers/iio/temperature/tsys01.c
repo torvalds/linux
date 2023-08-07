@@ -218,7 +218,7 @@ static const struct of_device_id tsys01_of_match[] = {
 MODULE_DEVICE_TABLE(of, tsys01_of_match);
 
 static struct i2c_driver tsys01_driver = {
-	.probe_new = tsys01_i2c_probe,
+	.probe = tsys01_i2c_probe,
 	.id_table = tsys01_id,
 	.driver = {
 		   .name = "tsys01",

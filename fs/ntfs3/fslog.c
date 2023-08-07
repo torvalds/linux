@@ -828,8 +828,8 @@ static inline struct RESTART_TABLE *extend_rsttbl(struct RESTART_TABLE *tbl,
 	memcpy(rt + 1, tbl + 1, esize * used);
 
 	rt->free_goal = free_goal == ~0u ?
-				      cpu_to_le32(~0u) :
-				      cpu_to_le32(sizeof(struct RESTART_TABLE) +
+				cpu_to_le32(~0u) :
+				cpu_to_le32(sizeof(struct RESTART_TABLE) +
 					    free_goal * esize);
 
 	if (tbl->first_free) {
@@ -1090,8 +1090,8 @@ static inline u64 base_lsn(struct ntfs_log *log,
 		   << log->file_data_bits) +
 		  ((((is_log_record_end(hdr) &&
 		      h_lsn <= le64_to_cpu(hdr->record_hdr.last_end_lsn)) ?
-				   le16_to_cpu(hdr->record_hdr.next_record_off) :
-				   log->page_size) +
+			     le16_to_cpu(hdr->record_hdr.next_record_off) :
+			     log->page_size) +
 		    lsn) >>
 		   3);
 
@@ -1299,8 +1299,8 @@ static void log_init_pg_hdr(struct ntfs_log *log, u32 sys_page_size,
 		log->clst_per_page = 1;
 
 	log->first_page = major_ver >= 2 ?
-					0x22 * page_size :
-					((sys_page_size << 1) + (page_size << 1));
+				  0x22 * page_size :
+				  ((sys_page_size << 1) + (page_size << 1));
 	log->major_ver = major_ver;
 	log->minor_ver = minor_ver;
 }
@@ -1513,8 +1513,8 @@ static u32 current_log_avail(struct ntfs_log *log)
 	 * If there is no oldest lsn then start at the first page of the file.
 	 */
 	oldest_off = (log->l_flags & NTFSLOG_NO_OLDEST_LSN) ?
-				   log->first_page :
-				   (log->oldest_lsn_off & ~log->sys_page_mask);
+			     log->first_page :
+			     (log->oldest_lsn_off & ~log->sys_page_mask);
 
 	/*
 	 * We will use the next log page offset to compute the next free page.
@@ -1522,9 +1522,9 @@ static u32 current_log_avail(struct ntfs_log *log)
 	 * If we are at the first page then use the end of the file.
 	 */
 	next_free_off = (log->l_flags & NTFSLOG_REUSE_TAIL) ?
-				      log->next_page + log->page_size :
+				log->next_page + log->page_size :
 			log->next_page == log->first_page ? log->l_size :
-								  log->next_page;
+							    log->next_page;
 
 	/* If the two offsets are the same then there is no available space. */
 	if (oldest_off == next_free_off)
@@ -1535,8 +1535,8 @@ static u32 current_log_avail(struct ntfs_log *log)
 	 */
 	free_bytes =
 		oldest_off < next_free_off ?
-			      log->total_avail_pages - (next_free_off - oldest_off) :
-			      oldest_off - next_free_off;
+			log->total_avail_pages - (next_free_off - oldest_off) :
+			oldest_off - next_free_off;
 
 	free_bytes >>= log->page_bits;
 	return free_bytes * log->reserved;
@@ -1671,7 +1671,7 @@ next_tail:
 
 	best_lsn1 = first_tail ? base_lsn(log, first_tail, first_file_off) : 0;
 	best_lsn2 = second_tail ? base_lsn(log, second_tail, second_file_off) :
-					0;
+				  0;
 
 	if (first_tail && second_tail) {
 		if (best_lsn1 > best_lsn2) {
@@ -1767,7 +1767,7 @@ tail_read:
 	page_cnt = page_pos = 1;
 
 	curpage_off = seq_base == log->seq_num ? min(log->next_page, page_off) :
-						       log->next_page;
+						 log->next_page;
 
 	wrapped_file =
 		curpage_off == log->first_page &&
@@ -1826,8 +1826,8 @@ use_cur_page:
 		    ((lsn_cur >> log->file_data_bits) +
 		     ((curpage_off <
 		       (lsn_to_vbo(log, lsn_cur) & ~log->page_mask)) ?
-				    1 :
-				    0)) != expected_seq) {
+			      1 :
+			      0)) != expected_seq) {
 			goto check_tail;
 		}
 
@@ -2643,8 +2643,8 @@ static inline bool check_index_root(const struct ATTRIB *attr,
 	const struct INDEX_ROOT *root = resident_data(attr);
 	u8 index_bits = le32_to_cpu(root->index_block_size) >=
 					sbi->cluster_size ?
-				      sbi->cluster_bits :
-				      SECTOR_SHIFT;
+				sbi->cluster_bits :
+				SECTOR_SHIFT;
 	u8 block_clst = root->index_block_clst;
 
 	if (le32_to_cpu(attr->res.data_size) < sizeof(struct INDEX_ROOT) ||
@@ -3861,9 +3861,9 @@ check_restart_area:
 
 	/* If we have a valid page then grab a pointer to the restart area. */
 	ra2 = rst_info.valid_page ?
-			    Add2Ptr(rst_info.r_page,
+		      Add2Ptr(rst_info.r_page,
 			      le16_to_cpu(rst_info.r_page->ra_off)) :
-			    NULL;
+		      NULL;
 
 	if (rst_info.chkdsk_was_run ||
 	    (ra2 && ra2->client_idx[1] == LFS_NO_CLIENT_LE)) {

@@ -927,7 +927,7 @@ static struct i2c_driver ltc2978_driver = {
 		   .name = "ltc2978",
 		   .of_match_table = of_match_ptr(ltc2978_of_match),
 		   },
-	.probe_new = ltc2978_probe,
+	.probe = ltc2978_probe,
 	.id_table = ltc2978_id,
 };
 

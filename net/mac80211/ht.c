@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright(c) 2020-2022 Intel Corporation
+ * Copyright(c) 2020-2023 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -602,7 +602,8 @@ void ieee80211_request_smps(struct ieee80211_vif *vif, unsigned int link_id,
 		goto out;
 
 	link->u.mgd.driver_smps_mode = smps_mode;
-	ieee80211_queue_work(&sdata->local->hw, &link->u.mgd.request_smps_work);
+	wiphy_work_queue(sdata->local->hw.wiphy,
+			 &link->u.mgd.request_smps_work);
 out:
 	rcu_read_unlock();
 }

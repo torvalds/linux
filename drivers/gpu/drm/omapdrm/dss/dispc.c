@@ -4858,10 +4858,9 @@ static int dispc_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &dispc_component_ops);
 }
 
-static int dispc_remove(struct platform_device *pdev)
+static void dispc_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &dispc_component_ops);
-	return 0;
 }
 
 static __maybe_unused int dispc_runtime_suspend(struct device *dev)
@@ -4913,7 +4912,7 @@ static const struct dev_pm_ops dispc_pm_ops = {
 
 struct platform_driver omap_dispchw_driver = {
 	.probe		= dispc_probe,
-	.remove         = dispc_remove,
+	.remove_new     = dispc_remove,
 	.driver         = {
 		.name   = "omapdss_dispc",
 		.pm	= &dispc_pm_ops,

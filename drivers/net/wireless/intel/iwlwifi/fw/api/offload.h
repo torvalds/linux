@@ -28,7 +28,8 @@ enum iwl_prot_offload_subcmd_ids {
 	D3_END_NOTIFICATION = 0xFE,
 
 	/**
-	 * @STORED_BEACON_NTF: &struct iwl_stored_beacon_notif
+	 * @STORED_BEACON_NTF: &struct iwl_stored_beacon_notif_v2 or
+	 *	&struct iwl_stored_beacon_notif_v3
 	 */
 	STORED_BEACON_NTF = 0xFF,
 };

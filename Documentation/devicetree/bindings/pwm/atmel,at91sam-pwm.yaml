@@ -11,7 +11,7 @@ maintainers:
   - Claudiu Beznea <claudiu.beznea@microchip.com>
 
 allOf:
-  - $ref: "pwm.yaml#"
+  - $ref: pwm.yaml#
 
 properties:
   compatible:

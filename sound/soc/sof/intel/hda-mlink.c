@@ -19,6 +19,9 @@
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_MLINK)
 
+/* worst-case number of sublinks is used for sublink refcount array allocation only */
+#define HDAML_MAX_SUBLINKS (AZX_ML_LCTL_CPA_SHIFT - AZX_ML_LCTL_SPA_SHIFT)
+
 /**
  * struct hdac_ext2_link - HDAudio extended+alternate link
  *
@@ -33,6 +36,7 @@
  * @leptr:		extended link pointer
  * @eml_lock:		mutual exclusion to access shared registers e.g. CPA/SPA bits
  * in LCTL register
+ * @sublink_ref_count:	array of refcounts, required to power-manage sublinks independently
  * @base_ptr:		pointer to shim/ip/shim_vs space
  * @instance_offset:	offset between each of @slcount instances managed by link
  * @shim_offset:	offset to SHIM register base
@@ -53,6 +57,7 @@ struct hdac_ext2_link {
 	u32 leptr;
 
 	struct mutex eml_lock; /* prevent concurrent access to e.g. CPA/SPA */
+	int sublink_ref_count[HDAML_MAX_SUBLINKS];
 
 	/* internal values computed from LCAP contents */
 	void __iomem *base_ptr;
@@ -68,6 +73,7 @@ struct hdac_ext2_link {
 #define AZX_REG_SDW_SHIM_OFFSET				0x0
 #define AZX_REG_SDW_IP_OFFSET				0x100
 #define AZX_REG_SDW_VS_SHIM_OFFSET			0x6000
+#define AZX_REG_SDW_SHIM_PCMSyCM(y)			(0x16 + 0x4 * (y))
 
 /* only one instance supported */
 #define AZX_REG_INTEL_DMIC_SHIM_OFFSET			0x0
@@ -91,7 +97,7 @@ struct hdac_ext2_link {
  */
 
 static int hdaml_lnk_enum(struct device *dev, struct hdac_ext2_link *h2link,
-			  void __iomem *ml_addr, int link_idx)
+			  void __iomem *remap_addr, void __iomem *ml_addr, int link_idx)
 {
 	struct hdac_ext_link *hlink = &h2link->hext_link;
 	u32 base_offset;
@@ -126,15 +132,16 @@ static int hdaml_lnk_enum(struct device *dev, struct hdac_ext2_link *h2link,
 		link_idx, h2link->slcount);
 
 	/* find IP ID and offsets */
-	h2link->leptr = readl(hlink->ml_addr + AZX_REG_ML_LEPTR);
+	h2link->leptr = readl(ml_addr + AZX_REG_ML_LEPTR);
 
 	h2link->elid = FIELD_GET(AZX_REG_ML_LEPTR_ID, h2link->leptr);
 
 	base_offset = FIELD_GET(AZX_REG_ML_LEPTR_PTR, h2link->leptr);
-	h2link->base_ptr = hlink->ml_addr + base_offset;
+	h2link->base_ptr = remap_addr + base_offset;
 
 	switch (h2link->elid) {
 	case AZX_REG_ML_LEPTR_ID_SDW:
+		h2link->instance_offset = AZX_REG_SDW_INSTANCE_OFFSET;
 		h2link->shim_offset = AZX_REG_SDW_SHIM_OFFSET;
 		h2link->ip_offset = AZX_REG_SDW_IP_OFFSET;
 		h2link->shim_vs_offset = AZX_REG_SDW_VS_SHIM_OFFSET;
@@ -149,6 +156,7 @@ static int hdaml_lnk_enum(struct device *dev, struct hdac_ext2_link *h2link,
 			link_idx, base_offset);
 		break;
 	case AZX_REG_ML_LEPTR_ID_INTEL_SSP:
+		h2link->instance_offset = AZX_REG_INTEL_SSP_INSTANCE_OFFSET;
 		h2link->shim_offset = AZX_REG_INTEL_SSP_SHIM_OFFSET;
 		h2link->ip_offset = AZX_REG_INTEL_SSP_IP_OFFSET;
 		h2link->shim_vs_offset = AZX_REG_INTEL_SSP_VS_SHIM_OFFSET;
@@ -333,6 +341,21 @@ static void hdaml_link_set_lsdiid(u32 __iomem *lsdiid, int dev_num)
 	writel(val, lsdiid);
 }
 
+static void hdaml_shim_map_stream_ch(u16 __iomem *pcmsycm, int lchan, int hchan,
+				     int stream_id, int dir)
+{
+	u16 val;
+
+	val = readw(pcmsycm);
+
+	u16p_replace_bits(&val, lchan, GENMASK(3, 0));
+	u16p_replace_bits(&val, hchan, GENMASK(7, 4));
+	u16p_replace_bits(&val, stream_id, GENMASK(13, 8));
+	u16p_replace_bits(&val, dir, BIT(15));
+
+	writew(val, pcmsycm);
+}
+
 static void hdaml_lctl_offload_enable(u32 __iomem *lctl, bool enable)
 {
 	u32 val = readl(lctl);
@@ -364,7 +387,7 @@ static int hda_ml_alloc_h2link(struct hdac_bus *bus, int index)
 	hlink->bus = bus;
 	hlink->ml_addr = bus->mlcap + AZX_ML_BASE + (AZX_ML_INTERVAL * index);
 
-	ret = hdaml_lnk_enum(bus->dev, h2link, hlink->ml_addr, index);
+	ret = hdaml_lnk_enum(bus->dev, h2link, bus->remap_addr, hlink->ml_addr, index);
 	if (ret < 0) {
 		kfree(h2link);
 		return ret;
@@ -641,8 +664,13 @@ static int hdac_bus_eml_power_up_base(struct hdac_bus *bus, bool alt, int elid, 
 	if (eml_lock)
 		mutex_lock(&h2link->eml_lock);
 
-	if (++hlink->ref_count > 1)
-		goto skip_init;
+	if (!alt) {
+		if (++hlink->ref_count > 1)
+			goto skip_init;
+	} else {
+		if (++h2link->sublink_ref_count[sublink] > 1)
+			goto skip_init;
+	}
 
 	ret = hdaml_link_init(hlink->ml_addr + AZX_REG_ML_LCTL, sublink);
 
@@ -684,9 +712,13 @@ static int hdac_bus_eml_power_down_base(struct hdac_bus *bus, bool alt, int elid
 	if (eml_lock)
 		mutex_lock(&h2link->eml_lock);
 
-	if (--hlink->ref_count > 0)
-		goto skip_shutdown;
-
+	if (!alt) {
+		if (--hlink->ref_count > 0)
+			goto skip_shutdown;
+	} else {
+		if (--h2link->sublink_ref_count[sublink] > 0)
+			goto skip_shutdown;
+	}
 	ret = hdaml_link_shutdown(hlink->ml_addr + AZX_REG_ML_LCTL, sublink);
 
 skip_shutdown:
@@ -739,6 +771,40 @@ int hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num)
 
 	return 0;
 } EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_set_lsdiid, SND_SOC_SOF_HDA_MLINK);
+
+/*
+ * the 'y' parameter comes from the PCMSyCM hardware register naming. 'y' refers to the
+ * PDI index, i.e. the FIFO used for RX or TX
+ */
+int hdac_bus_eml_sdw_map_stream_ch(struct hdac_bus *bus, int sublink, int y,
+				   int channel_mask, int stream_id, int dir)
+{
+	struct hdac_ext2_link *h2link;
+	u16 __iomem *pcmsycm;
+	u16 val;
+
+	h2link = find_ext2_link(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
+	if (!h2link)
+		return -ENODEV;
+
+	pcmsycm = h2link->base_ptr + h2link->shim_offset +
+		h2link->instance_offset * sublink +
+		AZX_REG_SDW_SHIM_PCMSyCM(y);
+
+	mutex_lock(&h2link->eml_lock);
+
+	hdaml_shim_map_stream_ch(pcmsycm, 0, hweight32(channel_mask),
+				 stream_id, dir);
+
+	mutex_unlock(&h2link->eml_lock);
+
+	val = readw(pcmsycm);
+
+	dev_dbg(bus->dev, "channel_mask %#x stream_id %d dir %d pcmscm %#x\n",
+		channel_mask, stream_id, dir, val);
+
+	return 0;
+} EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_map_stream_ch, SND_SOC_SOF_HDA_MLINK);
 
 void hda_bus_ml_put_all(struct hdac_bus *bus)
 {
@@ -835,6 +901,18 @@ struct hdac_ext_link *hdac_bus_eml_dmic_get_hlink(struct hdac_bus *bus)
 	return &h2link->hext_link;
 }
 EXPORT_SYMBOL_NS(hdac_bus_eml_dmic_get_hlink, SND_SOC_SOF_HDA_MLINK);
+
+struct hdac_ext_link *hdac_bus_eml_sdw_get_hlink(struct hdac_bus *bus)
+{
+	struct hdac_ext2_link *h2link;
+
+	h2link = find_ext2_link(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
+	if (!h2link)
+		return NULL;
+
+	return &h2link->hext_link;
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_get_hlink, SND_SOC_SOF_HDA_MLINK);
 
 int hdac_bus_eml_enable_offload(struct hdac_bus *bus, bool alt, int elid, bool enable)
 {

@@ -318,7 +318,7 @@ static const struct regmap_config tmp108_regmap_config = {
 	.writeable_reg = tmp108_is_writeable_reg,
 	.volatile_reg = tmp108_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -432,7 +432,7 @@ static struct i2c_driver tmp108_driver = {
 		.pm	= pm_sleep_ptr(&tmp108_dev_pm_ops),
 		.of_match_table = of_match_ptr(tmp108_of_ids),
 	},
-	.probe_new	= tmp108_probe,
+	.probe		= tmp108_probe,
 	.id_table	= tmp108_i2c_ids,
 };
 

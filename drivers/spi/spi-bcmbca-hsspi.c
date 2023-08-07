@@ -3,7 +3,7 @@
  * Broadcom BCMBCA High Speed SPI Controller driver
  *
  * Copyright 2000-2010 Broadcom Corporation
- * Copyright 2012-2013 Jonas Gorski <jogo@openwrt.org>
+ * Copyright 2012-2013 Jonas Gorski <jonas.gorski@gmail.com>
  * Copyright 2019-2022 Broadcom Ltd
  */
 

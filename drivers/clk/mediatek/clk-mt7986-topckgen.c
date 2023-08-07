@@ -193,12 +193,12 @@ static const struct mtk_mux top_muxes[] = {
 			     pextp_tl_ck_parents, 0x010, 0x014, 0x018, 24, 2,
 			     31, 0x1C0, 7),
 	/* CLK_CFG_2 */
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_EMMC_250M_SEL, "emmc_250m_sel",
-			     emmc_250m_parents, 0x020, 0x024, 0x028, 0, 1, 7,
-			     0x1C0, 8),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_EMMC_416M_SEL, "emmc_416m_sel",
-			     emmc_416m_parents, 0x020, 0x024, 0x028, 8, 1, 15,
-			     0x1C0, 9),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_EMMC_250M_SEL, "emmc_250m_sel",
+				   emmc_250m_parents, 0x020, 0x024, 0x028, 0, 1, 7,
+				   0x1C0, 8, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_EMMC_416M_SEL, "emmc_416m_sel",
+				   emmc_416m_parents, 0x020, 0x024, 0x028, 8, 1, 15,
+				   0x1C0, 9, 0),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_F_26M_ADC_SEL, "f_26m_adc_sel",
 			     f_26m_adc_parents, 0x020, 0x024, 0x028, 16, 1, 23,
 			     0x1C0, 10),
@@ -308,7 +308,7 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt7986_topckgen);
 
 static struct platform_driver clk_mt7986_topckgen_drv = {
 	.probe = mtk_clk_simple_probe,
-	.remove = mtk_clk_simple_remove,
+	.remove_new = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt7986-topckgen",
 		.of_match_table = of_match_clk_mt7986_topckgen,

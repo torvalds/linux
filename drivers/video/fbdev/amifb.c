@@ -2427,7 +2427,7 @@ static int amifb_set_par(struct fb_info *info)
 		info->fix.ywrapstep = 1;
 		info->fix.xpanstep = 0;
 		info->fix.ypanstep = 0;
-		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YWRAP |
+		info->flags = FBINFO_HWACCEL_YWRAP |
 			FBINFO_READS_FAST; /* override SCROLL_REDRAW */
 	} else {
 		info->fix.ywrapstep = 0;
@@ -2436,7 +2436,7 @@ static int amifb_set_par(struct fb_info *info)
 		else
 			info->fix.xpanstep = 16 << maxfmode;
 		info->fix.ypanstep = 1;
-		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+		info->flags = FBINFO_HWACCEL_YPAN;
 	}
 	return 0;
 }
@@ -3660,7 +3660,6 @@ default_chipset:
 	}
 
 	info->fbops = &amifb_ops;
-	info->flags = FBINFO_DEFAULT;
 	info->device = &pdev->dev;
 
 	if (!fb_find_mode(&info->var, info, mode_option, ami_modedb,

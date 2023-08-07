@@ -206,7 +206,7 @@ static int anx7625_read_ctrl_status_p0(struct anx7625_data *ctx)
 
 static int wait_aux_op_finish(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	int val;
 	int ret;
 
@@ -233,7 +233,7 @@ static int wait_aux_op_finish(struct anx7625_data *ctx)
 static int anx7625_aux_trans(struct anx7625_data *ctx, u8 op, u32 address,
 			     u8 len, u8 *buf)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	int ret;
 	u8 addrh, addrm, addrl;
 	u8 cmd;
@@ -426,7 +426,7 @@ static int anx7625_odfc_config(struct anx7625_data *ctx,
 			       u8 post_divider)
 {
 	int ret;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	/* Config input reference clock frequency 27MHz/19.2MHz */
 	ret = anx7625_write_and(ctx, ctx->i2c.rx_p1_client, MIPI_DIGITAL_PLL_16,
@@ -476,7 +476,7 @@ static int anx7625_set_k_value(struct anx7625_data *ctx)
 
 static int anx7625_dsi_video_timing_config(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	unsigned long m, n;
 	u16 htotal;
 	int ret;
@@ -574,7 +574,7 @@ static int anx7625_dsi_video_timing_config(struct anx7625_data *ctx)
 static int anx7625_swap_dsi_lane3(struct anx7625_data *ctx)
 {
 	int val;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	/* Swap MIPI-DSI data lane 3 P and N */
 	val = anx7625_reg_read(ctx, ctx->i2c.rx_p1_client, MIPI_SWAP);
@@ -591,7 +591,7 @@ static int anx7625_api_dsi_config(struct anx7625_data *ctx)
 
 {
 	int val, ret;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	/* Swap MIPI-DSI data lane 3 P and N */
 	ret = anx7625_swap_dsi_lane3(ctx);
@@ -656,7 +656,7 @@ static int anx7625_api_dsi_config(struct anx7625_data *ctx)
 
 static int anx7625_dsi_config(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	int ret;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "config dsi.\n");
@@ -688,7 +688,7 @@ static int anx7625_dsi_config(struct anx7625_data *ctx)
 
 static int anx7625_api_dpi_config(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	u16 freq = ctx->dt.pixelclock.min / 1000;
 	int ret;
 
@@ -719,7 +719,7 @@ static int anx7625_api_dpi_config(struct anx7625_data *ctx)
 
 static int anx7625_dpi_config(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	int ret;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "config dpi\n");
@@ -764,7 +764,7 @@ static int anx7625_read_flash_status(struct anx7625_data *ctx)
 static int anx7625_hdcp_key_probe(struct anx7625_data *ctx)
 {
 	int ret, val;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	u8 ident[FLASH_BUF_LEN];
 
 	ret = anx7625_reg_write(ctx, ctx->i2c.rx_p0_client,
@@ -814,7 +814,7 @@ static int anx7625_hdcp_key_probe(struct anx7625_data *ctx)
 static int anx7625_hdcp_key_load(struct anx7625_data *ctx)
 {
 	int ret;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	/* Select HDCP 1.4 KEY */
 	ret = anx7625_reg_write(ctx, ctx->i2c.rx_p0_client,
@@ -842,7 +842,7 @@ static int anx7625_hdcp_key_load(struct anx7625_data *ctx)
 static int anx7625_hdcp_disable(struct anx7625_data *ctx)
 {
 	int ret;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	dev_dbg(dev, "disable HDCP 1.4\n");
 
@@ -863,7 +863,7 @@ static int anx7625_hdcp_enable(struct anx7625_data *ctx)
 {
 	u8 bcap;
 	int ret;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	ret = anx7625_hdcp_key_probe(ctx);
 	if (ret) {
@@ -872,11 +872,11 @@ static int anx7625_hdcp_enable(struct anx7625_data *ctx)
 	}
 
 	/* Read downstream capability */
-	ret = anx7625_aux_trans(ctx, DP_AUX_NATIVE_READ, 0x68028, 1, &bcap);
+	ret = anx7625_aux_trans(ctx, DP_AUX_NATIVE_READ, DP_AUX_HDCP_BCAPS, 1, &bcap);
 	if (ret < 0)
 		return ret;
 
-	if (!(bcap & 0x01)) {
+	if (!(bcap & DP_BCAPS_HDCP_CAPABLE)) {
 		pr_warn("downstream not support HDCP 1.4, cap(%x).\n", bcap);
 		return 0;
 	}
@@ -921,7 +921,7 @@ static int anx7625_hdcp_enable(struct anx7625_data *ctx)
 static void anx7625_dp_start(struct anx7625_data *ctx)
 {
 	int ret;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	u8 data;
 
 	if (!ctx->display_timing_valid) {
@@ -931,8 +931,8 @@ static void anx7625_dp_start(struct anx7625_data *ctx)
 
 	dev_dbg(dev, "set downstream sink into normal\n");
 	/* Downstream sink enter into normal mode */
-	data = 1;
-	ret = anx7625_aux_trans(ctx, DP_AUX_NATIVE_WRITE, 0x000600, 1, &data);
+	data = DP_SET_POWER_D0;
+	ret = anx7625_aux_trans(ctx, DP_AUX_NATIVE_WRITE, DP_SET_POWER, 1, &data);
 	if (ret < 0)
 		dev_err(dev, "IO error : set sink into normal mode fail\n");
 
@@ -954,7 +954,7 @@ static void anx7625_dp_start(struct anx7625_data *ctx)
 
 static void anx7625_dp_stop(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	int ret;
 	u8 data;
 
@@ -971,8 +971,8 @@ static void anx7625_dp_stop(struct anx7625_data *ctx)
 
 	dev_dbg(dev, "notify downstream enter into standby\n");
 	/* Downstream monitor enter into standby mode */
-	data = 2;
-	ret |= anx7625_aux_trans(ctx, DP_AUX_NATIVE_WRITE, 0x000600, 1, &data);
+	data = DP_SET_POWER_D3;
+	ret |= anx7625_aux_trans(ctx, DP_AUX_NATIVE_WRITE, DP_SET_POWER, 1, &data);
 	if (ret < 0)
 		DRM_DEV_ERROR(dev, "IO error : mute video fail\n");
 
@@ -1019,7 +1019,7 @@ static int sp_tx_aux_rd(struct anx7625_data *ctx, u8 len_cmd)
 static int sp_tx_get_edid_block(struct anx7625_data *ctx)
 {
 	int c = 0;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	sp_tx_aux_wr(ctx, 0x7e);
 	sp_tx_aux_rd(ctx, 0x01);
@@ -1041,7 +1041,7 @@ static int edid_read(struct anx7625_data *ctx,
 		     u8 offset, u8 *pblock_buf)
 {
 	int ret, cnt;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	for (cnt = 0; cnt <= EDID_TRY_CNT; cnt++) {
 		sp_tx_aux_wr(ctx, offset);
@@ -1072,7 +1072,7 @@ static int segments_edid_read(struct anx7625_data *ctx,
 {
 	u8 cnt;
 	int ret;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	/* Write address only */
 	ret = anx7625_reg_write(ctx, ctx->i2c.rx_p0_client,
@@ -1127,7 +1127,7 @@ static int sp_tx_edid_read(struct anx7625_data *ctx,
 	u8 i, j;
 	int g_edid_break = 0;
 	int ret;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	/* Address initial */
 	ret = anx7625_reg_write(ctx, ctx->i2c.rx_p0_client,
@@ -1234,7 +1234,7 @@ static int sp_tx_edid_read(struct anx7625_data *ctx,
 
 static void anx7625_power_on(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	int ret, i;
 
 	if (!ctx->pdata.low_power_mode) {
@@ -1270,7 +1270,7 @@ reg_err:
 
 static void anx7625_power_standby(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	int ret;
 
 	if (!ctx->pdata.low_power_mode) {
@@ -1300,7 +1300,7 @@ static void anx7625_config(struct anx7625_data *ctx)
 
 static void anx7625_disable_pd_protocol(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	int ret;
 
 	/* Reset main ocm */
@@ -1320,7 +1320,7 @@ static void anx7625_disable_pd_protocol(struct anx7625_data *ctx)
 static int anx7625_ocm_loading_check(struct anx7625_data *ctx)
 {
 	int ret;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	/* Check interface workable */
 	ret = anx7625_reg_read(ctx, ctx->i2c.rx_p0_client,
@@ -1366,7 +1366,7 @@ static void anx7625_power_on_init(struct anx7625_data *ctx)
 
 static void anx7625_init_gpio(struct anx7625_data *platform)
 {
-	struct device *dev = &platform->client->dev;
+	struct device *dev = platform->dev;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "init gpio\n");
 
@@ -1406,7 +1406,7 @@ static void anx7625_stop_dp_work(struct anx7625_data *ctx)
 static void anx7625_start_dp_work(struct anx7625_data *ctx)
 {
 	int ret;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	if (ctx->hpd_high_cnt >= 2) {
 		DRM_DEV_DEBUG_DRIVER(dev, "filter useless HPD\n");
@@ -1458,7 +1458,7 @@ static int _anx7625_hpd_polling(struct anx7625_data *ctx,
 				unsigned long wait_us)
 {
 	int ret, val;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	/* Interrupt mode, no need poll HPD status, just return */
 	if (ctx->pdata.intp_irq)
@@ -1492,7 +1492,7 @@ static int anx7625_wait_hpd_asserted(struct drm_dp_aux *aux,
 				     unsigned long wait_us)
 {
 	struct anx7625_data *ctx = container_of(aux, struct anx7625_data, aux);
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	int ret;
 
 	pm_runtime_get_sync(dev);
@@ -1525,7 +1525,7 @@ static void anx7625_dp_adjust_swing(struct anx7625_data *ctx)
 
 static void dp_hpd_change_handler(struct anx7625_data *ctx, bool on)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	/* HPD changed */
 	DRM_DEV_DEBUG_DRIVER(dev, "dp_hpd_change_default_func: %d\n",
@@ -1545,7 +1545,7 @@ static void dp_hpd_change_handler(struct anx7625_data *ctx, bool on)
 static int anx7625_hpd_change_detect(struct anx7625_data *ctx)
 {
 	int intr_vector, status;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	status = anx7625_reg_write(ctx, ctx->i2c.tcpc_client,
 				   INTR_ALERT_1, 0xFF);
@@ -1593,18 +1593,20 @@ static void anx7625_work_func(struct work_struct *work)
 
 	mutex_lock(&ctx->lock);
 
-	if (pm_runtime_suspended(&ctx->client->dev))
-		goto unlock;
+	if (pm_runtime_suspended(ctx->dev)) {
+		mutex_unlock(&ctx->lock);
+		return;
+	}
 
 	event = anx7625_hpd_change_detect(ctx);
+
+	mutex_unlock(&ctx->lock);
+
 	if (event < 0)
-		goto unlock;
+		return;
 
 	if (ctx->bridge_attached)
 		drm_helper_hpd_irq_event(ctx->bridge.dev);
-
-unlock:
-	mutex_unlock(&ctx->lock);
 }
 
 static irqreturn_t anx7625_intr_hpd_isr(int irq, void *data)
@@ -1735,7 +1737,7 @@ static ssize_t anx7625_aux_transfer(struct drm_dp_aux *aux,
 				    struct drm_dp_aux_msg *msg)
 {
 	struct anx7625_data *ctx = container_of(aux, struct anx7625_data, aux);
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	u8 request = msg->request & ~DP_AUX_I2C_MOT;
 	int ret = 0;
 
@@ -1761,7 +1763,7 @@ static ssize_t anx7625_aux_transfer(struct drm_dp_aux *aux,
 
 static struct edid *anx7625_get_edid(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	struct s_edid_data *p_edid = &ctx->slimport_edid_p;
 	int edid_num;
 	u8 *edid;
@@ -1797,7 +1799,7 @@ static struct edid *anx7625_get_edid(struct anx7625_data *ctx)
 
 static enum drm_connector_status anx7625_sink_detect(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "sink detect\n");
 
@@ -2006,7 +2008,7 @@ static const struct hdmi_codec_ops anx7625_codec_ops = {
 
 static void anx7625_unregister_audio(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	if (ctx->audio_pdev) {
 		platform_device_unregister(ctx->audio_pdev);
@@ -2042,7 +2044,7 @@ static int anx7625_register_audio(struct device *dev, struct anx7625_data *ctx)
 static int anx7625_setup_dsi_device(struct anx7625_data *ctx)
 {
 	struct mipi_dsi_device *dsi;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	struct mipi_dsi_host *host;
 	const struct mipi_dsi_device_info info = {
 		.type = "anx7625",
@@ -2076,7 +2078,7 @@ static int anx7625_setup_dsi_device(struct anx7625_data *ctx)
 
 static int anx7625_attach_dsi(struct anx7625_data *ctx)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	int ret;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "attach dsi\n");
@@ -2102,7 +2104,7 @@ static void hdcp_check_work_func(struct work_struct *work)
 
 	dwork = to_delayed_work(work);
 	ctx = container_of(dwork, struct anx7625_data, hdcp_work);
-	dev = &ctx->client->dev;
+	dev = ctx->dev;
 
 	if (!ctx->connector) {
 		dev_err(dev, "HDCP connector is null!");
@@ -2129,7 +2131,7 @@ static void hdcp_check_work_func(struct work_struct *work)
 static int anx7625_connector_atomic_check(struct anx7625_data *ctx,
 					  struct drm_connector_state *state)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	int cp;
 
 	dev_dbg(dev, "hdcp state check\n");
@@ -2174,7 +2176,7 @@ static int anx7625_bridge_attach(struct drm_bridge *bridge,
 {
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
 	int err;
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "drm attach\n");
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
@@ -2218,7 +2220,7 @@ anx7625_bridge_mode_valid(struct drm_bridge *bridge,
 			  const struct drm_display_mode *mode)
 {
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "drm mode checking\n");
 
@@ -2239,7 +2241,7 @@ static void anx7625_bridge_mode_set(struct drm_bridge *bridge,
 				    const struct drm_display_mode *mode)
 {
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "drm mode set\n");
 
@@ -2285,7 +2287,7 @@ static bool anx7625_bridge_mode_fixup(struct drm_bridge *bridge,
 				      struct drm_display_mode *adj)
 {
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	u32 hsync, hfp, hbp, hblanking;
 	u32 adj_hsync, adj_hfp, adj_hbp, adj_hblanking, delta_adj;
 	u32 vref, adj_clock;
@@ -2403,7 +2405,7 @@ static int anx7625_bridge_atomic_check(struct drm_bridge *bridge,
 				       struct drm_connector_state *conn_state)
 {
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	dev_dbg(dev, "drm bridge atomic check\n");
 
@@ -2417,7 +2419,7 @@ static void anx7625_bridge_atomic_enable(struct drm_bridge *bridge,
 					 struct drm_bridge_state *state)
 {
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 	struct drm_connector *connector;
 
 	dev_dbg(dev, "drm atomic enable\n");
@@ -2444,7 +2446,7 @@ static void anx7625_bridge_atomic_disable(struct drm_bridge *bridge,
 					  struct drm_bridge_state *old)
 {
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	dev_dbg(dev, "drm atomic disable\n");
 
@@ -2458,7 +2460,7 @@ static enum drm_connector_status
 anx7625_bridge_detect(struct drm_bridge *bridge)
 {
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "drm bridge detect\n");
 
@@ -2469,7 +2471,7 @@ static struct edid *anx7625_bridge_get_edid(struct drm_bridge *bridge,
 					    struct drm_connector *connector)
 {
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "drm bridge get edid\n");
 
@@ -2494,7 +2496,7 @@ static const struct drm_bridge_funcs anx7625_bridge_funcs = {
 static int anx7625_register_i2c_dummy_clients(struct anx7625_data *ctx,
 					      struct i2c_client *client)
 {
-	struct device *dev = &ctx->client->dev;
+	struct device *dev = ctx->dev;
 
 	ctx->i2c.tx_p0_client = devm_i2c_new_dummy_device(dev, client->adapter,
 							  TX_P0_ADDR >> 1);
@@ -2629,7 +2631,7 @@ static int anx7625_i2c_probe(struct i2c_client *client)
 
 	pdata = &platform->pdata;
 
-	platform->client = client;
+	platform->dev = &client->dev;
 	i2c_set_clientdata(client, platform);
 
 	pdata->supplies[0].supply = "vdd10";

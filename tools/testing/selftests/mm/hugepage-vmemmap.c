@@ -13,10 +13,6 @@
 
 #define MAP_LENGTH		(2UL * 1024 * 1024)
 
-#ifndef MAP_HUGETLB
-#define MAP_HUGETLB		0x40000	/* arch specific */
-#endif
-
 #define PAGE_SIZE		4096
 
 #define PAGE_COMPOUND_HEAD	(1UL << 15)

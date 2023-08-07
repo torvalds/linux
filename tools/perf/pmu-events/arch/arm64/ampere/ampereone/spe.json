@@ -1,0 +1,14 @@
+[
+    {
+        "ArchStdEvent": "SAMPLE_POP"
+    },
+    {
+        "ArchStdEvent": "SAMPLE_FEED"
+    },
+    {
+        "ArchStdEvent": "SAMPLE_FILTRATE"
+    },
+    {
+        "ArchStdEvent": "SAMPLE_COLLISION"
+    }
+]

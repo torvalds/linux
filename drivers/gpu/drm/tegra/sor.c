@@ -8,7 +8,7 @@
 #include <linux/debugfs.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -586,6 +586,7 @@ static u8 tegra_clk_sor_pad_get_parent(struct clk_hw *hw)
 }
 
 static const struct clk_ops tegra_clk_sor_pad_ops = {
+	.determine_rate = clk_hw_determine_rate_no_reparent,
 	.set_parent = tegra_clk_sor_pad_set_parent,
 	.get_parent = tegra_clk_sor_pad_get_parent,
 };
@@ -3707,7 +3708,6 @@ static int tegra_sor_probe(struct platform_device *pdev)
 {
 	struct device_node *np;
 	struct tegra_sor *sor;
-	struct resource *regs;
 	int err;
 
 	sor = devm_kzalloc(&pdev->dev, sizeof(*sor), GFP_KERNEL);
@@ -3780,8 +3780,7 @@ static int tegra_sor_probe(struct platform_device *pdev)
 		}
 	}
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sor->regs = devm_ioremap_resource(&pdev->dev, regs);
+	sor->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sor->regs)) {
 		err = PTR_ERR(sor->regs);
 		goto remove;

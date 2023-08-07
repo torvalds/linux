@@ -13,13 +13,14 @@
  *			are disabled.
  * @mutually_exclusive:	Array of mutually exclusive set of cables that cannot
  *			be attached simultaneously. The array should be
- *			ending with NULL or be NULL (no mutually exclusive
- *			cables). For example, if it is { 0x7, 0x30, 0}, then,
+ *			ending with 0 or be NULL (no mutually exclusive cables).
+ *			For example, if it is {0x7, 0x30, 0}, then,
  *			{0, 1}, {0, 1, 2}, {0, 2}, {1, 2}, or {4, 5} cannot
  *			be attached simulataneously. {0x7, 0} is equivalent to
  *			{0x3, 0x6, 0x5, 0}. If it is {0xFFFFFFFF, 0}, there
  *			can be no simultaneous connections.
  * @dev:		Device of this extcon.
+ * @id:			Unique device ID of this extcon.
  * @state:		Attach/detach state of this extcon. Do not provide at
  *			register-time.
  * @nh_all:		Notifier for the state change events for all supported
@@ -27,7 +28,7 @@
  * @nh:			Notifier for the state change events from this extcon
  * @entry:		To support list of extcon devices so that users can
  *			search for extcon devices based on the extcon name.
- * @lock:
+ * @lock:		Protects device state and serialises device registration
  * @max_supported:	Internal value to store the number of cables.
  * @extcon_dev_type:	Device_type struct to provide attribute_groups
  *			customized for each extcon device.
@@ -46,6 +47,7 @@ struct extcon_dev {
 
 	/* Internal data. Please do not set. */
 	struct device dev;
+	unsigned int id;
 	struct raw_notifier_head nh_all;
 	struct raw_notifier_head *nh;
 	struct list_head entry;

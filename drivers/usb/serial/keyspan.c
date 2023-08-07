@@ -599,7 +599,7 @@ struct keyspan_port_private {
 #include "keyspan_usa67msg.h"
 
 
-static void keyspan_break_ctl(struct tty_struct *tty, int break_state)
+static int keyspan_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct keyspan_port_private 	*p_priv;
@@ -611,7 +611,10 @@ static void keyspan_break_ctl(struct tty_struct *tty, int break_state)
 	else
 		p_priv->break_on = 0;
 
+	/* FIXME: return errors */
 	keyspan_send_setup(port, 0);
+
+	return 0;
 }
 
 

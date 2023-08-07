@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/uio.h>
 
+#include <net/gso.h>
 #include <net/net_namespace.h>
 #include <net/rtnetlink.h>
 #include <net/sock.h>

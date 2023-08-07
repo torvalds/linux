@@ -923,7 +923,7 @@ static struct i2c_driver pcf2127_i2c_driver = {
 		.name	= "rtc-pcf2127-i2c",
 		.of_match_table = of_match_ptr(pcf2127_of_match),
 	},
-	.probe_new	= pcf2127_i2c_probe,
+	.probe		= pcf2127_i2c_probe,
 	.id_table	= pcf2127_i2c_id,
 };
 

@@ -367,10 +367,9 @@ static int hdlcd_probe(struct platform_device *pdev)
 					       match);
 }
 
-static int hdlcd_remove(struct platform_device *pdev)
+static void hdlcd_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &hdlcd_master_ops);
-	return 0;
 }
 
 static const struct of_device_id  hdlcd_of_match[] = {
@@ -399,7 +398,7 @@ static SIMPLE_DEV_PM_OPS(hdlcd_pm_ops, hdlcd_pm_suspend, hdlcd_pm_resume);
 
 static struct platform_driver hdlcd_platform_driver = {
 	.probe		= hdlcd_probe,
-	.remove		= hdlcd_remove,
+	.remove_new	= hdlcd_remove,
 	.driver	= {
 		.name = "hdlcd",
 		.pm = &hdlcd_pm_ops,

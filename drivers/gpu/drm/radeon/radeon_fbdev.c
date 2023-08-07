@@ -193,7 +193,7 @@ static const struct fb_ops radeon_fbdev_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_open = radeon_fbdev_fb_open,
 	.fb_release = radeon_fbdev_fb_release,
-	FB_DEFAULT_IO_OPS,
+	FB_DEFAULT_IOMEM_OPS,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_destroy = radeon_fbdev_fb_destroy,
 };
@@ -253,7 +253,7 @@ static int radeon_fbdev_fb_helper_fb_probe(struct drm_fb_helper *fb_helper,
 	}
 
 	info->fbops = &radeon_fbdev_fb_ops;
-	info->flags = FBINFO_DEFAULT;
+
 	/* radeon resume is fragile and needs a vt switch to help it along */
 	info->skip_vt_switch = false;
 
@@ -304,6 +304,7 @@ static void radeon_fbdev_client_unregister(struct drm_client_dev *client)
 
 	if (fb_helper->info) {
 		vga_switcheroo_client_fb_set(rdev->pdev, NULL);
+		drm_helper_force_disable_all(dev);
 		drm_fb_helper_unregister_info(fb_helper);
 	} else {
 		drm_client_release(&fb_helper->client);
@@ -381,10 +382,6 @@ void radeon_fbdev_setup(struct radeon_device *rdev)
 		drm_err(rdev->ddev, "Failed to register client: %d\n", ret);
 		goto err_drm_client_init;
 	}
-
-	ret = radeon_fbdev_client_hotplug(&fb_helper->client);
-	if (ret)
-		drm_dbg_kms(rdev->ddev, "client hotplug ret=%d\n", ret);
 
 	drm_client_register(&fb_helper->client);
 

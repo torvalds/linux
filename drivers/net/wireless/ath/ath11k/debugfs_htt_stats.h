@@ -111,6 +111,8 @@ enum htt_tlv_tag_t {
 	HTT_STATS_TXBF_OFDMA_STEER_STATS_TAG		    = 116,
 	HTT_STATS_PHY_COUNTERS_TAG			    = 121,
 	HTT_STATS_PHY_STATS_TAG				    = 122,
+	HTT_STATS_PHY_RESET_COUNTERS_TAG		    = 123,
+	HTT_STATS_PHY_RESET_STATS_TAG			    = 124,
 
 	HTT_STATS_MAX_TAG,
 };
@@ -1962,6 +1964,47 @@ struct htt_phy_stats_tlv {
 	s32 ani_level;
 	/* running time in minutes since FW boot */
 	u32 fw_run_time;
+};
+
+struct htt_phy_reset_counters_tlv {
+	u32 pdev_id;
+	u32 cf_active_low_fail_cnt;
+	u32 cf_active_low_pass_cnt;
+	u32 phy_off_through_vreg_cnt;
+	u32 force_calibration_cnt;
+	u32 rf_mode_switch_phy_off_cnt;
+};
+
+struct htt_phy_reset_stats_tlv {
+	u32 pdev_id;
+	u32 chan_mhz;
+	u32 chan_band_center_freq1;
+	u32 chan_band_center_freq2;
+	u32 chan_phy_mode;
+	u32 chan_flags;
+	u32 chan_num;
+	u32 reset_cause;
+	u32 prev_reset_cause;
+	u32 phy_warm_reset_src;
+	u32 rx_gain_tbl_mode;
+	u32 xbar_val;
+	u32 force_calibration;
+	u32 phyrf_mode;
+	u32 phy_homechan;
+	u32 phy_tx_ch_mask;
+	u32 phy_rx_ch_mask;
+	u32 phybb_ini_mask;
+	u32 phyrf_ini_mask;
+	u32 phy_dfs_en_mask;
+	u32 phy_sscan_en_mask;
+	u32 phy_synth_sel_mask;
+	u32 phy_adfs_freq;
+	u32 cck_fir_settings;
+	u32 phy_dyn_pri_chan;
+	u32 cca_thresh;
+	u32 dyn_cca_status;
+	u32 rxdesense_thresh_hw;
+	u32 rxdesense_thresh_sw;
 };
 
 struct htt_peer_ctrl_path_txrx_stats_tlv {

@@ -33,6 +33,7 @@ properties:
               - microchip,25lc040
               - st,m95m02
               - st,m95256
+              - st,m95640
               - cypress,fm25
 
           - const: atmel,at25

@@ -1010,7 +1010,7 @@ static const struct i2c_device_id ina3221_ids[] = {
 MODULE_DEVICE_TABLE(i2c, ina3221_ids);
 
 static struct i2c_driver ina3221_i2c_driver = {
-	.probe_new = ina3221_probe,
+	.probe = ina3221_probe,
 	.remove = ina3221_remove,
 	.driver = {
 		.name = INA3221_DRIVER_NAME,

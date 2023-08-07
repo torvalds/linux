@@ -2653,7 +2653,7 @@ static void renesas_usb3_debugfs_init(struct renesas_usb3 *usb3,
 }
 
 /*------- platform_driver ------------------------------------------------*/
-static int renesas_usb3_remove(struct platform_device *pdev)
+static void renesas_usb3_remove(struct platform_device *pdev)
 {
 	struct renesas_usb3 *usb3 = platform_get_drvdata(pdev);
 
@@ -2669,8 +2669,6 @@ static int renesas_usb3_remove(struct platform_device *pdev)
 
 	__renesas_usb3_ep_free_request(usb3->ep0_req);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int renesas_usb3_init_ep(struct renesas_usb3 *usb3, struct device *dev,
@@ -2877,9 +2875,9 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 		struct rzv2m_usb3drd *ddata = dev_get_drvdata(pdev->dev.parent);
 
 		usb3->drd_reg = ddata->reg;
-		ret = devm_request_irq(ddata->dev, ddata->drd_irq,
+		ret = devm_request_irq(&pdev->dev, ddata->drd_irq,
 				       renesas_usb3_otg_irq, 0,
-				       dev_name(ddata->dev), usb3);
+				       dev_name(&pdev->dev), usb3);
 		if (ret < 0)
 			return ret;
 	}
@@ -3015,7 +3013,7 @@ static SIMPLE_DEV_PM_OPS(renesas_usb3_pm_ops, renesas_usb3_suspend,
 
 static struct platform_driver renesas_usb3_driver = {
 	.probe		= renesas_usb3_probe,
-	.remove		= renesas_usb3_remove,
+	.remove_new	= renesas_usb3_remove,
 	.driver		= {
 		.name =	udc_name,
 		.pm		= &renesas_usb3_pm_ops,

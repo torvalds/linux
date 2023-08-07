@@ -7,6 +7,8 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/cpufeatures.h>
+#include <asm/alternative.h>
 #include <asm/asm.h>
 #include <asm/export.h>
 
@@ -29,7 +31,7 @@
  */
 SYM_FUNC_START(rep_movs_alternative)
 	cmpq $64,%rcx
-	jae .Lunrolled
+	jae .Llarge
 
 	cmp $8,%ecx
 	jae .Lword
@@ -64,6 +66,12 @@ SYM_FUNC_START(rep_movs_alternative)
 
 	_ASM_EXTABLE_UA( 2b, .Lcopy_user_tail)
 	_ASM_EXTABLE_UA( 3b, .Lcopy_user_tail)
+
+.Llarge:
+0:	ALTERNATIVE "jmp .Lunrolled", "rep movsb", X86_FEATURE_ERMS
+1:	RET
+
+        _ASM_EXTABLE_UA( 0b, 1b)
 
 	.p2align 4
 .Lunrolled:

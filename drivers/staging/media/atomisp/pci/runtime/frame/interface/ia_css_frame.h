@@ -138,4 +138,6 @@ bool ia_css_frame_is_same_type(
 int ia_css_dma_configure_from_info(struct dma_port_config *config,
 				   const struct ia_css_frame_info *info);
 
+unsigned int ia_css_frame_pad_width(unsigned int width, enum ia_css_frame_format format);
+
 #endif /* __IA_CSS_FRAME_H__ */

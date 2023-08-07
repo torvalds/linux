@@ -506,8 +506,16 @@ static struct ads7846_platform_data spitz_ads7846_info = {
 	.x_plate_ohms		= 419,
 	.y_plate_ohms		= 486,
 	.pressure_max		= 1024,
-	.gpio_pendown		= SPITZ_GPIO_TP_INT,
 	.wait_for_sync		= spitz_ads7846_wait_for_hsync,
+};
+
+static struct gpiod_lookup_table spitz_ads7846_gpio_table = {
+	.dev_id = "spi2.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_TP_INT,
+			    "pendown", GPIO_ACTIVE_LOW),
+		{ }
+	},
 };
 
 static void spitz_bl_kick_battery(void)
@@ -594,6 +602,7 @@ static void __init spitz_spi_init(void)
 	else
 		gpiod_add_lookup_table(&spitz_lcdcon_gpio_table);
 
+	gpiod_add_lookup_table(&spitz_ads7846_gpio_table);
 	gpiod_add_lookup_table(&spitz_spi_gpio_table);
 	pxa2xx_set_spi_info(2, &spitz_spi_info);
 	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
@@ -1043,7 +1052,6 @@ MACHINE_START(SPITZ, "SHARP Spitz")
 	.map_io		= pxa27x_map_io,
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
-	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
 	.init_time	= pxa_timer_init,
 	.restart	= spitz_restart,
@@ -1056,7 +1064,6 @@ MACHINE_START(BORZOI, "SHARP Borzoi")
 	.map_io		= pxa27x_map_io,
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
-	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
 	.init_time	= pxa_timer_init,
 	.restart	= spitz_restart,
@@ -1069,7 +1076,6 @@ MACHINE_START(AKITA, "SHARP Akita")
 	.map_io		= pxa27x_map_io,
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
-	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
 	.init_time	= pxa_timer_init,
 	.restart	= spitz_restart,

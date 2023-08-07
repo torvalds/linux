@@ -268,11 +268,12 @@ with setting of meta_data and signalling for next track ::
               |                              |
               |                              V
               |                         +----------+
-              |                         |          |
-              |                         |NEXT_TRACK|
-              |                         |          |
-              |                         +----------+
-              |                              |
+              |    compr_set_params()   |          |
+              |             +-----------|NEXT_TRACK|
+              |             |           |          |
+              |             |           +--+-------+
+              |             |              | |
+              |             +--------------+ |
               |                              |
               |                              | compr_partial_drain()
               |                              |

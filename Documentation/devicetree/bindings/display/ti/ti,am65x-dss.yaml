@@ -12,14 +12,18 @@ maintainers:
   - Tomi Valkeinen <tomi.valkeinen@ti.com>
 
 description: |
-  The AM65x TI Keystone Display SubSystem with two output ports and
-  two video planes. The first video port supports OLDI and the second
-  supports DPI format. The fist plane is full video plane with all
-  features and the second is a "lite plane" without scaling support.
+  The AM625 and AM65x TI Keystone Display SubSystem with two output
+  ports and two video planes. In AM65x DSS, the first video port
+  supports 1 OLDI TX and in AM625 DSS, the first video port output is
+  internally routed to 2 OLDI TXes. The second video port supports DPI
+  format. The first plane is full video plane with all features and the
+  second is a "lite plane" without scaling support.
 
 properties:
   compatible:
-    const: ti,am65x-dss
+    enum:
+      - ti,am625-dss
+      - ti,am65x-dss
 
   reg:
     description:
@@ -80,7 +84,9 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          The DSS OLDI output port node form video port 1
+          For AM65x DSS, the OLDI output port node from video port 1.
+          For AM625 DSS, the internal DPI output port node from video
+          port 1.
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port

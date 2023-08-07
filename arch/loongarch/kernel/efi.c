@@ -18,6 +18,7 @@
 #include <linux/kobject.h>
 #include <linux/memblock.h>
 #include <linux/reboot.h>
+#include <linux/screen_info.h>
 #include <linux/uaccess.h>
 
 #include <asm/early_ioremap.h>

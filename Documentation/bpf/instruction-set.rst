@@ -163,13 +163,13 @@ BPF_MUL   0x20   dst \*= src
 BPF_DIV   0x30   dst = (src != 0) ? (dst / src) : 0
 BPF_OR    0x40   dst \|= src
 BPF_AND   0x50   dst &= src
-BPF_LSH   0x60   dst <<= src
-BPF_RSH   0x70   dst >>= src
+BPF_LSH   0x60   dst <<= (src & mask)
+BPF_RSH   0x70   dst >>= (src & mask)
 BPF_NEG   0x80   dst = ~src
 BPF_MOD   0x90   dst = (src != 0) ? (dst % src) : dst
 BPF_XOR   0xa0   dst ^= src
 BPF_MOV   0xb0   dst = src
-BPF_ARSH  0xc0   sign extending shift right
+BPF_ARSH  0xc0   sign extending dst >>= (src & mask)
 BPF_END   0xd0   byte swap operations (see `Byte swap instructions`_ below)
 ========  =====  ==========================================================
 
@@ -203,6 +203,9 @@ Also note that the division and modulo operations are unsigned. Thus, for
 for ``BPF_ALU64``, 'imm' is first sign extended to 64 bits and the result
 interpreted as an unsigned 64-bit value. There are no instructions for
 signed division or modulo.
+
+Shift operations use a mask of 0x3F (63) for 64-bit operations and 0x1F (31)
+for 32-bit operations.
 
 Byte swap instructions
 ~~~~~~~~~~~~~~~~~~~~~~

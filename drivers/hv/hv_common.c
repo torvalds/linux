@@ -364,13 +364,20 @@ int hv_common_cpu_init(unsigned int cpu)
 	flags = irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL;
 
 	inputarg = (void **)this_cpu_ptr(hyperv_pcpu_input_arg);
-	*inputarg = kmalloc(pgcount * HV_HYP_PAGE_SIZE, flags);
-	if (!(*inputarg))
-		return -ENOMEM;
 
-	if (hv_root_partition) {
-		outputarg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
-		*outputarg = (char *)(*inputarg) + HV_HYP_PAGE_SIZE;
+	/*
+	 * hyperv_pcpu_input_arg and hyperv_pcpu_output_arg memory is already
+	 * allocated if this CPU was previously online and then taken offline
+	 */
+	if (!*inputarg) {
+		*inputarg = kmalloc(pgcount * HV_HYP_PAGE_SIZE, flags);
+		if (!(*inputarg))
+			return -ENOMEM;
+
+		if (hv_root_partition) {
+			outputarg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
+			*outputarg = (char *)(*inputarg) + HV_HYP_PAGE_SIZE;
+		}
 	}
 
 	msr_vp_index = hv_get_register(HV_REGISTER_VP_INDEX);
@@ -385,24 +392,17 @@ int hv_common_cpu_init(unsigned int cpu)
 
 int hv_common_cpu_die(unsigned int cpu)
 {
-	unsigned long flags;
-	void **inputarg, **outputarg;
-	void *mem;
-
-	local_irq_save(flags);
-
-	inputarg = (void **)this_cpu_ptr(hyperv_pcpu_input_arg);
-	mem = *inputarg;
-	*inputarg = NULL;
-
-	if (hv_root_partition) {
-		outputarg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
-		*outputarg = NULL;
-	}
-
-	local_irq_restore(flags);
-
-	kfree(mem);
+	/*
+	 * The hyperv_pcpu_input_arg and hyperv_pcpu_output_arg memory
+	 * is not freed when the CPU goes offline as the hyperv_pcpu_input_arg
+	 * may be used by the Hyper-V vPCI driver in reassigning interrupts
+	 * as part of the offlining process.  The interrupt reassignment
+	 * happens *after* the CPUHP_AP_HYPERV_ONLINE state has run and
+	 * called this function.
+	 *
+	 * If a previously offlined CPU is brought back online again, the
+	 * originally allocated memory is reused in hv_common_cpu_init().
+	 */
 
 	return 0;
 }

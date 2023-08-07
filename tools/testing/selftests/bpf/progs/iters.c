@@ -651,29 +651,25 @@ int iter_stack_array_loop(const void *ctx)
 	return sum;
 }
 
-#define ARR_SZ 16
-
-static __noinline void fill(struct bpf_iter_num *it, int *arr, int mul)
+static __noinline void fill(struct bpf_iter_num *it, int *arr, __u32 n, int mul)
 {
-	int *t;
-	__u64 i;
+	int *t, i;
 
 	while ((t = bpf_iter_num_next(it))) {
 		i = *t;
-		if (i >= ARR_SZ)
+		if (i >= n)
 			break;
 		arr[i] =  i * mul;
 	}
 }
 
-static __noinline int sum(struct bpf_iter_num *it, int *arr)
+static __noinline int sum(struct bpf_iter_num *it, int *arr, __u32 n)
 {
-	int *t, sum = 0;;
-	__u64 i;
+	int *t, i, sum = 0;;
 
 	while ((t = bpf_iter_num_next(it))) {
 		i = *t;
-		if (i >= ARR_SZ)
+		if (i >= n)
 			break;
 		sum += arr[i];
 	}
@@ -685,7 +681,7 @@ SEC("raw_tp")
 __success
 int iter_pass_iter_ptr_to_subprog(const void *ctx)
 {
-	int arr1[ARR_SZ], arr2[ARR_SZ];
+	int arr1[16], arr2[32];
 	struct bpf_iter_num it;
 	int n, sum1, sum2;
 
@@ -694,25 +690,25 @@ int iter_pass_iter_ptr_to_subprog(const void *ctx)
 	/* fill arr1 */
 	n = ARRAY_SIZE(arr1);
 	bpf_iter_num_new(&it, 0, n);
-	fill(&it, arr1, 2);
+	fill(&it, arr1, n, 2);
 	bpf_iter_num_destroy(&it);
 
 	/* fill arr2 */
 	n = ARRAY_SIZE(arr2);
 	bpf_iter_num_new(&it, 0, n);
-	fill(&it, arr2, 10);
+	fill(&it, arr2, n, 10);
 	bpf_iter_num_destroy(&it);
 
 	/* sum arr1 */
 	n = ARRAY_SIZE(arr1);
 	bpf_iter_num_new(&it, 0, n);
-	sum1 = sum(&it, arr1);
+	sum1 = sum(&it, arr1, n);
 	bpf_iter_num_destroy(&it);
 
 	/* sum arr2 */
 	n = ARRAY_SIZE(arr2);
 	bpf_iter_num_new(&it, 0, n);
-	sum2 = sum(&it, arr2);
+	sum2 = sum(&it, arr2, n);
 	bpf_iter_num_destroy(&it);
 
 	bpf_printk("sum1=%d, sum2=%d", sum1, sum2);

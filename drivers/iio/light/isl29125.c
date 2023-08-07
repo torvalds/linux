@@ -337,7 +337,7 @@ static struct i2c_driver isl29125_driver = {
 		.name	= ISL29125_DRV_NAME,
 		.pm	= pm_sleep_ptr(&isl29125_pm_ops),
 	},
-	.probe_new	= isl29125_probe,
+	.probe		= isl29125_probe,
 	.remove		= isl29125_remove,
 	.id_table	= isl29125_id,
 };

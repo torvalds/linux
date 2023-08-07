@@ -391,7 +391,7 @@ static int ar9331_sw_mbus_init(struct ar9331_sw_priv *priv)
 
 static int ar9331_sw_setup_port(struct dsa_switch *ds, int port)
 {
-	struct ar9331_sw_priv *priv = (struct ar9331_sw_priv *)ds->priv;
+	struct ar9331_sw_priv *priv = ds->priv;
 	struct regmap *regmap = priv->regmap;
 	u32 port_mask, port_ctrl, val;
 	int ret;
@@ -439,7 +439,7 @@ error:
 
 static int ar9331_sw_setup(struct dsa_switch *ds)
 {
-	struct ar9331_sw_priv *priv = (struct ar9331_sw_priv *)ds->priv;
+	struct ar9331_sw_priv *priv = ds->priv;
 	struct regmap *regmap = priv->regmap;
 	int ret, i;
 
@@ -484,7 +484,7 @@ error:
 
 static void ar9331_sw_port_disable(struct dsa_switch *ds, int port)
 {
-	struct ar9331_sw_priv *priv = (struct ar9331_sw_priv *)ds->priv;
+	struct ar9331_sw_priv *priv = ds->priv;
 	struct regmap *regmap = priv->regmap;
 	int ret;
 
@@ -527,7 +527,7 @@ static void ar9331_sw_phylink_mac_config(struct dsa_switch *ds, int port,
 					 unsigned int mode,
 					 const struct phylink_link_state *state)
 {
-	struct ar9331_sw_priv *priv = (struct ar9331_sw_priv *)ds->priv;
+	struct ar9331_sw_priv *priv = ds->priv;
 	struct regmap *regmap = priv->regmap;
 	int ret;
 
@@ -542,7 +542,7 @@ static void ar9331_sw_phylink_mac_link_down(struct dsa_switch *ds, int port,
 					    unsigned int mode,
 					    phy_interface_t interface)
 {
-	struct ar9331_sw_priv *priv = (struct ar9331_sw_priv *)ds->priv;
+	struct ar9331_sw_priv *priv = ds->priv;
 	struct ar9331_sw_port *p = &priv->port[port];
 	struct regmap *regmap = priv->regmap;
 	int ret;
@@ -562,7 +562,7 @@ static void ar9331_sw_phylink_mac_link_up(struct dsa_switch *ds, int port,
 					  int speed, int duplex,
 					  bool tx_pause, bool rx_pause)
 {
-	struct ar9331_sw_priv *priv = (struct ar9331_sw_priv *)ds->priv;
+	struct ar9331_sw_priv *priv = ds->priv;
 	struct ar9331_sw_port *p = &priv->port[port];
 	struct regmap *regmap = priv->regmap;
 	u32 val;
@@ -665,7 +665,7 @@ static void ar9331_do_stats_poll(struct work_struct *work)
 static void ar9331_get_stats64(struct dsa_switch *ds, int port,
 			       struct rtnl_link_stats64 *s)
 {
-	struct ar9331_sw_priv *priv = (struct ar9331_sw_priv *)ds->priv;
+	struct ar9331_sw_priv *priv = ds->priv;
 	struct ar9331_sw_port *p = &priv->port[port];
 
 	spin_lock(&p->stats_lock);
@@ -676,7 +676,7 @@ static void ar9331_get_stats64(struct dsa_switch *ds, int port,
 static void ar9331_get_pause_stats(struct dsa_switch *ds, int port,
 				   struct ethtool_pause_stats *pause_stats)
 {
-	struct ar9331_sw_priv *priv = (struct ar9331_sw_priv *)ds->priv;
+	struct ar9331_sw_priv *priv = ds->priv;
 	struct ar9331_sw_port *p = &priv->port[port];
 
 	spin_lock(&p->stats_lock);

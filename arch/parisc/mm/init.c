@@ -626,12 +626,10 @@ static void __init pagetable_init(void)
 
 	for (range = 0; range < npmem_ranges; range++) {
 		unsigned long start_paddr;
-		unsigned long end_paddr;
 		unsigned long size;
 
 		start_paddr = pmem_ranges[range].start_pfn << PAGE_SHIFT;
 		size = pmem_ranges[range].pages << PAGE_SHIFT;
-		end_paddr = start_paddr + size;
 
 		map_pages((unsigned long)__va(start_paddr), start_paddr,
 			  size, PAGE_KERNEL, 0);

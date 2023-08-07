@@ -430,11 +430,9 @@ static struct aa_policy *__lookup_parent(struct aa_ns *ns,
  * @hname: hierarchical profile name to find parent of (NOT NULL)
  * @gfp: type of allocation.
  *
- * Returns: NULL on error, parent profile on success
- *
  * Requires: ns mutex lock held
  *
- * Returns: unrefcounted parent policy or NULL if error creating
+ * Return: unrefcounted parent policy on success or %NULL if error creating
  *          place holder profiles.
  */
 static struct aa_policy *__create_missing_ancestors(struct aa_ns *ns,
@@ -591,7 +589,15 @@ struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
 	profile->label.flags |= FLAG_NULL;
 	rules = list_first_entry(&profile->rules, typeof(*rules), list);
 	rules->file.dfa = aa_get_dfa(nulldfa);
+	rules->file.perms = kcalloc(2, sizeof(struct aa_perms), GFP_KERNEL);
+	if (!rules->file.perms)
+		goto fail;
+	rules->file.size = 2;
 	rules->policy.dfa = aa_get_dfa(nulldfa);
+	rules->policy.perms = kcalloc(2, sizeof(struct aa_perms), GFP_KERNEL);
+	if (!rules->policy.perms)
+		goto fail;
+	rules->policy.size = 2;
 
 	if (parent) {
 		profile->path_flags = parent->path_flags;
@@ -602,6 +608,11 @@ struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
 	}
 
 	return profile;
+
+fail:
+	aa_free_profile(profile);
+
+	return NULL;
 }
 
 /**
@@ -828,7 +839,7 @@ bool aa_current_policy_admin_capable(struct aa_ns *ns)
 /**
  * aa_may_manage_policy - can the current task manage policy
  * @label: label to check if it can manage policy
- * @op: the policy manipulation operation being done
+ * @mask: contains the policy manipulation operation being done
  *
  * Returns: 0 if the task is allowed to manipulate policy else error
  */
@@ -883,7 +894,6 @@ static struct aa_profile *__list_lookup_parent(struct list_head *lh,
  * __replace_profile - replace @old with @new on a list
  * @old: profile to be replaced  (NOT NULL)
  * @new: profile to replace @old with  (NOT NULL)
- * @share_proxy: transfer @old->proxy to @new
  *
  * Will duplicate and refcount elements that @new inherits from @old
  * and will inherit @old children.

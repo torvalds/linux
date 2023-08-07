@@ -436,8 +436,10 @@ struct uapi_definition {
 	},								       \
 		##__VA_ARGS__
 #define UAPI_DEF_CHAIN_OBJ_TREE_NAMED(_object_enum, ...)                       \
-	UAPI_DEF_CHAIN_OBJ_TREE(_object_enum, &UVERBS_OBJECT(_object_enum),    \
-				##__VA_ARGS__)
+	UAPI_DEF_CHAIN_OBJ_TREE(_object_enum,				       \
+		PTR_IF(IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS),	       \
+		       &UVERBS_OBJECT(_object_enum)),			       \
+		##__VA_ARGS__)
 
 /*
  * =======================================

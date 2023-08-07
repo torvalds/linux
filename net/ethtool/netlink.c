@@ -96,6 +96,8 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 	int ret;
 
 	if (!header) {
+		if (!require_dev)
+			return 0;
 		NL_SET_ERR_MSG(extack, "request header missing");
 		return -EINVAL;
 	}
@@ -113,7 +115,8 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 	if (tb[ETHTOOL_A_HEADER_DEV_INDEX]) {
 		u32 ifindex = nla_get_u32(tb[ETHTOOL_A_HEADER_DEV_INDEX]);
 
-		dev = dev_get_by_index(net, ifindex);
+		dev = netdev_get_by_index(net, ifindex, &req_info->dev_tracker,
+					  GFP_KERNEL);
 		if (!dev) {
 			NL_SET_ERR_MSG_ATTR(extack,
 					    tb[ETHTOOL_A_HEADER_DEV_INDEX],
@@ -123,13 +126,14 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		/* if both ifindex and ifname are passed, they must match */
 		if (devname_attr &&
 		    strncmp(dev->name, nla_data(devname_attr), IFNAMSIZ)) {
-			dev_put(dev);
+			netdev_put(dev, &req_info->dev_tracker);
 			NL_SET_ERR_MSG_ATTR(extack, header,
 					    "ifindex and name do not match");
 			return -ENODEV;
 		}
 	} else if (devname_attr) {
-		dev = dev_get_by_name(net, nla_data(devname_attr));
+		dev = netdev_get_by_name(net, nla_data(devname_attr),
+					 &req_info->dev_tracker, GFP_KERNEL);
 		if (!dev) {
 			NL_SET_ERR_MSG_ATTR(extack, devname_attr,
 					    "no device matches name");
@@ -142,8 +146,6 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 	}
 
 	req_info->dev = dev;
-	if (dev)
-		netdev_tracker_alloc(dev, &req_info->dev_tracker, GFP_KERNEL);
 	req_info->flags = flags;
 	return 0;
 }

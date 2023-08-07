@@ -1791,9 +1791,8 @@ int iwl_mei_register(void *priv, const struct iwl_mei_ops *ops)
 		if (iwl_mei_is_connected()) {
 			if (mei->amt_enabled)
 				iwl_mei_send_sap_msg(mei->cldev,
-						     SAP_MSG_NOTIF_WIFIDR_UP,
-						     false);
-			ops->rfkill(priv, mei->link_prot_state);
+						     SAP_MSG_NOTIF_WIFIDR_UP);
+			ops->rfkill(priv, mei->link_prot_state, false);
 		}
 	}
 	ret = 0;

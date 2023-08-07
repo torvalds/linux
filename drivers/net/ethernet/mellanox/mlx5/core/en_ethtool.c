@@ -1689,16 +1689,6 @@ static int mlx5e_set_fecparam(struct net_device *netdev,
 	return 0;
 }
 
-static u32 mlx5e_get_msglevel(struct net_device *dev)
-{
-	return ((struct mlx5e_priv *)netdev_priv(dev))->msglevel;
-}
-
-static void mlx5e_set_msglevel(struct net_device *dev, u32 val)
-{
-	((struct mlx5e_priv *)netdev_priv(dev))->msglevel = val;
-}
-
 static int mlx5e_set_phys_id(struct net_device *dev,
 			     enum ethtool_phys_id_state state)
 {
@@ -1952,9 +1942,9 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 	if (err)
 		return err;
 
-	mlx5e_dbg(DRV, priv, "MLX5E: RxCqeCmprss was turned %s\n",
-		  MLX5E_GET_PFLAG(&priv->channels.params,
-				  MLX5E_PFLAG_RX_CQE_COMPRESS) ? "ON" : "OFF");
+	netdev_dbg(priv->netdev, "MLX5E: RxCqeCmprss was turned %s\n",
+		   MLX5E_GET_PFLAG(&priv->channels.params,
+				   MLX5E_PFLAG_RX_CQE_COMPRESS) ? "ON" : "OFF");
 
 	return 0;
 }
@@ -2444,8 +2434,6 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_priv_flags    = mlx5e_get_priv_flags,
 	.set_priv_flags    = mlx5e_set_priv_flags,
 	.self_test         = mlx5e_self_test,
-	.get_msglevel      = mlx5e_get_msglevel,
-	.set_msglevel      = mlx5e_set_msglevel,
 	.get_fec_stats     = mlx5e_get_fec_stats,
 	.get_fecparam      = mlx5e_get_fecparam,
 	.set_fecparam      = mlx5e_set_fecparam,

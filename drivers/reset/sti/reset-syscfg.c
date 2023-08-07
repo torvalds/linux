@@ -64,22 +64,12 @@ static int syscfg_reset_program_hw(struct reset_controller_dev *rcdev,
 		return err;
 
 	if (ch->ack) {
-		unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 		u32 ack_val;
 
-		while (true) {
-			err = regmap_field_read(ch->ack, &ack_val);
-			if (err)
-				return err;
-
-			if (ack_val == ctrl_val)
-				break;
-
-			if (time_after(jiffies, timeout))
-				return -ETIME;
-
-			cpu_relax();
-		}
+		err = regmap_field_read_poll_timeout(ch->ack, ack_val, (ack_val == ctrl_val),
+						     100, USEC_PER_SEC);
+		if (err)
+			return err;
 	}
 
 	return 0;

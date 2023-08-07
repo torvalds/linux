@@ -48,9 +48,6 @@ struct btrfs_delayed_ref_node {
 
 	unsigned int action:8;
 	unsigned int type:8;
-	/* is this node still in the rbtree? */
-	unsigned int is_head:1;
-	unsigned int in_tree:1;
 };
 
 struct btrfs_delayed_extent_op {
@@ -70,19 +67,25 @@ struct btrfs_delayed_extent_op {
 struct btrfs_delayed_ref_head {
 	u64 bytenr;
 	u64 num_bytes;
-	refcount_t refs;
+	/*
+	 * For insertion into struct btrfs_delayed_ref_root::href_root.
+	 * Keep it in the same cache line as 'bytenr' for more efficient
+	 * searches in the rbtree.
+	 */
+	struct rb_node href_node;
 	/*
 	 * the mutex is held while running the refs, and it is also
 	 * held when checking the sum of reference modifications.
 	 */
 	struct mutex mutex;
 
+	refcount_t refs;
+
+	/* Protects 'ref_tree' and 'ref_add_list'. */
 	spinlock_t lock;
 	struct rb_root_cached ref_tree;
 	/* accumulate add BTRFS_ADD_DELAYED_REF nodes to this ref_add_list. */
 	struct list_head ref_add_list;
-
-	struct rb_node href_node;
 
 	struct btrfs_delayed_extent_op *extent_op;
 
@@ -113,10 +116,10 @@ struct btrfs_delayed_ref_head {
 	 * we need to update the in ram accounting to properly reflect
 	 * the free has happened.
 	 */
-	unsigned int must_insert_reserved:1;
-	unsigned int is_data:1;
-	unsigned int is_system:1;
-	unsigned int processing:1;
+	bool must_insert_reserved;
+	bool is_data;
+	bool is_system;
+	bool processing;
 };
 
 struct btrfs_delayed_tree_ref {
@@ -337,7 +340,7 @@ static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
 {
 	WARN_ON(refcount_read(&ref->refs) == 0);
 	if (refcount_dec_and_test(&ref->refs)) {
-		WARN_ON(ref->in_tree);
+		WARN_ON(!RB_EMPTY_NODE(&ref->ref_node));
 		switch (ref->type) {
 		case BTRFS_TREE_BLOCK_REF_KEY:
 		case BTRFS_SHARED_BLOCK_REF_KEY:

@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Routines common to all CFI-type probes.
  * (C) 2001-2003 Red Hat, Inc.
- * GPL'd
  */
 
 #include <linux/kernel.h>

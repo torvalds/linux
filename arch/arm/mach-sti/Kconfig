@@ -21,7 +21,7 @@ menuconfig ARCH_STI
 	help
 	  Include support for STMicroelectronics' STiH415/416, STiH407/10 and
 	  STiH418 family SoCs using the Device Tree for discovery.  More
-	  information can be found in Documentation/arm/sti/ and
+	  information can be found in Documentation/arch/arm/sti/ and
 	  Documentation/devicetree.
 
 if ARCH_STI

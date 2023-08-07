@@ -106,7 +106,7 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.disable_link_output = dce110_disable_link_output,
 	.set_disp_pattern_generator = dcn30_set_disp_pattern_generator,
 	.get_dcc_en_bits = dcn10_get_dcc_en_bits,
-	.update_visual_confirm_color = dcn20_update_visual_confirm_color,
+	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
 	.is_abm_supported = dcn21_is_abm_supported
 };
 
@@ -151,8 +151,4 @@ void dcn30_hw_sequencer_construct(struct dc *dc)
 	dc->hwss = dcn30_funcs;
 	dc->hwseq->funcs = dcn30_private_funcs;
 
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		dc->hwss.init_hw = dcn20_fpga_init_hw;
-		dc->hwseq->funcs.init_pipes = NULL;
-	}
 }

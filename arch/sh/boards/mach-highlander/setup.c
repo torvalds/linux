@@ -389,10 +389,10 @@ static unsigned char irl2irq[HL_NR_IRL];
 
 static int highlander_irq_demux(int irq)
 {
-	if (irq >= HL_NR_IRL || irq < 0 || !irl2irq[irq])
+	if (irq >= HL_NR_IRL + 16 || irq < 16 || !irl2irq[irq - 16])
 		return irq;
 
-	return irl2irq[irq];
+	return irl2irq[irq - 16];
 }
 
 static void __init highlander_init_irq(void)

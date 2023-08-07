@@ -149,7 +149,7 @@ static struct snd_soc_dai_link st_dai_es8336[] = {
 		.stream_name = "ES8336 HiFi Play",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBP_CFP,
-		.stop_dma_first = 1,
+		.trigger_stop = SND_SOC_TRIGGER_ORDER_LDC,
 		.dpcm_capture = 1,
 		.dpcm_playback = 1,
 		.init = st_es8336_init,

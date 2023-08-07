@@ -23,7 +23,7 @@ create_table()
 	max_nr=-1
 	nr=0
 
-	echo "static const char *syscalltbl_powerpc_${wordsize}[] = {"
+	echo "static const char *const syscalltbl_powerpc_${wordsize}[] = {"
 	while read nr abi sc discard; do
 		if [ "$max_nr" -lt "$nr" ]; then
 			printf '\t[%d] = "%s",\n' $nr $sc

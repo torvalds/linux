@@ -102,7 +102,7 @@ struct handshake_req_alloc_test_param handshake_req_alloc_params[] = {
 	{
 		.desc			= "handshake_req_alloc excessive privsize",
 		.proto			= &handshake_req_alloc_proto_6,
-		.gfp			= GFP_KERNEL,
+		.gfp			= GFP_KERNEL | __GFP_NOWARN,
 		.expect_success		= false,
 	},
 	{
@@ -209,6 +209,7 @@ static void handshake_req_submit_test4(struct kunit *test)
 {
 	struct handshake_req *req, *result;
 	struct socket *sock;
+	struct file *filp;
 	int err;
 
 	/* Arrange */
@@ -218,9 +219,10 @@ static void handshake_req_submit_test4(struct kunit *test)
 	err = __sock_create(&init_net, PF_INET, SOCK_STREAM, IPPROTO_TCP,
 			    &sock, 1);
 	KUNIT_ASSERT_EQ(test, err, 0);
-	sock->file = sock_alloc_file(sock, O_NONBLOCK, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sock->file);
+	filp = sock_alloc_file(sock, O_NONBLOCK, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filp);
 	KUNIT_ASSERT_NOT_NULL(test, sock->sk);
+	sock->file = filp;
 
 	err = handshake_req_submit(sock, req, GFP_KERNEL);
 	KUNIT_ASSERT_EQ(test, err, 0);
@@ -241,6 +243,7 @@ static void handshake_req_submit_test5(struct kunit *test)
 	struct handshake_req *req;
 	struct handshake_net *hn;
 	struct socket *sock;
+	struct file *filp;
 	struct net *net;
 	int saved, err;
 
@@ -251,9 +254,10 @@ static void handshake_req_submit_test5(struct kunit *test)
 	err = __sock_create(&init_net, PF_INET, SOCK_STREAM, IPPROTO_TCP,
 			    &sock, 1);
 	KUNIT_ASSERT_EQ(test, err, 0);
-	sock->file = sock_alloc_file(sock, O_NONBLOCK, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sock->file);
+	filp = sock_alloc_file(sock, O_NONBLOCK, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filp);
 	KUNIT_ASSERT_NOT_NULL(test, sock->sk);
+	sock->file = filp;
 
 	net = sock_net(sock->sk);
 	hn = handshake_pernet(net);
@@ -276,6 +280,7 @@ static void handshake_req_submit_test6(struct kunit *test)
 {
 	struct handshake_req *req1, *req2;
 	struct socket *sock;
+	struct file *filp;
 	int err;
 
 	/* Arrange */
@@ -287,9 +292,10 @@ static void handshake_req_submit_test6(struct kunit *test)
 	err = __sock_create(&init_net, PF_INET, SOCK_STREAM, IPPROTO_TCP,
 			    &sock, 1);
 	KUNIT_ASSERT_EQ(test, err, 0);
-	sock->file = sock_alloc_file(sock, O_NONBLOCK, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sock->file);
+	filp = sock_alloc_file(sock, O_NONBLOCK, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filp);
 	KUNIT_ASSERT_NOT_NULL(test, sock->sk);
+	sock->file = filp;
 
 	/* Act */
 	err = handshake_req_submit(sock, req1, GFP_KERNEL);
@@ -307,6 +313,7 @@ static void handshake_req_cancel_test1(struct kunit *test)
 {
 	struct handshake_req *req;
 	struct socket *sock;
+	struct file *filp;
 	bool result;
 	int err;
 
@@ -318,8 +325,9 @@ static void handshake_req_cancel_test1(struct kunit *test)
 			    &sock, 1);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
-	sock->file = sock_alloc_file(sock, O_NONBLOCK, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sock->file);
+	filp = sock_alloc_file(sock, O_NONBLOCK, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filp);
+	sock->file = filp;
 
 	err = handshake_req_submit(sock, req, GFP_KERNEL);
 	KUNIT_ASSERT_EQ(test, err, 0);
@@ -340,6 +348,7 @@ static void handshake_req_cancel_test2(struct kunit *test)
 	struct handshake_req *req, *next;
 	struct handshake_net *hn;
 	struct socket *sock;
+	struct file *filp;
 	struct net *net;
 	bool result;
 	int err;
@@ -352,8 +361,9 @@ static void handshake_req_cancel_test2(struct kunit *test)
 			    &sock, 1);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
-	sock->file = sock_alloc_file(sock, O_NONBLOCK, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sock->file);
+	filp = sock_alloc_file(sock, O_NONBLOCK, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filp);
+	sock->file = filp;
 
 	err = handshake_req_submit(sock, req, GFP_KERNEL);
 	KUNIT_ASSERT_EQ(test, err, 0);
@@ -380,6 +390,7 @@ static void handshake_req_cancel_test3(struct kunit *test)
 	struct handshake_req *req, *next;
 	struct handshake_net *hn;
 	struct socket *sock;
+	struct file *filp;
 	struct net *net;
 	bool result;
 	int err;
@@ -392,8 +403,9 @@ static void handshake_req_cancel_test3(struct kunit *test)
 			    &sock, 1);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
-	sock->file = sock_alloc_file(sock, O_NONBLOCK, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sock->file);
+	filp = sock_alloc_file(sock, O_NONBLOCK, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filp);
+	sock->file = filp;
 
 	err = handshake_req_submit(sock, req, GFP_KERNEL);
 	KUNIT_ASSERT_EQ(test, err, 0);
@@ -436,6 +448,7 @@ static void handshake_req_destroy_test1(struct kunit *test)
 {
 	struct handshake_req *req;
 	struct socket *sock;
+	struct file *filp;
 	int err;
 
 	/* Arrange */
@@ -448,8 +461,9 @@ static void handshake_req_destroy_test1(struct kunit *test)
 			    &sock, 1);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
-	sock->file = sock_alloc_file(sock, O_NONBLOCK, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sock->file);
+	filp = sock_alloc_file(sock, O_NONBLOCK, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filp);
+	sock->file = filp;
 
 	err = handshake_req_submit(sock, req, GFP_KERNEL);
 	KUNIT_ASSERT_EQ(test, err, 0);

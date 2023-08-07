@@ -13,7 +13,7 @@
 
 #define MAXNAME		32
 #define WPAN_PHY_ENTRY	__array(char, wpan_phy_name, MAXNAME)
-#define WPAN_PHY_ASSIGN	strlcpy(__entry->wpan_phy_name,	 \
+#define WPAN_PHY_ASSIGN	strscpy(__entry->wpan_phy_name,	 \
 				wpan_phy_name(wpan_phy), \
 				MAXNAME)
 #define WPAN_PHY_PR_FMT	"%s"

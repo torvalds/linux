@@ -146,7 +146,6 @@ static void vblank_control_worker(struct work_struct *work)
 
 static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 {
-	enum dc_irq_source irq_source;
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
@@ -169,18 +168,9 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 	if (rc)
 		return rc;
 
-	if (amdgpu_in_reset(adev)) {
-		irq_source = IRQ_TYPE_VBLANK + acrtc->otg_inst;
-		/* During gpu-reset we disable and then enable vblank irq, so
-		 * don't use amdgpu_irq_get/put() to avoid refcount change.
-		 */
-		if (!dc_interrupt_set(adev->dm.dc, irq_source, enable))
-			rc = -EBUSY;
-	} else {
-		rc = (enable)
-			? amdgpu_irq_get(adev, &adev->crtc_irq, acrtc->crtc_id)
-			: amdgpu_irq_put(adev, &adev->crtc_irq, acrtc->crtc_id);
-	}
+	rc = (enable)
+		? amdgpu_irq_get(adev, &adev->crtc_irq, acrtc->crtc_id)
+		: amdgpu_irq_put(adev, &adev->crtc_irq, acrtc->crtc_id);
 
 	if (rc)
 		return rc;
@@ -405,6 +395,18 @@ static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	if (crtc_state->enable &&
 		!(crtc_state->plane_mask & drm_plane_mask(crtc->primary))) {
 		DRM_DEBUG_ATOMIC("Can't enable a CRTC without enabling the primary plane\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Only allow async flips for fast updates that don't change the FB
+	 * pitch, the DCC state, rotation, etc.
+	 */
+	if (crtc_state->async_flip &&
+	    dm_crtc_state->update_type != UPDATE_TYPE_FAST) {
+		drm_dbg_atomic(crtc->dev,
+			       "[CRTC:%d:%s] async flips are only supported for fast updates\n",
+			       crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
 

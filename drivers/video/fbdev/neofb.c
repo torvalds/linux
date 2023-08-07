@@ -1944,7 +1944,7 @@ static struct fb_info *neo_alloc_fb_info(struct pci_dev *dev,
 
 	par->internal_display = internal;
 	par->external_display = external;
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	info->flags = FBINFO_HWACCEL_YPAN;
 
 	switch (info->fix.accel) {
 	case FB_ACCEL_NEOMAGIC_NM2070:

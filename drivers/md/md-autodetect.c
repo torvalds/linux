@@ -147,7 +147,8 @@ static void __init md_setup_drive(struct md_setup_args *args)
 		if (p)
 			*p++ = 0;
 
-		dev = name_to_dev_t(devname);
+		if (early_lookup_bdev(devname, &dev))
+			dev = 0;
 		if (strncmp(devname, "/dev/", 5) == 0)
 			devname += 5;
 		snprintf(comp_name, 63, "/dev/%s", devname);

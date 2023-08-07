@@ -510,7 +510,7 @@ static struct i2c_driver si570_driver = {
 		.name = "si570",
 		.of_match_table = clk_si570_of_match,
 	},
-	.probe_new	= si570_probe,
+	.probe		= si570_probe,
 	.id_table	= si570_id,
 };
 module_i2c_driver(si570_driver);

@@ -20,8 +20,10 @@
 
 #include <linux/device.h>
 #include <linux/dma-buf.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/wait.h>
 
 #include "rcar_du_crtc.h"

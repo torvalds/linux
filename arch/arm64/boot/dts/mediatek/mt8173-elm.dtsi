@@ -96,6 +96,8 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
+		regulator-boot-on;
+		off-on-delay-us = <500000>;
 		gpio = <&pio 41 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&panel_fixed_pins>;
@@ -285,7 +287,7 @@
 
 		aux-bus {
 			panel: panel {
-				compatible = "lg,lp120up1";
+				compatible = "edp-panel";
 				power-supply = <&panel_fixed_3v3>;
 				backlight = <&backlight>;
 

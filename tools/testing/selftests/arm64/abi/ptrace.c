@@ -20,7 +20,7 @@
 
 #include "../../kselftest.h"
 
-#define EXPECTED_TESTS 7
+#define EXPECTED_TESTS 11
 
 #define MAX_TPIDRS 2
 
@@ -132,6 +132,34 @@ static void test_tpidr(pid_t child)
 	}
 }
 
+static void test_hw_debug(pid_t child, int type, const char *type_name)
+{
+	struct user_hwdebug_state state;
+	struct iovec iov;
+	int slots, arch, ret;
+
+	iov.iov_len = sizeof(state);
+	iov.iov_base = &state;
+
+	/* Should be able to read the values */
+	ret = ptrace(PTRACE_GETREGSET, child, type, &iov);
+	ksft_test_result(ret == 0, "read_%s\n", type_name);
+
+	if (ret == 0) {
+		/* Low 8 bits is the number of slots, next 4 bits the arch */
+		slots = state.dbg_info & 0xff;
+		arch = (state.dbg_info >> 8) & 0xf;
+
+		ksft_print_msg("%s version %d with %d slots\n", type_name,
+			       arch, slots);
+
+		/* Zero is not currently architecturally valid */
+		ksft_test_result(arch, "%s_arch_set\n", type_name);
+	} else {
+		ksft_test_result_skip("%s_arch_set\n");
+	}
+}
+
 static int do_child(void)
 {
 	if (ptrace(PTRACE_TRACEME, -1, NULL, NULL))
@@ -207,6 +235,8 @@ static int do_parent(pid_t child)
 	ksft_print_msg("Parent is %d, child is %d\n", getpid(), child);
 
 	test_tpidr(child);
+	test_hw_debug(child, NT_ARM_HW_WATCH, "NT_ARM_HW_WATCH");
+	test_hw_debug(child, NT_ARM_HW_BREAK, "NT_ARM_HW_BREAK");
 
 	ret = EXIT_SUCCESS;
 

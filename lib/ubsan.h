@@ -124,4 +124,15 @@ typedef s64 s_max;
 typedef u64 u_max;
 #endif
 
+void __ubsan_handle_divrem_overflow(void *_data, void *lhs, void *rhs);
+void __ubsan_handle_type_mismatch(struct type_mismatch_data *data, void *ptr);
+void __ubsan_handle_type_mismatch_v1(void *_data, void *ptr);
+void __ubsan_handle_out_of_bounds(void *_data, void *index);
+void __ubsan_handle_shift_out_of_bounds(void *_data, void *lhs, void *rhs);
+void __ubsan_handle_builtin_unreachable(void *_data);
+void __ubsan_handle_load_invalid_value(void *_data, void *val);
+void __ubsan_handle_alignment_assumption(void *_data, unsigned long ptr,
+					 unsigned long align,
+					 unsigned long offset);
+
 #endif

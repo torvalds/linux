@@ -257,7 +257,7 @@ static ssize_t module_zstd_decompress(struct load_info *info,
 	do {
 		struct page *page = module_get_next_page(info);
 
-		if (!IS_ERR(page)) {
+		if (IS_ERR(page)) {
 			retval = PTR_ERR(page);
 			goto out;
 		}

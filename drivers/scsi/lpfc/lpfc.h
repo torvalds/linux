@@ -429,6 +429,15 @@ struct lpfc_cgn_param {
 /* Max number of days of congestion data */
 #define LPFC_MAX_CGN_DAYS 10
 
+struct lpfc_cgn_ts {
+	uint8_t month;
+	uint8_t day;
+	uint8_t year;
+	uint8_t hour;
+	uint8_t minute;
+	uint8_t second;
+};
+
 /* Format of congestion buffer info
  * This structure defines memory thats allocated and registered with
  * the HBA firmware. When adding or removing fields from this structure
@@ -442,6 +451,7 @@ struct lpfc_cgn_info {
 #define LPFC_CGN_INFO_V1	1
 #define LPFC_CGN_INFO_V2	2
 #define LPFC_CGN_INFO_V3	3
+#define LPFC_CGN_INFO_V4	4
 	uint8_t  cgn_info_mode;		/* 0=off 1=managed 2=monitor only */
 	uint8_t  cgn_info_detect;
 	uint8_t  cgn_info_action;
@@ -450,12 +460,7 @@ struct lpfc_cgn_info {
 	uint8_t  cgn_info_level2;
 
 	/* Start Time */
-	uint8_t  cgn_info_month;
-	uint8_t  cgn_info_day;
-	uint8_t  cgn_info_year;
-	uint8_t  cgn_info_hour;
-	uint8_t  cgn_info_minute;
-	uint8_t  cgn_info_second;
+	struct lpfc_cgn_ts base_time;
 
 	/* minute / hours / daily indices */
 	uint8_t  cgn_index_minute;
@@ -496,45 +501,17 @@ struct lpfc_cgn_info {
 		uint8_t  cgn_stat_npm;		/* Notifications per minute */
 
 		/* Start Time */
-		uint8_t  cgn_stat_month;
-		uint8_t  cgn_stat_day;
-		uint8_t  cgn_stat_year;
-		uint8_t  cgn_stat_hour;
-		uint8_t  cgn_stat_minute;
-		uint8_t  cgn_pad2[2];
+		struct lpfc_cgn_ts stat_start;	/* Base time */
+		uint8_t cgn_pad2;
 
 		__le32   cgn_notification;
 		__le32   cgn_peer_notification;
 		__le32   link_integ_notification;
 		__le32   delivery_notification;
-
-		uint8_t  cgn_stat_cgn_month; /* Last congestion notification FPIN */
-		uint8_t  cgn_stat_cgn_day;
-		uint8_t  cgn_stat_cgn_year;
-		uint8_t  cgn_stat_cgn_hour;
-		uint8_t  cgn_stat_cgn_min;
-		uint8_t  cgn_stat_cgn_sec;
-
-		uint8_t  cgn_stat_peer_month; /* Last peer congestion FPIN */
-		uint8_t  cgn_stat_peer_day;
-		uint8_t  cgn_stat_peer_year;
-		uint8_t  cgn_stat_peer_hour;
-		uint8_t  cgn_stat_peer_min;
-		uint8_t  cgn_stat_peer_sec;
-
-		uint8_t  cgn_stat_lnk_month; /* Last link integrity FPIN */
-		uint8_t  cgn_stat_lnk_day;
-		uint8_t  cgn_stat_lnk_year;
-		uint8_t  cgn_stat_lnk_hour;
-		uint8_t  cgn_stat_lnk_min;
-		uint8_t  cgn_stat_lnk_sec;
-
-		uint8_t  cgn_stat_del_month; /* Last delivery notification FPIN */
-		uint8_t  cgn_stat_del_day;
-		uint8_t  cgn_stat_del_year;
-		uint8_t  cgn_stat_del_hour;
-		uint8_t  cgn_stat_del_min;
-		uint8_t  cgn_stat_del_sec;
+		struct lpfc_cgn_ts stat_fpin;	/* Last congestion notification FPIN */
+		struct lpfc_cgn_ts stat_peer;	/* Last peer congestion FPIN */
+		struct lpfc_cgn_ts stat_lnk;	/* Last link integrity FPIN */
+		struct lpfc_cgn_ts stat_delivery;	/* Last delivery notification FPIN */
 	);
 
 	__le32   cgn_info_crc;
@@ -932,8 +909,6 @@ struct lpfc_hba {
 	void (*__lpfc_sli_release_iocbq)(struct lpfc_hba *,
 			 struct lpfc_iocbq *);
 	int (*lpfc_hba_down_post)(struct lpfc_hba *phba);
-	void (*lpfc_scsi_cmd_iocb_cmpl)
-		(struct lpfc_hba *, struct lpfc_iocbq *, struct lpfc_iocbq *);
 
 	/* MBOX interface function jump table entries */
 	int (*lpfc_sli_issue_mbox)
@@ -1045,8 +1020,6 @@ struct lpfc_hba {
 					 * capability
 					 */
 #define HBA_FLOGI_ISSUED	0x100000 /* FLOGI was issued */
-#define HBA_SHORT_CMF		0x200000 /* shorter CMF timer routine */
-#define HBA_CGN_DAY_WRAP	0x400000 /* HBA Congestion info day wraps */
 #define HBA_DEFER_FLOGI		0x800000 /* Defer FLOGI till read_sparm cmpl */
 #define HBA_SETUP		0x1000000 /* Signifies HBA setup is completed */
 #define HBA_NEEDS_CFG_PORT	0x2000000 /* SLI3 - needs a CONFIG_PORT mbox */
@@ -1529,6 +1502,7 @@ struct lpfc_hba {
 	uint64_t cmf_last_sync_bw;
 #define  LPFC_CMF_BLK_SIZE 512
 	struct hrtimer cmf_timer;
+	struct hrtimer cmf_stats_timer;	/* 1 minute stats timer  */
 	atomic_t cmf_bw_wait;
 	atomic_t cmf_busy;
 	atomic_t cmf_stop_io;      /* To block request and stop IO's */
@@ -1576,12 +1550,11 @@ struct lpfc_hba {
 	atomic_t cgn_sync_alarm_cnt;    /* Total alarm events for SYNC wqe */
 	atomic_t cgn_driver_evt_cnt;    /* Total driver cgn events for fmw */
 	atomic_t cgn_latency_evt_cnt;
-	struct timespec64 cgn_daily_ts;
 	atomic64_t cgn_latency_evt;     /* Avg latency per minute */
 	unsigned long cgn_evt_timestamp;
 #define LPFC_CGN_TIMER_TO_MIN   60000 /* ms in a minute */
 	uint32_t cgn_evt_minute;
-#define LPFC_SEC_MIN		60
+#define LPFC_SEC_MIN		60UL
 #define LPFC_MIN_HOUR		60
 #define LPFC_HOUR_DAY		24
 #define LPFC_MIN_DAY		(LPFC_MIN_HOUR * LPFC_HOUR_DAY)

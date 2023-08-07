@@ -878,6 +878,7 @@ static u8 mux_get_parent(struct clk_hw *hw)
 }
 
 static const struct clk_ops cmux_ops = {
+	.determine_rate = clk_hw_determine_rate_no_reparent,
 	.get_parent = mux_get_parent,
 	.set_parent = mux_set_parent,
 };

@@ -129,6 +129,7 @@ allOf:
               - qcom,sm8250-llcc
               - qcom,sm8350-llcc
               - qcom,sm8450-llcc
+              - qcom,sm8550-llcc
     then:
       properties:
         reg:

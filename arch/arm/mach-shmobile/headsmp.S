@@ -11,7 +11,7 @@
 #include <linux/linkage.h>
 #include <linux/threads.h>
 #include <asm/assembler.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 
 #define SCTLR_MMU	0x01
 #define BOOTROM_ADDRESS	0xE6340000

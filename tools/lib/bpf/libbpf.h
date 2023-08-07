@@ -869,8 +869,22 @@ LIBBPF_API int bpf_map__set_numa_node(struct bpf_map *map, __u32 numa_node);
 /* get/set map key size */
 LIBBPF_API __u32 bpf_map__key_size(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_key_size(struct bpf_map *map, __u32 size);
-/* get/set map value size */
+/* get map value size */
 LIBBPF_API __u32 bpf_map__value_size(const struct bpf_map *map);
+/**
+ * @brief **bpf_map__set_value_size()** sets map value size.
+ * @param map the BPF map instance
+ * @return 0, on success; negative error, otherwise
+ *
+ * There is a special case for maps with associated memory-mapped regions, like
+ * the global data section maps (bss, data, rodata). When this function is used
+ * on such a map, the mapped region is resized. Afterward, an attempt is made to
+ * adjust the corresponding BTF info. This attempt is best-effort and can only
+ * succeed if the last variable of the data section map is an array. The array
+ * BTF type is replaced by a new BTF array type with a different length.
+ * Any previously existing pointers returned from bpf_map__initial_value() or
+ * corresponding data section skeleton pointer must be reinitialized.
+ */
 LIBBPF_API int bpf_map__set_value_size(struct bpf_map *map, __u32 size);
 /* get map key/value BTF type IDs */
 LIBBPF_API __u32 bpf_map__btf_key_type_id(const struct bpf_map *map);
@@ -884,7 +898,7 @@ LIBBPF_API int bpf_map__set_map_extra(struct bpf_map *map, __u64 map_extra);
 
 LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 					  const void *data, size_t size);
-LIBBPF_API const void *bpf_map__initial_value(struct bpf_map *map, size_t *psize);
+LIBBPF_API void *bpf_map__initial_value(struct bpf_map *map, size_t *psize);
 
 /**
  * @brief **bpf_map__is_internal()** tells the caller whether or not the

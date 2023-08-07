@@ -775,39 +775,18 @@ static const struct etr_buf_operations etr_sg_buf_ops = {
 struct coresight_device *
 tmc_etr_get_catu_device(struct tmc_drvdata *drvdata)
 {
-	int i;
-	struct coresight_device *tmp, *etr = drvdata->csdev;
+	struct coresight_device *etr = drvdata->csdev;
+	union coresight_dev_subtype catu_subtype = {
+		.helper_subtype = CORESIGHT_DEV_SUBTYPE_HELPER_CATU
+	};
 
 	if (!IS_ENABLED(CONFIG_CORESIGHT_CATU))
 		return NULL;
 
-	for (i = 0; i < etr->pdata->nr_outport; i++) {
-		tmp = etr->pdata->conns[i].child_dev;
-		if (tmp && coresight_is_catu_device(tmp))
-			return tmp;
-	}
-
-	return NULL;
+	return coresight_find_output_type(etr->pdata, CORESIGHT_DEV_TYPE_HELPER,
+					  catu_subtype);
 }
 EXPORT_SYMBOL_GPL(tmc_etr_get_catu_device);
-
-static inline int tmc_etr_enable_catu(struct tmc_drvdata *drvdata,
-				      struct etr_buf *etr_buf)
-{
-	struct coresight_device *catu = tmc_etr_get_catu_device(drvdata);
-
-	if (catu && helper_ops(catu)->enable)
-		return helper_ops(catu)->enable(catu, etr_buf);
-	return 0;
-}
-
-static inline void tmc_etr_disable_catu(struct tmc_drvdata *drvdata)
-{
-	struct coresight_device *catu = tmc_etr_get_catu_device(drvdata);
-
-	if (catu && helper_ops(catu)->disable)
-		helper_ops(catu)->disable(catu, drvdata->etr_buf);
-}
 
 static const struct etr_buf_operations *etr_buf_ops[] = {
 	[ETR_MODE_FLAT] = &etr_flat_buf_ops,
@@ -942,7 +921,7 @@ tmc_etr_buf_insert_barrier_packet(struct etr_buf *etr_buf, u64 offset)
 
 	len = tmc_etr_buf_get_data(etr_buf, offset,
 				   CORESIGHT_BARRIER_PKT_SIZE, &bufp);
-	if (WARN_ON(len < CORESIGHT_BARRIER_PKT_SIZE))
+	if (WARN_ON(len < 0 || len < CORESIGHT_BARRIER_PKT_SIZE))
 		return -EINVAL;
 	coresight_insert_barrier_packet(bufp);
 	return offset + CORESIGHT_BARRIER_PKT_SIZE;
@@ -1058,13 +1037,6 @@ static int tmc_etr_enable_hw(struct tmc_drvdata *drvdata,
 	if (WARN_ON(drvdata->etr_buf))
 		return -EBUSY;
 
-	/*
-	 * If this ETR is connected to a CATU, enable it before we turn
-	 * this on.
-	 */
-	rc = tmc_etr_enable_catu(drvdata, etr_buf);
-	if (rc)
-		return rc;
 	rc = coresight_claim_device(drvdata->csdev);
 	if (!rc) {
 		drvdata->etr_buf = etr_buf;
@@ -1072,7 +1044,6 @@ static int tmc_etr_enable_hw(struct tmc_drvdata *drvdata,
 		if (rc) {
 			drvdata->etr_buf = NULL;
 			coresight_disclaim_device(drvdata->csdev);
-			tmc_etr_disable_catu(drvdata);
 		}
 	}
 
@@ -1162,14 +1133,12 @@ static void __tmc_etr_disable_hw(struct tmc_drvdata *drvdata)
 void tmc_etr_disable_hw(struct tmc_drvdata *drvdata)
 {
 	__tmc_etr_disable_hw(drvdata);
-	/* Disable CATU device if this ETR is connected to one */
-	tmc_etr_disable_catu(drvdata);
 	coresight_disclaim_device(drvdata->csdev);
 	/* Reset the ETR buf used by hardware */
 	drvdata->etr_buf = NULL;
 }
 
-static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
+static struct etr_buf *tmc_etr_get_sysfs_buffer(struct coresight_device *csdev)
 {
 	int ret = 0;
 	unsigned long flags;
@@ -1192,7 +1161,7 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 		/* Allocate memory with the locks released */
 		free_buf = new_buf = tmc_etr_setup_sysfs_buf(drvdata);
 		if (IS_ERR(new_buf))
-			return PTR_ERR(new_buf);
+			return new_buf;
 
 		/* Let's try again */
 		spin_lock_irqsave(&drvdata->spinlock, flags);
@@ -1209,7 +1178,7 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 	 * touched, even if the buffer size has changed.
 	 */
 	if (drvdata->mode == CS_MODE_SYSFS) {
-		atomic_inc(csdev->refcnt);
+		atomic_inc(&csdev->refcnt);
 		goto out;
 	}
 
@@ -1223,23 +1192,59 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 		drvdata->sysfs_buf = new_buf;
 	}
 
-	ret = tmc_etr_enable_hw(drvdata, drvdata->sysfs_buf);
-	if (!ret) {
-		drvdata->mode = CS_MODE_SYSFS;
-		atomic_inc(csdev->refcnt);
-	}
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	/* Free memory outside the spinlock if need be */
 	if (free_buf)
 		tmc_etr_free_sysfs_buf(free_buf);
+	return ret ? ERR_PTR(ret) : drvdata->sysfs_buf;
+}
+
+static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
+{
+	int ret;
+	unsigned long flags;
+	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+	struct etr_buf *sysfs_buf = tmc_etr_get_sysfs_buffer(csdev);
+
+	if (IS_ERR(sysfs_buf))
+		return PTR_ERR(sysfs_buf);
+
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+	ret = tmc_etr_enable_hw(drvdata, sysfs_buf);
+	if (!ret) {
+		drvdata->mode = CS_MODE_SYSFS;
+		atomic_inc(&csdev->refcnt);
+	}
+
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	if (!ret)
 		dev_dbg(&csdev->dev, "TMC-ETR enabled\n");
 
 	return ret;
 }
+
+struct etr_buf *tmc_etr_get_buffer(struct coresight_device *csdev,
+				   enum cs_mode mode, void *data)
+{
+	struct perf_output_handle *handle = data;
+	struct etr_perf_buffer *etr_perf;
+
+	switch (mode) {
+	case CS_MODE_SYSFS:
+		return tmc_etr_get_sysfs_buffer(csdev);
+	case CS_MODE_PERF:
+		etr_perf = etm_perf_sink_config(handle);
+		if (WARN_ON(!etr_perf || !etr_perf->etr_buf))
+			return ERR_PTR(-EINVAL);
+		return etr_perf->etr_buf;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+}
+EXPORT_SYMBOL_GPL(tmc_etr_get_buffer);
 
 /*
  * alloc_etr_buf: Allocate ETR buffer for use by perf.
@@ -1535,7 +1540,7 @@ tmc_update_etr_buffer(struct coresight_device *csdev,
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* Don't do anything if another tracer is using this sink */
-	if (atomic_read(csdev->refcnt) != 1) {
+	if (atomic_read(&csdev->refcnt) != 1) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
 		goto out;
 	}
@@ -1647,7 +1652,7 @@ static int tmc_enable_etr_sink_perf(struct coresight_device *csdev, void *data)
 	 * use for this session.
 	 */
 	if (drvdata->pid == pid) {
-		atomic_inc(csdev->refcnt);
+		atomic_inc(&csdev->refcnt);
 		goto unlock_out;
 	}
 
@@ -1657,7 +1662,7 @@ static int tmc_enable_etr_sink_perf(struct coresight_device *csdev, void *data)
 		drvdata->pid = pid;
 		drvdata->mode = CS_MODE_PERF;
 		drvdata->perf_buf = etr_perf->etr_buf;
-		atomic_inc(csdev->refcnt);
+		atomic_inc(&csdev->refcnt);
 	}
 
 unlock_out:
@@ -1666,17 +1671,16 @@ unlock_out:
 }
 
 static int tmc_enable_etr_sink(struct coresight_device *csdev,
-			       u32 mode, void *data)
+			       enum cs_mode mode, void *data)
 {
 	switch (mode) {
 	case CS_MODE_SYSFS:
 		return tmc_enable_etr_sink_sysfs(csdev);
 	case CS_MODE_PERF:
 		return tmc_enable_etr_sink_perf(csdev, data);
+	default:
+		return -EINVAL;
 	}
-
-	/* We shouldn't be here */
-	return -EINVAL;
 }
 
 static int tmc_disable_etr_sink(struct coresight_device *csdev)
@@ -1691,7 +1695,7 @@ static int tmc_disable_etr_sink(struct coresight_device *csdev)
 		return -EBUSY;
 	}
 
-	if (atomic_dec_return(csdev->refcnt)) {
+	if (atomic_dec_return(&csdev->refcnt)) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
 		return -EBUSY;
 	}

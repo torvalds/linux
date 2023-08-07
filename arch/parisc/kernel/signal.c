@@ -73,7 +73,7 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 	return err;
 }
 
-void
+asmlinkage void
 sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 {
 	struct rt_sigframe __user *frame;
@@ -176,7 +176,7 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 }
 
 static long
-setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, int in_syscall)
+setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, long in_syscall)
 		 
 {
 	unsigned long flags = 0;
@@ -211,7 +211,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, int in_sysc
 
 static long
 setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs,
-	       int in_syscall)
+	       long in_syscall)
 {
 	struct rt_sigframe __user *frame;
 	unsigned long rp, usp;
@@ -380,7 +380,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs,
  */	
 
 static void
-handle_signal(struct ksignal *ksig, struct pt_regs *regs, int in_syscall)
+handle_signal(struct ksignal *ksig, struct pt_regs *regs, long in_syscall)
 {
 	int ret;
 	sigset_t *oldset = sigmask_to_save();
@@ -578,7 +578,7 @@ static void do_signal(struct pt_regs *regs, long in_syscall)
 	restore_saved_sigmask();
 }
 
-void do_notify_resume(struct pt_regs *regs, long in_syscall)
+asmlinkage void do_notify_resume(struct pt_regs *regs, long in_syscall)
 {
 	if (test_thread_flag(TIF_SIGPENDING) ||
 	    test_thread_flag(TIF_NOTIFY_SIGNAL))
