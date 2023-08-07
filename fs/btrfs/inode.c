@@ -6068,14 +6068,7 @@ static int btrfs_update_time(struct inode *inode, struct timespec64 *now,
 	if (btrfs_root_readonly(root))
 		return -EROFS;
 
-	if (flags & S_VERSION)
-		dirty |= inode_maybe_inc_iversion(inode, dirty);
-	if (flags & S_CTIME)
-		inode_set_ctime_to_ts(inode, *now);
-	if (flags & S_MTIME)
-		inode->i_mtime = *now;
-	if (flags & S_ATIME)
-		inode->i_atime = *now;
+	dirty = inode_update_timestamps(inode, flags);
 	return dirty ? btrfs_dirty_inode(BTRFS_I(inode)) : 0;
 }
 
