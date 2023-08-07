@@ -255,6 +255,17 @@ struct jh7110_isp_ycrv_setting {
 	struct jh7110_isp_ycrv_curve curve;
 };
 
+struct jh7110_isp_sc_config {
+	__u16 h_start;
+	__u16 v_start;
+	__u8 sw_width;
+	__u8 sw_height;
+	__u8 hperiod;
+	__u8 hkeep;
+	__u8 vperiod;
+	__u8 vkeep;
+};
+
 struct jh7110_isp_sc_af_config {
 	__u8 es_hor_mode;
 	__u8 es_sum_mode;
@@ -262,6 +273,23 @@ struct jh7110_isp_sc_af_config {
 	__u8 ver_en;
 	__u8 es_ver_thr;
 	__u16 es_hor_thr;
+};
+
+struct jh7110_isp_sc_awb_ps {
+	__u8 awb_ps_rl;
+	__u8 awb_ps_ru;
+	__u8 awb_ps_gl;
+	__u8 awb_ps_gu;
+	__u8 awb_ps_bl;
+	__u8 awb_ps_bu;
+	__u8 awb_ps_yl;
+	__u8 awb_ps_yu;
+	__u16 awb_ps_grl;
+	__u16 awb_ps_gru;
+	__u16 awb_ps_gbl;
+	__u16 awb_ps_gbu;
+	__u16 awb_ps_grbl;
+	__u16 awb_ps_grbu;
 };
 
 struct jh7110_isp_sc_awb_ws {
@@ -275,12 +303,16 @@ struct jh7110_isp_sc_awb_ws {
 	__u8 awb_ws_bu;
 };
 
+
 struct jh7110_isp_sc_awb_point {
 	__u16 intensity;
 	__u8 weight;
 };
 
 struct jh7110_isp_sc_awb_config {
+	struct jh7110_isp_sc_awb_ps ws_ps_config;
+	__u8 awb_ps_grb_ba;
+	__u8 sel;
 	struct jh7110_isp_sc_awb_ws ws_config;
 	__u8 awb_cw[169];
 	struct jh7110_isp_sc_awb_point pts[17];
@@ -288,6 +320,7 @@ struct jh7110_isp_sc_awb_config {
 
 struct jh7110_isp_sc_setting {
 	__u32 enabled;
+	struct jh7110_isp_sc_config crop_config;
 	struct jh7110_isp_sc_af_config af_config;
 	struct jh7110_isp_sc_awb_config awb_config;
 };

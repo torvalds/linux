@@ -323,6 +323,13 @@ FILL_ISP_REGS_FUNC(u16);
 #define FILL_ISP_REGS(type, ispbase, offset, value, size, mask, nbits)	\
 	fill_isp_regs_##type(ispbase, offset, value, size, mask, nbits)
 
+static void fill_regs_with_zero(void __iomem *ispbase, u32 offset, u32 size)
+{
+	u32 i;
+	for(i = 0; i < size; i++, offset += 4)
+		reg_write(ispbase, offset, 0);
+}
+
 static int isp_set_ctrl_wb(struct stf_isp_dev *isp_dev, const void * value)
 {
 	const struct module_register_info * reg_info = &mod_reg_info[imi_awb];
@@ -334,6 +341,8 @@ static int isp_set_ctrl_wb(struct stf_isp_dev *isp_dev, const void * value)
 	u32 reg_addr = reg_info->cfg_reg + 16 * sizeof(u32);
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase = vin->isp_base;
+
+	fill_regs_with_zero(ispbase, reg_info->cfg_reg, 16);
 
 	reg_write(ispbase, reg_addr, r_g);
 	reg_write(ispbase, reg_addr + 1 * 4, r_g);
@@ -370,7 +379,12 @@ static int isp_set_ctrl_ccm(struct stf_isp_dev *isp_dev, const void * value)
 	void __iomem *ispbase = vin->isp_base;
 
 	reg_write(ispbase, reg_info->cfg_reg, 6 << 16);
+	fill_regs_with_zero(ispbase, reg_info->cfg_reg + 4, 11);
+
 	FILL_ISP_REGS(u32, ispbase, reg_addr, (u32 *)ccm, 12, 0x7ff, 0);
+
+	reg_addr += 12 * 4;
+	fill_regs_with_zero(ispbase, reg_addr, 2);
 
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
 
@@ -640,6 +654,27 @@ static int isp_set_ctrl_sc(struct stf_isp_dev *isp_dev, const void * value)
 	u32 * w_diff = weight_cfg + 2;
 	s32 i;
 
+	// SC dumping axi id
+	reg_write(ispbase, 0x9c, 1 << 24);
+
+	// SC frame crop
+	reg_write(ispbase, 0xb8, ((u32)(setting->crop_config.v_start) << 16) | setting->crop_config.h_start);
+
+	// SC config1
+	reg_write(ispbase, 0xbc, ((u32)(setting->awb_config.sel) << 30) | ((u32)(setting->awb_config.awb_ps_grb_ba) << 16) | 
+		((u32)(setting->crop_config.sw_height) << 8) | setting->crop_config.sw_width);
+
+	// SC decimation config
+	reg_write(ispbase, 0xd8, ((u32)(setting->crop_config.vkeep) << 24) | ((u32)(setting->crop_config.vperiod) << 16) | 
+		((u32)(setting->crop_config.hkeep) << 8) | setting->crop_config.hperiod);
+
+	// SC AWB pixel sum config
+	reg_write(ispbase, 0xc4, CREATE_REG_VALUE(u8, &setting->awb_config.ws_ps_config.awb_ps_rl, 4, 0xff, 8));
+	reg_write(ispbase, 0xc8, CREATE_REG_VALUE(u8, &setting->awb_config.ws_ps_config.awb_ps_bl, 4, 0xff, 8));
+	reg_write(ispbase, 0xcc, CREATE_REG_VALUE(u16, &setting->awb_config.ws_ps_config.awb_ps_grl, 2, 0xffff, 16));
+	reg_write(ispbase, 0xd0, CREATE_REG_VALUE(u16, &setting->awb_config.ws_ps_config.awb_ps_gbl, 2, 0xffff, 16));
+	reg_write(ispbase, 0xd4, CREATE_REG_VALUE(u16, &setting->awb_config.ws_ps_config.awb_ps_grbl, 2, 0xffff, 16));
+
 	// AF register
 	reg_write(ispbase, 0xc0, 
 		((u32)(setting->af_config.es_hor_thr & 0x1ff) << 16) |
@@ -686,7 +721,7 @@ static int isp_set_ctrl_sc(struct stf_isp_dev *isp_dev, const void * value)
 	FILL_ISP_REGS(u32, ispbase, reg_addr, weight_cfg, 6, 0xffffffff, 0);
 
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
-	
+
 	return 0;
 }
 

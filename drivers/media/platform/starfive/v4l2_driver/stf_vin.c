@@ -1147,6 +1147,17 @@ static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 	while ((ready_buf = vin_buf_get_ready(output))) {
 		//if (line->id >= VIN_LINE_ISP && line->id <= VIN_LINE_ISP_SS1) {
 		if (line->id == VIN_LINE_ISP_SCD_Y) {
+#define ADDR_REG_YHIST_ACC_0               0x0D00
+			struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
+			struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+			void __iomem *ispbase = vin->isp_base;
+			u32 y_hist_reg_addr = ADDR_REG_YHIST_ACC_0;
+			u32 * y_hist_addr = (u32 *)ready_buf->vaddr_sc;
+			s32 i = 0;
+
+			for(i = 0; i < 64; i++, y_hist_reg_addr += 4)
+				y_hist_addr[i] = reg_read(ispbase, y_hist_reg_addr);
+
 			event.u.frame_sync.frame_sequence = output->sequence;
 			v4l2_event_queue(&(line->video_out.vdev), &event);
 			//v4l2_event_queue(line->subdev.devnode, &event);
@@ -1246,9 +1257,14 @@ static void vin_change_buffer(struct vin_line *line)
 			scd_type = vin_dev->hw_ops->vin_isp_get_scd_type(vin_dev);
 			ready_buf->vb.flags &= ~(V4L2_BUF_FLAG_PFRAME | V4L2_BUF_FLAG_BFRAME);
 			if (scd_type == AWB_TYPE)
+			{
 				ready_buf->vb.flags |= V4L2_BUF_FLAG_PFRAME;
-			else
+				*((u16 *)(ready_buf->vaddr_sc + ISP_SCD_BUFFER_SIZE + ISP_YHIST_BUFFER_SIZE)) = 0xffff;
+			}else{
 				ready_buf->vb.flags |= V4L2_BUF_FLAG_BFRAME;
+				*((u16 *)(ready_buf->vaddr_sc + ISP_SCD_BUFFER_SIZE + ISP_YHIST_BUFFER_SIZE)) = 0;
+			}
+
 			if (!output->frame_skip) {
 				output->frame_skip = ISP_AWB_OECF_SKIP_FRAME;
 				scd_type = scd_type == AWB_TYPE ? OECF_TYPE : AWB_TYPE;
@@ -1343,26 +1359,8 @@ static int vin_link_setup(struct media_entity *entity,
 	return 0;
 }
 
-static int stf_vin_subscribe_event(struct v4l2_subdev *sd,
-				   struct v4l2_fh *fh,
-				   struct v4l2_event_subscription *sub)
-{
-	switch (sub->type) {
-	case V4L2_EVENT_FRAME_SYNC:
-		//return v4l2_event_subscribe(fh, sub, 2, NULL);
-		int ret = v4l2_event_subscribe(fh, sub, 2, NULL);
-		pr_info("subscribe ret: %d\n", ret);
-		return ret;
-	default:
-		st_debug(ST_VIN, "unsupport subscribe_event\n");
-		return -EINVAL;
-	}
-}
-
 static const struct v4l2_subdev_core_ops vin_core_ops = {
 	.s_power = vin_set_power,
-	//.subscribe_event = stf_vin_subscribe_event,
-	//.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
 static const struct v4l2_subdev_video_ops vin_video_ops = {

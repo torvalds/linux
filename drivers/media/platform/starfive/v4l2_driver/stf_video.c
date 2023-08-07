@@ -1286,13 +1286,8 @@ static int stf_video_subscribe_event(struct v4l2_fh *fh,
 	switch (sub->type) {
 	case V4L2_EVENT_FRAME_SYNC:
 		return v4l2_event_subscribe(fh, sub, 2, NULL);
-		//int ret = v4l2_event_subscribe(fh, sub, 2, NULL);
-		//pr_info("subscribe ret: %d\n", ret);
-		//return ret;
 	default:
 		return v4l2_ctrl_subscribe_event(fh, sub);
-		//st_debug(ST_VIN, "unsupport subscribe_event\n");
-		//return -EINVAL;
 	}
 }
 
