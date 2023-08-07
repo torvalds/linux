@@ -252,7 +252,7 @@ int vboxsf_getattr(struct mnt_idmap *idmap, const struct path *path,
 	if (err)
 		return err;
 
-	generic_fillattr(&nop_mnt_idmap, d_inode(dentry), kstat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, d_inode(dentry), kstat);
 	return 0;
 }
 

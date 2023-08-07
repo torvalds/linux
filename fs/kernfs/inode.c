@@ -190,7 +190,7 @@ int kernfs_iop_getattr(struct mnt_idmap *idmap,
 
 	down_read(&root->kernfs_iattr_rwsem);
 	kernfs_refresh_inode(kn, inode);
-	generic_fillattr(&nop_mnt_idmap, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 	up_read(&root->kernfs_iattr_rwsem);
 
 	return 0;

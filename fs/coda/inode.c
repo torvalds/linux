@@ -256,7 +256,8 @@ int coda_getattr(struct mnt_idmap *idmap, const struct path *path,
 {
 	int err = coda_revalidate_inode(d_inode(path->dentry));
 	if (!err)
-		generic_fillattr(&nop_mnt_idmap, d_inode(path->dentry), stat);
+		generic_fillattr(&nop_mnt_idmap, request_mask,
+				 d_inode(path->dentry), stat);
 	return err;
 }
 

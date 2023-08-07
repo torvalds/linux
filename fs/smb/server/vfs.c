@@ -1650,7 +1650,8 @@ int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work,
 	u64 time;
 	int rc;
 
-	generic_fillattr(idmap, d_inode(dentry), ksmbd_kstat->kstat);
+	generic_fillattr(idmap, STATX_BASIC_STATS, d_inode(dentry),
+			 ksmbd_kstat->kstat);
 
 	time = ksmbd_UnixTimeToNT(ksmbd_kstat->kstat->ctime);
 	ksmbd_kstat->create_time = time;
