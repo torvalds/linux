@@ -491,6 +491,7 @@ static void rk628_bt1120_delayed_work_enable_hotplug(struct work_struct *work)
 	mutex_lock(&bt1120->confctl_mutex);
 	bt1120->avi_rcv_rdy = false;
 	plugin = tx_5v_power_present(sd);
+	v4l2_ctrl_s_ctrl(bt1120->detect_tx_5v_ctrl, plugin);
 	v4l2_dbg(1, debug, sd, "%s: 5v_det:%d\n", __func__, plugin);
 	if (plugin) {
 		rk628_set_io_func_to_vop(bt1120->rk628);
@@ -1250,21 +1251,6 @@ static int rk628_bt1120_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int rk628_bt1120_get_ctrl(struct v4l2_ctrl *ctrl)
-{
-	int ret = -1;
-	struct rk628_bt1120 *bt1120 = container_of(ctrl->handler, struct rk628_bt1120,
-			hdl);
-	struct v4l2_subdev *sd = &(bt1120->sd);
-
-	if (ctrl->id == V4L2_CID_DV_RX_POWER_PRESENT) {
-		ret = tx_5v_power_present(sd);
-		*ctrl->p_new.p_s32 = ret;
-	}
-
-	return ret;
-}
-
 static int rk628_bt1120_enum_frame_sizes(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
@@ -1542,6 +1528,9 @@ static long rk628_bt1120_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *a
 	case RKMODULE_GET_MODULE_INFO:
 		rk628_bt1120_get_module_inf(bt1120, (struct rkmodule_inf *)arg);
 		break;
+	case RKMODULE_GET_HDMI_MODE:
+		*(int *)arg = RKMODULE_HDMIIN_MODE;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1557,6 +1546,7 @@ static long rk628_bt1120_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	long ret;
+	int *seq;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1574,7 +1564,21 @@ static long rk628_bt1120_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(inf);
 		break;
+	case RKMODULE_GET_HDMI_MODE:
+		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
+		if (!seq) {
+			ret = -ENOMEM;
+			return ret;
+		}
 
+		ret = rk628_bt1120_ioctl(sd, cmd, seq);
+		if (!ret) {
+			ret = copy_to_user(up, seq, sizeof(*seq));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(seq);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1611,10 +1615,6 @@ static const struct v4l2_subdev_internal_ops bt1120_subdev_internal_ops = {
 	.open = bt1120_open,
 };
 #endif
-
-static const struct v4l2_ctrl_ops rk628_bt1120_ctrl_ops = {
-	.g_volatile_ctrl = rk628_bt1120_get_ctrl,
-};
 
 static const struct v4l2_subdev_core_ops rk628_bt1120_core_ops = {
 	.interrupt_service_routine = rk628_bt1120_isr,
@@ -1712,21 +1712,21 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 	if (IS_ERR(bt1120->enable_gpio)) {
 		ret = PTR_ERR(bt1120->enable_gpio);
 		dev_err(dev, "failed to request enable GPIO: %d\n", ret);
-		return ret;
+		goto clk_put;
 	}
 
 	bt1120->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(bt1120->reset_gpio)) {
 		ret = PTR_ERR(bt1120->reset_gpio);
 		dev_err(dev, "failed to request reset GPIO: %d\n", ret);
-		return ret;
+		goto clk_put;
 	}
 
 	bt1120->power_gpio = devm_gpiod_get_optional(dev, "power", GPIOD_OUT_HIGH);
 	if (IS_ERR(bt1120->power_gpio)) {
 		dev_err(dev, "failed to get power gpio\n");
 		ret = PTR_ERR(bt1120->power_gpio);
-		return ret;
+		goto clk_put;
 	}
 
 	bt1120->plugin_det_gpio = devm_gpiod_get_optional(dev, "plugin-det",
@@ -1734,7 +1734,7 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 	if (IS_ERR(bt1120->plugin_det_gpio)) {
 		dev_err(dev, "failed to get hdmirx det gpio\n");
 		ret = PTR_ERR(bt1120->plugin_det_gpio);
-		return ret;
+		goto clk_put;
 	}
 
 	if (bt1120->enable_gpio) {
@@ -1768,14 +1768,15 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!ep) {
 		dev_err(dev, "missing endpoint node\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto clk_put;
 	}
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep), &endpoint);
+	of_node_put(ep);
 	if (ret) {
 		dev_err(dev, "failed to parse endpoint\n");
-		of_node_put(ep);
-		return ret;
+		goto clk_put;
 	}
 
 	bt1120->enable_hdcp = hdcp1x_enable;
@@ -1791,6 +1792,9 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 	ret = 0;
 
 	v4l2_fwnode_endpoint_free(&endpoint);
+
+clk_put:
+	clk_disable_unprepare(bt1120->soc_24M);
 
 	return ret;
 }
@@ -1872,10 +1876,8 @@ static int rk628_bt1120_probe(struct i2c_client *client,
 			V4L2_CID_PIXEL_RATE, 0, RK628_CSI_PIXEL_RATE_HIGH, 1,
 			RK628_CSI_PIXEL_RATE_HIGH);
 	bt1120->detect_tx_5v_ctrl = v4l2_ctrl_new_std(&bt1120->hdl,
-			&rk628_bt1120_ctrl_ops, V4L2_CID_DV_RX_POWER_PRESENT,
+			NULL, V4L2_CID_DV_RX_POWER_PRESENT,
 			0, 1, 0, 0);
-	if (bt1120->detect_tx_5v_ctrl)
-		bt1120->detect_tx_5v_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	/* custom controls */
 	bt1120->audio_sampling_rate_ctrl = v4l2_ctrl_new_custom(&bt1120->hdl,
