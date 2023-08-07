@@ -97,6 +97,12 @@ static const struct rhashtable_params efx_tc_match_action_ht_params = {
 	.head_offset	= offsetof(struct efx_tc_flow_rule, linkage),
 };
 
+static const struct rhashtable_params efx_tc_recirc_ht_params = {
+	.key_len	= offsetof(struct efx_tc_recirc_id, linkage),
+	.key_offset	= 0,
+	.head_offset	= offsetof(struct efx_tc_recirc_id, linkage),
+};
+
 static void efx_tc_free_action_set(struct efx_nic *efx,
 				   struct efx_tc_action_set *act, bool in_hw)
 {
@@ -576,12 +582,65 @@ fail_pseudo:
 	return rc;
 }
 
+static struct efx_tc_recirc_id *efx_tc_get_recirc_id(struct efx_nic *efx,
+						     u32 chain_index,
+						     struct net_device *net_dev)
+{
+	struct efx_tc_recirc_id *rid, *old;
+	int rc;
+
+	rid = kzalloc(sizeof(*rid), GFP_USER);
+	if (!rid)
+		return ERR_PTR(-ENOMEM);
+	rid->chain_index = chain_index;
+	/* We don't take a reference here, because it's implied - if there's
+	 * a rule on the net_dev that's been offloaded to us, then the net_dev
+	 * can't go away until the rule has been deoffloaded.
+	 */
+	rid->net_dev = net_dev;
+	old = rhashtable_lookup_get_insert_fast(&efx->tc->recirc_ht,
+						&rid->linkage,
+						efx_tc_recirc_ht_params);
+	if (old) {
+		/* don't need our new entry */
+		kfree(rid);
+		if (!refcount_inc_not_zero(&old->ref))
+			return ERR_PTR(-EAGAIN);
+		/* existing entry found */
+		rid = old;
+	} else {
+		rc = ida_alloc_range(&efx->tc->recirc_ida, 1, U8_MAX, GFP_USER);
+		if (rc < 0) {
+			rhashtable_remove_fast(&efx->tc->recirc_ht,
+					       &rid->linkage,
+					       efx_tc_recirc_ht_params);
+			kfree(rid);
+			return ERR_PTR(rc);
+		}
+		rid->fw_id = rc;
+		refcount_set(&rid->ref, 1);
+	}
+	return rid;
+}
+
+static void efx_tc_put_recirc_id(struct efx_nic *efx, struct efx_tc_recirc_id *rid)
+{
+	if (!refcount_dec_and_test(&rid->ref))
+		return; /* still in use */
+	rhashtable_remove_fast(&efx->tc->recirc_ht, &rid->linkage,
+			       efx_tc_recirc_ht_params);
+	ida_free(&efx->tc->recirc_ida, rid->fw_id);
+	kfree(rid);
+}
+
 static void efx_tc_delete_rule(struct efx_nic *efx, struct efx_tc_flow_rule *rule)
 {
 	efx_mae_delete_rule(efx, rule->fw_id);
 
 	/* Release entries in subsidiary tables */
 	efx_tc_free_action_set_list(efx, &rule->acts, true);
+	if (rule->match.rid)
+		efx_tc_put_recirc_id(efx, rule->match.rid);
 	if (rule->match.encap)
 		efx_tc_flower_release_encap_match(efx, rule->match.encap);
 	rule->fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
@@ -685,8 +744,17 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 	match.mask.ingress_port = ~0;
 
 	if (tc->common.chain_index) {
-		NL_SET_ERR_MSG_MOD(extack, "No support for nonzero chain_index");
-		return -EOPNOTSUPP;
+		struct efx_tc_recirc_id *rid;
+
+		rid = efx_tc_get_recirc_id(efx, tc->common.chain_index, net_dev);
+		if (IS_ERR(rid)) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Failed to allocate a hardware recirculation ID for chain_index %u",
+					       tc->common.chain_index);
+			return PTR_ERR(rid);
+		}
+		match.rid = rid;
+		match.value.recirc_id = rid->fw_id;
 	}
 	match.mask.recirc_id = 0xff;
 
@@ -706,12 +774,13 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 	if (!found) { /* We don't care. */
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Ignoring foreign filter that doesn't egdev us\n");
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
+		goto release;
 	}
 
 	rc = efx_mae_match_check_caps(efx, &match.mask, NULL);
 	if (rc)
-		return rc;
+		goto release;
 
 	if (efx_tc_match_is_encap(&match.mask)) {
 		enum efx_encap_type type;
@@ -720,7 +789,8 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 		if (type == EFX_ENCAP_TYPE_NONE) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Egress encap match on unsupported tunnel device");
-			return -EOPNOTSUPP;
+			rc = -EOPNOTSUPP;
+			goto release;
 		}
 
 		rc = efx_mae_check_encap_type_supported(efx, type);
@@ -728,25 +798,26 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 			NL_SET_ERR_MSG_FMT_MOD(extack,
 					       "Firmware reports no support for %s encap match",
 					       efx_tc_encap_type_name(type));
-			return rc;
+			goto release;
 		}
 
 		rc = efx_tc_flower_record_encap_match(efx, &match, type,
 						      EFX_TC_EM_DIRECT, 0, 0,
 						      extack);
 		if (rc)
-			return rc;
+			goto release;
 	} else {
 		/* This is not a tunnel decap rule, ignore it */
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Ignoring foreign filter without encap match\n");
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
+		goto release;
 	}
 
 	rule = kzalloc(sizeof(*rule), GFP_USER);
 	if (!rule) {
 		rc = -ENOMEM;
-		goto out_free;
+		goto release;
 	}
 	INIT_LIST_HEAD(&rule->acts.list);
 	rule->cookie = tc->cookie;
@@ -758,7 +829,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 			  "Ignoring already-offloaded rule (cookie %lx)\n",
 			  tc->cookie);
 		rc = -EEXIST;
-		goto out_free;
+		goto release;
 	}
 
 	act = kzalloc(sizeof(*act), GFP_USER);
@@ -916,15 +987,17 @@ release:
 	/* We failed to insert the rule, so free up any entries we created in
 	 * subsidiary tables.
 	 */
+	if (match.rid)
+		efx_tc_put_recirc_id(efx, match.rid);
 	if (act)
 		efx_tc_free_action_set(efx, act, false);
 	if (rule) {
-		rhashtable_remove_fast(&efx->tc->match_action_ht,
-				       &rule->linkage,
-				       efx_tc_match_action_ht_params);
+		if (!old)
+			rhashtable_remove_fast(&efx->tc->match_action_ht,
+					       &rule->linkage,
+					       efx_tc_match_action_ht_params);
 		efx_tc_free_action_set_list(efx, &rule->acts, false);
 	}
-out_free:
 	kfree(rule);
 	if (match.encap)
 		efx_tc_flower_release_encap_match(efx, match.encap);
@@ -986,19 +1059,45 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		return -EOPNOTSUPP;
 	}
 
+	/* chain_index 0 is always recirc_id 0 (and does not appear in recirc_ht).
+	 * Conveniently, match.rid == NULL and match.value.recirc_id == 0 owing
+	 * to the initial memset(), so we don't need to do anything in that case.
+	 */
 	if (tc->common.chain_index) {
-		NL_SET_ERR_MSG_MOD(extack, "No support for nonzero chain_index");
-		return -EOPNOTSUPP;
+		struct efx_tc_recirc_id *rid;
+
+		/* Note regarding passed net_dev:
+		 * VFreps and PF can share chain namespace, as they have
+		 * distinct ingress_mports.  So we don't need to burn an
+		 * extra recirc_id if both use the same chain_index.
+		 * (Strictly speaking, we could give each VFrep its own
+		 * recirc_id namespace that doesn't take IDs away from the
+		 * PF, but that would require a bunch of additional IDAs -
+		 * one for each representor - and that's not likely to be
+		 * the main cause of recirc_id exhaustion anyway.)
+		 */
+		rid = efx_tc_get_recirc_id(efx, tc->common.chain_index,
+					   efx->net_dev);
+		if (IS_ERR(rid)) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Failed to allocate a hardware recirculation ID for chain_index %u",
+					       tc->common.chain_index);
+			return PTR_ERR(rid);
+		}
+		match.rid = rid;
+		match.value.recirc_id = rid->fw_id;
 	}
 	match.mask.recirc_id = 0xff;
 
 	rc = efx_mae_match_check_caps(efx, &match.mask, extack);
 	if (rc)
-		return rc;
+		goto release;
 
 	rule = kzalloc(sizeof(*rule), GFP_USER);
-	if (!rule)
-		return -ENOMEM;
+	if (!rule) {
+		rc = -ENOMEM;
+		goto release;
+	}
 	INIT_LIST_HEAD(&rule->acts.list);
 	rule->cookie = tc->cookie;
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->match_action_ht,
@@ -1008,8 +1107,8 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Already offloaded rule (cookie %lx)\n", tc->cookie);
 		NL_SET_ERR_MSG_MOD(extack, "Rule already offloaded");
-		kfree(rule);
-		return -EEXIST;
+		rc = -EEXIST;
+		goto release;
 	}
 
 	/* Parse actions */
@@ -1327,12 +1426,15 @@ release:
 	/* We failed to insert the rule, so free up any entries we created in
 	 * subsidiary tables.
 	 */
+	if (match.rid)
+		efx_tc_put_recirc_id(efx, match.rid);
 	if (act)
 		efx_tc_free_action_set(efx, act, false);
 	if (rule) {
-		rhashtable_remove_fast(&efx->tc->match_action_ht,
-				       &rule->linkage,
-				       efx_tc_match_action_ht_params);
+		if (!old)
+			rhashtable_remove_fast(&efx->tc->match_action_ht,
+					       &rule->linkage,
+					       efx_tc_match_action_ht_params);
 		efx_tc_free_action_set_list(efx, &rule->acts, false);
 	}
 	kfree(rule);
@@ -1702,6 +1804,16 @@ static void efx_tc_encap_match_free(void *ptr, void *__unused)
 	kfree(encap);
 }
 
+static void efx_tc_recirc_free(void *ptr, void *arg)
+{
+	struct efx_tc_recirc_id *rid = ptr;
+	struct efx_nic *efx = arg;
+
+	WARN_ON(refcount_read(&rid->ref));
+	ida_free(&efx->tc->recirc_ida, rid->fw_id);
+	kfree(rid);
+}
+
 static void efx_tc_flow_free(void *ptr, void *arg)
 {
 	struct efx_tc_flow_rule *rule = ptr;
@@ -1751,6 +1863,10 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	rc = efx_tc_init_conntrack(efx);
 	if (rc < 0)
 		goto fail_conntrack;
+	rc = rhashtable_init(&efx->tc->recirc_ht, &efx_tc_recirc_ht_params);
+	if (rc < 0)
+		goto fail_recirc_ht;
+	ida_init(&efx->tc->recirc_ida);
 	efx->tc->reps_filter_uc = -1;
 	efx->tc->reps_filter_mc = -1;
 	INIT_LIST_HEAD(&efx->tc->dflt.pf.acts.list);
@@ -1763,6 +1879,8 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	efx->tc->facts.reps.fw_id = MC_CMD_MAE_ACTION_SET_ALLOC_OUT_ACTION_SET_ID_NULL;
 	efx->extra_channel_type[EFX_EXTRA_CHANNEL_TC] = &efx_tc_channel_type;
 	return 0;
+fail_recirc_ht:
+	efx_tc_destroy_conntrack(efx);
 fail_conntrack:
 	rhashtable_destroy(&efx->tc->match_action_ht);
 fail_match_action_ht:
@@ -1799,6 +1917,9 @@ void efx_fini_struct_tc(struct efx_nic *efx)
 	rhashtable_free_and_destroy(&efx->tc->encap_match_ht,
 				    efx_tc_encap_match_free, NULL);
 	efx_tc_fini_conntrack(efx);
+	rhashtable_free_and_destroy(&efx->tc->recirc_ht, efx_tc_recirc_free, efx);
+	WARN_ON(!ida_is_empty(&efx->tc->recirc_ida));
+	ida_destroy(&efx->tc->recirc_ida);
 	efx_tc_fini_counters(efx);
 	efx_tc_fini_encap_actions(efx);
 	mutex_unlock(&efx->tc->mutex);

@@ -45,7 +45,7 @@ struct efx_tc_action_set {
 struct efx_tc_match_fields {
 	/* L1 */
 	u32 ingress_port;
-	u8 recirc_id;
+	u8 recirc_id; /* mapped from (u32) TC chain_index to smaller space */
 	/* L2 (inner when encap) */
 	__be16 eth_proto;
 	__be16 vlan_tci[2], vlan_proto[2];
@@ -115,10 +115,19 @@ struct efx_tc_encap_match {
 	struct efx_tc_encap_match *pseudo; /* Referenced pseudo EM if needed */
 };
 
+struct efx_tc_recirc_id {
+	u32 chain_index;
+	struct net_device *net_dev;
+	struct rhash_head linkage;
+	refcount_t ref;
+	u8 fw_id; /* index allocated for use in the MAE */
+};
+
 struct efx_tc_match {
 	struct efx_tc_match_fields value;
 	struct efx_tc_match_fields mask;
 	struct efx_tc_encap_match *encap;
+	struct efx_tc_recirc_id *rid;
 };
 
 struct efx_tc_action_set_list {
@@ -197,6 +206,8 @@ struct efx_tc_table_ct { /* TABLE_ID_CONNTRACK_TABLE */
  * @ct_zone_ht: Hashtable of TC conntrack flowtable bindings
  * @ct_ht: Hashtable of TC conntrack flow entries
  * @neigh_ht: Hashtable of neighbour watches (&struct efx_neigh_binder)
+ * @recirc_ht: Hashtable of recirculation ID mappings (&struct efx_tc_recirc_id)
+ * @recirc_ida: Recirculation ID allocator
  * @meta_ct: MAE table layout for conntrack table
  * @reps_mport_id: MAE port allocated for representor RX
  * @reps_filter_uc: VNIC filter for representor unicast RX (promisc)
@@ -231,6 +242,8 @@ struct efx_tc_state {
 	struct rhashtable ct_zone_ht;
 	struct rhashtable ct_ht;
 	struct rhashtable neigh_ht;
+	struct rhashtable recirc_ht;
+	struct ida recirc_ida;
 	struct efx_tc_table_ct meta_ct;
 	u32 reps_mport_id, reps_mport_vport_id;
 	s32 reps_filter_uc, reps_filter_mc;

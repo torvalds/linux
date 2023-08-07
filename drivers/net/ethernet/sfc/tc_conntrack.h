@@ -26,8 +26,9 @@ struct efx_tc_ct_zone {
 	struct list_head cts; /* list of efx_tc_ct_entry in this zone */
 };
 
-/* create/teardown hashtables */
+/* create/uncreate/teardown hashtables */
 int efx_tc_init_conntrack(struct efx_nic *efx);
+void efx_tc_destroy_conntrack(struct efx_nic *efx);
 void efx_tc_fini_conntrack(struct efx_nic *efx);
 
 struct efx_tc_ct_zone *efx_tc_ct_register_zone(struct efx_nic *efx, u16 zone,

@@ -73,6 +73,15 @@ fail_ct_zone_ht:
 	return rc;
 }
 
+/* Only call this in init failure teardown.
+ * Normal exit should fini instead as there may be entries in the table.
+ */
+void efx_tc_destroy_conntrack(struct efx_nic *efx)
+{
+	rhashtable_destroy(&efx->tc->ct_ht);
+	rhashtable_destroy(&efx->tc->ct_zone_ht);
+}
+
 void efx_tc_fini_conntrack(struct efx_nic *efx)
 {
 	rhashtable_free_and_destroy(&efx->tc->ct_zone_ht, efx_tc_ct_zone_free, NULL);
