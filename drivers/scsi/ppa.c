@@ -637,7 +637,7 @@ static void ppa_interrupt(struct work_struct *work)
 	case DID_OK:
 		break;
 	case DID_NO_CONNECT:
-		printk(KERN_DEBUG "ppa: no device at SCSI ID %i\n", cmd->device->target);
+		printk(KERN_DEBUG "ppa: no device at SCSI ID %i\n", scmd_id(cmd));
 		break;
 	case DID_BUS_BUSY:
 		printk(KERN_DEBUG "ppa: BUS BUSY - EPP timeout detected\n");
