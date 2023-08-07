@@ -58,8 +58,8 @@ void btrfs_redirty_list_add(struct btrfs_transaction *trans,
 			    struct extent_buffer *eb);
 bool btrfs_use_zone_append(struct btrfs_bio *bbio);
 void btrfs_record_physical_zoned(struct btrfs_bio *bbio);
-bool btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
-				    struct btrfs_eb_write_context *ctx);
+int btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
+				   struct btrfs_eb_write_context *ctx);
 void btrfs_revert_meta_write_pointer(struct btrfs_block_group *cache,
 				     struct extent_buffer *eb);
 int btrfs_zoned_issue_zeroout(struct btrfs_device *device, u64 physical, u64 length);
@@ -188,10 +188,10 @@ static inline void btrfs_record_physical_zoned(struct btrfs_bio *bbio)
 {
 }
 
-static inline bool btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
-						  struct btrfs_eb_write_context *ctx)
+static inline int btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
+						 struct btrfs_eb_write_context *ctx)
 {
-	return true;
+	return 0;
 }
 
 static inline void btrfs_revert_meta_write_pointer(

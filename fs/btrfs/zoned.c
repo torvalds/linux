@@ -1747,14 +1747,23 @@ out:
 	}
 }
 
-bool btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
-				    struct btrfs_eb_write_context *ctx)
+/*
+ * Check if @ctx->eb is aligned to the write pointer.
+ *
+ * Return:
+ *   0:        @ctx->eb is at the write pointer. You can write it.
+ *   -EAGAIN:  There is a hole. The caller should handle the case.
+ *   -EBUSY:   There is a hole, but the caller can just bail out.
+ */
+int btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
+				   struct btrfs_eb_write_context *ctx)
 {
+	const struct writeback_control *wbc = ctx->wbc;
 	const struct extent_buffer *eb = ctx->eb;
 	struct btrfs_block_group *block_group = ctx->zoned_bg;
 
 	if (!btrfs_is_zoned(fs_info))
-		return true;
+		return 0;
 
 	if (block_group) {
 		if (block_group->start > eb->start ||
@@ -1768,15 +1777,20 @@ bool btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
 	if (!block_group) {
 		block_group = btrfs_lookup_block_group(fs_info, eb->start);
 		if (!block_group)
-			return true;
+			return 0;
 		ctx->zoned_bg = block_group;
 	}
 
-	if (block_group->meta_write_pointer != eb->start)
-		return false;
-	block_group->meta_write_pointer = eb->start + eb->len;
+	if (block_group->meta_write_pointer == eb->start) {
+		block_group->meta_write_pointer = eb->start + eb->len;
 
-	return true;
+		return 0;
+	}
+
+	/* If for_sync, this hole will be filled with trasnsaction commit. */
+	if (wbc->sync_mode == WB_SYNC_ALL && !wbc->for_sync)
+		return -EAGAIN;
+	return -EBUSY;
 }
 
 void btrfs_revert_meta_write_pointer(struct btrfs_block_group *cache,
