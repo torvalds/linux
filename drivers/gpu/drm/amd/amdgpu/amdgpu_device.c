@@ -4537,6 +4537,7 @@ retry:
 		r = amdgpu_virt_reset_gpu(adev);
 	if (r)
 		return r;
+	amdgpu_irq_gpu_reset_resume_helper(adev);
 
 	/* some sw clean up VF needs to do before recover */
 	amdgpu_virt_post_reset(adev);
@@ -4566,7 +4567,6 @@ retry:
 		amdgpu_put_xgmi_hive(hive);
 
 	if (!r) {
-		amdgpu_irq_gpu_reset_resume_helper(adev);
 		r = amdgpu_ib_ring_tests(adev);
 
 		amdgpu_amdkfd_post_reset(adev);
