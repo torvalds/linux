@@ -59,9 +59,4 @@ static struct platform_driver msm_restart_driver = {
 		.of_match_table = of_match_ptr(of_msm_restart_match),
 	},
 };
-
-static int __init msm_restart_init(void)
-{
-	return platform_driver_register(&msm_restart_driver);
-}
-device_initcall(msm_restart_init);
+builtin_platform_driver(msm_restart_driver);
