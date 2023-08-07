@@ -10,6 +10,8 @@
 
 #include <sound/pcm_params.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/hda-mlink.h>
+#include <sound/hda_register.h>
 #include <sound/intel-nhlt.h>
 #include <sound/sof/ipc4/header.h>
 #include <uapi/sound/sof/header.h>
@@ -330,6 +332,96 @@ static const struct snd_soc_dai_ops hda_dai_ops = {
 
 #endif
 
+static struct sof_ipc4_copier *widget_to_copier(struct snd_soc_dapm_widget *w)
+{
+	struct snd_sof_widget *swidget = w->dobj.private;
+	struct snd_sof_dai *sdai = swidget->private;
+	struct sof_ipc4_copier *ipc4_copier = (struct sof_ipc4_copier *)sdai->private;
+
+	return ipc4_copier;
+}
+
+static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *cpu_dai)
+{
+	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
+	struct sof_ipc4_dma_config_tlv *dma_config_tlv;
+	const struct hda_dai_widget_dma_ops *ops;
+	struct sof_ipc4_dma_config *dma_config;
+	struct sof_ipc4_copier *ipc4_copier;
+	struct hdac_ext_stream *hext_stream;
+	struct hdac_stream *hstream;
+	struct snd_sof_dev *sdev;
+	int stream_id;
+	int ret;
+
+	ops = hda_dai_get_ops(substream, cpu_dai);
+	if (!ops) {
+		dev_err(cpu_dai->dev, "DAI widget ops not set\n");
+		return -EINVAL;
+	}
+
+	/* use HDaudio stream handling */
+	ret = hda_dai_hw_params(substream, params, cpu_dai);
+	if (ret < 0) {
+		dev_err(cpu_dai->dev, "%s: hda_dai_hw_params failed: %d\n", __func__, ret);
+		return ret;
+	}
+
+	/* get stream_id */
+	sdev = widget_to_sdev(w);
+	hext_stream = ops->get_hext_stream(sdev, cpu_dai, substream);
+
+	if (!hext_stream) {
+		dev_err(cpu_dai->dev, "%s: no hext_stream found\n", __func__);
+		return -ENODEV;
+	}
+
+	hstream = &hext_stream->hstream;
+	stream_id = hstream->stream_tag;
+
+	if (!stream_id) {
+		dev_err(cpu_dai->dev, "%s: no stream_id allocated\n", __func__);
+		return -ENODEV;
+	}
+
+	/* configure TLV */
+	ipc4_copier = widget_to_copier(w);
+
+	dma_config_tlv = &ipc4_copier->dma_config_tlv;
+	dma_config_tlv->type = SOF_IPC4_GTW_DMA_CONFIG_ID;
+	/* dma_config_priv_size is zero */
+	dma_config_tlv->length = sizeof(dma_config_tlv->dma_config);
+
+	dma_config = &dma_config_tlv->dma_config;
+
+	dma_config->dma_method = SOF_IPC4_DMA_METHOD_HDA;
+	dma_config->pre_allocated_by_host = 1;
+	dma_config->dma_channel_id = stream_id - 1;
+	dma_config->stream_id = stream_id;
+	dma_config->dma_stream_channel_map.device_count = 0; /* mapping not used */
+	dma_config->dma_priv_config_size = 0;
+
+	return 0;
+}
+
+static int non_hda_dai_prepare(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *cpu_dai)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	int stream = substream->stream;
+
+	return non_hda_dai_hw_params(substream, &rtd->dpcm[stream].hw_params, cpu_dai);
+}
+
+static const struct snd_soc_dai_ops ssp_dai_ops = {
+	.hw_params = non_hda_dai_hw_params,
+	.hw_free = hda_dai_hw_free,
+	.trigger = hda_dai_trigger,
+	.prepare = non_hda_dai_prepare,
+};
+
 static int hda_dai_suspend(struct hdac_bus *bus)
 {
 	struct snd_soc_pcm_runtime *rtd;
@@ -384,7 +476,26 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 	return 0;
 }
 
-#endif
+static void ssp_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
+{
+	const struct sof_intel_dsp_desc *chip;
+	int i;
+
+	chip = get_chip_info(sdev->pdata);
+
+	if (chip->hw_ip_version >= SOF_INTEL_ACE_2_0) {
+		for (i = 0; i < ops->num_drv; i++) {
+			if (strstr(ops->drv[i].name, "SSP"))
+				ops->drv[i].ops = &ssp_dai_ops;
+		}
+	}
+}
+
+#else
+
+static inline void ssp_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops) {}
+
+#endif /* CONFIG_SND_SOC_SOF_HDA_LINK */
 
 void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 {
@@ -398,6 +509,8 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 			ops->drv[i].ops = &hda_dai_ops;
 #endif
 	}
+
+	ssp_set_dai_drv_ops(sdev, ops);
 
 	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4 && !hda_use_tplg_nhlt) {
 		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
