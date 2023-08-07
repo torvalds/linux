@@ -4532,14 +4532,17 @@ void walt_rotation_checkpoint(int nr_big)
 	walt_rotation_enabled = nr_big >= num_possible_cpus();
 
 	for (i = 0; i < num_sched_clusters; i++) {
-		if (walt_rotation_enabled && !prev)
+		if (walt_rotation_enabled && !prev) {
 			add_freq_qos_request(sched_cluster[i]->cpus,
 					high_perf_cluster_freq_cap[i],
 					QOS_HIGH_PERF_CAP, MAX_REQUEST);
-		else if (!walt_rotation_enabled && prev)
+			fmax_cap[HIGH_PERF_CAP][i] = high_perf_cluster_freq_cap[i];
+		} else if (!walt_rotation_enabled && prev) {
 			add_freq_qos_request(sched_cluster[i]->cpus,
 					FREQ_QOS_MAX_DEFAULT_VALUE,
 					QOS_HIGH_PERF_CAP, MAX_REQUEST);
+			fmax_cap[HIGH_PERF_CAP][i] = FREQ_QOS_MAX_DEFAULT_VALUE;
+		}
 	}
 }
 
@@ -4557,16 +4560,20 @@ void fmax_uncap_checkpoint(int nr_big, u64 window_start, u32 wakeup_ctr_sum)
 
 	if (fmax_uncap_load_detected) {
 		if (!fmax_uncap_timestamp)
-			for (i = 0; i < num_sched_clusters; i++)
+			for (i = 0; i < num_sched_clusters; i++) {
 				add_freq_qos_request(sched_cluster[i]->cpus,
 						FREQ_QOS_MAX_DEFAULT_VALUE,
 						QOS_FMAX_CAP, MAX_REQUEST);
+				fmax_cap[SMART_FMAX_CAP][i] = FREQ_QOS_MAX_DEFAULT_VALUE;
+			}
 		fmax_uncap_timestamp = window_start;
 	} else if (fmax_uncap_timestamp &&
 			(window_start > fmax_uncap_timestamp + FMAX_CAP_HYSTERESIS)) {
-		for (int i = 0; i < num_sched_clusters; i++)
+		for (int i = 0; i < num_sched_clusters; i++) {
 			add_freq_qos_request(sched_cluster[i]->cpus, (s32) sysctl_fmax_cap[i],
 					QOS_FMAX_CAP, MAX_REQUEST);
+			fmax_cap[SMART_FMAX_CAP][i] = sysctl_fmax_cap[i];
+		}
 		fmax_uncap_timestamp = 0;
 	}
 

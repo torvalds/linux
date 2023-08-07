@@ -272,10 +272,16 @@ void restrict_cpus_and_freq(struct cpumask *cpus)
 			!cpumask_intersects(cpus, cpu_halt_mask) &&
 			is_state1()) {
 		max_freq_val = (s32)sysctl_max_freq_partial_halt;
+		for_each_cpu(cpu, cpus)
+			fmax_cap[PARTIAL_HALT_CAP][cpu_cluster(cpu)->id] =
+				sysctl_max_freq_partial_halt;
 	} else {
 		max_freq_val = FREQ_QOS_MAX_DEFAULT_VALUE;
-		for_each_cpu(cpu, cpus)
+		for_each_cpu(cpu, cpus) {
 			cpumask_or(&restrict_cpus, &restrict_cpus, &(cpu_cluster(cpu)->cpus));
+			fmax_cap[PARTIAL_HALT_CAP][cpu_cluster(cpu)->id] =
+				FREQ_QOS_MAX_DEFAULT_VALUE;
+		}
 	}
 
 	add_freq_qos_request(restrict_cpus, max_freq_val, QOS_PARTIAL_HALT, MAX_REQUEST);
