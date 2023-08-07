@@ -450,39 +450,8 @@ SYM_CODE_START(startup_64)
 	/* Save the trampoline address in RCX */
 	movq	%rax, %rcx
 
-	/* Set up 32-bit addressable stack */
-	leaq	TRAMPOLINE_32BIT_STACK_END(%rcx), %rsp
-
-	/*
-	 * Preserve live 64-bit registers on the stack: this is necessary
-	 * because the architecture does not guarantee that GPRs will retain
-	 * their full 64-bit values across a 32-bit mode switch.
-	 */
-	pushq	%r15
-	pushq	%rbp
-	pushq	%rbx
-
-	/*
-	 * Push the 64-bit address of trampoline_return() onto the new stack.
-	 * It will be used by the trampoline to return to the main code. Due to
-	 * the 32-bit mode switch, it cannot be kept it in a register either.
-	 */
-	leaq	trampoline_return(%rip), %rdi
-	pushq	%rdi
-
-	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
-	pushq	$__KERNEL32_CS
 	leaq	TRAMPOLINE_32BIT_CODE_OFFSET(%rax), %rax
-	pushq	%rax
-	lretq
-trampoline_return:
-	/* Restore live 64-bit registers */
-	popq	%rbx
-	popq	%rbp
-	popq	%r15
-
-	/* Restore the stack, the 32-bit trampoline uses its own stack */
-	leaq	rva(boot_stack_end)(%rbx), %rsp
+	call	*%rax
 
 	/*
 	 * cleanup_trampoline() would restore trampoline memory.
@@ -579,7 +548,6 @@ SYM_FUNC_START_LOCAL_NOALIGN(.Lrelocated)
 	jmp	*%rax
 SYM_FUNC_END(.Lrelocated)
 
-	.code32
 /*
  * This is the 32-bit trampoline that will be copied over to low memory.
  *
@@ -588,6 +556,39 @@ SYM_FUNC_END(.Lrelocated)
  * Non zero RDX means trampoline needs to enable 5-level paging.
  */
 SYM_CODE_START(trampoline_32bit_src)
+	/*
+	 * Preserve live 64-bit registers on the stack: this is necessary
+	 * because the architecture does not guarantee that GPRs will retain
+	 * their full 64-bit values across a 32-bit mode switch.
+	 */
+	pushq	%r15
+	pushq	%rbp
+	pushq	%rbx
+
+	/* Set up 32-bit addressable stack and push the old RSP value */
+	leaq	(TRAMPOLINE_32BIT_STACK_END - 8)(%rcx), %rbx
+	movq	%rsp, (%rbx)
+	movq	%rbx, %rsp
+
+	/* Take the address of the trampoline exit code */
+	leaq	.Lret(%rip), %rbx
+
+	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
+	pushq	$__KERNEL32_CS
+	leaq	0f(%rip), %rax
+	pushq	%rax
+	lretq
+
+.Lret:
+	/* Restore the preserved 64-bit registers */
+	movq	(%rsp), %rsp
+	popq	%rbx
+	popq	%rbp
+	popq	%r15
+	retq
+
+	.code32
+0:
 	/* Set up data and stack segments */
 	movl	$__KERNEL_DS, %eax
 	movl	%eax, %ds
@@ -651,12 +652,9 @@ SYM_CODE_START(trampoline_32bit_src)
 1:
 	movl	%eax, %cr4
 
-	/* Calculate address of paging_enabled() once we are executing in the trampoline */
-	leal	.Lpaging_enabled - trampoline_32bit_src + TRAMPOLINE_32BIT_CODE_OFFSET(%ecx), %eax
-
 	/* Prepare the stack for far return to Long Mode */
 	pushl	$__KERNEL_CS
-	pushl	%eax
+	pushl	%ebx
 
 	/* Enable paging again. */
 	movl	%cr0, %eax
@@ -666,12 +664,6 @@ SYM_CODE_START(trampoline_32bit_src)
 	lret
 SYM_CODE_END(trampoline_32bit_src)
 
-	.code64
-SYM_FUNC_START_LOCAL_NOALIGN(.Lpaging_enabled)
-	/* Return from the trampoline */
-	retq
-SYM_FUNC_END(.Lpaging_enabled)
-
 	/*
          * The trampoline code has a size limit.
          * Make sure we fail to compile if the trampoline code grows
@@ -679,7 +671,6 @@ SYM_FUNC_END(.Lpaging_enabled)
 	 */
 	.org	trampoline_32bit_src + TRAMPOLINE_32BIT_CODE_SIZE
 
-	.code32
 SYM_FUNC_START_LOCAL_NOALIGN(.Lno_longmode)
 	/* This isn't an x86-64 CPU, so hang intentionally, we cannot continue */
 1:
