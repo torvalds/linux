@@ -221,6 +221,9 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 #define MCDI_BYTE(_buf, _field)						\
 	((void)BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 1),	\
 	 *MCDI_PTR(_buf, _field))
+#define MCDI_STRUCT_BYTE(_buf, _field)					\
+	((void)BUILD_BUG_ON_ZERO(_field ## _LEN != 1),			\
+	 *MCDI_STRUCT_PTR(_buf, _field))
 #define MCDI_SET_WORD(_buf, _field, _value) do {			\
 	BUILD_BUG_ON(MC_CMD_ ## _field ## _LEN != 2);			\
 	BUILD_BUG_ON(MC_CMD_ ## _field ## _OFST & 1);			\

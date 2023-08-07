@@ -143,6 +143,48 @@ enum efx_tc_rule_prios {
 	EFX_TC_PRIO__NUM
 };
 
+struct efx_tc_table_field_fmt {
+	u16 field_id;
+	u16 lbn;
+	u16 width;
+	u8 masking;
+	u8 scheme;
+};
+
+struct efx_tc_table_desc {
+	u16 type;
+	u16 key_width;
+	u16 resp_width;
+	u16 n_keys;
+	u16 n_resps;
+	u16 n_prios;
+	u8 flags;
+	u8 scheme;
+	struct efx_tc_table_field_fmt *keys;
+	struct efx_tc_table_field_fmt *resps;
+};
+
+struct efx_tc_table_ct { /* TABLE_ID_CONNTRACK_TABLE */
+	struct efx_tc_table_desc desc;
+	bool hooked;
+	struct { /* indices of named fields within @desc.keys */
+		u8 eth_proto_idx;
+		u8 ip_proto_idx;
+		u8 src_ip_idx; /* either v4 or v6 */
+		u8 dst_ip_idx;
+		u8 l4_sport_idx;
+		u8 l4_dport_idx;
+		u8 zone_idx; /* for TABLE_FIELD_ID_DOMAIN */
+	} keys;
+	struct { /* indices of named fields within @desc.resps */
+		u8 dnat_idx;
+		u8 nat_ip_idx;
+		u8 l4_natport_idx;
+		u8 mark_idx;
+		u8 counter_id_idx;
+	} resps;
+};
+
 /**
  * struct efx_tc_state - control plane data for TC offload
  *
@@ -155,6 +197,7 @@ enum efx_tc_rule_prios {
  * @encap_match_ht: Hashtable of TC encap matches
  * @match_action_ht: Hashtable of TC match-action rules
  * @neigh_ht: Hashtable of neighbour watches (&struct efx_neigh_binder)
+ * @meta_ct: MAE table layout for conntrack table
  * @reps_mport_id: MAE port allocated for representor RX
  * @reps_filter_uc: VNIC filter for representor unicast RX (promisc)
  * @reps_filter_mc: VNIC filter for representor multicast RX (allmulti)
@@ -186,6 +229,7 @@ struct efx_tc_state {
 	struct rhashtable encap_match_ht;
 	struct rhashtable match_action_ht;
 	struct rhashtable neigh_ht;
+	struct efx_tc_table_ct meta_ct;
 	u32 reps_mport_id, reps_mport_vport_id;
 	s32 reps_filter_uc, reps_filter_mc;
 	bool flush_counters;

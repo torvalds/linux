@@ -66,6 +66,9 @@ int efx_mae_start_counters(struct efx_nic *efx, struct efx_rx_queue *rx_queue);
 int efx_mae_stop_counters(struct efx_nic *efx, struct efx_rx_queue *rx_queue);
 void efx_mae_counters_grant_credits(struct work_struct *work);
 
+int efx_mae_get_tables(struct efx_nic *efx);
+void efx_mae_free_tables(struct efx_nic *efx);
+
 #define MAE_NUM_FIELDS	(MAE_FIELD_ENC_VNET_ID + 1)
 
 struct mae_caps {

@@ -1660,11 +1660,17 @@ int efx_init_tc(struct efx_nic *efx)
 	rc = efx_tc_configure_fallback_acts_reps(efx);
 	if (rc)
 		return rc;
+	rc = efx_mae_get_tables(efx);
+	if (rc)
+		return rc;
 	efx->tc->up = true;
 	rc = flow_indr_dev_register(efx_tc_indr_setup_cb, efx);
 	if (rc)
-		return rc;
+		goto out_free;
 	return 0;
+out_free:
+	efx_mae_free_tables(efx);
+	return rc;
 }
 
 void efx_fini_tc(struct efx_nic *efx)
@@ -1680,6 +1686,7 @@ void efx_fini_tc(struct efx_nic *efx)
 	efx_tc_deconfigure_fallback_acts(efx, &efx->tc->facts.pf);
 	efx_tc_deconfigure_fallback_acts(efx, &efx->tc->facts.reps);
 	efx->tc->up = false;
+	efx_mae_free_tables(efx);
 }
 
 /* At teardown time, all TC filter rules (and thus all resources they created)

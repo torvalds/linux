@@ -227,6 +227,256 @@ void efx_mae_counters_grant_credits(struct work_struct *work)
 		rx_queue->granted_count += credits;
 }
 
+static int efx_mae_table_get_desc(struct efx_nic *efx,
+				  struct efx_tc_table_desc *desc,
+				  u32 table_id)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_TABLE_DESCRIPTOR_OUT_LEN(16));
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_TABLE_DESCRIPTOR_IN_LEN);
+	unsigned int offset = 0, i;
+	size_t outlen;
+	int rc;
+
+	memset(desc, 0, sizeof(*desc));
+
+	MCDI_SET_DWORD(inbuf, TABLE_DESCRIPTOR_IN_TABLE_ID, table_id);
+more:
+	MCDI_SET_DWORD(inbuf, TABLE_DESCRIPTOR_IN_FIRST_FIELDS_INDEX, offset);
+	rc = efx_mcdi_rpc(efx, MC_CMD_TABLE_DESCRIPTOR, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		goto fail;
+	if (outlen < MC_CMD_TABLE_DESCRIPTOR_OUT_LEN(1)) {
+		rc = -EIO;
+		goto fail;
+	}
+	if (!offset) { /* first iteration: get metadata */
+		desc->type = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_TYPE);
+		desc->key_width = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_KEY_WIDTH);
+		desc->resp_width = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_RESP_WIDTH);
+		desc->n_keys = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_N_KEY_FIELDS);
+		desc->n_resps = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_N_RESP_FIELDS);
+		desc->n_prios = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_N_PRIORITIES);
+		desc->flags = MCDI_BYTE(outbuf, TABLE_DESCRIPTOR_OUT_FLAGS);
+		rc = -EOPNOTSUPP;
+		if (desc->flags)
+			goto fail;
+		desc->scheme = MCDI_BYTE(outbuf, TABLE_DESCRIPTOR_OUT_SCHEME);
+		if (desc->scheme)
+			goto fail;
+		rc = -ENOMEM;
+		desc->keys = kcalloc(desc->n_keys,
+				     sizeof(struct efx_tc_table_field_fmt),
+				     GFP_KERNEL);
+		if (!desc->keys)
+			goto fail;
+		desc->resps = kcalloc(desc->n_resps,
+				      sizeof(struct efx_tc_table_field_fmt),
+				      GFP_KERNEL);
+		if (!desc->resps)
+			goto fail;
+	}
+	/* FW could have returned more than the 16 field_descrs we
+	 * made room for in our outbuf
+	 */
+	outlen = min(outlen, sizeof(outbuf));
+	for (i = 0; i + offset < desc->n_keys + desc->n_resps; i++) {
+		struct efx_tc_table_field_fmt *field;
+		MCDI_DECLARE_STRUCT_PTR(fdesc);
+
+		if (outlen < MC_CMD_TABLE_DESCRIPTOR_OUT_LEN(i + 1)) {
+			offset += i;
+			goto more;
+		}
+		if (i + offset < desc->n_keys)
+			field = desc->keys + i + offset;
+		else
+			field = desc->resps + (i + offset - desc->n_keys);
+		fdesc = MCDI_ARRAY_STRUCT_PTR(outbuf,
+					      TABLE_DESCRIPTOR_OUT_FIELDS, i);
+		field->field_id = MCDI_STRUCT_WORD(fdesc,
+						   TABLE_FIELD_DESCR_FIELD_ID);
+		field->lbn = MCDI_STRUCT_WORD(fdesc, TABLE_FIELD_DESCR_LBN);
+		field->width = MCDI_STRUCT_WORD(fdesc, TABLE_FIELD_DESCR_WIDTH);
+		field->masking = MCDI_STRUCT_BYTE(fdesc, TABLE_FIELD_DESCR_MASK_TYPE);
+		field->scheme = MCDI_STRUCT_BYTE(fdesc, TABLE_FIELD_DESCR_SCHEME);
+	}
+	return 0;
+
+fail:
+	kfree(desc->keys);
+	kfree(desc->resps);
+	return rc;
+}
+
+static int efx_mae_table_hook_find(u16 n_fields,
+				   struct efx_tc_table_field_fmt *fields,
+				   u16 field_id)
+{
+	unsigned int i;
+
+	for (i = 0; i < n_fields; i++) {
+		if (fields[i].field_id == field_id)
+			return i;
+	}
+	return -EPROTO;
+}
+
+#define TABLE_FIND_KEY(_desc, _id)	\
+	efx_mae_table_hook_find((_desc)->n_keys, (_desc)->keys, _id)
+#define TABLE_FIND_RESP(_desc, _id)	\
+	efx_mae_table_hook_find((_desc)->n_resps, (_desc)->resps, _id)
+
+#define TABLE_HOOK_KEY(_meta, _name, _mcdi_name)	({			\
+	int _rc = TABLE_FIND_KEY(&_meta->desc, TABLE_FIELD_ID_##_mcdi_name);	\
+										\
+	if (_rc > U8_MAX)							\
+		_rc = -EOPNOTSUPP;						\
+	if (_rc >= 0) {								\
+		_meta->keys._name##_idx = _rc;					\
+		_rc = 0;							\
+	}									\
+	_rc;									\
+})
+#define TABLE_HOOK_RESP(_meta, _name, _mcdi_name)	({			\
+	int _rc = TABLE_FIND_RESP(&_meta->desc, TABLE_FIELD_ID_##_mcdi_name);	\
+										\
+	if (_rc > U8_MAX)							\
+		_rc = -EOPNOTSUPP;						\
+	if (_rc >= 0) {								\
+		_meta->resps._name##_idx = _rc;					\
+		_rc = 0;							\
+	}									\
+	_rc;									\
+})
+
+static int efx_mae_table_hook_ct(struct efx_nic *efx,
+				 struct efx_tc_table_ct *meta_ct)
+{
+	int rc;
+
+	rc = TABLE_HOOK_KEY(meta_ct, eth_proto, ETHER_TYPE);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, ip_proto, IP_PROTO);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, src_ip, SRC_IP);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, dst_ip, DST_IP);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, l4_sport, SRC_PORT);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, l4_dport, DST_PORT);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, zone, DOMAIN);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_RESP(meta_ct, dnat, NAT_DIR);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_RESP(meta_ct, nat_ip, NAT_IP);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_RESP(meta_ct, l4_natport, NAT_PORT);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_RESP(meta_ct, mark, CT_MARK);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_RESP(meta_ct, counter_id, COUNTER_ID);
+	if (rc)
+		return rc;
+	meta_ct->hooked = true;
+	return 0;
+}
+
+static void efx_mae_table_free_desc(struct efx_tc_table_desc *desc)
+{
+	kfree(desc->keys);
+	kfree(desc->resps);
+	memset(desc, 0, sizeof(*desc));
+}
+
+static bool efx_mae_check_table_exists(struct efx_nic *efx, u32 tbl_req)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_TABLE_LIST_OUT_LEN(16));
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_TABLE_LIST_IN_LEN);
+	u32 tbl_id, tbl_total, tbl_cnt, pos = 0;
+	size_t outlen, msg_max;
+	bool ct_tbl = false;
+	int rc, idx;
+
+	msg_max = sizeof(outbuf);
+	efx->tc->meta_ct.hooked = false;
+more:
+	memset(outbuf, 0, sizeof(*outbuf));
+	MCDI_SET_DWORD(inbuf, TABLE_LIST_IN_FIRST_TABLE_ID_INDEX, pos);
+	rc = efx_mcdi_rpc(efx, MC_CMD_TABLE_LIST, inbuf, sizeof(inbuf), outbuf,
+			  msg_max, &outlen);
+	if (rc)
+		return false;
+
+	if (outlen < MC_CMD_TABLE_LIST_OUT_LEN(1))
+		return false;
+
+	tbl_total = MCDI_DWORD(outbuf, TABLE_LIST_OUT_N_TABLES);
+	tbl_cnt = MC_CMD_TABLE_LIST_OUT_TABLE_ID_NUM(min(outlen, msg_max));
+
+	for (idx = 0; idx < tbl_cnt; idx++) {
+		tbl_id = MCDI_ARRAY_DWORD(outbuf, TABLE_LIST_OUT_TABLE_ID, idx);
+		if (tbl_id == tbl_req) {
+			ct_tbl = true;
+			break;
+		}
+	}
+
+	pos += tbl_cnt;
+	if (!ct_tbl && pos < tbl_total)
+		goto more;
+
+	return ct_tbl;
+}
+
+int efx_mae_get_tables(struct efx_nic *efx)
+{
+	int rc;
+
+	efx->tc->meta_ct.hooked = false;
+	if (efx_mae_check_table_exists(efx, TABLE_ID_CONNTRACK_TABLE)) {
+		rc = efx_mae_table_get_desc(efx, &efx->tc->meta_ct.desc,
+					    TABLE_ID_CONNTRACK_TABLE);
+		if (rc) {
+			pci_info(efx->pci_dev,
+				 "FW does not support conntrack desc rc %d\n",
+				 rc);
+			return 0;
+		}
+
+		rc = efx_mae_table_hook_ct(efx, &efx->tc->meta_ct);
+		if (rc) {
+			pci_info(efx->pci_dev,
+				 "FW does not support conntrack hook rc %d\n",
+				 rc);
+			return 0;
+		}
+	} else {
+		pci_info(efx->pci_dev,
+			 "FW does not support conntrack table\n");
+	}
+	return 0;
+}
+
+void efx_mae_free_tables(struct efx_nic *efx)
+{
+	efx_mae_table_free_desc(&efx->tc->meta_ct.desc);
+	efx->tc->meta_ct.hooked = false;
+}
+
 static int efx_mae_get_basic_caps(struct efx_nic *efx, struct mae_caps *caps)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_GET_CAPS_OUT_LEN);
