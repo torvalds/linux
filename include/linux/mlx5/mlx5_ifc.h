@@ -10108,6 +10108,20 @@ struct mlx5_ifc_mpegc_reg_bits {
 	u8         reserved_at_60[0x100];
 };
 
+struct mlx5_ifc_mpir_reg_bits {
+	u8         sdm[0x1];
+	u8         reserved_at_1[0x1b];
+	u8         host_buses[0x4];
+
+	u8         reserved_at_20[0x20];
+
+	u8         local_port[0x8];
+	u8         reserved_at_28[0x15];
+	u8         sd_group[0x3];
+
+	u8         reserved_at_60[0x20];
+};
+
 enum {
 	MLX5_MTUTC_FREQ_ADJ_UNITS_PPB          = 0x0,
 	MLX5_MTUTC_FREQ_ADJ_UNITS_SCALED_PPM   = 0x1,
