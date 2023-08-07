@@ -279,15 +279,11 @@ __nouveau_uvma_region_insert(struct nouveau_uvmm *uvmm,
 	u64 last = addr + range - 1;
 	MA_STATE(mas, &uvmm->region_mt, addr, addr);
 
-	if (unlikely(mas_walk(&mas))) {
-		mas_unlock(&mas);
+	if (unlikely(mas_walk(&mas)))
 		return -EEXIST;
-	}
 
-	if (unlikely(mas.last < last)) {
-		mas_unlock(&mas);
+	if (unlikely(mas.last < last))
 		return -EEXIST;
-	}
 
 	mas.index = addr;
 	mas.last = last;
