@@ -831,8 +831,8 @@ int hdac_bus_eml_sdw_map_stream_ch(struct hdac_bus *bus, int sublink, int y,
 
 	val = readw(pcmsycm);
 
-	dev_dbg(bus->dev, "channel_mask %#x stream_id %d dir %d pcmscm %#x\n",
-		channel_mask, stream_id, dir, val);
+	dev_dbg(bus->dev, "sublink %d channel_mask %#x stream_id %d dir %d pcmscm %#x\n",
+		sublink, channel_mask, stream_id, dir, val);
 
 	return 0;
 } EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_map_stream_ch, SND_SOC_SOF_HDA_MLINK);
