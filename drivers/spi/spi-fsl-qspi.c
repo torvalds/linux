@@ -367,7 +367,7 @@ static int fsl_qspi_check_buswidth(struct fsl_qspi *q, u8 width)
 static bool fsl_qspi_supports_op(struct spi_mem *mem,
 				 const struct spi_mem_op *op)
 {
-	struct fsl_qspi *q = spi_controller_get_devdata(mem->spi->master);
+	struct fsl_qspi *q = spi_controller_get_devdata(mem->spi->controller);
 	int ret;
 
 	ret = fsl_qspi_check_buswidth(q, op->cmd.buswidth);
@@ -640,7 +640,7 @@ static int fsl_qspi_readl_poll_tout(struct fsl_qspi *q, void __iomem *base,
 
 static int fsl_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
-	struct fsl_qspi *q = spi_controller_get_devdata(mem->spi->master);
+	struct fsl_qspi *q = spi_controller_get_devdata(mem->spi->controller);
 	void __iomem *base = q->iobase;
 	u32 addr_offset = 0;
 	int err = 0;
@@ -702,7 +702,7 @@ static int fsl_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 static int fsl_qspi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
-	struct fsl_qspi *q = spi_controller_get_devdata(mem->spi->master);
+	struct fsl_qspi *q = spi_controller_get_devdata(mem->spi->controller);
 
 	if (op->data.dir == SPI_MEM_DATA_OUT) {
 		if (op->data.nbytes > q->devtype_data->txfifo)
@@ -808,7 +808,7 @@ static int fsl_qspi_default_setup(struct fsl_qspi *q)
 
 static const char *fsl_qspi_get_name(struct spi_mem *mem)
 {
-	struct fsl_qspi *q = spi_controller_get_devdata(mem->spi->master);
+	struct fsl_qspi *q = spi_controller_get_devdata(mem->spi->controller);
 	struct device *dev = &mem->spi->dev;
 	const char *name;
 
@@ -848,7 +848,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	struct fsl_qspi *q;
 	int ret;
 
-	ctlr = spi_alloc_master(&pdev->dev, sizeof(*q));
+	ctlr = spi_alloc_host(&pdev->dev, sizeof(*q));
 	if (!ctlr)
 		return -ENOMEM;
 
