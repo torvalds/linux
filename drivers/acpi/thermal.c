@@ -598,46 +598,54 @@ static int thermal_get_crit_temp(struct thermal_zone_device *thermal,
 }
 
 static int thermal_get_trend(struct thermal_zone_device *thermal,
-			     int trip, enum thermal_trend *trend)
+			     int trip_index, enum thermal_trend *trend)
 {
 	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
-	enum thermal_trip_type type;
-	int i;
+	struct acpi_thermal_trip *acpi_trip;
+	int t, i;
 
-	if (thermal_get_trip_type(thermal, trip, &type))
+	if (!tz || trip_index < 0)
 		return -EINVAL;
 
-	if (type == THERMAL_TRIP_ACTIVE) {
-		int trip_temp;
-		int temp = deci_kelvin_to_millicelsius_with_offset(
-					tz->temperature, tz->kelvin_offset);
-		if (thermal_get_trip_temp(thermal, trip, &trip_temp))
-			return -EINVAL;
+	if (tz->trips.critical.valid)
+		trip_index--;
 
-		if (temp > trip_temp) {
+	if (tz->trips.hot.valid)
+		trip_index--;
+
+	if (trip_index < 0)
+		return -EINVAL;
+
+	acpi_trip = &tz->trips.passive.trip;
+	if (acpi_trip->valid && !trip_index--) {
+		t = tz->trips.passive.tc1 * (tz->temperature -
+						tz->last_temperature) +
+			tz->trips.passive.tc2 * (tz->temperature -
+						acpi_trip->temperature);
+		if (t > 0)
 			*trend = THERMAL_TREND_RAISING;
-			return 0;
-		} else {
-			/* Fall back on default trend */
-			return -EINVAL;
+		else if (t < 0)
+			*trend = THERMAL_TREND_DROPPING;
+		else
+			*trend = THERMAL_TREND_STABLE;
+
+		return 0;
+	}
+
+	t = acpi_thermal_temp(tz, tz->temperature);
+
+	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
+		acpi_trip = &tz->trips.active[i].trip;
+		if (acpi_trip->valid && !trip_index--) {
+			if (t > acpi_thermal_temp(tz, acpi_trip->temperature)) {
+				*trend = THERMAL_TREND_RAISING;
+				return 0;
+			}
+			break;
 		}
 	}
 
-	/*
-	 * tz->temperature has already been updated by generic thermal layer,
-	 * before this callback being invoked
-	 */
-	i = tz->trips.passive.tc1 * (tz->temperature - tz->last_temperature) +
-	    tz->trips.passive.tc2 * (tz->temperature - tz->trips.passive.trip.temperature);
-
-	if (i > 0)
-		*trend = THERMAL_TREND_RAISING;
-	else if (i < 0)
-		*trend = THERMAL_TREND_DROPPING;
-	else
-		*trend = THERMAL_TREND_STABLE;
-
-	return 0;
+	return -EINVAL;
 }
 
 static void acpi_thermal_zone_device_hot(struct thermal_zone_device *thermal)
