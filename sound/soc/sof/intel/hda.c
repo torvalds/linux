@@ -399,19 +399,29 @@ static irqreturn_t hda_dsp_sdw_thread(int irq, void *context)
 	return sdw_intel_thread(irq, context);
 }
 
-static bool hda_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
+bool hda_sdw_check_wakeen_irq_common(struct snd_sof_dev *sdev)
 {
-	u32 interface_mask = hda_get_interface_mask(sdev);
 	struct sof_intel_hda_dev *hdev;
-
-	if (!(interface_mask & BIT(SOF_DAI_INTEL_ALH)))
-		return false;
 
 	hdev = sdev->pdata->hw_pdata;
 	if (hdev->sdw &&
 	    snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 			     hdev->desc->sdw_shim_base + SDW_SHIM_WAKESTS))
 		return true;
+
+	return false;
+}
+
+static bool hda_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
+{
+	u32 interface_mask = hda_get_interface_mask(sdev);
+	const struct sof_intel_dsp_desc *chip;
+
+	if (!(interface_mask & BIT(SOF_DAI_INTEL_ALH)))
+		return false;
+
+	if (chip && chip->check_sdw_wakeen_irq)
+		return chip->check_sdw_wakeen_irq(sdev);
 
 	return false;
 }
