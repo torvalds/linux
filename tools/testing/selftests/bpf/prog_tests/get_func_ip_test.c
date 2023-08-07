@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 #include "get_func_ip_test.skel.h"
+#include "get_func_ip_uprobe_test.skel.h"
+
+static noinline void uprobe_trigger(void)
+{
+}
 
 static void test_function_entry(void)
 {
@@ -20,6 +25,8 @@ static void test_function_entry(void)
 	if (!ASSERT_OK(err, "get_func_ip_test__attach"))
 		goto cleanup;
 
+	skel->bss->uprobe_trigger = (unsigned long) uprobe_trigger;
+
 	prog_fd = bpf_program__fd(skel->progs.test1);
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	ASSERT_OK(err, "test_run");
@@ -30,11 +37,15 @@ static void test_function_entry(void)
 
 	ASSERT_OK(err, "test_run");
 
+	uprobe_trigger();
+
 	ASSERT_EQ(skel->bss->test1_result, 1, "test1_result");
 	ASSERT_EQ(skel->bss->test2_result, 1, "test2_result");
 	ASSERT_EQ(skel->bss->test3_result, 1, "test3_result");
 	ASSERT_EQ(skel->bss->test4_result, 1, "test4_result");
 	ASSERT_EQ(skel->bss->test5_result, 1, "test5_result");
+	ASSERT_EQ(skel->bss->test7_result, 1, "test7_result");
+	ASSERT_EQ(skel->bss->test8_result, 1, "test8_result");
 
 cleanup:
 	get_func_ip_test__destroy(skel);
