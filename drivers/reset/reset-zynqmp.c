@@ -112,8 +112,6 @@ static int zynqmp_reset_probe(struct platform_device *pdev)
 	if (!priv->data)
 		return -EINVAL;
 
-	platform_set_drvdata(pdev, priv);
-
 	priv->rcdev.ops = &zynqmp_reset_ops;
 	priv->rcdev.owner = THIS_MODULE;
 	priv->rcdev.of_node = pdev->dev.of_node;
