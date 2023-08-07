@@ -12,7 +12,6 @@
 #include <linux/delay.h>
 #include <soc/sifive/sifive_l2_cache.h>
 
-#define VDI_SRAM_BASE_ADDR		0x00
 
 #define VDI_SYSTEM_ENDIAN		VDI_LITTLE_ENDIAN
 #define VDI_128BIT_BUS_SYSTEM_ENDIAN	VDI_128BIT_LITTLE_ENDIAN
