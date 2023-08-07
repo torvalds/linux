@@ -434,6 +434,28 @@ out:
 	return ret;
 }
 
+static struct hdac_ext_stream *sdw_hda_ipc4_get_hext_stream(struct snd_sof_dev *sdev,
+							    struct snd_soc_dai *cpu_dai,
+							    struct snd_pcm_substream *substream)
+{
+	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
+	struct snd_sof_widget *swidget = w->dobj.private;
+	struct snd_sof_dai *dai = swidget->private;
+	struct sof_ipc4_copier *ipc4_copier = dai->private;
+	struct sof_ipc4_alh_configuration_blob *blob;
+
+	blob = (struct sof_ipc4_alh_configuration_blob *)ipc4_copier->copier_config;
+
+	/*
+	 * Starting with ACE_2_0, re-setting the device_count is mandatory to avoid using
+	 * the multi-gateway firmware configuration. The DMA hardware can take care of
+	 * multiple links without needing any firmware assistance
+	 */
+	blob->alh_cfg.device_count = 1;
+
+	return hda_ipc4_get_hext_stream(sdev, cpu_dai, substream);
+}
+
 static const struct hda_dai_widget_dma_ops hda_ipc4_dma_ops = {
 	.get_hext_stream = hda_ipc4_get_hext_stream,
 	.assign_hext_stream = hda_assign_hext_stream,
@@ -475,7 +497,7 @@ static const struct hda_dai_widget_dma_ops dmic_ipc4_dma_ops = {
 };
 
 static const struct hda_dai_widget_dma_ops sdw_ipc4_dma_ops = {
-	.get_hext_stream = hda_ipc4_get_hext_stream,
+	.get_hext_stream = sdw_hda_ipc4_get_hext_stream,
 	.assign_hext_stream = hda_assign_hext_stream,
 	.release_hext_stream = hda_release_hext_stream,
 	.setup_hext_stream = hda_setup_hext_stream,
