@@ -43,8 +43,10 @@ static void parse_filter_test(struct kunit *test)
 static void filter_suites_test(struct kunit *test)
 {
 	struct kunit_suite *subsuite[3] = {NULL, NULL};
-	struct suite_set suite_set = {.start = subsuite, .end = &subsuite[2]};
-	struct suite_set got;
+	struct kunit_suite_set suite_set = {
+		.start = subsuite, .end = &subsuite[2],
+	};
+	struct kunit_suite_set got;
 	int err = 0;
 
 	subsuite[0] = alloc_fake_suite(test, "suite1", dummy_test_cases);
@@ -67,8 +69,10 @@ static void filter_suites_test(struct kunit *test)
 static void filter_suites_test_glob_test(struct kunit *test)
 {
 	struct kunit_suite *subsuite[3] = {NULL, NULL};
-	struct suite_set suite_set = {.start = subsuite, .end = &subsuite[2]};
-	struct suite_set got;
+	struct kunit_suite_set suite_set = {
+		.start = subsuite, .end = &subsuite[2],
+	};
+	struct kunit_suite_set got;
 	int err = 0;
 
 	subsuite[0] = alloc_fake_suite(test, "suite1", dummy_test_cases);
@@ -94,8 +98,10 @@ static void filter_suites_test_glob_test(struct kunit *test)
 static void filter_suites_to_empty_test(struct kunit *test)
 {
 	struct kunit_suite *subsuite[3] = {NULL, NULL};
-	struct suite_set suite_set = {.start = subsuite, .end = &subsuite[2]};
-	struct suite_set got;
+	struct kunit_suite_set suite_set = {
+		.start = subsuite, .end = &subsuite[2],
+	};
+	struct kunit_suite_set got;
 	int err = 0;
 
 	subsuite[0] = alloc_fake_suite(test, "suite1", dummy_test_cases);
@@ -144,8 +150,10 @@ static struct kunit_case dummy_attr_test_cases[] = {
 static void filter_attr_test(struct kunit *test)
 {
 	struct kunit_suite *subsuite[3] = {NULL, NULL};
-	struct suite_set suite_set = {.start = subsuite, .end = &subsuite[2]};
-	struct suite_set got;
+	struct kunit_suite_set suite_set = {
+		.start = subsuite, .end = &subsuite[2],
+	};
+	struct kunit_suite_set got;
 	int err = 0;
 
 	subsuite[0] = alloc_fake_suite(test, "normal_suite", dummy_attr_test_cases);
@@ -179,8 +187,10 @@ static void filter_attr_test(struct kunit *test)
 static void filter_attr_empty_test(struct kunit *test)
 {
 	struct kunit_suite *subsuite[3] = {NULL, NULL};
-	struct suite_set suite_set = {.start = subsuite, .end = &subsuite[2]};
-	struct suite_set got;
+	struct kunit_suite_set suite_set = {
+		.start = subsuite, .end = &subsuite[2],
+	};
+	struct kunit_suite_set got;
 	int err = 0;
 
 	subsuite[0] = alloc_fake_suite(test, "suite1", dummy_attr_test_cases);
@@ -197,8 +207,10 @@ static void filter_attr_empty_test(struct kunit *test)
 static void filter_attr_skip_test(struct kunit *test)
 {
 	struct kunit_suite *subsuite[2] = {NULL};
-	struct suite_set suite_set = {.start = subsuite, .end = &subsuite[1]};
-	struct suite_set got;
+	struct kunit_suite_set suite_set = {
+		.start = subsuite, .end = &subsuite[1],
+	};
+	struct kunit_suite_set got;
 	int err = 0;
 
 	subsuite[0] = alloc_fake_suite(test, "suite", dummy_attr_test_cases);
