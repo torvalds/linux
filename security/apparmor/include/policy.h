@@ -248,9 +248,6 @@ ssize_t aa_remove_profiles(struct aa_ns *view, struct aa_label *label,
 			   char *name, size_t size);
 void __aa_profile_list_release(struct list_head *head);
 
-#define PROF_ADD 1
-#define PROF_REPLACE 0
-
 #define profile_unconfined(X) ((X)->mode == APPARMOR_UNCONFINED)
 
 /**
