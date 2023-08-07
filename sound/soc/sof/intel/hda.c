@@ -112,6 +112,34 @@ struct sdw_intel_ops sdw_callback = {
 	.params_stream = sdw_params_stream,
 };
 
+static int sdw_ace2x_params_stream(struct device *dev,
+				   struct sdw_intel_stream_params_data *params_data)
+{
+	return sdw_hda_dai_hw_params(params_data->substream,
+				     params_data->hw_params,
+				     params_data->dai,
+				     params_data->link_id);
+}
+
+static int sdw_ace2x_free_stream(struct device *dev,
+				 struct sdw_intel_stream_free_data *free_data)
+{
+	return sdw_hda_dai_hw_free(free_data->substream,
+				   free_data->dai,
+				   free_data->link_id);
+}
+
+static int sdw_ace2x_trigger(struct snd_pcm_substream *substream, int cmd, struct snd_soc_dai *dai)
+{
+	return sdw_hda_dai_trigger(substream, cmd, dai);
+}
+
+static struct sdw_intel_ops sdw_ace2x_callback = {
+	.params_stream = sdw_ace2x_params_stream,
+	.free_stream = sdw_ace2x_free_stream,
+	.trigger = sdw_ace2x_trigger,
+};
+
 void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
 {
 	struct sof_intel_hda_dev *hdev;
@@ -179,6 +207,7 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 		res.shim_base = hdev->desc->sdw_shim_base;
 		res.alh_base = hdev->desc->sdw_alh_base;
 		res.ext = false;
+		res.ops = &sdw_callback;
 	} else {
 		/*
 		 * retrieve eml_lock needed to protect shared registers
@@ -196,11 +225,13 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 		 */
 		res.hw_ops = &sdw_intel_lnl_hw_ops;
 		res.ext = true;
+		res.ops = &sdw_ace2x_callback;
+
 	}
 	res.irq = sdev->ipc_irq;
 	res.handle = hdev->info.handle;
 	res.parent = sdev->dev;
-	res.ops = &sdw_callback;
+
 	res.dev = sdev->dev;
 	res.clock_stop_quirks = sdw_clock_stop_quirks;
 	res.hbus = sof_to_bus(sdev);
