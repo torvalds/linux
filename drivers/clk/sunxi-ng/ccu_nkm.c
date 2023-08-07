@@ -34,7 +34,8 @@ static unsigned long ccu_nkm_find_best_with_parent_adj(struct ccu_common *common
 
 				tmp_rate = tmp_parent * _n * _k / _m;
 
-				if (ccu_is_better_rate(common, rate, tmp_rate, best_rate)) {
+				if (ccu_is_better_rate(common, rate, tmp_rate, best_rate) ||
+				    (tmp_parent == *parent && tmp_rate == best_rate)) {
 					best_rate = tmp_rate;
 					best_parent_rate = tmp_parent;
 					best_n = _n;
