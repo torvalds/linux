@@ -485,118 +485,6 @@ static int thermal_get_temp(struct thermal_zone_device *thermal, int *temp)
 	return 0;
 }
 
-static int thermal_get_trip_type(struct thermal_zone_device *thermal,
-				 int trip, enum thermal_trip_type *type)
-{
-	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
-	int i;
-
-	if (!tz || trip < 0)
-		return -EINVAL;
-
-	if (tz->trips.critical.valid) {
-		if (!trip) {
-			*type = THERMAL_TRIP_CRITICAL;
-			return 0;
-		}
-		trip--;
-	}
-
-	if (tz->trips.hot.valid) {
-		if (!trip) {
-			*type = THERMAL_TRIP_HOT;
-			return 0;
-		}
-		trip--;
-	}
-
-	if (tz->trips.passive.trip.valid) {
-		if (!trip) {
-			*type = THERMAL_TRIP_PASSIVE;
-			return 0;
-		}
-		trip--;
-	}
-
-	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE && tz->trips.active[i].trip.valid; i++) {
-		if (!trip) {
-			*type = THERMAL_TRIP_ACTIVE;
-			return 0;
-		}
-		trip--;
-	}
-
-	return -EINVAL;
-}
-
-static int thermal_get_trip_temp(struct thermal_zone_device *thermal,
-				 int trip, int *temp)
-{
-	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
-	int i;
-
-	if (!tz || trip < 0)
-		return -EINVAL;
-
-	if (tz->trips.critical.valid) {
-		if (!trip) {
-			*temp = deci_kelvin_to_millicelsius_with_offset(
-					tz->trips.critical.temperature,
-					tz->kelvin_offset);
-			return 0;
-		}
-		trip--;
-	}
-
-	if (tz->trips.hot.valid) {
-		if (!trip) {
-			*temp = deci_kelvin_to_millicelsius_with_offset(
-					tz->trips.hot.temperature,
-					tz->kelvin_offset);
-			return 0;
-		}
-		trip--;
-	}
-
-	if (tz->trips.passive.trip.valid) {
-		if (!trip) {
-			*temp = deci_kelvin_to_millicelsius_with_offset(
-					tz->trips.passive.trip.temperature,
-					tz->kelvin_offset);
-			return 0;
-		}
-		trip--;
-	}
-
-	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE &&
-		tz->trips.active[i].trip.valid; i++) {
-		if (!trip) {
-			*temp = deci_kelvin_to_millicelsius_with_offset(
-					tz->trips.active[i].trip.temperature,
-					tz->kelvin_offset);
-			return 0;
-		}
-		trip--;
-	}
-
-	return -EINVAL;
-}
-
-static int thermal_get_crit_temp(struct thermal_zone_device *thermal,
-				int *temperature)
-{
-	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
-
-	if (tz->trips.critical.valid) {
-		*temperature = deci_kelvin_to_millicelsius_with_offset(
-					tz->trips.critical.temperature,
-					tz->kelvin_offset);
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
 static int thermal_get_trend(struct thermal_zone_device *thermal,
 			     int trip_index, enum thermal_trend *trend)
 {
@@ -759,9 +647,6 @@ static struct thermal_zone_device_ops acpi_thermal_zone_ops = {
 	.bind = acpi_thermal_bind_cooling_device,
 	.unbind	= acpi_thermal_unbind_cooling_device,
 	.get_temp = thermal_get_temp,
-	.get_trip_type = thermal_get_trip_type,
-	.get_trip_temp = thermal_get_trip_temp,
-	.get_crit_temp = thermal_get_crit_temp,
 	.get_trend = thermal_get_trend,
 	.hot = acpi_thermal_zone_device_hot,
 	.critical = acpi_thermal_zone_device_critical,
