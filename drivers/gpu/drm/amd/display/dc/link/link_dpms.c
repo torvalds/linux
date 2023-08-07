@@ -1247,86 +1247,6 @@ static void remove_stream_from_alloc_table(
 	}
 }
 
-static enum dc_status deallocate_mst_payload_with_temp_drm_wa(
-		struct pipe_ctx *pipe_ctx)
-{
-	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->link;
-	struct dc_dp_mst_stream_allocation_table proposed_table = {0};
-	struct fixed31_32 avg_time_slots_per_mtp = dc_fixpt_from_int(0);
-	int i;
-	bool mst_mode = (link->type == dc_connection_mst_branch);
-	/* adjust for drm changes*/
-	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
-	const struct dc_link_settings empty_link_settings = {0};
-	DC_LOGGER_INIT(link->ctx->logger);
-
-	if (link_hwss->ext.set_throttled_vcp_size)
-		link_hwss->ext.set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
-	if (link_hwss->ext.set_hblank_min_symbol_width)
-		link_hwss->ext.set_hblank_min_symbol_width(pipe_ctx,
-				&empty_link_settings,
-				avg_time_slots_per_mtp);
-
-	if (dm_helpers_dp_mst_write_payload_allocation_table(
-			stream->ctx,
-			stream,
-			&proposed_table,
-			false))
-		update_mst_stream_alloc_table(
-				link,
-				pipe_ctx->stream_res.stream_enc,
-				pipe_ctx->stream_res.hpo_dp_stream_enc,
-				&proposed_table);
-	else
-		DC_LOG_WARNING("Failed to update"
-				"MST allocation table for"
-				"pipe idx:%d\n",
-				pipe_ctx->pipe_idx);
-
-	DC_LOG_MST("%s"
-			"stream_count: %d: ",
-			__func__,
-			link->mst_stream_alloc_table.stream_count);
-
-	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		DC_LOG_MST("stream_enc[%d]: %p      "
-		"stream[%d].hpo_dp_stream_enc: %p      "
-		"stream[%d].vcp_id: %d      "
-		"stream[%d].slot_count: %d\n",
-		i,
-		(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
-		i,
-		(void *) link->mst_stream_alloc_table.stream_allocations[i].hpo_dp_stream_enc,
-		i,
-		link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
-		i,
-		link->mst_stream_alloc_table.stream_allocations[i].slot_count);
-	}
-
-	if (link_hwss->ext.update_stream_allocation_table == NULL ||
-			link_dp_get_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
-		DC_LOG_DEBUG("Unknown encoding format\n");
-		return DC_ERROR_UNEXPECTED;
-	}
-
-	link_hwss->ext.update_stream_allocation_table(link, &pipe_ctx->link_res,
-			&link->mst_stream_alloc_table);
-
-	if (mst_mode) {
-		dm_helpers_dp_mst_poll_for_allocation_change_trigger(
-			stream->ctx,
-			stream);
-	}
-
-	dm_helpers_dp_mst_send_payload_allocation(
-			stream->ctx,
-			stream,
-			false);
-
-	return DC_OK;
-}
-
 static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -1338,9 +1258,6 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	const struct dc_link_settings empty_link_settings = {0};
 	DC_LOGGER_INIT(link->ctx->logger);
-
-	if (link->dc->debug.temp_mst_deallocation_sequence)
-		return deallocate_mst_payload_with_temp_drm_wa(pipe_ctx);
 
 	/* deallocate_mst_payload is called before disable link. When mode or
 	 * disable/enable monitor, new stream is created which is not in link
@@ -1414,16 +1331,14 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	link_hwss->ext.update_stream_allocation_table(link, &pipe_ctx->link_res,
 			&link->mst_stream_alloc_table);
 
-	if (mst_mode) {
+	if (mst_mode)
 		dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 			stream->ctx,
 			stream);
 
-		dm_helpers_dp_mst_send_payload_allocation(
-				stream->ctx,
-				stream,
-				false);
-	}
+	dm_helpers_dp_mst_update_mst_mgr_for_deallocation(
+			stream->ctx,
+			stream);
 
 	return DC_OK;
 }
@@ -1504,12 +1419,10 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 			stream->ctx,
 			stream);
 
-	if (ret != ACT_LINK_LOST) {
+	if (ret != ACT_LINK_LOST)
 		dm_helpers_dp_mst_send_payload_allocation(
 				stream->ctx,
-				stream,
-				true);
-	}
+				stream);
 
 	/* slot X.Y for only current stream */
 	pbn_per_slot = get_pbn_per_slot(stream);
@@ -1769,8 +1682,7 @@ enum dc_status link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw_in
 	/* send ALLOCATE_PAYLOAD sideband message with updated pbn */
 	dm_helpers_dp_mst_send_payload_allocation(
 			stream->ctx,
-			stream,
-			true);
+			stream);
 
 	/* notify immediate branch device table update */
 	if (dm_helpers_dp_mst_write_payload_allocation_table(
@@ -1899,8 +1811,7 @@ enum dc_status link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw_
 		/* send ALLOCATE_PAYLOAD sideband message with updated pbn */
 		dm_helpers_dp_mst_send_payload_allocation(
 				stream->ctx,
-				stream,
-				true);
+				stream);
 	}
 
 	/* increase throttled vcp size */
