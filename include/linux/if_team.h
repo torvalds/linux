@@ -163,7 +163,7 @@ struct team_option {
 	unsigned int array_size; /* != 0 means the option is array */
 	enum team_option_type type;
 	void (*init)(struct team *team, struct team_option_inst_info *info);
-	int (*getter)(struct team *team, struct team_gsetter_ctx *ctx);
+	void (*getter)(struct team *team, struct team_gsetter_ctx *ctx);
 	int (*setter)(struct team *team, struct team_gsetter_ctx *ctx);
 };
 

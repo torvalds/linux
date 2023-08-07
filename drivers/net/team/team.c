@@ -358,7 +358,9 @@ static int team_option_get(struct team *team,
 {
 	if (!opt_inst->option->getter)
 		return -EOPNOTSUPP;
-	return opt_inst->option->getter(team, ctx);
+
+	opt_inst->option->getter(team, ctx);
+	return 0;
 }
 
 static int team_option_set(struct team *team,
@@ -1373,10 +1375,9 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
  * Net device ops
  *****************/
 
-static int team_mode_option_get(struct team *team, struct team_gsetter_ctx *ctx)
+static void team_mode_option_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
 	ctx->data.str_val = team->mode->kind;
-	return 0;
 }
 
 static int team_mode_option_set(struct team *team, struct team_gsetter_ctx *ctx)
@@ -1384,11 +1385,10 @@ static int team_mode_option_set(struct team *team, struct team_gsetter_ctx *ctx)
 	return team_change_mode(team, ctx->data.str_val);
 }
 
-static int team_notify_peers_count_get(struct team *team,
-				       struct team_gsetter_ctx *ctx)
+static void team_notify_peers_count_get(struct team *team,
+					struct team_gsetter_ctx *ctx)
 {
 	ctx->data.u32_val = team->notify_peers.count;
-	return 0;
 }
 
 static int team_notify_peers_count_set(struct team *team,
@@ -1398,11 +1398,10 @@ static int team_notify_peers_count_set(struct team *team,
 	return 0;
 }
 
-static int team_notify_peers_interval_get(struct team *team,
-					  struct team_gsetter_ctx *ctx)
+static void team_notify_peers_interval_get(struct team *team,
+					   struct team_gsetter_ctx *ctx)
 {
 	ctx->data.u32_val = team->notify_peers.interval;
-	return 0;
 }
 
 static int team_notify_peers_interval_set(struct team *team,
@@ -1412,11 +1411,10 @@ static int team_notify_peers_interval_set(struct team *team,
 	return 0;
 }
 
-static int team_mcast_rejoin_count_get(struct team *team,
-				       struct team_gsetter_ctx *ctx)
+static void team_mcast_rejoin_count_get(struct team *team,
+					struct team_gsetter_ctx *ctx)
 {
 	ctx->data.u32_val = team->mcast_rejoin.count;
-	return 0;
 }
 
 static int team_mcast_rejoin_count_set(struct team *team,
@@ -1426,11 +1424,10 @@ static int team_mcast_rejoin_count_set(struct team *team,
 	return 0;
 }
 
-static int team_mcast_rejoin_interval_get(struct team *team,
-					  struct team_gsetter_ctx *ctx)
+static void team_mcast_rejoin_interval_get(struct team *team,
+					   struct team_gsetter_ctx *ctx)
 {
 	ctx->data.u32_val = team->mcast_rejoin.interval;
-	return 0;
 }
 
 static int team_mcast_rejoin_interval_set(struct team *team,
@@ -1440,13 +1437,12 @@ static int team_mcast_rejoin_interval_set(struct team *team,
 	return 0;
 }
 
-static int team_port_en_option_get(struct team *team,
-				   struct team_gsetter_ctx *ctx)
+static void team_port_en_option_get(struct team *team,
+				    struct team_gsetter_ctx *ctx)
 {
 	struct team_port *port = ctx->info->port;
 
 	ctx->data.bool_val = team_port_enabled(port);
-	return 0;
 }
 
 static int team_port_en_option_set(struct team *team,
@@ -1461,13 +1457,12 @@ static int team_port_en_option_set(struct team *team,
 	return 0;
 }
 
-static int team_user_linkup_option_get(struct team *team,
-				       struct team_gsetter_ctx *ctx)
+static void team_user_linkup_option_get(struct team *team,
+					struct team_gsetter_ctx *ctx)
 {
 	struct team_port *port = ctx->info->port;
 
 	ctx->data.bool_val = port->user.linkup;
-	return 0;
 }
 
 static void __team_carrier_check(struct team *team);
@@ -1483,13 +1478,12 @@ static int team_user_linkup_option_set(struct team *team,
 	return 0;
 }
 
-static int team_user_linkup_en_option_get(struct team *team,
-					  struct team_gsetter_ctx *ctx)
+static void team_user_linkup_en_option_get(struct team *team,
+					   struct team_gsetter_ctx *ctx)
 {
 	struct team_port *port = ctx->info->port;
 
 	ctx->data.bool_val = port->user.linkup_enabled;
-	return 0;
 }
 
 static int team_user_linkup_en_option_set(struct team *team,
@@ -1503,13 +1497,12 @@ static int team_user_linkup_en_option_set(struct team *team,
 	return 0;
 }
 
-static int team_priority_option_get(struct team *team,
-				    struct team_gsetter_ctx *ctx)
+static void team_priority_option_get(struct team *team,
+				     struct team_gsetter_ctx *ctx)
 {
 	struct team_port *port = ctx->info->port;
 
 	ctx->data.s32_val = port->priority;
-	return 0;
 }
 
 static int team_priority_option_set(struct team *team,
@@ -1525,13 +1518,12 @@ static int team_priority_option_set(struct team *team,
 	return 0;
 }
 
-static int team_queue_id_option_get(struct team *team,
-				    struct team_gsetter_ctx *ctx)
+static void team_queue_id_option_get(struct team *team,
+				     struct team_gsetter_ctx *ctx)
 {
 	struct team_port *port = ctx->info->port;
 
 	ctx->data.u32_val = port->queue_id;
-	return 0;
 }
 
 static int team_queue_id_option_set(struct team *team,

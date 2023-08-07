@@ -242,19 +242,18 @@ drop:
 	return false;
 }
 
-static int lb_bpf_func_get(struct team *team, struct team_gsetter_ctx *ctx)
+static void lb_bpf_func_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
 
 	if (!lb_priv->ex->orig_fprog) {
 		ctx->data.bin_val.len = 0;
 		ctx->data.bin_val.ptr = NULL;
-		return 0;
+		return;
 	}
 	ctx->data.bin_val.len = lb_priv->ex->orig_fprog->len *
 				sizeof(struct sock_filter);
 	ctx->data.bin_val.ptr = lb_priv->ex->orig_fprog->filter;
-	return 0;
 }
 
 static int __fprog_create(struct sock_fprog_kern **pfprog, u32 data_len,
@@ -335,7 +334,7 @@ static void lb_bpf_func_free(struct team *team)
 	bpf_prog_destroy(fp);
 }
 
-static int lb_tx_method_get(struct team *team, struct team_gsetter_ctx *ctx)
+static void lb_tx_method_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
 	lb_select_tx_port_func_t *func;
@@ -346,7 +345,6 @@ static int lb_tx_method_get(struct team *team, struct team_gsetter_ctx *ctx)
 	name = lb_select_tx_port_get_name(func);
 	BUG_ON(!name);
 	ctx->data.str_val = name;
-	return 0;
 }
 
 static int lb_tx_method_set(struct team *team, struct team_gsetter_ctx *ctx)
@@ -370,8 +368,8 @@ static void lb_tx_hash_to_port_mapping_init(struct team *team,
 	LB_HTPM_OPT_INST_INFO_BY_HASH(lb_priv, hash) = info;
 }
 
-static int lb_tx_hash_to_port_mapping_get(struct team *team,
-					  struct team_gsetter_ctx *ctx)
+static void lb_tx_hash_to_port_mapping_get(struct team *team,
+					   struct team_gsetter_ctx *ctx)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
 	struct team_port *port;
@@ -379,7 +377,6 @@ static int lb_tx_hash_to_port_mapping_get(struct team *team,
 
 	port = LB_HTPM_PORT_BY_HASH(lb_priv, hash);
 	ctx->data.u32_val = port ? port->dev->ifindex : 0;
-	return 0;
 }
 
 static int lb_tx_hash_to_port_mapping_set(struct team *team,
@@ -409,14 +406,13 @@ static void lb_hash_stats_init(struct team *team,
 	lb_priv->ex->stats.info[hash].opt_inst_info = info;
 }
 
-static int lb_hash_stats_get(struct team *team, struct team_gsetter_ctx *ctx)
+static void lb_hash_stats_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
 	unsigned char hash = ctx->info->array_index;
 
 	ctx->data.bin_val.ptr = &lb_priv->ex->stats.info[hash].stats;
 	ctx->data.bin_val.len = sizeof(struct lb_stats);
-	return 0;
 }
 
 static void lb_port_stats_init(struct team *team,
@@ -428,14 +424,13 @@ static void lb_port_stats_init(struct team *team,
 	lb_port_priv->stats_info.opt_inst_info = info;
 }
 
-static int lb_port_stats_get(struct team *team, struct team_gsetter_ctx *ctx)
+static void lb_port_stats_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
 	struct team_port *port = ctx->info->port;
 	struct lb_port_priv *lb_port_priv = get_lb_port_priv(port);
 
 	ctx->data.bin_val.ptr = &lb_port_priv->stats_info.stats;
 	ctx->data.bin_val.len = sizeof(struct lb_stats);
-	return 0;
 }
 
 static void __lb_stats_info_refresh_prepare(struct lb_stats_info *s_info)
@@ -528,13 +523,12 @@ static void lb_stats_refresh(struct work_struct *work)
 	mutex_unlock(&team->lock);
 }
 
-static int lb_stats_refresh_interval_get(struct team *team,
-					 struct team_gsetter_ctx *ctx)
+static void lb_stats_refresh_interval_get(struct team *team,
+					  struct team_gsetter_ctx *ctx)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
 
 	ctx->data.u32_val = lb_priv->ex->stats.refresh_interval;
-	return 0;
 }
 
 static int lb_stats_refresh_interval_set(struct team *team,

@@ -63,7 +63,7 @@ static void ab_active_port_init(struct team *team,
 	ab_priv(team)->ap_opt_inst_info = info;
 }
 
-static int ab_active_port_get(struct team *team, struct team_gsetter_ctx *ctx)
+static void ab_active_port_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
 	struct team_port *active_port;
 
@@ -73,7 +73,6 @@ static int ab_active_port_get(struct team *team, struct team_gsetter_ctx *ctx)
 		ctx->data.u32_val = active_port->dev->ifindex;
 	else
 		ctx->data.u32_val = 0;
-	return 0;
 }
 
 static int ab_active_port_set(struct team *team, struct team_gsetter_ctx *ctx)
