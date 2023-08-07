@@ -1597,7 +1597,7 @@ static int sens_read(struct policydb *p, struct symtab *s, void *fp)
 	__le32 buf[2];
 	u32 len;
 
-	levdatum = kzalloc(sizeof(*levdatum), GFP_ATOMIC);
+	levdatum = kzalloc(sizeof(*levdatum), GFP_KERNEL);
 	if (!levdatum)
 		return -ENOMEM;
 
@@ -1608,12 +1608,12 @@ static int sens_read(struct policydb *p, struct symtab *s, void *fp)
 	len = le32_to_cpu(buf[0]);
 	levdatum->isalias = le32_to_cpu(buf[1]);
 
-	rc = str_read(&key, GFP_ATOMIC, fp, len);
+	rc = str_read(&key, GFP_KERNEL, fp, len);
 	if (rc)
 		goto bad;
 
 	rc = -ENOMEM;
-	levdatum->level = kmalloc(sizeof(*levdatum->level), GFP_ATOMIC);
+	levdatum->level = kmalloc(sizeof(*levdatum->level), GFP_KERNEL);
 	if (!levdatum->level)
 		goto bad;
 
@@ -1638,7 +1638,7 @@ static int cat_read(struct policydb *p, struct symtab *s, void *fp)
 	__le32 buf[3];
 	u32 len;
 
-	catdatum = kzalloc(sizeof(*catdatum), GFP_ATOMIC);
+	catdatum = kzalloc(sizeof(*catdatum), GFP_KERNEL);
 	if (!catdatum)
 		return -ENOMEM;
 
@@ -1650,7 +1650,7 @@ static int cat_read(struct policydb *p, struct symtab *s, void *fp)
 	catdatum->value = le32_to_cpu(buf[1]);
 	catdatum->isalias = le32_to_cpu(buf[2]);
 
-	rc = str_read(&key, GFP_ATOMIC, fp, len);
+	rc = str_read(&key, GFP_KERNEL, fp, len);
 	if (rc)
 		goto bad;
 
