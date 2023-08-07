@@ -83,12 +83,14 @@ static const struct snd_kcontrol_new kabylake_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("Spk"),
+	SOC_DAPM_PIN_SWITCH("Line Out"),
 };
 
 static const struct snd_soc_dapm_widget kabylake_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_SPK("Spk", NULL),
+	SND_SOC_DAPM_LINE("Line Out", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
 	SND_SOC_DAPM_SPK("HDMI1", NULL),
 	SND_SOC_DAPM_SPK("HDMI2", NULL),
@@ -106,6 +108,10 @@ static struct snd_soc_jack_pin jack_pins[] = {
 	{
 		.pin    = "Headset Mic",
 		.mask   = SND_JACK_MICROPHONE,
+	},
+	{
+		.pin    = "Line Out",
+		.mask   = SND_JACK_LINEOUT,
 	},
 };
 
@@ -147,6 +153,7 @@ static const struct snd_soc_dapm_route kabylake_map[] = {
 
 	{ "Headphone Jack", NULL, "Platform Clock" },
 	{ "Headset Mic", NULL, "Platform Clock" },
+	{ "Line Out", NULL, "Platform Clock" },
 };
 
 static int kabylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
