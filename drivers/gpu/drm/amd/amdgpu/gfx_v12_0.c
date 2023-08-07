@@ -1103,6 +1103,7 @@ static int gfx_v12_0_rlc_backdoor_autoload_enable(struct amdgpu_device *adev)
 static int gfx_v12_0_sw_init(void *handle)
 {
 	int i, j, k, r, ring_id = 0;
+	unsigned num_compute_rings;
 	int xcc_id = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
@@ -1125,6 +1126,12 @@ static int gfx_v12_0_sw_init(void *handle)
 		adev->gfx.mec.num_queue_per_pipe = 8;
 		break;
 	}
+
+	/* recalculate compute rings to use based on hardware configuration */
+	num_compute_rings = (adev->gfx.mec.num_pipe_per_mec *
+			     adev->gfx.mec.num_queue_per_pipe) / 2;
+	adev->gfx.num_compute_rings = min(adev->gfx.num_compute_rings,
+					  num_compute_rings);
 
 	/* EOP Event */
 	r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_GRBM_CP,
