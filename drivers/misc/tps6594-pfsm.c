@@ -266,8 +266,7 @@ static int tps6594_pfsm_probe(struct platform_device *pdev)
 	for (i = 0 ; i < pdev->num_resources ; i++) {
 		irq = platform_get_irq_byname(pdev, pdev->resource[i].name);
 		if (irq < 0)
-			return dev_err_probe(dev, irq, "Failed to get %s irq\n",
-					     pdev->resource[i].name);
+			return irq;
 
 		ret = devm_request_threaded_irq(dev, irq, NULL,
 						tps6594_pfsm_isr, IRQF_ONESHOT,
