@@ -1301,6 +1301,12 @@ static int mes_v12_0_early_init(void *handle)
 
 static int mes_v12_0_late_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	/* it's only intended for use in mes_self_test case, not for s0ix and reset */
+	if (!amdgpu_in_reset(adev) && !adev->in_s0ix && !adev->in_suspend)
+		amdgpu_mes_self_test(adev);
+
 	return 0;
 }
 

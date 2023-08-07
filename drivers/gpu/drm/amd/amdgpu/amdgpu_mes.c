@@ -156,7 +156,7 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < AMDGPU_MES_MAX_COMPUTE_PIPES; i++) {
 		/* use only 1st MEC pipes */
-		if (i >= 4)
+		if (i >= adev->gfx.mec.num_pipe_per_mec)
 			continue;
 		adev->mes.compute_hqd_mask[i] = 0xc;
 	}
