@@ -558,6 +558,7 @@ SYM_FUNC_END(.Lrelocated)
  * trampoline memory. A non-zero second argument (ESI) means that the
  * trampoline needs to enable 5-level paging.
  */
+	.section ".rodata", "a", @progbits
 SYM_CODE_START(trampoline_32bit_src)
 	/*
 	 * Preserve live 64-bit registers on the stack: this is necessary
@@ -568,13 +569,9 @@ SYM_CODE_START(trampoline_32bit_src)
 	pushq	%rbp
 	pushq	%rbx
 
-	/* Set up 32-bit addressable stack and push the old RSP value */
-	leaq	(TRAMPOLINE_32BIT_STACK_END - 8)(%rcx), %rbx
-	movq	%rsp, (%rbx)
-	movq	%rbx, %rsp
-
-	/* Take the address of the trampoline exit code */
-	leaq	.Lret(%rip), %rbx
+	/* Preserve top half of RSP in a legacy mode GPR to avoid truncation */
+	movq	%rsp, %rbx
+	shrq	$32, %rbx
 
 	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
 	pushq	$__KERNEL32_CS
@@ -582,9 +579,17 @@ SYM_CODE_START(trampoline_32bit_src)
 	pushq	%rax
 	lretq
 
+	/*
+	 * The 32-bit code below will do a far jump back to long mode and end
+	 * up here after reconfiguring the number of paging levels. First, the
+	 * stack pointer needs to be restored to its full 64-bit value before
+	 * the callee save register contents can be popped from the stack.
+	 */
 .Lret:
+	shlq	$32, %rbx
+	orq	%rbx, %rsp
+
 	/* Restore the preserved 64-bit registers */
-	movq	(%rsp), %rsp
 	popq	%rbx
 	popq	%rbp
 	popq	%r15
@@ -592,11 +597,6 @@ SYM_CODE_START(trampoline_32bit_src)
 
 	.code32
 0:
-	/* Set up data and stack segments */
-	movl	$__KERNEL_DS, %eax
-	movl	%eax, %ds
-	movl	%eax, %ss
-
 	/* Disable paging */
 	movl	%cr0, %eax
 	btrl	$X86_CR0_PG_BIT, %eax
@@ -651,17 +651,25 @@ SYM_CODE_START(trampoline_32bit_src)
 1:
 	movl	%eax, %cr4
 
-	/* Prepare the stack for far return to Long Mode */
-	pushl	$__KERNEL_CS
-	pushl	%ebx
-
 	/* Enable paging again. */
 	movl	%cr0, %eax
 	btsl	$X86_CR0_PG_BIT, %eax
 	movl	%eax, %cr0
 
-	lret
+	/*
+	 * Return to the 64-bit calling code using LJMP rather than LRET, to
+	 * avoid the need for a 32-bit addressable stack. The destination
+	 * address will be adjusted after the template code is copied into a
+	 * 32-bit addressable buffer.
+	 */
+.Ljmp:	ljmpl	$__KERNEL_CS, $(.Lret - trampoline_32bit_src)
 SYM_CODE_END(trampoline_32bit_src)
+
+/*
+ * This symbol is placed right after trampoline_32bit_src() so its address can
+ * be used to infer the size of the trampoline code.
+ */
+SYM_DATA(trampoline_ljmp_imm_offset, .word  .Ljmp + 1 - trampoline_32bit_src)
 
 	/*
          * The trampoline code has a size limit.
@@ -670,6 +678,7 @@ SYM_CODE_END(trampoline_32bit_src)
 	 */
 	.org	trampoline_32bit_src + TRAMPOLINE_32BIT_CODE_SIZE
 
+	.text
 SYM_FUNC_START_LOCAL_NOALIGN(.Lno_longmode)
 	/* This isn't an x86-64 CPU, so hang intentionally, we cannot continue */
 1:
