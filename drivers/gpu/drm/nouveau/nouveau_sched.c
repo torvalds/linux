@@ -142,7 +142,7 @@ sync_find_fence(struct nouveau_job *job,
 
 	ret = drm_syncobj_find_fence(job->file_priv,
 				     sync->handle, point,
-				     sync->flags, fence);
+				     0 /* flags */, fence);
 	if (ret)
 		return ret;
 
