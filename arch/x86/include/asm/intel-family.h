@@ -155,9 +155,8 @@
 
 #define INTEL_FAM6_ATOM_GRACEMONT	0xBE /* Alderlake N */
 
-#define INTEL_FAM6_SIERRAFOREST_X	0xAF
-
-#define INTEL_FAM6_GRANDRIDGE		0xB6
+#define INTEL_FAM6_ATOM_CRESTMONT_X	0xAF /* Sierra Forest */
+#define INTEL_FAM6_ATOM_CRESTMONT	0xB6 /* Grand Ridge */
 
 /* Xeon Phi */
 
