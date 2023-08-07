@@ -273,7 +273,7 @@ void device_queue_manager_init_vi(
 		struct device_queue_manager_asic_ops *asic_ops);
 void device_queue_manager_init_v9(
 		struct device_queue_manager_asic_ops *asic_ops);
-void device_queue_manager_init_v10_navi10(
+void device_queue_manager_init_v10(
 		struct device_queue_manager_asic_ops *asic_ops);
 void device_queue_manager_init_v11(
 		struct device_queue_manager_asic_ops *asic_ops);
