@@ -72,7 +72,7 @@
 #define CFGR1_PINCFG	(BIT(24)|BIT(25))
 #define CFGR1_PCSPOL	BIT(8)
 #define CFGR1_NOSTALL	BIT(3)
-#define CFGR1_MASTER	BIT(0)
+#define CFGR1_HOST	BIT(0)
 #define FSR_TXCOUNT	(0xFF)
 #define RSR_RXEMPTY	BIT(1)
 #define TCR_CPOL	BIT(31)
@@ -96,7 +96,7 @@ struct fsl_lpspi_data {
 	unsigned long base_phys;
 	struct clk *clk_ipg;
 	struct clk *clk_per;
-	bool is_slave;
+	bool is_target;
 	bool is_only_cs1;
 	bool is_first_byte;
 
@@ -113,7 +113,7 @@ struct fsl_lpspi_data {
 	struct lpspi_config config;
 	struct completion xfer_done;
 
-	bool slave_aborted;
+	bool target_aborted;
 
 	/* DMA */
 	bool usedma;
@@ -234,7 +234,7 @@ static void fsl_lpspi_write_tx_fifo(struct fsl_lpspi_data *fsl_lpspi)
 	}
 
 	if (txfifo_cnt < fsl_lpspi->txfifosize) {
-		if (!fsl_lpspi->is_slave) {
+		if (!fsl_lpspi->is_target) {
 			temp = readl(fsl_lpspi->base + IMX7ULP_TCR);
 			temp &= ~TCR_CONTC;
 			writel(temp, fsl_lpspi->base + IMX7ULP_TCR);
@@ -258,7 +258,7 @@ static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi)
 	temp |= fsl_lpspi->config.bpw - 1;
 	temp |= (fsl_lpspi->config.mode & 0x3) << 30;
 	temp |= (fsl_lpspi->config.chip_select & 0x3) << 24;
-	if (!fsl_lpspi->is_slave) {
+	if (!fsl_lpspi->is_target) {
 		temp |= fsl_lpspi->config.prescale << 27;
 		/*
 		 * Set TCR_CONT will keep SS asserted after current transfer.
@@ -385,7 +385,7 @@ static int fsl_lpspi_config(struct fsl_lpspi_data *fsl_lpspi)
 	u32 temp;
 	int ret;
 
-	if (!fsl_lpspi->is_slave) {
+	if (!fsl_lpspi->is_target) {
 		ret = fsl_lpspi_set_bitrate(fsl_lpspi);
 		if (ret)
 			return ret;
@@ -393,8 +393,8 @@ static int fsl_lpspi_config(struct fsl_lpspi_data *fsl_lpspi)
 
 	fsl_lpspi_set_watermark(fsl_lpspi);
 
-	if (!fsl_lpspi->is_slave)
-		temp = CFGR1_MASTER;
+	if (!fsl_lpspi->is_target)
+		temp = CFGR1_HOST;
 	else
 		temp = CFGR1_PINCFG;
 	if (fsl_lpspi->config.mode & SPI_CS_HIGH)
@@ -461,12 +461,12 @@ static int fsl_lpspi_setup_transfer(struct spi_controller *controller,
 	return fsl_lpspi_config(fsl_lpspi);
 }
 
-static int fsl_lpspi_slave_abort(struct spi_controller *controller)
+static int fsl_lpspi_target_abort(struct spi_controller *controller)
 {
 	struct fsl_lpspi_data *fsl_lpspi =
 				spi_controller_get_devdata(controller);
 
-	fsl_lpspi->slave_aborted = true;
+	fsl_lpspi->target_aborted = true;
 	if (!fsl_lpspi->usedma)
 		complete(&fsl_lpspi->xfer_done);
 	else {
@@ -482,9 +482,9 @@ static int fsl_lpspi_wait_for_completion(struct spi_controller *controller)
 	struct fsl_lpspi_data *fsl_lpspi =
 				spi_controller_get_devdata(controller);
 
-	if (fsl_lpspi->is_slave) {
+	if (fsl_lpspi->is_target) {
 		if (wait_for_completion_interruptible(&fsl_lpspi->xfer_done) ||
-			fsl_lpspi->slave_aborted) {
+			fsl_lpspi->target_aborted) {
 			dev_dbg(fsl_lpspi->dev, "interrupted\n");
 			return -EINTR;
 		}
@@ -587,9 +587,9 @@ static int fsl_lpspi_dma_transfer(struct spi_controller *controller,
 	reinit_completion(&fsl_lpspi->dma_tx_completion);
 	dma_async_issue_pending(controller->dma_tx);
 
-	fsl_lpspi->slave_aborted = false;
+	fsl_lpspi->target_aborted = false;
 
-	if (!fsl_lpspi->is_slave) {
+	if (!fsl_lpspi->is_target) {
 		transfer_timeout = fsl_lpspi_calculate_timeout(fsl_lpspi,
 							       transfer->len);
 
@@ -615,7 +615,7 @@ static int fsl_lpspi_dma_transfer(struct spi_controller *controller,
 		}
 	} else {
 		if (wait_for_completion_interruptible(&fsl_lpspi->dma_tx_completion) ||
-			fsl_lpspi->slave_aborted) {
+			fsl_lpspi->target_aborted) {
 			dev_dbg(fsl_lpspi->dev,
 				"I/O Error in DMA TX interrupted\n");
 			dmaengine_terminate_all(controller->dma_tx);
@@ -625,7 +625,7 @@ static int fsl_lpspi_dma_transfer(struct spi_controller *controller,
 		}
 
 		if (wait_for_completion_interruptible(&fsl_lpspi->dma_rx_completion) ||
-			fsl_lpspi->slave_aborted) {
+			fsl_lpspi->target_aborted) {
 			dev_dbg(fsl_lpspi->dev,
 				"I/O Error in DMA RX interrupted\n");
 			dmaengine_terminate_all(controller->dma_tx);
@@ -700,7 +700,7 @@ static int fsl_lpspi_pio_transfer(struct spi_controller *controller,
 	fsl_lpspi->remain = t->len;
 
 	reinit_completion(&fsl_lpspi->xfer_done);
-	fsl_lpspi->slave_aborted = false;
+	fsl_lpspi->target_aborted = false;
 
 	fsl_lpspi_write_tx_fifo(fsl_lpspi);
 
@@ -826,15 +826,15 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	int ret, irq;
 	u32 num_cs;
 	u32 temp;
-	bool is_slave;
+	bool is_target;
 
-	is_slave = of_property_read_bool((&pdev->dev)->of_node, "spi-slave");
-	if (is_slave)
-		controller = spi_alloc_slave(&pdev->dev,
-					sizeof(struct fsl_lpspi_data));
+	is_target = of_property_read_bool((&pdev->dev)->of_node, "spi-slave");
+	if (is_target)
+		controller = spi_alloc_target(&pdev->dev,
+					      sizeof(struct fsl_lpspi_data));
 	else
-		controller = spi_alloc_master(&pdev->dev,
-					sizeof(struct fsl_lpspi_data));
+		controller = spi_alloc_host(&pdev->dev,
+					    sizeof(struct fsl_lpspi_data));
 
 	if (!controller)
 		return -ENOMEM;
@@ -843,7 +843,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 
 	fsl_lpspi = spi_controller_get_devdata(controller);
 	fsl_lpspi->dev = &pdev->dev;
-	fsl_lpspi->is_slave = is_slave;
+	fsl_lpspi->is_target = is_target;
 	fsl_lpspi->is_only_cs1 = of_property_read_bool((&pdev->dev)->of_node,
 						"fsl,spi-only-use-cs1-sel");
 
@@ -912,8 +912,8 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	controller->dev.of_node = pdev->dev.of_node;
 	controller->bus_num = pdev->id;
 	controller->num_chipselect = num_cs;
-	controller->slave_abort = fsl_lpspi_slave_abort;
-	if (!fsl_lpspi->is_slave)
+	controller->target_abort = fsl_lpspi_target_abort;
+	if (!fsl_lpspi->is_target)
 		controller->use_gpio_descriptors = true;
 
 	ret = fsl_lpspi_dma_init(&pdev->dev, fsl_lpspi, controller);
