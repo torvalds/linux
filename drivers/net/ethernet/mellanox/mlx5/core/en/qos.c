@@ -122,8 +122,8 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 
 	memset(&param_sq, 0, sizeof(param_sq));
 	memset(&param_cq, 0, sizeof(param_cq));
-	mlx5e_build_sq_param(priv->mdev, params, &param_sq);
-	mlx5e_build_tx_cq_param(priv->mdev, params, &param_cq);
+	mlx5e_build_sq_param(c->mdev, params, &param_sq);
+	mlx5e_build_tx_cq_param(c->mdev, params, &param_cq);
 	err = mlx5e_open_cq(c->mdev, params->tx_cq_moderation, &param_cq, &ccp, &sq->cq);
 	if (err)
 		goto err_free_sq;
@@ -176,7 +176,7 @@ int mlx5e_activate_qos_sq(void *data, u16 node_qid, u32 hw_id)
 	 */
 	smp_wmb();
 
-	qos_dbg(priv->mdev, "Activate QoS SQ qid %u\n", node_qid);
+	qos_dbg(sq->mdev, "Activate QoS SQ qid %u\n", node_qid);
 	mlx5e_activate_txqsq(sq);
 
 	return 0;
@@ -190,7 +190,7 @@ void mlx5e_deactivate_qos_sq(struct mlx5e_priv *priv, u16 qid)
 	if (!sq) /* Handle the case when the SQ failed to open. */
 		return;
 
-	qos_dbg(priv->mdev, "Deactivate QoS SQ qid %u\n", qid);
+	qos_dbg(sq->mdev, "Deactivate QoS SQ qid %u\n", qid);
 	mlx5e_deactivate_txqsq(sq);
 
 	priv->txq2sq[mlx5e_qid_from_qos(&priv->channels, qid)] = NULL;
