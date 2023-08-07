@@ -144,7 +144,6 @@ static int bnxt_hwrm_queue_cos2bw_qcfg(struct bnxt *bp, struct ieee_ets *ets)
 	struct hwrm_queue_cos2bw_qcfg_output *resp;
 	struct hwrm_queue_cos2bw_qcfg_input *req;
 	struct bnxt_cos2bw_cfg cos2bw;
-	void *data;
 	int rc, i;
 
 	rc = hwrm_req_init(bp, req, HWRM_QUEUE_COS2BW_QCFG);
@@ -158,13 +157,19 @@ static int bnxt_hwrm_queue_cos2bw_qcfg(struct bnxt *bp, struct ieee_ets *ets)
 		return rc;
 	}
 
-	data = &resp->queue_id0 + offsetof(struct bnxt_cos2bw_cfg, queue_id);
-	for (i = 0; i < bp->max_tc; i++, data += sizeof(cos2bw.cfg)) {
+	for (i = 0; i < bp->max_tc; i++) {
 		int tc;
 
-		memcpy(&cos2bw.cfg, data, sizeof(cos2bw.cfg));
-		if (i == 0)
+		if (i == 0) {
 			cos2bw.queue_id = resp->queue_id0;
+			cos2bw.min_bw = resp->queue_id0_min_bw;
+			cos2bw.max_bw = resp->queue_id0_max_bw;
+			cos2bw.tsa = resp->queue_id0_tsa_assign;
+			cos2bw.pri_lvl = resp->queue_id0_pri_lvl;
+			cos2bw.bw_weight = resp->queue_id0_bw_weight;
+		} else {
+			memcpy(&cos2bw.cfg, &resp->cfg[i - 1], sizeof(cos2bw.cfg));
+		}
 
 		tc = bnxt_queue_to_tc(bp, cos2bw.queue_id);
 		if (tc < 0)
