@@ -320,6 +320,10 @@ static int rt700_set_jack_detect(struct snd_soc_component *component,
 
 	rt700->hs_jack = hs_jack;
 
+	/* we can only resume if the device was initialized at least once */
+	if (!rt700->first_hw_init)
+		return 0;
+
 	ret = pm_runtime_resume_and_get(component->dev);
 	if (ret < 0) {
 		if (ret != -EACCES) {
@@ -823,6 +827,9 @@ static int rt700_probe(struct snd_soc_component *component)
 
 	rt700->component = component;
 
+	if (!rt700->first_hw_init)
+		return 0;
+
 	ret = pm_runtime_resume(component->dev);
 	if (ret < 0 && ret != -EACCES)
 		return ret;
@@ -1099,6 +1106,8 @@ int rt700_init(struct device *dev, struct regmap *sdw_regmap,
 	rt700->sdw_regmap = sdw_regmap;
 	rt700->regmap = regmap;
 
+	regcache_cache_only(rt700->regmap, true);
+
 	mutex_init(&rt700->disable_irq_lock);
 
 	INIT_DELAYED_WORK(&rt700->jack_detect_work,
@@ -1117,10 +1126,26 @@ int rt700_init(struct device *dev, struct regmap *sdw_regmap,
 				&soc_codec_dev_rt700,
 				rt700_dai,
 				ARRAY_SIZE(rt700_dai));
+	if (ret < 0)
+		return ret;
 
+	/* set autosuspend parameters */
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+
+	/* make sure the device does not suspend immediately */
+	pm_runtime_mark_last_busy(dev);
+
+	pm_runtime_enable(dev);
+
+	/* important note: the device is NOT tagged as 'active' and will remain
+	 * 'suspended' until the hardware is enumerated/initialized. This is required
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * fail with -EACCESS because of race conditions between card creation and enumeration
+	 */
 	dev_dbg(&slave->dev, "%s\n", __func__);
 
-	return ret;
+	return 0;
 }
 
 int rt700_io_init(struct device *dev, struct sdw_slave *slave)
@@ -1132,27 +1157,16 @@ int rt700_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt700->hw_init)
 		return 0;
 
-	if (rt700->first_hw_init) {
-		regcache_cache_only(rt700->regmap, false);
+	regcache_cache_only(rt700->regmap, false);
+	if (rt700->first_hw_init)
 		regcache_cache_bypass(rt700->regmap, true);
-	}
 
 	/*
 	 * PM runtime is only enabled when a Slave reports as Attached
 	 */
-	if (!rt700->first_hw_init) {
-		/* set autosuspend parameters */
-		pm_runtime_set_autosuspend_delay(&slave->dev, 3000);
-		pm_runtime_use_autosuspend(&slave->dev);
-
-		/* update count of parent 'active' children */
+	if (!rt700->first_hw_init)
+		/* PM runtime status is marked as 'active' only when a Slave reports as Attached */
 		pm_runtime_set_active(&slave->dev);
-
-		/* make sure the device does not suspend immediately */
-		pm_runtime_mark_last_busy(&slave->dev);
-
-		pm_runtime_enable(&slave->dev);
-	}
 
 	pm_runtime_get_noresume(&slave->dev);
 

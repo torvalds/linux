@@ -272,25 +272,16 @@ static int rt1316_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt1316->hw_init)
 		return 0;
 
+	regcache_cache_only(rt1316->regmap, false);
 	if (rt1316->first_hw_init) {
-		regcache_cache_only(rt1316->regmap, false);
 		regcache_cache_bypass(rt1316->regmap, true);
 	} else {
 		/*
-		 * PM runtime is only enabled when a Slave reports as Attached
+		 *  PM runtime status is marked as 'active' only when a Slave reports as Attached
 		 */
-
-		/* set autosuspend parameters */
-		pm_runtime_set_autosuspend_delay(&slave->dev, 3000);
-		pm_runtime_use_autosuspend(&slave->dev);
 
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
-
-		/* make sure the device does not suspend immediately */
-		pm_runtime_mark_last_busy(&slave->dev);
-
-		pm_runtime_enable(&slave->dev);
 	}
 
 	pm_runtime_get_noresume(&slave->dev);
@@ -607,6 +598,9 @@ static int rt1316_sdw_component_probe(struct snd_soc_component *component)
 	rt1316->component = component;
 	rt1316_sdw_parse_dt(rt1316, &rt1316->sdw_slave->dev);
 
+	if (!rt1316->first_hw_init)
+		return 0;
+
 	ret = pm_runtime_resume(component->dev);
 	if (ret < 0 && ret != -EACCES)
 		return ret;
@@ -674,6 +668,8 @@ static int rt1316_sdw_init(struct device *dev, struct regmap *regmap,
 	rt1316->sdw_slave = slave;
 	rt1316->regmap = regmap;
 
+	regcache_cache_only(rt1316->regmap, true);
+
 	/*
 	 * Mark hw_init to false
 	 * HW init will be performed when device reports present
@@ -685,10 +681,27 @@ static int rt1316_sdw_init(struct device *dev, struct regmap *regmap,
 				&soc_component_sdw_rt1316,
 				rt1316_sdw_dai,
 				ARRAY_SIZE(rt1316_sdw_dai));
+	if (ret < 0)
+		return ret;
 
-	dev_dbg(&slave->dev, "%s\n", __func__);
+	/* set autosuspend parameters */
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
 
-	return ret;
+	/* make sure the device does not suspend immediately */
+	pm_runtime_mark_last_busy(dev);
+
+	pm_runtime_enable(dev);
+
+	/* important note: the device is NOT tagged as 'active' and will remain
+	 * 'suspended' until the hardware is enumerated/initialized. This is required
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * fail with -EACCESS because of race conditions between card creation and enumeration
+	 */
+
+	dev_dbg(dev, "%s\n", __func__);
+
+	return 0;
 }
 
 static int rt1316_sdw_probe(struct sdw_slave *slave,
@@ -706,10 +719,7 @@ static int rt1316_sdw_probe(struct sdw_slave *slave,
 
 static int rt1316_sdw_remove(struct sdw_slave *slave)
 {
-	struct rt1316_sdw_priv *rt1316 = dev_get_drvdata(&slave->dev);
-
-	if (rt1316->first_hw_init)
-		pm_runtime_disable(&slave->dev);
+	pm_runtime_disable(&slave->dev);
 
 	return 0;
 }
