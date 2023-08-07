@@ -1917,15 +1917,13 @@ out:
 static void update_dev_time(const char *device_path)
 {
 	struct path path;
-	struct timespec64 now;
 	int ret;
 
 	ret = kern_path(device_path, LOOKUP_FOLLOW, &path);
 	if (ret)
 		return;
 
-	now = current_time(d_inode(path.dentry));
-	inode_update_time(d_inode(path.dentry), &now, S_MTIME | S_CTIME | S_VERSION);
+	inode_update_time(d_inode(path.dentry), S_MTIME | S_CTIME | S_VERSION);
 	path_put(&path);
 }
 

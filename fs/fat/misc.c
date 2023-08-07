@@ -339,7 +339,7 @@ int fat_truncate_time(struct inode *inode, struct timespec64 *now, int flags)
 }
 EXPORT_SYMBOL_GPL(fat_truncate_time);
 
-int fat_update_time(struct inode *inode, struct timespec64 *now, int flags)
+int fat_update_time(struct inode *inode, int flags)
 {
 	int dirty_flags = 0;
 

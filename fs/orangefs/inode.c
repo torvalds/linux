@@ -900,7 +900,7 @@ int orangefs_permission(struct mnt_idmap *idmap,
 	return generic_permission(&nop_mnt_idmap, inode, mask);
 }
 
-int orangefs_update_time(struct inode *inode, struct timespec64 *time, int flags)
+int orangefs_update_time(struct inode *inode, int flags)
 {
 	struct iattr iattr;
 
