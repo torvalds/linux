@@ -16,6 +16,7 @@
 #include "mcdi_pcol.h"
 #include "mcdi_pcol_mae.h"
 #include "tc_encap_actions.h"
+#include "tc_conntrack.h"
 
 int efx_mae_allocate_mport(struct efx_nic *efx, u32 *id, u32 *label)
 {
@@ -1401,6 +1402,262 @@ int efx_mae_unregister_encap_match(struct efx_nic *efx,
 	 */
 	encap->fw_id = MC_CMD_MAE_OUTER_RULE_INSERT_OUT_OUTER_RULE_ID_NULL;
 	return 0;
+}
+
+/* Populating is done by taking each byte of @value in turn and storing
+ * it in the appropriate bits of @row.  @value must be big-endian; we
+ * convert it to little-endianness as we go.
+ */
+static int efx_mae_table_populate(struct efx_tc_table_field_fmt field,
+				  __le32 *row, size_t row_bits,
+				  void *value, size_t value_size)
+{
+	unsigned int i;
+
+	/* For now only scheme 0 is supported for any field, so we check here
+	 * (rather than, say, in calling code, which knows the semantics and
+	 * could in principle encode for other schemes).
+	 */
+	if (field.scheme)
+		return -EOPNOTSUPP;
+	if (DIV_ROUND_UP(field.width, 8) != value_size)
+		return -EINVAL;
+	if (field.lbn + field.width > row_bits)
+		return -EINVAL;
+	for (i = 0; i < value_size; i++) {
+		unsigned int bn = field.lbn + i * 8;
+		unsigned int wn = bn / 32;
+		u64 v;
+
+		v = ((u8 *)value)[value_size - i - 1];
+		v <<= (bn % 32);
+		row[wn] |= cpu_to_le32(v & 0xffffffff);
+		if (wn * 32 < row_bits)
+			row[wn + 1] |= cpu_to_le32(v >> 32);
+	}
+	return 0;
+}
+
+static int efx_mae_table_populate_bool(struct efx_tc_table_field_fmt field,
+				       __le32 *row, size_t row_bits, bool value)
+{
+	u8 v = value ? 1 : 0;
+
+	if (field.width != 1)
+		return -EINVAL;
+	return efx_mae_table_populate(field, row, row_bits, &v, 1);
+}
+
+static int efx_mae_table_populate_ipv4(struct efx_tc_table_field_fmt field,
+				       __le32 *row, size_t row_bits, __be32 value)
+{
+	/* IPv4 is placed in the first 4 bytes of an IPv6-sized field */
+	struct in6_addr v = {};
+
+	if (field.width != 128)
+		return -EINVAL;
+	v.s6_addr32[0] = value;
+	return efx_mae_table_populate(field, row, row_bits, &v, sizeof(v));
+}
+
+static int efx_mae_table_populate_u24(struct efx_tc_table_field_fmt field,
+				      __le32 *row, size_t row_bits, u32 value)
+{
+	__be32 v = cpu_to_be32(value);
+
+	/* We adjust value_size here since just 3 bytes will be copied, and
+	 * the pointer to the value is set discarding the first byte which is
+	 * the most significant byte for a big-endian 4-bytes value.
+	 */
+	return efx_mae_table_populate(field, row, row_bits, ((void *)&v) + 1,
+				      sizeof(v) - 1);
+}
+
+#define _TABLE_POPULATE(dst, dw, _field, _value) ({	\
+	typeof(_value) _v = _value;			\
+							\
+	(_field.width == sizeof(_value) * 8) ?		\
+	 efx_mae_table_populate(_field, dst, dw, &_v,	\
+				sizeof(_v)) : -EINVAL;	\
+})
+#define TABLE_POPULATE_KEY_IPV4(dst, _table, _field, _value)		       \
+	efx_mae_table_populate_ipv4(efx->tc->meta_##_table.desc.keys	       \
+				    [efx->tc->meta_##_table.keys._field##_idx],\
+				    dst, efx->tc->meta_##_table.desc.key_width,\
+				    _value)
+#define TABLE_POPULATE_KEY(dst, _table, _field, _value)			\
+	_TABLE_POPULATE(dst, efx->tc->meta_##_table.desc.key_width,	\
+			efx->tc->meta_##_table.desc.keys		\
+			[efx->tc->meta_##_table.keys._field##_idx],	\
+			_value)
+
+#define TABLE_POPULATE_RESP_BOOL(dst, _table, _field, _value)			\
+	efx_mae_table_populate_bool(efx->tc->meta_##_table.desc.resps		\
+				    [efx->tc->meta_##_table.resps._field##_idx],\
+				    dst, efx->tc->meta_##_table.desc.resp_width,\
+				    _value)
+#define TABLE_POPULATE_RESP(dst, _table, _field, _value)		\
+	_TABLE_POPULATE(dst, efx->tc->meta_##_table.desc.resp_width,	\
+			efx->tc->meta_##_table.desc.resps		\
+			[efx->tc->meta_##_table.resps._field##_idx],	\
+			_value)
+
+#define TABLE_POPULATE_RESP_U24(dst, _table, _field, _value)		       \
+	efx_mae_table_populate_u24(efx->tc->meta_##_table.desc.resps	       \
+				   [efx->tc->meta_##_table.resps._field##_idx],\
+				   dst, efx->tc->meta_##_table.desc.resp_width,\
+				   _value)
+
+static int efx_mae_populate_ct_key(struct efx_nic *efx, __le32 *key, size_t kw,
+				   struct efx_tc_ct_entry *conn)
+{
+	bool ipv6 = conn->eth_proto == htons(ETH_P_IPV6);
+	int rc;
+
+	rc = TABLE_POPULATE_KEY(key, ct, eth_proto, conn->eth_proto);
+	if (rc)
+		return rc;
+	rc = TABLE_POPULATE_KEY(key, ct, ip_proto, conn->ip_proto);
+	if (rc)
+		return rc;
+	if (ipv6)
+		rc = TABLE_POPULATE_KEY(key, ct, src_ip, conn->src_ip6);
+	else
+		rc = TABLE_POPULATE_KEY_IPV4(key, ct, src_ip, conn->src_ip);
+	if (rc)
+		return rc;
+	if (ipv6)
+		rc = TABLE_POPULATE_KEY(key, ct, dst_ip, conn->dst_ip6);
+	else
+		rc = TABLE_POPULATE_KEY_IPV4(key, ct, dst_ip, conn->dst_ip);
+	if (rc)
+		return rc;
+	rc = TABLE_POPULATE_KEY(key, ct, l4_sport, conn->l4_sport);
+	if (rc)
+		return rc;
+	rc = TABLE_POPULATE_KEY(key, ct, l4_dport, conn->l4_dport);
+	if (rc)
+		return rc;
+	return TABLE_POPULATE_KEY(key, ct, zone, cpu_to_be16(conn->zone->zone));
+}
+
+int efx_mae_insert_ct(struct efx_nic *efx, struct efx_tc_ct_entry *conn)
+{
+	bool ipv6 = conn->eth_proto == htons(ETH_P_IPV6);
+	__le32 *key = NULL, *resp = NULL;
+	size_t inlen, kw, rw;
+	efx_dword_t *inbuf;
+	int rc = -ENOMEM;
+
+	/* Check table access is supported */
+	if (!efx->tc->meta_ct.hooked)
+		return -EOPNOTSUPP;
+
+	/* key/resp widths are in bits; convert to dwords for IN_LEN */
+	kw = DIV_ROUND_UP(efx->tc->meta_ct.desc.key_width, 32);
+	rw = DIV_ROUND_UP(efx->tc->meta_ct.desc.resp_width, 32);
+	BUILD_BUG_ON(sizeof(__le32) != MC_CMD_TABLE_INSERT_IN_DATA_LEN);
+	inlen = MC_CMD_TABLE_INSERT_IN_LEN(kw + rw);
+	if (inlen > MC_CMD_TABLE_INSERT_IN_LENMAX_MCDI2)
+		return -E2BIG;
+	inbuf = kzalloc(inlen, GFP_KERNEL);
+	if (!inbuf)
+		return -ENOMEM;
+
+	key = kcalloc(kw, sizeof(__le32), GFP_KERNEL);
+	if (!key)
+		goto out_free;
+	resp = kcalloc(rw, sizeof(__le32), GFP_KERNEL);
+	if (!resp)
+		goto out_free;
+
+	rc = efx_mae_populate_ct_key(efx, key, kw, conn);
+	if (rc)
+		goto out_free;
+
+	rc = TABLE_POPULATE_RESP_BOOL(resp, ct, dnat, conn->dnat);
+	if (rc)
+		goto out_free;
+	/* No support in hw for IPv6 NAT; field is only 32 bits */
+	if (!ipv6)
+		rc = TABLE_POPULATE_RESP(resp, ct, nat_ip, conn->nat_ip);
+	if (rc)
+		goto out_free;
+	rc = TABLE_POPULATE_RESP(resp, ct, l4_natport, conn->l4_natport);
+	if (rc)
+		goto out_free;
+	rc = TABLE_POPULATE_RESP(resp, ct, mark, cpu_to_be32(conn->mark));
+	if (rc)
+		goto out_free;
+	rc = TABLE_POPULATE_RESP_U24(resp, ct, counter_id, conn->cnt->fw_id);
+	if (rc)
+		goto out_free;
+
+	MCDI_SET_DWORD(inbuf, TABLE_INSERT_IN_TABLE_ID, TABLE_ID_CONNTRACK_TABLE);
+	MCDI_SET_WORD(inbuf, TABLE_INSERT_IN_KEY_WIDTH,
+		      efx->tc->meta_ct.desc.key_width);
+	/* MASK_WIDTH is zero as CT is a BCAM */
+	MCDI_SET_WORD(inbuf, TABLE_INSERT_IN_RESP_WIDTH,
+		      efx->tc->meta_ct.desc.resp_width);
+	memcpy(MCDI_PTR(inbuf, TABLE_INSERT_IN_DATA), key, kw * sizeof(__le32));
+	memcpy(MCDI_PTR(inbuf, TABLE_INSERT_IN_DATA) + kw * sizeof(__le32),
+	       resp, rw * sizeof(__le32));
+
+	BUILD_BUG_ON(MC_CMD_TABLE_INSERT_OUT_LEN);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_TABLE_INSERT, inbuf, inlen, NULL, 0, NULL);
+
+out_free:
+	kfree(resp);
+	kfree(key);
+	kfree(inbuf);
+	return rc;
+}
+
+int efx_mae_remove_ct(struct efx_nic *efx, struct efx_tc_ct_entry *conn)
+{
+	__le32 *key = NULL;
+	efx_dword_t *inbuf;
+	size_t inlen, kw;
+	int rc = -ENOMEM;
+
+	/* Check table access is supported */
+	if (!efx->tc->meta_ct.hooked)
+		return -EOPNOTSUPP;
+
+	/* key width is in bits; convert to dwords for IN_LEN */
+	kw = DIV_ROUND_UP(efx->tc->meta_ct.desc.key_width, 32);
+	BUILD_BUG_ON(sizeof(__le32) != MC_CMD_TABLE_DELETE_IN_DATA_LEN);
+	inlen = MC_CMD_TABLE_DELETE_IN_LEN(kw);
+	if (inlen > MC_CMD_TABLE_DELETE_IN_LENMAX_MCDI2)
+		return -E2BIG;
+	inbuf = kzalloc(inlen, GFP_KERNEL);
+	if (!inbuf)
+		return -ENOMEM;
+
+	key = kcalloc(kw, sizeof(__le32), GFP_KERNEL);
+	if (!key)
+		goto out_free;
+
+	rc = efx_mae_populate_ct_key(efx, key, kw, conn);
+	if (rc)
+		goto out_free;
+
+	MCDI_SET_DWORD(inbuf, TABLE_DELETE_IN_TABLE_ID, TABLE_ID_CONNTRACK_TABLE);
+	MCDI_SET_WORD(inbuf, TABLE_DELETE_IN_KEY_WIDTH,
+		      efx->tc->meta_ct.desc.key_width);
+	/* MASK_WIDTH is zero as CT is a BCAM */
+	/* RESP_WIDTH is zero for DELETE */
+	memcpy(MCDI_PTR(inbuf, TABLE_DELETE_IN_DATA), key, kw * sizeof(__le32));
+
+	BUILD_BUG_ON(MC_CMD_TABLE_DELETE_OUT_LEN);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_TABLE_DELETE, inbuf, inlen, NULL, 0, NULL);
+
+out_free:
+	kfree(key);
+	kfree(inbuf);
+	return rc;
 }
 
 static int efx_mae_populate_match_criteria(MCDI_DECLARE_STRUCT_PTR(match_crit),

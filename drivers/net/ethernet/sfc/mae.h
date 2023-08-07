@@ -112,6 +112,9 @@ int efx_mae_register_encap_match(struct efx_nic *efx,
 				 struct efx_tc_encap_match *encap);
 int efx_mae_unregister_encap_match(struct efx_nic *efx,
 				   struct efx_tc_encap_match *encap);
+struct efx_tc_ct_entry; /* see tc_conntrack.h */
+int efx_mae_insert_ct(struct efx_nic *efx, struct efx_tc_ct_entry *conn);
+int efx_mae_remove_ct(struct efx_nic *efx, struct efx_tc_ct_entry *conn);
 
 int efx_mae_insert_rule(struct efx_nic *efx, const struct efx_tc_match *match,
 			u32 prio, u32 acts_id, u32 *id);

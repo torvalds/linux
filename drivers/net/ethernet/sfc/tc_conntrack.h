@@ -33,5 +33,19 @@ struct efx_tc_ct_zone *efx_tc_ct_register_zone(struct efx_nic *efx, u16 zone,
 void efx_tc_ct_unregister_zone(struct efx_nic *efx,
 			       struct efx_tc_ct_zone *ct_zone);
 
+struct efx_tc_ct_entry {
+	unsigned long cookie;
+	struct rhash_head linkage;
+	__be16 eth_proto;
+	u8 ip_proto;
+	bool dnat;
+	__be32 src_ip, dst_ip, nat_ip;
+	struct in6_addr src_ip6, dst_ip6;
+	__be16 l4_sport, l4_dport, l4_natport; /* Ports (UDP, TCP) */
+	struct efx_tc_ct_zone *zone;
+	u32 mark;
+	struct efx_tc_counter *cnt;
+};
+
 #endif /* CONFIG_SFC_SRIOV */
 #endif /* EFX_TC_CONNTRACK_H */
