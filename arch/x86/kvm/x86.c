@@ -4646,7 +4646,6 @@ static int kvm_x86_dev_get_attr(struct kvm_device_attr *attr)
 		return 0;
 	default:
 		return -ENXIO;
-		break;
 	}
 }
 
