@@ -207,22 +207,22 @@ static void map_decision(struct selinux_map *map,
 
 		for (i = 0, result = 0; i < n; i++) {
 			if (avd->allowed & mapping->perms[i])
-				result |= 1<<i;
+				result |= (u32)1<<i;
 			if (allow_unknown && !mapping->perms[i])
-				result |= 1<<i;
+				result |= (u32)1<<i;
 		}
 		avd->allowed = result;
 
 		for (i = 0, result = 0; i < n; i++)
 			if (avd->auditallow & mapping->perms[i])
-				result |= 1<<i;
+				result |= (u32)1<<i;
 		avd->auditallow = result;
 
 		for (i = 0, result = 0; i < n; i++) {
 			if (avd->auditdeny & mapping->perms[i])
-				result |= 1<<i;
+				result |= (u32)1<<i;
 			if (!allow_unknown && !mapping->perms[i])
-				result |= 1<<i;
+				result |= (u32)1<<i;
 		}
 		/*
 		 * In case the kernel has a bug and requests a permission
@@ -230,7 +230,7 @@ static void map_decision(struct selinux_map *map,
 		 * should audit that denial
 		 */
 		for (; i < (sizeof(u32)*8); i++)
-			result |= 1<<i;
+			result |= (u32)1<<i;
 		avd->auditdeny = result;
 	}
 }
