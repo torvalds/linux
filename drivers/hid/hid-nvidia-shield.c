@@ -798,7 +798,8 @@ static inline int thunderstrike_led_create(struct thunderstrike *ts)
 {
 	struct led_classdev *led = &ts->led_dev;
 
-	led->name = "thunderstrike:blue:led";
+	led->name = devm_kasprintf(&ts->base.hdev->dev, GFP_KERNEL,
+				   "thunderstrike%d:blue:led", ts->id);
 	led->max_brightness = 1;
 	led->flags = LED_CORE_SUSPENDRESUME;
 	led->brightness_get = &thunderstrike_led_get_brightness;
