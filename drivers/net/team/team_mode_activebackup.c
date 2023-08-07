@@ -57,11 +57,10 @@ static void ab_port_leave(struct team *team, struct team_port *port)
 	}
 }
 
-static int ab_active_port_init(struct team *team,
-			       struct team_option_inst_info *info)
+static void ab_active_port_init(struct team *team,
+				struct team_option_inst_info *info)
 {
 	ab_priv(team)->ap_opt_inst_info = info;
-	return 0;
 }
 
 static int ab_active_port_get(struct team *team, struct team_gsetter_ctx *ctx)

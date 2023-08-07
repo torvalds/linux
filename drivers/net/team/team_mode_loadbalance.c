@@ -361,14 +361,13 @@ static int lb_tx_method_set(struct team *team, struct team_gsetter_ctx *ctx)
 	return 0;
 }
 
-static int lb_tx_hash_to_port_mapping_init(struct team *team,
-					   struct team_option_inst_info *info)
+static void lb_tx_hash_to_port_mapping_init(struct team *team,
+					    struct team_option_inst_info *info)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
 	unsigned char hash = info->array_index;
 
 	LB_HTPM_OPT_INST_INFO_BY_HASH(lb_priv, hash) = info;
-	return 0;
 }
 
 static int lb_tx_hash_to_port_mapping_get(struct team *team,
@@ -401,14 +400,13 @@ static int lb_tx_hash_to_port_mapping_set(struct team *team,
 	return -ENODEV;
 }
 
-static int lb_hash_stats_init(struct team *team,
-			      struct team_option_inst_info *info)
+static void lb_hash_stats_init(struct team *team,
+			       struct team_option_inst_info *info)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
 	unsigned char hash = info->array_index;
 
 	lb_priv->ex->stats.info[hash].opt_inst_info = info;
-	return 0;
 }
 
 static int lb_hash_stats_get(struct team *team, struct team_gsetter_ctx *ctx)
@@ -421,14 +419,13 @@ static int lb_hash_stats_get(struct team *team, struct team_gsetter_ctx *ctx)
 	return 0;
 }
 
-static int lb_port_stats_init(struct team *team,
-			      struct team_option_inst_info *info)
+static void lb_port_stats_init(struct team *team,
+			       struct team_option_inst_info *info)
 {
 	struct team_port *port = info->port;
 	struct lb_port_priv *lb_port_priv = get_lb_port_priv(port);
 
 	lb_port_priv->stats_info.opt_inst_info = info;
-	return 0;
 }
 
 static int lb_port_stats_get(struct team *team, struct team_gsetter_ctx *ctx)
