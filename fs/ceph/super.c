@@ -1681,6 +1681,11 @@ static const struct kernel_param_ops param_ops_mount_syntax = {
 module_param_cb(mount_syntax_v1, &param_ops_mount_syntax, &mount_support, 0444);
 module_param_cb(mount_syntax_v2, &param_ops_mount_syntax, &mount_support, 0444);
 
+bool enable_unsafe_idmap = false;
+module_param(enable_unsafe_idmap, bool, 0644);
+MODULE_PARM_DESC(enable_unsafe_idmap,
+		 "Allow to use idmapped mounts with MDS without CEPHFS_FEATURE_HAS_OWNER_UIDGID");
+
 module_init(init_ceph);
 module_exit(exit_ceph);
 

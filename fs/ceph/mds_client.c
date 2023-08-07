@@ -2928,6 +2928,8 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	int ret;
 	bool legacy = !(session->s_con.peer_features & CEPH_FEATURE_FS_BTIME);
 	u16 request_head_version = mds_supported_head_version(session);
+	kuid_t caller_fsuid = req->r_cred->fsuid;
+	kgid_t caller_fsgid = req->r_cred->fsgid;
 
 	ret = set_request_path_attr(mdsc, req->r_inode, req->r_dentry,
 			      req->r_parent, req->r_path1, req->r_ino1.ino,
@@ -3025,12 +3027,24 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	    !test_bit(CEPHFS_FEATURE_HAS_OWNER_UIDGID, &session->s_features)) {
 		WARN_ON_ONCE(!IS_CEPH_MDS_OP_NEWINODE(req->r_op));
 
-		pr_err_ratelimited_client(cl,
-			"idmapped mount is used and CEPHFS_FEATURE_HAS_OWNER_UIDGID"
-			" is not supported by MDS. Fail request with -EIO.\n");
+		if (enable_unsafe_idmap) {
+			pr_warn_once_client(cl,
+				"idmapped mount is used and CEPHFS_FEATURE_HAS_OWNER_UIDGID"
+				" is not supported by MDS. UID/GID-based restrictions may"
+				" not work properly.\n");
 
-		ret = -EIO;
-		goto out_err;
+			caller_fsuid = from_vfsuid(req->r_mnt_idmap, &init_user_ns,
+						   VFSUIDT_INIT(req->r_cred->fsuid));
+			caller_fsgid = from_vfsgid(req->r_mnt_idmap, &init_user_ns,
+						   VFSGIDT_INIT(req->r_cred->fsgid));
+		} else {
+			pr_err_ratelimited_client(cl,
+				"idmapped mount is used and CEPHFS_FEATURE_HAS_OWNER_UIDGID"
+				" is not supported by MDS. Fail request with -EIO.\n");
+
+			ret = -EIO;
+			goto out_err;
+		}
 	}
 
 	/*
@@ -3082,9 +3096,9 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	lhead->mdsmap_epoch = cpu_to_le32(mdsc->mdsmap->m_epoch);
 	lhead->op = cpu_to_le32(req->r_op);
 	lhead->caller_uid = cpu_to_le32(from_kuid(&init_user_ns,
-						  req->r_cred->fsuid));
+						  caller_fsuid));
 	lhead->caller_gid = cpu_to_le32(from_kgid(&init_user_ns,
-						  req->r_cred->fsgid));
+						  caller_fsgid));
 	lhead->ino = cpu_to_le64(req->r_deleg_ino);
 	lhead->args = req->r_args;
 
