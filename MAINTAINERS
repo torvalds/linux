@@ -8371,7 +8371,6 @@ L:	linuxppc-dev@lists.ozlabs.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/freescale/fs_enet/
-F:	include/linux/fs_enet_pd.h
 
 FREESCALE SOC SOUND DRIVERS
 M:	Shengjiu Wang <shengjiu.wang@gmail.com>
