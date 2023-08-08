@@ -468,10 +468,10 @@ done:
  * do_promote - promote as many requests as possible on the current queue
  * @gl: The glock
  * 
- * Returns: 1 if there is a blocked holder at the head of the list
+ * Returns true on success (i.e., progress was made or there are no waiters).
  */
 
-static int do_promote(struct gfs2_glock *gl)
+static bool do_promote(struct gfs2_glock *gl)
 {
 	struct gfs2_holder *gh, *current_gh;
 
@@ -484,10 +484,10 @@ static int do_promote(struct gfs2_glock *gl)
 			 * If we get here, it means we may not grant this
 			 * holder for some reason. If this holder is at the
 			 * head of the list, it means we have a blocked holder
-			 * at the head, so return 1.
+			 * at the head, so return false.
 			 */
 			if (list_is_first(&gh->gh_list, &gl->gl_holders))
-				return 1;
+				return false;
 			do_error(gl, 0);
 			break;
 		}
@@ -497,7 +497,7 @@ static int do_promote(struct gfs2_glock *gl)
 		if (!current_gh)
 			current_gh = gh;
 	}
-	return 0;
+	return true;
 }
 
 /**
@@ -834,7 +834,7 @@ __acquires(&gl->gl_lockref.lock)
 	} else {
 		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
 			gfs2_demote_wake(gl);
-		if (do_promote(gl) == 0)
+		if (do_promote(gl))
 			goto out_unlock;
 		gh = find_first_waiter(gl);
 		gl->gl_target = gh->gh_state;
