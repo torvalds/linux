@@ -1,6 +1,6 @@
-====================================
-Concurrency Managed Workqueue (cmwq)
-====================================
+=========
+Workqueue
+=========
 
 :Date: September, 2010
 :Author: Tejun Heo <tj@kernel.org>
@@ -25,8 +25,8 @@ there is no work item left on the workqueue the worker becomes idle.
 When a new work item gets queued, the worker begins executing again.
 
 
-Why cmwq?
-=========
+Why Concurrency Managed Workqueue?
+==================================
 
 In the original wq implementation, a multi threaded (MT) wq had one
 worker thread per CPU and a single threaded (ST) wq had one worker
@@ -406,6 +406,180 @@ directory.
   implications, for example, in terms of power consumption or workload
   isolation. Strict NUMA scope can also be used to match the workqueue
   behavior of older kernels.
+
+
+Affinity Scopes and Performance
+===============================
+
+It'd be ideal if an unbound workqueue's behavior is optimal for vast
+majority of use cases without further tuning. Unfortunately, in the current
+kernel, there exists a pronounced trade-off between locality and utilization
+necessitating explicit configurations when workqueues are heavily used.
+
+Higher locality leads to higher efficiency where more work is performed for
+the same number of consumed CPU cycles. However, higher locality may also
+cause lower overall system utilization if the work items are not spread
+enough across the affinity scopes by the issuers. The following performance
+testing with dm-crypt clearly illustrates this trade-off.
+
+The tests are run on a CPU with 12-cores/24-threads split across four L3
+caches (AMD Ryzen 9 3900x). CPU clock boost is turned off for consistency.
+``/dev/dm-0`` is a dm-crypt device created on NVME SSD (Samsung 990 PRO) and
+opened with ``cryptsetup`` with default settings.
+
+
+Scenario 1: Enough issuers and work spread across the machine
+-------------------------------------------------------------
+
+The command used: ::
+
+  $ fio --filename=/dev/dm-0 --direct=1 --rw=randrw --bs=32k --ioengine=libaio \
+    --iodepth=64 --runtime=60 --numjobs=24 --time_based --group_reporting \
+    --name=iops-test-job --verify=sha512
+
+There are 24 issuers, each issuing 64 IOs concurrently. ``--verify=sha512``
+makes ``fio`` generate and read back the content each time which makes
+execution locality matter between the issuer and ``kcryptd``. The followings
+are the read bandwidths and CPU utilizations depending on different affinity
+scope settings on ``kcryptd`` measured over five runs. Bandwidths are in
+MiBps, and CPU util in percents.
+
+.. list-table::
+   :widths: 16 20 20
+   :header-rows: 1
+
+   * - Affinity
+     - Bandwidth (MiBps)
+     - CPU util (%)
+
+   * - system
+     - 1159.40 ±1.34
+     - 99.31 ±0.02
+
+   * - cache
+     - 1166.40 ±0.89
+     - 99.34 ±0.01
+
+   * - cache (strict)
+     - 1166.00 ±0.71
+     - 99.35 ±0.01
+
+With enough issuers spread across the system, there is no downside to
+"cache", strict or otherwise. All three configurations saturate the whole
+machine but the cache-affine ones outperform by 0.6% thanks to improved
+locality.
+
+
+Scenario 2: Fewer issuers, enough work for saturation
+-----------------------------------------------------
+
+The command used: ::
+
+  $ fio --filename=/dev/dm-0 --direct=1 --rw=randrw --bs=32k \
+    --ioengine=libaio --iodepth=64 --runtime=60 --numjobs=8 \
+    --time_based --group_reporting --name=iops-test-job --verify=sha512
+
+The only difference from the previous scenario is ``--numjobs=8``. There are
+a third of the issuers but is still enough total work to saturate the
+system.
+
+.. list-table::
+   :widths: 16 20 20
+   :header-rows: 1
+
+   * - Affinity
+     - Bandwidth (MiBps)
+     - CPU util (%)
+
+   * - system
+     - 1155.40 ±0.89
+     - 97.41 ±0.05
+
+   * - cache
+     - 1154.40 ±1.14
+     - 96.15 ±0.09
+
+   * - cache (strict)
+     - 1112.00 ±4.64
+     - 93.26 ±0.35
+
+This is more than enough work to saturate the system. Both "system" and
+"cache" are nearly saturating the machine but not fully. "cache" is using
+less CPU but the better efficiency puts it at the same bandwidth as
+"system".
+
+Eight issuers moving around over four L3 cache scope still allow "cache
+(strict)" to mostly saturate the machine but the loss of work conservation
+is now starting to hurt with 3.7% bandwidth loss.
+
+
+Scenario 3: Even fewer issuers, not enough work to saturate
+-----------------------------------------------------------
+
+The command used: ::
+
+  $ fio --filename=/dev/dm-0 --direct=1 --rw=randrw --bs=32k \
+    --ioengine=libaio --iodepth=64 --runtime=60 --numjobs=4 \
+    --time_based --group_reporting --name=iops-test-job --verify=sha512
+
+Again, the only difference is ``--numjobs=4``. With the number of issuers
+reduced to four, there now isn't enough work to saturate the whole system
+and the bandwidth becomes dependent on completion latencies.
+
+.. list-table::
+   :widths: 16 20 20
+   :header-rows: 1
+
+   * - Affinity
+     - Bandwidth (MiBps)
+     - CPU util (%)
+
+   * - system
+     - 993.60 ±1.82
+     - 75.49 ±0.06
+
+   * - cache
+     - 973.40 ±1.52
+     - 74.90 ±0.07
+
+   * - cache (strict)
+     - 828.20 ±4.49
+     - 66.84 ±0.29
+
+Now, the tradeoff between locality and utilization is clearer. "cache" shows
+2% bandwidth loss compared to "system" and "cache (struct)" whopping 20%.
+
+
+Conclusion and Recommendations
+------------------------------
+
+In the above experiments, the efficiency advantage of the "cache" affinity
+scope over "system" is, while consistent and noticeable, small. However, the
+impact is dependent on the distances between the scopes and may be more
+pronounced in processors with more complex topologies.
+
+While the loss of work-conservation in certain scenarios hurts, it is a lot
+better than "cache (strict)" and maximizing workqueue utilization is
+unlikely to be the common case anyway. As such, "cache" is the default
+affinity scope for unbound pools.
+
+* As there is no one option which is great for most cases, workqueue usages
+  that may consume a significant amount of CPU are recommended to configure
+  the workqueues using ``apply_workqueue_attrs()`` and/or enable
+  ``WQ_SYSFS``.
+
+* An unbound workqueue with strict "cpu" affinity scope behaves the same as
+  ``WQ_CPU_INTENSIVE`` per-cpu workqueue. There is no real advanage to the
+  latter and an unbound workqueue provides a lot more flexibility.
+
+* Affinity scopes are introduced in Linux v6.5. To emulate the previous
+  behavior, use strict "numa" affinity scope.
+
+* The loss of work-conservation in non-strict affinity scopes is likely
+  originating from the scheduler. There is no theoretical reason why the
+  kernel wouldn't be able to do the right thing and maintain
+  work-conservation in most cases. As such, it is possible that future
+  scheduler improvements may make most of these tunables unnecessary.
 
 
 Examining Configuration
