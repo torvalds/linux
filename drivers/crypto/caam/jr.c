@@ -464,8 +464,16 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	 * Guarantee that the descriptor's DMA address has been written to
 	 * the next slot in the ring before the write index is updated, since
 	 * other cores may update this index independently.
+	 *
+	 * Under heavy DDR load, smp_wmb() or dma_wmb() fail to make the input
+	 * ring be updated before the CAAM starts reading it. So, CAAM will
+	 * process, again, an old descriptor address and will put it in the
+	 * output ring. This will make caam_jr_dequeue() to fail, since this
+	 * old descriptor is not in the software ring.
+	 * To fix this, use wmb() which works on the full system instead of
+	 * inner/outer shareable domains.
 	 */
-	smp_wmb();
+	wmb();
 
 	jrp->head = (head + 1) & (JOBR_DEPTH - 1);
 
