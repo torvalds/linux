@@ -80,6 +80,7 @@ struct apic apic_noop __ro_after_init = {
 
 	.phys_pkg_id			= noop_phys_pkg_id,
 
+	.max_apic_id			= 0xFE,
 	.get_apic_id			= noop_get_apic_id,
 	.set_apic_id			= NULL,
 

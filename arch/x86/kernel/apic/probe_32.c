@@ -47,6 +47,7 @@ static struct apic apic_default __ro_after_init = {
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
 	.phys_pkg_id			= default_phys_pkg_id,
 
+	.max_apic_id			= 0xFE,
 	.get_apic_id			= default_get_apic_id,
 	.set_apic_id			= NULL,
 
