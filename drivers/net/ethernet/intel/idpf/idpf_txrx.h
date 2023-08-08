@@ -72,6 +72,12 @@ do {								\
 	}							\
 } while (0)
 
+#define IDPF_SINGLEQ_BUMP_RING_IDX(q, idx)			\
+do {								\
+	if (unlikely(++(idx) == (q)->desc_count))		\
+		idx = 0;					\
+} while (0)
+
 #define IDPF_RX_HDR_SIZE			256
 #define IDPF_RX_BUF_2048			2048
 #define IDPF_RX_BUF_4096			4096
@@ -101,6 +107,10 @@ do {								\
 	(&(((struct virtchnl2_splitq_rx_buf_desc *)((rxq)->desc_ring))[i]))
 #define IDPF_SPLITQ_RX_BI_DESC(rxq, i) ((((rxq)->ring))[i])
 
+#define IDPF_BASE_TX_DESC(txq, i)	\
+	(&(((struct idpf_base_tx_desc *)((txq)->desc_ring))[i]))
+#define IDPF_BASE_TX_CTX_DESC(txq, i) \
+	(&(((struct idpf_base_tx_ctx_desc *)((txq)->desc_ring))[i]))
 #define IDPF_SPLITQ_TX_COMPLQ_DESC(txcq, i)	\
 	(&(((struct idpf_splitq_tx_compl_desc *)((txcq)->desc_ring))[i]))
 
@@ -136,6 +146,9 @@ do {								\
 #define IDPF_TXD_LAST_DESC_CMD (IDPF_TX_DESC_CMD_EOP | IDPF_TX_DESC_CMD_RS)
 
 #define IDPF_TX_FLAGS_TSO		BIT(0)
+#define IDPF_TX_FLAGS_IPV4		BIT(1)
+#define IDPF_TX_FLAGS_IPV6		BIT(2)
+#define IDPF_TX_FLAGS_TUNNEL		BIT(3)
 
 union idpf_tx_flex_desc {
 	struct idpf_flex_tx_desc q; /* queue based scheduling */
@@ -199,6 +212,8 @@ struct idpf_buf_lifo {
 /**
  * struct idpf_tx_offload_params - Offload parameters for a given packet
  * @tx_flags: Feature flags enabled for this packet
+ * @hdr_offsets: Offset parameter for single queue model
+ * @cd_tunneling: Type of tunneling enabled for single queue model
  * @tso_len: Total length of payload to segment
  * @mss: Segment size
  * @tso_segs: Number of segments to be sent
@@ -207,6 +222,9 @@ struct idpf_buf_lifo {
  */
 struct idpf_tx_offload_params {
 	u32 tx_flags;
+
+	u32 hdr_offsets;
+	u32 cd_tunneling;
 
 	u32 tso_len;
 	u16 mss;
@@ -235,6 +253,13 @@ struct idpf_tx_splitq_params {
 	struct idpf_tx_offload_params offload;
 };
 
+enum idpf_tx_ctx_desc_eipt_offload {
+	IDPF_TX_CTX_EXT_IP_NONE         = 0x0,
+	IDPF_TX_CTX_EXT_IP_IPV6         = 0x1,
+	IDPF_TX_CTX_EXT_IP_IPV4_NO_CSUM = 0x2,
+	IDPF_TX_CTX_EXT_IP_IPV4         = 0x3
+};
+
 /* Checksum offload bits decoded from the receive descriptor. */
 struct idpf_rx_csum_decoded {
 	u32 l3l4p : 1;
@@ -247,6 +272,11 @@ struct idpf_rx_csum_decoded {
 	u32 nat : 1;
 	u32 raw_csum_inv : 1;
 	u32 raw_csum : 16;
+};
+
+struct idpf_rx_extracted {
+	unsigned int size;
+	u16 rx_ptype;
 };
 
 #define IDPF_TX_COMPLQ_CLEAN_BUDGET	256
@@ -832,6 +862,25 @@ static inline u32 idpf_size_to_txd_count(unsigned int size)
 	return DIV_ROUND_UP(size, IDPF_TX_MAX_DESC_DATA_ALIGNED);
 }
 
+/**
+ * idpf_tx_singleq_build_ctob - populate command tag offset and size
+ * @td_cmd: Command to be filled in desc
+ * @td_offset: Offset to be filled in desc
+ * @size: Size of the buffer
+ * @td_tag: td tag to be filled
+ *
+ * Returns the 64 bit value populated with the input parameters
+ */
+static inline __le64 idpf_tx_singleq_build_ctob(u64 td_cmd, u64 td_offset,
+						unsigned int size, u64 td_tag)
+{
+	return cpu_to_le64(IDPF_TX_DESC_DTYPE_DATA |
+			   (td_cmd << IDPF_TXD_QW1_CMD_S) |
+			   (td_offset << IDPF_TXD_QW1_OFFSET_S) |
+			   ((u64)size << IDPF_TXD_QW1_TX_BUF_SZ_S) |
+			   (td_tag << IDPF_TXD_QW1_L2TAG1_S));
+}
+
 void idpf_tx_splitq_build_ctb(union idpf_tx_flex_desc *desc,
 			      struct idpf_tx_splitq_params *params,
 			      u16 td_cmd, u16 size);
@@ -921,17 +970,38 @@ int idpf_vport_queues_alloc(struct idpf_vport *vport);
 void idpf_vport_queues_rel(struct idpf_vport *vport);
 void idpf_vport_intr_rel(struct idpf_vport *vport);
 int idpf_vport_intr_alloc(struct idpf_vport *vport);
+void idpf_vport_intr_update_itr_ena_irq(struct idpf_q_vector *q_vector);
 void idpf_vport_intr_deinit(struct idpf_vport *vport);
 int idpf_vport_intr_init(struct idpf_vport *vport);
+enum pkt_hash_types idpf_ptype_to_htype(const struct idpf_rx_ptype_decoded *decoded);
 int idpf_config_rss(struct idpf_vport *vport);
 int idpf_init_rss(struct idpf_vport *vport);
 void idpf_deinit_rss(struct idpf_vport *vport);
 int idpf_rx_bufs_init_all(struct idpf_vport *vport);
+void idpf_rx_add_frag(struct idpf_rx_buf *rx_buf, struct sk_buff *skb,
+		      unsigned int size);
+struct sk_buff *idpf_rx_construct_skb(struct idpf_queue *rxq,
+				      struct idpf_rx_buf *rx_buf,
+				      unsigned int size);
 bool idpf_init_rx_buf_hw_alloc(struct idpf_queue *rxq, struct idpf_rx_buf *buf);
 void idpf_rx_buf_hw_update(struct idpf_queue *rxq, u32 val);
+void idpf_tx_buf_hw_update(struct idpf_queue *tx_q, u32 val,
+			   bool xmit_more);
+unsigned int idpf_size_to_txd_count(unsigned int size);
+netdev_tx_t idpf_tx_drop_skb(struct idpf_queue *tx_q, struct sk_buff *skb);
+void idpf_tx_dma_map_error(struct idpf_queue *txq, struct sk_buff *skb,
+			   struct idpf_tx_buf *first, u16 ring_idx);
+unsigned int idpf_tx_desc_count_required(struct idpf_queue *txq,
+					 struct sk_buff *skb);
+bool idpf_chk_linearize(struct sk_buff *skb, unsigned int max_bufs,
+			unsigned int count);
+int idpf_tx_maybe_stop_common(struct idpf_queue *tx_q, unsigned int size);
 netdev_tx_t idpf_tx_splitq_start(struct sk_buff *skb,
 				 struct net_device *netdev);
+netdev_tx_t idpf_tx_singleq_start(struct sk_buff *skb,
+				  struct net_device *netdev);
 bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_queue *rxq,
 				      u16 cleaned_count);
+int idpf_tso(struct sk_buff *skb, struct idpf_tx_offload_params *off);
 
 #endif /* !_IDPF_TXRX_H_ */

@@ -2893,6 +2893,8 @@ void idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q)
 	idpf_vport_calc_num_q_desc(vport);
 	idpf_vport_calc_num_q_groups(vport);
 	idpf_vport_alloc_vec_indexes(vport);
+
+	vport->crc_enable = adapter->crc_enable;
 }
 
 /**

@@ -133,6 +133,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	case IDPF_DEV_ID_VF:
 		idpf_vf_dev_ops_init(adapter);
+		adapter->crc_enable = true;
 		break;
 	default:
 		err = -ENODEV;

@@ -14,6 +14,7 @@ struct idpf_vport_max_q;
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
 #include <linux/bitfield.h>
+#include <linux/sctp.h>
 #include <net/gro.h>
 #include <linux/dim.h>
 
@@ -280,6 +281,7 @@ enum idpf_vport_flags {
  * @txq_grps: Array of TX queue groups
  * @txq_model: Split queue or single queue queuing model
  * @txqs: Used only in hotpath to get to the right queue very fast
+ * @crc_enable: Enable CRC insertion offload
  * @num_rxq: Number of allocated RX queues
  * @num_bufq: Number of allocated buffer queues
  * @rxq_desc_count: RX queue descriptor count. *MUST* have enough descriptors
@@ -326,6 +328,7 @@ struct idpf_vport {
 	struct idpf_txq_group *txq_grps;
 	u32 txq_model;
 	struct idpf_queue **txqs;
+	bool crc_enable;
 
 	u16 num_rxq;
 	u16 num_bufq;
@@ -534,6 +537,9 @@ struct idpf_vport_config {
  * @vc_state: Virtchnl message state
  * @vc_msg: Virtchnl message buffer
  * @dev_ops: See idpf_dev_ops
+ * @num_vfs: Number of allocated VFs through sysfs. PF does not directly talk
+ *	     to VFs but is used to initialize them
+ * @crc_enable: Enable CRC insertion offload
  * @req_tx_splitq: TX split or single queue model to request
  * @req_rx_splitq: RX split or single queue model to request
  * @vport_ctrl_lock: Lock to protect the vport control flow
@@ -587,6 +593,8 @@ struct idpf_adapter {
 	DECLARE_BITMAP(vc_state, IDPF_VC_NBITS);
 	char vc_msg[IDPF_CTLQ_MAX_BUF_LEN];
 	struct idpf_dev_ops dev_ops;
+	int num_vfs;
+	bool crc_enable;
 	bool req_tx_splitq;
 	bool req_rx_splitq;
 
@@ -848,5 +856,7 @@ int idpf_send_create_vport_msg(struct idpf_adapter *adapter,
 			       struct idpf_vport_max_q *max_q);
 int idpf_check_supported_desc_ids(struct idpf_vport *vport);
 int idpf_send_map_unmap_queue_vector_msg(struct idpf_vport *vport, bool map);
+int idpf_send_set_sriov_vfs_msg(struct idpf_adapter *adapter, u16 num_vfs);
+int idpf_sriov_configure(struct pci_dev *pdev, int num_vfs);
 
 #endif /* !_IDPF_H_ */

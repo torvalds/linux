@@ -64,6 +64,32 @@ enum idpf_rss_hash {
 #define IDPF_TXD_COMPLQ_QID_S		0
 #define IDPF_TXD_COMPLQ_QID_M		GENMASK_ULL(9, 0)
 
+/* For base mode TX descriptors */
+
+#define IDPF_TXD_CTX_QW0_TUNN_L4T_CS_S	23
+#define IDPF_TXD_CTX_QW0_TUNN_L4T_CS_M	BIT_ULL(IDPF_TXD_CTX_QW0_TUNN_L4T_CS_S)
+#define IDPF_TXD_CTX_QW0_TUNN_DECTTL_S	19
+#define IDPF_TXD_CTX_QW0_TUNN_DECTTL_M	\
+	(0xFULL << IDPF_TXD_CTX_QW0_TUNN_DECTTL_S)
+#define IDPF_TXD_CTX_QW0_TUNN_NATLEN_S	12
+#define IDPF_TXD_CTX_QW0_TUNN_NATLEN_M	\
+	(0X7FULL << IDPF_TXD_CTX_QW0_TUNN_NATLEN_S)
+#define IDPF_TXD_CTX_QW0_TUNN_EIP_NOINC_S	11
+#define IDPF_TXD_CTX_QW0_TUNN_EIP_NOINC_M    \
+	BIT_ULL(IDPF_TXD_CTX_QW0_TUNN_EIP_NOINC_S)
+#define IDPF_TXD_CTX_EIP_NOINC_IPID_CONST	\
+	IDPF_TXD_CTX_QW0_TUNN_EIP_NOINC_M
+#define IDPF_TXD_CTX_QW0_TUNN_NATT_S	        9
+#define IDPF_TXD_CTX_QW0_TUNN_NATT_M	(0x3ULL << IDPF_TXD_CTX_QW0_TUNN_NATT_S)
+#define IDPF_TXD_CTX_UDP_TUNNELING	BIT_ULL(IDPF_TXD_CTX_QW0_TUNN_NATT_S)
+#define IDPF_TXD_CTX_GRE_TUNNELING	(0x2ULL << IDPF_TXD_CTX_QW0_TUNN_NATT_S)
+#define IDPF_TXD_CTX_QW0_TUNN_EXT_IPLEN_S	2
+#define IDPF_TXD_CTX_QW0_TUNN_EXT_IPLEN_M	\
+	(0x3FULL << IDPF_TXD_CTX_QW0_TUNN_EXT_IPLEN_S)
+#define IDPF_TXD_CTX_QW0_TUNN_EXT_IP_S	0
+#define IDPF_TXD_CTX_QW0_TUNN_EXT_IP_M	\
+	(0x3ULL << IDPF_TXD_CTX_QW0_TUNN_EXT_IP_S)
+
 #define IDPF_TXD_CTX_QW1_MSS_S		50
 #define IDPF_TXD_CTX_QW1_MSS_M		GENMASK_ULL(63, 50)
 #define IDPF_TXD_CTX_QW1_TSO_LEN_S	30
@@ -112,6 +138,27 @@ enum idpf_tx_desc_dtype_value {
 	IDPF_TX_DESC_DTYPE_DESC_DONE			= 15,
 };
 
+enum idpf_tx_ctx_desc_cmd_bits {
+	IDPF_TX_CTX_DESC_TSO		= 0x01,
+	IDPF_TX_CTX_DESC_TSYN		= 0x02,
+	IDPF_TX_CTX_DESC_IL2TAG2	= 0x04,
+	IDPF_TX_CTX_DESC_RSVD		= 0x08,
+	IDPF_TX_CTX_DESC_SWTCH_NOTAG	= 0x00,
+	IDPF_TX_CTX_DESC_SWTCH_UPLINK	= 0x10,
+	IDPF_TX_CTX_DESC_SWTCH_LOCAL	= 0x20,
+	IDPF_TX_CTX_DESC_SWTCH_VSI	= 0x30,
+	IDPF_TX_CTX_DESC_FILT_AU_EN	= 0x40,
+	IDPF_TX_CTX_DESC_FILT_AU_EVICT	= 0x80,
+	IDPF_TX_CTX_DESC_RSVD1		= 0xF00
+};
+
+enum idpf_tx_desc_len_fields {
+	/* Note: These are predefined bit offsets */
+	IDPF_TX_DESC_LEN_MACLEN_S	= 0, /* 7 BITS */
+	IDPF_TX_DESC_LEN_IPLEN_S	= 7, /* 7 BITS */
+	IDPF_TX_DESC_LEN_L4_LEN_S	= 14 /* 4 BITS */
+};
+
 enum idpf_tx_base_desc_cmd_bits {
 	IDPF_TX_DESC_CMD_EOP			= BIT(0),
 	IDPF_TX_DESC_CMD_RS			= BIT(1),
@@ -147,6 +194,16 @@ struct idpf_splitq_tx_compl_desc {
 	u8 ts[3];
 	u8 rsvd; /* Reserved */
 }; /* writeback used with completion queues */
+
+/* Context descriptors */
+struct idpf_base_tx_ctx_desc {
+	struct {
+		__le32 tunneling_params;
+		__le16 l2tag2;
+		__le16 rsvd1;
+	} qw0;
+	__le64 qw1; /* type_cmd_tlen_mss/rt_hint */
+};
 
 /* Common cmd field defines for all desc except Flex Flow Scheduler (0x0C) */
 enum idpf_tx_flex_desc_cmd_bits {

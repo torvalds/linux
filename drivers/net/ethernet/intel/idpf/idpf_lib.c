@@ -1565,4 +1565,5 @@ static const struct net_device_ops idpf_netdev_ops_splitq = {
 static const struct net_device_ops idpf_netdev_ops_singleq = {
 	.ndo_open = idpf_open,
 	.ndo_stop = idpf_stop,
+	.ndo_start_xmit = idpf_tx_singleq_start,
 };
