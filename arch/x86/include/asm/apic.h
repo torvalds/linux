@@ -359,6 +359,11 @@ static inline void apic_eoi(void)
 	apic->eoi();
 }
 
+static inline void apic_native_eoi(void)
+{
+	apic->native_eoi();
+}
+
 static inline u64 apic_icr_read(void)
 {
 	return apic->icr_read();
@@ -397,6 +402,7 @@ static inline void apic_icr_write(u32 low, u32 high) { }
 static inline void apic_wait_icr_idle(void) { }
 static inline u32 safe_apic_wait_icr_idle(void) { return 0; }
 static inline void apic_set_eoi_cb(void (*eoi)(void)) {}
+static inline void apic_native_eoi(void) { WARN_ON_ONCE(1); }
 
 #endif /* CONFIG_X86_LOCAL_APIC */
 

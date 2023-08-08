@@ -343,7 +343,7 @@ static notrace void kvm_guest_apic_eoi_write(void)
 	 */
 	if (__test_and_clear_bit(KVM_PV_EOI_BIT, this_cpu_ptr(&kvm_apic_eoi)))
 		return;
-	apic->native_eoi();
+	apic_native_eoi();
 }
 
 static void kvm_guest_cpu_init(void)
