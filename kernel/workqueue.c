@@ -3678,6 +3678,15 @@ static void copy_workqueue_attrs(struct workqueue_attrs *to,
 	to->ordered = from->ordered;
 }
 
+/*
+ * Some attrs fields are workqueue-only. Clear them for worker_pool's. See the
+ * comments in 'struct workqueue_attrs' definition.
+ */
+static void wqattrs_clear_for_pool(struct workqueue_attrs *attrs)
+{
+	attrs->ordered = false;
+}
+
 /* hash value of the content of @attr */
 static u32 wqattrs_hash(const struct workqueue_attrs *attrs)
 {
@@ -3752,6 +3761,9 @@ static int init_worker_pool(struct worker_pool *pool)
 	pool->attrs = alloc_workqueue_attrs();
 	if (!pool->attrs)
 		return -ENOMEM;
+
+	wqattrs_clear_for_pool(pool->attrs);
+
 	return 0;
 }
 
@@ -3942,14 +3954,10 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 	if (!pool || init_worker_pool(pool) < 0)
 		goto fail;
 
-	copy_workqueue_attrs(pool->attrs, attrs);
 	pool->node = target_pod;
 
-	/*
-	 * ordered isn't a worker_pool attribute, always clear it.  See
-	 * 'struct workqueue_attrs' comments for detail.
-	 */
-	pool->attrs->ordered = false;
+	copy_workqueue_attrs(pool->attrs, attrs);
+	wqattrs_clear_for_pool(pool->attrs);
 
 	if (worker_pool_assign_id(pool) < 0)
 		goto fail;
