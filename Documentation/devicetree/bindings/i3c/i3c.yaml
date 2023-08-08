@@ -55,6 +55,11 @@ properties:
 
       May not be supported by all controllers.
 
+  bus-context:
+    description: |
+      The bus context byte value stated in:
+      https://www.mipi.org/MIPI_I3C_bus_context_byte_values_public.html
+
 required:
   - "#address-cells"
   - "#size-cells"
