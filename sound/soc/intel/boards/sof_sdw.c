@@ -1380,12 +1380,6 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		if (cpu_dai_id[i] != ffs(adr_link_next->mask) - 1)
 			continue;
 
-		/* sanity check */
-		if (*codec_conf_index + adr_link_next->num_adr - adr_index > codec_count) {
-			dev_err(dev, "codec_conf: out-of-bounds access requested\n");
-			return -EINVAL;
-		}
-
 		for (j = adr_index; j < adr_link_next->num_adr; j++) {
 			int codec_index;
 			u64 adr = adr_link_next->adr_d[j].adr;
@@ -1398,6 +1392,12 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 				break;
 			}
 			_codec_index = codec_index;
+
+			/* sanity check */
+			if (*codec_conf_index >= codec_count) {
+				dev_err(dev, "codec_conf array overflowed\n");
+				return -EINVAL;
+			}
 
 			ret = fill_sdw_codec_dlc(dev, adr_link_next,
 						 &codecs[codec_dlc_index],
