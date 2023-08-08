@@ -193,7 +193,7 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 {
 	return is_kdump_kernel() ?
 		MLX5E_MIN_NUM_CHANNELS :
-		min_t(int, mlx5_comp_vectors_count(mdev), MLX5E_MAX_NUM_CHANNELS);
+		min_t(int, mlx5_comp_vectors_max(mdev), MLX5E_MAX_NUM_CHANNELS);
 }
 
 /* The maximum WQE size can be retrieved by max_wqe_sz_sq in

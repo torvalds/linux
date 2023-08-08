@@ -375,7 +375,6 @@ esw_setup_indir_table(struct mlx5_flow_destination *dest,
 		      struct mlx5_flow_act *flow_act,
 		      struct mlx5_eswitch *esw,
 		      struct mlx5_flow_attr *attr,
-		      bool ignore_flow_lvl,
 		      int *i)
 {
 	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
@@ -385,8 +384,7 @@ esw_setup_indir_table(struct mlx5_flow_destination *dest,
 		return -EOPNOTSUPP;
 
 	for (j = esw_attr->split_count; j < esw_attr->out_count; j++, (*i)++) {
-		if (ignore_flow_lvl)
-			flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+		flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 		dest[*i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 
 		dest[*i].ft = mlx5_esw_indir_table_get(esw, attr,
@@ -569,7 +567,7 @@ esw_setup_dests(struct mlx5_flow_destination *dest,
 		err = esw_setup_mtu_dest(dest, &attr->meter_attr, *i);
 		(*i)++;
 	} else if (esw_is_indir_table(esw, attr)) {
-		err = esw_setup_indir_table(dest, flow_act, esw, attr, true, i);
+		err = esw_setup_indir_table(dest, flow_act, esw, attr, i);
 	} else if (esw_is_chain_src_port_rewrite(esw, esw_attr)) {
 		err = esw_setup_chain_src_port_rewrite(dest, flow_act, esw, chains, attr, i);
 	} else {
