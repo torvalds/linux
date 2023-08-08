@@ -142,13 +142,13 @@ struct workqueue_attrs {
 	cpumask_var_t cpumask;
 
 	/**
-	 * @no_numa: disable NUMA affinity
+	 * @ordered: work items must be executed one by one in queueing order
 	 *
-	 * Unlike other fields, ``no_numa`` isn't a property of a worker_pool. It
+	 * Unlike other fields, ``ordered`` isn't a property of a worker_pool. It
 	 * only modifies how :c:func:`apply_workqueue_attrs` select pools and thus
 	 * doesn't participate in pool hash calculations or equality comparisons.
 	 */
-	bool no_numa;
+	bool ordered;
 };
 
 static inline struct delayed_work *to_delayed_work(struct work_struct *work)

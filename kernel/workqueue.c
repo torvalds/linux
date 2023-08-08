@@ -3672,10 +3672,10 @@ static void copy_workqueue_attrs(struct workqueue_attrs *to,
 	cpumask_copy(to->cpumask, from->cpumask);
 	/*
 	 * Unlike hash and equality test, this function doesn't ignore
-	 * ->no_numa as it is used for both pool and wq attrs.  Instead,
-	 * get_unbound_pool() explicitly clears ->no_numa after copying.
+	 * ->ordered as it is used for both pool and wq attrs.  Instead,
+	 * get_unbound_pool() explicitly clears ->ordered after copying.
 	 */
-	to->no_numa = from->no_numa;
+	to->ordered = from->ordered;
 }
 
 /* hash value of the content of @attr */
@@ -3933,10 +3933,10 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 	pool->node = target_node;
 
 	/*
-	 * no_numa isn't a worker_pool attribute, always clear it.  See
+	 * ordered isn't a worker_pool attribute, always clear it.  See
 	 * 'struct workqueue_attrs' comments for detail.
 	 */
-	pool->attrs->no_numa = false;
+	pool->attrs->ordered = false;
 
 	if (worker_pool_assign_id(pool) < 0)
 		goto fail;
@@ -4141,7 +4141,7 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
 static void wq_calc_node_cpumask(const struct workqueue_attrs *attrs, int node,
 				 int cpu_going_down, cpumask_t *cpumask)
 {
-	if (!wq_numa_enabled || attrs->no_numa)
+	if (!wq_numa_enabled || attrs->ordered)
 		goto use_dfl;
 
 	/* does @node have any online CPUs @attrs wants? */
@@ -4253,7 +4253,7 @@ apply_wqattrs_prepare(struct workqueue_struct *wq,
 		goto out_free;
 
 	for_each_possible_cpu(cpu) {
-		if (new_attrs->no_numa) {
+		if (new_attrs->ordered) {
 			ctx->dfl_pwq->refcnt++;
 			ctx->pwq_tbl[cpu] = ctx->dfl_pwq;
 		} else {
@@ -4411,7 +4411,7 @@ static void wq_update_unbound_numa(struct workqueue_struct *wq, int cpu,
 	lockdep_assert_held(&wq_pool_mutex);
 
 	if (!wq_numa_enabled || !(wq->flags & WQ_UNBOUND) ||
-	    wq->unbound_attrs->no_numa)
+	    wq->unbound_attrs->ordered)
 		return;
 
 	/*
@@ -6358,11 +6358,10 @@ void __init workqueue_init_early(void)
 		/*
 		 * An ordered wq should have only one pwq as ordering is
 		 * guaranteed by max_active which is enforced by pwqs.
-		 * Turn off NUMA so that dfl_pwq is used for all nodes.
 		 */
 		BUG_ON(!(attrs = alloc_workqueue_attrs()));
 		attrs->nice = std_nice[i];
-		attrs->no_numa = true;
+		attrs->ordered = true;
 		ordered_wq_attrs[i] = attrs;
 	}
 
