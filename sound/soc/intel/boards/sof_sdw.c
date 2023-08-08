@@ -1387,7 +1387,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		}
 
 		for (j = adr_index; j < adr_link_next->num_adr; j++) {
-			int codec_index, comp_index;
+			int codec_index;
 			u64 adr = adr_link_next->adr_d[j].adr;
 
 			codec_index = find_codec_info_part(adr);
@@ -1399,24 +1399,22 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 			}
 			_codec_index = codec_index;
 
-			comp_index = j - adr_index + codec_dlc_index;
-
 			ret = fill_sdw_codec_dlc(dev, adr_link_next,
-						 &codecs[comp_index],
+						 &codecs[codec_dlc_index],
 						 codec_index, j, dai_index);
 			if (ret)
 				return ret;
 
-			codec_conf[*codec_conf_index].dlc = codecs[comp_index];
+			codec_conf[*codec_conf_index].dlc = codecs[codec_dlc_index];
 			codec_conf[*codec_conf_index].name_prefix =
 					adr_link_next->adr_d[j].name_prefix;
 
+			codec_dlc_index++;
 			(*codec_conf_index)++;
 		}
 
 		/* check next link to create codec dai in the processed group */
 		i++;
-		codec_dlc_index += adr_link_next->num_adr;
 	}
 
 	/* find codec info to create BE DAI */
