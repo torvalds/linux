@@ -3215,6 +3215,7 @@ static const struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
 };
 
 static const struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
+	.probe		= wm8994_aif2_probe,
 	.set_sysclk	= wm8994_set_dai_sysclk,
 	.set_fmt	= wm8994_set_dai_fmt,
 	.hw_params	= wm8994_hw_params,
@@ -3269,7 +3270,6 @@ static struct snd_soc_dai_driver wm8994_dai[] = {
 			.formats = WM8994_FORMATS,
 			.sig_bits = 24,
 		},
-		.probe = wm8994_aif2_probe,
 		.ops = &wm8994_aif2_dai_ops,
 	},
 	{
