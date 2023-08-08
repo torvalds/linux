@@ -220,17 +220,16 @@ resources, scheduled and executed.
 ``max_active``
 --------------
 
-``@max_active`` determines the maximum number of execution contexts
-per CPU which can be assigned to the work items of a wq.  For example,
-with ``@max_active`` of 16, at most 16 work items of the wq can be
-executing at the same time per CPU.
+``@max_active`` determines the maximum number of execution contexts per
+CPU which can be assigned to the work items of a wq. For example, with
+``@max_active`` of 16, at most 16 work items of the wq can be executing
+at the same time per CPU. This is always a per-CPU attribute, even for
+unbound workqueues.
 
-Currently, for a bound wq, the maximum limit for ``@max_active`` is
-512 and the default value used when 0 is specified is 256.  For an
-unbound wq, the limit is higher of 512 and 4 *
-``num_possible_cpus()``.  These values are chosen sufficiently high
-such that they are not the limiting factor while providing protection
-in runaway cases.
+The maximum limit for ``@max_active`` is 512 and the default value used
+when 0 is specified is 256. These values are chosen sufficiently high
+such that they are not the limiting factor while providing protection in
+runaway cases.
 
 The number of active work items of a wq is usually regulated by the
 users of the wq, more specifically, by how many work items the users

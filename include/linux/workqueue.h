@@ -343,13 +343,9 @@ enum {
 	__WQ_ORDERED_EXPLICIT	= 1 << 19, /* internal: alloc_ordered_workqueue() */
 
 	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
-	WQ_MAX_UNBOUND_PER_CPU	= 4,	  /* 4 * #cpus for unbound wq */
+	WQ_UNBOUND_MAX_ACTIVE	= WQ_MAX_ACTIVE,
 	WQ_DFL_ACTIVE		= WQ_MAX_ACTIVE / 2,
 };
-
-/* unbound wq's aren't per-cpu, scale max_active according to #cpus */
-#define WQ_UNBOUND_MAX_ACTIVE	\
-	max_t(int, WQ_MAX_ACTIVE, num_possible_cpus() * WQ_MAX_UNBOUND_PER_CPU)
 
 /*
  * System-wide workqueues which are always present.
@@ -391,7 +387,7 @@ extern struct workqueue_struct *system_freezable_power_efficient_wq;
  * alloc_workqueue - allocate a workqueue
  * @fmt: printf format for the name of the workqueue
  * @flags: WQ_* flags
- * @max_active: max in-flight work items, 0 for default
+ * @max_active: max in-flight work items per CPU, 0 for default
  * remaining args: args for @fmt
  *
  * Allocate a workqueue with the specified parameters.  For detailed
