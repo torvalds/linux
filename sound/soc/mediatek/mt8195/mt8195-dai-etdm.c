@@ -2456,25 +2456,6 @@ static int mtk_dai_hdmitx_dptx_set_sysclk(struct snd_soc_dai *dai,
 	return mtk_dai_etdm_cal_mclk(afe, freq, dai->id);
 }
 
-static const struct snd_soc_dai_ops mtk_dai_etdm_ops = {
-	.startup = mtk_dai_etdm_startup,
-	.shutdown = mtk_dai_etdm_shutdown,
-	.hw_params = mtk_dai_etdm_hw_params,
-	.trigger = mtk_dai_etdm_trigger,
-	.set_sysclk = mtk_dai_etdm_set_sysclk,
-	.set_fmt = mtk_dai_etdm_set_fmt,
-	.set_tdm_slot = mtk_dai_etdm_set_tdm_slot,
-};
-
-static const struct snd_soc_dai_ops mtk_dai_hdmitx_dptx_ops = {
-	.startup	= mtk_dai_hdmitx_dptx_startup,
-	.shutdown	= mtk_dai_hdmitx_dptx_shutdown,
-	.hw_params	= mtk_dai_hdmitx_dptx_hw_params,
-	.trigger	= mtk_dai_hdmitx_dptx_trigger,
-	.set_sysclk	= mtk_dai_hdmitx_dptx_set_sysclk,
-	.set_fmt	= mtk_dai_etdm_set_fmt,
-};
-
 /* dai driver */
 #define MTK_ETDM_RATES (SNDRV_PCM_RATE_8000_384000)
 
@@ -2505,6 +2486,36 @@ static int mtk_dai_etdm_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops mtk_dai_hdmitx_dptx_ops = {
+	.startup	= mtk_dai_hdmitx_dptx_startup,
+	.shutdown	= mtk_dai_hdmitx_dptx_shutdown,
+	.hw_params	= mtk_dai_hdmitx_dptx_hw_params,
+	.trigger	= mtk_dai_hdmitx_dptx_trigger,
+	.set_sysclk	= mtk_dai_hdmitx_dptx_set_sysclk,
+	.set_fmt	= mtk_dai_etdm_set_fmt,
+};
+
+static const struct snd_soc_dai_ops mtk_dai_hdmitx_dptx_ops2 = {
+	.probe		= mtk_dai_etdm_probe,
+	.startup	= mtk_dai_hdmitx_dptx_startup,
+	.shutdown	= mtk_dai_hdmitx_dptx_shutdown,
+	.hw_params	= mtk_dai_hdmitx_dptx_hw_params,
+	.trigger	= mtk_dai_hdmitx_dptx_trigger,
+	.set_sysclk	= mtk_dai_hdmitx_dptx_set_sysclk,
+	.set_fmt	= mtk_dai_etdm_set_fmt,
+};
+
+static const struct snd_soc_dai_ops mtk_dai_etdm_ops = {
+	.probe		= mtk_dai_etdm_probe,
+	.startup	= mtk_dai_etdm_startup,
+	.shutdown	= mtk_dai_etdm_shutdown,
+	.hw_params	= mtk_dai_etdm_hw_params,
+	.trigger	= mtk_dai_etdm_trigger,
+	.set_sysclk	= mtk_dai_etdm_set_sysclk,
+	.set_fmt	= mtk_dai_etdm_set_fmt,
+	.set_tdm_slot	= mtk_dai_etdm_set_tdm_slot,
+};
+
 static struct snd_soc_dai_driver mtk_dai_etdm_driver[] = {
 	{
 		.name = "DPTX",
@@ -2529,7 +2540,6 @@ static struct snd_soc_dai_driver mtk_dai_etdm_driver[] = {
 			.formats = MTK_ETDM_FORMATS,
 		},
 		.ops = &mtk_dai_etdm_ops,
-		.probe = mtk_dai_etdm_probe,
 	},
 	{
 		.name = "ETDM2_IN",
@@ -2542,7 +2552,6 @@ static struct snd_soc_dai_driver mtk_dai_etdm_driver[] = {
 			.formats = MTK_ETDM_FORMATS,
 		},
 		.ops = &mtk_dai_etdm_ops,
-		.probe = mtk_dai_etdm_probe,
 	},
 	{
 		.name = "ETDM1_OUT",
@@ -2555,7 +2564,6 @@ static struct snd_soc_dai_driver mtk_dai_etdm_driver[] = {
 			.formats = MTK_ETDM_FORMATS,
 		},
 		.ops = &mtk_dai_etdm_ops,
-		.probe = mtk_dai_etdm_probe,
 	},
 	{
 		.name = "ETDM2_OUT",
@@ -2568,7 +2576,6 @@ static struct snd_soc_dai_driver mtk_dai_etdm_driver[] = {
 			.formats = MTK_ETDM_FORMATS,
 		},
 		.ops = &mtk_dai_etdm_ops,
-		.probe = mtk_dai_etdm_probe,
 	},
 	{
 		.name = "ETDM3_OUT",
@@ -2580,8 +2587,7 @@ static struct snd_soc_dai_driver mtk_dai_etdm_driver[] = {
 			.rates = MTK_ETDM_RATES,
 			.formats = MTK_ETDM_FORMATS,
 		},
-		.ops = &mtk_dai_hdmitx_dptx_ops,
-		.probe = mtk_dai_etdm_probe,
+		.ops = &mtk_dai_hdmitx_dptx_ops2,
 	},
 };
 
