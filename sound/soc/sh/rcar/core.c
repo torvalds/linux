@@ -1085,17 +1085,6 @@ static u64 rsnd_soc_dai_formats[] = {
 	SND_SOC_POSSIBLE_DAIFMT_DSP_B,
 };
 
-static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
-	.startup	= rsnd_soc_dai_startup,
-	.shutdown	= rsnd_soc_dai_shutdown,
-	.trigger	= rsnd_soc_dai_trigger,
-	.set_fmt	= rsnd_soc_dai_set_fmt,
-	.set_tdm_slot	= rsnd_soc_set_dai_tdm_slot,
-	.prepare	= rsnd_soc_dai_prepare,
-	.auto_selectable_formats	= rsnd_soc_dai_formats,
-	.num_auto_selectable_formats	= ARRAY_SIZE(rsnd_soc_dai_formats),
-};
-
 static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 				      struct rsnd_dai_stream *io,
 				      struct device_node *dai_np)
@@ -1355,8 +1344,7 @@ static int rsnd_preallocate_pages(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd,
-			struct snd_soc_dai *dai)
+static int rsnd_soc_dai_pcm_new(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	int ret;
@@ -1381,6 +1369,18 @@ static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd,
 
 	return 0;
 }
+
+static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
+	.pcm_new			= rsnd_soc_dai_pcm_new,
+	.startup			= rsnd_soc_dai_startup,
+	.shutdown			= rsnd_soc_dai_shutdown,
+	.trigger			= rsnd_soc_dai_trigger,
+	.set_fmt			= rsnd_soc_dai_set_fmt,
+	.set_tdm_slot			= rsnd_soc_set_dai_tdm_slot,
+	.prepare			= rsnd_soc_dai_prepare,
+	.auto_selectable_formats	= rsnd_soc_dai_formats,
+	.num_auto_selectable_formats	= ARRAY_SIZE(rsnd_soc_dai_formats),
+};
 
 static void __rsnd_dai_probe(struct rsnd_priv *priv,
 			     struct device_node *dai_np,
@@ -1411,7 +1411,6 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	rdai->priv	= priv;
 	drv->name	= rdai->name;
 	drv->ops	= &rsnd_soc_dai_ops;
-	drv->pcm_new	= rsnd_pcm_new;
 	drv->id		= dai_i;
 	drv->dai_args	= &rdai->dai_args;
 
