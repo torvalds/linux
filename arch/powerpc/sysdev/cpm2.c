@@ -37,7 +37,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/mpc8260.h>
 #include <asm/page.h>
 #include <asm/cpm2.h>
 #include <asm/rheap.h>

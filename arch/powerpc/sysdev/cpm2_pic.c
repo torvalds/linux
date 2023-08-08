@@ -33,7 +33,6 @@
 #include <linux/irqdomain.h>
 
 #include <asm/immap_cpm2.h>
-#include <asm/mpc8260.h>
 #include <asm/io.h>
 #include <asm/fs_pd.h>
 

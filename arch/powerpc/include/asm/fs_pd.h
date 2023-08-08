@@ -17,10 +17,6 @@
 #ifdef CONFIG_CPM2
 #include <asm/cpm2.h>
 
-#if defined(CONFIG_8260)
-#include <asm/mpc8260.h>
-#endif
-
 #define cpm2_map(member) (&cpm2_immr->member)
 #define cpm2_map_size(member, size) (&cpm2_immr->member)
 #define cpm2_unmap(addr) do {} while(0)
