@@ -1632,10 +1632,6 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	if (!sdw_be_num)
 		goto SSP;
 
-	adr_link = mach_params->links;
-	if (!adr_link)
-		return -EINVAL;
-
 	for (i = 0; i < SDW_MAX_LINKS; i++)
 		sdw_pin_index[i] = SDW_INTEL_BIDIR_PDI_BASE;
 
