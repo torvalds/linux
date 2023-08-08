@@ -123,43 +123,41 @@ static int xen_cpu_present_to_apicid(int cpu)
 		return BAD_APICID;
 }
 
-static struct apic xen_pv_apic = {
-	.name 				= "Xen PV",
-	.probe 				= xen_apic_probe_pv,
+static struct apic xen_pv_apic __ro_after_init = {
+	.name				= "Xen PV",
+	.probe				= xen_apic_probe_pv,
 	.acpi_madt_oem_check		= xen_madt_oem_check,
 
 	/* .delivery_mode and .dest_mode_logical not used by XENPV */
 
 	.disable_esr			= 0,
 
-	.check_apicid_used		= default_check_apicid_used, /* Used on 32-bit */
-	.ioapic_phys_id_map		= default_ioapic_phys_id_map, /* Used on 32-bit */
 	.cpu_present_to_apicid		= xen_cpu_present_to_apicid,
 	.phys_pkg_id			= xen_phys_pkg_id, /* detect_ht */
 
 	.max_apic_id			= UINT_MAX,
-	.get_apic_id 			= xen_get_apic_id,
-	.set_apic_id 			= xen_set_apic_id, /* Can be NULL on 32-bit. */
+	.get_apic_id			= xen_get_apic_id,
+	.set_apic_id			= xen_set_apic_id,
 
 	.calc_dest_apicid		= apic_flat_calc_apicid,
 
 #ifdef CONFIG_SMP
-	.send_IPI_mask 			= xen_send_IPI_mask,
-	.send_IPI_mask_allbutself 	= xen_send_IPI_mask_allbutself,
-	.send_IPI_allbutself 		= xen_send_IPI_allbutself,
-	.send_IPI_all 			= xen_send_IPI_all,
-	.send_IPI_self 			= xen_send_IPI_self,
+	.send_IPI_mask			= xen_send_IPI_mask,
+	.send_IPI_mask_allbutself	= xen_send_IPI_mask_allbutself,
+	.send_IPI_allbutself		= xen_send_IPI_allbutself,
+	.send_IPI_all			= xen_send_IPI_all,
+	.send_IPI_self			= xen_send_IPI_self,
 #endif
 	.read				= xen_apic_read,
 	.write				= xen_apic_write,
 	.eoi				= xen_apic_eoi,
 
-	.icr_read 			= xen_apic_icr_read,
-	.icr_write 			= xen_apic_icr_write,
+	.icr_read			= xen_apic_icr_read,
+	.icr_write			= xen_apic_icr_write,
 };
+apic_driver(xen_pv_apic);
 
 void __init xen_init_apic(void)
 {
 	x86_apic_ops.io_apic_read = xen_io_apic_read;
 }
-apic_driver(xen_pv_apic);
