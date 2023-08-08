@@ -21,12 +21,6 @@ extern void efi_init(void);
 int efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md);
 int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md, bool);
 
-#define arch_efi_call_virt_setup()      ({		\
-		sync_kernel_mappings(efi_mm.pgd);	\
-		efi_virtmap_load();			\
-	})
-#define arch_efi_call_virt_teardown()   efi_virtmap_unload()
-
 #define ARCH_EFI_IRQ_FLAGS_MASK (SR_IE | SR_SPIE)
 
 /* Load initrd anywhere in system RAM */
@@ -46,8 +40,8 @@ static inline unsigned long efi_get_kimg_min_align(void)
 
 #define EFI_KIMG_PREFERRED_ADDRESS	efi_get_kimg_min_align()
 
-void efi_virtmap_load(void);
-void efi_virtmap_unload(void);
+void arch_efi_call_virt_setup(void);
+void arch_efi_call_virt_teardown(void);
 
 unsigned long stext_offset(void);
 
