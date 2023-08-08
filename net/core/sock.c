@@ -1277,14 +1277,19 @@ set_sndbuf:
 		break;
 
 	case SO_RCVLOWAT:
+		{
+		int (*set_rcvlowat)(struct sock *sk, int val) = NULL;
+
 		if (val < 0)
 			val = INT_MAX;
-		if (sock && sock->ops->set_rcvlowat)
-			ret = sock->ops->set_rcvlowat(sk, val);
+		if (sock)
+			set_rcvlowat = READ_ONCE(sock->ops)->set_rcvlowat;
+		if (set_rcvlowat)
+			ret = set_rcvlowat(sk, val);
 		else
 			WRITE_ONCE(sk->sk_rcvlowat, val ? : 1);
 		break;
-
+		}
 	case SO_RCVTIMEO_OLD:
 	case SO_RCVTIMEO_NEW:
 		ret = sock_set_timeout(&sk->sk_rcvtimeo, optval,
@@ -1379,11 +1384,16 @@ set_sndbuf:
 		break;
 
 	case SO_PEEK_OFF:
-		if (sock->ops->set_peek_off)
-			ret = sock->ops->set_peek_off(sk, val);
+		{
+		int (*set_peek_off)(struct sock *sk, int val);
+
+		set_peek_off = READ_ONCE(sock->ops)->set_peek_off;
+		if (set_peek_off)
+			ret = set_peek_off(sk, val);
 		else
 			ret = -EOPNOTSUPP;
 		break;
+		}
 
 	case SO_NOFCS:
 		sock_valbool_flag(sk, SOCK_NOFCS, valbool);
@@ -1816,7 +1826,7 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 	{
 		struct sockaddr_storage address;
 
-		lv = sock->ops->getname(sock, (struct sockaddr *)&address, 2);
+		lv = READ_ONCE(sock->ops)->getname(sock, (struct sockaddr *)&address, 2);
 		if (lv < 0)
 			return -ENOTCONN;
 		if (lv < len)
@@ -1858,7 +1868,7 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case SO_PEEK_OFF:
-		if (!sock->ops->set_peek_off)
+		if (!READ_ONCE(sock->ops)->set_peek_off)
 			return -EOPNOTSUPP;
 
 		v.val = READ_ONCE(sk->sk_peek_off);

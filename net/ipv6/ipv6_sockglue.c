@@ -474,8 +474,8 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 				WRITE_ONCE(sk->sk_prot, &tcp_prot);
 				/* Paired with READ_ONCE() in tcp_(get|set)sockopt() */
 				WRITE_ONCE(icsk->icsk_af_ops, &ipv4_specific);
-				sk->sk_socket->ops = &inet_stream_ops;
-				sk->sk_family = PF_INET;
+				WRITE_ONCE(sk->sk_socket->ops, &inet_stream_ops);
+				WRITE_ONCE(sk->sk_family, PF_INET);
 				tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 			} else {
 				struct proto *prot = &udp_prot;
@@ -488,8 +488,8 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 				/* Paired with READ_ONCE(sk->sk_prot) in inet6_dgram_ops */
 				WRITE_ONCE(sk->sk_prot, prot);
-				sk->sk_socket->ops = &inet_dgram_ops;
-				sk->sk_family = PF_INET;
+				WRITE_ONCE(sk->sk_socket->ops, &inet_dgram_ops);
+				WRITE_ONCE(sk->sk_family, PF_INET);
 			}
 
 			/* Disable all options not to allocate memory anymore,

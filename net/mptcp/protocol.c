@@ -67,11 +67,11 @@ static bool mptcp_is_tcpsk(struct sock *sk)
 		 * Hand the socket over to tcp so all further socket ops
 		 * bypass mptcp.
 		 */
-		sock->ops = &inet_stream_ops;
+		WRITE_ONCE(sock->ops, &inet_stream_ops);
 		return true;
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	} else if (unlikely(sk->sk_prot == &tcpv6_prot)) {
-		sock->ops = &inet6_stream_ops;
+		WRITE_ONCE(sock->ops, &inet6_stream_ops);
 		return true;
 #endif
 	}
@@ -3683,7 +3683,7 @@ static int mptcp_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto unlock;
 	}
 
-	err = ssock->ops->bind(ssock, uaddr, addr_len);
+	err = READ_ONCE(ssock->ops)->bind(ssock, uaddr, addr_len);
 	if (!err)
 		mptcp_copy_inaddrs(sock->sk, ssock->sk);
 
@@ -3717,7 +3717,7 @@ static int mptcp_listen(struct socket *sock, int backlog)
 	inet_sk_state_store(sk, TCP_LISTEN);
 	sock_set_flag(sk, SOCK_RCU_FREE);
 
-	err = ssock->ops->listen(ssock, backlog);
+	err = READ_ONCE(ssock->ops)->listen(ssock, backlog);
 	inet_sk_state_store(sk, inet_sk_state_load(ssock->sk));
 	if (!err) {
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
