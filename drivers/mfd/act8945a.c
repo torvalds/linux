@@ -68,7 +68,7 @@ MODULE_DEVICE_TABLE(of, act8945a_of_match);
 static struct i2c_driver act8945a_i2c_driver = {
 	.driver = {
 		   .name = "act8945a",
-		   .of_match_table = of_match_ptr(act8945a_of_match),
+		   .of_match_table = act8945a_of_match,
 	},
 	.probe = act8945a_i2c_probe,
 	.id_table = act8945a_i2c_id,
