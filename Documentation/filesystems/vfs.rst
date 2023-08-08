@@ -1074,7 +1074,6 @@ This describes how the VFS can manipulate an open file.  As of kernel
 		ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
 		ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 		int (*iopoll)(struct kiocb *kiocb, bool spin);
-		int (*iterate) (struct file *, struct dir_context *);
 		int (*iterate_shared) (struct file *, struct dir_context *);
 		__poll_t (*poll) (struct file *, struct poll_table_struct *);
 		long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
@@ -1126,12 +1125,8 @@ otherwise noted.
 ``iopoll``
 	called when aio wants to poll for completions on HIPRI iocbs
 
-``iterate``
-	called when the VFS needs to read the directory contents
-
 ``iterate_shared``
-	called when the VFS needs to read the directory contents when
-	filesystem supports concurrent dir iterators
+	called when the VFS needs to read the directory contents
 
 ``poll``
 	called by the VFS when a process wants to check if there is
