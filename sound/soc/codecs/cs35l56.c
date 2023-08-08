@@ -952,6 +952,12 @@ int cs35l56_system_resume(struct device *dev)
 
 	dev_dbg(dev, "system_resume\n");
 
+	/*
+	 * We might have done a hard reset or the CS35L56 was power-cycled
+	 * so wait for control port to be ready.
+	 */
+	cs35l56_wait_control_port_ready();
+
 	/* Undo pm_runtime_force_suspend() before re-enabling the irq */
 	ret = pm_runtime_force_resume(dev);
 	if (cs35l56->base.irq)
