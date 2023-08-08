@@ -371,48 +371,48 @@ void __init apic_install_driver(struct apic *driver);
 		pr_info("APIC: %s() replaced with %ps()\n", #_callback, _fn);	\
 }
 
-static inline u32 apic_read(u32 reg)
+static __always_inline u32 apic_read(u32 reg)
 {
 	return apic->read(reg);
 }
 
-static inline void apic_write(u32 reg, u32 val)
+static __always_inline void apic_write(u32 reg, u32 val)
 {
 	apic->write(reg, val);
 }
 
-static inline void apic_eoi(void)
+static __always_inline void apic_eoi(void)
 {
 	apic->eoi();
 }
 
-static inline void apic_native_eoi(void)
+static __always_inline void apic_native_eoi(void)
 {
 	apic->native_eoi();
 }
 
-static inline u64 apic_icr_read(void)
+static __always_inline u64 apic_icr_read(void)
 {
 	return apic->icr_read();
 }
 
-static inline void apic_icr_write(u32 low, u32 high)
+static __always_inline void apic_icr_write(u32 low, u32 high)
 {
 	apic->icr_write(low, high);
 }
 
-static inline void apic_wait_icr_idle(void)
+static __always_inline void apic_wait_icr_idle(void)
 {
 	if (apic->wait_icr_idle)
 		apic->wait_icr_idle();
 }
 
-static inline u32 safe_apic_wait_icr_idle(void)
+static __always_inline u32 safe_apic_wait_icr_idle(void)
 {
 	return apic->safe_wait_icr_idle ? apic->safe_wait_icr_idle() : 0;
 }
 
-static inline bool apic_id_valid(u32 apic_id)
+static __always_inline bool apic_id_valid(u32 apic_id)
 {
 	return apic_id <= apic->max_apic_id;
 }
