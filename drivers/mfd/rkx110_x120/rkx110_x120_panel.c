@@ -21,14 +21,156 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "rkx110_x120.h"
 #include "rkx120_dsi_tx.h"
 
-static inline struct rk_serdes_panel *to_serdes_panel(struct drm_panel *panel)
+static inline struct rk_serdes_panel *drm_panel_to_serdes_panel(struct drm_panel *panel)
 {
 	return container_of(panel, struct rk_serdes_panel, panel);
 }
+
+static inline struct rk_serdes_panel *drm_bridge_to_serdes_panel(struct drm_bridge *bridge)
+{
+	return container_of(bridge, struct rk_serdes_panel, bridge);
+}
+
+static inline struct rk_serdes_panel *drm_connector_to_serdes_panel(struct drm_connector *connector)
+{
+	return container_of(connector, struct rk_serdes_panel, connector);
+}
+
+static int serdes_connector_get_modes(struct drm_connector *connector)
+{
+	struct rk_serdes_panel *sd_panel = drm_connector_to_serdes_panel(connector);
+
+	return drm_panel_get_modes(&sd_panel->panel, connector);
+}
+
+static const struct drm_connector_helper_funcs
+rk_serdes_connector_helper_funcs = {
+	.get_modes = serdes_connector_get_modes,
+};
+
+enum drm_connector_status
+serdes_connector_detect(struct drm_connector *connector, bool force)
+{
+	struct rk_serdes_panel *sd_panel = drm_connector_to_serdes_panel(connector);
+
+	return drm_bridge_detect(&sd_panel->bridge);
+}
+
+static const struct drm_connector_funcs rk_serdes_connector_funcs = {
+	.detect = serdes_connector_detect,
+	.reset = drm_atomic_helper_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+static int rk_serdes_bridge_attach(struct drm_bridge *bridge,
+				  enum drm_bridge_attach_flags flags)
+{
+	struct rk_serdes_panel *sd_panel = drm_bridge_to_serdes_panel(bridge);
+	struct drm_connector *connector = &sd_panel->connector;
+	int ret;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+		return 0;
+
+	if (!bridge->encoder) {
+		dev_err(sd_panel->dev, "Missing encoder\n");
+		return -ENODEV;
+	}
+
+	connector->polled |= DRM_CONNECTOR_POLL_HPD;
+	drm_connector_helper_add(connector,
+				 &rk_serdes_connector_helper_funcs);
+
+	ret = drm_connector_init(bridge->dev, connector,
+				 &rk_serdes_connector_funcs,
+				 sd_panel->connector_type);
+	if (ret) {
+		dev_err(sd_panel->dev, "Failed to initialize connector\n");
+		return ret;
+	}
+
+	drm_connector_attach_encoder(&sd_panel->connector, bridge->encoder);
+
+	return 0;
+}
+
+static void rk_serdes_bridge_detach(struct drm_bridge *bridge)
+{
+	struct rk_serdes_panel *sd_panel = drm_bridge_to_serdes_panel(bridge);
+	struct drm_connector *connector = &sd_panel->connector;
+
+	/*
+	 * Cleanup the connector if we know it was initialized.
+	 */
+	if (connector->dev)
+		drm_connector_cleanup(connector);
+}
+
+static void rk_serdes_bridge_pre_enable(struct drm_bridge *bridge)
+{
+	struct rk_serdes_panel *sd_panel = drm_bridge_to_serdes_panel(bridge);
+
+	drm_panel_prepare(&sd_panel->panel);
+}
+
+static void rk_serdes_bridge_enable(struct drm_bridge *bridge)
+{
+	struct rk_serdes_panel *sd_panel = drm_bridge_to_serdes_panel(bridge);
+
+	drm_panel_enable(&sd_panel->panel);
+}
+
+static void rk_serdes_bridge_disable(struct drm_bridge *bridge)
+{
+	struct rk_serdes_panel *sd_panel = drm_bridge_to_serdes_panel(bridge);
+
+	drm_panel_disable(&sd_panel->panel);
+}
+
+static void rk_serdes_bridge_post_disable(struct drm_bridge *bridge)
+{
+	struct rk_serdes_panel *sd_panel = drm_bridge_to_serdes_panel(bridge);
+
+	drm_panel_unprepare(&sd_panel->panel);
+}
+
+static int rk_serdes_bridge_get_modes(struct drm_bridge *bridge,
+				      struct drm_connector *connector)
+{
+	struct rk_serdes_panel *sd_panel = drm_bridge_to_serdes_panel(bridge);
+
+	return drm_panel_get_modes(&sd_panel->panel, connector);
+}
+
+static enum drm_connector_status rk_serdes_bridge_detect(struct drm_bridge *bridge)
+{
+	return connector_status_connected;
+}
+
+static const struct drm_bridge_funcs panel_bridge_bridge_funcs = {
+	.attach = rk_serdes_bridge_attach,
+	.detach = rk_serdes_bridge_detach,
+	.pre_enable = rk_serdes_bridge_pre_enable,
+	.enable = rk_serdes_bridge_enable,
+	.disable = rk_serdes_bridge_disable,
+	.post_disable = rk_serdes_bridge_post_disable,
+	.get_modes = rk_serdes_bridge_get_modes,
+	.detect = rk_serdes_bridge_detect,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_get_input_bus_fmts = drm_atomic_helper_bridge_propagate_bus_fmt,
+};
 
 static int serdes_panel_hw_prepare(struct rk_serdes_panel *sd_panel)
 {
@@ -76,7 +218,7 @@ static int serdes_panel_dsi_prepare(struct rk_serdes_panel *sd_panel)
 
 static int serdes_panel_prepare(struct drm_panel *panel)
 {
-	struct rk_serdes_panel *sd_panel = to_serdes_panel(panel);
+	struct rk_serdes_panel *sd_panel = drm_panel_to_serdes_panel(panel);
 	struct rk_serdes *serdes = sd_panel->parent;
 	int ret;
 
@@ -101,7 +243,7 @@ static int serdes_panel_prepare(struct drm_panel *panel)
 
 static int serdes_panel_enable(struct drm_panel *panel)
 {
-	struct rk_serdes_panel *sd_panel = to_serdes_panel(panel);
+	struct rk_serdes_panel *sd_panel = drm_panel_to_serdes_panel(panel);
 	struct rk_serdes *serdes = sd_panel->parent;
 	int ret;
 
@@ -121,7 +263,7 @@ static int serdes_panel_enable(struct drm_panel *panel)
 
 static int serdes_panel_disable(struct drm_panel *panel)
 {
-	struct rk_serdes_panel *sd_panel = to_serdes_panel(panel);
+	struct rk_serdes_panel *sd_panel = drm_panel_to_serdes_panel(panel);
 	struct rk_serdes *serdes = sd_panel->parent;
 	int ret;
 
@@ -176,7 +318,7 @@ static int serdes_panel_dsi_unprepare(struct rk_serdes_panel *sd_panel)
 
 static int serdes_panel_unprepare(struct drm_panel *panel)
 {
-	struct rk_serdes_panel *sd_panel = to_serdes_panel(panel);
+	struct rk_serdes_panel *sd_panel = drm_panel_to_serdes_panel(panel);
 	struct rk_serdes *serdes = sd_panel->parent;
 
 	serdes_panel_dsi_unprepare(sd_panel);
@@ -250,7 +392,7 @@ static int serdes_panel_of_get_native_mode(struct rk_serdes_panel *sd_panel,
 static int serdes_panel_get_modes(struct drm_panel *panel,
 				struct drm_connector *connector)
 {
-	struct rk_serdes_panel *sd_panel = to_serdes_panel(panel);
+	struct rk_serdes_panel *sd_panel = drm_panel_to_serdes_panel(panel);
 	int num = 0;
 
 	num += serdes_panel_of_get_native_mode(sd_panel, connector);
@@ -267,6 +409,52 @@ static const struct drm_panel_funcs serdes_panel_funcs = {
 	.unprepare = serdes_panel_unprepare,
 	.get_modes = serdes_panel_get_modes,
 };
+
+static void rk_serdes_panel_get_connector_type(struct rk_serdes_panel *sd_panel)
+{
+	struct rk_serdes_route *route = &sd_panel->route;
+	u32 local_port;
+
+	if (route->local_port0)
+		local_port = route->local_port0;
+	else
+		local_port = route->local_port1;
+
+	if ((local_port == RK_SERDES_DSI_RX0) ||
+	    (local_port == RK_SERDES_DSI_RX1))
+		sd_panel->connector_type = DRM_MODE_CONNECTOR_DSI;
+	else if (local_port == RK_SERDES_RGB_RX)
+		sd_panel->connector_type = DRM_MODE_CONNECTOR_DPI;
+	else
+		sd_panel->connector_type = DRM_MODE_CONNECTOR_LVDS;
+}
+
+static int rk_serdes_panel_bridge_add(struct rk_serdes_panel *sd_panel)
+{
+	int ret;
+
+	rk_serdes_panel_get_connector_type(sd_panel);
+
+	sd_panel->bridge.funcs = &panel_bridge_bridge_funcs;
+	sd_panel->bridge.of_node = sd_panel->dev->of_node;
+	sd_panel->bridge.ops = DRM_BRIDGE_OP_MODES | DRM_BRIDGE_OP_DETECT;
+	sd_panel->bridge.type = sd_panel->connector_type;
+
+	drm_panel_init(&sd_panel->panel, sd_panel->dev, &serdes_panel_funcs, 0);
+
+	ret = drm_panel_of_backlight(&sd_panel->panel);
+	if (ret)
+		return ret;
+
+	drm_bridge_add(&sd_panel->bridge);
+
+	return 0;
+}
+
+static void rk_serdes_panel_bridge_remove(struct rk_serdes_panel *sd_panel)
+{
+	drm_bridge_remove(&sd_panel->bridge);
+}
 
 static int
 dsi_panel_parse_cmds(struct device *dev, const u8 *data,
@@ -661,20 +849,15 @@ static int serdes_panel_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Register the panel. */
-	drm_panel_init(&sd_panel->panel, sd_panel->dev, &serdes_panel_funcs, 0);
-
-	ret = drm_panel_of_backlight(&sd_panel->panel);
+	ret = rk_serdes_panel_bridge_add(sd_panel);
 	if (ret)
 		return ret;
-
-	drm_panel_add(&sd_panel->panel);
 
 	if ((sd_panel->route.local_port0 & RK_SERDES_DSI_RX0 ||
 	    sd_panel->route.local_port0 & RK_SERDES_DSI_RX1) && sd_panel->id == 0) {
 		ret = rkx110_dsi_rx_parse(sd_panel);
 		if (ret < 0) {
-			drm_panel_remove(&sd_panel->panel);
+			rk_serdes_panel_bridge_remove(sd_panel);
 			return ret;
 		}
 	}
@@ -683,7 +866,7 @@ static int serdes_panel_probe(struct platform_device *pdev)
 		sd_panel->route.local_port1 & RK_SERDES_DSI_RX1) && sd_panel->id == 1) {
 		ret = rkx110_dsi_rx_parse(sd_panel);
 		if (ret < 0) {
-			drm_panel_remove(&sd_panel->panel);
+			rk_serdes_panel_bridge_remove(sd_panel);
 			return ret;
 		}
 	}
@@ -713,7 +896,7 @@ static int serdes_panel_remove(struct platform_device *pdev)
 {
 	struct rk_serdes_panel *sd_panel = dev_get_drvdata(&pdev->dev);
 
-	drm_panel_remove(&sd_panel->panel);
+	rk_serdes_panel_bridge_remove(sd_panel);
 
 	drm_panel_disable(&sd_panel->panel);
 

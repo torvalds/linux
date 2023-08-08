@@ -9,6 +9,8 @@
 #define _RKX110_X120_H
 
 #include <drm/drm_panel.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_connector.h>
 #include <dt-bindings/mfd/rockchip-serdes.h>
 #include <linux/i2c.h>
 #include <video/videomode.h>
@@ -325,6 +327,8 @@ struct panel_cmds {
 struct rk_serdes_panel;
 struct rk_serdes_panel {
 	struct drm_panel panel;
+	struct drm_bridge bridge;
+	struct drm_connector connector;
 	struct device *dev;
 	struct rk_serdes *parent;
 	struct rk_serdes_panel *secondary;
@@ -344,6 +348,8 @@ struct rk_serdes_panel {
 
 	unsigned int bus_format;
 	unsigned int id;
+	u32 connector_type;
+
 	bool multi_panel;
 };
 
