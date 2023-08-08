@@ -170,20 +170,18 @@ static int sdhci_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(sdhci_pm_ops, sdhci_suspend, sdhci_resume);
 
-#ifdef CONFIG_OF
 static const struct of_device_id sdhci_spear_id_table[] = {
 	{ .compatible = "st,spear300-sdhci" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sdhci_spear_id_table);
-#endif
 
 static struct platform_driver sdhci_driver = {
 	.driver = {
 		.name	= "sdhci",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= &sdhci_pm_ops,
-		.of_match_table = of_match_ptr(sdhci_spear_id_table),
+		.of_match_table = sdhci_spear_id_table,
 	},
 	.probe		= sdhci_probe,
 	.remove		= sdhci_remove,
