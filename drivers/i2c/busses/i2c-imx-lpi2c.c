@@ -567,10 +567,8 @@ static int lpi2c_imx_probe(struct platform_device *pdev)
 		sizeof(lpi2c_imx->adapter.name));
 
 	ret = devm_clk_bulk_get_all(&pdev->dev, &lpi2c_imx->clks);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "can't get I2C peripheral clock, ret=%d\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "can't get I2C peripheral clock\n");
 	lpi2c_imx->num_clks = ret;
 
 	ret = of_property_read_u32(pdev->dev.of_node,
@@ -580,10 +578,8 @@ static int lpi2c_imx_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, irq, lpi2c_imx_isr, 0,
 			       pdev->name, lpi2c_imx);
-	if (ret) {
-		dev_err(&pdev->dev, "can't claim irq %d\n", irq);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "can't claim irq %d\n", irq);
 
 	i2c_set_adapdata(&lpi2c_imx->adapter, lpi2c_imx);
 	platform_set_drvdata(pdev, lpi2c_imx);
