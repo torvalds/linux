@@ -149,7 +149,6 @@ static struct apic xen_pv_apic = {
 	.disable_esr			= 0,
 
 	.check_apicid_used		= default_check_apicid_used, /* Used on 32-bit */
-	.init_apic_ldr			= xen_noop, /* setup_local_APIC calls it */
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map, /* Used on 32-bit */
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= xen_cpu_present_to_apicid,

@@ -6,6 +6,8 @@
 #include <linux/irq.h>
 #include <asm/apic.h>
 
+#include "local.h"
+
 u32 apic_default_calc_apicid(unsigned int cpu)
 {
 	return per_cpu(x86_cpu_to_apicid, cpu);
@@ -38,4 +40,18 @@ EXPORT_SYMBOL_GPL(default_cpu_present_to_apicid);
 int default_apic_id_valid(u32 apicid)
 {
 	return (apicid < 255);
+}
+
+/*
+ * Set up the logical destination ID when the APIC operates in logical
+ * destination mode.
+ */
+void default_init_apic_ldr(void)
+{
+	unsigned long val;
+
+	apic_write(APIC_DFR, APIC_DFR_FLAT);
+	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
+	val |= SET_APIC_LOGICAL_ID(1UL << smp_processor_id());
+	apic_write(APIC_LDR, val);
 }

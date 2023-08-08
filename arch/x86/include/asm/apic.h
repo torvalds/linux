@@ -445,8 +445,6 @@ extern void generic_bigsmp_probe(void);
 
 #include <asm/smp.h>
 
-#define APIC_DFR_VALUE	(APIC_DFR_FLAT)
-
 extern struct apic apic_noop;
 
 static inline unsigned int read_apic_id(void)

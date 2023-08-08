@@ -1578,9 +1578,12 @@ static void setup_local_APIC(void)
 	/*
 	 * Intel recommends to set DFR, LDR and TPR before enabling
 	 * an APIC.  See e.g. "AP-388 82489DX User's Manual" (Intel
-	 * document number 292116).  So here it goes...
+	 * document number 292116).
+	 *
+	 * Except for APICs which operate in physical destination mode.
 	 */
-	apic->init_apic_ldr();
+	if (apic->init_apic_ldr)
+		apic->init_apic_ldr();
 
 	/*
 	 * Set Task Priority to 'accept all except vectors 0-31'.  An APIC

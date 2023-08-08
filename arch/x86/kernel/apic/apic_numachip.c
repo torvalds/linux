@@ -252,7 +252,6 @@ static const struct apic apic_numachip1 __refconst = {
 	.disable_esr			= 0,
 
 	.check_apicid_used		= NULL,
-	.init_apic_ldr			= flat_init_apic_ldr,
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
@@ -297,7 +296,6 @@ static const struct apic apic_numachip2 __refconst = {
 	.disable_esr			= 0,
 
 	.check_apicid_used		= NULL,
-	.init_apic_ldr			= flat_init_apic_ldr,
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,

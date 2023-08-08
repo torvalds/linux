@@ -788,10 +788,6 @@ static int uv_apic_id_registered(void)
 	return 1;
 }
 
-static void uv_init_apic_ldr(void)
-{
-}
-
 static u32 apic_uv_calc_apicid(unsigned int cpu)
 {
 	return apic_default_calc_apicid(cpu);
@@ -841,7 +837,6 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.disable_esr			= 0,
 
 	.check_apicid_used		= NULL,
-	.init_apic_ldr			= uv_init_apic_ldr,
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,

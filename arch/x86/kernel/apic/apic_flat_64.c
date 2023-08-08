@@ -28,26 +28,6 @@ static int flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 1;
 }
 
-/*
- * Set up the logical destination ID.
- *
- * Intel recommends to set DFR, LDR and TPR before enabling
- * an APIC.  See e.g. "AP-388 82489DX User's Manual" (Intel
- * document number 292116).  So here it goes...
- */
-void flat_init_apic_ldr(void)
-{
-	unsigned long val;
-	unsigned long num, id;
-
-	num = smp_processor_id();
-	id = 1UL << num;
-	apic_write(APIC_DFR, APIC_DFR_FLAT);
-	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
-	val |= SET_APIC_LOGICAL_ID(id);
-	apic_write(APIC_LDR, val);
-}
-
 static void _flat_send_IPI_mask(unsigned long mask, int vector)
 {
 	unsigned long flags;
@@ -119,7 +99,7 @@ static struct apic apic_flat __ro_after_init = {
 	.disable_esr			= 0,
 
 	.check_apicid_used		= NULL,
-	.init_apic_ldr			= flat_init_apic_ldr,
+	.init_apic_ldr			= default_init_apic_ldr,
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
@@ -175,15 +155,6 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;
 }
 
-static void physflat_init_apic_ldr(void)
-{
-	/*
-	 * LDR and DFR are not involved in physflat mode, rather:
-	 * "In physical destination mode, the destination processor is
-	 * specified by its local APIC ID [...]." (Intel SDM, 10.6.2.1)
-	 */
-}
-
 static int physflat_probe(void)
 {
 	if (apic == &apic_physflat || num_possible_cpus() > 8 ||
@@ -207,7 +178,6 @@ static struct apic apic_physflat __ro_after_init = {
 	.disable_esr			= 0,
 
 	.check_apicid_used		= NULL,
-	.init_apic_ldr			= physflat_init_apic_ldr,
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,

@@ -28,14 +28,6 @@ static bool bigsmp_check_apicid_used(physid_mask_t *map, int apicid)
 	return false;
 }
 
-/*
- * bigsmp enables physical destination mode
- * and doesn't use LDR and DFR
- */
-static void bigsmp_init_apic_ldr(void)
-{
-}
-
 static void bigsmp_setup_apic_routing(void)
 {
 	printk(KERN_INFO
@@ -108,7 +100,6 @@ static struct apic apic_bigsmp __ro_after_init = {
 	.disable_esr			= 1,
 
 	.check_apicid_used		= bigsmp_check_apicid_used,
-	.init_apic_ldr			= bigsmp_init_apic_ldr,
 	.ioapic_phys_id_map		= bigsmp_ioapic_phys_id_map,
 	.setup_apic_routing		= bigsmp_setup_apic_routing,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,

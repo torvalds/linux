@@ -91,10 +91,6 @@ static void x2apic_send_IPI_all(int vector)
 	__x2apic_send_IPI_shorthand(vector, APIC_DEST_ALLINC);
 }
 
-static void init_x2apic_ldr(void)
-{
-}
-
 static int x2apic_phys_probe(void)
 {
 	if (!x2apic_mode)
@@ -169,7 +165,6 @@ static struct apic apic_x2apic_phys __ro_after_init = {
 	.disable_esr			= 0,
 
 	.check_apicid_used		= NULL,
-	.init_apic_ldr			= init_x2apic_ldr,
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,

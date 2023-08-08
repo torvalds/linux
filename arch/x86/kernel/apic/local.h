@@ -13,9 +13,6 @@
 #include <asm/irq_vectors.h>
 #include <asm/apic.h>
 
-/* APIC flat 64 */
-void flat_init_apic_ldr(void);
-
 /* X2APIC */
 int x2apic_apic_id_valid(u32 apicid);
 int x2apic_apic_id_registered(void);
@@ -45,6 +42,8 @@ static inline unsigned int __prepare_ICR(unsigned int shortcut, int vector,
 	}
 	return icr;
 }
+
+void default_init_apic_ldr(void);
 
 void __default_send_IPI_shortcut(unsigned int shortcut, int vector);
 

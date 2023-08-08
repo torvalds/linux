@@ -14,7 +14,6 @@
 
 #include <asm/apic.h>
 
-static void noop_init_apic_ldr(void) { }
 static void noop_send_IPI(int cpu, int vector) { }
 static void noop_send_IPI_mask(const struct cpumask *cpumask, int vector) { }
 static void noop_send_IPI_mask_allbutself(const struct cpumask *cpumask, int vector) { }
@@ -94,7 +93,6 @@ struct apic apic_noop __ro_after_init = {
 	.disable_esr			= 0,
 
 	.check_apicid_used		= default_check_apicid_used,
-	.init_apic_ldr			= noop_init_apic_ldr,
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
