@@ -1343,23 +1343,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	/* pre-gen11 the guc irqs bits are in the upper 16 bits of the pm reg */
 	if (HAS_GT_UC(dev_priv) && GRAPHICS_VER(dev_priv) < 11)
 		to_gt(dev_priv)->pm_guc_events = GUC_INTR_GUC2HOST << 16;
-
-	if (!HAS_DISPLAY(dev_priv))
-		return;
-
-	dev_priv->drm.vblank_disable_immediate = true;
-
-	/* Most platforms treat the display irq block as an always-on
-	 * power domain. vlv/chv can disable it at runtime and need
-	 * special care to avoid writing any of the display block registers
-	 * outside of the power domain. We defer setting up the display irqs
-	 * in this case to the runtime pm.
-	 */
-	dev_priv->display_irqs_enabled = true;
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		dev_priv->display_irqs_enabled = false;
-
-	intel_hotplug_irq_init(dev_priv);
 }
 
 /**

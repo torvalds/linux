@@ -1699,3 +1699,20 @@ void gen11_de_irq_postinstall(struct drm_i915_private *dev_priv)
 			   GEN11_DISPLAY_IRQ_ENABLE);
 }
 
+void intel_display_irq_init(struct drm_i915_private *i915)
+{
+	i915->drm.vblank_disable_immediate = true;
+
+	/*
+	 * Most platforms treat the display irq block as an always-on power
+	 * domain. vlv/chv can disable it at runtime and need special care to
+	 * avoid writing any of the display block registers outside of the power
+	 * domain. We defer setting up the display irqs in this case to the
+	 * runtime pm.
+	 */
+	i915->display_irqs_enabled = true;
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+		i915->display_irqs_enabled = false;
+
+	intel_hotplug_irq_init(i915);
+}
