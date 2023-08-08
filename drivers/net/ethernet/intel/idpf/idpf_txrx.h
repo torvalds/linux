@@ -5,6 +5,8 @@
 #define _IDPF_TXRX_H_
 
 #include <net/page_pool/helpers.h>
+#include <net/tcp.h>
+#include <net/netdev_queues.h>
 
 #define IDPF_LARGE_MAX_Q			256
 #define IDPF_MAX_Q				16
@@ -67,18 +69,62 @@
 #define IDPF_PACKET_HDR_PAD	\
 	(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN * 2)
 
+/* Minimum number of descriptors between 2 descriptors with the RE bit set;
+ * only relevant in flow scheduling mode
+ */
+#define IDPF_TX_SPLITQ_RE_MIN_GAP	64
+
 #define IDPF_SINGLEQ_RX_BUF_DESC(rxq, i)	\
 	(&(((struct virtchnl2_singleq_rx_buf_desc *)((rxq)->desc_ring))[i]))
 #define IDPF_SPLITQ_RX_BUF_DESC(rxq, i)	\
 	(&(((struct virtchnl2_splitq_rx_buf_desc *)((rxq)->desc_ring))[i]))
 
+#define IDPF_FLEX_TX_DESC(txq, i) \
+	(&(((union idpf_tx_flex_desc *)((txq)->desc_ring))[i]))
+#define IDPF_FLEX_TX_CTX_DESC(txq, i)	\
+	(&(((struct idpf_flex_tx_ctx_desc *)((txq)->desc_ring))[i]))
+
+#define IDPF_DESC_UNUSED(txq)     \
+	((((txq)->next_to_clean > (txq)->next_to_use) ? 0 : (txq)->desc_count) + \
+	(txq)->next_to_clean - (txq)->next_to_use - 1)
+
+#define IDPF_TX_BUF_RSV_UNUSED(txq)	((txq)->buf_stack.top)
+#define IDPF_TX_BUF_RSV_LOW(txq)	(IDPF_TX_BUF_RSV_UNUSED(txq) < \
+					 (txq)->desc_count >> 2)
+
+#define IDPF_TX_COMPLQ_OVERFLOW_THRESH(txcq)	((txcq)->desc_count >> 1)
+/* Determine the absolute number of completions pending, i.e. the number of
+ * completions that are expected to arrive on the TX completion queue.
+ */
+#define IDPF_TX_COMPLQ_PENDING(txq)	\
+	(((txq)->num_completions_pending >= (txq)->complq->num_completions ? \
+	0 : U64_MAX) + \
+	(txq)->num_completions_pending - (txq)->complq->num_completions)
+
 #define IDPF_TX_SPLITQ_COMPL_TAG_WIDTH	16
 #define IDPF_SPLITQ_TX_INVAL_COMPL_TAG	-1
+/* Adjust the generation for the completion tag and wrap if necessary */
+#define IDPF_TX_ADJ_COMPL_TAG_GEN(txq) \
+	((++(txq)->compl_tag_cur_gen) >= (txq)->compl_tag_gen_max ? \
+	0 : (txq)->compl_tag_cur_gen)
 
-#define IDPF_TX_MIN_PKT_LEN		17
+#define IDPF_TXD_LAST_DESC_CMD (IDPF_TX_DESC_CMD_EOP | IDPF_TX_DESC_CMD_RS)
+
+#define IDPF_TX_FLAGS_TSO		BIT(0)
+
+union idpf_tx_flex_desc {
+	struct idpf_flex_tx_desc q; /* queue based scheduling */
+	struct idpf_flex_tx_sched_desc flow; /* flow based scheduling */
+};
 
 /**
  * struct idpf_tx_buf
+ * @next_to_watch: Next descriptor to clean
+ * @skb: Pointer to the skb
+ * @dma: DMA address
+ * @len: DMA length
+ * @bytecount: Number of bytes
+ * @gso_segs: Number of GSO segments
  * @compl_tag: Splitq only, unique identifier for a buffer. Used to compare
  *	       with completion tag returned in buffer completion event.
  *	       Because the completion tag is expected to be the same in all
@@ -94,6 +140,13 @@
  *	       this buffer entry should be skipped.
  */
 struct idpf_tx_buf {
+	void *next_to_watch;
+	struct sk_buff *skb;
+	DEFINE_DMA_UNMAP_ADDR(dma);
+	DEFINE_DMA_UNMAP_LEN(len);
+	unsigned int bytecount;
+	unsigned short gso_segs;
+
 	union {
 		int compl_tag;
 
@@ -116,6 +169,64 @@ struct idpf_buf_lifo {
 	u16 size;
 	struct idpf_tx_stash **bufs;
 };
+
+/**
+ * struct idpf_tx_offload_params - Offload parameters for a given packet
+ * @tx_flags: Feature flags enabled for this packet
+ * @tso_len: Total length of payload to segment
+ * @mss: Segment size
+ * @tso_segs: Number of segments to be sent
+ * @tso_hdr_len: Length of headers to be duplicated
+ * @td_cmd: Command field to be inserted into descriptor
+ */
+struct idpf_tx_offload_params {
+	u32 tx_flags;
+
+	u32 tso_len;
+	u16 mss;
+	u16 tso_segs;
+	u16 tso_hdr_len;
+
+	u16 td_cmd;
+};
+
+/**
+ * struct idpf_tx_splitq_params
+ * @dtype: General descriptor info
+ * @eop_cmd: Type of EOP
+ * @compl_tag: Associated tag for completion
+ * @td_tag: Descriptor tunneling tag
+ * @offload: Offload parameters
+ */
+struct idpf_tx_splitq_params {
+	enum idpf_tx_desc_dtype_value dtype;
+	u16 eop_cmd;
+	union {
+		u16 compl_tag;
+		u16 td_tag;
+	};
+
+	struct idpf_tx_offload_params offload;
+};
+
+#define IDPF_TX_MIN_PKT_LEN		17
+#define IDPF_TX_DESCS_FOR_SKB_DATA_PTR	1
+#define IDPF_TX_DESCS_PER_CACHE_LINE	(L1_CACHE_BYTES / \
+					 sizeof(struct idpf_flex_tx_desc))
+#define IDPF_TX_DESCS_FOR_CTX		1
+/* TX descriptors needed, worst case */
+#define IDPF_TX_DESC_NEEDED (MAX_SKB_FRAGS + IDPF_TX_DESCS_FOR_CTX + \
+			     IDPF_TX_DESCS_PER_CACHE_LINE + \
+			     IDPF_TX_DESCS_FOR_SKB_DATA_PTR)
+
+/* The size limit for a transmit buffer in a descriptor is (16K - 1).
+ * In order to align with the read requests we will align the value to
+ * the nearest 4K which represents our maximum read request size.
+ */
+#define IDPF_TX_MAX_READ_REQ_SIZE	SZ_4K
+#define IDPF_TX_MAX_DESC_DATA		(SZ_16K - 1)
+#define IDPF_TX_MAX_DESC_DATA_ALIGNED \
+	ALIGN_DOWN(IDPF_TX_MAX_DESC_DATA, IDPF_TX_MAX_READ_REQ_SIZE)
 
 #define IDPF_RX_DMA_ATTR \
 	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
@@ -344,6 +455,23 @@ struct idpf_q_vector {
 	char *name;
 };
 
+struct idpf_rx_queue_stats {
+	/* stub */
+};
+
+struct idpf_tx_queue_stats {
+	u64_stats_t lso_pkts;
+	u64_stats_t linearize;
+	u64_stats_t q_busy;
+	u64_stats_t skb_drops;
+	u64_stats_t dma_map_errs;
+};
+
+union idpf_queue_stats {
+	struct idpf_rx_queue_stats rx;
+	struct idpf_tx_queue_stats tx;
+};
+
 #define IDPF_ITR_DYNAMIC	1
 #define IDPF_ITR_20K		0x0032
 #define IDPF_ITR_TX_DEF		IDPF_ITR_20K
@@ -382,6 +510,8 @@ struct idpf_q_vector {
  * @next_to_alloc: RX buffer to allocate at. Used only for RX. In splitq model
  *		   only relevant to RX queue.
  * @flags: See enum idpf_queue_flags_t
+ * @q_stats: See union idpf_queue_stats
+ * @stats_sync: See struct u64_stats_sync
  * @rx_hsplit_en: RX headsplit enable
  * @rx_hbuf_size: Header buffer size
  * @rx_buf_size: Buffer size
@@ -395,6 +525,10 @@ struct idpf_q_vector {
  * @desc_ring: Descriptor ring memory
  * @tx_max_bufs: Max buffers that can be transmitted with scatter-gather
  * @tx_min_pkt_len: Min supported packet length
+ * @num_completions: Only relevant for TX completion queue. It tracks the
+ *		     number of completions received to compare against the
+ *		     number of completions pending, as accumulated by the
+ *		     TX queues.
  * @buf_stack: Stack of empty buffers to store buffer info for out of order
  *	       buffer completions. See struct idpf_buf_lifo.
  * @compl_tag_bufid_m: Completion tag buffer id mask
@@ -450,6 +584,9 @@ struct idpf_queue {
 	u16 next_to_alloc;
 	DECLARE_BITMAP(flags, __IDPF_Q_FLAGS_NBITS);
 
+	union idpf_queue_stats q_stats;
+	struct u64_stats_sync stats_sync;
+
 	bool rx_hsplit_en;
 	u16 rx_hbuf_size;
 	u16 rx_buf_size;
@@ -464,6 +601,8 @@ struct idpf_queue {
 
 	u16 tx_max_bufs;
 	u8 tx_min_pkt_len;
+
+	u32 num_completions;
 
 	struct idpf_buf_lifo buf_stack;
 
@@ -588,6 +727,42 @@ struct idpf_txq_group {
 };
 
 /**
+ * idpf_size_to_txd_count - Get number of descriptors needed for large Tx frag
+ * @size: transmit request size in bytes
+ *
+ * In the case where a large frag (>= 16K) needs to be split across multiple
+ * descriptors, we need to assume that we can have no more than 12K of data
+ * per descriptor due to hardware alignment restrictions (4K alignment).
+ */
+static inline u32 idpf_size_to_txd_count(unsigned int size)
+{
+	return DIV_ROUND_UP(size, IDPF_TX_MAX_DESC_DATA_ALIGNED);
+}
+
+void idpf_tx_splitq_build_ctb(union idpf_tx_flex_desc *desc,
+			      struct idpf_tx_splitq_params *params,
+			      u16 td_cmd, u16 size);
+void idpf_tx_splitq_build_flow_desc(union idpf_tx_flex_desc *desc,
+				    struct idpf_tx_splitq_params *params,
+				    u16 td_cmd, u16 size);
+/**
+ * idpf_tx_splitq_build_desc - determine which type of data descriptor to build
+ * @desc: descriptor to populate
+ * @params: pointer to tx params struct
+ * @td_cmd: command to be filled in desc
+ * @size: size of buffer
+ */
+static inline void idpf_tx_splitq_build_desc(union idpf_tx_flex_desc *desc,
+					     struct idpf_tx_splitq_params *params,
+					     u16 td_cmd, u16 size)
+{
+	if (params->dtype == IDPF_TX_DESC_DTYPE_FLEX_L2TAG1_L2TAG2)
+		idpf_tx_splitq_build_ctb(desc, params, td_cmd, size);
+	else
+		idpf_tx_splitq_build_flow_desc(desc, params, td_cmd, size);
+}
+
+/**
  * idpf_alloc_page - Allocate a new RX buffer from the page pool
  * @pool: page_pool to allocate from
  * @buf: metadata struct to populate with page info
@@ -634,6 +809,8 @@ void idpf_deinit_rss(struct idpf_vport *vport);
 int idpf_rx_bufs_init_all(struct idpf_vport *vport);
 bool idpf_init_rx_buf_hw_alloc(struct idpf_queue *rxq, struct idpf_rx_buf *buf);
 void idpf_rx_buf_hw_update(struct idpf_queue *rxq, u32 val);
+netdev_tx_t idpf_tx_splitq_start(struct sk_buff *skb,
+				 struct net_device *netdev);
 bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_queue *rxq,
 				      u16 cleaned_count);
 

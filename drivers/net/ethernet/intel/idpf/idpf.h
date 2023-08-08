@@ -13,6 +13,7 @@ struct idpf_vport_max_q;
 #include <linux/aer.h>
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
+#include <linux/bitfield.h>
 
 #include "virtchnl2.h"
 #include "idpf_lan_txrx.h"
