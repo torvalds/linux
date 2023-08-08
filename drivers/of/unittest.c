@@ -1696,7 +1696,7 @@ static struct platform_driver unittest_driver = {
 	.remove_new		= unittest_remove,
 	.driver = {
 		.name		= "unittest",
-		.of_match_table	= of_match_ptr(unittest_match),
+		.of_match_table	= unittest_match,
 	},
 };
 
@@ -1797,7 +1797,7 @@ static struct platform_driver unittest_gpio_driver = {
 	.remove_new = unittest_gpio_remove,
 	.driver	= {
 		.name		= "unittest-gpio",
-		.of_match_table	= of_match_ptr(unittest_gpio_id),
+		.of_match_table	= unittest_gpio_id,
 	},
 };
 
@@ -2624,7 +2624,7 @@ static struct platform_driver unittest_i2c_bus_driver = {
 	.remove_new		= unittest_i2c_bus_remove,
 	.driver = {
 		.name		= "unittest-i2c-bus",
-		.of_match_table	= of_match_ptr(unittest_i2c_bus_match),
+		.of_match_table	= unittest_i2c_bus_match,
 	},
 };
 
