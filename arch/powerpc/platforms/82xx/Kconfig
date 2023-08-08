@@ -32,6 +32,7 @@ config 8260
 	bool
 	depends on PPC_BOOK3S_32
 	select CPM2
+	select PPC_INDIRECT_PCI if PCI
 	help
 	  The MPC8260 is a typical embedded CPU made by Freescale.  Selecting
 	  this option means that you wish to build a kernel for a machine with
