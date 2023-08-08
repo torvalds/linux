@@ -506,15 +506,17 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
 				vm_resv_locked = true;
 			else if (ctx->resv != xe_vm_resv(vm)) {
 				spin_lock(&vm->notifier.list_lock);
-				list_move_tail(&vma->notifier.rebind_link,
-					       &vm->notifier.rebind_list);
+				if (!(vma->gpuva.flags & XE_VMA_DESTROYED))
+					list_move_tail(&vma->notifier.rebind_link,
+						       &vm->notifier.rebind_list);
 				spin_unlock(&vm->notifier.list_lock);
 				continue;
 			}
 
 			xe_vm_assert_held(vm);
-			if (list_empty(&vma->combined_links.rebind) &&
-			    vma->tile_present)
+			if (vma->tile_present &&
+			    !(vma->gpuva.flags & XE_VMA_DESTROYED) &&
+			    list_empty(&vma->combined_links.rebind))
 				list_add_tail(&vma->combined_links.rebind,
 					      &vm->rebind_list);
 

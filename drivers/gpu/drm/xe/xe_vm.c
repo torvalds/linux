@@ -1460,6 +1460,7 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 		}
 
 		list_move_tail(&vma->combined_links.destroy, &contested);
+		vma->gpuva.flags |= XE_VMA_DESTROYED;
 	}
 
 	/*
