@@ -48,7 +48,6 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 
 static void __init MP_processor_info(struct mpc_cpu *m)
 {
-	int apicid;
 	char *bootup_cpu = "";
 
 	if (!(m->cpuflag & CPU_ENABLED)) {
@@ -56,13 +55,11 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 		return;
 	}
 
-	apicid = m->apicid;
-
 	if (m->cpuflag & CPU_BOOTPROCESSOR)
 		bootup_cpu = " (Bootup-CPU)";
 
 	pr_info("Processor #%d%s\n", m->apicid, bootup_cpu);
-	generic_processor_info(apicid);
+	generic_processor_info(m->apicid);
 }
 
 #ifdef CONFIG_X86_IO_APIC
