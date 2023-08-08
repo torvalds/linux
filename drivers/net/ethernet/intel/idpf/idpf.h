@@ -208,10 +208,20 @@ struct idpf_dev_ops {
 	STATE(IDPF_VC_DESTROY_VPORT_ERR)	\
 	STATE(IDPF_VC_CONFIG_TXQ)		\
 	STATE(IDPF_VC_CONFIG_TXQ_ERR)		\
+	STATE(IDPF_VC_CONFIG_RXQ)		\
+	STATE(IDPF_VC_CONFIG_RXQ_ERR)		\
 	STATE(IDPF_VC_ALLOC_VECTORS)		\
 	STATE(IDPF_VC_ALLOC_VECTORS_ERR)	\
 	STATE(IDPF_VC_DEALLOC_VECTORS)		\
 	STATE(IDPF_VC_DEALLOC_VECTORS_ERR)	\
+	STATE(IDPF_VC_GET_RSS_LUT)		\
+	STATE(IDPF_VC_GET_RSS_LUT_ERR)		\
+	STATE(IDPF_VC_SET_RSS_LUT)		\
+	STATE(IDPF_VC_SET_RSS_LUT_ERR)		\
+	STATE(IDPF_VC_GET_RSS_KEY)		\
+	STATE(IDPF_VC_GET_RSS_KEY_ERR)		\
+	STATE(IDPF_VC_SET_RSS_KEY)		\
+	STATE(IDPF_VC_SET_RSS_KEY_ERR)		\
 	STATE(IDPF_VC_ADD_MAC_ADDR)		\
 	STATE(IDPF_VC_ADD_MAC_ADDR_ERR)		\
 	STATE(IDPF_VC_DEL_MAC_ADDR)		\
@@ -248,6 +258,8 @@ extern const char * const idpf_vport_vc_state_str[];
  * @bufq_desc_count: Buffer queue descriptor count
  * @bufq_size: Size of buffers in ring (e.g. 2K, 4K, etc)
  * @num_rxq_grp: Number of RX queues in a group
+ * @rxq_grps: Total number of RX groups. Number of groups * number of RX per
+ *	      group will yield total number of RX queues.
  * @rxq_model: Splitq queue or single queue queuing model
  * @rx_ptype_lkup: Lookup table for ptypes on RX
  * @adapter: back pointer to associated adapter
@@ -284,6 +296,7 @@ struct idpf_vport {
 	u32 bufq_desc_count[IDPF_MAX_BUFQS_PER_RXQ_GRP];
 	u32 bufq_size[IDPF_MAX_BUFQS_PER_RXQ_GRP];
 	u16 num_rxq_grp;
+	struct idpf_rxq_group *rxq_grps;
 	u32 rxq_model;
 	struct idpf_rx_ptype_decoded rx_ptype_lkup[IDPF_RX_MAX_PTYPE];
 
@@ -308,8 +321,25 @@ struct idpf_vport {
 };
 
 /**
+ * struct idpf_rss_data - Associated RSS data
+ * @rss_key_size: Size of RSS hash key
+ * @rss_key: RSS hash key
+ * @rss_lut_size: Size of RSS lookup table
+ * @rss_lut: RSS lookup table
+ * @cached_lut: Used to restore previously init RSS lut
+ */
+struct idpf_rss_data {
+	u16 rss_key_size;
+	u8 *rss_key;
+	u16 rss_lut_size;
+	u32 *rss_lut;
+	u32 *cached_lut;
+};
+
+/**
  * struct idpf_vport_user_config_data - User defined configuration values for
  *					each vport.
+ * @rss_data: See struct idpf_rss_data
  * @num_req_tx_qs: Number of user requested TX queues through ethtool
  * @num_req_rx_qs: Number of user requested RX queues through ethtool
  * @num_req_txq_desc: Number of user requested TX queue descriptors through
@@ -321,6 +351,7 @@ struct idpf_vport {
  * Used to restore configuration after a reset as the vport will get wiped.
  */
 struct idpf_vport_user_config_data {
+	struct idpf_rss_data rss_data;
 	u16 num_req_tx_qs;
 	u16 num_req_rx_qs;
 	u32 num_req_txq_desc;
@@ -668,6 +699,19 @@ static inline struct idpf_vport *idpf_netdev_to_vport(struct net_device *netdev)
 }
 
 /**
+ * idpf_is_feature_ena - Determine if a particular feature is enabled
+ * @vport: Vport to check
+ * @feature: Netdev flag to check
+ *
+ * Returns true or false if a particular feature is enabled.
+ */
+static inline bool idpf_is_feature_ena(const struct idpf_vport *vport,
+				       netdev_features_t feature)
+{
+	return vport->netdev->features & feature;
+}
+
+/**
  * idpf_vport_ctrl_lock - Acquire the vport control lock
  * @netdev: Network interface device structure
  *
@@ -706,6 +750,8 @@ int idpf_intr_req(struct idpf_adapter *adapter);
 void idpf_intr_rel(struct idpf_adapter *adapter);
 int idpf_send_destroy_vport_msg(struct idpf_vport *vport);
 int idpf_send_get_rx_ptype_msg(struct idpf_vport *vport);
+int idpf_send_get_set_rss_key_msg(struct idpf_vport *vport, bool get);
+int idpf_send_get_set_rss_lut_msg(struct idpf_vport *vport, bool get);
 int idpf_send_dealloc_vectors_msg(struct idpf_adapter *adapter);
 int idpf_send_alloc_vectors_msg(struct idpf_adapter *adapter, u16 num_vectors);
 void idpf_deinit_task(struct idpf_adapter *adapter);
@@ -727,7 +773,7 @@ void idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q);
 u32 idpf_get_vport_id(struct idpf_vport *vport);
 int idpf_vport_queue_ids_init(struct idpf_vport *vport);
 int idpf_queue_reg_init(struct idpf_vport *vport);
-int idpf_send_config_tx_queues_msg(struct idpf_vport *vport);
+int idpf_send_config_queues_msg(struct idpf_vport *vport);
 int idpf_send_create_vport_msg(struct idpf_adapter *adapter,
 			       struct idpf_vport_max_q *max_q);
 int idpf_check_supported_desc_ids(struct idpf_vport *vport);

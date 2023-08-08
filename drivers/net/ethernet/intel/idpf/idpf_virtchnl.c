@@ -166,6 +166,17 @@ static int idpf_find_vport(struct idpf_adapter *adapter,
 	case VIRTCHNL2_OP_CONFIG_TX_QUEUES:
 		v_id = le32_to_cpu(((struct virtchnl2_config_tx_queues *)vc_msg)->vport_id);
 		break;
+	case VIRTCHNL2_OP_CONFIG_RX_QUEUES:
+		v_id = le32_to_cpu(((struct virtchnl2_config_rx_queues *)vc_msg)->vport_id);
+		break;
+	case VIRTCHNL2_OP_GET_RSS_LUT:
+	case VIRTCHNL2_OP_SET_RSS_LUT:
+		v_id = le32_to_cpu(((struct virtchnl2_rss_lut *)vc_msg)->vport_id);
+		break;
+	case VIRTCHNL2_OP_GET_RSS_KEY:
+	case VIRTCHNL2_OP_SET_RSS_KEY:
+		v_id = le32_to_cpu(((struct virtchnl2_rss_key *)vc_msg)->vport_id);
+		break;
 	case VIRTCHNL2_OP_ADD_MAC_ADDR:
 	case VIRTCHNL2_OP_DEL_MAC_ADDR:
 		v_id = le32_to_cpu(((struct virtchnl2_mac_addr_list *)vc_msg)->vport_id);
@@ -373,6 +384,31 @@ int idpf_recv_mb_msg(struct idpf_adapter *adapter, u32 op,
 			idpf_recv_vchnl_op(adapter, vport, &ctlq_msg,
 					   IDPF_VC_CONFIG_TXQ,
 					   IDPF_VC_CONFIG_TXQ_ERR);
+			break;
+		case VIRTCHNL2_OP_CONFIG_RX_QUEUES:
+			idpf_recv_vchnl_op(adapter, vport, &ctlq_msg,
+					   IDPF_VC_CONFIG_RXQ,
+					   IDPF_VC_CONFIG_RXQ_ERR);
+			break;
+		case VIRTCHNL2_OP_GET_RSS_LUT:
+			idpf_recv_vchnl_op(adapter, vport, &ctlq_msg,
+					   IDPF_VC_GET_RSS_LUT,
+					   IDPF_VC_GET_RSS_LUT_ERR);
+			break;
+		case VIRTCHNL2_OP_SET_RSS_LUT:
+			idpf_recv_vchnl_op(adapter, vport, &ctlq_msg,
+					   IDPF_VC_SET_RSS_LUT,
+					   IDPF_VC_SET_RSS_LUT_ERR);
+			break;
+		case VIRTCHNL2_OP_GET_RSS_KEY:
+			idpf_recv_vchnl_op(adapter, vport, &ctlq_msg,
+					   IDPF_VC_GET_RSS_KEY,
+					   IDPF_VC_GET_RSS_KEY_ERR);
+			break;
+		case VIRTCHNL2_OP_SET_RSS_KEY:
+			idpf_recv_vchnl_op(adapter, vport, &ctlq_msg,
+					   IDPF_VC_SET_RSS_KEY,
+					   IDPF_VC_SET_RSS_KEY_ERR);
 			break;
 		case VIRTCHNL2_OP_ALLOC_VECTORS:
 			idpf_recv_vchnl_op(adapter, NULL, &ctlq_msg,
@@ -855,6 +891,7 @@ static int __idpf_queue_reg_init(struct idpf_vport *vport, u32 *reg_vals,
 				 int num_regs, u32 q_type)
 {
 	struct idpf_adapter *adapter = vport->adapter;
+	struct idpf_queue *q;
 	int i, j, k = 0;
 
 	switch (q_type) {
@@ -865,6 +902,30 @@ static int __idpf_queue_reg_init(struct idpf_vport *vport, u32 *reg_vals,
 			for (j = 0; j < tx_qgrp->num_txq && k < num_regs; j++, k++)
 				tx_qgrp->txqs[j]->tail =
 					idpf_get_reg_addr(adapter, reg_vals[k]);
+		}
+		break;
+	case VIRTCHNL2_QUEUE_TYPE_RX:
+		for (i = 0; i < vport->num_rxq_grp; i++) {
+			struct idpf_rxq_group *rx_qgrp = &vport->rxq_grps[i];
+			u16 num_rxq = rx_qgrp->singleq.num_rxq;
+
+			for (j = 0; j < num_rxq && k < num_regs; j++, k++) {
+				q = rx_qgrp->singleq.rxqs[j];
+				q->tail = idpf_get_reg_addr(adapter,
+							    reg_vals[k]);
+			}
+		}
+		break;
+	case VIRTCHNL2_QUEUE_TYPE_RX_BUFFER:
+		for (i = 0; i < vport->num_rxq_grp; i++) {
+			struct idpf_rxq_group *rx_qgrp = &vport->rxq_grps[i];
+			u8 num_bufqs = vport->num_bufqs_per_qgrp;
+
+			for (j = 0; j < num_bufqs && k < num_regs; j++, k++) {
+				q = &rx_qgrp->splitq.bufq_sets[j].bufq;
+				q->tail = idpf_get_reg_addr(adapter,
+							    reg_vals[k]);
+			}
 		}
 		break;
 	default:
@@ -915,8 +976,45 @@ int idpf_queue_reg_init(struct idpf_vport *vport)
 
 	num_regs = __idpf_queue_reg_init(vport, reg_vals, num_regs,
 					 VIRTCHNL2_QUEUE_TYPE_TX);
-	if (num_regs < vport->num_txq)
+	if (num_regs < vport->num_txq) {
 		ret = -EINVAL;
+		goto free_reg_vals;
+	}
+
+	/* Initialize Rx/buffer queue tail register address based on Rx queue
+	 * model
+	 */
+	if (idpf_is_queue_model_split(vport->rxq_model)) {
+		num_regs = idpf_vport_get_q_reg(reg_vals, IDPF_LARGE_MAX_Q,
+						VIRTCHNL2_QUEUE_TYPE_RX_BUFFER,
+						chunks);
+		if (num_regs < vport->num_bufq) {
+			ret = -EINVAL;
+			goto free_reg_vals;
+		}
+
+		num_regs = __idpf_queue_reg_init(vport, reg_vals, num_regs,
+						 VIRTCHNL2_QUEUE_TYPE_RX_BUFFER);
+		if (num_regs < vport->num_bufq) {
+			ret = -EINVAL;
+			goto free_reg_vals;
+		}
+	} else {
+		num_regs = idpf_vport_get_q_reg(reg_vals, IDPF_LARGE_MAX_Q,
+						VIRTCHNL2_QUEUE_TYPE_RX,
+						chunks);
+		if (num_regs < vport->num_rxq) {
+			ret = -EINVAL;
+			goto free_reg_vals;
+		}
+
+		num_regs = __idpf_queue_reg_init(vport, reg_vals, num_regs,
+						 VIRTCHNL2_QUEUE_TYPE_RX);
+		if (num_regs < vport->num_rxq) {
+			ret = -EINVAL;
+			goto free_reg_vals;
+		}
+	}
 
 free_reg_vals:
 	kfree(reg_vals);
@@ -1078,7 +1176,7 @@ rel_lock:
  * Send config tx queues virtchnl message. Returns 0 on success, negative on
  * failure.
  */
-int idpf_send_config_tx_queues_msg(struct idpf_vport *vport)
+static int idpf_send_config_tx_queues_msg(struct idpf_vport *vport)
 {
 	struct virtchnl2_config_tx_queues *ctq;
 	u32 config_sz, chunk_sz, buf_sz;
@@ -1198,6 +1296,176 @@ error:
 }
 
 /**
+ * idpf_send_config_rx_queues_msg - Send virtchnl config rx queues message
+ * @vport: virtual port data structure
+ *
+ * Send config rx queues virtchnl message.  Returns 0 on success, negative on
+ * failure.
+ */
+static int idpf_send_config_rx_queues_msg(struct idpf_vport *vport)
+{
+	struct virtchnl2_config_rx_queues *crq;
+	u32 config_sz, chunk_sz, buf_sz;
+	int totqs, num_msgs, num_chunks;
+	struct virtchnl2_rxq_info *qi;
+	int err = 0, i, k = 0;
+
+	totqs = vport->num_rxq + vport->num_bufq;
+	qi = kcalloc(totqs, sizeof(struct virtchnl2_rxq_info), GFP_KERNEL);
+	if (!qi)
+		return -ENOMEM;
+
+	/* Populate the queue info buffer with all queue context info */
+	for (i = 0; i < vport->num_rxq_grp; i++) {
+		struct idpf_rxq_group *rx_qgrp = &vport->rxq_grps[i];
+		u16 num_rxq;
+		int j;
+
+		if (!idpf_is_queue_model_split(vport->rxq_model))
+			goto setup_rxqs;
+
+		for (j = 0; j < vport->num_bufqs_per_qgrp; j++, k++) {
+			struct idpf_queue *bufq =
+				&rx_qgrp->splitq.bufq_sets[j].bufq;
+
+			qi[k].queue_id = cpu_to_le32(bufq->q_id);
+			qi[k].model = cpu_to_le16(vport->rxq_model);
+			qi[k].type = cpu_to_le32(bufq->q_type);
+			qi[k].desc_ids = cpu_to_le64(VIRTCHNL2_RXDID_2_FLEX_SPLITQ_M);
+			qi[k].ring_len = cpu_to_le16(bufq->desc_count);
+			qi[k].dma_ring_addr = cpu_to_le64(bufq->dma);
+			qi[k].data_buffer_size = cpu_to_le32(bufq->rx_buf_size);
+			qi[k].buffer_notif_stride = bufq->rx_buf_stride;
+			qi[k].rx_buffer_low_watermark =
+				cpu_to_le16(bufq->rx_buffer_low_watermark);
+			if (idpf_is_feature_ena(vport, NETIF_F_GRO_HW))
+				qi[k].qflags |= cpu_to_le16(VIRTCHNL2_RXQ_RSC);
+		}
+
+setup_rxqs:
+		if (idpf_is_queue_model_split(vport->rxq_model))
+			num_rxq = rx_qgrp->splitq.num_rxq_sets;
+		else
+			num_rxq = rx_qgrp->singleq.num_rxq;
+
+		for (j = 0; j < num_rxq; j++, k++) {
+			struct idpf_queue *rxq;
+
+			if (!idpf_is_queue_model_split(vport->rxq_model)) {
+				rxq = rx_qgrp->singleq.rxqs[j];
+				goto common_qi_fields;
+			}
+			rxq = &rx_qgrp->splitq.rxq_sets[j]->rxq;
+			qi[k].rx_bufq1_id =
+			  cpu_to_le16(rxq->rxq_grp->splitq.bufq_sets[0].bufq.q_id);
+			if (vport->num_bufqs_per_qgrp > IDPF_SINGLE_BUFQ_PER_RXQ_GRP) {
+				qi[k].bufq2_ena = IDPF_BUFQ2_ENA;
+				qi[k].rx_bufq2_id =
+				  cpu_to_le16(rxq->rxq_grp->splitq.bufq_sets[1].bufq.q_id);
+			}
+			qi[k].rx_buffer_low_watermark =
+				cpu_to_le16(rxq->rx_buffer_low_watermark);
+			if (idpf_is_feature_ena(vport, NETIF_F_GRO_HW))
+				qi[k].qflags |= cpu_to_le16(VIRTCHNL2_RXQ_RSC);
+
+common_qi_fields:
+			if (rxq->rx_hsplit_en) {
+				qi[k].qflags |=
+					cpu_to_le16(VIRTCHNL2_RXQ_HDR_SPLIT);
+				qi[k].hdr_buffer_size =
+					cpu_to_le16(rxq->rx_hbuf_size);
+			}
+			qi[k].queue_id = cpu_to_le32(rxq->q_id);
+			qi[k].model = cpu_to_le16(vport->rxq_model);
+			qi[k].type = cpu_to_le32(rxq->q_type);
+			qi[k].ring_len = cpu_to_le16(rxq->desc_count);
+			qi[k].dma_ring_addr = cpu_to_le64(rxq->dma);
+			qi[k].max_pkt_size = cpu_to_le32(rxq->rx_max_pkt_size);
+			qi[k].data_buffer_size = cpu_to_le32(rxq->rx_buf_size);
+			qi[k].qflags |=
+				cpu_to_le16(VIRTCHNL2_RX_DESC_SIZE_32BYTE);
+			qi[k].desc_ids = cpu_to_le64(rxq->rxdids);
+		}
+	}
+
+	/* Make sure accounting agrees */
+	if (k != totqs) {
+		err = -EINVAL;
+		goto error;
+	}
+
+	/* Chunk up the queue contexts into multiple messages to avoid
+	 * sending a control queue message buffer that is too large
+	 */
+	config_sz = sizeof(struct virtchnl2_config_rx_queues);
+	chunk_sz = sizeof(struct virtchnl2_rxq_info);
+
+	num_chunks = min_t(u32, IDPF_NUM_CHUNKS_PER_MSG(config_sz, chunk_sz),
+			   totqs);
+	num_msgs = DIV_ROUND_UP(totqs, num_chunks);
+
+	buf_sz = struct_size(crq, qinfo, num_chunks);
+	crq = kzalloc(buf_sz, GFP_KERNEL);
+	if (!crq) {
+		err = -ENOMEM;
+		goto error;
+	}
+
+	mutex_lock(&vport->vc_buf_lock);
+
+	for (i = 0, k = 0; i < num_msgs; i++) {
+		memset(crq, 0, buf_sz);
+		crq->vport_id = cpu_to_le32(vport->vport_id);
+		crq->num_qinfo = cpu_to_le16(num_chunks);
+		memcpy(crq->qinfo, &qi[k], chunk_sz * num_chunks);
+
+		err = idpf_send_mb_msg(vport->adapter,
+				       VIRTCHNL2_OP_CONFIG_RX_QUEUES,
+				       buf_sz, (u8 *)crq);
+		if (err)
+			goto mbx_error;
+
+		err = idpf_wait_for_event(vport->adapter, vport,
+					  IDPF_VC_CONFIG_RXQ,
+					  IDPF_VC_CONFIG_RXQ_ERR);
+		if (err)
+			goto mbx_error;
+
+		k += num_chunks;
+		totqs -= num_chunks;
+		num_chunks = min(num_chunks, totqs);
+		/* Recalculate buffer size */
+		buf_sz = struct_size(crq, qinfo, num_chunks);
+	}
+
+mbx_error:
+	mutex_unlock(&vport->vc_buf_lock);
+	kfree(crq);
+error:
+	kfree(qi);
+
+	return err;
+}
+
+/**
+ * idpf_send_config_queues_msg - Send config queues virtchnl message
+ * @vport: Virtual port private data structure
+ *
+ * Will send config queues virtchnl message. Returns 0 on success, negative on
+ * failure.
+ */
+int idpf_send_config_queues_msg(struct idpf_vport *vport)
+{
+	int err;
+
+	err = idpf_send_config_tx_queues_msg(vport);
+	if (err)
+		return err;
+
+	return idpf_send_config_rx_queues_msg(vport);
+}
+
+/**
  * idpf_send_alloc_vectors_msg - Send virtchnl alloc vectors message
  * @adapter: Driver specific private structure
  * @num_vectors: number of vectors to be allocated
@@ -1286,6 +1554,154 @@ int idpf_send_dealloc_vectors_msg(struct idpf_adapter *adapter)
 
 rel_lock:
 	mutex_unlock(&adapter->vc_buf_lock);
+
+	return err;
+}
+
+/**
+ * idpf_send_get_set_rss_lut_msg - Send virtchnl get or set rss lut message
+ * @vport: virtual port data structure
+ * @get: flag to set or get rss look up table
+ *
+ * Returns 0 on success, negative on failure.
+ */
+int idpf_send_get_set_rss_lut_msg(struct idpf_vport *vport, bool get)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+	struct virtchnl2_rss_lut *recv_rl;
+	struct idpf_rss_data *rss_data;
+	struct virtchnl2_rss_lut *rl;
+	int buf_size, lut_buf_size;
+	int i, err;
+
+	rss_data = &adapter->vport_config[vport->idx]->user_config.rss_data;
+	buf_size = struct_size(rl, lut, rss_data->rss_lut_size);
+	rl = kzalloc(buf_size, GFP_KERNEL);
+	if (!rl)
+		return -ENOMEM;
+
+	rl->vport_id = cpu_to_le32(vport->vport_id);
+	mutex_lock(&vport->vc_buf_lock);
+
+	if (!get) {
+		rl->lut_entries = cpu_to_le16(rss_data->rss_lut_size);
+		for (i = 0; i < rss_data->rss_lut_size; i++)
+			rl->lut[i] = cpu_to_le32(rss_data->rss_lut[i]);
+
+		err = idpf_send_mb_msg(adapter, VIRTCHNL2_OP_SET_RSS_LUT,
+				       buf_size, (u8 *)rl);
+		if (err)
+			goto free_mem;
+
+		err = idpf_wait_for_event(adapter, vport, IDPF_VC_SET_RSS_LUT,
+					  IDPF_VC_SET_RSS_LUT_ERR);
+
+		goto free_mem;
+	}
+
+	err = idpf_send_mb_msg(adapter, VIRTCHNL2_OP_GET_RSS_LUT,
+			       buf_size, (u8 *)rl);
+	if (err)
+		goto free_mem;
+
+	err = idpf_wait_for_event(adapter, vport, IDPF_VC_GET_RSS_LUT,
+				  IDPF_VC_GET_RSS_LUT_ERR);
+	if (err)
+		goto free_mem;
+
+	recv_rl = (struct virtchnl2_rss_lut *)vport->vc_msg;
+	if (rss_data->rss_lut_size == le16_to_cpu(recv_rl->lut_entries))
+		goto do_memcpy;
+
+	rss_data->rss_lut_size = le16_to_cpu(recv_rl->lut_entries);
+	kfree(rss_data->rss_lut);
+
+	lut_buf_size = rss_data->rss_lut_size * sizeof(u32);
+	rss_data->rss_lut = kzalloc(lut_buf_size, GFP_KERNEL);
+	if (!rss_data->rss_lut) {
+		rss_data->rss_lut_size = 0;
+		err = -ENOMEM;
+		goto free_mem;
+	}
+
+do_memcpy:
+	memcpy(rss_data->rss_lut, vport->vc_msg, rss_data->rss_lut_size);
+free_mem:
+	mutex_unlock(&vport->vc_buf_lock);
+	kfree(rl);
+
+	return err;
+}
+
+/**
+ * idpf_send_get_set_rss_key_msg - Send virtchnl get or set rss key message
+ * @vport: virtual port data structure
+ * @get: flag to set or get rss look up table
+ *
+ * Returns 0 on success, negative on failure
+ */
+int idpf_send_get_set_rss_key_msg(struct idpf_vport *vport, bool get)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+	struct virtchnl2_rss_key *recv_rk;
+	struct idpf_rss_data *rss_data;
+	struct virtchnl2_rss_key *rk;
+	int i, buf_size, err;
+
+	rss_data = &adapter->vport_config[vport->idx]->user_config.rss_data;
+	buf_size = struct_size(rk, key_flex, rss_data->rss_key_size);
+	rk = kzalloc(buf_size, GFP_KERNEL);
+	if (!rk)
+		return -ENOMEM;
+
+	rk->vport_id = cpu_to_le32(vport->vport_id);
+	mutex_lock(&vport->vc_buf_lock);
+
+	if (get) {
+		err = idpf_send_mb_msg(adapter, VIRTCHNL2_OP_GET_RSS_KEY,
+				       buf_size, (u8 *)rk);
+		if (err)
+			goto error;
+
+		err = idpf_wait_for_event(adapter, vport, IDPF_VC_GET_RSS_KEY,
+					  IDPF_VC_GET_RSS_KEY_ERR);
+		if (err)
+			goto error;
+
+		recv_rk = (struct virtchnl2_rss_key *)vport->vc_msg;
+		if (rss_data->rss_key_size !=
+		    le16_to_cpu(recv_rk->key_len)) {
+			rss_data->rss_key_size =
+				min_t(u16, NETDEV_RSS_KEY_LEN,
+				      le16_to_cpu(recv_rk->key_len));
+			kfree(rss_data->rss_key);
+			rss_data->rss_key = kzalloc(rss_data->rss_key_size,
+						    GFP_KERNEL);
+			if (!rss_data->rss_key) {
+				rss_data->rss_key_size = 0;
+				err = -ENOMEM;
+				goto error;
+			}
+		}
+		memcpy(rss_data->rss_key, recv_rk->key_flex,
+		       rss_data->rss_key_size);
+	} else {
+		rk->key_len = cpu_to_le16(rss_data->rss_key_size);
+		for (i = 0; i < rss_data->rss_key_size; i++)
+			rk->key_flex[i] = rss_data->rss_key[i];
+
+		err = idpf_send_mb_msg(adapter, VIRTCHNL2_OP_SET_RSS_KEY,
+				       buf_size, (u8 *)rk);
+		if (err)
+			goto error;
+
+		err = idpf_wait_for_event(adapter, vport, IDPF_VC_SET_RSS_KEY,
+					  IDPF_VC_SET_RSS_KEY_ERR);
+	}
+
+error:
+	mutex_unlock(&vport->vc_buf_lock);
+	kfree(rk);
 
 	return err;
 }
@@ -1871,9 +2287,11 @@ void idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q)
 	struct idpf_adapter *adapter = vport->adapter;
 	struct virtchnl2_create_vport *vport_msg;
 	struct idpf_vport_config *vport_config;
+	struct idpf_rss_data *rss_data;
 	u16 idx = vport->idx;
 
 	vport_config = adapter->vport_config[idx];
+	rss_data = &vport_config->user_config.rss_data;
 	vport_msg = adapter->vport_params_recvd[idx];
 
 	vport_config->max_q.max_txq = max_q->max_txq;
@@ -1885,6 +2303,10 @@ void idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q)
 	vport->rxq_model = le16_to_cpu(vport_msg->rxq_model);
 	vport->vport_type = le16_to_cpu(vport_msg->vport_type);
 	vport->vport_id = le32_to_cpu(vport_msg->vport_id);
+
+	rss_data->rss_key_size = min_t(u16, NETDEV_RSS_KEY_LEN,
+				       le16_to_cpu(vport_msg->rss_key_size));
+	rss_data->rss_lut_size = le16_to_cpu(vport_msg->rss_lut_size);
 
 	ether_addr_copy(vport->default_mac_addr, vport_msg->default_mac_addr);
 	vport->max_mtu = le16_to_cpu(vport_msg->max_mtu) - IDPF_PACKET_HDR_PAD;
@@ -1995,6 +2417,7 @@ static int __idpf_vport_queue_ids_init(struct idpf_vport *vport,
 				       int num_qids,
 				       u32 q_type)
 {
+	struct idpf_queue *q;
 	int i, j, k = 0;
 
 	switch (q_type) {
@@ -2009,6 +2432,26 @@ static int __idpf_vport_queue_ids_init(struct idpf_vport *vport,
 			}
 		}
 		break;
+	case VIRTCHNL2_QUEUE_TYPE_RX:
+		for (i = 0; i < vport->num_rxq_grp; i++) {
+			struct idpf_rxq_group *rx_qgrp = &vport->rxq_grps[i];
+			u16 num_rxq;
+
+			if (idpf_is_queue_model_split(vport->rxq_model))
+				num_rxq = rx_qgrp->splitq.num_rxq_sets;
+			else
+				num_rxq = rx_qgrp->singleq.num_rxq;
+
+			for (j = 0; j < num_rxq && k < num_qids; j++, k++) {
+				if (idpf_is_queue_model_split(vport->rxq_model))
+					q = &rx_qgrp->splitq.rxq_sets[j]->rxq;
+				else
+					q = rx_qgrp->singleq.rxqs[j];
+				q->q_id = qids[k];
+				q->q_type = VIRTCHNL2_QUEUE_TYPE_RX;
+			}
+		}
+		break;
 	case VIRTCHNL2_QUEUE_TYPE_TX_COMPLETION:
 		for (i = 0; i < vport->num_txq_grp && k < num_qids; i++, k++) {
 			struct idpf_txq_group *tx_qgrp = &vport->txq_grps[i];
@@ -2016,6 +2459,18 @@ static int __idpf_vport_queue_ids_init(struct idpf_vport *vport,
 			tx_qgrp->complq->q_id = qids[k];
 			tx_qgrp->complq->q_type =
 				VIRTCHNL2_QUEUE_TYPE_TX_COMPLETION;
+		}
+		break;
+	case VIRTCHNL2_QUEUE_TYPE_RX_BUFFER:
+		for (i = 0; i < vport->num_rxq_grp; i++) {
+			struct idpf_rxq_group *rx_qgrp = &vport->rxq_grps[i];
+			u8 num_bufqs = vport->num_bufqs_per_qgrp;
+
+			for (j = 0; j < num_bufqs && k < num_qids; j++, k++) {
+				q = &rx_qgrp->splitq.bufq_sets[j].bufq;
+				q->q_id = qids[k];
+				q->q_type = VIRTCHNL2_QUEUE_TYPE_RX_BUFFER;
+			}
 		}
 		break;
 	default:
@@ -2070,8 +2525,22 @@ int idpf_vport_queue_ids_init(struct idpf_vport *vport)
 		goto mem_rel;
 	}
 
-	if (!idpf_is_queue_model_split(vport->txq_model))
+	num_ids = idpf_vport_get_queue_ids(qids, IDPF_MAX_QIDS,
+					   VIRTCHNL2_QUEUE_TYPE_RX,
+					   chunks);
+	if (num_ids < vport->num_rxq) {
+		err = -EINVAL;
 		goto mem_rel;
+	}
+	num_ids = __idpf_vport_queue_ids_init(vport, qids, num_ids,
+					      VIRTCHNL2_QUEUE_TYPE_RX);
+	if (num_ids < vport->num_rxq) {
+		err = -EINVAL;
+		goto mem_rel;
+	}
+
+	if (!idpf_is_queue_model_split(vport->txq_model))
+		goto check_rxq;
 
 	q_type = VIRTCHNL2_QUEUE_TYPE_TX_COMPLETION;
 	num_ids = idpf_vport_get_queue_ids(qids, IDPF_MAX_QIDS, q_type, chunks);
@@ -2080,7 +2549,23 @@ int idpf_vport_queue_ids_init(struct idpf_vport *vport)
 		goto mem_rel;
 	}
 	num_ids = __idpf_vport_queue_ids_init(vport, qids, num_ids, q_type);
-	if (num_ids < vport->num_complq)
+	if (num_ids < vport->num_complq) {
+		err = -EINVAL;
+		goto mem_rel;
+	}
+
+check_rxq:
+	if (!idpf_is_queue_model_split(vport->rxq_model))
+		goto mem_rel;
+
+	q_type = VIRTCHNL2_QUEUE_TYPE_RX_BUFFER;
+	num_ids = idpf_vport_get_queue_ids(qids, IDPF_MAX_QIDS, q_type, chunks);
+	if (num_ids < vport->num_bufq) {
+		err = -EINVAL;
+		goto mem_rel;
+	}
+	num_ids = __idpf_vport_queue_ids_init(vport, qids, num_ids, q_type);
+	if (num_ids < vport->num_bufq)
 		err = -EINVAL;
 
 mem_rel:

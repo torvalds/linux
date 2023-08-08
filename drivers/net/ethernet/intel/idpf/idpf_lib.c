@@ -668,11 +668,16 @@ static void idpf_vport_rel(struct idpf_vport *vport)
 {
 	struct idpf_adapter *adapter = vport->adapter;
 	struct idpf_vport_config *vport_config;
+	struct idpf_rss_data *rss_data;
 	struct idpf_vport_max_q max_q;
 	u16 idx = vport->idx;
 	int i;
 
 	vport_config = adapter->vport_config[vport->idx];
+	idpf_deinit_rss(vport);
+	rss_data = &vport_config->user_config.rss_data;
+	kfree(rss_data->rss_key);
+	rss_data->rss_key = NULL;
 
 	idpf_send_destroy_vport_msg(vport);
 
@@ -743,6 +748,7 @@ static void idpf_vport_dealloc(struct idpf_vport *vport)
 static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 					   struct idpf_vport_max_q *max_q)
 {
+	struct idpf_rss_data *rss_data;
 	u16 idx = adapter->next_vport;
 	struct idpf_vport *vport;
 
@@ -772,6 +778,21 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 			       idpf_get_default_vports(adapter);
 
 	idpf_vport_init(vport, max_q);
+
+	/* This alloc is done separate from the LUT because it's not strictly
+	 * dependent on how many queues we have. If we change number of queues
+	 * and soft reset we'll need a new LUT but the key can remain the same
+	 * for as long as the vport exists.
+	 */
+	rss_data = &adapter->vport_config[idx]->user_config.rss_data;
+	rss_data->rss_key = kzalloc(rss_data->rss_key_size, GFP_KERNEL);
+	if (!rss_data->rss_key) {
+		kfree(vport);
+
+		return NULL;
+	}
+	/* Initialize default rss key */
+	netdev_rss_key_fill((void *)rss_data->rss_key, rss_data->rss_key_size);
 
 	/* fill vport slot in the adapter struct */
 	adapter->vports[idx] = vport;
@@ -837,6 +858,7 @@ static int idpf_vport_open(struct idpf_vport *vport, bool alloc_res)
 {
 	struct idpf_netdev_priv *np = netdev_priv(vport->netdev);
 	struct idpf_adapter *adapter = vport->adapter;
+	struct idpf_vport_config *vport_config;
 	int err;
 
 	if (np->state != __IDPF_VPORT_DOWN)
@@ -865,6 +887,13 @@ static int idpf_vport_open(struct idpf_vport *vport, bool alloc_res)
 		goto intr_rel;
 	}
 
+	err = idpf_rx_bufs_init_all(vport);
+	if (err) {
+		dev_err(&adapter->pdev->dev, "Failed to initialize RX buffers for vport %u: %d\n",
+			vport->vport_id, err);
+		goto intr_rel;
+	}
+
 	err = idpf_queue_reg_init(vport);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to initialize queue registers for vport %u: %d\n",
@@ -872,9 +901,20 @@ static int idpf_vport_open(struct idpf_vport *vport, bool alloc_res)
 		goto intr_rel;
 	}
 
-	err = idpf_send_config_tx_queues_msg(vport);
+	err = idpf_send_config_queues_msg(vport);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to configure queues for vport %u, %d\n",
+			vport->vport_id, err);
+		goto intr_rel;
+	}
+
+	vport_config = adapter->vport_config[vport->idx];
+	if (vport_config->user_config.rss_data.rss_lut)
+		err = idpf_config_rss(vport);
+	else
+		err = idpf_init_rss(vport);
+	if (err) {
+		dev_err(&adapter->pdev->dev, "Failed to initialize RSS for vport %u: %d\n",
 			vport->vport_id, err);
 		goto intr_rel;
 	}
