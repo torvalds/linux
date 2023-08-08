@@ -33,7 +33,7 @@
 
 #define MAX_PIPES 6
 
-/**
+/*
  * Get Replay state from firmware.
  */
 static void dmub_replay_get_state(struct dmub_replay *dmub, enum replay_state *state, uint8_t panel_inst)
@@ -62,7 +62,7 @@ static void dmub_replay_get_state(struct dmub_replay *dmub, enum replay_state *s
 	}
 }
 
-/**
+/*
  * Enable/Disable Replay.
  */
 static void dmub_replay_enable(struct dmub_replay *dmub, bool enable, bool wait, uint8_t panel_inst)
@@ -112,7 +112,7 @@ static void dmub_replay_enable(struct dmub_replay *dmub, bool enable, bool wait,
 
 }
 
-/**
+/*
  * Set REPLAY power optimization flags.
  */
 static void dmub_replay_set_power_opt(struct dmub_replay *dmub, unsigned int power_opt, uint8_t panel_inst)
@@ -130,7 +130,7 @@ static void dmub_replay_set_power_opt(struct dmub_replay *dmub, unsigned int pow
 	dm_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
-/**
+/*
  * Setup Replay by programming phy registers and sending replay hw context values to firmware.
  */
 static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
@@ -215,7 +215,7 @@ static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
 	return true;
 }
 
-/**
+/*
  * Set coasting vtotal.
  */
 static void dmub_replay_set_coasting_vtotal(struct dmub_replay *dmub,
@@ -234,7 +234,7 @@ static void dmub_replay_set_coasting_vtotal(struct dmub_replay *dmub,
 	dm_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
-/**
+/*
  * Get Replay residency from firmware.
  */
 static void dmub_replay_residency(struct dmub_replay *dmub, uint8_t panel_inst,
@@ -267,7 +267,7 @@ static const struct dmub_replay_funcs replay_funcs = {
 	.replay_residency		= dmub_replay_residency,
 };
 
-/**
+/*
  * Construct Replay object.
  */
 static void dmub_replay_construct(struct dmub_replay *replay, struct dc_context *ctx)
@@ -276,7 +276,7 @@ static void dmub_replay_construct(struct dmub_replay *replay, struct dc_context 
 	replay->funcs = &replay_funcs;
 }
 
-/**
+/*
  * Allocate and initialize Replay object.
  */
 struct dmub_replay *dmub_replay_create(struct dc_context *ctx)
@@ -293,7 +293,7 @@ struct dmub_replay *dmub_replay_create(struct dc_context *ctx)
 	return replay;
 }
 
-/**
+/*
  * Deallocate Replay object.
  */
 void dmub_replay_destroy(struct dmub_replay **dmub)
