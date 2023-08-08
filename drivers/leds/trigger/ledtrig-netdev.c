@@ -564,15 +564,17 @@ static int netdev_trig_activate(struct led_classdev *led_cdev)
 	/* Check if hw control is active by default on the LED.
 	 * Init already enabled mode in hw control.
 	 */
-	if (supports_hw_control(led_cdev) &&
-	    !led_cdev->hw_control_get(led_cdev, &mode)) {
+	if (supports_hw_control(led_cdev)) {
 		dev = led_cdev->hw_control_get_device(led_cdev);
 		if (dev) {
 			const char *name = dev_name(dev);
 
 			set_device_name(trigger_data, name, strlen(name));
 			trigger_data->hw_control = true;
-			trigger_data->mode = mode;
+
+			rc = led_cdev->hw_control_get(led_cdev, &mode);
+			if (!rc)
+				trigger_data->mode = mode;
 		}
 	}
 
