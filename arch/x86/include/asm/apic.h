@@ -284,7 +284,6 @@ struct apic {
 	/* Probe, setup and smpboot functions */
 	int	(*probe)(void);
 	int	(*acpi_madt_oem_check)(char *oem_id, char *oem_table_id);
-	int	(*apic_id_valid)(u32 apicid);
 	bool	(*apic_id_registered)(void);
 
 	bool	(*check_apicid_used)(physid_mask_t *map, int apicid);
@@ -378,7 +377,7 @@ static inline u32 safe_apic_wait_icr_idle(void)
 
 static inline bool apic_id_valid(u32 apic_id)
 {
-	return apic->apic_id_valid(apic_id);
+	return apic_id <= apic->max_apic_id;
 }
 
 extern void __init apic_set_eoi_write(void (*eoi_write)(u32 reg, u32 v));

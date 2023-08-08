@@ -67,8 +67,6 @@ struct apic apic_noop __ro_after_init = {
 	.probe				= noop_probe,
 	.acpi_madt_oem_check		= NULL,
 
-	.apic_id_valid			= default_apic_id_valid,
-
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= true,
 
