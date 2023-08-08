@@ -33,6 +33,11 @@
  */
 typedef void (*sigill_fn)(void);
 
+static void crc32_sigill(void)
+{
+	asm volatile("crc32w w0, w0, w1");
+}
+
 static void cssc_sigill(void)
 {
 	/* CNT x0, x0 */
@@ -233,6 +238,13 @@ static const struct hwcap_data {
 	sigill_fn sigill_fn;
 	bool sigill_reliable;
 } hwcaps[] = {
+	{
+		.name = "CRC32",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_CRC32,
+		.cpuinfo = "crc32",
+		.sigill_fn = crc32_sigill,
+	},
 	{
 		.name = "CSSC",
 		.at_hwcap = AT_HWCAP2,
