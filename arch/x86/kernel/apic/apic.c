@@ -2502,15 +2502,15 @@ void __init acpi_wake_cpu_handler_update(wakeup_cpu_handler handler)
  * interrupts disabled, so we know this does not race with actual APIC driver
  * use.
  */
-void __init apic_set_eoi_write(void (*eoi_write)(u32 reg, u32 v))
+void __init apic_set_eoi_cb(void (*eoi)(void))
 {
 	struct apic **drv;
 
 	for (drv = __apicdrivers; drv < __apicdrivers_end; drv++) {
 		/* Should happen once for each apic */
-		WARN_ON((*drv)->eoi_write == eoi_write);
-		(*drv)->native_eoi_write = (*drv)->eoi_write;
-		(*drv)->eoi_write = eoi_write;
+		WARN_ON((*drv)->eoi == eoi);
+		(*drv)->native_eoi = (*drv)->eoi;
+		(*drv)->eoi = eoi;
 	}
 }
 

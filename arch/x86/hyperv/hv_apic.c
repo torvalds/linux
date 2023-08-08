@@ -86,14 +86,14 @@ static void hv_apic_write(u32 reg, u32 val)
 	}
 }
 
-static void hv_apic_eoi_write(u32 reg, u32 val)
+static void hv_apic_eoi_write(void)
 {
 	struct hv_vp_assist_page *hvp = hv_vp_assist_page[smp_processor_id()];
 
 	if (hvp && (xchg(&hvp->apic_assist, 0) & 0x1))
 		return;
 
-	wrmsr(HV_X64_MSR_EOI, val, 0);
+	wrmsr(HV_X64_MSR_EOI, APIC_EOI_ACK, 0);
 }
 
 static bool cpu_is_self(int cpu)
@@ -310,7 +310,7 @@ void __init hv_apic_init(void)
 		 * lazy EOI when available, but the same accessor works for
 		 * both xapic and x2apic because the field layout is the same.
 		 */
-		apic_set_eoi_write(hv_apic_eoi_write);
+		apic_set_eoi_cb(hv_apic_eoi_write);
 		if (!x2apic_enabled()) {
 			apic->read      = hv_apic_read;
 			apic->write     = hv_apic_write;

@@ -29,6 +29,7 @@ static int noop_wakeup_secondary_cpu(int apicid, unsigned long start_eip) { retu
 static u64 noop_apic_icr_read(void) { return 0; }
 static int noop_phys_pkg_id(int cpuid_apic, int index_msb) { return 0; }
 static unsigned int noop_get_apic_id(unsigned long x) { return 0; }
+static void noop_apic_eoi(void) { }
 
 static u32 noop_apic_read(u32 reg)
 {
@@ -71,7 +72,7 @@ struct apic apic_noop __ro_after_init = {
 
 	.read				= noop_apic_read,
 	.write				= noop_apic_write,
-	.eoi_write			= noop_apic_write,
+	.eoi				= noop_apic_eoi,
 	.icr_read			= noop_apic_icr_read,
 	.icr_write			= noop_apic_icr_write,
 };

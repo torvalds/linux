@@ -81,6 +81,11 @@ static void xen_apic_write(u32 reg, u32 val)
 	WARN(1,"register: %x, value: %x\n", reg, val);
 }
 
+static void xen_apic_eoi(void)
+{
+	WARN_ON_ONCE(1);
+}
+
 static u64 xen_apic_icr_read(void)
 {
 	return 0;
@@ -147,7 +152,7 @@ static struct apic xen_pv_apic = {
 #endif
 	.read				= xen_apic_read,
 	.write				= xen_apic_write,
-	.eoi_write			= xen_apic_write,
+	.eoi				= xen_apic_eoi,
 
 	.icr_read 			= xen_apic_icr_read,
 	.icr_write 			= xen_apic_icr_write,
