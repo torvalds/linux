@@ -255,6 +255,10 @@
 	status = "okay";
 };
 
+&pcie_ibt {
+	status = "okay";
+};
+
 &bmc_dev {
 	status = "okay";
 	memory-region = <&bmc_dev_memory>;
