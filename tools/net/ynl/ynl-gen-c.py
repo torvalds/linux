@@ -1871,6 +1871,7 @@ def print_req_policy(cw, struct, ri=None):
     for _, arg in struct.member_list():
         arg.attr_policy(cw)
     cw.p("};")
+    cw.nl()
 
 
 def kernel_can_gen_family_struct(family):
