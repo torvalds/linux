@@ -1025,7 +1025,7 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 	mlx5_wq_destroy(&rq->wq_ctrl);
 }
 
-int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
+int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param, u16 q_counter)
 {
 	struct mlx5_core_dev *mdev = rq->mdev;
 	u8 ts_format;
@@ -1052,6 +1052,7 @@ int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 	MLX5_SET(rqc,  rqc, cqn,		rq->cq.mcq.cqn);
 	MLX5_SET(rqc,  rqc, state,		MLX5_RQC_STATE_RST);
 	MLX5_SET(rqc,  rqc, ts_format,		ts_format);
+	MLX5_SET(rqc,  rqc, counter_set_id,     q_counter);
 	MLX5_SET(wq,   wq,  log_wq_pg_sz,	rq->wq_ctrl.buf.page_shift -
 						MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(wq, wq,  dbr_addr,		rq->wq_ctrl.db.dma);
@@ -1275,7 +1276,7 @@ void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
 }
 
 int mlx5e_open_rq(struct mlx5e_params *params, struct mlx5e_rq_param *param,
-		  struct mlx5e_xsk_param *xsk, int node,
+		  struct mlx5e_xsk_param *xsk, int node, u16 q_counter,
 		  struct mlx5e_rq *rq)
 {
 	struct mlx5_core_dev *mdev = rq->mdev;
@@ -1288,7 +1289,7 @@ int mlx5e_open_rq(struct mlx5e_params *params, struct mlx5e_rq_param *param,
 	if (err)
 		return err;
 
-	err = mlx5e_create_rq(rq, param);
+	err = mlx5e_create_rq(rq, param, q_counter);
 	if (err)
 		goto err_free_rq;
 
@@ -2334,13 +2335,14 @@ static int mlx5e_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 static int mlx5e_open_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *params,
 			     struct mlx5e_rq_param *rq_params)
 {
+	u16 q_counter = c->priv->q_counter[c->sd_ix];
 	int err;
 
 	err = mlx5e_init_rxq_rq(c, params, rq_params->xdp_frag_size, &c->rq);
 	if (err)
 		return err;
 
-	return mlx5e_open_rq(params, rq_params, NULL, cpu_to_node(c->cpu), &c->rq);
+	return mlx5e_open_rq(params, rq_params, NULL, cpu_to_node(c->cpu), q_counter, &c->rq);
 }
 
 static int mlx5e_open_queues(struct mlx5e_channel *c,
@@ -2557,6 +2559,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->tstamp   = &priv->tstamp;
 	c->ix       = ix;
 	c->vec_ix   = vec_ix;
+	c->sd_ix    = mlx5_sd_ch_ix_get_dev_ix(mdev, ix);
 	c->cpu      = cpu;
 	c->pdev     = mlx5_core_dma_dev(mdev);
 	c->netdev   = priv->netdev;
@@ -2655,7 +2658,7 @@ int mlx5e_open_channels(struct mlx5e_priv *priv,
 	if (!chs->c || !cparam)
 		goto err_free;
 
-	err = mlx5e_build_channel_param(priv->mdev, &chs->params, priv->q_counter, cparam);
+	err = mlx5e_build_channel_param(priv->mdev, &chs->params, cparam);
 	if (err)
 		goto err_free;
 
@@ -3346,7 +3349,7 @@ int mlx5e_open_drop_rq(struct mlx5e_priv *priv,
 	struct mlx5e_cq *cq = &drop_rq->cq;
 	int err;
 
-	mlx5e_build_drop_rq_param(mdev, priv->drop_rq_q_counter, &rq_param);
+	mlx5e_build_drop_rq_param(mdev, &rq_param);
 
 	err = mlx5e_alloc_drop_cq(priv, cq, &cq_param);
 	if (err)
@@ -3360,7 +3363,7 @@ int mlx5e_open_drop_rq(struct mlx5e_priv *priv,
 	if (err)
 		goto err_destroy_cq;
 
-	err = mlx5e_create_rq(drop_rq, &rq_param);
+	err = mlx5e_create_rq(drop_rq, &rq_param, priv->drop_rq_q_counter);
 	if (err)
 		goto err_free_rq;
 
@@ -5275,13 +5278,17 @@ void mlx5e_create_q_counters(struct mlx5e_priv *priv)
 	u32 out[MLX5_ST_SZ_DW(alloc_q_counter_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(alloc_q_counter_in)] = {};
 	struct mlx5_core_dev *mdev = priv->mdev;
-	int err;
+	struct mlx5_core_dev *pos;
+	int err, i;
 
 	MLX5_SET(alloc_q_counter_in, in, opcode, MLX5_CMD_OP_ALLOC_Q_COUNTER);
-	err = mlx5_cmd_exec_inout(mdev, alloc_q_counter, in, out);
-	if (!err)
-		priv->q_counter =
-			MLX5_GET(alloc_q_counter_out, out, counter_set_id);
+
+	mlx5_sd_for_each_dev(i, mdev, pos) {
+		err = mlx5_cmd_exec_inout(pos, alloc_q_counter, in, out);
+		if (!err)
+			priv->q_counter[i] =
+				MLX5_GET(alloc_q_counter_out, out, counter_set_id);
+	}
 
 	err = mlx5_cmd_exec_inout(mdev, alloc_q_counter, in, out);
 	if (!err)
@@ -5292,13 +5299,17 @@ void mlx5e_create_q_counters(struct mlx5e_priv *priv)
 void mlx5e_destroy_q_counters(struct mlx5e_priv *priv)
 {
 	u32 in[MLX5_ST_SZ_DW(dealloc_q_counter_in)] = {};
+	struct mlx5_core_dev *pos;
+	int i;
 
 	MLX5_SET(dealloc_q_counter_in, in, opcode,
 		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
-	if (priv->q_counter) {
-		MLX5_SET(dealloc_q_counter_in, in, counter_set_id,
-			 priv->q_counter);
-		mlx5_cmd_exec_in(priv->mdev, dealloc_q_counter, in);
+	mlx5_sd_for_each_dev(i, priv->mdev, pos) {
+		if (priv->q_counter[i]) {
+			MLX5_SET(dealloc_q_counter_in, in, counter_set_id,
+				 priv->q_counter[i]);
+			mlx5_cmd_exec_in(pos, dealloc_q_counter, in);
+		}
 	}
 
 	if (priv->drop_rq_q_counter) {

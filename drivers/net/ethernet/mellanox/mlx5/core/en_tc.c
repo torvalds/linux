@@ -1169,7 +1169,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 			MLX5_CAP_GEN(priv->mdev, log_min_hairpin_wq_data_sz),
 			MLX5_CAP_GEN(priv->mdev, log_max_hairpin_wq_data_sz));
 
-	params.q_counter = priv->q_counter;
+	params.q_counter = priv->q_counter[0];
 	err = devl_param_driverinit_value_get(
 		devlink, MLX5_DEVLINK_PARAM_ID_HAIRPIN_NUM_QUEUES, &val);
 	if (err) {
