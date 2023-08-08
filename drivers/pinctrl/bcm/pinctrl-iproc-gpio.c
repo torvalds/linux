@@ -891,10 +891,8 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	}
 
 	ret = gpiochip_add_data(gc, chip);
-	if (ret < 0) {
-		dev_err(dev, "unable to add GPIO chip\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "unable to add GPIO chip\n");
 
 	if (!no_pinconf) {
 		ret = iproc_gpio_register_pinconf(chip);
