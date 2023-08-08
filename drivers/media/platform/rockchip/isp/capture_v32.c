@@ -1546,6 +1546,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 	struct rkisp_device *dev = stream->ispdev;
 	int ret;
 
+	stream->is_pause = false;
 	if (stream->ops->set_data_path)
 		stream->ops->set_data_path(stream);
 	if (stream->ops->config_mi) {
