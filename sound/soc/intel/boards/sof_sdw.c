@@ -1160,6 +1160,43 @@ static bool is_unique_device(const struct snd_soc_acpi_link_adr *adr_link,
 	return true;
 }
 
+static int fill_sdw_codec_dlc(struct device *dev,
+			      const struct snd_soc_acpi_link_adr *adr_link,
+			      struct snd_soc_dai_link_component *codec,
+			      int codec_index, int adr_index, int dai_index)
+{
+	unsigned int sdw_version, unique_id, mfg_id, link_id, part_id, class_id;
+	u64 adr = adr_link->adr_d[adr_index].adr;
+
+	sdw_version = SDW_VERSION(adr);
+	link_id = SDW_DISCO_LINK_ID(adr);
+	unique_id = SDW_UNIQUE_ID(adr);
+	mfg_id = SDW_MFG_ID(adr);
+	part_id = SDW_PART_ID(adr);
+	class_id = SDW_CLASS_ID(adr);
+
+	if (codec_info_list[codec_index].codec_name)
+		codec->name = devm_kstrdup(dev,
+					   codec_info_list[codec_index].codec_name,
+					   GFP_KERNEL);
+	else if (is_unique_device(adr_link, sdw_version, mfg_id, part_id,
+				  class_id, adr_index))
+		codec->name = devm_kasprintf(dev, GFP_KERNEL,
+					     "sdw:%01x:%04x:%04x:%02x", link_id,
+					     mfg_id, part_id, class_id);
+	else
+		codec->name = devm_kasprintf(dev, GFP_KERNEL,
+					     "sdw:%01x:%04x:%04x:%02x:%01x", link_id,
+					     mfg_id, part_id, class_id, unique_id);
+
+	if (!codec->name)
+		return -ENOMEM;
+
+	codec->dai_name = codec_info_list[codec_index].dais[dai_index].dai_name;
+
+	return 0;
+}
+
 static int create_codec_dai_name(struct device *dev,
 				 const struct snd_soc_acpi_link_adr *adr_link,
 				 struct snd_soc_dai_link_component *codec,
@@ -1171,7 +1208,7 @@ static int create_codec_dai_name(struct device *dev,
 				 int dai_index)
 {
 	int _codec_index = -1;
-	int i;
+	int i, ret;
 
 	/* sanity check */
 	if (*codec_conf_index + adr_link->num_adr - adr_index > codec_count) {
@@ -1180,13 +1217,8 @@ static int create_codec_dai_name(struct device *dev,
 	}
 
 	for (i = adr_index; i < adr_link->num_adr; i++) {
-		unsigned int sdw_version, unique_id, mfg_id;
-		unsigned int link_id, part_id, class_id;
 		int codec_index, comp_index;
-		char *codec_str;
-		u64 adr;
-
-		adr = adr_link->adr_d[i].adr;
+		u64 adr = adr_link->adr_d[i].adr;
 
 		codec_index = find_codec_info_part(adr);
 		if (codec_index < 0)
@@ -1197,38 +1229,12 @@ static int create_codec_dai_name(struct device *dev,
 		}
 		_codec_index = codec_index;
 
-		sdw_version = SDW_VERSION(adr);
-		link_id = SDW_DISCO_LINK_ID(adr);
-		unique_id = SDW_UNIQUE_ID(adr);
-		mfg_id = SDW_MFG_ID(adr);
-		part_id = SDW_PART_ID(adr);
-		class_id = SDW_CLASS_ID(adr);
-
 		comp_index = i - adr_index + offset;
-		if (codec_info_list[codec_index].codec_name) {
-			codec[comp_index].name =
-				devm_kstrdup(dev, codec_info_list[codec_index].codec_name,
-					     GFP_KERNEL);
-		} else if (is_unique_device(adr_link, sdw_version, mfg_id, part_id,
-				     class_id, i)) {
-			codec_str = "sdw:%01x:%04x:%04x:%02x";
-			codec[comp_index].name =
-				devm_kasprintf(dev, GFP_KERNEL, codec_str,
-					       link_id, mfg_id, part_id,
-					       class_id);
-		} else {
-			codec_str = "sdw:%01x:%04x:%04x:%02x:%01x";
-			codec[comp_index].name =
-				devm_kasprintf(dev, GFP_KERNEL, codec_str,
-					       link_id, mfg_id, part_id,
-					       class_id, unique_id);
-		}
 
-		if (!codec[comp_index].name)
-			return -ENOMEM;
-
-		codec[comp_index].dai_name =
-			codec_info_list[codec_index].dais[dai_index].dai_name;
+		ret = fill_sdw_codec_dlc(dev, adr_link, &codec[comp_index],
+					 codec_index, i, dai_index);
+		if (ret)
+			return ret;
 
 		codec_conf[*codec_conf_index].dlc = codec[comp_index];
 		codec_conf[*codec_conf_index].name_prefix = adr_link->adr_d[i].name_prefix;
