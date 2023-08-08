@@ -81,6 +81,7 @@ enum rkisp_isp_state {
 	ISP_START = BIT(9),
 	ISP_ERROR = BIT(10),
 	ISP_MIPI_ERROR = BIT(11),
+	ISP_CIF_RESET = BIT(12),
 };
 
 enum rkisp_isp_inp {

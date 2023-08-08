@@ -1231,8 +1231,11 @@ static void rkisp_restart_monitor(struct work_struct *work)
 		/* isp stop to exit
 		 * isp err to reset
 		 * mipi err wait isp idle, then reset
+		 * online vicap if isp err, notify vicap reset, then vicap notify isp reset
+		 * by ioctl RKISP_VICAP_CMD_SET_STREAM
 		 */
 		if (monitor->state & ISP_STOP ||
+		    monitor->state & ISP_CIF_RESET ||
 		    (ret && !(monitor->state & ISP_ERROR)) ||
 		    (!ret &&
 		     monitor->state & ISP_FRAME_END &&
@@ -1281,10 +1284,22 @@ static void rkisp_restart_monitor(struct work_struct *work)
 
 		/* restart isp */
 		isp = hw->isp[hw->cur_dev_id];
-		ret = rkisp_reset_handle(isp);
-		if (ret) {
-			monitor->is_en = false;
-			break;
+		if (!IS_HDR_RDBK(isp->hdr.op_mode) && isp->isp_ver >= ISP_V30) {
+			struct v4l2_subdev *remote = NULL;
+			struct v4l2_subdev *isp_subdev = NULL;
+
+			isp_subdev = &(isp->isp_sdev.sd);
+			remote = get_remote_sensor(isp_subdev);
+			v4l2_subdev_call(remote, core, ioctl,
+				RKISP_VICAP_CMD_SET_RESET, NULL);
+			monitor->state |= ISP_CIF_RESET;
+			continue;
+		} else {
+			ret = rkisp_reset_handle(isp);
+			if (ret) {
+				monitor->is_en = false;
+				break;
+			}
 		}
 
 		for (i = 0; i < hw->dev_num; i++) {
@@ -3521,6 +3536,13 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			rkisp_hw_enum_isp_size(isp_dev->hw_dev);
 		}
 		break;
+	case RKISP_VICAP_CMD_SET_STREAM:
+		ret = rkisp_reset_handle(isp_dev);
+		if (!ret) {
+			if (isp_dev->hw_dev->monitor.state & ISP_CIF_RESET)
+				isp_dev->hw_dev->monitor.state &= ~ISP_CIF_RESET;
+		}
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -3621,6 +3643,9 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = rkisp_ioctl(sd, cmd, &module_id);
 		break;
 	case RKISP_CMD_MULTI_DEV_FORCE_ENUM:
+		ret = rkisp_ioctl(sd, cmd, NULL);
+		break;
+	case RKISP_VICAP_CMD_SET_STREAM:
 		ret = rkisp_ioctl(sd, cmd, NULL);
 		break;
 	default:
