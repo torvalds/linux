@@ -50,8 +50,8 @@
 		serial12 = &uart13;
 		serial13 = &vuart1;
 		serial14 = &vuart2;
-		serial15 = &vuart3;
-		serial16 = &vuart4;
+		serial15 = &pcie_vuart0;
+		serial16 = &pcie_vuart1;
 		mdio0 = &mdio0;
 		mdio1 = &mdio1;
 		mdio2 = &mdio2;
@@ -729,7 +729,7 @@
 			};
 
 			vuart1: serial@1e787000 {
-				compatible = "aspeed,ast2600-vuart";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e787000 0x40>;
 				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
@@ -737,8 +737,8 @@
 				status = "disabled";
 			};
 
-			vuart3: serial@1e787800 {
-				compatible = "aspeed,ast2600-vuart";
+			pcie_vuart0: serial@1e787800 {
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e787800 0x40>;
 				interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
@@ -747,7 +747,7 @@
 			};
 
 			vuart2: serial@1e788000 {
-				compatible = "aspeed,ast2600-vuart";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e788000 0x40>;
 				interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
@@ -755,8 +755,8 @@
 				status = "disabled";
 			};
 
-			vuart4: serial@1e788800 {
-				compatible = "aspeed,ast2600-vuart";
+			pcie_vuart1: serial@1e788800 {
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e788800 0x40>;
 				interrupts = <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
