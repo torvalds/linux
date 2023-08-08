@@ -815,11 +815,6 @@ static bool work_is_canceling(struct work_struct *work)
  * they're being called with pool->lock held.
  */
 
-static bool __need_more_worker(struct worker_pool *pool)
-{
-	return !pool->nr_running;
-}
-
 /*
  * Need to wake up a worker?  Called from anything but currently
  * running workers.
@@ -830,7 +825,7 @@ static bool __need_more_worker(struct worker_pool *pool)
  */
 static bool need_more_worker(struct worker_pool *pool)
 {
-	return !list_empty(&pool->worklist) && __need_more_worker(pool);
+	return !list_empty(&pool->worklist) && !pool->nr_running;
 }
 
 /* Can I start working?  Called from busy but !running workers. */
@@ -1100,20 +1095,23 @@ static bool assign_work(struct work_struct *work, struct worker *worker,
 }
 
 /**
- * wake_up_worker - wake up an idle worker
- * @pool: worker pool to wake worker from
+ * kick_pool - wake up an idle worker if necessary
+ * @pool: pool to kick
  *
- * Wake up the first idle worker of @pool.
- *
- * CONTEXT:
- * raw_spin_lock_irq(pool->lock).
+ * @pool may have pending work items. Wake up worker if necessary. Returns
+ * whether a worker was woken up.
  */
-static void wake_up_worker(struct worker_pool *pool)
+static bool kick_pool(struct worker_pool *pool)
 {
 	struct worker *worker = first_idle_worker(pool);
 
-	if (likely(worker))
-		wake_up_process(worker->task);
+	lockdep_assert_held(&pool->lock);
+
+	if (!need_more_worker(pool) || !worker)
+		return false;
+
+	wake_up_process(worker->task);
+	return true;
 }
 
 #ifdef CONFIG_WQ_CPU_INTENSIVE_REPORT
@@ -1281,10 +1279,9 @@ void wq_worker_sleeping(struct task_struct *task)
 	}
 
 	pool->nr_running--;
-	if (need_more_worker(pool)) {
+	if (kick_pool(pool))
 		worker->current_pwq->stats[PWQ_STAT_CM_WAKEUP]++;
-		wake_up_worker(pool);
-	}
+
 	raw_spin_unlock_irq(&pool->lock);
 }
 
@@ -1332,10 +1329,8 @@ void wq_worker_tick(struct task_struct *task)
 	wq_cpu_intensive_report(worker->current_func);
 	pwq->stats[PWQ_STAT_CPU_INTENSIVE]++;
 
-	if (need_more_worker(pool)) {
+	if (kick_pool(pool))
 		pwq->stats[PWQ_STAT_CM_WAKEUP]++;
-		wake_up_worker(pool);
-	}
 
 	raw_spin_unlock(&pool->lock);
 }
@@ -1773,9 +1768,7 @@ retry:
 		trace_workqueue_activate_work(work);
 		pwq->nr_active++;
 		insert_work(pwq, work, &pool->worklist, work_flags);
-
-		if (__need_more_worker(pool))
-			wake_up_worker(pool);
+		kick_pool(pool);
 	} else {
 		work_flags |= WORK_STRUCT_INACTIVE;
 		insert_work(pwq, work, &pwq->inactive_works, work_flags);
@@ -2181,9 +2174,18 @@ static struct worker *create_worker(struct worker_pool *pool)
 
 	/* start the newly created worker */
 	raw_spin_lock_irq(&pool->lock);
+
 	worker->pool->nr_workers++;
 	worker_enter_idle(worker);
+	kick_pool(pool);
+
+	/*
+	 * @worker is waiting on a completion in kthread() and will trigger hung
+	 * check if not woken up soon. As kick_pool() might not have waken it
+	 * up, wake it up explicitly once more.
+	 */
 	wake_up_process(worker->task);
+
 	raw_spin_unlock_irq(&pool->lock);
 
 	return worker;
@@ -2545,14 +2547,12 @@ __acquires(&pool->lock)
 		worker_set_flags(worker, WORKER_CPU_INTENSIVE);
 
 	/*
-	 * Wake up another worker if necessary.  The condition is always
-	 * false for normal per-cpu workers since nr_running would always
-	 * be >= 1 at this point.  This is used to chain execution of the
-	 * pending work items for WORKER_NOT_RUNNING workers such as the
-	 * UNBOUND and CPU_INTENSIVE ones.
+	 * Kick @pool if necessary. It's always noop for per-cpu worker pools
+	 * since nr_running would always be >= 1 at this point. This is used to
+	 * chain execution of the pending work items for WORKER_NOT_RUNNING
+	 * workers such as the UNBOUND and CPU_INTENSIVE ones.
 	 */
-	if (need_more_worker(pool))
-		wake_up_worker(pool);
+	kick_pool(pool);
 
 	/*
 	 * Record the last pool and clear PENDING which should be the last
@@ -2872,12 +2872,10 @@ repeat:
 		put_pwq(pwq);
 
 		/*
-		 * Leave this pool.  If need_more_worker() is %true, notify a
-		 * regular worker; otherwise, we end up with 0 concurrency
-		 * and stalling the execution.
+		 * Leave this pool. Notify regular workers; otherwise, we end up
+		 * with 0 concurrency and stalling the execution.
 		 */
-		if (need_more_worker(pool))
-			wake_up_worker(pool);
+		kick_pool(pool);
 
 		raw_spin_unlock_irq(&pool->lock);
 
@@ -4111,24 +4109,13 @@ static void pwq_adjust_max_active(struct pool_workqueue *pwq)
 	 * is updated and visible.
 	 */
 	if (!freezable || !workqueue_freezing) {
-		bool kick = false;
-
 		pwq->max_active = wq->saved_max_active;
 
 		while (!list_empty(&pwq->inactive_works) &&
-		       pwq->nr_active < pwq->max_active) {
+		       pwq->nr_active < pwq->max_active)
 			pwq_activate_first_inactive(pwq);
-			kick = true;
-		}
 
-		/*
-		 * Need to kick a worker after thawed or an unbound wq's
-		 * max_active is bumped. In realtime scenarios, always kicking a
-		 * worker will cause interference on the isolated cpu cores, so
-		 * let's kick iff work items were activated.
-		 */
-		if (kick)
-			wake_up_worker(pwq->pool);
+		kick_pool(pwq->pool);
 	} else {
 		pwq->max_active = 0;
 	}
@@ -5389,7 +5376,7 @@ static void unbind_workers(int cpu)
 		 * worker blocking could lead to lengthy stalls.  Kick off
 		 * unbound chain execution of currently pending work items.
 		 */
-		wake_up_worker(pool);
+		kick_pool(pool);
 
 		raw_spin_unlock_irq(&pool->lock);
 
