@@ -848,6 +848,16 @@
 			#dma-cells = <2>;
 		};
 
+		rng: rng@1600c000 {
+			compatible = "starfive,jh7110-trng";
+			reg = <0x0 0x1600C000 0x0 0x4000>;
+			clocks = <&stgcrg JH7110_STGCLK_SEC_AHB>,
+				 <&stgcrg JH7110_STGCLK_SEC_MISC_AHB>;
+			clock-names = "hclk", "ahb";
+			resets = <&stgcrg JH7110_STGRST_SEC_AHB>;
+			interrupts = <30>;
+		};
+
 		mmc0: mmc@16010000 {
 			compatible = "starfive,jh7110-mmc";
 			reg = <0x0 0x16010000 0x0 0x10000>;
