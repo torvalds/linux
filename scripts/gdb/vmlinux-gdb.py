@@ -41,6 +41,7 @@ else:
     import linux.genpd
     import linux.device
     import linux.vfs
-    import linux.mm
+    import linux.pgtable
     import linux.radixtree
     import linux.interrupts
+    import linux.mm
