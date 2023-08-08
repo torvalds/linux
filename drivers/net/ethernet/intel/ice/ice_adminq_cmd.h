@@ -1404,6 +1404,7 @@ struct ice_aqc_get_link_topo {
 	struct ice_aqc_link_topo_addr addr;
 	u8 node_part_num;
 #define ICE_AQC_GET_LINK_TOPO_NODE_NR_PCA9575	0x21
+#define ICE_AQC_GET_LINK_TOPO_NODE_NR_C827	0x31
 	u8 rsvd[9];
 };
 
@@ -1793,11 +1794,10 @@ struct ice_aqc_lldp_filter_ctrl {
 	u8 reserved2[12];
 };
 
+#define ICE_AQC_RSS_VSI_VALID BIT(15)
+
 /* Get/Set RSS key (indirect 0x0B04/0x0B02) */
 struct ice_aqc_get_set_rss_key {
-#define ICE_AQC_GSET_RSS_KEY_VSI_VALID	BIT(15)
-#define ICE_AQC_GSET_RSS_KEY_VSI_ID_S	0
-#define ICE_AQC_GSET_RSS_KEY_VSI_ID_M	(0x3FF << ICE_AQC_GSET_RSS_KEY_VSI_ID_S)
 	__le16 vsi_id;
 	u8 reserved[6];
 	__le32 addr_high;
@@ -1815,35 +1815,33 @@ struct ice_aqc_get_set_rss_keys {
 	u8 extended_hash_key[ICE_AQC_GET_SET_RSS_KEY_DATA_HASH_KEY_SIZE];
 };
 
+enum ice_lut_type {
+	ICE_LUT_VSI = 0,
+	ICE_LUT_PF = 1,
+	ICE_LUT_GLOBAL = 2,
+};
+
+enum ice_lut_size {
+	ICE_LUT_VSI_SIZE = 64,
+	ICE_LUT_GLOBAL_SIZE = 512,
+	ICE_LUT_PF_SIZE = 2048,
+};
+
+/* enum ice_aqc_lut_flags combines constants used to fill
+ * &ice_aqc_get_set_rss_lut ::flags, which is an amalgamation of global LUT ID,
+ * LUT size and LUT type, last of which does not need neither shift nor mask.
+ */
+enum ice_aqc_lut_flags {
+	ICE_AQC_LUT_SIZE_SMALL = 0, /* size = 64 or 128 */
+	ICE_AQC_LUT_SIZE_512 = BIT(2),
+	ICE_AQC_LUT_SIZE_2K = BIT(3),
+
+	ICE_AQC_LUT_GLOBAL_IDX = GENMASK(7, 4),
+};
+
 /* Get/Set RSS LUT (indirect 0x0B05/0x0B03) */
 struct ice_aqc_get_set_rss_lut {
-#define ICE_AQC_GSET_RSS_LUT_VSI_VALID	BIT(15)
-#define ICE_AQC_GSET_RSS_LUT_VSI_ID_S	0
-#define ICE_AQC_GSET_RSS_LUT_VSI_ID_M	(0x3FF << ICE_AQC_GSET_RSS_LUT_VSI_ID_S)
 	__le16 vsi_id;
-#define ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_S	0
-#define ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_M	\
-				(0x3 << ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_S)
-
-#define ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_VSI	 0
-#define ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_PF	 1
-#define ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_GLOBAL	 2
-
-#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_S	 2
-#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_M	 \
-				(0x3 << ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_S)
-
-#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_128	 128
-#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_128_FLAG 0
-#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_512	 512
-#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_512_FLAG 1
-#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_2K	 2048
-#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_2K_FLAG	 2
-
-#define ICE_AQC_GSET_RSS_LUT_GLOBAL_IDX_S	 4
-#define ICE_AQC_GSET_RSS_LUT_GLOBAL_IDX_M	 \
-				(0xF << ICE_AQC_GSET_RSS_LUT_GLOBAL_IDX_S)
-
 	__le16 flags;
 	__le32 reserved;
 	__le32 addr_high;
