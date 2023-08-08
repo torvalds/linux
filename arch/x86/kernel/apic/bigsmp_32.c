@@ -100,12 +100,7 @@ static const struct dmi_system_id bigsmp_dmi_table[] = {
 
 static int probe_bigsmp(void)
 {
-	if (def_to_bigsmp)
-		dmi_bigsmp = 1;
-	else
-		dmi_check_system(bigsmp_dmi_table);
-
-	return dmi_bigsmp;
+	return dmi_check_system(bigsmp_dmi_table);
 }
 
 static struct apic apic_bigsmp __ro_after_init = {
@@ -149,14 +144,17 @@ static struct apic apic_bigsmp __ro_after_init = {
 	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
 };
 
-void __init generic_bigsmp_probe(void)
+bool __init apic_bigsmp_possible(bool cmdline_override)
 {
-	if (!probe_bigsmp())
-		return;
+	return apic == &apic_bigsmp || !cmdline_override;
+}
 
-	apic = &apic_bigsmp;
-
-	pr_info("Overriding APIC driver with %s\n", apic_bigsmp.name);
+void __init apic_bigsmp_force(void)
+{
+	if (apic != &apic_bigsmp) {
+		apic = &apic_bigsmp;
+		pr_info("Overriding APIC driver with bigsmp\n");
+	}
 }
 
 apic_driver(apic_bigsmp);

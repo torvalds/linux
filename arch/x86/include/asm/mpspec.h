@@ -23,8 +23,6 @@ extern int pic_mode;
 
 #define MAX_IRQ_SOURCES		256
 
-extern unsigned int def_to_bigsmp;
-
 #else /* CONFIG_X86_64: */
 
 #define MAX_MP_BUSSES		256

@@ -63,6 +63,8 @@
 #include <asm/irq_regs.h>
 #include <asm/cpu.h>
 
+#include "local.h"
+
 unsigned int num_processors;
 
 unsigned disabled_cpus;
@@ -2420,6 +2422,7 @@ static __init void cpu_set_boot_apic(void)
 {
 	cpuid_to_apicid[0] = boot_cpu_physical_apicid;
 	cpu_update_apic(0, boot_cpu_physical_apicid);
+	x86_32_probe_bigsmp_early();
 }
 
 int generic_processor_info(int apicid)

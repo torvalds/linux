@@ -1149,41 +1149,6 @@ static __init void disable_smp(void)
 	cpumask_set_cpu(0, topology_die_cpumask(0));
 }
 
-/*
- * Various sanity checks.
- */
-static void __init smp_sanity_check(void)
-{
-	preempt_disable();
-
-#if !defined(CONFIG_X86_BIGSMP) && defined(CONFIG_X86_32)
-	if (def_to_bigsmp && nr_cpu_ids > 8) {
-		unsigned int cpu;
-		unsigned nr;
-
-		pr_warn("More than 8 CPUs detected - skipping them\n"
-			"Use CONFIG_X86_BIGSMP\n");
-
-		nr = 0;
-		for_each_present_cpu(cpu) {
-			if (nr >= 8)
-				set_cpu_present(cpu, false);
-			nr++;
-		}
-
-		nr = 0;
-		for_each_possible_cpu(cpu) {
-			if (nr >= 8)
-				set_cpu_possible(cpu, false);
-			nr++;
-		}
-
-		set_nr_cpu_ids(8);
-	}
-#endif
-	preempt_enable();
-}
-
 static void __init smp_cpu_index_default(void)
 {
 	int i;
@@ -1242,8 +1207,6 @@ bool __init arch_cpuhp_init_parallel_bringup(void)
 void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
 	smp_prepare_cpus_common();
-
-	smp_sanity_check();
 
 	switch (apic_intr_mode) {
 	case APIC_PIC:

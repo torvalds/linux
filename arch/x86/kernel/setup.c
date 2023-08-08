@@ -114,7 +114,6 @@ static struct resource bss_resource = {
 #ifdef CONFIG_X86_32
 /* CPU data as detected by the assembly code in head_32.S */
 struct cpuinfo_x86 new_cpu_data;
-unsigned int def_to_bigsmp;
 
 struct apm_info apm_info;
 EXPORT_SYMBOL(apm_info);

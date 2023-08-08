@@ -10,6 +10,8 @@
 #include <linux/errno.h>
 #include <linux/smp.h>
 
+#include <xen/xen.h>
+
 #include <asm/io_apic.h>
 #include <asm/apic.h>
 #include <asm/acpi.h>
@@ -123,36 +125,33 @@ static int __init parse_apic(char *arg)
 }
 early_param("apic", parse_apic);
 
-void __init default_setup_apic_routing(void)
+void __init x86_32_probe_bigsmp_early(void)
 {
-	int version = boot_cpu_apic_version;
+	if (nr_cpu_ids <= 8 || xen_pv_domain())
+		return;
 
-	if (num_possible_cpus() > 8) {
+	if (IS_ENABLED(CONFIG_X86_BIGSMP)) {
 		switch (boot_cpu_data.x86_vendor) {
 		case X86_VENDOR_INTEL:
-			if (!APIC_XAPIC(version)) {
-				def_to_bigsmp = 0;
+			if (!APIC_XAPIC(boot_cpu_apic_version))
 				break;
-			}
 			/* P4 and above */
 			fallthrough;
 		case X86_VENDOR_HYGON:
 		case X86_VENDOR_AMD:
-			def_to_bigsmp = 1;
+			if (apic_bigsmp_possible(cmdline_apic))
+				return;
+			break;
 		}
 	}
+	pr_info("Limiting to 8 possible CPUs\n");
+	set_nr_cpu_ids(8);
+}
 
-#ifdef CONFIG_X86_BIGSMP
-	/*
-	 * This is used to switch to bigsmp mode when
-	 * - There is no apic= option specified by the user
-	 * - generic_apic_probe() has chosen apic_default as the sub_arch
-	 * - we find more than 8 CPUs in acpi LAPIC listing with xAPIC support
-	 */
-
-	if (!cmdline_apic && apic == &apic_default)
-		generic_bigsmp_probe();
-#endif
+void __init default_setup_apic_routing(void)
+{
+	if (nr_cpu_ids > 8 && !xen_pv_domain())
+		apic_bigsmp_force();
 
 	if (apic->setup_apic_routing)
 		apic->setup_apic_routing();
