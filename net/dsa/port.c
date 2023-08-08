@@ -1690,10 +1690,14 @@ int dsa_port_phylink_create(struct dsa_port *dp)
 		ds->ops->phylink_get_caps(ds, dp->index, &dp->pl_config);
 	} else {
 		/* For legacy drivers */
-		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
-			  dp->pl_config.supported_interfaces);
-		__set_bit(PHY_INTERFACE_MODE_GMII,
-			  dp->pl_config.supported_interfaces);
+		if (mode != PHY_INTERFACE_MODE_NA) {
+			__set_bit(mode, dp->pl_config.supported_interfaces);
+		} else {
+			__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+				  dp->pl_config.supported_interfaces);
+			__set_bit(PHY_INTERFACE_MODE_GMII,
+				  dp->pl_config.supported_interfaces);
+		}
 	}
 
 	pl = phylink_create(&dp->pl_config, of_fwnode_handle(dp->dn),
