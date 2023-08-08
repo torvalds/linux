@@ -2622,10 +2622,11 @@ static struct process_cmd_struct isst_cmds[] = {
  */
 void parse_cpu_command(char *optarg)
 {
-	unsigned int start, end;
+	unsigned int start, end, invalid_count;
 	char *next;
 
 	next = optarg;
+	invalid_count = 0;
 
 	while (next && *next) {
 		if (*next == '-') /* no negative cpu numbers */
@@ -2635,6 +2636,8 @@ void parse_cpu_command(char *optarg)
 
 		if (max_target_cpus < MAX_CPUS_IN_ONE_REQ)
 			target_cpus[max_target_cpus++] = start;
+		else
+			invalid_count = 1;
 
 		if (*next == '\0')
 			break;
@@ -2661,12 +2664,21 @@ void parse_cpu_command(char *optarg)
 		while (++start <= end) {
 			if (max_target_cpus < MAX_CPUS_IN_ONE_REQ)
 				target_cpus[max_target_cpus++] = start;
+			else
+				invalid_count = 1;
 		}
 
 		if (*next == ',')
 			next += 1;
 		else if (*next != '\0')
 			goto error;
+	}
+
+	if (invalid_count) {
+		isst_ctdp_display_information_start(outf);
+		isst_display_error_info_message(1, "Too many CPUs in one request: max is", 1, MAX_CPUS_IN_ONE_REQ - 1);
+		isst_ctdp_display_information_end(outf);
+		exit(-1);
 	}
 
 #ifdef DEBUG
