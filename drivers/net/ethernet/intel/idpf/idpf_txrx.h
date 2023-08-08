@@ -4,9 +4,52 @@
 #ifndef _IDPF_TXRX_H_
 #define _IDPF_TXRX_H_
 
+#define IDPF_MAX_Q				16
+#define IDPF_MIN_Q				2
+
+#define IDPF_MIN_TXQ_COMPLQ_DESC		256
+
+#define IDPF_DFLT_SINGLEQ_TX_Q_GROUPS		1
+#define IDPF_DFLT_SINGLEQ_RX_Q_GROUPS		1
+#define IDPF_DFLT_SINGLEQ_TXQ_PER_GROUP		4
+#define IDPF_DFLT_SINGLEQ_RXQ_PER_GROUP		4
+
+#define IDPF_COMPLQ_PER_GROUP			1
+#define IDPF_MAX_BUFQS_PER_RXQ_GRP		2
+
+#define IDPF_DFLT_SPLITQ_TXQ_PER_GROUP		1
+#define IDPF_DFLT_SPLITQ_RXQ_PER_GROUP		1
+
 /* Default vector sharing */
 #define IDPF_MBX_Q_VEC		1
 #define IDPF_MIN_Q_VEC		1
+
+#define IDPF_DFLT_TX_Q_DESC_COUNT		512
+#define IDPF_DFLT_TX_COMPLQ_DESC_COUNT		512
+#define IDPF_DFLT_RX_Q_DESC_COUNT		512
+
+/* IMPORTANT: We absolutely _cannot_ have more buffers in the system than a
+ * given RX completion queue has descriptors. This includes _ALL_ buffer
+ * queues. E.g.: If you have two buffer queues of 512 descriptors and buffers,
+ * you have a total of 1024 buffers so your RX queue _must_ have at least that
+ * many descriptors. This macro divides a given number of RX descriptors by
+ * number of buffer queues to calculate how many descriptors each buffer queue
+ * can have without overrunning the RX queue.
+ *
+ * If you give hardware more buffers than completion descriptors what will
+ * happen is that if hardware gets a chance to post more than ring wrap of
+ * descriptors before SW gets an interrupt and overwrites SW head, the gen bit
+ * in the descriptor will be wrong. Any overwritten descriptors' buffers will
+ * be gone forever and SW has no reasonable way to tell that this has happened.
+ * From SW perspective, when we finally get an interrupt, it looks like we're
+ * still waiting for descriptor to be done, stalling forever.
+ */
+#define IDPF_RX_BUFQ_DESC_COUNT(RXD, NUM_BUFQ)	((RXD) / (NUM_BUFQ))
+
+#define IDPF_RX_BUF_2048			2048
+#define IDPF_RX_BUF_4096			4096
+#define IDPF_PACKET_HDR_PAD	\
+	(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN * 2)
 
 /**
  * struct idpf_intr_reg
@@ -35,4 +78,13 @@ struct idpf_q_vector {
 	struct idpf_intr_reg intr_reg;
 	char *name;
 };
+
+void idpf_vport_init_num_qs(struct idpf_vport *vport,
+			    struct virtchnl2_create_vport *vport_msg);
+void idpf_vport_calc_num_q_desc(struct idpf_vport *vport);
+int idpf_vport_calc_total_qs(struct idpf_adapter *adapter, u16 vport_index,
+			     struct virtchnl2_create_vport *vport_msg,
+			     struct idpf_vport_max_q *max_q);
+void idpf_vport_calc_num_q_groups(struct idpf_vport *vport);
+
 #endif /* !_IDPF_TXRX_H_ */

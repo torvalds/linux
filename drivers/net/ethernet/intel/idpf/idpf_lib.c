@@ -294,6 +294,274 @@ send_dealloc_vecs:
 }
 
 /**
+ * idpf_cfg_netdev - Allocate, configure and register a netdev
+ * @vport: main vport structure
+ *
+ * Returns 0 on success, negative value on failure.
+ */
+static int idpf_cfg_netdev(struct idpf_vport *vport)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+	struct idpf_vport_config *vport_config;
+	netdev_features_t dflt_features;
+	netdev_features_t offloads = 0;
+	struct idpf_netdev_priv *np;
+	struct net_device *netdev;
+	u16 idx = vport->idx;
+
+	vport_config = adapter->vport_config[idx];
+
+	/* It's possible we already have a netdev allocated and registered for
+	 * this vport
+	 */
+	if (test_bit(IDPF_VPORT_REG_NETDEV, vport_config->flags)) {
+		netdev = adapter->netdevs[idx];
+		np = netdev_priv(netdev);
+		np->vport = vport;
+		vport->netdev = netdev;
+
+		return 0;
+	}
+
+	netdev = alloc_etherdev_mqs(sizeof(struct idpf_netdev_priv),
+				    vport_config->max_q.max_txq,
+				    vport_config->max_q.max_rxq);
+	if (!netdev)
+		return -ENOMEM;
+
+	vport->netdev = netdev;
+	np = netdev_priv(netdev);
+	np->vport = vport;
+
+	/* setup watchdog timeout value to be 5 second */
+	netdev->watchdog_timeo = 5 * HZ;
+
+	/* configure default MTU size */
+	netdev->min_mtu = ETH_MIN_MTU;
+	netdev->max_mtu = vport->max_mtu;
+
+	dflt_features = NETIF_F_SG	|
+			NETIF_F_HIGHDMA;
+
+	if (idpf_is_cap_ena_all(adapter, IDPF_RSS_CAPS, IDPF_CAP_RSS))
+		dflt_features |= NETIF_F_RXHASH;
+	if (idpf_is_cap_ena_all(adapter, IDPF_CSUM_CAPS, IDPF_CAP_RX_CSUM_L4V4))
+		dflt_features |= NETIF_F_IP_CSUM;
+	if (idpf_is_cap_ena_all(adapter, IDPF_CSUM_CAPS, IDPF_CAP_RX_CSUM_L4V6))
+		dflt_features |= NETIF_F_IPV6_CSUM;
+	if (idpf_is_cap_ena(adapter, IDPF_CSUM_CAPS, IDPF_CAP_RX_CSUM))
+		dflt_features |= NETIF_F_RXCSUM;
+	if (idpf_is_cap_ena_all(adapter, IDPF_CSUM_CAPS, IDPF_CAP_SCTP_CSUM))
+		dflt_features |= NETIF_F_SCTP_CRC;
+
+	if (idpf_is_cap_ena(adapter, IDPF_SEG_CAPS, VIRTCHNL2_CAP_SEG_IPV4_TCP))
+		dflt_features |= NETIF_F_TSO;
+	if (idpf_is_cap_ena(adapter, IDPF_SEG_CAPS, VIRTCHNL2_CAP_SEG_IPV6_TCP))
+		dflt_features |= NETIF_F_TSO6;
+	if (idpf_is_cap_ena_all(adapter, IDPF_SEG_CAPS,
+				VIRTCHNL2_CAP_SEG_IPV4_UDP |
+				VIRTCHNL2_CAP_SEG_IPV6_UDP))
+		dflt_features |= NETIF_F_GSO_UDP_L4;
+	if (idpf_is_cap_ena_all(adapter, IDPF_RSC_CAPS, IDPF_CAP_RSC))
+		offloads |= NETIF_F_GRO_HW;
+	/* advertise to stack only if offloads for encapsulated packets is
+	 * supported
+	 */
+	if (idpf_is_cap_ena(vport->adapter, IDPF_SEG_CAPS,
+			    VIRTCHNL2_CAP_SEG_TX_SINGLE_TUNNEL)) {
+		offloads |= NETIF_F_GSO_UDP_TUNNEL	|
+			    NETIF_F_GSO_GRE		|
+			    NETIF_F_GSO_GRE_CSUM	|
+			    NETIF_F_GSO_PARTIAL		|
+			    NETIF_F_GSO_UDP_TUNNEL_CSUM	|
+			    NETIF_F_GSO_IPXIP4		|
+			    NETIF_F_GSO_IPXIP6		|
+			    0;
+
+		if (!idpf_is_cap_ena_all(vport->adapter, IDPF_CSUM_CAPS,
+					 IDPF_CAP_TUNNEL_TX_CSUM))
+			netdev->gso_partial_features |=
+				NETIF_F_GSO_UDP_TUNNEL_CSUM;
+
+		netdev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
+		offloads |= NETIF_F_TSO_MANGLEID;
+	}
+	if (idpf_is_cap_ena(adapter, IDPF_OTHER_CAPS, VIRTCHNL2_CAP_LOOPBACK))
+		offloads |= NETIF_F_LOOPBACK;
+
+	netdev->features |= dflt_features;
+	netdev->hw_features |= dflt_features | offloads;
+	netdev->hw_enc_features |= dflt_features | offloads;
+	SET_NETDEV_DEV(netdev, &adapter->pdev->dev);
+
+	/* carrier off on init to avoid Tx hangs */
+	netif_carrier_off(netdev);
+
+	/* make sure transmit queues start off as stopped */
+	netif_tx_stop_all_queues(netdev);
+
+	/* The vport can be arbitrarily released so we need to also track
+	 * netdevs in the adapter struct
+	 */
+	adapter->netdevs[idx] = netdev;
+
+	return 0;
+}
+
+/**
+ * idpf_get_free_slot - get the next non-NULL location index in array
+ * @adapter: adapter in which to look for a free vport slot
+ */
+static int idpf_get_free_slot(struct idpf_adapter *adapter)
+{
+	unsigned int i;
+
+	for (i = 0; i < adapter->max_vports; i++) {
+		if (!adapter->vports[i])
+			return i;
+	}
+
+	return IDPF_NO_FREE_SLOT;
+}
+
+/**
+ * idpf_decfg_netdev - Unregister the netdev
+ * @vport: vport for which netdev to be unregistered
+ */
+static void idpf_decfg_netdev(struct idpf_vport *vport)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+
+	unregister_netdev(vport->netdev);
+	free_netdev(vport->netdev);
+	vport->netdev = NULL;
+
+	adapter->netdevs[vport->idx] = NULL;
+}
+
+/**
+ * idpf_vport_rel - Delete a vport and free its resources
+ * @vport: the vport being removed
+ */
+static void idpf_vport_rel(struct idpf_vport *vport)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+	struct idpf_vport_config *vport_config;
+	struct idpf_vport_max_q max_q;
+	u16 idx = vport->idx;
+	int i;
+
+	vport_config = adapter->vport_config[vport->idx];
+
+	idpf_send_destroy_vport_msg(vport);
+
+	/* Set all bits as we dont know on which vc_state the vport vhnl_wq
+	 * is waiting on and wakeup the virtchnl workqueue even if it is
+	 * waiting for the response as we are going down
+	 */
+	for (i = 0; i < IDPF_VC_NBITS; i++)
+		set_bit(i, vport->vc_state);
+	wake_up(&vport->vchnl_wq);
+
+	mutex_destroy(&vport->vc_buf_lock);
+
+	/* Clear all the bits */
+	for (i = 0; i < IDPF_VC_NBITS; i++)
+		clear_bit(i, vport->vc_state);
+
+	/* Release all max queues allocated to the adapter's pool */
+	max_q.max_rxq = vport_config->max_q.max_rxq;
+	max_q.max_txq = vport_config->max_q.max_txq;
+	max_q.max_bufq = vport_config->max_q.max_bufq;
+	max_q.max_complq = vport_config->max_q.max_complq;
+	idpf_vport_dealloc_max_qs(adapter, &max_q);
+
+	kfree(adapter->vport_params_recvd[idx]);
+	adapter->vport_params_recvd[idx] = NULL;
+	kfree(adapter->vport_params_reqd[idx]);
+	adapter->vport_params_reqd[idx] = NULL;
+	kfree(vport);
+	adapter->num_alloc_vports--;
+}
+
+/**
+ * idpf_vport_dealloc - cleanup and release a given vport
+ * @vport: pointer to idpf vport structure
+ *
+ * returns nothing
+ */
+static void idpf_vport_dealloc(struct idpf_vport *vport)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+	unsigned int i = vport->idx;
+
+	if (!test_bit(IDPF_HR_RESET_IN_PROG, adapter->flags))
+		idpf_decfg_netdev(vport);
+
+	if (adapter->netdevs[i]) {
+		struct idpf_netdev_priv *np = netdev_priv(adapter->netdevs[i]);
+
+		np->vport = NULL;
+	}
+
+	idpf_vport_rel(vport);
+
+	adapter->vports[i] = NULL;
+	adapter->next_vport = idpf_get_free_slot(adapter);
+}
+
+/**
+ * idpf_vport_alloc - Allocates the next available struct vport in the adapter
+ * @adapter: board private structure
+ * @max_q: vport max queue info
+ *
+ * returns a pointer to a vport on success, NULL on failure.
+ */
+static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
+					   struct idpf_vport_max_q *max_q)
+{
+	u16 idx = adapter->next_vport;
+	struct idpf_vport *vport;
+
+	if (idx == IDPF_NO_FREE_SLOT)
+		return NULL;
+
+	vport = kzalloc(sizeof(*vport), GFP_KERNEL);
+	if (!vport)
+		return vport;
+
+	if (!adapter->vport_config[idx]) {
+		struct idpf_vport_config *vport_config;
+
+		vport_config = kzalloc(sizeof(*vport_config), GFP_KERNEL);
+		if (!vport_config) {
+			kfree(vport);
+
+			return NULL;
+		}
+
+		adapter->vport_config[idx] = vport_config;
+	}
+
+	vport->idx = idx;
+	vport->adapter = adapter;
+	vport->default_vport = adapter->num_alloc_vports <
+			       idpf_get_default_vports(adapter);
+
+	idpf_vport_init(vport, max_q);
+
+	/* fill vport slot in the adapter struct */
+	adapter->vports[idx] = vport;
+	adapter->vport_ids[idx] = idpf_get_vport_id(vport);
+
+	adapter->num_alloc_vports++;
+	/* prepare adapter->next_vport for next use */
+	adapter->next_vport = idpf_get_free_slot(adapter);
+
+	return vport;
+}
+
+/**
  * idpf_mbx_task - Delayed task to handle mailbox responses
  * @work: work_struct handle
  */
@@ -338,6 +606,128 @@ void idpf_service_task(struct work_struct *work)
 }
 
 /**
+ * idpf_init_task - Delayed initialization task
+ * @work: work_struct handle to our data
+ *
+ * Init task finishes up pending work started in probe. Due to the asynchronous
+ * nature in which the device communicates with hardware, we may have to wait
+ * several milliseconds to get a response.  Instead of busy polling in probe,
+ * pulling it out into a delayed work task prevents us from bogging down the
+ * whole system waiting for a response from hardware.
+ */
+void idpf_init_task(struct work_struct *work)
+{
+	struct idpf_vport_max_q max_q;
+	struct idpf_adapter *adapter;
+	struct idpf_vport *vport;
+	u16 num_default_vports;
+	struct pci_dev *pdev;
+	bool default_vport;
+	int index, err;
+
+	adapter = container_of(work, struct idpf_adapter, init_task.work);
+
+	num_default_vports = idpf_get_default_vports(adapter);
+	if (adapter->num_alloc_vports < num_default_vports)
+		default_vport = true;
+	else
+		default_vport = false;
+
+	err = idpf_vport_alloc_max_qs(adapter, &max_q);
+	if (err)
+		goto unwind_vports;
+
+	err = idpf_send_create_vport_msg(adapter, &max_q);
+	if (err) {
+		idpf_vport_dealloc_max_qs(adapter, &max_q);
+		goto unwind_vports;
+	}
+
+	pdev = adapter->pdev;
+	vport = idpf_vport_alloc(adapter, &max_q);
+	if (!vport) {
+		err = -EFAULT;
+		dev_err(&pdev->dev, "failed to allocate vport: %d\n",
+			err);
+		idpf_vport_dealloc_max_qs(adapter, &max_q);
+		goto unwind_vports;
+	}
+
+	index = vport->idx;
+
+	init_waitqueue_head(&vport->vchnl_wq);
+
+	mutex_init(&vport->vc_buf_lock);
+
+	if (idpf_cfg_netdev(vport))
+		goto cfg_netdev_err;
+
+	/* Spawn and return 'idpf_init_task' work queue until all the
+	 * default vports are created
+	 */
+	if (adapter->num_alloc_vports < num_default_vports) {
+		queue_delayed_work(adapter->init_wq, &adapter->init_task,
+				   msecs_to_jiffies(5 * (adapter->pdev->devfn & 0x07)));
+
+		return;
+	}
+
+	for (index = 0; index < adapter->max_vports; index++) {
+		if (adapter->netdevs[index] &&
+		    !test_bit(IDPF_VPORT_REG_NETDEV,
+			      adapter->vport_config[index]->flags)) {
+			register_netdev(adapter->netdevs[index]);
+			set_bit(IDPF_VPORT_REG_NETDEV,
+				adapter->vport_config[index]->flags);
+		}
+	}
+
+	/* As all the required vports are created, clear the reset flag
+	 * unconditionally here in case we were in reset and the link was down.
+	 */
+	clear_bit(IDPF_HR_RESET_IN_PROG, adapter->flags);
+
+	return;
+
+cfg_netdev_err:
+	idpf_vport_rel(vport);
+	adapter->vports[index] = NULL;
+unwind_vports:
+	if (default_vport) {
+		for (index = 0; index < adapter->max_vports; index++) {
+			if (adapter->vports[index])
+				idpf_vport_dealloc(adapter->vports[index]);
+		}
+	}
+	clear_bit(IDPF_HR_RESET_IN_PROG, adapter->flags);
+}
+
+/**
+ * idpf_deinit_task - Device deinit routine
+ * @adapter: Driver specific private structure
+ *
+ * Extended remove logic which will be used for
+ * hard reset as well
+ */
+void idpf_deinit_task(struct idpf_adapter *adapter)
+{
+	unsigned int i;
+
+	/* Wait until the init_task is done else this thread might release
+	 * the resources first and the other thread might end up in a bad state
+	 */
+	cancel_delayed_work_sync(&adapter->init_task);
+
+	if (!adapter->vports)
+		return;
+
+	for (i = 0; i < adapter->max_vports; i++) {
+		if (adapter->vports[i])
+			idpf_vport_dealloc(adapter->vports[i]);
+	}
+}
+
+/**
  * idpf_check_reset_complete - check that reset is complete
  * @hw: pointer to hw struct
  * @reset_reg: struct with reset registers
@@ -373,6 +763,27 @@ static int idpf_check_reset_complete(struct idpf_hw *hw,
 }
 
 /**
+ * idpf_set_vport_state - Set the vport state to be after the reset
+ * @adapter: Driver specific private structure
+ */
+static void idpf_set_vport_state(struct idpf_adapter *adapter)
+{
+	u16 i;
+
+	for (i = 0; i < adapter->max_vports; i++) {
+		struct idpf_netdev_priv *np;
+
+		if (!adapter->netdevs[i])
+			continue;
+
+		np = netdev_priv(adapter->netdevs[i]);
+		if (np->state == __IDPF_VPORT_UP)
+			set_bit(IDPF_VPORT_UP_REQUESTED,
+				adapter->vport_config[i]->flags);
+	}
+}
+
+/**
  * idpf_init_hard_reset - Initiate a hardware reset
  * @adapter: Driver specific private structure
  *
@@ -384,17 +795,31 @@ static int idpf_init_hard_reset(struct idpf_adapter *adapter)
 {
 	struct idpf_reg_ops *reg_ops = &adapter->dev_ops.reg_ops;
 	struct device *dev = &adapter->pdev->dev;
+	struct net_device *netdev;
 	int err;
+	u16 i;
 
 	mutex_lock(&adapter->vport_ctrl_lock);
 
 	dev_info(dev, "Device HW Reset initiated\n");
+
+	/* Avoid TX hangs on reset */
+	for (i = 0; i < adapter->max_vports; i++) {
+		netdev = adapter->netdevs[i];
+		if (!netdev)
+			continue;
+
+		netif_carrier_off(netdev);
+		netif_tx_disable(netdev);
+	}
+
 	/* Prepare for reset */
 	if (test_and_clear_bit(IDPF_HR_DRV_LOAD, adapter->flags)) {
 		reg_ops->trigger_reset(adapter, IDPF_HR_DRV_LOAD);
 	} else if (test_and_clear_bit(IDPF_HR_FUNC_RESET, adapter->flags)) {
 		bool is_reset = idpf_is_reset_detected(adapter);
 
+		idpf_set_vport_state(adapter);
 		idpf_vc_core_deinit(adapter);
 		if (!is_reset)
 			reg_ops->trigger_reset(adapter, IDPF_HR_FUNC_RESET);
@@ -428,6 +853,12 @@ static int idpf_init_hard_reset(struct idpf_adapter *adapter)
 		idpf_deinit_dflt_mbx(adapter);
 		goto unlock_mutex;
 	}
+
+	/* Wait till all the vports are initialized to release the reset lock,
+	 * else user space callbacks may access uninitialized vports
+	 */
+	while (test_bit(IDPF_HR_RESET_IN_PROG, adapter->flags))
+		msleep(100);
 
 unlock_mutex:
 	mutex_unlock(&adapter->vport_ctrl_lock);

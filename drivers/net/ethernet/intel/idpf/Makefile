@@ -11,5 +11,6 @@ idpf-y := \
 	idpf_dev.o		\
 	idpf_lib.o		\
 	idpf_main.o		\
+	idpf_txrx.o		\
 	idpf_virtchnl.o 	\
 	idpf_vf_dev.o

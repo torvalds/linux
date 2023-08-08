@@ -16,6 +16,7 @@ MODULE_LICENSE("GPL");
 static void idpf_remove(struct pci_dev *pdev)
 {
 	struct idpf_adapter *adapter = pci_get_drvdata(pdev);
+	int i;
 
 	set_bit(IDPF_REMOVE_IN_PROG, adapter->flags);
 
@@ -30,11 +31,41 @@ static void idpf_remove(struct pci_dev *pdev)
 	adapter->dev_ops.reg_ops.trigger_reset(adapter, IDPF_HR_FUNC_RESET);
 	idpf_deinit_dflt_mbx(adapter);
 
+	if (!adapter->netdevs)
+		goto destroy_wqs;
+
+	/* There are some cases where it's possible to still have netdevs
+	 * registered with the stack at this point, e.g. if the driver detected
+	 * a HW reset and rmmod is called before it fully recovers. Unregister
+	 * any stale netdevs here.
+	 */
+	for (i = 0; i < adapter->max_vports; i++) {
+		if (!adapter->netdevs[i])
+			continue;
+		if (adapter->netdevs[i]->reg_state != NETREG_UNINITIALIZED)
+			unregister_netdev(adapter->netdevs[i]);
+		free_netdev(adapter->netdevs[i]);
+		adapter->netdevs[i] = NULL;
+	}
+
+destroy_wqs:
+	destroy_workqueue(adapter->init_wq);
 	destroy_workqueue(adapter->serv_wq);
 	destroy_workqueue(adapter->mbx_wq);
 	destroy_workqueue(adapter->vc_event_wq);
+
+	for (i = 0; i < adapter->max_vports; i++) {
+		kfree(adapter->vport_config[i]);
+		adapter->vport_config[i] = NULL;
+	}
+	kfree(adapter->vport_config);
+	adapter->vport_config = NULL;
+	kfree(adapter->netdevs);
+	adapter->netdevs = NULL;
+
 	mutex_destroy(&adapter->vport_ctrl_lock);
 	mutex_destroy(&adapter->vector_lock);
+	mutex_destroy(&adapter->queue_lock);
 	mutex_destroy(&adapter->vc_buf_lock);
 
 	pci_set_drvdata(pdev, NULL);
@@ -93,6 +124,9 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!adapter)
 		return -ENOMEM;
 
+	adapter->req_tx_splitq = true;
+	adapter->req_rx_splitq = true;
+
 	switch (ent->device) {
 	case IDPF_DEV_ID_PF:
 		idpf_dev_ops_init(adapter);
@@ -130,13 +164,22 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 	pci_set_drvdata(pdev, adapter);
 
+	adapter->init_wq = alloc_workqueue("%s-%s-init", 0, 0,
+					   dev_driver_string(dev),
+					   dev_name(dev));
+	if (!adapter->init_wq) {
+		dev_err(dev, "Failed to allocate init workqueue\n");
+		err = -ENOMEM;
+		goto err_free;
+	}
+
 	adapter->serv_wq = alloc_workqueue("%s-%s-service", 0, 0,
 					   dev_driver_string(dev),
 					   dev_name(dev));
 	if (!adapter->serv_wq) {
 		dev_err(dev, "Failed to allocate service workqueue\n");
 		err = -ENOMEM;
-		goto err_free;
+		goto err_serv_wq_alloc;
 	}
 
 	adapter->mbx_wq = alloc_workqueue("%s-%s-mbx", 0, 0,
@@ -169,10 +212,12 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	mutex_init(&adapter->vport_ctrl_lock);
 	mutex_init(&adapter->vector_lock);
+	mutex_init(&adapter->queue_lock);
 	mutex_init(&adapter->vc_buf_lock);
 
 	init_waitqueue_head(&adapter->vchnl_wq);
 
+	INIT_DELAYED_WORK(&adapter->init_task, idpf_init_task);
 	INIT_DELAYED_WORK(&adapter->serv_task, idpf_service_task);
 	INIT_DELAYED_WORK(&adapter->mbx_task, idpf_mbx_task);
 	INIT_DELAYED_WORK(&adapter->vc_event_task, idpf_vc_event_task);
@@ -190,6 +235,8 @@ err_vc_event_wq_alloc:
 	destroy_workqueue(adapter->mbx_wq);
 err_mbx_wq_alloc:
 	destroy_workqueue(adapter->serv_wq);
+err_serv_wq_alloc:
+	destroy_workqueue(adapter->init_wq);
 err_free:
 	kfree(adapter);
 	return err;
