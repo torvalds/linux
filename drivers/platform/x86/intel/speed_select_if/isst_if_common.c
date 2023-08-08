@@ -335,8 +335,8 @@ static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn
 
 		node = dev_to_node(&_pci_dev->dev);
 		if (node == NUMA_NO_NODE) {
-			pr_info("Fail to get numa node for CPU:%d bus:%d dev:%d fn:%d\n",
-				cpu, bus_no, dev, fn);
+			pr_info_once("Fail to get numa node for CPU:%d bus:%d dev:%d fn:%d\n",
+				     cpu, bus_no, dev, fn);
 			continue;
 		}
 
