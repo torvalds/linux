@@ -45,6 +45,7 @@ static inline unsigned int __prepare_ICR(unsigned int shortcut, int vector,
 void default_init_apic_ldr(void);
 
 void apic_mem_wait_icr_idle(void);
+u32 apic_mem_wait_icr_idle_timeout(void);
 
 /*
  * This is used to send an IPI with no shorthand notation (the destination is
