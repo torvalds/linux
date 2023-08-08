@@ -547,7 +547,7 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 	struct irq_data *irqd;
 	int i, err, node;
 
-	if (disable_apic)
+	if (apic_is_disabled)
 		return -ENXIO;
 
 	/*
