@@ -38,7 +38,6 @@ static struct snd_soc_dai_driver sc7280_lpass_cpu_dai_driver[] = {
 			.channels_min	= 2,
 			.channels_max	= 2,
 		},
-		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 		.ops    = &asoc_qcom_lpass_cpu_dai_ops,
 	}, {
 		.id = MI2S_SECONDARY,
@@ -52,7 +51,6 @@ static struct snd_soc_dai_driver sc7280_lpass_cpu_dai_driver[] = {
 			.channels_min	= 2,
 			.channels_max	= 2,
 		},
-		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 		.ops	= &asoc_qcom_lpass_cpu_dai_ops,
 	}, {
 		.id = LPASS_DP_RX,
