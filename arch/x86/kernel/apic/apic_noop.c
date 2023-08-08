@@ -65,7 +65,6 @@ static void noop_apic_write(u32 reg, u32 val)
 struct apic apic_noop __ro_after_init = {
 	.name				= "noop",
 	.probe				= noop_probe,
-	.acpi_madt_oem_check		= NULL,
 
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= true,
@@ -80,7 +79,6 @@ struct apic apic_noop __ro_after_init = {
 
 	.max_apic_id			= 0xFE,
 	.get_apic_id			= noop_get_apic_id,
-	.set_apic_id			= NULL,
 
 	.calc_dest_apicid		= apic_flat_calc_apicid,
 
