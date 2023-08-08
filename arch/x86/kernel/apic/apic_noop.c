@@ -57,17 +57,6 @@ static int noop_probe(void)
 	return 0;
 }
 
-static int noop_apic_id_registered(void)
-{
-	/*
-	 * if we would be really "pedantic"
-	 * we should pass read_apic_id() here
-	 * but since NOOP suppose APIC ID = 0
-	 * lets save a few cycles
-	 */
-	return physid_isset(0, phys_cpu_present_map);
-}
-
 static u32 noop_apic_read(u32 reg)
 {
 	WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !apic_is_disabled);
@@ -85,7 +74,6 @@ struct apic apic_noop __ro_after_init = {
 	.acpi_madt_oem_check		= NULL,
 
 	.apic_id_valid			= default_apic_id_valid,
-	.apic_id_registered		= noop_apic_id_registered,
 
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= true,

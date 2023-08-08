@@ -15,7 +15,6 @@
 
 /* X2APIC */
 int x2apic_apic_id_valid(u32 apicid);
-int x2apic_apic_id_registered(void);
 void __x2apic_send_IPI_dest(unsigned int apicid, int vector, unsigned int dest);
 unsigned int x2apic_get_apic_id(unsigned long id);
 u32 x2apic_set_apic_id(unsigned int id);
@@ -60,6 +59,8 @@ void default_send_IPI_mask_allbutself_phys(const struct cpumask *mask, int vecto
 void default_send_IPI_allbutself(int vector);
 void default_send_IPI_all(int vector);
 void default_send_IPI_self(int vector);
+
+bool default_apic_id_registered(void);
 
 #ifdef CONFIG_X86_32
 void default_send_IPI_mask_sequence_logical(const struct cpumask *mask, int vector);

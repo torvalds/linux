@@ -18,11 +18,6 @@ static unsigned bigsmp_get_apic_id(unsigned long x)
 	return (x >> 24) & 0xFF;
 }
 
-static int bigsmp_apic_id_registered(void)
-{
-	return 1;
-}
-
 static bool bigsmp_check_apicid_used(physid_mask_t *map, int apicid)
 {
 	return false;
@@ -85,7 +80,6 @@ static struct apic apic_bigsmp __ro_after_init = {
 	.name				= "bigsmp",
 	.probe				= probe_bigsmp,
 	.apic_id_valid			= default_apic_id_valid,
-	.apic_id_registered		= bigsmp_apic_id_registered,
 
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= false,

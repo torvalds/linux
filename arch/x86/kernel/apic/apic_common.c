@@ -42,6 +42,11 @@ int default_apic_id_valid(u32 apicid)
 	return (apicid < 255);
 }
 
+bool default_apic_id_registered(void)
+{
+	return physid_isset(read_apic_id(), phys_cpu_present_map);
+}
+
 /*
  * Set up the logical destination ID when the APIC operates in logical
  * destination mode.

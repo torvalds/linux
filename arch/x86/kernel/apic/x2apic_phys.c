@@ -111,11 +111,6 @@ int x2apic_apic_id_valid(u32 apicid)
 	return 1;
 }
 
-int x2apic_apic_id_registered(void)
-{
-	return 1;
-}
-
 void __x2apic_send_IPI_dest(unsigned int apicid, int vector, unsigned int dest)
 {
 	unsigned long cfg = __prepare_ICR(0, vector, dest);
@@ -157,7 +152,6 @@ static struct apic apic_x2apic_phys __ro_after_init = {
 	.probe				= x2apic_phys_probe,
 	.acpi_madt_oem_check		= x2apic_acpi_madt_oem_check,
 	.apic_id_valid			= x2apic_apic_id_valid,
-	.apic_id_registered		= x2apic_apic_id_registered,
 
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= false,

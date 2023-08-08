@@ -66,16 +66,6 @@ static u32 set_apic_id(unsigned int id)
 	return (id & 0xFF) << 24;
 }
 
-static unsigned int read_xapic_id(void)
-{
-	return flat_get_apic_id(apic_read(APIC_ID));
-}
-
-static int flat_apic_id_registered(void)
-{
-	return physid_isset(read_xapic_id(), phys_cpu_present_map);
-}
-
 static int flat_phys_pkg_id(int initial_apic_id, int index_msb)
 {
 	return initial_apic_id >> index_msb;
@@ -91,7 +81,7 @@ static struct apic apic_flat __ro_after_init = {
 	.probe				= flat_probe,
 	.acpi_madt_oem_check		= flat_acpi_madt_oem_check,
 	.apic_id_valid			= default_apic_id_valid,
-	.apic_id_registered		= flat_apic_id_registered,
+	.apic_id_registered		= default_apic_id_registered,
 
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= true,
@@ -168,7 +158,7 @@ static struct apic apic_physflat __ro_after_init = {
 	.probe				= physflat_probe,
 	.acpi_madt_oem_check		= physflat_acpi_madt_oem_check,
 	.apic_id_valid			= default_apic_id_valid,
-	.apic_id_registered		= flat_apic_id_registered,
+	.apic_id_registered		= default_apic_id_registered,
 
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= false,
