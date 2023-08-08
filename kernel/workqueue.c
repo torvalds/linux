@@ -122,11 +122,6 @@ enum {
  *
  * L: pool->lock protected.  Access with pool->lock held.
  *
- * X: During normal operation, modification requires pool->lock and should
- *    be done only from local cpu.  Either disabling preemption on local
- *    cpu or grabbing pool->lock is enough for read access.  If
- *    POOL_DISASSOCIATED is set, it's identical to L.
- *
  * K: Only modified by worker while holding pool->lock. Can be safely read by
  *    self, while holding pool->lock or from IRQ context if %current is the
  *    kworker.
@@ -160,7 +155,7 @@ struct worker_pool {
 	int			cpu;		/* I: the associated cpu */
 	int			node;		/* I: the associated node ID */
 	int			id;		/* I: pool ID */
-	unsigned int		flags;		/* X: flags */
+	unsigned int		flags;		/* L: flags */
 
 	unsigned long		watchdog_ts;	/* L: watchdog timestamp */
 	bool			cpu_stall;	/* WD: stalled cpu bound pool */
@@ -910,15 +905,12 @@ static void wake_up_worker(struct worker_pool *pool)
  * @flags: flags to set
  *
  * Set @flags in @worker->flags and adjust nr_running accordingly.
- *
- * CONTEXT:
- * raw_spin_lock_irq(pool->lock)
  */
 static inline void worker_set_flags(struct worker *worker, unsigned int flags)
 {
 	struct worker_pool *pool = worker->pool;
 
-	WARN_ON_ONCE(worker->task != current);
+	lockdep_assert_held(&pool->lock);
 
 	/* If transitioning into NOT_RUNNING, adjust nr_running. */
 	if ((flags & WORKER_NOT_RUNNING) &&
@@ -935,16 +927,13 @@ static inline void worker_set_flags(struct worker *worker, unsigned int flags)
  * @flags: flags to clear
  *
  * Clear @flags in @worker->flags and adjust nr_running accordingly.
- *
- * CONTEXT:
- * raw_spin_lock_irq(pool->lock)
  */
 static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
 {
 	struct worker_pool *pool = worker->pool;
 	unsigned int oflags = worker->flags;
 
-	WARN_ON_ONCE(worker->task != current);
+	lockdep_assert_held(&pool->lock);
 
 	worker->flags &= ~flags;
 
