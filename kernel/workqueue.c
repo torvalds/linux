@@ -321,7 +321,7 @@ struct workqueue_struct {
 
 	/* hot fields used during command issue, aligned to cacheline */
 	unsigned int		flags ____cacheline_aligned; /* WQ: WQ_* flags */
-	struct pool_workqueue __percpu *cpu_pwqs; /* I: per-cpu pwqs */
+	struct pool_workqueue __percpu *cpu_pwq; /* I: per-cpu pwqs */
 	struct pool_workqueue __rcu *numa_pwq_tbl[]; /* PWR: unbound pwqs indexed by node */
 };
 
@@ -1635,7 +1635,7 @@ retry:
 	} else {
 		if (req_cpu == WORK_CPU_UNBOUND)
 			cpu = raw_smp_processor_id();
-		pwq = per_cpu_ptr(wq->cpu_pwqs, cpu);
+		pwq = per_cpu_ptr(wq->cpu_pwq, cpu);
 	}
 
 	pool = pwq->pool;
@@ -3826,7 +3826,7 @@ static void rcu_free_wq(struct rcu_head *rcu)
 	wq_free_lockdep(wq);
 
 	if (!(wq->flags & WQ_UNBOUND))
-		free_percpu(wq->cpu_pwqs);
+		free_percpu(wq->cpu_pwq);
 	else
 		free_workqueue_attrs(wq->unbound_attrs);
 
@@ -4518,13 +4518,13 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 	int cpu, ret;
 
 	if (!(wq->flags & WQ_UNBOUND)) {
-		wq->cpu_pwqs = alloc_percpu(struct pool_workqueue);
-		if (!wq->cpu_pwqs)
+		wq->cpu_pwq = alloc_percpu(struct pool_workqueue);
+		if (!wq->cpu_pwq)
 			return -ENOMEM;
 
 		for_each_possible_cpu(cpu) {
 			struct pool_workqueue *pwq =
-				per_cpu_ptr(wq->cpu_pwqs, cpu);
+				per_cpu_ptr(wq->cpu_pwq, cpu);
 			struct worker_pool *cpu_pools =
 				per_cpu(cpu_worker_pools, cpu);
 
@@ -4905,7 +4905,7 @@ bool workqueue_congested(int cpu, struct workqueue_struct *wq)
 		cpu = smp_processor_id();
 
 	if (!(wq->flags & WQ_UNBOUND))
-		pwq = per_cpu_ptr(wq->cpu_pwqs, cpu);
+		pwq = per_cpu_ptr(wq->cpu_pwq, cpu);
 	else
 		pwq = unbound_pwq_by_node(wq, cpu_to_node(cpu));
 
