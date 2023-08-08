@@ -92,6 +92,7 @@ int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event);
 
 int wm_adsp_power_up(struct wm_adsp *dsp);
+void wm_adsp_power_down(struct wm_adsp *dsp);
 
 irqreturn_t wm_adsp2_bus_error(int irq, void *data);
 irqreturn_t wm_halo_bus_error(int irq, void *data);
