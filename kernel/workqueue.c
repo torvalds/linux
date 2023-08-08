@@ -2652,9 +2652,15 @@ __acquires(&pool->lock)
  */
 static void process_scheduled_works(struct worker *worker)
 {
-	while (!list_empty(&worker->scheduled)) {
-		struct work_struct *work = list_first_entry(&worker->scheduled,
-						struct work_struct, entry);
+	struct work_struct *work;
+	bool first = true;
+
+	while ((work = list_first_entry_or_null(&worker->scheduled,
+						struct work_struct, entry))) {
+		if (first) {
+			worker->pool->watchdog_ts = jiffies;
+			first = false;
+		}
 		process_one_work(worker, work);
 	}
 }
@@ -2735,17 +2741,8 @@ recheck:
 			list_first_entry(&pool->worklist,
 					 struct work_struct, entry);
 
-		pool->watchdog_ts = jiffies;
-
-		if (likely(!(*work_data_bits(work) & WORK_STRUCT_LINKED))) {
-			/* optimization path, not strictly necessary */
-			process_one_work(worker, work);
-			if (unlikely(!list_empty(&worker->scheduled)))
-				process_scheduled_works(worker);
-		} else {
-			move_linked_works(work, &worker->scheduled, NULL);
-			process_scheduled_works(worker);
-		}
+		move_linked_works(work, &worker->scheduled, NULL);
+		process_scheduled_works(worker);
 	} while (keep_working(pool));
 
 	worker_set_flags(worker, WORKER_PREP);
@@ -2820,7 +2817,6 @@ repeat:
 					struct pool_workqueue, mayday_node);
 		struct worker_pool *pool = pwq->pool;
 		struct work_struct *work, *n;
-		bool first = true;
 
 		__set_current_state(TASK_RUNNING);
 		list_del_init(&pwq->mayday_node);
@@ -2838,12 +2834,9 @@ repeat:
 		WARN_ON_ONCE(!list_empty(scheduled));
 		list_for_each_entry_safe(work, n, &pool->worklist, entry) {
 			if (get_work_pwq(work) == pwq) {
-				if (first)
-					pool->watchdog_ts = jiffies;
 				move_linked_works(work, scheduled, &n);
 				pwq->stats[PWQ_STAT_RESCUED]++;
 			}
-			first = false;
 		}
 
 		if (!list_empty(scheduled)) {
