@@ -1074,6 +1074,11 @@ static int get_dailink_info(struct device *dev,
 			}
 
 			endpoint = adr_link->adr_d[i].endpoints;
+			if (endpoint->aggregated && !endpoint->group_id) {
+				dev_err(dev, "invalid group id on link %x\n",
+					adr_link->mask);
+				return -EINVAL;
+			}
 
 			for (j = 0; j < codec_info->dai_num; j++) {
 				/* count DAI number for playback and capture */
@@ -1666,11 +1671,6 @@ out:
 			const struct snd_soc_acpi_endpoint *endpoint;
 
 			endpoint = adr_link->adr_d[i].endpoints;
-			if (endpoint->aggregated && !endpoint->group_id) {
-				dev_err(dev, "invalid group id on link %x\n",
-					adr_link->mask);
-				continue;
-			}
 
 			/* this group has been generated */
 			if (endpoint->aggregated &&
