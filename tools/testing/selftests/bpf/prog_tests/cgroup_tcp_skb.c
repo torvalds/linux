@@ -9,6 +9,7 @@
 #include "testing_helpers.h"
 #include "cgroup_tcp_skb.skel.h"
 #include "cgroup_tcp_skb.h"
+#include "network_helpers.h"
 
 #define CGROUP_TCP_SKB_PATH "/test_cgroup_tcp_skb"
 
@@ -58,80 +59,13 @@ static int create_client_sock_v6(void)
 	return fd;
 }
 
-static int create_server_sock_v6(void)
-{
-	struct sockaddr_in6 addr = {
-		.sin6_family = AF_INET6,
-		.sin6_port = htons(0),
-		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
-	};
-	int fd, err;
-
-	fd = socket(AF_INET6, SOCK_STREAM, 0);
-	if (fd < 0) {
-		perror("socket");
-		return -1;
-	}
-
-	err = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
-	if (err < 0) {
-		perror("bind");
-		return -1;
-	}
-
-	err = listen(fd, 1);
-	if (err < 0) {
-		perror("listen");
-		return -1;
-	}
-
-	return fd;
-}
-
-static int get_sock_port_v6(int fd)
-{
-	struct sockaddr_in6 addr;
-	socklen_t len;
-	int err;
-
-	len = sizeof(addr);
-	err = getsockname(fd, (struct sockaddr *)&addr, &len);
-	if (err < 0) {
-		perror("getsockname");
-		return -1;
-	}
-
-	return ntohs(addr.sin6_port);
-}
-
-static int connect_client_server_v6(int client_fd, int listen_fd)
-{
-	struct sockaddr_in6 addr = {
-		.sin6_family = AF_INET6,
-		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
-	};
-	int err, port;
-
-	port = get_sock_port_v6(listen_fd);
-	if (port < 0)
-		return -1;
-	addr.sin6_port = htons(port);
-
-	err = connect(client_fd, (struct sockaddr *)&addr, sizeof(addr));
-	if (err < 0) {
-		perror("connect");
-		return -1;
-	}
-
-	return 0;
-}
-
 /* Connect to the server in a cgroup from the outside of the cgroup. */
 static int talk_to_cgroup(int *client_fd, int *listen_fd, int *service_fd,
 			  struct cgroup_tcp_skb *skel)
 {
 	int err, cp;
 	char buf[5];
+	int port;
 
 	/* Create client & server socket */
 	err = join_root_cgroup();
@@ -143,14 +77,17 @@ static int talk_to_cgroup(int *client_fd, int *listen_fd, int *service_fd,
 	err = join_cgroup(CGROUP_TCP_SKB_PATH);
 	if (!ASSERT_OK(err, "join_cgroup"))
 		return -1;
-	*listen_fd = create_server_sock_v6();
+	*listen_fd = start_server(AF_INET6, SOCK_STREAM, NULL, 0, 0);
 	if (!ASSERT_GE(*listen_fd, 0, "listen_fd"))
 		return -1;
-	skel->bss->g_sock_port = get_sock_port_v6(*listen_fd);
+	port = get_socket_local_port(*listen_fd);
+	if (!ASSERT_GE(port, 0, "get_socket_local_port"))
+		return -1;
+	skel->bss->g_sock_port = ntohs(port);
 
 	/* Connect client to server */
-	err = connect_client_server_v6(*client_fd, *listen_fd);
-	if (!ASSERT_OK(err, "connect_client_server_v6"))
+	err = connect_fd_to_fd(*client_fd, *listen_fd, 0);
+	if (!ASSERT_OK(err, "connect_fd_to_fd"))
 		return -1;
 	*service_fd = accept(*listen_fd, NULL, NULL);
 	if (!ASSERT_GE(*service_fd, 0, "service_fd"))
@@ -175,12 +112,13 @@ static int talk_to_outside(int *client_fd, int *listen_fd, int *service_fd,
 {
 	int err, cp;
 	char buf[5];
+	int port;
 
 	/* Create client & server socket */
 	err = join_root_cgroup();
 	if (!ASSERT_OK(err, "join_root_cgroup"))
 		return -1;
-	*listen_fd = create_server_sock_v6();
+	*listen_fd = start_server(AF_INET6, SOCK_STREAM, NULL, 0, 0);
 	if (!ASSERT_GE(*listen_fd, 0, "listen_fd"))
 		return -1;
 	err = join_cgroup(CGROUP_TCP_SKB_PATH);
@@ -192,11 +130,14 @@ static int talk_to_outside(int *client_fd, int *listen_fd, int *service_fd,
 	err = join_root_cgroup();
 	if (!ASSERT_OK(err, "join_root_cgroup"))
 		return -1;
-	skel->bss->g_sock_port = get_sock_port_v6(*listen_fd);
+	port = get_socket_local_port(*listen_fd);
+	if (!ASSERT_GE(port, 0, "get_socket_local_port"))
+		return -1;
+	skel->bss->g_sock_port = ntohs(port);
 
 	/* Connect client to server */
-	err = connect_client_server_v6(*client_fd, *listen_fd);
-	if (!ASSERT_OK(err, "connect_client_server_v6"))
+	err = connect_fd_to_fd(*client_fd, *listen_fd, 0);
+	if (!ASSERT_OK(err, "connect_fd_to_fd"))
 		return -1;
 	*service_fd = accept(*listen_fd, NULL, NULL);
 	if (!ASSERT_GE(*service_fd, 0, "service_fd"))
