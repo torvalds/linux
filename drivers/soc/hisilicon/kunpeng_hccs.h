@@ -21,6 +21,8 @@ struct hccs_port_info {
 	u8 port_type;
 	u8 lane_mode;
 	bool enable; /* if the port is enabled */
+	struct kobject kobj;
+	bool dir_created;
 	struct hccs_die_info *die; /* point to the die the port is located */
 };
 
@@ -30,6 +32,8 @@ struct hccs_die_info {
 	u8 min_port_id;
 	u8 max_port_id;
 	struct hccs_port_info *ports;
+	struct kobject kobj;
+	bool dir_created;
 	struct hccs_chip_info *chip; /* point to the chip the die is located */
 };
 
@@ -37,6 +41,7 @@ struct hccs_chip_info {
 	u8 chip_id;
 	u8 die_num;
 	struct hccs_die_info *dies;
+	struct kobject kobj;
 	struct hccs_dev *hdev;
 };
 
@@ -105,6 +110,23 @@ struct hccs_port_attr {
 struct hccs_die_comm_req_param {
 	u8 chip_id;
 	u8 die_id; /* id in hardware */
+};
+
+/* The common command request for getting the information of a specific port */
+struct hccs_port_comm_req_param {
+	u8 chip_id;
+	u8 die_id;
+	u8 port_id;
+};
+
+#define HCCS_PORT_RESET         1
+#define HCCS_PORT_SETUP         2
+#define HCCS_PORT_CONFIG        3
+#define HCCS_PORT_READY         4
+struct hccs_link_status {
+	u8 lane_mask; /* indicate which lanes are used. */
+	u8 link_fsm : 3; /* link fsm, 1: reset 2: setup 3: config 4: link-up */
+	u8 lane_num : 5; /* current lane number */
 };
 
 struct hccs_req_head {
