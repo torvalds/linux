@@ -15,7 +15,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <linux/string_helpers.h>
+#include <linux/string_choices.h>
 #include <linux/units.h>
 
 #include <linux/iio/iio.h>
