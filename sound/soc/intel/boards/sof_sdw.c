@@ -1197,54 +1197,6 @@ static int fill_sdw_codec_dlc(struct device *dev,
 	return 0;
 }
 
-static int create_codec_dai_name(struct device *dev,
-				 const struct snd_soc_acpi_link_adr *adr_link,
-				 struct snd_soc_dai_link_component *codec,
-				 int offset,
-				 struct snd_soc_codec_conf *codec_conf,
-				 int codec_count,
-				 int *codec_conf_index,
-				 int adr_index,
-				 int dai_index)
-{
-	int _codec_index = -1;
-	int i, ret;
-
-	/* sanity check */
-	if (*codec_conf_index + adr_link->num_adr - adr_index > codec_count) {
-		dev_err(dev, "codec_conf: out-of-bounds access requested\n");
-		return -EINVAL;
-	}
-
-	for (i = adr_index; i < adr_link->num_adr; i++) {
-		int codec_index, comp_index;
-		u64 adr = adr_link->adr_d[i].adr;
-
-		codec_index = find_codec_info_part(adr);
-		if (codec_index < 0)
-			return codec_index;
-		if (_codec_index != -1 && codec_index != _codec_index) {
-			dev_dbg(dev, "Different devices on the same sdw link\n");
-			break;
-		}
-		_codec_index = codec_index;
-
-		comp_index = i - adr_index + offset;
-
-		ret = fill_sdw_codec_dlc(dev, adr_link, &codec[comp_index],
-					 codec_index, i, dai_index);
-		if (ret)
-			return ret;
-
-		codec_conf[*codec_conf_index].dlc = codec[comp_index];
-		codec_conf[*codec_conf_index].name_prefix = adr_link->adr_d[i].name_prefix;
-
-		++*codec_conf_index;
-	}
-
-	return 0;
-}
-
 static int set_codec_init_func(struct snd_soc_card *card,
 			       const struct snd_soc_acpi_link_adr *adr_link,
 			       struct snd_soc_dai_link *dai_links,
@@ -1401,8 +1353,8 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 	int codec_num;
 	int stream;
 	int i = 0;
+	int j, k;
 	int ret;
-	int k;
 
 	ret = get_slave_info(adr_link, dev, cpu_dai_id, &cpu_dai_num, &codec_num,
 			     &group_id, adr_index);
@@ -1417,6 +1369,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 	for (adr_link_next = adr_link; adr_link_next && adr_link_next->num_adr &&
 	     i < cpu_dai_num; adr_link_next++) {
 		const struct snd_soc_acpi_endpoint *endpoints;
+		int _codec_index = -1;
 
 		endpoints = adr_link_next->adr_d->endpoints;
 		if (group_id && (!endpoints->aggregated ||
@@ -1427,11 +1380,39 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		if (cpu_dai_id[i] != ffs(adr_link_next->mask) - 1)
 			continue;
 
-		ret = create_codec_dai_name(dev, adr_link_next, codecs, codec_dlc_index,
-					    codec_conf, codec_count, codec_conf_index,
-					    adr_index, dai_index);
-		if (ret < 0)
-			return ret;
+		/* sanity check */
+		if (*codec_conf_index + adr_link_next->num_adr - adr_index > codec_count) {
+			dev_err(dev, "codec_conf: out-of-bounds access requested\n");
+			return -EINVAL;
+		}
+
+		for (j = adr_index; j < adr_link_next->num_adr; j++) {
+			int codec_index, comp_index;
+			u64 adr = adr_link_next->adr_d[j].adr;
+
+			codec_index = find_codec_info_part(adr);
+			if (codec_index < 0)
+				return codec_index;
+			if (_codec_index != -1 && codec_index != _codec_index) {
+				dev_dbg(dev, "Different devices on the same sdw link\n");
+				break;
+			}
+			_codec_index = codec_index;
+
+			comp_index = j - adr_index + codec_dlc_index;
+
+			ret = fill_sdw_codec_dlc(dev, adr_link_next,
+						 &codecs[comp_index],
+						 codec_index, j, dai_index);
+			if (ret)
+				return ret;
+
+			codec_conf[*codec_conf_index].dlc = codecs[comp_index];
+			codec_conf[*codec_conf_index].name_prefix =
+					adr_link_next->adr_d[j].name_prefix;
+
+			(*codec_conf_index)++;
+		}
 
 		/* check next link to create codec dai in the processed group */
 		i++;
