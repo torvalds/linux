@@ -869,36 +869,6 @@ static bool too_many_workers(struct worker_pool *pool)
 	return nr_idle > 2 && (nr_idle - 2) * MAX_IDLE_WORKERS_RATIO >= nr_busy;
 }
 
-/*
- * Wake up functions.
- */
-
-/* Return the first idle worker.  Called with pool->lock held. */
-static struct worker *first_idle_worker(struct worker_pool *pool)
-{
-	if (unlikely(list_empty(&pool->idle_list)))
-		return NULL;
-
-	return list_first_entry(&pool->idle_list, struct worker, entry);
-}
-
-/**
- * wake_up_worker - wake up an idle worker
- * @pool: worker pool to wake worker from
- *
- * Wake up the first idle worker of @pool.
- *
- * CONTEXT:
- * raw_spin_lock_irq(pool->lock).
- */
-static void wake_up_worker(struct worker_pool *pool)
-{
-	struct worker *worker = first_idle_worker(pool);
-
-	if (likely(worker))
-		wake_up_process(worker->task);
-}
-
 /**
  * worker_set_flags - set worker flags and adjust nr_running accordingly
  * @worker: self
@@ -945,6 +915,174 @@ static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
 	if ((flags & WORKER_NOT_RUNNING) && (oflags & WORKER_NOT_RUNNING))
 		if (!(worker->flags & WORKER_NOT_RUNNING))
 			pool->nr_running++;
+}
+
+/* Return the first idle worker.  Called with pool->lock held. */
+static struct worker *first_idle_worker(struct worker_pool *pool)
+{
+	if (unlikely(list_empty(&pool->idle_list)))
+		return NULL;
+
+	return list_first_entry(&pool->idle_list, struct worker, entry);
+}
+
+/**
+ * worker_enter_idle - enter idle state
+ * @worker: worker which is entering idle state
+ *
+ * @worker is entering idle state.  Update stats and idle timer if
+ * necessary.
+ *
+ * LOCKING:
+ * raw_spin_lock_irq(pool->lock).
+ */
+static void worker_enter_idle(struct worker *worker)
+{
+	struct worker_pool *pool = worker->pool;
+
+	if (WARN_ON_ONCE(worker->flags & WORKER_IDLE) ||
+	    WARN_ON_ONCE(!list_empty(&worker->entry) &&
+			 (worker->hentry.next || worker->hentry.pprev)))
+		return;
+
+	/* can't use worker_set_flags(), also called from create_worker() */
+	worker->flags |= WORKER_IDLE;
+	pool->nr_idle++;
+	worker->last_active = jiffies;
+
+	/* idle_list is LIFO */
+	list_add(&worker->entry, &pool->idle_list);
+
+	if (too_many_workers(pool) && !timer_pending(&pool->idle_timer))
+		mod_timer(&pool->idle_timer, jiffies + IDLE_WORKER_TIMEOUT);
+
+	/* Sanity check nr_running. */
+	WARN_ON_ONCE(pool->nr_workers == pool->nr_idle && pool->nr_running);
+}
+
+/**
+ * worker_leave_idle - leave idle state
+ * @worker: worker which is leaving idle state
+ *
+ * @worker is leaving idle state.  Update stats.
+ *
+ * LOCKING:
+ * raw_spin_lock_irq(pool->lock).
+ */
+static void worker_leave_idle(struct worker *worker)
+{
+	struct worker_pool *pool = worker->pool;
+
+	if (WARN_ON_ONCE(!(worker->flags & WORKER_IDLE)))
+		return;
+	worker_clr_flags(worker, WORKER_IDLE);
+	pool->nr_idle--;
+	list_del_init(&worker->entry);
+}
+
+/**
+ * find_worker_executing_work - find worker which is executing a work
+ * @pool: pool of interest
+ * @work: work to find worker for
+ *
+ * Find a worker which is executing @work on @pool by searching
+ * @pool->busy_hash which is keyed by the address of @work.  For a worker
+ * to match, its current execution should match the address of @work and
+ * its work function.  This is to avoid unwanted dependency between
+ * unrelated work executions through a work item being recycled while still
+ * being executed.
+ *
+ * This is a bit tricky.  A work item may be freed once its execution
+ * starts and nothing prevents the freed area from being recycled for
+ * another work item.  If the same work item address ends up being reused
+ * before the original execution finishes, workqueue will identify the
+ * recycled work item as currently executing and make it wait until the
+ * current execution finishes, introducing an unwanted dependency.
+ *
+ * This function checks the work item address and work function to avoid
+ * false positives.  Note that this isn't complete as one may construct a
+ * work function which can introduce dependency onto itself through a
+ * recycled work item.  Well, if somebody wants to shoot oneself in the
+ * foot that badly, there's only so much we can do, and if such deadlock
+ * actually occurs, it should be easy to locate the culprit work function.
+ *
+ * CONTEXT:
+ * raw_spin_lock_irq(pool->lock).
+ *
+ * Return:
+ * Pointer to worker which is executing @work if found, %NULL
+ * otherwise.
+ */
+static struct worker *find_worker_executing_work(struct worker_pool *pool,
+						 struct work_struct *work)
+{
+	struct worker *worker;
+
+	hash_for_each_possible(pool->busy_hash, worker, hentry,
+			       (unsigned long)work)
+		if (worker->current_work == work &&
+		    worker->current_func == work->func)
+			return worker;
+
+	return NULL;
+}
+
+/**
+ * move_linked_works - move linked works to a list
+ * @work: start of series of works to be scheduled
+ * @head: target list to append @work to
+ * @nextp: out parameter for nested worklist walking
+ *
+ * Schedule linked works starting from @work to @head.  Work series to
+ * be scheduled starts at @work and includes any consecutive work with
+ * WORK_STRUCT_LINKED set in its predecessor.
+ *
+ * If @nextp is not NULL, it's updated to point to the next work of
+ * the last scheduled work.  This allows move_linked_works() to be
+ * nested inside outer list_for_each_entry_safe().
+ *
+ * CONTEXT:
+ * raw_spin_lock_irq(pool->lock).
+ */
+static void move_linked_works(struct work_struct *work, struct list_head *head,
+			      struct work_struct **nextp)
+{
+	struct work_struct *n;
+
+	/*
+	 * Linked worklist will always end before the end of the list,
+	 * use NULL for list head.
+	 */
+	list_for_each_entry_safe_from(work, n, NULL, entry) {
+		list_move_tail(&work->entry, head);
+		if (!(*work_data_bits(work) & WORK_STRUCT_LINKED))
+			break;
+	}
+
+	/*
+	 * If we're already inside safe list traversal and have moved
+	 * multiple works to the scheduled queue, the next position
+	 * needs to be updated.
+	 */
+	if (nextp)
+		*nextp = n;
+}
+
+/**
+ * wake_up_worker - wake up an idle worker
+ * @pool: worker pool to wake worker from
+ *
+ * Wake up the first idle worker of @pool.
+ *
+ * CONTEXT:
+ * raw_spin_lock_irq(pool->lock).
+ */
+static void wake_up_worker(struct worker_pool *pool)
+{
+	struct worker *worker = first_idle_worker(pool);
+
+	if (likely(worker))
+		wake_up_process(worker->task);
 }
 
 #ifdef CONFIG_WQ_CPU_INTENSIVE_REPORT
@@ -1200,94 +1338,6 @@ work_func_t wq_worker_last_func(struct task_struct *task)
 	struct worker *worker = kthread_data(task);
 
 	return worker->last_func;
-}
-
-/**
- * find_worker_executing_work - find worker which is executing a work
- * @pool: pool of interest
- * @work: work to find worker for
- *
- * Find a worker which is executing @work on @pool by searching
- * @pool->busy_hash which is keyed by the address of @work.  For a worker
- * to match, its current execution should match the address of @work and
- * its work function.  This is to avoid unwanted dependency between
- * unrelated work executions through a work item being recycled while still
- * being executed.
- *
- * This is a bit tricky.  A work item may be freed once its execution
- * starts and nothing prevents the freed area from being recycled for
- * another work item.  If the same work item address ends up being reused
- * before the original execution finishes, workqueue will identify the
- * recycled work item as currently executing and make it wait until the
- * current execution finishes, introducing an unwanted dependency.
- *
- * This function checks the work item address and work function to avoid
- * false positives.  Note that this isn't complete as one may construct a
- * work function which can introduce dependency onto itself through a
- * recycled work item.  Well, if somebody wants to shoot oneself in the
- * foot that badly, there's only so much we can do, and if such deadlock
- * actually occurs, it should be easy to locate the culprit work function.
- *
- * CONTEXT:
- * raw_spin_lock_irq(pool->lock).
- *
- * Return:
- * Pointer to worker which is executing @work if found, %NULL
- * otherwise.
- */
-static struct worker *find_worker_executing_work(struct worker_pool *pool,
-						 struct work_struct *work)
-{
-	struct worker *worker;
-
-	hash_for_each_possible(pool->busy_hash, worker, hentry,
-			       (unsigned long)work)
-		if (worker->current_work == work &&
-		    worker->current_func == work->func)
-			return worker;
-
-	return NULL;
-}
-
-/**
- * move_linked_works - move linked works to a list
- * @work: start of series of works to be scheduled
- * @head: target list to append @work to
- * @nextp: out parameter for nested worklist walking
- *
- * Schedule linked works starting from @work to @head.  Work series to
- * be scheduled starts at @work and includes any consecutive work with
- * WORK_STRUCT_LINKED set in its predecessor.
- *
- * If @nextp is not NULL, it's updated to point to the next work of
- * the last scheduled work.  This allows move_linked_works() to be
- * nested inside outer list_for_each_entry_safe().
- *
- * CONTEXT:
- * raw_spin_lock_irq(pool->lock).
- */
-static void move_linked_works(struct work_struct *work, struct list_head *head,
-			      struct work_struct **nextp)
-{
-	struct work_struct *n;
-
-	/*
-	 * Linked worklist will always end before the end of the list,
-	 * use NULL for list head.
-	 */
-	list_for_each_entry_safe_from(work, n, NULL, entry) {
-		list_move_tail(&work->entry, head);
-		if (!(*work_data_bits(work) & WORK_STRUCT_LINKED))
-			break;
-	}
-
-	/*
-	 * If we're already inside safe list traversal and have moved
-	 * multiple works to the scheduled queue, the next position
-	 * needs to be updated.
-	 */
-	if (nextp)
-		*nextp = n;
 }
 
 /**
@@ -1973,60 +2023,6 @@ bool queue_rcu_work(struct workqueue_struct *wq, struct rcu_work *rwork)
 	return false;
 }
 EXPORT_SYMBOL(queue_rcu_work);
-
-/**
- * worker_enter_idle - enter idle state
- * @worker: worker which is entering idle state
- *
- * @worker is entering idle state.  Update stats and idle timer if
- * necessary.
- *
- * LOCKING:
- * raw_spin_lock_irq(pool->lock).
- */
-static void worker_enter_idle(struct worker *worker)
-{
-	struct worker_pool *pool = worker->pool;
-
-	if (WARN_ON_ONCE(worker->flags & WORKER_IDLE) ||
-	    WARN_ON_ONCE(!list_empty(&worker->entry) &&
-			 (worker->hentry.next || worker->hentry.pprev)))
-		return;
-
-	/* can't use worker_set_flags(), also called from create_worker() */
-	worker->flags |= WORKER_IDLE;
-	pool->nr_idle++;
-	worker->last_active = jiffies;
-
-	/* idle_list is LIFO */
-	list_add(&worker->entry, &pool->idle_list);
-
-	if (too_many_workers(pool) && !timer_pending(&pool->idle_timer))
-		mod_timer(&pool->idle_timer, jiffies + IDLE_WORKER_TIMEOUT);
-
-	/* Sanity check nr_running. */
-	WARN_ON_ONCE(pool->nr_workers == pool->nr_idle && pool->nr_running);
-}
-
-/**
- * worker_leave_idle - leave idle state
- * @worker: worker which is leaving idle state
- *
- * @worker is leaving idle state.  Update stats.
- *
- * LOCKING:
- * raw_spin_lock_irq(pool->lock).
- */
-static void worker_leave_idle(struct worker *worker)
-{
-	struct worker_pool *pool = worker->pool;
-
-	if (WARN_ON_ONCE(!(worker->flags & WORKER_IDLE)))
-		return;
-	worker_clr_flags(worker, WORKER_IDLE);
-	pool->nr_idle--;
-	list_del_init(&worker->entry);
-}
 
 static struct worker *alloc_worker(int node)
 {
