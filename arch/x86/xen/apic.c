@@ -150,7 +150,6 @@ static struct apic xen_pv_apic = {
 
 	.check_apicid_used		= default_check_apicid_used, /* Used on 32-bit */
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map, /* Used on 32-bit */
-	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= xen_cpu_present_to_apicid,
 	.phys_pkg_id			= xen_phys_pkg_id, /* detect_ht */
 

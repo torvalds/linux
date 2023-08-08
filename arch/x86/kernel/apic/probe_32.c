@@ -18,15 +18,6 @@
 
 #include "local.h"
 
-static void setup_apic_flat_routing(void)
-{
-#ifdef CONFIG_X86_IO_APIC
-	printk(KERN_INFO
-		"Enabling APIC mode:  Flat.  Using %d I/O APICs\n",
-		nr_ioapics);
-#endif
-}
-
 static int default_apic_id_registered(void)
 {
 	return physid_isset(read_apic_id(), phys_cpu_present_map);
@@ -58,7 +49,6 @@ static struct apic apic_default __ro_after_init = {
 	.check_apicid_used		= default_check_apicid_used,
 	.init_apic_ldr			= default_init_apic_ldr,
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
-	.setup_apic_routing		= setup_apic_flat_routing,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
 	.phys_pkg_id			= default_phys_pkg_id,
 
@@ -132,16 +122,13 @@ void __init x86_32_probe_bigsmp_early(void)
 	set_nr_cpu_ids(8);
 }
 
-void __init default_setup_apic_routing(void)
+void __init x86_32_install_bigsmp(void)
 {
 	if (nr_cpu_ids > 8 && !xen_pv_domain())
 		apic_bigsmp_force();
-
-	if (apic->setup_apic_routing)
-		apic->setup_apic_routing();
 }
 
-void __init generic_apic_probe(void)
+void __init x86_32_probe_apic(void)
 {
 	if (!cmdline_apic) {
 		struct apic **drv;
