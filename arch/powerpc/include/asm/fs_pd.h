@@ -22,14 +22,6 @@
 #define cpm2_unmap(addr) do {} while(0)
 #endif
 
-#ifdef CONFIG_PPC_8xx
-#include <asm/8xx_immap.h>
-
-#define immr_map(member) (&mpc8xx_immr->member)
-#define immr_map_size(member, size) (&mpc8xx_immr->member)
-#define immr_unmap(addr) do {} while (0)
-#endif
-
 static inline int uart_baudrate(void)
 {
         return get_baudrate();
