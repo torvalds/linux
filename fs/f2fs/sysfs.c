@@ -974,8 +974,8 @@ F2FS_SBI_GENERAL_RO_ATTR(unusable_blocks_per_sec);
 #ifdef CONFIG_F2FS_STAT_FS
 STAT_INFO_RO_ATTR(cp_foreground_calls, cp_count);
 STAT_INFO_RO_ATTR(cp_background_calls, bg_cp_count);
-STAT_INFO_RO_ATTR(gc_foreground_calls, call_count);
-STAT_INFO_RO_ATTR(gc_background_calls, bg_gc);
+STAT_INFO_RO_ATTR(gc_foreground_calls, gc_call_count[FOREGROUND]);
+STAT_INFO_RO_ATTR(gc_background_calls, gc_call_count[BACKGROUND]);
 #endif
 
 /* FAULT_INFO ATTR */
