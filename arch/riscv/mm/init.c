@@ -26,12 +26,13 @@
 #include <linux/kfence.h>
 
 #include <asm/fixmap.h>
-#include <asm/tlbflush.h>
+#include <asm/io.h>
+#include <asm/numa.h>
+#include <asm/pgtable.h>
+#include <asm/ptdump.h>
 #include <asm/sections.h>
 #include <asm/soc.h>
-#include <asm/io.h>
-#include <asm/ptdump.h>
-#include <asm/numa.h>
+#include <asm/tlbflush.h>
 
 #include "../kernel/head.h"
 
