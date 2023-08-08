@@ -354,10 +354,14 @@ static const struct file_operations sof_probes_points_remove_fops = {
 	.owner = THIS_MODULE,
 };
 
+static const struct snd_soc_dai_ops sof_probes_dai_ops = {
+	.compress_new = snd_soc_new_compress,
+};
+
 static struct snd_soc_dai_driver sof_probes_dai_drv[] = {
 {
 	.name = "Probe Extraction CPU DAI",
-	.compress_new = snd_soc_new_compress,
+	.ops  = &sof_probes_dai_ops,
 	.cops = &sof_probes_compr_ops,
 	.capture = {
 		.stream_name = "Probe Extraction",
