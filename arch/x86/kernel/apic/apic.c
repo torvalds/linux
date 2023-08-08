@@ -74,11 +74,6 @@ EXPORT_SYMBOL_GPL(boot_cpu_physical_apicid);
 u8 boot_cpu_apic_version __ro_after_init;
 
 /*
- * The highest APIC ID seen during enumeration.
- */
-static unsigned int max_physical_apicid;
-
-/*
  * Bitmask of physically existing CPUs:
  */
 physid_mask_t phys_cpu_present_map;
@@ -2540,9 +2535,6 @@ int generic_processor_info(int apicid, int version)
 		pr_warn("BIOS bug: APIC version mismatch, boot CPU: %x, CPU %d: version %x\n",
 			boot_cpu_apic_version, cpu, version);
 	}
-
-	if (apicid > max_physical_apicid)
-		max_physical_apicid = apicid;
 
 #if defined(CONFIG_SMP) || defined(CONFIG_X86_64)
 	early_per_cpu(x86_cpu_to_apicid, cpu) = apicid;
