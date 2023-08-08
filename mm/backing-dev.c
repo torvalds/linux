@@ -732,9 +732,6 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 
 	might_alloc(gfp);
 
-	if (!memcg_css->parent)
-		return &bdi->wb;
-
 	do {
 		wb = wb_get_lookup(bdi, memcg_css);
 	} while (!wb && !cgwb_create(bdi, memcg_css, gfp));
