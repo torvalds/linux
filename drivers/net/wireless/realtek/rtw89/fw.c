@@ -1165,7 +1165,7 @@ void rtw89_fw_log_dump(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	return;
 
 plain_log:
-	rtw89_info(rtwdev, "C2H log: %*s", len, buf);
+	rtw89_info(rtwdev, "C2H log: %.*s", len, buf);
 
 }
 
