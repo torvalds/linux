@@ -532,13 +532,6 @@ static int atmel_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	return err;
 }
 
-static const struct snd_soc_dai_ops atmel_i2s_dai_ops = {
-	.prepare	= atmel_i2s_prepare,
-	.trigger	= atmel_i2s_trigger,
-	.hw_params	= atmel_i2s_hw_params,
-	.set_fmt	= atmel_i2s_set_dai_fmt,
-};
-
 static int atmel_i2s_dai_probe(struct snd_soc_dai *dai)
 {
 	struct atmel_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
@@ -547,8 +540,15 @@ static int atmel_i2s_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops atmel_i2s_dai_ops = {
+	.probe		= atmel_i2s_dai_probe,
+	.prepare	= atmel_i2s_prepare,
+	.trigger	= atmel_i2s_trigger,
+	.hw_params	= atmel_i2s_hw_params,
+	.set_fmt	= atmel_i2s_set_dai_fmt,
+};
+
 static struct snd_soc_dai_driver atmel_i2s_dai = {
-	.probe	= atmel_i2s_dai_probe,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,

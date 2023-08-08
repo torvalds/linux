@@ -706,13 +706,6 @@ static int mchp_pdmc_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops mchp_pdmc_dai_ops = {
-	.set_fmt	= mchp_pdmc_set_fmt,
-	.startup	= mchp_pdmc_startup,
-	.hw_params	= mchp_pdmc_hw_params,
-	.trigger	= mchp_pdmc_trigger,
-};
-
 static int mchp_pdmc_add_chmap_ctls(struct snd_pcm *pcm, struct mchp_pdmc *dd)
 {
 	struct mchp_pdmc_chmap *info;
@@ -765,8 +758,16 @@ static int mchp_pdmc_pcm_new(struct snd_soc_pcm_runtime *rtd,
 	return ret;
 }
 
+static const struct snd_soc_dai_ops mchp_pdmc_dai_ops = {
+	.probe		= mchp_pdmc_dai_probe,
+	.set_fmt	= mchp_pdmc_set_fmt,
+	.startup	= mchp_pdmc_startup,
+	.hw_params	= mchp_pdmc_hw_params,
+	.trigger	= mchp_pdmc_trigger,
+	.pcm_new	= &mchp_pdmc_pcm_new,
+};
+
 static struct snd_soc_dai_driver mchp_pdmc_dai = {
-	.probe	= mchp_pdmc_dai_probe,
 	.capture = {
 		.stream_name	= "Capture",
 		.channels_min	= 1,
@@ -777,7 +778,6 @@ static struct snd_soc_dai_driver mchp_pdmc_dai = {
 		.formats	= SNDRV_PCM_FMTBIT_S24_LE,
 	},
 	.ops = &mchp_pdmc_dai_ops,
-	.pcm_new = &mchp_pdmc_pcm_new,
 };
 
 /* PDMC interrupt handler */
