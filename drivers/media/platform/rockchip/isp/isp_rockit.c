@@ -657,3 +657,37 @@ int rkisp_rockit_get_ispdev(char **name)
 		return 0;
 }
 EXPORT_SYMBOL(rkisp_rockit_get_ispdev);
+
+int rkisp_rockit_get_isp_mode(const char *name)
+{
+	struct rkisp_device *ispdev = NULL;
+	int i, ret = -EINVAL;
+
+	if (rockit_cfg == NULL)
+		goto end;
+
+	for (i = 0; i < rockit_cfg->isp_num; i++) {
+		if (!strcmp(rockit_cfg->rkisp_dev_cfg[i].isp_name, name)) {
+			ispdev = rockit_cfg->rkisp_dev_cfg[i].isp_dev;
+			break;
+		}
+	}
+	if (!ispdev)
+		goto end;
+
+	if (ispdev->is_pre_on) {
+		if (IS_HDR_RDBK(ispdev->rd_mode))
+			ret = RKISP_FAST_OFFLINE;
+		else
+			ret = RKISP_FAST_ONLINE;
+	} else {
+		if (IS_HDR_RDBK(ispdev->rd_mode))
+			ret = RKISP_NORMAL_OFFLINE;
+		else
+			ret = RKISP_NORMAL_ONLINE;
+	}
+
+end:
+	return ret;
+}
+EXPORT_SYMBOL(rkisp_rockit_get_isp_mode);

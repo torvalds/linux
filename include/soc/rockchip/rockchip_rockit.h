@@ -14,6 +14,13 @@
 
 #define ROCKIT_VICAP_NUM_MAX	6
 
+enum {
+	RKISP_NORMAL_ONLINE,
+	RKISP_NORMAL_OFFLINE,
+	RKISP_FAST_ONLINE,
+	RKISP_FAST_OFFLINE,
+};
+
 enum function_cmd {
 	ROCKIT_BUF_QUE,
 	ROCKIT_MPIBUF_DONE
@@ -116,6 +123,7 @@ struct rockit_rkcif_cfg {
 
 void *rkisp_rockit_function_register(void *function, int cmd);
 int rkisp_rockit_get_ispdev(char **name);
+int rkisp_rockit_get_isp_mode(const char *name);
 int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg);
 int rkisp_rockit_pause_stream(struct rockit_cfg *input_rockit_cfg);
 int rkisp_rockit_resume_stream(struct rockit_cfg *input_rockit_cfg);
@@ -137,6 +145,7 @@ int rkcif_rockit_pause_stream(struct rockit_rkcif_cfg *input_rockit_cfg);
 
 static inline void *rkisp_rockit_function_register(void *function, int cmd) { return NULL; }
 static inline int rkisp_rockit_get_ispdev(char **name) { return -EINVAL; }
+static inline int rkisp_rockit_get_isp_mode(const char *name) { return -EINVAL; }
 static inline int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 {
 	return -EINVAL;
