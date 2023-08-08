@@ -5,6 +5,7 @@
  */
 
 #include <linux/isst_if.h>
+#include <sys/utsname.h>
 
 #include "isst.h"
 
@@ -473,10 +474,43 @@ static unsigned int is_cpu_online(int cpu)
 	return online;
 }
 
+static int get_kernel_version(int *major, int *minor)
+{
+	struct utsname buf;
+	int ret;
+
+	ret = uname(&buf);
+	if (ret)
+		return ret;
+
+	ret = sscanf(buf.release, "%d.%d", major, minor);
+	if (ret != 2)
+		return ret;
+
+	return 0;
+}
+
+#define CPU0_HOTPLUG_DEPRECATE_MAJOR_VER	6
+#define CPU0_HOTPLUG_DEPRECATE_MINOR_VER	5
+
 void set_cpu_online_offline(int cpu, int state)
 {
 	char buffer[128];
 	int fd, ret;
+
+	if (!cpu) {
+		int major, minor;
+
+		ret = get_kernel_version(&major, &minor);
+		if (!ret) {
+			if (major > CPU0_HOTPLUG_DEPRECATE_MAJOR_VER || (major == CPU0_HOTPLUG_DEPRECATE_MAJOR_VER &&
+				minor >= CPU0_HOTPLUG_DEPRECATE_MINOR_VER)) {
+				debug_printf("Ignore CPU 0 offline/online for kernel version >= %d.%d\n", major, minor);
+				debug_printf("Use cgroups to isolate CPU 0\n");
+				return;
+			}
+		}
+	}
 
 	snprintf(buffer, sizeof(buffer),
 		 "/sys/devices/system/cpu/cpu%d/online", cpu);
