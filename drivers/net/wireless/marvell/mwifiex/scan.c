@@ -828,7 +828,6 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	u8 ssid_filter;
 	struct mwifiex_ie_types_htcap *ht_cap;
 	struct mwifiex_ie_types_bss_mode *bss_mode;
-	const u8 zero_mac[6] = {0, 0, 0, 0, 0, 0};
 
 	/* The tlv_buf_len is calculated for each scan command.  The TLVs added
 	   in this routine will be preserved since the routine that sends the
@@ -966,7 +965,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 				  sizeof(struct mwifiex_ie_types_scan_chan_gap);
 		}
 
-		if (!ether_addr_equal(user_scan_in->random_mac, zero_mac)) {
+		if (!is_zero_ether_addr(user_scan_in->random_mac)) {
 			random_mac_tlv = (void *)tlv_pos;
 			random_mac_tlv->header.type =
 					 cpu_to_le16(TLV_TYPE_RANDOM_MAC);
