@@ -279,6 +279,20 @@ Description:
 		but should match other such assignments on device).
 		Units after application of scale and offset are m/s^2.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltaangl_x_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltaangl_y_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltaangl_z_raw
+KernelVersion:	6.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Angular displacement between two consecutive samples on x, y or
+		z (may be arbitrarily assigned but should match other such
+		assignments on device).
+		In order to compute the total angular displacement during a
+		desired period of time, the application should sum-up the delta
+		angle samples acquired during that time.
+		Units after application of scale and offset are radians.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_angl_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglY_raw
 KernelVersion:	4.17
@@ -461,6 +475,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_countY_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltaangl_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_angl_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_x_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_y_scale
@@ -1332,6 +1347,9 @@ Description:
 What:		/sys/.../iio:deviceX/bufferY/in_accel_x_en
 What:		/sys/.../iio:deviceX/bufferY/in_accel_y_en
 What:		/sys/.../iio:deviceX/bufferY/in_accel_z_en
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_x_en
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_y_en
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_z_en
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_x_en
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_y_en
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_z_en
@@ -1362,6 +1380,7 @@ Description:
 		Scan element control for triggered data capture.
 
 What:		/sys/.../iio:deviceX/bufferY/in_accel_type
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_type
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_type
 What:		/sys/.../iio:deviceX/bufferY/in_magn_type
 What:		/sys/.../iio:deviceX/bufferY/in_incli_type
@@ -1416,6 +1435,9 @@ What:		/sys/.../iio:deviceX/bufferY/in_voltage_q_index
 What:		/sys/.../iio:deviceX/bufferY/in_accel_x_index
 What:		/sys/.../iio:deviceX/bufferY/in_accel_y_index
 What:		/sys/.../iio:deviceX/bufferY/in_accel_z_index
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_x_index
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_y_index
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_z_index
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_x_index
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_y_index
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_z_index
