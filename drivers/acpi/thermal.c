@@ -742,7 +742,6 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 {
 	int trips = 0;
 	int result;
-	acpi_status status;
 	int i;
 
 	if (tz->trips.critical.valid)
@@ -775,24 +774,15 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 	if (result)
 		goto unregister_tzd;
 
-	status =  acpi_bus_attach_private_data(tz->device->handle,
-					       tz->thermal_zone);
-	if (ACPI_FAILURE(status)) {
-		result = -ENODEV;
-		goto remove_links;
-	}
-
 	result = thermal_zone_device_enable(tz->thermal_zone);
 	if (result)
-		goto acpi_bus_detach;
+		goto remove_links;
 
 	dev_info(&tz->device->dev, "registered as thermal_zone%d\n",
 		 thermal_zone_device_id(tz->thermal_zone));
 
 	return 0;
 
-acpi_bus_detach:
-	acpi_bus_detach_private_data(tz->device->handle);
 remove_links:
 	acpi_thermal_zone_sysfs_remove(tz);
 unregister_tzd:
@@ -806,7 +796,6 @@ static void acpi_thermal_unregister_thermal_zone(struct acpi_thermal *tz)
 	acpi_thermal_zone_sysfs_remove(tz);
 	thermal_zone_device_unregister(tz->thermal_zone);
 	tz->thermal_zone = NULL;
-	acpi_bus_detach_private_data(tz->device->handle);
 }
 
 
