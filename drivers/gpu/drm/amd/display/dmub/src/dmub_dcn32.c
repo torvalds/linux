@@ -26,33 +26,39 @@
 #include "../dmub_srv.h"
 #include "dmub_reg.h"
 #include "dmub_dcn32.h"
+#include "dc/dc_types.h"
 
 #include "dcn/dcn_3_2_0_offset.h"
 #include "dcn/dcn_3_2_0_sh_mask.h"
 
 #define DCN_BASE__INST0_SEG2                       0x000034C0
 
-#define BASE_INNER(seg) DCN_BASE__INST0_SEG##seg
+#define BASE_INNER(seg) ctx->dcn_reg_offsets[seg]
 #define CTX dmub
 #define REGS dmub->regs_dcn32
-#define REG_OFFSET_EXP(reg_name) (BASE(reg##reg_name##_BASE_IDX) + reg##reg_name)
+#define REG_OFFSET_EXP(reg_name) BASE(reg##reg_name##_BASE_IDX) + reg##reg_name
 
-const struct dmub_srv_dcn32_regs dmub_srv_dcn32_regs = {
-#define DMUB_SR(reg) REG_OFFSET_EXP(reg),
-	{
-		DMUB_DCN32_REGS()
-		DMCUB_INTERNAL_REGS()
-	},
+void dmub_srv_dcn32_regs_init(struct dmub_srv *dmub,  struct dc_context *ctx)
+{
+	struct dmub_srv_dcn32_regs *regs = dmub->regs_dcn32;
+
+#define REG_STRUCT regs
+
+#define DMUB_SR(reg) REG_STRUCT->offset.reg = REG_OFFSET_EXP(reg);
+	DMUB_DCN32_REGS()
+	DMCUB_INTERNAL_REGS()
 #undef DMUB_SR
 
-#define DMUB_SF(reg, field) FD_MASK(reg, field),
-		{ DMUB_DCN32_FIELDS() },
+#define DMUB_SF(reg, field) REG_STRUCT->mask.reg##__##field = FD_MASK(reg, field);
+	DMUB_DCN32_FIELDS()
 #undef DMUB_SF
 
-#define DMUB_SF(reg, field) FD_SHIFT(reg, field),
-		{ DMUB_DCN32_FIELDS() },
+#define DMUB_SF(reg, field) REG_STRUCT->shift.reg##__##field = FD_SHIFT(reg, field);
+	DMUB_DCN32_FIELDS()
 #undef DMUB_SF
-};
+
+#undef REG_STRUCT
+}
 
 static void dmub_dcn32_get_fb_base_offset(struct dmub_srv *dmub,
 		uint64_t *fb_base,

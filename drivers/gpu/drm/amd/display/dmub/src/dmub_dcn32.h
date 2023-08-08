@@ -178,12 +178,10 @@ struct dmub_srv_dcn32_reg_mask {
 };
 
 struct dmub_srv_dcn32_regs {
-	const struct dmub_srv_dcn32_reg_offset offset;
-	const struct dmub_srv_dcn32_reg_mask mask;
-	const struct dmub_srv_dcn32_reg_shift shift;
+	struct dmub_srv_dcn32_reg_offset offset;
+	struct dmub_srv_dcn32_reg_mask mask;
+	struct dmub_srv_dcn32_reg_shift shift;
 };
-
-extern const struct dmub_srv_dcn32_regs dmub_srv_dcn32_regs;
 
 void dmub_dcn32_reset(struct dmub_srv *dmub);
 
@@ -255,5 +253,7 @@ void dmub_dcn32_configure_dmub_in_system_memory(struct dmub_srv *dmub);
 void dmub_dcn32_send_inbox0_cmd(struct dmub_srv *dmub, union dmub_inbox0_data_register data);
 void dmub_dcn32_clear_inbox0_ack_register(struct dmub_srv *dmub);
 uint32_t dmub_dcn32_read_inbox0_ack_register(struct dmub_srv *dmub);
+
+void dmub_srv_dcn32_regs_init(struct dmub_srv *dmub, struct dc_context *ctx);
 
 #endif /* _DMUB_DCN32_H_ */

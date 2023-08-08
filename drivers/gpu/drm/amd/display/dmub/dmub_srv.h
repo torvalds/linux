@@ -65,6 +65,7 @@
  */
 
 #include "inc/dmub_cmd.h"
+#include "dc/dc_types.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -399,6 +400,7 @@ struct dmub_srv_hw_funcs {
 	void (*get_diagnostic_data)(struct dmub_srv *dmub, struct dmub_diagnostic_data *dmub_oca);
 
 	bool (*should_detect)(struct dmub_srv *dmub);
+	void (*init_reg_offsets)(struct dmub_srv *dmub, struct dc_context *ctx);
 };
 
 /**
@@ -438,7 +440,7 @@ struct dmub_srv {
 	/* private: internal use only */
 	const struct dmub_srv_common_regs *regs;
 	const struct dmub_srv_dcn31_regs *regs_dcn31;
-	const struct dmub_srv_dcn32_regs *regs_dcn32;
+	struct dmub_srv_dcn32_regs *regs_dcn32;
 
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs hw_funcs;

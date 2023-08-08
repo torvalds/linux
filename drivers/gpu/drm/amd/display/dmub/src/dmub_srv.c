@@ -78,6 +78,8 @@
 
 #define DMUB_REGION5_BASE (0xA0000000)
 
+static struct dmub_srv_dcn32_regs dmub_srv_dcn32_regs;
+
 static inline uint32_t dmub_align(uint32_t val, uint32_t factor)
 {
 	return (val + factor - 1) / factor * factor;
@@ -304,6 +306,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->set_outbox0_rptr = dmub_dcn32_set_outbox0_rptr;
 		funcs->get_current_time = dmub_dcn32_get_current_time;
 		funcs->get_diagnostic_data = dmub_dcn32_get_diagnostic_data;
+		funcs->init_reg_offsets = dmub_srv_dcn32_regs_init;
 
 		break;
 
