@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <dt-bindings/i3c/i3c.h>
 
 #include "internals.h"
 
@@ -241,6 +242,20 @@ out:
 	return ret;
 }
 static DEVICE_ATTR_RO(hdrcap);
+
+static ssize_t bus_context_show(struct device *dev, struct device_attribute *da,
+				char *buf)
+{
+	struct i3c_bus *bus = dev_to_i3cbus(dev);
+	ssize_t ret;
+
+	i3c_bus_normaluse_lock(bus);
+	ret = sprintf(buf, "%x\n", bus->context);
+	i3c_bus_normaluse_unlock(bus);
+
+	return ret;
+}
+static DEVICE_ATTR_RO(bus_context);
 
 static ssize_t modalias_show(struct device *dev,
 			     struct device_attribute *da, char *buf)
@@ -536,6 +551,7 @@ static struct attribute *i3c_masterdev_attrs[] = {
 	&dev_attr_pid.attr,
 	&dev_attr_dynamic_address.attr,
 	&dev_attr_hdrcap.attr,
+	&dev_attr_bus_context.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(i3c_masterdev);
@@ -2120,9 +2136,18 @@ static int of_populate_i3c_bus(struct i3c_master_controller *master)
 	struct device_node *node;
 	int ret;
 	u32 val;
+	u8 context;
 
 	if (!i3cbus_np)
 		return 0;
+
+	/*
+	 * If the bus context is not specified, set the default value to MIPI
+	 * I3C Basic Version 1.0.
+	 */
+	master->bus.context = I3C_BUS_CONTEXT_MIPI_BASIC_V1_0_0;
+	if (!of_property_read_u8(i3cbus_np, "bus-context", &context))
+		master->bus.context = context;
 
 	for_each_available_child_of_node(i3cbus_np, node) {
 		ret = of_i3c_master_add_dev(master, node);

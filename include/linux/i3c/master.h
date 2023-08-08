@@ -343,6 +343,7 @@ struct i3c_bus {
 		struct list_head i2c;
 	} devs;
 	struct rw_semaphore lock;
+	u8 context;
 };
 
 /**
