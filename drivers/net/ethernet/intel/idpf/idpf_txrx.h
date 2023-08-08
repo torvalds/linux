@@ -64,10 +64,21 @@
 
 #define IDPF_RX_BUFQ_WORKING_SET(rxq)		((rxq)->desc_count - 1)
 
+#define IDPF_RX_BUMP_NTC(rxq, ntc)				\
+do {								\
+	if (unlikely(++(ntc) == (rxq)->desc_count)) {		\
+		ntc = 0;					\
+		change_bit(__IDPF_Q_GEN_CHK, (rxq)->flags);	\
+	}							\
+} while (0)
+
+#define IDPF_RX_HDR_SIZE			256
 #define IDPF_RX_BUF_2048			2048
 #define IDPF_RX_BUF_4096			4096
 #define IDPF_RX_BUF_STRIDE			32
+#define IDPF_RX_BUF_POST_STRIDE			16
 #define IDPF_LOW_WATERMARK			64
+/* Size of header buffer specifically for header split */
 #define IDPF_HDR_BUF_SIZE			256
 #define IDPF_PACKET_HDR_PAD	\
 	(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN * 2)
@@ -77,10 +88,18 @@
  */
 #define IDPF_TX_SPLITQ_RE_MIN_GAP	64
 
+#define IDPF_RX_BI_BUFID_S		0
+#define IDPF_RX_BI_BUFID_M		GENMASK(14, 0)
+#define IDPF_RX_BI_GEN_S		15
+#define IDPF_RX_BI_GEN_M		BIT(IDPF_RX_BI_GEN_S)
+#define IDPF_RXD_EOF_SPLITQ		VIRTCHNL2_RX_FLEX_DESC_ADV_STATUS0_EOF_M
+#define IDPF_RXD_EOF_SINGLEQ		VIRTCHNL2_RX_BASE_DESC_STATUS_EOF_M
+
 #define IDPF_SINGLEQ_RX_BUF_DESC(rxq, i)	\
 	(&(((struct virtchnl2_singleq_rx_buf_desc *)((rxq)->desc_ring))[i]))
 #define IDPF_SPLITQ_RX_BUF_DESC(rxq, i)	\
 	(&(((struct virtchnl2_splitq_rx_buf_desc *)((rxq)->desc_ring))[i]))
+#define IDPF_SPLITQ_RX_BI_DESC(rxq, i) ((((rxq)->ring))[i])
 
 #define IDPF_SPLITQ_TX_COMPLQ_DESC(txcq, i)	\
 	(&(((struct idpf_splitq_tx_compl_desc *)((txcq)->desc_ring))[i]))
@@ -216,6 +235,20 @@ struct idpf_tx_splitq_params {
 	struct idpf_tx_offload_params offload;
 };
 
+/* Checksum offload bits decoded from the receive descriptor. */
+struct idpf_rx_csum_decoded {
+	u32 l3l4p : 1;
+	u32 ipe : 1;
+	u32 eipe : 1;
+	u32 eudpe : 1;
+	u32 ipv6exadd : 1;
+	u32 l4e : 1;
+	u32 pprs : 1;
+	u32 nat : 1;
+	u32 raw_csum_inv : 1;
+	u32 raw_csum : 16;
+};
+
 #define IDPF_TX_COMPLQ_CLEAN_BUDGET	256
 #define IDPF_TX_MIN_PKT_LEN		17
 #define IDPF_TX_DESCS_FOR_SKB_DATA_PTR	1
@@ -238,6 +271,8 @@ struct idpf_tx_splitq_params {
 
 #define IDPF_RX_DMA_ATTR \
 	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
+#define IDPF_RX_DESC(rxq, i)	\
+	(&(((union virtchnl2_rx_desc *)((rxq)->desc_ring))[i]))
 
 struct idpf_rx_buf {
 	struct page *page;
@@ -287,6 +322,10 @@ enum idpf_rx_ptype_outer_ip {
 	IDPF_RX_PTYPE_OUTER_L2	= 0,
 	IDPF_RX_PTYPE_OUTER_IP	= 1,
 };
+
+#define IDPF_RX_PTYPE_TO_IPV(ptype, ipv)			\
+	(((ptype)->outer_ip == IDPF_RX_PTYPE_OUTER_IP) &&	\
+	 ((ptype)->outer_ip_ver == (ipv)))
 
 enum idpf_rx_ptype_outer_ip_ver {
 	IDPF_RX_PTYPE_OUTER_NONE	= 0,
@@ -436,6 +475,7 @@ struct idpf_intr_reg {
  * @tx_itr_idx: TX ITR index
  * @num_rxq: Number of RX queues
  * @rx: Array of RX queues to service
+ * @rx_dim: Data for RX net_dim algorithm
  * @rx_itr_value: RX interrupt throttling rate
  * @rx_intr_mode: Dynamic ITR or not
  * @rx_itr_idx: RX ITR index
@@ -460,6 +500,7 @@ struct idpf_q_vector {
 
 	u16 num_rxq;
 	struct idpf_queue **rx;
+	struct dim rx_dim;
 	u16 rx_itr_value;
 	bool rx_intr_mode;
 	u32 rx_itr_idx;
@@ -472,7 +513,13 @@ struct idpf_q_vector {
 };
 
 struct idpf_rx_queue_stats {
-	/* stub */
+	u64_stats_t packets;
+	u64_stats_t bytes;
+	u64_stats_t rsc_pkts;
+	u64_stats_t hw_csum_err;
+	u64_stats_t hsplit_pkts;
+	u64_stats_t hsplit_buf_ovf;
+	u64_stats_t bad_descs;
 };
 
 struct idpf_tx_queue_stats {
@@ -659,6 +706,8 @@ struct idpf_queue {
 
 /**
  * struct idpf_sw_queue
+ * @next_to_clean: Next descriptor to clean
+ * @next_to_alloc: Buffer to allocate at
  * @flags: See enum idpf_queue_flags_t
  * @ring: Pointer to the ring
  * @desc_count: Descriptor count
@@ -669,6 +718,8 @@ struct idpf_queue {
  * lockless buffer management system and are strictly software only constructs.
  */
 struct idpf_sw_queue {
+	u16 next_to_clean;
+	u16 next_to_alloc;
 	DECLARE_BITMAP(flags, __IDPF_Q_FLAGS_NBITS);
 	u16 *ring;
 	u16 desc_count;
@@ -829,6 +880,33 @@ static inline dma_addr_t idpf_alloc_page(struct page_pool *pool,
 
 	return page_pool_get_dma_addr(buf->page) + buf->page_offset +
 	       pool->p.offset;
+}
+
+/**
+ * idpf_rx_put_page - Return RX buffer page to pool
+ * @rx_buf: RX buffer metadata struct
+ */
+static inline void idpf_rx_put_page(struct idpf_rx_buf *rx_buf)
+{
+	page_pool_put_page(rx_buf->page->pp, rx_buf->page,
+			   rx_buf->truesize, true);
+	rx_buf->page = NULL;
+}
+
+/**
+ * idpf_rx_sync_for_cpu - Synchronize DMA buffer
+ * @rx_buf: RX buffer metadata struct
+ * @len: frame length from descriptor
+ */
+static inline void idpf_rx_sync_for_cpu(struct idpf_rx_buf *rx_buf, u32 len)
+{
+	struct page *page = rx_buf->page;
+	struct page_pool *pp = page->pp;
+
+	dma_sync_single_range_for_cpu(pp->p.dev,
+				      page_pool_get_dma_addr(page),
+				      rx_buf->page_offset + pp->p.offset, len,
+				      page_pool_get_dma_dir(pp));
 }
 
 int idpf_vport_singleq_napi_poll(struct napi_struct *napi, int budget);
