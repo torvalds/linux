@@ -231,6 +231,30 @@
 	status = "okay";
 };
 
+&pcie_kcs1 {
+	kcs-io-addr = <0x3a0>;
+	kcs-channel = <5>;
+	status = "okay";
+};
+
+&pcie_kcs2 {
+	kcs-io-addr = <0x3a8>;
+	kcs-channel = <6>;
+	status = "okay";
+};
+
+&pcie_kcs3 {
+	kcs-io-addr = <0x3a2>;
+	kcs-channel = <7>;
+	status = "okay";
+};
+
+&pcie_kcs4 {
+	kcs-io-addr = <0x3a4>;
+	kcs-channel = <8>;
+	status = "okay";
+};
+
 &bmc_dev {
 	status = "okay";
 	memory-region = <&bmc_dev_memory>;
