@@ -438,17 +438,20 @@ static const struct hwcap_data {
 	},
 };
 
-static bool seen_sigill;
+typedef void (*sighandler_fn)(int, siginfo_t *, void *);
 
-static void handle_sigill(int sig, siginfo_t *info, void *context)
-{
-	ucontext_t *uc = context;
-
-	seen_sigill = true;
-
-	/* Skip over the offending instruction */
-	uc->uc_mcontext.pc += 4;
+#define DEF_SIGHANDLER_FUNC(SIG, NUM)					\
+static bool seen_##SIG;							\
+static void handle_##SIG(int sig, siginfo_t *info, void *context)	\
+{									\
+	ucontext_t *uc = context;					\
+									\
+	seen_##SIG = true;						\
+	/* Skip over the offending instruction */			\
+	uc->uc_mcontext.pc += 4;					\
 }
+
+DEF_SIGHANDLER_FUNC(sigill, SIGILL);
 
 bool cpuinfo_present(const char *name)
 {
@@ -492,24 +495,76 @@ bool cpuinfo_present(const char *name)
 	return false;
 }
 
-int main(void)
+static int install_sigaction(int signum, sighandler_fn handler)
 {
-	const struct hwcap_data *hwcap;
-	int i, ret;
-	bool have_cpuinfo, have_hwcap;
+	int ret;
 	struct sigaction sa;
 
-	ksft_print_header();
-	ksft_set_plan(ARRAY_SIZE(hwcaps) * TESTS_PER_HWCAP);
-
 	memset(&sa, 0, sizeof(sa));
-	sa.sa_sigaction = handle_sigill;
+	sa.sa_sigaction = handler;
 	sa.sa_flags = SA_RESTART | SA_SIGINFO;
 	sigemptyset(&sa.sa_mask);
-	ret = sigaction(SIGILL, &sa, NULL);
+	ret = sigaction(signum, &sa, NULL);
 	if (ret < 0)
 		ksft_exit_fail_msg("Failed to install SIGILL handler: %s (%d)\n",
 				   strerror(errno), errno);
+
+	return ret;
+}
+
+static void uninstall_sigaction(int signum)
+{
+	if (sigaction(signum, NULL, NULL) < 0)
+		ksft_exit_fail_msg("Failed to uninstall SIGILL handler: %s (%d)\n",
+				   strerror(errno), errno);
+}
+
+#define DEF_INST_RAISE_SIG(SIG, NUM)					\
+static bool inst_raise_##SIG(const struct hwcap_data *hwcap,		\
+				bool have_hwcap)			\
+{									\
+	if (!hwcap->SIG##_fn) {						\
+		ksft_test_result_skip(#SIG"_%s\n", hwcap->name);	\
+		/* assume that it would raise exception in default */	\
+		return true;						\
+	}								\
+									\
+	install_sigaction(NUM, handle_##SIG);				\
+									\
+	seen_##SIG = false;						\
+	hwcap->SIG##_fn();						\
+									\
+	if (have_hwcap) {						\
+		/* Should be able to use the extension */		\
+		ksft_test_result(!seen_##SIG,				\
+				#SIG"_%s\n", hwcap->name);		\
+	} else if (hwcap->SIG##_reliable) {				\
+		/* Guaranteed a SIGNAL */				\
+		ksft_test_result(seen_##SIG,				\
+				#SIG"_%s\n", hwcap->name);		\
+	} else {							\
+		/* Missing SIGNAL might be fine */			\
+		ksft_print_msg(#SIG"_%sreported for %s\n",		\
+				seen_##SIG ? "" : "not ",		\
+				hwcap->name);				\
+		ksft_test_result_skip(#SIG"_%s\n",			\
+					hwcap->name);			\
+	}								\
+									\
+	uninstall_sigaction(NUM);					\
+	return seen_##SIG;						\
+}
+
+DEF_INST_RAISE_SIG(sigill, SIGILL);
+
+int main(void)
+{
+	int i;
+	const struct hwcap_data *hwcap;
+	bool have_cpuinfo, have_hwcap;
+
+	ksft_print_header();
+	ksft_set_plan(ARRAY_SIZE(hwcaps) * TESTS_PER_HWCAP);
 
 	for (i = 0; i < ARRAY_SIZE(hwcaps); i++) {
 		hwcap = &hwcaps[i];
@@ -523,30 +578,7 @@ int main(void)
 		ksft_test_result(have_hwcap == have_cpuinfo,
 				 "cpuinfo_match_%s\n", hwcap->name);
 
-		if (hwcap->sigill_fn) {
-			seen_sigill = false;
-			hwcap->sigill_fn();
-
-			if (have_hwcap) {
-				/* Should be able to use the extension */
-				ksft_test_result(!seen_sigill, "sigill_%s\n",
-						 hwcap->name);
-			} else if (hwcap->sigill_reliable) {
-				/* Guaranteed a SIGILL */
-				ksft_test_result(seen_sigill, "sigill_%s\n",
-						 hwcap->name);
-			} else {
-				/* Missing SIGILL might be fine */
-				ksft_print_msg("SIGILL %sreported for %s\n",
-					       seen_sigill ? "" : "not ",
-					       hwcap->name);
-				ksft_test_result_skip("sigill_%s\n",
-						      hwcap->name);
-			}
-		} else {
-			ksft_test_result_skip("sigill_%s\n",
-					      hwcap->name);
-		}
+		inst_raise_sigill(hwcap, have_hwcap);
 	}
 
 	ksft_print_cnts();
