@@ -3,6 +3,7 @@
 #ifndef KVM_X86_MMU_SPTE_H
 #define KVM_X86_MMU_SPTE_H
 
+#include "mmu.h"
 #include "mmu_internal.h"
 
 /*
