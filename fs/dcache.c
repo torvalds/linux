@@ -3247,8 +3247,6 @@ void d_genocide(struct dentry *parent)
 	d_walk(parent, parent, d_genocide_kill);
 }
 
-EXPORT_SYMBOL(d_genocide);
-
 void d_tmpfile(struct file *file, struct inode *inode)
 {
 	struct dentry *dentry = file->f_path.dentry;
