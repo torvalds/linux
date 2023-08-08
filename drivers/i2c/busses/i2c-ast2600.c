@@ -392,6 +392,8 @@ struct ast2600_i2c_bus {
 	/* master structure */
 	int					cmd_err;
 	struct completion	cmd_complete;
+	/* smbus send */
+	bool				smbus_protocol;
 	struct i2c_msg		*msgs;	/* cur xfer msgs */
 	size_t				buf_index;	/* buffer mode idx */
 	/* cur xfer msgs index*/
@@ -401,6 +403,8 @@ struct ast2600_i2c_bus {
 	dma_addr_t			master_dma_addr;
 	/*total xfer count */
 	int					master_xfer_cnt;
+	int					master_xfer_tx_cnt;
+	int					master_xfer_rx_cnt;
 	/* Buffer mode */
 	void __iomem		*buf_base;
 	size_t				buf_size;
@@ -937,6 +941,93 @@ static int ast2600_i2c_slave_irq(struct ast2600_i2c_bus *i2c_bus)
 }
 #endif
 
+static int ast2600_smbus_do_start(struct ast2600_i2c_bus *i2c_bus)
+{
+	struct i2c_msg *msg = &i2c_bus->msgs[i2c_bus->msgs_index];
+	struct i2c_msg *msgr = &i2c_bus->msgs[i2c_bus->msgs_index + 1];
+
+	int xfer_len = 0;
+	int i = 0;
+	u32 cmd;
+
+	cmd = AST2600_I2CM_PKT_EN | AST2600_I2CM_PKT_ADDR(msg->addr) | AST2600_I2CM_START_CMD;
+
+	/* send start */
+
+	dev_dbg(i2c_bus->dev, "SMBUS msgs_count (%d)", i2c_bus->msgs_count);
+
+	dev_dbg(i2c_bus->dev, "SMBUS msg0 %sing %d byte%s %s 0x%02x\n",
+		msg->flags & I2C_M_RD ? "read" : "write",
+		msg->len, msg->len > 1 ? "s" : "",
+		msg->flags & I2C_M_RD ? "from" : "to", msg->addr);
+
+	dev_dbg(i2c_bus->dev, "SMBUS msg1 %sing %d byte%s %s 0x%02x\n",
+		msgr->flags & I2C_M_RD ? "read" : "write",
+		msgr->len, msgr->len > 1 ? "s" : "",
+		msgr->flags & I2C_M_RD ? "from" : "to", msgr->addr);
+
+	/*local record tx / rx count*/
+	i2c_bus->master_xfer_tx_cnt = 0;
+	i2c_bus->master_xfer_rx_cnt = 0;
+
+	i2c_bus->buf_index = 0;
+
+	for (i = 0; i < i2c_bus->msgs_count; i++) {
+		if (msg->flags & I2C_M_RD) {
+			cmd |= (AST2600_I2CM_RX_CMD | AST2600_I2CM_RX_BUFF_EN);
+
+			if (msg->flags & I2C_M_RECV_LEN) {
+				dev_dbg(i2c_bus->dev, "smbus read\n");
+				xfer_len = 1;
+				cmd &= ~(AST2600_I2CM_STOP_CMD);
+			} else {
+				if (msg->len > i2c_bus->buf_size) {
+					xfer_len = i2c_bus->buf_size;
+					cmd &= ~(AST2600_I2CM_STOP_CMD);
+				} else {
+					xfer_len = msg->len;
+					cmd |= MASTER_TRIGGER_LAST_STOP;
+				}
+			}
+			writel(AST2600_I2CC_SET_RX_BUF_LEN(xfer_len),
+			       i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL);
+		} else {
+			u8 wbuf[4];
+			/* buff mode */
+			if (msg->len > i2c_bus->buf_size) {
+				xfer_len = i2c_bus->buf_size;
+			} else {
+				xfer_len = msg->len;
+				cmd |= AST2600_I2CM_STOP_CMD;
+			}
+			if (xfer_len) {
+				cmd |= AST2600_I2CM_TX_BUFF_EN | AST2600_I2CM_TX_CMD;
+				if (readl(i2c_bus->reg_base + AST2600_I2CS_ISR))
+					return -ENOMEM;
+				writel(AST2600_I2CC_SET_TX_BUF_LEN(xfer_len),
+				       i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL);
+				if (readl(i2c_bus->reg_base + AST2600_I2CS_ISR))
+					return -ENOMEM;
+				for (i = 0; i < xfer_len; i++) {
+					wbuf[i % 4] = msg->buf[i];
+					if (i % 4 == 3)
+						writel(*(u32 *)wbuf, i2c_bus->buf_base + i - 3);
+					dev_dbg(i2c_bus->dev, "[%02x]\n", msg->buf[i]);
+				}
+				if (--i % 4 != 3)
+					writel(*(u32 *)wbuf, i2c_bus->buf_base + i - (i % 4));
+			}
+			if (readl(i2c_bus->reg_base + AST2600_I2CS_ISR))
+				return -ENOMEM;
+		}
+		msg++;
+	}
+
+	dev_dbg(i2c_bus->dev, "len %d , cmd %x\n", xfer_len, cmd);
+	writel(cmd, i2c_bus->reg_base + AST2600_I2CM_CMD_STS);
+	return 0;
+}
+
 static int ast2600_i2c_do_start(struct ast2600_i2c_bus *i2c_bus)
 {
 	struct i2c_msg *msg = &i2c_bus->msgs[i2c_bus->msgs_index];
@@ -1115,6 +1206,348 @@ static int ast2600_i2c_is_irq_error(u32 irq_status)
 		return -EPROTO;
 
 	return 0;
+}
+
+static void ast2600_i2c_smbus_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 sts)
+{
+	struct i2c_msg *msg = &i2c_bus->msgs[i2c_bus->msgs_index];
+	u32 cmd = AST2600_I2CM_PKT_EN;
+	int xfer_len_tx;
+	int xfer_len_rx;
+	int i;
+
+	sts &= ~AST2600_I2CM_PKT_DONE;
+	writel(AST2600_I2CM_PKT_DONE, i2c_bus->reg_base + AST2600_I2CM_ISR);
+	switch (sts) {
+	case AST2600_I2CM_PKT_ERROR:
+		dev_dbg(i2c_bus->dev, "M : ERROR only\n");
+		i2c_bus->cmd_err = -EAGAIN;
+		complete(&i2c_bus->cmd_complete);
+		break;
+	case AST2600_I2CM_PKT_ERROR | AST2600_I2CM_TX_NAK: /* a0 fix for issue */
+		fallthrough;
+	case AST2600_I2CM_PKT_ERROR | AST2600_I2CM_TX_NAK | AST2600_I2CM_NORMAL_STOP:
+		dev_dbg(i2c_bus->dev, "M : TX NAK | NORMAL STOP\n");
+		i2c_bus->cmd_err = -ENXIO;
+		complete(&i2c_bus->cmd_complete);
+		break;
+	case AST2600_I2CM_NORMAL_STOP:
+		/* write 0 byte only have stop isr */
+		dev_dbg(i2c_bus->dev, "M clear isr: AST2600_I2CM_NORMAL_STOP = %x\n", sts);
+		i2c_bus->msgs_index++;
+		if (i2c_bus->msgs_index < i2c_bus->msgs_count) {
+			if (ast2600_i2c_do_start(i2c_bus)) {
+				i2c_bus->cmd_err = -ENOMEM;
+				complete(&i2c_bus->cmd_complete);
+			}
+		} else {
+			i2c_bus->cmd_err = i2c_bus->msgs_index;
+			complete(&i2c_bus->cmd_complete);
+		}
+		break;
+	case AST2600_I2CM_TX_ACK:
+		//dev_dbg(i2c_bus->dev, "M : AST2600_I2CM_TX_ACK = %x\n", sts);
+	case AST2600_I2CM_TX_ACK | AST2600_I2CM_NORMAL_STOP:
+		if (i2c_bus->mode == DMA_MODE)
+			xfer_len_tx = AST2600_I2C_GET_TX_DMA_LEN(readl(i2c_bus->reg_base +
+							  AST2600_I2CM_DMA_LEN_STS));
+		else if (i2c_bus->mode == BUFF_MODE)
+			xfer_len_tx = AST2600_I2CC_GET_TX_BUF_LEN(readl(i2c_bus->reg_base +
+							   AST2600_I2CC_BUFF_CTRL));
+
+		dev_dbg(i2c_bus->dev,
+			"M : AST2600_I2CM_TX_ACK | AST2600_I2CM_NORMAL_STOP= %x (%d)\n", sts, xfer_len_tx);
+		i2c_bus->master_xfer_tx_cnt += xfer_len_tx;
+
+		if (i2c_bus->master_xfer_tx_cnt == msg->len) {
+			if (i2c_bus->mode == DMA_MODE) {
+				dma_unmap_single(i2c_bus->dev, i2c_bus->master_dma_addr, msg->len,
+						 DMA_TO_DEVICE);
+				i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, true);
+				i2c_bus->master_safe_buf = NULL;
+			}
+			i2c_bus->msgs_index++;
+			if (i2c_bus->msgs_index == i2c_bus->msgs_count) {
+				i2c_bus->cmd_err = i2c_bus->msgs_index;
+				complete(&i2c_bus->cmd_complete);
+			} else {
+				if (ast2600_i2c_do_start(i2c_bus)) {
+					i2c_bus->cmd_err = -ENOMEM;
+					complete(&i2c_bus->cmd_complete);
+				}
+			}
+		} else {
+			/* do next tx */
+			cmd |= AST2600_I2CM_TX_CMD;
+			xfer_len_tx = msg->len - i2c_bus->master_xfer_tx_cnt;
+
+			if (i2c_bus->mode == DMA_MODE) {
+				cmd |= AST2600_I2CM_TX_DMA_EN;
+				if (xfer_len_tx > AST2600_I2C_DMA_SIZE) {
+					xfer_len_tx = AST2600_I2C_DMA_SIZE;
+				} else {
+					if (i2c_bus->msgs_index + 1 == i2c_bus->msgs_count) {
+						dev_dbg(i2c_bus->dev, "M: STOP\n");
+						cmd |= AST2600_I2CM_STOP_CMD;
+					}
+				}
+				writel(AST2600_I2CM_SET_TX_DMA_LEN(xfer_len_tx - 1),
+				       i2c_bus->reg_base + AST2600_I2CM_DMA_LEN);
+				dev_dbg(i2c_bus->dev, "next tx xfer_len: %d, offset %d\n",
+					xfer_len_tx, i2c_bus->master_xfer_tx_cnt);
+				writel(i2c_bus->master_dma_addr + i2c_bus->master_xfer_tx_cnt,
+				       i2c_bus->reg_base + AST2600_I2CM_TX_DMA);
+			} else if (i2c_bus->mode == BUFF_MODE) {
+				u8 wbuf[4];
+
+				cmd |= AST2600_I2CM_TX_BUFF_EN;
+				if (xfer_len_tx > i2c_bus->buf_size) {
+					xfer_len_tx = i2c_bus->buf_size;
+				} else {
+					if (i2c_bus->msgs_index + 1 == i2c_bus->msgs_count) {
+						dev_dbg(i2c_bus->dev, "M: STOP\n");
+						cmd |= AST2600_I2CM_STOP_CMD;
+					}
+				}
+				for (i = 0; i < xfer_len_tx; i++) {
+					wbuf[i % 4] = msg->buf[i2c_bus->master_xfer_tx_cnt + i];
+					if (i % 4 == 3)
+						writel(*(u32 *)wbuf, i2c_bus->buf_base + i - 3);
+					dev_dbg(i2c_bus->dev, "[%02x]\n",
+						msg->buf[i2c_bus->master_xfer_cnt + i]);
+				}
+				if (--i % 4 != 3)
+					writel(*(u32 *)wbuf, i2c_bus->buf_base + i - (i % 4));
+				writel(AST2600_I2CC_SET_TX_BUF_LEN(xfer_len_tx),
+				       i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL);
+			}
+
+			dev_dbg(i2c_bus->dev, "next tx %d cmd: %x\n", xfer_len_tx, cmd);
+			writel(cmd, i2c_bus->reg_base + AST2600_I2CM_CMD_STS);
+		}
+		break;
+	case AST2600_I2CM_RX_DONE:
+#ifdef CONFIG_I2C_SLAVE
+		/* Workaround for master/slave package mode enable rx done stuck issue
+		 * When master go for first read (RX_DONE), slave mode will also effect
+		 * Then controller will send nack, not operate anymore.
+		 */
+		if (readl(i2c_bus->reg_base + AST2600_I2CS_CMD_STS) & AST2600_I2CS_PKT_MODE_EN) {
+			u32 slave_cmd = readl(i2c_bus->reg_base + AST2600_I2CS_CMD_STS);
+
+			writel(0, i2c_bus->reg_base + AST2600_I2CS_CMD_STS);
+			writel(slave_cmd, i2c_bus->reg_base + AST2600_I2CS_CMD_STS);
+		}
+		fallthrough;
+#endif
+	case AST2600_I2CM_RX_DONE | AST2600_I2CM_NORMAL_STOP:
+		/* do next rx */
+		if (i2c_bus->mode == DMA_MODE) {
+			xfer_len_rx = AST2600_I2C_GET_RX_DMA_LEN(readl(i2c_bus->reg_base +
+						AST2600_I2CM_DMA_LEN_STS));
+		} else if (i2c_bus->mode == BUFF_MODE) {
+			xfer_len_rx = AST2600_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
+						AST2600_I2CC_BUFF_CTRL));
+			for (i = 0; i < xfer_len_rx; i++)
+				msg->buf[i2c_bus->master_xfer_rx_cnt + i] =
+					readb(i2c_bus->buf_base + 0x10 + i);
+		}
+
+		dev_dbg(i2c_bus->dev,
+			"M : AST2600_I2CM_RX_DONE | AST2600_I2CM_NORMAL_STOP = %x (%d)\n", sts, xfer_len_rx);
+
+		if (msg->flags & I2C_M_RECV_LEN) {
+			if (unlikely(msg->buf[0] > I2C_SMBUS_BLOCK_MAX)) {
+				dev_dbg(i2c_bus->dev, "smbus len = %x is over max length\n", msg->buf[0]);
+				i2c_bus->cmd_err = -EPROTO;
+				complete(&i2c_bus->cmd_complete);
+			}
+			dev_dbg(i2c_bus->dev, "smbus first len = %x\n", msg->buf[0]);
+			msg->len = msg->buf[0] + ((msg->flags & I2C_CLIENT_PEC) ? 2 : 1);
+			msg->flags &= ~I2C_M_RECV_LEN;
+		}
+		i2c_bus->master_xfer_rx_cnt += xfer_len_rx;
+		dev_dbg(i2c_bus->dev, "master_xfer_cnt [%d/%d]\n", i2c_bus->master_xfer_rx_cnt,
+			msg->len);
+
+		if (i2c_bus->master_xfer_rx_cnt == msg->len) {
+			if (i2c_bus->mode == DMA_MODE) {
+				dma_unmap_single(i2c_bus->dev, i2c_bus->master_dma_addr, msg->len,
+						 DMA_FROM_DEVICE);
+				i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, true);
+				i2c_bus->master_safe_buf = NULL;
+			}
+
+			for (i = 0; i < msg->len; i++)
+				dev_dbg(i2c_bus->dev, "M: r %d:[%x]\n", i, msg->buf[i]);
+			i2c_bus->msgs_index++;
+			if (i2c_bus->msgs_index == i2c_bus->msgs_count) {
+				i2c_bus->cmd_err = i2c_bus->msgs_index;
+				complete(&i2c_bus->cmd_complete);
+			} else {
+				if (ast2600_i2c_do_start(i2c_bus)) {
+					i2c_bus->cmd_err = -ENOMEM;
+					complete(&i2c_bus->cmd_complete);
+				}
+			}
+		} else {
+			/* next rx */
+			cmd |= AST2600_I2CM_RX_CMD;
+			xfer_len_rx = msg->len - i2c_bus->master_xfer_rx_cnt;
+
+			if (i2c_bus->mode == DMA_MODE) {
+				cmd |= AST2600_I2CM_RX_DMA_EN;
+				if (xfer_len_rx > AST2600_I2C_DMA_SIZE) {
+					xfer_len_rx = AST2600_I2C_DMA_SIZE;
+				} else {
+					if (i2c_bus->msgs_index + 1 == i2c_bus->msgs_count) {
+						dev_dbg(i2c_bus->dev, "last stop\n");
+						cmd |= MASTER_TRIGGER_LAST_STOP;
+					}
+				}
+				dev_dbg(i2c_bus->dev, "M: next rx len [%d/%d] , cmd %x\n", xfer_len_rx,
+					msg->len, cmd);
+				writel(AST2600_I2CM_SET_RX_DMA_LEN(xfer_len_rx - 1),
+				       i2c_bus->reg_base + AST2600_I2CM_DMA_LEN);
+				writel(i2c_bus->master_dma_addr + i2c_bus->master_xfer_rx_cnt,
+				       i2c_bus->reg_base + AST2600_I2CM_RX_DMA);
+			} else if (i2c_bus->mode == BUFF_MODE) {
+				cmd |= AST2600_I2CM_RX_BUFF_EN;
+				if (xfer_len_rx > i2c_bus->buf_size) {
+					xfer_len_rx = i2c_bus->buf_size;
+				} else {
+					if (i2c_bus->msgs_index + 1 == i2c_bus->msgs_count) {
+						dev_dbg(i2c_bus->dev, "last stop\n");
+						cmd |= MASTER_TRIGGER_LAST_STOP;
+					}
+				}
+				writel(AST2600_I2CC_SET_RX_BUF_LEN(xfer_len_rx),
+				       i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL);
+			}
+
+			dev_dbg(i2c_bus->dev, "M: next rx len %d, cmd %x\n", xfer_len_rx, cmd);
+			writel(cmd, i2c_bus->reg_base + AST2600_I2CM_CMD_STS);
+		}
+		break;
+	/* smbus normal case */
+	case AST2600_I2CM_TX_ACK | AST2600_I2CM_RX_DONE: /*I2C_M_RECV_LEN case*/
+	case AST2600_I2CM_TX_ACK | AST2600_I2CM_RX_DONE | AST2600_I2CM_NORMAL_STOP:
+		if (i2c_bus->mode == DMA_MODE)
+			xfer_len_tx = AST2600_I2C_GET_TX_DMA_LEN(readl(i2c_bus->reg_base +
+							  AST2600_I2CM_DMA_LEN_STS));
+		else if (i2c_bus->mode == BUFF_MODE)
+			xfer_len_tx = AST2600_I2CC_GET_TX_BUF_LEN(readl(i2c_bus->reg_base +
+							   AST2600_I2CC_BUFF_CTRL));
+
+		dev_dbg(i2c_bus->dev,
+			"M : AST2600_I2CM_TX_ACK | AST2600_I2CM_NORMAL_STOP= %x (%d)\n", sts, xfer_len_tx);
+		i2c_bus->master_xfer_tx_cnt += xfer_len_tx;
+
+		if (i2c_bus->master_xfer_tx_cnt == msg->len) {
+			if (i2c_bus->mode == DMA_MODE) {
+				dma_unmap_single(i2c_bus->dev, i2c_bus->master_dma_addr, msg->len,
+						 DMA_TO_DEVICE);
+				i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, true);
+				i2c_bus->master_safe_buf = NULL;
+			}
+			i2c_bus->msgs_index++;
+		}
+
+		msg = &i2c_bus->msgs[i2c_bus->msgs_index];
+
+		/* handle rx */
+		if (i2c_bus->mode == DMA_MODE) {
+			xfer_len_rx = AST2600_I2C_GET_RX_DMA_LEN(readl(i2c_bus->reg_base +
+						AST2600_I2CM_DMA_LEN_STS));
+		} else if (i2c_bus->mode == BUFF_MODE) {
+			xfer_len_rx = AST2600_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
+						AST2600_I2CC_BUFF_CTRL));
+			for (i = 0; i < xfer_len_rx; i++)
+				msg->buf[i2c_bus->master_xfer_rx_cnt + i] =
+					readb(i2c_bus->buf_base + 0x10 + i);
+		}
+
+		dev_dbg(i2c_bus->dev,
+			"M : AST2600_I2CM_RX_DONE | AST2600_I2CM_NORMAL_STOP = %x (%d)\n", sts, xfer_len_rx);
+
+		if (msg->flags & I2C_M_RECV_LEN) {
+			if (unlikely(msg->buf[0] > I2C_SMBUS_BLOCK_MAX)) {
+				dev_dbg(i2c_bus->dev, "smbus len = %x is over max length\n", msg->buf[0]);
+				i2c_bus->cmd_err = -EPROTO;
+				complete(&i2c_bus->cmd_complete);
+			}
+			dev_dbg(i2c_bus->dev, "smbus first len = %x\n", msg->buf[0]);
+			msg->len = msg->buf[0] + ((msg->flags & I2C_CLIENT_PEC) ? 2 : 1);
+			msg->flags &= ~I2C_M_RECV_LEN;
+		}
+		i2c_bus->master_xfer_rx_cnt += xfer_len_rx;
+		dev_dbg(i2c_bus->dev, "master_xfer_cnt [%d/%d]\n", i2c_bus->master_xfer_rx_cnt,
+			msg->len);
+
+		if (i2c_bus->master_xfer_rx_cnt == msg->len) {
+			if (i2c_bus->mode == DMA_MODE) {
+				dma_unmap_single(i2c_bus->dev, i2c_bus->master_dma_addr, msg->len,
+						 DMA_FROM_DEVICE);
+				i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, true);
+				i2c_bus->master_safe_buf = NULL;
+			}
+
+			for (i = 0; i < msg->len; i++)
+				dev_dbg(i2c_bus->dev, "M: r %d:[%x]\n", i, msg->buf[i]);
+			i2c_bus->msgs_index++;
+			if (i2c_bus->msgs_index == i2c_bus->msgs_count) {
+				i2c_bus->cmd_err = i2c_bus->msgs_index;
+				complete(&i2c_bus->cmd_complete);
+			} else {
+				if (ast2600_i2c_do_start(i2c_bus)) {
+					i2c_bus->cmd_err = -ENOMEM;
+					complete(&i2c_bus->cmd_complete);
+				}
+			}
+		} else {
+			/* next rx */
+			cmd |= AST2600_I2CM_RX_CMD;
+			xfer_len_rx = msg->len - i2c_bus->master_xfer_rx_cnt;
+
+			if (i2c_bus->mode == DMA_MODE) {
+				cmd |= AST2600_I2CM_RX_DMA_EN;
+				if (xfer_len_rx > AST2600_I2C_DMA_SIZE) {
+					xfer_len_rx = AST2600_I2C_DMA_SIZE;
+				} else {
+					if (i2c_bus->msgs_index + 1 == i2c_bus->msgs_count) {
+						dev_dbg(i2c_bus->dev, "last stop\n");
+						cmd |= MASTER_TRIGGER_LAST_STOP;
+					}
+				}
+				dev_dbg(i2c_bus->dev, "M: next rx len [%d/%d] , cmd %x\n", xfer_len_rx,
+					msg->len, cmd);
+				writel(AST2600_I2CM_SET_RX_DMA_LEN(xfer_len_rx - 1),
+				       i2c_bus->reg_base + AST2600_I2CM_DMA_LEN);
+				writel(i2c_bus->master_dma_addr + i2c_bus->master_xfer_rx_cnt,
+				       i2c_bus->reg_base + AST2600_I2CM_RX_DMA);
+			} else if (i2c_bus->mode == BUFF_MODE) {
+				cmd |= AST2600_I2CM_RX_BUFF_EN;
+				if (xfer_len_rx > i2c_bus->buf_size) {
+					xfer_len_rx = i2c_bus->buf_size;
+				} else {
+					if (i2c_bus->msgs_index + 1 == i2c_bus->msgs_count) {
+						dev_dbg(i2c_bus->dev, "last stop\n");
+						cmd |= MASTER_TRIGGER_LAST_STOP;
+					}
+				}
+				writel(AST2600_I2CC_SET_RX_BUF_LEN(xfer_len_rx),
+				       i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL);
+			}
+
+			dev_dbg(i2c_bus->dev, "M: next rx len %d, cmd %x\n", xfer_len_rx, cmd);
+			writel(cmd, i2c_bus->reg_base + AST2600_I2CM_CMD_STS);
+		}
+		break;
+
+	default:
+		dev_dbg(i2c_bus->dev, "todo care sts %x\n", sts);
+		break;
+	}
 }
 
 static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 sts)
@@ -1417,7 +1850,10 @@ static int ast2600_i2c_master_irq(struct ast2600_i2c_bus *i2c_bus)
 	}
 
 	if (AST2600_I2CM_PKT_DONE & sts) {
-		ast2600_i2c_master_package_irq(i2c_bus, sts);
+		if (i2c_bus->smbus_protocol)
+			ast2600_i2c_smbus_package_irq(i2c_bus, sts);
+		else
+			ast2600_i2c_master_package_irq(i2c_bus, sts);
 		return 1;
 	}
 
@@ -1444,6 +1880,300 @@ static irqreturn_t ast2600_i2c_bus_irq(int irq, void *dev_id)
 	}
 #endif
 	return ast2600_i2c_master_irq(i2c_bus) ? IRQ_HANDLED : IRQ_NONE;
+}
+
+static void ast2600_smbus_try_get_dmabuf(struct i2c_msg *msg, u8 init_val)
+{
+	bool is_read = msg->flags & I2C_M_RD;
+	unsigned char *dma_buf;
+
+	dma_buf = kzalloc(I2C_SMBUS_BLOCK_MAX + (is_read ? 2 : 3), GFP_KERNEL);
+	if (!dma_buf)
+		return;
+
+	msg->buf = dma_buf;
+	msg->flags |= I2C_M_DMA_SAFE;
+
+	if (init_val)
+		msg->buf[0] = init_val;
+}
+
+/* Assume a 7-bit address, which is reasonable for SMBus */
+static u8 ast2600_smbus_msg_pec(u8 pec, struct i2c_msg *msg)
+{
+	/* The address will be sent first */
+	u8 addr = i2c_8bit_addr_from_msg(msg);
+
+	pec = i2c_smbus_pec(pec, &addr, 1);
+
+	/* The data buffer follows */
+	return i2c_smbus_pec(pec, msg->buf, msg->len);
+}
+
+/* Used for write only transactions */
+static inline void ast2600_smbus_add_pec(struct i2c_msg *msg)
+{
+	msg->buf[msg->len] = ast2600_smbus_msg_pec(0, msg);
+	msg->len++;
+}
+
+/* Return <0 on CRC error
+ * If there was a write before this read (most cases) we need to take the
+ * partial CRC from the write part into account.
+ * Note that this function does modify the message (we need to decrease the
+ * message length to hide the CRC byte from the caller).
+ */
+static int ast2600_smbus_check_pec(u8 cpec, struct i2c_msg *msg)
+{
+	u8 rpec = msg->buf[--msg->len];
+
+	cpec = ast2600_smbus_msg_pec(cpec, msg);
+
+	if (rpec != cpec) {
+		pr_debug("Bad PEC 0x%02x vs. 0x%02x\n", rpec, cpec);
+		return -EBADMSG;
+	}
+	return 0;
+}
+
+static int ast2600_i2c_smbus_xfer(struct i2c_adapter *adap, u16 addr,
+				  unsigned short flags,
+				  char read_write, u8 command, int size,
+				  union i2c_smbus_data *data)
+{
+	struct ast2600_i2c_bus *i2c_bus = i2c_get_adapdata(adap);
+	unsigned long timeout;
+	unsigned char msgbuf0[I2C_SMBUS_BLOCK_MAX + 3];
+	unsigned char msgbuf1[I2C_SMBUS_BLOCK_MAX + 2];
+	int nmsgs = read_write == I2C_SMBUS_READ ? 2 : 1;
+	u8 partial_pec = 0;
+	int status;
+
+	struct i2c_msg msg[2] = {
+		{
+			.addr = addr,
+			.flags = flags,
+			.len = 1,
+			.buf = msgbuf0,
+		}, {
+			.addr = addr,
+			.flags = flags | I2C_M_RD,
+			.len = 0,
+			.buf = msgbuf1,
+		},
+	};
+
+	bool wants_pec = ((flags & I2C_CLIENT_PEC) &&
+		size != I2C_SMBUS_QUICK &&
+		size != I2C_SMBUS_I2C_BLOCK_DATA);
+
+	msgbuf0[0] = command;
+	switch (size) {
+	case I2C_SMBUS_QUICK:
+		msg[0].len = 0;
+		/* Special case: The read/write field is used as data */
+		msg[0].flags = flags | (read_write == I2C_SMBUS_READ ?
+					I2C_M_RD : 0);
+		nmsgs = 1;
+		break;
+	case I2C_SMBUS_BYTE:
+		if (read_write == I2C_SMBUS_READ) {
+			/* Special case: only a read! */
+			msg[0].flags = I2C_M_RD | flags;
+			nmsgs = 1;
+		}
+		break;
+	case I2C_SMBUS_BYTE_DATA:
+		if (read_write == I2C_SMBUS_READ) {
+			msg[1].len = 1;
+		} else {
+			msg[0].len = 2;
+			msgbuf0[1] = data->byte;
+		}
+		break;
+	case I2C_SMBUS_WORD_DATA:
+		if (read_write == I2C_SMBUS_READ) {
+			msg[1].len = 2;
+		} else {
+			msg[0].len = 3;
+			msgbuf0[1] = data->word & 0xff;
+			msgbuf0[2] = data->word >> 8;
+		}
+		break;
+	case I2C_SMBUS_PROC_CALL:
+		nmsgs = 2; /* Special case */
+		read_write = I2C_SMBUS_READ;
+		msg[0].len = 3;
+		msg[1].len = 2;
+		msgbuf0[1] = data->word & 0xff;
+		msgbuf0[2] = data->word >> 8;
+		break;
+	case I2C_SMBUS_BLOCK_DATA:
+		if (read_write == I2C_SMBUS_READ) {
+			msg[1].flags |= I2C_M_RECV_LEN;
+			msg[1].len = 1; /* block length will be added */
+			ast2600_smbus_try_get_dmabuf(&msg[1], 0);
+		} else {
+			msg[0].len = data->block[0] + 2;
+			if (msg[0].len > I2C_SMBUS_BLOCK_MAX + 2) {
+				dev_err(&adap->dev,
+					"Invalid block write size %d\n",
+					data->block[0]);
+				return -EINVAL;
+			}
+
+			ast2600_smbus_try_get_dmabuf(&msg[0], command);
+			memcpy(msg[0].buf + 1, data->block, msg[0].len - 1);
+		}
+		break;
+	case I2C_SMBUS_BLOCK_PROC_CALL:
+		nmsgs = 2; /* Another special case */
+		read_write = I2C_SMBUS_READ;
+		if (data->block[0] > I2C_SMBUS_BLOCK_MAX) {
+			dev_err(&adap->dev,
+				"Invalid block write size %d\n",
+				data->block[0]);
+			return -EINVAL;
+		}
+
+		msg[0].len = data->block[0] + 2;
+		ast2600_smbus_try_get_dmabuf(&msg[0], command);
+		memcpy(msg[0].buf + 1, data->block, msg[0].len - 1);
+
+		msg[1].flags |= I2C_M_RECV_LEN;
+		msg[1].len = 1; /* block length will be added */
+		ast2600_smbus_try_get_dmabuf(&msg[1], 0);
+		break;
+	case I2C_SMBUS_I2C_BLOCK_DATA:
+		if (data->block[0] > I2C_SMBUS_BLOCK_MAX) {
+			dev_err(&adap->dev, "Invalid block %s size %d\n",
+				read_write == I2C_SMBUS_READ ? "read" : "write",
+				data->block[0]);
+			return -EINVAL;
+		}
+
+		if (read_write == I2C_SMBUS_READ) {
+			msg[1].len = data->block[0];
+			ast2600_smbus_try_get_dmabuf(&msg[1], 0);
+		} else {
+			msg[0].len = data->block[0] + 1;
+
+			ast2600_smbus_try_get_dmabuf(&msg[0], command);
+			memcpy(msg[0].buf + 1, data->block + 1, data->block[0]);
+		}
+		break;
+	default:
+		dev_err(&adap->dev, "Unsupported transaction %d\n", size);
+		return -EOPNOTSUPP;
+	}
+
+	if (wants_pec) {
+		/* Compute PEC if first message is a write */
+		if (!(msg[0].flags & I2C_M_RD)) {
+			if (nmsgs == 1) /* Write only */
+				ast2600_smbus_add_pec(&msg[0]);
+			else /* Write followed by read */
+				partial_pec = ast2600_smbus_msg_pec(0, &msg[0]);
+		}
+		/* Ask for PEC if last message is a read */
+		if (msg[nmsgs - 1].flags & I2C_M_RD)
+			msg[nmsgs - 1].len++;
+	}
+
+	i2c_bus->cmd_err = 0;
+	i2c_bus->msgs = msg;
+	i2c_bus->msgs_index = 0;
+	i2c_bus->msgs_count = nmsgs;
+	i2c_bus->smbus_protocol = 1;
+	reinit_completion(&i2c_bus->cmd_complete);
+	status = ast2600_smbus_do_start(i2c_bus);
+	timeout = wait_for_completion_timeout(&i2c_bus->cmd_complete, i2c_bus->adap.timeout);
+
+	if (timeout == 0) {
+		u32 isr = readl(i2c_bus->reg_base + AST2600_I2CM_ISR);
+		u32 i2c_status = readl(i2c_bus->reg_base + AST2600_I2CC_STS_AND_BUFF);
+
+		dev_dbg(i2c_bus->dev, "timeout isr[%x], sts[%x]\n", isr, i2c_status);
+		if (isr || (i2c_status & AST2600_I2CC_TX_DIR_MASK)) {
+			u32 ctrl = readl(i2c_bus->reg_base + AST2600_I2CC_FUN_CTRL);
+
+			writel(0, i2c_bus->reg_base + AST2600_I2CC_FUN_CTRL);
+			writel(ctrl, i2c_bus->reg_base + AST2600_I2CC_FUN_CTRL);
+#ifdef CONFIG_I2C_SLAVE
+			if (ctrl & AST2600_I2CC_SLAVE_EN) {
+				u32 cmd = SLAVE_TRIGGER_CMD;
+
+				if (i2c_bus->mode == DMA_MODE) {
+					cmd |= AST2600_I2CS_RX_DMA_EN;
+					writel(i2c_bus->slave_dma_addr, i2c_bus->reg_base + AST2600_I2CS_RX_DMA);
+					writel(i2c_bus->slave_dma_addr, i2c_bus->reg_base + AST2600_I2CS_TX_DMA);
+					writel(AST2600_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), i2c_bus->reg_base + AST2600_I2CS_DMA_LEN);
+				} else if (i2c_bus->mode == BUFF_MODE) {
+					cmd = SLAVE_TRIGGER_CMD;
+				} else {
+					cmd &= ~AST2600_I2CS_PKT_MODE_EN;
+				}
+				dev_dbg(i2c_bus->dev, "slave trigger [%x]\n", cmd);
+				writel(cmd, i2c_bus->reg_base + AST2600_I2CS_CMD_STS);
+			}
+#endif
+		}
+		status = -ETIMEDOUT;
+	} else {
+		status = i2c_bus->cmd_err;
+	}
+
+	if (status < 0)
+		goto cleanup;
+	if (status != nmsgs) {
+		status = -EIO;
+		goto cleanup;
+	}
+
+	status = 0;
+
+	/* Check PEC if last message is a read */
+	if (wants_pec && (msg[nmsgs - 1].flags & I2C_M_RD)) {
+		status = ast2600_smbus_check_pec(partial_pec, &msg[nmsgs - 1]);
+		if (status < 0)
+			goto cleanup;
+	}
+
+	if (read_write == I2C_SMBUS_READ)
+		switch (size) {
+		case I2C_SMBUS_BYTE:
+			data->byte = msgbuf0[0];
+			break;
+		case I2C_SMBUS_BYTE_DATA:
+			data->byte = msgbuf1[0];
+			break;
+		case I2C_SMBUS_WORD_DATA:
+		case I2C_SMBUS_PROC_CALL:
+			data->word = msgbuf1[0] | (msgbuf1[1] << 8);
+			break;
+		case I2C_SMBUS_I2C_BLOCK_DATA:
+			memcpy(data->block + 1, msg[1].buf, data->block[0]);
+			break;
+		case I2C_SMBUS_BLOCK_DATA:
+		case I2C_SMBUS_BLOCK_PROC_CALL:
+			if (msg[1].buf[0] > I2C_SMBUS_BLOCK_MAX) {
+				dev_err(&adap->dev,
+					"Invalid block size returned: %d\n",
+					msg[1].buf[0]);
+				status = -EPROTO;
+				goto cleanup;
+			}
+			memcpy(data->block, msg[1].buf, msg[1].buf[0] + 1);
+			break;
+		}
+
+cleanup:
+	if (msg[0].flags & I2C_M_DMA_SAFE)
+		kfree(msg[0].buf);
+	if (msg[1].flags & I2C_M_DMA_SAFE)
+		kfree(msg[1].buf);
+
+	return status;
 }
 
 static int ast2600_i2c_master_xfer(struct i2c_adapter *adap,
@@ -1480,6 +2210,7 @@ static int ast2600_i2c_master_xfer(struct i2c_adapter *adap,
 	i2c_bus->msgs = msgs;
 	i2c_bus->msgs_index = 0;
 	i2c_bus->msgs_count = num;
+	i2c_bus->smbus_protocol = 0;
 	reinit_completion(&i2c_bus->cmd_complete);
 	ret = ast2600_i2c_do_start(i2c_bus);
 #ifdef CONFIG_I2C_SLAVE
@@ -1642,7 +2373,7 @@ static u32 ast2600_i2c_functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL_ALL;
 }
 
-static const struct i2c_algorithm i2c_ast2600_algorithm = {
+static struct i2c_algorithm i2c_ast2600_algorithm = {
 	.master_xfer = ast2600_i2c_master_xfer,
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	.reg_slave = ast2600_i2c_reg_slave,
@@ -1708,6 +2439,10 @@ static int ast2600_i2c_probe(struct platform_device *pdev)
 
 		i2c_bus->mode = BUFF_MODE;
 	}
+
+	/* support smbus xfer if it's not byte mode */
+	if (i2c_bus->mode != BYTE_MODE)
+		i2c_ast2600_algorithm.smbus_xfer = ast2600_i2c_smbus_xfer;
 
 	if (of_property_read_bool(pdev->dev.of_node, "timeout"))
 		i2c_bus->timeout_enable = 1;
