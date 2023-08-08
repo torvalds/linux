@@ -215,6 +215,9 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 		si->valid_blks[type] += blks;
 	}
 
+	for (i = 0; i < MAX_CALL_TYPE; i++)
+		si->cp_call_count[i] = atomic_read(&sbi->cp_call_count[i]);
+
 	for (i = 0; i < 2; i++) {
 		si->segment_count[i] = sbi->segment_count[i];
 		si->block_count[i] = sbi->block_count[i];
@@ -497,7 +500,9 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Prefree: %d\n  - Free: %d (%d)\n\n",
 			   si->prefree_count, si->free_segs, si->free_secs);
 		seq_printf(s, "CP calls: %d (BG: %d)\n",
-				si->cp_count, si->bg_cp_count);
+			   si->cp_call_count[TOTAL_CALL],
+			   si->cp_call_count[BACKGROUND]);
+		seq_printf(s, "CP count: %d\n", si->cp_count);
 		seq_printf(s, "  - cp blocks : %u\n", si->meta_count[META_CP]);
 		seq_printf(s, "  - sit blocks : %u\n",
 				si->meta_count[META_SIT]);
@@ -699,6 +704,8 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 	atomic_set(&sbi->inplace_count, 0);
 	for (i = META_CP; i < META_MAX; i++)
 		atomic_set(&sbi->meta_count[i], 0);
+	for (i = 0; i < MAX_CALL_TYPE; i++)
+		atomic_set(&sbi->cp_call_count[i], 0);
 
 	atomic_set(&sbi->max_aw_cnt, 0);
 

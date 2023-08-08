@@ -1383,6 +1383,13 @@ enum errors_option {
 	MOUNT_ERRORS_PANIC,	/* panic on errors */
 };
 
+enum {
+	BACKGROUND,
+	FOREGROUND,
+	MAX_CALL_TYPE,
+	TOTAL_CALL = FOREGROUND,
+};
+
 static inline int f2fs_test_bit(unsigned int nr, char *addr);
 static inline void f2fs_set_bit(unsigned int nr, char *addr);
 static inline void f2fs_clear_bit(unsigned int nr, char *addr);
@@ -1695,6 +1702,7 @@ struct f2fs_sb_info {
 	unsigned int io_skip_bggc;		/* skip background gc for in-flight IO */
 	unsigned int other_skip_bggc;		/* skip background gc for other reasons */
 	unsigned int ndirty_inode[NR_INODE_TYPE];	/* # of dirty inodes */
+	atomic_t cp_call_count[MAX_CALL_TYPE];	/* # of cp call */
 #endif
 	spinlock_t stat_lock;			/* lock for stat operations */
 
@@ -3860,12 +3868,6 @@ void f2fs_destroy_recovery_cache(void);
 /*
  * debug.c
  */
-enum {
-	BACKGROUND,
-	FOREGROUND,
-	MAX_CALL_TYPE
-};
-
 #ifdef CONFIG_F2FS_STAT_FS
 struct f2fs_stat_info {
 	struct list_head stat_list;
@@ -3912,7 +3914,7 @@ struct f2fs_stat_info {
 	int dirty_count, node_pages, meta_pages, compress_pages;
 	int compress_page_hit;
 	int prefree_count, free_segs, free_secs;
-	int cp_count, bg_cp_count;
+	int cp_call_count[MAX_CALL_TYPE], cp_count;
 	int gc_call_count[MAX_CALL_TYPE];
 	int gc_segs[2][2];
 	int gc_secs[2][2];
@@ -3937,8 +3939,9 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 	return (struct f2fs_stat_info *)sbi->stat_info;
 }
 
-#define stat_inc_cp_count(si)		((si)->cp_count++)
-#define stat_inc_bg_cp_count(si)	((si)->bg_cp_count++)
+#define stat_inc_cp_call_count(sbi, foreground)				\
+		atomic_inc(&sbi->cp_call_count[(foreground)])
+#define stat_inc_cp_count(si)		(F2FS_STAT(sbi)->cp_count++)
 #define stat_io_skip_bggc_count(sbi)	((sbi)->io_skip_bggc++)
 #define stat_other_skip_bggc_count(sbi)	((sbi)->other_skip_bggc++)
 #define stat_inc_dirty_inode(sbi, type)	((sbi)->ndirty_inode[type]++)
@@ -4055,8 +4058,8 @@ void __init f2fs_create_root_stats(void);
 void f2fs_destroy_root_stats(void);
 void f2fs_update_sit_info(struct f2fs_sb_info *sbi);
 #else
-#define stat_inc_cp_count(si)				do { } while (0)
-#define stat_inc_bg_cp_count(si)			do { } while (0)
+#define stat_inc_cp_call_count(sbi, foreground)		do { } while (0)
+#define stat_inc_cp_count(sbi)				do { } while (0)
 #define stat_io_skip_bggc_count(sbi)			do { } while (0)
 #define stat_other_skip_bggc_count(sbi)			do { } while (0)
 #define stat_inc_dirty_inode(sbi, type)			do { } while (0)
