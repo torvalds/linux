@@ -22,6 +22,7 @@
 #include <linux/radix-tree.h>
 #include <linux/slab.h>
 #include <linux/threads.h>
+#include <linux/vmalloc.h>
 
 /* We need to stringify expanded macros so that they can be parsed */
 
@@ -90,6 +91,13 @@ LX_GDBPARSED(RADIX_TREE_INTERNAL_NODE)
 LX_GDBPARSED(RADIX_TREE_MAP_SIZE)
 LX_GDBPARSED(RADIX_TREE_MAP_SHIFT)
 LX_GDBPARSED(RADIX_TREE_MAP_MASK)
+
+/* linux/vmalloc.h */
+LX_VALUE(VM_IOREMAP)
+LX_VALUE(VM_ALLOC)
+LX_VALUE(VM_MAP)
+LX_VALUE(VM_USERMAP)
+LX_VALUE(VM_DMA_COHERENT)
 
 /* linux/page_ext.h */
 if IS_BUILTIN(CONFIG_PAGE_OWNER):
