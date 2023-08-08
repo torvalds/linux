@@ -211,6 +211,7 @@ enum pool_workqueue_stats {
 	PWQ_STAT_CPU_TIME,	/* total CPU time consumed */
 	PWQ_STAT_CPU_INTENSIVE,	/* wq_cpu_intensive_thresh_us violations */
 	PWQ_STAT_CM_WAKEUP,	/* concurrency-management worker wakeups */
+	PWQ_STAT_REPATRIATED,	/* unbound workers brought back into scope */
 	PWQ_STAT_MAYDAY,	/* maydays to rescuer */
 	PWQ_STAT_RESCUED,	/* linked work items executed by rescuer */
 
@@ -1103,13 +1104,41 @@ static bool assign_work(struct work_struct *work, struct worker *worker,
 static bool kick_pool(struct worker_pool *pool)
 {
 	struct worker *worker = first_idle_worker(pool);
+	struct task_struct *p;
 
 	lockdep_assert_held(&pool->lock);
 
 	if (!need_more_worker(pool) || !worker)
 		return false;
 
-	wake_up_process(worker->task);
+	p = worker->task;
+
+#ifdef CONFIG_SMP
+	/*
+	 * Idle @worker is about to execute @work and waking up provides an
+	 * opportunity to migrate @worker at a lower cost by setting the task's
+	 * wake_cpu field. Let's see if we want to move @worker to improve
+	 * execution locality.
+	 *
+	 * We're waking the worker that went idle the latest and there's some
+	 * chance that @worker is marked idle but hasn't gone off CPU yet. If
+	 * so, setting the wake_cpu won't do anything. As this is a best-effort
+	 * optimization and the race window is narrow, let's leave as-is for
+	 * now. If this becomes pronounced, we can skip over workers which are
+	 * still on cpu when picking an idle worker.
+	 *
+	 * If @pool has non-strict affinity, @worker might have ended up outside
+	 * its affinity scope. Repatriate.
+	 */
+	if (!pool->attrs->affn_strict &&
+	    !cpumask_test_cpu(p->wake_cpu, pool->attrs->__pod_cpumask)) {
+		struct work_struct *work = list_first_entry(&pool->worklist,
+						struct work_struct, entry);
+		p->wake_cpu = cpumask_any_distribute(pool->attrs->__pod_cpumask);
+		get_work_pwq(work)->stats[PWQ_STAT_REPATRIATED]++;
+	}
+#endif
+	wake_up_process(p);
 	return true;
 }
 
@@ -2051,7 +2080,10 @@ static struct worker *alloc_worker(int node)
 
 static cpumask_t *pool_allowed_cpus(struct worker_pool *pool)
 {
-	return pool->attrs->__pod_cpumask;
+	if (pool->cpu < 0 && pool->attrs->affn_strict)
+		return pool->attrs->__pod_cpumask;
+	else
+		return pool->attrs->cpumask;
 }
 
 /**
@@ -3715,6 +3747,7 @@ static void copy_workqueue_attrs(struct workqueue_attrs *to,
 	to->nice = from->nice;
 	cpumask_copy(to->cpumask, from->cpumask);
 	cpumask_copy(to->__pod_cpumask, from->__pod_cpumask);
+	to->affn_strict = from->affn_strict;
 
 	/*
 	 * Unlike hash and equality test, copying shouldn't ignore wq-only
@@ -3745,6 +3778,7 @@ static u32 wqattrs_hash(const struct workqueue_attrs *attrs)
 		     BITS_TO_LONGS(nr_cpumask_bits) * sizeof(long), hash);
 	hash = jhash(cpumask_bits(attrs->__pod_cpumask),
 		     BITS_TO_LONGS(nr_cpumask_bits) * sizeof(long), hash);
+	hash = jhash_1word(attrs->affn_strict, hash);
 	return hash;
 }
 
@@ -3757,6 +3791,8 @@ static bool wqattrs_equal(const struct workqueue_attrs *a,
 	if (!cpumask_equal(a->cpumask, b->cpumask))
 		return false;
 	if (!cpumask_equal(a->__pod_cpumask, b->__pod_cpumask))
+		return false;
+	if (a->affn_strict != b->affn_strict)
 		return false;
 	return true;
 }
@@ -5847,6 +5883,7 @@ module_param_cb(default_affinity_scope, &wq_affn_dfl_ops, NULL, 0644);
  *  nice		RW int	: nice value of the workers
  *  cpumask		RW mask	: bitmask of allowed CPUs for the workers
  *  affinity_scope	RW str  : worker CPU affinity scope (cache, numa, none)
+ *  affinity_strict	RW bool : worker CPU affinity is strict
  */
 struct wq_device {
 	struct workqueue_struct		*wq;
@@ -6026,10 +6063,42 @@ static ssize_t wq_affn_scope_store(struct device *dev,
 	return ret ?: count;
 }
 
+static ssize_t wq_affinity_strict_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct workqueue_struct *wq = dev_to_wq(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n",
+			 wq->unbound_attrs->affn_strict);
+}
+
+static ssize_t wq_affinity_strict_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct workqueue_struct *wq = dev_to_wq(dev);
+	struct workqueue_attrs *attrs;
+	int v, ret = -ENOMEM;
+
+	if (sscanf(buf, "%d", &v) != 1)
+		return -EINVAL;
+
+	apply_wqattrs_lock();
+	attrs = wq_sysfs_prep_attrs(wq);
+	if (attrs) {
+		attrs->affn_strict = (bool)v;
+		ret = apply_workqueue_attrs_locked(wq, attrs);
+	}
+	apply_wqattrs_unlock();
+	free_workqueue_attrs(attrs);
+	return ret ?: count;
+}
+
 static struct device_attribute wq_sysfs_unbound_attrs[] = {
 	__ATTR(nice, 0644, wq_nice_show, wq_nice_store),
 	__ATTR(cpumask, 0644, wq_cpumask_show, wq_cpumask_store),
 	__ATTR(affinity_scope, 0644, wq_affn_scope_show, wq_affn_scope_store),
+	__ATTR(affinity_strict, 0644, wq_affinity_strict_show, wq_affinity_strict_store),
 	__ATTR_NULL,
 };
 
@@ -6452,6 +6521,7 @@ void __init workqueue_init_early(void)
 			cpumask_copy(pool->attrs->cpumask, cpumask_of(cpu));
 			cpumask_copy(pool->attrs->__pod_cpumask, cpumask_of(cpu));
 			pool->attrs->nice = std_nice[i++];
+			pool->attrs->affn_strict = true;
 			pool->node = cpu_to_node(cpu);
 
 			/* alloc pool ID */

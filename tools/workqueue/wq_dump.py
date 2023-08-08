@@ -36,10 +36,11 @@ Workqueue CPU -> pool
 Lists all workqueues along with their type and worker pool association. For
 each workqueue:
 
-  NAME TYPE POOL_ID...
+  NAME TYPE[,FLAGS] POOL_ID...
 
   NAME      name of the workqueue
   TYPE      percpu, unbound or ordered
+  FLAGS     S: strict affinity scope
   POOL_ID   worker pool ID associated with each possible CPU
 """
 
@@ -138,13 +139,16 @@ for pi, pool in idr_for_each(worker_pool_idr):
         print(f'cpu={pool.cpu.value_():3}', end='')
     else:
         print(f'cpus={cpumask_str(pool.attrs.cpumask)}', end='')
+        print(f' pod_cpus={cpumask_str(pool.attrs.__pod_cpumask)}', end='')
+        if pool.attrs.affn_strict:
+            print(' strict', end='')
     print('')
 
 print('')
 print('Workqueue CPU -> pool')
 print('=====================')
 
-print('[    workqueue \ CPU            ', end='')
+print('[    workqueue     \     type   CPU', end='')
 for cpu in for_each_possible_cpu(prog):
     print(f' {cpu:{max_pool_id_len}}', end='')
 print(' dfl]')
@@ -153,11 +157,15 @@ for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(
     print(f'{wq.name.string_().decode()[-24:]:24}', end='')
     if wq.flags & WQ_UNBOUND:
         if wq.flags & WQ_ORDERED:
-            print(' ordered', end='')
+            print(' ordered   ', end='')
         else:
             print(' unbound', end='')
+            if wq.unbound_attrs.affn_strict:
+                print(',S ', end='')
+            else:
+                print('   ', end='')
     else:
-        print(' percpu ', end='')
+        print(' percpu    ', end='')
 
     for cpu in for_each_possible_cpu(prog):
         pool_id = per_cpu_ptr(wq.cpu_pwq, cpu)[0].pool.id.value_()

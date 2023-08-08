@@ -169,6 +169,17 @@ struct workqueue_attrs {
 	 */
 	cpumask_var_t __pod_cpumask;
 
+	/**
+	 * @affn_strict: affinity scope is strict
+	 *
+	 * If clear, workqueue will make a best-effort attempt at starting the
+	 * worker inside @__pod_cpumask but the scheduler is free to migrate it
+	 * outside.
+	 *
+	 * If set, workers are only allowed to run inside @__pod_cpumask.
+	 */
+	bool affn_strict;
+
 	/*
 	 * Below fields aren't properties of a worker_pool. They only modify how
 	 * :c:func:`apply_workqueue_attrs` select pools and thus don't

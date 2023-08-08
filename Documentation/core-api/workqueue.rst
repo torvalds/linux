@@ -353,9 +353,10 @@ Affinity Scopes
 An unbound workqueue groups CPUs according to its affinity scope to improve
 cache locality. For example, if a workqueue is using the default affinity
 scope of "cache", it will group CPUs according to last level cache
-boundaries. A work item queued on the workqueue will be processed by a
-worker running on one of the CPUs which share the last level cache with the
-issuing CPU.
+boundaries. A work item queued on the workqueue will be assigned to a worker
+on one of the CPUs which share the last level cache with the issuing CPU.
+Once started, the worker may or may not be allowed to move outside the scope
+depending on the ``affinity_strict`` setting of the scope.
 
 Workqueue currently supports the following five affinity scopes.
 
@@ -390,6 +391,21 @@ directory.
 
 ``affinity_scope``
   Read to see the current affinity scope. Write to change.
+
+``affinity_strict``
+  0 by default indicating that affinity scopes are not strict. When a work
+  item starts execution, workqueue makes a best-effort attempt to ensure
+  that the worker is inside its affinity scope, which is called
+  repatriation. Once started, the scheduler is free to move the worker
+  anywhere in the system as it sees fit. This enables benefiting from scope
+  locality while still being able to utilize other CPUs if necessary and
+  available.
+
+  If set to 1, all workers of the scope are guaranteed always to be in the
+  scope. This may be useful when crossing affinity scopes has other
+  implications, for example, in terms of power consumption or workload
+  isolation. Strict NUMA scope can also be used to match the workqueue
+  behavior of older kernels.
 
 
 Examining Configuration
@@ -475,21 +491,21 @@ Monitoring
 Use tools/workqueue/wq_monitor.py to monitor workqueue operations: ::
 
   $ tools/workqueue/wq_monitor.py events
-                              total  infl  CPUtime  CPUhog  CMwake  mayday rescued
+                              total  infl  CPUtime  CPUhog CMW/RPR  mayday rescued
   events                      18545     0      6.1       0       5       -       -
   events_highpri                  8     0      0.0       0       0       -       -
   events_long                     3     0      0.0       0       0       -       -
-  events_unbound              38306     0      0.1       -       -       -       -
+  events_unbound              38306     0      0.1       -       7       -       -
   events_freezable                0     0      0.0       0       0       -       -
   events_power_efficient      29598     0      0.2       0       0       -       -
   events_freezable_power_        10     0      0.0       0       0       -       -
   sock_diag_events                0     0      0.0       0       0       -       -
 
-                              total  infl  CPUtime  CPUhog  CMwake  mayday rescued
+                              total  infl  CPUtime  CPUhog CMW/RPR  mayday rescued
   events                      18548     0      6.1       0       5       -       -
   events_highpri                  8     0      0.0       0       0       -       -
   events_long                     3     0      0.0       0       0       -       -
-  events_unbound              38322     0      0.1       -       -       -       -
+  events_unbound              38322     0      0.1       -       7       -       -
   events_freezable                0     0      0.0       0       0       -       -
   events_power_efficient      29603     0      0.2       0       0       -       -
   events_freezable_power_        10     0      0.0       0       0       -       -
