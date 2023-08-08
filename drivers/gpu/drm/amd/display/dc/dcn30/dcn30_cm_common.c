@@ -114,7 +114,6 @@ bool cm3_helper_translate_curve_to_hw_format(
 	struct pwl_result_data *rgb;
 	struct pwl_result_data *rgb_plus_1;
 	struct pwl_result_data *rgb_minus_1;
-	struct fixed31_32 end_value;
 
 	int32_t region_start, region_end;
 	int32_t i;
@@ -176,7 +175,7 @@ bool cm3_helper_translate_curve_to_hw_format(
 				NUMBER_SW_SEGMENTS;
 		for (i = start_index; i < start_index + NUMBER_SW_SEGMENTS;
 				i += increment) {
-			if (j == hw_points - 1)
+			if (j == hw_points)
 				break;
 			rgb_resulted[j].red = output_tf->tf_pts.red[i];
 			rgb_resulted[j].green = output_tf->tf_pts.green[i];
@@ -187,13 +186,13 @@ bool cm3_helper_translate_curve_to_hw_format(
 
 	/* last point */
 	start_index = (region_end + MAX_LOW_POINT) * NUMBER_SW_SEGMENTS;
-	rgb_resulted[hw_points - 1].red = output_tf->tf_pts.red[start_index];
-	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
-	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
+	rgb_resulted[hw_points].red = output_tf->tf_pts.red[start_index];
+	rgb_resulted[hw_points].green = output_tf->tf_pts.green[start_index];
+	rgb_resulted[hw_points].blue = output_tf->tf_pts.blue[start_index];
 
-	rgb_resulted[hw_points].red = rgb_resulted[hw_points - 1].red;
-	rgb_resulted[hw_points].green = rgb_resulted[hw_points - 1].green;
-	rgb_resulted[hw_points].blue = rgb_resulted[hw_points - 1].blue;
+	rgb_resulted[hw_points+1].red = rgb_resulted[hw_points].red;
+	rgb_resulted[hw_points+1].green = rgb_resulted[hw_points].green;
+	rgb_resulted[hw_points+1].blue = rgb_resulted[hw_points].blue;
 
 	// All 3 color channels have same x
 	corner_points[0].red.x = dc_fixpt_pow(dc_fixpt_from_int(2),
@@ -220,34 +219,16 @@ bool cm3_helper_translate_curve_to_hw_format(
 	/* see comment above, m_arrPoints[1].y should be the Y value for the
 	 * region end (m_numOfHwPoints), not last HW point(m_numOfHwPoints - 1)
 	 */
-	corner_points[1].red.y = rgb_resulted[hw_points - 1].red;
-	corner_points[1].green.y = rgb_resulted[hw_points - 1].green;
-	corner_points[1].blue.y = rgb_resulted[hw_points - 1].blue;
+	corner_points[1].red.y = rgb_resulted[hw_points].red;
+	corner_points[1].green.y = rgb_resulted[hw_points].green;
+	corner_points[1].blue.y = rgb_resulted[hw_points].blue;
 	corner_points[1].red.slope = dc_fixpt_zero;
 	corner_points[1].green.slope = dc_fixpt_zero;
 	corner_points[1].blue.slope = dc_fixpt_zero;
 
-	if (output_tf->tf == TRANSFER_FUNCTION_PQ || output_tf->tf == TRANSFER_FUNCTION_HLG) {
-		/* for PQ/HLG, we want to have a straight line from last HW X point,
-		 * and the slope to be such that we hit 1.0 at 10000/1000 nits.
-		 */
-
-		if (output_tf->tf == TRANSFER_FUNCTION_PQ)
-			end_value = dc_fixpt_from_int(125);
-		else
-			end_value = dc_fixpt_from_fraction(125, 10);
-
-		corner_points[1].red.slope = dc_fixpt_div(
-			dc_fixpt_sub(dc_fixpt_one, corner_points[1].red.y),
-			dc_fixpt_sub(end_value, corner_points[1].red.x));
-		corner_points[1].green.slope = dc_fixpt_div(
-			dc_fixpt_sub(dc_fixpt_one, corner_points[1].green.y),
-			dc_fixpt_sub(end_value, corner_points[1].green.x));
-		corner_points[1].blue.slope = dc_fixpt_div(
-			dc_fixpt_sub(dc_fixpt_one, corner_points[1].blue.y),
-			dc_fixpt_sub(end_value, corner_points[1].blue.x));
-	}
-	lut_params->hw_points_num = hw_points;
+	// DCN3+ have 257 pts in lieu of no separate slope registers
+	// Prior HW had 256 base+slope pairs
+	lut_params->hw_points_num = hw_points + 1;
 
 	k = 0;
 	for (i = 1; i < MAX_REGIONS_NUMBER; i++) {
@@ -267,38 +248,37 @@ bool cm3_helper_translate_curve_to_hw_format(
 	rgb_plus_1 = rgb_resulted + 1;
 	rgb_minus_1 = rgb;
 
-	i = 1;
-	while (i != hw_points + 1) {
-		if (i >= hw_points - 1) {
-			if (dc_fixpt_lt(rgb_plus_1->red, rgb->red))
-				rgb_plus_1->red = dc_fixpt_add(rgb->red, rgb_minus_1->delta_red);
-			if (dc_fixpt_lt(rgb_plus_1->green, rgb->green))
-				rgb_plus_1->green = dc_fixpt_add(rgb->green, rgb_minus_1->delta_green);
-			if (dc_fixpt_lt(rgb_plus_1->blue, rgb->blue))
-				rgb_plus_1->blue = dc_fixpt_add(rgb->blue, rgb_minus_1->delta_blue);
-		}
+	if (fixpoint == true) {
+		i = 1;
+		while (i != hw_points + 2) {
+			if (i >= hw_points) {
+				if (dc_fixpt_lt(rgb_plus_1->red, rgb->red))
+					rgb_plus_1->red = dc_fixpt_add(rgb->red,
+							rgb_minus_1->delta_red);
+				if (dc_fixpt_lt(rgb_plus_1->green, rgb->green))
+					rgb_plus_1->green = dc_fixpt_add(rgb->green,
+							rgb_minus_1->delta_green);
+				if (dc_fixpt_lt(rgb_plus_1->blue, rgb->blue))
+					rgb_plus_1->blue = dc_fixpt_add(rgb->blue,
+							rgb_minus_1->delta_blue);
+			}
 
-		rgb->delta_red   = dc_fixpt_sub(rgb_plus_1->red,   rgb->red);
-		rgb->delta_green = dc_fixpt_sub(rgb_plus_1->green, rgb->green);
-		rgb->delta_blue  = dc_fixpt_sub(rgb_plus_1->blue,  rgb->blue);
-
-		if (fixpoint == true) {
 			rgb->delta_red_reg   = dc_fixpt_clamp_u0d10(rgb->delta_red);
 			rgb->delta_green_reg = dc_fixpt_clamp_u0d10(rgb->delta_green);
 			rgb->delta_blue_reg  = dc_fixpt_clamp_u0d10(rgb->delta_blue);
 			rgb->red_reg         = dc_fixpt_clamp_u0d14(rgb->red);
 			rgb->green_reg       = dc_fixpt_clamp_u0d14(rgb->green);
 			rgb->blue_reg        = dc_fixpt_clamp_u0d14(rgb->blue);
-		}
 
-		++rgb_plus_1;
-		rgb_minus_1 = rgb;
-		++rgb;
-		++i;
+			++rgb_plus_1;
+			rgb_minus_1 = rgb;
+			++rgb;
+			++i;
+		}
 	}
 	cm3_helper_convert_to_custom_float(rgb_resulted,
 						lut_params->corner_points,
-						hw_points, fixpoint);
+						hw_points+1, fixpoint);
 
 	return true;
 }
@@ -599,24 +579,6 @@ bool cm3_helper_convert_to_custom_float(
 
 		if (!convert_to_custom_float_format(rgb->blue, &fmt,
 						    &rgb->blue_reg)) {
-			BREAK_TO_DEBUGGER();
-			return false;
-		}
-
-		if (!convert_to_custom_float_format(rgb->delta_red, &fmt,
-						    &rgb->delta_red_reg)) {
-			BREAK_TO_DEBUGGER();
-			return false;
-		}
-
-		if (!convert_to_custom_float_format(rgb->delta_green, &fmt,
-						    &rgb->delta_green_reg)) {
-			BREAK_TO_DEBUGGER();
-			return false;
-		}
-
-		if (!convert_to_custom_float_format(rgb->delta_blue, &fmt,
-						    &rgb->delta_blue_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
