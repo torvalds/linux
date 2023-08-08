@@ -3457,7 +3457,6 @@ MODULE_DEVICE_TABLE(fslmc, dpaa2_switch_match_id_table);
 static struct fsl_mc_driver dpaa2_switch_drv = {
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = dpaa2_switch_probe,
 	.remove = dpaa2_switch_remove,
