@@ -483,7 +483,7 @@ static struct i2c_driver tc3589x_driver = {
 	.driver = {
 		.name	= "tc3589x",
 		.pm	= pm_sleep_ptr(&tc3589x_dev_pm_ops),
-		.of_match_table = of_match_ptr(tc3589x_match),
+		.of_match_table = tc3589x_match,
 	},
 	.probe		= tc3589x_probe,
 	.remove		= tc3589x_remove,
