@@ -40,7 +40,7 @@
  * code doesn't get too cluttered:
  */
 #define efi_call_virt(f, args...)   \
-	efi_call_virt_pointer(efi.runtime, f, args)
+	arch_efi_call_virt(efi.runtime, f, args)
 
 union efi_rts_args {
 	struct {
@@ -139,7 +139,7 @@ unsigned long efi_call_virt_save_flags(void)
 	return flags;
 }
 
-void efi_call_virt_check_flags(unsigned long flags, const char *call)
+void efi_call_virt_check_flags(unsigned long flags, const void *caller)
 {
 	unsigned long cur_flags, mismatch;
 
@@ -150,8 +150,8 @@ void efi_call_virt_check_flags(unsigned long flags, const char *call)
 		return;
 
 	add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_NOW_UNRELIABLE);
-	pr_err_ratelimited(FW_BUG "IRQ flags corrupted (0x%08lx=>0x%08lx) by EFI %s\n",
-			   flags, cur_flags, call);
+	pr_err_ratelimited(FW_BUG "IRQ flags corrupted (0x%08lx=>0x%08lx) by EFI call from %pS\n",
+			   flags, cur_flags, caller ?: __builtin_return_address(0));
 	arch_efi_restore_flags(flags);
 }
 
@@ -211,6 +211,10 @@ static void efi_call_rts(struct work_struct *work)
 {
 	const union efi_rts_args *args = efi_rts_work.args;
 	efi_status_t status = EFI_NOT_FOUND;
+	unsigned long flags;
+
+	arch_efi_call_virt_setup();
+	flags = efi_call_virt_save_flags();
 
 	switch (efi_rts_work.efi_rts_id) {
 	case EFI_GET_TIME:
@@ -287,6 +291,10 @@ static void efi_call_rts(struct work_struct *work)
 		 */
 		pr_err("Requested executing invalid EFI Runtime Service.\n");
 	}
+
+	efi_call_virt_check_flags(flags, efi_rts_work.caller);
+	arch_efi_call_virt_teardown();
+
 	efi_rts_work.status = status;
 	complete(&efi_rts_work.efi_rts_comp);
 }
@@ -296,6 +304,7 @@ static efi_status_t __efi_queue_work(enum efi_rts_ids id,
 {
 	efi_rts_work.efi_rts_id = id;
 	efi_rts_work.args = args;
+	efi_rts_work.caller = __builtin_return_address(0);
 	efi_rts_work.status = EFI_ABORTED;
 
 	if (!efi_enabled(EFI_RUNTIME_SERVICES)) {
@@ -423,8 +432,8 @@ virt_efi_set_variable_nonblocking(efi_char16_t *name, efi_guid_t *vendor,
 	if (down_trylock(&efi_runtime_lock))
 		return EFI_NOT_READY;
 
-	status = efi_call_virt(set_variable, name, vendor, attr, data_size,
-			       data);
+	status = efi_call_virt_pointer(efi.runtime, set_variable, name, vendor,
+				       attr, data_size, data);
 	up(&efi_runtime_lock);
 	return status;
 }
@@ -462,8 +471,9 @@ virt_efi_query_variable_info_nonblocking(u32 attr,
 	if (down_trylock(&efi_runtime_lock))
 		return EFI_NOT_READY;
 
-	status = efi_call_virt(query_variable_info, attr, storage_space,
-			       remaining_space, max_variable_size);
+	status = efi_call_virt_pointer(efi.runtime, query_variable_info, attr,
+				       storage_space, remaining_space,
+				       max_variable_size);
 	up(&efi_runtime_lock);
 	return status;
 }

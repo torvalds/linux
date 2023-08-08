@@ -1129,7 +1129,7 @@ extern bool efi_runtime_disabled(void);
 static inline bool efi_runtime_disabled(void) { return true; }
 #endif
 
-extern void efi_call_virt_check_flags(unsigned long flags, const char *call);
+extern void efi_call_virt_check_flags(unsigned long flags, const void *caller);
 extern unsigned long efi_call_virt_save_flags(void);
 
 enum efi_secureboot_mode {
@@ -1196,7 +1196,7 @@ static inline void efi_check_for_embedded_firmwares(void) { }
 									\
 	__flags = efi_call_virt_save_flags();				\
 	__s = arch_efi_call_virt(p, f, args);				\
-	efi_call_virt_check_flags(__flags, __stringify(f));		\
+	efi_call_virt_check_flags(__flags, NULL);			\
 									\
 	arch_efi_call_virt_teardown();					\
 									\
@@ -1257,6 +1257,7 @@ union efi_rts_args;
  * @status:		Status of executing EFI Runtime Service
  * @efi_rts_id:		EFI Runtime Service function identifier
  * @efi_rts_comp:	Struct used for handling completions
+ * @caller:		The caller of the runtime service
  */
 struct efi_runtime_work {
 	union efi_rts_args	*args;
@@ -1264,6 +1265,7 @@ struct efi_runtime_work {
 	struct work_struct	work;
 	enum efi_rts_ids	efi_rts_id;
 	struct completion	efi_rts_comp;
+	const void		*caller;
 };
 
 extern struct efi_runtime_work efi_rts_work;
