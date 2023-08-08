@@ -26,7 +26,7 @@ static int txgbe_swnodes_register(struct txgbe *txgbe)
 	struct software_node *swnodes;
 	u32 id;
 
-	id = (pdev->bus->number << 8) | pdev->devfn;
+	id = pci_dev_id(pdev);
 
 	snprintf(nodes->gpio_name, sizeof(nodes->gpio_name), "txgbe_gpio-%x", id);
 	snprintf(nodes->i2c_name, sizeof(nodes->i2c_name), "txgbe_i2c-%x", id);
@@ -140,7 +140,7 @@ static int txgbe_mdio_pcs_init(struct txgbe *txgbe)
 	mii_bus->phy_mask = ~0;
 	mii_bus->priv = wx;
 	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "txgbe_pcs-%x",
-		 (pdev->bus->number << 8) | pdev->devfn);
+		 pci_dev_id(pdev));
 
 	ret = devm_mdiobus_register(&pdev->dev, mii_bus);
 	if (ret)
@@ -459,7 +459,7 @@ static int txgbe_gpio_init(struct txgbe *txgbe)
 		return -ENOMEM;
 
 	gc->label = devm_kasprintf(dev, GFP_KERNEL, "txgbe_gpio-%x",
-				   (wx->pdev->bus->number << 8) | wx->pdev->devfn);
+				   pci_dev_id(wx->pdev));
 	if (!gc->label)
 		return -ENOMEM;
 
@@ -503,7 +503,7 @@ static int txgbe_clock_register(struct txgbe *txgbe)
 	struct clk *clk;
 
 	snprintf(clk_name, sizeof(clk_name), "i2c_designware.%d",
-		 (pdev->bus->number << 8) | pdev->devfn);
+		 pci_dev_id(pdev));
 
 	clk = clk_register_fixed_rate(NULL, clk_name, NULL, 0, 156250000);
 	if (IS_ERR(clk))
@@ -566,7 +566,7 @@ static int txgbe_i2c_register(struct txgbe *txgbe)
 	info.parent = &pdev->dev;
 	info.fwnode = software_node_fwnode(txgbe->nodes.group[SWNODE_I2C]);
 	info.name = "i2c_designware";
-	info.id = (pdev->bus->number << 8) | pdev->devfn;
+	info.id = pci_dev_id(pdev);
 
 	info.res = &DEFINE_RES_IRQ(pdev->irq);
 	info.num_res = 1;
@@ -588,7 +588,7 @@ static int txgbe_sfp_register(struct txgbe *txgbe)
 	info.parent = &pdev->dev;
 	info.fwnode = software_node_fwnode(txgbe->nodes.group[SWNODE_SFP]);
 	info.name = "sfp";
-	info.id = (pdev->bus->number << 8) | pdev->devfn;
+	info.id = pci_dev_id(pdev);
 	sfp_dev = platform_device_register_full(&info);
 	if (IS_ERR(sfp_dev))
 		return PTR_ERR(sfp_dev);
