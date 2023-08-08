@@ -158,19 +158,8 @@ static struct apic xen_pv_apic = {
 	.icr_write 			= xen_apic_icr_write,
 };
 
-static void __init xen_apic_check(void)
-{
-	apic_install_driver(&xen_pv_apic);
-}
-
 void __init xen_init_apic(void)
 {
 	x86_apic_ops.io_apic_read = xen_io_apic_read;
-	/* On PV guests the APIC CPUID bit is disabled so none of the
-	 * routines end up executing. */
-	if (!xen_initial_domain())
-		apic_install_driver(&xen_pv_apic);
-
-	x86_platform.apic_post_init = xen_apic_check;
 }
 apic_driver(xen_pv_apic);
