@@ -3,6 +3,7 @@
 #define _ASM_X86_APIC_H
 
 #include <linux/cpumask.h>
+#include <linux/static_call.h>
 
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
@@ -368,8 +369,28 @@ void __init apic_install_driver(struct apic *driver);
 #define apic_update_callback(_callback, _fn) {					\
 		__x86_apic_override._callback = _fn;				\
 		apic->_callback = _fn;						\
+		static_call_update(apic_call_##_callback, _fn);			\
 		pr_info("APIC: %s() replaced with %ps()\n", #_callback, _fn);	\
 }
+
+#define DECLARE_APIC_CALL(__cb)							\
+	DECLARE_STATIC_CALL(apic_call_##__cb, *apic->__cb)
+
+DECLARE_APIC_CALL(eoi);
+DECLARE_APIC_CALL(native_eoi);
+DECLARE_APIC_CALL(icr_read);
+DECLARE_APIC_CALL(icr_write);
+DECLARE_APIC_CALL(read);
+DECLARE_APIC_CALL(send_IPI);
+DECLARE_APIC_CALL(send_IPI_mask);
+DECLARE_APIC_CALL(send_IPI_mask_allbutself);
+DECLARE_APIC_CALL(send_IPI_allbutself);
+DECLARE_APIC_CALL(send_IPI_all);
+DECLARE_APIC_CALL(send_IPI_self);
+DECLARE_APIC_CALL(wait_icr_idle);
+DECLARE_APIC_CALL(wakeup_secondary_cpu);
+DECLARE_APIC_CALL(wakeup_secondary_cpu_64);
+DECLARE_APIC_CALL(write);
 
 static __always_inline u32 apic_read(u32 reg)
 {
