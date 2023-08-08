@@ -146,6 +146,22 @@ patternProperties:
           through SETDASA. If static address is not present, this address is assigned
           through SETNEWDA after assigning a temporary address via ENTDAA.
 
+      bcr:
+        $ref: /schemas/types.yaml#/definitions/uint8
+        minimum: 0x0
+        maximum: 0xff
+        description: |
+          Bus Characteristics Register (BCR). This property is only valid if
+          the I3C device is a JESD403 compliant device.
+
+      dcr:
+        $ref: /schemas/types.yaml#/definitions/uint8
+        minimum: 0x0
+        maximum: 0xff
+        description: |
+          Device Characteristics Register (DCR). This property is only valid if
+          the I3C device is a JESD403 compliant device.
+
     required:
       - reg
 
