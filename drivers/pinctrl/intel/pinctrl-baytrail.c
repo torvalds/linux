@@ -995,8 +995,8 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 	void __iomem *conf_reg = byt_gpio_reg(vg, offset, BYT_CONF0_REG);
 	void __iomem *val_reg = byt_gpio_reg(vg, offset, BYT_VAL_REG);
 	void __iomem *db_reg = byt_gpio_reg(vg, offset, BYT_DEBOUNCE_REG);
+	u32 conf, val, db_pulse, debounce;
 	unsigned long flags;
-	u32 conf, val, debounce;
 	int i, ret = 0;
 
 	raw_spin_lock_irqsave(&byt_lock, flags);
@@ -1053,8 +1053,6 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 
 			break;
 		case PIN_CONFIG_INPUT_DEBOUNCE:
-			debounce = readl(db_reg);
-
 			if (arg)
 				conf |= BYT_DEBOUNCE_EN;
 			else
@@ -1062,32 +1060,25 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 
 			switch (arg) {
 			case 375:
-				debounce &= ~BYT_DEBOUNCE_PULSE_MASK;
-				debounce |= BYT_DEBOUNCE_PULSE_375US;
+				db_pulse = BYT_DEBOUNCE_PULSE_375US;
 				break;
 			case 750:
-				debounce &= ~BYT_DEBOUNCE_PULSE_MASK;
-				debounce |= BYT_DEBOUNCE_PULSE_750US;
+				db_pulse = BYT_DEBOUNCE_PULSE_750US;
 				break;
 			case 1500:
-				debounce &= ~BYT_DEBOUNCE_PULSE_MASK;
-				debounce |= BYT_DEBOUNCE_PULSE_1500US;
+				db_pulse = BYT_DEBOUNCE_PULSE_1500US;
 				break;
 			case 3000:
-				debounce &= ~BYT_DEBOUNCE_PULSE_MASK;
-				debounce |= BYT_DEBOUNCE_PULSE_3MS;
+				db_pulse = BYT_DEBOUNCE_PULSE_3MS;
 				break;
 			case 6000:
-				debounce &= ~BYT_DEBOUNCE_PULSE_MASK;
-				debounce |= BYT_DEBOUNCE_PULSE_6MS;
+				db_pulse = BYT_DEBOUNCE_PULSE_6MS;
 				break;
 			case 12000:
-				debounce &= ~BYT_DEBOUNCE_PULSE_MASK;
-				debounce |= BYT_DEBOUNCE_PULSE_12MS;
+				db_pulse = BYT_DEBOUNCE_PULSE_12MS;
 				break;
 			case 24000:
-				debounce &= ~BYT_DEBOUNCE_PULSE_MASK;
-				debounce |= BYT_DEBOUNCE_PULSE_24MS;
+				db_pulse = BYT_DEBOUNCE_PULSE_24MS;
 				break;
 			default:
 				if (arg)
@@ -1095,8 +1086,13 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 				break;
 			}
 
-			if (!ret)
-				writel(debounce, db_reg);
+			if (ret)
+				break;
+
+			debounce = readl(db_reg);
+			debounce = (debounce & ~BYT_DEBOUNCE_PULSE_MASK) | db_pulse;
+			writel(debounce, db_reg);
+
 			break;
 		default:
 			ret = -ENOTSUPP;
