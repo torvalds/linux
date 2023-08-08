@@ -1123,8 +1123,10 @@ static void stm32_usart_shutdown(struct uart_port *port)
 		dev_err(port->dev, "Transmission is not complete\n");
 
 	/* Disable RX DMA. */
-	if (stm32_port->rx_ch)
+	if (stm32_port->rx_ch) {
 		stm32_usart_rx_dma_terminate(stm32_port);
+		dmaengine_synchronize(stm32_port->rx_ch);
+	}
 
 	/* flush RX & TX FIFO */
 	if (ofs->rqr != UNDEF_REG)
