@@ -6494,6 +6494,54 @@ void __init workqueue_init(void)
 	wq_watchdog_init();
 }
 
+/*
+ * Initialize @pt by first initializing @pt->cpu_pod[] with pod IDs according to
+ * @cpu_shares_pod(). Each subset of CPUs that share a pod is assigned a unique
+ * and consecutive pod ID. The rest of @pt is initialized accordingly.
+ */
+static void __init init_pod_type(struct wq_pod_type *pt,
+				 bool (*cpus_share_pod)(int, int))
+{
+	int cur, pre, cpu, pod;
+
+	pt->nr_pods = 0;
+
+	/* init @pt->cpu_pod[] according to @cpus_share_pod() */
+	pt->cpu_pod = kcalloc(nr_cpu_ids, sizeof(pt->cpu_pod[0]), GFP_KERNEL);
+	BUG_ON(!pt->cpu_pod);
+
+	for_each_possible_cpu(cur) {
+		for_each_possible_cpu(pre) {
+			if (pre >= cur) {
+				pt->cpu_pod[cur] = pt->nr_pods++;
+				break;
+			}
+			if (cpus_share_pod(cur, pre)) {
+				pt->cpu_pod[cur] = pt->cpu_pod[pre];
+				break;
+			}
+		}
+	}
+
+	/* init the rest to match @pt->cpu_pod[] */
+	pt->pod_cpus = kcalloc(pt->nr_pods, sizeof(pt->pod_cpus[0]), GFP_KERNEL);
+	pt->pod_node = kcalloc(pt->nr_pods, sizeof(pt->pod_node[0]), GFP_KERNEL);
+	BUG_ON(!pt->pod_cpus || !pt->pod_node);
+
+	for (pod = 0; pod < pt->nr_pods; pod++)
+		BUG_ON(!zalloc_cpumask_var(&pt->pod_cpus[pod], GFP_KERNEL));
+
+	for_each_possible_cpu(cpu) {
+		cpumask_set_cpu(cpu, pt->pod_cpus[pt->cpu_pod[cpu]]);
+		pt->pod_node[pt->cpu_pod[cpu]] = cpu_to_node(cpu);
+	}
+}
+
+static bool __init cpus_share_numa(int cpu0, int cpu1)
+{
+	return cpu_to_node(cpu0) == cpu_to_node(cpu1);
+}
+
 /**
  * workqueue_init_topology - initialize CPU pods for unbound workqueues
  *
@@ -6503,44 +6551,12 @@ void __init workqueue_init(void)
  */
 void __init workqueue_init_topology(void)
 {
-	struct wq_pod_type *pt = &wq_pod_types[WQ_AFFN_NUMA];
 	struct workqueue_struct *wq;
-	int node, cpu;
+	int cpu;
 
-	if (num_possible_nodes() <= 1)
-		return;
-
-	for_each_possible_cpu(cpu) {
-		if (WARN_ON(cpu_to_node(cpu) == NUMA_NO_NODE)) {
-			pr_warn("workqueue: NUMA node mapping not available for cpu%d, disabling NUMA support\n", cpu);
-			return;
-		}
-	}
+	init_pod_type(&wq_pod_types[WQ_AFFN_NUMA], cpus_share_numa);
 
 	mutex_lock(&wq_pool_mutex);
-
-	/*
-	 * We want masks of possible CPUs of each node which isn't readily
-	 * available.  Build one from cpu_to_node() which should have been
-	 * fully initialized by now.
-	 */
-	pt->pod_cpus = kcalloc(nr_node_ids, sizeof(pt->pod_cpus[0]), GFP_KERNEL);
-	pt->pod_node = kcalloc(nr_node_ids, sizeof(pt->pod_node[0]), GFP_KERNEL);
-	pt->cpu_pod = kcalloc(nr_cpu_ids, sizeof(pt->cpu_pod[0]), GFP_KERNEL);
-	BUG_ON(!pt->pod_cpus || !pt->pod_node || !pt->cpu_pod);
-
-	for_each_node(node)
-		BUG_ON(!zalloc_cpumask_var_node(&pt->pod_cpus[node], GFP_KERNEL,
-				node_online(node) ? node : NUMA_NO_NODE));
-
-	for_each_possible_cpu(cpu) {
-		node = cpu_to_node(cpu);
-		cpumask_set_cpu(cpu, pt->pod_cpus[node]);
-		pt->pod_node[node] = node;
-		pt->cpu_pod[cpu] = node;
-	}
-
-	pt->nr_pods = nr_node_ids;
 
 	/*
 	 * Workqueues allocated earlier would have all CPUs sharing the default
