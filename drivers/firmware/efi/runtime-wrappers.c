@@ -436,9 +436,8 @@ static efi_status_t virt_efi_set_variable(efi_char16_t *name,
 }
 
 static efi_status_t
-virt_efi_set_variable_nonblocking(efi_char16_t *name, efi_guid_t *vendor,
-				  u32 attr, unsigned long data_size,
-				  void *data)
+virt_efi_set_variable_nb(efi_char16_t *name, efi_guid_t *vendor, u32 attr,
+			 unsigned long data_size, void *data)
 {
 	efi_status_t status;
 
@@ -471,10 +470,8 @@ static efi_status_t virt_efi_query_variable_info(u32 attr,
 }
 
 static efi_status_t
-virt_efi_query_variable_info_nonblocking(u32 attr,
-					 u64 *storage_space,
-					 u64 *remaining_space,
-					 u64 *max_variable_size)
+virt_efi_query_variable_info_nb(u32 attr, u64 *storage_space,
+				u64 *remaining_space, u64 *max_variable_size)
 {
 	efi_status_t status;
 
@@ -556,22 +553,22 @@ static efi_status_t virt_efi_query_capsule_caps(efi_capsule_header_t **capsules,
 	return status;
 }
 
-void efi_native_runtime_setup(void)
+void __init efi_native_runtime_setup(void)
 {
-	efi.get_time = virt_efi_get_time;
-	efi.set_time = virt_efi_set_time;
-	efi.get_wakeup_time = virt_efi_get_wakeup_time;
-	efi.set_wakeup_time = virt_efi_set_wakeup_time;
-	efi.get_variable = virt_efi_get_variable;
-	efi.get_next_variable = virt_efi_get_next_variable;
-	efi.set_variable = virt_efi_set_variable;
-	efi.set_variable_nonblocking = virt_efi_set_variable_nonblocking;
-	efi.get_next_high_mono_count = virt_efi_get_next_high_mono_count;
-	efi.reset_system = virt_efi_reset_system;
-	efi.query_variable_info = virt_efi_query_variable_info;
-	efi.query_variable_info_nonblocking = virt_efi_query_variable_info_nonblocking;
-	efi.update_capsule = virt_efi_update_capsule;
-	efi.query_capsule_caps = virt_efi_query_capsule_caps;
+	efi.get_time			    = virt_efi_get_time;
+	efi.set_time			    = virt_efi_set_time;
+	efi.get_wakeup_time		    = virt_efi_get_wakeup_time;
+	efi.set_wakeup_time		    = virt_efi_set_wakeup_time;
+	efi.get_variable		    = virt_efi_get_variable;
+	efi.get_next_variable		    = virt_efi_get_next_variable;
+	efi.set_variable		    = virt_efi_set_variable;
+	efi.set_variable_nonblocking	    = virt_efi_set_variable_nb;
+	efi.get_next_high_mono_count	    = virt_efi_get_next_high_mono_count;
+	efi.reset_system 		    = virt_efi_reset_system;
+	efi.query_variable_info		    = virt_efi_query_variable_info;
+	efi.query_variable_info_nonblocking = virt_efi_query_variable_info_nb;
+	efi.update_capsule		    = virt_efi_update_capsule;
+	efi.query_capsule_caps		    = virt_efi_query_capsule_caps;
 }
 
 #ifdef CONFIG_ACPI_PRMT
