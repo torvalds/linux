@@ -1537,7 +1537,7 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
  * to avoid races with the irq handler, assuming we have MSI. Shared legacy
  * interrupts could still race.
  */
-void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
+static void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 mask;
@@ -1624,6 +1624,9 @@ void ilk_de_irq_postinstall(struct drm_i915_private *i915)
 		      display_mask | extra_mask);
 }
 
+static void mtp_irq_postinstall(struct drm_i915_private *i915);
+static void icp_irq_postinstall(struct drm_i915_private *i915);
+
 void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
@@ -1640,6 +1643,13 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;
+
+	if (DISPLAY_VER(dev_priv) >= 14)
+		mtp_irq_postinstall(dev_priv);
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+		icp_irq_postinstall(dev_priv);
+	else if (HAS_PCH_SPLIT(dev_priv))
+		ibx_irq_postinstall(dev_priv);
 
 	if (DISPLAY_VER(dev_priv) <= 10)
 		de_misc_masked |= GEN8_DE_MISC_GSE;
@@ -1721,7 +1731,7 @@ static void mtp_irq_postinstall(struct drm_i915_private *i915)
 	GEN3_IRQ_INIT(uncore, SDE, ~sde_mask, 0xffffffff);
 }
 
-void icp_irq_postinstall(struct drm_i915_private *dev_priv)
+static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 mask = SDE_GMBUS_ICP;
@@ -1744,11 +1754,6 @@ void dg1_de_irq_postinstall(struct drm_i915_private *i915)
 {
 	if (!HAS_DISPLAY(i915))
 		return;
-
-	if (DISPLAY_VER(i915) >= 14)
-		mtp_irq_postinstall(i915);
-	else
-		icp_irq_postinstall(i915);
 
 	gen8_de_irq_postinstall(i915);
 	intel_uncore_write(&i915->uncore, GEN11_DISPLAY_INT_CTL,
