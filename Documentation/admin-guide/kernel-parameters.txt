@@ -6992,15 +6992,6 @@
 			threshold repeatedly. They are likely good
 			candidates for using WQ_UNBOUND workqueues instead.
 
-	workqueue.disable_numa
-			By default, all work items queued to unbound
-			workqueues are affine to the NUMA nodes they're
-			issued on, which results in better behavior in
-			general.  If NUMA affinity needs to be disabled for
-			whatever reason, this option can be used.  Note
-			that this also can be controlled per-workqueue for
-			workqueues visible under /sys/bus/workqueue/.
-
 	workqueue.power_efficient
 			Per-cpu workqueues are generally preferred because
 			they show better performance thanks to cache

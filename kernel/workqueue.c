@@ -340,9 +340,6 @@ static cpumask_var_t *wq_numa_possible_cpumask;
 static unsigned long wq_cpu_intensive_thresh_us = ULONG_MAX;
 module_param_named(cpu_intensive_thresh_us, wq_cpu_intensive_thresh_us, ulong, 0644);
 
-static bool wq_disable_numa;
-module_param_named(disable_numa, wq_disable_numa, bool, 0444);
-
 /* see the comment above the definition of WQ_POWER_EFFICIENT */
 static bool wq_power_efficient = IS_ENABLED(CONFIG_WQ_POWER_EFFICIENT_DEFAULT);
 module_param_named(power_efficient, wq_power_efficient, bool, 0444);
@@ -5794,10 +5791,8 @@ out_unlock:
  *
  * Unbound workqueues have the following extra attributes.
  *
- *  pool_ids	RO int	: the associated pool IDs for each node
  *  nice	RW int	: nice value of the workers
  *  cpumask	RW mask	: bitmask of allowed CPUs for the workers
- *  numa	RW bool	: whether enable NUMA affinity
  */
 struct wq_device {
 	struct workqueue_struct		*wq;
@@ -5849,28 +5844,6 @@ static struct attribute *wq_sysfs_attrs[] = {
 	NULL,
 };
 ATTRIBUTE_GROUPS(wq_sysfs);
-
-static ssize_t wq_pool_ids_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct workqueue_struct *wq = dev_to_wq(dev);
-	const char *delim = "";
-	int node, written = 0;
-
-	cpus_read_lock();
-	rcu_read_lock();
-	for_each_node(node) {
-		written += scnprintf(buf + written, PAGE_SIZE - written,
-				     "%s%d:%d", delim, node,
-				     unbound_pwq_by_node(wq, node)->pool->id);
-		delim = " ";
-	}
-	written += scnprintf(buf + written, PAGE_SIZE - written, "\n");
-	rcu_read_unlock();
-	cpus_read_unlock();
-
-	return written;
-}
 
 static ssize_t wq_nice_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
@@ -5962,50 +5935,9 @@ out_unlock:
 	return ret ?: count;
 }
 
-static ssize_t wq_numa_show(struct device *dev, struct device_attribute *attr,
-			    char *buf)
-{
-	struct workqueue_struct *wq = dev_to_wq(dev);
-	int written;
-
-	mutex_lock(&wq->mutex);
-	written = scnprintf(buf, PAGE_SIZE, "%d\n",
-			    !wq->unbound_attrs->no_numa);
-	mutex_unlock(&wq->mutex);
-
-	return written;
-}
-
-static ssize_t wq_numa_store(struct device *dev, struct device_attribute *attr,
-			     const char *buf, size_t count)
-{
-	struct workqueue_struct *wq = dev_to_wq(dev);
-	struct workqueue_attrs *attrs;
-	int v, ret = -ENOMEM;
-
-	apply_wqattrs_lock();
-
-	attrs = wq_sysfs_prep_attrs(wq);
-	if (!attrs)
-		goto out_unlock;
-
-	ret = -EINVAL;
-	if (sscanf(buf, "%d", &v) == 1) {
-		attrs->no_numa = !v;
-		ret = apply_workqueue_attrs_locked(wq, attrs);
-	}
-
-out_unlock:
-	apply_wqattrs_unlock();
-	free_workqueue_attrs(attrs);
-	return ret ?: count;
-}
-
 static struct device_attribute wq_sysfs_unbound_attrs[] = {
-	__ATTR(pool_ids, 0444, wq_pool_ids_show, NULL),
 	__ATTR(nice, 0644, wq_nice_show, wq_nice_store),
 	__ATTR(cpumask, 0644, wq_cpumask_show, wq_cpumask_store),
-	__ATTR(numa, 0644, wq_numa_show, wq_numa_store),
 	__ATTR_NULL,
 };
 
@@ -6378,11 +6310,6 @@ static void __init wq_numa_init(void)
 
 	if (num_possible_nodes() <= 1)
 		return;
-
-	if (wq_disable_numa) {
-		pr_info("workqueue: NUMA affinity support disabled\n");
-		return;
-	}
 
 	for_each_possible_cpu(cpu) {
 		if (WARN_ON(cpu_to_node(cpu) == NUMA_NO_NODE)) {
