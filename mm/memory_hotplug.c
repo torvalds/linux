@@ -1439,7 +1439,13 @@ int __ref add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
 	if (mhp_flags & MHP_MEMMAP_ON_MEMORY) {
 		if (mhp_supports_memmap_on_memory(size)) {
 			mhp_altmap.free = memory_block_memmap_on_memory_pages();
-			params.altmap = &mhp_altmap;
+			params.altmap = kmalloc(sizeof(struct vmem_altmap), GFP_KERNEL);
+			if (!params.altmap) {
+				ret = -ENOMEM;
+				goto error;
+			}
+
+			memcpy(params.altmap, &mhp_altmap, sizeof(mhp_altmap));
 		}
 		/* fallback to not using altmap  */
 	}
@@ -1447,13 +1453,13 @@ int __ref add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
 	/* call arch's memory hotadd */
 	ret = arch_add_memory(nid, start, size, &params);
 	if (ret < 0)
-		goto error;
+		goto error_free;
 
 	/* create memory block devices after memory was added */
-	ret = create_memory_block_devices(start, size, mhp_altmap.free, group);
+	ret = create_memory_block_devices(start, size, params.altmap, group);
 	if (ret) {
 		arch_remove_memory(start, size, NULL);
-		goto error;
+		goto error_free;
 	}
 
 	if (new_node) {
@@ -1490,6 +1496,8 @@ int __ref add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
 		walk_memory_blocks(start, size, NULL, online_memory_block);
 
 	return ret;
+error_free:
+	kfree(params.altmap);
 error:
 	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
 		memblock_remove(start, size);
@@ -2056,12 +2064,18 @@ static int check_memblock_offlined_cb(struct memory_block *mem, void *arg)
 	return 0;
 }
 
-static int get_nr_vmemmap_pages_cb(struct memory_block *mem, void *arg)
+static int test_has_altmap_cb(struct memory_block *mem, void *arg)
 {
+	struct memory_block **mem_ptr = (struct memory_block **)arg;
 	/*
-	 * If not set, continue with the next block.
+	 * return the memblock if we have altmap
+	 * and break callback.
 	 */
-	return mem->nr_vmemmap_pages;
+	if (mem->altmap) {
+		*mem_ptr = mem;
+		return 1;
+	}
+	return 0;
 }
 
 static int check_cpu_on_node(int nid)
@@ -2136,10 +2150,9 @@ EXPORT_SYMBOL(try_offline_node);
 
 static int __ref try_remove_memory(u64 start, u64 size)
 {
-	struct vmem_altmap mhp_altmap = {};
-	struct vmem_altmap *altmap = NULL;
-	unsigned long nr_vmemmap_pages;
+	struct memory_block *mem;
 	int rc = 0, nid = NUMA_NO_NODE;
+	struct vmem_altmap *altmap = NULL;
 
 	BUG_ON(check_hotplug_memory_range(start, size));
 
@@ -2161,25 +2174,20 @@ static int __ref try_remove_memory(u64 start, u64 size)
 	 * the same granularity it was added - a single memory block.
 	 */
 	if (mhp_memmap_on_memory()) {
-		nr_vmemmap_pages = walk_memory_blocks(start, size, NULL,
-						      get_nr_vmemmap_pages_cb);
-		if (nr_vmemmap_pages) {
+		rc = walk_memory_blocks(start, size, &mem, test_has_altmap_cb);
+		if (rc) {
 			if (size != memory_block_size_bytes()) {
 				pr_warn("Refuse to remove %#llx - %#llx,"
 					"wrong granularity\n",
 					start, start + size);
 				return -EINVAL;
 			}
-
+			altmap = mem->altmap;
 			/*
-			 * Let remove_pmd_table->free_hugepage_table do the
-			 * right thing if we used vmem_altmap when hot-adding
-			 * the range.
+			 * Mark altmap NULL so that we can add a debug
+			 * check on memblock free.
 			 */
-			mhp_altmap.base_pfn = PHYS_PFN(start);
-			mhp_altmap.free = nr_vmemmap_pages;
-			mhp_altmap.alloc = nr_vmemmap_pages;
-			altmap = &mhp_altmap;
+			mem->altmap = NULL;
 		}
 	}
 
@@ -2195,6 +2203,12 @@ static int __ref try_remove_memory(u64 start, u64 size)
 	mem_hotplug_begin();
 
 	arch_remove_memory(start, size, altmap);
+
+	/* Verify that all vmemmap pages have actually been freed. */
+	if (altmap) {
+		WARN(altmap->alloc, "Altmap not fully unmapped");
+		kfree(altmap);
+	}
 
 	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK)) {
 		memblock_phys_free(start, size);
