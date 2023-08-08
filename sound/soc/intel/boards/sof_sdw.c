@@ -1366,6 +1366,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		return -ENOMEM;
 
 	/* generate codec name on different links in the same group */
+	j = adr_index;
 	for (adr_link_next = adr_link; adr_link_next && adr_link_next->num_adr &&
 	     i < cpu_dai_num; adr_link_next++) {
 		const struct snd_soc_acpi_endpoint *endpoints;
@@ -1380,7 +1381,8 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		if (cpu_dai_id[i] != ffs(adr_link_next->mask) - 1)
 			continue;
 
-		for (j = adr_index; j < adr_link_next->num_adr; j++) {
+		/* j reset after loop, adr_index only applies to first link */
+		for (; j < adr_link_next->num_adr; j++) {
 			int codec_index;
 			u64 adr = adr_link_next->adr_d[j].adr;
 
@@ -1412,6 +1414,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 			codec_dlc_index++;
 			(*codec_conf_index)++;
 		}
+		j = 0;
 
 		/* check next link to create codec dai in the processed group */
 		i++;
