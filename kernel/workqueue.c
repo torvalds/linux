@@ -366,7 +366,6 @@ static bool wq_online;			/* can kworkers be created yet? */
 
 /* buf for wq_update_unbound_pod_attrs(), protected by CPU hotplug exclusion */
 static struct workqueue_attrs *wq_update_pod_attrs_buf;
-static cpumask_var_t wq_update_pod_cpumask_buf;
 
 static DEFINE_MUTEX(wq_pool_mutex);	/* protects pools and workqueues list */
 static DEFINE_MUTEX(wq_pool_attach_mutex); /* protects worker attach/detach */
@@ -2050,6 +2049,11 @@ static struct worker *alloc_worker(int node)
 	return worker;
 }
 
+static cpumask_t *pool_allowed_cpus(struct worker_pool *pool)
+{
+	return pool->attrs->__pod_cpumask;
+}
+
 /**
  * worker_attach_to_pool() - attach a worker to a pool
  * @worker: worker to be attached
@@ -2075,7 +2079,7 @@ static void worker_attach_to_pool(struct worker *worker,
 		kthread_set_per_cpu(worker->task, pool->cpu);
 
 	if (worker->rescue_wq)
-		set_cpus_allowed_ptr(worker->task, pool->attrs->cpumask);
+		set_cpus_allowed_ptr(worker->task, pool_allowed_cpus(pool));
 
 	list_add_tail(&worker->node, &pool->workers);
 	worker->pool = pool;
@@ -2167,7 +2171,7 @@ static struct worker *create_worker(struct worker_pool *pool)
 	}
 
 	set_user_nice(worker->task, pool->attrs->nice);
-	kthread_bind_mask(worker->task, pool->attrs->cpumask);
+	kthread_bind_mask(worker->task, pool_allowed_cpus(pool));
 
 	/* successful, attach the worker to the pool */
 	worker_attach_to_pool(worker, pool);
@@ -3672,6 +3676,7 @@ void free_workqueue_attrs(struct workqueue_attrs *attrs)
 {
 	if (attrs) {
 		free_cpumask_var(attrs->cpumask);
+		free_cpumask_var(attrs->__pod_cpumask);
 		kfree(attrs);
 	}
 }
@@ -3693,6 +3698,8 @@ struct workqueue_attrs *alloc_workqueue_attrs(void)
 		goto fail;
 	if (!alloc_cpumask_var(&attrs->cpumask, GFP_KERNEL))
 		goto fail;
+	if (!alloc_cpumask_var(&attrs->__pod_cpumask, GFP_KERNEL))
+		goto fail;
 
 	cpumask_copy(attrs->cpumask, cpu_possible_mask);
 	attrs->affn_scope = wq_affn_dfl;
@@ -3707,6 +3714,7 @@ static void copy_workqueue_attrs(struct workqueue_attrs *to,
 {
 	to->nice = from->nice;
 	cpumask_copy(to->cpumask, from->cpumask);
+	cpumask_copy(to->__pod_cpumask, from->__pod_cpumask);
 
 	/*
 	 * Unlike hash and equality test, copying shouldn't ignore wq-only
@@ -3735,6 +3743,8 @@ static u32 wqattrs_hash(const struct workqueue_attrs *attrs)
 	hash = jhash_1word(attrs->nice, hash);
 	hash = jhash(cpumask_bits(attrs->cpumask),
 		     BITS_TO_LONGS(nr_cpumask_bits) * sizeof(long), hash);
+	hash = jhash(cpumask_bits(attrs->__pod_cpumask),
+		     BITS_TO_LONGS(nr_cpumask_bits) * sizeof(long), hash);
 	return hash;
 }
 
@@ -3745,6 +3755,8 @@ static bool wqattrs_equal(const struct workqueue_attrs *a,
 	if (a->nice != b->nice)
 		return false;
 	if (!cpumask_equal(a->cpumask, b->cpumask))
+		return false;
+	if (!cpumask_equal(a->__pod_cpumask, b->__pod_cpumask))
 		return false;
 	return true;
 }
@@ -3998,9 +4010,9 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 		}
 	}
 
-	/* If cpumask is contained inside a NUMA pod, that's our NUMA node */
+	/* If __pod_cpumask is contained inside a NUMA pod, that's our node */
 	for (pod = 0; pod < pt->nr_pods; pod++) {
-		if (cpumask_subset(attrs->cpumask, pt->pod_cpus[pod])) {
+		if (cpumask_subset(attrs->__pod_cpumask, pt->pod_cpus[pod])) {
 			node = pt->pod_node[pod];
 			break;
 		}
@@ -4190,11 +4202,10 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
  * @attrs: the wq_attrs of the default pwq of the target workqueue
  * @cpu: the target CPU
  * @cpu_going_down: if >= 0, the CPU to consider as offline
- * @cpumask: outarg, the resulting cpumask
  *
  * Calculate the cpumask a workqueue with @attrs should use on @pod. If
  * @cpu_going_down is >= 0, that cpu is considered offline during calculation.
- * The result is stored in @cpumask.
+ * The result is stored in @attrs->__pod_cpumask.
  *
  * If pod affinity is not enabled, @attrs->cpumask is always used. If enabled
  * and @pod has online CPUs requested by @attrs, the returned cpumask is the
@@ -4202,27 +4213,27 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
  *
  * The caller is responsible for ensuring that the cpumask of @pod stays stable.
  */
-static void wq_calc_pod_cpumask(const struct workqueue_attrs *attrs, int cpu,
-				int cpu_going_down, cpumask_t *cpumask)
+static void wq_calc_pod_cpumask(struct workqueue_attrs *attrs, int cpu,
+				int cpu_going_down)
 {
 	const struct wq_pod_type *pt = wqattrs_pod_type(attrs);
 	int pod = pt->cpu_pod[cpu];
 
 	/* does @pod have any online CPUs @attrs wants? */
-	cpumask_and(cpumask, pt->pod_cpus[pod], attrs->cpumask);
-	cpumask_and(cpumask, cpumask, cpu_online_mask);
+	cpumask_and(attrs->__pod_cpumask, pt->pod_cpus[pod], attrs->cpumask);
+	cpumask_and(attrs->__pod_cpumask, attrs->__pod_cpumask, cpu_online_mask);
 	if (cpu_going_down >= 0)
-		cpumask_clear_cpu(cpu_going_down, cpumask);
+		cpumask_clear_cpu(cpu_going_down, attrs->__pod_cpumask);
 
-	if (cpumask_empty(cpumask)) {
-		cpumask_copy(cpumask, attrs->cpumask);
+	if (cpumask_empty(attrs->__pod_cpumask)) {
+		cpumask_copy(attrs->__pod_cpumask, attrs->cpumask);
 		return;
 	}
 
 	/* yeap, return possible CPUs in @pod that @attrs wants */
-	cpumask_and(cpumask, attrs->cpumask, pt->pod_cpus[pod]);
+	cpumask_and(attrs->__pod_cpumask, attrs->cpumask, pt->pod_cpus[pod]);
 
-	if (cpumask_empty(cpumask))
+	if (cpumask_empty(attrs->__pod_cpumask))
 		pr_warn_once("WARNING: workqueue cpumask: online intersect > "
 				"possible intersect\n");
 }
@@ -4276,7 +4287,7 @@ apply_wqattrs_prepare(struct workqueue_struct *wq,
 		      const cpumask_var_t unbound_cpumask)
 {
 	struct apply_wqattrs_ctx *ctx;
-	struct workqueue_attrs *new_attrs, *tmp_attrs;
+	struct workqueue_attrs *new_attrs;
 	int cpu;
 
 	lockdep_assert_held(&wq_pool_mutex);
@@ -4288,8 +4299,7 @@ apply_wqattrs_prepare(struct workqueue_struct *wq,
 	ctx = kzalloc(struct_size(ctx, pwq_tbl, nr_cpu_ids), GFP_KERNEL);
 
 	new_attrs = alloc_workqueue_attrs();
-	tmp_attrs = alloc_workqueue_attrs();
-	if (!ctx || !new_attrs || !tmp_attrs)
+	if (!ctx || !new_attrs)
 		goto out_free;
 
 	/*
@@ -4299,23 +4309,18 @@ apply_wqattrs_prepare(struct workqueue_struct *wq,
 	 */
 	copy_workqueue_attrs(new_attrs, attrs);
 	wqattrs_actualize_cpumask(new_attrs, unbound_cpumask);
+	cpumask_copy(new_attrs->__pod_cpumask, new_attrs->cpumask);
 	ctx->dfl_pwq = alloc_unbound_pwq(wq, new_attrs);
 	if (!ctx->dfl_pwq)
 		goto out_free;
-
-	/*
-	 * We may create multiple pwqs with differing cpumasks. Make a copy of
-	 * @new_attrs which will be modified and used to obtain pools.
-	 */
-	copy_workqueue_attrs(tmp_attrs, new_attrs);
 
 	for_each_possible_cpu(cpu) {
 		if (new_attrs->ordered) {
 			ctx->dfl_pwq->refcnt++;
 			ctx->pwq_tbl[cpu] = ctx->dfl_pwq;
 		} else {
-			wq_calc_pod_cpumask(new_attrs, cpu, -1, tmp_attrs->cpumask);
-			ctx->pwq_tbl[cpu] = alloc_unbound_pwq(wq, tmp_attrs);
+			wq_calc_pod_cpumask(new_attrs, cpu, -1);
+			ctx->pwq_tbl[cpu] = alloc_unbound_pwq(wq, new_attrs);
 			if (!ctx->pwq_tbl[cpu])
 				goto out_free;
 		}
@@ -4324,14 +4329,13 @@ apply_wqattrs_prepare(struct workqueue_struct *wq,
 	/* save the user configured attrs and sanitize it. */
 	copy_workqueue_attrs(new_attrs, attrs);
 	cpumask_and(new_attrs->cpumask, new_attrs->cpumask, cpu_possible_mask);
+	cpumask_copy(new_attrs->__pod_cpumask, new_attrs->cpumask);
 	ctx->attrs = new_attrs;
 
 	ctx->wq = wq;
-	free_workqueue_attrs(tmp_attrs);
 	return ctx;
 
 out_free:
-	free_workqueue_attrs(tmp_attrs);
 	free_workqueue_attrs(new_attrs);
 	apply_wqattrs_cleanup(ctx);
 	return ERR_PTR(-ENOMEM);
@@ -4459,7 +4463,6 @@ static void wq_update_pod(struct workqueue_struct *wq, int cpu,
 	int off_cpu = online ? -1 : hotplug_cpu;
 	struct pool_workqueue *old_pwq = NULL, *pwq;
 	struct workqueue_attrs *target_attrs;
-	cpumask_t *cpumask;
 
 	lockdep_assert_held(&wq_pool_mutex);
 
@@ -4472,20 +4475,18 @@ static void wq_update_pod(struct workqueue_struct *wq, int cpu,
 	 * CPU hotplug exclusion.
 	 */
 	target_attrs = wq_update_pod_attrs_buf;
-	cpumask = wq_update_pod_cpumask_buf;
 
 	copy_workqueue_attrs(target_attrs, wq->unbound_attrs);
 	wqattrs_actualize_cpumask(target_attrs, wq_unbound_cpumask);
 
 	/* nothing to do if the target cpumask matches the current pwq */
-	wq_calc_pod_cpumask(target_attrs, cpu, off_cpu, cpumask);
+	wq_calc_pod_cpumask(target_attrs, cpu, off_cpu);
 	pwq = rcu_dereference_protected(*per_cpu_ptr(wq->cpu_pwq, cpu),
 					lockdep_is_held(&wq_pool_mutex));
-	if (cpumask_equal(cpumask, pwq->pool->attrs->cpumask))
+	if (wqattrs_equal(target_attrs, pwq->pool->attrs))
 		return;
 
 	/* create a new pwq */
-	cpumask_copy(target_attrs->cpumask, cpumask);
 	pwq = alloc_unbound_pwq(wq, target_attrs);
 	if (!pwq) {
 		pr_warn("workqueue: allocation failed while updating CPU pod affinity of \"%s\"\n",
@@ -5409,7 +5410,7 @@ static void rebind_workers(struct worker_pool *pool)
 	for_each_pool_worker(worker, pool) {
 		kthread_set_per_cpu(worker->task, pool->cpu);
 		WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task,
-						  pool->attrs->cpumask) < 0);
+						  pool_allowed_cpus(pool)) < 0);
 	}
 
 	raw_spin_lock_irq(&pool->lock);
@@ -6424,8 +6425,6 @@ void __init workqueue_init_early(void)
 	wq_update_pod_attrs_buf = alloc_workqueue_attrs();
 	BUG_ON(!wq_update_pod_attrs_buf);
 
-	BUG_ON(!alloc_cpumask_var(&wq_update_pod_cpumask_buf, GFP_KERNEL));
-
 	/* initialize WQ_AFFN_SYSTEM pods */
 	pt->pod_cpus = kcalloc(1, sizeof(pt->pod_cpus[0]), GFP_KERNEL);
 	pt->pod_node = kcalloc(1, sizeof(pt->pod_node[0]), GFP_KERNEL);
@@ -6451,6 +6450,7 @@ void __init workqueue_init_early(void)
 			BUG_ON(init_worker_pool(pool));
 			pool->cpu = cpu;
 			cpumask_copy(pool->attrs->cpumask, cpumask_of(cpu));
+			cpumask_copy(pool->attrs->__pod_cpumask, cpumask_of(cpu));
 			pool->attrs->nice = std_nice[i++];
 			pool->node = cpu_to_node(cpu);
 

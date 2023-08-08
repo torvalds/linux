@@ -150,8 +150,24 @@ struct workqueue_attrs {
 
 	/**
 	 * @cpumask: allowed CPUs
+	 *
+	 * Work items in this workqueue are affine to these CPUs and not allowed
+	 * to execute on other CPUs. A pool serving a workqueue must have the
+	 * same @cpumask.
 	 */
 	cpumask_var_t cpumask;
+
+	/**
+	 * @__pod_cpumask: internal attribute used to create per-pod pools
+	 *
+	 * Internal use only.
+	 *
+	 * Per-pod unbound worker pools are used to improve locality. Always a
+	 * subset of ->cpumask. A workqueue can be associated with multiple
+	 * worker pools with disjoint @__pod_cpumask's. Whether the enforcement
+	 * of a pool's @__pod_cpumask is strict depends on @affn_strict.
+	 */
+	cpumask_var_t __pod_cpumask;
 
 	/*
 	 * Below fields aren't properties of a worker_pool. They only modify how
