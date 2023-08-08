@@ -463,13 +463,6 @@ static int jh7110_tdm_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops jh7110_tdm_dai_ops = {
-	.startup	= jh7110_tdm_startup,
-	.hw_params	= jh7110_tdm_hw_params,
-	.trigger	= jh7110_tdm_trigger,
-	.set_fmt	= jh7110_tdm_set_dai_fmt,
-};
-
 static int jh7110_tdm_dai_probe(struct snd_soc_dai *dai)
 {
 	struct jh7110_tdm_dev *tdm = snd_soc_dai_get_drvdata(dai);
@@ -478,6 +471,14 @@ static int jh7110_tdm_dai_probe(struct snd_soc_dai *dai)
 	snd_soc_dai_set_drvdata(dai, tdm);
 	return 0;
 }
+
+static const struct snd_soc_dai_ops jh7110_tdm_dai_ops = {
+	.probe		= jh7110_tdm_dai_probe,
+	.startup	= jh7110_tdm_startup,
+	.hw_params	= jh7110_tdm_hw_params,
+	.trigger	= jh7110_tdm_trigger,
+	.set_fmt	= jh7110_tdm_set_dai_fmt,
+};
 
 #define JH7110_TDM_RATES	SNDRV_PCM_RATE_8000_48000
 
@@ -502,7 +503,6 @@ static struct snd_soc_dai_driver jh7110_tdm_dai = {
 		.formats        = JH7110_TDM_FORMATS,
 	},
 	.ops = &jh7110_tdm_dai_ops,
-	.probe = jh7110_tdm_dai_probe,
 	.symmetric_rate = 1,
 };
 
