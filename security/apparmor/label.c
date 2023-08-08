@@ -159,9 +159,9 @@ static int profile_cmp(struct aa_profile *a, struct aa_profile *b)
  * @b: aa_profile to compare (NOT NULL)
  * @bn: length of @b
  *
- * Returns: <0  if a < vec
- *          ==0 if a == vec
- *          >0  if a > vec
+ * Returns: <0  if @a < @b
+ *          ==0 if @a == @b
+ *          >0  if @a > @b
  */
 static int vec_cmp(struct aa_profile **a, int an, struct aa_profile **b, int bn)
 {
