@@ -4,6 +4,8 @@
 #include "idpf.h"
 #include "idpf_lan_pf_regs.h"
 
+#define IDPF_PF_ITR_IDX_SPACING		0x4
+
 /**
  * idpf_ctlq_reg_init - initialize default mailbox registers
  * @cq: pointer to the array of create control queues
@@ -61,6 +63,61 @@ static void idpf_mb_intr_reg_init(struct idpf_adapter *adapter)
 }
 
 /**
+ * idpf_intr_reg_init - Initialize interrupt registers
+ * @vport: virtual port structure
+ */
+static int idpf_intr_reg_init(struct idpf_vport *vport)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+	int num_vecs = vport->num_q_vectors;
+	struct idpf_vec_regs *reg_vals;
+	int num_regs, i, err = 0;
+	u32 rx_itr, tx_itr;
+	u16 total_vecs;
+
+	total_vecs = idpf_get_reserved_vecs(vport->adapter);
+	reg_vals = kcalloc(total_vecs, sizeof(struct idpf_vec_regs),
+			   GFP_KERNEL);
+	if (!reg_vals)
+		return -ENOMEM;
+
+	num_regs = idpf_get_reg_intr_vecs(vport, reg_vals);
+	if (num_regs < num_vecs) {
+		err = -EINVAL;
+		goto free_reg_vals;
+	}
+
+	for (i = 0; i < num_vecs; i++) {
+		struct idpf_q_vector *q_vector = &vport->q_vectors[i];
+		u16 vec_id = vport->q_vector_idxs[i] - IDPF_MBX_Q_VEC;
+		struct idpf_intr_reg *intr = &q_vector->intr_reg;
+		u32 spacing;
+
+		intr->dyn_ctl = idpf_get_reg_addr(adapter,
+						  reg_vals[vec_id].dyn_ctl_reg);
+		intr->dyn_ctl_intena_m = PF_GLINT_DYN_CTL_INTENA_M;
+		intr->dyn_ctl_itridx_s = PF_GLINT_DYN_CTL_ITR_INDX_S;
+		intr->dyn_ctl_intrvl_s = PF_GLINT_DYN_CTL_INTERVAL_S;
+
+		spacing = IDPF_ITR_IDX_SPACING(reg_vals[vec_id].itrn_index_spacing,
+					       IDPF_PF_ITR_IDX_SPACING);
+		rx_itr = PF_GLINT_ITR_ADDR(VIRTCHNL2_ITR_IDX_0,
+					   reg_vals[vec_id].itrn_reg,
+					   spacing);
+		tx_itr = PF_GLINT_ITR_ADDR(VIRTCHNL2_ITR_IDX_1,
+					   reg_vals[vec_id].itrn_reg,
+					   spacing);
+		intr->rx_itr = idpf_get_reg_addr(adapter, rx_itr);
+		intr->tx_itr = idpf_get_reg_addr(adapter, tx_itr);
+	}
+
+free_reg_vals:
+	kfree(reg_vals);
+
+	return err;
+}
+
+/**
  * idpf_reset_reg_init - Initialize reset registers
  * @adapter: Driver specific private structure
  */
@@ -92,6 +149,7 @@ static void idpf_trigger_reset(struct idpf_adapter *adapter,
 static void idpf_reg_ops_init(struct idpf_adapter *adapter)
 {
 	adapter->dev_ops.reg_ops.ctlq_reg_init = idpf_ctlq_reg_init;
+	adapter->dev_ops.reg_ops.intr_reg_init = idpf_intr_reg_init;
 	adapter->dev_ops.reg_ops.mb_intr_reg_init = idpf_mb_intr_reg_init;
 	adapter->dev_ops.reg_ops.reset_reg_init = idpf_reset_reg_init;
 	adapter->dev_ops.reg_ops.trigger_reset = idpf_trigger_reset;

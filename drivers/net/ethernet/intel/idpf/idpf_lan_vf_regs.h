@@ -88,6 +88,31 @@
 #define VF_INT_DYN_CTLN_WB_ON_ITR_M	BIT(VF_INT_DYN_CTLN_WB_ON_ITR_S)
 #define VF_INT_DYN_CTLN_INTENA_MSK_S	31
 #define VF_INT_DYN_CTLN_INTENA_MSK_M	BIT(VF_INT_DYN_CTLN_INTENA_MSK_S)
+/* _ITR is ITR index, _INT is interrupt index, _itrn_indx_spacing is spacing
+ * b/w itrn registers of the same vector
+ */
+#define VF_INT_ITR0(_ITR)		(0x00004C00 + ((_ITR) * 4))
+#define VF_INT_ITRN_ADDR(_ITR, _reg_start, _itrn_indx_spacing)	\
+	((_reg_start) + ((_ITR) * (_itrn_indx_spacing)))
+/* For VF with 16 vector support, itrn_reg_spacing is 0x4, itrn_indx_spacing
+ * is 0x40 and base register offset is 0x00002800
+ */
+#define VF_INT_ITRN(_INT, _ITR)		\
+	(0x00002800 + ((_INT) * 4) + ((_ITR) * 0x40))
+/* For VF with 64 vector support, itrn_reg_spacing is 0x4, itrn_indx_spacing
+ * is 0x100 and base register offset is 0x00002C00
+ */
+#define VF_INT_ITRN_64(_INT, _ITR)	\
+	(0x00002C00 + ((_INT) * 4) + ((_ITR) * 0x100))
+/* For VF with 2k vector support, itrn_reg_spacing is 0x4, itrn_indx_spacing
+ * is 0x2000 and base register offset is 0x00072000
+ */
+#define VF_INT_ITRN_2K(_INT, _ITR)	\
+	(0x00072000 + ((_INT) * 4) + ((_ITR) * 0x2000))
+#define VF_INT_ITRN_MAX_INDEX		2
+#define VF_INT_ITRN_INTERVAL_S		0
+#define VF_INT_ITRN_INTERVAL_M		GENMASK(11, 0)
+#define VF_INT_PBA_CLEAR		0x00008900
 
 #define VF_INT_ICR0_ENA1		0x00005000
 #define VF_INT_ICR0_ENA1_ADMINQ_S	30

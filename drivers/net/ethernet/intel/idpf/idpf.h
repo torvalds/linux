@@ -176,12 +176,14 @@ struct idpf_vport_max_q {
 /**
  * struct idpf_reg_ops - Device specific register operation function pointers
  * @ctlq_reg_init: Mailbox control queue register initialization
+ * @intr_reg_init: Traffic interrupt register initialization
  * @mb_intr_reg_init: Mailbox interrupt register initialization
  * @reset_reg_init: Reset register initialization
  * @trigger_reset: Trigger a reset to occur
  */
 struct idpf_reg_ops {
 	void (*ctlq_reg_init)(struct idpf_ctlq_create_info *cq);
+	int (*intr_reg_init)(struct idpf_vport *vport);
 	void (*mb_intr_reg_init)(struct idpf_adapter *adapter);
 	void (*reset_reg_init)(struct idpf_adapter *adapter);
 	void (*trigger_reset)(struct idpf_adapter *adapter,
@@ -204,12 +206,24 @@ struct idpf_dev_ops {
 #define IDPF_FOREACH_VPORT_VC_STATE(STATE)	\
 	STATE(IDPF_VC_CREATE_VPORT)		\
 	STATE(IDPF_VC_CREATE_VPORT_ERR)		\
+	STATE(IDPF_VC_ENA_VPORT)		\
+	STATE(IDPF_VC_ENA_VPORT_ERR)		\
+	STATE(IDPF_VC_DIS_VPORT)		\
+	STATE(IDPF_VC_DIS_VPORT_ERR)		\
 	STATE(IDPF_VC_DESTROY_VPORT)		\
 	STATE(IDPF_VC_DESTROY_VPORT_ERR)	\
 	STATE(IDPF_VC_CONFIG_TXQ)		\
 	STATE(IDPF_VC_CONFIG_TXQ_ERR)		\
 	STATE(IDPF_VC_CONFIG_RXQ)		\
 	STATE(IDPF_VC_CONFIG_RXQ_ERR)		\
+	STATE(IDPF_VC_ENA_QUEUES)		\
+	STATE(IDPF_VC_ENA_QUEUES_ERR)		\
+	STATE(IDPF_VC_DIS_QUEUES)		\
+	STATE(IDPF_VC_DIS_QUEUES_ERR)		\
+	STATE(IDPF_VC_MAP_IRQ)			\
+	STATE(IDPF_VC_MAP_IRQ_ERR)		\
+	STATE(IDPF_VC_UNMAP_IRQ)		\
+	STATE(IDPF_VC_UNMAP_IRQ_ERR)		\
 	STATE(IDPF_VC_ALLOC_VECTORS)		\
 	STATE(IDPF_VC_ALLOC_VECTORS_ERR)	\
 	STATE(IDPF_VC_DEALLOC_VECTORS)		\
@@ -272,8 +286,10 @@ extern const char * const idpf_vport_vc_state_str[];
  * @base_rxd: True if the driver should use base descriptors instead of flex
  * @num_q_vectors: Number of IRQ vectors allocated
  * @q_vectors: Array of queue vectors
+ * @q_vector_idxs: Starting index of queue vectors
  * @max_mtu: device given max possible MTU
  * @default_mac_addr: device will give a default MAC to use
+ * @link_up: True if link is up
  * @vc_msg: Virtchnl message buffer
  * @vc_state: Virtchnl message state
  * @vchnl_wq: Wait queue for virtchnl messages
@@ -310,8 +326,11 @@ struct idpf_vport {
 
 	u16 num_q_vectors;
 	struct idpf_q_vector *q_vectors;
+	u16 *q_vector_idxs;
 	u16 max_mtu;
 	u8 default_mac_addr[ETH_ALEN];
+
+	bool link_up;
 
 	char vc_msg[IDPF_CTLQ_MAX_BUF_LEN];
 	DECLARE_BITMAP(vc_state, IDPF_VC_NBITS);
@@ -389,6 +408,22 @@ struct idpf_avail_queue_info {
 	u16 avail_txq;
 	u16 avail_bufq;
 	u16 avail_complq;
+};
+
+/**
+ * struct idpf_vector_info - Utility structure to pass function arguments as a
+ *			     structure
+ * @num_req_vecs: Vectors required based on the number of queues updated by the
+ *		  user via ethtool
+ * @num_curr_vecs: Current number of vectors, must be >= @num_req_vecs
+ * @index: Relative starting index for vectors
+ * @default_vport: Vectors are for default vport
+ */
+struct idpf_vector_info {
+	u16 num_req_vecs;
+	u16 num_curr_vecs;
+	u16 index;
+	bool default_vport;
 };
 
 /**
@@ -748,6 +783,10 @@ int idpf_vc_core_init(struct idpf_adapter *adapter);
 void idpf_vc_core_deinit(struct idpf_adapter *adapter);
 int idpf_intr_req(struct idpf_adapter *adapter);
 void idpf_intr_rel(struct idpf_adapter *adapter);
+int idpf_get_reg_intr_vecs(struct idpf_vport *vport,
+			   struct idpf_vec_regs *reg_vals);
+int idpf_send_enable_vport_msg(struct idpf_vport *vport);
+int idpf_send_disable_vport_msg(struct idpf_vport *vport);
 int idpf_send_destroy_vport_msg(struct idpf_vport *vport);
 int idpf_send_get_rx_ptype_msg(struct idpf_vport *vport);
 int idpf_send_get_set_rss_key_msg(struct idpf_vport *vport, bool get);
@@ -755,6 +794,9 @@ int idpf_send_get_set_rss_lut_msg(struct idpf_vport *vport, bool get);
 int idpf_send_dealloc_vectors_msg(struct idpf_adapter *adapter);
 int idpf_send_alloc_vectors_msg(struct idpf_adapter *adapter, u16 num_vectors);
 void idpf_deinit_task(struct idpf_adapter *adapter);
+int idpf_req_rel_vector_indexes(struct idpf_adapter *adapter,
+				u16 *q_vector_idxs,
+				struct idpf_vector_info *vec_info);
 int idpf_get_vec_ids(struct idpf_adapter *adapter,
 		     u16 *vecids, int num_vecids,
 		     struct virtchnl2_vector_chunks *chunks);
@@ -769,13 +811,16 @@ void idpf_vport_dealloc_max_qs(struct idpf_adapter *adapter,
 int idpf_add_del_mac_filters(struct idpf_vport *vport,
 			     struct idpf_netdev_priv *np,
 			     bool add, bool async);
+int idpf_send_disable_queues_msg(struct idpf_vport *vport);
 void idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q);
 u32 idpf_get_vport_id(struct idpf_vport *vport);
 int idpf_vport_queue_ids_init(struct idpf_vport *vport);
 int idpf_queue_reg_init(struct idpf_vport *vport);
 int idpf_send_config_queues_msg(struct idpf_vport *vport);
+int idpf_send_enable_queues_msg(struct idpf_vport *vport);
 int idpf_send_create_vport_msg(struct idpf_adapter *adapter,
 			       struct idpf_vport_max_q *max_q);
 int idpf_check_supported_desc_ids(struct idpf_vport *vport);
+int idpf_send_map_unmap_queue_vector_msg(struct idpf_vport *vport, bool map);
 
 #endif /* !_IDPF_H_ */

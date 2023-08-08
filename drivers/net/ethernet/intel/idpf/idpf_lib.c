@@ -184,6 +184,141 @@ static int idpf_mb_intr_init(struct idpf_adapter *adapter)
 }
 
 /**
+ * idpf_vector_lifo_push - push MSIX vector index onto stack
+ * @adapter: private data struct
+ * @vec_idx: vector index to store
+ */
+static int idpf_vector_lifo_push(struct idpf_adapter *adapter, u16 vec_idx)
+{
+	struct idpf_vector_lifo *stack = &adapter->vector_stack;
+
+	lockdep_assert_held(&adapter->vector_lock);
+
+	if (stack->top == stack->base) {
+		dev_err(&adapter->pdev->dev, "Exceeded the vector stack limit: %d\n",
+			stack->top);
+		return -EINVAL;
+	}
+
+	stack->vec_idx[--stack->top] = vec_idx;
+
+	return 0;
+}
+
+/**
+ * idpf_vector_lifo_pop - pop MSIX vector index from stack
+ * @adapter: private data struct
+ */
+static int idpf_vector_lifo_pop(struct idpf_adapter *adapter)
+{
+	struct idpf_vector_lifo *stack = &adapter->vector_stack;
+
+	lockdep_assert_held(&adapter->vector_lock);
+
+	if (stack->top == stack->size) {
+		dev_err(&adapter->pdev->dev, "No interrupt vectors are available to distribute!\n");
+
+		return -EINVAL;
+	}
+
+	return stack->vec_idx[stack->top++];
+}
+
+/**
+ * idpf_vector_stash - Store the vector indexes onto the stack
+ * @adapter: private data struct
+ * @q_vector_idxs: vector index array
+ * @vec_info: info related to the number of vectors
+ *
+ * This function is a no-op if there are no vectors indexes to be stashed
+ */
+static void idpf_vector_stash(struct idpf_adapter *adapter, u16 *q_vector_idxs,
+			      struct idpf_vector_info *vec_info)
+{
+	int i, base = 0;
+	u16 vec_idx;
+
+	lockdep_assert_held(&adapter->vector_lock);
+
+	if (!vec_info->num_curr_vecs)
+		return;
+
+	/* For default vports, no need to stash vector allocated from the
+	 * default pool onto the stack
+	 */
+	if (vec_info->default_vport)
+		base = IDPF_MIN_Q_VEC;
+
+	for (i = vec_info->num_curr_vecs - 1; i >= base ; i--) {
+		vec_idx = q_vector_idxs[i];
+		idpf_vector_lifo_push(adapter, vec_idx);
+		adapter->num_avail_msix++;
+	}
+}
+
+/**
+ * idpf_req_rel_vector_indexes - Request or release MSIX vector indexes
+ * @adapter: driver specific private structure
+ * @q_vector_idxs: vector index array
+ * @vec_info: info related to the number of vectors
+ *
+ * This is the core function to distribute the MSIX vectors acquired from the
+ * OS. It expects the caller to pass the number of vectors required and
+ * also previously allocated. First, it stashes previously allocated vector
+ * indexes on to the stack and then figures out if it can allocate requested
+ * vectors. It can wait on acquiring the mutex lock. If the caller passes 0 as
+ * requested vectors, then this function just stashes the already allocated
+ * vectors and returns 0.
+ *
+ * Returns actual number of vectors allocated on success, error value on failure
+ * If 0 is returned, implies the stack has no vectors to allocate which is also
+ * a failure case for the caller
+ */
+int idpf_req_rel_vector_indexes(struct idpf_adapter *adapter,
+				u16 *q_vector_idxs,
+				struct idpf_vector_info *vec_info)
+{
+	u16 num_req_vecs, num_alloc_vecs = 0, max_vecs;
+	struct idpf_vector_lifo *stack;
+	int i, j, vecid;
+
+	mutex_lock(&adapter->vector_lock);
+	stack = &adapter->vector_stack;
+	num_req_vecs = vec_info->num_req_vecs;
+
+	/* Stash interrupt vector indexes onto the stack if required */
+	idpf_vector_stash(adapter, q_vector_idxs, vec_info);
+
+	if (!num_req_vecs)
+		goto rel_lock;
+
+	if (vec_info->default_vport) {
+		/* As IDPF_MIN_Q_VEC per default vport is put aside in the
+		 * default pool of the stack, use them for default vports
+		 */
+		j = vec_info->index * IDPF_MIN_Q_VEC + IDPF_MBX_Q_VEC;
+		for (i = 0; i < IDPF_MIN_Q_VEC; i++) {
+			q_vector_idxs[num_alloc_vecs++] = stack->vec_idx[j++];
+			num_req_vecs--;
+		}
+	}
+
+	/* Find if stack has enough vector to allocate */
+	max_vecs = min(adapter->num_avail_msix, num_req_vecs);
+
+	for (j = 0; j < max_vecs; j++) {
+		vecid = idpf_vector_lifo_pop(adapter);
+		q_vector_idxs[num_alloc_vecs++] = vecid;
+	}
+	adapter->num_avail_msix -= max_vecs;
+
+rel_lock:
+	mutex_unlock(&adapter->vector_lock);
+
+	return num_alloc_vecs;
+}
+
+/**
  * idpf_intr_req - Request interrupt capabilities
  * @adapter: adapter to enable interrupts on
  *
@@ -611,7 +746,14 @@ static void idpf_vport_stop(struct idpf_vport *vport)
 		return;
 
 	netif_carrier_off(vport->netdev);
+	netif_tx_disable(vport->netdev);
 
+	idpf_send_disable_vport_msg(vport);
+	idpf_send_disable_queues_msg(vport);
+	idpf_send_map_unmap_queue_vector_msg(vport, false);
+
+	vport->link_up = false;
+	idpf_vport_intr_deinit(vport);
 	idpf_vport_intr_rel(vport);
 	idpf_vport_queues_rel(vport);
 	np->state = __IDPF_VPORT_DOWN;
@@ -668,6 +810,7 @@ static void idpf_vport_rel(struct idpf_vport *vport)
 {
 	struct idpf_adapter *adapter = vport->adapter;
 	struct idpf_vport_config *vport_config;
+	struct idpf_vector_info vec_info;
 	struct idpf_rss_data *rss_data;
 	struct idpf_vport_max_q max_q;
 	u16 idx = vport->idx;
@@ -702,6 +845,16 @@ static void idpf_vport_rel(struct idpf_vport *vport)
 	max_q.max_complq = vport_config->max_q.max_complq;
 	idpf_vport_dealloc_max_qs(adapter, &max_q);
 
+	/* Release all the allocated vectors on the stack */
+	vec_info.num_req_vecs = 0;
+	vec_info.num_curr_vecs = vport->num_q_vectors;
+	vec_info.default_vport = vport->default_vport;
+
+	idpf_req_rel_vector_indexes(adapter, vport->q_vector_idxs, &vec_info);
+
+	kfree(vport->q_vector_idxs);
+	vport->q_vector_idxs = NULL;
+
 	kfree(adapter->vport_params_recvd[idx]);
 	adapter->vport_params_recvd[idx] = NULL;
 	kfree(adapter->vport_params_reqd[idx]);
@@ -722,6 +875,7 @@ static void idpf_vport_dealloc(struct idpf_vport *vport)
 	unsigned int i = vport->idx;
 
 	idpf_deinit_mac_addr(vport);
+	idpf_vport_stop(vport);
 
 	if (!test_bit(IDPF_HR_RESET_IN_PROG, adapter->flags))
 		idpf_decfg_netdev(vport);
@@ -751,6 +905,7 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 	struct idpf_rss_data *rss_data;
 	u16 idx = adapter->next_vport;
 	struct idpf_vport *vport;
+	u16 num_max_q;
 
 	if (idx == IDPF_NO_FREE_SLOT)
 		return NULL;
@@ -777,6 +932,13 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 	vport->default_vport = adapter->num_alloc_vports <
 			       idpf_get_default_vports(adapter);
 
+	num_max_q = max(max_q->max_txq, max_q->max_rxq);
+	vport->q_vector_idxs = kcalloc(num_max_q, sizeof(u16), GFP_KERNEL);
+	if (!vport->q_vector_idxs) {
+		kfree(vport);
+
+		return NULL;
+	}
 	idpf_vport_init(vport, max_q);
 
 	/* This alloc is done separate from the LUT because it's not strictly
@@ -850,6 +1012,55 @@ void idpf_service_task(struct work_struct *work)
 }
 
 /**
+ * idpf_up_complete - Complete interface up sequence
+ * @vport: virtual port structure
+ *
+ * Returns 0 on success, negative on failure.
+ */
+static int idpf_up_complete(struct idpf_vport *vport)
+{
+	struct idpf_netdev_priv *np = netdev_priv(vport->netdev);
+
+	if (vport->link_up && !netif_carrier_ok(vport->netdev)) {
+		netif_carrier_on(vport->netdev);
+		netif_tx_start_all_queues(vport->netdev);
+	}
+
+	np->state = __IDPF_VPORT_UP;
+
+	return 0;
+}
+
+/**
+ * idpf_rx_init_buf_tail - Write initial buffer ring tail value
+ * @vport: virtual port struct
+ */
+static void idpf_rx_init_buf_tail(struct idpf_vport *vport)
+{
+	int i, j;
+
+	for (i = 0; i < vport->num_rxq_grp; i++) {
+		struct idpf_rxq_group *grp = &vport->rxq_grps[i];
+
+		if (idpf_is_queue_model_split(vport->rxq_model)) {
+			for (j = 0; j < vport->num_bufqs_per_qgrp; j++) {
+				struct idpf_queue *q =
+					&grp->splitq.bufq_sets[j].bufq;
+
+				writel(q->next_to_alloc, q->tail);
+			}
+		} else {
+			for (j = 0; j < grp->singleq.num_rxq; j++) {
+				struct idpf_queue *q =
+					grp->singleq.rxqs[j];
+
+				writel(q->next_to_alloc, q->tail);
+			}
+		}
+	}
+}
+
+/**
  * idpf_vport_open - Bring up a vport
  * @vport: vport to bring up
  * @alloc_res: allocate queue resources
@@ -887,6 +1098,13 @@ static int idpf_vport_open(struct idpf_vport *vport, bool alloc_res)
 		goto intr_rel;
 	}
 
+	err = idpf_vport_intr_init(vport);
+	if (err) {
+		dev_err(&adapter->pdev->dev, "Failed to initialize interrupts for vport %u: %d\n",
+			vport->vport_id, err);
+		goto intr_rel;
+	}
+
 	err = idpf_rx_bufs_init_all(vport);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to initialize RX buffers for vport %u: %d\n",
@@ -901,11 +1119,35 @@ static int idpf_vport_open(struct idpf_vport *vport, bool alloc_res)
 		goto intr_rel;
 	}
 
+	idpf_rx_init_buf_tail(vport);
+
 	err = idpf_send_config_queues_msg(vport);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to configure queues for vport %u, %d\n",
 			vport->vport_id, err);
-		goto intr_rel;
+		goto intr_deinit;
+	}
+
+	err = idpf_send_map_unmap_queue_vector_msg(vport, true);
+	if (err) {
+		dev_err(&adapter->pdev->dev, "Failed to map queue vectors for vport %u: %d\n",
+			vport->vport_id, err);
+		goto intr_deinit;
+	}
+
+	err = idpf_send_enable_queues_msg(vport);
+	if (err) {
+		dev_err(&adapter->pdev->dev, "Failed to enable queues for vport %u: %d\n",
+			vport->vport_id, err);
+		goto unmap_queue_vectors;
+	}
+
+	err = idpf_send_enable_vport_msg(vport);
+	if (err) {
+		dev_err(&adapter->pdev->dev, "Failed to enable vport %u: %d\n",
+			vport->vport_id, err);
+		err = -EAGAIN;
+		goto disable_queues;
 	}
 
 	vport_config = adapter->vport_config[vport->idx];
@@ -916,11 +1158,28 @@ static int idpf_vport_open(struct idpf_vport *vport, bool alloc_res)
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to initialize RSS for vport %u: %d\n",
 			vport->vport_id, err);
-		goto intr_rel;
+		goto disable_vport;
+	}
+
+	err = idpf_up_complete(vport);
+	if (err) {
+		dev_err(&adapter->pdev->dev, "Failed to complete interface up for vport %u: %d\n",
+			vport->vport_id, err);
+		goto deinit_rss;
 	}
 
 	return 0;
 
+deinit_rss:
+	idpf_deinit_rss(vport);
+disable_vport:
+	idpf_send_disable_vport_msg(vport);
+disable_queues:
+	idpf_send_disable_queues_msg(vport);
+unmap_queue_vectors:
+	idpf_send_map_unmap_queue_vector_msg(vport, false);
+intr_deinit:
+	idpf_vport_intr_deinit(vport);
 intr_rel:
 	idpf_vport_intr_rel(vport);
 queues_rel:

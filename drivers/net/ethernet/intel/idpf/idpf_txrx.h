@@ -26,6 +26,7 @@
 #define IDPF_SINGLE_BUFQ_PER_RXQ_GRP		1
 #define IDPF_MAX_BUFQS_PER_RXQ_GRP		2
 #define IDPF_BUFQ2_ENA				1
+#define IDPF_NUMQ_PER_CHUNK			1
 
 #define IDPF_DFLT_SPLITQ_TXQ_PER_GROUP		1
 #define IDPF_DFLT_SPLITQ_RXQ_PER_GROUP		1
@@ -261,17 +262,38 @@ enum idpf_queue_flags_t {
 };
 
 /**
+ * struct idpf_vec_regs
+ * @dyn_ctl_reg: Dynamic control interrupt register offset
+ * @itrn_reg: Interrupt Throttling Rate register offset
+ * @itrn_index_spacing: Register spacing between ITR registers of the same
+ *			vector
+ */
+struct idpf_vec_regs {
+	u32 dyn_ctl_reg;
+	u32 itrn_reg;
+	u32 itrn_index_spacing;
+};
+
+/**
  * struct idpf_intr_reg
  * @dyn_ctl: Dynamic control interrupt register
  * @dyn_ctl_intena_m: Mask for dyn_ctl interrupt enable
+ * @dyn_ctl_itridx_s: Register bit offset for ITR index
  * @dyn_ctl_itridx_m: Mask for ITR index
+ * @dyn_ctl_intrvl_s: Register bit offset for ITR interval
+ * @rx_itr: RX ITR register
+ * @tx_itr: TX ITR register
  * @icr_ena: Interrupt cause register offset
  * @icr_ena_ctlq_m: Mask for ICR
  */
 struct idpf_intr_reg {
 	void __iomem *dyn_ctl;
 	u32 dyn_ctl_intena_m;
+	u32 dyn_ctl_itridx_s;
 	u32 dyn_ctl_itridx_m;
+	u32 dyn_ctl_intrvl_s;
+	void __iomem *rx_itr;
+	void __iomem *tx_itr;
 	void __iomem *icr_ena;
 	u32 icr_ena_ctlq_m;
 };
@@ -279,36 +301,44 @@ struct idpf_intr_reg {
 /**
  * struct idpf_q_vector
  * @vport: Vport back pointer
+ * @affinity_mask: CPU affinity mask
  * @napi: napi handler
  * @v_idx: Vector index
  * @intr_reg: See struct idpf_intr_reg
+ * @num_txq: Number of TX queues
  * @tx: Array of TX queues to service
  * @tx_itr_value: TX interrupt throttling rate
  * @tx_intr_mode: Dynamic ITR or not
  * @tx_itr_idx: TX ITR index
+ * @num_rxq: Number of RX queues
  * @rx: Array of RX queues to service
  * @rx_itr_value: RX interrupt throttling rate
  * @rx_intr_mode: Dynamic ITR or not
  * @rx_itr_idx: RX ITR index
+ * @num_bufq: Number of buffer queues
  * @bufq: Array of buffer queues to service
  * @name: Queue vector name
  */
 struct idpf_q_vector {
 	struct idpf_vport *vport;
+	cpumask_t affinity_mask;
 	struct napi_struct napi;
 	u16 v_idx;
 	struct idpf_intr_reg intr_reg;
 
+	u16 num_txq;
 	struct idpf_queue **tx;
 	u16 tx_itr_value;
 	bool tx_intr_mode;
 	u32 tx_itr_idx;
 
+	u16 num_rxq;
 	struct idpf_queue **rx;
 	u16 rx_itr_value;
 	bool rx_intr_mode;
 	u32 rx_itr_idx;
 
+	u16 num_bufq;
 	struct idpf_queue **bufq;
 
 	char *name;
@@ -318,6 +348,7 @@ struct idpf_q_vector {
 #define IDPF_ITR_20K		0x0032
 #define IDPF_ITR_TX_DEF		IDPF_ITR_20K
 #define IDPF_ITR_RX_DEF		IDPF_ITR_20K
+#define IDPF_ITR_IDX_SPACING(spacing, dflt)	(spacing ? spacing : dflt)
 
 /**
  * struct idpf_queue
@@ -583,6 +614,7 @@ static inline dma_addr_t idpf_alloc_page(struct page_pool *pool,
 	       pool->p.offset;
 }
 
+int idpf_vport_singleq_napi_poll(struct napi_struct *napi, int budget);
 void idpf_vport_init_num_qs(struct idpf_vport *vport,
 			    struct virtchnl2_create_vport *vport_msg);
 void idpf_vport_calc_num_q_desc(struct idpf_vport *vport);
@@ -594,6 +626,8 @@ int idpf_vport_queues_alloc(struct idpf_vport *vport);
 void idpf_vport_queues_rel(struct idpf_vport *vport);
 void idpf_vport_intr_rel(struct idpf_vport *vport);
 int idpf_vport_intr_alloc(struct idpf_vport *vport);
+void idpf_vport_intr_deinit(struct idpf_vport *vport);
+int idpf_vport_intr_init(struct idpf_vport *vport);
 int idpf_config_rss(struct idpf_vport *vport);
 int idpf_init_rss(struct idpf_vport *vport);
 void idpf_deinit_rss(struct idpf_vport *vport);

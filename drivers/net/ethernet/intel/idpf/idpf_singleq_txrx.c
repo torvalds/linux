@@ -55,3 +55,14 @@ bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_queue *rx_q,
 
 	return !!cleaned_count;
 }
+
+/**
+ * idpf_vport_singleq_napi_poll - NAPI handler
+ * @napi: struct from which you get q_vector
+ * @budget: budget provided by stack
+ */
+int idpf_vport_singleq_napi_poll(struct napi_struct *napi, int budget)
+{
+	/* stub */
+	return 0;
+}

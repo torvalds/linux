@@ -1348,6 +1348,44 @@ err_out:
 }
 
 /**
+ * idpf_vport_intr_clean_queues - MSIX mode Interrupt Handler
+ * @irq: interrupt number
+ * @data: pointer to a q_vector
+ *
+ */
+static irqreturn_t idpf_vport_intr_clean_queues(int __always_unused irq,
+						void *data)
+{
+	/* stub */
+	return IRQ_HANDLED;
+}
+
+/**
+ * idpf_vport_intr_napi_del_all - Unregister napi for all q_vectors in vport
+ * @vport: virtual port structure
+ *
+ */
+static void idpf_vport_intr_napi_del_all(struct idpf_vport *vport)
+{
+	u16 v_idx;
+
+	for (v_idx = 0; v_idx < vport->num_q_vectors; v_idx++)
+		netif_napi_del(&vport->q_vectors[v_idx].napi);
+}
+
+/**
+ * idpf_vport_intr_napi_dis_all - Disable NAPI for all q_vectors in the vport
+ * @vport: main vport structure
+ */
+static void idpf_vport_intr_napi_dis_all(struct idpf_vport *vport)
+{
+	int v_idx;
+
+	for (v_idx = 0; v_idx < vport->num_q_vectors; v_idx++)
+		napi_disable(&vport->q_vectors[v_idx].napi);
+}
+
+/**
  * idpf_vport_intr_rel - Free memory allocated for interrupt vectors
  * @vport: virtual port
  *
@@ -1355,7 +1393,7 @@ err_out:
  */
 void idpf_vport_intr_rel(struct idpf_vport *vport)
 {
-	int v_idx;
+	int i, j, v_idx;
 
 	for (v_idx = 0; v_idx < vport->num_q_vectors; v_idx++) {
 		struct idpf_q_vector *q_vector = &vport->q_vectors[v_idx];
@@ -1368,8 +1406,289 @@ void idpf_vport_intr_rel(struct idpf_vport *vport)
 		q_vector->rx = NULL;
 	}
 
+	/* Clean up the mapping of queues to vectors */
+	for (i = 0; i < vport->num_rxq_grp; i++) {
+		struct idpf_rxq_group *rx_qgrp = &vport->rxq_grps[i];
+
+		if (idpf_is_queue_model_split(vport->rxq_model))
+			for (j = 0; j < rx_qgrp->splitq.num_rxq_sets; j++)
+				rx_qgrp->splitq.rxq_sets[j]->rxq.q_vector = NULL;
+		else
+			for (j = 0; j < rx_qgrp->singleq.num_rxq; j++)
+				rx_qgrp->singleq.rxqs[j]->q_vector = NULL;
+	}
+
+	if (idpf_is_queue_model_split(vport->txq_model))
+		for (i = 0; i < vport->num_txq_grp; i++)
+			vport->txq_grps[i].complq->q_vector = NULL;
+	else
+		for (i = 0; i < vport->num_txq_grp; i++)
+			for (j = 0; j < vport->txq_grps[i].num_txq; j++)
+				vport->txq_grps[i].txqs[j]->q_vector = NULL;
+
 	kfree(vport->q_vectors);
 	vport->q_vectors = NULL;
+}
+
+/**
+ * idpf_vport_intr_rel_irq - Free the IRQ association with the OS
+ * @vport: main vport structure
+ */
+static void idpf_vport_intr_rel_irq(struct idpf_vport *vport)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+	int vector;
+
+	for (vector = 0; vector < vport->num_q_vectors; vector++) {
+		struct idpf_q_vector *q_vector = &vport->q_vectors[vector];
+		int irq_num, vidx;
+
+		/* free only the irqs that were actually requested */
+		if (!q_vector)
+			continue;
+
+		vidx = vport->q_vector_idxs[vector];
+		irq_num = adapter->msix_entries[vidx].vector;
+
+		/* clear the affinity_mask in the IRQ descriptor */
+		irq_set_affinity_hint(irq_num, NULL);
+		free_irq(irq_num, q_vector);
+	}
+}
+
+/**
+ * idpf_vport_intr_req_irq - get MSI-X vectors from the OS for the vport
+ * @vport: main vport structure
+ * @basename: name for the vector
+ */
+static int idpf_vport_intr_req_irq(struct idpf_vport *vport, char *basename)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+	int vector, err, irq_num, vidx;
+	const char *vec_name;
+
+	for (vector = 0; vector < vport->num_q_vectors; vector++) {
+		struct idpf_q_vector *q_vector = &vport->q_vectors[vector];
+
+		vidx = vport->q_vector_idxs[vector];
+		irq_num = adapter->msix_entries[vidx].vector;
+
+		if (q_vector->num_rxq && q_vector->num_txq)
+			vec_name = "TxRx";
+		else if (q_vector->num_rxq)
+			vec_name = "Rx";
+		else if (q_vector->num_txq)
+			vec_name = "Tx";
+		else
+			continue;
+
+		q_vector->name = kasprintf(GFP_KERNEL, "%s-%s-%d",
+					   basename, vec_name, vidx);
+
+		err = request_irq(irq_num, idpf_vport_intr_clean_queues, 0,
+				  q_vector->name, q_vector);
+		if (err) {
+			netdev_err(vport->netdev,
+				   "Request_irq failed, error: %d\n", err);
+			goto free_q_irqs;
+		}
+		/* assign the mask for this irq */
+		irq_set_affinity_hint(irq_num, &q_vector->affinity_mask);
+	}
+
+	return 0;
+
+free_q_irqs:
+	while (--vector >= 0) {
+		vidx = vport->q_vector_idxs[vector];
+		irq_num = adapter->msix_entries[vidx].vector;
+		free_irq(irq_num, &vport->q_vectors[vector]);
+	}
+
+	return err;
+}
+
+/**
+ * idpf_vport_intr_deinit - Release all vector associations for the vport
+ * @vport: main vport structure
+ */
+void idpf_vport_intr_deinit(struct idpf_vport *vport)
+{
+	idpf_vport_intr_napi_dis_all(vport);
+	idpf_vport_intr_napi_del_all(vport);
+	idpf_vport_intr_rel_irq(vport);
+}
+
+/**
+ * idpf_vport_intr_napi_ena_all - Enable NAPI for all q_vectors in the vport
+ * @vport: main vport structure
+ */
+static void idpf_vport_intr_napi_ena_all(struct idpf_vport *vport)
+{
+	int q_idx;
+
+	for (q_idx = 0; q_idx < vport->num_q_vectors; q_idx++) {
+		struct idpf_q_vector *q_vector = &vport->q_vectors[q_idx];
+
+		napi_enable(&q_vector->napi);
+	}
+}
+
+/**
+ * idpf_vport_splitq_napi_poll - NAPI handler
+ * @napi: struct from which you get q_vector
+ * @budget: budget provided by stack
+ */
+static int idpf_vport_splitq_napi_poll(struct napi_struct *napi, int budget)
+{
+	/* stub */
+	return 0;
+}
+
+/**
+ * idpf_vport_intr_map_vector_to_qs - Map vectors to queues
+ * @vport: virtual port
+ *
+ * Mapping for vectors to queues
+ */
+static void idpf_vport_intr_map_vector_to_qs(struct idpf_vport *vport)
+{
+	u16 num_txq_grp = vport->num_txq_grp;
+	int i, j, qv_idx, bufq_vidx = 0;
+	struct idpf_rxq_group *rx_qgrp;
+	struct idpf_txq_group *tx_qgrp;
+	struct idpf_queue *q, *bufq;
+	u16 q_index;
+
+	for (i = 0, qv_idx = 0; i < vport->num_rxq_grp; i++) {
+		u16 num_rxq;
+
+		rx_qgrp = &vport->rxq_grps[i];
+		if (idpf_is_queue_model_split(vport->rxq_model))
+			num_rxq = rx_qgrp->splitq.num_rxq_sets;
+		else
+			num_rxq = rx_qgrp->singleq.num_rxq;
+
+		for (j = 0; j < num_rxq; j++) {
+			if (qv_idx >= vport->num_q_vectors)
+				qv_idx = 0;
+
+			if (idpf_is_queue_model_split(vport->rxq_model))
+				q = &rx_qgrp->splitq.rxq_sets[j]->rxq;
+			else
+				q = rx_qgrp->singleq.rxqs[j];
+			q->q_vector = &vport->q_vectors[qv_idx];
+			q_index = q->q_vector->num_rxq;
+			q->q_vector->rx[q_index] = q;
+			q->q_vector->num_rxq++;
+			qv_idx++;
+		}
+
+		if (idpf_is_queue_model_split(vport->rxq_model)) {
+			for (j = 0; j < vport->num_bufqs_per_qgrp; j++) {
+				bufq = &rx_qgrp->splitq.bufq_sets[j].bufq;
+				bufq->q_vector = &vport->q_vectors[bufq_vidx];
+				q_index = bufq->q_vector->num_bufq;
+				bufq->q_vector->bufq[q_index] = bufq;
+				bufq->q_vector->num_bufq++;
+			}
+			if (++bufq_vidx >= vport->num_q_vectors)
+				bufq_vidx = 0;
+		}
+	}
+
+	for (i = 0, qv_idx = 0; i < num_txq_grp; i++) {
+		u16 num_txq;
+
+		tx_qgrp = &vport->txq_grps[i];
+		num_txq = tx_qgrp->num_txq;
+
+		if (idpf_is_queue_model_split(vport->txq_model)) {
+			if (qv_idx >= vport->num_q_vectors)
+				qv_idx = 0;
+
+			q = tx_qgrp->complq;
+			q->q_vector = &vport->q_vectors[qv_idx];
+			q_index = q->q_vector->num_txq;
+			q->q_vector->tx[q_index] = q;
+			q->q_vector->num_txq++;
+			qv_idx++;
+		} else {
+			for (j = 0; j < num_txq; j++) {
+				if (qv_idx >= vport->num_q_vectors)
+					qv_idx = 0;
+
+				q = tx_qgrp->txqs[j];
+				q->q_vector = &vport->q_vectors[qv_idx];
+				q_index = q->q_vector->num_txq;
+				q->q_vector->tx[q_index] = q;
+				q->q_vector->num_txq++;
+
+				qv_idx++;
+			}
+		}
+	}
+}
+
+/**
+ * idpf_vport_intr_init_vec_idx - Initialize the vector indexes
+ * @vport: virtual port
+ *
+ * Initialize vector indexes with values returened over mailbox
+ */
+static int idpf_vport_intr_init_vec_idx(struct idpf_vport *vport)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+	struct virtchnl2_alloc_vectors *ac;
+	u16 *vecids, total_vecs;
+	int i;
+
+	ac = adapter->req_vec_chunks;
+	if (!ac) {
+		for (i = 0; i < vport->num_q_vectors; i++)
+			vport->q_vectors[i].v_idx = vport->q_vector_idxs[i];
+
+		return 0;
+	}
+
+	total_vecs = idpf_get_reserved_vecs(adapter);
+	vecids = kcalloc(total_vecs, sizeof(u16), GFP_KERNEL);
+	if (!vecids)
+		return -ENOMEM;
+
+	idpf_get_vec_ids(adapter, vecids, total_vecs, &ac->vchunks);
+
+	for (i = 0; i < vport->num_q_vectors; i++)
+		vport->q_vectors[i].v_idx = vecids[vport->q_vector_idxs[i]];
+
+	kfree(vecids);
+
+	return 0;
+}
+
+/**
+ * idpf_vport_intr_napi_add_all- Register napi handler for all qvectors
+ * @vport: virtual port structure
+ */
+static void idpf_vport_intr_napi_add_all(struct idpf_vport *vport)
+{
+	int (*napi_poll)(struct napi_struct *napi, int budget);
+	u16 v_idx;
+
+	if (idpf_is_queue_model_split(vport->txq_model))
+		napi_poll = idpf_vport_splitq_napi_poll;
+	else
+		napi_poll = idpf_vport_singleq_napi_poll;
+
+	for (v_idx = 0; v_idx < vport->num_q_vectors; v_idx++) {
+		struct idpf_q_vector *q_vector = &vport->q_vectors[v_idx];
+
+		netif_napi_add(vport->netdev, &q_vector->napi, napi_poll);
+
+		/* only set affinity_mask if the CPU is online */
+		if (cpu_online(v_idx))
+			cpumask_set_cpu(v_idx, &q_vector->affinity_mask);
+	}
 }
 
 /**
@@ -1440,6 +1759,46 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport)
 
 error:
 	idpf_vport_intr_rel(vport);
+
+	return err;
+}
+
+/**
+ * idpf_vport_intr_init - Setup all vectors for the given vport
+ * @vport: virtual port
+ *
+ * Returns 0 on success or negative on failure
+ */
+int idpf_vport_intr_init(struct idpf_vport *vport)
+{
+	char *int_name;
+	int err;
+
+	err = idpf_vport_intr_init_vec_idx(vport);
+	if (err)
+		return err;
+
+	idpf_vport_intr_map_vector_to_qs(vport);
+	idpf_vport_intr_napi_add_all(vport);
+	idpf_vport_intr_napi_ena_all(vport);
+
+	err = vport->adapter->dev_ops.reg_ops.intr_reg_init(vport);
+	if (err)
+		goto unroll_vectors_alloc;
+
+	int_name = kasprintf(GFP_KERNEL, "%s-%s",
+			     dev_driver_string(&vport->adapter->pdev->dev),
+			     vport->netdev->name);
+
+	err = idpf_vport_intr_req_irq(vport, int_name);
+	if (err)
+		goto unroll_vectors_alloc;
+
+	return 0;
+
+unroll_vectors_alloc:
+	idpf_vport_intr_napi_dis_all(vport);
+	idpf_vport_intr_napi_del_all(vport);
 
 	return err;
 }
