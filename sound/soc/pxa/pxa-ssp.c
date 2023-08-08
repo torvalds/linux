@@ -813,6 +813,8 @@ static int pxa_ssp_remove(struct snd_soc_dai *dai)
 #define PXA_SSP_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops pxa_ssp_dai_ops = {
+	.probe		= pxa_ssp_probe,
+	.remove		= pxa_ssp_remove,
 	.startup	= pxa_ssp_startup,
 	.shutdown	= pxa_ssp_shutdown,
 	.trigger	= pxa_ssp_trigger,
@@ -824,8 +826,6 @@ static const struct snd_soc_dai_ops pxa_ssp_dai_ops = {
 };
 
 static struct snd_soc_dai_driver pxa_ssp_dai = {
-		.probe = pxa_ssp_probe,
-		.remove = pxa_ssp_remove,
 		.playback = {
 			.channels_min = 1,
 			.channels_max = 8,
