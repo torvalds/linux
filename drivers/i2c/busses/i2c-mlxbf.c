@@ -2323,10 +2323,8 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 
 		ret = mlxbf_i2c_init_resource(pdev, &priv->smbus,
 					      MLXBF_I2C_SMBUS_RES);
-		if (ret < 0) {
-			dev_err(dev, "Cannot fetch smbus resource info");
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "Cannot fetch smbus resource info");
 
 		priv->timer->io = priv->smbus->io;
 		priv->mst->io = priv->smbus->io + MLXBF_I2C_MST_ADDR_OFFSET;
@@ -2334,39 +2332,29 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 	} else {
 		ret = mlxbf_i2c_init_resource(pdev, &priv->timer,
 					      MLXBF_I2C_SMBUS_TIMER_RES);
-		if (ret < 0) {
-			dev_err(dev, "Cannot fetch timer resource info");
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "Cannot fetch timer resource info");
 
 		ret = mlxbf_i2c_init_resource(pdev, &priv->mst,
 					      MLXBF_I2C_SMBUS_MST_RES);
-		if (ret < 0) {
-			dev_err(dev, "Cannot fetch master resource info");
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "Cannot fetch master resource info");
 
 		ret = mlxbf_i2c_init_resource(pdev, &priv->slv,
 					      MLXBF_I2C_SMBUS_SLV_RES);
-		if (ret < 0) {
-			dev_err(dev, "Cannot fetch slave resource info");
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "Cannot fetch slave resource info");
 	}
 
 	ret = mlxbf_i2c_init_resource(pdev, &priv->mst_cause,
 				      MLXBF_I2C_MST_CAUSE_RES);
-	if (ret < 0) {
-		dev_err(dev, "Cannot fetch cause master resource info");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Cannot fetch cause master resource info");
 
 	ret = mlxbf_i2c_init_resource(pdev, &priv->slv_cause,
 				      MLXBF_I2C_SLV_CAUSE_RES);
-	if (ret < 0) {
-		dev_err(dev, "Cannot fetch cause slave resource info");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Cannot fetch cause slave resource info");
 
 	adap = &priv->adap;
 	adap->owner = THIS_MODULE;
@@ -2397,11 +2385,9 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 	 * does not really hurt, then keep the code as is.
 	 */
 	ret = mlxbf_i2c_init_master(pdev, priv);
-	if (ret < 0) {
-		dev_err(dev, "failed to initialize smbus master %d",
-			priv->bus);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to initialize smbus master %d",
+				     priv->bus);
 
 	mlxbf_i2c_init_timings(pdev, priv);
 
@@ -2413,10 +2399,8 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, irq, mlxbf_i2c_irq,
 			       IRQF_SHARED | IRQF_PROBE_SHARED,
 			       dev_name(dev), priv);
-	if (ret < 0) {
-		dev_err(dev, "Cannot get irq %d\n", irq);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Cannot get irq %d\n", irq);
 
 	priv->irq = irq;
 
