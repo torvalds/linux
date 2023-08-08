@@ -3549,7 +3549,6 @@ mlxsw_sp_switchdev_vxlan_fdb_add(struct mlxsw_sp *mlxsw_sp,
 	struct switchdev_notifier_vxlan_fdb_info *vxlan_fdb_info;
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct net_device *dev = switchdev_work->dev;
-	u8 all_zeros_mac[ETH_ALEN] = { 0 };
 	enum mlxsw_sp_l3proto proto;
 	union mlxsw_sp_l3addr addr;
 	struct net_device *br_dev;
@@ -3571,7 +3570,7 @@ mlxsw_sp_switchdev_vxlan_fdb_add(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_switchdev_vxlan_addr_convert(&vxlan_fdb_info->remote_ip,
 					      &proto, &addr);
 
-	if (ether_addr_equal(vxlan_fdb_info->eth_addr, all_zeros_mac)) {
+	if (is_zero_ether_addr(vxlan_fdb_info->eth_addr)) {
 		err = mlxsw_sp_nve_flood_ip_add(mlxsw_sp, fid, proto, &addr);
 		if (err) {
 			mlxsw_sp_fid_put(fid);
@@ -3623,7 +3622,6 @@ mlxsw_sp_switchdev_vxlan_fdb_del(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct net_device *dev = switchdev_work->dev;
 	struct net_device *br_dev = netdev_master_upper_dev_get(dev);
-	u8 all_zeros_mac[ETH_ALEN] = { 0 };
 	enum mlxsw_sp_l3proto proto;
 	union mlxsw_sp_l3addr addr;
 	struct mlxsw_sp_fid *fid;
@@ -3644,7 +3642,7 @@ mlxsw_sp_switchdev_vxlan_fdb_del(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_switchdev_vxlan_addr_convert(&vxlan_fdb_info->remote_ip,
 					      &proto, &addr);
 
-	if (ether_addr_equal(vxlan_fdb_info->eth_addr, all_zeros_mac)) {
+	if (is_zero_ether_addr(vxlan_fdb_info->eth_addr)) {
 		mlxsw_sp_nve_flood_ip_del(mlxsw_sp, fid, proto, &addr);
 		mlxsw_sp_fid_put(fid);
 		return;
