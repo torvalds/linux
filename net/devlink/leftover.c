@@ -6829,8 +6829,10 @@ int devl_port_register_with_ops(struct devlink *devlink,
 	spin_lock_init(&devlink_port->type_lock);
 	INIT_LIST_HEAD(&devlink_port->reporter_list);
 	err = xa_insert(&devlink->ports, port_index, devlink_port, GFP_KERNEL);
-	if (err)
+	if (err) {
+		devlink_port->registered = false;
 		return err;
+	}
 
 	INIT_DELAYED_WORK(&devlink_port->type_warn_dw, &devlink_port_type_warn);
 	devlink_port_type_warn_schedule(devlink_port);
