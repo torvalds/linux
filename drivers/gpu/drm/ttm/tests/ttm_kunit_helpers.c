@@ -25,6 +25,23 @@ int ttm_device_kunit_init(struct ttm_test_devices *priv,
 }
 EXPORT_SYMBOL_GPL(ttm_device_kunit_init);
 
+struct ttm_buffer_object *ttm_bo_kunit_init(struct kunit *test,
+					    struct ttm_test_devices *devs,
+					    size_t size)
+{
+	struct drm_gem_object gem_obj = { .size = size };
+	struct ttm_buffer_object *bo;
+
+	bo = kunit_kzalloc(test, sizeof(*bo), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, bo);
+
+	bo->base = gem_obj;
+	bo->bdev = devs->ttm_dev;
+
+	return bo;
+}
+EXPORT_SYMBOL_GPL(ttm_bo_kunit_init);
+
 struct ttm_test_devices *ttm_test_devices_basic(struct kunit *test)
 {
 	struct ttm_test_devices *devs;
