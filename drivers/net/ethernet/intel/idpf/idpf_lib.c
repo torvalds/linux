@@ -294,6 +294,158 @@ send_dealloc_vecs:
 }
 
 /**
+ * idpf_find_mac_filter - Search filter list for specific mac filter
+ * @vconfig: Vport config structure
+ * @macaddr: The MAC address
+ *
+ * Returns ptr to the filter object or NULL. Must be called while holding the
+ * mac_filter_list_lock.
+ **/
+static struct idpf_mac_filter *idpf_find_mac_filter(struct idpf_vport_config *vconfig,
+						    const u8 *macaddr)
+{
+	struct idpf_mac_filter *f;
+
+	if (!macaddr)
+		return NULL;
+
+	list_for_each_entry(f, &vconfig->user_config.mac_filter_list, list) {
+		if (ether_addr_equal(macaddr, f->macaddr))
+			return f;
+	}
+
+	return NULL;
+}
+
+/**
+ * __idpf_add_mac_filter - Add mac filter helper function
+ * @vport_config: Vport config structure
+ * @macaddr: Address to add
+ *
+ * Takes mac_filter_list_lock spinlock to add new filter to list.
+ */
+static int __idpf_add_mac_filter(struct idpf_vport_config *vport_config,
+				 const u8 *macaddr)
+{
+	struct idpf_mac_filter *f;
+
+	spin_lock_bh(&vport_config->mac_filter_list_lock);
+
+	f = idpf_find_mac_filter(vport_config, macaddr);
+	if (f) {
+		f->remove = false;
+		spin_unlock_bh(&vport_config->mac_filter_list_lock);
+
+		return 0;
+	}
+
+	f = kzalloc(sizeof(*f), GFP_ATOMIC);
+	if (!f) {
+		spin_unlock_bh(&vport_config->mac_filter_list_lock);
+
+		return -ENOMEM;
+	}
+
+	ether_addr_copy(f->macaddr, macaddr);
+	list_add_tail(&f->list, &vport_config->user_config.mac_filter_list);
+	f->add = true;
+
+	spin_unlock_bh(&vport_config->mac_filter_list_lock);
+
+	return 0;
+}
+
+/**
+ * idpf_add_mac_filter - Add a mac filter to the filter list
+ * @vport: Main vport structure
+ * @np: Netdev private structure
+ * @macaddr: The MAC address
+ * @async: Don't wait for return message
+ *
+ * Returns 0 on success or error on failure. If interface is up, we'll also
+ * send the virtchnl message to tell hardware about the filter.
+ **/
+static int idpf_add_mac_filter(struct idpf_vport *vport,
+			       struct idpf_netdev_priv *np,
+			       const u8 *macaddr, bool async)
+{
+	struct idpf_vport_config *vport_config;
+	int err;
+
+	vport_config = np->adapter->vport_config[np->vport_idx];
+	err = __idpf_add_mac_filter(vport_config, macaddr);
+	if (err)
+		return err;
+
+	if (np->state == __IDPF_VPORT_UP)
+		err = idpf_add_del_mac_filters(vport, np, true, async);
+
+	return err;
+}
+
+/**
+ * idpf_deinit_mac_addr - deinitialize mac address for vport
+ * @vport: main vport structure
+ */
+static void idpf_deinit_mac_addr(struct idpf_vport *vport)
+{
+	struct idpf_vport_config *vport_config;
+	struct idpf_mac_filter *f;
+
+	vport_config = vport->adapter->vport_config[vport->idx];
+
+	spin_lock_bh(&vport_config->mac_filter_list_lock);
+
+	f = idpf_find_mac_filter(vport_config, vport->default_mac_addr);
+	if (f) {
+		list_del(&f->list);
+		kfree(f);
+	}
+
+	spin_unlock_bh(&vport_config->mac_filter_list_lock);
+}
+
+/**
+ * idpf_init_mac_addr - initialize mac address for vport
+ * @vport: main vport structure
+ * @netdev: pointer to netdev struct associated with this vport
+ */
+static int idpf_init_mac_addr(struct idpf_vport *vport,
+			      struct net_device *netdev)
+{
+	struct idpf_netdev_priv *np = netdev_priv(netdev);
+	struct idpf_adapter *adapter = vport->adapter;
+	int err;
+
+	if (is_valid_ether_addr(vport->default_mac_addr)) {
+		eth_hw_addr_set(netdev, vport->default_mac_addr);
+		ether_addr_copy(netdev->perm_addr, vport->default_mac_addr);
+
+		return idpf_add_mac_filter(vport, np, vport->default_mac_addr,
+					   false);
+	}
+
+	if (!idpf_is_cap_ena(adapter, IDPF_OTHER_CAPS,
+			     VIRTCHNL2_CAP_MACFILTER)) {
+		dev_err(&adapter->pdev->dev,
+			"MAC address is not provided and capability is not set\n");
+
+		return -EINVAL;
+	}
+
+	eth_hw_addr_random(netdev);
+	err = idpf_add_mac_filter(vport, np, netdev->dev_addr, false);
+	if (err)
+		return err;
+
+	dev_info(&adapter->pdev->dev, "Invalid MAC address %pM, using random %pM\n",
+		 vport->default_mac_addr, netdev->dev_addr);
+	ether_addr_copy(vport->default_mac_addr, netdev->dev_addr);
+
+	return 0;
+}
+
+/**
  * idpf_cfg_netdev - Allocate, configure and register a netdev
  * @vport: main vport structure
  *
@@ -308,6 +460,7 @@ static int idpf_cfg_netdev(struct idpf_vport *vport)
 	struct idpf_netdev_priv *np;
 	struct net_device *netdev;
 	u16 idx = vport->idx;
+	int err;
 
 	vport_config = adapter->vport_config[idx];
 
@@ -318,9 +471,11 @@ static int idpf_cfg_netdev(struct idpf_vport *vport)
 		netdev = adapter->netdevs[idx];
 		np = netdev_priv(netdev);
 		np->vport = vport;
+		np->vport_idx = vport->idx;
+		np->vport_id = vport->vport_id;
 		vport->netdev = netdev;
 
-		return 0;
+		return idpf_init_mac_addr(vport, netdev);
 	}
 
 	netdev = alloc_etherdev_mqs(sizeof(struct idpf_netdev_priv),
@@ -332,6 +487,17 @@ static int idpf_cfg_netdev(struct idpf_vport *vport)
 	vport->netdev = netdev;
 	np = netdev_priv(netdev);
 	np->vport = vport;
+	np->adapter = adapter;
+	np->vport_idx = vport->idx;
+	np->vport_id = vport->vport_id;
+
+	err = idpf_init_mac_addr(vport, netdev);
+	if (err) {
+		free_netdev(vport->netdev);
+		vport->netdev = NULL;
+
+		return err;
+	}
 
 	/* setup watchdog timeout value to be 5 second */
 	netdev->watchdog_timeo = 5 * HZ;
@@ -495,6 +661,8 @@ static void idpf_vport_dealloc(struct idpf_vport *vport)
 	struct idpf_adapter *adapter = vport->adapter;
 	unsigned int i = vport->idx;
 
+	idpf_deinit_mac_addr(vport);
+
 	if (!test_bit(IDPF_HR_RESET_IN_PROG, adapter->flags))
 		idpf_decfg_netdev(vport);
 
@@ -617,6 +785,7 @@ void idpf_service_task(struct work_struct *work)
  */
 void idpf_init_task(struct work_struct *work)
 {
+	struct idpf_vport_config *vport_config;
 	struct idpf_vport_max_q max_q;
 	struct idpf_adapter *adapter;
 	struct idpf_vport *vport;
@@ -654,13 +823,27 @@ void idpf_init_task(struct work_struct *work)
 	}
 
 	index = vport->idx;
+	vport_config = adapter->vport_config[index];
 
 	init_waitqueue_head(&vport->vchnl_wq);
 
 	mutex_init(&vport->vc_buf_lock);
+	spin_lock_init(&vport_config->mac_filter_list_lock);
+
+	INIT_LIST_HEAD(&vport_config->user_config.mac_filter_list);
+
+	err = idpf_check_supported_desc_ids(vport);
+	if (err) {
+		dev_err(&pdev->dev, "failed to get required descriptor ids\n");
+		goto cfg_netdev_err;
+	}
 
 	if (idpf_cfg_netdev(vport))
 		goto cfg_netdev_err;
+
+	err = idpf_send_get_rx_ptype_msg(vport);
+	if (err)
+		goto handle_err;
 
 	/* Spawn and return 'idpf_init_task' work queue until all the
 	 * default vports are created
@@ -689,6 +872,8 @@ void idpf_init_task(struct work_struct *work)
 
 	return;
 
+handle_err:
+	idpf_decfg_netdev(vport);
 cfg_netdev_err:
 	idpf_vport_rel(vport);
 	adapter->vports[index] = NULL;

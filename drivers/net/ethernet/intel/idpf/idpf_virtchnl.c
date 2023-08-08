@@ -158,9 +158,14 @@ static int idpf_find_vport(struct idpf_adapter *adapter,
 	case VIRTCHNL2_OP_CREATE_VPORT:
 	case VIRTCHNL2_OP_ALLOC_VECTORS:
 	case VIRTCHNL2_OP_DEALLOC_VECTORS:
+	case VIRTCHNL2_OP_GET_PTYPE_INFO:
 		goto free_vc_msg;
 	case VIRTCHNL2_OP_DESTROY_VPORT:
 		v_id = le32_to_cpu(((struct virtchnl2_vport *)vc_msg)->vport_id);
+		break;
+	case VIRTCHNL2_OP_ADD_MAC_ADDR:
+	case VIRTCHNL2_OP_DEL_MAC_ADDR:
+		v_id = le32_to_cpu(((struct virtchnl2_mac_addr_list *)vc_msg)->vport_id);
 		break;
 	default:
 		no_op = true;
@@ -293,6 +298,7 @@ int idpf_recv_mb_msg(struct idpf_adapter *adapter, u32 op,
 	int err;
 
 	while (1) {
+		struct idpf_vport_config *vport_config;
 		int payload_size = 0;
 
 		/* Try to get one message */
@@ -369,6 +375,53 @@ int idpf_recv_mb_msg(struct idpf_adapter *adapter, u32 op,
 			idpf_recv_vchnl_op(adapter, NULL, &ctlq_msg,
 					   IDPF_VC_DEALLOC_VECTORS,
 					   IDPF_VC_DEALLOC_VECTORS_ERR);
+			break;
+		case VIRTCHNL2_OP_GET_PTYPE_INFO:
+			idpf_recv_vchnl_op(adapter, NULL, &ctlq_msg,
+					   IDPF_VC_GET_PTYPE_INFO,
+					   IDPF_VC_GET_PTYPE_INFO_ERR);
+			break;
+		case VIRTCHNL2_OP_ADD_MAC_ADDR:
+			vport_config = adapter->vport_config[vport->idx];
+			if (test_and_clear_bit(IDPF_VPORT_ADD_MAC_REQ,
+					       vport_config->flags)) {
+				/* Message was sent asynchronously. We don't
+				 * normally print errors here, instead
+				 * prefer to handle errors in the function
+				 * calling wait_for_event. However, if
+				 * asynchronous, the context in which the
+				 * message was sent is lost. We can't really do
+				 * anything about at it this point, but we
+				 * should at a minimum indicate that it looks
+				 * like something went wrong. Also don't bother
+				 * setting ERR bit or waking vchnl_wq since no
+				 * one will be waiting to read the async
+				 * message.
+				 */
+				if (ctlq_msg.cookie.mbx.chnl_retval)
+					dev_err(&adapter->pdev->dev, "Failed to add MAC address: %d\n",
+						ctlq_msg.cookie.mbx.chnl_retval);
+				break;
+			}
+			idpf_recv_vchnl_op(adapter, vport, &ctlq_msg,
+					   IDPF_VC_ADD_MAC_ADDR,
+					   IDPF_VC_ADD_MAC_ADDR_ERR);
+			break;
+		case VIRTCHNL2_OP_DEL_MAC_ADDR:
+			vport_config = adapter->vport_config[vport->idx];
+			if (test_and_clear_bit(IDPF_VPORT_DEL_MAC_REQ,
+					       vport_config->flags)) {
+				/* Message was sent asynchronously like the
+				 * VIRTCHNL2_OP_ADD_MAC_ADDR
+				 */
+				if (ctlq_msg.cookie.mbx.chnl_retval)
+					dev_err(&adapter->pdev->dev, "Failed to delete MAC address: %d\n",
+						ctlq_msg.cookie.mbx.chnl_retval);
+				break;
+			}
+			idpf_recv_vchnl_op(adapter, vport, &ctlq_msg,
+					   IDPF_VC_DEL_MAC_ADDR,
+					   IDPF_VC_DEL_MAC_ADDR_ERR);
 			break;
 		default:
 			dev_warn(&adapter->pdev->dev,
@@ -822,6 +875,44 @@ rel_lock:
 }
 
 /**
+ * idpf_check_supported_desc_ids - Verify we have required descriptor support
+ * @vport: virtual port structure
+ *
+ * Return 0 on success, error on failure
+ */
+int idpf_check_supported_desc_ids(struct idpf_vport *vport)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+	struct virtchnl2_create_vport *vport_msg;
+	u64 rx_desc_ids, tx_desc_ids;
+
+	vport_msg = adapter->vport_params_recvd[vport->idx];
+
+	rx_desc_ids = le64_to_cpu(vport_msg->rx_desc_ids);
+	tx_desc_ids = le64_to_cpu(vport_msg->tx_desc_ids);
+
+	if (vport->rxq_model == VIRTCHNL2_QUEUE_MODEL_SPLIT) {
+		if (!(rx_desc_ids & VIRTCHNL2_RXDID_2_FLEX_SPLITQ_M)) {
+			dev_info(&adapter->pdev->dev, "Minimum RX descriptor support not provided, using the default\n");
+			vport_msg->rx_desc_ids = cpu_to_le64(VIRTCHNL2_RXDID_2_FLEX_SPLITQ_M);
+		}
+	} else {
+		if (!(rx_desc_ids & VIRTCHNL2_RXDID_2_FLEX_SQ_NIC_M))
+			vport->base_rxd = true;
+	}
+
+	if (vport->txq_model != VIRTCHNL2_QUEUE_MODEL_SPLIT)
+		return 0;
+
+	if ((tx_desc_ids & MIN_SUPPORT_TXDID) != MIN_SUPPORT_TXDID) {
+		dev_info(&adapter->pdev->dev, "Minimum TX descriptor support not provided, using the default\n");
+		vport_msg->tx_desc_ids = cpu_to_le64(MIN_SUPPORT_TXDID);
+	}
+
+	return 0;
+}
+
+/**
  * idpf_send_destroy_vport_msg - Send virtchnl destroy vport message
  * @vport: virtual port data structure
  *
@@ -941,6 +1032,264 @@ int idpf_send_dealloc_vectors_msg(struct idpf_adapter *adapter)
 
 rel_lock:
 	mutex_unlock(&adapter->vc_buf_lock);
+
+	return err;
+}
+
+/**
+ * idpf_fill_ptype_lookup - Fill L3 specific fields in ptype lookup table
+ * @ptype: ptype lookup table
+ * @pstate: state machine for ptype lookup table
+ * @ipv4: ipv4 or ipv6
+ * @frag: fragmentation allowed
+ *
+ */
+static void idpf_fill_ptype_lookup(struct idpf_rx_ptype_decoded *ptype,
+				   struct idpf_ptype_state *pstate,
+				   bool ipv4, bool frag)
+{
+	if (!pstate->outer_ip || !pstate->outer_frag) {
+		ptype->outer_ip = IDPF_RX_PTYPE_OUTER_IP;
+		pstate->outer_ip = true;
+
+		if (ipv4)
+			ptype->outer_ip_ver = IDPF_RX_PTYPE_OUTER_IPV4;
+		else
+			ptype->outer_ip_ver = IDPF_RX_PTYPE_OUTER_IPV6;
+
+		if (frag) {
+			ptype->outer_frag = IDPF_RX_PTYPE_FRAG;
+			pstate->outer_frag = true;
+		}
+	} else {
+		ptype->tunnel_type = IDPF_RX_PTYPE_TUNNEL_IP_IP;
+		pstate->tunnel_state = IDPF_PTYPE_TUNNEL_IP;
+
+		if (ipv4)
+			ptype->tunnel_end_prot =
+					IDPF_RX_PTYPE_TUNNEL_END_IPV4;
+		else
+			ptype->tunnel_end_prot =
+					IDPF_RX_PTYPE_TUNNEL_END_IPV6;
+
+		if (frag)
+			ptype->tunnel_end_frag = IDPF_RX_PTYPE_FRAG;
+	}
+}
+
+/**
+ * idpf_send_get_rx_ptype_msg - Send virtchnl for ptype info
+ * @vport: virtual port data structure
+ *
+ * Returns 0 on success, negative on failure.
+ */
+int idpf_send_get_rx_ptype_msg(struct idpf_vport *vport)
+{
+	struct idpf_rx_ptype_decoded *ptype_lkup = vport->rx_ptype_lkup;
+	struct virtchnl2_get_ptype_info get_ptype_info;
+	int max_ptype, ptypes_recvd = 0, ptype_offset;
+	struct idpf_adapter *adapter = vport->adapter;
+	struct virtchnl2_get_ptype_info *ptype_info;
+	u16 next_ptype_id = 0;
+	int err = 0, i, j, k;
+
+	if (idpf_is_queue_model_split(vport->rxq_model))
+		max_ptype = IDPF_RX_MAX_PTYPE;
+	else
+		max_ptype = IDPF_RX_MAX_BASE_PTYPE;
+
+	memset(vport->rx_ptype_lkup, 0, sizeof(vport->rx_ptype_lkup));
+
+	ptype_info = kzalloc(IDPF_CTLQ_MAX_BUF_LEN, GFP_KERNEL);
+	if (!ptype_info)
+		return -ENOMEM;
+
+	mutex_lock(&adapter->vc_buf_lock);
+
+	while (next_ptype_id < max_ptype) {
+		get_ptype_info.start_ptype_id = cpu_to_le16(next_ptype_id);
+
+		if ((next_ptype_id + IDPF_RX_MAX_PTYPES_PER_BUF) > max_ptype)
+			get_ptype_info.num_ptypes =
+				cpu_to_le16(max_ptype - next_ptype_id);
+		else
+			get_ptype_info.num_ptypes =
+				cpu_to_le16(IDPF_RX_MAX_PTYPES_PER_BUF);
+
+		err = idpf_send_mb_msg(adapter, VIRTCHNL2_OP_GET_PTYPE_INFO,
+				       sizeof(struct virtchnl2_get_ptype_info),
+				       (u8 *)&get_ptype_info);
+		if (err)
+			goto vc_buf_unlock;
+
+		err = idpf_wait_for_event(adapter, NULL, IDPF_VC_GET_PTYPE_INFO,
+					  IDPF_VC_GET_PTYPE_INFO_ERR);
+		if (err)
+			goto vc_buf_unlock;
+
+		memcpy(ptype_info, adapter->vc_msg, IDPF_CTLQ_MAX_BUF_LEN);
+
+		ptypes_recvd += le16_to_cpu(ptype_info->num_ptypes);
+		if (ptypes_recvd > max_ptype) {
+			err = -EINVAL;
+			goto vc_buf_unlock;
+		}
+
+		next_ptype_id = le16_to_cpu(get_ptype_info.start_ptype_id) +
+				le16_to_cpu(get_ptype_info.num_ptypes);
+
+		ptype_offset = IDPF_RX_PTYPE_HDR_SZ;
+
+		for (i = 0; i < le16_to_cpu(ptype_info->num_ptypes); i++) {
+			struct idpf_ptype_state pstate = { };
+			struct virtchnl2_ptype *ptype;
+			u16 id;
+
+			ptype = (struct virtchnl2_ptype *)
+					((u8 *)ptype_info + ptype_offset);
+
+			ptype_offset += IDPF_GET_PTYPE_SIZE(ptype);
+			if (ptype_offset > IDPF_CTLQ_MAX_BUF_LEN) {
+				err = -EINVAL;
+				goto vc_buf_unlock;
+			}
+
+			/* 0xFFFF indicates end of ptypes */
+			if (le16_to_cpu(ptype->ptype_id_10) ==
+							IDPF_INVALID_PTYPE_ID) {
+				err = 0;
+				goto vc_buf_unlock;
+			}
+
+			if (idpf_is_queue_model_split(vport->rxq_model))
+				k = le16_to_cpu(ptype->ptype_id_10);
+			else
+				k = ptype->ptype_id_8;
+
+			if (ptype->proto_id_count)
+				ptype_lkup[k].known = 1;
+
+			for (j = 0; j < ptype->proto_id_count; j++) {
+				id = le16_to_cpu(ptype->proto_id[j]);
+				switch (id) {
+				case VIRTCHNL2_PROTO_HDR_GRE:
+					if (pstate.tunnel_state ==
+							IDPF_PTYPE_TUNNEL_IP) {
+						ptype_lkup[k].tunnel_type =
+						IDPF_RX_PTYPE_TUNNEL_IP_GRENAT;
+						pstate.tunnel_state |=
+						IDPF_PTYPE_TUNNEL_IP_GRENAT;
+					}
+					break;
+				case VIRTCHNL2_PROTO_HDR_MAC:
+					ptype_lkup[k].outer_ip =
+						IDPF_RX_PTYPE_OUTER_L2;
+					if (pstate.tunnel_state ==
+							IDPF_TUN_IP_GRE) {
+						ptype_lkup[k].tunnel_type =
+						IDPF_RX_PTYPE_TUNNEL_IP_GRENAT_MAC;
+						pstate.tunnel_state |=
+						IDPF_PTYPE_TUNNEL_IP_GRENAT_MAC;
+					}
+					break;
+				case VIRTCHNL2_PROTO_HDR_IPV4:
+					idpf_fill_ptype_lookup(&ptype_lkup[k],
+							       &pstate, true,
+							       false);
+					break;
+				case VIRTCHNL2_PROTO_HDR_IPV6:
+					idpf_fill_ptype_lookup(&ptype_lkup[k],
+							       &pstate, false,
+							       false);
+					break;
+				case VIRTCHNL2_PROTO_HDR_IPV4_FRAG:
+					idpf_fill_ptype_lookup(&ptype_lkup[k],
+							       &pstate, true,
+							       true);
+					break;
+				case VIRTCHNL2_PROTO_HDR_IPV6_FRAG:
+					idpf_fill_ptype_lookup(&ptype_lkup[k],
+							       &pstate, false,
+							       true);
+					break;
+				case VIRTCHNL2_PROTO_HDR_UDP:
+					ptype_lkup[k].inner_prot =
+					IDPF_RX_PTYPE_INNER_PROT_UDP;
+					break;
+				case VIRTCHNL2_PROTO_HDR_TCP:
+					ptype_lkup[k].inner_prot =
+					IDPF_RX_PTYPE_INNER_PROT_TCP;
+					break;
+				case VIRTCHNL2_PROTO_HDR_SCTP:
+					ptype_lkup[k].inner_prot =
+					IDPF_RX_PTYPE_INNER_PROT_SCTP;
+					break;
+				case VIRTCHNL2_PROTO_HDR_ICMP:
+					ptype_lkup[k].inner_prot =
+					IDPF_RX_PTYPE_INNER_PROT_ICMP;
+					break;
+				case VIRTCHNL2_PROTO_HDR_PAY:
+					ptype_lkup[k].payload_layer =
+						IDPF_RX_PTYPE_PAYLOAD_LAYER_PAY2;
+					break;
+				case VIRTCHNL2_PROTO_HDR_ICMPV6:
+				case VIRTCHNL2_PROTO_HDR_IPV6_EH:
+				case VIRTCHNL2_PROTO_HDR_PRE_MAC:
+				case VIRTCHNL2_PROTO_HDR_POST_MAC:
+				case VIRTCHNL2_PROTO_HDR_ETHERTYPE:
+				case VIRTCHNL2_PROTO_HDR_SVLAN:
+				case VIRTCHNL2_PROTO_HDR_CVLAN:
+				case VIRTCHNL2_PROTO_HDR_MPLS:
+				case VIRTCHNL2_PROTO_HDR_MMPLS:
+				case VIRTCHNL2_PROTO_HDR_PTP:
+				case VIRTCHNL2_PROTO_HDR_CTRL:
+				case VIRTCHNL2_PROTO_HDR_LLDP:
+				case VIRTCHNL2_PROTO_HDR_ARP:
+				case VIRTCHNL2_PROTO_HDR_ECP:
+				case VIRTCHNL2_PROTO_HDR_EAPOL:
+				case VIRTCHNL2_PROTO_HDR_PPPOD:
+				case VIRTCHNL2_PROTO_HDR_PPPOE:
+				case VIRTCHNL2_PROTO_HDR_IGMP:
+				case VIRTCHNL2_PROTO_HDR_AH:
+				case VIRTCHNL2_PROTO_HDR_ESP:
+				case VIRTCHNL2_PROTO_HDR_IKE:
+				case VIRTCHNL2_PROTO_HDR_NATT_KEEP:
+				case VIRTCHNL2_PROTO_HDR_L2TPV2:
+				case VIRTCHNL2_PROTO_HDR_L2TPV2_CONTROL:
+				case VIRTCHNL2_PROTO_HDR_L2TPV3:
+				case VIRTCHNL2_PROTO_HDR_GTP:
+				case VIRTCHNL2_PROTO_HDR_GTP_EH:
+				case VIRTCHNL2_PROTO_HDR_GTPCV2:
+				case VIRTCHNL2_PROTO_HDR_GTPC_TEID:
+				case VIRTCHNL2_PROTO_HDR_GTPU:
+				case VIRTCHNL2_PROTO_HDR_GTPU_UL:
+				case VIRTCHNL2_PROTO_HDR_GTPU_DL:
+				case VIRTCHNL2_PROTO_HDR_ECPRI:
+				case VIRTCHNL2_PROTO_HDR_VRRP:
+				case VIRTCHNL2_PROTO_HDR_OSPF:
+				case VIRTCHNL2_PROTO_HDR_TUN:
+				case VIRTCHNL2_PROTO_HDR_NVGRE:
+				case VIRTCHNL2_PROTO_HDR_VXLAN:
+				case VIRTCHNL2_PROTO_HDR_VXLAN_GPE:
+				case VIRTCHNL2_PROTO_HDR_GENEVE:
+				case VIRTCHNL2_PROTO_HDR_NSH:
+				case VIRTCHNL2_PROTO_HDR_QUIC:
+				case VIRTCHNL2_PROTO_HDR_PFCP:
+				case VIRTCHNL2_PROTO_HDR_PFCP_NODE:
+				case VIRTCHNL2_PROTO_HDR_PFCP_SESSION:
+				case VIRTCHNL2_PROTO_HDR_RTP:
+				case VIRTCHNL2_PROTO_HDR_NO_PROTO:
+					break;
+				default:
+					break;
+				}
+			}
+		}
+	}
+
+vc_buf_unlock:
+	mutex_unlock(&adapter->vc_buf_lock);
+	kfree(ptype_info);
 
 	return err;
 }
@@ -1378,4 +1727,149 @@ u32 idpf_get_vport_id(struct idpf_vport *vport)
 	vport_msg = vport->adapter->vport_params_recvd[vport->idx];
 
 	return le32_to_cpu(vport_msg->vport_id);
+}
+
+/**
+ * idpf_add_del_mac_filters - Add/del mac filters
+ * @vport: Virtual port data structure
+ * @np: Netdev private structure
+ * @add: Add or delete flag
+ * @async: Don't wait for return message
+ *
+ * Returns 0 on success, error on failure.
+ **/
+int idpf_add_del_mac_filters(struct idpf_vport *vport,
+			     struct idpf_netdev_priv *np,
+			     bool add, bool async)
+{
+	struct virtchnl2_mac_addr_list *ma_list = NULL;
+	struct idpf_adapter *adapter = np->adapter;
+	struct idpf_vport_config *vport_config;
+	enum idpf_vport_config_flags mac_flag;
+	struct pci_dev *pdev = adapter->pdev;
+	enum idpf_vport_vc_state vc, vc_err;
+	struct virtchnl2_mac_addr *mac_addr;
+	struct idpf_mac_filter *f, *tmp;
+	u32 num_msgs, total_filters = 0;
+	int i = 0, k, err = 0;
+	u32 vop;
+
+	vport_config = adapter->vport_config[np->vport_idx];
+	spin_lock_bh(&vport_config->mac_filter_list_lock);
+
+	/* Find the number of newly added filters */
+	list_for_each_entry(f, &vport_config->user_config.mac_filter_list,
+			    list) {
+		if (add && f->add)
+			total_filters++;
+		else if (!add && f->remove)
+			total_filters++;
+	}
+
+	if (!total_filters) {
+		spin_unlock_bh(&vport_config->mac_filter_list_lock);
+
+		return 0;
+	}
+
+	/* Fill all the new filters into virtchannel message */
+	mac_addr = kcalloc(total_filters, sizeof(struct virtchnl2_mac_addr),
+			   GFP_ATOMIC);
+	if (!mac_addr) {
+		err = -ENOMEM;
+		spin_unlock_bh(&vport_config->mac_filter_list_lock);
+		goto error;
+	}
+
+	list_for_each_entry_safe(f, tmp, &vport_config->user_config.mac_filter_list,
+				 list) {
+		if (add && f->add) {
+			ether_addr_copy(mac_addr[i].addr, f->macaddr);
+			i++;
+			f->add = false;
+			if (i == total_filters)
+				break;
+		}
+		if (!add && f->remove) {
+			ether_addr_copy(mac_addr[i].addr, f->macaddr);
+			i++;
+			f->remove = false;
+			if (i == total_filters)
+				break;
+		}
+	}
+
+	spin_unlock_bh(&vport_config->mac_filter_list_lock);
+
+	if (add) {
+		vop = VIRTCHNL2_OP_ADD_MAC_ADDR;
+		vc = IDPF_VC_ADD_MAC_ADDR;
+		vc_err = IDPF_VC_ADD_MAC_ADDR_ERR;
+		mac_flag = IDPF_VPORT_ADD_MAC_REQ;
+	} else {
+		vop = VIRTCHNL2_OP_DEL_MAC_ADDR;
+		vc = IDPF_VC_DEL_MAC_ADDR;
+		vc_err = IDPF_VC_DEL_MAC_ADDR_ERR;
+		mac_flag = IDPF_VPORT_DEL_MAC_REQ;
+	}
+
+	/* Chunk up the filters into multiple messages to avoid
+	 * sending a control queue message buffer that is too large
+	 */
+	num_msgs = DIV_ROUND_UP(total_filters, IDPF_NUM_FILTERS_PER_MSG);
+
+	if (!async)
+		mutex_lock(&vport->vc_buf_lock);
+
+	for (i = 0, k = 0; i < num_msgs; i++) {
+		u32 entries_size, buf_size, num_entries;
+
+		num_entries = min_t(u32, total_filters,
+				    IDPF_NUM_FILTERS_PER_MSG);
+		entries_size = sizeof(struct virtchnl2_mac_addr) * num_entries;
+		buf_size = struct_size(ma_list, mac_addr_list, num_entries);
+
+		if (!ma_list || num_entries != IDPF_NUM_FILTERS_PER_MSG) {
+			kfree(ma_list);
+			ma_list = kzalloc(buf_size, GFP_ATOMIC);
+			if (!ma_list) {
+				err = -ENOMEM;
+				goto list_prep_error;
+			}
+		} else {
+			memset(ma_list, 0, buf_size);
+		}
+
+		ma_list->vport_id = cpu_to_le32(np->vport_id);
+		ma_list->num_mac_addr = cpu_to_le16(num_entries);
+		memcpy(ma_list->mac_addr_list, &mac_addr[k], entries_size);
+
+		if (async)
+			set_bit(mac_flag, vport_config->flags);
+
+		err = idpf_send_mb_msg(adapter, vop, buf_size, (u8 *)ma_list);
+		if (err)
+			goto mbx_error;
+
+		if (!async) {
+			err = idpf_wait_for_event(adapter, vport, vc, vc_err);
+			if (err)
+				goto mbx_error;
+		}
+
+		k += num_entries;
+		total_filters -= num_entries;
+	}
+
+mbx_error:
+	if (!async)
+		mutex_unlock(&vport->vc_buf_lock);
+	kfree(ma_list);
+list_prep_error:
+	kfree(mac_addr);
+error:
+	if (err)
+		dev_err(&pdev->dev, "Failed to add or del mac filters %d", err);
+
+	return err;
 }

@@ -21,6 +21,7 @@ struct idpf_vport_max_q;
 #define IDPF_NO_FREE_SLOT		0xffff
 
 /* Default Mailbox settings */
+#define IDPF_NUM_FILTERS_PER_MSG	20
 #define IDPF_NUM_DFLT_MBX_Q		2	/* includes both TX and RX */
 #define IDPF_DFLT_MBX_Q_LEN		64
 #define IDPF_DFLT_MBX_ID		-1
@@ -36,6 +37,20 @@ struct idpf_vport_max_q;
 
 #define IDPF_VIRTCHNL_VERSION_MAJOR VIRTCHNL2_VERSION_MAJOR_2
 #define IDPF_VIRTCHNL_VERSION_MINOR VIRTCHNL2_VERSION_MINOR_0
+
+/**
+ * struct idpf_mac_filter
+ * @list: list member field
+ * @macaddr: MAC address
+ * @remove: filter should be removed (virtchnl)
+ * @add: filter should be added (virtchnl)
+ */
+struct idpf_mac_filter {
+	struct list_head list;
+	u8 macaddr[ETH_ALEN];
+	bool remove;
+	bool add;
+};
 
 /**
  * enum idpf_state - State machine to handle bring up
@@ -115,11 +130,17 @@ enum idpf_vport_state {
 
 /**
  * struct idpf_netdev_priv - Struct to store vport back pointer
+ * @adapter: Adapter back pointer
  * @vport: Vport back pointer
+ * @vport_id: Vport identifier
+ * @vport_idx: Relative vport index
  * @state: See enum idpf_vport_state
  */
 struct idpf_netdev_priv {
+	struct idpf_adapter *adapter;
 	struct idpf_vport *vport;
+	u32 vport_id;
+	u16 vport_idx;
 	enum idpf_vport_state state;
 };
 
@@ -184,6 +205,12 @@ struct idpf_dev_ops {
 	STATE(IDPF_VC_ALLOC_VECTORS_ERR)	\
 	STATE(IDPF_VC_DEALLOC_VECTORS)		\
 	STATE(IDPF_VC_DEALLOC_VECTORS_ERR)	\
+	STATE(IDPF_VC_ADD_MAC_ADDR)		\
+	STATE(IDPF_VC_ADD_MAC_ADDR_ERR)		\
+	STATE(IDPF_VC_DEL_MAC_ADDR)		\
+	STATE(IDPF_VC_DEL_MAC_ADDR_ERR)		\
+	STATE(IDPF_VC_GET_PTYPE_INFO)		\
+	STATE(IDPF_VC_GET_PTYPE_INFO_ERR)	\
 	STATE(IDPF_VC_NBITS)
 
 #define IDPF_GEN_ENUM(ENUM) ENUM,
@@ -213,6 +240,7 @@ extern const char * const idpf_vport_vc_state_str[];
  * @bufq_size: Size of buffers in ring (e.g. 2K, 4K, etc)
  * @num_rxq_grp: Number of RX queues in a group
  * @rxq_model: Splitq queue or single queue queuing model
+ * @rx_ptype_lkup: Lookup table for ptypes on RX
  * @adapter: back pointer to associated adapter
  * @netdev: Associated net_device. Each vport should have one and only one
  *	    associated netdev.
@@ -220,6 +248,7 @@ extern const char * const idpf_vport_vc_state_str[];
  * @vport_id: Device given vport identifier
  * @idx: Software index in adapter vports struct
  * @default_vport: Use this vport if one isn't specified
+ * @base_rxd: True if the driver should use base descriptors instead of flex
  * @max_mtu: device given max possible MTU
  * @default_mac_addr: device will give a default MAC to use
  * @vc_msg: Virtchnl message buffer
@@ -242,6 +271,7 @@ struct idpf_vport {
 	u32 bufq_size[IDPF_MAX_BUFQS_PER_RXQ_GRP];
 	u16 num_rxq_grp;
 	u32 rxq_model;
+	struct idpf_rx_ptype_decoded rx_ptype_lkup[IDPF_RX_MAX_PTYPE];
 
 	struct idpf_adapter *adapter;
 	struct net_device *netdev;
@@ -249,6 +279,7 @@ struct idpf_vport {
 	u32 vport_id;
 	u16 idx;
 	bool default_vport;
+	bool base_rxd;
 
 	u16 max_mtu;
 	u8 default_mac_addr[ETH_ALEN];
@@ -269,6 +300,7 @@ struct idpf_vport {
  *		      ethtool
  * @num_req_rxq_desc: Number of user requested RX queue descriptors through
  *		      ethtool
+ * @mac_filter_list: List of MAC filters
  *
  * Used to restore configuration after a reset as the vport will get wiped.
  */
@@ -277,17 +309,22 @@ struct idpf_vport_user_config_data {
 	u16 num_req_rx_qs;
 	u32 num_req_txq_desc;
 	u32 num_req_rxq_desc;
+	struct list_head mac_filter_list;
 };
 
 /**
  * enum idpf_vport_config_flags - Vport config flags
  * @IDPF_VPORT_REG_NETDEV: Register netdev
  * @IDPF_VPORT_UP_REQUESTED: Set if interface up is requested on core reset
+ * @IDPF_VPORT_ADD_MAC_REQ: Asynchronous add ether address in flight
+ * @IDPF_VPORT_DEL_MAC_REQ: Asynchronous delete ether address in flight
  * @IDPF_VPORT_CONFIG_FLAGS_NBITS: Must be last
  */
 enum idpf_vport_config_flags {
 	IDPF_VPORT_REG_NETDEV,
 	IDPF_VPORT_UP_REQUESTED,
+	IDPF_VPORT_ADD_MAC_REQ,
+	IDPF_VPORT_DEL_MAC_REQ,
 	IDPF_VPORT_CONFIG_FLAGS_NBITS,
 };
 
@@ -335,11 +372,13 @@ struct idpf_vector_lifo {
  * struct idpf_vport_config - Vport configuration data
  * @user_config: see struct idpf_vport_user_config_data
  * @max_q: Maximum possible queues
+ * @mac_filter_list_lock: Lock to protect mac filters
  * @flags: See enum idpf_vport_config_flags
  */
 struct idpf_vport_config {
 	struct idpf_vport_user_config_data user_config;
 	struct idpf_vport_max_q max_q;
+	spinlock_t mac_filter_list_lock;
 	DECLARE_BITMAP(flags, IDPF_VPORT_CONFIG_FLAGS_NBITS);
 };
 
@@ -592,6 +631,7 @@ void idpf_vc_core_deinit(struct idpf_adapter *adapter);
 int idpf_intr_req(struct idpf_adapter *adapter);
 void idpf_intr_rel(struct idpf_adapter *adapter);
 int idpf_send_destroy_vport_msg(struct idpf_vport *vport);
+int idpf_send_get_rx_ptype_msg(struct idpf_vport *vport);
 int idpf_send_dealloc_vectors_msg(struct idpf_adapter *adapter);
 int idpf_send_alloc_vectors_msg(struct idpf_adapter *adapter, u16 num_vectors);
 void idpf_deinit_task(struct idpf_adapter *adapter);
@@ -606,9 +646,13 @@ int idpf_vport_alloc_max_qs(struct idpf_adapter *adapter,
 			    struct idpf_vport_max_q *max_q);
 void idpf_vport_dealloc_max_qs(struct idpf_adapter *adapter,
 			       struct idpf_vport_max_q *max_q);
+int idpf_add_del_mac_filters(struct idpf_vport *vport,
+			     struct idpf_netdev_priv *np,
+			     bool add, bool async);
 void idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q);
 u32 idpf_get_vport_id(struct idpf_vport *vport);
 int idpf_send_create_vport_msg(struct idpf_adapter *adapter,
 			       struct idpf_vport_max_q *max_q);
+int idpf_check_supported_desc_ids(struct idpf_vport *vport);
 
 #endif /* !_IDPF_H_ */
