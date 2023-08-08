@@ -671,10 +671,14 @@ static int p9_fd_request(struct p9_client *client, struct p9_req_t *req)
 
 	p9_debug(P9_DEBUG_TRANS, "mux %p task %p tcall %p id %d\n",
 		 m, current, &req->tc, req->tc.id);
-	if (m->err < 0)
-		return m->err;
 
 	spin_lock(&m->req_lock);
+
+	if (m->err < 0) {
+		spin_unlock(&m->req_lock);
+		return m->err;
+	}
+
 	WRITE_ONCE(req->status, REQ_STATUS_UNSENT);
 	list_add_tail(&req->req_list, &m->unsent_req_list);
 	spin_unlock(&m->req_lock);
