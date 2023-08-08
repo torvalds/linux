@@ -244,6 +244,7 @@ static int rockchip_csi2_dphy_attach_hw(struct csi2_dphy *dphy, int csi_idx, int
 			return -EINVAL;
 		}
 		dphy_hw->dphy_dev[dphy_hw->dphy_dev_num] = dphy;
+		dphy_hw->dphy_dev_num++;
 		dphy->phy_hw[index] = (void *)dphy_hw;
 		dphy->csi_info.dphy_vendor[index] = PHY_VENDOR_INNO;
 		mutex_unlock(&dphy_hw->mutex);
