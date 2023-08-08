@@ -440,8 +440,9 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 		return -EINVAL;
 	}
 
-	if (x->sel.proto != IPPROTO_IP && x->sel.proto != IPPROTO_UDP) {
-		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than UDP");
+	if (x->sel.proto != IPPROTO_IP && x->sel.proto != IPPROTO_UDP &&
+	    x->sel.proto != IPPROTO_TCP) {
+		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than TCP/UDP");
 		return -EINVAL;
 	}
 
@@ -982,8 +983,10 @@ static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
 		return -EINVAL;
 	}
 
-	if (x->selector.proto != IPPROTO_IP && x->selector.proto != IPPROTO_UDP) {
-		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than UDP");
+	if (x->selector.proto != IPPROTO_IP &&
+	    x->selector.proto != IPPROTO_UDP &&
+	    x->selector.proto != IPPROTO_TCP) {
+		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than TCP/UDP");
 		return -EINVAL;
 	}
 
