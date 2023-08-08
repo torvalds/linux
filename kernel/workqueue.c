@@ -1542,7 +1542,7 @@ fail:
 static void insert_work(struct pool_workqueue *pwq, struct work_struct *work,
 			struct list_head *head, unsigned int extra_flags)
 {
-	struct worker_pool *pool = pwq->pool;
+	debug_work_activate(work);
 
 	/* record the work call stack in order to print it in KASAN reports */
 	kasan_record_aux_stack_noalloc(work);
@@ -1551,9 +1551,6 @@ static void insert_work(struct pool_workqueue *pwq, struct work_struct *work,
 	set_work_pwq(work, pwq, extra_flags);
 	list_add_tail(&work->entry, head);
 	get_pwq(pwq);
-
-	if (__need_more_worker(pool))
-		wake_up_worker(pool);
 }
 
 /*
@@ -1607,8 +1604,7 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 			 struct work_struct *work)
 {
 	struct pool_workqueue *pwq;
-	struct worker_pool *last_pool;
-	struct list_head *worklist;
+	struct worker_pool *last_pool, *pool;
 	unsigned int work_flags;
 	unsigned int req_cpu = cpu;
 
@@ -1642,13 +1638,15 @@ retry:
 		pwq = per_cpu_ptr(wq->cpu_pwqs, cpu);
 	}
 
+	pool = pwq->pool;
+
 	/*
 	 * If @work was previously on a different pool, it might still be
 	 * running there, in which case the work needs to be queued on that
 	 * pool to guarantee non-reentrancy.
 	 */
 	last_pool = get_work_pool(work);
-	if (last_pool && last_pool != pwq->pool) {
+	if (last_pool && last_pool != pool) {
 		struct worker *worker;
 
 		raw_spin_lock(&last_pool->lock);
@@ -1657,13 +1655,15 @@ retry:
 
 		if (worker && worker->current_pwq->wq == wq) {
 			pwq = worker->current_pwq;
+			pool = pwq->pool;
+			WARN_ON_ONCE(pool != last_pool);
 		} else {
 			/* meh... not running there, queue here */
 			raw_spin_unlock(&last_pool->lock);
-			raw_spin_lock(&pwq->pool->lock);
+			raw_spin_lock(&pool->lock);
 		}
 	} else {
-		raw_spin_lock(&pwq->pool->lock);
+		raw_spin_lock(&pool->lock);
 	}
 
 	/*
@@ -1676,7 +1676,7 @@ retry:
 	 */
 	if (unlikely(!pwq->refcnt)) {
 		if (wq->flags & WQ_UNBOUND) {
-			raw_spin_unlock(&pwq->pool->lock);
+			raw_spin_unlock(&pool->lock);
 			cpu_relax();
 			goto retry;
 		}
@@ -1695,21 +1695,22 @@ retry:
 	work_flags = work_color_to_flags(pwq->work_color);
 
 	if (likely(pwq->nr_active < pwq->max_active)) {
+		if (list_empty(&pool->worklist))
+			pool->watchdog_ts = jiffies;
+
 		trace_workqueue_activate_work(work);
 		pwq->nr_active++;
-		worklist = &pwq->pool->worklist;
-		if (list_empty(worklist))
-			pwq->pool->watchdog_ts = jiffies;
+		insert_work(pwq, work, &pool->worklist, work_flags);
+
+		if (__need_more_worker(pool))
+			wake_up_worker(pool);
 	} else {
 		work_flags |= WORK_STRUCT_INACTIVE;
-		worklist = &pwq->inactive_works;
+		insert_work(pwq, work, &pwq->inactive_works, work_flags);
 	}
 
-	debug_work_activate(work);
-	insert_work(pwq, work, worklist, work_flags);
-
 out:
-	raw_spin_unlock(&pwq->pool->lock);
+	raw_spin_unlock(&pool->lock);
 	rcu_read_unlock();
 }
 
@@ -3012,7 +3013,6 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
 	pwq->nr_in_flight[work_color]++;
 	work_flags |= work_color_to_flags(work_color);
 
-	debug_work_activate(&barr->work);
 	insert_work(pwq, &barr->work, head, work_flags);
 }
 
