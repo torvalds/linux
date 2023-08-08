@@ -17,6 +17,21 @@ static void idpf_remove(struct pci_dev *pdev)
 {
 	struct idpf_adapter *adapter = pci_get_drvdata(pdev);
 
+	set_bit(IDPF_REMOVE_IN_PROG, adapter->flags);
+
+	/* Wait until vc_event_task is done to consider if any hard reset is
+	 * in progress else we may go ahead and release the resources but the
+	 * thread doing the hard reset might continue the init path and
+	 * end up in bad state.
+	 */
+	cancel_delayed_work_sync(&adapter->vc_event_task);
+	/* Be a good citizen and leave the device clean on exit */
+	adapter->dev_ops.reg_ops.trigger_reset(adapter, IDPF_HR_FUNC_RESET);
+	idpf_deinit_dflt_mbx(adapter);
+
+	destroy_workqueue(adapter->vc_event_wq);
+	mutex_destroy(&adapter->vport_ctrl_lock);
+
 	pci_set_drvdata(pdev, NULL);
 	kfree(adapter);
 }
@@ -72,8 +87,22 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter)
 		return -ENOMEM;
-	adapter->pdev = pdev;
 
+	switch (ent->device) {
+	case IDPF_DEV_ID_PF:
+		idpf_dev_ops_init(adapter);
+		break;
+	case IDPF_DEV_ID_VF:
+		idpf_vf_dev_ops_init(adapter);
+		break;
+	default:
+		err = -ENODEV;
+		dev_err(&pdev->dev, "Unexpected dev ID 0x%x in idpf probe\n",
+			ent->device);
+		goto err_free;
+	}
+
+	adapter->pdev = pdev;
 	err = pcim_enable_device(pdev);
 	if (err)
 		goto err_free;
@@ -96,6 +125,15 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 	pci_set_drvdata(pdev, adapter);
 
+	adapter->vc_event_wq = alloc_workqueue("%s-%s-vc_event", 0, 0,
+					       dev_driver_string(dev),
+					       dev_name(dev));
+	if (!adapter->vc_event_wq) {
+		dev_err(dev, "Failed to allocate virtchnl event workqueue\n");
+		err = -ENOMEM;
+		goto err_free;
+	}
+
 	/* setup msglvl */
 	adapter->msg_enable = netif_msg_init(-1, IDPF_AVAIL_NETIF_M);
 
@@ -103,11 +141,22 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err) {
 		dev_err(dev, "Failed to configure HW structure for adapter: %d\n",
 			err);
-		goto err_free;
+		goto err_cfg_hw;
 	}
+
+	mutex_init(&adapter->vport_ctrl_lock);
+
+	INIT_DELAYED_WORK(&adapter->vc_event_task, idpf_vc_event_task);
+
+	adapter->dev_ops.reg_ops.reset_reg_init(adapter);
+	set_bit(IDPF_HR_DRV_LOAD, adapter->flags);
+	queue_delayed_work(adapter->vc_event_wq, &adapter->vc_event_task,
+			   msecs_to_jiffies(10 * (pdev->devfn & 0x07)));
 
 	return 0;
 
+err_cfg_hw:
+	destroy_workqueue(adapter->vc_event_wq);
 err_free:
 	kfree(adapter);
 	return err;

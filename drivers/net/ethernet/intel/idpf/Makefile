@@ -6,4 +6,10 @@
 obj-$(CONFIG_IDPF) += idpf.o
 
 idpf-y := \
-	idpf_main.o
+	idpf_controlq.o		\
+	idpf_controlq_setup.o	\
+	idpf_dev.o		\
+	idpf_lib.o		\
+	idpf_main.o		\
+	idpf_virtchnl.o 	\
+	idpf_vf_dev.o
