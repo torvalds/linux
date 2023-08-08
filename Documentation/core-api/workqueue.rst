@@ -347,6 +347,65 @@ Guidelines
   level of locality in wq operations and work item execution.
 
 
+Examining Configuration
+=======================
+
+Use tools/workqueue/wq_dump.py to examine unbound CPU affinity
+configuration, worker pools and how workqueues map to the pools: ::
+
+  $ tools/workqueue/wq_dump.py
+  Affinity Scopes
+  ===============
+  wq_unbound_cpumask=0000000f
+
+  NUMA
+    nr_pods  2
+    pod_cpus [0]=00000003 [1]=0000000c
+    pod_node [0]=0 [1]=1
+    cpu_pod  [0]=0 [1]=0 [2]=1 [3]=1
+
+  SYSTEM
+    nr_pods  1
+    pod_cpus [0]=0000000f
+    pod_node [0]=-1
+    cpu_pod  [0]=0 [1]=0 [2]=0 [3]=0
+
+  Worker Pools
+  ============
+  pool[00] ref= 1 nice=  0 idle/workers=  4/  4 cpu=  0
+  pool[01] ref= 1 nice=-20 idle/workers=  2/  2 cpu=  0
+  pool[02] ref= 1 nice=  0 idle/workers=  4/  4 cpu=  1
+  pool[03] ref= 1 nice=-20 idle/workers=  2/  2 cpu=  1
+  pool[04] ref= 1 nice=  0 idle/workers=  4/  4 cpu=  2
+  pool[05] ref= 1 nice=-20 idle/workers=  2/  2 cpu=  2
+  pool[06] ref= 1 nice=  0 idle/workers=  3/  3 cpu=  3
+  pool[07] ref= 1 nice=-20 idle/workers=  2/  2 cpu=  3
+  pool[08] ref=42 nice=  0 idle/workers=  6/  6 cpus=0000000f
+  pool[09] ref=28 nice=  0 idle/workers=  3/  3 cpus=00000003
+  pool[10] ref=28 nice=  0 idle/workers= 17/ 17 cpus=0000000c
+  pool[11] ref= 1 nice=-20 idle/workers=  1/  1 cpus=0000000f
+  pool[12] ref= 2 nice=-20 idle/workers=  1/  1 cpus=00000003
+  pool[13] ref= 2 nice=-20 idle/workers=  1/  1 cpus=0000000c
+
+  Workqueue CPU -> pool
+  =====================
+  [    workqueue \ CPU              0  1  2  3 dfl]
+  events                   percpu   0  2  4  6
+  events_highpri           percpu   1  3  5  7
+  events_long              percpu   0  2  4  6
+  events_unbound           unbound  9  9 10 10  8
+  events_freezable         percpu   0  2  4  6
+  events_power_efficient   percpu   0  2  4  6
+  events_freezable_power_  percpu   0  2  4  6
+  rcu_gp                   percpu   0  2  4  6
+  rcu_par_gp               percpu   0  2  4  6
+  slub_flushwq             percpu   0  2  4  6
+  netns                    ordered  8  8  8  8  8
+  ...
+
+See the command's help message for more info.
+
+
 Monitoring
 ==========
 
