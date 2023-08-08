@@ -989,6 +989,25 @@ static bool is_pci_link_healthy(struct hl_device *hdev)
 	return (vendor_id == PCI_VENDOR_ID_HABANALABS);
 }
 
+static void hl_device_eq_heartbeat(struct hl_device *hdev)
+{
+	u64 event_mask = HL_NOTIFIER_EVENT_DEVICE_RESET | HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+
+	 /*
+	  * This feature supported in FW version 1.12.0 45.2.0 and above,
+	  * only on those FW versions eq_health_check_supported will be set.
+	  * Start checking eq health only after driver has enabled events from FW.
+	  */
+	if (!prop->cpucp_info.eq_health_check_supported || !hdev->init_done)
+		return;
+
+	if (hdev->eq_heartbeat_received)
+		hdev->eq_heartbeat_received = false;
+	else
+		hl_device_cond_reset(hdev, HL_DRV_RESET_HARD, event_mask);
+}
+
 static void hl_device_heartbeat(struct work_struct *work)
 {
 	struct hl_device *hdev = container_of(work, struct hl_device,
@@ -998,6 +1017,12 @@ static void hl_device_heartbeat(struct work_struct *work)
 
 	if (!hl_device_operational(hdev, NULL))
 		goto reschedule;
+
+	/*
+	 * For EQ health check need to check if driver received the heartbeat eq event
+	 * in order to validate the eq is working.
+	 */
+	hl_device_eq_heartbeat(hdev);
 
 	if (!hdev->asic_funcs->send_heartbeat(hdev))
 		goto reschedule;
@@ -1055,7 +1080,15 @@ static int device_late_init(struct hl_device *hdev)
 	hdev->high_pll = hdev->asic_prop.high_pll;
 
 	if (hdev->heartbeat) {
+		/*
+		 * Before scheduling the heartbeat driver will check if eq event has received.
+		 * for the first schedule we need to set the indication as true then for the next
+		 * one this indication will be true only if eq event was sent by FW.
+		 */
+		hdev->eq_heartbeat_received = true;
+
 		INIT_DELAYED_WORK(&hdev->work_heartbeat, hl_device_heartbeat);
+
 		schedule_delayed_work(&hdev->work_heartbeat,
 				usecs_to_jiffies(HL_HEARTBEAT_PER_USEC));
 	}
@@ -2235,14 +2268,14 @@ int hl_device_init(struct hl_device *hdev)
 		"Successfully added device %s to habanalabs driver\n",
 		dev_name(&(hdev)->pdev->dev));
 
-	hdev->init_done = true;
-
 	/* After initialization is done, we are ready to receive events from
 	 * the F/W. We can't do it before because we will ignore events and if
 	 * those events are fatal, we won't know about it and the device will
 	 * be operational although it shouldn't be
 	 */
 	hdev->asic_funcs->enable_events_from_fw(hdev);
+
+	hdev->init_done = true;
 
 	return 0;
 

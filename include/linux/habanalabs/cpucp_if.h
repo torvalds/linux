@@ -33,6 +33,17 @@
 #define PLL_MAP_MAX_BITS	128
 #define PLL_MAP_LEN		(PLL_MAP_MAX_BITS / 8)
 
+enum eq_event_id {
+	EQ_EVENT_NIC_STS_REQUEST = 0,
+	EQ_EVENT_PWR_MODE_0,
+	EQ_EVENT_PWR_MODE_1,
+	EQ_EVENT_PWR_MODE_2,
+	EQ_EVENT_PWR_MODE_3,
+	EQ_EVENT_PWR_BRK_ENTRY,
+	EQ_EVENT_PWR_BRK_EXIT,
+	EQ_EVENT_HEARTBEAT,
+};
+
 /*
  * info of the pkt queue pointers in the first async occurrence
  */
@@ -1143,6 +1154,7 @@ struct cpucp_security_info {
  *                     (0 = functional 1 = binned)
  * @interposer_version: Interposer version programmed in eFuse
  * @substrate_version: Substrate version programmed in eFuse
+ * @eq_health_check_supported: eq health check feature supported in FW.
  * @fw_hbm_region_size: Size in bytes of FW reserved region in HBM.
  * @fw_os_version: Firmware OS Version
  */
@@ -1169,7 +1181,7 @@ struct cpucp_info {
 	__u8 xbar_binning_mask;
 	__u8 interposer_version;
 	__u8 substrate_version;
-	__u8 reserved2;
+	__u8 eq_health_check_supported;
 	struct cpucp_security_info sec_info;
 	__le32 fw_hbm_region_size;
 	__u8 pll_map[PLL_MAP_LEN];
