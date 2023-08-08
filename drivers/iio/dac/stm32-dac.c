@@ -11,12 +11,13 @@
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
 #include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/string_helpers.h>
+#include <linux/string_choices.h>
 
 #include "stm32-dac-core.h"
 
