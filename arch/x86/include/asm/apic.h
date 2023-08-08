@@ -266,10 +266,11 @@ struct apic {
 	void	(*send_IPI_all)(int vector);
 	void	(*send_IPI_self)(int vector);
 
-	u32	disable_esr;
-
 	enum apic_delivery_modes delivery_mode;
-	bool	dest_mode_logical;
+
+	u32	disable_esr		: 1,
+		dest_mode_logical	: 1,
+		x2apic_set_max_apicid	: 1;
 
 	u32	(*calc_dest_apicid)(unsigned int cpu);
 

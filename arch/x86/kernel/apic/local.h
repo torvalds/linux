@@ -23,6 +23,7 @@ int x2apic_phys_pkg_id(int initial_apicid, int index_msb);
 void x2apic_send_IPI_all(int vector);
 void x2apic_send_IPI_allbutself(int vector);
 void x2apic_send_IPI_self(int vector);
+extern u32 x2apic_max_apicid;
 
 /* IPI */
 
