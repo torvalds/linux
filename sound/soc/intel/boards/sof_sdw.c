@@ -1163,10 +1163,15 @@ static bool is_unique_device(const struct snd_soc_acpi_link_adr *adr_link,
 static int fill_sdw_codec_dlc(struct device *dev,
 			      const struct snd_soc_acpi_link_adr *adr_link,
 			      struct snd_soc_dai_link_component *codec,
-			      int codec_index, int adr_index, int dai_index)
+			      int adr_index, int dai_index)
 {
 	unsigned int sdw_version, unique_id, mfg_id, link_id, part_id, class_id;
 	u64 adr = adr_link->adr_d[adr_index].adr;
+	int codec_index;
+
+	codec_index = find_codec_info_part(adr);
+	if (codec_index < 0)
+		return codec_index;
 
 	sdw_version = SDW_VERSION(adr);
 	link_id = SDW_DISCO_LINK_ID(adr);
@@ -1368,8 +1373,6 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 	j = adr_index;
 	for (adr_link_next = adr_link; adr_link_next && adr_link_next->num_adr &&
 	     i < cpu_dai_num; adr_link_next++) {
-		int _codec_index = -1;
-
 		/* skip the link excluded by this processed group */
 		if (cpu_dai_id[i] != ffs(adr_link_next->mask) - 1)
 			continue;
@@ -1377,17 +1380,6 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		/* j reset after loop, adr_index only applies to first link */
 		for (; j < adr_link_next->num_adr; j++) {
 			const struct snd_soc_acpi_endpoint *endpoints;
-			int codec_index;
-			u64 adr = adr_link_next->adr_d[j].adr;
-
-			codec_index = find_codec_info_part(adr);
-			if (codec_index < 0)
-				return codec_index;
-			if (_codec_index != -1 && codec_index != _codec_index) {
-				dev_dbg(dev, "Different devices on the same sdw link\n");
-				break;
-			}
-			_codec_index = codec_index;
 
 			endpoints = adr_link_next->adr_d[j].endpoints;
 
@@ -1403,7 +1395,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 
 			ret = fill_sdw_codec_dlc(dev, adr_link_next,
 						 &codecs[codec_dlc_index],
-						 codec_index, j, dai_index);
+						 j, dai_index);
 			if (ret)
 				return ret;
 
