@@ -19,19 +19,20 @@
 
 #include "../../kselftest.h"
 
-#define TESTS_PER_HWCAP 2
+#define TESTS_PER_HWCAP 3
 
 /*
- * Function expected to generate SIGILL when the feature is not
- * supported and return when it is supported. If SIGILL is generated
- * then the handler must be able to skip over the instruction safely.
+ * Function expected to generate exception when the feature is not
+ * supported and return when it is supported. If the specific exception
+ * is generated then the handler must be able to skip over the
+ * instruction safely.
  *
  * Note that it is expected that for many architecture extensions
  * there are no specific traps due to no architecture state being
  * added so we may not fault if running on a kernel which doesn't know
  * to add the hwcap.
  */
-typedef void (*sigill_fn)(void);
+typedef void (*sig_fn)(void);
 
 static void crc32_sigill(void)
 {
@@ -235,8 +236,10 @@ static const struct hwcap_data {
 	unsigned long at_hwcap;
 	unsigned long hwcap_bit;
 	const char *cpuinfo;
-	sigill_fn sigill_fn;
+	sig_fn sigill_fn;
 	bool sigill_reliable;
+	sig_fn sigbus_fn;
+	bool sigbus_reliable;
 } hwcaps[] = {
 	{
 		.name = "CRC32",
@@ -452,6 +455,7 @@ static void handle_##SIG(int sig, siginfo_t *info, void *context)	\
 }
 
 DEF_SIGHANDLER_FUNC(sigill, SIGILL);
+DEF_SIGHANDLER_FUNC(sigbus, SIGBUS);
 
 bool cpuinfo_present(const char *name)
 {
@@ -506,7 +510,7 @@ static int install_sigaction(int signum, sighandler_fn handler)
 	sigemptyset(&sa.sa_mask);
 	ret = sigaction(signum, &sa, NULL);
 	if (ret < 0)
-		ksft_exit_fail_msg("Failed to install SIGILL handler: %s (%d)\n",
+		ksft_exit_fail_msg("Failed to install SIGNAL handler: %s (%d)\n",
 				   strerror(errno), errno);
 
 	return ret;
@@ -515,7 +519,7 @@ static int install_sigaction(int signum, sighandler_fn handler)
 static void uninstall_sigaction(int signum)
 {
 	if (sigaction(signum, NULL, NULL) < 0)
-		ksft_exit_fail_msg("Failed to uninstall SIGILL handler: %s (%d)\n",
+		ksft_exit_fail_msg("Failed to uninstall SIGNAL handler: %s (%d)\n",
 				   strerror(errno), errno);
 }
 
@@ -556,12 +560,13 @@ static bool inst_raise_##SIG(const struct hwcap_data *hwcap,		\
 }
 
 DEF_INST_RAISE_SIG(sigill, SIGILL);
+DEF_INST_RAISE_SIG(sigbus, SIGBUS);
 
 int main(void)
 {
 	int i;
 	const struct hwcap_data *hwcap;
-	bool have_cpuinfo, have_hwcap;
+	bool have_cpuinfo, have_hwcap, raise_sigill;
 
 	ksft_print_header();
 	ksft_set_plan(ARRAY_SIZE(hwcaps) * TESTS_PER_HWCAP);
@@ -578,7 +583,15 @@ int main(void)
 		ksft_test_result(have_hwcap == have_cpuinfo,
 				 "cpuinfo_match_%s\n", hwcap->name);
 
-		inst_raise_sigill(hwcap, have_hwcap);
+		/*
+		 * Testing for SIGBUS only makes sense after make sure
+		 * that the instruction does not cause a SIGILL signal.
+		 */
+		raise_sigill = inst_raise_sigill(hwcap, have_hwcap);
+		if (!raise_sigill)
+			inst_raise_sigbus(hwcap, have_hwcap);
+		else
+			ksft_test_result_skip("sigbus_%s\n", hwcap->name);
 	}
 
 	ksft_print_cnts();
