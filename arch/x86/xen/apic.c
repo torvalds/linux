@@ -129,10 +129,6 @@ static void xen_noop(void)
 {
 }
 
-static void xen_silent_inquire(int apicid)
-{
-}
-
 static int xen_cpu_present_to_apicid(int cpu)
 {
 	if (cpu_present(cpu))
@@ -173,9 +169,6 @@ static struct apic xen_pv_apic = {
 	.send_IPI_all 			= xen_send_IPI_all,
 	.send_IPI_self 			= xen_send_IPI_self,
 #endif
-	/* .wait_for_init_deassert- used  by AP bootup - smp_callin which we don't use */
-	.inquire_remote_apic		= xen_silent_inquire,
-
 	.read				= xen_apic_read,
 	.write				= xen_apic_write,
 	.eoi_write			= xen_apic_write,

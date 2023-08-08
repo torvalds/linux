@@ -125,8 +125,6 @@ struct apic apic_noop __ro_after_init = {
 
 	.wakeup_secondary_cpu		= noop_wakeup_secondary_cpu,
 
-	.inquire_remote_apic		= NULL,
-
 	.read				= noop_apic_read,
 	.write				= noop_apic_write,
 	.eoi_write			= noop_apic_write,

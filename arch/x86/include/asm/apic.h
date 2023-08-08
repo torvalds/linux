@@ -66,20 +66,6 @@ enum apic_intr_mode_id {
 	APIC_SYMMETRIC_IO_NO_ROUTING
 };
 
-#ifdef CONFIG_SMP
-extern void __inquire_remote_apic(int apicid);
-#else /* CONFIG_SMP */
-static inline void __inquire_remote_apic(int apicid)
-{
-}
-#endif /* CONFIG_SMP */
-
-static inline void default_inquire_remote_apic(int apicid)
-{
-	if (apic_verbosity >= APIC_DEBUG)
-		__inquire_remote_apic(apicid);
-}
-
 /*
  * With 82489DX we can't rely on apic feature bit
  * retrieved via cpuid but still have to deal with
@@ -329,8 +315,6 @@ struct apic {
 	int	(*wakeup_secondary_cpu)(int apicid, unsigned long start_eip);
 	/* wakeup secondary CPU using 64-bit wakeup point */
 	int	(*wakeup_secondary_cpu_64)(int apicid, unsigned long start_eip);
-
-	void	(*inquire_remote_apic)(int apicid);
 
 #ifdef CONFIG_X86_32
 	/*

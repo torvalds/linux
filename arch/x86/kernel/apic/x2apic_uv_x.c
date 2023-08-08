@@ -862,7 +862,6 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.send_IPI_self			= uv_send_IPI_self,
 
 	.wakeup_secondary_cpu		= uv_wakeup_secondary,
-	.inquire_remote_apic		= NULL,
 
 	.read				= native_apic_msr_read,
 	.write				= native_apic_msr_write,
