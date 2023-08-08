@@ -308,6 +308,23 @@ struct apic {
 	char	*name;
 };
 
+struct apic_override {
+	void	(*eoi)(void);
+	void	(*native_eoi)(void);
+	void	(*write)(u32 reg, u32 v);
+	u32	(*read)(u32 reg);
+	void	(*send_IPI)(int cpu, int vector);
+	void	(*send_IPI_mask)(const struct cpumask *mask, int vector);
+	void	(*send_IPI_mask_allbutself)(const struct cpumask *msk, int vec);
+	void	(*send_IPI_allbutself)(int vector);
+	void	(*send_IPI_all)(int vector);
+	void	(*send_IPI_self)(int vector);
+	u64	(*icr_read)(void);
+	void	(*icr_write)(u32 low, u32 high);
+	int	(*wakeup_secondary_cpu)(int apicid, unsigned long start_eip);
+	int	(*wakeup_secondary_cpu_64)(int apicid, unsigned long start_eip);
+};
+
 /*
  * Pointer to the local APIC driver in use on this system (there's
  * always just one such driver in use - the kernel decides via an
@@ -343,8 +360,16 @@ extern int lapic_can_unplug_cpu(void);
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
+extern struct apic_override __x86_apic_override;
 
+void __init apic_setup_apic_calls(void);
 void __init apic_install_driver(struct apic *driver);
+
+#define apic_update_callback(_callback, _fn) {					\
+		__x86_apic_override._callback = _fn;				\
+		apic->_callback = _fn;						\
+		pr_info("APIC: %s() replaced with %ps()\n", #_callback, _fn);	\
+}
 
 static inline u32 apic_read(u32 reg)
 {
@@ -405,6 +430,9 @@ static inline void apic_wait_icr_idle(void) { }
 static inline u32 safe_apic_wait_icr_idle(void) { return 0; }
 static inline void apic_set_eoi_cb(void (*eoi)(void)) {}
 static inline void apic_native_eoi(void) { WARN_ON_ONCE(1); }
+static inline void apic_setup_apic_calls(void) { }
+
+#define apic_update_callback(_callback, _fn) do { } while (0)
 
 #endif /* CONFIG_X86_LOCAL_APIC */
 
