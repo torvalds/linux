@@ -420,7 +420,7 @@ MODULE_DEVICE_TABLE(of, aw2013_match_table);
 static struct i2c_driver aw2013_driver = {
 	.driver = {
 		.name = "leds-aw2013",
-		.of_match_table = of_match_ptr(aw2013_match_table),
+		.of_match_table = aw2013_match_table,
 	},
 	.probe = aw2013_probe,
 	.remove = aw2013_remove,
