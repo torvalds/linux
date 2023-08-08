@@ -96,7 +96,6 @@ struct apic apic_noop __ro_after_init = {
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
-	.apicid_to_cpu_present		= physid_set_mask_of_physid,
 
 	.phys_pkg_id			= noop_phys_pkg_id,
 
