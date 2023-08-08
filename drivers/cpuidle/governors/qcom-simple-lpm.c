@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cpu.h>
@@ -247,7 +247,7 @@ static void qcom_lpm_suspend_trace(void *unused, const char *action,
 
 static struct cpuidle_governor lpm_simple_governor = {
 	.name =		"qcom-simple-lpm",
-	.rating =	40,
+	.rating =	10,
 	.enable =	lpm_enable_device,
 	.disable =	lpm_disable_device,
 	.select =	lpm_select,
