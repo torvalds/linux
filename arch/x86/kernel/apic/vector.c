@@ -691,7 +691,7 @@ static int x86_vector_select(struct irq_domain *d, struct irq_fwspec *fwspec,
 	 * if IRQ remapping is enabled. APIC IDs above 15 bits are
 	 * only permitted if IRQ remapping is enabled, so check that.
 	 */
-	if (apic->apic_id_valid(32768))
+	if (apic_id_valid(32768))
 		return 0;
 
 	return x86_fwspec_is_ioapic(fwspec) || x86_fwspec_is_hpet(fwspec);

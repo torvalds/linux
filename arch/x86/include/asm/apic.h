@@ -372,6 +372,11 @@ static inline u32 safe_apic_wait_icr_idle(void)
 	return apic->safe_wait_icr_idle ? apic->safe_wait_icr_idle() : 0;
 }
 
+static inline bool apic_id_valid(u32 apic_id)
+{
+	return apic->apic_id_valid(apic_id);
+}
+
 extern void __init apic_set_eoi_write(void (*eoi_write)(u32 reg, u32 v));
 
 #else /* CONFIG_X86_LOCAL_APIC */
