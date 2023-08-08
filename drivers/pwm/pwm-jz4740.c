@@ -121,7 +121,7 @@ static void jz4740_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			    const struct pwm_state *state)
 {
-	struct jz4740_pwm_chip *jz4740 = to_jz4740(pwm->chip);
+	struct jz4740_pwm_chip *jz = to_jz4740(pwm->chip);
 	unsigned long long tmp = 0xffffull * NSEC_PER_SEC;
 	struct clk *clk = pwm_get_chip_data(pwm);
 	unsigned long period, duty;
@@ -173,16 +173,16 @@ static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/* Reset counter to 0 */
-	regmap_write(jz4740->map, TCU_REG_TCNTc(pwm->hwpwm), 0);
+	regmap_write(jz->map, TCU_REG_TCNTc(pwm->hwpwm), 0);
 
 	/* Set duty */
-	regmap_write(jz4740->map, TCU_REG_TDHRc(pwm->hwpwm), duty);
+	regmap_write(jz->map, TCU_REG_TDHRc(pwm->hwpwm), duty);
 
 	/* Set period */
-	regmap_write(jz4740->map, TCU_REG_TDFRc(pwm->hwpwm), period);
+	regmap_write(jz->map, TCU_REG_TDFRc(pwm->hwpwm), period);
 
 	/* Set abrupt shutdown */
-	regmap_set_bits(jz4740->map, TCU_REG_TCSRc(pwm->hwpwm),
+	regmap_set_bits(jz->map, TCU_REG_TCSRc(pwm->hwpwm),
 			TCU_TCSR_PWM_SD);
 
 	/*
@@ -199,10 +199,10 @@ static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * state instead of its inactive state.
 	 */
 	if ((state->polarity == PWM_POLARITY_NORMAL) ^ state->enabled)
-		regmap_update_bits(jz4740->map, TCU_REG_TCSRc(pwm->hwpwm),
+		regmap_update_bits(jz->map, TCU_REG_TCSRc(pwm->hwpwm),
 				   TCU_TCSR_PWM_INITL_HIGH, 0);
 	else
-		regmap_update_bits(jz4740->map, TCU_REG_TCSRc(pwm->hwpwm),
+		regmap_update_bits(jz->map, TCU_REG_TCSRc(pwm->hwpwm),
 				   TCU_TCSR_PWM_INITL_HIGH,
 				   TCU_TCSR_PWM_INITL_HIGH);
 
@@ -222,28 +222,28 @@ static const struct pwm_ops jz4740_pwm_ops = {
 static int jz4740_pwm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct jz4740_pwm_chip *jz4740;
+	struct jz4740_pwm_chip *jz;
 	const struct soc_info *info;
 
 	info = device_get_match_data(dev);
 	if (!info)
 		return -EINVAL;
 
-	jz4740 = devm_kzalloc(dev, sizeof(*jz4740), GFP_KERNEL);
-	if (!jz4740)
+	jz = devm_kzalloc(dev, sizeof(*jz), GFP_KERNEL);
+	if (!jz)
 		return -ENOMEM;
 
-	jz4740->map = device_node_to_regmap(dev->parent->of_node);
-	if (IS_ERR(jz4740->map)) {
-		dev_err(dev, "regmap not found: %ld\n", PTR_ERR(jz4740->map));
-		return PTR_ERR(jz4740->map);
+	jz->map = device_node_to_regmap(dev->parent->of_node);
+	if (IS_ERR(jz->map)) {
+		dev_err(dev, "regmap not found: %ld\n", PTR_ERR(jz->map));
+		return PTR_ERR(jz->map);
 	}
 
-	jz4740->chip.dev = dev;
-	jz4740->chip.ops = &jz4740_pwm_ops;
-	jz4740->chip.npwm = info->num_pwms;
+	jz->chip.dev = dev;
+	jz->chip.ops = &jz4740_pwm_ops;
+	jz->chip.npwm = info->num_pwms;
 
-	return devm_pwmchip_add(dev, &jz4740->chip);
+	return devm_pwmchip_add(dev, &jz->chip);
 }
 
 static const struct soc_info jz4740_soc_info = {
