@@ -3669,8 +3669,7 @@ free_q_irqs:
  * @itr: Interrupt throttling rate
  * @tx: Tx or Rx ITR
  */
-static void idpf_vport_intr_write_itr(struct idpf_q_vector *q_vector,
-				      u16 itr, bool tx)
+void idpf_vport_intr_write_itr(struct idpf_q_vector *q_vector, u16 itr, bool tx)
 {
 	struct idpf_intr_reg *intr_reg;
 

@@ -11,13 +11,26 @@
 #define IDPF_LARGE_MAX_Q			256
 #define IDPF_MAX_Q				16
 #define IDPF_MIN_Q				2
+/* Mailbox Queue */
+#define IDPF_MAX_MBXQ				1
 
+#define IDPF_MIN_TXQ_DESC			64
+#define IDPF_MIN_RXQ_DESC			64
 #define IDPF_MIN_TXQ_COMPLQ_DESC		256
 #define IDPF_MAX_QIDS				256
 
+/* Number of descriptors in a queue should be a multiple of 32. RX queue
+ * descriptors alone should be a multiple of IDPF_REQ_RXQ_DESC_MULTIPLE
+ * to achieve BufQ descriptors aligned to 32
+ */
+#define IDPF_REQ_DESC_MULTIPLE			32
+#define IDPF_REQ_RXQ_DESC_MULTIPLE (IDPF_MAX_BUFQS_PER_RXQ_GRP * 32)
 #define IDPF_MIN_TX_DESC_NEEDED (MAX_SKB_FRAGS + 6)
 #define IDPF_TX_WAKE_THRESH ((u16)IDPF_MIN_TX_DESC_NEEDED * 2)
 
+#define IDPF_MAX_DESCS				8160
+#define IDPF_MAX_TXQ_DESC ALIGN_DOWN(IDPF_MAX_DESCS, IDPF_REQ_DESC_MULTIPLE)
+#define IDPF_MAX_RXQ_DESC ALIGN_DOWN(IDPF_MAX_DESCS, IDPF_REQ_RXQ_DESC_MULTIPLE)
 #define MIN_SUPPORT_TXDID (\
 	VIRTCHNL2_TXDID_FLEX_FLOW_SCHED |\
 	VIRTCHNL2_TXDID_FLEX_TSO_CTX)
@@ -573,6 +586,7 @@ union idpf_queue_stats {
 };
 
 #define IDPF_ITR_DYNAMIC	1
+#define IDPF_ITR_MAX		0x1FE0
 #define IDPF_ITR_20K		0x0032
 #define IDPF_ITR_GRAN_S		1	/* Assume ITR granularity is 2us */
 #define IDPF_ITR_MASK		0x1FFE  /* ITR register value alignment mask */

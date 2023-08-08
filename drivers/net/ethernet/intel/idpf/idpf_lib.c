@@ -702,6 +702,7 @@ static int idpf_cfg_netdev(struct idpf_vport *vport)
 	netdev->features |= dflt_features;
 	netdev->hw_features |= dflt_features | offloads;
 	netdev->hw_enc_features |= dflt_features | offloads;
+	idpf_set_ethtool_ops(netdev);
 	SET_NETDEV_DEV(netdev, &adapter->pdev->dev);
 
 	/* carrier off on init to avoid Tx hangs */
@@ -751,6 +752,12 @@ static void idpf_vport_stop(struct idpf_vport *vport)
 	idpf_send_disable_vport_msg(vport);
 	idpf_send_disable_queues_msg(vport);
 	idpf_send_map_unmap_queue_vector_msg(vport, false);
+	/* Normally we ask for queues in create_vport, but if we're changing
+	 * number of requested queues we do a delete then add instead of
+	 * deleting and reallocating the vport.
+	 */
+	if (test_and_clear_bit(IDPF_VPORT_DEL_QUEUES, vport->flags))
+		idpf_send_delete_queues_msg(vport);
 
 	vport->link_up = false;
 	idpf_vport_intr_deinit(vport);
@@ -1010,6 +1017,23 @@ void idpf_service_task(struct work_struct *work)
 
 	queue_delayed_work(adapter->serv_wq, &adapter->serv_task,
 			   msecs_to_jiffies(300));
+}
+
+/**
+ * idpf_set_real_num_queues - set number of queues for netdev
+ * @vport: virtual port structure
+ *
+ * Returns 0 on success, negative on failure.
+ */
+static int idpf_set_real_num_queues(struct idpf_vport *vport)
+{
+	int err;
+
+	err = netif_set_real_num_rx_queues(vport->netdev, vport->num_rxq);
+	if (err)
+		return err;
+
+	return netif_set_real_num_tx_queues(vport->netdev, vport->num_txq);
 }
 
 /**
@@ -1493,6 +1517,154 @@ void idpf_vc_event_task(struct work_struct *work)
 		set_bit(IDPF_HR_RESET_IN_PROG, adapter->flags);
 		idpf_init_hard_reset(adapter);
 	}
+}
+
+/**
+ * idpf_initiate_soft_reset - Initiate a software reset
+ * @vport: virtual port data struct
+ * @reset_cause: reason for the soft reset
+ *
+ * Soft reset only reallocs vport queue resources. Returns 0 on success,
+ * negative on failure.
+ */
+int idpf_initiate_soft_reset(struct idpf_vport *vport,
+			     enum idpf_vport_reset_cause reset_cause)
+{
+	struct idpf_netdev_priv *np = netdev_priv(vport->netdev);
+	enum idpf_vport_state current_state = np->state;
+	struct idpf_adapter *adapter = vport->adapter;
+	struct idpf_vport *new_vport;
+	int err, i;
+
+	/* If the system is low on memory, we can end up in bad state if we
+	 * free all the memory for queue resources and try to allocate them
+	 * again. Instead, we can pre-allocate the new resources before doing
+	 * anything and bailing if the alloc fails.
+	 *
+	 * Make a clone of the existing vport to mimic its current
+	 * configuration, then modify the new structure with any requested
+	 * changes. Once the allocation of the new resources is done, stop the
+	 * existing vport and copy the configuration to the main vport. If an
+	 * error occurred, the existing vport will be untouched.
+	 *
+	 */
+	new_vport = kzalloc(sizeof(*vport), GFP_KERNEL);
+	if (!new_vport)
+		return -ENOMEM;
+
+	/* This purposely avoids copying the end of the struct because it
+	 * contains wait_queues and mutexes and other stuff we don't want to
+	 * mess with. Nothing below should use those variables from new_vport
+	 * and should instead always refer to them in vport if they need to.
+	 */
+	memcpy(new_vport, vport, offsetof(struct idpf_vport, vc_state));
+
+	/* Adjust resource parameters prior to reallocating resources */
+	switch (reset_cause) {
+	case IDPF_SR_Q_CHANGE:
+		err = idpf_vport_adjust_qs(new_vport);
+		if (err)
+			goto free_vport;
+		break;
+	case IDPF_SR_Q_DESC_CHANGE:
+		/* Update queue parameters before allocating resources */
+		idpf_vport_calc_num_q_desc(new_vport);
+		break;
+	default:
+		dev_err(&adapter->pdev->dev, "Unhandled soft reset cause\n");
+		err = -EINVAL;
+		goto free_vport;
+	}
+
+	err = idpf_vport_queues_alloc(new_vport);
+	if (err)
+		goto free_vport;
+	if (current_state <= __IDPF_VPORT_DOWN) {
+		idpf_send_delete_queues_msg(vport);
+	} else {
+		set_bit(IDPF_VPORT_DEL_QUEUES, vport->flags);
+		idpf_vport_stop(vport);
+	}
+
+	idpf_deinit_rss(vport);
+	/* We're passing in vport here because we need its wait_queue
+	 * to send a message and it should be getting all the vport
+	 * config data out of the adapter but we need to be careful not
+	 * to add code to add_queues to change the vport config within
+	 * vport itself as it will be wiped with a memcpy later.
+	 */
+	err = idpf_send_add_queues_msg(vport, new_vport->num_txq,
+				       new_vport->num_complq,
+				       new_vport->num_rxq,
+				       new_vport->num_bufq);
+	if (err)
+		goto err_reset;
+
+	/* Same comment as above regarding avoiding copying the wait_queues and
+	 * mutexes applies here. We do not want to mess with those if possible.
+	 */
+	memcpy(vport, new_vport, offsetof(struct idpf_vport, vc_state));
+
+	/* Since idpf_vport_queues_alloc was called with new_port, the queue
+	 * back pointers are currently pointing to the local new_vport. Reset
+	 * the backpointers to the original vport here
+	 */
+	for (i = 0; i < vport->num_txq_grp; i++) {
+		struct idpf_txq_group *tx_qgrp = &vport->txq_grps[i];
+		int j;
+
+		tx_qgrp->vport = vport;
+		for (j = 0; j < tx_qgrp->num_txq; j++)
+			tx_qgrp->txqs[j]->vport = vport;
+
+		if (idpf_is_queue_model_split(vport->txq_model))
+			tx_qgrp->complq->vport = vport;
+	}
+
+	for (i = 0; i < vport->num_rxq_grp; i++) {
+		struct idpf_rxq_group *rx_qgrp = &vport->rxq_grps[i];
+		struct idpf_queue *q;
+		u16 num_rxq;
+		int j;
+
+		rx_qgrp->vport = vport;
+		for (j = 0; j < vport->num_bufqs_per_qgrp; j++)
+			rx_qgrp->splitq.bufq_sets[j].bufq.vport = vport;
+
+		if (idpf_is_queue_model_split(vport->rxq_model))
+			num_rxq = rx_qgrp->splitq.num_rxq_sets;
+		else
+			num_rxq = rx_qgrp->singleq.num_rxq;
+
+		for (j = 0; j < num_rxq; j++) {
+			if (idpf_is_queue_model_split(vport->rxq_model))
+				q = &rx_qgrp->splitq.rxq_sets[j]->rxq;
+			else
+				q = rx_qgrp->singleq.rxqs[j];
+			q->vport = vport;
+		}
+	}
+
+	if (reset_cause == IDPF_SR_Q_CHANGE)
+		idpf_vport_alloc_vec_indexes(vport);
+
+	err = idpf_set_real_num_queues(vport);
+	if (err)
+		goto err_reset;
+
+	if (current_state == __IDPF_VPORT_UP)
+		err = idpf_vport_open(vport, false);
+
+	kfree(new_vport);
+
+	return err;
+
+err_reset:
+	idpf_vport_queues_rel(new_vport);
+free_vport:
+	kfree(new_vport);
+
+	return err;
 }
 
 /**
