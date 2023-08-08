@@ -35,11 +35,6 @@ int default_cpu_present_to_apicid(int mps_cpu)
 }
 EXPORT_SYMBOL_GPL(default_cpu_present_to_apicid);
 
-int default_check_phys_apicid_present(int phys_apicid)
-{
-	return physid_isset(phys_apicid, phys_cpu_present_map);
-}
-
 int default_apic_id_valid(u32 apicid)
 {
 	return (apicid < 255);
