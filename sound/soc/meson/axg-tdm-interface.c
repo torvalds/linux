@@ -395,6 +395,8 @@ static int axg_tdm_iface_probe_dai(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops axg_tdm_iface_ops = {
+	.probe		= axg_tdm_iface_probe_dai,
+	.remove		= axg_tdm_iface_remove_dai,
 	.set_sysclk	= axg_tdm_iface_set_sysclk,
 	.set_fmt	= axg_tdm_iface_set_fmt,
 	.startup	= axg_tdm_iface_startup,
@@ -423,8 +425,6 @@ static const struct snd_soc_dai_driver axg_tdm_iface_dai_drv[] = {
 		},
 		.id = TDM_IFACE_PAD,
 		.ops = &axg_tdm_iface_ops,
-		.probe = axg_tdm_iface_probe_dai,
-		.remove = axg_tdm_iface_remove_dai,
 	},
 	[TDM_IFACE_LOOPBACK] = {
 		.name = "TDM Loopback",
@@ -437,8 +437,6 @@ static const struct snd_soc_dai_driver axg_tdm_iface_dai_drv[] = {
 		},
 		.id = TDM_IFACE_LOOPBACK,
 		.ops = &axg_tdm_iface_ops,
-		.probe = axg_tdm_iface_probe_dai,
-		.remove = axg_tdm_iface_remove_dai,
 	},
 };
 
