@@ -214,6 +214,29 @@
 	compatible = "snps,dw-apb-uart";
 };
 
+#if 0
+&pcie_vuart0 {
+	port = <0x3f8>;
+	sirq = <4>;
+	sirq-polarity = <0>;
+
+	status = "okay";
+};
+
+&pcie_vuart1 {
+	port = <0x2f8>;
+	sirq = <3>;
+	sirq-polarity = <0>;
+
+	status = "okay";
+};
+
+&bmc_dev {
+	status = "okay";
+	memory-region = <&bmc_dev_memory>;
+};
+#endif
+
 &i2c0 {
 	status = "okay";
 };
@@ -339,11 +362,6 @@
 	vmmc-supply = <&vcc_sdhci1>;
 	vqmmc-supply = <&vccq_sdhci1>;
 	clk-phase-sd-hs = <7>, <200>;
-};
-
-&bmc_dev {
-	status = "okay";
-	memory-region = <&bmc_dev_memory>;
 };
 
 &vhub {
