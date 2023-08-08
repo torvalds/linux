@@ -39,6 +39,11 @@ static void cssc_sigill(void)
 	asm volatile(".inst 0xdac01c00" : : : "x0");
 }
 
+static void fp_sigill(void)
+{
+	asm volatile("fmov s0, #1");
+}
+
 static void ilrcpc_sigill(void)
 {
 	/* LDAPUR W0, [SP, #8] */
@@ -234,6 +239,13 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_CSSC,
 		.cpuinfo = "cssc",
 		.sigill_fn = cssc_sigill,
+	},
+	{
+		.name = "FP",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_FP,
+		.cpuinfo = "fp",
+		.sigill_fn = fp_sigill,
 	},
 	{
 		.name = "LRCPC",
