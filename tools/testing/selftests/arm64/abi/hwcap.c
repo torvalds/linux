@@ -34,6 +34,12 @@
  */
 typedef void (*sig_fn)(void);
 
+static void atomics_sigill(void)
+{
+	/* STADD W0, [SP] */
+	asm volatile(".inst 0xb82003ff" : : : );
+}
+
 static void crc32_sigill(void)
 {
 	asm volatile("crc32w w0, w0, w1");
@@ -231,6 +237,14 @@ static void svebf16_sigill(void)
 	asm volatile(".inst 0x658aa000" : : : "z0");
 }
 
+static void uscat_sigbus(void)
+{
+	/* unaligned atomic access */
+	asm volatile("ADD x1, sp, #2" : : : );
+	/* STADD W0, [X1] */
+	asm volatile(".inst 0xb820003f" : : : );
+}
+
 static const struct hwcap_data {
 	const char *name;
 	unsigned long at_hwcap;
@@ -275,6 +289,22 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP_ILRCPC,
 		.cpuinfo = "ilrcpc",
 		.sigill_fn = ilrcpc_sigill,
+	},
+	{
+		.name = "LSE",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_ATOMICS,
+		.cpuinfo = "atomics",
+		.sigill_fn = atomics_sigill,
+	},
+	{
+		.name = "LSE2",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_USCAT,
+		.cpuinfo = "uscat",
+		.sigill_fn = atomics_sigill,
+		.sigbus_fn = uscat_sigbus,
+		.sigbus_reliable = true,
 	},
 	{
 		.name = "MOPS",
