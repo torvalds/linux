@@ -1025,13 +1025,10 @@ static struct worker *find_worker_executing_work(struct worker_pool *pool,
  * @head: target list to append @work to
  * @nextp: out parameter for nested worklist walking
  *
- * Schedule linked works starting from @work to @head.  Work series to
- * be scheduled starts at @work and includes any consecutive work with
- * WORK_STRUCT_LINKED set in its predecessor.
- *
- * If @nextp is not NULL, it's updated to point to the next work of
- * the last scheduled work.  This allows move_linked_works() to be
- * nested inside outer list_for_each_entry_safe().
+ * Schedule linked works starting from @work to @head. Work series to be
+ * scheduled starts at @work and includes any consecutive work with
+ * WORK_STRUCT_LINKED set in its predecessor. See assign_work() for details on
+ * @nextp.
  *
  * CONTEXT:
  * raw_spin_lock_irq(pool->lock).
@@ -1058,6 +1055,48 @@ static void move_linked_works(struct work_struct *work, struct list_head *head,
 	 */
 	if (nextp)
 		*nextp = n;
+}
+
+/**
+ * assign_work - assign a work item and its linked work items to a worker
+ * @work: work to assign
+ * @worker: worker to assign to
+ * @nextp: out parameter for nested worklist walking
+ *
+ * Assign @work and its linked work items to @worker. If @work is already being
+ * executed by another worker in the same pool, it'll be punted there.
+ *
+ * If @nextp is not NULL, it's updated to point to the next work of the last
+ * scheduled work. This allows assign_work() to be nested inside
+ * list_for_each_entry_safe().
+ *
+ * Returns %true if @work was successfully assigned to @worker. %false if @work
+ * was punted to another worker already executing it.
+ */
+static bool assign_work(struct work_struct *work, struct worker *worker,
+			struct work_struct **nextp)
+{
+	struct worker_pool *pool = worker->pool;
+	struct worker *collision;
+
+	lockdep_assert_held(&pool->lock);
+
+	/*
+	 * A single work shouldn't be executed concurrently by multiple workers.
+	 * __queue_work() ensures that @work doesn't jump to a different pool
+	 * while still running in the previous pool. Here, we should ensure that
+	 * @work is not executed concurrently by multiple workers from the same
+	 * pool. Check whether anyone is already processing the work. If so,
+	 * defer the work to the currently executing one.
+	 */
+	collision = find_worker_executing_work(pool, work);
+	if (unlikely(collision)) {
+		move_linked_works(work, &collision->scheduled, nextp);
+		return false;
+	}
+
+	move_linked_works(work, &worker->scheduled, nextp);
+	return true;
 }
 
 /**
@@ -2462,7 +2501,6 @@ __acquires(&pool->lock)
 	struct pool_workqueue *pwq = get_work_pwq(work);
 	struct worker_pool *pool = worker->pool;
 	unsigned long work_data;
-	struct worker *collision;
 #ifdef CONFIG_LOCKDEP
 	/*
 	 * It is permissible to free the struct work_struct from
@@ -2478,18 +2516,6 @@ __acquires(&pool->lock)
 	/* ensure we're on the correct CPU */
 	WARN_ON_ONCE(!(pool->flags & POOL_DISASSOCIATED) &&
 		     raw_smp_processor_id() != pool->cpu);
-
-	/*
-	 * A single work shouldn't be executed concurrently by
-	 * multiple workers on a single cpu.  Check whether anyone is
-	 * already processing the work.  If so, defer the work to the
-	 * currently executing one.
-	 */
-	collision = find_worker_executing_work(pool, work);
-	if (unlikely(collision)) {
-		move_linked_works(work, &collision->scheduled, NULL);
-		return;
-	}
 
 	/* claim and dequeue */
 	debug_work_deactivate(work);
@@ -2717,8 +2743,8 @@ recheck:
 			list_first_entry(&pool->worklist,
 					 struct work_struct, entry);
 
-		move_linked_works(work, &worker->scheduled, NULL);
-		process_scheduled_works(worker);
+		if (assign_work(work, worker, NULL))
+			process_scheduled_works(worker);
 	} while (keep_working(pool));
 
 	worker_set_flags(worker, WORKER_PREP);
@@ -2762,7 +2788,6 @@ static int rescuer_thread(void *__rescuer)
 {
 	struct worker *rescuer = __rescuer;
 	struct workqueue_struct *wq = rescuer->rescue_wq;
-	struct list_head *scheduled = &rescuer->scheduled;
 	bool should_stop;
 
 	set_user_nice(current, RESCUER_NICE_LEVEL);
@@ -2807,15 +2832,14 @@ repeat:
 		 * Slurp in all works issued via this workqueue and
 		 * process'em.
 		 */
-		WARN_ON_ONCE(!list_empty(scheduled));
+		WARN_ON_ONCE(!list_empty(&rescuer->scheduled));
 		list_for_each_entry_safe(work, n, &pool->worklist, entry) {
-			if (get_work_pwq(work) == pwq) {
-				move_linked_works(work, scheduled, &n);
+			if (get_work_pwq(work) == pwq &&
+			    assign_work(work, rescuer, &n))
 				pwq->stats[PWQ_STAT_RESCUED]++;
-			}
 		}
 
-		if (!list_empty(scheduled)) {
+		if (!list_empty(&rescuer->scheduled)) {
 			process_scheduled_works(rescuer);
 
 			/*
