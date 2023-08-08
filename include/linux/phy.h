@@ -1732,10 +1732,6 @@ int phy_start_cable_test_tdr(struct phy_device *phydev,
 }
 #endif
 
-int phy_cable_test_result(struct phy_device *phydev, u8 pair, u16 result);
-int phy_cable_test_fault_length(struct phy_device *phydev, u8 pair,
-				u16 cm);
-
 static inline void phy_device_reset(struct phy_device *phydev, int value)
 {
 	mdio_device_reset(&phydev->mdio, value);
