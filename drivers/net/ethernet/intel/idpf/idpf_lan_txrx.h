@@ -56,6 +56,14 @@ enum idpf_rss_hash {
 	BIT_ULL(IDPF_HASH_NONF_UNICAST_IPV6_UDP) |		\
 	BIT_ULL(IDPF_HASH_NONF_MULTICAST_IPV6_UDP))
 
+/* For idpf_splitq_base_tx_compl_desc */
+#define IDPF_TXD_COMPLQ_GEN_S		15
+#define IDPF_TXD_COMPLQ_GEN_M		BIT_ULL(IDPF_TXD_COMPLQ_GEN_S)
+#define IDPF_TXD_COMPLQ_COMPL_TYPE_S	11
+#define IDPF_TXD_COMPLQ_COMPL_TYPE_M	GENMASK_ULL(13, 11)
+#define IDPF_TXD_COMPLQ_QID_S		0
+#define IDPF_TXD_COMPLQ_QID_M		GENMASK_ULL(9, 0)
+
 #define IDPF_TXD_CTX_QW1_MSS_S		50
 #define IDPF_TXD_CTX_QW1_MSS_M		GENMASK_ULL(63, 50)
 #define IDPF_TXD_CTX_QW1_TSO_LEN_S	30
@@ -74,6 +82,14 @@ enum idpf_rss_hash {
 #define IDPF_TXD_QW1_CMD_M		GENMASK_ULL(15, 4)
 #define IDPF_TXD_QW1_DTYPE_S		0
 #define IDPF_TXD_QW1_DTYPE_M		GENMASK_ULL(3, 0)
+
+/* TX Completion Descriptor Completion Types */
+#define IDPF_TXD_COMPLT_ITR_FLUSH	0
+/* Descriptor completion type 1 is reserved */
+#define IDPF_TXD_COMPLT_RS		2
+/* Descriptor completion type 3 is reserved */
+#define IDPF_TXD_COMPLT_RE		4
+#define IDPF_TXD_COMPLT_SW_MARKER	5
 
 enum idpf_tx_desc_dtype_value {
 	IDPF_TX_DESC_DTYPE_DATA				= 0,

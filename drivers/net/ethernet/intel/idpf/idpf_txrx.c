@@ -4,6 +4,36 @@
 #include "idpf.h"
 
 /**
+ * idpf_buf_lifo_push - push a buffer pointer onto stack
+ * @stack: pointer to stack struct
+ * @buf: pointer to buf to push
+ *
+ * Returns 0 on success, negative on failure
+ **/
+static int idpf_buf_lifo_push(struct idpf_buf_lifo *stack,
+			      struct idpf_tx_stash *buf)
+{
+	if (unlikely(stack->top == stack->size))
+		return -ENOSPC;
+
+	stack->bufs[stack->top++] = buf;
+
+	return 0;
+}
+
+/**
+ * idpf_buf_lifo_pop - pop a buffer pointer from stack
+ * @stack: pointer to stack struct
+ **/
+static struct idpf_tx_stash *idpf_buf_lifo_pop(struct idpf_buf_lifo *stack)
+{
+	if (unlikely(!stack->top))
+		return NULL;
+
+	return stack->bufs[--stack->top];
+}
+
+/**
  * idpf_tx_buf_rel - Release a Tx buffer
  * @tx_q: the queue that owns the buffer
  * @tx_buf: the buffer to free
@@ -1365,6 +1395,498 @@ err_out:
 }
 
 /**
+ * idpf_tx_handle_sw_marker - Handle queue marker packet
+ * @tx_q: tx queue to handle software marker
+ */
+static void idpf_tx_handle_sw_marker(struct idpf_queue *tx_q)
+{
+	struct idpf_vport *vport = tx_q->vport;
+	int i;
+
+	clear_bit(__IDPF_Q_SW_MARKER, tx_q->flags);
+	/* Hardware must write marker packets to all queues associated with
+	 * completion queues. So check if all queues received marker packets
+	 */
+	for (i = 0; i < vport->num_txq; i++)
+		/* If we're still waiting on any other TXQ marker completions,
+		 * just return now since we cannot wake up the marker_wq yet.
+		 */
+		if (test_bit(__IDPF_Q_SW_MARKER, vport->txqs[i]->flags))
+			return;
+
+	/* Drain complete */
+	set_bit(IDPF_VPORT_SW_MARKER, vport->flags);
+	wake_up(&vport->sw_marker_wq);
+}
+
+/**
+ * idpf_tx_splitq_clean_hdr - Clean TX buffer resources for header portion of
+ * packet
+ * @tx_q: tx queue to clean buffer from
+ * @tx_buf: buffer to be cleaned
+ * @cleaned: pointer to stats struct to track cleaned packets/bytes
+ * @napi_budget: Used to determine if we are in netpoll
+ */
+static void idpf_tx_splitq_clean_hdr(struct idpf_queue *tx_q,
+				     struct idpf_tx_buf *tx_buf,
+				     struct idpf_cleaned_stats *cleaned,
+				     int napi_budget)
+{
+	napi_consume_skb(tx_buf->skb, napi_budget);
+
+	if (dma_unmap_len(tx_buf, len)) {
+		dma_unmap_single(tx_q->dev,
+				 dma_unmap_addr(tx_buf, dma),
+				 dma_unmap_len(tx_buf, len),
+				 DMA_TO_DEVICE);
+
+		dma_unmap_len_set(tx_buf, len, 0);
+	}
+
+	/* clear tx_buf data */
+	tx_buf->skb = NULL;
+
+	cleaned->bytes += tx_buf->bytecount;
+	cleaned->packets += tx_buf->gso_segs;
+}
+
+/**
+ * idpf_tx_clean_stashed_bufs - clean bufs that were stored for
+ * out of order completions
+ * @txq: queue to clean
+ * @compl_tag: completion tag of packet to clean (from completion descriptor)
+ * @cleaned: pointer to stats struct to track cleaned packets/bytes
+ * @budget: Used to determine if we are in netpoll
+ */
+static void idpf_tx_clean_stashed_bufs(struct idpf_queue *txq, u16 compl_tag,
+				       struct idpf_cleaned_stats *cleaned,
+				       int budget)
+{
+	struct idpf_tx_stash *stash;
+	struct hlist_node *tmp_buf;
+
+	/* Buffer completion */
+	hash_for_each_possible_safe(txq->sched_buf_hash, stash, tmp_buf,
+				    hlist, compl_tag) {
+		if (unlikely(stash->buf.compl_tag != (int)compl_tag))
+			continue;
+
+		if (stash->buf.skb) {
+			idpf_tx_splitq_clean_hdr(txq, &stash->buf, cleaned,
+						 budget);
+		} else if (dma_unmap_len(&stash->buf, len)) {
+			dma_unmap_page(txq->dev,
+				       dma_unmap_addr(&stash->buf, dma),
+				       dma_unmap_len(&stash->buf, len),
+				       DMA_TO_DEVICE);
+			dma_unmap_len_set(&stash->buf, len, 0);
+		}
+
+		/* Push shadow buf back onto stack */
+		idpf_buf_lifo_push(&txq->buf_stack, stash);
+
+		hash_del(&stash->hlist);
+	}
+}
+
+/**
+ * idpf_stash_flow_sch_buffers - store buffer parameters info to be freed at a
+ * later time (only relevant for flow scheduling mode)
+ * @txq: Tx queue to clean
+ * @tx_buf: buffer to store
+ */
+static int idpf_stash_flow_sch_buffers(struct idpf_queue *txq,
+				       struct idpf_tx_buf *tx_buf)
+{
+	struct idpf_tx_stash *stash;
+
+	if (unlikely(!dma_unmap_addr(tx_buf, dma) &&
+		     !dma_unmap_len(tx_buf, len)))
+		return 0;
+
+	stash = idpf_buf_lifo_pop(&txq->buf_stack);
+	if (unlikely(!stash)) {
+		net_err_ratelimited("%s: No out-of-order TX buffers left!\n",
+				    txq->vport->netdev->name);
+
+		return -ENOMEM;
+	}
+
+	/* Store buffer params in shadow buffer */
+	stash->buf.skb = tx_buf->skb;
+	stash->buf.bytecount = tx_buf->bytecount;
+	stash->buf.gso_segs = tx_buf->gso_segs;
+	dma_unmap_addr_set(&stash->buf, dma, dma_unmap_addr(tx_buf, dma));
+	dma_unmap_len_set(&stash->buf, len, dma_unmap_len(tx_buf, len));
+	stash->buf.compl_tag = tx_buf->compl_tag;
+
+	/* Add buffer to buf_hash table to be freed later */
+	hash_add(txq->sched_buf_hash, &stash->hlist, stash->buf.compl_tag);
+
+	memset(tx_buf, 0, sizeof(struct idpf_tx_buf));
+
+	/* Reinitialize buf_id portion of tag */
+	tx_buf->compl_tag = IDPF_SPLITQ_TX_INVAL_COMPL_TAG;
+
+	return 0;
+}
+
+#define idpf_tx_splitq_clean_bump_ntc(txq, ntc, desc, buf)	\
+do {								\
+	(ntc)++;						\
+	if (unlikely(!(ntc))) {					\
+		ntc -= (txq)->desc_count;			\
+		buf = (txq)->tx_buf;				\
+		desc = IDPF_FLEX_TX_DESC(txq, 0);		\
+	} else {						\
+		(buf)++;					\
+		(desc)++;					\
+	}							\
+} while (0)
+
+/**
+ * idpf_tx_splitq_clean - Reclaim resources from buffer queue
+ * @tx_q: Tx queue to clean
+ * @end: queue index until which it should be cleaned
+ * @napi_budget: Used to determine if we are in netpoll
+ * @cleaned: pointer to stats struct to track cleaned packets/bytes
+ * @descs_only: true if queue is using flow-based scheduling and should
+ * not clean buffers at this time
+ *
+ * Cleans the queue descriptor ring. If the queue is using queue-based
+ * scheduling, the buffers will be cleaned as well. If the queue is using
+ * flow-based scheduling, only the descriptors are cleaned at this time.
+ * Separate packet completion events will be reported on the completion queue,
+ * and the buffers will be cleaned separately. The stats are not updated from
+ * this function when using flow-based scheduling.
+ */
+static void idpf_tx_splitq_clean(struct idpf_queue *tx_q, u16 end,
+				 int napi_budget,
+				 struct idpf_cleaned_stats *cleaned,
+				 bool descs_only)
+{
+	union idpf_tx_flex_desc *next_pending_desc = NULL;
+	union idpf_tx_flex_desc *tx_desc;
+	s16 ntc = tx_q->next_to_clean;
+	struct idpf_tx_buf *tx_buf;
+
+	tx_desc = IDPF_FLEX_TX_DESC(tx_q, ntc);
+	next_pending_desc = IDPF_FLEX_TX_DESC(tx_q, end);
+	tx_buf = &tx_q->tx_buf[ntc];
+	ntc -= tx_q->desc_count;
+
+	while (tx_desc != next_pending_desc) {
+		union idpf_tx_flex_desc *eop_desc;
+
+		/* If this entry in the ring was used as a context descriptor,
+		 * it's corresponding entry in the buffer ring will have an
+		 * invalid completion tag since no buffer was used.  We can
+		 * skip this descriptor since there is no buffer to clean.
+		 */
+		if (unlikely(tx_buf->compl_tag == IDPF_SPLITQ_TX_INVAL_COMPL_TAG))
+			goto fetch_next_txq_desc;
+
+		eop_desc = (union idpf_tx_flex_desc *)tx_buf->next_to_watch;
+
+		/* clear next_to_watch to prevent false hangs */
+		tx_buf->next_to_watch = NULL;
+
+		if (descs_only) {
+			if (idpf_stash_flow_sch_buffers(tx_q, tx_buf))
+				goto tx_splitq_clean_out;
+
+			while (tx_desc != eop_desc) {
+				idpf_tx_splitq_clean_bump_ntc(tx_q, ntc,
+							      tx_desc, tx_buf);
+
+				if (dma_unmap_len(tx_buf, len)) {
+					if (idpf_stash_flow_sch_buffers(tx_q,
+									tx_buf))
+						goto tx_splitq_clean_out;
+				}
+			}
+		} else {
+			idpf_tx_splitq_clean_hdr(tx_q, tx_buf, cleaned,
+						 napi_budget);
+
+			/* unmap remaining buffers */
+			while (tx_desc != eop_desc) {
+				idpf_tx_splitq_clean_bump_ntc(tx_q, ntc,
+							      tx_desc, tx_buf);
+
+				/* unmap any remaining paged data */
+				if (dma_unmap_len(tx_buf, len)) {
+					dma_unmap_page(tx_q->dev,
+						       dma_unmap_addr(tx_buf, dma),
+						       dma_unmap_len(tx_buf, len),
+						       DMA_TO_DEVICE);
+					dma_unmap_len_set(tx_buf, len, 0);
+				}
+			}
+		}
+
+fetch_next_txq_desc:
+		idpf_tx_splitq_clean_bump_ntc(tx_q, ntc, tx_desc, tx_buf);
+	}
+
+tx_splitq_clean_out:
+	ntc += tx_q->desc_count;
+	tx_q->next_to_clean = ntc;
+}
+
+#define idpf_tx_clean_buf_ring_bump_ntc(txq, ntc, buf)	\
+do {							\
+	(buf)++;					\
+	(ntc)++;					\
+	if (unlikely((ntc) == (txq)->desc_count)) {	\
+		buf = (txq)->tx_buf;			\
+		ntc = 0;				\
+	}						\
+} while (0)
+
+/**
+ * idpf_tx_clean_buf_ring - clean flow scheduling TX queue buffers
+ * @txq: queue to clean
+ * @compl_tag: completion tag of packet to clean (from completion descriptor)
+ * @cleaned: pointer to stats struct to track cleaned packets/bytes
+ * @budget: Used to determine if we are in netpoll
+ *
+ * Cleans all buffers associated with the input completion tag either from the
+ * TX buffer ring or from the hash table if the buffers were previously
+ * stashed. Returns the byte/segment count for the cleaned packet associated
+ * this completion tag.
+ */
+static bool idpf_tx_clean_buf_ring(struct idpf_queue *txq, u16 compl_tag,
+				   struct idpf_cleaned_stats *cleaned,
+				   int budget)
+{
+	u16 idx = compl_tag & txq->compl_tag_bufid_m;
+	struct idpf_tx_buf *tx_buf = NULL;
+	u16 ntc = txq->next_to_clean;
+	u16 num_descs_cleaned = 0;
+	u16 orig_idx = idx;
+
+	tx_buf = &txq->tx_buf[idx];
+
+	while (tx_buf->compl_tag == (int)compl_tag) {
+		if (tx_buf->skb) {
+			idpf_tx_splitq_clean_hdr(txq, tx_buf, cleaned, budget);
+		} else if (dma_unmap_len(tx_buf, len)) {
+			dma_unmap_page(txq->dev,
+				       dma_unmap_addr(tx_buf, dma),
+				       dma_unmap_len(tx_buf, len),
+				       DMA_TO_DEVICE);
+			dma_unmap_len_set(tx_buf, len, 0);
+		}
+
+		memset(tx_buf, 0, sizeof(struct idpf_tx_buf));
+		tx_buf->compl_tag = IDPF_SPLITQ_TX_INVAL_COMPL_TAG;
+
+		num_descs_cleaned++;
+		idpf_tx_clean_buf_ring_bump_ntc(txq, idx, tx_buf);
+	}
+
+	/* If we didn't clean anything on the ring for this completion, there's
+	 * nothing more to do.
+	 */
+	if (unlikely(!num_descs_cleaned))
+		return false;
+
+	/* Otherwise, if we did clean a packet on the ring directly, it's safe
+	 * to assume that the descriptors starting from the original
+	 * next_to_clean up until the previously cleaned packet can be reused.
+	 * Therefore, we will go back in the ring and stash any buffers still
+	 * in the ring into the hash table to be cleaned later.
+	 */
+	tx_buf = &txq->tx_buf[ntc];
+	while (tx_buf != &txq->tx_buf[orig_idx]) {
+		idpf_stash_flow_sch_buffers(txq, tx_buf);
+		idpf_tx_clean_buf_ring_bump_ntc(txq, ntc, tx_buf);
+	}
+
+	/* Finally, update next_to_clean to reflect the work that was just done
+	 * on the ring, if any. If the packet was only cleaned from the hash
+	 * table, the ring will not be impacted, therefore we should not touch
+	 * next_to_clean. The updated idx is used here
+	 */
+	txq->next_to_clean = idx;
+
+	return true;
+}
+
+/**
+ * idpf_tx_handle_rs_completion - clean a single packet and all of its buffers
+ * whether on the buffer ring or in the hash table
+ * @txq: Tx ring to clean
+ * @desc: pointer to completion queue descriptor to extract completion
+ * information from
+ * @cleaned: pointer to stats struct to track cleaned packets/bytes
+ * @budget: Used to determine if we are in netpoll
+ *
+ * Returns bytes/packets cleaned
+ */
+static void idpf_tx_handle_rs_completion(struct idpf_queue *txq,
+					 struct idpf_splitq_tx_compl_desc *desc,
+					 struct idpf_cleaned_stats *cleaned,
+					 int budget)
+{
+	u16 compl_tag;
+
+	if (!test_bit(__IDPF_Q_FLOW_SCH_EN, txq->flags)) {
+		u16 head = le16_to_cpu(desc->q_head_compl_tag.q_head);
+
+		return idpf_tx_splitq_clean(txq, head, budget, cleaned, false);
+	}
+
+	compl_tag = le16_to_cpu(desc->q_head_compl_tag.compl_tag);
+
+	/* If we didn't clean anything on the ring, this packet must be
+	 * in the hash table. Go clean it there.
+	 */
+	if (!idpf_tx_clean_buf_ring(txq, compl_tag, cleaned, budget))
+		idpf_tx_clean_stashed_bufs(txq, compl_tag, cleaned, budget);
+}
+
+/**
+ * idpf_tx_clean_complq - Reclaim resources on completion queue
+ * @complq: Tx ring to clean
+ * @budget: Used to determine if we are in netpoll
+ * @cleaned: returns number of packets cleaned
+ *
+ * Returns true if there's any budget left (e.g. the clean is finished)
+ */
+static bool idpf_tx_clean_complq(struct idpf_queue *complq, int budget,
+				 int *cleaned)
+{
+	struct idpf_splitq_tx_compl_desc *tx_desc;
+	struct idpf_vport *vport = complq->vport;
+	s16 ntc = complq->next_to_clean;
+	struct idpf_netdev_priv *np;
+	unsigned int complq_budget;
+	bool complq_ok = true;
+	int i;
+
+	complq_budget = vport->compln_clean_budget;
+	tx_desc = IDPF_SPLITQ_TX_COMPLQ_DESC(complq, ntc);
+	ntc -= complq->desc_count;
+
+	do {
+		struct idpf_cleaned_stats cleaned_stats = { };
+		struct idpf_queue *tx_q;
+		int rel_tx_qid;
+		u16 hw_head;
+		u8 ctype;	/* completion type */
+		u16 gen;
+
+		/* if the descriptor isn't done, no work yet to do */
+		gen = (le16_to_cpu(tx_desc->qid_comptype_gen) &
+		      IDPF_TXD_COMPLQ_GEN_M) >> IDPF_TXD_COMPLQ_GEN_S;
+		if (test_bit(__IDPF_Q_GEN_CHK, complq->flags) != gen)
+			break;
+
+		/* Find necessary info of TX queue to clean buffers */
+		rel_tx_qid = (le16_to_cpu(tx_desc->qid_comptype_gen) &
+			 IDPF_TXD_COMPLQ_QID_M) >> IDPF_TXD_COMPLQ_QID_S;
+		if (rel_tx_qid >= complq->txq_grp->num_txq ||
+		    !complq->txq_grp->txqs[rel_tx_qid]) {
+			dev_err(&complq->vport->adapter->pdev->dev,
+				"TxQ not found\n");
+			goto fetch_next_desc;
+		}
+		tx_q = complq->txq_grp->txqs[rel_tx_qid];
+
+		/* Determine completion type */
+		ctype = (le16_to_cpu(tx_desc->qid_comptype_gen) &
+			IDPF_TXD_COMPLQ_COMPL_TYPE_M) >>
+			IDPF_TXD_COMPLQ_COMPL_TYPE_S;
+		switch (ctype) {
+		case IDPF_TXD_COMPLT_RE:
+			hw_head = le16_to_cpu(tx_desc->q_head_compl_tag.q_head);
+
+			idpf_tx_splitq_clean(tx_q, hw_head, budget,
+					     &cleaned_stats, true);
+			break;
+		case IDPF_TXD_COMPLT_RS:
+			idpf_tx_handle_rs_completion(tx_q, tx_desc,
+						     &cleaned_stats, budget);
+			break;
+		case IDPF_TXD_COMPLT_SW_MARKER:
+			idpf_tx_handle_sw_marker(tx_q);
+			break;
+		default:
+			dev_err(&tx_q->vport->adapter->pdev->dev,
+				"Unknown TX completion type: %d\n",
+				ctype);
+			goto fetch_next_desc;
+		}
+
+		u64_stats_update_begin(&tx_q->stats_sync);
+		u64_stats_add(&tx_q->q_stats.tx.packets, cleaned_stats.packets);
+		u64_stats_add(&tx_q->q_stats.tx.bytes, cleaned_stats.bytes);
+		tx_q->cleaned_pkts += cleaned_stats.packets;
+		tx_q->cleaned_bytes += cleaned_stats.bytes;
+		complq->num_completions++;
+		u64_stats_update_end(&tx_q->stats_sync);
+
+fetch_next_desc:
+		tx_desc++;
+		ntc++;
+		if (unlikely(!ntc)) {
+			ntc -= complq->desc_count;
+			tx_desc = IDPF_SPLITQ_TX_COMPLQ_DESC(complq, 0);
+			change_bit(__IDPF_Q_GEN_CHK, complq->flags);
+		}
+
+		prefetch(tx_desc);
+
+		/* update budget accounting */
+		complq_budget--;
+	} while (likely(complq_budget));
+
+	/* Store the state of the complq to be used later in deciding if a
+	 * TXQ can be started again
+	 */
+	if (unlikely(IDPF_TX_COMPLQ_PENDING(complq->txq_grp) >
+		     IDPF_TX_COMPLQ_OVERFLOW_THRESH(complq)))
+		complq_ok = false;
+
+	np = netdev_priv(complq->vport->netdev);
+	for (i = 0; i < complq->txq_grp->num_txq; ++i) {
+		struct idpf_queue *tx_q = complq->txq_grp->txqs[i];
+		struct netdev_queue *nq;
+		bool dont_wake;
+
+		/* We didn't clean anything on this queue, move along */
+		if (!tx_q->cleaned_bytes)
+			continue;
+
+		*cleaned += tx_q->cleaned_pkts;
+
+		/* Update BQL */
+		nq = netdev_get_tx_queue(tx_q->vport->netdev, tx_q->idx);
+
+		dont_wake = !complq_ok || IDPF_TX_BUF_RSV_LOW(tx_q) ||
+			    np->state != __IDPF_VPORT_UP ||
+			    !netif_carrier_ok(tx_q->vport->netdev);
+		/* Check if the TXQ needs to and can be restarted */
+		__netif_txq_completed_wake(nq, tx_q->cleaned_pkts, tx_q->cleaned_bytes,
+					   IDPF_DESC_UNUSED(tx_q), IDPF_TX_WAKE_THRESH,
+					   dont_wake);
+
+		/* Reset cleaned stats for the next time this queue is
+		 * cleaned
+		 */
+		tx_q->cleaned_bytes = 0;
+		tx_q->cleaned_pkts = 0;
+	}
+
+	ntc += complq->desc_count;
+	complq->next_to_clean = ntc;
+
+	return !!complq_budget;
+}
+
+/**
  * idpf_tx_splitq_build_ctb - populate command tag and size for queue
  * based scheduling descriptors
  * @desc: descriptor to populate
@@ -2140,7 +2662,11 @@ netdev_tx_t idpf_tx_splitq_start(struct sk_buff *skb,
 static irqreturn_t idpf_vport_intr_clean_queues(int __always_unused irq,
 						void *data)
 {
-	/* stub */
+	struct idpf_q_vector *q_vector = (struct idpf_q_vector *)data;
+
+	q_vector->total_events++;
+	napi_schedule(&q_vector->napi);
+
 	return IRQ_HANDLED;
 }
 
@@ -2241,6 +2767,121 @@ static void idpf_vport_intr_rel_irq(struct idpf_vport *vport)
 }
 
 /**
+ * idpf_vport_intr_dis_irq_all - Disable all interrupt
+ * @vport: main vport structure
+ */
+static void idpf_vport_intr_dis_irq_all(struct idpf_vport *vport)
+{
+	struct idpf_q_vector *q_vector = vport->q_vectors;
+	int q_idx;
+
+	for (q_idx = 0; q_idx < vport->num_q_vectors; q_idx++)
+		writel(0, q_vector[q_idx].intr_reg.dyn_ctl);
+}
+
+/**
+ * idpf_vport_intr_buildreg_itr - Enable default interrupt generation settings
+ * @q_vector: pointer to q_vector
+ * @type: itr index
+ * @itr: itr value
+ */
+static u32 idpf_vport_intr_buildreg_itr(struct idpf_q_vector *q_vector,
+					const int type, u16 itr)
+{
+	u32 itr_val;
+
+	itr &= IDPF_ITR_MASK;
+	/* Don't clear PBA because that can cause lost interrupts that
+	 * came in while we were cleaning/polling
+	 */
+	itr_val = q_vector->intr_reg.dyn_ctl_intena_m |
+		  (type << q_vector->intr_reg.dyn_ctl_itridx_s) |
+		  (itr << (q_vector->intr_reg.dyn_ctl_intrvl_s - 1));
+
+	return itr_val;
+}
+
+/**
+ * idpf_update_dim_sample - Update dim sample with packets and bytes
+ * @q_vector: the vector associated with the interrupt
+ * @dim_sample: dim sample to update
+ * @dim: dim instance structure
+ * @packets: total packets
+ * @bytes: total bytes
+ *
+ * Update the dim sample with the packets and bytes which are passed to this
+ * function. Set the dim state appropriately if the dim settings gets stale.
+ */
+static void idpf_update_dim_sample(struct idpf_q_vector *q_vector,
+				   struct dim_sample *dim_sample,
+				   struct dim *dim, u64 packets, u64 bytes)
+{
+	dim_update_sample(q_vector->total_events, packets, bytes, dim_sample);
+	dim_sample->comp_ctr = 0;
+
+	/* if dim settings get stale, like when not updated for 1 second or
+	 * longer, force it to start again. This addresses the frequent case
+	 * of an idle queue being switched to by the scheduler.
+	 */
+	if (ktime_ms_delta(dim_sample->time, dim->start_sample.time) >= HZ)
+		dim->state = DIM_START_MEASURE;
+}
+
+/**
+ * idpf_net_dim - Update net DIM algorithm
+ * @q_vector: the vector associated with the interrupt
+ *
+ * Create a DIM sample and notify net_dim() so that it can possibly decide
+ * a new ITR value based on incoming packets, bytes, and interrupts.
+ *
+ * This function is a no-op if the queue is not configured to dynamic ITR.
+ */
+static void idpf_net_dim(struct idpf_q_vector *q_vector)
+{
+	struct dim_sample dim_sample = { };
+	u64 packets, bytes;
+	u32 i;
+
+	if (!IDPF_ITR_IS_DYNAMIC(q_vector->tx_intr_mode))
+		return;
+
+	for (i = 0, packets = 0, bytes = 0; i < q_vector->num_txq; i++) {
+		struct idpf_queue *txq = q_vector->tx[i];
+		unsigned int start;
+
+		do {
+			start = u64_stats_fetch_begin(&txq->stats_sync);
+			packets += u64_stats_read(&txq->q_stats.tx.packets);
+			bytes += u64_stats_read(&txq->q_stats.tx.bytes);
+		} while (u64_stats_fetch_retry(&txq->stats_sync, start));
+	}
+
+	idpf_update_dim_sample(q_vector, &dim_sample, &q_vector->tx_dim,
+			       packets, bytes);
+	net_dim(&q_vector->tx_dim, dim_sample);
+}
+
+/**
+ * idpf_vport_intr_update_itr_ena_irq - Update itr and re-enable MSIX interrupt
+ * @q_vector: q_vector for which itr is being updated and interrupt enabled
+ *
+ * Update the net_dim() algorithm and re-enable the interrupt associated with
+ * this vector.
+ */
+static void idpf_vport_intr_update_itr_ena_irq(struct idpf_q_vector *q_vector)
+{
+	u32 intval;
+
+	/* net_dim() updates ITR out-of-band using a work item */
+	idpf_net_dim(q_vector);
+
+	intval = idpf_vport_intr_buildreg_itr(q_vector,
+					      IDPF_NO_ITR_UPDATE_IDX, 0);
+
+	writel(intval, q_vector->intr_reg.dyn_ctl);
+}
+
+/**
  * idpf_vport_intr_req_irq - get MSI-X vectors from the OS for the vport
  * @vport: main vport structure
  * @basename: name for the vector
@@ -2293,6 +2934,54 @@ free_q_irqs:
 }
 
 /**
+ * idpf_vport_intr_write_itr - Write ITR value to the ITR register
+ * @q_vector: q_vector structure
+ * @itr: Interrupt throttling rate
+ * @tx: Tx or Rx ITR
+ */
+static void idpf_vport_intr_write_itr(struct idpf_q_vector *q_vector,
+				      u16 itr, bool tx)
+{
+	struct idpf_intr_reg *intr_reg;
+
+	if (tx && !q_vector->tx)
+		return;
+	else if (!tx && !q_vector->rx)
+		return;
+
+	intr_reg = &q_vector->intr_reg;
+	writel(ITR_REG_ALIGN(itr) >> IDPF_ITR_GRAN_S,
+	       tx ? intr_reg->tx_itr : intr_reg->rx_itr);
+}
+
+/**
+ * idpf_vport_intr_ena_irq_all - Enable IRQ for the given vport
+ * @vport: main vport structure
+ */
+static void idpf_vport_intr_ena_irq_all(struct idpf_vport *vport)
+{
+	bool dynamic;
+	int q_idx;
+	u16 itr;
+
+	for (q_idx = 0; q_idx < vport->num_q_vectors; q_idx++) {
+		struct idpf_q_vector *qv = &vport->q_vectors[q_idx];
+
+		/* Set the initial ITR values */
+		if (qv->num_txq) {
+			dynamic = IDPF_ITR_IS_DYNAMIC(qv->tx_intr_mode);
+			itr = vport->tx_itr_profile[qv->tx_dim.profile_ix];
+			idpf_vport_intr_write_itr(qv, dynamic ?
+						  itr : qv->tx_itr_value,
+						  true);
+		}
+
+		if (qv->num_txq)
+			idpf_vport_intr_update_itr_ena_irq(qv);
+	}
+}
+
+/**
  * idpf_vport_intr_deinit - Release all vector associations for the vport
  * @vport: main vport structure
  */
@@ -2300,7 +2989,45 @@ void idpf_vport_intr_deinit(struct idpf_vport *vport)
 {
 	idpf_vport_intr_napi_dis_all(vport);
 	idpf_vport_intr_napi_del_all(vport);
+	idpf_vport_intr_dis_irq_all(vport);
 	idpf_vport_intr_rel_irq(vport);
+}
+
+/**
+ * idpf_tx_dim_work - Call back from the stack
+ * @work: work queue structure
+ */
+static void idpf_tx_dim_work(struct work_struct *work)
+{
+	struct idpf_q_vector *q_vector;
+	struct idpf_vport *vport;
+	struct dim *dim;
+	u16 itr;
+
+	dim = container_of(work, struct dim, work);
+	q_vector = container_of(dim, struct idpf_q_vector, tx_dim);
+	vport = q_vector->vport;
+
+	if (dim->profile_ix >= ARRAY_SIZE(vport->tx_itr_profile))
+		dim->profile_ix = ARRAY_SIZE(vport->tx_itr_profile) - 1;
+
+	/* look up the values in our local table */
+	itr = vport->tx_itr_profile[dim->profile_ix];
+
+	idpf_vport_intr_write_itr(q_vector, itr, true);
+
+	dim->state = DIM_START_MEASURE;
+}
+
+/**
+ * idpf_init_dim - Set up dynamic interrupt moderation
+ * @qv: q_vector structure
+ */
+static void idpf_init_dim(struct idpf_q_vector *qv)
+{
+	INIT_WORK(&qv->tx_dim.work, idpf_tx_dim_work);
+	qv->tx_dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	qv->tx_dim.profile_ix = IDPF_DIM_DEFAULT_PROFILE_IX;
 }
 
 /**
@@ -2314,8 +3041,35 @@ static void idpf_vport_intr_napi_ena_all(struct idpf_vport *vport)
 	for (q_idx = 0; q_idx < vport->num_q_vectors; q_idx++) {
 		struct idpf_q_vector *q_vector = &vport->q_vectors[q_idx];
 
+		idpf_init_dim(q_vector);
 		napi_enable(&q_vector->napi);
 	}
+}
+
+/**
+ * idpf_tx_splitq_clean_all- Clean completion queues
+ * @q_vec: queue vector
+ * @budget: Used to determine if we are in netpoll
+ * @cleaned: returns number of packets cleaned
+ *
+ * Returns false if clean is not complete else returns true
+ */
+static bool idpf_tx_splitq_clean_all(struct idpf_q_vector *q_vec,
+				     int budget, int *cleaned)
+{
+	u16 num_txq = q_vec->num_txq;
+	bool clean_complete = true;
+	int i, budget_per_q;
+
+	if (unlikely(!num_txq))
+		return true;
+
+	budget_per_q = DIV_ROUND_UP(budget, num_txq);
+	for (i = 0; i < num_txq; i++)
+		clean_complete &= idpf_tx_clean_complq(q_vec->tx[i],
+						       budget_per_q, cleaned);
+
+	return clean_complete;
 }
 
 /**
@@ -2325,8 +3079,41 @@ static void idpf_vport_intr_napi_ena_all(struct idpf_vport *vport)
  */
 static int idpf_vport_splitq_napi_poll(struct napi_struct *napi, int budget)
 {
-	/* stub */
-	return 0;
+	struct idpf_q_vector *q_vector =
+				container_of(napi, struct idpf_q_vector, napi);
+	bool clean_complete;
+	int work_done = 0;
+
+	/* Handle case where we are called by netpoll with a budget of 0 */
+	if (unlikely(!budget)) {
+		idpf_tx_splitq_clean_all(q_vector, budget, &work_done);
+
+		return 0;
+	}
+
+	clean_complete = idpf_tx_splitq_clean_all(q_vector, budget, &work_done);
+
+	/* If work not completed, return budget and polling will return */
+	if (!clean_complete)
+		return budget;
+
+	work_done = min_t(int, work_done, budget - 1);
+
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		idpf_vport_intr_update_itr_ena_irq(q_vector);
+
+	/* Switch to poll mode in the tear-down path after sending disable
+	 * queues virtchnl message, as the interrupts will be disabled after
+	 * that
+	 */
+	if (unlikely(q_vector->num_txq && test_bit(__IDPF_Q_POLL_MODE,
+						   q_vector->tx[0]->flags)))
+		return budget;
+	else
+		return work_done;
 }
 
 /**
@@ -2577,6 +3364,8 @@ int idpf_vport_intr_init(struct idpf_vport *vport)
 	err = idpf_vport_intr_req_irq(vport, int_name);
 	if (err)
 		goto unroll_vectors_alloc;
+
+	idpf_vport_intr_ena_irq_all(vport);
 
 	return 0;
 

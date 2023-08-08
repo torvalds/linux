@@ -15,6 +15,9 @@
 #define IDPF_MIN_TXQ_COMPLQ_DESC		256
 #define IDPF_MAX_QIDS				256
 
+#define IDPF_MIN_TX_DESC_NEEDED (MAX_SKB_FRAGS + 6)
+#define IDPF_TX_WAKE_THRESH ((u16)IDPF_MIN_TX_DESC_NEEDED * 2)
+
 #define MIN_SUPPORT_TXDID (\
 	VIRTCHNL2_TXDID_FLEX_FLOW_SCHED |\
 	VIRTCHNL2_TXDID_FLEX_TSO_CTX)
@@ -78,6 +81,9 @@
 	(&(((struct virtchnl2_singleq_rx_buf_desc *)((rxq)->desc_ring))[i]))
 #define IDPF_SPLITQ_RX_BUF_DESC(rxq, i)	\
 	(&(((struct virtchnl2_splitq_rx_buf_desc *)((rxq)->desc_ring))[i]))
+
+#define IDPF_SPLITQ_TX_COMPLQ_DESC(txcq, i)	\
+	(&(((struct idpf_splitq_tx_compl_desc *)((txcq)->desc_ring))[i]))
 
 #define IDPF_FLEX_TX_DESC(txq, i) \
 	(&(((union idpf_tx_flex_desc *)((txq)->desc_ring))[i]))
@@ -155,7 +161,8 @@ struct idpf_tx_buf {
 };
 
 struct idpf_tx_stash {
-	/* stub */
+	struct hlist_node hlist;
+	struct idpf_tx_buf buf;
 };
 
 /**
@@ -209,6 +216,7 @@ struct idpf_tx_splitq_params {
 	struct idpf_tx_offload_params offload;
 };
 
+#define IDPF_TX_COMPLQ_CLEAN_BUDGET	256
 #define IDPF_TX_MIN_PKT_LEN		17
 #define IDPF_TX_DESCS_FOR_SKB_DATA_PTR	1
 #define IDPF_TX_DESCS_PER_CACHE_LINE	(L1_CACHE_BYTES / \
@@ -362,12 +370,16 @@ struct idpf_rx_ptype_decoded {
  * @__IDPF_RFLQ_GEN_CHK: Refill queues are SW only, so Q_GEN acts as the HW bit
  *			 and RFLGQ_GEN is the SW bit.
  * @__IDPF_Q_FLOW_SCH_EN: Enable flow scheduling
+ * @__IDPF_Q_SW_MARKER: Used to indicate TX queue marker completions
+ * @__IDPF_Q_POLL_MODE: Enable poll mode
  * @__IDPF_Q_FLAGS_NBITS: Must be last
  */
 enum idpf_queue_flags_t {
 	__IDPF_Q_GEN_CHK,
 	__IDPF_RFLQ_GEN_CHK,
 	__IDPF_Q_FLOW_SCH_EN,
+	__IDPF_Q_SW_MARKER,
+	__IDPF_Q_POLL_MODE,
 
 	__IDPF_Q_FLAGS_NBITS,
 };
@@ -418,6 +430,7 @@ struct idpf_intr_reg {
  * @intr_reg: See struct idpf_intr_reg
  * @num_txq: Number of TX queues
  * @tx: Array of TX queues to service
+ * @tx_dim: Data for TX net_dim algorithm
  * @tx_itr_value: TX interrupt throttling rate
  * @tx_intr_mode: Dynamic ITR or not
  * @tx_itr_idx: TX ITR index
@@ -428,6 +441,7 @@ struct idpf_intr_reg {
  * @rx_itr_idx: RX ITR index
  * @num_bufq: Number of buffer queues
  * @bufq: Array of buffer queues to service
+ * @total_events: Number of interrupts processed
  * @name: Queue vector name
  */
 struct idpf_q_vector {
@@ -439,6 +453,7 @@ struct idpf_q_vector {
 
 	u16 num_txq;
 	struct idpf_queue **tx;
+	struct dim tx_dim;
 	u16 tx_itr_value;
 	bool tx_intr_mode;
 	u32 tx_itr_idx;
@@ -452,6 +467,7 @@ struct idpf_q_vector {
 	u16 num_bufq;
 	struct idpf_queue **bufq;
 
+	u16 total_events;
 	char *name;
 };
 
@@ -460,11 +476,18 @@ struct idpf_rx_queue_stats {
 };
 
 struct idpf_tx_queue_stats {
+	u64_stats_t packets;
+	u64_stats_t bytes;
 	u64_stats_t lso_pkts;
 	u64_stats_t linearize;
 	u64_stats_t q_busy;
 	u64_stats_t skb_drops;
 	u64_stats_t dma_map_errs;
+};
+
+struct idpf_cleaned_stats {
+	u32 packets;
+	u32 bytes;
 };
 
 union idpf_queue_stats {
@@ -474,9 +497,16 @@ union idpf_queue_stats {
 
 #define IDPF_ITR_DYNAMIC	1
 #define IDPF_ITR_20K		0x0032
+#define IDPF_ITR_GRAN_S		1	/* Assume ITR granularity is 2us */
+#define IDPF_ITR_MASK		0x1FFE  /* ITR register value alignment mask */
+#define ITR_REG_ALIGN(setting)	((setting) & IDPF_ITR_MASK)
+#define IDPF_ITR_IS_DYNAMIC(itr_mode) (itr_mode)
 #define IDPF_ITR_TX_DEF		IDPF_ITR_20K
 #define IDPF_ITR_RX_DEF		IDPF_ITR_20K
+/* Index used for 'No ITR' update in DYN_CTL register */
+#define IDPF_NO_ITR_UPDATE_IDX	3
 #define IDPF_ITR_IDX_SPACING(spacing, dflt)	(spacing ? spacing : dflt)
+#define IDPF_DIM_DEFAULT_PROFILE_IX		1
 
 /**
  * struct idpf_queue
@@ -512,6 +542,15 @@ union idpf_queue_stats {
  * @flags: See enum idpf_queue_flags_t
  * @q_stats: See union idpf_queue_stats
  * @stats_sync: See struct u64_stats_sync
+ * @cleaned_bytes: Splitq only, TXQ only: When a TX completion is received on
+ *		   the TX completion queue, it can be for any TXQ associated
+ *		   with that completion queue. This means we can clean up to
+ *		   N TXQs during a single call to clean the completion queue.
+ *		   cleaned_bytes|pkts tracks the clean stats per TXQ during
+ *		   that single call to clean the completion queue. By doing so,
+ *		   we can update BQL with aggregate cleaned stats for each TXQ
+ *		   only once at the end of the cleaning routine.
+ * @cleaned_pkts: Number of packets cleaned for the above said case
  * @rx_hsplit_en: RX headsplit enable
  * @rx_hbuf_size: Header buffer size
  * @rx_buf_size: Buffer size
@@ -586,6 +625,9 @@ struct idpf_queue {
 
 	union idpf_queue_stats q_stats;
 	struct u64_stats_sync stats_sync;
+
+	u32 cleaned_bytes;
+	u16 cleaned_pkts;
 
 	bool rx_hsplit_en;
 	u16 rx_hbuf_size;

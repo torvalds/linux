@@ -646,6 +646,36 @@ static int idpf_wait_for_event(struct idpf_adapter *adapter,
 }
 
 /**
+ * idpf_wait_for_marker_event - wait for software marker response
+ * @vport: virtual port data structure
+ *
+ * Returns 0 success, negative on failure.
+ **/
+static int idpf_wait_for_marker_event(struct idpf_vport *vport)
+{
+	int event;
+	int i;
+
+	for (i = 0; i < vport->num_txq; i++)
+		set_bit(__IDPF_Q_SW_MARKER, vport->txqs[i]->flags);
+
+	event = wait_event_timeout(vport->sw_marker_wq,
+				   test_and_clear_bit(IDPF_VPORT_SW_MARKER,
+						      vport->flags),
+				   msecs_to_jiffies(500));
+
+	for (i = 0; i < vport->num_txq; i++)
+		clear_bit(__IDPF_Q_POLL_MODE, vport->txqs[i]->flags);
+
+	if (event)
+		return 0;
+
+	dev_warn(&vport->adapter->pdev->dev, "Failed to receive marker packets\n");
+
+	return -ETIMEDOUT;
+}
+
+/**
  * idpf_send_ver_msg - send virtchnl version message
  * @adapter: Driver specific private structure
  *
@@ -1936,7 +1966,23 @@ int idpf_send_enable_queues_msg(struct idpf_vport *vport)
  */
 int idpf_send_disable_queues_msg(struct idpf_vport *vport)
 {
-	return idpf_send_ena_dis_queues_msg(vport, VIRTCHNL2_OP_DISABLE_QUEUES);
+	int err, i;
+
+	err = idpf_send_ena_dis_queues_msg(vport, VIRTCHNL2_OP_DISABLE_QUEUES);
+	if (err)
+		return err;
+
+	/* switch to poll mode as interrupts will be disabled after disable
+	 * queues virtchnl message is sent
+	 */
+	for (i = 0; i < vport->num_txq; i++)
+		set_bit(__IDPF_Q_POLL_MODE, vport->txqs[i]->flags);
+
+	/* schedule the napi to receive all the marker packets */
+	for (i = 0; i < vport->num_q_vectors; i++)
+		napi_schedule(&vport->q_vectors[i].napi);
+
+	return idpf_wait_for_marker_event(vport);
 }
 
 /**
@@ -2813,6 +2859,7 @@ void idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q)
 	struct idpf_adapter *adapter = vport->adapter;
 	struct virtchnl2_create_vport *vport_msg;
 	struct idpf_vport_config *vport_config;
+	u16 tx_itr[] = {2, 8, 64, 128, 256};
 	struct idpf_rss_data *rss_data;
 	u16 idx = vport->idx;
 
@@ -2836,6 +2883,9 @@ void idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q)
 
 	ether_addr_copy(vport->default_mac_addr, vport_msg->default_mac_addr);
 	vport->max_mtu = le16_to_cpu(vport_msg->max_mtu) - IDPF_PACKET_HDR_PAD;
+
+	/* Initialize Tx profiles for Dynamic Interrupt Moderation */
+	memcpy(vport->tx_itr_profile, tx_itr, IDPF_DIM_PROFILE_SLOTS);
 
 	idpf_vport_init_num_qs(vport, vport_msg);
 	idpf_vport_calc_num_q_desc(vport);
