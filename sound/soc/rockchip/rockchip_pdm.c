@@ -379,6 +379,7 @@ static int rockchip_pdm_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops rockchip_pdm_dai_ops = {
+	.probe = rockchip_pdm_dai_probe,
 	.set_fmt = rockchip_pdm_set_fmt,
 	.trigger = rockchip_pdm_trigger,
 	.hw_params = rockchip_pdm_hw_params,
@@ -391,7 +392,6 @@ static const struct snd_soc_dai_ops rockchip_pdm_dai_ops = {
 			      SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_driver rockchip_pdm_dai = {
-	.probe = rockchip_pdm_dai_probe,
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 2,
