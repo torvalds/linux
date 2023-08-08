@@ -473,7 +473,7 @@ int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 	const char **values;
 	int nval, ret;
 
-	nval = fwnode_property_read_string_array(fwnode, propname, NULL, 0);
+	nval = fwnode_property_string_array_count(fwnode, propname);
 	if (nval < 0)
 		return nval;
 
