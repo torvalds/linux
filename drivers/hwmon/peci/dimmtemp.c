@@ -30,6 +30,8 @@
 #define DIMM_IDX_MAX_ON_ICX	2
 #define CHAN_RANK_MAX_ON_ICXD	4
 #define DIMM_IDX_MAX_ON_ICXD	2
+#define CHAN_RANK_MAX_ON_SPR	8
+#define DIMM_IDX_MAX_ON_SPR	2
 
 #define CHAN_RANK_MAX		CHAN_RANK_MAX_ON_HSX
 #define DIMM_IDX_MAX		DIMM_IDX_MAX_ON_HSX
@@ -530,6 +532,43 @@ read_thresholds_icx(struct peci_dimmtemp *priv, int dimm_order, int chan_rank, u
 	return 0;
 }
 
+static int
+read_thresholds_spr(struct peci_dimmtemp *priv, int dimm_order, int chan_rank, u32 *data)
+{
+	u32 reg_val;
+	u64 offset;
+	int ret;
+	u8 dev;
+
+	ret = peci_ep_pci_local_read(priv->peci_dev, 0, 30, 0, 2, 0xd4, &reg_val);
+	if (ret || !(reg_val & BIT(31)))
+		return -ENODATA; /* Use default or previous value */
+
+	ret = peci_ep_pci_local_read(priv->peci_dev, 0, 30, 0, 2, 0xd0, &reg_val);
+	if (ret)
+		return -ENODATA; /* Use default or previous value */
+
+	/*
+	 * Device 26, Offset 219a8: IMC 0 channel 0 -> rank 0
+	 * Device 26, Offset 299a8: IMC 0 channel 1 -> rank 1
+	 * Device 27, Offset 219a8: IMC 1 channel 0 -> rank 2
+	 * Device 27, Offset 299a8: IMC 1 channel 1 -> rank 3
+	 * Device 28, Offset 219a8: IMC 2 channel 0 -> rank 4
+	 * Device 28, Offset 299a8: IMC 2 channel 1 -> rank 5
+	 * Device 29, Offset 219a8: IMC 3 channel 0 -> rank 6
+	 * Device 29, Offset 299a8: IMC 3 channel 1 -> rank 7
+	 */
+	dev = 26 + chan_rank / 2;
+	offset = 0x219a8 + dimm_order * 4 + (chan_rank % 2) * 0x8000;
+
+	ret = peci_mmio_read(priv->peci_dev, 0, GET_CPU_SEG(reg_val), GET_CPU_BUS(reg_val),
+			     dev, 0, offset, data);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static const struct dimm_info dimm_hsx = {
 	.chan_rank_max	= CHAN_RANK_MAX_ON_HSX,
 	.dimm_idx_max	= DIMM_IDX_MAX_ON_HSX,
@@ -572,6 +611,13 @@ static const struct dimm_info dimm_icxd = {
 	.read_thresholds = &read_thresholds_icx,
 };
 
+static const struct dimm_info dimm_spr = {
+	.chan_rank_max	= CHAN_RANK_MAX_ON_SPR,
+	.dimm_idx_max	= DIMM_IDX_MAX_ON_SPR,
+	.min_peci_revision = 0x40,
+	.read_thresholds = &read_thresholds_spr,
+};
+
 static const struct auxiliary_device_id peci_dimmtemp_ids[] = {
 	{
 		.name = "peci_cpu.dimmtemp.hsx",
@@ -596,6 +642,10 @@ static const struct auxiliary_device_id peci_dimmtemp_ids[] = {
 	{
 		.name = "peci_cpu.dimmtemp.icxd",
 		.driver_data = (kernel_ulong_t)&dimm_icxd,
+	},
+	{
+		.name = "peci_cpu.dimmtemp.spr",
+		.driver_data = (kernel_ulong_t)&dimm_spr,
 	},
 	{ }
 };
