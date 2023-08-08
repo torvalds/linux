@@ -334,7 +334,7 @@ static struct platform_driver sdhci_milbeaut_driver = {
 	.driver = {
 		.name = "sdhci-milbeaut",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table = of_match_ptr(mlb_dt_ids),
+		.of_match_table = mlb_dt_ids,
 	},
 	.probe	= sdhci_milbeaut_probe,
 	.remove	= sdhci_milbeaut_remove,
