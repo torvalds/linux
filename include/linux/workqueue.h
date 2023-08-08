@@ -125,6 +125,15 @@ struct rcu_work {
 	struct workqueue_struct *wq;
 };
 
+enum wq_affn_scope {
+	WQ_AFFN_NUMA,			/* one pod per NUMA node */
+	WQ_AFFN_SYSTEM,			/* one pod across the whole system */
+
+	WQ_AFFN_NR_TYPES,
+
+	WQ_AFFN_DFL = WQ_AFFN_NUMA,
+};
+
 /**
  * struct workqueue_attrs - A struct for workqueue attributes.
  *
@@ -141,12 +150,26 @@ struct workqueue_attrs {
 	 */
 	cpumask_var_t cpumask;
 
+	/*
+	 * Below fields aren't properties of a worker_pool. They only modify how
+	 * :c:func:`apply_workqueue_attrs` select pools and thus don't
+	 * participate in pool hash calculations or equality comparisons.
+	 */
+
+	/**
+	 * @affn_scope: unbound CPU affinity scope
+	 *
+	 * CPU pods are used to improve execution locality of unbound work
+	 * items. There are multiple pod types, one for each wq_affn_scope, and
+	 * every CPU in the system belongs to one pod in every pod type. CPUs
+	 * that belong to the same pod share the worker pool. For example,
+	 * selecting %WQ_AFFN_NUMA makes the workqueue use a separate worker
+	 * pool for each NUMA node.
+	 */
+	enum wq_affn_scope affn_scope;
+
 	/**
 	 * @ordered: work items must be executed one by one in queueing order
-	 *
-	 * Unlike other fields, ``ordered`` isn't a property of a worker_pool. It
-	 * only modifies how :c:func:`apply_workqueue_attrs` select pools and thus
-	 * doesn't participate in pool hash calculations or equality comparisons.
 	 */
 	bool ordered;
 };
