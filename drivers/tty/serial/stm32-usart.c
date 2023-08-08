@@ -291,13 +291,39 @@ static int stm32_usart_init_rs485(struct uart_port *port,
 
 static bool stm32_usart_rx_dma_started(struct stm32_port *stm32_port)
 {
+	return stm32_port->rx_ch ? stm32_port->rx_dma_busy : false;
+}
+
+static void stm32_usart_rx_dma_terminate(struct stm32_port *stm32_port)
+{
+	dmaengine_terminate_async(stm32_port->rx_ch);
+	stm32_port->rx_dma_busy = false;
+}
+
+static int stm32_usart_dma_pause_resume(struct stm32_port *stm32_port,
+					struct dma_chan *chan,
+					enum dma_status expected_status,
+					int dmaengine_pause_or_resume(struct dma_chan *),
+					bool stm32_usart_xx_dma_started(struct stm32_port *),
+					void stm32_usart_xx_dma_terminate(struct stm32_port *))
+{
 	struct uart_port *port = &stm32_port->port;
-	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
+	enum dma_status dma_status;
+	int ret;
 
-	if (!stm32_port->rx_ch)
-		return false;
+	if (!stm32_usart_xx_dma_started(stm32_port))
+		return -EPERM;
 
-	return !!(readl_relaxed(port->membase + ofs->cr3) & USART_CR3_DMAR);
+	dma_status = dmaengine_tx_status(chan, chan->cookie, NULL);
+	if (dma_status != expected_status)
+		return -EAGAIN;
+
+	ret = dmaengine_pause_or_resume(chan);
+	if (ret) {
+		dev_err(port->dev, "DMA failed with error code: %d\n", ret);
+		stm32_usart_xx_dma_terminate(stm32_port);
+	}
+	return ret;
 }
 
 /* Return true when data is pending (in pio mode), and false when no data is pending. */
@@ -475,7 +501,7 @@ static unsigned int stm32_usart_receive_chars(struct uart_port *port, bool force
 			}
 		} else {
 			/* Disable RX DMA */
-			dmaengine_terminate_async(stm32_port->rx_ch);
+			stm32_usart_rx_dma_terminate(stm32_port);
 			stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAR);
 			/* Fall back to interrupt mode */
 			dev_dbg(port->dev, "DMA error, fallback to irq mode\n");
@@ -504,6 +530,22 @@ static bool stm32_usart_tx_dma_started(struct stm32_port *stm32_port)
 	 * same time.
 	 */
 	return stm32_port->tx_dma_busy;
+}
+
+static int stm32_usart_tx_dma_pause(struct stm32_port *stm32_port)
+{
+	return stm32_usart_dma_pause_resume(stm32_port, stm32_port->tx_ch,
+					    DMA_IN_PROGRESS, dmaengine_pause,
+					    stm32_usart_tx_dma_started,
+					    stm32_usart_tx_dma_terminate);
+}
+
+static int stm32_usart_tx_dma_resume(struct stm32_port *stm32_port)
+{
+	return stm32_usart_dma_pause_resume(stm32_port, stm32_port->tx_ch,
+					    DMA_PAUSED, dmaengine_resume,
+					    stm32_usart_tx_dma_started,
+					    stm32_usart_tx_dma_terminate);
 }
 
 static void stm32_usart_tx_dma_complete(void *arg)
@@ -606,13 +648,9 @@ static void stm32_usart_transmit_chars_dma(struct uart_port *port)
 	int ret;
 
 	if (stm32_usart_tx_dma_started(stm32port)) {
-		if (dmaengine_tx_status(stm32port->tx_ch,
-					stm32port->tx_ch->cookie,
-					NULL) == DMA_PAUSED) {
-			ret = dmaengine_resume(stm32port->tx_ch);
-			if (ret < 0)
-				goto dma_err;
-		}
+		ret = stm32_usart_tx_dma_resume(stm32port);
+		if (ret < 0 && ret != -EAGAIN)
+			goto fallback_err;
 		return;
 	}
 
@@ -658,8 +696,12 @@ static void stm32_usart_transmit_chars_dma(struct uart_port *port)
 
 	/* Push current DMA TX transaction in the pending queue */
 	/* DMA no yet started, safe to free resources */
-	if (dma_submit_error(dmaengine_submit(desc)))
-		goto dma_err;
+	ret = dma_submit_error(dmaengine_submit(desc));
+	if (ret) {
+		dev_err(port->dev, "DMA failed with error code: %d\n", ret);
+		stm32_usart_tx_dma_terminate(stm32port);
+		goto fallback_err;
+	}
 
 	/* Issue pending DMA TX requests */
 	dma_async_issue_pending(stm32port->tx_ch);
@@ -667,10 +709,6 @@ static void stm32_usart_transmit_chars_dma(struct uart_port *port)
 	uart_xmit_advance(port, count);
 
 	return;
-
-dma_err:
-	dev_err(port->dev, "DMA failed with error code: %d\n", ret);
-	stm32_usart_tx_dma_terminate(stm32port);
 
 fallback_err:
 	stm32_usart_transmit_chars_pio(port);
@@ -693,16 +731,9 @@ static void stm32_usart_transmit_chars(struct uart_port *port)
 	}
 
 	if (port->x_char) {
-		if (stm32_usart_tx_dma_started(stm32_port) &&
-		    dmaengine_tx_status(stm32_port->tx_ch,
-					stm32_port->tx_ch->cookie,
-					NULL) == DMA_IN_PROGRESS) {
-			ret = dmaengine_pause(stm32_port->tx_ch);
-			if (ret < 0) {
-				dev_err(port->dev, "DMA failed with error code: %d\n", ret);
-				stm32_usart_tx_dma_terminate(stm32_port);
-			}
-		}
+		/* dma terminate may have been called in case of dma pause failure */
+		stm32_usart_tx_dma_pause(stm32_port);
+
 		/* Check that TDR is empty before filling FIFO */
 		ret =
 		readl_relaxed_poll_timeout_atomic(port->membase + ofs->isr,
@@ -716,13 +747,8 @@ static void stm32_usart_transmit_chars(struct uart_port *port)
 		port->x_char = 0;
 		port->icount.tx++;
 
-		if (stm32_usart_tx_dma_started(stm32_port)) {
-			ret = dmaengine_resume(stm32_port->tx_ch);
-			if (ret < 0) {
-				dev_err(port->dev, "DMA failed with error code: %d\n", ret);
-				stm32_usart_tx_dma_terminate(stm32_port);
-			}
-		}
+		/* dma terminate may have been called in case of dma resume failure */
+		stm32_usart_tx_dma_resume(stm32_port);
 		return;
 	}
 
@@ -855,16 +881,11 @@ static void stm32_usart_disable_ms(struct uart_port *port)
 static void stm32_usart_stop_tx(struct uart_port *port)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
-	int ret;
 
 	stm32_usart_tx_interrupt_disable(port);
-	if (stm32_usart_tx_dma_started(stm32_port)) {
-		ret = dmaengine_pause(stm32_port->tx_ch);
-		if (ret < 0) {
-			dev_err(port->dev, "DMA failed with error code: %d\n", ret);
-			stm32_usart_tx_dma_terminate(stm32_port);
-		}
-	}
+
+	/* dma terminate may have been called in case of dma pause failure */
+	stm32_usart_tx_dma_pause(stm32_port);
 
 	stm32_usart_rs485_rts_disable(port);
 }
@@ -965,7 +986,21 @@ static int stm32_usart_start_rx_dma_cyclic(struct uart_port *port)
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	struct dma_async_tx_descriptor *desc;
+	enum dma_status rx_dma_status;
 	int ret;
+
+	if (stm32_port->rx_dma_busy) {
+		rx_dma_status = dmaengine_tx_status(stm32_port->rx_ch,
+						    stm32_port->rx_ch->cookie,
+						    NULL);
+		if (rx_dma_status == DMA_IN_PROGRESS)
+			return 0;
+
+		dev_err(port->dev, "DMA failed : status error.\n");
+		stm32_usart_rx_dma_terminate(stm32_port);
+	}
+
+	stm32_port->rx_dma_busy = true;
 
 	stm32_port->last_res = RX_BUF_L;
 	/* Prepare a DMA cyclic transaction */
@@ -976,6 +1011,7 @@ static int stm32_usart_start_rx_dma_cyclic(struct uart_port *port)
 					 DMA_PREP_INTERRUPT);
 	if (!desc) {
 		dev_err(port->dev, "rx dma prep cyclic failed\n");
+		stm32_port->rx_dma_busy = false;
 		return -ENODEV;
 	}
 
@@ -986,6 +1022,7 @@ static int stm32_usart_start_rx_dma_cyclic(struct uart_port *port)
 	ret = dma_submit_error(dmaengine_submit(desc));
 	if (ret) {
 		dmaengine_terminate_sync(stm32_port->rx_ch);
+		stm32_port->rx_dma_busy = false;
 		return ret;
 	}
 
@@ -1074,7 +1111,7 @@ static void stm32_usart_shutdown(struct uart_port *port)
 
 	/* Disable RX DMA. */
 	if (stm32_port->rx_ch)
-		dmaengine_terminate_async(stm32_port->rx_ch);
+		stm32_usart_rx_dma_terminate(stm32_port);
 
 	/* flush RX & TX FIFO */
 	if (ofs->rqr != UNDEF_REG)
@@ -1988,7 +2025,7 @@ static int __maybe_unused stm32_usart_serial_en_wakeup(struct uart_port *port,
 			stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAR);
 			/* Poll data from DMA RX buffer if any */
 			size = stm32_usart_receive_chars(port, true);
-			dmaengine_terminate_async(stm32_port->rx_ch);
+			stm32_usart_rx_dma_terminate(stm32_port);
 			uart_unlock_and_check_sysrq_irqrestore(port, flags);
 			if (size)
 				tty_flip_buffer_push(tport);
