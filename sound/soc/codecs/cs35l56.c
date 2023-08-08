@@ -1069,6 +1069,8 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 		return dev_err_probe(cs35l56->base.dev, ret, "Failed to enable supplies\n");
 
 	if (cs35l56->base.reset_gpio) {
+		/* ACPI can override GPIOD_OUT_LOW flag so force it to start low */
+		gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
 		cs35l56_wait_min_reset_pulse();
 		gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 1);
 	}
