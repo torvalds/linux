@@ -6256,17 +6256,15 @@ static inline void wq_watchdog_init(void) { }
 
 #endif	/* CONFIG_WQ_WATCHDOG */
 
-static void wq_pod_init(void);
-
 /**
  * workqueue_init_early - early init for workqueue subsystem
  *
- * This is the first half of two-staged workqueue subsystem initialization
- * and invoked as soon as the bare basics - memory allocation, cpumasks and
- * idr are up.  It sets up all the data structures and system workqueues
- * and allows early boot code to create workqueues and queue/cancel work
- * items.  Actual work item execution starts only after kthreads can be
- * created and scheduled right before early initcalls.
+ * This is the first step of three-staged workqueue subsystem initialization and
+ * invoked as soon as the bare basics - memory allocation, cpumasks and idr are
+ * up. It sets up all the data structures and system workqueues and allows early
+ * boot code to create workqueues and queue/cancel work items. Actual work item
+ * execution starts only after kthreads can be created and scheduled right
+ * before early initcalls.
  */
 void __init workqueue_init_early(void)
 {
@@ -6283,6 +6281,9 @@ void __init workqueue_init_early(void)
 		cpumask_and(wq_unbound_cpumask, wq_unbound_cpumask, &wq_cmdline_cpumask);
 
 	pwq_cache = KMEM_CACHE(pool_workqueue, SLAB_PANIC);
+
+	wq_update_pod_attrs_buf = alloc_workqueue_attrs();
+	BUG_ON(!wq_update_pod_attrs_buf);
 
 	/* initialize CPU pools */
 	for_each_possible_cpu(cpu) {
@@ -6381,11 +6382,11 @@ static void __init wq_cpu_intensive_thresh_init(void)
 /**
  * workqueue_init - bring workqueue subsystem fully online
  *
- * This is the latter half of two-staged workqueue subsystem initialization
- * and invoked as soon as kthreads can be created and scheduled.
- * Workqueues have been created and work items queued on them, but there
- * are no kworkers executing the work items yet.  Populate the worker pools
- * with the initial workers and enable future kworker creations.
+ * This is the second step of three-staged workqueue subsystem initialization
+ * and invoked as soon as kthreads can be created and scheduled. Workqueues have
+ * been created and work items queued on them, but there are no kworkers
+ * executing the work items yet. Populate the worker pools with the initial
+ * workers and enable future kworker creations.
  */
 void __init workqueue_init(void)
 {
@@ -6395,18 +6396,12 @@ void __init workqueue_init(void)
 
 	wq_cpu_intensive_thresh_init();
 
-	/*
-	 * It'd be simpler to initialize pods in workqueue_init_early() but CPU
-	 * to node mapping may not be available that early on some archs such as
-	 * power and arm64. As per-cpu pools created previously could be missing
-	 * node hint and unbound pool pod affinity, fix them up.
-	 *
-	 * Also, while iterating workqueues, create rescuers if requested.
-	 */
-	wq_pod_init();
-
 	mutex_lock(&wq_pool_mutex);
 
+	/*
+	 * Per-cpu pools created earlier could be missing node hint. Fix them
+	 * up. Also, create a rescuer for workqueues that requested it.
+	 */
 	for_each_possible_cpu(cpu) {
 		for_each_cpu_worker_pool(pool, cpu) {
 			pool->node = cpu_to_node(cpu);
@@ -6414,7 +6409,6 @@ void __init workqueue_init(void)
 	}
 
 	list_for_each_entry(wq, &workqueues, list) {
-		wq_update_pod(wq, smp_processor_id(), smp_processor_id(), true);
 		WARN(init_rescuer(wq),
 		     "workqueue: failed to create early rescuer for %s",
 		     wq->name);
@@ -6437,8 +6431,16 @@ void __init workqueue_init(void)
 	wq_watchdog_init();
 }
 
-static void __init wq_pod_init(void)
+/**
+ * workqueue_init_topology - initialize CPU pods for unbound workqueues
+ *
+ * This is the third step of there-staged workqueue subsystem initialization and
+ * invoked after SMP and topology information are fully initialized. It
+ * initializes the unbound CPU pods accordingly.
+ */
+void __init workqueue_init_topology(void)
 {
+	struct workqueue_struct *wq;
 	cpumask_var_t *tbl;
 	int node, cpu;
 
@@ -6452,8 +6454,7 @@ static void __init wq_pod_init(void)
 		}
 	}
 
-	wq_update_pod_attrs_buf = alloc_workqueue_attrs();
-	BUG_ON(!wq_update_pod_attrs_buf);
+	mutex_lock(&wq_pool_mutex);
 
 	/*
 	 * We want masks of possible CPUs of each node which isn't readily
@@ -6474,6 +6475,19 @@ static void __init wq_pod_init(void)
 
 	wq_pod_cpus = tbl;
 	wq_pod_enabled = true;
+
+	/*
+	 * Workqueues allocated earlier would have all CPUs sharing the default
+	 * worker pool. Explicitly call wq_update_pod() on all workqueue and CPU
+	 * combinations to apply per-pod sharing.
+	 */
+	list_for_each_entry(wq, &workqueues, list) {
+		for_each_online_cpu(cpu) {
+			wq_update_pod(wq, cpu, cpu, true);
+		}
+	}
+
+	mutex_unlock(&wq_pool_mutex);
 }
 
 void __warn_flushing_systemwide_wq(void)

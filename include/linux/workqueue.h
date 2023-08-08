@@ -672,5 +672,6 @@ int workqueue_offline_cpu(unsigned int cpu);
 
 void __init workqueue_init_early(void);
 void __init workqueue_init(void);
+void __init workqueue_init_topology(void);
 
 #endif
