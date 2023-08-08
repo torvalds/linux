@@ -58,10 +58,8 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 
 	apicid = m->apicid;
 
-	if (m->cpuflag & CPU_BOOTPROCESSOR) {
+	if (m->cpuflag & CPU_BOOTPROCESSOR)
 		bootup_cpu = " (Bootup-CPU)";
-		boot_cpu_physical_apicid = m->apicid;
-	}
 
 	pr_info("Processor #%d%s\n", m->apicid, bootup_cpu);
 	generic_processor_info(apicid, m->apicver);
