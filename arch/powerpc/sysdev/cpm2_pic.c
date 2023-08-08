@@ -34,7 +34,6 @@
 
 #include <asm/immap_cpm2.h>
 #include <asm/io.h>
-#include <asm/fs_pd.h>
 
 #include "cpm2_pic.h"
 
@@ -230,7 +229,7 @@ void cpm2_pic_init(struct device_node *node)
 {
 	int i;
 
-	cpm2_intctl = cpm2_map(im_intctl);
+	cpm2_intctl = &cpm2_immr->im_intctl;
 
 	/* Clear the CPM IRQ controller, in case it has any bits set
 	 * from the bootloader

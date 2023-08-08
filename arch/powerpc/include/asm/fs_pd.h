@@ -14,14 +14,6 @@
 #include <sysdev/fsl_soc.h>
 #include <asm/time.h>
 
-#ifdef CONFIG_CPM2
-#include <asm/cpm2.h>
-
-#define cpm2_map(member) (&cpm2_immr->member)
-#define cpm2_map_size(member, size) (&cpm2_immr->member)
-#define cpm2_unmap(addr) do {} while(0)
-#endif
-
 static inline int uart_baudrate(void)
 {
         return get_baudrate();
