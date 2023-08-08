@@ -976,6 +976,7 @@ int cs35l56_system_resume(struct device *dev)
 		return ret;
 
 	cs35l56->base.fw_patched = false;
+	wm_adsp_power_down(&cs35l56->dsp);
 	queue_work(cs35l56->dsp_wq, &cs35l56->dsp_work);
 
 	/*
