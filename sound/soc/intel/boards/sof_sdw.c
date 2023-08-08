@@ -1288,25 +1288,24 @@ static int get_slave_info(const struct snd_soc_acpi_link_adr *adr_link,
 	}
 
 	/* gather other link ID of slaves in the same group */
-	for (adr_next = adr_link + 1; adr_next && adr_next->num_adr;
-		adr_next++) {
-		const struct snd_soc_acpi_endpoint *endpoint;
+	for (adr_next = adr_link + 1; adr_next && adr_next->num_adr; adr_next++) {
+		unsigned int link_codecs = 0;
 
-		endpoint = adr_next->adr_d->endpoints;
-		if (!endpoint->aggregated ||
-		    endpoint->group_id != *group_id)
-			continue;
-
-		if (index >= SDW_MAX_CPU_DAIS) {
-			dev_err(dev, "cpu_dai_id array overflows\n");
-			return -EINVAL;
-		}
-
-		cpu_dai_id[index++] = ffs(adr_next->mask) - 1;
 		for (i = 0; i < adr_next->num_adr; i++) {
 			if (adr_next->adr_d[i].endpoints->aggregated &&
 			    adr_next->adr_d[i].endpoints->group_id == *group_id)
-				(*codec_num)++;
+				link_codecs++;
+		}
+
+		if (link_codecs) {
+			*codec_num += link_codecs;
+
+			if (index >= SDW_MAX_CPU_DAIS) {
+				dev_err(dev, "cpu_dai_id array overflowed\n");
+				return -EINVAL;
+			}
+
+			cpu_dai_id[index++] = ffs(adr_next->mask) - 1;
 		}
 	}
 
@@ -1369,13 +1368,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 	j = adr_index;
 	for (adr_link_next = adr_link; adr_link_next && adr_link_next->num_adr &&
 	     i < cpu_dai_num; adr_link_next++) {
-		const struct snd_soc_acpi_endpoint *endpoints;
 		int _codec_index = -1;
-
-		endpoints = adr_link_next->adr_d->endpoints;
-		if (group_id && (!endpoints->aggregated ||
-				 endpoints->group_id != group_id))
-			continue;
 
 		/* skip the link excluded by this processed group */
 		if (cpu_dai_id[i] != ffs(adr_link_next->mask) - 1)
@@ -1383,6 +1376,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 
 		/* j reset after loop, adr_index only applies to first link */
 		for (; j < adr_link_next->num_adr; j++) {
+			const struct snd_soc_acpi_endpoint *endpoints;
 			int codec_index;
 			u64 adr = adr_link_next->adr_d[j].adr;
 
@@ -1394,6 +1388,12 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 				break;
 			}
 			_codec_index = codec_index;
+
+			endpoints = adr_link_next->adr_d[j].endpoints;
+
+			if (group_id && (!endpoints->aggregated ||
+					 endpoints->group_id != group_id))
+				continue;
 
 			/* sanity check */
 			if (*codec_conf_index >= codec_count) {
