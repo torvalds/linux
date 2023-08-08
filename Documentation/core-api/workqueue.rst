@@ -358,7 +358,11 @@ on one of the CPUs which share the last level cache with the issuing CPU.
 Once started, the worker may or may not be allowed to move outside the scope
 depending on the ``affinity_strict`` setting of the scope.
 
-Workqueue currently supports the following five affinity scopes.
+Workqueue currently supports the following affinity scopes.
+
+``default``
+  Use the scope in module parameter ``workqueue.default_affinity_scope``
+  which is always set to one of the scopes below.
 
 ``cpu``
   CPUs are not grouped. A work item issued on one CPU is processed by a
@@ -391,6 +395,9 @@ directory.
 
 ``affinity_scope``
   Read to see the current affinity scope. Write to change.
+
+  When default is the current scope, reading this file will also show the
+  current effective scope in parentheses, for example, ``default (cache)``.
 
 ``affinity_strict``
   0 by default indicating that affinity scopes are not strict. When a work

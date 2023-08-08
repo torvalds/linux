@@ -339,9 +339,10 @@ struct wq_pod_type {
 };
 
 static struct wq_pod_type wq_pod_types[WQ_AFFN_NR_TYPES];
-static enum wq_affn_scope wq_affn_dfl = WQ_AFFN_DFL;
+static enum wq_affn_scope wq_affn_dfl = WQ_AFFN_CACHE;
 
 static const char *wq_affn_names[WQ_AFFN_NR_TYPES] = {
+	[WQ_AFFN_DFL]			= "default",
 	[WQ_AFFN_CPU]			= "cpu",
 	[WQ_AFFN_SMT]			= "smt",
 	[WQ_AFFN_CACHE]			= "cache",
@@ -3734,7 +3735,7 @@ struct workqueue_attrs *alloc_workqueue_attrs(void)
 		goto fail;
 
 	cpumask_copy(attrs->cpumask, cpu_possible_mask);
-	attrs->affn_scope = wq_affn_dfl;
+	attrs->affn_scope = WQ_AFFN_DFL;
 	return attrs;
 fail:
 	free_workqueue_attrs(attrs);
@@ -3815,7 +3816,18 @@ static void wqattrs_actualize_cpumask(struct workqueue_attrs *attrs,
 static const struct wq_pod_type *
 wqattrs_pod_type(const struct workqueue_attrs *attrs)
 {
-	struct wq_pod_type *pt = &wq_pod_types[attrs->affn_scope];
+	enum wq_affn_scope scope;
+	struct wq_pod_type *pt;
+
+	/* to synchronize access to wq_affn_dfl */
+	lockdep_assert_held(&wq_pool_mutex);
+
+	if (attrs->affn_scope == WQ_AFFN_DFL)
+		scope = wq_affn_dfl;
+	else
+		scope = attrs->affn_scope;
+
+	pt = &wq_pod_types[scope];
 
 	if (!WARN_ON_ONCE(attrs->affn_scope == WQ_AFFN_NR_TYPES) &&
 	    likely(pt->nr_pods))
@@ -5847,13 +5859,29 @@ static int parse_affn_scope(const char *val)
 
 static int wq_affn_dfl_set(const char *val, const struct kernel_param *kp)
 {
-	int affn;
+	struct workqueue_struct *wq;
+	int affn, cpu;
 
 	affn = parse_affn_scope(val);
 	if (affn < 0)
 		return affn;
+	if (affn == WQ_AFFN_DFL)
+		return -EINVAL;
+
+	cpus_read_lock();
+	mutex_lock(&wq_pool_mutex);
 
 	wq_affn_dfl = affn;
+
+	list_for_each_entry(wq, &workqueues, list) {
+		for_each_online_cpu(cpu) {
+			wq_update_pod(wq, cpu, cpu, true);
+		}
+	}
+
+	mutex_unlock(&wq_pool_mutex);
+	cpus_read_unlock();
+
 	return 0;
 }
 
@@ -6033,8 +6061,13 @@ static ssize_t wq_affn_scope_show(struct device *dev,
 	int written;
 
 	mutex_lock(&wq->mutex);
-	written = scnprintf(buf, PAGE_SIZE, "%s\n",
-			    wq_affn_names[wq->unbound_attrs->affn_scope]);
+	if (wq->unbound_attrs->affn_scope == WQ_AFFN_DFL)
+		written = scnprintf(buf, PAGE_SIZE, "%s (%s)\n",
+				    wq_affn_names[WQ_AFFN_DFL],
+				    wq_affn_names[wq_affn_dfl]);
+	else
+		written = scnprintf(buf, PAGE_SIZE, "%s\n",
+				    wq_affn_names[wq->unbound_attrs->affn_scope]);
 	mutex_unlock(&wq->mutex);
 
 	return written;

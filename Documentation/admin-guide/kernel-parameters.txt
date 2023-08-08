@@ -7014,10 +7014,10 @@
 			information, see the Affinity Scopes section in
 			Documentation/core-api/workqueue.rst.
 
-			This can be updated after boot through the matching
-			file under /sys/module/workqueue/parameters.
-			However, the changed default will only apply to
-			unbound workqueues created afterwards.
+			This can be changed after boot by writing to the
+			matching /sys/module/workqueue/parameters file. All
+			workqueues with the "default" affinity scope will be
+			updated accordignly.
 
 	workqueue.debug_force_rr_cpu
 			Workqueue used to implicitly guarantee that work
