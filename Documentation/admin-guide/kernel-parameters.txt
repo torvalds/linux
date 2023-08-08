@@ -7007,6 +7007,18 @@
 			The default value of this parameter is determined by
 			the config option CONFIG_WQ_POWER_EFFICIENT_DEFAULT.
 
+        workqueue.default_affinity_scope=
+			Select the default affinity scope to use for unbound
+			workqueues. Can be one of "cpu", "smt", "cache",
+			"numa" and "system". Default is "cache". For more
+			information, see the Affinity Scopes section in
+			Documentation/core-api/workqueue.rst.
+
+			This can be updated after boot through the matching
+			file under /sys/module/workqueue/parameters.
+			However, the changed default will only apply to
+			unbound workqueues created afterwards.
+
 	workqueue.debug_force_rr_cpu
 			Workqueue used to implicitly guarantee that work
 			items queued without explicit CPU specified are put

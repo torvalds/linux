@@ -78,11 +78,16 @@ worker_pool_idr         = prog['worker_pool_idr']
 workqueues              = prog['workqueues']
 wq_unbound_cpumask      = prog['wq_unbound_cpumask']
 wq_pod_types            = prog['wq_pod_types']
+wq_affn_dfl             = prog['wq_affn_dfl']
+wq_affn_names           = prog['wq_affn_names']
 
 WQ_UNBOUND              = prog['WQ_UNBOUND']
 WQ_ORDERED              = prog['__WQ_ORDERED']
 WQ_MEM_RECLAIM          = prog['WQ_MEM_RECLAIM']
 
+WQ_AFFN_CPU             = prog['WQ_AFFN_CPU']
+WQ_AFFN_SMT             = prog['WQ_AFFN_SMT']
+WQ_AFFN_CACHE           = prog['WQ_AFFN_CACHE']
 WQ_AFFN_NUMA            = prog['WQ_AFFN_NUMA']
 WQ_AFFN_SYSTEM          = prog['WQ_AFFN_SYSTEM']
 
@@ -109,12 +114,10 @@ def print_pod_type(pt):
         print(f' [{cpu}]={pt.cpu_pod[cpu].value_()}', end='')
     print('')
 
-print('')
-print('NUMA')
-print_pod_type(wq_pod_types[WQ_AFFN_NUMA])
-print('')
-print('SYSTEM')
-print_pod_type(wq_pod_types[WQ_AFFN_SYSTEM])
+for affn in [WQ_AFFN_CPU, WQ_AFFN_SMT, WQ_AFFN_CACHE, WQ_AFFN_NUMA, WQ_AFFN_SYSTEM]:
+    print('')
+    print(f'{wq_affn_names[affn].string_().decode().upper()}{" (default)" if affn == wq_affn_dfl else ""}')
+    print_pod_type(wq_pod_types[affn])
 
 print('')
 print('Worker Pools')

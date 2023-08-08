@@ -347,6 +347,51 @@ Guidelines
   level of locality in wq operations and work item execution.
 
 
+Affinity Scopes
+===============
+
+An unbound workqueue groups CPUs according to its affinity scope to improve
+cache locality. For example, if a workqueue is using the default affinity
+scope of "cache", it will group CPUs according to last level cache
+boundaries. A work item queued on the workqueue will be processed by a
+worker running on one of the CPUs which share the last level cache with the
+issuing CPU.
+
+Workqueue currently supports the following five affinity scopes.
+
+``cpu``
+  CPUs are not grouped. A work item issued on one CPU is processed by a
+  worker on the same CPU. This makes unbound workqueues behave as per-cpu
+  workqueues without concurrency management.
+
+``smt``
+  CPUs are grouped according to SMT boundaries. This usually means that the
+  logical threads of each physical CPU core are grouped together.
+
+``cache``
+  CPUs are grouped according to cache boundaries. Which specific cache
+  boundary is used is determined by the arch code. L3 is used in a lot of
+  cases. This is the default affinity scope.
+
+``numa``
+  CPUs are grouped according to NUMA bounaries.
+
+``system``
+  All CPUs are put in the same group. Workqueue makes no effort to process a
+  work item on a CPU close to the issuing CPU.
+
+The default affinity scope can be changed with the module parameter
+``workqueue.default_affinity_scope`` and a specific workqueue's affinity
+scope can be changed using ``apply_workqueue_attrs()``.
+
+If ``WQ_SYSFS`` is set, the workqueue will have the following affinity scope
+related interface files under its ``/sys/devices/virtual/WQ_NAME/``
+directory.
+
+``affinity_scope``
+  Read to see the current affinity scope. Write to change.
+
+
 Examining Configuration
 =======================
 
@@ -357,6 +402,24 @@ configuration, worker pools and how workqueues map to the pools: ::
   Affinity Scopes
   ===============
   wq_unbound_cpumask=0000000f
+
+  CPU
+    nr_pods  4
+    pod_cpus [0]=00000001 [1]=00000002 [2]=00000004 [3]=00000008
+    pod_node [0]=0 [1]=0 [2]=1 [3]=1
+    cpu_pod  [0]=0 [1]=1 [2]=2 [3]=3
+
+  SMT
+    nr_pods  4
+    pod_cpus [0]=00000001 [1]=00000002 [2]=00000004 [3]=00000008
+    pod_node [0]=0 [1]=0 [2]=1 [3]=1
+    cpu_pod  [0]=0 [1]=1 [2]=2 [3]=3
+
+  CACHE (default)
+    nr_pods  2
+    pod_cpus [0]=00000003 [1]=0000000c
+    pod_node [0]=0 [1]=1
+    cpu_pod  [0]=0 [1]=0 [2]=1 [3]=1
 
   NUMA
     nr_pods  2

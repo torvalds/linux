@@ -338,6 +338,15 @@ struct wq_pod_type {
 };
 
 static struct wq_pod_type wq_pod_types[WQ_AFFN_NR_TYPES];
+static enum wq_affn_scope wq_affn_dfl = WQ_AFFN_DFL;
+
+static const char *wq_affn_names[WQ_AFFN_NR_TYPES] = {
+	[WQ_AFFN_CPU]			= "cpu",
+	[WQ_AFFN_SMT]			= "smt",
+	[WQ_AFFN_CACHE]			= "cache",
+	[WQ_AFFN_NUMA]			= "numa",
+	[WQ_AFFN_SYSTEM]		= "system",
+};
 
 /*
  * Per-cpu work items which run for longer than the following threshold are
@@ -3664,7 +3673,7 @@ struct workqueue_attrs *alloc_workqueue_attrs(void)
 		goto fail;
 
 	cpumask_copy(attrs->cpumask, cpu_possible_mask);
-	attrs->affn_scope = WQ_AFFN_DFL;
+	attrs->affn_scope = wq_affn_dfl;
 	return attrs;
 fail:
 	free_workqueue_attrs(attrs);
@@ -5777,19 +5786,55 @@ out_unlock:
 	return ret;
 }
 
+static int parse_affn_scope(const char *val)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wq_affn_names); i++) {
+		if (!strncasecmp(val, wq_affn_names[i], strlen(wq_affn_names[i])))
+			return i;
+	}
+	return -EINVAL;
+}
+
+static int wq_affn_dfl_set(const char *val, const struct kernel_param *kp)
+{
+	int affn;
+
+	affn = parse_affn_scope(val);
+	if (affn < 0)
+		return affn;
+
+	wq_affn_dfl = affn;
+	return 0;
+}
+
+static int wq_affn_dfl_get(char *buffer, const struct kernel_param *kp)
+{
+	return scnprintf(buffer, PAGE_SIZE, "%s\n", wq_affn_names[wq_affn_dfl]);
+}
+
+static const struct kernel_param_ops wq_affn_dfl_ops = {
+	.set	= wq_affn_dfl_set,
+	.get	= wq_affn_dfl_get,
+};
+
+module_param_cb(default_affinity_scope, &wq_affn_dfl_ops, NULL, 0644);
+
 #ifdef CONFIG_SYSFS
 /*
  * Workqueues with WQ_SYSFS flag set is visible to userland via
  * /sys/bus/workqueue/devices/WQ_NAME.  All visible workqueues have the
  * following attributes.
  *
- *  per_cpu	RO bool	: whether the workqueue is per-cpu or unbound
- *  max_active	RW int	: maximum number of in-flight work items
+ *  per_cpu		RO bool	: whether the workqueue is per-cpu or unbound
+ *  max_active		RW int	: maximum number of in-flight work items
  *
  * Unbound workqueues have the following extra attributes.
  *
- *  nice	RW int	: nice value of the workers
- *  cpumask	RW mask	: bitmask of allowed CPUs for the workers
+ *  nice		RW int	: nice value of the workers
+ *  cpumask		RW mask	: bitmask of allowed CPUs for the workers
+ *  affinity_scope	RW str  : worker CPU affinity scope (cache, numa, none)
  */
 struct wq_device {
 	struct workqueue_struct		*wq;
@@ -5932,9 +5977,47 @@ out_unlock:
 	return ret ?: count;
 }
 
+static ssize_t wq_affn_scope_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct workqueue_struct *wq = dev_to_wq(dev);
+	int written;
+
+	mutex_lock(&wq->mutex);
+	written = scnprintf(buf, PAGE_SIZE, "%s\n",
+			    wq_affn_names[wq->unbound_attrs->affn_scope]);
+	mutex_unlock(&wq->mutex);
+
+	return written;
+}
+
+static ssize_t wq_affn_scope_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct workqueue_struct *wq = dev_to_wq(dev);
+	struct workqueue_attrs *attrs;
+	int affn, ret = -ENOMEM;
+
+	affn = parse_affn_scope(buf);
+	if (affn < 0)
+		return affn;
+
+	apply_wqattrs_lock();
+	attrs = wq_sysfs_prep_attrs(wq);
+	if (attrs) {
+		attrs->affn_scope = affn;
+		ret = apply_workqueue_attrs_locked(wq, attrs);
+	}
+	apply_wqattrs_unlock();
+	free_workqueue_attrs(attrs);
+	return ret ?: count;
+}
+
 static struct device_attribute wq_sysfs_unbound_attrs[] = {
 	__ATTR(nice, 0644, wq_nice_show, wq_nice_store),
 	__ATTR(cpumask, 0644, wq_cpumask_show, wq_cpumask_store),
+	__ATTR(affinity_scope, 0644, wq_affn_scope_show, wq_affn_scope_store),
 	__ATTR_NULL,
 };
 
@@ -6537,6 +6620,20 @@ static void __init init_pod_type(struct wq_pod_type *pt,
 	}
 }
 
+static bool __init cpus_dont_share(int cpu0, int cpu1)
+{
+	return false;
+}
+
+static bool __init cpus_share_smt(int cpu0, int cpu1)
+{
+#ifdef CONFIG_SCHED_SMT
+	return cpumask_test_cpu(cpu0, cpu_smt_mask(cpu1));
+#else
+	return false;
+#endif
+}
+
 static bool __init cpus_share_numa(int cpu0, int cpu1)
 {
 	return cpu_to_node(cpu0) == cpu_to_node(cpu1);
@@ -6554,6 +6651,9 @@ void __init workqueue_init_topology(void)
 	struct workqueue_struct *wq;
 	int cpu;
 
+	init_pod_type(&wq_pod_types[WQ_AFFN_CPU], cpus_dont_share);
+	init_pod_type(&wq_pod_types[WQ_AFFN_SMT], cpus_share_smt);
+	init_pod_type(&wq_pod_types[WQ_AFFN_CACHE], cpus_share_cache);
 	init_pod_type(&wq_pod_types[WQ_AFFN_NUMA], cpus_share_numa);
 
 	mutex_lock(&wq_pool_mutex);
