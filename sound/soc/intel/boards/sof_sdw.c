@@ -1265,56 +1265,42 @@ static int get_slave_info(const struct snd_soc_acpi_link_adr *adr_link,
 			  int *codec_num, unsigned int *group_id,
 			  int adr_index)
 {
-	const struct snd_soc_acpi_adr_device *adr_d;
-	const struct snd_soc_acpi_link_adr *adr_next;
-	bool no_aggregation;
-	int index = 0;
+	bool no_aggregation = sof_sdw_quirk & SOF_SDW_NO_AGGREGATION;
 	int i;
 
-	no_aggregation = sof_sdw_quirk & SOF_SDW_NO_AGGREGATION;
-	adr_d = &adr_link->adr_d[adr_index];
-
-	cpu_dai_id[index++] = ffs(adr_link->mask) - 1;
-	if (!adr_d->endpoints->aggregated || no_aggregation) {
+	if (!adr_link->adr_d[adr_index].endpoints->aggregated || no_aggregation) {
+		cpu_dai_id[0] = ffs(adr_link->mask) - 1;
 		*cpu_dai_num = 1;
 		*codec_num = 1;
 		*group_id = 0;
 		return 0;
 	}
 
-	*group_id = adr_d->endpoints->group_id;
+	*codec_num = 0;
+	*cpu_dai_num = 0;
+	*group_id = adr_link->adr_d[adr_index].endpoints->group_id;
 
 	/* Count endpoints with the same group_id in the adr_link */
-	*codec_num = 0;
-	for (i = 0; i < adr_link->num_adr; i++) {
-		if (adr_link->adr_d[i].endpoints->aggregated &&
-		    adr_link->adr_d[i].endpoints->group_id == *group_id)
-			(*codec_num)++;
-	}
-
-	/* gather other link ID of slaves in the same group */
-	for (adr_next = adr_link + 1; adr_next && adr_next->num_adr; adr_next++) {
+	for (; adr_link && adr_link->num_adr; adr_link++) {
 		unsigned int link_codecs = 0;
 
-		for (i = 0; i < adr_next->num_adr; i++) {
-			if (adr_next->adr_d[i].endpoints->aggregated &&
-			    adr_next->adr_d[i].endpoints->group_id == *group_id)
+		for (i = 0; i < adr_link->num_adr; i++) {
+			if (adr_link->adr_d[i].endpoints->aggregated &&
+			    adr_link->adr_d[i].endpoints->group_id == *group_id)
 				link_codecs++;
 		}
 
 		if (link_codecs) {
 			*codec_num += link_codecs;
 
-			if (index >= SDW_MAX_CPU_DAIS) {
+			if (*cpu_dai_num >= SDW_MAX_CPU_DAIS) {
 				dev_err(dev, "cpu_dai_id array overflowed\n");
 				return -EINVAL;
 			}
 
-			cpu_dai_id[index++] = ffs(adr_next->mask) - 1;
+			cpu_dai_id[(*cpu_dai_num)++] = ffs(adr_link->mask) - 1;
 		}
 	}
-
-	*cpu_dai_num = index;
 
 	return 0;
 }
