@@ -524,7 +524,7 @@ int sdw_prepare(struct snd_pcm_substream *substream)
 
 	sdw_stream = snd_soc_dai_get_stream(dai, substream->stream);
 	if (IS_ERR(sdw_stream)) {
-		dev_err(rtd->dev, "no stream found for DAI %s", dai->name);
+		dev_err(rtd->dev, "no stream found for DAI %s\n", dai->name);
 		return PTR_ERR(sdw_stream);
 	}
 
@@ -543,7 +543,7 @@ int sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	sdw_stream = snd_soc_dai_get_stream(dai, substream->stream);
 	if (IS_ERR(sdw_stream)) {
-		dev_err(rtd->dev, "no stream found for DAI %s", dai->name);
+		dev_err(rtd->dev, "no stream found for DAI %s\n", dai->name);
 		return PTR_ERR(sdw_stream);
 	}
 
@@ -565,7 +565,7 @@ int sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 	}
 
 	if (ret)
-		dev_err(rtd->dev, "%s trigger %d failed: %d", __func__, cmd, ret);
+		dev_err(rtd->dev, "%s trigger %d failed: %d\n", __func__, cmd, ret);
 
 	return ret;
 }
@@ -630,7 +630,7 @@ int sdw_hw_free(struct snd_pcm_substream *substream)
 
 	sdw_stream = snd_soc_dai_get_stream(dai, substream->stream);
 	if (IS_ERR(sdw_stream)) {
-		dev_err(rtd->dev, "no stream found for DAI %s", dai->name);
+		dev_err(rtd->dev, "no stream found for DAI %s\n", dai->name);
 		return PTR_ERR(sdw_stream);
 	}
 
@@ -1339,7 +1339,7 @@ static int get_slave_info(const struct snd_soc_acpi_link_adr *adr_link,
 			return -EINVAL;
 
 		if (index >= SDW_MAX_CPU_DAIS) {
-			dev_err(dev, " cpu_dai_id array overflows");
+			dev_err(dev, "cpu_dai_id array overflows\n");
 			return -EINVAL;
 		}
 
@@ -1490,7 +1490,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 				return -ENOMEM;
 
 			if (cpu_dai_index >= sdw_cpu_dai_num) {
-				dev_err(dev, "invalid cpu dai index %d",
+				dev_err(dev, "invalid cpu dai index %d\n",
 					cpu_dai_index);
 				return -EINVAL;
 			}
@@ -1503,12 +1503,12 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		 * not be larger than sdw_be_num
 		 */
 		if (*link_index >= sdw_be_num) {
-			dev_err(dev, "invalid dai link index %d", *link_index);
+			dev_err(dev, "invalid dai link index %d\n", *link_index);
 			return -EINVAL;
 		}
 
 		if (*cpu_id >= sdw_cpu_dai_num) {
-			dev_err(dev, " invalid cpu dai index %d", *cpu_id);
+			dev_err(dev, "invalid cpu dai index %d\n", *cpu_id);
 			return -EINVAL;
 		}
 
@@ -1531,7 +1531,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		ret = set_codec_init_func(card, adr_link, dai_links + (*link_index)++,
 					  playback, group_id, adr_index, dai_index);
 		if (ret < 0) {
-			dev_err(dev, "failed to init codec %d", codec_index);
+			dev_err(dev, "failed to init codec %d\n", codec_index);
 			return ret;
 		}
 
@@ -1675,7 +1675,7 @@ out:
 
 			endpoint = adr_link->adr_d[i].endpoints;
 			if (endpoint->aggregated && !endpoint->group_id) {
-				dev_err(dev, "invalid group id on link %x",
+				dev_err(dev, "invalid group id on link %x\n",
 					adr_link->mask);
 				continue;
 			}
@@ -1698,7 +1698,7 @@ out:
 							 &be_id, &codec_conf_index,
 							 &ignore_pch_dmic, append_dai_type, i, j);
 				if (ret < 0) {
-					dev_err(dev, "failed to create dai link %d", link_index);
+					dev_err(dev, "failed to create dai link %d\n", link_index);
 					return ret;
 				}
 			}
