@@ -177,7 +177,7 @@ static int pruss_probe(struct platform_device *pdev)
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
-		goto err_free_ddr_vaddr;
+		goto err_unmap;
 
 	gdev->hostirq_start = ret;
 	gdev->pintc_base = pdata->pintc_base;
@@ -215,6 +215,7 @@ err_unloop:
 	for (i = 0, p = gdev->info; i < cnt; i++, p++) {
 		uio_unregister_device(p);
 	}
+err_unmap:
 	iounmap(gdev->prussio_vaddr);
 err_free_ddr_vaddr:
 	dma_free_coherent(dev, extram_pool_sz, gdev->ddr_vaddr,
