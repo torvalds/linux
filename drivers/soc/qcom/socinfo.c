@@ -516,11 +516,13 @@ static const struct soc_id soc_id[] = {
 	{ 439, "SM8350" },
 	{ 449, "SC8280XP" },
 	{ 453, "IPQ6005" },
+	{ 454, "HOLI" },
 	{ 455, "QRB5165" },
 	{ 457, "SM8450" },
 	{ 459, "SM7225" },
 	{ 460, "SA8295P" },
 	{ 461, "SA8540P" },
+	{ 472, "HOLIPRO" },
 	{ 480, "SM8450" },
 	{ 482, "SM8450" },
 	{ 487, "SC7280" },
@@ -532,7 +534,9 @@ static const struct soc_id soc_id[] = {
 	{ 539, "CINDERRU" },
 	{ 545, "CINDERDU" },
 	{ 557, "PINEAPPLE" },
+	{ 565, "BLAIRP" },
 	{ 577, "PINEAPPLEP" },
+	{ 578, "BLAIR-LITE" },
 	{ 614, "CLIFFS" },
 };
 
