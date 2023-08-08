@@ -2753,12 +2753,17 @@ dw_hdmi_qp_bridge_mode_valid(struct drm_bridge *bridge,
 			     const struct drm_display_mode *mode)
 {
 	struct dw_hdmi_qp *hdmi = bridge->driver_private;
+	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
 
 	if (mode->clock <= 25000)
 		return MODE_CLOCK_RANGE;
 
 	if (!hdmi->sink_is_hdmi && mode->clock > 340000)
 		return MODE_BAD;
+
+	if (pdata->mode_valid)
+		return pdata->mode_valid(NULL, pdata->priv_data, info,
+					 mode);
 
 	return MODE_OK;
 }

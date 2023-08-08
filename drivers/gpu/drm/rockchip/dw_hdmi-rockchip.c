@@ -1590,14 +1590,6 @@ dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 	struct drm_crtc *crtc;
 	struct rockchip_hdmi *hdmi;
 
-	/*
-	 * Pixel clocks we support are always < 2GHz and so fit in an
-	 * int.  We should make sure source rate does too so we don't get
-	 * overflow when we multiply by 1000.
-	 */
-	if (mode->clock > INT_MAX / 1000)
-		return MODE_BAD;
-
 	if (!encoder) {
 		const struct drm_connector_helper_funcs *funcs;
 
@@ -1613,6 +1605,21 @@ dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 		return MODE_BAD;
 
 	hdmi = to_rockchip_hdmi(encoder);
+
+	if (hdmi->is_hdmi_qp) {
+		if (!hdmi->enable_gpio && mode->clock > 600000)
+			return MODE_BAD;
+
+		return MODE_OK;
+	}
+
+	/*
+	 * Pixel clocks we support are always < 2GHz and so fit in an
+	 * int.  We should make sure source rate does too so we don't get
+	 * overflow when we multiply by 1000.
+	 */
+	if (mode->clock > INT_MAX / 1000)
+		return MODE_BAD;
 
 	/*
 	 * If sink max TMDS clock < 340MHz, we should check the mode pixel
@@ -3363,6 +3370,7 @@ struct rockchip_hdmi_chip_data rk3588_hdmi_chip_data = {
 };
 
 static const struct dw_hdmi_plat_data rk3588_hdmi_drv_data = {
+	.mode_valid = dw_hdmi_rockchip_mode_valid,
 	.phy_data = &rk3588_hdmi_chip_data,
 	.qp_phy_ops = &rk3588_hdmi_phy_ops,
 	.phy_name = "samsung_hdptx_phy",
