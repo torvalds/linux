@@ -1477,12 +1477,10 @@ static void vga_arbiter_notify_clients(void)
 	if (!vga_arbiter_used)
 		return;
 
+	new_state = (vga_count > 1) ? false : true;
+
 	spin_lock_irqsave(&vga_lock, flags);
 	list_for_each_entry(vgadev, &vga_list, list) {
-		if (vga_count > 1)
-			new_state = false;
-		else
-			new_state = true;
 		if (vgadev->set_decode) {
 			new_decodes = vgadev->set_decode(vgadev->pdev,
 							 new_state);
