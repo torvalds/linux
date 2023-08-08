@@ -417,8 +417,6 @@ static inline bool apic_id_valid(u32 apic_id)
 	return apic_id <= apic->max_apic_id;
 }
 
-extern void __init apic_set_eoi_cb(void (*eoi)(void));
-
 #else /* CONFIG_X86_LOCAL_APIC */
 
 static inline u32 apic_read(u32 reg) { return 0; }
@@ -478,7 +476,6 @@ static inline unsigned int read_apic_id(void)
 
 #ifdef CONFIG_X86_64
 typedef int (*wakeup_cpu_handler)(int apicid, unsigned long start_eip);
-extern void acpi_wake_cpu_handler_update(wakeup_cpu_handler handler);
 extern int default_acpi_madt_oem_check(char *, char *);
 extern void x86_64_probe_apic(void);
 #else
