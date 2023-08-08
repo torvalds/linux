@@ -8,6 +8,10 @@
  * Though in case if apic is disabled (for some reason) we try
  * to not uglify the caller's code and allow to call (some) apic routines
  * like self-ipi, etc...
+ *
+ * FIXME: Remove this gunk. The above argument which was intentionally left
+ * in place is silly to begin with because none of the callbacks except for
+ * APIC::read/write() have a WARN_ON_ONCE() in them. Sigh...
  */
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
@@ -21,35 +25,10 @@ static void noop_send_IPI_allbutself(int vector) { }
 static void noop_send_IPI_all(int vector) { }
 static void noop_send_IPI_self(int vector) { }
 static void noop_apic_icr_write(u32 low, u32 id) { }
-
-static int noop_wakeup_secondary_cpu(int apicid, unsigned long start_eip)
-{
-	return -1;
-}
-
-static u64 noop_apic_icr_read(void)
-{
-	return 0;
-}
-
-static int noop_phys_pkg_id(int cpuid_apic, int index_msb)
-{
-	return 0;
-}
-
-static unsigned int noop_get_apic_id(unsigned long x)
-{
-	return 0;
-}
-
-static int noop_probe(void)
-{
-	/*
-	 * NOOP apic should not ever be
-	 * enabled via probe routine
-	 */
-	return 0;
-}
+static int noop_wakeup_secondary_cpu(int apicid, unsigned long start_eip) { return -1; }
+static u64 noop_apic_icr_read(void) { return 0; }
+static int noop_phys_pkg_id(int cpuid_apic, int index_msb) { return 0; }
+static unsigned int noop_get_apic_id(unsigned long x) { return 0; }
 
 static u32 noop_apic_read(u32 reg)
 {
@@ -64,7 +43,6 @@ static void noop_apic_write(u32 reg, u32 val)
 
 struct apic apic_noop __ro_after_init = {
 	.name				= "noop",
-	.probe				= noop_probe,
 
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= true,
