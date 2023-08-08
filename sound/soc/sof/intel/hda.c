@@ -71,6 +71,11 @@ static u32 hda_get_interface_mask(struct snd_sof_dev *sdev)
 				    BIT(SOF_DAI_INTEL_HDA) | BIT(SOF_DAI_INTEL_ALH);
 		interface_mask[1] = BIT(SOF_DAI_INTEL_HDA);
 		break;
+	case SOF_INTEL_ACE_2_0:
+		interface_mask[0] = BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC) |
+				    BIT(SOF_DAI_INTEL_HDA) | BIT(SOF_DAI_INTEL_ALH);
+		interface_mask[1] = interface_mask[0]; /* all interfaces accessible without DSP */
+		break;
 	default:
 		break;
 	}
@@ -105,6 +110,34 @@ static int sdw_params_stream(struct device *dev,
 
 struct sdw_intel_ops sdw_callback = {
 	.params_stream = sdw_params_stream,
+};
+
+static int sdw_ace2x_params_stream(struct device *dev,
+				   struct sdw_intel_stream_params_data *params_data)
+{
+	return sdw_hda_dai_hw_params(params_data->substream,
+				     params_data->hw_params,
+				     params_data->dai,
+				     params_data->link_id);
+}
+
+static int sdw_ace2x_free_stream(struct device *dev,
+				 struct sdw_intel_stream_free_data *free_data)
+{
+	return sdw_hda_dai_hw_free(free_data->substream,
+				   free_data->dai,
+				   free_data->link_id);
+}
+
+static int sdw_ace2x_trigger(struct snd_pcm_substream *substream, int cmd, struct snd_soc_dai *dai)
+{
+	return sdw_hda_dai_trigger(substream, cmd, dai);
+}
+
+static struct sdw_intel_ops sdw_ace2x_callback = {
+	.params_stream = sdw_ace2x_params_stream,
+	.free_stream = sdw_ace2x_free_stream,
+	.trigger = sdw_ace2x_trigger,
 };
 
 void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
@@ -174,6 +207,7 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 		res.shim_base = hdev->desc->sdw_shim_base;
 		res.alh_base = hdev->desc->sdw_alh_base;
 		res.ext = false;
+		res.ops = &sdw_callback;
 	} else {
 		/*
 		 * retrieve eml_lock needed to protect shared registers
@@ -191,11 +225,13 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 		 */
 		res.hw_ops = &sdw_intel_lnl_hw_ops;
 		res.ext = true;
+		res.ops = &sdw_ace2x_callback;
+
 	}
 	res.irq = sdev->ipc_irq;
 	res.handle = hdev->info.handle;
 	res.parent = sdev->dev;
-	res.ops = &sdw_callback;
+
 	res.dev = sdev->dev;
 	res.clock_stop_quirks = sdw_clock_stop_quirks;
 	res.hbus = sof_to_bus(sdev);
@@ -363,19 +399,29 @@ static irqreturn_t hda_dsp_sdw_thread(int irq, void *context)
 	return sdw_intel_thread(irq, context);
 }
 
-static bool hda_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
+bool hda_sdw_check_wakeen_irq_common(struct snd_sof_dev *sdev)
 {
-	u32 interface_mask = hda_get_interface_mask(sdev);
 	struct sof_intel_hda_dev *hdev;
-
-	if (!(interface_mask & BIT(SOF_DAI_INTEL_ALH)))
-		return false;
 
 	hdev = sdev->pdata->hw_pdata;
 	if (hdev->sdw &&
 	    snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 			     hdev->desc->sdw_shim_base + SDW_SHIM_WAKESTS))
 		return true;
+
+	return false;
+}
+
+static bool hda_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
+{
+	u32 interface_mask = hda_get_interface_mask(sdev);
+	const struct sof_intel_dsp_desc *chip;
+
+	if (!(interface_mask & BIT(SOF_DAI_INTEL_ALH)))
+		return false;
+
+	if (chip && chip->check_sdw_wakeen_irq)
+		return chip->check_sdw_wakeen_irq(sdev);
 
 	return false;
 }

@@ -2158,6 +2158,8 @@ static int sof_complete(struct snd_soc_component *scomp)
 		struct snd_sof_widget *pipe_widget = spipe->pipe_widget;
 		struct snd_sof_widget *swidget;
 
+		pipe_widget->instance_id = -EINVAL;
+
 		/* Update the scheduler widget's IPC structure */
 		if (widget_ops && widget_ops[pipe_widget->id].ipc_setup) {
 			ret = widget_ops[pipe_widget->id].ipc_setup(pipe_widget);

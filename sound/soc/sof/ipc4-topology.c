@@ -1746,6 +1746,12 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	/* update pipeline memory usage */
 	sof_ipc4_update_resource_usage(sdev, swidget, &copier_data->base_config);
 
+	/*
+	 * Restore gateway config length now that IPC payload is prepared. This avoids
+	 * counting the DMA CONFIG TLV multiple times
+	 */
+	copier_data->gtw_cfg.config_length = gtw_cfg_config_length / 4;
+
 	return 0;
 }
 
@@ -2319,6 +2325,7 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 		pipeline->mem_usage = 0;
 		pipeline->state = SOF_IPC4_PIPE_UNINITIALIZED;
 		ida_free(&pipeline_ida, swidget->instance_id);
+		swidget->instance_id = -EINVAL;
 	} else {
 		struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 		struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
