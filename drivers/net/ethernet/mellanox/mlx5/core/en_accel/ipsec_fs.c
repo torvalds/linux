@@ -1243,6 +1243,7 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	setup_fte_spi(spec, attrs->spi);
 	setup_fte_esp(spec);
 	setup_fte_no_frags(spec);
+	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
 	if (rx != ipsec->rx_esw)
 		err = setup_modify_header(ipsec, attrs->type,
@@ -1519,6 +1520,7 @@ static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
 
 	setup_fte_no_frags(spec);
+	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
 	switch (attrs->action) {
 	case XFRM_POLICY_ALLOW:
