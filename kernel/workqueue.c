@@ -326,8 +326,7 @@ struct workqueue_struct {
 
 static struct kmem_cache *pwq_cache;
 
-static cpumask_var_t *wq_numa_possible_cpumask;
-					/* possible CPUs of each node */
+static cpumask_var_t *wq_pod_cpus;	/* possible CPUs of each node */
 
 /*
  * Per-cpu work items which run for longer than the following threshold are
@@ -345,10 +344,10 @@ module_param_named(power_efficient, wq_power_efficient, bool, 0444);
 
 static bool wq_online;			/* can kworkers be created yet? */
 
-static bool wq_numa_enabled;		/* unbound NUMA affinity enabled */
+static bool wq_pod_enabled;		/* unbound CPU pod affinity enabled */
 
-/* buf for wq_update_unbound_numa_attrs(), protected by CPU hotplug exclusion */
-static struct workqueue_attrs *wq_update_unbound_numa_attrs_buf;
+/* buf for wq_update_unbound_pod_attrs(), protected by CPU hotplug exclusion */
+static struct workqueue_attrs *wq_update_pod_attrs_buf;
 
 static DEFINE_MUTEX(wq_pool_mutex);	/* protects pools and workqueues list */
 static DEFINE_MUTEX(wq_pool_attach_mutex); /* protects worker attach/detach */
@@ -1762,7 +1761,7 @@ bool queue_work_on(int cpu, struct workqueue_struct *wq,
 EXPORT_SYMBOL(queue_work_on);
 
 /**
- * workqueue_select_cpu_near - Select a CPU based on NUMA node
+ * select_numa_node_cpu - Select a CPU based on NUMA node
  * @node: NUMA node ID that we want to select a CPU from
  *
  * This function will attempt to find a "random" cpu available on a given
@@ -1770,12 +1769,12 @@ EXPORT_SYMBOL(queue_work_on);
  * WORK_CPU_UNBOUND indicating that we should just schedule to any
  * available CPU if we need to schedule this work.
  */
-static int workqueue_select_cpu_near(int node)
+static int select_numa_node_cpu(int node)
 {
 	int cpu;
 
 	/* No point in doing this if NUMA isn't enabled for workqueues */
-	if (!wq_numa_enabled)
+	if (!wq_pod_enabled)
 		return WORK_CPU_UNBOUND;
 
 	/* Delay binding to CPU if node is not valid or online */
@@ -1834,7 +1833,7 @@ bool queue_work_node(int node, struct workqueue_struct *wq,
 	local_irq_save(flags);
 
 	if (!test_and_set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work))) {
-		int cpu = workqueue_select_cpu_near(node);
+		int cpu = select_numa_node_cpu(node);
 
 		__queue_work(cpu, wq, work);
 		ret = true;
@@ -3900,8 +3899,8 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 {
 	u32 hash = wqattrs_hash(attrs);
 	struct worker_pool *pool;
-	int node;
-	int target_node = NUMA_NO_NODE;
+	int pod;
+	int target_pod = NUMA_NO_NODE;
 
 	lockdep_assert_held(&wq_pool_mutex);
 
@@ -3913,24 +3912,23 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 		}
 	}
 
-	/* if cpumask is contained inside a NUMA node, we belong to that node */
-	if (wq_numa_enabled) {
-		for_each_node(node) {
-			if (cpumask_subset(attrs->cpumask,
-					   wq_numa_possible_cpumask[node])) {
-				target_node = node;
+	/* if cpumask is contained inside a pod, we belong to that pod */
+	if (wq_pod_enabled) {
+		for_each_node(pod) {
+			if (cpumask_subset(attrs->cpumask, wq_pod_cpus[pod])) {
+				target_pod = pod;
 				break;
 			}
 		}
 	}
 
 	/* nope, create a new one */
-	pool = kzalloc_node(sizeof(*pool), GFP_KERNEL, target_node);
+	pool = kzalloc_node(sizeof(*pool), GFP_KERNEL, target_pod);
 	if (!pool || init_worker_pool(pool) < 0)
 		goto fail;
 
 	copy_workqueue_attrs(pool->attrs, attrs);
-	pool->node = target_node;
+	pool->node = target_pod;
 
 	/*
 	 * ordered isn't a worker_pool attribute, always clear it.  See
@@ -4120,40 +4118,38 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
 }
 
 /**
- * wq_calc_node_cpumask - calculate a wq_attrs' cpumask for the specified node
+ * wq_calc_pod_cpumask - calculate a wq_attrs' cpumask for a pod
  * @attrs: the wq_attrs of the default pwq of the target workqueue
- * @node: the target NUMA node
+ * @pod: the target CPU pod
  * @cpu_going_down: if >= 0, the CPU to consider as offline
  * @cpumask: outarg, the resulting cpumask
  *
- * Calculate the cpumask a workqueue with @attrs should use on @node.  If
- * @cpu_going_down is >= 0, that cpu is considered offline during
- * calculation.  The result is stored in @cpumask.
+ * Calculate the cpumask a workqueue with @attrs should use on @pod. If
+ * @cpu_going_down is >= 0, that cpu is considered offline during calculation.
+ * The result is stored in @cpumask.
  *
- * If NUMA affinity is not enabled, @attrs->cpumask is always used.  If
- * enabled and @node has online CPUs requested by @attrs, the returned
- * cpumask is the intersection of the possible CPUs of @node and
- * @attrs->cpumask.
+ * If pod affinity is not enabled, @attrs->cpumask is always used. If enabled
+ * and @pod has online CPUs requested by @attrs, the returned cpumask is the
+ * intersection of the possible CPUs of @pod and @attrs->cpumask.
  *
- * The caller is responsible for ensuring that the cpumask of @node stays
- * stable.
+ * The caller is responsible for ensuring that the cpumask of @pod stays stable.
  */
-static void wq_calc_node_cpumask(const struct workqueue_attrs *attrs, int node,
+static void wq_calc_pod_cpumask(const struct workqueue_attrs *attrs, int pod,
 				 int cpu_going_down, cpumask_t *cpumask)
 {
-	if (!wq_numa_enabled || attrs->ordered)
+	if (!wq_pod_enabled || attrs->ordered)
 		goto use_dfl;
 
-	/* does @node have any online CPUs @attrs wants? */
-	cpumask_and(cpumask, cpumask_of_node(node), attrs->cpumask);
+	/* does @pod have any online CPUs @attrs wants? */
+	cpumask_and(cpumask, cpumask_of_node(pod), attrs->cpumask);
 	if (cpu_going_down >= 0)
 		cpumask_clear_cpu(cpu_going_down, cpumask);
 
 	if (cpumask_empty(cpumask))
 		goto use_dfl;
 
-	/* yeap, return possible CPUs in @node that @attrs wants */
-	cpumask_and(cpumask, attrs->cpumask, wq_numa_possible_cpumask[node]);
+	/* yeap, return possible CPUs in @pod that @attrs wants */
+	cpumask_and(cpumask, attrs->cpumask, wq_pod_cpus[pod]);
 
 	if (cpumask_empty(cpumask))
 		pr_warn_once("WARNING: workqueue cpumask: online intersect > "
@@ -4257,8 +4253,8 @@ apply_wqattrs_prepare(struct workqueue_struct *wq,
 			ctx->dfl_pwq->refcnt++;
 			ctx->pwq_tbl[cpu] = ctx->dfl_pwq;
 		} else {
-			wq_calc_node_cpumask(new_attrs, cpu_to_node(cpu), -1,
-					     tmp_attrs->cpumask);
+			wq_calc_pod_cpumask(new_attrs, cpu_to_node(cpu), -1,
+					    tmp_attrs->cpumask);
 			ctx->pwq_tbl[cpu] = alloc_unbound_pwq(wq, tmp_attrs);
 			if (!ctx->pwq_tbl[cpu])
 				goto out_free;
@@ -4349,12 +4345,11 @@ static int apply_workqueue_attrs_locked(struct workqueue_struct *wq,
  * @wq: the target workqueue
  * @attrs: the workqueue_attrs to apply, allocated with alloc_workqueue_attrs()
  *
- * Apply @attrs to an unbound workqueue @wq.  Unless disabled, on NUMA
- * machines, this function maps a separate pwq to each NUMA node with
- * possibles CPUs in @attrs->cpumask so that work items are affine to the
- * NUMA node it was issued on.  Older pwqs are released as in-flight work
- * items finish.  Note that a work item which repeatedly requeues itself
- * back-to-back will stay on its current pwq.
+ * Apply @attrs to an unbound workqueue @wq. Unless disabled, this function maps
+ * a separate pwq to each CPU pod with possibles CPUs in @attrs->cpumask so that
+ * work items are affine to the pod it was issued on. Older pwqs are released as
+ * in-flight work items finish. Note that a work item which repeatedly requeues
+ * itself back-to-back will stay on its current pwq.
  *
  * Performs GFP_KERNEL allocations.
  *
@@ -4377,32 +4372,31 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 }
 
 /**
- * wq_update_unbound_numa - update NUMA affinity of a wq for CPU hot[un]plug
+ * wq_update_pod - update pod affinity of a wq for CPU hot[un]plug
  * @wq: the target workqueue
  * @cpu: the CPU to update pool association for
  * @hotplug_cpu: the CPU coming up or going down
  * @online: whether @cpu is coming up or going down
  *
  * This function is to be called from %CPU_DOWN_PREPARE, %CPU_ONLINE and
- * %CPU_DOWN_FAILED.  @cpu is being hot[un]plugged, update NUMA affinity of
+ * %CPU_DOWN_FAILED.  @cpu is being hot[un]plugged, update pod affinity of
  * @wq accordingly.
  *
- * If NUMA affinity can't be adjusted due to memory allocation failure, it
- * falls back to @wq->dfl_pwq which may not be optimal but is always
- * correct.
  *
- * Note that when the last allowed CPU of a NUMA node goes offline for a
- * workqueue with a cpumask spanning multiple nodes, the workers which were
- * already executing the work items for the workqueue will lose their CPU
- * affinity and may execute on any CPU.  This is similar to how per-cpu
- * workqueues behave on CPU_DOWN.  If a workqueue user wants strict
- * affinity, it's the user's responsibility to flush the work item from
- * CPU_DOWN_PREPARE.
+ * If pod affinity can't be adjusted due to memory allocation failure, it falls
+ * back to @wq->dfl_pwq which may not be optimal but is always correct.
+ *
+ * Note that when the last allowed CPU of a pod goes offline for a workqueue
+ * with a cpumask spanning multiple pods, the workers which were already
+ * executing the work items for the workqueue will lose their CPU affinity and
+ * may execute on any CPU. This is similar to how per-cpu workqueues behave on
+ * CPU_DOWN. If a workqueue user wants strict affinity, it's the user's
+ * responsibility to flush the work item from CPU_DOWN_PREPARE.
  */
-static void wq_update_unbound_numa(struct workqueue_struct *wq, int cpu,
-				   int hotplug_cpu, bool online)
+static void wq_update_pod(struct workqueue_struct *wq, int cpu,
+			  int hotplug_cpu, bool online)
 {
-	int node = cpu_to_node(cpu);
+	int pod = cpu_to_node(cpu);
 	int off_cpu = online ? -1 : hotplug_cpu;
 	struct pool_workqueue *old_pwq = NULL, *pwq;
 	struct workqueue_attrs *target_attrs;
@@ -4410,7 +4404,7 @@ static void wq_update_unbound_numa(struct workqueue_struct *wq, int cpu,
 
 	lockdep_assert_held(&wq_pool_mutex);
 
-	if (!wq_numa_enabled || !(wq->flags & WQ_UNBOUND) ||
+	if (!wq_pod_enabled || !(wq->flags & WQ_UNBOUND) ||
 	    wq->unbound_attrs->ordered)
 		return;
 
@@ -4419,13 +4413,13 @@ static void wq_update_unbound_numa(struct workqueue_struct *wq, int cpu,
 	 * Let's use a preallocated one.  The following buf is protected by
 	 * CPU hotplug exclusion.
 	 */
-	target_attrs = wq_update_unbound_numa_attrs_buf;
+	target_attrs = wq_update_pod_attrs_buf;
 	cpumask = target_attrs->cpumask;
 
 	copy_workqueue_attrs(target_attrs, wq->unbound_attrs);
 
 	/* nothing to do if the target cpumask matches the current pwq */
-	wq_calc_node_cpumask(wq->dfl_pwq->pool->attrs, node, off_cpu, cpumask);
+	wq_calc_pod_cpumask(wq->dfl_pwq->pool->attrs, pod, off_cpu, cpumask);
 	pwq = rcu_dereference_protected(*per_cpu_ptr(wq->cpu_pwq, cpu),
 					lockdep_is_held(&wq_pool_mutex));
 	if (cpumask_equal(cpumask, pwq->pool->attrs->cpumask))
@@ -4434,7 +4428,7 @@ static void wq_update_unbound_numa(struct workqueue_struct *wq, int cpu,
 	/* create a new pwq */
 	pwq = alloc_unbound_pwq(wq, target_attrs);
 	if (!pwq) {
-		pr_warn("workqueue: allocation failed while updating NUMA affinity of \"%s\"\n",
+		pr_warn("workqueue: allocation failed while updating CPU pod affinity of \"%s\"\n",
 			wq->name);
 		goto use_dfl_pwq;
 	}
@@ -4565,11 +4559,10 @@ struct workqueue_struct *alloc_workqueue(const char *fmt,
 	struct pool_workqueue *pwq;
 
 	/*
-	 * Unbound && max_active == 1 used to imply ordered, which is no
-	 * longer the case on NUMA machines due to per-node pools.  While
+	 * Unbound && max_active == 1 used to imply ordered, which is no longer
+	 * the case on many machines due to per-pod pools. While
 	 * alloc_ordered_workqueue() is the right way to create an ordered
-	 * workqueue, keep the previous behavior to avoid subtle breakages
-	 * on NUMA.
+	 * workqueue, keep the previous behavior to avoid subtle breakages.
 	 */
 	if ((flags & WQ_UNBOUND) && max_active == 1)
 		flags |= __WQ_ORDERED;
@@ -5450,13 +5443,13 @@ int workqueue_online_cpu(unsigned int cpu)
 		mutex_unlock(&wq_pool_attach_mutex);
 	}
 
-	/* update NUMA affinity of unbound workqueues */
+	/* update pod affinity of unbound workqueues */
 	list_for_each_entry(wq, &workqueues, list) {
 		int tcpu;
 
 		for_each_possible_cpu(tcpu) {
 			if (cpu_to_node(tcpu) == cpu_to_node(cpu)) {
-				wq_update_unbound_numa(wq, tcpu, cpu, true);
+				wq_update_pod(wq, tcpu, cpu, true);
 			}
 		}
 	}
@@ -5475,14 +5468,14 @@ int workqueue_offline_cpu(unsigned int cpu)
 
 	unbind_workers(cpu);
 
-	/* update NUMA affinity of unbound workqueues */
+	/* update pod affinity of unbound workqueues */
 	mutex_lock(&wq_pool_mutex);
 	list_for_each_entry(wq, &workqueues, list) {
 		int tcpu;
 
 		for_each_possible_cpu(tcpu) {
 			if (cpu_to_node(tcpu) == cpu_to_node(cpu)) {
-				wq_update_unbound_numa(wq, tcpu, cpu, false);
+				wq_update_pod(wq, tcpu, cpu, false);
 			}
 		}
 	}
@@ -6263,7 +6256,7 @@ static inline void wq_watchdog_init(void) { }
 
 #endif	/* CONFIG_WQ_WATCHDOG */
 
-static void __init wq_numa_init(void)
+static void __init wq_pod_init(void)
 {
 	cpumask_var_t *tbl;
 	int node, cpu;
@@ -6278,8 +6271,8 @@ static void __init wq_numa_init(void)
 		}
 	}
 
-	wq_update_unbound_numa_attrs_buf = alloc_workqueue_attrs();
-	BUG_ON(!wq_update_unbound_numa_attrs_buf);
+	wq_update_pod_attrs_buf = alloc_workqueue_attrs();
+	BUG_ON(!wq_update_pod_attrs_buf);
 
 	/*
 	 * We want masks of possible CPUs of each node which isn't readily
@@ -6298,8 +6291,8 @@ static void __init wq_numa_init(void)
 		cpumask_set_cpu(cpu, tbl[node]);
 	}
 
-	wq_numa_possible_cpumask = tbl;
-	wq_numa_enabled = true;
+	wq_pod_cpus = tbl;
+	wq_pod_enabled = true;
 }
 
 /**
@@ -6440,15 +6433,14 @@ void __init workqueue_init(void)
 	wq_cpu_intensive_thresh_init();
 
 	/*
-	 * It'd be simpler to initialize NUMA in workqueue_init_early() but
-	 * CPU to node mapping may not be available that early on some
-	 * archs such as power and arm64.  As per-cpu pools created
-	 * previously could be missing node hint and unbound pools NUMA
-	 * affinity, fix them up.
+	 * It'd be simpler to initialize pods in workqueue_init_early() but CPU
+	 * to node mapping may not be available that early on some archs such as
+	 * power and arm64. As per-cpu pools created previously could be missing
+	 * node hint and unbound pool pod affinity, fix them up.
 	 *
 	 * Also, while iterating workqueues, create rescuers if requested.
 	 */
-	wq_numa_init();
+	wq_pod_init();
 
 	mutex_lock(&wq_pool_mutex);
 
@@ -6459,8 +6451,7 @@ void __init workqueue_init(void)
 	}
 
 	list_for_each_entry(wq, &workqueues, list) {
-		wq_update_unbound_numa(wq, smp_processor_id(), smp_processor_id(),
-				       true);
+		wq_update_pod(wq, smp_processor_id(), smp_processor_id(), true);
 		WARN(init_rescuer(wq),
 		     "workqueue: failed to create early rescuer for %s",
 		     wq->name);
