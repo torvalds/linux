@@ -55,6 +55,7 @@ struct dw_mipi_dsi_plat_data {
 
 	const struct dw_mipi_dsi_phy_ops *phy_ops;
 	const struct dw_mipi_dsi_host_ops *host_ops;
+	void (*stream_standby)(void *priv_data, bool standby);
 
 	void *priv_data;
 };

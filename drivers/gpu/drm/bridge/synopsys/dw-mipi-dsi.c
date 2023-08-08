@@ -876,19 +876,27 @@ static void dw_mipi_dsi_post_disable(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_bridge_post_disable(struct drm_bridge *bridge)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
+	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
 
 	if (dsi->panel)
 		drm_panel_unprepare(dsi->panel);
 
 	dw_mipi_dsi_post_disable(dsi);
+
+	if (pdata->stream_standby)
+		pdata->stream_standby(pdata->priv_data, 0);
 }
 
 static void dw_mipi_dsi_bridge_disable(struct drm_bridge *bridge)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
+	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
 
 	if (dsi->panel)
 		drm_panel_disable(dsi->panel);
+
+	if (pdata->stream_standby)
+		pdata->stream_standby(pdata->priv_data, 1);
 
 	dw_mipi_dsi_disable(dsi);
 }
@@ -975,6 +983,10 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
+	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
+
+	if (pdata->stream_standby)
+		pdata->stream_standby(pdata->priv_data, 1);
 
 	dw_mipi_dsi_pre_enable(dsi);
 
@@ -1006,8 +1018,12 @@ static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_bridge_enable(struct drm_bridge *bridge)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
+	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
 
 	dw_mipi_dsi_enable(dsi);
+
+	if (pdata->stream_standby)
+		pdata->stream_standby(pdata->priv_data, 0);
 
 	if (dsi->panel)
 		drm_panel_enable(dsi->panel);
