@@ -344,6 +344,8 @@ extern int lapic_can_unplug_cpu(void);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 
+void __init apic_install_driver(struct apic *driver);
+
 static inline u32 apic_read(u32 reg)
 {
 	return apic->read(reg);

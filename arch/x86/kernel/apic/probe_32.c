@@ -82,7 +82,7 @@ static int __init parse_apic(char *arg)
 
 	for (drv = __apicdrivers; drv < __apicdrivers_end; drv++) {
 		if (!strcmp((*drv)->name, arg)) {
-			apic = *drv;
+			apic_install_driver(*drv);
 			cmdline_apic = 1;
 			return 0;
 		}
@@ -129,7 +129,7 @@ void __init x86_32_probe_apic(void)
 
 		for (drv = __apicdrivers; drv < __apicdrivers_end; drv++) {
 			if ((*drv)->probe()) {
-				apic = *drv;
+				apic_install_driver(*drv);
 				break;
 			}
 		}
@@ -137,5 +137,4 @@ void __init x86_32_probe_apic(void)
 		if (drv == __apicdrivers_end)
 			panic("Didn't find an APIC driver");
 	}
-	printk(KERN_INFO "Using APIC driver %s\n", apic->name);
 }

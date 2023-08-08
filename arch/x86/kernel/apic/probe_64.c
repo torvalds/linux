@@ -13,19 +13,6 @@
 
 #include "local.h"
 
-static __init void apic_install_driver(struct apic *driver)
-{
-	if (apic == driver)
-		return;
-
-	apic = driver;
-
-	if (IS_ENABLED(CONFIG_X86_X2APIC) && apic->x2apic_set_max_apicid)
-		apic->max_apic_id = x2apic_max_apicid;
-
-	pr_info("Switched APIC routing to %s:\n", apic->name);
-}
-
 /* Select the appropriate APIC driver */
 void __init x86_64_probe_apic(void)
 {

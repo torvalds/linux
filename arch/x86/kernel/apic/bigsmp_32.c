@@ -119,10 +119,8 @@ bool __init apic_bigsmp_possible(bool cmdline_override)
 
 void __init apic_bigsmp_force(void)
 {
-	if (apic != &apic_bigsmp) {
-		apic = &apic_bigsmp;
-		pr_info("Overriding APIC driver with bigsmp\n");
-	}
+	if (apic != &apic_bigsmp)
+		apic_install_driver(&apic_bigsmp);
 }
 
 apic_driver(apic_bigsmp);

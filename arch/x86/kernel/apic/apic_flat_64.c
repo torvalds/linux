@@ -143,11 +143,7 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 
 static int physflat_probe(void)
 {
-	if (apic == &apic_physflat || num_possible_cpus() > 8 ||
-	    jailhouse_paravirt())
-		return 1;
-
-	return 0;
+	return apic == &apic_physflat || num_possible_cpus() > 8 || jailhouse_paravirt();
 }
 
 static struct apic apic_physflat __ro_after_init = {
