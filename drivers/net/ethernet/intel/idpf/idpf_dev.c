@@ -45,6 +45,22 @@ static void idpf_ctlq_reg_init(struct idpf_ctlq_create_info *cq)
 }
 
 /**
+ * idpf_mb_intr_reg_init - Initialize mailbox interrupt register
+ * @adapter: adapter structure
+ */
+static void idpf_mb_intr_reg_init(struct idpf_adapter *adapter)
+{
+	struct idpf_intr_reg *intr = &adapter->mb_vector.intr_reg;
+	u32 dyn_ctl = le32_to_cpu(adapter->caps.mailbox_dyn_ctl);
+
+	intr->dyn_ctl = idpf_get_reg_addr(adapter, dyn_ctl);
+	intr->dyn_ctl_intena_m = PF_GLINT_DYN_CTL_INTENA_M;
+	intr->dyn_ctl_itridx_m = PF_GLINT_DYN_CTL_ITR_INDX_M;
+	intr->icr_ena = idpf_get_reg_addr(adapter, PF_INT_DIR_OICR_ENA);
+	intr->icr_ena_ctlq_m = PF_INT_DIR_OICR_ENA_M;
+}
+
+/**
  * idpf_reset_reg_init - Initialize reset registers
  * @adapter: Driver specific private structure
  */
@@ -76,6 +92,7 @@ static void idpf_trigger_reset(struct idpf_adapter *adapter,
 static void idpf_reg_ops_init(struct idpf_adapter *adapter)
 {
 	adapter->dev_ops.reg_ops.ctlq_reg_init = idpf_ctlq_reg_init;
+	adapter->dev_ops.reg_ops.mb_intr_reg_init = idpf_mb_intr_reg_init;
 	adapter->dev_ops.reg_ops.reset_reg_init = idpf_reset_reg_init;
 	adapter->dev_ops.reg_ops.trigger_reset = idpf_trigger_reset;
 }

@@ -45,6 +45,22 @@ static void idpf_vf_ctlq_reg_init(struct idpf_ctlq_create_info *cq)
 }
 
 /**
+ * idpf_vf_mb_intr_reg_init - Initialize the mailbox register
+ * @adapter: adapter structure
+ */
+static void idpf_vf_mb_intr_reg_init(struct idpf_adapter *adapter)
+{
+	struct idpf_intr_reg *intr = &adapter->mb_vector.intr_reg;
+	u32 dyn_ctl = le32_to_cpu(adapter->caps.mailbox_dyn_ctl);
+
+	intr->dyn_ctl = idpf_get_reg_addr(adapter, dyn_ctl);
+	intr->dyn_ctl_intena_m = VF_INT_DYN_CTL0_INTENA_M;
+	intr->dyn_ctl_itridx_m = VF_INT_DYN_CTL0_ITR_INDX_M;
+	intr->icr_ena = idpf_get_reg_addr(adapter, VF_INT_ICR0_ENA1);
+	intr->icr_ena_ctlq_m = VF_INT_ICR0_ENA1_ADMINQ_M;
+}
+
+/**
  * idpf_vf_reset_reg_init - Initialize reset registers
  * @adapter: Driver specific private structure
  */
@@ -62,7 +78,10 @@ static void idpf_vf_reset_reg_init(struct idpf_adapter *adapter)
 static void idpf_vf_trigger_reset(struct idpf_adapter *adapter,
 				  enum idpf_flags trig_cause)
 {
-	/* stub */
+	/* Do not send VIRTCHNL2_OP_RESET_VF message on driver unload */
+	if (trig_cause == IDPF_HR_FUNC_RESET &&
+	    !test_bit(IDPF_REMOVE_IN_PROG, adapter->flags))
+		idpf_send_mb_msg(adapter, VIRTCHNL2_OP_RESET_VF, 0, NULL);
 }
 
 /**
@@ -72,6 +91,7 @@ static void idpf_vf_trigger_reset(struct idpf_adapter *adapter,
 static void idpf_vf_reg_ops_init(struct idpf_adapter *adapter)
 {
 	adapter->dev_ops.reg_ops.ctlq_reg_init = idpf_vf_ctlq_reg_init;
+	adapter->dev_ops.reg_ops.mb_intr_reg_init = idpf_vf_mb_intr_reg_init;
 	adapter->dev_ops.reg_ops.reset_reg_init = idpf_vf_reset_reg_init;
 	adapter->dev_ops.reg_ops.trigger_reset = idpf_vf_trigger_reset;
 }
