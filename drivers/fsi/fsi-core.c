@@ -1326,20 +1326,20 @@ int fsi_master_register(struct fsi_master *master)
 
 	master->dev.class = &fsi_master_class;
 
+	mutex_lock(&master->scan_lock);
 	rc = device_register(&master->dev);
 	if (rc) {
 		ida_free(&master_ida, master->idx);
-		return rc;
+		goto out;
 	}
 
 	np = dev_of_node(&master->dev);
 	if (!of_property_read_bool(np, "no-scan-on-init")) {
-		mutex_lock(&master->scan_lock);
 		fsi_master_scan(master);
-		mutex_unlock(&master->scan_lock);
 	}
-
-	return 0;
+out:
+	mutex_unlock(&master->scan_lock);
+	return rc;
 }
 EXPORT_SYMBOL_GPL(fsi_master_register);
 
