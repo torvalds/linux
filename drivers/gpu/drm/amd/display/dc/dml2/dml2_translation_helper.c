@@ -926,7 +926,8 @@ static unsigned int map_stream_to_dml_display_cfg(const struct dml2_context *dml
 	return location;
 }
 
-static bool get_plane_id(const struct dc_state *context, const struct dc_plane_state *plane, unsigned int *plane_id)
+static bool get_plane_id(const struct dc_state *context, const struct dc_plane_state *plane,
+		unsigned int stream_id, unsigned int *plane_id)
 {
 	int i, j;
 
@@ -934,10 +935,12 @@ static bool get_plane_id(const struct dc_state *context, const struct dc_plane_s
 		return false;
 
 	for (i = 0; i < context->stream_count; i++) {
-		for (j = 0; j < context->stream_status[i].plane_count; j++) {
-			if (context->stream_status[i].plane_states[j] == plane) {
-				*plane_id = (i << 16) | j;
-				return true;
+		if (context->streams[i]->stream_id == stream_id) {
+			for (j = 0; j < context->stream_status[i].plane_count; j++) {
+				if (context->stream_status[i].plane_states[j] == plane) {
+					*plane_id = (i << 16) | j;
+					return true;
+				}
 			}
 		}
 	}
@@ -945,14 +948,14 @@ static bool get_plane_id(const struct dc_state *context, const struct dc_plane_s
 	return false;
 }
 
-static unsigned int map_plane_to_dml_display_cfg(const struct dml2_context *dml2,
-		const struct dc_plane_state *plane, const struct dc_state *context, const struct dml_display_cfg_st *dml_dispcfg)
+static unsigned int map_plane_to_dml_display_cfg(const struct dml2_context *dml2, const struct dc_plane_state *plane,
+		const struct dc_state *context, const struct dml_display_cfg_st *dml_dispcfg, unsigned int stream_id)
 {
 	unsigned int plane_id;
 	int i = 0;
 	int location = -1;
 
-	if (!get_plane_id(context, plane, &plane_id)) {
+	if (!get_plane_id(context, plane, stream_id, &plane_id)) {
 		ASSERT(false);
 		return -1;
 	}
@@ -1035,7 +1038,8 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, const struct d
 			dml2->v20.scratch.dml_to_dc_pipe_mapping.disp_cfg_to_plane_id_valid[disp_cfg_plane_location] = true;
 		} else {
 			for (j = 0; j < context->stream_status[i].plane_count; j++) {
-				disp_cfg_plane_location = map_plane_to_dml_display_cfg(dml2, context->stream_status[i].plane_states[j], context, dml_dispcfg);
+				disp_cfg_plane_location = map_plane_to_dml_display_cfg(dml2,
+					context->stream_status[i].plane_states[j], context, dml_dispcfg, context->streams[i]->stream_id);
 
 				if (disp_cfg_plane_location < 0)
 					disp_cfg_plane_location = dml_dispcfg->num_surfaces++;
@@ -1059,7 +1063,8 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, const struct d
 
 				dml_dispcfg->plane.BlendingAndTiming[disp_cfg_plane_location] = disp_cfg_stream_location;
 
-				if (get_plane_id(context, context->stream_status[i].plane_states[j], &dml2->v20.scratch.dml_to_dc_pipe_mapping.disp_cfg_to_plane_id[disp_cfg_plane_location]))
+				if (get_plane_id(context, context->stream_status[i].plane_states[j], context->streams[i]->stream_id,
+					&dml2->v20.scratch.dml_to_dc_pipe_mapping.disp_cfg_to_plane_id[disp_cfg_plane_location]))
 					dml2->v20.scratch.dml_to_dc_pipe_mapping.disp_cfg_to_plane_id_valid[disp_cfg_plane_location] = true;
 
 				if (j >= 1) {

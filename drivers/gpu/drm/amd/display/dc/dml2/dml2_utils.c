@@ -207,7 +207,8 @@ static int find_dml_pipe_idx_by_plane_id(struct dml2_context *ctx, unsigned int 
 	return -1;
 }
 
-static bool get_plane_id(const struct dc_state *state, const struct dc_plane_state *plane, unsigned int *plane_id)
+static bool get_plane_id(const struct dc_state *state, const struct dc_plane_state *plane,
+	unsigned int stream_id, unsigned int *plane_id)
 {
 	int i, j;
 
@@ -215,10 +216,12 @@ static bool get_plane_id(const struct dc_state *state, const struct dc_plane_sta
 		return false;
 
 	for (i = 0; i < state->stream_count; i++) {
-		for (j = 0; j < state->stream_status[i].plane_count; j++) {
-			if (state->stream_status[i].plane_states[j] == plane) {
-				*plane_id = (i << 16) | j;
-				return true;
+		if (state->streams[i]->stream_id == stream_id) {
+			for (j = 0; j < state->stream_status[i].plane_count; j++) {
+				if (state->stream_status[i].plane_states[j] == plane) {
+					*plane_id = (i << 16) | j;
+					return true;
+				}
 			}
 		}
 	}
@@ -299,7 +302,8 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 		 * there is a need to know which DML pipe index maps to which DC pipe. The code below
 		 * finds a dml_pipe_index from the plane id if a plane is valid. If a plane is not valid then
 		 * it finds a dml_pipe_index from the stream id. */
-		if (get_plane_id(context, context->res_ctx.pipe_ctx[dc_pipe_ctx_index].plane_state, &plane_id)) {
+		if (get_plane_id(context, context->res_ctx.pipe_ctx[dc_pipe_ctx_index].plane_state,
+			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].stream->stream_id, &plane_id)) {
 			dml_pipe_idx = find_dml_pipe_idx_by_plane_id(in_ctx, plane_id);
 		} else {
 			dml_pipe_idx = dml2_helper_find_dml_pipe_idx_by_stream_id(in_ctx, context->res_ctx.pipe_ctx[dc_pipe_ctx_index].stream->stream_id);
@@ -435,7 +439,8 @@ bool dml2_verify_det_buffer_configuration(struct dml2_context *in_ctx, struct dc
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (!display_state->res_ctx.pipe_ctx[i].stream)
 			continue;
-		if (get_plane_id(display_state, display_state->res_ctx.pipe_ctx[i].plane_state, &plane_id))
+		if (get_plane_id(display_state, display_state->res_ctx.pipe_ctx[i].plane_state,
+			display_state->res_ctx.pipe_ctx[i].stream->stream_id, &plane_id))
 			dml_pipe_idx = find_dml_pipe_idx_by_plane_id(in_ctx, plane_id);
 		else
 			dml_pipe_idx = dml2_helper_find_dml_pipe_idx_by_stream_id(in_ctx, display_state->res_ctx.pipe_ctx[i].stream->stream_id);
