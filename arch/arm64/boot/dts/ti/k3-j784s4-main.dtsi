@@ -1525,6 +1525,7 @@
 		ti,sci-proc-ids = <0x30 0xff>;
 		resets = <&k3_reset 30 1>;
 		firmware-name = "j784s4-c71_0-fw";
+		status = "disabled";
 	};
 
 	c71_1: dsp@65800000 {
@@ -1537,6 +1538,7 @@
 		ti,sci-proc-ids = <0x31 0xff>;
 		resets = <&k3_reset 33 1>;
 		firmware-name = "j784s4-c71_1-fw";
+		status = "disabled";
 	};
 
 	c71_2: dsp@66800000 {
@@ -1549,6 +1551,7 @@
 		ti,sci-proc-ids = <0x32 0xff>;
 		resets = <&k3_reset 37 1>;
 		firmware-name = "j784s4-c71_2-fw";
+		status = "disabled";
 	};
 
 	c71_3: dsp@67800000 {
@@ -1561,5 +1564,6 @@
 		ti,sci-proc-ids = <0x33 0xff>;
 		resets = <&k3_reset 40 1>;
 		firmware-name = "j784s4-c71_3-fw";
+		status = "disabled";
 	};
 };
