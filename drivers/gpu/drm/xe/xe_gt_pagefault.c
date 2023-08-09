@@ -265,7 +265,7 @@ static int send_pagefault_reply(struct xe_guc *guc,
 
 static void print_pagefault(struct xe_device *xe, struct pagefault *pf)
 {
-	drm_warn(&xe->drm, "\n\tASID: %d\n"
+	drm_dbg(&xe->drm, "\n\tASID: %d\n"
 		 "\tVFID: %d\n"
 		 "\tPDATA: 0x%04x\n"
 		 "\tFaulted Address: 0x%08x%08x\n"
@@ -370,7 +370,7 @@ static void pf_queue_work_func(struct work_struct *w)
 	if (unlikely(ret)) {
 		print_pagefault(xe, &pf);
 		pf.fault_unsuccessful = 1;
-		drm_warn(&xe->drm, "Fault response: Unsuccessful %d\n", ret);
+		drm_dbg(&xe->drm, "Fault response: Unsuccessful %d\n", ret);
 	}
 
 	reply.dw0 = FIELD_PREP(PFR_VALID, 1) |

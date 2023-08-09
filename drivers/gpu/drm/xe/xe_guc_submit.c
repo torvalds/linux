@@ -1641,7 +1641,7 @@ int xe_guc_exec_queue_memory_cat_error_handler(struct xe_guc *guc, u32 *msg,
 	if (unlikely(!q))
 		return -EPROTO;
 
-	drm_warn(&xe->drm, "Engine memory cat error: guc_id=%d", guc_id);
+	drm_dbg(&xe->drm, "Engine memory cat error: guc_id=%d", guc_id);
 	trace_xe_exec_queue_memory_cat_error(q);
 
 	/* Treat the same as engine reset */
