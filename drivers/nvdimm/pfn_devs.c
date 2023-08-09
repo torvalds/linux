@@ -601,14 +601,12 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		return -EOPNOTSUPP;
 	}
 
-	if (!IS_ALIGNED(res->start + le32_to_cpu(pfn_sb->start_pad),
-				memremap_compat_align())) {
+	if (!IS_ALIGNED(res->start + start_pad, memremap_compat_align())) {
 		dev_err(&nd_pfn->dev, "resource start misaligned\n");
 		return -EOPNOTSUPP;
 	}
 
-	if (!IS_ALIGNED(res->end + 1 - le32_to_cpu(pfn_sb->end_trunc),
-				memremap_compat_align())) {
+	if (!IS_ALIGNED(res->end + 1 - end_trunc, memremap_compat_align())) {
 		dev_err(&nd_pfn->dev, "resource end misaligned\n");
 		return -EOPNOTSUPP;
 	}
