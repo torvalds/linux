@@ -777,8 +777,7 @@ Speed may be:
 	======= ======================================================
 	1.5	Mbit/s for low speed USB
 	12	Mbit/s for full speed USB
-	480	Mbit/s for high speed USB (added for USB 2.0);
-		also used for Wireless USB, which has no fixed speed
+	480	Mbit/s for high speed USB (added for USB 2.0)
 	5000	Mbit/s for SuperSpeed USB (added for USB 3.0)
 	======= ======================================================
 
