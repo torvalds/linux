@@ -881,15 +881,17 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	}
 
 	/* Engine state now stable, disable scheduling if needed */
-	if (exec_queue_enabled(q)) {
+	if (exec_queue_registered(q)) {
 		struct xe_guc *guc = exec_queue_to_guc(q);
 		int ret;
 
 		if (exec_queue_reset(q))
 			err = -EIO;
 		set_exec_queue_banned(q);
-		xe_exec_queue_get(q);
-		disable_scheduling_deregister(guc, q);
+		if (!exec_queue_destroyed(q)) {
+			xe_exec_queue_get(q);
+			disable_scheduling_deregister(guc, q);
+		}
 
 		/*
 		 * Must wait for scheduling to be disabled before signalling
@@ -903,7 +905,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 		ret = wait_event_timeout(guc->ct.wq,
 					 !exec_queue_pending_disable(q) ||
 					 guc_read_stopped(guc), HZ * 5);
-		if (!ret) {
+		if (!ret || guc_read_stopped(guc)) {
 			XE_WARN_ON("Schedule disable failed to respond");
 			xe_sched_add_pending_job(sched, job);
 			xe_sched_submission_start(sched);
