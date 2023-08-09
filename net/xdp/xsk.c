@@ -994,6 +994,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 				err = xp_alloc_tx_descs(xs->pool, xs);
 				if (err) {
 					xp_put_pool(xs->pool);
+					xs->pool = NULL;
 					sockfd_put(sock);
 					goto out_unlock;
 				}
