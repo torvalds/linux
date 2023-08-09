@@ -223,24 +223,6 @@ int cgx_get_link_info(void *cgxd, int lmac_id,
 	return 0;
 }
 
-static u64 mac2u64 (u8 *mac_addr)
-{
-	u64 mac = 0;
-	int index;
-
-	for (index = ETH_ALEN - 1; index >= 0; index--)
-		mac |= ((u64)*mac_addr++) << (8 * index);
-	return mac;
-}
-
-static void cfg2mac(u64 cfg, u8 *mac_addr)
-{
-	int i, index = 0;
-
-	for (i = ETH_ALEN - 1; i >= 0; i--, index++)
-		mac_addr[i] = (cfg >> (8 * index)) & 0xFF;
-}
-
 int cgx_lmac_addr_set(u8 cgx_id, u8 lmac_id, u8 *mac_addr)
 {
 	struct cgx *cgx_dev = cgx_get_pdata(cgx_id);
@@ -255,7 +237,7 @@ int cgx_lmac_addr_set(u8 cgx_id, u8 lmac_id, u8 *mac_addr)
 	/* copy 6bytes from macaddr */
 	/* memcpy(&cfg, mac_addr, 6); */
 
-	cfg = mac2u64 (mac_addr);
+	cfg = ether_addr_to_u64(mac_addr);
 
 	id = get_sequence_id_of_lmac(cgx_dev, lmac_id);
 
@@ -322,7 +304,7 @@ int cgx_lmac_addr_add(u8 cgx_id, u8 lmac_id, u8 *mac_addr)
 
 	index = id * lmac->mac_to_index_bmap.max + idx;
 
-	cfg = mac2u64 (mac_addr);
+	cfg = ether_addr_to_u64(mac_addr);
 	cfg |= CGX_DMAC_CAM_ADDR_ENABLE;
 	cfg |= ((u64)lmac_id << 49);
 	cgx_write(cgx_dev, 0, (CGXX_CMRX_RX_DMAC_CAM0 + (index * 0x8)), cfg);
@@ -405,7 +387,7 @@ int cgx_lmac_addr_update(u8 cgx_id, u8 lmac_id, u8 *mac_addr, u8 index)
 
 	cfg = cgx_read(cgx_dev, 0, (CGXX_CMRX_RX_DMAC_CAM0 + (index * 0x8)));
 	cfg &= ~CGX_RX_DMAC_ADR_MASK;
-	cfg |= mac2u64 (mac_addr);
+	cfg |= ether_addr_to_u64(mac_addr);
 
 	cgx_write(cgx_dev, 0, (CGXX_CMRX_RX_DMAC_CAM0 + (index * 0x8)), cfg);
 	return 0;
@@ -441,7 +423,7 @@ int cgx_lmac_addr_del(u8 cgx_id, u8 lmac_id, u8 index)
 	/* Read MAC address to check whether it is ucast or mcast */
 	cfg = cgx_read(cgx_dev, 0, (CGXX_CMRX_RX_DMAC_CAM0 + (index * 0x8)));
 
-	cfg2mac(cfg, mac);
+	u64_to_ether_addr(cfg, mac);
 	if (is_multicast_ether_addr(mac))
 		lmac->mcast_filters_count--;
 
