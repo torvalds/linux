@@ -1463,9 +1463,10 @@
 };
 
 &i3c {
-	i3c_global: i3cg@0 {
+	i3c_global: i3c-global {
+		compatible = "aspeed,ast2600-i3c-global", "simple-mfd", "syscon";
+		resets = <&syscon ASPEED_RESET_I3C>;
 		reg = <0x0 0x1000>;
-		compatible = "aspeed,ast2600-i3c-global", "syscon";
 	};
 
 	i3c0: i3c-master@2000 {
@@ -1476,8 +1477,6 @@
 		reg = <0x2000 0x1000>;
 		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C0CLK>;
-		resets = <&syscon ASPEED_RESET_I3C0>, <&syscon ASPEED_RESET_I3C>;
-		reset-names = "core_rst", "global_rst";
 		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c1_default>;
@@ -1498,8 +1497,6 @@
 		reg = <0x3000 0x1000>;
 		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C1CLK>;
-		resets = <&syscon ASPEED_RESET_I3C1>, <&syscon ASPEED_RESET_I3C>;
-		reset-names = "core_rst", "global_rst";
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c2_default>;
@@ -1520,8 +1517,6 @@
 		reg = <0x4000 0x1000>;
 		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C2CLK>;
-		resets = <&syscon ASPEED_RESET_I3C2>, <&syscon ASPEED_RESET_I3C>;
-		reset-names = "core_rst", "global_rst";
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
 
 		i2c-scl-hz = <1000000>;
@@ -1540,8 +1535,6 @@
 		reg = <0x5000 0x1000>;
 		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C3CLK>;
-		resets = <&syscon ASPEED_RESET_I3C3>, <&syscon ASPEED_RESET_I3C>;
-		reset-names = "core_rst", "global_rst";
 		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 
 		i2c-scl-hz = <1000000>;
@@ -1560,8 +1553,6 @@
 		reg = <0x6000 0x1000>;
 		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C4CLK>;
-		resets = <&syscon ASPEED_RESET_I3C4>, <&syscon ASPEED_RESET_I3C>;
-		reset-names = "core_rst", "global_rst";
 		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c5_default>;
@@ -1582,8 +1573,6 @@
 		reg = <0x7000 0x1000>;
 		compatible = "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C5CLK>;
-		resets = <&syscon ASPEED_RESET_I3C5>, <&syscon ASPEED_RESET_I3C>;
-		reset-names = "core_rst", "global_rst";
 		interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c6_default>;
