@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <libelf.h>
 #include "relo_core.h"
 
 /* make sure libbpf doesn't use kernel-only integer typedefs */
@@ -576,5 +577,8 @@ static inline bool is_pow_of_2(size_t x)
 
 #define PROG_LOAD_ATTEMPTS 5
 int sys_bpf_prog_load(union bpf_attr *attr, unsigned int size, int attempts);
+
+long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name);
+long elf_find_func_offset_from_file(const char *binary_path, const char *name);
 
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */
