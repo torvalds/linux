@@ -21,6 +21,8 @@ __u64 uretprobe_multi_func_3_result = 0;
 __u64 uprobe_multi_sleep_result = 0;
 
 int pid = 0;
+int child_pid = 0;
+
 bool test_cookie = false;
 void *user_ptr = 0;
 
@@ -34,7 +36,9 @@ static __always_inline bool verify_sleepable_user_copy(void)
 
 static void uprobe_multi_check(void *ctx, bool is_return, bool is_sleep)
 {
-	if (bpf_get_current_pid_tgid() >> 32 != pid)
+	child_pid = bpf_get_current_pid_tgid() >> 32;
+
+	if (pid && child_pid != pid)
 		return;
 
 	__u64 cookie = test_cookie ? bpf_get_attach_cookie(ctx) : 0;

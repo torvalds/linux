@@ -25,14 +25,87 @@ noinline void uprobe_multi_func_3(void)
 	asm volatile ("");
 }
 
-static void uprobe_multi_test_run(struct uprobe_multi *skel)
+struct child {
+	int go[2];
+	int pid;
+};
+
+static void release_child(struct child *child)
+{
+	int child_status;
+
+	if (!child)
+		return;
+	close(child->go[1]);
+	close(child->go[0]);
+	if (child->pid > 0)
+		waitpid(child->pid, &child_status, 0);
+}
+
+static void kick_child(struct child *child)
+{
+	char c = 1;
+
+	if (child) {
+		write(child->go[1], &c, 1);
+		release_child(child);
+	}
+	fflush(NULL);
+}
+
+static struct child *spawn_child(void)
+{
+	static struct child child;
+	int err;
+	int c;
+
+	/* pipe to notify child to execute the trigger functions */
+	if (pipe(child.go))
+		return NULL;
+
+	child.pid = fork();
+	if (child.pid < 0) {
+		release_child(&child);
+		errno = EINVAL;
+		return NULL;
+	}
+
+	/* child */
+	if (child.pid == 0) {
+		close(child.go[1]);
+
+		/* wait for parent's kick */
+		err = read(child.go[0], &c, 1);
+		if (err != 1)
+			exit(err);
+
+		uprobe_multi_func_1();
+		uprobe_multi_func_2();
+		uprobe_multi_func_3();
+
+		exit(errno);
+	}
+
+	return &child;
+}
+
+static void uprobe_multi_test_run(struct uprobe_multi *skel, struct child *child)
 {
 	skel->bss->uprobe_multi_func_1_addr = (__u64) uprobe_multi_func_1;
 	skel->bss->uprobe_multi_func_2_addr = (__u64) uprobe_multi_func_2;
 	skel->bss->uprobe_multi_func_3_addr = (__u64) uprobe_multi_func_3;
 
 	skel->bss->user_ptr = test_data;
-	skel->bss->pid = getpid();
+
+	/*
+	 * Disable pid check in bpf program if we are pid filter test,
+	 * because the probe should be executed only by child->pid
+	 * passed at the probe attach.
+	 */
+	skel->bss->pid = child ? 0 : getpid();
+
+	if (child)
+		kick_child(child);
 
 	/* trigger all probes */
 	uprobe_multi_func_1();
@@ -52,6 +125,9 @@ static void uprobe_multi_test_run(struct uprobe_multi *skel)
 	ASSERT_EQ(skel->bss->uretprobe_multi_func_3_result, 2, "uretprobe_multi_func_3_result");
 
 	ASSERT_EQ(skel->bss->uprobe_multi_sleep_result, 6, "uprobe_multi_sleep_result");
+
+	if (child)
+		ASSERT_EQ(skel->bss->child_pid, child->pid, "uprobe_multi_child_pid");
 }
 
 static void test_skel_api(void)
@@ -67,7 +143,48 @@ static void test_skel_api(void)
 	if (!ASSERT_OK(err, "uprobe_multi__attach"))
 		goto cleanup;
 
-	uprobe_multi_test_run(skel);
+	uprobe_multi_test_run(skel, NULL);
+
+cleanup:
+	uprobe_multi__destroy(skel);
+}
+
+static void
+__test_attach_api(const char *binary, const char *pattern, struct bpf_uprobe_multi_opts *opts,
+		  struct child *child)
+{
+	pid_t pid = child ? child->pid : -1;
+	struct uprobe_multi *skel = NULL;
+
+	skel = uprobe_multi__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "uprobe_multi__open_and_load"))
+		goto cleanup;
+
+	opts->retprobe = false;
+	skel->links.uprobe = bpf_program__attach_uprobe_multi(skel->progs.uprobe, pid,
+							      binary, pattern, opts);
+	if (!ASSERT_OK_PTR(skel->links.uprobe, "bpf_program__attach_uprobe_multi"))
+		goto cleanup;
+
+	opts->retprobe = true;
+	skel->links.uretprobe = bpf_program__attach_uprobe_multi(skel->progs.uretprobe, pid,
+								 binary, pattern, opts);
+	if (!ASSERT_OK_PTR(skel->links.uretprobe, "bpf_program__attach_uprobe_multi"))
+		goto cleanup;
+
+	opts->retprobe = false;
+	skel->links.uprobe_sleep = bpf_program__attach_uprobe_multi(skel->progs.uprobe_sleep, pid,
+								    binary, pattern, opts);
+	if (!ASSERT_OK_PTR(skel->links.uprobe_sleep, "bpf_program__attach_uprobe_multi"))
+		goto cleanup;
+
+	opts->retprobe = true;
+	skel->links.uretprobe_sleep = bpf_program__attach_uprobe_multi(skel->progs.uretprobe_sleep,
+								       pid, binary, pattern, opts);
+	if (!ASSERT_OK_PTR(skel->links.uretprobe_sleep, "bpf_program__attach_uprobe_multi"))
+		goto cleanup;
+
+	uprobe_multi_test_run(skel, child);
 
 cleanup:
 	uprobe_multi__destroy(skel);
@@ -76,40 +193,17 @@ cleanup:
 static void
 test_attach_api(const char *binary, const char *pattern, struct bpf_uprobe_multi_opts *opts)
 {
-	struct uprobe_multi *skel = NULL;
+	struct child *child;
 
-	skel = uprobe_multi__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "uprobe_multi__open_and_load"))
-		goto cleanup;
+	/* no pid filter */
+	__test_attach_api(binary, pattern, opts, NULL);
 
-	opts->retprobe = false;
-	skel->links.uprobe = bpf_program__attach_uprobe_multi(skel->progs.uprobe, -1,
-							      binary, pattern, opts);
-	if (!ASSERT_OK_PTR(skel->links.uprobe, "bpf_program__attach_uprobe_multi"))
-		goto cleanup;
+	/* pid filter */
+	child = spawn_child();
+	if (!ASSERT_OK_PTR(child, "spawn_child"))
+		return;
 
-	opts->retprobe = true;
-	skel->links.uretprobe = bpf_program__attach_uprobe_multi(skel->progs.uretprobe, -1,
-								 binary, pattern, opts);
-	if (!ASSERT_OK_PTR(skel->links.uretprobe, "bpf_program__attach_uprobe_multi"))
-		goto cleanup;
-
-	opts->retprobe = false;
-	skel->links.uprobe_sleep = bpf_program__attach_uprobe_multi(skel->progs.uprobe_sleep, -1,
-								    binary, pattern, opts);
-	if (!ASSERT_OK_PTR(skel->links.uprobe_sleep, "bpf_program__attach_uprobe_multi"))
-		goto cleanup;
-
-	opts->retprobe = true;
-	skel->links.uretprobe_sleep = bpf_program__attach_uprobe_multi(skel->progs.uretprobe_sleep,
-								       -1, binary, pattern, opts);
-	if (!ASSERT_OK_PTR(skel->links.uretprobe_sleep, "bpf_program__attach_uprobe_multi"))
-		goto cleanup;
-
-	uprobe_multi_test_run(skel);
-
-cleanup:
-	uprobe_multi__destroy(skel);
+	__test_attach_api(binary, pattern, opts, child);
 }
 
 static void test_attach_api_pattern(void)
@@ -134,7 +228,7 @@ static void test_attach_api_syms(void)
 	test_attach_api("/proc/self/exe", NULL, &opts);
 }
 
-static void test_link_api(void)
+static void __test_link_api(struct child *child)
 {
 	int prog_fd, link1_fd = -1, link2_fd = -1, link3_fd = -1, link4_fd = -1;
 	LIBBPF_OPTS(bpf_link_create_opts, opts);
@@ -155,6 +249,7 @@ static void test_link_api(void)
 	opts.uprobe_multi.path = path;
 	opts.uprobe_multi.offsets = offsets;
 	opts.uprobe_multi.cnt = ARRAY_SIZE(syms);
+	opts.uprobe_multi.pid = child ? child->pid : 0;
 
 	skel = uprobe_multi__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "uprobe_multi__open_and_load"))
@@ -184,7 +279,7 @@ static void test_link_api(void)
 	if (!ASSERT_GE(link4_fd, 0, "link4_fd"))
 		goto cleanup;
 
-	uprobe_multi_test_run(skel);
+	uprobe_multi_test_run(skel, child);
 
 cleanup:
 	if (link1_fd >= 0)
@@ -198,6 +293,21 @@ cleanup:
 
 	uprobe_multi__destroy(skel);
 	free(offsets);
+}
+
+void test_link_api(void)
+{
+	struct child *child;
+
+	/* no pid filter */
+	__test_link_api(NULL);
+
+	/* pid filter */
+	child = spawn_child();
+	if (!ASSERT_OK_PTR(child, "spawn_child"))
+		return;
+
+	__test_link_api(child);
 }
 
 static void test_bench_attach_uprobe(void)
