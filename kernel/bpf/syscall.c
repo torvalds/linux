@@ -2815,10 +2815,12 @@ static void bpf_link_free_id(int id)
 
 /* Clean up bpf_link and corresponding anon_inode file and FD. After
  * anon_inode is created, bpf_link can't be just kfree()'d due to deferred
- * anon_inode's release() call. This helper marksbpf_link as
+ * anon_inode's release() call. This helper marks bpf_link as
  * defunct, releases anon_inode file and puts reserved FD. bpf_prog's refcnt
  * is not decremented, it's the responsibility of a calling code that failed
  * to complete bpf_link initialization.
+ * This helper eventually calls link's dealloc callback, but does not call
+ * link's release callback.
  */
 void bpf_link_cleanup(struct bpf_link_primer *primer)
 {
@@ -3756,8 +3758,12 @@ static int bpf_prog_attach_check_attach_type(const struct bpf_prog *prog,
 		if (prog->expected_attach_type == BPF_TRACE_KPROBE_MULTI &&
 		    attach_type != BPF_TRACE_KPROBE_MULTI)
 			return -EINVAL;
+		if (prog->expected_attach_type == BPF_TRACE_UPROBE_MULTI &&
+		    attach_type != BPF_TRACE_UPROBE_MULTI)
+			return -EINVAL;
 		if (attach_type != BPF_PERF_EVENT &&
-		    attach_type != BPF_TRACE_KPROBE_MULTI)
+		    attach_type != BPF_TRACE_KPROBE_MULTI &&
+		    attach_type != BPF_TRACE_UPROBE_MULTI)
 			return -EINVAL;
 		return 0;
 	case BPF_PROG_TYPE_SCHED_CLS:
@@ -4953,8 +4959,10 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 	case BPF_PROG_TYPE_KPROBE:
 		if (attr->link_create.attach_type == BPF_PERF_EVENT)
 			ret = bpf_perf_link_attach(attr, prog);
-		else
+		else if (attr->link_create.attach_type == BPF_TRACE_KPROBE_MULTI)
 			ret = bpf_kprobe_multi_link_attach(attr, prog);
+		else if (attr->link_create.attach_type == BPF_TRACE_UPROBE_MULTI)
+			ret = bpf_uprobe_multi_link_attach(attr, prog);
 		break;
 	default:
 		ret = -EINVAL;

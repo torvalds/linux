@@ -1039,6 +1039,7 @@ enum bpf_attach_type {
 	BPF_NETFILTER,
 	BPF_TCX_INGRESS,
 	BPF_TCX_EGRESS,
+	BPF_TRACE_UPROBE_MULTI,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -1057,6 +1058,7 @@ enum bpf_link_type {
 	BPF_LINK_TYPE_STRUCT_OPS = 9,
 	BPF_LINK_TYPE_NETFILTER = 10,
 	BPF_LINK_TYPE_TCX = 11,
+	BPF_LINK_TYPE_UPROBE_MULTI = 12,
 	MAX_BPF_LINK_TYPE,
 };
 
@@ -1188,6 +1190,13 @@ enum bpf_perf_event_type {
  */
 enum {
 	BPF_F_KPROBE_MULTI_RETURN = (1U << 0)
+};
+
+/* link_create.uprobe_multi.flags used in LINK_CREATE command for
+ * BPF_TRACE_UPROBE_MULTI attach type to create return probe.
+ */
+enum {
+	BPF_F_UPROBE_MULTI_RETURN = (1U << 0)
 };
 
 /* link_create.netfilter.flags used in LINK_CREATE command for
@@ -1626,6 +1635,13 @@ union bpf_attr {
 				};
 				__u64		expected_revision;
 			} tcx;
+			struct {
+				__aligned_u64	path;
+				__aligned_u64	offsets;
+				__aligned_u64	ref_ctr_offsets;
+				__u32		cnt;
+				__u32		flags;
+			} uprobe_multi;
 		};
 	} link_create;
 
