@@ -589,4 +589,6 @@ struct elf_fd {
 int elf_open(const char *binary_path, struct elf_fd *elf_fd);
 void elf_close(struct elf_fd *elf_fd);
 
+int elf_resolve_syms_offsets(const char *binary_path, int cnt,
+			     const char **syms, unsigned long **poffsets);
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

@@ -267,3 +267,113 @@ long elf_find_func_offset_from_file(const char *binary_path, const char *name)
 	elf_close(&elf_fd);
 	return ret;
 }
+
+struct symbol {
+	const char *name;
+	int bind;
+	int idx;
+};
+
+static int symbol_cmp(const void *a, const void *b)
+{
+	const struct symbol *sym_a = a;
+	const struct symbol *sym_b = b;
+
+	return strcmp(sym_a->name, sym_b->name);
+}
+
+/*
+ * Return offsets in @poffsets for symbols specified in @syms array argument.
+ * On success returns 0 and offsets are returned in allocated array with @cnt
+ * size, that needs to be released by the caller.
+ */
+int elf_resolve_syms_offsets(const char *binary_path, int cnt,
+			     const char **syms, unsigned long **poffsets)
+{
+	int sh_types[2] = { SHT_DYNSYM, SHT_SYMTAB };
+	int err = 0, i, cnt_done = 0;
+	unsigned long *offsets;
+	struct symbol *symbols;
+	struct elf_fd elf_fd;
+
+	err = elf_open(binary_path, &elf_fd);
+	if (err)
+		return err;
+
+	offsets = calloc(cnt, sizeof(*offsets));
+	symbols = calloc(cnt, sizeof(*symbols));
+
+	if (!offsets || !symbols) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < cnt; i++) {
+		symbols[i].name = syms[i];
+		symbols[i].idx = i;
+	}
+
+	qsort(symbols, cnt, sizeof(*symbols), symbol_cmp);
+
+	for (i = 0; i < ARRAY_SIZE(sh_types); i++) {
+		struct elf_sym_iter iter;
+		struct elf_sym *sym;
+
+		err = elf_sym_iter_new(&iter, elf_fd.elf, binary_path, sh_types[i], STT_FUNC);
+		if (err == -ENOENT)
+			continue;
+		if (err)
+			goto out;
+
+		while ((sym = elf_sym_iter_next(&iter))) {
+			unsigned long sym_offset = elf_sym_offset(sym);
+			int bind = GELF_ST_BIND(sym->sym.st_info);
+			struct symbol *found, tmp = {
+				.name = sym->name,
+			};
+			unsigned long *offset;
+
+			found = bsearch(&tmp, symbols, cnt, sizeof(*symbols), symbol_cmp);
+			if (!found)
+				continue;
+
+			offset = &offsets[found->idx];
+			if (*offset > 0) {
+				/* same offset, no problem */
+				if (*offset == sym_offset)
+					continue;
+				/* handle multiple matches */
+				if (found->bind != STB_WEAK && bind != STB_WEAK) {
+					/* Only accept one non-weak bind. */
+					pr_warn("elf: ambiguous match found '%s@%lu' in '%s' previous offset %lu\n",
+						sym->name, sym_offset, binary_path, *offset);
+					err = -ESRCH;
+					goto out;
+				} else if (bind == STB_WEAK) {
+					/* already have a non-weak bind, and
+					 * this is a weak bind, so ignore.
+					 */
+					continue;
+				}
+			} else {
+				cnt_done++;
+			}
+			*offset = sym_offset;
+			found->bind = bind;
+		}
+	}
+
+	if (cnt != cnt_done) {
+		err = -ENOENT;
+		goto out;
+	}
+
+	*poffsets = offsets;
+
+out:
+	free(symbols);
+	if (err)
+		free(offsets);
+	elf_close(&elf_fd);
+	return err;
+}
