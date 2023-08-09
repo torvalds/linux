@@ -153,6 +153,7 @@ struct walt_task_struct {
 	u8				hung_detect_status;
 	int				pipeline_cpu;
 	cpumask_t			reduce_mask;
+	u64				mark_start_birth_ts;
 };
 
 /*
