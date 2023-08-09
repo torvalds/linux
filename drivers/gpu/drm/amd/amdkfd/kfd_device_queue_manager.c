@@ -2817,19 +2817,11 @@ static void copy_context_work_handler (struct work_struct *work)
 static uint32_t *get_queue_ids(uint32_t num_queues, uint32_t *usr_queue_id_array)
 {
 	size_t array_size = num_queues * sizeof(uint32_t);
-	uint32_t *queue_ids = NULL;
 
 	if (!usr_queue_id_array)
 		return NULL;
 
-	queue_ids = kzalloc(array_size, GFP_KERNEL);
-	if (!queue_ids)
-		return ERR_PTR(-ENOMEM);
-
-	if (copy_from_user(queue_ids, usr_queue_id_array, array_size))
-		return ERR_PTR(-EFAULT);
-
-	return queue_ids;
+	return memdup_user(usr_queue_id_array, array_size);
 }
 
 int resume_queues(struct kfd_process *p,
