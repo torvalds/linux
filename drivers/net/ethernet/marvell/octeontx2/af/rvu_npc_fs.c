@@ -580,7 +580,9 @@ static void npc_set_features(struct rvu *rvu, int blkaddr, u8 intf)
 		if (!npc_check_field(rvu, blkaddr, NPC_LB, intf))
 			*features &= ~BIT_ULL(NPC_OUTER_VID);
 
-	if (*features & (BIT_ULL(NPC_IPPROTO_AH) | BIT_ULL(NPC_IPPROTO_ESP)))
+	/* Set SPI flag only if AH/ESP and IPSEC_SPI are in the key */
+	if (npc_check_field(rvu, blkaddr, NPC_IPSEC_SPI, intf) &&
+	    (*features & (BIT_ULL(NPC_IPPROTO_ESP) | BIT_ULL(NPC_IPPROTO_AH))))
 		*features |= BIT_ULL(NPC_IPSEC_SPI);
 
 	/* for vlan ethertypes corresponding layer type should be in the key */
