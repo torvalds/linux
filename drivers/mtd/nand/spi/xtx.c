@@ -203,6 +203,28 @@ static int xt26g01c_ecc_get_status(struct spinand_device *spinand,
 		return -EBADMSG;
 }
 
+static int xt26g11c_ecc_get_status(struct spinand_device *spinand,
+				   u8 status)
+{
+	struct nand_device *nand = spinand_to_nand(spinand);
+
+	switch (status & STATUS_ECC_MASK) {
+	case STATUS_ECC_NO_BITFLIPS:
+		return 0;
+
+	case STATUS_ECC_UNCOR_ERROR:
+		return -EBADMSG;
+
+	case STATUS_ECC_HAS_BITFLIPS:
+		return 1;
+
+	default:
+		return nanddev_get_ecc_requirements(nand)->strength;
+	}
+
+	return -EINVAL;
+}
+
 static const struct spinand_info xtx_spinand_table[] = {
 	SPINAND_INFO("XT26G01A",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0xE1),
@@ -293,7 +315,7 @@ static const struct spinand_info xtx_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&xt26g01c_ooblayout,
-				     xt26g01c_ecc_get_status)),
+				     xt26g11c_ecc_get_status)),
 };
 
 static const struct spinand_manufacturer_ops xtx_spinand_manuf_ops = {
