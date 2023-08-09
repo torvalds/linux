@@ -569,9 +569,9 @@ static void init_once(void *foo)
 }
 
 /*
- * put_ntfs - Noinline to reduce binary size.
+ * Noinline to reduce binary size.
  */
-static noinline void put_ntfs(struct ntfs_sb_info *sbi)
+static noinline void ntfs3_free_sbi(struct ntfs_sb_info *sbi)
 {
 	kfree(sbi->new_rec);
 	kvfree(ntfs_put_shared(sbi->upcase));
@@ -627,7 +627,7 @@ static void ntfs_put_super(struct super_block *sb)
 	ntfs_set_state(sbi, NTFS_DIRTY_CLEAR);
 
 	put_mount_options(sbi->options);
-	put_ntfs(sbi);
+	ntfs3_free_sbi(sbi);
 	sb->s_fs_info = NULL;
 
 	sync_blockdev(sb->s_bdev);
@@ -1569,7 +1569,7 @@ out:
 	 * ntfs_fs_free will be called with fc->s_fs_info = NULL
 	 */
 	put_mount_options(sbi->options);
-	put_ntfs(sbi);
+	ntfs3_free_sbi(sbi);
 	sb->s_fs_info = NULL;
 	kfree(boot2);
 
@@ -1659,7 +1659,7 @@ static void ntfs_fs_free(struct fs_context *fc)
 	struct ntfs_sb_info *sbi = fc->s_fs_info;
 
 	if (sbi)
-		put_ntfs(sbi);
+		ntfs3_free_sbi(sbi);
 
 	if (opts)
 		put_mount_options(opts);
