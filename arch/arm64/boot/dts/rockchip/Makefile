@@ -16,6 +16,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-ddr3-v20-rk618-rgb2dsi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-dmic-pdm-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-mcu-display-v20.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-mipi-display-v11.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-rgb-display-v20.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3318-a95x-z2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v10-avb.dtb
