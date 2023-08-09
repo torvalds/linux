@@ -1076,7 +1076,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_apic_timer_interrupt)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	ack_APIC_irq();
+	apic_eoi();
 	trace_local_timer_entry(LOCAL_TIMER_VECTOR);
 	local_apic_timer_interrupt();
 	trace_local_timer_exit(LOCAL_TIMER_VECTOR);
@@ -1480,7 +1480,7 @@ static bool apic_check_and_ack(union apic_ir *irr, union apic_ir *isr)
 		 * per set bit.
 		 */
 		for_each_set_bit(bit, isr->map, APIC_IR_BITS)
-			ack_APIC_irq();
+			apic_eoi();
 		return true;
 	}
 
@@ -1492,7 +1492,7 @@ static bool apic_check_and_ack(union apic_ir *irr, union apic_ir *isr)
  * interrupt from previous kernel might still have ISR bit set.
  *
  * Most probably by now the CPU has serviced that pending interrupt and it
- * might not have done the ack_APIC_irq() because it thought, interrupt
+ * might not have done the apic_eoi() because it thought, interrupt
  * came from i8259 as ExtInt. LAPIC did not get EOI so it does not clear
  * the ISR bit and cpu thinks it has already serviced the interrupt. Hence
  * a vector might get locked. It was noticed for timer irq (vector
@@ -2147,7 +2147,7 @@ static noinline void handle_spurious_interrupt(u8 vector)
 	if (v & (1 << (vector & 0x1f))) {
 		pr_info("Spurious interrupt (vector 0x%02x) on CPU#%d. Acked\n",
 			vector, smp_processor_id());
-		ack_APIC_irq();
+		apic_eoi();
 	} else {
 		pr_info("Spurious interrupt (vector 0x%02x) on CPU#%d. Not pending!\n",
 			vector, smp_processor_id());
@@ -2198,7 +2198,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_error_interrupt)
 	if (lapic_get_maxlvt() > 3)	/* Due to the Pentium erratum 3AP. */
 		apic_write(APIC_ESR, 0);
 	v = apic_read(APIC_ESR);
-	ack_APIC_irq();
+	apic_eoi();
 	atomic_inc(&irq_err_count);
 
 	apic_printk(APIC_DEBUG, KERN_DEBUG "APIC error on CPU%d: %02x",

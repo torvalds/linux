@@ -907,7 +907,7 @@ static int apic_retrigger_irq(struct irq_data *irqd)
 void apic_ack_irq(struct irq_data *irqd)
 {
 	irq_move_irq(irqd);
-	ack_APIC_irq();
+	apic_eoi();
 }
 
 void apic_ack_edge(struct irq_data *irqd)

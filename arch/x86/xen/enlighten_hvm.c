@@ -132,7 +132,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_xen_hvm_callback)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	if (xen_percpu_upcall)
-		ack_APIC_irq();
+		apic_eoi();
 
 	inc_irq_stat(irq_hv_callback_count);
 
