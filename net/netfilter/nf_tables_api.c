@@ -6380,7 +6380,6 @@ static void nft_setelem_activate(struct net *net, struct nft_set *set,
 
 	if (nft_setelem_is_catchall(set, elem)) {
 		nft_set_elem_change_active(net, set, ext);
-		nft_set_elem_clear_busy(ext);
 	} else {
 		set->ops->activate(net, set, elem);
 	}
@@ -6395,8 +6394,7 @@ static int nft_setelem_catchall_deactivate(const struct net *net,
 
 	list_for_each_entry(catchall, &set->catchall_list, list) {
 		ext = nft_set_elem_ext(set, catchall->elem);
-		if (!nft_is_active(net, ext) ||
-		    nft_set_elem_mark_busy(ext))
+		if (!nft_is_active(net, ext))
 			continue;
 
 		kfree(elem->priv);
@@ -7109,8 +7107,7 @@ static int nft_set_catchall_flush(const struct nft_ctx *ctx,
 
 	list_for_each_entry_rcu(catchall, &set->catchall_list, list) {
 		ext = nft_set_elem_ext(set, catchall->elem);
-		if (!nft_set_elem_active(ext, genmask) ||
-		    nft_set_elem_mark_busy(ext))
+		if (!nft_set_elem_active(ext, genmask))
 			continue;
 
 		elem.priv = catchall->elem;
