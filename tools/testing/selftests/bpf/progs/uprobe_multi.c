@@ -93,3 +93,9 @@ int uretprobe_sleep(struct pt_regs *ctx)
 	uprobe_multi_check(ctx, true, true);
 	return 0;
 }
+
+SEC("uprobe.multi//proc/self/exe:uprobe_multi_func_*")
+int uprobe_extra(struct pt_regs *ctx)
+{
+	return 0;
+}
