@@ -3,7 +3,9 @@
 #include <unistd.h>
 #include <test_progs.h>
 #include "uprobe_multi.skel.h"
+#include "uprobe_multi_bench.skel.h"
 #include "bpf/libbpf_internal.h"
+#include "testing_helpers.h"
 
 static char test_data[] = "test_data";
 
@@ -197,6 +199,42 @@ cleanup:
 	free(offsets);
 }
 
+static void test_bench_attach_uprobe(void)
+{
+	long attach_start_ns = 0, attach_end_ns = 0;
+	struct uprobe_multi_bench *skel = NULL;
+	long detach_start_ns, detach_end_ns;
+	double attach_delta, detach_delta;
+	int err;
+
+	skel = uprobe_multi_bench__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "uprobe_multi_bench__open_and_load"))
+		goto cleanup;
+
+	attach_start_ns = get_time_ns();
+
+	err = uprobe_multi_bench__attach(skel);
+	if (!ASSERT_OK(err, "uprobe_multi_bench__attach"))
+		goto cleanup;
+
+	attach_end_ns = get_time_ns();
+
+	system("./uprobe_multi bench");
+
+	ASSERT_EQ(skel->bss->count, 50000, "uprobes_count");
+
+cleanup:
+	detach_start_ns = get_time_ns();
+	uprobe_multi_bench__destroy(skel);
+	detach_end_ns = get_time_ns();
+
+	attach_delta = (attach_end_ns - attach_start_ns) / 1000000000.0;
+	detach_delta = (detach_end_ns - detach_start_ns) / 1000000000.0;
+
+	printf("%s: attached in %7.3lfs\n", __func__, attach_delta);
+	printf("%s: detached in %7.3lfs\n", __func__, detach_delta);
+}
+
 void test_uprobe_multi_test(void)
 {
 	if (test__start_subtest("skel_api"))
@@ -207,4 +245,6 @@ void test_uprobe_multi_test(void)
 		test_attach_api_syms();
 	if (test__start_subtest("link_api"))
 		test_link_api();
+	if (test__start_subtest("bench_uprobe"))
+		test_bench_attach_uprobe();
 }
