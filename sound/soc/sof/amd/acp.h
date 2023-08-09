@@ -11,6 +11,8 @@
 #ifndef __SOF_AMD_ACP_H
 #define __SOF_AMD_ACP_H
 
+#include <linux/dmi.h>
+
 #include "../sof-priv.h"
 #include "../sof-audio.h"
 
@@ -297,4 +299,5 @@ int acp_probes_register(struct snd_sof_dev *sdev);
 void acp_probes_unregister(struct snd_sof_dev *sdev);
 
 extern struct snd_soc_acpi_mach snd_soc_acpi_amd_vangogh_sof_machines[];
+extern const struct dmi_system_id acp_sof_quirk_table[];
 #endif
