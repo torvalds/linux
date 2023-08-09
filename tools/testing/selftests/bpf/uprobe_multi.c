@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <sdt.h>
 
 #define __PASTE(a, b) a##b
 #define PASTE(a, b) __PASTE(a, b)
@@ -53,6 +54,27 @@ static int bench(void)
 	return 0;
 }
 
+#define PROBE STAP_PROBE(test, usdt);
+
+#define PROBE10    PROBE PROBE PROBE PROBE PROBE \
+		   PROBE PROBE PROBE PROBE PROBE
+#define PROBE100   PROBE10 PROBE10 PROBE10 PROBE10 PROBE10 \
+		   PROBE10 PROBE10 PROBE10 PROBE10 PROBE10
+#define PROBE1000  PROBE100 PROBE100 PROBE100 PROBE100 PROBE100 \
+		   PROBE100 PROBE100 PROBE100 PROBE100 PROBE100
+#define PROBE10000 PROBE1000 PROBE1000 PROBE1000 PROBE1000 PROBE1000 \
+		   PROBE1000 PROBE1000 PROBE1000 PROBE1000 PROBE1000
+
+static int usdt(void)
+{
+	PROBE10000
+	PROBE10000
+	PROBE10000
+	PROBE10000
+	PROBE10000
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	if (argc != 2)
@@ -60,8 +82,10 @@ int main(int argc, char **argv)
 
 	if (!strcmp("bench", argv[1]))
 		return bench();
+	if (!strcmp("usdt", argv[1]))
+		return usdt();
 
 error:
-	fprintf(stderr, "usage: %s <bench>\n", argv[0]);
+	fprintf(stderr, "usage: %s <bench|usdt>\n", argv[0]);
 	return -1;
 }
