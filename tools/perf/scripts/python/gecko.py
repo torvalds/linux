@@ -1,4 +1,4 @@
-# firefox-gecko-converter.py - Convert perf record output to Firefox's gecko profile format
+# gecko.py - Convert perf record output to Firefox's gecko profile format
 # SPDX-License-Identifier: GPL-2.0
 #
 # The script converts perf.data to Gecko Profile Format,
@@ -7,14 +7,26 @@
 # Usage:
 #
 #     perf record -a -g -F 99 sleep 60
-#     perf script report gecko > output.json
+#     perf script report gecko
+#
+# Combined:
+#
+#     perf script gecko -F 99 -a sleep 60
 
 import os
 import sys
+import time
 import json
+import string
+import random
 import argparse
+import threading
+import webbrowser
+import urllib.parse
+from os import system
 from functools import reduce
 from dataclasses import dataclass, field
+from http.server import HTTPServer, SimpleHTTPRequestHandler, test
 from typing import List, Dict, Optional, NamedTuple, Set, Tuple, Any
 
 # Add the Perf-Trace-Util library to the Python path
@@ -40,8 +52,14 @@ CATEGORIES = None
 # The product name is used by the profiler UI to show the Operating system and Processor.
 PRODUCT = os.popen('uname -op').read().strip()
 
+# store the output file
+output_file = None
+
 # Here key = tid, value = Thread
 tid_to_thread = dict()
+
+# The HTTP server is used to serve the profile to the profiler UI.
+http_server_thread = None
 
 # The category index is used by the profiler UI to show the color of the flame graph.
 USER_CATEGORY_INDEX = 0
@@ -278,9 +296,19 @@ def process_event(param_dict: Dict) -> None:
 		tid_to_thread[tid] = thread
 	thread._add_sample(comm=comm, stack=stack, time_ms=time_stamp)
 
+def trace_begin() -> None:
+	global output_file
+	if (output_file is None):
+		print("Staring Firefox Profiler on your default browser...")
+		global http_server_thread
+		http_server_thread = threading.Thread(target=test, args=(CORSRequestHandler, HTTPServer,))
+		http_server_thread.daemon = True
+		http_server_thread.start()
+
 # Trace_end runs at the end and will be used to aggregate
 # the data into the final json object and print it out to stdout.
 def trace_end() -> None:
+	global output_file
 	threads = [thread._to_json_dict() for thread in tid_to_thread.values()]
 
 	# Schema: https://github.com/firefox-devtools/profiler/blob/53970305b51b9b472e26d7457fee1d66cd4e2737/src/types/gecko-profile.js#L305
@@ -305,22 +333,50 @@ def trace_end() -> None:
 		"processes": [],
 		"pausedRanges": [],
 	}
-	json.dump(gecko_profile_with_meta, sys.stdout, indent=2)
+	# launch the profiler on local host if not specified --save-only args, otherwise print to file
+	if (output_file is None):
+		output_file = 'gecko_profile.json'
+		with open(output_file, 'w') as f:
+			json.dump(gecko_profile_with_meta, f, indent=2)
+		launchFirefox(output_file)
+		time.sleep(1)
+		print(f'[ perf gecko: Captured and wrote into {output_file} ]')
+	else:
+		print(f'[ perf gecko: Captured and wrote into {output_file} ]')
+		with open(output_file, 'w') as f:
+			json.dump(gecko_profile_with_meta, f, indent=2)
+
+# Used to enable Cross-Origin Resource Sharing (CORS) for requests coming from 'https://profiler.firefox.com', allowing it to access resources from this server.
+class CORSRequestHandler(SimpleHTTPRequestHandler):
+	def end_headers (self):
+		self.send_header('Access-Control-Allow-Origin', 'https://profiler.firefox.com')
+		SimpleHTTPRequestHandler.end_headers(self)
+
+# start a local server to serve the gecko_profile.json file to the profiler.firefox.com
+def launchFirefox(file):
+	safe_string = urllib.parse.quote_plus(f'http://localhost:8000/{file}')
+	url = 'https://profiler.firefox.com/from-url/' + safe_string
+	webbrowser.open(f'{url}')
 
 def main() -> None:
+	global output_file
 	global CATEGORIES
-	parser = argparse.ArgumentParser(description="Convert perf.data to Firefox\'s Gecko Profile format")
+	parser = argparse.ArgumentParser(description="Convert perf.data to Firefox\'s Gecko Profile format which can be uploaded to profiler.firefox.com for visualization")
 
 	# Add the command-line options
 	# Colors must be defined according to this:
 	# https://github.com/firefox-devtools/profiler/blob/50124adbfa488adba6e2674a8f2618cf34b59cd2/res/css/categories.css
-	parser.add_argument('--user-color', default='yellow', help='Color for the User category')
-	parser.add_argument('--kernel-color', default='orange', help='Color for the Kernel category')
+	parser.add_argument('--user-color', default='yellow', help='Color for the User category', choices=['yellow', 'blue', 'purple', 'green', 'orange', 'red', 'grey', 'magenta'])
+	parser.add_argument('--kernel-color', default='orange', help='Color for the Kernel category', choices=['yellow', 'blue', 'purple', 'green', 'orange', 'red', 'grey', 'magenta'])
+	# If --save-only is specified, the output will be saved to a file instead of opening Firefox's profiler directly.
+	parser.add_argument('--save-only', help='Save the output to a file instead of opening Firefox\'s profiler')
+
 	# Parse the command-line arguments
 	args = parser.parse_args()
 	# Access the values provided by the user
 	user_color = args.user_color
 	kernel_color = args.kernel_color
+	output_file = args.save_only
 
 	CATEGORIES = [
 		{
@@ -336,4 +392,4 @@ def main() -> None:
 	]
 
 if __name__ == '__main__':
-    main()
+	main()
