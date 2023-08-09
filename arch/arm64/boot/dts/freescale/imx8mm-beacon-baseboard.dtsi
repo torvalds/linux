@@ -289,7 +289,6 @@
 };
 
 &usbotg2 {
-	pinctrl-names = "default";
 	disable-over-current;
 	dr_mode = "host";
 	status = "okay";
