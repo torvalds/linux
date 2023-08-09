@@ -1207,8 +1207,6 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 					int pindex)
 {
 	unsigned long flags;
-	int min_pindex = 0;
-	int max_pindex = NR_PCP_LISTS - 1;
 	unsigned int order;
 	bool isolated_pageblocks;
 	struct page *page;
@@ -1231,17 +1229,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 
 		/* Remove pages from lists in a round-robin fashion. */
 		do {
-			if (++pindex > max_pindex)
-				pindex = min_pindex;
+			if (++pindex > NR_PCP_LISTS - 1)
+				pindex = 0;
 			list = &pcp->lists[pindex];
-			if (!list_empty(list))
-				break;
-
-			if (pindex == max_pindex)
-				max_pindex--;
-			if (pindex == min_pindex)
-				min_pindex++;
-		} while (1);
+		} while (list_empty(list));
 
 		order = pindex_to_order(pindex);
 		nr_pages = 1 << order;
