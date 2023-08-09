@@ -1311,6 +1311,8 @@ static int change_profile_perms_wrapper(const char *op, const char *name,
 	return error;
 }
 
+const char *stack_msg = "change_profile unprivileged unconfined converted to stacking";
+
 /**
  * aa_change_profile - perform a one-way profile transition
  * @fqname: name of profile may include namespace (NOT NULL)
@@ -1368,6 +1370,28 @@ int aa_change_profile(const char *fqname, int flags)
 			op = OP_STACK;
 		else
 			op = OP_CHANGE_PROFILE;
+	}
+
+	/* This should move to a per profile test. Requires pushing build
+	 * into callback
+	 */
+	if (!stack && unconfined(label) &&
+	    label == &labels_ns(label)->unconfined->label &&
+	    aa_unprivileged_unconfined_restricted &&
+	    /* TODO: refactor so this check is a fn */
+	    cap_capable(current_cred(), &init_user_ns, CAP_MAC_OVERRIDE,
+			CAP_OPT_NOAUDIT)) {
+		/* regardless of the request in this case apparmor
+		 * stacks against unconfined so admin set policy can't be
+		 * by-passed
+		 */
+		stack = true;
+		perms.audit = request;
+		(void) fn_for_each_in_ns(label, profile,
+				aa_audit_file(subj_cred, profile, &perms, op,
+					      request, auditname, NULL, target,
+					      GLOBAL_ROOT_UID, stack_msg, 0));
+		perms.audit = 0;
 	}
 
 	if (*fqname == '&') {

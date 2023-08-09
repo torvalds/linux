@@ -2341,6 +2341,11 @@ static struct aa_sfs_entry aa_sfs_entry_domain[] = {
 	{ }
 };
 
+static struct aa_sfs_entry aa_sfs_entry_unconfined[] = {
+	AA_SFS_FILE_BOOLEAN("change_profile", 1),
+	{ }
+};
+
 static struct aa_sfs_entry aa_sfs_entry_versions[] = {
 	AA_SFS_FILE_BOOLEAN("v5",	1),
 	AA_SFS_FILE_BOOLEAN("v6",	1),
@@ -2358,6 +2363,7 @@ static struct aa_sfs_entry aa_sfs_entry_policy[] = {
 	AA_SFS_FILE_U64("outofband",		MAX_OOB_SUPPORTED),
 	AA_SFS_FILE_U64("permstable32_version",	1),
 	AA_SFS_FILE_STRING("permstable32", PERMS32STR),
+	AA_SFS_DIR("unconfined_restrictions",   aa_sfs_entry_unconfined),
 	{ }
 };
 

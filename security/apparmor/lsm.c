@@ -1798,6 +1798,13 @@ static struct ctl_table apparmor_sysctl_table[] = {
 		.mode           = 0600,
 		.proc_handler   = apparmor_dointvec,
 	},
+	{
+		.procname       = "apparmor_restrict_unprivileged_unconfined",
+		.data           = &aa_unprivileged_unconfined_restricted,
+		.maxlen         = sizeof(int),
+		.mode           = 0600,
+		.proc_handler   = apparmor_dointvec,
+	},
 
 	{ }
 };

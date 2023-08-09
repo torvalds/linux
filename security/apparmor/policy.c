@@ -88,6 +88,7 @@
 #include "include/resource.h"
 
 int unprivileged_userns_apparmor_policy = 1;
+int aa_unprivileged_unconfined_restricted;
 
 const char *const aa_profile_mode_names[] = {
 	"enforce",
