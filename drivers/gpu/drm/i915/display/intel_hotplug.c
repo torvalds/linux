@@ -267,14 +267,16 @@ intel_encoder_hotplug(struct intel_encoder *encoder,
 	struct drm_device *dev = connector->base.dev;
 	enum drm_connector_status old_status;
 	u64 old_epoch_counter;
+	int status;
 	bool ret = false;
 
 	drm_WARN_ON(dev, !mutex_is_locked(&dev->mode_config.mutex));
 	old_status = connector->base.status;
 	old_epoch_counter = connector->base.epoch_counter;
 
-	connector->base.status =
-		drm_helper_probe_detect(&connector->base, NULL, false);
+	status = drm_helper_probe_detect(&connector->base, NULL, false);
+	if (!connector->base.force)
+		connector->base.status = status;
 
 	if (old_epoch_counter != connector->base.epoch_counter)
 		ret = true;
