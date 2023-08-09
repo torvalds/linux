@@ -414,17 +414,21 @@ void dml2_apply_det_buffer_allocation_policy(struct dml2_context *in_ctx, struct
 
 	for (plane_index = 0; plane_index < dml_dispcfg->num_surfaces; plane_index++) {
 
-		dml_dispcfg->plane.DETSizeOverride[plane_index] = ((max_det_size / num_of_streams) / num_of_planes_per_stream[stream_index] / in_ctx->det_helper_scratch.dpps_per_surface[plane_index]);
+		if (in_ctx->config.override_det_buffer_size_kbytes)
+			dml_dispcfg->plane.DETSizeOverride[plane_index] = max_det_size / in_ctx->config.dcn_pipe_count;
+		else {
+			dml_dispcfg->plane.DETSizeOverride[plane_index] = ((max_det_size / num_of_streams) / num_of_planes_per_stream[stream_index] / in_ctx->det_helper_scratch.dpps_per_surface[plane_index]);
 
-		/* If the override size is not divisible by det_segment_size then round off to nearest number divisible by det_segment_size as
-		 * this is a requirement.
-		 */
-		if (dml_dispcfg->plane.DETSizeOverride[plane_index] % in_ctx->config.det_segment_size != 0) {
-			dml_dispcfg->plane.DETSizeOverride[plane_index] = dml_dispcfg->plane.DETSizeOverride[plane_index] & ~0x3F;
+			/* If the override size is not divisible by det_segment_size then round off to nearest number divisible by det_segment_size as
+				* this is a requirement.
+				*/
+			if (dml_dispcfg->plane.DETSizeOverride[plane_index] % in_ctx->config.det_segment_size != 0) {
+				dml_dispcfg->plane.DETSizeOverride[plane_index] = dml_dispcfg->plane.DETSizeOverride[plane_index] & ~0x3F;
+			}
+
+			if (plane_index + 1 < dml_dispcfg->num_surfaces && dml_dispcfg->plane.BlendingAndTiming[plane_index] != dml_dispcfg->plane.BlendingAndTiming[plane_index + 1])
+				stream_index++;
 		}
-
-		if (plane_index + 1 < dml_dispcfg->num_surfaces && dml_dispcfg->plane.BlendingAndTiming[plane_index] != dml_dispcfg->plane.BlendingAndTiming[plane_index + 1])
-			stream_index++;
 	}
 }
 

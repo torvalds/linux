@@ -2078,7 +2078,8 @@ static bool dcn35_resource_construct(
 	dc->dml2_options.callbacks.build_scaling_params = &resource_build_scaling_params;
 	dc->dml2_options.callbacks.can_support_mclk_switch_using_fw_based_vblank_stretch = &dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch;
 	dc->dml2_options.callbacks.acquire_secondary_pipe_for_mpc_odm = &dc_resource_acquire_secondary_pipe_for_mpc_odm_legacy;
-	dc->dml2_options.max_segments_per_hubp = 18;
+	dc->dml2_options.max_segments_per_hubp = 24;
+
 	dc->dml2_options.det_segment_size = DCN3_2_DET_SEG_SIZE;/*todo*/
 
 	if (dc->config.sdpif_request_limit_words_per_umc == 0)

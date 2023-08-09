@@ -137,6 +137,7 @@ struct dml2_configuration_options {
 	bool skip_hw_state_mapping;
 	bool optimize_odm_4to1;
 	bool minimize_dispclk_using_odm;
+	bool override_det_buffer_size_kbytes;
 	struct dml2_dc_callbacks callbacks;
 	struct {
 		bool force_disable_subvp;
