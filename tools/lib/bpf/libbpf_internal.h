@@ -581,4 +581,12 @@ int sys_bpf_prog_load(union bpf_attr *attr, unsigned int size, int attempts);
 long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name);
 long elf_find_func_offset_from_file(const char *binary_path, const char *name);
 
+struct elf_fd {
+	Elf *elf;
+	int fd;
+};
+
+int elf_open(const char *binary_path, struct elf_fd *elf_fd);
+void elf_close(struct elf_fd *elf_fd);
+
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

@@ -10,6 +10,42 @@
 
 #define STRERR_BUFSIZE  128
 
+int elf_open(const char *binary_path, struct elf_fd *elf_fd)
+{
+	char errmsg[STRERR_BUFSIZE];
+	int fd, ret;
+	Elf *elf;
+
+	if (elf_version(EV_CURRENT) == EV_NONE) {
+		pr_warn("elf: failed to init libelf for %s\n", binary_path);
+		return -LIBBPF_ERRNO__LIBELF;
+	}
+	fd = open(binary_path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0) {
+		ret = -errno;
+		pr_warn("elf: failed to open %s: %s\n", binary_path,
+			libbpf_strerror_r(ret, errmsg, sizeof(errmsg)));
+		return ret;
+	}
+	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
+	if (!elf) {
+		pr_warn("elf: could not read elf from %s: %s\n", binary_path, elf_errmsg(-1));
+		close(fd);
+		return -LIBBPF_ERRNO__FORMAT;
+	}
+	elf_fd->fd = fd;
+	elf_fd->elf = elf;
+	return 0;
+}
+
+void elf_close(struct elf_fd *elf_fd)
+{
+	if (!elf_fd)
+		return;
+	elf_end(elf_fd->elf);
+	close(elf_fd->fd);
+}
+
 /* Return next ELF section of sh_type after scn, or first of that type if scn is NULL. */
 static Elf_Scn *elf_find_next_scn_by_type(Elf *elf, int sh_type, Elf_Scn *scn)
 {
@@ -170,28 +206,13 @@ out:
  */
 long elf_find_func_offset_from_file(const char *binary_path, const char *name)
 {
-	char errmsg[STRERR_BUFSIZE];
+	struct elf_fd elf_fd;
 	long ret = -ENOENT;
-	Elf *elf;
-	int fd;
 
-	fd = open(binary_path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0) {
-		ret = -errno;
-		pr_warn("failed to open %s: %s\n", binary_path,
-			libbpf_strerror_r(ret, errmsg, sizeof(errmsg)));
+	ret = elf_open(binary_path, &elf_fd);
+	if (ret)
 		return ret;
-	}
-	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
-	if (!elf) {
-		pr_warn("elf: could not read elf from %s: %s\n", binary_path, elf_errmsg(-1));
-		close(fd);
-		return -LIBBPF_ERRNO__FORMAT;
-	}
-
-	ret = elf_find_func_offset(elf, binary_path, name);
-	elf_end(elf);
-	close(fd);
+	ret = elf_find_func_offset(elf_fd.elf, binary_path, name);
+	elf_close(&elf_fd);
 	return ret;
 }
-
