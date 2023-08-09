@@ -358,21 +358,10 @@ static int cs35l56_asp_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int f
 	return 0;
 }
 
-static void cs35l56_set_asp_slot_positions(struct cs35l56_private *cs35l56,
-					   unsigned int reg, unsigned long mask)
+static unsigned int cs35l56_make_tdm_config_word(unsigned int reg_val, unsigned long mask)
 {
-	unsigned int reg_val, channel_shift;
+	unsigned int channel_shift;
 	int bit_num;
-
-	/* Init all slots to 63 */
-	switch (reg) {
-	case CS35L56_ASP1_FRAME_CONTROL1:
-		reg_val = 0x3f3f3f3f;
-		break;
-	case CS35L56_ASP1_FRAME_CONTROL5:
-		reg_val = 0x3f3f3f;
-		break;
-	}
 
 	/* Enable consecutive TX1..TXn for each of the slots set in mask */
 	channel_shift = 0;
@@ -382,7 +371,7 @@ static void cs35l56_set_asp_slot_positions(struct cs35l56_private *cs35l56,
 		channel_shift += 8;
 	}
 
-	regmap_write(cs35l56->base.regmap, reg, reg_val);
+	return reg_val;
 }
 
 static int cs35l56_asp_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
@@ -418,8 +407,11 @@ static int cs35l56_asp_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx
 	if (rx_mask == 0)
 		rx_mask = 0xf;	// ASPTX1..TX4 in slots 0..3
 
-	cs35l56_set_asp_slot_positions(cs35l56, CS35L56_ASP1_FRAME_CONTROL1, rx_mask);
-	cs35l56_set_asp_slot_positions(cs35l56, CS35L56_ASP1_FRAME_CONTROL5, tx_mask);
+	/* Default unused slots to 63 */
+	regmap_write(cs35l56->base.regmap, CS35L56_ASP1_FRAME_CONTROL1,
+		     cs35l56_make_tdm_config_word(0x3f3f3f3f, rx_mask));
+	regmap_write(cs35l56->base.regmap, CS35L56_ASP1_FRAME_CONTROL5,
+		     cs35l56_make_tdm_config_word(0x3f3f3f, tx_mask));
 
 	dev_dbg(cs35l56->base.dev, "tdm slot width: %u count: %u tx_mask: %#x rx_mask: %#x\n",
 		cs35l56->asp_slot_width, cs35l56->asp_slot_count, tx_mask, rx_mask);
@@ -960,6 +952,12 @@ int cs35l56_system_resume(struct device *dev)
 
 	dev_dbg(dev, "system_resume\n");
 
+	/*
+	 * We might have done a hard reset or the CS35L56 was power-cycled
+	 * so wait for control port to be ready.
+	 */
+	cs35l56_wait_control_port_ready();
+
 	/* Undo pm_runtime_force_suspend() before re-enabling the irq */
 	ret = pm_runtime_force_resume(dev);
 	if (cs35l56->base.irq)
@@ -978,6 +976,7 @@ int cs35l56_system_resume(struct device *dev)
 		return ret;
 
 	cs35l56->base.fw_patched = false;
+	wm_adsp_power_down(&cs35l56->dsp);
 	queue_work(cs35l56->dsp_wq, &cs35l56->dsp_work);
 
 	/*
@@ -1077,6 +1076,8 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 		return dev_err_probe(cs35l56->base.dev, ret, "Failed to enable supplies\n");
 
 	if (cs35l56->base.reset_gpio) {
+		/* ACPI can override GPIOD_OUT_LOW flag so force it to start low */
+		gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
 		cs35l56_wait_min_reset_pulse();
 		gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 1);
 	}
