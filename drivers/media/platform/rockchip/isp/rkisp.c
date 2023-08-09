@@ -739,13 +739,21 @@ run_next:
 	if (hw->is_multi_overflow && !dev->is_first_double) {
 		stats_vdev->rdbk_drop = false;
 		if (dev->sw_rd_cnt) {
+			/* the frame first running to off mi to save bandwidth */
 			rkisp_multi_overflow_hdl(dev, false);
+			/* FST_FRAME for YNR/CNR/SHP/ADRC/DHAZ no to refer to sram info */
+			val = ISP3X_YNR_FST_FRAME | ISP3X_CNR_FST_FRAME | ISP32_SHP_FST_FRAME |
+			      ISP3X_ADRC_FST_FRAME | ISP3X_DHAZ_FST_FRAME;
+			rkisp_unite_set_bits(dev, ISP3X_ISP_CTRL1, 0, val, false, hw->is_unite);
 			params_vdev->rdbk_times += dev->sw_rd_cnt;
 			stats_vdev->rdbk_drop = true;
 			is_upd = true;
 		} else if (is_try) {
 			rkisp_multi_overflow_hdl(dev, true);
 			rkisp_update_regs(dev, ISP_LDCH_BASE, ISP_LDCH_BASE);
+			val = ISP3X_YNR_FST_FRAME | ISP3X_CNR_FST_FRAME | ISP32_SHP_FST_FRAME |
+			      ISP3X_ADRC_FST_FRAME | ISP3X_DHAZ_FST_FRAME;
+			rkisp_unite_clear_bits(dev, ISP3X_ISP_CTRL1, val, false, hw->is_unite);
 			is_upd = true;
 		}
 	}
@@ -763,7 +771,7 @@ run_next:
 		val |= CIF_ISP_CTRL_ISP_CFG_UPD;
 		rkisp_unite_write(dev, ISP_CTRL, val, true, hw->is_unite);
 		/* bayer pat after ISP_CFG_UPD for multi sensor to read lsc r/g/b table */
-		rkisp_update_regs(dev, ISP_ACQ_PROP, ISP_ACQ_PROP);
+		rkisp_update_regs(dev, ISP3X_ISP_CTRL1, ISP3X_ISP_CTRL1);
 		/* fix ldch multi sensor case:
 		 * ldch will pre-read data when en and isp force upd or frame end,
 		 * udelay for ldch pre-read data.
