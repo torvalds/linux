@@ -108,8 +108,6 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-
 	pinctrl_csi_pwn: csi-pwn-grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7		0x19
