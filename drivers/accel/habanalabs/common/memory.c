@@ -1877,16 +1877,16 @@ err_dma_buf_put:
 
 static int validate_export_params_common(struct hl_device *hdev, u64 device_addr, u64 size)
 {
-	if (!IS_ALIGNED(device_addr, PAGE_SIZE)) {
+	if (!PAGE_ALIGNED(device_addr)) {
 		dev_dbg(hdev->dev,
-			"exported device memory address 0x%llx should be aligned to 0x%lx\n",
+			"exported device memory address 0x%llx should be aligned to PAGE_SIZE 0x%lx\n",
 			device_addr, PAGE_SIZE);
 		return -EINVAL;
 	}
 
-	if (size < PAGE_SIZE) {
+	if (!size || !PAGE_ALIGNED(size)) {
 		dev_dbg(hdev->dev,
-			"exported device memory size %llu should be equal to or greater than %lu\n",
+			"exported device memory size %llu should be a multiple of PAGE_SIZE %lu\n",
 			size, PAGE_SIZE);
 		return -EINVAL;
 	}
@@ -1936,6 +1936,13 @@ static int validate_export_params(struct hl_device *hdev, u64 device_addr, u64 s
 	rc = validate_export_params_common(hdev, device_addr, size);
 	if (rc)
 		return rc;
+
+	if (!PAGE_ALIGNED(offset)) {
+		dev_dbg(hdev->dev,
+			"exported device memory offset %llu should be a multiple of PAGE_SIZE %lu\n",
+			offset, PAGE_SIZE);
+		return -EINVAL;
+	}
 
 	if ((offset + size) > phys_pg_pack->total_size) {
 		dev_dbg(hdev->dev, "offset %#llx and size %#llx exceed total map size %#llx\n",
