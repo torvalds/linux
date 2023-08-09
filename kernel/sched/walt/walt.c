@@ -2347,6 +2347,11 @@ static void walt_update_task_ravg(struct task_struct *p, struct rq *rq, int even
 
 done:
 	wts->mark_start = wallclock;
+	if (wts->mark_start > (wts->window_start + sched_ravg_window))
+		WALT_BUG(WALT_BUG_WALT, p,
+			"CPU%d: %s task %s(%d)'s ms=%llu is ahead of ws=%llu by more than 1 window on rq=%d event=%d",
+			raw_smp_processor_id(), __func__, p->comm, p->pid,
+			wts->mark_start, wts->window_start, rq->cpu, event);
 
 	run_walt_irq_work_rollover(old_window_start, rq);
 }
