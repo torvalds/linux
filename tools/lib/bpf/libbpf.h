@@ -529,6 +529,57 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 				      const char *pattern,
 				      const struct bpf_kprobe_multi_opts *opts);
 
+struct bpf_uprobe_multi_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	/* array of function symbols to attach to */
+	const char **syms;
+	/* array of function addresses to attach to */
+	const unsigned long *offsets;
+	/* optional, array of associated ref counter offsets */
+	const unsigned long *ref_ctr_offsets;
+	/* optional, array of associated BPF cookies */
+	const __u64 *cookies;
+	/* number of elements in syms/addrs/cookies arrays */
+	size_t cnt;
+	/* create return uprobes */
+	bool retprobe;
+	size_t :0;
+};
+
+#define bpf_uprobe_multi_opts__last_field retprobe
+
+/**
+ * @brief **bpf_program__attach_uprobe_multi()** attaches a BPF program
+ * to multiple uprobes with uprobe_multi link.
+ *
+ * User can specify 2 mutually exclusive set of inputs:
+ *
+ *   1) use only path/func_pattern/pid arguments
+ *
+ *   2) use path/pid with allowed combinations of
+ *      syms/offsets/ref_ctr_offsets/cookies/cnt
+ *
+ *      - syms and offsets are mutually exclusive
+ *      - ref_ctr_offsets and cookies are optional
+ *
+ *
+ * @param prog BPF program to attach
+ * @param pid Process ID to attach the uprobe to, 0 for self (own process),
+ * -1 for all processes
+ * @param binary_path Path to binary
+ * @param func_pattern Regular expression to specify functions to attach
+ * BPF program to
+ * @param opts Additional options (see **struct bpf_uprobe_multi_opts**)
+ * @return 0, on success; negative error code, otherwise
+ */
+LIBBPF_API struct bpf_link *
+bpf_program__attach_uprobe_multi(const struct bpf_program *prog,
+				 pid_t pid,
+				 const char *binary_path,
+				 const char *func_pattern,
+				 const struct bpf_uprobe_multi_opts *opts);
+
 struct bpf_ksyscall_opts {
 	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
