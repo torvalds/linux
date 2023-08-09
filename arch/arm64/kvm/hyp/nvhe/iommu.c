@@ -392,6 +392,7 @@ int __pkvm_iommu_register(unsigned long dev_id, unsigned long drv_id,
 		.id = dev_id,
 		.ops = drv->ops,
 		.pa = dev_pa,
+		.va = hyp_phys_to_virt(dev_pa),
 		.size = dev_size,
 		.flags = flags,
 	};
@@ -421,21 +422,10 @@ int __pkvm_iommu_register(unsigned long dev_id, unsigned long drv_id,
 			goto out_free;
 	}
 
-	/*
-	 * Unmap the device's MMIO range from host stage-2. If registration
-	 * is successful, future attempts to re-map will be blocked by
-	 * pkvm_iommu_host_stage2_adjust_range.
-	 */
-	ret = host_stage2_unmap_reg_locked(dev_pa, dev_size);
+	ret = __pkvm_host_donate_hyp_locked(hyp_phys_to_pfn(dev_pa),
+					    PAGE_ALIGN(dev_size) >> PAGE_SHIFT);
 	if (ret)
 		goto out_free;
-
-	/* Create EL2 mapping for the device. */
-	ret = __pkvm_create_private_mapping(dev_pa, dev_size,
-					    PAGE_HYP_DEVICE, (unsigned long *)(&dev->va));
-	if (ret){
-		goto out_free;
-	}
 
 	/* Register device and prevent host from mapping the MMIO range. */
 	list_add_tail(&dev->list, &iommu_list);
@@ -493,39 +483,6 @@ int __pkvm_iommu_pm_notify(unsigned long dev_id, enum pkvm_iommu_pm_event event)
 	}
 	host_unlock_component();
 	return ret;
-}
-
-/*
- * Check host memory access against IOMMUs' MMIO regions.
- * Returns -EPERM if the address is within the bounds of a registered device.
- * Otherwise returns zero and adjusts boundaries of the new mapping to avoid
- * MMIO regions of registered IOMMUs.
- */
-int pkvm_iommu_host_stage2_adjust_range(phys_addr_t addr, phys_addr_t *start,
-					phys_addr_t *end)
-{
-	struct pkvm_iommu *dev;
-	phys_addr_t new_start = *start;
-	phys_addr_t new_end = *end;
-	phys_addr_t dev_start, dev_end;
-
-	assert_host_component_locked();
-
-	list_for_each_entry(dev, &iommu_list, list) {
-		dev_start = dev->pa;
-		dev_end = dev_start + dev->size;
-
-		if (addr < dev_start)
-			new_end = min(new_end, dev_start);
-		else if (addr >= dev_end)
-			new_start = max(new_start, dev_end);
-		else
-			return -EPERM;
-	}
-
-	*start = new_start;
-	*end = new_end;
-	return 0;
 }
 
 bool pkvm_iommu_host_dabt_handler(struct kvm_cpu_context *host_ctxt, u32 esr,
