@@ -93,6 +93,7 @@ static int ext4_get_tree(struct fs_context *fc);
 static int ext4_reconfigure(struct fs_context *fc);
 static void ext4_fc_free(struct fs_context *fc);
 static int ext4_init_fs_context(struct fs_context *fc);
+static void ext4_kill_sb(struct super_block *sb);
 static const struct fs_parameter_spec ext4_param_specs[];
 
 /*
@@ -135,7 +136,7 @@ static struct file_system_type ext2_fs_type = {
 	.name			= "ext2",
 	.init_fs_context	= ext4_init_fs_context,
 	.parameters		= ext4_param_specs,
-	.kill_sb		= kill_block_super,
+	.kill_sb		= ext4_kill_sb,
 	.fs_flags		= FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("ext2");
@@ -151,7 +152,7 @@ static struct file_system_type ext3_fs_type = {
 	.name			= "ext3",
 	.init_fs_context	= ext4_init_fs_context,
 	.parameters		= ext4_param_specs,
-	.kill_sb		= kill_block_super,
+	.kill_sb		= ext4_kill_sb,
 	.fs_flags		= FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("ext3");
@@ -1125,25 +1126,6 @@ fail:
 	return NULL;
 }
 
-/*
- * Release the journal device
- */
-static void ext4_blkdev_remove(struct ext4_sb_info *sbi)
-{
-	struct block_device *bdev;
-	bdev = sbi->s_journal_bdev;
-	if (bdev) {
-		/*
-		 * Invalidate the journal device's buffers.  We don't want them
-		 * floating about in memory - the physical journal device may
-		 * hotswapped, and it breaks the `ro-after' testing code.
-		 */
-		invalidate_bdev(bdev);
-		blkdev_put(bdev, sbi->s_sb);
-		sbi->s_journal_bdev = NULL;
-	}
-}
-
 static inline struct inode *orphan_list_entry(struct list_head *l)
 {
 	return &list_entry(l, struct ext4_inode_info, i_orphan)->vfs_inode;
@@ -1339,8 +1321,13 @@ static void ext4_put_super(struct super_block *sb)
 	sync_blockdev(sb->s_bdev);
 	invalidate_bdev(sb->s_bdev);
 	if (sbi->s_journal_bdev) {
+		/*
+		 * Invalidate the journal device's buffers.  We don't want them
+		 * floating about in memory - the physical journal device may
+		 * hotswapped, and it breaks the `ro-after' testing code.
+		 */
 		sync_blockdev(sbi->s_journal_bdev);
-		ext4_blkdev_remove(sbi);
+		invalidate_bdev(sbi->s_journal_bdev);
 	}
 
 	ext4_xattr_destroy_cache(sbi->s_ea_inode_cache);
@@ -5663,9 +5650,11 @@ failed_mount:
 		kfree(get_qf_name(sb, sbi, i));
 #endif
 	fscrypt_free_dummy_policy(&sbi->s_dummy_enc_policy);
-	/* ext4_blkdev_remove() calls kill_bdev(), release bh before it. */
 	brelse(sbi->s_sbh);
-	ext4_blkdev_remove(sbi);
+	if (sbi->s_journal_bdev) {
+		invalidate_bdev(sbi->s_journal_bdev);
+		blkdev_put(sbi->s_journal_bdev, sb);
+	}
 out_fail:
 	invalidate_bdev(sb->s_bdev);
 	sb->s_fs_info = NULL;
@@ -7272,12 +7261,23 @@ static inline int ext3_feature_set_ok(struct super_block *sb)
 	return 1;
 }
 
+static void ext4_kill_sb(struct super_block *sb)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct block_device *journal_bdev = sbi ? sbi->s_journal_bdev : NULL;
+
+	kill_block_super(sb);
+
+	if (journal_bdev)
+		blkdev_put(journal_bdev, sb);
+}
+
 static struct file_system_type ext4_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "ext4",
 	.init_fs_context	= ext4_init_fs_context,
 	.parameters		= ext4_param_specs,
-	.kill_sb		= kill_block_super,
+	.kill_sb		= ext4_kill_sb,
 	.fs_flags		= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
 };
 MODULE_ALIAS_FS("ext4");
