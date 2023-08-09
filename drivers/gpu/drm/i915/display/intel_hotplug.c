@@ -260,9 +260,8 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 }
 
-enum intel_hotplug_state
-intel_encoder_hotplug(struct intel_encoder *encoder,
-		      struct intel_connector *connector)
+static enum intel_hotplug_state
+intel_hotplug_detect_connector(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
 	enum drm_connector_status old_status;
@@ -292,6 +291,13 @@ intel_encoder_hotplug(struct intel_encoder *encoder,
 		return INTEL_HOTPLUG_CHANGED;
 	}
 	return INTEL_HOTPLUG_UNCHANGED;
+}
+
+enum intel_hotplug_state
+intel_encoder_hotplug(struct intel_encoder *encoder,
+		      struct intel_connector *connector)
+{
+	return intel_hotplug_detect_connector(connector);
 }
 
 static bool intel_encoder_has_hpd_pulse(struct intel_encoder *encoder)
@@ -634,6 +640,49 @@ void intel_hpd_init(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
+static void i915_hpd_poll_detect_connectors(struct drm_i915_private *i915)
+{
+	struct drm_connector_list_iter conn_iter;
+	struct intel_connector *connector;
+	struct intel_connector *first_changed_connector = NULL;
+	int changed = 0;
+
+	mutex_lock(&i915->drm.mode_config.mutex);
+
+	if (!i915->drm.mode_config.poll_enabled)
+		goto out;
+
+	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
+	for_each_intel_connector_iter(connector, &conn_iter) {
+		if (!(connector->base.polled & DRM_CONNECTOR_POLL_HPD))
+			continue;
+
+		if (intel_hotplug_detect_connector(connector) != INTEL_HOTPLUG_CHANGED)
+			continue;
+
+		changed++;
+
+		if (changed == 1) {
+			drm_connector_get(&connector->base);
+			first_changed_connector = connector;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+out:
+	mutex_unlock(&i915->drm.mode_config.mutex);
+
+	if (!changed)
+		return;
+
+	if (changed == 1)
+		drm_kms_helper_connector_hotplug_event(&first_changed_connector->base);
+	else
+		drm_kms_helper_hotplug_event(&i915->drm);
+
+	drm_connector_put(&first_changed_connector->base);
+}
+
 static void i915_hpd_poll_init_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
@@ -687,7 +736,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 	 * in the middle of disabling polling
 	 */
 	if (!enabled) {
-		drm_helper_hpd_irq_event(&dev_priv->drm);
+		i915_hpd_poll_detect_connectors(dev_priv);
 
 		intel_display_power_put(dev_priv,
 					POWER_DOMAIN_DISPLAY_CORE,
