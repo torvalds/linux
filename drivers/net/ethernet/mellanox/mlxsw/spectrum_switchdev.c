@@ -490,7 +490,7 @@ mlxsw_sp_bridge_port_create(struct mlxsw_sp_bridge_device *bridge_device,
 		bridge_port->system_port = mlxsw_sp_port->local_port;
 	bridge_port->dev = brport_dev;
 	bridge_port->bridge_device = bridge_device;
-	bridge_port->stp_state = BR_STATE_DISABLED;
+	bridge_port->stp_state = br_port_get_stp_state(brport_dev);
 	bridge_port->flags = BR_LEARNING | BR_FLOOD | BR_LEARNING_SYNC |
 			     BR_MCAST_FLOOD;
 	INIT_LIST_HEAD(&bridge_port->vlans_list);
