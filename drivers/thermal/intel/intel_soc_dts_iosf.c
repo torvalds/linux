@@ -37,9 +37,6 @@
 /* DTS encoding for TJ MAX temperature */
 #define SOC_DTS_TJMAX_ENCODING		0x7F
 
-/* Only 2 out of 4 is allowed for OSPM */
-#define SOC_MAX_DTS_TRIPS		2
-
 /* Mask for two trips in status bits */
 #define SOC_DTS_TRIP_MASK		0x03
 
@@ -253,12 +250,10 @@ static void remove_dts_thermal_zone(struct intel_soc_dts_sensor_entry *dts)
 }
 
 static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
-				bool notification_support, int trip_cnt,
-				int read_only_trip_cnt)
+				bool notification_support, int read_only_trip_cnt)
 {
 	char name[10];
 	unsigned long trip;
-	int trip_count = 0;
 	int trip_mask = 0;
 	int writable_trip_cnt = 0;
 	unsigned long ptps;
@@ -274,8 +269,7 @@ static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
 
 	dts->id = id;
 	if (notification_support) {
-		trip_count = min(SOC_MAX_DTS_TRIPS, trip_cnt);
-		writable_trip_cnt = trip_count - read_only_trip_cnt;
+		writable_trip_cnt = SOC_MAX_DTS_TRIPS - read_only_trip_cnt;
 		trip_mask = GENMASK(writable_trip_cnt - 1, 0);
 	}
 
@@ -290,10 +284,9 @@ static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
 			trip_mask &= ~BIT(i / 8);
 	}
 	dts->trip_mask = trip_mask;
-	dts->trip_count = trip_count;
 	snprintf(name, sizeof(name), "soc_dts%d", id);
 	dts->tzone = thermal_zone_device_register(name,
-						  trip_count,
+						  SOC_MAX_DTS_TRIPS,
 						  trip_mask,
 						  dts, &tzone_ops,
 						  NULL, 0, 0);
@@ -324,11 +317,10 @@ int intel_soc_dts_iosf_add_read_only_critical_trip(
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
 		struct intel_soc_dts_sensor_entry *entry = &sensors->soc_dts[i];
 		int temp = sensors->tj_max - critical_offset;
-		unsigned long count = entry->trip_count;
 		unsigned long mask = entry->trip_mask;
 
-		j = find_first_zero_bit(&mask, count);
-		if (j < count)
+		j = find_first_zero_bit(&mask, SOC_MAX_DTS_TRIPS);
+		if (j < SOC_MAX_DTS_TRIPS)
 			return update_trip_temp(entry, j, temp, THERMAL_TRIP_CRITICAL);
 	}
 
@@ -372,8 +364,7 @@ void intel_soc_dts_iosf_interrupt_handler(struct intel_soc_dts_sensors *sensors)
 EXPORT_SYMBOL_GPL(intel_soc_dts_iosf_interrupt_handler);
 
 struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
-	enum intel_soc_dts_interrupt_type intr_type, int trip_count,
-	int read_only_trip_count)
+	enum intel_soc_dts_interrupt_type intr_type, int read_only_trip_count)
 {
 	struct intel_soc_dts_sensors *sensors;
 	bool notification;
@@ -384,7 +375,7 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 	if (!iosf_mbi_available())
 		return ERR_PTR(-ENODEV);
 
-	if (!trip_count || read_only_trip_count > trip_count)
+	if (read_only_trip_count > SOC_MAX_DTS_TRIPS)
 		return ERR_PTR(-EINVAL);
 
 	tj_max = intel_tcc_get_tjmax(-1);
@@ -406,8 +397,7 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
 		sensors->soc_dts[i].sensors = sensors;
 		ret = add_dts_thermal_zone(i, &sensors->soc_dts[i],
-					   notification, trip_count,
-					   read_only_trip_count);
+					   notification, read_only_trip_count);
 		if (ret)
 			goto err_free;
 	}

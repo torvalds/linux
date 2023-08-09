@@ -51,7 +51,7 @@ static int __init intel_soc_thermal_init(void)
 		return -ENODEV;
 
 	/* Create a zone with 2 trips with marked as read only */
-	soc_dts = intel_soc_dts_iosf_init(INTEL_SOC_DTS_INTERRUPT_APIC, 2, 1);
+	soc_dts = intel_soc_dts_iosf_init(INTEL_SOC_DTS_INTERRUPT_APIC, 1);
 	if (IS_ERR(soc_dts)) {
 		err = PTR_ERR(soc_dts);
 		return err;
