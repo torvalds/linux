@@ -187,7 +187,7 @@ static const struct of_device_id pca995x_of_match[] = {
 	{ .compatible = "nxp,pca9955b", .data = (void *)PCA995X_TYPE_B },
 	{},
 };
-MODULE_DEVICE_TABLE(i2c, pca995x_of_match);
+MODULE_DEVICE_TABLE(of, pca995x_of_match);
 
 static struct i2c_driver pca995x_driver = {
 	.driver = {
