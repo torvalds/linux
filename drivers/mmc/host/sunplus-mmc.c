@@ -863,11 +863,9 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	struct spmmc_host *host;
 	int ret = 0;
 
-	mmc = mmc_alloc_host(sizeof(*host), &pdev->dev);
-	if (!mmc) {
-		ret = -ENOMEM;
-		goto probe_free_host;
-	}
+	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(struct spmmc_host));
+	if (!mmc)
+		return -ENOMEM;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
@@ -938,11 +936,6 @@ pm_disable:
 
 clk_disable:
 	clk_disable_unprepare(host->clk);
-
-probe_free_host:
-	if (mmc)
-		mmc_free_host(mmc);
-
 	return ret;
 }
 
@@ -956,7 +949,6 @@ static int spmmc_drv_remove(struct platform_device *dev)
 	pm_runtime_put_noidle(&dev->dev);
 	pm_runtime_disable(&dev->dev);
 	platform_set_drvdata(dev, NULL);
-	mmc_free_host(host->mmc);
 
 	return 0;
 }
