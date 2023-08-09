@@ -909,12 +909,9 @@ void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work)
 	clear_bit(IO_ACCT_STALLED_BIT, &acct->flags);
 	raw_spin_unlock(&acct->lock);
 
-	raw_spin_lock(&wq->lock);
 	rcu_read_lock();
 	do_create = !io_wq_activate_free_worker(wq, acct);
 	rcu_read_unlock();
-
-	raw_spin_unlock(&wq->lock);
 
 	if (do_create && ((work_flags & IO_WQ_WORK_CONCURRENT) ||
 	    !atomic_read(&acct->nr_running))) {
