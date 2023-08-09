@@ -47,7 +47,7 @@
 		simple-audio-card,format = "i2s";
 
 		simple-audio-card,cpu {
-			sound-dai = <&sai5 0>;
+			sound-dai = <&sai5>;
 			system-clock-direction-out;
 		};
 
