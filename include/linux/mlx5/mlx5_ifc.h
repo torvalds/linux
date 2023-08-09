@@ -10196,7 +10196,9 @@ struct mlx5_ifc_mcam_access_reg_bits {
 	u8         mrtc[0x1];
 	u8         regs_44_to_32[0xd];
 
-	u8         regs_31_to_0[0x20];
+	u8         regs_31_to_10[0x16];
+	u8         mtmp[0x1];
+	u8         regs_8_to_0[0x9];
 };
 
 struct mlx5_ifc_mcam_access_reg_bits1 {
@@ -10949,6 +10951,15 @@ struct mlx5_ifc_mrtc_reg_bits {
 	u8         time_l[0x20];
 };
 
+struct mlx5_ifc_mtcap_reg_bits {
+	u8         reserved_at_0[0x19];
+	u8         sensor_count[0x7];
+
+	u8         reserved_at_20[0x20];
+
+	u8         sensor_map[0x40];
+};
+
 struct mlx5_ifc_mtmp_reg_bits {
 	u8         reserved_at_0[0x14];
 	u8         sensor_index[0xc];
@@ -11036,6 +11047,7 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_mfrl_reg_bits mfrl_reg;
 	struct mlx5_ifc_mtutc_reg_bits mtutc_reg;
 	struct mlx5_ifc_mrtc_reg_bits mrtc_reg;
+	struct mlx5_ifc_mtcap_reg_bits mtcap_reg;
 	struct mlx5_ifc_mtmp_reg_bits mtmp_reg;
 	u8         reserved_at_0[0x60e0];
 };

@@ -49,7 +49,6 @@
 #include <linux/version.h>
 #include <net/devlink.h>
 #include "mlx5_core.h"
-#include "thermal.h"
 #include "lib/eq.h"
 #include "fs_core.h"
 #include "lib/mpfs.h"
@@ -73,6 +72,7 @@
 #include "sf/dev/dev.h"
 #include "sf/sf.h"
 #include "mlx5_irq.h"
+#include "hwmon.h"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox 5th generation network adapters (ConnectX series) core driver");
@@ -1930,9 +1930,9 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		dev_err(&pdev->dev, "mlx5_crdump_enable failed with error code %d\n", err);
 
-	err = mlx5_thermal_init(dev);
+	err = mlx5_hwmon_dev_register(dev);
 	if (err)
-		dev_err(&pdev->dev, "mlx5_thermal_init failed with error code %d\n", err);
+		mlx5_core_err(dev, "mlx5_hwmon_dev_register failed with error code %d\n", err);
 
 	pci_save_state(pdev);
 	devlink_register(devlink);
@@ -1964,7 +1964,7 @@ static void remove_one(struct pci_dev *pdev)
 	mlx5_drain_health_wq(dev);
 	devlink_unregister(devlink);
 	mlx5_sriov_disable(pdev, false);
-	mlx5_thermal_uninit(dev);
+	mlx5_hwmon_dev_unregister(dev);
 	mlx5_crdump_disable(dev);
 	mlx5_uninit_one(dev);
 	mlx5_pci_close(dev);
