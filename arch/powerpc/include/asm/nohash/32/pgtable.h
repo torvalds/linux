@@ -355,7 +355,7 @@ static inline int pte_young(pte_t pte)
 #define pmd_pfn(pmd)		(pmd_val(pmd) >> PAGE_SHIFT)
 #else
 #define pmd_page_vaddr(pmd)	\
-	((unsigned long)(pmd_val(pmd) & ~(PTE_TABLE_SIZE - 1)))
+	((const void *)(pmd_val(pmd) & ~(PTE_TABLE_SIZE - 1)))
 #define pmd_pfn(pmd)		(__pa(pmd_val(pmd)) >> PAGE_SHIFT)
 #endif
 
