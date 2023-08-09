@@ -1639,6 +1639,7 @@ union bpf_attr {
 				__aligned_u64	path;
 				__aligned_u64	offsets;
 				__aligned_u64	ref_ctr_offsets;
+				__aligned_u64	cookies;
 				__u32		cnt;
 				__u32		flags;
 			} uprobe_multi;
