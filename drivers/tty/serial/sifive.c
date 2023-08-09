@@ -1031,7 +1031,7 @@ static struct platform_driver sifive_serial_platform_driver = {
 	.remove		= sifive_serial_remove,
 	.driver		= {
 		.name	= SIFIVE_SERIAL_NAME,
-		.of_match_table = of_match_ptr(sifive_serial_of_match),
+		.of_match_table = sifive_serial_of_match,
 	},
 };
 
