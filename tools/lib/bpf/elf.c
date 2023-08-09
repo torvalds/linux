@@ -60,6 +60,104 @@ static Elf_Scn *elf_find_next_scn_by_type(Elf *elf, int sh_type, Elf_Scn *scn)
 	return NULL;
 }
 
+struct elf_sym {
+	const char *name;
+	GElf_Sym sym;
+	GElf_Shdr sh;
+};
+
+struct elf_sym_iter {
+	Elf *elf;
+	Elf_Data *syms;
+	size_t nr_syms;
+	size_t strtabidx;
+	size_t next_sym_idx;
+	struct elf_sym sym;
+	int st_type;
+};
+
+static int elf_sym_iter_new(struct elf_sym_iter *iter,
+			    Elf *elf, const char *binary_path,
+			    int sh_type, int st_type)
+{
+	Elf_Scn *scn = NULL;
+	GElf_Ehdr ehdr;
+	GElf_Shdr sh;
+
+	memset(iter, 0, sizeof(*iter));
+
+	if (!gelf_getehdr(elf, &ehdr)) {
+		pr_warn("elf: failed to get ehdr from %s: %s\n", binary_path, elf_errmsg(-1));
+		return -EINVAL;
+	}
+
+	scn = elf_find_next_scn_by_type(elf, sh_type, NULL);
+	if (!scn) {
+		pr_debug("elf: failed to find symbol table ELF sections in '%s'\n",
+			 binary_path);
+		return -ENOENT;
+	}
+
+	if (!gelf_getshdr(scn, &sh))
+		return -EINVAL;
+
+	iter->strtabidx = sh.sh_link;
+	iter->syms = elf_getdata(scn, 0);
+	if (!iter->syms) {
+		pr_warn("elf: failed to get symbols for symtab section in '%s': %s\n",
+			binary_path, elf_errmsg(-1));
+		return -EINVAL;
+	}
+	iter->nr_syms = iter->syms->d_size / sh.sh_entsize;
+	iter->elf = elf;
+	iter->st_type = st_type;
+	return 0;
+}
+
+static struct elf_sym *elf_sym_iter_next(struct elf_sym_iter *iter)
+{
+	struct elf_sym *ret = &iter->sym;
+	GElf_Sym *sym = &ret->sym;
+	const char *name = NULL;
+	Elf_Scn *sym_scn;
+	size_t idx;
+
+	for (idx = iter->next_sym_idx; idx < iter->nr_syms; idx++) {
+		if (!gelf_getsym(iter->syms, idx, sym))
+			continue;
+		if (GELF_ST_TYPE(sym->st_info) != iter->st_type)
+			continue;
+		name = elf_strptr(iter->elf, iter->strtabidx, sym->st_name);
+		if (!name)
+			continue;
+		sym_scn = elf_getscn(iter->elf, sym->st_shndx);
+		if (!sym_scn)
+			continue;
+		if (!gelf_getshdr(sym_scn, &ret->sh))
+			continue;
+
+		iter->next_sym_idx = idx + 1;
+		ret->name = name;
+		return ret;
+	}
+
+	return NULL;
+}
+
+
+/* Transform symbol's virtual address (absolute for binaries and relative
+ * for shared libs) into file offset, which is what kernel is expecting
+ * for uprobe/uretprobe attachment.
+ * See Documentation/trace/uprobetracer.rst for more details. This is done
+ * by looking up symbol's containing section's header and using iter's virtual
+ * address (sh_addr) and corresponding file offset (sh_offset) to transform
+ * sym.st_value (virtual address) into desired final file offset.
+ */
+static unsigned long elf_sym_offset(struct elf_sym *sym)
+{
+	return sym->sym.st_value - sym->sh.sh_addr + sym->sh.sh_offset;
+}
+
 /* Find offset of function name in the provided ELF object. "binary_path" is
  * the path to the ELF binary represented by "elf", and only used for error
  * reporting matters. "name" matches symbol name or name@@LIB for library
@@ -91,67 +189,38 @@ long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 	 * reported as a warning/error.
 	 */
 	for (i = 0; i < ARRAY_SIZE(sh_types); i++) {
-		size_t nr_syms, strtabidx, idx;
-		Elf_Data *symbols = NULL;
-		Elf_Scn *scn = NULL;
+		struct elf_sym_iter iter;
+		struct elf_sym *sym;
 		int last_bind = -1;
-		const char *sname;
-		GElf_Shdr sh;
+		int cur_bind;
 
-		scn = elf_find_next_scn_by_type(elf, sh_types[i], NULL);
-		if (!scn) {
-			pr_debug("elf: failed to find symbol table ELF sections in '%s'\n",
-				 binary_path);
+		ret = elf_sym_iter_new(&iter, elf, binary_path, sh_types[i], STT_FUNC);
+		if (ret == -ENOENT)
 			continue;
-		}
-		if (!gelf_getshdr(scn, &sh))
-			continue;
-		strtabidx = sh.sh_link;
-		symbols = elf_getdata(scn, 0);
-		if (!symbols) {
-			pr_warn("elf: failed to get symbols for symtab section in '%s': %s\n",
-				binary_path, elf_errmsg(-1));
-			ret = -LIBBPF_ERRNO__FORMAT;
+		if (ret)
 			goto out;
-		}
-		nr_syms = symbols->d_size / sh.sh_entsize;
 
-		for (idx = 0; idx < nr_syms; idx++) {
-			int curr_bind;
-			GElf_Sym sym;
-			Elf_Scn *sym_scn;
-			GElf_Shdr sym_sh;
-
-			if (!gelf_getsym(symbols, idx, &sym))
-				continue;
-
-			if (GELF_ST_TYPE(sym.st_info) != STT_FUNC)
-				continue;
-
-			sname = elf_strptr(elf, strtabidx, sym.st_name);
-			if (!sname)
-				continue;
-
-			curr_bind = GELF_ST_BIND(sym.st_info);
-
+		while ((sym = elf_sym_iter_next(&iter))) {
 			/* User can specify func, func@@LIB or func@@LIB_VERSION. */
-			if (strncmp(sname, name, name_len) != 0)
+			if (strncmp(sym->name, name, name_len) != 0)
 				continue;
 			/* ...but we don't want a search for "foo" to match 'foo2" also, so any
 			 * additional characters in sname should be of the form "@@LIB".
 			 */
-			if (!is_name_qualified && sname[name_len] != '\0' && sname[name_len] != '@')
+			if (!is_name_qualified && sym->name[name_len] != '\0' && sym->name[name_len] != '@')
 				continue;
 
-			if (ret >= 0) {
+			cur_bind = GELF_ST_BIND(sym->sym.st_info);
+
+			if (ret > 0) {
 				/* handle multiple matches */
-				if (last_bind != STB_WEAK && curr_bind != STB_WEAK) {
+				if (last_bind != STB_WEAK && cur_bind != STB_WEAK) {
 					/* Only accept one non-weak bind. */
 					pr_warn("elf: ambiguous match for '%s', '%s' in '%s'\n",
-						sname, name, binary_path);
+						sym->name, name, binary_path);
 					ret = -LIBBPF_ERRNO__FORMAT;
 					goto out;
-				} else if (curr_bind == STB_WEAK) {
+				} else if (cur_bind == STB_WEAK) {
 					/* already have a non-weak bind, and
 					 * this is a weak bind, so ignore.
 					 */
@@ -159,26 +228,8 @@ long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 				}
 			}
 
-			/* Transform symbol's virtual address (absolute for
-			 * binaries and relative for shared libs) into file
-			 * offset, which is what kernel is expecting for
-			 * uprobe/uretprobe attachment.
-			 * See Documentation/trace/uprobetracer.rst for more
-			 * details.
-			 * This is done by looking up symbol's containing
-			 * section's header and using it's virtual address
-			 * (sh_addr) and corresponding file offset (sh_offset)
-			 * to transform sym.st_value (virtual address) into
-			 * desired final file offset.
-			 */
-			sym_scn = elf_getscn(elf, sym.st_shndx);
-			if (!sym_scn)
-				continue;
-			if (!gelf_getshdr(sym_scn, &sym_sh))
-				continue;
-
-			ret = sym.st_value - sym_sh.sh_addr + sym_sh.sh_offset;
-			last_bind = curr_bind;
+			ret = elf_sym_offset(sym);
+			last_bind = cur_bind;
 		}
 		if (ret > 0)
 			break;
