@@ -407,22 +407,19 @@ xfs_blkdev_get(
 }
 
 STATIC void
-xfs_close_devices(
+xfs_shutdown_devices(
 	struct xfs_mount	*mp)
 {
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp) {
-		struct block_device *logdev = mp->m_logdev_targp->bt_bdev;
-
-		xfs_free_buftarg(mp->m_logdev_targp);
-		blkdev_put(logdev, mp);
+		blkdev_issue_flush(mp->m_logdev_targp->bt_bdev);
+		invalidate_bdev(mp->m_logdev_targp->bt_bdev);
 	}
 	if (mp->m_rtdev_targp) {
-		struct block_device *rtdev = mp->m_rtdev_targp->bt_bdev;
-
-		xfs_free_buftarg(mp->m_rtdev_targp);
-		blkdev_put(rtdev, mp);
+		blkdev_issue_flush(mp->m_rtdev_targp->bt_bdev);
+		invalidate_bdev(mp->m_rtdev_targp->bt_bdev);
 	}
-	xfs_free_buftarg(mp->m_ddev_targp);
+	blkdev_issue_flush(mp->m_ddev_targp->bt_bdev);
+	invalidate_bdev(mp->m_ddev_targp->bt_bdev);
 }
 
 /*
@@ -750,6 +747,17 @@ static void
 xfs_mount_free(
 	struct xfs_mount	*mp)
 {
+	/*
+	 * Free the buftargs here because blkdev_put needs to be called outside
+	 * of sb->s_umount, which is held around the call to ->put_super.
+	 */
+	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
+		xfs_free_buftarg(mp->m_logdev_targp);
+	if (mp->m_rtdev_targp)
+		xfs_free_buftarg(mp->m_rtdev_targp);
+	if (mp->m_ddev_targp)
+		xfs_free_buftarg(mp->m_ddev_targp);
+
 	kfree(mp->m_rtname);
 	kfree(mp->m_logname);
 	kmem_free(mp);
@@ -1135,7 +1143,7 @@ xfs_fs_put_super(
 	xfs_inodegc_free_percpu(mp);
 	xfs_destroy_percpu_counters(mp);
 	xfs_destroy_mount_workqueues(mp);
-	xfs_close_devices(mp);
+	xfs_shutdown_devices(mp);
 }
 
 static long
@@ -1508,7 +1516,7 @@ xfs_fs_fill_super(
 
 	error = xfs_init_mount_workqueues(mp);
 	if (error)
-		goto out_close_devices;
+		goto out_shutdown_devices;
 
 	error = xfs_init_percpu_counters(mp);
 	if (error)
@@ -1722,8 +1730,8 @@ xfs_fs_fill_super(
 	xfs_destroy_percpu_counters(mp);
  out_destroy_workqueues:
 	xfs_destroy_mount_workqueues(mp);
- out_close_devices:
-	xfs_close_devices(mp);
+ out_shutdown_devices:
+	xfs_shutdown_devices(mp);
 	return error;
 
  out_unmount:

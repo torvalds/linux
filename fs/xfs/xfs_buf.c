@@ -1945,8 +1945,6 @@ xfs_free_buftarg(
 	percpu_counter_destroy(&btp->bt_io_count);
 	list_lru_destroy(&btp->bt_lru);
 
-	blkdev_issue_flush(btp->bt_bdev);
-	invalidate_bdev(btp->bt_bdev);
 	fs_put_dax(btp->bt_daxdev, btp->bt_mount);
 	/* the main block device is closed by kill_block_super */
 	if (bdev != btp->bt_mount->m_super->s_bdev)
