@@ -17170,6 +17170,13 @@ F:	drivers/ptp/*
 F:	include/linux/ptp_cl*
 K:	(?:\b|_)ptp(?:\b|_)
 
+PTP MOCKUP CLOCK SUPPORT
+M:	Vladimir Oltean <vladimir.oltean@nxp.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/ptp/ptp_mock.c
+F:	include/linux/ptp_mock.h
+
 PTP VIRTUAL CLOCK SUPPORT
 M:	Yangbo Lu <yangbo.lu@nxp.com>
 L:	netdev@vger.kernel.org

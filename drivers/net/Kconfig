@@ -592,6 +592,7 @@ config NETDEVSIM
 	depends on INET
 	depends on IPV6 || IPV6=n
 	depends on PSAMPLE || PSAMPLE=n
+	depends on PTP_1588_CLOCK_MOCK || PTP_1588_CLOCK_MOCK=n
 	select NET_DEVLINK
 	help
 	  This driver is a developer testing tool and software model that can
