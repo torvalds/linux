@@ -135,7 +135,7 @@ Health reporters
 
 tx reporter
 -----------
-The tx reporter is responsible for reporting and recovering of the following two error scenarios:
+The tx reporter is responsible for reporting and recovering of the following three error scenarios:
 
 - tx timeout
     Report on kernel tx timeout detection.
@@ -143,6 +143,9 @@ The tx reporter is responsible for reporting and recovering of the following two
 - tx error completion
     Report on error tx completion.
     Recover by flushing the tx queue and reset it.
+- tx PTP port timestamping CQ unhealthy
+    Report too many CQEs never delivered on port ts CQ.
+    Recover by flushing and re-creating all PTP channels.
 
 tx reporter also support on demand diagnose callback, on which it provides
 real time information of its send queues status.

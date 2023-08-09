@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Mellanox Technologies
 
 #include "en/ptp.h"
+#include "en/health.h"
 #include "en/txrx.h"
 #include "en/params.h"
 #include "en/fs_tt_redirect.h"
@@ -140,6 +141,12 @@ mlx5e_ptp_metadata_map_remove(struct mlx5e_ptp_metadata_map *map, u16 metadata)
 	return skb;
 }
 
+static bool mlx5e_ptp_metadata_map_unhealthy(struct mlx5e_ptp_metadata_map *map)
+{
+	/* Considered beginning unhealthy state if size * 15 / 2^4 cannot be reclaimed. */
+	return map->undelivered_counter > (map->capacity >> 4) * 15;
+}
+
 static void mlx5e_ptpsq_mark_ts_cqes_undelivered(struct mlx5e_ptpsq *ptpsq,
 						 ktime_t port_tstamp)
 {
@@ -205,6 +212,9 @@ static void mlx5e_ptp_handle_ts_cqe(struct mlx5e_ptpsq *ptpsq,
 out:
 	napi_consume_skb(skb, budget);
 	mlx5e_ptp_metadata_fifo_push(&ptpsq->metadata_freelist, metadata_id);
+	if (unlikely(mlx5e_ptp_metadata_map_unhealthy(&ptpsq->metadata_map)) &&
+	    !test_and_set_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state))
+		queue_work(ptpsq->txqsq.priv->wq, &ptpsq->report_unhealthy_work);
 }
 
 static bool mlx5e_ptp_poll_ts_cq(struct mlx5e_cq *cq, int budget)
@@ -422,6 +432,14 @@ static void mlx5e_ptp_free_traffic_db(struct mlx5e_ptpsq *ptpsq)
 	kvfree(ptpsq->ts_cqe_pending_list);
 }
 
+static void mlx5e_ptpsq_unhealthy_work(struct work_struct *work)
+{
+	struct mlx5e_ptpsq *ptpsq =
+		container_of(work, struct mlx5e_ptpsq, report_unhealthy_work);
+
+	mlx5e_reporter_tx_ptpsq_unhealthy(ptpsq);
+}
+
 static int mlx5e_ptp_open_txqsq(struct mlx5e_ptp *c, u32 tisn,
 				int txq_ix, struct mlx5e_ptp_params *cparams,
 				int tc, struct mlx5e_ptpsq *ptpsq)
@@ -451,6 +469,8 @@ static int mlx5e_ptp_open_txqsq(struct mlx5e_ptp *c, u32 tisn,
 	if (err)
 		goto err_free_txqsq;
 
+	INIT_WORK(&ptpsq->report_unhealthy_work, mlx5e_ptpsq_unhealthy_work);
+
 	return 0;
 
 err_free_txqsq:
@@ -464,6 +484,8 @@ static void mlx5e_ptp_close_txqsq(struct mlx5e_ptpsq *ptpsq)
 	struct mlx5e_txqsq *sq = &ptpsq->txqsq;
 	struct mlx5_core_dev *mdev = sq->mdev;
 
+	if (current_work() != &ptpsq->report_unhealthy_work)
+		cancel_work_sync(&ptpsq->report_unhealthy_work);
 	mlx5e_ptp_free_traffic_db(ptpsq);
 	cancel_work_sync(&sq->recover_work);
 	mlx5e_ptp_destroy_sq(mdev, sq->sqn);

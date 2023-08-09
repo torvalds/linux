@@ -10,6 +10,7 @@
 #include <linux/ktime.h>
 #include <linux/ptp_classify.h>
 #include <linux/time64.h>
+#include <linux/workqueue.h>
 
 #define MLX5E_PTP_CHANNEL_IX 0
 #define MLX5E_PTP_MAX_LOG_SQ_SIZE (8U)
@@ -34,6 +35,7 @@ struct mlx5e_ptpsq {
 	struct mlx5e_ptp_cq_stats *cq_stats;
 	u16                      ts_cqe_ctr_mask;
 
+	struct work_struct                 report_unhealthy_work;
 	struct mlx5e_ptp_port_ts_cqe_list  *ts_cqe_pending_list;
 	struct mlx5e_ptp_metadata_fifo     metadata_freelist;
 	struct mlx5e_ptp_metadata_map      metadata_map;
