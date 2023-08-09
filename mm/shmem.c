@@ -3598,15 +3598,17 @@ static int shmem_xattr_handler_set(const struct xattr_handler *handler,
 				   size_t size, int flags)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
-	int err;
+	struct simple_xattr *old_xattr;
 
 	name = xattr_full_name(handler, name);
-	err = simple_xattr_set(&info->xattrs, name, value, size, flags, NULL);
-	if (!err) {
+	old_xattr = simple_xattr_set(&info->xattrs, name, value, size, flags);
+	if (!IS_ERR(old_xattr)) {
+		simple_xattr_free(old_xattr);
+		old_xattr = NULL;
 		inode->i_ctime = current_time(inode);
 		inode_inc_iversion(inode);
 	}
-	return err;
+	return PTR_ERR(old_xattr);
 }
 
 static const struct xattr_handler shmem_security_xattr_handler = {

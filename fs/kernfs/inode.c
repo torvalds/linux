@@ -306,11 +306,17 @@ int kernfs_xattr_get(struct kernfs_node *kn, const char *name,
 int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
 		     const void *value, size_t size, int flags)
 {
+	struct simple_xattr *old_xattr;
 	struct kernfs_iattrs *attrs = kernfs_iattrs(kn);
 	if (!attrs)
 		return -ENOMEM;
 
-	return simple_xattr_set(&attrs->xattrs, name, value, size, flags, NULL);
+	old_xattr = simple_xattr_set(&attrs->xattrs, name, value, size, flags);
+	if (IS_ERR(old_xattr))
+		return PTR_ERR(old_xattr);
+
+	simple_xattr_free(old_xattr);
+	return 0;
 }
 
 static int kernfs_vfs_xattr_get(const struct xattr_handler *handler,
@@ -342,7 +348,7 @@ static int kernfs_vfs_user_xattr_add(struct kernfs_node *kn,
 {
 	atomic_t *sz = &kn->iattr->user_xattr_size;
 	atomic_t *nr = &kn->iattr->nr_user_xattrs;
-	ssize_t removed_size;
+	struct simple_xattr *old_xattr;
 	int ret;
 
 	if (atomic_inc_return(nr) > KERNFS_MAX_USER_XATTRS) {
@@ -355,13 +361,18 @@ static int kernfs_vfs_user_xattr_add(struct kernfs_node *kn,
 		goto dec_size_out;
 	}
 
-	ret = simple_xattr_set(xattrs, full_name, value, size, flags,
-			       &removed_size);
-
-	if (!ret && removed_size >= 0)
-		size = removed_size;
-	else if (!ret)
+	old_xattr = simple_xattr_set(xattrs, full_name, value, size, flags);
+	if (!old_xattr)
 		return 0;
+
+	if (IS_ERR(old_xattr)) {
+		ret = PTR_ERR(old_xattr);
+		goto dec_size_out;
+	}
+
+	ret = 0;
+	size = old_xattr->size;
+	simple_xattr_free(old_xattr);
 dec_size_out:
 	atomic_sub(size, sz);
 dec_count_out:
@@ -376,18 +387,19 @@ static int kernfs_vfs_user_xattr_rm(struct kernfs_node *kn,
 {
 	atomic_t *sz = &kn->iattr->user_xattr_size;
 	atomic_t *nr = &kn->iattr->nr_user_xattrs;
-	ssize_t removed_size;
-	int ret;
+	struct simple_xattr *old_xattr;
 
-	ret = simple_xattr_set(xattrs, full_name, value, size, flags,
-			       &removed_size);
+	old_xattr = simple_xattr_set(xattrs, full_name, value, size, flags);
+	if (!old_xattr)
+		return 0;
 
-	if (removed_size >= 0) {
-		atomic_sub(removed_size, sz);
-		atomic_dec(nr);
-	}
+	if (IS_ERR(old_xattr))
+		return PTR_ERR(old_xattr);
 
-	return ret;
+	atomic_sub(old_xattr->size, sz);
+	atomic_dec(nr);
+	simple_xattr_free(old_xattr);
+	return 0;
 }
 
 static int kernfs_vfs_user_xattr_set(const struct xattr_handler *handler,
