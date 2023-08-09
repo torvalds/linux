@@ -40,9 +40,6 @@
 /* Mask for two trips in status bits */
 #define SOC_DTS_TRIP_MASK		0x03
 
-/* DTS0 and DTS 1 */
-#define SOC_MAX_DTS_SENSORS		2
-
 static int sys_get_trip_temp(struct thermal_zone_device *tzd, int trip,
 			     int *temp)
 {
