@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * PDM Microphone Interface for the NXP i.MX SoC
  * Copyright 2018 NXP

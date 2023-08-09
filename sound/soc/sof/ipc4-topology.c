@@ -1731,6 +1731,12 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 
 	*ipc_config_size = ipc_size;
 
+	/* update pipeline memory usage */
+	sof_ipc4_update_resource_usage(sdev, swidget, &copier_data->base_config);
+
+	/* update pipeline memory usage */
+	sof_ipc4_update_resource_usage(sdev, swidget, &copier_data->base_config);
+
 	/* copy IPC data */
 	memcpy(*ipc_config_data, (void *)copier_data, sizeof(*copier_data));
 	if (gtw_cfg_config_length)
@@ -1742,9 +1748,6 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		memcpy(*ipc_config_data + sizeof(*copier_data) +
 		       gtw_cfg_config_length,
 		       &ipc4_copier->dma_config_tlv, dma_config_tlv_size);
-
-	/* update pipeline memory usage */
-	sof_ipc4_update_resource_usage(sdev, swidget, &copier_data->base_config);
 
 	/*
 	 * Restore gateway config length now that IPC payload is prepared. This avoids
