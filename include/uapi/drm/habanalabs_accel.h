@@ -991,6 +991,7 @@ struct hl_info_reset_count {
 struct hl_info_time_sync {
 	__u64 device_time;
 	__u64 host_time;
+	__u64 tsc_time;
 };
 
 /**

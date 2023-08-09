@@ -17,6 +17,8 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
+#include <asm/msr.h>
+
 static u32 hl_debug_struct_size[HL_DEBUG_OP_TIMESTAMP + 1] = {
 	[HL_DEBUG_OP_ETR] = sizeof(struct hl_debug_params_etr),
 	[HL_DEBUG_OP_ETF] = sizeof(struct hl_debug_params_etf),
@@ -320,6 +322,7 @@ static int time_sync_info(struct hl_device *hdev, struct hl_info_args *args)
 
 	time_sync.device_time = hdev->asic_funcs->get_device_time(hdev);
 	time_sync.host_time = ktime_get_raw_ns();
+	time_sync.tsc_time = rdtsc();
 
 	return copy_to_user(out, &time_sync,
 		min((size_t) max_size, sizeof(time_sync))) ? -EFAULT : 0;
