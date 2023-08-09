@@ -483,6 +483,8 @@ static int iommufd_vfio_iommu_get_info(struct iommufd_ctx *ictx,
 			rc = cap_size;
 			goto out_put;
 		}
+		cap_size = ALIGN(cap_size, sizeof(u64));
+
 		if (last_cap && info.argsz >= total_cap_size &&
 		    put_user(total_cap_size, &last_cap->next)) {
 			rc = -EFAULT;

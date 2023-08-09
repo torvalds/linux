@@ -1409,6 +1409,9 @@ struct vfio_info_cap_header *vfio_info_cap_add(struct vfio_info_cap *caps,
 	void *buf;
 	struct vfio_info_cap_header *header, *tmp;
 
+	/* Ensure that the next capability struct will be aligned */
+	size = ALIGN(size, sizeof(u64));
+
 	buf = krealloc(caps->buf, caps->size + size, GFP_KERNEL);
 	if (!buf) {
 		kfree(caps->buf);
@@ -1441,6 +1444,9 @@ void vfio_info_cap_shift(struct vfio_info_cap *caps, size_t offset)
 {
 	struct vfio_info_cap_header *tmp;
 	void *buf = (void *)caps->buf;
+
+	/* Capability structs should start with proper alignment */
+	WARN_ON(!IS_ALIGNED(offset, sizeof(u64)));
 
 	for (tmp = buf; tmp->next; tmp = buf + tmp->next - offset)
 		tmp->next += offset;
