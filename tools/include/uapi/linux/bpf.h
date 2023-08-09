@@ -1642,6 +1642,7 @@ union bpf_attr {
 				__aligned_u64	cookies;
 				__u32		cnt;
 				__u32		flags;
+				__u32		pid;
 			} uprobe_multi;
 		};
 	} link_create;
