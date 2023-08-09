@@ -354,7 +354,6 @@ static inline struct io_kiocb *io_extract_req(struct io_ring_ctx *ctx)
 	struct io_kiocb *req;
 
 	req = container_of(ctx->submit_state.free_list.next, struct io_kiocb, comp_list);
-	kasan_unpoison_object_data(req_cachep, req);
 	wq_stack_extract(&ctx->submit_state.free_list);
 	return req;
 }
