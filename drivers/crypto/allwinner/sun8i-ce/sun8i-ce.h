@@ -347,8 +347,6 @@ struct sun8i_ce_alg_template {
 	char fbname[CRYPTO_MAX_ALG_NAME];
 };
 
-int sun8i_ce_enqueue(struct crypto_async_request *areq, u32 type);
-
 int sun8i_ce_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			unsigned int keylen);
 int sun8i_ce_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
@@ -367,7 +365,6 @@ void sun8i_ce_hash_craexit(struct crypto_tfm *tfm);
 int sun8i_ce_hash_init(struct ahash_request *areq);
 int sun8i_ce_hash_export(struct ahash_request *areq, void *out);
 int sun8i_ce_hash_import(struct ahash_request *areq, const void *in);
-int sun8i_ce_hash(struct ahash_request *areq);
 int sun8i_ce_hash_final(struct ahash_request *areq);
 int sun8i_ce_hash_update(struct ahash_request *areq);
 int sun8i_ce_hash_finup(struct ahash_request *areq);

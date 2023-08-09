@@ -293,8 +293,6 @@ struct sun8i_ss_alg_template {
 	char fbname[CRYPTO_MAX_ALG_NAME];
 };
 
-int sun8i_ss_enqueue(struct crypto_async_request *areq, u32 type);
-
 int sun8i_ss_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			unsigned int keylen);
 int sun8i_ss_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
