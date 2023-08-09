@@ -601,23 +601,11 @@ static struct fsl_mc_driver vfio_fsl_mc_driver = {
 	.remove		= vfio_fsl_mc_remove,
 	.driver	= {
 		.name	= "vfio-fsl-mc",
-		.owner	= THIS_MODULE,
 	},
 	.driver_managed_dma = true,
 };
 
-static int __init vfio_fsl_mc_driver_init(void)
-{
-	return fsl_mc_driver_register(&vfio_fsl_mc_driver);
-}
-
-static void __exit vfio_fsl_mc_driver_exit(void)
-{
-	fsl_mc_driver_unregister(&vfio_fsl_mc_driver);
-}
-
-module_init(vfio_fsl_mc_driver_init);
-module_exit(vfio_fsl_mc_driver_exit);
+module_fsl_mc_driver(vfio_fsl_mc_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("VFIO for FSL-MC devices - User Level meta-driver");
