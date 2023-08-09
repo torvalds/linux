@@ -29,7 +29,7 @@ static SPINAND_OP_VARIANTS(update_cache_variants,
 		SPINAND_PROG_LOAD(false, 0, NULL, 0));
 
 static int f50lxx41x_ooblayout_ecc(struct mtd_info *mtd, int section,
-				  struct mtd_oob_region *region)
+				   struct mtd_oob_region *region)
 {
 	if (section > 3)
 		return -ERANGE;
@@ -41,7 +41,7 @@ static int f50lxx41x_ooblayout_ecc(struct mtd_info *mtd, int section,
 }
 
 static int f50lxx41x_ooblayout_free(struct mtd_info *mtd, int section,
-				   struct mtd_oob_region *region)
+				    struct mtd_oob_region *region)
 {
 	if (section > 3)
 		return -ERANGE;
@@ -57,6 +57,60 @@ static const struct mtd_ooblayout_ops f50lxx41x_ooblayout = {
 	.free = f50lxx41x_ooblayout_free,
 };
 
+static int f50l2g41ka_ooblayout_ecc(struct mtd_info *mtd, int section,
+				    struct mtd_oob_region *region)
+{
+	if (section)
+		return -ERANGE;
+
+	region->offset = mtd->oobsize / 2;
+	region->length = mtd->oobsize / 2;
+
+	return 0;
+}
+
+static int f50l2g41ka_ooblayout_free(struct mtd_info *mtd, int section,
+				     struct mtd_oob_region *region)
+{
+	if (section)
+		return -ERANGE;
+
+	region->offset = 2;
+	region->length = mtd->oobsize / 2 - 2;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops f50l2g41ka_ooblayout = {
+	.ecc = f50l2g41ka_ooblayout_ecc,
+	.free = f50l2g41ka_ooblayout_free,
+};
+
+/*
+ * ecc bits: 0xC0[4,6]
+ * [0b000], No bit errors were detected;
+ * [0b001] and [0b011], 1~6 Bit errors were detected and corrected. Not
+ *	reach Flipping Bits;
+ * [0b101], Bit error count equals the bit flip
+ *	detection threshold
+ * [0b010], Multiple bit errors were detected and
+ *	not corrected.
+ * others, Reserved.
+ */
+static int f50l2g41ka_ecc_ecc_get_status(struct spinand_device *spinand,
+					 u8 status)
+{
+	struct nand_device *nand = spinand_to_nand(spinand);
+	u8 eccsr = (status & GENMASK(6, 4)) >> 4;
+
+	if (eccsr <= 1 || eccsr == 3)
+		return eccsr;
+	else if (eccsr == 5)
+		return nanddev_get_ecc_requirements(nand)->strength;
+	else
+		return -EBADMSG;
+}
+
 static const struct spinand_info esmt_spinand_table[] = {
 	SPINAND_INFO("F50L1G41LB",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x01),
@@ -67,6 +121,15 @@ static const struct spinand_info esmt_spinand_table[] = {
 					      &update_cache_variants),
 		     0,
 		     SPINAND_ECCINFO(&f50lxx41x_ooblayout, NULL)),
+	SPINAND_INFO("F50L2G41KA",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x41, 0x7F),
+		     NAND_MEMORG(1, 2048, 128, 64, 2048, 40, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     0,
+		     SPINAND_ECCINFO(&f50l2g41ka_ooblayout, f50l2g41ka_ecc_ecc_get_status)),
 };
 
 static const struct spinand_manufacturer_ops esmt_spinand_manuf_ops = {
