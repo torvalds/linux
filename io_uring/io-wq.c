@@ -276,11 +276,14 @@ static bool io_wq_activate_free_worker(struct io_wq *wq,
 			io_worker_release(worker);
 			continue;
 		}
-		if (wake_up_process(worker->task)) {
-			io_worker_release(worker);
-			return true;
-		}
+		/*
+		 * If the worker is already running, it's either already
+		 * starting work or finishing work. In either case, if it does
+		 * to go sleep, we'll kick off a new task for this work anyway.
+		 */
+		wake_up_process(worker->task);
 		io_worker_release(worker);
+		return true;
 	}
 
 	return false;
