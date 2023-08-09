@@ -7250,9 +7250,7 @@ int ufshcd_advanced_rpmb_req_handler(struct ufs_hba *hba, struct utp_upiu_req *r
 	else
 		ufshcd_prepare_req_desc_hdr(lrbp, &upiu_flags, dir, 0);
 
-	/* update the task tag and LUN in the request upiu */
-	req_upiu->header.flags = upiu_flags;
-	req_upiu->header.lun = UFS_UPIU_RPMB_WLUN;
+	/* update the task tag */
 	req_upiu->header.task_tag = tag;
 
 	/* copy the UPIU(contains CDB) request as it is */
