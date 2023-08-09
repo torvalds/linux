@@ -16,10 +16,12 @@ description: >
 properties:
   compatible:
     oneOf:
-      - items:  # 48 kHz stereo
+      - description: Broadmobi BM818 (48Khz stereo)
+        items:
           - const: broadmobi,bm818
           - const: option,gtm601
-      - const: option,gtm601  # 8 kHz mono
+      - description: GTM601 (8kHz mono)
+        const: option,gtm601
 
   '#sound-dai-cells':
     const: 0
