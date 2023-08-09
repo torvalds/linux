@@ -197,8 +197,10 @@
 			reg = <0x0 0x2b800000 0x0 0x400000>,
 			      <0x0 0x2b000000 0x0 0x400000>,
 			      <0x0 0x28590000 0x0 0x100>,
-			      <0x0 0x2a500000 0x0 0x40000>;
-			reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target";
+			      <0x0 0x2a500000 0x0 0x40000>,
+			      <0x0 0x28440000 0x0 0x40000>;
+			reg-names = "rt", "fifos", "proxy_gcfg",
+				    "proxy_target", "cfg";
 			ti,num-rings = <286>;
 			ti,sci-rm-range-gp-rings = <0x1>; /* GP ring range */
 			ti,sci = <&dmsc>;
