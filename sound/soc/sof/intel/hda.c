@@ -420,6 +420,7 @@ static bool hda_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
 	if (!(interface_mask & BIT(SOF_DAI_INTEL_ALH)))
 		return false;
 
+	chip = get_chip_info(sdev->pdata);
 	if (chip && chip->check_sdw_wakeen_irq)
 		return chip->check_sdw_wakeen_irq(sdev);
 
