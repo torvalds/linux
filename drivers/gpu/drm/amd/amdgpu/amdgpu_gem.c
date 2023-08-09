@@ -289,6 +289,10 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	uint32_t handle, initial_domain;
 	int r;
 
+	/* reject DOORBELLs until userspace code to use it is available */
+	if (args->in.domains & AMDGPU_GEM_DOMAIN_DOORBELL)
+		return -EINVAL;
+
 	/* reject invalid gem flags */
 	if (flags & ~(AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 		      AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
