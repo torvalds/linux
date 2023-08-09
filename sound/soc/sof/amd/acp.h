@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license. When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright(c) 2021, 2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Author: Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
  */
@@ -32,6 +32,7 @@
 
 #define ACP_DSP_INTR_EN_MASK			0x00000001
 #define ACP3X_SRAM_PTE_OFFSET			0x02050000
+#define ACP5X_SRAM_PTE_OFFSET			0x02050000
 #define ACP6X_SRAM_PTE_OFFSET			0x03800000
 #define PAGE_SIZE_4K_ENABLE			0x2
 #define ACP_PAGE_SIZE				0x1000
@@ -56,9 +57,11 @@
 #define ACP_DSP_TO_HOST_IRQ			0x04
 
 #define ACP_RN_PCI_ID				0x01
+#define ACP_VANGOGH_PCI_ID			0x50
 #define ACP_RMB_PCI_ID				0x6F
 
 #define HOST_BRIDGE_CZN				0x1630
+#define HOST_BRIDGE_VGH				0x1645
 #define HOST_BRIDGE_RMB				0x14B5
 #define ACP_SHA_STAT				0x8000
 #define ACP_PSP_TIMEOUT_US			1000000
@@ -163,6 +166,7 @@ struct acp_dsp_stream {
 
 struct sof_amd_acp_desc {
 	unsigned int rev;
+	const char *name;
 	unsigned int host_bridge_id;
 	u32 pgfsm_base;
 	u32 ext_intr_stat;
@@ -253,6 +257,8 @@ extern struct snd_sof_dsp_ops sof_acp_common_ops;
 
 extern struct snd_sof_dsp_ops sof_renoir_ops;
 int sof_renoir_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_vangogh_ops;
+int sof_vangogh_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_rembrandt_ops;
 int sof_rembrandt_ops_init(struct snd_sof_dev *sdev);
 
@@ -282,4 +288,5 @@ static inline const struct sof_amd_acp_desc *get_chip_info(struct snd_sof_pdata 
 int acp_probes_register(struct snd_sof_dev *sdev);
 void acp_probes_unregister(struct snd_sof_dev *sdev);
 
+extern struct snd_soc_acpi_mach snd_soc_acpi_amd_vangogh_sof_machines[];
 #endif
