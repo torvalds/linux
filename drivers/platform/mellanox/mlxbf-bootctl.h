@@ -90,6 +90,11 @@
 
 #define MAX_ICM_BUFFER_SIZE 10
 
+/*
+ * SMC function ID to set the ARM boot state to up
+ */
+#define MLNX_HANDLE_OS_UP    0x82000014
+
 /* SMC function IDs for SiP Service queries */
 #define MLXBF_BOOTCTL_SIP_SVC_CALL_COUNT	0x8200ff00
 #define MLXBF_BOOTCTL_SIP_SVC_UID		0x8200ff01
