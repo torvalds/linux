@@ -1108,9 +1108,6 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 		slot_ctx->dev_info |= cpu_to_le32(SLOT_SPEED_LS);
 		max_packets = MAX_PACKET(8);
 		break;
-	case USB_SPEED_WIRELESS:
-		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
-		return -EINVAL;
 	default:
 		/* Speed was set earlier, this shouldn't happen. */
 		return -EINVAL;

@@ -286,8 +286,7 @@ static bool mt76u_check_sg(struct mt76_dev *dev)
 	struct usb_device *udev = interface_to_usbdev(uintf);
 
 	return (!disable_usb_sg && udev->bus->sg_tablesize > 0 &&
-		(udev->bus->no_sg_constraint ||
-		 udev->speed == USB_SPEED_WIRELESS));
+		udev->bus->no_sg_constraint);
 }
 
 static int

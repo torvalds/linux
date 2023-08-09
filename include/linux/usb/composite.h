@@ -450,29 +450,6 @@ static inline struct usb_composite_driver *to_cdriver(
  *
  * One of these devices is allocated and initialized before the
  * associated device driver's bind() is called.
- *
- * OPEN ISSUE:  it appears that some WUSB devices will need to be
- * built by combining a normal (wired) gadget with a wireless one.
- * This revision of the gadget framework should probably try to make
- * sure doing that won't hurt too much.
- *
- * One notion for how to handle Wireless USB devices involves:
- *
- * (a) a second gadget here, discovery mechanism TBD, but likely
- *     needing separate "register/unregister WUSB gadget" calls;
- * (b) updates to usb_gadget to include flags "is it wireless",
- *     "is it wired", plus (presumably in a wrapper structure)
- *     bandgroup and PHY info;
- * (c) presumably a wireless_ep wrapping a usb_ep, and reporting
- *     wireless-specific parameters like maxburst and maxsequence;
- * (d) configurations that are specific to wireless links;
- * (e) function drivers that understand wireless configs and will
- *     support wireless for (additional) function instances;
- * (f) a function to support association setup (like CBAF), not
- *     necessarily requiring a wireless adapter;
- * (g) composite device setup that can create one or more wireless
- *     configs, including appropriate association setup support;
- * (h) more, TBD.
  */
 struct usb_composite_dev {
 	struct usb_gadget		*gadget;
