@@ -2146,6 +2146,7 @@
 		ti,sci-proc-ids = <0x30 0xff>;
 		resets = <&k3_reset 15 1>;
 		firmware-name = "j7-c71_0-fw";
+		status = "disabled";
 	};
 
 	icssg0: icssg@b000000 {

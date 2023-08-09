@@ -1065,6 +1065,7 @@
 };
 
 &c71_0 {
+	status = "okay";
 	mboxes = <&mailbox0_cluster4>, <&mbox_c71_0>;
 	memory-region = <&c71_0_dma_memory_region>,
 			<&c71_0_memory_region>;
