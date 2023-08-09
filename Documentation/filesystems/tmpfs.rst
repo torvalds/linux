@@ -21,8 +21,8 @@ explained further below, some of which can be reconfigured dynamically on the
 fly using a remount ('mount -o remount ...') of the filesystem. A tmpfs
 filesystem can be resized but it cannot be resized to a size below its current
 usage. tmpfs also supports POSIX ACLs, and extended attributes for the
-trusted.* and security.* namespaces. ramfs does not use swap and you cannot
-modify any parameter for a ramfs filesystem. The size limit of a ramfs
+trusted.*, security.* and user.* namespaces. ramfs does not use swap and you
+cannot modify any parameter for a ramfs filesystem. The size limit of a ramfs
 filesystem is how much memory you have available, and so care must be taken if
 used so to not run out of memory.
 
@@ -96,6 +96,9 @@ if nr_inodes=0, inodes will not be limited.  It is generally unwise to
 mount with such options, since it allows any user with write access to
 use up all the memory on the machine; but enhances the scalability of
 that instance in a system with many CPUs making intensive use of it.
+
+If nr_inodes is not 0, that limited space for inodes is also used up by
+extended attributes: "df -i"'s IUsed and IUse% increase, IFree decreases.
 
 tmpfs blocks may be swapped out, when there is a shortage of memory.
 tmpfs has a mount option to disable its use of swap:

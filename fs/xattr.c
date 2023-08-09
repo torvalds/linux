@@ -1040,6 +1040,26 @@ const char *xattr_full_name(const struct xattr_handler *handler,
 EXPORT_SYMBOL(xattr_full_name);
 
 /**
+ * simple_xattr_space - estimate the memory used by a simple xattr
+ * @name: the full name of the xattr
+ * @size: the size of its value
+ *
+ * This takes no account of how much larger the two slab objects actually are:
+ * that would depend on the slab implementation, when what is required is a
+ * deterministic number, which grows with name length and size and quantity.
+ *
+ * Return: The approximate number of bytes of memory used by such an xattr.
+ */
+size_t simple_xattr_space(const char *name, size_t size)
+{
+	/*
+	 * Use "40" instead of sizeof(struct simple_xattr), to return the
+	 * same result on 32-bit and 64-bit, and even if simple_xattr grows.
+	 */
+	return 40 + size + strlen(name);
+}
+
+/**
  * simple_xattr_free - free an xattr object
  * @xattr: the xattr object
  *
@@ -1363,14 +1383,17 @@ void simple_xattrs_init(struct simple_xattrs *xattrs)
 /**
  * simple_xattrs_free - free xattrs
  * @xattrs: xattr header whose xattrs to destroy
+ * @freed_space: approximate number of bytes of memory freed from @xattrs
  *
  * Destroy all xattrs in @xattr. When this is called no one can hold a
  * reference to any of the xattrs anymore.
  */
-void simple_xattrs_free(struct simple_xattrs *xattrs)
+void simple_xattrs_free(struct simple_xattrs *xattrs, size_t *freed_space)
 {
 	struct rb_node *rbp;
 
+	if (freed_space)
+		*freed_space = 0;
 	rbp = rb_first(&xattrs->rb_root);
 	while (rbp) {
 		struct simple_xattr *xattr;
@@ -1379,6 +1402,9 @@ void simple_xattrs_free(struct simple_xattrs *xattrs)
 		rbp_next = rb_next(rbp);
 		xattr = rb_entry(rbp, struct simple_xattr, rb_node);
 		rb_erase(&xattr->rb_node, &xattrs->rb_root);
+		if (freed_space)
+			*freed_space += simple_xattr_space(xattr->name,
+							   xattr->size);
 		simple_xattr_free(xattr);
 		rbp = rbp_next;
 	}
