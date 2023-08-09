@@ -125,6 +125,7 @@ struct acpi_thermal {
 	unsigned long polling_frequency;
 	volatile u8 zombie;
 	struct acpi_thermal_trips trips;
+	struct thermal_trip *trip_table;
 	struct acpi_handle_list devices;
 	struct thermal_zone_device *thermal_zone;
 	int kelvin_offset;	/* in millidegrees */
@@ -176,6 +177,15 @@ static int acpi_thermal_get_polling_frequency(struct acpi_thermal *tz)
 			  tz->polling_frequency);
 
 	return 0;
+}
+
+static int acpi_thermal_temp(struct acpi_thermal *tz, int temp_deci_k)
+{
+	if (temp_deci_k == THERMAL_TEMP_INVALID)
+		return THERMAL_TEMP_INVALID;
+
+	return deci_kelvin_to_millicelsius_with_offset(temp_deci_k,
+						       tz->kelvin_offset);
 }
 
 static void __acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
@@ -389,10 +399,30 @@ static void __acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 	}
 }
 
+static int acpi_thermal_adjust_trip(struct thermal_trip *trip, void *data)
+{
+	struct acpi_thermal_trip *acpi_trip = trip->priv;
+	struct acpi_thermal *tz = data;
+
+	if (!acpi_trip)
+		return 0;
+
+	if (acpi_trip->valid)
+		trip->temperature = acpi_thermal_temp(tz, acpi_trip->temperature);
+	else
+		trip->temperature = THERMAL_TEMP_INVALID;
+
+	return 0;
+}
+
 static void acpi_thermal_adjust_thermal_zone(struct thermal_zone_device *thermal,
 					     unsigned long data)
 {
-	__acpi_thermal_trips_update(thermal_zone_device_priv(thermal), data);
+	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
+
+	__acpi_thermal_trips_update(tz, data);
+
+	for_each_thermal_trip(tz->thermal_zone, acpi_thermal_adjust_trip, tz);
 }
 
 static void acpi_queue_thermal_check(struct acpi_thermal *tz)
@@ -757,6 +787,8 @@ static void acpi_thermal_zone_sysfs_remove(struct acpi_thermal *tz)
 
 static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 {
+	struct acpi_thermal_trip *acpi_trip;
+	struct thermal_trip *trip;
 	int passive_delay = 0;
 	int trip_count = 0;
 	int result;
@@ -776,12 +808,56 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE && tz->trips.active[i].trip.valid; i++)
 		trip_count++;
 
-	tz->thermal_zone = thermal_zone_device_register("acpitz", trip_count, 0,
-							tz, &acpi_thermal_zone_ops,
-							NULL, passive_delay,
-							tz->polling_frequency * 100);
-	if (IS_ERR(tz->thermal_zone))
-		return -ENODEV;
+	trip = kcalloc(trip_count, sizeof(*trip), GFP_KERNEL);
+	if (!trip)
+		return -ENOMEM;
+
+	tz->trip_table = trip;
+
+	if (tz->trips.critical.valid) {
+		trip->type = THERMAL_TRIP_CRITICAL;
+		trip->temperature = acpi_thermal_temp(tz, tz->trips.critical.temperature);
+		trip++;
+	}
+
+	if (tz->trips.hot.valid) {
+		trip->type = THERMAL_TRIP_HOT;
+		trip->temperature = acpi_thermal_temp(tz, tz->trips.hot.temperature);
+		trip++;
+	}
+
+	acpi_trip = &tz->trips.passive.trip;
+	if (acpi_trip->valid) {
+		trip->type = THERMAL_TRIP_PASSIVE;
+		trip->temperature = acpi_thermal_temp(tz, acpi_trip->temperature);
+		trip->priv = acpi_trip;
+		trip++;
+	}
+
+	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
+		acpi_trip = &tz->trips.active[i].trip;
+
+		if (!acpi_trip->valid)
+			break;
+
+		trip->type = THERMAL_TRIP_ACTIVE;
+		trip->temperature = acpi_thermal_temp(tz, acpi_trip->temperature);
+		trip->priv = acpi_trip;
+		trip++;
+	}
+
+	tz->thermal_zone = thermal_zone_device_register_with_trips("acpitz",
+								   tz->trip_table,
+								   trip_count,
+								   0, tz,
+								   &acpi_thermal_zone_ops,
+								   NULL,
+								   passive_delay,
+								   tz->polling_frequency * 100);
+	if (IS_ERR(tz->thermal_zone)) {
+		result = PTR_ERR(tz->thermal_zone);
+		goto free_trip_table;
+	}
 
 	result = acpi_thermal_zone_sysfs_add(tz);
 	if (result)
@@ -800,6 +876,8 @@ remove_links:
 	acpi_thermal_zone_sysfs_remove(tz);
 unregister_tzd:
 	thermal_zone_device_unregister(tz->thermal_zone);
+free_trip_table:
+	kfree(tz->trip_table);
 
 	return result;
 }
@@ -808,6 +886,7 @@ static void acpi_thermal_unregister_thermal_zone(struct acpi_thermal *tz)
 {
 	acpi_thermal_zone_sysfs_remove(tz);
 	thermal_zone_device_unregister(tz->thermal_zone);
+	kfree(tz->trip_table);
 	tz->thermal_zone = NULL;
 }
 
