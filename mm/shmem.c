@@ -90,6 +90,9 @@ static struct vfsmount *shm_mnt;
 /* Pretend that each entry is of this size in directory's i_size */
 #define BOGO_DIRENT_SIZE 20
 
+/* Pretend that one inode + its dentry occupy this much memory */
+#define BOGO_INODE_SIZE 1024
+
 /* Symlink up to this size is kmalloc'ed instead of using a swappable page */
 #define SHORT_SYMLINK_LEN 128
 
@@ -137,7 +140,8 @@ static unsigned long shmem_default_max_inodes(void)
 {
 	unsigned long nr_pages = totalram_pages();
 
-	return min(nr_pages - totalhigh_pages(), nr_pages / 2);
+	return min3(nr_pages - totalhigh_pages(), nr_pages / 2,
+			ULONG_MAX / BOGO_INODE_SIZE);
 }
 #endif
 
@@ -331,11 +335,11 @@ static int shmem_reserve_inode(struct super_block *sb, ino_t *inop)
 	if (!(sb->s_flags & SB_KERNMOUNT)) {
 		raw_spin_lock(&sbinfo->stat_lock);
 		if (sbinfo->max_inodes) {
-			if (!sbinfo->free_inodes) {
+			if (sbinfo->free_ispace < BOGO_INODE_SIZE) {
 				raw_spin_unlock(&sbinfo->stat_lock);
 				return -ENOSPC;
 			}
-			sbinfo->free_inodes--;
+			sbinfo->free_ispace -= BOGO_INODE_SIZE;
 		}
 		if (inop) {
 			ino = sbinfo->next_ino++;
@@ -394,7 +398,7 @@ static void shmem_free_inode(struct super_block *sb)
 	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
 	if (sbinfo->max_inodes) {
 		raw_spin_lock(&sbinfo->stat_lock);
-		sbinfo->free_inodes++;
+		sbinfo->free_ispace += BOGO_INODE_SIZE;
 		raw_spin_unlock(&sbinfo->stat_lock);
 	}
 }
@@ -3158,7 +3162,7 @@ static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
 	}
 	if (sbinfo->max_inodes) {
 		buf->f_files = sbinfo->max_inodes;
-		buf->f_ffree = sbinfo->free_inodes;
+		buf->f_ffree = sbinfo->free_ispace / BOGO_INODE_SIZE;
 	}
 	/* else leave those fields 0 like simple_statfs */
 
@@ -3818,13 +3822,13 @@ static int shmem_parse_one(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	case Opt_nr_blocks:
 		ctx->blocks = memparse(param->string, &rest);
-		if (*rest || ctx->blocks > S64_MAX)
+		if (*rest || ctx->blocks > LONG_MAX)
 			goto bad_value;
 		ctx->seen |= SHMEM_SEEN_BLOCKS;
 		break;
 	case Opt_nr_inodes:
 		ctx->inodes = memparse(param->string, &rest);
-		if (*rest)
+		if (*rest || ctx->inodes > ULONG_MAX / BOGO_INODE_SIZE)
 			goto bad_value;
 		ctx->seen |= SHMEM_SEEN_INODES;
 		break;
@@ -4005,21 +4009,17 @@ static int shmem_parse_options(struct fs_context *fc, void *data)
 
 /*
  * Reconfigure a shmem filesystem.
- *
- * Note that we disallow change from limited->unlimited blocks/inodes while any
- * are in use; but we must separately disallow unlimited->limited, because in
- * that case we have no record of how much is already in use.
  */
 static int shmem_reconfigure(struct fs_context *fc)
 {
 	struct shmem_options *ctx = fc->fs_private;
 	struct shmem_sb_info *sbinfo = SHMEM_SB(fc->root->d_sb);
-	unsigned long inodes;
+	unsigned long used_isp;
 	struct mempolicy *mpol = NULL;
 	const char *err;
 
 	raw_spin_lock(&sbinfo->stat_lock);
-	inodes = sbinfo->max_inodes - sbinfo->free_inodes;
+	used_isp = sbinfo->max_inodes * BOGO_INODE_SIZE - sbinfo->free_ispace;
 
 	if ((ctx->seen & SHMEM_SEEN_BLOCKS) && ctx->blocks) {
 		if (!sbinfo->max_blocks) {
@@ -4037,7 +4037,7 @@ static int shmem_reconfigure(struct fs_context *fc)
 			err = "Cannot retroactively limit inodes";
 			goto out;
 		}
-		if (ctx->inodes < inodes) {
+		if (ctx->inodes * BOGO_INODE_SIZE < used_isp) {
 			err = "Too few inodes for current use";
 			goto out;
 		}
@@ -4083,7 +4083,7 @@ static int shmem_reconfigure(struct fs_context *fc)
 		sbinfo->max_blocks  = ctx->blocks;
 	if (ctx->seen & SHMEM_SEEN_INODES) {
 		sbinfo->max_inodes  = ctx->inodes;
-		sbinfo->free_inodes = ctx->inodes - inodes;
+		sbinfo->free_ispace = ctx->inodes * BOGO_INODE_SIZE - used_isp;
 	}
 
 	/*
@@ -4214,7 +4214,8 @@ static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_flags |= SB_NOUSER;
 #endif
 	sbinfo->max_blocks = ctx->blocks;
-	sbinfo->free_inodes = sbinfo->max_inodes = ctx->inodes;
+	sbinfo->max_inodes = ctx->inodes;
+	sbinfo->free_ispace = sbinfo->max_inodes * BOGO_INODE_SIZE;
 	if (sb->s_flags & SB_KERNMOUNT) {
 		sbinfo->ino_batch = alloc_percpu(ino_t);
 		if (!sbinfo->ino_batch)
