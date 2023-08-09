@@ -377,3 +377,64 @@ out:
 	elf_close(&elf_fd);
 	return err;
 }
+
+/*
+ * Return offsets in @poffsets for symbols specified by @pattern argument.
+ * On success returns 0 and offsets are returned in allocated @poffsets
+ * array with the @pctn size, that needs to be released by the caller.
+ */
+int elf_resolve_pattern_offsets(const char *binary_path, const char *pattern,
+				unsigned long **poffsets, size_t *pcnt)
+{
+	int sh_types[2] = { SHT_SYMTAB, SHT_DYNSYM };
+	unsigned long *offsets = NULL;
+	size_t cap = 0, cnt = 0;
+	struct elf_fd elf_fd;
+	int err = 0, i;
+
+	err = elf_open(binary_path, &elf_fd);
+	if (err)
+		return err;
+
+	for (i = 0; i < ARRAY_SIZE(sh_types); i++) {
+		struct elf_sym_iter iter;
+		struct elf_sym *sym;
+
+		err = elf_sym_iter_new(&iter, elf_fd.elf, binary_path, sh_types[i], STT_FUNC);
+		if (err == -ENOENT)
+			continue;
+		if (err)
+			goto out;
+
+		while ((sym = elf_sym_iter_next(&iter))) {
+			if (!glob_match(sym->name, pattern))
+				continue;
+
+			err = libbpf_ensure_mem((void **) &offsets, &cap, sizeof(*offsets),
+						cnt + 1);
+			if (err)
+				goto out;
+
+			offsets[cnt++] = elf_sym_offset(sym);
+		}
+
+		/* If we found anything in the first symbol section,
+		 * do not search others to avoid duplicates.
+		 */
+		if (cnt)
+			break;
+	}
+
+	if (cnt) {
+		*poffsets = offsets;
+		*pcnt = cnt;
+	} else {
+		err = -ENOENT;
+	}
+
+out:
+	if (err)
+		free(offsets);
+	elf_close(&elf_fd);
+	return err;
+}
