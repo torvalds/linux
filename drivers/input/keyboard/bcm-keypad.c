@@ -418,7 +418,7 @@ static struct platform_driver bcm_kp_device_driver = {
 	.probe		= bcm_kp_probe,
 	.driver		= {
 		.name	= "bcm-keypad",
-		.of_match_table = of_match_ptr(bcm_kp_of_match),
+		.of_match_table = bcm_kp_of_match,
 	}
 };
 
