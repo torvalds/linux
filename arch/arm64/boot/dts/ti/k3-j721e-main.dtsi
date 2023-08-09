@@ -2121,6 +2121,7 @@
 		ti,sci-proc-ids = <0x03 0xff>;
 		resets = <&k3_reset 142 1>;
 		firmware-name = "j7-c66_0-fw";
+		status = "disabled";
 	};
 
 	c66_1: dsp@4d81800000 {
@@ -2134,6 +2135,7 @@
 		ti,sci-proc-ids = <0x04 0xff>;
 		resets = <&k3_reset 143 1>;
 		firmware-name = "j7-c66_1-fw";
+		status = "disabled";
 	};
 
 	c71_0: dsp@64800000 {
