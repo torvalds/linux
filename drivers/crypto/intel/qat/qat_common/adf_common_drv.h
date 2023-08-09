@@ -58,12 +58,6 @@ int adf_dev_restart(struct adf_accel_dev *accel_dev);
 
 void adf_devmgr_update_class_index(struct adf_hw_device_data *hw_data);
 void adf_clean_vf_map(bool);
-
-int adf_ctl_dev_register(void);
-void adf_ctl_dev_unregister(void);
-int adf_processes_dev_register(void);
-void adf_processes_dev_unregister(void);
-
 int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev,
 		       struct adf_accel_dev *pf);
 void adf_devmgr_rm_dev(struct adf_accel_dev *accel_dev,
@@ -182,8 +176,6 @@ int qat_hal_init_rd_xfer(struct icp_qat_fw_loader_handle *handle,
 int qat_hal_init_nn(struct icp_qat_fw_loader_handle *handle,
 		    unsigned char ae, unsigned long ctx_mask,
 		    unsigned short reg_num, unsigned int regdata);
-int qat_hal_wr_lm(struct icp_qat_fw_loader_handle *handle,
-		  unsigned char ae, unsigned short lm_addr, unsigned int value);
 void qat_hal_set_ae_tindex_mode(struct icp_qat_fw_loader_handle *handle,
 				unsigned char ae, unsigned char mode);
 int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle);
