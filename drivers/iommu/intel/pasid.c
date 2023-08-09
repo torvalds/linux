@@ -438,7 +438,7 @@ devtlb_invalidation_with_pasid(struct intel_iommu *iommu,
 	 * SVA usage, device could do DMA with multiple PASIDs. It is more
 	 * efficient to flush devTLB specific to the PASID.
 	 */
-	if (pasid == PASID_RID2PASID)
+	if (pasid == IOMMU_NO_PASID)
 		qi_flush_dev_iotlb(iommu, sid, pfsid, qdep, 0, 64 - VTD_PAGE_SHIFT);
 	else
 		qi_flush_dev_iotlb_pasid(iommu, sid, pfsid, pasid, qdep, 0, 64 - VTD_PAGE_SHIFT);
