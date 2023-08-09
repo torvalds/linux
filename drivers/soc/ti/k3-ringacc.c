@@ -1368,7 +1368,6 @@ static int k3_ringacc_init(struct platform_device *pdev,
 	const struct soc_device_attribute *soc;
 	void __iomem *base_fifo, *base_rt;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	int ret, i;
 
 	dev->msi.domain = of_msi_get_domain(dev, dev->of_node,
@@ -1387,24 +1386,20 @@ static int k3_ringacc_init(struct platform_device *pdev,
 		ringacc->dma_ring_reset_quirk = soc_data->dma_ring_reset_quirk;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rt");
-	base_rt = devm_ioremap_resource(dev, res);
+	base_rt = devm_platform_ioremap_resource_byname(pdev, "rt");
 	if (IS_ERR(base_rt))
 		return PTR_ERR(base_rt);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fifos");
-	base_fifo = devm_ioremap_resource(dev, res);
+	base_fifo = devm_platform_ioremap_resource_byname(pdev, "fifos");
 	if (IS_ERR(base_fifo))
 		return PTR_ERR(base_fifo);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "proxy_gcfg");
-	ringacc->proxy_gcfg = devm_ioremap_resource(dev, res);
+	ringacc->proxy_gcfg = devm_platform_ioremap_resource_byname(pdev, "proxy_gcfg");
 	if (IS_ERR(ringacc->proxy_gcfg))
 		return PTR_ERR(ringacc->proxy_gcfg);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "proxy_target");
-	ringacc->proxy_target_base = devm_ioremap_resource(dev, res);
+	ringacc->proxy_target_base = devm_platform_ioremap_resource_byname(pdev,
+									   "proxy_target");
 	if (IS_ERR(ringacc->proxy_target_base))
 		return PTR_ERR(ringacc->proxy_target_base);
 
@@ -1471,7 +1466,6 @@ struct k3_ringacc *k3_ringacc_dmarings_init(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct k3_ringacc *ringacc;
 	void __iomem *base_rt;
-	struct resource *res;
 	int i;
 
 	ringacc = devm_kzalloc(dev, sizeof(*ringacc), GFP_KERNEL);
@@ -1486,8 +1480,7 @@ struct k3_ringacc *k3_ringacc_dmarings_init(struct platform_device *pdev,
 
 	mutex_init(&ringacc->req_lock);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ringrt");
-	base_rt = devm_ioremap_resource(dev, res);
+	base_rt = devm_platform_ioremap_resource_byname(pdev, "ringrt");
 	if (IS_ERR(base_rt))
 		return ERR_CAST(base_rt);
 
