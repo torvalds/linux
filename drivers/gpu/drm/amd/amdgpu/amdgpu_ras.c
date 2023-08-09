@@ -2970,10 +2970,6 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 
 void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 {
-	amdgpu_ras_check_supported(adev);
-	if (!adev->ras_hw_enabled)
-		return;
-
 	if (atomic_cmpxchg(&amdgpu_ras_in_intr, 0, 1) == 0) {
 		struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
