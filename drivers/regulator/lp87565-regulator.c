@@ -29,8 +29,8 @@ enum LP87565_regulator_id {
 			.name			= _name,		\
 			.supply_name		= _of "-in",		\
 			.id			= _id,			\
-			.of_match		= of_match_ptr(_of),	\
-			.regulators_node	= of_match_ptr("regulators"),\
+			.of_match		= _of,			\
+			.regulators_node	= "regulators",		\
 			.ops			= &_ops,		\
 			.n_voltages		= _n,			\
 			.type			= REGULATOR_VOLTAGE,	\
