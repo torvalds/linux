@@ -87,6 +87,7 @@
 #define ACP_SHA_DMA_CMD_STS			0x1CC0
 #define ACP_SHA_DMA_ERR_STATUS			0x1CC4
 #define ACP_SHA_TRANSFER_BYTE_CNT		0x1CC8
+#define ACP_SHA_DMA_INCLUDE_HDR         0x1CCC
 #define ACP_SHA_PSP_ACK                         0x1C74
 
 #define ACP_SCRATCH_REG_0			0x10000

@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license. When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2021 Advanced Micro Devices, Inc.
+// Copyright(c) 2021, 2023 Advanced Micro Devices, Inc.
 //
 // Authors: Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
 
@@ -158,7 +158,11 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 	int ret;
 
 	adata = sdev->pdata->hw_pdata;
-	size_fw = adata->fw_bin_size;
+
+	if (adata->signed_fw_image)
+		size_fw = adata->fw_bin_size - ACP_FIRMWARE_SIGNATURE;
+	else
+		size_fw = adata->fw_bin_size;
 
 	page_count = PAGE_ALIGN(size_fw) >> PAGE_SHIFT;
 	adata->fw_bin_page_count = page_count;
@@ -219,3 +223,34 @@ int acp_sof_dsp_run(struct snd_sof_dev *sdev)
 	return 0;
 }
 EXPORT_SYMBOL_NS(acp_sof_dsp_run, SND_SOC_SOF_AMD_COMMON);
+
+int acp_sof_load_signed_firmware(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = sdev->pdata;
+	struct acp_dev_data *adata = plat_data->hw_pdata;
+	int ret;
+
+	ret = request_firmware(&sdev->basefw.fw, adata->fw_code_bin, sdev->dev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "sof signed firmware code bin is missing\n");
+		return ret;
+	} else {
+		dev_dbg(sdev->dev, "request_firmware %s successful\n", adata->fw_code_bin);
+	}
+	ret = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_IRAM, 0,
+				      (void *)sdev->basefw.fw->data, sdev->basefw.fw->size);
+
+	ret = request_firmware(&adata->fw_dbin, adata->fw_data_bin, sdev->dev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "sof signed firmware data bin is missing\n");
+		return ret;
+
+	} else {
+		dev_dbg(sdev->dev, "request_firmware %s successful\n", adata->fw_data_bin);
+	}
+
+	ret = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_DRAM, 0,
+				      (void *)adata->fw_dbin->data, adata->fw_dbin->size);
+	return ret;
+}
+EXPORT_SYMBOL_NS(acp_sof_load_signed_firmware, SND_SOC_SOF_AMD_COMMON);

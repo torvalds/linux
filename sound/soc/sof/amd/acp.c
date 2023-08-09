@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license. When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright(c) 2021, 2023 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Authors: Vijendar Mukunda <Vijendar.Mukunda@amd.com>
 //	    Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
@@ -234,6 +234,9 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 			return ret;
 		}
 	}
+
+	if (adata->signed_fw_image)
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_INCLUDE_HDR, ACP_SHA_HEADER);
 
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_STRT_ADDR, start_addr);
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_DESTINATION_ADDR, dest_addr);
@@ -527,6 +530,7 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 	sdev->debug_box.offset = sdev->host_box.offset + sdev->host_box.size;
 	sdev->debug_box.size = BOX_SIZE_1024;
 
+	adata->signed_fw_image = false;
 	acp_memory_init(sdev);
 
 	acp_dsp_stream_init(sdev);
