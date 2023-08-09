@@ -25,6 +25,7 @@
 
 #include "i915_drv.h"
 #include "i915_irq.h"
+#include "intel_display_power.h"
 #include "intel_display_types.h"
 #include "intel_hotplug.h"
 #include "intel_hotplug_irq.h"
@@ -638,11 +639,25 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 			     display.hotplug.poll_init_work);
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
+	intel_wakeref_t wakeref;
 	bool enabled;
 
 	mutex_lock(&dev_priv->drm.mode_config.mutex);
 
 	enabled = READ_ONCE(dev_priv->display.hotplug.poll_enabled);
+	/*
+	 * Prevent taking a power reference from this sequence of
+	 * i915_hpd_poll_init_work() -> drm_helper_hpd_irq_event() ->
+	 * connector detect which would requeue i915_hpd_poll_init_work()
+	 * and so risk an endless loop of this same sequence.
+	 */
+	if (!enabled) {
+		wakeref = intel_display_power_get(dev_priv,
+						  POWER_DOMAIN_DISPLAY_CORE);
+		drm_WARN_ON(&dev_priv->drm,
+			    READ_ONCE(dev_priv->display.hotplug.poll_enabled));
+		cancel_work(&dev_priv->display.hotplug.poll_init_work);
+	}
 
 	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
@@ -669,8 +684,13 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 	 * We might have missed any hotplugs that happened while we were
 	 * in the middle of disabling polling
 	 */
-	if (!enabled)
+	if (!enabled) {
 		drm_helper_hpd_irq_event(&dev_priv->drm);
+
+		intel_display_power_put(dev_priv,
+					POWER_DOMAIN_DISPLAY_CORE,
+					wakeref);
+	}
 }
 
 /**
