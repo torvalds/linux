@@ -1272,7 +1272,6 @@ gpio_sim_hog_config_direction_store(struct config_item *item,
 {
 	struct gpio_sim_hog *hog = to_gpio_sim_hog(item);
 	struct gpio_sim_device *dev = gpio_sim_hog_get_device(hog);
-	char *trimmed;
 	int dir;
 
 	mutex_lock(&dev->lock);
@@ -1282,22 +1281,14 @@ gpio_sim_hog_config_direction_store(struct config_item *item,
 		return -EBUSY;
 	}
 
-	trimmed = gpio_sim_strdup_trimmed(page, count);
-	if (!trimmed) {
-		mutex_unlock(&dev->lock);
-		return -ENOMEM;
-	}
-
-	if (strcmp(trimmed, "input") == 0)
+	if (sysfs_streq(page, "input"))
 		dir = GPIOD_IN;
-	else if (strcmp(trimmed, "output-high") == 0)
+	else if (sysfs_streq(page, "output-high"))
 		dir = GPIOD_OUT_HIGH;
-	else if (strcmp(trimmed, "output-low") == 0)
+	else if (sysfs_streq(page, "output-low"))
 		dir = GPIOD_OUT_LOW;
 	else
 		dir = -EINVAL;
-
-	kfree(trimmed);
 
 	if (dir < 0) {
 		mutex_unlock(&dev->lock);
