@@ -401,6 +401,36 @@ static __always_inline void apic_icr_write(u32 low, u32 high)
 	apic->icr_write(low, high);
 }
 
+static __always_inline void __apic_send_IPI(int cpu, int vector)
+{
+	apic->send_IPI(cpu, vector);
+}
+
+static __always_inline void __apic_send_IPI_mask(const struct cpumask *mask, int vector)
+{
+	apic->send_IPI_mask(mask, vector);
+}
+
+static __always_inline void __apic_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
+{
+	apic->send_IPI_mask_allbutself(mask, vector);
+}
+
+static __always_inline void __apic_send_IPI_allbutself(int vector)
+{
+	apic->send_IPI_allbutself(vector);
+}
+
+static __always_inline void __apic_send_IPI_all(int vector)
+{
+	apic->send_IPI_all(vector);
+}
+
+static __always_inline void __apic_send_IPI_self(int vector)
+{
+	apic->send_IPI_self(vector);
+}
+
 static __always_inline void apic_wait_icr_idle(void)
 {
 	if (apic->wait_icr_idle)

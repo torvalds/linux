@@ -28,7 +28,7 @@ void arch_irq_work_raise(void)
 	if (!arch_irq_work_has_interrupt())
 		return;
 
-	apic->send_IPI_self(IRQ_WORK_VECTOR);
+	__apic_send_IPI_self(IRQ_WORK_VECTOR);
 	apic_wait_icr_idle();
 }
 #endif
