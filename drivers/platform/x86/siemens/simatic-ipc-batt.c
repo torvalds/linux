@@ -198,7 +198,7 @@ int simatic_ipc_batt_probe(struct platform_device *pdev, struct gpiod_lookup_tab
 			flags = GPIOD_OUT_LOW;
 		priv.gpios[2] = devm_gpiod_get_index(dev, "CMOSBattery meter", 2, flags);
 		if (IS_ERR(priv.gpios[2])) {
-			err = PTR_ERR(priv.gpios[1]);
+			err = PTR_ERR(priv.gpios[2]);
 			priv.gpios[2] = NULL;
 			goto out;
 		}
