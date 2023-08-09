@@ -2662,6 +2662,22 @@ static int arm_smmu_def_domain_type(struct device *dev)
 	return 0;
 }
 
+static inline void __arm_smmu_sid_switch_touch_cbar(struct arm_smmu_device *smmu,
+						    struct arm_smmu_master_cfg *cfg,
+						    struct iommu_fwspec *fwspec)
+{
+	int i, idx;
+	u8 cbndx;
+
+	/* Use for_each_cfg_sme() to look up the context bank index */
+	for_each_cfg_sme(cfg, fwspec, i, idx) {
+		cbndx = smmu->s2crs[idx].cbndx;
+		/* Touch the CBAR by calling arm_smmu_write_context_bank() */
+		arm_smmu_write_context_bank(smmu, cbndx);
+		break;
+	}
+}
+
 static int __arm_smmu_sid_switch(struct device *dev, void *data)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
@@ -2677,6 +2693,16 @@ static int __arm_smmu_sid_switch(struct device *dev, void *data)
 	arm_smmu_rpm_get(smmu);
 
 	mutex_lock(&smmu->stream_map_mutex);
+
+	/*
+	 * When activating an SMR on a VM, we need to ensure that the SMR's
+	 * corresponding CBAR has the right VMID value, which is provided by the
+	 * hypervisor. Touch the CBAR register before doing the SID-switch to do
+	 * this.
+	 */
+	if (dir == SID_ACQUIRE)
+		__arm_smmu_sid_switch_touch_cbar(smmu, cfg, fwspec);
+
 	for_each_cfg_sme(cfg, fwspec, i, idx) {
 		smmu->smrs[idx].valid = dir == SID_ACQUIRE;
 		arm_smmu_write_sme(smmu, idx);
