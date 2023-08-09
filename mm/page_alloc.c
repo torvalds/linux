@@ -2340,10 +2340,10 @@ static bool free_unref_page_prepare(struct page *page, unsigned long pfn,
 	return true;
 }
 
-static int nr_pcp_free(struct per_cpu_pages *pcp, int high, int batch,
-		       bool free_high)
+static int nr_pcp_free(struct per_cpu_pages *pcp, int high, bool free_high)
 {
 	int min_nr_free, max_nr_free;
+	int batch = READ_ONCE(pcp->batch);
 
 	/* Free everything if batch freeing high-order pages. */
 	if (unlikely(free_high))
@@ -2410,9 +2410,7 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
 
 	high = nr_pcp_high(pcp, zone, free_high);
 	if (pcp->count >= high) {
-		int batch = READ_ONCE(pcp->batch);
-
-		free_pcppages_bulk(zone, nr_pcp_free(pcp, high, batch, free_high), pcp, pindex);
+		free_pcppages_bulk(zone, nr_pcp_free(pcp, high, free_high), pcp, pindex);
 	}
 }
 
