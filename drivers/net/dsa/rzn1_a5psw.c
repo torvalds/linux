@@ -380,9 +380,63 @@ static void a5psw_port_bridge_leave(struct dsa_switch *ds, int port,
 		a5psw->br_dev = NULL;
 }
 
+static int a5psw_port_pre_bridge_flags(struct dsa_switch *ds, int port,
+				       struct switchdev_brport_flags flags,
+				       struct netlink_ext_ack *extack)
+{
+	if (flags.mask & ~(BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD |
+			   BR_BCAST_FLOOD))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+a5psw_port_bridge_flags(struct dsa_switch *ds, int port,
+			struct switchdev_brport_flags flags,
+			struct netlink_ext_ack *extack)
+{
+	struct a5psw *a5psw = ds->priv;
+	u32 val;
+
+	/* If a port is set as standalone, we do not want to be able to
+	 * configure flooding nor learning which would result in joining the
+	 * unique bridge. This can happen when a port leaves the bridge, in
+	 * which case the DSA core will try to "clear" all flags for the
+	 * standalone port (ie enable flooding, disable learning). In that case
+	 * do not fail but do not apply the flags.
+	 */
+	if (!(a5psw->bridged_ports & BIT(port)))
+		return 0;
+
+	if (flags.mask & BR_LEARNING) {
+		val = flags.val & BR_LEARNING ? 0 : A5PSW_INPUT_LEARN_DIS(port);
+		a5psw_reg_rmw(a5psw, A5PSW_INPUT_LEARN,
+			      A5PSW_INPUT_LEARN_DIS(port), val);
+	}
+
+	if (flags.mask & BR_FLOOD) {
+		val = flags.val & BR_FLOOD ? BIT(port) : 0;
+		a5psw_reg_rmw(a5psw, A5PSW_UCAST_DEF_MASK, BIT(port), val);
+	}
+
+	if (flags.mask & BR_MCAST_FLOOD) {
+		val = flags.val & BR_MCAST_FLOOD ? BIT(port) : 0;
+		a5psw_reg_rmw(a5psw, A5PSW_MCAST_DEF_MASK, BIT(port), val);
+	}
+
+	if (flags.mask & BR_BCAST_FLOOD) {
+		val = flags.val & BR_BCAST_FLOOD ? BIT(port) : 0;
+		a5psw_reg_rmw(a5psw, A5PSW_BCAST_DEF_MASK, BIT(port), val);
+	}
+
+	return 0;
+}
+
 static void a5psw_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 {
 	bool learning_enabled, rx_enabled, tx_enabled;
+	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct a5psw *a5psw = ds->priv;
 
 	switch (state) {
@@ -396,12 +450,12 @@ static void a5psw_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 	case BR_STATE_LEARNING:
 		rx_enabled = false;
 		tx_enabled = false;
-		learning_enabled = true;
+		learning_enabled = dp->learning;
 		break;
 	case BR_STATE_FORWARDING:
 		rx_enabled = true;
 		tx_enabled = true;
-		learning_enabled = true;
+		learning_enabled = dp->learning;
 		break;
 	default:
 		dev_err(ds->dev, "invalid STP state: %d\n", state);
@@ -801,6 +855,8 @@ static const struct dsa_switch_ops a5psw_switch_ops = {
 	.set_ageing_time = a5psw_set_ageing_time,
 	.port_bridge_join = a5psw_port_bridge_join,
 	.port_bridge_leave = a5psw_port_bridge_leave,
+	.port_pre_bridge_flags = a5psw_port_pre_bridge_flags,
+	.port_bridge_flags = a5psw_port_bridge_flags,
 	.port_stp_state_set = a5psw_port_stp_state_set,
 	.port_fast_age = a5psw_port_fast_age,
 	.port_fdb_add = a5psw_port_fdb_add,
