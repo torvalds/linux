@@ -1030,7 +1030,7 @@ static int tty3215_write(struct tty_struct *tty, const u8 *buf, int count)
 /*
  * Put character routine for 3215 ttys
  */
-static int tty3215_put_char(struct tty_struct *tty, unsigned char ch)
+static int tty3215_put_char(struct tty_struct *tty, u8 ch)
 {
 	struct raw3215_info *raw = tty->driver_data;
 

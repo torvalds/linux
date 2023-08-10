@@ -920,7 +920,7 @@ static int mxser_write(struct tty_struct *tty, const u8 *buf, int count)
 	return written;
 }
 
-static int mxser_put_char(struct tty_struct *tty, unsigned char ch)
+static int mxser_put_char(struct tty_struct *tty, u8 ch)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;

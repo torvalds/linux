@@ -3248,7 +3248,7 @@ static int con_write(struct tty_struct *tty, const u8 *buf, int count)
 	return retval;
 }
 
-static int con_put_char(struct tty_struct *tty, unsigned char ch)
+static int con_put_char(struct tty_struct *tty, u8 ch)
 {
 	return do_con_write(tty, &ch, 1);
 }

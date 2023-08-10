@@ -579,7 +579,7 @@ sclp_vt220_close(struct tty_struct *tty, struct file *filp)
  * done stuffing characters into the driver.
  */
 static int
-sclp_vt220_put_char(struct tty_struct *tty, unsigned char ch)
+sclp_vt220_put_char(struct tty_struct *tty, u8 ch)
 {
 	return __sclp_vt220_write(&ch, 1, 0, 0, 1);
 }

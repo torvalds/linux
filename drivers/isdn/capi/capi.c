@@ -1111,7 +1111,7 @@ static int capinc_tty_write(struct tty_struct *tty, const u8 *buf, int count)
 	return count;
 }
 
-static int capinc_tty_put_char(struct tty_struct *tty, unsigned char ch)
+static int capinc_tty_put_char(struct tty_struct *tty, u8 ch)
 {
 	struct capiminor *mp = tty->driver_data;
 	bool invoke_send = false;

@@ -222,7 +222,7 @@ static int dbc_tty_write(struct tty_struct *tty, const u8 *buf, int count)
 	return count;
 }
 
-static int dbc_tty_put_char(struct tty_struct *tty, unsigned char ch)
+static int dbc_tty_put_char(struct tty_struct *tty, u8 ch)
 {
 	struct dbc_port		*port = tty->driver_data;
 	unsigned long		flags;
