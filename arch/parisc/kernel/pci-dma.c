@@ -39,7 +39,7 @@ static struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
 static unsigned long pcxl_used_bytes __read_mostly;
 static unsigned long pcxl_used_pages __read_mostly;
 
-extern unsigned long pcxl_dma_start; /* Start of pcxl dma mapping area */
+unsigned long pcxl_dma_start __ro_after_init; /* pcxl dma mapping area start */
 static DEFINE_SPINLOCK(pcxl_res_lock);
 static char    *pcxl_res_map;
 static int     pcxl_res_hint;
