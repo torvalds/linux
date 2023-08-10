@@ -669,6 +669,39 @@ static void __init gateway_init(void)
 		  PAGE_SIZE, PAGE_GATEWAY, 1);
 }
 
+static void __init fixmap_init(void)
+{
+	unsigned long addr = FIXMAP_START;
+	unsigned long end = FIXMAP_START + FIXMAP_SIZE;
+	pgd_t *pgd = pgd_offset_k(addr);
+	p4d_t *p4d = p4d_offset(pgd, addr);
+	pud_t *pud = pud_offset(p4d, addr);
+	pmd_t *pmd;
+
+	BUILD_BUG_ON(FIXMAP_SIZE > PMD_SIZE);
+
+#if CONFIG_PGTABLE_LEVELS == 3
+	if (pud_none(*pud)) {
+		pmd = memblock_alloc(PAGE_SIZE << PMD_TABLE_ORDER,
+				     PAGE_SIZE << PMD_TABLE_ORDER);
+		if (!pmd)
+			panic("fixmap: pmd allocation failed.\n");
+		pud_populate(NULL, pud, pmd);
+	}
+#endif
+
+	pmd = pmd_offset(pud, addr);
+	do {
+		pte_t *pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+		if (!pte)
+			panic("fixmap: pte allocation failed.\n");
+
+		pmd_populate_kernel(&init_mm, pmd, pte);
+
+		addr += PAGE_SIZE;
+	} while (addr < end);
+}
+
 static void __init parisc_bootmem_free(void)
 {
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
@@ -683,6 +716,7 @@ void __init paging_init(void)
 	setup_bootmem();
 	pagetable_init();
 	gateway_init();
+	fixmap_init();
 	flush_cache_all_local(); /* start with known state */
 	flush_tlb_all_local(NULL);
 

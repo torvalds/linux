@@ -107,7 +107,6 @@ static bool cpu_is_self(int cpu)
 static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector,
 		bool exclude_self)
 {
-	struct hv_send_ipi_ex **arg;
 	struct hv_send_ipi_ex *ipi_arg;
 	unsigned long flags;
 	int nr_bank = 0;
@@ -117,9 +116,8 @@ static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector,
 		return false;
 
 	local_irq_save(flags);
-	arg = (struct hv_send_ipi_ex **)this_cpu_ptr(hyperv_pcpu_input_arg);
+	ipi_arg = *this_cpu_ptr(hyperv_pcpu_input_arg);
 
-	ipi_arg = *arg;
 	if (unlikely(!ipi_arg))
 		goto ipi_mask_ex_done;
 

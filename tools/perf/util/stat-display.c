@@ -931,6 +931,11 @@ static bool should_skip_zero_counter(struct perf_stat_config *config,
 	 */
 	if (config->aggr_mode == AGGR_THREAD && config->system_wide)
 		return true;
+
+	/* Tool events have the software PMU but are only gathered on 1. */
+	if (evsel__is_tool(counter))
+		return true;
+
 	/*
 	 * Skip value 0 when it's an uncore event and the given aggr id
 	 * does not belong to the PMU cpumask.

@@ -13,5 +13,6 @@
 #include <linux/sched.h>
 
 /* `bindgen` gets confused at certain things. */
+const size_t BINDINGS_ARCH_SLAB_MINALIGN = ARCH_SLAB_MINALIGN;
 const gfp_t BINDINGS_GFP_KERNEL = GFP_KERNEL;
 const gfp_t BINDINGS___GFP_ZERO = __GFP_ZERO;
