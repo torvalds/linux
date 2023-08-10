@@ -62,6 +62,9 @@ typedef cmp_func_t xfarray_cmp_fn;
 #define XFARRAY_ISORT_SHIFT		(4)
 #define XFARRAY_ISORT_NR		(1U << XFARRAY_ISORT_SHIFT)
 
+/* Evalulate this many points to find the qsort pivot. */
+#define XFARRAY_QSORT_PIVOT_NR		(9)
+
 struct xfarray_sortinfo {
 	struct xfarray		*array;
 
@@ -91,7 +94,6 @@ struct xfarray_sortinfo {
 	uint64_t		compares;
 	uint64_t		heapsorts;
 #endif
-
 	/*
 	 * Extra bytes are allocated beyond the end of the structure to store
 	 * quicksort information.  C does not permit multiple VLAs per struct,
@@ -114,11 +116,18 @@ struct xfarray_sortinfo {
 	 * 	xfarray_rec_t	scratch[ISORT_NR];
 	 *
 	 * Otherwise, we want to partition the records to partition the array.
-	 * We store the chosen pivot record here and use the xfarray scratchpad
-	 * to rearrange the array around the pivot:
+	 * We store the chosen pivot record at the start of the scratchpad area
+	 * and use the rest to sample some records to estimate the median.
+	 * The format of the qsort_pivot array enables us to use the kernel
+	 * heapsort function to place the median value in the middle.
 	 *
-	 * 	xfarray_rec_t	pivot;
-	 *
+	 * 	struct {
+	 * 		xfarray_rec_t	pivot;
+	 * 		struct {
+	 *			xfarray_rec_t	rec;  (rounded up to 8 bytes)
+	 * 			xfarray_idx_t	idx;
+	 *		} qsort_pivot[QSORT_PIVOT_NR];
+	 * 	};
 	 * }
 	 */
 };

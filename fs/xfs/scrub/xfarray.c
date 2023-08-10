@@ -427,6 +427,14 @@ static inline xfarray_idx_t *xfarray_sortinfo_hi(struct xfarray_sortinfo *si)
 	return xfarray_sortinfo_lo(si) + si->max_stack_depth;
 }
 
+/* Size of each element in the quicksort pivot array. */
+static inline size_t
+xfarray_pivot_rec_sz(
+	struct xfarray		*array)
+{
+	return round_up(array->obj_size, 8) + sizeof(xfarray_idx_t);
+}
+
 /* Allocate memory to handle the sort. */
 static inline int
 xfarray_sortinfo_alloc(
@@ -437,7 +445,15 @@ xfarray_sortinfo_alloc(
 {
 	struct xfarray_sortinfo	*si;
 	size_t			nr_bytes = sizeof(struct xfarray_sortinfo);
+	size_t			pivot_rec_sz = xfarray_pivot_rec_sz(array);
 	int			max_stack_depth;
+
+	/*
+	 * The median-of-nine pivot algorithm doesn't work if a subset has
+	 * fewer than 9 items.  Make sure the in-memory sort will always take
+	 * over for subsets where this wouldn't be the case.
+	 */
+	BUILD_BUG_ON(XFARRAY_QSORT_PIVOT_NR >= XFARRAY_ISORT_NR);
 
 	/*
 	 * Tail-call recursion during the partitioning phase means that
@@ -453,8 +469,10 @@ xfarray_sortinfo_alloc(
 	/* Each level of quicksort uses a lo and a hi index */
 	nr_bytes += max_stack_depth * sizeof(xfarray_idx_t) * 2;
 
-	/* Scratchpad for in-memory sort, or one record for the pivot */
-	nr_bytes += (XFARRAY_ISORT_NR * array->obj_size);
+	/* Scratchpad for in-memory sort, or finding the pivot */
+	nr_bytes += max_t(size_t,
+			(XFARRAY_QSORT_PIVOT_NR + 1) * pivot_rec_sz,
+			XFARRAY_ISORT_NR * array->obj_size);
 
 	si = kvzalloc(nr_bytes, XCHK_GFP_FLAGS);
 	if (!si)
@@ -632,14 +650,43 @@ static inline void *xfarray_sortinfo_pivot(struct xfarray_sortinfo *si)
 	return xfarray_sortinfo_hi(si) + si->max_stack_depth;
 }
 
+/* Return a pointer to the start of the pivot array. */
+static inline void *
+xfarray_sortinfo_pivot_array(
+	struct xfarray_sortinfo	*si)
+{
+	return xfarray_sortinfo_pivot(si) + si->array->obj_size;
+}
+
+/* The xfarray record is stored at the start of each pivot array element. */
+static inline void *
+xfarray_pivot_array_rec(
+	void			*pa,
+	size_t			pa_recsz,
+	unsigned int		pa_idx)
+{
+	return pa + (pa_recsz * pa_idx);
+}
+
+/* The xfarray index is stored at the end of each pivot array element. */
+static inline xfarray_idx_t *
+xfarray_pivot_array_idx(
+	void			*pa,
+	size_t			pa_recsz,
+	unsigned int		pa_idx)
+{
+	return xfarray_pivot_array_rec(pa, pa_recsz, pa_idx + 1) -
+			sizeof(xfarray_idx_t);
+}
+
 /*
  * Find a pivot value for quicksort partitioning, swap it with a[lo], and save
  * the cached pivot record for the next step.
  *
- * Select the median value from a[lo], a[mid], and a[hi].  Put the median in
- * a[lo], the lowest in a[mid], and the highest in a[hi].  Using the median of
- * the three reduces the chances that we pick the worst case pivot value, since
- * it's likely that our array values are nearly sorted.
+ * Load evenly-spaced records within the given range into memory, sort them,
+ * and choose the pivot from the median record.  Using multiple points will
+ * improve the quality of the pivot selection, and hopefully avoid the worst
+ * quicksort behavior, since our array values are nearly always evenly sorted.
  */
 STATIC int
 xfarray_qsort_pivot(
@@ -647,76 +694,99 @@ xfarray_qsort_pivot(
 	xfarray_idx_t		lo,
 	xfarray_idx_t		hi)
 {
-	void			*a = xfarray_sortinfo_pivot(si);
-	void			*b = xfarray_scratch(si->array);
-	xfarray_idx_t		mid = lo + ((hi - lo) / 2);
+	void			*pivot = xfarray_sortinfo_pivot(si);
+	void			*parray = xfarray_sortinfo_pivot_array(si);
+	void			*recp;
+	xfarray_idx_t		*idxp;
+	xfarray_idx_t		step = (hi - lo) / (XFARRAY_QSORT_PIVOT_NR - 1);
+	size_t			pivot_rec_sz = xfarray_pivot_rec_sz(si->array);
+	int			i, j;
 	int			error;
 
-	/* if a[mid] < a[lo], swap a[mid] and a[lo]. */
-	error = xfarray_sort_load(si, mid, a);
-	if (error)
-		return error;
-	error = xfarray_sort_load(si, lo, b);
-	if (error)
-		return error;
-	if (xfarray_sort_cmp(si, a, b) < 0) {
-		error = xfarray_sort_store(si, lo, a);
-		if (error)
-			return error;
-		error = xfarray_sort_store(si, mid, b);
-		if (error)
-			return error;
-	}
+	ASSERT(step > 0);
 
-	/* if a[hi] < a[mid], swap a[mid] and a[hi]. */
-	error = xfarray_sort_load(si, hi, a);
-	if (error)
-		return error;
-	error = xfarray_sort_load(si, mid, b);
-	if (error)
-		return error;
-	if (xfarray_sort_cmp(si, a, b) < 0) {
-		error = xfarray_sort_store(si, mid, a);
-		if (error)
-			return error;
-		error = xfarray_sort_store(si, hi, b);
-		if (error)
-			return error;
-	} else {
-		goto move_front;
-	}
-
-	/* if a[mid] < a[lo], swap a[mid] and a[lo]. */
-	error = xfarray_sort_load(si, mid, a);
-	if (error)
-		return error;
-	error = xfarray_sort_load(si, lo, b);
-	if (error)
-		return error;
-	if (xfarray_sort_cmp(si, a, b) < 0) {
-		error = xfarray_sort_store(si, lo, a);
-		if (error)
-			return error;
-		error = xfarray_sort_store(si, mid, b);
-		if (error)
-			return error;
-	}
-
-move_front:
 	/*
-	 * Move our selected pivot to a[lo].  Recall that a == si->pivot, so
-	 * this leaves us with the pivot cached in the sortinfo structure.
+	 * Load the xfarray indexes of the records we intend to sample into the
+	 * pivot array.
 	 */
-	error = xfarray_sort_load(si, lo, b);
+	idxp = xfarray_pivot_array_idx(parray, pivot_rec_sz, 0);
+	*idxp = lo;
+	for (i = 1; i < XFARRAY_QSORT_PIVOT_NR - 1; i++) {
+		idxp = xfarray_pivot_array_idx(parray, pivot_rec_sz, i);
+		*idxp = lo + (i * step);
+	}
+	idxp = xfarray_pivot_array_idx(parray, pivot_rec_sz,
+			XFARRAY_QSORT_PIVOT_NR - 1);
+	*idxp = hi;
+
+	/* Load the selected xfarray records into the pivot array. */
+	for (i = 0; i < XFARRAY_QSORT_PIVOT_NR; i++) {
+		xfarray_idx_t	idx;
+
+		recp = xfarray_pivot_array_rec(parray, pivot_rec_sz, i);
+		idxp = xfarray_pivot_array_idx(parray, pivot_rec_sz, i);
+
+		/* No unset records; load directly into the array. */
+		if (likely(si->array->unset_slots == 0)) {
+			error = xfarray_sort_load(si, *idxp, recp);
+			if (error)
+				return error;
+			continue;
+		}
+
+		/*
+		 * Load non-null records into the scratchpad without changing
+		 * the xfarray_idx_t in the pivot array.
+		 */
+		idx = *idxp;
+		xfarray_sort_bump_loads(si);
+		error = xfarray_load_next(si->array, &idx, recp);
+		if (error)
+			return error;
+	}
+
+	xfarray_sort_bump_heapsorts(si);
+	sort(parray, XFARRAY_QSORT_PIVOT_NR, pivot_rec_sz, si->cmp_fn, NULL);
+
+	/*
+	 * We sorted the pivot array records (which includes the xfarray
+	 * indices) in xfarray record order.  The median element of the pivot
+	 * array contains the xfarray record that we will use as the pivot.
+	 * Copy that xfarray record to the designated space.
+	 */
+	recp = xfarray_pivot_array_rec(parray, pivot_rec_sz,
+			XFARRAY_QSORT_PIVOT_NR / 2);
+	memcpy(pivot, recp, si->array->obj_size);
+
+	/* If the pivot record we chose was already in a[lo] then we're done. */
+	idxp = xfarray_pivot_array_idx(parray, pivot_rec_sz,
+			XFARRAY_QSORT_PIVOT_NR / 2);
+	if (*idxp == lo)
+		return 0;
+
+	/*
+	 * Find the cached copy of a[lo] in the pivot array so that we can swap
+	 * a[lo] and a[pivot].
+	 */
+	for (i = 0, j = -1; i < XFARRAY_QSORT_PIVOT_NR; i++) {
+		idxp = xfarray_pivot_array_idx(parray, pivot_rec_sz, i);
+		if (*idxp == lo)
+			j = i;
+	}
+	if (j < 0) {
+		ASSERT(j >= 0);
+		return -EFSCORRUPTED;
+	}
+
+	/* Swap a[lo] and a[pivot]. */
+	error = xfarray_sort_store(si, lo, pivot);
 	if (error)
 		return error;
-	error = xfarray_sort_load(si, mid, a);
-	if (error)
-		return error;
-	error = xfarray_sort_store(si, mid, b);
-	if (error)
-		return error;
-	return xfarray_sort_store(si, lo, a);
+
+	recp = xfarray_pivot_array_rec(parray, pivot_rec_sz, j);
+	idxp = xfarray_pivot_array_idx(parray, pivot_rec_sz,
+			XFARRAY_QSORT_PIVOT_NR / 2);
+	return xfarray_sort_store(si, *idxp, recp);
 }
 
 /*
@@ -828,7 +898,7 @@ xfarray_sort_load_cached(
  *    particularly expensive in the kernel.
  *
  * 2. For arrays with records in arbitrary or user-controlled order, choose the
- *    pivot element using a median-of-three decision tree.  This reduces the
+ *    pivot element using a median-of-nine decision tree.  This reduces the
  *    probability of selecting a bad pivot value which causes worst case
  *    behavior (i.e. partition sizes of 1).
  *
