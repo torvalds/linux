@@ -2935,14 +2935,73 @@ static int ext4_da_should_update_i_disksize(struct folio *folio,
 	return 1;
 }
 
+static int ext4_da_do_write_end(struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page)
+{
+	struct inode *inode = mapping->host;
+	loff_t old_size = inode->i_size;
+	bool disksize_changed = false;
+	loff_t new_i_size;
+
+	/*
+	 * block_write_end() will mark the inode as dirty with I_DIRTY_PAGES
+	 * flag, which all that's needed to trigger page writeback.
+	 */
+	copied = block_write_end(NULL, mapping, pos, len, copied, page, NULL);
+	new_i_size = pos + copied;
+
+	/*
+	 * It's important to update i_size while still holding page lock,
+	 * because page writeout could otherwise come in and zero beyond
+	 * i_size.
+	 *
+	 * Since we are holding inode lock, we are sure i_disksize <=
+	 * i_size. We also know that if i_disksize < i_size, there are
+	 * delalloc writes pending in the range up to i_size. If the end of
+	 * the current write is <= i_size, there's no need to touch
+	 * i_disksize since writeback will push i_disksize up to i_size
+	 * eventually. If the end of the current write is > i_size and
+	 * inside an allocated block which ext4_da_should_update_i_disksize()
+	 * checked, we need to update i_disksize here as certain
+	 * ext4_writepages() paths not allocating blocks and update i_disksize.
+	 */
+	if (new_i_size > inode->i_size) {
+		unsigned long end;
+
+		i_size_write(inode, new_i_size);
+		end = (new_i_size - 1) & (PAGE_SIZE - 1);
+		if (copied && ext4_da_should_update_i_disksize(page_folio(page), end)) {
+			ext4_update_i_disksize(inode, new_i_size);
+			disksize_changed = true;
+		}
+	}
+
+	unlock_page(page);
+	put_page(page);
+
+	if (old_size < pos)
+		pagecache_isize_extended(inode, old_size, pos);
+
+	if (disksize_changed) {
+		handle_t *handle;
+
+		handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
+		if (IS_ERR(handle))
+			return PTR_ERR(handle);
+		ext4_mark_inode_dirty(handle, inode);
+		ext4_journal_stop(handle);
+	}
+
+	return copied;
+}
+
 static int ext4_da_write_end(struct file *file,
 			     struct address_space *mapping,
 			     loff_t pos, unsigned len, unsigned copied,
 			     struct page *page, void *fsdata)
 {
 	struct inode *inode = mapping->host;
-	loff_t new_i_size;
-	unsigned long start, end;
 	int write_mode = (int)(unsigned long)fsdata;
 	struct folio *folio = page_folio(page);
 
@@ -2961,30 +3020,7 @@ static int ext4_da_write_end(struct file *file,
 	if (unlikely(copied < len) && !PageUptodate(page))
 		copied = 0;
 
-	start = pos & (PAGE_SIZE - 1);
-	end = start + copied - 1;
-
-	/*
-	 * Since we are holding inode lock, we are sure i_disksize <=
-	 * i_size. We also know that if i_disksize < i_size, there are
-	 * delalloc writes pending in the range upto i_size. If the end of
-	 * the current write is <= i_size, there's no need to touch
-	 * i_disksize since writeback will push i_disksize upto i_size
-	 * eventually. If the end of the current write is > i_size and
-	 * inside an allocated block (ext4_da_should_update_i_disksize()
-	 * check), we need to update i_disksize here as certain
-	 * ext4_writepages() paths not allocating blocks update i_disksize.
-	 *
-	 * Note that we defer inode dirtying to generic_write_end() /
-	 * ext4_da_write_inline_data_end().
-	 */
-	new_i_size = pos + copied;
-	if (copied && new_i_size > inode->i_size &&
-	    ext4_da_should_update_i_disksize(folio, end))
-		ext4_update_i_disksize(inode, new_i_size);
-
-	return generic_write_end(file, mapping, pos, len, copied, &folio->page,
-				 fsdata);
+	return ext4_da_do_write_end(mapping, pos, len, copied, &folio->page);
 }
 
 /*
