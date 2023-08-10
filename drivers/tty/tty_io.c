@@ -964,9 +964,8 @@ int tty_write_lock(struct tty_struct *tty, bool ndelay)
 static ssize_t iterate_tty_write(struct tty_ldisc *ld, struct tty_struct *tty,
 				 struct file *file, struct iov_iter *from)
 {
-	size_t count = iov_iter_count(from);
+	size_t chunk, count = iov_iter_count(from);
 	ssize_t ret, written = 0;
-	unsigned int chunk;
 
 	ret = tty_write_lock(tty, file->f_flags & O_NDELAY);
 	if (ret < 0)
@@ -1010,10 +1009,7 @@ static ssize_t iterate_tty_write(struct tty_ldisc *ld, struct tty_struct *tty,
 
 	/* Do the write .. */
 	for (;;) {
-		size_t size = count;
-
-		if (size > chunk)
-			size = chunk;
+		size_t size = min(chunk, count);
 
 		ret = -EFAULT;
 		if (copy_from_iter(tty->write_buf, size, from) != size)
