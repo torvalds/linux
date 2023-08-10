@@ -293,12 +293,11 @@ struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_da
 	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 	hw->wiphy->n_iface_combinations = ARRAY_SIZE(wfx_iface_combinations);
 	hw->wiphy->iface_combinations = wfx_iface_combinations;
-	hw->wiphy->bands[NL80211_BAND_2GHZ] = devm_kmalloc(dev, sizeof(wfx_band_2ghz), GFP_KERNEL);
+	/* FIXME: also copy wfx_rates and wfx_2ghz_chantable */
+	hw->wiphy->bands[NL80211_BAND_2GHZ] = devm_kmemdup(dev, &wfx_band_2ghz,
+							   sizeof(wfx_band_2ghz), GFP_KERNEL);
 	if (!hw->wiphy->bands[NL80211_BAND_2GHZ])
 		goto err;
-
-	/* FIXME: also copy wfx_rates and wfx_2ghz_chantable */
-	memcpy(hw->wiphy->bands[NL80211_BAND_2GHZ], &wfx_band_2ghz, sizeof(wfx_band_2ghz));
 
 	wdev = hw->priv;
 	wdev->hw = hw;
