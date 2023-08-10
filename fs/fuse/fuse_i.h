@@ -88,6 +88,9 @@ struct fuse_inode {
 	    preserve the original mode */
 	umode_t orig_i_mode;
 
+	/* Cache birthtime */
+	struct timespec64 i_btime;
+
 	/** 64 bit inode number */
 	u64 orig_ino;
 
@@ -167,6 +170,8 @@ enum {
 	FUSE_I_SIZE_UNSTABLE,
 	/* Bad inode */
 	FUSE_I_BAD,
+	/* Has btime */
+	FUSE_I_BTIME,
 };
 
 struct fuse_conn;
@@ -1064,9 +1069,11 @@ void fuse_init_symlink(struct inode *inode);
  * Change attributes of an inode
  */
 void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
+			    struct fuse_statx *sx,
 			    u64 attr_valid, u64 attr_version);
 
 void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
+				   struct fuse_statx *sx,
 				   u64 attr_valid, u32 cache_mask);
 
 u32 fuse_get_cache_mask(struct inode *inode);

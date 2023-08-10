@@ -255,7 +255,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 			goto invalid;
 
 		forget_all_cached_acls(inode);
-		fuse_change_attributes(inode, &outarg.attr,
+		fuse_change_attributes(inode, &outarg.attr, NULL,
 				       ATTR_TIMEOUT(&outarg),
 				       attr_version);
 		fuse_change_entry_timeout(entry, &outarg);
@@ -1213,8 +1213,8 @@ static int fuse_do_statx(struct inode *inode, struct file *file,
 
 	fuse_statx_to_attr(&outarg.stat, &attr);
 	if ((sx->mask & STATX_BASIC_STATS) == STATX_BASIC_STATS) {
-		fuse_change_attributes(inode, &attr, ATTR_TIMEOUT(&outarg),
-				       attr_version);
+		fuse_change_attributes(inode, &attr, &outarg.stat,
+				       ATTR_TIMEOUT(&outarg), attr_version);
 	}
 	stat->result_mask = sx->mask & (STATX_BASIC_STATS | STATX_BTIME);
 	stat->btime.tv_sec = sx->btime.tv_sec;
@@ -1261,7 +1261,7 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 			fuse_make_bad(inode);
 			err = -EIO;
 		} else {
-			fuse_change_attributes(inode, &outarg.attr,
+			fuse_change_attributes(inode, &outarg.attr, NULL,
 					       ATTR_TIMEOUT(&outarg),
 					       attr_version);
 			if (stat)
@@ -1316,6 +1316,10 @@ retry:
 		generic_fillattr(&nop_mnt_idmap, inode, stat);
 		stat->mode = fi->orig_i_mode;
 		stat->ino = fi->orig_ino;
+		if (test_bit(FUSE_I_BTIME, &fi->state)) {
+			stat->btime = fi->i_btime;
+			stat->result_mask |= STATX_BTIME;
+		}
 	}
 
 	return err;
@@ -1952,7 +1956,7 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 		/* FIXME: clear I_DIRTY_SYNC? */
 	}
 
-	fuse_change_attributes_common(inode, &outarg.attr,
+	fuse_change_attributes_common(inode, &outarg.attr, NULL,
 				      ATTR_TIMEOUT(&outarg),
 				      fuse_get_cache_mask(inode));
 	oldsize = inode->i_size;
