@@ -885,7 +885,7 @@ static bool can327_is_valid_rx_char(u8 c)
  * This will not be re-entered while running, but other ldisc
  * functions may be called in parallel.
  */
-static void can327_ldisc_rx(struct tty_struct *tty, const unsigned char *cp,
+static void can327_ldisc_rx(struct tty_struct *tty, const u8 *cp,
 			    const char *fp, size_t count)
 {
 	struct can327 *elm = tty->disc_data;

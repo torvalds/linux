@@ -1479,7 +1479,7 @@ n_tty_receive_char_lnext(struct tty_struct *tty, unsigned char c, char flag)
 }
 
 /* Caller must ensure count > 0 */
-static void n_tty_lookahead_flow_ctrl(struct tty_struct *tty, const unsigned char *cp,
+static void n_tty_lookahead_flow_ctrl(struct tty_struct *tty, const u8 *cp,
 				      const unsigned char *fp, size_t count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1500,8 +1500,8 @@ static void n_tty_lookahead_flow_ctrl(struct tty_struct *tty, const unsigned cha
 }
 
 static void
-n_tty_receive_buf_real_raw(const struct tty_struct *tty,
-			   const unsigned char *cp, int count)
+n_tty_receive_buf_real_raw(const struct tty_struct *tty, const u8 *cp,
+			   int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t n, head;
@@ -1520,7 +1520,7 @@ n_tty_receive_buf_real_raw(const struct tty_struct *tty,
 }
 
 static void
-n_tty_receive_buf_raw(struct tty_struct *tty, const unsigned char *cp,
+n_tty_receive_buf_raw(struct tty_struct *tty, const u8 *cp,
 		      const char *fp, int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1537,7 +1537,7 @@ n_tty_receive_buf_raw(struct tty_struct *tty, const unsigned char *cp,
 }
 
 static void
-n_tty_receive_buf_closing(struct tty_struct *tty, const unsigned char *cp,
+n_tty_receive_buf_closing(struct tty_struct *tty, const u8 *cp,
 			  const char *fp, int count, bool lookahead_done)
 {
 	char flag = TTY_NORMAL;
@@ -1550,14 +1550,15 @@ n_tty_receive_buf_closing(struct tty_struct *tty, const unsigned char *cp,
 	}
 }
 
-static void n_tty_receive_buf_standard(struct tty_struct *tty,
-		const unsigned char *cp, const char *fp, int count, bool lookahead_done)
+static void n_tty_receive_buf_standard(struct tty_struct *tty, const u8 *cp,
+				       const char *fp, int count,
+				       bool lookahead_done)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	char flag = TTY_NORMAL;
 
 	while (count--) {
-		unsigned char c = *cp++;
+		u8 c = *cp++;
 
 		if (fp)
 			flag = *fp++;
@@ -1588,7 +1589,7 @@ static void n_tty_receive_buf_standard(struct tty_struct *tty,
 	}
 }
 
-static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
+static void __receive_buf(struct tty_struct *tty, const u8 *cp,
 			  const char *fp, int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1663,7 +1664,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
  *	publishes commit_head or canon_head
  */
 static size_t
-n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
+n_tty_receive_buf_common(struct tty_struct *tty, const u8 *cp,
 			 const char *fp, int count, int flow)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1744,15 +1745,14 @@ n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
 	return rcvd;
 }
 
-static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
+static void n_tty_receive_buf(struct tty_struct *tty, const u8 *cp,
 			      const char *fp, size_t count)
 {
 	n_tty_receive_buf_common(tty, cp, fp, count, 0);
 }
 
-static size_t n_tty_receive_buf2(struct tty_struct *tty,
-				 const unsigned char *cp, const char *fp,
-				 size_t count)
+static size_t n_tty_receive_buf2(struct tty_struct *tty, const u8 *cp,
+				 const char *fp, size_t count)
 {
 	return n_tty_receive_buf_common(tty, cp, fp, count, 1);
 }

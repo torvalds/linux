@@ -316,8 +316,8 @@ EXPORT_SYMBOL_GPL(tty_buffer_request_room);
  *
  * Returns: the number added.
  */
-int tty_insert_flip_string_fixed_flag(struct tty_port *port,
-		const unsigned char *chars, char flag, size_t size)
+int tty_insert_flip_string_fixed_flag(struct tty_port *port, const u8 *chars,
+		char flag, size_t size)
 {
 	int copied = 0;
 	bool flags = flag != TTY_NORMAL;
@@ -355,8 +355,8 @@ EXPORT_SYMBOL(tty_insert_flip_string_fixed_flag);
  *
  * Returns: the number added.
  */
-int tty_insert_flip_string_flags(struct tty_port *port,
-		const unsigned char *chars, const char *flags, size_t size)
+int tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
+		const char *flags, size_t size)
 {
 	int copied = 0;
 
@@ -390,7 +390,7 @@ EXPORT_SYMBOL(tty_insert_flip_string_flags);
  * Queue a single byte @ch to the tty buffering, with an optional flag. This is
  * the slow path of tty_insert_flip_char().
  */
-int __tty_insert_flip_char(struct tty_port *port, unsigned char ch, char flag)
+int __tty_insert_flip_char(struct tty_port *port, u8 ch, char flag)
 {
 	struct tty_buffer *tb;
 	bool flags = flag != TTY_NORMAL;
@@ -421,8 +421,7 @@ EXPORT_SYMBOL(__tty_insert_flip_char);
  * Returns: the length available and buffer pointer (@chars) to the space which
  * is now allocated and accounted for as ready for normal characters.
  */
-int tty_prepare_flip_string(struct tty_port *port, unsigned char **chars,
-		size_t size)
+int tty_prepare_flip_string(struct tty_port *port, u8 **chars, size_t size)
 {
 	int space = __tty_buffer_request_room(port, size, false);
 
@@ -450,8 +449,8 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
  *
  * Returns: the number of bytes processed.
  */
-size_t tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
-			     const char *f, size_t count)
+size_t tty_ldisc_receive_buf(struct tty_ldisc *ld, const u8 *p, const char *f,
+			     size_t count)
 {
 	if (ld->ops->receive_buf2)
 		count = ld->ops->receive_buf2(ld->tty, p, f, count);
@@ -489,7 +488,7 @@ static void lookahead_bufs(struct tty_port *port, struct tty_buffer *head)
 		}
 
 		if (port->client_ops->lookahead_buf) {
-			unsigned char *p, *f = NULL;
+			u8 *p, *f = NULL;
 
 			p = char_buf_ptr(head, head->lookahead);
 			if (head->flags)
@@ -620,7 +619,7 @@ EXPORT_SYMBOL(tty_flip_buffer_push);
  * Returns: the number added.
  */
 int tty_insert_flip_string_and_push_buffer(struct tty_port *port,
-		const unsigned char *chars, size_t size)
+					   const u8 *chars, size_t size)
 {
 	struct tty_bufhead *buf = &port->buf;
 	unsigned long flags;

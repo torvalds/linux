@@ -93,8 +93,8 @@ static int ppp_sync_ioctl(struct ppp_channel *chan, unsigned int cmd,
 static void ppp_sync_process(struct tasklet_struct *t);
 static int ppp_sync_push(struct syncppp *ap);
 static void ppp_sync_flush_output(struct syncppp *ap);
-static void ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
-			   const char *flags, int count);
+static void ppp_sync_input(struct syncppp *ap, const u8 *buf, const char *flags,
+			   int count);
 
 static const struct ppp_channel_ops sync_ops = {
 	.start_xmit = ppp_sync_send,
@@ -323,8 +323,8 @@ ppp_synctty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 
 /* May sleep, don't call from interrupt level or with interrupts disabled */
 static void
-ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
-		 const char *cflags, size_t count)
+ppp_sync_receive(struct tty_struct *tty, const u8 *buf, const char *cflags,
+		 size_t count)
 {
 	struct syncppp *ap = sp_get(tty);
 	unsigned long flags;
@@ -655,8 +655,7 @@ ppp_sync_flush_output(struct syncppp *ap)
  * frame is considered to be in error and is tossed.
  */
 static void
-ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
-		const char *flags, int count)
+ppp_sync_input(struct syncppp *ap, const u8 *buf, const char *flags, int count)
 {
 	struct sk_buff *skb;
 	unsigned char *p;

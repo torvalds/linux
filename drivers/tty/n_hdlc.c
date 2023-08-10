@@ -369,7 +369,7 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
  * Called by tty low level driver when receive data is available. Data is
  * interpreted as one HDLC frame.
  */
-static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
+static void n_hdlc_tty_receive(struct tty_struct *tty, const u8 *data,
 			       const char *flags, size_t count)
 {
 	register struct n_hdlc *n_hdlc = tty->disc_data;

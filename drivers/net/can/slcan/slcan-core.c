@@ -774,9 +774,8 @@ static const struct net_device_ops slcan_netdev_ops = {
  * be re-entered while running but other ldisc functions may be called
  * in parallel
  */
-static void slcan_receive_buf(struct tty_struct *tty,
-			      const unsigned char *cp, const char *fp,
-			      size_t count)
+static void slcan_receive_buf(struct tty_struct *tty, const u8 *cp,
+			      const char *fp, size_t count)
 {
 	struct slcan *sl = tty->disc_data;
 

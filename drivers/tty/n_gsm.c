@@ -3489,7 +3489,7 @@ static void gsmld_detach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 	gsm->tty = NULL;
 }
 
-static void gsmld_receive_buf(struct tty_struct *tty, const unsigned char *cp,
+static void gsmld_receive_buf(struct tty_struct *tty, const u8 *cp,
 			      const char *fp, size_t count)
 {
 	struct gsm_mux *gsm = tty->disc_data;

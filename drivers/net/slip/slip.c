@@ -685,7 +685,7 @@ static void sl_setup(struct net_device *dev)
  * in parallel
  */
 
-static void slip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
+static void slip_receive_buf(struct tty_struct *tty, const u8 *cp,
 			     const char *fp, size_t count)
 {
 	struct slip *sl = tty->disc_data;
