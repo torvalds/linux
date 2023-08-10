@@ -804,7 +804,7 @@ static void vcc_hangup(struct tty_struct *tty)
 	tty_port_hangup(tty->port);
 }
 
-static int vcc_write(struct tty_struct *tty, const u8 *buf, int count)
+static ssize_t vcc_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	struct vcc_port *port;
 	struct vio_vcc *pkt;
@@ -826,7 +826,8 @@ static int vcc_write(struct tty_struct *tty, const u8 *buf, int count)
 
 	while (count > 0) {
 		/* Minimum of data to write and space available */
-		tosend = min(count, (VCC_BUFF_LEN - port->chars_in_buffer));
+		tosend = min_t(size_t, count,
+			       (VCC_BUFF_LEN - port->chars_in_buffer));
 
 		if (!tosend)
 			break;

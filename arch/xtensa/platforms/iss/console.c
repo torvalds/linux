@@ -52,7 +52,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 }
 
 
-static int rs_write(struct tty_struct * tty, const u8 *buf, int count)
+static ssize_t rs_write(struct tty_struct * tty, const u8 *buf, size_t count)
 {
 	/* see drivers/char/serialX.c to reference original version */
 

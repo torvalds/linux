@@ -1599,7 +1599,8 @@ static void ntty_hangup(struct tty_struct *tty)
  * called when the userspace process writes to the tty (/dev/noz*).
  * Data is inserted into a fifo, which is then read and transferred to the modem.
  */
-static int ntty_write(struct tty_struct *tty, const u8 *buffer, int count)
+static ssize_t ntty_write(struct tty_struct *tty, const u8 *buffer,
+			  size_t count)
 {
 	int rval = -EINVAL;
 	struct nozomi *dc = get_dc_by_tty(tty);

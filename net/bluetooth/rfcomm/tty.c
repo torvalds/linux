@@ -779,14 +779,15 @@ static void rfcomm_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close(&dev->port, tty, filp);
 }
 
-static int rfcomm_tty_write(struct tty_struct *tty, const u8 *buf, int count)
+static ssize_t rfcomm_tty_write(struct tty_struct *tty, const u8 *buf,
+				size_t count)
 {
 	struct rfcomm_dev *dev = tty->driver_data;
 	struct rfcomm_dlc *dlc = dev->dlc;
 	struct sk_buff *skb;
 	int sent = 0, size;
 
-	BT_DBG("tty %p count %d", tty, count);
+	BT_DBG("tty %p count %zu", tty, count);
 
 	while (count) {
 		size = min_t(uint, count, dlc->mtu);

@@ -745,7 +745,7 @@ static void update_tx_timer(struct slgt_info *info)
 	}
 }
 
-static int write(struct tty_struct *tty, const u8 *buf, int count)
+static ssize_t write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	int ret = 0;
 	struct slgt_info *info = tty->driver_data;
@@ -754,7 +754,7 @@ static int write(struct tty_struct *tty, const u8 *buf, int count)
 	if (sanity_check(info, tty->name, "write"))
 		return -EIO;
 
-	DBGINFO(("%s write count=%d\n", info->device_name, count));
+	DBGINFO(("%s write count=%zu\n", info->device_name, count));
 
 	if (!info->tx_buf || (count > info->max_frame_size))
 		return -EIO;

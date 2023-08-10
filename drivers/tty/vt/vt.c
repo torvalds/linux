@@ -3238,7 +3238,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
  * /dev/ttyN handling
  */
 
-static int con_write(struct tty_struct *tty, const u8 *buf, int count)
+static ssize_t con_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	int	retval;
 

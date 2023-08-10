@@ -901,7 +901,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close(tty->port, tty, filp);
 }
 
-static int mxser_write(struct tty_struct *tty, const u8 *buf, int count)
+static ssize_t mxser_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;

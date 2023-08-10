@@ -229,8 +229,8 @@ out:
  * tty device. The characters may come from user space or kernel space. This
  * routine will return the number of characters actually accepted for writing.
  */
-static int
-sclp_tty_write(struct tty_struct *tty, const u8 *buf, int count)
+static ssize_t
+sclp_tty_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	if (sclp_tty_chars_count > 0) {
 		sclp_tty_write_string(sclp_tty_chars, sclp_tty_chars_count, 0);

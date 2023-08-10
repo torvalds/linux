@@ -149,7 +149,7 @@ static void gdm_tty_send_complete(void *arg)
 	tty_port_tty_wakeup(&gdm->port);
 }
 
-static int gdm_tty_write(struct tty_struct *tty, const u8 *buf, int len)
+static ssize_t gdm_tty_write(struct tty_struct *tty, const u8 *buf, size_t len)
 {
 	struct gdm *gdm = tty->driver_data;
 	int remain = len;

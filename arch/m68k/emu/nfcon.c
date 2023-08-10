@@ -70,7 +70,8 @@ static void nfcon_tty_close(struct tty_struct *tty, struct file *filp)
 {
 }
 
-static int nfcon_tty_write(struct tty_struct *tty, const u8 *buf, int count)
+static ssize_t nfcon_tty_write(struct tty_struct *tty, const u8 *buf,
+			       size_t count)
 {
 	nfputs(buf, count);
 	return count;

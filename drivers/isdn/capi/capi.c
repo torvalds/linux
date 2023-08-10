@@ -1077,12 +1077,13 @@ static void capinc_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close(&mp->port, tty, filp);
 }
 
-static int capinc_tty_write(struct tty_struct *tty, const u8 *buf, int count)
+static ssize_t capinc_tty_write(struct tty_struct *tty, const u8 *buf,
+				size_t count)
 {
 	struct capiminor *mp = tty->driver_data;
 	struct sk_buff *skb;
 
-	pr_debug("capinc_tty_write(count=%d)\n", count);
+	pr_debug("capinc_tty_write(count=%zu)\n", count);
 
 	spin_lock_bh(&mp->outlock);
 	skb = mp->outskb;

@@ -185,7 +185,8 @@ static void goldfish_tty_hangup(struct tty_struct *tty)
 	tty_port_hangup(tty->port);
 }
 
-static int goldfish_tty_write(struct tty_struct *tty, const u8 *buf, int count)
+static ssize_t goldfish_tty_write(struct tty_struct *tty, const u8 *buf,
+				  size_t count)
 {
 	goldfish_tty_do_write(tty->index, buf, count);
 	return count;

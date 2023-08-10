@@ -789,7 +789,8 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close(&acm->port, tty, filp);
 }
 
-static int acm_tty_write(struct tty_struct *tty, const u8 *buf, int count)
+static ssize_t acm_tty_write(struct tty_struct *tty, const u8 *buf,
+			     size_t count)
 {
 	struct acm *acm = tty->driver_data;
 	int stat;
@@ -800,7 +801,7 @@ static int acm_tty_write(struct tty_struct *tty, const u8 *buf, int count)
 	if (!count)
 		return 0;
 
-	dev_vdbg(&acm->data->dev, "%d bytes from tty layer\n", count);
+	dev_vdbg(&acm->data->dev, "%zu bytes from tty layer\n", count);
 
 	spin_lock_irqsave(&acm->write_lock, flags);
 	wbn = acm_wb_alloc(acm);
@@ -817,7 +818,7 @@ static int acm_tty_write(struct tty_struct *tty, const u8 *buf, int count)
 	}
 
 	count = (count > acm->writesize) ? acm->writesize : count;
-	dev_vdbg(&acm->data->dev, "writing %d bytes\n", count);
+	dev_vdbg(&acm->data->dev, "writing %zu bytes\n", count);
 	memcpy(wb->buf, buf, count);
 	wb->len = count;
 
