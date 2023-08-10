@@ -32,6 +32,10 @@
 #define MAX_FILTER_EVENTS		300
 #define MAX_TEST_EVENTS		10
 
+#define PMU_EVENT_FILTER_INVALID_ACTION		(KVM_PMU_EVENT_DENY + 1)
+#define PMU_EVENT_FILTER_INVALID_FLAGS			(KVM_PMU_EVENT_FLAGS_VALID_MASK << 1)
+#define PMU_EVENT_FILTER_INVALID_NEVENTS		(MAX_FILTER_EVENTS + 1)
+
 /*
  * This is how the event selector and unit mask are stored in an AMD
  * core performance event-select register. Intel's format is similar,
@@ -760,6 +764,8 @@ static int set_pmu_single_event_filter(struct kvm_vcpu *vcpu, uint64_t event,
 
 static void test_filter_ioctl(struct kvm_vcpu *vcpu)
 {
+	uint8_t nr_fixed_counters = kvm_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
+	struct __kvm_pmu_event_filter f;
 	uint64_t e = ~0ul;
 	int r;
 
@@ -780,6 +786,26 @@ static void test_filter_ioctl(struct kvm_vcpu *vcpu)
 					KVM_PMU_EVENT_FLAG_MASKED_EVENTS,
 					KVM_PMU_EVENT_ALLOW);
 	TEST_ASSERT(r == 0, "Valid PMU Event Filter is failing");
+
+	f = base_event_filter;
+	f.action = PMU_EVENT_FILTER_INVALID_ACTION;
+	r = set_pmu_event_filter(vcpu, &f);
+	TEST_ASSERT(r, "Set invalid action is expected to fail");
+
+	f = base_event_filter;
+	f.flags = PMU_EVENT_FILTER_INVALID_FLAGS;
+	r = set_pmu_event_filter(vcpu, &f);
+	TEST_ASSERT(r, "Set invalid flags is expected to fail");
+
+	f = base_event_filter;
+	f.nevents = PMU_EVENT_FILTER_INVALID_NEVENTS;
+	r = set_pmu_event_filter(vcpu, &f);
+	TEST_ASSERT(r, "Exceeding the max number of filter events should fail");
+
+	f = base_event_filter;
+	f.fixed_counter_bitmap = ~GENMASK_ULL(nr_fixed_counters, 0);
+	r = set_pmu_event_filter(vcpu, &f);
+	TEST_ASSERT(!r, "Masking non-existent fixed counters should be allowed");
 }
 
 int main(int argc, char *argv[])
