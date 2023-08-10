@@ -785,12 +785,12 @@ static ssize_t rfcomm_tty_write(struct tty_struct *tty, const u8 *buf,
 	struct rfcomm_dev *dev = tty->driver_data;
 	struct rfcomm_dlc *dlc = dev->dlc;
 	struct sk_buff *skb;
-	int sent = 0, size;
+	size_t sent = 0, size;
 
 	BT_DBG("tty %p count %zu", tty, count);
 
 	while (count) {
-		size = min_t(uint, count, dlc->mtu);
+		size = min_t(size_t, count, dlc->mtu);
 
 		skb = rfcomm_wmalloc(dev, size + RFCOMM_SKB_RESERVE, GFP_ATOMIC);
 		if (!skb)
