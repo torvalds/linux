@@ -409,6 +409,11 @@ xchk_validate_inputs(
 		goto out;
 	}
 
+	/* No rebuild without repair. */
+	if ((sm->sm_flags & XFS_SCRUB_IFLAG_FORCE_REBUILD) &&
+	    !(sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR))
+		return -EINVAL;
+
 	/*
 	 * We only want to repair read-write v5+ filesystems.  Defer the check
 	 * for ops->repair until after our scrub confirms that we need to
@@ -537,8 +542,12 @@ retry_op:
 	    !(sc->flags & XREP_ALREADY_FIXED)) {
 		bool needs_fix = xchk_needs_repair(sc->sm);
 
+		/* Userspace asked us to rebuild the structure regardless. */
+		if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_FORCE_REBUILD)
+			needs_fix = true;
+
 		/* Let debug users force us into the repair routines. */
-		if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_FORCE_SCRUB_REPAIR))
+		if (XFS_TEST_ERROR(needs_fix, mp, XFS_ERRTAG_FORCE_SCRUB_REPAIR))
 			needs_fix = true;
 
 		/*
