@@ -905,11 +905,7 @@ static void can327_ldisc_rx(struct tty_struct *tty, const unsigned char *cp,
 		if (fp && *fp++) {
 			netdev_err(elm->dev,
 				   "Error in received character stream. Check your wiring.");
-
-			can327_uart_side_failure(elm);
-
-			spin_unlock_bh(&elm->lock);
-			return;
+			goto uart_failure;
 		}
 
 		/* Ignore NUL characters, which the PIC microcontroller may
@@ -925,10 +921,7 @@ static void can327_ldisc_rx(struct tty_struct *tty, const unsigned char *cp,
 				netdev_err(elm->dev,
 					   "Received illegal character %02x.\n",
 					   *cp);
-				can327_uart_side_failure(elm);
-
-				spin_unlock_bh(&elm->lock);
-				return;
+				goto uart_failure;
 			}
 
 			elm->rxbuf[elm->rxfill++] = *cp;
@@ -941,14 +934,15 @@ static void can327_ldisc_rx(struct tty_struct *tty, const unsigned char *cp,
 		netdev_err(elm->dev,
 			   "Receive buffer overflowed. Bad chip or wiring? count = %i",
 			   count);
-
-		can327_uart_side_failure(elm);
-
-		spin_unlock_bh(&elm->lock);
-		return;
+		goto uart_failure;
 	}
 
 	can327_parse_rxbuf(elm, first_new_char_idx);
+	spin_unlock_bh(&elm->lock);
+
+	return;
+uart_failure:
+	can327_uart_side_failure(elm);
 	spin_unlock_bh(&elm->lock);
 }
 
