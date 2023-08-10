@@ -324,6 +324,7 @@
 				regulator-ramp-delay = <1250>;
 				rohm,dvs-run-voltage = <1000000>;
 				rohm,dvs-idle-voltage = <900000>;
+				regulator-always-on;
 			};
 
 			buck3_reg: BUCK3 {
