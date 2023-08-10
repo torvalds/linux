@@ -442,7 +442,7 @@ static int ublk_revalidate_disk_zones(struct ublk_device *ub)
 static blk_status_t ublk_setup_iod_zoned(struct ublk_queue *ubq,
 					 struct request *req)
 {
-	return -EOPNOTSUPP;
+	return BLK_STS_NOTSUPP;
 }
 
 #endif
@@ -960,7 +960,7 @@ static blk_status_t ublk_setup_iod(struct ublk_queue *ubq, struct request *req)
 
 	if (!ublk_queue_is_zoned(ubq) &&
 	    (op_is_zone_mgmt(op) || op == REQ_OP_ZONE_APPEND))
-		return -EIO;
+		return BLK_STS_IOERR;
 
 	switch (req_op(req)) {
 	case REQ_OP_READ:
