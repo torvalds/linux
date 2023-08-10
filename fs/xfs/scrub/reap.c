@@ -431,18 +431,12 @@ xreap_agmeta_extent(
 {
 	struct xreap_state	*rs = priv;
 	struct xfs_scrub	*sc = rs->sc;
-	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(sc->mp, fsbno);
-	xfs_agblock_t		agbno = XFS_FSB_TO_AGBNO(sc->mp, fsbno);
+	xfs_agblock_t		agbno = fsbno;
 	xfs_agblock_t		agbno_next = agbno + len;
 	int			error = 0;
 
 	ASSERT(len <= XFS_MAX_BMBT_EXTLEN);
 	ASSERT(sc->ip == NULL);
-
-	if (agno != sc->sa.pag->pag_agno) {
-		ASSERT(sc->sa.pag->pag_agno == agno);
-		return -EFSCORRUPTED;
-	}
 
 	while (agbno < agbno_next) {
 		xfs_extlen_t	aglen;
@@ -477,9 +471,9 @@ xreap_agmeta_extent(
 
 /* Dispose of every block of every AG metadata extent in the bitmap. */
 int
-xrep_reap_ag_metadata(
+xrep_reap_agblocks(
 	struct xfs_scrub		*sc,
-	struct xbitmap			*bitmap,
+	struct xagb_bitmap		*bitmap,
 	const struct xfs_owner_info	*oinfo,
 	enum xfs_ag_resv_type		type)
 {
@@ -493,7 +487,7 @@ xrep_reap_ag_metadata(
 	ASSERT(xfs_has_rmapbt(sc->mp));
 	ASSERT(sc->ip == NULL);
 
-	error = xbitmap_walk(bitmap, xreap_agmeta_extent, &rs);
+	error = xagb_bitmap_walk(bitmap, xreap_agmeta_extent, &rs);
 	if (error)
 		return error;
 
