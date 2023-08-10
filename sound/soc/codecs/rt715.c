@@ -52,6 +52,60 @@ static int rt715_index_write(struct regmap *regmap, unsigned int reg,
 	return ret;
 }
 
+static int rt715_index_write_nid(struct regmap *regmap,
+		unsigned int nid, unsigned int reg, unsigned int value)
+{
+	int ret;
+	unsigned int addr = ((RT715_PRIV_INDEX_W_H_2 | nid) << 8) | reg;
+
+	ret = regmap_write(regmap, addr, value);
+	if (ret < 0)
+		pr_err("Failed to set private value: %06x <= %04x ret=%d\n",
+			addr, value, ret);
+
+	return ret;
+}
+
+static int rt715_index_read_nid(struct regmap *regmap,
+		unsigned int nid, unsigned int reg, unsigned int *value)
+{
+	int ret;
+	unsigned int addr = ((RT715_PRIV_INDEX_W_H_2 | nid) << 8) | reg;
+
+	*value = 0;
+	ret = regmap_read(regmap, addr, value);
+	if (ret < 0)
+		pr_err("Failed to get private value: %06x => %04x ret=%d\n",
+			addr, *value, ret);
+
+	return ret;
+}
+
+static int rt715_index_update_bits(struct regmap *regmap, unsigned int nid,
+			unsigned int reg, unsigned int mask, unsigned int val)
+{
+	unsigned int tmp, orig;
+	int ret;
+
+	ret = rt715_index_read_nid(regmap, nid, reg, &orig);
+	if (ret < 0)
+		return ret;
+
+	tmp = orig & ~mask;
+	tmp |= val & mask;
+
+	return rt715_index_write_nid(regmap, nid, reg, tmp);
+}
+
+static void rt715_reset(struct regmap *regmap)
+{
+	regmap_write(regmap, RT715_FUNC_RESET, 0);
+	rt715_index_update_bits(regmap, RT715_VENDOR_REGISTERS,
+		RT715_VD_CLEAR_CTRL, RT715_CLEAR_HIDDEN_REG,
+		RT715_CLEAR_HIDDEN_REG);
+}
+
+
 static void rt715_get_gain(struct rt715_priv *rt715, unsigned int addr_h,
 				unsigned int addr_l, unsigned int val_h,
 				unsigned int *r_val, unsigned int *l_val)
@@ -1039,6 +1093,8 @@ int rt715_io_init(struct device *dev, struct sdw_slave *slave)
 		pm_runtime_set_active(&slave->dev);
 
 	pm_runtime_get_noresume(&slave->dev);
+
+	rt715_reset(rt715->regmap);
 
 	/* Mute nid=08h/09h */
 	regmap_write(rt715->regmap, RT715_SET_GAIN_LINE_ADC_H, 0xb080);
