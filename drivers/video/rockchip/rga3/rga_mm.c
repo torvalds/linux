@@ -1302,13 +1302,6 @@ static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
 	struct sg_table *sgt;
 	struct rga_scheduler_t *scheduler;
 
-	sgt = rga_mm_lookup_sgt(buffer);
-	if (sgt == NULL) {
-		pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
-		       __func__, __LINE__, job->core);
-		return -EINVAL;
-	}
-
 	scheduler = buffer->dma_buffer->scheduler;
 	if (scheduler == NULL) {
 		pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
@@ -1316,7 +1309,18 @@ static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
 		return -EFAULT;
 	}
 
-	dma_sync_sg_for_device(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
+	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS) {
+		dma_sync_single_for_device(scheduler->dev, buffer->phys_addr, buffer->size, dir);
+	} else {
+		sgt = rga_mm_lookup_sgt(buffer);
+		if (sgt == NULL) {
+			pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
+			       __func__, __LINE__, job->core);
+			return -EINVAL;
+		}
+
+		dma_sync_sg_for_device(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
+	}
 
 	return 0;
 }
@@ -1328,13 +1332,6 @@ static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
 	struct sg_table *sgt;
 	struct rga_scheduler_t *scheduler;
 
-	sgt = rga_mm_lookup_sgt(buffer);
-	if (sgt == NULL) {
-		pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
-		       __func__, __LINE__, job->core);
-		return -EINVAL;
-	}
-
 	scheduler = buffer->dma_buffer->scheduler;
 	if (scheduler == NULL) {
 		pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
@@ -1342,7 +1339,18 @@ static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
 		return -EFAULT;
 	}
 
-	dma_sync_sg_for_cpu(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
+	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS) {
+		dma_sync_single_for_cpu(scheduler->dev, buffer->phys_addr, buffer->size, dir);
+	} else {
+		sgt = rga_mm_lookup_sgt(buffer);
+		if (sgt == NULL) {
+			pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
+			       __func__, __LINE__, job->core);
+			return -EINVAL;
+		}
+
+		dma_sync_sg_for_cpu(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
+	}
 
 	return 0;
 }
