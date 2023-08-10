@@ -2328,14 +2328,11 @@ static void vxlan_encap_bypass(struct sk_buff *skb, struct vxlan_dev *src_vxlan,
 			       struct vxlan_dev *dst_vxlan, __be32 vni,
 			       bool snoop)
 {
-	struct pcpu_sw_netstats *tx_stats, *rx_stats;
 	union vxlan_addr loopback;
 	union vxlan_addr *remote_ip = &dst_vxlan->default_dst.remote_ip;
 	struct net_device *dev;
 	int len = skb->len;
 
-	tx_stats = this_cpu_ptr(src_vxlan->dev->tstats);
-	rx_stats = this_cpu_ptr(dst_vxlan->dev->tstats);
 	skb->pkt_type = PACKET_HOST;
 	skb->encapsulation = 0;
 	skb->dev = dst_vxlan->dev;
@@ -2361,17 +2358,11 @@ static void vxlan_encap_bypass(struct sk_buff *skb, struct vxlan_dev *src_vxlan,
 	if ((dst_vxlan->cfg.flags & VXLAN_F_LEARN) && snoop)
 		vxlan_snoop(dev, &loopback, eth_hdr(skb)->h_source, 0, vni);
 
-	u64_stats_update_begin(&tx_stats->syncp);
-	u64_stats_inc(&tx_stats->tx_packets);
-	u64_stats_add(&tx_stats->tx_bytes, len);
-	u64_stats_update_end(&tx_stats->syncp);
+	dev_sw_netstats_tx_add(src_vxlan->dev, 1, len);
 	vxlan_vnifilter_count(src_vxlan, vni, NULL, VXLAN_VNI_STATS_TX, len);
 
 	if (__netif_rx(skb) == NET_RX_SUCCESS) {
-		u64_stats_update_begin(&rx_stats->syncp);
-		u64_stats_inc(&rx_stats->rx_packets);
-		u64_stats_add(&rx_stats->rx_bytes, len);
-		u64_stats_update_end(&rx_stats->syncp);
+		dev_sw_netstats_rx_add(dst_vxlan->dev, len);
 		vxlan_vnifilter_count(dst_vxlan, vni, NULL, VXLAN_VNI_STATS_RX,
 				      len);
 	} else {
