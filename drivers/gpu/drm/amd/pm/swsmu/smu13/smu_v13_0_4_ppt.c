@@ -257,7 +257,7 @@ static ssize_t smu_v13_0_4_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->average_gfx_activity = metrics.GfxActivity;
 	gpu_metrics->average_mm_activity = metrics.UvdActivity;
 
-	gpu_metrics->average_socket_power = metrics.CurrentSocketPower;
+	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
 	gpu_metrics->average_gfx_power = metrics.Power[0];
 	gpu_metrics->average_soc_power = metrics.Power[1];
 	memcpy(&gpu_metrics->average_core_power[0],
