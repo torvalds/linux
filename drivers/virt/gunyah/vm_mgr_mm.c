@@ -14,9 +14,7 @@
 
 static bool pages_are_mergeable(struct page *a, struct page *b)
 {
-	if (page_to_pfn(a) + 1 != page_to_pfn(b))
-		return false;
-	return true;
+	return page_to_pfn(a) + 1 == page_to_pfn(b);
 }
 
 static bool gh_vm_mem_overlap(struct gh_vm_mem *a, u64 addr, u64 size)

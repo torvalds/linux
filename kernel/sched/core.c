@@ -6638,7 +6638,7 @@ static void __sched notrace __schedule(unsigned int sched_mode)
 	rq->last_seen_need_resched_ns = 0;
 #endif
 
-	trace_android_rvh_schedule(prev, next, rq);
+	trace_android_rvh_schedule(sched_mode, prev, next, rq);
 	if (likely(prev != next)) {
 		rq->nr_switches++;
 		/*
