@@ -398,30 +398,37 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
 		sensors->soc_dts[i].sensors = sensors;
-		ret = add_dts_thermal_zone(i, &sensors->soc_dts[i],
-					   read_only_trip_count);
-		if (ret)
-			goto err_free;
-	}
 
-	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
 		ret = configure_trip(&sensors->soc_dts[i], 0,
 				     THERMAL_TRIP_PASSIVE, 0);
 		if (ret)
-			goto err_remove_zone;
+			goto err_reset_trips;
 
 		ret = configure_trip(&sensors->soc_dts[i], 1,
 				     THERMAL_TRIP_PASSIVE, 0);
+		if (ret)
+			goto err_reset_trips;
+	}
+
+	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
+		ret = add_dts_thermal_zone(i, &sensors->soc_dts[i],
+					   read_only_trip_count);
 		if (ret)
 			goto err_remove_zone;
 	}
 
 	return sensors;
+
 err_remove_zone:
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i)
 		remove_dts_thermal_zone(&sensors->soc_dts[i]);
 
-err_free:
+err_reset_trips:
+	for (i = 0; i < SOC_MAX_DTS_SENSORS; i++) {
+		configure_trip(&sensors->soc_dts[i], 0, 0, 0);
+		configure_trip(&sensors->soc_dts[i], 1, 0, 0);
+	}
+
 	kfree(sensors);
 	return ERR_PTR(ret);
 }
@@ -432,9 +439,9 @@ void intel_soc_dts_iosf_exit(struct intel_soc_dts_sensors *sensors)
 	int i;
 
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
+		remove_dts_thermal_zone(&sensors->soc_dts[i]);
 		configure_trip(&sensors->soc_dts[i], 0, 0, 0);
 		configure_trip(&sensors->soc_dts[i], 1, 0, 0);
-		remove_dts_thermal_zone(&sensors->soc_dts[i]);
 	}
 	kfree(sensors);
 }
