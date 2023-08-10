@@ -10,15 +10,6 @@
  *  Copyright (C) Intel 2017
  */
 
-static int n_null_open(struct tty_struct *tty)
-{
-	return 0;
-}
-
-static void n_null_close(struct tty_struct *tty)
-{
-}
-
 static ssize_t n_null_read(struct tty_struct *tty, struct file *file,
 			   unsigned char *buf, size_t nr,
 			   void **cookie, unsigned long offset)
@@ -32,21 +23,12 @@ static ssize_t n_null_write(struct tty_struct *tty, struct file *file,
 	return -EOPNOTSUPP;
 }
 
-static void n_null_receivebuf(struct tty_struct *tty,
-				 const unsigned char *cp, const char *fp,
-				 int cnt)
-{
-}
-
 static struct tty_ldisc_ops null_ldisc = {
 	.owner		=	THIS_MODULE,
 	.num		=	N_NULL,
 	.name		=	"n_null",
-	.open		=	n_null_open,
-	.close		=	n_null_close,
 	.read		=	n_null_read,
 	.write		=	n_null_write,
-	.receive_buf	=	n_null_receivebuf
 };
 
 static int __init n_null_init(void)
