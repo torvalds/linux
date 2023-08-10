@@ -850,10 +850,10 @@ static ssize_t iterate_tty_read(struct tty_ldisc *ld, struct tty_struct *tty,
 	unsigned long offset = 0;
 	char kernel_buf[64];
 	ssize_t retval = 0;
-	size_t count = iov_iter_count(to);
+	size_t copied, count = iov_iter_count(to);
 
 	do {
-		int size, copied;
+		ssize_t size;
 
 		size = count > sizeof(kernel_buf) ? sizeof(kernel_buf) : count;
 		size = ld->ops->read(tty, file, kernel_buf, size, &cookie, offset);
