@@ -16,7 +16,6 @@
 #include "hda-ipc.h"
 #include "../sof-audio.h"
 #include "mtl.h"
-#include "hda.h"
 #include <sound/hda-mlink.h>
 
 /* LunarLake ops */
