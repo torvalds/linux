@@ -28,14 +28,6 @@
 #include <asm/io.h>
 #include <linux/uaccess.h>
 
-#undef TTY_DEBUG_WAIT_UNTIL_SENT
-
-#ifdef TTY_DEBUG_WAIT_UNTIL_SENT
-# define tty_debug_wait_until_sent(tty, f, args...)    tty_debug(tty, f, ##args)
-#else
-# define tty_debug_wait_until_sent(tty, f, args...)    do {} while (0)
-#endif
-
 #undef	DEBUG
 
 /*
@@ -198,8 +190,6 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 
 void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 {
-	tty_debug_wait_until_sent(tty, "wait until sent, timeout=%ld\n", timeout);
-
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
 
