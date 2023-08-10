@@ -251,6 +251,7 @@ static int ublk_dev_param_zoned_apply(struct ublk_device *ub)
 	const struct ublk_param_zoned *p = &ub->params.zoned;
 
 	disk_set_zoned(ub->ub_disk, BLK_ZONED_HM);
+	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, ub->ub_disk->queue);
 	blk_queue_required_elevator_features(ub->ub_disk->queue,
 					     ELEVATOR_F_ZBD_SEQ_WRITE);
 	disk_set_max_active_zones(ub->ub_disk, p->max_active_zones);
@@ -393,6 +394,9 @@ static blk_status_t ublk_setup_iod_zoned(struct ublk_queue *ubq,
 	case REQ_OP_ZONE_APPEND:
 		ublk_op = UBLK_IO_OP_ZONE_APPEND;
 		break;
+	case REQ_OP_ZONE_RESET_ALL:
+		ublk_op = UBLK_IO_OP_ZONE_RESET_ALL;
+		break;
 	case REQ_OP_DRV_IN:
 		ublk_op = pdu->operation;
 		switch (ublk_op) {
@@ -404,9 +408,8 @@ static blk_status_t ublk_setup_iod_zoned(struct ublk_queue *ubq,
 		default:
 			return BLK_STS_IOERR;
 		}
-	case REQ_OP_ZONE_RESET_ALL:
 	case REQ_OP_DRV_OUT:
-		/* We do not support reset_all and drv_out */
+		/* We do not support drv_out */
 		return BLK_STS_NOTSUPP;
 	default:
 		return BLK_STS_IOERR;

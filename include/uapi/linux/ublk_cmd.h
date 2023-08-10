@@ -245,6 +245,7 @@ struct ublksrv_ctrl_dev_info {
 #define		UBLK_IO_OP_ZONE_CLOSE		11
 #define		UBLK_IO_OP_ZONE_FINISH		12
 #define		UBLK_IO_OP_ZONE_APPEND		13
+#define		UBLK_IO_OP_ZONE_RESET_ALL	14
 #define		UBLK_IO_OP_ZONE_RESET		15
 /*
  * Construct a zone report. The report request is carried in `struct
