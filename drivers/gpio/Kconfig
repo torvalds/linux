@@ -998,7 +998,10 @@ config GPIO_WINBOND
 config GPIO_WS16C48
 	tristate "WinSystems WS16C48 GPIO support"
 	select ISA_BUS_API
+	select REGMAP_IRQ
+	select REGMAP_MMIO
 	select GPIOLIB_IRQCHIP
+	select GPIO_REGMAP
 	help
 	  Enables GPIO support for the WinSystems WS16C48. The base port
 	  addresses for the devices may be configured via the base module
