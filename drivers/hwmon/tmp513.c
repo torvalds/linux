@@ -721,7 +721,7 @@ static int tmp51x_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	if (client->dev.of_node)
-		data->id = (enum tmp51x_ids)device_get_match_data(&client->dev);
+		data->id = (uintptr_t)device_get_match_data(&client->dev);
 	else
 		data->id = i2c_match_id(tmp51x_id, client)->driver_data;
 
