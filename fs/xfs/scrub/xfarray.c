@@ -545,6 +545,87 @@ xfarray_isort(
 	return xfile_obj_store(si->array->xfile, scratch, len, lo_pos);
 }
 
+/* Grab a page for sorting records. */
+static inline int
+xfarray_sort_get_page(
+	struct xfarray_sortinfo	*si,
+	loff_t			pos,
+	uint64_t		len)
+{
+	int			error;
+
+	error = xfile_get_page(si->array->xfile, pos, len, &si->xfpage);
+	if (error)
+		return error;
+
+	/*
+	 * xfile pages must never be mapped into userspace, so we skip the
+	 * dcache flush when mapping the page.
+	 */
+	si->page_kaddr = kmap_local_page(si->xfpage.page);
+	return 0;
+}
+
+/* Release a page we grabbed for sorting records. */
+static inline int
+xfarray_sort_put_page(
+	struct xfarray_sortinfo	*si)
+{
+	if (!si->page_kaddr)
+		return 0;
+
+	kunmap_local(si->page_kaddr);
+	si->page_kaddr = NULL;
+
+	return xfile_put_page(si->array->xfile, &si->xfpage);
+}
+
+/* Decide if these records are eligible for in-page sorting. */
+static inline bool
+xfarray_want_pagesort(
+	struct xfarray_sortinfo	*si,
+	xfarray_idx_t		lo,
+	xfarray_idx_t		hi)
+{
+	pgoff_t			lo_page;
+	pgoff_t			hi_page;
+	loff_t			end_pos;
+
+	/* We can only map one page at a time. */
+	lo_page = xfarray_pos(si->array, lo) >> PAGE_SHIFT;
+	end_pos = xfarray_pos(si->array, hi) + si->array->obj_size - 1;
+	hi_page = end_pos >> PAGE_SHIFT;
+
+	return lo_page == hi_page;
+}
+
+/* Sort a bunch of records that all live in the same memory page. */
+STATIC int
+xfarray_pagesort(
+	struct xfarray_sortinfo	*si,
+	xfarray_idx_t		lo,
+	xfarray_idx_t		hi)
+{
+	void			*startp;
+	loff_t			lo_pos = xfarray_pos(si->array, lo);
+	uint64_t		len = xfarray_pos(si->array, hi - lo);
+	int			error = 0;
+
+	trace_xfarray_pagesort(si, lo, hi);
+
+	xfarray_sort_bump_loads(si);
+	error = xfarray_sort_get_page(si, lo_pos, len);
+	if (error)
+		return error;
+
+	xfarray_sort_bump_heapsorts(si);
+	startp = si->page_kaddr + offset_in_page(lo_pos);
+	sort(startp, hi - lo + 1, si->array->obj_size, si->cmp_fn, NULL);
+
+	xfarray_sort_bump_stores(si);
+	return xfarray_sort_put_page(si);
+}
+
 /* Return a pointer to the xfarray pivot record within the sortinfo struct. */
 static inline void *xfarray_sortinfo_pivot(struct xfarray_sortinfo *si)
 {
@@ -699,6 +780,10 @@ xfarray_qsort_push(
  * 4. For small sets, load the records into the scratchpad and run heapsort on
  *    them because that is very fast.  In the author's experience, this yields
  *    a ~10% reduction in runtime.
+ *
+ *    If a small set is contained entirely within a single xfile memory page,
+ *    map the page directly and run heap sort directly on the xfile page
+ *    instead of using the load/store interface.  This halves the runtime.
  */
 
 /*
@@ -740,6 +825,18 @@ xfarray_sort(
 
 		/* Nothing left in this partition to sort; pop stack. */
 		if (lo >= hi) {
+			si->stack_depth--;
+			continue;
+		}
+
+		/*
+		 * If directly mapping the page and sorting can solve our
+		 * problems, we're done.
+		 */
+		if (xfarray_want_pagesort(si, lo, hi)) {
+			error = xfarray_pagesort(si, lo, hi);
+			if (error)
+				goto out_free;
 			si->stack_depth--;
 			continue;
 		}
