@@ -16,11 +16,11 @@
 	compatible = "qcom,sa8775p-ride", "qcom,sa8775p";
 
 	aliases {
+		i2c11 = &i2c11;
+		i2c18 = &i2c18;
 		serial0 = &uart10;
 		serial1 = &uart12;
 		serial2 = &uart17;
-		i2c11 = &i2c11;
-		i2c18 = &i2c18;
 		spi16 = &spi16;
 		ufshc1 = &ufs_mem_hc;
 	};
