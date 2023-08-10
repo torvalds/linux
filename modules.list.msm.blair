@@ -81,3 +81,5 @@ qcom-pmu-lib.ko
 qcom_llcc_pmu.ko
 cqhci.ko
 sdhci-msm.ko
+gcc-holi.ko
+dispcc-holi.ko
