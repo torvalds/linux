@@ -257,11 +257,11 @@ static void remove_dts_thermal_zone(struct intel_soc_dts_sensor_entry *dts)
 }
 
 static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
-				int read_only_trip_cnt)
+				bool critical_trip)
 {
+	int writable_trip_cnt = SOC_MAX_DTS_TRIPS;
 	char name[10];
 	unsigned long trip;
-	int writable_trip_cnt;
 	int trip_mask;
 	unsigned long ptps;
 	u32 store_ptps;
@@ -276,7 +276,9 @@ static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
 
 	dts->id = id;
 
-	writable_trip_cnt = SOC_MAX_DTS_TRIPS - read_only_trip_cnt;
+	if (critical_trip)
+		writable_trip_cnt--;
+
 	trip_mask = GENMASK(writable_trip_cnt - 1, 0);
 
 	/* Check if the writable trip we provide is not used by BIOS */
@@ -314,25 +316,6 @@ err_enable:
 err_ret:
 	return ret;
 }
-
-int intel_soc_dts_iosf_add_read_only_critical_trip(
-	struct intel_soc_dts_sensors *sensors, int critical_offset)
-{
-	int i, j;
-
-	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
-		struct intel_soc_dts_sensor_entry *entry = &sensors->soc_dts[i];
-		int temp = sensors->tj_max - critical_offset;
-		unsigned long mask = entry->trip_mask;
-
-		j = find_first_zero_bit(&mask, SOC_MAX_DTS_TRIPS);
-		if (j < SOC_MAX_DTS_TRIPS)
-			return configure_trip(entry, j, THERMAL_TRIP_CRITICAL, temp);
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(intel_soc_dts_iosf_add_read_only_critical_trip);
 
 void intel_soc_dts_iosf_interrupt_handler(struct intel_soc_dts_sensors *sensors)
 {
@@ -375,8 +358,9 @@ static void dts_trips_reset(struct intel_soc_dts_sensors *sensors, int dts_index
 	configure_trip(&sensors->soc_dts[dts_index], 1, 0, 0);
 }
 
-struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
-	enum intel_soc_dts_interrupt_type intr_type, int read_only_trip_count)
+struct intel_soc_dts_sensors *
+intel_soc_dts_iosf_init(enum intel_soc_dts_interrupt_type intr_type,
+			bool critical_trip, int crit_offset)
 {
 	struct intel_soc_dts_sensors *sensors;
 	int tj_max;
@@ -385,9 +369,6 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 
 	if (!iosf_mbi_available())
 		return ERR_PTR(-ENODEV);
-
-	if (read_only_trip_count > SOC_MAX_DTS_TRIPS)
-		return ERR_PTR(-EINVAL);
 
 	tj_max = intel_tcc_get_tjmax(-1);
 	if (tj_max < 0)
@@ -403,6 +384,9 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 	sensors->tj_max = tj_max * 1000;
 
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
+		enum thermal_trip_type trip_type;
+		int temp;
+
 		sensors->soc_dts[i].sensors = sensors;
 
 		ret = configure_trip(&sensors->soc_dts[i], 0,
@@ -410,15 +394,20 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 		if (ret)
 			goto err_reset_trips;
 
-		ret = configure_trip(&sensors->soc_dts[i], 1,
-				     THERMAL_TRIP_PASSIVE, 0);
+		if (critical_trip) {
+			trip_type = THERMAL_TRIP_CRITICAL;
+			temp = sensors->tj_max - crit_offset;
+		} else {
+			trip_type = THERMAL_TRIP_PASSIVE;
+			temp = 0;
+		}
+		ret = configure_trip(&sensors->soc_dts[i], 1, trip_type, temp);
 		if (ret)
 			goto err_reset_trips;
 	}
 
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
-		ret = add_dts_thermal_zone(i, &sensors->soc_dts[i],
-					   read_only_trip_count);
+		ret = add_dts_thermal_zone(i, &sensors->soc_dts[i], critical_trip);
 		if (ret)
 			goto err_remove_zone;
 	}
