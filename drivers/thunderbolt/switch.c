@@ -1332,7 +1332,7 @@ int tb_pci_port_enable(struct tb_port *port, bool enable)
  * tb_dp_port_hpd_is_active() - Is HPD already active
  * @port: DP out port to check
  *
- * Checks if the DP OUT adapter port has HDP bit already set.
+ * Checks if the DP OUT adapter port has HPD bit already set.
  */
 int tb_dp_port_hpd_is_active(struct tb_port *port)
 {
@@ -1344,14 +1344,14 @@ int tb_dp_port_hpd_is_active(struct tb_port *port)
 	if (ret)
 		return ret;
 
-	return !!(data & ADP_DP_CS_2_HDP);
+	return !!(data & ADP_DP_CS_2_HPD);
 }
 
 /**
  * tb_dp_port_hpd_clear() - Clear HPD from DP IN port
  * @port: Port to clear HPD
  *
- * If the DP IN port has HDP set, this function can be used to clear it.
+ * If the DP IN port has HPD set, this function can be used to clear it.
  */
 int tb_dp_port_hpd_clear(struct tb_port *port)
 {
@@ -1363,7 +1363,7 @@ int tb_dp_port_hpd_clear(struct tb_port *port)
 	if (ret)
 		return ret;
 
-	data |= ADP_DP_CS_3_HDPC;
+	data |= ADP_DP_CS_3_HPDC;
 	return tb_port_write(port, &data, TB_CFG_PORT,
 			     port->cap_adap + ADP_DP_CS_3, 1);
 }
