@@ -21,6 +21,7 @@ load(
     "get_gki_ramdisk_prebuilt_binary",
     "get_vendor_ramdisk_binaries",
 )
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines", "get_out_dir")
 load(":msm_dtc.bzl", "define_dtc_dist")
 load(":msm_abl.bzl", "define_abl_dist")
@@ -45,50 +46,30 @@ def _define_build_config(
       variant: variant of kernel to build (e.g. "gki")
     """
 
-    gen_config_command = """
-      cat << 'EOF' > "$@"
-KERNEL_DIR="msm-kernel"
-VARIANTS=(%s)
-MSM_ARCH=%s
-VARIANT=%s
-ABL_SRC=bootable/bootloader/edk2
-BOOT_IMAGE_HEADER_VERSION=%d
-BASE_ADDRESS=0x%X
-PAGE_SIZE=%d
-BUILD_VENDOR_DLKM=1
-PREPARE_SYSTEM_DLKM=1
-SUPER_IMAGE_SIZE=0x%X
-TRIM_UNUSED_MODULES=1
-BUILD_INIT_BOOT_IMG=1
-LZ4_RAMDISK=%d
-[ -z "$$DT_OVERLAY_SUPPORT" ] && DT_OVERLAY_SUPPORT=1
-
-if [ "$$KERNEL_CMDLINE_CONSOLE_AUTO" != "0" ]; then
-    KERNEL_VENDOR_CMDLINE+=' earlycon=%s '
-fi
-
-KERNEL_VENDOR_CMDLINE+=' %s '
-VENDOR_BOOTCONFIG+='androidboot.first_stage_console=1 androidboot.hardware=qcom_kp'
-EOF
-    """ % (
-        " ".join(la_variants),
-        msm_target.replace("-", "_"),
-        variant.replace("-", "_"),
-        boot_image_opts.boot_image_header_version,
-        boot_image_opts.base_address,
-        boot_image_opts.page_size,
-        boot_image_opts.super_image_size,
-        int(boot_image_opts.lz4_ramdisk),
-        boot_image_opts.earlycon_addr,
-        " ".join(boot_image_opts.kernel_vendor_cmdline_extras),
-    )
-
-    # Generate the build config
-    native.genrule(
+    write_file(
         name = "{}_build_config_bazel".format(target),
-        srcs = [],
-        outs = ["build.config.msm.{}.generated".format(target)],
-        cmd_bash = gen_config_command,
+        out = "build.config.msm.{}.generated".format(target),
+        content = [
+            'KERNEL_DIR="msm-kernel"',
+            "VARIANTS=({})".format(" ".join(la_variants)),
+            "MSM_ARCH={}".format(msm_target.replace("-", "_")),
+            "VARIANT={}".format(variant.replace("-", "_")),
+            "ABL_SRC=bootable/bootloader/edk2",
+            "BOOT_IMAGE_HEADER_VERSION={}".format(boot_image_opts.boot_image_header_version),
+            "BASE_ADDRESS=0x%X" % boot_image_opts.base_address,
+            "PAGE_SIZE={}".format(boot_image_opts.page_size),
+            "BUILD_VENDOR_DLKM=1",
+            "PREPARE_SYSTEM_DLKM=1",
+            "SUPER_IMAGE_SIZE=0x%X" % boot_image_opts.super_image_size,
+            "TRIM_UNUSED_MODULES=1",
+            "BUILD_INIT_BOOT_IMG=1",
+            "LZ4_RAMDISK={}".format(int(boot_image_opts.lz4_ramdisk)),
+            '[ -z "$DT_OVERLAY_SUPPORT" ] && DT_OVERLAY_SUPPORT=1',
+            '[ "$KERNEL_CMDLINE_CONSOLE_AUTO" != "0" ] && KERNEL_VENDOR_CMDLINE+=\' earlycon={} \''.format(boot_image_opts.earlycon_addr),
+            "KERNEL_VENDOR_CMDLINE+=' {} '".format(" ".join(boot_image_opts.kernel_vendor_cmdline_extras)),
+            "VENDOR_BOOTCONFIG+='androidboot.first_stage_console=1 androidboot.hardware=qcom_kp'",
+            "",  # Needed for newline at end of file
+        ],
     )
 
     top_level_config = define_top_level_config(target)
@@ -112,22 +93,18 @@ EOF
 
     board_cmdline_extras = " ".join(boot_image_opts.board_kernel_cmdline_extras)
     if board_cmdline_extras:
-        native.genrule(
+        write_file(
             name = "{}_extra_cmdline".format(target),
-            outs = ["board_extra_cmdline_{}".format(target)],
-            cmd_bash = """
-                echo {} > "$@"
-            """.format(board_cmdline_extras),
+            out = "board_extra_cmdline_{}".format(target),
+            content = [board_cmdline_extras, ""],
         )
 
     board_bc_extras = " ".join(boot_image_opts.board_bootconfig_extras)
     if board_bc_extras:
-        native.genrule(
+        write_file(
             name = "{}_extra_bootconfig".format(target),
-            outs = ["board_extra_bootconfig_{}".format(target)],
-            cmd_bash = """
-                echo {} > "$@"
-            """.format(board_bc_extras),
+            out = "board_extra_bootconfig_{}".format(target),
+            content = [board_bc_extras, ""],
         )
 
 def _define_kernel_build(

@@ -1,17 +1,17 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+
 def define_top_level_config(target):
     """Define common top-level variables in build.config"""
     rule_name = "{}_top_level_config".format(target)
-    native.genrule(
+    write_file(
         name = rule_name,
-        srcs = [],
-        outs = ["build.config.bazel.top.level.{}".format(target)],
-        cmd_bash = """
-          cat << 'EOF' > "$@"
-# === define_top_level_config ===
-BUILDING_WITH_BAZEL=true
-# === end define_top_level_config ===
-EOF
-        """,
+        out = "build.config.bazel.top.level.{}".format(target),
+        content = [
+            "# === define_top_level_config ===",
+            "BUILDING_WITH_BAZEL=true",
+            "# === end define_top_level_config ===",
+            "",  # Needed for newline at end of file
+        ],
     )
 
     return ":{}".format(rule_name)

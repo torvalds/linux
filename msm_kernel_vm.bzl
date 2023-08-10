@@ -19,6 +19,7 @@ load(
     "get_dtstree",
     "get_vendor_ramdisk_binaries",
 )
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines", "get_out_dir")
 load(":msm_dtc.bzl", "define_dtc_dist")
 load(":image_opts.bzl", "vm_image_opts")
@@ -64,45 +65,24 @@ def _define_build_config(
     else:
         msm_arch = msm_target.replace("-", "_")
 
-    gen_config_command = """
-      cat << 'EOF' > "$@"
-KERNEL_DIR="msm-kernel"
-VARIANTS=(%s)
-MSM_ARCH=%s
-VARIANT=%s
-
-PREFERRED_USERSPACE=%s
-VM_DTB_IMG_CREATE=%d
-
-KERNEL_OFFSET=0x%X
-DTB_OFFSET=0x%X
-RAMDISK_OFFSET=0x%X
-CMDLINE_CPIO_OFFSET=0x%X
-
-VM_SIZE_EXT4=%d
-DUMMY_IMG_SIZE=%d
-
-EOF
-    """ % (
-        " ".join([v.replace("-", "_") for v in vm_variants]),  # VARIANTS
-        msm_arch,  # MSM_ARCH
-        variant.replace("-", "_"),  # VARIANT
-        vm_image_opts.preferred_usespace,  # PREFERED_USERSPACE
-        int(vm_image_opts.vm_dtb_img_create),  # VM_DTB_IMG_CREATE
-        vm_image_opts.kernel_offset,  # KERNEL_OFFSET
-        vm_image_opts.dtb_offset,  # DTB_OFFSET
-        vm_image_opts.ramdisk_offset,  # RAMDISK_OFFSET
-        vm_image_opts.cmdline_cpio_offset,  # CMDLINE_CPIO_OFFSET
-        vm_image_opts.vm_size_ext4,  # VM_SIZE_EXT4
-        vm_image_opts.dummy_img_size,  # DUMMY_IMG_SIZE
-    )
-
-    # Generate the build config
-    native.genrule(
+    write_file(
         name = "{}_build_config_bazel".format(target),
-        srcs = [],
-        outs = ["build.config.msm.{}.generated".format(target)],
-        cmd_bash = gen_config_command,
+        out = "build.config.msm.{}.generated".format(target),
+        content = [
+            'KERNEL_DIR="msm-kernel"',
+            "VARIANTS=({})".format(" ".join([v.replace("-", "_") for v in vm_variants])),
+            "MSM_ARCH={}".format(msm_arch),
+            "VARIANT={}".format(variant.replace("-", "_")),
+            "PREFERRED_USERSPACE={}".format(vm_image_opts.preferred_usespace),
+            "VM_DTB_IMG_CREATE={}".format(int(vm_image_opts.vm_dtb_img_create)),
+            "KERNEL_OFFSET=0x%X" % vm_image_opts.kernel_offset,
+            "DTB_OFFSET=0x%X" % vm_image_opts.dtb_offset,
+            "RAMDISK_OFFSET=0x%X" % vm_image_opts.ramdisk_offset,
+            "CMDLINE_CPIO_OFFSET=0x%X" % vm_image_opts.cmdline_cpio_offset,
+            "VM_SIZE_EXT4={}".format(vm_image_opts.vm_size_ext4),
+            "DUMMY_IMG_SIZE={}".format(vm_image_opts.dummy_img_size),
+            "",  # Needed for newline at end of file
+        ],
     )
 
     top_level_config = define_top_level_config(target)
