@@ -828,16 +828,6 @@
 	phy-names = "cdns3,usb3-phy";
 };
 
-&tscadc0 {
-	/* Unused */
-	status = "disabled";
-};
-
-&tscadc1 {
-	/* Unused */
-	status = "disabled";
-};
-
 &mcu_cpsw {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_cpsw_pins_default>, <&mcu_mdio_pins_default>;
