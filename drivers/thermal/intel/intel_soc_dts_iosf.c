@@ -369,6 +369,12 @@ void intel_soc_dts_iosf_interrupt_handler(struct intel_soc_dts_sensors *sensors)
 }
 EXPORT_SYMBOL_GPL(intel_soc_dts_iosf_interrupt_handler);
 
+static void dts_trips_reset(struct intel_soc_dts_sensors *sensors, int dts_index)
+{
+	configure_trip(&sensors->soc_dts[dts_index], 0, 0, 0);
+	configure_trip(&sensors->soc_dts[dts_index], 1, 0, 0);
+}
+
 struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 	enum intel_soc_dts_interrupt_type intr_type, int read_only_trip_count)
 {
@@ -424,10 +430,8 @@ err_remove_zone:
 		remove_dts_thermal_zone(&sensors->soc_dts[i]);
 
 err_reset_trips:
-	for (i = 0; i < SOC_MAX_DTS_SENSORS; i++) {
-		configure_trip(&sensors->soc_dts[i], 0, 0, 0);
-		configure_trip(&sensors->soc_dts[i], 1, 0, 0);
-	}
+	for (i = 0; i < SOC_MAX_DTS_SENSORS; i++)
+		dts_trips_reset(sensors, i);
 
 	kfree(sensors);
 	return ERR_PTR(ret);
@@ -440,8 +444,7 @@ void intel_soc_dts_iosf_exit(struct intel_soc_dts_sensors *sensors)
 
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
 		remove_dts_thermal_zone(&sensors->soc_dts[i]);
-		configure_trip(&sensors->soc_dts[i], 0, 0, 0);
-		configure_trip(&sensors->soc_dts[i], 1, 0, 0);
+		dts_trips_reset(sensors, i);
 	}
 	kfree(sensors);
 }
