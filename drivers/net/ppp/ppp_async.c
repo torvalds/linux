@@ -328,13 +328,6 @@ ppp_asynctty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
-/* No kernel lock - fine */
-static __poll_t
-ppp_asynctty_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
-{
-	return 0;
-}
-
 /* May sleep, don't call from interrupt level or with interrupts disabled */
 static void
 ppp_asynctty_receive(struct tty_struct *tty, const unsigned char *buf,
@@ -378,7 +371,6 @@ static struct tty_ldisc_ops ppp_ldisc = {
 	.read	= ppp_asynctty_read,
 	.write	= ppp_asynctty_write,
 	.ioctl	= ppp_asynctty_ioctl,
-	.poll	= ppp_asynctty_poll,
 	.receive_buf = ppp_asynctty_receive,
 	.write_wakeup = ppp_asynctty_wakeup,
 };
