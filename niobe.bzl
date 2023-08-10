@@ -8,9 +8,15 @@ def define_niobe():
     _niobe_in_tree_modules = [
         # keep sorted
         # TODO: Need to add GKI modules
+        "drivers/clk/qcom/camcc-niobe.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
+        "drivers/clk/qcom/dispcc0-niobe.ko",
+        "drivers/clk/qcom/dispcc1-niobe.ko",
+        "drivers/clk/qcom/gcc-niobe.ko",
         "drivers/clk/qcom/gdsc-regulator.ko",
+        "drivers/clk/qcom/gpucc-niobe.ko",
+        "drivers/clk/qcom/videocc-niobe.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
         "drivers/edac/qcom_edac.ko",
         "drivers/firmware/qcom-scm.ko",
