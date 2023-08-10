@@ -167,8 +167,6 @@ xchk_teardown(
 	struct xfs_scrub	*sc,
 	int			error)
 {
-	struct xfs_inode	*ip_in = XFS_I(file_inode(sc->file));
-
 	xchk_ag_free(sc, &sc->sa);
 	if (sc->tp) {
 		if (error == 0 && (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR))
@@ -180,9 +178,7 @@ xchk_teardown(
 	if (sc->ip) {
 		if (sc->ilock_flags)
 			xfs_iunlock(sc->ip, sc->ilock_flags);
-		if (sc->ip != ip_in &&
-		    !xfs_internal_inum(sc->mp, sc->ip->i_ino))
-			xchk_irele(sc, sc->ip);
+		xchk_irele(sc, sc->ip);
 		sc->ip = NULL;
 	}
 	if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)

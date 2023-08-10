@@ -59,7 +59,11 @@ xchk_setup_quota(
 	error = xchk_setup_fs(sc);
 	if (error)
 		return error;
-	sc->ip = xfs_quota_inode(sc->mp, dqtype);
+
+	error = xchk_install_live_inode(sc, xfs_quota_inode(sc->mp, dqtype));
+	if (error)
+		return error;
+
 	xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
 	sc->ilock_flags = XFS_ILOCK_EXCL;
 	return 0;

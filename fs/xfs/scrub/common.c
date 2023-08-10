@@ -832,6 +832,25 @@ xchk_install_handle_inode(
 }
 
 /*
+ * Install an already-referenced inode for scrubbing.  Get our own reference to
+ * the inode to make disposal simpler.  The inode must not be in I_FREEING or
+ * I_WILL_FREE state!
+ */
+int
+xchk_install_live_inode(
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*ip)
+{
+	if (!igrab(VFS_I(ip))) {
+		xchk_ino_set_corrupt(sc, ip->i_ino);
+		return -EFSCORRUPTED;
+	}
+
+	sc->ip = ip;
+	return 0;
+}
+
+/*
  * In preparation to scrub metadata structures that hang off of an inode,
  * grab either the inode referenced in the scrub control structure or the
  * inode passed in.  If the inumber does not reference an allocated inode
@@ -854,10 +873,8 @@ xchk_iget_for_scrubbing(
 	ASSERT(sc->tp == NULL);
 
 	/* We want to scan the inode we already had opened. */
-	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
-		sc->ip = ip_in;
-		return 0;
-	}
+	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino)
+		return xchk_install_live_inode(sc, ip_in);
 
 	/* Reject internal metadata files and obviously bad inode numbers. */
 	if (xfs_internal_inum(mp, sc->sm->sm_ino))

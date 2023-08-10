@@ -28,10 +28,12 @@ xchk_setup_rt(
 	if (error)
 		return error;
 
-	sc->ilock_flags = XFS_ILOCK_EXCL | XFS_ILOCK_RTBITMAP;
-	sc->ip = sc->mp->m_rbmip;
-	xfs_ilock(sc->ip, sc->ilock_flags);
+	error = xchk_install_live_inode(sc, sc->mp->m_rbmip);
+	if (error)
+		return error;
 
+	sc->ilock_flags = XFS_ILOCK_EXCL | XFS_ILOCK_RTBITMAP;
+	xfs_ilock(sc->ip, sc->ilock_flags);
 	return 0;
 }
 
