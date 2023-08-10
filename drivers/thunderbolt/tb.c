@@ -553,7 +553,7 @@ static struct tb_tunnel *tb_find_first_usb3_tunnel(struct tb *tb,
 	struct tb_switch *sw;
 
 	/* Pick the router that is deepest in the topology */
-	if (dst_port->sw->config.depth > src_port->sw->config.depth)
+	if (tb_port_path_direction_downstream(src_port, dst_port))
 		sw = dst_port->sw;
 	else
 		sw = src_port->sw;
@@ -1224,7 +1224,7 @@ tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
 			      "re-calculated estimated bandwidth %u/%u Mb/s\n",
 			      estimated_up, estimated_down);
 
-		if (in->sw->config.depth < out->sw->config.depth)
+		if (tb_port_path_direction_downstream(in, out))
 			estimated_bw = estimated_down;
 		else
 			estimated_bw = estimated_up;
@@ -1958,7 +1958,7 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 
 	out = tunnel->dst_port;
 
-	if (in->sw->config.depth < out->sw->config.depth) {
+	if (tb_port_path_direction_downstream(in, out)) {
 		requested_up = -1;
 		requested_down = requested_bw;
 	} else {
