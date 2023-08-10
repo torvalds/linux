@@ -901,7 +901,13 @@ static void can327_ldisc_rx(struct tty_struct *tty, const unsigned char *cp,
 	 */
 	first_new_char_idx = elm->rxfill;
 
-	while (count-- && elm->rxfill < CAN327_SIZE_RXBUF) {
+	while (count--) {
+		if (elm->rxfill >= CAN327_SIZE_RXBUF) {
+			netdev_err(elm->dev,
+				   "Receive buffer overflowed. Bad chip or wiring? count = %i",
+				   count);
+			goto uart_failure;
+		}
 		if (fp && *fp++) {
 			netdev_err(elm->dev,
 				   "Error in received character stream. Check your wiring.");
@@ -928,13 +934,6 @@ static void can327_ldisc_rx(struct tty_struct *tty, const unsigned char *cp,
 		}
 
 		cp++;
-	}
-
-	if (count >= 0) {
-		netdev_err(elm->dev,
-			   "Receive buffer overflowed. Bad chip or wiring? count = %i",
-			   count);
-		goto uart_failure;
 	}
 
 	can327_parse_rxbuf(elm, first_new_char_idx);
