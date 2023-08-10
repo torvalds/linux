@@ -26,6 +26,7 @@
 #include "xfs_ag_resv.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
+#include "xfs_bmap.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -81,6 +82,9 @@ struct xrep_reap_state {
 	/* Reverse mapping owner and metadata reservation type. */
 	const struct xfs_owner_info	*oinfo;
 	enum xfs_ag_resv_type		resv;
+
+	/* Number of deferred reaps attached to the current transaction. */
+	unsigned int			deferred;
 };
 
 /* Put a block back on the AGFL. */
@@ -165,6 +169,7 @@ xrep_reap_block(
 	xfs_agnumber_t			agno;
 	xfs_agblock_t			agbno;
 	bool				has_other_rmap;
+	bool				need_roll = true;
 	int				error;
 
 	agno = XFS_FSB_TO_AGNO(sc->mp, fsbno);
@@ -207,13 +212,25 @@ xrep_reap_block(
 		xrep_block_reap_binval(sc, fsbno);
 		error = xrep_put_freelist(sc, agbno);
 	} else {
+		/*
+		 * Use deferred frees to get rid of the old btree blocks to try
+		 * to minimize the window in which we could crash and lose the
+		 * old blocks.  However, we still need to roll the transaction
+		 * every 100 or so EFIs so that we don't exceed the log
+		 * reservation.
+		 */
 		xrep_block_reap_binval(sc, fsbno);
-		error = xfs_free_extent(sc->tp, sc->sa.pag, agbno, 1, rs->oinfo,
-				rs->resv);
+		error = __xfs_free_extent_later(sc->tp, fsbno, 1, rs->oinfo,
+				rs->resv, true);
+		if (error)
+			return error;
+		rs->deferred++;
+		need_roll = rs->deferred > 100;
 	}
-	if (error)
+	if (error || !need_roll)
 		return error;
 
+	rs->deferred = 0;
 	return xrep_roll_ag_trans(sc);
 }
 
@@ -230,8 +247,13 @@ xrep_reap_extents(
 		.oinfo			= oinfo,
 		.resv			= type,
 	};
+	int				error;
 
 	ASSERT(xfs_has_rmapbt(sc->mp));
 
-	return xbitmap_walk_bits(bitmap, xrep_reap_block, &rs);
+	error = xbitmap_walk_bits(bitmap, xrep_reap_block, &rs);
+	if (error || rs.deferred == 0)
+		return error;
+
+	return xrep_roll_ag_trans(sc);
 }
