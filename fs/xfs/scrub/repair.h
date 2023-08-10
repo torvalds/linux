@@ -23,12 +23,6 @@ int xrep_roll_ag_trans(struct xfs_scrub *sc);
 bool xrep_ag_has_space(struct xfs_perag *pag, xfs_extlen_t nr_blocks,
 		enum xfs_ag_resv_type type);
 xfs_extlen_t xrep_calc_ag_resblks(struct xfs_scrub *sc);
-int xrep_alloc_ag_block(struct xfs_scrub *sc,
-		const struct xfs_owner_info *oinfo, xfs_fsblock_t *fsbno,
-		enum xfs_ag_resv_type resv);
-int xrep_init_btblock(struct xfs_scrub *sc, xfs_fsblock_t fsb,
-		struct xfs_buf **bpp, xfs_btnum_t btnum,
-		const struct xfs_buf_ops *ops);
 
 struct xbitmap;
 struct xagb_bitmap;
