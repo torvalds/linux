@@ -826,8 +826,7 @@ static int rs5c372_probe(struct i2c_client *client)
 	rs5c372->client = client;
 	i2c_set_clientdata(client, rs5c372);
 	if (client->dev.of_node) {
-		rs5c372->type = (enum rtc_type)
-			of_device_get_match_data(&client->dev);
+		rs5c372->type = (uintptr_t)of_device_get_match_data(&client->dev);
 	} else {
 		const struct i2c_device_id *id = i2c_match_id(rs5c372_id, client);
 		rs5c372->type = id->driver_data;
