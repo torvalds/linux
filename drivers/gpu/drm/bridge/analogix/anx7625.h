@@ -479,6 +479,7 @@ struct anx7625_data {
 	struct drm_connector *connector;
 	struct mipi_dsi_device *dsi;
 	struct drm_dp_aux aux;
+	u32 channel;
 };
 
 #endif  /* __ANX7625_H__ */
