@@ -4604,6 +4604,7 @@ static int f2fs_dio_write_end_io(struct kiocb *iocb, ssize_t size, int error,
 	dec_page_count(sbi, F2FS_DIO_WRITE);
 	if (error)
 		return error;
+	f2fs_update_time(sbi, REQ_TIME);
 	f2fs_update_iostat(sbi, NULL, APP_DIRECT_IO, size);
 	return 0;
 }
