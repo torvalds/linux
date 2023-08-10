@@ -177,7 +177,7 @@ xchk_teardown(
 	}
 	if (sc->ip) {
 		if (sc->ilock_flags)
-			xfs_iunlock(sc->ip, sc->ilock_flags);
+			xchk_iunlock(sc, sc->ilock_flags);
 		xchk_irele(sc, sc->ip);
 		sc->ip = NULL;
 	}

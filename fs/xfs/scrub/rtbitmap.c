@@ -32,8 +32,7 @@ xchk_setup_rt(
 	if (error)
 		return error;
 
-	sc->ilock_flags = XFS_ILOCK_EXCL | XFS_ILOCK_RTBITMAP;
-	xfs_ilock(sc->ip, sc->ilock_flags);
+	xchk_ilock(sc, XFS_ILOCK_EXCL | XFS_ILOCK_RTBITMAP);
 	return 0;
 }
 
@@ -143,8 +142,8 @@ xchk_rtsummary(
 	 * flags so that we don't mix up the inode state that @sc tracks.
 	 */
 	sc->ip = rsumip;
-	sc->ilock_flags = XFS_ILOCK_EXCL | XFS_ILOCK_RTSUM;
-	xfs_ilock(sc->ip, sc->ilock_flags);
+	sc->ilock_flags = 0;
+	xchk_ilock(sc, XFS_ILOCK_EXCL | XFS_ILOCK_RTSUM);
 
 	/* Invoke the fork scrubber. */
 	error = xchk_metadata_inode_forks(sc);
@@ -155,7 +154,7 @@ xchk_rtsummary(
 	xchk_set_incomplete(sc);
 out:
 	/* Switch back to the rtbitmap inode and lock flags. */
-	xfs_iunlock(sc->ip, sc->ilock_flags);
+	xchk_iunlock(sc, XFS_ILOCK_EXCL | XFS_ILOCK_RTSUM);
 	sc->ilock_flags = old_ilock_flags;
 	sc->ip = old_ip;
 	return error;

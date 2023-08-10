@@ -38,8 +38,7 @@ xchk_setup_inode_bmap(
 	if (error)
 		goto out;
 
-	sc->ilock_flags = XFS_IOLOCK_EXCL;
-	xfs_ilock(sc->ip, XFS_IOLOCK_EXCL);
+	xchk_ilock(sc, XFS_IOLOCK_EXCL);
 
 	/*
 	 * We don't want any ephemeral data/cow fork updates sitting around
@@ -50,8 +49,7 @@ xchk_setup_inode_bmap(
 	    sc->sm->sm_type != XFS_SCRUB_TYPE_BMBTA) {
 		struct address_space	*mapping = VFS_I(sc->ip)->i_mapping;
 
-		sc->ilock_flags |= XFS_MMAPLOCK_EXCL;
-		xfs_ilock(sc->ip, XFS_MMAPLOCK_EXCL);
+		xchk_ilock(sc, XFS_MMAPLOCK_EXCL);
 
 		inode_dio_wait(VFS_I(sc->ip));
 
@@ -79,9 +77,8 @@ xchk_setup_inode_bmap(
 	error = xchk_trans_alloc(sc, 0);
 	if (error)
 		goto out;
-	sc->ilock_flags |= XFS_ILOCK_EXCL;
-	xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
 
+	xchk_ilock(sc, XFS_ILOCK_EXCL);
 out:
 	/* scrub teardown will unlock and release the inode */
 	return error;
