@@ -331,13 +331,9 @@ static void a5psw_flooding_set_resolution(struct a5psw *a5psw, int port,
 			A5PSW_MCAST_DEF_MASK};
 	int i;
 
-	if (set)
-		a5psw->bridged_ports |= BIT(port);
-	else
-		a5psw->bridged_ports &= ~BIT(port);
-
 	for (i = 0; i < ARRAY_SIZE(offsets); i++)
-		a5psw_reg_writel(a5psw, offsets[i], a5psw->bridged_ports);
+		a5psw_reg_rmw(a5psw, offsets[i], BIT(port),
+			      set ? BIT(port) : 0);
 }
 
 static void a5psw_port_set_standalone(struct a5psw *a5psw, int port,
@@ -365,6 +361,8 @@ static int a5psw_port_bridge_join(struct dsa_switch *ds, int port,
 	a5psw->br_dev = bridge.dev;
 	a5psw_port_set_standalone(a5psw, port, false);
 
+	a5psw->bridged_ports |= BIT(port);
+
 	return 0;
 }
 
@@ -372,6 +370,8 @@ static void a5psw_port_bridge_leave(struct dsa_switch *ds, int port,
 				    struct dsa_bridge bridge)
 {
 	struct a5psw *a5psw = ds->priv;
+
+	a5psw->bridged_ports &= ~BIT(port);
 
 	a5psw_port_set_standalone(a5psw, port, true);
 
@@ -991,6 +991,8 @@ static int a5psw_probe(struct platform_device *pdev)
 	a5psw->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(a5psw->base))
 		return PTR_ERR(a5psw->base);
+
+	a5psw->bridged_ports = BIT(A5PSW_CPU_PORT);
 
 	ret = a5psw_pcs_get(a5psw);
 	if (ret)
