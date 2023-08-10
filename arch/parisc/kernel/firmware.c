@@ -74,8 +74,8 @@
 static DEFINE_SPINLOCK(pdc_lock);
 #endif
 
-unsigned long pdc_result[NUM_PDC_RESULT]  __aligned(8);
-unsigned long pdc_result2[NUM_PDC_RESULT] __aligned(8);
+static unsigned long pdc_result[NUM_PDC_RESULT]  __aligned(8);
+static unsigned long pdc_result2[NUM_PDC_RESULT] __aligned(8);
 
 #ifdef CONFIG_64BIT
 #define WIDE_FIRMWARE 0x1
