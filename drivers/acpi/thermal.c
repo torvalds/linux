@@ -1014,7 +1014,7 @@ static int acpi_thermal_suspend(struct device *dev)
 static int acpi_thermal_resume(struct device *dev)
 {
 	struct acpi_thermal *tz;
-	int i, j, power_state, result;
+	int i, j, power_state;
 
 	if (!dev)
 		return -EINVAL;
@@ -1028,9 +1028,8 @@ static int acpi_thermal_resume(struct device *dev)
 			break;
 
 		for (j = 0; j < tz->trips.active[i].devices.count; j++) {
-			result = acpi_bus_update_power(
-					tz->trips.active[i].devices.handles[j],
-					&power_state);
+			acpi_bus_update_power(tz->trips.active[i].devices.handles[j],
+					      &power_state);
 		}
 	}
 
