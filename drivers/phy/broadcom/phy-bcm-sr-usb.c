@@ -311,7 +311,7 @@ static int bcm_usb_phy_probe(struct platform_device *pdev)
 
 	of_id = of_match_node(bcm_usb_phy_of_match, dn);
 	if (of_id)
-		version = (enum bcm_usb_phy_version)of_id->data;
+		version = (uintptr_t)of_id->data;
 	else
 		return -ENODEV;
 
