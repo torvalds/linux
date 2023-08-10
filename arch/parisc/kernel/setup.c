@@ -40,11 +40,6 @@
 
 static char __initdata command_line[COMMAND_LINE_SIZE];
 
-/* Intended for ccio/sba/cpu statistics under /proc/bus/{runway|gsc} */
-struct proc_dir_entry * proc_runway_root __read_mostly = NULL;
-struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
-struct proc_dir_entry * proc_mckinley_root __read_mostly = NULL;
-
 static void __init setup_cmdline(char **cmdline_p)
 {
 	extern unsigned int boot_args[];
@@ -196,48 +191,6 @@ const struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo
 };
 
-static void __init parisc_proc_mkdir(void)
-{
-	/*
-	** Can't call proc_mkdir() until after proc_root_init() has been
-	** called by start_kernel(). In other words, this code can't
-	** live in arch/.../setup.c because start_parisc() calls
-	** start_kernel().
-	*/
-	switch (boot_cpu_data.cpu_type) {
-	case pcxl:
-	case pcxl2:
-		if (NULL == proc_gsc_root)
-		{
-			proc_gsc_root = proc_mkdir("bus/gsc", NULL);
-		}
-		break;
-        case pcxt_:
-        case pcxu:
-        case pcxu_:
-        case pcxw:
-        case pcxw_:
-        case pcxw2:
-                if (NULL == proc_runway_root)
-                {
-                        proc_runway_root = proc_mkdir("bus/runway", NULL);
-                }
-                break;
-	case mako:
-	case mako2:
-                if (NULL == proc_mckinley_root)
-                {
-                        proc_mckinley_root = proc_mkdir("bus/mckinley", NULL);
-                }
-                break;
-	default:
-		/* FIXME: this was added to prevent the compiler 
-		 * complaining about missing pcx, pcxs and pcxt
-		 * I'm assuming they have neither gsc nor runway */
-		break;
-	}
-}
-
 static struct resource central_bus = {
 	.name	= "Central Bus",
 	.start	= F_EXTEND(0xfff80000),
@@ -294,7 +247,6 @@ static int __init parisc_init(void)
 {
 	u32 osid = (OS_ID_LINUX << 16);
 
-	parisc_proc_mkdir();
 	parisc_init_resources();
 	do_device_inventory();                  /* probe for hardware */
 
