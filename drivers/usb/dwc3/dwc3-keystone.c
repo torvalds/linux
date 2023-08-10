@@ -197,8 +197,6 @@ static void kdwc3_remove(struct platform_device *pdev)
 	phy_power_off(kdwc->usb3_phy);
 	phy_exit(kdwc->usb3_phy);
 	phy_pm_runtime_put_sync(kdwc->usb3_phy);
-
-	platform_set_drvdata(pdev, NULL);
 }
 
 static const struct of_device_id kdwc3_of_match[] = {

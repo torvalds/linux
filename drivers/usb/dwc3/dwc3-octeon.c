@@ -519,7 +519,6 @@ static void dwc3_octeon_remove(struct platform_device *pdev)
 	struct dwc3_octeon *octeon = platform_get_drvdata(pdev);
 
 	of_platform_depopulate(octeon->dev);
-	platform_set_drvdata(pdev, NULL);
 }
 
 static const struct of_device_id dwc3_octeon_of_match[] = {
