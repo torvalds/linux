@@ -2129,7 +2129,7 @@ static int vega20_get_metrics_table(struct pp_hwmgr *hwmgr,
 	return ret;
 }
 
-static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr,
+static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr, int idx,
 		uint32_t *query)
 {
 	int ret = 0;
@@ -2140,10 +2140,17 @@ static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr,
 		return ret;
 
 	/* For the 40.46 release, they changed the value name */
-	if (hwmgr->smu_version == 0x282e00)
-		*query = metrics_table.AverageSocketPower << 8;
-	else
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GPU_POWER:
+		if (hwmgr->smu_version == 0x282e00)
+			*query = metrics_table.AverageSocketPower << 8;
+		else
+			ret = -EOPNOTSUPP;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 		*query = metrics_table.CurrSocketPower << 8;
+		break;
+	}
 
 	return ret;
 }
@@ -2253,9 +2260,10 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = data->vce_power_gated ? 0 : 1;
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GPU_POWER:
 	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 		*size = 16;
-		ret = vega20_get_gpu_power(hwmgr, (uint32_t *)value);
+		ret = vega20_get_gpu_power(hwmgr, idx, (uint32_t *)value);
 		break;
 	case AMDGPU_PP_SENSOR_VDDGFX:
 		val_vid = (RREG32_SOC15(SMUIO, 0, mmSMUSVI0_TEL_PLANE0) &
