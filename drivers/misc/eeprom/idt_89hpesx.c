@@ -1288,13 +1288,14 @@ static int idt_create_sysfs_files(struct idt_89hpesx_dev *pdev)
 		return 0;
 	}
 
-	/* Allocate memory for attribute file */
-	pdev->ee_file = devm_kmalloc(dev, sizeof(*pdev->ee_file), GFP_KERNEL);
+	/*
+	 * Allocate memory for attribute file and copy the declared EEPROM attr
+	 * structure to change some of fields
+	 */
+	pdev->ee_file = devm_kmemdup(dev, &bin_attr_eeprom,
+				     sizeof(*pdev->ee_file), GFP_KERNEL);
 	if (!pdev->ee_file)
 		return -ENOMEM;
-
-	/* Copy the declared EEPROM attr structure to change some of fields */
-	memcpy(pdev->ee_file, &bin_attr_eeprom, sizeof(*pdev->ee_file));
 
 	/* In case of read-only EEPROM get rid of write ability */
 	if (pdev->eero) {
