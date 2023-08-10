@@ -247,12 +247,12 @@ static void remove_dts_thermal_zone(struct intel_soc_dts_sensor_entry *dts)
 }
 
 static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
-				bool notification_support, int read_only_trip_cnt)
+				int read_only_trip_cnt)
 {
 	char name[10];
 	unsigned long trip;
-	int trip_mask = 0;
-	int writable_trip_cnt = 0;
+	int writable_trip_cnt;
+	int trip_mask;
 	unsigned long ptps;
 	u32 store_ptps;
 	unsigned long i;
@@ -265,10 +265,9 @@ static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
 		goto err_ret;
 
 	dts->id = id;
-	if (notification_support) {
-		writable_trip_cnt = SOC_MAX_DTS_TRIPS - read_only_trip_cnt;
-		trip_mask = GENMASK(writable_trip_cnt - 1, 0);
-	}
+
+	writable_trip_cnt = SOC_MAX_DTS_TRIPS - read_only_trip_cnt;
+	trip_mask = GENMASK(writable_trip_cnt - 1, 0);
 
 	/* Check if the writable trip we provide is not used by BIOS */
 	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
@@ -364,7 +363,6 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 	enum intel_soc_dts_interrupt_type intr_type, int read_only_trip_count)
 {
 	struct intel_soc_dts_sensors *sensors;
-	bool notification;
 	int tj_max;
 	int ret;
 	int i;
@@ -387,14 +385,11 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 	mutex_init(&sensors->dts_update_lock);
 	sensors->intr_type = intr_type;
 	sensors->tj_max = tj_max * 1000;
-	if (intr_type == INTEL_SOC_DTS_INTERRUPT_NONE)
-		notification = false;
-	else
-		notification = true;
+
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
 		sensors->soc_dts[i].sensors = sensors;
 		ret = add_dts_thermal_zone(i, &sensors->soc_dts[i],
-					   notification, read_only_trip_count);
+					   read_only_trip_count);
 		if (ret)
 			goto err_free;
 	}
