@@ -20,10 +20,9 @@
 #include <linux/serdev.h>
 #include "tty.h"
 
-static int tty_port_default_receive_buf(struct tty_port *port, const u8 *p,
-					const u8 *f, size_t count)
+static size_t tty_port_default_receive_buf(struct tty_port *port, const u8 *p,
+					   const u8 *f, size_t count)
 {
-	int ret;
 	struct tty_struct *tty;
 	struct tty_ldisc *ld;
 
@@ -35,15 +34,15 @@ static int tty_port_default_receive_buf(struct tty_port *port, const u8 *p,
 	if (!ld)
 		return 0;
 
-	ret = tty_ldisc_receive_buf(ld, p, (char *)f, count);
+	count = tty_ldisc_receive_buf(ld, p, (char *)f, count);
 
 	tty_ldisc_deref(ld);
 
-	return ret;
+	return count;
 }
 
 static void tty_port_default_lookahead_buf(struct tty_port *port, const u8 *p,
-					   const u8 *f, unsigned int count)
+					   const u8 *f, size_t count)
 {
 	struct tty_struct *tty;
 	struct tty_ldisc *ld;
