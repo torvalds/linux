@@ -5861,8 +5861,8 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	struct btrfs_key found_key;
 	struct btrfs_path *path;
 	void *addr;
-	struct list_head ins_list;
-	struct list_head del_list;
+	LIST_HEAD(ins_list);
+	LIST_HEAD(del_list);
 	int ret;
 	char *name_ptr;
 	int name_len;
@@ -5881,8 +5881,6 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	addr = private->filldir_buf;
 	path->reada = READA_FORWARD;
 
-	INIT_LIST_HEAD(&ins_list);
-	INIT_LIST_HEAD(&del_list);
 	put = btrfs_readdir_get_delayed_items(inode, private->last_index,
 					      &ins_list, &del_list);
 
@@ -9244,13 +9242,10 @@ static int start_delalloc_inodes(struct btrfs_root *root,
 	struct btrfs_inode *binode;
 	struct inode *inode;
 	struct btrfs_delalloc_work *work, *next;
-	struct list_head works;
-	struct list_head splice;
+	LIST_HEAD(works);
+	LIST_HEAD(splice);
 	int ret = 0;
 	bool full_flush = wbc->nr_to_write == LONG_MAX;
-
-	INIT_LIST_HEAD(&works);
-	INIT_LIST_HEAD(&splice);
 
 	mutex_lock(&root->delalloc_mutex);
 	spin_lock(&root->delalloc_lock);
@@ -9339,13 +9334,11 @@ int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, long nr,
 		.range_end = LLONG_MAX,
 	};
 	struct btrfs_root *root;
-	struct list_head splice;
+	LIST_HEAD(splice);
 	int ret;
 
 	if (BTRFS_FS_ERROR(fs_info))
 		return -EROFS;
-
-	INIT_LIST_HEAD(&splice);
 
 	mutex_lock(&fs_info->delalloc_root_mutex);
 	spin_lock(&fs_info->delalloc_root_lock);
