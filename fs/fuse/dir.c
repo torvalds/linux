@@ -1209,7 +1209,12 @@ static int fuse_update_get_attr(struct inode *inode, struct file *file,
 	u32 inval_mask = READ_ONCE(fi->inval_mask);
 	u32 cache_mask = fuse_get_cache_mask(inode);
 
-	if (flags & AT_STATX_FORCE_SYNC)
+	/* FUSE only supports basic stats */
+	request_mask &= STATX_BASIC_STATS;
+
+	if (!request_mask)
+		sync = false;
+	else if (flags & AT_STATX_FORCE_SYNC)
 		sync = true;
 	else if (flags & AT_STATX_DONT_SYNC)
 		sync = false;
