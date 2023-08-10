@@ -130,6 +130,7 @@ struct ufs_qcom_phy {
  * and writes to QSERDES_RX_SIGDET_CNTRL attribute
  * @ctrl_rx_linecfg: pointer to a function that controls the enable/disable of
  * Rx line config
+ * @get_tx_hs_equalizer: pointer to a function retrieving the tx hs equalizer setting
  * @dbg_register_dump: pointer to a function that dumps phy registers for debug.
  * @dbg_register_save: pointer to a function that save phy registers to memory.
  */
@@ -141,6 +142,7 @@ struct ufs_qcom_phy_specific_ops {
 	void (*set_tx_lane_enable)(struct ufs_qcom_phy *phy, u32 val);
 	void (*power_control)(struct ufs_qcom_phy *phy, bool val);
 	void (*ctrl_rx_linecfg)(struct ufs_qcom_phy *phy, bool ctrl);
+	u32 (*get_tx_hs_equalizer)(struct ufs_qcom_phy *phy, u32 gear);
 	void (*dbg_register_dump)(struct ufs_qcom_phy *phy);
 	void (*dbg_register_save)(struct ufs_qcom_phy *phy);
 };

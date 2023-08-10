@@ -2134,6 +2134,27 @@ static void ufs_qcom_dev_ref_clk_ctrl(struct ufs_qcom_host *host, bool enable)
 	}
 }
 
+static void ufs_qcom_set_tx_hs_equalizer(struct ufs_hba *hba,
+					 u32 gear, u32 tx_lanes)
+{
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	struct phy *phy = host->generic_phy;
+	u32 equalizer_val = 0;
+	int ret, i;
+
+	ret = ufs_qcom_phy_get_tx_hs_equalizer(phy, gear, &equalizer_val);
+	if (ret)
+		return;
+
+	for (i = 0; i < tx_lanes; i++) {
+		ret = ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(TX_HS_EQUALIZER, i),
+			equalizer_val);
+		if (ret)
+			dev_err(hba->dev, "%s: failed equalizer lane %d\n",
+				__func__, i);
+	}
+}
+
 static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 				enum ufs_notify_change_status status,
 				struct ufs_pa_layer_attr *dev_max_params,
@@ -2200,6 +2221,9 @@ struct ufs_qcom_dev_params ufs_qcom_cap;
 		}
 		break;
 	case POST_CHANGE:
+		ufs_qcom_set_tx_hs_equalizer(hba,
+			dev_req_params->gear_tx, dev_req_params->lane_tx);
+
 		if (ufs_qcom_cfg_timers(hba, dev_req_params->gear_rx,
 					dev_req_params->pwr_rx,
 					dev_req_params->hs_rate, false)) {
