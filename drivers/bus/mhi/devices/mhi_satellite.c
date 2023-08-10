@@ -358,7 +358,8 @@ static struct mhi_sat_device *find_sat_dev_by_id(
 static bool mhi_sat_isvalid_header(struct sat_header *hdr, int len)
 {
 	/* validate payload size */
-	if (len >= sizeof(*hdr) && (len != hdr->payload_size + sizeof(*hdr)))
+	if ((len < sizeof(*hdr)) ||
+		(len >= sizeof(*hdr) && (len != hdr->payload_size + sizeof(*hdr))))
 		return false;
 
 	/* validate SAT IPC version */
