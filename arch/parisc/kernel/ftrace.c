@@ -53,7 +53,7 @@ static void __hot prepare_ftrace_return(unsigned long *parent,
 
 static ftrace_func_t ftrace_func;
 
-void notrace __hot ftrace_function_trampoline(unsigned long parent,
+asmlinkage void notrace __hot ftrace_function_trampoline(unsigned long parent,
 				unsigned long self_addr,
 				unsigned long org_sp_gr3,
 				struct ftrace_regs *fregs)
