@@ -181,6 +181,7 @@ int arch_make_page_accessible(struct page *page);
 struct vm_layout {
 	unsigned long kaslr_offset;
 	unsigned long kaslr_offset_phys;
+	unsigned long identity_base;
 	unsigned long identity_size;
 };
 
@@ -188,6 +189,7 @@ extern struct vm_layout vm_layout;
 
 #define __kaslr_offset		vm_layout.kaslr_offset
 #define __kaslr_offset_phys	vm_layout.kaslr_offset_phys
+#define __identity_base		vm_layout.identity_base
 #define ident_map_size		vm_layout.identity_size
 
 static inline unsigned long kaslr_offset(void)
@@ -203,8 +205,8 @@ static inline int kaslr_enabled(void)
 	return 0;
 }
 
-#define __PAGE_OFFSET		0x0UL
-#define PAGE_OFFSET		0x0UL
+#define __PAGE_OFFSET		__identity_base
+#define PAGE_OFFSET		__PAGE_OFFSET
 
 #define __pa_nodebug(x)		((unsigned long)(x))
 
