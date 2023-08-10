@@ -72,7 +72,7 @@ static void spk_ttyio_ldisc_close(struct tty_struct *tty)
 }
 
 static size_t spk_ttyio_receive_buf2(struct tty_struct *tty, const u8 *cp,
-				     const char *fp, size_t count)
+				     const u8 *fp, size_t count)
 {
 	struct spk_ldisc_data *ldisc_data = tty->disc_data;
 	struct spk_synth *synth = ldisc_data->synth;

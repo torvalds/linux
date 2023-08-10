@@ -34,7 +34,7 @@ static size_t tty_port_default_receive_buf(struct tty_port *port, const u8 *p,
 	if (!ld)
 		return 0;
 
-	count = tty_ldisc_receive_buf(ld, p, (char *)f, count);
+	count = tty_ldisc_receive_buf(ld, p, f, count);
 
 	tty_ldisc_deref(ld);
 

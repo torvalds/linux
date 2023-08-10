@@ -27,9 +27,9 @@ static inline u8 *char_buf_ptr(struct tty_buffer *b, int ofs)
 	return ((u8 *)b->data) + ofs;
 }
 
-static inline char *flag_buf_ptr(struct tty_buffer *b, int ofs)
+static inline u8 *flag_buf_ptr(struct tty_buffer *b, int ofs)
 {
-	return (char *)char_buf_ptr(b, ofs) + b->size;
+	return char_buf_ptr(b, ofs) + b->size;
 }
 
 struct tty_bufhead {

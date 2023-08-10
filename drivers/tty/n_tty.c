@@ -1480,7 +1480,7 @@ n_tty_receive_char_lnext(struct tty_struct *tty, unsigned char c, char flag)
 
 /* Caller must ensure count > 0 */
 static void n_tty_lookahead_flow_ctrl(struct tty_struct *tty, const u8 *cp,
-				      const unsigned char *fp, size_t count)
+				      const u8 *fp, size_t count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	unsigned char flag = TTY_NORMAL;
@@ -1520,11 +1520,11 @@ n_tty_receive_buf_real_raw(const struct tty_struct *tty, const u8 *cp,
 }
 
 static void
-n_tty_receive_buf_raw(struct tty_struct *tty, const u8 *cp,
-		      const char *fp, int count)
+n_tty_receive_buf_raw(struct tty_struct *tty, const u8 *cp, const u8 *fp,
+		      int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	char flag = TTY_NORMAL;
+	u8 flag = TTY_NORMAL;
 
 	while (count--) {
 		if (fp)
@@ -1537,8 +1537,8 @@ n_tty_receive_buf_raw(struct tty_struct *tty, const u8 *cp,
 }
 
 static void
-n_tty_receive_buf_closing(struct tty_struct *tty, const u8 *cp,
-			  const char *fp, int count, bool lookahead_done)
+n_tty_receive_buf_closing(struct tty_struct *tty, const u8 *cp, const u8 *fp,
+			  int count, bool lookahead_done)
 {
 	char flag = TTY_NORMAL;
 
@@ -1551,11 +1551,11 @@ n_tty_receive_buf_closing(struct tty_struct *tty, const u8 *cp,
 }
 
 static void n_tty_receive_buf_standard(struct tty_struct *tty, const u8 *cp,
-				       const char *fp, int count,
+				       const u8 *fp, int count,
 				       bool lookahead_done)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	char flag = TTY_NORMAL;
+	u8 flag = TTY_NORMAL;
 
 	while (count--) {
 		u8 c = *cp++;
@@ -1589,8 +1589,8 @@ static void n_tty_receive_buf_standard(struct tty_struct *tty, const u8 *cp,
 	}
 }
 
-static void __receive_buf(struct tty_struct *tty, const u8 *cp,
-			  const char *fp, int count)
+static void __receive_buf(struct tty_struct *tty, const u8 *cp, const u8 *fp,
+			  int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	bool preops = I_ISTRIP(tty) || (I_IUCLC(tty) && L_IEXTEN(tty));
@@ -1664,8 +1664,8 @@ static void __receive_buf(struct tty_struct *tty, const u8 *cp,
  *	publishes commit_head or canon_head
  */
 static size_t
-n_tty_receive_buf_common(struct tty_struct *tty, const u8 *cp,
-			 const char *fp, int count, int flow)
+n_tty_receive_buf_common(struct tty_struct *tty, const u8 *cp, const u8 *fp,
+			 int count, int flow)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t rcvd = 0;
@@ -1746,13 +1746,13 @@ n_tty_receive_buf_common(struct tty_struct *tty, const u8 *cp,
 }
 
 static void n_tty_receive_buf(struct tty_struct *tty, const u8 *cp,
-			      const char *fp, size_t count)
+			      const u8 *fp, size_t count)
 {
 	n_tty_receive_buf_common(tty, cp, fp, count, 0);
 }
 
 static size_t n_tty_receive_buf2(struct tty_struct *tty, const u8 *cp,
-				 const char *fp, size_t count)
+				 const u8 *fp, size_t count)
 {
 	return n_tty_receive_buf_common(tty, cp, fp, count, 1);
 }

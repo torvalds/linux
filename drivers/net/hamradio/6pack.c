@@ -428,7 +428,7 @@ out:
  * and sent on to some IP layer for further processing.
  */
 static void sixpack_receive_buf(struct tty_struct *tty, const u8 *cp,
-				const char *fp, size_t count)
+				const u8 *fp, size_t count)
 {
 	struct sixpack *sp;
 	int count1;
