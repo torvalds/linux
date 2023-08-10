@@ -71,6 +71,15 @@
 		k = get_next_kvp(k))
 
 
+#ifdef CONFIG_ARM
+#define readq_relaxed(a) ({			\
+	u64 val = readl_relaxed((a) + 4);	\
+	val <<= 32;				\
+	val |=  readl_relaxed((a));		\
+	val;					\
+})
+#endif
+
 /* Debug Definitions */
 enum {
 	MSM_RPM_LOG_REQUEST_PRETTY	= BIT(0),
@@ -1564,7 +1573,7 @@ static int qcom_smd_rpm_probe(struct rpmsg_device *rpdev)
 	int ret = 0;
 	int irq;
 	void __iomem *reg_base;
-	uint32_t version = V0_PROTOCOL_VERSION; /* set to default v0 format */
+	uint64_t version = V0_PROTOCOL_VERSION; /* set to default v0 format */
 
 	p = of_find_compatible_node(NULL, NULL, "qcom,rpm-smd");
 	if (!p) {
