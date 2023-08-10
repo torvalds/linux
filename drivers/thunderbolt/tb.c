@@ -190,7 +190,7 @@ static void tb_add_dp_resources(struct tb_switch *sw)
 		if (!tb_switch_query_dp_resource(sw, port))
 			continue;
 
-		list_add_tail(&port->list, &tcm->dp_resources);
+		list_add(&port->list, &tcm->dp_resources);
 		tb_port_dbg(port, "DP IN resource available\n");
 	}
 }
