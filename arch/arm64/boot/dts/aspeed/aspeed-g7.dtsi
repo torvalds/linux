@@ -1092,7 +1092,7 @@
 				#reset-cells = <1>;
 			};
 
-			lpco0_uart_routing: uart-routing@98 {
+			lpc0_uart_routing: uart-routing@98 {
 				compatible = "aspeed,ast2700-uart-routing";
 				reg = <0x98 0x8>;
 				status = "disabled";
