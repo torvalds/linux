@@ -354,9 +354,6 @@ int fat_update_time(struct inode *inode, struct timespec64 *now, int flags)
 			dirty_flags |= I_DIRTY_SYNC;
 	}
 
-	if ((flags & S_VERSION) && inode_maybe_inc_iversion(inode, false))
-		dirty_flags |= I_DIRTY_SYNC;
-
 	__mark_inode_dirty(inode, dirty_flags);
 	return 0;
 }
