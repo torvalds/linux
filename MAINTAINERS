@@ -8812,6 +8812,7 @@ R:	Michael Walle <michael@walle.cc>
 S:	Maintained
 F:	drivers/gpio/gpio-regmap.c
 F:	include/linux/gpio/regmap.h
+K:	(devm_)?gpio_regmap_(un)?register
 
 GPIO SUBSYSTEM
 M:	Linus Walleij <linus.walleij@linaro.org>
