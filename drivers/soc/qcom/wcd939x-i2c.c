@@ -219,6 +219,60 @@ int wcd_usbss_set_linearizer_sw_tap(uint32_t aud_tap, uint32_t gnd_tap)
 EXPORT_SYMBOL(wcd_usbss_set_linearizer_sw_tap);
 
 /*
+ * wcd_usbss_register_update() - Write or read multiple USB-SS registers.
+ *
+ * @reg_arr: Array of {register address, register value} pairs.
+ * @write: Bool selecting whether to write values from reg_arr or read values to store in reg_arr.
+ * @arr_size: Number of {register address, register value} pairs in reg_arr.
+ *
+ * This function writes or reads arr_size number of register values, specified in reg_arr. If write
+ * is true, this function will write all the values specified in reg_arr to corresponding USB-SS
+ * registers. If write is false, this function will read the USB-SS registers specified in reg_arr
+ * and write those values to the corresponding register values in reg_arr. If any register write or
+ * read fails, this function prints an error message and exits.
+ *
+ * Return: Returns int on whether the register writes/reads were successful. -ENODEV is
+ *	   returned if the driver is not probed.
+ */
+int wcd_usbss_register_update(uint32_t reg_arr[][2], bool write, size_t arr_size)
+{
+	size_t i;
+	int rc;
+	uint32_t reg_mask = 0xFF;
+
+	/* check if driver is probed and private context is initialized */
+	if (wcd_usbss_ctxt_ == NULL)
+		return -ENODEV;
+
+	if (!wcd_usbss_ctxt_->regmap)
+		return -EINVAL;
+
+	for (i = 0; i < arr_size; i++) {
+		if (write) {
+			rc = regmap_write(wcd_usbss_ctxt_->regmap, reg_arr[i][0],
+					  reg_arr[i][1] & reg_mask);
+			if (rc != 0) {
+				dev_err(wcd_usbss_ctxt_->dev,
+					"%s: USB-SS register 0x%x (value of 0x%x) write failed\n",
+					__func__, reg_arr[i][0], reg_arr[i][1]);
+				return rc;
+			}
+		} else {
+			rc = regmap_read(wcd_usbss_ctxt_->regmap, reg_arr[i][0], &reg_arr[i][1]);
+			if (rc != 0) {
+				dev_err(wcd_usbss_ctxt_->dev,
+					"%s: USB-SS register 0x%x read failed\n", __func__,
+					reg_arr[i][0]);
+				return rc;
+			}
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(wcd_usbss_register_update);
+
+/*
  * wcd_usbss_is_in_reset_state() - Check whether a negative surge ESD event has occurred.
  *
  * This function has a series of three checks to determine whether a negative surge ESD event has
