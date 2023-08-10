@@ -22,12 +22,12 @@ struct tty_buffer {
 	unsigned long data[];
 };
 
-static inline u8 *char_buf_ptr(struct tty_buffer *b, int ofs)
+static inline u8 *char_buf_ptr(struct tty_buffer *b, unsigned int ofs)
 {
 	return ((u8 *)b->data) + ofs;
 }
 
-static inline u8 *flag_buf_ptr(struct tty_buffer *b, int ofs)
+static inline u8 *flag_buf_ptr(struct tty_buffer *b, unsigned int ofs)
 {
 	return char_buf_ptr(b, ofs) + b->size;
 }
