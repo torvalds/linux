@@ -6,7 +6,7 @@ def gen_allyes_files(le_target, target):
     native.genrule(
         name = rule_name,
         srcs = [],
-        outs = ["vendor_boot.img", "super.img", "init_boot.img"],
+        outs = ["vendor_boot.img", "init_boot.img"],
         cmd = """touch $(OUTS)
                  echo 'empty_file' | tee $(OUTS)""",
     )
