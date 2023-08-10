@@ -753,9 +753,42 @@ DECLARE_EVENT_CLASS(xrep_extent_class,
 DEFINE_EVENT(xrep_extent_class, name, \
 	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len), \
 	TP_ARGS(pag, agbno, len))
-DEFINE_REPAIR_EXTENT_EVENT(xrep_dispose_unmap_extent);
-DEFINE_REPAIR_EXTENT_EVENT(xrep_dispose_free_extent);
+DEFINE_REPAIR_EXTENT_EVENT(xreap_dispose_unmap_extent);
+DEFINE_REPAIR_EXTENT_EVENT(xreap_dispose_free_extent);
+DEFINE_REPAIR_EXTENT_EVENT(xreap_agextent_binval);
 DEFINE_REPAIR_EXTENT_EVENT(xrep_agfl_insert);
+
+DECLARE_EVENT_CLASS(xrep_reap_find_class,
+	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len,
+		bool crosslinked),
+	TP_ARGS(pag, agbno, len, crosslinked),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(xfs_extlen_t, len)
+		__field(bool, crosslinked)
+	),
+	TP_fast_assign(
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
+		__entry->agbno = agbno;
+		__entry->len = len;
+		__entry->crosslinked = crosslinked;
+	),
+	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%x crosslinked %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agbno,
+		  __entry->len,
+		  __entry->crosslinked ? 1 : 0)
+);
+#define DEFINE_REPAIR_REAP_FIND_EVENT(name) \
+DEFINE_EVENT(xrep_reap_find_class, name, \
+	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len, \
+		 bool crosslinked), \
+	TP_ARGS(pag, agbno, len, crosslinked))
+DEFINE_REPAIR_REAP_FIND_EVENT(xreap_agextent_select);
 
 DECLARE_EVENT_CLASS(xrep_rmap_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,

@@ -6,7 +6,7 @@
 #ifndef __XFS_SCRUB_REAP_H__
 #define __XFS_SCRUB_REAP_H__
 
-int xrep_reap_extents(struct xfs_scrub *sc, struct xbitmap *bitmap,
+int xrep_reap_ag_metadata(struct xfs_scrub *sc, struct xbitmap *bitmap,
 		const struct xfs_owner_info *oinfo,
 		enum xfs_ag_resv_type type);
 

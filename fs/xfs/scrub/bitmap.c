@@ -385,43 +385,6 @@ xbitmap_walk(
 	return error;
 }
 
-struct xbitmap_walk_bits {
-	xbitmap_walk_bits_fn	fn;
-	void			*priv;
-};
-
-/* Walk all the bits in a run. */
-static int
-xbitmap_walk_bits_in_run(
-	uint64_t			start,
-	uint64_t			len,
-	void				*priv)
-{
-	struct xbitmap_walk_bits	*wb = priv;
-	uint64_t			i;
-	int				error = 0;
-
-	for (i = start; i < start + len; i++) {
-		error = wb->fn(i, wb->priv);
-		if (error)
-			break;
-	}
-
-	return error;
-}
-
-/* Call a function for every set bit in this bitmap. */
-int
-xbitmap_walk_bits(
-	struct xbitmap			*bitmap,
-	xbitmap_walk_bits_fn		fn,
-	void				*priv)
-{
-	struct xbitmap_walk_bits	wb = {.fn = fn, .priv = priv};
-
-	return xbitmap_walk(bitmap, xbitmap_walk_bits_in_run, &wb);
-}
-
 /* Does this bitmap have no bits set at all? */
 bool
 xbitmap_empty(

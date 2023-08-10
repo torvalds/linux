@@ -33,10 +33,6 @@ typedef int (*xbitmap_walk_fn)(uint64_t start, uint64_t len, void *priv);
 int xbitmap_walk(struct xbitmap *bitmap, xbitmap_walk_fn fn,
 		void *priv);
 
-typedef int (*xbitmap_walk_bits_fn)(uint64_t bit, void *priv);
-int xbitmap_walk_bits(struct xbitmap *bitmap, xbitmap_walk_bits_fn fn,
-		void *priv);
-
 bool xbitmap_empty(struct xbitmap *bitmap);
 bool xbitmap_test(struct xbitmap *bitmap, uint64_t start, uint64_t *len);
 

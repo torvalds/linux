@@ -26,6 +26,7 @@
 #include "xfs_ag_resv.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
+#include "xfs_defer.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -162,6 +163,56 @@ xrep_roll_ag_trans(
 		xfs_trans_bjoin(sc->tp, sc->sa.agi_bp);
 	if (sc->sa.agf_bp)
 		xfs_trans_bjoin(sc->tp, sc->sa.agf_bp);
+
+	return 0;
+}
+
+/* Finish all deferred work attached to the repair transaction. */
+int
+xrep_defer_finish(
+	struct xfs_scrub	*sc)
+{
+	int			error;
+
+	/*
+	 * Keep the AG header buffers locked while we complete deferred work
+	 * items.  Ensure that both AG buffers are dirty and held when we roll
+	 * the transaction so that they move forward in the log without losing
+	 * the bli (and hence the bli type) when the transaction commits.
+	 *
+	 * Normal code would never hold clean buffers across a roll, but repair
+	 * needs both buffers to maintain a total lock on the AG.
+	 */
+	if (sc->sa.agi_bp) {
+		xfs_ialloc_log_agi(sc->tp, sc->sa.agi_bp, XFS_AGI_MAGICNUM);
+		xfs_trans_bhold(sc->tp, sc->sa.agi_bp);
+	}
+
+	if (sc->sa.agf_bp) {
+		xfs_alloc_log_agf(sc->tp, sc->sa.agf_bp, XFS_AGF_MAGICNUM);
+		xfs_trans_bhold(sc->tp, sc->sa.agf_bp);
+	}
+
+	/*
+	 * Finish all deferred work items.  We still hold the AG header buffers
+	 * locked regardless of whether or not that succeeds.  On failure, the
+	 * buffers will be released during teardown on our way out of the
+	 * kernel.  If successful, join the buffers to the new transaction
+	 * and move on.
+	 */
+	error = xfs_defer_finish(&sc->tp);
+	if (error)
+		return error;
+
+	/*
+	 * Release the hold that we set above because defer_finish won't do
+	 * that for us.  The defer roll code redirties held buffers after each
+	 * roll, so the AG header buffers should be ready for logging.
+	 */
+	if (sc->sa.agi_bp)
+		xfs_trans_bhold_release(sc->tp, sc->sa.agi_bp);
+	if (sc->sa.agf_bp)
+		xfs_trans_bhold_release(sc->tp, sc->sa.agf_bp);
 
 	return 0;
 }
