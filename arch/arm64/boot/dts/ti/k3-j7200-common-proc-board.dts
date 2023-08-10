@@ -240,25 +240,14 @@
 	pinctrl-0 = <&main_uart3_pins_default>;
 };
 
-&main_gpio2 {
-	status = "disabled";
-};
-
-&main_gpio4 {
-	status = "disabled";
-};
-
-&main_gpio6 {
-	status = "disabled";
+&main_gpio0 {
+	status = "okay";
 };
 
 &wkup_gpio0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&wkup_gpio_pins_default>;
-};
-
-&wkup_gpio1 {
-	status = "disabled";
 };
 
 &mcu_cpsw {
