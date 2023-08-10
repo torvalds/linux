@@ -65,6 +65,7 @@ struct resource_context;
 struct clk_bw_params;
 
 struct resource_funcs {
+	enum engine_id (*get_preferred_eng_id_dpia)(unsigned int dpia_index);
 	void (*destroy)(struct resource_pool **pool);
 	void (*link_init)(struct dc_link *link);
 	struct panel_cntl*(*panel_cntl_create)(
