@@ -71,6 +71,15 @@ config PHY_QCOM_UFS
 
 if PHY_QCOM_UFS
 
+config PHY_QCOM_UFS_V3
+	tristate "Qualcomm Technologies, Inc. Sdmsteppe Phy Driver"
+	depends on PHY_QCOM_UFS
+	help
+	  Enables support for UFS PHY on Qualcomm Technologies, Inc.
+	  chipsets.
+	  Support for 11nm UFS QMP phy present on QCOM chipsets.
+	  This is required to enable UFS on Sdmsteppe chipset.
+
 config PHY_QCOM_UFS_V4
 	tristate
 	default PHY_QCOM_UFS
