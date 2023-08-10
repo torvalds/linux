@@ -3315,7 +3315,7 @@ void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	vmx->emulation_required = vmx_emulation_required(vcpu);
 }
 
-static int vmx_get_max_tdp_level(void)
+static int vmx_get_max_ept_level(void)
 {
 	if (cpu_has_vmx_ept_5levels())
 		return 5;
@@ -8498,7 +8498,7 @@ static __init int hardware_setup(void)
 	 */
 	vmx_setup_me_spte_mask();
 
-	kvm_configure_mmu(enable_ept, 0, vmx_get_max_tdp_level(),
+	kvm_configure_mmu(enable_ept, 0, vmx_get_max_ept_level(),
 			  ept_caps_to_lpage_level(vmx_capability.ept));
 
 	/*
