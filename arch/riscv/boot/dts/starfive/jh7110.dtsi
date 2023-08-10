@@ -318,8 +318,8 @@
 
 	stmmac_axi_setup: stmmac-axi-config {
 		snps,lpi_en;
-		snps,wr_osr_lmt = <4>;
-		snps,rd_osr_lmt = <4>;
+		snps,wr_osr_lmt = <15>;
+		snps,rd_osr_lmt = <15>;
 		snps,blen = <256 128 64 32 0 0 0>;
 	};
 
@@ -908,7 +908,7 @@
 			rx-fifo-depth = <2048>;
 			tx-fifo-depth = <2048>;
 			snps,multicast-filter-bins = <64>;
-			snps,perfect-filter-entries = <8>;
+			snps,perfect-filter-entries = <256>;
 			snps,fixed-burst;
 			snps,no-pbl-x8;
 			snps,force_thresh_dma_mode;
@@ -939,7 +939,7 @@
 			rx-fifo-depth = <2048>;
 			tx-fifo-depth = <2048>;
 			snps,multicast-filter-bins = <64>;
-			snps,perfect-filter-entries = <8>;
+			snps,perfect-filter-entries = <256>;
 			snps,fixed-burst;
 			snps,no-pbl-x8;
 			snps,force_thresh_dma_mode;
