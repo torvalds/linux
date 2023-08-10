@@ -625,9 +625,10 @@ static int aldebaran_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
 		/* Valid power data is available only from primary die */
-		*value = aldebaran_is_primary(smu) ?
-				 metrics->AverageSocketPower << 8 :
-				 0;
+		if (aldebaran_is_primary(smu))
+			*value = metrics->AverageSocketPower << 8;
+		else
+			ret = -EOPNOTSUPP;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = metrics->TemperatureEdge *
