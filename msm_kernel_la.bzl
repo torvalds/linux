@@ -1,5 +1,4 @@
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
-load("//build/bazel_common_rules/test_mappings:test_mappings.bzl", "test_mappings_dist")
 load(
     "//build/kernel/kleaf:kernel.bzl",
     "kernel_abi",
@@ -395,16 +394,6 @@ def _define_kernel_dist(
             },
             log = "info",
         )
-
-    native.alias(
-        name = "{}_test_mapping".format(target),
-        actual = ":{}_dist".format(target),
-    )
-
-    test_mappings_dist(
-        name = "{}_test_mapping_dist".format(target),
-        dist_dir = dist_dir,
-    )
 
 def _define_uapi_library(target):
     """Define a cc_library for userspace programs to use
