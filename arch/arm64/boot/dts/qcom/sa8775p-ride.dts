@@ -16,6 +16,7 @@
 	compatible = "qcom,sa8775p-ride", "qcom,sa8775p";
 
 	aliases {
+		ethernet0 = &ethernet0;
 		i2c11 = &i2c11;
 		i2c18 = &i2c18;
 		serial0 = &uart10;
