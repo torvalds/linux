@@ -3179,6 +3179,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
 	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
+	uint32_t tmp;
 
 	/* under multi-vf mode, the hwmon attributes are all not supported */
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
@@ -3262,6 +3263,14 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
 	     ((adev->flags & AMD_IS_APU) && (gc_ver < IP_VERSION(9, 3, 0)))) &&
 	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr))
+		return 0;
+
+	/* not all products support both average and instantaneous */
+	if (attr == &sensor_dev_attr_power1_average.dev_attr.attr &&
+	    amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER, (void *)&tmp) == -EOPNOTSUPP)
+		return 0;
+	if (attr == &sensor_dev_attr_power1_input.dev_attr.attr &&
+	    amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER, (void *)&tmp) == -EOPNOTSUPP)
 		return 0;
 
 	/* hide max/min values if we can't both query and manage the fan */
