@@ -349,7 +349,7 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	if (!rtc)
 		return -ENOMEM;
 
-	rtc->type = (enum jz4740_rtc_type)device_get_match_data(dev);
+	rtc->type = (uintptr_t)device_get_match_data(dev);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
