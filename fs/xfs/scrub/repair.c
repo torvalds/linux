@@ -32,6 +32,7 @@
 #include "scrub/trace.h"
 #include "scrub/repair.h"
 #include "scrub/bitmap.h"
+#include "scrub/stats.h"
 
 /*
  * Attempt to repair some metadata, if the metadata is corrupt and userspace
@@ -40,8 +41,10 @@
  */
 int
 xrep_attempt(
-	struct xfs_scrub	*sc)
+	struct xfs_scrub	*sc,
+	struct xchk_stats_run	*run)
 {
+	u64			repair_start;
 	int			error = 0;
 
 	trace_xrep_attempt(XFS_I(file_inode(sc->file)), sc->sm, error);
@@ -50,8 +53,11 @@ xrep_attempt(
 
 	/* Repair whatever's broken. */
 	ASSERT(sc->ops->repair);
+	run->repair_attempted = true;
+	repair_start = xchk_stats_now();
 	error = sc->ops->repair(sc);
 	trace_xrep_done(XFS_I(file_inode(sc->file)), sc->sm, error);
+	run->repair_ns += xchk_stats_elapsed_ns(repair_start);
 	switch (error) {
 	case 0:
 		/*
@@ -60,14 +66,17 @@ xrep_attempt(
 		 */
 		sc->sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
 		sc->flags |= XREP_ALREADY_FIXED;
+		run->repair_succeeded = true;
 		return -EAGAIN;
 	case -ECHRNG:
 		sc->flags |= XCHK_NEED_DRAIN;
+		run->retries++;
 		return -EAGAIN;
 	case -EDEADLOCK:
 		/* Tell the caller to try again having grabbed all the locks. */
 		if (!(sc->flags & XCHK_TRY_HARDER)) {
 			sc->flags |= XCHK_TRY_HARDER;
+			run->retries++;
 			return -EAGAIN;
 		}
 		/*

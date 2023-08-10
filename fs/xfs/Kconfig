@@ -143,6 +143,23 @@ config XFS_ONLINE_SCRUB
 
 	  If unsure, say N.
 
+config XFS_ONLINE_SCRUB_STATS
+	bool "XFS online metadata check usage data collection"
+	default y
+	depends on XFS_ONLINE_SCRUB
+	select FS_DEBUG
+	help
+	  If you say Y here, the kernel will gather usage data about
+	  the online metadata check subsystem.  This includes the number
+	  of invocations, the outcomes, and the results of repairs, if any.
+	  This may slow down scrub slightly due to the use of high precision
+	  timers and the need to merge per-invocation information into the
+	  filesystem counters.
+
+	  Usage data are collected in /sys/kernel/debug/xfs/scrub.
+
+	  If unsure, say N.
+
 config XFS_ONLINE_REPAIR
 	bool "XFS online metadata repair support"
 	default n
