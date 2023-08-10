@@ -1263,8 +1263,8 @@ static ssize_t hvcs_write(struct tty_struct *tty, const u8 *buf, size_t count)
 	unsigned int unit_address;
 	const unsigned char *charbuf;
 	unsigned long flags;
-	int total_sent = 0;
-	int tosend = 0;
+	size_t total_sent = 0;
+	size_t tosend = 0;
 	int result = 0;
 
 	/*
@@ -1299,7 +1299,7 @@ static ssize_t hvcs_write(struct tty_struct *tty, const u8 *buf, size_t count)
 	unit_address = hvcsd->vdev->unit_address;
 
 	while (count > 0) {
-		tosend = min_t(unsigned, count,
+		tosend = min_t(size_t, count,
 			       (HVCS_BUFF_LEN - hvcsd->chars_in_buffer));
 		/*
 		 * No more space, this probably means that the last call to
