@@ -258,7 +258,6 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 {
 	struct aspeed_lpc_snoop *lpc_snoop;
 	struct device *dev;
-	struct device_node *np;
 	u32 port;
 	int rc;
 
@@ -268,15 +267,7 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 	if (!lpc_snoop)
 		return -ENOMEM;
 
-	np = pdev->dev.parent->of_node;
-	if (!of_device_is_compatible(np, "aspeed,ast2400-lpc-v2") &&
-	    !of_device_is_compatible(np, "aspeed,ast2500-lpc-v2") &&
-	    !of_device_is_compatible(np, "aspeed,ast2600-lpc-v2")) {
-		dev_err(dev, "unsupported LPC device binding\n");
-		return -ENODEV;
-	}
-
-	lpc_snoop->regmap = syscon_node_to_regmap(np);
+	lpc_snoop->regmap = syscon_node_to_regmap(pdev->dev.parent->of_node);
 	if (IS_ERR(lpc_snoop->regmap)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;
@@ -339,6 +330,8 @@ static const struct of_device_id aspeed_lpc_snoop_match[] = {
 	{ .compatible = "aspeed,ast2500-lpc-snoop",
 	  .data = &ast2500_model_data },
 	{ .compatible = "aspeed,ast2600-lpc-snoop",
+	  .data = &ast2500_model_data },
+	{ .compatible = "aspeed,ast2700-lpc-snoop",
 	  .data = &ast2500_model_data },
 	{ },
 };
