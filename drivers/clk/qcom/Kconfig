@@ -1274,6 +1274,15 @@ config SM_GCC_PITTI
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  I2C, USB, SD/UFS, Camera, Video etc.
 
+config SXR_GCC_NIOBE
+	tristate "NIOBE Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on Qualcomm Technologies, Inc
+	  NIOBE devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
 endif
 
 config VIRTIO_CLK
