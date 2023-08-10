@@ -795,6 +795,9 @@ struct fuse_conn {
 	/* relax restrictions in FOPEN_DIRECT_IO mode */
 	unsigned int direct_io_relax:1;
 
+	/* Is statx not implemented by fs? */
+	unsigned int no_statx:1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 
