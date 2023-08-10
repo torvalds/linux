@@ -1526,8 +1526,8 @@ static void bnxt_re_remove(struct auxiliary_device *adev)
 	}
 	bnxt_re_setup_cc(rdev, false);
 	ib_unregister_device(&rdev->ibdev);
-	ib_dealloc_device(&rdev->ibdev);
 	bnxt_re_dev_uninit(rdev);
+	ib_dealloc_device(&rdev->ibdev);
 skip_remove:
 	mutex_unlock(&bnxt_re_mutex);
 }
