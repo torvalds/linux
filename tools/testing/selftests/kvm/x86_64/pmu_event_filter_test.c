@@ -265,8 +265,7 @@ static struct kvm_pmu_event_filter *event_filter(uint32_t action)
  * Remove the first occurrence of 'event' (if any) from the filter's
  * event list.
  */
-static struct kvm_pmu_event_filter *remove_event(struct kvm_pmu_event_filter *f,
-						 uint64_t event)
+static void remove_event(struct kvm_pmu_event_filter *f, uint64_t event)
 {
 	bool found = false;
 	int i;
@@ -279,7 +278,6 @@ static struct kvm_pmu_event_filter *remove_event(struct kvm_pmu_event_filter *f,
 	}
 	if (found)
 		f->nevents--;
-	return f;
 }
 
 #define ASSERT_PMC_COUNTING_INSTRUCTIONS()						\
