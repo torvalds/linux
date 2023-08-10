@@ -450,13 +450,13 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
  *
  * Returns: the number of bytes processed.
  */
-int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
-			  const char *f, int count)
+size_t tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
+			     const char *f, size_t count)
 {
 	if (ld->ops->receive_buf2)
 		count = ld->ops->receive_buf2(ld->tty, p, f, count);
 	else {
-		count = min_t(int, count, ld->tty->receive_room);
+		count = min_t(size_t, count, ld->tty->receive_room);
 		if (count && ld->ops->receive_buf)
 			ld->ops->receive_buf(ld->tty, p, f, count);
 	}
