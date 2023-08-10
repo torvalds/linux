@@ -2,16 +2,8 @@
 /*
  * Augment the raw_syscalls tracepoints with the contents of the pointer arguments.
  *
- * Test it with:
- *
- * perf trace -e tools/perf/examples/bpf/augmented_raw_syscalls.c cat /etc/passwd > /dev/null
- *
  * This exactly matches what is marshalled into the raw_syscall:sys_enter
  * payload expected by the 'perf trace' beautifiers.
- *
- * For now it just uses the existing tracepoint augmentation code in 'perf
- * trace', in the next csets we'll hook up these with the sys_enter/sys_exit
- * code that will combine entry/exit in a strace like way.
  */
 
 #include <linux/bpf.h>
