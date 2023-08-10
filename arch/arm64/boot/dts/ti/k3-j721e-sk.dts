@@ -594,6 +594,7 @@
 };
 
 &ospi0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_fss0_ospi0_pins_default>;
 
@@ -655,11 +656,6 @@
 			};
 		};
 	};
-};
-
-&ospi1 {
-	/* Unused */
-	status = "disabled";
 };
 
 &main_i2c0 {

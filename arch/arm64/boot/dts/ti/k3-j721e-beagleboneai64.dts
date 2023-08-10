@@ -580,16 +580,6 @@
 	disable-wp;
 };
 
-&ospi0 {
-	/* Unused */
-	status = "disabled";
-};
-
-&ospi1 {
-	/* Unused */
-	status = "disabled";
-};
-
 &main_i2c0 {
 	status = "okay";
 	pinctrl-names = "default";
