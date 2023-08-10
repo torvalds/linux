@@ -158,10 +158,7 @@ static ssize_t gdm_tty_write(struct tty_struct *tty, const u8 *buf, size_t len)
 	if (!gdm_tty_ready(gdm))
 		return -ENODEV;
 
-	if (!len)
-		return 0;
-
-	while (1) {
+	while (remain) {
 		size_t sending_len = min(MUX_TX_MAX_SIZE, remain);
 		gdm->tty_dev->send_func(gdm->tty_dev->priv_dev,
 					(void *)(buf + sent_len),
@@ -171,8 +168,6 @@ static ssize_t gdm_tty_write(struct tty_struct *tty, const u8 *buf, size_t len)
 					gdm);
 		sent_len += sending_len;
 		remain -= sending_len;
-		if (remain <= 0)
-			break;
 	}
 
 	return len;
