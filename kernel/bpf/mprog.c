@@ -337,6 +337,8 @@ int bpf_mprog_detach(struct bpf_mprog_entry *entry,
 		return -EINVAL;
 	if (revision && revision != bpf_mprog_revision(entry))
 		return -ESTALE;
+	if (!bpf_mprog_total(entry))
+		return -ENOENT;
 	ret = bpf_mprog_tuple_relative(&rtuple, id_or_fd, flags,
 				       prog ? prog->type :
 				       BPF_PROG_TYPE_UNSPEC);

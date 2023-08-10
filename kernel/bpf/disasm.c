@@ -87,12 +87,12 @@ const char *const bpf_alu_string[16] = {
 	[BPF_END >> 4]  = "endian",
 };
 
-const char *const bpf_alu_sign_string[16] = {
+static const char *const bpf_alu_sign_string[16] = {
 	[BPF_DIV >> 4]  = "s/=",
 	[BPF_MOD >> 4]  = "s%=",
 };
 
-const char *const bpf_movsx_string[4] = {
+static const char *const bpf_movsx_string[4] = {
 	[0] = "(s8)",
 	[1] = "(s16)",
 	[3] = "(s32)",

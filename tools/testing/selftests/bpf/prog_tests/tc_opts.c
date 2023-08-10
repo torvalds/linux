@@ -2237,3 +2237,34 @@ void serial_test_tc_opts_detach_after(void)
 	test_tc_opts_detach_after_target(BPF_TCX_INGRESS);
 	test_tc_opts_detach_after_target(BPF_TCX_EGRESS);
 }
+
+static void test_tc_opts_delete_empty(int target, bool chain_tc_old)
+{
+	LIBBPF_OPTS(bpf_tc_hook, tc_hook, .ifindex = loopback);
+	LIBBPF_OPTS(bpf_prog_detach_opts, optd);
+	int err;
+
+	assert_mprog_count(target, 0);
+	if (chain_tc_old) {
+		tc_hook.attach_point = target == BPF_TCX_INGRESS ?
+				       BPF_TC_INGRESS : BPF_TC_EGRESS;
+		err = bpf_tc_hook_create(&tc_hook);
+		ASSERT_OK(err, "bpf_tc_hook_create");
+		__assert_mprog_count(target, 0, true, loopback);
+	}
+	err = bpf_prog_detach_opts(0, loopback, target, &optd);
+	ASSERT_EQ(err, -ENOENT, "prog_detach");
+	if (chain_tc_old) {
+		tc_hook.attach_point = BPF_TC_INGRESS | BPF_TC_EGRESS;
+		bpf_tc_hook_destroy(&tc_hook);
+	}
+	assert_mprog_count(target, 0);
+}
+
+void serial_test_tc_opts_delete_empty(void)
+{
+	test_tc_opts_delete_empty(BPF_TCX_INGRESS, false);
+	test_tc_opts_delete_empty(BPF_TCX_EGRESS, false);
+	test_tc_opts_delete_empty(BPF_TCX_INGRESS, true);
+	test_tc_opts_delete_empty(BPF_TCX_EGRESS, true);
+}
