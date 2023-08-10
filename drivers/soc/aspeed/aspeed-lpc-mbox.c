@@ -391,6 +391,16 @@ static const struct aspeed_mbox_model ast2600_model = {
 	.hie = 0xb0,
 };
 
+static const struct aspeed_mbox_model ast2700_model = {
+	.dr_num = 32,
+	.dr	= 0x0,
+	.str = 0x80,
+	.bcr = 0x90,
+	.hcr = 0x94,
+	.bie = 0xa0,
+	.hie = 0xb0,
+};
+
 static const struct of_device_id aspeed_mbox_match[] = {
 	{ .compatible = "aspeed,ast2400-mbox",
 	  .data = &ast2400_model },
@@ -398,6 +408,8 @@ static const struct of_device_id aspeed_mbox_match[] = {
 	  .data = &ast2500_model },
 	{ .compatible = "aspeed,ast2600-mbox",
 	  .data = &ast2600_model },
+	{ .compatible = "aspeed,ast2700-mbox",
+	  .data = &ast2700_model },
 	{ },
 };
 
