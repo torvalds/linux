@@ -1,3 +1,4 @@
+include $(srctree)/tools/scripts/Makefile.include
 include $(srctree)/tools/scripts/utilities.mak
 
 perf-y += arm64-frame-pointer-unwind-support.o
@@ -301,16 +302,21 @@ else
   flex_flags := -w
 endif
 
-CFLAGS_parse-events-flex.o  += $(flex_flags)
-CFLAGS_pmu-flex.o           += $(flex_flags)
-CFLAGS_expr-flex.o          += $(flex_flags)
-CFLAGS_bpf-filter-flex.o    += $(flex_flags)
-
 # Some newer clang and gcc version complain about this
 # util/parse-events-bison.c:1317:9: error: variable 'parse_events_nerrs' set but not used [-Werror,-Wunused-but-set-variable]
 #  int yynerrs = 0;
 
 bison_flags := -DYYENABLE_NLS=0 -Wno-unused-but-set-variable
+
+# Old clangs don't grok -Wno-unused-but-set-variable, remove it
+ifeq ($(CC_NO_CLANG), 0)
+  CLANG_VERSION := $(shell $(CLANG) --version | head -1 | sed 's/.*clang version \([[:digit:]]\+.[[:digit:]]\+.[[:digit:]]\+\).*/\1/g')
+  ifeq ($(call version-lt3,$(CLANG_VERSION),13.0.0),1)
+    bison_flags := $(subst -Wno-unused-but-set-variable,,$(bison_flags))
+    flex_flags := $(subst -Wno-unused-but-set-variable,,$(flex_flags))
+  endif
+endif
+
 BISON_GE_382 := $(shell expr $(shell $(BISON) --version | grep bison | sed -e 's/.\+ \([0-9]\+\).\([0-9]\+\).\([0-9]\+\)/\1\2\3/g') \>\= 382)
 ifeq ($(BISON_GE_382),1)
   bison_flags += -Wno-switch-enum
@@ -322,6 +328,11 @@ BISON_LT_381 := $(shell expr $(shell $(BISON) --version | grep bison | sed -e 's
 ifeq ($(BISON_LT_381),1)
   bison_flags += -DYYNOMEM=YYABORT
 endif
+
+CFLAGS_parse-events-flex.o  += $(flex_flags)
+CFLAGS_pmu-flex.o           += $(flex_flags)
+CFLAGS_expr-flex.o          += $(flex_flags)
+CFLAGS_bpf-filter-flex.o    += $(flex_flags)
 
 CFLAGS_parse-events-bison.o += $(bison_flags)
 CFLAGS_pmu-bison.o          += -DYYLTYPE_IS_TRIVIAL=0 $(bison_flags)
