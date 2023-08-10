@@ -843,7 +843,7 @@ static int qpti_map_queues(struct qlogicpti *qpti)
 	return 0;
 }
 
-const char *qlogicpti_info(struct Scsi_Host *host)
+static const char *qlogicpti_info(struct Scsi_Host *host)
 {
 	static char buf[80];
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
