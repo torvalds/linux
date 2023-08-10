@@ -334,7 +334,7 @@ int __pdc_cpu_rendezvous(void)
 /**
  * pdc_cpu_rendezvous_lock - Lock PDC while transitioning to rendezvous state
  */
-void pdc_cpu_rendezvous_lock(void)
+void pdc_cpu_rendezvous_lock(void) __acquires(&pdc_lock)
 {
 	spin_lock(&pdc_lock);
 }
@@ -342,7 +342,7 @@ void pdc_cpu_rendezvous_lock(void)
 /**
  * pdc_cpu_rendezvous_unlock - Unlock PDC after reaching rendezvous state
  */
-void pdc_cpu_rendezvous_unlock(void)
+void pdc_cpu_rendezvous_unlock(void) __releases(&pdc_lock)
 {
 	spin_unlock(&pdc_lock);
 }
