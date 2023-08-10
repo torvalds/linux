@@ -547,7 +547,7 @@ disable_clk:
 static struct platform_driver atmel_pwm_driver = {
 	.driver = {
 		.name = "atmel-pwm",
-		.of_match_table = of_match_ptr(atmel_pwm_dt_ids),
+		.of_match_table = atmel_pwm_dt_ids,
 	},
 	.probe = atmel_pwm_probe,
 };
