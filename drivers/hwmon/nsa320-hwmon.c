@@ -191,7 +191,7 @@ static struct platform_driver nsa320_hwmon_driver = {
 	.probe = nsa320_hwmon_probe,
 	.driver = {
 		.name = "nsa320-hwmon",
-		.of_match_table = of_match_ptr(of_nsa320_hwmon_match),
+		.of_match_table = of_nsa320_hwmon_match,
 	},
 };
 
