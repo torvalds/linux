@@ -737,17 +737,17 @@ static int set_ltchars(struct tty_struct *tty, struct ltchars __user *ltchars)
 /**
  *	tty_change_softcar	-	carrier change ioctl helper
  *	@tty: tty to update
- *	@arg: enable/disable CLOCAL
+ *	@enable: enable/disable CLOCAL
  *
  *	Perform a change to the CLOCAL state and call into the driver
  *	layer to make it visible. All done with the termios rwsem
  */
 
-static int tty_change_softcar(struct tty_struct *tty, int arg)
+static int tty_change_softcar(struct tty_struct *tty, bool enable)
 {
 	int ret = 0;
-	int bit = arg ? CLOCAL : 0;
 	struct ktermios old;
+	tcflag_t bit = enable ? CLOCAL : 0;
 
 	down_write(&tty->termios_rwsem);
 	old = tty->termios;
