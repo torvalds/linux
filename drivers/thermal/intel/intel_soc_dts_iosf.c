@@ -40,32 +40,6 @@
 /* Mask for two trips in status bits */
 #define SOC_DTS_TRIP_MASK		0x03
 
-static int sys_get_trip_temp(struct thermal_zone_device *tzd, int trip,
-			     int *temp)
-{
-	int status;
-	u32 out;
-	struct intel_soc_dts_sensor_entry *dts;
-	struct intel_soc_dts_sensors *sensors;
-
-	dts = thermal_zone_device_priv(tzd);
-	sensors = dts->sensors;
-	mutex_lock(&sensors->dts_update_lock);
-	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
-			       SOC_DTS_OFFSET_PTPS, &out);
-	mutex_unlock(&sensors->dts_update_lock);
-	if (status)
-		return status;
-
-	out = (out >> (trip * 8)) & SOC_DTS_TJMAX_ENCODING;
-	if (!out)
-		*temp = 0;
-	else
-		*temp = sensors->tj_max - out * 1000;
-
-	return 0;
-}
-
 static int update_trip_temp(struct intel_soc_dts_sensors *sensors,
 			    int thres_index, int temp)
 {
@@ -165,7 +139,8 @@ static int configure_trip(struct intel_soc_dts_sensor_entry *dts,
 	if (ret)
 		return ret;
 
-	dts->trip_types[thres_index] = trip_type;
+	dts->trips[thres_index].temperature = temp;
+	dts->trips[thres_index].type = trip_type;
 
 	return 0;
 }
@@ -185,16 +160,6 @@ static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
 	mutex_unlock(&sensors->dts_update_lock);
 
 	return status;
-}
-
-static int sys_get_trip_type(struct thermal_zone_device *tzd,
-			     int trip, enum thermal_trip_type *type)
-{
-	struct intel_soc_dts_sensor_entry *dts = thermal_zone_device_priv(tzd);
-
-	*type = dts->trip_types[trip];
-
-	return 0;
 }
 
 static int sys_get_curr_temp(struct thermal_zone_device *tzd,
@@ -221,8 +186,6 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd,
 
 static struct thermal_zone_device_ops tzone_ops = {
 	.get_temp = sys_get_curr_temp,
-	.get_trip_temp = sys_get_trip_temp,
-	.get_trip_type = sys_get_trip_type,
 	.set_trip_temp = sys_set_trip_temp,
 };
 
@@ -293,11 +256,11 @@ static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
 	}
 	dts->trip_mask = trip_mask;
 	snprintf(name, sizeof(name), "soc_dts%d", id);
-	dts->tzone = thermal_zone_device_register(name,
-						  SOC_MAX_DTS_TRIPS,
-						  trip_mask,
-						  dts, &tzone_ops,
-						  NULL, 0, 0);
+	dts->tzone = thermal_zone_device_register_with_trips(name, dts->trips,
+							     SOC_MAX_DTS_TRIPS,
+							     trip_mask,
+							     dts, &tzone_ops,
+							     NULL, 0, 0);
 	if (IS_ERR(dts->tzone)) {
 		ret = PTR_ERR(dts->tzone);
 		goto err_ret;
