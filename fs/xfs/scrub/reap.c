@@ -149,7 +149,7 @@ xrep_block_reap_binval(
 	 */
 	error = xfs_buf_incore(sc->mp->m_ddev_targp,
 			XFS_FSB_TO_DADDR(sc->mp, fsbno),
-			XFS_FSB_TO_BB(sc->mp, 1), 0, &bp);
+			XFS_FSB_TO_BB(sc->mp, 1), XBF_LIVESCAN, &bp);
 	if (error)
 		return;
 
