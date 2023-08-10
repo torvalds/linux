@@ -956,11 +956,10 @@ static int rpm_reg_probe(struct platform_device *pdev)
 	}
 
 	for (reg = match->data; reg->name; reg++) {
-		vreg = devm_kmalloc(&pdev->dev, sizeof(*vreg), GFP_KERNEL);
+		vreg = devm_kmemdup(&pdev->dev, reg->template, sizeof(*vreg), GFP_KERNEL);
 		if (!vreg)
 			return -ENOMEM;
 
-		memcpy(vreg, reg->template, sizeof(*vreg));
 		mutex_init(&vreg->lock);
 
 		vreg->dev = &pdev->dev;
