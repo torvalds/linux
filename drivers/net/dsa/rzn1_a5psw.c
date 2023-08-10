@@ -639,6 +639,146 @@ out_unlock:
 	return ret;
 }
 
+static int a5psw_port_vlan_filtering(struct dsa_switch *ds, int port,
+				     bool vlan_filtering,
+				     struct netlink_ext_ack *extack)
+{
+	u32 mask = BIT(port + A5PSW_VLAN_VERI_SHIFT) |
+		   BIT(port + A5PSW_VLAN_DISC_SHIFT);
+	u32 val = vlan_filtering ? mask : 0;
+	struct a5psw *a5psw = ds->priv;
+
+	/* Disable/enable vlan tagging */
+	a5psw_reg_rmw(a5psw, A5PSW_VLAN_IN_MODE_ENA, BIT(port),
+		      vlan_filtering ? BIT(port) : 0);
+
+	/* Disable/enable vlan input filtering */
+	a5psw_reg_rmw(a5psw, A5PSW_VLAN_VERIFY, mask, val);
+
+	return 0;
+}
+
+static int a5psw_find_vlan_entry(struct a5psw *a5psw, u16 vid)
+{
+	u32 vlan_res;
+	int i;
+
+	/* Find vlan for this port */
+	for (i = 0; i < A5PSW_VLAN_COUNT; i++) {
+		vlan_res = a5psw_reg_readl(a5psw, A5PSW_VLAN_RES(i));
+		if (FIELD_GET(A5PSW_VLAN_RES_VLANID, vlan_res) == vid)
+			return i;
+	}
+
+	return -1;
+}
+
+static int a5psw_new_vlan_res_entry(struct a5psw *a5psw, u16 newvid)
+{
+	u32 vlan_res;
+	int i;
+
+	/* Find a free VLAN entry */
+	for (i = 0; i < A5PSW_VLAN_COUNT; i++) {
+		vlan_res = a5psw_reg_readl(a5psw, A5PSW_VLAN_RES(i));
+		if (!(FIELD_GET(A5PSW_VLAN_RES_PORTMASK, vlan_res))) {
+			vlan_res = FIELD_PREP(A5PSW_VLAN_RES_VLANID, newvid);
+			a5psw_reg_writel(a5psw, A5PSW_VLAN_RES(i), vlan_res);
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static void a5psw_port_vlan_tagged_cfg(struct a5psw *a5psw,
+				       unsigned int vlan_res_id, int port,
+				       bool set)
+{
+	u32 mask = A5PSW_VLAN_RES_WR_PORTMASK | A5PSW_VLAN_RES_RD_TAGMASK |
+		   BIT(port);
+	u32 vlan_res_off = A5PSW_VLAN_RES(vlan_res_id);
+	u32 val = A5PSW_VLAN_RES_WR_TAGMASK, reg;
+
+	if (set)
+		val |= BIT(port);
+
+	/* Toggle tag mask read */
+	a5psw_reg_writel(a5psw, vlan_res_off, A5PSW_VLAN_RES_RD_TAGMASK);
+	reg = a5psw_reg_readl(a5psw, vlan_res_off);
+	a5psw_reg_writel(a5psw, vlan_res_off, A5PSW_VLAN_RES_RD_TAGMASK);
+
+	reg &= ~mask;
+	reg |= val;
+	a5psw_reg_writel(a5psw, vlan_res_off, reg);
+}
+
+static void a5psw_port_vlan_cfg(struct a5psw *a5psw, unsigned int vlan_res_id,
+				int port, bool set)
+{
+	u32 mask = A5PSW_VLAN_RES_WR_TAGMASK | BIT(port);
+	u32 reg = A5PSW_VLAN_RES_WR_PORTMASK;
+
+	if (set)
+		reg |= BIT(port);
+
+	a5psw_reg_rmw(a5psw, A5PSW_VLAN_RES(vlan_res_id), mask, reg);
+}
+
+static int a5psw_port_vlan_add(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_vlan *vlan,
+			       struct netlink_ext_ack *extack)
+{
+	bool tagged = !(vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED);
+	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+	struct a5psw *a5psw = ds->priv;
+	u16 vid = vlan->vid;
+	int vlan_res_id;
+
+	dev_dbg(a5psw->dev, "Add VLAN %d on port %d, %s, %s\n",
+		vid, port, tagged ? "tagged" : "untagged",
+		pvid ? "PVID" : "no PVID");
+
+	vlan_res_id = a5psw_find_vlan_entry(a5psw, vid);
+	if (vlan_res_id < 0) {
+		vlan_res_id = a5psw_new_vlan_res_entry(a5psw, vid);
+		if (vlan_res_id < 0)
+			return -ENOSPC;
+	}
+
+	a5psw_port_vlan_cfg(a5psw, vlan_res_id, port, true);
+	if (tagged)
+		a5psw_port_vlan_tagged_cfg(a5psw, vlan_res_id, port, true);
+
+	/* Configure port to tag with corresponding VID, but do not enable it
+	 * yet: wait for vlan filtering to be enabled to enable vlan port
+	 * tagging
+	 */
+	if (pvid)
+		a5psw_reg_writel(a5psw, A5PSW_SYSTEM_TAGINFO(port), vid);
+
+	return 0;
+}
+
+static int a5psw_port_vlan_del(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_vlan *vlan)
+{
+	struct a5psw *a5psw = ds->priv;
+	u16 vid = vlan->vid;
+	int vlan_res_id;
+
+	dev_dbg(a5psw->dev, "Removing VLAN %d on port %d\n", vid, port);
+
+	vlan_res_id = a5psw_find_vlan_entry(a5psw, vid);
+	if (vlan_res_id < 0)
+		return -EINVAL;
+
+	a5psw_port_vlan_cfg(a5psw, vlan_res_id, port, false);
+	a5psw_port_vlan_tagged_cfg(a5psw, vlan_res_id, port, false);
+
+	return 0;
+}
+
 static u64 a5psw_read_stat(struct a5psw *a5psw, u32 offset, int port)
 {
 	u32 reg_lo, reg_hi;
@@ -756,6 +896,27 @@ static void a5psw_get_eth_ctrl_stats(struct dsa_switch *ds, int port,
 	ctrl_stats->MACControlFramesReceived = stat;
 }
 
+static void a5psw_vlan_setup(struct a5psw *a5psw, int port)
+{
+	u32 reg;
+
+	/* Enable TAG always mode for the port, this is actually controlled
+	 * by VLAN_IN_MODE_ENA field which will be used for PVID insertion
+	 */
+	reg = A5PSW_VLAN_IN_MODE_TAG_ALWAYS;
+	reg <<= A5PSW_VLAN_IN_MODE_PORT_SHIFT(port);
+	a5psw_reg_rmw(a5psw, A5PSW_VLAN_IN_MODE, A5PSW_VLAN_IN_MODE_PORT(port),
+		      reg);
+
+	/* Set transparent mode for output frame manipulation, this will depend
+	 * on the VLAN_RES configuration mode
+	 */
+	reg = A5PSW_VLAN_OUT_MODE_TRANSPARENT;
+	reg <<= A5PSW_VLAN_OUT_MODE_PORT_SHIFT(port);
+	a5psw_reg_rmw(a5psw, A5PSW_VLAN_OUT_MODE,
+		      A5PSW_VLAN_OUT_MODE_PORT(port), reg);
+}
+
 static int a5psw_setup(struct dsa_switch *ds)
 {
 	struct a5psw *a5psw = ds->priv;
@@ -830,6 +991,8 @@ static int a5psw_setup(struct dsa_switch *ds)
 		/* Enable standalone mode for user ports */
 		if (dsa_port_is_user(dp))
 			a5psw_port_set_standalone(a5psw, port, true);
+
+		a5psw_vlan_setup(a5psw, port);
 	}
 
 	return 0;
@@ -859,6 +1022,9 @@ static const struct dsa_switch_ops a5psw_switch_ops = {
 	.port_bridge_flags = a5psw_port_bridge_flags,
 	.port_stp_state_set = a5psw_port_stp_state_set,
 	.port_fast_age = a5psw_port_fast_age,
+	.port_vlan_filtering = a5psw_port_vlan_filtering,
+	.port_vlan_add = a5psw_port_vlan_add,
+	.port_vlan_del = a5psw_port_vlan_del,
 	.port_fdb_add = a5psw_port_fdb_add,
 	.port_fdb_del = a5psw_port_fdb_del,
 	.port_fdb_dump = a5psw_port_fdb_dump,
