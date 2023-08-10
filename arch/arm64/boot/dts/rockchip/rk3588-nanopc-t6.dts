@@ -115,6 +115,16 @@
 		vin-supply = <&vcc4v0_sys>;
 	};
 
+	vcc_3v3_pcie20: vcc3v3-pcie20-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_pcie20";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_s3>;
+	};
+
 	vbus5v0_typec: vbus5v0-typec-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -138,6 +148,18 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc5v0_sys>;
 	};
+};
+
+&combphy0_ps {
+	status = "okay";
+};
+
+&combphy1_ps {
+	status = "okay";
+};
+
+&combphy2_psu {
+	status = "okay";
 };
 
 &cpu_l0 {
@@ -391,6 +413,22 @@
 	};
 };
 
+&pcie2x1l0 {
+	reset-gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc_3v3_pcie20>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie2_0_rst>;
+	status = "okay";
+};
+
+&pcie2x1l2 {
+	reset-gpios = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc_3v3_pcie20>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie2_2_rst>;
+	status = "okay";
+};
+
 &pcie30phy {
 	status = "okay";
 };
@@ -425,6 +463,14 @@
 	};
 
 	pcie {
+		pcie2_0_rst: pcie2-0-rst {
+			rockchip,pins = <4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		pcie2_2_rst: pcie2-2-rst {
+			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
 		pcie_m2_0_pwren: pcie-m20-pwren {
 			rockchip,pins = <2 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
