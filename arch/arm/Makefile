@@ -157,6 +157,7 @@ ifeq ($(CONFIG_ROCKCHIP_THUNDER_BOOT),y)
 textofs-$(CONFIG_CPU_RV1106) := 0x00208000
 textofs-$(CONFIG_CPU_RV1126) := 0x00608000
 endif
+textofs-$(CONFIG_RV1106_HPMCU_FAST_WAKEUP) := 0x00208000
 
 # Machine directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.
