@@ -58,6 +58,10 @@ int xfarray_load_next(struct xfarray *array, xfarray_idx_t *idx, void *rec);
 
 typedef cmp_func_t xfarray_cmp_fn;
 
+/* Perform an in-memory heapsort for small subsets. */
+#define XFARRAY_ISORT_SHIFT		(4)
+#define XFARRAY_ISORT_NR		(1U << XFARRAY_ISORT_SHIFT)
+
 struct xfarray_sortinfo {
 	struct xfarray		*array;
 
@@ -81,6 +85,7 @@ struct xfarray_sortinfo {
 	uint64_t		loads;
 	uint64_t		stores;
 	uint64_t		compares;
+	uint64_t		heapsorts;
 #endif
 
 	/*
@@ -99,11 +104,10 @@ struct xfarray_sortinfo {
 	 *
 	 * union {
 	 *
-	 * If for a given subset we decide to use an insertion sort, we use the
-	 * scratchpad record after the xfarray and a second scratchpad record
-	 * here to compare items:
+	 * If for a given subset we decide to use an in-memory sort, we use a
+	 * block of scratchpad records here to compare items:
 	 *
-	 * 	xfarray_rec_t	scratch;
+	 * 	xfarray_rec_t	scratch[ISORT_NR];
 	 *
 	 * Otherwise, we want to partition the records to partition the array.
 	 * We store the chosen pivot record here and use the xfarray scratchpad
