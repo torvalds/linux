@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -504,17 +504,19 @@ static int secure_etr_map_memory(struct secure_etr_drvdata *drvdata)
 	struct device *dev = drvdata->dev;
 
 	mem_node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (mem_node) {
-		of_node_put(dev->of_node);
-		ret = of_reserved_mem_device_init_by_idx(dev,
-				dev->of_node, 0);
-		if (ret) {
-			dev_err(dev,
-				"Failed to initialize reserved mem, ret %d\n",
-				ret);
-			return ret;
-		}
+	if (!mem_node)
+		return -ENODEV;
+
+	of_node_put(dev->of_node);
+	ret = of_reserved_mem_device_init_by_idx(dev,
+			dev->of_node, 0);
+	if (ret) {
+		dev_err(dev,
+			"Failed to initialize reserved mem, ret %d\n",
+			ret);
+		return ret;
 	}
+
 	return 0;
 }
 
