@@ -55,7 +55,7 @@ static int octep_send_mbox_req(struct octep_device *oct,
 	list_add_tail(&d->list, &oct->ctrl_req_wait_list);
 	ret = wait_event_interruptible_timeout(oct->ctrl_req_wait_q,
 					       (d->done != 0),
-					       jiffies + msecs_to_jiffies(500));
+					       msecs_to_jiffies(500));
 	list_del(&d->list);
 	if (ret == 0 || ret == 1)
 		return -EAGAIN;
