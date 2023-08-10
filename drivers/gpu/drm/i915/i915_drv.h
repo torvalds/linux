@@ -733,7 +733,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define CMDPARSER_USES_GGTT(i915) (GRAPHICS_VER(i915) == 7)
 
 #define HAS_LLC(i915)	(INTEL_INFO(i915)->has_llc)
-#define HAS_4TILE(i915)	(INTEL_INFO(i915)->has_4tile)
 #define HAS_SNOOP(i915)	(INTEL_INFO(i915)->has_snoop)
 #define HAS_EDRAM(i915)	((i915)->edram_size_mb)
 #define HAS_SECURE_BATCHES(i915) (GRAPHICS_VER(i915) < 6)
