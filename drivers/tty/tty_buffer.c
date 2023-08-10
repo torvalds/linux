@@ -505,8 +505,8 @@ static void lookahead_bufs(struct tty_port *port, struct tty_buffer *head)
 static int
 receive_buf(struct tty_port *port, struct tty_buffer *head, int count)
 {
-	unsigned char *p = char_buf_ptr(head, head->read);
-	const char *f = NULL;
+	u8 *p = char_buf_ptr(head, head->read);
+	const u8 *f = NULL;
 	int n;
 
 	if (head->flags)
