@@ -47,13 +47,24 @@ checkpatch(
 )
 
 # Deprecated - Use arch specific files from below.
-write_file(
+alias(
     name = "gki_system_dlkm_modules",
-    out = "android/gki_system_dlkm_modules",
-    content = get_gki_modules_list("arm64") + [
-        # Ensure new line at the end.
-        "",
-    ],
+    actual = "gki_system_dlkm_modules_arm64",
+    deprecation = """
+    Common list for all architectures is deprecated.
+    Instead use the file corresponding to the architecture used:
+    i.e. `gki_system_dlkm_modules_{arch}`
+    """,
+)
+
+alias(
+    name = "android/gki_system_dlkm_modules",
+    actual = "android/gki_system_dlkm_modules_arm64",
+    deprecation = """
+    Common list for all architectures is deprecated.
+    Instead use the file corresponding to the architecture used:
+    i.e. `gki_system_dlkm_modules_{arch}`
+    """,
 )
 
 write_file(
