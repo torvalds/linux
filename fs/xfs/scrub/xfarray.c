@@ -760,6 +760,66 @@ xfarray_qsort_push(
 }
 
 /*
+ * Load an element from the array into the first scratchpad and cache the page,
+ * if possible.
+ */
+static inline int
+xfarray_sort_load_cached(
+	struct xfarray_sortinfo	*si,
+	xfarray_idx_t		idx,
+	void			*ptr)
+{
+	loff_t			idx_pos = xfarray_pos(si->array, idx);
+	pgoff_t			startpage;
+	pgoff_t			endpage;
+	int			error = 0;
+
+	/*
+	 * If this load would split a page, release the cached page, if any,
+	 * and perform a traditional read.
+	 */
+	startpage = idx_pos >> PAGE_SHIFT;
+	endpage = (idx_pos + si->array->obj_size - 1) >> PAGE_SHIFT;
+	if (startpage != endpage) {
+		error = xfarray_sort_put_page(si);
+		if (error)
+			return error;
+
+		if (xfarray_sort_terminated(si, &error))
+			return error;
+
+		return xfile_obj_load(si->array->xfile, ptr,
+				si->array->obj_size, idx_pos);
+	}
+
+	/* If the cached page is not the one we want, release it. */
+	if (xfile_page_cached(&si->xfpage) &&
+	    xfile_page_index(&si->xfpage) != startpage) {
+		error = xfarray_sort_put_page(si);
+		if (error)
+			return error;
+	}
+
+	/*
+	 * If we don't have a cached page (and we know the load is contained
+	 * in a single page) then grab it.
+	 */
+	if (!xfile_page_cached(&si->xfpage)) {
+		if (xfarray_sort_terminated(si, &error))
+			return error;
+
+		error = xfarray_sort_get_page(si, startpage << PAGE_SHIFT,
+				PAGE_SIZE);
+		if (error)
+			return error;
+	}
+
+	memcpy(ptr, si->page_kaddr + offset_in_page(idx_pos),
+			si->array->obj_size);
+	return 0;
+}
+
+/*
  * Sort the array elements via quicksort.  This implementation incorporates
  * four optimizations discussed in Sedgewick:
  *
@@ -784,6 +844,10 @@ xfarray_qsort_push(
  *    If a small set is contained entirely within a single xfile memory page,
  *    map the page directly and run heap sort directly on the xfile page
  *    instead of using the load/store interface.  This halves the runtime.
+ *
+ * 5. This optimization is specific to the implementation.  When converging lo
+ *    and hi after selecting a pivot, we will try to retain the xfile memory
+ *    page between load calls, which reduces run time by 50%.
  */
 
 /*
@@ -865,19 +929,20 @@ xfarray_sort(
 			 * Decrement hi until it finds an a[hi] less than the
 			 * pivot value.
 			 */
-			error = xfarray_sort_load(si, hi, scratch);
+			error = xfarray_sort_load_cached(si, hi, scratch);
 			if (error)
 				goto out_free;
 			while (xfarray_sort_cmp(si, scratch, pivot) >= 0 &&
 								lo < hi) {
-				if (xfarray_sort_terminated(si, &error))
-					goto out_free;
-
 				hi--;
-				error = xfarray_sort_load(si, hi, scratch);
+				error = xfarray_sort_load_cached(si, hi,
+						scratch);
 				if (error)
 					goto out_free;
 			}
+			error = xfarray_sort_put_page(si);
+			if (error)
+				goto out_free;
 
 			if (xfarray_sort_terminated(si, &error))
 				goto out_free;
@@ -893,19 +958,20 @@ xfarray_sort(
 			 * Increment lo until it finds an a[lo] greater than
 			 * the pivot value.
 			 */
-			error = xfarray_sort_load(si, lo, scratch);
+			error = xfarray_sort_load_cached(si, lo, scratch);
 			if (error)
 				goto out_free;
 			while (xfarray_sort_cmp(si, scratch, pivot) <= 0 &&
 								lo < hi) {
-				if (xfarray_sort_terminated(si, &error))
-					goto out_free;
-
 				lo++;
-				error = xfarray_sort_load(si, lo, scratch);
+				error = xfarray_sort_load_cached(si, lo,
+						scratch);
 				if (error)
 					goto out_free;
 			}
+			error = xfarray_sort_put_page(si);
+			if (error)
+				goto out_free;
 
 			if (xfarray_sort_terminated(si, &error))
 				goto out_free;

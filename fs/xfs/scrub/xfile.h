@@ -12,6 +12,16 @@ struct xfile_page {
 	loff_t			pos;
 };
 
+static inline bool xfile_page_cached(const struct xfile_page *xfpage)
+{
+	return xfpage->page != NULL;
+}
+
+static inline pgoff_t xfile_page_index(const struct xfile_page *xfpage)
+{
+	return xfpage->page->index;
+}
+
 struct xfile {
 	struct file		*file;
 };
