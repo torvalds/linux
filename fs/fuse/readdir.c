@@ -224,7 +224,7 @@ retry:
 
 		forget_all_cached_acls(inode);
 		fuse_change_attributes(inode, &o->attr,
-				       entry_attr_timeout(o),
+				       ATTR_TIMEOUT(o),
 				       attr_version);
 		/*
 		 * The other branch comes via fuse_iget()
@@ -232,7 +232,7 @@ retry:
 		 */
 	} else {
 		inode = fuse_iget(dir->i_sb, o->nodeid, o->generation,
-				  &o->attr, entry_attr_timeout(o),
+				  &o->attr, ATTR_TIMEOUT(o),
 				  attr_version);
 		if (!inode)
 			inode = ERR_PTR(-ENOMEM);
