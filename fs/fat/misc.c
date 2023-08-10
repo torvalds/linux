@@ -347,7 +347,7 @@ int fat_update_time(struct inode *inode, struct timespec64 *now, int flags)
 		return 0;
 
 	if (flags & (S_ATIME | S_CTIME | S_MTIME)) {
-		fat_truncate_time(inode, now, flags);
+		fat_truncate_time(inode, NULL, flags);
 		if (inode->i_sb->s_flags & SB_LAZYTIME)
 			dirty_flags |= I_DIRTY_TIME;
 		else
