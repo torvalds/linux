@@ -284,7 +284,7 @@ struct vio_dring_state {
 	struct ldc_trans_cookie	cookies[VIO_MAX_RING_COOKIES];
 };
 
-#define VIO_TAG_SIZE		((int)sizeof(struct vio_msg_tag))
+#define VIO_TAG_SIZE		(sizeof(struct vio_msg_tag))
 #define VIO_VCC_MTU_SIZE	(LDC_PACKET_SIZE - VIO_TAG_SIZE)
 
 struct vio_vcc {
