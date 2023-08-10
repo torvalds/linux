@@ -1354,7 +1354,7 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 	OverDriveTableExternal_t *od_table =
 		(OverDriveTableExternal_t *)table_context->overdrive_table;
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t offset_of_featurectrlmask;
+	uint32_t offset_of_voltageoffset;
 	int32_t minimum, maximum;
 	uint32_t feature_ctrlmask;
 	int i, ret = 0;
@@ -1528,10 +1528,10 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 		 * It does not contain actual informations about user's custom
 		 * settings. Thus we do not cache it.
 		 */
-		offset_of_featurectrlmask = offsetof(OverDriveTable_t, FeatureCtrlMask);
-		if (memcmp((u8 *)od_table + offset_of_featurectrlmask,
-			   table_context->user_overdrive_table + offset_of_featurectrlmask,
-			   sizeof(OverDriveTableExternal_t) - offset_of_featurectrlmask)) {
+		offset_of_voltageoffset = offsetof(OverDriveTable_t, VoltageOffsetPerZoneBoundary);
+		if (memcmp((u8 *)od_table + offset_of_voltageoffset,
+			   table_context->user_overdrive_table + offset_of_voltageoffset,
+			   sizeof(OverDriveTableExternal_t) - offset_of_voltageoffset)) {
 			smu_v13_0_7_dump_od_table(smu, od_table);
 
 			ret = smu_v13_0_7_upload_overdrive_table(smu, od_table);
@@ -1541,9 +1541,9 @@ static int smu_v13_0_7_od_edit_dpm_table(struct smu_context *smu,
 			}
 
 			od_table->OverDriveTable.FeatureCtrlMask = 0;
-			memcpy(table_context->user_overdrive_table + offset_of_featurectrlmask,
-			       (u8 *)od_table + offset_of_featurectrlmask,
-			       sizeof(OverDriveTableExternal_t) - offset_of_featurectrlmask);
+			memcpy(table_context->user_overdrive_table + offset_of_voltageoffset,
+			       (u8 *)od_table + offset_of_voltageoffset,
+			       sizeof(OverDriveTableExternal_t) - offset_of_voltageoffset);
 
 			if (!memcmp(table_context->user_overdrive_table,
 				    table_context->boot_overdrive_table,
