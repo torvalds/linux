@@ -646,12 +646,12 @@ xrep_agfl_fill(
 	xfs_fsblock_t		fsbno = start;
 	int			error;
 
+	trace_xrep_agfl_insert(sc->sa.pag, XFS_FSB_TO_AGBNO(sc->mp, start),
+			len);
+
 	while (fsbno < start + len && af->fl_off < af->flcount)
 		af->agfl_bno[af->fl_off++] =
 				cpu_to_be32(XFS_FSB_TO_AGBNO(sc->mp, fsbno++));
-
-	trace_xrep_agfl_insert(sc->mp, sc->sa.pag->pag_agno,
-			XFS_FSB_TO_AGBNO(sc->mp, start), len);
 
 	error = xbitmap_set(&af->used_extents, start, fsbno - 1);
 	if (error)

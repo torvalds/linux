@@ -175,8 +175,6 @@ xrep_reap_block(
 	agno = XFS_FSB_TO_AGNO(sc->mp, fsbno);
 	agbno = XFS_FSB_TO_AGBNO(sc->mp, fsbno);
 
-	trace_xrep_dispose_btree_extent(sc->mp, agno, agbno, 1);
-
 	/* We don't support reaping file extents yet. */
 	if (sc->ip != NULL || sc->sa.pag->pag_agno != agno) {
 		ASSERT(0);
@@ -206,10 +204,21 @@ xrep_reap_block(
 	 * to run xfs_repair.
 	 */
 	if (has_other_rmap) {
+		trace_xrep_dispose_unmap_extent(sc->sa.pag, agbno, 1);
+
 		error = xfs_rmap_free(sc->tp, sc->sa.agf_bp, sc->sa.pag, agbno,
 				1, rs->oinfo);
-	} else if (rs->resv == XFS_AG_RESV_AGFL) {
-		xrep_block_reap_binval(sc, fsbno);
+		if (error)
+			return error;
+
+		goto roll_out;
+	}
+
+	trace_xrep_dispose_free_extent(sc->sa.pag, agbno, 1);
+
+	xrep_block_reap_binval(sc, fsbno);
+
+	if (rs->resv == XFS_AG_RESV_AGFL) {
 		error = xrep_put_freelist(sc, agbno);
 	} else {
 		/*
@@ -219,7 +228,6 @@ xrep_reap_block(
 		 * every 100 or so EFIs so that we don't exceed the log
 		 * reservation.
 		 */
-		xrep_block_reap_binval(sc, fsbno);
 		error = __xfs_free_extent_later(sc->tp, fsbno, 1, rs->oinfo,
 				rs->resv, true);
 		if (error)
@@ -230,6 +238,7 @@ xrep_reap_block(
 	if (error || !need_roll)
 		return error;
 
+roll_out:
 	rs->deferred = 0;
 	return xrep_roll_ag_trans(sc);
 }
