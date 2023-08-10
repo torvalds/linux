@@ -22,7 +22,6 @@
 #include <linux/of.h>
 #include "leds.h"
 
-static struct class *leds_class;
 static DEFINE_MUTEX(leds_lookup_lock);
 static LIST_HEAD(leds_lookup_list);
 
@@ -248,6 +247,12 @@ static struct led_classdev *led_module_get(struct device *led_dev)
 	return led_cdev;
 }
 
+static const struct class leds_class = {
+	.name = "leds",
+	.dev_groups = led_groups,
+	.pm = &leds_class_dev_pm_ops,
+};
+
 /**
  * of_led_get() - request a LED device via the LED framework
  * @np: device node to get the LED device from
@@ -265,7 +270,7 @@ struct led_classdev *of_led_get(struct device_node *np, int index)
 	if (!led_node)
 		return ERR_PTR(-ENOENT);
 
-	led_dev = class_find_device_by_of_node(leds_class, led_node);
+	led_dev = class_find_device_by_of_node(&leds_class, led_node);
 	of_node_put(led_node);
 	put_device(led_dev);
 
@@ -360,7 +365,7 @@ struct led_classdev *led_get(struct device *dev, char *con_id)
 	if (!provider)
 		return ERR_PTR(-ENOENT);
 
-	led_dev = class_find_device_by_name(leds_class, provider);
+	led_dev = class_find_device_by_name(&leds_class, provider);
 	kfree_const(provider);
 
 	return led_module_get(led_dev);
@@ -451,7 +456,7 @@ static int led_classdev_next_name(const char *init_name, char *name,
 	strscpy(name, init_name, len);
 
 	while ((ret < len) &&
-	       (dev = class_find_device_by_name(leds_class, name))) {
+	       (dev = class_find_device_by_name(&leds_class, name))) {
 		put_device(dev);
 		ret = snprintf(name, len, "%s_%u", init_name, ++i);
 	}
@@ -518,8 +523,8 @@ int led_classdev_register_ext(struct device *parent,
 
 	mutex_init(&led_cdev->led_access);
 	mutex_lock(&led_cdev->led_access);
-	led_cdev->dev = device_create_with_groups(leds_class, parent, 0,
-				led_cdev, led_cdev->groups, "%s", final_name);
+	led_cdev->dev = device_create_with_groups(&leds_class, parent, 0,
+						  led_cdev, led_cdev->groups, "%s", final_name);
 	if (IS_ERR(led_cdev->dev)) {
 		mutex_unlock(&led_cdev->led_access);
 		return PTR_ERR(led_cdev->dev);
@@ -676,17 +681,12 @@ EXPORT_SYMBOL_GPL(devm_led_classdev_unregister);
 
 static int __init leds_init(void)
 {
-	leds_class = class_create("leds");
-	if (IS_ERR(leds_class))
-		return PTR_ERR(leds_class);
-	leds_class->pm = &leds_class_dev_pm_ops;
-	leds_class->dev_groups = led_groups;
-	return 0;
+	return class_register(&leds_class);
 }
 
 static void __exit leds_exit(void)
 {
-	class_destroy(leds_class);
+	class_unregister(&leds_class);
 }
 
 subsys_initcall(leds_init);
