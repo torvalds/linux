@@ -71,10 +71,6 @@ void xfs_inode_set_cowblocks_tag(struct xfs_inode *ip);
 void xfs_inode_clear_cowblocks_tag(struct xfs_inode *ip);
 
 void xfs_blockgc_worker(struct work_struct *work);
-
-int xfs_icache_inode_is_allocated(struct xfs_mount *mp, struct xfs_trans *tp,
-				  xfs_ino_t ino, bool *inuse);
-
 void xfs_blockgc_stop(struct xfs_mount *mp);
 void xfs_blockgc_start(struct xfs_mount *mp);
 

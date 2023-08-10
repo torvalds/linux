@@ -203,4 +203,6 @@ static inline bool xchk_need_intent_drain(struct xfs_scrub *sc)
 
 void xchk_fsgates_enable(struct xfs_scrub *sc, unsigned int scrub_fshooks);
 
+int xchk_inode_is_allocated(struct xfs_scrub *sc, xfs_ino_t ino, bool *inuse);
+
 #endif	/* __XFS_SCRUB_COMMON_H__ */
