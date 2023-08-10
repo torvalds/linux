@@ -88,10 +88,16 @@ int xchk_setup_xattr(struct xfs_scrub *sc);
 int xchk_setup_symlink(struct xfs_scrub *sc);
 int xchk_setup_parent(struct xfs_scrub *sc);
 #ifdef CONFIG_XFS_RT
-int xchk_setup_rt(struct xfs_scrub *sc);
+int xchk_setup_rtbitmap(struct xfs_scrub *sc);
+int xchk_setup_rtsummary(struct xfs_scrub *sc);
 #else
 static inline int
-xchk_setup_rt(struct xfs_scrub *sc)
+xchk_setup_rtbitmap(struct xfs_scrub *sc)
+{
+	return -ENOENT;
+}
+static inline int
+xchk_setup_rtsummary(struct xfs_scrub *sc)
 {
 	return -ENOENT;
 }
@@ -162,6 +168,14 @@ static inline bool xchk_skip_xref(struct xfs_scrub_metadata *sm)
 }
 
 int xchk_metadata_inode_forks(struct xfs_scrub *sc);
+
+/*
+ * Helper macros to allocate and format xfile description strings.
+ * Callers must kfree the pointer returned.
+ */
+#define xchk_xfile_descr(sc, fmt, ...) \
+	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): " fmt, \
+			(sc)->mp->m_super->s_id, ##__VA_ARGS__)
 
 /*
  * Setting up a hook to wait for intents to drain is costly -- we have to take

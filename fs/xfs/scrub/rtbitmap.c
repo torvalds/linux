@@ -19,12 +19,12 @@
 
 /* Set us up with the realtime metadata locked. */
 int
-xchk_setup_rt(
+xchk_setup_rtbitmap(
 	struct xfs_scrub	*sc)
 {
 	int			error;
 
-	error = xchk_setup_fs(sc);
+	error = xchk_trans_alloc(sc, 0);
 	if (error)
 		return error;
 
