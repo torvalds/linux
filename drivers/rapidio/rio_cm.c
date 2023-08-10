@@ -233,7 +233,9 @@ static DEFINE_IDR(ch_idr);
 static LIST_HEAD(cm_dev_list);
 static DECLARE_RWSEM(rdev_sem);
 
-static struct class *dev_class;
+static const struct class dev_class = {
+	.name = DRV_NAME,
+};
 static unsigned int dev_major;
 static unsigned int dev_minor_base;
 static dev_t dev_number;
@@ -2072,7 +2074,7 @@ static int riocm_cdev_add(dev_t devno)
 		return ret;
 	}
 
-	riocm_cdev.dev = device_create(dev_class, NULL, devno, NULL, DEV_NAME);
+	riocm_cdev.dev = device_create(&dev_class, NULL, devno, NULL, DEV_NAME);
 	if (IS_ERR(riocm_cdev.dev)) {
 		cdev_del(&riocm_cdev.cdev);
 		return PTR_ERR(riocm_cdev.dev);
@@ -2293,15 +2295,15 @@ static int __init riocm_init(void)
 	int ret;
 
 	/* Create device class needed by udev */
-	dev_class = class_create(DRV_NAME);
-	if (IS_ERR(dev_class)) {
+	ret = class_register(&dev_class);
+	if (ret) {
 		riocm_error("Cannot create " DRV_NAME " class");
-		return PTR_ERR(dev_class);
+		return ret;
 	}
 
 	ret = alloc_chrdev_region(&dev_number, 0, 1, DRV_NAME);
 	if (ret) {
-		class_destroy(dev_class);
+		class_unregister(&dev_class);
 		return ret;
 	}
 
@@ -2349,7 +2351,7 @@ err_cl:
 	class_interface_unregister(&rio_mport_interface);
 err_reg:
 	unregister_chrdev_region(dev_number, 1);
-	class_destroy(dev_class);
+	class_unregister(&dev_class);
 	return ret;
 }
 
@@ -2364,7 +2366,7 @@ static void __exit riocm_exit(void)
 	device_unregister(riocm_cdev.dev);
 	cdev_del(&(riocm_cdev.cdev));
 
-	class_destroy(dev_class);
+	class_unregister(&dev_class);
 	unregister_chrdev_region(dev_number, 1);
 }
 
