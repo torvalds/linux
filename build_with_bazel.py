@@ -119,8 +119,7 @@ class BazelBuilder:
         """Query for build targets"""
         logging.info("Querying build targets...")
 
-        cross_target_list = []
-        host_target_list = []
+        targets = []
         for t, v in self.target_list:
             if v == "ALL":
                 if self.out_dir:
@@ -131,10 +130,6 @@ class BazelBuilder:
                     re.compile(r"//{}:{}_.*_{}_dist".format(self.kernel_dir, t, s))
                     for s in self.skip_list
                 ]
-                host_target_list_re = [
-                    re.compile(r"//{}:{}_.*_{}_dist".format(self.kernel_dir, t, h))
-                    for h in HOST_TARGETS
-                ]
                 query = 'filter("{}_.*_dist$", attr(generator_function, define_msm_platforms, {}/...))'.format(
                     t, self.kernel_dir
                 )
@@ -142,10 +137,6 @@ class BazelBuilder:
                 skip_list_re = [
                     re.compile(r"//{}:{}_{}_{}_dist".format(self.kernel_dir, t, v, s))
                     for s in self.skip_list
-                ]
-                host_target_list_re = [
-                    re.compile(r"//{}:{}_{}_{}_dist".format(self.kernel_dir, t, v, h))
-                    for h in HOST_TARGETS
                 ]
                 query = 'filter("{}_{}.*_dist$", attr(generator_function, define_msm_platforms, {}/...))'.format(
                     t, v, self.kernel_dir
@@ -192,21 +183,15 @@ class BazelBuilder:
                 else:
                     real_variant = v
 
-                if any((host_re.match(label) for host_re in host_target_list_re)):
-                    host_target_list.append(
-                        Target(self.workspace, t, real_variant, label, self.out_dir)
-                    )
-                else:
-                    cross_target_list.append(
-                        Target(self.workspace, t, real_variant, label, self.out_dir)
-                    )
+                targets.append(
+                    Target(self.workspace, t, real_variant, label, self.out_dir)
+                )
 
         # Sort build targets by label string length to guarantee the base target goes
         # first when copying to output directory
-        cross_target_list.sort()
-        host_target_list.sort()
+        targets.sort()
 
-        return (cross_target_list, host_target_list)
+        return targets
 
     def clean_legacy_generated_files(self):
         """Clean generated files from legacy build to avoid conflicts with Bazel"""
@@ -251,18 +236,28 @@ class BazelBuilder:
 
         self.process_list.remove(build_proc)
 
-    def build_targets(self, targets, user_opts=None):
+    def build_targets(self, targets):
         """Run "bazel build" on all targets in parallel"""
-        if not targets:
-            logging.warning("no targets to build")
-        self.bazel("build", targets, extra_options=user_opts)
+        self.bazel("build", targets, extra_options=self.user_opts)
 
-    def run_targets(self, targets, out_subdir="dist", user_opts=None):
+    def run_targets(self, targets):
         """Run "bazel run" on all targets in serial (since bazel run cannot have multiple targets)"""
         for target in targets:
-            out_dir = target.get_out_dir(out_subdir)
-            self.bazel("run", [target], extra_options=user_opts, bazel_target_opts=["--dist_dir", out_dir])
-            self.write_opts(out_dir, user_opts)
+            # Set the output directory based on if it's a host target
+            if any(
+                re.match(r"//{}:.*_{}_dist".format(self.kernel_dir, h), target.bazel_label)
+                    for h in HOST_TARGETS
+            ):
+                out_dir = target.get_out_dir("host")
+            else:
+                out_dir = target.get_out_dir("dist")
+            self.bazel(
+                "run",
+                [target],
+                extra_options=self.user_opts,
+                bazel_target_opts=["--dist_dir", out_dir]
+            )
+            self.write_opts(out_dir)
 
     def run_menuconfig(self):
         """Run menuconfig on all target-variant combos class is initialized with"""
@@ -271,30 +266,19 @@ class BazelBuilder:
             menuconfig_target = [Target(self.workspace, t, v, menuconfig_label, self.out_dir)]
             self.bazel("run", menuconfig_target, bazel_target_opts=["menuconfig"])
 
-    def write_opts(self, out_dir, user_opts=None):
+    def write_opts(self, out_dir):
         with open(os.path.join(out_dir, "build_opts.txt"), "w") as opt_file:
-            if user_opts:
-                opt_file.write("{}".format("\n".join(user_opts)))
+            if self.user_opts:
+                opt_file.write("{}".format("\n".join(self.user_opts)))
             opt_file.write("\n")
 
     def build(self):
         """Determine which targets to build, then build them"""
-        cross_targets_to_build, host_targets_to_build = self.get_build_targets()
+        targets_to_build = self.get_build_targets()
 
-        if not cross_targets_to_build and not host_targets_to_build:
+        if not targets_to_build:
             logging.error("no targets to build")
             sys.exit(1)
-
-        logging.debug(
-            "Building the following device targets:\n%s",
-            "\n".join([t.bazel_label for t in cross_targets_to_build])
-        )
-        logging.debug(
-            "Building the following host targets:\n%s",
-            "\n".join([t.bazel_label for t in host_targets_to_build])
-        )
-
-        self.clean_legacy_generated_files()
 
         if self.skip_list:
             self.user_opts.extend(["--//msm-kernel:skip_{}=true".format(s) for s in self.skip_list])
@@ -307,30 +291,18 @@ class BazelBuilder:
         if self.dry_run:
             self.user_opts.append("--nobuild")
 
-        device_user_opts = self.user_opts + ["--config=android_arm64"]
-
-        logging.info("Building device targets...")
-        self.build_targets(
-            cross_targets_to_build,
-            user_opts=device_user_opts,
+        logging.debug(
+            "Building the following targets:\n%s",
+            "\n".join([t.bazel_label for t in targets_to_build])
         )
 
-        if not self.dry_run:
-            self.run_targets(
-                cross_targets_to_build,
-                user_opts=device_user_opts,
-            )
+        self.clean_legacy_generated_files()
 
-        logging.info("Building host targets...")
-        self.build_targets(
-            host_targets_to_build, user_opts=self.user_opts
-        )
+        logging.info("Building targets...")
+        self.build_targets(targets_to_build)
 
         if not self.dry_run:
-            self.run_targets(
-                host_targets_to_build, out_subdir="host", user_opts=self.user_opts
-            )
-
+            self.run_targets(targets_to_build)
 
 def main():
     """Main script entrypoint"""
