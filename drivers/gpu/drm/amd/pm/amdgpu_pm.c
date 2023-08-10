@@ -2796,7 +2796,7 @@ static ssize_t amdgpu_hwmon_show_power_avg(struct device *dev,
 {
 	unsigned int val;
 
-	val = amdgpu_hwmon_get_power(dev, AMDGPU_PP_SENSOR_GPU_POWER);
+	val = amdgpu_hwmon_get_power(dev, AMDGPU_PP_SENSOR_GPU_AVG_POWER);
 	if (val < 0)
 		return val;
 
@@ -3460,7 +3460,7 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDNB, (void *)&value, &size))
 		seq_printf(m, "\t%u mV (VDDNB)\n", value);
 	size = sizeof(uint32_t);
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_POWER, (void *)&query, &size))
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER, (void *)&query, &size))
 		seq_printf(m, "\t%u.%u W (average GPU)\n", query >> 8, query & 0xff);
 	size = sizeof(value);
 	seq_printf(m, "\n");

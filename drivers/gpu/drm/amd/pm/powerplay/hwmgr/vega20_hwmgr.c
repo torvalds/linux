@@ -2141,7 +2141,7 @@ static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr, int idx,
 
 	/* For the 40.46 release, they changed the value name */
 	switch (idx) {
-	case AMDGPU_PP_SENSOR_GPU_POWER:
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 		if (hwmgr->smu_version == 0x282e00)
 			*query = metrics_table.AverageSocketPower << 8;
 		else
@@ -2260,7 +2260,7 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = data->vce_power_gated ? 0 : 1;
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 		*size = 16;
 		ret = vega20_get_gpu_power(hwmgr, idx, (uint32_t *)value);

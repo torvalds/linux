@@ -212,7 +212,7 @@ static int cyan_skillfish_read_sensor(struct smu_context *smu,
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 		ret = cyan_skillfish_get_smu_metrics_data(smu,
 						   METRICS_AVERAGE_SOCKETPOWER,
 						   (uint32_t *)data);
