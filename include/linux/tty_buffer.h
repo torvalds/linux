@@ -12,11 +12,11 @@ struct tty_buffer {
 		struct tty_buffer *next;
 		struct llist_node free;
 	};
-	int used;
-	int size;
-	int commit;
-	int lookahead;		/* Lazy update on recv, can become less than "read" */
-	int read;
+	unsigned int used;
+	unsigned int size;
+	unsigned int commit;
+	unsigned int lookahead;		/* Lazy update on recv, can become less than "read" */
+	unsigned int read;
 	bool flags;
 	/* Data points here */
 	unsigned long data[];
