@@ -6,6 +6,12 @@
 #ifndef __XFS_SCRUB_XFILE_H__
 #define __XFS_SCRUB_XFILE_H__
 
+struct xfile_page {
+	struct page		*page;
+	void			*fsdata;
+	loff_t			pos;
+};
+
 struct xfile {
 	struct file		*file;
 };
@@ -53,5 +59,9 @@ struct xfile_stat {
 };
 
 int xfile_stat(struct xfile *xf, struct xfile_stat *statbuf);
+
+int xfile_get_page(struct xfile *xf, loff_t offset, unsigned int len,
+		struct xfile_page *xbuf);
+int xfile_put_page(struct xfile *xf, struct xfile_page *xbuf);
 
 #endif /* __XFS_SCRUB_XFILE_H__ */
