@@ -985,7 +985,7 @@ static void tb_scan_port(struct tb_port *port)
 	}
 
 	/* Enable lane bonding if supported */
-	tb_switch_lane_bonding_enable(sw);
+	tb_switch_set_link_width(sw, TB_LINK_WIDTH_DUAL);
 	/* Set the link configured */
 	tb_switch_configure_link(sw);
 	/*
@@ -1103,7 +1103,8 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 			tb_retimer_remove_all(port);
 			tb_remove_dp_resources(port->remote->sw);
 			tb_switch_unconfigure_link(port->remote->sw);
-			tb_switch_lane_bonding_disable(port->remote->sw);
+			tb_switch_set_link_width(port->remote->sw,
+						 TB_LINK_WIDTH_SINGLE);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
 			if (port->dual_link_port)
@@ -1721,7 +1722,8 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_remove_dp_resources(port->remote->sw);
 			tb_switch_tmu_disable(port->remote->sw);
 			tb_switch_unconfigure_link(port->remote->sw);
-			tb_switch_lane_bonding_disable(port->remote->sw);
+			tb_switch_set_link_width(port->remote->sw,
+						 TB_LINK_WIDTH_SINGLE);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
 			if (port->dual_link_port)
@@ -2203,7 +2205,8 @@ static void tb_restore_children(struct tb_switch *sw)
 			continue;
 
 		if (port->remote) {
-			tb_switch_lane_bonding_enable(port->remote->sw);
+			tb_switch_set_link_width(port->remote->sw,
+						 port->remote->sw->link_width);
 			tb_switch_configure_link(port->remote->sw);
 
 			tb_restore_children(port->remote->sw);
