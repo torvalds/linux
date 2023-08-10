@@ -961,11 +961,8 @@ int tty_write_lock(struct tty_struct *tty, bool ndelay)
  * Split writes up in sane blocksizes to avoid
  * denial-of-service type attacks
  */
-static inline ssize_t do_tty_write(
-	ssize_t (*write)(struct tty_struct *, struct file *, const unsigned char *, size_t),
-	struct tty_struct *tty,
-	struct file *file,
-	struct iov_iter *from)
+static inline ssize_t do_tty_write(struct tty_ldisc *ld, struct tty_struct *tty,
+				   struct file *file, struct iov_iter *from)
 {
 	size_t count = iov_iter_count(from);
 	ssize_t ret, written = 0;
@@ -1022,7 +1019,7 @@ static inline ssize_t do_tty_write(
 		if (copy_from_iter(tty->write_buf, size, from) != size)
 			break;
 
-		ret = write(tty, file, tty->write_buf, size);
+		ret = ld->ops->write(tty, file, tty->write_buf, size);
 		if (ret <= 0)
 			break;
 
@@ -1093,7 +1090,7 @@ static ssize_t file_tty_write(struct file *file, struct kiocb *iocb, struct iov_
 	if (!ld->ops->write)
 		ret = -EIO;
 	else
-		ret = do_tty_write(ld->ops->write, tty, file, from);
+		ret = do_tty_write(ld, tty, file, from);
 	tty_ldisc_deref(ld);
 	return ret;
 }
