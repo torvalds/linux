@@ -1038,6 +1038,10 @@ static void octep_device_cleanup(struct octep_device *oct)
 {
 	int i;
 
+	oct->poll_non_ioq_intr = false;
+	cancel_delayed_work_sync(&oct->intr_poll_task);
+	cancel_work_sync(&oct->ctrl_mbox_task);
+
 	dev_info(&oct->pdev->dev, "Cleaning up Octeon Device ...\n");
 
 	for (i = 0; i < OCTEP_MAX_VF; i++) {
@@ -1205,9 +1209,6 @@ static void octep_remove(struct pci_dev *pdev)
 		unregister_netdev(netdev);
 
 	cancel_work_sync(&oct->tx_timeout_task);
-	oct->poll_non_ioq_intr = false;
-	cancel_delayed_work_sync(&oct->intr_poll_task);
-	cancel_work_sync(&oct->ctrl_mbox_task);
 	octep_device_cleanup(oct);
 	pci_release_mem_regions(pdev);
 	free_netdev(netdev);
