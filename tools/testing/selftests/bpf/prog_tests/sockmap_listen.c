@@ -869,6 +869,77 @@ static void test_msg_redir_to_listening(struct test_sockmap_listen *skel,
 	xbpf_prog_detach2(verdict, sock_map, BPF_SK_MSG_VERDICT);
 }
 
+static void redir_partial(int family, int sotype, int sock_map, int parser_map)
+{
+	int s, c0, c1, p0, p1;
+	int err, n, key, value;
+	char buf[] = "abc";
+
+	key = 0;
+	value = sizeof(buf) - 1;
+	err = xbpf_map_update_elem(parser_map, &key, &value, 0);
+	if (err)
+		return;
+
+	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
+	if (s < 0)
+		goto clean_parser_map;
+
+	err = create_socket_pairs(s, family, sotype, &c0, &c1, &p0, &p1);
+	if (err)
+		goto close_srv;
+
+	err = add_to_sockmap(sock_map, p0, p1);
+	if (err)
+		goto close;
+
+	n = xsend(c1, buf, sizeof(buf), 0);
+	if (n < sizeof(buf))
+		FAIL("incomplete write");
+
+	n = xrecv_nonblock(c0, buf, sizeof(buf), 0);
+	if (n != sizeof(buf) - 1)
+		FAIL("expect %zu, received %d", sizeof(buf) - 1, n);
+
+close:
+	xclose(c0);
+	xclose(p0);
+	xclose(c1);
+	xclose(p1);
+close_srv:
+	xclose(s);
+
+clean_parser_map:
+	key = 0;
+	value = 0;
+	xbpf_map_update_elem(parser_map, &key, &value, 0);
+}
+
+static void test_skb_redir_partial(struct test_sockmap_listen *skel,
+				   struct bpf_map *inner_map, int family,
+				   int sotype)
+{
+	int verdict = bpf_program__fd(skel->progs.prog_stream_verdict);
+	int parser = bpf_program__fd(skel->progs.prog_stream_parser);
+	int parser_map = bpf_map__fd(skel->maps.parser_map);
+	int sock_map = bpf_map__fd(inner_map);
+	int err;
+
+	err = xbpf_prog_attach(parser, sock_map, BPF_SK_SKB_STREAM_PARSER, 0);
+	if (err)
+		return;
+
+	err = xbpf_prog_attach(verdict, sock_map, BPF_SK_SKB_STREAM_VERDICT, 0);
+	if (err)
+		goto detach;
+
+	redir_partial(family, sotype, sock_map, parser_map);
+
+	xbpf_prog_detach2(verdict, sock_map, BPF_SK_SKB_STREAM_VERDICT);
+detach:
+	xbpf_prog_detach2(parser, sock_map, BPF_SK_SKB_STREAM_PARSER);
+}
+
 static void test_reuseport_select_listening(int family, int sotype,
 					    int sock_map, int verd_map,
 					    int reuseport_prog)
@@ -1243,6 +1314,7 @@ static void test_redir(struct test_sockmap_listen *skel, struct bpf_map *map,
 	} tests[] = {
 		TEST(test_skb_redir_to_connected),
 		TEST(test_skb_redir_to_listening),
+		TEST(test_skb_redir_partial),
 		TEST(test_msg_redir_to_connected),
 		TEST(test_msg_redir_to_listening),
 	};
@@ -1432,7 +1504,7 @@ static void vsock_unix_redir_connectible(int sock_mapfd, int verd_mapfd,
 	if (n < 1)
 		goto out;
 
-	n = recv(mode == REDIR_INGRESS ? u0 : u1, &b, sizeof(b), MSG_DONTWAIT);
+	n = xrecv_nonblock(mode == REDIR_INGRESS ? u0 : u1, &b, sizeof(b), 0);
 	if (n < 0)
 		FAIL("%s: recv() err, errno=%d", log_prefix, errno);
 	if (n == 0)
