@@ -627,7 +627,10 @@ xrep_agfl_update_agf(
 	}
 	agf->agf_flfirst = cpu_to_be32(0);
 	agf->agf_flcount = cpu_to_be32(flcount);
-	agf->agf_fllast = cpu_to_be32(flcount - 1);
+	if (flcount)
+		agf->agf_fllast = cpu_to_be32(flcount - 1);
+	else
+		agf->agf_fllast = cpu_to_be32(xfs_agfl_size(sc->mp) - 1);
 
 	xfs_alloc_log_agf(sc->tp, agf_bp,
 			XFS_AGF_FLFIRST | XFS_AGF_FLLAST | XFS_AGF_FLCOUNT);
