@@ -224,6 +224,9 @@ SYM_FUNC_START(__svm_vcpu_run)
 	 */
 	UNTRAIN_RET
 
+	/* SRSO */
+	ALTERNATIVE "", "call entry_ibpb", X86_FEATURE_IBPB_ON_VMEXIT
+
 	/*
 	 * Clear all general purpose registers except RSP and RAX to prevent
 	 * speculative use of the guest's values, even those that are reloaded

@@ -1100,7 +1100,14 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 		}
 	} else {
 		sdev->sector_size = ata_id_logical_sector_size(dev->id);
+		/*
+		 * Stop the drive on suspend but do not issue START STOP UNIT
+		 * on resume as this is not necessary and may fail: the device
+		 * will be woken up by ata_port_pm_resume() with a port reset
+		 * and device revalidation.
+		 */
 		sdev->manage_start_stop = 1;
+		sdev->no_start_on_resume = 1;
 	}
 
 	/*

@@ -179,9 +179,10 @@ static int vboxsf_dir_iterate(struct file *dir, struct dir_context *ctx)
 	return 0;
 }
 
+WRAP_DIR_ITER(vboxsf_dir_iterate) // FIXME!
 const struct file_operations vboxsf_dir_fops = {
 	.open = vboxsf_dir_open,
-	.iterate = vboxsf_dir_iterate,
+	.iterate_shared = shared_vboxsf_dir_iterate,
 	.release = vboxsf_dir_release,
 	.read = generic_read_dir,
 	.llseek = generic_file_llseek,

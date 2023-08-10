@@ -1779,7 +1779,7 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 		spin_unlock(&sk->sk_peer_lock);
 
 		if (!peer_pid)
-			return -ESRCH;
+			return -ENODATA;
 
 		pidfd = pidfd_prepare(peer_pid, 0, &pidfd_file);
 		put_pid(peer_pid);
