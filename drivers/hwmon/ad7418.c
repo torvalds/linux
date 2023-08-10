@@ -253,7 +253,7 @@ static int ad7418_probe(struct i2c_client *client)
 	mutex_init(&data->lock);
 	data->client = client;
 	if (dev->of_node)
-		data->type = (enum chips)of_device_get_match_data(dev);
+		data->type = (uintptr_t)of_device_get_match_data(dev);
 	else
 		data->type = i2c_match_id(ad7418_id, client)->driver_data;
 
