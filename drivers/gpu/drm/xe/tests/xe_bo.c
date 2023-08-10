@@ -177,8 +177,7 @@ EXPORT_SYMBOL_IF_KUNIT(xe_ccs_migrate_kunit);
 static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struct kunit *test)
 {
 	struct xe_bo *bo, *external;
-	unsigned int bo_flags = XE_BO_CREATE_USER_BIT |
-		XE_BO_CREATE_VRAM_IF_DGFX(tile);
+	unsigned int bo_flags = XE_BO_CREATE_VRAM_IF_DGFX(tile);
 	struct xe_vm *vm = xe_migrate_get_vm(xe_device_get_root_tile(xe)->migrate);
 	struct xe_gt *__gt;
 	int err, i, id;
@@ -188,16 +187,19 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 
 	for (i = 0; i < 2; ++i) {
 		xe_vm_lock(vm, false);
-		bo = xe_bo_create(xe, NULL, vm, 0x10000, ttm_bo_type_device,
-				  bo_flags);
+		bo = xe_bo_create_user(xe, NULL, vm, 0x10000,
+				       DRM_XE_GEM_CPU_CACHING_WC,
+				       ttm_bo_type_device,
+				       bo_flags);
 		xe_vm_unlock(vm);
 		if (IS_ERR(bo)) {
 			KUNIT_FAIL(test, "bo create err=%pe\n", bo);
 			break;
 		}
 
-		external = xe_bo_create(xe, NULL, NULL, 0x10000,
-					ttm_bo_type_device, bo_flags);
+		external = xe_bo_create_user(xe, NULL, NULL, 0x10000,
+					     DRM_XE_GEM_CPU_CACHING_WC,
+					     ttm_bo_type_device, bo_flags);
 		if (IS_ERR(external)) {
 			KUNIT_FAIL(test, "external bo create err=%pe\n", external);
 			goto cleanup_bo;

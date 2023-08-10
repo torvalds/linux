@@ -541,8 +541,25 @@ struct drm_xe_gem_create {
 	 */
 	__u32 handle;
 
+	/**
+	 * @cpu_caching: The CPU caching mode to select for this object. If
+	 * mmaping the object the mode selected here will also be used.
+	 *
+	 * Supported values:
+	 *
+	 * DRM_XE_GEM_CPU_CACHING_WB: Allocate the pages with write-back
+	 * caching.  On iGPU this can't be used for scanout surfaces. Currently
+	 * not allowed for objects placed in VRAM.
+	 *
+	 * DRM_XE_GEM_CPU_CACHING_WC: Allocate the pages as write-combined. This
+	 * is uncached. Scanout surfaces should likely use this. All objects
+	 * that can be placed in VRAM must use this.
+	 */
+#define DRM_XE_GEM_CPU_CACHING_WB                      1
+#define DRM_XE_GEM_CPU_CACHING_WC                      2
+	__u16 cpu_caching;
 	/** @pad: MBZ */
-	__u32 pad;
+	__u16 pad;
 
 	/** @reserved: Reserved */
 	__u64 reserved[2];

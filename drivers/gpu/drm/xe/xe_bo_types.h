@@ -79,6 +79,11 @@ struct xe_bo {
 	struct llist_node freed;
 	/** @created: Whether the bo has passed initial creation */
 	bool created;
+	/**
+	 * @cpu_caching: CPU caching mode. Currently only used for userspace
+	 * objects.
+	 */
+	u16 cpu_caching;
 };
 
 #define intel_bo_to_drm_bo(bo) (&(bo)->ttm.base)
