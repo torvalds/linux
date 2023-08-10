@@ -266,7 +266,7 @@ static int sc18is602_probe(struct i2c_client *client)
 	hw->ctrl = 0xff;
 
 	if (client->dev.of_node)
-		hw->id = (enum chips)of_device_get_match_data(&client->dev);
+		hw->id = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		hw->id = id->driver_data;
 
