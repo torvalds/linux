@@ -502,12 +502,12 @@ static void lookahead_bufs(struct tty_port *port, struct tty_buffer *head)
 	}
 }
 
-static int
-receive_buf(struct tty_port *port, struct tty_buffer *head, int count)
+static size_t
+receive_buf(struct tty_port *port, struct tty_buffer *head, size_t count)
 {
 	u8 *p = char_buf_ptr(head, head->read);
 	const u8 *f = NULL;
-	int n;
+	size_t n;
 
 	if (head->flags)
 		f = flag_buf_ptr(head, head->read);
@@ -539,7 +539,7 @@ static void flush_to_ldisc(struct work_struct *work)
 	while (1) {
 		struct tty_buffer *head = buf->head;
 		struct tty_buffer *next;
-		int count, rcvd;
+		size_t count, rcvd;
 
 		/* Ldisc or user is trying to gain exclusive access */
 		if (atomic_read(&buf->priority))
