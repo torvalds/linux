@@ -54,4 +54,71 @@ static inline int xfarray_append(struct xfarray *array, const void *ptr)
 uint64_t xfarray_length(struct xfarray *array);
 int xfarray_load_next(struct xfarray *array, xfarray_idx_t *idx, void *rec);
 
+/* Declarations for xfile array sort functionality. */
+
+typedef cmp_func_t xfarray_cmp_fn;
+
+struct xfarray_sortinfo {
+	struct xfarray		*array;
+
+	/* Comparison function for the sort. */
+	xfarray_cmp_fn		cmp_fn;
+
+	/* Maximum height of the partition stack. */
+	uint8_t			max_stack_depth;
+
+	/* Current height of the partition stack. */
+	int8_t			stack_depth;
+
+	/* Maximum stack depth ever used. */
+	uint8_t			max_stack_used;
+
+	/* XFARRAY_SORT_* flags; see below. */
+	unsigned int		flags;
+
+#ifdef DEBUG
+	/* Performance statistics. */
+	uint64_t		loads;
+	uint64_t		stores;
+	uint64_t		compares;
+#endif
+
+	/*
+	 * Extra bytes are allocated beyond the end of the structure to store
+	 * quicksort information.  C does not permit multiple VLAs per struct,
+	 * so we document all of this in a comment.
+	 *
+	 * Pretend that we have a typedef for array records:
+	 *
+	 * typedef char[array->obj_size]	xfarray_rec_t;
+	 *
+	 * First comes the quicksort partition stack:
+	 *
+	 * xfarray_idx_t	lo[max_stack_depth];
+	 * xfarray_idx_t	hi[max_stack_depth];
+	 *
+	 * union {
+	 *
+	 * If for a given subset we decide to use an insertion sort, we use the
+	 * scratchpad record after the xfarray and a second scratchpad record
+	 * here to compare items:
+	 *
+	 * 	xfarray_rec_t	scratch;
+	 *
+	 * Otherwise, we want to partition the records to partition the array.
+	 * We store the chosen pivot record here and use the xfarray scratchpad
+	 * to rearrange the array around the pivot:
+	 *
+	 * 	xfarray_rec_t	pivot;
+	 *
+	 * }
+	 */
+};
+
+/* Sort can be interrupted by a fatal signal. */
+#define XFARRAY_SORT_KILLABLE	(1U << 0)
+
+int xfarray_sort(struct xfarray *array, xfarray_cmp_fn cmp_fn,
+		unsigned int flags);
+
 #endif /* __XFS_SCRUB_XFARRAY_H__ */
