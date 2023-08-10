@@ -25,7 +25,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
-#include <linux/of.h>
 #include <linux/ratelimit.h>
 #include <linux/reset.h>
 
