@@ -483,6 +483,18 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 		val |= 0x01 << 17;
 		writel(val, priv->mmio + 0x200);
 
+		/* Set slow slew rate control for PI */
+		val = readl(priv->mmio + 0x204);
+		val &= ~GENMASK(2, 0);
+		val |= 0x07;
+		writel(val, priv->mmio + 0x204);
+
+		/* Set CDR phase path with 2x gain */
+		val = readl(priv->mmio + 0x204);
+		val &= ~GENMASK(5, 5);
+		val |= 0x01 << 5;
+		writel(val, priv->mmio + 0x204);
+
 		/* Set Rx squelch input filler bandwidth */
 		val = readl(priv->mmio + 0x20c);
 		val &= ~GENMASK(2, 0);
