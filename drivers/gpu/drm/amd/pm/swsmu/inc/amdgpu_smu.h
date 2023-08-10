@@ -1398,6 +1398,7 @@ typedef enum {
 	METRICS_PCIE_RATE,
 	METRICS_PCIE_WIDTH,
 	METRICS_CURR_FANPWM,
+	METRICS_CURR_SOCKETPOWER,
 } MetricsMember_t;
 
 enum smu_cmn2asic_mapping_type {

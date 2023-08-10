@@ -390,6 +390,10 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->Current.UvdActivity;
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
+		*value = (metrics->Average.CurrentSocketPower << 8) /
+		1000;
+		break;
+	case METRICS_CURR_SOCKETPOWER:
 		*value = (metrics->Current.CurrentSocketPower << 8) /
 		1000;
 		break;
@@ -1539,6 +1543,12 @@ static int vangogh_read_sensor(struct smu_context *smu,
 	case AMDGPU_PP_SENSOR_GPU_POWER:
 		ret = vangogh_common_get_smu_metrics_data(smu,
 						   METRICS_AVERAGE_SOCKETPOWER,
+						   (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
+		ret = vangogh_common_get_smu_metrics_data(smu,
+						   METRICS_CURR_SOCKETPOWER,
 						   (uint32_t *)data);
 		*size = 4;
 		break;

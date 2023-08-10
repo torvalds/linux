@@ -2809,7 +2809,7 @@ static ssize_t amdgpu_hwmon_show_power_input(struct device *dev,
 {
 	unsigned int val;
 
-	val = amdgpu_hwmon_get_power(dev, AMDGPU_PP_SENSOR_GPU_POWER);
+	val = amdgpu_hwmon_get_power(dev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER);
 	if (val < 0)
 		return val;
 
