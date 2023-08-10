@@ -686,7 +686,7 @@ static void sl_setup(struct net_device *dev)
  */
 
 static void slip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-		const char *fp, int count)
+			     const char *fp, size_t count)
 {
 	struct slip *sl = tty->disc_data;
 

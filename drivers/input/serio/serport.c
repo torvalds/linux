@@ -115,7 +115,8 @@ static void serport_ldisc_close(struct tty_struct *tty)
  */
 
 static void serport_ldisc_receive(struct tty_struct *tty,
-		const unsigned char *cp, const char *fp, int count)
+				  const unsigned char *cp, const char *fp,
+				  size_t count)
 {
 	struct serport *serport = tty->disc_data;
 	unsigned long flags;

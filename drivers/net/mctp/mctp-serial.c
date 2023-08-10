@@ -392,7 +392,7 @@ static void mctp_serial_push(struct mctp_serial *dev, unsigned char c)
 
 static void mctp_serial_tty_receive_buf(struct tty_struct *tty,
 					const unsigned char *c,
-					const char *f, int len)
+					const char *f, size_t len)
 {
 	struct mctp_serial *dev = tty->disc_data;
 	int i;

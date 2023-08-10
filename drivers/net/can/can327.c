@@ -886,7 +886,7 @@ static bool can327_is_valid_rx_char(u8 c)
  * functions may be called in parallel.
  */
 static void can327_ldisc_rx(struct tty_struct *tty, const unsigned char *cp,
-			    const char *fp, int count)
+			    const char *fp, size_t count)
 {
 	struct can327 *elm = tty->disc_data;
 	size_t first_new_char_idx;
@@ -904,7 +904,7 @@ static void can327_ldisc_rx(struct tty_struct *tty, const unsigned char *cp,
 	while (count--) {
 		if (elm->rxfill >= CAN327_SIZE_RXBUF) {
 			netdev_err(elm->dev,
-				   "Receive buffer overflowed. Bad chip or wiring? count = %i",
+				   "Receive buffer overflowed. Bad chip or wiring? count = %zu",
 				   count);
 			goto uart_failure;
 		}

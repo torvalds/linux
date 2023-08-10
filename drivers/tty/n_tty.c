@@ -1480,7 +1480,7 @@ n_tty_receive_char_lnext(struct tty_struct *tty, unsigned char c, char flag)
 
 /* Caller must ensure count > 0 */
 static void n_tty_lookahead_flow_ctrl(struct tty_struct *tty, const unsigned char *cp,
-				      const unsigned char *fp, unsigned int count)
+				      const unsigned char *fp, size_t count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	unsigned char flag = TTY_NORMAL;
@@ -1662,12 +1662,13 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
  *	claims non-exclusive %termios_rwsem
  *	publishes commit_head or canon_head
  */
-static int
+static size_t
 n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
 			 const char *fp, int count, int flow)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	int room, n, rcvd = 0, overflow;
+	size_t rcvd = 0;
+	int room, n, overflow;
 
 	down_read(&tty->termios_rwsem);
 
@@ -1744,13 +1745,14 @@ n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
 }
 
 static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-			      const char *fp, int count)
+			      const char *fp, size_t count)
 {
 	n_tty_receive_buf_common(tty, cp, fp, count, 0);
 }
 
-static int n_tty_receive_buf2(struct tty_struct *tty, const unsigned char *cp,
-			      const char *fp, int count)
+static size_t n_tty_receive_buf2(struct tty_struct *tty,
+				 const unsigned char *cp, const char *fp,
+				 size_t count)
 {
 	return n_tty_receive_buf_common(tty, cp, fp, count, 1);
 }

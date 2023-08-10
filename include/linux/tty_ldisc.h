@@ -162,7 +162,7 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *	Optional. Can sleep.
  *
  * @receive_buf: [DRV] ``void ()(struct tty_struct *tty,
- *		       const unsigned char *cp, const char *fp, int count)``
+ *		       const unsigned char *cp, const char *fp, size_t count)``
  *
  *	This function is called by the low-level tty driver to send characters
  *	received by the hardware to the line discpline for processing. @cp is
@@ -191,8 +191,8 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *
  *	Optional.
  *
- * @receive_buf2: [DRV] ``int ()(struct tty_struct *tty,
- *			const unsigned char *cp, const char *fp, int count)``
+ * @receive_buf2: [DRV] ``ssize_t ()(struct tty_struct *tty,
+ *			const unsigned char *cp, const char *fp, size_t count)``
  *
  *	This function is called by the low-level tty driver to send characters
  *	received by the hardware to the line discpline for processing. @cp is a
@@ -205,7 +205,7 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *	Optional.
  *
  * @lookahead_buf: [DRV] ``void ()(struct tty_struct *tty,
- *			const unsigned char *cp, const char *fp, int count)``
+ *			const unsigned char *cp, const char *fp, size_t count)``
  *
  *	This function is called by the low-level tty driver for characters
  *	not eaten by ->receive_buf() or ->receive_buf2(). It is useful for
@@ -256,13 +256,13 @@ struct tty_ldisc_ops {
 	 * The following routines are called from below.
 	 */
 	void	(*receive_buf)(struct tty_struct *tty, const unsigned char *cp,
-			       const char *fp, int count);
+			       const char *fp, size_t count);
 	void	(*write_wakeup)(struct tty_struct *tty);
 	void	(*dcd_change)(struct tty_struct *tty, bool active);
-	int	(*receive_buf2)(struct tty_struct *tty, const unsigned char *cp,
-				const char *fp, int count);
+	size_t	(*receive_buf2)(struct tty_struct *tty, const unsigned char *cp,
+				const char *fp, size_t count);
 	void	(*lookahead_buf)(struct tty_struct *tty, const unsigned char *cp,
-				 const unsigned char *fp, unsigned int count);
+				 const unsigned char *fp, size_t count);
 
 	struct  module *owner;
 };

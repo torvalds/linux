@@ -875,7 +875,7 @@ static int mkiss_ioctl(struct tty_struct *tty, unsigned int cmd,
  * and sent on to the AX.25 layer for further processing.
  */
 static void mkiss_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-	const char *fp, int count)
+			      const char *fp, size_t count)
 {
 	struct mkiss *ax = mkiss_get(tty);
 

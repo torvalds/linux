@@ -776,7 +776,7 @@ static const struct net_device_ops slcan_netdev_ops = {
  */
 static void slcan_receive_buf(struct tty_struct *tty,
 			      const unsigned char *cp, const char *fp,
-			      int count)
+			      size_t count)
 {
 	struct slcan *sl = tty->disc_data;
 
