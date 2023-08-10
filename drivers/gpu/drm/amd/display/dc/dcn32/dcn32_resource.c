@@ -1885,6 +1885,67 @@ validate_out:
 	return out;
 }
 
+static bool should_allow_odm_power_optimization(struct dc *dc,
+		struct dc_state *context)
+{
+	struct dc_stream_state *stream = context->streams[0];
+
+	/*
+	 * this debug flag allows us to disable ODM power optimization feature
+	 * unconditionally. we force the feature off if this is set to false.
+	 */
+	if (!dc->debug.enable_single_display_2to1_odm_policy)
+		return false;
+
+	/* current design and test coverage is only limited to allow ODM power
+	 * optimization for single stream. Supporting it for multiple streams
+	 * use case would require additional algorithm to decide how to
+	 * optimize power consumption when there are not enough free pipes to
+	 * allocate for all the streams. This level of optimization would
+	 * require multiple attempts of revalidation to make an optimized
+	 * decision. Unfortunately We do not support revalidation flow in
+	 * current version of DML.
+	 */
+	if (context->stream_count != 1)
+		return false;
+
+	/*
+	 * Our hardware doesn't support ODM for HDMI TMDS
+	 */
+	if (dc_is_hdmi_signal(stream->signal))
+		return false;
+
+	/*
+	 * ODM Combine 2:1 requires horizontal timing divisible by 2 so each
+	 * ODM segment has the same size.
+	 */
+	if (!is_h_timing_divisible_by_2(stream))
+		return false;
+
+	/*
+	 * No power benefits if the timing's pixel clock is not high enough to
+	 * raise display clock from minimum power state.
+	 */
+	if (stream->timing.pix_clk_100hz * 100 <= DCN3_2_VMIN_DISPCLK_HZ)
+		return false;
+
+	/* the new ODM power optimization feature reduces software design
+	 * limitation and allows ODM power optimization to be supported even
+	 * with presence of overlay planes. The new feature is enabled based on
+	 * enable_windowed_mpo_odm flag. If the flag is not set, we limit our
+	 * feature scope due to previous software design limitation */
+	if (!dc->config.enable_windowed_mpo_odm) {
+		if (context->stream_status[0].plane_count != 1)
+			return false;
+
+		if (stream->src.width >= 5120 &&
+				stream->src.width > stream->dst.width)
+			return false;
+	}
+
+	return true;
+}
+
 int dcn32_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes,
@@ -1895,35 +1956,20 @@ int dcn32_populate_dml_pipes_from_context(
 	struct pipe_ctx *pipe = NULL;
 	bool subvp_in_use = false;
 	struct dc_crtc_timing *timing;
-	bool vsr_odm_support = false;
 
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
 
-	/* Determine whether we will apply ODM 2to1 policy:
-	 * Applies to single display and where the number of planes is less than 3.
-	 * For 3 plane case ( 2 MPO planes ), we will not set the policy for the MPO pipes.
-	 *
+	/*
 	 * Apply pipe split policy first so we can predict the pipe split correctly
 	 * (dcn32_predict_pipe_split).
 	 */
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!res_ctx->pipe_ctx[i].stream)
 			continue;
-		pipe = &res_ctx->pipe_ctx[i];
-		timing = &pipe->stream->timing;
-
-		pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
-		vsr_odm_support = (res_ctx->pipe_ctx[i].stream->src.width >= 5120 &&
-				res_ctx->pipe_ctx[i].stream->src.width > res_ctx->pipe_ctx[i].stream->dst.width);
-		if (context->stream_count == 1 &&
-				context->stream_status[0].plane_count == 1 &&
-				!dc_is_hdmi_signal(res_ctx->pipe_ctx[i].stream->signal) &&
-				is_h_timing_divisible_by_2(res_ctx->pipe_ctx[i].stream) &&
-				pipe->stream->timing.pix_clk_100hz * 100 > DCN3_2_VMIN_DISPCLK_HZ &&
-				dc->debug.enable_single_display_2to1_odm_policy &&
-				!vsr_odm_support) { //excluding 2to1 ODM combine on >= 5k vsr
+		if (should_allow_odm_power_optimization(dc, context))
 			pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
-		}
+		else
+			pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
 		pipe_cnt++;
 	}
 
