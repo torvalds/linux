@@ -21,7 +21,7 @@
  * st_kim_recv during registration to receive fw download responses
  * st_int_recv after registration to receive proto stack responses
  */
-static void (*st_recv) (void *, const unsigned char *, long);
+static void (*st_recv)(void *disc_data, const u8 *ptr, size_t count);
 
 /********************************************************************/
 static void add_channel_to_table(struct st_data_s *st_gdata,
@@ -223,8 +223,7 @@ static inline void st_wakeup_ack(struct st_data_s *st_gdata,
  *	HCI-Events, ACL, SCO, 4 types of HCI-LL PM packets
  *	CH-8 packets from FM, CH-9 packets from GPS cores.
  */
-static void st_int_recv(void *disc_data,
-	const unsigned char *ptr, long count)
+static void st_int_recv(void *disc_data, const u8 *ptr, size_t count)
 {
 	struct st_proto_s *proto;
 	unsigned short payload_len = 0;
@@ -239,7 +238,7 @@ static void st_int_recv(void *disc_data,
 		return;
 	}
 
-	pr_debug("count %ld rx_state %ld"
+	pr_debug("count %zu rx_state %ld"
 		   "rx_count %ld", count, st_gdata->rx_state,
 		   st_gdata->rx_count);
 
