@@ -850,8 +850,8 @@ xchk_bmap(
 
 	switch (whichfork) {
 	case XFS_COW_FORK:
-		/* No CoW forks on non-reflink inodes/filesystems. */
-		if (!xfs_is_reflink_inode(ip)) {
+		/* No CoW forks on non-reflink filesystems. */
+		if (!xfs_has_reflink(mp)) {
 			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
 			return 0;
 		}
@@ -955,8 +955,5 @@ int
 xchk_bmap_cow(
 	struct xfs_scrub	*sc)
 {
-	if (!xfs_is_reflink_inode(sc->ip))
-		return -ENOENT;
-
 	return xchk_bmap(sc, XFS_COW_FORK);
 }
