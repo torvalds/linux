@@ -2295,6 +2295,46 @@ int mana_config_rss(struct mana_port_context *apc, enum TRI_STATE rx,
 	return 0;
 }
 
+void mana_query_gf_stats(struct mana_port_context *apc)
+{
+	struct mana_query_gf_stat_resp resp = {};
+	struct mana_query_gf_stat_req req = {};
+	struct net_device *ndev = apc->ndev;
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_QUERY_GF_STAT,
+			     sizeof(req), sizeof(resp));
+	req.req_stats = STATISTICS_FLAGS_HC_TX_BYTES |
+			STATISTICS_FLAGS_HC_TX_UCAST_PACKETS |
+			STATISTICS_FLAGS_HC_TX_UCAST_BYTES |
+			STATISTICS_FLAGS_HC_TX_MCAST_PACKETS |
+			STATISTICS_FLAGS_HC_TX_MCAST_BYTES |
+			STATISTICS_FLAGS_HC_TX_BCAST_PACKETS |
+			STATISTICS_FLAGS_HC_TX_BCAST_BYTES;
+
+	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
+				sizeof(resp));
+	if (err) {
+		netdev_err(ndev, "Failed to query GF stats: %d\n", err);
+		return;
+	}
+	err = mana_verify_resp_hdr(&resp.hdr, MANA_QUERY_GF_STAT,
+				   sizeof(resp));
+	if (err || resp.hdr.status) {
+		netdev_err(ndev, "Failed to query GF stats: %d, 0x%x\n", err,
+			   resp.hdr.status);
+		return;
+	}
+
+	apc->eth_stats.hc_tx_bytes = resp.hc_tx_bytes;
+	apc->eth_stats.hc_tx_ucast_pkts = resp.hc_tx_ucast_pkts;
+	apc->eth_stats.hc_tx_ucast_bytes = resp.hc_tx_ucast_bytes;
+	apc->eth_stats.hc_tx_bcast_pkts = resp.hc_tx_bcast_pkts;
+	apc->eth_stats.hc_tx_bcast_bytes = resp.hc_tx_bcast_bytes;
+	apc->eth_stats.hc_tx_mcast_pkts = resp.hc_tx_mcast_pkts;
+	apc->eth_stats.hc_tx_mcast_bytes = resp.hc_tx_mcast_bytes;
+}
+
 static int mana_init_port(struct net_device *ndev)
 {
 	struct mana_port_context *apc = netdev_priv(ndev);
