@@ -289,6 +289,7 @@ struct erofs_dirent {
 enum {
 	Z_EROFS_COMPRESSION_LZ4		= 0,
 	Z_EROFS_COMPRESSION_LZMA	= 1,
+	Z_EROFS_COMPRESSION_DEFLATE	= 2,
 	Z_EROFS_COMPRESSION_MAX
 };
 #define Z_EROFS_ALL_COMPR_ALGS		((1 << Z_EROFS_COMPRESSION_MAX) - 1)
@@ -308,6 +309,12 @@ struct z_erofs_lzma_cfgs {
 } __packed;
 
 #define Z_EROFS_LZMA_MAX_DICT_SIZE	(8 * Z_EROFS_PCLUSTER_MAX_SIZE)
+
+/* 6 bytes (+ length field = 8 bytes) */
+struct z_erofs_deflate_cfgs {
+	u8 windowbits;			/* 8..15 for DEFLATE */
+	u8 reserved[5];
+} __packed;
 
 /*
  * bit 0 : COMPACTED_2B indexes (0 - off; 1 - on)
