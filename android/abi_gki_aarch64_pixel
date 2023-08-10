@@ -2290,6 +2290,9 @@
   __xfrm_state_destroy
   xfrm_state_lookup_byspi
   xfrm_stateonly_find
+  xhci_address_device
+  xhci_bus_resume
+  xhci_bus_suspend
   xhci_gen_setup
   xhci_init_driver
   xhci_resume
