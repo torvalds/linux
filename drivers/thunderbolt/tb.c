@@ -1907,14 +1907,14 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 	in = &sw->ports[ev->port];
 	if (!tb_port_is_dpin(in)) {
 		tb_port_warn(in, "bandwidth request to non-DP IN adapter\n");
-		goto unlock;
+		goto put_sw;
 	}
 
 	tb_port_dbg(in, "handling bandwidth allocation request\n");
 
 	if (!usb4_dp_port_bandwidth_mode_enabled(in)) {
 		tb_port_warn(in, "bandwidth allocation mode not enabled\n");
-		goto unlock;
+		goto put_sw;
 	}
 
 	ret = usb4_dp_port_requested_bandwidth(in);
@@ -1923,7 +1923,7 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 			tb_port_dbg(in, "no bandwidth request active\n");
 		else
 			tb_port_warn(in, "failed to read requested bandwidth\n");
-		goto unlock;
+		goto put_sw;
 	}
 	requested_bw = ret;
 
@@ -1932,7 +1932,7 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 	tunnel = tb_find_tunnel(tb, TB_TUNNEL_DP, in, NULL);
 	if (!tunnel) {
 		tb_port_warn(in, "failed to find tunnel\n");
-		goto unlock;
+		goto put_sw;
 	}
 
 	out = tunnel->dst_port;
@@ -1959,6 +1959,8 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 		tb_recalc_estimated_bandwidth(tb);
 	}
 
+put_sw:
+	tb_switch_put(sw);
 unlock:
 	mutex_unlock(&tb->lock);
 
