@@ -238,8 +238,8 @@ enum pipe_type {
 
 	/* OTG master pipe - the master pipe of its OPP head pipes with a
 	 * functional OTG. It merges all its OPP head pipes pixel data in ODM
-	 * block and output to backend DIG. OTG master pipe is responsible for
-	 * generating entire crtc timing to backend DIG. An OTG master pipe may
+	 * block and output to back end DIG. OTG master pipe is responsible for
+	 * generating entire CRTC timing to back end DIG. An OTG master pipe may
 	 * or may not have a plane. If it has a plane it blends it as the left
 	 * most MPC slice of the top most layer. If it doesn't have a plane it
 	 * can output pixel data from its OPP head pipes' test pattern
@@ -267,33 +267,175 @@ enum pipe_type {
 };
 
 /*
- * Determine if the input pipe ctx is of a pipe type.
- * return - true if pipe ctx is of the input type.
+ * Determine if the input pipe_ctx is of a pipe type.
+ * return - true if pipe_ctx is of the input type.
  */
 bool resource_is_pipe_type(const struct pipe_ctx *pipe_ctx, enum pipe_type type);
 
 /*
- * Determine if the input pipe ctx is used for rendering a plane with MPCC
- * combine. MPCC combine is a hardware feature to combine multiple DPP pipes
- * into a single plane. It is typically used for bypassing pipe bandwidth
- * limitation for rendering a very large plane or saving power by reducing UCLK
- * and DPPCLK speeds.
- *
- * For instance in the Inter-pipe Relation diagram shown below, both PIPE 0 and
- * 1 are for MPCC combine for plane 0
- *
- *       Inter-pipe Relation
- *        __________________________________________________
- *       |PIPE IDX|   DPP PIPES   | OPP HEADS | OTG MASTER  |
- *       |        |  plane 0      |           |             |
- *       |   0    | -------------MPC----------------------- |
- *       |        |  plane 0    | |           |             |
- *       |   1    | ------------- |           |             |
- *       |________|_______________|___________|_____________|
- *
- * return - true if pipe ctx is used for mpcc combine.
+ * Acquire a pipe as OTG master pipe and allocate pipe resources required to
+ * enable stream output.
  */
-bool resource_is_for_mpcc_combine(const struct pipe_ctx *pipe_ctx);
+enum dc_status resource_add_otg_master_for_stream_output(struct dc_state *new_ctx,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream);
+
+/*
+ * Release pipe resources and the OTG master pipe associated with the stream
+ * The stream must have all planes removed and ODM/MPC slice counts are reset
+ * to 1 before invoking this interface.
+ */
+void resource_remove_otg_master_for_stream_output(struct dc_state *new_ctx,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream);
+
+/*
+ * Add plane to the bottom most layer in plane composition and allocate DPP pipe
+ * resources as needed.
+ * return - true if plane is added in plane composition, false otherwise.
+ */
+bool resource_append_dpp_pipes_for_plane_composition(
+		struct dc_state *new_ctx,
+		struct dc_state *cur_ctx,
+		struct resource_pool *pool,
+		struct pipe_ctx *otg_master_pipe,
+		struct dc_plane_state *plane_state);
+
+/*
+ * Add plane to the bottom most layer in plane composition and allocate DPP pipe
+ * resources as needed.
+ * return - true if plane is added in plane composition, false otherwise.
+ */
+void resource_remove_dpp_pipes_for_plane_composition(
+		struct dc_state *context,
+		const struct resource_pool *pool,
+		const struct dc_plane_state *plane_state);
+
+/*
+ * Update ODM slice count by acquiring or releasing pipes. If new slices need
+ * to be added, it is going to add them to the last ODM index. If existing
+ * slices need to be removed, it is going to remove them from the last ODM
+ * index.
+ *
+ * return - true if ODM slices are updated and required pipes are acquired. All
+ * affected pipe parameters are updated.
+ *
+ * false if resource fails to complete this update. The function is not designed
+ * to recover the creation of invalid topologies. Returning false is typically
+ * an indication of insufficient validation in caller's stack. new_ctx will be
+ * invalid. Caller may attempt to restore new_ctx by calling this function
+ * again with original slice count.
+ */
+bool resource_update_pipes_for_stream_with_slice_count(
+		struct dc_state *new_ctx,
+		const struct dc_state *cur_ctx,
+		const struct resource_pool *pool,
+		const struct dc_stream_state *stream,
+		int new_slice_count);
+
+/*
+ * Update MPC slice count by acquiring or releasing DPP pipes. If new slices
+ * need to be added it is going to add to the last MPC index. If existing
+ * slices need to be removed, it is going to remove them from the last MPC
+ * index.
+ *
+ * @dpp_pipe - top most dpp pipe for MPCC combine.
+ *
+ * return - true if MPC slices are updated and required pipes are acquired. All
+ * affected pipe parameters are updated.
+ *
+ * false if resource fails to complete this update. The function is not designed
+ * to recover the creation of invalid topologies. Returning false is typically
+ * an indication of insufficient validation in caller's stack. new_ctx will be
+ * invalid. Caller may attempt to restore new_ctx by calling this function
+ * again with original slice count.
+ */
+bool resource_update_pipes_for_plane_with_slice_count(
+		struct dc_state *new_ctx,
+		const struct dc_state *cur_ctx,
+		const struct resource_pool *pool,
+		const struct dc_plane_state *plane,
+		int slice_count);
+
+/*
+ * Get the OTG master pipe in resource context associated with the stream.
+ * return - NULL if not found. Otherwise the OTG master pipe associated with the
+ * stream.
+ */
+struct pipe_ctx *resource_get_otg_master_for_stream(
+		struct resource_context *res_ctx,
+		const struct dc_stream_state *stream);
+
+/*
+ * Get an array of OPP heads in opp_heads ordered with index low to high for OTG
+ * master pipe in res_ctx.
+ * return - number of OPP heads in the array. If otg_master passed in is not
+ * an OTG master, the function returns 0.
+ */
+int resource_get_opp_heads_for_otg_master(const struct pipe_ctx *otg_master,
+		struct resource_context *res_ctx,
+		struct pipe_ctx *opp_heads[MAX_PIPES]);
+
+/*
+ * Get an array of DPP pipes in dpp_pipes ordered with index low to high for OPP
+ * head pipe in res_ctx.
+ * return - number of DPP pipes in the array. If opp_head passed in is not
+ * an OPP pipe, the function returns 0.
+ */
+int resource_get_dpp_pipes_for_opp_head(const struct pipe_ctx *opp_head,
+		struct resource_context *res_ctx,
+		struct pipe_ctx *dpp_pipes[MAX_PIPES]);
+
+/*
+ * Get an array of DPP pipes in dpp_pipes ordered with index low to high for
+ * plane in res_ctx.
+ * return - number of DPP pipes in the array.
+ */
+int resource_get_dpp_pipes_for_plane(const struct dc_plane_state *plane,
+		struct resource_context *res_ctx,
+		struct pipe_ctx *dpp_pipes[MAX_PIPES]);
+
+/*
+ * Get the OTG master pipe for the input pipe context.
+ * return - the OTG master pipe for the input pipe
+ * context.
+ */
+struct pipe_ctx *resource_get_otg_master(const struct pipe_ctx *pipe_ctx);
+
+/*
+ * Get the OPP head pipe for the input pipe context.
+ * return - the OPP head pipe for the input pipe
+ * context.
+ */
+struct pipe_ctx *resource_get_opp_head(const struct pipe_ctx *pipe_ctx);
+
+/*
+ * Get the MPC slice index counting from 0 from left most slice
+ * For example, if a DPP pipe is used as a secondary pipe in MPCC combine, MPC
+ * split index is greater than 0.
+ */
+int resource_get_mpc_slice_index(const struct pipe_ctx *dpp_pipe);
+
+/*
+ * Get number of MPC "cuts" of the plane associated with the pipe. MPC slice
+ * count is equal to MPC splits + 1. For example if a plane is cut 3 times, it
+ * will have 4 pieces of slice.
+ * return - 0 if pipe is not used for a plane with MPCC combine. otherwise
+ * the number of MPC "cuts" for the plane.
+ */
+int resource_get_mpc_slice_count(const struct pipe_ctx *opp_head);
+
+/*
+ * Get number of ODM "cuts" of the timing associated with the pipe. ODM slice
+ * count is equal to ODM splits + 1. For example if a timing is cut 3 times, it
+ * will have 4 pieces of slice.
+ * return - 0 if pipe is not used for ODM combine. otherwise
+ * the number of ODM "cuts" for the timing.
+ */
+int resource_get_odm_slice_count(const struct pipe_ctx *otg_master);
+
+/* Get the ODM slice index counting from 0 from left most slice */
+int resource_get_odm_slice_index(const struct pipe_ctx *opp_head);
 
 /*
  * Look for a free pipe in new resource context that is used as a secondary OPP
@@ -359,100 +501,6 @@ struct pipe_ctx *resource_find_free_secondary_pipe_legacy(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		const struct pipe_ctx *primary_pipe);
-
-/*
- * Get number of MPC "cuts" of the plane associated with the pipe. MPC slice
- * count is equal to MPC splits + 1. For example if a plane is cut 3 times, it
- * will have 4 pieces of slice.
- * return - 0 if pipe is not used for a plane with MPCC combine. otherwise
- * the number of MPC "cuts" for the plane.
- */
-int resource_get_num_mpc_splits(const struct pipe_ctx *pipe);
-
-int resource_get_mpc_split_index(struct pipe_ctx *pipe_ctx);
-
-
-/*
- * Get number of ODM "cuts" of the timing associated with the pipe. ODM slice
- * count is equal to ODM splits + 1. For example if a timing is cut 3 times, it
- * will have 4 pieces of slice.
- * return - 0 if pipe is not used for ODM combine. otherwise
- * the number of ODM "cuts" for the timing.
- */
-int resource_get_num_odm_splits(const struct pipe_ctx *pipe);
-
-int resource_get_odm_split_index(struct pipe_ctx *pipe_ctx);
-
-/*
- * Get the OTG master pipe in resource context associated with the stream.
- * return - NULL if not found. Otherwise the OTG master pipe associated with the
- * stream.
- */
-struct pipe_ctx *resource_get_otg_master_for_stream(
-		struct resource_context *res_ctx,
-		struct dc_stream_state *stream);
-
-/*
- * Get the OTG master pipe for the input pipe context.
- * return - the OTG master pipe for the input pipe
- * context.
- */
-struct pipe_ctx *resource_get_otg_master(const struct pipe_ctx *pipe_ctx);
-
-/*
- * Get the OPP head pipe for the input pipe context.
- * return - the OPP head pipe for the input pipe
- * context.
- */
-struct pipe_ctx *resource_get_opp_head(const struct pipe_ctx *pipe_ctx);
-
-/*
- * Update ODM slice count by acquiring or releasing pipes. If new slices need
- * to be added, it is going to add them to the last ODM index. If existing
- * slices need to be removed, it is going to remove them from the last ODM
- * index.
- *
- * return - true if ODM slices are updated and required pipes are acquired. All
- * affected pipe parameters are updated.
- *
- * false if resource fails to complete this update. The function is not designed
- * to recover the creation of invalid topologies. Returning false is typically
- * an indication of insufficient validation in caller's stack. The function will
- * return the new_ctx up until the last valid step performed in the function.
- * Caller may use the returned new_ctx for debugging the error or it may attempt
- * to restore new_ctx by calling this function again with original slice count.
- */
-bool resource_update_pipes_with_odm_slice_count(
-		struct pipe_ctx *otg_master_pipe,
-		struct dc_state *new_ctx,
-		const struct dc_state *cur_ctx,
-		const struct resource_pool *pool,
-		int slice_count);
-
-/*
- * Update MPC slice count by acquiring or releasing DPP pipes. If new slices
- * need to be added it is going to add to the last MPC index. If existing
- * slices need to be removed, it is going to remove them from the last MPC
- * index.
- *
- * @dpp_pipe - top most dpp pipe for MPCC combine.
- *
- * return - true if MPC slices are updated and required pipes are acquired. All
- * affected pipe parameters are updated.
- *
- * false if resource fails to complete this update. The function is not designed
- * to recover the creation of invalid topologies. Returning false is typically
- * an indication of insufficient validation in caller's stack. The function will
- * return the new_ctx up until the last valid step performed in the function.
- * Caller may use the returned new_ctx for debugging the error or it may attempt
- * to restore new_ctx by calling this function again with original slice count.
- */
-bool resource_update_pipes_with_mpc_slice_count(
-		struct pipe_ctx *dpp_pipe,
-		struct dc_state *new_ctx,
-		const struct dc_state *cur_ctx,
-		const struct resource_pool *pool,
-		int slice_count);
 
 bool resource_validate_attach_surfaces(
 		const struct dc_validation_set set[],

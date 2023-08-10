@@ -614,6 +614,8 @@ void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	memset(&pipe_ctx->plane_res, 0, sizeof(pipe_ctx->plane_res));
 	pipe_ctx->top_pipe = NULL;
 	pipe_ctx->bottom_pipe = NULL;
+	pipe_ctx->prev_odm_pipe = NULL;
+	pipe_ctx->next_odm_pipe = NULL;
 	pipe_ctx->plane_state = NULL;
 }
 

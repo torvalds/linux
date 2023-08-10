@@ -2040,7 +2040,7 @@ static struct resource_funcs dcn32_res_pool_funcs = {
 	.populate_dml_pipes = dcn32_populate_dml_pipes_from_context,
 	.acquire_free_pipe_as_secondary_dpp_pipe = dcn32_acquire_free_pipe_as_secondary_dpp_pipe,
 	.acquire_free_pipe_as_secondary_opp_head = dcn32_acquire_free_pipe_as_secondary_opp_head,
-	.release_pipe = dcn32_release_pipe,
+	.release_pipe = dcn20_release_pipe,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
@@ -2776,15 +2776,6 @@ struct pipe_ctx *dcn32_acquire_free_pipe_as_secondary_opp_head(
 	}
 
 	return free_pipe;
-}
-
-void dcn32_release_pipe(struct dc_state *context,
-			struct pipe_ctx *pipe,
-			const struct resource_pool *pool)
-{
-	if (resource_is_pipe_type(pipe, OPP_HEAD) && pipe->stream_res.dsc)
-		dcn20_release_dsc(&context->res_ctx, pool, &pipe->stream_res.dsc);
-	memset(pipe, 0, sizeof(*pipe));
 }
 
 unsigned int dcn32_calc_num_avail_chans_for_mall(struct dc *dc, int num_chans)
