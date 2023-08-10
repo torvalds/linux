@@ -2041,7 +2041,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 
 	of_id = of_match_device(xgene_enet_of_match, &pdev->dev);
 	if (of_id) {
-		pdata->enet_id = (enum xgene_enet_id)of_id->data;
+		pdata->enet_id = (uintptr_t)of_id->data;
 	}
 #ifdef CONFIG_ACPI
 	else {
