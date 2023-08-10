@@ -71,7 +71,7 @@ static inline u32 intel_get_microcode_revision(void)
 	return rev;
 }
 
-#ifdef CONFIG_MICROCODE_INTEL
+#ifdef CONFIG_CPU_SUP_INTEL
 extern void __init load_ucode_intel_bsp(void);
 extern void load_ucode_intel_ap(void);
 extern void show_ucode_info_early(void);
