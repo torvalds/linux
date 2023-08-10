@@ -162,40 +162,30 @@ xrep_reap_block(
 	struct xrep_reap_state		*rs = priv;
 	struct xfs_scrub		*sc = rs->sc;
 	struct xfs_btree_cur		*cur;
-	struct xfs_buf			*agf_bp = NULL;
+	xfs_agnumber_t			agno;
 	xfs_agblock_t			agbno;
 	bool				has_other_rmap;
 	int				error;
 
-	ASSERT(sc->ip != NULL ||
-	       XFS_FSB_TO_AGNO(sc->mp, fsbno) == sc->sa.pag->pag_agno);
-	trace_xrep_dispose_btree_extent(sc->mp,
-			XFS_FSB_TO_AGNO(sc->mp, fsbno),
-			XFS_FSB_TO_AGBNO(sc->mp, fsbno), 1);
-
+	agno = XFS_FSB_TO_AGNO(sc->mp, fsbno);
 	agbno = XFS_FSB_TO_AGBNO(sc->mp, fsbno);
-	ASSERT(XFS_FSB_TO_AGNO(sc->mp, fsbno) == sc->sa.pag->pag_agno);
 
-	/*
-	 * If we are repairing per-inode metadata, we need to read in the AGF
-	 * buffer.  Otherwise, we're repairing a per-AG structure, so reuse
-	 * the AGF buffer that the setup functions already grabbed.
-	 */
-	if (sc->ip) {
-		error = xfs_alloc_read_agf(sc->sa.pag, sc->tp, 0, &agf_bp);
-		if (error)
-			return error;
-	} else {
-		agf_bp = sc->sa.agf_bp;
+	trace_xrep_dispose_btree_extent(sc->mp, agno, agbno, 1);
+
+	/* We don't support reaping file extents yet. */
+	if (sc->ip != NULL || sc->sa.pag->pag_agno != agno) {
+		ASSERT(0);
+		return -EFSCORRUPTED;
 	}
-	cur = xfs_rmapbt_init_cursor(sc->mp, sc->tp, agf_bp, sc->sa.pag);
+
+	cur = xfs_rmapbt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp, sc->sa.pag);
 
 	/* Can we find any other rmappings? */
 	error = xfs_rmap_has_other_keys(cur, agbno, 1, rs->oinfo,
 			&has_other_rmap);
 	xfs_btree_del_cursor(cur, error);
 	if (error)
-		goto out_free;
+		return error;
 
 	/*
 	 * If there are other rmappings, this block is cross linked and must
@@ -211,8 +201,8 @@ xrep_reap_block(
 	 * to run xfs_repair.
 	 */
 	if (has_other_rmap) {
-		error = xfs_rmap_free(sc->tp, agf_bp, sc->sa.pag, agbno, 1,
-				rs->oinfo);
+		error = xfs_rmap_free(sc->tp, sc->sa.agf_bp, sc->sa.pag, agbno,
+				1, rs->oinfo);
 	} else if (rs->resv == XFS_AG_RESV_AGFL) {
 		xrep_block_reap_binval(sc, fsbno);
 		error = xrep_put_freelist(sc, agbno);
@@ -221,19 +211,10 @@ xrep_reap_block(
 		error = xfs_free_extent(sc->tp, sc->sa.pag, agbno, 1, rs->oinfo,
 				rs->resv);
 	}
-	if (agf_bp != sc->sa.agf_bp)
-		xfs_trans_brelse(sc->tp, agf_bp);
 	if (error)
 		return error;
 
-	if (sc->ip)
-		return xfs_trans_roll_inode(&sc->tp, sc->ip);
 	return xrep_roll_ag_trans(sc);
-
-out_free:
-	if (agf_bp != sc->sa.agf_bp)
-		xfs_trans_brelse(sc->tp, agf_bp);
-	return error;
 }
 
 /* Dispose of every block of every extent in the bitmap. */
