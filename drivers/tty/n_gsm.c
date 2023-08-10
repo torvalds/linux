@@ -4256,8 +4256,7 @@ static void gsmtty_hangup(struct tty_struct *tty)
 	gsm_dlci_begin_close(dlci);
 }
 
-static int gsmtty_write(struct tty_struct *tty, const unsigned char *buf,
-								    int len)
+static int gsmtty_write(struct tty_struct *tty, const u8 *buf, int len)
 {
 	int sent;
 	struct gsm_dlci *dlci = tty->driver_data;

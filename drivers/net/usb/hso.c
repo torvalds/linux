@@ -1322,8 +1322,7 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 }
 
 /* close the requested serial port */
-static int hso_serial_write(struct tty_struct *tty, const unsigned char *buf,
-			    int count)
+static int hso_serial_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	struct hso_serial *serial = tty->driver_data;
 	int space, tx_bytes;

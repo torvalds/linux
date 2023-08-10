@@ -361,8 +361,7 @@ static void serial_cleanup(struct tty_struct *tty)
 	module_put(owner);
 }
 
-static int serial_write(struct tty_struct *tty, const unsigned char *buf,
-								int count)
+static int serial_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -ENODEV;

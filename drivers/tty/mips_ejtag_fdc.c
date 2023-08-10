@@ -796,8 +796,8 @@ static void mips_ejtag_fdc_tty_hangup(struct tty_struct *tty)
 	tty_port_hangup(tty->port);
 }
 
-static int mips_ejtag_fdc_tty_write(struct tty_struct *tty,
-				    const unsigned char *buf, int total)
+static int mips_ejtag_fdc_tty_write(struct tty_struct *tty, const u8 *buf,
+				    int total)
 {
 	int count, block;
 	struct mips_ejtag_fdc_tty_port *dport = tty->driver_data;

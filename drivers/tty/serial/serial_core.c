@@ -580,8 +580,7 @@ static void uart_flush_chars(struct tty_struct *tty)
 	uart_start(tty);
 }
 
-static int uart_write(struct tty_struct *tty,
-					const unsigned char *buf, int count)
+static int uart_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port;

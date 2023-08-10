@@ -108,7 +108,7 @@ static void pty_unthrottle(struct tty_struct *tty)
  *	the other side of the pty/tty pair.
  */
 
-static int pty_write(struct tty_struct *tty, const unsigned char *buf, int c)
+static int pty_write(struct tty_struct *tty, const u8 *buf, int c)
 {
 	struct tty_struct *to = tty->link;
 

@@ -779,7 +779,7 @@ static void rfcomm_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close(&dev->port, tty, filp);
 }
 
-static int rfcomm_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
+static int rfcomm_tty_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	struct rfcomm_dev *dev = tty->driver_data;
 	struct rfcomm_dlc *dlc = dev->dlc;

@@ -496,7 +496,7 @@ static int hvc_push(struct hvc_struct *hp)
 	return n;
 }
 
-static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count)
+static int hvc_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	struct hvc_struct *hp = tty->driver_data;
 	unsigned long flags;

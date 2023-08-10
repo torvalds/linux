@@ -1021,8 +1021,7 @@ static unsigned int tty3215_write_room(struct tty_struct *tty)
 /*
  * String write routine for 3215 ttys
  */
-static int tty3215_write(struct tty_struct *tty,
-			 const unsigned char *buf, int count)
+static int tty3215_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	handle_write(tty->driver_data, buf, count);
 	return count;

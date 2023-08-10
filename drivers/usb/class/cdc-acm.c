@@ -789,8 +789,7 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close(&acm->port, tty, filp);
 }
 
-static int acm_tty_write(struct tty_struct *tty,
-					const unsigned char *buf, int count)
+static int acm_tty_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	struct acm *acm = tty->driver_data;
 	int stat;

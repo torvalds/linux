@@ -741,7 +741,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 	local_irq_restore(flags);
 }
 
-static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count)
+static int rs_write(struct tty_struct * tty, const u8 *buf, int count)
 {
 	int	c, ret = 0;
 	struct serial_state *info = tty->driver_data;

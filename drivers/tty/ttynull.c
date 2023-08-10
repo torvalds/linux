@@ -29,8 +29,7 @@ static void ttynull_hangup(struct tty_struct *tty)
 	tty_port_hangup(&ttynull_port);
 }
 
-static int ttynull_write(struct tty_struct *tty, const unsigned char *buf,
-			 int count)
+static int ttynull_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	return count;
 }

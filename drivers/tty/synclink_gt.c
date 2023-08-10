@@ -431,7 +431,7 @@ static void tx_set_idle(struct slgt_info *info);
 static unsigned int tbuf_bytes(struct slgt_info *info);
 static void reset_tbufs(struct slgt_info *info);
 static void tdma_reset(struct slgt_info *info);
-static bool tx_load(struct slgt_info *info, const char *buf, unsigned int count);
+static bool tx_load(struct slgt_info *info, const u8 *buf, unsigned int count);
 
 static void get_gtsignals(struct slgt_info *info);
 static void set_gtsignals(struct slgt_info *info);
@@ -745,8 +745,7 @@ static void update_tx_timer(struct slgt_info *info)
 	}
 }
 
-static int write(struct tty_struct *tty,
-		 const unsigned char *buf, int count)
+static int write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	int ret = 0;
 	struct slgt_info *info = tty->driver_data;
@@ -4767,7 +4766,7 @@ static unsigned int tbuf_bytes(struct slgt_info *info)
  * load data into transmit DMA buffer ring and start transmitter if needed
  * return true if data accepted, otherwise false (buffers full)
  */
-static bool tx_load(struct slgt_info *info, const char *buf, unsigned int size)
+static bool tx_load(struct slgt_info *info, const u8 *buf, unsigned int size)
 {
 	unsigned short count;
 	unsigned int i;

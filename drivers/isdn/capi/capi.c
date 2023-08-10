@@ -1077,8 +1077,7 @@ static void capinc_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close(&mp->port, tty, filp);
 }
 
-static int capinc_tty_write(struct tty_struct *tty,
-			    const unsigned char *buf, int count)
+static int capinc_tty_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	struct capiminor *mp = tty->driver_data;
 	struct sk_buff *skb;

@@ -804,8 +804,7 @@ static void vcc_hangup(struct tty_struct *tty)
 	tty_port_hangup(tty->port);
 }
 
-static int vcc_write(struct tty_struct *tty, const unsigned char *buf,
-		     int count)
+static int vcc_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	struct vcc_port *port;
 	struct vio_vcc *pkt;

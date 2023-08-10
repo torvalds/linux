@@ -2845,7 +2845,7 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 }
 
 /* acquires console_lock */
-static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int count)
+static int do_con_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	struct vc_draw_region draw = {
 		.x = -1,
@@ -3238,7 +3238,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
  * /dev/ttyN handling
  */
 
-static int con_write(struct tty_struct *tty, const unsigned char *buf, int count)
+static int con_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	int	retval;
 

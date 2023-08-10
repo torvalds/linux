@@ -230,7 +230,7 @@ out:
  * routine will return the number of characters actually accepted for writing.
  */
 static int
-sclp_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
+sclp_tty_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	if (sclp_tty_chars_count > 0) {
 		sclp_tty_write_string(sclp_tty_chars, sclp_tty_chars_count, 0);

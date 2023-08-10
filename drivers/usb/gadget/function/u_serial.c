@@ -734,7 +734,7 @@ exit:
 	spin_unlock_irq(&port->port_lock);
 }
 
-static int gs_write(struct tty_struct *tty, const unsigned char *buf, int count)
+static int gs_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	struct gs_port	*port = tty->driver_data;
 	unsigned long	flags;

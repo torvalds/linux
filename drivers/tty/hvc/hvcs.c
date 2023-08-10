@@ -1257,8 +1257,7 @@ static void hvcs_hangup(struct tty_struct * tty)
  * tty_hangup will allow hvcs_write time to complete execution before it
  * terminates our device.
  */
-static int hvcs_write(struct tty_struct *tty,
-		const unsigned char *buf, int count)
+static int hvcs_write(struct tty_struct *tty, const u8 *buf, int count)
 {
 	struct hvcs_struct *hvcsd = tty->driver_data;
 	unsigned int unit_address;

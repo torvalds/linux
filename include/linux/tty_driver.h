@@ -356,8 +356,7 @@ struct tty_operations {
 	void (*close)(struct tty_struct * tty, struct file * filp);
 	void (*shutdown)(struct tty_struct *tty);
 	void (*cleanup)(struct tty_struct *tty);
-	int  (*write)(struct tty_struct * tty,
-		      const unsigned char *buf, int count);
+	int  (*write)(struct tty_struct *tty, const u8 *buf, int count);
 	int  (*put_char)(struct tty_struct *tty, unsigned char ch);
 	void (*flush_chars)(struct tty_struct *tty);
 	unsigned int (*write_room)(struct tty_struct *tty);
