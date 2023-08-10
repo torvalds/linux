@@ -513,10 +513,6 @@
 	};
 };
 
-&tscadc0 {
-	status = "disabled";
-};
-
 &ospi0 {
 	status = "okay";
 	pinctrl-names = "default";
