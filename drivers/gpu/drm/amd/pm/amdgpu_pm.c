@@ -35,6 +35,44 @@
 #include <linux/pm_runtime.h>
 #include <asm/processor.h>
 
+#define MAX_NUM_OF_FEATURES_PER_SUBSET		8
+#define MAX_NUM_OF_SUBSETS			8
+
+struct od_attribute {
+	struct kobj_attribute	attribute;
+	struct list_head	entry;
+};
+
+struct od_kobj {
+	struct kobject		kobj;
+	struct list_head	entry;
+	struct list_head	attribute;
+	void			*priv;
+};
+
+struct od_feature_ops {
+	umode_t (*is_visible)(struct amdgpu_device *adev);
+	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
+			 const char *buf, size_t count);
+};
+
+struct od_feature_item {
+	const char		*name;
+	struct od_feature_ops	ops;
+};
+
+struct od_feature_container {
+	char				*name;
+	struct od_feature_ops		ops;
+	struct od_feature_item		sub_feature[MAX_NUM_OF_FEATURES_PER_SUBSET];
+};
+
+struct od_feature_set {
+	struct od_feature_container	containers[MAX_NUM_OF_SUBSETS];
+};
+
 static const struct hwmon_temp_label {
 	enum PP_HWMON_TEMP channel;
 	const char *label;
@@ -3345,10 +3383,216 @@ static const struct attribute_group *hwmon_groups[] = {
 	NULL
 };
 
+static struct od_feature_set amdgpu_od_set;
+
+static void od_kobj_release(struct kobject *kobj)
+{
+	struct od_kobj *od_kobj = container_of(kobj, struct od_kobj, kobj);
+
+	kfree(od_kobj);
+}
+
+static const struct kobj_type od_ktype = {
+	.release	= od_kobj_release,
+	.sysfs_ops	= &kobj_sysfs_ops,
+};
+
+static void amdgpu_od_set_fini(struct amdgpu_device *adev)
+{
+	struct od_kobj *container, *container_next;
+	struct od_attribute *attribute, *attribute_next;
+
+	if (list_empty(&adev->pm.od_kobj_list))
+		return;
+
+	list_for_each_entry_safe(container, container_next,
+				 &adev->pm.od_kobj_list, entry) {
+		list_del(&container->entry);
+
+		list_for_each_entry_safe(attribute, attribute_next,
+					 &container->attribute, entry) {
+			list_del(&attribute->entry);
+			sysfs_remove_file(&container->kobj,
+					  &attribute->attribute.attr);
+			kfree(attribute);
+		}
+
+		kobject_put(&container->kobj);
+	}
+}
+
+static bool amdgpu_is_od_feature_supported(struct amdgpu_device *adev,
+					   struct od_feature_ops *feature_ops)
+{
+	umode_t mode;
+
+	if (!feature_ops->is_visible)
+		return false;
+
+	/*
+	 * If the feature has no user read and write mode set,
+	 * we can assume the feature is actually not supported.(?)
+	 * And the revelant sysfs interface should not be exposed.
+	 */
+	mode = feature_ops->is_visible(adev);
+	if (mode & (S_IRUSR | S_IWUSR))
+		return true;
+
+	return false;
+}
+
+static bool amdgpu_od_is_self_contained(struct amdgpu_device *adev,
+					struct od_feature_container *container)
+{
+	int i;
+
+	/*
+	 * If there is no valid entry within the container, the container
+	 * is recognized as a self contained container. And the valid entry
+	 * here means it has a valid naming and it is visible/supported by
+	 * the ASIC.
+	 */
+	for (i = 0; i < ARRAY_SIZE(container->sub_feature); i++) {
+		if (container->sub_feature[i].name &&
+		    amdgpu_is_od_feature_supported(adev,
+			&container->sub_feature[i].ops))
+			return false;
+	}
+
+	return true;
+}
+
+static int amdgpu_od_set_init(struct amdgpu_device *adev)
+{
+	struct od_kobj *top_set, *sub_set;
+	struct od_attribute *attribute;
+	struct od_feature_container *container;
+	struct od_feature_item *feature;
+	int i, j;
+	int ret;
+
+	/* Setup the top `gpu_od` directory which holds all other OD interfaces */
+	top_set = kzalloc(sizeof(*top_set), GFP_KERNEL);
+	if (!top_set)
+		return -ENOMEM;
+	list_add(&top_set->entry, &adev->pm.od_kobj_list);
+
+	ret = kobject_init_and_add(&top_set->kobj,
+				   &od_ktype,
+				   &adev->dev->kobj,
+				   "%s",
+				   "gpu_od");
+	if (ret)
+		goto err_out;
+	INIT_LIST_HEAD(&top_set->attribute);
+	top_set->priv = adev;
+
+	for (i = 0; i < ARRAY_SIZE(amdgpu_od_set.containers); i++) {
+		container = &amdgpu_od_set.containers[i];
+
+		if (!container->name)
+			continue;
+
+		/*
+		 * If there is valid entries within the container, the container
+		 * will be presented as a sub directory and all its holding entries
+		 * will be presented as plain files under it.
+		 * While if there is no valid entry within the container, the container
+		 * itself will be presented as a plain file under top `gpu_od` directory.
+		 */
+		if (amdgpu_od_is_self_contained(adev, container)) {
+			if (!amdgpu_is_od_feature_supported(adev,
+			     &container->ops))
+				continue;
+
+			/*
+			 * The container is presented as a plain file under top `gpu_od`
+			 * directory.
+			 */
+			attribute = kzalloc(sizeof(*attribute), GFP_KERNEL);
+			if (!attribute) {
+				ret = -ENOMEM;
+				goto err_out;
+			}
+			list_add(&attribute->entry, &top_set->attribute);
+
+			attribute->attribute.attr.mode =
+					container->ops.is_visible(adev);
+			attribute->attribute.attr.name = container->name;
+			attribute->attribute.show =
+					container->ops.show;
+			attribute->attribute.store =
+					container->ops.store;
+			ret = sysfs_create_file(&top_set->kobj,
+						&attribute->attribute.attr);
+			if (ret)
+				goto err_out;
+		} else {
+			/* The container is presented as a sub directory. */
+			sub_set = kzalloc(sizeof(*sub_set), GFP_KERNEL);
+			if (!sub_set) {
+				ret = -ENOMEM;
+				goto err_out;
+			}
+			list_add(&sub_set->entry, &adev->pm.od_kobj_list);
+
+			ret = kobject_init_and_add(&sub_set->kobj,
+						   &od_ktype,
+						   &top_set->kobj,
+						   "%s",
+						   container->name);
+			if (ret)
+				goto err_out;
+			INIT_LIST_HEAD(&sub_set->attribute);
+			sub_set->priv = adev;
+
+			for (j = 0; j < ARRAY_SIZE(container->sub_feature); j++) {
+				feature = &container->sub_feature[j];
+				if (!feature->name)
+					continue;
+
+				if (!amdgpu_is_od_feature_supported(adev,
+				     &feature->ops))
+					continue;
+
+				/*
+				 * With the container presented as a sub directory, the entry within
+				 * it is presented as a plain file under the sub directory.
+				 */
+				attribute = kzalloc(sizeof(*attribute), GFP_KERNEL);
+				if (!attribute) {
+					ret = -ENOMEM;
+					goto err_out;
+				}
+				list_add(&attribute->entry, &sub_set->attribute);
+
+				attribute->attribute.attr.mode =
+						feature->ops.is_visible(adev);
+				attribute->attribute.attr.name = feature->name;
+				attribute->attribute.show =
+						feature->ops.show;
+				attribute->attribute.store =
+						feature->ops.store;
+				ret = sysfs_create_file(&sub_set->kobj,
+							&attribute->attribute.attr);
+				if (ret)
+					goto err_out;
+			}
+		}
+	}
+
+	return 0;
+
+err_out:
+	amdgpu_od_set_fini(adev);
+
+	return ret;
+}
+
 int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 {
-	int ret;
 	uint32_t mask = 0;
+	int ret;
 
 	if (adev->pm.sysfs_initialized)
 		return 0;
@@ -3387,15 +3631,31 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 					       mask,
 					       &adev->pm.pm_attr_list);
 	if (ret)
-		return ret;
+		goto err_out0;
+
+	if (amdgpu_dpm_is_overdrive_supported(adev)) {
+		ret = amdgpu_od_set_init(adev);
+		if (ret)
+			goto err_out1;
+	}
 
 	adev->pm.sysfs_initialized = true;
 
 	return 0;
+
+err_out1:
+	amdgpu_device_attr_remove_groups(adev, &adev->pm.pm_attr_list);
+err_out0:
+	if (adev->pm.int_hwmon_dev)
+		hwmon_device_unregister(adev->pm.int_hwmon_dev);
+
+	return ret;
 }
 
 void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 {
+	amdgpu_od_set_fini(adev);
+
 	if (adev->pm.int_hwmon_dev)
 		hwmon_device_unregister(adev->pm.int_hwmon_dev);
 
