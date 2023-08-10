@@ -158,8 +158,8 @@ out:
  */
 
 static ssize_t serport_ldisc_read(struct tty_struct * tty, struct file * file,
-				  unsigned char *kbuf, size_t nr,
-				  void **cookie, unsigned long offset)
+				  u8 *kbuf, size_t nr, void **cookie,
+				  unsigned long offset)
 {
 	struct serport *serport = tty->disc_data;
 	struct serio *serio;

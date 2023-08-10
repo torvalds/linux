@@ -2128,12 +2128,11 @@ static int job_control(struct tty_struct *tty, struct file *file)
  *	claims non-exclusive termios_rwsem;
  *	publishes read_tail
  */
-static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
-			  unsigned char *kbuf, size_t nr,
-			  void **cookie, unsigned long offset)
+static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
+			  size_t nr, void **cookie, unsigned long offset)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	unsigned char *kb = kbuf;
+	u8 *kb = kbuf;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	int c;
 	int minimum, time;
@@ -2332,9 +2331,9 @@ more_to_be_read:
  */
 
 static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
-			   const unsigned char *buf, size_t nr)
+			   const u8 *buf, size_t nr)
 {
-	const unsigned char *b = buf;
+	const u8 *b = buf;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	int c;
 	ssize_t retval = 0;

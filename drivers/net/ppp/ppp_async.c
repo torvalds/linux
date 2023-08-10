@@ -257,9 +257,8 @@ static void ppp_asynctty_hangup(struct tty_struct *tty)
  * Pppd reads and writes packets via /dev/ppp instead.
  */
 static ssize_t
-ppp_asynctty_read(struct tty_struct *tty, struct file *file,
-		  unsigned char *buf, size_t count,
-		  void **cookie, unsigned long offset)
+ppp_asynctty_read(struct tty_struct *tty, struct file *file, u8 *buf,
+		  size_t count, void **cookie, unsigned long offset)
 {
 	return -EAGAIN;
 }
@@ -269,8 +268,8 @@ ppp_asynctty_read(struct tty_struct *tty, struct file *file,
  * from the ppp generic stuff.
  */
 static ssize_t
-ppp_asynctty_write(struct tty_struct *tty, struct file *file,
-		   const unsigned char *buf, size_t count)
+ppp_asynctty_write(struct tty_struct *tty, struct file *file, const u8 *buf,
+		   size_t count)
 {
 	return -EAGAIN;
 }

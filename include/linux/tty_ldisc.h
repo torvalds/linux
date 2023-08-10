@@ -90,8 +90,8 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *
  *	Optional.
  *
- * @read: [TTY] ``ssize_t ()(struct tty_struct *tty, struct file *file,
- *		unsigned char *buf, size_t nr)``
+ * @read: [TTY] ``ssize_t ()(struct tty_struct *tty, struct file *file, u8 *buf,
+ *		size_t nr)``
  *
  *	This function is called when the user requests to read from the @tty.
  *	The line discipline will return whatever characters it has buffered up
@@ -102,7 +102,7 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *	Optional: %EIO unless provided. Can sleep.
  *
  * @write: [TTY] ``ssize_t ()(struct tty_struct *tty, struct file *file,
- *		const unsigned char *buf, size_t nr)``
+ *		 const u8 *buf, size_t nr)``
  *
  *	This function is called when the user requests to write to the @tty.
  *	The line discipline will deliver the characters to the low-level tty
@@ -238,11 +238,10 @@ struct tty_ldisc_ops {
 	int	(*open)(struct tty_struct *tty);
 	void	(*close)(struct tty_struct *tty);
 	void	(*flush_buffer)(struct tty_struct *tty);
-	ssize_t	(*read)(struct tty_struct *tty, struct file *file,
-			unsigned char *buf, size_t nr,
-			void **cookie, unsigned long offset);
+	ssize_t	(*read)(struct tty_struct *tty, struct file *file, u8 *buf,
+			size_t nr, void **cookie, unsigned long offset);
 	ssize_t	(*write)(struct tty_struct *tty, struct file *file,
-			 const unsigned char *buf, size_t nr);
+			 const u8 *buf, size_t nr);
 	int	(*ioctl)(struct tty_struct *tty, unsigned int cmd,
 			unsigned long arg);
 	int	(*compat_ioctl)(struct tty_struct *tty, unsigned int cmd,

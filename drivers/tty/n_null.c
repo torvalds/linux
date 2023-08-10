@@ -10,15 +10,14 @@
  *  Copyright (C) Intel 2017
  */
 
-static ssize_t n_null_read(struct tty_struct *tty, struct file *file,
-			   unsigned char *buf, size_t nr,
-			   void **cookie, unsigned long offset)
+static ssize_t n_null_read(struct tty_struct *tty, struct file *file, u8 *buf,
+			   size_t nr, void **cookie, unsigned long offset)
 {
 	return -EOPNOTSUPP;
 }
 
 static ssize_t n_null_write(struct tty_struct *tty, struct file *file,
-			    const unsigned char *buf, size_t nr)
+			    const u8 *buf, size_t nr)
 {
 	return -EOPNOTSUPP;
 }

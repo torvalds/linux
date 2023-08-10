@@ -425,8 +425,8 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const u8 *data,
  * Returns the number of bytes returned or error code.
  */
 static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
-			   __u8 *kbuf, size_t nr,
-			   void **cookie, unsigned long offset)
+			       u8 *kbuf, size_t nr, void **cookie,
+			       unsigned long offset)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 	int ret = 0;
@@ -518,7 +518,7 @@ done_with_rbuf:
  * Returns the number of bytes written (or error code).
  */
 static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
-			    const unsigned char *data, size_t count)
+				const u8 *data, size_t count)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 	int error = 0;
