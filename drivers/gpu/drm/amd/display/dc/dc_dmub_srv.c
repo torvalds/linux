@@ -1055,3 +1055,8 @@ void dc_dmub_srv_enable_dpia_trace(const struct dc *dc)
 
 	DC_LOG_DEBUG("Enabled DPIA trace\n");
 }
+
+void dc_dmub_srv_subvp_save_surf_addr(const struct dc_dmub_srv *dc_dmub_srv, const struct dc_plane_address *addr, uint8_t subvp_index)
+{
+	dmub_srv_subvp_save_surf_addr(dc_dmub_srv->dmub, addr, subvp_index);
+}

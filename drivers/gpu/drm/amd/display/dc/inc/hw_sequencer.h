@@ -134,6 +134,12 @@ struct set_ocsc_default_params {
 	enum mpc_output_csc_mode ocsc_mode;
 };
 
+struct subvp_save_surf_addr {
+	struct dc_dmub_srv *dc_dmub_srv;
+	const struct dc_plane_address *addr;
+	uint8_t subvp_index;
+};
+
 union block_sequence_params {
 	struct update_plane_addr_params update_plane_addr_params;
 	struct subvp_pipe_control_lock_fast_params subvp_pipe_control_lock_fast_params;
@@ -151,6 +157,7 @@ union block_sequence_params {
 	struct power_on_mpc_mem_pwr_params power_on_mpc_mem_pwr_params;
 	struct set_output_csc_params set_output_csc_params;
 	struct set_ocsc_default_params set_ocsc_default_params;
+	struct subvp_save_surf_addr subvp_save_surf_addr;
 };
 
 enum block_sequence_func {
@@ -170,6 +177,7 @@ enum block_sequence_func {
 	MPC_POWER_ON_MPC_MEM_PWR,
 	MPC_SET_OUTPUT_CSC,
 	MPC_SET_OCSC_DEFAULT,
+	DMUB_SUBVP_SAVE_SURF_ADDR,
 };
 
 struct block_sequence {
@@ -470,5 +478,7 @@ void hwss_power_on_mpc_mem_pwr(union block_sequence_params *params);
 void hwss_set_output_csc(union block_sequence_params *params);
 
 void hwss_set_ocsc_default(union block_sequence_params *params);
+
+void hwss_subvp_save_surf_addr(union block_sequence_params *params);
 
 #endif /* __DC_HW_SEQUENCER_H__ */

@@ -1144,6 +1144,23 @@ static bool subvp_validate_static_schedulability(struct dc *dc,
 	return schedulable;
 }
 
+static void assign_subvp_index(struct dc *dc, struct dc_state *context)
+{
+	int i;
+	int index = 0;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (resource_is_pipe_type(pipe_ctx, OTG_MASTER) &&
+				pipe_ctx->stream->mall_stream_config.type == SUBVP_MAIN) {
+			pipe_ctx->subvp_index = index++;
+		} else {
+			pipe_ctx->subvp_index = 0;
+		}
+	}
+}
+
 static void dcn32_full_validate_bw_helper(struct dc *dc,
 				   struct dc_state *context,
 				   display_e2e_pipe_params_st *pipes,
@@ -1294,6 +1311,7 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 			vba->VoltageLevel = *vlevel;
 			// Note: We can't apply the phantom pipes to hardware at this time. We have to wait
 			// until driver has acquired the DMCUB lock to do it safely.
+			assign_subvp_index(dc, context);
 		}
 	}
 }

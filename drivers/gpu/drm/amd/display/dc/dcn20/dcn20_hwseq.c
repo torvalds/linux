@@ -1679,8 +1679,18 @@ static void dcn20_update_dchubp_dpp(
 
 	if (pipe_ctx->update_flags.bits.enable ||
 		pipe_ctx->update_flags.bits.plane_changed ||
-		plane_state->update_flags.bits.addr_update)
+		plane_state->update_flags.bits.addr_update) {
+		if (resource_is_pipe_type(pipe_ctx, OTG_MASTER) &&
+				pipe_ctx->stream->mall_stream_config.type == SUBVP_MAIN) {
+			union block_sequence_params params;
+
+			params.subvp_save_surf_addr.dc_dmub_srv = dc->ctx->dmub_srv;
+			params.subvp_save_surf_addr.addr = &pipe_ctx->plane_state->address;
+			params.subvp_save_surf_addr.subvp_index = pipe_ctx->subvp_index;
+			hwss_subvp_save_surf_addr(&params);
+		}
 		hws->funcs.update_plane_addr(dc, pipe_ctx);
+	}
 
 	if (pipe_ctx->update_flags.bits.enable)
 		hubp->funcs->set_blank(hubp, false);

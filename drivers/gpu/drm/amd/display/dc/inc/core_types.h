@@ -408,6 +408,8 @@ struct pipe_ctx {
 	union pipe_update_flags update_flags;
 	struct tg_color visual_confirm_color;
 	bool has_vactive_margin;
+	/* subvp_index: only valid if the pipe is a SUBVP_MAIN*/
+	uint8_t subvp_index;
 };
 
 /* Data used for dynamic link encoder assignment.

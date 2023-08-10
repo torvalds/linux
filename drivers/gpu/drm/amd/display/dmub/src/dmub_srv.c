@@ -278,6 +278,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->send_inbox0_cmd = dmub_dcn32_send_inbox0_cmd;
 		funcs->clear_inbox0_ack_register = dmub_dcn32_clear_inbox0_ack_register;
 		funcs->read_inbox0_ack_register = dmub_dcn32_read_inbox0_ack_register;
+		funcs->subvp_save_surf_addr = dmub_dcn32_save_surf_addr;
 		funcs->reset = dmub_dcn32_reset;
 		funcs->reset_release = dmub_dcn32_reset_release;
 		funcs->backdoor_load = dmub_dcn32_backdoor_load;
@@ -984,4 +985,13 @@ enum dmub_status dmub_srv_send_inbox0_cmd(struct dmub_srv *dmub,
 
 	dmub->hw_funcs.send_inbox0_cmd(dmub, data);
 	return DMUB_STATUS_OK;
+}
+
+void dmub_srv_subvp_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_address *addr, uint8_t subvp_index)
+{
+	if (dmub->hw_funcs.subvp_save_surf_addr) {
+		dmub->hw_funcs.subvp_save_surf_addr(dmub,
+				addr,
+				subvp_index);
+	}
 }

@@ -27,6 +27,7 @@
 #include "dmub_reg.h"
 #include "dmub_dcn32.h"
 #include "dc/dc_types.h"
+#include "dc_hw_types.h"
 
 #include "dcn/dcn_3_2_0_offset.h"
 #include "dcn/dcn_3_2_0_sh_mask.h"
@@ -505,4 +506,33 @@ void dmub_dcn32_clear_inbox0_ack_register(struct dmub_srv *dmub)
 uint32_t dmub_dcn32_read_inbox0_ack_register(struct dmub_srv *dmub)
 {
 	return REG_READ(DMCUB_SCRATCH17);
+}
+
+void dmub_dcn32_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_address *addr, uint8_t subvp_index)
+{
+	uint32_t index = 0;
+
+	if (subvp_index == 0) {
+		index = REG_READ(DMCUB_SCRATCH15);
+		if (index) {
+			REG_WRITE(DMCUB_SCRATCH9, addr->grph.addr.low_part);
+			REG_WRITE(DMCUB_SCRATCH11, addr->grph.meta_addr.low_part);
+		} else {
+			REG_WRITE(DMCUB_SCRATCH12,  addr->grph.addr.low_part);
+			REG_WRITE(DMCUB_SCRATCH13, addr->grph.meta_addr.low_part);
+		}
+		REG_WRITE(DMCUB_SCRATCH15, !index);
+	} else if (subvp_index == 1) {
+		index = REG_READ(DMCUB_SCRATCH23);
+		if (index) {
+			REG_WRITE(DMCUB_SCRATCH18, addr->grph.addr.low_part);
+			REG_WRITE(DMCUB_SCRATCH19, addr->grph.meta_addr.low_part);
+		} else {
+			REG_WRITE(DMCUB_SCRATCH20,  addr->grph.addr.low_part);
+			REG_WRITE(DMCUB_SCRATCH22, addr->grph.meta_addr.low_part);
+		}
+		REG_WRITE(DMCUB_SCRATCH23, !index);
+	} else {
+		return;
+	}
 }
