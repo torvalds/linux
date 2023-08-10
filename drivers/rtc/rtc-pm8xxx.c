@@ -535,11 +535,44 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int pm8xxx_rtc_restore(struct device *dev)
+{
+	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
+	int rc;
+
+	/* Request the alarm IRQ */
+	rc = devm_request_any_context_irq(rtc_dd->rtc_dev,
+					  rtc_dd->rtc_alarm_irq,
+					  pm8xxx_alarm_trigger,
+					  IRQF_TRIGGER_RISING,
+					  "pm8xxx_rtc_alarm", rtc_dd);
+	if (rc < 0) {
+		dev_err(rtc_dd->rtc_dev, "Request IRQ failed (%d)\n", rc);
+		return rc;
+	}
+
+	return pm8xxx_rtc_enable(rtc_dd);
+}
+
+static int pm8xxx_rtc_freeze(struct device *dev)
+{
+	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
+
+	devm_free_irq(rtc_dd->rtc_dev, rtc_dd->rtc_alarm_irq, rtc_dd);
+
+	return 0;
+}
+
 static int pm8xxx_remove(struct platform_device *pdev)
 {
 	dev_pm_clear_wake_irq(&pdev->dev);
 	return 0;
 }
+
+static const struct dev_pm_ops pm8xxx_rtc_pm_ops = {
+	.freeze = pm8xxx_rtc_freeze,
+	.restore = pm8xxx_rtc_restore,
+};
 
 static struct platform_driver pm8xxx_rtc_driver = {
 	.probe		= pm8xxx_rtc_probe,
