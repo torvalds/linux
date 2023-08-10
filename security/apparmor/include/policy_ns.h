@@ -86,10 +86,7 @@ const char *aa_ns_name(struct aa_ns *parent, struct aa_ns *child, bool subns);
 void aa_free_ns(struct aa_ns *ns);
 int aa_alloc_root_ns(void);
 void aa_free_root_ns(void);
-void aa_free_ns_kref(struct kref *kref);
 
-struct aa_ns *aa_find_ns(struct aa_ns *root, const char *name);
-struct aa_ns *aa_findn_ns(struct aa_ns *root, const char *name, size_t n);
 struct aa_ns *__aa_lookupn_ns(struct aa_ns *view, const char *hname, size_t n);
 struct aa_ns *aa_lookupn_ns(struct aa_ns *view, const char *name, size_t n);
 struct aa_ns *__aa_find_or_create_ns(struct aa_ns *parent, const char *name,
@@ -149,17 +146,6 @@ static inline struct aa_ns *__aa_find_ns(struct list_head *head,
 					 const char *name)
 {
 	return __aa_findn_ns(head, name, strlen(name));
-}
-
-static inline struct aa_ns *__aa_lookup_ns(struct aa_ns *base,
-					   const char *hname)
-{
-	return __aa_lookupn_ns(base, hname, strlen(hname));
-}
-
-static inline struct aa_ns *aa_lookup_ns(struct aa_ns *view, const char *name)
-{
-	return aa_lookupn_ns(view, name, strlen(name));
 }
 
 #endif /* AA_NAMESPACE_H */
