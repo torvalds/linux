@@ -35,6 +35,7 @@ def define_pineapple():
         "drivers/edac/qcom_edac.ko",
         "drivers/firmware/arm_scmi/qcom_scmi_vendor.ko",
         "drivers/firmware/qcom-scm.ko",
+        "drivers/gpu/drm/bridge/lt9611uxc.ko",
         "drivers/gpu/drm/display/drm_display_helper.ko",
         "drivers/gpu/drm/display/drm_dp_aux_bus.ko",
         "drivers/hwspinlock/qcom_hwspinlock.ko",
@@ -265,6 +266,7 @@ def define_pineapple():
         "net/qrtr/qrtr-mhi.ko",
         "net/qrtr/qrtr-smd.ko",
         "net/wireless/cfg80211.ko",
+        "sound/soc/codecs/snd-soc-hdmi-codec.ko",
         "sound/usb/snd-usb-audio-qmi.ko",
     ]
 

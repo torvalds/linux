@@ -142,6 +142,20 @@ config DRM_LONTIUM_LT9611
 	  HDMI signals
 	  Please say Y if you have such hardware.
 
+config DRM_LT9611UXC
+       tristate "Lontium LT9611UXC DSI/HDMI bridge"
+       select SND_SOC_HDMI_CODEC if SND_SOC
+       depends on OF
+       select DRM_PANEL_BRIDGE
+       select DRM_KMS_HELPER
+       select DRM_MIPI_DSI
+       select REGMAP_I2C
+       help
+         Driver for Lontium LT9611UXC DSI to HDMI bridge
+         chip driver that converts dual DSI and I2S to
+         HDMI signals
+         please say Y if you have such hardware.
+
 config DRM_LONTIUM_LT9611UXC
 	tristate "Lontium LT9611UXC DSI/HDMI bridge"
 	select SND_SOC_HDMI_CODEC if SND_SOC
