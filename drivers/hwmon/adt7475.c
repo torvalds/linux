@@ -1652,7 +1652,7 @@ static int adt7475_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, data);
 
 	if (client->dev.of_node)
-		chip = (enum chips)of_device_get_match_data(&client->dev);
+		chip = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		chip = id->driver_data;
 
