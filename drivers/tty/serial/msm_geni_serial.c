@@ -4954,6 +4954,7 @@ static const struct dev_pm_ops msm_geni_serial_pm_ops = {
 	.resume = msm_geni_serial_sys_resume,
 	.freeze = msm_geni_serial_sys_suspend,
 	.restore = msm_geni_serial_sys_hib_resume,
+	.thaw = msm_geni_serial_sys_hib_resume,
 };
 
 static struct platform_driver msm_geni_serial_platform_driver = {
