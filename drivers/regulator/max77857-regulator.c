@@ -53,7 +53,7 @@ enum max77857_id {
 
 static bool max77857_volatile_reg(struct device *dev, unsigned int reg)
 {
-	enum max77857_id id = (enum max77857_id)dev_get_drvdata(dev);
+	enum max77857_id id = (uintptr_t)dev_get_drvdata(dev);
 
 	switch (id) {
 	case ID_MAX77831:
@@ -91,7 +91,7 @@ static int max77857_get_status(struct regulator_dev *rdev)
 
 static unsigned int max77857_get_mode(struct regulator_dev *rdev)
 {
-	enum max77857_id id = (enum max77857_id)rdev_get_drvdata(rdev);
+	enum max77857_id id = (uintptr_t)rdev_get_drvdata(rdev);
 	unsigned int regval;
 	int ret;
 
@@ -125,7 +125,7 @@ static unsigned int max77857_get_mode(struct regulator_dev *rdev)
 
 static int max77857_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
-	enum max77857_id id = (enum max77857_id)rdev_get_drvdata(rdev);
+	enum max77857_id id = (uintptr_t)rdev_get_drvdata(rdev);
 	unsigned int reg, val;
 
 	switch (id) {
