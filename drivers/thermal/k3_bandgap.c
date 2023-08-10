@@ -225,7 +225,6 @@ static int k3_bandgap_probe(struct platform_device *pdev)
 		devm_thermal_add_hwmon_sysfs(dev, data[id].tzd);
 	}
 
-	platform_set_drvdata(pdev, bgp);
 
 	return 0;
 
