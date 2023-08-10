@@ -66,7 +66,7 @@ static int sys_get_trip_temp(struct thermal_zone_device *tzd, int trip,
 	return 0;
 }
 
-static int update_trip_temp(struct intel_soc_dts_sensor_entry *dts,
+static int update_trip_temp(struct intel_soc_dts_sensors *sensors,
 			    int thres_index, int temp)
 {
 	int status;
@@ -78,7 +78,6 @@ static int update_trip_temp(struct intel_soc_dts_sensor_entry *dts,
 	u32 store_te_out;
 	u32 te_out;
 	u32 int_enable_bit = SOC_DTS_TE_APICA_ENABLE;
-	struct intel_soc_dts_sensors *sensors = dts->sensors;
 
 	if (sensors->intr_type == INTEL_SOC_DTS_INTERRUPT_MSI)
 		int_enable_bit |= SOC_DTS_TE_MSI_ENABLE;
@@ -162,7 +161,7 @@ static int configure_trip(struct intel_soc_dts_sensor_entry *dts,
 {
 	int ret;
 
-	ret = update_trip_temp(dts, thres_index, temp);
+	ret = update_trip_temp(dts->sensors, thres_index, temp);
 	if (ret)
 		return ret;
 
@@ -182,7 +181,7 @@ static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
 		return -EINVAL;
 
 	mutex_lock(&sensors->dts_update_lock);
-	status = update_trip_temp(dts, trip, temp);
+	status = update_trip_temp(sensors, trip, temp);
 	mutex_unlock(&sensors->dts_update_lock);
 
 	return status;
