@@ -82,6 +82,12 @@ acoustic_target_rpm_threshold
 .. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
    :doc: acoustic_target_rpm_threshold
 
+fan_target_temperature
+----------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
+   :doc: fan_target_temperature
+
 GFXOFF
 ======
 
