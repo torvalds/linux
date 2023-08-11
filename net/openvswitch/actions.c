@@ -782,7 +782,7 @@ static int ovs_vport_output(struct net *net, struct sock *sk,
 	struct vport *vport = data->vport;
 
 	if (skb_cow_head(skb, data->l2_len) < 0) {
-		kfree_skb(skb);
+		kfree_skb_reason(skb, SKB_DROP_REASON_NOMEM);
 		return -ENOMEM;
 	}
 
@@ -853,6 +853,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 			 struct sk_buff *skb, u16 mru,
 			 struct sw_flow_key *key)
 {
+	enum ovs_drop_reason reason;
 	u16 orig_network_offset = 0;
 
 	if (eth_p_mpls(skb->protocol)) {
@@ -862,6 +863,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 
 	if (skb_network_offset(skb) > MAX_L2_LEN) {
 		OVS_NLERR(1, "L2 header too long to fragment");
+		reason = OVS_DROP_FRAG_L2_TOO_LONG;
 		goto err;
 	}
 
@@ -902,12 +904,13 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		WARN_ONCE(1, "Failed fragment ->%s: eth=%04x, MRU=%d, MTU=%d.",
 			  ovs_vport_name(vport), ntohs(key->eth.type), mru,
 			  vport->dev->mtu);
+		reason = OVS_DROP_FRAG_INVALID_PROTO;
 		goto err;
 	}
 
 	return;
 err:
-	kfree_skb(skb);
+	ovs_kfree_skb_reason(skb, reason);
 }
 
 static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
@@ -934,10 +937,10 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 
 			ovs_fragment(net, vport, skb, mru, key);
 		} else {
-			kfree_skb(skb);
+			kfree_skb_reason(skb, SKB_DROP_REASON_PKT_TOO_BIG);
 		}
 	} else {
-		kfree_skb(skb);
+		kfree_skb_reason(skb, SKB_DROP_REASON_DEV_READY);
 	}
 }
 
@@ -1011,7 +1014,7 @@ static int dec_ttl_exception_handler(struct datapath *dp, struct sk_buff *skb,
 		return clone_execute(dp, skb, key, 0, nla_data(actions),
 				     nla_len(actions), true, false);
 
-	consume_skb(skb);
+	ovs_kfree_skb_reason(skb, OVS_DROP_IP_TTL);
 	return 0;
 }
 
@@ -1564,7 +1567,7 @@ static int clone_execute(struct datapath *dp, struct sk_buff *skb,
 		/* Out of per CPU action FIFO space. Drop the 'skb' and
 		 * log an error.
 		 */
-		kfree_skb(skb);
+		ovs_kfree_skb_reason(skb, OVS_DROP_DEFERRED_LIMIT);
 
 		if (net_ratelimit()) {
 			if (actions) { /* Sample action */
@@ -1616,7 +1619,7 @@ int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 	if (unlikely(level > OVS_RECURSION_LIMIT)) {
 		net_crit_ratelimited("ovs: recursion limit reached on datapath %s, probable configuration error\n",
 				     ovs_dp_name(dp));
-		kfree_skb(skb);
+		ovs_kfree_skb_reason(skb, OVS_DROP_RECURSION_LIMIT);
 		err = -ENETDOWN;
 		goto out;
 	}
