@@ -1531,7 +1531,7 @@ static journal_t *journal_init_common(struct block_device *bdev,
 
 	journal = kzalloc(sizeof(*journal), GFP_KERNEL);
 	if (!journal)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	journal->j_blocksize = blocksize;
 	journal->j_dev = bdev;
@@ -1576,6 +1576,7 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	 * journal descriptor can store up to n blocks, we need enough
 	 * buffers to write out full descriptor block.
 	 */
+	err = -ENOMEM;
 	n = journal->j_blocksize / jbd2_min_tag_size();
 	journal->j_wbufsize = n;
 	journal->j_fc_wbuf = NULL;
@@ -1607,7 +1608,7 @@ err_cleanup:
 	jbd2_journal_destroy_revoke(journal);
 	journal_fail_superblock(journal);
 	kfree(journal);
-	return NULL;
+	return ERR_PTR(err);
 }
 
 /* jbd2_journal_init_dev and jbd2_journal_init_inode:
@@ -1640,8 +1641,8 @@ journal_t *jbd2_journal_init_dev(struct block_device *bdev,
 	journal_t *journal;
 
 	journal = journal_init_common(bdev, fs_dev, start, len, blocksize);
-	if (!journal)
-		return NULL;
+	if (IS_ERR(journal))
+		return ERR_CAST(journal);
 
 	snprintf(journal->j_devname, sizeof(journal->j_devname),
 		 "%pg", journal->j_dev);
@@ -1667,11 +1668,9 @@ journal_t *jbd2_journal_init_inode(struct inode *inode)
 
 	blocknr = 0;
 	err = bmap(inode, &blocknr);
-
 	if (err || !blocknr) {
-		pr_err("%s: Cannot locate journal superblock\n",
-			__func__);
-		return NULL;
+		pr_err("%s: Cannot locate journal superblock\n", __func__);
+		return err ? ERR_PTR(err) : ERR_PTR(-EINVAL);
 	}
 
 	jbd2_debug(1, "JBD2: inode %s/%ld, size %lld, bits %d, blksize %ld\n",
@@ -1681,8 +1680,8 @@ journal_t *jbd2_journal_init_inode(struct inode *inode)
 	journal = journal_init_common(inode->i_sb->s_bdev, inode->i_sb->s_bdev,
 			blocknr, inode->i_size >> inode->i_sb->s_blocksize_bits,
 			inode->i_sb->s_blocksize);
-	if (!journal)
-		return NULL;
+	if (IS_ERR(journal))
+		return ERR_CAST(journal);
 
 	journal->j_inode = inode;
 	snprintf(journal->j_devname, sizeof(journal->j_devname),
