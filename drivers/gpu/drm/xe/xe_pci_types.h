@@ -14,6 +14,7 @@ struct xe_graphics_desc {
 	u8 rel;
 
 	u8 dma_mask_size;	/* available DMA address bits */
+	u8 va_bits;
 	u8 vm_max_level;
 	u8 vram_flags;
 

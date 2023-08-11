@@ -1221,7 +1221,7 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 
 	vm->xe = xe;
 
-	vm->size = 1ull << xe_pt_shift(xe->info.vm_max_level + 1);
+	vm->size = 1ull << xe->info.va_bits;
 
 	vm->flags = flags;
 

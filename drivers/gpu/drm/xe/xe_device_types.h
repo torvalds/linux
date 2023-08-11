@@ -210,6 +210,8 @@ struct xe_device {
 		u8 gt_count;
 		/** @vm_max_level: Max VM level */
 		u8 vm_max_level;
+		/** @va_bits: Maximum bits of a virtual address */
+		u8 va_bits;
 
 		/** @is_dgfx: is discrete device */
 		u8 is_dgfx:1;

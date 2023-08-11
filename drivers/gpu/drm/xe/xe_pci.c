@@ -94,6 +94,7 @@ static const struct xe_graphics_desc graphics_xelp = {
 	.hw_engine_mask = BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0),
 
 	.dma_mask_size = 39,
+	.va_bits = 48,
 	.vm_max_level = 3,
 };
 
@@ -105,6 +106,7 @@ static const struct xe_graphics_desc graphics_xelpp = {
 	.hw_engine_mask = BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0),
 
 	.dma_mask_size = 39,
+	.va_bits = 48,
 	.vm_max_level = 3,
 };
 
@@ -112,6 +114,7 @@ static const struct xe_graphics_desc graphics_xelpp = {
 	.has_range_tlb_invalidation = true, \
 	.has_flat_ccs = true, \
 	.dma_mask_size = 46, \
+	.va_bits = 48, \
 	.vm_max_level = 3
 
 static const struct xe_graphics_desc graphics_xehpg = {
@@ -145,6 +148,7 @@ static const struct xe_graphics_desc graphics_xehpc = {
 	XE_HP_FEATURES,
 	.dma_mask_size = 52,
 	.max_remote_tiles = 1,
+	.va_bits = 57,
 	.vm_max_level = 4,
 	.vram_flags = XE_VRAM_FLAGS_NEED64K,
 
@@ -170,6 +174,7 @@ static const struct xe_graphics_desc graphics_xelpg = {
 	.has_flat_ccs = 0 /* FIXME: implementation missing */, \
 	.has_range_tlb_invalidation = 1, \
 	.supports_usm = 0 /* FIXME: implementation missing */, \
+	.va_bits = 48, \
 	.vm_max_level = 4, \
 	.hw_engine_mask = \
 		BIT(XE_HW_ENGINE_RCS0) | \
@@ -560,6 +565,7 @@ static int xe_info_init(struct xe_device *xe,
 
 	xe->info.dma_mask_size = graphics_desc->dma_mask_size;
 	xe->info.vram_flags = graphics_desc->vram_flags;
+	xe->info.va_bits = graphics_desc->va_bits;
 	xe->info.vm_max_level = graphics_desc->vm_max_level;
 	xe->info.supports_usm = graphics_desc->supports_usm;
 	xe->info.has_asid = graphics_desc->has_asid;
