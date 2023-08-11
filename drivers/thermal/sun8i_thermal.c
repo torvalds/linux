@@ -489,8 +489,6 @@ static int sun8i_ths_probe(struct platform_device *pdev)
 	if (!tmdev->chip)
 		return -EINVAL;
 
-	platform_set_drvdata(pdev, tmdev);
-
 	ret = sun8i_ths_resource_init(tmdev);
 	if (ret)
 		return ret;
