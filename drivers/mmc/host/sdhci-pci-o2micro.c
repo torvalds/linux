@@ -21,6 +21,7 @@
  * O2Micro device registers
  */
 
+#define O2_SD_PCIE_SWITCH	0x54
 #define O2_SD_MISC_REG5		0x64
 #define O2_SD_LD0_CTRL		0x68
 #define O2_SD_DEV_CTRL		0x88
@@ -631,6 +632,67 @@ static void sdhci_pci_o2_set_clock(struct sdhci_host *host, unsigned int clock)
 	sdhci_o2_enable_clk(host, clk);
 }
 
+static int sdhci_pci_o2_init_sd_express(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pci_slot *slot = sdhci_priv(host);
+	struct sdhci_pci_chip *chip = slot->chip;
+	u8 scratch8;
+	u16 scratch16;
+	int ret;
+
+	/* Disable clock */
+	sdhci_writeb(host, 0, SDHCI_CLOCK_CONTROL);
+
+	/* Set VDD2 voltage*/
+	scratch8 = sdhci_readb(host, SDHCI_POWER_CONTROL);
+	scratch8 &= 0x0F;
+	if (host->mmc->ios.timing == MMC_TIMING_SD_EXP_1_2V &&
+	    host->mmc->caps2 & MMC_CAP2_SD_EXP_1_2V) {
+		scratch8 |= SDHCI_VDD2_POWER_ON | SDHCI_VDD2_POWER_120;
+	} else {
+		scratch8 |= SDHCI_VDD2_POWER_ON | SDHCI_VDD2_POWER_180;
+	}
+
+	sdhci_writeb(host, scratch8, SDHCI_POWER_CONTROL);
+
+	/* UnLock WP */
+	pci_read_config_byte(chip->pdev, O2_SD_LOCK_WP, &scratch8);
+	scratch8 &= 0x7f;
+	pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch8);
+
+	/* Wait for express card clkreqn assert */
+	ret = read_poll_timeout(sdhci_readb, scratch8, !(scratch8 & BIT(0)),
+				1, 30000, false, host, O2_SD_EXP_INT_REG);
+
+	if (!ret) {
+		/* Switch to PCIe mode */
+		scratch16 = sdhci_readw(host, O2_SD_PCIE_SWITCH);
+		scratch16 |= BIT(8);
+		sdhci_writew(host, scratch16, O2_SD_PCIE_SWITCH);
+	} else {
+		/* Power off VDD2 voltage*/
+		scratch8 = sdhci_readb(host, SDHCI_POWER_CONTROL);
+		scratch8 &= 0x0F;
+		sdhci_writeb(host, scratch8, SDHCI_POWER_CONTROL);
+
+		/* Keep mode as UHSI */
+		pci_read_config_word(chip->pdev, O2_SD_PARA_SET_REG1, &scratch16);
+		scratch16 &= ~BIT(11);
+		pci_write_config_word(chip->pdev, O2_SD_PARA_SET_REG1, scratch16);
+
+		host->mmc->ios.timing = MMC_TIMING_LEGACY;
+		pr_info("%s: Express card initialization failed, falling back to Legacy\n",
+			mmc_hostname(host->mmc));
+	}
+	/* Lock WP */
+	pci_read_config_byte(chip->pdev, O2_SD_LOCK_WP, &scratch8);
+	scratch8 |= 0x80;
+	pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch8);
+
+	return 0;
+}
+
 static int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 {
 	struct sdhci_pci_chip *chip;
@@ -703,10 +765,11 @@ static int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 	case PCI_DEVICE_ID_O2_GG8_9861:
 	case PCI_DEVICE_ID_O2_GG8_9862:
 	case PCI_DEVICE_ID_O2_GG8_9863:
-		host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
+		host->mmc->caps2 |= MMC_CAP2_NO_SDIO | MMC_CAP2_SD_EXP | MMC_CAP2_SD_EXP_1_2V;
 		host->mmc->caps |= MMC_CAP_HW_RESET;
 		host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN;
 		slot->host->mmc_host_ops.get_cd = sdhci_o2_get_cd;
+		host->mmc_host_ops.init_sd_express = sdhci_pci_o2_init_sd_express;
 		break;
 	default:
 		break;
