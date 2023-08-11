@@ -1770,7 +1770,8 @@ static int atmel_sha_hmac_compute_ipad_hash(struct atmel_sha_dev *dd)
 	size_t bs = ctx->block_size;
 	size_t i, num_words = bs / sizeof(u32);
 
-	memcpy(hmac->opad, hmac->ipad, bs);
+	unsafe_memcpy(hmac->opad, hmac->ipad, bs,
+		      "fortified memcpy causes -Wrestrict warning");
 	for (i = 0; i < num_words; ++i) {
 		hmac->ipad[i] ^= 0x36363636;
 		hmac->opad[i] ^= 0x5c5c5c5c;

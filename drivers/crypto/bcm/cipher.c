@@ -2397,7 +2397,8 @@ static int ahash_hmac_setkey(struct crypto_ahash *ahash, const u8 *key,
 		memset(ctx->ipad + ctx->authkeylen, 0,
 		       blocksize - ctx->authkeylen);
 		ctx->authkeylen = 0;
-		memcpy(ctx->opad, ctx->ipad, blocksize);
+		unsafe_memcpy(ctx->opad, ctx->ipad, blocksize,
+			      "fortified memcpy causes -Wrestrict warning");
 
 		for (index = 0; index < blocksize; index++) {
 			ctx->ipad[index] ^= HMAC_IPAD_VALUE;
