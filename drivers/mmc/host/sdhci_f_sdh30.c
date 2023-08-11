@@ -214,7 +214,7 @@ static void sdhci_f_sdh30_remove(struct platform_device *pdev)
 	struct reset_control *rst = priv->rst;
 	struct clk *clk = priv->clk;
 
-	sdhci_pltfm_unregister(pdev);
+	sdhci_pltfm_remove(pdev);
 
 	reset_control_assert(rst);
 	clk_disable_unprepare(clk);
