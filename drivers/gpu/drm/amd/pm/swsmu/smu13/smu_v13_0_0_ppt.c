@@ -103,6 +103,7 @@
 #define PP_OD_FEATURE_GFX_VF_CURVE			4
 #define PP_OD_FEATURE_FAN_CURVE_TEMP			5
 #define PP_OD_FEATURE_FAN_CURVE_PWM			6
+#define PP_OD_FEATURE_FAN_ACOUSTIC_LIMIT		7
 
 #define LINK_SPEED_MAX					3
 
@@ -1132,6 +1133,10 @@ static void smu_v13_0_0_get_od_setting_limits(struct smu_context *smu,
 		od_min_setting = overdrive_lowerlimits->FanLinearPwmPoints;
 		od_max_setting = overdrive_upperlimits->FanLinearPwmPoints;
 		break;
+	case PP_OD_FEATURE_FAN_ACOUSTIC_LIMIT:
+		od_min_setting = overdrive_lowerlimits->AcousticLimitRpmThreshold;
+		od_max_setting = overdrive_upperlimits->AcousticLimitRpmThreshold;
+		break;
 	default:
 		od_min_setting = od_max_setting = INT_MAX;
 		break;
@@ -1380,6 +1385,24 @@ static int smu_v13_0_0_print_clk_levels(struct smu_context *smu,
 
 		break;
 
+	case SMU_OD_ACOUSTIC_LIMIT:
+		if (!smu_v13_0_0_is_od_feature_supported(smu,
+							 PP_OD_FEATURE_FAN_CURVE_BIT))
+			break;
+
+		size += sysfs_emit_at(buf, size, "OD_ACOUSTIC_LIMIT:\n");
+		size += sysfs_emit_at(buf, size, "%d\n",
+					(int)od_table->OverDriveTable.AcousticLimitRpmThreshold);
+
+		size += sysfs_emit_at(buf, size, "%s:\n", "OD_RANGE");
+		smu_v13_0_0_get_od_setting_limits(smu,
+						  PP_OD_FEATURE_FAN_ACOUSTIC_LIMIT,
+						  &min_value,
+						  &max_value);
+		size += sysfs_emit_at(buf, size, "ACOUSTIC_LIMIT: %u %u\n",
+				      min_value, max_value);
+		break;
+
 	case SMU_OD_RANGE:
 		if (!smu_v13_0_0_is_od_feature_supported(smu, PP_OD_FEATURE_GFXCLK_BIT) &&
 		    !smu_v13_0_0_is_od_feature_supported(smu, PP_OD_FEATURE_UCLK_BIT) &&
@@ -1625,6 +1648,28 @@ static int smu_v13_0_0_od_edit_dpm_table(struct smu_context *smu,
 		od_table->OverDriveTable.FanLinearTempPoints[input[0]] = input[1];
 		od_table->OverDriveTable.FanLinearPwmPoints[input[0]] = input[2];
 		od_table->OverDriveTable.FanMode = FAN_MODE_MANUAL_LINEAR;
+		od_table->OverDriveTable.FeatureCtrlMask |= BIT(PP_OD_FEATURE_FAN_CURVE_BIT);
+		break;
+
+	case PP_OD_EDIT_ACOUSTIC_LIMIT:
+		if (!smu_v13_0_0_is_od_feature_supported(smu, PP_OD_FEATURE_FAN_CURVE_BIT)) {
+			dev_warn(adev->dev, "Fan curve setting not supported!\n");
+			return -ENOTSUPP;
+		}
+
+		smu_v13_0_0_get_od_setting_limits(smu,
+						  PP_OD_FEATURE_FAN_ACOUSTIC_LIMIT,
+						  &minimum,
+						  &maximum);
+		if (input[0] < minimum ||
+		    input[0] > maximum) {
+			dev_info(adev->dev, "acoustic limit threshold setting(%ld) must be within [%d, %d]!\n",
+				 input[0], minimum, maximum);
+			return -EINVAL;
+		}
+
+		od_table->OverDriveTable.AcousticLimitRpmThreshold = input[0];
+		od_table->OverDriveTable.FanMode = FAN_MODE_AUTO;
 		od_table->OverDriveTable.FeatureCtrlMask |= BIT(PP_OD_FEATURE_FAN_CURVE_BIT);
 		break;
 
@@ -1885,7 +1930,9 @@ static void smu_v13_0_0_set_supported_od_feature_mask(struct smu_context *smu)
 	if (smu_v13_0_0_is_od_feature_supported(smu,
 						PP_OD_FEATURE_FAN_CURVE_BIT))
 		adev->pm.od_feature_mask |= OD_OPS_SUPPORT_FAN_CURVE_RETRIEVE |
-					    OD_OPS_SUPPORT_FAN_CURVE_SET;
+					    OD_OPS_SUPPORT_FAN_CURVE_SET |
+					    OD_OPS_SUPPORT_ACOUSTIC_LIMIT_THRESHOLD_RETRIEVE |
+					    OD_OPS_SUPPORT_ACOUSTIC_LIMIT_THRESHOLD_SET;
 }
 
 static int smu_v13_0_0_set_default_od_settings(struct smu_context *smu)
@@ -1943,6 +1990,8 @@ static int smu_v13_0_0_set_default_od_settings(struct smu_context *smu)
 			user_od_table->OverDriveTable.FanLinearPwmPoints[i] =
 				user_od_table_bak.OverDriveTable.FanLinearPwmPoints[i];
 		}
+		user_od_table->OverDriveTable.AcousticLimitRpmThreshold =
+			user_od_table_bak.OverDriveTable.AcousticLimitRpmThreshold;
 	}
 
 	smu_v13_0_0_set_supported_od_feature_mask(smu);

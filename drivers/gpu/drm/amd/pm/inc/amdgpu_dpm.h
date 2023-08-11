@@ -316,6 +316,8 @@ struct config_table_setting
 
 #define OD_OPS_SUPPORT_FAN_CURVE_RETRIEVE		BIT(0)
 #define OD_OPS_SUPPORT_FAN_CURVE_SET			BIT(1)
+#define OD_OPS_SUPPORT_ACOUSTIC_LIMIT_THRESHOLD_RETRIEVE	BIT(2)
+#define OD_OPS_SUPPORT_ACOUSTIC_LIMIT_THRESHOLD_SET		BIT(3)
 
 struct amdgpu_pm {
 	struct mutex		mutex;
