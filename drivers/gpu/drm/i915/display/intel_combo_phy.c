@@ -141,7 +141,7 @@ static bool has_phy_misc(struct drm_i915_private *i915, enum phy phy)
 
 	if (IS_ALDERLAKE_S(i915))
 		return phy == PHY_A;
-	else if (IS_JSL_EHL(i915) ||
+	else if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) ||
 		 IS_ROCKETLAKE(i915) ||
 		 IS_DG1(i915))
 		return phy < PHY_C;
@@ -242,7 +242,7 @@ static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
 		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_COMP_DW8(phy),
 				     IREFGEN, IREFGEN);
 
-		if (IS_JSL_EHL(dev_priv)) {
+		if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) {
 			if (ehl_vbt_ddi_d_present(dev_priv))
 				expected_val = ICL_PHY_MISC_MUX_DDID;
 
@@ -333,7 +333,8 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 		 * "internal" child devices.
 		 */
 		val = intel_de_read(dev_priv, ICL_PHY_MISC(phy));
-		if (IS_JSL_EHL(dev_priv) && phy == PHY_A) {
+		if ((IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) &&
+		    phy == PHY_A) {
 			val &= ~ICL_PHY_MISC_MUX_DDID;
 
 			if (ehl_vbt_ddi_d_present(dev_priv))

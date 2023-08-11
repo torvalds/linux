@@ -175,7 +175,7 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 {
 	bool pre = false;
 
-	pre |= IS_HSW_EARLY_SDV(dev_priv);
+	pre |= IS_HASWELL_EARLY_SDV(dev_priv);
 	pre |= IS_SKYLAKE(dev_priv) && INTEL_REVID(dev_priv) < 0x6;
 	pre |= IS_BROXTON(dev_priv) && INTEL_REVID(dev_priv) < 0xA;
 	pre |= IS_KABYLAKE(dev_priv) && INTEL_REVID(dev_priv) < 0x1;

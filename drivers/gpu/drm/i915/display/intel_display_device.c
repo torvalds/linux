@@ -724,10 +724,24 @@ static const struct intel_display_device_info xe_lpdp_display = {
 		BIT(PORT_TC1) | BIT(PORT_TC2) | BIT(PORT_TC3) | BIT(PORT_TC4),
 };
 
+/*
+ * Separate detection for no display cases to keep the display id array simple.
+ *
+ * IVB Q requires subvendor and subdevice matching to differentiate from IVB D
+ * GT2 server.
+ */
+static bool has_no_display(struct pci_dev *pdev)
+{
+	static const struct pci_device_id ids[] = {
+		INTEL_IVB_Q_IDS(0),
+		{}
+	};
+
+	return pci_match_id(ids, pdev);
+}
+
 #undef INTEL_VGA_DEVICE
-#undef INTEL_QUANTA_VGA_DEVICE
 #define INTEL_VGA_DEVICE(id, info) { id, info }
-#define INTEL_QUANTA_VGA_DEVICE(info) { 0x16a, info }
 
 static const struct {
 	u32 devid;
@@ -752,7 +766,6 @@ static const struct {
 	INTEL_IRONLAKE_M_IDS(&ilk_m_display),
 	INTEL_SNB_D_IDS(&snb_display),
 	INTEL_SNB_M_IDS(&snb_display),
-	INTEL_IVB_Q_IDS(NULL),		/* must be first IVB in list */
 	INTEL_IVB_M_IDS(&ivb_display),
 	INTEL_IVB_D_IDS(&ivb_display),
 	INTEL_HSW_IDS(&hsw_display),
@@ -800,6 +813,15 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 	u32 val;
 	int i;
 
+	/* The caller expects to ver, rel and step to be initialized
+	 * here, and there's no good way to check when there was a
+	 * failure and no_display was returned.  So initialize all these
+	 * values here zero, to be sure.
+	 */
+	*ver = 0;
+	*rel = 0;
+	*step = 0;
+
 	addr = pci_iomap_range(pdev, 0, i915_mmio_reg_offset(GMD_ID_DISPLAY), sizeof(u32));
 	if (!addr) {
 		drm_err(&i915->drm, "Cannot map MMIO BAR to read display GMD_ID\n");
@@ -809,9 +831,10 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 	val = ioread32(addr);
 	pci_iounmap(pdev, addr);
 
-	if (val == 0)
-		/* Platform doesn't have display */
+	if (val == 0) {
+		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
 		return &no_display;
+	}
 
 	*ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val);
 	*rel = REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
@@ -837,6 +860,11 @@ intel_display_device_probe(struct drm_i915_private *i915, bool has_gmdid,
 	if (has_gmdid)
 		return probe_gmdid_display(i915, gmdid_ver, gmdid_rel, gmdid_step);
 
+	if (has_no_display(pdev)) {
+		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
+		return &no_display;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(intel_display_ids); i++) {
 		if (intel_display_ids[i].devid == pdev->device)
 			return intel_display_ids[i].info;
@@ -858,7 +886,7 @@ void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
 	BUILD_BUG_ON(BITS_PER_TYPE(display_runtime->port_mask) < I915_MAX_PORTS);
 
 	/* Wa_14011765242: adl-s A0,A1 */
-	if (IS_ADLS_DISPLAY_STEP(i915, STEP_A0, STEP_A2))
+	if (IS_ALDERLAKE_S(i915) && IS_DISPLAY_STEP(i915, STEP_A0, STEP_A2))
 		for_each_pipe(i915, pipe)
 			display_runtime->num_scalers[pipe] = 0;
 	else if (DISPLAY_VER(i915) >= 11) {

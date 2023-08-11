@@ -226,7 +226,7 @@ bool i915_gem_object_can_bypass_llc(struct drm_i915_gem_object *obj)
 	 * it, but since i915 takes the stance of always zeroing memory before
 	 * handing it to userspace, we need to prevent this.
 	 */
-	return IS_JSL_EHL(i915);
+	return (IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915));
 }
 
 static void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
