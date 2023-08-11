@@ -169,7 +169,7 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			       const struct pwm_state *state)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
-	unsigned long period, duty;
+	unsigned long period, duty, delay_ns;
 	unsigned long flags;
 	u64 div;
 	u32 ctrl;
@@ -191,11 +191,13 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	div = (u64)pc->clk_rate * state->duty_cycle;
 	duty = DIV_ROUND_CLOSEST_ULL(div, dclk_div * pc->data->prescaler * NSEC_PER_SEC);
 
+	if (pc->data->supports_lock) {
+		div = (u64)10 * NSEC_PER_SEC * dclk_div * pc->data->prescaler;
+		delay_ns = DIV_ROUND_UP_ULL(div, pc->clk_rate);
+	}
+
 	local_irq_save(flags);
-	/*
-	 * Lock the period and duty of previous configuration, then
-	 * change the duty and period, that would not be effective.
-	 */
+
 	ctrl = readl_relaxed(pc->base + pc->data->regs.ctrl);
 	if (pc->data->vop_pwm) {
 		if (pc->vop_pwm_en)
@@ -253,6 +255,10 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 #endif
 
+	/*
+	 * Lock the period and duty of previous configuration, then
+	 * change the duty and period, that would not be effective.
+	 */
 	if (pc->data->supports_lock) {
 		ctrl |= PWM_LOCK_EN;
 		writel_relaxed(ctrl, pc->base + pc->data->regs.ctrl);
@@ -270,12 +276,14 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/*
-	 * Unlock and set polarity at the same time,
-	 * the configuration of duty, period and polarity
-	 * would be effective together at next period.
+	 * Unlock and set polarity at the same time, the configuration of duty,
+	 * period and polarity would be effective together at next period. It
+	 * takes 10 dclk cycles to make sure lock works before unlocking.
 	 */
-	if (pc->data->supports_lock)
+	if (pc->data->supports_lock) {
 		ctrl &= ~PWM_LOCK_EN;
+		ndelay(delay_ns);
+	}
 
 	writel(ctrl, pc->base + pc->data->regs.ctrl);
 	local_irq_restore(flags);
