@@ -243,9 +243,11 @@ static bool has_aux_ccs(struct xe_device *xe)
 {
 	/*
 	 * PVC is a special case that has no compression of either type
-	 * (FlatCCS or AuxCCS).
+	 * (FlatCCS or AuxCCS).  Also, AuxCCS is no longer used from Xe2
+	 * onward, so any future platforms with no FlatCCS will not have
+	 * AuxCCS either.
 	 */
-	if (xe->info.platform == XE_PVC)
+	if (GRAPHICS_VER(xe) >= 20 || xe->info.platform == XE_PVC)
 		return false;
 
 	return !xe->info.has_flat_ccs;
