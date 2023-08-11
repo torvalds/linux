@@ -154,11 +154,6 @@ struct rkisp_isp_params_val_v21 {
 
 	struct rkisp_dummy_buffer buf_3dnr;
 
-	struct isp2x_hdrmge_cfg last_hdrmge;
-	struct isp21_drc_cfg last_hdrdrc;
-	struct isp2x_hdrmge_cfg cur_hdrmge;
-	struct isp21_drc_cfg cur_hdrdrc;
-
 	u8 dhaz_en;
 	u8 wdr_en;
 	u8 tmo_en;

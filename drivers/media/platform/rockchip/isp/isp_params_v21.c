@@ -3740,19 +3740,6 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 		ops->rawaf_enable(params_vdev, !!(module_ens & ISP2X_MODULE_RAWAF));
 }
 
-static __maybe_unused
-void __isp_config_hdrshd(struct rkisp_isp_params_vdev *params_vdev)
-{
-	struct rkisp_isp_params_v21_ops *ops =
-		(struct rkisp_isp_params_v21_ops *)params_vdev->priv_ops;
-	struct rkisp_isp_params_val_v21 *priv_val =
-		(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
-
-	ops->hdrmge_config(params_vdev, &priv_val->last_hdrmge, RKISP_PARAMS_SHD);
-
-	ops->hdrdrc_config(params_vdev, &priv_val->last_hdrdrc, RKISP_PARAMS_SHD);
-}
-
 static
 void rkisp_params_cfgsram_v21(struct rkisp_isp_params_vdev *params_vdev)
 {
@@ -3998,11 +3985,6 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_set_bits(params_vdev->dev, ISP_CTRL1,
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN,
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN, false);
-
-	priv_val->cur_hdrmge = params_vdev->isp21_params->others.hdrmge_cfg;
-	priv_val->cur_hdrdrc = params_vdev->isp21_params->others.drc_cfg;
-	priv_val->last_hdrmge = priv_val->cur_hdrmge;
-	priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
 	spin_unlock(&params_vdev->config_lock);
 }
 
@@ -4210,8 +4192,6 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 {
 	struct isp21_isp_params_cfg *new_params = NULL;
 	struct rkisp_buffer *cur_buf = params_vdev->cur_buf;
-	struct rkisp_device *dev = params_vdev->dev;
-	struct rkisp_hw_dev *hw_dev = dev->hw_dev;
 
 	spin_lock(&params_vdev->config_lock);
 	if (!params_vdev->streamon)
@@ -4257,21 +4237,8 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 	__isp_isr_other_config(params_vdev, new_params, type);
 	__isp_isr_other_en(params_vdev, new_params, type);
 	__isp_isr_meas_en(params_vdev, new_params, type);
-	if (!hw_dev->is_single && type != RKISP_PARAMS_SHD)
-		__isp_config_hdrshd(params_vdev);
 
 	if (type != RKISP_PARAMS_IMD) {
-		struct rkisp_isp_params_val_v21 *priv_val =
-			(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
-
-		if (new_params->module_cfg_update & ISP2X_MODULE_HDRMGE) {
-			priv_val->last_hdrmge = priv_val->cur_hdrmge;
-			priv_val->cur_hdrmge = new_params->others.hdrmge_cfg;
-		}
-		if (new_params->module_cfg_update & ISP2X_MODULE_DRC) {
-			priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
-			priv_val->cur_hdrdrc = new_params->others.drc_cfg;
-		}
 		new_params->module_cfg_update = 0;
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		cur_buf = NULL;

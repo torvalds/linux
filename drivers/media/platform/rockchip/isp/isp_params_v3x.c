@@ -4095,22 +4095,6 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 		ops->rawawb_enable(params_vdev, !!(module_ens & ISP3X_MODULE_RAWAWB), id);
 }
 
-static __maybe_unused
-void __isp_config_hdrshd(struct rkisp_isp_params_vdev *params_vdev)
-{
-	struct rkisp_isp_params_ops_v3x *ops =
-		(struct rkisp_isp_params_ops_v3x *)params_vdev->priv_ops;
-	struct rkisp_isp_params_val_v3x *priv_val =
-		(struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
-
-	if (params_vdev->dev->hw_dev->is_unite) {
-		ops->hdrmge_config(params_vdev, &priv_val->last_hdrmge, RKISP_PARAMS_SHD, 1);
-		ops->hdrdrc_config(params_vdev, &priv_val->last_hdrdrc, RKISP_PARAMS_SHD, 1);
-	}
-	ops->hdrmge_config(params_vdev, &priv_val->last_hdrmge, RKISP_PARAMS_SHD, 0);
-	ops->hdrdrc_config(params_vdev, &priv_val->last_hdrdrc, RKISP_PARAMS_SHD, 0);
-}
-
 static
 void rkisp_params_cfgsram_v3x(struct rkisp_isp_params_vdev *params_vdev)
 {
@@ -4432,11 +4416,6 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	__isp_isr_other_config(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
 	__isp_isr_other_en(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
 	__isp_isr_meas_en(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
-
-	priv_val->cur_hdrmge = params_vdev->isp3x_params->others.hdrmge_cfg;
-	priv_val->cur_hdrdrc = params_vdev->isp3x_params->others.drc_cfg;
-	priv_val->last_hdrmge = priv_val->cur_hdrmge;
-	priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
 	spin_unlock(&params_vdev->config_lock);
 }
 
@@ -4766,22 +4745,8 @@ rkisp_params_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev,
 	__isp_isr_other_config(params_vdev, new_params, type, 0);
 	__isp_isr_other_en(params_vdev, new_params, type, 0);
 	__isp_isr_meas_en(params_vdev, new_params, type, 0);
-	if (!hw_dev->is_single && type != RKISP_PARAMS_SHD)
-		__isp_config_hdrshd(params_vdev);
 
 	if (type != RKISP_PARAMS_IMD) {
-		struct rkisp_isp_params_val_v3x *priv_val =
-			(struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
-
-		if (new_params->module_cfg_update & ISP3X_MODULE_HDRMGE) {
-			priv_val->last_hdrmge = priv_val->cur_hdrmge;
-			priv_val->cur_hdrmge = new_params->others.hdrmge_cfg;
-		}
-
-		if (new_params->module_cfg_update & ISP3X_MODULE_DRC) {
-			priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
-			priv_val->cur_hdrdrc = new_params->others.drc_cfg;
-		}
 		new_params->module_cfg_update = 0;
 		if (hw_dev->is_unite)
 			(new_params++)->module_cfg_update = 0;

@@ -201,11 +201,6 @@ struct rkisp_isp_params_val_v32 {
 
 	struct rkisp_dummy_buffer buf_frm;
 
-	struct isp32_hdrmge_cfg last_hdrmge;
-	struct isp32_drc_cfg last_hdrdrc;
-	struct isp32_hdrmge_cfg cur_hdrmge;
-	struct isp32_drc_cfg cur_hdrdrc;
-
 	bool dhaz_en;
 	bool drc_en;
 	bool lsc_en;
