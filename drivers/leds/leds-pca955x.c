@@ -145,6 +145,12 @@ static inline int pca95xx_num_input_regs(int bits)
 	return (bits + 7) / 8;
 }
 
+/* 4 bits per LED selector register */
+static inline int pca955x_num_led_regs(int bits)
+{
+	return (bits + 3)  / 4;
+}
+
 /*
  * Return an LED selector register value based on an existing one, with
  * the appropriate 2-bit state value set for the given LED number (0-3).
