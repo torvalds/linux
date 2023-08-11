@@ -438,6 +438,8 @@ struct dma_features {
 	unsigned int tbssel;
 	/* Numbers of Auxiliary Snapshot Inputs */
 	unsigned int aux_snapshot_n;
+	/* Timestamp System Time Source */
+	unsigned int tssrc;
 };
 
 /* RX Buffer size must be multiple of 4/8/16 bytes */
