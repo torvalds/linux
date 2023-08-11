@@ -2485,6 +2485,8 @@ static enum smu_clk_type smu_convert_to_smuclk(enum pp_clock_type type)
 		clk_type = SMU_OD_FAN_CURVE; break;
 	case OD_ACOUSTIC_LIMIT:
 		clk_type = SMU_OD_ACOUSTIC_LIMIT; break;
+	case OD_ACOUSTIC_TARGET:
+		clk_type = SMU_OD_ACOUSTIC_TARGET; break;
 	default:
 		clk_type = SMU_CLK_COUNT; break;
 	}
