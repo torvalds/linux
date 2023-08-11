@@ -1398,6 +1398,21 @@ static int journal_get_superblock(journal_t *journal)
 		goto out;
 	}
 
+	/*
+	 * If this is a V2 superblock, then we have to check the
+	 * features flags on it.
+	 */
+	if (!jbd2_format_support_feature(journal))
+		return 0;
+
+	if ((sb->s_feature_ro_compat &
+			~cpu_to_be32(JBD2_KNOWN_ROCOMPAT_FEATURES)) ||
+	    (sb->s_feature_incompat &
+			~cpu_to_be32(JBD2_KNOWN_INCOMPAT_FEATURES))) {
+		printk(KERN_WARNING "JBD2: Unrecognised features on journal\n");
+		goto out;
+	}
+
 	if (jbd2_has_feature_csum2(journal) &&
 	    jbd2_has_feature_csum3(journal)) {
 		/* Can't have checksum v2 and v3 at the same time! */
@@ -2058,21 +2073,6 @@ int jbd2_journal_load(journal_t *journal)
 {
 	int err;
 	journal_superblock_t *sb = journal->j_superblock;
-
-	/*
-	 * If this is a V2 superblock, then we have to check the
-	 * features flags on it.
-	 */
-	if (jbd2_format_support_feature(journal)) {
-		if ((sb->s_feature_ro_compat &
-		     ~cpu_to_be32(JBD2_KNOWN_ROCOMPAT_FEATURES)) ||
-		    (sb->s_feature_incompat &
-		     ~cpu_to_be32(JBD2_KNOWN_INCOMPAT_FEATURES))) {
-			printk(KERN_WARNING
-				"JBD2: Unrecognised features on journal\n");
-			return -EINVAL;
-		}
-	}
 
 	/*
 	 * Create a slab for this blocksize
