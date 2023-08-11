@@ -1305,18 +1305,14 @@ int bch2_journal_read(struct bch_fs *c,
 
 		bch2_replicas_entry_sort(&replicas.e);
 
-		/*
-		 * If we're mounting in degraded mode - if we didn't read all
-		 * the devices - this is wrong:
-		 */
-
 		printbuf_reset(&buf);
 		bch2_replicas_entry_to_text(&buf, &replicas.e);
 
 		if (!degraded &&
-		    fsck_err_on(!bch2_replicas_marked(c, &replicas.e), c,
-				"superblock not marked as containing replicas %s",
-				buf.buf)) {
+		    !bch2_replicas_marked(c, &replicas.e) &&
+		    (le64_to_cpu(i->j.seq) == *last_seq ||
+		     fsck_err(c, "superblock not marked as containing replicas for journal entry %llu\n  %s",
+			      le64_to_cpu(i->j.seq), buf.buf))) {
 			ret = bch2_mark_replicas(c, &replicas.e);
 			if (ret)
 				goto err;
@@ -1483,6 +1479,7 @@ static void journal_write_done(struct closure *cl)
 	struct journal *j = container_of(cl, struct journal, io);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_buf *w = journal_last_unwritten_buf(j);
+	struct bch_replicas_padded replicas;
 	union journal_res_state old, new;
 	u64 v, seq;
 	int err = 0;
@@ -1494,7 +1491,13 @@ static void journal_write_done(struct closure *cl)
 	if (!w->devs_written.nr) {
 		bch_err(c, "unable to write journal to sufficient devices");
 		err = -EIO;
+	} else {
+		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal,
+					 w->devs_written);
+		if (bch2_mark_replicas(c, &replicas.e))
+			err = -EIO;
 	}
+
 	if (err)
 		bch2_fatal_error(c);
 
