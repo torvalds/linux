@@ -23,7 +23,13 @@
 #define PCCR6	0x0c4
 #define   PCCR6_DMA_CUR_ADDR		GENMASK(27, 0)
 #define PCCR4	0x0d0
+#define   PCCR4_DMA_ADDRL_MASK		GENMASK(31, 0)
+#define   PCCR4_DMA_ADDRL_SHIFT		0
 #define PCCR5	0x0d4
+#define   PCCR5_DMA_ADDRH_MASK		GENMASK(31, 28)
+#define   PCCR5_DMA_ADDRH_SHIFT		28
+#define   PCCR5_DMA_LEN_MASK		GENMASK(23, 0)
+#define   PCCR5_DMA_LEN_SHIFT		0
 #define PCCR0	0x130
 #define   PCCR0_EN_DMA_INT		BIT(31)
 #define   PCCR0_EN_DMA_MODE		BIT(14)
@@ -115,7 +121,7 @@ static ssize_t aspeed_pcc_file_read(struct file *file, char __user *buffer,
 		size_t count, loff_t *ppos)
 {
 	int rc;
-	ssize_t copied;
+	unsigned int copied;
 
 	struct aspeed_pcc *pcc = container_of(
 			file->private_data,
@@ -289,8 +295,11 @@ static int aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
 
 	/* set DMA ring buffer size and enable interrupts */
 	if (pcc->dma_mode) {
-		regmap_write(pcc->regmap, PCCR4, pcc->dma.addr);
-		regmap_write(pcc->regmap, PCCR5, pcc->dma.size / 4);
+		regmap_write(pcc->regmap, PCCR4, pcc->dma.addr & 0xffffffff);
+		regmap_update_bits(pcc->regmap, PCCR5, PCCR5_DMA_ADDRH_MASK,
+				   (pcc->dma.addr >> 32) << PCCR5_DMA_ADDRH_SHIFT);
+		regmap_update_bits(pcc->regmap, PCCR5, PCCR5_DMA_LEN_MASK,
+				   (pcc->dma.size / 4) << PCCR5_DMA_LEN_SHIFT);
 		regmap_update_bits(pcc->regmap, PCCR0,
 			PCCR0_EN_DMA_INT | PCCR0_EN_DMA_MODE,
 			PCCR0_EN_DMA_INT | PCCR0_EN_DMA_MODE);
@@ -319,6 +328,12 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pcc->dev = dev;
+
+	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	if (rc) {
+		dev_err(dev, "cannot set 64-bits DMA mask\n");
+		return rc;
+	}
 
 	pcc->regmap = syscon_node_to_regmap(pdev->dev.parent->of_node);
 	if (IS_ERR(pcc->regmap)) {
@@ -450,6 +465,7 @@ static int aspeed_pcc_remove(struct platform_device *pdev)
 static const struct of_device_id aspeed_pcc_table[] = {
 	{ .compatible = "aspeed,ast2500-lpc-pcc" },
 	{ .compatible = "aspeed,ast2600-lpc-pcc" },
+	{ .compatible = "aspeed,ast2700-lpc-pcc" },
 	{ },
 };
 
