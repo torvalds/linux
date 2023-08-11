@@ -4,8 +4,7 @@
 # AMD x86 Platform-Specific Drivers
 #
 
-amd-pmc-y			:= pmc.o pmc-quirks.o
-obj-$(CONFIG_AMD_PMC)		+= amd-pmc.o
+obj-$(CONFIG_AMD_PMC)		+= pmc/
 amd_hsmp-y			:= hsmp.o
 obj-$(CONFIG_AMD_HSMP)		+= amd_hsmp.o
 obj-$(CONFIG_AMD_PMF)		+= pmf/
