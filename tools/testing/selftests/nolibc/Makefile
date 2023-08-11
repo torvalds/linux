@@ -178,7 +178,7 @@ nolibc-test: nolibc-test.c
 endif
 
 libc-test: nolibc-test.c
-	$(QUIET_CC)$(CC) -o $@ $<
+	$(QUIET_CC)$(HOSTCC) -o $@ $<
 
 # local libc-test
 run-libc-test: libc-test
