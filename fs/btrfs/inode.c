@@ -5585,11 +5585,11 @@ struct inode *btrfs_iget(struct super_block *s, u64 ino, struct btrfs_root *root
 	return btrfs_iget_path(s, ino, root, NULL);
 }
 
-static struct inode *new_simple_dir(struct super_block *s,
+static struct inode *new_simple_dir(struct inode *dir,
 				    struct btrfs_key *key,
 				    struct btrfs_root *root)
 {
-	struct inode *inode = new_inode(s);
+	struct inode *inode = new_inode(dir->i_sb);
 
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
@@ -5608,9 +5608,11 @@ static struct inode *new_simple_dir(struct super_block *s,
 	inode->i_fop = &simple_dir_operations;
 	inode->i_mode = S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO;
 	inode->i_mtime = current_time(inode);
-	inode->i_atime = inode->i_mtime;
-	inode->i_ctime = inode->i_mtime;
+	inode->i_atime = dir->i_atime;
+	inode->i_ctime = dir->i_ctime;
 	BTRFS_I(inode)->i_otime = inode->i_mtime;
+	inode->i_uid = dir->i_uid;
+	inode->i_gid = dir->i_gid;
 
 	return inode;
 }
@@ -5669,7 +5671,7 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 		if (ret != -ENOENT)
 			inode = ERR_PTR(ret);
 		else
-			inode = new_simple_dir(dir->i_sb, &location, root);
+			inode = new_simple_dir(dir, &location, root);
 	} else {
 		inode = btrfs_iget(dir->i_sb, location.objectid, sub_root);
 		btrfs_put_root(sub_root);
