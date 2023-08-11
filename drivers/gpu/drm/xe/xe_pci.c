@@ -164,6 +164,24 @@ static const struct xe_graphics_desc graphics_xelpg = {
 	.has_flat_ccs = 0,
 };
 
+#define XE2_GFX_FEATURES \
+	.dma_mask_size = 46, \
+	.has_asid = 1, \
+	.has_flat_ccs = 0 /* FIXME: implementation missing */, \
+	.has_range_tlb_invalidation = 1, \
+	.supports_usm = 0 /* FIXME: implementation missing */, \
+	.vm_max_level = 4, \
+	.hw_engine_mask = \
+		BIT(XE_HW_ENGINE_RCS0) | \
+		BIT(XE_HW_ENGINE_BCS8) | BIT(XE_HW_ENGINE_BCS0) | \
+		GENMASK(XE_HW_ENGINE_CCS3, XE_HW_ENGINE_CCS0)
+
+static const struct xe_graphics_desc graphics_xe2 = {
+	.name = "Xe2_LPG",
+
+	XE2_GFX_FEATURES,
+};
+
 static const struct xe_media_desc media_xem = {
 	.name = "Xe_M",
 	.ver = 12,
@@ -296,6 +314,7 @@ static const struct xe_device_desc mtl_desc = {
 static struct gmdid_map graphics_ip_map[] = {
 	{ 1270, &graphics_xelpg },
 	{ 1271, &graphics_xelpg },
+	{ 2004, &graphics_xe2 },
 };
 
 /* Map of GMD_ID values to media IP */
