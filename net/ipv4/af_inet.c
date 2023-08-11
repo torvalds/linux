@@ -431,9 +431,8 @@ int inet_release(struct socket *sock)
 }
 EXPORT_SYMBOL(inet_release);
 
-int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+int inet_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
-	struct sock *sk = sock->sk;
 	u32 flags = BIND_WITH_LOCK;
 	int err;
 
@@ -453,6 +452,11 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		return err;
 
 	return __inet_bind(sk, uaddr, addr_len, flags);
+}
+
+int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+{
+	return inet_bind_sk(sock->sk, uaddr, addr_len);
 }
 EXPORT_SYMBOL(inet_bind);
 
