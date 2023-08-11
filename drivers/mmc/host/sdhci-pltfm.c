@@ -199,6 +199,16 @@ void sdhci_pltfm_unregister(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_unregister);
 
+void sdhci_pltfm_remove(struct platform_device *pdev)
+{
+	struct sdhci_host *host = platform_get_drvdata(pdev);
+	int dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
+
+	sdhci_remove_host(host, dead);
+	sdhci_pltfm_free(pdev);
+}
+EXPORT_SYMBOL_GPL(sdhci_pltfm_remove);
+
 #ifdef CONFIG_PM_SLEEP
 int sdhci_pltfm_suspend(struct device *dev)
 {
