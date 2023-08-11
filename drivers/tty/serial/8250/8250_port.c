@@ -703,9 +703,6 @@ static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 
 static void serial8250_clear_IER(struct uart_8250_port *up)
 {
-	/* Port locked to synchronize UART_IER access against the console. */
-	lockdep_assert_held_once(&up->port.lock);
-
 	if (up->capabilities & UART_CAP_UUE)
 		serial_out(up, UART_IER, UART_IER_UUE);
 	else
