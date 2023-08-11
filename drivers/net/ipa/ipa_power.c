@@ -332,7 +332,7 @@ void ipa_power_retention(struct ipa *ipa, bool enable)
 
 	(void)snprintf(buf, sizeof(buf), fmt, enable ? '1' : '0');
 
-	ret = qmp_send(power->qmp, buf, sizeof(buf));
+	ret = qmp_send(power->qmp, buf);
 	if (ret)
 		dev_err(power->dev, "error %d sending QMP %sable request\n",
 			ret, enable ? "en" : "dis");

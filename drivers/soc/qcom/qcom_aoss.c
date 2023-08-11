@@ -206,36 +206,35 @@ static bool qmp_message_empty(struct qmp *qmp)
  * qmp_send() - send a message to the AOSS
  * @qmp: qmp context
  * @data: message to be sent
- * @len: length of the message
  *
  * Transmit @data to AOSS and wait for the AOSS to acknowledge the message.
- * @len must be a multiple of 4 and not longer than the mailbox size. Access is
- * synchronized by this implementation.
+ * data must not be longer than the mailbox size. Access is synchronized by
+ * this implementation.
  *
  * Return: 0 on success, negative errno on failure
  */
-int qmp_send(struct qmp *qmp, const void *data, size_t len)
+int qmp_send(struct qmp *qmp, const void *data)
 {
+	char buf[QMP_MSG_LEN];
 	long time_left;
 	int ret;
 
 	if (WARN_ON(IS_ERR_OR_NULL(qmp) || !data))
 		return -EINVAL;
 
-	if (WARN_ON(len + sizeof(u32) > qmp->size))
+	if (WARN_ON(strlen(data) >= sizeof(buf)))
 		return -EINVAL;
 
-	if (WARN_ON(len % sizeof(u32)))
-		return -EINVAL;
+	strscpy_pad(buf, data, sizeof(buf));
 
 	mutex_lock(&qmp->tx_lock);
 
 	/* The message RAM only implements 32-bit accesses */
 	__iowrite32_copy(qmp->msgram + qmp->offset + sizeof(u32),
-			 data, len / sizeof(u32));
-	writel(len, qmp->msgram + qmp->offset);
+			 buf, sizeof(buf) / sizeof(u32));
+	writel(sizeof(buf), qmp->msgram + qmp->offset);
 
-	/* Read back len to confirm data written in message RAM */
+	/* Read back length to confirm data written in message RAM */
 	readl(qmp->msgram + qmp->offset);
 	qmp_kick(qmp);
 
@@ -262,7 +261,7 @@ static int qmp_qdss_clk_prepare(struct clk_hw *hw)
 	static const char buf[QMP_MSG_LEN] = "{class: clock, res: qdss, val: 1}";
 	struct qmp *qmp = container_of(hw, struct qmp, qdss_clk);
 
-	return qmp_send(qmp, buf, sizeof(buf));
+	return qmp_send(qmp, buf);
 }
 
 static void qmp_qdss_clk_unprepare(struct clk_hw *hw)
@@ -270,7 +269,7 @@ static void qmp_qdss_clk_unprepare(struct clk_hw *hw)
 	static const char buf[QMP_MSG_LEN] = "{class: clock, res: qdss, val: 0}";
 	struct qmp *qmp = container_of(hw, struct qmp, qdss_clk);
 
-	qmp_send(qmp, buf, sizeof(buf));
+	qmp_send(qmp, buf);
 }
 
 static const struct clk_ops qmp_qdss_clk_ops = {
@@ -344,7 +343,7 @@ static int qmp_cdev_set_cur_state(struct thermal_cooling_device *cdev,
 			qmp_cdev->name,
 			cdev_state ? "on" : "off");
 
-	ret = qmp_send(qmp_cdev->qmp, buf, sizeof(buf));
+	ret = qmp_send(qmp_cdev->qmp, buf);
 
 	if (!ret)
 		qmp_cdev->state = cdev_state;

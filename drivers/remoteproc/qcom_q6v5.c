@@ -35,7 +35,7 @@ static int q6v5_load_state_toggle(struct qcom_q6v5 *q6v5, bool enable)
 
 	WARN_ON(ret >= Q6V5_LOAD_STATE_MSG_LEN);
 
-	ret = qmp_send(q6v5->qmp, buf, sizeof(buf));
+	ret = qmp_send(q6v5->qmp, buf);
 	if (ret)
 		dev_err(q6v5->dev, "failed to toggle load state\n");
 
