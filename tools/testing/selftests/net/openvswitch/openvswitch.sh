@@ -217,6 +217,31 @@ test_drop_reason() {
 		return 1
 	fi
 
+	# Drop UDP 6000 traffic with an explicit action and an error code.
+	ovs_add_flow "test_drop_reason" dropreason \
+		"in_port(1),eth(),eth_type(0x0800),ipv4(src=172.31.110.10,proto=17),udp(dst=6000)" \
+                'drop(42)'
+	# Drop UDP 7000 traffic with an explicit action with no error code.
+	ovs_add_flow "test_drop_reason" dropreason \
+		"in_port(1),eth(),eth_type(0x0800),ipv4(src=172.31.110.10,proto=17),udp(dst=7000)" \
+                'drop(0)'
+
+	ovs_drop_record_and_run \
+            "test_drop_reason" ip netns exec client nc -i 1 -zuv 172.31.110.20 6000
+	ovs_drop_reason_count 0x30004 # OVS_DROP_EXPLICIT_ACTION_ERROR
+	if [[ "$?" -ne "1" ]]; then
+		info "Did not detect expected explicit error drops: $?"
+		return 1
+	fi
+
+	ovs_drop_record_and_run \
+            "test_drop_reason" ip netns exec client nc -i 1 -zuv 172.31.110.20 7000
+	ovs_drop_reason_count 0x30003 # OVS_DROP_EXPLICIT_ACTION
+	if [[ "$?" -ne "1" ]]; then
+		info "Did not detect expected explicit drops: $?"
+		return 1
+	fi
+
 	return 0
 }
 
@@ -458,6 +483,16 @@ test_netlink_checks () {
 	    wc -l) == 2 ] || \
 	      return 1
 
+	ERR_MSG="Flow actions may not be safe on all matching packets"
+	PRE_TEST=$(dmesg | grep -c "${ERR_MSG}")
+	ovs_add_flow "test_netlink_checks" nv0 \
+		'in_port(1),eth(),eth_type(0x0806),arp()' 'drop(0),2' \
+		&> /dev/null && return 1
+	POST_TEST=$(dmesg | grep -c "${ERR_MSG}")
+	if [ "$PRE_TEST" == "$POST_TEST" ]; then
+		info "failed - error not generated"
+		return 1
+	fi
 	return 0
 }
 
