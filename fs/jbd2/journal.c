@@ -115,14 +115,6 @@ void __jbd2_debug(int level, const char *file, const char *func,
 #endif
 
 /* Checksumming functions */
-static int jbd2_verify_csum_type(journal_t *j, journal_superblock_t *sb)
-{
-	if (!jbd2_journal_has_csum_v2or3_feature(j))
-		return 1;
-
-	return sb->s_checksum_type == JBD2_CRC32C_CHKSUM;
-}
-
 static __be32 jbd2_superblock_csum(journal_t *j, journal_superblock_t *sb)
 {
 	__u32 csum;
@@ -1429,13 +1421,13 @@ static int journal_get_superblock(journal_t *journal)
 		goto out;
 	}
 
-	if (!jbd2_verify_csum_type(journal, sb)) {
-		printk(KERN_ERR "JBD2: Unknown checksum type\n");
-		goto out;
-	}
-
 	/* Load the checksum driver */
 	if (jbd2_journal_has_csum_v2or3_feature(journal)) {
+		if (sb->s_checksum_type != JBD2_CRC32C_CHKSUM) {
+			printk(KERN_ERR "JBD2: Unknown checksum type\n");
+			goto out;
+		}
+
 		journal->j_chksum_driver = crypto_alloc_shash("crc32c", 0, 0);
 		if (IS_ERR(journal->j_chksum_driver)) {
 			printk(KERN_ERR "JBD2: Cannot load crc32c driver.\n");
