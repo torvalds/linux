@@ -219,6 +219,15 @@ int ap_sb_available(void)
 }
 
 /*
+ * ap_is_se_guest(): Check for SE guest with AP pass-through support.
+ */
+bool ap_is_se_guest(void)
+{
+	return is_prot_virt_guest() && ap_sb_available();
+}
+EXPORT_SYMBOL(ap_is_se_guest);
+
+/*
  * ap_fetch_qci_info(): Fetch cryptographic config info
  *
  * Returns the ap configuration info fetched via PQAP(QCI).

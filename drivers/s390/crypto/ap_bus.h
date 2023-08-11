@@ -274,6 +274,7 @@ void ap_flush_queue(struct ap_queue *aq);
 
 void *ap_airq_ptr(void);
 int ap_sb_available(void);
+bool ap_is_se_guest(void);
 void ap_wait(enum ap_sm_wait wait);
 void ap_request_timeout(struct timer_list *t);
 void ap_bus_force_rescan(void);

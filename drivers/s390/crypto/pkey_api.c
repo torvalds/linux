@@ -263,7 +263,9 @@ static int pkey_clr2ep11key(const u8 *clrkey, size_t clrkeylen,
 
 	/* build a list of apqns suitable for ep11 keys with cpacf support */
 	rc = ep11_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
-			    ZCRYPT_CEX7, EP11_API_V, NULL);
+			    ZCRYPT_CEX7,
+			    ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4,
+			    NULL);
 	if (rc)
 		goto out;
 
@@ -299,7 +301,8 @@ static int pkey_ep11key2pkey(const u8 *key, size_t keylen,
 
 	/* build a list of apqns suitable for this key */
 	rc = ep11_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
-			    ZCRYPT_CEX7, EP11_API_V,
+			    ZCRYPT_CEX7,
+			    ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4,
 			    ep11_kb_wkvp(key, keylen));
 	if (rc)
 		goto out;
@@ -902,6 +905,7 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 	} else if (hdr->type == TOKTYPE_NON_CCA &&
 		   hdr->version == TOKVER_EP11_AES) {
 		struct ep11keyblob *kb = (struct ep11keyblob *)key;
+		int api;
 
 		rc = ep11_check_aes_key(debug_info, 3, key, keylen, 1);
 		if (rc)
@@ -911,8 +915,9 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 		if (ksize)
 			*ksize = kb->head.bitlen;
 
+		api = ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4;
 		rc = ep11_findcard2(&_apqns, &_nr_apqns, *cardnr, *domain,
-				    ZCRYPT_CEX7, EP11_API_V,
+				    ZCRYPT_CEX7, api,
 				    ep11_kb_wkvp(key, keylen));
 		if (rc)
 			goto out;
@@ -926,6 +931,7 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 	} else if (hdr->type == TOKTYPE_NON_CCA &&
 		   hdr->version == TOKVER_EP11_AES_WITH_HEADER) {
 		struct ep11kblob_header *kh = (struct ep11kblob_header *)key;
+		int api;
 
 		rc = ep11_check_aes_key_with_hdr(debug_info, 3,
 						 key, keylen, 1);
@@ -936,8 +942,9 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 		if (ksize)
 			*ksize = kh->bitlen;
 
+		api = ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4;
 		rc = ep11_findcard2(&_apqns, &_nr_apqns, *cardnr, *domain,
-				    ZCRYPT_CEX7, EP11_API_V,
+				    ZCRYPT_CEX7, api,
 				    ep11_kb_wkvp(key, keylen));
 		if (rc)
 			goto out;
@@ -1056,7 +1063,7 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 			return -EINVAL;
 		if (kb->attr & EP11_BLOB_PKEY_EXTRACTABLE) {
 			minhwtype = ZCRYPT_CEX7;
-			api = EP11_API_V;
+			api = ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4;
 		}
 		rc = ep11_findcard2(&_apqns, &_nr_apqns, 0xFFFF, 0xFFFF,
 				    minhwtype, api, kb->wkvp);
@@ -1072,7 +1079,7 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 			return -EINVAL;
 		if (kb->attr & EP11_BLOB_PKEY_EXTRACTABLE) {
 			minhwtype = ZCRYPT_CEX7;
-			api = EP11_API_V;
+			api = ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4;
 		}
 		rc = ep11_findcard2(&_apqns, &_nr_apqns, 0xFFFF, 0xFFFF,
 				    minhwtype, api, kb->wkvp);
@@ -1182,11 +1189,13 @@ static int pkey_apqns4keytype(enum pkey_key_type ktype,
 		   ktype == PKEY_TYPE_EP11_AES ||
 		   ktype == PKEY_TYPE_EP11_ECC) {
 		u8 *wkvp = NULL;
+		int api;
 
 		if (flags & PKEY_FLAGS_MATCH_CUR_MKVP)
 			wkvp = cur_mkvp;
+		api = ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4;
 		rc = ep11_findcard2(&_apqns, &_nr_apqns, 0xFFFF, 0xFFFF,
-				    ZCRYPT_CEX7, EP11_API_V, wkvp);
+				    ZCRYPT_CEX7, api, wkvp);
 		if (rc)
 			goto out;
 
@@ -2160,7 +2169,9 @@ static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 
 	/* build a list of apqns able to generate an cipher key */
 	rc = ep11_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
-			    ZCRYPT_CEX7, EP11_API_V, NULL);
+			    ZCRYPT_CEX7,
+			    ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4,
+			    NULL);
 	if (rc)
 		return rc;
 

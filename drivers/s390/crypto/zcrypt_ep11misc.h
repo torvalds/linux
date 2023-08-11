@@ -12,7 +12,9 @@
 #include <asm/zcrypt.h>
 #include <asm/pkey.h>
 
-#define EP11_API_V 4  /* highest known and supported EP11 API version */
+#define EP11_API_V1 1  /* min EP11 API, default if no higher api required */
+#define EP11_API_V4 4  /* supported EP11 API for the ep11misc cprbs */
+#define EP11_API_V6 6  /* min EP11 API for some cprbs in SE environment */
 #define EP11_STRUCT_MAGIC 0x1234
 #define EP11_BLOB_PKEY_EXTRACTABLE 0x00200000
 
