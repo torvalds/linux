@@ -164,6 +164,7 @@
   __kfifo_to_user
   __kfifo_to_user_r
   __kmalloc
+  __kmalloc_node
   __kmalloc_node_track_caller
   __kthread_init_worker
   __list_add_valid
@@ -240,6 +241,7 @@
   __reset_control_get
   __rht_bucket_nested
   __rt_mutex_init
+  __sbitmap_queue_get
   __scsi_add_device
   __scsi_iterate_devices
   __scsi_print_sense
@@ -430,6 +432,7 @@
   __traceiter_android_vh_update_topology_flags_workfn
   __traceiter_android_vh_watchdog_timer_softlockup
   __traceiter_binder_transaction_received
+  __traceiter_block_rq_insert
   __traceiter_clock_set_rate
   __traceiter_console
   __traceiter_cpu_frequency_limits
@@ -598,6 +601,7 @@
   __tracepoint_android_vh_update_topology_flags_workfn
   __tracepoint_android_vh_watchdog_timer_softlockup
   __tracepoint_binder_transaction_received
+  __tracepoint_block_rq_insert
   __tracepoint_clock_set_rate
   __tracepoint_console
   __tracepoint_cpu_frequency_limits
@@ -798,12 +802,14 @@
   bitmap_release_region
   bitmap_to_arr32
   bitmap_zalloc
+  blk_bio_list_merge
   blk_execute_rq
   blk_execute_rq_nowait
   blk_mq_alloc_request
   blk_mq_alloc_sq_tag_set
   blk_mq_alloc_tag_set
   blk_mq_complete_request
+  blk_mq_debugfs_rq_show
   blk_mq_end_request
   blk_mq_end_request_batch
   blk_mq_free_request
@@ -814,6 +820,7 @@
   blk_mq_quiesce_queue
   blk_mq_requeue_request
   blk_mq_rq_cpu
+  blk_mq_run_hw_queue
   blk_mq_start_request
   blk_mq_start_stopped_hw_queues
   blk_mq_stop_hw_queue
@@ -843,6 +850,8 @@
   blk_rq_map_user_io
   blk_rq_map_user_iov
   blk_rq_unmap_user
+  blk_stat_disable_accounting
+  blk_stat_enable_accounting
   blk_status_to_errno
   blk_update_request
   blkdev_get_by_dev
@@ -1986,6 +1995,9 @@
   edac_device_free_ctl_info
   edac_device_handle_ce_count
   edac_device_handle_ue_count
+  elv_register
+  elv_unregister
+  elevator_alloc
   em_cpu_get
   emergency_restart
   enable_irq
@@ -3832,6 +3844,15 @@
   safe_candev_priv
   sampling_rate_store
   sb800_prefetch
+  sbitmap_add_wait_queue
+  sbitmap_any_bit_set
+  sbitmap_del_wait_queue
+  sbitmap_init_node
+  sbitmap_queue_clear
+  sbitmap_queue_init_node
+  sbitmap_queue_min_shallow_depth
+  sbitmap_queue_resize
+  sbitmap_queue_show
   scatterwalk_ffwd
   scatterwalk_map_and_copy
   sched_clock
@@ -3924,6 +3945,8 @@
   seq_hex_dump
   seq_hlist_next
   seq_hlist_start_head
+  seq_list_next
+  seq_list_start
   seq_lseek
   seq_open
   seq_printf
@@ -4419,6 +4442,7 @@
   timecounter_cyc2time
   timecounter_init
   timecounter_read
+  timer_reduce
   timer_unstable_counter_workaround
   timespec64_to_jiffies
   tipc_dump_done

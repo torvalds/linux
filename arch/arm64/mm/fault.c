@@ -626,8 +626,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 		vma_end_read(vma);
 		goto lock_mmap;
 	}
-	fault = handle_mm_fault(vma, addr & PAGE_MASK,
-				mm_flags | FAULT_FLAG_VMA_LOCK, regs);
+	fault = handle_mm_fault(vma, addr, mm_flags | FAULT_FLAG_VMA_LOCK, regs);
 	vma_end_read(vma);
 
 	if (!(fault & VM_FAULT_RETRY)) {

@@ -966,6 +966,20 @@ void *fuse_file_write_iter_finalize(struct fuse_bpf_args *fa,
 	return ERR_PTR(fwio->ret);
 }
 
+int fuse_file_flock_backing(struct file *file, int cmd, struct file_lock *fl)
+{
+	struct fuse_file *ff = file->private_data;
+	struct file *backing_file = ff->backing_file;
+	int error;
+
+	fl->fl_file = backing_file;
+	if (backing_file->f_op->flock)
+		error = backing_file->f_op->flock(backing_file, cmd, fl);
+	else
+		error = locks_lock_file_wait(backing_file, fl);
+	return error;
+}
+
 ssize_t fuse_backing_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int ret;
@@ -1198,13 +1212,11 @@ int fuse_handle_bpf_prog(struct fuse_entry_bpf *feb, struct inode *parent,
 	}
 
 	/* Cannot change existing program */
-	if (*bpf && new_bpf) {
-		bpf_prog_put(new_bpf);
+	if (*bpf) {
+		if (new_bpf)
+			bpf_prog_put(new_bpf);
 		return new_bpf == *bpf ? 0 : -EINVAL;
 	}
-
-	if (*bpf)
-		bpf_prog_put(*bpf);
 
 	*bpf = new_bpf;
 	return 0;

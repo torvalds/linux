@@ -3,7 +3,6 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.gki
 
 BUILD_SYSTEM_DLKM=1
-MODULES_LIST=${ROOT_DIR}/${KERNEL_DIR}/android/gki_system_dlkm_modules
 
 BUILD_GKI_CERTIFICATION_TOOLS=1
 
