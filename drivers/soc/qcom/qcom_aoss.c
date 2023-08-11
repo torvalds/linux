@@ -205,27 +205,33 @@ static bool qmp_message_empty(struct qmp *qmp)
 /**
  * qmp_send() - send a message to the AOSS
  * @qmp: qmp context
- * @data: message to be sent
+ * @fmt: format string for message to be sent
+ * @...: arguments for the format string
  *
- * Transmit @data to AOSS and wait for the AOSS to acknowledge the message.
+ * Transmit message to AOSS and wait for the AOSS to acknowledge the message.
  * data must not be longer than the mailbox size. Access is synchronized by
  * this implementation.
  *
  * Return: 0 on success, negative errno on failure
  */
-int qmp_send(struct qmp *qmp, const void *data)
+int qmp_send(struct qmp *qmp, const char *fmt, ...)
 {
 	char buf[QMP_MSG_LEN];
 	long time_left;
+	va_list args;
+	int len;
 	int ret;
 
-	if (WARN_ON(IS_ERR_OR_NULL(qmp) || !data))
+	if (WARN_ON(IS_ERR_OR_NULL(qmp) || !fmt))
 		return -EINVAL;
 
-	if (WARN_ON(strlen(data) >= sizeof(buf)))
-		return -EINVAL;
+	memset(buf, 0, sizeof(buf));
+	va_start(args, fmt);
+	len = vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
 
-	strscpy_pad(buf, data, sizeof(buf));
+	if (WARN_ON(len >= sizeof(buf)))
+		return -EINVAL;
 
 	mutex_lock(&qmp->tx_lock);
 
