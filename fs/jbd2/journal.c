@@ -1347,6 +1347,7 @@ static void journal_fail_superblock(journal_t *journal)
 static int journal_check_superblock(journal_t *journal)
 {
 	journal_superblock_t *sb = journal->j_superblock;
+	int num_fc_blks;
 	int err = -EINVAL;
 
 	if (sb->s_header.h_magic != cpu_to_be32(JBD2_MAGIC_NUMBER) ||
@@ -1386,6 +1387,15 @@ static int journal_check_superblock(journal_t *journal)
 	    (sb->s_feature_incompat &
 			~cpu_to_be32(JBD2_KNOWN_INCOMPAT_FEATURES))) {
 		printk(KERN_WARNING "JBD2: Unrecognised features on journal\n");
+		return err;
+	}
+
+	num_fc_blks = jbd2_has_feature_fast_commit(journal) ?
+				jbd2_journal_get_num_fc_blks(sb) : 0;
+	if (be32_to_cpu(sb->s_maxlen) < JBD2_MIN_JOURNAL_BLOCKS ||
+	    be32_to_cpu(sb->s_maxlen) - JBD2_MIN_JOURNAL_BLOCKS < num_fc_blks) {
+		printk(KERN_ERR "JBD2: journal file too short %u,%d\n",
+		       be32_to_cpu(sb->s_maxlen), num_fc_blks);
 		return err;
 	}
 
@@ -1454,7 +1464,6 @@ static int journal_load_superblock(journal_t *journal)
 	int err;
 	struct buffer_head *bh;
 	journal_superblock_t *sb;
-	int num_fc_blocks;
 
 	bh = getblk_unmovable(journal->j_dev, journal->j_blk_offset,
 			      journal->j_blocksize);
@@ -1492,9 +1501,8 @@ static int journal_load_superblock(journal_t *journal)
 
 	if (jbd2_has_feature_fast_commit(journal)) {
 		journal->j_fc_last = be32_to_cpu(sb->s_maxlen);
-		num_fc_blocks = jbd2_journal_get_num_fc_blks(sb);
-		if (journal->j_last - num_fc_blocks >= JBD2_MIN_JOURNAL_BLOCKS)
-			journal->j_last = journal->j_fc_last - num_fc_blocks;
+		journal->j_last = journal->j_fc_last -
+				  jbd2_journal_get_num_fc_blks(sb);
 		journal->j_fc_first = journal->j_last + 1;
 		journal->j_fc_off = 0;
 	}
