@@ -16,7 +16,8 @@ tests="
 	connect_v4				ip4-xon: Basic ipv4 ping between two NS
 	nat_connect_v4				ip4-nat-xon: Basic ipv4 tcp connection via NAT
 	netlink_checks				ovsnl: validate netlink attrs and settings
-	upcall_interfaces			ovs: test the upcall interfaces"
+	upcall_interfaces			ovs: test the upcall interfaces
+	drop_reason				drop: test drop reasons are emitted"
 
 info() {
     [ $VERBOSE = 0 ] || echo $*
@@ -141,6 +142,25 @@ ovs_add_flow () {
 	return 0
 }
 
+ovs_drop_record_and_run () {
+	local sbx=$1
+	shift
+
+	perf record -a -q -e skb:kfree_skb -o ${ovs_dir}/perf.data $* \
+		>> ${ovs_dir}/stdout 2>> ${ovs_dir}/stderr
+	return $?
+}
+
+ovs_drop_reason_count()
+{
+	local reason=$1
+
+	local perf_output=`perf script -i ${ovs_dir}/perf.data -F trace:event,trace`
+	local pattern="skb:kfree_skb:.*reason: $reason"
+
+	return `echo "$perf_output" | grep "$pattern" | wc -l`
+}
+
 usage() {
 	echo
 	echo "$0 [OPTIONS] [TEST]..."
@@ -153,6 +173,51 @@ usage() {
 	echo
 	echo "Available tests${tests}"
 	exit 1
+}
+
+# drop_reason test
+# - drop packets and verify the right drop reason is reported
+test_drop_reason() {
+	which perf >/dev/null 2>&1 || return $ksft_skip
+
+	sbx_add "test_drop_reason" || return $?
+
+	ovs_add_dp "test_drop_reason" dropreason || return 1
+
+	info "create namespaces"
+	for ns in client server; do
+		ovs_add_netns_and_veths "test_drop_reason" "dropreason" "$ns" \
+			"${ns:0:1}0" "${ns:0:1}1" || return 1
+	done
+
+	# Setup client namespace
+	ip netns exec client ip addr add 172.31.110.10/24 dev c1
+	ip netns exec client ip link set c1 up
+
+	# Setup server namespace
+	ip netns exec server ip addr add 172.31.110.20/24 dev s1
+	ip netns exec server ip link set s1 up
+
+	# Allow ARP
+	ovs_add_flow "test_drop_reason" dropreason \
+		'in_port(1),eth(),eth_type(0x0806),arp()' '2' || return 1
+	ovs_add_flow "test_drop_reason" dropreason \
+		'in_port(2),eth(),eth_type(0x0806),arp()' '1' || return 1
+
+	# Allow client ICMP traffic but drop return path
+	ovs_add_flow "test_drop_reason" dropreason \
+		"in_port(1),eth(),eth_type(0x0800),ipv4(src=172.31.110.10,proto=1),icmp()" '2'
+	ovs_add_flow "test_drop_reason" dropreason \
+		"in_port(2),eth(),eth_type(0x0800),ipv4(src=172.31.110.20,proto=1),icmp()" 'drop'
+
+	ovs_drop_record_and_run "test_drop_reason" ip netns exec client ping -c 2 172.31.110.20
+	ovs_drop_reason_count 0x30001 # OVS_DROP_FLOW_ACTION
+	if [[ "$?" -ne "2" ]]; then
+		info "Did not detect expected drops: $?"
+		return 1
+	fi
+
+	return 0
 }
 
 # arp_ping test
