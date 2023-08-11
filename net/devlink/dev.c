@@ -1206,8 +1206,7 @@ err_cancel_msg:
 	return err;
 }
 
-int devlink_nl_cmd_selftests_get_doit(struct sk_buff *skb,
-				      struct genl_info *info)
+int devlink_nl_selftests_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct sk_buff *msg;
