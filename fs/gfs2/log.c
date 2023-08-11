@@ -1227,6 +1227,21 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	gfs2_log_unlock(sdp);
 }
 
+static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
+{
+	return atomic_read(&sdp->sd_log_pinned) +
+	       atomic_read(&sdp->sd_log_blks_needed) >=
+	       atomic_read(&sdp->sd_log_thresh1);
+}
+
+static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
+{
+	return sdp->sd_jdesc->jd_blocks -
+	       atomic_read(&sdp->sd_log_blks_free) +
+	       atomic_read(&sdp->sd_log_blks_needed) >=
+	       atomic_read(&sdp->sd_log_thresh2);
+}
+
 /**
  * gfs2_log_commit - Commit a transaction to the log
  * @sdp: the filesystem
@@ -1246,9 +1261,7 @@ void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	log_refund(sdp, tr);
 
-	if (atomic_read(&sdp->sd_log_pinned) > atomic_read(&sdp->sd_log_thresh1) ||
-	    ((sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free)) >
-	    atomic_read(&sdp->sd_log_thresh2)))
+	if (gfs2_ail_flush_reqd(sdp) || gfs2_jrnl_flush_reqd(sdp))
 		wake_up(&sdp->sd_logd_waitq);
 }
 
@@ -1269,21 +1282,6 @@ static void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 
 	gfs2_assert_warn(sdp, sdp->sd_log_head == sdp->sd_log_tail);
 	gfs2_assert_warn(sdp, list_empty(&sdp->sd_ail2_list));
-}
-
-static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
-{
-	return (atomic_read(&sdp->sd_log_pinned) +
-		atomic_read(&sdp->sd_log_blks_needed) >=
-		atomic_read(&sdp->sd_log_thresh1));
-}
-
-static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
-{
-	unsigned int used_blocks = sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free);
-
-	return used_blocks + atomic_read(&sdp->sd_log_blks_needed) >=
-		atomic_read(&sdp->sd_log_thresh2);
 }
 
 /**
