@@ -1987,20 +1987,16 @@ enum dc_status dc_commit_streams(struct dc *dc,
 
 	dc_resource_state_copy_construct_current(dc, context);
 
-	/*
-	 * Previous validation was perfomred with fast_validation = true and
-	 * the full DML state required for hardware programming was skipped.
-	 *
-	 * Re-validate here to calculate these parameters / watermarks.
-	 */
-	res = dc_validate_global_state(dc, context, false);
+	res = dc_validate_with_context(dc, set, stream_count, context, false);
 	if (res != DC_OK) {
-		DC_LOG_ERROR("DC commit global validation failure: %s (%d)",
-			     dc_status_to_str(res), res);
-		return res;
+		BREAK_TO_DEBUGGER();
+		goto fail;
 	}
 
 	res = dc_commit_state_no_check(dc, context);
+
+fail:
+	dc_release_state(context);
 
 context_alloc_fail:
 
