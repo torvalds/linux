@@ -37,9 +37,16 @@ size_t xe_lrc_size(struct xe_device *xe, enum xe_engine_class class)
 {
 	switch (class) {
 	case XE_ENGINE_CLASS_RENDER:
+		if (GRAPHICS_VER(xe) >= 20)
+			return 4 * SZ_4K;
+		else
+			return 14 * SZ_4K;
 	case XE_ENGINE_CLASS_COMPUTE:
 		/* 14 pages since graphics_ver == 11 */
-		return 14 * SZ_4K;
+		if (GRAPHICS_VER(xe) >= 20)
+			return 3 * SZ_4K;
+		else
+			return 14 * SZ_4K;
 	default:
 		WARN(1, "Unknown engine class: %d", class);
 		fallthrough;
