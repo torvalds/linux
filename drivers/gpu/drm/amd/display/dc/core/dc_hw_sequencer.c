@@ -528,11 +528,6 @@ void hwss_build_fast_sequence(struct dc *dc,
 				(*num_steps)++;
 			}
 			if (dc->hwss.update_plane_addr && current_mpc_pipe->plane_state->update_flags.bits.addr_update) {
-				block_sequence[*num_steps].params.update_plane_addr_params.dc = dc;
-				block_sequence[*num_steps].params.update_plane_addr_params.pipe_ctx = current_mpc_pipe;
-				block_sequence[*num_steps].func = HUBP_UPDATE_PLANE_ADDR;
-				(*num_steps)++;
-
 				if (resource_is_pipe_type(current_mpc_pipe, OTG_MASTER) &&
 						current_mpc_pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 					block_sequence[*num_steps].params.subvp_save_surf_addr.dc_dmub_srv = dc->ctx->dmub_srv;
@@ -541,6 +536,11 @@ void hwss_build_fast_sequence(struct dc *dc,
 					block_sequence[*num_steps].func = DMUB_SUBVP_SAVE_SURF_ADDR;
 					(*num_steps)++;
 				}
+
+				block_sequence[*num_steps].params.update_plane_addr_params.dc = dc;
+				block_sequence[*num_steps].params.update_plane_addr_params.pipe_ctx = current_mpc_pipe;
+				block_sequence[*num_steps].func = HUBP_UPDATE_PLANE_ADDR;
+				(*num_steps)++;
 			}
 
 			if (hws->funcs.set_input_transfer_func && current_mpc_pipe->plane_state->update_flags.bits.gamma_change) {
