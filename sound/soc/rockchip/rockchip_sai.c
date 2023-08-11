@@ -1398,16 +1398,26 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = rockchip_sai_init_dai(sai, res, &dai);
+	if (ret)
+		return ret;
+
+	/*
+	 * MUST: after pm_runtime_enable step, any register R/W
+	 * should be wrapped with pm_runtime_get_sync/put.
+	 *
+	 * Another approach is to enable the regcache true to
+	 * avoid access HW registers.
+	 *
+	 * Alternatively, performing the registers R/W before
+	 * pm_runtime_enable is also a good option.
+	 */
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
 		ret = rockchip_sai_runtime_resume(&pdev->dev);
 		if (ret)
 			goto err_runtime_disable;
 	}
-
-	ret = rockchip_sai_init_dai(sai, res, &dai);
-	if (ret)
-		goto err_runtime_suspend;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_sai_component,
