@@ -1105,6 +1105,39 @@ struct phy_driver {
 	int (*led_blink_set)(struct phy_device *dev, u8 index,
 			     unsigned long *delay_on,
 			     unsigned long *delay_off);
+	/**
+	 * @led_hw_is_supported: Can the HW support the given rules.
+	 * @dev: PHY device which has the LED
+	 * @index: Which LED of the PHY device
+	 * @rules The core is interested in these rules
+	 *
+	 * Return 0 if yes,  -EOPNOTSUPP if not, or an error code.
+	 */
+	int (*led_hw_is_supported)(struct phy_device *dev, u8 index,
+				   unsigned long rules);
+	/**
+	 * @led_hw_control_set: Set the HW to control the LED
+	 * @dev: PHY device which has the LED
+	 * @index: Which LED of the PHY device
+	 * @rules The rules used to control the LED
+	 *
+	 * Returns 0, or a an error code.
+	 */
+	int (*led_hw_control_set)(struct phy_device *dev, u8 index,
+				  unsigned long rules);
+	/**
+	 * @led_hw_control_get: Get how the HW is controlling the LED
+	 * @dev: PHY device which has the LED
+	 * @index: Which LED of the PHY device
+	 * @rules Pointer to the rules used to control the LED
+	 *
+	 * Set *@rules to how the HW is currently blinking. Returns 0
+	 * on success, or a error code if the current blinking cannot
+	 * be represented in rules, or some other error happens.
+	 */
+	int (*led_hw_control_get)(struct phy_device *dev, u8 index,
+				  unsigned long *rules);
+
 };
 #define to_phy_driver(d) container_of(to_mdio_common_driver(d),		\
 				      struct phy_driver, mdiodrv)
