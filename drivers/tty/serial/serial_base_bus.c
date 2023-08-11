@@ -10,6 +10,7 @@
 
 #include <linux/container_of.h>
 #include <linux/device.h>
+#include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
@@ -112,6 +113,8 @@ struct serial_ctrl_device *serial_base_ctrl_add(struct uart_port *port,
 	if (!ctrl_dev)
 		return ERR_PTR(-ENOMEM);
 
+	ida_init(&ctrl_dev->port_ida);
+
 	err = serial_base_device_init(port, &ctrl_dev->dev,
 				      parent, &serial_ctrl_type,
 				      serial_base_ctrl_release,
@@ -142,16 +145,31 @@ struct serial_port_device *serial_base_port_add(struct uart_port *port,
 						struct serial_ctrl_device *ctrl_dev)
 {
 	struct serial_port_device *port_dev;
+	int min = 0, max = -1;	/* Use -1 for max to apply IDA defaults */
 	int err;
 
 	port_dev = kzalloc(sizeof(*port_dev), GFP_KERNEL);
 	if (!port_dev)
 		return ERR_PTR(-ENOMEM);
 
+	/* Device driver specified port_id vs automatic assignment? */
+	if (port->port_id) {
+		min = port->port_id;
+		max = port->port_id;
+	}
+
+	err = ida_alloc_range(&ctrl_dev->port_ida, min, max, GFP_KERNEL);
+	if (err < 0) {
+		kfree(port_dev);
+		return ERR_PTR(err);
+	}
+
+	port->port_id = err;
+
 	err = serial_base_device_init(port, &port_dev->dev,
 				      &ctrl_dev->dev, &serial_port_type,
 				      serial_base_port_release,
-				      port->ctrl_id, port->line);
+				      port->ctrl_id, port->port_id);
 	if (err)
 		goto err_put_device;
 
@@ -165,16 +183,24 @@ struct serial_port_device *serial_base_port_add(struct uart_port *port,
 
 err_put_device:
 	put_device(&port_dev->dev);
+	ida_free(&ctrl_dev->port_ida, port->port_id);
 
 	return ERR_PTR(err);
 }
 
 void serial_base_port_device_remove(struct serial_port_device *port_dev)
 {
+	struct serial_ctrl_device *ctrl_dev;
+	struct device *parent;
+
 	if (!port_dev)
 		return;
 
+	parent = port_dev->dev.parent;
+	ctrl_dev = to_serial_base_ctrl_device(parent);
+
 	device_del(&port_dev->dev);
+	ida_free(&ctrl_dev->port_ida, port_dev->port->port_id);
 	put_device(&port_dev->dev);
 }
 
