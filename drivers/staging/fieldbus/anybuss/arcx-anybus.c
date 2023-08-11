@@ -343,7 +343,7 @@ static struct platform_driver controller_driver = {
 	.remove_new = controller_remove,
 	.driver		= {
 		.name   = "arcx-anybus-controller",
-		.of_match_table	= of_match_ptr(controller_of_match),
+		.of_match_table	= controller_of_match,
 	},
 };
 
