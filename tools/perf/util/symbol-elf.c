@@ -1440,6 +1440,8 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		curr_dso->kernel = dso->kernel;
 		curr_dso->long_name = dso->long_name;
 		curr_dso->long_name_len = dso->long_name_len;
+		curr_dso->binary_type = dso->binary_type;
+		curr_dso->adjust_symbols = dso->adjust_symbols;
 		curr_map = map__new2(start, curr_dso);
 		dso__put(curr_dso);
 		if (curr_map == NULL)
