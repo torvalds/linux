@@ -718,7 +718,7 @@ static const struct dev_pm_ops sun4i_spdif_pm = {
 static struct platform_driver sun4i_spdif_driver = {
 	.driver		= {
 		.name	= "sun4i-spdif",
-		.of_match_table = of_match_ptr(sun4i_spdif_of_match),
+		.of_match_table = sun4i_spdif_of_match,
 		.pm	= &sun4i_spdif_pm,
 	},
 	.probe		= sun4i_spdif_probe,
