@@ -1485,6 +1485,15 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 				return dec_ttl_exception_handler(dp, skb,
 								 key, a);
 			break;
+
+		case OVS_ACTION_ATTR_DROP: {
+			enum ovs_drop_reason reason = nla_get_u32(a)
+				? OVS_DROP_EXPLICIT_WITH_ERROR
+				: OVS_DROP_EXPLICIT;
+
+			ovs_kfree_skb_reason(skb, reason);
+			return 0;
+		}
 		}
 
 		if (unlikely(err)) {
