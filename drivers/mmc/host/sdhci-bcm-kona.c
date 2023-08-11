@@ -310,6 +310,16 @@ err_pltfm_free:
 	return ret;
 }
 
+static void sdhci_bcm_kona_remove(struct platform_device *pdev)
+{
+	struct sdhci_host *host = platform_get_drvdata(pdev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct clk *clk = pltfm_host->clk;
+
+	sdhci_pltfm_remove(pdev);
+	clk_disable_unprepare(clk);
+}
+
 static struct platform_driver sdhci_bcm_kona_driver = {
 	.driver		= {
 		.name	= "sdhci-kona",
@@ -318,7 +328,7 @@ static struct platform_driver sdhci_bcm_kona_driver = {
 		.of_match_table = sdhci_bcm_kona_of_match,
 	},
 	.probe		= sdhci_bcm_kona_probe,
-	.remove_new	= sdhci_pltfm_unregister,
+	.remove_new	= sdhci_bcm_kona_remove,
 };
 module_platform_driver(sdhci_bcm_kona_driver);
 
