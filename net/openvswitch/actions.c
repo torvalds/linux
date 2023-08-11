@@ -1488,7 +1488,7 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 		}
 
 		if (unlikely(err)) {
-			kfree_skb(skb);
+			ovs_kfree_skb_reason(skb, OVS_DROP_ACTION_ERROR);
 			return err;
 		}
 	}

@@ -10,6 +10,7 @@
 
 #define OVS_DROP_REASONS(R)			\
 	R(OVS_DROP_LAST_ACTION)		        \
+	R(OVS_DROP_ACTION_ERROR)		\
 	/* deliberate comment for trailing \ */
 
 enum ovs_drop_reason {
