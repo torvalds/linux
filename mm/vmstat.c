@@ -857,8 +857,10 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 				continue;
 			}
 
-			if (__this_cpu_dec_return(pcp->expire))
+			if (__this_cpu_dec_return(pcp->expire)) {
+				changes++;
 				continue;
+			}
 
 			if (__this_cpu_read(pcp->count)) {
 				drain_zone_pages(zone, this_cpu_ptr(pcp));
