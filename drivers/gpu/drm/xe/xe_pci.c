@@ -319,6 +319,11 @@ static const struct xe_device_desc mtl_desc = {
 	PLATFORM(XE_METEORLAKE),
 };
 
+static const struct xe_device_desc lnl_desc = {
+	PLATFORM(XE_LUNARLAKE),
+	.require_force_probe = true,
+};
+
 #undef PLATFORM
 
 /* Map of GMD_ID values to graphics IP */
@@ -356,6 +361,7 @@ static const struct pci_device_id pciidlist[] = {
 	XE_ATS_M_IDS(INTEL_VGA_DEVICE, &ats_m_desc),
 	XE_DG2_IDS(INTEL_VGA_DEVICE, &dg2_desc),
 	XE_MTL_IDS(INTEL_VGA_DEVICE, &mtl_desc),
+	XE_LNL_IDS(INTEL_VGA_DEVICE, &lnl_desc),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);

@@ -191,4 +191,9 @@
 	XE_MTL_S_IDS(MACRO__, ## __VA_ARGS__),	\
 	XE_ARL_IDS(MACRO__, ## __VA_ARGS__)
 
+#define XE_LNL_IDS(MACRO__, ...) \
+	MACRO__(0x6420, ## __VA_ARGS__), \
+	MACRO__(0x64A0, ## __VA_ARGS__), \
+	MACRO__(0x64B0, ## __VA_ARGS__)
+
 #endif
