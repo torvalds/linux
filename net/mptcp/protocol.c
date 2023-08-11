@@ -3174,25 +3174,17 @@ void mptcp_rcv_space_init(struct mptcp_sock *msk, const struct sock *ssk)
 	WRITE_ONCE(msk->wnd_end, msk->snd_nxt + tcp_sk(ssk)->snd_wnd);
 }
 
-static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
+static struct sock *mptcp_accept(struct sock *ssk, int flags, int *err,
 				 bool kern)
 {
-	struct mptcp_sock *msk = mptcp_sk(sk);
-	struct socket *listener;
 	struct sock *newsk;
 
-	listener = READ_ONCE(msk->subflow);
-	if (WARN_ON_ONCE(!listener)) {
-		*err = -EINVAL;
-		return NULL;
-	}
-
-	pr_debug("msk=%p, listener=%p", msk, mptcp_subflow_ctx(listener->sk));
-	newsk = inet_csk_accept(listener->sk, flags, err, kern);
+	pr_debug("ssk=%p, listener=%p", ssk, mptcp_subflow_ctx(ssk));
+	newsk = inet_csk_accept(ssk, flags, err, kern);
 	if (!newsk)
 		return NULL;
 
-	pr_debug("msk=%p, subflow is mptcp=%d", msk, sk_is_mptcp(newsk));
+	pr_debug("newsk=%p, subflow is mptcp=%d", newsk, sk_is_mptcp(newsk));
 	if (sk_is_mptcp(newsk)) {
 		struct mptcp_subflow_context *subflow;
 		struct sock *new_mptcp_sock;
@@ -3209,9 +3201,9 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		}
 
 		newsk = new_mptcp_sock;
-		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPCAPABLEPASSIVEACK);
+		MPTCP_INC_STATS(sock_net(ssk), MPTCP_MIB_MPCAPABLEPASSIVEACK);
 	} else {
-		MPTCP_INC_STATS(sock_net(sk),
+		MPTCP_INC_STATS(sock_net(ssk),
 				MPTCP_MIB_MPCAPABLEPASSIVEFALLBACK);
 	}
 
@@ -3761,8 +3753,7 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 			       int flags, bool kern)
 {
 	struct mptcp_sock *msk = mptcp_sk(sock->sk);
-	struct socket *ssock;
-	struct sock *newsk;
+	struct sock *ssk, *newsk;
 	int err;
 
 	pr_debug("msk=%p", msk);
@@ -3770,11 +3761,11 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 	/* Buggy applications can call accept on socket states other then LISTEN
 	 * but no need to allocate the first subflow just to error out.
 	 */
-	ssock = READ_ONCE(msk->subflow);
-	if (!ssock)
+	ssk = READ_ONCE(msk->first);
+	if (!ssk)
 		return -EINVAL;
 
-	newsk = mptcp_accept(sock->sk, flags, &err, kern);
+	newsk = mptcp_accept(ssk, flags, &err, kern);
 	if (!newsk)
 		return err;
 
