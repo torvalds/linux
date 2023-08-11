@@ -1248,8 +1248,21 @@ static void fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 	up_read(&sb->s_umount);
 }
 
+static void fs_bdev_sync(struct block_device *bdev)
+{
+	struct super_block *sb = bdev->bd_holder;
+
+	lockdep_assert_held(&bdev->bd_holder_lock);
+
+	if (!lock_active_super(sb))
+		return;
+	sync_filesystem(sb);
+	up_read(&sb->s_umount);
+}
+
 const struct blk_holder_ops fs_holder_ops = {
 	.mark_dead		= fs_bdev_mark_dead,
+	.sync			= fs_bdev_sync,
 };
 EXPORT_SYMBOL_GPL(fs_holder_ops);
 

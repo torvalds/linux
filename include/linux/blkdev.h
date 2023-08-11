@@ -1462,6 +1462,11 @@ void blkdev_show(struct seq_file *seqf, off_t offset);
 
 struct blk_holder_ops {
 	void (*mark_dead)(struct block_device *bdev, bool surprise);
+
+	/*
+	 * Sync the file system mounted on the block device.
+	 */
+	void (*sync)(struct block_device *bdev);
 };
 
 extern const struct blk_holder_ops fs_holder_ops;
@@ -1523,8 +1528,6 @@ static inline int early_lookup_bdev(const char *pathname, dev_t *dev)
 	return -EINVAL;
 }
 #endif /* CONFIG_BLOCK */
-
-int fsync_bdev(struct block_device *bdev);
 
 int freeze_bdev(struct block_device *bdev);
 int thaw_bdev(struct block_device *bdev);
