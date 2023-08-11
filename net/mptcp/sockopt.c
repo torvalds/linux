@@ -293,6 +293,7 @@ static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 {
 	struct sock *sk = (struct sock *)msk;
 	struct socket *ssock;
+	struct sock *ssk;
 	int ret;
 
 	switch (optname) {
@@ -307,16 +308,17 @@ static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 			return PTR_ERR(ssock);
 		}
 
-		ret = sock_setsockopt(ssock, SOL_SOCKET, optname, optval, optlen);
+		ssk = msk->first;
+		ret = sk_setsockopt(ssk, SOL_SOCKET, optname, optval, optlen);
 		if (ret == 0) {
 			if (optname == SO_REUSEPORT)
-				sk->sk_reuseport = ssock->sk->sk_reuseport;
+				sk->sk_reuseport = ssk->sk_reuseport;
 			else if (optname == SO_REUSEADDR)
-				sk->sk_reuse = ssock->sk->sk_reuse;
+				sk->sk_reuse = ssk->sk_reuse;
 			else if (optname == SO_BINDTODEVICE)
-				sk->sk_bound_dev_if = ssock->sk->sk_bound_dev_if;
+				sk->sk_bound_dev_if = ssk->sk_bound_dev_if;
 			else if (optname == SO_BINDTOIFINDEX)
-				sk->sk_bound_dev_if = ssock->sk->sk_bound_dev_if;
+				sk->sk_bound_dev_if = ssk->sk_bound_dev_if;
 		}
 		release_sock(sk);
 		return ret;
@@ -391,6 +393,7 @@ static int mptcp_setsockopt_v6(struct mptcp_sock *msk, int optname,
 	struct sock *sk = (struct sock *)msk;
 	int ret = -EOPNOTSUPP;
 	struct socket *ssock;
+	struct sock *ssk;
 
 	switch (optname) {
 	case IPV6_V6ONLY:
@@ -403,7 +406,8 @@ static int mptcp_setsockopt_v6(struct mptcp_sock *msk, int optname,
 			return PTR_ERR(ssock);
 		}
 
-		ret = tcp_setsockopt(ssock->sk, SOL_IPV6, optname, optval, optlen);
+		ssk = msk->first;
+		ret = tcp_setsockopt(ssk, SOL_IPV6, optname, optval, optlen);
 		if (ret != 0) {
 			release_sock(sk);
 			return ret;
@@ -413,13 +417,13 @@ static int mptcp_setsockopt_v6(struct mptcp_sock *msk, int optname,
 
 		switch (optname) {
 		case IPV6_V6ONLY:
-			sk->sk_ipv6only = ssock->sk->sk_ipv6only;
+			sk->sk_ipv6only = ssk->sk_ipv6only;
 			break;
 		case IPV6_TRANSPARENT:
-			inet_sk(sk)->transparent = inet_sk(ssock->sk)->transparent;
+			inet_sk(sk)->transparent = inet_sk(ssk)->transparent;
 			break;
 		case IPV6_FREEBIND:
-			inet_sk(sk)->freebind = inet_sk(ssock->sk)->freebind;
+			inet_sk(sk)->freebind = inet_sk(ssk)->freebind;
 			break;
 		}
 
@@ -700,7 +704,7 @@ static int mptcp_setsockopt_sol_ip_set_transparent(struct mptcp_sock *msk, int o
 		return PTR_ERR(ssock);
 	}
 
-	issk = inet_sk(ssock->sk);
+	issk = inet_sk(msk->first);
 
 	switch (optname) {
 	case IP_FREEBIND:
@@ -865,8 +869,8 @@ static int mptcp_getsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 {
 	struct sock *sk = (struct sock *)msk;
 	struct socket *ssock;
-	int ret;
 	struct sock *ssk;
+	int ret;
 
 	lock_sock(sk);
 	ssk = msk->first;
@@ -881,7 +885,7 @@ static int mptcp_getsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 		goto out;
 	}
 
-	ret = tcp_getsockopt(ssock->sk, level, optname, optval, optlen);
+	ret = tcp_getsockopt(ssk, level, optname, optval, optlen);
 
 out:
 	release_sock(sk);
