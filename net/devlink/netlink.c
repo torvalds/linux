@@ -109,8 +109,8 @@ devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs)
 	return ERR_PTR(-ENODEV);
 }
 
-int devlink_nl_pre_doit(const struct genl_split_ops *ops,
-			struct sk_buff *skb, struct genl_info *info)
+static int __devlink_nl_pre_doit(struct sk_buff *skb, struct genl_info *info,
+				 u8 flags)
 {
 	struct devlink_port *devlink_port;
 	struct devlink *devlink;
@@ -121,14 +121,14 @@ int devlink_nl_pre_doit(const struct genl_split_ops *ops,
 		return PTR_ERR(devlink);
 
 	info->user_ptr[0] = devlink;
-	if (ops->internal_flags & DEVLINK_NL_FLAG_NEED_PORT) {
+	if (flags & DEVLINK_NL_FLAG_NEED_PORT) {
 		devlink_port = devlink_port_get_from_info(devlink, info);
 		if (IS_ERR(devlink_port)) {
 			err = PTR_ERR(devlink_port);
 			goto unlock;
 		}
 		info->user_ptr[1] = devlink_port;
-	} else if (ops->internal_flags & DEVLINK_NL_FLAG_NEED_DEVLINK_OR_PORT) {
+	} else if (flags & DEVLINK_NL_FLAG_NEED_DEVLINK_OR_PORT) {
 		devlink_port = devlink_port_get_from_info(devlink, info);
 		if (!IS_ERR(devlink_port))
 			info->user_ptr[1] = devlink_port;
@@ -139,6 +139,25 @@ unlock:
 	devl_unlock(devlink);
 	devlink_put(devlink);
 	return err;
+}
+
+int devlink_nl_pre_doit(const struct genl_split_ops *ops,
+			struct sk_buff *skb, struct genl_info *info)
+{
+	return __devlink_nl_pre_doit(skb, info, ops->internal_flags);
+}
+
+int devlink_nl_pre_doit_port(const struct genl_split_ops *ops,
+			     struct sk_buff *skb, struct genl_info *info)
+{
+	return __devlink_nl_pre_doit(skb, info, DEVLINK_NL_FLAG_NEED_PORT);
+}
+
+int devlink_nl_pre_doit_port_optional(const struct genl_split_ops *ops,
+				      struct sk_buff *skb,
+				      struct genl_info *info)
+{
+	return __devlink_nl_pre_doit(skb, info, DEVLINK_NL_FLAG_NEED_DEVLINK_OR_PORT);
 }
 
 void devlink_nl_post_doit(const struct genl_split_ops *ops,
