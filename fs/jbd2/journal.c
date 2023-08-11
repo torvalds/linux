@@ -1361,8 +1361,6 @@ static int journal_get_superblock(journal_t *journal)
 	bh = journal->j_sb_buffer;
 
 	J_ASSERT(bh != NULL);
-	if (buffer_verified(bh))
-		return 0;
 
 	err = bh_read(bh, 0);
 	if (err < 0) {
@@ -1437,7 +1435,6 @@ static int journal_get_superblock(journal_t *journal)
 			goto out;
 		}
 	}
-	set_buffer_verified(bh);
 	return 0;
 
 out:
@@ -2226,8 +2223,6 @@ int jbd2_journal_check_used_features(journal_t *journal, unsigned long compat,
 
 	if (!compat && !ro && !incompat)
 		return 1;
-	if (journal_get_superblock(journal))
-		return 0;
 	if (!jbd2_format_support_feature(journal))
 		return 0;
 
