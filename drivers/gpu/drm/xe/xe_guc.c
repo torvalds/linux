@@ -326,7 +326,7 @@ static void guc_prepare_xfer(struct xe_guc *guc)
 		shim_flags |= GUC_DISABLE_SRAM_INIT_TO_ZEROES |
 				GUC_ENABLE_MIA_CACHING;
 
-	if (xe->info.platform == XE_PVC)
+	if (GRAPHICS_VER(xe) >= 20 || xe->info.platform == XE_PVC)
 		shim_flags |= REG_FIELD_PREP(GUC_MOCS_INDEX_MASK, gt->mocs.uc_index);
 
 	/* Must program this register before loading the ucode with DMA */
