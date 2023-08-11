@@ -13,6 +13,7 @@
 	R(OVS_DROP_ACTION_ERROR)		\
 	R(OVS_DROP_EXPLICIT)			\
 	R(OVS_DROP_EXPLICIT_WITH_ERROR)		\
+	R(OVS_DROP_METER)			\
 	/* deliberate comment for trailing \ */
 
 enum ovs_drop_reason {

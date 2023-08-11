@@ -1454,7 +1454,7 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 
 		case OVS_ACTION_ATTR_METER:
 			if (ovs_meter_execute(dp, skb, key, nla_get_u32(a))) {
-				consume_skb(skb);
+				ovs_kfree_skb_reason(skb, OVS_DROP_METER);
 				return 0;
 			}
 			break;
