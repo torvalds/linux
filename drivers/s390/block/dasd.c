@@ -3627,9 +3627,8 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 		 * empty
 		 */
 		if (device->block) {
-			rc = fsync_bdev(device->block->bdev);
-			if (rc != 0)
-				goto interrupted;
+			fsync_bdev(device->block->bdev);
+			__invalidate_device(device->block->bdev, true);
 		}
 		dasd_schedule_device_bh(device);
 		rc = wait_event_interruptible(shutdown_waitq,
