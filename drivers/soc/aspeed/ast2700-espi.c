@@ -1861,8 +1861,8 @@ static void ast2700_espi_flash_reset(struct ast2700_espi *espi)
 		writel(flash->edaf.taddr & 0xffffffff, espi->regs + ESPI_CH3_EDAF_TADDRL);
 	}
 
-	reg = readl(espi->regs + ESPI_CH3_CTRL)
-	      | FIELD_PREP(ESPI_CH3_CTRL_EDAF_MODE, flash->edaf.mode);
+	reg = readl(espi->regs + ESPI_CH3_CTRL) & ~ESPI_CH3_CTRL_EDAF_MODE;
+	reg |= FIELD_PREP(ESPI_CH3_CTRL_EDAF_MODE, flash->edaf.mode);
 	writel(reg, espi->regs + ESPI_CH3_CTRL);
 
 	if (flash->dma.enable) {

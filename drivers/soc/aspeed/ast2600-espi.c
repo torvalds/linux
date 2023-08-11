@@ -1816,8 +1816,8 @@ static void ast2600_espi_flash_reset(struct ast2600_espi *espi)
 	reg |= (ESPI_CTRL_FLASH_TX_SW_RST | ESPI_CTRL_FLASH_RX_SW_RST);
 	writel(reg, espi->regs + ESPI_CTRL);
 
-	reg = readl(espi->regs + ESPI_CTRL)
-	      | FIELD_PREP(ESPI_CTRL_FLASH_SAFS_MODE, flash->safs.mode);
+	reg = readl(espi->regs + ESPI_CTRL) & ~ESPI_CTRL_FLASH_SAFS_MODE;
+	reg |= FIELD_PREP(ESPI_CTRL_FLASH_SAFS_MODE, flash->safs.mode);
 	writel(reg, espi->regs + ESPI_CTRL);
 
 	if (flash->safs.mode == SAFS_MODE_MIX) {
