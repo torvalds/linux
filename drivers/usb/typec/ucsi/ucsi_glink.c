@@ -93,6 +93,7 @@ struct ucsi_dev {
 	struct list_head		constat_info_list;
 	struct work_struct		notify_work;
 	struct work_struct		setup_work;
+	struct work_struct		unregister_work;
 	atomic_t			state;
 };
 
@@ -576,6 +577,24 @@ static void ucsi_qti_setup_work(struct work_struct *work)
 	ucsi_setup(udev);
 }
 
+static void ucsi_qti_unregister_work(struct work_struct *work)
+{
+	struct ucsi_dev *udev = container_of(work, struct ucsi_dev,
+			unregister_work);
+
+	if (!udev->ucsi) {
+		dev_dbg(udev->dev, "ucsi is NULL\n");
+		return;
+	}
+
+	mutex_lock(&udev->state_lock);
+	ucsi_qti_clean_notification(udev);
+	ucsi_unregister(udev->ucsi);
+	ucsi_destroy(udev->ucsi);
+	udev->ucsi = NULL;
+	mutex_unlock(&udev->state_lock);
+}
+
 static void ucsi_qti_state_cb(void *priv, enum pmic_glink_state state)
 {
 	struct ucsi_dev *udev = priv;
@@ -584,27 +603,20 @@ static void ucsi_qti_state_cb(void *priv, enum pmic_glink_state state)
 
 	mutex_lock(&udev->state_lock);
 	atomic_set(&udev->state, state);
+	mutex_unlock(&udev->state_lock);
 
 	switch (state) {
 	case PMIC_GLINK_STATE_DOWN:
-		if (!udev->ucsi) {
-			dev_dbg(udev->dev, "ucsi is NULL\n");
-			mutex_unlock(&udev->state_lock);
-			return;
-		}
-
-		ucsi_qti_clean_notification(udev);
-		ucsi_unregister(udev->ucsi);
-		ucsi_destroy(udev->ucsi);
-		udev->ucsi = NULL;
+		cancel_work_sync(&udev->setup_work);
+		schedule_work(&udev->unregister_work);
 		break;
 	case PMIC_GLINK_STATE_UP:
+		cancel_work_sync(&udev->unregister_work);
 		schedule_work(&udev->setup_work);
 		break;
 	default:
 		break;
 	}
-	mutex_unlock(&udev->state_lock);
 }
 
 static int ucsi_probe(struct platform_device *pdev)
@@ -621,6 +633,7 @@ static int ucsi_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&udev->constat_info_list);
 	INIT_WORK(&udev->notify_work, ucsi_qti_notify_work);
 	INIT_WORK(&udev->setup_work, ucsi_qti_setup_work);
+	INIT_WORK(&udev->unregister_work, ucsi_qti_unregister_work);
 	mutex_init(&udev->read_lock);
 	mutex_init(&udev->write_lock);
 	mutex_init(&udev->notify_lock);
@@ -669,10 +682,13 @@ static int ucsi_remove(struct platform_device *pdev)
 	struct ucsi_dev *udev = dev_get_drvdata(dev);
 	int rc;
 
-	ucsi_qti_clean_notification(udev);
 	cancel_work_sync(&udev->notify_work);
-	ucsi_unregister(udev->ucsi);
-	ucsi_destroy(udev->ucsi);
+	cancel_work_sync(&udev->setup_work);
+	if (!cancel_work_sync(&udev->unregister_work)) {
+		ucsi_qti_clean_notification(udev);
+		ucsi_unregister(udev->ucsi);
+		ucsi_destroy(udev->ucsi);
+	}
 
 	rc = pmic_glink_unregister_client(udev->client);
 	if (rc < 0)
