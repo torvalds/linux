@@ -482,7 +482,7 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 
 	/* Update thermal pressure (the boost frequencies are accepted) */
 	arch_update_thermal_pressure(policy->related_cpus, thermal_pressure);
-	data->dcvsh_freq_limit = throttled_freq;
+	data->dcvsh_freq_limit = thermal_pressure;
 
 out:
 	mutex_unlock(&data->throttle_lock);
