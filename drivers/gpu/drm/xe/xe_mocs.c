@@ -62,13 +62,15 @@ struct xe_mocs_info {
 #define L3_LKUP(value)		((value) << 7)
 
 /* Defines for the tables (GLOB_MOCS_0 - GLOB_MOCS_16) */
-#define _L4_CACHEABILITY	REG_GENMASK(3, 2)
-#define IG_PAT			REG_BIT(8)
+#define IG_PAT				REG_BIT(8)
+#define L3_CACHE_POLICY_MASK		REG_GENMASK(5, 4)
+#define L4_CACHE_POLICY_MASK		REG_GENMASK(3, 2)
 
 /* Helper defines */
 #define GEN9_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
 #define PVC_NUM_MOCS_ENTRIES	3
 #define MTL_NUM_MOCS_ENTRIES    16
+#define XE2_NUM_MOCS_ENTRIES	16
 
 /* (e)LLC caching options */
 /*
@@ -93,10 +95,14 @@ struct xe_mocs_info {
 #define L3_3_WB			_L3_CACHEABILITY(3)
 
 /* L4 caching options */
-#define L4_0_WB                 REG_FIELD_PREP(_L4_CACHEABILITY, 0)
-#define L4_1_WT                 REG_FIELD_PREP(_L4_CACHEABILITY, 1)
-#define L4_2_RESERVED           REG_FIELD_PREP(_L4_CACHEABILITY, 2)
-#define L4_3_UC                 REG_FIELD_PREP(_L4_CACHEABILITY, 3)
+#define L4_0_WB                 REG_FIELD_PREP(L4_CACHE_POLICY_MASK, 0)
+#define L4_1_WT                 REG_FIELD_PREP(L4_CACHE_POLICY_MASK, 1)
+#define L4_3_UC                 REG_FIELD_PREP(L4_CACHE_POLICY_MASK, 3)
+
+#define XE2_L3_0_WB		REG_FIELD_PREP(L3_CACHE_POLICY_MASK, 0)
+/* XD: WB Transient Display */
+#define XE2_L3_1_XD		REG_FIELD_PREP(L3_CACHE_POLICY_MASK, 1)
+#define XE2_L3_3_UC		REG_FIELD_PREP(L3_CACHE_POLICY_MASK, 3)
 
 #define MOCS_ENTRY(__idx, __control_value, __l3cc_value) \
 	[__idx] = { \
@@ -368,6 +374,17 @@ static const struct xe_mocs_entry mtl_mocs_desc[] = {
 	MOCS_ENTRY(15,
 		   IG_PAT,
 		   L3_GLBGO(1) | L3_1_UC),
+};
+
+static const struct xe_mocs_entry xe2_mocs_table[] = {
+	/* Defer to PAT */
+	MOCS_ENTRY(0, XE2_L3_0_WB | L4_0_WB, 0),
+	/* Cached L3 + L4 */
+	MOCS_ENTRY(1, IG_PAT | XE2_L3_0_WB | L4_0_WB, 0),
+	/* Uncached L3, Cached L4 */
+	MOCS_ENTRY(2, IG_PAT | XE2_L3_3_UC | L4_0_WB, 0),
+	/* Uncached L3 + L4 */
+	MOCS_ENTRY(3, IG_PAT | XE2_L3_3_UC | L4_3_UC, 0),
 };
 
 static unsigned int get_mocs_settings(struct xe_device *xe,
