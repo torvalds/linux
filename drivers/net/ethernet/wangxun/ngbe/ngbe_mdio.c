@@ -266,8 +266,7 @@ int ngbe_mdio_init(struct wx *wx)
 		mii_bus->write_c45 = ngbe_phy_write_reg_mdi_c45;
 	}
 
-	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "ngbe-%x",
-		 (pdev->bus->number << 8) | pdev->devfn);
+	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "ngbe-%x", pci_dev_id(pdev));
 	ret = devm_mdiobus_register(&pdev->dev, mii_bus);
 	if (ret)
 		return ret;
