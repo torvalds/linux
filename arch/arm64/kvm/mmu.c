@@ -592,6 +592,25 @@ int create_hyp_mappings(void *from, void *to, enum kvm_pgtable_prot prot)
 	return 0;
 }
 
+static int __hyp_alloc_private_va_range(unsigned long base)
+{
+	lockdep_assert_held(&kvm_hyp_pgd_mutex);
+
+	if (!PAGE_ALIGNED(base))
+		return -EINVAL;
+
+	/*
+	 * Verify that BIT(VA_BITS - 1) hasn't been flipped by
+	 * allocating the new area, as it would indicate we've
+	 * overflowed the idmap/IO address range.
+	 */
+	if ((base ^ io_map_base) & BIT(VA_BITS - 1))
+		return -ENOMEM;
+
+	io_map_base = base;
+
+	return 0;
+}
 
 /**
  * hyp_alloc_private_va_range - Allocates a private VA range.
@@ -612,26 +631,16 @@ int hyp_alloc_private_va_range(size_t size, unsigned long *haddr)
 
 	/*
 	 * This assumes that we have enough space below the idmap
-	 * page to allocate our VAs. If not, the check below will
-	 * kick. A potential alternative would be to detect that
-	 * overflow and switch to an allocation above the idmap.
+	 * page to allocate our VAs. If not, the check in
+	 * __hyp_alloc_private_va_range() will kick. A potential
+	 * alternative would be to detect that overflow and switch
+	 * to an allocation above the idmap.
 	 *
 	 * The allocated size is always a multiple of PAGE_SIZE.
 	 */
-	base = io_map_base - PAGE_ALIGN(size);
-
-	/* Align the allocation based on the order of its size */
-	base = ALIGN_DOWN(base, PAGE_SIZE << get_order(size));
-
-	/*
-	 * Verify that BIT(VA_BITS - 1) hasn't been flipped by
-	 * allocating the new area, as it would indicate we've
-	 * overflowed the idmap/IO address range.
-	 */
-	if ((base ^ io_map_base) & BIT(VA_BITS - 1))
-		ret = -ENOMEM;
-	else
-		*haddr = io_map_base = base;
+	size = PAGE_ALIGN(size);
+	base = io_map_base - size;
+	ret = __hyp_alloc_private_va_range(base);
 
 	mutex_unlock(&kvm_hyp_pgd_mutex);
 
@@ -665,6 +674,48 @@ static int __create_hyp_private_mapping(phys_addr_t phys_addr, size_t size,
 		return ret;
 
 	*haddr = addr + offset_in_page(phys_addr);
+	return ret;
+}
+
+int create_hyp_stack(phys_addr_t phys_addr, unsigned long *haddr)
+{
+	unsigned long base;
+	size_t size;
+	int ret;
+
+	mutex_lock(&kvm_hyp_pgd_mutex);
+	/*
+	 * Efficient stack verification using the PAGE_SHIFT bit implies
+	 * an alignment of our allocation on the order of the size.
+	 */
+	size = PAGE_SIZE * 2;
+	base = ALIGN_DOWN(io_map_base - size, size);
+
+	ret = __hyp_alloc_private_va_range(base);
+
+	mutex_unlock(&kvm_hyp_pgd_mutex);
+
+	if (ret) {
+		kvm_err("Cannot allocate hyp stack guard page\n");
+		return ret;
+	}
+
+	/*
+	 * Since the stack grows downwards, map the stack to the page
+	 * at the higher address and leave the lower guard page
+	 * unbacked.
+	 *
+	 * Any valid stack address now has the PAGE_SHIFT bit as 1
+	 * and addresses corresponding to the guard page have the
+	 * PAGE_SHIFT bit as 0 - this is used for overflow detection.
+	 */
+	ret = __create_hyp_mappings(base + PAGE_SIZE, PAGE_SIZE, phys_addr,
+				    PAGE_HYP);
+	if (ret)
+		kvm_err("Cannot map hyp stack\n");
+
+	*haddr = base + size;
+
 	return ret;
 }
 
