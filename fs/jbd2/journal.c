@@ -1533,6 +1533,16 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	if (!journal)
 		return NULL;
 
+	journal->j_blocksize = blocksize;
+	journal->j_dev = bdev;
+	journal->j_fs_dev = fs_dev;
+	journal->j_blk_offset = start;
+	journal->j_total_len = len;
+
+	err = journal_load_superblock(journal);
+	if (err)
+		goto err_cleanup;
+
 	init_waitqueue_head(&journal->j_wait_transaction_locked);
 	init_waitqueue_head(&journal->j_wait_done_commit);
 	init_waitqueue_head(&journal->j_wait_commit);
@@ -1544,12 +1554,15 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	mutex_init(&journal->j_checkpoint_mutex);
 	spin_lock_init(&journal->j_revoke_lock);
 	spin_lock_init(&journal->j_list_lock);
+	spin_lock_init(&journal->j_history_lock);
 	rwlock_init(&journal->j_state_lock);
 
 	journal->j_commit_interval = (HZ * JBD2_DEFAULT_MAX_COMMIT_AGE);
 	journal->j_min_batch_time = 0;
 	journal->j_max_batch_time = 15000; /* 15ms */
 	atomic_set(&journal->j_reserved_credits, 0);
+	lockdep_init_map(&journal->j_trans_commit_map, "jbd2_handle",
+			 &jbd2_trans_commit_key, 0);
 
 	/* The journal is marked for error until we succeed with recovery! */
 	journal->j_flags = JBD2_ABORT;
@@ -1559,18 +1572,10 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	if (err)
 		goto err_cleanup;
 
-	spin_lock_init(&journal->j_history_lock);
-
-	lockdep_init_map(&journal->j_trans_commit_map, "jbd2_handle",
-			 &jbd2_trans_commit_key, 0);
-
-	/* journal descriptor can store up to n blocks -bzzz */
-	journal->j_blocksize = blocksize;
-	journal->j_dev = bdev;
-	journal->j_fs_dev = fs_dev;
-	journal->j_blk_offset = start;
-	journal->j_total_len = len;
-	/* We need enough buffers to write out full descriptor block. */
+	/*
+	 * journal descriptor can store up to n blocks, we need enough
+	 * buffers to write out full descriptor block.
+	 */
 	n = journal->j_blocksize / jbd2_min_tag_size();
 	journal->j_wbufsize = n;
 	journal->j_fc_wbuf = NULL;
@@ -1579,7 +1584,8 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	if (!journal->j_wbuf)
 		goto err_cleanup;
 
-	err = journal_load_superblock(journal);
+	err = percpu_counter_init(&journal->j_checkpoint_jh_count, 0,
+				  GFP_KERNEL);
 	if (err)
 		goto err_cleanup;
 
@@ -1588,21 +1594,18 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	journal->j_shrinker.count_objects = jbd2_journal_shrink_count;
 	journal->j_shrinker.seeks = DEFAULT_SEEKS;
 	journal->j_shrinker.batch = journal->j_max_transaction_buffers;
-
-	if (percpu_counter_init(&journal->j_checkpoint_jh_count, 0, GFP_KERNEL))
+	err = register_shrinker(&journal->j_shrinker, "jbd2-journal:(%u:%u)",
+				MAJOR(bdev->bd_dev), MINOR(bdev->bd_dev));
+	if (err)
 		goto err_cleanup;
 
-	if (register_shrinker(&journal->j_shrinker, "jbd2-journal:(%u:%u)",
-			      MAJOR(bdev->bd_dev), MINOR(bdev->bd_dev))) {
-		percpu_counter_destroy(&journal->j_checkpoint_jh_count);
-		goto err_cleanup;
-	}
 	return journal;
 
 err_cleanup:
-	brelse(journal->j_sb_buffer);
+	percpu_counter_destroy(&journal->j_checkpoint_jh_count);
 	kfree(journal->j_wbuf);
 	jbd2_journal_destroy_revoke(journal);
+	journal_fail_superblock(journal);
 	kfree(journal);
 	return NULL;
 }
