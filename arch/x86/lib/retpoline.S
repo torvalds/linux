@@ -164,7 +164,7 @@ __EXPORT_THUNK(srso_untrain_ret_alias)
 /* Needs a definition for the __x86_return_thunk alternative below. */
 SYM_START(srso_safe_ret_alias, SYM_L_GLOBAL, SYM_A_NONE)
 #ifdef CONFIG_CPU_SRSO
-	add $8, %_ASM_SP
+	lea 8(%_ASM_SP), %_ASM_SP
 	UNWIND_HINT_FUNC
 #endif
 	ANNOTATE_UNRET_SAFE
@@ -239,7 +239,7 @@ __EXPORT_THUNK(zen_untrain_ret)
  * SRSO untraining sequence for Zen1/2, similar to zen_untrain_ret()
  * above. On kernel entry, srso_untrain_ret() is executed which is a
  *
- * movabs $0xccccccc308c48348,%rax
+ * movabs $0xccccc30824648d48,%rax
  *
  * and when the return thunk executes the inner label srso_safe_ret()
  * later, it is a stack manipulation and a RET which is mispredicted and
@@ -252,9 +252,8 @@ SYM_START(srso_untrain_ret, SYM_L_GLOBAL, SYM_A_NONE)
 	.byte 0x48, 0xb8
 
 SYM_INNER_LABEL(srso_safe_ret, SYM_L_GLOBAL)
-	add $8, %_ASM_SP
+	lea 8(%_ASM_SP), %_ASM_SP
 	ret
-	int3
 	int3
 	int3
 	lfence
