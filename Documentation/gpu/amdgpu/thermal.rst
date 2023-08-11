@@ -88,6 +88,12 @@ fan_target_temperature
 .. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
    :doc: fan_target_temperature
 
+fan_minimum_pwm
+---------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
+   :doc: fan_minimum_pwm
+
 GFXOFF
 ======
 

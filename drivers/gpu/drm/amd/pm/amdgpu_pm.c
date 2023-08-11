@@ -3745,6 +3745,62 @@ static umode_t fan_target_temperature_visible(struct amdgpu_device *adev)
 	return umode;
 }
 
+/**
+ * DOC: fan_minimum_pwm
+ *
+ * The amdgpu driver provides a sysfs API for checking and adjusting the
+ * minimum fan speed in PWM.
+ *
+ * Reading back the file shows you the current setting and the permitted
+ * ranges if changable.
+ *
+ * Writing an integer to the file, change the setting accordingly.
+ *
+ * When you have finished the editing, write "c" (commit) to the file to commit
+ * your changes.
+ *
+ * This setting works under auto fan control mode only. It can co-exist with
+ * other settings which can work also under auto mode. It adjusts the PMFW's
+ * behavior about the minimum fan speed in PWM the fan should spin. Setting
+ * via this interface will switch the fan control to auto mode implicitly.
+ */
+static ssize_t fan_minimum_pwm_show(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    char *buf)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_retrieve_od_settings(adev, OD_FAN_MINIMUM_PWM, buf);
+}
+
+static ssize_t fan_minimum_pwm_store(struct kobject *kobj,
+				     struct kobj_attribute *attr,
+				     const char *buf,
+				     size_t count)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_distribute_custom_od_settings(adev,
+							     PP_OD_EDIT_FAN_MINIMUM_PWM,
+							     buf,
+							     count);
+}
+
+static umode_t fan_minimum_pwm_visible(struct amdgpu_device *adev)
+{
+	umode_t umode = 0000;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_MINIMUM_PWM_RETRIEVE)
+		umode |= S_IRUSR | S_IRGRP | S_IROTH;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_MINIMUM_PWM_SET)
+		umode |= S_IWUSR;
+
+	return umode;
+}
+
 static struct od_feature_set amdgpu_od_set = {
 	.containers = {
 		[0] = {
@@ -3780,6 +3836,14 @@ static struct od_feature_set amdgpu_od_set = {
 						.is_visible = fan_target_temperature_visible,
 						.show = fan_target_temperature_show,
 						.store = fan_target_temperature_store,
+					},
+				},
+				[4] = {
+					.name = "fan_minimum_pwm",
+					.ops = {
+						.is_visible = fan_minimum_pwm_visible,
+						.show = fan_minimum_pwm_show,
+						.store = fan_minimum_pwm_store,
 					},
 				},
 			},
