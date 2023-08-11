@@ -532,8 +532,7 @@ static bool host_bridge_whitelist(struct pci_dev *a, struct pci_dev *b,
 
 static unsigned long map_types_idx(struct pci_dev *client)
 {
-	return (pci_domain_nr(client->bus) << 16) |
-		(client->bus->number << 8) | client->devfn;
+	return (pci_domain_nr(client->bus) << 16) | pci_dev_id(client);
 }
 
 /*
