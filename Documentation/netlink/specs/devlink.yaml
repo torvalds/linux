@@ -516,7 +516,7 @@ operations:
           attributes: *health-reporter-id-attrs
       dump:
         request:
-          attributes: *dev-id-attrs
+          attributes: *port-id-attrs
         reply: *health-reporter-get-reply
 
       # TODO: fill in the operations in between

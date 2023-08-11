@@ -1242,10 +1242,12 @@ struct devlink_health_reporter_get_req_dump {
 	struct {
 		__u32 bus_name_len;
 		__u32 dev_name_len;
+		__u32 port_index:1;
 	} _present;
 
 	char *bus_name;
 	char *dev_name;
+	__u32 port_index;
 };
 
 static inline struct devlink_health_reporter_get_req_dump *
@@ -1275,6 +1277,13 @@ devlink_health_reporter_get_req_dump_set_dev_name(struct devlink_health_reporter
 	req->dev_name = malloc(req->_present.dev_name_len + 1);
 	memcpy(req->dev_name, dev_name, req->_present.dev_name_len);
 	req->dev_name[req->_present.dev_name_len] = 0;
+}
+static inline void
+devlink_health_reporter_get_req_dump_set_port_index(struct devlink_health_reporter_get_req_dump *req,
+						    __u32 port_index)
+{
+	req->_present.port_index = 1;
+	req->port_index = port_index;
 }
 
 struct devlink_health_reporter_get_list {
