@@ -4863,7 +4863,7 @@ static int dwc3_msm_id_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-
+static void dwc3_override_vbus_status(struct dwc3_msm *mdwc, bool vbus_present);
 static int dwc3_msm_vbus_notifier(struct notifier_block *nb,
 	unsigned long event, void *ptr)
 {
@@ -4909,6 +4909,11 @@ static int dwc3_msm_vbus_notifier(struct notifier_block *nb,
 				wcd_usbss_dpdm_switch_update(false, false);
 			if (!spoof)
 				return NOTIFY_DONE;
+		}
+
+		if (!spoof && mdwc->drd_state != DRD_STATE_UNDEFINED) {
+			dwc3_override_vbus_status(mdwc, !!event);
+			return NOTIFY_DONE;
 		}
 
 		mdwc->check_eud_state = true;
