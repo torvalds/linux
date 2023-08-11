@@ -968,31 +968,19 @@ EXPORT_SYMBOL(lookup_bdev);
  * to %true the device or media is already gone, if not we are preparing for an
  * orderly removal.
  *
- * This syncs out all dirty data and writes back inodes and then invalidates any
- * cached data in the inodes on the file system, the inodes themselves and the
- * block device mapping.
+ * This calls into the file system, which then typicall syncs out all dirty data
+ * and writes back inodes and then invalidates any cached data in the inodes on
+ * the file system.  In addition we also invalidate the block device mapping.
  */
 void bdev_mark_dead(struct block_device *bdev, bool surprise)
 {
-	struct super_block *sb = get_super(bdev);
-	int res = 0;
+	mutex_lock(&bdev->bd_holder_lock);
+	if (bdev->bd_holder_ops && bdev->bd_holder_ops->mark_dead)
+		bdev->bd_holder_ops->mark_dead(bdev, surprise);
+	else
+		sync_blockdev(bdev);
+	mutex_unlock(&bdev->bd_holder_lock);
 
-	if (sb) {
-		if (!surprise)
-			sync_filesystem(sb);
-		/*
-		 * no need to lock the super, get_super holds the
-		 * read mutex so the filesystem cannot go away
-		 * under us (->put_super runs with the write lock
-		 * hold).
-		 */
-		shrink_dcache_sb(sb);
-		res = invalidate_inodes(sb, true);
-		drop_super(sb);
-	} else {
-		if (!surprise)
-			sync_blockdev(bdev);
-	}
 	invalidate_bdev(bdev);
 }
 #ifdef CONFIG_DASD_MODULE

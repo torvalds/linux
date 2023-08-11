@@ -1228,7 +1228,7 @@ static bool lock_active_super(struct super_block *sb)
 	return true;
 }
 
-static void fs_mark_dead(struct block_device *bdev)
+static void fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 {
 	struct super_block *sb = bdev->bd_holder;
 
@@ -1238,6 +1238,10 @@ static void fs_mark_dead(struct block_device *bdev)
 	if (!lock_active_super(sb))
 		return;
 
+	if (!surprise)
+		sync_filesystem(sb);
+	shrink_dcache_sb(sb);
+	invalidate_inodes(sb, true);
 	if (sb->s_op->shutdown)
 		sb->s_op->shutdown(sb);
 
@@ -1245,7 +1249,7 @@ static void fs_mark_dead(struct block_device *bdev)
 }
 
 const struct blk_holder_ops fs_holder_ops = {
-	.mark_dead		= fs_mark_dead,
+	.mark_dead		= fs_bdev_mark_dead,
 };
 EXPORT_SYMBOL_GPL(fs_holder_ops);
 
