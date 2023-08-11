@@ -897,16 +897,26 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = rockchip_i2s_init_dai(i2s, res, &dai);
+	if (ret)
+		goto err_clk;
+
+	/*
+	 * MUST: after pm_runtime_enable step, any register R/W
+	 * should be wrapped with pm_runtime_get_sync/put.
+	 *
+	 * Another approach is to enable the regcache true to
+	 * avoid access HW registers.
+	 *
+	 * Alternatively, performing the registers R/W before
+	 * pm_runtime_enable is also a good option.
+	 */
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
 		ret = i2s_runtime_resume(&pdev->dev);
 		if (ret)
 			goto err_pm_disable;
 	}
-
-	ret = rockchip_i2s_init_dai(i2s, res, &dai);
-	if (ret)
-		goto err_pm_disable;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_i2s_component,
@@ -935,7 +945,7 @@ err_suspend:
 		i2s_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
-
+err_clk:
 	clk_disable_unprepare(i2s->hclk);
 
 	return ret;
