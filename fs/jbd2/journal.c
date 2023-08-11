@@ -1341,45 +1341,29 @@ static void journal_fail_superblock(journal_t *journal)
 }
 
 /*
- * Read the superblock for a given journal, performing initial
+ * Check the superblock for a given journal, performing initial
  * validation of the format.
  */
-static int journal_get_superblock(journal_t *journal)
+static int journal_check_superblock(journal_t *journal)
 {
-	struct buffer_head *bh;
-	journal_superblock_t *sb;
-	int err;
-
-	bh = journal->j_sb_buffer;
-
-	J_ASSERT(bh != NULL);
-
-	err = bh_read(bh, 0);
-	if (err < 0) {
-		printk(KERN_ERR
-			"JBD2: IO error reading journal superblock\n");
-		goto out;
-	}
-
-	sb = journal->j_superblock;
-
-	err = -EINVAL;
+	journal_superblock_t *sb = journal->j_superblock;
+	int err = -EINVAL;
 
 	if (sb->s_header.h_magic != cpu_to_be32(JBD2_MAGIC_NUMBER) ||
 	    sb->s_blocksize != cpu_to_be32(journal->j_blocksize)) {
 		printk(KERN_WARNING "JBD2: no valid journal superblock found\n");
-		goto out;
+		return err;
 	}
 
 	if (be32_to_cpu(sb->s_header.h_blocktype) != JBD2_SUPERBLOCK_V1 &&
 	    be32_to_cpu(sb->s_header.h_blocktype) != JBD2_SUPERBLOCK_V2) {
 		printk(KERN_WARNING "JBD2: unrecognised superblock format ID\n");
-		goto out;
+		return err;
 	}
 
 	if (be32_to_cpu(sb->s_maxlen) > journal->j_total_len) {
 		printk(KERN_WARNING "JBD2: journal file too short\n");
-		goto out;
+		return err;
 	}
 
 	if (be32_to_cpu(sb->s_first) == 0 ||
@@ -1387,7 +1371,7 @@ static int journal_get_superblock(journal_t *journal)
 		printk(KERN_WARNING
 			"JBD2: Invalid start block of journal: %u\n",
 			be32_to_cpu(sb->s_first));
-		goto out;
+		return err;
 	}
 
 	/*
@@ -1402,7 +1386,7 @@ static int journal_get_superblock(journal_t *journal)
 	    (sb->s_feature_incompat &
 			~cpu_to_be32(JBD2_KNOWN_INCOMPAT_FEATURES))) {
 		printk(KERN_WARNING "JBD2: Unrecognised features on journal\n");
-		goto out;
+		return err;
 	}
 
 	if (jbd2_has_feature_csum2(journal) &&
@@ -1410,7 +1394,7 @@ static int journal_get_superblock(journal_t *journal)
 		/* Can't have checksum v2 and v3 at the same time! */
 		printk(KERN_ERR "JBD2: Can't enable checksumming v2 and v3 "
 		       "at the same time!\n");
-		goto out;
+		return err;
 	}
 
 	if (jbd2_journal_has_csum_v2or3_feature(journal) &&
@@ -1418,14 +1402,14 @@ static int journal_get_superblock(journal_t *journal)
 		/* Can't have checksum v1 and v2 on at the same time! */
 		printk(KERN_ERR "JBD2: Can't enable checksumming v1 and v2/3 "
 		       "at the same time!\n");
-		goto out;
+		return err;
 	}
 
 	/* Load the checksum driver */
 	if (jbd2_journal_has_csum_v2or3_feature(journal)) {
 		if (sb->s_checksum_type != JBD2_CRC32C_CHKSUM) {
 			printk(KERN_ERR "JBD2: Unknown checksum type\n");
-			goto out;
+			return err;
 		}
 
 		journal->j_chksum_driver = crypto_alloc_shash("crc32c", 0, 0);
@@ -1433,20 +1417,17 @@ static int journal_get_superblock(journal_t *journal)
 			printk(KERN_ERR "JBD2: Cannot load crc32c driver.\n");
 			err = PTR_ERR(journal->j_chksum_driver);
 			journal->j_chksum_driver = NULL;
-			goto out;
+			return err;
 		}
 		/* Check superblock checksum */
 		if (sb->s_checksum != jbd2_superblock_csum(journal, sb)) {
 			printk(KERN_ERR "JBD2: journal checksum error\n");
 			err = -EFSBADCRC;
-			goto out;
+			return err;
 		}
 	}
-	return 0;
 
-out:
-	journal_fail_superblock(journal);
-	return err;
+	return 0;
 }
 
 static int journal_revoke_records_per_block(journal_t *journal)
@@ -1468,17 +1449,31 @@ static int journal_revoke_records_per_block(journal_t *journal)
  * Load the on-disk journal superblock and read the key fields into the
  * journal_t.
  */
-static int load_superblock(journal_t *journal)
+static int journal_load_superblock(journal_t *journal)
 {
 	int err;
+	struct buffer_head *bh;
 	journal_superblock_t *sb;
 	int num_fc_blocks;
 
-	err = journal_get_superblock(journal);
-	if (err)
-		return err;
+	bh = getblk_unmovable(journal->j_dev, journal->j_blk_offset,
+			      journal->j_blocksize);
+	if (bh)
+		err = bh_read(bh, 0);
+	if (!bh || err < 0) {
+		pr_err("%s: Cannot read journal superblock\n", __func__);
+		brelse(bh);
+		return -EIO;
+	}
 
-	sb = journal->j_superblock;
+	journal->j_sb_buffer = bh;
+	sb = (journal_superblock_t *)bh->b_data;
+	journal->j_superblock = sb;
+	err = journal_check_superblock(journal);
+	if (err) {
+		journal_fail_superblock(journal);
+		return err;
+	}
 
 	journal->j_tail_sequence = be32_to_cpu(sb->s_sequence);
 	journal->j_tail = be32_to_cpu(sb->s_start);
@@ -1524,7 +1519,6 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	static struct lock_class_key jbd2_trans_commit_key;
 	journal_t *journal;
 	int err;
-	struct buffer_head *bh;
 	int n;
 
 	journal = kzalloc(sizeof(*journal), GFP_KERNEL);
@@ -1577,16 +1571,7 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	if (!journal->j_wbuf)
 		goto err_cleanup;
 
-	bh = getblk_unmovable(journal->j_dev, start, journal->j_blocksize);
-	if (!bh) {
-		pr_err("%s: Cannot get buffer for journal superblock\n",
-			__func__);
-		goto err_cleanup;
-	}
-	journal->j_sb_buffer = bh;
-	journal->j_superblock = (journal_superblock_t *)bh->b_data;
-
-	err = load_superblock(journal);
+	err = journal_load_superblock(journal);
 	if (err)
 		goto err_cleanup;
 
