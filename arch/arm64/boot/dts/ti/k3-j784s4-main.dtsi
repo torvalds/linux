@@ -670,6 +670,7 @@
 	};
 
 	main_navss: bus@30000000 {
+		bootph-all;
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -705,6 +706,7 @@
 		};
 
 		secure_proxy_main: mailbox@32c00000 {
+			bootph-all;
 			compatible = "ti,am654-secure-proxy";
 			#mbox-cells = <1>;
 			reg-names = "target_data", "rt", "scfg";
