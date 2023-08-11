@@ -264,7 +264,7 @@ EXPORT_SYMBOL(qmp_send);
 
 static int qmp_qdss_clk_prepare(struct clk_hw *hw)
 {
-	static const char buf[QMP_MSG_LEN] = "{class: clock, res: qdss, val: 1}";
+	static const char *buf = "{class: clock, res: qdss, val: 1}";
 	struct qmp *qmp = container_of(hw, struct qmp, qdss_clk);
 
 	return qmp_send(qmp, buf);
@@ -272,7 +272,7 @@ static int qmp_qdss_clk_prepare(struct clk_hw *hw)
 
 static void qmp_qdss_clk_unprepare(struct clk_hw *hw)
 {
-	static const char buf[QMP_MSG_LEN] = "{class: clock, res: qdss, val: 0}";
+	static const char *buf = "{class: clock, res: qdss, val: 0}";
 	struct qmp *qmp = container_of(hw, struct qmp, qdss_clk);
 
 	qmp_send(qmp, buf);
@@ -334,7 +334,6 @@ static int qmp_cdev_set_cur_state(struct thermal_cooling_device *cdev,
 				  unsigned long state)
 {
 	struct qmp_cooling_device *qmp_cdev = cdev->devdata;
-	char buf[QMP_MSG_LEN] = {};
 	bool cdev_state;
 	int ret;
 
@@ -344,13 +343,8 @@ static int qmp_cdev_set_cur_state(struct thermal_cooling_device *cdev,
 	if (qmp_cdev->state == state)
 		return 0;
 
-	snprintf(buf, sizeof(buf),
-		 "{class: volt_flr, event:zero_temp, res:%s, value:%s}",
-			qmp_cdev->name,
-			cdev_state ? "on" : "off");
-
-	ret = qmp_send(qmp_cdev->qmp, buf);
-
+	ret = qmp_send(qmp_cdev->qmp, "{class: volt_flr, event:zero_temp, res:%s, value:%s}",
+		       qmp_cdev->name, cdev_state ? "on" : "off");
 	if (!ret)
 		qmp_cdev->state = cdev_state;
 
