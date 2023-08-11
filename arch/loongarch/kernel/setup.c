@@ -12,7 +12,6 @@
  */
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <linux/cpu.h>
 #include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/export.h>
@@ -79,11 +78,6 @@ static struct resource bss_resource  = { .name = "Kernel bss", };
 const char *get_system_type(void)
 {
 	return "generic-loongson-machine";
-}
-
-void __init arch_cpu_finalize_init(void)
-{
-	alternative_instructions();
 }
 
 static const char *dmi_string_parse(const struct dmi_header *dm, u8 s)
