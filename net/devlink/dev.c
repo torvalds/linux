@@ -218,11 +218,11 @@ int devlink_nl_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 static int
 devlink_nl_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
-			struct netlink_callback *cb)
+			struct netlink_callback *cb, int flags)
 {
 	return devlink_nl_fill(msg, devlink, DEVLINK_CMD_NEW,
 			       NETLINK_CB(cb->skb).portid,
-			       cb->nlh->nlmsg_seq, NLM_F_MULTI);
+			       cb->nlh->nlmsg_seq, flags);
 }
 
 int devlink_nl_get_dumpit(struct sk_buff *msg, struct netlink_callback *cb)
@@ -828,13 +828,13 @@ int devlink_nl_info_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 static int
 devlink_nl_info_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
-			     struct netlink_callback *cb)
+			     struct netlink_callback *cb, int flags)
 {
 	int err;
 
 	err = devlink_nl_info_fill(msg, devlink, DEVLINK_CMD_INFO_GET,
 				   NETLINK_CB(cb->skb).portid,
-				   cb->nlh->nlmsg_seq, NLM_F_MULTI,
+				   cb->nlh->nlmsg_seq, flags,
 				   cb->extack);
 	if (err == -EOPNOTSUPP)
 		err = 0;
@@ -1231,14 +1231,15 @@ int devlink_nl_selftests_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 static int devlink_nl_selftests_get_dump_one(struct sk_buff *msg,
 					     struct devlink *devlink,
-					     struct netlink_callback *cb)
+					     struct netlink_callback *cb,
+					     int flags)
 {
 	if (!devlink->ops->selftest_check)
 		return 0;
 
 	return devlink_nl_selftests_fill(msg, devlink,
 					 NETLINK_CB(cb->skb).portid,
-					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
+					 cb->nlh->nlmsg_seq, flags,
 					 cb->extack);
 }
 

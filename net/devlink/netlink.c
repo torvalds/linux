@@ -182,7 +182,7 @@ int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
 		devl_lock(devlink);
 
 		if (devl_is_registered(devlink))
-			err = dump_one(msg, devlink, cb);
+			err = dump_one(msg, devlink, cb, NLM_F_MULTI);
 		else
 			err = 0;
 

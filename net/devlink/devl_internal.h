@@ -115,7 +115,8 @@ struct devlink_nl_dump_state {
 
 typedef int devlink_nl_dump_one_func_t(struct sk_buff *msg,
 				       struct devlink *devlink,
-				       struct netlink_callback *cb);
+				       struct netlink_callback *cb,
+				       int flags);
 
 extern const struct genl_small_ops devlink_nl_small_ops[54];
 
