@@ -71,6 +71,8 @@
 	assigned-clock-parents = <&mclkin_i2s3>;
 	pinctrl-0 = <&i2s3_sdi
 		     &i2s3_sdo
+		     &i2s3_lrck
+		     &i2s3_sclk
 		     &i2s3_mclk>;
 	status = "okay";
 };
