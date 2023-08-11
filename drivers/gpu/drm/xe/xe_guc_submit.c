@@ -956,27 +956,19 @@ static void __guc_exec_queue_fini_async(struct work_struct *w)
 	xe_sched_entity_fini(&ge->entity);
 	xe_sched_fini(&ge->sched);
 
-	if (!(q->flags & EXEC_QUEUE_FLAG_KERNEL)) {
-		kfree(ge);
-		xe_exec_queue_fini(q);
-	}
+	kfree(ge);
+	xe_exec_queue_fini(q);
 }
 
 static void guc_exec_queue_fini_async(struct xe_exec_queue *q)
 {
-	bool kernel = q->flags & EXEC_QUEUE_FLAG_KERNEL;
-
 	INIT_WORK(&q->guc->fini_async, __guc_exec_queue_fini_async);
-	queue_work(system_wq, &q->guc->fini_async);
 
 	/* We must block on kernel engines so slabs are empty on driver unload */
-	if (kernel) {
-		struct xe_guc_exec_queue *ge = q->guc;
-
-		flush_work(&ge->fini_async);
-		kfree(ge);
-		xe_exec_queue_fini(q);
-	}
+	if (q->flags & EXEC_QUEUE_FLAG_KERNEL)
+		__guc_exec_queue_fini_async(&q->guc->fini_async);
+	else
+		queue_work(system_wq, &q->guc->fini_async);
 }
 
 static void __guc_exec_queue_fini(struct xe_guc *guc, struct xe_exec_queue *q)
