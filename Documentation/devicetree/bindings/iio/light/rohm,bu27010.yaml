@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/rohm,bu27010.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ROHM BU27010 color sensor
+
+maintainers:
+  - Matti Vaittinen <mazziesaccount@gmail.com>
+
+description: |
+  The ROHM BU27010 is a sensor with 6 photodiodes (red, green, blue, clear,
+  IR and flickering detection) with five configurable channels. Red, green
+  and flickering detection being always available and two out of the rest
+  three (blue, clear, IR) can be selected to be simultaneously measured.
+  Typical application is adjusting LCD/OLED backlight of TVs, mobile phones
+  and tablet PCs.
+
+properties:
+  compatible:
+    const: rohm,bu27010
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vdd-supply: true
+
+required:
+  - compatible
+  - reg
+  - vdd-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      light-sensor@38 {
+        compatible = "rohm,bu27010";
+        reg = <0x38>;
+      };
+    };

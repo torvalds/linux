@@ -13,81 +13,10 @@
 #include <linux/interrupt.h>
 #include <linux/poll.h>
 #include <linux/math64.h>
+
+#include <linux/iio/common/inv_sensors_timestamp.h>
+
 #include "inv_mpu_iio.h"
-
-/**
- *  inv_mpu6050_update_period() - Update chip internal period estimation
- *
- *  @st:		driver state
- *  @timestamp:		the interrupt timestamp
- *  @nb:		number of data set in the fifo
- *
- *  This function uses interrupt timestamps to estimate the chip period and
- *  to choose the data timestamp to come.
- */
-static void inv_mpu6050_update_period(struct inv_mpu6050_state *st,
-				      s64 timestamp, size_t nb)
-{
-	/* Period boundaries for accepting timestamp */
-	const s64 period_min =
-		(NSEC_PER_MSEC * (100 - INV_MPU6050_TS_PERIOD_JITTER)) / 100;
-	const s64 period_max =
-		(NSEC_PER_MSEC * (100 + INV_MPU6050_TS_PERIOD_JITTER)) / 100;
-	const s32 divider = INV_MPU6050_FREQ_DIVIDER(st);
-	s64 delta, interval;
-	bool use_it_timestamp = false;
-
-	if (st->it_timestamp == 0) {
-		/* not initialized, forced to use it_timestamp */
-		use_it_timestamp = true;
-	} else if (nb == 1) {
-		/*
-		 * Validate the use of it timestamp by checking if interrupt
-		 * has been delayed.
-		 * nb > 1 means interrupt was delayed for more than 1 sample,
-		 * so it's obviously not good.
-		 * Compute the chip period between 2 interrupts for validating.
-		 */
-		delta = div_s64(timestamp - st->it_timestamp, divider);
-		if (delta > period_min && delta < period_max) {
-			/* update chip period and use it timestamp */
-			st->chip_period = (st->chip_period + delta) / 2;
-			use_it_timestamp = true;
-		}
-	}
-
-	if (use_it_timestamp) {
-		/*
-		 * Manage case of multiple samples in the fifo (nb > 1):
-		 * compute timestamp corresponding to the first sample using
-		 * estimated chip period.
-		 */
-		interval = (nb - 1) * st->chip_period * divider;
-		st->data_timestamp = timestamp - interval;
-	}
-
-	/* save it timestamp */
-	st->it_timestamp = timestamp;
-}
-
-/**
- *  inv_mpu6050_get_timestamp() - Return the current data timestamp
- *
- *  @st:		driver state
- *  @return:		current data timestamp
- *
- *  This function returns the current data timestamp and prepares for next one.
- */
-static s64 inv_mpu6050_get_timestamp(struct inv_mpu6050_state *st)
-{
-	s64 ts;
-
-	/* return current data timestamp and increment */
-	ts = st->data_timestamp;
-	st->data_timestamp += st->chip_period * INV_MPU6050_FREQ_DIVIDER(st);
-
-	return ts;
-}
 
 static int inv_reset_fifo(struct iio_dev *indio_dev)
 {
@@ -121,7 +50,9 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	size_t bytes_per_datum;
 	int result;
 	u16 fifo_count;
+	u32 fifo_period;
 	s64 timestamp;
+	u8 data[INV_MPU6050_OUTPUT_DATA_SIZE];
 	int int_status;
 	size_t i, nb;
 
@@ -175,21 +106,30 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		goto flush_fifo;
 	}
 
-	/* compute and process all complete datum */
+	/* compute and process only all complete datum */
 	nb = fifo_count / bytes_per_datum;
-	inv_mpu6050_update_period(st, pf->timestamp, nb);
+	fifo_count = nb * bytes_per_datum;
+	/* Each FIFO data contains all sensors, so same number for FIFO and sensor data */
+	fifo_period = NSEC_PER_SEC / INV_MPU6050_DIVIDER_TO_FIFO_RATE(st->chip_config.divider);
+	inv_sensors_timestamp_interrupt(&st->timestamp, fifo_period, nb, nb, pf->timestamp);
+	inv_sensors_timestamp_apply_odr(&st->timestamp, fifo_period, nb, 0);
+
+	/* clear internal data buffer for avoiding kernel data leak */
+	memset(data, 0, sizeof(data));
+
+	/* read all data once and process every samples */
+	result = regmap_noinc_read(st->map, st->reg->fifo_r_w, st->data, fifo_count);
+	if (result)
+		goto flush_fifo;
 	for (i = 0; i < nb; ++i) {
-		result = regmap_noinc_read(st->map, st->reg->fifo_r_w,
-					   st->data, bytes_per_datum);
-		if (result)
-			goto flush_fifo;
 		/* skip first samples if needed */
 		if (st->skip_samples) {
 			st->skip_samples--;
 			continue;
 		}
-		timestamp = inv_mpu6050_get_timestamp(st);
-		iio_push_to_buffers_with_timestamp(indio_dev, st->data, timestamp);
+		memcpy(data, &st->data[i * bytes_per_datum], bytes_per_datum);
+		timestamp = inv_sensors_timestamp_pop(&st->timestamp);
+		iio_push_to_buffers_with_timestamp(indio_dev, data, timestamp);
 	}
 
 end_session:

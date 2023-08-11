@@ -3,25 +3,23 @@
  * Copyright (C) 2020 Invensense, Inc.
  */
 
+#include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/regmap.h>
 #include <linux/math64.h>
+#include <linux/module.h>
 
-#include "inv_icm42600.h"
-#include "inv_icm42600_timestamp.h"
+#include <linux/iio/common/inv_sensors_timestamp.h>
 
-/* internal chip period is 32kHz, 31250ns */
-#define INV_ICM42600_TIMESTAMP_PERIOD		31250
-/* allow a jitter of +/- 2% */
-#define INV_ICM42600_TIMESTAMP_JITTER		2
-/* compute min and max periods accepted */
-#define INV_ICM42600_TIMESTAMP_MIN_PERIOD(_p)		\
-	(((_p) * (100 - INV_ICM42600_TIMESTAMP_JITTER)) / 100)
-#define INV_ICM42600_TIMESTAMP_MAX_PERIOD(_p)		\
-	(((_p) * (100 + INV_ICM42600_TIMESTAMP_JITTER)) / 100)
+/* compute jitter, min and max following jitter in per mille */
+#define INV_SENSORS_TIMESTAMP_JITTER(_val, _jitter)		\
+	(div_s64((_val) * (_jitter), 1000))
+#define INV_SENSORS_TIMESTAMP_MIN(_val, _jitter)		\
+	(((_val) * (1000 - (_jitter))) / 1000)
+#define INV_SENSORS_TIMESTAMP_MAX(_val, _jitter)		\
+	(((_val) * (1000 + (_jitter))) / 1000)
 
 /* Add a new value inside an accumulator and update the estimate value */
-static void inv_update_acc(struct inv_icm42600_timestamp_acc *acc, uint32_t val)
+static void inv_update_acc(struct inv_sensors_timestamp_acc *acc, uint32_t val)
 {
 	uint64_t sum = 0;
 	size_t i;
@@ -40,65 +38,57 @@ static void inv_update_acc(struct inv_icm42600_timestamp_acc *acc, uint32_t val)
 	acc->val = div_u64(sum, i);
 }
 
-void inv_icm42600_timestamp_init(struct inv_icm42600_timestamp *ts,
-				 uint32_t period)
+void inv_sensors_timestamp_init(struct inv_sensors_timestamp *ts,
+				const struct inv_sensors_timestamp_chip *chip)
 {
-	/* initial odr for sensor after reset is 1kHz */
-	const uint32_t default_period = 1000000;
+	memset(ts, 0, sizeof(*ts));
+
+	/* save chip parameters and compute min and max clock period */
+	ts->chip = *chip;
+	ts->min_period = INV_SENSORS_TIMESTAMP_MIN(chip->clock_period, chip->jitter);
+	ts->max_period = INV_SENSORS_TIMESTAMP_MAX(chip->clock_period, chip->jitter);
 
 	/* current multiplier and period values after reset */
-	ts->mult = default_period / INV_ICM42600_TIMESTAMP_PERIOD;
-	ts->period = default_period;
-	/* new set multiplier is the one from chip initialization */
-	ts->new_mult = period / INV_ICM42600_TIMESTAMP_PERIOD;
+	ts->mult = chip->init_period / chip->clock_period;
+	ts->period = chip->init_period;
 
 	/* use theoretical value for chip period */
-	inv_update_acc(&ts->chip_period, INV_ICM42600_TIMESTAMP_PERIOD);
+	inv_update_acc(&ts->chip_period, chip->clock_period);
 }
+EXPORT_SYMBOL_NS_GPL(inv_sensors_timestamp_init, IIO_INV_SENSORS_TIMESTAMP);
 
-int inv_icm42600_timestamp_setup(struct inv_icm42600_state *st)
-{
-	unsigned int val;
-
-	/* enable timestamp register */
-	val = INV_ICM42600_TMST_CONFIG_TMST_TO_REGS_EN |
-	      INV_ICM42600_TMST_CONFIG_TMST_EN;
-	return regmap_update_bits(st->map, INV_ICM42600_REG_TMST_CONFIG,
-				  INV_ICM42600_TMST_CONFIG_MASK, val);
-}
-
-int inv_icm42600_timestamp_update_odr(struct inv_icm42600_timestamp *ts,
-				      uint32_t period, bool fifo)
+int inv_sensors_timestamp_update_odr(struct inv_sensors_timestamp *ts,
+				     uint32_t period, bool fifo)
 {
 	/* when FIFO is on, prevent odr change if one is already pending */
 	if (fifo && ts->new_mult != 0)
 		return -EAGAIN;
 
-	ts->new_mult = period / INV_ICM42600_TIMESTAMP_PERIOD;
+	ts->new_mult = period / ts->chip.clock_period;
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(inv_sensors_timestamp_update_odr, IIO_INV_SENSORS_TIMESTAMP);
 
-static bool inv_validate_period(uint32_t period, uint32_t mult)
+static bool inv_validate_period(struct inv_sensors_timestamp *ts, uint32_t period, uint32_t mult)
 {
-	const uint32_t chip_period = INV_ICM42600_TIMESTAMP_PERIOD;
 	uint32_t period_min, period_max;
 
 	/* check that period is acceptable */
-	period_min = INV_ICM42600_TIMESTAMP_MIN_PERIOD(chip_period) * mult;
-	period_max = INV_ICM42600_TIMESTAMP_MAX_PERIOD(chip_period) * mult;
+	period_min = ts->min_period * mult;
+	period_max = ts->max_period * mult;
 	if (period > period_min && period < period_max)
 		return true;
 	else
 		return false;
 }
 
-static bool inv_update_chip_period(struct inv_icm42600_timestamp *ts,
-				   uint32_t mult, uint32_t period)
+static bool inv_update_chip_period(struct inv_sensors_timestamp *ts,
+				    uint32_t mult, uint32_t period)
 {
 	uint32_t new_chip_period;
 
-	if (!inv_validate_period(period, mult))
+	if (!inv_validate_period(ts, period, mult))
 		return false;
 
 	/* update chip internal period estimation */
@@ -109,7 +99,7 @@ static bool inv_update_chip_period(struct inv_icm42600_timestamp *ts,
 	return true;
 }
 
-static void inv_align_timestamp_it(struct inv_icm42600_timestamp *ts)
+static void inv_align_timestamp_it(struct inv_sensors_timestamp *ts)
 {
 	int64_t delta, jitter;
 	int64_t adjust;
@@ -118,7 +108,7 @@ static void inv_align_timestamp_it(struct inv_icm42600_timestamp *ts)
 	delta = ts->it.lo - ts->timestamp;
 
 	/* adjust timestamp while respecting jitter */
-	jitter = div_s64((int64_t)ts->period * INV_ICM42600_TIMESTAMP_JITTER, 100);
+	jitter = INV_SENSORS_TIMESTAMP_JITTER((int64_t)ts->period, ts->chip.jitter);
 	if (delta > jitter)
 		adjust = jitter;
 	else if (delta < -jitter)
@@ -129,13 +119,13 @@ static void inv_align_timestamp_it(struct inv_icm42600_timestamp *ts)
 	ts->timestamp += adjust;
 }
 
-void inv_icm42600_timestamp_interrupt(struct inv_icm42600_timestamp *ts,
+void inv_sensors_timestamp_interrupt(struct inv_sensors_timestamp *ts,
 				      uint32_t fifo_period, size_t fifo_nb,
 				      size_t sensor_nb, int64_t timestamp)
 {
-	struct inv_icm42600_timestamp_interval *it;
+	struct inv_sensors_timestamp_interval *it;
 	int64_t delta, interval;
-	const uint32_t fifo_mult = fifo_period / INV_ICM42600_TIMESTAMP_PERIOD;
+	const uint32_t fifo_mult = fifo_period / ts->chip.clock_period;
 	uint32_t period = ts->period;
 	bool valid = false;
 
@@ -165,10 +155,11 @@ void inv_icm42600_timestamp_interrupt(struct inv_icm42600_timestamp *ts,
 	if (valid)
 		inv_align_timestamp_it(ts);
 }
+EXPORT_SYMBOL_NS_GPL(inv_sensors_timestamp_interrupt, IIO_INV_SENSORS_TIMESTAMP);
 
-void inv_icm42600_timestamp_apply_odr(struct inv_icm42600_timestamp *ts,
-				      uint32_t fifo_period, size_t fifo_nb,
-				      unsigned int fifo_no)
+void inv_sensors_timestamp_apply_odr(struct inv_sensors_timestamp *ts,
+				     uint32_t fifo_period, size_t fifo_nb,
+				     unsigned int fifo_no)
 {
 	int64_t interval;
 	uint32_t fifo_mult;
@@ -189,10 +180,15 @@ void inv_icm42600_timestamp_apply_odr(struct inv_icm42600_timestamp *ts,
 	 */
 	if (ts->timestamp != 0) {
 		/* compute measured fifo period */
-		fifo_mult = fifo_period / INV_ICM42600_TIMESTAMP_PERIOD;
+		fifo_mult = fifo_period / ts->chip.clock_period;
 		fifo_period = fifo_mult * ts->chip_period.val;
 		/* computes time interval between interrupt and this sample */
 		interval = (int64_t)(fifo_nb - fifo_no) * (int64_t)fifo_period;
 		ts->timestamp = ts->it.up - interval;
 	}
 }
+EXPORT_SYMBOL_NS_GPL(inv_sensors_timestamp_apply_odr, IIO_INV_SENSORS_TIMESTAMP);
+
+MODULE_AUTHOR("InvenSense, Inc.");
+MODULE_DESCRIPTION("InvenSense sensors timestamp module");
+MODULE_LICENSE("GPL");
