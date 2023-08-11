@@ -471,8 +471,12 @@ static void gfx_v11_0_check_fw_cp_gfx_shadow(struct amdgpu_device *adev)
 	case IP_VERSION(11, 0, 3):
 		if ((adev->gfx.me_fw_version >= 1505) &&
 		    (adev->gfx.pfp_fw_version >= 1600) &&
-		    (adev->gfx.mec_fw_version >= 512))
-			adev->gfx.cp_gfx_shadow = true;
+		    (adev->gfx.mec_fw_version >= 512)) {
+			if (amdgpu_sriov_vf(adev))
+				adev->gfx.cp_gfx_shadow = true;
+			else
+				adev->gfx.cp_gfx_shadow = false;
+		}
 		break;
 	default:
 		adev->gfx.cp_gfx_shadow = false;
