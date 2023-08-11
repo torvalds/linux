@@ -2706,6 +2706,8 @@
 			mode-panic = <BOOT_PANIC>;
 			mode-watchdog = <BOOT_WATCHDOG>;
 			mode-quiescent = <BOOT_QUIESCENT>;
+			/* add a mode to capture the ramdump through usb */
+			mode-winusb = <BOOT_WINUSB>;
 		};
 	};
 
