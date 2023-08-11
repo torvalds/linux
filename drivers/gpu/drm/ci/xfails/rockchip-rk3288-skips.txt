@@ -1,0 +1,52 @@
+# Suspend to RAM seems to be broken on this machine
+.*suspend.*
+
+# Too unstable, machine ends up hanging after lots of Oopses
+kms_cursor_legacy.*
+
+# Started hanging the machine on Linux 5.19-rc2:
+#
+# [IGT] kms_plane_lowres: executing
+# [IGT] kms_plane_lowres: starting subtest pipe-F-tiling-y
+# [IGT] kms_plane_lowres: exiting, ret=77
+# Console: switching to colour frame buffer device 170x48
+# rockchip-drm display-subsystem: [drm] *ERROR* flip_done timed out
+# rockchip-drm display-subsystem: [drm] *ERROR* [CRTC:35:crtc-0] commit wait timed out
+# BUG: spinlock bad magic on CPU#3, kms_plane_lowre/482
+# 8<--- cut here ---
+# Unable to handle kernel paging request at virtual address 7812078e
+# [7812078e] *pgd=00000000
+# Internal error: Oops: 5 [#1] SMP ARM
+# Modules linked in:
+# CPU: 3 PID: 482 Comm: kms_plane_lowre Tainted: G        W         5.19.0-rc2-323596-g00535de92171 #1
+# Hardware name: Rockchip (Device Tree)
+# Process kms_plane_lowre (pid: 482, stack limit = 0x1193ac2b)
+#  spin_dump from do_raw_spin_lock+0xa4/0xe8
+#  do_raw_spin_lock from wait_for_completion_timeout+0x2c/0x120
+#  wait_for_completion_timeout from drm_crtc_commit_wait+0x18/0x7c
+#  drm_crtc_commit_wait from drm_atomic_helper_wait_for_dependencies+0x44/0x168
+#  drm_atomic_helper_wait_for_dependencies from commit_tail+0x34/0x180
+#  commit_tail from drm_atomic_helper_commit+0x164/0x18c
+#  drm_atomic_helper_commit from drm_atomic_commit+0xac/0xe4
+#  drm_atomic_commit from drm_client_modeset_commit_atomic+0x23c/0x284
+#  drm_client_modeset_commit_atomic from drm_client_modeset_commit_locked+0x60/0x1c8
+#  drm_client_modeset_commit_locked from drm_client_modeset_commit+0x24/0x40
+#  drm_client_modeset_commit from drm_fbdev_client_restore+0x58/0x94
+#  drm_fbdev_client_restore from drm_client_dev_restore+0x70/0xbc
+#  drm_client_dev_restore from drm_release+0xf4/0x114
+#  drm_release from __fput+0x74/0x240
+#  __fput from task_work_run+0x84/0xb4
+#  task_work_run from do_exit+0x34c/0xa20
+#  do_exit from do_group_exit+0x34/0x98
+#  do_group_exit from __wake_up_parent+0x0/0x18
+# Code: e595c008 12843d19 03e00000 03093168 (15940508)
+# ---[ end trace 0000000000000000 ]---
+# note: kms_plane_lowre[482] exited with preempt_count 1
+# Fixing recursive fault but reboot is needed!
+kms_plane_lowres@pipe-F-tiling-y
+
+# Take too long, we have only two machines, and these are very flaky
+kms_cursor_crc.*
+
+# Machine is hanging in this test, so skip it
+kms_pipe_crc_basic@disable-crc-after-crtc
