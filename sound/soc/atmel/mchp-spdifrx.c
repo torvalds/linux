@@ -1197,7 +1197,7 @@ static struct platform_driver mchp_spdifrx_driver = {
 	.remove_new = mchp_spdifrx_remove,
 	.driver	= {
 		.name	= "mchp_spdifrx",
-		.of_match_table = of_match_ptr(mchp_spdifrx_dt_ids),
+		.of_match_table = mchp_spdifrx_dt_ids,
 		.pm	= pm_ptr(&mchp_spdifrx_pm_ops),
 	},
 };

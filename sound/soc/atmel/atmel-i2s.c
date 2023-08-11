@@ -730,7 +730,7 @@ static void atmel_i2s_remove(struct platform_device *pdev)
 static struct platform_driver atmel_i2s_driver = {
 	.driver		= {
 		.name	= "atmel_i2s",
-		.of_match_table	= of_match_ptr(atmel_i2s_dt_ids),
+		.of_match_table	= atmel_i2s_dt_ids,
 	},
 	.probe		= atmel_i2s_probe,
 	.remove_new	= atmel_i2s_remove,
