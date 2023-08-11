@@ -1582,6 +1582,10 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	journal->j_sb_buffer = bh;
 	journal->j_superblock = (journal_superblock_t *)bh->b_data;
 
+	err = load_superblock(journal);
+	if (err)
+		goto err_cleanup;
+
 	journal->j_shrink_transaction = NULL;
 	journal->j_shrinker.scan_objects = jbd2_journal_shrink_scan;
 	journal->j_shrinker.count_objects = jbd2_journal_shrink_count;
@@ -2056,13 +2060,7 @@ EXPORT_SYMBOL(jbd2_journal_update_sb_errno);
 int jbd2_journal_load(journal_t *journal)
 {
 	int err;
-	journal_superblock_t *sb;
-
-	err = load_superblock(journal);
-	if (err)
-		return err;
-
-	sb = journal->j_superblock;
+	journal_superblock_t *sb = journal->j_superblock;
 
 	/*
 	 * If this is a V2 superblock, then we have to check the
@@ -2522,10 +2520,6 @@ int jbd2_journal_wipe(journal_t *journal, int write)
 	int err = 0;
 
 	J_ASSERT (!(journal->j_flags & JBD2_LOADED));
-
-	err = load_superblock(journal);
-	if (err)
-		return err;
 
 	if (!journal->j_tail)
 		goto no_recovery;
