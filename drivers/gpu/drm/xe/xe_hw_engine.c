@@ -550,7 +550,7 @@ static void read_copy_fuses(struct xe_gt *gt)
 	}
 }
 
-static void read_compute_fuses(struct xe_gt *gt)
+static void read_compute_fuses_from_dss(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 
@@ -575,6 +575,33 @@ static void read_compute_fuses(struct xe_gt *gt)
 			drm_info(&xe->drm, "ccs%u fused off\n", j);
 		}
 	}
+}
+
+static void read_compute_fuses_from_reg(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 ccs_mask;
+
+	ccs_mask = xe_mmio_read32(gt, XEHP_FUSE4);
+	ccs_mask = REG_FIELD_GET(CCS_EN_MASK, ccs_mask);
+
+	for (int i = XE_HW_ENGINE_CCS0, j = 0; i <= XE_HW_ENGINE_CCS3; ++i, ++j) {
+		if (!(gt->info.engine_mask & BIT(i)))
+			continue;
+
+		if ((ccs_mask & BIT(j)) == 0) {
+			gt->info.engine_mask &= ~BIT(i);
+			drm_info(&xe->drm, "ccs%u fused off\n", j);
+		}
+	}
+}
+
+static void read_compute_fuses(struct xe_gt *gt)
+{
+	if (GRAPHICS_VER(gt_to_xe(gt)) >= 20)
+		read_compute_fuses_from_reg(gt);
+	else
+		read_compute_fuses_from_dss(gt);
 }
 
 int xe_hw_engines_init_early(struct xe_gt *gt)
