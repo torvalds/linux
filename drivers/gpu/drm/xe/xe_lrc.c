@@ -424,6 +424,69 @@ static const u8 mtl_rcs_offsets[] = {
 	END
 };
 
+#define XE2_CTX_COMMON \
+	NOP(1),                 /* [0x00] */ \
+	LRI(15, POSTED),        /* [0x01] */ \
+	REG16(0x244),           /* [0x02] CTXT_SR_CTL */ \
+	REG(0x034),             /* [0x04] RING_BUFFER_HEAD */ \
+	REG(0x030),             /* [0x06] RING_BUFFER_TAIL */ \
+	REG(0x038),             /* [0x08] RING_BUFFER_START */ \
+	REG(0x03c),             /* [0x0a] RING_BUFFER_CONTROL */ \
+	REG(0x168),             /* [0x0c] BB_ADDR_UDW */ \
+	REG(0x140),             /* [0x0e] BB_ADDR */ \
+	REG(0x110),             /* [0x10] BB_STATE */ \
+	REG(0x1c0),             /* [0x12] BB_PER_CTX_PTR */ \
+	REG(0x1c4),             /* [0x14] RCS_INDIRECT_CTX */ \
+	REG(0x1c8),             /* [0x16] RCS_INDIRECT_CTX_OFFSET */ \
+	REG(0x180),             /* [0x18] CCID */ \
+	REG16(0x2b4),           /* [0x1a] SEMAPHORE_TOKEN */ \
+	REG(0x120),             /* [0x1c] PRT_BB_STATE */ \
+	REG(0x124),             /* [0x1e] PRT_BB_STATE_UDW */ \
+	\
+	NOP(1),                 /* [0x20] */ \
+	LRI(9, POSTED),         /* [0x21] */ \
+	REG16(0x3a8),           /* [0x22] CTX_TIMESTAMP */ \
+	REG16(0x3ac),           /* [0x24] CTX_TIMESTAMP_UDW */ \
+	REG(0x108),             /* [0x26] INDIRECT_RING_STATE */ \
+	REG16(0x284),           /* [0x28] dummy reg */ \
+	REG16(0x280),           /* [0x2a] CS_ACC_CTR_THOLD */ \
+	REG16(0x27c),           /* [0x2c] CS_CTX_SYS_PASID */ \
+	REG16(0x278),           /* [0x2e] CS_CTX_ASID */ \
+	REG16(0x274),           /* [0x30] PTBP_UDW */ \
+	REG16(0x270)            /* [0x32] PTBP_LDW */
+
+static const u8 xe2_rcs_offsets[] = {
+	XE2_CTX_COMMON,
+
+	NOP(2),                 /* [0x34] */
+	LRI(2, POSTED),         /* [0x36] */
+	REG16(0x5a8),           /* [0x37] CONTEXT_SCHEDULING_ATTRIBUTES */
+	REG16(0x5ac),           /* [0x39] PREEMPTION_STATUS */
+
+	NOP(6),                 /* [0x41] */
+	LRI(1, 0),              /* [0x47] */
+	REG(0x0c8),             /* [0x48] R_PWR_CLK_STATE */
+
+	END
+};
+
+static const u8 xe2_bcs_offsets[] = {
+	XE2_CTX_COMMON,
+
+	NOP(4 + 8 + 1),         /* [0x34] */
+	LRI(2, POSTED),         /* [0x41] */
+	REG16(0x200),           /* [0x42] BCS_SWCTRL */
+	REG16(0x204),           /* [0x44] BLIT_CCTL */
+
+	END
+};
+
+static const u8 xe2_xcs_offsets[] = {
+	XE2_CTX_COMMON,
+
+	END
+};
+
 #undef END
 #undef REG16
 #undef REG
@@ -433,7 +496,9 @@ static const u8 mtl_rcs_offsets[] = {
 static const u8 *reg_offsets(struct xe_device *xe, enum xe_engine_class class)
 {
 	if (class == XE_ENGINE_CLASS_RENDER) {
-		if (GRAPHICS_VERx100(xe) >= 1270)
+		if (GRAPHICS_VER(xe) >= 20)
+			return xe2_rcs_offsets;
+		else if (GRAPHICS_VERx100(xe) >= 1270)
 			return mtl_rcs_offsets;
 		else if (GRAPHICS_VERx100(xe) >= 1255)
 			return dg2_rcs_offsets;
@@ -441,8 +506,15 @@ static const u8 *reg_offsets(struct xe_device *xe, enum xe_engine_class class)
 			return xehp_rcs_offsets;
 		else
 			return gen12_rcs_offsets;
+	} else if (class == XE_ENGINE_CLASS_COPY) {
+		if (GRAPHICS_VER(xe) >= 20)
+			return xe2_bcs_offsets;
+		else
+			return gen12_xcs_offsets;
 	} else {
-		if (GRAPHICS_VERx100(xe) >= 1255)
+		if (GRAPHICS_VER(xe) >= 20)
+			return xe2_xcs_offsets;
+		else if (GRAPHICS_VERx100(xe) >= 1255)
 			return dg2_xcs_offsets;
 		else
 			return gen12_xcs_offsets;
