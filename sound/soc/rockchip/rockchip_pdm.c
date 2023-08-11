@@ -1003,6 +1003,23 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	rockchip_pdm_set_samplerate(pdm, PDM_DEFAULT_RATE);
+	rockchip_pdm_rxctrl(pdm, 0);
+
+	ret = rockchip_pdm_path_parse(pdm, node);
+	if (ret != 0 && ret != -ENOENT)
+		goto err_clk;
+
+	/*
+	 * MUST: after pm_runtime_enable step, any register R/W
+	 * should be wrapped with pm_runtime_get_sync/put.
+	 *
+	 * Another approach is to enable the regcache true to
+	 * avoid access HW registers.
+	 *
+	 * Alternatively, performing the registers R/W before
+	 * pm_runtime_enable is also a good option.
+	 */
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
 		ret = rockchip_pdm_runtime_resume(&pdev->dev);
@@ -1018,13 +1035,6 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not register dai: %d\n", ret);
 		goto err_suspend;
 	}
-
-	rockchip_pdm_set_samplerate(pdm, PDM_DEFAULT_RATE);
-	rockchip_pdm_rxctrl(pdm, 0);
-
-	ret = rockchip_pdm_path_parse(pdm, node);
-	if (ret != 0 && ret != -ENOENT)
-		goto err_suspend;
 
 	if (of_property_read_bool(node, "rockchip,no-dmaengine")) {
 		dev_info(&pdev->dev, "Used for Multi-DAI\n");
@@ -1046,7 +1056,7 @@ err_suspend:
 		rockchip_pdm_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
-
+err_clk:
 	clk_disable_unprepare(pdm->hclk);
 
 	return ret;
