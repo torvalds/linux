@@ -986,8 +986,7 @@ gpio_sim_device_config_live_store(struct config_item *item,
 
 	mutex_lock(&dev->lock);
 
-	if ((!live && !gpio_sim_device_is_live_unlocked(dev)) ||
-	    (live && gpio_sim_device_is_live_unlocked(dev)))
+	if (live == gpio_sim_device_is_live_unlocked(dev))
 		ret = -EPERM;
 	else if (live)
 		ret = gpio_sim_device_activate_unlocked(dev);
