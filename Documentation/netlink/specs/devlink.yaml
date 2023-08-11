@@ -284,7 +284,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit-port
@@ -299,6 +298,8 @@ operations:
           value: 7
           attributes: *port-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply:
           value: 3  # due to a bug, port dump returns DEVLINK_CMD_NEW
           attributes: *port-id-attrs
@@ -311,7 +312,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit
@@ -326,6 +326,8 @@ operations:
           value: 11
           attributes: *sb-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *sb-get-reply
 
       # TODO: fill in the operations in between
@@ -336,7 +338,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit
@@ -352,6 +353,8 @@ operations:
           value: 15
           attributes: *sb-pool-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *sb-pool-get-reply
 
       # TODO: fill in the operations in between
@@ -362,7 +365,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit-port
@@ -379,6 +381,8 @@ operations:
           value: 19
           attributes: *sb-port-pool-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *sb-port-pool-get-reply
 
       # TODO: fill in the operations in between
@@ -389,7 +393,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit-port
@@ -407,6 +410,8 @@ operations:
           value: 23
           attributes: *sb-tc-pool-bind-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *sb-tc-pool-bind-get-reply
 
       # TODO: fill in the operations in between
@@ -417,7 +422,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit
@@ -432,6 +436,8 @@ operations:
           value: 38
           attributes: *param-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *param-get-reply
 
       # TODO: fill in the operations in between
@@ -442,7 +448,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit-port-optional
@@ -458,6 +463,8 @@ operations:
           value: 42
           attributes: *region-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *region-get-reply
 
       # TODO: fill in the operations in between
@@ -495,7 +502,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit-port-optional
@@ -509,6 +515,8 @@ operations:
         reply: &health-reporter-get-reply
           attributes: *health-reporter-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *health-reporter-get-reply
 
       # TODO: fill in the operations in between
@@ -519,7 +527,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit
@@ -534,6 +541,8 @@ operations:
           value: 61
           attributes: *trap-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *trap-get-reply
 
       # TODO: fill in the operations in between
@@ -544,7 +553,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit
@@ -559,6 +567,8 @@ operations:
           value: 65
           attributes: *trap-group-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *trap-group-get-reply
 
       # TODO: fill in the operations in between
@@ -569,7 +579,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit
@@ -584,6 +593,8 @@ operations:
           value: 69
           attributes: *trap-policer-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *trap-policer-get-reply
 
       # TODO: fill in the operations in between
@@ -594,7 +605,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit
@@ -610,6 +620,8 @@ operations:
           value: 74
           attributes: *rate-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *rate-get-reply
 
       # TODO: fill in the operations in between
@@ -620,7 +632,6 @@ operations:
       attribute-set: devlink
       dont-validate:
         - strict
-        - dump
 
       do:
         pre: devlink-nl-pre-doit
@@ -635,6 +646,8 @@ operations:
           value: 78
           attributes: *linecard-id-attrs
       dump:
+        request:
+          attributes: *dev-id-attrs
         reply: *linecard-get-reply
 
       # TODO: fill in the operations in between
