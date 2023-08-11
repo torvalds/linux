@@ -390,11 +390,22 @@ static int devlink_nl_health_reporter_get_dump_one(struct sk_buff *msg,
 						   int flags)
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct devlink_health_reporter *reporter;
+	unsigned long port_index_end = ULONG_MAX;
+	struct nlattr **attrs = info->attrs;
+	unsigned long port_index_start = 0;
 	struct devlink_port *port;
 	unsigned long port_index;
 	int idx = 0;
 	int err;
+
+	if (attrs && attrs[DEVLINK_ATTR_PORT_INDEX]) {
+		port_index_start = nla_get_u32(attrs[DEVLINK_ATTR_PORT_INDEX]);
+		port_index_end = port_index_start;
+		flags |= NLM_F_DUMP_FILTERED;
+		goto per_port_dump;
+	}
 
 	list_for_each_entry(reporter, &devlink->reporter_list, list) {
 		if (idx < state->idx) {
@@ -412,7 +423,9 @@ static int devlink_nl_health_reporter_get_dump_one(struct sk_buff *msg,
 		}
 		idx++;
 	}
-	xa_for_each(&devlink->ports, port_index, port) {
+per_port_dump:
+	xa_for_each_range(&devlink->ports, port_index, port,
+			  port_index_start, port_index_end) {
 		list_for_each_entry(reporter, &port->reporter_list, list) {
 			if (idx < state->idx) {
 				idx++;
