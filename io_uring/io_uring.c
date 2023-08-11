@@ -939,15 +939,18 @@ bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags
 	return __io_post_aux_cqe(ctx, user_data, res, cflags, true);
 }
 
-bool io_aux_cqe(const struct io_kiocb *req, bool defer, s32 res, u32 cflags,
-		bool allow_overflow)
+/*
+ * A helper for multishot requests posting additional CQEs.
+ * Should only be used from a task_work including IO_URING_F_MULTISHOT.
+ */
+bool io_fill_cqe_req_aux(struct io_kiocb *req, bool defer, s32 res, u32 cflags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	u64 user_data = req->cqe.user_data;
 	struct io_uring_cqe *cqe;
 
 	if (!defer)
-		return __io_post_aux_cqe(ctx, user_data, res, cflags, allow_overflow);
+		return __io_post_aux_cqe(ctx, user_data, res, cflags, false);
 
 	lockdep_assert_held(&ctx->uring_lock);
 
@@ -962,7 +965,7 @@ bool io_aux_cqe(const struct io_kiocb *req, bool defer, s32 res, u32 cflags,
 	 * however it's main job is to prevent unbounded posted completions,
 	 * and in that it works just as well.
 	 */
-	if (!allow_overflow && test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq))
+	if (test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq))
 		return false;
 
 	cqe = &ctx->submit_state.cqes[ctx->submit_state.cqes_count++];
