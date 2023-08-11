@@ -2607,8 +2607,7 @@ static inline bool inode_is_open_for_write(const struct inode *inode)
 #if defined(CONFIG_IMA) || defined(CONFIG_FILE_LOCKING)
 static inline void i_readcount_dec(struct inode *inode)
 {
-	BUG_ON(!atomic_read(&inode->i_readcount));
-	atomic_dec(&inode->i_readcount);
+	BUG_ON(atomic_dec_return(&inode->i_readcount) < 0);
 }
 static inline void i_readcount_inc(struct inode *inode)
 {
