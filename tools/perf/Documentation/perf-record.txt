@@ -99,20 +99,6 @@ OPTIONS
           If you want to profile write accesses in [0x1000~1008), just set
           'mem:0x1000/8:w'.
 
-        - a BPF source file (ending in .c) or a precompiled object file (ending
-          in .o) selects one or more BPF events.
-          The BPF program can attach to various perf events based on the ELF section
-          names.
-
-          When processing a '.c' file, perf searches an installed LLVM to compile it
-          into an object file first. Optional clang options can be passed via the
-          '--clang-opt' command line option, e.g.:
-
-            perf record --clang-opt "-DLINUX_VERSION_CODE=0x50000" \
-                        -e tests/bpf-script-example.c
-
-          Note: '--clang-opt' must be placed before '--event/-e'.
-
 	- a group of events surrounded by a pair of brace ("{event1,event2,...}").
 	  Each event is separated by commas and the group should be quoted to
 	  prevent the shell interpretation.  You also need to use --group on
@@ -546,14 +532,6 @@ Record context switch events i.e. events of type PERF_RECORD_SWITCH or
 PERF_RECORD_SWITCH_CPU_WIDE. In some cases (e.g. Intel PT, CoreSight or Arm SPE)
 switch events will be enabled automatically, which can be suppressed by
 by the option --no-switch-events.
-
---clang-path=PATH::
-Path to clang binary to use for compiling BPF scriptlets.
-(enabled when BPF support is on)
-
---clang-opt=OPTIONS::
-Options passed to clang when compiling BPF scriptlets.
-(enabled when BPF support is on)
 
 --vmlinux=PATH::
 Specify vmlinux path which has debuginfo.

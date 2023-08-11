@@ -18,6 +18,7 @@
 #include <api/fs/tracing_path.h>
 #ifdef HAVE_LIBBPF_SUPPORT
 #include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 #endif
 #include "util/bpf_map.h"
 #include "util/rlimit.h"
@@ -53,7 +54,6 @@
 #include "trace/beauty/beauty.h"
 #include "trace-event.h"
 #include "util/parse-events.h"
-#include "util/bpf-loader.h"
 #include "util/tracepoint.h"
 #include "callchain.h"
 #include "print_binary.h"
@@ -3287,17 +3287,6 @@ static struct bpf_map *trace__find_bpf_map_by_name(struct trace *trace, const ch
 	return bpf_object__find_map_by_name(trace->bpf_obj, name);
 }
 
-static void trace__set_bpf_map_filtered_pids(struct trace *trace)
-{
-	trace->filter_pids.map = trace__find_bpf_map_by_name(trace, "pids_filtered");
-}
-
-static void trace__set_bpf_map_syscalls(struct trace *trace)
-{
-	trace->syscalls.prog_array.sys_enter = trace__find_bpf_map_by_name(trace, "syscalls_sys_enter");
-	trace->syscalls.prog_array.sys_exit  = trace__find_bpf_map_by_name(trace, "syscalls_sys_exit");
-}
-
 static struct bpf_program *trace__find_bpf_program_by_title(struct trace *trace, const char *name)
 {
 	struct bpf_program *pos, *prog = NULL;
@@ -3553,42 +3542,9 @@ static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace)
 	return err;
 }
 
-static void trace__delete_augmented_syscalls(struct trace *trace)
-{
-	struct evsel *evsel, *tmp;
-
-	evlist__remove(trace->evlist, trace->syscalls.events.augmented);
-	evsel__delete(trace->syscalls.events.augmented);
-	trace->syscalls.events.augmented = NULL;
-
-	evlist__for_each_entry_safe(trace->evlist, tmp, evsel) {
-		if (evsel->bpf_obj == trace->bpf_obj) {
-			evlist__remove(trace->evlist, evsel);
-			evsel__delete(evsel);
-		}
-
-	}
-
-	bpf_object__close(trace->bpf_obj);
-	trace->bpf_obj = NULL;
-}
 #else // HAVE_LIBBPF_SUPPORT
 static struct bpf_map *trace__find_bpf_map_by_name(struct trace *trace __maybe_unused,
 						   const char *name __maybe_unused)
-{
-	return NULL;
-}
-
-static void trace__set_bpf_map_filtered_pids(struct trace *trace __maybe_unused)
-{
-}
-
-static void trace__set_bpf_map_syscalls(struct trace *trace __maybe_unused)
-{
-}
-
-static struct bpf_program *trace__find_bpf_program_by_title(struct trace *trace __maybe_unused,
-							    const char *name __maybe_unused)
 {
 	return NULL;
 }
@@ -3597,26 +3553,7 @@ static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace __maybe_
 {
 	return 0;
 }
-
-static void trace__delete_augmented_syscalls(struct trace *trace __maybe_unused)
-{
-}
 #endif // HAVE_LIBBPF_SUPPORT
-
-static bool trace__only_augmented_syscalls_evsels(struct trace *trace)
-{
-	struct evsel *evsel;
-
-	evlist__for_each_entry(trace->evlist, evsel) {
-		if (evsel == trace->syscalls.events.augmented ||
-		    evsel->bpf_obj == trace->bpf_obj)
-			continue;
-
-		return false;
-	}
-
-	return true;
-}
 
 static int trace__set_ev_qualifier_filter(struct trace *trace)
 {
@@ -3980,16 +3917,6 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	err = evlist__open(evlist);
 	if (err < 0)
 		goto out_error_open;
-
-	err = bpf__apply_obj_config();
-	if (err) {
-		char errbuf[BUFSIZ];
-
-		bpf__strerror_apply_obj_config(err, errbuf, sizeof(errbuf));
-		pr_err("ERROR: Apply config to BPF failed: %s\n",
-			 errbuf);
-		goto out_error_open;
-	}
 
 	err = trace__set_filter_pids(trace);
 	if (err < 0)
@@ -4920,77 +4847,6 @@ int cmd_trace(int argc, const char **argv)
 	if ((nr_cgroups || trace.cgroup) && !trace.opts.target.system_wide) {
 		usage_with_options_msg(trace_usage, trace_options,
 				       "cgroup monitoring only available in system-wide mode");
-	}
-
-	evsel = bpf__setup_output_event(trace.evlist, "__augmented_syscalls__");
-	if (IS_ERR(evsel)) {
-		bpf__strerror_setup_output_event(trace.evlist, PTR_ERR(evsel), bf, sizeof(bf));
-		pr_err("ERROR: Setup trace syscalls enter failed: %s\n", bf);
-		goto out;
-	}
-
-	if (evsel) {
-		trace.syscalls.events.augmented = evsel;
-
-		evsel = evlist__find_tracepoint_by_name(trace.evlist, "raw_syscalls:sys_enter");
-		if (evsel == NULL) {
-			pr_err("ERROR: raw_syscalls:sys_enter not found in the augmented BPF object\n");
-			goto out;
-		}
-
-		if (evsel->bpf_obj == NULL) {
-			pr_err("ERROR: raw_syscalls:sys_enter not associated to a BPF object\n");
-			goto out;
-		}
-
-		trace.bpf_obj = evsel->bpf_obj;
-
-		/*
-		 * If we have _just_ the augmenter event but don't have a
-		 * explicit --syscalls, then assume we want all strace-like
-		 * syscalls:
-		 */
-		if (!trace.trace_syscalls && trace__only_augmented_syscalls_evsels(&trace))
-			trace.trace_syscalls = true;
-		/*
-		 * So, if we have a syscall augmenter, but trace_syscalls, aka
-		 * strace-like syscall tracing is not set, then we need to trow
-		 * away the augmenter, i.e. all the events that were created
-		 * from that BPF object file.
-		 *
-		 * This is more to fix the current .perfconfig trace.add_events
-		 * style of setting up the strace-like eBPF based syscall point
-		 * payload augmenter.
-		 *
-		 * All this complexity will be avoided by adding an alternative
-		 * to trace.add_events in the form of
-		 * trace.bpf_augmented_syscalls, that will be only parsed if we
-		 * need it.
-		 *
-		 * .perfconfig trace.add_events is still useful if we want, for
-		 * instance, have msr_write.msr in some .perfconfig profile based
-		 * 'perf trace --config determinism.profile' mode, where for some
-		 * particular goal/workload type we want a set of events and
-		 * output mode (with timings, etc) instead of having to add
-		 * all via the command line.
-		 *
-		 * Also --config to specify an alternate .perfconfig file needs
-		 * to be implemented.
-		 */
-		if (!trace.trace_syscalls) {
-			trace__delete_augmented_syscalls(&trace);
-		} else {
-			trace__set_bpf_map_filtered_pids(&trace);
-			trace__set_bpf_map_syscalls(&trace);
-			trace.syscalls.unaugmented_prog = trace__find_bpf_program_by_title(&trace, "!raw_syscalls:unaugmented");
-		}
-	}
-
-	err = bpf__setup_stdout(trace.evlist);
-	if (err) {
-		bpf__strerror_setup_stdout(trace.evlist, err, bf, sizeof(bf));
-		pr_err("ERROR: Setup BPF stdout failed: %s\n", bf);
-		goto out;
 	}
 
 	err = -1;

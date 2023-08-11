@@ -60,7 +60,6 @@ static void free_list_evsel(struct list_head* list_evsel)
 %token PE_VALUE_SYM_TOOL
 %token PE_EVENT_NAME
 %token PE_RAW PE_NAME
-%token PE_BPF_OBJECT PE_BPF_SOURCE
 %token PE_MODIFIER_EVENT PE_MODIFIER_BP PE_BP_COLON PE_BP_SLASH
 %token PE_LEGACY_CACHE
 %token PE_PREFIX_MEM
@@ -75,8 +74,6 @@ static void free_list_evsel(struct list_head* list_evsel)
 %type <num> value_sym
 %type <str> PE_RAW
 %type <str> PE_NAME
-%type <str> PE_BPF_OBJECT
-%type <str> PE_BPF_SOURCE
 %type <str> PE_LEGACY_CACHE
 %type <str> PE_MODIFIER_EVENT
 %type <str> PE_MODIFIER_BP
@@ -97,7 +94,6 @@ static void free_list_evsel(struct list_head* list_evsel)
 %type <list_evsel> event_legacy_tracepoint
 %type <list_evsel> event_legacy_numeric
 %type <list_evsel> event_legacy_raw
-%type <list_evsel> event_bpf_file
 %type <list_evsel> event_def
 %type <list_evsel> event_mod
 %type <list_evsel> event_name
@@ -271,8 +267,7 @@ event_def: event_pmu |
 	   event_legacy_mem sep_dc |
 	   event_legacy_tracepoint sep_dc |
 	   event_legacy_numeric sep_dc |
-	   event_legacy_raw sep_dc |
-	   event_bpf_file
+	   event_legacy_raw sep_dc
 
 event_pmu:
 PE_NAME opt_pmu_config
@@ -612,43 +607,6 @@ PE_RAW opt_event_config
 	free($1);
 	err = parse_events_add_numeric(_parse_state, list, PERF_TYPE_RAW, num, $2,
 				       /*wildcard=*/false);
-	parse_events_terms__delete($2);
-	if (err) {
-		free(list);
-		PE_ABORT(err);
-	}
-	$$ = list;
-}
-
-event_bpf_file:
-PE_BPF_OBJECT opt_event_config
-{
-	struct parse_events_state *parse_state = _parse_state;
-	struct list_head *list;
-	int err;
-
-	list = alloc_list();
-	if (!list)
-		YYNOMEM;
-	err = parse_events_load_bpf(parse_state, list, $1, false, $2, &@1);
-	parse_events_terms__delete($2);
-	free($1);
-	if (err) {
-		free(list);
-		PE_ABORT(err);
-	}
-	$$ = list;
-}
-|
-PE_BPF_SOURCE opt_event_config
-{
-	struct list_head *list;
-	int err;
-
-	list = alloc_list();
-	if (!list)
-		YYNOMEM;
-	err = parse_events_load_bpf(_parse_state, list, $1, true, $2, &@1);
 	parse_events_terms__delete($2);
 	if (err) {
 		free(list);
