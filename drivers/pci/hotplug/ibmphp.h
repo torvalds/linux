@@ -264,8 +264,6 @@ extern struct list_head ibmphp_slot_head;
 void ibmphp_free_ebda_hpc_queue(void);
 int ibmphp_access_ebda(void);
 struct slot *ibmphp_get_slot_from_physical_num(u8);
-int ibmphp_get_total_hp_slots(void);
-void ibmphp_free_ibm_slot(struct slot *);
 void ibmphp_free_bus_info_queue(void);
 void ibmphp_free_ebda_pci_rsrc_queue(void);
 struct bus_info *ibmphp_find_same_bus_num(u32);
