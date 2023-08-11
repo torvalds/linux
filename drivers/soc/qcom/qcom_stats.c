@@ -49,6 +49,11 @@
 #define DDR_STATS_COUNT_ADDR		0x4
 #define DDR_STATS_DURATION_ADDR		0x8
 
+#define MAX_ISLAND_STATS_NAME_LENGTH	16
+#define MAX_ISLAND_STATS		6
+#define ISLAND_STATS_PID		2 /* ADSP PID */
+#define ISLAND_STATS_SMEM_ID		653
+
 #define STATS_BASEMINOR				0
 #define STATS_MAX_MINOR				1
 #define STATS_DEVICE_NAME			"stats"
@@ -118,6 +123,7 @@ struct stats_config {
 	bool subsystem_stats_in_smem;
 	bool read_ddr_votes;
 	bool ddr_freq_update;
+	bool island_stats_avail;
 };
 
 struct stats_data {
@@ -151,6 +157,17 @@ struct sleep_stats {
 
 struct appended_stats {
 	u32 client_votes;
+	u32 reserved[3];
+};
+
+struct island_stats {
+	char name[MAX_ISLAND_STATS_NAME_LENGTH];
+	u32 count;
+	u64 last_entered_at;
+	u64 last_exited_at;
+	u64 accumulated;
+	u32 vid;
+	u32 task_id;
 	u32 reserved[3];
 };
 
@@ -774,9 +791,36 @@ static int ddr_stats_show(struct seq_file *s, void *d)
 	return 0;
 }
 
+static int island_stats_show(struct seq_file *s, void *unused)
+{
+	struct island_stats *stat;
+	int i;
+
+	/* Items are allocated lazily, so lookup pointer each time */
+	stat = qcom_smem_get(ISLAND_STATS_PID, ISLAND_STATS_SMEM_ID, NULL);
+	if (IS_ERR(stat))
+		return 0;
+
+	for (i = 0; i < MAX_ISLAND_STATS; i++) {
+		if (!strcmp(stat[i].name, "DEADDEAD"))
+			continue;
+
+		seq_printf(s, "Name: %s\n", stat[i].name);
+		seq_printf(s, "Count: %u\n", stat[i].count);
+		seq_printf(s, "Last Entered At: %llu\n", stat[i].last_entered_at);
+		seq_printf(s, "Last Exited At: %llu\n", stat[i].last_exited_at);
+		seq_printf(s, "Accumulated Duration: %llu\n", stat[i].accumulated);
+		seq_printf(s, "Vid: %u\n", stat[i].vid);
+		seq_printf(s, "task_id: %u\n", stat[i].task_id);
+	}
+
+	return 0;
+}
+
 DEFINE_SHOW_ATTRIBUTE(qcom_soc_sleep_stats);
 DEFINE_SHOW_ATTRIBUTE(qcom_subsystem_sleep_stats);
 DEFINE_SHOW_ATTRIBUTE(ddr_stats);
+DEFINE_SHOW_ATTRIBUTE(island_stats);
 
 static int qcom_create_stats_device(struct stats_drvdata *drv)
 {
@@ -811,6 +855,16 @@ static int qcom_create_stats_device(struct stats_drvdata *drv)
 	}
 
 	return ret;
+}
+
+static void qcom_create_island_stat_files(struct dentry *root, void __iomem *reg,
+					  struct stats_data *d,
+					  const struct stats_config *config)
+{
+	if (!config->island_stats_avail)
+		return;
+
+	debugfs_create_file("island_stats", 0400, root, NULL, &island_stats_fops);
 }
 
 static void qcom_create_ddr_stat_files(struct dentry *root, void __iomem *reg,
@@ -938,6 +992,7 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	qcom_create_subsystem_stat_files(root, config, pdev->dev.of_node);
 	qcom_create_soc_sleep_stat_files(root, reg, d, config);
 	qcom_create_ddr_stat_files(root, reg, d, config);
+	qcom_create_island_stat_files(root, reg, d, config);
 
 	drv->d = d;
 	drv->config = config;
@@ -1132,6 +1187,19 @@ static const struct stats_config rpmh_v3_data = {
 	.ddr_freq_update = true,
 };
 
+static const struct stats_config rpmh_v4_data = {
+	.stats_offset = 0x48,
+	.ddr_stats_offset = 0xb8,
+	.cx_vote_offset = 0xb8,
+	.num_records = 3,
+	.appended_stats_avail = false,
+	.dynamic_offset = false,
+	.subsystem_stats_in_smem = true,
+	.read_ddr_votes = true,
+	.ddr_freq_update = true,
+	.island_stats_avail = true,
+};
+
 static const struct of_device_id qcom_stats_table[] = {
 	{ .compatible = "qcom,apq8084-rpm-stats", .data = &rpm_data_dba0 },
 	{ .compatible = "qcom,msm8226-rpm-stats", .data = &rpm_data_dba0 },
@@ -1141,6 +1209,7 @@ static const struct of_device_id qcom_stats_table[] = {
 	{ .compatible = "qcom,rpmh-stats", .data = &rpmh_data },
 	{ .compatible = "qcom,rpmh-stats-v2", .data = &rpmh_v2_data },
 	{ .compatible = "qcom,rpmh-stats-v3", .data = &rpmh_v3_data },
+	{ .compatible = "qcom,rpmh-stats-v4", .data = &rpmh_v4_data },
 	{ .compatible = "qcom,sdm845-rpmh-stats", .data = &rpmh_data_sdm845 },
 	{ }
 };
