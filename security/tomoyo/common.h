@@ -1037,8 +1037,6 @@ struct tomoyo_policy_namespace *tomoyo_assign_namespace
 (const char *domainname);
 struct tomoyo_profile *tomoyo_profile(const struct tomoyo_policy_namespace *ns,
 				      const u8 profile);
-unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
-				const u8 index);
 u8 tomoyo_parse_ulong(unsigned long *result, char **str);
 void *tomoyo_commit_ok(void *data, const unsigned int size);
 void __init tomoyo_load_builtin_policy(void);
