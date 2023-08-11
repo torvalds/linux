@@ -3383,7 +3383,215 @@ static const struct attribute_group *hwmon_groups[] = {
 	NULL
 };
 
-static struct od_feature_set amdgpu_od_set;
+static int amdgpu_retrieve_od_settings(struct amdgpu_device *adev,
+				       enum pp_clock_type od_type,
+				       char *buf)
+{
+	int size = 0;
+	int ret;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	ret = pm_runtime_get_sync(adev->dev);
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(adev->dev);
+		return ret;
+	}
+
+	size = amdgpu_dpm_print_clock_levels(adev, od_type, buf);
+	if (size == 0)
+		size = sysfs_emit(buf, "\n");
+
+	pm_runtime_mark_last_busy(adev->dev);
+	pm_runtime_put_autosuspend(adev->dev);
+
+	return size;
+}
+
+static int parse_input_od_command_lines(const char *buf,
+					size_t count,
+					u32 *type,
+					long *params,
+					uint32_t *num_of_params)
+{
+	const char delimiter[3] = {' ', '\n', '\0'};
+	uint32_t parameter_size = 0;
+	char buf_cpy[128] = {0};
+	char *tmp_str, *sub_str;
+	int ret;
+
+	if (count > sizeof(buf_cpy) - 1)
+		return -EINVAL;
+
+	memcpy(buf_cpy, buf, count);
+	tmp_str = buf_cpy;
+
+	/* skip heading spaces */
+	while (isspace(*tmp_str))
+		tmp_str++;
+
+	switch (*tmp_str) {
+	case 'c':
+		*type = PP_OD_COMMIT_DPM_TABLE;
+		return 0;
+	default:
+		break;
+	}
+
+	while ((sub_str = strsep(&tmp_str, delimiter)) != NULL) {
+		if (strlen(sub_str) == 0)
+			continue;
+
+		ret = kstrtol(sub_str, 0, &params[parameter_size]);
+		if (ret)
+			return -EINVAL;
+		parameter_size++;
+
+		while (isspace(*tmp_str))
+			tmp_str++;
+	}
+
+	*num_of_params = parameter_size;
+
+	return 0;
+}
+
+static int
+amdgpu_distribute_custom_od_settings(struct amdgpu_device *adev,
+				     enum PP_OD_DPM_TABLE_COMMAND cmd_type,
+				     const char *in_buf,
+				     size_t count)
+{
+	uint32_t parameter_size = 0;
+	long parameter[64];
+	int ret;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	ret = parse_input_od_command_lines(in_buf,
+					   count,
+					   &cmd_type,
+					   parameter,
+					   &parameter_size);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_get_sync(adev->dev);
+	if (ret < 0)
+		goto err_out0;
+
+	ret = amdgpu_dpm_odn_edit_dpm_table(adev,
+					    cmd_type,
+					    parameter,
+					    parameter_size);
+	if (ret)
+		goto err_out1;
+
+	if (cmd_type == PP_OD_COMMIT_DPM_TABLE) {
+		ret = amdgpu_dpm_dispatch_task(adev,
+					       AMD_PP_TASK_READJUST_POWER_STATE,
+					       NULL);
+		if (ret)
+			goto err_out1;
+	}
+
+	pm_runtime_mark_last_busy(adev->dev);
+	pm_runtime_put_autosuspend(adev->dev);
+
+	return count;
+
+err_out1:
+	pm_runtime_mark_last_busy(adev->dev);
+err_out0:
+	pm_runtime_put_autosuspend(adev->dev);
+
+	return ret;
+}
+
+/**
+ * DOC: fan_curve
+ *
+ * The amdgpu driver provides a sysfs API for checking and adjusting the fan
+ * control curve line.
+ *
+ * Reading back the file shows you the current settings(temperature in Celsius
+ * degree and fan speed in pwm) applied to every anchor point of the curve line
+ * and their permitted ranges if changable.
+ *
+ * Writing a desired string(with the format like "anchor_point_index temperature
+ * fan_speed_in_pwm") to the file, change the settings for the specific anchor
+ * point accordingly.
+ *
+ * When you have finished the editing, write "c" (commit) to the file to commit
+ * your changes.
+ *
+ * There are two fan control modes supported: auto and manual. With auto mode,
+ * PMFW handles the fan speed control(how fan speed reacts to ASIC temperature).
+ * While with manual mode, users can set their own fan curve line as what
+ * described here. Normally the ASIC is booted up with auto mode. Any
+ * settings via this interface will switch the fan control to manual mode
+ * implicitly.
+ */
+static ssize_t fan_curve_show(struct kobject *kobj,
+			      struct kobj_attribute *attr,
+			      char *buf)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_retrieve_od_settings(adev, OD_FAN_CURVE, buf);
+}
+
+static ssize_t fan_curve_store(struct kobject *kobj,
+			       struct kobj_attribute *attr,
+			       const char *buf,
+			       size_t count)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_distribute_custom_od_settings(adev,
+							     PP_OD_EDIT_FAN_CURVE,
+							     buf,
+							     count);
+}
+
+static umode_t fan_curve_visible(struct amdgpu_device *adev)
+{
+	umode_t umode = 0000;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_CURVE_RETRIEVE)
+		umode |= S_IRUSR | S_IRGRP | S_IROTH;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_CURVE_SET)
+		umode |= S_IWUSR;
+
+	return umode;
+}
+
+static struct od_feature_set amdgpu_od_set = {
+	.containers = {
+		[0] = {
+			.name = "fan_ctrl",
+			.sub_feature = {
+				[0] = {
+					.name = "fan_curve",
+					.ops = {
+						.is_visible = fan_curve_visible,
+						.show = fan_curve_show,
+						.store = fan_curve_store,
+					},
+				},
+			},
+		},
+	},
+};
 
 static void od_kobj_release(struct kobject *kobj)
 {

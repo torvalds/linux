@@ -64,6 +64,12 @@ gpu_metrics
 .. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
    :doc: gpu_metrics
 
+fan_curve
+---------
+
+.. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
+   :doc: fan_curve
+
 GFXOFF
 ======
 

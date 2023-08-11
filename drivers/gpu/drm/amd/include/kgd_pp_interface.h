@@ -113,6 +113,7 @@ enum pp_clock_type {
 	OD_RANGE,
 	OD_VDDGFX_OFFSET,
 	OD_CCLK,
+	OD_FAN_CURVE,
 };
 
 enum amd_pp_sensors {
@@ -186,7 +187,8 @@ enum PP_OD_DPM_TABLE_COMMAND {
 	PP_OD_EDIT_VDDC_CURVE,
 	PP_OD_RESTORE_DEFAULT_TABLE,
 	PP_OD_COMMIT_DPM_TABLE,
-	PP_OD_EDIT_VDDGFX_OFFSET
+	PP_OD_EDIT_VDDGFX_OFFSET,
+	PP_OD_EDIT_FAN_CURVE,
 };
 
 struct pp_states_info {

@@ -314,6 +314,9 @@ struct config_table_setting
 	uint16_t fclk_average_tau;
 };
 
+#define OD_OPS_SUPPORT_FAN_CURVE_RETRIEVE		BIT(0)
+#define OD_OPS_SUPPORT_FAN_CURVE_SET			BIT(1)
+
 struct amdgpu_pm {
 	struct mutex		mutex;
 	u32                     current_sclk;
@@ -368,6 +371,7 @@ struct amdgpu_pm {
 	enum amdgpu_runpm_mode rpm_mode;
 
 	struct list_head	od_kobj_list;
+	uint32_t		od_feature_mask;
 };
 
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,

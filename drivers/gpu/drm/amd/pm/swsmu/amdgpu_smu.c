@@ -2481,6 +2481,8 @@ static enum smu_clk_type smu_convert_to_smuclk(enum pp_clock_type type)
 		clk_type = SMU_OD_VDDGFX_OFFSET; break;
 	case OD_CCLK:
 		clk_type = SMU_OD_CCLK; break;
+	case OD_FAN_CURVE:
+		clk_type = SMU_OD_FAN_CURVE; break;
 	default:
 		clk_type = SMU_CLK_COUNT; break;
 	}
