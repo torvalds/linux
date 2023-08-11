@@ -92,8 +92,6 @@ static inline bool devl_is_registered(struct devlink *devlink)
 /* Netlink */
 #define DEVLINK_NL_FLAG_NEED_PORT		BIT(0)
 #define DEVLINK_NL_FLAG_NEED_DEVLINK_OR_PORT	BIT(1)
-#define DEVLINK_NL_FLAG_NEED_RATE		BIT(2)
-#define DEVLINK_NL_FLAG_NEED_RATE_NODE		BIT(3)
 
 enum devlink_multicast_groups {
 	DEVLINK_MCGRP_CONFIG,
@@ -205,11 +203,7 @@ int devlink_resources_validate(struct devlink *devlink,
 /* Rates */
 int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
 			     struct netlink_ext_ack *extack);
-struct devlink_rate *
-devlink_rate_get_from_info(struct devlink *devlink, struct genl_info *info);
-struct devlink_rate *
-devlink_rate_node_get_from_info(struct devlink *devlink,
-				struct genl_info *info);
+
 /* Devlink nl cmds */
 int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info);
