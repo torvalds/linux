@@ -4200,7 +4200,7 @@ int ext4_calculate_overhead(struct super_block *sb)
 	else if (ext4_has_feature_journal(sb) && !sbi->s_journal && j_inum) {
 		/* j_inum for internal journal is non-zero */
 		j_inode = ext4_get_journal_inode(sb, j_inum);
-		if (j_inode) {
+		if (!IS_ERR(j_inode)) {
 			j_blocks = j_inode->i_size >> sb->s_blocksize_bits;
 			overhead += EXT4_NUM_B2C(sbi, j_blocks);
 			iput(j_inode);
@@ -5740,18 +5740,18 @@ static struct inode *ext4_get_journal_inode(struct super_block *sb,
 	journal_inode = ext4_iget(sb, journal_inum, EXT4_IGET_SPECIAL);
 	if (IS_ERR(journal_inode)) {
 		ext4_msg(sb, KERN_ERR, "no journal found");
-		return NULL;
+		return ERR_CAST(journal_inode);
 	}
 	if (!journal_inode->i_nlink) {
 		make_bad_inode(journal_inode);
 		iput(journal_inode);
 		ext4_msg(sb, KERN_ERR, "journal inode is deleted");
-		return NULL;
+		return ERR_PTR(-EFSCORRUPTED);
 	}
 	if (!S_ISREG(journal_inode->i_mode) || IS_ENCRYPTED(journal_inode)) {
 		ext4_msg(sb, KERN_ERR, "invalid journal inode");
 		iput(journal_inode);
-		return NULL;
+		return ERR_PTR(-EFSCORRUPTED);
 	}
 
 	ext4_debug("Journal inode found at %p: %lld bytes\n",
@@ -5781,21 +5781,21 @@ static int ext4_journal_bmap(journal_t *journal, sector_t *block)
 	return 0;
 }
 
-static journal_t *ext4_get_journal(struct super_block *sb,
-				   unsigned int journal_inum)
+static journal_t *ext4_open_inode_journal(struct super_block *sb,
+					  unsigned int journal_inum)
 {
 	struct inode *journal_inode;
 	journal_t *journal;
 
 	journal_inode = ext4_get_journal_inode(sb, journal_inum);
-	if (!journal_inode)
-		return NULL;
+	if (IS_ERR(journal_inode))
+		return ERR_CAST(journal_inode);
 
 	journal = jbd2_journal_init_inode(journal_inode);
 	if (IS_ERR(journal)) {
 		ext4_msg(sb, KERN_ERR, "Could not load journal inode");
 		iput(journal_inode);
-		return NULL;
+		return ERR_CAST(journal);
 	}
 	journal->j_private = sb;
 	journal->j_bmap = ext4_journal_bmap;
@@ -5813,6 +5813,7 @@ static struct block_device *ext4_get_journal_blkdev(struct super_block *sb,
 	ext4_fsblk_t sb_block;
 	unsigned long offset;
 	struct ext4_super_block *es;
+	int errno;
 
 	bdev = blkdev_get_by_dev(j_dev, BLK_OPEN_READ | BLK_OPEN_WRITE, sb,
 				 &ext4_holder_ops);
@@ -5820,7 +5821,7 @@ static struct block_device *ext4_get_journal_blkdev(struct super_block *sb,
 		ext4_msg(sb, KERN_ERR,
 			 "failed to open journal device unknown-block(%u,%u) %ld",
 			 MAJOR(j_dev), MINOR(j_dev), PTR_ERR(bdev));
-		return NULL;
+		return ERR_CAST(bdev);
 	}
 
 	blocksize = sb->s_blocksize;
@@ -5828,6 +5829,7 @@ static struct block_device *ext4_get_journal_blkdev(struct super_block *sb,
 	if (blocksize < hblock) {
 		ext4_msg(sb, KERN_ERR,
 			"blocksize too small for journal device");
+		errno = -EINVAL;
 		goto out_bdev;
 	}
 
@@ -5838,6 +5840,7 @@ static struct block_device *ext4_get_journal_blkdev(struct super_block *sb,
 	if (!bh) {
 		ext4_msg(sb, KERN_ERR, "couldn't read superblock of "
 		       "external journal");
+		errno = -EINVAL;
 		goto out_bdev;
 	}
 
@@ -5846,6 +5849,7 @@ static struct block_device *ext4_get_journal_blkdev(struct super_block *sb,
 	    !(le32_to_cpu(es->s_feature_incompat) &
 	      EXT4_FEATURE_INCOMPAT_JOURNAL_DEV)) {
 		ext4_msg(sb, KERN_ERR, "external journal has bad superblock");
+		errno = -EFSCORRUPTED;
 		goto out_bh;
 	}
 
@@ -5853,11 +5857,13 @@ static struct block_device *ext4_get_journal_blkdev(struct super_block *sb,
 	     EXT4_FEATURE_RO_COMPAT_METADATA_CSUM) &&
 	    es->s_checksum != ext4_superblock_csum(sb, es)) {
 		ext4_msg(sb, KERN_ERR, "external journal has corrupt superblock");
+		errno = -EFSCORRUPTED;
 		goto out_bh;
 	}
 
 	if (memcmp(EXT4_SB(sb)->s_es->s_journal_uuid, es->s_uuid, 16)) {
 		ext4_msg(sb, KERN_ERR, "journal UUID does not match");
+		errno = -EFSCORRUPTED;
 		goto out_bh;
 	}
 
@@ -5870,31 +5876,34 @@ out_bh:
 	brelse(bh);
 out_bdev:
 	blkdev_put(bdev, sb);
-	return NULL;
+	return ERR_PTR(errno);
 }
 
-static journal_t *ext4_get_dev_journal(struct super_block *sb,
-				       dev_t j_dev)
+static journal_t *ext4_open_dev_journal(struct super_block *sb,
+					dev_t j_dev)
 {
 	journal_t *journal;
 	ext4_fsblk_t j_start;
 	ext4_fsblk_t j_len;
 	struct block_device *journal_bdev;
+	int errno = 0;
 
 	journal_bdev = ext4_get_journal_blkdev(sb, j_dev, &j_start, &j_len);
-	if (!journal_bdev)
-		return NULL;
+	if (IS_ERR(journal_bdev))
+		return ERR_CAST(journal_bdev);
 
 	journal = jbd2_journal_init_dev(journal_bdev, sb->s_bdev, j_start,
 					j_len, sb->s_blocksize);
 	if (IS_ERR(journal)) {
 		ext4_msg(sb, KERN_ERR, "failed to create device journal");
+		errno = PTR_ERR(journal);
 		goto out_bdev;
 	}
 	if (be32_to_cpu(journal->j_superblock->s_nr_users) != 1) {
 		ext4_msg(sb, KERN_ERR, "External journal has more than one "
 					"user (unsupported) - %d",
 			be32_to_cpu(journal->j_superblock->s_nr_users));
+		errno = -EINVAL;
 		goto out_journal;
 	}
 	journal->j_private = sb;
@@ -5906,7 +5915,7 @@ out_journal:
 	jbd2_journal_destroy(journal);
 out_bdev:
 	blkdev_put(journal_bdev, sb);
-	return NULL;
+	return ERR_PTR(errno);
 }
 
 static int ext4_load_journal(struct super_block *sb,
@@ -5938,13 +5947,13 @@ static int ext4_load_journal(struct super_block *sb,
 	}
 
 	if (journal_inum) {
-		journal = ext4_get_journal(sb, journal_inum);
-		if (!journal)
-			return -EINVAL;
+		journal = ext4_open_inode_journal(sb, journal_inum);
+		if (IS_ERR(journal))
+			return PTR_ERR(journal);
 	} else {
-		journal = ext4_get_dev_journal(sb, journal_dev);
-		if (!journal)
-			return -EINVAL;
+		journal = ext4_open_dev_journal(sb, journal_dev);
+		if (IS_ERR(journal))
+			return PTR_ERR(journal);
 	}
 
 	journal_dev_ro = bdev_read_only(journal->j_dev);
