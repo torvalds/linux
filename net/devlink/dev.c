@@ -1229,10 +1229,9 @@ int devlink_nl_selftests_get_doit(struct sk_buff *skb, struct genl_info *info)
 	return genlmsg_reply(msg, info);
 }
 
-static int
-devlink_nl_cmd_selftests_get_dump_one(struct sk_buff *msg,
-				      struct devlink *devlink,
-				      struct netlink_callback *cb)
+static int devlink_nl_selftests_get_dump_one(struct sk_buff *msg,
+					     struct devlink *devlink,
+					     struct netlink_callback *cb)
 {
 	if (!devlink->ops->selftest_check)
 		return 0;
@@ -1243,9 +1242,11 @@ devlink_nl_cmd_selftests_get_dump_one(struct sk_buff *msg,
 					 cb->extack);
 }
 
-const struct devlink_cmd devl_cmd_selftests_get = {
-	.dump_one		= devlink_nl_cmd_selftests_get_dump_one,
-};
+int devlink_nl_selftests_get_dumpit(struct sk_buff *skb,
+				    struct netlink_callback *cb)
+{
+	return devlink_nl_dumpit(skb, cb, devlink_nl_selftests_get_dump_one);
+}
 
 static int devlink_selftest_result_put(struct sk_buff *skb, unsigned int id,
 				       enum devlink_selftest_status test_status)

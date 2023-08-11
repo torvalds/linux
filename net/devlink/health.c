@@ -384,10 +384,9 @@ int devlink_nl_health_reporter_get_doit(struct sk_buff *skb,
 	return genlmsg_reply(msg, info);
 }
 
-static int
-devlink_nl_cmd_health_reporter_get_dump_one(struct sk_buff *msg,
-					    struct devlink *devlink,
-					    struct netlink_callback *cb)
+static int devlink_nl_health_reporter_get_dump_one(struct sk_buff *msg,
+						   struct devlink *devlink,
+						   struct netlink_callback *cb)
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
 	struct devlink_health_reporter *reporter;
@@ -434,9 +433,12 @@ devlink_nl_cmd_health_reporter_get_dump_one(struct sk_buff *msg,
 	return 0;
 }
 
-const struct devlink_cmd devl_cmd_health_reporter_get = {
-	.dump_one		= devlink_nl_cmd_health_reporter_get_dump_one,
-};
+int devlink_nl_health_reporter_get_dumpit(struct sk_buff *skb,
+					  struct netlink_callback *cb)
+{
+	return devlink_nl_dumpit(skb, cb,
+				 devlink_nl_health_reporter_get_dump_one);
+}
 
 int devlink_nl_cmd_health_reporter_set_doit(struct sk_buff *skb,
 					    struct genl_info *info)

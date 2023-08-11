@@ -170,23 +170,6 @@ void devlink_nl_post_doit(const struct genl_split_ops *ops,
 	devlink_put(devlink);
 }
 
-static const struct devlink_cmd *devl_cmds[] = {
-	[DEVLINK_CMD_PORT_GET]		= &devl_cmd_port_get,
-	[DEVLINK_CMD_SB_GET]		= &devl_cmd_sb_get,
-	[DEVLINK_CMD_SB_POOL_GET]	= &devl_cmd_sb_pool_get,
-	[DEVLINK_CMD_SB_PORT_POOL_GET]	= &devl_cmd_sb_port_pool_get,
-	[DEVLINK_CMD_SB_TC_POOL_BIND_GET] = &devl_cmd_sb_tc_pool_bind_get,
-	[DEVLINK_CMD_PARAM_GET]		= &devl_cmd_param_get,
-	[DEVLINK_CMD_REGION_GET]	= &devl_cmd_region_get,
-	[DEVLINK_CMD_HEALTH_REPORTER_GET] = &devl_cmd_health_reporter_get,
-	[DEVLINK_CMD_TRAP_GET]		= &devl_cmd_trap_get,
-	[DEVLINK_CMD_TRAP_GROUP_GET]	= &devl_cmd_trap_group_get,
-	[DEVLINK_CMD_TRAP_POLICER_GET]	= &devl_cmd_trap_policer_get,
-	[DEVLINK_CMD_RATE_GET]		= &devl_cmd_rate_get,
-	[DEVLINK_CMD_LINECARD_GET]	= &devl_cmd_linecard_get,
-	[DEVLINK_CMD_SELFTESTS_GET]	= &devl_cmd_selftests_get,
-};
-
 int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
 		      devlink_nl_dump_one_func_t *dump_one)
 {
@@ -218,15 +201,6 @@ int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
 	if (err != -EMSGSIZE)
 		return err;
 	return msg->len;
-}
-
-int devlink_nl_instance_iter_dumpit(struct sk_buff *msg,
-				    struct netlink_callback *cb)
-{
-	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
-	const struct devlink_cmd *cmd = devl_cmds[info->op.cmd];
-
-	return devlink_nl_dumpit(msg, cb, cmd->dump_one);
 }
 
 struct genl_family devlink_nl_family __ro_after_init = {
