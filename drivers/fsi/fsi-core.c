@@ -16,6 +16,8 @@
 #include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/cdev.h>
@@ -23,6 +25,10 @@
 #include <linux/uaccess.h>
 
 #include "fsi-master.h"
+#include "fsi-slave.h"
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/fsi.h>
 
 #define FSI_SLAVE_CONF_NEXT_MASK	GENMASK(31, 31)
 #define FSI_SLAVE_CONF_SLOTS_MASK	GENMASK(23, 16)
@@ -77,26 +83,6 @@ static const int engine_page_size = 0x400;
 #define FSI_SLAVE_SIZE_23b		0x800000
 
 static DEFINE_IDA(master_ida);
-
-struct fsi_slave {
-	struct device		dev;
-	struct fsi_master	*master;
-	struct cdev		cdev;
-	int			cdev_idx;
-	int			id;	/* FSI address */
-	int			link;	/* FSI link# */
-	u32			cfam_id;
-	int			chip_id;
-	uint32_t		size;	/* size of slave address space */
-	u8			t_send_delay;
-	u8			t_echo_delay;
-};
-
-#define CREATE_TRACE_POINTS
-#include <trace/events/fsi.h>
-
-#define to_fsi_master(d) container_of(d, struct fsi_master, dev)
-#define to_fsi_slave(d) container_of(d, struct fsi_slave, dev)
 
 static const int slave_retries = 2;
 static int discard_errors;
@@ -415,28 +401,18 @@ EXPORT_SYMBOL_GPL(fsi_slave_release_range);
 static bool fsi_device_node_matches(struct device *dev, struct device_node *np,
 		uint32_t addr, uint32_t size)
 {
-	unsigned int len, na, ns;
-	const __be32 *prop;
-	uint32_t psize;
+	u64 paddr, psize;
 
-	na = of_n_addr_cells(np);
-	ns = of_n_size_cells(np);
-
-	if (na != 1 || ns != 1)
+	if (of_property_read_reg(np, 0, &paddr, &psize))
 		return false;
 
-	prop = of_get_property(np, "reg", &len);
-	if (!prop || len != 8)
+	if (paddr != addr)
 		return false;
 
-	if (of_read_number(prop, 1) != addr)
-		return false;
-
-	psize = of_read_number(prop + 1, 1);
 	if (psize != size) {
 		dev_warn(dev,
-			"node %s matches probed address, but not size (got 0x%x, expected 0x%x)",
-			of_node_full_name(np), psize, size);
+			"node %pOF matches probed address, but not size (got 0x%llx, expected 0x%x)",
+			np, psize, size);
 	}
 
 	return true;
@@ -653,24 +629,12 @@ static void fsi_slave_release(struct device *dev)
 static bool fsi_slave_node_matches(struct device_node *np,
 		int link, uint8_t id)
 {
-	unsigned int len, na, ns;
-	const __be32 *prop;
+	u64 addr;
 
-	na = of_n_addr_cells(np);
-	ns = of_n_size_cells(np);
-
-	/* Ensure we have the correct format for addresses and sizes in
-	 * reg properties
-	 */
-	if (na != 2 || ns != 0)
+	if (of_property_read_reg(np, 0, &addr, NULL))
 		return false;
 
-	prop = of_get_property(np, "reg", &len);
-	if (!prop || len != 8)
-		return false;
-
-	return (of_read_number(prop, 1) == link) &&
-		(of_read_number(prop + 1, 1) == id);
+	return addr == (((u64)link << 32) | id);
 }
 
 /* Find a matching node for the slave at (link, id). Returns NULL if none
@@ -949,9 +913,13 @@ static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
 
 	/* Check if we qualify for legacy numbering */
 	if (cid >= 0 && cid < 16 && type < 4) {
-		/* Try reserving the legacy number */
-		id = (cid << 4) | type;
-		id = ida_simple_get(&fsi_minor_ida, id, id + 1, GFP_KERNEL);
+		/*
+		 * Try reserving the legacy number, which has 0 - 0x3f reserved
+		 * in the ida range. cid goes up to 0xf and type contains two
+		 * bits, so construct the id with the below two bit shift.
+		 */
+		id = (cid << 2) | type;
+		id = ida_alloc_range(&fsi_minor_ida, id, id, GFP_KERNEL);
 		if (id >= 0) {
 			*out_index = fsi_adjust_index(cid);
 			*out_dev = fsi_base_dev + id;
@@ -962,8 +930,8 @@ static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
 			return id;
 		/* Fallback to non-legacy allocation */
 	}
-	id = ida_simple_get(&fsi_minor_ida, FSI_CHAR_LEGACY_TOP,
-			    FSI_CHAR_MAX_DEVICES, GFP_KERNEL);
+	id = ida_alloc_range(&fsi_minor_ida, FSI_CHAR_LEGACY_TOP,
+			     FSI_CHAR_MAX_DEVICES - 1, GFP_KERNEL);
 	if (id < 0)
 		return id;
 	*out_index = fsi_adjust_index(id);
@@ -971,16 +939,42 @@ static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
 	return 0;
 }
 
+static const char *const fsi_dev_type_names[] = {
+	"cfam",
+	"sbefifo",
+	"scom",
+	"occ",
+};
+
 int fsi_get_new_minor(struct fsi_device *fdev, enum fsi_dev_type type,
 		      dev_t *out_dev, int *out_index)
 {
+	if (fdev->dev.of_node) {
+		int aid = of_alias_get_id(fdev->dev.of_node, fsi_dev_type_names[type]);
+
+		if (aid >= 0) {
+			/* Use the same scheme as the legacy numbers. */
+			int id = (aid << 2) | type;
+
+			id = ida_alloc_range(&fsi_minor_ida, id, id, GFP_KERNEL);
+			if (id >= 0) {
+				*out_index = aid;
+				*out_dev = fsi_base_dev + id;
+				return 0;
+			}
+
+			if (id != -ENOSPC)
+				return id;
+		}
+	}
+
 	return __fsi_get_new_minor(fdev->slave, type, out_dev, out_index);
 }
 EXPORT_SYMBOL_GPL(fsi_get_new_minor);
 
 void fsi_free_minor(dev_t dev)
 {
-	ida_simple_remove(&fsi_minor_ida, MINOR(dev));
+	ida_free(&fsi_minor_ida, MINOR(dev));
 }
 EXPORT_SYMBOL_GPL(fsi_free_minor);
 
@@ -1210,6 +1204,7 @@ static int fsi_master_scan(struct fsi_master *master)
 {
 	int link, rc;
 
+	trace_fsi_master_scan(master, true);
 	for (link = 0; link < master->n_links; link++) {
 		rc = fsi_master_link_enable(master, link);
 		if (rc) {
@@ -1251,6 +1246,7 @@ static int fsi_master_remove_slave(struct device *dev, void *arg)
 
 static void fsi_master_unscan(struct fsi_master *master)
 {
+	trace_fsi_master_scan(master, false);
 	device_for_each_child(&master->dev, NULL, fsi_master_remove_slave);
 }
 
@@ -1313,41 +1309,53 @@ int fsi_master_register(struct fsi_master *master)
 	struct device_node *np;
 
 	mutex_init(&master->scan_lock);
-	master->idx = ida_simple_get(&master_ida, 0, INT_MAX, GFP_KERNEL);
+
+	/* Alloc the requested index if it's non-zero */
+	if (master->idx) {
+		master->idx = ida_alloc_range(&master_ida, master->idx,
+					      master->idx, GFP_KERNEL);
+	} else {
+		master->idx = ida_alloc(&master_ida, GFP_KERNEL);
+	}
+
 	if (master->idx < 0)
 		return master->idx;
 
-	dev_set_name(&master->dev, "fsi%d", master->idx);
+	if (!dev_name(&master->dev))
+		dev_set_name(&master->dev, "fsi%d", master->idx);
+
 	master->dev.class = &fsi_master_class;
 
+	mutex_lock(&master->scan_lock);
 	rc = device_register(&master->dev);
 	if (rc) {
-		ida_simple_remove(&master_ida, master->idx);
-		return rc;
+		ida_free(&master_ida, master->idx);
+		goto out;
 	}
 
 	np = dev_of_node(&master->dev);
 	if (!of_property_read_bool(np, "no-scan-on-init")) {
-		mutex_lock(&master->scan_lock);
 		fsi_master_scan(master);
-		mutex_unlock(&master->scan_lock);
 	}
-
-	return 0;
+out:
+	mutex_unlock(&master->scan_lock);
+	return rc;
 }
 EXPORT_SYMBOL_GPL(fsi_master_register);
 
 void fsi_master_unregister(struct fsi_master *master)
 {
-	if (master->idx >= 0) {
-		ida_simple_remove(&master_ida, master->idx);
-		master->idx = -1;
-	}
+	int idx = master->idx;
+
+	trace_fsi_master_unregister(master);
 
 	mutex_lock(&master->scan_lock);
 	fsi_master_unscan(master);
+	master->n_links = 0;
 	mutex_unlock(&master->scan_lock);
+
 	device_unregister(&master->dev);
+	ida_free(&master_ida, idx);
 }
 EXPORT_SYMBOL_GPL(fsi_master_unregister);
 
@@ -1366,8 +1374,14 @@ static int fsi_bus_match(struct device *dev, struct device_driver *drv)
 		if (id->engine_type != fsi_dev->engine_type)
 			continue;
 		if (id->version == FSI_VERSION_ANY ||
-				id->version == fsi_dev->version)
-			return 1;
+		    id->version == fsi_dev->version) {
+			if (drv->of_match_table) {
+				if (of_driver_match_device(dev, drv))
+					return 1;
+			} else {
+				return 1;
+			}
+		}
 	}
 
 	return 0;
