@@ -645,7 +645,6 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 {
 	struct usb_device *dev;
 	struct usb_hcd *usb_hcd = bus_to_hcd(bus);
-	unsigned root_hub = 0;
 	unsigned raw_port = port1;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -695,7 +694,6 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 		dev->dev.parent = bus->controller;
 		device_set_of_node_from_dev(&dev->dev, bus->sysdev);
 		dev_set_name(&dev->dev, "usb%d", bus->busnum);
-		root_hub = 1;
 	} else {
 		/* match any labeling on the hubs; it's one-based */
 		if (parent->devpath[0] == '0') {
