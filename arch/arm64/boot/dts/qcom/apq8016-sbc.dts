@@ -226,6 +226,10 @@
 	label = "LS-UART1";
 };
 
+&camss {
+	status = "okay";
+};
+
 &lpass {
 	status = "okay";
 };
