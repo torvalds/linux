@@ -26,7 +26,6 @@
 #include "strfilter.h"
 #include "util.h"
 #include "llvm-utils.h"
-#include "c++/clang-c.h"
 #include "util/hashmap.h"
 #include "asm/bug.h"
 
@@ -220,16 +219,10 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 		void *obj_buf;
 		size_t obj_buf_sz;
 
-		perf_clang__init();
-		err = perf_clang__compile_bpf(filename, &obj_buf, &obj_buf_sz);
-		perf_clang__cleanup();
-		if (err) {
-			pr_debug("bpf: builtin compilation failed: %d, try external compiler\n", err);
-			err = llvm__compile_bpf(filename, &obj_buf, &obj_buf_sz);
-			if (err)
-				return ERR_PTR(-BPF_LOADER_ERRNO__COMPILE);
-		} else
-			pr_debug("bpf: successful builtin compilation\n");
+		err = llvm__compile_bpf(filename, &obj_buf, &obj_buf_sz);
+		if (err)
+			return ERR_PTR(-BPF_LOADER_ERRNO__COMPILE);
+
 		obj = bpf_object__open_mem(obj_buf, obj_buf_sz, &opts);
 
 		if (!IS_ERR_OR_NULL(obj) && llvm_param.dump_obj)

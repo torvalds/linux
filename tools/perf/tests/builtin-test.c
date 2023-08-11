@@ -108,7 +108,6 @@ static struct test_suite *generic_tests[] = {
 	&suite__is_printable_array,
 	&suite__bitmap_print,
 	&suite__perf_hooks,
-	&suite__clang,
 	&suite__unit_number__scnprint,
 	&suite__mem2node,
 	&suite__time_utils,
