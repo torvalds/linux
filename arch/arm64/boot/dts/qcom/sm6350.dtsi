@@ -2261,6 +2261,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			gpio-ranges = <&tlmm 0 0 157>;
+			wakeup-parent = <&pdc>;
 
 			cci0_default: cci0-default-state {
 				pins = "gpio39", "gpio40";
