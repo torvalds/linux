@@ -355,8 +355,6 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 void ttm_bo_put(struct ttm_buffer_object *bo);
 void ttm_bo_set_bulk_move(struct ttm_buffer_object *bo,
 			  struct ttm_lru_bulk_move *bulk);
-int ttm_bo_lock_delayed_workqueue(struct ttm_device *bdev);
-void ttm_bo_unlock_delayed_workqueue(struct ttm_device *bdev, int resched);
 bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			      const struct ttm_place *place);
 int ttm_bo_init_reserved(struct ttm_device *bdev, struct ttm_buffer_object *bo,

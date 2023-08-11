@@ -115,6 +115,22 @@ void ivpu_file_priv_put(struct ivpu_file_priv **link)
 	kref_put(&file_priv->ref, file_priv_release);
 }
 
+static int ivpu_get_capabilities(struct ivpu_device *vdev, struct drm_ivpu_param *args)
+{
+	switch (args->index) {
+	case DRM_IVPU_CAP_METRIC_STREAMER:
+		args->value = 0;
+		break;
+	case DRM_IVPU_CAP_DMA_MEMORY_RANGE:
+		args->value = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
 	struct ivpu_file_priv *file_priv = file->driver_priv;
@@ -144,7 +160,7 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 		args->value = ivpu_get_context_count(vdev);
 		break;
 	case DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS:
-		args->value = vdev->hw->ranges.user_low.start;
+		args->value = vdev->hw->ranges.user.start;
 		break;
 	case DRM_IVPU_PARAM_CONTEXT_PRIORITY:
 		args->value = file_priv->priority;
@@ -173,6 +189,9 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 		break;
 	case DRM_IVPU_PARAM_SKU:
 		args->value = vdev->hw->sku;
+		break;
+	case DRM_IVPU_PARAM_CAPABILITIES:
+		ret = ivpu_get_capabilities(vdev, args);
 		break;
 	default:
 		ret = -EINVAL;
@@ -443,8 +462,8 @@ static int ivpu_pci_init(struct ivpu_device *vdev)
 	/* Clear any pending errors */
 	pcie_capability_clear_word(pdev, PCI_EXP_DEVSTA, 0x3f);
 
-	/* VPU MTL does not require PCI spec 10m D3hot delay */
-	if (ivpu_is_mtl(vdev))
+	/* VPU 37XX does not require 10m D3hot delay */
+	if (ivpu_hw_gen(vdev) == IVPU_HW_37XX)
 		pdev->d3hot_delay = 0;
 
 	ret = pcim_enable_device(pdev);
@@ -482,8 +501,13 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (!vdev->pm)
 		return -ENOMEM;
 
-	vdev->hw->ops = &ivpu_hw_mtl_ops;
-	vdev->hw->dma_bits = 38;
+	if (ivpu_hw_gen(vdev) >= IVPU_HW_40XX) {
+		vdev->hw->ops = &ivpu_hw_40xx_ops;
+		vdev->hw->dma_bits = 48;
+	} else {
+		vdev->hw->ops = &ivpu_hw_37xx_ops;
+		vdev->hw->dma_bits = 38;
+	}
 
 	vdev->platform = IVPU_PLATFORM_INVALID;
 	vdev->context_xa_limit.min = IVPU_USER_CONTEXT_MIN_SSID;
@@ -610,6 +634,7 @@ static void ivpu_dev_fini(struct ivpu_device *vdev)
 
 static struct pci_device_id ivpu_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_MTL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_LNL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, ivpu_pci_ids);

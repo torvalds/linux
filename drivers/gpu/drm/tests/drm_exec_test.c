@@ -125,8 +125,6 @@ static void test_duplicates(struct kunit *test)
 	drm_exec_fini(&exec);
 }
 
-
-
 static void test_prepare(struct kunit *test)
 {
 	struct drm_exec_priv *priv = test->priv;
@@ -145,6 +143,8 @@ static void test_prepare(struct kunit *test)
 			break;
 	}
 	drm_exec_fini(&exec);
+
+	drm_gem_private_object_fini(&gobj);
 }
 
 static void test_prepare_array(struct kunit *test)
@@ -165,6 +165,29 @@ static void test_prepare_array(struct kunit *test)
 					     1);
 	KUNIT_EXPECT_EQ(test, ret, 0);
 	drm_exec_fini(&exec);
+
+	drm_gem_private_object_fini(&gobj1);
+	drm_gem_private_object_fini(&gobj2);
+}
+
+static void test_multiple_loops(struct kunit *test)
+{
+	struct drm_exec exec;
+
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
+	drm_exec_until_all_locked(&exec)
+	{
+		break;
+	}
+	drm_exec_fini(&exec);
+
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
+	drm_exec_until_all_locked(&exec)
+	{
+		break;
+	}
+	drm_exec_fini(&exec);
+	KUNIT_SUCCEED(test);
 }
 
 static struct kunit_case drm_exec_tests[] = {
@@ -174,6 +197,7 @@ static struct kunit_case drm_exec_tests[] = {
 	KUNIT_CASE(test_duplicates),
 	KUNIT_CASE(test_prepare),
 	KUNIT_CASE(test_prepare_array),
+	KUNIT_CASE(test_multiple_loops),
 	{}
 };
 
