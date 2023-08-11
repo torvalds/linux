@@ -2388,6 +2388,12 @@ static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
+static int shmem_file_open(struct inode *inode, struct file *file)
+{
+	file->f_mode |= FMODE_CAN_ODIRECT;
+	return generic_file_open(inode, file);
+}
+
 #ifdef CONFIG_TMPFS_XATTR
 static int shmem_initxattrs(struct inode *, const struct xattr *, void *);
 
@@ -2837,6 +2843,28 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	*ppos = ((loff_t) index << PAGE_SHIFT) + offset;
 	file_accessed(file);
 	return retval ? retval : error;
+}
+
+static ssize_t shmem_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+	ssize_t ret;
+
+	inode_lock(inode);
+	ret = generic_write_checks(iocb, from);
+	if (ret <= 0)
+		goto unlock;
+	ret = file_remove_privs(file);
+	if (ret)
+		goto unlock;
+	ret = file_update_time(file);
+	if (ret)
+		goto unlock;
+	ret = generic_perform_write(iocb, from);
+unlock:
+	inode_unlock(inode);
+	return ret;
 }
 
 static bool zero_pipe_buf_get(struct pipe_inode_info *pipe,
@@ -4434,12 +4462,12 @@ EXPORT_SYMBOL(shmem_aops);
 
 static const struct file_operations shmem_file_operations = {
 	.mmap		= shmem_mmap,
-	.open		= generic_file_open,
+	.open		= shmem_file_open,
 	.get_unmapped_area = shmem_get_unmapped_area,
 #ifdef CONFIG_TMPFS
 	.llseek		= shmem_file_llseek,
 	.read_iter	= shmem_file_read_iter,
-	.write_iter	= generic_file_write_iter,
+	.write_iter	= shmem_file_write_iter,
 	.fsync		= noop_fsync,
 	.splice_read	= shmem_file_splice_read,
 	.splice_write	= iter_file_splice_write,
