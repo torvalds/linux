@@ -34,6 +34,8 @@
 #define FIRMWARE_W9098		"nxp/uartuart9098_bt_v1.bin"
 #define FIRMWARE_IW416		"nxp/uartiw416_bt_v0.bin"
 #define FIRMWARE_IW612		"nxp/uartspi_n61x_v1.bin.se"
+#define FIRMWARE_IW624		"nxp/uartiw624_bt.bin"
+#define FIRMWARE_SECURE_IW624	"nxp/uartiw624_bt.bin.se"
 #define FIRMWARE_AW693		"nxp/uartaw693_bt.bin"
 #define FIRMWARE_SECURE_AW693	"nxp/uartaw693_bt.bin.se"
 #define FIRMWARE_HELPER		"nxp/helper_uart_3000000.bin"
@@ -41,6 +43,8 @@
 #define CHIP_ID_W9098		0x5c03
 #define CHIP_ID_IW416		0x7201
 #define CHIP_ID_IW612		0x7601
+#define CHIP_ID_IW624a		0x8000
+#define CHIP_ID_IW624c		0x8001
 #define CHIP_ID_AW693		0x8200
 
 #define FW_SECURE_MASK		0xc0
@@ -152,6 +156,7 @@ struct btnxpuart_dev {
 	u32 fw_v1_sent_bytes;
 	u32 fw_v3_offset_correction;
 	u32 fw_v1_expected_len;
+	u32 boot_reg_offset;
 	wait_queue_head_t fw_dnld_done_wait_q;
 	wait_queue_head_t check_boot_sign_wait_q;
 
@@ -538,6 +543,7 @@ static int nxp_download_firmware(struct hci_dev *hdev)
 	nxpdev->fw_dnld_v1_offset = 0;
 	nxpdev->fw_v1_sent_bytes = 0;
 	nxpdev->fw_v1_expected_len = HDR_LEN;
+	nxpdev->boot_reg_offset = 0;
 	nxpdev->fw_v3_offset_correction = 0;
 	nxpdev->baudrate_changed = false;
 	nxpdev->timeout_changed = false;
@@ -547,7 +553,7 @@ static int nxp_download_firmware(struct hci_dev *hdev)
 	serdev_device_set_flow_control(nxpdev->serdev, false);
 	nxpdev->current_baudrate = HCI_NXP_PRI_BAUDRATE;
 
-	/* Wait till FW is downloaded and CTS becomes low */
+	/* Wait till FW is downloaded */
 	err = wait_event_interruptible_timeout(nxpdev->fw_dnld_done_wait_q,
 					       !test_bit(BTNXPUART_FW_DOWNLOADING,
 							 &nxpdev->tx_state),
@@ -586,6 +592,12 @@ static bool nxp_fw_change_baudrate(struct hci_dev *hdev, u16 req_len)
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	struct nxp_bootloader_cmd nxp_cmd5;
 	struct uart_config uart_config;
+	u32 clkdivaddr = CLKDIVADDR - nxpdev->boot_reg_offset;
+	u32 uartdivaddr = UARTDIVADDR - nxpdev->boot_reg_offset;
+	u32 uartmcraddr = UARTMCRADDR - nxpdev->boot_reg_offset;
+	u32 uartreinitaddr = UARTREINITADDR - nxpdev->boot_reg_offset;
+	u32 uarticraddr = UARTICRADDR - nxpdev->boot_reg_offset;
+	u32 uartfcraddr = UARTFCRADDR - nxpdev->boot_reg_offset;
 
 	if (req_len == sizeof(nxp_cmd5)) {
 		nxp_cmd5.header = __cpu_to_le32(5);
@@ -598,17 +610,17 @@ static bool nxp_fw_change_baudrate(struct hci_dev *hdev, u16 req_len)
 		serdev_device_write_buf(nxpdev->serdev, (u8 *)&nxp_cmd5, sizeof(nxp_cmd5));
 		nxpdev->fw_v3_offset_correction += req_len;
 	} else if (req_len == sizeof(uart_config)) {
-		uart_config.clkdiv.address = __cpu_to_le32(CLKDIVADDR);
+		uart_config.clkdiv.address = __cpu_to_le32(clkdivaddr);
 		uart_config.clkdiv.value = __cpu_to_le32(0x00c00000);
-		uart_config.uartdiv.address = __cpu_to_le32(UARTDIVADDR);
+		uart_config.uartdiv.address = __cpu_to_le32(uartdivaddr);
 		uart_config.uartdiv.value = __cpu_to_le32(1);
-		uart_config.mcr.address = __cpu_to_le32(UARTMCRADDR);
+		uart_config.mcr.address = __cpu_to_le32(uartmcraddr);
 		uart_config.mcr.value = __cpu_to_le32(MCR);
-		uart_config.re_init.address = __cpu_to_le32(UARTREINITADDR);
+		uart_config.re_init.address = __cpu_to_le32(uartreinitaddr);
 		uart_config.re_init.value = __cpu_to_le32(INIT);
-		uart_config.icr.address = __cpu_to_le32(UARTICRADDR);
+		uart_config.icr.address = __cpu_to_le32(uarticraddr);
 		uart_config.icr.value = __cpu_to_le32(ICR);
-		uart_config.fcr.address = __cpu_to_le32(UARTFCRADDR);
+		uart_config.fcr.address = __cpu_to_le32(uartfcraddr);
 		uart_config.fcr.value = __cpu_to_le32(FCR);
 		/* FW expects swapped CRC bytes */
 		uart_config.crc = __cpu_to_be32(crc32_be(0UL, (char *)&uart_config,
@@ -822,6 +834,7 @@ free_skb:
 static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
 					 u8 loader_ver)
 {
+	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	char *fw_name = NULL;
 
 	switch (chipid) {
@@ -833,6 +846,16 @@ static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
 		break;
 	case CHIP_ID_IW612:
 		fw_name = FIRMWARE_IW612;
+		break;
+	case CHIP_ID_IW624a:
+	case CHIP_ID_IW624c:
+		nxpdev->boot_reg_offset = 1;
+		if ((loader_ver & FW_SECURE_MASK) == FW_OPEN)
+			fw_name = FIRMWARE_IW624;
+		else if ((loader_ver & FW_SECURE_MASK) != FW_AUTH_ILLEGAL)
+			fw_name = FIRMWARE_SECURE_IW624;
+		else
+			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
 		break;
 	case CHIP_ID_AW693:
 		if ((loader_ver & FW_SECURE_MASK) == FW_OPEN)
