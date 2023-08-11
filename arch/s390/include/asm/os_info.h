@@ -18,6 +18,12 @@
 #define OS_INFO_REIPL_BLOCK	1
 #define OS_INFO_FLAGS_ENTRY	2
 #define OS_INFO_RESERVED	3
+#define OS_INFO_IDENTITY_BASE	4
+#define OS_INFO_KASLR_OFFSET	5
+#define OS_INFO_KASLR_OFF_PHYS	6
+#define OS_INFO_VMEMMAP		7
+#define OS_INFO_AMODE31_START	8
+#define OS_INFO_AMODE31_END	9
 
 #define OS_INFO_FLAG_REIPL_CLEAR	(1UL << 0)
 
@@ -37,8 +43,8 @@ struct os_info {
 	u16	version_minor;
 	u64	crashkernel_addr;
 	u64	crashkernel_size;
-	struct os_info_entry entry[4];
-	u8	reserved[3984];
+	struct os_info_entry entry[10];
+	u8	reserved[3864];
 } __packed;
 
 void os_info_init(void);

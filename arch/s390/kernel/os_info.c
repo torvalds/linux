@@ -15,6 +15,7 @@
 #include <asm/checksum.h>
 #include <asm/abs_lowcore.h>
 #include <asm/os_info.h>
+#include <asm/physmem_info.h>
 #include <asm/maccess.h>
 #include <asm/asm-offsets.h>
 
@@ -74,6 +75,12 @@ void __init os_info_init(void)
 	os_info.version_major = OS_INFO_VERSION_MAJOR;
 	os_info.version_minor = OS_INFO_VERSION_MINOR;
 	os_info.magic = OS_INFO_MAGIC;
+	os_info_entry_add_val(OS_INFO_IDENTITY_BASE, __identity_base);
+	os_info_entry_add_val(OS_INFO_KASLR_OFFSET, kaslr_offset());
+	os_info_entry_add_val(OS_INFO_KASLR_OFF_PHYS, __kaslr_offset_phys);
+	os_info_entry_add_val(OS_INFO_VMEMMAP, (unsigned long)vmemmap);
+	os_info_entry_add_val(OS_INFO_AMODE31_START, AMODE31_START);
+	os_info_entry_add_val(OS_INFO_AMODE31_END, AMODE31_END);
 	os_info.csum = os_info_csum(&os_info);
 	abs_lc = get_abs_lowcore();
 	abs_lc->os_info = __pa(&os_info);
