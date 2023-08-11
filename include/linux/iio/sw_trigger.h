@@ -51,9 +51,6 @@ void iio_unregister_sw_trigger_type(struct iio_sw_trigger_type *tt);
 struct iio_sw_trigger *iio_sw_trigger_create(const char *, const char *);
 void iio_sw_trigger_destroy(struct iio_sw_trigger *);
 
-int iio_sw_trigger_type_configfs_register(struct iio_sw_trigger_type *tt);
-void iio_sw_trigger_type_configfs_unregister(struct iio_sw_trigger_type *tt);
-
 static inline
 void iio_swt_group_init_type_name(struct iio_sw_trigger *t,
 				  const char *name,
