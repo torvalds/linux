@@ -437,10 +437,12 @@ static void sdhci_st_remove(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct st_mmc_platform_data *pdata = sdhci_pltfm_priv(pltfm_host);
 	struct reset_control *rstc = pdata->rstc;
+	struct clk *clk = pltfm_host->clk;
 
-	sdhci_pltfm_unregister(pdev);
+	sdhci_pltfm_remove(pdev);
 
 	clk_disable_unprepare(pdata->icnclk);
+	clk_disable_unprepare(clk);
 
 	reset_control_assert(rstc);
 }
