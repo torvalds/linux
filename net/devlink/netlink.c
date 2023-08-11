@@ -170,8 +170,30 @@ void devlink_nl_post_doit(const struct genl_split_ops *ops,
 	devlink_put(devlink);
 }
 
-int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
-		      devlink_nl_dump_one_func_t *dump_one)
+static int devlink_nl_inst_single_dumpit(struct sk_buff *msg,
+					 struct netlink_callback *cb, int flags,
+					 devlink_nl_dump_one_func_t *dump_one,
+					 struct nlattr **attrs)
+{
+	struct devlink *devlink;
+	int err;
+
+	devlink = devlink_get_from_attrs_lock(sock_net(msg->sk), attrs);
+	if (IS_ERR(devlink))
+		return PTR_ERR(devlink);
+	err = dump_one(msg, devlink, cb, flags | NLM_F_DUMP_FILTERED);
+
+	devl_unlock(devlink);
+	devlink_put(devlink);
+
+	if (err != -EMSGSIZE)
+		return err;
+	return msg->len;
+}
+
+static int devlink_nl_inst_iter_dumpit(struct sk_buff *msg,
+				       struct netlink_callback *cb, int flags,
+				       devlink_nl_dump_one_func_t *dump_one)
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
 	struct devlink *devlink;
@@ -182,7 +204,7 @@ int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
 		devl_lock(devlink);
 
 		if (devl_is_registered(devlink))
-			err = dump_one(msg, devlink, cb, NLM_F_MULTI);
+			err = dump_one(msg, devlink, cb, flags);
 		else
 			err = 0;
 
@@ -201,6 +223,21 @@ int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
 	if (err != -EMSGSIZE)
 		return err;
 	return msg->len;
+}
+
+int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
+		      devlink_nl_dump_one_func_t *dump_one)
+{
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	struct nlattr **attrs = info->attrs;
+	int flags = NLM_F_MULTI;
+
+	if (attrs &&
+	    (attrs[DEVLINK_ATTR_BUS_NAME] || attrs[DEVLINK_ATTR_DEV_NAME]))
+		return devlink_nl_inst_single_dumpit(msg, cb, flags, dump_one,
+						     attrs);
+	else
+		return devlink_nl_inst_iter_dumpit(msg, cb, flags, dump_one);
 }
 
 struct genl_family devlink_nl_family __ro_after_init = {
