@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -2015,7 +2015,7 @@ static int dcc_probe(struct platform_device *pdev)
 	if (ret)
 		return -EINVAL;
 
-	if (BVAL(dcc_readl(drvdata, DCC_HW_INFO), 9)) {
+	if (dcc_readl(drvdata, DCC_HW_INFO) & 0x300) {
 		drvdata->mem_map_ver = DCC_MEM_MAP_VER3;
 		drvdata->nr_link_list = dcc_readl(drvdata, DCC_LL_NUM_INFO);
 		if (drvdata->nr_link_list == 0)
