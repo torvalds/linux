@@ -39,7 +39,7 @@ enum {
 };
 
 struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx, bool overflow);
-bool io_req_cqe_overflow(struct io_kiocb *req);
+void io_req_cqe_overflow(struct io_kiocb *req);
 int io_run_task_work_sig(struct io_ring_ctx *ctx);
 void io_req_defer_failed(struct io_kiocb *req, s32 res);
 void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags);
