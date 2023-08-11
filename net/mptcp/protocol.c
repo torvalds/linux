@@ -109,7 +109,7 @@ static int __mptcp_socket_create(struct mptcp_sock *msk)
 /* If the MPC handshake is not started, returns the first subflow,
  * eventually allocating it.
  */
-struct socket *__mptcp_nmpc_socket(struct mptcp_sock *msk)
+struct sock *__mptcp_nmpc_sk(struct mptcp_sock *msk)
 {
 	struct sock *sk = (struct sock *)msk;
 	int ret;
@@ -117,10 +117,7 @@ struct socket *__mptcp_nmpc_socket(struct mptcp_sock *msk)
 	if (!((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)))
 		return ERR_PTR(-EINVAL);
 
-	if (!msk->subflow) {
-		if (msk->first)
-			return ERR_PTR(-EINVAL);
-
+	if (!msk->first) {
 		ret = __mptcp_socket_create(msk);
 		if (ret)
 			return ERR_PTR(ret);
@@ -128,7 +125,7 @@ struct socket *__mptcp_nmpc_socket(struct mptcp_sock *msk)
 		mptcp_sockopt_sync(msk, msk->first);
 	}
 
-	return msk->subflow;
+	return msk->first;
 }
 
 static void mptcp_drop(struct sock *sk, struct sk_buff *skb)
@@ -1643,7 +1640,6 @@ static int mptcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 {
 	unsigned int saved_flags = msg->msg_flags;
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	struct socket *ssock;
 	struct sock *ssk;
 	int ret;
 
@@ -1654,9 +1650,9 @@ static int mptcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 	 * fastopen attempt, no need to check for additional subflow status.
 	 */
 	if (msg->msg_flags & MSG_FASTOPEN) {
-		ssock = __mptcp_nmpc_socket(msk);
-		if (IS_ERR(ssock))
-			return PTR_ERR(ssock);
+		ssk = __mptcp_nmpc_sk(msk);
+		if (IS_ERR(ssk))
+			return PTR_ERR(ssk);
 	}
 	if (!msk->first)
 		return -EINVAL;
@@ -3577,16 +3573,14 @@ static int mptcp_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct mptcp_subflow_context *subflow;
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	struct socket *ssock;
 	int err = -EINVAL;
 	struct sock *ssk;
 
-	ssock = __mptcp_nmpc_socket(msk);
-	if (IS_ERR(ssock))
-		return PTR_ERR(ssock);
+	ssk = __mptcp_nmpc_sk(msk);
+	if (IS_ERR(ssk))
+		return PTR_ERR(ssk);
 
 	inet_sk_state_store(sk, TCP_SYN_SENT);
-	ssk = msk->first;
 	subflow = mptcp_subflow_ctx(ssk);
 #ifdef CONFIG_TCP_MD5SIG
 	/* no MPTCP if MD5SIG is enabled on this socket or we may run out of
@@ -3682,17 +3676,15 @@ static int mptcp_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
 	struct mptcp_sock *msk = mptcp_sk(sock->sk);
 	struct sock *ssk, *sk = sock->sk;
-	struct socket *ssock;
 	int err = -EINVAL;
 
 	lock_sock(sk);
-	ssock = __mptcp_nmpc_socket(msk);
-	if (IS_ERR(ssock)) {
-		err = PTR_ERR(ssock);
+	ssk = __mptcp_nmpc_sk(msk);
+	if (IS_ERR(ssk)) {
+		err = PTR_ERR(ssk);
 		goto unlock;
 	}
 
-	ssk = msk->first;
 	if (sk->sk_family == AF_INET)
 		err = inet_bind_sk(ssk, uaddr, addr_len);
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
@@ -3711,7 +3703,6 @@ static int mptcp_listen(struct socket *sock, int backlog)
 {
 	struct mptcp_sock *msk = mptcp_sk(sock->sk);
 	struct sock *sk = sock->sk;
-	struct socket *ssock;
 	struct sock *ssk;
 	int err;
 
@@ -3723,13 +3714,12 @@ static int mptcp_listen(struct socket *sock, int backlog)
 	if (sock->state != SS_UNCONNECTED || sock->type != SOCK_STREAM)
 		goto unlock;
 
-	ssock = __mptcp_nmpc_socket(msk);
-	if (IS_ERR(ssock)) {
-		err = PTR_ERR(ssock);
+	ssk = __mptcp_nmpc_sk(msk);
+	if (IS_ERR(ssk)) {
+		err = PTR_ERR(ssk);
 		goto unlock;
 	}
 
-	ssk = msk->first;
 	inet_sk_state_store(sk, TCP_LISTEN);
 	sock_set_flag(sk, SOCK_RCU_FREE);
 

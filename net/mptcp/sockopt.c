@@ -292,7 +292,6 @@ static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 				       sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = (struct sock *)msk;
-	struct socket *ssock;
 	struct sock *ssk;
 	int ret;
 
@@ -302,13 +301,12 @@ static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 	case SO_BINDTODEVICE:
 	case SO_BINDTOIFINDEX:
 		lock_sock(sk);
-		ssock = __mptcp_nmpc_socket(msk);
-		if (IS_ERR(ssock)) {
+		ssk = __mptcp_nmpc_sk(msk);
+		if (IS_ERR(ssk)) {
 			release_sock(sk);
-			return PTR_ERR(ssock);
+			return PTR_ERR(ssk);
 		}
 
-		ssk = msk->first;
 		ret = sk_setsockopt(ssk, SOL_SOCKET, optname, optval, optlen);
 		if (ret == 0) {
 			if (optname == SO_REUSEPORT)
@@ -392,7 +390,6 @@ static int mptcp_setsockopt_v6(struct mptcp_sock *msk, int optname,
 {
 	struct sock *sk = (struct sock *)msk;
 	int ret = -EOPNOTSUPP;
-	struct socket *ssock;
 	struct sock *ssk;
 
 	switch (optname) {
@@ -400,13 +397,12 @@ static int mptcp_setsockopt_v6(struct mptcp_sock *msk, int optname,
 	case IPV6_TRANSPARENT:
 	case IPV6_FREEBIND:
 		lock_sock(sk);
-		ssock = __mptcp_nmpc_socket(msk);
-		if (IS_ERR(ssock)) {
+		ssk = __mptcp_nmpc_sk(msk);
+		if (IS_ERR(ssk)) {
 			release_sock(sk);
-			return PTR_ERR(ssock);
+			return PTR_ERR(ssk);
 		}
 
-		ssk = msk->first;
 		ret = tcp_setsockopt(ssk, SOL_IPV6, optname, optval, optlen);
 		if (ret != 0) {
 			release_sock(sk);
@@ -689,7 +685,7 @@ static int mptcp_setsockopt_sol_ip_set_transparent(struct mptcp_sock *msk, int o
 {
 	struct sock *sk = (struct sock *)msk;
 	struct inet_sock *issk;
-	struct socket *ssock;
+	struct sock *ssk;
 	int err;
 
 	err = ip_setsockopt(sk, SOL_IP, optname, optval, optlen);
@@ -698,13 +694,13 @@ static int mptcp_setsockopt_sol_ip_set_transparent(struct mptcp_sock *msk, int o
 
 	lock_sock(sk);
 
-	ssock = __mptcp_nmpc_socket(msk);
-	if (IS_ERR(ssock)) {
+	ssk = __mptcp_nmpc_sk(msk);
+	if (IS_ERR(ssk)) {
 		release_sock(sk);
-		return PTR_ERR(ssock);
+		return PTR_ERR(ssk);
 	}
 
-	issk = inet_sk(msk->first);
+	issk = inet_sk(ssk);
 
 	switch (optname) {
 	case IP_FREEBIND:
@@ -767,18 +763,18 @@ static int mptcp_setsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 					  sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = (struct sock *)msk;
-	struct socket *sock;
+	struct sock *ssk;
 	int ret;
 
 	/* Limit to first subflow, before the connection establishment */
 	lock_sock(sk);
-	sock = __mptcp_nmpc_socket(msk);
-	if (IS_ERR(sock)) {
-		ret = PTR_ERR(sock);
+	ssk = __mptcp_nmpc_sk(msk);
+	if (IS_ERR(ssk)) {
+		ret = PTR_ERR(ssk);
 		goto unlock;
 	}
 
-	ret = tcp_setsockopt(sock->sk, level, optname, optval, optlen);
+	ret = tcp_setsockopt(ssk, level, optname, optval, optlen);
 
 unlock:
 	release_sock(sk);
@@ -868,7 +864,6 @@ static int mptcp_getsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 					  char __user *optval, int __user *optlen)
 {
 	struct sock *sk = (struct sock *)msk;
-	struct socket *ssock;
 	struct sock *ssk;
 	int ret;
 
@@ -879,9 +874,9 @@ static int mptcp_getsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 		goto out;
 	}
 
-	ssock = __mptcp_nmpc_socket(msk);
-	if (IS_ERR(ssock)) {
-		ret = PTR_ERR(ssock);
+	ssk = __mptcp_nmpc_sk(msk);
+	if (IS_ERR(ssk)) {
+		ret = PTR_ERR(ssk);
 		goto out;
 	}
 

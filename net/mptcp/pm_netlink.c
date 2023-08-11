@@ -1007,7 +1007,6 @@ static int mptcp_pm_nl_create_listen_socket(struct sock *sk,
 	int addrlen = sizeof(struct sockaddr_in);
 	struct sockaddr_storage addr;
 	struct sock *newsk, *ssk;
-	struct socket *ssock;
 	int backlog = 1024;
 	int err;
 
@@ -1033,17 +1032,16 @@ static int mptcp_pm_nl_create_listen_socket(struct sock *sk,
 				      &mptcp_keys[is_ipv6]);
 
 	lock_sock(newsk);
-	ssock = __mptcp_nmpc_socket(mptcp_sk(newsk));
+	ssk = __mptcp_nmpc_sk(mptcp_sk(newsk));
 	release_sock(newsk);
-	if (IS_ERR(ssock))
-		return PTR_ERR(ssock);
+	if (IS_ERR(ssk))
+		return PTR_ERR(ssk);
 
 	mptcp_info2sockaddr(&entry->addr, &addr, entry->addr.family);
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	if (entry->addr.family == AF_INET6)
 		addrlen = sizeof(struct sockaddr_in6);
 #endif
-	ssk = mptcp_sk(newsk)->first;
 	if (ssk->sk_family == AF_INET)
 		err = inet_bind_sk(ssk, (struct sockaddr *)&addr, addrlen);
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
