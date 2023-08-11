@@ -14,7 +14,7 @@
 #include <linux/spinlock.h>
 
 static DEFINE_IDA(fpga_bridge_ida);
-static struct class *fpga_bridge_class;
+static const struct class fpga_bridge_class;
 
 /* Lock for adding/removing bridges to linked lists*/
 static DEFINE_SPINLOCK(bridge_list_lock);
@@ -100,7 +100,7 @@ struct fpga_bridge *of_fpga_bridge_get(struct device_node *np,
 {
 	struct device *dev;
 
-	dev = class_find_device_by_of_node(fpga_bridge_class, np);
+	dev = class_find_device_by_of_node(&fpga_bridge_class, np);
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
@@ -127,7 +127,7 @@ struct fpga_bridge *fpga_bridge_get(struct device *dev,
 {
 	struct device *bridge_dev;
 
-	bridge_dev = class_find_device(fpga_bridge_class, NULL, dev,
+	bridge_dev = class_find_device(&fpga_bridge_class, NULL, dev,
 				       fpga_bridge_dev_match);
 	if (!bridge_dev)
 		return ERR_PTR(-ENODEV);
@@ -360,7 +360,7 @@ fpga_bridge_register(struct device *parent, const char *name,
 	bridge->priv = priv;
 
 	bridge->dev.groups = br_ops->groups;
-	bridge->dev.class = fpga_bridge_class;
+	bridge->dev.class = &fpga_bridge_class;
 	bridge->dev.parent = parent;
 	bridge->dev.of_node = parent->of_node;
 	bridge->dev.id = id;
@@ -416,21 +416,20 @@ static void fpga_bridge_dev_release(struct device *dev)
 	kfree(bridge);
 }
 
+static const struct class fpga_bridge_class = {
+	.name = "fpga_bridge",
+	.dev_groups = fpga_bridge_groups,
+	.dev_release = fpga_bridge_dev_release,
+};
+
 static int __init fpga_bridge_dev_init(void)
 {
-	fpga_bridge_class = class_create("fpga_bridge");
-	if (IS_ERR(fpga_bridge_class))
-		return PTR_ERR(fpga_bridge_class);
-
-	fpga_bridge_class->dev_groups = fpga_bridge_groups;
-	fpga_bridge_class->dev_release = fpga_bridge_dev_release;
-
-	return 0;
+	return class_register(&fpga_bridge_class);
 }
 
 static void __exit fpga_bridge_dev_exit(void)
 {
-	class_destroy(fpga_bridge_class);
+	class_unregister(&fpga_bridge_class);
 	ida_destroy(&fpga_bridge_ida);
 }
 
