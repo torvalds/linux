@@ -149,7 +149,7 @@
 	};
 
 	sc301iot: sc301iot@32 {
-		compatible = "smartsens,SC301IOT";
+		compatible = "smartsens,sc301iot";
 		status = "okay";
 		reg = <0x32>;
 		clocks = <&cru MCLK_REF_MIPI0>;
