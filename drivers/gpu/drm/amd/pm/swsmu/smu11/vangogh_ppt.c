@@ -1893,21 +1893,21 @@ static ssize_t vangogh_get_gpu_metrics_v2_4(struct smu_context *smu,
 	       sizeof(uint16_t) * 4);
 	gpu_metrics->average_temperature_l3[0] = metrics.Average.L3Temperature[0];
 
-	gpu_metrics->average_gfx_activity = metrics.Current.GfxActivity;
-	gpu_metrics->average_mm_activity = metrics.Current.UvdActivity;
+	gpu_metrics->average_gfx_activity = metrics.Average.GfxActivity;
+	gpu_metrics->average_mm_activity = metrics.Average.UvdActivity;
 
-	gpu_metrics->average_socket_power = metrics.Current.CurrentSocketPower;
-	gpu_metrics->average_cpu_power = metrics.Current.Power[0];
-	gpu_metrics->average_soc_power = metrics.Current.Power[1];
-	gpu_metrics->average_gfx_power = metrics.Current.Power[2];
+	gpu_metrics->average_socket_power = metrics.Average.CurrentSocketPower;
+	gpu_metrics->average_cpu_power = metrics.Average.Power[0];
+	gpu_metrics->average_soc_power = metrics.Average.Power[1];
+	gpu_metrics->average_gfx_power = metrics.Average.Power[2];
 
-	gpu_metrics->average_cpu_voltage = metrics.Current.Voltage[0];
-	gpu_metrics->average_soc_voltage = metrics.Current.Voltage[1];
-	gpu_metrics->average_gfx_voltage = metrics.Current.Voltage[2];
+	gpu_metrics->average_cpu_voltage = metrics.Average.Voltage[0];
+	gpu_metrics->average_soc_voltage = metrics.Average.Voltage[1];
+	gpu_metrics->average_gfx_voltage = metrics.Average.Voltage[2];
 
-	gpu_metrics->average_cpu_current = metrics.Current.Current[0];
-	gpu_metrics->average_soc_current = metrics.Current.Current[1];
-	gpu_metrics->average_gfx_current = metrics.Current.Current[2];
+	gpu_metrics->average_cpu_current = metrics.Average.Current[0];
+	gpu_metrics->average_soc_current = metrics.Average.Current[1];
+	gpu_metrics->average_gfx_current = metrics.Average.Current[2];
 
 	memcpy(&gpu_metrics->average_core_power[0],
 	       &metrics.Average.CorePower[0],
