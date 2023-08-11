@@ -181,6 +181,39 @@ static const struct xe_mmio_range dg2_implicit_steering_table[] = {
 	{},
 };
 
+static const struct xe_mmio_range xe2lpg_dss_steering_table[] = {
+	{ 0x005200, 0x0052FF },         /* SLICE */
+	{ 0x005500, 0x007FFF },         /* SLICE */
+	{ 0x008140, 0x00815F },         /* SLICE (0x8140-0x814F), DSS (0x8150-0x815F) */
+	{ 0x0094D0, 0x00955F },         /* SLICE (0x94D0-0x951F), DSS (0x9520-0x955F) */
+	{ 0x009680, 0x0096FF },         /* DSS */
+	{ 0x00D800, 0x00D87F },         /* SLICE */
+	{ 0x00DC00, 0x00DCFF },         /* SLICE */
+	{ 0x00DE80, 0x00E8FF },         /* DSS (0xE000-0xE0FF reserved) */
+	{ 0x00E980, 0x00E9FF },         /* SLICE */
+	{ 0x013000, 0x0133FF },         /* DSS (0x13000-0x131FF), SLICE (0x13200-0x133FF) */
+	{},
+};
+
+static const struct xe_mmio_range xe2lpg_sqidi_psmi_steering_table[] = {
+	{ 0x000B00, 0x000BFF },
+	{ 0x001000, 0x001FFF },
+	{},
+};
+
+static const struct xe_mmio_range xe2lpg_instance0_steering_table[] = {
+	{ 0x004000, 0x004AFF },         /* GAM, rsvd, GAMWKR */
+	{ 0x008700, 0x00887F },         /* SQIDI, MEMPIPE */
+	{ 0x00B000, 0x00B3FF },         /* NODE, L3BANK */
+	{ 0x00C800, 0x00CFFF },         /* GAM */
+	{ 0x00D880, 0x00D8FF },         /* NODE */
+	{ 0x00DD00, 0x00DDFF },         /* MEMPIPE */
+	{ 0x00E900, 0x00E97F },         /* MEMPIPE */
+	{ 0x00F000, 0x00FFFF },         /* GAM, GAMWKR */
+	{ 0x013400, 0x0135FF },         /* MEMPIPE */
+	{},
+};
+
 static void init_steering_l3bank(struct xe_gt *gt)
 {
 	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270) {
@@ -265,6 +298,16 @@ static void init_steering_oaddrm(struct xe_gt *gt)
 	gt->steering[DSS].instance_target = 0;		/* unused */
 }
 
+static void init_steering_sqidi_psmi(struct xe_gt *gt)
+{
+	u32 mask = REG_FIELD_GET(XE2_NODE_ENABLE_MASK,
+				 xe_mmio_read32(gt, MIRROR_FUSE3));
+	u32 select = __ffs(mask);
+
+	gt->steering[SQIDI_PSMI].group_target = select >> 1;
+	gt->steering[SQIDI_PSMI].instance_target = select & 0x1;
+}
+
 static void init_steering_inst0(struct xe_gt *gt)
 {
 	gt->steering[DSS].group_target = 0;		/* unused */
@@ -280,6 +323,7 @@ static const struct {
 	[LNCF] =	{ "LNCF",	NULL }, /* initialized by mslice init */
 	[DSS] =		{ "DSS",	init_steering_dss },
 	[OADDRM] =	{ "OADDRM",	init_steering_oaddrm },
+	[SQIDI_PSMI] =  { "SQIDI_PSMI", init_steering_sqidi_psmi },
 	[INSTANCE0] =	{ "INSTANCE 0",	init_steering_inst0 },
 	[IMPLICIT_STEERING] = { "IMPLICIT", NULL },
 };
@@ -298,7 +342,11 @@ void xe_gt_mcr_init(struct xe_gt *gt)
 
 		gt->steering[OADDRM].ranges = xelpmp_oaddrm_steering_table;
 	} else {
-		if (GRAPHICS_VERx100(xe) >= 1270) {
+		if (GRAPHICS_VER(xe) >= 20) {
+			gt->steering[DSS].ranges = xe2lpg_dss_steering_table;
+			gt->steering[SQIDI_PSMI].ranges = xe2lpg_sqidi_psmi_steering_table;
+			gt->steering[INSTANCE0].ranges = xe2lpg_instance0_steering_table;
+		} else if (GRAPHICS_VERx100(xe) >= 1270) {
 			gt->steering[INSTANCE0].ranges = xelpg_instance0_steering_table;
 			gt->steering[L3BANK].ranges = xelpg_l3bank_steering_table;
 			gt->steering[DSS].ranges = xelpg_dss_steering_table;

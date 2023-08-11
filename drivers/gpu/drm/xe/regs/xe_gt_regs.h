@@ -143,6 +143,7 @@
 #define   EN_32B_ACCESS				REG_BIT(30)
 
 #define	MIRROR_FUSE3				XE_REG(0x9118)
+#define   XE2_NODE_ENABLE_MASK			REG_GENMASK(31, 16)
 #define   L3BANK_PAIR_COUNT			4
 #define   L3BANK_MASK				REG_GENMASK(3, 0)
 /* on Xe_HP the same fuses indicates mslices instead of L3 banks */
