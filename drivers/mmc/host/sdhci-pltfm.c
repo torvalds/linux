@@ -166,9 +166,9 @@ void sdhci_pltfm_free(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_free);
 
-int sdhci_pltfm_register(struct platform_device *pdev,
-			const struct sdhci_pltfm_data *pdata,
-			size_t priv_size)
+int sdhci_pltfm_init_and_add_host(struct platform_device *pdev,
+				  const struct sdhci_pltfm_data *pdata,
+				  size_t priv_size)
 {
 	struct sdhci_host *host;
 	int ret = 0;
@@ -185,7 +185,7 @@ int sdhci_pltfm_register(struct platform_device *pdev,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(sdhci_pltfm_register);
+EXPORT_SYMBOL_GPL(sdhci_pltfm_init_and_add_host);
 
 void sdhci_pltfm_remove(struct platform_device *pdev)
 {
