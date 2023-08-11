@@ -858,6 +858,8 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 	if (!pinfo)
 		return -ENOMEM;
 
+	pinfo->version = version;
+
 	ret = scmi_perf_attributes_get(ph, pinfo);
 	if (ret)
 		return ret;
@@ -876,8 +878,6 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 		if (dom->perf_fastchannels)
 			scmi_perf_domain_init_fc(ph, domain, &dom->fc_info);
 	}
-
-	pinfo->version = version;
 
 	return ph->set_priv(ph, pinfo);
 }
