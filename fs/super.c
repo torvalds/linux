@@ -1359,7 +1359,7 @@ int get_tree_bdev(struct fs_context *fc,
 		/*
 		 * We drop s_umount here because we need to open the bdev and
 		 * bdev->open_mutex ranks above s_umount (blkdev_put() ->
-		 * __invalidate_device()). It is safe because we have active sb
+		 * bdev_mark_dead()). It is safe because we have active sb
 		 * reference and SB_BORN is not set yet.
 		 */
 		up_write(&s->s_umount);
@@ -1411,7 +1411,7 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 		/*
 		 * We drop s_umount here because we need to open the bdev and
 		 * bdev->open_mutex ranks above s_umount (blkdev_put() ->
-		 * __invalidate_device()). It is safe because we have active sb
+		 * bdev_mark_dead()). It is safe because we have active sb
 		 * reference and SB_BORN is not set yet.
 		 */
 		up_write(&s->s_umount);

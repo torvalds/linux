@@ -3626,10 +3626,8 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 		 * so sync bdev first and then wait for our queues to become
 		 * empty
 		 */
-		if (device->block) {
-			fsync_bdev(device->block->bdev);
-			__invalidate_device(device->block->bdev, true);
-		}
+		if (device->block)
+			bdev_mark_dead(device->block->bdev, false);
 		dasd_schedule_device_bh(device);
 		rc = wait_event_interruptible(shutdown_waitq,
 					      _wait_for_empty_queues(device));

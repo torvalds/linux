@@ -647,8 +647,7 @@ void del_gendisk(struct gendisk *disk)
 	mutex_lock(&disk->open_mutex);
 	xa_for_each(&disk->part_tbl, idx, part) {
 		remove_inode_hash(part->bd_inode);
-		fsync_bdev(part);
-		__invalidate_device(part, true);
+		bdev_mark_dead(part, false);
 	}
 	mutex_unlock(&disk->open_mutex);
 

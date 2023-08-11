@@ -221,7 +221,6 @@ int fsync_bdev(struct block_device *bdev)
 	}
 	return sync_blockdev(bdev);
 }
-EXPORT_SYMBOL(fsync_bdev);
 
 /**
  * freeze_bdev - lock a filesystem and force it into a consistent state
@@ -960,12 +959,27 @@ out_path_put:
 }
 EXPORT_SYMBOL(lookup_bdev);
 
-int __invalidate_device(struct block_device *bdev, bool kill_dirty)
+/**
+ * bdev_mark_dead - mark a block device as dead
+ * @bdev: block device to operate on
+ * @surprise: indicate a surprise removal
+ *
+ * Tell the file system that this devices or media is dead.  If @surprise is set
+ * to %true the device or media is already gone, if not we are preparing for an
+ * orderly removal.
+ *
+ * This syncs out all dirty data and writes back inodes and then invalidates any
+ * cached data in the inodes on the file system, the inodes themselves and the
+ * block device mapping.
+ */
+void bdev_mark_dead(struct block_device *bdev, bool surprise)
 {
 	struct super_block *sb = get_super(bdev);
 	int res = 0;
 
 	if (sb) {
+		if (!surprise)
+			sync_filesystem(sb);
 		/*
 		 * no need to lock the super, get_super holds the
 		 * read mutex so the filesystem cannot go away
@@ -973,13 +987,22 @@ int __invalidate_device(struct block_device *bdev, bool kill_dirty)
 		 * hold).
 		 */
 		shrink_dcache_sb(sb);
-		res = invalidate_inodes(sb, kill_dirty);
+		res = invalidate_inodes(sb, true);
 		drop_super(sb);
+	} else {
+		if (!surprise)
+			sync_blockdev(bdev);
 	}
 	invalidate_bdev(bdev);
-	return res;
 }
-EXPORT_SYMBOL(__invalidate_device);
+#ifdef CONFIG_DASD_MODULE
+/*
+ * Drivers should not use this directly, but the DASD driver has historically
+ * had a shutdown to offline mode that doesn't actually remove the gendisk
+ * that otherwise looks a lot like a safe device removal.
+ */
+EXPORT_SYMBOL_GPL(bdev_mark_dead);
+#endif
 
 void sync_bdevs(bool wait)
 {

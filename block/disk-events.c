@@ -281,7 +281,7 @@ bool disk_check_media_change(struct gendisk *disk)
 	if (!(events & DISK_EVENT_MEDIA_CHANGE))
 		return false;
 
-	__invalidate_device(disk->part0, true);
+	bdev_mark_dead(disk->part0, true);
 	set_bit(GD_NEED_PART_SCAN, &disk->state);
 	return true;
 }
@@ -300,7 +300,7 @@ void disk_force_media_change(struct gendisk *disk)
 {
 	disk_event_uevent(disk, DISK_EVENT_MEDIA_CHANGE);
 	inc_diskseq(disk);
-	__invalidate_device(disk->part0, true);
+	bdev_mark_dead(disk->part0, true);
 	set_bit(GD_NEED_PART_SCAN, &disk->state);
 }
 EXPORT_SYMBOL_GPL(disk_force_media_change);
