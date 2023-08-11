@@ -201,7 +201,7 @@ void lock_two_inodes(struct inode *inode1, struct inode *inode2,
  * fs-writeback.c
  */
 extern long get_nr_dirty_inodes(void);
-extern int invalidate_inodes(struct super_block *, bool);
+void invalidate_inodes(struct super_block *sb);
 
 /*
  * dcache.c
