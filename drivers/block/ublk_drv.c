@@ -1397,11 +1397,13 @@ static void ublk_commit_completion(struct ublk_device *ub,
 
 	/* find the io request and complete */
 	req = blk_mq_tag_to_rq(ub->tag_set.tags[qid], tag);
+	if (WARN_ON_ONCE(unlikely(!req)))
+		return;
 
 	if (req_op(req) == REQ_OP_ZONE_APPEND)
 		req->__sector = ub_cmd->zone_append_lba;
 
-	if (req && likely(!blk_should_fake_timeout(req->q)))
+	if (likely(!blk_should_fake_timeout(req->q)))
 		ublk_put_req_ref(ubq, req);
 }
 
