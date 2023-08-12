@@ -15,10 +15,18 @@
 
 static unsigned bch2_dirent_name_bytes(struct bkey_s_c_dirent d)
 {
-	unsigned len = bkey_val_bytes(d.k) -
-		offsetof(struct bch_dirent, d_name);
+	unsigned bkey_u64s = bkey_val_u64s(d.k);
+	unsigned bkey_bytes = bkey_u64s * sizeof(u64);
+	u64 last_u64 = ((u64*)d.v)[bkey_u64s - 1];
+#if CPU_BIG_ENDIAN
+	unsigned trailing_nuls = last_u64 ? __builtin_ctzll(last_u64) / 8 : 64 / 8;
+#else
+	unsigned trailing_nuls = last_u64 ? __builtin_clzll(last_u64) / 8 : 64 / 8;
+#endif
 
-	return strnlen(d.v->d_name, len);
+	return bkey_bytes -
+		offsetof(struct bch_dirent, d_name) -
+		trailing_nuls;
 }
 
 struct qstr bch2_dirent_get_name(struct bkey_s_c_dirent d)
@@ -110,6 +118,11 @@ int bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (d_name.len > BCH_NAME_MAX) {
 		prt_printf(err, "dirent name too big (%u > %u)",
 		       d_name.len, BCH_NAME_MAX);
+		return -BCH_ERR_invalid_bkey;
+	}
+
+	if (d_name.len != strnlen(d_name.name, d_name.len)) {
+		prt_printf(err, "dirent has stray data after name's NUL");
 		return -BCH_ERR_invalid_bkey;
 	}
 
