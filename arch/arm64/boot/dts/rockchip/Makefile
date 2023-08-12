@@ -234,6 +234,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-toybrick-x0-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-vehicle-evb-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-vehicle-evb-v20.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-vehicle-evb-v21.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-vehicle-evb-v22.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-vehicle-s66-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-evb1-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-evb1-lp4x-v10-linux.dtb

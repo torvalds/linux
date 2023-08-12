@@ -1,0 +1,1092 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/display/media-bus-format.h>
+
+/ {
+	aliases {
+		pinctrl0 = &pinctrl;
+	};
+
+	backlight {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c2_max96755f_backlight: backlight@0 {
+			compatible = "pwm-backlight";
+			reg = <0>;
+			pwms = <&pwm0 0 1000000 0>;
+			brightness-levels = <0 4 8 16 32 64 128 255>;
+			default-brightness-level = <6>;
+		};
+
+		i2c4_max96745_backlight: backlight@1 {
+			compatible = "pwm-backlight";
+			reg = <1>;
+			pwms = <&pwm10 0 1000000 0>;
+			brightness-levels = <0 4 8 16 32 64 128 255>;
+			default-brightness-level = <6>;
+		};
+
+		i2c5_max96745_backlight: backlight@2 {
+			compatible = "pwm-backlight";
+			reg = <2>;
+			pwms = <&pwm7 0 1000000 0>;
+			brightness-levels = <0 4 8 16 32 64 128 255>;
+			default-brightness-level = <6>;
+		};
+
+		i2c6_max96755f_backlight: backlight@3 {
+			compatible = "pwm-backlight";
+			reg = <3>;
+			pwms = <&pwm13 0 1000000 0>;
+			brightness-levels = <0 4 8 16 32 64 128 255>;
+			default-brightness-level = <6>;
+		};
+
+		i2c7_max96745_backlight: backlight@4 {
+			compatible = "pwm-backlight";
+			reg = <4>;
+			pwms = <&pwm11 0 1000000 0>;
+			brightness-levels = <0 4 8 16 32 64 128 255>;
+			default-brightness-level = <6>;
+		};
+
+		i2c8_max96745_backlight: backlight@5 {
+			compatible = "pwm-backlight";
+			reg = <5>;
+			pwms = <&pwm14 0 1000000 0>;
+			brightness-levels = <0 4 8 16 32 64 128 255>;
+			default-brightness-level = <6>;
+		};
+	};
+};
+
+&dp0 {
+	//split-mode;
+	force-hpd;
+	status = "okay";
+};
+
+&dp0_in_vp0 {
+	status = "okay";
+};
+
+&dp0_out {
+	link-frequencies = /bits/ 64 <2700000000>;
+	remote-endpoint = <&i2c4_max96745_in>;
+};
+
+&usbdp_phy0 {
+	rockchip,dp-lane-mux = <0 1 2 3>;
+	status = "okay";
+};
+
+&usbdp_phy0_dp {
+	status = "okay";
+};
+
+&route_dp0 {
+	connect = <&vp0_out_dp0>;
+	status = "okay";
+};
+
+&dp1 {
+	force-hpd;
+	status = "disabled";
+};
+
+&dp1_out {
+	link-frequencies = /bits/ 64 <2700000000>;
+	remote-endpoint = <&i2c8_max96745_in>;
+};
+
+&usbdp_phy1 {
+	rockchip,dp-lane-mux = <0 1 2 3>;
+	status = "okay";
+};
+
+&usbdp_phy1_dp {
+	status = "okay";
+};
+
+&dsi0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			dsi0_out: endpoint {
+				remote-endpoint = <&i2c2_max96755f_in>;
+			};
+		};
+	};
+};
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&dsi0_in_vp2 {
+	status = "okay";
+};
+
+&route_dsi0 {
+	connect = <&vp2_out_dsi0>;
+	status = "disabled";
+};
+
+&dsi1 {
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			dsi1_out: endpoint {
+				remote-endpoint = <&i2c6_max96755f_in>;
+			};
+		};
+	};
+};
+
+&mipi_dcphy1 {
+	status = "okay";
+};
+
+&dsi1_in_vp3 {
+	status = "okay";
+};
+
+&route_dsi1 {
+	connect = <&vp3_out_dsi1>;
+	status = "disabled";
+};
+
+&edp0 {
+	//split-mode;
+	force-hpd;
+	status = "okay";
+};
+
+&edp0_out {
+	link-frequencies = /bits/ 64 <2700000000>;
+	remote-endpoint = <&i2c5_max96745_in>;
+};
+
+&hdptxphy0 {
+	status = "okay";
+};
+
+&edp0_in_vp1 {
+	status = "okay";
+};
+
+&route_edp0 {
+	connect = <&vp1_out_edp0>;
+	status = "okay";
+};
+
+&edp1 {
+	force-hpd;
+	status = "disabled";
+};
+
+&edp1_out {
+	link-frequencies = /bits/ 64 <2700000000>;
+	remote-endpoint = <&i2c7_max96745_in>;
+};
+
+&hdptxphy1 {
+	status = "okay";
+};
+
+&hdmi0 {
+	status = "disabled";
+};
+
+&hdmi1 {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi0 {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi1 {
+	status = "disabled";
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2m4_xfer>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	max96755@40 {
+		compatible = "maxim,max96755";
+		reg = <0x40>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_serdes_pins>;
+		lock-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		sel-mipi;
+		status = "okay";
+
+		serdes-init-sequence = [
+			0001 0008
+			0002 0053
+			0003 0040
+			0010 0031
+			0013 00ca
+			0010 0000
+			02be 001c
+			02bf 0040
+			02c0 0020
+			0311 0057
+			0331 0033
+			0332 004e
+			03a4 0000
+			0385 0000
+			0386 0000
+			0387 0000
+			005b 0012
+			0053 0010
+		];
+
+		i2c2_max96755f_pinctrl: i2c2-max96755f-pinctrl {
+			compatible = "maxim,max96755-pinctrl";
+			status = "okay";
+
+			i2c2_max96755f_pinctrl_hog: hog {
+				i2c {
+					groups = "MAX96755_I2C";
+					function = "MAX96755_I2C";
+				};
+			};
+
+			i2c2_max96755f_panel_pins: panel-pins {
+				bl-pwm {
+					pins = "MAX96755_MFP0";
+					function = "DES_GPIO0_OUTPUT";
+				};
+			};
+
+			i2c2_max96755f_gpio: i2c2-max96755f-gpio {
+				compatible = "maxim,max96755-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c2_max96755f_pinctrl 0 160 24>;
+			};
+		};
+
+		i2c2_max96755f_bridge: i2c2-max96755f-bridge  {
+			compatible = "maxim,max96755-bridge";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2_max96755f_pinctrl_hog>;
+			status = "okay";
+		};
+
+		ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					i2c2_max96755f_in: endpoint {
+						remote-endpoint = <&dsi0_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					i2c2_max96755f_out: endpoint {
+						remote-endpoint = <&i2c2_max96755f_panel_in>;
+					};
+				};
+			};
+	};
+
+
+	max96772@48 {
+		compatible = "maxim,max96772";
+		reg = <0x48>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			0001 0002
+			0010 0011
+			0050 0000
+			07f0 0001
+			e791 0000
+			e793 0000
+			e794 0000
+			e795 000a
+			e796 007a
+			e797 0000
+			e798 003c
+			e799 0000
+			e79a 003c
+			e79b 0000
+			e79c 00a0
+			e79d 0005
+			e79e 0054
+			e79f 0001
+			e7a0 0002
+			e7a1 0000
+			e7a2 0014
+			e7a3 0000
+			e7a4 00fc
+			e7a5 000e
+			e7a6 0055
+			e7a7 0055
+			e7a8 0000
+			e7a9 0080
+			e7aa 0040
+			e7ab 0000
+			e7ac 0003
+			e7ad 0000
+			e7b0 0000
+			e7b1 0000
+			e7b2 0050
+			e7b3 0000
+			e7b4 0000
+			e7b5 0040
+			e7b6 006c
+			e7b7 0020
+			e7b8 0007
+			e7b9 0000
+			e7ba 0001
+			e7bb 0000
+			e7bc 0000
+			e7bd 0000
+			e7be 0052
+			e7bf 0000
+		];
+
+		i2c2_max96772_pinctrl: i2c2-max96772-pinctrl {
+			compatible = "maxim,max96772-pinctrl";
+			status = "okay";
+
+			i2c2_max96772_gpio: i2c2-max96772-gpio {
+				compatible = "maxim,max96772-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c2_max96772_pinctrl 0 185 24>;
+			};
+		};
+
+		i2c2_max96772_panel: i2c2-max96772-panel {
+			compatible = "maxim,max96772-panel";
+			backlight = <&i2c2_max96755f_backlight>;
+
+			panel-timing {
+				clock-frequency = <180000000>;
+				hactive = <2560>;
+				vactive = <1440>;
+				hfront-porch = <122>;
+				hsync-len = <60>;
+				hback-porch = <60>;
+				vfront-porch = <340>;
+				vsync-len = <2>;
+				vback-porch = <20>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			port {
+				i2c2_max96755f_panel_in: endpoint {
+					remote-endpoint = <&i2c2_max96755f_out>;
+				};
+			};
+
+		};
+
+	};
+
+	ts@30 {
+		compatible = "gac,gac_ts";
+		reg = <0x30>;
+		gac,max_x = <2560>;
+		gac,max_y = <1440>;
+	};
+};
+
+&i2c4 {
+	pinctrl-0 = <&i2c4m2_xfer>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	max96745@42 {
+		compatible = "maxim,max96745";
+		reg = <0x42>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c4_serdes_pins>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+		serdes-init-sequence = [
+			0070 0016
+			0005 00c0
+			0107 0042
+			0027 0022
+			0026 0022
+			002a 0007
+			641a 00f0
+		];
+
+
+		i2c4_max96745_pinctrl: i2c4-max96745-pinctrl {
+			compatible = "maxim,max96745-pinctrl";
+			status = "okay";
+
+			i2c4_max96745_gpio: i2c4-max96745-gpio {
+				compatible = "maxim,max96745-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c4_max96745_pinctrl 0 210 25>;
+			};
+		};
+
+		i2c4_max96745_bridge: i2c4-max96745-bridge {
+			compatible = "maxim,max96745-bridge";
+			lock-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+			status = "okay";
+		};
+
+		ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					i2c4_max96745_in: endpoint {
+						remote-endpoint = <&dp0_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					i2c4_max96745_out: endpoint {
+						remote-endpoint = <&i2c4_max96745_panel_in>;
+					};
+				};
+			};
+
+	};
+
+
+	max96752@48 {
+		compatible = "maxim,max96752";
+		reg = <0x48>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+		serdes-init-sequence = [
+			0001 0002
+			0002 0043
+			0140 0020
+			01ce 005e
+			0200 0084
+			020e 0040
+			020c 0084
+			0207 00a1
+			0206 0083
+			0215 0090
+			0227 0090
+			020f 0090
+			0221 0090
+			0212 0090
+			0209 0090
+		];
+
+		i2c4_max96752_pinctrl: i2c4-max96752-pinctrl {
+			compatible = "maxim,max96752-pinctrl";
+			status = "okay";
+
+			i2c4_max96752_gpio: i2c4-max96752-gpio {
+				compatible = "maxim,max96752-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c4_max96752_pinctrl 0 236 25>;
+			};
+		};
+
+		i2c4_max96752_panel: i2c4-max96752-panel {
+			compatible = "maxim,max96752-panel";
+			reg = <0x48>;
+			backlight = <&i2c4_max96745_backlight>;
+
+			panel-timing {
+				clock-frequency = <148500000>;
+				hactive = <1920>;
+				vactive = <1080>;
+				hfront-porch = <20>;
+				hsync-len = <20>;
+				hback-porch = <20>;
+				vfront-porch = <250>;
+				vsync-len = <2>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			port {
+				i2c4_max96745_panel_in: endpoint {
+					remote-endpoint = <&i2c4_max96745_out>;
+				};
+			};
+		};
+
+	};
+};
+
+&i2c5 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	max96745@42 {
+		compatible = "maxim,max96745";
+		reg = <0x42>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c5_serdes_pins>;
+		lock-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			0070 0016
+			0005 00c0
+			0107 0042
+			0027 0022
+			0026 0022
+			002a 0007
+			641a 00f0
+		];
+
+
+		i2c5_max96745_pinctrl: i2c5-max96745-pinctrl {
+			compatible = "maxim,max96745-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c5_max96745_pinctrl_hog>, <&i2c5_max96745_panel_pins>;
+			status = "okay";
+
+			i2c5_max96745_pinctrl_hog: hog {
+				i2c {
+					groups = "MAX96745_I2C";
+					function = "MAX96745_I2C";
+				};
+			};
+
+			i2c5_max96745_panel_pins: panel-pins {
+				bl-pwm {
+					pins = "MAX96745_MFP0";
+					function = "DES_GPIO0_OUTPUT_A";
+				};
+			};
+
+			i2c5_max96745_gpio: i2c5-max96745-gpio {
+				compatible = "maxim,max96745-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c5_max96745_pinctrl 0 262 25>;
+			};
+		};
+
+		i2c5_max96745_bridge: i2c5-max96745-bridge {
+			compatible = "maxim,max96745-bridge";
+			status = "okay";
+		};
+
+		ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					i2c5_max96745_in: endpoint {
+						remote-endpoint = <&edp0_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					i2c5_max96745_out: endpoint {
+						remote-endpoint = <&i2c5_max96745_panel_in>;
+					};
+				};
+			};
+
+	};
+
+
+	max96752@48 {
+		compatible = "maxim,max96752";
+		reg = <0x48>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			0001 0002
+			0002 0043
+			0140 0020
+			01ce 005e
+			0200 0084
+			020e 0040
+			020c 0084
+			0207 00a1
+			0206 0083
+			0215 0090
+			0227 0090
+			020f 0090
+			0221 0090
+			0212 0090
+			0209 0090
+		];
+
+		i2c5_max96752_pinctrl: i2c5-max96752-pinctrl {
+			compatible = "maxim,max96752-pinctrl";
+			status = "okay";
+
+			i2c5_max96752_gpio: i2c5-max96752-gpio {
+				compatible = "maxim,max96752-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c5_max96752_pinctrl 0 288 25>;
+			};
+		};
+
+		i2c5_max96752_panel: i2c5-max96752-panel {
+			compatible = "maxim,max96752-panel";
+			reg = <0x48>;
+			backlight = <&i2c5_max96745_backlight>;
+			panel-size= <346 194>;
+
+			panel-timing {
+				clock-frequency = <148500000>;
+				hactive = <1920>;
+				vactive = <1080>;
+				hfront-porch = <20>;
+				hsync-len = <20>;
+				hback-porch = <20>;
+				vfront-porch = <250>;
+				vsync-len = <2>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			port {
+				i2c5_max96745_panel_in: endpoint {
+					remote-endpoint = <&i2c5_max96745_out>;
+				};
+			};
+
+		};
+	};
+};
+
+&i2c6 {
+	pinctrl-0 = <&i2c6m3_xfer>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	max96755f@40 {
+		compatible = "maxim,max96755f";
+		reg = <0x40>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c6_serdes_pins>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+
+		pinctrl {
+			compatible = "maxim,max96755f-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c6_max96755f_pinctrl_hog>;
+
+			i2c6_max96755f_pinctrl_hog: hog {
+				i2c {
+					groups = "I2C";
+					function = "I2C";
+				};
+			};
+
+
+			i2c6_max96755f_panel_pins: panel-pins {
+				bl-pwm {
+					pins = "MFP18";
+					function = "GPIO_TX_0";
+				};
+			};
+		};
+
+		bridge {
+			compatible = "maxim,max96755f-bridge";
+			lock-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					i2c6_max96755f_in: endpoint {
+						remote-endpoint = <&dsi1_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					i2c6_max96755f_out: endpoint {
+						remote-endpoint = <&i2c6_max96755f_panel_in>;
+					};
+				};
+			};
+		};
+
+		gmsl@0 {
+			reg = <0>;
+			clock-frequency = <400000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			panel@48 {
+				compatible = "boe,av156fht-l83";
+				reg = <0x48>;
+				backlight = <&i2c6_max96755f_backlight>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c6_max96755f_panel_pins>;
+
+				panel-timing {
+					clock-frequency = <148500000>;
+					hactive = <1920>;
+					vactive = <1080>;
+					hfront-porch = <20>;
+					hsync-len = <20>;
+					hback-porch = <20>;
+					vfront-porch = <250>;
+					vsync-len = <2>;
+					vback-porch = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <0>;
+				};
+
+				port {
+					i2c6_max96755f_panel_in: endpoint {
+						remote-endpoint = <&i2c6_max96755f_out>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&i2c7 {
+	pinctrl-0 = <&i2c7m3_xfer>;
+	clock-frequency = <400000>;
+	status = "disabled";
+
+	max96745@42 {
+		compatible = "maxim,max96745";
+		reg = <0x42>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c7_serdes_pins>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+
+		pinctrl {
+			compatible = "maxim,max96745-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c7_max96745_pinctrl_hog>;
+
+			i2c7_max96745_pinctrl_hog: hog {
+				i2c {
+					groups = "I2C";
+					function = "I2C";
+				};
+			};
+
+			i2c7_max96745_panel_pins: panel-pins {
+				bl-pwm {
+					pins = "MFP0";
+					function = "GPIO_TX_A_0";
+				};
+			};
+		};
+
+		bridge {
+			compatible = "maxim,max96745-bridge";
+			lock-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					i2c7_max96745_in: endpoint {
+						remote-endpoint = <&edp1_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					i2c7_max96745_out: endpoint {
+						remote-endpoint = <&i2c7_max96745_panel_in>;
+					};
+				};
+			};
+		};
+
+		gmsl@0 {
+			reg = <0>;
+			clock-frequency = <400000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			panel@48 {
+				compatible = "boe,av156fht-l83";
+				reg = <0x48>;
+				backlight = <&i2c7_max96745_backlight>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c7_max96745_panel_pins>;
+
+				panel-timing {
+					clock-frequency = <148500000>;
+					hactive = <1920>;
+					vactive = <1080>;
+					hfront-porch = <20>;
+					hsync-len = <20>;
+					hback-porch = <20>;
+					vfront-porch = <250>;
+					vsync-len = <2>;
+					vback-porch = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <0>;
+				};
+
+				port {
+					i2c7_max96745_panel_in: endpoint {
+						remote-endpoint = <&i2c7_max96745_out>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&i2c8 {
+	pinctrl-0 = <&i2c8m2_xfer>;
+	clock-frequency = <400000>;
+	status = "disabled";
+
+	max96745@42 {
+		compatible = "maxim,max96745";
+		reg = <0x42>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c8_serdes_pins>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+
+		pinctrl {
+			compatible = "maxim,max96745-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c8_max96745_pinctrl_hog>;
+
+			i2c8_max96745_pinctrl_hog: hog {
+				i2c {
+					groups = "I2C";
+					function = "I2C";
+				};
+			};
+
+			i2c8_max96745_panel_pins: panel-pins {
+				bl-pwm {
+					pins = "MFP0";
+					function = "GPIO_TX_A_0";
+				};
+			};
+		};
+
+		bridge {
+			compatible = "maxim,max96745-bridge";
+			lock-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					i2c8_max96745_in: endpoint {
+						remote-endpoint = <&dp1_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					i2c8_max96745_out: endpoint {
+						remote-endpoint = <&i2c8_max96745_panel_in>;
+					};
+				};
+			};
+		};
+
+		gmsl@0 {
+			reg = <0>;
+			clock-frequency = <400000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			panel@48 {
+				compatible = "boe,av156fht-l83";
+				reg = <0x48>;
+				backlight = <&i2c8_max96745_backlight>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c8_max96745_panel_pins>;
+
+				panel-timing {
+					clock-frequency = <148500000>;
+					hactive = <1920>;
+					vactive = <1080>;
+					hfront-porch = <20>;
+					hsync-len = <20>;
+					hback-porch = <20>;
+					vfront-porch = <250>;
+					vsync-len = <2>;
+					vback-porch = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <0>;
+				};
+
+				port {
+					i2c8_max96745_panel_in: endpoint {
+						remote-endpoint = <&i2c8_max96745_out>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&pinctrl {
+	serdes {
+		i2c2_serdes_pins: i2c2-serdes-pins {
+			rockchip,pins =
+				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		i2c4_serdes_pins: i2c4-serdes-pins {
+			rockchip,pins =
+				<3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		i2c5_serdes_pins: i2c5-serdes-pins {
+			rockchip,pins =
+				<0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		i2c6_serdes_pins: i2c6-serdes-pins {
+			rockchip,pins =
+				<1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		i2c7_serdes_pins: i2c7-serdes-pins {
+			rockchip,pins =
+				<4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		i2c8_serdes_pins: i2c8-serdes-pins {
+			rockchip,pins =
+				<3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&pwm0 {
+	pinctrl-0 = <&pwm0m2_pins>;
+	status = "okay";
+};
+
+&pwm10 {
+	pinctrl-0 = <&pwm10m2_pins>;
+	status = "okay";
+};
+
+&pwm11 {
+	pinctrl-0 = <&pwm11m3_pins>;
+	status = "okay";
+};
+
+&pwm7 {
+	pinctrl-0 = <&pwm7m0_pins>;
+	status = "okay";
+};
+
+&pwm13 {
+	pinctrl-0 = <&pwm13m1_pins>;
+	status = "okay";
+};
+
+&pwm14 {
+	pinctrl-0 = <&pwm14m0_pins>;
+	status = "okay";
+};
