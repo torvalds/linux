@@ -146,6 +146,24 @@ static int cpu_usage_cmp(struct kwork_work *l, struct kwork_work *r)
 	return 0;
 }
 
+static int id_or_cpu_r_cmp(struct kwork_work *l, struct kwork_work *r)
+{
+	if (l->id < r->id)
+		return 1;
+	if (l->id > r->id)
+		return -1;
+
+	if (l->id != 0)
+		return 0;
+
+	if (l->cpu < r->cpu)
+		return 1;
+	if (l->cpu > r->cpu)
+		return -1;
+
+	return 0;
+}
+
 static int sort_dimension__add(struct perf_kwork *kwork __maybe_unused,
 			       const char *tok, struct list_head *list)
 {
@@ -174,6 +192,10 @@ static int sort_dimension__add(struct perf_kwork *kwork __maybe_unused,
 		.name = "rate",
 		.cmp  = cpu_usage_cmp,
 	};
+	static struct sort_dimension tid_sort_dimension = {
+		.name = "tid",
+		.cmp  = id_or_cpu_r_cmp,
+	};
 	struct sort_dimension *available_sorts[] = {
 		&id_sort_dimension,
 		&max_sort_dimension,
@@ -181,6 +203,7 @@ static int sort_dimension__add(struct perf_kwork *kwork __maybe_unused,
 		&runtime_sort_dimension,
 		&avg_sort_dimension,
 		&rate_sort_dimension,
+		&tid_sort_dimension,
 	};
 
 	if (kwork->report == KWORK_REPORT_LATENCY)
@@ -381,6 +404,17 @@ static void profile_update_timespan(struct perf_kwork *kwork,
 		kwork->timeend = sample->time;
 }
 
+static bool profile_name_match(struct perf_kwork *kwork,
+			       struct kwork_work *work)
+{
+	if (kwork->profile_name && work->name &&
+	    (strcmp(work->name, kwork->profile_name) != 0)) {
+		return false;
+	}
+
+	return true;
+}
+
 static bool profile_event_match(struct perf_kwork *kwork,
 				struct kwork_work *work,
 				struct perf_sample *sample)
@@ -396,10 +430,14 @@ static bool profile_event_match(struct perf_kwork *kwork,
 	    ((ptime->end != 0) && (ptime->end < time)))
 		return false;
 
-	if ((kwork->profile_name != NULL) &&
-	    (work->name != NULL) &&
-	    (strcmp(work->name, kwork->profile_name) != 0))
+	/*
+	 * report top needs to collect the runtime of all tasks to
+	 * calculate the load of each core.
+	 */
+	if ((kwork->report != KWORK_REPORT_TOP) &&
+	    !profile_name_match(kwork, work)) {
 		return false;
+	}
 
 	profile_update_timespan(kwork, sample);
 	return true;
@@ -2070,6 +2108,9 @@ static void top_merge_tasks(struct perf_kwork *kwork)
 		rb_erase_cached(node, &class->work_root);
 		data = rb_entry(node, struct kwork_work, node);
 
+		if (!profile_name_match(kwork, data))
+			continue;
+
 		cpu = data->cpu;
 		merged_work = find_work_by_id(&merged_root, data->id,
 					      data->id == 0 ? cpu : -1);
@@ -2329,6 +2370,16 @@ int cmd_kwork(int argc, const char **argv)
 	OPT_PARENT(kwork_options)
 	};
 	const struct option top_options[] = {
+	OPT_STRING('s', "sort", &kwork.sort_order, "key[,key2...]",
+		   "sort by key(s): rate, runtime, tid"),
+	OPT_STRING('C', "cpu", &kwork.cpu_list, "cpu",
+		   "list of cpus to profile"),
+	OPT_STRING('n', "name", &kwork.profile_name, "name",
+		   "event name to profile"),
+	OPT_STRING(0, "time", &kwork.time_str, "str",
+		   "Time span for analysis (start,stop)"),
+	OPT_STRING('i', "input", &input_name, "file",
+		   "input file name"),
 	OPT_PARENT(kwork_options)
 	};
 	const char *kwork_usage[] = {

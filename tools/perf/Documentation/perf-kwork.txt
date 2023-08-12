@@ -178,6 +178,32 @@ OPTIONS for 'perf kwork timehist'
 	stop time is not given (i.e, time string is 'x.y,') then analysis goes
 	to end of file.
 
+OPTIONS for 'perf kwork top'
+---------------------------------
+
+-C::
+--cpu::
+	Only show events for the given CPU(s) (comma separated list).
+
+-i::
+--input::
+	Input file name. (default: perf.data unless stdin is a fifo)
+
+-n::
+--name::
+	Only show events for the given name.
+
+-s::
+--sort::
+	Sort by key(s): rate, runtime, tid
+
+--time::
+	Only analyze samples within given time window: <start>,<stop>. Times
+	have the format seconds.microseconds. If start is not given (i.e., time
+	string is ',x.y') then analysis starts at the beginning of the file. If
+	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	to end of file.
+
 SEE ALSO
 --------
 linkperf:perf-record[1]
