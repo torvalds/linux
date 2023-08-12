@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
@@ -32,7 +33,7 @@ static const struct hfpll_data hdata = {
 };
 
 static const struct of_device_id qcom_hfpll_match_table[] = {
-	{ .compatible = "qcom,hfpll" },
+	{ .compatible = "qcom,hfpll", .data = &hdata },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_hfpll_match_table);
@@ -83,7 +84,7 @@ static int qcom_hfpll_probe(struct platform_device *pdev)
 
 	init.parent_data = &pdata;
 
-	h->d = &hdata;
+	h->d = of_device_get_match_data(&pdev->dev);
 	h->clkr.hw.init = &init;
 	spin_lock_init(&h->lock);
 
