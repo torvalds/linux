@@ -55,7 +55,7 @@ DECLARE_KVM_NVHE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
 
 static bool vgic_present, kvm_arm_initialised;
 
-static DEFINE_PER_CPU(unsigned char, kvm_arm_hardware_enabled);
+static DEFINE_PER_CPU(unsigned char, kvm_hyp_initialized);
 DEFINE_STATIC_KEY_FALSE(userspace_irqchip_in_use);
 
 bool is_kvm_arm_initialised(void)
@@ -1864,18 +1864,24 @@ static void cpu_hyp_reinit(void)
 	cpu_hyp_init_features();
 }
 
-static void _kvm_arch_hardware_enable(void *discard)
+static void cpu_hyp_init(void *discard)
 {
-	if (!__this_cpu_read(kvm_arm_hardware_enabled)) {
+	if (!__this_cpu_read(kvm_hyp_initialized)) {
 		cpu_hyp_reinit();
-		__this_cpu_write(kvm_arm_hardware_enabled, 1);
+		__this_cpu_write(kvm_hyp_initialized, 1);
+	}
+}
+
+static void cpu_hyp_uninit(void *discard)
+{
+	if (__this_cpu_read(kvm_hyp_initialized)) {
+		cpu_hyp_reset();
+		__this_cpu_write(kvm_hyp_initialized, 0);
 	}
 }
 
 int kvm_arch_hardware_enable(void)
 {
-	int was_enabled;
-
 	/*
 	 * Most calls to this function are made with migration
 	 * disabled, but not with preemption disabled. The former is
@@ -1884,36 +1890,23 @@ int kvm_arch_hardware_enable(void)
 	 */
 	preempt_disable();
 
-	was_enabled = __this_cpu_read(kvm_arm_hardware_enabled);
-	_kvm_arch_hardware_enable(NULL);
+	cpu_hyp_init(NULL);
 
-	if (!was_enabled) {
-		kvm_vgic_cpu_up();
-		kvm_timer_cpu_up();
-	}
+	kvm_vgic_cpu_up();
+	kvm_timer_cpu_up();
 
 	preempt_enable();
 
 	return 0;
 }
 
-static void _kvm_arch_hardware_disable(void *discard)
-{
-	if (__this_cpu_read(kvm_arm_hardware_enabled)) {
-		cpu_hyp_reset();
-		__this_cpu_write(kvm_arm_hardware_enabled, 0);
-	}
-}
-
 void kvm_arch_hardware_disable(void)
 {
-	if (__this_cpu_read(kvm_arm_hardware_enabled)) {
-		kvm_timer_cpu_down();
-		kvm_vgic_cpu_down();
-	}
+	kvm_timer_cpu_down();
+	kvm_vgic_cpu_down();
 
 	if (!is_protected_kvm_enabled())
-		_kvm_arch_hardware_disable(NULL);
+		cpu_hyp_uninit(NULL);
 }
 
 #ifdef CONFIG_CPU_PM
@@ -1922,16 +1915,16 @@ static int hyp_init_cpu_pm_notifier(struct notifier_block *self,
 				    void *v)
 {
 	/*
-	 * kvm_arm_hardware_enabled is left with its old value over
+	 * kvm_hyp_initialized is left with its old value over
 	 * PM_ENTER->PM_EXIT. It is used to indicate PM_EXIT should
 	 * re-enable hyp.
 	 */
 	switch (cmd) {
 	case CPU_PM_ENTER:
-		if (__this_cpu_read(kvm_arm_hardware_enabled))
+		if (__this_cpu_read(kvm_hyp_initialized))
 			/*
-			 * don't update kvm_arm_hardware_enabled here
-			 * so that the hardware will be re-enabled
+			 * don't update kvm_hyp_initialized here
+			 * so that the hyp will be re-enabled
 			 * when we resume. See below.
 			 */
 			cpu_hyp_reset();
@@ -1939,8 +1932,8 @@ static int hyp_init_cpu_pm_notifier(struct notifier_block *self,
 		return NOTIFY_OK;
 	case CPU_PM_ENTER_FAILED:
 	case CPU_PM_EXIT:
-		if (__this_cpu_read(kvm_arm_hardware_enabled))
-			/* The hardware was enabled before suspend. */
+		if (__this_cpu_read(kvm_hyp_initialized))
+			/* The hyp was enabled before suspend. */
 			cpu_hyp_reinit();
 
 		return NOTIFY_OK;
@@ -2021,7 +2014,7 @@ static int __init init_subsystems(void)
 	/*
 	 * Enable hardware so that subsystem initialisation can access EL2.
 	 */
-	on_each_cpu(_kvm_arch_hardware_enable, NULL, 1);
+	on_each_cpu(cpu_hyp_init, NULL, 1);
 
 	/*
 	 * Register CPU lower-power notifier
@@ -2059,7 +2052,7 @@ out:
 		hyp_cpu_pm_exit();
 
 	if (err || !is_protected_kvm_enabled())
-		on_each_cpu(_kvm_arch_hardware_disable, NULL, 1);
+		on_each_cpu(cpu_hyp_uninit, NULL, 1);
 
 	return err;
 }
@@ -2097,7 +2090,7 @@ static int __init do_pkvm_init(u32 hyp_va_bits)
 	 * The stub hypercalls are now disabled, so set our local flag to
 	 * prevent a later re-init attempt in kvm_arch_hardware_enable().
 	 */
-	__this_cpu_write(kvm_arm_hardware_enabled, 1);
+	__this_cpu_write(kvm_hyp_initialized, 1);
 	preempt_enable();
 
 	return ret;
