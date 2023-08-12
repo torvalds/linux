@@ -26,9 +26,10 @@ struct microcode_intel {
 #define MC_HEADER_TYPE_IFS		2
 #define DEFAULT_UCODE_DATASIZE		(2000)
 
-#define get_datasize(mc) \
-	(((struct microcode_intel *)mc)->hdr.datasize ? \
-	 ((struct microcode_intel *)mc)->hdr.datasize : DEFAULT_UCODE_DATASIZE)
+static inline int intel_microcode_get_datasize(struct microcode_header_intel *hdr)
+{
+	return hdr->datasize ? : DEFAULT_UCODE_DATASIZE;
+}
 
 static inline u32 intel_get_microcode_revision(void)
 {

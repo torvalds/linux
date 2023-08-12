@@ -118,10 +118,10 @@ int intel_find_matching_signature(void *mc, unsigned int csig, int cpf)
 		return 1;
 
 	/* Look for ext. headers: */
-	if (get_totalsize(mc_hdr) <= get_datasize(mc_hdr) + MC_HEADER_SIZE)
+	if (get_totalsize(mc_hdr) <= intel_microcode_get_datasize(mc_hdr) + MC_HEADER_SIZE)
 		return 0;
 
-	ext_hdr = mc + get_datasize(mc_hdr) + MC_HEADER_SIZE;
+	ext_hdr = mc + intel_microcode_get_datasize(mc_hdr) + MC_HEADER_SIZE;
 	ext_sig = (void *)ext_hdr + EXT_HEADER_SIZE;
 
 	for (i = 0; i < ext_hdr->count; i++) {
@@ -156,7 +156,7 @@ int intel_microcode_sanity_check(void *mc, bool print_err, int hdr_type)
 	struct extended_signature *ext_sig;
 
 	total_size = get_totalsize(mc_header);
-	data_size = get_datasize(mc_header);
+	data_size = intel_microcode_get_datasize(mc_header);
 
 	if (data_size + MC_HEADER_SIZE > total_size) {
 		if (print_err)
@@ -438,7 +438,7 @@ static void show_saved_mc(void)
 		date	= mc_saved_header->date;
 
 		total_size	= get_totalsize(mc_saved_header);
-		data_size	= get_datasize(mc_saved_header);
+		data_size	= intel_microcode_get_datasize(mc_saved_header);
 
 		pr_debug("mc_saved[%d]: sig=0x%x, pf=0x%x, rev=0x%x, total size=0x%x, date = %04x-%02x-%02x\n",
 			 i++, sig, pf, rev, total_size,
