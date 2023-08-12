@@ -866,6 +866,36 @@ static int top_entry_event(struct perf_kwork *kwork,
 			      machine, NULL, true);
 }
 
+static int top_exit_event(struct perf_kwork *kwork,
+			  struct kwork_class *class,
+			  struct evsel *evsel,
+			  struct perf_sample *sample,
+			  struct machine *machine)
+{
+	struct kwork_work *work, *sched_work;
+	struct kwork_class *sched_class;
+	struct kwork_atom *atom;
+
+	atom = work_pop_atom(kwork, class, KWORK_TRACE_EXIT,
+			     KWORK_TRACE_ENTRY, evsel, sample,
+			     machine, &work);
+	if (!work)
+		return -1;
+
+	if (atom) {
+		sched_class = get_kwork_class(kwork, KWORK_CLASS_SCHED);
+		if (sched_class) {
+			sched_work = find_work_by_id(&sched_class->work_root,
+						     work->id, work->cpu);
+			if (sched_work)
+				top_update_runtime(work, atom, sample);
+		}
+		atom_del(atom);
+	}
+
+	return 0;
+}
+
 static int top_sched_switch_event(struct perf_kwork *kwork,
 				  struct kwork_class *class,
 				  struct evsel *evsel,
@@ -933,7 +963,7 @@ static int irq_class_init(struct kwork_class *class,
 	return 0;
 }
 
-static void irq_work_init(struct perf_kwork *kwork __maybe_unused,
+static void irq_work_init(struct perf_kwork *kwork,
 			  struct kwork_class *class,
 			  struct kwork_work *work,
 			  enum kwork_trace_type src_type __maybe_unused,
@@ -943,8 +973,14 @@ static void irq_work_init(struct perf_kwork *kwork __maybe_unused,
 {
 	work->class = class;
 	work->cpu = sample->cpu;
-	work->id = evsel__intval(evsel, sample, "irq");
-	work->name = evsel__strval(evsel, sample, "name");
+
+	if (kwork->report == KWORK_REPORT_TOP) {
+		work->id = evsel__intval_common(evsel, sample, "common_pid");
+		work->name = NULL;
+	} else {
+		work->id = evsel__intval(evsel, sample, "irq");
+		work->name = evsel__strval(evsel, sample, "name");
+	}
 }
 
 static void irq_work_name(struct kwork_work *work, char *buf, int len)
@@ -1510,6 +1546,7 @@ static void top_print_cpu_usage(struct perf_kwork *kwork)
 {
 	struct kwork_top_stat *stat = &kwork->top_stat;
 	u64 idle_time = stat->cpus_runtime[MAX_NR_CPUS].idle;
+	u64 hardirq_time = stat->cpus_runtime[MAX_NR_CPUS].irq;
 	int cpus_nr = bitmap_weight(stat->all_cpus_bitmap, MAX_NR_CPUS);
 	u64 cpus_total_time = stat->cpus_runtime[MAX_NR_CPUS].total;
 
@@ -1518,9 +1555,12 @@ static void top_print_cpu_usage(struct perf_kwork *kwork)
 	       (double)cpus_total_time / NSEC_PER_MSEC,
 	       cpus_nr);
 
-	printf("%%Cpu(s): %*.*f%% id\n",
+	printf("%%Cpu(s): %*.*f%% id, %*.*f%% hi\n",
 	       PRINT_CPU_USAGE_WIDTH, PRINT_CPU_USAGE_DECIMAL_WIDTH,
-	       cpus_total_time ? (double)idle_time * 100 / cpus_total_time : 0);
+	       cpus_total_time ? (double)idle_time * 100 / cpus_total_time : 0,
+
+	       PRINT_CPU_USAGE_WIDTH, PRINT_CPU_USAGE_DECIMAL_WIDTH,
+	       cpus_total_time ? (double)hardirq_time * 100 / cpus_total_time : 0);
 
 	top_print_per_cpu_load(kwork);
 }
@@ -1621,6 +1661,8 @@ static int perf_kwork__check_config(struct perf_kwork *kwork,
 		.exit_event  = timehist_exit_event,
 	};
 	static struct trace_kwork_handler top_ops = {
+		.entry_event        = timehist_entry_event,
+		.exit_event         = top_exit_event,
 		.sched_switch_event = top_sched_switch_event,
 	};
 
@@ -1915,6 +1957,43 @@ static void top_calc_idle_time(struct perf_kwork *kwork,
 	}
 }
 
+static void top_calc_irq_runtime(struct perf_kwork *kwork,
+				 enum kwork_class_type type,
+				 struct kwork_work *work)
+{
+	struct kwork_top_stat *stat = &kwork->top_stat;
+
+	if (type == KWORK_CLASS_IRQ) {
+		stat->cpus_runtime[work->cpu].irq += work->total_runtime;
+		stat->cpus_runtime[MAX_NR_CPUS].irq += work->total_runtime;
+	}
+}
+
+static void top_subtract_irq_runtime(struct perf_kwork *kwork,
+				     struct kwork_work *work)
+{
+	struct kwork_class *class;
+	struct kwork_work *data;
+	unsigned int i;
+	int irq_class_list[] = {KWORK_CLASS_IRQ};
+
+	for (i = 0; i < ARRAY_SIZE(irq_class_list); i++) {
+		class = get_kwork_class(kwork, irq_class_list[i]);
+		if (!class)
+			continue;
+
+		data = find_work_by_id(&class->work_root,
+				       work->id, work->cpu);
+		if (!data)
+			continue;
+
+		if (work->total_runtime > data->total_runtime) {
+			work->total_runtime -= data->total_runtime;
+			top_calc_irq_runtime(kwork, irq_class_list[i], data);
+		}
+	}
+}
+
 static void top_calc_cpu_usage(struct perf_kwork *kwork)
 {
 	struct kwork_class *class;
@@ -1934,6 +2013,8 @@ static void top_calc_cpu_usage(struct perf_kwork *kwork)
 			goto next;
 
 		__set_bit(work->cpu, stat->all_cpus_bitmap);
+
+		top_subtract_irq_runtime(kwork, work);
 
 		work->cpu_usage = work->total_runtime * 10000 /
 			stat->cpus_runtime[work->cpu].total;
@@ -2311,7 +2392,7 @@ int cmd_kwork(int argc, const char **argv)
 		}
 		kwork.report = KWORK_REPORT_TOP;
 		if (!kwork.event_list_str)
-			kwork.event_list_str = "sched";
+			kwork.event_list_str = "sched, irq";
 		setup_event_list(&kwork, kwork_options, kwork_usage);
 		setup_sorting(&kwork, top_options, top_usage);
 		return perf_kwork__top(&kwork);
