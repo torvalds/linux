@@ -32,10 +32,11 @@
 
 #include <asm/intel-family.h>
 #include <asm/processor.h>
-#include <asm/microcode.h>
 #include <asm/tlbflush.h>
 #include <asm/setup.h>
 #include <asm/msr.h>
+
+#include "internal.h"
 
 static const char ucode_path[] = "kernel/x86/microcode/GenuineIntel.bin";
 
