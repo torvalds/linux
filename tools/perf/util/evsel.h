@@ -340,6 +340,7 @@ struct perf_sample;
 #ifdef HAVE_LIBTRACEEVENT
 void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char *name);
 u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *name);
+u64 evsel__intval_common(struct evsel *evsel, struct perf_sample *sample, const char *name);
 
 static inline char *evsel__strval(struct evsel *evsel, struct perf_sample *sample, const char *name)
 {
@@ -352,6 +353,7 @@ struct tep_format_field;
 u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sample, bool needs_swap);
 
 struct tep_format_field *evsel__field(struct evsel *evsel, const char *name);
+struct tep_format_field *evsel__common_field(struct evsel *evsel, const char *name);
 
 static inline bool __evsel__match(const struct evsel *evsel, u32 type, u64 config)
 {

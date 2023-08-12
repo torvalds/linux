@@ -2766,6 +2766,11 @@ struct tep_format_field *evsel__field(struct evsel *evsel, const char *name)
 	return tep_find_field(evsel->tp_format, name);
 }
 
+struct tep_format_field *evsel__common_field(struct evsel *evsel, const char *name)
+{
+	return tep_find_common_field(evsel->tp_format, name);
+}
+
 void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char *name)
 {
 	struct tep_format_field *field = evsel__field(evsel, name);
@@ -2831,6 +2836,14 @@ u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *n
 
 	return field ? format_field__intval(field, sample, evsel->needs_swap) : 0;
 }
+
+u64 evsel__intval_common(struct evsel *evsel, struct perf_sample *sample, const char *name)
+{
+	struct tep_format_field *field = evsel__common_field(evsel, name);
+
+	return field ? format_field__intval(field, sample, evsel->needs_swap) : 0;
+}
+
 #endif
 
 bool evsel__fallback(struct evsel *evsel, int err, char *msg, size_t msgsize)
