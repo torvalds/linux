@@ -184,6 +184,7 @@ struct __top_cpus_runtime {
 	u64 load;
 	u64 idle;
 	u64 irq;
+	u64 softirq;
 	u64 total;
 };
 
