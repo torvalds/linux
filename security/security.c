@@ -841,7 +841,7 @@ int security_binder_transfer_binder(const struct cred *from,
  * Return: Returns 0 if permission is granted.
  */
 int security_binder_transfer_file(const struct cred *from,
-				  const struct cred *to, struct file *file)
+				  const struct cred *to, const struct file *file)
 {
 	return call_int_hook(binder_transfer_file, 0, from, to, file);
 }

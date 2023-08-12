@@ -1691,7 +1691,7 @@ static inline int file_path_has_perm(const struct cred *cred,
 }
 
 #ifdef CONFIG_BPF_SYSCALL
-static int bpf_fd_pass(struct file *file, u32 sid);
+static int bpf_fd_pass(const struct file *file, u32 sid);
 #endif
 
 /* Check whether a task can use an open file descriptor to
@@ -1952,7 +1952,7 @@ static inline u32 file_mask_to_av(int mode, int mask)
 }
 
 /* Convert a Linux file to an access vector. */
-static inline u32 file_to_av(struct file *file)
+static inline u32 file_to_av(const struct file *file)
 {
 	u32 av = 0;
 
@@ -2027,7 +2027,7 @@ static int selinux_binder_transfer_binder(const struct cred *from,
 
 static int selinux_binder_transfer_file(const struct cred *from,
 					const struct cred *to,
-					struct file *file)
+					const struct file *file)
 {
 	u32 sid = cred_sid(to);
 	struct file_security_struct *fsec = selinux_file(file);
@@ -6718,7 +6718,7 @@ static u32 bpf_map_fmode_to_av(fmode_t fmode)
  * access the bpf object and that's why we have to add this additional check in
  * selinux_file_receive and selinux_binder_transfer_files.
  */
-static int bpf_fd_pass(struct file *file, u32 sid)
+static int bpf_fd_pass(const struct file *file, u32 sid)
 {
 	struct bpf_security_struct *bpfsec;
 	struct bpf_prog *prog;
