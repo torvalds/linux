@@ -1623,8 +1623,11 @@ static void setup_event_list(struct perf_kwork *kwork,
 	struct kwork_class *class;
 	char *tmp, *tok, *str;
 
+	/*
+	 * set default events list if not specified
+	 */
 	if (kwork->event_list_str == NULL)
-		goto null_event_list_str;
+		kwork->event_list_str = "irq, softirq, workqueue";
 
 	str = strdup(kwork->event_list_str);
 	for (tok = strtok_r(str, ", ", &tmp);
@@ -1642,17 +1645,6 @@ static void setup_event_list(struct perf_kwork *kwork,
 		}
 	}
 	free(str);
-
-null_event_list_str:
-	/*
-	 * config all kwork events if not specified
-	 */
-	if (list_empty(&kwork->class_list)) {
-		for (i = 0; i < KWORK_CLASS_MAX; i++) {
-			list_add_tail(&kwork_class_supported_list[i]->list,
-				      &kwork->class_list);
-		}
-	}
 
 	pr_debug("Config event list:");
 	list_for_each_entry(class, &kwork->class_list, list)
@@ -1835,12 +1827,12 @@ int cmd_kwork(int argc, const char **argv)
 	if (!argc)
 		usage_with_options(kwork_usage, kwork_options);
 
-	setup_event_list(&kwork, kwork_options, kwork_usage);
 	sort_dimension__add(&kwork, "id", &kwork.cmp_id);
 
-	if (strlen(argv[0]) > 2 && strstarts("record", argv[0]))
+	if (strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
+		setup_event_list(&kwork, kwork_options, kwork_usage);
 		return perf_kwork__record(&kwork, argc, argv);
-	else if (strlen(argv[0]) > 2 && strstarts("report", argv[0])) {
+	} else if (strlen(argv[0]) > 2 && strstarts("report", argv[0])) {
 		kwork.sort_order = default_report_sort_order;
 		if (argc > 1) {
 			argc = parse_options(argc, argv, report_options, report_usage, 0);
@@ -1849,6 +1841,7 @@ int cmd_kwork(int argc, const char **argv)
 		}
 		kwork.report = KWORK_REPORT_RUNTIME;
 		setup_sorting(&kwork, report_options, report_usage);
+		setup_event_list(&kwork, kwork_options, kwork_usage);
 		return perf_kwork__report(&kwork);
 	} else if (strlen(argv[0]) > 2 && strstarts("latency", argv[0])) {
 		kwork.sort_order = default_latency_sort_order;
@@ -1859,6 +1852,7 @@ int cmd_kwork(int argc, const char **argv)
 		}
 		kwork.report = KWORK_REPORT_LATENCY;
 		setup_sorting(&kwork, latency_options, latency_usage);
+		setup_event_list(&kwork, kwork_options, kwork_usage);
 		return perf_kwork__report(&kwork);
 	} else if (strlen(argv[0]) > 2 && strstarts("timehist", argv[0])) {
 		if (argc > 1) {
@@ -1867,6 +1861,7 @@ int cmd_kwork(int argc, const char **argv)
 				usage_with_options(timehist_usage, timehist_options);
 		}
 		kwork.report = KWORK_REPORT_TIMEHIST;
+		setup_event_list(&kwork, kwork_options, kwork_usage);
 		return perf_kwork__timehist(&kwork);
 	} else
 		usage_with_options(kwork_usage, kwork_options);
