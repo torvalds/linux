@@ -815,6 +815,26 @@
 	};
 };
 
+&dss {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_parallel_rgb>;
+	status = "disabled";
+};
+
+&dss_ports {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* VP2: DPI Output */
+	port@1 {
+		reg = <1>;
+
+		dpi_out: endpoint {
+			remote-endpoint = <&rgb_in>;
+		};
+	};
+};
+
 /* Verdin PWM_1, PWM_2 */
 &epwm0 {
 	pinctrl-names = "default";
@@ -1051,6 +1071,7 @@
 
 				rgb_in: endpoint {
 					data-lines = <18>;
+					remote-endpoint = <&dpi_out>;
 				};
 			};
 
