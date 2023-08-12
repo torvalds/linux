@@ -3817,8 +3817,52 @@ void rkisp_unregister_isp_subdev(struct rkisp_device *isp_dev)
 })
 
 #ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
+static void rkisp_save_tb_info(struct rkisp_device *isp_dev)
+{
+	struct rkisp_isp_params_vdev *params_vdev = &isp_dev->params_vdev;
+	void *resmem_va = phys_to_virt(isp_dev->resmem_pa);
+	struct rkisp_thunderboot_resmem_head *head = resmem_va;
+	int size = 0, offset = 0;
+	void *param = NULL;
+
+	switch (isp_dev->isp_ver) {
+	case ISP_V32:
+		size = sizeof(struct rkisp32_thunderboot_resmem_head);
+		offset = size * isp_dev->dev_id;
+		break;
+	default:
+		break;
+	}
+
+	if (size && size < isp_dev->resmem_size) {
+		dma_sync_single_for_cpu(isp_dev->dev, isp_dev->resmem_addr + offset,
+					size, DMA_FROM_DEVICE);
+		params_vdev->is_first_cfg = true;
+		if (isp_dev->isp_ver == ISP_V32) {
+			struct rkisp32_thunderboot_resmem_head *tmp = resmem_va + offset;
+
+			param = &tmp->cfg;
+			head = &tmp->head;
+			v4l2_info(&isp_dev->v4l2_dev,
+				  "tb param module en:0x%llx upd:0x%llx cfg upd:0x%llx\n",
+				  tmp->cfg.module_en_update,
+				  tmp->cfg.module_ens,
+				  tmp->cfg.module_cfg_update);
+		}
+		if (param)
+			params_vdev->ops->save_first_param(params_vdev, param);
+	} else if (size > isp_dev->resmem_size) {
+		v4l2_err(&isp_dev->v4l2_dev,
+			 "resmem size:%zu no enough for head:%d\n",
+			 isp_dev->resmem_size, size);
+		head->complete = RKISP_TB_NG;
+	}
+	memcpy(&isp_dev->tb_head, head, sizeof(*head));
+}
+
 void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 {
+	struct rkisp_isp_params_vdev *params_vdev = &isp_dev->params_vdev;
 	struct rkisp_hw_dev *hw = isp_dev->hw_dev;
 	struct rkisp_thunderboot_resmem_head *head;
 	enum rkisp_tb_state tb_state;
@@ -3826,6 +3870,9 @@ void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 
 	if (!isp_dev->is_thunderboot)
 		return;
+
+	if (isp_dev->isp_ver == ISP_V32 && params_vdev->is_first_cfg)
+		goto end;
 
 	resmem_va = phys_to_virt(isp_dev->resmem_pa);
 	head = (struct rkisp_thunderboot_resmem_head *)resmem_va;
@@ -3837,12 +3884,16 @@ void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 	if (head->complete != RKISP_TB_OK) {
 		v4l2_err(&isp_dev->v4l2_dev, "wait thunderboot over timeout\n");
 	} else {
-		struct rkisp_isp_params_vdev *params_vdev = &isp_dev->params_vdev;
-		void *param = NULL;
-		u32 size = 0, offset = 0, timeout = 50;
+		int i, timeout = 50;
 
 		/* wait for all isp dev to register */
 		if (head->camera_num > 1) {
+			if (head->camera_num > hw->dev_num) {
+				v4l2_err(&isp_dev->v4l2_dev,
+					 "thunderboot invalid camera num:%d, dev num:%d\n",
+					 head->camera_num, hw->dev_num);
+				goto end;
+			}
 			while (timeout--) {
 				if (hw->dev_num >= head->camera_num &&
 				    hw->isp[hw->dev_num - 1]->is_probe_end)
@@ -3850,41 +3901,11 @@ void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 				usleep_range(200, 210);
 			}
 		}
-
-		switch (isp_dev->isp_ver) {
-		case ISP_V32:
-			size = sizeof(struct rkisp32_thunderboot_resmem_head);
-			offset = size * isp_dev->dev_id;
-			break;
-		default:
-			break;
-		}
-
-		if (size && size < isp_dev->resmem_size) {
-			dma_sync_single_for_cpu(isp_dev->dev, isp_dev->resmem_addr + offset,
-						size, DMA_FROM_DEVICE);
-			params_vdev->is_first_cfg = true;
-			if (isp_dev->isp_ver == ISP_V32) {
-				struct rkisp32_thunderboot_resmem_head *tmp = resmem_va + offset;
-
-				param = &tmp->cfg;
-				head = &tmp->head;
-				v4l2_info(&isp_dev->v4l2_dev,
-					  "tb param module en:0x%llx upd:0x%llx cfg upd:0x%llx\n",
-					  tmp->cfg.module_en_update,
-					  tmp->cfg.module_ens,
-					  tmp->cfg.module_cfg_update);
-			}
-			if (param)
-				params_vdev->ops->save_first_param(params_vdev, param);
-		} else if (size > isp_dev->resmem_size) {
-			v4l2_err(&isp_dev->v4l2_dev,
-				 "resmem size:%zu no enough for head:%d\n",
-				 isp_dev->resmem_size, size);
-			head->complete = RKISP_TB_NG;
-		}
+		for (i = 0; i < head->camera_num; i++)
+			rkisp_save_tb_info(hw->isp[i]);
 	}
-	memcpy(&isp_dev->tb_head, head, sizeof(*head));
+end:
+	head = &isp_dev->tb_head;
 	v4l2_info(&isp_dev->v4l2_dev,
 		  "thunderboot info: %d, %d, %d, %d, %d, %d | %d %d\n",
 		  head->enable,

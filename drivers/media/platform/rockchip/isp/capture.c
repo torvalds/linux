@@ -1616,7 +1616,9 @@ static void rkisp_stream_fast(struct work_struct *work)
 	if (ispdev->isp_ver != ISP_V32)
 		return;
 
+	mutex_lock(&ispdev->hw_dev->dev_lock);
 	rkisp_chk_tb_over(ispdev);
+	mutex_unlock(&ispdev->hw_dev->dev_lock);
 	if (ispdev->tb_head.complete != RKISP_TB_OK)
 		return;
 	ret = v4l2_pipeline_pm_get(&stream->vnode.vdev.entity);
