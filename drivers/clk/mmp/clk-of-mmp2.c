@@ -78,6 +78,8 @@
 #define MPMU_PLL_DIFF_CTRL	0x68
 #define MPMU_PLL2_CTRL1		0x414
 
+#define NR_CLKS		200
+
 enum mmp2_clk_model {
 	CLK_MODEL_MMP2,
 	CLK_MODEL_MMP3,
@@ -543,7 +545,7 @@ static void __init mmp2_clk_init(struct device_node *np)
 
 	mmp2_pm_domain_init(np, pxa_unit);
 
-	mmp_clk_init(np, &pxa_unit->unit, MMP2_NR_CLKS);
+	mmp_clk_init(np, &pxa_unit->unit, NR_CLKS);
 
 	mmp2_main_clk_init(pxa_unit);
 
