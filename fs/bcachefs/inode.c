@@ -1048,6 +1048,11 @@ static int may_delete_deleted_inode(struct btree_trans *trans, struct bpos pos)
 	if (ret)
 		goto err;
 
+	if (fsck_err_on(S_ISDIR(inode.bi_mode), c,
+			"directory %llu:%u in deleted_inodes btree",
+			pos.offset, pos.snapshot))
+		goto delete;
+
 	if (fsck_err_on(!(inode.bi_flags & BCH_INODE_UNLINKED), c,
 			"non-deleted inode %llu:%u in deleted_inodes btree",
 			pos.offset, pos.snapshot))
