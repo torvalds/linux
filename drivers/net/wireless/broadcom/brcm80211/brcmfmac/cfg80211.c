@@ -1456,6 +1456,10 @@ brcmf_run_escan(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
 		params_size -= BRCMF_SCAN_PARAMS_V2_FIXED_SIZE;
 		params_size += BRCMF_SCAN_PARAMS_FIXED_SIZE;
 		params_v1 = kzalloc(params_size, GFP_KERNEL);
+		if (!params_v1) {
+			err = -ENOMEM;
+			goto exit_params;
+		}
 		params_v1->version = cpu_to_le32(BRCMF_ESCAN_REQ_VERSION);
 		brcmf_scan_params_v2_to_v1(&params->params_v2_le, &params_v1->params_le);
 		kfree(params);
@@ -1473,6 +1477,7 @@ brcmf_run_escan(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
 			bphy_err(drvr, "error (%d)\n", err);
 	}
 
+exit_params:
 	kfree(params);
 exit:
 	return err;

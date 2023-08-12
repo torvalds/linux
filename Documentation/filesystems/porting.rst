@@ -537,7 +537,7 @@ vfs_readdir() is gone; switch to iterate_dir() instead
 
 **mandatory**
 
-->readdir() is gone now; switch to ->iterate()
+->readdir() is gone now; switch to ->iterate_shared()
 
 **mandatory**
 
@@ -693,24 +693,19 @@ parallel now.
 
 ---
 
-**recommended**
+**mandatory**
 
-->iterate_shared() is added; it's a parallel variant of ->iterate().
+->iterate_shared() is added.
 Exclusion on struct file level is still provided (as well as that
 between it and lseek on the same struct file), but if your directory
 has been opened several times, you can get these called in parallel.
 Exclusion between that method and all directory-modifying ones is
 still provided, of course.
 
-Often enough ->iterate() can serve as ->iterate_shared() without any
-changes - it is a read-only operation, after all.  If you have any
-per-inode or per-dentry in-core data structures modified by ->iterate(),
-you might need something to serialize the access to them.  If you
-do dcache pre-seeding, you'll need to switch to d_alloc_parallel() for
-that; look for in-tree examples.
-
-Old method is only used if the new one is absent; eventually it will
-be removed.  Switch while you still can; the old one won't stay.
+If you have any per-inode or per-dentry in-core data structures modified
+by ->iterate_shared(), you might need something to serialize the access
+to them.  If you do dcache pre-seeding, you'll need to switch to
+d_alloc_parallel() for that; look for in-tree examples.
 
 ---
 
@@ -930,9 +925,9 @@ should be done by looking at FMODE_LSEEK in file->f_mode.
 filldir_t (readdir callbacks) calling conventions have changed.  Instead of
 returning 0 or -E... it returns bool now.  false means "no more" (as -E... used
 to) and true - "keep going" (as 0 in old calling conventions).  Rationale:
-callers never looked at specific -E... values anyway.  ->iterate() and
-->iterate_shared() instance require no changes at all, all filldir_t ones in
-the tree converted.
+callers never looked at specific -E... values anyway. -> iterate_shared()
+instances require no changes at all, all filldir_t ones in the tree
+converted.
 
 ---
 

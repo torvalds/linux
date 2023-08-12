@@ -134,13 +134,27 @@ SECTIONS
 		SOFTIRQENTRY_TEXT
 #ifdef CONFIG_RETPOLINE
 		__indirect_thunk_start = .;
-		*(.text.__x86.*)
+		*(.text.__x86.indirect_thunk)
+		*(.text.__x86.return_thunk)
 		__indirect_thunk_end = .;
 #endif
 		STATIC_CALL_TEXT
 
 		ALIGN_ENTRY_TEXT_BEGIN
+#ifdef CONFIG_CPU_SRSO
+		*(.text.__x86.rethunk_untrain)
+#endif
+
 		ENTRY_TEXT
+
+#ifdef CONFIG_CPU_SRSO
+		/*
+		 * See the comment above srso_untrain_ret_alias()'s
+		 * definition.
+		 */
+		. = srso_untrain_ret_alias | (1 << 2) | (1 << 8) | (1 << 14) | (1 << 20);
+		*(.text.__x86.rethunk_safe)
+#endif
 		ALIGN_ENTRY_TEXT_END
 		*(.gnu.warning)
 
@@ -509,7 +523,18 @@ INIT_PER_CPU(irq_stack_backing_store);
 #endif
 
 #ifdef CONFIG_RETHUNK
-. = ASSERT((__x86_return_thunk & 0x3f) == 0, "__x86_return_thunk not cacheline-aligned");
+. = ASSERT((__ret & 0x3f) == 0, "__ret not cacheline-aligned");
+. = ASSERT((srso_safe_ret & 0x3f) == 0, "srso_safe_ret not cacheline-aligned");
+#endif
+
+#ifdef CONFIG_CPU_SRSO
+/*
+ * GNU ld cannot do XOR so do: (A | B) - (A & B) in order to compute the XOR
+ * of the two function addresses:
+ */
+. = ASSERT(((srso_untrain_ret_alias | srso_safe_ret_alias) -
+		(srso_untrain_ret_alias & srso_safe_ret_alias)) == ((1 << 2) | (1 << 8) | (1 << 14) | (1 << 20)),
+		"SRSO function pair won't alias");
 #endif
 
 #endif /* CONFIG_X86_64 */
