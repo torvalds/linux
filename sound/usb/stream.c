@@ -1228,6 +1228,8 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 		snd_usb_init_pitch(chip, fp);
 		snd_usb_init_sample_rate(chip, fp, fp->rate_max);
 		usb_set_interface(chip->dev, iface_no, altno);
+		if (protocol > UAC_VERSION_1)
+			snd_vendor_set_interface(chip->dev, alts, iface_no, 0);
 	}
 	return 0;
 }

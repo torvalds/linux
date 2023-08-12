@@ -5011,7 +5011,7 @@ static void android_vh_scheduler_tick(void *unused, struct rq *rq)
 	walt_lb_tick(rq);
 }
 
-static void android_rvh_schedule(void *unused, struct task_struct *prev,
+static void android_rvh_schedule(void *unused, unsigned int sched_mode, struct task_struct *prev,
 		struct task_struct *next, struct rq *rq)
 {
 	u64 wallclock;

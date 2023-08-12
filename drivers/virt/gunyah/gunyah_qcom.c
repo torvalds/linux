@@ -38,36 +38,40 @@ static int qcom_scm_gh_rm_pre_mem_share(void *rm, struct gh_rm_mem_parcel *mem_p
 			new_perms[n].perm |= QCOM_SCM_PERM_READ;
 	}
 
-	src = (1ull << QCOM_SCM_VMID_HLOS);
+	src = BIT_ULL(QCOM_SCM_VMID_HLOS);
 
 	for (i = 0; i < mem_parcel->n_mem_entries; i++) {
 		src_cpy = src;
 		ret = qcom_scm_assign_mem(le64_to_cpu(mem_parcel->mem_entries[i].phys_addr),
 						le64_to_cpu(mem_parcel->mem_entries[i].size),
 						&src_cpy, new_perms, mem_parcel->n_acl_entries);
-		if (ret) {
-			src = 0;
-			for (n = 0; n < mem_parcel->n_acl_entries; n++) {
-				vmid = le16_to_cpu(mem_parcel->acl_entries[n].vmid);
-				if (vmid <= QCOM_SCM_MAX_MANAGED_VMID)
-					src |= (1ull << vmid);
-				else
-					src |= (1ull << QCOM_SCM_RM_MANAGED_VMID);
-			}
-
-			new_perms[0].vmid = QCOM_SCM_VMID_HLOS;
-
-			for (i--; i >= 0; i--) {
-				src_cpy = src;
-				WARN_ON_ONCE(qcom_scm_assign_mem(
-						le64_to_cpu(mem_parcel->mem_entries[i].phys_addr),
-						le64_to_cpu(mem_parcel->mem_entries[i].size),
-						&src_cpy, new_perms, 1));
-			}
+		if (ret)
 			break;
-		}
 	}
 
+	if (!ret)
+		goto out;
+
+	src = 0;
+	for (n = 0; n < mem_parcel->n_acl_entries; n++) {
+		vmid = le16_to_cpu(mem_parcel->acl_entries[n].vmid);
+		if (vmid <= QCOM_SCM_MAX_MANAGED_VMID)
+			src |= BIT_ULL(vmid);
+		else
+			src |= BIT_ULL(QCOM_SCM_RM_MANAGED_VMID);
+	}
+
+	new_perms[0].vmid = QCOM_SCM_VMID_HLOS;
+
+	for (i--; i >= 0; i--) {
+		src_cpy = src;
+		WARN_ON_ONCE(qcom_scm_assign_mem(
+				le64_to_cpu(mem_parcel->mem_entries[i].phys_addr),
+				le64_to_cpu(mem_parcel->mem_entries[i].size),
+				&src_cpy, new_perms, 1));
+	}
+
+out:
 	kfree(new_perms);
 	return ret;
 }
@@ -117,13 +121,15 @@ static bool gh_has_qcom_extensions(void)
 {
 	struct arm_smccc_res res;
 	uuid_t uuid;
+	u32 *up;
 
 	arm_smccc_1_1_smc(GH_QCOM_EXT_CALL_UUID_ID, &res);
 
-	((u32 *)&uuid.b[0])[0] = lower_32_bits(res.a0);
-	((u32 *)&uuid.b[0])[1] = lower_32_bits(res.a1);
-	((u32 *)&uuid.b[0])[2] = lower_32_bits(res.a2);
-	((u32 *)&uuid.b[0])[3] = lower_32_bits(res.a3);
+	up = (u32 *)&uuid.b[0];
+	up[0] = lower_32_bits(res.a0);
+	up[1] = lower_32_bits(res.a1);
+	up[2] = lower_32_bits(res.a2);
+	up[3] = lower_32_bits(res.a3);
 
 	return uuid_equal(&uuid, &QCOM_EXT_UUID);
 }

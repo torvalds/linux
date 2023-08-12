@@ -139,7 +139,7 @@ static int _gh_rm_mem_append(struct gh_rm *rm, u32 mem_handle, bool end_append,
 		return -ENOMEM;
 
 	req_header = msg;
-	mem_section = (void *)req_header + sizeof(struct gh_rm_mem_append_req_header);
+	mem_section = (void *)(req_header + 1);
 
 	req_header->mem_handle = cpu_to_le32(mem_handle);
 	if (end_append)

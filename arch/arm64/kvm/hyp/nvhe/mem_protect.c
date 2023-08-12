@@ -79,10 +79,35 @@ static void hyp_unlock_component(void)
 	hyp_spin_unlock(&pkvm_pgd_lock);
 }
 
+static void assert_host_can_alloc(void)
+{
+	/* We can always get back to the host from guest context */
+	if (read_sysreg(vttbr_el2) != kvm_get_vttbr(&host_mmu.arch.mmu))
+		return;
+
+	/*
+	 * An error code must be returned to EL1 to handle memory allocation
+	 * failures cleanly. That's doable for explicit calls into higher
+	 * ELs, but not so much for other EL2 entry reasons such as mem aborts.
+	 * Thankfully we don't need memory allocation in these cases by
+	 * construction, so let's enforce the invariant.
+	 */
+	switch (ESR_ELx_EC(read_sysreg(esr_el2))) {
+	case ESR_ELx_EC_HVC64:
+	case ESR_ELx_EC_SMC64:
+		break;
+	default:
+		WARN_ON(1);
+	}
+}
+
 static void *host_s2_zalloc_pages_exact(size_t size)
 {
-	void *addr = hyp_alloc_pages(&host_s2_pool, get_order(size));
+	void *addr;
 
+	assert_host_can_alloc();
+
+	addr = hyp_alloc_pages(&host_s2_pool, get_order(size));
 	hyp_split_page(hyp_virt_to_page(addr));
 
 	/*
@@ -97,6 +122,8 @@ static void *host_s2_zalloc_pages_exact(size_t size)
 
 static void *host_s2_zalloc_page(void *pool)
 {
+	assert_host_can_alloc();
+
 	return hyp_alloc_pages(pool, 0);
 }
 
@@ -146,6 +173,27 @@ static void prepare_host_vtcr(void)
 					  id_aa64mmfr1_el1_sys_val, phys_shift);
 }
 
+static int prepopulate_host_stage2(void)
+{
+	struct memblock_region *reg;
+	u64 addr = 0;
+	int i, ret;
+
+	for (i = 0; i < hyp_memblock_nr; i++) {
+		reg = &hyp_memory[i];
+		ret = host_stage2_idmap_locked(addr, reg->base - addr, PKVM_HOST_MMIO_PROT, false);
+		if (ret)
+			return ret;
+		ret = host_stage2_idmap_locked(reg->base, reg->size, PKVM_HOST_MEM_PROT, false);
+		if (ret)
+			return ret;
+		addr = reg->base + reg->size;
+	}
+
+	return host_stage2_idmap_locked(addr, BIT(host_mmu.pgt.ia_bits) - addr, PKVM_HOST_MMIO_PROT,
+					false);
+}
+
 int kvm_host_prepare_stage2(void *pgt_pool_base)
 {
 	struct kvm_s2_mmu *mmu = &host_mmu.arch.mmu;
@@ -172,7 +220,7 @@ int kvm_host_prepare_stage2(void *pgt_pool_base)
 	mmu->pgt = &host_mmu.pgt;
 	atomic64_set(&mmu->vmid.id, 0);
 
-	return 0;
+	return prepopulate_host_stage2();
 }
 
 static bool guest_stage2_force_pte_cb(u64 addr, u64 end,
@@ -398,7 +446,7 @@ int host_stage2_unmap_reg_locked(phys_addr_t start, u64 size)
 
 	hyp_assert_lock_held(&host_mmu.lock);
 
-	ret = kvm_pgtable_stage2_unmap(&host_mmu.pgt, start, size);
+	ret = kvm_pgtable_stage2_reclaim_leaves(&host_mmu.pgt, start, size);
 	if (ret)
 		return ret;
 
@@ -464,6 +512,11 @@ static struct memblock_region *find_mem_range(phys_addr_t addr, struct kvm_mem_r
 static enum kvm_pgtable_prot default_host_prot(bool is_memory)
 {
 	return is_memory ? PKVM_HOST_MEM_PROT : PKVM_HOST_MMIO_PROT;
+}
+
+static enum kvm_pgtable_prot default_hyp_prot(phys_addr_t phys)
+{
+	return addr_is_memory(phys) ? PAGE_HYP : PAGE_HYP_DEVICE;
 }
 
 bool addr_is_memory(phys_addr_t phys)
@@ -763,22 +816,15 @@ static int host_stage2_idmap(struct kvm_vcpu_fault_info *fault, u64 addr)
 		}
 	}
 
-	/*
-	 * Adjust against IOMMU devices first. host_stage2_adjust_range() should
-	 * be called last for proper alignment.
-	 */
-	if (!is_memory) {
-		ret = pkvm_iommu_host_stage2_adjust_range(addr, &range.start,
-							  &range.end);
-		if (ret)
-			return ret;
-	}
-
 	ret = host_stage2_adjust_range(addr, &range, level);
 	if (ret)
 		return ret;
 
-	return host_stage2_idmap_locked(range.start, range.end - range.start, prot, false);
+	/*
+	 * We're guaranteed not to require memory allocation by construction,
+	 * no need to bother even trying to recycle pages.
+	 */
+	return __host_stage2_idmap(range.start, range.end, prot, false);
 }
 
 static void (*illegal_abt_notifier)(struct kvm_cpu_context *host_ctxt);
@@ -972,7 +1018,7 @@ static enum pkvm_page_state host_get_page_state(kvm_pte_t pte, u64 addr)
 	if (is_memory && hyp_phys_to_page(addr)->flags & MODULE_OWNED_PAGE)
 	       return PKVM_MODULE_DONT_TOUCH;
 
-	if (!addr_is_allowed_memory(addr))
+	if (is_memory && !addr_is_allowed_memory(addr))
 		return PKVM_NOPAGE;
 
 	if (!kvm_pte_valid(pte) && pte)
@@ -1186,8 +1232,10 @@ static int hyp_ack_share(u64 addr, const struct pkvm_mem_transition *tx,
 			 enum kvm_pgtable_prot perms)
 {
 	u64 size = tx->nr_pages * PAGE_SIZE;
+	phys_addr_t phys = hyp_virt_to_phys((void *)addr);
+	enum kvm_pgtable_prot prot = default_hyp_prot(phys);
 
-	if (perms != PAGE_HYP)
+	if (!addr_is_memory(phys) || perms != prot)
 		return -EPERM;
 
 	if (__hyp_ack_skip_pgtable_check(tx))
@@ -1242,8 +1290,10 @@ static int hyp_complete_donation(u64 addr,
 				 const struct pkvm_mem_transition *tx)
 {
 	void *start = (void *)addr, *end = start + (tx->nr_pages * PAGE_SIZE);
-	enum kvm_pgtable_prot prot = pkvm_mkstate(PAGE_HYP, PKVM_PAGE_OWNED);
+	phys_addr_t phys = hyp_virt_to_phys(start);
+	enum kvm_pgtable_prot prot = default_hyp_prot(phys);
 
+	prot = pkvm_mkstate(prot, PKVM_PAGE_OWNED);
 	return pkvm_create_mappings_locked(start, end, prot);
 }
 
@@ -1280,7 +1330,7 @@ static int guest_ack_share(u64 addr, const struct pkvm_mem_transition *tx,
 {
 	u64 size = tx->nr_pages * PAGE_SIZE;
 
-	if (perms != KVM_PGTABLE_PROT_RWX)
+	if (!addr_is_memory(tx->completer.guest.phys) || perms != KVM_PGTABLE_PROT_RWX)
 		return -EPERM;
 
 	return __guest_check_page_state_range(tx->completer.guest.hyp_vcpu,
@@ -1290,6 +1340,9 @@ static int guest_ack_share(u64 addr, const struct pkvm_mem_transition *tx,
 static int guest_ack_donation(u64 addr, const struct pkvm_mem_transition *tx)
 {
 	u64 size = tx->nr_pages * PAGE_SIZE;
+
+	if (!addr_is_memory(tx->completer.guest.phys))
+		return -EPERM;
 
 	return __guest_check_page_state_range(tx->completer.guest.hyp_vcpu,
 					      addr, size, PKVM_NOPAGE);
@@ -1776,7 +1829,7 @@ int __pkvm_host_share_hyp(u64 pfn)
 				.id	= PKVM_ID_HYP,
 			},
 		},
-		.completer_prot	= PAGE_HYP,
+		.completer_prot	= default_hyp_prot(host_addr),
 	};
 
 	host_lock_component();
@@ -1873,7 +1926,7 @@ int __pkvm_host_unshare_hyp(u64 pfn)
 				.id	= PKVM_ID_HYP,
 			},
 		},
-		.completer_prot	= PAGE_HYP,
+		.completer_prot	= default_hyp_prot(host_addr),
 	};
 
 	host_lock_component();
@@ -1888,6 +1941,27 @@ int __pkvm_host_unshare_hyp(u64 pfn)
 }
 
 int __pkvm_host_donate_hyp(u64 pfn, u64 nr_pages)
+{
+	return ___pkvm_host_donate_hyp(pfn, nr_pages, false);
+}
+
+int ___pkvm_host_donate_hyp(u64 pfn, u64 nr_pages, bool accept_mmio)
+{
+	phys_addr_t start = hyp_pfn_to_phys(pfn);
+	phys_addr_t end = start + (nr_pages << PAGE_SHIFT);
+	int ret;
+
+	if (!accept_mmio && !range_is_memory(start, end))
+		return -EPERM;
+
+	host_lock_component();
+	ret = __pkvm_host_donate_hyp_locked(pfn, nr_pages);
+	host_unlock_component();
+
+	return ret;
+}
+
+int __pkvm_host_donate_hyp_locked(u64 pfn, u64 nr_pages)
 {
 	int ret;
 	u64 host_addr = hyp_pfn_to_phys(pfn);
@@ -1908,13 +1982,12 @@ int __pkvm_host_donate_hyp(u64 pfn, u64 nr_pages)
 		},
 	};
 
-	host_lock_component();
+	hyp_assert_lock_held(&host_mmu.lock);
 	hyp_lock_component();
 
 	ret = do_donate(&donation);
 
 	hyp_unlock_component();
-	host_unlock_component();
 
 	return ret;
 }
@@ -1964,21 +2037,33 @@ static int restrict_host_page_perms(u64 addr, kvm_pte_t pte, u32 level, enum kvm
 	return ret;
 }
 
+#define MODULE_PROT_ALLOWLIST (KVM_PGTABLE_PROT_RWX |	\
+			       KVM_PGTABLE_PROT_NC |	\
+			       KVM_PGTABLE_PROT_PXN |	\
+			       KVM_PGTABLE_PROT_UXN)
 int module_change_host_page_prot(u64 pfn, enum kvm_pgtable_prot prot)
 {
 	u64 addr = hyp_pfn_to_phys(pfn);
-	struct hyp_page *page;
+	struct hyp_page *page = NULL;
 	kvm_pte_t pte;
 	u32 level;
 	int ret;
 
-	if ((prot & KVM_PGTABLE_PROT_RWX) != prot || !addr_is_memory(addr))
+	if ((prot & MODULE_PROT_ALLOWLIST) != prot)
 		return -EINVAL;
 
 	host_lock_component();
 	ret = kvm_pgtable_get_leaf(&host_mmu.pgt, addr, &pte, &level);
 	if (ret)
 		goto unlock;
+
+	/*
+	 * There is no hyp_vmemmap covering MMIO regions, which makes tracking
+	 * of module-owned MMIO regions hard, so we trust the modules not to
+	 * mess things up.
+	 */
+	if (!addr_is_memory(addr))
+		goto update;
 
 	ret = -EPERM;
 	page = hyp_phys_to_page(addr);
@@ -1994,14 +2079,15 @@ int module_change_host_page_prot(u64 pfn, enum kvm_pgtable_prot prot)
 		goto unlock;
 	}
 
-	if (prot == KVM_PGTABLE_PROT_RWX)
+update:
+	if (prot == default_host_prot(!!page))
 		ret = host_stage2_set_owner_locked(addr, PAGE_SIZE, PKVM_ID_HOST);
 	else if (!prot)
 		ret = host_stage2_set_owner_locked(addr, PAGE_SIZE, PKVM_ID_PROTECTED);
 	else
 		ret = restrict_host_page_perms(addr, pte, level, prot);
 
-	if (ret)
+	if (ret || !page)
 		goto unlock;
 
 	if (prot != KVM_PGTABLE_PROT_RWX)

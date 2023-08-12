@@ -167,15 +167,15 @@ struct gh_rm_platform_ops {
 };
 
 #if IS_ENABLED(CONFIG_GUNYAH_PLATFORM_HOOKS)
-int gh_rm_register_platform_ops(struct gh_rm_platform_ops *platform_ops);
-void gh_rm_unregister_platform_ops(struct gh_rm_platform_ops *platform_ops);
-int devm_gh_rm_register_platform_ops(struct device *dev, struct gh_rm_platform_ops *ops);
+int gh_rm_register_platform_ops(const struct gh_rm_platform_ops *platform_ops);
+void gh_rm_unregister_platform_ops(const struct gh_rm_platform_ops *platform_ops);
+int devm_gh_rm_register_platform_ops(struct device *dev, const struct gh_rm_platform_ops *ops);
 #else
-static inline int gh_rm_register_platform_ops(struct gh_rm_platform_ops *platform_ops)
+static inline int gh_rm_register_platform_ops(const struct gh_rm_platform_ops *platform_ops)
 	{ return 0; }
-static inline void gh_rm_unregister_platform_ops(struct gh_rm_platform_ops *platform_ops) { }
+static inline void gh_rm_unregister_platform_ops(const struct gh_rm_platform_ops *platform_ops) { }
 static inline int devm_gh_rm_register_platform_ops(struct device *dev,
-	struct gh_rm_platform_ops *ops) { return 0; }
+	const struct gh_rm_platform_ops *ops) { return 0; }
 #endif
 
 #endif

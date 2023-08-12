@@ -31,13 +31,10 @@ static void gh_vm_put_function(struct gh_vm_function *fn)
 static struct gh_vm_function *gh_vm_get_function(u32 type)
 {
 	struct gh_vm_function *fn;
-	int r;
 
 	fn = xa_load(&gh_vm_functions, type);
 	if (!fn) {
-		r = request_module("ghfunc:%d", type);
-		if (r)
-			return ERR_PTR(r > 0 ? -r : r);
+		request_module("ghfunc:%d", type);
 
 		fn = xa_load(&gh_vm_functions, type);
 	}
@@ -617,7 +614,7 @@ static int gh_vm_ensure_started(struct gh_vm *ghvm)
 		if (ret)
 			return ret;
 		/** gh_vm_start() is guaranteed to bring status out of
-		 * GH_RM_VM_STATUS_LOAD, thus inifitely recursive call is not
+		 * GH_RM_VM_STATUS_LOAD, thus infinitely recursive call is not
 		 * possible
 		 */
 		return gh_vm_ensure_started(ghvm);
@@ -667,10 +664,6 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		if (overflows_type(dtb_config.guest_phys_addr + dtb_config.size, u64))
 			return -EOVERFLOW;
-
-		/* Gunyah requires that dtb_config is page aligned */
-		if (!PAGE_ALIGNED(dtb_config.guest_phys_addr) || !PAGE_ALIGNED(dtb_config.size))
-			return -EINVAL;
 
 		ghvm->dtb_config = dtb_config;
 

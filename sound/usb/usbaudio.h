@@ -20,6 +20,7 @@
 
 struct media_device;
 struct media_intf_devnode;
+struct snd_usb_substream;
 
 #define MAX_CARD_INTERFACES	16
 
@@ -210,4 +211,37 @@ extern bool snd_usb_skip_validation;
 #define QUIRK_FLAG_FORCE_IFACE_RESET	(1U << 20)
 #define QUIRK_FLAG_FIXED_RATE		(1U << 21)
 
+struct audioformat;
+
+enum snd_vendor_pcm_open_close {
+	SOUND_PCM_CLOSE = 0,
+	SOUND_PCM_OPEN,
+};
+
+/**
+ * struct snd_usb_audio_vendor_ops - function callbacks for USB audio accelerators
+ * @set_interface: called when an interface is initialized
+ * @set_pcm_intf: called when the pcm interface is set
+ * @set_pcm_connection: called when pcm is opened/closed
+ *
+ * Set of callbacks for some accelerated USB audio streaming hardware.
+ *
+ * TODO: make this USB host-controller specific, right now this only works for
+ * one USB controller in the system at a time, which is only realistic for
+ * self-contained systems like phones.
+ */
+struct snd_usb_audio_vendor_ops {
+	int (*set_interface)(struct usb_device *udev,
+			     struct usb_host_interface *alts,
+			     int iface, int alt);
+	int (*set_pcm_intf)(struct usb_interface *intf, int iface, int alt,
+			    int direction, struct snd_usb_substream *subs);
+	int (*set_pcm_connection)(struct usb_device *udev,
+				  enum snd_vendor_pcm_open_close onoff,
+				  int direction);
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
+};
 #endif /* __USBAUDIO_H */

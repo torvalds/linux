@@ -16,13 +16,15 @@ bool arch_is_gh_guest(void)
 {
 	struct arm_smccc_res res;
 	uuid_t uuid;
+	u32 *up;
 
 	arm_smccc_1_1_hvc(ARM_SMCCC_VENDOR_HYP_CALL_UID_FUNC_ID, &res);
 
-	((u32 *)&uuid.b[0])[0] = lower_32_bits(res.a0);
-	((u32 *)&uuid.b[0])[1] = lower_32_bits(res.a1);
-	((u32 *)&uuid.b[0])[2] = lower_32_bits(res.a2);
-	((u32 *)&uuid.b[0])[3] = lower_32_bits(res.a3);
+	up = (u32 *)&uuid.b[0];
+	up[0] = lower_32_bits(res.a0);
+	up[1] = lower_32_bits(res.a1);
+	up[2] = lower_32_bits(res.a2);
+	up[3] = lower_32_bits(res.a3);
 
 	return uuid_equal(&uuid, &GUNYAH_UUID);
 }

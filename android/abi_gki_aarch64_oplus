@@ -54,6 +54,7 @@
   __printk_ratelimit
   prepare_to_wait_exclusive
   proc_symlink
+  public_key_verify_signature
   radix_tree_lookup_slot
   radix_tree_replace_slot
   _raw_write_trylock

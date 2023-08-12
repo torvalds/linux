@@ -1,6 +1,0 @@
-per-file base/**=gregkh@google.com,saravanak@google.com
-per-file block/**=akailash@google.com
-per-file md/**=akailash@google.com,paullawrence@google.com
-per-file net/**=file:/net/OWNERS
-per-file scsi/**=bvanassche@google.com,jaegeuk@google.com
-per-file {tty,usb}/**=gregkh@google.com

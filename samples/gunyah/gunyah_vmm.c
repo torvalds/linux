@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <stdlib.h>
@@ -21,6 +21,11 @@
 
 #include <linux/gunyah.h>
 
+#define DEFAULT_GUEST_BASE	0x80000000
+#define DEFAULT_GUEST_SIZE	0x6400000 /* 100 MiB */
+#define DEFAULT_DTB_OFFSET	0x45f0000 /* 70MiB - 64 KiB */
+#define DEFAULT_RAMDISK_OFFSET	0x4600000 /* 70MiB */
+
 struct vm_config {
 	int image_fd;
 	int dtb_fd;
@@ -29,7 +34,6 @@ struct vm_config {
 	uint64_t guest_base;
 	uint64_t guest_size;
 
-	uint64_t image_offset;
 	off_t image_size;
 	uint64_t dtb_offset;
 	off_t dtb_size;
@@ -44,7 +48,6 @@ static struct option options[] = {
 	{ "ramdisk", optional_argument, NULL, 'r' },
 	{ "base", optional_argument, NULL, 'B' },
 	{ "size", optional_argument, NULL, 'S' },
-	{ "image_offset", optional_argument, NULL, 'I' },
 	{ "dtb_offset", optional_argument, NULL, 'D' },
 	{ "ramdisk_offset", optional_argument, NULL, 'R' },
 	{ }
@@ -58,12 +61,12 @@ static void print_help(char *cmd)
 	       "       --image,   -i <image> VM image file to load (e.g. a kernel Image) [Required]\n"
 	       "       --dtb,     -d <dtb>   Devicetree file to load [Required]\n"
 	       "       --ramdisk, -r <ramdisk>  Ramdisk file to load\n"
-	       "       --base,    -B <address>  Set the base address of guest's memory [Default: 0x80000000]\n"
-	       "       --size,    -S <number>   The number of bytes large to make the guest's memory [Default: 0x6400000 (100 MB)]\n"
-	       "       --image_offset, -I <number>  Offset into guest memory to load the VM image file [Default: 0x10000]\n"
-	       "        --dtb_offset,  -D <number>  Offset into guest memory to load the DTB [Default: 0]\n"
-	       "        --ramdisk_offset, -R <number>  Offset into guest memory to load a ramdisk [Default: 0x4600000]\n"
-	       , cmd);
+	       "       --base,    -B <address>  Set the base address of guest's memory [Default: 0x%08x]\n"
+	       "       --size,    -S <number>   The number of bytes large to make the guest's memory [Default: 0x%08x]\n"
+	       "        --dtb_offset,  -D <number>  Offset into guest memory to load the DTB [Default: 0x%08x]\n"
+	       "        --ramdisk_offset, -R <number>  Offset into guest memory to load a ramdisk [Default: 0x%08x]\n"
+	       , cmd, DEFAULT_GUEST_BASE, DEFAULT_GUEST_SIZE,
+	       DEFAULT_DTB_OFFSET, DEFAULT_RAMDISK_OFFSET);
 }
 
 int main(int argc, char **argv)
@@ -74,18 +77,19 @@ int main(int argc, char **argv)
 	char *guest_mem;
 	struct vm_config config = {
 		/* Defaults good enough to boot static kernel and a basic ramdisk */
+		.image_fd = -1,
+		.dtb_fd = -1,
 		.ramdisk_fd = -1,
-		.guest_base = 0x80000000,
-		.guest_size = 0x6400000, /* 100 MB */
-		.image_offset = 0,
-		.dtb_offset = 0x45f0000,
-		.ramdisk_offset = 0x4600000, /* put at +70MB (30MB for ramdisk) */
+		.guest_base = DEFAULT_GUEST_BASE,
+		.guest_size = DEFAULT_GUEST_SIZE,
+		.dtb_offset = DEFAULT_DTB_OFFSET,
+		.ramdisk_offset = DEFAULT_RAMDISK_OFFSET,
 	};
 	struct stat st;
 	int opt, optidx, ret = 0;
 	long l;
 
-	while ((opt = getopt_long(argc, argv, "hi:d:r:B:S:I:D:R:c:", options, &optidx)) != -1) {
+	while ((opt = getopt_long(argc, argv, "hi:d:r:B:S:D:R:c:", options, &optidx)) != -1) {
 		switch (opt) {
 		case 'i':
 			config.image_fd = open(optarg, O_RDONLY | O_CLOEXEC);
@@ -139,14 +143,6 @@ int main(int argc, char **argv)
 			}
 			config.guest_size = l;
 			break;
-		case 'I':
-			l = strtol(optarg, NULL, 0);
-			if (l == LONG_MIN) {
-				perror("Failed to parse image offset");
-				return -1;
-			}
-			config.image_offset = l;
-			break;
 		case 'D':
 			l = strtol(optarg, NULL, 0);
 			if (l == LONG_MIN) {
@@ -172,13 +168,13 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (!config.image_fd || !config.dtb_fd) {
+	if (config.image_fd == -1 || config.dtb_fd == -1) {
 		print_help(argv[0]);
 		return -1;
 	}
 
-	if (config.image_offset + config.image_size > config.guest_size) {
-		fprintf(stderr, "Image offset and size puts it outside guest memory. Make image smaller or increase guest memory size.\n");
+	if (config.image_size > config.guest_size) {
+		fprintf(stderr, "Image size puts it outside guest memory. Make image smaller or increase guest memory size.\n");
 		return -1;
 	}
 
@@ -222,7 +218,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	if (read(config.image_fd, guest_mem + config.image_offset, config.image_size) < 0) {
+	if (read(config.image_fd, guest_mem, config.image_size) < 0) {
 		perror("Failed to read image into guest memory");
 		return -1;
 	}
@@ -264,7 +260,7 @@ int main(int argc, char **argv)
 	}
 
 	while (1)
-		sleep(10);
+		pause();
 
 	return 0;
 }

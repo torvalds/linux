@@ -31,6 +31,7 @@
   __alloc_percpu_gfp
   __alloc_skb
   alloc_skb_with_frags
+  alloc_swapdev_block
   alloc_workqueue
   alt_cb_patch_nops
   amba_bustype
@@ -1233,10 +1234,10 @@
   gh_rm_notifier_unregister
   gh_rm_register_platform_ops
   gh_rm_unregister_platform_ops
-  gic_nonsecure_priorities
   gic_v3_cpu_init
   gic_v3_dist_init
   gic_v3_dist_wait_for_rwp
+  gic_nonsecure_priorities
   gov_attr_set_init
   gov_attr_set_put
   governor_sysfs_ops
@@ -1540,7 +1541,6 @@
   iommu_group_set_iommudata
   iommu_iova_to_phys
   iommu_map
-  iommu_map_atomic
   iommu_map_sg
   iommu_present
   iommu_put_resv_regions
@@ -2970,6 +2970,7 @@
   smp_call_function
   smp_call_function_single
   smp_call_function_single_async
+  snapshot_get_image_size
   snd_ctl_remove
   snd_hwdep_new
   snd_info_create_card_entry
@@ -3334,12 +3335,12 @@
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_wakeup_ilocked
   __traceiter_android_vh_build_sched_domains
-  __traceiter_android_vh_check_hibernation_swap
   __traceiter_android_vh_check_uninterrupt_tasks
   __traceiter_android_vh_check_uninterrupt_tasks_done
   __traceiter_android_vh_cpufreq_fast_switch
   __traceiter_android_vh_cpufreq_resolve_freq
   __traceiter_android_vh_cpufreq_target
+  __traceiter_android_vh_check_hibernation_swap
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpuidle_psci_enter
@@ -3347,20 +3348,20 @@
   __traceiter_android_vh_disable_thermal_cooling_stats
   __traceiter_android_vh_do_wake_up_sync
   __traceiter_android_vh_dump_throttled_rt_tasks
-  __traceiter_android_vh_encrypt_page
   __traceiter_android_vh_free_task
+  __traceiter_android_vh_encrypt_page
   __traceiter_android_vh_ftrace_dump_buffer
   __traceiter_android_vh_ftrace_format_check
   __traceiter_android_vh_ftrace_oops_enter
   __traceiter_android_vh_ftrace_oops_exit
   __traceiter_android_vh_ftrace_size_check
-  __traceiter_android_vh_gic_v3_suspend
   __traceiter_android_vh_ignore_dmabuf_vmap_bounds
-  __traceiter_android_vh_init_aes_encrypt
+  __traceiter_android_vh_gic_v3_suspend
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_jiffies_update
   __traceiter_android_vh_kswapd_per_node
   __traceiter_android_vh_mpam_set
+  __traceiter_android_vh_init_aes_encrypt
   __traceiter_android_vh_post_image_save
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_rproc_recovery
@@ -3477,12 +3478,12 @@
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_wakeup_ilocked
   __tracepoint_android_vh_build_sched_domains
-  __tracepoint_android_vh_check_hibernation_swap
   __tracepoint_android_vh_check_uninterrupt_tasks
   __tracepoint_android_vh_check_uninterrupt_tasks_done
   __tracepoint_android_vh_cpufreq_fast_switch
   __tracepoint_android_vh_cpufreq_resolve_freq
   __tracepoint_android_vh_cpufreq_target
+  __tracepoint_android_vh_check_hibernation_swap
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpuidle_psci_enter
@@ -3490,20 +3491,20 @@
   __tracepoint_android_vh_disable_thermal_cooling_stats
   __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_dump_throttled_rt_tasks
-  __tracepoint_android_vh_encrypt_page
   __tracepoint_android_vh_free_task
+  __tracepoint_android_vh_encrypt_page
   __tracepoint_android_vh_ftrace_dump_buffer
   __tracepoint_android_vh_ftrace_format_check
   __tracepoint_android_vh_ftrace_oops_enter
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
-  __tracepoint_android_vh_gic_v3_suspend
   __tracepoint_android_vh_ignore_dmabuf_vmap_bounds
-  __tracepoint_android_vh_init_aes_encrypt
+  __tracepoint_android_vh_gic_v3_suspend
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_kswapd_per_node
   __tracepoint_android_vh_mpam_set
+  __tracepoint_android_vh_init_aes_encrypt
   __tracepoint_android_vh_post_image_save
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_rproc_recovery
@@ -3636,7 +3637,6 @@
   ufshcd_hold
   ufshcd_mcq_config_esi
   ufshcd_mcq_enable_esi
-  ufshcd_mcq_poll_cqe_lock
   ufshcd_mcq_poll_cqe_nolock
   ufshcd_mcq_write_cqis
   ufshcd_pltfrm_init

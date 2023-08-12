@@ -77,6 +77,11 @@ void __pkvm_close_module_registration(void)
 	 */
 }
 
+static int __pkvm_module_host_donate_hyp(u64 pfn, u64 nr_pages)
+{
+	return ___pkvm_host_donate_hyp(pfn, nr_pages, true);
+}
+
 const struct pkvm_module_ops module_ops = {
 	.create_private_mapping = __pkvm_create_private_mapping,
 	.alloc_module_va = __pkvm_alloc_module_va,
@@ -99,7 +104,7 @@ const struct pkvm_module_ops module_ops = {
 	.register_illegal_abt_notifier = __pkvm_register_illegal_abt_notifier,
 	.register_psci_notifier = __pkvm_register_psci_notifier,
 	.register_hyp_panic_notifier = __pkvm_register_hyp_panic_notifier,
-	.host_donate_hyp = __pkvm_host_donate_hyp,
+	.host_donate_hyp = __pkvm_module_host_donate_hyp,
 	.hyp_donate_host = __pkvm_hyp_donate_host,
 	.host_share_hyp = __pkvm_host_share_hyp,
 	.host_unshare_hyp = __pkvm_host_unshare_hyp,

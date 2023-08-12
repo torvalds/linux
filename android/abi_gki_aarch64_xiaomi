@@ -244,3 +244,14 @@
 #required by mi_mempool.ko
   __traceiter_android_vh_madvise_cold_pageout_skip
   __tracepoint_android_vh_madvise_cold_pageout_skip
+
+#required by n_gsm.ko
+  tty_write_room
+  tty_port_tty_set
+  tty_register_device
+  tty_hung_up_p
+  tty_name
+  tty_port_block_til_ready
+  tty_port_close_start
+  tty_port_lower_dtr_rts
+  tty_port_close_end
