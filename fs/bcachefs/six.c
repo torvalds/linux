@@ -8,6 +8,7 @@
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/rt.h>
+#include <linux/sched/task.h>
 #include <linux/slab.h>
 
 #include "six.h"
@@ -221,7 +222,12 @@ again:
 		if (ret <= 0)
 			goto unlock;
 
-		task = w->task;
+		/*
+		 * Similar to percpu_rwsem_wake_function(), we need to guard
+		 * against the wakee noticing w->lock_acquired, returning, and
+		 * then exiting before we do the wakeup:
+		 */
+		task = get_task_struct(w->task);
 		__list_del(w->list.prev, w->list.next);
 		/*
 		 * The release barrier here ensures the ordering of the
@@ -232,6 +238,7 @@ again:
 		 */
 		smp_store_release(&w->lock_acquired, true);
 		wake_up_process(task);
+		put_task_struct(task);
 	}
 
 	six_clear_bitmask(lock, SIX_LOCK_WAITING_read << lock_type);
