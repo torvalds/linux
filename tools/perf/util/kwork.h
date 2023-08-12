@@ -24,6 +24,7 @@ enum kwork_report_type {
 	KWORK_REPORT_RUNTIME,
 	KWORK_REPORT_LATENCY,
 	KWORK_REPORT_TIMEHIST,
+	KWORK_REPORT_TOP,
 };
 
 enum kwork_trace_type {
@@ -129,6 +130,11 @@ struct kwork_work {
 	u64 max_latency_start;
 	u64 max_latency_end;
 	u64 total_latency;
+
+	/*
+	 * top report
+	 */
+	u32 cpu_usage;
 };
 
 struct kwork_class {
@@ -172,6 +178,17 @@ struct trace_kwork_handler {
 	int (*sched_switch_event)(struct perf_kwork *kwork,
 				  struct kwork_class *class, struct evsel *evsel,
 				  struct perf_sample *sample, struct machine *machine);
+};
+
+struct __top_cpus_runtime {
+	u64 load;
+	u64 idle;
+	u64 total;
+};
+
+struct kwork_top_stat {
+	DECLARE_BITMAP(all_cpus_bitmap, MAX_NR_CPUS);
+	struct __top_cpus_runtime *cpus_runtime;
 };
 
 struct perf_kwork {
@@ -225,6 +242,11 @@ struct perf_kwork {
 	u64 all_runtime;
 	u64 all_count;
 	u64 nr_skipped_events[KWORK_TRACE_MAX + 1];
+
+	/*
+	 * perf kwork top data
+	 */
+	struct kwork_top_stat top_stat;
 };
 
 struct kwork_work *perf_kwork_add_work(struct perf_kwork *kwork,
