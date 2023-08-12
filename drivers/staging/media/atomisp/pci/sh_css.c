@@ -7351,7 +7351,7 @@ static int capture_start(struct ia_css_pipe *pipe)
 		}
 	}
 	/* old isys: need to send_mipi_frames() in all pipe modes */
-	if (!IS_ISP2401 || (IS_ISP2401 && pipe->config.mode != IA_CSS_PIPE_MODE_COPY)) {
+	if (!IS_ISP2401 || pipe->config.mode != IA_CSS_PIPE_MODE_COPY) {
 		err = send_mipi_frames(pipe);
 		if (err) {
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
@@ -8077,7 +8077,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 
 	/* check if mipi size specified */
 	if (stream_config->mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR)
-		if (!IS_ISP2401 || (IS_ISP2401 && !stream_config->online))
+		if (!IS_ISP2401 || !stream_config->online)
 		{
 			unsigned int port = (unsigned int)stream_config->source.port.port;
 
