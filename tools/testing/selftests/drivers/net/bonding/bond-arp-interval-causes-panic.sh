@@ -11,7 +11,6 @@ finish()
 {
 	ip netns delete server || true
 	ip netns delete client || true
-	ip link del link1_1 || true
 }
 
 trap finish EXIT
