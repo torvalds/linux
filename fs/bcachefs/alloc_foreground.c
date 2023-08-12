@@ -989,7 +989,6 @@ retry_blocking:
 			cl = _cl;
 			goto retry_blocking;
 		}
-
 	}
 
 	return ret;
@@ -1031,6 +1030,16 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 	return ret < 0 ? ret : 0;
 }
 
+/**
+ * should_drop_bucket - check if this is open_bucket should go away
+ * @ca:		if set, we're killing buckets for a particular device
+ * @ec:		if true, we're shutting down erasure coding and killing all ec
+ *		open_buckets
+ *		otherwise, return true
+ *
+ * We're killing open_buckets because we're shutting down a device, erasure
+ * coding, or the entire filesystem - check if this open_bucket matches:
+ */
 static bool should_drop_bucket(struct open_bucket *ob, struct bch_fs *c,
 			       struct bch_dev *ca, bool ec)
 {
