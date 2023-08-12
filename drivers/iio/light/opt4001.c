@@ -412,7 +412,7 @@ static int opt4001_probe(struct i2c_client *client)
 	if (dev_id != OPT4001_DEVICE_ID_VAL)
 		dev_warn(&client->dev, "Device ID: %#04x unknown\n", dev_id);
 
-	chip->chip_info = device_get_match_data(&client->dev);
+	chip->chip_info = i2c_get_match_data(client);
 
 	indio_dev->channels = opt4001_channels;
 	indio_dev->num_channels = ARRAY_SIZE(opt4001_channels);
