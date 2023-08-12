@@ -135,6 +135,8 @@ struct kwork_work {
 	 * top report
 	 */
 	u32 cpu_usage;
+	u32 tgid;
+	bool is_kthread;
 };
 
 struct kwork_class {
@@ -264,6 +266,13 @@ void perf_kwork__report_cleanup_bpf(void);
 void perf_kwork__trace_start(void);
 void perf_kwork__trace_finish(void);
 
+int perf_kwork__top_prepare_bpf(struct perf_kwork *kwork);
+int perf_kwork__top_read_bpf(struct perf_kwork *kwork);
+void perf_kwork__top_cleanup_bpf(void);
+
+void perf_kwork__top_start(void);
+void perf_kwork__top_finish(void);
+
 #else  /* !HAVE_BPF_SKEL */
 
 static inline int
@@ -282,6 +291,23 @@ static inline void perf_kwork__report_cleanup_bpf(void) {}
 
 static inline void perf_kwork__trace_start(void) {}
 static inline void perf_kwork__trace_finish(void) {}
+
+static inline int
+perf_kwork__top_prepare_bpf(struct perf_kwork *kwork __maybe_unused)
+{
+	return -1;
+}
+
+static inline int
+perf_kwork__top_read_bpf(struct perf_kwork *kwork __maybe_unused)
+{
+	return -1;
+}
+
+static inline void perf_kwork__top_cleanup_bpf(void) {}
+
+static inline void perf_kwork__top_start(void) {}
+static inline void perf_kwork__top_finish(void) {}
 
 #endif  /* HAVE_BPF_SKEL */
 

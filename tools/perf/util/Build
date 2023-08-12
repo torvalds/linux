@@ -165,6 +165,7 @@ endif
 
 ifeq ($(CONFIG_LIBTRACEEVENT),y)
   perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork.o
+  perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork_top.o
 endif
 
 perf-$(CONFIG_LIBELF) += symbol-elf.o

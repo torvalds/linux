@@ -33,6 +33,7 @@ There are several variants of 'perf kwork':
         perf kwork latency -b
         perf kwork timehist
         perf kwork top
+        perf kwork top -b
 
    By default it shows the individual work events such as irq, workqeueu,
    including the run time and delay (time between raise and actually entry):
@@ -180,6 +181,10 @@ OPTIONS for 'perf kwork timehist'
 
 OPTIONS for 'perf kwork top'
 ---------------------------------
+
+-b::
+--use-bpf::
+	Use BPF to measure task cpu usage.
 
 -C::
 --cpu::

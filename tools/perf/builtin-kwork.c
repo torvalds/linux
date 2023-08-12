@@ -1619,8 +1619,14 @@ static void top_print_header(struct perf_kwork *kwork __maybe_unused)
 	int ret;
 
 	printf("\n ");
-	ret = printf(" %*s  %*s  %*s  %-*s",
+	ret = printf(" %*s %s%*s%s %*s  %*s  %-*s",
 		     PRINT_PID_WIDTH, "PID",
+
+		     kwork->use_bpf ? " " : "",
+		     kwork->use_bpf ? PRINT_PID_WIDTH : 0,
+		     kwork->use_bpf ? "SPID" : "",
+		     kwork->use_bpf ? " " : "",
+
 		     PRINT_CPU_USAGE_WIDTH, "%CPU",
 		     PRINT_RUNTIME_HEADER_WIDTH + RPINT_DECIMAL_WIDTH, "RUNTIME",
 		     PRINT_TASK_NAME_WIDTH, "COMMMAND");
@@ -1640,6 +1646,12 @@ static int top_print_work(struct perf_kwork *kwork __maybe_unused, struct kwork_
 	ret += printf(" %*ld ", PRINT_PID_WIDTH, work->id);
 
 	/*
+	 * tgid
+	 */
+	if (kwork->use_bpf)
+		ret += printf(" %*d ", PRINT_PID_WIDTH, work->tgid);
+
+	/*
 	 * cpu usage
 	 */
 	ret += printf(" %*.*f ",
@@ -1656,7 +1668,13 @@ static int top_print_work(struct perf_kwork *kwork __maybe_unused, struct kwork_
 	/*
 	 * command
 	 */
-	ret += printf(" %-*s", PRINT_TASK_NAME_WIDTH, work->name);
+	if (kwork->use_bpf)
+		ret += printf(" %s%s%s",
+			      work->is_kthread ? "[" : "",
+			      work->name,
+			      work->is_kthread ? "]" : "");
+	else
+		ret += printf(" %-*s", PRINT_TASK_NAME_WIDTH, work->name);
 
 	printf("\n");
 	return ret;
@@ -2153,6 +2171,36 @@ next:
 	printf("\n");
 }
 
+static int perf_kwork__top_bpf(struct perf_kwork *kwork)
+{
+	int ret;
+
+	signal(SIGINT, sig_handler);
+	signal(SIGTERM, sig_handler);
+
+	ret = perf_kwork__top_prepare_bpf(kwork);
+	if (ret)
+		return -1;
+
+	printf("Starting trace, Hit <Ctrl+C> to stop and report\n");
+
+	perf_kwork__top_start();
+
+	/*
+	 * a simple pause, wait here for stop signal
+	 */
+	pause();
+
+	perf_kwork__top_finish();
+
+	perf_kwork__top_read_bpf(kwork);
+
+	perf_kwork__top_cleanup_bpf();
+
+	return 0;
+
+}
+
 static int perf_kwork__top(struct perf_kwork *kwork)
 {
 	struct __top_cpus_runtime *cpus_runtime;
@@ -2165,7 +2213,11 @@ static int perf_kwork__top(struct perf_kwork *kwork)
 	kwork->top_stat.cpus_runtime = cpus_runtime;
 	bitmap_zero(kwork->top_stat.all_cpus_bitmap, MAX_NR_CPUS);
 
-	ret = perf_kwork__read_events(kwork);
+	if (kwork->use_bpf)
+		ret = perf_kwork__top_bpf(kwork);
+	else
+		ret = perf_kwork__read_events(kwork);
+
 	if (ret)
 		goto out;
 
@@ -2380,6 +2432,10 @@ int cmd_kwork(int argc, const char **argv)
 		   "Time span for analysis (start,stop)"),
 	OPT_STRING('i', "input", &input_name, "file",
 		   "input file name"),
+#ifdef HAVE_BPF_SKEL
+	OPT_BOOLEAN('b', "use-bpf", &kwork.use_bpf,
+		    "Use BPF to measure task cpu usage"),
+#endif
 	OPT_PARENT(kwork_options)
 	};
 	const char *kwork_usage[] = {
