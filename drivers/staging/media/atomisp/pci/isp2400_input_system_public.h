@@ -18,34 +18,6 @@
 
 #include <type_support.h>
 
-typedef struct receiver_state_s			receiver_state_t;
-
-/*! Read the state of INPUT_SYSTEM[ID]
-
- \param	ID[in]				INPUT_SYSTEM identifier
- \param	state[out]			input system state structure
-
- \return none, state = INPUT_SYSTEM[ID].state
- */
-
-/*! Read the state of RECEIVER[ID]
-
- \param	ID[in]				RECEIVER identifier
- \param	state[out]			receiver state structure
-
- \return none, state = RECEIVER[ID].state
- */
-void receiver_get_state(
-    const rx_ID_t				ID,
-    receiver_state_t			*state);
-
-/*! Flag whether a MIPI format is YUV420
-
- \param	mipi_format[in]		MIPI format
-
- \return mipi_format == YUV420
- */
-
 /*! Set compression parameters for cfg[cfg_ID] of RECEIVER[ID]
 
  \param	ID[in]				RECEIVER identifier

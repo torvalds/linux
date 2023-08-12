@@ -19,9 +19,6 @@
 #include <type_support.h>
 #include "system_local.h"
 
-typedef struct sp_state_s		sp_state_t;
-typedef struct sp_stall_s		sp_stall_t;
-
 /*! Enable or disable the program complete irq signal of SP[ID]
 
  \param	ID[in]				SP identifier
@@ -32,19 +29,6 @@ typedef struct sp_stall_s		sp_stall_t;
 void cnd_sp_irq_enable(
     const sp_ID_t		ID,
     const bool			cnd);
-
-/*! Read the state of cell SP[ID]
-
- \param	ID[in]				SP identifier
- \param	state[out]			sp state structure
- \param	stall[out]			isp stall conditions
-
- \return none, state = SP[ID].state, stall = SP[ID].stall
- */
-void sp_get_state(
-    const sp_ID_t		ID,
-    sp_state_t			*state,
-    sp_stall_t			*stall);
 
 /*! Write to the status and control register of SP[ID]
 

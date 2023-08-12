@@ -19,32 +19,6 @@
 #include <type_support.h>
 #include "sp_global.h"
 
-struct sp_state_s {
-	int		pc;
-	int		status_register;
-	bool	is_broken;
-	bool	is_idle;
-	bool	is_sleeping;
-	bool	is_stalling;
-};
-
-struct sp_stall_s {
-	bool	fifo0;
-	bool	fifo1;
-	bool	fifo2;
-	bool	fifo3;
-	bool	fifo4;
-	bool	fifo5;
-	bool	fifo6;
-	bool	fifo7;
-	bool	fifo8;
-	bool	fifo9;
-	bool	fifoa;
-	bool	dmem;
-	bool	control_master;
-	bool	icache_master;
-};
-
 #define sp_address_of(var)	(HIVE_ADDR_ ## var)
 
 /*
