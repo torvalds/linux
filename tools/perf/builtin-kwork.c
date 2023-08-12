@@ -392,9 +392,10 @@ static int work_push_atom(struct perf_kwork *kwork,
 			  struct evsel *evsel,
 			  struct perf_sample *sample,
 			  struct machine *machine,
-			  struct kwork_work **ret_work)
+			  struct kwork_work **ret_work,
+			  bool overwrite)
 {
-	struct kwork_atom *atom, *dst_atom;
+	struct kwork_atom *atom, *dst_atom, *last_atom;
 	struct kwork_work *work, key;
 
 	BUG_ON(class->work_init == NULL);
@@ -426,6 +427,17 @@ static int work_push_atom(struct perf_kwork *kwork,
 
 	if (ret_work != NULL)
 		*ret_work = work;
+
+	if (overwrite) {
+		last_atom = list_last_entry_or_null(&work->atom_list[src_type],
+						    struct kwork_atom, list);
+		if (last_atom) {
+			atom_del(last_atom);
+
+			kwork->nr_skipped_events[src_type]++;
+			kwork->nr_skipped_events[KWORK_TRACE_MAX]++;
+		}
+	}
 
 	list_add_tail(&atom->list, &work->atom_list[src_type]);
 
@@ -502,7 +514,7 @@ static int report_entry_event(struct perf_kwork *kwork,
 {
 	return work_push_atom(kwork, class, KWORK_TRACE_ENTRY,
 			      KWORK_TRACE_MAX, evsel, sample,
-			      machine, NULL);
+			      machine, NULL, true);
 }
 
 static int report_exit_event(struct perf_kwork *kwork,
@@ -557,7 +569,7 @@ static int latency_raise_event(struct perf_kwork *kwork,
 {
 	return work_push_atom(kwork, class, KWORK_TRACE_RAISE,
 			      KWORK_TRACE_MAX, evsel, sample,
-			      machine, NULL);
+			      machine, NULL, true);
 }
 
 static int latency_entry_event(struct perf_kwork *kwork,
@@ -716,7 +728,7 @@ static int timehist_raise_event(struct perf_kwork *kwork,
 {
 	return work_push_atom(kwork, class, KWORK_TRACE_RAISE,
 			      KWORK_TRACE_MAX, evsel, sample,
-			      machine, NULL);
+			      machine, NULL, true);
 }
 
 static int timehist_entry_event(struct perf_kwork *kwork,
@@ -730,7 +742,7 @@ static int timehist_entry_event(struct perf_kwork *kwork,
 
 	ret = work_push_atom(kwork, class, KWORK_TRACE_ENTRY,
 			     KWORK_TRACE_RAISE, evsel, sample,
-			     machine, &work);
+			     machine, &work, true);
 	if (ret)
 		return ret;
 
