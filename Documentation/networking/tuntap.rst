@@ -129,7 +129,7 @@ If flag IFF_NO_PI is not set each frame format is::
 3.3 Multiqueue tuntap interface
 -------------------------------
 
-From version 3.8, Linux supports multiqueue tuntap which can uses multiple
+From version 3.8, Linux supports multiqueue tuntap which can use multiple
 file descriptors (queues) to parallelize packets sending or receiving. The
 device allocation is the same as before, and if user wants to create multiple
 queues, TUNSETIFF with the same device name must be called many times with
