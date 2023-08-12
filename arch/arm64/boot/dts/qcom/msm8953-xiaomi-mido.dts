@@ -133,16 +133,3 @@
 	/delete-property/ qcom,gnd-jack-type-normally-open;
 	/delete-property/ qcom,hphl-jack-type-normally-open;
 };
-
-&wcnss {
-	status = "okay";
-
-	vddpx-supply = <&pm8953_l5>;
-};
-
-&wcnss_iris {
-	vddxo-supply = <&pm8953_l7>;
-	vddrfa-supply = <&pm8953_l19>;
-	vddpa-supply = <&pm8953_l9>;
-	vdddig-supply = <&pm8953_l5>;
-};
