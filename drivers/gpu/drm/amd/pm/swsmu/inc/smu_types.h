@@ -84,6 +84,7 @@
        __SMU_DUMMY_MAP(SetTjMax),                     \
        __SMU_DUMMY_MAP(SetFanTemperatureTarget),      \
        __SMU_DUMMY_MAP(PrepareMp1ForUnload),          \
+       __SMU_DUMMY_MAP(GetCTFLimit),                  \
        __SMU_DUMMY_MAP(DramLogSetDramAddrHigh),       \
        __SMU_DUMMY_MAP(DramLogSetDramAddrLow),        \
        __SMU_DUMMY_MAP(DramLogSetDramSize),           \
