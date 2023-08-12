@@ -16,12 +16,9 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/of_irq.h>
-#include <linux/of_address.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <soc/tegra/fuse.h>
