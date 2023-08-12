@@ -221,14 +221,16 @@ again:
 		if (ret <= 0)
 			goto unlock;
 
-		__list_del(w->list.prev, w->list.next);
 		task = w->task;
+		__list_del(w->list.prev, w->list.next);
 		/*
-		 * Do no writes to @w besides setting lock_acquired - otherwise
-		 * we would need a memory barrier:
+		 * The release barrier here ensures the ordering of the
+		 * __list_del before setting w->lock_acquired; @w is on the
+		 * stack of the thread doing the waiting and will be reused
+		 * after it sees w->lock_acquired with no other locking:
+		 * pairs with smp_load_acquire() in six_lock_slowpath()
 		 */
-		barrier();
-		w->lock_acquired = true;
+		smp_store_release(&w->lock_acquired, true);
 		wake_up_process(task);
 	}
 
@@ -499,17 +501,32 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 	while (1) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 
-		if (wait->lock_acquired)
+		/*
+		 * Ensures that writes to the waitlist entry happen after we see
+		 * wait->lock_acquired: pairs with the smp_store_release in
+		 * __six_lock_wakeup
+		 */
+		if (smp_load_acquire(&wait->lock_acquired))
 			break;
 
 		ret = should_sleep_fn ? should_sleep_fn(lock, p) : 0;
 		if (unlikely(ret)) {
+			bool acquired;
+
+			/*
+			 * If should_sleep_fn() returns an error, we are
+			 * required to return that error even if we already
+			 * acquired the lock - should_sleep_fn() might have
+			 * modified external state (e.g. when the deadlock cycle
+			 * detector in bcachefs issued a transaction restart)
+			 */
 			raw_spin_lock(&lock->wait_lock);
-			if (!wait->lock_acquired)
+			acquired = wait->lock_acquired;
+			if (!acquired)
 				list_del(&wait->list);
 			raw_spin_unlock(&lock->wait_lock);
 
-			if (unlikely(wait->lock_acquired))
+			if (unlikely(acquired))
 				do_six_unlock_type(lock, type);
 			break;
 		}
