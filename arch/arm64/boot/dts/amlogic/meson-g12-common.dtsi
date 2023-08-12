@@ -1733,7 +1733,7 @@
 					clock-names = "xtal", "mpeg-clk";
 				};
 
-				ao_pinctrl: pinctrl@14 {
+				ao_pinctrl: pinctrl {
 					compatible = "amlogic,meson-g12a-aobus-pinctrl";
 					#address-cells = <2>;
 					#size-cells = <2>;
