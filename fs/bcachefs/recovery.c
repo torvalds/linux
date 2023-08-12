@@ -507,7 +507,7 @@ static struct recovery_pass_fn recovery_pass_fns[] = {
 
 static void check_version_upgrade(struct bch_fs *c)
 {
-	unsigned latest_compatible = bch2_version_compatible(c->sb.version);
+	unsigned latest_compatible = bch2_latest_compatible_version(c->sb.version);
 	unsigned latest_version	= bcachefs_metadata_version_current;
 	unsigned old_version = c->sb.version_upgrade_complete ?: c->sb.version;
 	unsigned new_version = 0;
