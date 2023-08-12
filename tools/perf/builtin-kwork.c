@@ -1378,11 +1378,11 @@ static void print_bad_events(struct perf_kwork *kwork)
 	}
 }
 
-static void work_sort(struct perf_kwork *kwork, struct kwork_class *class)
+static void work_sort(struct perf_kwork *kwork,
+		      struct kwork_class *class, struct rb_root_cached *root)
 {
 	struct rb_node *node;
 	struct kwork_work *data;
-	struct rb_root_cached *root = &class->work_root;
 
 	pr_debug("Sorting %s ...\n", class->name);
 	for (;;) {
@@ -1402,7 +1402,7 @@ static void perf_kwork__sort(struct perf_kwork *kwork)
 	struct kwork_class *class;
 
 	list_for_each_entry(class, &kwork->class_list, list)
-		work_sort(kwork, class);
+		work_sort(kwork, class, &class->work_root);
 }
 
 static int perf_kwork__check_config(struct perf_kwork *kwork,
