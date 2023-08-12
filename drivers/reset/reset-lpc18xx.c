@@ -188,8 +188,6 @@ static int lpc18xx_rgu_probe(struct platform_device *pdev)
 	rc->rcdev.ops = &lpc18xx_rgu_ops;
 	rc->rcdev.of_node = pdev->dev.of_node;
 
-	platform_set_drvdata(pdev, rc);
-
 	ret = reset_controller_register(&rc->rcdev);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to register device\n");
