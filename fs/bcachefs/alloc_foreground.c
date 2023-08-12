@@ -1516,25 +1516,47 @@ static const char * const bch2_write_point_states[] = {
 	NULL
 };
 
+static void bch2_write_point_to_text(struct printbuf *out, struct bch_fs *c,
+				     struct write_point *wp)
+{
+	struct open_bucket *ob;
+	unsigned i;
+
+	prt_printf(out, "%lu: ", wp->write_point);
+	prt_human_readable_u64(out, wp->sectors_allocated);
+
+	prt_printf(out, " last wrote: ");
+	bch2_pr_time_units(out, sched_clock() - wp->last_used);
+
+	for (i = 0; i < WRITE_POINT_STATE_NR; i++) {
+		prt_printf(out, " %s: ", bch2_write_point_states[i]);
+		bch2_pr_time_units(out, wp->time[i]);
+	}
+
+	prt_newline(out);
+
+	printbuf_indent_add(out, 2);
+	open_bucket_for_each(c, &wp->ptrs, ob, i)
+		bch2_open_bucket_to_text(out, c, ob);
+	printbuf_indent_sub(out, 2);
+}
+
 void bch2_write_points_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	struct write_point *wp;
-	unsigned i;
 
+	prt_str(out, "Foreground write points\n");
 	for (wp = c->write_points;
 	     wp < c->write_points + ARRAY_SIZE(c->write_points);
-	     wp++) {
-		prt_printf(out, "%lu: ", wp->write_point);
-		prt_human_readable_u64(out, wp->sectors_allocated);
+	     wp++)
+		bch2_write_point_to_text(out, c, wp);
 
-		prt_printf(out, " last wrote: ");
-		bch2_pr_time_units(out, sched_clock() - wp->last_used);
+	prt_str(out, "Copygc write point\n");
+	bch2_write_point_to_text(out, c, &c->copygc_write_point);
 
-		for (i = 0; i < WRITE_POINT_STATE_NR; i++) {
-			prt_printf(out, " %s: ", bch2_write_point_states[i]);
-			bch2_pr_time_units(out, wp->time[i]);
-		}
+	prt_str(out, "Rebalance write point\n");
+	bch2_write_point_to_text(out, c, &c->rebalance_write_point);
 
-		prt_newline(out);
-	}
+	prt_str(out, "Btree write point\n");
+	bch2_write_point_to_text(out, c, &c->btree_write_point);
 }
