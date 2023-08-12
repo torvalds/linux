@@ -31,7 +31,6 @@
 #include <asm/sections.h>
 #include <asm/pdc.h>
 #include <asm/led.h>
-#include <asm/machdep.h>	/* for pa7300lc_init() proto */
 #include <asm/pdc_chassis.h>
 #include <asm/io.h>
 #include <asm/setup.h>
@@ -93,8 +92,6 @@ static void __init dma_ops_init(void)
 			"the PA-RISC 1.1 or 2.0 architecture specification.\n");
 
 	case pcxl2:
-		pa7300lc_init();
-		break;
 	default:
 		break;
 	}
