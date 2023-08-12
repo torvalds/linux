@@ -79,6 +79,16 @@ void perf_kwork__top_finish(void)
 	pr_debug("perf kwork top finish at: %lld\n", skel->bss->to_timestamp);
 }
 
+static void irq_load_prepare(void)
+{
+	bpf_program__set_autoload(skel->progs.on_irq_handler_entry, true);
+	bpf_program__set_autoload(skel->progs.on_irq_handler_exit, true);
+}
+
+static struct kwork_class_bpf kwork_irq_bpf = {
+	.load_prepare = irq_load_prepare,
+};
+
 static void sched_load_prepare(void)
 {
 	bpf_program__set_autoload(skel->progs.on_switch, true);
@@ -90,6 +100,7 @@ static struct kwork_class_bpf kwork_sched_bpf = {
 
 static struct kwork_class_bpf *
 kwork_class_bpf_supported_list[KWORK_CLASS_MAX] = {
+	[KWORK_CLASS_IRQ]	= &kwork_irq_bpf,
 	[KWORK_CLASS_SCHED]	= &kwork_sched_bpf,
 };
 
