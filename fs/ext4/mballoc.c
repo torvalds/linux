@@ -3504,11 +3504,10 @@ static void ext4_discard_work(struct work_struct *work)
 	struct super_block *sb = sbi->s_sb;
 	struct ext4_free_data *fd, *nfd;
 	struct ext4_buddy e4b;
-	struct list_head discard_list;
+	LIST_HEAD(discard_list);
 	ext4_group_t grp, load_grp;
 	int err = 0;
 
-	INIT_LIST_HEAD(&discard_list);
 	spin_lock(&sbi->s_md_lock);
 	list_splice_init(&sbi->s_discard_list, &discard_list);
 	spin_unlock(&sbi->s_md_lock);
@@ -3882,11 +3881,9 @@ void ext4_process_freed_data(struct super_block *sb, tid_t commit_tid)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_free_data *entry, *tmp;
-	struct list_head freed_data_list;
+	LIST_HEAD(freed_data_list);
 	struct list_head *cut_pos = NULL;
 	bool wake;
-
-	INIT_LIST_HEAD(&freed_data_list);
 
 	spin_lock(&sbi->s_md_lock);
 	list_for_each_entry(entry, &sbi->s_freed_data_list, efd_list) {
@@ -5414,7 +5411,7 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
 	struct buffer_head *bitmap_bh = NULL;
 	struct ext4_prealloc_space *pa, *tmp;
-	struct list_head list;
+	LIST_HEAD(list);
 	struct ext4_buddy e4b;
 	struct ext4_inode_info *ei;
 	int err;
@@ -5443,7 +5440,6 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 		goto out_dbg;
 	}
 
-	INIT_LIST_HEAD(&list);
 	ext4_lock_group(sb, group);
 	list_for_each_entry_safe(pa, tmp,
 				&grp->bb_prealloc_list, pa_group_list) {
@@ -5524,7 +5520,7 @@ void ext4_discard_preallocations(struct inode *inode, unsigned int needed)
 	struct buffer_head *bitmap_bh = NULL;
 	struct ext4_prealloc_space *pa, *tmp;
 	ext4_group_t group = 0;
-	struct list_head list;
+	LIST_HEAD(list);
 	struct ext4_buddy e4b;
 	struct rb_node *iter;
 	int err;
@@ -5540,8 +5536,6 @@ void ext4_discard_preallocations(struct inode *inode, unsigned int needed)
 		 inode->i_ino);
 	trace_ext4_discard_preallocations(inode,
 			atomic_read(&ei->i_prealloc_active), needed);
-
-	INIT_LIST_HEAD(&list);
 
 	if (needed == 0)
 		needed = UINT_MAX;
@@ -5858,12 +5852,10 @@ ext4_mb_discard_lg_preallocations(struct super_block *sb,
 {
 	ext4_group_t group = 0;
 	struct ext4_buddy e4b;
-	struct list_head discard_list;
+	LIST_HEAD(discard_list);
 	struct ext4_prealloc_space *pa, *tmp;
 
 	mb_debug(sb, "discard locality group preallocation\n");
-
-	INIT_LIST_HEAD(&discard_list);
 
 	spin_lock(&lg->lg_prealloc_lock);
 	list_for_each_entry_rcu(pa, &lg->lg_prealloc_list[order],
