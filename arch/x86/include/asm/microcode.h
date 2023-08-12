@@ -2,9 +2,12 @@
 #ifndef _ASM_X86_MICROCODE_H
 #define _ASM_X86_MICROCODE_H
 
-#include <asm/cpu.h>
 #include <linux/earlycpio.h>
 #include <linux/initrd.h>
+
+#include <asm/cpu.h>
+#include <asm/microcode_amd.h>
+#include <asm/microcode_intel.h>
 
 struct ucode_patch {
 	struct list_head plist;

@@ -2,8 +2,6 @@
 #ifndef _ASM_X86_MICROCODE_AMD_H
 #define _ASM_X86_MICROCODE_AMD_H
 
-#include <asm/microcode.h>
-
 #define UCODE_MAGIC			0x00414d44
 #define UCODE_EQUIV_CPU_TABLE_TYPE	0x00000000
 #define UCODE_UCODE_TYPE		0x00000001

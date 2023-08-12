@@ -29,7 +29,6 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 
-#include <asm/microcode_amd.h>
 #include <asm/microcode.h>
 #include <asm/processor.h>
 #include <asm/setup.h>
