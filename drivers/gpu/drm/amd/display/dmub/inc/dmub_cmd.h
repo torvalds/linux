@@ -421,11 +421,6 @@ union replay_hw_flags {
 		uint32_t smu_optimizations_en : 1;
 
 		/**
-		 * @otg_powered_down: Flag to keep track of OTG power state.
-		 */
-		uint32_t otg_powered_down : 1;
-
-		/**
 		 * @phy_power_state: Indicates current phy power state
 		 */
 		uint32_t phy_power_state : 1;
