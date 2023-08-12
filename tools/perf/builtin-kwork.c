@@ -398,7 +398,7 @@ static int work_push_atom(struct perf_kwork *kwork,
 	struct kwork_work *work, key;
 
 	BUG_ON(class->work_init == NULL);
-	class->work_init(class, &key, evsel, sample, machine);
+	class->work_init(kwork, class, &key, src_type, evsel, sample, machine);
 
 	atom = atom_new(kwork, sample);
 	if (atom == NULL)
@@ -445,7 +445,7 @@ static struct kwork_atom *work_pop_atom(struct perf_kwork *kwork,
 	struct kwork_work *work, key;
 
 	BUG_ON(class->work_init == NULL);
-	class->work_init(class, &key, evsel, sample, machine);
+	class->work_init(kwork, class, &key, src_type, evsel, sample, machine);
 
 	work = work_findnew(&class->work_root, &key, &kwork->cmp_id);
 	if (ret_work != NULL)
@@ -821,8 +821,10 @@ static int irq_class_init(struct kwork_class *class,
 	return 0;
 }
 
-static void irq_work_init(struct kwork_class *class,
+static void irq_work_init(struct perf_kwork *kwork __maybe_unused,
+			  struct kwork_class *class,
 			  struct kwork_work *work,
+			  enum kwork_trace_type src_type __maybe_unused,
 			  struct evsel *evsel,
 			  struct perf_sample *sample,
 			  struct machine *machine __maybe_unused)
@@ -940,8 +942,10 @@ static char *evsel__softirq_name(struct evsel *evsel, u64 num)
 	return name;
 }
 
-static void softirq_work_init(struct kwork_class *class,
+static void softirq_work_init(struct perf_kwork *kwork __maybe_unused,
+			      struct kwork_class *class,
 			      struct kwork_work *work,
+			      enum kwork_trace_type src_type __maybe_unused,
 			      struct evsel *evsel,
 			      struct perf_sample *sample,
 			      struct machine *machine __maybe_unused)
@@ -1031,8 +1035,10 @@ static int workqueue_class_init(struct kwork_class *class,
 	return 0;
 }
 
-static void workqueue_work_init(struct kwork_class *class,
+static void workqueue_work_init(struct perf_kwork *kwork __maybe_unused,
+				struct kwork_class *class,
 				struct kwork_work *work,
+				enum kwork_trace_type src_type __maybe_unused,
 				struct evsel *evsel,
 				struct perf_sample *sample,
 				struct machine *machine)

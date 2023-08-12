@@ -91,6 +91,7 @@ struct kwork_atom_page {
 	DECLARE_BITMAP(bitmap, NR_ATOM_PER_PAGE);
 };
 
+struct perf_kwork;
 struct kwork_class;
 struct kwork_work {
 	/*
@@ -142,8 +143,10 @@ struct kwork_class {
 	int (*class_init)(struct kwork_class *class,
 			  struct perf_session *session);
 
-	void (*work_init)(struct kwork_class *class,
+	void (*work_init)(struct perf_kwork *kwork,
+			  struct kwork_class *class,
 			  struct kwork_work *work,
+			  enum kwork_trace_type src_type,
 			  struct evsel *evsel,
 			  struct perf_sample *sample,
 			  struct machine *machine);
@@ -152,7 +155,6 @@ struct kwork_class {
 			  char *buf, int len);
 };
 
-struct perf_kwork;
 struct trace_kwork_handler {
 	int (*raise_event)(struct perf_kwork *kwork,
 			   struct kwork_class *class, struct evsel *evsel,
