@@ -9327,6 +9327,13 @@ W:	https://www.hisilicon.com
 F:	Documentation/devicetree/bindings/i2c/hisilicon,ascend910-i2c.yaml
 F:	drivers/i2c/busses/i2c-hisi.c
 
+HISILICON KUNPENG SOC HCCS DRIVER
+M:	Huisong Li <lihuisong@huawei.com>
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-devices-platform-kunpeng_hccs
+F:	drivers/soc/hisilicon/kunpeng_hccs.c
+F:	drivers/soc/hisilicon/kunpeng_hccs.h
+
 HISILICON LPC BUS DRIVER
 M:	Jay Fang <f.fangjian@huawei.com>
 S:	Maintained
