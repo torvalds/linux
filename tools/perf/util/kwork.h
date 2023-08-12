@@ -16,6 +16,7 @@ enum kwork_class_type {
 	KWORK_CLASS_IRQ,
 	KWORK_CLASS_SOFTIRQ,
 	KWORK_CLASS_WORKQUEUE,
+	KWORK_CLASS_SCHED,
 	KWORK_CLASS_MAX,
 };
 
@@ -167,6 +168,10 @@ struct trace_kwork_handler {
 	int (*exit_event)(struct perf_kwork *kwork,
 			  struct kwork_class *class, struct evsel *evsel,
 			  struct perf_sample *sample, struct machine *machine);
+
+	int (*sched_switch_event)(struct perf_kwork *kwork,
+				  struct kwork_class *class, struct evsel *evsel,
+				  struct perf_sample *sample, struct machine *machine);
 };
 
 struct perf_kwork {

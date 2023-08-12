@@ -1084,10 +1084,77 @@ static struct kwork_class kwork_workqueue = {
 	.work_name      = workqueue_work_name,
 };
 
+static struct kwork_class kwork_sched;
+static int process_sched_switch_event(struct perf_tool *tool,
+				      struct evsel *evsel,
+				      struct perf_sample *sample,
+				      struct machine *machine)
+{
+	struct perf_kwork *kwork = container_of(tool, struct perf_kwork, tool);
+
+	if (kwork->tp_handler->sched_switch_event)
+		return kwork->tp_handler->sched_switch_event(kwork, &kwork_sched,
+							     evsel, sample, machine);
+	return 0;
+}
+
+const struct evsel_str_handler sched_tp_handlers[] = {
+	{ "sched:sched_switch",  process_sched_switch_event, },
+};
+
+static int sched_class_init(struct kwork_class *class,
+			    struct perf_session *session)
+{
+	if (perf_session__set_tracepoints_handlers(session,
+						   sched_tp_handlers)) {
+		pr_err("Failed to set sched tracepoints handlers\n");
+		return -1;
+	}
+
+	class->work_root = RB_ROOT_CACHED;
+	return 0;
+}
+
+static void sched_work_init(struct perf_kwork *kwork __maybe_unused,
+			    struct kwork_class *class,
+			    struct kwork_work *work,
+			    enum kwork_trace_type src_type,
+			    struct evsel *evsel,
+			    struct perf_sample *sample,
+			    struct machine *machine __maybe_unused)
+{
+	work->class = class;
+	work->cpu = sample->cpu;
+
+	if (src_type == KWORK_TRACE_EXIT) {
+		work->id = evsel__intval(evsel, sample, "prev_pid");
+		work->name = strdup(evsel__strval(evsel, sample, "prev_comm"));
+	} else if (src_type == KWORK_TRACE_ENTRY) {
+		work->id = evsel__intval(evsel, sample, "next_pid");
+		work->name = strdup(evsel__strval(evsel, sample, "next_comm"));
+	}
+}
+
+static void sched_work_name(struct kwork_work *work, char *buf, int len)
+{
+	snprintf(buf, len, "%s", work->name);
+}
+
+static struct kwork_class kwork_sched = {
+	.name		= "sched",
+	.type		= KWORK_CLASS_SCHED,
+	.nr_tracepoints	= ARRAY_SIZE(sched_tp_handlers),
+	.tp_handlers	= sched_tp_handlers,
+	.class_init	= sched_class_init,
+	.work_init	= sched_work_init,
+	.work_name	= sched_work_name,
+};
+
 static struct kwork_class *kwork_class_supported_list[KWORK_CLASS_MAX] = {
 	[KWORK_CLASS_IRQ]       = &kwork_irq,
 	[KWORK_CLASS_SOFTIRQ]   = &kwork_softirq,
 	[KWORK_CLASS_WORKQUEUE] = &kwork_workqueue,
+	[KWORK_CLASS_SCHED]     = &kwork_sched,
 };
 
 static void print_separator(int len)
@@ -1740,7 +1807,7 @@ int cmd_kwork(int argc, const char **argv)
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_STRING('k', "kwork", &kwork.event_list_str, "kwork",
-		   "list of kwork to profile (irq, softirq, workqueue, etc)"),
+		   "list of kwork to profile (irq, softirq, workqueue, sched, etc)"),
 	OPT_BOOLEAN('f', "force", &kwork.force, "don't complain, do it"),
 	OPT_END()
 	};
