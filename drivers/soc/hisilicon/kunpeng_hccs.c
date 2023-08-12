@@ -438,7 +438,7 @@ static int hccs_get_bd_info(struct hccs_dev *hdev, u8 opcode,
 	head = &rsp->rsp_head;
 	if (head->data_len > buf_len) {
 		dev_err(hdev->dev,
-			"buffer overflow (buf_len = %lu, data_len = %u)!\n",
+			"buffer overflow (buf_len = %zu, data_len = %u)!\n",
 			buf_len, head->data_len);
 		return -ENOMEM;
 	}
