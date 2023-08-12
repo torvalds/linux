@@ -710,12 +710,14 @@ static void bch2_write_done(struct closure *cl)
 	struct bch_write_op *op = container_of(cl, struct bch_write_op, cl);
 	struct bch_fs *c = op->c;
 
+	EBUG_ON(op->open_buckets.nr);
+
+	bch2_time_stats_update(&c->times[BCH_TIME_data_write], op->start_time);
 	bch2_disk_reservation_put(c, &op->res);
+
 	if (!(op->flags & BCH_WRITE_MOVE))
 		bch2_write_ref_put(c, BCH_WRITE_REF_write);
 	bch2_keylist_free(&op->insert_keys, op->inline_keys);
-
-	bch2_time_stats_update(&c->times[BCH_TIME_data_write], op->start_time);
 
 	EBUG_ON(cl->parent);
 	closure_debug_destroy(cl);
