@@ -89,6 +89,16 @@ static struct kwork_class_bpf kwork_irq_bpf = {
 	.load_prepare = irq_load_prepare,
 };
 
+static void softirq_load_prepare(void)
+{
+	bpf_program__set_autoload(skel->progs.on_softirq_entry, true);
+	bpf_program__set_autoload(skel->progs.on_softirq_exit, true);
+}
+
+static struct kwork_class_bpf kwork_softirq_bpf = {
+	.load_prepare = softirq_load_prepare,
+};
+
 static void sched_load_prepare(void)
 {
 	bpf_program__set_autoload(skel->progs.on_switch, true);
@@ -101,6 +111,7 @@ static struct kwork_class_bpf kwork_sched_bpf = {
 static struct kwork_class_bpf *
 kwork_class_bpf_supported_list[KWORK_CLASS_MAX] = {
 	[KWORK_CLASS_IRQ]	= &kwork_irq_bpf,
+	[KWORK_CLASS_SOFTIRQ]	= &kwork_softirq_bpf,
 	[KWORK_CLASS_SCHED]	= &kwork_sched_bpf,
 };
 

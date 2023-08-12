@@ -263,4 +263,76 @@ int on_irq_handler_exit(u64 *cxt)
 	return 0;
 }
 
+SEC("tp_btf/softirq_entry")
+int on_softirq_entry(u64 *cxt)
+{
+	struct task_struct *task;
+
+	if (!enabled)
+		return 0;
+
+	__u32 cpu = bpf_get_smp_processor_id();
+
+	if (cpu_is_filtered(cpu))
+		return 0;
+
+	__u64 ts = bpf_ktime_get_ns();
+
+	task = (struct task_struct *)bpf_get_current_task();
+	if (!task)
+		return 0;
+
+	struct work_key key = {
+		.type = KWORK_CLASS_SOFTIRQ,
+		.pid = BPF_CORE_READ(task, pid),
+		.task_p = (__u64)task,
+	};
+
+	struct time_data data = {
+		.timestamp = ts,
+	};
+
+	bpf_map_update_elem(&kwork_top_irq_time, &key, &data, BPF_ANY);
+
+	return 0;
+}
+
+SEC("tp_btf/softirq_exit")
+int on_softirq_exit(u64 *cxt)
+{
+	__u64 delta;
+	struct task_struct *task;
+	struct time_data *pelem;
+
+	if (!enabled)
+		return 0;
+
+	__u32 cpu = bpf_get_smp_processor_id();
+
+	if (cpu_is_filtered(cpu))
+		return 0;
+
+	__u64 ts = bpf_ktime_get_ns();
+
+	task = (struct task_struct *)bpf_get_current_task();
+	if (!task)
+		return 0;
+
+	struct work_key key = {
+		.type = KWORK_CLASS_SOFTIRQ,
+		.pid = BPF_CORE_READ(task, pid),
+		.task_p = (__u64)task,
+	};
+
+	pelem = bpf_map_lookup_elem(&kwork_top_irq_time, &key);
+	if (pelem)
+		delta = ts - pelem->timestamp;
+	else
+		delta = ts - from_timestamp;
+
+	update_work(&key, delta);
+
+	return 0;
+}
+
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
