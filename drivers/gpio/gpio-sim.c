@@ -642,16 +642,13 @@ static bool gpio_sim_device_is_live_unlocked(struct gpio_sim_device *dev)
 
 static char *gpio_sim_strdup_trimmed(const char *str, size_t count)
 {
-	char *dup, *trimmed;
+	char *trimmed;
 
-	dup = kstrndup(str, count, GFP_KERNEL);
-	if (!dup)
+	trimmed = kstrndup(skip_spaces(str), count, GFP_KERNEL);
+	if (!trimmed)
 		return NULL;
 
-	trimmed = strstrip(dup);
-	memmove(dup, trimmed, strlen(trimmed) + 1);
-
-	return dup;
+	return strim(trimmed);
 }
 
 static ssize_t gpio_sim_device_config_dev_name_show(struct config_item *item,
