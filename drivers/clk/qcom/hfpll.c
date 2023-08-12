@@ -32,8 +32,62 @@ static const struct hfpll_data hdata = {
 	.max_rate = 2900000000UL,
 };
 
+static const struct hfpll_data msm8976_a53 = {
+	.mode_reg = 0x00,
+	.l_reg = 0x04,
+	.m_reg = 0x08,
+	.n_reg = 0x0c,
+	.user_reg = 0x10,
+	.config_reg = 0x14,
+	.config_val = 0x341600,
+	.status_reg = 0x1c,
+	.lock_bit = 16,
+
+	.l_val = 0x35,
+	.user_val = 0x109,
+	.min_rate = 902400000UL,
+	.max_rate = 1478400000UL,
+};
+
+static const struct hfpll_data msm8976_a72 = {
+	.mode_reg = 0x00,
+	.l_reg = 0x04,
+	.m_reg = 0x08,
+	.n_reg = 0x0c,
+	.user_reg = 0x10,
+	.config_reg = 0x14,
+	.config_val = 0x4e0405d,
+	.status_reg = 0x1c,
+	.lock_bit = 16,
+
+	.l_val = 0x3e,
+	.user_val = 0x100109,
+	.min_rate = 940800000UL,
+	.max_rate = 2016000000UL,
+};
+
+static const struct hfpll_data msm8976_cci = {
+	.mode_reg = 0x00,
+	.l_reg = 0x04,
+	.m_reg = 0x08,
+	.n_reg = 0x0c,
+	.user_reg = 0x10,
+	.config_reg = 0x14,
+	.config_val = 0x141400,
+	.status_reg = 0x1c,
+	.lock_bit = 16,
+
+	.l_val = 0x20,
+	.user_val = 0x100109,
+	.min_rate = 556800000UL,
+	.max_rate = 902400000UL,
+};
+
 static const struct of_device_id qcom_hfpll_match_table[] = {
 	{ .compatible = "qcom,hfpll", .data = &hdata },
+	{ .compatible = "qcom,msm8976-hfpll-a53", .data = &msm8976_a53 },
+	{ .compatible = "qcom,msm8976-hfpll-a72", .data = &msm8976_a72 },
+	{ .compatible = "qcom,msm8976-hfpll-cci", .data = &msm8976_cci },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_hfpll_match_table);
