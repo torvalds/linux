@@ -2385,7 +2385,7 @@ void bch2_btree_updates_to_text(struct printbuf *out, struct bch_fs *c)
 		       as,
 		       as->mode,
 		       as->nodes_written,
-		       atomic_read(&as->cl.remaining) & CLOSURE_REMAINING_MASK,
+		       closure_nr_remaining(&as->cl),
 		       as->journal.seq);
 	mutex_unlock(&c->btree_interior_update_lock);
 }

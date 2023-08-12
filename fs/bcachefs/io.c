@@ -478,7 +478,7 @@ retry:
 	ret = bch2_extent_update(trans, inum, iter, new.k, &disk_res,
 				 0, i_sectors_delta, true);
 out:
-	if ((atomic_read(&cl.remaining) & CLOSURE_REMAINING_MASK) != 1) {
+	if (closure_nr_remaining(&cl) != 1) {
 		bch2_trans_unlock(trans);
 		closure_sync(&cl);
 	}

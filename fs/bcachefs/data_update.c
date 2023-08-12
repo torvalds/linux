@@ -415,7 +415,7 @@ void bch2_update_unwritten_extent(struct btree_trans *trans,
 			break;
 	}
 
-	if ((atomic_read(&cl.remaining) & CLOSURE_REMAINING_MASK) != 1) {
+	if (closure_nr_remaining(&cl) != 1) {
 		bch2_trans_unlock(trans);
 		closure_sync(&cl);
 	}
