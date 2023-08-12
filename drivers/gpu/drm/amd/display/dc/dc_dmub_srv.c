@@ -552,7 +552,8 @@ static void populate_subvp_cmd_vblank_pipe_info(struct dc *dc,
 	pipe_data->pipe_config.vblank_data.vblank_end =
 			vblank_pipe->stream->timing.v_total - vblank_pipe->stream->timing.v_front_porch - vblank_pipe->stream->timing.v_addressable;
 
-	if (vblank_pipe->stream->ignore_msa_timing_param)
+	if (vblank_pipe->stream->ignore_msa_timing_param &&
+		(vblank_pipe->stream->allow_freesync || vblank_pipe->stream->vrr_active_variable))
 		populate_subvp_cmd_drr_info(dc, pipe, vblank_pipe, pipe_data);
 }
 
@@ -645,7 +646,8 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			main_timing->v_total - main_timing->v_front_porch - main_timing->v_addressable;
 	pipe_data->pipe_config.subvp_data.mall_region_lines = phantom_timing->v_addressable;
 	pipe_data->pipe_config.subvp_data.main_pipe_index = subvp_pipe->stream_res.tg->inst;
-	pipe_data->pipe_config.subvp_data.is_drr = subvp_pipe->stream->ignore_msa_timing_param;
+	pipe_data->pipe_config.subvp_data.is_drr = subvp_pipe->stream->ignore_msa_timing_param &&
+		(subvp_pipe->stream->allow_freesync || subvp_pipe->stream->vrr_active_variable);
 
 	/* Calculate the scaling factor from the src and dst height.
 	 * e.g. If 3840x2160 being downscaled to 1920x1080, the scaling factor is 1/2.
