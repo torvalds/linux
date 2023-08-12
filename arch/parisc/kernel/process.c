@@ -97,18 +97,12 @@ void machine_restart(char *cmd)
 
 }
 
-void (*chassis_power_off)(void);
-
 /*
  * This routine is called from sys_reboot to actually turn off the
  * machine 
  */
 void machine_power_off(void)
 {
-	/* If there is a registered power off handler, call it. */
-	if (chassis_power_off)
-		chassis_power_off();
-
 	/* Put the soft power button back under hardware control.
 	 * If the user had already pressed the power button, the
 	 * following call will immediately power off. */
