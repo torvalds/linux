@@ -92,7 +92,7 @@ retry:
 
 	ret   = bch2_inode_peek(&trans, &iter, &inode_u, inode_inum(inode),
 				BTREE_ITER_INTENT) ?:
-		(set ? set(inode, &inode_u, p) : 0) ?:
+		(set ? set(&trans, inode, &inode_u, p) : 0) ?:
 		bch2_inode_write(&trans, &iter, &inode_u) ?:
 		bch2_trans_commit(&trans, NULL, NULL, BTREE_INSERT_NOFAIL);
 
@@ -1414,7 +1414,8 @@ static void bch2_destroy_inode(struct inode *vinode)
 	call_rcu(&vinode->i_rcu, bch2_i_callback);
 }
 
-static int inode_update_times_fn(struct bch_inode_info *inode,
+static int inode_update_times_fn(struct btree_trans *trans,
+				 struct bch_inode_info *inode,
 				 struct bch_inode_unpacked *bi,
 				 void *p)
 {

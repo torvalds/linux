@@ -31,7 +31,8 @@ struct flags_set {
 	bool			projinherit;
 };
 
-static int bch2_inode_flags_set(struct bch_inode_info *inode,
+static int bch2_inode_flags_set(struct btree_trans *trans,
+				struct bch_inode_info *inode,
 				struct bch_inode_unpacked *bi,
 				void *p)
 {
@@ -124,7 +125,8 @@ static int bch2_ioc_fsgetxattr(struct bch_inode_info *inode,
 	return copy_to_user(arg, &fa, sizeof(fa));
 }
 
-static int fssetxattr_inode_update_fn(struct bch_inode_info *inode,
+static int fssetxattr_inode_update_fn(struct btree_trans *trans,
+				      struct bch_inode_info *inode,
 				      struct bch_inode_unpacked *bi,
 				      void *p)
 {
@@ -135,7 +137,7 @@ static int fssetxattr_inode_update_fn(struct bch_inode_info *inode,
 		bi->bi_project = s->projid;
 	}
 
-	return bch2_inode_flags_set(inode, bi, p);
+	return bch2_inode_flags_set(trans, inode, bi, p);
 }
 
 static int bch2_ioc_fssetxattr(struct bch_fs *c,
@@ -192,7 +194,8 @@ err:
 	return ret;
 }
 
-static int bch2_reinherit_attrs_fn(struct bch_inode_info *inode,
+static int bch2_reinherit_attrs_fn(struct btree_trans *trans,
+				   struct bch_inode_info *inode,
 				   struct bch_inode_unpacked *bi,
 				   void *p)
 {

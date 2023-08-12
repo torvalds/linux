@@ -174,7 +174,8 @@ static inline int bch2_set_projid(struct bch_fs *c,
 struct inode *bch2_vfs_inode_get(struct bch_fs *, subvol_inum);
 
 /* returns 0 if we want to do the update, or error is passed up */
-typedef int (*inode_set_fn)(struct bch_inode_info *,
+typedef int (*inode_set_fn)(struct btree_trans *,
+			    struct bch_inode_info *,
 			    struct bch_inode_unpacked *, void *);
 
 void bch2_inode_update_after_write(struct btree_trans *,

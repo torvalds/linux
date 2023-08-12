@@ -109,7 +109,8 @@ struct inode_new_size {
 	unsigned	fields;
 };
 
-static int inode_set_size(struct bch_inode_info *inode,
+static int inode_set_size(struct btree_trans *trans,
+			  struct bch_inode_info *inode,
 			  struct bch_inode_unpacked *bi,
 			  void *p)
 {
@@ -389,7 +390,8 @@ static int bch2_extend(struct mnt_idmap *idmap,
 	return bch2_setattr_nonsize(idmap, inode, iattr);
 }
 
-static int bch2_truncate_finish_fn(struct bch_inode_info *inode,
+static int bch2_truncate_finish_fn(struct btree_trans *trans,
+				   struct bch_inode_info *inode,
 				   struct bch_inode_unpacked *bi,
 				   void *p)
 {
@@ -397,7 +399,8 @@ static int bch2_truncate_finish_fn(struct bch_inode_info *inode,
 	return 0;
 }
 
-static int bch2_truncate_start_fn(struct bch_inode_info *inode,
+static int bch2_truncate_start_fn(struct btree_trans *trans,
+				  struct bch_inode_info *inode,
 				  struct bch_inode_unpacked *bi, void *p)
 {
 	u64 *new_i_size = p;
@@ -518,7 +521,8 @@ err:
 
 /* fallocate: */
 
-static int inode_update_times_fn(struct bch_inode_info *inode,
+static int inode_update_times_fn(struct btree_trans *trans,
+				 struct bch_inode_info *inode,
 				 struct bch_inode_unpacked *bi, void *p)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
