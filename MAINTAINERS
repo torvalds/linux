@@ -2931,14 +2931,13 @@ M:	Sudeep Holla <sudeep.holla@arm.com>
 M:	Lorenzo Pieralisi <lpieralisi@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	*/*/*/vexpress*
-F:	*/*/vexpress*
-F:	arch/arm/boot/dts/arm/vexpress*
+N:	mps2
+N:	vexpress
 F:	arch/arm/mach-versatile/
 F:	arch/arm64/boot/dts/arm/
-F:	drivers/clk/versatile/clk-vexpress-osc.c
 F:	drivers/clocksource/timer-versatile.c
-N:	mps2
+X:	drivers/cpufreq/vexpress-spc-cpufreq.c
+X:	Documentation/devicetree/bindings/arm/arm,vexpress-juno.yaml
 
 ARM/VFP SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
