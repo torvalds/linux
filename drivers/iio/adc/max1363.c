@@ -1599,9 +1599,7 @@ static int max1363_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	st->chip_info = device_get_match_data(&client->dev);
-	if (!st->chip_info)
-		st->chip_info = &max1363_chip_info_tbl[id->driver_data];
+	st->chip_info = i2c_get_match_data(client);
 	st->client = client;
 
 	st->vref_uv = st->chip_info->int_vref_mv * 1000;
@@ -1669,46 +1667,51 @@ static int max1363_probe(struct i2c_client *client)
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
+#define MAX1363_ID_TABLE(_name, cfg) {				\
+	.name = _name,						\
+	.driver_data = (kernel_ulong_t)&max1363_chip_info_tbl[cfg],	\
+}
+
 static const struct i2c_device_id max1363_id[] = {
-	{ "max1361", max1361 },
-	{ "max1362", max1362 },
-	{ "max1363", max1363 },
-	{ "max1364", max1364 },
-	{ "max1036", max1036 },
-	{ "max1037", max1037 },
-	{ "max1038", max1038 },
-	{ "max1039", max1039 },
-	{ "max1136", max1136 },
-	{ "max1137", max1137 },
-	{ "max1138", max1138 },
-	{ "max1139", max1139 },
-	{ "max1236", max1236 },
-	{ "max1237", max1237 },
-	{ "max1238", max1238 },
-	{ "max1239", max1239 },
-	{ "max11600", max11600 },
-	{ "max11601", max11601 },
-	{ "max11602", max11602 },
-	{ "max11603", max11603 },
-	{ "max11604", max11604 },
-	{ "max11605", max11605 },
-	{ "max11606", max11606 },
-	{ "max11607", max11607 },
-	{ "max11608", max11608 },
-	{ "max11609", max11609 },
-	{ "max11610", max11610 },
-	{ "max11611", max11611 },
-	{ "max11612", max11612 },
-	{ "max11613", max11613 },
-	{ "max11614", max11614 },
-	{ "max11615", max11615 },
-	{ "max11616", max11616 },
-	{ "max11617", max11617 },
-	{ "max11644", max11644 },
-	{ "max11645", max11645 },
-	{ "max11646", max11646 },
-	{ "max11647", max11647 },
-	{}
+	MAX1363_ID_TABLE("max1361", max1361),
+	MAX1363_ID_TABLE("max1362", max1362),
+	MAX1363_ID_TABLE("max1363", max1363),
+	MAX1363_ID_TABLE("max1364", max1364),
+	MAX1363_ID_TABLE("max1036", max1036),
+	MAX1363_ID_TABLE("max1037", max1037),
+	MAX1363_ID_TABLE("max1038", max1038),
+	MAX1363_ID_TABLE("max1039", max1039),
+	MAX1363_ID_TABLE("max1136", max1136),
+	MAX1363_ID_TABLE("max1137", max1137),
+	MAX1363_ID_TABLE("max1138", max1138),
+	MAX1363_ID_TABLE("max1139", max1139),
+	MAX1363_ID_TABLE("max1236", max1236),
+	MAX1363_ID_TABLE("max1237", max1237),
+	MAX1363_ID_TABLE("max1238", max1238),
+	MAX1363_ID_TABLE("max1239", max1239),
+	MAX1363_ID_TABLE("max11600", max11600),
+	MAX1363_ID_TABLE("max11601", max11601),
+	MAX1363_ID_TABLE("max11602", max11602),
+	MAX1363_ID_TABLE("max11603", max11603),
+	MAX1363_ID_TABLE("max11604", max11604),
+	MAX1363_ID_TABLE("max11605", max11605),
+	MAX1363_ID_TABLE("max11606", max11606),
+	MAX1363_ID_TABLE("max11607", max11607),
+	MAX1363_ID_TABLE("max11608", max11608),
+	MAX1363_ID_TABLE("max11609", max11609),
+	MAX1363_ID_TABLE("max11610", max11610),
+	MAX1363_ID_TABLE("max11611", max11611),
+	MAX1363_ID_TABLE("max11612", max11612),
+	MAX1363_ID_TABLE("max11613", max11613),
+	MAX1363_ID_TABLE("max11614", max11614),
+	MAX1363_ID_TABLE("max11615", max11615),
+	MAX1363_ID_TABLE("max11616", max11616),
+	MAX1363_ID_TABLE("max11617", max11617),
+	MAX1363_ID_TABLE("max11644", max11644),
+	MAX1363_ID_TABLE("max11645", max11645),
+	MAX1363_ID_TABLE("max11646", max11646),
+	MAX1363_ID_TABLE("max11647", max11647),
+	{ /* sentinel */ }
 };
 
 MODULE_DEVICE_TABLE(i2c, max1363_id);
