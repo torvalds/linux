@@ -24,7 +24,7 @@ struct bch_fs;
 struct bch_hash_info;
 struct bch_inode_info;
 
-unsigned bch2_dirent_name_bytes(struct bkey_s_c_dirent);
+struct qstr bch2_dirent_get_name(struct bkey_s_c_dirent d);
 
 static inline unsigned dirent_val_u64s(unsigned len)
 {

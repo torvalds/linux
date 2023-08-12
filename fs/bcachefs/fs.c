@@ -1237,7 +1237,8 @@ static int bch2_get_name(struct dentry *parent, char *name, struct dentry *child
 	struct bch_inode_unpacked inode_u;
 	subvol_inum target;
 	u32 snapshot;
-	unsigned name_len;
+	struct qstr dirent_name;
+	unsigned name_len = 0;
 	int ret;
 
 	if (!S_ISDIR(dir->v.i_mode))
@@ -1314,9 +1315,10 @@ retry:
 	ret = -ENOENT;
 	goto err;
 found:
-	name_len = min_t(unsigned, bch2_dirent_name_bytes(d), NAME_MAX);
+	dirent_name = bch2_dirent_get_name(d);
 
-	memcpy(name, d.v->d_name, name_len);
+	name_len = min_t(unsigned, dirent_name.len, NAME_MAX);
+	memcpy(name, dirent_name.name, name_len);
 	name[name_len] = '\0';
 err:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
