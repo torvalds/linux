@@ -10,15 +10,7 @@
  * Copyright (C) 2012 Fenghua Yu <fenghua.yu@intel.com>
  *		      H Peter Anvin" <hpa@zytor.com>
  */
-
-/*
- * This needs to be before all headers so that pr_debug in printk.h doesn't turn
- * printk calls into no_printk().
- *
- *#define DEBUG
- */
 #define pr_fmt(fmt) "microcode: " fmt
-
 #include <linux/earlycpio.h>
 #include <linux/firmware.h>
 #include <linux/uaccess.h>
@@ -405,69 +397,6 @@ next:
 	return patch;
 }
 
-static void show_saved_mc(void)
-{
-#ifdef DEBUG
-	int i = 0, j;
-	unsigned int sig, pf, rev, total_size, data_size, date;
-	struct ucode_cpu_info uci;
-	struct ucode_patch *p;
-
-	if (list_empty(&microcode_cache)) {
-		pr_debug("no microcode data saved.\n");
-		return;
-	}
-
-	intel_cpu_collect_info(&uci);
-
-	sig	= uci.cpu_sig.sig;
-	pf	= uci.cpu_sig.pf;
-	rev	= uci.cpu_sig.rev;
-	pr_debug("CPU: sig=0x%x, pf=0x%x, rev=0x%x\n", sig, pf, rev);
-
-	list_for_each_entry(p, &microcode_cache, plist) {
-		struct microcode_header_intel *mc_saved_header;
-		struct extended_sigtable *ext_header;
-		struct extended_signature *ext_sig;
-		int ext_sigcount;
-
-		mc_saved_header = (struct microcode_header_intel *)p->data;
-
-		sig	= mc_saved_header->sig;
-		pf	= mc_saved_header->pf;
-		rev	= mc_saved_header->rev;
-		date	= mc_saved_header->date;
-
-		total_size	= get_totalsize(mc_saved_header);
-		data_size	= intel_microcode_get_datasize(mc_saved_header);
-
-		pr_debug("mc_saved[%d]: sig=0x%x, pf=0x%x, rev=0x%x, total size=0x%x, date = %04x-%02x-%02x\n",
-			 i++, sig, pf, rev, total_size,
-			 date & 0xffff,
-			 date >> 24,
-			 (date >> 16) & 0xff);
-
-		/* Look for ext. headers: */
-		if (total_size <= data_size + MC_HEADER_SIZE)
-			continue;
-
-		ext_header = (void *)mc_saved_header + data_size + MC_HEADER_SIZE;
-		ext_sigcount = ext_header->count;
-		ext_sig = (void *)ext_header + EXT_HEADER_SIZE;
-
-		for (j = 0; j < ext_sigcount; j++) {
-			sig = ext_sig->sig;
-			pf = ext_sig->pf;
-
-			pr_debug("\tExtended[%d]: sig=0x%x, pf=0x%x\n",
-				 j, sig, pf);
-
-			ext_sig++;
-		}
-	}
-#endif
-}
-
 /*
  * Save this microcode patch. It will be loaded early when a CPU is
  * hot-added or resumes.
@@ -480,7 +409,6 @@ static void save_mc_for_early(struct ucode_cpu_info *uci, u8 *mc, unsigned int s
 	mutex_lock(&x86_cpu_microcode_mutex);
 
 	save_microcode_patch(uci, mc, size);
-	show_saved_mc();
 
 	mutex_unlock(&x86_cpu_microcode_mutex);
 }
@@ -631,9 +559,6 @@ int __init save_microcode_in_initrd_intel(void)
 	intel_cpu_collect_info(&uci);
 
 	scan_microcode(cp.data, cp.size, &uci, true);
-
-	show_saved_mc();
-
 	return 0;
 }
 
