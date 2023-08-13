@@ -6,12 +6,18 @@
  * Author(s): Lionel DEBIEVE <lionel.debieve@st.com> for STMicroelectronics.
  */
 
+#include <crypto/engine.h>
+#include <crypto/internal/hash.h>
+#include <crypto/md5.h>
+#include <crypto/scatterwalk.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
+#include <crypto/sha3.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
-#include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -19,15 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
-
-#include <crypto/engine.h>
-#include <crypto/hash.h>
-#include <crypto/md5.h>
-#include <crypto/scatterwalk.h>
-#include <crypto/sha1.h>
-#include <crypto/sha2.h>
-#include <crypto/sha3.h>
-#include <crypto/internal/hash.h>
+#include <linux/string.h>
 
 #define HASH_CR				0x00
 #define HASH_DIN			0x04
@@ -133,7 +131,6 @@ enum ux500_hash_algo {
 #define HASH_AUTOSUSPEND_DELAY		50
 
 struct stm32_hash_ctx {
-	struct crypto_engine_ctx enginectx;
 	struct stm32_hash_dev	*hdev;
 	struct crypto_shash	*xtfm;
 	unsigned long		flags;
@@ -177,7 +174,7 @@ struct stm32_hash_request_ctx {
 };
 
 struct stm32_hash_algs_info {
-	struct ahash_alg	*algs_list;
+	struct ahash_engine_alg	*algs_list;
 	size_t			size;
 };
 
@@ -1194,8 +1191,6 @@ static int stm32_hash_cra_init_algs(struct crypto_tfm *tfm, u32 algs_flags)
 	if (algs_flags)
 		ctx->flags |= algs_flags;
 
-	ctx->enginectx.op.do_one_request = stm32_hash_one_request;
-
 	return stm32_hash_init_fallback(tfm);
 }
 
@@ -1268,16 +1263,16 @@ static irqreturn_t stm32_hash_irq_handler(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-static struct ahash_alg algs_md5[] = {
+static struct ahash_engine_alg algs_md5[] = {
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = MD5_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1293,18 +1288,21 @@ static struct ahash_alg algs_md5[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.setkey = stm32_hash_setkey,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
 			.digestsize = MD5_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1320,20 +1318,23 @@ static struct ahash_alg algs_md5[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	}
 };
 
-static struct ahash_alg algs_sha1[] = {
+static struct ahash_engine_alg algs_sha1[] = {
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA1_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1349,18 +1350,21 @@ static struct ahash_alg algs_sha1[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.setkey = stm32_hash_setkey,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
 			.digestsize = SHA1_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1376,20 +1380,23 @@ static struct ahash_alg algs_sha1[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 };
 
-static struct ahash_alg algs_sha224[] = {
+static struct ahash_engine_alg algs_sha224[] = {
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA224_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1405,18 +1412,21 @@ static struct ahash_alg algs_sha224[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.setkey = stm32_hash_setkey,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.setkey = stm32_hash_setkey,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA224_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1432,20 +1442,23 @@ static struct ahash_alg algs_sha224[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 };
 
-static struct ahash_alg algs_sha256[] = {
+static struct ahash_engine_alg algs_sha256[] = {
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA256_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1461,18 +1474,21 @@ static struct ahash_alg algs_sha256[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.setkey = stm32_hash_setkey,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
 			.digestsize = SHA256_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1488,20 +1504,23 @@ static struct ahash_alg algs_sha256[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 };
 
-static struct ahash_alg algs_sha384_sha512[] = {
+static struct ahash_engine_alg algs_sha384_sha512[] = {
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA384_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1517,18 +1536,21 @@ static struct ahash_alg algs_sha384_sha512[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.setkey = stm32_hash_setkey,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.setkey = stm32_hash_setkey,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA384_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1544,17 +1566,20 @@ static struct ahash_alg algs_sha384_sha512[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA512_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1570,18 +1595,21 @@ static struct ahash_alg algs_sha384_sha512[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.setkey = stm32_hash_setkey,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
 			.digestsize = SHA512_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1597,20 +1625,23 @@ static struct ahash_alg algs_sha384_sha512[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 };
 
-static struct ahash_alg algs_sha3[] = {
+static struct ahash_engine_alg algs_sha3[] = {
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA3_224_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1626,18 +1657,21 @@ static struct ahash_alg algs_sha3[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.setkey = stm32_hash_setkey,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
 			.digestsize = SHA3_224_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1653,17 +1687,20 @@ static struct ahash_alg algs_sha3[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
-		{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA3_256_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1679,18 +1716,21 @@ static struct ahash_alg algs_sha3[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.setkey = stm32_hash_setkey,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
 			.digestsize = SHA3_256_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1706,17 +1746,20 @@ static struct ahash_alg algs_sha3[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA3_384_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1732,18 +1775,21 @@ static struct ahash_alg algs_sha3[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.setkey = stm32_hash_setkey,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
 			.digestsize = SHA3_384_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1759,17 +1805,20 @@ static struct ahash_alg algs_sha3[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA3_512_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1785,18 +1834,21 @@ static struct ahash_alg algs_sha3[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.setkey = stm32_hash_setkey,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
 			.digestsize = SHA3_512_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1812,7 +1864,10 @@ static struct ahash_alg algs_sha3[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	}
 };
 
@@ -1823,7 +1878,7 @@ static int stm32_hash_register_algs(struct stm32_hash_dev *hdev)
 
 	for (i = 0; i < hdev->pdata->algs_info_size; i++) {
 		for (j = 0; j < hdev->pdata->algs_info[i].size; j++) {
-			err = crypto_register_ahash(
+			err = crypto_engine_register_ahash(
 				&hdev->pdata->algs_info[i].algs_list[j]);
 			if (err)
 				goto err_algs;
@@ -1835,7 +1890,7 @@ err_algs:
 	dev_err(hdev->dev, "Algo %d : %d failed\n", i, j);
 	for (; i--; ) {
 		for (; j--;)
-			crypto_unregister_ahash(
+			crypto_engine_unregister_ahash(
 				&hdev->pdata->algs_info[i].algs_list[j]);
 	}
 
@@ -1848,7 +1903,7 @@ static int stm32_hash_unregister_algs(struct stm32_hash_dev *hdev)
 
 	for (i = 0; i < hdev->pdata->algs_info_size; i++) {
 		for (j = 0; j < hdev->pdata->algs_info[i].size; j++)
-			crypto_unregister_ahash(
+			crypto_engine_unregister_ahash(
 				&hdev->pdata->algs_info[i].algs_list[j]);
 	}
 
