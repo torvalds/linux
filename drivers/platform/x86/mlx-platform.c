@@ -237,7 +237,7 @@
 #define MLXPLAT_CPLD_GWP_MASK		GENMASK(0, 0)
 #define MLXPLAT_CPLD_EROT_MASK		GENMASK(1, 0)
 #define MLXPLAT_CPLD_PWR_BUTTON_MASK	BIT(0)
-#define MLXPLAT_CPLD_LATCH_RST_MASK	BIT(5)
+#define MLXPLAT_CPLD_LATCH_RST_MASK	BIT(6)
 #define MLXPLAT_CPLD_THERMAL1_PDB_MASK	BIT(3)
 #define MLXPLAT_CPLD_THERMAL2_PDB_MASK	BIT(4)
 #define MLXPLAT_CPLD_INTRUSION_MASK	BIT(6)
@@ -2475,7 +2475,7 @@ static struct mlxreg_core_item mlxplat_mlxcpld_l1_switch_events_items[] = {
 		.reg = MLXPLAT_CPLD_LPC_REG_PWRB_OFFSET,
 		.mask = MLXPLAT_CPLD_PWR_BUTTON_MASK,
 		.count = ARRAY_SIZE(mlxplat_mlxcpld_l1_switch_pwr_events_items_data),
-		.inversed = 0,
+		.inversed = 1,
 		.health = false,
 	},
 	{
@@ -2484,7 +2484,7 @@ static struct mlxreg_core_item mlxplat_mlxcpld_l1_switch_events_items[] = {
 		.reg = MLXPLAT_CPLD_LPC_REG_BRD_OFFSET,
 		.mask = MLXPLAT_CPLD_L1_CHA_HEALTH_MASK,
 		.count = ARRAY_SIZE(mlxplat_mlxcpld_l1_switch_health_events_items_data),
-		.inversed = 0,
+		.inversed = 1,
 		.health = false,
 		.ind = 8,
 	},
@@ -3677,7 +3677,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_regs_io_data[] = {
 	{
 		.label = "latch_reset",
 		.reg = MLXPLAT_CPLD_LPC_REG_GP1_OFFSET,
-		.mask = GENMASK(7, 0) & ~BIT(5),
+		.mask = GENMASK(7, 0) & ~BIT(6),
 		.mode = 0200,
 	},
 	{
