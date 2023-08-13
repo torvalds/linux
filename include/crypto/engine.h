@@ -78,15 +78,9 @@ struct crypto_engine {
 
 /*
  * struct crypto_engine_op - crypto hardware engine operations
- * @prepare_request: do some preparation if needed before handling the current request
- * @unprepare_request: undo any work done by prepare_request()
  * @do_one_request: do encryption for current request
  */
 struct crypto_engine_op {
-	int (*prepare_request)(struct crypto_engine *engine,
-			       void *areq);
-	int (*unprepare_request)(struct crypto_engine *engine,
-				 void *areq);
 	int (*do_one_request)(struct crypto_engine *engine,
 			      void *areq);
 };
