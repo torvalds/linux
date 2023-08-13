@@ -7,15 +7,15 @@
 #ifndef _CRYPTO_ENGINE_H
 #define _CRYPTO_ENGINE_H
 
+#include <crypto/aead.h>
+#include <crypto/akcipher.h>
+#include <crypto/hash.h>
+#include <crypto/kpp.h>
+#include <crypto/skcipher.h>
 #include <linux/types.h>
 
-struct aead_request;
-struct ahash_request;
-struct akcipher_request;
 struct crypto_engine;
 struct device;
-struct kpp_request;
-struct skcipher_request;
 
 /*
  * struct crypto_engine_op - crypto hardware engine operations
@@ -27,6 +27,31 @@ struct crypto_engine_op {
 };
 
 struct crypto_engine_ctx {
+	struct crypto_engine_op op;
+};
+
+struct aead_engine_alg {
+	struct aead_alg base;
+	struct crypto_engine_op op;
+};
+
+struct ahash_engine_alg {
+	struct ahash_alg base;
+	struct crypto_engine_op op;
+};
+
+struct akcipher_engine_alg {
+	struct akcipher_alg base;
+	struct crypto_engine_op op;
+};
+
+struct kpp_engine_alg {
+	struct kpp_alg base;
+	struct crypto_engine_op op;
+};
+
+struct skcipher_engine_alg {
+	struct skcipher_alg base;
 	struct crypto_engine_op op;
 };
 
@@ -58,5 +83,29 @@ struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
 						       int (*cbk_do_batch)(struct crypto_engine *engine),
 						       bool rt, int qlen);
 int crypto_engine_exit(struct crypto_engine *engine);
+
+int crypto_engine_register_aead(struct aead_engine_alg *alg);
+void crypto_engine_unregister_aead(struct aead_engine_alg *alg);
+int crypto_engine_register_aeads(struct aead_engine_alg *algs, int count);
+void crypto_engine_unregister_aeads(struct aead_engine_alg *algs, int count);
+
+int crypto_engine_register_ahash(struct ahash_engine_alg *alg);
+void crypto_engine_unregister_ahash(struct ahash_engine_alg *alg);
+int crypto_engine_register_ahashes(struct ahash_engine_alg *algs, int count);
+void crypto_engine_unregister_ahashes(struct ahash_engine_alg *algs,
+				      int count);
+
+int crypto_engine_register_akcipher(struct akcipher_engine_alg *alg);
+void crypto_engine_unregister_akcipher(struct akcipher_engine_alg *alg);
+
+int crypto_engine_register_kpp(struct kpp_engine_alg *alg);
+void crypto_engine_unregister_kpp(struct kpp_engine_alg *alg);
+
+int crypto_engine_register_skcipher(struct skcipher_engine_alg *alg);
+void crypto_engine_unregister_skcipher(struct skcipher_engine_alg *alg);
+int crypto_engine_register_skciphers(struct skcipher_engine_alg *algs,
+				     int count);
+void crypto_engine_unregister_skciphers(struct skcipher_engine_alg *algs,
+					int count);
 
 #endif /* _CRYPTO_ENGINE_H */
