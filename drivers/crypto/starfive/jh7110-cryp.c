@@ -7,17 +7,20 @@
  *
  */
 
+#include <crypto/engine.h>
+#include "jh7110-cryp.h"
 #include <linux/clk.h>
-#include <linux/delay.h>
+#include <linux/completion.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
-
-#include "jh7110-cryp.h"
+#include <linux/spinlock.h>
 
 #define DRIVER_NAME             "jh7110-crypto"
 

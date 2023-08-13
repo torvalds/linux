@@ -6,11 +6,14 @@
  *
  */
 
+#include <crypto/engine.h>
+#include <crypto/internal/hash.h>
+#include <crypto/scatterwalk.h>
+#include "jh7110-cryp.h"
+#include <linux/amba/pl080.h>
 #include <linux/clk.h>
-#include <linux/crypto.h>
 #include <linux/dma-direct.h>
 #include <linux/interrupt.h>
-#include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -18,13 +21,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
-#include <linux/amba/pl080.h>
-
-#include <crypto/hash.h>
-#include <crypto/scatterwalk.h>
-#include <crypto/internal/hash.h>
-
-#include "jh7110-cryp.h"
 
 #define STARFIVE_HASH_REGS_OFFSET	0x300
 #define STARFIVE_HASH_SHACSR		(STARFIVE_HASH_REGS_OFFSET + 0x0)
@@ -433,8 +429,6 @@ static int starfive_hash_init_tfm(struct crypto_ahash *hash,
 	ctx->keylen = 0;
 	ctx->hash_mode = mode;
 
-	ctx->enginectx.op.do_one_request = starfive_hash_one_request;
-
 	return 0;
 }
 
@@ -612,18 +606,18 @@ static int starfive_hmac_sm3_init_tfm(struct crypto_ahash *hash)
 				      STARFIVE_HASH_SM3);
 }
 
-static struct ahash_alg algs_sha2_sm3[] = {
+static struct ahash_engine_alg algs_sha2_sm3[] = {
 {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_sha224_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_sha224_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.halg = {
 		.digestsize = SHA224_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha256_state),
 		.base = {
@@ -638,19 +632,22 @@ static struct ahash_alg algs_sha2_sm3[] = {
 			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_hmac_sha224_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.setkey   = starfive_hash_setkey,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_hmac_sha224_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.setkey   = starfive_hash_setkey,
+	.base.halg = {
 		.digestsize = SHA224_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha256_state),
 		.base = {
@@ -665,18 +662,21 @@ static struct ahash_alg algs_sha2_sm3[] = {
 			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_sha256_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_sha256_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.halg = {
 		.digestsize = SHA256_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha256_state),
 		.base = {
@@ -691,19 +691,22 @@ static struct ahash_alg algs_sha2_sm3[] = {
 			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_hmac_sha256_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.setkey   = starfive_hash_setkey,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_hmac_sha256_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.setkey   = starfive_hash_setkey,
+	.base.halg = {
 		.digestsize = SHA256_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha256_state),
 		.base = {
@@ -718,18 +721,21 @@ static struct ahash_alg algs_sha2_sm3[] = {
 			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_sha384_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_sha384_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.halg = {
 		.digestsize = SHA384_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha512_state),
 		.base = {
@@ -744,19 +750,22 @@ static struct ahash_alg algs_sha2_sm3[] = {
 			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_hmac_sha384_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.setkey   = starfive_hash_setkey,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_hmac_sha384_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.setkey   = starfive_hash_setkey,
+	.base.halg = {
 		.digestsize = SHA384_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha512_state),
 		.base = {
@@ -771,18 +780,21 @@ static struct ahash_alg algs_sha2_sm3[] = {
 			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_sha512_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_sha512_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.halg = {
 		.digestsize = SHA512_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha512_state),
 		.base = {
@@ -797,19 +809,22 @@ static struct ahash_alg algs_sha2_sm3[] = {
 			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_hmac_sha512_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.setkey   = starfive_hash_setkey,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_hmac_sha512_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.setkey   = starfive_hash_setkey,
+	.base.halg = {
 		.digestsize = SHA512_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha512_state),
 		.base = {
@@ -824,18 +839,21 @@ static struct ahash_alg algs_sha2_sm3[] = {
 			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_sm3_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_sm3_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.halg = {
 		.digestsize = SM3_DIGEST_SIZE,
 		.statesize  = sizeof(struct sm3_state),
 		.base = {
@@ -850,19 +868,22 @@ static struct ahash_alg algs_sha2_sm3[] = {
 			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init	  = starfive_hash_init,
-	.update	  = starfive_hash_update,
-	.final	  = starfive_hash_final,
-	.finup	  = starfive_hash_finup,
-	.digest	  = starfive_hash_digest,
-	.export	  = starfive_hash_export,
-	.import	  = starfive_hash_import,
-	.init_tfm = starfive_hmac_sm3_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.setkey	  = starfive_hash_setkey,
-	.halg = {
+	.base.init	  = starfive_hash_init,
+	.base.update	  = starfive_hash_update,
+	.base.final	  = starfive_hash_final,
+	.base.finup	  = starfive_hash_finup,
+	.base.digest	  = starfive_hash_digest,
+	.base.export	  = starfive_hash_export,
+	.base.import	  = starfive_hash_import,
+	.base.init_tfm = starfive_hmac_sm3_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.setkey	  = starfive_hash_setkey,
+	.base.halg = {
 		.digestsize = SM3_DIGEST_SIZE,
 		.statesize  = sizeof(struct sm3_state),
 		.base = {
@@ -877,16 +898,19 @@ static struct ahash_alg algs_sha2_sm3[] = {
 			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 },
 };
 
 int starfive_hash_register_algs(void)
 {
-	return crypto_register_ahashes(algs_sha2_sm3, ARRAY_SIZE(algs_sha2_sm3));
+	return crypto_engine_register_ahashes(algs_sha2_sm3, ARRAY_SIZE(algs_sha2_sm3));
 }
 
 void starfive_hash_unregister_algs(void)
 {
-	crypto_unregister_ahashes(algs_sha2_sm3, ARRAY_SIZE(algs_sha2_sm3));
+	crypto_engine_unregister_ahashes(algs_sha2_sm3, ARRAY_SIZE(algs_sha2_sm3));
 }

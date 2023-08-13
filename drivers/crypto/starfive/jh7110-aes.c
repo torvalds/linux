@@ -5,12 +5,17 @@
  * Copyright (c) 2022 StarFive Technology
  */
 
-#include <linux/iopoll.h>
+#include <crypto/engine.h>
 #include <crypto/gcm.h>
-#include <crypto/scatterwalk.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/scatterwalk.h>
 #include "jh7110-cryp.h"
+#include <linux/err.h>
+#include <linux/iopoll.h>
+#include <linux/kernel.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 #define STARFIVE_AES_REGS_OFFSET	0x100
 #define STARFIVE_AES_AESDIO0R		(STARFIVE_AES_REGS_OFFSET + 0x0)
@@ -554,8 +559,6 @@ static int starfive_aes_init_tfm(struct crypto_skcipher *tfm)
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct starfive_cryp_request_ctx) +
 				    sizeof(struct skcipher_request));
 
-	ctx->enginectx.op.do_one_request = starfive_aes_do_one_req;
-
 	return 0;
 }
 
@@ -637,8 +640,6 @@ static int starfive_aes_aead_init_tfm(struct crypto_aead *tfm)
 
 	crypto_aead_set_reqsize(tfm, sizeof(struct starfive_cryp_ctx) +
 				sizeof(struct aead_request));
-
-	ctx->enginectx.op.do_one_request = starfive_aes_aead_do_one_req;
 
 	return 0;
 }
@@ -844,15 +845,15 @@ static int starfive_aes_ccm_decrypt(struct aead_request *req)
 	return starfive_aes_aead_crypt(req, STARFIVE_AES_MODE_CCM);
 }
 
-static struct skcipher_alg skcipher_algs[] = {
+static struct skcipher_engine_alg skcipher_algs[] = {
 {
-	.init				= starfive_aes_init_tfm,
-	.setkey				= starfive_aes_setkey,
-	.encrypt			= starfive_aes_ecb_encrypt,
-	.decrypt			= starfive_aes_ecb_decrypt,
-	.min_keysize			= AES_MIN_KEY_SIZE,
-	.max_keysize			= AES_MAX_KEY_SIZE,
-	.base = {
+	.base.init			= starfive_aes_init_tfm,
+	.base.setkey			= starfive_aes_setkey,
+	.base.encrypt			= starfive_aes_ecb_encrypt,
+	.base.decrypt			= starfive_aes_ecb_decrypt,
+	.base.min_keysize		= AES_MIN_KEY_SIZE,
+	.base.max_keysize		= AES_MAX_KEY_SIZE,
+	.base.base = {
 		.cra_name		= "ecb(aes)",
 		.cra_driver_name	= "starfive-ecb-aes",
 		.cra_priority		= 200,
@@ -862,15 +863,18 @@ static struct skcipher_alg skcipher_algs[] = {
 		.cra_alignmask		= 0xf,
 		.cra_module		= THIS_MODULE,
 	},
+	.op = {
+		.do_one_request = starfive_aes_do_one_req,
+	},
 }, {
-	.init				= starfive_aes_init_tfm,
-	.setkey				= starfive_aes_setkey,
-	.encrypt			= starfive_aes_cbc_encrypt,
-	.decrypt			= starfive_aes_cbc_decrypt,
-	.min_keysize			= AES_MIN_KEY_SIZE,
-	.max_keysize			= AES_MAX_KEY_SIZE,
-	.ivsize				= AES_BLOCK_SIZE,
-	.base = {
+	.base.init			= starfive_aes_init_tfm,
+	.base.setkey			= starfive_aes_setkey,
+	.base.encrypt			= starfive_aes_cbc_encrypt,
+	.base.decrypt			= starfive_aes_cbc_decrypt,
+	.base.min_keysize		= AES_MIN_KEY_SIZE,
+	.base.max_keysize		= AES_MAX_KEY_SIZE,
+	.base.ivsize			= AES_BLOCK_SIZE,
+	.base.base = {
 		.cra_name		= "cbc(aes)",
 		.cra_driver_name	= "starfive-cbc-aes",
 		.cra_priority		= 200,
@@ -880,15 +884,18 @@ static struct skcipher_alg skcipher_algs[] = {
 		.cra_alignmask		= 0xf,
 		.cra_module		= THIS_MODULE,
 	},
+	.op = {
+		.do_one_request = starfive_aes_do_one_req,
+	},
 }, {
-	.init				= starfive_aes_init_tfm,
-	.setkey				= starfive_aes_setkey,
-	.encrypt			= starfive_aes_ctr_encrypt,
-	.decrypt			= starfive_aes_ctr_decrypt,
-	.min_keysize			= AES_MIN_KEY_SIZE,
-	.max_keysize			= AES_MAX_KEY_SIZE,
-	.ivsize				= AES_BLOCK_SIZE,
-	.base = {
+	.base.init			= starfive_aes_init_tfm,
+	.base.setkey			= starfive_aes_setkey,
+	.base.encrypt			= starfive_aes_ctr_encrypt,
+	.base.decrypt			= starfive_aes_ctr_decrypt,
+	.base.min_keysize		= AES_MIN_KEY_SIZE,
+	.base.max_keysize		= AES_MAX_KEY_SIZE,
+	.base.ivsize			= AES_BLOCK_SIZE,
+	.base.base = {
 		.cra_name		= "ctr(aes)",
 		.cra_driver_name	= "starfive-ctr-aes",
 		.cra_priority		= 200,
@@ -898,15 +905,18 @@ static struct skcipher_alg skcipher_algs[] = {
 		.cra_alignmask		= 0xf,
 		.cra_module		= THIS_MODULE,
 	},
+	.op = {
+		.do_one_request = starfive_aes_do_one_req,
+	},
 }, {
-	.init				= starfive_aes_init_tfm,
-	.setkey				= starfive_aes_setkey,
-	.encrypt			= starfive_aes_cfb_encrypt,
-	.decrypt			= starfive_aes_cfb_decrypt,
-	.min_keysize			= AES_MIN_KEY_SIZE,
-	.max_keysize			= AES_MAX_KEY_SIZE,
-	.ivsize				= AES_BLOCK_SIZE,
-	.base = {
+	.base.init			= starfive_aes_init_tfm,
+	.base.setkey			= starfive_aes_setkey,
+	.base.encrypt			= starfive_aes_cfb_encrypt,
+	.base.decrypt			= starfive_aes_cfb_decrypt,
+	.base.min_keysize		= AES_MIN_KEY_SIZE,
+	.base.max_keysize		= AES_MAX_KEY_SIZE,
+	.base.ivsize			= AES_BLOCK_SIZE,
+	.base.base = {
 		.cra_name		= "cfb(aes)",
 		.cra_driver_name	= "starfive-cfb-aes",
 		.cra_priority		= 200,
@@ -916,15 +926,18 @@ static struct skcipher_alg skcipher_algs[] = {
 		.cra_alignmask		= 0xf,
 		.cra_module		= THIS_MODULE,
 	},
+	.op = {
+		.do_one_request = starfive_aes_do_one_req,
+	},
 }, {
-	.init				= starfive_aes_init_tfm,
-	.setkey				= starfive_aes_setkey,
-	.encrypt			= starfive_aes_ofb_encrypt,
-	.decrypt			= starfive_aes_ofb_decrypt,
-	.min_keysize			= AES_MIN_KEY_SIZE,
-	.max_keysize			= AES_MAX_KEY_SIZE,
-	.ivsize				= AES_BLOCK_SIZE,
-	.base = {
+	.base.init			= starfive_aes_init_tfm,
+	.base.setkey			= starfive_aes_setkey,
+	.base.encrypt			= starfive_aes_ofb_encrypt,
+	.base.decrypt			= starfive_aes_ofb_decrypt,
+	.base.min_keysize		= AES_MIN_KEY_SIZE,
+	.base.max_keysize		= AES_MAX_KEY_SIZE,
+	.base.ivsize			= AES_BLOCK_SIZE,
+	.base.base = {
 		.cra_name		= "ofb(aes)",
 		.cra_driver_name	= "starfive-ofb-aes",
 		.cra_priority		= 200,
@@ -934,20 +947,23 @@ static struct skcipher_alg skcipher_algs[] = {
 		.cra_alignmask		= 0xf,
 		.cra_module		= THIS_MODULE,
 	},
+	.op = {
+		.do_one_request = starfive_aes_do_one_req,
+	},
 },
 };
 
-static struct aead_alg aead_algs[] = {
+static struct aead_engine_alg aead_algs[] = {
 {
-	.setkey                         = starfive_aes_aead_setkey,
-	.setauthsize                    = starfive_aes_gcm_setauthsize,
-	.encrypt                        = starfive_aes_gcm_encrypt,
-	.decrypt                        = starfive_aes_gcm_decrypt,
-	.init                           = starfive_aes_aead_init_tfm,
-	.exit                           = starfive_aes_aead_exit_tfm,
-	.ivsize                         = GCM_AES_IV_SIZE,
-	.maxauthsize                    = AES_BLOCK_SIZE,
-	.base = {
+	.base.setkey			= starfive_aes_aead_setkey,
+	.base.setauthsize		= starfive_aes_gcm_setauthsize,
+	.base.encrypt			= starfive_aes_gcm_encrypt,
+	.base.decrypt			= starfive_aes_gcm_decrypt,
+	.base.init			= starfive_aes_aead_init_tfm,
+	.base.exit			= starfive_aes_aead_exit_tfm,
+	.base.ivsize			= GCM_AES_IV_SIZE,
+	.base.maxauthsize		= AES_BLOCK_SIZE,
+	.base.base = {
 		.cra_name               = "gcm(aes)",
 		.cra_driver_name        = "starfive-gcm-aes",
 		.cra_priority           = 200,
@@ -957,16 +973,19 @@ static struct aead_alg aead_algs[] = {
 		.cra_alignmask          = 0xf,
 		.cra_module             = THIS_MODULE,
 	},
+	.op = {
+		.do_one_request = starfive_aes_aead_do_one_req,
+	},
 }, {
-	.setkey		                = starfive_aes_aead_setkey,
-	.setauthsize	                = starfive_aes_ccm_setauthsize,
-	.encrypt	                = starfive_aes_ccm_encrypt,
-	.decrypt	                = starfive_aes_ccm_decrypt,
-	.init		                = starfive_aes_aead_init_tfm,
-	.exit		                = starfive_aes_aead_exit_tfm,
-	.ivsize		                = AES_BLOCK_SIZE,
-	.maxauthsize	                = AES_BLOCK_SIZE,
-	.base = {
+	.base.setkey			= starfive_aes_aead_setkey,
+	.base.setauthsize		= starfive_aes_ccm_setauthsize,
+	.base.encrypt			= starfive_aes_ccm_encrypt,
+	.base.decrypt			= starfive_aes_ccm_decrypt,
+	.base.init			= starfive_aes_aead_init_tfm,
+	.base.exit			= starfive_aes_aead_exit_tfm,
+	.base.ivsize			= AES_BLOCK_SIZE,
+	.base.maxauthsize		= AES_BLOCK_SIZE,
+	.base.base = {
 		.cra_name		= "ccm(aes)",
 		.cra_driver_name	= "starfive-ccm-aes",
 		.cra_priority		= 200,
@@ -977,6 +996,9 @@ static struct aead_alg aead_algs[] = {
 		.cra_alignmask		= 0xf,
 		.cra_module		= THIS_MODULE,
 	},
+	.op = {
+		.do_one_request = starfive_aes_aead_do_one_req,
+	},
 },
 };
 
@@ -984,19 +1006,19 @@ int starfive_aes_register_algs(void)
 {
 	int ret;
 
-	ret = crypto_register_skciphers(skcipher_algs, ARRAY_SIZE(skcipher_algs));
+	ret = crypto_engine_register_skciphers(skcipher_algs, ARRAY_SIZE(skcipher_algs));
 	if (ret)
 		return ret;
 
-	ret = crypto_register_aeads(aead_algs, ARRAY_SIZE(aead_algs));
+	ret = crypto_engine_register_aeads(aead_algs, ARRAY_SIZE(aead_algs));
 	if (ret)
-		crypto_unregister_skciphers(skcipher_algs, ARRAY_SIZE(skcipher_algs));
+		crypto_engine_unregister_skciphers(skcipher_algs, ARRAY_SIZE(skcipher_algs));
 
 	return ret;
 }
 
 void starfive_aes_unregister_algs(void)
 {
-	crypto_unregister_aeads(aead_algs, ARRAY_SIZE(aead_algs));
-	crypto_unregister_skciphers(skcipher_algs, ARRAY_SIZE(skcipher_algs));
+	crypto_engine_unregister_aeads(aead_algs, ARRAY_SIZE(aead_algs));
+	crypto_engine_unregister_skciphers(skcipher_algs, ARRAY_SIZE(skcipher_algs));
 }

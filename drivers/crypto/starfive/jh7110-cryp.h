@@ -3,7 +3,6 @@
 #define __STARFIVE_STR_H__
 
 #include <crypto/aes.h>
-#include <crypto/engine.h>
 #include <crypto/hash.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/sha2.h>
@@ -151,7 +150,6 @@ union starfive_alg_cr {
 };
 
 struct starfive_cryp_ctx {
-	struct crypto_engine_ctx		enginectx;
 	struct starfive_cryp_dev		*cryp;
 	struct starfive_cryp_request_ctx	*rctx;
 
