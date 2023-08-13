@@ -7,18 +7,21 @@
  * Copyright (c) 2016 Texas Instruments Incorporated
  */
 
-#include <linux/errno.h>
-#include <linux/scatterlist.h>
-#include <linux/dma-mapping.h>
-#include <linux/dmaengine.h>
-#include <linux/omap-dma.h>
-#include <linux/interrupt.h>
-#include <linux/pm_runtime.h>
 #include <crypto/aes.h>
+#include <crypto/engine.h>
 #include <crypto/gcm.h>
+#include <crypto/internal/aead.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/skcipher.h>
-#include <crypto/internal/aead.h>
+#include <linux/errno.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/omap-dma.h>
+#include <linux/pm_runtime.h>
+#include <linux/scatterlist.h>
+#include <linux/string.h>
 
 #include "omap-crypto.h"
 #include "omap-aes.h"
@@ -354,7 +357,7 @@ int omap_aes_4106gcm_setauthsize(struct crypto_aead *parent,
 	return crypto_rfc4106_check_authsize(authsize);
 }
 
-static int omap_aes_gcm_crypt_req(struct crypto_engine *engine, void *areq)
+int omap_aes_gcm_crypt_req(struct crypto_engine *engine, void *areq)
 {
 	struct aead_request *req = container_of(areq, struct aead_request,
 						base);
@@ -379,10 +382,6 @@ static int omap_aes_gcm_crypt_req(struct crypto_engine *engine, void *areq)
 
 int omap_aes_gcm_cra_init(struct crypto_aead *tfm)
 {
-	struct omap_aes_ctx *ctx = crypto_aead_ctx(tfm);
-
-	ctx->enginectx.op.do_one_request = omap_aes_gcm_crypt_req;
-
 	crypto_aead_set_reqsize(tfm, sizeof(struct omap_aes_reqctx));
 
 	return 0;

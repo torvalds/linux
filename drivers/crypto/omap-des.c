@@ -16,27 +16,25 @@
 #define prx(num)  do { } while (0)
 #endif
 
-#include <linux/err.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
-#include <linux/scatterlist.h>
+#include <crypto/engine.h>
+#include <crypto/internal/des.h>
+#include <crypto/internal/skcipher.h>
+#include <crypto/scatterwalk.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/pm_runtime.h>
+#include <linux/err.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
-#include <linux/io.h>
-#include <linux/crypto.h>
-#include <linux/interrupt.h>
-#include <crypto/scatterwalk.h>
-#include <crypto/internal/des.h>
-#include <crypto/internal/skcipher.h>
-#include <crypto/algapi.h>
-#include <crypto/engine.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/scatterlist.h>
+#include <linux/string.h>
 
 #include "omap-crypto.h"
 
@@ -83,7 +81,6 @@
 #define FLAGS_OUT_DATA_ST_SHIFT	10
 
 struct omap_des_ctx {
-	struct crypto_engine_ctx enginectx;
 	struct omap_des_dev *dd;
 
 	int		keylen;
@@ -99,9 +96,9 @@ struct omap_des_reqctx {
 #define OMAP_DES_CACHE_SIZE	0
 
 struct omap_des_algs_info {
-	struct skcipher_alg	*algs_list;
-	unsigned int		size;
-	unsigned int		registered;
+	struct skcipher_engine_alg	*algs_list;
+	unsigned int			size;
+	unsigned int			registered;
 };
 
 struct omap_des_pdata {
@@ -707,89 +704,97 @@ static int omap_des_cbc_decrypt(struct skcipher_request *req)
 
 static int omap_des_init_tfm(struct crypto_skcipher *tfm)
 {
-	struct omap_des_ctx *ctx = crypto_skcipher_ctx(tfm);
-
 	pr_debug("enter\n");
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct omap_des_reqctx));
-
-	ctx->enginectx.op.do_one_request = omap_des_crypt_req;
 
 	return 0;
 }
 
 /* ********************** ALGS ************************************ */
 
-static struct skcipher_alg algs_ecb_cbc[] = {
+static struct skcipher_engine_alg algs_ecb_cbc[] = {
 {
-	.base.cra_name		= "ecb(des)",
-	.base.cra_driver_name	= "ecb-des-omap",
-	.base.cra_priority	= 300,
-	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_ASYNC,
-	.base.cra_blocksize	= DES_BLOCK_SIZE,
-	.base.cra_ctxsize	= sizeof(struct omap_des_ctx),
-	.base.cra_module	= THIS_MODULE,
+	.base = {
+		.base.cra_name		= "ecb(des)",
+		.base.cra_driver_name	= "ecb-des-omap",
+		.base.cra_priority	= 300,
+		.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
+					  CRYPTO_ALG_ASYNC,
+		.base.cra_blocksize	= DES_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct omap_des_ctx),
+		.base.cra_module	= THIS_MODULE,
 
-	.min_keysize		= DES_KEY_SIZE,
-	.max_keysize		= DES_KEY_SIZE,
-	.setkey			= omap_des_setkey,
-	.encrypt		= omap_des_ecb_encrypt,
-	.decrypt		= omap_des_ecb_decrypt,
-	.init			= omap_des_init_tfm,
+		.min_keysize		= DES_KEY_SIZE,
+		.max_keysize		= DES_KEY_SIZE,
+		.setkey			= omap_des_setkey,
+		.encrypt		= omap_des_ecb_encrypt,
+		.decrypt		= omap_des_ecb_decrypt,
+		.init			= omap_des_init_tfm,
+	},
+	.op.do_one_request = omap_des_crypt_req,
 },
 {
-	.base.cra_name		= "cbc(des)",
-	.base.cra_driver_name	= "cbc-des-omap",
-	.base.cra_priority	= 300,
-	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_ASYNC,
-	.base.cra_blocksize	= DES_BLOCK_SIZE,
-	.base.cra_ctxsize	= sizeof(struct omap_des_ctx),
-	.base.cra_module	= THIS_MODULE,
+	.base = {
+		.base.cra_name		= "cbc(des)",
+		.base.cra_driver_name	= "cbc-des-omap",
+		.base.cra_priority	= 300,
+		.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
+					  CRYPTO_ALG_ASYNC,
+		.base.cra_blocksize	= DES_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct omap_des_ctx),
+		.base.cra_module	= THIS_MODULE,
 
-	.min_keysize		= DES_KEY_SIZE,
-	.max_keysize		= DES_KEY_SIZE,
-	.ivsize			= DES_BLOCK_SIZE,
-	.setkey			= omap_des_setkey,
-	.encrypt		= omap_des_cbc_encrypt,
-	.decrypt		= omap_des_cbc_decrypt,
-	.init			= omap_des_init_tfm,
+		.min_keysize		= DES_KEY_SIZE,
+		.max_keysize		= DES_KEY_SIZE,
+		.ivsize			= DES_BLOCK_SIZE,
+		.setkey			= omap_des_setkey,
+		.encrypt		= omap_des_cbc_encrypt,
+		.decrypt		= omap_des_cbc_decrypt,
+		.init			= omap_des_init_tfm,
+	},
+	.op.do_one_request = omap_des_crypt_req,
 },
 {
-	.base.cra_name		= "ecb(des3_ede)",
-	.base.cra_driver_name	= "ecb-des3-omap",
-	.base.cra_priority	= 300,
-	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_ASYNC,
-	.base.cra_blocksize	= DES3_EDE_BLOCK_SIZE,
-	.base.cra_ctxsize	= sizeof(struct omap_des_ctx),
-	.base.cra_module	= THIS_MODULE,
+	.base = {
+		.base.cra_name		= "ecb(des3_ede)",
+		.base.cra_driver_name	= "ecb-des3-omap",
+		.base.cra_priority	= 300,
+		.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
+					  CRYPTO_ALG_ASYNC,
+		.base.cra_blocksize	= DES3_EDE_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct omap_des_ctx),
+		.base.cra_module	= THIS_MODULE,
 
-	.min_keysize		= DES3_EDE_KEY_SIZE,
-	.max_keysize		= DES3_EDE_KEY_SIZE,
-	.setkey			= omap_des3_setkey,
-	.encrypt		= omap_des_ecb_encrypt,
-	.decrypt		= omap_des_ecb_decrypt,
-	.init			= omap_des_init_tfm,
+		.min_keysize		= DES3_EDE_KEY_SIZE,
+		.max_keysize		= DES3_EDE_KEY_SIZE,
+		.setkey			= omap_des3_setkey,
+		.encrypt		= omap_des_ecb_encrypt,
+		.decrypt		= omap_des_ecb_decrypt,
+		.init			= omap_des_init_tfm,
+	},
+	.op.do_one_request = omap_des_crypt_req,
 },
 {
-	.base.cra_name		= "cbc(des3_ede)",
-	.base.cra_driver_name	= "cbc-des3-omap",
-	.base.cra_priority	= 300,
-	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_ASYNC,
-	.base.cra_blocksize	= DES3_EDE_BLOCK_SIZE,
-	.base.cra_ctxsize	= sizeof(struct omap_des_ctx),
-	.base.cra_module	= THIS_MODULE,
+	.base = {
+		.base.cra_name		= "cbc(des3_ede)",
+		.base.cra_driver_name	= "cbc-des3-omap",
+		.base.cra_priority	= 300,
+		.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
+					  CRYPTO_ALG_ASYNC,
+		.base.cra_blocksize	= DES3_EDE_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct omap_des_ctx),
+		.base.cra_module	= THIS_MODULE,
 
-	.min_keysize		= DES3_EDE_KEY_SIZE,
-	.max_keysize		= DES3_EDE_KEY_SIZE,
-	.ivsize			= DES3_EDE_BLOCK_SIZE,
-	.setkey			= omap_des3_setkey,
-	.encrypt		= omap_des_cbc_encrypt,
-	.decrypt		= omap_des_cbc_decrypt,
-	.init			= omap_des_init_tfm,
+		.min_keysize		= DES3_EDE_KEY_SIZE,
+		.max_keysize		= DES3_EDE_KEY_SIZE,
+		.ivsize			= DES3_EDE_BLOCK_SIZE,
+		.setkey			= omap_des3_setkey,
+		.encrypt		= omap_des_cbc_encrypt,
+		.decrypt		= omap_des_cbc_decrypt,
+		.init			= omap_des_init_tfm,
+	},
+	.op.do_one_request = omap_des_crypt_req,
 }
 };
 
@@ -947,7 +952,7 @@ static int omap_des_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct omap_des_dev *dd;
-	struct skcipher_alg *algp;
+	struct skcipher_engine_alg *algp;
 	struct resource *res;
 	int err = -ENOMEM, i, j, irq = -1;
 	u32 reg;
@@ -1035,9 +1040,9 @@ static int omap_des_probe(struct platform_device *pdev)
 		for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
 			algp = &dd->pdata->algs_info[i].algs_list[j];
 
-			pr_debug("reg alg: %s\n", algp->base.cra_name);
+			pr_debug("reg alg: %s\n", algp->base.base.cra_name);
 
-			err = crypto_register_skcipher(algp);
+			err = crypto_engine_register_skcipher(algp);
 			if (err)
 				goto err_algs;
 
@@ -1050,7 +1055,7 @@ static int omap_des_probe(struct platform_device *pdev)
 err_algs:
 	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
 		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
-			crypto_unregister_skcipher(
+			crypto_engine_unregister_skcipher(
 					&dd->pdata->algs_info[i].algs_list[j]);
 
 err_engine:
@@ -1080,7 +1085,7 @@ static int omap_des_remove(struct platform_device *pdev)
 
 	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
 		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
-			crypto_unregister_skcipher(
+			crypto_engine_unregister_skcipher(
 					&dd->pdata->algs_info[i].algs_list[j]);
 
 	tasklet_kill(&dd->done_task);
