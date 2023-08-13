@@ -16,7 +16,6 @@
  *
  */
 
-#include <media/videobuf-vmalloc.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-event.h>
 
