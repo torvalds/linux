@@ -82,19 +82,3 @@ config V4L2_CCI_I2C
 	depends on I2C
 	select REGMAP_I2C
 	select V4L2_CCI
-
-# Used by drivers that need Videobuf modules
-config VIDEOBUF_GEN
-	tristate
-
-config VIDEOBUF_DMA_SG
-	tristate
-	select VIDEOBUF_GEN
-
-config VIDEOBUF_VMALLOC
-	tristate
-	select VIDEOBUF_GEN
-
-config VIDEOBUF_DMA_CONTIG
-	tristate
-	select VIDEOBUF_GEN
