@@ -5,19 +5,20 @@
  * Copyright (C) 2018-2020 Intel Corporation
  */
 
-#include <linux/completion.h>
-#include <linux/delay.h>
-#include <linux/dma-mapping.h>
-#include <linux/interrupt.h>
-#include <linux/module.h>
-#include <linux/of_device.h>
-
 #include <crypto/engine.h>
+#include <crypto/hmac.h>
+#include <crypto/internal/hash.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/sha2.h>
 #include <crypto/sm3.h>
-#include <crypto/hmac.h>
-#include <crypto/internal/hash.h>
+#include <linux/completion.h>
+#include <linux/dma-mapping.h>
+#include <linux/err.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/string.h>
 
 #include "ocs-hcu.h"
 
@@ -34,7 +35,6 @@
 
 /**
  * struct ocs_hcu_ctx: OCS HCU Transform context.
- * @engine_ctx:	 Crypto Engine context.
  * @hcu_dev:	 The OCS HCU device used by the transformation.
  * @key:	 The key (used only for HMAC transformations).
  * @key_len:	 The length of the key.
@@ -42,7 +42,6 @@
  * @is_hmac_tfm: Whether or not this is a HMAC transformation.
  */
 struct ocs_hcu_ctx {
-	struct crypto_engine_ctx engine_ctx;
 	struct ocs_hcu_dev *hcu_dev;
 	u8 key[SHA512_BLOCK_SIZE];
 	size_t key_len;
@@ -824,11 +823,6 @@ static void __cra_init(struct crypto_tfm *tfm, struct ocs_hcu_ctx *ctx)
 {
 	crypto_ahash_set_reqsize_dma(__crypto_ahash_cast(tfm),
 				     sizeof(struct ocs_hcu_rctx));
-
-	/* Init context to 0. */
-	memzero_explicit(ctx, sizeof(*ctx));
-	/* Set engine ops. */
-	ctx->engine_ctx.op.do_one_request = kmb_ocs_hcu_do_one_request;
 }
 
 static int kmb_ocs_hcu_sha_cra_init(struct crypto_tfm *tfm)
@@ -883,17 +877,17 @@ static void kmb_ocs_hcu_hmac_cra_exit(struct crypto_tfm *tfm)
 	memzero_explicit(ctx->key, sizeof(ctx->key));
 }
 
-static struct ahash_alg ocs_hcu_algs[] = {
+static struct ahash_engine_alg ocs_hcu_algs[] = {
 #ifdef CONFIG_CRYPTO_DEV_KEEMBAY_OCS_HCU_HMAC_SHA224
 {
-	.init		= kmb_ocs_hcu_init,
-	.update		= kmb_ocs_hcu_update,
-	.final		= kmb_ocs_hcu_final,
-	.finup		= kmb_ocs_hcu_finup,
-	.digest		= kmb_ocs_hcu_digest,
-	.export		= kmb_ocs_hcu_export,
-	.import		= kmb_ocs_hcu_import,
-	.halg = {
+	.base.init		= kmb_ocs_hcu_init,
+	.base.update		= kmb_ocs_hcu_update,
+	.base.final		= kmb_ocs_hcu_final,
+	.base.finup		= kmb_ocs_hcu_finup,
+	.base.digest		= kmb_ocs_hcu_digest,
+	.base.export		= kmb_ocs_hcu_export,
+	.base.import		= kmb_ocs_hcu_import,
+	.base.halg = {
 		.digestsize	= SHA224_DIGEST_SIZE,
 		.statesize	= sizeof(struct ocs_hcu_rctx),
 		.base	= {
@@ -907,18 +901,19 @@ static struct ahash_alg ocs_hcu_algs[] = {
 			.cra_module		= THIS_MODULE,
 			.cra_init		= kmb_ocs_hcu_sha_cra_init,
 		}
-	}
+	},
+	.op.do_one_request = kmb_ocs_hcu_do_one_request,
 },
 {
-	.init		= kmb_ocs_hcu_init,
-	.update		= kmb_ocs_hcu_update,
-	.final		= kmb_ocs_hcu_final,
-	.finup		= kmb_ocs_hcu_finup,
-	.digest		= kmb_ocs_hcu_digest,
-	.export		= kmb_ocs_hcu_export,
-	.import		= kmb_ocs_hcu_import,
-	.setkey		= kmb_ocs_hcu_setkey,
-	.halg = {
+	.base.init		= kmb_ocs_hcu_init,
+	.base.update		= kmb_ocs_hcu_update,
+	.base.final		= kmb_ocs_hcu_final,
+	.base.finup		= kmb_ocs_hcu_finup,
+	.base.digest		= kmb_ocs_hcu_digest,
+	.base.export		= kmb_ocs_hcu_export,
+	.base.import		= kmb_ocs_hcu_import,
+	.base.setkey		= kmb_ocs_hcu_setkey,
+	.base.halg = {
 		.digestsize	= SHA224_DIGEST_SIZE,
 		.statesize	= sizeof(struct ocs_hcu_rctx),
 		.base	= {
@@ -933,18 +928,19 @@ static struct ahash_alg ocs_hcu_algs[] = {
 			.cra_init		= kmb_ocs_hcu_hmac_cra_init,
 			.cra_exit		= kmb_ocs_hcu_hmac_cra_exit,
 		}
-	}
+	},
+	.op.do_one_request = kmb_ocs_hcu_do_one_request,
 },
 #endif /* CONFIG_CRYPTO_DEV_KEEMBAY_OCS_HCU_HMAC_SHA224 */
 {
-	.init		= kmb_ocs_hcu_init,
-	.update		= kmb_ocs_hcu_update,
-	.final		= kmb_ocs_hcu_final,
-	.finup		= kmb_ocs_hcu_finup,
-	.digest		= kmb_ocs_hcu_digest,
-	.export		= kmb_ocs_hcu_export,
-	.import		= kmb_ocs_hcu_import,
-	.halg = {
+	.base.init		= kmb_ocs_hcu_init,
+	.base.update		= kmb_ocs_hcu_update,
+	.base.final		= kmb_ocs_hcu_final,
+	.base.finup		= kmb_ocs_hcu_finup,
+	.base.digest		= kmb_ocs_hcu_digest,
+	.base.export		= kmb_ocs_hcu_export,
+	.base.import		= kmb_ocs_hcu_import,
+	.base.halg = {
 		.digestsize	= SHA256_DIGEST_SIZE,
 		.statesize	= sizeof(struct ocs_hcu_rctx),
 		.base	= {
@@ -958,18 +954,19 @@ static struct ahash_alg ocs_hcu_algs[] = {
 			.cra_module		= THIS_MODULE,
 			.cra_init		= kmb_ocs_hcu_sha_cra_init,
 		}
-	}
+	},
+	.op.do_one_request = kmb_ocs_hcu_do_one_request,
 },
 {
-	.init		= kmb_ocs_hcu_init,
-	.update		= kmb_ocs_hcu_update,
-	.final		= kmb_ocs_hcu_final,
-	.finup		= kmb_ocs_hcu_finup,
-	.digest		= kmb_ocs_hcu_digest,
-	.export		= kmb_ocs_hcu_export,
-	.import		= kmb_ocs_hcu_import,
-	.setkey		= kmb_ocs_hcu_setkey,
-	.halg = {
+	.base.init		= kmb_ocs_hcu_init,
+	.base.update		= kmb_ocs_hcu_update,
+	.base.final		= kmb_ocs_hcu_final,
+	.base.finup		= kmb_ocs_hcu_finup,
+	.base.digest		= kmb_ocs_hcu_digest,
+	.base.export		= kmb_ocs_hcu_export,
+	.base.import		= kmb_ocs_hcu_import,
+	.base.setkey		= kmb_ocs_hcu_setkey,
+	.base.halg = {
 		.digestsize	= SHA256_DIGEST_SIZE,
 		.statesize	= sizeof(struct ocs_hcu_rctx),
 		.base	= {
@@ -984,17 +981,18 @@ static struct ahash_alg ocs_hcu_algs[] = {
 			.cra_init		= kmb_ocs_hcu_hmac_cra_init,
 			.cra_exit		= kmb_ocs_hcu_hmac_cra_exit,
 		}
-	}
+	},
+	.op.do_one_request = kmb_ocs_hcu_do_one_request,
 },
 {
-	.init		= kmb_ocs_hcu_init,
-	.update		= kmb_ocs_hcu_update,
-	.final		= kmb_ocs_hcu_final,
-	.finup		= kmb_ocs_hcu_finup,
-	.digest		= kmb_ocs_hcu_digest,
-	.export		= kmb_ocs_hcu_export,
-	.import		= kmb_ocs_hcu_import,
-	.halg = {
+	.base.init		= kmb_ocs_hcu_init,
+	.base.update		= kmb_ocs_hcu_update,
+	.base.final		= kmb_ocs_hcu_final,
+	.base.finup		= kmb_ocs_hcu_finup,
+	.base.digest		= kmb_ocs_hcu_digest,
+	.base.export		= kmb_ocs_hcu_export,
+	.base.import		= kmb_ocs_hcu_import,
+	.base.halg = {
 		.digestsize	= SM3_DIGEST_SIZE,
 		.statesize	= sizeof(struct ocs_hcu_rctx),
 		.base	= {
@@ -1008,18 +1006,19 @@ static struct ahash_alg ocs_hcu_algs[] = {
 			.cra_module		= THIS_MODULE,
 			.cra_init		= kmb_ocs_hcu_sm3_cra_init,
 		}
-	}
+	},
+	.op.do_one_request = kmb_ocs_hcu_do_one_request,
 },
 {
-	.init		= kmb_ocs_hcu_init,
-	.update		= kmb_ocs_hcu_update,
-	.final		= kmb_ocs_hcu_final,
-	.finup		= kmb_ocs_hcu_finup,
-	.digest		= kmb_ocs_hcu_digest,
-	.export		= kmb_ocs_hcu_export,
-	.import		= kmb_ocs_hcu_import,
-	.setkey		= kmb_ocs_hcu_setkey,
-	.halg = {
+	.base.init		= kmb_ocs_hcu_init,
+	.base.update		= kmb_ocs_hcu_update,
+	.base.final		= kmb_ocs_hcu_final,
+	.base.finup		= kmb_ocs_hcu_finup,
+	.base.digest		= kmb_ocs_hcu_digest,
+	.base.export		= kmb_ocs_hcu_export,
+	.base.import		= kmb_ocs_hcu_import,
+	.base.setkey		= kmb_ocs_hcu_setkey,
+	.base.halg = {
 		.digestsize	= SM3_DIGEST_SIZE,
 		.statesize	= sizeof(struct ocs_hcu_rctx),
 		.base	= {
@@ -1034,17 +1033,18 @@ static struct ahash_alg ocs_hcu_algs[] = {
 			.cra_init		= kmb_ocs_hcu_hmac_sm3_cra_init,
 			.cra_exit		= kmb_ocs_hcu_hmac_cra_exit,
 		}
-	}
+	},
+	.op.do_one_request = kmb_ocs_hcu_do_one_request,
 },
 {
-	.init		= kmb_ocs_hcu_init,
-	.update		= kmb_ocs_hcu_update,
-	.final		= kmb_ocs_hcu_final,
-	.finup		= kmb_ocs_hcu_finup,
-	.digest		= kmb_ocs_hcu_digest,
-	.export		= kmb_ocs_hcu_export,
-	.import		= kmb_ocs_hcu_import,
-	.halg = {
+	.base.init		= kmb_ocs_hcu_init,
+	.base.update		= kmb_ocs_hcu_update,
+	.base.final		= kmb_ocs_hcu_final,
+	.base.finup		= kmb_ocs_hcu_finup,
+	.base.digest		= kmb_ocs_hcu_digest,
+	.base.export		= kmb_ocs_hcu_export,
+	.base.import		= kmb_ocs_hcu_import,
+	.base.halg = {
 		.digestsize	= SHA384_DIGEST_SIZE,
 		.statesize	= sizeof(struct ocs_hcu_rctx),
 		.base	= {
@@ -1058,18 +1058,19 @@ static struct ahash_alg ocs_hcu_algs[] = {
 			.cra_module		= THIS_MODULE,
 			.cra_init		= kmb_ocs_hcu_sha_cra_init,
 		}
-	}
+	},
+	.op.do_one_request = kmb_ocs_hcu_do_one_request,
 },
 {
-	.init		= kmb_ocs_hcu_init,
-	.update		= kmb_ocs_hcu_update,
-	.final		= kmb_ocs_hcu_final,
-	.finup		= kmb_ocs_hcu_finup,
-	.digest		= kmb_ocs_hcu_digest,
-	.export		= kmb_ocs_hcu_export,
-	.import		= kmb_ocs_hcu_import,
-	.setkey		= kmb_ocs_hcu_setkey,
-	.halg = {
+	.base.init		= kmb_ocs_hcu_init,
+	.base.update		= kmb_ocs_hcu_update,
+	.base.final		= kmb_ocs_hcu_final,
+	.base.finup		= kmb_ocs_hcu_finup,
+	.base.digest		= kmb_ocs_hcu_digest,
+	.base.export		= kmb_ocs_hcu_export,
+	.base.import		= kmb_ocs_hcu_import,
+	.base.setkey		= kmb_ocs_hcu_setkey,
+	.base.halg = {
 		.digestsize	= SHA384_DIGEST_SIZE,
 		.statesize	= sizeof(struct ocs_hcu_rctx),
 		.base	= {
@@ -1084,17 +1085,18 @@ static struct ahash_alg ocs_hcu_algs[] = {
 			.cra_init		= kmb_ocs_hcu_hmac_cra_init,
 			.cra_exit		= kmb_ocs_hcu_hmac_cra_exit,
 		}
-	}
+	},
+	.op.do_one_request = kmb_ocs_hcu_do_one_request,
 },
 {
-	.init		= kmb_ocs_hcu_init,
-	.update		= kmb_ocs_hcu_update,
-	.final		= kmb_ocs_hcu_final,
-	.finup		= kmb_ocs_hcu_finup,
-	.digest		= kmb_ocs_hcu_digest,
-	.export		= kmb_ocs_hcu_export,
-	.import		= kmb_ocs_hcu_import,
-	.halg = {
+	.base.init		= kmb_ocs_hcu_init,
+	.base.update		= kmb_ocs_hcu_update,
+	.base.final		= kmb_ocs_hcu_final,
+	.base.finup		= kmb_ocs_hcu_finup,
+	.base.digest		= kmb_ocs_hcu_digest,
+	.base.export		= kmb_ocs_hcu_export,
+	.base.import		= kmb_ocs_hcu_import,
+	.base.halg = {
 		.digestsize	= SHA512_DIGEST_SIZE,
 		.statesize	= sizeof(struct ocs_hcu_rctx),
 		.base	= {
@@ -1108,18 +1110,19 @@ static struct ahash_alg ocs_hcu_algs[] = {
 			.cra_module		= THIS_MODULE,
 			.cra_init		= kmb_ocs_hcu_sha_cra_init,
 		}
-	}
+	},
+	.op.do_one_request = kmb_ocs_hcu_do_one_request,
 },
 {
-	.init		= kmb_ocs_hcu_init,
-	.update		= kmb_ocs_hcu_update,
-	.final		= kmb_ocs_hcu_final,
-	.finup		= kmb_ocs_hcu_finup,
-	.digest		= kmb_ocs_hcu_digest,
-	.export		= kmb_ocs_hcu_export,
-	.import		= kmb_ocs_hcu_import,
-	.setkey		= kmb_ocs_hcu_setkey,
-	.halg = {
+	.base.init		= kmb_ocs_hcu_init,
+	.base.update		= kmb_ocs_hcu_update,
+	.base.final		= kmb_ocs_hcu_final,
+	.base.finup		= kmb_ocs_hcu_finup,
+	.base.digest		= kmb_ocs_hcu_digest,
+	.base.export		= kmb_ocs_hcu_export,
+	.base.import		= kmb_ocs_hcu_import,
+	.base.setkey		= kmb_ocs_hcu_setkey,
+	.base.halg = {
 		.digestsize	= SHA512_DIGEST_SIZE,
 		.statesize	= sizeof(struct ocs_hcu_rctx),
 		.base	= {
@@ -1134,7 +1137,8 @@ static struct ahash_alg ocs_hcu_algs[] = {
 			.cra_init		= kmb_ocs_hcu_hmac_cra_init,
 			.cra_exit		= kmb_ocs_hcu_hmac_cra_exit,
 		}
-	}
+	},
+	.op.do_one_request = kmb_ocs_hcu_do_one_request,
 },
 };
 
@@ -1155,7 +1159,7 @@ static int kmb_ocs_hcu_remove(struct platform_device *pdev)
 	if (!hcu_dev)
 		return -ENODEV;
 
-	crypto_unregister_ahashes(ocs_hcu_algs, ARRAY_SIZE(ocs_hcu_algs));
+	crypto_engine_unregister_ahashes(ocs_hcu_algs, ARRAY_SIZE(ocs_hcu_algs));
 
 	rc = crypto_engine_exit(hcu_dev->engine);
 
@@ -1223,7 +1227,7 @@ static int kmb_ocs_hcu_probe(struct platform_device *pdev)
 
 	/* Security infrastructure guarantees OCS clock is enabled. */
 
-	rc = crypto_register_ahashes(ocs_hcu_algs, ARRAY_SIZE(ocs_hcu_algs));
+	rc = crypto_engine_register_ahashes(ocs_hcu_algs, ARRAY_SIZE(ocs_hcu_algs));
 	if (rc) {
 		dev_err(dev, "Could not register algorithms.\n");
 		goto cleanup;
