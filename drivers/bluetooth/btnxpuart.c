@@ -29,16 +29,25 @@
 #define BTNXPUART_CHECK_BOOT_SIGNATURE	3
 #define BTNXPUART_SERDEV_OPEN		4
 
-#define FIRMWARE_W8987	"nxp/uartuart8987_bt.bin"
-#define FIRMWARE_W8997	"nxp/uartuart8997_bt_v4.bin"
-#define FIRMWARE_W9098	"nxp/uartuart9098_bt_v1.bin"
-#define FIRMWARE_IW416	"nxp/uartiw416_bt_v0.bin"
-#define FIRMWARE_IW612	"nxp/uartspi_n61x_v1.bin.se"
-#define FIRMWARE_HELPER	"nxp/helper_uart_3000000.bin"
+#define FIRMWARE_W8987		"nxp/uartuart8987_bt.bin"
+#define FIRMWARE_W8997		"nxp/uartuart8997_bt_v4.bin"
+#define FIRMWARE_W9098		"nxp/uartuart9098_bt_v1.bin"
+#define FIRMWARE_IW416		"nxp/uartiw416_bt_v0.bin"
+#define FIRMWARE_IW612		"nxp/uartspi_n61x_v1.bin.se"
+#define FIRMWARE_AW693		"nxp/uartaw693_bt.bin"
+#define FIRMWARE_SECURE_AW693	"nxp/uartaw693_bt.bin.se"
+#define FIRMWARE_HELPER		"nxp/helper_uart_3000000.bin"
 
 #define CHIP_ID_W9098		0x5c03
 #define CHIP_ID_IW416		0x7201
 #define CHIP_ID_IW612		0x7601
+#define CHIP_ID_AW693		0x8200
+
+#define FW_SECURE_MASK		0xc0
+#define FW_OPEN			0x00
+#define FW_AUTH_ILLEGAL		0x40
+#define FW_AUTH_PLAIN		0x80
+#define FW_AUTH_ENC		0xc0
 
 #define HCI_NXP_PRI_BAUDRATE	115200
 #define HCI_NXP_SEC_BAUDRATE	3000000
@@ -665,6 +674,9 @@ static int nxp_request_firmware(struct hci_dev *hdev, const char *fw_name)
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	int err = 0;
 
+	if (!fw_name)
+		return -ENOENT;
+
 	if (!strlen(nxpdev->fw_name)) {
 		snprintf(nxpdev->fw_name, MAX_FW_FILE_NAME_LEN, "%s", fw_name);
 
@@ -812,7 +824,8 @@ free_skb:
 	return 0;
 }
 
-static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid)
+static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
+					 u8 loader_ver)
 {
 	char *fw_name = NULL;
 
@@ -826,6 +839,14 @@ static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid)
 	case CHIP_ID_IW612:
 		fw_name = FIRMWARE_IW612;
 		break;
+	case CHIP_ID_AW693:
+		if ((loader_ver & FW_SECURE_MASK) == FW_OPEN)
+			fw_name = FIRMWARE_AW693;
+		else if ((loader_ver & FW_SECURE_MASK) != FW_AUTH_ILLEGAL)
+			fw_name = FIRMWARE_SECURE_AW693;
+		else
+			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
+		break;
 	default:
 		bt_dev_err(hdev, "Unknown chip signature %04x", chipid);
 		break;
@@ -838,13 +859,15 @@ static int nxp_recv_chip_ver_v3(struct hci_dev *hdev, struct sk_buff *skb)
 	struct v3_start_ind *req = skb_pull_data(skb, sizeof(*req));
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	u16 chip_id;
+	u8 loader_ver;
 
 	if (!process_boot_signature(nxpdev))
 		goto free_skb;
 
 	chip_id = le16_to_cpu(req->chip_id);
+	loader_ver = req->loader_ver;
 	if (!nxp_request_firmware(hdev, nxp_get_fw_name_from_chipid(hdev,
-								    chip_id)))
+								    chip_id, loader_ver)))
 		nxp_send_ack(NXP_ACK_V3, hdev);
 
 free_skb:

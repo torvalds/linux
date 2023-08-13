@@ -309,6 +309,16 @@ enum {
 	 * to support it.
 	 */
 	HCI_QUIRK_BROKEN_SET_RPA_TIMEOUT,
+
+	/* When this quirk is set, MSFT extension monitor tracking by
+	 * address filter is supported. Since tracking quantity of each
+	 * pattern is limited, this feature supports tracking multiple
+	 * devices concurrently if controller supports multiple
+	 * address filters.
+	 *
+	 * This quirk must be set before hci_register_dev is called.
+	 */
+	HCI_QUIRK_USE_MSFT_EXT_ADDRESS_FILTER,
 };
 
 /* HCI device flags */
@@ -577,6 +587,7 @@ enum {
 #define HCI_LE_CIS_CENTRAL		0x10
 #define HCI_LE_CIS_PERIPHERAL		0x20
 #define HCI_LE_ISO_BROADCASTER		0x40
+#define HCI_LE_ISO_SYNC_RECEIVER	0x80
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
