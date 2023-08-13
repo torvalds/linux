@@ -163,15 +163,13 @@ void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c
 	prt_printf(out, " type %s", bch2_d_type_str(d.v->d_type));
 }
 
-static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
-				subvol_inum dir, u8 type,
-				const struct qstr *name, u64 dst)
+static struct bkey_i_dirent *dirent_alloc_key(struct btree_trans *trans,
+				subvol_inum dir,
+				u8 type,
+				int name_len, u64 dst)
 {
 	struct bkey_i_dirent *dirent;
-	unsigned u64s = BKEY_U64s + dirent_val_u64s(name->len);
-
-	if (name->len > BCH_NAME_MAX)
-		return ERR_PTR(-ENAMETOOLONG);
+	unsigned u64s = BKEY_U64s + dirent_val_u64s(name_len);
 
 	BUG_ON(u64s > U8_MAX);
 
@@ -191,11 +189,35 @@ static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
 
 	dirent->v.d_type = type;
 
-	memcpy(dirent->v.d_name, name->name, name->len);
-	memset(dirent->v.d_name + name->len, 0,
-	       bkey_val_bytes(&dirent->k) -
-	       offsetof(struct bch_dirent, d_name) -
-	       name->len);
+	return dirent;
+}
+
+static void dirent_init_regular_name(struct bkey_i_dirent *dirent,
+				     const struct qstr *name)
+{
+	memcpy(&dirent->v.d_name[0], name->name, name->len);
+	memset(&dirent->v.d_name[name->len], 0,
+		bkey_val_bytes(&dirent->k) -
+		offsetof(struct bch_dirent, d_name) -
+		name->len);
+}
+
+static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
+				subvol_inum dir,
+				u8 type,
+				const struct qstr *name,
+				u64 dst)
+{
+	struct bkey_i_dirent *dirent;
+
+	if (name->len > BCH_NAME_MAX)
+		return ERR_PTR(-ENAMETOOLONG);
+
+	dirent = dirent_alloc_key(trans, dir, type, name->len, dst);
+	if (IS_ERR(dirent))
+		return dirent;
+
+	dirent_init_regular_name(dirent, name);
 
 	EBUG_ON(bch2_dirent_name_bytes(dirent_i_to_s_c(dirent)) != name->len);
 
