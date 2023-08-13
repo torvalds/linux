@@ -476,8 +476,6 @@ static int virtio_crypto_rsa_init_tfm(struct crypto_akcipher *tfm)
 
 	ctx->tfm = tfm;
 	ctx->enginectx.op.do_one_request = virtio_crypto_rsa_do_req;
-	ctx->enginectx.op.prepare_request = NULL;
-	ctx->enginectx.op.unprepare_request = NULL;
 
 	akcipher_set_reqsize(tfm,
 			     sizeof(struct virtio_crypto_akcipher_request));
