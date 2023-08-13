@@ -222,7 +222,7 @@
 					 MLXPLAT_CPLD_AGGR_MASK_LC_SDWN)
 #define MLXPLAT_CPLD_LOW_AGGR_MASK_LOW	0xc1
 #define MLXPLAT_CPLD_LOW_AGGR_MASK_ASIC2	BIT(2)
-#define MLXPLAT_CPLD_LOW_AGGR_MASK_PWR_BUT	BIT(4)
+#define MLXPLAT_CPLD_LOW_AGGR_MASK_PWR_BUT	GENMASK(5, 4)
 #define MLXPLAT_CPLD_LOW_AGGR_MASK_I2C	BIT(6)
 #define MLXPLAT_CPLD_PSU_MASK		GENMASK(1, 0)
 #define MLXPLAT_CPLD_PWR_MASK		GENMASK(1, 0)
@@ -2356,7 +2356,7 @@ mlxplat_mlxcpld_l1_switch_pwr_events_handler(void *handle, enum mlxreg_hotplug_k
 					     u8 action)
 {
 	dev_info(&mlxplat_dev->dev, "System shutdown due to short press of power button");
-	kernel_halt();
+	kernel_power_off();
 	return 0;
 }
 
