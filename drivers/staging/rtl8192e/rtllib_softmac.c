@@ -909,85 +909,6 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 	return skb;
 }
 
-static struct sk_buff *rtllib_assoc_resp(struct rtllib_device *ieee, u8 *dest)
-{
-	struct sk_buff *skb;
-	u8 *tag;
-
-	struct lib80211_crypt_data *crypt;
-	struct rtllib_assoc_response_frame *assoc;
-	short encrypt;
-
-	unsigned int rate_len = rtllib_MFIE_rate_len(ieee);
-	int len = sizeof(struct rtllib_assoc_response_frame) + rate_len +
-		  ieee->tx_headroom;
-
-	skb = dev_alloc_skb(len);
-
-	if (!skb)
-		return NULL;
-
-	skb_reserve(skb, ieee->tx_headroom);
-
-	assoc = skb_put(skb, sizeof(struct rtllib_assoc_response_frame));
-
-	assoc->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_ASSOC_RESP);
-	ether_addr_copy(assoc->header.addr1, dest);
-	ether_addr_copy(assoc->header.addr3, ieee->dev->dev_addr);
-	ether_addr_copy(assoc->header.addr2, ieee->dev->dev_addr);
-	assoc->capability = cpu_to_le16(WLAN_CAPABILITY_IBSS);
-
-	assoc->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME);
-
-	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
-
-	encrypt = (crypt && crypt->ops);
-
-	if (encrypt)
-		assoc->capability |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);
-
-	assoc->status = 0;
-	assoc->aid = cpu_to_le16(ieee->assoc_id);
-	if (ieee->assoc_id == 0x2007)
-		ieee->assoc_id = 0;
-	else
-		ieee->assoc_id++;
-
-	tag = skb_put(skb, rate_len);
-	rtllib_MFIE_Brate(ieee, &tag);
-	rtllib_MFIE_Grate(ieee, &tag);
-
-	return skb;
-}
-
-static struct sk_buff *rtllib_auth_resp(struct rtllib_device *ieee, int status,
-				 u8 *dest)
-{
-	struct sk_buff *skb = NULL;
-	struct rtllib_authentication *auth;
-	int len = ieee->tx_headroom + sizeof(struct rtllib_authentication) + 1;
-
-	skb = dev_alloc_skb(len);
-	if (!skb)
-		return NULL;
-
-	skb->len = sizeof(struct rtllib_authentication);
-
-	skb_reserve(skb, ieee->tx_headroom);
-
-	auth = skb_put(skb, sizeof(struct rtllib_authentication));
-
-	auth->status = cpu_to_le16(status);
-	auth->transaction = cpu_to_le16(2);
-	auth->algorithm = cpu_to_le16(WLAN_AUTH_OPEN);
-
-	ether_addr_copy(auth->header.addr3, ieee->dev->dev_addr);
-	ether_addr_copy(auth->header.addr2, ieee->dev->dev_addr);
-	ether_addr_copy(auth->header.addr1, dest);
-	auth->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_AUTH);
-	return skb;
-}
-
 static struct sk_buff *rtllib_null_func(struct rtllib_device *ieee, short pwr)
 {
 	struct sk_buff *skb;
@@ -1033,22 +954,6 @@ static struct sk_buff *rtllib_pspoll_func(struct rtllib_device *ieee)
 			 RTLLIB_FCTL_PM);
 
 	return skb;
-}
-
-static void rtllib_resp_to_assoc_rq(struct rtllib_device *ieee, u8 *dest)
-{
-	struct sk_buff *buf = rtllib_assoc_resp(ieee, dest);
-
-	if (buf)
-		softmac_mgmt_xmit(buf, ieee);
-}
-
-static void rtllib_resp_to_auth(struct rtllib_device *ieee, int s, u8 *dest)
-{
-	struct sk_buff *buf = rtllib_auth_resp(ieee, s, dest);
-
-	if (buf)
-		softmac_mgmt_xmit(buf, ieee);
 }
 
 static void rtllib_resp_to_probe(struct rtllib_device *ieee, u8 *dest)
@@ -1708,25 +1613,6 @@ static inline int auth_parse(struct net_device *dev, struct sk_buff *skb,
 	return 0;
 }
 
-static int auth_rq_parse(struct net_device *dev, struct sk_buff *skb, u8 *dest)
-{
-	struct rtllib_authentication *a;
-
-	if (skb->len <  (sizeof(struct rtllib_authentication) -
-	    sizeof(struct rtllib_info_element))) {
-		netdev_dbg(dev, "invalid len in auth request: %d\n", skb->len);
-		return -1;
-	}
-	a = (struct rtllib_authentication *)skb->data;
-
-	ether_addr_copy(dest, a->header.addr2);
-
-	if (le16_to_cpu(a->algorithm) != WLAN_AUTH_OPEN)
-		return  WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG;
-
-	return WLAN_STATUS_SUCCESS;
-}
-
 static short probe_rq_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 			    u8 *src)
 {
@@ -1773,23 +1659,6 @@ static short probe_rq_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 	return !strncmp(ssid, ieee->current_network.ssid, ssidlen);
 }
 
-static int assoc_rq_parse(struct net_device *dev, struct sk_buff *skb, u8 *dest)
-{
-	struct rtllib_assoc_request_frame *a;
-
-	if (skb->len < (sizeof(struct rtllib_assoc_request_frame) -
-		sizeof(struct rtllib_info_element))) {
-		netdev_dbg(dev, "invalid len in auth request:%d\n", skb->len);
-		return -1;
-	}
-
-	a = (struct rtllib_assoc_request_frame *)skb->data;
-
-	ether_addr_copy(dest, a->header.addr2);
-
-	return 0;
-}
-
 static inline u16 assoc_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 			      int *aid)
 {
@@ -1828,31 +1697,6 @@ void rtllib_rx_probe_rq(struct rtllib_device *ieee, struct sk_buff *skb)
 		ieee->softmac_stats.tx_probe_rs++;
 		rtllib_resp_to_probe(ieee, dest);
 	}
-}
-
-static inline void rtllib_rx_auth_rq(struct rtllib_device *ieee,
-				     struct sk_buff *skb)
-{
-	u8 dest[ETH_ALEN];
-	int status;
-
-	ieee->softmac_stats.rx_auth_rq++;
-
-	status = auth_rq_parse(ieee->dev, skb, dest);
-	if (status != -1)
-		rtllib_resp_to_auth(ieee, status, dest);
-}
-
-static inline void rtllib_rx_assoc_rq(struct rtllib_device *ieee,
-				      struct sk_buff *skb)
-{
-	u8 dest[ETH_ALEN];
-
-	ieee->softmac_stats.rx_ass_rq++;
-	if (assoc_rq_parse(ieee->dev, skb, dest) != -1)
-		rtllib_resp_to_assoc_rq(ieee, dest);
-
-	netdev_info(ieee->dev, "New client associated: %pM\n", dest);
 }
 
 void rtllib_sta_ps_send_null_frame(struct rtllib_device *ieee, short pwr)
@@ -2417,30 +2261,6 @@ void rtllib_stop_all_queues(struct rtllib_device *ieee)
 void rtllib_wake_all_queues(struct rtllib_device *ieee)
 {
 	netif_tx_wake_all_queues(ieee->dev);
-}
-
-/* called in user context only */
-static void rtllib_start_master_bss(struct rtllib_device *ieee)
-{
-	ieee->assoc_id = 1;
-
-	if (ieee->current_network.ssid_len == 0) {
-		strncpy(ieee->current_network.ssid,
-			RTLLIB_DEFAULT_TX_ESSID,
-			IW_ESSID_MAX_SIZE);
-
-		ieee->current_network.ssid_len =
-				 strlen(RTLLIB_DEFAULT_TX_ESSID);
-		ieee->ssid_set = 1;
-	}
-
-	ether_addr_copy(ieee->current_network.bssid, ieee->dev->dev_addr);
-
-	ieee->set_chan(ieee->dev, ieee->current_network.channel);
-	ieee->link_state = MAC80211_LINKED;
-	ieee->link_change(ieee->dev);
-	notify_wx_assoc_event(ieee);
-	netif_carrier_on(ieee->dev);
 }
 
 static void rtllib_start_monitor_mode(struct rtllib_device *ieee)
