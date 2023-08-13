@@ -294,7 +294,7 @@ theend:
 	return err;
 }
 
-static int sun8i_ce_cipher_run(struct crypto_engine *engine, void *areq)
+static void sun8i_ce_cipher_run(struct crypto_engine *engine, void *areq)
 {
 	struct skcipher_request *breq = container_of(areq, struct skcipher_request, base);
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(breq);
@@ -308,10 +308,10 @@ static int sun8i_ce_cipher_run(struct crypto_engine *engine, void *areq)
 	local_bh_disable();
 	crypto_finalize_skcipher_request(engine, breq, err);
 	local_bh_enable();
-	return 0;
 }
 
-static int sun8i_ce_cipher_unprepare(struct crypto_engine *engine, void *async_req)
+static void sun8i_ce_cipher_unprepare(struct crypto_engine *engine,
+				      void *async_req)
 {
 	struct skcipher_request *areq = container_of(async_req, struct skcipher_request, base);
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
@@ -353,7 +353,17 @@ static int sun8i_ce_cipher_unprepare(struct crypto_engine *engine, void *async_r
 	}
 
 	dma_unmap_single(ce->dev, rctx->addr_key, op->keylen, DMA_TO_DEVICE);
+}
 
+static int sun8i_ce_cipher_do_one(struct crypto_engine *engine, void *areq)
+{
+	int err = sun8i_ce_cipher_prepare(engine, areq);
+
+	if (err)
+		return err;
+
+	sun8i_ce_cipher_run(engine, areq);
+	sun8i_ce_cipher_unprepare(engine, areq);
 	return 0;
 }
 
@@ -423,9 +433,7 @@ int sun8i_ce_cipher_init(struct crypto_tfm *tfm)
 	       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(op->fallback_tfm)),
 	       CRYPTO_MAX_ALG_NAME);
 
-	op->enginectx.op.do_one_request = sun8i_ce_cipher_run;
-	op->enginectx.op.prepare_request = sun8i_ce_cipher_prepare;
-	op->enginectx.op.unprepare_request = sun8i_ce_cipher_unprepare;
+	op->enginectx.op.do_one_request = sun8i_ce_cipher_do_one;
 
 	err = pm_runtime_get_sync(op->ce->dev);
 	if (err < 0)
