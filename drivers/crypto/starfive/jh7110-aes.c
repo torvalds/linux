@@ -518,7 +518,12 @@ static int starfive_aes_do_one_req(struct crypto_engine *engine, void *areq)
 	struct starfive_cryp_dev *cryp = ctx->cryp;
 	u32 block[AES_BLOCK_32];
 	u32 stat;
+	int err;
 	int i;
+
+	err = starfive_aes_prepare_req(req, NULL);
+	if (err)
+		return err;
 
 	/*
 	 * Write first plain/ciphertext block to start the module
@@ -538,15 +543,6 @@ static int starfive_aes_do_one_req(struct crypto_engine *engine, void *areq)
 	return 0;
 }
 
-static int starfive_aes_skcipher_prepare_req(struct crypto_engine *engine,
-					     void *areq)
-{
-	struct skcipher_request *req =
-		container_of(areq, struct skcipher_request, base);
-
-	return starfive_aes_prepare_req(req, NULL);
-}
-
 static int starfive_aes_init_tfm(struct crypto_skcipher *tfm)
 {
 	struct starfive_cryp_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -559,19 +555,8 @@ static int starfive_aes_init_tfm(struct crypto_skcipher *tfm)
 				    sizeof(struct skcipher_request));
 
 	ctx->enginectx.op.do_one_request = starfive_aes_do_one_req;
-	ctx->enginectx.op.prepare_request = starfive_aes_skcipher_prepare_req;
-	ctx->enginectx.op.unprepare_request = NULL;
 
 	return 0;
-}
-
-static void starfive_aes_exit_tfm(struct crypto_skcipher *tfm)
-{
-	struct starfive_cryp_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	ctx->enginectx.op.do_one_request = NULL;
-	ctx->enginectx.op.prepare_request = NULL;
-	ctx->enginectx.op.unprepare_request = NULL;
 }
 
 static int starfive_aes_aead_do_one_req(struct crypto_engine *engine, void *areq)
@@ -584,7 +569,12 @@ static int starfive_aes_aead_do_one_req(struct crypto_engine *engine, void *areq
 	struct starfive_cryp_request_ctx *rctx = ctx->rctx;
 	u32 block[AES_BLOCK_32];
 	u32 stat;
+	int err;
 	int i;
+
+	err = starfive_aes_prepare_req(NULL, req);
+	if (err)
+		return err;
 
 	if (!cryp->assoclen)
 		goto write_text;
@@ -625,14 +615,6 @@ finish_req:
 	return 0;
 }
 
-static int starfive_aes_aead_prepare_req(struct crypto_engine *engine, void *areq)
-{
-	struct aead_request *req =
-		container_of(areq, struct aead_request, base);
-
-	return starfive_aes_prepare_req(NULL, req);
-}
-
 static int starfive_aes_aead_init_tfm(struct crypto_aead *tfm)
 {
 	struct starfive_cryp_ctx *ctx = crypto_aead_ctx(tfm);
@@ -657,8 +639,6 @@ static int starfive_aes_aead_init_tfm(struct crypto_aead *tfm)
 				sizeof(struct aead_request));
 
 	ctx->enginectx.op.do_one_request = starfive_aes_aead_do_one_req;
-	ctx->enginectx.op.prepare_request = starfive_aes_aead_prepare_req;
-	ctx->enginectx.op.unprepare_request = NULL;
 
 	return 0;
 }
@@ -667,14 +647,7 @@ static void starfive_aes_aead_exit_tfm(struct crypto_aead *tfm)
 {
 	struct starfive_cryp_ctx *ctx = crypto_aead_ctx(tfm);
 
-	if (ctx->aead_fbk) {
-		crypto_free_aead(ctx->aead_fbk);
-		ctx->aead_fbk = NULL;
-	}
-
-	ctx->enginectx.op.do_one_request = NULL;
-	ctx->enginectx.op.prepare_request = NULL;
-	ctx->enginectx.op.unprepare_request = NULL;
+	crypto_free_aead(ctx->aead_fbk);
 }
 
 static int starfive_aes_crypt(struct skcipher_request *req, unsigned long flags)
@@ -874,7 +847,6 @@ static int starfive_aes_ccm_decrypt(struct aead_request *req)
 static struct skcipher_alg skcipher_algs[] = {
 {
 	.init				= starfive_aes_init_tfm,
-	.exit				= starfive_aes_exit_tfm,
 	.setkey				= starfive_aes_setkey,
 	.encrypt			= starfive_aes_ecb_encrypt,
 	.decrypt			= starfive_aes_ecb_decrypt,
@@ -892,7 +864,6 @@ static struct skcipher_alg skcipher_algs[] = {
 	},
 }, {
 	.init				= starfive_aes_init_tfm,
-	.exit				= starfive_aes_exit_tfm,
 	.setkey				= starfive_aes_setkey,
 	.encrypt			= starfive_aes_cbc_encrypt,
 	.decrypt			= starfive_aes_cbc_decrypt,
@@ -911,7 +882,6 @@ static struct skcipher_alg skcipher_algs[] = {
 	},
 }, {
 	.init				= starfive_aes_init_tfm,
-	.exit				= starfive_aes_exit_tfm,
 	.setkey				= starfive_aes_setkey,
 	.encrypt			= starfive_aes_ctr_encrypt,
 	.decrypt			= starfive_aes_ctr_decrypt,
@@ -930,7 +900,6 @@ static struct skcipher_alg skcipher_algs[] = {
 	},
 }, {
 	.init				= starfive_aes_init_tfm,
-	.exit				= starfive_aes_exit_tfm,
 	.setkey				= starfive_aes_setkey,
 	.encrypt			= starfive_aes_cfb_encrypt,
 	.decrypt			= starfive_aes_cfb_decrypt,
@@ -949,7 +918,6 @@ static struct skcipher_alg skcipher_algs[] = {
 	},
 }, {
 	.init				= starfive_aes_init_tfm,
-	.exit				= starfive_aes_exit_tfm,
 	.setkey				= starfive_aes_setkey,
 	.encrypt			= starfive_aes_ofb_encrypt,
 	.decrypt			= starfive_aes_ofb_decrypt,

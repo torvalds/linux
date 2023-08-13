@@ -434,8 +434,6 @@ static int starfive_hash_init_tfm(struct crypto_ahash *hash,
 	ctx->hash_mode = mode;
 
 	ctx->enginectx.op.do_one_request = starfive_hash_one_request;
-	ctx->enginectx.op.prepare_request = NULL;
-	ctx->enginectx.op.unprepare_request = NULL;
 
 	return 0;
 }
@@ -445,11 +443,6 @@ static void starfive_hash_exit_tfm(struct crypto_ahash *hash)
 	struct starfive_cryp_ctx *ctx = crypto_ahash_ctx(hash);
 
 	crypto_free_ahash(ctx->ahash_fbk);
-
-	ctx->ahash_fbk = NULL;
-	ctx->enginectx.op.do_one_request = NULL;
-	ctx->enginectx.op.prepare_request = NULL;
-	ctx->enginectx.op.unprepare_request = NULL;
 }
 
 static int starfive_hash_long_setkey(struct starfive_cryp_ctx *ctx,
