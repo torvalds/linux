@@ -7,20 +7,17 @@
 #ifndef _CRYPTO_ENGINE_H
 #define _CRYPTO_ENGINE_H
 
-#include <linux/crypto.h>
-#include <linux/list.h>
+#include <crypto/algapi.h>
 #include <linux/kthread.h>
-#include <linux/spinlock.h>
+#include <linux/spinlock_types.h>
 #include <linux/types.h>
 
-#include <crypto/algapi.h>
-#include <crypto/aead.h>
-#include <crypto/akcipher.h>
-#include <crypto/hash.h>
-#include <crypto/skcipher.h>
-#include <crypto/kpp.h>
-
+struct aead_request;
+struct ahash_request;
+struct akcipher_request;
 struct device;
+struct kpp_request;
+struct skcipher_request;
 
 #define ENGINE_NAME_LEN	30
 /*

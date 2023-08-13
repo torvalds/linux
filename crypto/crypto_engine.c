@@ -7,10 +7,15 @@
  * Author: Baolin Wang <baolin.wang@linaro.org>
  */
 
+#include <crypto/aead.h>
+#include <crypto/akcipher.h>
+#include <crypto/engine.h>
+#include <crypto/hash.h>
+#include <crypto/kpp.h>
+#include <crypto/skcipher.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <crypto/engine.h>
 #include <uapi/linux/sched/types.h>
 #include "internal.h"
 
