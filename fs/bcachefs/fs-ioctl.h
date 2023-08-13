@@ -6,19 +6,21 @@
 
 /* bcachefs inode flags -> vfs inode flags: */
 static const __maybe_unused unsigned bch_flags_to_vfs[] = {
-	[__BCH_INODE_sync]	= S_SYNC,
-	[__BCH_INODE_immutable]	= S_IMMUTABLE,
-	[__BCH_INODE_append]	= S_APPEND,
-	[__BCH_INODE_noatime]	= S_NOATIME,
+	[__BCH_INODE_sync]		= S_SYNC,
+	[__BCH_INODE_immutable]		= S_IMMUTABLE,
+	[__BCH_INODE_append]		= S_APPEND,
+	[__BCH_INODE_noatime]		= S_NOATIME,
+	[__BCH_INODE_casefolded]	= S_CASEFOLD,
 };
 
 /* bcachefs inode flags -> FS_IOC_GETFLAGS: */
 static const __maybe_unused unsigned bch_flags_to_uflags[] = {
-	[__BCH_INODE_sync]	= FS_SYNC_FL,
-	[__BCH_INODE_immutable]	= FS_IMMUTABLE_FL,
-	[__BCH_INODE_append]	= FS_APPEND_FL,
-	[__BCH_INODE_nodump]	= FS_NODUMP_FL,
-	[__BCH_INODE_noatime]	= FS_NOATIME_FL,
+	[__BCH_INODE_sync]		= FS_SYNC_FL,
+	[__BCH_INODE_immutable]		= FS_IMMUTABLE_FL,
+	[__BCH_INODE_append]		= FS_APPEND_FL,
+	[__BCH_INODE_nodump]		= FS_NODUMP_FL,
+	[__BCH_INODE_noatime]		= FS_NOATIME_FL,
+	[__BCH_INODE_casefolded]	= FS_CASEFOLD_FL,
 };
 
 /* bcachefs inode flags -> FS_IOC_FSGETXATTR: */

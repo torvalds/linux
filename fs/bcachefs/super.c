@@ -837,6 +837,25 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	if (ret)
 		goto err;
 
+#ifdef CONFIG_UNICODE
+	/* Default encoding until we can potentially have more as an option. */
+	c->cf_encoding = utf8_load(BCH_FS_DEFAULT_UTF8_ENCODING);
+	if (IS_ERR(c->cf_encoding)) {
+		printk(KERN_ERR "Cannot load UTF-8 encoding for filesystem. Version: %u.%u.%u",
+			unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
+			unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
+			unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
+		ret = -EINVAL;
+		goto err;
+	}
+#else
+	if (c->sb.features & BIT_ULL(BCH_FEATURE_casefolding)) {
+		printk(KERN_ERR "Cannot mount a filesystem with casefolding on a kernel without CONFIG_UNICODE\n");
+		ret = -EINVAL;
+		goto err;
+	}
+#endif
+
 	pr_uuid(&name, c->sb.user_uuid.b);
 	ret = name.allocation_failure ? -BCH_ERR_ENOMEM_fs_name_alloc : 0;
 	if (ret)

@@ -25,10 +25,13 @@ struct bch_inode_info;
 
 struct qstr bch2_dirent_get_name(struct bkey_s_c_dirent d);
 
-static inline unsigned dirent_val_u64s(unsigned len)
+static inline unsigned dirent_val_u64s(unsigned len, unsigned cf_len)
 {
-	return DIV_ROUND_UP(offsetof(struct bch_dirent, d_name) + len,
-			    sizeof(u64));
+	unsigned bytes = cf_len
+		? offsetof(struct bch_dirent, d_cf_name_block.d_names) + len + cf_len
+		: offsetof(struct bch_dirent, d_name) + len;
+
+	return DIV_ROUND_UP(bytes, sizeof(u64));
 }
 
 int bch2_dirent_read_target(struct btree_trans *, subvol_inum,

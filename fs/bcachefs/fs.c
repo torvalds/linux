@@ -698,6 +698,23 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		inode = NULL;
 
+#ifdef CONFIG_UNICODE
+	if (!inode && IS_CASEFOLDED(vdir)) {
+		/*
+		 * Do not cache a negative dentry in casefolded directories
+		 * as it would need to be invalidated in the following situation:
+		 * - Lookup file "blAH" in a casefolded directory
+		 * - Creation of file "BLAH" in a casefolded directory
+		 * - Lookup file "blAH" in a casefolded directory
+		 * which would fail if we had a negative dentry.
+		 *
+		 * We should come back to this when VFS has a method to handle
+		 * this edgecase.
+		 */
+		return NULL;
+	}
+#endif
+
 	return d_splice_alias(&inode->v, dentry);
 }
 
