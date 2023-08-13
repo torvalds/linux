@@ -1150,9 +1150,7 @@ static int kmb_ocs_sm4_ccm_decrypt(struct aead_request *req)
 
 static inline int ocs_common_init(struct ocs_aes_tctx *tctx)
 {
-	tctx->engine_ctx.op.prepare_request = NULL;
 	tctx->engine_ctx.op.do_one_request = kmb_ocs_aes_sk_do_one_request;
-	tctx->engine_ctx.op.unprepare_request = NULL;
 
 	return 0;
 }
@@ -1208,9 +1206,7 @@ static void ocs_exit_tfm(struct crypto_skcipher *tfm)
 
 static inline int ocs_common_aead_init(struct ocs_aes_tctx *tctx)
 {
-	tctx->engine_ctx.op.prepare_request = NULL;
 	tctx->engine_ctx.op.do_one_request = kmb_ocs_aes_aead_do_one_request;
-	tctx->engine_ctx.op.unprepare_request = NULL;
 
 	return 0;
 }

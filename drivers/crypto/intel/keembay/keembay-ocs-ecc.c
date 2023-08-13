@@ -794,9 +794,7 @@ static int kmb_ecc_tctx_init(struct ocs_ecc_ctx *tctx, unsigned int curve_id)
 	if (!tctx->curve)
 		return -EOPNOTSUPP;
 
-	tctx->engine_ctx.op.prepare_request = NULL;
 	tctx->engine_ctx.op.do_one_request = kmb_ocs_ecc_do_one_request;
-	tctx->engine_ctx.op.unprepare_request = NULL;
 
 	return 0;
 }
