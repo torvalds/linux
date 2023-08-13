@@ -212,12 +212,10 @@ static int omap_aes_gcm_handle_queue(struct omap_aes_dev *dd,
 	return 0;
 }
 
-static int omap_aes_gcm_prepare_req(struct crypto_engine *engine, void *areq)
+static int omap_aes_gcm_prepare_req(struct aead_request *req,
+				    struct omap_aes_dev *dd)
 {
-	struct aead_request *req = container_of(areq, struct aead_request,
-						base);
 	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
-	struct omap_aes_dev *dd = rctx->dd;
 	struct omap_aes_gcm_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	int err;
 
@@ -362,10 +360,14 @@ static int omap_aes_gcm_crypt_req(struct crypto_engine *engine, void *areq)
 						base);
 	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
 	struct omap_aes_dev *dd = rctx->dd;
-	int ret = 0;
+	int ret;
 
 	if (!dd)
 		return -ENODEV;
+
+	ret = omap_aes_gcm_prepare_req(req, dd);
+	if (ret)
+		return ret;
 
 	if (dd->in_sg_len)
 		ret = omap_aes_crypt_dma_start(dd);
@@ -379,8 +381,6 @@ int omap_aes_gcm_cra_init(struct crypto_aead *tfm)
 {
 	struct omap_aes_ctx *ctx = crypto_aead_ctx(tfm);
 
-	ctx->enginectx.op.prepare_request = omap_aes_gcm_prepare_req;
-	ctx->enginectx.op.unprepare_request = NULL;
 	ctx->enginectx.op.do_one_request = omap_aes_gcm_crypt_req;
 
 	crypto_aead_set_reqsize(tfm, sizeof(struct omap_aes_reqctx));
