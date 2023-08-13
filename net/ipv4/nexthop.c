@@ -3209,7 +3209,6 @@ static int rtm_dump_walk_nexthops(struct sk_buff *skb,
 			return err;
 	}
 
-	ctx->idx++;
 	return 0;
 }
 
