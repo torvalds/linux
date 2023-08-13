@@ -264,9 +264,7 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
 
 	sas_ha->strict_wide_ports = 1;
 
-	sas_register_ha(sas_ha);
-
-	return 0;
+	return sas_register_ha(sas_ha);
 }
 
 static void isci_unregister(struct isci_host *isci_host)
