@@ -2898,12 +2898,14 @@ static void bch2_trans_alloc_paths(struct btree_trans *trans, struct bch_fs *c)
 #ifdef __KERNEL__
 	p = this_cpu_xchg(c->btree_paths_bufs->path, NULL);
 #endif
-	if (!p)
+	if (!p) {
 		p = mempool_alloc(&trans->c->btree_paths_pool, GFP_NOFS);
-	/*
-	 * paths need to be zeroed, bch2_check_for_deadlock looks at paths in
-	 * other threads
-	 */
+		/*
+		 * paths need to be zeroed, bch2_check_for_deadlock looks at
+		 * paths in other threads
+		 */
+		memset(p, 0, paths_bytes);
+	}
 
 	trans->paths		= p; p += paths_bytes;
 	trans->updates		= p; p += updates_bytes;
