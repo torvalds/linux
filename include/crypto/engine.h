@@ -26,10 +26,6 @@ struct crypto_engine_op {
 			      void *areq);
 };
 
-struct crypto_engine_ctx {
-	struct crypto_engine_op op;
-};
-
 struct aead_engine_alg {
 	struct aead_alg base;
 	struct crypto_engine_op op;

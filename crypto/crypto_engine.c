@@ -79,7 +79,6 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 	unsigned long flags;
 	bool was_busy = false;
 	int ret;
-	struct crypto_engine_ctx *enginectx;
 
 	spin_lock_irqsave(&engine->queue_lock, flags);
 
@@ -154,14 +153,9 @@ start_request:
 				   struct crypto_engine_alg, base);
 		op = &alg->op;
 	} else {
-		enginectx = crypto_tfm_ctx(async_req->tfm);
-		op = &enginectx->op;
-
-		if (!op->do_one_request) {
-			dev_err(engine->dev, "failed to do request\n");
-			ret = -EINVAL;
-			goto req_err_1;
-		}
+		dev_err(engine->dev, "failed to do request\n");
+		ret = -EINVAL;
+		goto req_err_1;
 	}
 
 	ret = op->do_one_request(engine, async_req);
