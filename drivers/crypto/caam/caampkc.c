@@ -16,6 +16,7 @@
 #include "desc_constr.h"
 #include "sg_sw_sec4.h"
 #include "caampkc.h"
+#include <crypto/internal/engine.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 

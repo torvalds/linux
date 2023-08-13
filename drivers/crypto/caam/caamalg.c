@@ -56,9 +56,9 @@
 #include "sg_sw_sec4.h"
 #include "key_gen.h"
 #include "caamalg_desc.h"
-#include <crypto/engine.h>
-#include <crypto/xts.h>
 #include <asm/unaligned.h>
+#include <crypto/internal/engine.h>
+#include <crypto/xts.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
 #include <linux/err.h>

@@ -65,7 +65,7 @@
 #include "sg_sw_sec4.h"
 #include "key_gen.h"
 #include "caamhash_desc.h"
-#include <crypto/engine.h>
+#include <crypto/internal/engine.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 
