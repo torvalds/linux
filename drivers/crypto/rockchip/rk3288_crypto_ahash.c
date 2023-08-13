@@ -240,14 +240,13 @@ static int rk_hash_prepare(struct crypto_engine *engine, void *breq)
 	return 0;
 }
 
-static int rk_hash_unprepare(struct crypto_engine *engine, void *breq)
+static void rk_hash_unprepare(struct crypto_engine *engine, void *breq)
 {
 	struct ahash_request *areq = container_of(breq, struct ahash_request, base);
 	struct rk_ahash_rctx *rctx = ahash_request_ctx(areq);
 	struct rk_crypto_info *rkc = rctx->dev;
 
 	dma_unmap_sg(rkc->dev, areq->src, rctx->nrsg, DMA_TO_DEVICE);
-	return 0;
 }
 
 static int rk_hash_run(struct crypto_engine *engine, void *breq)
@@ -259,13 +258,17 @@ static int rk_hash_run(struct crypto_engine *engine, void *breq)
 	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.hash);
 	struct scatterlist *sg = areq->src;
 	struct rk_crypto_info *rkc = rctx->dev;
-	int err = 0;
+	int err;
 	int i;
 	u32 v;
 
 	err = pm_runtime_resume_and_get(rkc->dev);
 	if (err)
 		return err;
+
+	err = rk_hash_prepare(engine, breq);
+	if (err)
+		goto theend;
 
 	rctx->mode = 0;
 
@@ -327,6 +330,8 @@ theend:
 	crypto_finalize_hash_request(engine, breq, err);
 	local_bh_enable();
 
+	rk_hash_unprepare(engine, breq);
+
 	return 0;
 }
 
@@ -350,8 +355,6 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 				 crypto_ahash_reqsize(tctx->fallback_tfm));
 
 	tctx->enginectx.op.do_one_request = rk_hash_run;
-	tctx->enginectx.op.prepare_request = rk_hash_prepare;
-	tctx->enginectx.op.unprepare_request = rk_hash_unprepare;
 
 	return 0;
 }
