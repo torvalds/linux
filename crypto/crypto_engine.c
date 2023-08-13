@@ -9,8 +9,8 @@
 
 #include <crypto/aead.h>
 #include <crypto/akcipher.h>
-#include <crypto/engine.h>
 #include <crypto/hash.h>
+#include <crypto/internal/engine.h>
 #include <crypto/kpp.h>
 #include <crypto/skcipher.h>
 #include <linux/err.h>
