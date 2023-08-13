@@ -2,15 +2,15 @@
 #ifndef __STARFIVE_STR_H__
 #define __STARFIVE_STR_H__
 
+#include <crypto/aes.h>
+#include <crypto/engine.h>
+#include <crypto/hash.h>
+#include <crypto/sha2.h>
+#include <crypto/sm3.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
-
-#include <crypto/aes.h>
-#include <crypto/engine.h>
-#include <crypto/sha2.h>
-#include <crypto/sm3.h>
 
 #define STARFIVE_ALG_CR_OFFSET			0x0
 #define STARFIVE_ALG_FIFO_OFFSET		0x4
