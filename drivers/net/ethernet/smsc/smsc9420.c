@@ -1144,8 +1144,7 @@ static int smsc9420_mii_init(struct net_device *dev)
 		goto err_out_1;
 	}
 	pd->mii_bus->name = DRV_MDIONAME;
-	snprintf(pd->mii_bus->id, MII_BUS_ID_SIZE, "%x",
-		(pd->pdev->bus->number << 8) | pd->pdev->devfn);
+	snprintf(pd->mii_bus->id, MII_BUS_ID_SIZE, "%x", pci_dev_id(pd->pdev));
 	pd->mii_bus->priv = pd;
 	pd->mii_bus->read = smsc9420_mii_read;
 	pd->mii_bus->write = smsc9420_mii_write;
