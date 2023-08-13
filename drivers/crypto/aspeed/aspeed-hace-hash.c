@@ -4,6 +4,17 @@
  */
 
 #include "aspeed-hace.h"
+#include <crypto/engine.h>
+#include <crypto/hmac.h>
+#include <crypto/internal/hash.h>
+#include <crypto/scatterwalk.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
+#include <linux/dma-mapping.h>
+#include <linux/err.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
 
 #ifdef CONFIG_CRYPTO_DEV_ASPEED_DEBUG
 #define AHASH_DBG(h, fmt, ...)	\
@@ -858,7 +869,7 @@ static int aspeed_sham_cra_init(struct crypto_tfm *tfm)
 	struct aspeed_sham_ctx *tctx = crypto_tfm_ctx(tfm);
 	struct aspeed_hace_alg *ast_alg;
 
-	ast_alg = container_of(alg, struct aspeed_hace_alg, alg.ahash);
+	ast_alg = container_of(alg, struct aspeed_hace_alg, alg.ahash.base);
 	tctx->hace_dev = ast_alg->hace_dev;
 	tctx->flags = 0;
 
@@ -879,8 +890,6 @@ static int aspeed_sham_cra_init(struct crypto_tfm *tfm)
 			return PTR_ERR(bctx->shash);
 		}
 	}
-
-	tctx->enginectx.op.do_one_request = aspeed_ahash_do_one;
 
 	return 0;
 }
@@ -919,7 +928,7 @@ static int aspeed_sham_import(struct ahash_request *req, const void *in)
 
 static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 	{
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sham_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -946,9 +955,12 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sham_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -975,9 +987,12 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sham_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1004,10 +1019,13 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
 		.alg_base = "sha1",
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sham_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1036,10 +1054,13 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
 		.alg_base = "sha224",
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sham_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1068,10 +1089,13 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
 		.alg_base = "sha256",
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sham_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1100,12 +1124,15 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 };
 
 static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 	{
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sham_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1132,9 +1159,12 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sham_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1161,9 +1191,12 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sha512s_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1190,9 +1223,12 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sha512s_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1219,10 +1255,13 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
 		.alg_base = "sha384",
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sham_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1251,10 +1290,13 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
 		.alg_base = "sha512",
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sham_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1283,10 +1325,13 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
 		.alg_base = "sha512_224",
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sha512s_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1315,10 +1360,13 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 	{
 		.alg_base = "sha512_256",
-		.alg.ahash = {
+		.alg.ahash.base = {
 			.init	= aspeed_sha512s_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1347,6 +1395,9 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 				}
 			}
 		},
+		.alg.ahash.op = {
+			.do_one_request = aspeed_ahash_do_one,
+		},
 	},
 };
 
@@ -1355,13 +1406,13 @@ void aspeed_unregister_hace_hash_algs(struct aspeed_hace_dev *hace_dev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_ahash_algs); i++)
-		crypto_unregister_ahash(&aspeed_ahash_algs[i].alg.ahash);
+		crypto_engine_unregister_ahash(&aspeed_ahash_algs[i].alg.ahash);
 
 	if (hace_dev->version != AST2600_VERSION)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_ahash_algs_g6); i++)
-		crypto_unregister_ahash(&aspeed_ahash_algs_g6[i].alg.ahash);
+		crypto_engine_unregister_ahash(&aspeed_ahash_algs_g6[i].alg.ahash);
 }
 
 void aspeed_register_hace_hash_algs(struct aspeed_hace_dev *hace_dev)
@@ -1372,10 +1423,10 @@ void aspeed_register_hace_hash_algs(struct aspeed_hace_dev *hace_dev)
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_ahash_algs); i++) {
 		aspeed_ahash_algs[i].hace_dev = hace_dev;
-		rc = crypto_register_ahash(&aspeed_ahash_algs[i].alg.ahash);
+		rc = crypto_engine_register_ahash(&aspeed_ahash_algs[i].alg.ahash);
 		if (rc) {
 			AHASH_DBG(hace_dev, "Failed to register %s\n",
-				  aspeed_ahash_algs[i].alg.ahash.halg.base.cra_name);
+				  aspeed_ahash_algs[i].alg.ahash.base.halg.base.cra_name);
 		}
 	}
 
@@ -1384,10 +1435,10 @@ void aspeed_register_hace_hash_algs(struct aspeed_hace_dev *hace_dev)
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_ahash_algs_g6); i++) {
 		aspeed_ahash_algs_g6[i].hace_dev = hace_dev;
-		rc = crypto_register_ahash(&aspeed_ahash_algs_g6[i].alg.ahash);
+		rc = crypto_engine_register_ahash(&aspeed_ahash_algs_g6[i].alg.ahash);
 		if (rc) {
 			AHASH_DBG(hace_dev, "Failed to register %s\n",
-				  aspeed_ahash_algs_g6[i].alg.ahash.halg.base.cra_name);
+				  aspeed_ahash_algs_g6[i].alg.ahash.base.halg.base.cra_name);
 		}
 	}
 }
