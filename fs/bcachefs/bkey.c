@@ -591,8 +591,10 @@ struct bkey_format bch2_bkey_format_done(struct bkey_format_state *s)
 
 	/* allow for extent merging: */
 	if (ret.bits_per_field[BKEY_FIELD_SIZE]) {
-		ret.bits_per_field[BKEY_FIELD_SIZE] += 4;
-		bits += 4;
+		unsigned b = min(4U, 32U - ret.bits_per_field[BKEY_FIELD_SIZE]);
+
+		ret.bits_per_field[BKEY_FIELD_SIZE] += b;
+		bits += b;
 	}
 
 	ret.key_u64s = DIV_ROUND_UP(bits, 64);
