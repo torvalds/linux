@@ -115,7 +115,11 @@ int bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	if (d_name.len > BCH_NAME_MAX) {
+	/*
+	 * Check new keys don't exceed the max length
+	 * (older keys may be larger.)
+	 */
+	if ((flags & BKEY_INVALID_COMMIT) && d_name.len > BCH_NAME_MAX) {
 		prt_printf(err, "dirent name too big (%u > %u)",
 		       d_name.len, BCH_NAME_MAX);
 		return -BCH_ERR_invalid_bkey;
