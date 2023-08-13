@@ -43,15 +43,16 @@
  */
 struct efx_loopback_payload {
 	char pad[2]; /* Ensures ip is 4-byte aligned */
-	struct ethhdr header;
-	struct iphdr ip;
-	struct udphdr udp;
-	__be16 iteration;
-	char msg[64];
+	struct_group_attr(packet, __packed,
+		struct ethhdr header;
+		struct iphdr ip;
+		struct udphdr udp;
+		__be16 iteration;
+		char msg[64];
+	);
 } __packed __aligned(4);
-#define EFX_LOOPBACK_PAYLOAD_LEN	(sizeof(struct efx_loopback_payload) - \
-					 offsetof(struct efx_loopback_payload, \
-						  header))
+#define EFX_LOOPBACK_PAYLOAD_LEN	\
+		sizeof_field(struct efx_loopback_payload, packet)
 
 /* Loopback test source MAC address */
 static const u8 payload_source[ETH_ALEN] __aligned(2) = {
@@ -297,7 +298,7 @@ void efx_siena_loopback_rx_packet(struct efx_nic *efx,
 
 	payload = &state->payload;
 
-	memcpy(&received.header, buf_ptr,
+	memcpy(&received.packet, buf_ptr,
 	       min_t(int, pkt_len, EFX_LOOPBACK_PAYLOAD_LEN));
 	received.ip.saddr = payload->ip.saddr;
 	if (state->offload_csum)
@@ -368,7 +369,7 @@ void efx_siena_loopback_rx_packet(struct efx_nic *efx,
 			       buf_ptr, pkt_len, 0);
 		netif_err(efx, drv, efx->net_dev, "expected packet:\n");
 		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 0x10, 1,
-			       &state->payload.header, EFX_LOOPBACK_PAYLOAD_LEN,
+			       &state->payload.packet, EFX_LOOPBACK_PAYLOAD_LEN,
 			       0);
 	}
 #endif
@@ -438,6 +439,8 @@ static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 		payload->ip.saddr = htonl(INADDR_LOOPBACK | (i << 2));
 		/* Strip off the leading padding */
 		skb_pull(skb, offsetof(struct efx_loopback_payload, header));
+		/* Strip off the trailing padding */
+		skb_trim(skb, EFX_LOOPBACK_PAYLOAD_LEN);
 
 		/* Ensure everything we've written is visible to the
 		 * interrupt handler. */

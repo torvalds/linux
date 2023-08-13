@@ -1661,6 +1661,11 @@ __i915_request_ensure_parallel_ordering(struct i915_request *rq,
 
 	request_to_parent(rq)->parallel.last_rq = i915_request_get(rq);
 
+	/*
+	 * Users have to put a reference potentially got by
+	 * __i915_active_fence_set() to the returned request
+	 * when no longer needed
+	 */
 	return to_request(__i915_active_fence_set(&timeline->last_request,
 						  &rq->fence));
 }
@@ -1707,6 +1712,10 @@ __i915_request_ensure_ordering(struct i915_request *rq,
 							 0);
 	}
 
+	/*
+	 * Users have to put the reference to prev potentially got
+	 * by __i915_active_fence_set() when no longer needed
+	 */
 	return prev;
 }
 
@@ -1760,6 +1769,8 @@ __i915_request_add_to_timeline(struct i915_request *rq)
 		prev = __i915_request_ensure_ordering(rq, timeline);
 	else
 		prev = __i915_request_ensure_parallel_ordering(rq, timeline);
+	if (prev)
+		i915_request_put(prev);
 
 	/*
 	 * Make sure that no request gazumped us - if it was allocated after

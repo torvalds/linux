@@ -819,6 +819,7 @@ static int bnxt_qplib_alloc_dpi_tbl(struct bnxt_qplib_res *res,
 	}
 
 	memset((u8 *)dpit->tbl, 0xFF, bytes);
+	mutex_init(&res->dpi_tbl_lock);
 	dpit->priv_db = dpit->ucreg.bar_reg + dpit->ucreg.offset;
 
 	return 0;

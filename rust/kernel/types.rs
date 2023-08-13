@@ -35,25 +35,7 @@ pub trait ForeignOwnable: Sized {
     ///
     /// `ptr` must have been returned by a previous call to [`ForeignOwnable::into_foreign`] for
     /// which a previous matching [`ForeignOwnable::from_foreign`] hasn't been called yet.
-    /// Additionally, all instances (if any) of values returned by [`ForeignOwnable::borrow_mut`]
-    /// for this object must have been dropped.
     unsafe fn borrow<'a>(ptr: *const core::ffi::c_void) -> Self::Borrowed<'a>;
-
-    /// Mutably borrows a foreign-owned object.
-    ///
-    /// # Safety
-    ///
-    /// `ptr` must have been returned by a previous call to [`ForeignOwnable::into_foreign`] for
-    /// which a previous matching [`ForeignOwnable::from_foreign`] hasn't been called yet.
-    /// Additionally, all instances (if any) of values returned by [`ForeignOwnable::borrow`] and
-    /// [`ForeignOwnable::borrow_mut`] for this object must have been dropped.
-    unsafe fn borrow_mut(ptr: *const core::ffi::c_void) -> ScopeGuard<Self, fn(Self)> {
-        // SAFETY: The safety requirements ensure that `ptr` came from a previous call to
-        // `into_foreign`.
-        ScopeGuard::new_with_data(unsafe { Self::from_foreign(ptr) }, |d| {
-            d.into_foreign();
-        })
-    }
 
     /// Converts a foreign-owned object back to a Rust-owned one.
     ///
@@ -61,8 +43,8 @@ pub trait ForeignOwnable: Sized {
     ///
     /// `ptr` must have been returned by a previous call to [`ForeignOwnable::into_foreign`] for
     /// which a previous matching [`ForeignOwnable::from_foreign`] hasn't been called yet.
-    /// Additionally, all instances (if any) of values returned by [`ForeignOwnable::borrow`] and
-    /// [`ForeignOwnable::borrow_mut`] for this object must have been dropped.
+    /// Additionally, all instances (if any) of values returned by [`ForeignOwnable::borrow`] for
+    /// this object must have been dropped.
     unsafe fn from_foreign(ptr: *const core::ffi::c_void) -> Self;
 }
 

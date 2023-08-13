@@ -173,6 +173,9 @@ static void internal_free_pages_locked(struct ivpu_bo *bo)
 {
 	unsigned int i, npages = bo->base.size >> PAGE_SHIFT;
 
+	if (ivpu_bo_cache_mode(bo) != DRM_IVPU_BO_CACHED)
+		set_pages_array_wb(bo->pages, bo->base.size >> PAGE_SHIFT);
+
 	for (i = 0; i < npages; i++)
 		put_page(bo->pages[i]);
 
@@ -586,6 +589,11 @@ ivpu_bo_alloc_internal(struct ivpu_device *vdev, u64 vpu_addr, u64 size, u32 fla
 
 	if (ivpu_bo_cache_mode(bo) != DRM_IVPU_BO_CACHED)
 		drm_clflush_pages(bo->pages, bo->base.size >> PAGE_SHIFT);
+
+	if (bo->flags & DRM_IVPU_BO_WC)
+		set_pages_array_wc(bo->pages, bo->base.size >> PAGE_SHIFT);
+	else if (bo->flags & DRM_IVPU_BO_UNCACHED)
+		set_pages_array_uc(bo->pages, bo->base.size >> PAGE_SHIFT);
 
 	prot = ivpu_bo_pgprot(bo, PAGE_KERNEL);
 	bo->kvaddr = vmap(bo->pages, bo->base.size >> PAGE_SHIFT, VM_MAP, prot);

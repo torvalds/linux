@@ -889,8 +889,6 @@ static void erofs_kill_sb(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi;
 
-	WARN_ON(sb->s_magic != EROFS_SUPER_MAGIC);
-
 	/* pseudo mount for anon inodes */
 	if (sb->s_flags & SB_KERNMOUNT) {
 		kill_anon_super(sb);
