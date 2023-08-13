@@ -409,8 +409,6 @@ int sun8i_ss_cipher_init(struct crypto_tfm *tfm)
 	       CRYPTO_MAX_ALG_NAME);
 
 	op->enginectx.op.do_one_request = sun8i_ss_handle_cipher_request;
-	op->enginectx.op.prepare_request = NULL;
-	op->enginectx.op.unprepare_request = NULL;
 
 	err = pm_runtime_resume_and_get(op->ss->dev);
 	if (err < 0) {

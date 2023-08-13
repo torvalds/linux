@@ -120,8 +120,6 @@ int sun8i_ss_hash_crainit(struct crypto_tfm *tfm)
 	op->ss = algt->ss;
 
 	op->enginectx.op.do_one_request = sun8i_ss_hash_run;
-	op->enginectx.op.prepare_request = NULL;
-	op->enginectx.op.unprepare_request = NULL;
 
 	/* FALLBACK */
 	op->fallback_tfm = crypto_alloc_ahash(crypto_tfm_alg_name(tfm), 0,
