@@ -42,4 +42,6 @@ extern void arc_cache_init(void);
 extern char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len);
 extern void read_decode_cache_bcr(void);
 
+extern void __init handle_uboot_args(void);
+
 #endif /* __ASMARC_SETUP_H */

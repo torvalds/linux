@@ -13,6 +13,8 @@
 #include <asm/processor.h>	/* For VMALLOC_START */
 #include <asm/mmu.h>
 
+#ifdef __ASSEMBLY__
+
 #ifdef CONFIG_ISA_ARCOMPACT
 #include <asm/entry-compact.h>	/* ISA specific bits */
 #else
@@ -294,5 +296,24 @@
 .endm
 
 #endif	/* CONFIG_ARC_CURR_IN_REG */
+
+#else	/* !__ASSEMBLY__ */
+
+extern void do_signal(struct pt_regs *);
+extern void do_notify_resume(struct pt_regs *);
+extern int do_privilege_fault(unsigned long, struct pt_regs *);
+extern int do_extension_fault(unsigned long, struct pt_regs *);
+extern int insterror_is_error(unsigned long, struct pt_regs *);
+extern int do_memory_error(unsigned long, struct pt_regs *);
+extern int trap_is_brkpt(unsigned long, struct pt_regs *);
+extern int do_misaligned_error(unsigned long, struct pt_regs *);
+extern int do_trap5_error(unsigned long, struct pt_regs *);
+extern int do_misaligned_access(unsigned long, struct pt_regs *, struct callee_regs *);
+extern void do_machine_check_fault(unsigned long, struct pt_regs *);
+extern void do_non_swi_trap(unsigned long, struct pt_regs *);
+extern void do_insterror_or_kprobe(unsigned long, struct pt_regs *);
+extern void do_page_fault(unsigned long, struct pt_regs *);
+
+#endif
 
 #endif  /* __ASM_ARC_ENTRY_H */

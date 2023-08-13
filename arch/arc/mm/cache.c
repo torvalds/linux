@@ -581,7 +581,7 @@ static void __ic_line_inv_vaddr(phys_addr_t paddr, unsigned long vaddr,
 
 #endif /* CONFIG_ARC_HAS_ICACHE */
 
-noinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int op)
+static noinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int op)
 {
 #ifdef CONFIG_ISA_ARCV2
 	/*
@@ -644,7 +644,7 @@ noinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int op)
 #endif
 }
 
-noinline void slc_op_line(phys_addr_t paddr, unsigned long sz, const int op)
+static __maybe_unused noinline void slc_op_line(phys_addr_t paddr, unsigned long sz, const int op)
 {
 #ifdef CONFIG_ISA_ARCV2
 	/*
@@ -1069,7 +1069,7 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
  * 3. All Caches need to be disabled when setting up IOC to elide any in-flight
  *    Coherency transactions
  */
-noinline void __init arc_ioc_setup(void)
+static noinline void __init arc_ioc_setup(void)
 {
 	unsigned int ioc_base, mem_sz;
 
@@ -1131,7 +1131,7 @@ noinline void __init arc_ioc_setup(void)
  *    one core suffices for all
  *  - IOC setup / dma callbacks only need to be done once
  */
-void __init arc_cache_init_master(void)
+static noinline void __init arc_cache_init_master(void)
 {
 	unsigned int __maybe_unused cpu = smp_processor_id();
 

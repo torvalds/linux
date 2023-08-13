@@ -13,6 +13,7 @@
 #include <linux/kdebug.h>
 #include <linux/perf_event.h>
 #include <linux/mm_types.h>
+#include <asm/entry.h>
 #include <asm/mmu.h>
 
 /*
