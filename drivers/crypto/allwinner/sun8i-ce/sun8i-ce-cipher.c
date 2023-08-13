@@ -29,7 +29,7 @@ static int sun8i_ce_cipher_need_fallback(struct skcipher_request *areq)
 	struct sun8i_ce_alg_template *algt;
 	unsigned int todo, len;
 
-	algt = container_of(alg, struct sun8i_ce_alg_template, alg.skcipher);
+	algt = container_of(alg, struct sun8i_ce_alg_template, alg.skcipher.base);
 
 	if (sg_nents_for_len(areq->src, areq->cryptlen) > MAX_SG ||
 	    sg_nents_for_len(areq->dst, areq->cryptlen) > MAX_SG) {
@@ -92,13 +92,18 @@ static int sun8i_ce_cipher_fallback(struct skcipher_request *areq)
 	struct sun8i_cipher_tfm_ctx *op = crypto_skcipher_ctx(tfm);
 	struct sun8i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 	int err;
-#ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG
-	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
-	struct sun8i_ce_alg_template *algt;
 
-	algt = container_of(alg, struct sun8i_ce_alg_template, alg.skcipher);
-	algt->stat_fb++;
+	if (IS_ENABLED(CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG)) {
+		struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
+		struct sun8i_ce_alg_template *algt __maybe_unused;
+
+		algt = container_of(alg, struct sun8i_ce_alg_template,
+				    alg.skcipher.base);
+
+#ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG
+		algt->stat_fb++;
 #endif
+	}
 
 	skcipher_request_set_tfm(&rctx->fallback_req, op->fallback_tfm);
 	skcipher_request_set_callback(&rctx->fallback_req, areq->base.flags,
@@ -133,7 +138,7 @@ static int sun8i_ce_cipher_prepare(struct crypto_engine *engine, void *async_req
 	int ns = sg_nents_for_len(areq->src, areq->cryptlen);
 	int nd = sg_nents_for_len(areq->dst, areq->cryptlen);
 
-	algt = container_of(alg, struct sun8i_ce_alg_template, alg.skcipher);
+	algt = container_of(alg, struct sun8i_ce_alg_template, alg.skcipher.base);
 
 	dev_dbg(ce->dev, "%s %s %u %x IV(%p %u) key=%u\n", __func__,
 		crypto_tfm_alg_name(areq->base.tfm),
@@ -355,7 +360,7 @@ static void sun8i_ce_cipher_unprepare(struct crypto_engine *engine,
 	dma_unmap_single(ce->dev, rctx->addr_key, op->keylen, DMA_TO_DEVICE);
 }
 
-static int sun8i_ce_cipher_do_one(struct crypto_engine *engine, void *areq)
+int sun8i_ce_cipher_do_one(struct crypto_engine *engine, void *areq)
 {
 	int err = sun8i_ce_cipher_prepare(engine, areq);
 
@@ -416,7 +421,7 @@ int sun8i_ce_cipher_init(struct crypto_tfm *tfm)
 
 	memset(op, 0, sizeof(struct sun8i_cipher_tfm_ctx));
 
-	algt = container_of(alg, struct sun8i_ce_alg_template, alg.skcipher);
+	algt = container_of(alg, struct sun8i_ce_alg_template, alg.skcipher.base);
 	op->ce = algt->ce;
 
 	op->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
@@ -432,8 +437,6 @@ int sun8i_ce_cipher_init(struct crypto_tfm *tfm)
 	memcpy(algt->fbname,
 	       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(op->fallback_tfm)),
 	       CRYPTO_MAX_ALG_NAME);
-
-	op->enginectx.op.do_one_request = sun8i_ce_cipher_do_one;
 
 	err = pm_runtime_get_sync(op->ce->dev);
 	if (err < 0)
