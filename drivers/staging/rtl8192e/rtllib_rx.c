@@ -1496,7 +1496,6 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 	case IW_MODE_INFRA:
 		ret = rtllib_rx_InfraAdhoc(ieee, skb, rx_stats);
 		break;
-	case IW_MODE_MASTER:
 	case IW_MODE_REPEAT:
 		break;
 	case IW_MODE_MONITOR:
@@ -2682,8 +2681,7 @@ static void rtllib_rx_mgt(struct rtllib_device *ieee,
 		netdev_dbg(ieee->dev, "received PROBE REQUEST (%d)\n",
 			   WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		if ((ieee->softmac_features & IEEE_SOFTMAC_PROBERS) &&
-		    ((ieee->iw_mode == IW_MODE_ADHOC ||
-		    ieee->iw_mode == IW_MODE_MASTER) &&
+		    (ieee->iw_mode == IW_MODE_ADHOC &&
 		    ieee->link_state == MAC80211_LINKED))
 			rtllib_rx_probe_rq(ieee, skb);
 		break;

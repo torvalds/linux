@@ -182,15 +182,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 	struct list_head *psearch_list;
 	struct ts_common_info *pRet = NULL;
 
-	if (ieee->iw_mode == IW_MODE_MASTER) {
-		if (TxRxSelect == TX_DIR) {
-			search_dir[DIR_DOWN] = true;
-			search_dir[DIR_BI_DIR] = true;
-		} else {
-			search_dir[DIR_UP] = true;
-			search_dir[DIR_BI_DIR] = true;
-		}
-	} else if (ieee->iw_mode == IW_MODE_ADHOC) {
+	if (ieee->iw_mode == IW_MODE_ADHOC) {
 		if (TxRxSelect == TX_DIR)
 			search_dir[DIR_UP] = true;
 		else
@@ -311,9 +303,7 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 				(&ieee->Tx_TS_Admit_List) :
 				(&ieee->Rx_TS_Admit_List);
 
-	Dir = (ieee->iw_mode == IW_MODE_MASTER) ?
-				((TxRxSelect == TX_DIR) ? DIR_DOWN : DIR_UP) :
-				((TxRxSelect == TX_DIR) ? DIR_UP : DIR_DOWN);
+	Dir = ((TxRxSelect == TX_DIR) ? DIR_UP : DIR_DOWN);
 
 	if (!list_empty(pUnusedList)) {
 		(*ppTS) = list_entry(pUnusedList->next,

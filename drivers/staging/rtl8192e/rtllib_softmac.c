@@ -935,8 +935,7 @@ static struct sk_buff *rtllib_assoc_resp(struct rtllib_device *ieee, u8 *dest)
 	ether_addr_copy(assoc->header.addr1, dest);
 	ether_addr_copy(assoc->header.addr3, ieee->dev->dev_addr);
 	ether_addr_copy(assoc->header.addr2, ieee->dev->dev_addr);
-	assoc->capability = cpu_to_le16(ieee->iw_mode == IW_MODE_MASTER ?
-		WLAN_CAPABILITY_ESS : WLAN_CAPABILITY_IBSS);
+	assoc->capability = cpu_to_le16(WLAN_CAPABILITY_IBSS);
 
 	assoc->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME);
 
@@ -2248,8 +2247,6 @@ rtllib_rx_auth(struct rtllib_device *ieee, struct sk_buff *skb,
 			netdev_dbg(ieee->dev,
 				   "Received authentication response");
 			rtllib_rx_auth_resp(ieee, skb);
-		} else if (ieee->iw_mode == IW_MODE_MASTER) {
-			rtllib_rx_auth_rq(ieee, skb);
 		}
 	}
 	return 0;
@@ -2309,9 +2306,6 @@ inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee,
 		break;
 	case RTLLIB_STYPE_ASSOC_REQ:
 	case RTLLIB_STYPE_REASSOC_REQ:
-		if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
-		     ieee->iw_mode == IW_MODE_MASTER)
-			rtllib_rx_assoc_rq(ieee, skb);
 		break;
 	case RTLLIB_STYPE_AUTH:
 		rtllib_rx_auth(ieee, skb, rx_stats);
@@ -2806,9 +2800,6 @@ void rtllib_start_protocol(struct rtllib_device *ieee)
 		break;
 	case IW_MODE_ADHOC:
 		rtllib_start_ibss(ieee);
-		break;
-	case IW_MODE_MASTER:
-		rtllib_start_master_bss(ieee);
 		break;
 	case IW_MODE_MONITOR:
 		rtllib_start_monitor_mode(ieee);

@@ -59,10 +59,6 @@ static void _rtl92e_update_msr(struct net_device *dev)
 		if (priv->rtllib->link_state == MAC80211_LINKED)
 			msr |= MSR_LINK_ADHOC;
 		break;
-	case IW_MODE_MASTER:
-		if (priv->rtllib->link_state == MAC80211_LINKED)
-			msr |= MSR_LINK_MASTER;
-		break;
 	default:
 		break;
 	}
