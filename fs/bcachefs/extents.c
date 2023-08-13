@@ -1059,6 +1059,7 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 
 static int extent_ptr_invalid(const struct bch_fs *c,
 			      struct bkey_s_c k,
+			      enum bkey_invalid_flags flags,
 			      const struct bch_extent_ptr *ptr,
 			      unsigned size_ondisk,
 			      bool metadata,
@@ -1071,6 +1072,14 @@ static int extent_ptr_invalid(const struct bch_fs *c,
 	struct bch_dev *ca;
 
 	if (!bch2_dev_exists2(c, ptr->dev)) {
+		/*
+		 * If we're in the write path this key might have already been
+		 * overwritten, and we could be seeing a device that doesn't
+		 * exist anymore due to racing with device removal:
+		 */
+		if (flags & BKEY_INVALID_WRITE)
+			return 0;
+
 		prt_printf(err, "pointer to invalid device (%u)", ptr->dev);
 		return -BCH_ERR_invalid_bkey;
 	}
@@ -1136,8 +1145,8 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
 
 		switch (extent_entry_type(entry)) {
 		case BCH_EXTENT_ENTRY_ptr:
-			ret = extent_ptr_invalid(c, k, &entry->ptr, size_ondisk,
-						 false, err);
+			ret = extent_ptr_invalid(c, k, flags, &entry->ptr,
+						 size_ondisk, false, err);
 			if (ret)
 				return ret;
 
