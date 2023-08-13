@@ -316,8 +316,6 @@ static int zynqmp_aes_aead_init(struct crypto_aead *aead)
 	tfm_ctx->dev = drv_ctx->dev;
 
 	tfm_ctx->engine_ctx.op.do_one_request = zynqmp_handle_aes_req;
-	tfm_ctx->engine_ctx.op.prepare_request = NULL;
-	tfm_ctx->engine_ctx.op.unprepare_request = NULL;
 
 	tfm_ctx->fbk_cipher = crypto_alloc_aead(drv_ctx->alg.aead.base.cra_name,
 						0,
