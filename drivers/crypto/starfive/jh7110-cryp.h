@@ -5,6 +5,7 @@
 #include <crypto/aes.h>
 #include <crypto/engine.h>
 #include <crypto/hash.h>
+#include <crypto/scatterwalk.h>
 #include <crypto/sha2.h>
 #include <crypto/sm3.h>
 #include <linux/delay.h>
