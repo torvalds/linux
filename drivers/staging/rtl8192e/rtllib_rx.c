@@ -1013,17 +1013,15 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 		}
 	}
 
-	if (ieee->iw_mode != IW_MODE_MESH) {
-		/* packets from our adapter are dropped (echo) */
-		if (!memcmp(src, ieee->dev->dev_addr, ETH_ALEN))
-			return -1;
+	/* packets from our adapter are dropped (echo) */
+	if (!memcmp(src, ieee->dev->dev_addr, ETH_ALEN))
+		return -1;
 
-		/* {broad,multi}cast packets to our BSS go through */
-		if (is_multicast_ether_addr(dst)) {
-			if (memcmp(bssid, ieee->current_network.bssid,
-				   ETH_ALEN))
-				return -1;
-		}
+	/* {broad,multi}cast packets to our BSS go through */
+	if (is_multicast_ether_addr(dst)) {
+		if (memcmp(bssid, ieee->current_network.bssid,
+			   ETH_ALEN))
+			return -1;
 	}
 	return 0;
 }
@@ -1498,8 +1496,6 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 		break;
 	case IW_MODE_MONITOR:
 		ret = rtllib_rx_Monitor(ieee, skb, rx_stats);
-		break;
-	case IW_MODE_MESH:
 		break;
 	default:
 		netdev_info(ieee->dev, "%s: ERR iw mode!!!\n", __func__);
