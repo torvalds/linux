@@ -590,8 +590,6 @@ static int aspeed_acry_rsa_init_tfm(struct crypto_akcipher *tfm)
 	}
 
 	ctx->enginectx.op.do_one_request = aspeed_acry_do_request;
-	ctx->enginectx.op.prepare_request = NULL;
-	ctx->enginectx.op.unprepare_request = NULL;
 
 	return 0;
 }

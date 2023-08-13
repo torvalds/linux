@@ -714,8 +714,6 @@ static int aspeed_crypto_cra_init(struct crypto_skcipher *tfm)
 			 crypto_skcipher_reqsize(ctx->fallback_tfm));
 
 	ctx->enginectx.op.do_one_request = aspeed_crypto_do_request;
-	ctx->enginectx.op.prepare_request = NULL;
-	ctx->enginectx.op.unprepare_request = NULL;
 
 	return 0;
 }

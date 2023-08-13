@@ -565,8 +565,8 @@ static int aspeed_ahash_do_request(struct crypto_engine *engine, void *areq)
 	return 0;
 }
 
-static int aspeed_ahash_prepare_request(struct crypto_engine *engine,
-					void *areq)
+static void aspeed_ahash_prepare_request(struct crypto_engine *engine,
+					 void *areq)
 {
 	struct ahash_request *req = ahash_request_cast(areq);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
@@ -581,8 +581,12 @@ static int aspeed_ahash_prepare_request(struct crypto_engine *engine,
 		hash_engine->dma_prepare = aspeed_ahash_dma_prepare_sg;
 	else
 		hash_engine->dma_prepare = aspeed_ahash_dma_prepare;
+}
 
-	return 0;
+static int aspeed_ahash_do_one(struct crypto_engine *engine, void *areq)
+{
+	aspeed_ahash_prepare_request(engine, areq);
+	return aspeed_ahash_do_request(engine, areq);
 }
 
 static int aspeed_sham_update(struct ahash_request *req)
@@ -876,9 +880,7 @@ static int aspeed_sham_cra_init(struct crypto_tfm *tfm)
 		}
 	}
 
-	tctx->enginectx.op.do_one_request = aspeed_ahash_do_request;
-	tctx->enginectx.op.prepare_request = aspeed_ahash_prepare_request;
-	tctx->enginectx.op.unprepare_request = NULL;
+	tctx->enginectx.op.do_one_request = aspeed_ahash_do_one;
 
 	return 0;
 }
