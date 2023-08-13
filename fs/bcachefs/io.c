@@ -380,10 +380,10 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct disk_reservation disk_res = { 0 };
 	struct closure cl;
-	struct open_buckets open_buckets;
+	struct open_buckets open_buckets = { 0 };
 	struct bkey_s_c k;
 	struct bkey_buf old, new;
-	unsigned sectors_allocated;
+	unsigned sectors_allocated = 0;
 	bool have_reservation = false;
 	bool unwritten = opts.nocow &&
 	    c->sb.version >= bcachefs_metadata_version_unwritten_extents;
@@ -392,9 +392,6 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 	bch2_bkey_buf_init(&old);
 	bch2_bkey_buf_init(&new);
 	closure_init_stack(&cl);
-	open_buckets.nr = 0;
-retry:
-	sectors_allocated = 0;
 
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
@@ -413,14 +410,14 @@ retry:
 		 */
 		ret = bch2_disk_reservation_get(c, &disk_res, sectors, new_replicas, 0);
 		if (unlikely(ret))
-			goto out;
+			goto err;
 
 		bch2_bkey_buf_reassemble(&old, c, k);
 	}
 
 	if (have_reservation) {
 		if (!bch2_extents_match(k, bkey_i_to_s_c(old.k)))
-			goto out;
+			goto err;
 
 		bch2_key_resize(&new.k->k, sectors);
 	} else if (!unwritten) {
@@ -452,13 +449,10 @@ retry:
 				opts.data_replicas,
 				opts.data_replicas,
 				BCH_WATERMARK_normal, 0, &cl, &wp);
-		if (ret) {
-			bch2_trans_unlock(trans);
-			closure_sync(&cl);
-			if (bch2_err_matches(ret, BCH_ERR_operation_blocked))
-				goto retry;
-			return ret;
-		}
+		if (bch2_err_matches(ret, BCH_ERR_operation_blocked))
+			ret = -BCH_ERR_transaction_restart_nested;
+		if (ret)
+			goto err;
 
 		sectors = min(sectors, wp->sectors_free);
 		sectors_allocated = sectors;
@@ -477,17 +471,7 @@ retry:
 
 	ret = bch2_extent_update(trans, inum, iter, new.k, &disk_res,
 				 0, i_sectors_delta, true);
-out:
-	if (closure_nr_remaining(&cl) != 1) {
-		bch2_trans_unlock(trans);
-		closure_sync(&cl);
-	}
-
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
-		bch2_trans_begin(trans);
-		goto retry;
-	}
-
+err:
 	if (!ret && sectors_allocated)
 		bch2_increment_clock(c, sectors_allocated, WRITE);
 
@@ -495,6 +479,11 @@ out:
 	bch2_disk_reservation_put(c, &disk_res);
 	bch2_bkey_buf_exit(&new, c);
 	bch2_bkey_buf_exit(&old, c);
+
+	if (closure_nr_remaining(&cl) != 1) {
+		bch2_trans_unlock(trans);
+		closure_sync(&cl);
+	}
 
 	return ret;
 }
