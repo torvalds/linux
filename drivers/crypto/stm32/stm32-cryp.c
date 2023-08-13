@@ -825,8 +825,6 @@ static int stm32_cryp_cpu_start(struct stm32_cryp *cryp)
 }
 
 static int stm32_cryp_cipher_one_req(struct crypto_engine *engine, void *areq);
-static int stm32_cryp_prepare_cipher_req(struct crypto_engine *engine,
-					 void *areq);
 
 static int stm32_cryp_init_tfm(struct crypto_skcipher *tfm)
 {
@@ -835,14 +833,10 @@ static int stm32_cryp_init_tfm(struct crypto_skcipher *tfm)
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct stm32_cryp_reqctx));
 
 	ctx->enginectx.op.do_one_request = stm32_cryp_cipher_one_req;
-	ctx->enginectx.op.prepare_request = stm32_cryp_prepare_cipher_req;
-	ctx->enginectx.op.unprepare_request = NULL;
 	return 0;
 }
 
 static int stm32_cryp_aead_one_req(struct crypto_engine *engine, void *areq);
-static int stm32_cryp_prepare_aead_req(struct crypto_engine *engine,
-				       void *areq);
 
 static int stm32_cryp_aes_aead_init(struct crypto_aead *tfm)
 {
@@ -851,8 +845,6 @@ static int stm32_cryp_aes_aead_init(struct crypto_aead *tfm)
 	tfm->reqsize = sizeof(struct stm32_cryp_reqctx);
 
 	ctx->enginectx.op.do_one_request = stm32_cryp_aead_one_req;
-	ctx->enginectx.op.prepare_request = stm32_cryp_prepare_aead_req;
-	ctx->enginectx.op.unprepare_request = NULL;
 
 	return 0;
 }
@@ -1180,9 +1172,6 @@ static int stm32_cryp_prepare_req(struct skcipher_request *req,
 
 	cryp = ctx->cryp;
 
-	if (!cryp)
-		return -ENODEV;
-
 	rctx = req ? skcipher_request_ctx(req) : aead_request_ctx(areq);
 	rctx->mode &= FLG_MODE_MASK;
 
@@ -1248,16 +1237,6 @@ static int stm32_cryp_prepare_req(struct skcipher_request *req,
 	return ret;
 }
 
-static int stm32_cryp_prepare_cipher_req(struct crypto_engine *engine,
-					 void *areq)
-{
-	struct skcipher_request *req = container_of(areq,
-						      struct skcipher_request,
-						      base);
-
-	return stm32_cryp_prepare_req(req, NULL);
-}
-
 static int stm32_cryp_cipher_one_req(struct crypto_engine *engine, void *areq)
 {
 	struct skcipher_request *req = container_of(areq,
@@ -1270,15 +1249,8 @@ static int stm32_cryp_cipher_one_req(struct crypto_engine *engine, void *areq)
 	if (!cryp)
 		return -ENODEV;
 
-	return stm32_cryp_cpu_start(cryp);
-}
-
-static int stm32_cryp_prepare_aead_req(struct crypto_engine *engine, void *areq)
-{
-	struct aead_request *req = container_of(areq, struct aead_request,
-						base);
-
-	return stm32_cryp_prepare_req(NULL, req);
+	return stm32_cryp_prepare_req(req, NULL) ?:
+	       stm32_cryp_cpu_start(cryp);
 }
 
 static int stm32_cryp_aead_one_req(struct crypto_engine *engine, void *areq)
@@ -1287,9 +1259,14 @@ static int stm32_cryp_aead_one_req(struct crypto_engine *engine, void *areq)
 						base);
 	struct stm32_cryp_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct stm32_cryp *cryp = ctx->cryp;
+	int err;
 
 	if (!cryp)
 		return -ENODEV;
+
+	err = stm32_cryp_prepare_req(NULL, req);
+	if (err)
+		return err;
 
 	if (unlikely(!cryp->payload_in && !cryp->header_in)) {
 		/* No input data to process: get tag and finish */
