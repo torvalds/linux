@@ -8,9 +8,15 @@
  *
  * Some ideas are from marvell/cesa.c and s5p-sss.c driver.
  */
-#include <linux/device.h>
+
 #include <asm/unaligned.h>
+#include <crypto/internal/hash.h>
+#include <linux/device.h>
+#include <linux/err.h>
 #include <linux/iopoll.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/string.h>
 #include "rk3288_crypto.h"
 
 /*
@@ -40,8 +46,8 @@ static int rk_ahash_digest_fb(struct ahash_request *areq)
 	struct rk_ahash_rctx *rctx = ahash_request_ctx(areq);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
 	struct rk_ahash_ctx *tfmctx = crypto_ahash_ctx(tfm);
-	struct ahash_alg *alg = __crypto_ahash_alg(tfm->base.__crt_alg);
-	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.hash);
+	struct ahash_alg *alg = crypto_ahash_alg(tfm);
+	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.hash.base);
 
 	algt->stat_fb++;
 
@@ -254,8 +260,8 @@ static int rk_hash_run(struct crypto_engine *engine, void *breq)
 	struct ahash_request *areq = container_of(breq, struct ahash_request, base);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
 	struct rk_ahash_rctx *rctx = ahash_request_ctx(areq);
-	struct ahash_alg *alg = __crypto_ahash_alg(tfm->base.__crt_alg);
-	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.hash);
+	struct ahash_alg *alg = crypto_ahash_alg(tfm);
+	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.hash.base);
 	struct scatterlist *sg = areq->src;
 	struct rk_crypto_info *rkc = rctx->dev;
 	int err;
@@ -335,12 +341,12 @@ theend:
 	return 0;
 }
 
-static int rk_cra_hash_init(struct crypto_tfm *tfm)
+static int rk_hash_init_tfm(struct crypto_ahash *tfm)
 {
-	struct rk_ahash_ctx *tctx = crypto_tfm_ctx(tfm);
-	const char *alg_name = crypto_tfm_alg_name(tfm);
-	struct ahash_alg *alg = __crypto_ahash_alg(tfm->__crt_alg);
-	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.hash);
+	struct rk_ahash_ctx *tctx = crypto_ahash_ctx(tfm);
+	const char *alg_name = crypto_ahash_alg_name(tfm);
+	struct ahash_alg *alg = crypto_ahash_alg(tfm);
+	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.hash.base);
 
 	/* for fallback */
 	tctx->fallback_tfm = crypto_alloc_ahash(alg_name, 0,
@@ -350,25 +356,23 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 		return PTR_ERR(tctx->fallback_tfm);
 	}
 
-	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
+	crypto_ahash_set_reqsize(tfm,
 				 sizeof(struct rk_ahash_rctx) +
 				 crypto_ahash_reqsize(tctx->fallback_tfm));
-
-	tctx->enginectx.op.do_one_request = rk_hash_run;
 
 	return 0;
 }
 
-static void rk_cra_hash_exit(struct crypto_tfm *tfm)
+static void rk_hash_exit_tfm(struct crypto_ahash *tfm)
 {
-	struct rk_ahash_ctx *tctx = crypto_tfm_ctx(tfm);
+	struct rk_ahash_ctx *tctx = crypto_ahash_ctx(tfm);
 
 	crypto_free_ahash(tctx->fallback_tfm);
 }
 
 struct rk_crypto_tmp rk_ahash_sha1 = {
 	.type = CRYPTO_ALG_TYPE_AHASH,
-	.alg.hash = {
+	.alg.hash.base = {
 		.init = rk_ahash_init,
 		.update = rk_ahash_update,
 		.final = rk_ahash_final,
@@ -376,6 +380,8 @@ struct rk_crypto_tmp rk_ahash_sha1 = {
 		.export = rk_ahash_export,
 		.import = rk_ahash_import,
 		.digest = rk_ahash_digest,
+		.init_tfm = rk_hash_init_tfm,
+		.exit_tfm = rk_hash_exit_tfm,
 		.halg = {
 			 .digestsize = SHA1_DIGEST_SIZE,
 			 .statesize = sizeof(struct sha1_state),
@@ -388,17 +394,18 @@ struct rk_crypto_tmp rk_ahash_sha1 = {
 				  .cra_blocksize = SHA1_BLOCK_SIZE,
 				  .cra_ctxsize = sizeof(struct rk_ahash_ctx),
 				  .cra_alignmask = 3,
-				  .cra_init = rk_cra_hash_init,
-				  .cra_exit = rk_cra_hash_exit,
 				  .cra_module = THIS_MODULE,
 			}
 		}
-	}
+	},
+	.alg.hash.op = {
+		.do_one_request = rk_hash_run,
+	},
 };
 
 struct rk_crypto_tmp rk_ahash_sha256 = {
 	.type = CRYPTO_ALG_TYPE_AHASH,
-	.alg.hash = {
+	.alg.hash.base = {
 		.init = rk_ahash_init,
 		.update = rk_ahash_update,
 		.final = rk_ahash_final,
@@ -406,6 +413,8 @@ struct rk_crypto_tmp rk_ahash_sha256 = {
 		.export = rk_ahash_export,
 		.import = rk_ahash_import,
 		.digest = rk_ahash_digest,
+		.init_tfm = rk_hash_init_tfm,
+		.exit_tfm = rk_hash_exit_tfm,
 		.halg = {
 			 .digestsize = SHA256_DIGEST_SIZE,
 			 .statesize = sizeof(struct sha256_state),
@@ -418,17 +427,18 @@ struct rk_crypto_tmp rk_ahash_sha256 = {
 				  .cra_blocksize = SHA256_BLOCK_SIZE,
 				  .cra_ctxsize = sizeof(struct rk_ahash_ctx),
 				  .cra_alignmask = 3,
-				  .cra_init = rk_cra_hash_init,
-				  .cra_exit = rk_cra_hash_exit,
 				  .cra_module = THIS_MODULE,
 			}
 		}
-	}
+	},
+	.alg.hash.op = {
+		.do_one_request = rk_hash_run,
+	},
 };
 
 struct rk_crypto_tmp rk_ahash_md5 = {
 	.type = CRYPTO_ALG_TYPE_AHASH,
-	.alg.hash = {
+	.alg.hash.base = {
 		.init = rk_ahash_init,
 		.update = rk_ahash_update,
 		.final = rk_ahash_final,
@@ -436,6 +446,8 @@ struct rk_crypto_tmp rk_ahash_md5 = {
 		.export = rk_ahash_export,
 		.import = rk_ahash_import,
 		.digest = rk_ahash_digest,
+		.init_tfm = rk_hash_init_tfm,
+		.exit_tfm = rk_hash_exit_tfm,
 		.halg = {
 			 .digestsize = MD5_DIGEST_SIZE,
 			 .statesize = sizeof(struct md5_state),
@@ -448,10 +460,11 @@ struct rk_crypto_tmp rk_ahash_md5 = {
 				  .cra_blocksize = SHA1_BLOCK_SIZE,
 				  .cra_ctxsize = sizeof(struct rk_ahash_ctx),
 				  .cra_alignmask = 3,
-				  .cra_init = rk_cra_hash_init,
-				  .cra_exit = rk_cra_hash_exit,
 				  .cra_module = THIS_MODULE,
 			}
 		}
-	}
+	},
+	.alg.hash.op = {
+		.do_one_request = rk_hash_run,
+	},
 };
