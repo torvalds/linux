@@ -298,8 +298,8 @@ struct apic {
 	u32	(*cpu_present_to_apicid)(int mps_cpu);
 	u32	(*phys_pkg_id)(u32 cpuid_apic, int index_msb);
 
-	u32	(*get_apic_id)(unsigned long x);
-	u32	(*set_apic_id)(unsigned int id);
+	u32	(*get_apic_id)(u32 id);
+	u32	(*set_apic_id)(u32 apicid);
 
 	/* wakeup_secondary_cpu */
 	int	(*wakeup_secondary_cpu)(int apicid, unsigned long start_eip);
@@ -491,16 +491,6 @@ static inline bool lapic_vector_set_in_irr(unsigned int vector)
 	u32 irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
 
 	return !!(irr & (1U << (vector % 32)));
-}
-
-static inline unsigned default_get_apic_id(unsigned long x)
-{
-	unsigned int ver = GET_APIC_VERSION(apic_read(APIC_LVR));
-
-	if (APIC_XAPIC(ver) || boot_cpu_has(X86_FEATURE_EXTD_APICID))
-		return (x >> 24) & 0xFF;
-	else
-		return (x >> 24) & 0x0F;
 }
 
 /*
