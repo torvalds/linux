@@ -267,6 +267,6 @@
 	status = "okay";
 };
 
-&panel {
-	compatible = "xiaomi,tissot-panel";
+&wcnss_iris {
+	compatible = "qcom,wcn3680";
 };
