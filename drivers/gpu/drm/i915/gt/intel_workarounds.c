@@ -798,9 +798,6 @@ static void dg2_ctx_workarounds_init(struct intel_engine_cs *engine,
 	    IS_DG2_G11(engine->i915) || IS_DG2_G12(engine->i915))
 		wa_mcr_masked_en(wal, XEHP_PSS_MODE2, SCOREBOARD_STALL_FLUSH_CONTROL);
 
-	/* Wa_15010599737:dg2 */
-	wa_mcr_masked_en(wal, CHICKEN_RASTER_1, DIS_SF_ROUND_NEAREST_EVEN);
-
 	/* Wa_18019271663:dg2 */
 	wa_masked_en(wal, CACHE_MODE_1, MSAA_OPTIMIZATION_REDUC_DISABLE);
 }
