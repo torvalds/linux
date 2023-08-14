@@ -13,6 +13,7 @@ def define_pineapple():
         "drivers/bus/mhi/devices/mhi_dev_uci.ko",
         "drivers/bus/mhi/host/mhi.ko",
         "drivers/char/rdbg.ko",
+        "drivers/clk/qcom/camcc-cliffs.ko",
         "drivers/clk/qcom/camcc-pineapple.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
