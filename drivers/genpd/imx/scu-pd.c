@@ -72,6 +72,22 @@ struct imx_sc_msg_req_set_resource_power_mode {
 	u8 mode;
 } __packed __aligned(4);
 
+struct req_get_resource_mode {
+	u16 resource;
+};
+
+struct resp_get_resource_mode {
+	u8 mode;
+};
+
+struct imx_sc_msg_req_get_resource_power_mode {
+	struct imx_sc_rpc_msg hdr;
+	union {
+		struct req_get_resource_mode req;
+		struct resp_get_resource_mode resp;
+	} data;
+} __packed __aligned(4);
+
 #define IMX_SCU_PD_NAME_SIZE 20
 struct imx_sc_pm_domain {
 	struct generic_pm_domain pd;
@@ -95,6 +111,14 @@ struct imx_sc_pd_soc {
 };
 
 static int imx_con_rsrc;
+
+/* Align with the IMX_SC_PM_PW_MODE_[OFF,STBY,LP,ON] macros */
+static const char * const imx_sc_pm_mode[] = {
+	"IMX_SC_PM_PW_MODE_OFF",
+	"IMX_SC_PM_PW_MODE_STBY",
+	"IMX_SC_PM_PW_MODE_LP",
+	"IMX_SC_PM_PW_MODE_ON"
+};
 
 static const struct imx_sc_pd_range imx8qxp_scu_pd_ranges[] = {
 	/* LSIO SS */
@@ -308,6 +332,27 @@ static void imx_sc_pd_get_console_rsrc(void)
 	imx_con_rsrc = specs.args[0];
 }
 
+static int imx_sc_get_pd_power(struct device *dev, u32 rsrc)
+{
+	struct imx_sc_msg_req_get_resource_power_mode msg;
+	struct imx_sc_rpc_msg *hdr = &msg.hdr;
+	int ret;
+
+	hdr->ver = IMX_SC_RPC_VERSION;
+	hdr->svc = IMX_SC_RPC_SVC_PM;
+	hdr->func = IMX_SC_PM_FUNC_GET_RESOURCE_POWER_MODE;
+	hdr->size = 2;
+
+	msg.data.req.resource = rsrc;
+
+	ret = imx_scu_call_rpc(pm_ipc_handle, &msg, true);
+	if (ret)
+		dev_err(dev, "failed to get power resource %d mode, ret %d\n",
+			rsrc, ret);
+
+	return msg.data.resp.mode;
+}
+
 static int imx_sc_pd_power(struct generic_pm_domain *domain, bool power_on)
 {
 	struct imx_sc_msg_req_set_resource_power_mode msg;
@@ -372,8 +417,8 @@ imx_scu_add_pm_domain(struct device *dev, int idx,
 		      const struct imx_sc_pd_range *pd_ranges)
 {
 	struct imx_sc_pm_domain *sc_pd;
-	bool is_off = true;
-	int ret;
+	bool is_off;
+	int mode, ret;
 
 	if (!imx_sc_rm_is_resource_owned(pm_ipc_handle, pd_ranges->rsrc + idx))
 		return NULL;
@@ -394,10 +439,16 @@ imx_scu_add_pm_domain(struct device *dev, int idx,
 			 "%s", pd_ranges->name);
 
 	sc_pd->pd.name = sc_pd->name;
-	if (imx_con_rsrc == sc_pd->rsrc) {
+	if (imx_con_rsrc == sc_pd->rsrc)
 		sc_pd->pd.flags = GENPD_FLAG_RPM_ALWAYS_ON;
+
+	mode = imx_sc_get_pd_power(dev, pd_ranges->rsrc + idx);
+	if (mode == IMX_SC_PM_PW_MODE_ON)
 		is_off = false;
-	}
+	else
+		is_off = true;
+
+	dev_dbg(dev, "%s : %s\n", sc_pd->name, imx_sc_pm_mode[mode]);
 
 	if (sc_pd->rsrc >= IMX_SC_R_LAST) {
 		dev_warn(dev, "invalid pd %s rsrc id %d found",
