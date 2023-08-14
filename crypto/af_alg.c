@@ -1241,6 +1241,8 @@ int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 				return -ENOMEM;
 		}
 
+		rsgl->sgl.need_unpin =
+			iov_iter_extract_will_pin(&msg->msg_iter);
 		rsgl->sgl.sgt.sgl = rsgl->sgl.sgl;
 		rsgl->sgl.sgt.nents = 0;
 		rsgl->sgl.sgt.orig_nents = 0;
@@ -1255,8 +1257,6 @@ int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 		}
 
 		sg_mark_end(rsgl->sgl.sgt.sgl + rsgl->sgl.sgt.nents - 1);
-		rsgl->sgl.need_unpin =
-			iov_iter_extract_will_pin(&msg->msg_iter);
 
 		/* chain the new scatterlist with previous one */
 		if (areq->last_rsgl)
