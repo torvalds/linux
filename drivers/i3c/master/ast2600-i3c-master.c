@@ -1035,13 +1035,28 @@ out:
 static void aspeed_i3c_master_demux_ibis(struct aspeed_i3c_master *master)
 {
 	u32 nibi, status;
-	int i;
+	int i, ret;
 	u8 addr;
+
+	/*
+	 * Ensure that the master will send a NACK for the IBI to prevent
+	 * the IBI, which was accepted by the master, from being dropped
+	 * at the end of the function.
+	 */
+	ret = aspeed_i3c_master_enter_halt(master, true);
+	if (ret)
+		goto end_demux_ibis;
 
 	nibi = readl(master->regs + QUEUE_STATUS_LEVEL);
 	nibi = QUEUE_STATUS_IBI_STATUS_CNT(nibi);
+	/*
+	 * Make sure that the function does not manage a queue number that
+	 * surpasses the tolerance level for the IBI buffer. Failing to
+	 * address this situation properly could lead to a bus hang.
+	 */
+	nibi = min(nibi, 16u);
 	if (!nibi)
-		return;
+		goto end_demux_ibis;
 
 	for (i = 0; i < nibi; i++) {
 		status = readl(master->regs + IBI_QUEUE_STATUS);
@@ -1061,6 +1076,12 @@ static void aspeed_i3c_master_demux_ibis(struct aspeed_i3c_master *master)
 		if (IBI_TYPE_MR(status))
 			pr_info("get mr from %02x\n", addr);
 	}
+end_demux_ibis:
+	ret = aspeed_i3c_master_reset_ctrl(master, RESET_CTRL_IBI_QUEUE);
+	if (ret)
+		dev_err(master->dev,
+			"Waiting for reset of IBI queue to complete TIMEOUT");
+	aspeed_i3c_master_resume(master);
 }
 
 static void aspeed_i3c_master_end_xfer_locked(struct aspeed_i3c_master *master, u32 isr)
