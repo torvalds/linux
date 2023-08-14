@@ -1699,6 +1699,7 @@ static int hl_dmabuf_attach(struct dma_buf *dmabuf,
 static struct sg_table *hl_map_dmabuf(struct dma_buf_attachment *attachment,
 					enum dma_data_direction dir)
 {
+	u64 *pages, npages, page_size, exported_size;
 	struct dma_buf *dma_buf = attachment->dmabuf;
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct hl_dmabuf_priv *hl_dmabuf;
@@ -1707,30 +1708,27 @@ static struct sg_table *hl_map_dmabuf(struct dma_buf_attachment *attachment,
 
 	hl_dmabuf = dma_buf->priv;
 	hdev = hl_dmabuf->ctx->hdev;
-	phys_pg_pack = hl_dmabuf->phys_pg_pack;
 
 	if (!attachment->peer2peer) {
 		dev_dbg(hdev->dev, "Failed to map dmabuf because p2p is disabled\n");
 		return ERR_PTR(-EPERM);
 	}
 
-	if (phys_pg_pack)
-		sgt = alloc_sgt_from_device_pages(hdev,
-						phys_pg_pack->pages,
-						phys_pg_pack->npages,
-						phys_pg_pack->page_size,
-						hl_dmabuf->dmabuf->size,
-						attachment->dev,
-						dir);
-	else
-		sgt = alloc_sgt_from_device_pages(hdev,
-						&hl_dmabuf->device_address,
-						1,
-						hl_dmabuf->dmabuf->size,
-						hl_dmabuf->dmabuf->size,
-						attachment->dev,
-						dir);
+	exported_size = hl_dmabuf->dmabuf->size;
+	phys_pg_pack = hl_dmabuf->phys_pg_pack;
 
+	if (phys_pg_pack) {
+		pages = phys_pg_pack->pages;
+		npages = phys_pg_pack->npages;
+		page_size = phys_pg_pack->page_size;
+	} else {
+		pages = &hl_dmabuf->device_address;
+		npages = 1;
+		page_size = hl_dmabuf->dmabuf->size;
+	}
+
+	sgt = alloc_sgt_from_device_pages(hdev, pages, npages, page_size, exported_size,
+						attachment->dev, dir);
 	if (IS_ERR(sgt))
 		dev_err(hdev->dev, "failed (%ld) to initialize sgt for dmabuf\n", PTR_ERR(sgt));
 
