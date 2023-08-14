@@ -574,7 +574,7 @@ static struct i2c_driver rtq2208_driver = {
 		.name = "rtq2208",
 		.of_match_table = rtq2208_device_tables,
 	},
-	.probe_new = rtq2208_probe,
+	.probe = rtq2208_probe,
 };
 module_i2c_driver(rtq2208_driver);
 
