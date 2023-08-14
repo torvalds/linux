@@ -588,10 +588,8 @@ static int cci_probe(struct platform_device *pdev)
 	/* Clocks */
 
 	ret = devm_clk_bulk_get_all(dev, &cci->clocks);
-	if (ret < 1) {
-		dev_err(dev, "failed to get clocks %d\n", ret);
-		return ret;
-	}
+	if (ret < 1)
+		return dev_err_probe(dev, ret, "failed to get clocks\n");
 	cci->nclocks = ret;
 
 	/* Retrieve CCI clock rate */

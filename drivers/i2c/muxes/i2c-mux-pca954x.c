@@ -530,7 +530,6 @@ static void pca954x_remove(struct i2c_client *client)
 	pca954x_cleanup(muxc);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int pca954x_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -544,14 +543,13 @@ static int pca954x_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(pca954x_pm, NULL, pca954x_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(pca954x_pm, NULL, pca954x_resume);
 
 static struct i2c_driver pca954x_driver = {
 	.driver		= {
 		.name	= "pca954x",
-		.pm	= &pca954x_pm,
+		.pm	= pm_sleep_ptr(&pca954x_pm),
 		.of_match_table = pca954x_of_match,
 	},
 	.probe		= pca954x_probe,

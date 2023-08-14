@@ -1125,8 +1125,6 @@ static void bcm_iproc_i2c_remove(struct platform_device *pdev)
 	bcm_iproc_i2c_enable_disable(iproc_i2c, false);
 }
 
-#ifdef CONFIG_PM_SLEEP
-
 static int bcm_iproc_i2c_suspend(struct device *dev)
 {
 	struct bcm_iproc_i2c_dev *iproc_i2c = dev_get_drvdata(dev);
@@ -1176,12 +1174,6 @@ static const struct dev_pm_ops bcm_iproc_i2c_pm_ops = {
 	.suspend_late = &bcm_iproc_i2c_suspend,
 	.resume_early = &bcm_iproc_i2c_resume
 };
-
-#define BCM_IPROC_I2C_PM_OPS (&bcm_iproc_i2c_pm_ops)
-#else
-#define BCM_IPROC_I2C_PM_OPS NULL
-#endif /* CONFIG_PM_SLEEP */
-
 
 static int bcm_iproc_i2c_reg_slave(struct i2c_client *slave)
 {
@@ -1255,7 +1247,7 @@ static struct platform_driver bcm_iproc_i2c_driver = {
 	.driver = {
 		.name = "bcm-iproc-i2c",
 		.of_match_table = bcm_iproc_i2c_of_match,
-		.pm = BCM_IPROC_I2C_PM_OPS,
+		.pm = pm_sleep_ptr(&bcm_iproc_i2c_pm_ops),
 	},
 	.probe = bcm_iproc_i2c_probe,
 	.remove_new = bcm_iproc_i2c_remove,

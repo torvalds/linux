@@ -697,7 +697,6 @@ static void brcmstb_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&dev->adapter);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int brcmstb_i2c_suspend(struct device *dev)
 {
 	struct brcmstb_i2c_dev *i2c_dev = dev_get_drvdata(dev);
@@ -715,10 +714,9 @@ static int brcmstb_i2c_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(brcmstb_i2c_pm, brcmstb_i2c_suspend,
-			 brcmstb_i2c_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(brcmstb_i2c_pm, brcmstb_i2c_suspend,
+				brcmstb_i2c_resume);
 
 static const struct of_device_id brcmstb_i2c_of_match[] = {
 	{.compatible = "brcm,brcmstb-i2c"},
@@ -732,7 +730,7 @@ static struct platform_driver brcmstb_i2c_driver = {
 	.driver = {
 		   .name = "brcmstb-i2c",
 		   .of_match_table = brcmstb_i2c_of_match,
-		   .pm = &brcmstb_i2c_pm,
+		   .pm = pm_sleep_ptr(&brcmstb_i2c_pm),
 		   },
 	.probe = brcmstb_i2c_probe,
 	.remove_new = brcmstb_i2c_remove,
