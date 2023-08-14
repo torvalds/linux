@@ -1215,3 +1215,38 @@ macro_rules! __init_internal {
         );
     };
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __derive_zeroable {
+    (parse_input:
+        @sig(
+            $(#[$($struct_attr:tt)*])*
+            $vis:vis struct $name:ident
+            $(where $($whr:tt)*)?
+        ),
+        @impl_generics($($impl_generics:tt)*),
+        @ty_generics($($ty_generics:tt)*),
+        @body({
+            $(
+                $(#[$($field_attr:tt)*])*
+                $field:ident : $field_ty:ty
+            ),* $(,)?
+        }),
+    ) => {
+        // SAFETY: Every field type implements `Zeroable` and padding bytes may be zero.
+        #[automatically_derived]
+        unsafe impl<$($impl_generics)*> $crate::init::Zeroable for $name<$($ty_generics)*>
+        where
+            $($($whr)*)?
+        {}
+        const _: () = {
+            fn assert_zeroable<T: ?::core::marker::Sized + $crate::init::Zeroable>() {}
+            fn ensure_zeroable<$($impl_generics)*>()
+                where $($($whr)*)?
+            {
+                $(assert_zeroable::<$field_ty>();)*
+            }
+        };
+    };
+}

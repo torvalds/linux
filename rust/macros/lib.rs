@@ -11,6 +11,7 @@ mod paste;
 mod pin_data;
 mod pinned_drop;
 mod vtable;
+mod zeroable;
 
 use proc_macro::TokenStream;
 
@@ -342,4 +343,23 @@ pub fn paste(input: TokenStream) -> TokenStream {
     let mut tokens = input.into_iter().collect();
     paste::expand(&mut tokens);
     tokens.into_iter().collect()
+}
+
+/// Derives the [`Zeroable`] trait for the given struct.
+///
+/// This can only be used for structs where every field implements the [`Zeroable`] trait.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// #[derive(Zeroable)]
+/// pub struct DriverData {
+///     id: i64,
+///     buf_ptr: *mut u8,
+///     len: usize,
+/// }
+/// ```
+#[proc_macro_derive(Zeroable)]
+pub fn derive_zeroable(input: TokenStream) -> TokenStream {
+    zeroable::derive(input)
 }
