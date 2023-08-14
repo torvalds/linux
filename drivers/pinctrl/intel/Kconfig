@@ -187,4 +187,5 @@ config PINCTRL_TIGERLAKE
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Tiger Lake PCH pins and using them as GPIOs.
 
+source "drivers/pinctrl/intel/Kconfig.tng"
 endmenu
