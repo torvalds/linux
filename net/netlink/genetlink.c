@@ -943,7 +943,6 @@ static int genl_family_rcv_msg_doit(const struct genl_family *family,
 	info.snd_portid = NETLINK_CB(skb).portid;
 	info.nlhdr = nlh;
 	info.genlhdr = nlmsg_data(nlh);
-	info.userhdr = nlmsg_data(nlh) + GENL_HDRLEN;
 	info.attrs = attrbuf;
 	info.extack = extack;
 	genl_info_net_set(&info, net);

@@ -1294,7 +1294,7 @@ static int tipc_nl_compat_recv(struct sk_buff *skb, struct genl_info *info)
 	struct tipc_nl_compat_msg msg;
 	struct nlmsghdr *req_nlh;
 	struct nlmsghdr *rep_nlh;
-	struct tipc_genlmsghdr *req_userhdr = info->userhdr;
+	struct tipc_genlmsghdr *req_userhdr = genl_info_userhdr(info);
 
 	memset(&msg, 0, sizeof(msg));
 
