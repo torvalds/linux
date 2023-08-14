@@ -1000,7 +1000,7 @@ macro_rules! __pin_data {
 macro_rules! __init_internal {
     (
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:path),
         @fields($($fields:tt)*),
         @error($err:ty),
         // Either `PinData` or `InitData`, `$use_data` should only be present in the `PinData`
@@ -1014,7 +1014,7 @@ macro_rules! __init_internal {
     ) => {
         $crate::__init_internal!(with_update_parsed:
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)? ),
+            @typ($t),
             @fields($($fields)*),
             @error($err),
             @data($data, $($use_data)?),
@@ -1025,7 +1025,7 @@ macro_rules! __init_internal {
     };
     (
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:path),
         @fields($($fields:tt)*),
         @error($err:ty),
         // Either `PinData` or `InitData`, `$use_data` should only be present in the `PinData`
@@ -1039,7 +1039,7 @@ macro_rules! __init_internal {
     ) => {
         $crate::__init_internal!(with_update_parsed:
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)? ),
+            @typ($t),
             @fields($($fields)*),
             @error($err),
             @data($data, $($use_data)?),
@@ -1050,7 +1050,7 @@ macro_rules! __init_internal {
     };
     (
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:path),
         @fields($($fields:tt)*),
         @error($err:ty),
         // Either `PinData` or `InitData`, `$use_data` should only be present in the `PinData`
@@ -1064,7 +1064,7 @@ macro_rules! __init_internal {
     ) => {
         $crate::__init_internal!(
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)? ),
+            @typ($t),
             @fields($($fields)*),
             @error($err),
             @data($data, $($use_data)?),
@@ -1075,7 +1075,7 @@ macro_rules! __init_internal {
     };
     (with_update_parsed:
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:path),
         @fields($($fields:tt)*),
         @error($err:ty),
         // Either `PinData` or `InitData`, `$use_data` should only be present in the `PinData`
@@ -1094,7 +1094,11 @@ macro_rules! __init_internal {
         // Get the data about fields from the supplied type.
         let data = unsafe {
             use $crate::init::__internal::$has_data;
-            $t$(::<$($generics),*>)?::$get_data()
+            // Here we abuse `paste!` to retokenize `$t`. Declarative macros have some internal
+            // information that is associated to already parsed fragments, so a path fragment
+            // cannot be used in this position. Doing the retokenization results in valid rust
+            // code.
+            ::kernel::macros::paste!($t::$get_data())
         };
         // Ensure that `data` really is of type `$data` and help with type inference:
         let init = $crate::init::__internal::$data::make_closure::<_, __InitOk, $err>(
@@ -1253,7 +1257,7 @@ macro_rules! __init_internal {
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:path),
         @munch_fields(..Zeroable::zeroed() $(,)?),
         @acc($($acc:tt)*),
     ) => {
@@ -1270,15 +1274,21 @@ macro_rules! __init_internal {
             // not get executed, so it has no effect.
             ::core::ptr::write($slot, zeroed);
             zeroed = ::core::mem::zeroed();
-            ::core::ptr::write($slot, $t {
-                $($acc)*
-                ..zeroed
-            });
+            // Here we abuse `paste!` to retokenize `$t`. Declarative macros have some internal
+            // information that is associated to already parsed fragments, so a path fragment
+            // cannot be used in this position. Doing the retokenization results in valid rust
+            // code.
+            ::kernel::macros::paste!(
+                ::core::ptr::write($slot, $t {
+                    $($acc)*
+                    ..zeroed
+                });
+            );
         }
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:path),
         @munch_fields($(,)?),
         @acc($($acc:tt)*),
     ) => {
@@ -1286,14 +1296,20 @@ macro_rules! __init_internal {
         // Since we are in the closure that is never called, this will never get executed.
         // We abuse `slot` to get the correct type inference here:
         unsafe {
-            ::core::ptr::write($slot, $t {
-                $($acc)*
-            });
+            // Here we abuse `paste!` to retokenize `$t`. Declarative macros have some internal
+            // information that is associated to already parsed fragments, so a path fragment
+            // cannot be used in this position. Doing the retokenization results in valid rust
+            // code.
+            ::kernel::macros::paste!(
+                ::core::ptr::write($slot, $t {
+                    $($acc)*
+                });
+            );
         }
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:path),
         @munch_fields($field:ident <- $val:expr, $($rest:tt)*),
         @acc($($acc:tt)*),
     ) => {
@@ -1306,7 +1322,7 @@ macro_rules! __init_internal {
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:path),
         @munch_fields($field:ident $(: $val:expr)?, $($rest:tt)*),
         @acc($($acc:tt)*),
     ) => {
