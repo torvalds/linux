@@ -316,10 +316,8 @@ static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
 /**
  * ethnl_default_parse() - Parse request message
  * @req_info:    pointer to structure to put data into
- * @tb:		 parsed attributes
- * @net:         request netns
+ * @info:	 genl_info from the request
  * @request_ops: struct request_ops for request type
- * @extack:      netlink extack for error reporting
  * @require_dev: fail if no device identified in header
  *
  * Parse universal request header and call request specific ->parse_request()
@@ -328,19 +326,21 @@ static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
  * Return: 0 on success or negative error code
  */
 static int ethnl_default_parse(struct ethnl_req_info *req_info,
-			       struct nlattr **tb, struct net *net,
+			       const struct genl_info *info,
 			       const struct ethnl_request_ops *request_ops,
-			       struct netlink_ext_ack *extack, bool require_dev)
+			       bool require_dev)
 {
+	struct nlattr **tb = info->attrs;
 	int ret;
 
 	ret = ethnl_parse_header_dev_get(req_info, tb[request_ops->hdr_attr],
-					 net, extack, require_dev);
+					 genl_info_net(info), info->extack,
+					 require_dev);
 	if (ret < 0)
 		return ret;
 
 	if (request_ops->parse_request) {
-		ret = request_ops->parse_request(req_info, tb, extack);
+		ret = request_ops->parse_request(req_info, tb, info->extack);
 		if (ret < 0)
 			return ret;
 	}
@@ -393,8 +393,7 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 	}
 
-	ret = ethnl_default_parse(req_info, info->attrs, genl_info_net(info),
-				  ops, info->extack, !ops->allow_nodev_do);
+	ret = ethnl_default_parse(req_info, info, ops, !ops->allow_nodev_do);
 	if (ret < 0)
 		goto err_dev;
 	ethnl_init_reply_data(reply_data, ops, req_info->dev);
@@ -538,9 +537,7 @@ static int ethnl_default_start(struct netlink_callback *cb)
 		goto free_req_info;
 	}
 
-	ret = ethnl_default_parse(req_info, info->info.attrs,
-				  sock_net(cb->skb->sk),
-				  ops, cb->extack, false);
+	ret = ethnl_default_parse(req_info, &info->info, ops, false);
 	if (req_info->dev) {
 		/* We ignore device specification in dump requests but as the
 		 * same parser as for non-dump (doit) requests is used, it
