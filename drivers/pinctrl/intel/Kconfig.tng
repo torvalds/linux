@@ -14,4 +14,12 @@ config PINCTRL_TANGIER
 
 	  If built as a module its name will be pinctrl-tangier.
 
+config PINCTRL_MERRIFIELD
+	tristate "Intel Merrifield pinctrl driver"
+	select PINCTRL_TANGIER
+	help
+	  Intel Merrifield Family-Level Interface Shim (FLIS) driver provides
+	  an interface that allows configuring of SoC pins and using them as
+	  GPIOs.
+
 endif
