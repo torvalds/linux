@@ -1253,6 +1253,8 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 
 	rc = bnxt_re_setup_chip_ctx(rdev, wqe_mode);
 	if (rc) {
+		bnxt_unregister_dev(rdev->en_dev);
+		clear_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
 		ibdev_err(&rdev->ibdev, "Failed to get chip context\n");
 		return -EINVAL;
 	}
@@ -1526,8 +1528,8 @@ static void bnxt_re_remove(struct auxiliary_device *adev)
 	}
 	bnxt_re_setup_cc(rdev, false);
 	ib_unregister_device(&rdev->ibdev);
-	ib_dealloc_device(&rdev->ibdev);
 	bnxt_re_dev_uninit(rdev);
+	ib_dealloc_device(&rdev->ibdev);
 skip_remove:
 	mutex_unlock(&bnxt_re_mutex);
 }

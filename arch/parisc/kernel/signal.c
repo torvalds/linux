@@ -423,7 +423,7 @@ static void check_syscallno_in_delay_branch(struct pt_regs *regs)
 	regs->gr[31] -= 8; /* delayed branching */
 
 	/* Get assembler opcode of code in delay branch */
-	uaddr = (unsigned int *) ((regs->gr[31] & ~3) + 4);
+	uaddr = (u32 __user *) ((regs->gr[31] & ~3) + 4);
 	err = get_user(opcode, uaddr);
 	if (err)
 		return;

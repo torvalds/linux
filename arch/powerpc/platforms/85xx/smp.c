@@ -180,7 +180,7 @@ static void wake_hw_thread(void *info)
 	unsigned long inia;
 	int cpu = *(const int *)info;
 
-	inia = *(unsigned long *)fsl_secondary_thread_init;
+	inia = ppc_function_entry(fsl_secondary_thread_init);
 	book3e_start_thread(cpu_thread_in_core(cpu), inia);
 }
 #endif

@@ -969,7 +969,6 @@ struct blk_plug {
 
 	bool multiple_queues;
 	bool has_elevator;
-	bool nowait;
 
 	struct list_head cb_list; /* md requires an unplug callback */
 };

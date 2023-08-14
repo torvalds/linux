@@ -1725,6 +1725,19 @@ verify_attr_actions(u32 actions, struct netlink_ext_ack *extack)
 	return 0;
 }
 
+static bool
+has_encap_dests(struct mlx5_flow_attr *attr)
+{
+	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
+	int out_index;
+
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++)
+		if (esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP)
+			return true;
+
+	return false;
+}
+
 static int
 post_process_attr(struct mlx5e_tc_flow *flow,
 		  struct mlx5_flow_attr *attr,
@@ -1737,9 +1750,11 @@ post_process_attr(struct mlx5e_tc_flow *flow,
 	if (err)
 		goto err_out;
 
-	err = mlx5e_tc_tun_encap_dests_set(flow->priv, flow, attr, extack, &vf_tun);
-	if (err)
-		goto err_out;
+	if (mlx5e_is_eswitch_flow(flow) && has_encap_dests(attr)) {
+		err = mlx5e_tc_tun_encap_dests_set(flow->priv, flow, attr, extack, &vf_tun);
+		if (err)
+			goto err_out;
+	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
 		err = mlx5e_tc_attach_mod_hdr(flow->priv, flow, attr);
@@ -1928,9 +1943,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_flow_attr *attr = flow->attr;
-	struct mlx5_esw_flow_attr *esw_attr;
 
-	esw_attr = attr->esw_attr;
 	mlx5e_put_flow_tunnel_id(flow);
 
 	remove_unready_flow(flow);
@@ -1950,12 +1963,6 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 		mlx5e_detach_decap_route(priv, flow);
 
 	mlx5_tc_ct_match_del(get_ct_priv(priv), &flow->attr->ct_attr);
-
-	if (esw_attr->int_port)
-		mlx5e_tc_int_port_put(mlx5e_get_int_port_priv(priv), esw_attr->int_port);
-
-	if (esw_attr->dest_int_port)
-		mlx5e_tc_int_port_put(mlx5e_get_int_port_priv(priv), esw_attr->dest_int_port);
 
 	if (flow_flag_test(flow, L3_TO_L2_DECAP))
 		mlx5e_detach_decap(priv, flow);
@@ -4253,6 +4260,7 @@ static void
 mlx5_free_flow_attr_actions(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *attr)
 {
 	struct mlx5_core_dev *counter_dev = get_flow_counter_dev(flow);
+	struct mlx5_esw_flow_attr *esw_attr;
 
 	if (!attr)
 		return;
@@ -4268,6 +4276,18 @@ mlx5_free_flow_attr_actions(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *a
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
 		mlx5e_mod_hdr_dealloc(&attr->parse_attr->mod_hdr_acts);
 		mlx5e_tc_detach_mod_hdr(flow->priv, flow, attr);
+	}
+
+	if (mlx5e_is_eswitch_flow(flow)) {
+		esw_attr = attr->esw_attr;
+
+		if (esw_attr->int_port)
+			mlx5e_tc_int_port_put(mlx5e_get_int_port_priv(flow->priv),
+					      esw_attr->int_port);
+
+		if (esw_attr->dest_int_port)
+			mlx5e_tc_int_port_put(mlx5e_get_int_port_priv(flow->priv),
+					      esw_attr->dest_int_port);
 	}
 
 	mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), attr);

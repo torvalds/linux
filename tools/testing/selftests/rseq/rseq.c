@@ -31,6 +31,8 @@
 #include <sys/auxv.h>
 #include <linux/auxvec.h>
 
+#include <linux/compiler.h>
+
 #include "../kselftest.h"
 #include "rseq.h"
 

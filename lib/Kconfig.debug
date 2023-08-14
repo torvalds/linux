@@ -1200,7 +1200,7 @@ config WQ_CPU_INTENSIVE_REPORT
 	help
 	  Say Y here to enable reporting of concurrency-managed per-cpu work
 	  items that hog CPUs for longer than
-	  workqueue.cpu_intensive_threshold_us. Workqueue automatically
+	  workqueue.cpu_intensive_thresh_us. Workqueue automatically
 	  detects and excludes them from concurrency management to prevent
 	  them from stalling other per-cpu work items. Occassional
 	  triggering may not necessarily indicate a problem. Repeated
