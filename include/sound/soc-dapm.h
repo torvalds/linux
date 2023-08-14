@@ -650,6 +650,7 @@ struct snd_soc_dapm_widget {
 	unsigned char power_checked:1;		/* power checked this run */
 	unsigned char is_supply:1;		/* Widget is a supply type widget */
 	unsigned char is_ep:2;			/* Widget is a endpoint type widget */
+	unsigned char no_wname_in_kcontrol_name:1; /* No widget name prefix in kcontrol name */
 	int subseq;				/* sort within widget type */
 
 	int (*power_check)(struct snd_soc_dapm_widget *w);
