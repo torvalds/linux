@@ -2,6 +2,7 @@
 #ifndef _ASM_RISCV_HUGETLB_H
 #define _ASM_RISCV_HUGETLB_H
 
+#include <asm/cacheflush.h>
 #include <asm/page.h>
 
 static inline void arch_clear_hugepage_flags(struct page *page)
