@@ -405,6 +405,11 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
 					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
 	},
+	{
+		.id = "INTC10B0",
+		.drv_name = "rpl_lt6911_hdmi_ssp",
+		.sof_tplg_filename = "sof-rpl-nocodec-hdmi-ssp02.tplg"
+	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_rpl_machines);
