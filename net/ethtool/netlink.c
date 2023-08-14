@@ -444,12 +444,12 @@ err_dev:
 
 static int ethnl_default_dump_one(struct sk_buff *skb, struct net_device *dev,
 				  const struct ethnl_dump_ctx *ctx,
-				  struct netlink_callback *cb)
+				  const struct genl_info *info)
 {
 	void *ehdr;
 	int ret;
 
-	ehdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+	ehdr = genlmsg_put(skb, info->snd_portid, info->snd_seq,
 			   &ethtool_genl_family, NLM_F_MULTI,
 			   ctx->ops->reply_cmd);
 	if (!ehdr)
@@ -457,7 +457,7 @@ static int ethnl_default_dump_one(struct sk_buff *skb, struct net_device *dev,
 
 	ethnl_init_reply_data(ctx->reply_data, ctx->ops, dev);
 	rtnl_lock();
-	ret = ctx->ops->prepare_data(ctx->req_info, ctx->reply_data, NULL);
+	ret = ctx->ops->prepare_data(ctx->req_info, ctx->reply_data, info);
 	rtnl_unlock();
 	if (ret < 0)
 		goto out;
@@ -495,7 +495,7 @@ static int ethnl_default_dumpit(struct sk_buff *skb,
 		dev_hold(dev);
 		rtnl_unlock();
 
-		ret = ethnl_default_dump_one(skb, dev, ctx, cb);
+		ret = ethnl_default_dump_one(skb, dev, ctx, genl_info_dump(cb));
 
 		rtnl_lock();
 		dev_put(dev);
@@ -647,10 +647,13 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 	struct ethnl_reply_data *reply_data;
 	const struct ethnl_request_ops *ops;
 	struct ethnl_req_info *req_info;
+	struct genl_info info;
 	struct sk_buff *skb;
 	void *reply_payload;
 	int reply_len;
 	int ret;
+
+	genl_info_init_ntf(&info, &ethtool_genl_family, cmd);
 
 	if (WARN_ONCE(cmd > ETHTOOL_MSG_KERNEL_MAX ||
 		      !ethnl_default_notify_ops[cmd],
@@ -670,7 +673,7 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 	req_info->flags |= ETHTOOL_FLAG_COMPACT_BITSETS;
 
 	ethnl_init_reply_data(reply_data, ops, dev);
-	ret = ops->prepare_data(req_info, reply_data, NULL);
+	ret = ops->prepare_data(req_info, reply_data, &info);
 	if (ret < 0)
 		goto err_cleanup;
 	ret = ops->reply_size(req_info, reply_data);
