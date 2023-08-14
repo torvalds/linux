@@ -642,31 +642,44 @@ static void bnxt_qplib_init_sgid_tbl(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 }
 
 /* PDs */
-int bnxt_qplib_alloc_pd(struct bnxt_qplib_pd_tbl *pdt, struct bnxt_qplib_pd *pd)
+int bnxt_qplib_alloc_pd(struct bnxt_qplib_res  *res, struct bnxt_qplib_pd *pd)
 {
+	struct bnxt_qplib_pd_tbl *pdt = &res->pd_tbl;
 	u32 bit_num;
+	int rc = 0;
 
+	mutex_lock(&res->pd_tbl_lock);
 	bit_num = find_first_bit(pdt->tbl, pdt->max);
-	if (bit_num == pdt->max)
-		return -ENOMEM;
+	if (bit_num == pdt->max) {
+		rc = -ENOMEM;
+		goto exit;
+	}
 
 	/* Found unused PD */
 	clear_bit(bit_num, pdt->tbl);
 	pd->id = bit_num;
-	return 0;
+exit:
+	mutex_unlock(&res->pd_tbl_lock);
+	return rc;
 }
 
 int bnxt_qplib_dealloc_pd(struct bnxt_qplib_res *res,
 			  struct bnxt_qplib_pd_tbl *pdt,
 			  struct bnxt_qplib_pd *pd)
 {
+	int rc = 0;
+
+	mutex_lock(&res->pd_tbl_lock);
 	if (test_and_set_bit(pd->id, pdt->tbl)) {
 		dev_warn(&res->pdev->dev, "Freeing an unused PD? pdn = %d\n",
 			 pd->id);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto exit;
 	}
 	pd->id = 0;
-	return 0;
+exit:
+	mutex_unlock(&res->pd_tbl_lock);
+	return rc;
 }
 
 static void bnxt_qplib_free_pd_tbl(struct bnxt_qplib_pd_tbl *pdt)
@@ -691,6 +704,7 @@ static int bnxt_qplib_alloc_pd_tbl(struct bnxt_qplib_res *res,
 
 	pdt->max = max;
 	memset((u8 *)pdt->tbl, 0xFF, bytes);
+	mutex_init(&res->pd_tbl_lock);
 
 	return 0;
 }
