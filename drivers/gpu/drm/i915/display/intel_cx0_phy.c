@@ -2607,10 +2607,11 @@ static void intel_cx0_program_phy_lane(struct drm_i915_private *i915,
 	int i;
 	u8 disables;
 	bool dp_alt_mode = intel_tc_port_in_dp_alt_mode(enc_to_dig_port(encoder));
+	u8 owned_lane_mask = intel_cx0_get_owned_lane_mask(i915, encoder);
 	enum port port = encoder->port;
 
 	if (intel_is_c10phy(i915, intel_port_to_phy(i915, port)))
-		intel_cx0_rmw(i915, port, INTEL_CX0_BOTH_LANES,
+		intel_cx0_rmw(i915, port, owned_lane_mask,
 			      PHY_C10_VDR_CONTROL(1), 0,
 			      C10_VDR_CTRL_MSGBUS_ACCESS,
 			      MB_WRITE_COMMITTED);
@@ -2625,10 +2626,12 @@ static void intel_cx0_program_phy_lane(struct drm_i915_private *i915,
 		disables |= REG_FIELD_PREP8(REG_GENMASK8(1, 0), 0x1);
 	}
 
-	/* TODO: DP-alt MFD case where only one PHY lane should be programmed. */
 	for (i = 0; i < 4; i++) {
 		int tx = i % 2 + 1;
 		u8 lane_mask = i < 2 ? INTEL_CX0_LANE0 : INTEL_CX0_LANE1;
+
+		if (!(owned_lane_mask & lane_mask))
+			continue;
 
 		intel_cx0_rmw(i915, port, lane_mask, PHY_CX0_TX_CONTROL(tx, 2),
 			      CONTROL2_DISABLE_SINGLE_TX,
@@ -2637,7 +2640,7 @@ static void intel_cx0_program_phy_lane(struct drm_i915_private *i915,
 	}
 
 	if (intel_is_c10phy(i915, intel_port_to_phy(i915, port)))
-		intel_cx0_rmw(i915, port, INTEL_CX0_BOTH_LANES,
+		intel_cx0_rmw(i915, port, owned_lane_mask,
 			      PHY_C10_VDR_CONTROL(1), 0,
 			      C10_VDR_CTRL_UPDATE_CFG,
 			      MB_WRITE_COMMITTED);
