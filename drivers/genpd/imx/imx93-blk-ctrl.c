@@ -6,7 +6,7 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -187,6 +187,8 @@ static int imx93_blk_ctrl_power_off(struct generic_pm_domain *genpd)
 	return 0;
 }
 
+static struct lock_class_key blk_ctrl_genpd_lock_class;
+
 static int imx93_blk_ctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -268,6 +270,19 @@ static int imx93_blk_ctrl_probe(struct platform_device *pdev)
 			dev_err_probe(dev, ret, "failed to init power domain\n");
 			goto cleanup_pds;
 		}
+
+		/*
+		 * We use runtime PM to trigger power on/off of the upstream GPC
+		 * domain, as a strict hierarchical parent/child power domain
+		 * setup doesn't allow us to meet the sequencing requirements.
+		 * This means we have nested locking of genpd locks, without the
+		 * nesting being visible at the genpd level, so we need a
+		 * separate lock class to make lockdep aware of the fact that
+		 * this are separate domain locks that can be nested without a
+		 * self-deadlock.
+		 */
+		lockdep_set_class(&domain->genpd.mlock,
+				  &blk_ctrl_genpd_lock_class);
 
 		bc->onecell_data.domains[i] = &domain->genpd;
 	}
