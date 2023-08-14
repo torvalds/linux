@@ -951,6 +951,96 @@ static void drm_test_fb_swab(struct kunit *test)
 	KUNIT_EXPECT_MEMEQ(test, buf, result->expected, dst_size);
 }
 
+struct clip_offset_case {
+	const char *name;
+	unsigned int pitch;
+	u32 format;
+	struct drm_rect clip;
+	unsigned int expected_offset;
+};
+
+static struct clip_offset_case clip_offset_cases[] = {
+	{
+		.name = "pass through",
+		.pitch = TEST_USE_DEFAULT_PITCH,
+		.format = DRM_FORMAT_XRGB8888,
+		.clip = DRM_RECT_INIT(0, 0, 3, 3),
+		.expected_offset = 0
+	},
+	{
+		.name = "horizontal offset",
+		.pitch = TEST_USE_DEFAULT_PITCH,
+		.format = DRM_FORMAT_XRGB8888,
+		.clip = DRM_RECT_INIT(1, 0, 3, 3),
+		.expected_offset = 4,
+	},
+	{
+		.name = "vertical offset",
+		.pitch = TEST_USE_DEFAULT_PITCH,
+		.format = DRM_FORMAT_XRGB8888,
+		.clip = DRM_RECT_INIT(0, 1, 3, 3),
+		.expected_offset = 12,
+	},
+	{
+		.name = "horizontal and vertical offset",
+		.pitch = TEST_USE_DEFAULT_PITCH,
+		.format = DRM_FORMAT_XRGB8888,
+		.clip = DRM_RECT_INIT(1, 1, 3, 3),
+		.expected_offset = 16,
+	},
+	{
+		.name = "horizontal offset (custom pitch)",
+		.pitch = 20,
+		.format = DRM_FORMAT_XRGB8888,
+		.clip = DRM_RECT_INIT(1, 0, 3, 3),
+		.expected_offset = 4,
+	},
+	{
+		.name = "vertical offset (custom pitch)",
+		.pitch = 20,
+		.format = DRM_FORMAT_XRGB8888,
+		.clip = DRM_RECT_INIT(0, 1, 3, 3),
+		.expected_offset = 20,
+	},
+	{
+		.name = "horizontal and vertical offset (custom pitch)",
+		.pitch = 20,
+		.format = DRM_FORMAT_XRGB8888,
+		.clip = DRM_RECT_INIT(1, 1, 3, 3),
+		.expected_offset = 24,
+	},
+};
+
+static void clip_offset_case_desc(struct clip_offset_case *t, char *desc)
+{
+	strscpy(desc, t->name, KUNIT_PARAM_DESC_SIZE);
+}
+
+KUNIT_ARRAY_PARAM(clip_offset, clip_offset_cases, clip_offset_case_desc);
+
+static void drm_test_fb_clip_offset(struct kunit *test)
+{
+	const struct clip_offset_case *params = test->param_value;
+	const struct drm_format_info *format_info = drm_format_info(params->format);
+
+	unsigned int offset;
+	unsigned int pitch = params->pitch;
+
+	if (pitch == TEST_USE_DEFAULT_PITCH)
+		pitch = drm_format_info_min_pitch(format_info, 0,
+						  drm_rect_width(&params->clip));
+
+	/*
+	 * Assure that the pitch is not zero, because this will inevitable cause the
+	 * wrong expected result
+	 */
+	KUNIT_ASSERT_NE(test, pitch, 0);
+
+	offset = drm_fb_clip_offset(pitch, format_info, &params->clip);
+
+	KUNIT_EXPECT_EQ(test, offset, params->expected_offset);
+}
+
 static struct kunit_case drm_format_helper_test_cases[] = {
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_gray8, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_rgb332, convert_xrgb8888_gen_params),
@@ -964,6 +1054,7 @@ static struct kunit_case drm_format_helper_test_cases[] = {
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_argb2101010, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_mono, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_swab, convert_xrgb8888_gen_params),
+	KUNIT_CASE_PARAM(drm_test_fb_clip_offset, clip_offset_gen_params),
 	{}
 };
 
