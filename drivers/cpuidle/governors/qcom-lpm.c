@@ -542,7 +542,7 @@ static int start_prediction_timer(struct lpm_cpu *cpu_gov, int duration_us)
 	if (cpu_gov->next_wakeup > cpu_gov->next_pred_time)
 		cpu_gov->next_wakeup = cpu_gov->next_pred_time;
 
-	s = &cpu_gov->drv->states[cpu_gov->last_idx];
+	s = &cpu_gov->drv->states[0];
 	max_residency  = s[cpu_gov->last_idx + 1].target_residency - 1;
 	htime = cpu_gov->predicted + PRED_TIMER_ADD;
 
