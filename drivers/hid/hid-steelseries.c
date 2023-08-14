@@ -375,7 +375,7 @@ static void steelseries_srws1_remove(struct hid_device *hdev)
 #define STEELSERIES_HEADSET_BATTERY_TIMEOUT_MS	3000
 
 #define ARCTIS_1_BATTERY_RESPONSE_LEN		8
-const char arctis_1_battery_request[] = { 0x06, 0x12 };
+static const char arctis_1_battery_request[] = { 0x06, 0x12 };
 
 static int steelseries_headset_arctis_1_fetch_battery(struct hid_device *hdev)
 {
