@@ -326,7 +326,7 @@ static int amlogic_spifc_a1_probe(struct platform_device *pdev)
 	struct amlogic_spifc_a1 *spifc;
 	int ret;
 
-	ctrl = devm_spi_alloc_master(&pdev->dev, sizeof(*spifc));
+	ctrl = devm_spi_alloc_host(&pdev->dev, sizeof(*spifc));
 	if (!ctrl)
 		return -ENOMEM;
 
