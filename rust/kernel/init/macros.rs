@@ -991,6 +991,7 @@ macro_rules! __pin_data {
 ///
 /// This macro has multiple internal call configurations, these are always the very first ident:
 /// - nothing: this is the base case and called by the `{try_}{pin_}init!` macros.
+/// - `with_update_parsed`: when the `..Zeroable::zeroed()` syntax has been handled.
 /// - `init_slot`: recursively creates the code that initializes all fields in `slot`.
 /// - `make_initializer`: recursively create the struct initializer that guarantees that every
 ///   field has been initialized exactly once.
@@ -1009,6 +1010,82 @@ macro_rules! __init_internal {
         @has_data($has_data:ident, $get_data:ident),
         // `pin_init_from_closure` or `init_from_closure`.
         @construct_closure($construct_closure:ident),
+        @munch_fields(),
+    ) => {
+        $crate::__init_internal!(with_update_parsed:
+            @this($($this)?),
+            @typ($t $(::<$($generics),*>)? ),
+            @fields($($fields)*),
+            @error($err),
+            @data($data, $($use_data)?),
+            @has_data($has_data, $get_data),
+            @construct_closure($construct_closure),
+            @zeroed(), // Nothing means default behavior.
+        )
+    };
+    (
+        @this($($this:ident)?),
+        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @fields($($fields:tt)*),
+        @error($err:ty),
+        // Either `PinData` or `InitData`, `$use_data` should only be present in the `PinData`
+        // case.
+        @data($data:ident, $($use_data:ident)?),
+        // `HasPinData` or `HasInitData`.
+        @has_data($has_data:ident, $get_data:ident),
+        // `pin_init_from_closure` or `init_from_closure`.
+        @construct_closure($construct_closure:ident),
+        @munch_fields(..Zeroable::zeroed()),
+    ) => {
+        $crate::__init_internal!(with_update_parsed:
+            @this($($this)?),
+            @typ($t $(::<$($generics),*>)? ),
+            @fields($($fields)*),
+            @error($err),
+            @data($data, $($use_data)?),
+            @has_data($has_data, $get_data),
+            @construct_closure($construct_closure),
+            @zeroed(()), // `()` means zero all fields not mentioned.
+        )
+    };
+    (
+        @this($($this:ident)?),
+        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @fields($($fields:tt)*),
+        @error($err:ty),
+        // Either `PinData` or `InitData`, `$use_data` should only be present in the `PinData`
+        // case.
+        @data($data:ident, $($use_data:ident)?),
+        // `HasPinData` or `HasInitData`.
+        @has_data($has_data:ident, $get_data:ident),
+        // `pin_init_from_closure` or `init_from_closure`.
+        @construct_closure($construct_closure:ident),
+        @munch_fields($ignore:tt $($rest:tt)*),
+    ) => {
+        $crate::__init_internal!(
+            @this($($this)?),
+            @typ($t $(::<$($generics),*>)? ),
+            @fields($($fields)*),
+            @error($err),
+            @data($data, $($use_data)?),
+            @has_data($has_data, $get_data),
+            @construct_closure($construct_closure),
+            @munch_fields($($rest)*),
+        )
+    };
+    (with_update_parsed:
+        @this($($this:ident)?),
+        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @fields($($fields:tt)*),
+        @error($err:ty),
+        // Either `PinData` or `InitData`, `$use_data` should only be present in the `PinData`
+        // case.
+        @data($data:ident, $($use_data:ident)?),
+        // `HasPinData` or `HasInitData`.
+        @has_data($has_data:ident, $get_data:ident),
+        // `pin_init_from_closure` or `init_from_closure`.
+        @construct_closure($construct_closure:ident),
+        @zeroed($($init_zeroed:expr)?),
     ) => {{
         // We do not want to allow arbitrary returns, so we declare this type as the `Ok` return
         // type and shadow it later when we insert the arbitrary user code. That way there will be
@@ -1026,6 +1103,17 @@ macro_rules! __init_internal {
                 {
                     // Shadow the structure so it cannot be used to return early.
                     struct __InitOk;
+                    // If `$init_zeroed` is present we should zero the slot now and not emit an
+                    // error when fields are missing (since they will be zeroed). We also have to
+                    // check that the type actually implements `Zeroable`.
+                    $({
+                        fn assert_zeroable<T: $crate::init::Zeroable>(_: *mut T) {}
+                        // Ensure that the struct is indeed `Zeroable`.
+                        assert_zeroable(slot);
+                        // SAFETY: The type implements `Zeroable` by the check above.
+                        unsafe { ::core::ptr::write_bytes(slot, 0, 1) };
+                        $init_zeroed // This will be `()` if set.
+                    })?
                     // Create the `this` so it can be referenced by the user inside of the
                     // expressions creating the individual fields.
                     $(let $this = unsafe { ::core::ptr::NonNull::new_unchecked(slot) };)?
@@ -1062,7 +1150,7 @@ macro_rules! __init_internal {
         @data($data:ident),
         @slot($slot:ident),
         @guards($($guards:ident,)*),
-        @munch_fields($(,)?),
+        @munch_fields($(..Zeroable::zeroed())? $(,)?),
     ) => {
         // Endpoint of munching, no fields are left. If execution reaches this point, all fields
         // have been initialized. Therefore we can now dismiss the guards by forgetting them.
@@ -1161,6 +1249,31 @@ macro_rules! __init_internal {
                 @guards([<$field>], $($guards,)*),
                 @munch_fields($($rest)*),
             );
+        }
+    };
+    (make_initializer:
+        @slot($slot:ident),
+        @type_name($t:ident),
+        @munch_fields(..Zeroable::zeroed() $(,)?),
+        @acc($($acc:tt)*),
+    ) => {
+        // Endpoint, nothing more to munch, create the initializer. Since the users specified
+        // `..Zeroable::zeroed()`, the slot will already have been zeroed and all field that have
+        // not been overwritten are thus zero and initialized. We still check that all fields are
+        // actually accessible by using the struct update syntax ourselves.
+        // We are inside of a closure that is never executed and thus we can abuse `slot` to
+        // get the correct type inference here:
+        #[allow(unused_assignments)]
+        unsafe {
+            let mut zeroed = ::core::mem::zeroed();
+            // We have to use type inference here to make zeroed have the correct type. This does
+            // not get executed, so it has no effect.
+            ::core::ptr::write($slot, zeroed);
+            zeroed = ::core::mem::zeroed();
+            ::core::ptr::write($slot, $t {
+                $($acc)*
+                ..zeroed
+            });
         }
     };
     (make_initializer:

@@ -508,14 +508,18 @@ macro_rules! stack_try_pin_init {
 /// - Fields that you want to initialize in-place have to use `<-` instead of `:`.
 /// - In front of the initializer you can write `&this in` to have access to a [`NonNull<Self>`]
 ///   pointer named `this` inside of the initializer.
+/// - Using struct update syntax one can place `..Zeroable::zeroed()` at the very end of the
+///   struct, this initializes every field with 0 and then runs all initializers specified in the
+///   body. This can only be done if [`Zeroable`] is implemented for the struct.
 ///
 /// For instance:
 ///
 /// ```rust
 /// # use kernel::pin_init;
-/// # use macros::pin_data;
+/// # use macros::{Zeroable, pin_data};
 /// # use core::{ptr::addr_of_mut, marker::PhantomPinned};
 /// #[pin_data]
+/// #[derive(Zeroable)]
 /// struct Buf {
 ///     // `ptr` points into `buf`.
 ///     ptr: *mut u8,
@@ -527,6 +531,10 @@ macro_rules! stack_try_pin_init {
 ///     buf: [0; 64],
 ///     ptr: unsafe { addr_of_mut!((*this.as_ptr()).buf).cast() },
 ///     pin: PhantomPinned,
+/// });
+/// pin_init!(Buf {
+///     buf: [1; 64],
+///     ..Zeroable::zeroed()
 /// });
 /// ```
 ///
@@ -547,6 +555,7 @@ macro_rules! pin_init {
             @data(PinData, use_data),
             @has_data(HasPinData, __pin_data),
             @construct_closure(pin_init_from_closure),
+            @munch_fields($($fields)*),
         )
     };
 }
@@ -603,6 +612,7 @@ macro_rules! try_pin_init {
             @data(PinData, use_data),
             @has_data(HasPinData, __pin_data),
             @construct_closure(pin_init_from_closure),
+            @munch_fields($($fields)*),
         )
     };
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
@@ -616,6 +626,7 @@ macro_rules! try_pin_init {
             @data(PinData, use_data),
             @has_data(HasPinData, __pin_data),
             @construct_closure(pin_init_from_closure),
+            @munch_fields($($fields)*),
         )
     };
 }
@@ -650,6 +661,7 @@ macro_rules! init {
             @data(InitData, /*no use_data*/),
             @has_data(HasInitData, __init_data),
             @construct_closure(init_from_closure),
+            @munch_fields($($fields)*),
         )
     }
 }
@@ -700,6 +712,7 @@ macro_rules! try_init {
             @data(InitData, /*no use_data*/),
             @has_data(HasInitData, __init_data),
             @construct_closure(init_from_closure),
+            @munch_fields($($fields)*),
         )
     };
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
@@ -713,6 +726,7 @@ macro_rules! try_init {
             @data(InitData, /*no use_data*/),
             @has_data(HasInitData, __init_data),
             @construct_closure(init_from_closure),
+            @munch_fields($($fields)*),
         )
     };
 }
