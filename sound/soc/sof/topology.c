@@ -1367,6 +1367,20 @@ err:
 	return ret;
 }
 
+static int get_w_no_wname_in_long_name(void *elem, void *object, u32 offset)
+{
+	struct snd_soc_tplg_vendor_value_elem *velem = elem;
+	struct snd_soc_dapm_widget *w = object;
+
+	w->no_wname_in_kcontrol_name = !!le32_to_cpu(velem->value);
+	return 0;
+}
+
+static const struct sof_topology_token dapm_widget_tokens[] = {
+	{SOF_TKN_COMP_NO_WNAME_IN_KCONTROL_NAME, SND_SOC_TPLG_TUPLE_TYPE_BOOL,
+	 get_w_no_wname_in_long_name, 0}
+};
+
 /* external widget init - used for any driver specific init */
 static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 			    struct snd_soc_dapm_widget *w,
@@ -1396,6 +1410,14 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 
 	ida_init(&swidget->output_queue_ida);
 	ida_init(&swidget->input_queue_ida);
+
+	ret = sof_parse_tokens(scomp, w, dapm_widget_tokens, ARRAY_SIZE(dapm_widget_tokens),
+			       priv->array, le32_to_cpu(priv->size));
+	if (ret < 0) {
+		dev_err(scomp->dev, "failed to parse dapm widget tokens for %s\n",
+			w->name);
+		goto widget_free;
+	}
 
 	ret = sof_parse_tokens(scomp, swidget, comp_pin_tokens,
 			       ARRAY_SIZE(comp_pin_tokens), priv->array,
