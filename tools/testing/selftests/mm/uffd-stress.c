@@ -53,21 +53,21 @@ pthread_attr_t attr;
 	do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
 
 const char *examples =
-    "# Run anonymous memory test on 100MiB region with 99999 bounces:\n"
-    "./userfaultfd anon 100 99999\n\n"
-    "# Run share memory test on 1GiB region with 99 bounces:\n"
-    "./userfaultfd shmem 1000 99\n\n"
-    "# Run hugetlb memory test on 256MiB region with 50 bounces:\n"
-    "./userfaultfd hugetlb 256 50\n\n"
-    "# Run the same hugetlb test but using private file:\n"
-    "./userfaultfd hugetlb-private 256 50\n\n"
-    "# 10MiB-~6GiB 999 bounces anonymous test, "
-    "continue forever unless an error triggers\n"
-    "while ./userfaultfd anon $[RANDOM % 6000 + 10] 999; do true; done\n\n";
+	"# Run anonymous memory test on 100MiB region with 99999 bounces:\n"
+	"./uffd-stress anon 100 99999\n\n"
+	"# Run share memory test on 1GiB region with 99 bounces:\n"
+	"./uffd-stress shmem 1000 99\n\n"
+	"# Run hugetlb memory test on 256MiB region with 50 bounces:\n"
+	"./uffd-stress hugetlb 256 50\n\n"
+	"# Run the same hugetlb test but using private file:\n"
+	"./uffd-stress hugetlb-private 256 50\n\n"
+	"# 10MiB-~6GiB 999 bounces anonymous test, "
+	"continue forever unless an error triggers\n"
+	"while ./uffd-stress anon $[RANDOM % 6000 + 10] 999; do true; done\n\n";
 
 static void usage(void)
 {
-	fprintf(stderr, "\nUsage: ./userfaultfd <test type> <MiB> <bounces>\n\n");
+	fprintf(stderr, "\nUsage: ./uffd-stress <test type> <MiB> <bounces>\n\n");
 	fprintf(stderr, "Supported <test type>: anon, hugetlb, "
 		"hugetlb-private, shmem, shmem-private\n\n");
 	fprintf(stderr, "Examples:\n\n");
