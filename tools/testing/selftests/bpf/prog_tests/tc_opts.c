@@ -2268,3 +2268,113 @@ void serial_test_tc_opts_delete_empty(void)
 	test_tc_opts_delete_empty(BPF_TCX_INGRESS, true);
 	test_tc_opts_delete_empty(BPF_TCX_EGRESS, true);
 }
+
+static void test_tc_chain_mixed(int target)
+{
+	LIBBPF_OPTS(bpf_tc_opts, tc_opts, .handle = 1, .priority = 1);
+	LIBBPF_OPTS(bpf_tc_hook, tc_hook, .ifindex = loopback);
+	LIBBPF_OPTS(bpf_prog_attach_opts, opta);
+	LIBBPF_OPTS(bpf_prog_detach_opts, optd);
+	__u32 fd1, fd2, fd3, id1, id2, id3;
+	struct test_tc_link *skel;
+	int err, detach_fd;
+
+	skel = test_tc_link__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_load"))
+		goto cleanup;
+
+	fd1 = bpf_program__fd(skel->progs.tc4);
+	fd2 = bpf_program__fd(skel->progs.tc5);
+	fd3 = bpf_program__fd(skel->progs.tc6);
+
+	id1 = id_from_prog_fd(fd1);
+	id2 = id_from_prog_fd(fd2);
+	id3 = id_from_prog_fd(fd3);
+
+	ASSERT_NEQ(id1, id2, "prog_ids_1_2");
+	ASSERT_NEQ(id2, id3, "prog_ids_2_3");
+
+	assert_mprog_count(target, 0);
+
+	tc_hook.attach_point = target == BPF_TCX_INGRESS ?
+			       BPF_TC_INGRESS : BPF_TC_EGRESS;
+	err = bpf_tc_hook_create(&tc_hook);
+	err = err == -EEXIST ? 0 : err;
+	if (!ASSERT_OK(err, "bpf_tc_hook_create"))
+		goto cleanup;
+
+	tc_opts.prog_fd = fd2;
+	err = bpf_tc_attach(&tc_hook, &tc_opts);
+	if (!ASSERT_OK(err, "bpf_tc_attach"))
+		goto cleanup_hook;
+
+	err = bpf_prog_attach_opts(fd3, loopback, target, &opta);
+	if (!ASSERT_EQ(err, 0, "prog_attach"))
+		goto cleanup_filter;
+
+	detach_fd = fd3;
+
+	assert_mprog_count(target, 1);
+
+	ASSERT_OK(system(ping_cmd), ping_cmd);
+
+	ASSERT_EQ(skel->bss->seen_tc4, false, "seen_tc4");
+	ASSERT_EQ(skel->bss->seen_tc5, false, "seen_tc5");
+	ASSERT_EQ(skel->bss->seen_tc6, true, "seen_tc6");
+
+	skel->bss->seen_tc4 = false;
+	skel->bss->seen_tc5 = false;
+	skel->bss->seen_tc6 = false;
+
+	LIBBPF_OPTS_RESET(opta,
+		.flags = BPF_F_REPLACE,
+		.replace_prog_fd = fd3,
+	);
+
+	err = bpf_prog_attach_opts(fd1, loopback, target, &opta);
+	if (!ASSERT_EQ(err, 0, "prog_attach"))
+		goto cleanup_opts;
+
+	detach_fd = fd1;
+
+	assert_mprog_count(target, 1);
+
+	ASSERT_OK(system(ping_cmd), ping_cmd);
+
+	ASSERT_EQ(skel->bss->seen_tc4, true, "seen_tc4");
+	ASSERT_EQ(skel->bss->seen_tc5, true, "seen_tc5");
+	ASSERT_EQ(skel->bss->seen_tc6, false, "seen_tc6");
+
+	skel->bss->seen_tc4 = false;
+	skel->bss->seen_tc5 = false;
+	skel->bss->seen_tc6 = false;
+
+cleanup_opts:
+	err = bpf_prog_detach_opts(detach_fd, loopback, target, &optd);
+	ASSERT_OK(err, "prog_detach");
+	__assert_mprog_count(target, 0, true, loopback);
+
+	ASSERT_OK(system(ping_cmd), ping_cmd);
+
+	ASSERT_EQ(skel->bss->seen_tc4, false, "seen_tc4");
+	ASSERT_EQ(skel->bss->seen_tc5, true, "seen_tc5");
+	ASSERT_EQ(skel->bss->seen_tc6, false, "seen_tc6");
+
+cleanup_filter:
+	tc_opts.flags = tc_opts.prog_fd = tc_opts.prog_id = 0;
+	err = bpf_tc_detach(&tc_hook, &tc_opts);
+	ASSERT_OK(err, "bpf_tc_detach");
+
+cleanup_hook:
+	tc_hook.attach_point = BPF_TC_INGRESS | BPF_TC_EGRESS;
+	bpf_tc_hook_destroy(&tc_hook);
+
+cleanup:
+	test_tc_link__destroy(skel);
+}
+
+void serial_test_tc_opts_chain_mixed(void)
+{
+	test_tc_chain_mixed(BPF_TCX_INGRESS);
+	test_tc_chain_mixed(BPF_TCX_EGRESS);
+}
