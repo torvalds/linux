@@ -437,6 +437,13 @@ int resource_get_odm_slice_count(const struct pipe_ctx *otg_master);
 /* Get the ODM slice index counting from 0 from left most slice */
 int resource_get_odm_slice_index(const struct pipe_ctx *opp_head);
 
+/* determine if pipe topology is changed between state a and state b */
+bool resource_is_pipe_topology_changed(const struct dc_state *state_a,
+		const struct dc_state *state_b);
+
+/* log the pipe topology update in state */
+void resource_log_pipe_topology_update(struct dc *dc, struct dc_state *state);
+
 /*
  * Look for a free pipe in new resource context that is used as a secondary OPP
  * head by cur_otg_master.

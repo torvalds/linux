@@ -1865,6 +1865,165 @@ int resource_get_odm_slice_index(const struct pipe_ctx *pipe_ctx)
 	return index;
 }
 
+bool resource_is_pipe_topology_changed(const struct dc_state *state_a,
+		const struct dc_state *state_b)
+{
+	int i;
+	const struct pipe_ctx *pipe_a, *pipe_b;
+
+	if (state_a->stream_count != state_b->stream_count)
+		return true;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_a = &state_a->res_ctx.pipe_ctx[i];
+		pipe_b = &state_b->res_ctx.pipe_ctx[i];
+
+		if (pipe_a->stream && !pipe_b->stream)
+			return true;
+		else if (!pipe_a->stream && pipe_b->stream)
+			return true;
+
+		if (pipe_a->plane_state && !pipe_b->plane_state)
+			return true;
+		else if (!pipe_a->plane_state && pipe_b->plane_state)
+			return true;
+
+		if (pipe_a->bottom_pipe && pipe_b->bottom_pipe) {
+			if (pipe_a->bottom_pipe->pipe_idx != pipe_b->bottom_pipe->pipe_idx)
+				return true;
+			if ((pipe_a->bottom_pipe->plane_state == pipe_a->plane_state) &&
+					(pipe_b->bottom_pipe->plane_state != pipe_b->plane_state))
+				return true;
+			else if ((pipe_a->bottom_pipe->plane_state != pipe_a->plane_state) &&
+					(pipe_b->bottom_pipe->plane_state == pipe_b->plane_state))
+				return true;
+		} else if (pipe_a->bottom_pipe || pipe_b->bottom_pipe) {
+			return true;
+		}
+
+		if (pipe_a->next_odm_pipe && pipe_b->next_odm_pipe) {
+			if (pipe_a->next_odm_pipe->pipe_idx != pipe_b->next_odm_pipe->pipe_idx)
+				return true;
+		} else if (pipe_a->next_odm_pipe || pipe_b->next_odm_pipe) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/*
+ * Sample log:
+ *    pipe topology update
+ *  ________________________
+ * | plane0  slice0  stream0|
+ * |DPP0----OPP0----OTG0----| <--- case 0 (OTG master pipe with plane)
+ * | plane1 |       |       |
+ * |DPP1----|       |       | <--- case 5 (DPP pipe not in last slice)
+ * | plane0  slice1 |       |
+ * |DPP2----OPP2----|       | <--- case 2 (OPP head pipe with plane)
+ * | plane1 |               |
+ * |DPP3----|               | <--- case 4 (DPP pipe in last slice)
+ * |         slice0  stream1|
+ * |DPG4----OPP4----OTG4----| <--- case 1 (OTG master pipe without plane)
+ * |         slice1 |       |
+ * |DPG5----OPP5----|       | <--- case 3 (OPP head pipe without plane)
+ * |________________________|
+ */
+
+static void resource_log_pipe(struct dc *dc, struct pipe_ctx *pipe,
+		int stream_idx, int slice_idx, int plane_idx, int slice_count,
+		bool is_primary)
+{
+	DC_LOGGER_INIT(dc->ctx->logger);
+
+	if (slice_idx == 0 && plane_idx == 0 && is_primary) {
+		/* case 0 (OTG master pipe with plane) */
+		DC_LOG_DC(" | plane%d  slice%d  stream%d|",
+				plane_idx, slice_idx, stream_idx);
+		DC_LOG_DC(" |DPP%d----OPP%d----OTG%d----|",
+				pipe->plane_res.dpp->inst,
+				pipe->stream_res.opp->inst,
+				pipe->stream_res.tg->inst);
+	} else if (slice_idx == 0 && plane_idx == -1) {
+		/* case 1 (OTG master pipe without plane) */
+		DC_LOG_DC(" |         slice%d  stream%d|",
+				slice_idx, stream_idx);
+		DC_LOG_DC(" |DPG%d----OPP%d----OTG%d----|",
+				pipe->stream_res.opp->inst,
+				pipe->stream_res.opp->inst,
+				pipe->stream_res.tg->inst);
+	} else if (slice_idx != 0 && plane_idx == 0 && is_primary) {
+		/* case 2 (OPP head pipe with plane) */
+		DC_LOG_DC(" | plane%d  slice%d |       |",
+				plane_idx, slice_idx);
+		DC_LOG_DC(" |DPP%d----OPP%d----|       |",
+				pipe->plane_res.dpp->inst,
+				pipe->stream_res.opp->inst);
+	} else if (slice_idx != 0 && plane_idx == -1) {
+		/* case 3 (OPP head pipe without plane) */
+		DC_LOG_DC(" |         slice%d |       |", slice_idx);
+		DC_LOG_DC(" |DPG%d----OPP%d----|       |",
+				pipe->plane_res.dpp->inst,
+				pipe->stream_res.opp->inst);
+	} else if (slice_idx == slice_count - 1) {
+		/* case 4 (DPP pipe in last slice) */
+		DC_LOG_DC(" | plane%d |               |", plane_idx);
+		DC_LOG_DC(" |DPP%d----|               |",
+				pipe->plane_res.dpp->inst);
+	} else {
+		/* case 5 (DPP pipe not in last slice) */
+		DC_LOG_DC(" | plane%d |       |       |", plane_idx);
+		DC_LOG_DC(" |DPP%d----|       |       |",
+				pipe->plane_res.dpp->inst);
+	}
+}
+
+void resource_log_pipe_topology_update(struct dc *dc, struct dc_state *state)
+{
+	struct pipe_ctx *otg_master;
+	struct pipe_ctx *opp_heads[MAX_PIPES];
+	struct pipe_ctx *dpp_pipes[MAX_PIPES];
+
+	int stream_idx, slice_idx, dpp_idx, plane_idx, slice_count, dpp_count;
+	bool is_primary;
+	DC_LOGGER_INIT(dc->ctx->logger);
+
+	DC_LOG_DC("    pipe topology update");
+	DC_LOG_DC("  ________________________");
+	for (stream_idx = 0; stream_idx < state->stream_count; stream_idx++) {
+		otg_master = resource_get_otg_master_for_stream(
+				&state->res_ctx, state->streams[stream_idx]);
+		slice_count = resource_get_opp_heads_for_otg_master(otg_master,
+				&state->res_ctx, opp_heads);
+		for (slice_idx = 0; slice_idx < slice_count; slice_idx++) {
+			if (opp_heads[slice_idx]->plane_state) {
+				plane_idx = 0;
+				dpp_count = resource_get_dpp_pipes_for_opp_head(
+						opp_heads[slice_idx],
+						&state->res_ctx,
+						dpp_pipes);
+				for (dpp_idx = 0; dpp_idx < dpp_count; dpp_idx++) {
+					is_primary = !dpp_pipes[dpp_idx]->top_pipe ||
+							dpp_pipes[dpp_idx]->top_pipe->plane_state != dpp_pipes[dpp_idx]->plane_state;
+					resource_log_pipe(dc, dpp_pipes[dpp_idx],
+							stream_idx, slice_idx,
+							plane_idx, slice_count,
+							is_primary);
+					if (is_primary)
+						plane_idx++;
+				}
+			} else {
+				plane_idx = -1;
+				resource_log_pipe(dc, opp_heads[slice_idx],
+						stream_idx, slice_idx, plane_idx,
+						slice_count, true);
+			}
+
+		}
+	}
+	DC_LOG_DC(" |________________________|\n");
+}
+
 static struct pipe_ctx *get_tail_pipe(
 		struct pipe_ctx *head_pipe)
 {
