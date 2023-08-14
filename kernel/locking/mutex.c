@@ -1126,6 +1126,9 @@ EXPORT_SYMBOL(ww_mutex_lock_interruptible);
 #endif /* !CONFIG_DEBUG_LOCK_ALLOC */
 #endif /* !CONFIG_PREEMPT_RT */
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(contention_begin);
+EXPORT_TRACEPOINT_SYMBOL_GPL(contention_end);
+
 /**
  * atomic_dec_and_mutex_lock - return holding mutex if we dec to 0
  * @cnt: the atomic which we are to dec
