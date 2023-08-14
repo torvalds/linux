@@ -41,7 +41,8 @@ static const struct subvp_high_refresh_list subvp_high_refresh_list = {
 			.res = {
 				{.width = 3840, .height = 2160, },
 				{.width = 3440, .height = 1440, },
-				{.width = 2560, .height = 1440, }},
+				{.width = 2560, .height = 1440, },
+				{.width = 1920, .height = 1080, }},
 };
 
 struct _vcs_dpi_ip_params_st dcn3_2_ip = {

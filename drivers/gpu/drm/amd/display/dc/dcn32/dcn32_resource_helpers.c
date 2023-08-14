@@ -255,6 +255,51 @@ bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
 	return psr_capable;
 }
 
+static void override_det_for_subvp(struct dc *dc, struct dc_state *context, uint8_t pipe_segments[])
+{
+	uint32_t i;
+	uint8_t fhd_count = 0;
+	uint8_t subvp_high_refresh_count = 0;
+	uint8_t stream_count = 0;
+
+	// Do not override if a stream has multiple planes
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->stream_status[i].plane_count > 1) {
+			return;
+		}
+		if (context->streams[i]->mall_stream_config.type != SUBVP_PHANTOM) {
+			stream_count++;
+		}
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream && pipe_ctx->plane_state && pipe_ctx->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+			if (dcn32_allow_subvp_high_refresh_rate(dc, context, pipe_ctx)) {
+
+				if (pipe_ctx->stream->timing.v_addressable == 1080 && pipe_ctx->stream->timing.h_addressable == 1920) {
+					fhd_count++;
+				}
+				subvp_high_refresh_count++;
+			}
+		}
+	}
+
+	if (stream_count == 2 && subvp_high_refresh_count == 2 && fhd_count == 1) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			if (pipe_ctx->stream && pipe_ctx->plane_state && pipe_ctx->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+				if (pipe_ctx->stream->timing.v_addressable == 1080 && pipe_ctx->stream->timing.h_addressable == 1920) {
+					if (pipe_segments[i] > 4)
+						pipe_segments[i] = 4;
+				}
+			}
+		}
+	}
+}
+
 /**
  * dcn32_determine_det_override(): Determine DET allocation for each pipe
  *
@@ -336,6 +381,7 @@ void dcn32_determine_det_override(struct dc *dc,
 			}
 		}
 
+		override_det_for_subvp(dc, context, pipe_segments);
 		for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 			if (!context->res_ctx.pipe_ctx[i].stream)
 				continue;
