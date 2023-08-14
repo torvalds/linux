@@ -225,6 +225,8 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 			  ICP_ACCEL_CAPABILITIES_HKDF |
 			  ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
 			  ICP_ACCEL_CAPABILITIES_AESGCM_SPC |
+			  ICP_ACCEL_CAPABILITIES_SM3 |
+			  ICP_ACCEL_CAPABILITIES_SM4 |
 			  ICP_ACCEL_CAPABILITIES_AES_V2;
 
 	/* A set bit in fusectl1 means the feature is OFF in this SKU */
@@ -248,12 +250,19 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
 
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_SMX_SLICE) {
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_SM3;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_SM4;
+	}
+
 	capabilities_asym = ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
 			  ICP_ACCEL_CAPABILITIES_CIPHER |
+			  ICP_ACCEL_CAPABILITIES_SM2 |
 			  ICP_ACCEL_CAPABILITIES_ECEDMONT;
 
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_PKE_SLICE) {
 		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_SM2;
 		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
 	}
 
