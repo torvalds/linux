@@ -104,4 +104,11 @@ extern int crash_prepare_elf64_headers(struct crash_mem *mem, int need_kernel_ma
 struct kimage;
 struct kexec_segment;
 
+#define KEXEC_CRASH_HP_NONE			0
+#define KEXEC_CRASH_HP_ADD_CPU			1
+#define KEXEC_CRASH_HP_REMOVE_CPU		2
+#define KEXEC_CRASH_HP_ADD_MEMORY		3
+#define KEXEC_CRASH_HP_REMOVE_MEMORY		4
+#define KEXEC_CRASH_HP_INVALID_CPU		-1U
+
 #endif /* LINUX_CRASH_CORE_H */
