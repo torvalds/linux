@@ -1,0 +1,67 @@
+[
+  {
+    "EventCode": "0x100F4",
+    "EventName": "PM_FLOP_CMPL",
+    "BriefDescription": "Floating Point Operations Completed. Includes any type. It counts once for each 1, 2, 4 or 8 flop instruction. Use PM_1|2|4|8_FLOP_CMPL events to count flops."
+  },
+  {
+    "EventCode": "0x45050",
+    "EventName": "PM_1FLOP_CMPL",
+    "BriefDescription": "One floating point instruction completed (fadd, fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg)."
+  },
+  {
+    "EventCode": "0x45052",
+    "EventName": "PM_4FLOP_CMPL",
+    "BriefDescription": "Four floating point instruction completed (fadd, fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg)."
+  },
+  {
+    "EventCode": "0x45054",
+    "EventName": "PM_FMA_CMPL",
+    "BriefDescription": "Two floating point instruction completed (FMA class of instructions: fmadd, fnmadd, fmsub, fnmsub). Scalar instructions only."
+  },
+  {
+    "EventCode": "0x45056",
+    "EventName": "PM_SCALAR_FLOP_CMPL",
+    "BriefDescription": "Scalar floating point instruction completed."
+  },
+  {
+    "EventCode": "0x4505A",
+    "EventName": "PM_SP_FLOP_CMPL",
+    "BriefDescription": "Single Precision floating point instruction completed."
+  },
+  {
+    "EventCode": "0x4505C",
+    "EventName": "PM_MATH_FLOP_CMPL",
+    "BriefDescription": "Math floating point instruction completed."
+  },
+  {
+    "EventCode": "0x4D052",
+    "EventName": "PM_2FLOP_CMPL",
+    "BriefDescription": "Double Precision vector version of fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg completed."
+  },
+  {
+    "EventCode": "0x4D054",
+    "EventName": "PM_8FLOP_CMPL",
+    "BriefDescription": "Four Double Precision vector instruction completed."
+  },
+  {
+    "EventCode": "0x4D056",
+    "EventName": "PM_NON_FMA_FLOP_CMPL",
+    "BriefDescription": "Non FMA instruction completed."
+  },
+  {
+    "EventCode": "0x4D058",
+    "EventName": "PM_VECTOR_FLOP_CMPL",
+    "BriefDescription": "Vector floating point instruction completed."
+  },
+  {
+    "EventCode": "0x4D05A",
+    "EventName": "PM_NON_MATH_FLOP_CMPL",
+    "BriefDescription": "Non Math instruction completed."
+  },
+  {
+    "EventCode": "0x4D05C",
+    "EventName": "PM_DPP_FLOP_CMPL",
+    "BriefDescription": "Double-Precision or Quad-Precision instruction completed."
+  }
+]
