@@ -13,7 +13,7 @@ use super::*;
 ///
 /// [nomicon]: https://doc.rust-lang.org/nomicon/subtyping.html
 /// [this table]: https://doc.rust-lang.org/nomicon/phantom-data.html#table-of-phantomdata-patterns
-type Invariant<T> = PhantomData<fn(*mut T) -> *mut T>;
+pub(super) type Invariant<T> = PhantomData<fn(*mut T) -> *mut T>;
 
 /// This is the module-internal type implementing `PinInit` and `Init`. It is unsafe to create this
 /// type, since the closure needs to fulfill the same safety requirement as the

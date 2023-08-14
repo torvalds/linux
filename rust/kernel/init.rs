@@ -767,6 +767,79 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     ///   deallocate.
     /// - `slot` will not move until it is dropped, i.e. it will be pinned.
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E>;
+
+    /// First initializes the value using `self` then calls the function `f` with the initialized
+    /// value.
+    ///
+    /// If `f` returns an error the value is dropped and the initializer will forward the error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #![allow(clippy::disallowed_names)]
+    /// use kernel::{types::Opaque, init::pin_init_from_closure};
+    /// #[repr(C)]
+    /// struct RawFoo([u8; 16]);
+    /// extern {
+    ///     fn init_foo(_: *mut RawFoo);
+    /// }
+    ///
+    /// #[pin_data]
+    /// struct Foo {
+    ///     #[pin]
+    ///     raw: Opaque<RawFoo>,
+    /// }
+    ///
+    /// impl Foo {
+    ///     fn setup(self: Pin<&mut Self>) {
+    ///         pr_info!("Setting up foo");
+    ///     }
+    /// }
+    ///
+    /// let foo = pin_init!(Foo {
+    ///     raw <- unsafe {
+    ///         Opaque::ffi_init(|s| {
+    ///             init_foo(s);
+    ///         })
+    ///     },
+    /// }).pin_chain(|foo| {
+    ///     foo.setup();
+    ///     Ok(())
+    /// });
+    /// ```
+    fn pin_chain<F>(self, f: F) -> ChainPinInit<Self, F, T, E>
+    where
+        F: FnOnce(Pin<&mut T>) -> Result<(), E>,
+    {
+        ChainPinInit(self, f, PhantomData)
+    }
+}
+
+/// An initializer returned by [`PinInit::pin_chain`].
+pub struct ChainPinInit<I, F, T: ?Sized, E>(I, F, __internal::Invariant<(E, Box<T>)>);
+
+// SAFETY: The `__pinned_init` function is implemented such that it
+// - returns `Ok(())` on successful initialization,
+// - returns `Err(err)` on error and in this case `slot` will be dropped.
+// - considers `slot` pinned.
+unsafe impl<T: ?Sized, E, I, F> PinInit<T, E> for ChainPinInit<I, F, T, E>
+where
+    I: PinInit<T, E>,
+    F: FnOnce(Pin<&mut T>) -> Result<(), E>,
+{
+    unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
+        // SAFETY: All requirements fulfilled since this function is `__pinned_init`.
+        unsafe { self.0.__pinned_init(slot)? };
+        // SAFETY: The above call initialized `slot` and we still have unique access.
+        let val = unsafe { &mut *slot };
+        // SAFETY: `slot` is considered pinned.
+        let val = unsafe { Pin::new_unchecked(val) };
+        (self.1)(val).map_err(|e| {
+            // SAFETY: `slot` was initialized above.
+            unsafe { core::ptr::drop_in_place(slot) };
+            e
+        })
+    }
 }
 
 /// An initializer for `T`.
@@ -808,6 +881,75 @@ pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     /// - the caller does not touch `slot` when `Err` is returned, they are only permitted to
     ///   deallocate.
     unsafe fn __init(self, slot: *mut T) -> Result<(), E>;
+
+    /// First initializes the value using `self` then calls the function `f` with the initialized
+    /// value.
+    ///
+    /// If `f` returns an error the value is dropped and the initializer will forward the error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #![allow(clippy::disallowed_names)]
+    /// use kernel::{types::Opaque, init::{self, init_from_closure}};
+    /// struct Foo {
+    ///     buf: [u8; 1_000_000],
+    /// }
+    ///
+    /// impl Foo {
+    ///     fn setup(&mut self) {
+    ///         pr_info!("Setting up foo");
+    ///     }
+    /// }
+    ///
+    /// let foo = init!(Foo {
+    ///     buf <- init::zeroed()
+    /// }).chain(|foo| {
+    ///     foo.setup();
+    ///     Ok(())
+    /// });
+    /// ```
+    fn chain<F>(self, f: F) -> ChainInit<Self, F, T, E>
+    where
+        F: FnOnce(&mut T) -> Result<(), E>,
+    {
+        ChainInit(self, f, PhantomData)
+    }
+}
+
+/// An initializer returned by [`Init::chain`].
+pub struct ChainInit<I, F, T: ?Sized, E>(I, F, __internal::Invariant<(E, Box<T>)>);
+
+// SAFETY: The `__init` function is implemented such that it
+// - returns `Ok(())` on successful initialization,
+// - returns `Err(err)` on error and in this case `slot` will be dropped.
+unsafe impl<T: ?Sized, E, I, F> Init<T, E> for ChainInit<I, F, T, E>
+where
+    I: Init<T, E>,
+    F: FnOnce(&mut T) -> Result<(), E>,
+{
+    unsafe fn __init(self, slot: *mut T) -> Result<(), E> {
+        // SAFETY: All requirements fulfilled since this function is `__init`.
+        unsafe { self.0.__pinned_init(slot)? };
+        // SAFETY: The above call initialized `slot` and we still have unique access.
+        (self.1)(unsafe { &mut *slot }).map_err(|e| {
+            // SAFETY: `slot` was initialized above.
+            unsafe { core::ptr::drop_in_place(slot) };
+            e
+        })
+    }
+}
+
+// SAFETY: `__pinned_init` behaves exactly the same as `__init`.
+unsafe impl<T: ?Sized, E, I, F> PinInit<T, E> for ChainInit<I, F, T, E>
+where
+    I: Init<T, E>,
+    F: FnOnce(&mut T) -> Result<(), E>,
+{
+    unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
+        // SAFETY: `__init` has less strict requirements compared to `__pinned_init`.
+        unsafe { self.__init(slot) }
+    }
 }
 
 /// Creates a new [`PinInit<T, E>`] from the given closure.
