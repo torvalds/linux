@@ -17,4 +17,4 @@ Description:
 		After a successful execution of the bus type's .offline()
 		callback the device cannot be used for any purpose until either
 		it is removed (i.e. device_del() is called for it), or its bus
-		type's .online() is exeucted successfully.
+		type's .online() is executed successfully.

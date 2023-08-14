@@ -39,7 +39,7 @@ Contact:	netdev@vger.kernel.org
 Description:
 		Mask of the CPU(s) currently enabled to participate into the
 		Transmit Packet Steering packet processing flow for this
-		network device transmit queue. Possible vaules depend on the
+		network device transmit queue. Possible values depend on the
 		number of available CPU(s) in the system.
 
 What:		/sys/class/<iface>/queues/tx-<queue>/xps_rxqs

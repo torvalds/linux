@@ -42,7 +42,7 @@ Date:           June 2013
 KernelVersion:  3.11
 Contact:        Thomas Pugliese <thomas.pugliese@gmail.com>
 Description:
-                The device notification time slot (DNTS) count and inverval in
+                The device notification time slot (DNTS) count and interval in
                 milliseconds that the WUSB host should use.  This controls how
                 often the devices will have the opportunity to send
                 notifications to the host.

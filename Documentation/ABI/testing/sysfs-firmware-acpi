@@ -84,7 +84,7 @@ Description:
 			 hotplug events associated with the given class of
 			 devices and will allow those devices to be ejected with
 			 the help of the _EJ0 control method.  Unsetting it
-			 effectively disables hotplug for the correspoinding
+			 effectively disables hotplug for the corresponding
 			 class of devices.
 		======== =======================================================
 
