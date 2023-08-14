@@ -1356,7 +1356,7 @@ void vma_invalidate_tlb(struct i915_address_space *vm, u32 *tlb)
 	 */
 	for_each_gt(gt, vm->i915, id)
 		WRITE_ONCE(tlb[id],
-			   intel_gt_next_invalidate_tlb_full(vm->gt));
+			   intel_gt_next_invalidate_tlb_full(gt));
 }
 
 static void __vma_put_pages(struct i915_vma *vma, unsigned int count)
