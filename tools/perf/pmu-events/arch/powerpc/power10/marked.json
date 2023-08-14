@@ -20,11 +20,6 @@
     "BriefDescription": "Marked Branch Taken instruction completed."
   },
   {
-    "EventCode": "0x20112",
-    "EventName": "PM_MRK_NTF_FIN",
-    "BriefDescription": "The marked instruction became the oldest in the pipeline before it finished. It excludes instructions that finish at dispatch."
-  },
-  {
     "EventCode": "0x2C01C",
     "EventName": "PM_EXEC_STALL_DMISS_OFF_CHIP",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from a remote chip."
@@ -63,11 +58,6 @@
     "EventCode": "0x200FD",
     "EventName": "PM_L1_ICACHE_MISS",
     "BriefDescription": "Demand instruction cache miss."
-  },
-  {
-    "EventCode": "0x30130",
-    "EventName": "PM_MRK_INST_FIN",
-    "BriefDescription": "marked instruction finished. Excludes instructions that finish at dispatch. Note that stores always finish twice since the address gets issued to the LSU and the data gets issued to the VSU."
   },
   {
     "EventCode": "0x34146",

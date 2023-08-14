@@ -5,11 +5,6 @@
     "BriefDescription": "Marked Start probe nop (AND R0,R0,R0) completed."
   },
   {
-    "EventCode": "0x20016",
-    "EventName": "PM_ST_FIN",
-    "BriefDescription": "Store finish count. Includes speculative activity."
-  },
-  {
     "EventCode": "0x20018",
     "EventName": "PM_ST_FWD",
     "BriefDescription": "Store forwards that finished."
