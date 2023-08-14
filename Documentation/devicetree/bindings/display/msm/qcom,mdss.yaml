@@ -11,7 +11,7 @@ maintainers:
   - Rob Clark <robdclark@gmail.com>
 
 description:
-  This is the bindings documentation for the Mobile Display Subsytem(MDSS) that
+  This is the bindings documentation for the Mobile Display Subsystem(MDSS) that
   encapsulates sub-blocks like MDP5, DSI, HDMI, eDP, etc.
 
 properties:

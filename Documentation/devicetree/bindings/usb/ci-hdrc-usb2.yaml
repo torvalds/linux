@@ -167,7 +167,7 @@ properties:
       at RTL is 0, so this property only affects siTD.
 
       If this property is not set, the max packet size is 1023 bytes, and
-      if the total of packet size for pervious transactions are more than
+      if the total of packet size for previous transactions are more than
       256 bytes, it can't accept any transactions within this frame. The
       use case is single transaction, but higher frame rate.
 

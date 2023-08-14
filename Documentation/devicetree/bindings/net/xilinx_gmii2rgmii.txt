@@ -7,7 +7,7 @@ Ethernet physical media devices (PHY) and the Gigabit Ethernet controller.
 This core can be used in all three modes of operation(10/100/1000 Mb/s).
 The Management Data Input/Output (MDIO) interface is used to configure the
 Speed of operation. This core can switch dynamically between the three
-Different speed modes by configuring the conveter register through mdio write.
+Different speed modes by configuring the converter register through mdio write.
 
 This converter sits between the ethernet MAC and the external phy.
 MAC <==> GMII2RGMII <==> RGMII_PHY

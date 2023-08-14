@@ -12,7 +12,7 @@ maintainers:
 
 description: |
   The Broadcom SPI controller is a SPI master found on various SOCs, including
-  BRCMSTB (BCM7XXX), Cygnus, NSP and NS2. The Broadcom Master SPI hw IP consits
+  BRCMSTB (BCM7XXX), Cygnus, NSP and NS2. The Broadcom Master SPI hw IP consists
   of:
     MSPI : SPI master controller can read and write to a SPI slave device
     BSPI : Broadcom SPI in combination with the MSPI hw IP provides acceleration
@@ -20,7 +20,7 @@ description: |
            io with 3-byte and 4-byte addressing support.
 
   Supported Broadcom SoCs have one instance of MSPI+BSPI controller IP.
-  MSPI master can be used wihout BSPI. BRCMSTB SoCs have an additional instance
+  MSPI master can be used without BSPI. BRCMSTB SoCs have an additional instance
   of a MSPI master without the BSPI to use with non flash slave devices that
   use SPI protocol.
 

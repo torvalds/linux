@@ -111,7 +111,7 @@ patternProperties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       etdm modules can share the same external clock pin. Specify
-      which etdm clock source is required by this etdm in moudule.
+      which etdm clock source is required by this etdm in module.
     enum:
       - 0 # etdm1_in
       - 1 # etdm2_in
@@ -122,7 +122,7 @@ patternProperties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       etdm modules can share the same external clock pin. Specify
-      which etdm clock source is required by this etdm out moudule.
+      which etdm clock source is required by this etdm out module.
     enum:
       - 0 # etdm1_in
       - 1 # etdm2_in

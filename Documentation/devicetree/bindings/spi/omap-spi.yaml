@@ -68,7 +68,7 @@ properties:
   dma-names:
     description:
       List of DMA request names. These strings correspond 1:1 with
-      the DMA sepecifiers listed in dmas. The string names is to be
+      the DMA specifiers listed in dmas. The string names is to be
       "rxN" and "txN" for RX and TX requests, respectively. Where N
       is the chip select number.
     minItems: 1

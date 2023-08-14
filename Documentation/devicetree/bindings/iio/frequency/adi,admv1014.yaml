@@ -33,7 +33,7 @@ properties:
     items:
       - const: lo_in
     description:
-      External clock that provides the Local Oscilator input.
+      External clock that provides the Local Oscillator input.
 
   vcm-supply:
     description:

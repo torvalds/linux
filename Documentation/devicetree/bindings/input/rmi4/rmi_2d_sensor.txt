@@ -34,8 +34,8 @@ Optional Properties:
 				mode.
 - syna,sensor-type: Set the sensor type. 1 for touchscreen 2 for touchpad.
 - syna,disable-report-mask: Mask for disabling posiiton reporting. Used to
-				disable reporing absolute position data.
-- syna,rezero-wait-ms: Time in miliseconds to wait after issuing a rezero
+				disable reporting absolute position data.
+- syna,rezero-wait-ms: Time in milliseconds to wait after issuing a rezero
 				command.
 
 

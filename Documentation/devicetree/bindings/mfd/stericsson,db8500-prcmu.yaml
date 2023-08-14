@@ -107,7 +107,7 @@ properties:
         $ref: ../regulator/regulator.yaml#
 
       db8500_vrf1:
-        description: RF transciever voltage regulator.
+        description: RF transceiver voltage regulator.
         type: object
         $ref: ../regulator/regulator.yaml#
 
