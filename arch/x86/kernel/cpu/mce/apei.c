@@ -105,7 +105,7 @@ int apei_smca_report_x86_error(struct cper_ia_proc_ctx *ctx_info, u64 lapic_id)
 	for_each_possible_cpu(cpu) {
 		if (cpu_data(cpu).topo.initial_apicid == lapic_id) {
 			m.extcpu = cpu;
-			m.socketid = cpu_data(m.extcpu).phys_proc_id;
+			m.socketid = cpu_data(m.extcpu).topo.pkg_id;
 			break;
 		}
 	}

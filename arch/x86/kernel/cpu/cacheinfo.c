@@ -875,10 +875,10 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 	 * turns means that the only possibility is SMT (as indicated in
 	 * cpuid1). Since cpuid2 doesn't specify shared caches, and we know
 	 * that SMT shares all caches, we can unconditionally set cpu_llc_id to
-	 * c->phys_proc_id.
+	 * c->topo.pkg_id.
 	 */
 	if (per_cpu(cpu_llc_id, cpu) == BAD_APICID)
-		per_cpu(cpu_llc_id, cpu) = c->phys_proc_id;
+		per_cpu(cpu_llc_id, cpu) = c->topo.pkg_id;
 #endif
 
 	c->x86_cache_size = l3 ? l3 : (l2 ? l2 : (l1i+l1d));

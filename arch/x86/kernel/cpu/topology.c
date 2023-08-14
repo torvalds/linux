@@ -154,8 +154,7 @@ int detect_extended_topology(struct cpuinfo_x86 *c)
 					core_plus_mask_width) & die_select_mask;
 	}
 
-	c->phys_proc_id = apic->phys_pkg_id(c->topo.initial_apicid,
-				pkg_mask_width);
+	c->topo.pkg_id = apic->phys_pkg_id(c->topo.initial_apicid, pkg_mask_width);
 	/*
 	 * Reinit the apicid, now that we have extended initial_apicid.
 	 */

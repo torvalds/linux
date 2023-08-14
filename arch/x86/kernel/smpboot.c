@@ -339,7 +339,7 @@ int topology_phys_to_logical_pkg(unsigned int phys_pkg)
 	for_each_possible_cpu(cpu) {
 		struct cpuinfo_x86 *c = &cpu_data(cpu);
 
-		if (c->initialized && c->phys_proc_id == phys_pkg)
+		if (c->initialized && c->topo.pkg_id == phys_pkg)
 			return c->logical_proc_id;
 	}
 	return -1;
@@ -355,13 +355,13 @@ EXPORT_SYMBOL(topology_phys_to_logical_pkg);
  */
 static int topology_phys_to_logical_die(unsigned int die_id, unsigned int cur_cpu)
 {
-	int cpu, proc_id = cpu_data(cur_cpu).phys_proc_id;
+	int cpu, proc_id = cpu_data(cur_cpu).topo.pkg_id;
 
 	for_each_possible_cpu(cpu) {
 		struct cpuinfo_x86 *c = &cpu_data(cpu);
 
 		if (c->initialized && c->cpu_die_id == die_id &&
-		    c->phys_proc_id == proc_id)
+		    c->topo.pkg_id == proc_id)
 			return c->logical_die_id;
 	}
 	return -1;
@@ -421,7 +421,7 @@ static void __init smp_store_boot_cpu_info(void)
 
 	*c = boot_cpu_data;
 	c->cpu_index = id;
-	topology_update_package_map(c->phys_proc_id, id);
+	topology_update_package_map(c->topo.pkg_id, id);
 	topology_update_die_map(c->cpu_die_id, id);
 	c->initialized = true;
 }
@@ -476,7 +476,7 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
-		if (c->phys_proc_id == o->phys_proc_id &&
+		if (c->topo.pkg_id == o->topo.pkg_id &&
 		    c->cpu_die_id == o->cpu_die_id &&
 		    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2)) {
 			if (c->cpu_core_id == o->cpu_core_id)
@@ -488,7 +488,7 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 				return topology_sane(c, o, "smt");
 		}
 
-	} else if (c->phys_proc_id == o->phys_proc_id &&
+	} else if (c->topo.pkg_id == o->topo.pkg_id &&
 		   c->cpu_die_id == o->cpu_die_id &&
 		   c->cpu_core_id == o->cpu_core_id) {
 		return topology_sane(c, o, "smt");
@@ -499,7 +499,7 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 
 static bool match_die(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
-	if (c->phys_proc_id == o->phys_proc_id &&
+	if (c->topo.pkg_id == o->topo.pkg_id &&
 	    c->cpu_die_id == o->cpu_die_id)
 		return true;
 	return false;
@@ -527,7 +527,7 @@ static bool match_l2c(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
  */
 static bool match_pkg(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
-	if (c->phys_proc_id == o->phys_proc_id)
+	if (c->topo.pkg_id == o->topo.pkg_id)
 		return true;
 	return false;
 }

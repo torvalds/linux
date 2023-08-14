@@ -83,6 +83,9 @@ struct cpuinfo_topology {
 	u32			apicid;
 	// The initial APIC ID provided by CPUID
 	u32			initial_apicid;
+
+	// Physical package ID
+	u32			pkg_id;
 };
 
 struct cpuinfo_x86 {
@@ -134,8 +137,6 @@ struct cpuinfo_x86 {
 	u16			x86_clflush_size;
 	/* number of cores as seen by the OS: */
 	u16			booted_cores;
-	/* Physical processor id: */
-	u16			phys_proc_id;
 	/* Logical processor id: */
 	u16			logical_proc_id;
 	/* Core id: */

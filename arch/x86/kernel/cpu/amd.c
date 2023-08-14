@@ -461,9 +461,9 @@ static void amd_detect_cmp(struct cpuinfo_x86 *c)
 	/* Low order bits define the core id (index of core in socket) */
 	c->cpu_core_id = c->topo.initial_apicid & ((1 << bits)-1);
 	/* Convert the initial APIC ID into the socket ID */
-	c->phys_proc_id = c->topo.initial_apicid >> bits;
+	c->topo.pkg_id = c->topo.initial_apicid >> bits;
 	/* use socket ID also for last level cache */
-	per_cpu(cpu_llc_id, cpu) = c->cpu_die_id = c->phys_proc_id;
+	per_cpu(cpu_llc_id, cpu) = c->cpu_die_id = c->topo.pkg_id;
 }
 
 u32 amd_get_nodes_per_socket(void)

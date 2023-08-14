@@ -92,7 +92,7 @@ static void hygon_get_topology(struct cpuinfo_x86 *c)
 		 * when running on host.
 		 */
 		if (!boot_cpu_has(X86_FEATURE_HYPERVISOR) && c->x86_model <= 0x3)
-			c->phys_proc_id = c->topo.apicid >> APICID_SOCKET_ID_BIT;
+			c->topo.pkg_id = c->topo.apicid >> APICID_SOCKET_ID_BIT;
 
 		cacheinfo_hygon_init_llc_id(c, cpu);
 	} else if (cpu_has(c, X86_FEATURE_NODEID_MSR)) {
@@ -122,9 +122,9 @@ static void hygon_detect_cmp(struct cpuinfo_x86 *c)
 	/* Low order bits define the core id (index of core in socket) */
 	c->cpu_core_id = c->topo.initial_apicid & ((1 << bits)-1);
 	/* Convert the initial APIC ID into the socket ID */
-	c->phys_proc_id = c->topo.initial_apicid >> bits;
+	c->topo.pkg_id = c->topo.initial_apicid >> bits;
 	/* use socket ID also for last level cache */
-	per_cpu(cpu_llc_id, cpu) = c->cpu_die_id = c->phys_proc_id;
+	per_cpu(cpu_llc_id, cpu) = c->cpu_die_id = c->topo.pkg_id;
 }
 
 static void srat_detect_node(struct cpuinfo_x86 *c)

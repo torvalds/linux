@@ -169,7 +169,7 @@ static void fixup_cpu_id(struct cpuinfo_x86 *c, int node)
 		nodes = ((val >> 3) & 7) + 1;
 	}
 
-	c->phys_proc_id = node / nodes;
+	c->topo.pkg_id = node / nodes;
 }
 
 static int __init numachip_system_init(void)

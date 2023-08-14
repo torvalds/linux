@@ -59,7 +59,7 @@ Package-related topology information in the kernel:
 
     The physical ID of the die. This information is retrieved via CPUID.
 
-  - cpuinfo_x86.phys_proc_id:
+  - cpuinfo_x86.topo.pkg_id:
 
     The physical ID of the package. This information is retrieved via CPUID
     and deduced from the APIC IDs of the cores in the package.
