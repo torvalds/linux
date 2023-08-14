@@ -250,17 +250,25 @@ struct genl_split_ops {
  * @family: generic netlink family - for internal genl code usage
  * @op: generic netlink ops - for internal genl code usage
  * @attrs: netlink attributes
+ * @info: struct genl_info describing the request
  */
 struct genl_dumpit_info {
 	const struct genl_family *family;
 	struct genl_split_ops op;
 	struct nlattr **attrs;
+	struct genl_info info;
 };
 
 static inline const struct genl_dumpit_info *
 genl_dumpit_info(struct netlink_callback *cb)
 {
 	return cb->data;
+}
+
+static inline const struct genl_info *
+genl_info_dump(struct netlink_callback *cb)
+{
+	return &genl_dumpit_info(cb)->info;
 }
 
 int genl_register_family(struct genl_family *family);

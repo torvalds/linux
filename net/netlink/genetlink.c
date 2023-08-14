@@ -847,6 +847,14 @@ static int genl_start(struct netlink_callback *cb)
 	info->family = ctx->family;
 	info->op = *ops;
 	info->attrs = attrs;
+	info->info.snd_seq	= cb->nlh->nlmsg_seq;
+	info->info.snd_portid	= NETLINK_CB(cb->skb).portid;
+	info->info.nlhdr	= cb->nlh;
+	info->info.genlhdr	= nlmsg_data(cb->nlh);
+	info->info.attrs	= attrs;
+	genl_info_net_set(&info->info, sock_net(cb->skb->sk));
+	info->info.extack	= cb->extack;
+	memset(&info->info.user_ptr, 0, sizeof(info->info.user_ptr));
 
 	cb->data = info;
 	if (ops->start) {
@@ -865,9 +873,11 @@ static int genl_start(struct netlink_callback *cb)
 
 static int genl_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	struct genl_dumpit_info *info = cb->data;
 	const struct genl_split_ops *ops = &info->op;
 	int rc;
+
+	info->info.extack = cb->extack;
 
 	genl_op_lock(info->family);
 	rc = ops->dumpit(skb, cb);
@@ -877,9 +887,11 @@ static int genl_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 
 static int genl_done(struct netlink_callback *cb)
 {
-	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	struct genl_dumpit_info *info = cb->data;
 	const struct genl_split_ops *ops = &info->op;
 	int rc = 0;
+
+	info->info.extack = cb->extack;
 
 	if (ops->done) {
 		genl_op_lock(info->family);
