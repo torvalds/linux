@@ -83,8 +83,7 @@ properties:
       - enum:
             # LED will act as a back-light, controlled by the framebuffer system
           - backlight
-            # LED will turn on (but for leds-gpio see "default-state" property in
-            # Documentation/devicetree/bindings/leds/leds-gpio.yaml)
+            # LED will turn on (see also "default-state" property)
           - default-on
             # LED "double" flashes at a load average based rate
           - heartbeat
