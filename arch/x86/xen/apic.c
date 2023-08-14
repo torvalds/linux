@@ -118,7 +118,7 @@ static int xen_phys_pkg_id(int initial_apic_id, int index_msb)
 static int xen_cpu_present_to_apicid(int cpu)
 {
 	if (cpu_present(cpu))
-		return cpu_data(cpu).apicid;
+		return cpu_data(cpu).topo.apicid;
 	else
 		return BAD_APICID;
 }
