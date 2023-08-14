@@ -11,7 +11,7 @@ HugeTLB
 This section is to explain how HugeTLB Vmemmap Optimization (HVO) works.
 
 The ``struct page`` structures are used to describe a physical page frame. By
-default, there is a one-to-one mapping from a page frame to it's corresponding
+default, there is a one-to-one mapping from a page frame to its corresponding
 ``struct page``.
 
 HugeTLB pages consist of multiple base page size pages and is supported by many

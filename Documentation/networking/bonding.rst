@@ -1636,7 +1636,7 @@ your init script::
 -----------------------------------------
 
 This section applies to distros which use /etc/network/interfaces file
-to describe network interface configuration, most notably Debian and it's
+to describe network interface configuration, most notably Debian and its
 derivatives.
 
 The ifup and ifdown commands on Debian don't support bonding out of

@@ -761,7 +761,7 @@ is an error during writeback, they expect that error to be reported when
 a file sync request is made.  After an error has been reported on one
 request, subsequent requests on the same file descriptor should return
 0, unless further writeback errors have occurred since the previous file
-syncronization.
+synchronization.
 
 Ideally, the kernel would report errors only on file descriptions on
 which writes were done that subsequently failed to be written back.  The

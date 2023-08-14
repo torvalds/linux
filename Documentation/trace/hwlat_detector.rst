@@ -14,7 +14,7 @@ originally written for use by the "RT" patch since the Real Time
 kernel is highly latency sensitive.
 
 SMIs are not serviced by the Linux kernel, which means that it does not
-even know that they are occuring. SMIs are instead set up by BIOS code
+even know that they are occurring. SMIs are instead set up by BIOS code
 and are serviced by BIOS code, usually for "critical" events such as
 management of thermal sensors and fans. Sometimes though, SMIs are used for
 other tasks and those tasks can spend an inordinate amount of time in the

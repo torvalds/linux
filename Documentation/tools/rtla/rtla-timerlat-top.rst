@@ -117,7 +117,7 @@ syscall in a btrfs file system.
 The raw trace is saved in the **timerlat_trace.txt** file for further analysis.
 
 Note that **rtla timerlat** was dispatched without changing *timerlat* tracer
-threads' priority. That is generally not needed because these threads hava
+threads' priority. That is generally not needed because these threads have
 priority *FIFO:95* by default, which is a common priority used by real-time
 kernel developers to analyze scheduling delays.
 

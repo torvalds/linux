@@ -88,11 +88,11 @@ The following keys are defined:
     always extremely slow.
 
   * :c:macro:`RISCV_HWPROBE_MISALIGNED_SLOW`: Misaligned accesses are supported
-    in hardware, but are slower than the cooresponding aligned accesses
+    in hardware, but are slower than the corresponding aligned accesses
     sequences.
 
   * :c:macro:`RISCV_HWPROBE_MISALIGNED_FAST`: Misaligned accesses are supported
-    in hardware and are faster than the cooresponding aligned accesses
+    in hardware and are faster than the corresponding aligned accesses
     sequences.
 
   * :c:macro:`RISCV_HWPROBE_MISALIGNED_UNSUPPORTED`: Misaligned accesses are

@@ -37,7 +37,7 @@ i915 with the DRM scheduler is:
 		* Watchdog hooks into DRM scheduler
 		* Lots of complexity of the GuC backend can be pulled out once
 		  integrated with DRM scheduler (e.g. state machine gets
-		  simplier, locking gets simplier, etc...)
+		  simpler, locking gets simpler, etc...)
 	* Execlists backend will minimum required to hook in the DRM scheduler
 		* Legacy interface
 		* Features like timeslicing / preemption / virtual engines would

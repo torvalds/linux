@@ -29,7 +29,7 @@ All documents are cataloged with the following fields: the document's
 
    The documents on each section of this document are ordered by its
    published date, from the newest to the oldest. The maintainer(s) should
-   periodically retire resources as they become obsolte or outdated; with
+   periodically retire resources as they become obsolete or outdated; with
    the exception of foundational books.
 
 Docs at the Linux Kernel tree

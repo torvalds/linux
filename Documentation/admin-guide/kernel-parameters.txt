@@ -2624,7 +2624,7 @@
 
 	kvm-intel.flexpriority=
 			[KVM,Intel] Control KVM's use of FlexPriority feature
-			(TPR shadow). Default is 1 (enabled). Disalbe by KVM if
+			(TPR shadow). Default is 1 (enabled). Disable by KVM if
 			hardware lacks support for it.
 
 	kvm-intel.nested=

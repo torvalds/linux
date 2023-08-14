@@ -378,7 +378,7 @@ SCDC Helper Functions Reference
 HDMI Infoframes Helper Reference
 ================================
 
-Strictly speaking this is not a DRM helper library but generally useable
+Strictly speaking this is not a DRM helper library but generally usable
 by any driver interfacing with HDMI outputs like v4l or alsa drivers.
 But it nicely fits into the overall topic of mode setting helper
 libraries and hence is also included here.

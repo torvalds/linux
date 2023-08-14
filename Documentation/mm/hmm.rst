@@ -417,7 +417,7 @@ entries. Any attempt to access the swap entry results in a fault which is
 resovled by replacing the entry with the original mapping. A driver gets
 notified that the mapping has been changed by MMU notifiers, after which point
 it will no longer have exclusive access to the page. Exclusive access is
-guranteed to last until the driver drops the page lock and page reference, at
+guaranteed to last until the driver drops the page lock and page reference, at
 which point any CPU faults on the page may proceed as described.
 
 Memory cgroup (memcg) and rss accounting

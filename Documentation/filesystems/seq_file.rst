@@ -130,7 +130,7 @@ called SEQ_START_TOKEN; it can be used if you wish to instruct your
 show() function (described below) to print a header at the top of the
 output. SEQ_START_TOKEN should only be used if the offset is zero,
 however.  SEQ_START_TOKEN has no special meaning to the core seq_file
-code.  It is provided as a convenience for a start() funciton to
+code.  It is provided as a convenience for a start() function to
 communicate with the next() and show() functions.
 
 The next function to implement is called, amazingly, next(); its job is to
@@ -217,7 +217,7 @@ between the calls to start() and stop(), so holding a lock during that time
 is a reasonable thing to do. The seq_file code will also avoid taking any
 other locks while the iterator is active.
 
-The iterater value returned by start() or next() is guaranteed to be
+The iterator value returned by start() or next() is guaranteed to be
 passed to a subsequent next() or stop() call.  This allows resources
 such as locks that were taken to be reliably released.  There is *no*
 guarantee that the iterator will be passed to show(), though in practice

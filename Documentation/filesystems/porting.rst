@@ -177,7 +177,7 @@ settles down a bit.
 **mandatory**
 
 s_export_op is now required for exporting a filesystem.
-isofs, ext2, ext3, resierfs, fat
+isofs, ext2, ext3, reiserfs, fat
 can be used as examples of very different filesystems.
 
 ---
@@ -470,7 +470,7 @@ has been taken to VFS and filesystems need to provide a non-NULL
 **mandatory**
 
 If you implement your own ->llseek() you must handle SEEK_HOLE and
-SEEK_DATA.  You can hanle this by returning -EINVAL, but it would be nicer to
+SEEK_DATA.  You can handle this by returning -EINVAL, but it would be nicer to
 support it in some way.  The generic handler assumes that the entire file is
 data and there is a virtual hole at the end of the file.  So if the provided
 offset is less than i_size and SEEK_DATA is specified, return the same offset.
@@ -517,7 +517,7 @@ The witch is dead!  Well, 2/3 of it, anyway.  ->d_revalidate() and
 
 ->create() doesn't take ``struct nameidata *``; unlike the previous
 two, it gets "is it an O_EXCL or equivalent?" boolean argument.  Note that
-local filesystems can ignore tha argument - they are guaranteed that the
+local filesystems can ignore this argument - they are guaranteed that the
 object doesn't exist.  It's remote/distributed ones that might care...
 
 ---

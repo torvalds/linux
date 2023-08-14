@@ -78,7 +78,7 @@ The minimum hold time for each lock is the time after a remote lock
 grant for which we ignore remote demote requests. This is in order to
 prevent a situation where locks are being bounced around the cluster
 from node to node with none of the nodes making any progress. This
-tends to show up most with shared mmaped files which are being written
+tends to show up most with shared mmapped files which are being written
 to by multiple nodes. By delaying the demotion in response to a
 remote callback, that gives the userspace program time to make
 some progress before the pages are unmapped.

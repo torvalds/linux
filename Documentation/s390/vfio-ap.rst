@@ -422,7 +422,7 @@ Configure the guest's AP resources
 Configuring the AP resources for a KVM guest will be performed when the
 VFIO_GROUP_NOTIFY_SET_KVM notifier callback is invoked. The notifier
 function is called when userspace connects to KVM. The guest's AP resources are
-configured via it's APCB by:
+configured via its APCB by:
 
 * Setting the bits in the APM corresponding to the APIDs assigned to the
   vfio_ap mediated device via its 'assign_adapter' interface.
