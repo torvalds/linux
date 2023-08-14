@@ -22,4 +22,12 @@ config PINCTRL_MERRIFIELD
 	  an interface that allows configuring of SoC pins and using them as
 	  GPIOs.
 
+config PINCTRL_MOOREFIELD
+	tristate "Intel Moorefield pinctrl driver"
+	select PINCTRL_TANGIER
+	help
+	  Intel Moorefield Family-Level Interface Shim (FLIS) driver provides
+	  an interface that allows configuring of SoC pins and using them as
+	  GPIOs.
+
 endif

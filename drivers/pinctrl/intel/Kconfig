@@ -36,17 +36,6 @@ config PINCTRL_LYNXPOINT
 	  provides an interface that allows configuring of PCH pins and
 	  using them as GPIOs.
 
-config PINCTRL_MOOREFIELD
-	tristate "Intel Moorefield pinctrl driver"
-	depends on X86_INTEL_MID
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
-	help
-	  Moorefield Family-Level Interface Shim (FLIS) driver provides an
-	  interface that allows configuring of SoC pins and using them as
-	  GPIOs.
-
 config PINCTRL_INTEL
 	tristate
 	select PINMUX
