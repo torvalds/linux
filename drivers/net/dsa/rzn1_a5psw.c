@@ -1314,7 +1314,7 @@ MODULE_DEVICE_TABLE(of, a5psw_of_mtable);
 static struct platform_driver a5psw_driver = {
 	.driver = {
 		.name	 = "rzn1_a5psw",
-		.of_match_table = of_match_ptr(a5psw_of_mtable),
+		.of_match_table = a5psw_of_mtable,
 	},
 	.probe = a5psw_probe,
 	.remove = a5psw_remove,
