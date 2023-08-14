@@ -219,7 +219,7 @@ int ethnl_tunnel_info_start(struct netlink_callback *cb)
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct ethnl_tunnel_info_dump_ctx *ctx = (void *)cb->ctx;
-	struct nlattr **tb = info->attrs;
+	struct nlattr **tb = info->info.attrs;
 	int ret;
 
 	BUILD_BUG_ON(sizeof(*ctx) > sizeof(cb->ctx));

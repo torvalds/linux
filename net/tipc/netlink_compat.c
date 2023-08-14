@@ -208,7 +208,7 @@ static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 		goto err_out;
 	}
 
-	info.attrs = attrbuf;
+	info.info.attrs = attrbuf;
 
 	if (nlmsg_len(cb.nlh) > 0) {
 		err = nlmsg_parse_deprecated(cb.nlh, GENL_HDRLEN, attrbuf,

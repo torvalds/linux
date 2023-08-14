@@ -538,7 +538,8 @@ static int ethnl_default_start(struct netlink_callback *cb)
 		goto free_req_info;
 	}
 
-	ret = ethnl_default_parse(req_info, info->attrs, sock_net(cb->skb->sk),
+	ret = ethnl_default_parse(req_info, info->info.attrs,
+				  sock_net(cb->skb->sk),
 				  ops, cb->extack, false);
 	if (req_info->dev) {
 		/* We ignore device specification in dump requests but as the

@@ -228,7 +228,7 @@ static int devlink_nl_inst_iter_dumpit(struct sk_buff *msg,
 int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
 		      devlink_nl_dump_one_func_t *dump_one)
 {
-	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	const struct genl_info *info = genl_info_dump(cb);
 	struct nlattr **attrs = info->attrs;
 	int flags = NLM_F_MULTI;
 

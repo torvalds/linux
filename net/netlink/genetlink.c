@@ -846,7 +846,6 @@ static int genl_start(struct netlink_callback *cb)
 	}
 	info->family = ctx->family;
 	info->op = *ops;
-	info->attrs = attrs;
 	info->info.snd_seq	= cb->nlh->nlmsg_seq;
 	info->info.snd_portid	= NETLINK_CB(cb->skb).portid;
 	info->info.nlhdr	= cb->nlh;
@@ -864,7 +863,7 @@ static int genl_start(struct netlink_callback *cb)
 	}
 
 	if (rc) {
-		genl_family_rcv_msg_attrs_free(info->attrs);
+		genl_family_rcv_msg_attrs_free(info->info.attrs);
 		genl_dumpit_info_free(info);
 		cb->data = NULL;
 	}
@@ -898,7 +897,7 @@ static int genl_done(struct netlink_callback *cb)
 		rc = ops->done(cb);
 		genl_op_unlock(info->family);
 	}
-	genl_family_rcv_msg_attrs_free(info->attrs);
+	genl_family_rcv_msg_attrs_free(info->info.attrs);
 	genl_dumpit_info_free(info);
 	return rc;
 }
@@ -1387,7 +1386,7 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
-	struct nlattr **tb = info->attrs;
+	struct nlattr **tb = info->info.attrs;
 	const struct genl_family *rt;
 	struct genl_op_iter i;
 	int err;

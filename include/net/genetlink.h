@@ -255,7 +255,6 @@ struct genl_split_ops {
 struct genl_dumpit_info {
 	const struct genl_family *family;
 	struct genl_split_ops op;
-	struct nlattr **attrs;
 	struct genl_info info;
 };
 

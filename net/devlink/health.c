@@ -390,7 +390,7 @@ static int devlink_nl_health_reporter_get_dump_one(struct sk_buff *msg,
 						   int flags)
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
-	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	const struct genl_info *info = genl_info_dump(cb);
 	struct devlink_health_reporter *reporter;
 	unsigned long port_index_end = ULONG_MAX;
 	struct nlattr **attrs = info->attrs;
@@ -1264,7 +1264,7 @@ out:
 static struct devlink_health_reporter *
 devlink_health_reporter_get_from_cb(struct netlink_callback *cb)
 {
-	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	const struct genl_info *info = genl_info_dump(cb);
 	struct devlink_health_reporter *reporter;
 	struct nlattr **attrs = info->attrs;
 	struct devlink *devlink;
