@@ -271,7 +271,8 @@ long memfd_fcntl(struct file *file, unsigned int cmd, unsigned int arg)
 static int check_sysctl_memfd_noexec(unsigned int *flags)
 {
 #ifdef CONFIG_SYSCTL
-	int sysctl = task_active_pid_ns(current)->memfd_noexec_scope;
+	struct pid_namespace *ns = task_active_pid_ns(current);
+	int sysctl = pidns_memfd_noexec_scope(ns);
 
 	if (!(*flags & (MFD_EXEC | MFD_NOEXEC_SEAL))) {
 		if (sysctl >= MEMFD_NOEXEC_SCOPE_NOEXEC_SEAL)

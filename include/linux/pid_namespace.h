@@ -39,7 +39,6 @@ struct pid_namespace {
 	int reboot;	/* group exit code if this pidns was rebooted */
 	struct ns_common ns;
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
-	/* sysctl for vm.memfd_noexec */
 	int memfd_noexec_scope;
 #endif
 } __randomize_layout;
@@ -56,6 +55,23 @@ static inline struct pid_namespace *get_pid_ns(struct pid_namespace *ns)
 	return ns;
 }
 
+#if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
+static inline int pidns_memfd_noexec_scope(struct pid_namespace *ns)
+{
+	int scope = MEMFD_NOEXEC_SCOPE_EXEC;
+
+	for (; ns; ns = ns->parent)
+		scope = max(scope, READ_ONCE(ns->memfd_noexec_scope));
+
+	return scope;
+}
+#else
+static inline int pidns_memfd_noexec_scope(struct pid_namespace *ns)
+{
+	return 0;
+}
+#endif
+
 extern struct pid_namespace *copy_pid_ns(unsigned long flags,
 	struct user_namespace *user_ns, struct pid_namespace *ns);
 extern void zap_pid_ns_processes(struct pid_namespace *pid_ns);
@@ -68,6 +84,11 @@ extern void put_pid_ns(struct pid_namespace *ns);
 static inline struct pid_namespace *get_pid_ns(struct pid_namespace *ns)
 {
 	return ns;
+}
+
+static inline int pidns_memfd_noexec_scope(struct pid_namespace *ns)
+{
+	return 0;
 }
 
 static inline struct pid_namespace *copy_pid_ns(unsigned long flags,
