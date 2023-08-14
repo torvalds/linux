@@ -281,7 +281,7 @@ void default_send_IPI_mask_logical(const struct cpumask *cpumask, int vector)
 }
 
 #ifdef CONFIG_SMP
-static int convert_apicid_to_cpu(int apic_id)
+static int convert_apicid_to_cpu(u32 apic_id)
 {
 	int i;
 
@@ -294,7 +294,8 @@ static int convert_apicid_to_cpu(int apic_id)
 
 int safe_smp_processor_id(void)
 {
-	int apicid, cpuid;
+	u32 apicid;
+	int cpuid;
 
 	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return 0;

@@ -693,12 +693,12 @@ extern int set_tsc_mode(unsigned int val);
 
 DECLARE_PER_CPU(u64, msr_misc_features_shadow);
 
-static inline u16 per_cpu_llc_id(unsigned int cpu)
+static inline u32 per_cpu_llc_id(unsigned int cpu)
 {
 	return per_cpu(cpu_info.topo.llc_id, cpu);
 }
 
-static inline u16 per_cpu_l2c_id(unsigned int cpu)
+static inline u32 per_cpu_l2c_id(unsigned int cpu)
 {
 	return per_cpu(cpu_info.topo.l2c_id, cpu);
 }
