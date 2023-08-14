@@ -52,6 +52,18 @@ static void genl_unlock_all(void)
 	up_write(&cb_lock);
 }
 
+static void genl_op_lock(const struct genl_family *family)
+{
+	if (!family->parallel_ops)
+		genl_lock();
+}
+
+static void genl_op_unlock(const struct genl_family *family)
+{
+	if (!family->parallel_ops)
+		genl_unlock();
+}
+
 static DEFINE_IDR(genl_fam_idr);
 
 /*
@@ -838,11 +850,9 @@ static int genl_start(struct netlink_callback *cb)
 
 	cb->data = info;
 	if (ops->start) {
-		if (!ctx->family->parallel_ops)
-			genl_lock();
+		genl_op_lock(ctx->family);
 		rc = ops->start(cb);
-		if (!ctx->family->parallel_ops)
-			genl_unlock();
+		genl_op_unlock(ctx->family);
 	}
 
 	if (rc) {
@@ -853,41 +863,29 @@ static int genl_start(struct netlink_callback *cb)
 	return rc;
 }
 
-static int genl_lock_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
+static int genl_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	const struct genl_split_ops *ops = &genl_dumpit_info(cb)->op;
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	const struct genl_split_ops *ops = &info->op;
 	int rc;
 
-	genl_lock();
+	genl_op_lock(info->family);
 	rc = ops->dumpit(skb, cb);
-	genl_unlock();
+	genl_op_unlock(info->family);
 	return rc;
 }
 
-static int genl_lock_done(struct netlink_callback *cb)
+static int genl_done(struct netlink_callback *cb)
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	const struct genl_split_ops *ops = &info->op;
 	int rc = 0;
 
 	if (ops->done) {
-		genl_lock();
+		genl_op_lock(info->family);
 		rc = ops->done(cb);
-		genl_unlock();
+		genl_op_unlock(info->family);
 	}
-	genl_family_rcv_msg_attrs_free(info->attrs);
-	genl_dumpit_info_free(info);
-	return rc;
-}
-
-static int genl_parallel_done(struct netlink_callback *cb)
-{
-	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
-	const struct genl_split_ops *ops = &info->op;
-	int rc = 0;
-
-	if (ops->done)
-		rc = ops->done(cb);
 	genl_family_rcv_msg_attrs_free(info->attrs);
 	genl_dumpit_info_free(info);
 	return rc;
@@ -901,6 +899,14 @@ static int genl_family_rcv_msg_dumpit(const struct genl_family *family,
 				      int hdrlen, struct net *net)
 {
 	struct genl_start_context ctx;
+	struct netlink_dump_control c = {
+		.module = family->module,
+		.data = &ctx,
+		.start = genl_start,
+		.dump = genl_dumpit,
+		.done = genl_done,
+		.extack = extack,
+	};
 	int err;
 
 	ctx.family = family;
@@ -909,31 +915,9 @@ static int genl_family_rcv_msg_dumpit(const struct genl_family *family,
 	ctx.ops = ops;
 	ctx.hdrlen = hdrlen;
 
-	if (!family->parallel_ops) {
-		struct netlink_dump_control c = {
-			.module = family->module,
-			.data = &ctx,
-			.start = genl_start,
-			.dump = genl_lock_dumpit,
-			.done = genl_lock_done,
-			.extack = extack,
-		};
-
-		genl_unlock();
-		err = __netlink_dump_start(net->genl_sock, skb, nlh, &c);
-		genl_lock();
-	} else {
-		struct netlink_dump_control c = {
-			.module = family->module,
-			.data = &ctx,
-			.start = genl_start,
-			.dump = ops->dumpit,
-			.done = genl_parallel_done,
-			.extack = extack,
-		};
-
-		err = __netlink_dump_start(net->genl_sock, skb, nlh, &c);
-	}
+	genl_op_unlock(family);
+	err = __netlink_dump_start(net->genl_sock, skb, nlh, &c);
+	genl_op_lock(family);
 
 	return err;
 }
@@ -1065,13 +1049,9 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (family == NULL)
 		return -ENOENT;
 
-	if (!family->parallel_ops)
-		genl_lock();
-
+	genl_op_lock(family);
 	err = genl_family_rcv_msg(family, skb, nlh, extack);
-
-	if (!family->parallel_ops)
-		genl_unlock();
+	genl_op_unlock(family);
 
 	return err;
 }
