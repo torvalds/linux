@@ -77,7 +77,7 @@ static const char proc_pid_smaps_vsyscall_1[] =
 "Swap:                  0 kB\n"
 "SwapPss:               0 kB\n"
 "Locked:                0 kB\n"
-"THPeligible:    0\n"
+"THPeligible:           0\n"
 /*
  * "ProtectionKey:" field is conditional. It is possible to check it as well,
  * but I don't have such machine.
@@ -107,7 +107,7 @@ static const char proc_pid_smaps_vsyscall_2[] =
 "Swap:                  0 kB\n"
 "SwapPss:               0 kB\n"
 "Locked:                0 kB\n"
-"THPeligible:    0\n"
+"THPeligible:           0\n"
 /*
  * "ProtectionKey:" field is conditional. It is possible to check it as well,
  * but I'm too tired.
