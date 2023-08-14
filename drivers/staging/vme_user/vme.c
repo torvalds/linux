@@ -1267,9 +1267,8 @@ void vme_bus_error_handler(struct vme_bridge *bridge,
 }
 EXPORT_SYMBOL(vme_bus_error_handler);
 
-struct vme_error_handler *vme_register_error_handler(
-	struct vme_bridge *bridge, u32 aspace,
-	unsigned long long address, size_t len)
+struct vme_error_handler *vme_register_error_handler(struct vme_bridge *bridge, u32 aspace,
+						     unsigned long long address, size_t len)
 {
 	struct vme_error_handler *handler;
 
