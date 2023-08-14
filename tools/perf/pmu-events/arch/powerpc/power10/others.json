@@ -15,6 +15,11 @@
     "BriefDescription": "Cycles in which Superslice 0 dispatches either 1 or 2 instructions."
   },
   {
+    "EventCode": "0x1F05A",
+    "EventName": "PM_DISP_HELD_SYNC_CYC",
+    "BriefDescription": "Cycles dispatch is held because of a synchronizing instruction that requires the ICT to be empty before dispatch."
+  },
+  {
     "EventCode": "0x10066",
     "EventName": "PM_ADJUNCT_CYC",
     "BriefDescription": "Cycles in which the thread is in Adjunct state. MSR[S HV PR] bits = 011."

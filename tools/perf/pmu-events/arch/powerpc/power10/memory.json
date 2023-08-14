@@ -50,9 +50,19 @@
     "BriefDescription": "Data TLB reload (after a miss) page size 4K. When MMCR1[16]=0 this event counts only for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
   },
   {
+    "EventCode": "0x2C05A",
+    "EventName": "PM_DERAT_MISS_1G",
+    "BriefDescription": "Data ERAT Miss (Data TLB Access) page size 1G. Implies radix translation. When MMCR1[16]=0 this event counts only DERAT reloads for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
+  },
+  {
     "EventCode": "0x200F6",
     "EventName": "PM_DERAT_MISS",
     "BriefDescription": "DERAT Reloaded to satisfy a DERAT miss. All page sizes are counted by this event. When MMCR1[16]=0 this event counts only DERAT reloads for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
+  },
+  {
+    "EventCode": "0x34044",
+    "EventName": "PM_DERAT_MISS_PREF",
+    "BriefDescription": "DERAT miss (TLB access) while servicing a data prefetch."
   },
   {
     "EventCode": "0x3C040",

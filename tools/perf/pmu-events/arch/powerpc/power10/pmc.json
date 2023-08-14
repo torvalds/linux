@@ -40,6 +40,11 @@
     "BriefDescription": "The event selected for PMC5 caused the event counter to overflow."
   },
   {
+    "EventCode": "0x1002A",
+    "EventName": "PM_PMC3_HELD_CYC",
+    "BriefDescription": "Cycles when the speculative counter for PMC3 is frozen."
+  },
+  {
     "EventCode": "0x1F15E",
     "EventName": "PM_MRK_START_PROBE_NOP_CMPL",
     "BriefDescription": "Marked Start probe nop (AND R0,R0,R0) completed."

@@ -20,6 +20,11 @@
     "BriefDescription": "Cycles taken for a marked demand miss to reload a line from the source specified in MMCR3[0:12]."
   },
   {
+    "EventCode": "0x1D15C",
+    "EventName": "PM_MRK_DTLB_MISS_1G",
+    "BriefDescription": "Marked Data TLB reload (after a miss) page size 1G. Implies radix translation was used. When MMCR1[16]=0 this event counts only for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
+  },
+  {
     "EventCode": "0x1F150",
     "EventName": "PM_MRK_ST_L2_CYC",
     "BriefDescription": "Cycles from L2 RC dispatch to L2 RC completion."
@@ -135,6 +140,11 @@
     "BriefDescription": "L2 RC machine completed the transaction for the marked instruction."
   },
   {
+    "EventCode": "0x3012E",
+    "EventName": "PM_MRK_DTLB_MISS_2M",
+    "BriefDescription": "Marked Data TLB reload (after a miss) page size 2M, which implies Radix Page Table translation was used. When MMCR1[16]=0 this event counts only for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
+  },
+  {
     "EventCode": "0x30132",
     "EventName": "PM_MRK_VSU_FIN",
     "BriefDescription": "VSU marked instruction finished. Excludes simple FX instructions issued to the Store Unit."
@@ -185,6 +195,16 @@
     "BriefDescription": "Marked Branch Mispredicted. Includes direction and target."
   },
   {
+    "EventCode": "0x301E6",
+    "EventName": "PM_MRK_DERAT_MISS",
+    "BriefDescription": "Marked Erat Miss (Data TLB Access) All page sizes. When MMCR1[16]=0 this event counts only DERAT reloads for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
+  },
+  {
+    "EventCode": "0x4010E",
+    "EventName": "PM_MRK_TLBIE_FIN",
+    "BriefDescription": "Marked TLBIE instruction finished. Includes TLBIE and TLBIEL instructions."
+  },
+  {
     "EventCode": "0x40116",
     "EventName": "PM_MRK_LARX_FIN",
     "BriefDescription": "Marked load and reserve instruction (LARX) finished. LARX and STCX are instructions used to acquire a lock."
@@ -210,6 +230,11 @@
     "BriefDescription": "Cycles taken for a marked demand miss to reload a line from the source specified in MMCR3[45:57]."
   },
   {
+    "EventCode": "0x4C15C",
+    "EventName": "PM_MRK_DERAT_MISS_1G",
+    "BriefDescription": "Data ERAT Miss (Data TLB Access) page size 1G for a marked instruction. When MMCR1[16]=0 this event counts only DERAT reloads for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
+  },
+  {
     "EventCode": "0x4C15E",
     "EventName": "PM_MRK_DTLB_MISS_64K",
     "BriefDescription": "Marked Data TLB reload (after a miss) page size 64K. When MMCR1[16]=0 this event counts only for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
@@ -228,6 +253,11 @@
     "EventCode": "0x401E0",
     "EventName": "PM_MRK_INST_CMPL",
     "BriefDescription": "Marked instruction completed."
+  },
+  {
+    "EventCode": "0x401E4",
+    "EventName": "PM_MRK_DTLB_MISS",
+    "BriefDescription": "The DPTEG required for the marked load/store instruction in execution was missing from the TLB. This event only counts for demand misses."
   },
   {
     "EventCode": "0x401E6",

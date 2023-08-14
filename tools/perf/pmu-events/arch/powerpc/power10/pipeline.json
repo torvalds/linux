@@ -35,6 +35,11 @@
     "BriefDescription": "Cycles in which an instruction reload is pending to satisfy a demand miss."
   },
   {
+    "EventCode": "0x10028",
+    "EventName": "PM_NTC_FLUSH",
+    "BriefDescription": "The instruction was flushed after becoming next-to-complete (NTC)."
+  },
+  {
     "EventCode": "0x10038",
     "EventName": "PM_DISP_STALL_TRANSLATION",
     "BriefDescription": "Cycles when dispatch was stalled for this thread because the MMU was handling a translation miss."
@@ -88,6 +93,11 @@
     "EventCode": "0x1E05A",
     "EventName": "PM_CMPL_STALL_LWSYNC",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a lwsync waiting to complete."
+  },
+  {
+    "EventCode": "0x1F058",
+    "EventName": "PM_DISP_HELD_CYC",
+    "BriefDescription": "Cycles dispatch is held."
   },
   {
     "EventCode": "0x10064",
@@ -220,6 +230,16 @@
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline (NTC) finishes. Note that instructions can finish out of order, therefore not all the instructions that finish have a Next-to-complete status."
   },
   {
+    "EventCode": "0x20066",
+    "EventName": "PM_DISP_HELD_OTHER_CYC",
+    "BriefDescription": "Cycles dispatch is held for any other reason."
+  },
+  {
+    "EventCode": "0x2006A",
+    "EventName": "PM_DISP_HELD_STF_MAPPER_CYC",
+    "BriefDescription": "Cycles dispatch is held because the STF mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR."
+  },
+  {
     "EventCode": "0x30004",
     "EventName": "PM_DISP_STALL_FLUSH",
     "BriefDescription": "Cycles when dispatch was stalled because of a flush that happened to an instruction(s) that was not yet next-to-complete (NTC). PM_EXEC_STALL_NTC_FLUSH only includes instructions that were flushed after becoming NTC."
@@ -308,6 +328,11 @@
     "EventCode": "0x3E052",
     "EventName": "PM_DISP_STALL_IC_L3",
     "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from the local L3."
+  },
+  {
+    "EventCode": "0x30060",
+    "EventName": "PM_DISP_HELD_XVFC_MAPPER_CYC",
+    "BriefDescription": "Cycles dispatch is held because the XVFC mapper/SRB was full."
   },
   {
     "EventCode": "0x30066",
@@ -413,6 +438,16 @@
     "EventCode": "0x45058",
     "EventName": "PM_IC_MISS_CMPL",
     "BriefDescription": "Non-speculative instruction cache miss, counted at completion."
+  },
+  {
+    "EventCode": "0x40060",
+    "EventName": "PM_DISP_HELD_SCOREBOARD_CYC",
+    "BriefDescription": "Cycles dispatch is held while waiting on the Scoreboard. This event combines VSCR and FPSCR together."
+  },
+  {
+    "EventCode": "0x40062",
+    "EventName": "PM_DISP_HELD_RENAME_CYC",
+    "BriefDescription": "Cycles dispatch is held because the mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR and XVFC."
   },
   {
     "EventCode": "0x400F2",
