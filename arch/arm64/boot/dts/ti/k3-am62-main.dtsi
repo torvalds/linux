@@ -55,10 +55,28 @@
 			#phy-cells = <1>;
 		};
 
-		epwm_tbclk: clock@4130 {
-			compatible = "ti,am62-epwm-tbclk", "syscon";
+		epwm_tbclk: clock-controller@4130 {
+			compatible = "ti,am62-epwm-tbclk";
 			reg = <0x4130 0x4>;
 			#clock-cells = <1>;
+		};
+
+		audio_refclk0: clock-controller@82e0 {
+			compatible = "ti,am62-audio-refclk";
+			reg = <0x82e0 0x4>;
+			clocks = <&k3_clks 157 0>;
+			assigned-clocks = <&k3_clks 157 0>;
+			assigned-clock-parents = <&k3_clks 157 8>;
+			#clock-cells = <0>;
+		};
+
+		audio_refclk1: clock-controller@82e4 {
+			compatible = "ti,am62-audio-refclk";
+			reg = <0x82e4 0x4>;
+			clocks = <&k3_clks 157 10>;
+			assigned-clocks = <&k3_clks 157 10>;
+			assigned-clock-parents = <&k3_clks 157 18>;
+			#clock-cells = <0>;
 		};
 	};
 
@@ -174,7 +192,6 @@
 	crypto: crypto@40900000 {
 		compatible = "ti,am62-sa3ul";
 		reg = <0x00 0x40900000 0x00 0x1200>;
-		power-domains = <&k3_pds 70 TI_SCI_PD_SHARED>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges = <0x00 0x40900000 0x00 0x40900000 0x00 0x30000>;
@@ -590,7 +607,7 @@
 
 		usb0: usb@31000000 {
 			compatible = "snps,dwc3";
-			reg =<0x00 0x31000000 0x00 0x50000>;
+			reg = <0x00 0x31000000 0x00 0x50000>;
 			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>, /* irq.0 */
 				     <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>; /* irq.0 */
 			interrupt-names = "host", "peripheral";
@@ -613,7 +630,7 @@
 
 		usb1: usb@31100000 {
 			compatible = "snps,dwc3";
-			reg =<0x00 0x31100000 0x00 0x50000>;
+			reg = <0x00 0x31100000 0x00 0x50000>;
 			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>, /* irq.0 */
 				     <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>; /* irq.0 */
 			interrupt-names = "host", "peripheral";
@@ -715,6 +732,31 @@
 			interrupt-names = "cpts";
 			ti,cpts-ext-ts-inputs = <4>;
 			ti,cpts-periodic-outputs = <2>;
+		};
+	};
+
+	dss: dss@30200000 {
+		compatible = "ti,am625-dss";
+		reg = <0x00 0x30200000 0x00 0x1000>, /* common */
+		      <0x00 0x30202000 0x00 0x1000>, /* vidl1 */
+		      <0x00 0x30206000 0x00 0x1000>, /* vid */
+		      <0x00 0x30207000 0x00 0x1000>, /* ovr1 */
+		      <0x00 0x30208000 0x00 0x1000>, /* ovr2 */
+		      <0x00 0x3020a000 0x00 0x1000>, /* vp1: Used for OLDI */
+		      <0x00 0x3020b000 0x00 0x1000>; /* vp2: Used as DPI Out */
+		reg-names = "common", "vidl1", "vid",
+			    "ovr1", "ovr2", "vp1", "vp2";
+		power-domains = <&k3_pds 186 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 186 6>,
+			 <&dss_vp1_clk>,
+			 <&k3_clks 186 2>;
+		clock-names = "fck", "vp1", "vp2";
+		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+
+		dss_ports: ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 	};
 

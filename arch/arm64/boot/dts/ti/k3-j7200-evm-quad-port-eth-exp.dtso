@@ -10,9 +10,9 @@
 /plugin/;
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/mux/ti-serdes.h>
 
 #include "k3-pinctrl.h"
+#include "k3-serdes.h"
 
 &{/} {
 	aliases {

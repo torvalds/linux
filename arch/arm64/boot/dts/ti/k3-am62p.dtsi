@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for AM62 SoC Family
+ * Device Tree Source for AM62P SoC Family
  *
- * Copyright (C) 2020-2022 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2023 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -13,13 +13,11 @@
 #include "k3-pinctrl.h"
 
 / {
-	model = "Texas Instruments K3 AM625 SoC";
-	compatible = "ti,am625";
+	model = "Texas Instruments K3 AM62P5 SoC";
+	compatible = "ti,am62p5";
 	interrupt-parent = <&gic500>;
 	#address-cells = <2>;
 	#size-cells = <2>;
-
-	chosen { };
 
 	firmware {
 		optee {
@@ -47,6 +45,7 @@
 	};
 
 	cbass_main: bus@f0000 {
+		bootph-all;
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -65,6 +64,7 @@
 			 <0x00 0x30040000 0x00 0x30040000 0x00 0x00080000>, /* PRUSS-M */
 			 <0x00 0x30101000 0x00 0x30101000 0x00 0x00010100>, /* CSI window */
 			 <0x00 0x30200000 0x00 0x30200000 0x00 0x00010000>, /* DSS */
+			 <0x00 0x30210000 0x00 0x30210000 0x00 0x00010000>, /* VPU */
 			 <0x00 0x31000000 0x00 0x31000000 0x00 0x00050000>, /* USB0 DWC3 Core window */
 			 <0x00 0x31100000 0x00 0x31100000 0x00 0x00050000>, /* USB1 DWC3 Core window */
 			 <0x00 0x40900000 0x00 0x40900000 0x00 0x00030000>, /* SA3UL */
@@ -79,41 +79,44 @@
 
 			 /* MCU Domain Range */
 			 <0x00 0x04000000 0x00 0x04000000 0x00 0x01ff1400>,
+			 <0x00 0x79000000 0x00 0x79000000 0x00 0x00008000>,
+			 <0x00 0x79020000 0x00 0x79020000 0x00 0x00008000>,
+			 <0x00 0x79100000 0x00 0x79100000 0x00 0x00040000>,
+			 <0x00 0x79140000 0x00 0x79140000 0x00 0x00040000>,
 
 			 /* Wakeup Domain Range */
-			 <0x00 0x00b00000 0x00 0x00b00000 0x00 0x00002400>, /* VTM */
+			 <0x00 0x00b00000 0x00 0x00b00000 0x00 0x00002400>,
 			 <0x00 0x2b000000 0x00 0x2b000000 0x00 0x00300400>,
-			 <0x00 0x43000000 0x00 0x43000000 0x00 0x00020000>;
+			 <0x00 0x43000000 0x00 0x43000000 0x00 0x00020000>,
+			 <0x00 0x78000000 0x00 0x78000000 0x00 0x00008000>,
+			 <0x00 0x78100000 0x00 0x78100000 0x00 0x00008000>;
 
 		cbass_mcu: bus@4000000 {
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;
-			ranges = <0x00 0x04000000 0x00 0x04000000 0x00 0x01ff1400>; /* Peripheral window */
+			ranges = <0x00 0x04000000 0x00 0x04000000 0x00 0x01ff1400>, /* Peripheral window */
+				 <0x00 0x79000000 0x00 0x79000000 0x00 0x00008000>, /* MCU R5 ATCM */
+				 <0x00 0x79020000 0x00 0x79020000 0x00 0x00008000>, /* MCU R5 BTCM */
+				 <0x00 0x79100000 0x00 0x79100000 0x00 0x00040000>, /* MCU IRAM0 */
+				 <0x00 0x79140000 0x00 0x79140000 0x00 0x00040000>; /* MCU IRAM1 */
 		};
 
 		cbass_wakeup: bus@b00000 {
+			bootph-all;
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x00 0x00b00000 0x00 0x00b00000 0x00 0x00002400>, /* VTM */
 				 <0x00 0x2b000000 0x00 0x2b000000 0x00 0x00300400>, /* Peripheral Window */
-				 <0x00 0x43000000 0x00 0x43000000 0x00 0x00020000>;
+				 <0x00 0x43000000 0x00 0x43000000 0x00 0x00020000>, /* WKUP CTRL MMR */
+				 <0x00 0x78000000 0x00 0x78000000 0x00 0x00008000>, /* DM R5 ATCM*/
+				 <0x00 0x78100000 0x00 0x78100000 0x00 0x00008000>; /* DM R5 BTCM*/
 		};
 	};
-
-	dss_vp1_clk: clock-divider-oldi {
-		compatible = "fixed-factor-clock";
-		clocks = <&k3_clks 186 0>;
-		#clock-cells = <0>;
-		clock-div = <7>;
-		clock-mult = <1>;
-	};
-
-	#include "k3-am62-thermal.dtsi"
 };
 
-/* Now include the peripherals for each bus segments */
-#include "k3-am62-main.dtsi"
-#include "k3-am62-mcu.dtsi"
-#include "k3-am62-wakeup.dtsi"
+/* Now include peripherals for each bus segment */
+#include "k3-am62p-main.dtsi"
+#include "k3-am62p-mcu.dtsi"
+#include "k3-am62p-wakeup.dtsi"

@@ -1,18 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header provides constants for SERDES MUX for TI SoCs
+ *
+ * Copyright (C) 2023 Texas Instruments Incorporated - https://www.ti.com/
  */
 
-#ifndef _DT_BINDINGS_MUX_TI_SERDES
-#define _DT_BINDINGS_MUX_TI_SERDES
-
-/*
- * These bindings are deprecated, because they do not match the actual
- * concept of bindings but rather contain pure constants values used only
- * in DTS board files.
- * Instead include the header in the DTS source directory.
- */
-#warning "These bindings are deprecated. Instead, use the header in the DTS source directory."
+#ifndef DTS_ARM64_TI_K3_SERDES_H
+#define DTS_ARM64_TI_K3_SERDES_H
 
 /* J721E */
 
@@ -187,4 +181,24 @@
 #define J784S4_SERDES2_LANE3_IP3_UNUSED		0x2
 #define J784S4_SERDES2_LANE3_IP4_UNUSED		0x3
 
-#endif /* _DT_BINDINGS_MUX_TI_SERDES */
+#define J784S4_SERDES4_LANE0_EDP_LANE0		0x0
+#define J784S4_SERDES4_LANE0_QSGMII_LANE5	0x1
+#define J784S4_SERDES4_LANE0_IP3_UNUSED		0x2
+#define J784S4_SERDES4_LANE0_IP4_UNUSED		0x3
+
+#define J784S4_SERDES4_LANE1_EDP_LANE1		0x0
+#define J784S4_SERDES4_LANE1_QSGMII_LANE6	0x1
+#define J784S4_SERDES4_LANE1_IP3_UNUSED		0x2
+#define J784S4_SERDES4_LANE1_IP4_UNUSED		0x3
+
+#define J784S4_SERDES4_LANE2_EDP_LANE2		0x0
+#define J784S4_SERDES4_LANE2_QSGMII_LANE7	0x1
+#define J784S4_SERDES4_LANE2_IP3_UNUSED		0x2
+#define J784S4_SERDES4_LANE2_IP4_UNUSED		0x3
+
+#define J784S4_SERDES4_LANE3_EDP_LANE3		0x0
+#define J784S4_SERDES4_LANE3_QSGMII_LANE8	0x1
+#define J784S4_SERDES4_LANE3_USB		0x2
+#define J784S4_SERDES4_LANE3_IP4_UNUSED		0x3
+
+#endif /* DTS_ARM64_TI_K3_SERDES_H */
