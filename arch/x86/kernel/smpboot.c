@@ -478,7 +478,7 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 
 		if (c->topo.pkg_id == o->topo.pkg_id &&
 		    c->topo.die_id == o->topo.die_id &&
-		    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2)) {
+		    per_cpu_llc_id(cpu1) == per_cpu_llc_id(cpu2)) {
 			if (c->topo.core_id == o->topo.core_id)
 				return topology_sane(c, o, "smt");
 
@@ -510,11 +510,11 @@ static bool match_l2c(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
 	/* If the arch didn't set up l2c_id, fall back to SMT */
-	if (per_cpu(cpu_l2c_id, cpu1) == BAD_APICID)
+	if (per_cpu_l2c_id(cpu1) == BAD_APICID)
 		return match_smt(c, o);
 
 	/* Do not match if L2 cache id does not match: */
-	if (per_cpu(cpu_l2c_id, cpu1) != per_cpu(cpu_l2c_id, cpu2))
+	if (per_cpu_l2c_id(cpu1) != per_cpu_l2c_id(cpu2))
 		return false;
 
 	return topology_sane(c, o, "l2c");
@@ -560,11 +560,11 @@ static bool match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	bool intel_snc = id && id->driver_data;
 
 	/* Do not match if we do not have a valid APICID for cpu: */
-	if (per_cpu(cpu_llc_id, cpu1) == BAD_APICID)
+	if (per_cpu_llc_id(cpu1) == BAD_APICID)
 		return false;
 
 	/* Do not match if LLC id does not match: */
-	if (per_cpu(cpu_llc_id, cpu1) != per_cpu(cpu_llc_id, cpu2))
+	if (per_cpu_llc_id(cpu1) != per_cpu_llc_id(cpu2))
 		return false;
 
 	/*

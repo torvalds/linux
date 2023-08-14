@@ -63,8 +63,6 @@ static void hygon_get_topology_early(struct cpuinfo_x86 *c)
  */
 static void hygon_get_topology(struct cpuinfo_x86 *c)
 {
-	int cpu = smp_processor_id();
-
 	/* get information required for multi-node processors */
 	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		int err;
@@ -94,14 +92,13 @@ static void hygon_get_topology(struct cpuinfo_x86 *c)
 		if (!boot_cpu_has(X86_FEATURE_HYPERVISOR) && c->x86_model <= 0x3)
 			c->topo.pkg_id = c->topo.apicid >> APICID_SOCKET_ID_BIT;
 
-		cacheinfo_hygon_init_llc_id(c, cpu);
+		cacheinfo_hygon_init_llc_id(c);
 	} else if (cpu_has(c, X86_FEATURE_NODEID_MSR)) {
 		u64 value;
 
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
 		c->topo.die_id = value & 7;
-
-		per_cpu(cpu_llc_id, cpu) = c->topo.die_id;
+		c->topo.llc_id = c->topo.die_id;
 	} else
 		return;
 
@@ -116,15 +113,14 @@ static void hygon_get_topology(struct cpuinfo_x86 *c)
 static void hygon_detect_cmp(struct cpuinfo_x86 *c)
 {
 	unsigned int bits;
-	int cpu = smp_processor_id();
 
 	bits = c->x86_coreid_bits;
 	/* Low order bits define the core id (index of core in socket) */
 	c->topo.core_id = c->topo.initial_apicid & ((1 << bits)-1);
 	/* Convert the initial APIC ID into the socket ID */
 	c->topo.pkg_id = c->topo.initial_apicid >> bits;
-	/* use socket ID also for last level cache */
-	per_cpu(cpu_llc_id, cpu) = c->topo.die_id = c->topo.pkg_id;
+	/* Use package ID also for last level cache */
+	c->topo.llc_id = c->topo.die_id = c->topo.pkg_id;
 }
 
 static void srat_detect_node(struct cpuinfo_x86 *c)
@@ -136,7 +132,7 @@ static void srat_detect_node(struct cpuinfo_x86 *c)
 
 	node = numa_cpu_node(cpu);
 	if (node == NUMA_NO_NODE)
-		node = per_cpu(cpu_llc_id, cpu);
+		node = c->topo.llc_id;
 
 	/*
 	 * On multi-fabric platform (e.g. Numascale NumaChip) a

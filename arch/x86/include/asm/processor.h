@@ -99,6 +99,10 @@ struct cpuinfo_topology {
 	// Logical ID mappings
 	u32			logical_pkg_id;
 	u32			logical_die_id;
+
+	// Cache level topology IDs
+	u32			llc_id;
+	u32			l2c_id;
 };
 
 struct cpuinfo_x86 {
@@ -689,7 +693,15 @@ extern int set_tsc_mode(unsigned int val);
 
 DECLARE_PER_CPU(u64, msr_misc_features_shadow);
 
-extern u16 get_llc_id(unsigned int cpu);
+static inline u16 per_cpu_llc_id(unsigned int cpu)
+{
+	return per_cpu(cpu_info.topo.llc_id, cpu);
+}
+
+static inline u16 per_cpu_l2c_id(unsigned int cpu)
+{
+	return per_cpu(cpu_info.topo.l2c_id, cpu);
+}
 
 #ifdef CONFIG_CPU_SUP_AMD
 extern u32 amd_get_nodes_per_socket(void);

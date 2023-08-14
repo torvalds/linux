@@ -74,18 +74,6 @@ u32 elf_hwcap2 __read_mostly;
 int smp_num_siblings = 1;
 EXPORT_SYMBOL(smp_num_siblings);
 
-/* Last level cache ID of each logical CPU */
-DEFINE_PER_CPU_READ_MOSTLY(u16, cpu_llc_id) = BAD_APICID;
-
-u16 get_llc_id(unsigned int cpu)
-{
-	return per_cpu(cpu_llc_id, cpu);
-}
-EXPORT_SYMBOL_GPL(get_llc_id);
-
-/* L2 cache ID of each logical CPU */
-DEFINE_PER_CPU_READ_MOSTLY(u16, cpu_l2c_id) = BAD_APICID;
-
 static struct ppin_info {
 	int	feature;
 	int	msr_ppin_ctl;
@@ -1830,6 +1818,8 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_max_cores = 1;
 	c->x86_coreid_bits = 0;
 	c->topo.cu_id = 0xff;
+	c->topo.llc_id = BAD_APICID;
+	c->topo.l2c_id = BAD_APICID;
 #ifdef CONFIG_X86_64
 	c->x86_clflush_size = 64;
 	c->x86_phys_bits = 36;

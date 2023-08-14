@@ -161,7 +161,7 @@ static void fixup_cpu_id(struct cpuinfo_x86 *c, int node)
 	u64 val;
 	u32 nodes = 1;
 
-	this_cpu_write(cpu_llc_id, node);
+	c->topo.llc_id = node;
 
 	/* Account for nodes per socket in multi-core-module processors */
 	if (boot_cpu_has(X86_FEATURE_NODEID_MSR)) {
