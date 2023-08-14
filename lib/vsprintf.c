@@ -34,6 +34,7 @@
 #include <linux/dcache.h>
 #include <linux/cred.h>
 #include <linux/rtc.h>
+#include <linux/sprintf.h>
 #include <linux/time.h>
 #include <linux/uuid.h>
 #include <linux/of.h>
