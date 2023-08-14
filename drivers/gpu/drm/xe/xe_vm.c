@@ -2622,18 +2622,25 @@ static int xe_vma_op_commit(struct xe_vm *vm, struct xe_vma_op *op)
 	switch (op->base.op) {
 	case DRM_GPUVA_OP_MAP:
 		err |= xe_vm_insert_vma(vm, op->map.vma);
+		if (!err)
+			op->flags |= XE_VMA_OP_COMMITTED;
 		break;
 	case DRM_GPUVA_OP_REMAP:
 		prep_vma_destroy(vm, gpuva_to_vma(op->base.remap.unmap->va),
 				 true);
+		op->flags |= XE_VMA_OP_COMMITTED;
 
 		if (op->remap.prev) {
 			err |= xe_vm_insert_vma(vm, op->remap.prev);
+			if (!err)
+				op->flags |= XE_VMA_OP_PREV_COMMITTED;
 			if (!err && op->remap.skip_prev)
 				op->remap.prev = NULL;
 		}
 		if (op->remap.next) {
 			err |= xe_vm_insert_vma(vm, op->remap.next);
+			if (!err)
+				op->flags |= XE_VMA_OP_NEXT_COMMITTED;
 			if (!err && op->remap.skip_next)
 				op->remap.next = NULL;
 		}
@@ -2646,15 +2653,15 @@ static int xe_vma_op_commit(struct xe_vm *vm, struct xe_vma_op *op)
 		break;
 	case DRM_GPUVA_OP_UNMAP:
 		prep_vma_destroy(vm, gpuva_to_vma(op->base.unmap.va), true);
+		op->flags |= XE_VMA_OP_COMMITTED;
 		break;
 	case DRM_GPUVA_OP_PREFETCH:
-		/* Nothing to do */
+		op->flags |= XE_VMA_OP_COMMITTED;
 		break;
 	default:
 		XE_WARN_ON("NOT POSSIBLE");
 	}
 
-	op->flags |= XE_VMA_OP_COMMITTED;
 	return err;
 }
 
@@ -2859,7 +2866,8 @@ static void xe_vma_op_cleanup(struct xe_vm *vm, struct xe_vma_op *op)
 }
 
 static void xe_vma_op_unwind(struct xe_vm *vm, struct xe_vma_op *op,
-			     bool post_commit)
+			     bool post_commit, bool prev_post_commit,
+			     bool next_post_commit)
 {
 	lockdep_assert_held_write(&vm->lock);
 
@@ -2886,11 +2894,11 @@ static void xe_vma_op_unwind(struct xe_vm *vm, struct xe_vma_op *op,
 		struct xe_vma *vma = gpuva_to_vma(op->base.remap.unmap->va);
 
 		if (op->remap.prev) {
-			prep_vma_destroy(vm, op->remap.prev, post_commit);
+			prep_vma_destroy(vm, op->remap.prev, prev_post_commit);
 			xe_vma_destroy_unlocked(op->remap.prev);
 		}
 		if (op->remap.next) {
-			prep_vma_destroy(vm, op->remap.next, post_commit);
+			prep_vma_destroy(vm, op->remap.next, next_post_commit);
 			xe_vma_destroy_unlocked(op->remap.next);
 		}
 		down_read(&vm->userptr.notifier_lock);
@@ -3029,7 +3037,9 @@ static int vm_bind_ioctl_ops_commit(struct xe_vm *vm,
 
 unwind:
 	list_for_each_entry_reverse(op, ops_list, link)
-		xe_vma_op_unwind(vm, op, op->flags & XE_VMA_OP_COMMITTED);
+		xe_vma_op_unwind(vm, op, op->flags & XE_VMA_OP_COMMITTED,
+				 op->flags & XE_VMA_OP_PREV_COMMITTED,
+				 op->flags & XE_VMA_OP_NEXT_COMMITTED);
 	list_for_each_entry_safe(op, next, ops_list, link)
 		xe_vma_op_cleanup(vm, op);
 
@@ -3056,7 +3066,7 @@ static void vm_bind_ioctl_ops_unwind(struct xe_vm *vm,
 		drm_gpuva_for_each_op(__op, __ops) {
 			struct xe_vma_op *op = gpuva_op_to_vma_op(__op);
 
-			xe_vma_op_unwind(vm, op, false);
+			xe_vma_op_unwind(vm, op, false, false, false);
 		}
 	}
 }
