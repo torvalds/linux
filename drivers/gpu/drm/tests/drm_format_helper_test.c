@@ -74,6 +74,11 @@ struct convert_to_mono_result {
 	const u8 expected[TEST_BUF_SIZE];
 };
 
+struct fb_swab_result {
+	unsigned int dst_pitch;
+	const u32 expected[TEST_BUF_SIZE];
+};
+
 struct convert_xrgb8888_case {
 	const char *name;
 	unsigned int pitch;
@@ -90,6 +95,7 @@ struct convert_xrgb8888_case {
 	struct convert_to_xrgb2101010_result xrgb2101010_result;
 	struct convert_to_argb2101010_result argb2101010_result;
 	struct convert_to_mono_result mono_result;
+	struct fb_swab_result swab_result;
 };
 
 static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
@@ -142,6 +148,10 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 		.mono_result = {
 			.dst_pitch =  TEST_USE_DEFAULT_PITCH,
 			.expected = { 0b0 },
+		},
+		.swab_result = {
+			.dst_pitch =  TEST_USE_DEFAULT_PITCH,
+			.expected = { 0x0000FF01 },
 		},
 	},
 	{
@@ -196,6 +206,10 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 		.mono_result = {
 			.dst_pitch = TEST_USE_DEFAULT_PITCH,
 			.expected = { 0b0 },
+		},
+		.swab_result = {
+			.dst_pitch =  TEST_USE_DEFAULT_PITCH,
+			.expected = { 0x0000FF10 },
 		},
 	},
 	{
@@ -318,6 +332,15 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 				0b11,
 			},
 		},
+		.swab_result = {
+			.dst_pitch =  TEST_USE_DEFAULT_PITCH,
+			.expected = {
+				0xFFFFFF11, 0x00000022,
+				0x0000FF33, 0x00FF0044,
+				0xFF000055, 0xFF00FF66,
+				0x00FFFF77, 0xFFFF0088,
+			},
+		},
 	},
 	{
 		/* Randomly picked colors. Full buffer within the clip area. */
@@ -423,6 +446,14 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 				0b100, 0b000,
 				0b001, 0b000,
 				0b010, 0b000,
+			},
+		},
+		.swab_result = {
+			.dst_pitch =  20,
+			.expected = {
+				0x9C440EA1, 0x054D11B1, 0x03F3A8C1, 0x00000000, 0x00000000,
+				0x73F06CD1, 0x9C440EA2, 0x054D11B2, 0x00000000, 0x00000000,
+				0x0303A8C2, 0x73F06CD2, 0x9C440EA3, 0x00000000, 0x00000000,
 			},
 		},
 	},
@@ -886,6 +917,40 @@ static void drm_test_fb_xrgb8888_to_mono(struct kunit *test)
 	KUNIT_EXPECT_MEMEQ(test, buf, result->expected, dst_size);
 }
 
+static void drm_test_fb_swab(struct kunit *test)
+{
+	const struct convert_xrgb8888_case *params = test->param_value;
+	const struct fb_swab_result *result = &params->swab_result;
+	size_t dst_size;
+	u32 *buf = NULL;
+	__le32 *xrgb8888 = NULL;
+	struct iosys_map dst, src;
+
+	struct drm_framebuffer fb = {
+		.format = drm_format_info(DRM_FORMAT_XRGB8888),
+		.pitches = { params->pitch, 0, 0 },
+	};
+
+	dst_size = conversion_buf_size(DRM_FORMAT_XRGB8888, result->dst_pitch, &params->clip);
+
+	KUNIT_ASSERT_GT(test, dst_size, 0);
+
+	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	iosys_map_set_vaddr(&dst, buf);
+
+	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	iosys_map_set_vaddr(&src, xrgb8888);
+
+	const unsigned int *dst_pitch = (result->dst_pitch == TEST_USE_DEFAULT_PITCH) ?
+		NULL : &result->dst_pitch;
+
+	drm_fb_swab(&dst, dst_pitch, &src, &fb, &params->clip, false);
+	buf = le32buf_to_cpu(test, (__force const __le32 *)buf, dst_size / sizeof(u32));
+	KUNIT_EXPECT_MEMEQ(test, buf, result->expected, dst_size);
+}
+
 static struct kunit_case drm_format_helper_test_cases[] = {
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_gray8, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_rgb332, convert_xrgb8888_gen_params),
@@ -898,6 +963,7 @@ static struct kunit_case drm_format_helper_test_cases[] = {
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_xrgb2101010, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_argb2101010, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_mono, convert_xrgb8888_gen_params),
+	KUNIT_CASE_PARAM(drm_test_fb_swab, convert_xrgb8888_gen_params),
 	{}
 };
 
