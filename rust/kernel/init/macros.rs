@@ -1040,14 +1040,14 @@ macro_rules! __init_internal {
                     // once, this struct initializer will still be type-checked and complain with a
                     // very natural error message if a field is forgotten/mentioned more than once.
                     #[allow(unreachable_code, clippy::diverging_sub_expression)]
-                    if false {
+                    let _ = || {
                         $crate::__init_internal!(make_initializer:
                             @slot(slot),
                             @type_name($t),
                             @munch_fields($($fields)*,),
                             @acc(),
                         );
-                    }
+                    };
                 }
                 Ok(__InitOk)
             }
@@ -1168,8 +1168,8 @@ macro_rules! __init_internal {
         @acc($($acc:tt)*),
     ) => {
         // Endpoint, nothing more to munch, create the initializer.
-        // Since we are in the `if false` branch, this will never get executed. We abuse `slot` to
-        // get the correct type inference here:
+        // Since we are in the closure that is never called, this will never get executed.
+        // We abuse `slot` to get the correct type inference here:
         unsafe {
             ::core::ptr::write($slot, $t {
                 $($acc)*
