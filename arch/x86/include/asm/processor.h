@@ -86,6 +86,9 @@ struct cpuinfo_topology {
 
 	// Physical package ID
 	u32			pkg_id;
+
+	// Physical die ID on AMD, Relative on Intel
+	u32			die_id;
 };
 
 struct cpuinfo_x86 {
@@ -141,7 +144,6 @@ struct cpuinfo_x86 {
 	u16			logical_proc_id;
 	/* Core id: */
 	u16			cpu_core_id;
-	u16			cpu_die_id;
 	u16			logical_die_id;
 	/* Index into per_cpu list: */
 	u16			cpu_index;
