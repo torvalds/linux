@@ -7,7 +7,7 @@
   {
     "EventCode": "0x10006",
     "EventName": "PM_DISP_STALL_HELD_OTHER_CYC",
-    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch for any other reason."
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch for any other reason."
   },
   {
     "EventCode": "0x10010",
@@ -32,12 +32,12 @@
   {
     "EventCode": "0x1D05E",
     "EventName": "PM_DISP_STALL_HELD_HALT_CYC",
-    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch because of power management."
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch because of power management."
   },
   {
     "EventCode": "0x1E050",
     "EventName": "PM_DISP_STALL_HELD_STF_MAPPER_CYC",
-    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch because the STF mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR."
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch because the STF mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR."
   },
   {
     "EventCode": "0x1F054",
@@ -67,7 +67,7 @@
   {
     "EventCode": "0x100F6",
     "EventName": "PM_IERAT_MISS",
-    "BriefDescription": "IERAT Reloaded to satisfy an IERAT miss. All page sizes are counted by this event."
+    "BriefDescription": "IERAT Reloaded to satisfy an IERAT miss. All page sizes are counted by this event. This event only counts instruction demand access."
   },
   {
     "EventCode": "0x100F8",
@@ -77,7 +77,7 @@
   {
     "EventCode": "0x20006",
     "EventName": "PM_DISP_STALL_HELD_ISSQ_FULL_CYC",
-    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch due to Issue queue full. Includes issue queue and branch queue."
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch due to Issue queue full. Includes issue queue and branch queue."
   },
   {
     "EventCode": "0x20114",
@@ -102,7 +102,7 @@
   {
     "EventCode": "0x2D01A",
     "EventName": "PM_DISP_STALL_IC_MISS",
-    "BriefDescription": "Cycles when dispatch was stalled for this thread due to an Icache Miss."
+    "BriefDescription": "Cycles when dispatch was stalled for this thread due to an instruction cache miss."
   },
   {
     "EventCode": "0x2E018",
@@ -112,7 +112,7 @@
   {
     "EventCode": "0x2E01A",
     "EventName": "PM_DISP_STALL_HELD_XVFC_MAPPER_CYC",
-    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch because the XVFC mapper/SRB was full."
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch because the XVFC mapper/SRB was full."
   },
   {
     "EventCode": "0x2C142",
@@ -137,7 +137,7 @@
   {
     "EventCode": "0x30004",
     "EventName": "PM_DISP_STALL_FLUSH",
-    "BriefDescription": "Cycles when dispatch was stalled because of a flush that happened to an instruction(s) that was not yet NTC. PM_EXEC_STALL_NTC_FLUSH only includes instructions that were flushed after becoming NTC."
+    "BriefDescription": "Cycles when dispatch was stalled because of a flush that happened to an instruction(s) that was not yet next-to-complete (NTC). PM_EXEC_STALL_NTC_FLUSH only includes instructions that were flushed after becoming NTC."
   },
   {
     "EventCode": "0x3000A",
@@ -157,7 +157,7 @@
   {
     "EventCode": "0x30018",
     "EventName": "PM_DISP_STALL_HELD_SCOREBOARD_CYC",
-    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch while waiting on the Scoreboard. This event combines VSCR and FPSCR together."
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch while waiting on the Scoreboard. This event combines VSCR and FPSCR together."
   },
   {
     "EventCode": "0x30026",
@@ -182,7 +182,7 @@
   {
     "EventCode": "0x3D05C",
     "EventName": "PM_DISP_STALL_HELD_RENAME_CYC",
-    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch because the mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR and XVFC."
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch because the mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR and XVFC."
   },
   {
     "EventCode": "0x3E052",
@@ -192,7 +192,7 @@
   {
     "EventCode": "0x3E054",
     "EventName": "PM_LD_MISS_L1",
-    "BriefDescription": "Load Missed L1, counted at execution time (can be greater than loads finished). LMQ merges are not included in this count. i.e. if a load instruction misses on an address that is already allocated on the LMQ, this event will not increment for that load). Note that this count is per slice, so if a load spans multiple slices this event will increment multiple times for a single load."
+    "BriefDescription": "Load missed L1, counted at finish time. LMQ merges are not included in this count. i.e. if a load instruction misses on an address that is already allocated on the LMQ, this event will not increment for that load). Note that this count is per slice, so if a load spans multiple slices this event will increment multiple times for a single load."
   },
   {
     "EventCode": "0x301EA",
@@ -202,7 +202,7 @@
   {
     "EventCode": "0x300FA",
     "EventName": "PM_INST_FROM_L3MISS",
-    "BriefDescription": "The processor's instruction cache was reloaded from a source other than the local core's L1, L2, or L3 due to a demand miss."
+    "BriefDescription": "The processor's instruction cache was reloaded from beyond the local core's L3 due to a demand miss."
   },
   {
     "EventCode": "0x40006",
@@ -232,16 +232,16 @@
   {
     "EventCode": "0x4E01A",
     "EventName": "PM_DISP_STALL_HELD_CYC",
-    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch for any reason."
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch for any reason."
   },
   {
     "EventCode": "0x4003C",
     "EventName": "PM_DISP_STALL_HELD_SYNC_CYC",
-    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch because of a synchronizing instruction that requires the ICT to be empty before dispatch."
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch because of a synchronizing instruction that requires the ICT to be empty before dispatch."
   },
   {
     "EventCode": "0x44056",
     "EventName": "PM_VECTOR_ST_CMPL",
-    "BriefDescription": "Vector store instructions completed."
+    "BriefDescription": "Vector store instruction completed."
   }
 ]
