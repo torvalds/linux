@@ -941,7 +941,7 @@ void wlc_phy_papd_decode_epsilon(u32 epsilon, s32 *eps_real, s32 *eps_imag);
 void wlc_phy_cal_perical_mphase_reset(struct brcms_phy *pi);
 void wlc_phy_cal_perical_mphase_restart(struct brcms_phy *pi);
 
-bool wlc_phy_attach_nphy(struct brcms_phy *pi);
+void wlc_phy_attach_nphy(struct brcms_phy *pi);
 bool wlc_phy_attach_lcnphy(struct brcms_phy *pi);
 
 void wlc_phy_detach_lcnphy(struct brcms_phy *pi);
