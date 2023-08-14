@@ -574,6 +574,7 @@ static void sched_update_updown_early_migrate_values(bool up)
 				sched_capacity_margin_early_down[cpu] = sysctl_sched_early_down[i];
 		}
 
+		trace_sched_update_updown_early_migrate_values(up, i);
 		if (++i >= num_sched_clusters - 1)
 			break;
 	}
