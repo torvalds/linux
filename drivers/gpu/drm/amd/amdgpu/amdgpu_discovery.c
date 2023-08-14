@@ -1478,6 +1478,7 @@ static int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 
 union mall_info {
 	struct mall_info_v1_0 v1;
+	struct mall_info_v2_0 v2;
 };
 
 static int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
@@ -1517,6 +1518,10 @@ static int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
 		}
 		adev->gmc.mall_size = mall_size;
 		adev->gmc.m_half_use = half_use;
+		break;
+	case 2:
+		mall_size_per_umc = le32_to_cpu(mall_info->v2.mall_size_per_umc);
+		adev->gmc.mall_size = mall_size_per_umc * adev->gmc.num_umc;
 		break;
 	default:
 		dev_err(adev->dev,

@@ -30,7 +30,7 @@
 #define GC_TABLE_ID                     0x4347
 #define HARVEST_TABLE_SIGNATURE         0x56524148
 #define VCN_INFO_TABLE_ID               0x004E4356
-#define MALL_INFO_TABLE_ID              0x4D414C4C
+#define MALL_INFO_TABLE_ID              0x4C4C414D
 
 typedef enum
 {
@@ -310,6 +310,12 @@ struct mall_info_v1_0 {
 	uint32_t m_half_use;
 	uint32_t m_mall_config;
 	uint32_t reserved[5];
+};
+
+struct mall_info_v2_0 {
+	struct mall_info_header header;
+	uint32_t mall_size_per_umc;
+	uint32_t reserved[8];
 };
 
 #define VCN_INFO_TABLE_MAX_NUM_INSTANCES 4
