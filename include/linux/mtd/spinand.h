@@ -149,6 +149,7 @@
 /* feature register */
 #define REG_BLOCK_LOCK		0xa0
 #define BL_ALL_UNLOCKED		0x00
+#define HWP_EN			0x02 /* Skyhigh feature, Hardware write protection */
 
 /* configuration register */
 #define REG_CFG			0xb0
