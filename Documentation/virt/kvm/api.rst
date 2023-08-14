@@ -540,7 +540,7 @@ ioctl is useful if the in-kernel PIC is not used.
 PPC:
 ^^^^
 
-Queues an external interrupt to be injected. This ioctl is overleaded
+Queues an external interrupt to be injected. This ioctl is overloaded
 with 3 different irq values:
 
 a) KVM_INTERRUPT_SET
@@ -965,7 +965,7 @@ be set in the flags field of this ioctl:
 The KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL flag requests KVM to generate
 the contents of the hypercall page automatically; hypercalls will be
 intercepted and passed to userspace through KVM_EXIT_XEN.  In this
-ase, all of the blob size and address fields must be zero.
+case, all of the blob size and address fields must be zero.
 
 The KVM_XEN_HVM_CONFIG_EVTCHN_SEND flag indicates to KVM that userspace
 will always use the KVM_XEN_HVM_EVTCHN_SEND ioctl to deliver event
@@ -1070,7 +1070,7 @@ Other flags returned by ``KVM_GET_CLOCK`` are accepted but ignored.
 :Extended by: KVM_CAP_INTR_SHADOW
 :Architectures: x86, arm64
 :Type: vcpu ioctl
-:Parameters: struct kvm_vcpu_event (out)
+:Parameters: struct kvm_vcpu_events (out)
 :Returns: 0 on success, -1 on error
 
 X86:
@@ -1193,7 +1193,7 @@ directly to the virtual CPU).
 :Extended by: KVM_CAP_INTR_SHADOW
 :Architectures: x86, arm64
 :Type: vcpu ioctl
-:Parameters: struct kvm_vcpu_event (in)
+:Parameters: struct kvm_vcpu_events (in)
 :Returns: 0 on success, -1 on error
 
 X86:
@@ -3063,7 +3063,7 @@ as follow::
    };
 
 An entry with a "page_shift" of 0 is unused. Because the array is
-organized in increasing order, a lookup can stop when encoutering
+organized in increasing order, a lookup can stop when encountering
 such an entry.
 
 The "slb_enc" field provides the encoding to use in the SLB for the
@@ -3455,7 +3455,7 @@ Possible features:
 	      - KVM_RUN and KVM_GET_REG_LIST are not available;
 
 	      - KVM_GET_ONE_REG and KVM_SET_ONE_REG cannot be used to access
-	        the scalable archietctural SVE registers
+	        the scalable architectural SVE registers
 	        KVM_REG_ARM64_SVE_ZREG(), KVM_REG_ARM64_SVE_PREG() or
 	        KVM_REG_ARM64_SVE_FFR;
 
@@ -4401,7 +4401,7 @@ This will have undefined effects on the guest if it has not already
 placed itself in a quiescent state where no vcpu will make MMU enabled
 memory accesses.
 
-On succsful completion, the pending HPT will become the guest's active
+On successful completion, the pending HPT will become the guest's active
 HPT and the previous HPT will be discarded.
 
 On failure, the guest will still be operating on its previous HPT.
@@ -5016,7 +5016,7 @@ before the vcpu is fully usable.
 
 Between KVM_ARM_VCPU_INIT and KVM_ARM_VCPU_FINALIZE, the feature may be
 configured by use of ioctls such as KVM_SET_ONE_REG.  The exact configuration
-that should be performaned and how to do it are feature-dependent.
+that should be performed and how to do it are feature-dependent.
 
 Other calls that depend on a particular feature being finalized, such as
 KVM_RUN, KVM_GET_REG_LIST, KVM_GET_ONE_REG and KVM_SET_ONE_REG, will fail with
@@ -5475,7 +5475,7 @@ KVM_XEN_ATTR_TYPE_EVTCHN
   from the guest. A given sending port number may be directed back to
   a specified vCPU (by APIC ID) / port / priority on the guest, or to
   trigger events on an eventfd. The vCPU and priority can be changed
-  by setting KVM_XEN_EVTCHN_UPDATE in a subsequent call, but but other
+  by setting KVM_XEN_EVTCHN_UPDATE in a subsequent call, but other
   fields cannot change for a given sending port. A port mapping is
   removed by using KVM_XEN_EVTCHN_DEASSIGN in the flags field. Passing
   KVM_XEN_EVTCHN_RESET in the flags field removes all interception of
