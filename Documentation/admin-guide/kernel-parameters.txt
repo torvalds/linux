@@ -6340,6 +6340,13 @@
 			This will guarantee that all the other pcrs
 			are saved.
 
+	tpm_tis.interrupts= [HW,TPM]
+			Enable interrupts for the MMIO based physical layer
+			for the FIFO interface. By default it is set to false
+			(0). For more information about TPM hardware interfaces
+			defined by Trusted Computing Group (TCG) see
+			https://trustedcomputinggroup.org/resource/pc-client-platform-tpm-profile-ptp-specification/
+
 	tp_printk	[FTRACE]
 			Have the tracepoints sent to printk as well as the
 			tracing ring buffer. This is useful for early boot up
