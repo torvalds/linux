@@ -5660,7 +5660,6 @@ static void ath12k_mac_op_configure_filter(struct ieee80211_hw *hw,
 
 	mutex_lock(&ar->conf_mutex);
 
-	changed_flags &= SUPPORTED_FILTERS;
 	*total_flags &= SUPPORTED_FILTERS;
 	ar->filter_flags = *total_flags;
 
@@ -5678,8 +5677,8 @@ static void ath12k_mac_op_configure_filter(struct ieee80211_hw *hw,
 			    "fail to set monitor filter: %d\n", ret);
 	}
 	ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
-		   "changed_flags:0x%x, total_flags:0x%x, reset_flag:%d\n",
-		   changed_flags, *total_flags, reset_flag);
+		   "total_flags:0x%x, reset_flag:%d\n",
+		   *total_flags, reset_flag);
 
 	mutex_unlock(&ar->conf_mutex);
 }
