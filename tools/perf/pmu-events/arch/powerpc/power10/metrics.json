@@ -25,6 +25,12 @@
         "MetricName": "DISPATCH_STALL_FLUSH_CPI"
     },
     {
+        "BriefDescription": "Average cycles per completed instruction when dispatch was stalled because Fetch was being held,  so there was nothing in the pipeline for this thread",
+        "MetricExpr": "PM_DISP_STALL_FETCH / PM_RUN_INST_CMPL",
+        "MetricGroup": "CPI",
+        "MetricName": "DISPATCH_STALL_FETCH_CPI"
+    },
+    {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled because the MMU was handling a translation miss",
         "MetricExpr": "PM_DISP_STALL_TRANSLATION / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
@@ -395,6 +401,13 @@
         "ScaleUnit": "1%"
     },
     {
+        "BriefDescription": "Percentage of completed instructions that were stores that missed the L1",
+        "MetricExpr": "PM_ST_MISS_L1 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Others",
+        "MetricName": "L1_ST_MISS_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
         "BriefDescription": "Percentage of completed instructions when the DPTEG required for the load/store instruction in execution was missing from the TLB",
         "MetricExpr": "PM_DTLB_MISS / PM_RUN_INST_CMPL * 100",
         "MetricGroup": "Others",
@@ -465,6 +478,13 @@
         "MetricExpr": "PM_DATA_FROM_L3MISS / PM_RUN_INST_CMPL * 100",
         "MetricGroup": "dL1_Reloads",
         "MetricName": "DL1_RELOAD_FROM_L3_MISS_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ITLB misses per completed run instruction",
+        "MetricExpr": "PM_ITLB_MISS / PM_RUN_INST_CMPL * 100",
+        "MetricGroup": "General",
+        "MetricName": "ITLB_MISS_RATE",
         "ScaleUnit": "1%"
     },
     {
@@ -623,6 +643,13 @@
         "ScaleUnit": "1%"
     },
     {
+        "BriefDescription": "Percentage of DERAT misses with 1G page size per completed run instruction",
+        "MetricExpr": "PM_DERAT_MISS_1G * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Translation",
+        "MetricName": "DERAT_1G_MISS_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
         "BriefDescription": "DERAT miss ratio for 4K page size",
         "MetricExpr": "PM_DERAT_MISS_4K / PM_DERAT_MISS",
         "MetricGroup": "Translation",
@@ -639,6 +666,12 @@
         "MetricExpr": "PM_DERAT_MISS_16M / PM_DERAT_MISS",
         "MetricGroup": "Translation",
         "MetricName": "DERAT_16M_MISS_RATIO"
+    },
+    {
+        "BriefDescription": "DERAT miss ratio for 1G page size",
+        "MetricExpr": "PM_DERAT_MISS_1G / PM_DERAT_MISS",
+        "MetricGroup": "Translation",
+        "MetricName": "DERAT_1G_MISS_RATIO"
     },
     {
         "BriefDescription": "DERAT miss ratio for 64K page size",
