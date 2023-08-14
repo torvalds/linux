@@ -413,7 +413,7 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 		c->topo.die_id  = ecx & 0xff;
 
 		if (c->x86 == 0x15)
-			c->cu_id = ebx & 0xff;
+			c->topo.cu_id = ebx & 0xff;
 
 		if (c->x86 >= 0x17) {
 			c->topo.core_id = ebx & 0xff;
