@@ -4081,9 +4081,9 @@
 		nvmem-cells = <&codec_leakage>, <&venc_opp_info>;
 		nvmem-cell-names = "leakage", "opp-info";
 		rockchip,leakage-voltage-sel = <
-			1	8	0
-			9	20	1
-			21	254	2
+			1	15	0
+			16	25	1
+			26	254	2
 		>;
 
 		rockchip,grf = <&sys_grf>;
