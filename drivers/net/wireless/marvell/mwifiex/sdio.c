@@ -1556,7 +1556,7 @@ done:
 }
 
 /*
- * This function decode sdio aggreation pkt.
+ * This function decodes sdio aggregation pkt.
  *
  * Based on the data block size and pkt_len,
  * skb data will be decoded to few packets.
@@ -2266,7 +2266,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 		ret = mwifiex_write_data_to_card(adapter, card->mpa_tx.buf,
 						 card->mpa_tx.buf_len, mport);
 
-		/* Save the last multi port tx aggreagation info to debug log */
+		/* Save the last multi port tx aggregation info to debug log. */
 		index = adapter->dbg.last_sdio_mp_index;
 		index = (index + 1) % MWIFIEX_DBG_SDIO_MP_NUM;
 		adapter->dbg.last_sdio_mp_index = index;
