@@ -988,7 +988,7 @@ static int bitmap_pos_to_ord(const unsigned long *buf, unsigned int pos, unsigne
  * to @dst.
  *
  * The positions of unset bits in @old are mapped to themselves
- * (the identify map).
+ * (the identity map).
  *
  * Apply the above specified mapping to @src, placing the result in
  * @dst, clearing any bits previously set in @dst.
@@ -1037,7 +1037,7 @@ EXPORT_SYMBOL(bitmap_remap);
  * the position of the m-th set bit in @new, where m == n % w.
  *
  * The positions of unset bits in @old are mapped to themselves
- * (the identify map).
+ * (the identity map).
  *
  * Apply the above specified mapping to bit position @oldbit, returning
  * the new bit position.
