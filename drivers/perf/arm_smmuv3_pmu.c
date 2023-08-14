@@ -1028,6 +1028,7 @@ static void __exit arm_smmu_pmu_exit(void)
 
 module_exit(arm_smmu_pmu_exit);
 
+MODULE_ALIAS("platform:arm-smmu-v3-pmcg");
 MODULE_DESCRIPTION("PMU driver for ARM SMMUv3 Performance Monitors Extension");
 MODULE_AUTHOR("Neil Leeder <nleeder@codeaurora.org>");
 MODULE_AUTHOR("Shameer Kolothum <shameerali.kolothum.thodi@huawei.com>");
