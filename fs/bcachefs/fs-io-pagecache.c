@@ -698,20 +698,26 @@ loff_t bch2_seek_pagecache_data(struct inode *vinode,
 	return end_offset;
 }
 
+/*
+ * Search for a hole in a folio.
+ *
+ * The filemap layer returns -ENOENT if no folio exists, so reuse the same error
+ * code to indicate a pagecache hole exists at the returned offset. Otherwise
+ * return 0 if the folio is filled with data, or an error code. This function
+ * can return -EAGAIN if nonblock is specified.
+ */
 static int folio_hole_offset(struct address_space *mapping, loff_t *offset,
 			      unsigned min_replicas, bool nonblock)
 {
 	struct folio *folio;
 	struct bch_folio *s;
 	unsigned i, sectors;
-	bool ret = true;
+	int ret = -ENOENT;
 
 	folio = __filemap_get_folio(mapping, *offset >> PAGE_SHIFT,
 				    FGP_LOCK|(nonblock ? FGP_NOWAIT : 0), 0);
-	if (folio == ERR_PTR(-EAGAIN))
-		return -EAGAIN;
-	if (IS_ERR_OR_NULL(folio))
-		return true;
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
 	s = bch2_folio(folio);
 	if (!s)
@@ -727,7 +733,7 @@ static int folio_hole_offset(struct address_space *mapping, loff_t *offset,
 		}
 
 	*offset = folio_end_pos(folio);
-	ret = false;
+	ret = 0;
 unlock:
 	folio_unlock(folio);
 	folio_put(folio);
@@ -742,11 +748,13 @@ loff_t bch2_seek_pagecache_hole(struct inode *vinode,
 {
 	struct address_space *mapping = vinode->i_mapping;
 	loff_t offset = start_offset;
+	loff_t ret = 0;
 
-	while (offset < end_offset &&
-	       !folio_hole_offset(mapping, &offset, min_replicas, nonblock))
-		;
+	while (!ret && offset < end_offset)
+		ret = folio_hole_offset(mapping, &offset, min_replicas, nonblock);
 
+	if (ret && ret != -ENOENT)
+		return ret;
 	return min(offset, end_offset);
 }
 
