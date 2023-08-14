@@ -612,7 +612,6 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct mwifiex_chan_scan_param_set *tmp_chan_list;
-	struct mwifiex_chan_scan_param_set *start_chan;
 	u32 tlv_idx, rates_size, cmd_no;
 	u32 total_scan_time;
 	u32 done_early;
@@ -643,7 +642,6 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 		total_scan_time = 0;
 		radio_type = 0;
 		chan_tlv_out->header.len = 0;
-		start_chan = tmp_chan_list;
 		done_early = false;
 
 		/*
@@ -749,8 +747,6 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 
 		rates_size = mwifiex_append_rate_tlv(priv, scan_cfg_out,
 						     radio_type);
-
-		priv->adapter->scan_channels = start_chan;
 
 		/* Send the scan command to the firmware with the specified
 		   cfg */
