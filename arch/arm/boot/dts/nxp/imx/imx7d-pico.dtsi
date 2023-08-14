@@ -509,7 +509,7 @@
 		>;
 	};
 
-	pinctrl_pwm4: pwm4grp{
+	pinctrl_pwm4: pwm4grp {
 		fsl,pins = <
 			MX7D_PAD_GPIO1_IO11__PWM4_OUT	0x7f
 		>;
