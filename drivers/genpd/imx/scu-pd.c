@@ -52,6 +52,7 @@
  */
 
 #include <dt-bindings/firmware/imx/rsrc.h>
+#include <linux/console.h>
 #include <linux/firmware/imx/sci.h>
 #include <linux/firmware/imx/svc/rm.h>
 #include <linux/io.h>
@@ -323,6 +324,10 @@ static int imx_sc_pd_power(struct generic_pm_domain *domain, bool power_on)
 
 	msg.resource = pd->rsrc;
 	msg.mode = power_on ? IMX_SC_PM_PW_MODE_ON : IMX_SC_PM_PW_MODE_LP;
+
+	/* keep uart console power on for no_console_suspend */
+	if (imx_con_rsrc == pd->rsrc && !console_suspend_enabled && !power_on)
+		return -EBUSY;
 
 	ret = imx_scu_call_rpc(pm_ipc_handle, &msg, true);
 	if (ret)
