@@ -799,7 +799,7 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
 ///
 /// [`Arc<T>`]: crate::sync::Arc
 #[must_use = "An initializer must be used in order to create its value."]
-pub unsafe trait Init<T: ?Sized, E = Infallible>: Sized {
+pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     /// Initializes `slot`.
     ///
     /// # Safety
@@ -808,18 +808,6 @@ pub unsafe trait Init<T: ?Sized, E = Infallible>: Sized {
     /// - the caller does not touch `slot` when `Err` is returned, they are only permitted to
     ///   deallocate.
     unsafe fn __init(self, slot: *mut T) -> Result<(), E>;
-}
-
-// SAFETY: Every in-place initializer can also be used as a pin-initializer.
-unsafe impl<T: ?Sized, E, I> PinInit<T, E> for I
-where
-    I: Init<T, E>,
-{
-    unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
-        // SAFETY: `__init` meets the same requirements as `__pinned_init`, except that it does not
-        // require `slot` to not move after init.
-        unsafe { self.__init(slot) }
-    }
 }
 
 /// Creates a new [`PinInit<T, E>`] from the given closure.
@@ -961,6 +949,13 @@ unsafe impl<T, E> Init<T, E> for T {
     unsafe fn __init(self, slot: *mut T) -> Result<(), E> {
         unsafe { slot.write(self) };
         Ok(())
+    }
+}
+
+// SAFETY: Every type can be initialized by-value. `__pinned_init` calls `__init`.
+unsafe impl<T, E> PinInit<T, E> for T {
+    unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
+        unsafe { self.__init(slot) }
     }
 }
 
