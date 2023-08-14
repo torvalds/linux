@@ -463,10 +463,7 @@ static const struct alpha_pll_config gpll9_config = {
 	.config_ctl_val = 0x20000800,
 	.test_ctl_val = 0x4000400,
 	.test_ctl_hi_val = 0x4000,
-	.post_div_val = 0x3 << 8,
-	.post_div_mask = 0x3 << 8,
-	.early_output_mask = BIT(3),
-	.main_output_mask = BIT(0),
+	.user_ctl_val = 0x0000030B,
 };
 
 static struct clk_alpha_pll gpll9 = {
