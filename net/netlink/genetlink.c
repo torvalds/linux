@@ -844,8 +844,8 @@ static int genl_start(struct netlink_callback *cb)
 		genl_family_rcv_msg_attrs_free(attrs);
 		return -ENOMEM;
 	}
-	info->family = ctx->family;
 	info->op = *ops;
+	info->info.family	= ctx->family;
 	info->info.snd_seq	= cb->nlh->nlmsg_seq;
 	info->info.snd_portid	= NETLINK_CB(cb->skb).portid;
 	info->info.nlhdr	= cb->nlh;
@@ -872,11 +872,12 @@ static int genl_start(struct netlink_callback *cb)
 
 static int genl_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct genl_dumpit_info *info = cb->data;
-	const struct genl_split_ops *ops = &info->op;
+	struct genl_dumpit_info *dump_info = cb->data;
+	const struct genl_split_ops *ops = &dump_info->op;
+	struct genl_info *info = &dump_info->info;
 	int rc;
 
-	info->info.extack = cb->extack;
+	info->extack = cb->extack;
 
 	genl_op_lock(info->family);
 	rc = ops->dumpit(skb, cb);
@@ -886,19 +887,20 @@ static int genl_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 
 static int genl_done(struct netlink_callback *cb)
 {
-	struct genl_dumpit_info *info = cb->data;
-	const struct genl_split_ops *ops = &info->op;
+	struct genl_dumpit_info *dump_info = cb->data;
+	const struct genl_split_ops *ops = &dump_info->op;
+	struct genl_info *info = &dump_info->info;
 	int rc = 0;
 
-	info->info.extack = cb->extack;
+	info->extack = cb->extack;
 
 	if (ops->done) {
 		genl_op_lock(info->family);
 		rc = ops->done(cb);
 		genl_op_unlock(info->family);
 	}
-	genl_family_rcv_msg_attrs_free(info->info.attrs);
-	genl_dumpit_info_free(info);
+	genl_family_rcv_msg_attrs_free(info->attrs);
+	genl_dumpit_info_free(dump_info);
 	return rc;
 }
 
@@ -952,6 +954,7 @@ static int genl_family_rcv_msg_doit(const struct genl_family *family,
 
 	info.snd_seq = nlh->nlmsg_seq;
 	info.snd_portid = NETLINK_CB(skb).portid;
+	info.family = family;
 	info.nlhdr = nlh;
 	info.genlhdr = nlmsg_data(nlh);
 	info.attrs = attrbuf;
