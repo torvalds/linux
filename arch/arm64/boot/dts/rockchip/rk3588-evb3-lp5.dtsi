@@ -67,7 +67,7 @@
 	fan: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
-		pwms = <&pwm6 0 50000 0>;
+		pwms = <&pwm5 0 50000 0>;
 		cooling-levels = <0 50 100 150 200 255>;
 		rockchip,temp-trips = <
 			50000	1
@@ -815,20 +815,20 @@
 	};
 };
 
-&hdmi1 {
+&hdmi0 {
 	enable-gpios = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
-&hdmi1_in_vp0 {
+&hdmi0_in_vp0 {
 	status = "okay";
 };
 
-&hdmi1_sound {
+&hdmi0_sound {
 	status = "okay";
 };
 
-&hdptxphy_hdmi1 {
+&hdptxphy_hdmi0 {
 	status = "okay";
 };
 
@@ -889,9 +889,9 @@
 &i2c2 {
 	status = "okay";
 
-	usbc0: fusb302@22 {
-		compatible = "fcs,fusb302";
-		reg = <0x22>;
+	usbc0: husb311@4e {
+		compatible = "hynetek,husb311";
+		reg = <0x4e>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PD3 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
@@ -1011,7 +1011,7 @@
 	};
 };
 
-&i2s6_8ch {
+&i2s5_8ch {
 	status = "okay";
 };
 
@@ -1138,8 +1138,8 @@
 	};
 };
 
-&pwm6 {
-	pinctrl-0 = <&pwm6m1_pins>;
+&pwm5 {
+	pinctrl-0 = <&pwm5m1_pins>;
 	status = "okay";
 };
 
