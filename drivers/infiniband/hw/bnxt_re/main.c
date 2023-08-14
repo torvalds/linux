@@ -920,6 +920,7 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct bnxt_aux_priv *aux_priv,
 	rdev->id = rdev->en_dev->pdev->devfn;
 	INIT_LIST_HEAD(&rdev->qp_list);
 	mutex_init(&rdev->qp_lock);
+	mutex_init(&rdev->pacing.dbq_lock);
 	atomic_set(&rdev->stats.res.qp_count, 0);
 	atomic_set(&rdev->stats.res.cq_count, 0);
 	atomic_set(&rdev->stats.res.srq_count, 0);
