@@ -251,9 +251,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 			" writeback:%lukB"
 			" shmem:%lukB"
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-			" shmem_thp: %lukB"
-			" shmem_pmdmapped: %lukB"
-			" anon_thp: %lukB"
+			" shmem_thp:%lukB"
+			" shmem_pmdmapped:%lukB"
+			" anon_thp:%lukB"
 #endif
 			" writeback_tmp:%lukB"
 			" kernel_stack:%lukB"
