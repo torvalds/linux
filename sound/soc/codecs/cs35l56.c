@@ -665,7 +665,16 @@ static void cs35l56_secure_patch(struct cs35l56_private *cs35l56)
 
 static void cs35l56_patch(struct cs35l56_private *cs35l56)
 {
+	unsigned int firmware_missing;
 	int ret;
+
+	ret = regmap_read(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS, &firmware_missing);
+	if (ret) {
+		dev_err(cs35l56->base.dev, "Failed to read PROTECTION_STATUS: %d\n", ret);
+		return;
+	}
+
+	firmware_missing &= CS35L56_FIRMWARE_MISSING;
 
 	/*
 	 * Disable SoundWire interrupts to prevent race with IRQ work.
@@ -685,8 +694,12 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56)
 	if (ret)
 		goto err;
 
-	/* Use wm_adsp to load and apply the firmware patch and coefficient files */
-	ret = wm_adsp_power_up(&cs35l56->dsp, true);
+	/*
+	 * Use wm_adsp to load and apply the firmware patch and coefficient files,
+	 * but only if firmware is missing. If firmware is already patched just
+	 * power-up wm_adsp without downloading firmware.
+	 */
+	ret = wm_adsp_power_up(&cs35l56->dsp, !!firmware_missing);
 	if (ret) {
 		dev_dbg(cs35l56->base.dev, "%s: wm_adsp_power_up ret %d\n", __func__, ret);
 		goto err;
