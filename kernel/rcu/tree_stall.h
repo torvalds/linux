@@ -8,6 +8,7 @@
  */
 
 #include <linux/kvm_para.h>
+#include <linux/rcu_notifier.h>
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -770,6 +771,7 @@ static void check_cpu_stall(struct rcu_data *rdp)
 		if (kvm_check_and_clear_guest_paused())
 			return;
 
+		rcu_stall_notifier_call_chain(RCU_STALL_NOTIFY_NORM, (void *)j - gps);
 		if (self_detected) {
 			/* We haven't checked in, so go dump stack. */
 			print_cpu_stall(gps);
@@ -790,7 +792,7 @@ static void check_cpu_stall(struct rcu_data *rdp)
 
 //////////////////////////////////////////////////////////////////////////////
 //
-// RCU forward-progress mechanisms, including of callback invocation.
+// RCU forward-progress mechanisms, including for callback invocation.
 
 
 /*
@@ -1042,3 +1044,58 @@ static int __init rcu_sysrq_init(void)
 	return 0;
 }
 early_initcall(rcu_sysrq_init);
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// RCU CPU stall-warning notifiers
+
+static ATOMIC_NOTIFIER_HEAD(rcu_cpu_stall_notifier_list);
+
+/**
+ * rcu_stall_chain_notifier_register - Add an RCU CPU stall notifier
+ * @n: Entry to add.
+ *
+ * Adds an RCU CPU stall notifier to an atomic notifier chain.
+ * The @action passed to a notifier will be @RCU_STALL_NOTIFY_NORM or
+ * friends.  The @data will be the duration of the stalled grace period,
+ * in jiffies, coerced to a void* pointer.
+ *
+ * Returns 0 on success, %-EEXIST on error.
+ */
+int rcu_stall_chain_notifier_register(struct notifier_block *n)
+{
+	return atomic_notifier_chain_register(&rcu_cpu_stall_notifier_list, n);
+}
+EXPORT_SYMBOL_GPL(rcu_stall_chain_notifier_register);
+
+/**
+ * rcu_stall_chain_notifier_unregister - Remove an RCU CPU stall notifier
+ * @n: Entry to add.
+ *
+ * Removes an RCU CPU stall notifier from an atomic notifier chain.
+ *
+ * Returns zero on success, %-ENOENT on failure.
+ */
+int rcu_stall_chain_notifier_unregister(struct notifier_block *n)
+{
+	return atomic_notifier_chain_unregister(&rcu_cpu_stall_notifier_list, n);
+}
+EXPORT_SYMBOL_GPL(rcu_stall_chain_notifier_unregister);
+
+/*
+ * rcu_stall_notifier_call_chain - Call functions in an RCU CPU stall notifier chain
+ * @val: Value passed unmodified to notifier function
+ * @v: Pointer passed unmodified to notifier function
+ *
+ * Calls each function in the RCU CPU stall notifier chain in turn, which
+ * is an atomic call chain.  See atomic_notifier_call_chain() for more
+ * information.
+ *
+ * This is for use within RCU, hence the omission of the extra asterisk
+ * to indicate a non-kerneldoc format header comment.
+ */
+int rcu_stall_notifier_call_chain(unsigned long val, void *v)
+{
+	return atomic_notifier_call_chain(&rcu_cpu_stall_notifier_list, val, v);
+}

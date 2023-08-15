@@ -654,4 +654,10 @@ static inline bool rcu_cpu_beenfullyonline(int cpu) { return true; }
 bool rcu_cpu_beenfullyonline(int cpu);
 #endif
 
+#ifdef CONFIG_RCU_STALL_COMMON
+int rcu_stall_notifier_call_chain(unsigned long val, void *v);
+#else // #ifdef CONFIG_RCU_STALL_COMMON
+static inline int rcu_stall_notifier_call_chain(unsigned long val, void *v) { return NOTIFY_DONE; }
+#endif // #else // #ifdef CONFIG_RCU_STALL_COMMON
+
 #endif /* __LINUX_RCU_H */
