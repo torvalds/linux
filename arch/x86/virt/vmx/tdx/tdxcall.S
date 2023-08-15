@@ -142,10 +142,10 @@
 	movq %r11, TDX_MODULE_r11(%rsi)
 .endif	/* \ret */
 
-.if \host && \saved && \ret
+.if \saved && \ret
 	/*
-	 * Clear registers shared by guest for VP.ENTER to prevent
-	 * speculative use of guest's values, including those are
+	 * Clear registers shared by guest for VP.VMCALL/VP.ENTER to prevent
+	 * speculative use of guest's/VMM's values, including those are
 	 * restored from the stack.
 	 *
 	 * See arch/x86/kvm/vmx/vmenter.S:
@@ -170,7 +170,7 @@
 	xorl %r15d, %r15d
 	xorl %ebx,  %ebx
 	xorl %edi,  %edi
-.endif	/* \host && \ret && \host */
+.endif	/* \ret && \host */
 
 .if \host
 .Lout\@:

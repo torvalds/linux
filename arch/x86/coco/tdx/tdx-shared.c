@@ -89,11 +89,11 @@ noinstr u64 __tdx_hypercall(struct tdx_hypercall_args *args)
 	};
 
 	/*
-	 * Failure of __tdcall_hypercall() indicates a failure of the TDVMCALL
+	 * Failure of __tdcall_saved_ret() indicates a failure of the TDVMCALL
 	 * mechanism itself and that something has gone horribly wrong with
 	 * the TDX module.  __tdx_hypercall_failed() never returns.
 	 */
-	if (__tdcall_hypercall(TDG_VP_VMCALL, &margs))
+	if (__tdcall_saved_ret(TDG_VP_VMCALL, &margs))
 		__tdx_hypercall_failed();
 
 	args->r8  = margs.r8;
