@@ -57,23 +57,67 @@ static const u32 tqp_intr_reg_addr_list[] = {HCLGEVF_TQP_INTR_CTRL_REG,
 					     HCLGEVF_TQP_INTR_GL2_REG,
 					     HCLGEVF_TQP_INTR_RL_REG};
 
-#define MAX_SEPARATE_NUM	4
-#define SEPARATOR_VALUE		0xFDFCFBFA
-#define REG_NUM_PER_LINE	4
-#define REG_LEN_PER_LINE	(REG_NUM_PER_LINE * sizeof(u32))
+enum hclgevf_reg_tag {
+	HCLGEVF_REG_TAG_CMDQ = 0,
+	HCLGEVF_REG_TAG_COMMON,
+	HCLGEVF_REG_TAG_RING,
+	HCLGEVF_REG_TAG_TQP_INTR,
+};
+
+#pragma pack(4)
+struct hclgevf_reg_tlv {
+	u16 tag;
+	u16 len;
+};
+
+struct hclgevf_reg_header {
+	u64 magic_number;
+	u8 is_vf;
+	u8 rsv[7];
+};
+
+#pragma pack()
+
+#define HCLGEVF_REG_TLV_SIZE		sizeof(struct hclgevf_reg_tlv)
+#define HCLGEVF_REG_HEADER_SIZE		sizeof(struct hclgevf_reg_header)
+#define HCLGEVF_REG_TLV_SPACE		(sizeof(struct hclgevf_reg_tlv) / sizeof(u32))
+#define HCLGEVF_REG_HEADER_SPACE	(sizeof(struct hclgevf_reg_header) / sizeof(u32))
+#define HCLGEVF_REG_MAGIC_NUMBER	0x686e733372656773 /* meaning is hns3regs */
+
+static u32 hclgevf_reg_get_header(void *data)
+{
+	struct hclgevf_reg_header *header = data;
+
+	header->magic_number = HCLGEVF_REG_MAGIC_NUMBER;
+	header->is_vf = 0x1;
+
+	return HCLGEVF_REG_HEADER_SPACE;
+}
+
+static u32 hclgevf_reg_get_tlv(u32 tag, u32 regs_num, void *data)
+{
+	struct hclgevf_reg_tlv *tlv = data;
+
+	tlv->tag = tag;
+	tlv->len = regs_num * sizeof(u32) + HCLGEVF_REG_TLV_SIZE;
+
+	return HCLGEVF_REG_TLV_SPACE;
+}
 
 int hclgevf_get_regs_len(struct hnae3_handle *handle)
 {
-	int cmdq_lines, common_lines, ring_lines, tqp_intr_lines;
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	int cmdq_len, common_len, ring_len, tqp_intr_len;
 
-	cmdq_lines = sizeof(cmdq_reg_addr_list) / REG_LEN_PER_LINE + 1;
-	common_lines = sizeof(common_reg_addr_list) / REG_LEN_PER_LINE + 1;
-	ring_lines = sizeof(ring_reg_addr_list) / REG_LEN_PER_LINE + 1;
-	tqp_intr_lines = sizeof(tqp_intr_reg_addr_list) / REG_LEN_PER_LINE + 1;
+	cmdq_len = HCLGEVF_REG_TLV_SIZE + sizeof(cmdq_reg_addr_list);
+	common_len = HCLGEVF_REG_TLV_SIZE + sizeof(common_reg_addr_list);
+	ring_len = HCLGEVF_REG_TLV_SIZE + sizeof(ring_reg_addr_list);
+	tqp_intr_len = HCLGEVF_REG_TLV_SIZE + sizeof(tqp_intr_reg_addr_list);
 
-	return (cmdq_lines + common_lines + ring_lines * hdev->num_tqps +
-		tqp_intr_lines * (hdev->num_msi_used - 1)) * REG_LEN_PER_LINE;
+	/* return the total length of all register values */
+	return HCLGEVF_REG_HEADER_SIZE + cmdq_len + common_len +
+	       tqp_intr_len * (hdev->num_msi_used - 1) +
+	       ring_len * hdev->num_tqps;
 }
 
 void hclgevf_get_regs(struct hnae3_handle *handle, u32 *version,
@@ -83,45 +127,38 @@ void hclgevf_get_regs(struct hnae3_handle *handle, u32 *version,
 #define HCLGEVF_RING_INT_REG_OFFSET	0x4
 
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	int i, j, reg_um, separator_num;
+	int i, j, reg_um;
 	u32 *reg = data;
 
 	*version = hdev->fw_version;
+	reg += hclgevf_reg_get_header(reg);
 
 	/* fetching per-VF registers values from VF PCIe register space */
 	reg_um = sizeof(cmdq_reg_addr_list) / sizeof(u32);
-	separator_num = MAX_SEPARATE_NUM - reg_um % REG_NUM_PER_LINE;
+	reg += hclgevf_reg_get_tlv(HCLGEVF_REG_TAG_CMDQ, reg_um, reg);
 	for (i = 0; i < reg_um; i++)
 		*reg++ = hclgevf_read_dev(&hdev->hw, cmdq_reg_addr_list[i]);
-	for (i = 0; i < separator_num; i++)
-		*reg++ = SEPARATOR_VALUE;
 
 	reg_um = sizeof(common_reg_addr_list) / sizeof(u32);
-	separator_num = MAX_SEPARATE_NUM - reg_um % REG_NUM_PER_LINE;
+	reg += hclgevf_reg_get_tlv(HCLGEVF_REG_TAG_COMMON, reg_um, reg);
 	for (i = 0; i < reg_um; i++)
 		*reg++ = hclgevf_read_dev(&hdev->hw, common_reg_addr_list[i]);
-	for (i = 0; i < separator_num; i++)
-		*reg++ = SEPARATOR_VALUE;
 
 	reg_um = sizeof(ring_reg_addr_list) / sizeof(u32);
-	separator_num = MAX_SEPARATE_NUM - reg_um % REG_NUM_PER_LINE;
 	for (j = 0; j < hdev->num_tqps; j++) {
+		reg += hclgevf_reg_get_tlv(HCLGEVF_REG_TAG_RING, reg_um, reg);
 		for (i = 0; i < reg_um; i++)
 			*reg++ = hclgevf_read_dev(&hdev->hw,
 						  ring_reg_addr_list[i] +
 						  HCLGEVF_RING_REG_OFFSET * j);
-		for (i = 0; i < separator_num; i++)
-			*reg++ = SEPARATOR_VALUE;
 	}
 
 	reg_um = sizeof(tqp_intr_reg_addr_list) / sizeof(u32);
-	separator_num = MAX_SEPARATE_NUM - reg_um % REG_NUM_PER_LINE;
 	for (j = 0; j < hdev->num_msi_used - 1; j++) {
+		reg += hclgevf_reg_get_tlv(HCLGEVF_REG_TAG_TQP_INTR, reg_um, reg);
 		for (i = 0; i < reg_um; i++)
 			*reg++ = hclgevf_read_dev(&hdev->hw,
 						  tqp_intr_reg_addr_list[i] +
 						  HCLGEVF_RING_INT_REG_OFFSET * j);
-		for (i = 0; i < separator_num; i++)
-			*reg++ = SEPARATOR_VALUE;
 	}
 }
