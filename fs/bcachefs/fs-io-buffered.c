@@ -909,6 +909,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		if (!folio_test_uptodate(f) &&
 		    f_copied != folio_size(f) &&
 		    pos + copied + f_copied < inode->v.i_size) {
+			iov_iter_revert(iter, f_copied);
 			folio_zero_range(f, 0, folio_size(f));
 			folios_trunc(&folios, fi);
 			break;
