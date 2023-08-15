@@ -2,6 +2,9 @@
 #
 # Phy drivers for Realtek platforms
 #
+
+if ARCH_REALTEK || COMPILE_TEST
+
 config PHY_RTK_RTD_USB2PHY
 	tristate "Realtek RTD USB2 PHY Transceiver Driver"
 	depends on USB_SUPPORT
@@ -25,3 +28,5 @@ config PHY_RTK_RTD_USB3PHY
 	  The DHC (digital home center) RTD series SoCs used the Synopsys
 	  DWC3 USB IP. This driver will do the PHY initialization
 	  of the parameters.
+
+endif # ARCH_REALTEK || COMPILE_TEST
