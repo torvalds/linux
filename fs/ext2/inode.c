@@ -415,7 +415,7 @@ static int ext2_alloc_blocks(struct inode *inode,
 	while (1) {
 		count = target;
 		/* allocating blocks for indirect blocks and direct blocks */
-		current_block = ext2_new_blocks(inode,goal,&count,err);
+		current_block = ext2_new_blocks(inode, goal, &count, err, 0);
 		if (*err)
 			goto failed_out;
 
