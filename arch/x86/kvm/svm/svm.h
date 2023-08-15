@@ -22,6 +22,7 @@
 #include <asm/svm.h>
 #include <asm/sev-common.h>
 
+#include "cpuid.h"
 #include "kvm_cache_regs.h"
 
 #define __sme_page_pa(x) __sme_set(page_to_pfn(x) << PAGE_SHIFT)
@@ -259,7 +260,6 @@ struct vcpu_svm {
 	bool soft_int_injected;
 
 	/* optional nested SVM features that are enabled for this guest  */
-	bool vgif_enabled                 : 1;
 	bool vnmi_enabled                 : 1;
 
 	u32 ldr_reg;
@@ -485,7 +485,8 @@ static inline bool svm_is_intercept(struct vcpu_svm *svm, int bit)
 
 static inline bool nested_vgif_enabled(struct vcpu_svm *svm)
 {
-	return svm->vgif_enabled && (svm->nested.ctl.int_ctl & V_GIF_ENABLE_MASK);
+	return guest_can_use(&svm->vcpu, X86_FEATURE_VGIF) &&
+	       (svm->nested.ctl.int_ctl & V_GIF_ENABLE_MASK);
 }
 
 static inline struct vmcb *get_vgif_vmcb(struct vcpu_svm *svm)
