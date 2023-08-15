@@ -674,7 +674,7 @@ static bool vfio_ap_mdev_filter_matrix(unsigned long *apm, unsigned long *aqm,
 			 */
 			apqn = AP_MKQID(apid, apqi);
 			q = vfio_ap_mdev_get_queue(matrix_mdev, apqn);
-			if (!q || q->reset_rc) {
+			if (!q || q->reset_status.response_code) {
 				clear_bit_inv(apid,
 					      matrix_mdev->shadow_apcb.apm);
 				break;
@@ -1628,6 +1628,7 @@ static int apq_reset_check(struct vfio_ap_queue *q)
 	int ret = -EBUSY, elapsed = 0;
 	struct ap_queue_status status;
 
+	memcpy(&status, &q->reset_status, sizeof(status));
 	while (true) {
 		msleep(AP_RESET_INTERVAL);
 		elapsed += AP_RESET_INTERVAL;
@@ -1643,20 +1644,20 @@ static int apq_reset_check(struct vfio_ap_queue *q)
 					      status.queue_empty,
 					      status.irq_enabled);
 		} else {
-			if (q->reset_rc == AP_RESPONSE_RESET_IN_PROGRESS ||
-			    q->reset_rc == AP_RESPONSE_BUSY) {
+			if (q->reset_status.response_code == AP_RESPONSE_RESET_IN_PROGRESS ||
+			    q->reset_status.response_code == AP_RESPONSE_BUSY) {
 				status = ap_zapq(q->apqn, 0);
-				q->reset_rc = status.response_code;
+				memcpy(&q->reset_status, &status, sizeof(status));
 				continue;
 			}
 			/*
-			 * When an AP adapter is deconfigured, the associated
-			 * queues are reset, so let's set the status response
-			 * code to 0 so the queue may be passed through (i.e.,
-			 * not filtered).
+			 * When an AP adapter is deconfigured, the
+			 * associated queues are reset, so let's set the
+			 * status response code to 0 so the queue may be
+			 * passed through (i.e., not filtered)
 			 */
-			if (q->reset_rc == AP_RESPONSE_DECONFIGURED)
-				q->reset_rc = 0;
+			if (status.response_code == AP_RESPONSE_DECONFIGURED)
+				q->reset_status.response_code = 0;
 			if (q->saved_isc != VFIO_AP_ISC_INVALID)
 				vfio_ap_free_aqic_resources(q);
 			break;
@@ -1673,7 +1674,7 @@ static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q)
 	if (!q)
 		return 0;
 	status = ap_zapq(q->apqn, 0);
-	q->reset_rc = status.response_code;
+	memcpy(&q->reset_status, &status, sizeof(status));
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
@@ -1688,7 +1689,8 @@ static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q)
 		 * so the queue may be passed through (i.e., not filtered) and
 		 * return a value indicating the reset completed successfully.
 		 */
-		q->reset_rc = 0;
+		q->reset_status.response_code = 0;
+		ret = 0;
 		vfio_ap_free_aqic_resources(q);
 		break;
 	default:
@@ -2042,6 +2044,7 @@ int vfio_ap_mdev_probe_queue(struct ap_device *apdev)
 
 	q->apqn = to_ap_queue(&apdev->device)->qid;
 	q->saved_isc = VFIO_AP_ISC_INVALID;
+	memset(&q->reset_status, 0, sizeof(q->reset_status));
 	matrix_mdev = get_update_locks_by_apqn(q->apqn);
 
 	if (matrix_mdev) {
