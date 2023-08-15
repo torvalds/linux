@@ -338,8 +338,6 @@ unlock:
 	mutex_unlock(&power_domains->lock);
 }
 
-#define POWER_DOMAIN_MASK (GENMASK_ULL(POWER_DOMAIN_NUM - 1, 0))
-
 static void __async_put_domains_mask(struct i915_power_domains *power_domains,
 				     struct intel_power_domain_mask *mask)
 {
