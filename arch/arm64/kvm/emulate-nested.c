@@ -423,16 +423,23 @@ static const complex_condition_check ccc[] = {
  * following layout for each trapped sysreg:
  *
  * [9:0]	enum cgt_group_id (10 bits)
- * [62:10]	Unused (53 bits)
+ * [13:10]	enum fgt_group_id (4 bits)
+ * [19:14]	bit number in the FGT register (6 bits)
+ * [20]		trap polarity (1 bit)
+ * [62:21]	Unused (42 bits)
  * [63]		RES0 - Must be zero, as lost on insertion in the xarray
  */
 #define TC_CGT_BITS	10
+#define TC_FGT_BITS	4
 
 union trap_config {
 	u64	val;
 	struct {
 		unsigned long	cgt:TC_CGT_BITS; /* Coarse Grained Trap id */
-		unsigned long	unused:53;	 /* Unused, should be zero */
+		unsigned long	fgt:TC_FGT_BITS; /* Fine Grained Trap id */
+		unsigned long	bit:6;		 /* Bit number */
+		unsigned long	pol:1;		 /* Polarity */
+		unsigned long	unused:42;	 /* Unused, should be zero */
 		unsigned long	mbz:1;		 /* Must Be Zero */
 	};
 };
@@ -929,6 +936,28 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 
 static DEFINE_XARRAY(sr_forward_xa);
 
+enum fgt_group_id {
+	__NO_FGT_GROUP__,
+
+	/* Must be last */
+	__NR_FGT_GROUP_IDS__
+};
+
+#define SR_FGT(sr, g, b, p)					\
+	{							\
+		.encoding	= sr,				\
+		.end		= sr,				\
+		.tc		= {				\
+			.fgt = g ## _GROUP,			\
+			.bit = g ## _EL2_ ## b ## _SHIFT,	\
+			.pol = p,				\
+		},						\
+		.line = __LINE__,				\
+	}
+
+static const struct encoding_to_trap_config encoding_to_fgt[] __initconst = {
+};
+
 static union trap_config get_trap_config(u32 sysreg)
 {
 	return (union trap_config) {
@@ -957,6 +986,7 @@ int __init populate_nv_trap_config(void)
 
 	BUILD_BUG_ON(sizeof(union trap_config) != sizeof(void *));
 	BUILD_BUG_ON(__NR_CGT_GROUP_IDS__ > BIT(TC_CGT_BITS));
+	BUILD_BUG_ON(__NR_FGT_GROUP_IDS__ > BIT(TC_FGT_BITS));
 
 	for (int i = 0; i < ARRAY_SIZE(encoding_to_cgt); i++) {
 		const struct encoding_to_trap_config *cgt = &encoding_to_cgt[i];
@@ -990,6 +1020,34 @@ int __init populate_nv_trap_config(void)
 	kvm_info("nv: %ld coarse grained trap handlers\n",
 		 ARRAY_SIZE(encoding_to_cgt));
 
+	if (!cpus_have_final_cap(ARM64_HAS_FGT))
+		goto check_mcb;
+
+	for (int i = 0; i < ARRAY_SIZE(encoding_to_fgt); i++) {
+		const struct encoding_to_trap_config *fgt = &encoding_to_fgt[i];
+		union trap_config tc;
+
+		if (fgt->tc.fgt >= __NR_FGT_GROUP_IDS__) {
+			ret = -EINVAL;
+			print_nv_trap_error(fgt, "Invalid FGT", ret);
+		}
+
+		tc = get_trap_config(fgt->encoding);
+
+		if (tc.fgt) {
+			ret = -EINVAL;
+			print_nv_trap_error(fgt, "Duplicate FGT", ret);
+		}
+
+		tc.val |= fgt->tc.val;
+		xa_store(&sr_forward_xa, fgt->encoding,
+			 xa_mk_value(tc.val), GFP_KERNEL);
+	}
+
+	kvm_info("nv: %ld fine grained trap handlers\n",
+		 ARRAY_SIZE(encoding_to_fgt));
+
+check_mcb:
 	for (int id = __MULTIPLE_CONTROL_BITS__; id < __COMPLEX_CONDITIONS__; id++) {
 		const enum cgt_group_id *cgids;
 
@@ -1056,13 +1114,26 @@ static enum trap_behaviour compute_trap_behaviour(struct kvm_vcpu *vcpu,
 	return __compute_trap_behaviour(vcpu, tc.cgt, b);
 }
 
+static bool check_fgt_bit(u64 val, const union trap_config tc)
+{
+	return ((val >> tc.bit) & 1) == tc.pol;
+}
+
+#define sanitised_sys_reg(vcpu, reg)			\
+	({						\
+		u64 __val;				\
+		__val = __vcpu_sys_reg(vcpu, reg);	\
+		__val &= ~__ ## reg ## _RES0;		\
+		(__val);				\
+	})
+
 bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 {
 	union trap_config tc;
 	enum trap_behaviour b;
 	bool is_read;
 	u32 sysreg;
-	u64 esr;
+	u64 esr, val;
 
 	if (!vcpu_has_nv(vcpu) || is_hyp_ctxt(vcpu))
 		return false;
@@ -1084,6 +1155,19 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 	 */
 	if (!tc.val)
 		return false;
+
+	switch ((enum fgt_group_id)tc.fgt) {
+	case __NO_FGT_GROUP__:
+		break;
+
+	case __NR_FGT_GROUP_IDS__:
+		/* Something is really wrong, bail out */
+		WARN_ONCE(1, "__NR_FGT_GROUP_IDS__");
+		return false;
+	}
+
+	if (tc.fgt != __NO_FGT_GROUP__ && check_fgt_bit(val, tc))
+		goto inject;
 
 	b = compute_trap_behaviour(vcpu, tc);
 
