@@ -28,22 +28,21 @@
 #include "types.h"
 
 
-/* Syscall return helper for library routines, set errno as -ret when ret is in
- * range of [-MAX_ERRNO, -1]
- *
- * Note, No official reference states the errno range here aligns with musl
- * (src/internal/syscall_ret.c) and glibc (sysdeps/unix/sysv/linux/sysdep.h)
+/* Syscall return helper: takes the syscall value in argument and checks for an
+ * error in it. This may only be used with signed returns (int or long), but
+ * not with pointers. An error is any value < 0. When an error is encountered,
+ * -ret is set into errno and -1 is returned. Otherwise the returned value is
+ * passed as-is with its type preserved.
  */
 
-static __inline__ __attribute__((unused, always_inline))
-long __sysret(unsigned long ret)
-{
-	if (ret >= (unsigned long)-MAX_ERRNO) {
-		SET_ERRNO(-(long)ret);
-		return -1;
-	}
-	return ret;
-}
+#define __sysret(arg)							\
+({									\
+	__typeof__(arg) __sysret_arg = (arg);				\
+	(__sysret_arg < 0)                              /* error ? */	\
+		? (({ SET_ERRNO(-__sysret_arg); }), -1) /* ret -1 with errno = -arg */ \
+		: __sysret_arg;                         /* return original value */ \
+})
+
 
 /* Functions in this file only describe syscalls. They're declared static so
  * that the compiler usually decides to inline them while still being allowed
