@@ -114,6 +114,7 @@ static DEFINE_SPINLOCK(cgroup_idr_lock);
 static DEFINE_SPINLOCK(cgroup_file_kn_lock);
 
 DEFINE_PERCPU_RWSEM(cgroup_threadgroup_rwsem);
+EXPORT_SYMBOL_GPL(cgroup_threadgroup_rwsem);
 
 #define cgroup_assert_mutex_or_rcu_locked()				\
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&			\
