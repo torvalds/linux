@@ -1612,6 +1612,16 @@ static int apq_status_check(int apqn, struct ap_queue_status *status)
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 	case AP_RESPONSE_BUSY:
 		return -EBUSY;
+	case AP_RESPONSE_ASSOC_SECRET_NOT_UNIQUE:
+	case AP_RESPONSE_ASSOC_FAILED:
+		/*
+		 * These asynchronous response codes indicate a PQAP(AAPQ)
+		 * instruction to associate a secret with the guest failed. All
+		 * subsequent AP instructions will end with the asynchronous
+		 * response code until the AP queue is reset; so, let's return
+		 * a value indicating a reset needs to be performed again.
+		 */
+		return -EAGAIN;
 	default:
 		WARN(true,
 		     "failed to verify reset of queue %02x.%04x: TAPQ rc=%u\n",
@@ -1648,7 +1658,8 @@ static void apq_reset_check(struct work_struct *reset_work)
 		} else {
 			if (q->reset_status.response_code == AP_RESPONSE_RESET_IN_PROGRESS ||
 			    q->reset_status.response_code == AP_RESPONSE_BUSY ||
-			    q->reset_status.response_code == AP_RESPONSE_STATE_CHANGE_IN_PROGRESS) {
+			    q->reset_status.response_code == AP_RESPONSE_STATE_CHANGE_IN_PROGRESS ||
+			    ret == -EAGAIN) {
 				status = ap_zapq(q->apqn, 0);
 				memcpy(&q->reset_status, &status, sizeof(status));
 				continue;
