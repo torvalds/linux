@@ -106,12 +106,66 @@ static const enum hclge_opcode_type hclge_dfx_reg_opcode_list[] = {
 	HCLGE_OPC_DFX_SSU_REG_2
 };
 
-#define MAX_SEPARATE_NUM	4
-#define SEPARATOR_VALUE		0xFDFCFBFA
-#define REG_NUM_PER_LINE	4
-#define REG_LEN_PER_LINE	(REG_NUM_PER_LINE * sizeof(u32))
-#define REG_SEPARATOR_LINE	1
-#define REG_NUM_REMAIN_MASK	3
+enum hclge_reg_tag {
+	HCLGE_REG_TAG_CMDQ = 0,
+	HCLGE_REG_TAG_COMMON,
+	HCLGE_REG_TAG_RING,
+	HCLGE_REG_TAG_TQP_INTR,
+	HCLGE_REG_TAG_QUERY_32_BIT,
+	HCLGE_REG_TAG_QUERY_64_BIT,
+	HCLGE_REG_TAG_DFX_BIOS_COMMON,
+	HCLGE_REG_TAG_DFX_SSU_0,
+	HCLGE_REG_TAG_DFX_SSU_1,
+	HCLGE_REG_TAG_DFX_IGU_EGU,
+	HCLGE_REG_TAG_DFX_RPU_0,
+	HCLGE_REG_TAG_DFX_RPU_1,
+	HCLGE_REG_TAG_DFX_NCSI,
+	HCLGE_REG_TAG_DFX_RTC,
+	HCLGE_REG_TAG_DFX_PPP,
+	HCLGE_REG_TAG_DFX_RCB,
+	HCLGE_REG_TAG_DFX_TQP,
+	HCLGE_REG_TAG_DFX_SSU_2,
+};
+
+#pragma pack(4)
+struct hclge_reg_tlv {
+	u16 tag;
+	u16 len;
+};
+
+struct hclge_reg_header {
+	u64 magic_number;
+	u8 is_vf;
+	u8 rsv[7];
+};
+
+#pragma pack()
+
+#define HCLGE_REG_TLV_SIZE	sizeof(struct hclge_reg_tlv)
+#define HCLGE_REG_HEADER_SIZE	sizeof(struct hclge_reg_header)
+#define HCLGE_REG_TLV_SPACE	(sizeof(struct hclge_reg_tlv) / sizeof(u32))
+#define HCLGE_REG_HEADER_SPACE	(sizeof(struct hclge_reg_header) / sizeof(u32))
+#define HCLGE_REG_MAGIC_NUMBER	0x686e733372656773 /* meaning is hns3regs */
+
+static u32 hclge_reg_get_header(void *data)
+{
+	struct hclge_reg_header *header = data;
+
+	header->magic_number = HCLGE_REG_MAGIC_NUMBER;
+	header->is_vf = 0x0;
+
+	return HCLGE_REG_HEADER_SPACE;
+}
+
+static u32 hclge_reg_get_tlv(u32 tag, u32 regs_num, void *data)
+{
+	struct hclge_reg_tlv *tlv = data;
+
+	tlv->tag = tag;
+	tlv->len = regs_num * sizeof(u32) + HCLGE_REG_TLV_SIZE;
+
+	return HCLGE_REG_TLV_SPACE;
+}
 
 static int hclge_get_32_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 				 void *data)
@@ -291,31 +345,28 @@ static int hclge_dfx_reg_cmd_send(struct hclge_dev *hdev,
 static int hclge_dfx_reg_fetch_data(struct hclge_desc *desc_src, int bd_num,
 				    void *data)
 {
-	int entries_per_desc, reg_num, separator_num, desc_index, index, i;
+	int entries_per_desc, reg_num, desc_index, index, i;
 	struct hclge_desc *desc = desc_src;
 	u32 *reg = data;
 
 	entries_per_desc = ARRAY_SIZE(desc->data);
 	reg_num = entries_per_desc * bd_num;
-	separator_num = REG_NUM_PER_LINE - (reg_num & REG_NUM_REMAIN_MASK);
 	for (i = 0; i < reg_num; i++) {
 		index = i % entries_per_desc;
 		desc_index = i / entries_per_desc;
 		*reg++ = le32_to_cpu(desc[desc_index].data[index]);
 	}
-	for (i = 0; i < separator_num; i++)
-		*reg++ = SEPARATOR_VALUE;
 
-	return reg_num + separator_num;
+	return reg_num;
 }
 
 static int hclge_get_dfx_reg_len(struct hclge_dev *hdev, int *len)
 {
 	u32 dfx_reg_type_num = ARRAY_SIZE(hclge_dfx_bd_offset_list);
-	int data_len_per_desc, bd_num;
+	int data_len_per_desc;
 	int *bd_num_list;
-	u32 data_len, i;
 	int ret;
+	u32 i;
 
 	bd_num_list = kcalloc(dfx_reg_type_num, sizeof(int), GFP_KERNEL);
 	if (!bd_num_list)
@@ -330,11 +381,8 @@ static int hclge_get_dfx_reg_len(struct hclge_dev *hdev, int *len)
 
 	data_len_per_desc = sizeof_field(struct hclge_desc, data);
 	*len = 0;
-	for (i = 0; i < dfx_reg_type_num; i++) {
-		bd_num = bd_num_list[i];
-		data_len = data_len_per_desc * bd_num;
-		*len += (data_len / REG_LEN_PER_LINE + 1) * REG_LEN_PER_LINE;
-	}
+	for (i = 0; i < dfx_reg_type_num; i++)
+		*len += bd_num_list[i] * data_len_per_desc + HCLGE_REG_TLV_SIZE;
 
 out:
 	kfree(bd_num_list);
@@ -383,6 +431,9 @@ static int hclge_get_dfx_reg(struct hclge_dev *hdev, void *data)
 			break;
 		}
 
+		reg += hclge_reg_get_tlv(HCLGE_REG_TAG_DFX_BIOS_COMMON + i,
+					 ARRAY_SIZE(desc_src->data) * bd_num,
+					 reg);
 		reg += hclge_dfx_reg_fetch_data(desc_src, bd_num, reg);
 	}
 
@@ -398,50 +449,43 @@ static int hclge_fetch_pf_reg(struct hclge_dev *hdev, void *data,
 #define HCLGE_RING_REG_OFFSET		0x200
 #define HCLGE_RING_INT_REG_OFFSET	0x4
 
-	int i, j, reg_num, separator_num;
+	int i, j, reg_num;
 	int data_num_sum;
 	u32 *reg = data;
 
 	/* fetching per-PF registers valus from PF PCIe register space */
 	reg_num = ARRAY_SIZE(cmdq_reg_addr_list);
-	separator_num = MAX_SEPARATE_NUM - (reg_num & REG_NUM_REMAIN_MASK);
+	reg += hclge_reg_get_tlv(HCLGE_REG_TAG_CMDQ, reg_num, reg);
 	for (i = 0; i < reg_num; i++)
 		*reg++ = hclge_read_dev(&hdev->hw, cmdq_reg_addr_list[i]);
-	for (i = 0; i < separator_num; i++)
-		*reg++ = SEPARATOR_VALUE;
-	data_num_sum = reg_num + separator_num;
+	data_num_sum = reg_num + HCLGE_REG_TLV_SPACE;
 
 	reg_num = ARRAY_SIZE(common_reg_addr_list);
-	separator_num = MAX_SEPARATE_NUM - (reg_num & REG_NUM_REMAIN_MASK);
+	reg += hclge_reg_get_tlv(HCLGE_REG_TAG_COMMON, reg_num, reg);
 	for (i = 0; i < reg_num; i++)
 		*reg++ = hclge_read_dev(&hdev->hw, common_reg_addr_list[i]);
-	for (i = 0; i < separator_num; i++)
-		*reg++ = SEPARATOR_VALUE;
-	data_num_sum += reg_num + separator_num;
+	data_num_sum += reg_num + HCLGE_REG_TLV_SPACE;
 
 	reg_num = ARRAY_SIZE(ring_reg_addr_list);
-	separator_num = MAX_SEPARATE_NUM - (reg_num & REG_NUM_REMAIN_MASK);
 	for (j = 0; j < kinfo->num_tqps; j++) {
+		reg += hclge_reg_get_tlv(HCLGE_REG_TAG_RING, reg_num, reg);
 		for (i = 0; i < reg_num; i++)
 			*reg++ = hclge_read_dev(&hdev->hw,
 						ring_reg_addr_list[i] +
 						HCLGE_RING_REG_OFFSET * j);
-		for (i = 0; i < separator_num; i++)
-			*reg++ = SEPARATOR_VALUE;
 	}
-	data_num_sum += (reg_num + separator_num) * kinfo->num_tqps;
+	data_num_sum += (reg_num + HCLGE_REG_TLV_SPACE) * kinfo->num_tqps;
 
 	reg_num = ARRAY_SIZE(tqp_intr_reg_addr_list);
-	separator_num = MAX_SEPARATE_NUM - (reg_num & REG_NUM_REMAIN_MASK);
 	for (j = 0; j < hdev->num_msi_used - 1; j++) {
+		reg += hclge_reg_get_tlv(HCLGE_REG_TAG_TQP_INTR, reg_num, reg);
 		for (i = 0; i < reg_num; i++)
 			*reg++ = hclge_read_dev(&hdev->hw,
 						tqp_intr_reg_addr_list[i] +
 						HCLGE_RING_INT_REG_OFFSET * j);
-		for (i = 0; i < separator_num; i++)
-			*reg++ = SEPARATOR_VALUE;
 	}
-	data_num_sum += (reg_num + separator_num) * (hdev->num_msi_used - 1);
+	data_num_sum += (reg_num + HCLGE_REG_TLV_SPACE) *
+			(hdev->num_msi_used - 1);
 
 	return data_num_sum;
 }
@@ -473,12 +517,12 @@ static int hclge_get_regs_num(struct hclge_dev *hdev, u32 *regs_num_32_bit,
 
 int hclge_get_regs_len(struct hnae3_handle *handle)
 {
-	int cmdq_lines, common_lines, ring_lines, tqp_intr_lines;
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
 	int regs_num_32_bit, regs_num_64_bit, dfx_regs_len;
-	int regs_lines_32_bit, regs_lines_64_bit;
+	int cmdq_len, common_len, ring_len, tqp_intr_len;
+	int regs_len_32_bit, regs_len_64_bit;
+	struct hclge_dev *hdev = vport->back;
 	int ret;
 
 	ret = hclge_get_regs_num(hdev, &regs_num_32_bit, &regs_num_64_bit);
@@ -495,22 +539,17 @@ int hclge_get_regs_len(struct hnae3_handle *handle)
 		return ret;
 	}
 
-	cmdq_lines = sizeof(cmdq_reg_addr_list) / REG_LEN_PER_LINE +
-		REG_SEPARATOR_LINE;
-	common_lines = sizeof(common_reg_addr_list) / REG_LEN_PER_LINE +
-		REG_SEPARATOR_LINE;
-	ring_lines = sizeof(ring_reg_addr_list) / REG_LEN_PER_LINE +
-		REG_SEPARATOR_LINE;
-	tqp_intr_lines = sizeof(tqp_intr_reg_addr_list) / REG_LEN_PER_LINE +
-		REG_SEPARATOR_LINE;
-	regs_lines_32_bit = regs_num_32_bit * sizeof(u32) / REG_LEN_PER_LINE +
-		REG_SEPARATOR_LINE;
-	regs_lines_64_bit = regs_num_64_bit * sizeof(u64) / REG_LEN_PER_LINE +
-		REG_SEPARATOR_LINE;
+	cmdq_len = HCLGE_REG_TLV_SIZE + sizeof(cmdq_reg_addr_list);
+	common_len = HCLGE_REG_TLV_SIZE + sizeof(common_reg_addr_list);
+	ring_len = HCLGE_REG_TLV_SIZE + sizeof(ring_reg_addr_list);
+	tqp_intr_len = HCLGE_REG_TLV_SIZE + sizeof(tqp_intr_reg_addr_list);
+	regs_len_32_bit = HCLGE_REG_TLV_SIZE + regs_num_32_bit * sizeof(u32);
+	regs_len_64_bit = HCLGE_REG_TLV_SIZE + regs_num_64_bit * sizeof(u64);
 
-	return (cmdq_lines + common_lines + ring_lines * kinfo->num_tqps +
-		tqp_intr_lines * (hdev->num_msi_used - 1) + regs_lines_32_bit +
-		regs_lines_64_bit) * REG_LEN_PER_LINE + dfx_regs_len;
+	/* return the total length of all register values */
+	return HCLGE_REG_HEADER_SIZE + cmdq_len + common_len + ring_len *
+		kinfo->num_tqps + tqp_intr_len * (hdev->num_msi_used - 1) +
+		regs_len_32_bit + regs_len_64_bit + dfx_regs_len;
 }
 
 void hclge_get_regs(struct hnae3_handle *handle, u32 *version,
@@ -522,8 +561,8 @@ void hclge_get_regs(struct hnae3_handle *handle, u32 *version,
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 	u32 regs_num_32_bit, regs_num_64_bit;
-	int i, reg_num, separator_num, ret;
 	u32 *reg = data;
+	int ret;
 
 	*version = hdev->fw_version;
 
@@ -534,31 +573,29 @@ void hclge_get_regs(struct hnae3_handle *handle, u32 *version,
 		return;
 	}
 
+	reg += hclge_reg_get_header(reg);
 	reg += hclge_fetch_pf_reg(hdev, reg, kinfo);
 
+	reg += hclge_reg_get_tlv(HCLGE_REG_TAG_QUERY_32_BIT,
+				 regs_num_32_bit, reg);
 	ret = hclge_get_32_bit_regs(hdev, regs_num_32_bit, reg);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Get 32 bit register failed, ret = %d.\n", ret);
 		return;
 	}
-	reg_num = regs_num_32_bit;
-	reg += reg_num;
-	separator_num = MAX_SEPARATE_NUM - (reg_num & REG_NUM_REMAIN_MASK);
-	for (i = 0; i < separator_num; i++)
-		*reg++ = SEPARATOR_VALUE;
+	reg += regs_num_32_bit;
 
+	reg += hclge_reg_get_tlv(HCLGE_REG_TAG_QUERY_64_BIT,
+				 regs_num_64_bit *
+				 HCLGE_REG_64_BIT_SPACE_MULTIPLE, reg);
 	ret = hclge_get_64_bit_regs(hdev, regs_num_64_bit, reg);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Get 64 bit register failed, ret = %d.\n", ret);
 		return;
 	}
-	reg_num = regs_num_64_bit * HCLGE_REG_64_BIT_SPACE_MULTIPLE;
-	reg += reg_num;
-	separator_num = MAX_SEPARATE_NUM - (reg_num & REG_NUM_REMAIN_MASK);
-	for (i = 0; i < separator_num; i++)
-		*reg++ = SEPARATOR_VALUE;
+	reg += regs_num_64_bit * HCLGE_REG_64_BIT_SPACE_MULTIPLE;
 
 	ret = hclge_get_dfx_reg(hdev, reg);
 	if (ret)
