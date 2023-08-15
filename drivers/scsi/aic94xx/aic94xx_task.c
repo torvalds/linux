@@ -390,11 +390,7 @@ static int asd_build_ata_ascb(struct asd_ascb *ascb, struct sas_task *task,
 
 		scb->ata_task.retry_count = task->ata_task.retry_count;
 
-		if (task->ata_task.stp_affil_pol)
-			flags = STP_AFFIL_POLICY;
-		else
-			flags = 0;
-		scb->ata_task.flags = flags;
+		scb->ata_task.flags = 0;
 	}
 	ascb->tasklet_complete = asd_task_tasklet_complete;
 
