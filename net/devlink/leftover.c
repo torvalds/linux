@@ -5201,7 +5201,7 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
 	struct nlattr *chunks_attr, *region_attr, *snapshot_attr;
 	u64 ret_offset, start_offset, end_offset = U64_MAX;
-	struct nlattr **attrs = info->attrs;
+	struct nlattr **attrs = info->info.attrs;
 	struct devlink_port *port = NULL;
 	devlink_chunk_fill_t *region_cb;
 	struct devlink_region *region;
@@ -5224,8 +5224,8 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		goto out_unlock;
 	}
 
-	if (info->attrs[DEVLINK_ATTR_PORT_INDEX]) {
-		index = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_INDEX]);
+	if (attrs[DEVLINK_ATTR_PORT_INDEX]) {
+		index = nla_get_u32(attrs[DEVLINK_ATTR_PORT_INDEX]);
 
 		port = devlink_port_get_by_index(devlink, index);
 		if (!port) {
