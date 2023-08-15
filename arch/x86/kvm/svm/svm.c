@@ -1024,7 +1024,7 @@ void svm_update_lbrv(struct kvm_vcpu *vcpu)
 	bool current_enable_lbrv = !!(svm->vmcb->control.virt_ext &
 				      LBR_CTL_ENABLE_MASK);
 
-	if (unlikely(is_guest_mode(vcpu) && svm->lbrv_enabled))
+	if (unlikely(is_guest_mode(vcpu) && guest_can_use(vcpu, X86_FEATURE_LBRV)))
 		if (unlikely(svm->nested.ctl.virt_ext & LBR_CTL_ENABLE_MASK))
 			enable_lbrv = true;
 
@@ -4261,8 +4261,7 @@ static void svm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 
 	kvm_governed_feature_check_and_set(vcpu, X86_FEATURE_NRIPS);
 	kvm_governed_feature_check_and_set(vcpu, X86_FEATURE_TSCRATEMSR);
-
-	svm->lbrv_enabled = lbrv && guest_cpuid_has(vcpu, X86_FEATURE_LBRV);
+	kvm_governed_feature_check_and_set(vcpu, X86_FEATURE_LBRV);
 
 	/*
 	 * Intercept VMLOAD if the vCPU mode is Intel in order to emulate that
