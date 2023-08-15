@@ -2031,19 +2031,6 @@ static int default_read_copy(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-/* a wrapper for calling old copy_kernel or copy_user ops */
-static int call_old_copy(struct snd_pcm_substream *substream,
-			 int channel, unsigned long hwoff,
-			 struct iov_iter *iter, unsigned long bytes)
-{
-	if (iov_iter_is_kvec(iter))
-		return substream->ops->copy_kernel(substream, channel, hwoff,
-						   iter_iov_addr(iter), bytes);
-	else
-		return substream->ops->copy_user(substream, channel, hwoff,
-						 iter_iov_addr(iter), bytes);
-}
-
 /* call transfer with the filled iov_iter */
 static int do_transfer(struct snd_pcm_substream *substream, int c,
 		       unsigned long hwoff, void *data, unsigned long bytes,
@@ -2147,7 +2134,7 @@ static int pcm_sanity_check(struct snd_pcm_substream *substream)
 	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
 	runtime = substream->runtime;
-	if (snd_BUG_ON(!substream->ops->copy && !substream->ops->copy_user && !runtime->dma_area))
+	if (snd_BUG_ON(!substream->ops->copy && !runtime->dma_area))
 		return -EINVAL;
 	if (runtime->state == SNDRV_PCM_STATE_OPEN)
 		return -EBADFD;
@@ -2255,9 +2242,6 @@ snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 	} else {
 		if (substream->ops->copy)
 			transfer = substream->ops->copy;
-		else if ((in_kernel && substream->ops->copy_kernel) ||
-			 (!in_kernel && substream->ops->copy_user))
-			transfer = call_old_copy;
 		else
 			transfer = is_playback ?
 				default_write_copy : default_read_copy;
