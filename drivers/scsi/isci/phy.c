@@ -1404,7 +1404,6 @@ void isci_phy_init(struct isci_phy *iphy, struct isci_host *ihost, int index)
 	iphy->sas_phy.ha = &ihost->sas_ha;
 	iphy->sas_phy.lldd_phy = iphy;
 	iphy->sas_phy.enabled = 1;
-	iphy->sas_phy.class = SAS;
 	iphy->sas_phy.iproto = SAS_PROTOCOL_ALL;
 	iphy->sas_phy.tproto = 0;
 	iphy->sas_phy.type = PHY_TYPE_PHYSICAL;

@@ -23,11 +23,6 @@
 
 struct block_device;
 
-enum sas_class {
-	SAS,
-	EXPANDER
-};
-
 enum sas_phy_role {
 	PHY_ROLE_NONE = 0,
 	PHY_ROLE_TARGET = 0x40,
@@ -258,7 +253,6 @@ struct asd_sas_port {
 /* public: */
 	int id;
 
-	enum sas_class   class;
 	u8               sas_addr[SAS_ADDR_SIZE];
 	u8               attached_sas_addr[SAS_ADDR_SIZE];
 	enum sas_protocol   iproto;
@@ -319,7 +313,6 @@ struct asd_sas_phy {
 	int            enabled;	  /* must be set */
 
 	int            id;	  /* must be set */
-	enum sas_class class;
 	enum sas_protocol iproto;
 	enum sas_protocol tproto;
 

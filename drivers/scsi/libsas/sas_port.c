@@ -83,7 +83,6 @@ static void sas_form_port_add_phy(struct asd_sas_port *port,
 		memcpy(port->sas_addr, phy->sas_addr, SAS_ADDR_SIZE);
 
 	if (*(u64 *)port->attached_sas_addr == 0) {
-		port->class = phy->class;
 		memcpy(port->attached_sas_addr, phy->attached_sas_addr,
 		       SAS_ADDR_SIZE);
 		port->iproto = phy->iproto;
@@ -249,7 +248,6 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 		INIT_LIST_HEAD(&port->phy_list);
 		memset(port->sas_addr, 0, SAS_ADDR_SIZE);
 		memset(port->attached_sas_addr, 0, SAS_ADDR_SIZE);
-		port->class = 0;
 		port->iproto = 0;
 		port->tproto = 0;
 		port->oob_mode = 0;

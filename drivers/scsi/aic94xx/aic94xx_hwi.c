@@ -72,7 +72,6 @@ static int asd_init_phy(struct asd_phy *phy)
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 
 	sas_phy->enabled = 1;
-	sas_phy->class = SAS;
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
 	sas_phy->tproto = 0;
 	sas_phy->type = PHY_TYPE_PHYSICAL;

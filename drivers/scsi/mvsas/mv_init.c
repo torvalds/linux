@@ -84,7 +84,6 @@ static void mvs_phy_init(struct mvs_info *mvi, int phy_id)
 	phy->port = NULL;
 	timer_setup(&phy->timer, NULL, 0);
 	sas_phy->enabled = (phy_id < mvi->chip->n_phy) ? 1 : 0;
-	sas_phy->class = SAS;
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
 	sas_phy->tproto = 0;
 	sas_phy->type = PHY_TYPE_PHYSICAL;
