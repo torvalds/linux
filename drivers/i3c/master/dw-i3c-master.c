@@ -1244,6 +1244,12 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	    nrxwords > master->caps.datafifodepth)
 		return -ENOTSUPP;
 
+	if (ntxwords == 0 && nrxwords == 0) {
+		dev_warn(&master->base.dev,
+			 "Transfers w/o data bytes are not supported");
+		return -ENOTSUPP;
+	}
+
 	xfer = dw_i3c_master_alloc_xfer(master, i2c_nxfers);
 	if (!xfer)
 		return -ENOMEM;
