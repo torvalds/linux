@@ -1030,24 +1030,24 @@
 		spi0_pins: spi0-pins {
 			rockchip,pins =
 				/* spi0_clk */
-				<4 RK_PB4 2 &pcfg_pull_none>,
+				<4 RK_PB4 2 &pcfg_pull_none_drv_level_2>,
 				/* spi0_miso */
-				<4 RK_PB3 2 &pcfg_pull_none>,
+				<4 RK_PB3 2 &pcfg_pull_none_drv_level_2>,
 				/* spi0_mosi */
-				<4 RK_PB2 2 &pcfg_pull_none>;
+				<4 RK_PB2 2 &pcfg_pull_none_drv_level_2>;
 		};
 
 		/omit-if-no-ref/
 		spi0_csn0: spi0-csn0 {
 			rockchip,pins =
 				/* spi0_csn0 */
-				<4 RK_PB6 2 &pcfg_pull_none>;
+				<4 RK_PB6 2 &pcfg_pull_none_drv_level_2>;
 		};
 		/omit-if-no-ref/
 		spi0_csn1: spi0-csn1 {
 			rockchip,pins =
 				/* spi0_csn1 */
-				<4 RK_PC1 2 &pcfg_pull_none>;
+				<4 RK_PC1 2 &pcfg_pull_none_drv_level_2>;
 		};
 	};
 
@@ -1056,24 +1056,24 @@
 		spi1_pins: spi1-pins {
 			rockchip,pins =
 				/* spi1_clk */
-				<1 RK_PB6 2 &pcfg_pull_none>,
+				<1 RK_PB6 2 &pcfg_pull_none_drv_level_2>,
 				/* spi1_miso */
-				<1 RK_PC0 2 &pcfg_pull_none>,
+				<1 RK_PC0 2 &pcfg_pull_none_drv_level_2>,
 				/* spi1_mosi */
-				<1 RK_PB7 2 &pcfg_pull_none>;
+				<1 RK_PB7 2 &pcfg_pull_none_drv_level_2>;
 		};
 
 		/omit-if-no-ref/
 		spi1_csn0: spi1-csn0 {
 			rockchip,pins =
 				/* spi1_csn0 */
-				<1 RK_PC1 1 &pcfg_pull_none>;
+				<1 RK_PC1 1 &pcfg_pull_none_drv_level_2>;
 		};
 		/omit-if-no-ref/
 		spi1_csn1: spi1-csn1 {
 			rockchip,pins =
 				/* spi1_csn1 */
-				<1 RK_PC2 1 &pcfg_pull_none>;
+				<1 RK_PC2 1 &pcfg_pull_none_drv_level_2>;
 		};
 	};
 
