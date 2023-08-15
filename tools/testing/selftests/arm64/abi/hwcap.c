@@ -34,6 +34,12 @@
  */
 typedef void (*sig_fn)(void);
 
+static void aes_sigill(void)
+{
+	/* AESE V0.16B, V0.16B */
+	asm volatile(".inst 0x4e284800" : : : );
+}
+
 static void atomics_sigill(void)
 {
 	/* STADD W0, [SP] */
@@ -273,6 +279,13 @@ static const struct hwcap_data {
 	sig_fn sigbus_fn;
 	bool sigbus_reliable;
 } hwcaps[] = {
+	{
+		.name = "AES",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_AES,
+		.cpuinfo = "aes",
+		.sigill_fn = aes_sigill,
+	},
 	{
 		.name = "CRC32",
 		.at_hwcap = AT_HWCAP,
