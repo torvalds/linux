@@ -1003,6 +1003,7 @@
 		snps,dis-u2-freeclk-exists-quirk;
 		snps,dis_u2_susphy_quirk;
 		snps,dis_u3_susphy_quirk;
+		snps,parkmode-disable-hs-quirk;
 		snps,parkmode-disable-ss-quirk;
 		status = "disabled";
 	};

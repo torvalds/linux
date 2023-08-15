@@ -456,6 +456,7 @@
 			snps,dis_u2_susphy_quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,parkmode-disable-hs-quirk;
 			snps,parkmode-disable-ss-quirk;
 			power-domains = <&power RK3399_PD_USB3>;
 			status = "disabled";
@@ -493,6 +494,7 @@
 			snps,dis_u2_susphy_quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,parkmode-disable-hs-quirk;
 			snps,parkmode-disable-ss-quirk;
 			power-domains = <&power RK3399_PD_USB3>;
 			status = "disabled";
