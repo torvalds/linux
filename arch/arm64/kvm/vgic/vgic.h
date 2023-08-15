@@ -6,6 +6,7 @@
 #define __KVM_ARM_VGIC_NEW_H__
 
 #include <linux/irqchip/arm-gic-common.h>
+#include <asm/kvm_mmu.h>
 
 #define PRODUCT_ID_KVM		0x4b	/* ASCII code K */
 #define IMPLEMENTER_ARM		0x43b
@@ -129,6 +130,16 @@ static inline int vgic_irq_get_lr_count(struct vgic_irq *irq)
 static inline bool vgic_irq_is_multi_sgi(struct vgic_irq *irq)
 {
 	return vgic_irq_get_lr_count(irq) > 1;
+}
+
+static inline int vgic_write_guest_lock(struct kvm *kvm, gpa_t gpa,
+					const void *data, unsigned long len)
+{
+	int ret;
+
+	ret = kvm_write_guest_lock(kvm, gpa, data, len);
+
+	return ret;
 }
 
 /*

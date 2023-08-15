@@ -8,6 +8,7 @@
   blk_rq_map_user
   blk_rq_map_user_iov
   blk_start_plug
+  cgroup_add_dfl_cftypes
   cgroup_add_legacy_cftypes
   console_printk
   cpufreq_frequency_table_get_index
