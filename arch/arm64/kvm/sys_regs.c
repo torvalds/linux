@@ -3177,6 +3177,9 @@ int kvm_handle_sys_reg(struct kvm_vcpu *vcpu)
 
 	trace_kvm_handle_sys_reg(esr);
 
+	if (__check_nv_sr_forward(vcpu))
+		return 1;
+
 	params = esr_sys64_to_params(esr);
 	params.regval = vcpu_get_reg(vcpu, Rt);
 
@@ -3593,6 +3596,9 @@ int __init kvm_sys_reg_table_init(void)
 	first_idreg = find_reg(&params, sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
 	if (!first_idreg)
 		return -EINVAL;
+
+	if (kvm_get_mode() == KVM_MODE_NV)
+		return populate_nv_trap_config();
 
 	return 0;
 }

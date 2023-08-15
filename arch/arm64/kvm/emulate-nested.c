@@ -14,6 +14,288 @@
 
 #include "trace.h"
 
+enum trap_behaviour {
+	BEHAVE_HANDLE_LOCALLY	= 0,
+	BEHAVE_FORWARD_READ	= BIT(0),
+	BEHAVE_FORWARD_WRITE	= BIT(1),
+	BEHAVE_FORWARD_ANY	= BEHAVE_FORWARD_READ | BEHAVE_FORWARD_WRITE,
+};
+
+struct trap_bits {
+	const enum vcpu_sysreg		index;
+	const enum trap_behaviour	behaviour;
+	const u64			value;
+	const u64			mask;
+};
+
+/* Coarse Grained Trap definitions */
+enum cgt_group_id {
+	/* Indicates no coarse trap control */
+	__RESERVED__,
+
+	/*
+	 * The first batch of IDs denote coarse trapping that are used
+	 * on their own instead of being part of a combination of
+	 * trap controls.
+	 */
+
+	/*
+	 * Anything after this point is a combination of coarse trap
+	 * controls, which must all be evaluated to decide what to do.
+	 */
+	__MULTIPLE_CONTROL_BITS__,
+
+	/*
+	 * Anything after this point requires a callback evaluating a
+	 * complex trap condition. Hopefully we'll never need this...
+	 */
+	__COMPLEX_CONDITIONS__,
+
+	/* Must be last */
+	__NR_CGT_GROUP_IDS__
+};
+
+static const struct trap_bits coarse_trap_bits[] = {
+};
+
+#define MCB(id, ...)						\
+	[id - __MULTIPLE_CONTROL_BITS__]	=		\
+		(const enum cgt_group_id[]){			\
+		__VA_ARGS__, __RESERVED__			\
+		}
+
+static const enum cgt_group_id *coarse_control_combo[] = {
+};
+
+typedef enum trap_behaviour (*complex_condition_check)(struct kvm_vcpu *);
+
+#define CCC(id, fn)				\
+	[id - __COMPLEX_CONDITIONS__] = fn
+
+static const complex_condition_check ccc[] = {
+};
+
+/*
+ * Bit assignment for the trap controls. We use a 64bit word with the
+ * following layout for each trapped sysreg:
+ *
+ * [9:0]	enum cgt_group_id (10 bits)
+ * [62:10]	Unused (53 bits)
+ * [63]		RES0 - Must be zero, as lost on insertion in the xarray
+ */
+#define TC_CGT_BITS	10
+
+union trap_config {
+	u64	val;
+	struct {
+		unsigned long	cgt:TC_CGT_BITS; /* Coarse Grained Trap id */
+		unsigned long	unused:53;	 /* Unused, should be zero */
+		unsigned long	mbz:1;		 /* Must Be Zero */
+	};
+};
+
+struct encoding_to_trap_config {
+	const u32			encoding;
+	const u32			end;
+	const union trap_config		tc;
+	const unsigned int		line;
+};
+
+#define SR_RANGE_TRAP(sr_start, sr_end, trap_id)			\
+	{								\
+		.encoding	= sr_start,				\
+		.end		= sr_end,				\
+		.tc		= {					\
+			.cgt		= trap_id,			\
+		},							\
+		.line = __LINE__,					\
+	}
+
+#define SR_TRAP(sr, trap_id)		SR_RANGE_TRAP(sr, sr, trap_id)
+
+/*
+ * Map encoding to trap bits for exception reported with EC=0x18.
+ * These must only be evaluated when running a nested hypervisor, but
+ * that the current context is not a hypervisor context. When the
+ * trapped access matches one of the trap controls, the exception is
+ * re-injected in the nested hypervisor.
+ */
+static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
+};
+
+static DEFINE_XARRAY(sr_forward_xa);
+
+static union trap_config get_trap_config(u32 sysreg)
+{
+	return (union trap_config) {
+		.val = xa_to_value(xa_load(&sr_forward_xa, sysreg)),
+	};
+}
+
+static __init void print_nv_trap_error(const struct encoding_to_trap_config *tc,
+				       const char *type, int err)
+{
+	kvm_err("%s line %d encoding range "
+		"(%d, %d, %d, %d, %d) - (%d, %d, %d, %d, %d) (err=%d)\n",
+		type, tc->line,
+		sys_reg_Op0(tc->encoding), sys_reg_Op1(tc->encoding),
+		sys_reg_CRn(tc->encoding), sys_reg_CRm(tc->encoding),
+		sys_reg_Op2(tc->encoding),
+		sys_reg_Op0(tc->end), sys_reg_Op1(tc->end),
+		sys_reg_CRn(tc->end), sys_reg_CRm(tc->end),
+		sys_reg_Op2(tc->end),
+		err);
+}
+
+int __init populate_nv_trap_config(void)
+{
+	int ret = 0;
+
+	BUILD_BUG_ON(sizeof(union trap_config) != sizeof(void *));
+	BUILD_BUG_ON(__NR_CGT_GROUP_IDS__ > BIT(TC_CGT_BITS));
+
+	for (int i = 0; i < ARRAY_SIZE(encoding_to_cgt); i++) {
+		const struct encoding_to_trap_config *cgt = &encoding_to_cgt[i];
+		void *prev;
+
+		if (cgt->tc.val & BIT(63)) {
+			kvm_err("CGT[%d] has MBZ bit set\n", i);
+			ret = -EINVAL;
+		}
+
+		if (cgt->encoding != cgt->end) {
+			prev = xa_store_range(&sr_forward_xa,
+					      cgt->encoding, cgt->end,
+					      xa_mk_value(cgt->tc.val),
+					      GFP_KERNEL);
+		} else {
+			prev = xa_store(&sr_forward_xa, cgt->encoding,
+					xa_mk_value(cgt->tc.val), GFP_KERNEL);
+			if (prev && !xa_is_err(prev)) {
+				ret = -EINVAL;
+				print_nv_trap_error(cgt, "Duplicate CGT", ret);
+			}
+		}
+
+		if (xa_is_err(prev)) {
+			ret = xa_err(prev);
+			print_nv_trap_error(cgt, "Failed CGT insertion", ret);
+		}
+	}
+
+	kvm_info("nv: %ld coarse grained trap handlers\n",
+		 ARRAY_SIZE(encoding_to_cgt));
+
+	for (int id = __MULTIPLE_CONTROL_BITS__; id < __COMPLEX_CONDITIONS__; id++) {
+		const enum cgt_group_id *cgids;
+
+		cgids = coarse_control_combo[id - __MULTIPLE_CONTROL_BITS__];
+
+		for (int i = 0; cgids[i] != __RESERVED__; i++) {
+			if (cgids[i] >= __MULTIPLE_CONTROL_BITS__) {
+				kvm_err("Recursive MCB %d/%d\n", id, cgids[i]);
+				ret = -EINVAL;
+			}
+		}
+	}
+
+	if (ret)
+		xa_destroy(&sr_forward_xa);
+
+	return ret;
+}
+
+static enum trap_behaviour get_behaviour(struct kvm_vcpu *vcpu,
+					 const struct trap_bits *tb)
+{
+	enum trap_behaviour b = BEHAVE_HANDLE_LOCALLY;
+	u64 val;
+
+	val = __vcpu_sys_reg(vcpu, tb->index);
+	if ((val & tb->mask) == tb->value)
+		b |= tb->behaviour;
+
+	return b;
+}
+
+static enum trap_behaviour __compute_trap_behaviour(struct kvm_vcpu *vcpu,
+						    const enum cgt_group_id id,
+						    enum trap_behaviour b)
+{
+	switch (id) {
+		const enum cgt_group_id *cgids;
+
+	case __RESERVED__ ... __MULTIPLE_CONTROL_BITS__ - 1:
+		if (likely(id != __RESERVED__))
+			b |= get_behaviour(vcpu, &coarse_trap_bits[id]);
+		break;
+	case __MULTIPLE_CONTROL_BITS__ ... __COMPLEX_CONDITIONS__ - 1:
+		/* Yes, this is recursive. Don't do anything stupid. */
+		cgids = coarse_control_combo[id - __MULTIPLE_CONTROL_BITS__];
+		for (int i = 0; cgids[i] != __RESERVED__; i++)
+			b |= __compute_trap_behaviour(vcpu, cgids[i], b);
+		break;
+	default:
+		if (ARRAY_SIZE(ccc))
+			b |= ccc[id -  __COMPLEX_CONDITIONS__](vcpu);
+		break;
+	}
+
+	return b;
+}
+
+static enum trap_behaviour compute_trap_behaviour(struct kvm_vcpu *vcpu,
+						  const union trap_config tc)
+{
+	enum trap_behaviour b = BEHAVE_HANDLE_LOCALLY;
+
+	return __compute_trap_behaviour(vcpu, tc.cgt, b);
+}
+
+bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
+{
+	union trap_config tc;
+	enum trap_behaviour b;
+	bool is_read;
+	u32 sysreg;
+	u64 esr;
+
+	if (!vcpu_has_nv(vcpu) || is_hyp_ctxt(vcpu))
+		return false;
+
+	esr = kvm_vcpu_get_esr(vcpu);
+	sysreg = esr_sys64_to_sysreg(esr);
+	is_read = (esr & ESR_ELx_SYS64_ISS_DIR_MASK) == ESR_ELx_SYS64_ISS_DIR_READ;
+
+	tc = get_trap_config(sysreg);
+
+	/*
+	 * A value of 0 for the whole entry means that we know nothing
+	 * for this sysreg, and that it cannot be re-injected into the
+	 * nested hypervisor. In this situation, let's cut it short.
+	 *
+	 * Note that ultimately, we could also make use of the xarray
+	 * to store the index of the sysreg in the local descriptor
+	 * array, avoiding another search... Hint, hint...
+	 */
+	if (!tc.val)
+		return false;
+
+	b = compute_trap_behaviour(vcpu, tc);
+
+	if (((b & BEHAVE_FORWARD_READ) && is_read) ||
+	    ((b & BEHAVE_FORWARD_WRITE) && !is_read))
+		goto inject;
+
+	return false;
+
+inject:
+	trace_kvm_forward_sysreg_trap(vcpu, sysreg, is_read);
+
+	kvm_inject_nested_sync(vcpu, kvm_vcpu_get_esr(vcpu));
+	return true;
+}
+
 static u64 kvm_check_illegal_exception_return(struct kvm_vcpu *vcpu, u64 spsr)
 {
 	u64 mode = spsr & PSR_MODE_MASK;
