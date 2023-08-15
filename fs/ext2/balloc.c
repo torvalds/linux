@@ -1431,13 +1431,6 @@ out:
 	return 0;
 }
 
-ext2_fsblk_t ext2_new_block(struct inode *inode, unsigned long goal, int *errp)
-{
-	unsigned long count = 1;
-
-	return ext2_new_blocks(inode, goal, &count, errp);
-}
-
 #ifdef EXT2FS_DEBUG
 
 unsigned long ext2_count_free(struct buffer_head *map, unsigned int numchars)
