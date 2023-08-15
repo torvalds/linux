@@ -28,6 +28,12 @@ properties:
   vcc-supply:
     description: Regulator providing power to the "VCC" pin.
 
+  vio-supply:
+    description: Regulator providing power for pull-up of the I/O lines.
+      "VIO1" in the typical application circuit example of the datasheet.
+      Note that this regulator does not directly connect to AW2013, but is
+      needed for the correct operation of the interrupt and I2C lines.
+
   "#address-cells":
     const: 1
 
