@@ -786,7 +786,20 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	/* dst = src */
 	case BPF_ALU | BPF_MOV | BPF_X:
 	case BPF_ALU64 | BPF_MOV | BPF_X:
-		emit(A64_MOV(is64, dst, src), ctx);
+		switch (insn->off) {
+		case 0:
+			emit(A64_MOV(is64, dst, src), ctx);
+			break;
+		case 8:
+			emit(A64_SXTB(is64, dst, src), ctx);
+			break;
+		case 16:
+			emit(A64_SXTH(is64, dst, src), ctx);
+			break;
+		case 32:
+			emit(A64_SXTW(is64, dst, src), ctx);
+			break;
+		}
 		break;
 	/* dst = dst OP src */
 	case BPF_ALU | BPF_ADD | BPF_X:

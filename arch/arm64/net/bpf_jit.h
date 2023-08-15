@@ -192,6 +192,11 @@
 #define A64_UXTH(sf, Rd, Rn) A64_UBFM(sf, Rd, Rn, 0, 15)
 #define A64_UXTW(sf, Rd, Rn) A64_UBFM(sf, Rd, Rn, 0, 31)
 
+/* Sign extend */
+#define A64_SXTB(sf, Rd, Rn) A64_SBFM(sf, Rd, Rn, 0, 7)
+#define A64_SXTH(sf, Rd, Rn) A64_SBFM(sf, Rd, Rn, 0, 15)
+#define A64_SXTW(sf, Rd, Rn) A64_SBFM(sf, Rd, Rn, 0, 31)
+
 /* Move wide (immediate) */
 #define A64_MOVEW(sf, Rd, imm16, shift, type) \
 	aarch64_insn_gen_movewide(Rd, imm16, shift, \
