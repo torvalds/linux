@@ -354,6 +354,10 @@
 #define __HFGWTR_EL2_MASK	GENMASK(49, 0)
 #define __HFGWTR_EL2_nMASK	(GENMASK(55, 54) | BIT(50))
 
+#define __HFGITR_EL2_RES0	GENMASK(63, 57)
+#define __HFGITR_EL2_MASK	GENMASK(54, 0)
+#define __HFGITR_EL2_nMASK	GENMASK(56, 55)
+
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
 #define HPFAR_MASK	(~UL(0xf))
 /*
