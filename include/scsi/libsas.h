@@ -525,8 +525,6 @@ struct sas_ata_task {
 	struct host_to_dev_fis fis;
 	u8     atapi_packet[16];  /* 0 if not ATAPI task */
 
-	u8     retry_count;	  /* hardware retry, should be > 0 */
-
 	u8     dma_xfer:1;	  /* PIO:0 or DMA:1 */
 	u8     use_ncq:1;
 

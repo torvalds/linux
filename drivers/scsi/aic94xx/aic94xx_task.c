@@ -388,7 +388,7 @@ static int asd_build_ata_ascb(struct asd_ascb *ascb, struct sas_task *task,
 		flags |= data_dir_flags[task->data_dir];
 		scb->ata_task.ata_flags = flags;
 
-		scb->ata_task.retry_count = task->ata_task.retry_count;
+		scb->ata_task.retry_count = 0;
 
 		scb->ata_task.flags = 0;
 	}
