@@ -2,6 +2,8 @@
 menuconfig CXL_BUS
 	tristate "CXL (Compute Express Link) Devices Support"
 	depends on PCI
+	select FW_LOADER
+	select FW_UPLOAD
 	select PCI_DOE
 	help
 	  CXL is a bus that is electrically compatible with PCI Express, but
@@ -82,7 +84,6 @@ config CXL_PMEM
 config CXL_MEM
 	tristate "CXL: Memory Expansion"
 	depends on CXL_PCI
-	select FW_UPLOAD
 	default CXL_BUS
 	help
 	  The CXL.mem protocol allows a device to act as a provider of "System

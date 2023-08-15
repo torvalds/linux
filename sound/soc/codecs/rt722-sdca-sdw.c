@@ -463,8 +463,16 @@ static int __maybe_unused rt722_sdca_dev_resume(struct device *dev)
 	if (!rt722->first_hw_init)
 		return 0;
 
-	if (!slave->unattach_request)
+	if (!slave->unattach_request) {
+		if (rt722->disable_irq == true) {
+			mutex_lock(&rt722->disable_irq_lock);
+			sdw_write_no_pm(slave, SDW_SCP_SDCA_INTMASK1, SDW_SCP_SDCA_INTMASK_SDCA_6);
+			sdw_write_no_pm(slave, SDW_SCP_SDCA_INTMASK2, SDW_SCP_SDCA_INTMASK_SDCA_8);
+			rt722->disable_irq = false;
+			mutex_unlock(&rt722->disable_irq_lock);
+		}
 		goto regmap_sync;
+	}
 
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT722_PROBE_TIMEOUT));

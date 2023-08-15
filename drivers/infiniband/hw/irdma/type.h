@@ -365,6 +365,8 @@ struct irdma_sc_cqp {
 	struct irdma_dcqcn_cc_params dcqcn_params;
 	__le64 *host_ctx;
 	u64 *scratch_array;
+	u64 requested_ops;
+	atomic64_t completed_ops;
 	u32 cqp_id;
 	u32 sq_size;
 	u32 hw_sq_size;

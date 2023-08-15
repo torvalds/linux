@@ -152,16 +152,14 @@ static void pmu_read_sysfs(bool core_only)
 	}
 
 	closedir(dir);
-	if (core_only) {
-		if (!list_empty(&core_pmus))
-			read_sysfs_core_pmus = true;
-		else {
-			if (perf_pmu__create_placeholder_core_pmu(&core_pmus))
-				read_sysfs_core_pmus = true;
-		}
-	} else {
+	if (list_empty(&core_pmus)) {
+		if (!perf_pmu__create_placeholder_core_pmu(&core_pmus))
+			pr_err("Failure to set up any core PMUs\n");
+	}
+	if (!list_empty(&core_pmus)) {
 		read_sysfs_core_pmus = true;
-		read_sysfs_all_pmus = true;
+		if (!core_only)
+			read_sysfs_all_pmus = true;
 	}
 }
 

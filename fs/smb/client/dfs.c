@@ -177,8 +177,12 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 		struct dfs_cache_tgt_list tl = DFS_CACHE_TGT_LIST_INIT(tl);
 
 		rc = dfs_get_referral(mnt_ctx, ref_path + 1, NULL, &tl);
-		if (rc)
+		if (rc) {
+			rc = cifs_mount_get_tcon(mnt_ctx);
+			if (!rc)
+				rc = cifs_is_path_remote(mnt_ctx);
 			break;
+		}
 
 		tit = dfs_cache_get_tgt_iterator(&tl);
 		if (!tit) {

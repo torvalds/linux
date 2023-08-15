@@ -402,18 +402,15 @@ static void gfxhub_v1_2_xcc_program_invalidation(struct amdgpu_device *adev,
 static int gfxhub_v1_2_xcc_gart_enable(struct amdgpu_device *adev,
 				       uint32_t xcc_mask)
 {
-	uint32_t tmp_mask;
 	int i;
 
-	tmp_mask = xcc_mask;
 	/*
 	 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, because they are
 	 * VF copy registers so vbios post doesn't program them, for
 	 * SRIOV driver need to program them
 	 */
 	if (amdgpu_sriov_vf(adev)) {
-		for_each_inst(i, tmp_mask) {
-			i = ffs(tmp_mask) - 1;
+		for_each_inst(i, xcc_mask) {
 			WREG32_SOC15_RLC(GC, GET_INST(GC, i), regMC_VM_FB_LOCATION_BASE,
 				     adev->gmc.vram_start >> 24);
 			WREG32_SOC15_RLC(GC, GET_INST(GC, i), regMC_VM_FB_LOCATION_TOP,

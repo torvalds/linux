@@ -679,7 +679,7 @@ static void fpsimd_to_sve(struct task_struct *task)
 	void *sst = task->thread.sve_state;
 	struct user_fpsimd_state const *fst = &task->thread.uw.fpsimd_state;
 
-	if (!system_supports_sve())
+	if (!system_supports_sve() && !system_supports_sme())
 		return;
 
 	vq = sve_vq_from_vl(thread_get_cur_vl(&task->thread));
@@ -705,7 +705,7 @@ static void sve_to_fpsimd(struct task_struct *task)
 	unsigned int i;
 	__uint128_t const *p;
 
-	if (!system_supports_sve())
+	if (!system_supports_sve() && !system_supports_sme())
 		return;
 
 	vl = thread_get_cur_vl(&task->thread);
@@ -835,7 +835,8 @@ void sve_sync_from_fpsimd_zeropad(struct task_struct *task)
 	void *sst = task->thread.sve_state;
 	struct user_fpsimd_state const *fst = &task->thread.uw.fpsimd_state;
 
-	if (!test_tsk_thread_flag(task, TIF_SVE))
+	if (!test_tsk_thread_flag(task, TIF_SVE) &&
+	    !thread_sm_enabled(&task->thread))
 		return;
 
 	vq = sve_vq_from_vl(thread_get_cur_vl(&task->thread));
@@ -909,13 +910,15 @@ int vec_set_vector_length(struct task_struct *task, enum vec_type type,
 			 */
 			task->thread.svcr &= ~(SVCR_SM_MASK |
 					       SVCR_ZA_MASK);
-			clear_thread_flag(TIF_SME);
+			clear_tsk_thread_flag(task, TIF_SME);
 			free_sme = true;
 		}
 	}
 
 	if (task == current)
 		put_cpu_fpsimd_context();
+
+	task_set_vl(task, type, vl);
 
 	/*
 	 * Free the changed states if they are not in use, SME will be
@@ -930,8 +933,6 @@ int vec_set_vector_length(struct task_struct *task, enum vec_type type,
 
 	if (free_sme)
 		sme_free(task);
-
-	task_set_vl(task, type, vl);
 
 out:
 	update_tsk_thread_flag(task, vec_vl_inherit_flag(type),
@@ -1666,7 +1667,6 @@ void fpsimd_flush_thread(void)
 
 		fpsimd_flush_thread_vl(ARM64_VEC_SME);
 		current->thread.svcr = 0;
-		sme_smstop();
 	}
 
 	current->thread.fp_type = FP_STATE_FPSIMD;

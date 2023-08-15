@@ -569,6 +569,7 @@ static const struct of_device_id s6d7aa0_of_match[] = {
 	},
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, s6d7aa0_of_match);
 
 static struct mipi_dsi_driver s6d7aa0_driver = {
 	.probe = s6d7aa0_probe,

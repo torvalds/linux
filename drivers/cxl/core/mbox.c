@@ -121,6 +121,45 @@ static bool cxl_is_security_command(u16 opcode)
 	return false;
 }
 
+static void cxl_set_security_cmd_enabled(struct cxl_security_state *security,
+					 u16 opcode)
+{
+	switch (opcode) {
+	case CXL_MBOX_OP_SANITIZE:
+		set_bit(CXL_SEC_ENABLED_SANITIZE, security->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_SECURE_ERASE:
+		set_bit(CXL_SEC_ENABLED_SECURE_ERASE,
+			security->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_GET_SECURITY_STATE:
+		set_bit(CXL_SEC_ENABLED_GET_SECURITY_STATE,
+			security->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_SET_PASSPHRASE:
+		set_bit(CXL_SEC_ENABLED_SET_PASSPHRASE,
+			security->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_DISABLE_PASSPHRASE:
+		set_bit(CXL_SEC_ENABLED_DISABLE_PASSPHRASE,
+			security->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_UNLOCK:
+		set_bit(CXL_SEC_ENABLED_UNLOCK, security->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_FREEZE_SECURITY:
+		set_bit(CXL_SEC_ENABLED_FREEZE_SECURITY,
+			security->enabled_cmds);
+		break;
+	case CXL_MBOX_OP_PASSPHRASE_SECURE_ERASE:
+		set_bit(CXL_SEC_ENABLED_PASSPHRASE_SECURE_ERASE,
+			security->enabled_cmds);
+		break;
+	default:
+		break;
+	}
+}
+
 static bool cxl_is_poison_command(u16 opcode)
 {
 #define CXL_MBOX_OP_POISON_CMDS 0x43
@@ -677,7 +716,8 @@ static void cxl_walk_cel(struct cxl_memdev_state *mds, size_t size, u8 *cel)
 		u16 opcode = le16_to_cpu(cel_entry[i].opcode);
 		struct cxl_mem_command *cmd = cxl_mem_find_command(opcode);
 
-		if (!cmd && !cxl_is_poison_command(opcode)) {
+		if (!cmd && (!cxl_is_poison_command(opcode) ||
+			     !cxl_is_security_command(opcode))) {
 			dev_dbg(dev,
 				"Opcode 0x%04x unsupported by driver\n", opcode);
 			continue;
@@ -688,6 +728,9 @@ static void cxl_walk_cel(struct cxl_memdev_state *mds, size_t size, u8 *cel)
 
 		if (cxl_is_poison_command(opcode))
 			cxl_set_poison_cmd_enabled(&mds->poison, opcode);
+
+		if (cxl_is_security_command(opcode))
+			cxl_set_security_cmd_enabled(&mds->security, opcode);
 
 		dev_dbg(dev, "Opcode 0x%04x enabled\n", opcode);
 	}
