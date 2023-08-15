@@ -142,7 +142,6 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	task->dev = dev;
 	task->task_proto = task->dev->tproto; /* BUG_ON(!SSP) */
 
-	task->ssp_task.retry_count = 1;
 	int_to_scsilun(cmd->device->lun, &lun);
 	memcpy(task->ssp_task.LUN, &lun.scsi_lun, 8);
 	task->ssp_task.task_attr = TASK_ATTR_SIMPLE;
