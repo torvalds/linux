@@ -546,32 +546,19 @@ static void vpe_ring_emit_vm_flush(struct amdgpu_ring *ring, unsigned int vmid,
 	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 }
 
-static unsigned int vpe_ring_init_cond_exec(struct amdgpu_ring *ring)
+static unsigned int vpe_ring_init_cond_exec(struct amdgpu_ring *ring,
+					    uint64_t addr)
 {
 	unsigned int ret;
 
 	amdgpu_ring_write(ring, VPE_CMD_HEADER(VPE_CMD_OPCODE_COND_EXE, 0));
-	amdgpu_ring_write(ring, lower_32_bits(ring->cond_exe_gpu_addr));
-	amdgpu_ring_write(ring, upper_32_bits(ring->cond_exe_gpu_addr));
+	amdgpu_ring_write(ring, lower_32_bits(addr));
+	amdgpu_ring_write(ring, upper_32_bits(addr));
 	amdgpu_ring_write(ring, 1);
-	ret = ring->wptr & ring->buf_mask;/* this is the offset we need patch later */
-	amdgpu_ring_write(ring, 0x55aa55aa);/* insert dummy here and patch it later */
+	ret = ring->wptr & ring->buf_mask;
+	amdgpu_ring_write(ring, 0);
 
 	return ret;
-}
-
-static void vpe_ring_patch_cond_exec(struct amdgpu_ring *ring, unsigned int offset)
-{
-	unsigned int cur;
-
-	WARN_ON_ONCE(offset > ring->buf_mask);
-	WARN_ON_ONCE(ring->ring[offset] != 0x55aa55aa);
-
-	cur = (ring->wptr - 1) & ring->buf_mask;
-	if (cur > offset)
-		ring->ring[offset] = cur - offset;
-	else
-		ring->ring[offset] = (ring->buf_mask + 1) - offset + cur;
 }
 
 static int vpe_ring_preempt_ib(struct amdgpu_ring *ring)
@@ -864,7 +851,6 @@ static const struct amdgpu_ring_funcs vpe_ring_funcs = {
 	.test_ring = vpe_ring_test_ring,
 	.test_ib = vpe_ring_test_ib,
 	.init_cond_exec = vpe_ring_init_cond_exec,
-	.patch_cond_exec = vpe_ring_patch_cond_exec,
 	.preempt_ib = vpe_ring_preempt_ib,
 	.begin_use = vpe_ring_begin_use,
 	.end_use = vpe_ring_end_use,
