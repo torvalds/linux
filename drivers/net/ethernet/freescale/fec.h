@@ -552,10 +552,7 @@ enum fec_txbuf_type {
 };
 
 struct fec_tx_buffer {
-	union {
-		struct sk_buff *skb;
-		struct xdp_frame *xdp;
-	};
+	void *buf_p;
 	enum fec_txbuf_type type;
 };
 

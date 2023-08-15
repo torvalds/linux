@@ -400,7 +400,7 @@ static void fec_dump(struct net_device *ndev)
 			fec16_to_cpu(bdp->cbd_sc),
 			fec32_to_cpu(bdp->cbd_bufaddr),
 			fec16_to_cpu(bdp->cbd_datlen),
-			txq->tx_buf[index].skb);
+			txq->tx_buf[index].buf_p);
 		bdp = fec_enet_get_nextdesc(bdp, &txq->bd);
 		index++;
 	} while (bdp != txq->bd.base);
@@ -657,7 +657,7 @@ static int fec_enet_txq_submit_skb(struct fec_enet_priv_tx_q *txq,
 
 	index = fec_enet_get_bd_index(last_bdp, &txq->bd);
 	/* Save skb pointer */
-	txq->tx_buf[index].skb = skb;
+	txq->tx_buf[index].buf_p = skb;
 
 	/* Make sure the updates to rest of the descriptor are performed before
 	 * transferring ownership.
@@ -863,7 +863,7 @@ static int fec_enet_txq_submit_tso(struct fec_enet_priv_tx_q *txq,
 	}
 
 	/* Save skb pointer */
-	txq->tx_buf[index].skb = skb;
+	txq->tx_buf[index].buf_p = skb;
 
 	skb_tx_timestamp(skb);
 	txq->bd.cur = bdp;
@@ -960,27 +960,27 @@ static void fec_enet_bd_init(struct net_device *dev)
 							 fec32_to_cpu(bdp->cbd_bufaddr),
 							 fec16_to_cpu(bdp->cbd_datlen),
 							 DMA_TO_DEVICE);
-				if (txq->tx_buf[i].skb) {
-					dev_kfree_skb_any(txq->tx_buf[i].skb);
-					txq->tx_buf[i].skb = NULL;
-				}
-			} else {
-				if (bdp->cbd_bufaddr &&
-				    txq->tx_buf[i].type == FEC_TXBUF_T_XDP_NDO)
+				if (txq->tx_buf[i].buf_p)
+					dev_kfree_skb_any(txq->tx_buf[i].buf_p);
+			} else if (txq->tx_buf[i].type == FEC_TXBUF_T_XDP_NDO) {
+				if (bdp->cbd_bufaddr)
 					dma_unmap_single(&fep->pdev->dev,
 							 fec32_to_cpu(bdp->cbd_bufaddr),
 							 fec16_to_cpu(bdp->cbd_datlen),
 							 DMA_TO_DEVICE);
 
-				if (txq->tx_buf[i].xdp) {
-					xdp_return_frame(txq->tx_buf[i].xdp);
-					txq->tx_buf[i].xdp = NULL;
-				}
+				if (txq->tx_buf[i].buf_p)
+					xdp_return_frame(txq->tx_buf[i].buf_p);
+			} else {
+				struct page *page = txq->tx_buf[i].buf_p;
 
-				/* restore default tx buffer type: FEC_TXBUF_T_SKB */
-				txq->tx_buf[i].type = FEC_TXBUF_T_SKB;
+				if (page)
+					page_pool_put_page(page->pp, page, 0, false);
 			}
 
+			txq->tx_buf[i].buf_p = NULL;
+			/* restore default tx buffer type: FEC_TXBUF_T_SKB */
+			txq->tx_buf[i].type = FEC_TXBUF_T_SKB;
 			bdp->cbd_bufaddr = cpu_to_fec32(0);
 			bdp = fec_enet_get_nextdesc(bdp, &txq->bd);
 		}
@@ -1387,6 +1387,8 @@ fec_enet_tx_queue(struct net_device *ndev, u16 queue_id, int budget)
 	struct netdev_queue *nq;
 	int	index = 0;
 	int	entries_free;
+	struct page *page;
+	int frame_len;
 
 	fep = netdev_priv(ndev);
 
@@ -1408,8 +1410,7 @@ fec_enet_tx_queue(struct net_device *ndev, u16 queue_id, int budget)
 		index = fec_enet_get_bd_index(bdp, &txq->bd);
 
 		if (txq->tx_buf[index].type == FEC_TXBUF_T_SKB) {
-			skb = txq->tx_buf[index].skb;
-			txq->tx_buf[index].skb = NULL;
+			skb = txq->tx_buf[index].buf_p;
 			if (bdp->cbd_bufaddr &&
 			    !IS_TSO_HEADER(txq, fec32_to_cpu(bdp->cbd_bufaddr)))
 				dma_unmap_single(&fep->pdev->dev,
@@ -1428,18 +1429,24 @@ fec_enet_tx_queue(struct net_device *ndev, u16 queue_id, int budget)
 			if (unlikely(!budget))
 				break;
 
-			xdpf = txq->tx_buf[index].xdp;
-			if (bdp->cbd_bufaddr &&
-			    txq->tx_buf[index].type == FEC_TXBUF_T_XDP_NDO)
-				dma_unmap_single(&fep->pdev->dev,
-						 fec32_to_cpu(bdp->cbd_bufaddr),
-						 fec16_to_cpu(bdp->cbd_datlen),
-						 DMA_TO_DEVICE);
+			if (txq->tx_buf[index].type == FEC_TXBUF_T_XDP_NDO) {
+				xdpf = txq->tx_buf[index].buf_p;
+				if (bdp->cbd_bufaddr)
+					dma_unmap_single(&fep->pdev->dev,
+							 fec32_to_cpu(bdp->cbd_bufaddr),
+							 fec16_to_cpu(bdp->cbd_datlen),
+							 DMA_TO_DEVICE);
+			} else {
+				page = txq->tx_buf[index].buf_p;
+			}
+
 			bdp->cbd_bufaddr = cpu_to_fec32(0);
-			if (unlikely(!xdpf)) {
+			if (unlikely(!txq->tx_buf[index].buf_p)) {
 				txq->tx_buf[index].type = FEC_TXBUF_T_SKB;
 				goto tx_buf_done;
 			}
+
+			frame_len = fec16_to_cpu(bdp->cbd_datlen);
 		}
 
 		/* Check for errors. */
@@ -1463,7 +1470,7 @@ fec_enet_tx_queue(struct net_device *ndev, u16 queue_id, int budget)
 			if (txq->tx_buf[index].type == FEC_TXBUF_T_SKB)
 				ndev->stats.tx_bytes += skb->len;
 			else
-				ndev->stats.tx_bytes += xdpf->len;
+				ndev->stats.tx_bytes += frame_len;
 		}
 
 		/* Deferred means some collisions occurred during transmit,
@@ -1488,22 +1495,16 @@ fec_enet_tx_queue(struct net_device *ndev, u16 queue_id, int budget)
 
 			/* Free the sk buffer associated with this last transmit */
 			dev_kfree_skb_any(skb);
-		} else {
-			if (txq->tx_buf[index].type == FEC_TXBUF_T_XDP_NDO) {
-				xdp_return_frame_rx_napi(xdpf);
-			} else { /* recycle pages of XDP_TX frames */
-				struct page *page = virt_to_head_page(xdpf->data);
-
-				/* The dma_sync_size = 0 as XDP_TX has already
-				 * synced DMA for_device.
-				 */
-				page_pool_put_page(page->pp, page, 0, true);
-			}
-
-			txq->tx_buf[index].xdp = NULL;
-			/* restore default tx buffer type: FEC_TXBUF_T_SKB */
-			txq->tx_buf[index].type = FEC_TXBUF_T_SKB;
+		} else if (txq->tx_buf[index].type == FEC_TXBUF_T_XDP_NDO) {
+			xdp_return_frame_rx_napi(xdpf);
+		} else { /* recycle pages of XDP_TX frames */
+			/* The dma_sync_size = 0 as XDP_TX has already synced DMA for_device */
+			page_pool_put_page(page->pp, page, 0, true);
 		}
+
+		txq->tx_buf[index].buf_p = NULL;
+		/* restore default tx buffer type: FEC_TXBUF_T_SKB */
+		txq->tx_buf[index].type = FEC_TXBUF_T_SKB;
 
 tx_buf_done:
 		/* Make sure the update to bdp and tx_buf are performed
@@ -3234,7 +3235,6 @@ static void fec_enet_free_buffers(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	unsigned int i;
-	struct sk_buff *skb;
 	struct fec_enet_priv_tx_q *txq;
 	struct fec_enet_priv_rx_q *rxq;
 	unsigned int q;
@@ -3259,18 +3259,23 @@ static void fec_enet_free_buffers(struct net_device *ndev)
 			kfree(txq->tx_bounce[i]);
 			txq->tx_bounce[i] = NULL;
 
-			if (txq->tx_buf[i].type == FEC_TXBUF_T_SKB) {
-				skb = txq->tx_buf[i].skb;
-				txq->tx_buf[i].skb = NULL;
-				dev_kfree_skb(skb);
-			} else {
-				if (txq->tx_buf[i].xdp) {
-					xdp_return_frame(txq->tx_buf[i].xdp);
-					txq->tx_buf[i].xdp = NULL;
-				}
-
+			if (!txq->tx_buf[i].buf_p) {
 				txq->tx_buf[i].type = FEC_TXBUF_T_SKB;
+				continue;
 			}
+
+			if (txq->tx_buf[i].type == FEC_TXBUF_T_SKB) {
+				dev_kfree_skb(txq->tx_buf[i].buf_p);
+			} else if (txq->tx_buf[i].type == FEC_TXBUF_T_XDP_NDO) {
+				xdp_return_frame(txq->tx_buf[i].buf_p);
+			} else {
+				struct page *page = txq->tx_buf[i].buf_p;
+
+				page_pool_put_page(page->pp, page, 0, false);
+			}
+
+			txq->tx_buf[i].buf_p = NULL;
+			txq->tx_buf[i].type = FEC_TXBUF_T_SKB;
 		}
 	}
 }
@@ -3793,13 +3798,14 @@ fec_enet_xdp_get_tx_queue(struct fec_enet_private *fep, int index)
 
 static int fec_enet_txq_xmit_frame(struct fec_enet_private *fep,
 				   struct fec_enet_priv_tx_q *txq,
-				   struct xdp_frame *frame,
-				   u32 dma_sync_len, bool ndo_xmit)
+				   void *frame, u32 dma_sync_len,
+				   bool ndo_xmit)
 {
 	unsigned int index, status, estatus;
 	struct bufdesc *bdp;
 	dma_addr_t dma_addr;
 	int entries_free;
+	u16 frame_len;
 
 	entries_free = fec_enet_get_free_txdesc_num(txq);
 	if (entries_free < MAX_SKB_FRAGS + 1) {
@@ -3815,30 +3821,36 @@ static int fec_enet_txq_xmit_frame(struct fec_enet_private *fep,
 	index = fec_enet_get_bd_index(bdp, &txq->bd);
 
 	if (ndo_xmit) {
-		dma_addr = dma_map_single(&fep->pdev->dev, frame->data,
-					  frame->len, DMA_TO_DEVICE);
+		struct xdp_frame *xdpf = frame;
+
+		dma_addr = dma_map_single(&fep->pdev->dev, xdpf->data,
+					  xdpf->len, DMA_TO_DEVICE);
 		if (dma_mapping_error(&fep->pdev->dev, dma_addr))
 			return -ENOMEM;
 
+		frame_len = xdpf->len;
+		txq->tx_buf[index].buf_p = xdpf;
 		txq->tx_buf[index].type = FEC_TXBUF_T_XDP_NDO;
 	} else {
-		struct page *page = virt_to_page(frame->data);
+		struct xdp_buff *xdpb = frame;
+		struct page *page;
 
-		dma_addr = page_pool_get_dma_addr(page) + sizeof(*frame) +
-			   frame->headroom;
+		page = virt_to_page(xdpb->data);
+		dma_addr = page_pool_get_dma_addr(page) +
+			   (xdpb->data - xdpb->data_hard_start);
 		dma_sync_single_for_device(&fep->pdev->dev, dma_addr,
 					   dma_sync_len, DMA_BIDIRECTIONAL);
+		frame_len = xdpb->data_end - xdpb->data;
+		txq->tx_buf[index].buf_p = page;
 		txq->tx_buf[index].type = FEC_TXBUF_T_XDP_TX;
 	}
-
-	txq->tx_buf[index].xdp = frame;
 
 	status |= (BD_ENET_TX_INTR | BD_ENET_TX_LAST);
 	if (fep->bufdesc_ex)
 		estatus = BD_ENET_TX_INT;
 
 	bdp->cbd_bufaddr = cpu_to_fec32(dma_addr);
-	bdp->cbd_datlen = cpu_to_fec16(frame->len);
+	bdp->cbd_datlen = cpu_to_fec16(frame_len);
 
 	if (fep->bufdesc_ex) {
 		struct bufdesc_ex *ebdp = (struct bufdesc_ex *)bdp;
@@ -3879,13 +3891,9 @@ static int fec_enet_xdp_tx_xmit(struct fec_enet_private *fep,
 				int cpu, struct xdp_buff *xdp,
 				u32 dma_sync_len)
 {
-	struct xdp_frame *xdpf = xdp_convert_buff_to_frame(xdp);
 	struct fec_enet_priv_tx_q *txq;
 	struct netdev_queue *nq;
 	int queue, ret;
-
-	if (unlikely(!xdpf))
-		return -EFAULT;
 
 	queue = fec_enet_xdp_get_tx_queue(fep, cpu);
 	txq = fep->tx_queue[queue];
@@ -3895,7 +3903,7 @@ static int fec_enet_xdp_tx_xmit(struct fec_enet_private *fep,
 
 	/* Avoid tx timeout as XDP shares the queue with kernel stack */
 	txq_trans_cond_update(nq);
-	ret = fec_enet_txq_xmit_frame(fep, txq, xdpf, dma_sync_len, false);
+	ret = fec_enet_txq_xmit_frame(fep, txq, xdp, dma_sync_len, false);
 
 	__netif_tx_unlock(nq);
 
