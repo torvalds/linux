@@ -28,7 +28,7 @@ snd-hda-codec-via-objs :=	patch_via.o
 snd-hda-codec-hdmi-objs :=	patch_hdmi.o hda_eld.o
 
 # side codecs
-snd-hda-scodec-cs35l41-objs :=		cs35l41_hda.o
+snd-hda-scodec-cs35l41-objs :=		cs35l41_hda.o cs35l41_hda_property.o
 snd-hda-scodec-cs35l41-i2c-objs :=	cs35l41_hda_i2c.o
 snd-hda-scodec-cs35l41-spi-objs :=	cs35l41_hda_spi.o
 snd-hda-scodec-cs35l56-objs :=		cs35l56_hda.o
