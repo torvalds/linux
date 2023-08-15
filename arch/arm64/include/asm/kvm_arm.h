@@ -358,6 +358,17 @@
 #define __HFGITR_EL2_MASK	GENMASK(54, 0)
 #define __HFGITR_EL2_nMASK	GENMASK(56, 55)
 
+#define __HDFGRTR_EL2_RES0	(BIT(49) | BIT(42) | GENMASK(39, 38) |	\
+				 GENMASK(21, 20) | BIT(8))
+#define __HDFGRTR_EL2_MASK	~__HDFGRTR_EL2_nMASK
+#define __HDFGRTR_EL2_nMASK	GENMASK(62, 59)
+
+#define __HDFGWTR_EL2_RES0	(BIT(63) | GENMASK(59, 58) | BIT(51) | BIT(47) | \
+				 BIT(43) | GENMASK(40, 38) | BIT(34) | BIT(30) | \
+				 BIT(22) | BIT(9) | BIT(6))
+#define __HDFGWTR_EL2_MASK	~__HDFGWTR_EL2_nMASK
+#define __HDFGWTR_EL2_nMASK	GENMASK(62, 60)
+
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
 #define HPFAR_MASK	(~UL(0xf))
 /*
