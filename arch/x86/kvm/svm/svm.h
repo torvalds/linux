@@ -259,9 +259,6 @@ struct vcpu_svm {
 	unsigned long soft_int_next_rip;
 	bool soft_int_injected;
 
-	/* optional nested SVM features that are enabled for this guest  */
-	bool vnmi_enabled                 : 1;
-
 	u32 ldr_reg;
 	u32 dfr_reg;
 	struct page *avic_backing_page;
@@ -537,7 +534,7 @@ static inline bool nested_npt_enabled(struct vcpu_svm *svm)
 
 static inline bool nested_vnmi_enabled(struct vcpu_svm *svm)
 {
-	return svm->vnmi_enabled &&
+	return guest_can_use(&svm->vcpu, X86_FEATURE_VNMI) &&
 	       (svm->nested.ctl.int_ctl & V_NMI_ENABLE_MASK);
 }
 
