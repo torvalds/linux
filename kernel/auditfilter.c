@@ -694,7 +694,8 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 			data->values[i] = f->val;
 		}
 	}
-	for (i = 0; i < AUDIT_BITMASK_SIZE; i++) data->mask[i] = krule->mask[i];
+	for (i = 0; i < AUDIT_BITMASK_SIZE; i++)
+		data->mask[i] = krule->mask[i];
 
 	return data;
 }
