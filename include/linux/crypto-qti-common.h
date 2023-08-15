@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CRYPTO_QTI_COMMON_H
@@ -22,8 +22,16 @@
 
 struct ice_mmio_data {
 	void __iomem *ice_base_mmio;
-#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+#if (IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER) || IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1))
 	void __iomem *ice_hwkm_mmio;
+#endif
+#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1)
+	struct device *dev;
+	void __iomem *km_base;
+	struct resource *km_res;
+	struct list_head clk_list_head;
+	bool is_hwkm_clk_available;
+	bool is_hwkm_enabled;
 #endif
 };
 

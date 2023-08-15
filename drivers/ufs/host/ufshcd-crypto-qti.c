@@ -2,7 +2,7 @@
 /*
  * UFS Crypto ops QTI implementation.
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <crypto/algapi.h>
@@ -30,7 +30,7 @@ static void get_mmio_data(struct ice_mmio_data *data,
 						struct ufs_qcom_host *host)
 {
 	data->ice_base_mmio = host->ice_mmio;
-#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+#if (IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER) || IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1))
 	data->ice_hwkm_mmio = host->ice_hwkm_mmio;
 #endif
 }
