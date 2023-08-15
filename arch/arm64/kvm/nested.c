@@ -117,7 +117,8 @@ void access_nested_id_reg(struct kvm_vcpu *v, struct sys_reg_params *p,
 		break;
 
 	case SYS_ID_AA64MMFR1_EL1:
-		val &= (NV_FTR(MMFR1, PAN)	|
+		val &= (NV_FTR(MMFR1, HCX)	|
+			NV_FTR(MMFR1, PAN)	|
 			NV_FTR(MMFR1, LO)	|
 			NV_FTR(MMFR1, HPDS)	|
 			NV_FTR(MMFR1, VH)	|

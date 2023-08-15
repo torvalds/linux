@@ -197,8 +197,19 @@ static inline void __activate_traps_common(struct kvm_vcpu *vcpu)
 	vcpu->arch.mdcr_el2_host = read_sysreg(mdcr_el2);
 	write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
 
-	if (cpus_have_final_cap(ARM64_HAS_HCX))
-		write_sysreg_s(HCRX_GUEST_FLAGS, SYS_HCRX_EL2);
+	if (cpus_have_final_cap(ARM64_HAS_HCX)) {
+		u64 hcrx = HCRX_GUEST_FLAGS;
+		if (vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu)) {
+			u64 clr = 0, set = 0;
+
+			compute_clr_set(vcpu, HCRX_EL2, clr, set);
+
+			hcrx |= set;
+			hcrx &= ~clr;
+		}
+
+		write_sysreg_s(hcrx, SYS_HCRX_EL2);
+	}
 
 	__activate_traps_hfgxtr(vcpu);
 }

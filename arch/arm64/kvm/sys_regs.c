@@ -2372,6 +2372,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG(HFGITR_EL2, access_rw, reset_val, 0),
 	EL2_REG(HACR_EL2, access_rw, reset_val, 0),
 
+	EL2_REG(HCRX_EL2, access_rw, reset_val, 0),
+
 	EL2_REG(TTBR0_EL2, access_rw, reset_val, 0),
 	EL2_REG(TTBR1_EL2, access_rw, reset_val, 0),
 	EL2_REG(TCR_EL2, access_rw, reset_val, TCR_EL2_RES1),

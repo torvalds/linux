@@ -369,6 +369,11 @@
 #define __HDFGWTR_EL2_MASK	~__HDFGWTR_EL2_nMASK
 #define __HDFGWTR_EL2_nMASK	GENMASK(62, 60)
 
+/* Similar definitions for HCRX_EL2 */
+#define __HCRX_EL2_RES0		(GENMASK(63, 16) | GENMASK(13, 12))
+#define __HCRX_EL2_MASK		(0)
+#define __HCRX_EL2_nMASK	(GENMASK(15, 14) | GENMASK(4, 0))
+
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
 #define HPFAR_MASK	(~UL(0xf))
 /*
