@@ -29,11 +29,6 @@ enum sas_phy_role {
 	PHY_ROLE_INITIATOR = 0x80,
 };
 
-enum sas_phy_type {
-	PHY_TYPE_PHYSICAL,
-	PHY_TYPE_VIRTUAL
-};
-
 /* The events are mnemonically described in sas_dump.c
  * so when updating/adding events here, please also
  * update the other file too.
@@ -316,7 +311,6 @@ struct asd_sas_phy {
 	enum sas_protocol iproto;
 	enum sas_protocol tproto;
 
-	enum sas_phy_type  type;
 	enum sas_phy_role  role;
 	enum sas_oob_mode  oob_mode;
 	enum sas_linkrate linkrate;
