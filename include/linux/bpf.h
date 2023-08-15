@@ -1550,6 +1550,53 @@ struct bpf_struct_ops_value;
 struct btf_member;
 
 #define BPF_STRUCT_OPS_MAX_NR_MEMBERS 64
+/**
+ * struct bpf_struct_ops - A structure of callbacks allowing a subsystem to
+ *			   define a BPF_MAP_TYPE_STRUCT_OPS map type composed
+ *			   of BPF_PROG_TYPE_STRUCT_OPS progs.
+ * @verifier_ops: A structure of callbacks that are invoked by the verifier
+ *		  when determining whether the struct_ops progs in the
+ *		  struct_ops map are valid.
+ * @init: A callback that is invoked a single time, and before any other
+ *	  callback, to initialize the structure. A nonzero return value means
+ *	  the subsystem could not be initialized.
+ * @check_member: When defined, a callback invoked by the verifier to allow
+ *		  the subsystem to determine if an entry in the struct_ops map
+ *		  is valid. A nonzero return value means that the map is
+ *		  invalid and should be rejected by the verifier.
+ * @init_member: A callback that is invoked for each member of the struct_ops
+ *		 map to allow the subsystem to initialize the member. A nonzero
+ *		 value means the member could not be initialized. This callback
+ *		 is exclusive with the @type, @type_id, @value_type, and
+ *		 @value_id fields.
+ * @reg: A callback that is invoked when the struct_ops map has been
+ *	 initialized and is being attached to. Zero means the struct_ops map
+ *	 has been successfully registered and is live. A nonzero return value
+ *	 means the struct_ops map could not be registered.
+ * @unreg: A callback that is invoked when the struct_ops map should be
+ *	   unregistered.
+ * @update: A callback that is invoked when the live struct_ops map is being
+ *	    updated to contain new values. This callback is only invoked when
+ *	    the struct_ops map is loaded with BPF_F_LINK. If not defined, the
+ *	    it is assumed that the struct_ops map cannot be updated.
+ * @validate: A callback that is invoked after all of the members have been
+ *	      initialized. This callback should perform static checks on the
+ *	      map, meaning that it should either fail or succeed
+ *	      deterministically. A struct_ops map that has been validated may
+ *	      not necessarily succeed in being registered if the call to @reg
+ *	      fails. For example, a valid struct_ops map may be loaded, but
+ *	      then fail to be registered due to there being another active
+ *	      struct_ops map on the system in the subsystem already. For this
+ *	      reason, if this callback is not defined, the check is skipped as
+ *	      the struct_ops map will have final verification performed in
+ *	      @reg.
+ * @type: BTF type.
+ * @value_type: Value type.
+ * @name: The name of the struct bpf_struct_ops object.
+ * @func_models: Func models
+ * @type_id: BTF type id.
+ * @value_id: BTF value id.
+ */
 struct bpf_struct_ops {
 	const struct bpf_verifier_ops *verifier_ops;
 	int (*init)(struct btf *btf);
