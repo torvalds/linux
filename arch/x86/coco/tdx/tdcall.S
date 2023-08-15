@@ -48,6 +48,8 @@
  * @fn   (RDI)	- TDCALL Leaf ID, moved to RAX
  * @args (RSI)	- struct tdx_module_args for input
  *
+ * Only RCX/RDX/R8-R11 are used as input registers.
+ *
  * Return status of TDCALL via RAX.
  */
 SYM_FUNC_START(__tdcall)
@@ -63,6 +65,8 @@ SYM_FUNC_END(__tdcall)
  *
  * @fn   (RDI)	- TDCALL Leaf ID, moved to RAX
  * @args (RSI)	- struct tdx_module_args for input and output
+ *
+ * Only RCX/RDX/R8-R11 are used as input/output registers.
  *
  * Return status of TDCALL via RAX.
  */
