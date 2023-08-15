@@ -428,15 +428,11 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	 * FOLL_DUMP case, anon memory also checks for FOLL_DUMP with
 	 * the no_page_table() helper in follow_page_mask(), but the
 	 * shmem_vm_ops->fault method is invoked even during
-	 * coredumping without mmap_lock and it ends up here.
+	 * coredumping and it ends up here.
 	 */
 	if (current->flags & (PF_EXITING|PF_DUMPCORE))
 		goto out;
 
-	/*
-	 * Coredumping runs without mmap_lock so we can only check that
-	 * the mmap_lock is held, if PF_DUMPCORE was not set.
-	 */
 	assert_fault_locked(vmf);
 
 	ctx = vma->vm_userfaultfd_ctx.ctx;
