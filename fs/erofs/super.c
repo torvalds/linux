@@ -19,7 +19,6 @@
 #include <trace/events/erofs.h>
 
 static struct kmem_cache *erofs_inode_cachep __read_mostly;
-struct file_system_type erofs_fs_type;
 
 void _erofs_err(struct super_block *sb, const char *func, const char *fmt, ...)
 {
