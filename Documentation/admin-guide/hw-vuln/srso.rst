@@ -42,42 +42,59 @@ The sysfs file showing SRSO mitigation status is:
 
 The possible values in this file are:
 
- - 'Not affected'               The processor is not vulnerable
+ * 'Not affected':
 
- - 'Vulnerable: no microcode'   The processor is vulnerable, no
-                                microcode extending IBPB functionality
-                                to address the vulnerability has been
-                                applied.
+   The processor is not vulnerable
 
- - 'Mitigation: microcode'      Extended IBPB functionality microcode
-                                patch has been applied. It does not
-                                address User->Kernel and Guest->Host
-                                transitions protection but it does
-                                address User->User and VM->VM attack
-                                vectors.
+ * 'Vulnerable: no microcode':
 
-                                (spec_rstack_overflow=microcode)
+   The processor is vulnerable, no microcode extending IBPB
+   functionality to address the vulnerability has been applied.
 
- - 'Mitigation: safe RET'       Software-only mitigation. It complements
-                                the extended IBPB microcode patch
-                                functionality by addressing User->Kernel 
-                                and Guest->Host transitions protection.
+ * 'Mitigation: microcode':
 
-                                Selected by default or by
-                                spec_rstack_overflow=safe-ret
+   Extended IBPB functionality microcode patch has been applied. It does
+   not address User->Kernel and Guest->Host transitions protection but it
+   does address User->User and VM->VM attack vectors.
 
- - 'Mitigation: IBPB'           Similar protection as "safe RET" above
-                                but employs an IBPB barrier on privilege
-                                domain crossings (User->Kernel,
-                                Guest->Host).
+   Note that User->User mitigation is controlled by how the IBPB aspect in
+   the Spectre v2 mitigation is selected:
 
-                                (spec_rstack_overflow=ibpb)
+    * conditional IBPB:
 
- - 'Mitigation: IBPB on VMEXIT' Mitigation addressing the cloud provider
-                                scenario - the Guest->Host transitions
-                                only.
+      where each process can select whether it needs an IBPB issued
+      around it PR_SPEC_DISABLE/_ENABLE etc, see :doc:`spectre`
 
-                                (spec_rstack_overflow=ibpb-vmexit)
+    * strict:
+
+      i.e., always on - by supplying spectre_v2_user=on on the kernel
+      command line
+
+   (spec_rstack_overflow=microcode)
+
+ * 'Mitigation: safe RET':
+
+   Software-only mitigation. It complements the extended IBPB microcode
+   patch functionality by addressing User->Kernel and Guest->Host
+   transitions protection.
+
+   Selected by default or by spec_rstack_overflow=safe-ret
+
+ * 'Mitigation: IBPB':
+
+   Similar protection as "safe RET" above but employs an IBPB barrier on
+   privilege domain crossings (User->Kernel, Guest->Host).
+
+  (spec_rstack_overflow=ibpb)
+
+ * 'Mitigation: IBPB on VMEXIT':
+
+   Mitigation addressing the cloud provider scenario - the Guest->Host
+   transitions only.
+
+   (spec_rstack_overflow=ibpb-vmexit)
+
+
 
 In order to exploit vulnerability, an attacker needs to:
 
