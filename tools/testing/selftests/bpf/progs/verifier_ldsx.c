@@ -4,7 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-#if defined(__TARGET_ARCH_x86) && __clang_major__ >= 18
+#if (defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86)) && __clang_major__ >= 18
 
 SEC("socket")
 __description("LDSX, S8")
