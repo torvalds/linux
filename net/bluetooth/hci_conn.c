@@ -1299,6 +1299,7 @@ static int hci_connect_le_sync(struct hci_dev *hdev, void *data)
 
 	bt_dev_dbg(hdev, "conn %p", conn);
 
+	clear_bit(HCI_CONN_SCANNING, &conn->flags);
 	conn->state = BT_CONNECT;
 
 	return hci_le_create_conn_sync(hdev, conn);
@@ -1369,8 +1370,6 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	conn->dst_type = dst_type;
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->conn_timeout = conn_timeout;
-
-	clear_bit(HCI_CONN_SCANNING, &conn->flags);
 
 	err = hci_cmd_sync_queue(hdev, hci_connect_le_sync,
 				 UINT_PTR(conn->handle),
