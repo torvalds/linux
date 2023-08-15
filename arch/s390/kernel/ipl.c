@@ -501,6 +501,8 @@ static struct attribute_group ipl_ccw_attr_group_lpar = {
 
 static struct attribute *ipl_unknown_attrs[] = {
 	&sys_ipl_type_attr.attr,
+	&sys_ipl_secure_attr.attr,
+	&sys_ipl_has_secure_attr.attr,
 	NULL,
 };
 
