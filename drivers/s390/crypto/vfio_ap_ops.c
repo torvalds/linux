@@ -35,7 +35,7 @@
 static int vfio_ap_mdev_reset_queues(struct ap_queue_table *qtable);
 static struct vfio_ap_queue *vfio_ap_find_queue(int apqn);
 static const struct vfio_device_ops vfio_ap_matrix_dev_ops;
-static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q);
+static void vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q);
 
 /**
  * get_update_locks_for_kvm: Acquire the locks required to dynamically update a
@@ -1623,11 +1623,13 @@ static int apq_status_check(int apqn, struct ap_queue_status *status)
 
 #define WAIT_MSG "Waited %dms for reset of queue %02x.%04x (%u, %u, %u)"
 
-static int apq_reset_check(struct vfio_ap_queue *q)
+static void apq_reset_check(struct work_struct *reset_work)
 {
 	int ret = -EBUSY, elapsed = 0;
 	struct ap_queue_status status;
+	struct vfio_ap_queue *q;
 
+	q = container_of(reset_work, struct vfio_ap_queue, reset_work);
 	memcpy(&status, &q->reset_status, sizeof(status));
 	while (true) {
 		msleep(AP_RESET_INTERVAL);
@@ -1635,7 +1637,7 @@ static int apq_reset_check(struct vfio_ap_queue *q)
 		status = ap_tapq(q->apqn, NULL);
 		ret = apq_status_check(q->apqn, &status);
 		if (ret == -EIO)
-			return ret;
+			return;
 		if (ret == -EBUSY) {
 			pr_notice_ratelimited(WAIT_MSG, elapsed,
 					      AP_QID_CARD(q->apqn),
@@ -1663,34 +1665,32 @@ static int apq_reset_check(struct vfio_ap_queue *q)
 			break;
 		}
 	}
-	return ret;
 }
 
-static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q)
+static void vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q)
 {
 	struct ap_queue_status status;
-	int ret = 0;
 
 	if (!q)
-		return 0;
+		return;
 	status = ap_zapq(q->apqn, 0);
 	memcpy(&q->reset_status, &status, sizeof(status));
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 	case AP_RESPONSE_BUSY:
-		/* Let's verify whether the ZAPQ completed successfully */
-		ret = apq_reset_check(q);
+		/*
+		 * Let's verify whether the ZAPQ completed successfully on a work queue.
+		 */
+		queue_work(system_long_wq, &q->reset_work);
 		break;
 	case AP_RESPONSE_DECONFIGURED:
 		/*
 		 * When an AP adapter is deconfigured, the associated
 		 * queues are reset, so let's set the status response code to 0
-		 * so the queue may be passed through (i.e., not filtered) and
-		 * return a value indicating the reset completed successfully.
+		 * so the queue may be passed through (i.e., not filtered).
 		 */
 		q->reset_status.response_code = 0;
-		ret = 0;
 		vfio_ap_free_aqic_resources(q);
 		break;
 	default:
@@ -1698,29 +1698,25 @@ static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q)
 		     "PQAP/ZAPQ for %02x.%04x failed with invalid rc=%u\n",
 		     AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn),
 		     status.response_code);
-		return -EIO;
 	}
-
-	return ret;
 }
 
 static int vfio_ap_mdev_reset_queues(struct ap_queue_table *qtable)
 {
-	int ret, loop_cursor, rc = 0;
+	int ret = 0, loop_cursor;
 	struct vfio_ap_queue *q;
 
+	hash_for_each(qtable->queues, loop_cursor, q, mdev_qnode)
+		vfio_ap_mdev_reset_queue(q);
+
 	hash_for_each(qtable->queues, loop_cursor, q, mdev_qnode) {
-		ret = vfio_ap_mdev_reset_queue(q);
-		/*
-		 * Regardless whether a queue turns out to be busy, or
-		 * is not operational, we need to continue resetting
-		 * the remaining queues.
-		 */
-		if (ret)
-			rc = ret;
+		flush_work(&q->reset_work);
+
+		if (q->reset_status.response_code)
+			ret = -EIO;
 	}
 
-	return rc;
+	return ret;
 }
 
 static int vfio_ap_mdev_open_device(struct vfio_device *vdev)
@@ -2045,6 +2041,7 @@ int vfio_ap_mdev_probe_queue(struct ap_device *apdev)
 	q->apqn = to_ap_queue(&apdev->device)->qid;
 	q->saved_isc = VFIO_AP_ISC_INVALID;
 	memset(&q->reset_status, 0, sizeof(q->reset_status));
+	INIT_WORK(&q->reset_work, apq_reset_check);
 	matrix_mdev = get_update_locks_by_apqn(q->apqn);
 
 	if (matrix_mdev) {
@@ -2094,6 +2091,7 @@ void vfio_ap_mdev_remove_queue(struct ap_device *apdev)
 	}
 
 	vfio_ap_mdev_reset_queue(q);
+	flush_work(&q->reset_work);
 	dev_set_drvdata(&apdev->device, NULL);
 	kfree(q);
 	release_update_locks_for_mdev(matrix_mdev);
