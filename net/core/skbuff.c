@@ -4795,12 +4795,23 @@ static void skb_extensions_init(void)
 static void skb_extensions_init(void) {}
 #endif
 
+/* The SKB kmem_cache slab is critical for network performance.  Never
+ * merge/alias the slab with similar sized objects.  This avoids fragmentation
+ * that hurts performance of kmem_cache_{alloc,free}_bulk APIs.
+ */
+#ifndef CONFIG_SLUB_TINY
+#define FLAG_SKB_NO_MERGE	SLAB_NO_MERGE
+#else /* CONFIG_SLUB_TINY - simple loop in kmem_cache_alloc_bulk */
+#define FLAG_SKB_NO_MERGE	0
+#endif
+
 void __init skb_init(void)
 {
 	skbuff_cache = kmem_cache_create_usercopy("skbuff_head_cache",
 					      sizeof(struct sk_buff),
 					      0,
-					      SLAB_HWCACHE_ALIGN|SLAB_PANIC,
+					      SLAB_HWCACHE_ALIGN|SLAB_PANIC|
+						FLAG_SKB_NO_MERGE,
 					      offsetof(struct sk_buff, cb),
 					      sizeof_field(struct sk_buff, cb),
 					      NULL);
