@@ -4614,7 +4614,7 @@ static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 
 	if (cpu_has_vmx_xsaves())
 		vmx_adjust_secondary_exec_control(vmx, &exec_control,
-						  SECONDARY_EXEC_XSAVES,
+						  SECONDARY_EXEC_ENABLE_XSAVES,
 						  vcpu->arch.xsaves_enabled, false);
 
 	/*
