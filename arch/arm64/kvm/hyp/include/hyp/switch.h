@@ -70,20 +70,19 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 	}
 }
 
-static inline bool __hfgxtr_traps_required(void)
+
+
+static inline void __activate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 {
-	if (cpus_have_final_cap(ARM64_SME))
-		return true;
-
-	if (cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38))
-		return true;
-
-	return false;
-}
-
-static inline void __activate_traps_hfgxtr(void)
-{
+	struct kvm_cpu_context *hctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
 	u64 r_clr = 0, w_clr = 0, r_set = 0, w_set = 0, tmp;
+	u64 r_val, w_val;
+
+	if (!cpus_have_final_cap(ARM64_HAS_FGT))
+		return;
+
+	ctxt_sys_reg(hctxt, HFGRTR_EL2) = read_sysreg_s(SYS_HFGRTR_EL2);
+	ctxt_sys_reg(hctxt, HFGWTR_EL2) = read_sysreg_s(SYS_HFGWTR_EL2);
 
 	if (cpus_have_final_cap(ARM64_SME)) {
 		tmp = HFGxTR_EL2_nSMPRI_EL1_MASK | HFGxTR_EL2_nTPIDR2_EL0_MASK;
@@ -98,26 +97,31 @@ static inline void __activate_traps_hfgxtr(void)
 	if (cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38))
 		w_set |= HFGxTR_EL2_TCR_EL1_MASK;
 
-	sysreg_clear_set_s(SYS_HFGRTR_EL2, r_clr, r_set);
-	sysreg_clear_set_s(SYS_HFGWTR_EL2, w_clr, w_set);
+
+	/* The default is not to trap anything but ACCDATA_EL1 */
+	r_val = __HFGRTR_EL2_nMASK & ~HFGxTR_EL2_nACCDATA_EL1;
+	r_val |= r_set;
+	r_val &= ~r_clr;
+
+	w_val = __HFGWTR_EL2_nMASK & ~HFGxTR_EL2_nACCDATA_EL1;
+	w_val |= w_set;
+	w_val &= ~w_clr;
+
+	write_sysreg_s(r_val, SYS_HFGRTR_EL2);
+	write_sysreg_s(w_val, SYS_HFGWTR_EL2);
 }
 
-static inline void __deactivate_traps_hfgxtr(void)
+static inline void __deactivate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 {
-	u64 r_clr = 0, w_clr = 0, r_set = 0, w_set = 0, tmp;
+	struct kvm_cpu_context *hctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
 
-	if (cpus_have_final_cap(ARM64_SME)) {
-		tmp = HFGxTR_EL2_nSMPRI_EL1_MASK | HFGxTR_EL2_nTPIDR2_EL0_MASK;
+	if (!cpus_have_final_cap(ARM64_HAS_FGT))
+		return;
 
-		r_set |= tmp;
-		w_set |= tmp;
-	}
+	write_sysreg_s(ctxt_sys_reg(hctxt, HFGRTR_EL2), SYS_HFGRTR_EL2);
+	write_sysreg_s(ctxt_sys_reg(hctxt, HFGWTR_EL2), SYS_HFGWTR_EL2);
 
-	if (cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38))
-		w_clr |= HFGxTR_EL2_TCR_EL1_MASK;
 
-	sysreg_clear_set_s(SYS_HFGRTR_EL2, r_clr, r_set);
-	sysreg_clear_set_s(SYS_HFGWTR_EL2, w_clr, w_set);
 }
 
 static inline void __activate_traps_common(struct kvm_vcpu *vcpu)
@@ -145,8 +149,7 @@ static inline void __activate_traps_common(struct kvm_vcpu *vcpu)
 	vcpu->arch.mdcr_el2_host = read_sysreg(mdcr_el2);
 	write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
 
-	if (__hfgxtr_traps_required())
-		__activate_traps_hfgxtr();
+	__activate_traps_hfgxtr(vcpu);
 }
 
 static inline void __deactivate_traps_common(struct kvm_vcpu *vcpu)
@@ -162,8 +165,7 @@ static inline void __deactivate_traps_common(struct kvm_vcpu *vcpu)
 		vcpu_clear_flag(vcpu, PMUSERENR_ON_CPU);
 	}
 
-	if (__hfgxtr_traps_required())
-		__deactivate_traps_hfgxtr();
+	__deactivate_traps_hfgxtr(vcpu);
 }
 
 static inline void ___activate_traps(struct kvm_vcpu *vcpu)
