@@ -370,7 +370,7 @@ struct cpufreq_driver {
 	int		(*target_intermediate)(struct cpufreq_policy *policy,
 					       unsigned int index);
 
-	/* should be defined, if possible */
+	/* should be defined, if possible, return 0 on error */
 	unsigned int	(*get)(unsigned int cpu);
 
 	/* Called to update policy limits on firmware notifications. */
