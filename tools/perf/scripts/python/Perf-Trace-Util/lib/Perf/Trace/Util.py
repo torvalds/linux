@@ -54,6 +54,7 @@ try:
 	import audit
 	machine_to_id = {
 		'x86_64': audit.MACH_86_64,
+		'aarch64': audit.MACH_AARCH64,
 		'alpha'	: audit.MACH_ALPHA,
 		'ia64'	: audit.MACH_IA64,
 		'ppc'	: audit.MACH_PPC,
