@@ -137,7 +137,8 @@ struct resource_pool *dcn35_create_resource_pool(
 	SRI_ARR(DIG_FE_EN_CNTL, DIG, id), \
 	SRI_ARR(DIG_FE_CLK_CNTL, DIG, id), \
 	SRI_ARR(DIG_CLOCK_PATTERN, DIG, id), \
-	SRI_ARR(DIG_FIFO_CTRL0, DIG, id)
+	SRI_ARR(DIG_FIFO_CTRL0, DIG, id), \
+	SRI_ARR(STREAM_MAPPER_CONTROL, DIG, id)
 
 #define LE_DCN35_REG_LIST_RI(id)\
 	LE_DCN3_REG_LIST_RI(id),\
