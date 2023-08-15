@@ -58,8 +58,6 @@
 
 #define cpu_has_rixi		(cpu_data[0].cputype != CPU_CAVIUM_OCTEON)
 
-#define ARCH_HAS_SPINLOCK_PREFETCH 1
-#define spin_lock_prefetch(x) prefetch(x)
 #define PREFETCH_STRIDE 128
 
 #ifdef __OCTEON__
