@@ -218,7 +218,7 @@ static int kmemleak_enabled = 1;
 /* same as above but only for the kmemleak_free() callback */
 static int kmemleak_free_enabled = 1;
 /* set in the late_initcall if there were no errors */
-static int kmemleak_initialized;
+static int kmemleak_late_initialized;
 /* set if a kmemleak warning was issued */
 static int kmemleak_warning;
 /* set if a fatal kmemleak error has occurred */
@@ -2057,7 +2057,7 @@ static void kmemleak_disable(void)
 	kmemleak_enabled = 0;
 
 	/* check whether it is too early for a kernel thread */
-	if (kmemleak_initialized)
+	if (kmemleak_late_initialized)
 		schedule_work(&cleanup_work);
 	else
 		kmemleak_free_enabled = 0;
@@ -2122,7 +2122,7 @@ void __init kmemleak_init(void)
  */
 static int __init kmemleak_late_init(void)
 {
-	kmemleak_initialized = 1;
+	kmemleak_late_initialized = 1;
 
 	debugfs_create_file("kmemleak", 0644, NULL, NULL, &kmemleak_fops);
 
@@ -2130,7 +2130,7 @@ static int __init kmemleak_late_init(void)
 		/*
 		 * Some error occurred and kmemleak was disabled. There is a
 		 * small chance that kmemleak_disable() was called immediately
-		 * after setting kmemleak_initialized and we may end up with
+		 * after setting kmemleak_late_initialized and we may end up with
 		 * two clean-up threads but serialized by scan_mutex.
 		 */
 		schedule_work(&cleanup_work);
