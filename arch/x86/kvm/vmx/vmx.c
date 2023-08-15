@@ -3047,13 +3047,6 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 
 	vmx->rmode.vm86_active = 1;
 
-	/*
-	 * Very old userspace does not call KVM_SET_TSS_ADDR before entering
-	 * vcpu. Warn the user that an update is overdue.
-	 */
-	if (!kvm_vmx->tss_addr)
-		pr_warn_once("KVM_SET_TSS_ADDR needs to be called before running vCPU\n");
-
 	vmx_segment_cache_clear(vmx);
 
 	vmcs_writel(GUEST_TR_BASE, kvm_vmx->tss_addr);
