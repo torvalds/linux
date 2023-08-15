@@ -1326,7 +1326,7 @@ static void prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
 
 	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
 	if (!tmf) {
-		buf_cmd[9] = ssp_task->task_attr | (ssp_task->task_prio << 3);
+		buf_cmd[9] = ssp_task->task_attr;
 		memcpy(buf_cmd + 12, scsi_cmnd->cmnd, scsi_cmnd->cmd_len);
 	} else {
 		buf_cmd[10] = tmf->tmf;

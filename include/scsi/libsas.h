@@ -565,7 +565,6 @@ enum task_attribute {
 struct sas_ssp_task {
 	u8     LUN[8];
 	enum   task_attribute task_attr;
-	u8     task_prio;
 	struct scsi_cmnd *cmd;
 };
 
