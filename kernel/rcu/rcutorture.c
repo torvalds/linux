@@ -21,6 +21,7 @@
 #include <linux/spinlock.h>
 #include <linux/smp.h>
 #include <linux/rcupdate_wait.h>
+#include <linux/rcu_notifier.h>
 #include <linux/interrupt.h>
 #include <linux/sched/signal.h>
 #include <uapi/linux/sched/types.h>
@@ -2428,6 +2429,16 @@ static int rcutorture_booster_init(unsigned int cpu)
 	return 0;
 }
 
+static int rcu_torture_stall_nf(struct notifier_block *nb, unsigned long v, void *ptr)
+{
+	pr_info("%s: v=%lu, duration=%lu.\n", __func__, v, (unsigned long)ptr);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rcu_torture_stall_block = {
+	.notifier_call = rcu_torture_stall_nf,
+};
+
 /*
  * CPU-stall kthread.  It waits as specified by stall_cpu_holdoff, then
  * induces a CPU stall for the time specified by stall_cpu.
@@ -2435,9 +2446,14 @@ static int rcutorture_booster_init(unsigned int cpu)
 static int rcu_torture_stall(void *args)
 {
 	int idx;
+	int ret;
 	unsigned long stop_at;
 
 	VERBOSE_TOROUT_STRING("rcu_torture_stall task started");
+	ret = rcu_stall_chain_notifier_register(&rcu_torture_stall_block);
+	if (ret)
+		pr_info("%s: rcu_stall_chain_notifier_register() returned %d, %sexpected.\n",
+			__func__, ret, !IS_ENABLED(CONFIG_RCU_STALL_COMMON) ? "un" : "");
 	if (stall_cpu_holdoff > 0) {
 		VERBOSE_TOROUT_STRING("rcu_torture_stall begin holdoff");
 		schedule_timeout_interruptible(stall_cpu_holdoff * HZ);
@@ -2481,6 +2497,11 @@ static int rcu_torture_stall(void *args)
 		cur_ops->readunlock(idx);
 	}
 	pr_alert("%s end.\n", __func__);
+	if (!ret) {
+		ret = rcu_stall_chain_notifier_unregister(&rcu_torture_stall_block);
+		if (ret)
+			pr_info("%s: rcu_stall_chain_notifier_unregister() returned %d.\n", __func__, ret);
+	}
 	torture_shutdown_absorb("rcu_torture_stall");
 	while (!kthread_should_stop())
 		schedule_timeout_interruptible(10 * HZ);
