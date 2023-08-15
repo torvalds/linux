@@ -105,6 +105,11 @@ struct netem_sched_data {
 		u32 rho;
 	} delay_cor, loss_cor, dup_cor, reorder_cor, corrupt_cor;
 
+	struct prng  {
+		u64 seed;
+		struct rnd_state prng_state;
+	} prng;
+
 	struct disttable *delay_dist;
 
 	enum  {
@@ -922,6 +927,7 @@ static const struct nla_policy netem_policy[TCA_NETEM_MAX + 1] = {
 	[TCA_NETEM_LATENCY64]	= { .type = NLA_S64 },
 	[TCA_NETEM_JITTER64]	= { .type = NLA_S64 },
 	[TCA_NETEM_SLOT]	= { .len = sizeof(struct tc_netem_slot) },
+	[TCA_NETEM_PRNG_SEED]	= { .type = NLA_U64 },
 };
 
 static int parse_attr(struct nlattr *tb[], int maxtype, struct nlattr *nla,
@@ -1039,6 +1045,12 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt,
 
 	/* capping jitter to the range acceptable by tabledist() */
 	q->jitter = min_t(s64, abs(q->jitter), INT_MAX);
+
+	if (tb[TCA_NETEM_PRNG_SEED])
+		q->prng.seed = nla_get_u64(tb[TCA_NETEM_PRNG_SEED]);
+	else
+		q->prng.seed = get_random_u64();
+	prandom_seed_state(&q->prng.prng_state, q->prng.seed);
 
 unlock:
 	sch_tree_unlock(sch);
@@ -1202,6 +1214,10 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 		if (nla_put(skb, TCA_NETEM_SLOT, sizeof(slot), &slot))
 			goto nla_put_failure;
 	}
+
+	if (nla_put_u64_64bit(skb, TCA_NETEM_PRNG_SEED, q->prng.seed,
+			      TCA_NETEM_PAD))
+		goto nla_put_failure;
 
 	return nla_nest_end(skb, nla);
 
