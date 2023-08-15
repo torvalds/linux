@@ -2827,9 +2827,6 @@ u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *n
 {
 	struct tep_format_field *field = evsel__field(evsel, name);
 
-	if (!field)
-		return 0;
-
 	return field ? format_field__intval(field, sample, evsel->needs_swap) : 0;
 }
 #endif
