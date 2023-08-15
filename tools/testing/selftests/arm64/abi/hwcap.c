@@ -68,6 +68,12 @@ static void ilrcpc_sigill(void)
 	asm volatile(".inst 0x994083e0" : : : );
 }
 
+static void jscvt_sigill(void)
+{
+	/* FJCVTZS W0, D0 */
+	asm volatile(".inst 0x1e7e0000" : : : );
+}
+
 static void lrcpc_sigill(void)
 {
 	/* LDAPR W0, [SP, #0] */
@@ -312,6 +318,13 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP_FP,
 		.cpuinfo = "fp",
 		.sigill_fn = fp_sigill,
+	},
+	{
+		.name = "JSCVT",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_JSCVT,
+		.cpuinfo = "jscvt",
+		.sigill_fn = jscvt_sigill,
 	},
 	{
 		.name = "LRCPC",
