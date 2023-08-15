@@ -14658,7 +14658,7 @@ F:	drivers/rtc/rtc-ntxec.c
 F:	include/linux/mfd/ntxec.h
 
 NETRONOME ETHERNET DRIVERS
-M:	Simon Horman <simon.horman@corigine.com>
+M:	Louis Peens <louis.peens@corigine.com>
 R:	Jakub Kicinski <kuba@kernel.org>
 L:	oss-drivers@corigine.com
 S:	Maintained
