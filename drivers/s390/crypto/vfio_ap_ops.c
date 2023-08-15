@@ -1608,19 +1608,10 @@ static int apq_status_check(int apqn, struct ap_queue_status *status)
 {
 	switch (status->response_code) {
 	case AP_RESPONSE_NORMAL:
-	case AP_RESPONSE_RESET_IN_PROGRESS:
-		if (status->queue_empty && !status->irq_enabled)
-			return 0;
-		return -EBUSY;
 	case AP_RESPONSE_DECONFIGURED:
-		/*
-		 * If the AP queue is deconfigured, any subsequent AP command
-		 * targeting the queue will fail with the same response code. On the
-		 * other hand, when an AP adapter is deconfigured, the associated
-		 * queues are reset, so let's return a value indicating the reset
-		 * for which we're waiting completed successfully.
-		 */
 		return 0;
+	case AP_RESPONSE_RESET_IN_PROGRESS:
+		return -EBUSY;
 	default:
 		WARN(true,
 		     "failed to verify reset of queue %02x.%04x: TAPQ rc=%u\n",
