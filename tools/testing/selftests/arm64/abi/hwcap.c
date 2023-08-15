@@ -87,6 +87,24 @@ static void rng_sigill(void)
 	asm volatile("mrs x0, S3_3_C2_C4_0" : : : "x0");
 }
 
+static void sha1_sigill(void)
+{
+	/* SHA1H S0, S0 */
+	asm volatile(".inst 0x5e280800" : : : );
+}
+
+static void sha2_sigill(void)
+{
+	/* SHA256H Q0, Q0, V0.4S */
+	asm volatile(".inst 0x5e004000" : : : );
+}
+
+static void sha512_sigill(void)
+{
+	/* SHA512H Q0, Q0, V0.2D */
+	asm volatile(".inst 0xce608000" : : : );
+}
+
 static void sme_sigill(void)
 {
 	/* RDSVL x0, #0 */
@@ -326,6 +344,27 @@ static const struct hwcap_data {
 		.at_hwcap = AT_HWCAP2,
 		.hwcap_bit = HWCAP2_RPRFM,
 		.cpuinfo = "rprfm",
+	},
+	{
+		.name = "SHA1",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_SHA1,
+		.cpuinfo = "sha1",
+		.sigill_fn = sha1_sigill,
+	},
+	{
+		.name = "SHA2",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_SHA2,
+		.cpuinfo = "sha2",
+		.sigill_fn = sha2_sigill,
+	},
+	{
+		.name = "SHA512",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_SHA512,
+		.cpuinfo = "sha512",
+		.sigill_fn = sha512_sigill,
 	},
 	{
 		.name = "SME",
