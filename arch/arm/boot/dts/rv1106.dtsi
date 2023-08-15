@@ -1423,6 +1423,7 @@
 			snps,dis-tx-ipgap-linecheck-quirk;
 			snps,usb2-gadget-lpm-disable;
 			snps,usb2-lpm-disable;
+			snps,parkmode-disable-hs-quirk;
 			status = "disabled";
 		};
 	};

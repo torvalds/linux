@@ -2556,6 +2556,7 @@
 			snps,tx-fifo-resize;
 			snps,xhci-trb-ent-quirk;
 			snps,usb2-lpm-disable;
+			snps,parkmode-disable-hs-quirk;
 			status = "disabled";
 		};
 	};
