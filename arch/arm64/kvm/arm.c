@@ -36,6 +36,7 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmu.h>
+#include <asm/kvm_nested.h>
 #include <asm/kvm_pkvm.h>
 #include <asm/kvm_emulate.h>
 #include <asm/sections.h>
@@ -817,6 +818,9 @@ static bool vcpu_mode_is_bad_32bit(struct kvm_vcpu *vcpu)
 {
 	if (likely(!vcpu_mode_is_32bit(vcpu)))
 		return false;
+
+	if (vcpu_has_nv(vcpu))
+		return true;
 
 	return !kvm_supports_32bit_el0();
 }
