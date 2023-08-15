@@ -293,8 +293,7 @@ static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 				ret = -ENOMEM;
 			} else {
 				*context = port_gid_table->gids[free].ctx;
-				memcpy(&port_gid_table->gids[free].gid,
-				       &attr->gid, sizeof(attr->gid));
+				port_gid_table->gids[free].gid = attr->gid;
 				port_gid_table->gids[free].gid_type = attr->gid_type;
 				port_gid_table->gids[free].vlan_id = vlan_id;
 				port_gid_table->gids[free].ctx->real_index = free;
