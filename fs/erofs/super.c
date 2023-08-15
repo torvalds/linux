@@ -941,9 +941,9 @@ static int __init erofs_module_init(void)
 	erofs_check_ondisk_layout_definitions();
 
 	erofs_inode_cachep = kmem_cache_create("erofs_inode",
-					       sizeof(struct erofs_inode), 0,
-					       SLAB_RECLAIM_ACCOUNT,
-					       erofs_inode_init_once);
+			sizeof(struct erofs_inode), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD | SLAB_ACCOUNT,
+			erofs_inode_init_once);
 	if (!erofs_inode_cachep)
 		return -ENOMEM;
 
