@@ -656,7 +656,7 @@ static void cs35l56_secure_patch(struct cs35l56_private *cs35l56)
 	int ret;
 
 	/* Use wm_adsp to load and apply the firmware patch and coefficient files */
-	ret = wm_adsp_power_up(&cs35l56->dsp);
+	ret = wm_adsp_power_up(&cs35l56->dsp, true);
 	if (ret)
 		dev_dbg(cs35l56->base.dev, "%s: wm_adsp_power_up ret %d\n", __func__, ret);
 	else
@@ -686,7 +686,7 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56)
 		goto err;
 
 	/* Use wm_adsp to load and apply the firmware patch and coefficient files */
-	ret = wm_adsp_power_up(&cs35l56->dsp);
+	ret = wm_adsp_power_up(&cs35l56->dsp, true);
 	if (ret) {
 		dev_dbg(cs35l56->base.dev, "%s: wm_adsp_power_up ret %d\n", __func__, ret);
 		goto err;
