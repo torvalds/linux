@@ -10,10 +10,10 @@ bool ovl_is_private_xattr(struct super_block *sb, const char *name)
 
 	if (ofs->config.userxattr)
 		return strncmp(name, OVL_XATTR_USER_PREFIX,
-			       sizeof(OVL_XATTR_USER_PREFIX) - 1) == 0;
+			       OVL_XATTR_USER_PREFIX_LEN) == 0;
 	else
 		return strncmp(name, OVL_XATTR_TRUSTED_PREFIX,
-			       sizeof(OVL_XATTR_TRUSTED_PREFIX) - 1) == 0;
+			       OVL_XATTR_TRUSTED_PREFIX_LEN) == 0;
 }
 
 static int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
