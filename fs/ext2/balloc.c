@@ -1244,15 +1244,15 @@ ext2_fsblk_t ext2_new_blocks(struct inode *inode, ext2_fsblk_t goal,
 	es = EXT2_SB(sb)->s_es;
 	ext2_debug("goal=%lu.\n", goal);
 	/*
-	 * Allocate a block from reservation only when
-	 * filesystem is mounted with reservation(default,-o reservation), and
-	 * it's a regular file, and
-	 * the desired window size is greater than 0 (One could use ioctl
-	 * command EXT2_IOC_SETRSVSZ to set the window size to 0 to turn off
-	 * reservation on that particular file)
+	 * Allocate a block from reservation only when the filesystem is
+	 * mounted with reservation(default,-o reservation), and it's a regular
+	 * file, and the desired window size is greater than 0 (One could use
+	 * ioctl command EXT2_IOC_SETRSVSZ to set the window size to 0 to turn
+	 * off reservation on that particular file). Also do not use the
+	 * reservation window if the caller asked us not to do it.
 	 */
 	block_i = EXT2_I(inode)->i_block_alloc_info;
-	if (block_i) {
+	if (!(flags & EXT2_ALLOC_NORESERVE) && block_i) {
 		windowsz = block_i->rsv_window_node.rsv_goal_size;
 		if (windowsz > 0)
 			my_rsv = &block_i->rsv_window_node;
