@@ -285,7 +285,8 @@ static int kvm_s390_pv_deinit_vm_fast(struct kvm *kvm, u16 *rc, u16 *rrc)
 	WRITE_ONCE(kvm->arch.gmap->guest_handle, 0);
 	KVM_UV_EVENT(kvm, 3, "PROTVIRT DESTROY VM FAST: rc %x rrc %x",
 		     uvcb.header.rc, uvcb.header.rrc);
-	WARN_ONCE(cc, "protvirt destroy vm fast failed handle %llx rc %x rrc %x",
+	WARN_ONCE(cc && uvcb.header.rc != 0x104,
+		  "protvirt destroy vm fast failed handle %llx rc %x rrc %x",
 		  kvm_s390_pv_get_handle(kvm), uvcb.header.rc, uvcb.header.rrc);
 	/* Intended memory leak on "impossible" error */
 	if (!cc)
