@@ -2,40 +2,11 @@
 #include <asm/asm-offsets.h>
 #include <asm/asm.h>
 #include <asm/frame.h>
-#include <asm/unwind_hints.h>
 
 #include <linux/linkage.h>
-#include <linux/bits.h>
 #include <linux/errno.h>
 
 #include "../../virt/vmx/tdx/tdxcall.S"
-
-/*
- * Bitmasks of exposed registers (with VMM).
- */
-#define TDX_RDX		BIT(2)
-#define TDX_RBX		BIT(3)
-#define TDX_RSI		BIT(6)
-#define TDX_RDI		BIT(7)
-#define TDX_R8		BIT(8)
-#define TDX_R9		BIT(9)
-#define TDX_R10		BIT(10)
-#define TDX_R11		BIT(11)
-#define TDX_R12		BIT(12)
-#define TDX_R13		BIT(13)
-#define TDX_R14		BIT(14)
-#define TDX_R15		BIT(15)
-
-/*
- * These registers are clobbered to hold arguments for each
- * TDVMCALL. They are safe to expose to the VMM.
- * Each bit in this mask represents a register ID. Bit field
- * details can be found in TDX GHCI specification, section
- * titled "TDCALL [TDG.VP.VMCALL] leaf".
- */
-#define TDVMCALL_EXPOSE_REGS_MASK	\
-	( TDX_RDX | TDX_RBX | TDX_RSI | TDX_RDI | TDX_R8  | TDX_R9  | \
-	  TDX_R10 | TDX_R11 | TDX_R12 | TDX_R13 | TDX_R14 | TDX_R15 )
 
 .section .noinstr.text, "ax"
 
@@ -78,9 +49,12 @@ SYM_FUNC_END(__tdcall_ret)
  * TDX_HYPERCALL - Make hypercalls to a TDX VMM using TDVMCALL leaf of TDCALL
  * instruction
  *
- * Transforms values in  function call argument struct tdx_hypercall_args @args
+ * Transforms values in  function call argument struct tdx_module_args @args
  * into the TDCALL register ABI. After TDCALL operation, VMM output is saved
  * back in @args, if \ret is 1.
+ *
+ * Depends on the caller to pass TDG.VP.VMCALL as the TDCALL leaf, and set
+ * @args::rcx to TDVMCALL_EXPOSE_REGS_MASK.
  *
  *-------------------------------------------------------------------------
  * TD VMCALL ABI:
@@ -106,7 +80,7 @@ SYM_FUNC_END(__tdcall_ret)
  * R8-R15              - Same as above.
  *
  */
-.macro TDX_HYPERCALL ret:req
+.macro TDX_HYPERCALL
 	FRAME_BEGIN
 
 	/* Save callee-saved GPRs as mandated by the x86_64 ABI */
@@ -116,63 +90,52 @@ SYM_FUNC_END(__tdcall_ret)
 	push %r12
 	push %rbx
 
-	/* Free RDI to be used as TDVMCALL arguments */
+	/* Move Leaf ID to RAX */
 	movq %rdi, %rax
 
+	/* Move bitmap of shared registers to RCX */
+	movq TDX_MODULE_rcx(%rsi), %rcx
+
 	/* Copy hypercall registers from arg struct: */
-	movq TDX_HYPERCALL_r8(%rax),  %r8
-	movq TDX_HYPERCALL_r9(%rax),  %r9
-	movq TDX_HYPERCALL_r10(%rax), %r10
-	movq TDX_HYPERCALL_r11(%rax), %r11
-	movq TDX_HYPERCALL_r12(%rax), %r12
-	movq TDX_HYPERCALL_r13(%rax), %r13
-	movq TDX_HYPERCALL_r14(%rax), %r14
-	movq TDX_HYPERCALL_r15(%rax), %r15
-	movq TDX_HYPERCALL_rdi(%rax), %rdi
-	movq TDX_HYPERCALL_rsi(%rax), %rsi
-	movq TDX_HYPERCALL_rbx(%rax), %rbx
-	movq TDX_HYPERCALL_rdx(%rax), %rdx
+	movq TDX_MODULE_r8(%rsi),  %r8
+	movq TDX_MODULE_r9(%rsi),  %r9
+	movq TDX_MODULE_r10(%rsi), %r10
+	movq TDX_MODULE_r11(%rsi), %r11
+	movq TDX_MODULE_r12(%rsi), %r12
+	movq TDX_MODULE_r13(%rsi), %r13
+	movq TDX_MODULE_r14(%rsi), %r14
+	movq TDX_MODULE_r15(%rsi), %r15
+	movq TDX_MODULE_rdi(%rsi), %rdi
+	movq TDX_MODULE_rbx(%rsi), %rbx
+	movq TDX_MODULE_rdx(%rsi), %rdx
 
-	push %rax
-
-	/* Mangle function call ABI into TDCALL ABI: */
-	/* Set TDCALL leaf ID (TDVMCALL (0)) in RAX */
-	xor %eax, %eax
-
-	movl $TDVMCALL_EXPOSE_REGS_MASK, %ecx
+	pushq %rsi
+	movq TDX_MODULE_rsi(%rsi), %rsi
 
 	tdcall
 
 	/*
-	 * RAX!=0 indicates a failure of the TDVMCALL mechanism itself and that
-	 * something has gone horribly wrong with the TDX module.
+	 * Restore the pointer of the structure to save output registers.
 	 *
-	 * The return status of the hypercall operation is in a separate
-	 * register (in R10). Hypercall errors are a part of normal operation
-	 * and are handled by callers.
+	 * RCX is used as bitmap of shared registers and doesn't hold any
+	 * value provided by the VMM, thus it can be used as spare to
+	 * restore the structure pointer.
 	 */
-	testq %rax, %rax
-	jne .Lpanic\@
+	popq %rcx
+	movq %rsi, TDX_MODULE_rsi(%rcx)
+	movq %rcx, %rsi
 
-	pop %rax
-
-	.if \ret
-	movq %r8,  TDX_HYPERCALL_r8(%rax)
-	movq %r9,  TDX_HYPERCALL_r9(%rax)
-	movq %r10, TDX_HYPERCALL_r10(%rax)
-	movq %r11, TDX_HYPERCALL_r11(%rax)
-	movq %r12, TDX_HYPERCALL_r12(%rax)
-	movq %r13, TDX_HYPERCALL_r13(%rax)
-	movq %r14, TDX_HYPERCALL_r14(%rax)
-	movq %r15, TDX_HYPERCALL_r15(%rax)
-	movq %rdi, TDX_HYPERCALL_rdi(%rax)
-	movq %rsi, TDX_HYPERCALL_rsi(%rax)
-	movq %rbx, TDX_HYPERCALL_rbx(%rax)
-	movq %rdx, TDX_HYPERCALL_rdx(%rax)
-	.endif
-
-	/* TDVMCALL leaf return code is in R10 */
-	movq %r10, %rax
+	movq %r8,  TDX_MODULE_r8(%rsi)
+	movq %r9,  TDX_MODULE_r9(%rsi)
+	movq %r10, TDX_MODULE_r10(%rsi)
+	movq %r11, TDX_MODULE_r11(%rsi)
+	movq %r12, TDX_MODULE_r12(%rsi)
+	movq %r13, TDX_MODULE_r13(%rsi)
+	movq %r14, TDX_MODULE_r14(%rsi)
+	movq %r15, TDX_MODULE_r15(%rsi)
+	movq %rdi, TDX_MODULE_rdi(%rsi)
+	movq %rbx, TDX_MODULE_rbx(%rsi)
+	movq %rdx, TDX_MODULE_rdx(%rsi)
 
 	/*
 	 * Zero out registers exposed to the VMM to avoid speculative execution
@@ -198,33 +161,20 @@ SYM_FUNC_END(__tdcall_ret)
 	FRAME_END
 
 	RET
-.Lpanic\@:
-	call __tdx_hypercall_failed
-	/* __tdx_hypercall_failed never returns */
-	REACHABLE
-	jmp .Lpanic\@
 .endm
 
 /*
  *
- * __tdx_hypercall() function ABI:
+ * __tdcall_hypercall() function ABI:
  *
- * @args  (RDI)        - struct tdx_hypercall_args for input
+ * @fn   (RDI)	- TDCALL leaf ID, moved to RAX
+ * @args (RSI)	- struct tdx_module_args for input/output
  *
- * On successful completion, return the hypercall error code.
- */
-SYM_FUNC_START(__tdx_hypercall)
-	TDX_HYPERCALL ret=0
-SYM_FUNC_END(__tdx_hypercall)
-
-/*
- *
- * __tdx_hypercall_ret() function ABI:
- *
- * @args  (RDI)        - struct tdx_hypercall_args for input and output
+ * @fn and @args::rcx from the caller must be TDG_VP_VMCALL and
+ * TDVMCALL_EXPOSE_REGS_MASK respectively.
  *
  * On successful completion, return the hypercall error code.
  */
-SYM_FUNC_START(__tdx_hypercall_ret)
-	TDX_HYPERCALL ret=1
-SYM_FUNC_END(__tdx_hypercall_ret)
+SYM_FUNC_START(__tdcall_hypercall)
+	TDX_HYPERCALL
+SYM_FUNC_END(__tdcall_hypercall)

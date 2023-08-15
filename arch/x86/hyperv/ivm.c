@@ -404,7 +404,7 @@ static void hv_tdx_msr_read(u64 msr, u64 *val)
 		.r12 = msr,
 	};
 
-	u64 ret = __tdx_hypercall_ret(&args);
+	u64 ret = __tdx_hypercall(&args);
 
 	if (WARN_ONCE(ret, "Failed to emulate MSR read: %lld\n", ret))
 		*val = 0;
@@ -420,7 +420,7 @@ u64 hv_tdx_hypercall(u64 control, u64 param1, u64 param2)
 	args.rdx = param1;
 	args.r8  = param2;
 
-	(void)__tdx_hypercall_ret(&args);
+	(void)__tdx_hypercall(&args);
 
 	return args.r11;
 }
