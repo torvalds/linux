@@ -4,22 +4,22 @@
 
 #include <linux/slab.h>
 
-#include "fp_printk.h"
+#include <linux/int_to_fp_str.h>
 
-#define OURMODNAME "fp_printk"
+#define OURMODNAME "int_to_fp_str"
 
 MODULE_AUTHOR("Guilherme Giacomo Simoes <trintaeoitogc@gmail.com>");
 MODULE_DESCRIPTION("This lib will convert int to string float");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.1.1-BETA");
+MODULE_VERSION("1.2.0-BETA");
 
-char *fp_printk(int number, int decimal_places)
+char *int_to_fp_str(int number, int decimal_places)
 {
 	char *buffer = kmalloc(32, GFP_KERNEL);
-    if (!buffer) {
-        pr_err("Error: Memory allocation failed.\n");
-        return NULL;
-    }
+	if (!buffer) {
+		pr_err("Error: Memory allocation failed.\n");
+		return NULL;
+	}
 
 	int buf_index = 30;
 	int count_decimal_place = 0;
@@ -39,15 +39,15 @@ char *fp_printk(int number, int decimal_places)
 	return &buffer[buf_index + 1];
 }
 
-EXPORT_SYMBOL(fp_printk);
+EXPORT_SYMBOL(int_to_fp_str);
 
 static int __init fp_printk_init(void)
 {
 	pr_info("%s: initial execute module", OURMODNAME);
 	int n = 123334;
-	char *s = fp_printk(n, 4);
-	if(s){
-		pr_info("%s: test for fp_printk: %s", OURMODNAME, s);
+	char *s = int_to_fp_str(n, 4);
+	if (s) {
+		pr_info("%s: test for int_to_fp_str: %s", OURMODNAME, s);
 		kfree(s);
 	}
 
