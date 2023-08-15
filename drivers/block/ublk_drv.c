@@ -2742,14 +2742,9 @@ static int ublk_ctrl_uring_cmd_permission(struct ublk_device *ub,
 	if (header->len < header->dev_path_len)
 		return -EINVAL;
 
-	dev_path = kmalloc(header->dev_path_len + 1, GFP_KERNEL);
-	if (!dev_path)
-		return -ENOMEM;
-
-	ret = -EFAULT;
-	if (copy_from_user(dev_path, argp, header->dev_path_len))
-		goto exit;
-	dev_path[header->dev_path_len] = 0;
+	dev_path = memdup_user_nul(argp, header->dev_path_len);
+	if (IS_ERR(dev_path))
+		return PTR_ERR(dev_path);
 
 	ret = -EINVAL;
 	switch (_IOC_NR(cmd->cmd_op)) {
