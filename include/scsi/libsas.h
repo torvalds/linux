@@ -376,7 +376,6 @@ struct sas_ha_struct {
 /* public: */
 	char *sas_ha_name;
 	struct device *dev;	  /* should be set */
-	struct module *lldd_module; /* should be set */
 
 	struct workqueue_struct *event_q;
 	struct workqueue_struct *disco_q;
