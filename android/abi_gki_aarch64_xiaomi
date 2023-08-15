@@ -63,6 +63,12 @@
   utf16s_to_utf8s
   wait_for_completion_io_timeout
 
+#required by mq-deadline module
+  blk_mq_debugfs_rq_show
+  seq_list_start
+  seq_list_next
+  __blk_mq_debugfs_rq_show
+
 #required by cs35l41 module
   regcache_drop_region
   regmap_async_complete
