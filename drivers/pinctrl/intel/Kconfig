@@ -26,11 +26,7 @@ config PINCTRL_CHERRYVIEW
 config PINCTRL_LYNXPOINT
 	tristate "Intel Lynxpoint pinctrl and GPIO driver"
 	depends on ACPI
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
-	select GPIOLIB
-	select GPIOLIB_IRQCHIP
+	select PINCTRL_INTEL
 	help
 	  Lynxpoint is the PCH of Intel Haswell. This pinctrl driver
 	  provides an interface that allows configuring of PCH pins and

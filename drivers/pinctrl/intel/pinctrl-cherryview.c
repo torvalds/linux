@@ -617,31 +617,6 @@ static bool chv_pad_locked(struct intel_pinctrl *pctrl, unsigned int offset)
 	return chv_readl(pctrl, offset, CHV_PADCTRL1) & CHV_PADCTRL1_CFGLOCK;
 }
 
-static int chv_get_groups_count(struct pinctrl_dev *pctldev)
-{
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-
-	return pctrl->soc->ngroups;
-}
-
-static const char *chv_get_group_name(struct pinctrl_dev *pctldev,
-				      unsigned int group)
-{
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-
-	return pctrl->soc->groups[group].grp.name;
-}
-
-static int chv_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
-			      const unsigned int **pins, unsigned int *npins)
-{
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-
-	*pins = pctrl->soc->groups[group].grp.pins;
-	*npins = pctrl->soc->groups[group].grp.npins;
-	return 0;
-}
-
 static void chv_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 			     unsigned int offset)
 {
@@ -676,38 +651,11 @@ static void chv_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 }
 
 static const struct pinctrl_ops chv_pinctrl_ops = {
-	.get_groups_count = chv_get_groups_count,
-	.get_group_name = chv_get_group_name,
-	.get_group_pins = chv_get_group_pins,
+	.get_groups_count = intel_get_groups_count,
+	.get_group_name = intel_get_group_name,
+	.get_group_pins = intel_get_group_pins,
 	.pin_dbg_show = chv_pin_dbg_show,
 };
-
-static int chv_get_functions_count(struct pinctrl_dev *pctldev)
-{
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-
-	return pctrl->soc->nfunctions;
-}
-
-static const char *chv_get_function_name(struct pinctrl_dev *pctldev,
-					 unsigned int function)
-{
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-
-	return pctrl->soc->functions[function].func.name;
-}
-
-static int chv_get_function_groups(struct pinctrl_dev *pctldev,
-				   unsigned int function,
-				   const char * const **groups,
-				   unsigned int * const ngroups)
-{
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-
-	*groups = pctrl->soc->functions[function].func.groups;
-	*ngroups = pctrl->soc->functions[function].func.ngroups;
-	return 0;
-}
 
 static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 			      unsigned int function, unsigned int group)
@@ -884,9 +832,9 @@ static int chv_gpio_set_direction(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinmux_ops chv_pinmux_ops = {
-	.get_functions_count = chv_get_functions_count,
-	.get_function_name = chv_get_function_name,
-	.get_function_groups = chv_get_function_groups,
+	.get_functions_count = intel_get_functions_count,
+	.get_function_name = intel_get_function_name,
+	.get_function_groups = intel_get_function_groups,
 	.set_mux = chv_pinmux_set_mux,
 	.gpio_request_enable = chv_gpio_request_enable,
 	.gpio_disable_free = chv_gpio_disable_free,
@@ -1118,7 +1066,7 @@ static int chv_config_group_get(struct pinctrl_dev *pctldev,
 	unsigned int npins;
 	int ret;
 
-	ret = chv_get_group_pins(pctldev, group, &pins, &npins);
+	ret = intel_get_group_pins(pctldev, group, &pins, &npins);
 	if (ret)
 		return ret;
 
@@ -1137,7 +1085,7 @@ static int chv_config_group_set(struct pinctrl_dev *pctldev,
 	unsigned int npins;
 	int i, ret;
 
-	ret = chv_get_group_pins(pctldev, group, &pins, &npins);
+	ret = intel_get_group_pins(pctldev, group, &pins, &npins);
 	if (ret)
 		return ret;
 
@@ -1915,3 +1863,4 @@ module_exit(chv_pinctrl_exit);
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
 MODULE_DESCRIPTION("Intel Cherryview/Braswell pinctrl driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(PINCTRL_INTEL);

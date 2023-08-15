@@ -266,4 +266,16 @@ const struct dev_pm_ops _name = {					\
 				      intel_pinctrl_resume_noirq)	\
 }
 
+struct intel_community *intel_get_community(struct intel_pinctrl *pctrl, unsigned int pin);
+
+int intel_get_groups_count(struct pinctrl_dev *pctldev);
+const char *intel_get_group_name(struct pinctrl_dev *pctldev, unsigned int group);
+int intel_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
+			 const unsigned int **pins, unsigned int *npins);
+
+int intel_get_functions_count(struct pinctrl_dev *pctldev);
+const char *intel_get_function_name(struct pinctrl_dev *pctldev, unsigned int function);
+int intel_get_function_groups(struct pinctrl_dev *pctldev, unsigned int function,
+			      const char * const **groups, unsigned int * const ngroups);
+
 #endif /* PINCTRL_INTEL_H */
