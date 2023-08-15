@@ -1654,9 +1654,13 @@ retry_zapq:
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		ret = 0;
-		/* if the reset has not completed, wait for it to take effect */
-		if (!status.queue_empty || status.irq_enabled)
+		if (!status.irq_enabled)
+			vfio_ap_free_aqic_resources(q);
+		if (!status.queue_empty || status.irq_enabled) {
 			ret = apq_reset_check(q);
+			if (status.irq_enabled && ret == 0)
+				vfio_ap_free_aqic_resources(q);
+		}
 		break;
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		/*
@@ -1675,6 +1679,7 @@ retry_zapq:
 		 * completed successfully.
 		 */
 		ret = 0;
+		vfio_ap_free_aqic_resources(q);
 		break;
 	default:
 		WARN(true,
@@ -1683,8 +1688,6 @@ retry_zapq:
 		     status.response_code);
 		return -EIO;
 	}
-
-	vfio_ap_free_aqic_resources(q);
 
 	return ret;
 }
