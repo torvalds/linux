@@ -65,6 +65,7 @@
 #include "soc21.h"
 #include "navi10_ih.h"
 #include "ih_v6_0.h"
+#include "ih_v6_1.h"
 #include "gfx_v10_0.h"
 #include "gfx_v11_0.h"
 #include "sdma_v5_0.h"
@@ -1702,6 +1703,9 @@ static int amdgpu_discovery_set_ih_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(6, 0, 2):
 		amdgpu_device_ip_block_add(adev, &ih_v6_0_ip_block);
 		break;
+	case IP_VERSION(6, 1, 0):
+		amdgpu_device_ip_block_add(adev, &ih_v6_1_ip_block);
+		break;
 	default:
 		dev_err(adev->dev,
 			"Failed to add ih ip block(OSSSYS_HWIP:0x%x)\n",
@@ -1969,6 +1973,7 @@ static int amdgpu_discovery_set_sdma_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(6, 0, 1):
 	case IP_VERSION(6, 0, 2):
 	case IP_VERSION(6, 0, 3):
+	case IP_VERSION(6, 1, 0):
 		amdgpu_device_ip_block_add(adev, &sdma_v6_0_ip_block);
 		break;
 	default:
@@ -2448,6 +2453,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(6, 0, 0):
 	case IP_VERSION(6, 0, 1):
+	case IP_VERSION(6, 1, 0):
 		adev->hdp.funcs = &hdp_v6_0_funcs;
 		break;
 	default:
@@ -2510,6 +2516,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 8):
+	case IP_VERSION(14, 0, 0):
 		adev->smuio.funcs = &smuio_v13_0_6_funcs;
 		break;
 	default:

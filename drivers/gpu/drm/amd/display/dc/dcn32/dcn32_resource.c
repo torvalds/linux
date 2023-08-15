@@ -2038,7 +2038,7 @@ static struct resource_funcs dcn32_res_pool_funcs = {
 	.validate_bandwidth = dcn32_validate_bandwidth,
 	.calculate_wm_and_dlg = dcn32_calculate_wm_and_dlg,
 	.populate_dml_pipes = dcn32_populate_dml_pipes_from_context,
-	.acquire_idle_pipe_for_head_pipe_in_layer = dcn32_acquire_idle_pipe_for_head_pipe_in_layer,
+	.acquire_free_pipe_as_secondary_dpp_pipe = dcn32_acquire_free_pipe_as_secondary_dpp_pipe,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
@@ -2485,109 +2485,115 @@ struct resource_pool *dcn32_create_resource_pool(
 	return NULL;
 }
 
-static struct pipe_ctx *find_idle_secondary_pipe_check_mpo(
-		struct resource_context *res_ctx,
+/*
+ * Find the most optimal free pipe from res_ctx, which could be used as a
+ * secondary dpp pipe for input opp head pipe.
+ *
+ * a free pipe - a pipe in input res_ctx not yet used for any streams or
+ * planes.
+ * secondary dpp pipe - a pipe gets inserted to a head OPP pipe's MPC blending
+ * tree. This is typical used for rendering MPO planes or additional offset
+ * areas in MPCC combine.
+ *
+ * Hardware Transition Minimization Algorithm for Finding a Secondary DPP Pipe
+ * -------------------------------------------------------------------------
+ *
+ * PROBLEM:
+ *
+ * 1. There is a hardware limitation that a secondary DPP pipe cannot be
+ * transferred from one MPC blending tree to the other in a single frame.
+ * Otherwise it could cause glitches on the screen.
+ *
+ * For instance, we cannot transition from state 1 to state 2 in one frame. This
+ * is because PIPE1 is transferred from PIPE0's MPC blending tree over to
+ * PIPE2's MPC blending tree, which is not supported by hardware.
+ * To support this transition we need to first remove PIPE1 from PIPE0's MPC
+ * blending tree in one frame and then insert PIPE1 to PIPE2's MPC blending tree
+ * in the next frame. This is not optimal as it will delay the flip for two
+ * frames.
+ *
+ *	State 1:
+ *	PIPE0 -- secondary DPP pipe --> (PIPE1)
+ *	PIPE2 -- secondary DPP pipe --> NONE
+ *
+ *	State 2:
+ *	PIPE0 -- secondary DPP pipe --> NONE
+ *	PIPE2 -- secondary DPP pipe --> (PIPE1)
+ *
+ * 2. We want to in general minimize the unnecessary changes in pipe topology.
+ * If a pipe is already added in current blending tree and there are no changes
+ * to plane topology, we don't want to swap it with another free pipe
+ * unnecessarily in every update. Powering up and down a pipe would require a
+ * full update which delays the flip for 1 frame. If we use the original pipe
+ * we don't have to toggle its power. So we can flip faster.
+ */
+static int find_optimal_free_pipe_as_secondary_dpp_pipe(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
 		const struct resource_pool *pool,
-		const struct pipe_ctx *primary_pipe)
+		const struct pipe_ctx *new_opp_head)
 {
-	int i;
-	struct pipe_ctx *secondary_pipe = NULL;
-	struct pipe_ctx *next_odm_mpo_pipe = NULL;
-	int primary_index, preferred_pipe_idx;
-	struct pipe_ctx *old_primary_pipe = NULL;
+	const struct pipe_ctx *cur_opp_head;
+	int free_pipe_idx;
 
-	/*
-	 * Modified from find_idle_secondary_pipe
-	 * With windowed MPO and ODM, we want to avoid the case where we want a
-	 *  free pipe for the left side but the free pipe is being used on the
-	 *  right side.
-	 * Add check on current_state if the primary_pipe is the left side,
-	 *  to check the right side ( primary_pipe->next_odm_pipe ) to see if
-	 *  it is using a pipe for MPO ( primary_pipe->next_odm_pipe->bottom_pipe )
-	 * - If so, then don't use this pipe
-	 * EXCEPTION - 3 plane ( 2 MPO plane ) case
-	 * - in this case, the primary pipe has already gotten a free pipe for the
-	 *  MPO window in the left
-	 * - when it tries to get a free pipe for the MPO window on the right,
-	 *  it will see that it is already assigned to the right side
-	 *  ( primary_pipe->next_odm_pipe ).  But in this case, we want this
-	 *  free pipe, since it will be for the right side.  So add an
-	 *  additional condition, that skipping the free pipe on the right only
-	 *  applies if the primary pipe has no bottom pipe currently assigned
+	cur_opp_head = &cur_res_ctx->pipe_ctx[new_opp_head->pipe_idx];
+	free_pipe_idx = resource_find_free_pipe_used_in_cur_mpc_blending_tree(
+			cur_res_ctx, new_res_ctx, cur_opp_head);
+
+	/* Up until here if we have not found a free secondary pipe, we will
+	 * need to wait for at least one frame to complete the transition
+	 * sequence.
 	 */
-	if (primary_pipe) {
-		primary_index = primary_pipe->pipe_idx;
-		old_primary_pipe = &primary_pipe->stream->ctx->dc->current_state->res_ctx.pipe_ctx[primary_index];
-		if ((old_primary_pipe->next_odm_pipe) && (old_primary_pipe->next_odm_pipe->bottom_pipe)
-			&& (!primary_pipe->bottom_pipe))
-			next_odm_mpo_pipe = old_primary_pipe->next_odm_pipe->bottom_pipe;
+	if (free_pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
+		free_pipe_idx = recource_find_free_pipe_not_used_in_cur_res_ctx(
+				cur_res_ctx, new_res_ctx, pool);
 
-		preferred_pipe_idx = (pool->pipe_count - 1) - primary_pipe->pipe_idx;
-		if ((res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) &&
-			!(next_odm_mpo_pipe && next_odm_mpo_pipe->pipe_idx == preferred_pipe_idx)) {
-			secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
-			secondary_pipe->pipe_idx = preferred_pipe_idx;
-		}
-	}
-
-	/*
-	 * search backwards for the second pipe to keep pipe
-	 * assignment more consistent
+	/* Up until here if we have not found a free secondary pipe, we will
+	 * need to wait for at least two frames to complete the transition
+	 * sequence. It really doesn't matter which pipe we decide take from
+	 * current enabled pipes. It won't save our frame time when we swap only
+	 * one pipe or more pipes.
 	 */
-	if (!secondary_pipe)
-		for (i = pool->pipe_count - 1; i >= 0; i--) {
-			if ((res_ctx->pipe_ctx[i].stream == NULL) &&
-				!(next_odm_mpo_pipe && next_odm_mpo_pipe->pipe_idx == i)) {
-				secondary_pipe = &res_ctx->pipe_ctx[i];
-				secondary_pipe->pipe_idx = i;
-				break;
-			}
-		}
+	if (free_pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
+		free_pipe_idx = resource_find_free_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
+				cur_res_ctx, new_res_ctx, pool);
 
-	return secondary_pipe;
+	if (free_pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
+		free_pipe_idx = resource_find_any_free_pipe(new_res_ctx, pool);
+
+	return free_pipe_idx;
 }
 
-struct pipe_ctx *dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
-		struct dc_state *state,
+struct pipe_ctx *dcn32_acquire_free_pipe_as_secondary_dpp_pipe(
+		const struct dc_state *cur_ctx,
+		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
-		struct dc_stream_state *stream,
-		struct pipe_ctx *head_pipe)
+		const struct pipe_ctx *opp_head_pipe)
 {
-	struct resource_context *res_ctx = &state->res_ctx;
-	struct pipe_ctx *idle_pipe, *pipe;
-	struct resource_context *old_ctx = &stream->ctx->dc->current_state->res_ctx;
-	int head_index;
+	int free_pipe_idx =
+			find_optimal_free_pipe_as_secondary_dpp_pipe(
+					&cur_ctx->res_ctx, &new_ctx->res_ctx,
+					pool, opp_head_pipe);
+	struct pipe_ctx *free_pipe;
 
-	if (!head_pipe)
-		ASSERT(0);
+	if (free_pipe_idx >= 0) {
+		free_pipe = &new_ctx->res_ctx.pipe_ctx[free_pipe_idx];
+		free_pipe->pipe_idx = free_pipe_idx;
+		free_pipe->stream = opp_head_pipe->stream;
+		free_pipe->stream_res.tg = opp_head_pipe->stream_res.tg;
+		free_pipe->stream_res.opp = opp_head_pipe->stream_res.opp;
 
-	/*
-	 * Modified from dcn20_acquire_idle_pipe_for_layer
-	 * Check if head_pipe in old_context already has bottom_pipe allocated.
-	 * - If so, check if that pipe is available in the current context.
-	 * --  If so, reuse pipe from old_context
-	 */
-	head_index = head_pipe->pipe_idx;
-	pipe = &old_ctx->pipe_ctx[head_index];
-	if (pipe->bottom_pipe && res_ctx->pipe_ctx[pipe->bottom_pipe->pipe_idx].stream == NULL) {
-		idle_pipe = &res_ctx->pipe_ctx[pipe->bottom_pipe->pipe_idx];
-		idle_pipe->pipe_idx = pipe->bottom_pipe->pipe_idx;
+		free_pipe->plane_res.hubp = pool->hubps[free_pipe->pipe_idx];
+		free_pipe->plane_res.ipp = pool->ipps[free_pipe->pipe_idx];
+		free_pipe->plane_res.dpp = pool->dpps[free_pipe->pipe_idx];
+		free_pipe->plane_res.mpcc_inst =
+				pool->dpps[free_pipe->pipe_idx]->inst;
 	} else {
-		idle_pipe = find_idle_secondary_pipe_check_mpo(res_ctx, pool, head_pipe);
-		if (!idle_pipe)
-			return NULL;
+		ASSERT(opp_head_pipe);
+		free_pipe = NULL;
 	}
 
-	idle_pipe->stream = head_pipe->stream;
-	idle_pipe->stream_res.tg = head_pipe->stream_res.tg;
-	idle_pipe->stream_res.opp = head_pipe->stream_res.opp;
-
-	idle_pipe->plane_res.hubp = pool->hubps[idle_pipe->pipe_idx];
-	idle_pipe->plane_res.ipp = pool->ipps[idle_pipe->pipe_idx];
-	idle_pipe->plane_res.dpp = pool->dpps[idle_pipe->pipe_idx];
-	idle_pipe->plane_res.mpcc_inst = pool->dpps[idle_pipe->pipe_idx]->inst;
-
-	return idle_pipe;
+	return free_pipe;
 }
 
 unsigned int dcn32_calc_num_avail_chans_for_mall(struct dc *dc, int num_chans)

@@ -145,6 +145,7 @@ static int psp_init_sriov_microcode(struct psp_context *psp)
 		break;
 	case IP_VERSION(13, 0, 6):
 		ret = psp_init_cap_microcode(psp, ucode_prefix);
+		ret &= psp_init_ta_microcode(psp, ucode_prefix);
 		break;
 	case IP_VERSION(13, 0, 10):
 		adev->virt.autoload_ucode_id = AMDGPU_UCODE_ID_CP_MES1_DATA;
@@ -438,14 +439,15 @@ static int psp_sw_init(void *handle)
 			/* If psp runtime database exists, then
 			 * only enable two stage memory training
 			 * when TWO_STAGE_DRAM_TRAINING bit is set
-			 * in runtime database */
+			 * in runtime database
+			 */
 			mem_training_ctx->enable_mem_training = true;
 		}
 
 	} else {
-		/* If psp runtime database doesn't exist or
-		 * is invalid, force enable two stage memory
-		 * training */
+		/* If psp runtime database doesn't exist or is
+		 * invalid, force enable two stage memory training
+		 */
 		mem_training_ctx->enable_mem_training = true;
 	}
 
@@ -797,7 +799,8 @@ static int psp_tmr_init(struct psp_context *psp)
 	tmr_size = PSP_TMR_SIZE(psp->adev);
 
 	/* For ASICs support RLC autoload, psp will parse the toc
-	 * and calculate the total size of TMR needed */
+	 * and calculate the total size of TMR needed
+	 */
 	if (!amdgpu_sriov_vf(psp->adev) &&
 	    psp->toc.start_addr &&
 	    psp->toc.size_bytes &&
@@ -1137,9 +1140,9 @@ int psp_ta_init_shared_buf(struct psp_context *psp,
 				  struct ta_mem_context *mem_ctx)
 {
 	/*
-	* Allocate 16k memory aligned to 4k from Frame Buffer (local
-	* physical) for ta to host memory
-	*/
+	 * Allocate 16k memory aligned to 4k from Frame Buffer (local
+	 * physical) for ta to host memory
+	 */
 	return amdgpu_bo_create_kernel(psp->adev, mem_ctx->shared_mem_size,
 				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM |
 				      AMDGPU_GEM_DOMAIN_GTT,
@@ -1728,7 +1731,8 @@ int psp_ras_trigger_error(struct psp_context *psp,
 		return -EINVAL;
 
 	/* If err_event_athub occurs error inject was successful, however
-	   return status from TA is no long reliable */
+	 *  return status from TA is no long reliable
+	 */
 	if (amdgpu_ras_intr_triggered())
 		return 0;
 
@@ -2577,7 +2581,8 @@ static int psp_load_non_psp_fw(struct psp_context *psp)
 		     ucode->ucode_id == AMDGPU_UCODE_ID_SDMA2 ||
 		     ucode->ucode_id == AMDGPU_UCODE_ID_SDMA3))
 			/* PSP only receive one SDMA fw for sienna_cichlid,
-			 * as all four sdma fw are same */
+			 * as all four sdma fw are same
+			 */
 			continue;
 
 		psp_print_fw_hdr(psp, ucode);
@@ -2642,8 +2647,8 @@ static int psp_load_fw(struct amdgpu_device *adev)
 		if (adev->gmc.xgmi.num_physical_nodes > 1) {
 			ret = psp_xgmi_initialize(psp, false, true);
 			/* Warning the XGMI seesion initialize failure
-			* Instead of stop driver initialization
-			*/
+			 * Instead of stop driver initialization
+			 */
 			if (ret)
 				dev_err(psp->adev->dev,
 					"XGMI: Failed to initialize XGMI session\n");

@@ -1925,6 +1925,14 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_trigger_sync(dc, context);
 
+	/* Full update should unconditionally be triggered when dc_commit_state_no_check is called */
+	for (i = 0; i < context->stream_count; i++) {
+		uint32_t prev_dsc_changed = context->streams[i]->update_flags.bits.dsc_changed;
+
+		context->streams[i]->update_flags.raw = 0xFFFFFFFF;
+		context->streams[i]->update_flags.bits.dsc_changed = prev_dsc_changed;
+	}
+
 	/* Program all planes within new context*/
 	if (dc->hwss.program_front_end_for_ctx) {
 		dc->hwss.interdependent_update_lock(dc, context, true);
@@ -2002,6 +2010,11 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	for (i = 0; i < context->stream_count; i++)
 		context->streams[i]->mode_changed = false;
+
+	/* Clear update flags that were set earlier to avoid redundant programming */
+	for (i = 0; i < context->stream_count; i++) {
+		context->streams[i]->update_flags.raw = 0x0;
+	}
 
 	old_state = dc->current_state;
 	dc->current_state = context;
@@ -2482,9 +2495,7 @@ static enum surface_update_type get_scaling_info_update_type(
 	if (!u->scaling_info)
 		return UPDATE_TYPE_FAST;
 
-	if (u->scaling_info->clip_rect.width != u->surface->clip_rect.width
-			|| u->scaling_info->clip_rect.height != u->surface->clip_rect.height
-			|| u->scaling_info->dst_rect.width != u->surface->dst_rect.width
+	if (u->scaling_info->dst_rect.width != u->surface->dst_rect.width
 			|| u->scaling_info->dst_rect.height != u->surface->dst_rect.height
 			|| u->scaling_info->scaling_quality.integer_scaling !=
 				u->surface->scaling_quality.integer_scaling
@@ -2688,96 +2699,6 @@ static enum surface_update_type check_update_surfaces_for_stream(
 	return overall_type;
 }
 
-static bool dc_check_is_fullscreen_video(struct rect src, struct rect clip_rect)
-{
-	int view_height, view_width, clip_x, clip_y, clip_width, clip_height;
-
-	view_height = src.height;
-	view_width = src.width;
-
-	clip_x = clip_rect.x;
-	clip_y = clip_rect.y;
-
-	clip_width = clip_rect.width;
-	clip_height = clip_rect.height;
-
-	/* check for centered video accounting for off by 1 scaling truncation */
-	if ((view_height - clip_y - clip_height <= clip_y + 1) &&
-			(view_width - clip_x - clip_width <= clip_x + 1) &&
-			(view_height - clip_y - clip_height >= clip_y - 1) &&
-			(view_width - clip_x - clip_width >= clip_x - 1)) {
-
-		/* when OS scales up/down to letter box, it may end up
-		 * with few blank pixels on the border due to truncating.
-		 * Add offset margin to account for this
-		 */
-		if (clip_x <= 4 || clip_y <= 4)
-			return true;
-	}
-
-	return false;
-}
-
-static enum surface_update_type check_boundary_crossing_for_windowed_mpo_with_odm(struct dc *dc,
-		struct dc_surface_update *srf_updates, int surface_count,
-		enum surface_update_type update_type)
-{
-	enum surface_update_type new_update_type = update_type;
-	int i, j;
-	struct pipe_ctx *pipe = NULL;
-	struct dc_stream_state *stream;
-
-	/* Check that we are in windowed MPO with ODM
-	 * - look for MPO pipe by scanning pipes for first pipe matching
-	 *   surface that has moved ( position change )
-	 * - MPO pipe will have top pipe
-	 * - check that top pipe has ODM pointer
-	 */
-	if ((surface_count > 1) && dc->config.enable_windowed_mpo_odm) {
-		for (i = 0; i < surface_count; i++) {
-			if (srf_updates[i].surface && srf_updates[i].scaling_info
-					&& srf_updates[i].surface->update_flags.bits.position_change) {
-
-				for (j = 0; j < dc->res_pool->pipe_count; j++) {
-					if (srf_updates[i].surface == dc->current_state->res_ctx.pipe_ctx[j].plane_state) {
-						pipe = &dc->current_state->res_ctx.pipe_ctx[j];
-						stream = pipe->stream;
-						break;
-					}
-				}
-
-				if (pipe && pipe->top_pipe && (get_num_odm_splits(pipe->top_pipe) > 0) && stream
-						&& !dc_check_is_fullscreen_video(stream->src, srf_updates[i].scaling_info->clip_rect)) {
-					struct rect old_clip_rect, new_clip_rect;
-					bool old_clip_rect_left, old_clip_rect_right, old_clip_rect_middle;
-					bool new_clip_rect_left, new_clip_rect_right, new_clip_rect_middle;
-
-					old_clip_rect = srf_updates[i].surface->clip_rect;
-					new_clip_rect = srf_updates[i].scaling_info->clip_rect;
-
-					old_clip_rect_left = ((old_clip_rect.x + old_clip_rect.width) <= (stream->src.x + (stream->src.width/2)));
-					old_clip_rect_right = (old_clip_rect.x >= (stream->src.x + (stream->src.width/2)));
-					old_clip_rect_middle = !old_clip_rect_left && !old_clip_rect_right;
-
-					new_clip_rect_left = ((new_clip_rect.x + new_clip_rect.width) <= (stream->src.x + (stream->src.width/2)));
-					new_clip_rect_right = (new_clip_rect.x >= (stream->src.x + (stream->src.width/2)));
-					new_clip_rect_middle = !new_clip_rect_left && !new_clip_rect_right;
-
-					if (old_clip_rect_left && new_clip_rect_middle)
-						new_update_type = UPDATE_TYPE_FULL;
-					else if (old_clip_rect_middle && new_clip_rect_right)
-						new_update_type = UPDATE_TYPE_FULL;
-					else if (old_clip_rect_right && new_clip_rect_middle)
-						new_update_type = UPDATE_TYPE_FULL;
-					else if (old_clip_rect_middle && new_clip_rect_left)
-						new_update_type = UPDATE_TYPE_FULL;
-				}
-			}
-		}
-	}
-	return new_update_type;
-}
-
 /*
  * dc_check_update_surfaces_for_stream() - Determine update type (fast, med, or full)
  *
@@ -2808,10 +2729,6 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		for (i = 0; i < surface_count; i++)
 			updates[i].surface->update_flags.raw = 0xFFFFFFFF;
 	}
-
-	if (type == UPDATE_TYPE_MED)
-		type = check_boundary_crossing_for_windowed_mpo_with_odm(dc,
-				updates, surface_count, type);
 
 	if (type == UPDATE_TYPE_FAST) {
 		// If there's an available clock comparator, we use that.
@@ -5335,5 +5252,19 @@ bool dc_abm_save_restore(
 				i,
 				pData);
 	return false;
+}
+
+void dc_query_current_properties(struct dc *dc, struct dc_current_properties *properties)
+{
+	unsigned int i;
+	bool subvp_in_use = false;
+
+	for (i = 0; i < dc->current_state->stream_count; i++) {
+		if (dc->current_state->streams[i]->mall_stream_config.type != SUBVP_NONE) {
+			subvp_in_use = true;
+			break;
+		}
+	}
+	properties->cursor_size_limit = subvp_in_use ? 64 : dc->caps.max_cursor_size;
 }
 

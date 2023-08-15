@@ -461,7 +461,6 @@ svm_migrate_vma_to_vram(struct kfd_node *node, struct svm_range *prange,
 				    0, node->id, trigger);
 
 	svm_range_dma_unmap(adev->dev, scratch, 0, npages);
-	svm_range_free_dma_mappings(prange);
 
 out_free:
 	kvfree(buf);
@@ -543,10 +542,12 @@ svm_migrate_ram_to_vram(struct svm_range *prange, uint32_t best_loc,
 		addr = next;
 	}
 
-	if (cpages)
+	if (cpages) {
 		prange->actual_loc = best_loc;
-	else
+		svm_range_free_dma_mappings(prange, true);
+	} else {
 		svm_range_vram_node_free(prange);
+	}
 
 	return r < 0 ? r : 0;
 }

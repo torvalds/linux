@@ -640,7 +640,7 @@ static void dce11_pplib_apply_display_requirements(
 	 * on power saving.
 	 *
 	 */
-	pp_display_cfg->min_dcfclock_khz = (context->stream_count > 4)?
+	pp_display_cfg->min_dcfclock_khz = (context->stream_count > 4) ?
 			pp_display_cfg->min_engine_clock_khz : 0;
 
 	pp_display_cfg->min_engine_clock_deep_sleep_khz

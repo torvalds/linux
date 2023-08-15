@@ -1507,6 +1507,30 @@ static int sdma_v5_2_process_illegal_inst_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
+static bool sdma_v5_2_firmware_mgcg_support(struct amdgpu_device *adev,
+						     int i)
+{
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	case IP_VERSION(5, 2, 1):
+		if (adev->sdma.instance[i].fw_version < 70)
+			return false;
+		break;
+	case IP_VERSION(5, 2, 3):
+		if (adev->sdma.instance[i].fw_version < 47)
+			return false;
+		break;
+	case IP_VERSION(5, 2, 7):
+		if (adev->sdma.instance[i].fw_version < 9)
+			return false;
+		break;
+	default:
+		return true;
+	}
+
+	return true;
+
+}
+
 static void sdma_v5_2_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 						       bool enable)
 {
@@ -1515,7 +1539,7 @@ static void sdma_v5_2_update_medium_grain_clock_gating(struct amdgpu_device *ade
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 
-		if (adev->sdma.instance[i].fw_version < 70 && adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(5, 2, 1))
+		if (!sdma_v5_2_firmware_mgcg_support(adev, i))
 			adev->cg_flags &= ~AMD_CG_SUPPORT_SDMA_MGCG;
 
 		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG)) {
@@ -1589,6 +1613,7 @@ static int sdma_v5_2_set_clockgating_state(void *handle,
 	case IP_VERSION(5, 2, 5):
 	case IP_VERSION(5, 2, 6):
 	case IP_VERSION(5, 2, 3):
+	case IP_VERSION(5, 2, 7):
 		sdma_v5_2_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		sdma_v5_2_update_medium_grain_light_sleep(adev,

@@ -118,8 +118,6 @@ static union acpi_object *amdgpu_atpx_call(acpi_handle handle, int function,
 	union acpi_object atpx_arg_elements[2];
 	struct acpi_object_list atpx_arg;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_device *adev = container_of(handle, struct acpi_device, handle);
-	struct device *dev = &adev->dev;
 
 	atpx_arg.count = 2;
 	atpx_arg.pointer = &atpx_arg_elements[0];
@@ -141,8 +139,8 @@ static union acpi_object *amdgpu_atpx_call(acpi_handle handle, int function,
 
 	/* Fail only if calling the method fails and ATPX is supported */
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		dev_err(dev, "failed to evaluate ATPX got %s\n",
-			acpi_format_exception(status));
+		pr_err("failed to evaluate ATPX got %s\n",
+		       acpi_format_exception(status));
 		kfree(buffer.pointer);
 		return NULL;
 	}
@@ -183,8 +181,6 @@ static void amdgpu_atpx_parse_functions(struct amdgpu_atpx_functions *f, u32 mas
 static int amdgpu_atpx_validate(struct amdgpu_atpx *atpx)
 {
 	u32 valid_bits = 0;
-	struct acpi_device *adev = container_of(atpx->handle, struct acpi_device, handle);
-	struct device *dev = &adev->dev;
 
 	if (atpx->functions.px_params) {
 		union acpi_object *info;
@@ -199,7 +195,7 @@ static int amdgpu_atpx_validate(struct amdgpu_atpx *atpx)
 
 		size = *(u16 *) info->buffer.pointer;
 		if (size < 10) {
-			dev_err(dev, "ATPX buffer is too small: %zu\n", size);
+			pr_err("ATPX buffer is too small: %zu\n", size);
 			kfree(info);
 			return -EINVAL;
 		}
@@ -232,11 +228,11 @@ static int amdgpu_atpx_validate(struct amdgpu_atpx *atpx)
 	atpx->is_hybrid = false;
 	if (valid_bits & ATPX_MS_HYBRID_GFX_SUPPORTED) {
 		if (amdgpu_atpx_priv.quirks & AMDGPU_PX_QUIRK_FORCE_ATPX) {
-			dev_info(dev, "ATPX Hybrid Graphics, forcing to ATPX\n");
+			pr_warn("ATPX Hybrid Graphics, forcing to ATPX\n");
 			atpx->functions.power_cntl = true;
 			atpx->is_hybrid = false;
 		} else {
-			dev_info(dev, "ATPX Hybrid Graphics\n");
+			pr_notice("ATPX Hybrid Graphics\n");
 			/*
 			 * Disable legacy PM methods only when pcie port PM is usable,
 			 * otherwise the device might fail to power off or power on.
@@ -269,8 +265,6 @@ static int amdgpu_atpx_verify_interface(struct amdgpu_atpx *atpx)
 	struct atpx_verify_interface output;
 	size_t size;
 	int err = 0;
-	struct acpi_device *adev = container_of(atpx->handle, struct acpi_device, handle);
-	struct device *dev = &adev->dev;
 
 	info = amdgpu_atpx_call(atpx->handle, ATPX_FUNCTION_VERIFY_INTERFACE, NULL);
 	if (!info)
@@ -280,7 +274,7 @@ static int amdgpu_atpx_verify_interface(struct amdgpu_atpx *atpx)
 
 	size = *(u16 *) info->buffer.pointer;
 	if (size < 8) {
-		printk("ATPX buffer is too small: %zu\n", size);
+		pr_err("ATPX buffer is too small: %zu\n", size);
 		err = -EINVAL;
 		goto out;
 	}
@@ -289,8 +283,8 @@ static int amdgpu_atpx_verify_interface(struct amdgpu_atpx *atpx)
 	memcpy(&output, info->buffer.pointer, size);
 
 	/* TODO: check version? */
-	dev_info(dev, "ATPX version %u, functions 0x%08x\n",
-		 output.version, output.function_bits);
+	pr_notice("ATPX version %u, functions 0x%08x\n",
+		  output.version, output.function_bits);
 
 	amdgpu_atpx_parse_functions(&atpx->functions, output.function_bits);
 

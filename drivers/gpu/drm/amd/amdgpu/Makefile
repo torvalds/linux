@@ -129,7 +129,8 @@ amdgpu-y += \
 	vega10_ih.o \
 	vega20_ih.o \
 	navi10_ih.o \
-	ih_v6_0.o
+	ih_v6_0.o \
+	ih_v6_1.o
 
 # add PSP block
 amdgpu-y += \

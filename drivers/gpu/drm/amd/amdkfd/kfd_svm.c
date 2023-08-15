@@ -243,7 +243,7 @@ void svm_range_dma_unmap(struct device *dev, dma_addr_t *dma_addr,
 	}
 }
 
-void svm_range_free_dma_mappings(struct svm_range *prange)
+void svm_range_free_dma_mappings(struct svm_range *prange, bool unmap_dma)
 {
 	struct kfd_process_device *pdd;
 	dma_addr_t *dma_addr;
@@ -264,13 +264,14 @@ void svm_range_free_dma_mappings(struct svm_range *prange)
 			continue;
 		}
 		dev = &pdd->dev->adev->pdev->dev;
-		svm_range_dma_unmap(dev, dma_addr, 0, prange->npages);
+		if (unmap_dma)
+			svm_range_dma_unmap(dev, dma_addr, 0, prange->npages);
 		kvfree(dma_addr);
 		prange->dma_addr[gpuidx] = NULL;
 	}
 }
 
-static void svm_range_free(struct svm_range *prange, bool update_mem_usage)
+static void svm_range_free(struct svm_range *prange, bool do_unmap)
 {
 	uint64_t size = (prange->last - prange->start + 1) << PAGE_SHIFT;
 	struct kfd_process *p = container_of(prange->svms, struct kfd_process, svms);
@@ -279,9 +280,9 @@ static void svm_range_free(struct svm_range *prange, bool update_mem_usage)
 		 prange->start, prange->last);
 
 	svm_range_vram_node_free(prange);
-	svm_range_free_dma_mappings(prange);
+	svm_range_free_dma_mappings(prange, do_unmap);
 
-	if (update_mem_usage && !p->xnack_enabled) {
+	if (do_unmap && !p->xnack_enabled) {
 		pr_debug("unreserve prange 0x%p size: 0x%llx\n", prange, size);
 		amdgpu_amdkfd_unreserve_mem_limit(NULL, size,
 					KFD_IOC_ALLOC_MEM_FLAGS_USERPTR, 0);
@@ -853,6 +854,37 @@ static void svm_range_debug_dump(struct svm_range_list *svms)
 	}
 }
 
+static void *
+svm_range_copy_array(void *psrc, size_t size, uint64_t num_elements,
+		     uint64_t offset)
+{
+	unsigned char *dst;
+
+	dst = kvmalloc_array(num_elements, size, GFP_KERNEL);
+	if (!dst)
+		return NULL;
+	memcpy(dst, (unsigned char *)psrc + offset, num_elements * size);
+
+	return (void *)dst;
+}
+
+static int
+svm_range_copy_dma_addrs(struct svm_range *dst, struct svm_range *src)
+{
+	int i;
+
+	for (i = 0; i < MAX_GPU_INSTANCE; i++) {
+		if (!src->dma_addr[i])
+			continue;
+		dst->dma_addr[i] = svm_range_copy_array(src->dma_addr[i],
+					sizeof(*src->dma_addr[i]), src->npages, 0);
+		if (!dst->dma_addr[i])
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int
 svm_range_split_array(void *ppnew, void *ppold, size_t size,
 		      uint64_t old_start, uint64_t old_n,
@@ -867,22 +899,16 @@ svm_range_split_array(void *ppnew, void *ppold, size_t size,
 	if (!pold)
 		return 0;
 
-	new = kvmalloc_array(new_n, size, GFP_KERNEL);
+	d = (new_start - old_start) * size;
+	new = svm_range_copy_array(pold, size, new_n, d);
 	if (!new)
 		return -ENOMEM;
-
-	d = (new_start - old_start) * size;
-	memcpy(new, pold + d, new_n * size);
-
-	old = kvmalloc_array(old_n, size, GFP_KERNEL);
+	d = (new_start == old_start) ? new_n * size : 0;
+	old = svm_range_copy_array(pold, size, old_n, d);
 	if (!old) {
 		kvfree(new);
 		return -ENOMEM;
 	}
-
-	d = (new_start == old_start) ? new_n * size : 0;
-	memcpy(old, pold + d, old_n * size);
-
 	kvfree(pold);
 	*(void **)ppold = old;
 	*(void **)ppnew = new;
@@ -1928,7 +1954,10 @@ static struct svm_range *svm_range_clone(struct svm_range *old)
 	new = svm_range_new(old->svms, old->start, old->last, false);
 	if (!new)
 		return NULL;
-
+	if (svm_range_copy_dma_addrs(new, old)) {
+		svm_range_free(new, false);
+		return NULL;
+	}
 	if (old->svm_bo) {
 		new->ttm_res = old->ttm_res;
 		new->offset = old->offset;

@@ -37,6 +37,7 @@
 #define IS_PIPE_SYNCD_VALID(pipe) ((((pipe)->pipe_idx_syncd) & 0x80)?1:0)
 #define GET_PIPE_SYNCD_FROM_PIPE(pipe) ((pipe)->pipe_idx_syncd & 0x7F)
 #define SET_PIPE_SYNCD_TO_PIPE(pipe, pipe_syncd) ((pipe)->pipe_idx_syncd = (0x80 | pipe_syncd))
+#define FREE_PIPE_INDEX_NOT_FOUND -1
 
 enum dce_version resource_parse_asic_id(
 		struct hw_asic_id asic_id);
@@ -153,10 +154,28 @@ bool resource_attach_surfaces_to_context(
 		struct dc_state *context,
 		const struct resource_pool *pool);
 
-struct pipe_ctx *find_idle_secondary_pipe(
+struct pipe_ctx *find_free_secondary_pipe_legacy(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		const struct pipe_ctx *primary_pipe);
+
+int resource_find_free_pipe_used_in_cur_mpc_blending_tree(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct pipe_ctx *cur_opp_head);
+
+int recource_find_free_pipe_not_used_in_cur_res_ctx(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool);
+
+int resource_find_free_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool);
+
+int resource_find_any_free_pipe(struct resource_context *new_res_ctx,
+		const struct resource_pool *pool);
 
 bool resource_validate_attach_surfaces(
 		const struct dc_validation_set set[],

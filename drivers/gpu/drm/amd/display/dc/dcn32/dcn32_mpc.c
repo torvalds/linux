@@ -64,7 +64,7 @@ void mpc32_mpc_init(struct mpc *mpc)
 	}
 }
 
-static void mpc32_power_on_blnd_lut(
+void mpc32_power_on_blnd_lut(
 	struct mpc *mpc,
 	uint32_t mpcc_id,
 	bool power_on)
@@ -120,7 +120,7 @@ static enum dc_lut_mode mpc32_get_post1dlut_current(struct mpc *mpc, uint32_t mp
 	return mode;
 }
 
-static void mpc32_configure_post1dlut(
+void mpc32_configure_post1dlut(
 		struct mpc *mpc,
 		uint32_t mpcc_id,
 		bool is_ram_a)
@@ -163,7 +163,7 @@ static void mpc32_post1dlut_get_reg_field(
 }
 
 /*program blnd lut RAM A*/
-static void mpc32_program_post1dluta_settings(
+void mpc32_program_post1dluta_settings(
 		struct mpc *mpc,
 		uint32_t mpcc_id,
 		const struct pwl_params *params)
@@ -192,7 +192,7 @@ static void mpc32_program_post1dluta_settings(
 }
 
 /*program blnd lut RAM B*/
-static void mpc32_program_post1dlutb_settings(
+void mpc32_program_post1dlutb_settings(
 		struct mpc *mpc,
 		uint32_t mpcc_id,
 		const struct pwl_params *params)
@@ -220,7 +220,7 @@ static void mpc32_program_post1dlutb_settings(
 	cm_helper_program_gamcor_xfer_func(mpc->ctx, params, &gam_regs);
 }
 
-static void mpc32_program_post1dlut_pwl(
+void mpc32_program_post1dlut_pwl(
 		struct mpc *mpc,
 		uint32_t mpcc_id,
 		const struct pwl_result_data *rgb,
@@ -321,7 +321,7 @@ static enum dc_lut_mode mpc32_get_shaper_current(struct mpc *mpc, uint32_t mpcc_
 }
 
 
-static void mpc32_configure_shaper_lut(
+void mpc32_configure_shaper_lut(
 		struct mpc *mpc,
 		bool is_ram_a,
 		uint32_t mpcc_id)
@@ -336,7 +336,7 @@ static void mpc32_configure_shaper_lut(
 }
 
 
-static void mpc32_program_shaper_luta_settings(
+void mpc32_program_shaper_luta_settings(
 		struct mpc *mpc,
 		const struct pwl_params *params,
 		uint32_t mpcc_id)
@@ -486,7 +486,7 @@ static void mpc32_program_shaper_luta_settings(
 }
 
 
-static void mpc32_program_shaper_lutb_settings(
+void mpc32_program_shaper_lutb_settings(
 		struct mpc *mpc,
 		const struct pwl_params *params,
 		uint32_t mpcc_id)
@@ -637,7 +637,7 @@ static void mpc32_program_shaper_lutb_settings(
 }
 
 
-static void mpc32_program_shaper_lut(
+void mpc32_program_shaper_lut(
 		struct mpc *mpc,
 		const struct pwl_result_data *rgb,
 		uint32_t num,
@@ -671,7 +671,7 @@ static void mpc32_program_shaper_lut(
 }
 
 
-static void mpc32_power_on_shaper_3dlut(
+void mpc32_power_on_shaper_3dlut(
 		struct mpc *mpc,
 		uint32_t mpcc_id,
 		bool power_on)
@@ -789,7 +789,7 @@ static enum dc_lut_mode get3dlut_config(
 }
 
 
-static void mpc32_select_3dlut_ram(
+void mpc32_select_3dlut_ram(
 		struct mpc *mpc,
 		enum dc_lut_mode mode,
 		bool is_color_channel_12bits,
@@ -803,7 +803,7 @@ static void mpc32_select_3dlut_ram(
 }
 
 
-static void mpc32_select_3dlut_ram_mask(
+void mpc32_select_3dlut_ram_mask(
 		struct mpc *mpc,
 		uint32_t ram_selection_mask,
 		uint32_t mpcc_id)
@@ -816,7 +816,7 @@ static void mpc32_select_3dlut_ram_mask(
 }
 
 
-static void mpc32_set3dlut_ram12(
+void mpc32_set3dlut_ram12(
 		struct mpc *mpc,
 		const struct dc_rgb *lut,
 		uint32_t entries,
@@ -848,7 +848,7 @@ static void mpc32_set3dlut_ram12(
 }
 
 
-static void mpc32_set3dlut_ram10(
+void mpc32_set3dlut_ram10(
 		struct mpc *mpc,
 		const struct dc_rgb *lut,
 		uint32_t entries,

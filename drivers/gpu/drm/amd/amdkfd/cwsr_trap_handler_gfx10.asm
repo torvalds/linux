@@ -276,6 +276,11 @@ L_FETCH_2ND_TRAP:
 #endif
 	s_lshl_b64	[ttmp14, ttmp15], [ttmp14, ttmp15], 0x8
 
+	s_bitcmp1_b32	ttmp15, 0xF
+	s_cbranch_scc0	L_NO_SIGN_EXTEND_TMA
+	s_or_b32	ttmp15, ttmp15, 0xFFFF0000
+L_NO_SIGN_EXTEND_TMA:
+
 	s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 glc:1			// debug trap enabled flag
 	s_waitcnt       lgkmcnt(0)
 	s_lshl_b32      ttmp2, ttmp2, TTMP11_DEBUG_TRAP_ENABLED_SHIFT
