@@ -2206,7 +2206,8 @@ static int smu_v13_0_0_baco_enter(struct smu_context *smu)
 
 	if (adev->in_runpm && smu_cmn_is_audio_func_enabled(adev))
 		return smu_v13_0_baco_set_armd3_sequence(smu,
-				smu_baco->maco_support ? BACO_SEQ_BAMACO : BACO_SEQ_BACO);
+				(smu_baco->maco_support && amdgpu_runtime_pm != 1) ?
+					BACO_SEQ_BAMACO : BACO_SEQ_BACO);
 	else
 		return smu_v13_0_baco_enter(smu);
 }
