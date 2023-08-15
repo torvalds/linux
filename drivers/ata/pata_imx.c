@@ -141,21 +141,15 @@ static int pata_imx_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	priv->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "Failed to get clock\n");
+		dev_err(&pdev->dev, "Failed to get and enable clock\n");
 		return PTR_ERR(priv->clk);
 	}
 
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return ret;
-
 	host = ata_host_alloc(&pdev->dev, 1);
-	if (!host) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!host)
+		return -ENOMEM;
 
 	host->private_data = priv;
 	ap = host->ports[0];
@@ -165,10 +159,8 @@ static int pata_imx_probe(struct platform_device *pdev)
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
 	priv->host_regs = devm_platform_get_and_ioremap_resource(pdev, 0, &io_res);
-	if (IS_ERR(priv->host_regs)) {
-		ret = PTR_ERR(priv->host_regs);
-		goto err;
-	}
+	if (IS_ERR(priv->host_regs))
+		return PTR_ERR(priv->host_regs);
 
 	ap->ioaddr.cmd_addr = priv->host_regs + PATA_IMX_DRIVE_DATA;
 	ap->ioaddr.ctl_addr = priv->host_regs + PATA_IMX_DRIVE_CONTROL;
@@ -194,13 +186,9 @@ static int pata_imx_probe(struct platform_device *pdev)
 				&pata_imx_sht);
 
 	if (ret)
-		goto err;
+		return ret;
 
 	return 0;
-err:
-	clk_disable_unprepare(priv->clk);
-
-	return ret;
 }
 
 static void pata_imx_remove(struct platform_device *pdev)
@@ -211,8 +199,6 @@ static void pata_imx_remove(struct platform_device *pdev)
 	ata_host_detach(host);
 
 	__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
-
-	clk_disable_unprepare(priv->clk);
 }
 
 #ifdef CONFIG_PM_SLEEP
