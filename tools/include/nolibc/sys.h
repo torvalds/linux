@@ -82,7 +82,13 @@ void *sys_brk(void *addr)
 static __attribute__((unused))
 int brk(void *addr)
 {
-	return __sysret(sys_brk(addr) ? 0 : -ENOMEM);
+	void *ret = sys_brk(addr);
+
+	if (!ret) {
+		SET_ERRNO(ENOMEM);
+		return -1;
+	}
+	return 0;
 }
 
 static __attribute__((unused))
@@ -94,7 +100,8 @@ void *sbrk(intptr_t inc)
 	if (ret && sys_brk(ret + inc) == ret + inc)
 		return ret + inc;
 
-	return (void *)__sysret(-ENOMEM);
+	SET_ERRNO(ENOMEM);
+	return (void *)-1;
 }
 
 
@@ -682,7 +689,13 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 static __attribute__((unused))
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 {
-	return (void *)__sysret((unsigned long)sys_mmap(addr, length, prot, flags, fd, offset));
+	void *ret = sys_mmap(addr, length, prot, flags, fd, offset);
+
+	if ((unsigned long)ret >= -4095UL) {
+		SET_ERRNO(-(long)ret);
+		ret = MAP_FAILED;
+	}
+	return ret;
 }
 
 static __attribute__((unused))
