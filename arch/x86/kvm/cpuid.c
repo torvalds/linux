@@ -11,6 +11,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kvm_host.h>
+#include "linux/lockdep.h"
 #include <linux/export.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
@@ -83,6 +84,18 @@ static inline struct kvm_cpuid_entry2 *cpuid_entry2_find(
 {
 	struct kvm_cpuid_entry2 *e;
 	int i;
+
+	/*
+	 * KVM has a semi-arbitrary rule that querying the guest's CPUID model
+	 * with IRQs disabled is disallowed.  The CPUID model can legitimately
+	 * have over one hundred entries, i.e. the lookup is slow, and IRQs are
+	 * typically disabled in KVM only when KVM is in a performance critical
+	 * path, e.g. the core VM-Enter/VM-Exit run loop.  Nothing will break
+	 * if this rule is violated, this assertion is purely to flag potential
+	 * performance issues.  If this fires, consider moving the lookup out
+	 * of the hotpath, e.g. by caching information during CPUID updates.
+	 */
+	lockdep_assert_irqs_enabled();
 
 	for (i = 0; i < nent; i++) {
 		e = &entries[i];
