@@ -2900,9 +2900,8 @@ static int fan_curve_get_factory_default(struct asus_wmi *asus, u32 fan_dev)
 {
 	struct fan_curve_data *curves;
 	u8 buf[FAN_CURVE_BUF_LEN];
-	int fan_idx = 0;
+	int err, fan_idx;
 	u8 mode = 0;
-	int err;
 
 	if (asus->throttle_thermal_policy_available)
 		mode = asus->throttle_thermal_policy_mode;
@@ -2912,13 +2911,6 @@ static int fan_curve_get_factory_default(struct asus_wmi *asus, u32 fan_dev)
 	else if (mode == 1)
 		mode = 2;
 
-	if (fan_dev == ASUS_WMI_DEVID_GPU_FAN_CURVE)
-		fan_idx = FAN_CURVE_DEV_GPU;
-
-	if (fan_dev == ASUS_WMI_DEVID_MID_FAN_CURVE)
-		fan_idx = FAN_CURVE_DEV_MID;
-
-	curves = &asus->custom_fan_curves[fan_idx];
 	err = asus_wmi_evaluate_method_buf(asus->dsts_id, fan_dev, mode, buf,
 					   FAN_CURVE_BUF_LEN);
 	if (err) {
@@ -2926,9 +2918,17 @@ static int fan_curve_get_factory_default(struct asus_wmi *asus, u32 fan_dev)
 		return err;
 	}
 
-	fan_curve_copy_from_buf(curves, buf);
+	fan_idx = FAN_CURVE_DEV_CPU;
+	if (fan_dev == ASUS_WMI_DEVID_GPU_FAN_CURVE)
+		fan_idx = FAN_CURVE_DEV_GPU;
+
+	if (fan_dev == ASUS_WMI_DEVID_MID_FAN_CURVE)
+		fan_idx = FAN_CURVE_DEV_MID;
+
+	curves = &asus->custom_fan_curves[fan_idx];
 	curves->device_id = fan_dev;
 
+	fan_curve_copy_from_buf(curves, buf);
 	return 0;
 }
 
@@ -2958,7 +2958,7 @@ static struct fan_curve_data *fan_curve_attr_select(struct asus_wmi *asus,
 {
 	int index = to_sensor_dev_attr(attr)->index;
 
-	return &asus->custom_fan_curves[index & FAN_CURVE_DEV_GPU];
+	return &asus->custom_fan_curves[index];
 }
 
 /* Determine which fan the attribute is for if SENSOR_ATTR_2 */
@@ -2967,7 +2967,7 @@ static struct fan_curve_data *fan_curve_attr_2_select(struct asus_wmi *asus,
 {
 	int nr = to_sensor_dev_attr_2(attr)->nr;
 
-	return &asus->custom_fan_curves[nr & FAN_CURVE_DEV_GPU];
+	return &asus->custom_fan_curves[nr & ~FAN_CURVE_PWM_MASK];
 }
 
 static ssize_t fan_curve_show(struct device *dev,
@@ -2976,13 +2976,13 @@ static ssize_t fan_curve_show(struct device *dev,
 	struct sensor_device_attribute_2 *dev_attr = to_sensor_dev_attr_2(attr);
 	struct asus_wmi *asus = dev_get_drvdata(dev);
 	struct fan_curve_data *data;
-	int value, index, nr;
+	int value, pwm, index;
 
 	data = fan_curve_attr_2_select(asus, attr);
+	pwm = dev_attr->nr & FAN_CURVE_PWM_MASK;
 	index = dev_attr->index;
-	nr = dev_attr->nr;
 
-	if (nr & FAN_CURVE_PWM_MASK)
+	if (pwm)
 		value = data->percents[index];
 	else
 		value = data->temps[index];
@@ -3025,23 +3025,21 @@ static ssize_t fan_curve_store(struct device *dev,
 	struct sensor_device_attribute_2 *dev_attr = to_sensor_dev_attr_2(attr);
 	struct asus_wmi *asus = dev_get_drvdata(dev);
 	struct fan_curve_data *data;
+	int err, pwm, index;
 	u8 value;
-	int err;
-
-	int pwm = dev_attr->nr & FAN_CURVE_PWM_MASK;
-	int index = dev_attr->index;
 
 	data = fan_curve_attr_2_select(asus, attr);
+	pwm = dev_attr->nr & FAN_CURVE_PWM_MASK;
+	index = dev_attr->index;
 
 	err = kstrtou8(buf, 10, &value);
 	if (err < 0)
 		return err;
 
-	if (pwm) {
+	if (pwm)
 		data->percents[index] = value;
-	} else {
+	else
 		data->temps[index] = value;
-	}
 
 	/*
 	 * Mark as disabled so the user has to explicitly enable to apply a
@@ -3154,7 +3152,7 @@ static SENSOR_DEVICE_ATTR_2_RW(pwm1_auto_point8_temp, fan_curve,
 			       FAN_CURVE_DEV_CPU, 7);
 
 static SENSOR_DEVICE_ATTR_2_RW(pwm1_auto_point1_pwm, fan_curve,
-			       FAN_CURVE_DEV_CPU | FAN_CURVE_PWM_MASK, 0);
+				FAN_CURVE_DEV_CPU | FAN_CURVE_PWM_MASK, 0);
 static SENSOR_DEVICE_ATTR_2_RW(pwm1_auto_point2_pwm, fan_curve,
 			       FAN_CURVE_DEV_CPU | FAN_CURVE_PWM_MASK, 1);
 static SENSOR_DEVICE_ATTR_2_RW(pwm1_auto_point3_pwm, fan_curve,
@@ -3207,40 +3205,40 @@ static SENSOR_DEVICE_ATTR_2_RW(pwm2_auto_point8_pwm, fan_curve,
 			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 7);
 
 /* MID */
-static SENSOR_DEVICE_ATTR_RW(pwm3_enable, fan_curve_enable, FAN_CURVE_DEV_GPU);
+static SENSOR_DEVICE_ATTR_RW(pwm3_enable, fan_curve_enable, FAN_CURVE_DEV_MID);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point1_temp, fan_curve,
-			       FAN_CURVE_DEV_GPU, 0);
+			       FAN_CURVE_DEV_MID, 0);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point2_temp, fan_curve,
-			       FAN_CURVE_DEV_GPU, 1);
+			       FAN_CURVE_DEV_MID, 1);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point3_temp, fan_curve,
-			       FAN_CURVE_DEV_GPU, 2);
+			       FAN_CURVE_DEV_MID, 2);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point4_temp, fan_curve,
-			       FAN_CURVE_DEV_GPU, 3);
+			       FAN_CURVE_DEV_MID, 3);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point5_temp, fan_curve,
-			       FAN_CURVE_DEV_GPU, 4);
+			       FAN_CURVE_DEV_MID, 4);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point6_temp, fan_curve,
-			       FAN_CURVE_DEV_GPU, 5);
+			       FAN_CURVE_DEV_MID, 5);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point7_temp, fan_curve,
-			       FAN_CURVE_DEV_GPU, 6);
+			       FAN_CURVE_DEV_MID, 6);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point8_temp, fan_curve,
-			       FAN_CURVE_DEV_GPU, 7);
+			       FAN_CURVE_DEV_MID, 7);
 
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point1_pwm, fan_curve,
-			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 0);
+			       FAN_CURVE_DEV_MID | FAN_CURVE_PWM_MASK, 0);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point2_pwm, fan_curve,
-			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 1);
+			       FAN_CURVE_DEV_MID | FAN_CURVE_PWM_MASK, 1);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point3_pwm, fan_curve,
-			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 2);
+			       FAN_CURVE_DEV_MID | FAN_CURVE_PWM_MASK, 2);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point4_pwm, fan_curve,
-			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 3);
+			       FAN_CURVE_DEV_MID | FAN_CURVE_PWM_MASK, 3);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point5_pwm, fan_curve,
-			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 4);
+			       FAN_CURVE_DEV_MID | FAN_CURVE_PWM_MASK, 4);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point6_pwm, fan_curve,
-			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 5);
+			       FAN_CURVE_DEV_MID | FAN_CURVE_PWM_MASK, 5);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point7_pwm, fan_curve,
-			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 6);
+			       FAN_CURVE_DEV_MID | FAN_CURVE_PWM_MASK, 6);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point8_pwm, fan_curve,
-			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 7);
+			       FAN_CURVE_DEV_MID | FAN_CURVE_PWM_MASK, 7);
 
 static struct attribute *asus_fan_curve_attr[] = {
 	/* CPU */
