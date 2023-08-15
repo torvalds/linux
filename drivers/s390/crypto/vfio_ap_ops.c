@@ -1611,6 +1611,7 @@ static int apq_status_check(int apqn, struct ap_queue_status *status)
 	case AP_RESPONSE_DECONFIGURED:
 		return 0;
 	case AP_RESPONSE_RESET_IN_PROGRESS:
+	case AP_RESPONSE_BUSY:
 		return -EBUSY;
 	default:
 		WARN(true,
@@ -1663,6 +1664,7 @@ retry_zapq:
 		}
 		break;
 	case AP_RESPONSE_RESET_IN_PROGRESS:
+	case AP_RESPONSE_BUSY:
 		/*
 		 * There is a reset issued by another process in progress. Let's wait
 		 * for that to complete. Since we have no idea whether it was a RAPQ or
