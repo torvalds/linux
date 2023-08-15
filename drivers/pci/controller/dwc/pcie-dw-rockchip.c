@@ -2089,8 +2089,8 @@ retry_regulator:
 	 * [0] 0->SMA tool control the signal switch, 1/2/3 is for manual Gen setting
 	 * [1] transmitter setting for manual Gen setting, valid only if [0] isn't zero.
 	 */
-	if (device_property_read_u32_array(dev, "rockchip,compliance-mode",
-					   rk_pcie->comp_prst, 2)) {
+	if (!device_property_read_u32_array(dev, "rockchip,compliance-mode",
+					    rk_pcie->comp_prst, 2)) {
 		BUG_ON(rk_pcie->comp_prst[0] > 3 || rk_pcie->comp_prst[1] > 10);
 		if (!rk_pcie->comp_prst[0]) {
 			dev_info(dev, "Auto compliance mode for SMA tool.\n");
