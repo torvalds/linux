@@ -335,7 +335,7 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 
 	of_id = of_match_device(xgene_mdio_of_match, &pdev->dev);
 	if (of_id) {
-		mdio_id = (enum xgene_mdio_id)of_id->data;
+		mdio_id = (uintptr_t)of_id->data;
 	} else {
 #ifdef CONFIG_ACPI
 		const struct acpi_device_id *acpi_id;
