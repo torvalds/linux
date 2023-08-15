@@ -359,6 +359,28 @@ static int vfio_ap_validate_nib(struct kvm_vcpu *vcpu, dma_addr_t *nib)
 	return 0;
 }
 
+static int ensure_nib_shared(unsigned long addr, struct gmap *gmap)
+{
+	int ret;
+
+	/*
+	 * The nib has to be located in shared storage since guest and
+	 * host access it. vfio_pin_pages() will do a pin shared and
+	 * if that fails (possibly because it's not a shared page) it
+	 * calls export. We try to do a second pin shared here so that
+	 * the UV gives us an error code if we try to pin a non-shared
+	 * page.
+	 *
+	 * If the page is already pinned shared the UV will return a success.
+	 */
+	ret = uv_pin_shared(addr);
+	if (ret) {
+		/* vfio_pin_pages() likely exported the page so let's re-import */
+		gmap_convert_to_secure(gmap, addr);
+	}
+	return ret;
+}
+
 /**
  * vfio_ap_irq_enable - Enable Interruption for a APQN
  *
@@ -421,6 +443,14 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 
 	h_nib = page_to_phys(h_page) | (nib & ~PAGE_MASK);
 	aqic_gisa.gisc = isc;
+
+	/* NIB in non-shared storage is a rc 6 for PV guests */
+	if (kvm_s390_pv_cpu_is_protected(vcpu) &&
+	    ensure_nib_shared(h_nib & PAGE_MASK, kvm->arch.gmap)) {
+		vfio_unpin_pages(&q->matrix_mdev->vdev, nib, 1);
+		status.response_code = AP_RESPONSE_INVALID_ADDRESS;
+		return status;
+	}
 
 	nisc = kvm_s390_gisc_register(kvm, isc);
 	if (nisc < 0) {
