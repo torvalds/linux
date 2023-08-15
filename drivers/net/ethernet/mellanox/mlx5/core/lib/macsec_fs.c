@@ -278,6 +278,7 @@ static int macsec_fs_tx_create_crypto_table_groups(struct mlx5_macsec_flow_table
 
 	if (!in) {
 		kfree(ft->g);
+		ft->g = NULL;
 		return -ENOMEM;
 	}
 
