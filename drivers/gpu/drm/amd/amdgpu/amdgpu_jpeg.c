@@ -247,6 +247,8 @@ int amdgpu_jpeg_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 			if (tmp == 0xDEADBEEF)
 				break;
 			udelay(1);
+			if (amdgpu_emu_mode == 1)
+				udelay(10);
 		}
 
 		if (i >= adev->usec_timeout)
