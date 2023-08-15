@@ -574,7 +574,7 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 		goto err_shost;
 
 	SHOST_TO_SAS_HA(shost) = &ihost->sas_ha;
-	ihost->sas_ha.core.shost = shost;
+	ihost->sas_ha.shost = shost;
 	shost->transportt = isci_transport_template;
 
 	shost->max_id = ~0;
@@ -729,7 +729,7 @@ static int isci_resume(struct device *dev)
 		sas_prep_resume_ha(&ihost->sas_ha);
 
 		isci_host_init(ihost);
-		isci_host_start(ihost->sas_ha.core.shost);
+		isci_host_start(ihost->sas_ha.shost);
 		wait_for_start(ihost);
 
 		sas_resume_ha(&ihost->sas_ha);

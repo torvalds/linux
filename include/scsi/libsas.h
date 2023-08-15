@@ -333,11 +333,6 @@ struct asd_sas_phy {
 	void *lldd_phy;		  /* not touched by the sas_class_code */
 };
 
-struct scsi_core {
-	struct Scsi_Host *shost;
-
-};
-
 enum sas_ha_state {
 	SAS_HA_REGISTERED,
 	SAS_HA_DRAINING,
@@ -358,7 +353,7 @@ struct sas_ha_struct {
 
 	struct mutex disco_mutex;
 
-	struct scsi_core core;
+	struct Scsi_Host *shost;
 
 /* public: */
 	char *sas_ha_name;

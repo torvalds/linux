@@ -28,7 +28,7 @@ static int asd_get_user_sas_addr(struct asd_ha_struct *asd_ha)
 	if (asd_ha->hw_prof.sas_addr[0])
 		return 0;
 
-	return sas_request_addr(asd_ha->sas_ha.core.shost,
+	return sas_request_addr(asd_ha->sas_ha.shost,
 				asd_ha->hw_prof.sas_addr);
 }
 

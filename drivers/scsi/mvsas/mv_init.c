@@ -414,7 +414,7 @@ static int mvs_prep_sas_ha_init(struct Scsi_Host *shost,
 
 	sha->sas_phy = arr_phy;
 	sha->sas_port = arr_port;
-	sha->core.shost = shost;
+	sha->shost = shost;
 
 	sha->lldd_ha = kzalloc(sizeof(struct mvs_prv_info), GFP_KERNEL);
 	if (!sha->lldd_ha)
@@ -470,7 +470,7 @@ static void  mvs_post_sas_ha_init(struct Scsi_Host *shost,
 	shost->sg_tablesize = min_t(u16, SG_ALL, MVS_MAX_SG);
 	shost->can_queue = can_queue;
 	mvi->shost->cmd_per_lun = MVS_QUEUE_SIZE;
-	sha->core.shost = mvi->shost;
+	sha->shost = mvi->shost;
 }
 
 static void mvs_init_sas_add(struct mvs_info *mvi)

@@ -162,7 +162,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct domain_device *dev = ap->private_data;
 	struct sas_ha_struct *sas_ha = dev->port->ha;
-	struct Scsi_Host *host = sas_ha->core.shost;
+	struct Scsi_Host *host = sas_ha->shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 
 	/* TODO: we should try to remove that unlock */
@@ -235,7 +235,7 @@ static void sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 
 static struct sas_internal *dev_to_sas_internal(struct domain_device *dev)
 {
-	return to_sas_internal(dev->port->ha->core.shost->transportt);
+	return to_sas_internal(dev->port->ha->shost->transportt);
 }
 
 static int sas_get_ata_command_set(struct domain_device *dev)
@@ -584,7 +584,7 @@ static struct ata_port_info sata_port_info = {
 int sas_ata_init(struct domain_device *found_dev)
 {
 	struct sas_ha_struct *ha = found_dev->port->ha;
-	struct Scsi_Host *shost = ha->core.shost;
+	struct Scsi_Host *shost = ha->shost;
 	struct ata_host *ata_host;
 	struct ata_port *ap;
 	int rc;
@@ -822,7 +822,7 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	struct sas_ha_struct *ha = dev->port->ha;
 
 	sas_ata_printk(KERN_DEBUG, dev, "dev error handler\n");
-	ata_scsi_port_error_handler(ha->core.shost, ap);
+	ata_scsi_port_error_handler(ha->shost, ap);
 	sas_put_device(dev);
 }
 
