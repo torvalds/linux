@@ -529,7 +529,6 @@ struct sas_ata_task {
 
 	u8     dma_xfer:1;	  /* PIO:0 or DMA:1 */
 	u8     use_ncq:1;
-	u8     set_affil_pol:1;
 	u8     stp_affil_pol:1;
 
 	u8     device_control_reg_update:1;
