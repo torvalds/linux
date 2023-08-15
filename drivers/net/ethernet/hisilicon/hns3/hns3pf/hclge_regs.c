@@ -125,6 +125,7 @@ enum hclge_reg_tag {
 	HCLGE_REG_TAG_DFX_RCB,
 	HCLGE_REG_TAG_DFX_TQP,
 	HCLGE_REG_TAG_DFX_SSU_2,
+	HCLGE_REG_TAG_RPU_TNL,
 };
 
 #pragma pack(4)
@@ -146,6 +147,8 @@ struct hclge_reg_header {
 #define HCLGE_REG_TLV_SPACE	(sizeof(struct hclge_reg_tlv) / sizeof(u32))
 #define HCLGE_REG_HEADER_SPACE	(sizeof(struct hclge_reg_header) / sizeof(u32))
 #define HCLGE_REG_MAGIC_NUMBER	0x686e733372656773 /* meaning is hns3regs */
+
+#define HCLGE_REG_RPU_TNL_ID_0	1
 
 static u32 hclge_reg_get_header(void *data)
 {
@@ -342,6 +345,28 @@ static int hclge_dfx_reg_cmd_send(struct hclge_dev *hdev,
 	return ret;
 }
 
+/* tnl_id = 0 means get sum of all tnl reg's value */
+static int hclge_dfx_reg_rpu_tnl_cmd_send(struct hclge_dev *hdev, u32 tnl_id,
+					  struct hclge_desc *desc, int bd_num)
+{
+	int i, ret;
+
+	for (i = 0; i < bd_num; i++) {
+		hclge_cmd_setup_basic_desc(&desc[i], HCLGE_OPC_DFX_RPU_REG_0,
+					   true);
+		if (i != bd_num - 1)
+			desc[i].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
+	}
+
+	desc[0].data[0] = cpu_to_le32(tnl_id);
+	ret = hclge_cmd_send(&hdev->hw, desc, bd_num);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"failed to query dfx rpu tnl reg, ret = %d\n",
+			ret);
+	return ret;
+}
+
 static int hclge_dfx_reg_fetch_data(struct hclge_desc *desc_src, int bd_num,
 				    void *data)
 {
@@ -363,6 +388,7 @@ static int hclge_dfx_reg_fetch_data(struct hclge_desc *desc_src, int bd_num,
 static int hclge_get_dfx_reg_len(struct hclge_dev *hdev, int *len)
 {
 	u32 dfx_reg_type_num = ARRAY_SIZE(hclge_dfx_bd_offset_list);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	int data_len_per_desc;
 	int *bd_num_list;
 	int ret;
@@ -384,8 +410,38 @@ static int hclge_get_dfx_reg_len(struct hclge_dev *hdev, int *len)
 	for (i = 0; i < dfx_reg_type_num; i++)
 		*len += bd_num_list[i] * data_len_per_desc + HCLGE_REG_TLV_SIZE;
 
+	/**
+	 * the num of dfx_rpu_0 is reused by each dfx_rpu_tnl
+	 * HCLGE_DFX_BD_OFFSET is starting at 1, but the array subscript is
+	 * starting at 0, so offset need '- 1'.
+	 */
+	*len += (bd_num_list[HCLGE_DFX_RPU_0_BD_OFFSET - 1] * data_len_per_desc +
+		 HCLGE_REG_TLV_SIZE) * ae_dev->dev_specs.tnl_num;
+
 out:
 	kfree(bd_num_list);
+	return ret;
+}
+
+static int hclge_get_dfx_rpu_tnl_reg(struct hclge_dev *hdev, u32 *reg,
+				     struct hclge_desc *desc_src,
+				     int bd_num)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	int ret = 0;
+	u8 i;
+
+	for (i = HCLGE_REG_RPU_TNL_ID_0; i <= ae_dev->dev_specs.tnl_num; i++) {
+		ret = hclge_dfx_reg_rpu_tnl_cmd_send(hdev, i, desc_src, bd_num);
+		if (ret)
+			break;
+
+		reg += hclge_reg_get_tlv(HCLGE_REG_TAG_RPU_TNL,
+					 ARRAY_SIZE(desc_src->data) * bd_num,
+					 reg);
+		reg += hclge_dfx_reg_fetch_data(desc_src, bd_num, reg);
+	}
+
 	return ret;
 }
 
@@ -428,7 +484,7 @@ static int hclge_get_dfx_reg(struct hclge_dev *hdev, void *data)
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
 				"Get dfx reg fail, status is %d.\n", ret);
-			break;
+			goto free;
 		}
 
 		reg += hclge_reg_get_tlv(HCLGE_REG_TAG_DFX_BIOS_COMMON + i,
@@ -437,6 +493,14 @@ static int hclge_get_dfx_reg(struct hclge_dev *hdev, void *data)
 		reg += hclge_dfx_reg_fetch_data(desc_src, bd_num, reg);
 	}
 
+	/**
+	 * HCLGE_DFX_BD_OFFSET is starting at 1, but the array subscript is
+	 * starting at 0, so offset need '- 1'.
+	 */
+	bd_num = bd_num_list[HCLGE_DFX_RPU_0_BD_OFFSET - 1];
+	ret = hclge_get_dfx_rpu_tnl_reg(hdev, reg, desc_src, bd_num);
+
+free:
 	kfree(desc_src);
 out:
 	kfree(bd_num_list);

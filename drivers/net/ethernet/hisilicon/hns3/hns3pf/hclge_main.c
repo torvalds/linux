@@ -1326,6 +1326,7 @@ static void hclge_set_default_dev_specs(struct hclge_dev *hdev)
 	ae_dev->dev_specs.max_frm_size = HCLGE_MAC_MAX_FRAME;
 	ae_dev->dev_specs.max_qset_num = HCLGE_MAX_QSET_NUM;
 	ae_dev->dev_specs.umv_size = HCLGE_DEFAULT_UMV_SPACE_PER_PF;
+	ae_dev->dev_specs.tnl_num = 0;
 }
 
 static void hclge_parse_dev_specs(struct hclge_dev *hdev,
@@ -1349,6 +1350,7 @@ static void hclge_parse_dev_specs(struct hclge_dev *hdev,
 	ae_dev->dev_specs.max_frm_size = le16_to_cpu(req1->max_frm_size);
 	ae_dev->dev_specs.umv_size = le16_to_cpu(req1->umv_size);
 	ae_dev->dev_specs.mc_mac_size = le16_to_cpu(req1->mc_mac_size);
+	ae_dev->dev_specs.tnl_num = req1->tnl_num;
 }
 
 static void hclge_check_dev_specs(struct hclge_dev *hdev)
