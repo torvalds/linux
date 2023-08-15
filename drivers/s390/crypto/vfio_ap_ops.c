@@ -1677,9 +1677,11 @@ retry_zapq:
 	case AP_RESPONSE_DECONFIGURED:
 		/*
 		 * When an AP adapter is deconfigured, the associated
-		 * queues are reset, so let's return a value indicating the reset
-		 * completed successfully.
+		 * queues are reset, so let's set the status response code to 0
+		 * so the queue may be passed through (i.e., not filtered) and
+		 * return a value indicating the reset completed successfully.
 		 */
+		q->reset_rc = 0;
 		ret = 0;
 		vfio_ap_free_aqic_resources(q);
 		break;
