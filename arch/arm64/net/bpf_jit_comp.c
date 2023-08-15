@@ -982,7 +982,11 @@ emit_bswap_uxt:
 
 	/* JUMP off */
 	case BPF_JMP | BPF_JA:
-		jmp_offset = bpf2a64_offset(i, off, ctx);
+	case BPF_JMP32 | BPF_JA:
+		if (BPF_CLASS(code) == BPF_JMP)
+			jmp_offset = bpf2a64_offset(i, off, ctx);
+		else
+			jmp_offset = bpf2a64_offset(i, imm, ctx);
 		check_imm26(jmp_offset);
 		emit(A64_B(jmp_offset), ctx);
 		break;
