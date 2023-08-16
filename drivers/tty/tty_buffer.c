@@ -303,16 +303,16 @@ int tty_buffer_request_room(struct tty_port *port, size_t size)
 }
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
 
-int __tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
-				   const u8 *flags, bool mutable_flags,
-				   size_t size)
+size_t __tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
+				      const u8 *flags, bool mutable_flags,
+				      size_t size)
 {
 	bool need_flags = mutable_flags || flags[0] != TTY_NORMAL;
-	int copied = 0;
+	size_t copied = 0;
 
 	do {
-		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
-		int space = __tty_buffer_request_room(port, goal, need_flags);
+		size_t goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
+		size_t space = __tty_buffer_request_room(port, goal, need_flags);
 		struct tty_buffer *tb = port->buf.tail;
 
 		if (unlikely(space == 0))

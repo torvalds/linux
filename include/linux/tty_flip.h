@@ -10,9 +10,9 @@ struct tty_ldisc;
 int tty_buffer_set_limit(struct tty_port *port, int limit);
 unsigned int tty_buffer_space_avail(struct tty_port *port);
 int tty_buffer_request_room(struct tty_port *port, size_t size);
-int __tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
-				   const u8 *flags, bool mutable_flags,
-				   size_t size);
+size_t __tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
+				      const u8 *flags, bool mutable_flags,
+				      size_t size);
 int tty_prepare_flip_string(struct tty_port *port, u8 **chars, size_t size);
 void tty_flip_buffer_push(struct tty_port *port);
 int __tty_insert_flip_char(struct tty_port *port, u8 ch, u8 flag);
@@ -29,9 +29,9 @@ int __tty_insert_flip_char(struct tty_port *port, u8 ch, u8 flag);
  *
  * Returns: the number added.
  */
-static inline int tty_insert_flip_string_fixed_flag(struct tty_port *port,
-						    const u8 *chars, u8 flag,
-						    size_t size)
+static inline size_t tty_insert_flip_string_fixed_flag(struct tty_port *port,
+						       const u8 *chars, u8 flag,
+						       size_t size)
 {
 	return __tty_insert_flip_string_flags(port, chars, &flag, false, size);
 }
@@ -48,15 +48,15 @@ static inline int tty_insert_flip_string_fixed_flag(struct tty_port *port,
  *
  * Returns: the number added.
  */
-static inline int tty_insert_flip_string_flags(struct tty_port *port,
-					       const u8 *chars, const u8 *flags,
-					       size_t size)
+static inline size_t tty_insert_flip_string_flags(struct tty_port *port,
+						  const u8 *chars,
+						  const u8 *flags, size_t size)
 {
 	return __tty_insert_flip_string_flags(port, chars, flags, true, size);
 }
 
 
-static inline int tty_insert_flip_char(struct tty_port *port, u8 ch, u8 flag)
+static inline size_t tty_insert_flip_char(struct tty_port *port, u8 ch, u8 flag)
 {
 	struct tty_buffer *tb = port->buf.tail;
 	int change;
@@ -71,8 +71,8 @@ static inline int tty_insert_flip_char(struct tty_port *port, u8 ch, u8 flag)
 	return __tty_insert_flip_char(port, ch, flag);
 }
 
-static inline int tty_insert_flip_string(struct tty_port *port,
-		const u8 *chars, size_t size)
+static inline size_t tty_insert_flip_string(struct tty_port *port,
+					    const u8 *chars, size_t size)
 {
 	return tty_insert_flip_string_fixed_flag(port, chars, TTY_NORMAL, size);
 }
