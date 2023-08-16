@@ -218,3 +218,7 @@ static struct kunit_suite platform_device_devm_test_suite = {
 };
 
 kunit_test_suite(platform_device_devm_test_suite);
+
+MODULE_DESCRIPTION("Test module for platform devices");
+MODULE_AUTHOR("Maxime Ripard <mripard@kernel.org>");
+MODULE_LICENSE("GPL");
