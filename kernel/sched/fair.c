@@ -873,6 +873,13 @@ static struct sched_entity *pick_eevdf(struct cfs_rq *cfs_rq)
 	if (curr && (!curr->on_rq || !entity_eligible(cfs_rq, curr)))
 		curr = NULL;
 
+	/*
+	 * Once selected, run a task until it either becomes non-eligible or
+	 * until it gets a new slice. See the HACK in set_next_entity().
+	 */
+	if (sched_feat(RUN_TO_PARITY) && curr && curr->vlag == curr->deadline)
+		return curr;
+
 	while (node) {
 		struct sched_entity *se = __node_2_se(node);
 
@@ -5167,6 +5174,11 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		update_stats_wait_end_fair(cfs_rq, se);
 		__dequeue_entity(cfs_rq, se);
 		update_load_avg(cfs_rq, se, UPDATE_TG);
+		/*
+		 * HACK, stash a copy of deadline at the point of pick in vlag,
+		 * which isn't used until dequeue.
+		 */
+		se->vlag = se->deadline;
 	}
 
 	update_stats_curr_start(cfs_rq, se);
