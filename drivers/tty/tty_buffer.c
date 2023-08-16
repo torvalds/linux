@@ -266,28 +266,28 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size,
 	size_t left = (b->flags ? 1 : 2) * b->size - b->used;
 	bool change = !b->flags && flags;
 
-	if (change || left < size) {
-		/* This is the slow path - looking for new buffers to use */
-		n = tty_buffer_alloc(port, size);
-		if (n != NULL) {
-			n->flags = flags;
-			buf->tail = n;
-			/*
-			 * Paired w/ acquire in flush_to_ldisc() and lookahead_bufs()
-			 * ensures they see all buffer data.
-			 */
-			smp_store_release(&b->commit, b->used);
-			/*
-			 * Paired w/ acquire in flush_to_ldisc() and lookahead_bufs()
-			 * ensures the latest commit value can be read before the head
-			 * is advanced to the next buffer.
-			 */
-			smp_store_release(&b->next, n);
-		} else if (change)
-			size = 0;
-		else
-			size = left;
-	}
+	if (!change && left >= size)
+		return size;
+
+	/* This is the slow path - looking for new buffers to use */
+	n = tty_buffer_alloc(port, size);
+	if (n == NULL)
+		return change ? 0 : left;
+
+	n->flags = flags;
+	buf->tail = n;
+	/*
+	 * Paired w/ acquire in flush_to_ldisc() and lookahead_bufs()
+	 * ensures they see all buffer data.
+	 */
+	smp_store_release(&b->commit, b->used);
+	/*
+	 * Paired w/ acquire in flush_to_ldisc() and lookahead_bufs()
+	 * ensures the latest commit value can be read before the head
+	 * is advanced to the next buffer.
+	 */
+	smp_store_release(&b->next, n);
+
 	return size;
 }
 
