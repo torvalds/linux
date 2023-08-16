@@ -19,12 +19,12 @@ struct tty_buffer {
 	unsigned int read;
 	bool flags;
 	/* Data points here */
-	unsigned long data[];
+	u8 data[] __aligned(sizeof(unsigned long));
 };
 
 static inline u8 *char_buf_ptr(struct tty_buffer *b, unsigned int ofs)
 {
-	return ((u8 *)b->data) + ofs;
+	return b->data + ofs;
 }
 
 static inline u8 *flag_buf_ptr(struct tty_buffer *b, unsigned int ofs)
