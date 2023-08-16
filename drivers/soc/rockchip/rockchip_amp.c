@@ -111,29 +111,29 @@ static ssize_t boot_cpu_show(struct device *dev,
 static void cpu_status_print(unsigned long cpu_id, struct arm_smccc_res *res)
 {
 	if (res->a0) {
-		pr_info("get cpu-0x%lx status(%lx) error!\n", cpu_id, res->a0);
+		pr_info("failed to get cpu[%lx] status, ret=%lx!\n", cpu_id, res->a0);
 		return;
 	}
 
 	if (res->a1 == AMP_CPU_STATUS_AMP_DIS)
-		pr_info("cpu-0x%lx amp is disable (%ld)\n", cpu_id, res->a1);
+		pr_info("cpu[%lx] amp is disabled (%ld)\n", cpu_id, res->a1);
 	else if (res->a1 == AMP_CPU_STATUS_EN)
-		pr_info("cpu-0x%lx amp is enable (%ld)\n", cpu_id, res->a1);
+		pr_info("cpu[%lx] amp is enabled (%ld)\n", cpu_id, res->a1);
 	else if (res->a1 == AMP_CPU_STATUS_ON)
-		pr_info("cpu-0x%lx amp: cpu is on (%ld)\n", cpu_id, res->a1);
+		pr_info("cpu[%lx] amp: cpu is on (%ld)\n", cpu_id, res->a1);
 	else if (res->a1 == AMP_CPU_STATUS_OFF)
-		pr_info("cpu-0x%lx amp: cpu is off(%ld)\n", cpu_id, res->a1);
+		pr_info("cpu[%lx] amp: cpu is off(%ld)\n", cpu_id, res->a1);
 	else
-		pr_info("cpu-0x%lx status(%ld) is error\n", cpu_id, res->a1);
+		pr_info("cpu[%lx] amp status(%ld) is error\n", cpu_id, res->a1);
 
 	if (res->a2 == RK_CPU_STATUS_OFF)
-		pr_info("cpu-0x%lx status(%ld) is off\n", cpu_id, res->a2);
+		pr_info("cpu[%lx] status(%ld) is off\n", cpu_id, res->a2);
 	else if (res->a2 == RK_CPU_STATUS_ON)
-		pr_info("cpu-0x%lx status(%ld) is on\n", cpu_id, res->a2);
+		pr_info("cpu[%lx] status(%ld) is on\n", cpu_id, res->a2);
 	else if (res->a2 == RK_CPU_STATUS_BUSY)
-		pr_info("cpu-0x%lx status(%ld) is busy\n", cpu_id, res->a2);
+		pr_info("cpu[%lx] status(%ld) is busy\n", cpu_id, res->a2);
 	else
-		pr_info("cpu-0x%lx status(%ld) is error\n", cpu_id, res->a2);
+		pr_info("cpu[%lx] status(%ld) is error\n", cpu_id, res->a2);
 }
 
 static ssize_t boot_cpu_store(struct device *dev,
@@ -141,9 +141,9 @@ static ssize_t boot_cpu_store(struct device *dev,
 			      const char *buf,
 			      size_t count)
 {
-	char cmd[10];
-	unsigned long cpu_id;
 	struct arm_smccc_res res = {0};
+	unsigned long cpu_id;
+	char cmd[10];
 	int ret, idx;
 
 	ret = sscanf(buf, "%s", cmd);
@@ -154,12 +154,10 @@ static ssize_t boot_cpu_store(struct device *dev,
 
 	if (!strncmp(cmd, "status", strlen("status"))) {
 		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
-
 		if (ret != 2)
 			return -EINVAL;
 
-		res = sip_smc_get_amp_info(RK_AMP_SUB_FUNC_GET_CPU_STATUS,
-					   cpu_id);
+		res = sip_smc_get_amp_info(RK_AMP_SUB_FUNC_GET_CPU_STATUS, cpu_id);
 		cpu_status_print(cpu_id, &res);
 	} else if (!strncmp(cmd, "off", strlen("off"))) {
 		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
@@ -167,17 +165,14 @@ static ssize_t boot_cpu_store(struct device *dev,
 			return -EINVAL;
 
 		idx = get_cpu_boot_info_idx(cpu_id);
-
 		if (idx >= 0 && cpu_boot_info[idx].en) {
 			ret = sip_smc_amp_config(RK_AMP_SUB_FUNC_REQ_CPU_OFF,
 						 cpu_id, 0, 0);
 			if (ret)
-				pr_info("requesting a cpu off is error(%d)!\n",
-					ret);
+				dev_warn(dev, "failed to request cpu[%lx] off, ret=%d!\n", cpu_id, ret);
 		}
 	} else if (!strncmp(cmd, "on", strlen("on"))) {
 		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
-
 		if (ret != 2)
 			return -EINVAL;
 
@@ -188,11 +183,14 @@ static ssize_t boot_cpu_store(struct device *dev,
 						 cpu_boot_info[idx].entry,
 						 0);
 			if (ret)
-				pr_info("booting up a cpu is error(%d)!\n",
-					ret);
+				dev_warn(dev, "Brought up cpu[%lx] failed, ret=%d\n", cpu_id, ret);
+			else
+				pr_info("Brought up cpu[%lx] ok.\n", cpu_id);
+		} else {
+			dev_warn(dev, "cpu[%lx] is unavailable\n", cpu_id);
 		}
 	} else {
-		pr_info("unsupported cmd(%s)\n", cmd);
+		dev_warn(dev, "unsupported cmd(%s)\n", cmd);
 	}
 
 	return count;
@@ -213,23 +211,23 @@ static int rockchip_amp_boot_cpus(struct device *dev,
 	if (idx >= CONFIG_NR_CPUS)
 		return -1;
 
+	if (of_property_read_u64_array(cpu_node, "id", &cpu_id, 1)) {
+		dev_warn(dev, "failed to get 'id'\n");
+		return -1;
+	}
+
 	if (of_property_read_u64_array(cpu_node, "entry", &cpu_entry, 1)) {
-		dev_warn(dev, "can not get the entry\n");
+		dev_warn(dev, "failed to get cpu[%llx] 'entry'\n", cpu_id);
 		return -1;
 	}
 
 	if (!cpu_entry) {
-		dev_warn(dev, "cpu-entry is 0\n");
-		return -1;
-	}
-
-	if (of_property_read_u64_array(cpu_node, "id", &cpu_id, 1)) {
-		dev_warn(dev, "can not get the cpu id\n");
+		dev_warn(dev, "invalid cpu[%llx] 'entry': 0\n", cpu_id);
 		return -1;
 	}
 
 	if (of_property_read_u32_array(cpu_node, "mode", &cpu_mode, 1)) {
-		dev_warn(dev, "can not get the cpu mode\n");
+		dev_warn(dev, "failed to get cpu[%llx] 'mode'\n", cpu_id);
 		return -1;
 	}
 
@@ -242,15 +240,17 @@ static int rockchip_amp_boot_cpus(struct device *dev,
 
 	ret = sip_smc_amp_config(RK_AMP_SUB_FUNC_CFG_MODE, cpu_id, cpu_mode, 0);
 	if (ret) {
-		dev_warn(dev, "setting cpu mode is error(%d)!\n", ret);
+		dev_warn(dev, "failed to set cpu mode, ret=%d\n", ret);
 		return ret;
 	}
 
 	if (boot_on) {
 		ret = sip_smc_amp_config(RK_AMP_SUB_FUNC_CPU_ON, cpu_id, cpu_entry, 0);
 		if (ret) {
-			dev_warn(dev, "booting up a cpu is error(%d)!\n", ret);
+			dev_warn(dev, "Brought up cpu[%llx] failed, ret=%d\n", cpu_id, ret);
 			return ret;
+		} else {
+			pr_info("Brought up cpu[%llx] ok.\n", cpu_id);
 		}
 	}
 
@@ -512,9 +512,9 @@ exit:
 
 static int rockchip_amp_probe(struct platform_device *pdev)
 {
-	struct rkamp_device *rkamp_dev = NULL;
-	int ret, i, idx = 0;
 	struct device_node *cpus_node, *cpu_node;
+	struct rkamp_device *rkamp_dev;
+	int ret, i, idx = 0;
 
 	rkamp_dev = devm_kzalloc(&pdev->dev, sizeof(*rkamp_dev), GFP_KERNEL);
 	if (!rkamp_dev)
@@ -523,18 +523,20 @@ static int rockchip_amp_probe(struct platform_device *pdev)
 	rkamp_dev->num_clks = devm_clk_bulk_get_all(&pdev->dev, &rkamp_dev->clks);
 	if (rkamp_dev->num_clks < 0)
 		return -ENODEV;
+
 	ret = clk_bulk_prepare_enable(rkamp_dev->num_clks, rkamp_dev->clks);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "failed to prepare enable clks: %d\n", ret);
 
 	pm_runtime_enable(&pdev->dev);
 
-	rkamp_dev->num_pds = of_count_phandle_with_args(pdev->dev.of_node, "power-domains",
-							"#power-domain-cells");
-
+	rkamp_dev->num_pds =
+		of_count_phandle_with_args(pdev->dev.of_node, "power-domains",
+					   "#power-domain-cells");
 	if (rkamp_dev->num_pds > 0) {
-		rkamp_dev->pd_dev = devm_kmalloc_array(&pdev->dev, rkamp_dev->num_pds,
-						       sizeof(*rkamp_dev->pd_dev), GFP_KERNEL);
+		rkamp_dev->pd_dev =
+			devm_kmalloc_array(&pdev->dev, rkamp_dev->num_pds,
+					   sizeof(*rkamp_dev->pd_dev), GFP_KERNEL);
 		if (!rkamp_dev->pd_dev)
 			return -ENOMEM;
 
@@ -555,13 +557,10 @@ static int rockchip_amp_probe(struct platform_device *pdev)
 	}
 
 	cpus_node = of_get_child_by_name(pdev->dev.of_node, "amp-cpus");
-
 	if (cpus_node) {
 		for_each_available_child_of_node(cpus_node, cpu_node) {
-			if (!rockchip_amp_boot_cpus(&pdev->dev, cpu_node,
-						    idx)) {
+			if (!rockchip_amp_boot_cpus(&pdev->dev, cpu_node, idx))
 				idx++;
-			}
 		}
 		of_node_put(cpus_node);
 	}
@@ -581,8 +580,8 @@ static int rockchip_amp_probe(struct platform_device *pdev)
 
 static int rockchip_amp_remove(struct platform_device *pdev)
 {
-	int i;
 	struct rkamp_device *rkamp_dev = platform_get_drvdata(pdev);
+	int i;
 
 	clk_bulk_disable_unprepare(rkamp_dev->num_clks, rkamp_dev->clks);
 
