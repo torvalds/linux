@@ -988,6 +988,11 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		inet_assign_bit(FREEBIND, sk, val);
 		return 0;
+	case IP_HDRINCL:
+		if (sk->sk_type != SOCK_RAW)
+			return -ENOPROTOOPT;
+		inet_assign_bit(HDRINCL, sk, val);
+		return 0;
 	}
 
 	err = 0;
@@ -1051,13 +1056,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		if (val != -1 && (val < 1 || val > 255))
 			goto e_inval;
 		inet->uc_ttl = val;
-		break;
-	case IP_HDRINCL:
-		if (sk->sk_type != SOCK_RAW) {
-			err = -ENOPROTOOPT;
-			break;
-		}
-		inet->hdrincl = val ? 1 : 0;
 		break;
 	case IP_NODEFRAG:
 		if (sk->sk_type != SOCK_RAW) {
@@ -1578,6 +1576,9 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_FREEBIND:
 		val = inet_test_bit(FREEBIND, sk);
 		goto copyval;
+	case IP_HDRINCL:
+		val = inet_test_bit(HDRINCL, sk);
+		goto copyval;
 	}
 
 	if (needs_rtnl)
@@ -1625,9 +1626,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		       inet->uc_ttl);
 		break;
 	}
-	case IP_HDRINCL:
-		val = inet->hdrincl;
-		break;
 	case IP_NODEFRAG:
 		val = inet->nodefrag;
 		break;
