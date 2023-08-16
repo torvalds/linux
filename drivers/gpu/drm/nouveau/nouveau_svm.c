@@ -1063,7 +1063,8 @@ nouveau_svm_init(struct nouveau_drm *drm)
 	if (drm->client.device.info.family > NV_DEVICE_INFO_V0_PASCAL)
 		return;
 
-	if (!(drm->svm = svm = kzalloc(struct_size(drm->svm, buffer, 1), GFP_KERNEL)))
+	drm->svm = svm = kzalloc(struct_size(drm->svm, buffer, 1), GFP_KERNEL);
+	if (!drm->svm)
 		return;
 
 	drm->svm->drm = drm;
