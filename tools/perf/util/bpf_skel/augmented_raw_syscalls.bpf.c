@@ -187,8 +187,7 @@ int sys_enter_connect(struct syscall_enter_args *args)
         if (augmented_args == NULL)
                 return 1; /* Failure: don't filter */
 
-	if (socklen > sizeof(augmented_args->saddr))
-		socklen = sizeof(augmented_args->saddr);
+	socklen &= sizeof(augmented_args->saddr) - 1;
 
 	bpf_probe_read(&augmented_args->saddr, socklen, sockaddr_arg);
 
@@ -206,8 +205,7 @@ int sys_enter_sendto(struct syscall_enter_args *args)
         if (augmented_args == NULL)
                 return 1; /* Failure: don't filter */
 
-	if (socklen > sizeof(augmented_args->saddr))
-		socklen = sizeof(augmented_args->saddr);
+	socklen &= sizeof(augmented_args->saddr) - 1;
 
 	bpf_probe_read(&augmented_args->saddr, socklen, sockaddr_arg);
 
