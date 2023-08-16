@@ -636,9 +636,7 @@ EXPORT_SYMBOL(ip_sock_set_mtu_discover);
 
 void ip_sock_set_pktinfo(struct sock *sk)
 {
-	lock_sock(sk);
 	inet_set_bit(PKTINFO, sk);
-	release_sock(sk);
 }
 EXPORT_SYMBOL(ip_sock_set_pktinfo);
 
@@ -952,6 +950,36 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 	if (ip_mroute_opt(optname))
 		return ip_mroute_setsockopt(sk, optname, optval, optlen);
 
+	/* Handle options that can be set without locking the socket. */
+	switch (optname) {
+	case IP_PKTINFO:
+		inet_assign_bit(PKTINFO, sk, val);
+		return 0;
+	case IP_RECVTTL:
+		inet_assign_bit(TTL, sk, val);
+		return 0;
+	case IP_RECVTOS:
+		inet_assign_bit(TOS, sk, val);
+		return 0;
+	case IP_RECVOPTS:
+		inet_assign_bit(RECVOPTS, sk, val);
+		return 0;
+	case IP_RETOPTS:
+		inet_assign_bit(RETOPTS, sk, val);
+		return 0;
+	case IP_PASSSEC:
+		inet_assign_bit(PASSSEC, sk, val);
+		return 0;
+	case IP_RECVORIGDSTADDR:
+		inet_assign_bit(ORIGDSTADDR, sk, val);
+		return 0;
+	case IP_RECVFRAGSIZE:
+		if (sk->sk_type != SOCK_RAW && sk->sk_type != SOCK_DGRAM)
+			return -EINVAL;
+		inet_assign_bit(RECVFRAGSIZE, sk, val);
+		return 0;
+	}
+
 	err = 0;
 	if (needs_rtnl)
 		rtnl_lock();
@@ -991,27 +1019,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			kfree_rcu(old, rcu);
 		break;
 	}
-	case IP_PKTINFO:
-		inet_assign_bit(PKTINFO, sk, val);
-		break;
-	case IP_RECVTTL:
-		inet_assign_bit(TTL, sk, val);
-		break;
-	case IP_RECVTOS:
-		inet_assign_bit(TOS, sk, val);
-		break;
-	case IP_RECVOPTS:
-		inet_assign_bit(RECVOPTS, sk, val);
-		break;
-	case IP_RETOPTS:
-		inet_assign_bit(RETOPTS, sk, val);
-		break;
-	case IP_PASSSEC:
-		inet_assign_bit(PASSSEC, sk, val);
-		break;
-	case IP_RECVORIGDSTADDR:
-		inet_assign_bit(ORIGDSTADDR, sk, val);
-		break;
 	case IP_CHECKSUM:
 		if (val) {
 			if (!(inet_test_bit(CHECKSUM, sk))) {
@@ -1024,11 +1031,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 				inet_clear_bit(CHECKSUM, sk);
 			}
 		}
-		break;
-	case IP_RECVFRAGSIZE:
-		if (sk->sk_type != SOCK_RAW && sk->sk_type != SOCK_DGRAM)
-			goto e_inval;
-		inet_assign_bit(RECVFRAGSIZE, sk, val);
 		break;
 	case IP_TOS:	/* This sets both TOS and Precedence */
 		__ip_sock_set_tos(sk, val);
@@ -1544,6 +1546,37 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	if (len < 0)
 		return -EINVAL;
 
+	/* Handle options that can be read without locking the socket. */
+	switch (optname) {
+	case IP_PKTINFO:
+		val = inet_test_bit(PKTINFO, sk);
+		goto copyval;
+	case IP_RECVTTL:
+		val = inet_test_bit(TTL, sk);
+		goto copyval;
+	case IP_RECVTOS:
+		val = inet_test_bit(TOS, sk);
+		goto copyval;
+	case IP_RECVOPTS:
+		val = inet_test_bit(RECVOPTS, sk);
+		goto copyval;
+	case IP_RETOPTS:
+		val = inet_test_bit(RETOPTS, sk);
+		goto copyval;
+	case IP_PASSSEC:
+		val = inet_test_bit(PASSSEC, sk);
+		goto copyval;
+	case IP_RECVORIGDSTADDR:
+		val = inet_test_bit(ORIGDSTADDR, sk);
+		goto copyval;
+	case IP_CHECKSUM:
+		val = inet_test_bit(CHECKSUM, sk);
+		goto copyval;
+	case IP_RECVFRAGSIZE:
+		val = inet_test_bit(RECVFRAGSIZE, sk);
+		goto copyval;
+	}
+
 	if (needs_rtnl)
 		rtnl_lock();
 	sockopt_lock_sock(sk);
@@ -1578,33 +1611,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			return -EFAULT;
 		return 0;
 	}
-	case IP_PKTINFO:
-		val = inet_test_bit(PKTINFO, sk);
-		break;
-	case IP_RECVTTL:
-		val = inet_test_bit(TTL, sk);
-		break;
-	case IP_RECVTOS:
-		val = inet_test_bit(TOS, sk);
-		break;
-	case IP_RECVOPTS:
-		val = inet_test_bit(RECVOPTS, sk);
-		break;
-	case IP_RETOPTS:
-		val = inet_test_bit(RETOPTS, sk);
-		break;
-	case IP_PASSSEC:
-		val = inet_test_bit(PASSSEC, sk);
-		break;
-	case IP_RECVORIGDSTADDR:
-		val = inet_test_bit(ORIGDSTADDR, sk);
-		break;
-	case IP_CHECKSUM:
-		val = inet_test_bit(CHECKSUM, sk);
-		break;
-	case IP_RECVFRAGSIZE:
-		val = inet_test_bit(RECVFRAGSIZE, sk);
-		break;
 	case IP_TOS:
 		val = inet->tos;
 		break;
@@ -1754,7 +1760,7 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		return -ENOPROTOOPT;
 	}
 	sockopt_release_sock(sk);
-
+copyval:
 	if (len < sizeof(int) && len > 0 && val >= 0 && val <= 255) {
 		unsigned char ucval = (unsigned char)val;
 		len = 1;
