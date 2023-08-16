@@ -2605,9 +2605,11 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	video->comp_size_read = config->comp_size_read;
 	video->compare_only = config->compare_only;
 
-	if (video->version == 6) {
-		video->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
-		video->gfx = syscon_regmap_lookup_by_compatible("aspeed,ast2600-gfx");
+	if (video->version >= 6) {
+		video->scu = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+							     "aspeed,scu");
+		video->gfx = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+							     "aspeed,gfx");
 		if (IS_ERR(video->scu))
 			dev_err(video->dev, "can't find regmap for scu");
 		if (IS_ERR(video->gfx))
