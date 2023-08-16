@@ -2031,7 +2031,7 @@ static inline bool inet_sk_transparent(const struct sock *sk)
 	case TCP_NEW_SYN_RECV:
 		return inet_rsk(inet_reqsk(sk))->no_srccheck;
 	}
-	return inet_sk(sk)->transparent;
+	return inet_test_bit(TRANSPARENT, sk);
 }
 
 /* Determines whether this is a thin stream (which may suffer from

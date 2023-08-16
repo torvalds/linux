@@ -1005,7 +1005,16 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		inet_assign_bit(MC_ALL, sk, val);
 		return 0;
-
+	case IP_TRANSPARENT:
+		if (!!val && !sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) &&
+		    !sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
+			err = -EPERM;
+			break;
+		}
+		if (optlen < 1)
+			goto e_inval;
+		inet_assign_bit(TRANSPARENT, sk, val);
+		return 0;
 	}
 
 	err = 0;
@@ -1319,17 +1328,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		err = xfrm_user_policy(sk, optname, optval, optlen);
 		break;
 
-	case IP_TRANSPARENT:
-		if (!!val && !sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) &&
-		    !sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
-			err = -EPERM;
-			break;
-		}
-		if (optlen < 1)
-			goto e_inval;
-		inet->transparent = !!val;
-		break;
-
 	case IP_MINTTL:
 		if (optlen < 1)
 			goto e_inval;
@@ -1585,6 +1583,9 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_MULTICAST_ALL:
 		val = inet_test_bit(MC_ALL, sk);
 		goto copyval;
+	case IP_TRANSPARENT:
+		val = inet_test_bit(TRANSPARENT, sk);
+		goto copyval;
 	}
 
 	if (needs_rtnl)
@@ -1735,9 +1736,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		len -= msg.msg_controllen;
 		return copy_to_sockptr(optlen, &len, sizeof(int));
 	}
-	case IP_TRANSPARENT:
-		val = inet->transparent;
-		break;
 	case IP_MINTTL:
 		val = inet->min_ttl;
 		break;
