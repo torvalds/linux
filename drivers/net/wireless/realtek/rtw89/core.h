@@ -2656,6 +2656,17 @@ struct rtw89_btc {
 	bool lps;
 };
 
+enum rtw89_btc_hmsg {
+	RTW89_BTC_HMSG_TMR_EN = 0x0,
+	RTW89_BTC_HMSG_BT_REG_READBACK = 0x1,
+	RTW89_BTC_HMSG_SET_BT_REQ_SLOT = 0x2,
+	RTW89_BTC_HMSG_FW_EV = 0x3,
+	RTW89_BTC_HMSG_BT_LINK_CHG = 0x4,
+	RTW89_BTC_HMSG_SET_BT_REQ_STBC = 0x5,
+
+	NUM_OF_RTW89_BTC_HMSG,
+};
+
 enum rtw89_ra_mode {
 	RTW89_RA_MODE_CCK = BIT(0),
 	RTW89_RA_MODE_OFDM = BIT(1),
@@ -5325,5 +5336,6 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 			      struct ieee80211_vif *vif, bool hw_scan);
 void rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif *rtwvif, bool active);
+void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event);
 
 #endif

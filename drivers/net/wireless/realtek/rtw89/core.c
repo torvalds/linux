@@ -3464,6 +3464,27 @@ void rtw89_complete_cond(struct rtw89_wait_info *wait, unsigned int cond,
 	complete(&wait->completion);
 }
 
+void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event)
+{
+	u16 bt_req_len;
+
+	switch (event) {
+	case RTW89_BTC_HMSG_SET_BT_REQ_SLOT:
+		bt_req_len = rtw89_coex_query_bt_req_len(rtwdev, RTW89_PHY_0);
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "coex updates BT req len to %d TU\n", bt_req_len);
+		break;
+	default:
+		if (event < NUM_OF_RTW89_BTC_HMSG)
+			rtw89_debug(rtwdev, RTW89_DBG_BTC,
+				    "unhandled BTC HMSG event: %d\n", event);
+		else
+			rtw89_warn(rtwdev,
+				   "unrecognized BTC HMSG event: %d\n", event);
+		break;
+	}
+}
+
 int rtw89_core_start(struct rtw89_dev *rtwdev)
 {
 	int ret;
