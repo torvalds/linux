@@ -287,9 +287,6 @@ const char * const migratetype_names[MIGRATE_TYPES] = {
 static compound_page_dtor * const compound_page_dtors[NR_COMPOUND_DTORS] = {
 	[NULL_COMPOUND_DTOR] = NULL,
 	[COMPOUND_PAGE_DTOR] = free_compound_page,
-#ifdef CONFIG_HUGETLB_PAGE
-	[HUGETLB_PAGE_DTOR] = free_huge_page,
-#endif
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	[TRANSHUGE_PAGE_DTOR] = free_transhuge_page,
 #endif
@@ -611,6 +608,11 @@ void prep_compound_page(struct page *page, unsigned int order)
 void destroy_large_folio(struct folio *folio)
 {
 	enum compound_dtor_id dtor = folio->_folio_dtor;
+
+	if (folio_test_hugetlb(folio)) {
+		free_huge_page(&folio->page);
+		return;
+	}
 
 	VM_BUG_ON_FOLIO(dtor >= NR_COMPOUND_DTORS, folio);
 	compound_page_dtors[dtor](&folio->page);
