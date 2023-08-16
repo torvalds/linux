@@ -1295,6 +1295,11 @@
 
 	vdda-phy-supply = <&vreg_l9a_1p2>;
 	vdda-pll-supply = <&vreg_l18a_0p92>;
+	orientation-switch;
+};
+
+&usb_1_qmpphy_out {
+	remote-endpoint = <&pm8150b_typec_mux_in>;
 };
 
 &usb_2 {
@@ -1377,6 +1382,13 @@
 				reg = <0>;
 				pm8150b_role_switch_in: endpoint {
 					remote-endpoint = <&usb_1_role_switch_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				pm8150b_typec_mux_in: endpoint {
+					remote-endpoint = <&usb_1_qmpphy_out>;
 				};
 			};
 		};
