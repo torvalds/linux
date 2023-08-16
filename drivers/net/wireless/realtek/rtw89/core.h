@@ -4929,6 +4929,18 @@ const struct rtw89_chan_rcd *rtw89_chan_rcd_get(struct rtw89_dev *rtwdev,
 	return &hal->sub[idx].rcd;
 }
 
+static inline
+const struct rtw89_chan *rtw89_scan_chan_get(struct rtw89_dev *rtwdev)
+{
+	struct ieee80211_vif *vif = rtwdev->scan_info.scanning_vif;
+	struct rtw89_vif *rtwvif = vif_to_rtwvif_safe(vif);
+
+	if (rtwvif)
+		return rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
+	else
+		return rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+}
+
 static inline void rtw89_chip_fem_setup(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;

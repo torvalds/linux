@@ -523,12 +523,12 @@ rtw89_core_tx_update_sec_key(struct rtw89_dev *rtwdev,
 }
 
 static u16 rtw89_core_get_mgmt_rate(struct rtw89_dev *rtwdev,
-				    struct rtw89_core_tx_request *tx_req)
+				    struct rtw89_core_tx_request *tx_req,
+				    const struct rtw89_chan *chan)
 {
 	struct sk_buff *skb = tx_req->skb;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = tx_info->control.vif;
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u16 lowest_rate;
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_CCK_RATE ||
@@ -567,7 +567,8 @@ rtw89_core_tx_update_mgmt_info(struct rtw89_dev *rtwdev,
 	struct ieee80211_vif *vif = tx_req->vif;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
+						       rtwvif->sub_entity_idx);
 	u8 qsel, ch_dma;
 
 	qsel = desc_info->hiq ? RTW89_TX_QSEL_B0_HI : RTW89_TX_QSEL_B0_MGMT;
@@ -584,7 +585,7 @@ rtw89_core_tx_update_mgmt_info(struct rtw89_dev *rtwdev,
 	desc_info->en_wd_info = true;
 	desc_info->use_rate = true;
 	desc_info->dis_data_fb = true;
-	desc_info->data_rate = rtw89_core_get_mgmt_rate(rtwdev, tx_req);
+	desc_info->data_rate = rtw89_core_get_mgmt_rate(rtwdev, tx_req, chan);
 
 	rtw89_debug(rtwdev, RTW89_DBG_TXRX,
 		    "tx mgmt frame with rate 0x%x on channel %d (band %d, bw %d)\n",
@@ -603,7 +604,8 @@ rtw89_core_tx_update_h2c_info(struct rtw89_dev *rtwdev,
 	desc_info->ch_dma = RTW89_DMA_H2C;
 }
 
-static void rtw89_core_get_no_ul_ofdma_htc(struct rtw89_dev *rtwdev, __le32 *htc)
+static void rtw89_core_get_no_ul_ofdma_htc(struct rtw89_dev *rtwdev, __le32 *htc,
+					   const struct rtw89_chan *chan)
 {
 	static const u8 rtw89_bandwidth_to_om[] = {
 		[RTW89_CHANNEL_WIDTH_20] = HTC_OM_CHANNEL_WIDTH_20,
@@ -614,7 +616,6 @@ static void rtw89_core_get_no_ul_ofdma_htc(struct rtw89_dev *rtwdev, __le32 *htc
 	};
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_hal *hal = &rtwdev->hal;
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 om_bandwidth;
 
 	if (!chip->dis_2g_40m_ul_ofdma ||
@@ -1899,7 +1900,6 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 {
 	const struct cfg80211_chan_def *chandef =
 		rtw89_chandef_get(rtwdev, RTW89_SUB_ENTITY_0);
-	const struct rtw89_chan *cur = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u16 data_rate;
 	u8 data_rate_mode;
 
@@ -1909,6 +1909,7 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 
 	if (rtwdev->scanning &&
 	    RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD, &rtwdev->fw)) {
+		const struct rtw89_chan *cur = rtw89_scan_chan_get(rtwdev);
 		u8 chan = cur->primary_channel;
 		u8 band = cur->band_type;
 		enum nl80211_band nl_band;
@@ -2970,6 +2971,8 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct rtw89_bssid_cam_entry *bssid_cam = rtw89_get_bssid_cam_of(rtwvif, rtwsta);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
+						       rtwvif->sub_entity_idx);
 	int ret;
 
 	if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
@@ -3023,7 +3026,7 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_CONN_END);
-		rtw89_core_get_no_ul_ofdma_htc(rtwdev, &rtwsta->htc_template);
+		rtw89_core_get_no_ul_ofdma_htc(rtwdev, &rtwsta->htc_template, chan);
 		rtw89_phy_ul_tb_assoc(rtwdev, rtwvif);
 
 		ret = rtw89_fw_h2c_general_pkt(rtwdev, rtwvif, rtwsta->mac_id);
@@ -3656,7 +3659,8 @@ EXPORT_SYMBOL(rtw89_core_deinit);
 void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   const u8 *mac_addr, bool hw_scan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
+						       rtwvif->sub_entity_idx);
 
 	rtwdev->scanning = true;
 	rtw89_leave_lps(rtwdev);
