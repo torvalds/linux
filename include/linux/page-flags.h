@@ -853,11 +853,6 @@ static inline int PageTransHuge(struct page *page)
 	return PageHead(page);
 }
 
-static inline bool folio_test_transhuge(struct folio *folio)
-{
-	return folio_test_head(folio);
-}
-
 /*
  * PageTransCompound returns true for both transparent huge pages
  * and hugetlbfs pages, so it should only be called when it's known
