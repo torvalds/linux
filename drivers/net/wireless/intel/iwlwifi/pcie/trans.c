@@ -3617,8 +3617,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 				       PCIE_LINK_STATE_CLKPM);
 	}
 
-	trans_pcie->def_rx_queue = 0;
-
 	pci_set_master(pdev);
 
 	addr_size = trans->txqs.tfd.addr_size;
