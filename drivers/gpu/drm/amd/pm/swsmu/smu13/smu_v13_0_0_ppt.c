@@ -176,6 +176,7 @@ static struct cmn2asic_mapping smu_v13_0_0_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(VCLK1,		PPCLK_VCLK_1),
 	CLK_MAP(DCLK,		PPCLK_DCLK_0),
 	CLK_MAP(DCLK1,		PPCLK_DCLK_1),
+	CLK_MAP(DCEFCLK,	PPCLK_DCFCLK),
 };
 
 static struct cmn2asic_mapping smu_v13_0_0_feature_mask_map[SMU_FEATURE_COUNT] = {
@@ -707,6 +708,22 @@ static int smu_v13_0_0_set_default_dpm_table(struct smu_context *smu)
 		pcie_table->num_of_link_levels++;
 	}
 
+	/* dcefclk dpm table setup */
+	dpm_table = &dpm_context->dpm_tables.dcef_table;
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCN_BIT)) {
+		ret = smu_v13_0_set_single_dpm_table(smu,
+						     SMU_DCEFCLK,
+						     dpm_table);
+		if (ret)
+			return ret;
+	} else {
+		dpm_table->count = 1;
+		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dcefclk / 100;
+		dpm_table->dpm_levels[0].enabled = true;
+		dpm_table->min = dpm_table->dpm_levels[0].value;
+		dpm_table->max = dpm_table->dpm_levels[0].value;
+	}
+
 	return 0;
 }
 
@@ -793,6 +810,9 @@ static int smu_v13_0_0_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	case METRICS_CURR_FCLK:
 		*value = metrics->CurrClock[PPCLK_FCLK];
+		break;
+	case METRICS_CURR_DCEFCLK:
+		*value = metrics->CurrClock[PPCLK_DCFCLK];
 		break;
 	case METRICS_AVERAGE_GFXCLK:
 		if (metrics->AverageGfxActivity <= SMU_13_0_0_BUSY_THRESHOLD)
@@ -1047,6 +1067,9 @@ static int smu_v13_0_0_get_current_clk_freq_by_table(struct smu_context *smu,
 	case PPCLK_DCLK_1:
 		member_type = METRICS_AVERAGE_DCLK1;
 		break;
+	case PPCLK_DCFCLK:
+		member_type = METRICS_CURR_DCEFCLK;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1196,6 +1219,9 @@ static int smu_v13_0_0_print_clk_levels(struct smu_context *smu,
 	case SMU_DCLK1:
 		single_dpm_table = &(dpm_context->dpm_tables.dclk_table);
 		break;
+	case SMU_DCEFCLK:
+		single_dpm_table = &(dpm_context->dpm_tables.dcef_table);
+		break;
 	default:
 		break;
 	}
@@ -1209,6 +1235,7 @@ static int smu_v13_0_0_print_clk_levels(struct smu_context *smu,
 	case SMU_VCLK1:
 	case SMU_DCLK:
 	case SMU_DCLK1:
+	case SMU_DCEFCLK:
 		ret = smu_v13_0_0_get_current_clk_freq_by_table(smu, clk_type, &curr_freq);
 		if (ret) {
 			dev_err(smu->adev->dev, "Failed to get current clock freq!");
