@@ -1790,14 +1790,6 @@ config DEBUG_RSEQ
 
 	  If unsure, say N.
 
-config EMBEDDED
-	bool "Embedded system"
-	select EXPERT
-	help
-	  This option should be enabled if compiling the kernel for
-	  an embedded system so certain expert options are available
-	  for configuration.
-
 config HAVE_PERF_EVENTS
 	bool
 	help

@@ -250,7 +250,7 @@ config ARCH_MTD_XIP
 	bool
 
 config ARM_PATCH_PHYS_VIRT
-	bool "Patch physical to virtual translations at runtime" if EMBEDDED
+	bool "Patch physical to virtual translations at runtime" if !ARCH_MULTIPLATFORM
 	default y
 	depends on MMU
 	help
