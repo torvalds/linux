@@ -170,6 +170,8 @@ struct walt_sched_cluster {
 	unsigned int		walt_internal_freq_limit;
 	u64			aggr_grp_load;
 	unsigned long		util_to_cost[1024];
+	u64			found_ts;
+	unsigned int		smart_fmax_cap;
 };
 
 extern struct walt_sched_cluster *sched_cluster[WALT_NR_CPUS];
