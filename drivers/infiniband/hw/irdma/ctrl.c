@@ -1301,7 +1301,6 @@ int irdma_sc_mr_fast_register(struct irdma_sc_qp *qp,
 
 	sq_info.wr_id = info->wr_id;
 	sq_info.signaled = info->signaled;
-	sq_info.push_wqe = info->push_wqe;
 
 	wqe = irdma_qp_get_next_send_wqe(&qp->qp_uk, &wqe_idx,
 					 IRDMA_QP_WQE_MIN_QUANTA, 0, &sq_info);
@@ -1335,7 +1334,6 @@ int irdma_sc_mr_fast_register(struct irdma_sc_qp *qp,
 	      FIELD_PREP(IRDMAQPSQ_HPAGESIZE, page_size) |
 	      FIELD_PREP(IRDMAQPSQ_STAGRIGHTS, info->access_rights) |
 	      FIELD_PREP(IRDMAQPSQ_VABASEDTO, info->addr_type) |
-	      FIELD_PREP(IRDMAQPSQ_PUSHWQE, (sq_info.push_wqe ? 1 : 0)) |
 	      FIELD_PREP(IRDMAQPSQ_READFENCE, info->read_fence) |
 	      FIELD_PREP(IRDMAQPSQ_LOCALFENCE, info->local_fence) |
 	      FIELD_PREP(IRDMAQPSQ_SIGCOMPL, info->signaled) |
@@ -1346,13 +1344,9 @@ int irdma_sc_mr_fast_register(struct irdma_sc_qp *qp,
 
 	print_hex_dump_debug("WQE: FAST_REG WQE", DUMP_PREFIX_OFFSET, 16, 8,
 			     wqe, IRDMA_QP_WQE_MIN_SIZE, false);
-	if (sq_info.push_wqe) {
-		irdma_qp_push_wqe(&qp->qp_uk, wqe, IRDMA_QP_WQE_MIN_QUANTA,
-				  wqe_idx, post_sq);
-	} else {
-		if (post_sq)
-			irdma_uk_qp_post_wr(&qp->qp_uk);
-	}
+
+	if (post_sq)
+		irdma_uk_qp_post_wr(&qp->qp_uk);
 
 	return 0;
 }

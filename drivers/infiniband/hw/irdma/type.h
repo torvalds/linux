@@ -1015,7 +1015,6 @@ struct irdma_fast_reg_stag_info {
 	bool local_fence:1;
 	bool read_fence:1;
 	bool signaled:1;
-	bool push_wqe:1;
 	bool use_hmc_fcn_index:1;
 	u8 hmc_fcn_index;
 	bool use_pf_rid:1;

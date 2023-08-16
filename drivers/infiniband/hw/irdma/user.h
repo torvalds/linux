@@ -216,7 +216,6 @@ struct irdma_post_sq_info {
 	bool local_fence:1;
 	bool inline_data:1;
 	bool imm_data_valid:1;
-	bool push_wqe:1;
 	bool report_rtt:1;
 	bool udp_hdr:1;
 	bool defer_flag:1;
@@ -248,7 +247,6 @@ struct irdma_cq_poll_info {
 	u8 op_type;
 	u8 q_type;
 	bool stag_invalid_set:1; /* or L_R_Key set */
-	bool push_dropped:1;
 	bool error:1;
 	bool solicited_event:1;
 	bool ipv4:1;
@@ -321,8 +319,6 @@ struct irdma_qp_uk {
 	struct irdma_sq_uk_wr_trk_info *sq_wrtrk_array;
 	u64 *rq_wrid_array;
 	__le64 *shadow_area;
-	__le32 *push_db;
-	__le64 *push_wqe;
 	struct irdma_ring sq_ring;
 	struct irdma_ring rq_ring;
 	struct irdma_ring initial_ring;
@@ -342,8 +338,6 @@ struct irdma_qp_uk {
 	u8 rq_wqe_size;
 	u8 rq_wqe_size_multiplier;
 	bool deferred_flag:1;
-	bool push_mode:1; /* whether the last post wqe was pushed */
-	bool push_dropped:1;
 	bool first_sq_wq:1;
 	bool sq_flush_complete:1; /* Indicates flush was seen and SQ was empty after the flush */
 	bool rq_flush_complete:1; /* Indicates flush was seen and RQ was empty after the flush */
@@ -415,7 +409,5 @@ int irdma_get_sqdepth(struct irdma_uk_attrs *uk_attrs, u32 sq_size, u8 shift,
 		      u32 *wqdepth);
 int irdma_get_rqdepth(struct irdma_uk_attrs *uk_attrs, u32 rq_size, u8 shift,
 		      u32 *wqdepth);
-void irdma_qp_push_wqe(struct irdma_qp_uk *qp, __le64 *wqe, u16 quanta,
-		       u32 wqe_idx, bool post_sq);
 void irdma_clr_wqes(struct irdma_qp_uk *qp, u32 qp_wqe_idx);
 #endif /* IRDMA_USER_H */
