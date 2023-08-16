@@ -344,32 +344,6 @@ size_t __tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
 EXPORT_SYMBOL(__tty_insert_flip_string_flags);
 
 /**
- * __tty_insert_flip_char   -	add one character to the tty buffer
- * @port: tty port
- * @ch: character
- * @flag: flag byte
- *
- * Queue a single byte @ch to the tty buffering, with an optional flag. This is
- * the slow path of tty_insert_flip_char().
- */
-int __tty_insert_flip_char(struct tty_port *port, u8 ch, u8 flag)
-{
-	struct tty_buffer *tb;
-	bool flags = flag != TTY_NORMAL;
-
-	if (!__tty_buffer_request_room(port, 1, flags))
-		return 0;
-
-	tb = port->buf.tail;
-	if (tb->flags)
-		*flag_buf_ptr(tb, tb->used) = flag;
-	*char_buf_ptr(tb, tb->used++) = ch;
-
-	return 1;
-}
-EXPORT_SYMBOL(__tty_insert_flip_char);
-
-/**
  * tty_prepare_flip_string	-	make room for characters
  * @port: tty port
  * @chars: return pointer for character write area
