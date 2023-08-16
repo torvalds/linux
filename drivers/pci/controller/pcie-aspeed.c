@@ -95,6 +95,7 @@
 struct aspeed_pcie {
 	struct device *dev;
 	void __iomem *reg;	//rc slot base
+	struct regmap *ahbc;
 	int domain;
 	char name[10];
 	u32 msi_address;
@@ -102,7 +103,7 @@ struct aspeed_pcie {
 	u8 tx_tag;
 	struct regmap *cfg;	//pciecfg
 	struct regmap *pciephy; //pcie_phy
-	struct reset_control *phy_rst;
+	struct reset_control *perst;
 	/* INTx */
 	struct irq_domain *irq_domain;	//irq_domain
 	// msi
@@ -710,16 +711,12 @@ static void aspeed_pcie_port_init(struct aspeed_pcie *pcie)
 	regmap_write(pcie->pciephy, ASPEED_PCIE_GLOBAL, ROOT_COMPLEX_ID(0x3));
 #endif
 	/* Toggle the gpio to reset the devices on RC bus */
-	pcie->perst_rc_out =
-		devm_gpiod_get_optional(pcie->dev, "perst-rc-out",
-					GPIOD_OUT_LOW |
-					GPIOD_FLAGS_BIT_NONEXCLUSIVE);
 	if (pcie->perst_rc_out) {
 		mdelay(100);
 		gpiod_set_value(pcie->perst_rc_out, 1);
 	}
 
-	reset_control_deassert(pcie->phy_rst);
+	reset_control_deassert(pcie->perst);
 	mdelay(500);
 
 	//clr intx isr
@@ -758,6 +755,7 @@ static void aspeed_pcie_port_init(struct aspeed_pcie *pcie)
 	}
 }
 
+#define AHBC_UNLOCK	0xAEED1A03
 static int aspeed_pcie_setup(struct aspeed_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
@@ -766,7 +764,21 @@ static int aspeed_pcie_setup(struct aspeed_pcie *pcie)
 	struct device_node *cfg_node;
 	int err;
 
-	pcie->reg = devm_platform_ioremap_resource(pdev, 0);
+	pcie->perst_rc_out =
+		devm_gpiod_get_optional(pcie->dev, "perst-rc-out",
+					GPIOD_OUT_LOW |
+					GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+
+	pcie->perst = devm_reset_control_get_exclusive(pcie->dev, NULL);
+	if (IS_ERR(pcie->perst)) {
+		dev_err(&pdev->dev, "can't get pcie phy reset\n");
+		return PTR_ERR(pcie->perst);
+	}
+	reset_control_assert(pcie->perst);
+
+	pcie->ahbc = syscon_regmap_lookup_by_compatible("aspeed,aspeed-ahbc");
+	if (IS_ERR(pcie->ahbc))
+		return IS_ERR(pcie->ahbc);
 
 	cfg_node =
 		of_find_compatible_node(NULL, NULL, "aspeed,ast2600-pciecfg");
@@ -775,6 +787,26 @@ static int aspeed_pcie_setup(struct aspeed_pcie *pcie)
 		if (IS_ERR(pcie->cfg))
 			return PTR_ERR(pcie->cfg);
 	}
+
+	//workaround : Send vender define message for avoid when PCIE RESET send unknown message out
+	regmap_write(pcie->cfg, 0x10, 0x34000000);
+	regmap_write(pcie->cfg, 0x14, 0x0000007f);
+	regmap_write(pcie->cfg, 0x18, 0x00001a03);
+	regmap_write(pcie->cfg, 0x1c, 0x00000000);
+
+	regmap_write(pcie->ahbc, 0x00, AHBC_UNLOCK);
+	regmap_update_bits(pcie->ahbc, 0x8C, BIT(5), BIT(5));
+	regmap_write(pcie->ahbc, 0x00, 0x1);
+
+	//ahb to pcie rc
+	regmap_write(pcie->cfg, 0x60, 0xe0006000);
+	regmap_write(pcie->cfg, 0x64, 0x00000000);
+	regmap_write(pcie->cfg, 0x68, 0xFFFFFFFF);
+
+	//PCIe Host Enable
+	regmap_write(pcie->cfg, 0x00, BIT(0));
+
+	pcie->reg = devm_platform_ioremap_resource(pdev, 0);
 
 	pcie->pciephy = syscon_regmap_lookup_by_phandle(node, "pciephy");
 	if (IS_ERR(pcie->pciephy)) {
@@ -788,12 +820,6 @@ static int aspeed_pcie_setup(struct aspeed_pcie *pcie)
 	pcie->irq = irq_of_parse_and_map(node, 0);
 	if (pcie->irq < 0)
 		return pcie->irq;
-
-	pcie->phy_rst = devm_reset_control_get_shared(pcie->dev, NULL);
-	if (IS_ERR(pcie->phy_rst)) {
-		dev_err(&pdev->dev, "can't get pcie phy reset\n");
-		return PTR_ERR(pcie->phy_rst);
-	}
 
 	aspeed_pcie_port_init(pcie);
 
@@ -850,11 +876,11 @@ static void aspeed_pcie_reset_work(struct work_struct *work)
 
 	if (pcie->perst_rc_out)
 		gpiod_set_value(pcie->perst_rc_out, 0);
-	reset_control_assert(pcie->phy_rst);
+	reset_control_assert(pcie->perst);
 	mdelay(100);
 	if (pcie->perst_rc_out)
 		gpiod_set_value(pcie->perst_rc_out, 1);
-	reset_control_deassert(pcie->phy_rst);
+	reset_control_deassert(pcie->perst);
 	mdelay(10);
 
 	regmap_read(pcie->pciephy, ASPEED_PCIE_LINK, &link_sts);
