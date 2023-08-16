@@ -301,7 +301,7 @@ static const struct of_device_id i2cr_ids[] = {
 MODULE_DEVICE_TABLE(of, i2cr_ids);
 
 static struct i2c_driver i2cr_driver = {
-	.probe_new = i2cr_probe,
+	.probe = i2cr_probe,
 	.remove = i2cr_remove,
 	.driver = {
 		.name = "fsi-master-i2cr",
