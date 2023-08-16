@@ -9589,6 +9589,11 @@ static int dev_index_reserve(struct net *net, u32 ifindex)
 {
 	int err;
 
+	if (ifindex > INT_MAX) {
+		DEBUG_NET_WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+
 	if (!ifindex)
 		err = xa_alloc_cyclic(&net->dev_by_index, &ifindex, NULL,
 				      xa_limit_31b, &net->ifindex, GFP_KERNEL);

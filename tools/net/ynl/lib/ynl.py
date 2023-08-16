@@ -395,7 +395,10 @@ class YnlFamily(SpecFamily):
                              self.family.genl_family['mcast'][mcast_name])
 
     def _add_attr(self, space, name, value):
-        attr = self.attr_sets[space][name]
+        try:
+            attr = self.attr_sets[space][name]
+        except KeyError:
+            raise Exception(f"Space '{space}' has no attribute '{name}'")
         nl_type = attr.value
         if attr["type"] == 'nest':
             nl_type |= Netlink.NLA_F_NESTED
@@ -450,7 +453,10 @@ class YnlFamily(SpecFamily):
         attr_space = self.attr_sets[space]
         rsp = dict()
         for attr in attrs:
-            attr_spec = attr_space.attrs_by_val[attr.type]
+            try:
+                attr_spec = attr_space.attrs_by_val[attr.type]
+            except KeyError:
+                raise Exception(f"Space '{space}' has no attribute with value '{attr.type}'")
             if attr_spec["type"] == 'nest':
                 subdict = self._decode(NlAttrs(attr.raw), attr_spec['nested-attributes'])
                 decoded = subdict
@@ -479,7 +485,10 @@ class YnlFamily(SpecFamily):
 
     def _decode_extack_path(self, attrs, attr_set, offset, target):
         for attr in attrs:
-            attr_spec = attr_set.attrs_by_val[attr.type]
+            try:
+                attr_spec = attr_set.attrs_by_val[attr.type]
+            except KeyError:
+                raise Exception(f"Space '{attr_set.name}' has no attribute with value '{attr.type}'")
             if offset > target:
                 break
             if offset == target:
