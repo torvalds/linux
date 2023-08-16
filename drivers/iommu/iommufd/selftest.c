@@ -1089,7 +1089,7 @@ err_sysfs:
 err_bus:
 	bus_unregister(&iommufd_mock_bus_type.bus);
 err_platform:
-	platform_device_del(selftest_iommu_dev);
+	platform_device_unregister(selftest_iommu_dev);
 err_dbgfs:
 	debugfs_remove_recursive(dbgfs_root);
 	return rc;
@@ -1102,6 +1102,6 @@ void iommufd_test_exit(void)
 				    &iommufd_mock_bus_type.bus,
 				    &iommufd_mock_bus_type.nb);
 	bus_unregister(&iommufd_mock_bus_type.bus);
-	platform_device_del(selftest_iommu_dev);
+	platform_device_unregister(selftest_iommu_dev);
 	debugfs_remove_recursive(dbgfs_root);
 }
