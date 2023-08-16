@@ -35,7 +35,7 @@ int snd_media_stream_init(struct snd_usb_substream *subs, struct snd_pcm *pcm,
 {
 	struct media_device *mdev;
 	struct media_ctl *mctl;
-	struct device *pcm_dev = &pcm->streams[stream].dev;
+	struct device *pcm_dev = pcm->streams[stream].dev;
 	u32 intf_type;
 	int ret = 0;
 	u16 mixer_pad;
