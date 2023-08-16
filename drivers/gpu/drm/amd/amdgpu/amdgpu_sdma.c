@@ -212,6 +212,7 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 	const struct common_firmware_header *header = NULL;
 	int err, i;
 	const struct sdma_firmware_header_v2_0 *sdma_hdr;
+	const struct sdma_firmware_header_v3_0 *sdma_hv3;
 	uint16_t version_major;
 	char ucode_prefix[30];
 	char fw_name[52];
@@ -286,6 +287,15 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 			info->fw = adev->sdma.instance[0].fw;
 			adev->firmware.fw_size +=
 				ALIGN(le32_to_cpu(sdma_hdr->ctl_ucode_size_bytes), PAGE_SIZE);
+			break;
+		case 3:
+			sdma_hv3 = (const struct sdma_firmware_header_v3_0 *)
+				adev->sdma.instance[0].fw->data;
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SDMA_RS64];
+			info->ucode_id = AMDGPU_UCODE_ID_SDMA_RS64;
+			info->fw = adev->sdma.instance[0].fw;
+			adev->firmware.fw_size +=
+				ALIGN(le32_to_cpu(sdma_hv3->ucode_size_bytes), PAGE_SIZE);
 			break;
 		default:
 			err = -EINVAL;

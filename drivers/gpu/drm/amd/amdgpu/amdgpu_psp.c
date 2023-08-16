@@ -2464,6 +2464,7 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 		*type = GFX_FW_TYPE_DMUB;
 		break;
 	case AMDGPU_UCODE_ID_SDMA_UCODE_TH0:
+	case AMDGPU_UCODE_ID_SDMA_RS64:
 		*type = GFX_FW_TYPE_SDMA_UCODE_TH0;
 		break;
 	case AMDGPU_UCODE_ID_SDMA_UCODE_TH1:
