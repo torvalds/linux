@@ -478,7 +478,6 @@ static int aspeed_sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 		}
 
 		window = right - left;
-		dev_info(dev, "tuning window = %d\n", window);
 
 		if (window > oldwindow) {
 			oldwindow = window;
@@ -488,8 +487,6 @@ static int aspeed_sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 
 	val = (out_phase | enable_mask | (center << ASPEED_SDC_S0_PHASE_IN_SHIFT));
 	writel(val, sdc->regs + ASPEED_SDC_PHASE);
-
-	dev_info(dev, "tuning result=%x\n", val);
 
 	return mmc_send_tuning(host->mmc, opcode, NULL);
 }
