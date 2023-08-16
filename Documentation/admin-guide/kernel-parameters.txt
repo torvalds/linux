@@ -5422,6 +5422,12 @@
 			test until boot completes in order to avoid
 			interference.
 
+	refscale.lookup_instances= [KNL]
+			Number of data elements to use for the forms of
+			SLAB_TYPESAFE_BY_RCU testing.  A negative number
+			is negated and multiplied by nr_cpu_ids, while
+			zero specifies nr_cpu_ids.
+
 	refscale.loops= [KNL]
 			Set the number of loops over the synchronization
 			primitive under test.  Increasing this number
