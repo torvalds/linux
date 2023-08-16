@@ -159,6 +159,21 @@ static void gen11_disable_guc_interrupts(struct intel_guc *guc)
 	gen11_reset_guc_interrupts(guc);
 }
 
+static void guc_dead_worker_func(struct work_struct *w)
+{
+	struct intel_guc *guc = container_of(w, struct intel_guc, dead_guc_worker);
+	struct intel_gt *gt = guc_to_gt(guc);
+	unsigned long last = guc->last_dead_guc_jiffies;
+	unsigned long delta = jiffies_to_msecs(jiffies - last);
+
+	if (delta < 500) {
+		intel_gt_set_wedged(gt);
+	} else {
+		intel_gt_handle_error(gt, ALL_ENGINES, I915_ERROR_CAPTURE, "dead GuC");
+		guc->last_dead_guc_jiffies = jiffies;
+	}
+}
+
 void intel_guc_init_early(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
@@ -170,6 +185,8 @@ void intel_guc_init_early(struct intel_guc *guc)
 	intel_guc_submission_init_early(guc);
 	intel_guc_slpc_init_early(&guc->slpc);
 	intel_guc_rc_init_early(guc);
+
+	INIT_WORK(&guc->dead_guc_worker, guc_dead_worker_func);
 
 	mutex_init(&guc->send_mutex);
 	spin_lock_init(&guc->irq_lock);
@@ -449,6 +466,8 @@ void intel_guc_fini(struct intel_guc *guc)
 	if (!intel_uc_fw_is_loadable(&guc->fw))
 		return;
 
+	flush_work(&guc->dead_guc_worker);
+
 	if (intel_guc_slpc_is_used(guc))
 		intel_guc_slpc_fini(&guc->slpc);
 
@@ -573,6 +592,20 @@ out:
 	return ret;
 }
 
+int intel_guc_crash_process_msg(struct intel_guc *guc, u32 action)
+{
+	if (action == INTEL_GUC_ACTION_NOTIFY_CRASH_DUMP_POSTED)
+		guc_err(guc, "Crash dump notification\n");
+	else if (action == INTEL_GUC_ACTION_NOTIFY_EXCEPTION)
+		guc_err(guc, "Exception notification\n");
+	else
+		guc_err(guc, "Unknown crash notification: 0x%04X\n", action);
+
+	queue_work(system_unbound_wq, &guc->dead_guc_worker);
+
+	return 0;
+}
+
 int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
 				       const u32 *payload, u32 len)
 {
@@ -588,6 +621,9 @@ int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
 		guc_err(guc, "Received early crash dump notification!\n");
 	if (msg & INTEL_GUC_RECV_MSG_EXCEPTION)
 		guc_err(guc, "Received early exception notification!\n");
+
+	if (msg & (INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED | INTEL_GUC_RECV_MSG_EXCEPTION))
+		queue_work(system_unbound_wq, &guc->dead_guc_worker);
 
 	return 0;
 }
@@ -628,6 +664,8 @@ int intel_guc_suspend(struct intel_guc *guc)
 		return 0;
 
 	if (intel_guc_submission_is_used(guc)) {
+		flush_work(&guc->dead_guc_worker);
+
 		/*
 		 * This H2G MMIO command tears down the GuC in two steps. First it will
 		 * generate a G2H CTB for every active context indicating a reset. In

@@ -266,6 +266,20 @@ struct intel_guc {
 		unsigned long last_stat_jiffies;
 	} timestamp;
 
+	/**
+	 * @dead_guc_worker: Asynchronous worker thread for forcing a GuC reset.
+	 * Specifically used when the G2H handler wants to issue a reset. Resets
+	 * require flushing the G2H queue. So, the G2H processing itself must not
+	 * trigger a reset directly. Instead, go via this worker.
+	 */
+	struct work_struct dead_guc_worker;
+	/**
+	 * @last_dead_guc_jiffies: timestamp of previous 'dead guc' occurrance
+	 * used to prevent a fundamentally broken system from continuously
+	 * reloading the GuC.
+	 */
+	unsigned long last_dead_guc_jiffies;
+
 #ifdef CONFIG_DRM_I915_SELFTEST
 	/**
 	 * @number_guc_id_stolen: The number of guc_ids that have been stolen
@@ -476,6 +490,7 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 					 const u32 *msg, u32 len);
 int intel_guc_error_capture_process_msg(struct intel_guc *guc,
 					const u32 *msg, u32 len);
+int intel_guc_crash_process_msg(struct intel_guc *guc, u32 action);
 
 struct intel_engine_cs *
 intel_guc_lookup_engine(struct intel_guc *guc, u8 guc_class, u8 instance);
