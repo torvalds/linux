@@ -111,29 +111,6 @@ static int get_slot_from_bitmask(int mask, int (*check)(struct module *, int),
 	return mask; /* unchanged */
 }
 
-/* the default release callback set in snd_device_initialize() below;
- * this is just NOP for now, as almost all jobs are already done in
- * dev_free callback of snd_device chain instead.
- */
-static void default_release(struct device *dev)
-{
-}
-
-/**
- * snd_device_initialize - Initialize struct device for sound devices
- * @dev: device to initialize
- * @card: card to assign, optional
- */
-void snd_device_initialize(struct device *dev, struct snd_card *card)
-{
-	device_initialize(dev);
-	if (card)
-		dev->parent = &card->card_dev;
-	dev->class = &sound_class;
-	dev->release = default_release;
-}
-EXPORT_SYMBOL_GPL(snd_device_initialize);
-
 /* the default release callback set in snd_device_alloc() */
 static void default_release_alloc(struct device *dev)
 {
