@@ -218,7 +218,7 @@ static int ast2600_i3c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "invalid sda-pullup value %d\n",
 			i3c->sda_pullup);
 
-	rst = devm_reset_control_get_shared(&pdev->dev, "global_rst");
+	rst = of_reset_control_get_shared(gspec.np, NULL);
 	if (IS_ERR(rst)) {
 		dev_err(&pdev->dev, "missing of invalid reset entry");
 		return PTR_ERR(rst);
