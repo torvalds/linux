@@ -1239,19 +1239,6 @@ void folio_copy(struct folio *dst, struct folio *src);
 
 unsigned long nr_free_buffer_pages(void);
 
-enum compound_dtor_id {
-	COMPOUND_PAGE_DTOR,
-	TRANSHUGE_PAGE_DTOR,
-	NR_COMPOUND_DTORS,
-};
-
-static inline void folio_set_compound_dtor(struct folio *folio,
-		enum compound_dtor_id compound_dtor)
-{
-	VM_BUG_ON_FOLIO(compound_dtor >= NR_COMPOUND_DTORS, folio);
-	folio->_folio_dtor = compound_dtor;
-}
-
 void destroy_large_folio(struct folio *folio);
 
 /* Returns the number of bytes in this potentially compound page. */

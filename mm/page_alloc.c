@@ -572,9 +572,6 @@ static inline void free_the_page(struct page *page, unsigned int order)
  * The remaining PAGE_SIZE pages are called "tail pages". PageTail() is encoded
  * in bit 0 of page->compound_head. The rest of bits is pointer to head page.
  *
- * The first tail page's ->compound_dtor describes how to destroy the
- * compound page.
- *
  * The first tail page's ->compound_order holds the order of allocation.
  * This usage means that zero-order pages may not be compound.
  */
@@ -593,14 +590,12 @@ void prep_compound_page(struct page *page, unsigned int order)
 
 void destroy_large_folio(struct folio *folio)
 {
-	enum compound_dtor_id dtor = folio->_folio_dtor;
-
 	if (folio_test_hugetlb(folio)) {
 		free_huge_folio(folio);
 		return;
 	}
 
-	if (folio_test_transhuge(folio) && dtor == TRANSHUGE_PAGE_DTOR)
+	if (folio_test_large_rmappable(folio))
 		folio_undo_large_rmappable(folio);
 
 	mem_cgroup_uncharge(folio);

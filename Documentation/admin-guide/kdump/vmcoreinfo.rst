@@ -141,8 +141,8 @@ nodemask_t
 The size of a nodemask_t type. Used to compute the number of online
 nodes.
 
-(page, flags|_refcount|mapping|lru|_mapcount|private|compound_dtor|compound_order|compound_head)
--------------------------------------------------------------------------------------------------
+(page, flags|_refcount|mapping|lru|_mapcount|private|compound_order|compound_head)
+----------------------------------------------------------------------------------
 
 User-space tools compute their values based on the offset of these
 variables. The variables are used when excluding unnecessary pages.

@@ -190,6 +190,7 @@ enum pageflags {
 	/* At least one page in this folio has the hwpoison flag set */
 	PG_has_hwpoisoned = PG_error,
 	PG_hugetlb = PG_active,
+	PG_large_rmappable = PG_workingset, /* anon or file-backed */
 };
 
 #define PAGEFLAGS_MASK		((1UL << NR_PAGEFLAGS) - 1)
@@ -806,6 +807,9 @@ static inline void ClearPageCompound(struct page *page)
 	BUG_ON(!PageHead(page));
 	ClearPageHead(page);
 }
+PAGEFLAG(LargeRmappable, large_rmappable, PF_SECOND)
+#else
+TESTPAGEFLAG_FALSE(LargeRmappable, large_rmappable)
 #endif
 
 #define PG_head_mask ((1UL << PG_head))
@@ -1077,7 +1081,8 @@ static __always_inline void __ClearPageAnonExclusive(struct page *page)
  * the CHECK_AT_FREE flags above, so need to be cleared.
  */
 #define PAGE_FLAGS_SECOND						\
-	(1UL << PG_has_hwpoisoned	| 1UL << PG_hugetlb)
+	(1UL << PG_has_hwpoisoned	| 1UL << PG_hugetlb |		\
+	 1UL << PG_large_rmappable)
 
 #define PAGE_FLAGS_PRIVATE				\
 	(1UL << PG_private | 1UL << PG_private_2)
