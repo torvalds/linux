@@ -150,6 +150,18 @@ static void show_link_attach_type_json(__u32 attach_type, json_writer_t *wtr)
 		jsonw_uint_field(wtr, "attach_type", attach_type);
 }
 
+static void show_link_ifindex_json(__u32 ifindex, json_writer_t *wtr)
+{
+	char devname[IF_NAMESIZE] = "(unknown)";
+
+	if (ifindex)
+		if_indextoname(ifindex, devname);
+	else
+		snprintf(devname, sizeof(devname), "(detached)");
+	jsonw_string_field(wtr, "devname", devname);
+	jsonw_uint_field(wtr, "ifindex", ifindex);
+}
+
 static bool is_iter_map_target(const char *target_name)
 {
 	return strcmp(target_name, "bpf_map_elem") == 0 ||
@@ -433,6 +445,10 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 	case BPF_LINK_TYPE_NETFILTER:
 		netfilter_dump_json(info, json_wtr);
 		break;
+	case BPF_LINK_TYPE_TCX:
+		show_link_ifindex_json(info->tcx.ifindex, json_wtr);
+		show_link_attach_type_json(info->tcx.attach_type, json_wtr);
+		break;
 	case BPF_LINK_TYPE_STRUCT_OPS:
 		jsonw_uint_field(json_wtr, "map_id",
 				 info->struct_ops.map_id);
@@ -507,6 +523,22 @@ static void show_link_attach_type_plain(__u32 attach_type)
 		printf("attach_type %s  ", attach_type_str);
 	else
 		printf("attach_type %u  ", attach_type);
+}
+
+static void show_link_ifindex_plain(__u32 ifindex)
+{
+	char devname[IF_NAMESIZE * 2] = "(unknown)";
+	char tmpname[IF_NAMESIZE];
+	char *ret = NULL;
+
+	if (ifindex)
+		ret = if_indextoname(ifindex, tmpname);
+	else
+		snprintf(devname, sizeof(devname), "(detached)");
+	if (ret)
+		snprintf(devname, sizeof(devname), "%s(%d)",
+			 tmpname, ifindex);
+	printf("ifindex %s  ", devname);
 }
 
 static void show_iter_plain(struct bpf_link_info *info)
@@ -744,6 +776,11 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 		break;
 	case BPF_LINK_TYPE_NETFILTER:
 		netfilter_dump_plain(info);
+		break;
+	case BPF_LINK_TYPE_TCX:
+		printf("\n\t");
+		show_link_ifindex_plain(info->tcx.ifindex);
+		show_link_attach_type_plain(info->tcx.attach_type);
 		break;
 	case BPF_LINK_TYPE_KPROBE_MULTI:
 		show_kprobe_multi_plain(info);
