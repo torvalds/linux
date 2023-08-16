@@ -85,17 +85,15 @@ static const struct rtw89_sar_span rtw89_sar_overlapping_6ghz[] = {
 	RTW89_DECL_SAR_6GHZ_SPAN(6885, SUBBAND_7_H, SUBBAND_8),
 };
 
-static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev, s32 *cfg)
+static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev,
+					 u32 center_freq, s32 *cfg)
 {
 	struct rtw89_sar_cfg_common *rtwsar = &rtwdev->sar.cfg_common;
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
-	enum rtw89_band band = chan->band_type;
-	u32 center_freq = chan->freq;
 	const struct rtw89_sar_span *span = NULL;
 	enum rtw89_sar_subband subband_l, subband_h;
 	int idx;
 
-	if (band == RTW89_BAND_6G) {
+	if (center_freq >= RTW89_SAR_6GHZ_SPAN_HEAD) {
 		idx = RTW89_SAR_6GHZ_SPAN_IDX(center_freq);
 		/* To decrease size of rtw89_sar_overlapping_6ghz[],
 		 * RTW89_SAR_6GHZ_SPAN_IDX() truncates the leading NULLs
@@ -115,8 +113,8 @@ static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev, s32 *cfg)
 	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_SAR,
-		    "for {band %u, center_freq %u}, SAR subband: {%u, %u}\n",
-		    band, center_freq, subband_l, subband_h);
+		    "center_freq %u: SAR subband {%u, %u}\n",
+		    center_freq, subband_l, subband_h);
 
 	if (!rtwsar->set[subband_l] && !rtwsar->set[subband_h])
 		return -ENODATA;
@@ -186,7 +184,7 @@ static s8 rtw89_txpwr_sar_to_tas(const struct rtw89_sar_handler *sar_hdl,
 		return cfg << (RTW89_TAS_FACTOR - fct);
 }
 
-s8 rtw89_query_sar(struct rtw89_dev *rtwdev)
+s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 {
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
@@ -202,7 +200,7 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev)
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return RTW89_SAR_TXPWR_MAC_MAX;
 
-	ret = sar_hdl->query_sar_config(rtwdev, &cfg);
+	ret = sar_hdl->query_sar_config(rtwdev, center_freq, &cfg);
 	if (ret)
 		return RTW89_SAR_TXPWR_MAC_MAX;
 
@@ -224,7 +222,7 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev)
 	return rtw89_txpwr_sar_to_mac(rtwdev, fct, cfg);
 }
 
-void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev)
+void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev, u32 center_freq)
 {
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
@@ -243,7 +241,7 @@ void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev)
 
 	seq_printf(m, "source: %d (%s)\n", src, sar_hdl->descr_sar_source);
 
-	ret = sar_hdl->query_sar_config(rtwdev, &cfg);
+	ret = sar_hdl->query_sar_config(rtwdev, center_freq, &cfg);
 	if (ret) {
 		seq_printf(m, "config: return code: %d\n", ret);
 		seq_printf(m, "assign: max setting: %d (unit: 1/%lu dBm)\n",
@@ -359,6 +357,7 @@ static void rtw89_tas_state_update(struct rtw89_dev *rtwdev)
 	s32 txpwr_avg = tas->total_txpwr / RTW89_TAS_MAX_WINDOW / PERCENT;
 	s32 dpr_on_threshold, dpr_off_threshold, cfg;
 	enum rtw89_tas_state state = tas->state;
+	const struct rtw89_chan *chan;
 	int ret;
 
 	lockdep_assert_held(&rtwdev->mutex);
@@ -366,7 +365,8 @@ static void rtw89_tas_state_update(struct rtw89_dev *rtwdev)
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return;
 
-	ret = sar_hdl->query_sar_config(rtwdev, &cfg);
+	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	ret = sar_hdl->query_sar_config(rtwdev, chan->freq, &cfg);
 	if (ret)
 		return;
 

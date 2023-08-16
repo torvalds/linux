@@ -572,9 +572,9 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 		seq_puts(m, #_regd "\n"); \
 		break
 
-static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev)
+static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev,
+			 const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 
@@ -604,16 +604,18 @@ static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	const struct rtw89_chan *chan;
 	int ret = 0;
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
+	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 
 	seq_puts(m, "[Regulatory] ");
-	__print_regd(m, rtwdev);
+	__print_regd(m, rtwdev, chan);
 
 	seq_puts(m, "[SAR]\n");
-	rtw89_print_sar(m, rtwdev);
+	rtw89_print_sar(m, rtwdev, chan->freq);
 
 	seq_puts(m, "[TAS]\n");
 	rtw89_print_tas(m, rtwdev);
