@@ -2100,16 +2100,16 @@ __weak int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
 	return lhs->core.idx - rhs->core.idx;
 }
 
-static int evlist__cmp(void *state, const struct list_head *l, const struct list_head *r)
+static int evlist__cmp(void *_fg_idx, const struct list_head *l, const struct list_head *r)
 {
 	const struct perf_evsel *lhs_core = container_of(l, struct perf_evsel, node);
 	const struct evsel *lhs = container_of(lhs_core, struct evsel, core);
 	const struct perf_evsel *rhs_core = container_of(r, struct perf_evsel, node);
 	const struct evsel *rhs = container_of(rhs_core, struct evsel, core);
-	int *leader_idx = state;
-	int lhs_leader_idx = *leader_idx, rhs_leader_idx = *leader_idx, ret;
+	int *force_grouped_idx = _fg_idx;
+	int lhs_sort_idx, rhs_sort_idx, ret;
 	const char *lhs_pmu_name, *rhs_pmu_name;
-	bool lhs_has_group = false, rhs_has_group = false;
+	bool lhs_has_group, rhs_has_group;
 
 	/*
 	 * First sort by grouping/leader. Read the leader idx only if the evsel
@@ -2121,15 +2121,25 @@ static int evlist__cmp(void *state, const struct list_head *l, const struct list
 	 */
 	if (lhs_core->leader != lhs_core || lhs_core->nr_members > 1) {
 		lhs_has_group = true;
-		lhs_leader_idx = lhs_core->leader->idx;
+		lhs_sort_idx = lhs_core->leader->idx;
+	} else {
+		lhs_has_group = false;
+		lhs_sort_idx = *force_grouped_idx != -1 && arch_evsel__must_be_in_group(lhs)
+			? *force_grouped_idx
+			: lhs_core->idx;
 	}
 	if (rhs_core->leader != rhs_core || rhs_core->nr_members > 1) {
 		rhs_has_group = true;
-		rhs_leader_idx = rhs_core->leader->idx;
+		rhs_sort_idx = rhs_core->leader->idx;
+	} else {
+		rhs_has_group = false;
+		rhs_sort_idx = *force_grouped_idx != -1 && arch_evsel__must_be_in_group(rhs)
+			? *force_grouped_idx
+			: rhs_core->idx;
 	}
 
-	if (lhs_leader_idx != rhs_leader_idx)
-		return lhs_leader_idx - rhs_leader_idx;
+	if (lhs_sort_idx != rhs_sort_idx)
+		return lhs_sort_idx - rhs_sort_idx;
 
 	/* Group by PMU if there is a group. Groups can't span PMUs. */
 	if (lhs_has_group && rhs_has_group) {
@@ -2146,10 +2156,10 @@ static int evlist__cmp(void *state, const struct list_head *l, const struct list
 
 static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 {
-	int idx = 0, unsorted_idx = -1;
+	int idx = 0, force_grouped_idx = -1;
 	struct evsel *pos, *cur_leader = NULL;
 	struct perf_evsel *cur_leaders_grp = NULL;
-	bool idx_changed = false;
+	bool idx_changed = false, cur_leader_force_grouped = false;
 	int orig_num_leaders = 0, num_leaders = 0;
 	int ret;
 
@@ -2174,12 +2184,14 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 		 */
 		pos->core.idx = idx++;
 
-		if (unsorted_idx == -1 && pos == pos_leader && pos->core.nr_members < 2)
-			unsorted_idx = pos->core.idx;
+		/* Remember an index to sort all forced grouped events together to. */
+		if (force_grouped_idx == -1 && pos == pos_leader && pos->core.nr_members < 2 &&
+		    arch_evsel__must_be_in_group(pos))
+			force_grouped_idx = pos->core.idx;
 	}
 
 	/* Sort events. */
-	list_sort(&unsorted_idx, list, evlist__cmp);
+	list_sort(&force_grouped_idx, list, evlist__cmp);
 
 	/*
 	 * Recompute groups, splitting for PMUs and adding groups for events
@@ -2189,8 +2201,9 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 	list_for_each_entry(pos, list, core.node) {
 		const struct evsel *pos_leader = evsel__leader(pos);
 		const char *pos_pmu_name = pos->group_pmu_name;
-		const char *cur_leader_pmu_name, *pos_leader_pmu_name;
-		bool force_grouped = arch_evsel__must_be_in_group(pos);
+		const char *cur_leader_pmu_name;
+		bool pos_force_grouped = force_grouped_idx != -1 &&
+			arch_evsel__must_be_in_group(pos);
 
 		/* Reset index and nr_members. */
 		if (pos->core.idx != idx)
@@ -2206,7 +2219,8 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 			cur_leader = pos;
 
 		cur_leader_pmu_name = cur_leader->group_pmu_name;
-		if ((cur_leaders_grp != pos->core.leader && !force_grouped) ||
+		if ((cur_leaders_grp != pos->core.leader &&
+		     (!pos_force_grouped || !cur_leader_force_grouped)) ||
 		    strcmp(cur_leader_pmu_name, pos_pmu_name)) {
 			/* Event is for a different group/PMU than last. */
 			cur_leader = pos;
@@ -2216,14 +2230,14 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 			 * group.
 			 */
 			cur_leaders_grp = pos->core.leader;
-		}
-		pos_leader_pmu_name = pos_leader->group_pmu_name;
-		if (strcmp(pos_leader_pmu_name, pos_pmu_name) || force_grouped) {
 			/*
-			 * Event's PMU differs from its leader's. Groups can't
-			 * span PMUs, so update leader from the group/PMU
-			 * tracker.
+			 * Avoid forcing events into groups with events that
+			 * don't need to be in the group.
 			 */
+			cur_leader_force_grouped = pos_force_grouped;
+		}
+		if (pos_leader != cur_leader) {
+			/* The leader changed so update it. */
 			evsel__set_leader(pos, cur_leader);
 		}
 	}

@@ -786,11 +786,9 @@ int nvme_ns_chr_uring_cmd_iopoll(struct io_uring_cmd *ioucmd,
 	if (!(ioucmd->flags & IORING_URING_CMD_POLLED))
 		return 0;
 
-	rcu_read_lock();
 	req = READ_ONCE(ioucmd->cookie);
 	if (req && blk_rq_is_poll(req))
 		ret = blk_rq_poll(req, iob, poll_flags);
-	rcu_read_unlock();
 	return ret;
 }
 #ifdef CONFIG_NVME_MULTIPATH

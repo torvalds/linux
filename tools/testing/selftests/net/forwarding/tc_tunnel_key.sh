@@ -104,11 +104,14 @@ tunnel_key_nofrag_test()
 	local i
 
 	tc filter add dev $swp1 ingress protocol ip pref 100 handle 100 \
-		flower ip_flags nofrag action drop
+		flower src_ip 192.0.2.1 dst_ip 192.0.2.2 ip_proto udp \
+		ip_flags nofrag action drop
 	tc filter add dev $swp1 ingress protocol ip pref 101 handle 101 \
-		flower ip_flags firstfrag action drop
+		flower src_ip 192.0.2.1 dst_ip 192.0.2.2 ip_proto udp \
+		ip_flags firstfrag action drop
 	tc filter add dev $swp1 ingress protocol ip pref 102 handle 102 \
-		flower ip_flags nofirstfrag action drop
+		flower src_ip 192.0.2.1 dst_ip 192.0.2.2 ip_proto udp \
+		ip_flags nofirstfrag action drop
 
 	# test 'nofrag' set
 	tc filter add dev h1-et egress protocol all pref 1 handle 1 matchall $tcflags \
