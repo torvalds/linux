@@ -337,6 +337,10 @@
 	status = "okay";
 };
 
+&jtag1 {
+	status = "okay";
+};
+
 &fsim0 {
 	status = "okay";
 };
