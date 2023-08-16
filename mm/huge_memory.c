@@ -577,10 +577,8 @@ struct deferred_split *get_deferred_split_queue(struct folio *folio)
 }
 #endif
 
-void prep_transhuge_page(struct page *page)
+void folio_prep_large_rmappable(struct folio *folio)
 {
-	struct folio *folio = (struct folio *)page;
-
 	VM_BUG_ON_FOLIO(folio_order(folio) < 2, folio);
 	INIT_LIST_HEAD(&folio->_deferred_list);
 	folio_set_compound_dtor(folio, TRANSHUGE_PAGE_DTOR);

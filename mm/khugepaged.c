@@ -896,7 +896,7 @@ static bool hpage_collapse_alloc_page(struct page **hpage, gfp_t gfp, int node,
 		return false;
 	}
 
-	prep_transhuge_page(*hpage);
+	folio_prep_large_rmappable((struct folio *)*hpage);
 	count_vm_event(THP_COLLAPSE_ALLOC);
 	return true;
 }
