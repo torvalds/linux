@@ -449,6 +449,9 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 		show_link_ifindex_json(info->tcx.ifindex, json_wtr);
 		show_link_attach_type_json(info->tcx.attach_type, json_wtr);
 		break;
+	case BPF_LINK_TYPE_XDP:
+		show_link_ifindex_json(info->xdp.ifindex, json_wtr);
+		break;
 	case BPF_LINK_TYPE_STRUCT_OPS:
 		jsonw_uint_field(json_wtr, "map_id",
 				 info->struct_ops.map_id);
@@ -781,6 +784,10 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 		printf("\n\t");
 		show_link_ifindex_plain(info->tcx.ifindex);
 		show_link_attach_type_plain(info->tcx.attach_type);
+		break;
+	case BPF_LINK_TYPE_XDP:
+		printf("\n\t");
+		show_link_ifindex_plain(info->xdp.ifindex);
 		break;
 	case BPF_LINK_TYPE_KPROBE_MULTI:
 		show_kprobe_multi_plain(info);
