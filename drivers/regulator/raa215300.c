@@ -119,7 +119,7 @@ static int raa215300_i2c_probe(struct i2c_client *client)
 	}
 
 	if (clk_name) {
-		char *name = pmic_version >= 0x12 ? "isl1208" : "raa215300_a0";
+		const char *name = pmic_version >= 0x12 ? "isl1208" : "raa215300_a0";
 		struct device_node *np = client->dev.of_node;
 		u32 addr = RAA215300_RTC_DEFAULT_ADDR;
 		struct i2c_board_info info = {};
