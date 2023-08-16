@@ -229,21 +229,18 @@ struct inet_sock {
 	__u8			min_ttl;
 	__u8			mc_ttl;
 	__u8			pmtudisc;
-	__u8			defer_connect:1; /* Indicates that fastopen_connect is set
-						  * and cookie exists so we defer connect
-						  * until first data frame is written
-						  */
 	__u8			rcv_tos;
 	__u8			convert_csum;
 	int			uc_index;
 	int			mc_index;
 	__be32			mc_addr;
-	struct ip_mc_socklist __rcu	*mc_list;
-	struct inet_cork_full	cork;
 	struct {
 		__u16 lo;
 		__u16 hi;
 	}			local_port_range;
+
+	struct ip_mc_socklist __rcu	*mc_list;
+	struct inet_cork_full	cork;
 };
 
 #define IPCORK_OPT	1	/* ip-options has been held in ipcork.opt */
@@ -270,6 +267,7 @@ enum {
 	INET_FLAGS_IS_ICSK	= 16,
 	INET_FLAGS_NODEFRAG	= 17,
 	INET_FLAGS_BIND_ADDRESS_NO_PORT = 18,
+	INET_FLAGS_DEFER_CONNECT = 19,
 };
 
 /* cmsg flags for inet */
