@@ -132,22 +132,6 @@ void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans)
 	}
 }
 
-static inline void iwl_pcie_tfd_set_tb(struct iwl_trans *trans, void *tfd,
-				       u8 idx, dma_addr_t addr, u16 len)
-{
-	struct iwl_tfd *tfd_fh = (void *)tfd;
-	struct iwl_tfd_tb *tb = &tfd_fh->tbs[idx];
-
-	u16 hi_n_len = len << 4;
-
-	put_unaligned_le32(addr, &tb->lo);
-	hi_n_len |= iwl_get_dma_hi_addr(addr);
-
-	tb->hi_n_len = cpu_to_le16(hi_n_len);
-
-	tfd_fh->num_tbs = idx + 1;
-}
-
 static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 				  dma_addr_t addr, u16 len, bool reset)
 {
@@ -172,7 +156,7 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 		 "Unaligned address = %llx\n", (unsigned long long)addr))
 		return -EINVAL;
 
-	iwl_pcie_tfd_set_tb(trans, tfd, num_tbs, addr, len);
+	iwl_pcie_gen1_tfd_set_tb(trans, tfd, num_tbs, addr, len);
 
 	return num_tbs;
 }
