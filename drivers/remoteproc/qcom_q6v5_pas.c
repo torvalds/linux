@@ -51,7 +51,6 @@ static struct icc_path *scm_perf_client;
 static int scm_pas_bw_count;
 static DEFINE_MUTEX(scm_pas_bw_mutex);
 bool timeout_disabled;
-static bool mpss_dsm_mem_setup;
 static bool global_sync_mem_setup;
 static bool recovery_set_cb;
 
@@ -70,6 +69,7 @@ struct adsp_data {
 	bool dma_phys_below_32b;
 	bool decrypt_shutdown;
 	bool hyp_assign_mem;
+	bool ssr_hyp_assign_mem;
 
 	char **active_pd_names;
 	char **proxy_pd_names;
@@ -137,6 +137,11 @@ struct qcom_adsp {
 	struct qcom_sysmon *sysmon;
 	const struct firmware *dtb_firmware;
 	bool subsys_recovery_disabled;
+
+	bool ssr_hyp_assign_mem;
+	phys_addr_t *hyp_assign_phy;
+	size_t *hyp_assign_mem_size;
+	int hyp_assign_mem_cnt;
 };
 
 static ssize_t txn_id_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -148,37 +153,76 @@ static ssize_t txn_id_show(struct device *dev, struct device_attribute *attr, ch
 }
 static DEVICE_ATTR_RO(txn_id);
 
+static inline bool is_mss_ssr_hyp_assign_en(struct qcom_adsp *adsp)
+{
+	return (adsp->ssr_hyp_assign_mem && !strcmp(adsp->dtb_fw_name, "modem_dtb.mdt"));
+}
+
+static int adsp_custom_segment_dump(struct qcom_adsp *adsp,
+				    struct rproc_dump_segment *segment,
+				    void *dest, size_t offset, size_t size)
+{
+	int len = strlen("md_dbg_buf");
+	void __iomem *base;
+	int total_offset;
+	bool valid = false;
+	int i;
+
+	if (segment->priv && strnlen(segment->priv, len + 1) == len &&
+		    !strcmp(segment->priv, "md_dbg_buf"))
+		goto custom_segment_dump;
+
+	if (!is_mss_ssr_hyp_assign_en(adsp))
+		return -EINVAL;
+
+	/*
+	 * Also, do second level of check for custom segments in
+	 * adsp_custom_segment_dump(), which checks if the segment
+	 * lies outside the subsystem region range.
+	 */
+	for (i = 0; i < adsp->hyp_assign_mem_cnt; i++) {
+		total_offset = segment->da + segment->offset +
+			       offset - adsp->hyp_assign_phy[i];
+		if (!(total_offset < 0 ||
+		    total_offset + size > adsp->hyp_assign_mem_size[i])) {
+			valid = true;
+			break;
+		}
+	}
+
+	if (!valid)
+		return -EINVAL;
+
+custom_segment_dump:
+	base = ioremap((unsigned long)le64_to_cpu(segment->da), size);
+	if (!base) {
+		dev_err(adsp->dev, "failed to map custom_segment region\n");
+		return -EINVAL;
+	}
+
+	memcpy_fromio(dest, base, size);
+	iounmap(base);
+	return 0;
+}
+
 void adsp_segment_dump(struct rproc *rproc, struct rproc_dump_segment *segment,
 		     void *dest, size_t offset, size_t size)
 {
 	struct qcom_adsp *adsp = rproc->priv;
 	int total_offset;
-	void __iomem *base;
-	int len = strlen("md_dbg_buf");
-
-	if (strnlen(segment->priv, len + 1) == len &&
-		    !strcmp(segment->priv, "md_dbg_buf")) {
-		base = ioremap((unsigned long)le64_to_cpu(segment->da), size);
-		if (!base) {
-			pr_err("failed to map md_dbg_buf region\n");
-			return;
-		}
-
-		memcpy_fromio(dest, base, size);
-		iounmap(base);
-		return;
-	}
 
 	total_offset = segment->da + segment->offset + offset - adsp->mem_phys;
-	if (total_offset < 0 || total_offset + size > adsp->mem_size) {
-		dev_err(adsp->dev,
-			"invalid copy request for segment %pad with offset %zu and size %zu)\n",
-			&segment->da, offset, size);
-		memset(dest, 0xff, size);
+	if (!(total_offset < 0 || total_offset + size > adsp->mem_size)) {
+		memcpy_fromio(dest, adsp->mem_region + total_offset, size);
+		return;
+	} else if (!adsp_custom_segment_dump(adsp, segment, dest, offset, size)) {
 		return;
 	}
 
-	memcpy_fromio(dest, adsp->mem_region + total_offset, size);
+	dev_err(adsp->dev,
+		"invalid copy request for segment %pad with offset %zu and size %zu)\n",
+		&segment->da, offset, size);
+	memset(dest, 0xff, size);
 }
 
 static void adsp_minidump(struct rproc *rproc)
@@ -423,6 +467,133 @@ static int do_bus_scaling(struct qcom_adsp *adsp, bool enable)
 	return rc;
 }
 
+static int setup_mpss_dsm_mem(struct qcom_adsp *adsp)
+{
+	struct of_phandle_iterator it;
+	struct resource res;
+	int ret;
+	int i = 0;
+
+	ret = of_property_count_elems_of_size(adsp->dev->of_node,
+					      "mpss_dsm_mem_reg", sizeof(phandle));
+	if (ret < 0) {
+		dev_err(adsp->dev, "mpss_dsm_mem_reg is not defined properly\n");
+		return ret;
+	}
+
+	adsp->hyp_assign_phy = devm_kzalloc(adsp->dev,
+					     sizeof(phys_addr_t) * ret, GFP_KERNEL);
+	if (!adsp->hyp_assign_phy)
+		return -ENOMEM;
+
+	adsp->hyp_assign_mem_size = devm_kzalloc(adsp->dev,
+					     sizeof(size_t) * ret, GFP_KERNEL);
+	if (!adsp->hyp_assign_mem_size)
+		return -ENOMEM;
+
+	of_for_each_phandle(&it, ret, adsp->dev->of_node, "mpss_dsm_mem_reg", NULL, 0) {
+		ret = of_address_to_resource(it.node, 0, &res);
+		if (ret) {
+			dev_err(adsp->dev,
+				"address to resource failed for mpss_dsm_mem_reg[%d]\n",
+				it.cur_count);
+			return ret;
+		}
+
+		adsp->hyp_assign_phy[i] = res.start;
+		adsp->hyp_assign_mem_size[i] = resource_size(&res);
+		i++;
+	}
+
+	adsp->hyp_assign_mem_cnt = i;
+
+	return 0;
+}
+
+static int mpss_dsm_hyp_assign_control(struct qcom_adsp *adsp, bool start)
+{
+	struct qcom_scm_vmperm newvm[1];
+	u64 curr_perm;
+	int ret;
+	int i;
+
+	for (i = 0; i < adsp->hyp_assign_mem_cnt; i++) {
+		if (start) {
+			newvm[0].vmid = QCOM_SCM_VMID_MSS_MSA;
+			curr_perm = BIT(QCOM_SCM_VMID_HLOS);
+		} else {
+			newvm[0].vmid = QCOM_SCM_VMID_HLOS;
+			curr_perm = BIT(QCOM_SCM_VMID_MSS_MSA);
+		}
+
+		newvm[0].perm = QCOM_SCM_PERM_RW;
+		ret = qcom_scm_assign_mem(adsp->hyp_assign_phy[i],
+					  adsp->hyp_assign_mem_size[i],
+					  &curr_perm, newvm, 1);
+		/*
+		 * There is no point of reclaiming the successful
+		 * hyp assigned memory as already something bad
+		 * happened.
+		 */
+		if (ret) {
+			dev_err(adsp->dev,
+				"hyp assign for mpss_dsm_mem_reg[%d]\n", i);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static void add_mpss_dsm_mem_ssr_dump(struct qcom_adsp *adsp)
+{
+	struct rproc *rproc = adsp->rproc;
+	struct device_node *np;
+	struct resource imem;
+	void __iomem *base;
+	int ret = 0, i;
+	const char *prop = "qcom,msm-imem-mss-dsm";
+	dma_addr_t da;
+	size_t size;
+
+	np = of_find_compatible_node(NULL, NULL, prop);
+	if (!np) {
+		pr_err("%s entry missing!\n", prop);
+		return;
+	}
+
+	ret = of_address_to_resource(np, 0, &imem);
+	of_node_put(np);
+	if (ret < 0) {
+		pr_err("address to resource conversion failed for %s\n", prop);
+		return;
+	}
+
+	base = ioremap(imem.start, resource_size(&imem));
+	if (!base) {
+		pr_err("failed to map MSS DSM region\n");
+		return;
+	}
+
+	/*
+	 * There can be multiple DSM partitions based on the Modem flavor.
+	 * Each DSM partition start address and size are written to IMEM by Modem and each
+	 * partition consumes 4 bytes (2 bytes for address and 2 bytes for size) of IMEM.
+	 *
+	 * Modem physical address range has to be in the low 4G (32 bits only) and low 2
+	 * bytes will be zeros, so, left shift by 16 to get proper address & size.
+	 */
+	for (i = 0; i < resource_size(&imem); i = i + 4) {
+		da = __raw_readw(base + i) << 16;
+		size = __raw_readw(base + (i + 2)) << 16;
+		if (da && size)
+			rproc_coredump_add_custom_segment(rproc,
+				da, size, adsp_segment_dump, NULL);
+	}
+
+	iounmap(base);
+}
+
 static int adsp_start(struct rproc *rproc)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
@@ -432,6 +603,14 @@ static int adsp_start(struct rproc *rproc)
 	trace_rproc_qcom_event(dev_name(adsp->dev), "adsp_start", "enter");
 
 	qcom_q6v5_prepare(&adsp->q6v5);
+
+	if (is_mss_ssr_hyp_assign_en(adsp)) {
+		ret = mpss_dsm_hyp_assign_control(adsp, true);
+		if (ret) {
+			dev_err(adsp->dev, "failed to hyp assign mpss dsm mem\n");
+			goto disable_irqs;
+		}
+	}
 
 	ret = do_bus_scaling(adsp, true);
 	if (ret < 0)
@@ -516,6 +695,9 @@ static int adsp_start(struct rproc *rproc)
 		else if (ret == -ETIMEDOUT)
 			dev_err(adsp->dev, "start timed out\n");
 	}
+
+	if (is_mss_ssr_hyp_assign_en(adsp))
+		add_mpss_dsm_mem_ssr_dump(adsp);
 
 free_metadata:
 	qcom_mdt_free_metadata(adsp->dev, adsp->pas_id, adsp->mdata,
@@ -604,6 +786,12 @@ static int adsp_stop(struct rproc *rproc)
 	handover = qcom_q6v5_unprepare(&adsp->q6v5);
 	if (handover)
 		qcom_pas_handover(&adsp->q6v5);
+
+	if (is_mss_ssr_hyp_assign_en(adsp)) {
+		ret = mpss_dsm_hyp_assign_control(adsp, false);
+		if (ret)
+			dev_err(adsp->dev, "failed to reclaim mpss dsm mem\n");
+	}
 
 	trace_rproc_qcom_event(dev_name(adsp->dev), "adsp_stop", "exit");
 
@@ -979,41 +1167,6 @@ out:
 	return ret;
 }
 
-static int setup_mpss_dsm_mem(struct platform_device *pdev)
-{
-	struct qcom_scm_vmperm newvm[1];
-	struct of_phandle_iterator it;
-	struct resource res;
-	phys_addr_t mem_phys;
-	u64 curr_perm;
-	u64 mem_size;
-	int ret;
-
-	of_for_each_phandle(&it, ret, pdev->dev.of_node, "mpss_dsm_mem_reg", NULL, 0) {
-		ret = of_address_to_resource(it.node, 0, &res);
-		if (ret) {
-			dev_err(&pdev->dev, "address to resource failed for mpss_dsm_mem_reg[%d]\n",
-								it.cur_count);
-			return ret;
-		}
-
-		newvm[0].vmid = QCOM_SCM_VMID_MSS_MSA;
-		newvm[0].perm = QCOM_SCM_PERM_RW;
-		curr_perm = BIT(QCOM_SCM_VMID_HLOS);
-		mem_phys = res.start;
-		mem_size = resource_size(&res);
-		ret = qcom_scm_assign_mem(mem_phys, mem_size, &curr_perm, newvm, 1);
-		if (ret) {
-			dev_err(&pdev->dev, "hyp assign for mpss_dsm_mem_reg[%d] failed\n",
-				it.cur_count);
-			return ret;
-		}
-	}
-
-	mpss_dsm_mem_setup = true;
-	return 0;
-}
-
 static int setup_global_sync_mem(struct platform_device *pdev)
 {
 	struct qcom_scm_vmperm newvm[2];
@@ -1110,15 +1263,6 @@ static int adsp_probe(struct platform_device *pdev)
 	if (ret < 0 && ret != -EINVAL)
 		return ret;
 
-	if (desc->hyp_assign_mem && !mpss_dsm_mem_setup &&
-			!strcmp(fw_name, "modem.mdt")) {
-		ret = setup_mpss_dsm_mem(pdev);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to setup mpss dsm mem\n");
-			return -EINVAL;
-		}
-	}
-
 	if (desc->hyp_assign_mem && !global_sync_mem_setup &&
 			!strcmp(fw_name, "cdsp.mdt")) {
 		ret = setup_global_sync_mem(pdev);
@@ -1163,6 +1307,15 @@ static int adsp_probe(struct platform_device *pdev)
 	if (desc->free_after_auth_reset) {
 		adsp->mdata = devm_kzalloc(adsp->dev, sizeof(struct qcom_mdt_metadata), GFP_KERNEL);
 		adsp->retry_shutdown = true;
+	}
+
+	if (desc->ssr_hyp_assign_mem) {
+		ret = setup_mpss_dsm_mem(adsp);
+		if (ret) {
+			dev_err(adsp->dev, "failed to parse mpss dsm mem\n");
+			goto free_rproc;
+		}
+		adsp->ssr_hyp_assign_mem = true;
 	}
 
 	platform_set_drvdata(pdev, adsp);
@@ -1739,7 +1892,7 @@ static const struct adsp_data pineapple_mpss_resource = {
 	.uses_elf64 = true,
 	.has_aggre2_clk = false,
 	.auto_boot = false,
-	.hyp_assign_mem = true,
+	.ssr_hyp_assign_mem = true,
 	.ssr_name = "mpss",
 	.sysmon_name = "modem",
 	.qmp_name = "modem",
