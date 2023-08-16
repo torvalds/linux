@@ -1203,7 +1203,11 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	group_id = cmd->hdr.group_id;
 	cmd_id = WIDE_ID(group_id, cmd->hdr.cmd);
 
-	iwl_txq_gen1_tfd_unmap(trans, meta, txq, index);
+	if (trans->trans_cfg->gen2)
+		iwl_txq_gen2_tfd_unmap(trans, meta,
+				       iwl_txq_get_tfd(trans, txq, index));
+	else
+		iwl_txq_gen1_tfd_unmap(trans, meta, txq, index);
 
 	/* Input error checking is done when commands are added to queue. */
 	if (meta->flags & CMD_WANT_SKB) {

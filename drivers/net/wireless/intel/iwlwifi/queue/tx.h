@@ -131,17 +131,8 @@ struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
 				      struct sk_buff *skb);
 #endif
 static inline u8 iwl_txq_gen1_tfd_get_num_tbs(struct iwl_trans *trans,
-					      void *_tfd)
+					      struct iwl_tfd *tfd)
 {
-	struct iwl_tfd *tfd;
-
-	if (trans->trans_cfg->gen2) {
-		struct iwl_tfh_tfd *tfh_tfd = _tfd;
-
-		return le16_to_cpu(tfh_tfd->num_tbs) & 0x1f;
-	}
-
-	tfd = (struct iwl_tfd *)_tfd;
 	return tfd->num_tbs & 0x1f;
 }
 

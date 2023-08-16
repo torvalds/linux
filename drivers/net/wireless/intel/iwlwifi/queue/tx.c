@@ -1340,22 +1340,12 @@ error:
 }
 
 static inline dma_addr_t iwl_txq_gen1_tfd_tb_get_addr(struct iwl_trans *trans,
-						      void *_tfd, u8 idx)
+						      struct iwl_tfd *tfd, u8 idx)
 {
-	struct iwl_tfd *tfd;
-	struct iwl_tfd_tb *tb;
+	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
 	dma_addr_t addr;
 	dma_addr_t hi_len;
 
-	if (trans->trans_cfg->gen2) {
-		struct iwl_tfh_tfd *tfh_tfd = _tfd;
-		struct iwl_tfh_tb *tfh_tb = &tfh_tfd->tbs[idx];
-
-		return (dma_addr_t)(le64_to_cpu(tfh_tb->addr));
-	}
-
-	tfd = _tfd;
-	tb = &tfd->tbs[idx];
 	addr = get_unaligned_le32(&tb->lo);
 
 	if (sizeof(dma_addr_t) <= sizeof(u32))
@@ -1376,7 +1366,7 @@ void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,
 			    struct iwl_txq *txq, int index)
 {
 	int i, num_tbs;
-	void *tfd = iwl_txq_get_tfd(trans, txq, index);
+	struct iwl_tfd *tfd = iwl_txq_get_tfd(trans, txq, index);
 
 	/* Sanity check on number of chunks */
 	num_tbs = iwl_txq_gen1_tfd_get_num_tbs(trans, tfd);
@@ -1408,15 +1398,7 @@ void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,
 
 	meta->tbs = 0;
 
-	if (trans->trans_cfg->gen2) {
-		struct iwl_tfh_tfd *tfd_fh = (void *)tfd;
-
-		tfd_fh->num_tbs = 0;
-	} else {
-		struct iwl_tfd *tfd_fh = (void *)tfd;
-
-		tfd_fh->num_tbs = 0;
-	}
+	tfd->num_tbs = 0;
 }
 
 #define IWL_TX_CRC_SIZE 4
@@ -1520,7 +1502,12 @@ void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	/* We have only q->n_window txq->entries, but we use
 	 * TFD_QUEUE_SIZE_MAX tfds
 	 */
-	iwl_txq_gen1_tfd_unmap(trans, &txq->entries[idx].meta, txq, rd_ptr);
+	if (trans->trans_cfg->gen2)
+		iwl_txq_gen2_tfd_unmap(trans, &txq->entries[idx].meta,
+				       iwl_txq_get_tfd(trans, txq, rd_ptr));
+	else
+		iwl_txq_gen1_tfd_unmap(trans, &txq->entries[idx].meta,
+				       txq, rd_ptr);
 
 	/* free SKB */
 	skb = txq->entries[idx].skb;
