@@ -184,7 +184,8 @@ enum pageflags {
 
 	/*
 	 * Flags only valid for compound pages.  Stored in first tail page's
-	 * flags word.
+	 * flags word.  Cannot use the first 8 flags or any flag marked as
+	 * PF_ANY.
 	 */
 
 	/* At least one page in this folio has the hwpoison flag set */
@@ -1081,8 +1082,8 @@ static __always_inline void __ClearPageAnonExclusive(struct page *page)
  * the CHECK_AT_FREE flags above, so need to be cleared.
  */
 #define PAGE_FLAGS_SECOND						\
-	(1UL << PG_has_hwpoisoned	| 1UL << PG_hugetlb |		\
-	 1UL << PG_large_rmappable)
+	(0xffUL /* order */		| 1UL << PG_has_hwpoisoned |	\
+	 1UL << PG_hugetlb		| 1UL << PG_large_rmappable)
 
 #define PAGE_FLAGS_PRIVATE				\
 	(1UL << PG_private | 1UL << PG_private_2)
