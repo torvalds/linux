@@ -2643,14 +2643,10 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 static void io_mem_free(void *ptr)
 {
-	struct page *page;
-
 	if (!ptr)
 		return;
 
-	page = virt_to_head_page(ptr);
-	if (put_page_testzero(page))
-		free_compound_page(page);
+	folio_put(virt_to_folio(ptr));
 }
 
 static void io_pages_free(struct page ***pages, int npages)
