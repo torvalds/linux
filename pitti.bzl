@@ -10,6 +10,7 @@ def define_pitti():
         # TODO: Need to add GKI modules
         "drivers/firmware/qcom-scm.ko",
         "drivers/hwspinlock/qcom_hwspinlock.ko",
+        "drivers/mailbox/qcom-ipcc.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-pitti.ko",
         "drivers/soc/qcom/smem.ko",
