@@ -767,7 +767,7 @@ bool sk_mc_loop(struct sock *sk)
 		return true;
 	switch (sk->sk_family) {
 	case AF_INET:
-		return inet_sk(sk)->mc_loop;
+		return inet_test_bit(MC_LOOP, sk);
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		return inet6_sk(sk)->mc_loop;
