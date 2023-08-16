@@ -6,6 +6,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/err.h>
@@ -204,13 +205,13 @@
 
 #define SCL_I3C_OD_TIMING		0xb4
 #define SCL_I3C_PP_TIMING		0xb8
-#define SCL_I3C_TIMING_HCNT(x)		(((x) << 16) & GENMASK(23, 16))
-#define SCL_I3C_TIMING_LCNT(x)		((x) & GENMASK(7, 0))
-#define SCL_I3C_TIMING_CNT_MIN		5
+#define   SCL_I3C_TIMING_HCNT		GENMASK(23, 16)
+#define   SCL_I3C_TIMING_LCNT		GENMASK(7, 0)
+#define     SCL_I3C_TIMING_CNT_MIN	5
 
 #define SCL_I2C_FM_TIMING		0xbc
-#define SCL_I2C_FM_TIMING_HCNT(x)	(((x) << 16) & GENMASK(31, 16))
-#define SCL_I2C_FM_TIMING_LCNT(x)	((x) & GENMASK(15, 0))
+#define   SCL_I2C_FM_TIMING_HCNT	GENMASK(31, 16)
+#define   SCL_I2C_FM_TIMING_LCNT	GENMASK(15, 0)
 
 #define SCL_I2C_FMP_TIMING		0xc0
 #define SCL_I2C_FMP_TIMING_HCNT(x)	(((x) << 16) & GENMASK(23, 16))
@@ -224,9 +225,9 @@
 
 #define SCL_EXT_TERMN_LCNT_TIMING	0xcc
 #define BUS_FREE_TIMING			0xd4
-#define BUS_AVAIL_TIME(x)		(((x) << 16) & GENMASK(31, 16))
-#define MAX_BUS_AVAIL_CNT		0xffffU
-#define BUS_I3C_MST_FREE(x)		((x) & GENMASK(15, 0))
+#define   BUS_AVAIL_TIME		GENMASK(31, 16)
+#define     MAX_BUS_AVAIL_CNT		0xffffU
+#define   BUS_I3C_MST_FREE		GENMASK(15, 0)
 
 #define BUS_IDLE_TIMING			0xd8
 #define I3C_VER_ID			0xe0
@@ -361,7 +362,8 @@ static void dw_i3c_master_enable(struct dw_i3c_master *master)
 	if (master->base.target) {
 		wait_enable_ns =
 			master->timing.core_period *
-			BUS_AVAIL_TIME(readl(master->regs + BUS_FREE_TIMING));
+			FIELD_GET(BUS_AVAIL_TIME,
+				  readl(master->regs + BUS_FREE_TIMING));
 		udelay(DIV_ROUND_UP(wait_enable_ns, NSEC_PER_USEC));
 
 		master->platform_ops->toggle_scl_in(master, 8);
@@ -600,14 +602,8 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 	u32 scl_timing;
 	u8 hcnt, lcnt;
 
-	core_rate = clk_get_rate(master->core_clk);
-	if (!core_rate)
-		return -EINVAL;
-
-	core_period = DIV_ROUND_UP(1000000000, core_rate);
-
-	master->timing.core_rate = core_rate;
-	master->timing.core_period = core_period;
+	core_rate = master->timing.core_rate;
+	core_period = master->timing.core_period;
 
 	hcnt = DIV_ROUND_UP(I3C_BUS_THIGH_MAX_NS, core_period) - 1;
 	if (hcnt < SCL_I3C_TIMING_CNT_MIN)
@@ -617,19 +613,14 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 	if (lcnt < SCL_I3C_TIMING_CNT_MIN)
 		lcnt = SCL_I3C_TIMING_CNT_MIN;
 
-	scl_timing = SCL_I3C_TIMING_HCNT(hcnt) | SCL_I3C_TIMING_LCNT(lcnt);
+	scl_timing = FIELD_PREP(SCL_I3C_TIMING_HCNT, hcnt) |
+		     FIELD_PREP(SCL_I3C_TIMING_LCNT, lcnt);
 	writel(scl_timing, master->regs + SCL_I3C_PP_TIMING);
-
-	/*
-	 * In pure i3c mode, MST_FREE represents tCAS. In shared mode, this
-	 * will be set up by dw_i2c_clk_cfg as tLOW.
-	 */
-	if (master->base.bus.mode == I3C_BUS_MODE_PURE)
-		writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
 
 	lcnt = max_t(u8,
 		     DIV_ROUND_UP(I3C_BUS_TLOW_OD_MIN_NS, core_period), lcnt);
-	scl_timing = SCL_I3C_TIMING_HCNT(hcnt) | SCL_I3C_TIMING_LCNT(lcnt);
+	scl_timing = FIELD_PREP(SCL_I3C_TIMING_HCNT, hcnt) |
+		     FIELD_PREP(SCL_I3C_TIMING_LCNT, lcnt);
 	writel(scl_timing, master->regs + SCL_I3C_OD_TIMING);
 
 	lcnt = DIV_ROUND_UP(core_rate, I3C_BUS_SDR1_SCL_RATE) - hcnt;
@@ -651,14 +642,8 @@ static int dw_i2c_clk_cfg(struct dw_i3c_master *master)
 	u16 hcnt, lcnt;
 	u32 scl_timing;
 
-	core_rate = clk_get_rate(master->core_clk);
-	if (!core_rate)
-		return -EINVAL;
-
-	core_period = DIV_ROUND_UP(1000000000, core_rate);
-
-	master->timing.core_rate = core_rate;
-	master->timing.core_period = core_period;
+	core_rate = master->timing.core_rate;
+	core_period = master->timing.core_period;
 
 	lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FMP_TLOW_MIN_NS, core_period);
 	hcnt = DIV_ROUND_UP(core_rate, I3C_BUS_I2C_FM_PLUS_SCL_RATE) - lcnt;
@@ -668,13 +653,9 @@ static int dw_i2c_clk_cfg(struct dw_i3c_master *master)
 
 	lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS, core_period);
 	hcnt = DIV_ROUND_UP(core_rate, I3C_BUS_I2C_FM_SCL_RATE) - lcnt;
-	scl_timing = SCL_I2C_FM_TIMING_HCNT(hcnt) |
-		     SCL_I2C_FM_TIMING_LCNT(lcnt);
+	scl_timing = FIELD_PREP(SCL_I2C_FM_TIMING_HCNT, hcnt) |
+		     FIELD_PREP(SCL_I2C_FM_TIMING_LCNT, lcnt);
 	writel(scl_timing, master->regs + SCL_I2C_FM_TIMING);
-
-	writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
-	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_I2C_SLAVE_PRESENT,
-	       master->regs + DEVICE_CTRL);
 
 	return 0;
 }
@@ -683,22 +664,43 @@ static int dw_i3c_bus_clk_cfg(struct i3c_master_controller *m)
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	struct i3c_bus *bus = i3c_master_get_bus(m);
+	unsigned long core_rate, core_period;
 	int ret;
+	u16 lcnt;
 
-	switch (bus->mode) {
-	case I3C_BUS_MODE_MIXED_FAST:
-	case I3C_BUS_MODE_MIXED_LIMITED:
-		ret = dw_i2c_clk_cfg(master);
-		if (ret)
-			return ret;
-		fallthrough;
-	case I3C_BUS_MODE_PURE:
-		ret = dw_i3c_clk_cfg(master);
-		if (ret)
-			return ret;
-		break;
-	default:
+	core_rate = clk_get_rate(master->core_clk);
+	if (!core_rate)
 		return -EINVAL;
+
+	core_period = DIV_ROUND_UP(1000000000, core_rate);
+	master->timing.core_rate = core_rate;
+	master->timing.core_period = core_period;
+
+	ret = dw_i2c_clk_cfg(master);
+	if (ret)
+		return ret;
+
+	ret = dw_i3c_clk_cfg(master);
+	if (ret)
+		return ret;
+
+	/*
+	 * MIPI I3C, mixed bus: BUS_I3C_MST_FREE = I2C FM SCL low period
+	 * MIPI I3C, pure bus : BUS_I3C_MST_FREE = I3C PP SCL low period
+	 */
+	if (bus->mode == I3C_BUS_MODE_PURE) {
+		lcnt = FIELD_GET(SCL_I3C_TIMING_LCNT,
+				 readl(master->regs + SCL_I3C_PP_TIMING));
+		writel(FIELD_PREP(BUS_I3C_MST_FREE, lcnt),
+		       master->regs + BUS_FREE_TIMING);
+	} else {
+		lcnt = FIELD_GET(SCL_I2C_FM_TIMING_LCNT,
+				 readl(master->regs + SCL_I2C_FM_TIMING));
+		writel(FIELD_PREP(BUS_I3C_MST_FREE, lcnt),
+		       master->regs + BUS_FREE_TIMING);
+		writel(readl(master->regs + DEVICE_CTRL) |
+			       DEV_CTRL_I2C_SLAVE_PRESENT,
+		       master->regs + DEVICE_CTRL);
 	}
 
 	return 0;
@@ -752,7 +754,8 @@ static int dw_i3c_target_bus_init(struct i3c_master_controller *m)
 	reg |= SLV_DCR(desc->info.dcr) | SLV_DEVICE_ROLE(0);
 	writel(reg, master->regs + SLV_CHAR_CTRL);
 
-	reg = readl(master->regs + BUS_FREE_TIMING) | BUS_AVAIL_TIME(MAX_BUS_AVAIL_CNT);
+	reg = readl(master->regs + BUS_FREE_TIMING) |
+	      FIELD_PREP(BUS_AVAIL_TIME, MAX_BUS_AVAIL_CNT);
 	writel(reg, master->regs + BUS_FREE_TIMING);
 
 	dw_i3c_master_enable(master);
