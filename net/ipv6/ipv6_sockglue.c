@@ -641,7 +641,7 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		if (optlen < sizeof(int))
 			goto e_inval;
 		/* we also don't have a separate freebind bit for IPV6 */
-		inet_sk(sk)->freebind = valbool;
+		inet_assign_bit(FREEBIND, sk, valbool);
 		retv = 0;
 		break;
 
@@ -1334,7 +1334,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_FREEBIND:
-		val = inet_sk(sk)->freebind;
+		val = inet_test_bit(FREEBIND, sk);
 		break;
 
 	case IPV6_RECVORIGDSTADDR:

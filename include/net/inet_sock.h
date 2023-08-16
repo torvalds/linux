@@ -231,7 +231,6 @@ struct inet_sock {
 	__u8			mc_ttl;
 	__u8			pmtudisc;
 	__u8			is_icsk:1,
-				freebind:1,
 				hdrincl:1,
 				mc_loop:1,
 				transparent:1,
@@ -271,6 +270,7 @@ enum {
 
 	INET_FLAGS_RECVERR	= 9,
 	INET_FLAGS_RECVERR_RFC4884 = 10,
+	INET_FLAGS_FREEBIND	= 11,
 };
 
 /* cmsg flags for inet */
@@ -423,7 +423,8 @@ static inline bool inet_can_nonlocal_bind(struct net *net,
 					  struct inet_sock *inet)
 {
 	return READ_ONCE(net->ipv4.sysctl_ip_nonlocal_bind) ||
-		inet->freebind || inet->transparent;
+		test_bit(INET_FLAGS_FREEBIND, &inet->inet_flags) ||
+		inet->transparent;
 }
 
 static inline bool inet_addr_valid_or_nonlocal(struct net *net,

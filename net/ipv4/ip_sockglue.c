@@ -608,9 +608,7 @@ EXPORT_SYMBOL(ip_sock_set_tos);
 
 void ip_sock_set_freebind(struct sock *sk)
 {
-	lock_sock(sk);
-	inet_sk(sk)->freebind = true;
-	release_sock(sk);
+	inet_set_bit(FREEBIND, sk);
 }
 EXPORT_SYMBOL(ip_sock_set_freebind);
 
@@ -985,6 +983,11 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		inet_assign_bit(RECVERR_RFC4884, sk, val);
 		return 0;
+	case IP_FREEBIND:
+		if (optlen < 1)
+			return -EINVAL;
+		inet_assign_bit(FREEBIND, sk, val);
+		return 0;
 	}
 
 	err = 0;
@@ -1310,12 +1313,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		inet->mc_all = val;
 		break;
 
-	case IP_FREEBIND:
-		if (optlen < 1)
-			goto e_inval;
-		inet->freebind = !!val;
-		break;
-
 	case IP_IPSEC_POLICY:
 	case IP_XFRM_POLICY:
 		err = -EPERM;
@@ -1578,6 +1575,9 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_RECVERR_RFC4884:
 		val = inet_test_bit(RECVERR_RFC4884, sk);
 		goto copyval;
+	case IP_FREEBIND:
+		val = inet_test_bit(FREEBIND, sk);
+		goto copyval;
 	}
 
 	if (needs_rtnl)
@@ -1737,9 +1737,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		len -= msg.msg_controllen;
 		return copy_to_sockptr(optlen, &len, sizeof(int));
 	}
-	case IP_FREEBIND:
-		val = inet->freebind;
-		break;
 	case IP_TRANSPARENT:
 		val = inet->transparent;
 		break;
