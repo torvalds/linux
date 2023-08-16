@@ -1316,29 +1316,6 @@ gen12_emit_cmd_buf_wa(const struct intel_context *ce, u32 *cs)
 }
 
 /*
- * On DG2 during context restore of a preempted context in GPGPU mode,
- * RCS restore hang is detected. This is extremely timing dependent.
- * To address this below sw wabb is implemented for DG2 A steppings.
- */
-static u32 *
-dg2_emit_rcs_hang_wabb(const struct intel_context *ce, u32 *cs)
-{
-	*cs++ = MI_LOAD_REGISTER_IMM(1);
-	*cs++ = i915_mmio_reg_offset(GEN12_STATE_ACK_DEBUG(ce->engine->mmio_base));
-	*cs++ = 0x21;
-
-	*cs++ = MI_LOAD_REGISTER_REG;
-	*cs++ = i915_mmio_reg_offset(RING_NOPID(ce->engine->mmio_base));
-	*cs++ = i915_mmio_reg_offset(XEHP_CULLBIT1);
-
-	*cs++ = MI_LOAD_REGISTER_REG;
-	*cs++ = i915_mmio_reg_offset(RING_NOPID(ce->engine->mmio_base));
-	*cs++ = i915_mmio_reg_offset(XEHP_CULLBIT2);
-
-	return cs;
-}
-
-/*
  * The bspec's tuning guide asks us to program a vertical watermark value of
  * 0x3FF.  However this register is not saved/restored properly by the
  * hardware, so we're required to apply the desired value via INDIRECT_CTX
@@ -1362,14 +1339,8 @@ gen12_emit_indirect_ctx_rcs(const struct intel_context *ce, u32 *cs)
 	cs = gen12_emit_cmd_buf_wa(ce, cs);
 	cs = gen12_emit_restore_scratch(ce, cs);
 
-	/* Wa_22011450934:dg2 */
-	if (IS_DG2_GRAPHICS_STEP(ce->engine->i915, G10, STEP_A0, STEP_B0) ||
-	    IS_DG2_GRAPHICS_STEP(ce->engine->i915, G11, STEP_A0, STEP_B0))
-		cs = dg2_emit_rcs_hang_wabb(ce, cs);
-
 	/* Wa_16013000631:dg2 */
-	if (IS_DG2_GRAPHICS_STEP(ce->engine->i915, G10, STEP_B0, STEP_C0) ||
-	    IS_DG2_G11(ce->engine->i915))
+	if (IS_DG2_G11(ce->engine->i915))
 		cs = gen8_emit_pipe_control(cs, PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE, 0);
 
 	cs = gen12_emit_aux_table_inv(ce->engine, cs);
@@ -1390,8 +1361,7 @@ gen12_emit_indirect_ctx_xcs(const struct intel_context *ce, u32 *cs)
 	cs = gen12_emit_restore_scratch(ce, cs);
 
 	/* Wa_16013000631:dg2 */
-	if (IS_DG2_GRAPHICS_STEP(ce->engine->i915, G10, STEP_B0, STEP_C0) ||
-	    IS_DG2_G11(ce->engine->i915))
+	if (IS_DG2_G11(ce->engine->i915))
 		if (ce->engine->class == COMPUTE_CLASS)
 			cs = gen8_emit_pipe_control(cs,
 						    PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE,

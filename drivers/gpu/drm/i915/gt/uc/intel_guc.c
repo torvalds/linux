@@ -272,18 +272,14 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 	    GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 50))
 		flags |= GUC_WA_POLLCS;
 
-	/* Wa_16011759253:dg2_g10:a0 */
-	if (IS_DG2_GRAPHICS_STEP(gt->i915, G10, STEP_A0, STEP_B0))
-		flags |= GUC_WA_GAM_CREDITS;
-
 	/* Wa_14014475959 */
 	if (IS_MTL_GRAPHICS_STEP(gt->i915, M, STEP_A0, STEP_B0) ||
 	    IS_DG2(gt->i915))
 		flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
 
 	/*
-	 * Wa_14012197797:dg2_g10:a0,dg2_g11:a0
-	 * Wa_22011391025:dg2_g10,dg2_g11,dg2_g12
+	 * Wa_14012197797
+	 * Wa_22011391025
 	 *
 	 * The same WA bit is used for both and 22011391025 is applicable to
 	 * all DG2.
@@ -297,17 +293,11 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 	    GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 70)))
 		flags |= GUC_WA_PRE_PARSER;
 
-	/* Wa_16011777198:dg2 */
-	if (IS_DG2_GRAPHICS_STEP(gt->i915, G10, STEP_A0, STEP_C0) ||
-	    IS_DG2_GRAPHICS_STEP(gt->i915, G11, STEP_A0, STEP_B0))
-		flags |= GUC_WA_RCS_RESET_BEFORE_RC6;
-
 	/*
-	 * Wa_22012727170:dg2_g10[a0-c0), dg2_g11[a0..)
-	 * Wa_22012727685:dg2_g11[a0..)
+	 * Wa_22012727170
+	 * Wa_22012727685
 	 */
-	if (IS_DG2_GRAPHICS_STEP(gt->i915, G10, STEP_A0, STEP_C0) ||
-	    IS_DG2_GRAPHICS_STEP(gt->i915, G11, STEP_A0, STEP_FOREVER))
+	if (IS_DG2_G11(gt->i915))
 		flags |= GUC_WA_CONTEXT_ISOLATION;
 
 	/* Wa_16015675438 */
