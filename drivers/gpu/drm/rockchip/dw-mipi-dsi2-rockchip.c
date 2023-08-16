@@ -1214,6 +1214,9 @@ static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 		dsi2->slave->dsc_enable = dsi2->dsc_enable;
 	}
 
+	if (!dsi2->dsc_enable)
+		return 0;
+
 	of_property_read_u32(np, "slice-width", &dsi2->slice_width);
 	of_property_read_u32(np, "slice-height", &dsi2->slice_height);
 	of_property_read_u8(np, "version-major", &dsi2->version_major);
@@ -1249,7 +1252,20 @@ static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 		len -= header->payload_length;
 	}
 
+	if (!pps) {
+		dev_err(dsi2->dev, "not found dsc pps definition\n");
+		return -EINVAL;
+	}
+
 	dsi2->pps = pps;
+
+	if (dsi2->slave) {
+		u16 pic_width = be16_to_cpu(pps->pic_width) / 2;
+
+		dsi2->pps->pic_width = cpu_to_be16(pic_width);
+		dev_info(dsi2->dev, "dsc pic_width change from %d to %d\n",
+			 pic_width * 2, pic_width);
+	}
 
 	return 0;
 }
