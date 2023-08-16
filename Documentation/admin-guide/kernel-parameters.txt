@@ -2918,6 +2918,10 @@
 	locktorture.torture_type= [KNL]
 			Specify the locking implementation to test.
 
+	locktorture.writer_fifo= [KNL]
+			Run the write-side locktorture kthreads at
+			sched_set_fifo() real-time priority.
+
 	locktorture.verbose= [KNL]
 			Enable additional printk() statements.
 
@@ -4928,6 +4932,15 @@
 			test until boot completes in order to avoid
 			interference.
 
+	rcuscale.kfree_by_call_rcu= [KNL]
+			In kernels built with CONFIG_RCU_LAZY=y, test
+			call_rcu() instead of kfree_rcu().
+
+	rcuscale.kfree_mult= [KNL]
+			Instead of allocating an object of size kfree_obj,
+			allocate one of kfree_mult * sizeof(kfree_obj).
+			Defaults to 1.
+
 	rcuscale.kfree_rcu_test= [KNL]
 			Set to measure performance of kfree_rcu() flooding.
 
@@ -4953,6 +4966,12 @@
 			Number of loops doing rcuscale.kfree_alloc_num number
 			of allocations and frees.
 
+	rcuscale.minruntime= [KNL]
+			Set the minimum test run time in seconds.  This
+			does not affect the data-collection interval,
+			but instead allows better measurement of things
+			like CPU consumption.
+
 	rcuscale.nreaders= [KNL]
 			Set number of RCU readers.  The value -1 selects
 			N, where N is the number of CPUs.  A value
@@ -4967,7 +4986,7 @@
 			the same as for rcuscale.nreaders.
 			N, where N is the number of CPUs
 
-	rcuscale.perf_type= [KNL]
+	rcuscale.scale_type= [KNL]
 			Specify the RCU implementation to test.
 
 	rcuscale.shutdown= [KNL]
@@ -4982,6 +5001,11 @@
 			Write-side holdoff between grace periods,
 			in microseconds.  The default of zero says
 			no holdoff.
+
+	rcuscale.writer_holdoff_jiffies= [KNL]
+			Additional write-side holdoff between grace
+			periods, but in jiffies.  The default of zero
+			says no holdoff.
 
 	rcutorture.fqs_duration= [KNL]
 			Set duration of force_quiescent_state bursts
@@ -5264,6 +5288,13 @@
 			number avoids disturbing real-time workloads,
 			but lengthens grace periods.
 
+	rcupdate.rcu_task_lazy_lim= [KNL]
+			Number of callbacks on a given CPU that will
+			cancel laziness on that CPU.  Use -1 to disable
+			cancellation of laziness, but be advised that
+			doing so increases the danger of OOM due to
+			callback flooding.
+
 	rcupdate.rcu_task_stall_info= [KNL]
 			Set initial timeout in jiffies for RCU task stall
 			informational messages, which give some indication
@@ -5292,6 +5323,29 @@
 			than or equal to zero.	Defaults to ten minutes.
 			A change in value does not take effect until
 			the beginning of the next grace period.
+
+	rcupdate.rcu_tasks_lazy_ms= [KNL]
+			Set timeout in milliseconds RCU Tasks asynchronous
+			callback batching for call_rcu_tasks().
+			A negative value will take the default.  A value
+			of zero will disable batching.	Batching is
+			always disabled for synchronize_rcu_tasks().
+
+	rcupdate.rcu_tasks_rude_lazy_ms= [KNL]
+			Set timeout in milliseconds RCU Tasks
+			Rude asynchronous callback batching for
+			call_rcu_tasks_rude().	A negative value
+			will take the default.	A value of zero will
+			disable batching.  Batching is always disabled
+			for synchronize_rcu_tasks_rude().
+
+	rcupdate.rcu_tasks_trace_lazy_ms= [KNL]
+			Set timeout in milliseconds RCU Tasks
+			Trace asynchronous callback batching for
+			call_rcu_tasks_trace().  A negative value
+			will take the default.	A value of zero will
+			disable batching.  Batching is always disabled
+			for synchronize_rcu_tasks_trace().
 
 	rcupdate.rcu_self_test= [KNL]
 			Run the RCU early boot self tests

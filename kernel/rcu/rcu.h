@@ -511,6 +511,14 @@ static inline void show_rcu_tasks_gp_kthreads(void) {}
 void rcu_request_urgent_qs_task(struct task_struct *t);
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
+#ifdef CONFIG_TASKS_RCU
+struct task_struct *get_rcu_tasks_gp_kthread(void);
+#endif // # ifdef CONFIG_TASKS_RCU
+
+#ifdef CONFIG_TASKS_RUDE_RCU
+struct task_struct *get_rcu_tasks_rude_gp_kthread(void);
+#endif // # ifdef CONFIG_TASKS_RUDE_RCU
+
 #define RCU_SCHEDULER_INACTIVE	0
 #define RCU_SCHEDULER_INIT	1
 #define RCU_SCHEDULER_RUNNING	2
