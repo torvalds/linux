@@ -787,7 +787,6 @@ static void pmu_sleep_config(void)
 	/* pmu count */
 	writel_relaxed(clk_freq_khz * 32, pmu_base + RV1106_PMU_OSC_STABLE_CNT);
 	writel_relaxed(clk_freq_khz * 32, pmu_base + RV1106_PMU_PMIC_STABLE_CNT);
-	writel_relaxed(clk_freq_khz * 3000, pmu_base + RV1106_PMU_WAKEUP_TIMEOUT_CNT);
 
 	/* Pmu's clk has switched to 24M back When pmu FSM counts
 	 * the follow counters, so we should use 24M to calculate
@@ -1101,7 +1100,7 @@ RE_ENTER_SLEEP:
 	rkpm_printch('-');
 
 	/* Check whether it's time_out wakeup */
-	if (IS_ENABLED(CONFIG_RV1106_HPMCU_FAST_WAKEUP) && ddr_data.pmu_wkup_int_st == 0) {
+	if (IS_ENABLED(CONFIG_RV1106_HPMCU_FAST_WAKEUP)) {
 		if (hpmcu_fast_wkup()) {
 			rkpm_gicv2_dist_restore(gicd_base, &gicd_ctx_save);
 			goto RE_ENTER_SLEEP;
