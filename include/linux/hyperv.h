@@ -348,7 +348,7 @@ struct vmtransfer_page_packet_header {
 	u8  sender_owns_set;
 	u8 reserved;
 	u32 range_cnt;
-	struct vmtransfer_page_range ranges[1];
+	struct vmtransfer_page_range ranges[];
 } __packed;
 
 struct vmgpadl_packet_header {
