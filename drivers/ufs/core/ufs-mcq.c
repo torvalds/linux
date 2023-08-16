@@ -580,7 +580,6 @@ static bool ufshcd_mcq_sqe_search(struct ufs_hba *hba,
 {
 	struct ufshcd_lrb *lrbp = &hba->lrb[task_tag];
 	struct utp_transfer_req_desc *utrd;
-	u32 mask = hwq->max_entries - 1;
 	__le64  cmd_desc_base_addr;
 	bool ret = false;
 	u64 addr, match;
@@ -608,7 +607,10 @@ static bool ufshcd_mcq_sqe_search(struct ufs_hba *hba,
 			ret = true;
 			goto out;
 		}
-		sq_head_slot = (sq_head_slot + 1) & mask;
+
+		sq_head_slot++;
+		if (sq_head_slot == hwq->max_entries)
+			sq_head_slot = 0;
 	}
 
 out:
