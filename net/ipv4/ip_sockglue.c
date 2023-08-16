@@ -1023,6 +1023,13 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 	case IP_BIND_ADDRESS_NO_PORT:
 		inet_assign_bit(BIND_ADDRESS_NO_PORT, sk, val);
 		return 0;
+	case IP_TTL:
+		if (optlen < 1)
+			return -EINVAL;
+		if (val != -1 && (val < 1 || val > 255))
+			return -EINVAL;
+		WRITE_ONCE(inet->uc_ttl, val);
+		return 0;
 	}
 
 	err = 0;
@@ -1079,13 +1086,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	case IP_TOS:	/* This sets both TOS and Precedence */
 		__ip_sock_set_tos(sk, val);
-		break;
-	case IP_TTL:
-		if (optlen < 1)
-			goto e_inval;
-		if (val != -1 && (val < 1 || val > 255))
-			goto e_inval;
-		inet->uc_ttl = val;
 		break;
 	case IP_MTU_DISCOVER:
 		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
@@ -1590,6 +1590,11 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_BIND_ADDRESS_NO_PORT:
 		val = inet_test_bit(BIND_ADDRESS_NO_PORT, sk);
 		goto copyval;
+	case IP_TTL:
+		val = READ_ONCE(inet->uc_ttl);
+		if (val < 0)
+			val = READ_ONCE(sock_net(sk)->ipv4.sysctl_ip_default_ttl);
+		goto copyval;
 	}
 
 	if (needs_rtnl)
@@ -1629,14 +1634,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_TOS:
 		val = inet->tos;
 		break;
-	case IP_TTL:
-	{
-		struct net *net = sock_net(sk);
-		val = (inet->uc_ttl == -1 ?
-		       READ_ONCE(net->ipv4.sysctl_ip_default_ttl) :
-		       inet->uc_ttl);
-		break;
-	}
 	case IP_MTU_DISCOVER:
 		val = inet->pmtudisc;
 		break;
