@@ -48,7 +48,8 @@ static void atomics_sigill(void)
 
 static void crc32_sigill(void)
 {
-	asm volatile("crc32w w0, w0, w1");
+	/* CRC32W W0, W0, W1 */
+	asm volatile(".inst 0x1ac14800" : : : );
 }
 
 static void cssc_sigill(void)
