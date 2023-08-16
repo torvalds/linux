@@ -449,9 +449,7 @@ struct mlx5e_ptp_cq_stats {
 	u64 err_cqe;
 	u64 abort;
 	u64 abort_abs_diff_ns;
-	u64 resync_cqe;
-	u64 resync_event;
-	u64 ooo_cqe_drop;
+	u64 late_cqe;
 };
 
 struct mlx5e_rep_stats {

@@ -683,6 +683,12 @@ the software port.
        time protocol.
      - Error
 
+   * - `ptp_cq[i]_late_cqe`
+     - Number of times a CQE has been delivered on the PTP timestamping CQ when
+       the CQE was not expected since a certain amount of time had elapsed where
+       the device typically ensures not posting the CQE.
+     - Error
+
 .. [#ring_global] The corresponding ring and global counters do not share the
                   same name (i.e. do not follow the common naming scheme).
 

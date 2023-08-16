@@ -174,6 +174,9 @@ static inline int mlx5_flexible_inlen(struct mlx5_core_dev *dev, size_t fixed,
 #define MLX5_FLEXIBLE_INLEN(dev, fixed, item_size, num_items) \
 	mlx5_flexible_inlen(dev, fixed, item_size, num_items, __func__, __LINE__)
 
+int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type);
+int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
+			    enum mlx5_cap_mode cap_mode);
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_query_module_num(struct mlx5_core_dev *dev, int *module_num);

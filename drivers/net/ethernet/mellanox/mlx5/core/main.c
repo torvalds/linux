@@ -361,9 +361,8 @@ void mlx5_core_uplink_netdev_event_replay(struct mlx5_core_dev *dev)
 }
 EXPORT_SYMBOL(mlx5_core_uplink_netdev_event_replay);
 
-static int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev,
-				   enum mlx5_cap_type cap_type,
-				   enum mlx5_cap_mode cap_mode)
+int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
+			    enum mlx5_cap_mode cap_mode)
 {
 	u8 in[MLX5_ST_SZ_BYTES(query_hca_cap_in)];
 	int out_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
@@ -1620,21 +1619,24 @@ static int mlx5_query_hca_caps_light(struct mlx5_core_dev *dev)
 		return err;
 
 	if (MLX5_CAP_GEN(dev, eth_net_offloads)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ETHERNET_OFFLOADS);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_ETHERNET_OFFLOADS,
+					      HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, nic_flow_table) ||
 	    MLX5_CAP_GEN(dev, ipoib_enhanced_offloads)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_FLOW_TABLE);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_FLOW_TABLE,
+					      HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN_64(dev, general_obj_types) &
 		MLX5_GENERAL_OBJ_TYPES_CAP_VIRTIO_NET_Q) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_VDPA_EMULATION);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_VDPA_EMULATION,
+					      HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
@@ -1714,7 +1716,6 @@ static const int types[] = {
 	MLX5_CAP_FLOW_TABLE,
 	MLX5_CAP_ESWITCH_FLOW_TABLE,
 	MLX5_CAP_ESWITCH,
-	MLX5_CAP_VECTOR_CALC,
 	MLX5_CAP_QOS,
 	MLX5_CAP_DEBUG,
 	MLX5_CAP_DEV_MEM,
@@ -1723,7 +1724,6 @@ static const int types[] = {
 	MLX5_CAP_VDPA_EMULATION,
 	MLX5_CAP_IPSEC,
 	MLX5_CAP_PORT_SELECTION,
-	MLX5_CAP_DEV_SHAMPO,
 	MLX5_CAP_MACSEC,
 	MLX5_CAP_ADV_VIRTUALIZATION,
 	MLX5_CAP_CRYPTO,
