@@ -180,5 +180,6 @@
 
 void dcn32_timing_generator_init(struct optc *optc1);
 void optc32_set_h_timing_div_manual_mode(struct timing_generator *optc, bool manual_mode);
+void optc32_get_odm_combine_segments(struct timing_generator *tg, int *odm_combine_segments);
 
 #endif /* __DC_OPTC_DCN32_H__ */
