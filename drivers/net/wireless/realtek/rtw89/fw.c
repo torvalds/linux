@@ -9,6 +9,7 @@
 #include "fw.h"
 #include "mac.h"
 #include "phy.h"
+#include "ps.h"
 #include "reg.h"
 #include "util.h"
 
@@ -1923,6 +1924,8 @@ int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 	u16 tim_offset;
 	int bcn_total_len;
 	u16 beacon_rate;
+	void *noa_data;
+	u8 noa_len;
 	int ret;
 
 	if (vif->p2p)
@@ -1937,6 +1940,13 @@ int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 	if (!skb_beacon) {
 		rtw89_err(rtwdev, "failed to get beacon skb\n");
 		return -ENOMEM;
+	}
+
+	noa_len = rtw89_p2p_noa_fetch(rtwvif, &noa_data);
+	if (noa_len &&
+	    (noa_len <= skb_tailroom(skb_beacon) ||
+	     pskb_expand_head(skb_beacon, 0, noa_len, GFP_KERNEL) == 0)) {
+		skb_put_data(skb_beacon, noa_data, noa_len);
 	}
 
 	bcn_total_len = H2C_BCN_BASE_LEN + skb_beacon->len;

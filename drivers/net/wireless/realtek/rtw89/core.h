@@ -2896,6 +2896,32 @@ struct rtw89_roc {
 
 #define RTW89_P2P_MAX_NOA_NUM 2
 
+struct rtw89_p2p_ie_head {
+	u8 eid;
+	u8 ie_len;
+	u8 oui[3];
+	u8 oui_type;
+} __packed;
+
+struct rtw89_noa_attr_head {
+	u8 attr_type;
+	__le16 attr_len;
+	u8 index;
+	u8 oppps_ctwindow;
+} __packed;
+
+struct rtw89_p2p_noa_ie {
+	struct rtw89_p2p_ie_head p2p_head;
+	struct rtw89_noa_attr_head noa_head;
+	struct ieee80211_p2p_noa_desc noa_desc[RTW89_P2P_MAX_NOA_NUM];
+} __packed;
+
+struct rtw89_p2p_noa_setter {
+	struct rtw89_p2p_noa_ie ie;
+	u8 noa_count;
+	u8 noa_index;
+};
+
 struct rtw89_vif {
 	struct list_head list;
 	struct rtw89_dev *rtwdev;
@@ -2938,6 +2964,7 @@ struct rtw89_vif {
 	struct cfg80211_scan_request *scan_req;
 	struct ieee80211_scan_ies *scan_ies;
 	struct list_head general_pkt_list;
+	struct rtw89_p2p_noa_setter p2p_noa;
 };
 
 enum rtw89_lv1_rcvy_step {
