@@ -1,15 +1,15 @@
 [
     {
         "ArchStdEvent": "FRONTEND_BOUND",
-        "MetricExpr": "((stall_slot_frontend) if (#slots - 5) else (stall_slot_frontend - cpu_cycles)) / (#slots * cpu_cycles)"
+        "MetricExpr": "((stall_slot_frontend) if (strcmp_cpuid_str(0x410fd493) | strcmp_cpuid_str(0x410fd490) ^ 1) else (stall_slot_frontend - cpu_cycles)) / (#slots * cpu_cycles)"
     },
     {
         "ArchStdEvent": "BAD_SPECULATION",
-        "MetricExpr": "(1 - op_retired / op_spec) * (1 - (stall_slot if (#slots - 5) else (stall_slot - cpu_cycles)) / (#slots * cpu_cycles))"
+        "MetricExpr": "(1 - op_retired / op_spec) * (1 - (stall_slot if (strcmp_cpuid_str(0x410fd493) | strcmp_cpuid_str(0x410fd490) ^ 1) else (stall_slot - cpu_cycles)) / (#slots * cpu_cycles))"
     },
     {
         "ArchStdEvent": "RETIRING",
-        "MetricExpr": "(op_retired / op_spec) * (1 - (stall_slot if (#slots - 5) else (stall_slot - cpu_cycles)) / (#slots * cpu_cycles))"
+        "MetricExpr": "(op_retired / op_spec) * (1 - (stall_slot if (strcmp_cpuid_str(0x410fd493) | strcmp_cpuid_str(0x410fd490) ^ 1) else (stall_slot - cpu_cycles)) / (#slots * cpu_cycles))"
     },
     {
         "ArchStdEvent": "BACKEND_BOUND"
@@ -201,7 +201,7 @@
         "ScaleUnit": "100%"
     },
     {
-        "MetricExpr": "OP_RETIRED / OP_SPEC * (1 - (STALL_SLOT if (#slots - 5) else (STALL_SLOT - CPU_CYCLES)) / (#slots * CPU_CYCLES))",
+        "MetricExpr": "OP_RETIRED / OP_SPEC * (1 - (STALL_SLOT if (strcmp_cpuid_str(0x410fd493) | strcmp_cpuid_str(0x410fd490) ^ 1) else (STALL_SLOT - CPU_CYCLES)) / (#slots * CPU_CYCLES))",
         "BriefDescription": "The truly effective ratio of micro-operations executed by the CPU, which means that misprediction and stall are not included",
         "MetricGroup": "PEutilization",
         "MetricName": "cpu_utilization",
