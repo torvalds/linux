@@ -1659,8 +1659,7 @@ static void rtw89_correct_cck_chan(struct rtw89_dev *rtwdev,
 	const struct rtw89_chan_rcd *rcd =
 		rtw89_chan_rcd_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u16 chan = rcd->prev_primary_channel;
-	u8 band = rcd->prev_band_type == RTW89_BAND_2G ?
-		  NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+	u8 band = rtw89_hw_to_nl80211_band(rcd->prev_band_type);
 
 	if (status->band != NL80211_BAND_2GHZ &&
 	    status->encoding == RX_ENC_LEGACY &&
