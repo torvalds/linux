@@ -484,7 +484,7 @@ static int pca955x_probe(struct i2c_client *client)
 	const void *md = device_get_match_data(&client->dev);
 
 	if (md) {
-		chip_type = (enum pca955x_type)md;
+		chip_type = (enum pca955x_type)(uintptr_t)md;
 	} else {
 		const struct i2c_device_id *id = i2c_match_id(pca955x_id,
 							      client);
