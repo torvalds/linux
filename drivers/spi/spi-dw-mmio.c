@@ -68,7 +68,7 @@ struct dw_spi_mscc {
 		((((val) << 1) | BIT(0)) << ELBA_SPICS_OFFSET(cs))
 
 /*
- * The Designware SPI controller (referred to as host in the documentation)
+ * The Designware SPI controller (referred to as master in the documentation)
  * automatically deasserts chip select when the tx fifo is empty. The chip
  * selects then needs to be either driven as GPIOs or, for the first 4 using
  * the SPI boot controller registers. the final chip select is an OR gate
@@ -142,7 +142,7 @@ static int dw_spi_mscc_jaguar2_init(struct platform_device *pdev,
 }
 
 /*
- * The Designware SPI controller (referred to as host in the
+ * The Designware SPI controller (referred to as master in the
  * documentation) automatically deasserts chip select when the tx fifo
  * is empty. The chip selects then needs to be driven by a CS override
  * register. enable is an active low signal.
