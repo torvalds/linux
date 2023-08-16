@@ -10,6 +10,7 @@
 #include "fw/api/commands.h"
 #include "fw/api/tx.h"
 #include "fw/api/datapath.h"
+#include "fw/api/debug.h"
 #include "queue/tx.h"
 #include "iwl-fh.h"
 #include "iwl-scd.h"
@@ -119,6 +120,15 @@ int iwl_txq_gen2_set_tb(struct iwl_trans *trans, struct iwl_tfh_tfd *tfd,
 	return idx;
 }
 
+static void iwl_txq_set_tfd_invalid_gen2(struct iwl_trans *trans,
+					 struct iwl_tfh_tfd *tfd)
+{
+	tfd->num_tbs = 0;
+
+	iwl_txq_gen2_set_tb(trans, tfd, trans->invalid_tx_cmd.dma,
+			    trans->invalid_tx_cmd.size);
+}
+
 void iwl_txq_gen2_tfd_unmap(struct iwl_trans *trans, struct iwl_cmd_meta *meta,
 			    struct iwl_tfh_tfd *tfd)
 {
@@ -146,7 +156,7 @@ void iwl_txq_gen2_tfd_unmap(struct iwl_trans *trans, struct iwl_cmd_meta *meta,
 					 DMA_TO_DEVICE);
 	}
 
-	tfd->num_tbs = 0;
+	iwl_txq_set_tfd_invalid_gen2(trans, tfd);
 }
 
 void iwl_txq_gen2_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
@@ -1025,11 +1035,21 @@ static void iwl_txq_stuck_timer(struct timer_list *t)
 	iwl_force_nmi(trans);
 }
 
+static void iwl_txq_set_tfd_invalid_gen1(struct iwl_trans *trans,
+					 struct iwl_tfd *tfd)
+{
+	tfd->num_tbs = 0;
+
+	iwl_pcie_gen1_tfd_set_tb(trans, tfd, 0, trans->invalid_tx_cmd.dma,
+				 trans->invalid_tx_cmd.size);
+}
+
 int iwl_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq, int slots_num,
 		  bool cmd_queue)
 {
-	size_t tfd_sz = trans->txqs.tfd.size *
-		trans->trans_cfg->base_params->max_tfd_queue_size;
+	size_t num_entries = trans->trans_cfg->gen2 ?
+		slots_num : trans->trans_cfg->base_params->max_tfd_queue_size;
+	size_t tfd_sz;
 	size_t tb0_buf_sz;
 	int i;
 
@@ -1039,8 +1059,7 @@ int iwl_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq, int slots_num,
 	if (WARN_ON(txq->entries || txq->tfds))
 		return -EINVAL;
 
-	if (trans->trans_cfg->gen2)
-		tfd_sz = trans->txqs.tfd.size * slots_num;
+	tfd_sz = trans->txqs.tfd.size * num_entries;
 
 	timer_setup(&txq->stuck_timer, iwl_txq_stuck_timer, 0);
 	txq->trans = trans;
@@ -1079,6 +1098,15 @@ int iwl_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq, int slots_num,
 						GFP_KERNEL);
 	if (!txq->first_tb_bufs)
 		goto err_free_tfds;
+
+	for (i = 0; i < num_entries; i++) {
+		void *tfd = iwl_txq_get_tfd(trans, txq, i);
+
+		if (trans->trans_cfg->gen2)
+			iwl_txq_set_tfd_invalid_gen2(trans, tfd);
+		else
+			iwl_txq_set_tfd_invalid_gen1(trans, tfd);
+	}
 
 	return 0;
 err_free_tfds:
@@ -1397,7 +1425,7 @@ void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,
 
 	meta->tbs = 0;
 
-	tfd->num_tbs = 0;
+	iwl_txq_set_tfd_invalid_gen1(trans, tfd);
 }
 
 #define IWL_TX_CRC_SIZE 4

@@ -30,6 +30,11 @@ enum iwl_debug_cmds {
 	 */
 	HOST_EVENT_CFG = 0x3,
 	/**
+	 * @INVALID_WR_PTR_CMD: invalid write pointer, set in the TFD
+	 *	when it's not in use
+	 */
+	INVALID_WR_PTR_CMD = 0x6,
+	/**
 	 * @DBGC_SUSPEND_RESUME:
 	 * DBGC suspend/resume commad. Uses a single dword as data:
 	 * 0 - resume DBGC recording
