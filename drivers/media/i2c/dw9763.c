@@ -15,12 +15,14 @@
 #include <media/v4l2-device.h>
 #include <linux/rk_vcm_head.h>
 #include <linux/compat.h>
+#include <linux/regulator/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
 #define DW9763_NAME			"dw9763"
 
 #define DW9763_MAX_CURRENT		120U
 #define DW9763_MAX_REG			1023U
+#define DW9763_GRADUAL_MOVELENS_STEPS	32
 
 #define DW9763_DEFAULT_START_CURRENT	20
 #define DW9763_DEFAULT_RATED_CURRENT	90
@@ -40,6 +42,10 @@ enum mode_e {
 	SAC4_MODE = 5,
 	DIRECT_MODE,
 };
+
+static int debug;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "debug level (0-2)");
 
 /* dw9763 device structure */
 struct dw9763_device {
@@ -69,6 +75,8 @@ struct dw9763_device {
 	struct rk_cam_vcm_cfg vcm_cfg;
 	int max_ma;
 	struct mutex lock;
+	struct regulator *supply;
+	bool power_on;
 };
 
 static inline struct dw9763_device *to_dw9763_vcm(struct v4l2_ctrl *ctrl)
@@ -88,6 +96,7 @@ static int dw9763_write_reg(struct i2c_client *client, u8 reg,
 	u8 buf[5];
 	u8 *val_p;
 	__be32 val_be;
+	struct dw9763_device *dev_vcm = i2c_get_clientdata(client);
 
 	if (len > 4)
 		return -EINVAL;
@@ -106,7 +115,7 @@ static int dw9763_write_reg(struct i2c_client *client, u8 reg,
 		dev_err(&client->dev, "Failed to write 0x%04x,0x%x\n", reg, val);
 		return -EIO;
 	}
-	dev_dbg(&client->dev, "succeed to write 0x%04x,0x%x\n", reg, val);
+	v4l2_dbg(1, debug, &dev_vcm->sd, "succeed to write 0x%04x,0x%x\n", reg, val);
 
 	return 0;
 }
@@ -120,6 +129,7 @@ static int dw9763_read_reg(struct i2c_client *client,
 	u8 *data_be_p;
 	__be32 data_be = 0;
 	int ret;
+	struct dw9763_device *dev_vcm = i2c_get_clientdata(client);
 
 	if (len > 4 || !len)
 		return -EINVAL;
@@ -142,6 +152,8 @@ static int dw9763_read_reg(struct i2c_client *client,
 		return -EIO;
 
 	*val = be32_to_cpu(data_be);
+
+	v4l2_dbg(1, debug, &dev_vcm->sd, "succeed to read 0x%04x,0x%x\n", reg, *val);
 
 	return 0;
 }
@@ -204,11 +216,11 @@ static unsigned int dw9763_move_time(struct dw9763_device *dev_vcm,
 		break;
 	}
 
-	dev_dbg(&client->dev,
+	v4l2_dbg(1, debug, &dev_vcm->sd,
 		"%s: vcm_movefull_t is: %d us\n",
 		__func__, move_time_us);
 
-	return move_time_us;
+	return ((move_time_us + 500) / 1000);
 }
 
 static int dw9763_set_dac(struct dw9763_device *dev_vcm,
@@ -228,7 +240,7 @@ static int dw9763_set_dac(struct dw9763_device *dev_vcm,
 	ret = dw9763_write_reg(client, 0x03, 2, dest_dac);
 	if (ret != 0)
 		goto err;
-	dev_dbg(&client->dev,
+	v4l2_dbg(1, debug, &dev_vcm->sd,
 		"%s: set reg val %d\n", __func__, dest_dac);
 
 	return ret;
@@ -249,7 +261,7 @@ static int dw9763_get_dac(struct dw9763_device *dev_vcm, unsigned int *cur_dac)
 		goto err;
 
 	*cur_dac = abs_step;
-	dev_dbg(&client->dev, "%s: get dac %d\n", __func__, *cur_dac);
+	v4l2_dbg(1, debug, &dev_vcm->sd, "%s: get dac %d\n", __func__, *cur_dac);
 
 	return 0;
 
@@ -279,7 +291,7 @@ static int dw9763_get_pos(struct dw9763_device *dev_vcm,
 		abs_step = 0;
 
 	*cur_pos = abs_step;
-	dev_dbg(&client->dev, "%s: get position %d\n", __func__, *cur_pos);
+	v4l2_dbg(1, debug, &dev_vcm->sd, "%s: get position %d\n", __func__, *cur_pos);
 	return 0;
 
 err:
@@ -293,7 +305,6 @@ static int dw9763_set_pos(struct dw9763_device *dev_vcm,
 {
 	int ret;
 	unsigned int position = 0;
-	struct i2c_client *client = dev_vcm->client;
 
 	if (dest_pos >= VCMDRV_MAX_LOG)
 		position = dev_vcm->start_current;
@@ -308,7 +319,8 @@ static int dw9763_set_pos(struct dw9763_device *dev_vcm,
 	dev_vcm->current_related_pos = dest_pos;
 
 	ret = dw9763_set_dac(dev_vcm, position);
-	dev_dbg(&client->dev, "%s: set position %d, dac %d\n", __func__, dest_pos, position);
+	v4l2_dbg(1, debug, &dev_vcm->sd, "%s: set position %d, dac %d\n",
+		 __func__, dest_pos, position);
 
 	return ret;
 }
@@ -331,7 +343,7 @@ static int dw9763_set_ctrl(struct v4l2_ctrl *ctrl)
 	long mv_us;
 	int ret = 0;
 
-	dev_dbg(&client->dev, "ctrl->id: 0x%x, ctrl->val: 0x%x\n",
+	v4l2_dbg(1, debug, &dev_vcm->sd, "ctrl->id: 0x%x, ctrl->val: 0x%x\n",
 		ctrl->id, ctrl->val);
 
 	if (ctrl->id == V4L2_CID_FOCUS_ABSOLUTE) {
@@ -345,9 +357,9 @@ static int dw9763_set_ctrl(struct v4l2_ctrl *ctrl)
 
 		ret = dw9763_set_pos(dev_vcm, dest_pos);
 
-		dev_vcm->move_us = dev_vcm->vcm_movefull_t;
+		dev_vcm->move_us = dev_vcm->vcm_movefull_t * 1000;
 
-		dev_dbg(&client->dev,
+		v4l2_dbg(1, debug, &dev_vcm->sd,
 			"dest_pos %d, move_us %ld\n",
 			dest_pos, dev_vcm->move_us);
 
@@ -373,9 +385,19 @@ static const struct v4l2_ctrl_ops dw9763_vcm_ctrl_ops = {
 	.s_ctrl = dw9763_set_ctrl,
 };
 
+static int dw9763_init(struct i2c_client *client);
 static int dw9763_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	int rval;
+	struct dw9763_device *dev_vcm = sd_to_dw9763_vcm(sd);
+	unsigned int move_time;
+	int dac = dev_vcm->start_current;
+	struct i2c_client *client = dev_vcm->client;
+
+#ifdef CONFIG_PM
+	v4l2_info(sd, "%s: enter, power.usage_count(%d)!\n", __func__,
+		  atomic_read(&sd->dev->power.usage_count));
+#endif
 
 	rval = pm_runtime_get_sync(sd->dev);
 	if (rval < 0) {
@@ -383,12 +405,72 @@ static int dw9763_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		return rval;
 	}
 
+	dw9763_init(client);
+
+	v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
+		 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+
+	move_time = 1000 * dw9763_move_time(dev_vcm, DW9763_GRADUAL_MOVELENS_STEPS);
+	while (dac <= dev_vcm->current_lens_pos) {
+		dw9763_set_dac(dev_vcm, dac);
+		usleep_range(move_time, move_time + 100);
+		dac += DW9763_GRADUAL_MOVELENS_STEPS;
+		if (dac > dev_vcm->current_lens_pos)
+			break;
+	}
+
+	if (dac > dev_vcm->current_lens_pos) {
+		dac = dev_vcm->current_lens_pos;
+		dw9763_set_dac(dev_vcm, dac);
+	}
+
+#ifdef CONFIG_PM
+	v4l2_info(sd, "%s: exit, power.usage_count(%d)!\n", __func__,
+		  atomic_read(&sd->dev->power.usage_count));
+#endif
 	return 0;
 }
 
 static int dw9763_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
+	struct dw9763_device *dev_vcm = sd_to_dw9763_vcm(sd);
+	int dac = dev_vcm->current_lens_pos;
+	unsigned int move_time;
+	int ret;
+	struct i2c_client *client = dev_vcm->client;
+
+#ifdef CONFIG_PM
+	v4l2_info(sd, "%s: enter, power.usage_count(%d)!\n", __func__,
+		  atomic_read(&sd->dev->power.usage_count));
+#endif
+
+	v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
+		 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+
+	dac -= DW9763_GRADUAL_MOVELENS_STEPS;
+	move_time = 1000 * dw9763_move_time(dev_vcm, DW9763_GRADUAL_MOVELENS_STEPS);
+	while (dac >= DW9763_GRADUAL_MOVELENS_STEPS) {
+		dw9763_set_dac(dev_vcm, dac);
+		usleep_range(move_time, move_time + 1000);
+		dac -= DW9763_GRADUAL_MOVELENS_STEPS;
+		if (dac <= 0)
+			break;
+	}
+
+	if (dac < DW9763_GRADUAL_MOVELENS_STEPS) {
+		dac = DW9763_GRADUAL_MOVELENS_STEPS / 2;
+		dw9763_set_dac(dev_vcm, dac);
+	}
+	/* set to power down mode */
+	ret = dw9763_write_reg(client, 0x02, 1, 0x01);
+	if (ret)
+		dev_err(&client->dev, "failed to set power down mode!\n");
+
 	pm_runtime_put(sd->dev);
+#ifdef CONFIG_PM
+	v4l2_info(sd, "%s: exit, power.usage_count(%d)!\n", __func__,
+		  atomic_read(&sd->dev->power.usage_count));
+#endif
 
 	return 0;
 }
@@ -442,7 +524,7 @@ static long dw9763_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		vcm_tim->vcm_end_t.tv_sec = dev_vcm->end_move_tv.tv_sec;
 		vcm_tim->vcm_end_t.tv_usec = dev_vcm->end_move_tv.tv_usec;
 
-		dev_dbg(&client->dev, "dw9763_get_move_res 0x%lx, 0x%lx, 0x%lx, 0x%lx\n",
+		v4l2_dbg(1, debug, &dev_vcm->sd, "dw9763_get_move_res 0x%lx, 0x%lx, 0x%lx, 0x%lx\n",
 			vcm_tim->vcm_start_t.tv_sec,
 			vcm_tim->vcm_start_t.tv_usec,
 			vcm_tim->vcm_end_t.tv_sec,
@@ -634,13 +716,50 @@ static inline int remove_sysfs_interfaces(struct device *dev)
 }
 #endif
 
-static int __dw9763_set_power(struct dw9763_device *dw9763_dev, bool on)
+static int __dw9763_set_power(struct dw9763_device *dw9763, bool on)
 {
-	if (dw9763_dev->power_gpio)
-		gpiod_direction_output(dw9763_dev->power_gpio, on);
-	usleep_range(10000, 11000);
+	struct i2c_client *client = dw9763->client;
+	int ret = 0;
 
-	return 0;
+	dev_info(&client->dev, "%s(%d) on(%d)\n", __func__, __LINE__, on);
+
+	if (dw9763->power_on == !!on)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = regulator_enable(dw9763->supply);
+		if (ret < 0) {
+			dev_err(&client->dev, "Failed to enable regulator\n");
+			goto unlock_and_return;
+		}
+		dw9763->power_on = true;
+	} else {
+		ret = regulator_disable(dw9763->supply);
+		if (ret < 0) {
+			dev_err(&client->dev, "Failed to disable regulator\n");
+			goto unlock_and_return;
+		}
+		dw9763->power_on = false;
+	}
+
+unlock_and_return:
+	return ret;
+}
+
+static int dw9763_configure_regulator(struct dw9763_device *dw9763)
+{
+	struct i2c_client *client = dw9763->client;
+	int ret = 0;
+
+	dw9763->supply = devm_regulator_get(&client->dev, "avdd");
+	if (IS_ERR(dw9763->supply)) {
+		ret = PTR_ERR(dw9763->supply);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&client->dev, "could not get regulator avdd\n");
+		return ret;
+	}
+	dw9763->power_on = false;
+	return ret;
 }
 
 static int __maybe_unused dw9763_check_id(struct dw9763_device *dw9763_dev)
@@ -661,20 +780,6 @@ static int __maybe_unused dw9763_check_id(struct dw9763_device *dw9763_dev)
 	dev_info(&dw9763_dev->client->dev,
 		 "Detected dw9763 vcm id:0x%x\n", DW9763_CHIP_ID);
 	return 0;
-}
-static int dw9763_probe_init(struct i2c_client *client)
-{
-	int ret = 0;
-
-	/* Default goto power down mode when finished probe */
-	ret = dw9763_write_reg(client, 0x02, 1, 0x01);
-	if (ret)
-		goto err;
-
-	return 0;
-err:
-	dev_err(&client->dev, "probe init failed with error %d\n", ret);
-	return -1;
 }
 
 static int dw9763_probe(struct i2c_client *client,
@@ -765,9 +870,11 @@ static int dw9763_probe(struct i2c_client *client,
 		dev_warn(&client->dev,
 			"Failed to get power-gpios, maybe no use\n");
 	}
-
-	/* enter power down mode */
-	dw9763_probe_init(client);
+	ret = dw9763_configure_regulator(dw9763_dev);
+	if (ret) {
+		dev_err(&client->dev, "Failed to get power regulator!\n");
+		return ret;
+	}
 
 	v4l2_i2c_subdev_init(&dw9763_dev->sd, client, &dw9763_ops);
 	dw9763_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -780,6 +887,10 @@ static int dw9763_probe(struct i2c_client *client,
 	ret = media_entity_pads_init(&dw9763_dev->sd.entity, 0, NULL);
 	if (ret < 0)
 		goto err_cleanup;
+
+	ret = dw9763_check_id(dw9763_dev);
+	if (ret)
+		goto err_power_off;
 
 	sd = &dw9763_dev->sd;
 	sd->entity.function = MEDIA_ENT_F_LENS;
@@ -823,6 +934,9 @@ static int dw9763_probe(struct i2c_client *client,
 	dev_info(&client->dev, "probing successful\n");
 
 	return 0;
+err_power_off:
+	__dw9763_set_power(dw9763_dev, false);
+
 err_cleanup:
 	dw9763_subdev_cleanup(dw9763_dev);
 
@@ -847,21 +961,18 @@ static int dw9763_init(struct i2c_client *client)
 {
 	struct dw9763_device *dev_vcm = i2c_get_clientdata(client);
 	int ret = 0;
-	u32 ring = 0;
 	u32 mode_val = 0;
 	u32 algo_time = 0;
 
+	if (dev_vcm->step_mode == DIRECT_MODE)
+		return 0;
 
-	/* Delay 200us~300us */
-	usleep_range(200, 300);
 	ret = dw9763_write_reg(client, 0x02, 1, 0x00);
 	if (ret)
 		goto err;
-	usleep_range(100, 200);
 
-	if (dev_vcm->step_mode != DIRECT_MODE)
-		ring = 0x02;
-	ret = dw9763_write_reg(client, 0x02, 1, ring);
+	usleep_range(200, 300);
+	ret = dw9763_write_reg(client, 0x02, 1, 0x02);
 	if (ret)
 		goto err;
 	switch (dev_vcm->step_mode) {
@@ -895,13 +1006,15 @@ err:
 static int __maybe_unused dw9763_vcm_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	int ret = 0;
+	struct dw9763_device *dev_vcm = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = &(dev_vcm->sd);
 
-	/* set to power down mode */
-	ret = dw9763_write_reg(client, 0x02, 1, 0x01);
-	if (ret)
-		dev_err(&client->dev, "failed to set power down mode!\n");
+#ifdef CONFIG_PM
+	v4l2_dbg(1, debug, sd, "%s: enter, power.usage_count(%d)!\n", __func__,
+		 atomic_read(&sd->dev->power.usage_count));
+#endif
 
+	__dw9763_set_power(dev_vcm, false);
 	return 0;
 }
 
@@ -909,9 +1022,14 @@ static int __maybe_unused dw9763_vcm_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct dw9763_device *dev_vcm = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = &(dev_vcm->sd);
 
-	dw9763_init(client);
-	dw9763_set_pos(dev_vcm, dev_vcm->current_related_pos);
+#ifdef CONFIG_PM
+	v4l2_dbg(1, debug, sd, "%s: enter, power.usage_count(%d)!\n", __func__,
+		 atomic_read(&sd->dev->power.usage_count));
+#endif
+	__dw9763_set_power(dev_vcm, true);
+
 	return 0;
 }
 
