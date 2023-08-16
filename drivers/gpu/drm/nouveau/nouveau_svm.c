@@ -67,7 +67,7 @@ struct nouveau_svm {
 			struct nouveau_svmm *svmm;
 		} **fault;
 		int fault_nr;
-	} buffer[1];
+	} buffer[];
 };
 
 #define FAULT_ACCESS_READ 0
@@ -1063,7 +1063,7 @@ nouveau_svm_init(struct nouveau_drm *drm)
 	if (drm->client.device.info.family > NV_DEVICE_INFO_V0_PASCAL)
 		return;
 
-	if (!(drm->svm = svm = kzalloc(sizeof(*drm->svm), GFP_KERNEL)))
+	if (!(drm->svm = svm = kzalloc(struct_size(drm->svm, buffer, 1), GFP_KERNEL)))
 		return;
 
 	drm->svm->drm = drm;
