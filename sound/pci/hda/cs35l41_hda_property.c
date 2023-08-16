@@ -61,7 +61,7 @@ int cs35l41_add_dsd_properties(struct cs35l41_hda *cs35l41, struct device *physd
 {
 	const struct cs35l41_prop_model *model;
 
-	for (model = cs35l41_prop_model_table; model->hid > 0; model++) {
+	for (model = cs35l41_prop_model_table; model->hid; model++) {
 		if (!strcmp(model->hid, hid) &&
 		    (!model->ssid ||
 		     (cs35l41->acpi_subsystem_id &&
