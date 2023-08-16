@@ -461,7 +461,7 @@ static int efx_tc_flow_block(enum tc_setup_type type, void *type_data,
 		return efx_tc_ct_stats(ct_zone, tcb);
 	default:
 		break;
-	};
+	}
 
 	return -EOPNOTSUPP;
 }
