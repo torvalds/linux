@@ -89,10 +89,11 @@
 		compatible = "dongwoon,dw9763";
 		status = "okay";
 		reg = <0x0c>;
+		avdd-supply = <&vcc2v8_dvp>;
 		rockchip,vcm-max-current = <120>;
-		rockchip,vcm-start-current = <20>;
-		rockchip,vcm-rated-current = <90>;
-		rockchip,vcm-step-mode = <3>;
+		rockchip,vcm-start-current = <25>;
+		rockchip,vcm-rated-current = <100>;
+		rockchip,vcm-step-mode = <4>;
 		rockchip,vcm-t-src = <0x20>;
 		rockchip,vcm-t-div = <1>;
 		rockchip,camera-module-index = <0>;
