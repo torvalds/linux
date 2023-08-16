@@ -90,6 +90,14 @@ properties:
       protocol to handle sleeping SCM calls.
     maxItems: 1
 
+  qcom,sdi-enabled:
+    description:
+      Indicates that the SDI (Secure Debug Image) has been enabled by TZ
+      by default and it needs to be disabled.
+      If not disabled WDT assertion or reboot will cause the board to hang
+      in the debug mode.
+    type: boolean
+
   qcom,dload-mode:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
