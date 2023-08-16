@@ -403,7 +403,7 @@ static struct serdev_device_driver qca_uart_driver = {
 	.remove = qca_uart_remove,
 	.driver = {
 		.name = QCAUART_DRV_NAME,
-		.of_match_table = of_match_ptr(qca_uart_of_match),
+		.of_match_table = qca_uart_of_match,
 	},
 };
 
