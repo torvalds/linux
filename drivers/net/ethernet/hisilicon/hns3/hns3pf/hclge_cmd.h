@@ -826,7 +826,9 @@ struct hclge_dev_specs_1_cmd {
 	u8 rsv0[2];
 	__le16 umv_size;
 	__le16 mc_mac_size;
-	u8 rsv1[12];
+	u8 rsv1[6];
+	u8 tnl_num;
+	u8 rsv2[5];
 };
 
 /* mac speed type defined in firmware command */
