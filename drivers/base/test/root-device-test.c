@@ -106,3 +106,7 @@ static struct kunit_suite root_device_devm_test_suite = {
 };
 
 kunit_test_suite(root_device_devm_test_suite);
+
+MODULE_DESCRIPTION("Test module for root devices");
+MODULE_AUTHOR("Maxime Ripard <mripard@kernel.org>");
+MODULE_LICENSE("GPL");
