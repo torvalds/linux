@@ -287,9 +287,6 @@ const char * const migratetype_names[MIGRATE_TYPES] = {
 static compound_page_dtor * const compound_page_dtors[NR_COMPOUND_DTORS] = {
 	[NULL_COMPOUND_DTOR] = NULL,
 	[COMPOUND_PAGE_DTOR] = free_compound_page,
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	[TRANSHUGE_PAGE_DTOR] = free_transhuge_page,
-#endif
 };
 
 int min_free_kbytes = 1024;
@@ -611,6 +608,12 @@ void destroy_large_folio(struct folio *folio)
 
 	if (folio_test_hugetlb(folio)) {
 		free_huge_folio(folio);
+		return;
+	}
+
+	if (folio_test_transhuge(folio) && dtor == TRANSHUGE_PAGE_DTOR) {
+		folio_undo_large_rmappable(folio);
+		free_compound_page(&folio->page);
 		return;
 	}
 

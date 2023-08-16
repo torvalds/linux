@@ -413,6 +413,8 @@ static inline void folio_set_order(struct folio *folio, unsigned int order)
 #endif
 }
 
+void folio_undo_large_rmappable(struct folio *folio);
+
 static inline void prep_compound_head(struct page *page, unsigned int order)
 {
 	struct folio *folio = (struct folio *)page;
