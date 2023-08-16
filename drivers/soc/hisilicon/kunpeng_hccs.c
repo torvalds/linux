@@ -156,8 +156,8 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 	}
 
 	if (pcc_chan->shmem_base_addr) {
-		cl_info->pcc_comm_addr = (void __force *)ioremap(
-			pcc_chan->shmem_base_addr, pcc_chan->shmem_size);
+		cl_info->pcc_comm_addr = ioremap(pcc_chan->shmem_base_addr,
+						 pcc_chan->shmem_size);
 		if (!cl_info->pcc_comm_addr) {
 			dev_err(dev, "Failed to ioremap PCC communication region for channel-%d.\n",
 				hdev->chan_id);
@@ -177,7 +177,8 @@ out:
 static int hccs_check_chan_cmd_complete(struct hccs_dev *hdev)
 {
 	struct hccs_mbox_client_info *cl_info = &hdev->cl_info;
-	struct acpi_pcct_shared_memory *comm_base = cl_info->pcc_comm_addr;
+	struct acpi_pcct_shared_memory __iomem *comm_base =
+							cl_info->pcc_comm_addr;
 	u16 status;
 	int ret;
 
@@ -199,8 +200,8 @@ static int hccs_pcc_cmd_send(struct hccs_dev *hdev, u8 cmd,
 			     struct hccs_desc *desc)
 {
 	struct hccs_mbox_client_info *cl_info = &hdev->cl_info;
-	struct acpi_pcct_shared_memory *comm_base = cl_info->pcc_comm_addr;
-	void *comm_space = (void *)(comm_base + 1);
+	void __iomem *comm_space = cl_info->pcc_comm_addr +
+					sizeof(struct acpi_pcct_shared_memory);
 	struct hccs_fw_inner_head *fw_inner_head;
 	struct acpi_pcct_shared_memory tmp = {0};
 	u16 comm_space_size;
@@ -212,7 +213,7 @@ static int hccs_pcc_cmd_send(struct hccs_dev *hdev, u8 cmd,
 	tmp.command = cmd;
 	/* Clear cmd complete bit */
 	tmp.status = 0;
-	memcpy_toio(comm_base, (void *)&tmp,
+	memcpy_toio(cl_info->pcc_comm_addr, (void *)&tmp,
 			sizeof(struct acpi_pcct_shared_memory));
 
 	/* Copy the message to the PCC comm space */

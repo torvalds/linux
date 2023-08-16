@@ -50,7 +50,7 @@ struct hccs_mbox_client_info {
 	struct mbox_chan *mbox_chan;
 	struct pcc_mbox_chan *pcc_chan;
 	u64 deadline_us;
-	void *pcc_comm_addr;
+	void __iomem *pcc_comm_addr;
 };
 
 struct hccs_dev {
