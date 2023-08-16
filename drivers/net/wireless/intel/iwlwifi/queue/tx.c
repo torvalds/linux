@@ -84,6 +84,41 @@ static u8 iwl_txq_gen2_get_num_tbs(struct iwl_trans *trans,
 	return le16_to_cpu(tfd->num_tbs) & 0x1f;
 }
 
+int iwl_txq_gen2_set_tb(struct iwl_trans *trans, struct iwl_tfh_tfd *tfd,
+			dma_addr_t addr, u16 len)
+{
+	int idx = iwl_txq_gen2_get_num_tbs(trans, tfd);
+	struct iwl_tfh_tb *tb;
+
+	/* Only WARN here so we know about the issue, but we mess up our
+	 * unmap path because not every place currently checks for errors
+	 * returned from this function - it can only return an error if
+	 * there's no more space, and so when we know there is enough we
+	 * don't always check ...
+	 */
+	WARN(iwl_txq_crosses_4g_boundary(addr, len),
+	     "possible DMA problem with iova:0x%llx, len:%d\n",
+	     (unsigned long long)addr, len);
+
+	if (WARN_ON(idx >= IWL_TFH_NUM_TBS))
+		return -EINVAL;
+	tb = &tfd->tbs[idx];
+
+	/* Each TFD can point to a maximum max_tbs Tx buffers */
+	if (le16_to_cpu(tfd->num_tbs) >= trans->txqs.tfd.max_tbs) {
+		IWL_ERR(trans, "Error can not send more than %d chunks\n",
+			trans->txqs.tfd.max_tbs);
+		return -EINVAL;
+	}
+
+	put_unaligned_le64(addr, &tb->addr);
+	tb->tb_len = cpu_to_le16(len);
+
+	tfd->num_tbs = cpu_to_le16(idx + 1);
+
+	return idx;
+}
+
 void iwl_txq_gen2_tfd_unmap(struct iwl_trans *trans, struct iwl_cmd_meta *meta,
 			    struct iwl_tfh_tfd *tfd)
 {
@@ -140,42 +175,6 @@ void iwl_txq_gen2_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 		iwl_op_mode_free_skb(trans->op_mode, skb);
 		txq->entries[idx].skb = NULL;
 	}
-}
-
-int iwl_txq_gen2_set_tb(struct iwl_trans *trans, struct iwl_tfh_tfd *tfd,
-			dma_addr_t addr, u16 len)
-{
-	int idx = iwl_txq_gen2_get_num_tbs(trans, tfd);
-	struct iwl_tfh_tb *tb;
-
-	/*
-	 * Only WARN here so we know about the issue, but we mess up our
-	 * unmap path because not every place currently checks for errors
-	 * returned from this function - it can only return an error if
-	 * there's no more space, and so when we know there is enough we
-	 * don't always check ...
-	 */
-	WARN(iwl_txq_crosses_4g_boundary(addr, len),
-	     "possible DMA problem with iova:0x%llx, len:%d\n",
-	     (unsigned long long)addr, len);
-
-	if (WARN_ON(idx >= IWL_TFH_NUM_TBS))
-		return -EINVAL;
-	tb = &tfd->tbs[idx];
-
-	/* Each TFD can point to a maximum max_tbs Tx buffers */
-	if (le16_to_cpu(tfd->num_tbs) >= trans->txqs.tfd.max_tbs) {
-		IWL_ERR(trans, "Error can not send more than %d chunks\n",
-			trans->txqs.tfd.max_tbs);
-		return -EINVAL;
-	}
-
-	put_unaligned_le64(addr, &tb->addr);
-	tb->tb_len = cpu_to_le16(len);
-
-	tfd->num_tbs = cpu_to_le16(idx + 1);
-
-	return idx;
 }
 
 static struct page *get_workaround_page(struct iwl_trans *trans,
