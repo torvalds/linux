@@ -998,6 +998,14 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		inet_assign_bit(MC_LOOP, sk, val);
 		return 0;
+	case IP_MULTICAST_ALL:
+		if (optlen < 1)
+			return -EINVAL;
+		if (val != 0 && val != 1)
+			return -EINVAL;
+		inet_assign_bit(MC_ALL, sk, val);
+		return 0;
+
 	}
 
 	err = 0;
@@ -1303,14 +1311,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		else
 			err = ip_set_mcast_msfilter(sk, optval, optlen);
 		break;
-	case IP_MULTICAST_ALL:
-		if (optlen < 1)
-			goto e_inval;
-		if (val != 0 && val != 1)
-			goto e_inval;
-		inet->mc_all = val;
-		break;
-
 	case IP_IPSEC_POLICY:
 	case IP_XFRM_POLICY:
 		err = -EPERM;
@@ -1582,6 +1582,9 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_MULTICAST_LOOP:
 		val = inet_test_bit(MC_LOOP, sk);
 		goto copyval;
+	case IP_MULTICAST_ALL:
+		val = inet_test_bit(MC_ALL, sk);
+		goto copyval;
 	}
 
 	if (needs_rtnl)
@@ -1694,9 +1697,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		else
 			err = ip_get_mcast_msfilter(sk, optval, optlen, len);
 		goto out;
-	case IP_MULTICAST_ALL:
-		val = inet->mc_all;
-		break;
 	case IP_PKTOPTIONS:
 	{
 		struct msghdr msg;

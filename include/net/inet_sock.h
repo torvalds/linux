@@ -232,7 +232,6 @@ struct inet_sock {
 	__u8			pmtudisc;
 	__u8			is_icsk:1,
 				transparent:1,
-				mc_all:1,
 				nodefrag:1;
 	__u8			bind_address_no_port:1,
 				defer_connect:1; /* Indicates that fastopen_connect is set
@@ -271,6 +270,7 @@ enum {
 	INET_FLAGS_FREEBIND	= 11,
 	INET_FLAGS_HDRINCL	= 12,
 	INET_FLAGS_MC_LOOP	= 13,
+	INET_FLAGS_MC_ALL	= 14,
 };
 
 /* cmsg flags for inet */
