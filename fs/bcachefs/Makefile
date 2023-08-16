@@ -69,6 +69,7 @@ bcachefs-y		:=	\
 	sb-members.o		\
 	siphash.o		\
 	six.o			\
+	snapshot.o		\
 	subvolume.o		\
 	super.o			\
 	super-io.o		\

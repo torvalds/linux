@@ -23,6 +23,7 @@
 #include "journal.h"
 #include "keylist.h"
 #include "quota.h"
+#include "snapshot.h"
 #include "super.h"
 #include "xattr.h"
 

@@ -842,6 +842,11 @@ static inline int u8_cmp(u8 l, u8 r)
 	return cmp_int(l, r);
 }
 
+static inline int cmp_le32(__le32 l, __le32 r)
+{
+	return cmp_int(le32_to_cpu(l), le32_to_cpu(r));
+}
+
 #include <linux/uuid.h>
 
 #endif /* _BCACHEFS_UTIL_H */

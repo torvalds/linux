@@ -12,7 +12,7 @@
 #include "inode.h"
 #include "keylist.h"
 #include "recovery.h"
-#include "subvolume.h"
+#include "snapshot.h"
 #include "super.h"
 #include "xattr.h"
 

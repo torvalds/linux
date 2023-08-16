@@ -14,7 +14,7 @@
 #include "extents.h"
 #include "journal.h"
 #include "replicas.h"
-#include "subvolume.h"
+#include "snapshot.h"
 #include "trace.h"
 
 #include <linux/random.h>

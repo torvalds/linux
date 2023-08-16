@@ -14,7 +14,7 @@
 #include "journal.h"
 #include "journal_reclaim.h"
 #include "replicas.h"
-#include "subvolume.h"
+#include "snapshot.h"
 
 #include <linux/prefetch.h>
 

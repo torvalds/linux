@@ -4,7 +4,7 @@
 #include "bcachefs.h"
 #include "btree_update.h"
 #include "journal_reclaim.h"
-#include "subvolume.h"
+#include "snapshot.h"
 #include "tests.h"
 
 #include "linux/kthread.h"

@@ -11,6 +11,7 @@
 #include "extent_update.h"
 #include "inode.h"
 #include "str_hash.h"
+#include "snapshot.h"
 #include "subvolume.h"
 #include "varint.h"
 

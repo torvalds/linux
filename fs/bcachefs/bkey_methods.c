@@ -13,6 +13,7 @@
 #include "lru.h"
 #include "quota.h"
 #include "reflink.h"
+#include "snapshot.h"
 #include "subvolume.h"
 #include "xattr.h"
 

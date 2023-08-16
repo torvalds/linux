@@ -1124,6 +1124,11 @@ struct bch_subvolume {
 	__le32			flags;
 	__le32			snapshot;
 	__le64			inode;
+	/*
+	 * Snapshot subvolumes form a tree, separate from the snapshot nodes
+	 * tree - if this subvolume is a snapshot, this is the ID of the
+	 * subvolume it was created from:
+	 */
 	__le32			parent;
 	__le32			pad;
 	bch_le128		otime;

@@ -5,7 +5,7 @@
 #include "error.h"
 #include "inode.h"
 #include "quota.h"
-#include "subvolume.h"
+#include "snapshot.h"
 #include "super-io.h"
 
 static const char * const bch2_quota_types[] = {

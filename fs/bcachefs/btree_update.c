@@ -11,7 +11,7 @@
 #include "error.h"
 #include "extents.h"
 #include "keylist.h"
-#include "subvolume.h"
+#include "snapshot.h"
 #include "trace.h"
 
 static inline int btree_insert_entry_cmp(const struct btree_insert_entry *l,
