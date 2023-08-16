@@ -610,7 +610,7 @@ void destroy_large_folio(struct folio *folio)
 	enum compound_dtor_id dtor = folio->_folio_dtor;
 
 	if (folio_test_hugetlb(folio)) {
-		free_huge_page(&folio->page);
+		free_huge_folio(folio);
 		return;
 	}
 
