@@ -7,6 +7,8 @@
 
 /* This file must be included after sc7180-trogdor.dtsi */
 
+#include "sc7180-trogdor-rt5682i-sku.dtsi"
+
 / {
 	/* BOARD-SPECIFIC TOP LEVEL NODES */
 

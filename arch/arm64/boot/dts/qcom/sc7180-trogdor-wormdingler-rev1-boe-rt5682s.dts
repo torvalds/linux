@@ -10,10 +10,20 @@
 
 /dts-v1/;
 
-#include "sc7180-trogdor-wormdingler-rev1-boe.dts"
+#include "sc7180-trogdor-wormdingler.dtsi"
 #include "sc7180-trogdor-rt5682s-sku.dtsi"
 
 / {
 	model = "Google Wormdingler rev1+ (BOE, rt5682s)";
 	compatible = "google,wormdingler-sku1025", "qcom,sc7180";
+};
+
+&mdss_dsi0_phy {
+	qcom,phy-rescode-offset-top = /bits/ 8 <31 31 31 31 (-32)>;
+	qcom,phy-rescode-offset-bot = /bits/ 8 <31 31 31 31 (-32)>;
+	qcom,phy-drive-ldo-level = <450>;
+};
+
+&panel {
+	compatible = "boe,tv110c9m-ll3";
 };

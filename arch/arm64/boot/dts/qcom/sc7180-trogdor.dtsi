@@ -372,7 +372,6 @@
 
 	sound: sound {
 		compatible = "google,sc7180-trogdor";
-		model = "sc7180-rt5682-max98357a-1mic";
 
 		audio-routing =
 			"Headphone Jack", "HPOL",
@@ -747,32 +746,6 @@ ap_tp_i2c: &i2c7 {
 hp_i2c: &i2c9 {
 	status = "okay";
 	clock-frequency = <400000>;
-
-	alc5682: codec@1a {
-		compatible = "realtek,rt5682i";
-		reg = <0x1a>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_irq>;
-
-		#sound-dai-cells = <1>;
-
-		interrupt-parent = <&tlmm>;
-		/*
-		 * This will get ignored because the interrupt type
-		 * is set in rt5682.c.
-		 */
-		interrupts = <28 IRQ_TYPE_EDGE_BOTH>;
-
-		AVDD-supply = <&pp1800_alc5682>;
-		DBVDD-supply = <&pp1800_alc5682>;
-		LDO1-IN-supply = <&pp1800_alc5682>;
-		MICVDD-supply = <&pp3300_codec>;
-		VBAT-supply = <&pp3300_audio>;
-
-		realtek,dmic1-data-pin = <1>;
-		realtek,dmic1-clk-pin = <1>;
-		realtek,jd-src = <1>;
-	};
 };
 
 &lpasscc {

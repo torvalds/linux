@@ -10,7 +10,6 @@
 
 /* Deleted nodes from sc7180-trogdor.dtsi */
 
-/delete-node/ &alc5682;
 /delete-node/ &pp3300_codec;
 
 / {

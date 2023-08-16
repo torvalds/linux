@@ -10,10 +10,14 @@
 
 /dts-v1/;
 
-#include "sc7180-trogdor-wormdingler-rev1-inx.dts"
+#include "sc7180-trogdor-wormdingler.dtsi"
 #include "sc7180-trogdor-rt5682s-sku.dtsi"
 
 / {
 	model = "Google Wormdingler rev1+ (INX, rt5682s)";
 	compatible = "google,wormdingler-sku1", "qcom,sc7180";
+};
+
+&panel {
+	compatible = "innolux,hj110iz-01a";
 };
