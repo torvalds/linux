@@ -7,3 +7,4 @@ pinctrl-pitti.ko
 qcom_hwspinlock.ko
 smem.ko
 socinfo.ko
+qcom-ipcc.ko
