@@ -3033,7 +3033,8 @@ static void _set_preferred_cluster(struct walt_related_thread_group *grp)
 	update_best_cluster(grp, combined_demand, group_boost);
 
 out:
-	trace_sched_set_preferred_cluster(grp, combined_demand, prev_skip_min);
+	trace_sched_set_preferred_cluster(grp, combined_demand, prev_skip_min,
+			sched_group_upmigrate, sched_group_downmigrate);
 	if (grp->id == DEFAULT_CGROUP_COLOC_ID
 			&& grp->skip_min != prev_skip_min) {
 		if (grp->skip_min)

@@ -323,9 +323,10 @@ extern const char *migrate_type_names[];
 TRACE_EVENT(sched_set_preferred_cluster,
 
 	TP_PROTO(struct walt_related_thread_group *grp, u64 total_demand,
-		bool prev_skip_min),
+		bool prev_skip_min, unsigned int sched_group_upmigrate,
+		unsigned int sched_group_downmigrate),
 
-	TP_ARGS(grp, total_demand, prev_skip_min),
+	TP_ARGS(grp, total_demand, prev_skip_min, sched_group_upmigrate, sched_group_downmigrate),
 
 	TP_STRUCT__entry(
 		__field(int,		id)
@@ -336,6 +337,8 @@ TRACE_EVENT(sched_set_preferred_cluster,
 		__field(u64,		last_update)
 		__field(unsigned int,	sysctl_sched_hyst_min_coloc_ns)
 		__field(u64,		downmigrate_ts)
+		__field(unsigned int,	sched_group_upmigrate)
+		__field(unsigned int,	sched_group_downmigrate)
 	),
 
 	TP_fast_assign(
@@ -347,14 +350,17 @@ TRACE_EVENT(sched_set_preferred_cluster,
 		__entry->last_update	= grp->last_update;
 		__entry->sysctl_sched_hyst_min_coloc_ns = sysctl_sched_hyst_min_coloc_ns;
 		__entry->downmigrate_ts	= grp->downmigrate_ts;
+		__entry->sched_group_upmigrate = sched_group_upmigrate;
+		__entry->sched_group_downmigrate = sched_group_downmigrate;
 	),
 
-	TP_printk("group_id %d total_demand %llu skip_min %d prev_skip_min %d start_ktime_ts %llu last_update %llu min_coloc_ns %u downmigrate_ts %llu",
+	TP_printk("group_id %d total_demand %llu skip_min %d prev_skip_min %d start_ktime_ts %llu last_update %llu min_coloc_ns %u downmigrate_ts %llu group_upmigrate %llu group_downmigrate %llu",
 			__entry->id, __entry->total_demand,
 			__entry->skip_min, __entry->prev_skip_min,
 			__entry->start_ktime_ts, __entry->last_update,
 			__entry->sysctl_sched_hyst_min_coloc_ns,
-			__entry->downmigrate_ts)
+			__entry->downmigrate_ts,
+			__entry->sched_group_upmigrate, __entry->sched_group_downmigrate)
 );
 
 TRACE_EVENT(sched_migration_update_sum,
@@ -1650,6 +1656,63 @@ TRACE_EVENT(sched_fmax_uncap,
 			__entry->fmax_cap_2,
 			__entry->fmax_cap_3)
 );
+
+TRACE_EVENT(sched_update_updown_migrate_values,
+
+	TP_PROTO(bool up, int cluster),
+
+	TP_ARGS(up, cluster),
+
+
+	TP_STRUCT__entry(
+		__field(bool, up)
+		__field(int, cluster)
+		__field(unsigned int, cluster_up)
+		__field(unsigned int, cluster_down)
+	),
+
+	TP_fast_assign(
+		__entry->up		= up;
+		__entry->cluster	= cluster;
+		__entry->cluster_up	= sched_capacity_margin_up[cluster_first_cpu(
+						sched_cluster[cluster])];
+		__entry->cluster_down	= sched_capacity_margin_down[cluster_first_cpu(
+						sched_cluster[cluster])];
+	),
+
+	TP_printk("up=%d cluster=%d cluster_up=%u cluster_down=%u",
+			__entry->up, __entry->cluster,
+			__entry->cluster_up, __entry->cluster_down)
+);
+
+TRACE_EVENT(sched_update_updown_early_migrate_values,
+
+	TP_PROTO(bool up, int cluster),
+
+	TP_ARGS(up, cluster),
+
+
+	TP_STRUCT__entry(
+		__field(bool, up)
+		__field(int, cluster)
+		__field(unsigned int, cluster_up)
+		__field(unsigned int, cluster_down)
+	),
+
+	TP_fast_assign(
+		__entry->up		= up;
+		__entry->cluster	= cluster;
+		__entry->cluster_up	= sched_capacity_margin_early_up[cluster_first_cpu(
+						sched_cluster[cluster])];
+		__entry->cluster_down	= sched_capacity_margin_early_down[cluster_first_cpu(
+						sched_cluster[cluster])];
+	),
+
+	TP_printk("up=%d cluster=%d cluster_up=%u cluster_down=%u",
+			__entry->up, __entry->cluster,
+			__entry->cluster_up, __entry->cluster_down)
+);
+
 #endif /* _TRACE_WALT_H */
 
 #undef TRACE_INCLUDE_PATH
