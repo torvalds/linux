@@ -434,29 +434,29 @@ out_err:
 	return ERR_PTR(err);
 }
 
-int ovl_set_origin(struct ovl_fs *ofs, struct dentry *lower,
-		   struct dentry *upper)
+struct ovl_fh *ovl_get_origin_fh(struct ovl_fs *ofs, struct dentry *origin)
 {
-	const struct ovl_fh *fh = NULL;
-	int err;
-
 	/*
 	 * When lower layer doesn't support export operations store a 'null' fh,
 	 * so we can use the overlay.origin xattr to distignuish between a copy
 	 * up and a pure upper inode.
 	 */
-	if (ovl_can_decode_fh(lower->d_sb)) {
-		fh = ovl_encode_real_fh(ofs, lower, false);
-		if (IS_ERR(fh))
-			return PTR_ERR(fh);
-	}
+	if (!ovl_can_decode_fh(origin->d_sb))
+		return NULL;
+
+	return ovl_encode_real_fh(ofs, origin, false);
+}
+
+int ovl_set_origin_fh(struct ovl_fs *ofs, const struct ovl_fh *fh,
+		      struct dentry *upper)
+{
+	int err;
 
 	/*
 	 * Do not fail when upper doesn't support xattrs.
 	 */
 	err = ovl_check_setxattr(ofs, upper, OVL_XATTR_ORIGIN, fh->buf,
 				 fh ? fh->fb.len : 0, 0);
-	kfree(fh);
 
 	/* Ignore -EPERM from setting "user.*" on symlink/special */
 	return err == -EPERM ? 0 : err;
@@ -484,7 +484,7 @@ static int ovl_set_upper_fh(struct ovl_fs *ofs, struct dentry *upper,
  *
  * Caller must hold i_mutex on indexdir.
  */
-static int ovl_create_index(struct dentry *dentry, struct dentry *origin,
+static int ovl_create_index(struct dentry *dentry, const struct ovl_fh *fh,
 			    struct dentry *upper)
 {
 	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
@@ -510,7 +510,7 @@ static int ovl_create_index(struct dentry *dentry, struct dentry *origin,
 	if (WARN_ON(ovl_test_flag(OVL_INDEX, d_inode(dentry))))
 		return -EIO;
 
-	err = ovl_get_index_name(ofs, origin, &name);
+	err = ovl_get_index_name_fh(fh, &name);
 	if (err)
 		return err;
 
@@ -549,6 +549,7 @@ struct ovl_copy_up_ctx {
 	struct dentry *destdir;
 	struct qstr destname;
 	struct dentry *workdir;
+	const struct ovl_fh *origin_fh;
 	bool origin;
 	bool indexed;
 	bool metacopy;
@@ -649,7 +650,7 @@ static int ovl_copy_up_metadata(struct ovl_copy_up_ctx *c, struct dentry *temp)
 	 * hard link.
 	 */
 	if (c->origin) {
-		err = ovl_set_origin(ofs, c->lowerpath.dentry, temp);
+		err = ovl_set_origin_fh(ofs, c->origin_fh, temp);
 		if (err)
 			return err;
 	}
@@ -772,7 +773,7 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 		goto cleanup;
 
 	if (S_ISDIR(c->stat.mode) && c->indexed) {
-		err = ovl_create_index(c->dentry, c->lowerpath.dentry, temp);
+		err = ovl_create_index(c->dentry, c->origin_fh, temp);
 		if (err)
 			goto cleanup;
 	}
@@ -890,6 +891,8 @@ static int ovl_do_copy_up(struct ovl_copy_up_ctx *c)
 {
 	int err;
 	struct ovl_fs *ofs = OVL_FS(c->dentry->d_sb);
+	struct dentry *origin = c->lowerpath.dentry;
+	struct ovl_fh *fh = NULL;
 	bool to_index = false;
 
 	/*
@@ -906,17 +909,25 @@ static int ovl_do_copy_up(struct ovl_copy_up_ctx *c)
 			to_index = true;
 	}
 
-	if (S_ISDIR(c->stat.mode) || c->stat.nlink == 1 || to_index)
+	if (S_ISDIR(c->stat.mode) || c->stat.nlink == 1 || to_index) {
+		fh = ovl_get_origin_fh(ofs, origin);
+		if (IS_ERR(fh))
+			return PTR_ERR(fh);
+
+		/* origin_fh may be NULL */
+		c->origin_fh = fh;
 		c->origin = true;
+	}
 
 	if (to_index) {
 		c->destdir = ovl_indexdir(c->dentry->d_sb);
-		err = ovl_get_index_name(ofs, c->lowerpath.dentry, &c->destname);
+		err = ovl_get_index_name(ofs, origin, &c->destname);
 		if (err)
-			return err;
+			goto out_free_fh;
 	} else if (WARN_ON(!c->parent)) {
 		/* Disconnected dentry must be copied up to index dir */
-		return -EIO;
+		err = -EIO;
+		goto out_free_fh;
 	} else {
 		/*
 		 * Mark parent "impure" because it may now contain non-pure
@@ -926,7 +937,7 @@ static int ovl_do_copy_up(struct ovl_copy_up_ctx *c)
 		err = ovl_set_impure(c->parent, c->destdir);
 		ovl_end_write(c->dentry);
 		if (err)
-			return err;
+			goto out_free_fh;
 	}
 
 	/* Should we copyup with O_TMPFILE or with workdir? */
@@ -960,6 +971,8 @@ static int ovl_do_copy_up(struct ovl_copy_up_ctx *c)
 out:
 	if (to_index)
 		kfree(c->destname.name);
+out_free_fh:
+	kfree(fh);
 	return err;
 }
 
