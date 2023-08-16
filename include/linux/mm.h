@@ -1240,11 +1240,7 @@ void folio_copy(struct folio *dst, struct folio *src);
 unsigned long nr_free_buffer_pages(void);
 
 enum compound_dtor_id {
-	NULL_COMPOUND_DTOR,
 	COMPOUND_PAGE_DTOR,
-#ifdef CONFIG_HUGETLB_PAGE
-	HUGETLB_PAGE_DTOR,
-#endif
 	TRANSHUGE_PAGE_DTOR,
 	NR_COMPOUND_DTORS,
 };
