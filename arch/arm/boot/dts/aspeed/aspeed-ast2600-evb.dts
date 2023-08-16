@@ -475,10 +475,6 @@
 	status = "okay";
 };
 
-&udma {
-	status = "okay";
-};
-
 /*
  * I3C loopback: connect I3C4 (target) to I3C5 (primary master)
  * Four devices will be created under /sys/bus/i3c/devices
