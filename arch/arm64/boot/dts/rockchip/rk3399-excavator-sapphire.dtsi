@@ -32,7 +32,7 @@
 			"Speaker", "Speaker Power",
 			"IN1P", "Main Mic",
 			"IN2P", "Headset Mic",
-			"IN2N", "Headset Mic";
+			"IN2N", "Headset Mic",
 			"Headset Mic", "micbias1";
 		play-pause-key {
 			label = "playpause";
