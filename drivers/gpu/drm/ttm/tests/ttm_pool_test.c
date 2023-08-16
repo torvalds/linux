@@ -228,8 +228,8 @@ static void ttm_pool_alloc_basic_dma_addr(struct kunit *test)
 	dma1 = tt->dma_address[0];
 	dma2 = tt->dma_address[tt->num_pages - 1];
 
-	KUNIT_ASSERT_NOT_NULL(test, (void *)dma1);
-	KUNIT_ASSERT_NOT_NULL(test, (void *)dma2);
+	KUNIT_ASSERT_NOT_NULL(test, (void *)(uintptr_t)dma1);
+	KUNIT_ASSERT_NOT_NULL(test, (void *)(uintptr_t)dma2);
 
 	ttm_pool_free(pool, tt);
 	ttm_tt_fini(tt);
