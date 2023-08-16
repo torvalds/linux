@@ -10,13 +10,51 @@ struct tty_ldisc;
 int tty_buffer_set_limit(struct tty_port *port, int limit);
 unsigned int tty_buffer_space_avail(struct tty_port *port);
 int tty_buffer_request_room(struct tty_port *port, size_t size);
-int tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
-				 const u8 *flags, size_t size);
-int tty_insert_flip_string_fixed_flag(struct tty_port *port, const u8 *chars,
-				      u8 flag, size_t size);
+int __tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
+				   const u8 *flags, bool mutable_flags,
+				   size_t size);
 int tty_prepare_flip_string(struct tty_port *port, u8 **chars, size_t size);
 void tty_flip_buffer_push(struct tty_port *port);
 int __tty_insert_flip_char(struct tty_port *port, u8 ch, u8 flag);
+
+/**
+ * tty_insert_flip_string_fixed_flag - add characters to the tty buffer
+ * @port: tty port
+ * @chars: characters
+ * @flag: flag value for each character
+ * @size: size
+ *
+ * Queue a series of bytes to the tty buffering. All the characters passed are
+ * marked with the supplied flag.
+ *
+ * Returns: the number added.
+ */
+static inline int tty_insert_flip_string_fixed_flag(struct tty_port *port,
+						    const u8 *chars, u8 flag,
+						    size_t size)
+{
+	return __tty_insert_flip_string_flags(port, chars, &flag, false, size);
+}
+
+/**
+ * tty_insert_flip_string_flags - add characters to the tty buffer
+ * @port: tty port
+ * @chars: characters
+ * @flags: flag bytes
+ * @size: size
+ *
+ * Queue a series of bytes to the tty buffering. For each character the flags
+ * array indicates the status of the character.
+ *
+ * Returns: the number added.
+ */
+static inline int tty_insert_flip_string_flags(struct tty_port *port,
+					       const u8 *chars, const u8 *flags,
+					       size_t size)
+{
+	return __tty_insert_flip_string_flags(port, chars, flags, true, size);
+}
+
 
 static inline int tty_insert_flip_char(struct tty_port *port, u8 ch, u8 flag)
 {

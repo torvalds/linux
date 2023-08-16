@@ -303,82 +303,42 @@ int tty_buffer_request_room(struct tty_port *port, size_t size)
 }
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
 
-/**
- * tty_insert_flip_string_fixed_flag - add characters to the tty buffer
- * @port: tty port
- * @chars: characters
- * @flag: flag value for each character
- * @size: size
- *
- * Queue a series of bytes to the tty buffering. All the characters passed are
- * marked with the supplied flag.
- *
- * Returns: the number added.
- */
-int tty_insert_flip_string_fixed_flag(struct tty_port *port, const u8 *chars,
-				      u8 flag, size_t size)
+int __tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
+				   const u8 *flags, bool mutable_flags,
+				   size_t size)
 {
-	int copied = 0;
-	bool flags = flag != TTY_NORMAL;
-
-	do {
-		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
-		int space = __tty_buffer_request_room(port, goal, flags);
-		struct tty_buffer *tb = port->buf.tail;
-
-		if (unlikely(space == 0))
-			break;
-		memcpy(char_buf_ptr(tb, tb->used), chars, space);
-		if (tb->flags)
-			memset(flag_buf_ptr(tb, tb->used), flag, space);
-		tb->used += space;
-		copied += space;
-		chars += space;
-		/* There is a small chance that we need to split the data over
-		 * several buffers. If this is the case we must loop.
-		 */
-	} while (unlikely(size > copied));
-	return copied;
-}
-EXPORT_SYMBOL(tty_insert_flip_string_fixed_flag);
-
-/**
- * tty_insert_flip_string_flags	-	add characters to the tty buffer
- * @port: tty port
- * @chars: characters
- * @flags: flag bytes
- * @size: size
- *
- * Queue a series of bytes to the tty buffering. For each character the flags
- * array indicates the status of the character.
- *
- * Returns: the number added.
- */
-int tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
-				 const u8 *flags, size_t size)
-{
+	bool need_flags = mutable_flags || flags[0] != TTY_NORMAL;
 	int copied = 0;
 
 	do {
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
-		int space = tty_buffer_request_room(port, goal);
+		int space = __tty_buffer_request_room(port, goal, need_flags);
 		struct tty_buffer *tb = port->buf.tail;
 
 		if (unlikely(space == 0))
 			break;
+
 		memcpy(char_buf_ptr(tb, tb->used), chars, space);
-		memcpy(flag_buf_ptr(tb, tb->used), flags, space);
+
+		if (mutable_flags) {
+			memcpy(flag_buf_ptr(tb, tb->used), flags, space);
+			flags += space;
+		} else if (tb->flags) {
+			memset(flag_buf_ptr(tb, tb->used), flags[0], space);
+		}
+
 		tb->used += space;
 		copied += space;
 		chars += space;
-		flags += space;
+
 		/* There is a small chance that we need to split the data over
 		 * several buffers. If this is the case we must loop.
 		 */
 	} while (unlikely(size > copied));
+
 	return copied;
 }
-EXPORT_SYMBOL(tty_insert_flip_string_flags);
+EXPORT_SYMBOL(__tty_insert_flip_string_flags);
 
 /**
  * __tty_insert_flip_char   -	add one character to the tty buffer
