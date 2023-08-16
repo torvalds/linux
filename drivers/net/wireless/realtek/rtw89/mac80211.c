@@ -414,6 +414,8 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 			rtw89_chip_cfg_txpwr_ul_tb_offset(rtwdev, vif);
 			rtw89_mac_port_update(rtwdev, rtwvif);
 			rtw89_mac_set_he_obss_narrow_bw_ru(rtwdev, vif);
+
+			rtw89_queue_chanctx_work(rtwdev);
 		} else {
 			/* Abort ongoing scan if cancel_scan isn't issued
 			 * when disconnected by peer
@@ -477,6 +479,8 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
 	rtw89_fw_h2c_join_info(rtwdev, rtwvif, NULL, true);
 	rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, NULL);
 	rtw89_chip_rfk_channel(rtwdev);
+
+	rtw89_queue_chanctx_work(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 
 	return 0;

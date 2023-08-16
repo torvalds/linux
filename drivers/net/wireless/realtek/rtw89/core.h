@@ -789,6 +789,7 @@ enum rtw89_phy_idx {
 
 enum rtw89_sub_entity_idx {
 	RTW89_SUB_ENTITY_0 = 0,
+	RTW89_SUB_ENTITY_1 = 1,
 
 	NUM_OF_RTW89_SUB_ENTITY,
 	RTW89_SUB_ENTITY_IDLE = NUM_OF_RTW89_SUB_ENTITY,
@@ -900,6 +901,7 @@ struct rtw89_chan {
 struct rtw89_chan_rcd {
 	u8 prev_primary_channel;
 	enum rtw89_band prev_band_type;
+	bool band_changed;
 };
 
 struct rtw89_channel_help_params {
@@ -3413,6 +3415,22 @@ struct rtw89_antdiv_info {
 	bool get_stats;
 };
 
+enum rtw89_chanctx_state {
+	RTW89_CHANCTX_STATE_MCC_START,
+	RTW89_CHANCTX_STATE_MCC_STOP,
+};
+
+enum rtw89_chanctx_callbacks {
+	RTW89_CHANCTX_CALLBACK_PLACEHOLDER,
+
+	NUM_OF_RTW89_CHANCTX_CALLBACKS,
+};
+
+struct rtw89_chanctx_listener {
+	void (*callbacks[NUM_OF_RTW89_CHANCTX_CALLBACKS])
+		(struct rtw89_dev *rtwdev, enum rtw89_chanctx_state state);
+};
+
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	enum rtw89_chip_gen chip_gen;
@@ -3472,6 +3490,7 @@ struct rtw89_chip_info {
 	/* NULL if no rfe-specific, or a null-terminated array by rfe_parms */
 	const struct rtw89_rfe_parms_conf *rfe_parms_conf;
 	const struct rtw89_rfe_parms *dflt_parms;
+	const struct rtw89_chanctx_listener *chanctx_listener;
 
 	u8 txpwr_factor_rf;
 	u8 txpwr_factor_mac;
@@ -3751,6 +3770,11 @@ struct rtw89_chanctx_cfg {
 
 enum rtw89_entity_mode {
 	RTW89_ENTITY_MODE_SCC,
+	RTW89_ENTITY_MODE_MCC_PREPARE,
+	RTW89_ENTITY_MODE_MCC,
+
+	NUM_OF_RTW89_ENTITY_MODE,
+	RTW89_ENTITY_MODE_INVALID = NUM_OF_RTW89_ENTITY_MODE,
 };
 
 struct rtw89_sub_entity {
@@ -4407,6 +4431,7 @@ struct rtw89_dev {
 	struct rtw89_antdiv_info antdiv;
 
 	struct delayed_work track_work;
+	struct delayed_work chanctx_work;
 	struct delayed_work coex_act1_work;
 	struct delayed_work coex_bt_devinfo_work;
 	struct delayed_work coex_rfk_chk_work;
@@ -5341,6 +5366,8 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 void rtw89_free_ieee80211_hw(struct rtw89_dev *rtwdev);
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev);
 void rtw89_get_default_chandef(struct cfg80211_chan_def *chandef);
+void rtw89_get_channel_params(const struct cfg80211_chan_def *chandef,
+			      struct rtw89_chan *chan);
 void rtw89_set_channel(struct rtw89_dev *rtwdev);
 void rtw89_get_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		       struct rtw89_chan *chan);

@@ -256,8 +256,8 @@ void rtw89_get_default_chandef(struct cfg80211_chan_def *chandef)
 				NL80211_CHAN_NO_HT);
 }
 
-static void rtw89_get_channel_params(const struct cfg80211_chan_def *chandef,
-				     struct rtw89_chan *chan)
+void rtw89_get_channel_params(const struct cfg80211_chan_def *chandef,
+			      struct rtw89_chan *chan)
 {
 	struct ieee80211_channel *channel = chandef->chan;
 	enum nl80211_chan_width width = chandef->width;
@@ -318,9 +318,11 @@ static void rtw89_get_channel_params(const struct cfg80211_chan_def *chandef,
 
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_hal *hal = &rtwdev->hal;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_chan *chan;
 	enum rtw89_sub_entity_idx sub_entity_idx;
+	enum rtw89_sub_entity_idx roc_idx;
 	enum rtw89_phy_idx phy_idx;
 	enum rtw89_entity_mode mode;
 	bool entity_active;
@@ -330,10 +332,23 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 		return;
 
 	mode = rtw89_get_entity_mode(rtwdev);
-	if (WARN(mode != RTW89_ENTITY_MODE_SCC, "Invalid ent mode: %d\n", mode))
+	switch (mode) {
+	case RTW89_ENTITY_MODE_SCC:
+	case RTW89_ENTITY_MODE_MCC:
+		sub_entity_idx = RTW89_SUB_ENTITY_0;
+		break;
+	case RTW89_ENTITY_MODE_MCC_PREPARE:
+		sub_entity_idx = RTW89_SUB_ENTITY_1;
+		break;
+	default:
+		WARN(1, "Invalid ent mode: %d\n", mode);
 		return;
+	}
 
-	sub_entity_idx = RTW89_SUB_ENTITY_0;
+	roc_idx = atomic_read(&hal->roc_entity_idx);
+	if (roc_idx != RTW89_SUB_ENTITY_IDLE)
+		sub_entity_idx = roc_idx;
+
 	phy_idx = RTW89_PHY_0;
 	chan = rtw89_chan_get(rtwdev, sub_entity_idx);
 	chip->ops->set_txpwr(rtwdev, chan, phy_idx);
@@ -341,43 +356,54 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 
 void rtw89_set_channel(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_hal *hal = &rtwdev->hal;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	const struct cfg80211_chan_def *chandef;
+	const struct rtw89_chan_rcd *chan_rcd;
+	const struct rtw89_chan *chan;
 	enum rtw89_sub_entity_idx sub_entity_idx;
+	enum rtw89_sub_entity_idx roc_idx;
 	enum rtw89_mac_idx mac_idx;
 	enum rtw89_phy_idx phy_idx;
-	struct rtw89_chan chan;
 	struct rtw89_channel_help_params bak;
 	enum rtw89_entity_mode mode;
-	bool band_changed;
 	bool entity_active;
 
 	entity_active = rtw89_get_entity_state(rtwdev);
 
 	mode = rtw89_entity_recalc(rtwdev);
-	if (WARN(mode != RTW89_ENTITY_MODE_SCC, "Invalid ent mode: %d\n", mode))
+	switch (mode) {
+	case RTW89_ENTITY_MODE_SCC:
+	case RTW89_ENTITY_MODE_MCC:
+		sub_entity_idx = RTW89_SUB_ENTITY_0;
+		break;
+	case RTW89_ENTITY_MODE_MCC_PREPARE:
+		sub_entity_idx = RTW89_SUB_ENTITY_1;
+		break;
+	default:
+		WARN(1, "Invalid ent mode: %d\n", mode);
 		return;
+	}
 
-	sub_entity_idx = RTW89_SUB_ENTITY_0;
+	roc_idx = atomic_read(&hal->roc_entity_idx);
+	if (roc_idx != RTW89_SUB_ENTITY_IDLE)
+		sub_entity_idx = roc_idx;
+
 	mac_idx = RTW89_MAC_0;
 	phy_idx = RTW89_PHY_0;
-	chandef = rtw89_chandef_get(rtwdev, sub_entity_idx);
-	rtw89_get_channel_params(chandef, &chan);
-	if (WARN(chan.channel == 0, "Invalid channel\n"))
-		return;
 
-	band_changed = rtw89_assign_entity_chan(rtwdev, sub_entity_idx, &chan);
+	chan = rtw89_chan_get(rtwdev, sub_entity_idx);
+	chan_rcd = rtw89_chan_rcd_get(rtwdev, sub_entity_idx);
 
-	rtw89_chip_set_channel_prepare(rtwdev, &bak, &chan, mac_idx, phy_idx);
+	rtw89_chip_set_channel_prepare(rtwdev, &bak, chan, mac_idx, phy_idx);
 
-	chip->ops->set_channel(rtwdev, &chan, mac_idx, phy_idx);
+	chip->ops->set_channel(rtwdev, chan, mac_idx, phy_idx);
 
-	chip->ops->set_txpwr(rtwdev, &chan, phy_idx);
+	chip->ops->set_txpwr(rtwdev, chan, phy_idx);
 
-	rtw89_chip_set_channel_done(rtwdev, &bak, &chan, mac_idx, phy_idx);
+	rtw89_chip_set_channel_done(rtwdev, &bak, chan, mac_idx, phy_idx);
 
-	if (!entity_active || band_changed) {
-		rtw89_btc_ntfy_switch_band(rtwdev, phy_idx, chan.band_type);
+	if (!entity_active || chan_rcd->band_changed) {
+		rtw89_btc_ntfy_switch_band(rtwdev, phy_idx, chan->band_type);
 		rtw89_chip_rfk_band_changed(rtwdev, phy_idx);
 	}
 
@@ -3562,6 +3588,7 @@ void rtw89_core_stop(struct rtw89_dev *rtwdev)
 	cancel_work_sync(&btc->icmp_notify_work);
 	cancel_delayed_work_sync(&rtwdev->txq_reinvoke_work);
 	cancel_delayed_work_sync(&rtwdev->track_work);
+	cancel_delayed_work_sync(&rtwdev->chanctx_work);
 	cancel_delayed_work_sync(&rtwdev->coex_act1_work);
 	cancel_delayed_work_sync(&rtwdev->coex_bt_devinfo_work);
 	cancel_delayed_work_sync(&rtwdev->coex_rfk_chk_work);
@@ -3598,6 +3625,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	INIT_WORK(&rtwdev->txq_work, rtw89_core_txq_work);
 	INIT_DELAYED_WORK(&rtwdev->txq_reinvoke_work, rtw89_core_txq_reinvoke_work);
 	INIT_DELAYED_WORK(&rtwdev->track_work, rtw89_track_work);
+	INIT_DELAYED_WORK(&rtwdev->chanctx_work, rtw89_chanctx_work);
 	INIT_DELAYED_WORK(&rtwdev->coex_act1_work, rtw89_coex_act1_work);
 	INIT_DELAYED_WORK(&rtwdev->coex_bt_devinfo_work, rtw89_coex_bt_devinfo_work);
 	INIT_DELAYED_WORK(&rtwdev->coex_rfk_chk_work, rtw89_coex_rfk_chk_work);
