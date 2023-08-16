@@ -214,8 +214,8 @@
 #define   SCL_I2C_FM_TIMING_LCNT	GENMASK(15, 0)
 
 #define SCL_I2C_FMP_TIMING		0xc0
-#define SCL_I2C_FMP_TIMING_HCNT(x)	(((x) << 16) & GENMASK(23, 16))
-#define SCL_I2C_FMP_TIMING_LCNT(x)	((x) & GENMASK(15, 0))
+#define   SCL_I2C_FMP_TIMING_HCNT	GENMASK(23, 16)
+#define   SCL_I2C_FMP_TIMING_LCNT	GENMASK(15, 0)
 
 #define SCL_EXT_LCNT_TIMING		0xc8
 #define SCL_EXT_LCNT_4(x)		(((x) << 24) & GENMASK(31, 24))
@@ -246,8 +246,19 @@
 #define I3C_BUS_SDR2_SCL_RATE		6000000
 #define I3C_BUS_SDR3_SCL_RATE		4000000
 #define I3C_BUS_SDR4_SCL_RATE		2000000
+#define I3C_BUS_I2C_STD_SCL_RATE	100000
+#define I3C_BUS_I2C_STD_TLOW_MIN_NS	4700
+#define I3C_BUS_I2C_STD_THIGH_MIN_NS	4000
+#define I3C_BUS_I2C_STD_TR_MAX_NS	1000
+#define I3C_BUS_I2C_STD_TF_MAX_NS	300
 #define I3C_BUS_I2C_FM_TLOW_MIN_NS	1300
+#define I3C_BUS_I2C_FM_THIGH_MIN_NS	600
+#define I3C_BUS_I2C_FM_TR_MAX_NS	300
+#define I3C_BUS_I2C_FM_TF_MAX_NS	300
 #define I3C_BUS_I2C_FMP_TLOW_MIN_NS	500
+#define I3C_BUS_I2C_FMP_THIGH_MIN_NS	260
+#define I3C_BUS_I2C_FMP_TR_MAX_NS	120
+#define I3C_BUS_I2C_FMP_TF_MAX_NS	120
 #define I3C_BUS_THIGH_MAX_NS		41
 
 #define XFER_TIMEOUT (msecs_to_jiffies(1000))
@@ -596,6 +607,47 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 	dw_i3c_master_start_xfer_locked(master);
 }
 
+static int calc_i2c_clk(struct dw_i3c_master *master, unsigned long fscl,
+			u16 *hcnt, u16 *lcnt)
+{
+	unsigned long core_rate, core_period;
+	u32 period_cnt, margin;
+	u32 hcnt_min, lcnt_min;
+
+	core_rate = master->timing.core_rate;
+	core_period = master->timing.core_period;
+
+	if (fscl <= I3C_BUS_I2C_STD_SCL_RATE) {
+		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_STD_TLOW_MIN_NS +
+						I3C_BUS_I2C_STD_TF_MAX_NS,
+					core_period);
+		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_STD_THIGH_MIN_NS +
+						I3C_BUS_I2C_STD_TR_MAX_NS,
+					core_period);
+	} else if (fscl <= I3C_BUS_I2C_FM_SCL_RATE) {
+		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS +
+						I3C_BUS_I2C_FM_TF_MAX_NS,
+					core_period);
+		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FM_THIGH_MIN_NS +
+						I3C_BUS_I2C_FM_TR_MAX_NS,
+					core_period);
+	} else {
+		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FMP_TLOW_MIN_NS +
+						I3C_BUS_I2C_FMP_TF_MAX_NS,
+					core_period);
+		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FMP_THIGH_MIN_NS +
+						I3C_BUS_I2C_FMP_TR_MAX_NS,
+					core_period);
+	}
+
+	period_cnt = DIV_ROUND_UP(core_rate, fscl);
+	margin = (period_cnt - hcnt_min - lcnt_min) >> 1;
+	*lcnt = lcnt_min + margin;
+	*hcnt = max(period_cnt - *lcnt, hcnt_min);
+
+	return 0;
+}
+
 static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 {
 	unsigned long core_rate, core_period;
@@ -645,14 +697,12 @@ static int dw_i2c_clk_cfg(struct dw_i3c_master *master)
 	core_rate = master->timing.core_rate;
 	core_period = master->timing.core_period;
 
-	lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FMP_TLOW_MIN_NS, core_period);
-	hcnt = DIV_ROUND_UP(core_rate, I3C_BUS_I2C_FM_PLUS_SCL_RATE) - lcnt;
-	scl_timing = SCL_I2C_FMP_TIMING_HCNT(hcnt) |
-		     SCL_I2C_FMP_TIMING_LCNT(lcnt);
+	calc_i2c_clk(master, I3C_BUS_I2C_FM_PLUS_SCL_RATE, &hcnt, &lcnt);
+	scl_timing = FIELD_PREP(SCL_I2C_FMP_TIMING_HCNT, hcnt) |
+		     FIELD_PREP(SCL_I2C_FMP_TIMING_LCNT, lcnt);
 	writel(scl_timing, master->regs + SCL_I2C_FMP_TIMING);
 
-	lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS, core_period);
-	hcnt = DIV_ROUND_UP(core_rate, I3C_BUS_I2C_FM_SCL_RATE) - lcnt;
+	calc_i2c_clk(master, master->base.bus.scl_rate.i2c, &hcnt, &lcnt);
 	scl_timing = FIELD_PREP(SCL_I2C_FM_TIMING_HCNT, hcnt) |
 		     FIELD_PREP(SCL_I2C_FM_TIMING_LCNT, lcnt);
 	writel(scl_timing, master->regs + SCL_I2C_FM_TIMING);
