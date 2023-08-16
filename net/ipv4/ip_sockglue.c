@@ -993,6 +993,11 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			return -ENOPROTOOPT;
 		inet_assign_bit(HDRINCL, sk, val);
 		return 0;
+	case IP_MULTICAST_LOOP:
+		if (optlen < 1)
+			return -EINVAL;
+		inet_assign_bit(MC_LOOP, sk, val);
+		return 0;
 	}
 
 	err = 0;
@@ -1082,11 +1087,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		if (val < 0 || val > 255)
 			goto e_inval;
 		inet->mc_ttl = val;
-		break;
-	case IP_MULTICAST_LOOP:
-		if (optlen < 1)
-			goto e_inval;
-		inet->mc_loop = !!val;
 		break;
 	case IP_UNICAST_IF:
 	{
@@ -1579,6 +1579,9 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_HDRINCL:
 		val = inet_test_bit(HDRINCL, sk);
 		goto copyval;
+	case IP_MULTICAST_LOOP:
+		val = inet_test_bit(MC_LOOP, sk);
+		goto copyval;
 	}
 
 	if (needs_rtnl)
@@ -1652,9 +1655,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	}
 	case IP_MULTICAST_TTL:
 		val = inet->mc_ttl;
-		break;
-	case IP_MULTICAST_LOOP:
-		val = inet->mc_loop;
 		break;
 	case IP_UNICAST_IF:
 		val = (__force int)htonl((__u32) inet->uc_index);

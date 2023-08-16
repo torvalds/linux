@@ -231,7 +231,6 @@ struct inet_sock {
 	__u8			mc_ttl;
 	__u8			pmtudisc;
 	__u8			is_icsk:1,
-				mc_loop:1,
 				transparent:1,
 				mc_all:1,
 				nodefrag:1;
@@ -271,6 +270,7 @@ enum {
 	INET_FLAGS_RECVERR_RFC4884 = 10,
 	INET_FLAGS_FREEBIND	= 11,
 	INET_FLAGS_HDRINCL	= 12,
+	INET_FLAGS_MC_LOOP	= 13,
 };
 
 /* cmsg flags for inet */
