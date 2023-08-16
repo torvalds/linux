@@ -325,6 +325,9 @@ int __tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
 			flags += space;
 		} else if (tb->flags) {
 			memset(flag_buf_ptr(tb, tb->used), flags[0], space);
+		} else {
+			/* tb->flags should be available once requested */
+			WARN_ON_ONCE(need_flags);
 		}
 
 		tb->used += space;
