@@ -262,17 +262,10 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size,
 				     bool flags)
 {
 	struct tty_bufhead *buf = &port->buf;
-	struct tty_buffer *b, *n;
-	size_t left;
-	bool change;
+	struct tty_buffer *n, *b = buf->tail;
+	size_t left = (b->flags ? 1 : 2) * b->size - b->used;
+	bool change = !b->flags && flags;
 
-	b = buf->tail;
-	if (!b->flags)
-		left = 2 * b->size - b->used;
-	else
-		left = b->size - b->used;
-
-	change = !b->flags && flags;
 	if (change || left < size) {
 		/* This is the slow path - looking for new buffers to use */
 		n = tty_buffer_alloc(port, size);
