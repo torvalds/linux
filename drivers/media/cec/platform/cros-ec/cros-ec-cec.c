@@ -296,6 +296,7 @@ struct cec_dmi_match {
 
 static const char *const fizz_conns[] = { "Port B", NULL };
 static const char *const dibbi_conns[] = { "Port D", "Port B", NULL };
+static const char *const constitution_conns[] = { "Port B", "Port A", NULL };
 
 static const struct cec_dmi_match cec_dmi_match_table[] = {
 	/* Google Fizz */
@@ -316,6 +317,8 @@ static const struct cec_dmi_match cec_dmi_match_table[] = {
 	{ "Google", "Lisbon", "0000:00:02.0", fizz_conns },
 	/* Google Dibbi */
 	{ "Google", "Dibbi", "0000:00:02.0", dibbi_conns },
+	/* Google Constitution */
+	{ "Google", "Constitution", "0000:00:02.0", constitution_conns },
 };
 
 static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
