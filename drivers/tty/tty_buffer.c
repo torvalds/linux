@@ -263,7 +263,8 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size,
 {
 	struct tty_bufhead *buf = &port->buf;
 	struct tty_buffer *b, *n;
-	int left, change;
+	size_t left;
+	bool change;
 
 	b = buf->tail;
 	if (!b->flags)
