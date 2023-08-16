@@ -461,3 +461,20 @@ bool dml2_verify_det_buffer_configuration(struct dml2_context *in_ctx, struct dc
 
 	return need_recalculation;
 }
+
+bool dml2_is_stereo_timing(struct dc_stream_state *stream)
+{
+	bool is_stereo = false;
+
+	if ((stream->view_format ==
+			VIEW_3D_FORMAT_SIDE_BY_SIDE ||
+			stream->view_format ==
+			VIEW_3D_FORMAT_TOP_AND_BOTTOM) &&
+			(stream->timing.timing_3d_format ==
+			TIMING_3D_FORMAT_TOP_AND_BOTTOM ||
+			stream->timing.timing_3d_format ==
+			TIMING_3D_FORMAT_SIDE_BY_SIDE))
+		is_stereo = true;
+
+	return is_stereo;
+}
