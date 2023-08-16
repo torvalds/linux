@@ -148,7 +148,7 @@ struct snd_compr_ops {
  */
 struct snd_compr {
 	const char *name;
-	struct device dev;
+	struct device *dev;
 	struct snd_compr_ops *ops;
 	void *private_data;
 	struct snd_card *card;
