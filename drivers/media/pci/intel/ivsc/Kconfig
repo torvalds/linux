@@ -3,7 +3,7 @@
 
 config INTEL_VSC
 	tristate "Intel Visual Sensing Controller"
-	depends on INTEL_MEI
+	depends on INTEL_MEI && ACPI
 	help
 	  This adds support for Intel Visual Sensing Controller (IVSC).
 
