@@ -2003,6 +2003,7 @@ static const struct adsp_data monaco_auto_gpdsp_resource = {
 	.sysmon_name = "gpdsp0",
 	.qmp_name = "gpdsp0",
 	.ssctl_id = 0x21,
+	.auto_boot = true,
 };
 
 static const struct of_device_id adsp_of_match[] = {
