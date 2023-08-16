@@ -146,9 +146,10 @@ For the rest of this document we will prefix all userspace ids with ``u`` and
 all kernel ids with ``k``. Ranges of idmappings will be prefixed with ``r``. So
 an idmapping will be written as ``u0:k10000:r10000``.
 
-For example, the id ``u1000`` is an id in the upper idmapset or "userspace
-idmapset" starting with ``u1000``. And it is mapped to ``k11000`` which is a
-kernel id in the lower idmapset or "kernel idmapset" starting with ``k10000``.
+For example, within this idmapping, the id ``u1000`` is an id in the upper
+idmapset or "userspace idmapset" starting with ``u0``. And it is mapped to
+``k11000`` which is a kernel id in the lower idmapset or "kernel idmapset"
+starting with ``k10000``.
 
 A kernel id is always created by an idmapping. Such idmappings are associated
 with user namespaces. Since we mainly care about how idmappings work we're not
