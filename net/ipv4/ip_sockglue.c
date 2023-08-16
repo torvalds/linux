@@ -171,8 +171,10 @@ static void ip_cmsg_recv_dstaddr(struct msghdr *msg, struct sk_buff *skb)
 void ip_cmsg_recv_offset(struct msghdr *msg, struct sock *sk,
 			 struct sk_buff *skb, int tlen, int offset)
 {
-	struct inet_sock *inet = inet_sk(sk);
-	unsigned int flags = inet->cmsg_flags;
+	unsigned long flags = inet_cmsg_flags(inet_sk(sk));
+
+	if (!flags)
+		return;
 
 	/* Ordered by supposed usage frequency */
 	if (flags & IP_CMSG_PKTINFO) {
@@ -568,7 +570,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 	if (ipv4_datagram_support_cmsg(sk, skb, serr->ee.ee_origin)) {
 		sin->sin_family = AF_INET;
 		sin->sin_addr.s_addr = ip_hdr(skb)->saddr;
-		if (inet_sk(sk)->cmsg_flags)
+		if (inet_cmsg_flags(inet_sk(sk)))
 			ip_cmsg_recv(msg, skb);
 	}
 
@@ -635,7 +637,7 @@ EXPORT_SYMBOL(ip_sock_set_mtu_discover);
 void ip_sock_set_pktinfo(struct sock *sk)
 {
 	lock_sock(sk);
-	inet_sk(sk)->cmsg_flags |= IP_CMSG_PKTINFO;
+	inet_set_bit(PKTINFO, sk);
 	release_sock(sk);
 }
 EXPORT_SYMBOL(ip_sock_set_pktinfo);
@@ -990,67 +992,43 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	}
 	case IP_PKTINFO:
-		if (val)
-			inet->cmsg_flags |= IP_CMSG_PKTINFO;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_PKTINFO;
+		inet_assign_bit(PKTINFO, sk, val);
 		break;
 	case IP_RECVTTL:
-		if (val)
-			inet->cmsg_flags |=  IP_CMSG_TTL;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_TTL;
+		inet_assign_bit(TTL, sk, val);
 		break;
 	case IP_RECVTOS:
-		if (val)
-			inet->cmsg_flags |=  IP_CMSG_TOS;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_TOS;
+		inet_assign_bit(TOS, sk, val);
 		break;
 	case IP_RECVOPTS:
-		if (val)
-			inet->cmsg_flags |=  IP_CMSG_RECVOPTS;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_RECVOPTS;
+		inet_assign_bit(RECVOPTS, sk, val);
 		break;
 	case IP_RETOPTS:
-		if (val)
-			inet->cmsg_flags |= IP_CMSG_RETOPTS;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_RETOPTS;
+		inet_assign_bit(RETOPTS, sk, val);
 		break;
 	case IP_PASSSEC:
-		if (val)
-			inet->cmsg_flags |= IP_CMSG_PASSSEC;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_PASSSEC;
+		inet_assign_bit(PASSSEC, sk, val);
 		break;
 	case IP_RECVORIGDSTADDR:
-		if (val)
-			inet->cmsg_flags |= IP_CMSG_ORIGDSTADDR;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_ORIGDSTADDR;
+		inet_assign_bit(ORIGDSTADDR, sk, val);
 		break;
 	case IP_CHECKSUM:
 		if (val) {
-			if (!(inet->cmsg_flags & IP_CMSG_CHECKSUM)) {
+			if (!(inet_test_bit(CHECKSUM, sk))) {
 				inet_inc_convert_csum(sk);
-				inet->cmsg_flags |= IP_CMSG_CHECKSUM;
+				inet_set_bit(CHECKSUM, sk);
 			}
 		} else {
-			if (inet->cmsg_flags & IP_CMSG_CHECKSUM) {
+			if (inet_test_bit(CHECKSUM, sk)) {
 				inet_dec_convert_csum(sk);
-				inet->cmsg_flags &= ~IP_CMSG_CHECKSUM;
+				inet_clear_bit(CHECKSUM, sk);
 			}
 		}
 		break;
 	case IP_RECVFRAGSIZE:
 		if (sk->sk_type != SOCK_RAW && sk->sk_type != SOCK_DGRAM)
 			goto e_inval;
-		if (val)
-			inet->cmsg_flags |= IP_CMSG_RECVFRAGSIZE;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_RECVFRAGSIZE;
+		inet_assign_bit(RECVFRAGSIZE, sk, val);
 		break;
 	case IP_TOS:	/* This sets both TOS and Precedence */
 		__ip_sock_set_tos(sk, val);
@@ -1415,7 +1393,7 @@ e_inval:
 void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb)
 {
 	struct in_pktinfo *pktinfo = PKTINFO_SKB_CB(skb);
-	bool prepare = (inet_sk(sk)->cmsg_flags & IP_CMSG_PKTINFO) ||
+	bool prepare = inet_test_bit(PKTINFO, sk) ||
 		       ipv6_sk_rxinfo(sk);
 
 	if (prepare && skb_rtable(skb)) {
@@ -1601,31 +1579,31 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		return 0;
 	}
 	case IP_PKTINFO:
-		val = (inet->cmsg_flags & IP_CMSG_PKTINFO) != 0;
+		val = inet_test_bit(PKTINFO, sk);
 		break;
 	case IP_RECVTTL:
-		val = (inet->cmsg_flags & IP_CMSG_TTL) != 0;
+		val = inet_test_bit(TTL, sk);
 		break;
 	case IP_RECVTOS:
-		val = (inet->cmsg_flags & IP_CMSG_TOS) != 0;
+		val = inet_test_bit(TOS, sk);
 		break;
 	case IP_RECVOPTS:
-		val = (inet->cmsg_flags & IP_CMSG_RECVOPTS) != 0;
+		val = inet_test_bit(RECVOPTS, sk);
 		break;
 	case IP_RETOPTS:
-		val = (inet->cmsg_flags & IP_CMSG_RETOPTS) != 0;
+		val = inet_test_bit(RETOPTS, sk);
 		break;
 	case IP_PASSSEC:
-		val = (inet->cmsg_flags & IP_CMSG_PASSSEC) != 0;
+		val = inet_test_bit(PASSSEC, sk);
 		break;
 	case IP_RECVORIGDSTADDR:
-		val = (inet->cmsg_flags & IP_CMSG_ORIGDSTADDR) != 0;
+		val = inet_test_bit(ORIGDSTADDR, sk);
 		break;
 	case IP_CHECKSUM:
-		val = (inet->cmsg_flags & IP_CMSG_CHECKSUM) != 0;
+		val = inet_test_bit(CHECKSUM, sk);
 		break;
 	case IP_RECVFRAGSIZE:
-		val = (inet->cmsg_flags & IP_CMSG_RECVFRAGSIZE) != 0;
+		val = inet_test_bit(RECVFRAGSIZE, sk);
 		break;
 	case IP_TOS:
 		val = inet->tos;
@@ -1737,7 +1715,7 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		msg.msg_controllen = len;
 		msg.msg_flags = in_compat_syscall() ? MSG_CMSG_COMPAT : 0;
 
-		if (inet->cmsg_flags & IP_CMSG_PKTINFO) {
+		if (inet_test_bit(PKTINFO, sk)) {
 			struct in_pktinfo info;
 
 			info.ipi_addr.s_addr = inet->inet_rcv_saddr;
@@ -1745,11 +1723,11 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			info.ipi_ifindex = inet->mc_index;
 			put_cmsg(&msg, SOL_IP, IP_PKTINFO, sizeof(info), &info);
 		}
-		if (inet->cmsg_flags & IP_CMSG_TTL) {
+		if (inet_test_bit(TTL, sk)) {
 			int hlim = inet->mc_ttl;
 			put_cmsg(&msg, SOL_IP, IP_TTL, sizeof(hlim), &hlim);
 		}
-		if (inet->cmsg_flags & IP_CMSG_TOS) {
+		if (inet_test_bit(TOS, sk)) {
 			int tos = inet->rcv_tos;
 			put_cmsg(&msg, SOL_IP, IP_TOS, sizeof(tos), &tos);
 		}

@@ -420,7 +420,7 @@ try_again:
 		ip6_datagram_recv_common_ctl(sk, msg, skb);
 
 	if (is_udp4) {
-		if (inet->cmsg_flags)
+		if (inet_cmsg_flags(inet))
 			ip_cmsg_recv_offset(msg, sk, skb,
 					    sizeof(struct udphdr), off);
 	} else {

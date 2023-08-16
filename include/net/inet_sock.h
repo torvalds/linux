@@ -194,6 +194,7 @@ struct rtable;
  * @inet_rcv_saddr - Bound local IPv4 addr
  * @inet_dport - Destination port
  * @inet_num - Local port
+ * @inet_flags - various atomic flags
  * @inet_saddr - Sending source
  * @uc_ttl - Unicast TTL
  * @inet_sport - Source port
@@ -218,11 +219,11 @@ struct inet_sock {
 #define inet_dport		sk.__sk_common.skc_dport
 #define inet_num		sk.__sk_common.skc_num
 
+	unsigned long		inet_flags;
 	__be32			inet_saddr;
 	__s16			uc_ttl;
-	__u16			cmsg_flags;
-	struct ip_options_rcu __rcu	*inet_opt;
 	__be16			inet_sport;
+	struct ip_options_rcu __rcu	*inet_opt;
 	__u16			inet_id;
 
 	__u8			tos;
@@ -259,16 +260,48 @@ struct inet_sock {
 #define IPCORK_OPT	1	/* ip-options has been held in ipcork.opt */
 #define IPCORK_ALLFRAG	2	/* always fragment (for ipv6 for now) */
 
+enum {
+	INET_FLAGS_PKTINFO	= 0,
+	INET_FLAGS_TTL		= 1,
+	INET_FLAGS_TOS		= 2,
+	INET_FLAGS_RECVOPTS	= 3,
+	INET_FLAGS_RETOPTS	= 4,
+	INET_FLAGS_PASSSEC	= 5,
+	INET_FLAGS_ORIGDSTADDR	= 6,
+	INET_FLAGS_CHECKSUM	= 7,
+	INET_FLAGS_RECVFRAGSIZE	= 8,
+};
+
 /* cmsg flags for inet */
-#define IP_CMSG_PKTINFO		BIT(0)
-#define IP_CMSG_TTL		BIT(1)
-#define IP_CMSG_TOS		BIT(2)
-#define IP_CMSG_RECVOPTS	BIT(3)
-#define IP_CMSG_RETOPTS		BIT(4)
-#define IP_CMSG_PASSSEC		BIT(5)
-#define IP_CMSG_ORIGDSTADDR	BIT(6)
-#define IP_CMSG_CHECKSUM	BIT(7)
-#define IP_CMSG_RECVFRAGSIZE	BIT(8)
+#define IP_CMSG_PKTINFO		BIT(INET_FLAGS_PKTINFO)
+#define IP_CMSG_TTL		BIT(INET_FLAGS_TTL)
+#define IP_CMSG_TOS		BIT(INET_FLAGS_TOS)
+#define IP_CMSG_RECVOPTS	BIT(INET_FLAGS_RECVOPTS)
+#define IP_CMSG_RETOPTS		BIT(INET_FLAGS_RETOPTS)
+#define IP_CMSG_PASSSEC		BIT(INET_FLAGS_PASSSEC)
+#define IP_CMSG_ORIGDSTADDR	BIT(INET_FLAGS_ORIGDSTADDR)
+#define IP_CMSG_CHECKSUM	BIT(INET_FLAGS_CHECKSUM)
+#define IP_CMSG_RECVFRAGSIZE	BIT(INET_FLAGS_RECVFRAGSIZE)
+
+#define IP_CMSG_ALL	(IP_CMSG_PKTINFO | IP_CMSG_TTL |		\
+			 IP_CMSG_TOS | IP_CMSG_RECVOPTS |		\
+			 IP_CMSG_RETOPTS | IP_CMSG_PASSSEC |		\
+			 IP_CMSG_ORIGDSTADDR | IP_CMSG_CHECKSUM |	\
+			 IP_CMSG_RECVFRAGSIZE)
+
+static inline unsigned long inet_cmsg_flags(const struct inet_sock *inet)
+{
+	return READ_ONCE(inet->inet_flags) & IP_CMSG_ALL;
+}
+
+#define inet_test_bit(nr, sk)			\
+	test_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet_set_bit(nr, sk)			\
+	set_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet_clear_bit(nr, sk)			\
+	clear_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet_assign_bit(nr, sk, val)		\
+	assign_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags, val)
 
 static inline bool sk_is_inet(struct sock *sk)
 {
