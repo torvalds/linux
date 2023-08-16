@@ -1110,6 +1110,10 @@ void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 {
 	if (dc->debug.dmcub_emulation)
 		return;
+
+	if (!dc->idle_optimizations_allowed)
+		return;
+
 	// Tell PMFW to exit low power state
 	if (dc->clk_mgr->funcs->exit_low_power_state)
 		dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);

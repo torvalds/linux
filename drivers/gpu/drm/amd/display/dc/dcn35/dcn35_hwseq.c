@@ -651,6 +651,8 @@ bool dcn35_apply_idle_power_optimizations(struct dc *dc, bool enable)
 		// Tell PMFW to exit low power state
 		if (dc->clk_mgr->funcs->exit_low_power_state)
 			dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+
+		dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true);
 	}
 
 	dc_dmub_srv_notify_idle(dc, enable);
