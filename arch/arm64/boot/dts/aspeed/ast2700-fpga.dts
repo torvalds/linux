@@ -132,6 +132,25 @@
 	max-frequency = <100000000>;
 };
 
+&sdio_controller {
+	status = "okay";
+	aspeed-max-tap-delay = <9000>;
+};
+
+&sdhci {
+	status = "okay";
+	bus-width = <4>;
+	max-frequency = <100000000>;
+	sdhci-drive-type = /bits/ 8 <3>;
+	/* SDR104/DDR50 bits in CAPA2 are not supported */
+	sdhci-caps-mask = <0x6 0x0>;
+	sdhci,wp-inverted;
+	//    vmmc-supply = <&vcc_sdhci0>;
+	//    vqmmc-supply = <&vccq_sdhci0>;
+	/* <0 (MHz * 1.296)>, <1 (MHz * 2.376)> */
+	clk-phase-uhs-sdr50 = <0 130>, <0 238>;
+};
+
 &ufs_controller {
 	status = "okay";
 };
