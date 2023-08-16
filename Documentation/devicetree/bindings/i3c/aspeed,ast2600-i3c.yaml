@@ -23,12 +23,7 @@ properties:
     maxItems: 1
 
   resets:
-    maxItems: 2
-
-  reset-names:
-    items:
-      - const: core_rst
-      - const: global_rst
+    maxItems: 1
 
   interrupts:
     maxItems: 1
@@ -53,8 +48,6 @@ required:
   - compatible
   - reg
   - clocks
-  - resets
-  - reset-names
   - interrupts
   - aspeed,global-regs
 
@@ -70,8 +63,7 @@ examples:
         #address-cells = <3>;
         #size-cells = <0>;
         clocks = <&syscon 0>;
-        resets = <&syscon 40>, <&syscon 39>;
-        reset-names = "core_rst", "global_rst";
+        resets = <&syscon 0>;
         aspeed,global-regs = <&i3c_global 0>;
         pinctrl-names = "default";
         pinctrl-0 = <&pinctrl_i3c1_default>;
