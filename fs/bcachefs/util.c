@@ -269,6 +269,7 @@ void bch2_print_string_as_lines(const char *prefix, const char *lines)
 
 int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task)
 {
+#ifdef CONFIG_STACKTRACE
 	unsigned nr_entries = 0;
 	int ret = 0;
 
@@ -289,6 +290,9 @@ int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task)
 	up_read(&task->signal->exec_update_lock);
 
 	return ret;
+#else
+	return 0;
+#endif
 }
 
 void bch2_prt_backtrace(struct printbuf *out, bch_stacktrace *stack)
