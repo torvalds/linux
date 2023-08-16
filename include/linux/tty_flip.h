@@ -13,7 +13,7 @@ int tty_buffer_request_room(struct tty_port *port, size_t size);
 size_t __tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
 				      const u8 *flags, bool mutable_flags,
 				      size_t size);
-int tty_prepare_flip_string(struct tty_port *port, u8 **chars, size_t size);
+size_t tty_prepare_flip_string(struct tty_port *port, u8 **chars, size_t size);
 void tty_flip_buffer_push(struct tty_port *port);
 int __tty_insert_flip_char(struct tty_port *port, u8 ch, u8 flag);
 

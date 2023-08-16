@@ -383,9 +383,9 @@ EXPORT_SYMBOL(__tty_insert_flip_char);
  * Returns: the length available and buffer pointer (@chars) to the space which
  * is now allocated and accounted for as ready for normal characters.
  */
-int tty_prepare_flip_string(struct tty_port *port, u8 **chars, size_t size)
+size_t tty_prepare_flip_string(struct tty_port *port, u8 **chars, size_t size)
 {
-	int space = __tty_buffer_request_room(port, size, false);
+	size_t space = __tty_buffer_request_room(port, size, false);
 
 	if (likely(space)) {
 		struct tty_buffer *tb = port->buf.tail;
@@ -395,6 +395,7 @@ int tty_prepare_flip_string(struct tty_port *port, u8 **chars, size_t size)
 			memset(flag_buf_ptr(tb, tb->used), TTY_NORMAL, space);
 		tb->used += space;
 	}
+
 	return space;
 }
 EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
