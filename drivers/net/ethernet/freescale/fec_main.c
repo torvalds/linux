@@ -1494,7 +1494,7 @@ fec_enet_tx_queue(struct net_device *ndev, u16 queue_id, int budget)
 			}
 
 			/* Free the sk buffer associated with this last transmit */
-			dev_kfree_skb_any(skb);
+			napi_consume_skb(skb, budget);
 		} else if (txq->tx_buf[index].type == FEC_TXBUF_T_XDP_NDO) {
 			xdp_return_frame_rx_napi(xdpf);
 		} else { /* recycle pages of XDP_TX frames */
