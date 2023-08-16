@@ -670,6 +670,10 @@ bool ovl_already_copied_up(struct dentry *dentry, int flags)
 	return false;
 }
 
+/*
+ * The copy up "transaction" keeps an elevated mnt write count on upper mnt,
+ * but leaves taking freeze protection on upper sb to lower level helpers.
+ */
 int ovl_copy_up_start(struct dentry *dentry, int flags)
 {
 	struct inode *inode = d_inode(dentry);
@@ -682,7 +686,7 @@ int ovl_copy_up_start(struct dentry *dentry, int flags)
 	if (ovl_already_copied_up_locked(dentry, flags))
 		err = 1; /* Already copied up */
 	else
-		err = ovl_want_write(dentry);
+		err = ovl_get_write_access(dentry);
 	if (err)
 		goto out_unlock;
 
@@ -695,7 +699,7 @@ out_unlock:
 
 void ovl_copy_up_end(struct dentry *dentry)
 {
-	ovl_drop_write(dentry);
+	ovl_put_write_access(dentry);
 	ovl_inode_unlock(d_inode(dentry));
 }
 
