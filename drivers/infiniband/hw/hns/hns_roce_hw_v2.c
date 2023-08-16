@@ -1613,6 +1613,56 @@ static int hns_roce_query_func_info(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
+static int hns_roce_hw_v2_query_counter(struct hns_roce_dev *hr_dev,
+					u64 *stats, u32 port, int *num_counters)
+{
+#define CNT_PER_DESC 3
+	struct hns_roce_cmq_desc *desc;
+	int bd_idx, cnt_idx;
+	__le64 *cnt_data;
+	int desc_num;
+	int ret;
+	int i;
+
+	if (port > hr_dev->caps.num_ports)
+		return -EINVAL;
+
+	desc_num = DIV_ROUND_UP(HNS_ROCE_HW_CNT_TOTAL, CNT_PER_DESC);
+	desc = kcalloc(desc_num, sizeof(*desc), GFP_KERNEL);
+	if (!desc)
+		return -ENOMEM;
+
+	for (i = 0; i < desc_num; i++) {
+		hns_roce_cmq_setup_basic_desc(&desc[i],
+					      HNS_ROCE_OPC_QUERY_COUNTER, true);
+		if (i != desc_num - 1)
+			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+	}
+
+	ret = hns_roce_cmq_send(hr_dev, desc, desc_num);
+	if (ret) {
+		ibdev_err(&hr_dev->ib_dev,
+			  "failed to get counter, ret = %d.\n", ret);
+		goto err_out;
+	}
+
+	for (i = 0; i < HNS_ROCE_HW_CNT_TOTAL && i < *num_counters; i++) {
+		bd_idx = i / CNT_PER_DESC;
+		if (!(desc[bd_idx].flag & HNS_ROCE_CMD_FLAG_NEXT) &&
+		    bd_idx != HNS_ROCE_HW_CNT_TOTAL / CNT_PER_DESC)
+			break;
+
+		cnt_data = (__le64 *)&desc[bd_idx].data[0];
+		cnt_idx = i % CNT_PER_DESC;
+		stats[i] = le64_to_cpu(cnt_data[cnt_idx]);
+	}
+	*num_counters = i;
+
+err_out:
+	kfree(desc);
+	return ret;
+}
+
 static int hns_roce_config_global_param(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cmq_desc desc;
@@ -6582,6 +6632,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.query_cqc = hns_roce_v2_query_cqc,
 	.query_qpc = hns_roce_v2_query_qpc,
 	.query_mpt = hns_roce_v2_query_mpt,
+	.query_hw_counter = hns_roce_hw_v2_query_counter,
 	.hns_roce_dev_ops = &hns_roce_v2_dev_ops,
 	.hns_roce_dev_srq_ops = &hns_roce_v2_dev_srq_ops,
 };
