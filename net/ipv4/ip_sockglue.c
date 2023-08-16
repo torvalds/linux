@@ -446,12 +446,11 @@ EXPORT_SYMBOL_GPL(ip_icmp_error);
 
 void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 info)
 {
-	struct inet_sock *inet = inet_sk(sk);
 	struct sock_exterr_skb *serr;
 	struct iphdr *iph;
 	struct sk_buff *skb;
 
-	if (!inet->recverr)
+	if (!inet_test_bit(RECVERR, sk))
 		return;
 
 	skb = alloc_skb(sizeof(struct iphdr), GFP_ATOMIC);
@@ -617,9 +616,7 @@ EXPORT_SYMBOL(ip_sock_set_freebind);
 
 void ip_sock_set_recverr(struct sock *sk)
 {
-	lock_sock(sk);
-	inet_sk(sk)->recverr = true;
-	release_sock(sk);
+	inet_set_bit(RECVERR, sk);
 }
 EXPORT_SYMBOL(ip_sock_set_recverr);
 
@@ -978,6 +975,11 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		inet_assign_bit(RECVFRAGSIZE, sk, val);
 		return 0;
+	case IP_RECVERR:
+		inet_assign_bit(RECVERR, sk, val);
+		if (!val)
+			skb_queue_purge(&sk->sk_error_queue);
+		return 0;
 	}
 
 	err = 0;
@@ -1063,11 +1065,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
 			goto e_inval;
 		inet->pmtudisc = val;
-		break;
-	case IP_RECVERR:
-		inet->recverr = !!val;
-		if (!val)
-			skb_queue_purge(&sk->sk_error_queue);
 		break;
 	case IP_RECVERR_RFC4884:
 		if (val < 0 || val > 1)
@@ -1575,6 +1572,9 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_RECVFRAGSIZE:
 		val = inet_test_bit(RECVFRAGSIZE, sk);
 		goto copyval;
+	case IP_RECVERR:
+		val = inet_test_bit(RECVERR, sk);
+		goto copyval;
 	}
 
 	if (needs_rtnl)
@@ -1649,9 +1649,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		}
 		break;
 	}
-	case IP_RECVERR:
-		val = inet->recverr;
-		break;
 	case IP_RECVERR_RFC4884:
 		val = inet->recverr_rfc4884;
 		break;

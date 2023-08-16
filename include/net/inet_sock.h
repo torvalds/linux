@@ -230,8 +230,7 @@ struct inet_sock {
 	__u8			min_ttl;
 	__u8			mc_ttl;
 	__u8			pmtudisc;
-	__u8			recverr:1,
-				is_icsk:1,
+	__u8			is_icsk:1,
 				freebind:1,
 				hdrincl:1,
 				mc_loop:1,
@@ -270,6 +269,8 @@ enum {
 	INET_FLAGS_ORIGDSTADDR	= 6,
 	INET_FLAGS_CHECKSUM	= 7,
 	INET_FLAGS_RECVFRAGSIZE	= 8,
+
+	INET_FLAGS_RECVERR	= 9,
 };
 
 /* cmsg flags for inet */
