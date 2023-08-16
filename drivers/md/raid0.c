@@ -553,8 +553,7 @@ static void raid0_map_submit_bio(struct mddev *mddev, struct bio *bio)
 	sector_t bio_sector = bio->bi_iter.bi_sector;
 	sector_t sector = bio_sector;
 
-	if (bio->bi_pool != &mddev->bio_set)
-		md_account_bio(mddev, &bio);
+	md_account_bio(mddev, &bio);
 
 	zone = find_zone(mddev->private, &sector);
 	switch (conf->layout) {
