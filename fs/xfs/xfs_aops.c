@@ -478,7 +478,7 @@ xfs_discard_folio(
 			folio, ip->i_ino, pos);
 
 	/*
-	 * The end of the punch range is always the offset of the the first
+	 * The end of the punch range is always the offset of the first
 	 * byte of the next folio. Hence the end offset is only dependent on the
 	 * folio itself and not the start offset that is passed in.
 	 */
