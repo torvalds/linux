@@ -102,7 +102,7 @@ int ip6_ra_control(struct sock *sk, int sel)
 struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
 					   struct ipv6_txoptions *opt)
 {
-	if (inet_sk(sk)->is_icsk) {
+	if (inet_test_bit(IS_ICSK, sk)) {
 		if (opt &&
 		    !((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_CLOSE)) &&
 		    inet_sk(sk)->inet_daddr != LOOPBACK4_IPV6) {
@@ -831,7 +831,7 @@ done:
 			goto e_inval;
 
 		retv = -EPROTO;
-		if (inet_sk(sk)->is_icsk)
+		if (inet_test_bit(IS_ICSK, sk))
 			break;
 
 		retv = -EFAULT;

@@ -1034,7 +1034,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			break;
 		old = rcu_dereference_protected(inet->inet_opt,
 						lockdep_sock_is_held(sk));
-		if (inet->is_icsk) {
+		if (inet_test_bit(IS_ICSK, sk)) {
 			struct inet_connection_sock *icsk = inet_csk(sk);
 #if IS_ENABLED(CONFIG_IPV6)
 			if (sk->sk_family == PF_INET ||
@@ -1209,7 +1209,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		struct ip_mreqn mreq;
 
 		err = -EPROTO;
-		if (inet_sk(sk)->is_icsk)
+		if (inet_test_bit(IS_ICSK, sk))
 			break;
 
 		if (optlen < sizeof(struct ip_mreq))

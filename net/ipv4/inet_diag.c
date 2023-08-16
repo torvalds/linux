@@ -183,7 +183,7 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 
 	memset(&inet_sockopt, 0, sizeof(inet_sockopt));
 	inet_sockopt.recverr	= inet_test_bit(RECVERR, sk);
-	inet_sockopt.is_icsk	= inet->is_icsk;
+	inet_sockopt.is_icsk	= inet_test_bit(IS_ICSK, sk);
 	inet_sockopt.freebind	= inet_test_bit(FREEBIND, sk);
 	inet_sockopt.hdrincl	= inet_test_bit(HDRINCL, sk);
 	inet_sockopt.mc_loop	= inet_test_bit(MC_LOOP, sk);
