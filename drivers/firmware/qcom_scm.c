@@ -451,6 +451,29 @@ int qcom_scm_set_remote_state(u32 state, u32 id)
 }
 EXPORT_SYMBOL_GPL(qcom_scm_set_remote_state);
 
+static int qcom_scm_disable_sdi(void)
+{
+	int ret;
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_BOOT,
+		.cmd = QCOM_SCM_BOOT_SDI_CONFIG,
+		.args[0] = 1, /* Disable watchdog debug */
+		.args[1] = 0, /* Disable SDI */
+		.arginfo = QCOM_SCM_ARGS(2),
+		.owner = ARM_SMCCC_OWNER_SIP,
+	};
+	struct qcom_scm_res res;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+	ret = qcom_scm_call(__scm->dev, &desc, &res);
+
+	qcom_scm_clk_disable();
+
+	return ret ? : res.result[0];
+}
+
 static int __qcom_scm_set_dload_mode(struct device *dev, bool enable)
 {
 	struct qcom_scm_desc desc = {
@@ -1849,6 +1872,13 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	 */
 	if (download_mode)
 		qcom_scm_set_download_mode(true);
+
+
+	/*
+	 * Disable SDI if indicated by DT that it is enabled by default.
+	 */
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,sdi-enabled"))
+		qcom_scm_disable_sdi();
 
 	/*
 	 * Initialize the QSEECOM interface.
