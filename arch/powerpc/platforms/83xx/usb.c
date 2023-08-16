@@ -6,18 +6,16 @@
  * Author: Li Yang
  */
 
-
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <sysdev/fsl_soc.h>
 
 #include "mpc83xx.h"
-
 
 #ifdef CONFIG_PPC_MPC834x
 int __init mpc834x_usb_cfg(void)
@@ -44,8 +42,8 @@ int __init mpc834x_usb_cfg(void)
 
 		prop = of_get_property(np, "phy_type", NULL);
 		port1_is_dr = 1;
-		if (prop && (!strcmp(prop, "utmi") ||
-					!strcmp(prop, "utmi_wide"))) {
+		if (prop &&
+		    (!strcmp(prop, "utmi") || !strcmp(prop, "utmi_wide"))) {
 			sicrl |= MPC834X_SICRL_USB0 | MPC834X_SICRL_USB1;
 			sicrh |= MPC834X_SICRH_USB_UTMI;
 			port0_is_dr = 1;
@@ -60,7 +58,7 @@ int __init mpc834x_usb_cfg(void)
 		} else if (prop && !strcmp(prop, "ulpi")) {
 			sicrl |= MPC834X_SICRL_USB1;
 		} else {
-			printk(KERN_WARNING "834x USB PHY type not supported\n");
+			pr_warn("834x USB PHY type not supported\n");
 		}
 		of_node_put(np);
 	}
@@ -71,15 +69,13 @@ int __init mpc834x_usb_cfg(void)
 		prop = of_get_property(np, "port0", NULL);
 		if (prop) {
 			if (port0_is_dr)
-				printk(KERN_WARNING
-					"834x USB port0 can't be used by both DR and MPH!\n");
+				pr_warn("834x USB port0 can't be used by both DR and MPH!\n");
 			sicrl &= ~MPC834X_SICRL_USB0;
 		}
 		prop = of_get_property(np, "port1", NULL);
 		if (prop) {
 			if (port1_is_dr)
-				printk(KERN_WARNING
-					"834x USB port1 can't be used by both DR and MPH!\n");
+				pr_warn("834x USB port1 can't be used by both DR and MPH!\n");
 			sicrl &= ~MPC834X_SICRL_USB1;
 		}
 		of_node_put(np);
@@ -124,14 +120,14 @@ int __init mpc831x_usb_cfg(void)
 	/* Configure clock */
 	immr_node = of_get_parent(np);
 	if (immr_node && (of_device_is_compatible(immr_node, "fsl,mpc8315-immr") ||
-			of_device_is_compatible(immr_node, "fsl,mpc8308-immr")))
+			  of_device_is_compatible(immr_node, "fsl,mpc8308-immr")))
 		clrsetbits_be32(immap + MPC83XX_SCCR_OFFS,
-		                MPC8315_SCCR_USB_MASK,
-		                MPC8315_SCCR_USB_DRCM_01);
+				MPC8315_SCCR_USB_MASK,
+				MPC8315_SCCR_USB_DRCM_01);
 	else
 		clrsetbits_be32(immap + MPC83XX_SCCR_OFFS,
-		                MPC83XX_SCCR_USB_MASK,
-		                MPC83XX_SCCR_USB_DRCM_11);
+				MPC83XX_SCCR_USB_MASK,
+				MPC83XX_SCCR_USB_DRCM_11);
 
 	/* Configure pin mux for ULPI.  There is no pin mux for UTMI */
 	if (prop && !strcmp(prop, "ulpi")) {
@@ -169,8 +165,7 @@ int __init mpc831x_usb_cfg(void)
 	usb_regs = ioremap(res.start, resource_size(&res));
 
 	/* Using on-chip PHY */
-	if (prop && (!strcmp(prop, "utmi_wide") ||
-		     !strcmp(prop, "utmi"))) {
+	if (prop && (!strcmp(prop, "utmi_wide") || !strcmp(prop, "utmi"))) {
 		u32 refsel;
 
 		if (of_device_is_compatible(immr_node, "fsl,mpc8308-immr"))
@@ -182,7 +177,7 @@ int __init mpc831x_usb_cfg(void)
 			refsel = CONTROL_REFSEL_48MHZ;
 		/* Set UTMI_PHY_EN and REFSEL */
 		out_be32(usb_regs + FSL_USB2_CONTROL_OFFS,
-				CONTROL_UTMI_PHY_EN | refsel);
+			 CONTROL_UTMI_PHY_EN | refsel);
 	/* Using external UPLI PHY */
 	} else if (prop && !strcmp(prop, "ulpi")) {
 		/* Set PHY_CLK_SEL to ULPI */
@@ -197,7 +192,7 @@ int __init mpc831x_usb_cfg(void)
 #endif /* CONFIG_USB_OTG */
 		out_be32(usb_regs + FSL_USB2_CONTROL_OFFS, temp);
 	} else {
-		printk(KERN_WARNING "831x USB PHY type not supported\n");
+		pr_warn("831x USB PHY type not supported\n");
 		ret = -EINVAL;
 	}
 
@@ -224,7 +219,7 @@ int __init mpc837x_usb_cfg(void)
 	prop = of_get_property(np, "phy_type", NULL);
 
 	if (!prop || (strcmp(prop, "ulpi") && strcmp(prop, "serial"))) {
-		printk(KERN_WARNING "837x USB PHY type not supported\n");
+		pr_warn("837x USB PHY type not supported\n");
 		of_node_put(np);
 		return -EINVAL;
 	}
