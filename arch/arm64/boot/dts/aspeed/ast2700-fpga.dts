@@ -255,10 +255,45 @@
 	flash-dma-mode;
 };
 
+&lpc0_kcs0 {
+	status = "okay";
+	kcs-io-addr = <0xca0>;
+	kcs-channel = <0>;
+};
+
+&lpc0_kcs1 {
+	status = "okay";
+	kcs-io-addr = <0xca8>;
+	kcs-channel = <1>;
+};
+
 &lpc0_kcs2 {
 	status = "okay";
 	kcs-io-addr = <0xca2>;
 	kcs-channel = <2>;
+};
+
+&lpc0_kcs3 {
+	status = "okay";
+	kcs-io-addr = <0xca4>;
+	kcs-channel = <3>;
+};
+
+&lpc0_ibt {
+	status = "okay";
+};
+
+&lpc0_mbox {
+	status = "okay";
+};
+
+&lpc0_pcc {
+	status = "okay";
+	port-addr = <0x80>;
+	rec-mode = <0x1>;
+	port-addr-hbits-select = <0x1>;
+	port-addr-xbits = <0x3>;
+	A2600-15;
 };
 
 #if 0
