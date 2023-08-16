@@ -2219,15 +2219,6 @@ static void gfx_v9_4_3_xcc_update_sram_fgcg(struct amdgpu_device *adev,
 		WREG32_SOC15(GC, GET_INST(GC, xcc_id),
 			     regRLC_CGTT_MGCG_OVERRIDE, data);
 
-	def = data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CLK_CNTL);
-
-	if (enable)
-		data &= ~RLC_CLK_CNTL__RLC_SRAM_CLK_GATER_OVERRIDE_MASK;
-	else
-		data |= RLC_CLK_CNTL__RLC_SRAM_CLK_GATER_OVERRIDE_MASK;
-
-	if (def != data)
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CLK_CNTL, data);
 }
 
 static void gfx_v9_4_3_xcc_update_repeater_fgcg(struct amdgpu_device *adev,
