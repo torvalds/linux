@@ -264,16 +264,9 @@ struct edid *amdgpu_connector_edid(struct drm_connector *connector)
 static struct edid *
 amdgpu_connector_get_hardcoded_edid(struct amdgpu_device *adev)
 {
-	struct edid *edid;
-
 	if (adev->mode_info.bios_hardcoded_edid) {
-		edid = kmalloc(adev->mode_info.bios_hardcoded_edid_size, GFP_KERNEL);
-		if (edid) {
-			memcpy((unsigned char *)edid,
-			       (unsigned char *)adev->mode_info.bios_hardcoded_edid,
-			       adev->mode_info.bios_hardcoded_edid_size);
-			return edid;
-		}
+		return kmemdup((unsigned char *)adev->mode_info.bios_hardcoded_edid,
+			       adev->mode_info.bios_hardcoded_edid_size, GFP_KERNEL);
 	}
 	return NULL;
 }
