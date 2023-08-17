@@ -152,6 +152,7 @@ static noinline void *race_sregs_cr4(void *arg)
 static void race_sync_regs(void *racer)
 {
 	const time_t TIMEOUT = 2; /* seconds, roughly */
+	struct kvm_x86_state *state;
 	struct kvm_translation tr;
 	struct kvm_vcpu *vcpu;
 	struct kvm_run *run;
@@ -166,6 +167,9 @@ static void race_sync_regs(void *racer)
 	vcpu_run(vcpu);
 	run->kvm_valid_regs = 0;
 
+	/* Save state *before* spawning the thread that mucks with vCPU state. */
+	state = vcpu_save_state(vcpu);
+
 	/*
 	 * Selftests run 64-bit guests by default, both EFER.LME and CR4.PAE
 	 * should already be set in guest state.
@@ -179,7 +183,14 @@ static void race_sync_regs(void *racer)
 	TEST_ASSERT_EQ(pthread_create(&thread, NULL, racer, (void *)run), 0);
 
 	for (t = time(NULL) + TIMEOUT; time(NULL) < t;) {
-		__vcpu_run(vcpu);
+		/*
+		 * Reload known good state if the vCPU triple faults, e.g. due
+		 * to the unhandled #GPs being injected.  VMX preserves state
+		 * on shutdown, but SVM synthesizes an INIT as the VMCB state
+		 * is architecturally undefined on triple fault.
+		 */
+		if (!__vcpu_run(vcpu) && run->exit_reason == KVM_EXIT_SHUTDOWN)
+			vcpu_load_state(vcpu, state);
 
 		if (racer == race_sregs_cr4) {
 			tr = (struct kvm_translation) { .linear_address = 0 };
@@ -190,6 +201,7 @@ static void race_sync_regs(void *racer)
 	TEST_ASSERT_EQ(pthread_cancel(thread), 0);
 	TEST_ASSERT_EQ(pthread_join(thread, NULL), 0);
 
+	kvm_x86_state_cleanup(state);
 	kvm_vm_free(vm);
 }
 
