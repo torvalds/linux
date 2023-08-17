@@ -50,7 +50,7 @@ struct cs35l41_prop_model {
 			const char *hid);
 };
 
-const struct cs35l41_prop_model cs35l41_prop_model_table[] = {
+static const struct cs35l41_prop_model cs35l41_prop_model_table[] = {
 	{ "CLSA0100", NULL, lenovo_legion_no_acpi },
 	{ "CLSA0101", NULL, lenovo_legion_no_acpi },
 	{}
