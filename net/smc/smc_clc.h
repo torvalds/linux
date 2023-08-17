@@ -147,7 +147,9 @@ struct smc_clc_msg_proposal_prefix {	/* prefix part of clc proposal message*/
 struct smc_clc_msg_smcd {	/* SMC-D GID information */
 	struct smc_clc_smcd_gid_chid ism; /* ISM native GID+CHID of requestor */
 	__be16 v2_ext_offset;	/* SMC Version 2 Extension Offset */
-	u8 reserved[28];
+	u8 vendor_oui[3];	/* vendor organizationally unique identifier */
+	u8 vendor_exp_options[5];
+	u8 reserved[20];
 };
 
 struct smc_clc_smcd_v2_extension {
@@ -231,8 +233,17 @@ struct smc_clc_first_contact_ext {
 	u8 hostname[SMC_MAX_HOSTNAME_LEN];
 };
 
+struct smc_clc_first_contact_ext_v2x {
+	struct smc_clc_first_contact_ext fce_v2_base;
+	u8 reserved3[4];
+	__be32 vendor_exp_options;
+	u8 reserved4[8];
+} __packed;		/* format defined in
+			 * IBM Shared Memory Communications Version 2 (Third Edition)
+			 * (https://www.ibm.com/support/pages/node/7009315)
+			 */
+
 struct smc_clc_fce_gid_ext {
-	u8 reserved[16];
 	u8 gid_cnt;
 	u8 reserved2[3];
 	u8 gid[][SMC_GID_SIZE];
