@@ -1455,7 +1455,7 @@ static void spi_nor_unlock_and_unprep_rd(struct spi_nor *nor, loff_t start, size
 	spi_nor_unprep(nor);
 }
 
-static u32 spi_nor_convert_addr(struct spi_nor *nor, loff_t addr)
+u32 spi_nor_convert_addr(struct spi_nor *nor, loff_t addr)
 {
 	if (!nor->params->convert_addr)
 		return addr;
@@ -3532,6 +3532,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 
 	/* No mtd_info fields should be used up to this point. */
 	spi_nor_set_mtd_info(nor);
+
+	if (info->fixups && info->fixups->force_fixup)
+		info->fixups->force_fixup(nor);
 
 	dev_info(dev, "%s (%lld Kbytes)\n", info->name,
 			(long long)mtd->size >> 10);

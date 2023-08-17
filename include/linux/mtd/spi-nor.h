@@ -450,4 +450,6 @@ static inline struct device_node *spi_nor_get_flash_node(struct spi_nor *nor)
 int spi_nor_scan(struct spi_nor *nor, const char *name,
 		 const struct spi_nor_hwcaps *hwcaps);
 
+u32 spi_nor_convert_addr(struct spi_nor *nor, loff_t addr);
+
 #endif

@@ -4,7 +4,10 @@
  * Copyright (C) 2014, Freescale Semiconductor, Inc.
  */
 
+#include <linux/device.h>
+#include <linux/mtd/mtd.h>
 #include <linux/mtd/spi-nor.h>
+#include <linux/spi/flash.h>
 
 #include "core.h"
 
@@ -37,8 +40,63 @@ w25q256_post_bfpt_fixups(struct spi_nor *nor,
 	return 0;
 }
 
+int spi_nor_read_w25q02gjv(struct mtd_info *mtd, loff_t from, size_t len,
+			   size_t *retlen, u_char *buf)
+{
+	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	ssize_t ret;
+	loff_t addr = from;
+	size_t read_len;
+	u32 die_sz = 0x04000000;
+
+	dev_dbg(nor->dev, "from 0x%08x, len %zd\n", (u32)from, len);
+
+	ret = spi_nor_lock_and_prep(nor);
+	if (ret)
+		return ret;
+
+	while (len) {
+		read_len = len;
+		if (read_len > die_sz - ((u32)addr % die_sz))
+			read_len = die_sz - ((u32)addr % die_sz);
+
+		addr = spi_nor_convert_addr(nor, addr);
+
+		ret = spi_nor_read_data(nor, addr, read_len, buf);
+		if (ret == 0) {
+			/* We shouldn't see 0-length reads */
+			ret = -EIO;
+			goto read_err;
+		}
+		if (ret < 0)
+			goto read_err;
+
+		WARN_ON(ret > len);
+		*retlen += ret;
+		buf += ret;
+		addr += ret;
+		len -= ret;
+	}
+	ret = 0;
+
+read_err:
+	spi_nor_unlock_and_unprep(nor);
+	return ret;
+}
+
+static void w25q02gjv_force_fixup(struct spi_nor *nor)
+{
+	struct mtd_info *mtd = &nor->mtd;
+
+	mtd->_read = spi_nor_read_w25q02gjv;
+}
+
 static const struct spi_nor_fixups w25q256_fixups = {
 	.post_bfpt = w25q256_post_bfpt_fixups,
+};
+
+static struct spi_nor_fixups w25q02gjv_fixups = {
+	.force_fixup = w25q02gjv_force_fixup,
 };
 
 static const struct flash_info winbond_nor_parts[] = {
@@ -143,6 +201,19 @@ static const struct flash_info winbond_nor_parts[] = {
 	{ "w25q512jvq", INFO(0xef4020, 0, 64 * 1024, 1024)
 		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
 			      SPI_NOR_QUAD_READ) },
+	{ "w25q512jvm", INFO(0xef7020, 0, 64 * 1024, 1024)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25q01nwiq", INFO(0xef6021, 0, 64 * 1024, 2048)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_QUAD_READ |
+			      SPI_NOR_DUAL_READ) },
+	{ "w25q01jvq", INFO(0xef4021, 0, 64 * 1024, 2048)
+		PARSE_SFDP },
+	{ "w25q01jvm", INFO(0xef7021, 0, 64 * 1024, 2048)
+		PARSE_SFDP },
+	{ "w25q02jvm", INFO(0xef7022, 0, 64 * 1024, 4096)
+		PARSE_SFDP
+		.fixups = &w25q02gjv_fixups },
 };
 
 /**

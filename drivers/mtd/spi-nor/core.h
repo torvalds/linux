@@ -435,6 +435,7 @@ struct spi_nor_fixups {
 			 const struct sfdp_bfpt *bfpt);
 	int (*post_sfdp)(struct spi_nor *nor);
 	int (*late_init)(struct spi_nor *nor);
+	void (*force_fixup)(struct spi_nor *nor);
 };
 
 /**
