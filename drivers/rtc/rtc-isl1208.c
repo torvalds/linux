@@ -188,7 +188,7 @@ isl1208_i2c_validate_client(struct i2c_client *client)
 static int isl1208_set_xtoscb(struct i2c_client *client, int sr, int xtosb_val)
 {
 	/* Do nothing if bit is already set to desired value */
-	if ((sr & ISL1208_REG_SR_XTOSCB) == xtosb_val)
+	if (!!(sr & ISL1208_REG_SR_XTOSCB) == xtosb_val)
 		return 0;
 
 	if (xtosb_val)
@@ -944,7 +944,6 @@ isl1208_probe(struct i2c_client *client)
 		rc = isl1208_setup_irq(client, client->irq);
 		if (rc)
 			return rc;
-
 	} else {
 		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, isl1208->rtc->features);
 	}
