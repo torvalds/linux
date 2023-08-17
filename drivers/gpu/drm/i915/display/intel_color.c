@@ -76,6 +76,10 @@ struct intel_color_funcs {
 	 * software state. Used by eg. the hardware state checker.
 	 */
 	void (*read_csc)(struct intel_crtc_state *crtc_state);
+	/*
+	 * Read config other than LUTs and CSCs, before them. Optional.
+	 */
+	void (*get_config)(struct intel_crtc_state *crtc_state);
 };
 
 #define CTM_COEFF_SIGN	(1ULL << 63)
@@ -1892,6 +1896,9 @@ void intel_color_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
+	if (i915->display.funcs.color->get_config)
+		i915->display.funcs.color->get_config(crtc_state);
+
 	i915->display.funcs.color->read_luts(crtc_state);
 
 	if (i915->display.funcs.color->read_csc)
@@ -3205,6 +3212,14 @@ static struct drm_property_blob *chv_read_cgm_gamma(struct intel_crtc *crtc)
 	return blob;
 }
 
+static void chv_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	crtc_state->cgm_mode = intel_de_read(i915, CGM_PIPE_MODE(crtc->pipe));
+}
+
 static void chv_read_luts(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -3574,6 +3589,7 @@ static const struct intel_color_funcs chv_color_funcs = {
 	.read_luts = chv_read_luts,
 	.lut_equal = chv_lut_equal,
 	.read_csc = chv_read_csc,
+	.get_config = chv_get_config,
 };
 
 static const struct intel_color_funcs vlv_color_funcs = {
