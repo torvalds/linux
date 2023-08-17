@@ -1,6 +1,6 @@
 /*
 
-  fp_trig.c: floating-point math routines for the Linux-m68k
+  fp_log.c: floating-point math routines for the Linux-m68k
   floating point emulator.
 
   Copyright (c) 1998-1999 David Huggins-Daines / Roman Zippel.
