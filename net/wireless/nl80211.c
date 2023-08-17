@@ -4889,13 +4889,12 @@ static struct cfg80211_acl_data *parse_acl_data(struct wiphy *wiphy,
 	acl = kzalloc(struct_size(acl, mac_addrs, n_entries), GFP_KERNEL);
 	if (!acl)
 		return ERR_PTR(-ENOMEM);
+	acl->n_acl_entries = n_entries;
 
 	nla_for_each_nested(attr, info->attrs[NL80211_ATTR_MAC_ADDRS], tmp) {
 		memcpy(acl->mac_addrs[i].addr, nla_data(attr), ETH_ALEN);
 		i++;
 	}
-
-	acl->n_acl_entries = n_entries;
 	acl->acl_policy = acl_policy;
 
 	return acl;

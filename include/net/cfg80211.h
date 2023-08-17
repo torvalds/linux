@@ -1282,7 +1282,7 @@ struct cfg80211_acl_data {
 	int n_acl_entries;
 
 	/* Keep it last */
-	struct mac_address mac_addrs[];
+	struct mac_address mac_addrs[] __counted_by(n_acl_entries);
 };
 
 /**
