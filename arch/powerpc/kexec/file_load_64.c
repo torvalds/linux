@@ -27,6 +27,7 @@
 #include <asm/kexec_ranges.h>
 #include <asm/crashdump-ppc64.h>
 #include <asm/mmzone.h>
+#include <asm/iommu.h>
 #include <asm/prom.h>
 #include <asm/plpks.h>
 
@@ -1208,8 +1209,6 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 	if (ret < 0)
 		goto out;
 
-#define DIRECT64_PROPNAME "linux,direct64-ddr-window-info"
-#define DMA64_PROPNAME "linux,dma64-ddr-window-info"
 	ret = update_pci_dma_nodes(fdt, DIRECT64_PROPNAME);
 	if (ret < 0)
 		goto out;
@@ -1217,8 +1216,6 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 	ret = update_pci_dma_nodes(fdt, DMA64_PROPNAME);
 	if (ret < 0)
 		goto out;
-#undef DMA64_PROPNAME
-#undef DIRECT64_PROPNAME
 
 	/* Update memory reserve map */
 	ret = get_reserved_memory_ranges(&rmem);
