@@ -30,6 +30,8 @@ enum print_ops {
  * attribute value
  * @filter: function to indicate whether a given attribute value passes a
  * filter
+ * @attr_default: default attribute value used during filtering
+ * @print: value of enum print_ops to indicate when to print attribute
  */
 struct kunit_attr {
 	const char *name;
