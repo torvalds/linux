@@ -907,7 +907,7 @@ static void css_set_move_task(struct task_struct *task,
 #define CSS_SET_HASH_BITS	7
 static DEFINE_HASHTABLE(css_set_table, CSS_SET_HASH_BITS);
 
-static unsigned long css_set_hash(struct cgroup_subsys_state *css[])
+static unsigned long css_set_hash(struct cgroup_subsys_state **css)
 {
 	unsigned long key = 0UL;
 	struct cgroup_subsys *ss;
@@ -1048,7 +1048,7 @@ static bool compare_css_sets(struct css_set *cset,
  */
 static struct css_set *find_existing_css_set(struct css_set *old_cset,
 					struct cgroup *cgrp,
-					struct cgroup_subsys_state *template[])
+					struct cgroup_subsys_state **template)
 {
 	struct cgroup_root *root = cgrp->root;
 	struct cgroup_subsys *ss;
