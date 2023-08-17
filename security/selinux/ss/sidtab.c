@@ -25,7 +25,7 @@ struct sidtab_str_cache {
 	struct list_head lru_member;
 	struct sidtab_entry *parent;
 	u32 len;
-	char str[];
+	char str[] __counted_by(len);
 };
 
 #define index_to_sid(index) ((index) + SECINITSID_NUM + 1)
