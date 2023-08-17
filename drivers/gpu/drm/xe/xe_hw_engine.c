@@ -219,6 +219,13 @@ static const struct engine_info engine_infos[] = {
 		.domain = XE_FW_RENDER,
 		.mmio_base = COMPUTE3_RING_BASE,
 	},
+	[XE_HW_ENGINE_GSCCS0] = {
+		.name = "gsccs0",
+		.class = XE_ENGINE_CLASS_OTHER,
+		.instance = OTHER_GSC_INSTANCE,
+		.domain = XE_FW_GSC,
+		.mmio_base = GSCCS_RING_BASE,
+	},
 };
 
 static void hw_engine_fini(struct drm_device *drm, void *arg)

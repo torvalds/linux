@@ -253,9 +253,6 @@ static size_t calculate_golden_lrc_size(struct xe_guc_ads *ads)
 	int class;
 
 	for (class = 0; class < XE_ENGINE_CLASS_MAX; ++class) {
-		if (class == XE_ENGINE_CLASS_OTHER)
-			continue;
-
 		if (!engine_enable_mask(gt, class))
 			continue;
 
@@ -350,6 +347,8 @@ static void fill_engine_enable_masks(struct xe_gt *gt,
 		       engine_enable_mask(gt, XE_ENGINE_CLASS_VIDEO_ENHANCE));
 	info_map_write(xe, info_map, engine_enabled_masks[GUC_COMPUTE_CLASS],
 		       engine_enable_mask(gt, XE_ENGINE_CLASS_COMPUTE));
+	info_map_write(xe, info_map, engine_enabled_masks[GUC_GSC_OTHER_CLASS],
+		       engine_enable_mask(gt, XE_ENGINE_CLASS_OTHER));
 }
 
 static void guc_prep_golden_lrc_null(struct xe_guc_ads *ads)
@@ -637,9 +636,6 @@ static void guc_populate_golden_lrc(struct xe_guc_ads *ads)
 
 	for (class = 0; class < XE_ENGINE_CLASS_MAX; ++class) {
 		u8 guc_class;
-
-		if (class == XE_ENGINE_CLASS_OTHER)
-			continue;
 
 		guc_class = xe_engine_class_to_guc_class(class);
 

@@ -195,6 +195,9 @@ void xe_exec_queue_assign_name(struct xe_exec_queue *q, u32 instance)
 	case XE_ENGINE_CLASS_COMPUTE:
 		sprintf(q->name, "ccs%d", instance);
 		break;
+	case XE_ENGINE_CLASS_OTHER:
+		sprintf(q->name, "gsccs%d", instance);
+		break;
 	default:
 		XE_WARN_ON(q->class);
 	}
