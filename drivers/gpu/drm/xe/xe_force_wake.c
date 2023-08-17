@@ -97,6 +97,13 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 			    FORCEWAKE_ACK_MEDIA_VEBOX(j),
 			    BIT(0), BIT(16));
 	}
+
+	if (gt->info.engine_mask & BIT(XE_HW_ENGINE_GSCCS0))
+		domain_init(&fw->domains[XE_FW_DOMAIN_ID_GSC],
+			    XE_FW_DOMAIN_ID_GSC,
+			    FORCEWAKE_GSC,
+			    FORCEWAKE_ACK_GSC,
+			    BIT(0), BIT(16));
 }
 
 static void domain_wake(struct xe_gt *gt, struct xe_force_wake_domain *domain)
