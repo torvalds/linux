@@ -113,6 +113,10 @@ static void rebalance_work_accumulate(struct rebalance_work *w,
 	unsigned percent_full;
 	u64 work = dev_work + unknown_dev;
 
+	/* avoid divide by 0 */
+	if (!capacity)
+		return;
+
 	if (work < dev_work || work < unknown_dev)
 		work = U64_MAX;
 	work = min(work, capacity);
