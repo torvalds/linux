@@ -28,7 +28,6 @@
 #include <asm/atarihw.h>
 #include <asm/atariints.h>
 #include <asm/atari_stdma.h>
-#include <asm/ide.h>
 
 #define DRV_NAME "pata_falcon"
 #define DRV_VERSION "0.1.0"
