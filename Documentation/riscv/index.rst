@@ -6,6 +6,7 @@ RISC-V architecture
     :maxdepth: 1
 
     acpi
+    boot
     boot-image-header
     vm-layout
     hwprobe
