@@ -633,9 +633,6 @@ static int am65_cpsw_nuss_ndo_slave_open(struct net_device *ndev)
 	/* restore vlan configurations */
 	vlan_for_each(ndev, cpsw_restore_vlans, port);
 
-	/* Initialize QoS */
-	am65_cpsw_qos_mqprio_init(port);
-
 	phylink_start(port->slave.phylink);
 
 	return 0;
