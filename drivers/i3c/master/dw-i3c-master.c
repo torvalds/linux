@@ -43,6 +43,16 @@
 #define COMMAND_PORT_SDAP		BIT(27)
 #define COMMAND_PORT_ROC		BIT(26)
 #define COMMAND_PORT_SPEED(x)		(((x) << 21) & GENMASK(23, 21))
+#define   SPEED_I3C_SDR0		0x0
+#define   SPEED_I3C_SDR1		0x1
+#define   SPEED_I3C_SDR2		0x2
+#define   SPEED_I3C_SDR3		0x3
+#define   SPEED_I3C_SDR4		0x4
+#define   SPEED_I3C_HDR_TS		0x5
+#define   SPEED_I3C_HDR_DDR		0x6
+#define   SPEED_I3C_I2C_FM		0x7
+#define   SPEED_I2C_FM			0x0
+#define   SPEED_I2C_FMP			0x1
 #define COMMAND_PORT_DEV_INDEX(x)	(((x) << 16) & GENMASK(20, 16))
 #define COMMAND_PORT_CP			BIT(15)
 #define COMMAND_PORT_CMD(x)		(((x) << 7) & GENMASK(14, 7))
@@ -326,6 +336,8 @@ static bool dw_i3c_master_supports_ccc_cmd(struct i3c_master_controller *m,
 	case I3C_CCC_GETSTATUS:
 	case I3C_CCC_GETMXDS:
 	case I3C_CCC_GETHDRCAP:
+	case I3C_CCC_SETAASA:
+	case I3C_CCC_SETHID:
 		return true;
 	default:
 		return false;
@@ -927,6 +939,9 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 		      COMMAND_PORT_CMD(ccc->id) |
 		      COMMAND_PORT_TOC |
 		      COMMAND_PORT_ROC;
+
+	if (ccc->id == I3C_CCC_SETHID || ccc->id == I3C_CCC_DEVCTRL)
+		cmd->cmd_lo |= COMMAND_PORT_SPEED(SPEED_I3C_I2C_FM);
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
