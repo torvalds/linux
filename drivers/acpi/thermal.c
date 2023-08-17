@@ -419,8 +419,10 @@ static void acpi_thermal_adjust_thermal_zone(struct thermal_zone_device *thermal
 					     unsigned long data)
 {
 	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
+	int flag = data == ACPI_THERMAL_NOTIFY_THRESHOLDS ?
+				ACPI_TRIPS_THRESHOLDS : ACPI_TRIPS_DEVICES;
 
-	__acpi_thermal_trips_update(tz, data);
+	__acpi_thermal_trips_update(tz, flag);
 
 	for_each_thermal_trip(tz->thermal_zone, acpi_thermal_adjust_trip, tz);
 }
@@ -431,8 +433,10 @@ static void acpi_queue_thermal_check(struct acpi_thermal *tz)
 		queue_work(acpi_thermal_pm_queue, &tz->thermal_check_work);
 }
 
-static void acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
+static void acpi_thermal_trips_update(struct acpi_thermal *tz, u32 event)
 {
+	struct acpi_device *adev = tz->device;
+
 	/*
 	 * Use thermal_zone_device_exec() to carry out the trip points
 	 * update, so as to protect thermal_get_trend() from getting stale
@@ -441,8 +445,10 @@ static void acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 	 * results.
 	 */
 	thermal_zone_device_exec(tz->thermal_zone,
-				 acpi_thermal_adjust_thermal_zone, flag);
+				 acpi_thermal_adjust_thermal_zone, event);
 	acpi_queue_thermal_check(tz);
+	acpi_bus_generate_netlink_event(adev->pnp.device_class,
+					dev_name(&adev->dev), event, 0);
 }
 
 static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
@@ -801,14 +807,8 @@ static void acpi_thermal_notify(acpi_handle handle, u32 event, void *data)
 		acpi_queue_thermal_check(tz);
 		break;
 	case ACPI_THERMAL_NOTIFY_THRESHOLDS:
-		acpi_thermal_trips_update(tz, ACPI_TRIPS_THRESHOLDS);
-		acpi_bus_generate_netlink_event(device->pnp.device_class,
-						dev_name(&device->dev), event, 0);
-		break;
 	case ACPI_THERMAL_NOTIFY_DEVICES:
-		acpi_thermal_trips_update(tz, ACPI_TRIPS_DEVICES);
-		acpi_bus_generate_netlink_event(device->pnp.device_class,
-						dev_name(&device->dev), event, 0);
+		acpi_thermal_trips_update(tz, event);
 		break;
 	default:
 		acpi_handle_debug(device->handle, "Unsupported event [0x%x]\n",
