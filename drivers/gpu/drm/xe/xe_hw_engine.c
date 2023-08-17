@@ -339,6 +339,22 @@ hw_engine_setup_default_state(struct xe_hw_engine *hwe)
 					   ring_cmd_cctl_val,
 					   XE_RTP_ACTION_FLAG(ENGINE_BASE)))
 		},
+		/*
+		 * To allow the GSC engine to go idle on MTL we need to enable
+		 * idle messaging and set the hysteresis value (we use 0xA=5us
+		 * as recommended in spec). On platforms after MTL this is
+		 * enabled by default.
+		 */
+		{ XE_RTP_NAME("MTL GSCCS IDLE MSG enable"),
+		  XE_RTP_RULES(MEDIA_VERSION(1300), ENGINE_CLASS(OTHER)),
+		  XE_RTP_ACTIONS(CLR(RING_PSMI_CTL(0),
+				     IDLE_MSG_DISABLE,
+				     XE_RTP_ACTION_FLAG(ENGINE_BASE)),
+				 FIELD_SET(RING_PWRCTX_MAXCNT(0),
+					   IDLE_WAIT_TIME,
+					   0xA,
+					   XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+		},
 		{}
 	};
 

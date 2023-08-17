@@ -24,6 +24,10 @@
 #define RING_PSMI_CTL(base)			XE_REG((base) + 0x50, XE_REG_OPTION_MASKED)
 #define   RC_SEMA_IDLE_MSG_DISABLE		REG_BIT(12)
 #define   WAIT_FOR_EVENT_POWER_DOWN_DISABLE	REG_BIT(7)
+#define   IDLE_MSG_DISABLE			REG_BIT(0)
+
+#define RING_PWRCTX_MAXCNT(base)		XE_REG((base) + 0x54)
+#define   IDLE_WAIT_TIME			REG_GENMASK(19, 0)
 
 #define RING_ACTHD_UDW(base)			XE_REG((base) + 0x5c)
 #define RING_DMA_FADD_UDW(base)			XE_REG((base) + 0x60)
