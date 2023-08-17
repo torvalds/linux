@@ -12,8 +12,20 @@ config DRM_XE
 	select DRM_KMS_HELPER
 	select DRM_PANEL
 	select DRM_SUBALLOC_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDCP_HELPER
+	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HELPER
+	select DRM_MIPI_DSI
 	select RELAY
 	select IRQ_WORK
+	# i915 depends on ACPI_VIDEO when ACPI is enabled
+	# but for select to work, need to select ACPI_VIDEO's dependencies, ick
+	select BACKLIGHT_CLASS_DEVICE if ACPI
+	select INPUT if ACPI
+	select ACPI_VIDEO if X86 && ACPI
+	select ACPI_BUTTON if ACPI
+	select ACPI_WMI if ACPI
 	select SYNC_FILE
 	select IOSF_MBI
 	select CRC32
@@ -32,6 +44,16 @@ config DRM_XE
 	  Experimental driver for Intel Xe series GPUs
 
 	  If "M" is selected, the module will be called xe.
+
+config DRM_XE_DISPLAY
+	bool "Enable display support"
+	depends on DRM_XE && EXPERT && DRM_XE=m
+	select FB_IOMEM_HELPERS
+	select I2C
+	select I2C_ALGOBIT
+	default y
+	help
+	  Disable this option only if you want to compile out display support.
 
 config DRM_XE_FORCE_PROBE
 	string "Force probe xe for selected Intel hardware IDs"

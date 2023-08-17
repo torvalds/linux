@@ -12,6 +12,7 @@
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_device.h"
+#include "xe_display.h"
 #include "xe_drv.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
@@ -351,9 +352,13 @@ static irqreturn_t xelp_irq_handler(int irq, void *arg)
 
 	gt_irq_handler(tile, master_ctl, intr_dw, identity);
 
+	xe_display_irq_handler(xe, master_ctl);
+
 	gu_misc_iir = gu_misc_irq_ack(xe, master_ctl);
 
 	xelp_intr_enable(xe, false);
+
+	xe_display_irq_enable(xe, gu_misc_iir);
 
 	xe_pmu_irq_stats(xe);
 
@@ -444,11 +449,14 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 		 * that get reported as Gunit GSE) would only be hooked up to
 		 * the primary tile.
 		 */
-		if (id == 0)
+		if (id == 0) {
+			xe_display_irq_handler(xe, master_ctl);
 			gu_misc_iir = gu_misc_irq_ack(xe, master_ctl);
+		}
 	}
 
 	dg1_intr_enable(xe, false);
+	xe_display_irq_enable(xe, gu_misc_iir);
 
 	xe_pmu_irq_stats(xe);
 
@@ -542,6 +550,7 @@ static void xe_irq_reset(struct xe_device *xe)
 
 	tile = xe_device_get_root_tile(xe);
 	mask_and_disable(tile, GU_MISC_IRQ_OFFSET);
+	xe_display_irq_reset(xe);
 
 	/*
 	 * The tile's top-level status register should be the last one
@@ -556,6 +565,8 @@ static void xe_irq_reset(struct xe_device *xe)
 
 static void xe_irq_postinstall(struct xe_device *xe)
 {
+	xe_display_irq_postinstall(xe, xe_root_mmio_gt(xe));
+
 	/*
 	 * ASLE backlight operations are reported via GUnit GSE interrupts
 	 * on the root tile.

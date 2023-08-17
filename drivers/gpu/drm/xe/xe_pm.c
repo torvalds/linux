@@ -14,6 +14,7 @@
 #include "xe_bo_evict.h"
 #include "xe_device.h"
 #include "xe_device_sysfs.h"
+#include "xe_display.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
@@ -61,13 +62,19 @@ int xe_pm_suspend(struct xe_device *xe)
 	if (err)
 		return err;
 
+	xe_display_pm_suspend(xe);
+
 	for_each_gt(gt, xe, id) {
 		err = xe_gt_suspend(gt);
-		if (err)
+		if (err) {
+			xe_display_pm_resume(xe);
 			return err;
+		}
 	}
 
 	xe_irq_suspend(xe);
+
+	xe_display_pm_suspend_late(xe);
 
 	return 0;
 }
@@ -94,6 +101,8 @@ int xe_pm_resume(struct xe_device *xe)
 			return err;
 	}
 
+	xe_display_pm_resume_early(xe);
+
 	/*
 	 * This only restores pinned memory which is the memory required for the
 	 * GT(s) to resume.
@@ -103,6 +112,8 @@ int xe_pm_resume(struct xe_device *xe)
 		return err;
 
 	xe_irq_resume(xe);
+
+	xe_display_pm_resume(xe);
 
 	for_each_gt(gt, xe, id)
 		xe_gt_resume(gt);

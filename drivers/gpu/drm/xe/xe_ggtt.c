@@ -338,9 +338,13 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 }
 
 static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
-				  u64 start, u64 end, u64 alignment)
+				  u64 start, u64 end)
 {
 	int err;
+	u64 alignment = XE_PAGE_SIZE;
+
+	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K)
+		alignment = SZ_64K;
 
 	if (XE_WARN_ON(bo->ggtt_node.size)) {
 		/* Someone's already inserted this BO in the GGTT */
@@ -364,26 +368,15 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 	return err;
 }
 
-int xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo, u64 ofs)
+int xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
+			 u64 start, u64 end)
 {
-	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K) {
-		if (XE_WARN_ON(!IS_ALIGNED(ofs, SZ_64K)) ||
-		    XE_WARN_ON(!IS_ALIGNED(bo->size, SZ_64K)))
-			return -EINVAL;
-	}
-
-	return __xe_ggtt_insert_bo_at(ggtt, bo, ofs, ofs + bo->size, 0);
+	return __xe_ggtt_insert_bo_at(ggtt, bo, start, end);
 }
 
 int xe_ggtt_insert_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
-	u64 alignment;
-
-	alignment = XE_PAGE_SIZE;
-	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K)
-		alignment = SZ_64K;
-
-	return __xe_ggtt_insert_bo_at(ggtt, bo, 0, U64_MAX, alignment);
+	return __xe_ggtt_insert_bo_at(ggtt, bo, 0, U64_MAX);
 }
 
 void xe_ggtt_remove_node(struct xe_ggtt *ggtt, struct drm_mm_node *node)
