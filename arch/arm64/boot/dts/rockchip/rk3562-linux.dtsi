@@ -5,6 +5,12 @@
  */
 
 / {
+	aliases {
+		mmc0 = &sdhci;
+		mmc1 = &sdmmc0;
+		mmc2 = &sdmmc1;
+	};
+
 	chosen: chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff210000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rw rootwait";
 	};
