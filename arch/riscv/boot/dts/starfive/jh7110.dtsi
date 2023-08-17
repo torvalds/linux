@@ -1831,25 +1831,21 @@
 			dsp@0 {};
 		};
 
-		xrp: xrp@0 {
-			compatible = "cdns,xrp";
+		sof_dsp: sof_dsp@0 {
+			compatible = "starfive,vf2-dsp-v1";
 			dma-coherent;
-			reg = <0x0  0x10230000 0x0 0x00010000
-				0x0  0x10240000 0x0 0x00010000>;
+			reg = <0x0 0x20020000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_HIFI4_CLK_CORE>;
 			clock-names = "core_clk";
 			resets = <&rstgen RSTN_U0_HIFI4_CORE>,
 				 <&rstgen RSTN_U0_HIFI4_AXI>;
 			reset-names = "rst_core","rst_axi";
 			starfive,stg-syscon = <&stg_syscon>;
-			firmware-name = "hifi4_elf";
+			mbox-names = "tx", "rx";
+			mboxes = <&mailbox_contrl0 0 1>,<&mailbox_contrl0 1 0>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x40000000 0x0 0x20000000 0x040000
-				0x69c00000 0x0 0x69c00000 0x03000000>;
 			status = "disabled";
-			dsp@0 {
-			};
 		};
 
 		starfive_cpufreq: starfive,jh7110-cpufreq {

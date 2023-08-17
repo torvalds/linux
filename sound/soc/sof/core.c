@@ -24,7 +24,7 @@ module_param_named(sof_debug, sof_core_debug, int, 0444);
 MODULE_PARM_DESC(sof_debug, "SOF core debug options (0x0 all off)");
 
 /* SOF defaults if not provided by the platform in ms */
-#define TIMEOUT_DEFAULT_IPC_MS  500
+#define TIMEOUT_DEFAULT_IPC_MS  5000
 #define TIMEOUT_DEFAULT_BOOT_MS 2000
 
 /*

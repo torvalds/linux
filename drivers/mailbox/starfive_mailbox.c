@@ -126,7 +126,7 @@ static irqreturn_t starfive_rx_irq_handler(int irq, void *p)
 		return IRQ_NONE;
 
 	mbox_chan_received_data(chan, (void *)&val);
-	writel(val, base + MBOX_CLR_REG);
+	writel(0, base + MBOX_CLR_REG);
 	return IRQ_HANDLED;
 }
 

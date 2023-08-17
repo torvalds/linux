@@ -68,3 +68,12 @@ config SND_SOC_STARFIVE_SPDIF_PCM
 	help
 	 Say Y or N if you want to add a custom ALSA extension that registers
 	 a PCM and uses PIO to transfer data. 
+
+config SND_SOC_STARFIVE_SOF_TDM_DAI
+	tristate "Generic STARFIVE TDM DAI support for Sound Open Firmware"
+	depends on HAVE_CLK && SND_SOC_STARFIVE
+	help
+	  Say Y if you want to enable generic STARFIVE TDM DAI support to be used
+	  with Sound Open Firmware. This module takes care of enabling
+	  clocks, pinctrl for TDM DAIs. The rest of DAI
+	  control is taken care of by SOF firmware.
