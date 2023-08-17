@@ -972,13 +972,16 @@ cifs_unix_dfs_readlink(const unsigned int xid, struct cifs_tcon *tcon,
 #endif
 }
 
-static int
-cifs_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
-		   struct cifs_sb_info *cifs_sb, const char *full_path,
-		   char **target_path, bool is_reparse_point)
+static int cifs_query_symlink(const unsigned int xid,
+			      struct cifs_tcon *tcon,
+			      struct cifs_sb_info *cifs_sb,
+			      const char *full_path,
+			      char **target_path,
+			      struct kvec *rsp_iov)
 {
 	int rc;
 	int oplock = 0;
+	bool is_reparse_point = !!rsp_iov;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
 

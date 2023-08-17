@@ -428,7 +428,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		if (!server->ops->query_symlink)
 			return -EOPNOTSUPP;
 		rc = server->ops->query_symlink(xid, tcon, cifs_sb, full_path,
-						&fattr.cf_symlink_target, false);
+						&fattr.cf_symlink_target, NULL);
 		if (rc) {
 			cifs_dbg(FYI, "%s: query_symlink: %d\n", __func__, rc);
 			goto cgiiu_exit;
@@ -988,17 +988,21 @@ static int query_reparse(struct cifs_open_info_data *data,
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	bool reparse_point = data->reparse_point;
+	struct kvec rsp_iov, *iov = NULL;
+	int rsp_buftype = CIFS_NO_BUFFER;
 	u32 tag = data->reparse_tag;
 	int rc = 0;
 
-	if (!tag && server->ops->query_reparse_tag) {
-		server->ops->query_reparse_tag(xid, tcon, cifs_sb,
-					       full_path, &tag);
+	if (!tag && server->ops->query_reparse_point) {
+		rc = server->ops->query_reparse_point(xid, tcon, cifs_sb,
+						      full_path, &tag,
+						      &rsp_iov, &rsp_buftype);
+		if (!rc)
+			iov = &rsp_iov;
 	}
 	switch ((data->reparse_tag = tag)) {
 	case 0: /* SMB1 symlink */
-		reparse_point = false;
+		iov = NULL;
 		fallthrough;
 	case IO_REPARSE_TAG_NFS:
 	case IO_REPARSE_TAG_SYMLINK:
@@ -1006,10 +1010,11 @@ static int query_reparse(struct cifs_open_info_data *data,
 			rc = server->ops->query_symlink(xid, tcon,
 							cifs_sb, full_path,
 							&data->symlink_target,
-							reparse_point);
+							iov);
 		}
 		break;
 	}
+	free_rsp_buf(rsp_buftype, rsp_iov.iov_base);
 	return rc;
 }
 

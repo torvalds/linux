@@ -336,10 +336,13 @@ struct smb_version_operations {
 	/* query file data from the server */
 	int (*query_file_info)(const unsigned int xid, struct cifs_tcon *tcon,
 			       struct cifsFileInfo *cfile, struct cifs_open_info_data *data);
-	/* query reparse tag from srv to determine which type of special file */
-	int (*query_reparse_tag)(const unsigned int xid, struct cifs_tcon *tcon,
-				struct cifs_sb_info *cifs_sb, const char *path,
-				__u32 *reparse_tag);
+	/* query reparse point to determine which type of special file */
+	int (*query_reparse_point)(const unsigned int xid,
+				   struct cifs_tcon *tcon,
+				   struct cifs_sb_info *cifs_sb,
+				   const char *full_path,
+				   u32 *tag, struct kvec *rsp,
+				   int *rsp_buftype);
 	/* get server index number */
 	int (*get_srv_inum)(const unsigned int xid, struct cifs_tcon *tcon,
 			    struct cifs_sb_info *cifs_sb, const char *full_path, u64 *uniqueid,
@@ -388,9 +391,12 @@ struct smb_version_operations {
 			       const char *, const char *,
 			       struct cifs_sb_info *);
 	/* query symlink target */
-	int (*query_symlink)(const unsigned int, struct cifs_tcon *,
-			     struct cifs_sb_info *, const char *,
-			     char **, bool);
+	int (*query_symlink)(const unsigned int xid,
+			     struct cifs_tcon *tcon,
+			     struct cifs_sb_info *cifs_sb,
+			     const char *full_path,
+			     char **target_path,
+			     struct kvec *rsp_iov);
 	/* open a file for non-posix mounts */
 	int (*open)(const unsigned int xid, struct cifs_open_parms *oparms, __u32 *oplock,
 		    void *buf);
