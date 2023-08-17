@@ -1099,8 +1099,10 @@ static int dwc3_core_init(struct dwc3 *dwc)
 		if (dwc->parkmode_disable_ss_quirk)
 			reg |= DWC3_GUCTL1_PARKMODE_DISABLE_SS;
 
+#ifdef CONFIG_NO_GKI
 		if (dwc->parkmode_disable_hs_quirk)
 			reg |= DWC3_GUCTL1_PARKMODE_DISABLE_HS;
+#endif
 
 		if (dwc->maximum_speed == USB_SPEED_HIGH ||
 		    dwc->maximum_speed == USB_SPEED_FULL)
@@ -1421,8 +1423,10 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 				"snps,dis-tx-ipgap-linecheck-quirk");
 	dwc->parkmode_disable_ss_quirk = device_property_read_bool(dev,
 				"snps,parkmode-disable-ss-quirk");
+#ifdef CONFIG_NO_GKI
 	dwc->parkmode_disable_hs_quirk = device_property_read_bool(dev,
 				"snps,parkmode-disable-hs-quirk");
+#endif
 
 	dwc->tx_de_emphasis_quirk = device_property_read_bool(dev,
 				"snps,tx_de_emphasis_quirk");
