@@ -1340,6 +1340,7 @@ int gfs2_logd(void *data)
 				test_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags) ||
 				gfs2_ail_flush_reqd(sdp) ||
 				gfs2_jrnl_flush_reqd(sdp) ||
+				sdp->sd_log_error ||
 				kthread_should_stop(),
 				t);
 	}
