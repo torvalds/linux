@@ -2491,16 +2491,11 @@ static long gpio_ioctl_compat(struct file *file, unsigned int cmd,
 }
 #endif
 
-static struct gpio_chardev_data *
-to_gpio_chardev_data(struct notifier_block *nb)
-{
-	return container_of(nb, struct gpio_chardev_data, lineinfo_changed_nb);
-}
-
 static int lineinfo_changed_notify(struct notifier_block *nb,
 				   unsigned long action, void *data)
 {
-	struct gpio_chardev_data *cdev = to_gpio_chardev_data(nb);
+	struct gpio_chardev_data *cdev =
+		container_of(nb, struct gpio_chardev_data, lineinfo_changed_nb);
 	struct gpio_v2_line_info_changed chg;
 	struct gpio_desc *desc = data;
 	int ret;
