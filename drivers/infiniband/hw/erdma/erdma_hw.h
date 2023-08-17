@@ -228,7 +228,7 @@ struct erdma_cmdq_ext_db_req {
 
 /* create_cq cfg1 */
 #define ERDMA_CMD_CREATE_CQ_MTT_CNT_MASK GENMASK(31, 16)
-#define ERDMA_CMD_CREATE_CQ_MTT_TYPE_MASK BIT(15)
+#define ERDMA_CMD_CREATE_CQ_MTT_LEVEL_MASK BIT(15)
 #define ERDMA_CMD_CREATE_CQ_MTT_DB_CFG_MASK BIT(11)
 #define ERDMA_CMD_CREATE_CQ_EQN_MASK GENMASK(9, 0)
 
@@ -258,7 +258,7 @@ struct erdma_cmdq_create_cq_req {
 
 /* regmr cfg2 */
 #define ERDMA_CMD_REGMR_PAGESIZE_MASK GENMASK(31, 27)
-#define ERDMA_CMD_REGMR_MTT_TYPE_MASK GENMASK(21, 20)
+#define ERDMA_CMD_REGMR_MTT_LEVEL_MASK GENMASK(21, 20)
 #define ERDMA_CMD_REGMR_MTT_CNT_MASK GENMASK(19, 0)
 
 struct erdma_cmdq_reg_mr_req {
