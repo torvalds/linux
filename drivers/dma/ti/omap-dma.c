@@ -124,7 +124,7 @@ struct omap_desc {
 	uint32_t csdp;		/* CSDP value */
 
 	unsigned sglen;
-	struct omap_sg sg[];
+	struct omap_sg sg[] __counted_by(sglen);
 };
 
 enum {
@@ -1005,6 +1005,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	d = kzalloc(struct_size(d, sg, sglen), GFP_ATOMIC);
 	if (!d)
 		return NULL;
+	d->sglen = sglen;
 
 	d->dir = dir;
 	d->dev_addr = dev_addr;
@@ -1119,8 +1120,6 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 			omap_dma_fill_type2_desc(d, i, dir, (i == sglen - 1));
 		}
 	}
-
-	d->sglen = sglen;
 
 	/* Release the dma_pool entries if one allocation failed */
 	if (ll_failed) {
