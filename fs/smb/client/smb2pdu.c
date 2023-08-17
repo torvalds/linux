@@ -2581,8 +2581,8 @@ alloc_path_with_tree_prefix(__le16 **out_path, int *out_size, int *out_len,
 
 	/* Do not append the separator if the path is empty */
 	if (path[0] != cpu_to_le16(0x0000)) {
-		UniStrcat(*out_path, sep);
-		UniStrcat(*out_path, path);
+		UniStrcat((wchar_t *)*out_path, (wchar_t *)sep);
+		UniStrcat((wchar_t *)*out_path, (wchar_t *)path);
 	}
 
 	unload_nls(cp);
