@@ -209,11 +209,6 @@ void fs_cleanup_bds(struct net_device *dev);
 #define PFX DRV_MODULE_NAME	": "
 
 /***************************************************************************/
-
-int fs_enet_platform_init(void);
-void fs_enet_platform_cleanup(void);
-
-/***************************************************************************/
 /* buffer descriptor access macros */
 
 /* access macros */
