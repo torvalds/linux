@@ -51,6 +51,7 @@ static void iso_sock_kill(struct sock *sk);
 /* iso_pinfo flags values */
 enum {
 	BT_SK_BIG_SYNC,
+	BT_SK_PA_SYNC,
 };
 
 struct iso_pinfo {
@@ -75,6 +76,8 @@ static struct bt_iso_qos default_qos;
 
 static bool check_ucast_qos(struct bt_iso_qos *qos);
 static bool check_bcast_qos(struct bt_iso_qos *qos);
+static bool iso_match_sid(struct sock *sk, void *data);
+static void iso_sock_disconn(struct sock *sk);
 
 /* ---- ISO timers ---- */
 #define ISO_CONN_TIMEOUT	(HZ * 40)
@@ -598,6 +601,15 @@ static void iso_sock_cleanup_listen(struct sock *parent)
 		iso_sock_kill(sk);
 	}
 
+	/* If listening socket stands for a PA sync connection,
+	 * properly disconnect the hcon and socket.
+	 */
+	if (iso_pi(parent)->conn && iso_pi(parent)->conn->hcon &&
+	    test_bit(HCI_CONN_PA_SYNC, &iso_pi(parent)->conn->hcon->flags)) {
+		iso_sock_disconn(parent);
+		return;
+	}
+
 	parent->sk_state  = BT_CLOSED;
 	sock_set_flag(parent, SOCK_ZAPPED);
 }
@@ -619,6 +631,16 @@ static void iso_sock_kill(struct sock *sk)
 	sock_put(sk);
 }
 
+static void iso_sock_disconn(struct sock *sk)
+{
+	sk->sk_state = BT_DISCONN;
+	iso_sock_set_timer(sk, ISO_DISCONN_TIMEOUT);
+	iso_conn_lock(iso_pi(sk)->conn);
+	hci_conn_drop(iso_pi(sk)->conn->hcon);
+	iso_pi(sk)->conn->hcon = NULL;
+	iso_conn_unlock(iso_pi(sk)->conn);
+}
+
 static void __iso_sock_close(struct sock *sk)
 {
 	BT_DBG("sk %p state %d socket %p", sk, sk->sk_state, sk->sk_socket);
@@ -631,20 +653,19 @@ static void __iso_sock_close(struct sock *sk)
 	case BT_CONNECT:
 	case BT_CONNECTED:
 	case BT_CONFIG:
-		if (iso_pi(sk)->conn->hcon) {
-			sk->sk_state = BT_DISCONN;
-			iso_sock_set_timer(sk, ISO_DISCONN_TIMEOUT);
-			iso_conn_lock(iso_pi(sk)->conn);
-			hci_conn_drop(iso_pi(sk)->conn->hcon);
-			iso_pi(sk)->conn->hcon = NULL;
-			iso_conn_unlock(iso_pi(sk)->conn);
-		} else {
+		if (iso_pi(sk)->conn->hcon)
+			iso_sock_disconn(sk);
+		else
 			iso_chan_del(sk, ECONNRESET);
-		}
 		break;
 
 	case BT_CONNECT2:
-		iso_chan_del(sk, ECONNRESET);
+		if (iso_pi(sk)->conn->hcon &&
+		    (test_bit(HCI_CONN_PA_SYNC, &iso_pi(sk)->conn->hcon->flags) ||
+		    test_bit(HCI_CONN_PA_SYNC_FAILED, &iso_pi(sk)->conn->hcon->flags)))
+			iso_sock_disconn(sk);
+		else
+			iso_chan_del(sk, ECONNRESET);
 		break;
 	case BT_DISCONN:
 		iso_chan_del(sk, ECONNRESET);
@@ -1139,6 +1160,29 @@ static void iso_conn_defer_accept(struct hci_conn *conn)
 	hci_send_cmd(hdev, HCI_OP_LE_ACCEPT_CIS, sizeof(cp), &cp);
 }
 
+static void iso_conn_big_sync(struct sock *sk)
+{
+	int err;
+	struct hci_dev *hdev;
+
+	hdev = hci_get_route(&iso_pi(sk)->dst, &iso_pi(sk)->src,
+			     iso_pi(sk)->src_type);
+
+	if (!hdev)
+		return;
+
+	if (!test_and_set_bit(BT_SK_BIG_SYNC, &iso_pi(sk)->flags)) {
+		err = hci_le_big_create_sync(hdev, iso_pi(sk)->conn->hcon,
+					     &iso_pi(sk)->qos,
+					     iso_pi(sk)->sync_handle,
+					     iso_pi(sk)->bc_num_bis,
+					     iso_pi(sk)->bc_bis);
+		if (err)
+			bt_dev_err(hdev, "hci_le_big_create_sync: %d",
+				   err);
+	}
+}
+
 static int iso_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 			    size_t len, int flags)
 {
@@ -1151,8 +1195,15 @@ static int iso_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 		lock_sock(sk);
 		switch (sk->sk_state) {
 		case BT_CONNECT2:
-			iso_conn_defer_accept(pi->conn->hcon);
-			sk->sk_state = BT_CONFIG;
+			if (pi->conn->hcon &&
+			    test_bit(HCI_CONN_PA_SYNC, &pi->conn->hcon->flags)) {
+				iso_conn_big_sync(sk);
+				sk->sk_state = BT_LISTEN;
+				set_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags);
+			} else {
+				iso_conn_defer_accept(pi->conn->hcon);
+				sk->sk_state = BT_CONFIG;
+			}
 			release_sock(sk);
 			return 0;
 		case BT_CONNECT:
@@ -1513,11 +1564,17 @@ static bool iso_match_big(struct sock *sk, void *data)
 	return ev->handle == iso_pi(sk)->qos.bcast.big;
 }
 
+static bool iso_match_pa_sync_flag(struct sock *sk, void *data)
+{
+	return test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags);
+}
+
 static void iso_conn_ready(struct iso_conn *conn)
 {
-	struct sock *parent;
+	struct sock *parent = NULL;
 	struct sock *sk = conn->sk;
-	struct hci_ev_le_big_sync_estabilished *ev;
+	struct hci_ev_le_big_sync_estabilished *ev = NULL;
+	struct hci_ev_le_pa_sync_established *ev2 = NULL;
 	struct hci_conn *hcon;
 
 	BT_DBG("conn %p", conn);
@@ -1529,15 +1586,32 @@ static void iso_conn_ready(struct iso_conn *conn)
 		if (!hcon)
 			return;
 
-		ev = hci_recv_event_data(hcon->hdev,
-					 HCI_EVT_LE_BIG_SYNC_ESTABILISHED);
-		if (ev)
+		if (test_bit(HCI_CONN_BIG_SYNC, &hcon->flags) ||
+		    test_bit(HCI_CONN_BIG_SYNC_FAILED, &hcon->flags)) {
+			ev = hci_recv_event_data(hcon->hdev,
+						 HCI_EVT_LE_BIG_SYNC_ESTABILISHED);
+
+			/* Get reference to PA sync parent socket, if it exists */
 			parent = iso_get_sock_listen(&hcon->src,
 						     &hcon->dst,
-						     iso_match_big, ev);
-		else
+						     iso_match_pa_sync_flag, NULL);
+			if (!parent && ev)
+				parent = iso_get_sock_listen(&hcon->src,
+							     &hcon->dst,
+							     iso_match_big, ev);
+		} else if (test_bit(HCI_CONN_PA_SYNC, &hcon->flags) ||
+				test_bit(HCI_CONN_PA_SYNC_FAILED, &hcon->flags)) {
+			ev2 = hci_recv_event_data(hcon->hdev,
+						  HCI_EV_LE_PA_SYNC_ESTABLISHED);
+			if (ev2)
+				parent = iso_get_sock_listen(&hcon->src,
+							     &hcon->dst,
+							     iso_match_sid, ev2);
+		}
+
+		if (!parent)
 			parent = iso_get_sock_listen(&hcon->src,
-						     BDADDR_ANY, NULL, NULL);
+							BDADDR_ANY, NULL, NULL);
 
 		if (!parent)
 			return;
@@ -1554,16 +1628,29 @@ static void iso_conn_ready(struct iso_conn *conn)
 		iso_sock_init(sk, parent);
 
 		bacpy(&iso_pi(sk)->src, &hcon->src);
-		iso_pi(sk)->src_type = hcon->src_type;
+
+		/* Convert from HCI to three-value type */
+		if (hcon->src_type == ADDR_LE_DEV_PUBLIC)
+			iso_pi(sk)->src_type = BDADDR_LE_PUBLIC;
+		else
+			iso_pi(sk)->src_type = BDADDR_LE_RANDOM;
 
 		/* If hcon has no destination address (BDADDR_ANY) it means it
-		 * was created by HCI_EV_LE_BIG_SYNC_ESTABILISHED so we need to
-		 * initialize using the parent socket destination address.
+		 * was created by HCI_EV_LE_BIG_SYNC_ESTABILISHED or
+		 * HCI_EV_LE_PA_SYNC_ESTABLISHED so we need to initialize using
+		 * the parent socket destination address.
 		 */
 		if (!bacmp(&hcon->dst, BDADDR_ANY)) {
 			bacpy(&hcon->dst, &iso_pi(parent)->dst);
 			hcon->dst_type = iso_pi(parent)->dst_type;
 			hcon->sync_handle = iso_pi(parent)->sync_handle;
+		}
+
+		if (ev2 && !ev2->status) {
+			iso_pi(sk)->sync_handle = iso_pi(parent)->sync_handle;
+			iso_pi(sk)->qos = iso_pi(parent)->qos;
+			iso_pi(sk)->bc_num_bis = iso_pi(parent)->bc_num_bis;
+			memcpy(iso_pi(sk)->bc_bis, iso_pi(parent)->bc_bis, ISO_MAX_NUM_BIS);
 		}
 
 		bacpy(&iso_pi(sk)->dst, &hcon->dst);
@@ -1572,7 +1659,8 @@ static void iso_conn_ready(struct iso_conn *conn)
 		hci_conn_hold(hcon);
 		iso_chan_add(conn, sk, parent);
 
-		if (ev && ((struct hci_evt_le_big_sync_estabilished *)ev)->status) {
+		if ((ev && ((struct hci_evt_le_big_sync_estabilished *)ev)->status) ||
+		    (ev2 && ev2->status)) {
 			/* Trigger error signal on child socket */
 			sk->sk_err = ECONNREFUSED;
 			sk->sk_error_report(sk);
@@ -1630,7 +1718,7 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 	if (ev1) {
 		sk = iso_get_sock_listen(&hdev->bdaddr, bdaddr, iso_match_sid,
 					 ev1);
-		if (sk)
+		if (sk && !ev1->status)
 			iso_pi(sk)->sync_handle = le16_to_cpu(ev1->handle);
 
 		goto done;
@@ -1638,16 +1726,21 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 
 	ev2 = hci_recv_event_data(hdev, HCI_EVT_LE_BIG_INFO_ADV_REPORT);
 	if (ev2) {
+		/* Try to get PA sync listening socket, if it exists */
 		sk = iso_get_sock_listen(&hdev->bdaddr, bdaddr,
-					 iso_match_sync_handle, ev2);
+						iso_match_pa_sync_flag, NULL);
+		if (!sk)
+			sk = iso_get_sock_listen(&hdev->bdaddr, bdaddr,
+						 iso_match_sync_handle, ev2);
 		if (sk) {
 			int err;
 
 			if (ev2->num_bis < iso_pi(sk)->bc_num_bis)
 				iso_pi(sk)->bc_num_bis = ev2->num_bis;
 
-			if (!test_and_set_bit(BT_SK_BIG_SYNC, &iso_pi(sk)->flags)) {
-				err = hci_le_big_create_sync(hdev,
+			if (!test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags) &&
+			    !test_and_set_bit(BT_SK_BIG_SYNC, &iso_pi(sk)->flags)) {
+				err = hci_le_big_create_sync(hdev, NULL,
 							     &iso_pi(sk)->qos,
 							     iso_pi(sk)->sync_handle,
 							     iso_pi(sk)->bc_num_bis,
@@ -1699,12 +1792,13 @@ static void iso_connect_cfm(struct hci_conn *hcon, __u8 status)
 
 	BT_DBG("hcon %p bdaddr %pMR status %d", hcon, &hcon->dst, status);
 
-	/* Similar to the success case, if HCI_CONN_BIG_SYNC_FAILED is set,
-	 * queue the failed bis connection into the accept queue of the
-	 * listening socket and wake up userspace, to inform the user about
-	 * the BIG sync failed event.
+	/* Similar to the success case, if HCI_CONN_BIG_SYNC_FAILED or
+	 * HCI_CONN_PA_SYNC_FAILED is set, queue the failed connection
+	 * into the accept queue of the listening socket and wake up
+	 * userspace, to inform the user about the event.
 	 */
-	if (!status || test_bit(HCI_CONN_BIG_SYNC_FAILED, &hcon->flags)) {
+	if (!status || test_bit(HCI_CONN_BIG_SYNC_FAILED, &hcon->flags) ||
+	    test_bit(HCI_CONN_PA_SYNC_FAILED, &hcon->flags)) {
 		struct iso_conn *conn;
 
 		conn = iso_conn_add(hcon);

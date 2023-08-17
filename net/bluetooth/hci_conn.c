@@ -734,6 +734,7 @@ struct iso_list_data {
 	};
 	int count;
 	bool big_term;
+	bool pa_sync_term;
 	bool big_sync_term;
 };
 
@@ -807,7 +808,10 @@ static int big_terminate_sync(struct hci_dev *hdev, void *data)
 	if (d->big_sync_term)
 		hci_le_big_terminate_sync(hdev, d->big);
 
-	return hci_le_pa_terminate_sync(hdev, d->sync_handle);
+	if (d->pa_sync_term)
+		return hci_le_pa_terminate_sync(hdev, d->sync_handle);
+
+	return 0;
 }
 
 static int hci_le_big_terminate(struct hci_dev *hdev, u8 big, struct hci_conn *conn)
@@ -823,6 +827,7 @@ static int hci_le_big_terminate(struct hci_dev *hdev, u8 big, struct hci_conn *c
 
 	d->big = big;
 	d->sync_handle = conn->sync_handle;
+	d->pa_sync_term = test_and_clear_bit(HCI_CONN_PA_SYNC, &conn->flags);
 	d->big_sync_term = test_and_clear_bit(HCI_CONN_BIG_SYNC, &conn->flags);
 
 	ret = hci_cmd_sync_queue(hdev, big_terminate_sync, d,
@@ -2099,7 +2104,8 @@ int hci_pa_create_sync(struct hci_dev *hdev, bdaddr_t *dst, __u8 dst_type,
 	return hci_cmd_sync_queue(hdev, create_pa_sync, cp, create_pa_complete);
 }
 
-int hci_le_big_create_sync(struct hci_dev *hdev, struct bt_iso_qos *qos,
+int hci_le_big_create_sync(struct hci_dev *hdev, struct hci_conn *hcon,
+			   struct bt_iso_qos *qos,
 			   __u16 sync_handle, __u8 num_bis, __u8 bis[])
 {
 	struct _packed {
@@ -2114,6 +2120,9 @@ int hci_le_big_create_sync(struct hci_dev *hdev, struct bt_iso_qos *qos,
 	err = qos_set_big(hdev, qos);
 	if (err)
 		return err;
+
+	if (hcon)
+		hcon->iso_qos.bcast.big = qos->bcast.big;
 
 	memset(&pdu, 0, sizeof(pdu));
 	pdu.cp.handle = qos->bcast.big;

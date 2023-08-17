@@ -5384,6 +5384,21 @@ int hci_abort_conn_sync(struct hci_dev *hdev, struct hci_conn *conn, u8 reason)
 		err = hci_reject_conn_sync(hdev, conn, reason);
 		break;
 	case BT_OPEN:
+		hci_dev_lock(hdev);
+
+		/* Cleanup bis or pa sync connections */
+		if (test_and_clear_bit(HCI_CONN_BIG_SYNC_FAILED, &conn->flags) ||
+		    test_and_clear_bit(HCI_CONN_PA_SYNC_FAILED, &conn->flags)) {
+			hci_conn_failed(conn, reason);
+		} else if (test_bit(HCI_CONN_PA_SYNC, &conn->flags) ||
+			   test_bit(HCI_CONN_BIG_SYNC, &conn->flags)) {
+			conn->state = BT_CLOSED;
+			hci_disconn_cfm(conn, reason);
+			hci_conn_del(conn);
+		}
+
+		hci_dev_unlock(hdev);
+		return 0;
 	case BT_BOUND:
 		hci_dev_lock(hdev);
 		hci_conn_failed(conn, reason);
