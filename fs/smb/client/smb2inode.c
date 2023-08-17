@@ -35,19 +35,6 @@ free_set_inf_compound(struct smb_rqst *rqst)
 		SMB2_close_free(&rqst[2]);
 }
 
-
-struct cop_vars {
-	struct cifs_open_parms oparms;
-	struct kvec rsp_iov[3];
-	struct smb_rqst rqst[3];
-	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
-	struct kvec qi_iov[1];
-	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
-	struct kvec close_iov[1];
-	struct smb2_file_rename_info rename_info;
-	struct smb2_file_link_info link_info;
-};
-
 /*
  * note: If cfile is passed, the reference to it is dropped here.
  * So make sure that you do not reuse cfile after return from this func.
@@ -63,7 +50,7 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 			    __u8 **extbuf, size_t *extbuflen,
 			    struct kvec *out_iov, int *out_buftype)
 {
-	struct cop_vars *vars = NULL;
+	struct smb2_compound_vars *vars = NULL;
 	struct kvec *rsp_iov;
 	struct smb_rqst *rqst;
 	int rc;
@@ -134,7 +121,7 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	/* Operation */
 	switch (command) {
 	case SMB2_OP_QUERY_INFO:
-		rqst[num_rqst].rq_iov = &vars->qi_iov[0];
+		rqst[num_rqst].rq_iov = &vars->qi_iov;
 		rqst[num_rqst].rq_nvec = 1;
 
 		if (cfile)
@@ -168,7 +155,7 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 						     full_path);
 		break;
 	case SMB2_OP_POSIX_QUERY_INFO:
-		rqst[num_rqst].rq_iov = &vars->qi_iov[0];
+		rqst[num_rqst].rq_iov = &vars->qi_iov;
 		rqst[num_rqst].rq_nvec = 1;
 
 		if (cfile)
@@ -376,7 +363,7 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		goto after_close;
 	/* Close */
 	flags |= CIFS_CP_CREATE_CLOSE_OP;
-	rqst[num_rqst].rq_iov = &vars->close_iov[0];
+	rqst[num_rqst].rq_iov = &vars->close_iov;
 	rqst[num_rqst].rq_nvec = 1;
 	rc = SMB2_close_init(tcon, server,
 			     &rqst[num_rqst], COMPOUND_FID,

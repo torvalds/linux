@@ -1075,31 +1075,28 @@ smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-
 static int
 smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 	    const char *path, const char *ea_name, const void *ea_value,
 	    const __u16 ea_value_len, const struct nls_table *nls_codepage,
 	    struct cifs_sb_info *cifs_sb)
 {
+	struct smb2_compound_vars *vars;
 	struct cifs_ses *ses = tcon->ses;
 	struct TCP_Server_Info *server = cifs_pick_channel(ses);
+	struct smb_rqst *rqst;
+	struct kvec *rsp_iov;
 	__le16 *utf16_path = NULL;
 	int ea_name_len = strlen(ea_name);
 	int flags = CIFS_CP_CREATE_CLOSE_OP;
 	int len;
-	struct smb_rqst rqst[3];
 	int resp_buftype[3];
-	struct kvec rsp_iov[3];
-	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
 	struct cifs_open_parms oparms;
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_fid fid;
-	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
 	unsigned int size[1];
 	void *data[1];
 	struct smb2_file_full_ea_info *ea = NULL;
-	struct kvec close_iov[1];
 	struct smb2_query_info_rsp *rsp;
 	int rc, used_len = 0;
 
@@ -1113,9 +1110,14 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 	if (!utf16_path)
 		return -ENOMEM;
 
-	memset(rqst, 0, sizeof(rqst));
 	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
-	memset(rsp_iov, 0, sizeof(rsp_iov));
+	vars = kzalloc(sizeof(*vars), GFP_KERNEL);
+	if (!vars) {
+		rc = -ENOMEM;
+		goto out_free_path;
+	}
+	rqst = vars->rqst;
+	rsp_iov = vars->rsp_iov;
 
 	if (ses->server->ops->query_all_EAs) {
 		if (!ea_value) {
@@ -1160,8 +1162,7 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 	}
 
 	/* Open */
-	memset(&open_iov, 0, sizeof(open_iov));
-	rqst[0].rq_iov = open_iov;
+	rqst[0].rq_iov = vars->open_iov;
 	rqst[0].rq_nvec = SMB2_CREATE_IOV_SIZE;
 
 	oparms = (struct cifs_open_parms) {
@@ -1181,8 +1182,7 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 
 
 	/* Set Info */
-	memset(&si_iov, 0, sizeof(si_iov));
-	rqst[1].rq_iov = si_iov;
+	rqst[1].rq_iov = vars->si_iov;
 	rqst[1].rq_nvec = 1;
 
 	len = sizeof(*ea) + ea_name_len + ea_value_len + 1;
@@ -1210,10 +1210,8 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 	smb2_set_next_command(tcon, &rqst[1]);
 	smb2_set_related(&rqst[1]);
 
-
 	/* Close */
-	memset(&close_iov, 0, sizeof(close_iov));
-	rqst[2].rq_iov = close_iov;
+	rqst[2].rq_iov = &vars->close_iov;
 	rqst[2].rq_nvec = 1;
 	rc = SMB2_close_init(tcon, server,
 			     &rqst[2], COMPOUND_FID, COMPOUND_FID, false);
@@ -1228,13 +1226,15 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 
  sea_exit:
 	kfree(ea);
-	kfree(utf16_path);
 	SMB2_open_free(&rqst[0]);
 	SMB2_set_info_free(&rqst[1]);
 	SMB2_close_free(&rqst[2]);
 	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
 	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
 	free_rsp_buf(resp_buftype[2], rsp_iov[2].iov_base);
+	kfree(vars);
+out_free_path:
+	kfree(utf16_path);
 	return rc;
 }
 #endif
@@ -1445,16 +1445,6 @@ req_res_key_exit:
 	return rc;
 }
 
-struct iqi_vars {
-	struct smb_rqst rqst[3];
-	struct kvec rsp_iov[3];
-	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
-	struct kvec qi_iov[1];
-	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
-	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
-	struct kvec close_iov[1];
-};
-
 static int
 smb2_ioctl_query_info(const unsigned int xid,
 		      struct cifs_tcon *tcon,
@@ -1462,7 +1452,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 		      __le16 *path, int is_dir,
 		      unsigned long p)
 {
-	struct iqi_vars *vars;
+	struct smb2_compound_vars *vars;
 	struct smb_rqst *rqst;
 	struct kvec *rsp_iov;
 	struct cifs_ses *ses = tcon->ses;
@@ -1580,7 +1570,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 			rc = -EINVAL;
 			goto free_open_req;
 		}
-		rqst[1].rq_iov = &vars->si_iov[0];
+		rqst[1].rq_iov = vars->si_iov;
 		rqst[1].rq_nvec = 1;
 
 		/* MS-FSCC 2.4.13 FileEndOfFileInformation */
@@ -1592,7 +1582,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 					SMB2_O_INFO_FILE, 0, data, size);
 		free_req1_func = SMB2_set_info_free;
 	} else if (qi.flags == PASSTHRU_QUERY_INFO) {
-		rqst[1].rq_iov = &vars->qi_iov[0];
+		rqst[1].rq_iov = &vars->qi_iov;
 		rqst[1].rq_nvec = 1;
 
 		rc = SMB2_query_info_init(tcon, server,
@@ -1614,7 +1604,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 	smb2_set_related(&rqst[1]);
 
 	/* Close */
-	rqst[2].rq_iov = &vars->close_iov[0];
+	rqst[2].rq_iov = &vars->close_iov;
 	rqst[2].rq_nvec = 1;
 
 	rc = SMB2_close_init(tcon, server,
