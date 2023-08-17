@@ -17,6 +17,7 @@
 
 #include "fp_arith.h"
 #include "fp_emu.h"
+#include "fp_log.h"
 
 static const struct fp_ext fp_one = {
 	.exp = 0x3fff,
