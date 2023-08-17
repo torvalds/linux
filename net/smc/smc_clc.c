@@ -433,8 +433,10 @@ static int smc_clc_fill_fce(struct smc_clc_first_contact_ext_v2x *fce,
 	}
 
 	if (ini->release_nr >= SMC_RELEASE_1) {
-		if (!ini->is_smcd)
+		if (!ini->is_smcd) {
 			fce->max_conns = ini->max_conns;
+			fce->max_links = ini->max_links;
+		}
 	}
 
 out:
@@ -942,6 +944,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 	if (smcr_indicated(ini->smc_type_v2)) {
 		memcpy(v2_ext->roce, ini->smcrv2.ib_gid_v2, SMC_GID_SIZE);
 		v2_ext->max_conns = SMC_CONN_PER_LGR_PREFER;
+		v2_ext->max_links = SMC_LINKS_PER_LGR_MAX_PREFER;
 	}
 
 	pclc_base->hdr.length = htons(plen);
@@ -1174,6 +1177,7 @@ int smc_clc_srv_v2x_features_validate(struct smc_clc_msg_proposal *pclc,
 	struct smc_clc_v2_extension *pclc_v2_ext;
 
 	ini->max_conns = SMC_CONN_PER_LGR_MAX;
+	ini->max_links = SMC_LINKS_ADD_LNK_MAX;
 
 	if ((!(ini->smcd_version & SMC_V2) && !(ini->smcr_version & SMC_V2)) ||
 	    ini->release_nr < SMC_RELEASE_1)
@@ -1187,6 +1191,10 @@ int smc_clc_srv_v2x_features_validate(struct smc_clc_msg_proposal *pclc,
 		ini->max_conns = min_t(u8, pclc_v2_ext->max_conns, SMC_CONN_PER_LGR_PREFER);
 		if (ini->max_conns < SMC_CONN_PER_LGR_MIN)
 			return SMC_CLC_DECL_MAXCONNERR;
+
+		ini->max_links = min_t(u8, pclc_v2_ext->max_links, SMC_LINKS_PER_LGR_MAX_PREFER);
+		if (ini->max_links < SMC_LINKS_ADD_LNK_MIN)
+			return SMC_CLC_DECL_MAXLINKERR;
 	}
 
 	return 0;
@@ -1205,6 +1213,11 @@ int smc_clc_clnt_v2x_features_validate(struct smc_clc_first_contact_ext *fce,
 		if (fce_v2x->max_conns < SMC_CONN_PER_LGR_MIN)
 			return SMC_CLC_DECL_MAXCONNERR;
 		ini->max_conns = fce_v2x->max_conns;
+
+		if (fce_v2x->max_links > SMC_LINKS_ADD_LNK_MAX ||
+		    fce_v2x->max_links < SMC_LINKS_ADD_LNK_MIN)
+			return SMC_CLC_DECL_MAXLINKERR;
+		ini->max_links = fce_v2x->max_links;
 	}
 
 	return 0;
@@ -1233,6 +1246,8 @@ int smc_clc_v2x_features_confirm_check(struct smc_clc_msg_accept_confirm *cclc,
 	if (!ini->is_smcd) {
 		if (fce_v2x->max_conns != ini->max_conns)
 			return SMC_CLC_DECL_MAXCONNERR;
+		if (fce_v2x->max_links != ini->max_links)
+			return SMC_CLC_DECL_MAXLINKERR;
 	}
 
 	return 0;
