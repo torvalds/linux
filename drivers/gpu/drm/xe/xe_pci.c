@@ -77,12 +77,6 @@ struct xe_device_desc {
 
 	u8 require_force_probe:1;
 	u8 is_dgfx:1;
-	/*
-	 * FIXME: Xe doesn't care about presence/lack of 4tile since we can
-	 * already determine that from the graphics IP version.  This flag
-	 * should eventually move entirely into the display code's own logic.
-	 */
-	u8 has_4tile:1;
 	u8 has_llc:1;
 };
 
@@ -265,8 +259,7 @@ static const u16 dg2_g12_ids[] = { XE_DG2_G12_IDS(NOP), 0 };
 		{ XE_SUBPLATFORM_DG2_G11, "G11", dg2_g11_ids }, \
 		{ XE_SUBPLATFORM_DG2_G12, "G12", dg2_g12_ids }, \
 		{ } \
-	}, \
-	.has_4tile = 1
+	}
 
 static const struct xe_device_desc ats_m_desc = {
 	.graphics = &graphics_xehpg,
@@ -537,7 +530,6 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.graphics_name = graphics_desc->name;
 	xe->info.media_name = media_desc ? media_desc->name : "none";
-	xe->info.has_4tile = desc->has_4tile;
 	xe->info.has_llc = desc->has_llc;
 
 	xe->info.dma_mask_size = graphics_desc->dma_mask_size;

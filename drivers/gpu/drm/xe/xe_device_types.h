@@ -221,8 +221,6 @@ struct xe_device {
 		u8 force_execlist:1;
 		/** @has_flat_ccs: Whether flat CCS metadata is used */
 		u8 has_flat_ccs:1;
-		/** @has_4tile: Whether tile-4 tiling is supported */
-		u8 has_4tile:1;
 		/** @has_llc: Device has a shared CPU+GPU last level cache */
 		u8 has_llc:1;
 		/** @has_range_tlb_invalidation: Has range based TLB invalidations */
