@@ -38,7 +38,7 @@ struct icc_req {
 struct icc_path {
 	const char *name;
 	size_t num_nodes;
-	struct icc_req reqs[];
+	struct icc_req reqs[] __counted_by(num_nodes);
 };
 
 #endif
