@@ -11498,6 +11498,8 @@ F:	arch/x86/include/uapi/asm/svm.h
 F:	arch/x86/include/uapi/asm/vmx.h
 F:	arch/x86/kvm/
 F:	arch/x86/kvm/*/
+F:	tools/testing/selftests/kvm/*/x86_64/
+F:	tools/testing/selftests/kvm/x86_64/
 
 KERNFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
