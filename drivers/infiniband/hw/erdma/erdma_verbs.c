@@ -67,30 +67,30 @@ static int create_qp_cmd(struct erdma_ucontext *uctx, struct erdma_qp *qp)
 		user_qp = &qp->user_qp;
 		req.sq_cqn_mtt_cfg = FIELD_PREP(
 			ERDMA_CMD_CREATE_QP_PAGE_SIZE_MASK,
-			ilog2(user_qp->sq_mtt.page_size) - ERDMA_HW_PAGE_SHIFT);
+			ilog2(user_qp->sq_mem.page_size) - ERDMA_HW_PAGE_SHIFT);
 		req.sq_cqn_mtt_cfg |=
 			FIELD_PREP(ERDMA_CMD_CREATE_QP_CQN_MASK, qp->scq->cqn);
 
 		req.rq_cqn_mtt_cfg = FIELD_PREP(
 			ERDMA_CMD_CREATE_QP_PAGE_SIZE_MASK,
-			ilog2(user_qp->rq_mtt.page_size) - ERDMA_HW_PAGE_SHIFT);
+			ilog2(user_qp->rq_mem.page_size) - ERDMA_HW_PAGE_SHIFT);
 		req.rq_cqn_mtt_cfg |=
 			FIELD_PREP(ERDMA_CMD_CREATE_QP_CQN_MASK, qp->rcq->cqn);
 
-		req.sq_mtt_cfg = user_qp->sq_mtt.page_offset;
+		req.sq_mtt_cfg = user_qp->sq_mem.page_offset;
 		req.sq_mtt_cfg |= FIELD_PREP(ERDMA_CMD_CREATE_QP_MTT_CNT_MASK,
-					     user_qp->sq_mtt.mtt_nents) |
+					     user_qp->sq_mem.mtt_nents) |
 				  FIELD_PREP(ERDMA_CMD_CREATE_QP_MTT_TYPE_MASK,
-					     user_qp->sq_mtt.mtt_type);
+					     user_qp->sq_mem.mtt_type);
 
-		req.rq_mtt_cfg = user_qp->rq_mtt.page_offset;
+		req.rq_mtt_cfg = user_qp->rq_mem.page_offset;
 		req.rq_mtt_cfg |= FIELD_PREP(ERDMA_CMD_CREATE_QP_MTT_CNT_MASK,
-					     user_qp->rq_mtt.mtt_nents) |
+					     user_qp->rq_mem.mtt_nents) |
 				  FIELD_PREP(ERDMA_CMD_CREATE_QP_MTT_TYPE_MASK,
-					     user_qp->rq_mtt.mtt_type);
+					     user_qp->rq_mem.mtt_type);
 
-		req.sq_buf_addr = user_qp->sq_mtt.mtt_entry[0];
-		req.rq_buf_addr = user_qp->rq_mtt.mtt_entry[0];
+		req.sq_buf_addr = user_qp->sq_mem.mtt_entry[0];
+		req.rq_buf_addr = user_qp->rq_mem.mtt_entry[0];
 
 		req.sq_db_info_dma_addr = user_qp->sq_db_info_dma_addr;
 		req.rq_db_info_dma_addr = user_qp->rq_db_info_dma_addr;
@@ -161,7 +161,7 @@ static int create_cq_cmd(struct erdma_ucontext *uctx, struct erdma_cq *cq)
 {
 	struct erdma_dev *dev = to_edev(cq->ibcq.device);
 	struct erdma_cmdq_create_cq_req req;
-	struct erdma_mem *mtt;
+	struct erdma_mem *mem;
 	u32 page_size;
 
 	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_RDMA,
@@ -186,23 +186,23 @@ static int create_cq_cmd(struct erdma_ucontext *uctx, struct erdma_cq *cq)
 		req.cq_db_info_addr =
 			cq->kern_cq.qbuf_dma_addr + (cq->depth << CQE_SHIFT);
 	} else {
-		mtt = &cq->user_cq.qbuf_mtt;
+		mem = &cq->user_cq.qbuf_mem;
 		req.cfg0 |=
 			FIELD_PREP(ERDMA_CMD_CREATE_CQ_PAGESIZE_MASK,
-				   ilog2(mtt->page_size) - ERDMA_HW_PAGE_SHIFT);
-		if (mtt->mtt_nents == 1) {
-			req.qbuf_addr_l = lower_32_bits(*(u64 *)mtt->mtt_buf);
-			req.qbuf_addr_h = upper_32_bits(*(u64 *)mtt->mtt_buf);
+				   ilog2(mem->page_size) - ERDMA_HW_PAGE_SHIFT);
+		if (mem->mtt_nents == 1) {
+			req.qbuf_addr_l = lower_32_bits(*(u64 *)mem->mtt_buf);
+			req.qbuf_addr_h = upper_32_bits(*(u64 *)mem->mtt_buf);
 		} else {
-			req.qbuf_addr_l = lower_32_bits(mtt->mtt_entry[0]);
-			req.qbuf_addr_h = upper_32_bits(mtt->mtt_entry[0]);
+			req.qbuf_addr_l = lower_32_bits(mem->mtt_entry[0]);
+			req.qbuf_addr_h = upper_32_bits(mem->mtt_entry[0]);
 		}
 		req.cfg1 |= FIELD_PREP(ERDMA_CMD_CREATE_CQ_MTT_CNT_MASK,
-				       mtt->mtt_nents);
+				       mem->mtt_nents);
 		req.cfg1 |= FIELD_PREP(ERDMA_CMD_CREATE_CQ_MTT_TYPE_MASK,
-				       mtt->mtt_type);
+				       mem->mtt_type);
 
-		req.first_page_offset = mtt->page_offset;
+		req.first_page_offset = mem->page_offset;
 		req.cq_db_info_addr = cq->user_cq.db_info_dma_addr;
 
 		if (uctx->ext_db.enable) {
@@ -660,7 +660,7 @@ static int init_user_qp(struct erdma_qp *qp, struct erdma_ucontext *uctx,
 		   qp->attrs.rq_size * RQE_SIZE))
 		return -EINVAL;
 
-	ret = get_mtt_entries(qp->dev, &qp->user_qp.sq_mtt, va,
+	ret = get_mtt_entries(qp->dev, &qp->user_qp.sq_mem, va,
 			      qp->attrs.sq_size << SQEBB_SHIFT, 0, va,
 			      (SZ_1M - SZ_4K), 1);
 	if (ret)
@@ -669,7 +669,7 @@ static int init_user_qp(struct erdma_qp *qp, struct erdma_ucontext *uctx,
 	rq_offset = ALIGN(qp->attrs.sq_size << SQEBB_SHIFT, ERDMA_HW_PAGE_SIZE);
 	qp->user_qp.rq_offset = rq_offset;
 
-	ret = get_mtt_entries(qp->dev, &qp->user_qp.rq_mtt, va + rq_offset,
+	ret = get_mtt_entries(qp->dev, &qp->user_qp.rq_mem, va + rq_offset,
 			      qp->attrs.rq_size << RQE_SHIFT, 0, va + rq_offset,
 			      (SZ_1M - SZ_4K), 1);
 	if (ret)
@@ -687,18 +687,18 @@ static int init_user_qp(struct erdma_qp *qp, struct erdma_ucontext *uctx,
 	return 0;
 
 put_rq_mtt:
-	put_mtt_entries(qp->dev, &qp->user_qp.rq_mtt);
+	put_mtt_entries(qp->dev, &qp->user_qp.rq_mem);
 
 put_sq_mtt:
-	put_mtt_entries(qp->dev, &qp->user_qp.sq_mtt);
+	put_mtt_entries(qp->dev, &qp->user_qp.sq_mem);
 
 	return ret;
 }
 
 static void free_user_qp(struct erdma_qp *qp, struct erdma_ucontext *uctx)
 {
-	put_mtt_entries(qp->dev, &qp->user_qp.sq_mtt);
-	put_mtt_entries(qp->dev, &qp->user_qp.rq_mtt);
+	put_mtt_entries(qp->dev, &qp->user_qp.sq_mem);
+	put_mtt_entries(qp->dev, &qp->user_qp.rq_mem);
 	erdma_unmap_user_dbrecords(uctx, &qp->user_qp.user_dbr_page);
 }
 
@@ -1041,7 +1041,7 @@ int erdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 				  cq->kern_cq.qbuf, cq->kern_cq.qbuf_dma_addr);
 	} else {
 		erdma_unmap_user_dbrecords(ctx, &cq->user_cq.user_dbr_page);
-		put_mtt_entries(dev, &cq->user_cq.qbuf_mtt);
+		put_mtt_entries(dev, &cq->user_cq.qbuf_mem);
 	}
 
 	xa_erase(&dev->cq_xa, cq->cqn);
@@ -1089,8 +1089,8 @@ int erdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 			WARPPED_BUFSIZE(qp->attrs.sq_size << SQEBB_SHIFT),
 			qp->kern_qp.sq_buf, qp->kern_qp.sq_buf_dma_addr);
 	} else {
-		put_mtt_entries(dev, &qp->user_qp.sq_mtt);
-		put_mtt_entries(dev, &qp->user_qp.rq_mtt);
+		put_mtt_entries(dev, &qp->user_qp.sq_mem);
+		put_mtt_entries(dev, &qp->user_qp.rq_mem);
 		erdma_unmap_user_dbrecords(ctx, &qp->user_qp.user_dbr_page);
 	}
 
@@ -1379,7 +1379,7 @@ static int erdma_init_user_cq(struct erdma_ucontext *ctx, struct erdma_cq *cq,
 	int ret;
 	struct erdma_dev *dev = to_edev(cq->ibcq.device);
 
-	ret = get_mtt_entries(dev, &cq->user_cq.qbuf_mtt, ureq->qbuf_va,
+	ret = get_mtt_entries(dev, &cq->user_cq.qbuf_mem, ureq->qbuf_va,
 			      ureq->qbuf_len, 0, ureq->qbuf_va, SZ_64M - SZ_4K,
 			      1);
 	if (ret)
@@ -1389,7 +1389,7 @@ static int erdma_init_user_cq(struct erdma_ucontext *ctx, struct erdma_cq *cq,
 				       &cq->user_cq.user_dbr_page,
 				       &cq->user_cq.db_info_dma_addr);
 	if (ret)
-		put_mtt_entries(dev, &cq->user_cq.qbuf_mtt);
+		put_mtt_entries(dev, &cq->user_cq.qbuf_mem);
 
 	return ret;
 }
@@ -1473,7 +1473,7 @@ int erdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 err_free_res:
 	if (!rdma_is_kernel_res(&ibcq->res)) {
 		erdma_unmap_user_dbrecords(ctx, &cq->user_cq.user_dbr_page);
-		put_mtt_entries(dev, &cq->user_cq.qbuf_mtt);
+		put_mtt_entries(dev, &cq->user_cq.qbuf_mem);
 	} else {
 		dma_free_coherent(&dev->pdev->dev,
 				  WARPPED_BUFSIZE(depth << CQE_SHIFT),

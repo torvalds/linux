@@ -65,7 +65,7 @@ struct erdma_pd {
  * MemoryRegion definition.
  */
 #define ERDMA_MAX_INLINE_MTT_ENTRIES 4
-#define MTT_SIZE(mtt_cnt) (mtt_cnt << 3) /* per mtt takes 8 Bytes. */
+#define MTT_SIZE(mtt_cnt) (mtt_cnt << 3) /* per mtt entry takes 8 Bytes. */
 #define ERDMA_MR_MAX_MTT_CNT 524288
 #define ERDMA_MTT_ENTRY_SIZE 8
 
@@ -121,8 +121,8 @@ struct erdma_user_dbrecords_page {
 };
 
 struct erdma_uqp {
-	struct erdma_mem sq_mtt;
-	struct erdma_mem rq_mtt;
+	struct erdma_mem sq_mem;
+	struct erdma_mem rq_mem;
 
 	dma_addr_t sq_db_info_dma_addr;
 	dma_addr_t rq_db_info_dma_addr;
@@ -234,7 +234,7 @@ struct erdma_kcq_info {
 };
 
 struct erdma_ucq_info {
-	struct erdma_mem qbuf_mtt;
+	struct erdma_mem qbuf_mem;
 	struct erdma_user_dbrecords_page *user_dbr_page;
 	dma_addr_t db_info_dma_addr;
 };
