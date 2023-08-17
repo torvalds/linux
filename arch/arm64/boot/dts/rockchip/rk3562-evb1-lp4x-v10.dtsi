@@ -179,6 +179,18 @@
 	};
 };
 
+&bus_soc {
+	rockchip,soc-bus-table = <0 0x00a000a8 0x7001>,
+				 <1 0x00a000a8 0x7c39>,
+				 <2 0x00a000a8 0x7c39>,
+				 <3 0x00a000a8 0x7c39>,
+				 <4 0x00a000a5 0xb007>,
+				 <5 0x00a000a8 0x7034>,
+				 <6 0x00a000a8 0x7034>,
+				 <7 0x00a000a8 0x7034>,
+				 <8 0x00a000a8 0x7001>;
+};
+
 &gmac0 {
 	/* Use rgmii-rxid mode to disable rx delay inside Soc */
 	phy-mode = "rgmii-rxid";
