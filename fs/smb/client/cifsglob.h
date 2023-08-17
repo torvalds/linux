@@ -199,6 +199,10 @@ struct cifs_open_info_data {
 	};
 };
 
+#define cifs_open_data_reparse(d) \
+	((d)->reparse_point || \
+	 (le32_to_cpu((d)->fi.Attributes) & ATTR_REPARSE))
+
 static inline void cifs_free_open_info(struct cifs_open_info_data *data)
 {
 	kfree(data->symlink_target);

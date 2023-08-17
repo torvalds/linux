@@ -542,6 +542,33 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+static int parse_create_response(struct cifs_open_info_data *data,
+				 struct cifs_sb_info *cifs_sb,
+				 const struct kvec *iov)
+{
+	struct smb2_create_rsp *rsp = iov->iov_base;
+	bool reparse_point = false;
+	u32 tag = 0;
+	int rc = 0;
+
+	switch (rsp->hdr.Status) {
+	case STATUS_STOPPED_ON_SYMLINK:
+		rc = smb2_parse_symlink_response(cifs_sb, iov,
+						 &data->symlink_target);
+		if (rc)
+			return rc;
+		tag = IO_REPARSE_TAG_SYMLINK;
+		reparse_point = true;
+		break;
+	case STATUS_SUCCESS:
+		reparse_point = !!(rsp->Flags & SMB2_CREATE_FLAG_REPARSEPOINT);
+		break;
+	}
+	data->reparse_point = reparse_point;
+	data->reparse_tag = tag;
+	return rc;
+}
+
 int smb2_query_path_info(const unsigned int xid,
 			 struct cifs_tcon *tcon,
 			 struct cifs_sb_info *cifs_sb,
@@ -551,6 +578,7 @@ int smb2_query_path_info(const unsigned int xid,
 	__u32 create_options = 0;
 	struct cifsFileInfo *cfile;
 	struct cached_fid *cfid = NULL;
+	struct smb2_hdr *hdr;
 	struct kvec out_iov[3] = {};
 	int out_buftype[3] = {};
 	bool islink;
@@ -579,39 +607,43 @@ int smb2_query_path_info(const unsigned int xid,
 	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path, FILE_READ_ATTRIBUTES, FILE_OPEN,
 			      create_options, ACL_NO_MODE, data, SMB2_OP_QUERY_INFO, cfile,
 			      NULL, NULL, out_iov, out_buftype);
-	if (rc) {
-		struct smb2_hdr *hdr = out_iov[0].iov_base;
+	hdr = out_iov[0].iov_base;
+	/*
+	 * If first iov is unset, then SMB session was dropped or we've got a
+	 * cached open file (@cfile).
+	 */
+	if (!hdr || out_buftype[0] == CIFS_NO_BUFFER)
+		goto out;
 
-		if (unlikely(!hdr || out_buftype[0] == CIFS_NO_BUFFER))
+	switch (rc) {
+	case 0:
+	case -EOPNOTSUPP:
+		rc = parse_create_response(data, cifs_sb, &out_iov[0]);
+		if (rc || !data->reparse_point)
 			goto out;
-		if (rc == -EOPNOTSUPP && hdr->Command == SMB2_CREATE &&
-		    hdr->Status == STATUS_STOPPED_ON_SYMLINK) {
-			rc = smb2_parse_symlink_response(cifs_sb, out_iov,
-							 &data->symlink_target);
-			if (rc)
-				goto out;
 
-			data->reparse_point = true;
-			create_options |= OPEN_REPARSE_POINT;
-
-			/* Failed on a symbolic link - query a reparse point info */
-			cifs_get_readable_path(tcon, full_path, &cfile);
-			rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
-					      FILE_READ_ATTRIBUTES, FILE_OPEN,
-					      create_options, ACL_NO_MODE, data,
-					      SMB2_OP_QUERY_INFO, cfile, NULL, NULL,
-					      NULL, NULL);
+		create_options |= OPEN_REPARSE_POINT;
+		/* Failed on a symbolic link - query a reparse point info */
+		cifs_get_readable_path(tcon, full_path, &cfile);
+		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
+				      FILE_READ_ATTRIBUTES, FILE_OPEN,
+				      create_options, ACL_NO_MODE, data,
+				      SMB2_OP_QUERY_INFO, cfile, NULL, NULL,
+				      NULL, NULL);
+		break;
+	case -EREMOTE:
+		break;
+	default:
+		if (hdr->Status != STATUS_OBJECT_NAME_INVALID)
+			break;
+		rc2 = cifs_inval_name_dfs_link_error(xid, tcon, cifs_sb,
+						     full_path, &islink);
+		if (rc2) {
+			rc = rc2;
 			goto out;
-		} else if (rc != -EREMOTE && hdr->Status == STATUS_OBJECT_NAME_INVALID) {
-			rc2 = cifs_inval_name_dfs_link_error(xid, tcon, cifs_sb,
-							     full_path, &islink);
-			if (rc2) {
-				rc = rc2;
-				goto out;
-			}
-			if (islink)
-				rc = -EREMOTE;
 		}
+		if (islink)
+			rc = -EREMOTE;
 	}
 
 out:
@@ -653,26 +685,32 @@ int smb311_posix_query_path_info(const unsigned int xid,
 	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path, FILE_READ_ATTRIBUTES, FILE_OPEN,
 			      create_options, ACL_NO_MODE, data, SMB2_OP_POSIX_QUERY_INFO, cfile,
 			      &sidsbuf, &sidsbuflen, out_iov, out_buftype);
-	if (rc == -EOPNOTSUPP) {
-		/* BB TODO: When support for special files added to Samba re-verify this path */
-		if (out_iov[0].iov_base && out_buftype[0] != CIFS_NO_BUFFER &&
-		    ((struct smb2_hdr *)out_iov[0].iov_base)->Command == SMB2_CREATE &&
-		    ((struct smb2_hdr *)out_iov[0].iov_base)->Status == STATUS_STOPPED_ON_SYMLINK) {
-			rc = smb2_parse_symlink_response(cifs_sb, out_iov, &data->symlink_target);
-			if (rc)
-				goto out;
-		}
-		data->reparse_point = true;
-		create_options |= OPEN_REPARSE_POINT;
+	/*
+	 * If first iov is unset, then SMB session was dropped or we've got a
+	 * cached open file (@cfile).
+	 */
+	if (!out_iov[0].iov_base || out_buftype[0] == CIFS_NO_BUFFER)
+		goto out;
 
+	switch (rc) {
+	case 0:
+	case -EOPNOTSUPP:
+		/* BB TODO: When support for special files added to Samba re-verify this path */
+		rc = parse_create_response(data, cifs_sb, &out_iov[0]);
+		if (rc || !data->reparse_point)
+			goto out;
+
+		create_options |= OPEN_REPARSE_POINT;
 		/* Failed on a symbolic link - query a reparse point info */
 		cifs_get_readable_path(tcon, full_path, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path, FILE_READ_ATTRIBUTES,
 				      FILE_OPEN, create_options, ACL_NO_MODE, data,
 				      SMB2_OP_POSIX_QUERY_INFO, cfile,
 				      &sidsbuf, &sidsbuflen, NULL, NULL);
+		break;
 	}
 
+out:
 	if (rc == 0) {
 		sidsbuf_end = sidsbuf + sidsbuflen;
 
@@ -692,7 +730,6 @@ int smb311_posix_query_path_info(const unsigned int xid,
 		memcpy(group, sidsbuf + owner_len, group_len);
 	}
 
-out:
 	kfree(sidsbuf);
 	free_rsp_buf(out_buftype[0], out_iov[0].iov_base);
 	free_rsp_buf(out_buftype[1], out_iov[1].iov_base);

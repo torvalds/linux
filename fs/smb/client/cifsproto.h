@@ -207,6 +207,9 @@ extern struct inode *cifs_iget(struct super_block *sb,
 int cifs_get_inode_info(struct inode **inode, const char *full_path,
 			struct cifs_open_info_data *data, struct super_block *sb, int xid,
 			const struct cifs_fid *fid);
+bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
+				 struct cifs_fattr *fattr,
+				 u32 tag);
 extern int smb311_posix_get_inode_info(struct inode **pinode, const char *search_path,
 			struct super_block *sb, unsigned int xid);
 extern int cifs_get_inode_info_unix(struct inode **pinode,
