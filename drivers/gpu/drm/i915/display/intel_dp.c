@@ -935,16 +935,42 @@ dfp_can_convert_from_ycbcr444(struct intel_dp *intel_dp,
 	return false;
 }
 
+static bool
+dfp_can_convert(struct intel_dp *intel_dp,
+		enum intel_output_format output_format,
+		enum intel_output_format sink_format)
+{
+	switch (output_format) {
+	case INTEL_OUTPUT_FORMAT_RGB:
+		return dfp_can_convert_from_rgb(intel_dp, sink_format);
+	case INTEL_OUTPUT_FORMAT_YCBCR444:
+		return dfp_can_convert_from_ycbcr444(intel_dp, sink_format);
+	default:
+		MISSING_CASE(output_format);
+		return false;
+	}
+
+	return false;
+}
+
 static enum intel_output_format
 intel_dp_output_format(struct intel_connector *connector,
 		       enum intel_output_format sink_format)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	enum intel_output_format force_dsc_output_format =
+		intel_dp->force_dsc_output_format;
 	enum intel_output_format output_format;
+	if (force_dsc_output_format) {
+		if (source_can_output(intel_dp, force_dsc_output_format) &&
+		    (!drm_dp_is_branch(intel_dp->dpcd) ||
+		     sink_format != force_dsc_output_format ||
+		     dfp_can_convert(intel_dp, force_dsc_output_format, sink_format)))
+			return force_dsc_output_format;
 
-	if (intel_dp->force_dsc_output_format)
-		return intel_dp->force_dsc_output_format;
+		drm_dbg_kms(&i915->drm, "Cannot force DSC output format\n");
+	}
 
 	if (sink_format == INTEL_OUTPUT_FORMAT_RGB ||
 	    dfp_can_convert_from_rgb(intel_dp, sink_format))
