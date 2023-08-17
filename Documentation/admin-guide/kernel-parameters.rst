@@ -80,7 +80,7 @@ The special case-tolerant group name "all" has a meaning of selecting all CPUs,
 so that "nohz_full=all" is the equivalent of "nohz_full=0-N".
 
 The semantics of "N" and "all" is supported on a level of bitmaps and holds for
-all users of bitmap_parse().
+all users of bitmap_parselist().
 
 This document may not be entirely up to date and comprehensive. The command
 "modinfo -p ${modulename}" shows a current list of all parameters of a loadable
