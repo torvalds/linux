@@ -936,22 +936,19 @@ static bool z_erofs_collector_end(struct z_erofs_decompress_frontend *fe)
 	return true;
 }
 
-static int z_erofs_read_fragment(struct inode *inode, erofs_off_t pos,
-				 struct page *page, unsigned int pageofs,
-				 unsigned int len)
+static int z_erofs_read_fragment(struct super_block *sb, struct page *page,
+			unsigned int cur, unsigned int end, erofs_off_t pos)
 {
-	struct super_block *sb = inode->i_sb;
-	struct inode *packed_inode = EROFS_I_SB(inode)->packed_inode;
+	struct inode *packed_inode = EROFS_SB(sb)->packed_inode;
 	struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
-	u8 *src, *dst;
-	unsigned int i, cnt;
+	unsigned int cnt;
+	u8 *src;
 
 	if (!packed_inode)
 		return -EFSCORRUPTED;
 
-	pos += EROFS_I(inode)->z_fragmentoff;
-	for (i = 0; i < len; i += cnt) {
-		cnt = min_t(unsigned int, len - i,
+	for (; cur < end; cur += cnt, pos += cnt) {
+		cnt = min_t(unsigned int, end - cur,
 			    sb->s_blocksize - erofs_blkoff(sb, pos));
 		src = erofs_bread(&buf, packed_inode,
 				  erofs_blknr(sb, pos), EROFS_KMAP);
@@ -959,11 +956,7 @@ static int z_erofs_read_fragment(struct inode *inode, erofs_off_t pos,
 			erofs_put_metabuf(&buf);
 			return PTR_ERR(src);
 		}
-
-		dst = kmap_local_page(page);
-		memcpy(dst + pageofs + i, src + erofs_blkoff(sb, pos), cnt);
-		kunmap_local(dst);
-		pos += cnt;
+		memcpy_to_page(page, cur, src + erofs_blkoff(sb, pos), cnt);
 	}
 	erofs_put_metabuf(&buf);
 	return 0;
@@ -976,7 +969,7 @@ static int z_erofs_do_read_page(struct z_erofs_decompress_frontend *fe,
 	struct erofs_map_blocks *const map = &fe->map;
 	const loff_t offset = page_offset(page);
 	bool tight = true, exclusive;
-	unsigned int cur, end, spiltted;
+	unsigned int cur, end, len, spiltted;
 	int err = 0;
 
 	/* register locked file pages as online pages in pack */
@@ -1049,17 +1042,11 @@ hitted:
 		goto next_part;
 	}
 	if (map->m_flags & EROFS_MAP_FRAGMENT) {
-		unsigned int pageofs, skip, len;
+		erofs_off_t fpos = offset + cur - map->m_la;
 
-		if (offset > map->m_la) {
-			pageofs = 0;
-			skip = offset - map->m_la;
-		} else {
-			pageofs = map->m_la & ~PAGE_MASK;
-			skip = 0;
-		}
-		len = min_t(unsigned int, map->m_llen - skip, end - cur);
-		err = z_erofs_read_fragment(inode, skip, page, pageofs, len);
+		len = min_t(unsigned int, map->m_llen - fpos, end - cur);
+		err = z_erofs_read_fragment(inode->i_sb, page, cur, cur + len,
+				EROFS_I(inode)->z_fragmentoff + fpos);
 		if (err)
 			goto out;
 		++spiltted;
