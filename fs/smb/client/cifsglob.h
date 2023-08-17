@@ -1721,11 +1721,23 @@ struct cifs_mount_ctx {
 	struct list_head dfs_ses_list;
 };
 
+static inline void __free_dfs_info_param(struct dfs_info3_param *param)
+{
+	kfree(param->path_name);
+	kfree(param->node_name);
+}
+
 static inline void free_dfs_info_param(struct dfs_info3_param *param)
 {
+	if (param)
+		__free_dfs_info_param(param);
+}
+
+static inline void zfree_dfs_info_param(struct dfs_info3_param *param)
+{
 	if (param) {
-		kfree(param->path_name);
-		kfree(param->node_name);
+		__free_dfs_info_param(param);
+		memset(param, 0, sizeof(*param));
 	}
 }
 
