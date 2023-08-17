@@ -26,13 +26,13 @@ static void assemble_qbuf_mtt_for_cmd(struct erdma_mem *mem, u32 *cfg,
 
 	if (mem->mtt_nents > ERDMA_MAX_INLINE_MTT_ENTRIES) {
 		*addr0 = mtt->buf_dma;
-		*cfg |= FIELD_PREP(ERDMA_CMD_CREATE_QP_MTT_TYPE_MASK,
-				   ERDMA_MR_INDIRECT_MTT);
+		*cfg |= FIELD_PREP(ERDMA_CMD_CREATE_QP_MTT_LEVEL_MASK,
+				   ERDMA_MR_MTT_1LEVEL);
 	} else {
 		*addr0 = mtt->buf[0];
 		memcpy(addr1, mtt->buf + 1, MTT_SIZE(mem->mtt_nents - 1));
-		*cfg |= FIELD_PREP(ERDMA_CMD_CREATE_QP_MTT_TYPE_MASK,
-				   ERDMA_MR_INLINE_MTT);
+		*cfg |= FIELD_PREP(ERDMA_CMD_CREATE_QP_MTT_LEVEL_MASK,
+				   ERDMA_MR_MTT_0LEVEL);
 	}
 }
 
@@ -70,8 +70,8 @@ static int create_qp_cmd(struct erdma_ucontext *uctx, struct erdma_qp *qp)
 		req.sq_mtt_cfg =
 			FIELD_PREP(ERDMA_CMD_CREATE_QP_PAGE_OFFSET_MASK, 0) |
 			FIELD_PREP(ERDMA_CMD_CREATE_QP_MTT_CNT_MASK, 1) |
-			FIELD_PREP(ERDMA_CMD_CREATE_QP_MTT_TYPE_MASK,
-				   ERDMA_MR_INLINE_MTT);
+			FIELD_PREP(ERDMA_CMD_CREATE_QP_MTT_LEVEL_MASK,
+				   ERDMA_MR_MTT_0LEVEL);
 		req.rq_mtt_cfg = req.sq_mtt_cfg;
 
 		req.rq_buf_addr = qp->kern_qp.rq_buf_dma_addr;
@@ -140,12 +140,17 @@ static int regmr_cmd(struct erdma_dev *dev, struct erdma_mr *mr)
 
 	if (mr->type == ERDMA_MR_TYPE_FRMR ||
 	    mr->mem.page_cnt > ERDMA_MAX_INLINE_MTT_ENTRIES) {
-		req.phy_addr[0] = mr->mem.mtt->buf_dma;
-		mtt_level = ERDMA_MR_INDIRECT_MTT;
+		if (mr->mem.mtt->continuous) {
+			req.phy_addr[0] = mr->mem.mtt->buf_dma;
+			mtt_level = ERDMA_MR_MTT_1LEVEL;
+		} else {
+			req.phy_addr[0] = sg_dma_address(mr->mem.mtt->sglist);
+			mtt_level = mr->mem.mtt->level;
+		}
 	} else {
 		memcpy(req.phy_addr, mr->mem.mtt->buf,
 		       MTT_SIZE(mr->mem.page_cnt));
-		mtt_level = ERDMA_MR_INLINE_MTT;
+		mtt_level = ERDMA_MR_MTT_0LEVEL;
 	}
 
 	req.cfg0 = FIELD_PREP(ERDMA_CMD_MR_VALID_MASK, mr->valid) |
@@ -165,6 +170,14 @@ static int regmr_cmd(struct erdma_dev *dev, struct erdma_mr *mr)
 	if (mr->type == ERDMA_MR_TYPE_NORMAL) {
 		req.start_va = mr->mem.va;
 		req.size = mr->mem.len;
+	}
+
+	if (!mr->mem.mtt->continuous && mr->mem.mtt->level > 1) {
+		req.cfg0 |= FIELD_PREP(ERDMA_CMD_MR_VERSION_MASK, 1);
+		req.cfg2 |= FIELD_PREP(ERDMA_CMD_REGMR_MTT_PAGESIZE_MASK,
+				       PAGE_SHIFT - ERDMA_HW_PAGE_SHIFT);
+		req.size_h = upper_32_bits(mr->mem.len);
+		req.mtt_cnt_h = mr->mem.page_cnt >> 20;
 	}
 
 post_cmd:
@@ -194,7 +207,7 @@ static int create_cq_cmd(struct erdma_ucontext *uctx, struct erdma_cq *cq)
 
 		req.cfg1 |= FIELD_PREP(ERDMA_CMD_CREATE_CQ_MTT_CNT_MASK, 1) |
 			    FIELD_PREP(ERDMA_CMD_CREATE_CQ_MTT_LEVEL_MASK,
-				       ERDMA_MR_INLINE_MTT);
+				       ERDMA_MR_MTT_0LEVEL);
 
 		req.first_page_offset = 0;
 		req.cq_db_info_addr =
@@ -209,13 +222,13 @@ static int create_cq_cmd(struct erdma_ucontext *uctx, struct erdma_cq *cq)
 			req.qbuf_addr_h = upper_32_bits(mem->mtt->buf[0]);
 			req.cfg1 |=
 				FIELD_PREP(ERDMA_CMD_CREATE_CQ_MTT_LEVEL_MASK,
-					   ERDMA_MR_INLINE_MTT);
+					   ERDMA_MR_MTT_0LEVEL);
 		} else {
 			req.qbuf_addr_l = lower_32_bits(mem->mtt->buf_dma);
 			req.qbuf_addr_h = upper_32_bits(mem->mtt->buf_dma);
 			req.cfg1 |=
 				FIELD_PREP(ERDMA_CMD_CREATE_CQ_MTT_LEVEL_MASK,
-					   ERDMA_MR_INDIRECT_MTT);
+					   ERDMA_MR_MTT_1LEVEL);
 		}
 		req.cfg1 |= FIELD_PREP(ERDMA_CMD_CREATE_CQ_MTT_CNT_MASK,
 				       mem->mtt_nents);
@@ -543,7 +556,6 @@ static struct erdma_mtt *erdma_create_cont_mtt(struct erdma_dev *dev,
 					       size_t size)
 {
 	struct erdma_mtt *mtt;
-	int ret = -ENOMEM;
 
 	mtt = kzalloc(sizeof(*mtt), GFP_KERNEL);
 	if (!mtt)
@@ -568,34 +580,181 @@ err_free_mtt_buf:
 err_free_mtt:
 	kfree(mtt);
 
+	return ERR_PTR(-ENOMEM);
+}
+
+static void erdma_destroy_mtt_buf_sg(struct erdma_dev *dev,
+				     struct erdma_mtt *mtt)
+{
+	dma_unmap_sg(&dev->pdev->dev, mtt->sglist, mtt->nsg, DMA_TO_DEVICE);
+	vfree(mtt->sglist);
+}
+
+static void erdma_destroy_scatter_mtt(struct erdma_dev *dev,
+				      struct erdma_mtt *mtt)
+{
+	erdma_destroy_mtt_buf_sg(dev, mtt);
+	vfree(mtt->buf);
+	kfree(mtt);
+}
+
+static void erdma_init_middle_mtt(struct erdma_mtt *mtt,
+				  struct erdma_mtt *low_mtt)
+{
+	struct scatterlist *sg;
+	u32 idx = 0, i;
+
+	for_each_sg(low_mtt->sglist, sg, low_mtt->nsg, i)
+		mtt->buf[idx++] = sg_dma_address(sg);
+}
+
+static int erdma_create_mtt_buf_sg(struct erdma_dev *dev, struct erdma_mtt *mtt)
+{
+	struct scatterlist *sglist;
+	void *buf = mtt->buf;
+	u32 npages, i, nsg;
+	struct page *pg;
+
+	/* Failed if buf is not page aligned */
+	if ((uintptr_t)buf & ~PAGE_MASK)
+		return -EINVAL;
+
+	npages = DIV_ROUND_UP(mtt->size, PAGE_SIZE);
+	sglist = vzalloc(npages * sizeof(*sglist));
+	if (!sglist)
+		return -ENOMEM;
+
+	sg_init_table(sglist, npages);
+	for (i = 0; i < npages; i++) {
+		pg = vmalloc_to_page(buf);
+		if (!pg)
+			goto err;
+		sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
+		buf += PAGE_SIZE;
+	}
+
+	nsg = dma_map_sg(&dev->pdev->dev, sglist, npages, DMA_TO_DEVICE);
+	if (!nsg)
+		goto err;
+
+	mtt->sglist = sglist;
+	mtt->nsg = nsg;
+
+	return 0;
+err:
+	vfree(sglist);
+
+	return -ENOMEM;
+}
+
+static struct erdma_mtt *erdma_create_scatter_mtt(struct erdma_dev *dev,
+						  size_t size)
+{
+	struct erdma_mtt *mtt;
+	int ret = -ENOMEM;
+
+	mtt = kzalloc(sizeof(*mtt), GFP_KERNEL);
+	if (!mtt)
+		return NULL;
+
+	mtt->size = ALIGN(size, PAGE_SIZE);
+	mtt->buf = vzalloc(mtt->size);
+	mtt->continuous = false;
+	if (!mtt->buf)
+		goto err_free_mtt;
+
+	ret = erdma_create_mtt_buf_sg(dev, mtt);
+	if (ret)
+		goto err_free_mtt_buf;
+
+	ibdev_dbg(&dev->ibdev, "create scatter mtt, size:%lu, nsg:%u\n",
+		  mtt->size, mtt->nsg);
+
+	return mtt;
+
+err_free_mtt_buf:
+	vfree(mtt->buf);
+
+err_free_mtt:
+	kfree(mtt);
+
 	return ERR_PTR(ret);
 }
 
 static struct erdma_mtt *erdma_create_mtt(struct erdma_dev *dev, size_t size,
 					  bool force_continuous)
 {
+	struct erdma_mtt *mtt, *tmp_mtt;
+	int ret, level = 0;
+
 	ibdev_dbg(&dev->ibdev, "create_mtt, size:%lu, force cont:%d\n", size,
 		  force_continuous);
+
+	if (!(dev->attrs.cap_flags & ERDMA_DEV_CAP_FLAGS_MTT_VA))
+		force_continuous = true;
 
 	if (force_continuous)
 		return erdma_create_cont_mtt(dev, size);
 
-	return ERR_PTR(-EOPNOTSUPP);
+	mtt = erdma_create_scatter_mtt(dev, size);
+	if (IS_ERR(mtt))
+		return mtt;
+	level = 1;
+
+	/* convergence the mtt table. */
+	while (mtt->nsg != 1 && level <= 3) {
+		tmp_mtt = erdma_create_scatter_mtt(dev, MTT_SIZE(mtt->nsg));
+		if (IS_ERR(tmp_mtt)) {
+			ret = PTR_ERR(tmp_mtt);
+			goto err_free_mtt;
+		}
+		erdma_init_middle_mtt(tmp_mtt, mtt);
+		tmp_mtt->low_level = mtt;
+		mtt = tmp_mtt;
+		level++;
+	}
+
+	if (level > 3) {
+		ret = -ENOMEM;
+		goto err_free_mtt;
+	}
+
+	mtt->level = level;
+	ibdev_dbg(&dev->ibdev, "top mtt: level:%d, dma_addr 0x%llx\n",
+		  mtt->level, mtt->sglist[0].dma_address);
+
+	return mtt;
+err_free_mtt:
+	while (mtt) {
+		tmp_mtt = mtt->low_level;
+		erdma_destroy_scatter_mtt(dev, mtt);
+		mtt = tmp_mtt;
+	}
+
+	return ERR_PTR(ret);
 }
 
 static void erdma_destroy_mtt(struct erdma_dev *dev, struct erdma_mtt *mtt)
 {
+	struct erdma_mtt *tmp_mtt;
+
 	if (mtt->continuous) {
 		dma_unmap_single(&dev->pdev->dev, mtt->buf_dma, mtt->size,
 				 DMA_TO_DEVICE);
 		kfree(mtt->buf);
 		kfree(mtt);
+	} else {
+		while (mtt) {
+			tmp_mtt = mtt->low_level;
+			erdma_destroy_scatter_mtt(dev, mtt);
+			mtt = tmp_mtt;
+		}
 	}
 }
 
 static int get_mtt_entries(struct erdma_dev *dev, struct erdma_mem *mem,
 			   u64 start, u64 len, int access, u64 virt,
-			   unsigned long req_page_size, u8 force_indirect_mtt)
+			   unsigned long req_page_size, bool force_continuous)
 {
 	int ret = 0;
 
@@ -612,7 +771,8 @@ static int get_mtt_entries(struct erdma_dev *dev, struct erdma_mem *mem,
 	mem->page_offset = start & (mem->page_size - 1);
 	mem->mtt_nents = ib_umem_num_dma_blocks(mem->umem, mem->page_size);
 	mem->page_cnt = mem->mtt_nents;
-	mem->mtt = erdma_create_mtt(dev, MTT_SIZE(mem->page_cnt), true);
+	mem->mtt = erdma_create_mtt(dev, MTT_SIZE(mem->page_cnt),
+				    force_continuous);
 	if (IS_ERR(mem->mtt)) {
 		ret = PTR_ERR(mem->mtt);
 		goto error_ret;
@@ -717,7 +877,7 @@ static int init_user_qp(struct erdma_qp *qp, struct erdma_ucontext *uctx,
 
 	ret = get_mtt_entries(qp->dev, &qp->user_qp.sq_mem, va,
 			      qp->attrs.sq_size << SQEBB_SHIFT, 0, va,
-			      (SZ_1M - SZ_4K), 1);
+			      (SZ_1M - SZ_4K), true);
 	if (ret)
 		return ret;
 
@@ -726,7 +886,7 @@ static int init_user_qp(struct erdma_qp *qp, struct erdma_ucontext *uctx,
 
 	ret = get_mtt_entries(qp->dev, &qp->user_qp.rq_mem, va + rq_offset,
 			      qp->attrs.rq_size << RQE_SHIFT, 0, va + rq_offset,
-			      (SZ_1M - SZ_4K), 1);
+			      (SZ_1M - SZ_4K), true);
 	if (ret)
 		goto put_sq_mtt;
 
@@ -998,7 +1158,7 @@ struct ib_mr *erdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 		return ERR_PTR(-ENOMEM);
 
 	ret = get_mtt_entries(dev, &mr->mem, start, len, access, virt,
-			      SZ_2G - SZ_4K, 0);
+			      SZ_2G - SZ_4K, false);
 	if (ret)
 		goto err_out_free;
 
@@ -1423,7 +1583,7 @@ static int erdma_init_user_cq(struct erdma_ucontext *ctx, struct erdma_cq *cq,
 
 	ret = get_mtt_entries(dev, &cq->user_cq.qbuf_mem, ureq->qbuf_va,
 			      ureq->qbuf_len, 0, ureq->qbuf_va, SZ_64M - SZ_4K,
-			      1);
+			      true);
 	if (ret)
 		return ret;
 

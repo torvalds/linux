@@ -73,8 +73,8 @@ struct erdma_pd {
 #define ERDMA_MR_TYPE_FRMR 1
 #define ERDMA_MR_TYPE_DMA 2
 
-#define ERDMA_MR_INLINE_MTT 0
-#define ERDMA_MR_INDIRECT_MTT 1
+#define ERDMA_MR_MTT_0LEVEL 0
+#define ERDMA_MR_MTT_1LEVEL 1
 
 #define ERDMA_MR_ACC_RA BIT(0)
 #define ERDMA_MR_ACC_LR BIT(1)
