@@ -705,8 +705,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clock-frequency = <400000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C1
-				  &bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C1>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C1>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -724,8 +724,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <400000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C3
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C3>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C3>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -743,8 +743,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C4
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C4>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C4>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -762,8 +762,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C6
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C6>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C6>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -781,8 +781,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C7
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C7>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C7>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -807,8 +807,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C9
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C9>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C9>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -1751,8 +1751,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C2
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C2>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C2>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
@@ -1770,8 +1770,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <400000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C8
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C8>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C8>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
