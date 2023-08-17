@@ -9397,6 +9397,8 @@ static void bnxt_disable_napi(struct bnxt *bp)
 		struct bnxt_cp_ring_info *cpr;
 
 		cpr = &bnapi->cp_ring;
+		if (bnapi->tx_fault)
+			cpr->sw_stats.tx.tx_resets++;
 		if (bnapi->in_reset)
 			cpr->sw_stats.rx.rx_resets++;
 		napi_disable(&bnapi->napi);
@@ -10951,6 +10953,7 @@ static void bnxt_get_one_ring_err_stats(struct bnxt *bp,
 	stats->rx_total_netpoll_discards += sw_stats->rx.rx_netpoll_discards;
 	stats->rx_total_ring_discards +=
 		BNXT_GET_RING_STATS64(hw_stats, rx_discard_pkts);
+	stats->tx_total_resets += sw_stats->tx.tx_resets;
 	stats->tx_total_ring_discards +=
 		BNXT_GET_RING_STATS64(hw_stats, tx_discard_pkts);
 	stats->total_missed_irqs += sw_stats->cmn.missed_irqs;

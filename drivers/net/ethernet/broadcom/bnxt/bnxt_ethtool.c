@@ -346,6 +346,7 @@ static const char *const bnxt_ring_err_stats_arr[] = {
 	"rx_total_oom_discards",
 	"rx_total_netpoll_discards",
 	"rx_total_ring_discards",
+	"tx_total_resets",
 	"tx_total_ring_discards",
 	"total_missed_irqs",
 };
