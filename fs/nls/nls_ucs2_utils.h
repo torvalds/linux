@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include <linux/nls.h>
 #include <linux/unicode.h>
+#include "nls_ucs2_data.h"
 
 /*
  * Windows maps these to the user defined 16 bit Unicode range since they are
@@ -39,19 +40,6 @@
 #define UNI_LESSTHAN    ((__u16)('<' + 0xF000))
 #define UNI_PIPE        ((__u16)('|' + 0xF000))
 #define UNI_SLASH       ((__u16)('\\' + 0xF000))
-
-#ifndef	UNICASERANGE_DEFINED
-struct UniCaseRange {
-	wchar_t start;
-	wchar_t end;
-	signed char *table;
-};
-#endif				/* UNICASERANGE_DEFINED */
-
-#ifndef UNIUPR_NOUPPER
-extern signed char NlsUniUpperTable[512];
-extern const struct UniCaseRange NlsUniUpperRange[];
-#endif				/* UNIUPR_NOUPPER */
 
 /*
  * UniStrcat:  Concatenate the second string to the first
