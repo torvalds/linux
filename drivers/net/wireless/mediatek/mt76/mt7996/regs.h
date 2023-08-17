@@ -509,6 +509,7 @@ enum base_rev {
 
 #define MT_LED_CTRL(_n)				MT_LED_PHYS(0x00 + ((_n) * 4))
 #define MT_LED_CTRL_KICK			BIT(7)
+#define MT_LED_CTRL_BLINK_BAND_SEL		BIT(4)
 #define MT_LED_CTRL_BLINK_MODE			BIT(2)
 #define MT_LED_CTRL_POLARITY			BIT(1)
 

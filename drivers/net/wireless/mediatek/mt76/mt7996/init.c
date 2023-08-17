@@ -54,23 +54,31 @@ static void mt7996_led_set_config(struct led_classdev *led_cdev,
 	dev = container_of(mphy->dev, struct mt7996_dev, mt76);
 
 	/* select TX blink mode, 2: only data frames */
-	mt76_rmw_field(dev, MT_TMAC_TCR0(0), MT_TMAC_TCR0_TX_BLINK, 2);
+	mt76_rmw_field(dev, MT_TMAC_TCR0(mphy->band_idx), MT_TMAC_TCR0_TX_BLINK, 2);
 
 	/* enable LED */
-	mt76_wr(dev, MT_LED_EN(0), 1);
+	mt76_wr(dev, MT_LED_EN(mphy->band_idx), 1);
 
 	/* set LED Tx blink on/off time */
 	val = FIELD_PREP(MT_LED_TX_BLINK_ON_MASK, delay_on) |
 	      FIELD_PREP(MT_LED_TX_BLINK_OFF_MASK, delay_off);
-	mt76_wr(dev, MT_LED_TX_BLINK(0), val);
+	mt76_wr(dev, MT_LED_TX_BLINK(mphy->band_idx), val);
 
-	/* control LED */
-	val = MT_LED_CTRL_BLINK_MODE | MT_LED_CTRL_KICK;
+	/* turn LED off */
+	if (delay_off == 0xff && delay_on == 0x0) {
+		val = MT_LED_CTRL_POLARITY | MT_LED_CTRL_KICK;
+	} else {
+		/* control LED */
+		val = MT_LED_CTRL_BLINK_MODE | MT_LED_CTRL_KICK;
+		if (mphy->band_idx == MT_BAND1)
+			val |= MT_LED_CTRL_BLINK_BAND_SEL;
+	}
+
 	if (mphy->leds.al)
 		val |= MT_LED_CTRL_POLARITY;
 
-	mt76_wr(dev, MT_LED_CTRL(0), val);
-	mt76_clear(dev, MT_LED_CTRL(0), MT_LED_CTRL_KICK);
+	mt76_wr(dev, MT_LED_CTRL(mphy->band_idx), val);
+	mt76_clear(dev, MT_LED_CTRL(mphy->band_idx), MT_LED_CTRL_KICK);
 }
 
 static int mt7996_led_set_blink(struct led_classdev *led_cdev,
@@ -221,6 +229,12 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
 			IEEE80211_HT_MPDU_DENSITY_1;
 
 		ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
+	}
+
+	/* init led callbacks */
+	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
+		phy->mt76->leds.cdev.brightness_set = mt7996_led_set_brightness;
+		phy->mt76->leds.cdev.blink_set = mt7996_led_set_blink;
 	}
 
 	mt76_set_stream_caps(phy->mt76, true);
@@ -869,12 +883,6 @@ int mt7996_register_device(struct mt7996_dev *dev)
 		return ret;
 
 	mt7996_init_wiphy(hw);
-
-	/* init led callbacks */
-	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
-		dev->mphy.leds.cdev.brightness_set = mt7996_led_set_brightness;
-		dev->mphy.leds.cdev.blink_set = mt7996_led_set_blink;
-	}
 
 	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
 				   ARRAY_SIZE(mt76_rates));
