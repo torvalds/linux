@@ -124,7 +124,7 @@ struct moxart_desc {
 	unsigned int			dma_cycles;
 	struct virt_dma_desc		vd;
 	uint8_t				es;
-	struct moxart_sg		sg[];
+	struct moxart_sg		sg[] __counted_by(sglen);
 };
 
 struct moxart_chan {
@@ -309,6 +309,7 @@ static struct dma_async_tx_descriptor *moxart_prep_slave_sg(
 	d = kzalloc(struct_size(d, sg, sg_len), GFP_ATOMIC);
 	if (!d)
 		return NULL;
+	d->sglen = sg_len;
 
 	d->dma_dir = dir;
 	d->dev_addr = dev_addr;
@@ -318,8 +319,6 @@ static struct dma_async_tx_descriptor *moxart_prep_slave_sg(
 		d->sg[i].addr = sg_dma_address(sgent);
 		d->sg[i].len = sg_dma_len(sgent);
 	}
-
-	d->sglen = sg_len;
 
 	ch->error = 0;
 
