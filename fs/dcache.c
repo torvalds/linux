@@ -1664,7 +1664,7 @@ static enum d_walk_ret umount_check(void *_data, struct dentry *dentry)
 	if (dentry == _data && dentry->d_lockref.count == 1)
 		return D_WALK_CONTINUE;
 
-	printk(KERN_ERR "BUG: Dentry %p{i=%lx,n=%pd} "
+	WARN(1, "BUG: Dentry %p{i=%lx,n=%pd} "
 			" still in use (%d) [unmount of %s %s]\n",
 		       dentry,
 		       dentry->d_inode ?
@@ -1673,7 +1673,6 @@ static enum d_walk_ret umount_check(void *_data, struct dentry *dentry)
 		       dentry->d_lockref.count,
 		       dentry->d_sb->s_type->name,
 		       dentry->d_sb->s_id);
-	WARN_ON(1);
 	return D_WALK_CONTINUE;
 }
 
