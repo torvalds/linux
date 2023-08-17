@@ -295,11 +295,7 @@ extern void cifs_put_tcp_session(struct TCP_Server_Info *server,
 				 int from_reconnect);
 extern void cifs_put_tcon(struct cifs_tcon *tcon);
 
-#if IS_ENABLED(CONFIG_CIFS_DFS_UPCALL)
 extern void cifs_release_automount_timer(void);
-#else /* ! IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) */
-#define cifs_release_automount_timer()	do { } while (0)
-#endif /* ! IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) */
 
 void cifs_proc_init(void);
 void cifs_proc_clean(void);

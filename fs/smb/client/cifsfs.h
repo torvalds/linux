@@ -118,14 +118,7 @@ extern void cifs_pages_write_redirty(struct inode *inode, loff_t start, unsigned
 extern const struct dentry_operations cifs_dentry_ops;
 extern const struct dentry_operations cifs_ci_dentry_ops;
 
-#ifdef CONFIG_CIFS_DFS_UPCALL
 extern struct vfsmount *cifs_d_automount(struct path *path);
-#else
-static inline struct vfsmount *cifs_d_automount(struct path *path)
-{
-	return ERR_PTR(-EREMOTE);
-}
-#endif
 
 /* Functions related to symlinks */
 extern const char *cifs_get_link(struct dentry *, struct inode *,

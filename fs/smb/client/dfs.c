@@ -263,11 +263,27 @@ out:
 	return rc;
 }
 
+/* Resolve UNC hostname in @ctx->source and set ip addr in @ctx->dstaddr */
+static int update_fs_context_dstaddr(struct smb3_fs_context *ctx)
+{
+	struct sockaddr *addr = (struct sockaddr *)&ctx->dstaddr;
+	int rc;
+
+	rc = dns_resolve_server_name_to_ip(ctx->source, addr, NULL);
+	if (!rc)
+		cifs_set_port(addr, ctx->port);
+	return rc;
+}
+
 int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	bool nodfs = ctx->nodfs;
 	int rc;
+
+	rc = update_fs_context_dstaddr(ctx);
+	if (rc)
+		return rc;
 
 	*isdfs = false;
 	rc = get_session(mnt_ctx, NULL);

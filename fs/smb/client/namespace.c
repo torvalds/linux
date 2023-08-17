@@ -6,6 +6,7 @@
  *   Copyright (C) International Business Machines  Corp., 2008
  *   Author(s): Igor Mammedov (niallain@gmail.com)
  *		Steve French (sfrench@us.ibm.com)
+ *   Copyright (c) 2023 Paulo Alcantara <palcantara@suse.de>
  */
 
 #include <linux/dcache.h>
@@ -18,9 +19,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifsfs.h"
-#include "dns_resolve.h"
 #include "cifs_debug.h"
-#include "dfs.h"
 #include "fs_context.h"
 
 static LIST_HEAD(cifs_automount_list);
@@ -118,15 +117,41 @@ cifs_build_devname(char *nodename, const char *prepath)
 	return dev;
 }
 
-static int set_dest_addr(struct smb3_fs_context *ctx)
+/* Return full path out of a dentry set for automount */
+static char *automount_fullpath(struct dentry *dentry, void *page)
 {
-	struct sockaddr *addr = (struct sockaddr *)&ctx->dstaddr;
-	int rc;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	size_t len;
+	char *s;
 
-	rc = dns_resolve_server_name_to_ip(ctx->source, addr, NULL);
-	if (!rc)
-		cifs_set_port(addr, ctx->port);
-	return rc;
+	spin_lock(&tcon->tc_lock);
+	if (unlikely(!tcon->origin_fullpath)) {
+		spin_unlock(&tcon->tc_lock);
+		return ERR_PTR(-EREMOTE);
+	}
+	spin_unlock(&tcon->tc_lock);
+
+	s = dentry_path_raw(dentry, page, PATH_MAX);
+	if (IS_ERR(s))
+		return s;
+	/* for root, we want "" */
+	if (!s[1])
+		s++;
+
+	spin_lock(&tcon->tc_lock);
+	len = strlen(tcon->origin_fullpath);
+	if (s < (char *)page + len) {
+		spin_unlock(&tcon->tc_lock);
+		return ERR_PTR(-ENAMETOOLONG);
+	}
+
+	s -= len;
+	memcpy(s, tcon->origin_fullpath, len);
+	spin_unlock(&tcon->tc_lock);
+	convert_delimiter(s, '/');
+
+	return s;
 }
 
 /*
@@ -166,7 +191,7 @@ static struct vfsmount *cifs_do_automount(struct path *path)
 	ctx = smb3_fc2context(fc);
 
 	page = alloc_dentry_path();
-	full_path = dfs_get_automount_devname(mntpt, page);
+	full_path = automount_fullpath(mntpt, page);
 	if (IS_ERR(full_path)) {
 		mnt = ERR_CAST(full_path);
 		goto out;
@@ -196,15 +221,10 @@ static struct vfsmount *cifs_do_automount(struct path *path)
 		ctx->source = NULL;
 		goto out;
 	}
-	cifs_dbg(FYI, "%s: ctx: source=%s UNC=%s prepath=%s dstaddr=%pISpc\n",
-		 __func__, ctx->source, ctx->UNC, ctx->prepath, &ctx->dstaddr);
+	cifs_dbg(FYI, "%s: ctx: source=%s UNC=%s prepath=%s\n",
+		 __func__, ctx->source, ctx->UNC, ctx->prepath);
 
-	rc = set_dest_addr(ctx);
-	if (!rc)
-		mnt = fc_mount(fc);
-	else
-		mnt = ERR_PTR(rc);
-
+	mnt = fc_mount(fc);
 out:
 	put_fs_context(fc);
 	free_dentry_path(page);

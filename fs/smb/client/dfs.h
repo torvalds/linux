@@ -138,43 +138,6 @@ static inline int dfs_get_referral(struct cifs_mount_ctx *mnt_ctx, const char *p
 			      cifs_remap(cifs_sb), path, ref, tl);
 }
 
-/* Return DFS full path out of a dentry set for automount */
-static inline char *dfs_get_automount_devname(struct dentry *dentry, void *page)
-{
-	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
-	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
-	size_t len;
-	char *s;
-
-	spin_lock(&tcon->tc_lock);
-	if (unlikely(!tcon->origin_fullpath)) {
-		spin_unlock(&tcon->tc_lock);
-		return ERR_PTR(-EREMOTE);
-	}
-	spin_unlock(&tcon->tc_lock);
-
-	s = dentry_path_raw(dentry, page, PATH_MAX);
-	if (IS_ERR(s))
-		return s;
-	/* for root, we want "" */
-	if (!s[1])
-		s++;
-
-	spin_lock(&tcon->tc_lock);
-	len = strlen(tcon->origin_fullpath);
-	if (s < (char *)page + len) {
-		spin_unlock(&tcon->tc_lock);
-		return ERR_PTR(-ENAMETOOLONG);
-	}
-
-	s -= len;
-	memcpy(s, tcon->origin_fullpath, len);
-	spin_unlock(&tcon->tc_lock);
-	convert_delimiter(s, '/');
-
-	return s;
-}
-
 static inline void dfs_put_root_smb_sessions(struct list_head *head)
 {
 	struct dfs_root_ses *root, *tmp;
