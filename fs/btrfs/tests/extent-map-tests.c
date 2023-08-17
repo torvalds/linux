@@ -655,6 +655,59 @@ out:
 	return ret;
 }
 
+/*
+ * Test the btrfs_add_extent_mapping helper which will attempt to create an em
+ * for areas between two existing ems.  Validate it doesn't do this when there
+ * are two unmerged em's side by side.
+ */
+static int test_case_6(struct btrfs_fs_info *fs_info, struct extent_map_tree *em_tree)
+{
+	struct extent_map *em = NULL;
+	int ret;
+
+	ret = add_compressed_extent(em_tree, 0, SZ_4K, 0);
+	if (ret)
+		goto out;
+
+	ret = add_compressed_extent(em_tree, SZ_4K, SZ_4K, 0);
+	if (ret)
+		goto out;
+
+	em = alloc_extent_map();
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		return -ENOMEM;
+	}
+
+	em->start = SZ_4K;
+	em->len = SZ_4K;
+	em->block_start = SZ_16K;
+	em->block_len = SZ_16K;
+	write_lock(&em_tree->lock);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, 0, SZ_8K);
+	write_unlock(&em_tree->lock);
+
+	if (ret != 0) {
+		test_err("got an error when adding our em: %d", ret);
+		goto out;
+	}
+
+	ret = -EINVAL;
+	if (em->start != 0) {
+		test_err("unexpected em->start at %llu, wanted 0", em->start);
+		goto out;
+	}
+	if (em->len != SZ_4K) {
+		test_err("unexpected em->len %llu, expected 4K", em->len);
+		goto out;
+	}
+	ret = 0;
+out:
+	free_extent_map(em);
+	free_extent_map_tree(em_tree);
+	return ret;
+}
+
 struct rmap_test_vector {
 	u64 raid_type;
 	u64 physical_start;
@@ -835,6 +888,9 @@ int btrfs_test_extent_map(void)
 	if (ret)
 		goto out;
 	ret = test_case_5();
+	if (ret)
+		goto out;
+	ret = test_case_6(fs_info, em_tree);
 	if (ret)
 		goto out;
 
