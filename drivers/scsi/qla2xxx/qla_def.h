@@ -3787,6 +3787,12 @@ struct qla_qpair {
 
 	uint16_t id;			/* qp number used with FW */
 	uint16_t vp_idx;		/* vport ID */
+
+	uint16_t dsd_inuse;
+	uint16_t dsd_avail;
+	struct list_head dsd_list;
+#define NUM_DSD_CHAIN 4096
+
 	mempool_t *srb_mempool;
 
 	struct pci_dev  *pdev;
@@ -4714,11 +4720,6 @@ struct qla_hw_data {
 	int		link_width;
 	struct fw_blob	*hablob;
 	struct qla82xx_legacy_intr_set nx_legacy_intr;
-
-	uint16_t	gbl_dsd_inuse;
-	uint16_t	gbl_dsd_avail;
-	struct list_head gbl_dsd_list;
-#define NUM_DSD_CHAIN 4096
 
 	uint8_t fw_type;
 	uint32_t file_prd_off;	/* File firmware product offset */

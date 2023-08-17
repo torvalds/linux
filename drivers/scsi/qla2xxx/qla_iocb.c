@@ -636,14 +636,13 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 		tot_dsds -= avail_dsds;
 		dsd_list_len = (avail_dsds + 1) * QLA_DSD_SIZE;
 
-		dsd_ptr = list_first_entry(&ha->gbl_dsd_list,
-		    struct dsd_dma, list);
+		dsd_ptr = list_first_entry(&qpair->dsd_list, struct dsd_dma, list);
 		next_dsd = dsd_ptr->dsd_addr;
 		list_del(&dsd_ptr->list);
-		ha->gbl_dsd_avail--;
+		qpair->dsd_avail--;
 		list_add_tail(&dsd_ptr->list, &ctx->dsd_list);
 		ctx->dsd_use_cnt++;
-		ha->gbl_dsd_inuse++;
+		qpair->dsd_inuse++;
 
 		if (first_iocb) {
 			first_iocb = 0;
@@ -3367,6 +3366,7 @@ qla82xx_start_scsi(srb_t *sp)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = NULL;
 	struct rsp_que *rsp = NULL;
+	struct qla_qpair *qpair = sp->qpair;
 
 	/* Setup device pointers. */
 	reg = &ha->iobase->isp82;
@@ -3415,18 +3415,18 @@ qla82xx_start_scsi(srb_t *sp)
 		uint16_t i;
 
 		more_dsd_lists = qla24xx_calc_dsd_lists(tot_dsds);
-		if ((more_dsd_lists + ha->gbl_dsd_inuse) >= NUM_DSD_CHAIN) {
+		if ((more_dsd_lists + qpair->dsd_inuse) >= NUM_DSD_CHAIN) {
 			ql_dbg(ql_dbg_io, vha, 0x300d,
 			    "Num of DSD list %d is than %d for cmd=%p.\n",
-			    more_dsd_lists + ha->gbl_dsd_inuse, NUM_DSD_CHAIN,
+			    more_dsd_lists + qpair->dsd_inuse, NUM_DSD_CHAIN,
 			    cmd);
 			goto queuing_error;
 		}
 
-		if (more_dsd_lists <= ha->gbl_dsd_avail)
+		if (more_dsd_lists <= qpair->dsd_avail)
 			goto sufficient_dsds;
 		else
-			more_dsd_lists -= ha->gbl_dsd_avail;
+			more_dsd_lists -= qpair->dsd_avail;
 
 		for (i = 0; i < more_dsd_lists; i++) {
 			dsd_ptr = kzalloc(sizeof(struct dsd_dma), GFP_ATOMIC);
@@ -3446,8 +3446,8 @@ qla82xx_start_scsi(srb_t *sp)
 				    "for cmd=%p.\n", cmd);
 				goto queuing_error;
 			}
-			list_add_tail(&dsd_ptr->list, &ha->gbl_dsd_list);
-			ha->gbl_dsd_avail++;
+			list_add_tail(&dsd_ptr->list, &qpair->dsd_list);
+			qpair->dsd_avail++;
 		}
 
 sufficient_dsds:
