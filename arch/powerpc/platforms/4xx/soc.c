@@ -21,6 +21,7 @@
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
 #include <asm/reg.h>
+#include <asm/ppc4xx.h>
 
 static u32 dcrbase_l2c;
 
