@@ -46,6 +46,7 @@ def define_autogvm():
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-waipio.ko",
         "drivers/pinctrl/qcom/pinctrl-direwolf.ko",
         "drivers/pinctrl/qcom/pinctrl-lemans.ko",
+        "drivers/pinctrl/qcom/pinctrl-monaco_auto.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-sdmshrike.ko",
         "drivers/pinctrl/qcom/pinctrl-sm8150.ko",
