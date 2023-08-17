@@ -1696,6 +1696,115 @@ bool is_dsc_pipe_bpp_sufficient(struct drm_i915_private *i915, int pipe_bpp)
 	return pipe_bpp >= intel_dp_dsc_min_src_input_bpc(i915) * 3;
 }
 
+static
+int intel_dp_force_dsc_pipe_bpp(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	int forced_bpp;
+
+	if (!intel_dp->force_dsc_bpc)
+		return 0;
+
+	forced_bpp = intel_dp->force_dsc_bpc * 3;
+
+	if (is_dsc_pipe_bpp_sufficient(i915, forced_bpp)) {
+		drm_dbg_kms(&i915->drm, "Input DSC BPC forced to %d\n", intel_dp->force_dsc_bpc);
+		return forced_bpp;
+	}
+
+	drm_dbg_kms(&i915->drm, "Cannot force DSC BPC:%d, due to DSC BPC limits\n",
+		    intel_dp->force_dsc_bpc);
+
+	return 0;
+}
+
+static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
+					 struct intel_crtc_state *pipe_config,
+					 struct drm_connector_state *conn_state,
+					 struct link_config_limits *limits,
+					 int timeslots)
+{
+	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	u16 output_bpp, dsc_max_compressed_bpp = 0;
+	int forced_bpp, pipe_bpp;
+
+	forced_bpp = intel_dp_force_dsc_pipe_bpp(intel_dp);
+
+	if (forced_bpp) {
+		pipe_bpp = forced_bpp;
+	} else {
+		pipe_bpp = intel_dp_dsc_compute_max_bpp(intel_dp, conn_state->max_requested_bpc);
+
+		if (!is_dsc_pipe_bpp_sufficient(i915, pipe_bpp)) {
+			drm_dbg_kms(&i915->drm,
+				    "Computed BPC less than min supported by source for DSC\n");
+			return -EINVAL;
+		}
+	}
+	/*
+	 * For now enable DSC for max link rate, max lane count.
+	 * Optimize this later for the minimum possible link rate/lane count
+	 * with DSC enabled for the requested mode.
+	 */
+	pipe_config->port_clock = limits->max_rate;
+	pipe_config->lane_count = limits->max_lane_count;
+	dsc_max_compressed_bpp = intel_dp_dsc_get_max_compressed_bpp(i915,
+								     pipe_config->port_clock,
+								     pipe_config->lane_count,
+								     adjusted_mode->crtc_clock,
+								     adjusted_mode->crtc_hdisplay,
+								     pipe_config->bigjoiner_pipes,
+								     pipe_config->output_format,
+								     pipe_bpp,
+								     timeslots);
+	if (!dsc_max_compressed_bpp) {
+		drm_dbg_kms(&i915->drm, "Compressed BPP not supported\n");
+		return -EINVAL;
+	}
+
+	output_bpp = intel_dp_output_bpp(pipe_config->output_format, pipe_bpp);
+
+	pipe_config->dsc.compressed_bpp = min_t(u16, dsc_max_compressed_bpp, output_bpp);
+
+	pipe_config->pipe_bpp = pipe_bpp;
+
+	return 0;
+}
+
+static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
+					  struct intel_crtc_state *pipe_config,
+					  struct drm_connector_state *conn_state,
+					  struct link_config_limits *limits)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	int pipe_bpp, forced_bpp;
+
+	forced_bpp = intel_dp_force_dsc_pipe_bpp(intel_dp);
+
+	if (forced_bpp) {
+		pipe_bpp = forced_bpp;
+	} else {
+		/* For eDP use max bpp that can be supported with DSC. */
+		pipe_bpp = intel_dp_dsc_compute_max_bpp(intel_dp,
+							conn_state->max_requested_bpc);
+		if (!is_dsc_pipe_bpp_sufficient(i915, pipe_bpp)) {
+			drm_dbg_kms(&i915->drm,
+				    "Computed BPC less than min supported by source for DSC\n");
+			return -EINVAL;
+		}
+	}
+	pipe_config->port_clock = limits->max_rate;
+	pipe_config->lane_count = limits->max_lane_count;
+	pipe_config->dsc.compressed_bpp =
+		min_t(u16, drm_edp_dsc_sink_output_bpp(intel_dp->dsc_dpcd) >> 4,
+		      pipe_bpp);
+
+	pipe_config->pipe_bpp = pipe_bpp;
+
+	return 0;
+}
+
 int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config,
 				struct drm_connector_state *conn_state,
@@ -1718,44 +1827,28 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	if (!intel_dp_dsc_supports_format(intel_dp, pipe_config->output_format))
 		return -EINVAL;
 
+	/*
+	 * compute pipe bpp is set to false for DP MST DSC case
+	 * and compressed_bpp is calculated same time once
+	 * vpci timeslots are allocated, because overall bpp
+	 * calculation procedure is bit different for MST case.
+	 */
 	if (compute_pipe_bpp) {
-		int pipe_bpp;
-		int forced_bpp = intel_dp->force_dsc_bpc * 3;
-
-		if (forced_bpp && is_dsc_pipe_bpp_sufficient(dev_priv, forced_bpp)) {
-			pipe_bpp = forced_bpp;
-			drm_dbg_kms(&dev_priv->drm, "Input DSC BPC forced to %d\n",
-				    intel_dp->force_dsc_bpc);
-		} else {
-			drm_WARN(&dev_priv->drm, forced_bpp,
-				 "Cannot force DSC BPC:%d, due to DSC BPC limits\n",
-				 intel_dp->force_dsc_bpc);
-
-			pipe_bpp = intel_dp_dsc_compute_max_bpp(intel_dp,
-								conn_state->max_requested_bpc);
-
-			if (!is_dsc_pipe_bpp_sufficient(dev_priv, pipe_bpp)) {
-				drm_dbg_kms(&dev_priv->drm,
-					    "Computed BPC less than min supported by source for DSC\n");
-				return -EINVAL;
-			}
+		if (intel_dp_is_edp(intel_dp))
+			ret = intel_edp_dsc_compute_pipe_bpp(intel_dp, pipe_config,
+							     conn_state, limits);
+		else
+			ret = intel_dp_dsc_compute_pipe_bpp(intel_dp, pipe_config,
+							    conn_state, limits, timeslots);
+		if (ret) {
+			drm_dbg_kms(&dev_priv->drm,
+				    "No Valid pipe bpp for given mode ret = %d\n", ret);
+			return ret;
 		}
-
-		pipe_config->pipe_bpp = pipe_bpp;
 	}
 
-	/*
-	 * For now enable DSC for max link rate, max lane count.
-	 * Optimize this later for the minimum possible link rate/lane count
-	 * with DSC enabled for the requested mode.
-	 */
-	pipe_config->port_clock = limits->max_rate;
-	pipe_config->lane_count = limits->max_lane_count;
-
+	/* Calculate Slice count */
 	if (intel_dp_is_edp(intel_dp)) {
-		pipe_config->dsc.compressed_bpp =
-			min_t(u16, drm_edp_dsc_sink_output_bpp(intel_dp->dsc_dpcd) >> 4,
-			      pipe_config->pipe_bpp);
 		pipe_config->dsc.slice_count =
 			drm_dp_dsc_sink_max_slice_count(intel_dp->dsc_dpcd,
 							true);
@@ -1765,26 +1858,8 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 			return -EINVAL;
 		}
 	} else {
-		u16 dsc_max_compressed_bpp = 0;
 		u8 dsc_dp_slice_count;
 
-		if (compute_pipe_bpp) {
-			dsc_max_compressed_bpp =
-				intel_dp_dsc_get_max_compressed_bpp(dev_priv,
-								    pipe_config->port_clock,
-								    pipe_config->lane_count,
-								    adjusted_mode->crtc_clock,
-								    adjusted_mode->crtc_hdisplay,
-								    pipe_config->bigjoiner_pipes,
-								    pipe_config->output_format,
-								    pipe_config->pipe_bpp,
-								    timeslots);
-			if (!dsc_max_compressed_bpp) {
-				drm_dbg_kms(&dev_priv->drm,
-					    "Compressed BPP not supported\n");
-				return -EINVAL;
-			}
-		}
 		dsc_dp_slice_count =
 			intel_dp_dsc_get_slice_count(intel_dp,
 						     adjusted_mode->crtc_clock,
@@ -1796,20 +1871,6 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 			return -EINVAL;
 		}
 
-		/*
-		 * compute pipe bpp is set to false for DP MST DSC case
-		 * and compressed_bpp is calculated same time once
-		 * vpci timeslots are allocated, because overall bpp
-		 * calculation procedure is bit different for MST case.
-		 */
-		if (compute_pipe_bpp) {
-			u16 output_bpp = intel_dp_output_bpp(pipe_config->output_format,
-							     pipe_config->pipe_bpp);
-
-			pipe_config->dsc.compressed_bpp = min_t(u16,
-								dsc_max_compressed_bpp,
-								output_bpp);
-		}
 		pipe_config->dsc.slice_count = dsc_dp_slice_count;
 	}
 	/*
