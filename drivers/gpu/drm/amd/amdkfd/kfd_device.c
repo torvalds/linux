@@ -532,10 +532,9 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			kfd->cwsr_isa = cwsr_trap_gfx11_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx11_hex);
 		} else {
-			/* GFX12_TODO: Change to gfx12 struct when available. */
-			BUILD_BUG_ON(sizeof(cwsr_trap_gfx11_hex) > PAGE_SIZE);
-			kfd->cwsr_isa = cwsr_trap_gfx11_hex;
-			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx11_hex);
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx12_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx12_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx12_hex);
 		}
 
 		kfd->cwsr_enabled = true;
