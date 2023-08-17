@@ -847,7 +847,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&gdev->notifier);
+	BLOCKING_INIT_NOTIFIER_HEAD(&gdev->line_state_notifier);
 	init_rwsem(&gdev->sem);
 
 #ifdef CONFIG_PINCTRL
@@ -2177,7 +2177,7 @@ static bool gpiod_free_commit(struct gpio_desc *desc)
 	}
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
-	blocking_notifier_call_chain(&desc->gdev->notifier,
+	blocking_notifier_call_chain(&desc->gdev->line_state_notifier,
 				     GPIOLINE_CHANGED_RELEASED, desc);
 
 	return ret;
@@ -4007,7 +4007,7 @@ static struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 		return ERR_PTR(ret);
 	}
 
-	blocking_notifier_call_chain(&desc->gdev->notifier,
+	blocking_notifier_call_chain(&desc->gdev->line_state_notifier,
 				     GPIOLINE_CHANGED_REQUESTED, desc);
 
 	return desc;

@@ -39,8 +39,8 @@
  * or name of the IP component in a System on Chip.
  * @data: per-instance data assigned by the driver
  * @list: links gpio_device:s together for traversal
- * @notifier: used to notify subscribers about lines being requested, released
- *            or reconfigured
+ * @line_state_notifier: used to notify subscribers about lines being
+ *                       requested, released or reconfigured
  * @sem: protects the structure from a NULL-pointer dereference of @chip by
  *       user-space operations when the device gets unregistered during
  *       a hot-unplug event
@@ -64,7 +64,7 @@ struct gpio_device {
 	const char		*label;
 	void			*data;
 	struct list_head        list;
-	struct blocking_notifier_head notifier;
+	struct blocking_notifier_head line_state_notifier;
 	struct rw_semaphore	sem;
 
 #ifdef CONFIG_PINCTRL
