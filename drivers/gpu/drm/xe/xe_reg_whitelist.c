@@ -50,6 +50,12 @@ static const struct xe_rtp_entry_sr register_whitelist[] = {
 				   RING_FORCE_TO_NONPRIV_DENY |
 				   RING_FORCE_TO_NONPRIV_RANGE_64))
 	},
+	{ XE_RTP_NAME("16017236439"),
+	  XE_RTP_RULES(PLATFORM(PVC), ENGINE_CLASS(COPY)),
+	  XE_RTP_ACTIONS(WHITELIST(BCS_SWCTRL(0),
+				   RING_FORCE_TO_NONPRIV_DENY,
+				   XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
 	{}
 };
 
