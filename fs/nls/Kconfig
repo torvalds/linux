@@ -617,4 +617,12 @@ config NLS_UTF8
 	  input/output character sets. Say Y here for the UTF-8 encoding of
 	  the Unicode/ISO9646 universal character set.
 
+config NLS_UCS2_UTILS
+	tristate "NLS UCS-2 UTILS"
+	help
+	  Set of older UCS-2 conversion utilities and tables used by some
+	  filesystems including SMB/CIFS.  This includes upper case conversion
+	  tables. This will automatically be selected when the filesystem
+	  that uses it is selected.
+
 endif # NLS
