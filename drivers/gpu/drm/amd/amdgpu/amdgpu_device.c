@@ -3722,10 +3722,11 @@ static void amdgpu_device_set_mcbp(struct amdgpu_device *adev)
 {
 	if (amdgpu_mcbp == 1)
 		adev->gfx.mcbp = true;
-
-	if ((adev->ip_versions[GC_HWIP][0] >= IP_VERSION(9, 0, 0)) &&
-	    (adev->ip_versions[GC_HWIP][0] < IP_VERSION(10, 0, 0)) &&
-	    adev->gfx.num_gfx_rings)
+	else if (amdgpu_mcbp == 0)
+		adev->gfx.mcbp = false;
+	else if ((adev->ip_versions[GC_HWIP][0] >= IP_VERSION(9, 0, 0)) &&
+		 (adev->ip_versions[GC_HWIP][0] < IP_VERSION(10, 0, 0)) &&
+		 adev->gfx.num_gfx_rings)
 		adev->gfx.mcbp = true;
 
 	if (amdgpu_sriov_vf(adev))
@@ -4393,6 +4394,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 		drm_fb_helper_set_suspend_unlocked(adev_to_drm(adev)->fb_helper, true);
 
 	cancel_delayed_work_sync(&adev->delayed_init_work);
+	flush_delayed_work(&adev->gfx.gfx_off_delay_work);
 
 	amdgpu_ras_suspend(adev);
 
