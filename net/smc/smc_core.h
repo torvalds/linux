@@ -374,6 +374,7 @@ struct smc_init_info {
 	u8			is_smcd;
 	u8			smc_type_v1;
 	u8			smc_type_v2;
+	u8			release_nr;
 	u8			first_contact_peer;
 	u8			first_contact_local;
 	unsigned short		vlan_id;

@@ -420,11 +420,11 @@ smc_clc_msg_decl_valid(struct smc_clc_msg_decline *dclc)
 	return true;
 }
 
-static void smc_clc_fill_fce(struct smc_clc_first_contact_ext *fce, int *len)
+static void smc_clc_fill_fce(struct smc_clc_first_contact_ext *fce, int *len, int release_nr)
 {
 	memset(fce, 0, sizeof(*fce));
 	fce->os_type = SMC_CLC_OS_LINUX;
-	fce->release = SMC_RELEASE;
+	fce->release = release_nr;
 	memcpy(fce->hostname, smc_hostname, sizeof(smc_hostname));
 	(*len) += sizeof(*fce);
 }
@@ -1019,7 +1019,7 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 				memcpy(clc_v2->d1.eid, eid, SMC_MAX_EID_LEN);
 			len = SMCD_CLC_ACCEPT_CONFIRM_LEN_V2;
 			if (first_contact)
-				smc_clc_fill_fce(&fce, &len);
+				smc_clc_fill_fce(&fce, &len, ini->release_nr);
 			clc_v2->hdr.length = htons(len);
 		}
 		memcpy(trl.eyecatcher, SMCD_EYECATCHER,
@@ -1063,10 +1063,10 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 				memcpy(clc_v2->r1.eid, eid, SMC_MAX_EID_LEN);
 			len = SMCR_CLC_ACCEPT_CONFIRM_LEN_V2;
 			if (first_contact) {
-				smc_clc_fill_fce(&fce, &len);
+				smc_clc_fill_fce(&fce, &len, ini->release_nr);
 				fce.v2_direct = !link->lgr->uses_gateway;
 				memset(&gle, 0, sizeof(gle));
-				if (ini && clc->hdr.type == SMC_CLC_CONFIRM) {
+				if (clc->hdr.type == SMC_CLC_CONFIRM) {
 					gle.gid_cnt = ini->smcrv2.gidlist.len;
 					len += sizeof(gle);
 					len += gle.gid_cnt * sizeof(gle.gid[0]);
@@ -1141,7 +1141,7 @@ int smc_clc_send_confirm(struct smc_sock *smc, bool clnt_first_contact,
 
 /* send CLC ACCEPT message across internal TCP socket */
 int smc_clc_send_accept(struct smc_sock *new_smc, bool srv_first_contact,
-			u8 version, u8 *negotiated_eid)
+			u8 version, u8 *negotiated_eid, struct smc_init_info *ini)
 {
 	struct smc_clc_msg_accept_confirm_v2 aclc_v2;
 	int len;
@@ -1149,7 +1149,7 @@ int smc_clc_send_accept(struct smc_sock *new_smc, bool srv_first_contact,
 	memset(&aclc_v2, 0, sizeof(aclc_v2));
 	aclc_v2.hdr.type = SMC_CLC_ACCEPT;
 	len = smc_clc_send_confirm_accept(new_smc, &aclc_v2, srv_first_contact,
-					  version, negotiated_eid, NULL);
+					  version, negotiated_eid, ini);
 	if (len < ntohs(aclc_v2.hdr.length))
 		len = len >= 0 ? -EPROTO : -new_smc->clcsock->sk->sk_err;
 
