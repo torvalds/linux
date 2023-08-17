@@ -8266,7 +8266,7 @@ static int msm_pcie_i2c_ctrl_init(struct msm_pcie_dev_t *pcie_dev)
 		}
 	}
 
-	i2c_client_node = of_get_child_by_name(of_node, "pcie_i2c_ctrl");
+	i2c_client_node = i2c_ctrl->client->dev.of_node;
 	if (!i2c_client_node) {
 		PCIE_ERR(pcie_dev,
 			 "PCIe: RC%d: No i2c slave node phandle found\n",
