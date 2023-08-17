@@ -192,7 +192,7 @@
 		};
 	};
 
-	tc358749x: tc358749x@0f {
+	tc358749x: tc358749x@f {
 		compatible = "toshiba,tc358749x";
 		reg = <0x0f>;
 		power-gpios = <&gpio2 6 GPIO_ACTIVE_HIGH>;
@@ -207,7 +207,7 @@
 		status = "disabled";
 	};
 
-	vm149c: vm149c@0c {
+	vm149c: vm149c@c {
 		compatible = "silicon touch,vm149c";
 		status = "okay";
 		reg = <0x0c>;
@@ -238,14 +238,6 @@
 				remote-endpoint = <&dvp_in_fcam>;
 			};
 		};
-	};
-
-	vm149c: vm149c@0c {
-		compatible = "silicon touch,vm149c";
-		status = "okay";
-		reg = <0x0c>;
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
 	};
 
 	ov13850: ov13850@10 {

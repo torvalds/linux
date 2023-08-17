@@ -24,9 +24,9 @@
 &i2c1 {
 	status = "okay";
 
-	/delete-node/ tc358749x@0f;
+	/delete-node/ tc358749x@f;
 
-	tc35874x: tc35874x@0f {
+	tc35874x: tc35874x@f {
 		status = "disabled";
 		reg = <0x0f>;
 		compatible = "toshiba,tc358749";
