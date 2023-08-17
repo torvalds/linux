@@ -41,6 +41,8 @@
  * @list: links gpio_device:s together for traversal
  * @line_state_notifier: used to notify subscribers about lines being
  *                       requested, released or reconfigured
+ * @device_notifier: used to notify character device wait queues about the GPIO
+ *                   device being unregistered
  * @sem: protects the structure from a NULL-pointer dereference of @chip by
  *       user-space operations when the device gets unregistered during
  *       a hot-unplug event
@@ -65,6 +67,7 @@ struct gpio_device {
 	void			*data;
 	struct list_head        list;
 	struct blocking_notifier_head line_state_notifier;
+	struct blocking_notifier_head device_notifier;
 	struct rw_semaphore	sem;
 
 #ifdef CONFIG_PINCTRL
