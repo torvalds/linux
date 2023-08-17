@@ -2320,6 +2320,7 @@ struct gpio_chardev_data {
 	wait_queue_head_t wait;
 	DECLARE_KFIFO(events, struct gpio_v2_line_info_changed, 32);
 	struct notifier_block lineinfo_changed_nb;
+	struct notifier_block device_unregistered_nb;
 	unsigned long *watched_lines;
 #ifdef CONFIG_GPIO_CDEV_V1
 	atomic_t watch_abi_version;
@@ -2517,6 +2518,18 @@ static int lineinfo_changed_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static int gpio_device_unregistered_notify(struct notifier_block *nb,
+					   unsigned long action, void *data)
+{
+	struct gpio_chardev_data *cdev = container_of(nb,
+						      struct gpio_chardev_data,
+						      device_unregistered_nb);
+
+	wake_up_poll(&cdev->wait, EPOLLIN | EPOLLERR);
+
+	return NOTIFY_OK;
+}
+
 static __poll_t lineinfo_watch_poll_unlocked(struct file *file,
 					     struct poll_table_struct *pollt)
 {
@@ -2671,17 +2684,27 @@ static int gpio_chrdev_open(struct inode *inode, struct file *file)
 	if (ret)
 		goto out_free_bitmap;
 
+	cdev->device_unregistered_nb.notifier_call =
+					gpio_device_unregistered_notify;
+	ret = blocking_notifier_chain_register(&gdev->device_notifier,
+					       &cdev->device_unregistered_nb);
+	if (ret)
+		goto out_unregister_line_notifier;
+
 	file->private_data = cdev;
 
 	ret = nonseekable_open(inode, file);
 	if (ret)
-		goto out_unregister_notifier;
+		goto out_unregister_device_notifier;
 
 	up_read(&gdev->sem);
 
 	return ret;
 
-out_unregister_notifier:
+out_unregister_device_notifier:
+	blocking_notifier_chain_unregister(&gdev->device_notifier,
+					   &cdev->device_unregistered_nb);
+out_unregister_line_notifier:
 	blocking_notifier_chain_unregister(&gdev->line_state_notifier,
 					   &cdev->lineinfo_changed_nb);
 out_free_bitmap:
@@ -2706,6 +2729,8 @@ static int gpio_chrdev_release(struct inode *inode, struct file *file)
 	struct gpio_device *gdev = cdev->gdev;
 
 	bitmap_free(cdev->watched_lines);
+	blocking_notifier_chain_unregister(&gdev->device_notifier,
+					   &cdev->device_unregistered_nb);
 	blocking_notifier_chain_unregister(&gdev->line_state_notifier,
 					   &cdev->lineinfo_changed_nb);
 	gpio_device_put(gdev);
