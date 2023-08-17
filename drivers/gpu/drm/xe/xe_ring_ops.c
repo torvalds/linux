@@ -205,8 +205,9 @@ static u32 get_ppgtt_flag(struct xe_sched_job *job)
 	return !(job->q->flags & EXEC_QUEUE_FLAG_WA) ? BIT(8) : 0;
 }
 
-static void __emit_job_gen12_copy(struct xe_sched_job *job, struct xe_lrc *lrc,
-				  u64 batch_addr, u32 seqno)
+/* for engines that don't require any special HW handling (no EUs, no aux inval, etc) */
+static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc,
+				    u64 batch_addr, u32 seqno)
 {
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 	u32 ppgtt_flag = get_ppgtt_flag(job);
@@ -374,6 +375,15 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }
 
+static void emit_job_gen12_gsc(struct xe_sched_job *job)
+{
+	XE_WARN_ON(job->q->width > 1); /* no parallel submission for GSCCS */
+
+	__emit_job_gen12_simple(job, job->q->lrc,
+				job->batch_addr[0],
+				xe_sched_job_seqno(job));
+}
+
 static void emit_job_gen12_copy(struct xe_sched_job *job)
 {
 	int i;
@@ -385,9 +395,9 @@ static void emit_job_gen12_copy(struct xe_sched_job *job)
 	}
 
 	for (i = 0; i < job->q->width; ++i)
-		__emit_job_gen12_copy(job, job->q->lrc + i,
-				      job->batch_addr[i],
-				      xe_sched_job_seqno(job));
+		__emit_job_gen12_simple(job, job->q->lrc + i,
+				        job->batch_addr[i],
+				        xe_sched_job_seqno(job));
 }
 
 static void emit_job_gen12_video(struct xe_sched_job *job)
@@ -411,6 +421,10 @@ static void emit_job_gen12_render_compute(struct xe_sched_job *job)
 						xe_sched_job_seqno(job));
 }
 
+static const struct xe_ring_ops ring_ops_gen12_gsc = {
+	.emit_job = emit_job_gen12_gsc,
+};
+
 static const struct xe_ring_ops ring_ops_gen12_copy = {
 	.emit_job = emit_job_gen12_copy,
 };
@@ -427,6 +441,8 @@ const struct xe_ring_ops *
 xe_ring_ops_get(struct xe_gt *gt, enum xe_engine_class class)
 {
 	switch (class) {
+	case XE_ENGINE_CLASS_OTHER:
+		return &ring_ops_gen12_gsc;
 	case XE_ENGINE_CLASS_COPY:
 		return &ring_ops_gen12_copy;
 	case XE_ENGINE_CLASS_VIDEO_DECODE:
