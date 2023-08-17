@@ -22,8 +22,6 @@
 #include <linux/types.h>
 #include <linux/nls.h>
 
-#define  UNIUPR_NOLOWER		/* Example to not expand lower case tables */
-
 /*
  * Windows maps these to the user defined 16 bit Unicode range since they are
  * reserved symbols (along with \ and /), otherwise illegal to store
@@ -83,11 +81,6 @@ struct UniCaseRange {
 extern signed char CifsUniUpperTable[512];
 extern const struct UniCaseRange CifsUniUpperRange[];
 #endif				/* UNIUPR_NOUPPER */
-
-#ifndef UNIUPR_NOLOWER
-extern signed char CifsUniLowerTable[512];
-extern const struct UniCaseRange CifsUniLowerRange[];
-#endif				/* UNIUPR_NOLOWER */
 
 #ifdef __KERNEL__
 int cifs_from_utf16(char *to, const __le16 *from, int tolen, int fromlen,
@@ -357,48 +350,5 @@ UniStrupr(register __le16 *upin)
 	return upin;		/* Return input pointer */
 }
 #endif				/* UNIUPR_NOUPPER */
-
-#ifndef UNIUPR_NOLOWER
-/*
- * UniTolower:  Convert a unicode character to lower case
- */
-static inline wchar_t
-UniTolower(register wchar_t uc)
-{
-	register const struct UniCaseRange *rp;
-
-	if (uc < sizeof(CifsUniLowerTable)) {
-		/* Latin characters */
-		return uc + CifsUniLowerTable[uc];	/* Use base tables */
-	} else {
-		rp = CifsUniLowerRange;	/* Use range tables */
-		while (rp->start) {
-			if (uc < rp->start)	/* Before start of range */
-				return uc;	/* Uppercase = input */
-			if (uc <= rp->end)	/* In range */
-				return uc + rp->table[uc - rp->start];
-			rp++;	/* Try next range */
-		}
-	}
-	return uc;		/* Past last range */
-}
-
-/*
- * UniStrlwr:  Lower case a unicode string
- */
-static inline wchar_t *
-UniStrlwr(register wchar_t *upin)
-{
-	register wchar_t *up;
-
-	up = upin;
-	while (*up) {		/* For all characters */
-		*up = UniTolower(*up);
-		up++;
-	}
-	return upin;		/* Return input pointer */
-}
-
-#endif
 
 #endif /* _CIFS_UNICODE_H */
