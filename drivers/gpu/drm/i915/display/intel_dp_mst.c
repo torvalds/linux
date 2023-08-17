@@ -362,6 +362,11 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	drm_dbg_kms(&dev_priv->drm, "Force DSC en = %d\n", intel_dp->force_dsc_en);
 	if (ret || intel_dp->force_dsc_en) {
 		/*
+		 * FIXME: As bpc is hardcoded to 8, as mentioned above,
+		 * WARN and ignore the debug flag force_dsc_bpc for now.
+		 */
+		drm_WARN(&dev_priv->drm, intel_dp->force_dsc_bpc, "Cannot Force BPC for MST\n");
+		/*
 		 * Try to get at least some timeslots and then see, if
 		 * we can fit there with DSC.
 		 */

@@ -1697,14 +1697,14 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	if (!intel_dp_dsc_supports_format(intel_dp, pipe_config->output_format))
 		return -EINVAL;
 
-	if (compute_pipe_bpp)
-		pipe_bpp = intel_dp_dsc_compute_bpp(intel_dp, conn_state->max_requested_bpc);
-	else
-		pipe_bpp = pipe_config->pipe_bpp;
-
-	if (intel_dp->force_dsc_bpc) {
+	if (intel_dp->force_dsc_bpc && compute_pipe_bpp) {
 		pipe_bpp = intel_dp->force_dsc_bpc * 3;
-		drm_dbg_kms(&dev_priv->drm, "Input DSC BPP forced to %d", pipe_bpp);
+		drm_dbg_kms(&dev_priv->drm, "Input DSC BPC forced to %d\n",
+			    intel_dp->force_dsc_bpc);
+	} else if (compute_pipe_bpp) {
+		pipe_bpp = intel_dp_dsc_compute_bpp(intel_dp, conn_state->max_requested_bpc);
+	} else {
+		pipe_bpp = pipe_config->pipe_bpp;
 	}
 
 	/* Min Input BPC for ICL+ is 8 */
