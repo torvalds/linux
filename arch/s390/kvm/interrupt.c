@@ -3398,7 +3398,6 @@ static void gib_alert_irq_handler(struct airq_struct *airq,
 
 static struct airq_struct gib_alert_irq = {
 	.handler = gib_alert_irq_handler,
-	.lsi_ptr = &gib_alert_irq.lsi_mask,
 };
 
 void kvm_s390_gib_destroy(void)
@@ -3438,6 +3437,8 @@ int __init kvm_s390_gib_init(u8 nisc)
 		rc = -EIO;
 		goto out_free_gib;
 	}
+	/* adapter interrupts used for AP (applicable here) don't use the LSI */
+	*gib_alert_irq.lsi_ptr = 0xff;
 
 	gib->nisc = nisc;
 	gib_origin = virt_to_phys(gib);
