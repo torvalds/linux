@@ -12,13 +12,8 @@
 	model = "NVIDIA Jetson Orin NX Engineering Reference Developer Kit";
 
 	aliases {
-		serial0 = &tcu;
 		serial1 = &uarta;
 		serial2 = &uarte;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
 	};
 
 	bus@0 {
@@ -31,10 +26,6 @@
 		serial@3140000 {
 			compatible = "nvidia,tegra194-hsuart";
 			reset-names = "serial";
-			status = "okay";
-		};
-
-		serial@31d0000 {
 			status = "okay";
 		};
 
@@ -92,10 +83,6 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio_aon TEGRA234_AON_GPIO(AA, 5) GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-	};
-
-	serial {
-		status = "okay";
 	};
 
 	thermal-zones {
