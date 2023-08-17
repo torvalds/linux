@@ -239,7 +239,7 @@ struct at_desc {
 	bool				memset_buffer;
 	dma_addr_t			memset_paddr;
 	int				*memset_vaddr;
-	struct atdma_sg			sg[];
+	struct atdma_sg			sg[] __counted_by(sglen);
 };
 
 /*--  Channels  --------------------------------------------------------*/
