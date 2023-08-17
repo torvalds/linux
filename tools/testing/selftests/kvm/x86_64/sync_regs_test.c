@@ -91,6 +91,8 @@ static void *race_events_inj_pen(void *arg)
 	struct kvm_run *run = (struct kvm_run *)arg;
 	struct kvm_vcpu_events *events = &run->s.regs.events;
 
+	WRITE_ONCE(events->exception.nr, UD_VECTOR);
+
 	for (;;) {
 		WRITE_ONCE(run->kvm_dirty_regs, KVM_SYNC_X86_EVENTS);
 		WRITE_ONCE(events->flags, 0);
@@ -115,6 +117,7 @@ static void *race_events_exc(void *arg)
 	for (;;) {
 		WRITE_ONCE(run->kvm_dirty_regs, KVM_SYNC_X86_EVENTS);
 		WRITE_ONCE(events->flags, 0);
+		WRITE_ONCE(events->exception.nr, UD_VECTOR);
 		WRITE_ONCE(events->exception.pending, 1);
 		WRITE_ONCE(events->exception.nr, 255);
 
