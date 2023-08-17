@@ -404,6 +404,7 @@ static void __init gemini_cc_init(struct device_node *np)
 				  GFP_KERNEL);
 	if (!gemini_clk_data)
 		return;
+	gemini_clk_data->num = GEMINI_NUM_CLKS;
 
 	/*
 	 * This way all clock fetched before the platform device probes,
@@ -457,7 +458,6 @@ static void __init gemini_cc_init(struct device_node *np)
 	gemini_clk_data->hws[GEMINI_CLK_APB] = hw;
 
 	/* Register the clocks to be accessed by the device tree */
-	gemini_clk_data->num = GEMINI_NUM_CLKS;
 	of_clk_add_hw_provider(np, of_clk_hw_onecell_get, gemini_clk_data);
 }
 CLK_OF_DECLARE_DRIVER(gemini_cc, "cortina,gemini-syscon", gemini_cc_init);

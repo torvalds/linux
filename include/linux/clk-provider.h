@@ -1379,7 +1379,7 @@ struct clk_onecell_data {
 
 struct clk_hw_onecell_data {
 	unsigned int num;
-	struct clk_hw *hws[];
+	struct clk_hw *hws[] __counted_by(num);
 };
 
 #define CLK_OF_DECLARE(name, compat, fn) \

@@ -141,6 +141,7 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 				GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
+	clk_data->num = CLK_NUM;
 	tcon_top->clk_data = clk_data;
 
 	spin_lock_init(&tcon_top->reg_lock);
@@ -212,8 +213,6 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 			ret = PTR_ERR(clk_data->hws[i]);
 			goto err_unregister_gates;
 		}
-
-	clk_data->num = CLK_NUM;
 
 	ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
 				     clk_data);
