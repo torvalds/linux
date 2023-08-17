@@ -400,11 +400,12 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 					   css->sw_version);
 	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
 					   css->sw_version);
+	uc_fw->patch_ver_found = FIELD_GET(CSS_SW_VERSION_UC_PATCH,
+					   css->sw_version);
 
-	drm_info(&xe->drm, "Using %s firmware (%u.%u) from %s\n",
-		 xe_uc_fw_type_repr(uc_fw->type),
-		 uc_fw->major_ver_found, uc_fw->minor_ver_found,
-		 uc_fw->path);
+	drm_info(&xe->drm, "Using %s firmware from %s version %u.%u.%u\n",
+		 xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+		 uc_fw->major_ver_found, uc_fw->minor_ver_found, uc_fw->patch_ver_found);
 
 	err = uc_fw_check_version_requirements(uc_fw);
 	if (err)
@@ -531,9 +532,9 @@ void xe_uc_fw_print(struct xe_uc_fw *uc_fw, struct drm_printer *p)
 		   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path);
 	drm_printf(p, "\tstatus: %s\n",
 		   xe_uc_fw_status_repr(uc_fw->status));
-	drm_printf(p, "\tversion: wanted %u.%u, found %u.%u\n",
+	drm_printf(p, "\tversion: wanted %u.%u, found %u.%u.%u\n",
 		   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted,
-		   uc_fw->major_ver_found, uc_fw->minor_ver_found);
+		   uc_fw->major_ver_found, uc_fw->minor_ver_found, uc_fw->patch_ver_found);
 	drm_printf(p, "\tuCode: %u bytes\n", uc_fw->ucode_size);
 	drm_printf(p, "\tRSA: %u bytes\n", uc_fw->rsa_size);
 

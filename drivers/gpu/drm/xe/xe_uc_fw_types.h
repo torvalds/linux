@@ -106,6 +106,8 @@ struct xe_uc_fw {
 	u16 major_ver_found;
 	/** @minor_ver_found: major version found in firmware blob */
 	u16 minor_ver_found;
+	/** @patch_ver_found: patch version found in firmware blob */
+	u16 patch_ver_found;
 
 	/** @rsa_size: RSA size */
 	u32 rsa_size;
