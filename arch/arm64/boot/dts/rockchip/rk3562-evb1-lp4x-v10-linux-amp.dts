@@ -8,3 +8,11 @@
 #include "rk3562-linux.dtsi"
 #include "rk3562-rk817.dtsi"
 #include "rk3562-amp.dtsi"
+
+/ {
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x01000000 0x0 0x07400000>,
+		      <0x0 0x0a200000 0x0 0xf1e00000>;
+	};
+};
