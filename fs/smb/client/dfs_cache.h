@@ -16,7 +16,11 @@
 extern struct workqueue_struct *dfscache_wq;
 extern atomic_t dfs_cache_ttl;
 
-#define DFS_CACHE_TGT_LIST_INIT(var) { .tl_numtgts = 0, .tl_list = LIST_HEAD_INIT((var).tl_list), }
+#define DFS_CACHE_TGT_LIST_INIT(var) \
+	{ .tl_numtgts = 0, .tl_list = LIST_HEAD_INIT((var).tl_list), }
+
+#define DFS_CACHE_TGT_LIST(var) \
+	struct dfs_cache_tgt_list var = DFS_CACHE_TGT_LIST_INIT(var)
 
 struct dfs_cache_tgt_list {
 	int tl_numtgts;

@@ -174,7 +174,7 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 	}
 
 	do {
-		struct dfs_cache_tgt_list tl = DFS_CACHE_TGT_LIST_INIT(tl);
+		DFS_CACHE_TGT_LIST(tl);
 
 		rc = dfs_get_referral(mnt_ctx, ref_path + 1, NULL, &tl);
 		if (rc) {
@@ -426,7 +426,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 	/* Try to tree connect to all dfs targets */
 	for (; tit; tit = dfs_cache_get_next_tgt(tl, tit)) {
 		const char *target = dfs_cache_get_tgt_name(tit);
-		struct dfs_cache_tgt_list ntl = DFS_CACHE_TGT_LIST_INIT(ntl);
+		DFS_CACHE_TGT_LIST(ntl);
 
 		kfree(share);
 		kfree(prefix);
@@ -520,7 +520,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	int rc;
 	struct TCP_Server_Info *server = tcon->ses->server;
 	const struct smb_version_operations *ops = server->ops;
-	struct dfs_cache_tgt_list tl = DFS_CACHE_TGT_LIST_INIT(tl);
+	DFS_CACHE_TGT_LIST(tl);
 	struct cifs_sb_info *cifs_sb = NULL;
 	struct super_block *sb = NULL;
 	struct dfs_info3_param ref = {0};
