@@ -18,6 +18,8 @@
 #ifndef _MULTI_ARITH_H
 #define _MULTI_ARITH_H
 
+#include "fp_emu.h"
+
 static inline void fp_denormalize(struct fp_ext *reg, unsigned int cnt)
 {
 	reg->exp += cnt;
