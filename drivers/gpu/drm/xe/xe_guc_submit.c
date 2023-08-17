@@ -1167,25 +1167,7 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 
 	mutex_unlock(&guc->submission_state.lock);
 
-	switch (q->class) {
-	case XE_ENGINE_CLASS_RENDER:
-		sprintf(q->name, "rcs%d", q->guc->id);
-		break;
-	case XE_ENGINE_CLASS_VIDEO_DECODE:
-		sprintf(q->name, "vcs%d", q->guc->id);
-		break;
-	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
-		sprintf(q->name, "vecs%d", q->guc->id);
-		break;
-	case XE_ENGINE_CLASS_COPY:
-		sprintf(q->name, "bcs%d", q->guc->id);
-		break;
-	case XE_ENGINE_CLASS_COMPUTE:
-		sprintf(q->name, "ccs%d", q->guc->id);
-		break;
-	default:
-		XE_WARN_ON(q->class);
-	}
+	xe_exec_queue_assign_name(q, q->guc->id);
 
 	trace_xe_exec_queue_create(q);
 

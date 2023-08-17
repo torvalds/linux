@@ -23,6 +23,7 @@ struct xe_exec_queue *xe_exec_queue_create_class(struct xe_device *xe, struct xe
 
 void xe_exec_queue_fini(struct xe_exec_queue *q);
 void xe_exec_queue_destroy(struct kref *ref);
+void xe_exec_queue_assign_name(struct xe_exec_queue *q, u32 instance);
 
 struct xe_exec_queue *xe_exec_queue_lookup(struct xe_file *xef, u32 id);
 

@@ -177,6 +177,29 @@ void xe_exec_queue_fini(struct xe_exec_queue *q)
 	kfree(q);
 }
 
+void xe_exec_queue_assign_name(struct xe_exec_queue *q, u32 instance)
+{
+	switch (q->class) {
+	case XE_ENGINE_CLASS_RENDER:
+		sprintf(q->name, "rcs%d", instance);
+		break;
+	case XE_ENGINE_CLASS_VIDEO_DECODE:
+		sprintf(q->name, "vcs%d", instance);
+		break;
+	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
+		sprintf(q->name, "vecs%d", instance);
+		break;
+	case XE_ENGINE_CLASS_COPY:
+		sprintf(q->name, "bcs%d", instance);
+		break;
+	case XE_ENGINE_CLASS_COMPUTE:
+		sprintf(q->name, "ccs%d", instance);
+		break;
+	default:
+		XE_WARN_ON(q->class);
+	}
+}
+
 struct xe_exec_queue *xe_exec_queue_lookup(struct xe_file *xef, u32 id)
 {
 	struct xe_exec_queue *q;

@@ -350,25 +350,7 @@ static int execlist_exec_queue_init(struct xe_exec_queue *q)
 	q->execlist = exl;
 	q->entity = &exl->entity;
 
-	switch (q->class) {
-	case XE_ENGINE_CLASS_RENDER:
-		sprintf(q->name, "rcs%d", ffs(q->logical_mask) - 1);
-		break;
-	case XE_ENGINE_CLASS_VIDEO_DECODE:
-		sprintf(q->name, "vcs%d", ffs(q->logical_mask) - 1);
-		break;
-	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
-		sprintf(q->name, "vecs%d", ffs(q->logical_mask) - 1);
-		break;
-	case XE_ENGINE_CLASS_COPY:
-		sprintf(q->name, "bcs%d", ffs(q->logical_mask) - 1);
-		break;
-	case XE_ENGINE_CLASS_COMPUTE:
-		sprintf(q->name, "ccs%d", ffs(q->logical_mask) - 1);
-		break;
-	default:
-		XE_WARN_ON(q->class);
-	}
+	xe_exec_queue_assign_name(q, ffs(q->logical_mask) - 1);
 
 	return 0;
 
