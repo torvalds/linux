@@ -999,6 +999,43 @@ int i3c_master_defslvs_locked(struct i3c_master_controller *master)
 }
 EXPORT_SYMBOL_GPL(i3c_master_defslvs_locked);
 
+int i3c_master_setaasa_locked(struct i3c_master_controller *master)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_cmd cmd;
+	int ret;
+
+	i3c_ccc_cmd_dest_init(&dest, I3C_BROADCAST_ADDR, 0);
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETAASA, &dest, 1);
+
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_master_setaasa_locked);
+
+int i3c_master_sethid_locked(struct i3c_master_controller *master)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_cmd cmd;
+	struct i3c_ccc_sethid *sethid;
+	int ret;
+
+	sethid = i3c_ccc_cmd_dest_init(&dest, I3C_BROADCAST_ADDR, 1);
+	if (!sethid)
+		return -ENOMEM;
+
+	sethid->hid = 0;
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETHID, &dest, 1);
+
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_master_sethid_locked);
+
 static int i3c_master_setda_locked(struct i3c_master_controller *master,
 				   u8 oldaddr, u8 newaddr, bool setdasa)
 {
@@ -1572,10 +1609,15 @@ i3c_master_register_new_i3c_devs(struct i3c_master_controller *master)
  */
 int i3c_master_do_daa(struct i3c_master_controller *master)
 {
-	int ret;
+	int ret = 0;
 
 	i3c_bus_maintenance_lock(&master->bus);
-	ret = master->ops->do_daa(master);
+	if (master->bus.context == I3C_BUS_CONTEXT_JESD403) {
+		i3c_master_sethid_locked(master);
+		i3c_master_setaasa_locked(master);
+	} else {
+		ret = master->ops->do_daa(master);
+	}
 	i3c_bus_maintenance_unlock(&master->bus);
 
 	if (ret && ret != I3C_ERROR_M2)
@@ -1674,6 +1716,75 @@ static void i3c_master_detach_free_devs(struct i3c_master_controller *master)
 					     I3C_ADDR_SLOT_FREE);
 		i3c_master_free_i2c_dev(i2cdev);
 	}
+}
+
+static int i3c_master_jesd403_bus_init(struct i3c_master_controller *master)
+{
+	struct i3c_dev_boardinfo *i3cboardinfo;
+	struct i3c_dev_desc *i3cdev;
+	struct i3c_device_info info;
+	int ret;
+
+	list_for_each_entry(i3cboardinfo, &master->boardinfo.i3c, node) {
+		/*
+		 * Assuming all target devices attached to the bus are JESD403-1
+		 * compliant devices, which means:
+		 * - using the static address as the dynamic address
+		 * - using SETAASA to enter the I3C mode
+		 *
+		 * Therefore, we skip the target devices that do not have static
+		 * addresses or assigned-address properties.
+		 */
+		if (!i3cboardinfo->init_dyn_addr || !i3cboardinfo->static_addr)
+			continue;
+
+		if (i3cboardinfo->init_dyn_addr != i3cboardinfo->static_addr)
+			continue;
+
+		ret = i3c_bus_get_addr_slot_status(&master->bus,
+						   i3cboardinfo->init_dyn_addr);
+		if (ret != I3C_ADDR_SLOT_FREE)
+			return -EBUSY;
+
+		/*
+		 * JESD403 compliant devices do not support GETPID/BCR/DCR/MXDS CCCs.
+		 * Import these mandatory pieces of information form the boardinfo.
+		 */
+		info.static_addr = i3cboardinfo->static_addr;
+		info.dyn_addr = i3cboardinfo->init_dyn_addr;
+		info.pid = i3cboardinfo->pid;
+		info.dcr = i3cboardinfo->dcr;
+		info.bcr = i3cboardinfo->bcr;
+		info.max_write_ds = 0;
+		info.max_read_ds = 0;
+		if (info.bcr & I3C_BCR_IBI_PAYLOAD)
+			info.max_ibi_len = 1;
+
+		i3cdev = i3c_master_alloc_i3c_dev(master, &info);
+		if (IS_ERR(i3cdev))
+			return -ENOMEM;
+
+		i3cdev->boardinfo = i3cboardinfo;
+
+		ret = i3c_master_attach_i3c_dev(master, i3cdev);
+		if (ret) {
+			i3c_master_free_i3c_dev(i3cdev);
+			return ret;
+		}
+	}
+
+	/*
+	 * Supporting mixed devices (I3C mode + I2C mode) on the JESD403
+	 * bus is not possible, as these devices would enter I3C mode if
+	 * they receive a SETAASA broadcast CCC.
+	 *
+	 * Here, we only handle the devices that are declared to be in
+	 * I2C mode.
+	 */
+	if (master->bus.mode != I3C_BUS_MODE_PURE)
+		return 0;
+
+	return i3c_master_do_daa(master);
 }
 
 /**
@@ -1780,6 +1891,14 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 				      I3C_CCC_EVENT_HJ);
 	if (ret && ret != I3C_ERROR_M2)
 		goto err_bus_cleanup;
+
+	if (master->bus.context == I3C_BUS_CONTEXT_JESD403) {
+		ret = i3c_master_jesd403_bus_init(master);
+		if (ret)
+			goto err_rstdaa;
+
+		return 0;
+	}
 
 	/*
 	 * Reserve init_dyn_addr first, and then try to pre-assign dynamic
@@ -2154,7 +2273,7 @@ static int of_populate_i3c_bus(struct i3c_master_controller *master)
 	struct device *dev = &master->dev;
 	struct device_node *i3cbus_np = dev->of_node;
 	struct device_node *node;
-	int ret;
+	int ret, i;
 	u32 val;
 	u8 context;
 
@@ -2168,6 +2287,14 @@ static int of_populate_i3c_bus(struct i3c_master_controller *master)
 	master->bus.context = I3C_BUS_CONTEXT_MIPI_BASIC_V1_0_0;
 	if (!of_property_read_u8(i3cbus_np, "bus-context", &context))
 		master->bus.context = context;
+
+	/* Undo the unnecessary address reservations for JESD403 bus context */
+	if (master->bus.context == I3C_BUS_CONTEXT_JESD403) {
+		for (i = 0; i < 7; i++)
+			i3c_bus_set_addr_slot_status(&master->bus,
+						     I3C_BROADCAST_ADDR ^ BIT(i),
+						     I3C_ADDR_SLOT_FREE);
+	}
 
 	for_each_available_child_of_node(i3cbus_np, node) {
 		ret = of_i3c_master_add_dev(master, node);
