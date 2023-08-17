@@ -1244,6 +1244,9 @@ static int svc_tcp_sendmsg(struct socket *sock, struct xdr_buf *xdr,
 	if (ret != head->iov_len)
 		goto out;
 
+	if (xdr_buf_pagecount(xdr))
+		xdr->bvec[0].bv_offset = offset_in_page(xdr->page_base);
+
 	msg.msg_flags = MSG_SPLICE_PAGES;
 	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, xdr->bvec,
 		      xdr_buf_pagecount(xdr), xdr->page_len);
