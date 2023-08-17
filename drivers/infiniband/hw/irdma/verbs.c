@@ -573,6 +573,7 @@ static void irdma_setup_virt_qp(struct irdma_device *iwdev,
 
 /**
  * irdma_setup_umode_qp - setup sq and rq size in user mode qp
+ * @udata: udata
  * @iwdev: iwarp device
  * @iwqp: qp ptr (user or kernel)
  * @info: initialize info to return
