@@ -715,21 +715,11 @@ static int isp_enum_mbus_code(struct v4l2_subdev *sd,
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
 	const struct isp_format_table *formats;
 
-	if (code->index >= isp_dev->nformats)
+	if (code->index >= isp_dev->formats[code->pad].nfmts)
 		return -EINVAL;
-	if (code->pad == STF_ISP_PAD_SINK) {
-		formats = &isp_dev->formats[code->pad];
-		code->code = formats->fmts[code->index].code;
-	} else {
-		struct v4l2_mbus_framefmt *sink_fmt;
 
-		sink_fmt = __isp_get_format(isp_dev, state, STF_ISP_PAD_SINK,
-					code->which);
-
-		code->code = sink_fmt->code;
-		if (!code->code)
-			return -EINVAL;
-	}
+	formats = &isp_dev->formats[code->pad];
+	code->code = formats->fmts[code->index].code;
 	code->flags = 0;
 
 	return 0;
