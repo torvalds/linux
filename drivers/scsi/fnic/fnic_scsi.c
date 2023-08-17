@@ -2220,7 +2220,6 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 	struct reset_stats *reset_stats;
 	int tag = rq->tag;
 	DECLARE_COMPLETION_ONSTACK(tm_done);
-	int tag_gen_flag = 0;   /*to track tags allocated by fnic driver*/
 	bool new_sc = 0;
 
 	/* Wait for rport to unblock */
@@ -2250,17 +2249,17 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 	}
 
 	fnic_priv(sc)->flags = FNIC_DEVICE_RESET;
-	/* Allocate tag if not present */
 
 	if (unlikely(tag < 0)) {
 		/*
-		 * Really should fix the midlayer to pass in a proper
-		 * request for ioctls...
+		 * For device reset issued through sg3utils, we let
+		 * only one LUN_RESET to go through and use a special
+		 * tag equal to max_tag_id so that we don't have to allocate
+		 * or free it. It won't interact with tags
+		 * allocated by mid layer.
 		 */
-		tag = fnic_scsi_host_start_tag(fnic, sc);
-		if (unlikely(tag == SCSI_NO_TAG))
-			goto fnic_device_reset_end;
-		tag_gen_flag = 1;
+		mutex_lock(&fnic->sgreset_mutex);
+		tag = fnic->fnic_max_tag_id;
 		new_sc = 1;
 	}
 	io_lock = fnic_io_lock_hash(fnic, sc);
@@ -2432,9 +2431,8 @@ fnic_device_reset_end:
 		  (u64)sc->cmnd[4] << 8 | sc->cmnd[5]),
 		  fnic_flags_and_state(sc));
 
-	/* free tag if it is allocated */
-	if (unlikely(tag_gen_flag))
-		fnic_scsi_host_end_tag(fnic, sc);
+	if (new_sc)
+		mutex_unlock(&fnic->sgreset_mutex);
 
 	FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
 		      "Returning from device reset %s\n",
