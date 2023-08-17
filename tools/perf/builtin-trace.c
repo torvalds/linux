@@ -3398,6 +3398,19 @@ try_to_find_pair:
 			if (strcmp(field->type, candidate_field->type))
 				goto next_candidate;
 
+			/*
+			 * This is limited in the BPF program but sys_write
+			 * uses "const char *" for its "buf" arg so we need to
+			 * use some heuristic that is kinda future proof...
+			 */
+			if (strcmp(field->type, "const char *") == 0 &&
+			    !(strstr(field->name, "name") ||
+			      strstr(field->name, "path") ||
+			      strstr(field->name, "file") ||
+			      strstr(field->name, "root") ||
+			      strstr(field->name, "description")))
+				goto next_candidate;
+
 			is_candidate = true;
 		}
 
