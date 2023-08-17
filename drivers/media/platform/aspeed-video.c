@@ -2508,6 +2508,20 @@ static int aspeed_video_init(struct aspeed_video *video)
 	int rc;
 	struct device *dev = video->dev;
 
+	if (video->version >= 6) {
+		video->scu = syscon_regmap_lookup_by_phandle(dev->of_node,
+							     "aspeed,scu");
+		video->gfx = syscon_regmap_lookup_by_phandle(dev->of_node,
+							     "aspeed,gfx");
+		if (IS_ERR(video->scu))
+			dev_err(dev, "can't find regmap for scu");
+		if (IS_ERR(video->gfx))
+			dev_err(dev, "can't find regmap for gfx");
+	} else {
+		video->scu = ERR_PTR(-ENODEV);
+		video->gfx = ERR_PTR(-ENODEV);
+	}
+
 	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!irq) {
 		dev_err(dev, "Unable to find IRQ\n");
@@ -2604,20 +2618,6 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	video->jpeg_mode = config->jpeg_mode;
 	video->comp_size_read = config->comp_size_read;
 	video->compare_only = config->compare_only;
-
-	if (video->version >= 6) {
-		video->scu = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-							     "aspeed,scu");
-		video->gfx = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-							     "aspeed,gfx");
-		if (IS_ERR(video->scu))
-			dev_err(video->dev, "can't find regmap for scu");
-		if (IS_ERR(video->gfx))
-			dev_err(video->dev, "can't find regmap for gfx");
-	} else {
-		video->scu = ERR_PTR(-ENODEV);
-		video->gfx = ERR_PTR(-ENODEV);
-	}
 
 	video->frame_rate = 30;
 	video->jpeg_hq_quality = 1;
