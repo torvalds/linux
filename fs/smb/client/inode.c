@@ -632,10 +632,11 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 }
 
 /* Fill a cifs_fattr struct with info from POSIX info struct */
-static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr, struct cifs_open_info_data *data,
+static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr,
+				       struct cifs_open_info_data *data,
 				       struct cifs_sid *owner,
 				       struct cifs_sid *group,
-				       struct super_block *sb, bool adjust_tz, bool symlink)
+				       struct super_block *sb)
 {
 	struct smb311_posix_qinfo *info = &data->posix_fi;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
@@ -655,7 +656,7 @@ static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr, struct cifs_ope
 	fattr->cf_ctime = cifs_NTtimeToUnix(info->ChangeTime);
 	fattr->cf_mtime = cifs_NTtimeToUnix(info->LastWriteTime);
 
-	if (adjust_tz) {
+	if (data->adjust_tz) {
 		fattr->cf_ctime.tv_sec += tcon->ses->server->timeAdj;
 		fattr->cf_mtime.tv_sec += tcon->ses->server->timeAdj;
 	}
@@ -669,7 +670,7 @@ static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr, struct cifs_ope
 	/* The srv fs device id is overridden on network mount so setting rdev isn't needed here */
 	/* fattr->cf_rdev = le32_to_cpu(info->DeviceId); */
 
-	if (symlink) {
+	if (data->symlink) {
 		fattr->cf_mode |= S_IFLNK;
 		fattr->cf_dtype = DT_LNK;
 		fattr->cf_symlink_target = data->symlink_target;
@@ -690,13 +691,14 @@ static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr, struct cifs_ope
 		fattr->cf_mode, fattr->cf_uniqueid, fattr->cf_nlink);
 }
 
-static void cifs_open_info_to_fattr(struct cifs_fattr *fattr, struct cifs_open_info_data *data,
-				    struct super_block *sb, bool adjust_tz, bool symlink,
-				    u32 reparse_tag)
+static void cifs_open_info_to_fattr(struct cifs_fattr *fattr,
+				    struct cifs_open_info_data *data,
+				    struct super_block *sb)
 {
 	struct smb2_file_all_info *info = &data->fi;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	u32 reparse_tag = data->reparse_tag;
 
 	memset(fattr, 0, sizeof(*fattr));
 	fattr->cf_cifsattrs = le32_to_cpu(info->Attributes);
@@ -711,7 +713,7 @@ static void cifs_open_info_to_fattr(struct cifs_fattr *fattr, struct cifs_open_i
 	fattr->cf_ctime = cifs_NTtimeToUnix(info->ChangeTime);
 	fattr->cf_mtime = cifs_NTtimeToUnix(info->LastWriteTime);
 
-	if (adjust_tz) {
+	if (data->adjust_tz) {
 		fattr->cf_ctime.tv_sec += tcon->ses->server->timeAdj;
 		fattr->cf_mtime.tv_sec += tcon->ses->server->timeAdj;
 	}
@@ -736,7 +738,7 @@ static void cifs_open_info_to_fattr(struct cifs_fattr *fattr, struct cifs_open_i
 	} else if (reparse_tag == IO_REPARSE_TAG_LX_BLK) {
 		fattr->cf_mode |= S_IFBLK | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_BLK;
-	} else if (symlink || reparse_tag == IO_REPARSE_TAG_SYMLINK ||
+	} else if (data->symlink || reparse_tag == IO_REPARSE_TAG_SYMLINK ||
 		   reparse_tag == IO_REPARSE_TAG_NFS) {
 		fattr->cf_mode = S_IFLNK;
 		fattr->cf_dtype = DT_LNK;
@@ -789,8 +791,6 @@ cifs_get_file_info(struct file *filp)
 	struct cifsFileInfo *cfile = filp->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
-	bool symlink = false;
-	u32 tag = 0;
 
 	if (!server->ops->query_file_info)
 		return -ENOSYS;
@@ -800,11 +800,12 @@ cifs_get_file_info(struct file *filp)
 	switch (rc) {
 	case 0:
 		/* TODO: add support to query reparse tag */
+		data.adjust_tz = false;
 		if (data.symlink_target) {
-			symlink = true;
-			tag = IO_REPARSE_TAG_SYMLINK;
+			data.symlink = true;
+			data.reparse_tag = IO_REPARSE_TAG_SYMLINK;
 		}
-		cifs_open_info_to_fattr(&fattr, &data, inode->i_sb, false, symlink, tag);
+		cifs_open_info_to_fattr(&fattr, &data, inode->i_sb);
 		break;
 	case -EREMOTE:
 		cifs_create_dfs_fattr(&fattr, inode->i_sb);
@@ -968,14 +969,11 @@ int cifs_get_inode_info(struct inode **inode, const char *full_path,
 	struct TCP_Server_Info *server;
 	struct tcon_link *tlink;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	bool adjust_tz = false;
 	struct cifs_fattr fattr = {0};
-	bool is_reparse_point = false;
 	struct cifs_open_info_data tmp_data = {};
 	void *smb1_backup_rsp_buf = NULL;
 	int rc = 0;
 	int tmprc = 0;
-	__u32 reparse_tag = 0;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
@@ -992,8 +990,8 @@ int cifs_get_inode_info(struct inode **inode, const char *full_path,
 			cifs_dbg(FYI, "No need to revalidate cached inode sizes\n");
 			goto out;
 		}
-		rc = server->ops->query_path_info(xid, tcon, cifs_sb, full_path, &tmp_data,
-						  &adjust_tz, &is_reparse_point);
+		rc = server->ops->query_path_info(xid, tcon, cifs_sb,
+						  full_path, &tmp_data);
 		data = &tmp_data;
 	}
 
@@ -1008,24 +1006,23 @@ int cifs_get_inode_info(struct inode **inode, const char *full_path,
 		 * since we have to check if its reparse tag matches a known
 		 * special file type e.g. symlink or fifo or char etc.
 		 */
-		if (is_reparse_point && data->symlink_target) {
-			reparse_tag = IO_REPARSE_TAG_SYMLINK;
+		if (data->reparse_point && data->symlink_target) {
+			data->reparse_tag = IO_REPARSE_TAG_SYMLINK;
 		} else if ((le32_to_cpu(data->fi.Attributes) & ATTR_REPARSE) &&
 			   server->ops->query_reparse_tag) {
 			tmprc = server->ops->query_reparse_tag(xid, tcon, cifs_sb, full_path,
-							    &reparse_tag);
-			if (tmprc)
-				cifs_dbg(FYI, "%s: query_reparse_tag: rc = %d\n", __func__, tmprc);
+							       &data->reparse_tag);
+			cifs_dbg(FYI, "%s: query_reparse_tag: rc = %d\n", __func__, tmprc);
 			if (server->ops->query_symlink) {
-				tmprc = server->ops->query_symlink(xid, tcon, cifs_sb, full_path,
+				tmprc = server->ops->query_symlink(xid, tcon, cifs_sb,
+								   full_path,
 								   &data->symlink_target,
-								   is_reparse_point);
-				if (tmprc)
-					cifs_dbg(FYI, "%s: query_symlink: rc = %d\n", __func__,
-						 tmprc);
+								   data->reparse_point);
+				cifs_dbg(FYI, "%s: query_symlink: rc = %d\n",
+					 __func__, tmprc);
 			}
 		}
-		cifs_open_info_to_fattr(&fattr, data, sb, adjust_tz, is_reparse_point, reparse_tag);
+		cifs_open_info_to_fattr(&fattr, data, sb);
 		break;
 	case -EREMOTE:
 		/* DFS link, no metadata available on this server */
@@ -1168,9 +1165,7 @@ smb311_posix_get_inode_info(struct inode **inode,
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	bool adjust_tz = false;
 	struct cifs_fattr fattr = {0};
-	bool symlink = false;
 	struct cifs_open_info_data data = {};
 	struct cifs_sid owner, group;
 	int rc = 0;
@@ -1190,9 +1185,9 @@ smb311_posix_get_inode_info(struct inode **inode,
 		goto out;
 	}
 
-	rc = smb311_posix_query_path_info(xid, tcon, cifs_sb, full_path, &data,
-					  &owner, &group, &adjust_tz,
-					  &symlink);
+	rc = smb311_posix_query_path_info(xid, tcon, cifs_sb,
+					  full_path, &data,
+					  &owner, &group);
 
 	/*
 	 * 2. Convert it to internal cifs metadata (fattr)
@@ -1200,8 +1195,7 @@ smb311_posix_get_inode_info(struct inode **inode,
 
 	switch (rc) {
 	case 0:
-		smb311_posix_info_to_fattr(&fattr, &data, &owner, &group,
-					   sb, adjust_tz, symlink);
+		smb311_posix_info_to_fattr(&fattr, &data, &owner, &group, sb);
 		break;
 	case -EREMOTE:
 		/* DFS link, no metadata available on this server */

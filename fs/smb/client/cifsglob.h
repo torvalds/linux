@@ -186,6 +186,12 @@ struct cifs_cred {
 };
 
 struct cifs_open_info_data {
+	bool adjust_tz;
+	union {
+		bool reparse_point;
+		bool symlink;
+	};
+	__u32 reparse_tag;
 	char *symlink_target;
 	union {
 		struct smb2_file_all_info fi;
@@ -318,9 +324,11 @@ struct smb_version_operations {
 	int (*is_path_accessible)(const unsigned int, struct cifs_tcon *,
 				  struct cifs_sb_info *, const char *);
 	/* query path data from the server */
-	int (*query_path_info)(const unsigned int xid, struct cifs_tcon *tcon,
-			       struct cifs_sb_info *cifs_sb, const char *full_path,
-			       struct cifs_open_info_data *data, bool *adjust_tz, bool *reparse);
+	int (*query_path_info)(const unsigned int xid,
+			       struct cifs_tcon *tcon,
+			       struct cifs_sb_info *cifs_sb,
+			       const char *full_path,
+			       struct cifs_open_info_data *data);
 	/* query file data from the server */
 	int (*query_file_info)(const unsigned int xid, struct cifs_tcon *tcon,
 			       struct cifsFileInfo *cfile, struct cifs_open_info_data *data);

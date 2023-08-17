@@ -541,9 +541,11 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
-			 struct cifs_sb_info *cifs_sb, const char *full_path,
-			 struct cifs_open_info_data *data, bool *adjust_tz, bool *reparse)
+int smb2_query_path_info(const unsigned int xid,
+			 struct cifs_tcon *tcon,
+			 struct cifs_sb_info *cifs_sb,
+			 const char *full_path,
+			 struct cifs_open_info_data *data)
 {
 	__u32 create_options = 0;
 	struct cifsFileInfo *cfile;
@@ -553,8 +555,8 @@ int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	bool islink;
 	int rc, rc2;
 
-	*adjust_tz = false;
-	*reparse = false;
+	data->adjust_tz = false;
+	data->reparse_point = false;
 
 	if (strcmp(full_path, ""))
 		rc = -ENOENT;
@@ -588,7 +590,7 @@ int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			if (rc)
 				goto out;
 
-			*reparse = true;
+			data->reparse_point = true;
 			create_options |= OPEN_REPARSE_POINT;
 
 			/* Failed on a symbolic link - query a reparse point info */
@@ -619,12 +621,13 @@ out:
 }
 
 
-int smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
-				 struct cifs_sb_info *cifs_sb, const char *full_path,
+int smb311_posix_query_path_info(const unsigned int xid,
+				 struct cifs_tcon *tcon,
+				 struct cifs_sb_info *cifs_sb,
+				 const char *full_path,
 				 struct cifs_open_info_data *data,
 				 struct cifs_sid *owner,
-				 struct cifs_sid *group,
-				 bool *adjust_tz, bool *reparse)
+				 struct cifs_sid *group)
 {
 	int rc;
 	__u32 create_options = 0;
@@ -636,8 +639,8 @@ int smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	size_t sidsbuflen = 0;
 	size_t owner_len, group_len;
 
-	*adjust_tz = false;
-	*reparse = false;
+	data->adjust_tz = false;
+	data->reparse_point = false;
 
 	/*
 	 * BB TODO: Add support for using the cached root handle.
@@ -659,7 +662,7 @@ int smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			if (rc)
 				goto out;
 		}
-		*reparse = true;
+		data->reparse_point = true;
 		create_options |= OPEN_REPARSE_POINT;
 
 		/* Failed on a symbolic link - query a reparse point info */

@@ -56,9 +56,11 @@ extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 extern int smb2_query_reparse_tag(const unsigned int xid, struct cifs_tcon *tcon,
 				struct cifs_sb_info *cifs_sb, const char *path,
 				__u32 *reparse_tag);
-int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
-			 struct cifs_sb_info *cifs_sb, const char *full_path,
-			 struct cifs_open_info_data *data, bool *adjust_tz, bool *reparse);
+int smb2_query_path_info(const unsigned int xid,
+			 struct cifs_tcon *tcon,
+			 struct cifs_sb_info *cifs_sb,
+			 const char *full_path,
+			 struct cifs_open_info_data *data);
 extern int smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 			      const char *full_path, __u64 size,
 			      struct cifs_sb_info *cifs_sb, bool set_alloc);
@@ -275,12 +277,13 @@ extern int smb2_query_info_compound(const unsigned int xid,
 				    struct kvec *rsp, int *buftype,
 				    struct cifs_sb_info *cifs_sb);
 /* query path info from the server using SMB311 POSIX extensions*/
-int smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
-				 struct cifs_sb_info *cifs_sb, const char *full_path,
+int smb311_posix_query_path_info(const unsigned int xid,
+				 struct cifs_tcon *tcon,
+				 struct cifs_sb_info *cifs_sb,
+				 const char *full_path,
 				 struct cifs_open_info_data *data,
 				 struct cifs_sid *owner,
-				 struct cifs_sid *group,
-				 bool *adjust_tz, bool *reparse);
+				 struct cifs_sid *group);
 int posix_info_parse(const void *beg, const void *end,
 		     struct smb2_posix_info_parsed *out);
 int posix_info_sid_size(const void *beg, const void *end);
