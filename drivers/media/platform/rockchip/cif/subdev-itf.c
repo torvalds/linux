@@ -870,7 +870,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	if (!is_free && (!dbufs->is_switch)) {
 		list_add_tail(&rx_buf->list, &stream->rx_buf_head);
 		rkcif_assign_check_buffer_update_toisp(stream);
-		if (!stream->dma_en) {
+		if (!stream->dma_en && cif_dev->resume_mode != RKISP_RTT_MODE_ONE_FRAME) {
 			stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
 			rkcif_enable_dma_capture(stream, true);
 		}

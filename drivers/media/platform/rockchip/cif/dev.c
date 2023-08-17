@@ -1908,6 +1908,21 @@ static void rkcif_init_reset_monitor(struct rkcif_device *dev)
 	INIT_WORK(&dev->reset_work.work, rkcif_reset_work);
 }
 
+void rkcif_set_sensor_stream(struct work_struct *work)
+{
+	struct rkcif_sensor_work *sensor_work = container_of(work,
+						struct rkcif_sensor_work,
+						work);
+	struct rkcif_device *cif_dev = container_of(sensor_work,
+						    struct rkcif_device,
+						    sensor_work);
+
+	v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+			core, ioctl,
+			RKMODULE_SET_QUICK_STREAM,
+			&sensor_work->on);
+}
+
 int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id)
 {
 	struct device *dev = cif_dev->dev;
@@ -1927,6 +1942,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	atomic_set(&cif_dev->pipe.power_cnt, 0);
 	atomic_set(&cif_dev->pipe.stream_cnt, 0);
 	atomic_set(&cif_dev->power_cnt, 0);
+	atomic_set(&cif_dev->streamoff_cnt, 0);
 	cif_dev->is_start_hdr = false;
 	cif_dev->pipe.open = rkcif_pipeline_open;
 	cif_dev->pipe.close = rkcif_pipeline_close;
@@ -1940,11 +1956,14 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->early_line = 0;
 	cif_dev->is_thunderboot = false;
 	cif_dev->rdbk_debug = 0;
+
+	cif_dev->resume_mode = 0;
 	memset(&cif_dev->channels[0].capture_info, 0, sizeof(cif_dev->channels[0].capture_info));
 	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		cif_dev->isr_hdl = rkcif_irq_lite_handler;
 
 	INIT_WORK(&cif_dev->err_state_work.work, rkcif_err_print_work);
+	INIT_WORK(&cif_dev->sensor_work.work, rkcif_set_sensor_stream);
 
 	if (cif_dev->chip_id < CHIP_RV1126_CIF) {
 		if (cif_dev->inf_id == RKCIF_MIPI_LVDS) {
@@ -2118,6 +2137,8 @@ static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
 	struct resource r;
 	int ret;
 
+	cif_dev->is_thunderboot = false;
+	cif_dev->is_rtt_suspend = false;
 	/* Get reserved memory region from Device-tree */
 	np = of_parse_phandle(dev->of_node, "memory-region-thunderboot", 0);
 	if (!np) {
@@ -2133,7 +2154,14 @@ static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
 
 	cif_dev->resmem_pa = r.start;
 	cif_dev->resmem_size = resource_size(&r);
-	cif_dev->is_thunderboot = true;
+	cif_dev->resmem_addr = dma_map_single(dev, phys_to_virt(r.start),
+					      sizeof(struct rkisp_thunderboot_resmem_head),
+					      DMA_BIDIRECTIONAL);
+
+	if (device_property_read_bool(dev, "rtt-suspend"))
+		cif_dev->is_rtt_suspend = true;
+	else
+		cif_dev->is_thunderboot = true;
 	dev_info(dev, "Allocated reserved memory, paddr: 0x%x, size 0x%x\n",
 		 (u32)cif_dev->resmem_pa,
 		 (u32)cif_dev->resmem_size);
