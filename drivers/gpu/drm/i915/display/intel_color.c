@@ -1040,6 +1040,24 @@ static void hsw_get_config(struct intel_crtc_state *crtc_state)
 	crtc_state->csc_mode = ilk_read_csc_mode(crtc);
 }
 
+static void skl_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	u32 tmp;
+
+	crtc_state->gamma_mode = hsw_read_gamma_mode(crtc);
+	crtc_state->csc_mode = ilk_read_csc_mode(crtc);
+
+	tmp = intel_de_read(i915, SKL_BOTTOM_COLOR(crtc->pipe));
+
+	if (tmp & SKL_BOTTOM_COLOR_GAMMA_ENABLE)
+		crtc_state->gamma_enable = true;
+
+	if (tmp & SKL_BOTTOM_COLOR_CSC_ENABLE)
+		crtc_state->csc_enable = true;
+}
+
 static void skl_color_commit_arm(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -3654,7 +3672,7 @@ static const struct intel_color_funcs tgl_color_funcs = {
 	.read_luts = icl_read_luts,
 	.lut_equal = icl_lut_equal,
 	.read_csc = icl_read_csc,
-	.get_config = hsw_get_config,
+	.get_config = skl_get_config,
 };
 
 static const struct intel_color_funcs icl_color_funcs = {
@@ -3666,7 +3684,7 @@ static const struct intel_color_funcs icl_color_funcs = {
 	.read_luts = icl_read_luts,
 	.lut_equal = icl_lut_equal,
 	.read_csc = icl_read_csc,
-	.get_config = hsw_get_config,
+	.get_config = skl_get_config,
 };
 
 static const struct intel_color_funcs glk_color_funcs = {
@@ -3677,7 +3695,7 @@ static const struct intel_color_funcs glk_color_funcs = {
 	.read_luts = glk_read_luts,
 	.lut_equal = glk_lut_equal,
 	.read_csc = skl_read_csc,
-	.get_config = hsw_get_config,
+	.get_config = skl_get_config,
 };
 
 static const struct intel_color_funcs skl_color_funcs = {
@@ -3688,7 +3706,7 @@ static const struct intel_color_funcs skl_color_funcs = {
 	.read_luts = bdw_read_luts,
 	.lut_equal = ivb_lut_equal,
 	.read_csc = skl_read_csc,
-	.get_config = hsw_get_config,
+	.get_config = skl_get_config,
 };
 
 static const struct intel_color_funcs bdw_color_funcs = {

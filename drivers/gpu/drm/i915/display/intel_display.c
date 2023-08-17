@@ -60,7 +60,6 @@
 #include "intel_cdclk.h"
 #include "intel_clock_gating.h"
 #include "intel_color.h"
-#include "intel_color_regs.h"
 #include "intel_crt.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
@@ -3732,17 +3731,8 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 
 	pipe_config->sink_format = pipe_config->output_format;
 
-	if (DISPLAY_VER(dev_priv) >= 9) {
-		tmp = intel_de_read(dev_priv, SKL_BOTTOM_COLOR(crtc->pipe));
-
-		if (tmp & SKL_BOTTOM_COLOR_GAMMA_ENABLE)
-			pipe_config->gamma_enable = true;
-
-		if (tmp & SKL_BOTTOM_COLOR_CSC_ENABLE)
-			pipe_config->csc_enable = true;
-	} else {
+	if (DISPLAY_VER(dev_priv) < 9)
 		i9xx_get_pipe_color_config(pipe_config);
-	}
 
 	intel_color_get_config(pipe_config);
 
