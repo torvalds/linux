@@ -105,6 +105,19 @@ DECLARE_HOOK(android_vh_task_blocks_on_rtmutex,
 DECLARE_HOOK(android_vh_rtmutex_waiter_prio,
 	TP_PROTO(struct task_struct *task, int *waiter_prio),
 	TP_ARGS(task, waiter_prio));
+
+DECLARE_HOOK(android_vh_exit_signal_whether_wake,
+	TP_PROTO(struct task_struct *p, bool *wake),
+	TP_ARGS(p, wake));
+
+DECLARE_HOOK(android_vh_exit_check,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p));
+
+DECLARE_HOOK(android_vh_freeze_whether_wake,
+	TP_PROTO(struct task_struct *t, bool *wake),
+	TP_ARGS(t, wake));
+
 #endif /* _TRACE_HOOK_DTASK_H */
 
 /* This part must be outside protection */
