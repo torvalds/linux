@@ -52,15 +52,16 @@ struct cop_vars {
  * note: If cfile is passed, the reference to it is dropped here.
  * So make sure that you do not reuse cfile after return from this func.
  *
- * If passing @err_iov and @err_buftype, ensure to make them both large enough (>= 3) to hold all
- * error responses.  Caller is also responsible for freeing them up.
+ * If passing @out_iov and @out_buftype, ensure to make them both large enough
+ * (>= 3) to hold all compounded responses.  Caller is also responsible for
+ * freeing them up with free_rsp_buf().
  */
 static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 			    struct cifs_sb_info *cifs_sb, const char *full_path,
 			    __u32 desired_access, __u32 create_disposition, __u32 create_options,
 			    umode_t mode, void *ptr, int command, struct cifsFileInfo *cfile,
 			    __u8 **extbuf, size_t *extbuflen,
-			    struct kvec *err_iov, int *err_buftype)
+			    struct kvec *out_iov, int *out_buftype)
 {
 	struct cop_vars *vars = NULL;
 	struct kvec *rsp_iov;
@@ -529,9 +530,9 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	if (cfile)
 		cifsFileInfo_put(cfile);
 
-	if (rc && err_iov && err_buftype) {
-		memcpy(err_iov, rsp_iov, 3 * sizeof(*err_iov));
-		memcpy(err_buftype, resp_buftype, 3 * sizeof(*err_buftype));
+	if (out_iov && out_buftype) {
+		memcpy(out_iov, rsp_iov, 3 * sizeof(*out_iov));
+		memcpy(out_buftype, resp_buftype, 3 * sizeof(*out_buftype));
 	} else {
 		free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
 		free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
@@ -550,8 +551,8 @@ int smb2_query_path_info(const unsigned int xid,
 	__u32 create_options = 0;
 	struct cifsFileInfo *cfile;
 	struct cached_fid *cfid = NULL;
-	struct kvec err_iov[3] = {};
-	int err_buftype[3] = {};
+	struct kvec out_iov[3] = {};
+	int out_buftype[3] = {};
 	bool islink;
 	int rc, rc2;
 
@@ -577,15 +578,15 @@ int smb2_query_path_info(const unsigned int xid,
 	cifs_get_readable_path(tcon, full_path, &cfile);
 	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path, FILE_READ_ATTRIBUTES, FILE_OPEN,
 			      create_options, ACL_NO_MODE, data, SMB2_OP_QUERY_INFO, cfile,
-			      NULL, NULL, err_iov, err_buftype);
+			      NULL, NULL, out_iov, out_buftype);
 	if (rc) {
-		struct smb2_hdr *hdr = err_iov[0].iov_base;
+		struct smb2_hdr *hdr = out_iov[0].iov_base;
 
-		if (unlikely(!hdr || err_buftype[0] == CIFS_NO_BUFFER))
+		if (unlikely(!hdr || out_buftype[0] == CIFS_NO_BUFFER))
 			goto out;
 		if (rc == -EOPNOTSUPP && hdr->Command == SMB2_CREATE &&
 		    hdr->Status == STATUS_STOPPED_ON_SYMLINK) {
-			rc = smb2_parse_symlink_response(cifs_sb, err_iov,
+			rc = smb2_parse_symlink_response(cifs_sb, out_iov,
 							 &data->symlink_target);
 			if (rc)
 				goto out;
@@ -614,12 +615,11 @@ int smb2_query_path_info(const unsigned int xid,
 	}
 
 out:
-	free_rsp_buf(err_buftype[0], err_iov[0].iov_base);
-	free_rsp_buf(err_buftype[1], err_iov[1].iov_base);
-	free_rsp_buf(err_buftype[2], err_iov[2].iov_base);
+	free_rsp_buf(out_buftype[0], out_iov[0].iov_base);
+	free_rsp_buf(out_buftype[1], out_iov[1].iov_base);
+	free_rsp_buf(out_buftype[2], out_iov[2].iov_base);
 	return rc;
 }
-
 
 int smb311_posix_query_path_info(const unsigned int xid,
 				 struct cifs_tcon *tcon,
@@ -632,8 +632,8 @@ int smb311_posix_query_path_info(const unsigned int xid,
 	int rc;
 	__u32 create_options = 0;
 	struct cifsFileInfo *cfile;
-	struct kvec err_iov[3] = {};
-	int err_buftype[3] = {};
+	struct kvec out_iov[3] = {};
+	int out_buftype[3] = {};
 	__u8 *sidsbuf = NULL;
 	__u8 *sidsbuf_end = NULL;
 	size_t sidsbuflen = 0;
@@ -652,13 +652,13 @@ int smb311_posix_query_path_info(const unsigned int xid,
 	cifs_get_readable_path(tcon, full_path, &cfile);
 	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path, FILE_READ_ATTRIBUTES, FILE_OPEN,
 			      create_options, ACL_NO_MODE, data, SMB2_OP_POSIX_QUERY_INFO, cfile,
-			      &sidsbuf, &sidsbuflen, err_iov, err_buftype);
+			      &sidsbuf, &sidsbuflen, out_iov, out_buftype);
 	if (rc == -EOPNOTSUPP) {
 		/* BB TODO: When support for special files added to Samba re-verify this path */
-		if (err_iov[0].iov_base && err_buftype[0] != CIFS_NO_BUFFER &&
-		    ((struct smb2_hdr *)err_iov[0].iov_base)->Command == SMB2_CREATE &&
-		    ((struct smb2_hdr *)err_iov[0].iov_base)->Status == STATUS_STOPPED_ON_SYMLINK) {
-			rc = smb2_parse_symlink_response(cifs_sb, err_iov, &data->symlink_target);
+		if (out_iov[0].iov_base && out_buftype[0] != CIFS_NO_BUFFER &&
+		    ((struct smb2_hdr *)out_iov[0].iov_base)->Command == SMB2_CREATE &&
+		    ((struct smb2_hdr *)out_iov[0].iov_base)->Status == STATUS_STOPPED_ON_SYMLINK) {
+			rc = smb2_parse_symlink_response(cifs_sb, out_iov, &data->symlink_target);
 			if (rc)
 				goto out;
 		}
@@ -694,9 +694,9 @@ int smb311_posix_query_path_info(const unsigned int xid,
 
 out:
 	kfree(sidsbuf);
-	free_rsp_buf(err_buftype[0], err_iov[0].iov_base);
-	free_rsp_buf(err_buftype[1], err_iov[1].iov_base);
-	free_rsp_buf(err_buftype[2], err_iov[2].iov_base);
+	free_rsp_buf(out_buftype[0], out_iov[0].iov_base);
+	free_rsp_buf(out_buftype[1], out_iov[1].iov_base);
+	free_rsp_buf(out_buftype[2], out_iov[2].iov_base);
 	return rc;
 }
 
