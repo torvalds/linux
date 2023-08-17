@@ -3399,6 +3399,7 @@ static void gsm_copy_config_ext_values(struct gsm_mux *gsm,
 
 static int gsm_config_ext(struct gsm_mux *gsm, struct gsm_config_ext *ce)
 {
+	bool need_restart = false;
 	unsigned int i;
 
 	/*
@@ -3408,12 +3409,34 @@ static int gsm_config_ext(struct gsm_mux *gsm, struct gsm_config_ext *ce)
 	for (i = 0; i < ARRAY_SIZE(ce->reserved); i++)
 		if (ce->reserved[i])
 			return -EINVAL;
+	if (ce->flags & ~GSM_FL_RESTART)
+		return -EINVAL;
+
+	/* Requires care */
+	if (ce->flags & GSM_FL_RESTART)
+		need_restart = true;
+
+	/*
+	 * Close down what is needed, restart and initiate the new
+	 * configuration. On the first time there is no DLCI[0]
+	 * and closing or cleaning up is not necessary.
+	 */
+	if (need_restart)
+		gsm_cleanup_mux(gsm, true);
 
 	/*
 	 * Setup the new configuration values
 	 */
 	gsm->wait_config = ce->wait_config ? true : false;
 	gsm->keep_alive = ce->keep_alive;
+
+	if (gsm->dead) {
+		int ret = gsm_activate_mux(gsm);
+		if (ret)
+			return ret;
+		if (gsm->initiator)
+			gsm_dlci_begin_open(gsm->dlci[0]);
+	}
 
 	return 0;
 }

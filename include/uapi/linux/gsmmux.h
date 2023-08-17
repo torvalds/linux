@@ -11,6 +11,7 @@
  * flags definition for n_gsm
  *
  * Used by:
+ * struct gsm_config_ext.flags
  * struct gsm_dlci_config.flags
  */
 /* Forces a DLCI reset if set. Otherwise, a DLCI reset is only done if
@@ -98,12 +99,14 @@ struct gsm_netconfig {
  *
  * @keep_alive:  Control channel keep-alive in 1/100th of a second (0 to disable).
  * @wait_config: Wait for DLCI config before opening virtual link?
+ * @flags:       Mux specific flags.
  * @reserved:    For future use, must be initialized to zero.
  */
 struct gsm_config_ext {
 	__u32 keep_alive;
 	__u32 wait_config;
-	__u32 reserved[6];
+	__u32 flags;
+	__u32 reserved[5];
 };
 
 #define GSMIOC_GETCONF_EXT	_IOR('G', 5, struct gsm_config_ext)
