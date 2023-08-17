@@ -15,8 +15,8 @@
 
 */
 
-#ifndef FP_TRIG_H
-#define FP_TRIG_H
+#ifndef _FP_TRIG_H
+#define _FP_TRIG_H
 
 #include "fp_emu.h"
 
@@ -29,4 +29,4 @@
    they return a status code, which should end up in %d0, if all goes
    well.  */
 
-#endif /* FP_TRIG__H */
+#endif /* _FP_TRIG_H */

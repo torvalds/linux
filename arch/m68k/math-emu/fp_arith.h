@@ -12,8 +12,8 @@
 
  */
 
-#ifndef FP_ARITH_H
-#define FP_ARITH_H
+#ifndef _FP_ARITH_H
+#define _FP_ARITH_H
 
 /* easy ones */
 struct fp_ext *
@@ -47,4 +47,4 @@ fp_fintrz(struct fp_ext *dest, struct fp_ext *src);
 struct fp_ext *
 fp_fscale(struct fp_ext *dest, struct fp_ext *src);
 
-#endif	/* FP_ARITH__H */
+#endif	/* _FP_ARITH_H */
