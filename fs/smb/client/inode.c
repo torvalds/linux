@@ -60,7 +60,7 @@ static void cifs_set_ops(struct inode *inode)
 	case S_IFDIR:
 #ifdef CONFIG_CIFS_DFS_UPCALL
 		if (IS_AUTOMOUNT(inode)) {
-			inode->i_op = &cifs_dfs_referral_inode_operations;
+			inode->i_op = &cifs_namespace_inode_operations;
 		} else {
 #else /* NO DFS support, treat as a directory */
 		{

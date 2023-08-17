@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   Contains the CIFS DFS referral mounting routines used for handling
- *   traversal via DFS junction point
+ *   Contains mounting routines used for handling traversal via SMB junctions.
  *
  *   Copyright (c) 2007 Igor Mammedov
  *   Copyright (C) International Business Machines  Corp., 2008
@@ -24,27 +23,28 @@
 #include "dfs.h"
 #include "fs_context.h"
 
-static LIST_HEAD(cifs_dfs_automount_list);
+static LIST_HEAD(cifs_automount_list);
 
-static void cifs_dfs_expire_automounts(struct work_struct *work);
-static DECLARE_DELAYED_WORK(cifs_dfs_automount_task,
-			    cifs_dfs_expire_automounts);
-static int cifs_dfs_mountpoint_expiry_timeout = 500 * HZ;
+static void cifs_expire_automounts(struct work_struct *work);
+static DECLARE_DELAYED_WORK(cifs_automount_task,
+			    cifs_expire_automounts);
+static int cifs_mountpoint_expiry_timeout = 500 * HZ;
 
-static void cifs_dfs_expire_automounts(struct work_struct *work)
+static void cifs_expire_automounts(struct work_struct *work)
 {
-	struct list_head *list = &cifs_dfs_automount_list;
+	struct list_head *list = &cifs_automount_list;
 
 	mark_mounts_for_expiry(list);
 	if (!list_empty(list))
-		schedule_delayed_work(&cifs_dfs_automount_task,
-				      cifs_dfs_mountpoint_expiry_timeout);
+		schedule_delayed_work(&cifs_automount_task,
+				      cifs_mountpoint_expiry_timeout);
 }
 
-void cifs_dfs_release_automount_timer(void)
+void cifs_release_automount_timer(void)
 {
-	BUG_ON(!list_empty(&cifs_dfs_automount_list));
-	cancel_delayed_work_sync(&cifs_dfs_automount_task);
+	if (WARN_ON(!list_empty(&cifs_automount_list)))
+		return;
+	cancel_delayed_work_sync(&cifs_automount_task);
 }
 
 /**
@@ -132,7 +132,7 @@ static int set_dest_addr(struct smb3_fs_context *ctx)
 /*
  * Create a vfsmount that we can automount
  */
-static struct vfsmount *cifs_dfs_do_automount(struct path *path)
+static struct vfsmount *cifs_do_automount(struct path *path)
 {
 	int rc;
 	struct dentry *mntpt = path->dentry;
@@ -214,25 +214,25 @@ out:
 /*
  * Attempt to automount the referral
  */
-struct vfsmount *cifs_dfs_d_automount(struct path *path)
+struct vfsmount *cifs_d_automount(struct path *path)
 {
 	struct vfsmount *newmnt;
 
 	cifs_dbg(FYI, "%s: %pd\n", __func__, path->dentry);
 
-	newmnt = cifs_dfs_do_automount(path);
+	newmnt = cifs_do_automount(path);
 	if (IS_ERR(newmnt)) {
 		cifs_dbg(FYI, "leaving %s [automount failed]\n" , __func__);
 		return newmnt;
 	}
 
 	mntget(newmnt); /* prevent immediate expiration */
-	mnt_set_expiry(newmnt, &cifs_dfs_automount_list);
-	schedule_delayed_work(&cifs_dfs_automount_task,
-			      cifs_dfs_mountpoint_expiry_timeout);
+	mnt_set_expiry(newmnt, &cifs_automount_list);
+	schedule_delayed_work(&cifs_automount_task,
+			      cifs_mountpoint_expiry_timeout);
 	cifs_dbg(FYI, "leaving %s [ok]\n" , __func__);
 	return newmnt;
 }
 
-const struct inode_operations cifs_dfs_referral_inode_operations = {
+const struct inode_operations cifs_namespace_inode_operations = {
 };
