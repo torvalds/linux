@@ -8,7 +8,7 @@
 
 /**
  * pds_client_register - Link the client to the firmware
- * @pf_pdev:	ptr to the PF driver struct
+ * @pf:		ptr to the PF driver's private data struct
  * @devname:	name that includes service into, e.g. pds_core.vDPA
  *
  * Return: 0 on success, or
@@ -48,7 +48,7 @@ EXPORT_SYMBOL_GPL(pds_client_register);
 
 /**
  * pds_client_unregister - Unlink the client from the firmware
- * @pf_pdev:	ptr to the PF driver struct
+ * @pf:		ptr to the PF driver's private data struct
  * @client_id:	id returned from pds_client_register()
  *
  * Return: 0 on success, or
