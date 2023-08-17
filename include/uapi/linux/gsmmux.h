@@ -2,9 +2,21 @@
 #ifndef _LINUX_GSMMUX_H
 #define _LINUX_GSMMUX_H
 
+#include <linux/const.h>
 #include <linux/if.h>
 #include <linux/ioctl.h>
 #include <linux/types.h>
+
+/*
+ * flags definition for n_gsm
+ *
+ * Used by:
+ * struct gsm_dlci_config.flags
+ */
+/* Forces a DLCI reset if set. Otherwise, a DLCI reset is only done if
+ * incompatible settings were provided. Always cleared on retrieval.
+ */
+#define GSM_FL_RESTART	_BITUL(0)
 
 struct gsm_config
 {
@@ -58,7 +70,8 @@ struct gsm_dlci_config {
 	__u32 priority;		/* Priority (0 for default value) */
 	__u32 i;		/* Frame type (1 = UIH, 2 = UI) */
 	__u32 k;		/* Window size (0 for default value) */
-	__u32 reserved[8];	/* For future use, must be initialized to zero */
+	__u32 flags;		/* DLCI specific flags. */
+	__u32 reserved[7];	/* For future use, must be initialized to zero */
 };
 
 #define GSMIOC_GETCONF_DLCI	_IOWR('G', 7, struct gsm_dlci_config)

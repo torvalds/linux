@@ -2532,6 +2532,8 @@ static int gsm_dlci_config(struct gsm_dlci *dlci, struct gsm_dlci_config *dc, in
 		return -EINVAL;
 	if (dc->k > 7)
 		return -EINVAL;
+	if (dc->flags & ~GSM_FL_RESTART)   /* allow future extensions */
+		return -EINVAL;
 
 	/*
 	 * See what is needed for reconfiguration
@@ -2545,6 +2547,8 @@ static int gsm_dlci_config(struct gsm_dlci *dlci, struct gsm_dlci_config *dc, in
 		need_restart = true;
 	/* Requires care */
 	if (dc->priority != dlci->prio)
+		need_restart = true;
+	if (dc->flags & GSM_FL_RESTART)
 		need_restart = true;
 
 	if ((open && gsm->wait_config) || need_restart)
