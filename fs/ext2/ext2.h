@@ -701,12 +701,11 @@ static inline struct ext2_inode_info *EXT2_I(struct inode *inode)
 /* balloc.c */
 extern int ext2_bg_has_super(struct super_block *sb, int group);
 extern unsigned long ext2_bg_num_gdb(struct super_block *sb, int group);
-extern ext2_fsblk_t ext2_new_blocks(struct inode *, unsigned long,
+extern ext2_fsblk_t ext2_new_blocks(struct inode *, ext2_fsblk_t,
 				unsigned long *, int *, unsigned int);
 extern int ext2_data_block_valid(struct ext2_sb_info *sbi, ext2_fsblk_t start_blk,
 				 unsigned int count);
-extern void ext2_free_blocks (struct inode *, unsigned long,
-			      unsigned long);
+extern void ext2_free_blocks(struct inode *, ext2_fsblk_t, unsigned long);
 extern unsigned long ext2_count_free_blocks (struct super_block *);
 extern unsigned long ext2_count_dirs (struct super_block *);
 extern struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,

@@ -1082,8 +1082,8 @@ no_top:
  */
 static inline void ext2_free_data(struct inode *inode, __le32 *p, __le32 *q)
 {
-	unsigned long block_to_free = 0, count = 0;
-	unsigned long nr;
+	ext2_fsblk_t block_to_free = 0, count = 0;
+	ext2_fsblk_t nr;
 
 	for ( ; p < q ; p++) {
 		nr = le32_to_cpu(*p);
@@ -1123,7 +1123,7 @@ static inline void ext2_free_data(struct inode *inode, __le32 *p, __le32 *q)
 static void ext2_free_branches(struct inode *inode, __le32 *p, __le32 *q, int depth)
 {
 	struct buffer_head * bh;
-	unsigned long nr;
+	ext2_fsblk_t nr;
 
 	if (depth--) {
 		int addr_per_block = EXT2_ADDR_PER_BLOCK(inode->i_sb);
