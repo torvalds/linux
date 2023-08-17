@@ -186,8 +186,6 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "GMBUS";
 	case POWER_DOMAIN_INIT:
 		return "INIT";
-	case POWER_DOMAIN_MODESET:
-		return "MODESET";
 	case POWER_DOMAIN_GT_IRQ:
 		return "GT_IRQ";
 	case POWER_DOMAIN_DC_OFF:
