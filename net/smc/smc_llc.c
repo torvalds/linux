@@ -52,7 +52,8 @@ struct smc_llc_msg_confirm_link {	/* type 0x01 */
 	u8 link_num;
 	u8 link_uid[SMC_LGR_ID_SIZE];
 	u8 max_links;
-	u8 reserved[9];
+	u8 max_conns;
+	u8 reserved[8];
 };
 
 #define SMC_LLC_FLAG_ADD_LNK_REJ	0x40
@@ -472,6 +473,9 @@ int smc_llc_send_confirm_link(struct smc_link *link,
 	confllc->link_num = link->link_id;
 	memcpy(confllc->link_uid, link->link_uid, SMC_LGR_ID_SIZE);
 	confllc->max_links = SMC_LLC_ADD_LNK_MAX_LINKS;
+	if (link->lgr->smc_version == SMC_V2 &&
+	    link->lgr->peer_smc_release >= SMC_RELEASE_1)
+		confllc->max_conns = link->lgr->max_conns;
 	/* send llc message */
 	rc = smc_wr_tx_send(link, pend);
 put_out:

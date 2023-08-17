@@ -427,9 +427,17 @@ static int smc_clc_fill_fce(struct smc_clc_first_contact_ext_v2x *fce,
 	fce->fce_v2_base.os_type = SMC_CLC_OS_LINUX;
 	fce->fce_v2_base.release = ini->release_nr;
 	memcpy(fce->fce_v2_base.hostname, smc_hostname, sizeof(smc_hostname));
-	if (ini->is_smcd && ini->release_nr < SMC_RELEASE_1)
+	if (ini->is_smcd && ini->release_nr < SMC_RELEASE_1) {
 		ret = sizeof(struct smc_clc_first_contact_ext);
+		goto out;
+	}
 
+	if (ini->release_nr >= SMC_RELEASE_1) {
+		if (!ini->is_smcd)
+			fce->max_conns = ini->max_conns;
+	}
+
+out:
 	return ret;
 }
 
@@ -931,8 +939,10 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 				sizeof(struct smc_clc_smcd_gid_chid);
 		}
 	}
-	if (smcr_indicated(ini->smc_type_v2))
+	if (smcr_indicated(ini->smc_type_v2)) {
 		memcpy(v2_ext->roce, ini->smcrv2.ib_gid_v2, SMC_GID_SIZE);
+		v2_ext->max_conns = SMC_CONN_PER_LGR_PREFER;
+	}
 
 	pclc_base->hdr.length = htons(plen);
 	memcpy(trl->eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
@@ -1163,6 +1173,8 @@ int smc_clc_srv_v2x_features_validate(struct smc_clc_msg_proposal *pclc,
 {
 	struct smc_clc_v2_extension *pclc_v2_ext;
 
+	ini->max_conns = SMC_CONN_PER_LGR_MAX;
+
 	if ((!(ini->smcd_version & SMC_V2) && !(ini->smcr_version & SMC_V2)) ||
 	    ini->release_nr < SMC_RELEASE_1)
 		return 0;
@@ -1171,14 +1183,29 @@ int smc_clc_srv_v2x_features_validate(struct smc_clc_msg_proposal *pclc,
 	if (!pclc_v2_ext)
 		return SMC_CLC_DECL_NOV2EXT;
 
+	if (ini->smcr_version & SMC_V2) {
+		ini->max_conns = min_t(u8, pclc_v2_ext->max_conns, SMC_CONN_PER_LGR_PREFER);
+		if (ini->max_conns < SMC_CONN_PER_LGR_MIN)
+			return SMC_CLC_DECL_MAXCONNERR;
+	}
+
 	return 0;
 }
 
 int smc_clc_clnt_v2x_features_validate(struct smc_clc_first_contact_ext *fce,
 				       struct smc_init_info *ini)
 {
+	struct smc_clc_first_contact_ext_v2x *fce_v2x =
+		(struct smc_clc_first_contact_ext_v2x *)fce;
+
 	if (ini->release_nr < SMC_RELEASE_1)
 		return 0;
+
+	if (!ini->is_smcd) {
+		if (fce_v2x->max_conns < SMC_CONN_PER_LGR_MIN)
+			return SMC_CLC_DECL_MAXCONNERR;
+		ini->max_conns = fce_v2x->max_conns;
+	}
 
 	return 0;
 }
@@ -1190,6 +1217,8 @@ int smc_clc_v2x_features_confirm_check(struct smc_clc_msg_accept_confirm *cclc,
 		(struct smc_clc_msg_accept_confirm_v2 *)cclc;
 	struct smc_clc_first_contact_ext *fce =
 		smc_get_clc_first_contact_ext(clc_v2, ini->is_smcd);
+	struct smc_clc_first_contact_ext_v2x *fce_v2x =
+		(struct smc_clc_first_contact_ext_v2x *)fce;
 
 	if (cclc->hdr.version == SMC_V1 ||
 	    !(cclc->hdr.typev2 & SMC_FIRST_CONTACT_MASK))
@@ -1200,6 +1229,11 @@ int smc_clc_v2x_features_confirm_check(struct smc_clc_msg_accept_confirm *cclc,
 
 	if (fce->release < SMC_RELEASE_1)
 		return 0;
+
+	if (!ini->is_smcd) {
+		if (fce_v2x->max_conns != ini->max_conns)
+			return SMC_CLC_DECL_MAXCONNERR;
+	}
 
 	return 0;
 }

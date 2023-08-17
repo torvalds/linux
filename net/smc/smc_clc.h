@@ -46,6 +46,7 @@
 #define SMC_CLC_DECL_NOSMCD2DEV	0x03030007  /* no SMC-Dv2 device found	      */
 #define SMC_CLC_DECL_NOUEID	0x03030008  /* peer sent no UEID	      */
 #define SMC_CLC_DECL_RELEASEERR	0x03030009  /* release version negotiate failed */
+#define SMC_CLC_DECL_MAXCONNERR	0x0303000a  /* max connections negotiate failed */
 #define SMC_CLC_DECL_MODEUNSUPP	0x03040000  /* smc modes do not match (R or D)*/
 #define SMC_CLC_DECL_RMBE_EC	0x03050000  /* peer has eyecatcher in RMBE    */
 #define SMC_CLC_DECL_OPTUNSUPP	0x03060000  /* fastopen sockopt not supported */
@@ -134,7 +135,8 @@ struct smc_clc_smcd_gid_chid {
 struct smc_clc_v2_extension {
 	struct smc_clnt_opts_area_hdr hdr;
 	u8 roce[16];		/* RoCEv2 GID */
-	u8 reserved[16];
+	u8 max_conns;
+	u8 reserved[15];
 	u8 user_eids[][SMC_MAX_EID_LEN];
 };
 
@@ -236,7 +238,8 @@ struct smc_clc_first_contact_ext {
 
 struct smc_clc_first_contact_ext_v2x {
 	struct smc_clc_first_contact_ext fce_v2_base;
-	u8 reserved3[4];
+	u8 max_conns; /* for SMC-R only */
+	u8 reserved3[3];
 	__be32 vendor_exp_options;
 	u8 reserved4[8];
 } __packed;		/* format defined in
