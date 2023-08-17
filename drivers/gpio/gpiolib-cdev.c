@@ -1802,6 +1802,7 @@ out_free_linereq:
  * @eflags: the event flags this line was requested with
  * @irq: the interrupt that trigger in response to events on this GPIO
  * @wait: wait queue that handles blocking reads of events
+ * @device_unregistered_nb: notifier block for receiving gdev unregister events
  * @events: KFIFO for the GPIO events
  * @timestamp: cache for the timestamp storing it between hardirq
  * and IRQ thread, used to bring the timestamp close to the actual
@@ -1814,6 +1815,7 @@ struct lineevent_state {
 	u32 eflags;
 	int irq;
 	wait_queue_head_t wait;
+	struct notifier_block device_unregistered_nb;
 	DECLARE_KFIFO(events, struct gpioevent_data, 16);
 	u64 timestamp;
 };
@@ -1845,6 +1847,17 @@ static __poll_t lineevent_poll(struct file *file,
 	struct lineevent_state *le = file->private_data;
 
 	return call_poll_locked(file, wait, le->gdev, lineevent_poll_unlocked);
+}
+
+static int lineevent_unregistered_notify(struct notifier_block *nb,
+					 unsigned long action, void *data)
+{
+	struct lineevent_state *le = container_of(nb, struct lineevent_state,
+						  device_unregistered_nb);
+
+	wake_up_poll(&le->wait, EPOLLIN | EPOLLERR);
+
+	return NOTIFY_OK;
 }
 
 struct compat_gpioeevent_data {
@@ -1932,6 +1945,9 @@ static ssize_t lineevent_read(struct file *file, char __user *buf,
 
 static void lineevent_free(struct lineevent_state *le)
 {
+	if (le->device_unregistered_nb.notifier_call)
+		blocking_notifier_chain_unregister(&le->gdev->device_notifier,
+						   &le->device_unregistered_nb);
 	if (le->irq)
 		free_irq(le->irq, le);
 	if (le->desc)
@@ -2159,6 +2175,12 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 
 	INIT_KFIFO(le->events);
 	init_waitqueue_head(&le->wait);
+
+	le->device_unregistered_nb.notifier_call = lineevent_unregistered_notify;
+	ret = blocking_notifier_chain_register(&gdev->device_notifier,
+					       &le->device_unregistered_nb);
+	if (ret)
+		goto out_free_le;
 
 	/* Request a thread to read the events */
 	ret = request_threaded_irq(irq,
