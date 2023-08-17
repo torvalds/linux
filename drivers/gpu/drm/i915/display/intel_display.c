@@ -3341,9 +3341,6 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 
 	pipe_config->msa_timing_delay = REG_FIELD_GET(TRANSCONF_MSA_TIMING_DELAY_MASK, tmp);
 
-	pipe_config->csc_mode = intel_de_read(dev_priv,
-					      PIPE_CSC_MODE(crtc->pipe));
-
 	i9xx_get_pipe_color_config(pipe_config);
 	intel_color_get_config(pipe_config);
 
@@ -3734,9 +3731,6 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	pipe_config->sink_format = pipe_config->output_format;
-
-	pipe_config->csc_mode = intel_de_read(dev_priv,
-					      PIPE_CSC_MODE(crtc->pipe));
 
 	if (DISPLAY_VER(dev_priv) >= 9) {
 		tmp = intel_de_read(dev_priv, SKL_BOTTOM_COLOR(crtc->pipe));
