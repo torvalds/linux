@@ -50,6 +50,18 @@ struct mhi_ep_db_info {
 };
 
 /**
+ * struct mhi_ep_buf_info - MHI Endpoint transfer buffer info
+ * @dev_addr: Address of the buffer in endpoint
+ * @host_addr: Address of the bufffer in host
+ * @size: Size of the buffer
+ */
+struct mhi_ep_buf_info {
+	void *dev_addr;
+	u64 host_addr;
+	size_t size;
+};
+
+/**
  * struct mhi_ep_cntrl - MHI Endpoint controller structure
  * @cntrl_dev: Pointer to the struct device of physical bus acting as the MHI
  *             Endpoint controller
@@ -137,8 +149,8 @@ struct mhi_ep_cntrl {
 			 void __iomem **virt, size_t size);
 	void (*unmap_free)(struct mhi_ep_cntrl *mhi_cntrl, u64 pci_addr, phys_addr_t phys,
 			   void __iomem *virt, size_t size);
-	int (*read_from_host)(struct mhi_ep_cntrl *mhi_cntrl, u64 from, void *to, size_t size);
-	int (*write_to_host)(struct mhi_ep_cntrl *mhi_cntrl, void *from, u64 to, size_t size);
+	int (*read_from_host)(struct mhi_ep_cntrl *mhi_cntrl, struct mhi_ep_buf_info *buf_info);
+	int (*write_to_host)(struct mhi_ep_cntrl *mhi_cntrl, struct mhi_ep_buf_info *buf_info);
 
 	enum mhi_state mhi_state;
 

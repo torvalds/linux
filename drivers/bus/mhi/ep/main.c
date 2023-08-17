@@ -324,10 +324,9 @@ static int mhi_ep_read_channel(struct mhi_ep_cntrl *mhi_cntrl,
 	struct mhi_ep_chan *mhi_chan = &mhi_cntrl->mhi_chan[ring->ch_id];
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 	size_t tr_len, read_offset, write_offset;
+	struct mhi_ep_buf_info buf_info = {};
 	struct mhi_ring_element *el;
 	bool tr_done = false;
-	void *write_addr;
-	u64 read_addr;
 	u32 buf_left;
 	int ret;
 
@@ -356,11 +355,13 @@ static int mhi_ep_read_channel(struct mhi_ep_cntrl *mhi_cntrl,
 
 		read_offset = mhi_chan->tre_size - mhi_chan->tre_bytes_left;
 		write_offset = len - buf_left;
-		read_addr = mhi_chan->tre_loc + read_offset;
-		write_addr = result->buf_addr + write_offset;
+
+		buf_info.host_addr = mhi_chan->tre_loc + read_offset;
+		buf_info.dev_addr = result->buf_addr + write_offset;
+		buf_info.size = tr_len;
 
 		dev_dbg(dev, "Reading %zd bytes from channel (%u)\n", tr_len, ring->ch_id);
-		ret = mhi_cntrl->read_from_host(mhi_cntrl, read_addr, write_addr, tr_len);
+		ret = mhi_cntrl->read_from_host(mhi_cntrl, &buf_info);
 		if (ret < 0) {
 			dev_err(&mhi_chan->mhi_dev->dev, "Error reading from channel\n");
 			return ret;
@@ -483,12 +484,11 @@ int mhi_ep_queue_skb(struct mhi_ep_device *mhi_dev, struct sk_buff *skb)
 	struct mhi_ep_cntrl *mhi_cntrl = mhi_dev->mhi_cntrl;
 	struct mhi_ep_chan *mhi_chan = mhi_dev->dl_chan;
 	struct device *dev = &mhi_chan->mhi_dev->dev;
+	struct mhi_ep_buf_info buf_info = {};
 	struct mhi_ring_element *el;
 	u32 buf_left, read_offset;
 	struct mhi_ep_ring *ring;
 	enum mhi_ev_ccs code;
-	void *read_addr;
-	u64 write_addr;
 	size_t tr_len;
 	u32 tre_len;
 	int ret;
@@ -517,11 +517,13 @@ int mhi_ep_queue_skb(struct mhi_ep_device *mhi_dev, struct sk_buff *skb)
 
 		tr_len = min(buf_left, tre_len);
 		read_offset = skb->len - buf_left;
-		read_addr = skb->data + read_offset;
-		write_addr = MHI_TRE_DATA_GET_PTR(el);
+
+		buf_info.dev_addr = skb->data + read_offset;
+		buf_info.host_addr = MHI_TRE_DATA_GET_PTR(el);
+		buf_info.size = tr_len;
 
 		dev_dbg(dev, "Writing %zd bytes to channel (%u)\n", tr_len, ring->ch_id);
-		ret = mhi_cntrl->write_to_host(mhi_cntrl, read_addr, write_addr, tr_len);
+		ret = mhi_cntrl->write_to_host(mhi_cntrl, &buf_info);
 		if (ret < 0) {
 			dev_err(dev, "Error writing to the channel\n");
 			goto err_exit;
@@ -1429,7 +1431,6 @@ int mhi_ep_register_controller(struct mhi_ep_cntrl *mhi_cntrl,
 		ret = -ENOMEM;
 		goto err_destroy_tre_buf_cache;
 	}
-
 	INIT_WORK(&mhi_cntrl->state_work, mhi_ep_state_worker);
 	INIT_WORK(&mhi_cntrl->reset_work, mhi_ep_reset_worker);
 	INIT_WORK(&mhi_cntrl->cmd_ring_work, mhi_ep_cmd_ring_worker);

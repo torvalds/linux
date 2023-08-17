@@ -30,7 +30,8 @@ static int __mhi_ep_cache_ring(struct mhi_ep_ring *ring, size_t end)
 {
 	struct mhi_ep_cntrl *mhi_cntrl = ring->mhi_cntrl;
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
-	size_t start, copy_size;
+	struct mhi_ep_buf_info buf_info = {};
+	size_t start;
 	int ret;
 
 	/* Don't proceed in the case of event ring. This happens during mhi_ep_ring_start(). */
@@ -43,30 +44,34 @@ static int __mhi_ep_cache_ring(struct mhi_ep_ring *ring, size_t end)
 
 	start = ring->wr_offset;
 	if (start < end) {
-		copy_size = (end - start) * sizeof(struct mhi_ring_element);
-		ret = mhi_cntrl->read_from_host(mhi_cntrl, ring->rbase +
-						(start * sizeof(struct mhi_ring_element)),
-						&ring->ring_cache[start], copy_size);
+		buf_info.size = (end - start) * sizeof(struct mhi_ring_element);
+		buf_info.host_addr = ring->rbase + (start * sizeof(struct mhi_ring_element));
+		buf_info.dev_addr = &ring->ring_cache[start];
+
+		ret = mhi_cntrl->read_from_host(mhi_cntrl, &buf_info);
 		if (ret < 0)
 			return ret;
 	} else {
-		copy_size = (ring->ring_size - start) * sizeof(struct mhi_ring_element);
-		ret = mhi_cntrl->read_from_host(mhi_cntrl, ring->rbase +
-						(start * sizeof(struct mhi_ring_element)),
-						&ring->ring_cache[start], copy_size);
+		buf_info.size = (ring->ring_size - start) * sizeof(struct mhi_ring_element);
+		buf_info.host_addr = ring->rbase + (start * sizeof(struct mhi_ring_element));
+		buf_info.dev_addr = &ring->ring_cache[start];
+
+		ret = mhi_cntrl->read_from_host(mhi_cntrl, &buf_info);
 		if (ret < 0)
 			return ret;
 
 		if (end) {
-			ret = mhi_cntrl->read_from_host(mhi_cntrl, ring->rbase,
-							&ring->ring_cache[0],
-							end * sizeof(struct mhi_ring_element));
+			buf_info.host_addr = ring->rbase;
+			buf_info.dev_addr = &ring->ring_cache[0];
+			buf_info.size = end * sizeof(struct mhi_ring_element);
+
+			ret = mhi_cntrl->read_from_host(mhi_cntrl, &buf_info);
 			if (ret < 0)
 				return ret;
 		}
 	}
 
-	dev_dbg(dev, "Cached ring: start %zu end %zu size %zu\n", start, end, copy_size);
+	dev_dbg(dev, "Cached ring: start %zu end %zu size %zu\n", start, end, buf_info.size);
 
 	return 0;
 }
@@ -102,6 +107,7 @@ int mhi_ep_ring_add_element(struct mhi_ep_ring *ring, struct mhi_ring_element *e
 {
 	struct mhi_ep_cntrl *mhi_cntrl = ring->mhi_cntrl;
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	struct mhi_ep_buf_info buf_info = {};
 	size_t old_offset = 0;
 	u32 num_free_elem;
 	__le64 rp;
@@ -133,12 +139,11 @@ int mhi_ep_ring_add_element(struct mhi_ep_ring *ring, struct mhi_ring_element *e
 	rp = cpu_to_le64(ring->rd_offset * sizeof(*el) + ring->rbase);
 	memcpy_toio((void __iomem *) &ring->ring_ctx->generic.rp, &rp, sizeof(u64));
 
-	ret = mhi_cntrl->write_to_host(mhi_cntrl, el, ring->rbase + (old_offset * sizeof(*el)),
-				       sizeof(*el));
-	if (ret < 0)
-		return ret;
+	buf_info.host_addr = ring->rbase + (old_offset * sizeof(*el));
+	buf_info.dev_addr = el;
+	buf_info.size = sizeof(*el);
 
-	return 0;
+	return mhi_cntrl->write_to_host(mhi_cntrl, &buf_info);
 }
 
 void mhi_ep_ring_init(struct mhi_ep_ring *ring, enum mhi_ep_ring_type type, u32 id)
