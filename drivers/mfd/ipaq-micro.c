@@ -78,8 +78,6 @@ EXPORT_SYMBOL(ipaq_micro_tx_msg);
 
 static void micro_rx_msg(struct ipaq_micro *micro, u8 id, int len, u8 *data)
 {
-	int i;
-
 	dev_dbg(micro->dev, "RX msg: %02x, %d bytes\n", id, len);
 
 	spin_lock(&micro->lock);
