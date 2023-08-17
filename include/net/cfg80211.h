@@ -1187,7 +1187,7 @@ struct cfg80211_mbssid_elems {
 	struct {
 		const u8 *data;
 		size_t len;
-	} elem[];
+	} elem[] __counted_by(cnt);
 };
 
 /**
