@@ -110,11 +110,13 @@ struct seccomp_knotif {
  * @flags: The flags for the new file descriptor. At the moment, only O_CLOEXEC
  *         is allowed.
  * @ioctl_flags: The flags used for the seccomp_addfd ioctl.
+ * @setfd: whether or not SECCOMP_ADDFD_FLAG_SETFD was set during notify_addfd
  * @ret: The return value of the installing process. It is set to the fd num
  *       upon success (>= 0).
  * @completion: Indicates that the installing process has completed fd
  *              installation, or gone away (either due to successful
  *              reply, or signal)
+ * @list: list_head for chaining seccomp_kaddfd together.
  *
  */
 struct seccomp_kaddfd {
@@ -138,12 +140,12 @@ struct seccomp_kaddfd {
  * structure is fairly large, we store the notification-specific stuff in a
  * separate structure.
  *
- * @request: A semaphore that users of this notification can wait on for
- *           changes. Actual reads and writes are still controlled with
- *           filter->notify_lock.
+ * @requests: A semaphore that users of this notification can wait on for
+ *            changes. Actual reads and writes are still controlled with
+ *            filter->notify_lock.
+ * @flags: A set of SECCOMP_USER_NOTIF_FD_* flags.
  * @next_id: The id of the next request.
  * @notifications: A list of struct seccomp_knotif elements.
- * @flags: A set of SECCOMP_USER_NOTIF_FD_* flags.
  */
 
 struct notification {
@@ -558,6 +560,8 @@ static void __seccomp_filter_release(struct seccomp_filter *orig)
  *			    drop its reference count, and notify
  *			    about unused filters
  *
+ * @tsk: task the filter should be released from.
+ *
  * This function should only be called when the task is exiting as
  * it detaches it from its filter tree. As such, READ_ONCE() and
  * barriers are not needed here, as would normally be needed.
@@ -576,6 +580,8 @@ void seccomp_filter_release(struct task_struct *tsk)
 
 /**
  * seccomp_sync_threads: sets all threads to use current's filter
+ *
+ * @flags: SECCOMP_FILTER_FLAG_* flags to set during sync.
  *
  * Expects sighand and cred_guard_mutex locks to be held, and for
  * seccomp_can_sync_threads() to have returned success already
