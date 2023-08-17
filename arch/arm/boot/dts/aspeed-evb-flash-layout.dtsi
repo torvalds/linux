@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2023 ASPEED.
+ */
+
+partitions {
+	compatible = "fixed-partitions";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	u-boot@0 {
+		reg = <0x0 0xf0000>; // 960KB
+		label = "u-boot";
+	};
+	u-boot-env@f0000 {
+		reg = <0xf0000 0x10000>; // 64KB
+		label = "u-boot-env";
+	};
+	kernel@100000 {
+		reg = <0x100000 0x500000>; // 5MB
+		label = "kernel";
+	};
+	rofs@600000 {
+		reg = <0x600000 0x1740000>; // 23.25MB
+		label = "rofs";
+	};
+	rwfs@1d40000 {
+		reg = <0x1d40000 0x2c0000>; // 2.75MB
+		label = "rwfs";
+	};
+};
