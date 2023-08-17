@@ -35,7 +35,7 @@ struct my_data {
 	ktime_t entry_stamp;
 };
 
-/* Here we use the entry_hanlder to timestamp function entry */
+/* Here we use the entry_handler to timestamp function entry */
 static int entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct my_data *data;
