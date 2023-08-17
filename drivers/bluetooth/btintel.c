@@ -2401,7 +2401,7 @@ static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver
 {
 	struct btintel_ppag ppag;
 	struct sk_buff *skb;
-	struct btintel_loc_aware_reg ppag_cmd;
+	struct hci_ppag_enable_cmd ppag_cmd;
 	acpi_handle handle;
 
 	/* PPAG is not supported if CRF is HrP2, Jfp2, JfP1 */
@@ -2409,6 +2409,8 @@ static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver
 	case 0x504:     /* Hrp2 */
 	case 0x202:     /* Jfp2 */
 	case 0x201:     /* Jfp1 */
+		bt_dev_dbg(hdev, "PPAG not supported for Intel CNVr (0x%3x)",
+			   ver->cnvr_top & 0xFFF);
 		return;
 	}
 
@@ -2434,24 +2436,29 @@ static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver
 	}
 
 	if (ppag.domain != 0x12) {
-		bt_dev_warn(hdev, "PPAG-BT: domain is not bluetooth");
+		bt_dev_dbg(hdev, "PPAG-BT: Bluetooth domain is disabled in ACPI firmware");
 		return;
 	}
 
-	/* PPAG mode, BIT0 = 0 Disabled, BIT0 = 1 Enabled */
-	if (!(ppag.mode & BIT(0))) {
-		bt_dev_dbg(hdev, "PPAG-BT: disabled");
+	/* PPAG mode
+	 * BIT 0 : 0 Disabled in EU
+	 *         1 Enabled in EU
+	 * BIT 1 : 0 Disabled in China
+	 *         1 Enabled in China
+	 */
+	if ((ppag.mode & 0x01) != BIT(0) && (ppag.mode & 0x02) != BIT(1)) {
+		bt_dev_dbg(hdev, "PPAG-BT: EU, China mode are disabled in CB/BIOS");
 		return;
 	}
 
-	ppag_cmd.mcc = cpu_to_le32(0);
-	ppag_cmd.sel = cpu_to_le32(0); /* 0 - Enable , 1 - Disable, 2 - Testing mode */
-	ppag_cmd.delta = cpu_to_le32(0);
-	skb = __hci_cmd_sync(hdev, 0xfe19, sizeof(ppag_cmd), &ppag_cmd, HCI_CMD_TIMEOUT);
+	ppag_cmd.ppag_enable_flags = cpu_to_le32(ppag.mode);
+
+	skb = __hci_cmd_sync(hdev, INTEL_OP_PPAG_CMD, sizeof(ppag_cmd), &ppag_cmd, HCI_CMD_TIMEOUT);
 	if (IS_ERR(skb)) {
 		bt_dev_warn(hdev, "Failed to send PPAG Enable (%ld)", PTR_ERR(skb));
 		return;
 	}
+	bt_dev_info(hdev, "PPAG-BT: Enabled (Mode %d)", ppag.mode);
 	kfree_skb(skb);
 }
 
