@@ -36,17 +36,6 @@ static irqreturn_t timebase_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-/* per-board overridable init_internal_rtc() function. */
-void __init __attribute__ ((weak))
-init_internal_rtc(void)
-{
-	/* Disable the RTC one second and alarm interrupts. */
-	clrbits16(&mpc8xx_immr->im_sit.sit_rtcsc, (RTCSC_SIE | RTCSC_ALE));
-
-	/* Enable the RTC */
-	setbits16(&mpc8xx_immr->im_sit.sit_rtcsc, (RTCSC_RTF | RTCSC_RTE));
-}
-
 static int __init get_freq(char *name, unsigned long *val)
 {
 	struct device_node *cpu;
@@ -117,7 +106,11 @@ void __init mpc8xx_calibrate_decr(void)
 	out_be32(&mpc8xx_immr->im_sitk.sitk_rtcsck, KAPWR_KEY);
 	out_be32(&mpc8xx_immr->im_sitk.sitk_tbk, KAPWR_KEY);
 
-	init_internal_rtc();
+	/* Disable the RTC one second and alarm interrupts. */
+	clrbits16(&mpc8xx_immr->im_sit.sit_rtcsc, (RTCSC_SIE | RTCSC_ALE));
+
+	/* Enable the RTC */
+	setbits16(&mpc8xx_immr->im_sit.sit_rtcsc, (RTCSC_RTF | RTCSC_RTE));
 
 	/* Enabling the decrementer also enables the timebase interrupts
 	 * (or from the other point of view, to get decrementer interrupts
