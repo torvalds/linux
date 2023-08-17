@@ -688,7 +688,7 @@ static void snd_ctl_led_sysfs_add(struct snd_card *card)
 			goto cerr;
 		led->cards[card->number] = led_card;
 		snprintf(link_name, sizeof(link_name), "led-%s", led->name);
-		WARN(sysfs_create_link(&card->ctl_dev.kobj, &led_card->dev.kobj, link_name),
+		WARN(sysfs_create_link(&card->ctl_dev->kobj, &led_card->dev.kobj, link_name),
 			"can't create symlink to controlC%i device\n", card->number);
 		WARN(sysfs_create_link(&led_card->dev.kobj, &card->card_dev.kobj, "card"),
 			"can't create symlink to card%i\n", card->number);
@@ -714,7 +714,7 @@ static void snd_ctl_led_sysfs_remove(struct snd_card *card)
 		if (!led_card)
 			continue;
 		snprintf(link_name, sizeof(link_name), "led-%s", led->name);
-		sysfs_remove_link(&card->ctl_dev.kobj, link_name);
+		sysfs_remove_link(&card->ctl_dev->kobj, link_name);
 		sysfs_remove_link(&led_card->dev.kobj, "card");
 		device_unregister(&led_card->dev);
 		led->cards[card->number] = NULL;

@@ -2389,7 +2389,7 @@ static int snd_ctl_dev_register(struct snd_device *device)
 	int err;
 
 	err = snd_register_device(SNDRV_DEVICE_TYPE_CONTROL, card, -1,
-				  &snd_ctl_f_ops, card, &card->ctl_dev);
+				  &snd_ctl_f_ops, card, card->ctl_dev);
 	if (err < 0)
 		return err;
 	down_read(&card->controls_rwsem);
@@ -2425,7 +2425,7 @@ static int snd_ctl_dev_disconnect(struct snd_device *device)
 	up_read(&snd_ctl_layer_rwsem);
 	up_read(&card->controls_rwsem);
 
-	return snd_unregister_device(&card->ctl_dev);
+	return snd_unregister_device(card->ctl_dev);
 }
 
 /*
@@ -2447,7 +2447,7 @@ static int snd_ctl_dev_free(struct snd_device *device)
 	xa_destroy(&card->ctl_hash);
 #endif
 	up_write(&card->controls_rwsem);
-	put_device(&card->ctl_dev);
+	put_device(card->ctl_dev);
 	return 0;
 }
 
@@ -2469,12 +2469,14 @@ int snd_ctl_create(struct snd_card *card)
 	if (snd_BUG_ON(card->number < 0 || card->number >= SNDRV_CARDS))
 		return -ENXIO;
 
-	snd_device_initialize(&card->ctl_dev, card);
-	dev_set_name(&card->ctl_dev, "controlC%d", card->number);
+	err = snd_device_alloc(&card->ctl_dev, card);
+	if (err < 0)
+		return err;
+	dev_set_name(card->ctl_dev, "controlC%d", card->number);
 
 	err = snd_device_new(card, SNDRV_DEV_CONTROL, card, &ops);
 	if (err < 0)
-		put_device(&card->ctl_dev);
+		put_device(card->ctl_dev);
 	return err;
 }
 
