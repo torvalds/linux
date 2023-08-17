@@ -3530,18 +3530,17 @@ int device_add(struct device *dev)
 	 * the name, and force the use of dev_name()
 	 */
 	if (dev->init_name) {
-		dev_set_name(dev, "%s", dev->init_name);
+		error = dev_set_name(dev, "%s", dev->init_name);
 		dev->init_name = NULL;
 	}
 
+	if (dev_name(dev))
+		error = 0;
 	/* subsystems can specify simple device enumeration */
-	if (!dev_name(dev) && dev->bus && dev->bus->dev_name)
-		dev_set_name(dev, "%s%u", dev->bus->dev_name, dev->id);
-
-	if (!dev_name(dev)) {
-		error = -EINVAL;
+	else if (dev->bus && dev->bus->dev_name)
+		error = dev_set_name(dev, "%s%u", dev->bus->dev_name, dev->id);
+	if (error)
 		goto name_error;
-	}
 
 	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
 
