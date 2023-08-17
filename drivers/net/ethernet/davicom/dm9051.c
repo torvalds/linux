@@ -510,10 +510,7 @@ static int dm9051_map_init(struct spi_device *spi, struct board_info *db)
 
 	regconfigdmbulk.lock_arg = db;
 	db->regmap_dmbulk = devm_regmap_init_spi(db->spidev, &regconfigdmbulk);
-	if (IS_ERR(db->regmap_dmbulk))
-		return PTR_ERR(db->regmap_dmbulk);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(db->regmap_dmbulk);
 }
 
 static int dm9051_map_chipid(struct board_info *db)
