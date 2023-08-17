@@ -930,8 +930,6 @@ void dcn35_clk_mgr_construct(
 	/*when clk src is from FCH, it could have ss, same clock src as DPREF clk*/
 
 	dcn35_read_ss_info_from_lut(&clk_mgr->base);
-	clk_mgr->base.base.dprefclk_khz =
-		dce_adjust_dp_ref_freq_for_ss(&clk_mgr->base, clk_mgr->base.base.dprefclk_khz);
 
 	clk_mgr->base.base.bw_params = &dcn35_bw_params;
 
