@@ -5,6 +5,12 @@
  */
 
 / {
+	aliases {
+		mmc0 = &sdmmc0;
+		mmc1 = &sdmmc1;
+		mmc2 = &sdhci;
+	};
+
 	chosen: chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff210000 console=ttyFIQ0";
 	};
