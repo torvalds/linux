@@ -57,7 +57,7 @@ LIB_MIN=			1
 
 PACKAGE =			cpupower
 PACKAGE_BUGREPORT =		linux-pm@vger.kernel.org
-LANGUAGES = 			de fr it cs pt
+LANGUAGES = 			de fr it cs pt ka
 
 
 # Directory definitions. These are default and most probably
