@@ -1032,12 +1032,31 @@ static u32 ilk_read_csc_mode(struct intel_crtc *crtc)
 	return intel_de_read(i915, PIPE_CSC_MODE(crtc->pipe));
 }
 
+static void i9xx_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+	u32 tmp;
+
+	tmp = intel_de_read(dev_priv, DSPCNTR(i9xx_plane));
+
+	if (tmp & DISP_PIPE_GAMMA_ENABLE)
+		crtc_state->gamma_enable = true;
+
+	if (!HAS_GMCH(dev_priv) && tmp & DISP_PIPE_CSC_ENABLE)
+		crtc_state->csc_enable = true;
+}
+
 static void hsw_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	crtc_state->gamma_mode = hsw_read_gamma_mode(crtc);
 	crtc_state->csc_mode = ilk_read_csc_mode(crtc);
+
+	i9xx_get_config(crtc_state);
 }
 
 static void skl_get_config(struct intel_crtc_state *crtc_state)
@@ -3258,6 +3277,8 @@ static void chv_get_config(struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
 	crtc_state->cgm_mode = intel_de_read(i915, CGM_PIPE_MODE(crtc->pipe));
+
+	i9xx_get_config(crtc_state);
 }
 
 static void chv_read_luts(struct intel_crtc_state *crtc_state)
@@ -3328,6 +3349,8 @@ static void ilk_get_config(struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	crtc_state->csc_mode = ilk_read_csc_mode(crtc);
+
+	i9xx_get_config(crtc_state);
 }
 
 static void ilk_read_luts(struct intel_crtc_state *crtc_state)
@@ -3654,6 +3677,7 @@ static const struct intel_color_funcs i965_color_funcs = {
 	.load_luts = i965_load_luts,
 	.read_luts = i965_read_luts,
 	.lut_equal = i965_lut_equal,
+	.get_config = i9xx_get_config,
 };
 
 static const struct intel_color_funcs i9xx_color_funcs = {
@@ -3662,6 +3686,7 @@ static const struct intel_color_funcs i9xx_color_funcs = {
 	.load_luts = i9xx_load_luts,
 	.read_luts = i9xx_read_luts,
 	.lut_equal = i9xx_lut_equal,
+	.get_config = i9xx_get_config,
 };
 
 static const struct intel_color_funcs tgl_color_funcs = {

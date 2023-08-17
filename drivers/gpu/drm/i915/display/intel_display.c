@@ -2869,24 +2869,6 @@ bdw_get_pipe_misc_output_format(struct intel_crtc *crtc)
 	}
 }
 
-static void i9xx_get_pipe_color_config(struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	u32 tmp;
-
-	tmp = intel_de_read(dev_priv, DSPCNTR(i9xx_plane));
-
-	if (tmp & DISP_PIPE_GAMMA_ENABLE)
-		crtc_state->gamma_enable = true;
-
-	if (!HAS_GMCH(dev_priv) &&
-	    tmp & DISP_PIPE_CSC_ENABLE)
-		crtc_state->csc_enable = true;
-}
-
 static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 				 struct intel_crtc_state *pipe_config)
 {
@@ -2942,7 +2924,6 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	    (tmp & TRANSCONF_WGC_ENABLE))
 		pipe_config->wgc_enable = true;
 
-	i9xx_get_pipe_color_config(pipe_config);
 	intel_color_get_config(pipe_config);
 
 	if (DISPLAY_VER(dev_priv) < 4)
@@ -3340,7 +3321,6 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 
 	pipe_config->msa_timing_delay = REG_FIELD_GET(TRANSCONF_MSA_TIMING_DELAY_MASK, tmp);
 
-	i9xx_get_pipe_color_config(pipe_config);
 	intel_color_get_config(pipe_config);
 
 	pipe_config->pixel_multiplier = 1;
@@ -3730,9 +3710,6 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	pipe_config->sink_format = pipe_config->output_format;
-
-	if (DISPLAY_VER(dev_priv) < 9)
-		i9xx_get_pipe_color_config(pipe_config);
 
 	intel_color_get_config(pipe_config);
 
