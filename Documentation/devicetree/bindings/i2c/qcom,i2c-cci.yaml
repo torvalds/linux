@@ -269,6 +269,7 @@ examples:
                 port {
                     ov7251_ep: endpoint {
                         data-lanes = <0 1>;
+                        link-frequencies = /bits/ 64 <240000000 319200000>;
                         remote-endpoint = <&csiphy3_ep>;
                     };
                 };
