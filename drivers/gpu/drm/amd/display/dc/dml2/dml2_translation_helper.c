@@ -721,8 +721,8 @@ static void populate_dml_surface_cfg_from_plane_state(enum dml_project_id dml2_p
 	out->PitchY[location] = in->plane_size.surface_pitch;
 	out->SurfaceHeightY[location] = in->plane_size.surface_size.height;
 	out->SurfaceWidthY[location] = in->plane_size.surface_size.width;
-	out->SurfaceHeightC[location] = in->plane_size.surface_size.height;
-	out->SurfaceWidthC[location] = in->plane_size.surface_size.width;
+	out->SurfaceHeightC[location] = in->plane_size.chroma_size.height;
+	out->SurfaceWidthC[location] = in->plane_size.chroma_size.width;
 	out->PitchC[location] = in->plane_size.chroma_pitch;
 	out->DCCEnable[location] = in->dcc.enable;
 	out->DCCMetaPitchY[location] = in->dcc.meta_pitch;
