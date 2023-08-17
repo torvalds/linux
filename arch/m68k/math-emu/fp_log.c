@@ -15,15 +15,13 @@
 
 */
 
+#include "fp_arith.h"
 #include "fp_emu.h"
 
 static const struct fp_ext fp_one =
 {
 	.exp = 0x3fff,
 };
-
-extern struct fp_ext *fp_fadd(struct fp_ext *dest, const struct fp_ext *src);
-extern struct fp_ext *fp_fdiv(struct fp_ext *dest, const struct fp_ext *src);
 
 struct fp_ext *
 fp_fsqrt(struct fp_ext *dest, struct fp_ext *src)
@@ -70,7 +68,8 @@ fp_fsqrt(struct fp_ext *dest, struct fp_ext *src)
 	 *	sqrt(x) = 1 + 1/2*(x-1)
 	 *		= 1/2*(1+x)
 	 */
-	fp_fadd(dest, &fp_one);
+	/* It is safe to cast away the constness, as fp_one is normalized */
+	fp_fadd(dest, (struct fp_ext *)&fp_one);
 	dest->exp--;		/* * 1/2 */
 
 	/*
