@@ -3895,7 +3895,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_open;
 #ifdef HAVE_BPF_SKEL
-	{
+	if (trace->syscalls.events.bpf_output) {
 		struct perf_cpu cpu;
 
 		/*
@@ -3916,7 +3916,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_error_mem;
 
 #ifdef HAVE_BPF_SKEL
-	if (trace->skel->progs.sys_enter)
+	if (trace->skel && trace->skel->progs.sys_enter)
 		trace__init_syscalls_bpf_prog_array_maps(trace);
 #endif
 
@@ -4850,6 +4850,9 @@ int cmd_trace(int argc, const char **argv)
 	}
 
 #ifdef HAVE_BPF_SKEL
+	if (!trace.trace_syscalls)
+		goto skip_augmentation;
+
 	trace.skel = augmented_raw_syscalls_bpf__open();
 	if (!trace.skel) {
 		pr_debug("Failed to open augmented syscalls BPF skeleton");
@@ -4884,6 +4887,7 @@ int cmd_trace(int argc, const char **argv)
 	}
 	trace.syscalls.events.bpf_output = evlist__last(trace.evlist);
 	assert(!strcmp(evsel__name(trace.syscalls.events.bpf_output), "__augmented_syscalls__"));
+skip_augmentation:
 #endif
 	err = -1;
 
