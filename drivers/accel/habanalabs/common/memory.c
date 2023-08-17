@@ -1535,21 +1535,17 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 						u64 page_size, u64 exported_size,
 						struct device *dev, enum dma_data_direction dir)
 {
-	u64 chunk_size, bar_address, dma_max_seg_size, cur_size_to_export, cur_npages;
-	struct asic_fixed_properties *prop;
-	int rc, i, j, nents, cur_page;
+	u64 dma_max_seg_size, curr_page, size, chunk_size, left_size_to_export, left_size_in_page,
+		left_size_in_dma_seg, device_address, bar_address;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct scatterlist *sg;
+	unsigned int nents, i;
 	struct sg_table *sgt;
+	bool next_sg_entry;
+	int rc;
 
-	prop = &hdev->asic_prop;
-
-	dma_max_seg_size = dma_get_max_seg_size(dev);
-
-	/* We would like to align the max segment size to PAGE_SIZE, so the
-	 * SGL will contain aligned addresses that can be easily mapped to
-	 * an MMU
-	 */
-	dma_max_seg_size = ALIGN_DOWN(dma_max_seg_size, PAGE_SIZE);
+	/* Align max segment size to PAGE_SIZE to fit the minimal IOMMU mapping granularity */
+	dma_max_seg_size = ALIGN_DOWN(dma_get_max_seg_size(dev), PAGE_SIZE);
 	if (dma_max_seg_size < PAGE_SIZE) {
 		dev_err_ratelimited(hdev->dev,
 				"dma_max_seg_size %llu can't be smaller than PAGE_SIZE\n",
@@ -1561,120 +1557,133 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 
-	cur_size_to_export = exported_size;
+	/* Calculate the required number of entries for the SG table */
+	curr_page = 0;
+	nents = 1;
+	left_size_to_export = exported_size;
+	left_size_in_page = page_size;
+	left_size_in_dma_seg = dma_max_seg_size;
+	next_sg_entry = false;
 
-	/* If the size of each page is larger than the dma max segment size,
-	 * then we can't combine pages and the number of entries in the SGL
-	 * will just be the
-	 * <number of pages> * <chunks of max segment size in each page>
-	 */
-	if (page_size > dma_max_seg_size) {
-		/* we should limit number of pages according to the exported size */
-		cur_npages = DIV_ROUND_UP_SECTOR_T(cur_size_to_export, page_size);
-		nents = cur_npages * DIV_ROUND_UP_SECTOR_T(page_size, dma_max_seg_size);
-	} else {
-		cur_npages = npages;
+	while (true) {
+		size = min3(left_size_to_export, left_size_in_page, left_size_in_dma_seg);
+		left_size_to_export -= size;
+		left_size_in_page -= size;
+		left_size_in_dma_seg -= size;
 
-		/* Get number of non-contiguous chunks */
-		for (i = 1, nents = 1, chunk_size = page_size ; i < cur_npages ; i++) {
-			if (pages[i - 1] + page_size != pages[i] ||
-					chunk_size + page_size > dma_max_seg_size) {
-				nents++;
-				chunk_size = page_size;
-				continue;
-			}
+		if (!left_size_to_export)
+			break;
 
-			chunk_size += page_size;
+		if (!left_size_in_page) {
+			/* left_size_to_export is not zero so there must be another page */
+			if (pages[curr_page] + page_size != pages[curr_page + 1])
+				next_sg_entry = true;
+
+			++curr_page;
+			left_size_in_page = page_size;
+		}
+
+		if (!left_size_in_dma_seg) {
+			next_sg_entry = true;
+			left_size_in_dma_seg = dma_max_seg_size;
+		}
+
+		if (next_sg_entry) {
+			++nents;
+			next_sg_entry = false;
 		}
 	}
 
 	rc = sg_alloc_table(sgt, nents, GFP_KERNEL | __GFP_ZERO);
 	if (rc)
-		goto error_free;
+		goto err_free_sgt;
 
-	cur_page = 0;
+	/* Prepare the SG table entries */
+	curr_page = 0;
+	device_address = pages[curr_page];
+	left_size_to_export = exported_size;
+	left_size_in_page = page_size;
+	left_size_in_dma_seg = dma_max_seg_size;
+	next_sg_entry = false;
 
-	if (page_size > dma_max_seg_size) {
-		u64 size_left, cur_device_address = 0;
+	for_each_sgtable_dma_sg(sgt, sg, i) {
+		bar_address = hdev->dram_pci_bar_start + (device_address - prop->dram_base_address);
+		chunk_size = 0;
 
-		size_left = page_size;
+		for ( ; curr_page < npages ; ++curr_page) {
+			size = min3(left_size_to_export, left_size_in_page, left_size_in_dma_seg);
+			chunk_size += size;
+			left_size_to_export -= size;
+			left_size_in_page -= size;
+			left_size_in_dma_seg -= size;
 
-		/* Need to split each page into the number of chunks of
-		 * dma_max_seg_size
-		 */
-		for_each_sgtable_dma_sg(sgt, sg, i) {
-			if (size_left == page_size)
-				cur_device_address =
-					pages[cur_page] - prop->dram_base_address;
-			else
-				cur_device_address += dma_max_seg_size;
+			if (!left_size_to_export)
+				break;
 
-			/* make sure not to export over exported size */
-			chunk_size = min3(size_left, dma_max_seg_size, cur_size_to_export);
+			if (!left_size_in_page) {
+				/* left_size_to_export is not zero so there must be another page */
+				if (pages[curr_page] + page_size != pages[curr_page + 1]) {
+					device_address = pages[curr_page + 1];
+					next_sg_entry = true;
+				}
 
-			bar_address = hdev->dram_pci_bar_start + cur_device_address;
-
-			rc = set_dma_sg(sg, bar_address, chunk_size, dev, dir);
-			if (rc)
-				goto error_unmap;
-
-			cur_size_to_export -= chunk_size;
-
-			if (size_left > dma_max_seg_size) {
-				size_left -= dma_max_seg_size;
-			} else {
-				cur_page++;
-				size_left = page_size;
-			}
-		}
-	} else {
-		/* Merge pages and put them into the scatterlist */
-		for_each_sgtable_dma_sg(sgt, sg, i) {
-			chunk_size = page_size;
-			for (j = cur_page + 1 ; j < cur_npages ; j++) {
-				if (pages[j - 1] + page_size != pages[j] ||
-						chunk_size + page_size > dma_max_seg_size)
-					break;
-
-				chunk_size += page_size;
+				left_size_in_page = page_size;
 			}
 
-			bar_address = hdev->dram_pci_bar_start +
-					(pages[cur_page] - prop->dram_base_address);
+			if (!left_size_in_dma_seg) {
+				/*
+				 * Skip setting a new device address if already moving to a page
+				 * which is not contiguous with the current page.
+				 */
+				if (!next_sg_entry) {
+					device_address += chunk_size;
+					next_sg_entry = true;
+				}
 
-			/* make sure not to export over exported size */
-			chunk_size = min(chunk_size, cur_size_to_export);
-			rc = set_dma_sg(sg, bar_address, chunk_size, dev, dir);
-			if (rc)
-				goto error_unmap;
+				left_size_in_dma_seg = dma_max_seg_size;
+			}
 
-			cur_size_to_export -= chunk_size;
-			cur_page = j;
+			if (next_sg_entry) {
+				next_sg_entry = false;
+				break;
+			}
 		}
+
+		rc = set_dma_sg(sg, bar_address, chunk_size, dev, dir);
+		if (rc)
+			goto err_unmap;
 	}
 
-	/* Because we are not going to include a CPU list we want to have some
-	 * chance that other users will detect this by setting the orig_nents
-	 * to 0 and using only nents (length of DMA list) when going over the
-	 * sgl
+	/* There should be nothing left to export exactly after looping over all SG elements */
+	if (left_size_to_export) {
+		dev_err(hdev->dev,
+			"left size to export %#llx after initializing %u SG elements\n",
+			left_size_to_export, sgt->nents);
+		rc = -ENOMEM;
+		goto err_unmap;
+	}
+
+	/*
+	 * Because we are not going to include a CPU list, we want to have some chance that other
+	 * users will detect this when going over SG table, by setting the orig_nents to 0 and using
+	 * only nents (length of DMA list).
 	 */
 	sgt->orig_nents = 0;
 
 	return sgt;
 
-error_unmap:
+err_unmap:
 	for_each_sgtable_dma_sg(sgt, sg, i) {
 		if (!sg_dma_len(sg))
 			continue;
 
-		dma_unmap_resource(dev, sg_dma_address(sg),
-					sg_dma_len(sg), dir,
+		dma_unmap_resource(dev, sg_dma_address(sg), sg_dma_len(sg), dir,
 					DMA_ATTR_SKIP_CPU_SYNC);
 	}
 
 	sg_free_table(sgt);
 
-error_free:
+err_free_sgt:
 	kfree(sgt);
 	return ERR_PTR(rc);
 }
