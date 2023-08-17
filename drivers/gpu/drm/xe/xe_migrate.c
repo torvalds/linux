@@ -12,6 +12,7 @@
 #include <drm/ttm/ttm_tt.h>
 #include <drm/xe_drm.h>
 
+#include "generated/xe_wa_oob.h"
 #include "regs/xe_gpu_commands.h"
 #include "tests/xe_test.h"
 #include "xe_bb.h"
@@ -29,6 +30,7 @@
 #include "xe_sync.h"
 #include "xe_trace.h"
 #include "xe_vm.h"
+#include "xe_wa.h"
 
 /**
  * struct xe_migrate - migrate context.
@@ -298,6 +300,32 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	return 0;
 }
 
+/*
+ * Due to workaround 16017236439, odd instance hardware copy engines are
+ * faster than even instance ones.
+ * This function returns the mask involving all fast copy engines and the
+ * reserved copy engine to be used as logical mask for migrate engine.
+ * Including the reserved copy engine is required to avoid deadlocks due to
+ * migrate jobs servicing the faults gets stuck behind the job that faulted.
+ */
+static u32 xe_migrate_usm_logical_mask(struct xe_gt *gt)
+{
+	u32 logical_mask = 0;
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+
+	for_each_hw_engine(hwe, gt, id) {
+		if (hwe->class != XE_ENGINE_CLASS_COPY)
+			continue;
+
+		if (!XE_WA(gt, 16017236439) ||
+		    xe_gt_is_usm_hwe(gt, hwe) || hwe->instance & 1)
+			logical_mask |= BIT(hwe->logical_instance);
+	}
+
+	return logical_mask;
+}
+
 /**
  * xe_migrate_init() - Initialize a migrate context
  * @tile: Back-pointer to the tile we're initializing for.
@@ -338,12 +366,12 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 							   XE_ENGINE_CLASS_COPY,
 							   primary_gt->usm.reserved_bcs_instance,
 							   false);
-		if (!hwe)
+		u32 logical_mask = xe_migrate_usm_logical_mask(primary_gt);
+
+		if (!hwe || !logical_mask)
 			return ERR_PTR(-EINVAL);
 
-		m->q = xe_exec_queue_create(xe, vm,
-					    BIT(hwe->logical_instance), 1,
-					    hwe,
+		m->q = xe_exec_queue_create(xe, vm, logical_mask, 1, hwe,
 					    EXEC_QUEUE_FLAG_KERNEL |
 					    EXEC_QUEUE_FLAG_PERMANENT);
 	} else {
