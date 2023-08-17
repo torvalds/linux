@@ -114,14 +114,14 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	if (pb->notify)
 		brightness = pb->notify(pb->dev, brightness);
 
-	if (brightness > 0) {
+	//if (brightness > 0) {
 		pwm_get_state(pb->pwm, &state);
 		state.duty_cycle = compute_duty_cycle(pb, brightness);
 		pwm_apply_state(pb->pwm, &state);
 		pwm_backlight_power_on(pb);
-	} else {
-		pwm_backlight_power_off(pb);
-	}
+	//} else {
+	//	pwm_backlight_power_off(pb);
+	//}
 
 	if (pb->notify_after)
 		pb->notify_after(pb->dev, brightness);
@@ -659,7 +659,6 @@ static int pwm_backlight_suspend(struct device *dev)
 {
 	struct backlight_device *bl = dev_get_drvdata(dev);
 	struct pwm_bl_data *pb = bl_get_data(bl);
-
 	if (pb->notify)
 		pb->notify(pb->dev, 0);
 
@@ -685,6 +684,8 @@ static const struct dev_pm_ops pwm_backlight_pm_ops = {
 #ifdef CONFIG_PM_SLEEP
 	.suspend = pwm_backlight_suspend,
 	.resume = pwm_backlight_resume,
+	.freeze = pwm_backlight_suspend,
+	.thaw = pwm_backlight_resume,
 	.poweroff = pwm_backlight_suspend,
 	.restore = pwm_backlight_resume,
 #endif
