@@ -149,11 +149,16 @@ struct qusb_phy {
 	u8                      bias_ctrl2;
 
 	bool			override_bias_ctrl2;
+	bool			power_enabled;
+	bool			clocks_enabled;
 };
 
 static void qusb_phy_enable_clocks(struct qusb_phy *qphy, bool on)
 {
 	dev_dbg(qphy->phy.dev, "%s(): on:%d\n", __func__, on);
+
+	if (qphy->clocks_enabled == on)
+		return;
 
 	if (on) {
 		clk_prepare_enable(qphy->ref_clk_src);
@@ -172,6 +177,8 @@ static void qusb_phy_enable_clocks(struct qusb_phy *qphy, bool on)
 
 		clk_disable_unprepare(qphy->ref_clk_src);
 	}
+
+	qphy->clocks_enabled = on;
 }
 
 static int qusb_phy_config_vdd(struct qusb_phy *qphy, int high)
@@ -196,6 +203,11 @@ static int qusb_phy_disable_power(struct qusb_phy *qphy)
 	int ret = 0;
 
 	mutex_lock(&qphy->lock);
+
+	if (!qphy->power_enabled) {
+		mutex_unlock(&qphy->lock);
+		return 0;
+	}
 
 	dev_dbg(qphy->phy.dev, "%s:req to turn off regulators\n",
 			__func__);
@@ -267,6 +279,7 @@ static int qusb_phy_disable_power(struct qusb_phy *qphy)
 
 	pr_debug("%s(): QUSB PHY's regulators are turned OFF.\n", __func__);
 
+	qphy->power_enabled = false;
 	mutex_unlock(&qphy->lock);
 
 	return ret;
@@ -277,6 +290,11 @@ static int qusb_phy_enable_power(struct qusb_phy *qphy)
 	int ret = 0;
 
 	mutex_lock(&qphy->lock);
+
+	if (qphy->power_enabled) {
+		mutex_unlock(&qphy->lock);
+		return 0;
+	}
 
 	dev_dbg(qphy->phy.dev, "%s:req to turn on regulators\n",
 			__func__);
@@ -355,6 +373,7 @@ static int qusb_phy_enable_power(struct qusb_phy *qphy)
 	}
 	pr_debug("%s(): QUSB PHY's regulators are turned ON.\n", __func__);
 
+	qphy->power_enabled = true;
 	mutex_unlock(&qphy->lock);
 
 	return ret;
@@ -578,6 +597,8 @@ static int qusb_phy_init(struct usb_phy *phy)
 		return 0;
 	}
 
+	qusb_phy_enable_power(qphy);
+	qusb_phy_enable_clocks(qphy, true);
 	qusb_phy_reset(qphy);
 
 	if (qphy->qusb_phy_host_init_seq && qphy->phy.flags & PHY_HOST_MODE) {
