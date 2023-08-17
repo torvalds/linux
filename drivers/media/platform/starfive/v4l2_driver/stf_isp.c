@@ -87,16 +87,15 @@ static const struct isp_format isp_formats_st7110_iti[] = {
 	{ MEDIA_BUS_FMT_YUV8_1X24, 8},
 };
 
-#define SINK_FORMATS_INDEX    0
-#define UO_FORMATS_INDEX      1
-#define ITI_FORMATS_INDEX     2
-#define RAW_FORMATS_INDEX     3
-
 static const struct isp_format_table isp_formats_st7110[] = {
-	{ isp_formats_st7110_sink, ARRAY_SIZE(isp_formats_st7110_sink) }, // 0
-	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // 1
-	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   // 2
-	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   // 3
+	{ isp_formats_st7110_sink, ARRAY_SIZE(isp_formats_st7110_sink) }, /* pad 0 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     /* pad 1 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     /* pad 2 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     /* pad 3 */
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   /* pad 4 */
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   /* pad 5 */
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   /* pad 6 */
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   /* pad 7 */
 };
 
 int stf_isp_subdev_init(struct stfcamss *stfcamss)
@@ -588,7 +587,7 @@ static int isp_match_sensor_format_get_index(struct stf_isp_dev *isp_dev)
 
 	st_debug(ST_ISP, "Got sensor format 0x%x !!\n", fmt.format.code);
 
-	formats = &isp_dev->formats[SINK_FORMATS_INDEX];
+	formats = &isp_dev->formats[0];		/* isp sink format */
 	for (idx = 0; idx < formats->nfmts; idx++) {
 		if (formats->fmts[idx].code == fmt.format.code) {
 			st_info(ST_ISP,
@@ -632,11 +631,10 @@ static void isp_try_format(struct stf_isp_dev *isp_dev,
 	u32 code = fmt->code;
 	u32 bpp;
 
-	switch (pad) {
-	case STF_ISP_PAD_SINK:
+	if (pad == STF_ISP_PAD_SINK) {
 		/* Set format on sink pad */
 
-		formats = &isp_dev->formats[SINK_FORMATS_INDEX];
+		formats = &isp_dev->formats[pad];
 		fmt->width = clamp_t(u32,
 				fmt->width, STFCAMSS_FRAME_MIN_WIDTH,
 				STFCAMSS_FRAME_MAX_WIDTH);
@@ -648,24 +646,8 @@ static void isp_try_format(struct stf_isp_dev *isp_dev,
 		fmt->field = V4L2_FIELD_NONE;
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;
 		fmt->flags = 0;
-
-		break;
-
-	case STF_ISP_PAD_SRC:
-	case STF_ISP_PAD_SRC_SS0:
-	case STF_ISP_PAD_SRC_SS1:
-		formats = &isp_dev->formats[UO_FORMATS_INDEX];
-		break;
-
-	case STF_ISP_PAD_SRC_ITIW:
-	case STF_ISP_PAD_SRC_ITIR:
-		formats = &isp_dev->formats[ITI_FORMATS_INDEX];
-		break;
-
-	case STF_ISP_PAD_SRC_RAW:
-	case STF_ISP_PAD_SRC_SCD_Y:
-		formats = &isp_dev->formats[RAW_FORMATS_INDEX];
-		break;
+	} else {
+		formats = &isp_dev->formats[pad];
 	}
 
 	i = isp_match_format_get_index(formats, fmt->code, pad);
@@ -736,7 +718,7 @@ static int isp_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index >= isp_dev->nformats)
 		return -EINVAL;
 	if (code->pad == STF_ISP_PAD_SINK) {
-		formats = &isp_dev->formats[SINK_FORMATS_INDEX];
+		formats = &isp_dev->formats[code->pad];
 		code->code = formats->fmts[code->index].code;
 	} else {
 		struct v4l2_mbus_framefmt *sink_fmt;
