@@ -185,7 +185,7 @@ static int acpi_thermal_get_polling_frequency(struct acpi_thermal *tz)
 	return 0;
 }
 
-static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
+static void __acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 {
 	acpi_status status;
 	unsigned long long tmp;
@@ -393,17 +393,40 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 			ACPI_THERMAL_TRIPS_EXCEPTION(flag, tz, "device");
 		}
 	}
+}
 
-	return 0;
+static void acpi_thermal_adjust_thermal_zone(struct thermal_zone_device *thermal,
+					     unsigned long data)
+{
+	__acpi_thermal_trips_update(thermal_zone_device_priv(thermal), data);
+}
+
+static void acpi_queue_thermal_check(struct acpi_thermal *tz)
+{
+	if (!work_pending(&tz->thermal_check_work))
+		queue_work(acpi_thermal_pm_queue, &tz->thermal_check_work);
+}
+
+static void acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
+{
+	/*
+	 * Use thermal_zone_device_exec() to carry out the trip points
+	 * update, so as to protect thermal_get_trend() from getting stale
+	 * trip point temperatures and to prevent thermal_zone_device_update()
+	 * invoked from acpi_thermal_check_fn() from producing inconsistent
+	 * results.
+	 */
+	thermal_zone_device_exec(tz->thermal_zone,
+				 acpi_thermal_adjust_thermal_zone, flag);
+	acpi_queue_thermal_check(tz);
 }
 
 static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 {
-	int i, ret = acpi_thermal_trips_update(tz, ACPI_TRIPS_INIT);
 	bool valid;
+	int i;
 
-	if (ret)
-		return ret;
+	__acpi_thermal_trips_update(tz, ACPI_TRIPS_INIT);
 
 	valid = tz->trips.critical.valid |
 		tz->trips.hot.valid |
@@ -799,12 +822,6 @@ static void acpi_thermal_unregister_thermal_zone(struct acpi_thermal *tz)
                                  Driver Interface
    -------------------------------------------------------------------------- */
 
-static void acpi_queue_thermal_check(struct acpi_thermal *tz)
-{
-	if (!work_pending(&tz->thermal_check_work))
-		queue_work(acpi_thermal_pm_queue, &tz->thermal_check_work);
-}
-
 static void acpi_thermal_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *device = data;
@@ -819,13 +836,11 @@ static void acpi_thermal_notify(acpi_handle handle, u32 event, void *data)
 		break;
 	case ACPI_THERMAL_NOTIFY_THRESHOLDS:
 		acpi_thermal_trips_update(tz, ACPI_TRIPS_THRESHOLDS);
-		acpi_queue_thermal_check(tz);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 						dev_name(&device->dev), event, 0);
 		break;
 	case ACPI_THERMAL_NOTIFY_DEVICES:
 		acpi_thermal_trips_update(tz, ACPI_TRIPS_DEVICES);
-		acpi_queue_thermal_check(tz);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 						dev_name(&device->dev), event, 0);
 		break;
