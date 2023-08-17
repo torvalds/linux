@@ -97,7 +97,7 @@ struct uniphier_xdmac_device {
 	struct dma_device ddev;
 	void __iomem *reg_base;
 	int nr_chans;
-	struct uniphier_xdmac_chan channels[];
+	struct uniphier_xdmac_chan channels[] __counted_by(nr_chans);
 };
 
 static struct uniphier_xdmac_chan *
