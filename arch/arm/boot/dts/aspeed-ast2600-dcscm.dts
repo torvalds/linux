@@ -1,0 +1,426 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright 2023 ASPEED Tech. Corp.
+
+/dts-v1/;
+
+#include "aspeed-ast2600-evb.dts"
+
+/ {
+	model = "AST2600 DC-SCM";
+};
+
+&fmc {
+	status = "okay";
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "bmc";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/delete-node/ u-boot-env@e0000;
+			/delete-node/ kernel@100000;
+			/delete-node/ rofs@a00000;
+			/delete-node/ rwfs@2e00000;
+
+			pfm@e0000 {
+				reg = <0xe0000 0x20000>; // 128KB
+				label = "pfm";
+			};
+
+			u-boot-env@100000 {
+				reg = <0x100000 0x20000>; // 128KB
+				label = "u-boot-env";
+			};
+
+			sofs@120000 {
+				reg = <0x120000 0x200000>; // 2048KB
+				label = "sofs";
+			};
+
+			rwfs@320000 {
+				reg = <0x320000 0x1200000>; // 18432KB
+				label = "rwfs";
+			};
+
+			kernel@1520000 {
+				reg = <0x1520000 0x900000>; // 9216KB
+				label = "kernel";
+			};
+
+			rofs@1e20000 {
+				reg = <0x1e20000 0x2400000>; // 36864KB
+				label = "rofs";
+			};
+
+			rc-image@4220000 {
+				reg = <0x4220000 0x3de0000>; // 63360KB
+				label = "rc-image";
+			};
+
+			image-stg@8000000 {
+				reg = <0x8000000 0x3de0000>; // 63360KB
+				label = "img-stg";
+			};
+
+			pfr-stg@bde0000 {
+				reg = <0xbde0000 0x100000>; // 1024KB
+				label = "pfr-stg";
+			};
+
+			cpld-stg@bee0000 {
+				reg = <0xbee0000 0x400000>; // 4096KB
+				label = "cpld-stg";
+			};
+
+			afm-stg@c2e0000 {
+				reg = <0xc2e0000 0x20000>; // 128KB
+				label = "afm-stg";
+			};
+
+			afm-rc@c300000 {
+				reg = <0xc300000 0x20000>; // 128KB
+				label = "afm-rc";
+			};
+
+			reserved@c320000 {
+				reg = <0xc320000 0x3ce0000>; // 62336KB
+				label = "reserved";
+			};
+		};
+	};
+
+	flash@1 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "fmc0:1";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+	};
+
+	flash@2 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "fmc0:2";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+	};
+};
+
+&spi1 {
+	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default
+				&pinctrl_qspi1_default>;
+	status = "okay";
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi1:0";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			spi1_pch_reserved@0 {
+				reg = <0x0 0x7f0000>;
+				label = "spi1_pch_reserved";
+			};
+
+			spi1_pch_stg@7f0000 {
+				reg = <0x7f0000 0x1400000>;
+				label = "spi1_pch_stg";
+			};
+
+			spi1_pch_rc@1bf0000 {
+				reg = <0x1bf0000 0x1400000>;
+				label = "spi1_pch_rc";
+			};
+
+			spi1_pch_pfm@2ff0000 {
+				reg = <0x2ff0000 0x10000>;
+				label = "spi1_pch_pfm";
+			};
+
+			spi1_pch_bios@3000000 {
+				reg = <0x3000000 0x1000000>;
+				label = "spi1_pch_bios";
+			};
+		};
+	};
+
+	flash@1 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi1:1";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+	};
+};
+
+&spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default
+				&pinctrl_spi2cs2_default &pinctrl_qspi2_default>;
+
+	status = "disabled";
+
+	flash@0 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi2:0";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+	};
+
+	flash@1 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi2:1";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+	};
+
+	flash@2 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi2:2";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+	};
+
+};
+
+&i2c4 {
+	status = "okay";
+	multi-master;
+	/delete-node/ ssif-bmc@10;
+};
+
+&i2c5 {
+	status = "okay";
+
+	ipmb@10 {
+		compatible = "ipmb-dev";
+		reg = <0x10>;
+		i2c-protocol;
+	};
+};
+
+&i2c6 {
+	status = "okay";
+
+	ipmb@12 {
+		compatible = "ipmb-dev";
+		reg = <0x12>;
+		i2c-protocol;
+	};
+};
+
+&i2c7 {
+	status = "okay";
+
+	temp@2e {
+		compatible = "adi,adt7490";
+		reg = <0x2e>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+
+};
+
+&i2c8 {
+	status = "okay";
+
+	lm75@4d {
+		compatible = "national,lm75";
+		reg = <0x4d>;
+	};
+
+};
+
+&i2c9 {
+	status = "okay";
+};
+
+&i2c10 {
+	status = "okay";
+};
+
+&i2c11 {
+	status = "okay";
+};
+
+&i2c13 {
+	status = "okay";
+	multi-master;
+};
+
+&i2c14 {
+	status = "okay";
+};
+
+&i2c15 {
+	status = "okay";
+};
+
+#if 0
+&ehci0 {
+	status = "disabled";
+};
+#endif
+
+&ehci1 {
+	status = "disabled";
+};
+
+&uhci {
+	status = "disabled";
+};
+
+&vhub {
+	status = "disabled";
+	pinctrl-names = "default";
+#if 0
+	pinctrl-0 = <&pinctrl_usb2adp_default>;
+#endif
+};
+
+#if 0
+&udc {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb2bd_default>;
+};
+#endif
+
+&uphyb {
+	status = "disabled";
+};
+
+&sdc {
+	status = "disabled";
+};
+
+&sdhci0 {
+	status = "disabled";
+};
+
+&sdhci1 {
+	status = "disabled";
+};
+
+&mac0 {
+	status = "disabled";
+};
+
+&mac2 {
+	status = "disabled";
+};
+
+&mac3 {
+	status = "disabled";
+};
+
+&mdio0 {
+	status = "disabled";
+};
+
+&mdio2 {
+	status = "disabled";
+};
+
+&mdio3 {
+	status = "disabled";
+};
+
+&sgpiom0 {
+	status = "okay";
+	ngpios = <32>;
+	gpio-line-names =
+		"MAIN_PLD_MINOR_REV_BIT0","","MAIN_PLD_MINOR_REV_BIT1","","MAIN_PLD_MINOR_REV_BIT2","","MAIN_PLD_MINOR_REV_BIT3","",
+		"MAIN_PLD_MAJOR_REV_BIT0","","MAIN_PLD_MAJOR_REV_BIT1","","MAIN_PLD_MAJOR_REV_BIT2","","MAIN_PLD_MAJOR_REV_BIT3","",
+		"SGPIO_PLD_MAJOR_REV_BIT3","","SGPIO_PLD_MAJOR_REV_BIT2","","SGPIO_PLD_MAJOR_REV_BIT1","","SGPIO_PLD_MAJOR_REV_BIT0","",
+		"SGPIO_PLD_MINOR_REV_BIT3","","SGPIO_PLD_MINOR_REV_BIT2","","SGPIO_PLD_MINOR_REV_BIT1","","SGPIO_PLD_MINOR_REV_BIT0","";
+};
+
+&gpio0 {
+	gpio-line-names =
+		/*A0 - A7*/     "", "", "", "", "", "", "", "",
+		/*B0 - B7*/     "", "", "", "", "", "", "", "",
+		/*C0 - C7*/     "", "", "", "", "", "", "", "",
+		/*D0 - D7*/     "", "", "", "", "", "", "", "",
+		/*E0 - E7*/     "", "", "", "", "", "", "", "",
+		/*F0 - F7*/     "", "", "", "", "", "", "", "",
+		/*G0 - G7*/     "", "", "", "", "", "", "", "",
+		/*H0 - H7*/     "", "", "", "", "", "", "", "",
+		/*I0 - I7*/     "", "", "", "", "", "RESET_OUT", "POST_COMPLETE", "POWER_OUT",
+		/*J0 - J7*/     "", "", "", "", "", "", "", "",
+		/*K0 - K7*/     "", "", "", "", "", "", "", "",
+		/*L0 - L7*/     "", "", "", "", "", "", "", "",
+		/*M0 - M7*/     "", "", "", "", "", "", "", "",
+		/*N0 - N7*/     "", "", "", "", "", "", "", "",
+		/*O0 - O7*/     "", "", "", "", "", "", "", "",
+		/*P0 - P7*/     "", "", "", "", "", "", "", "",
+		/*Q0 - Q7*/     "", "", "", "", "", "", "", "",
+		/*R0 - R7*/     "", "", "", "", "", "", "", "",
+		/*S0 - S7*/     "", "", "", "", "", "", "", "",
+		/*T0 - T7*/     "", "", "", "", "", "", "", "",
+		/*U0 - U7*/     "", "", "", "", "", "", "", "",
+		/*V0 - V7*/     "", "", "", "", "", "RESET_BUTTON", "POWER_BUTTON", "",
+		/*W0 - W7*/     "", "", "", "", "", "", "", "",
+		/*X0 - X7*/     "", "", "", "", "", "", "", "",
+		/*Y0 - Y7*/     "PS_PWROK", "", "", "", "", "", "", "",
+		/*Z0 - Z7*/     "", "", "", "", "", "", "", "",
+		/*AA0 - AA7*/   "", "", "", "", "", "", "", "",
+		/*AB0 - AB7*/   "", "", "", "", "", "", "", "",
+		/*AC0 - AC7*/   "", "", "", "", "", "", "", "";
+};
+
+&i3c0 {
+	status = "disabled";
+};
+
+&i3c1 {
+	status = "okay";
+	secondary;
+
+	/delete-property/ jdec-spd;
+	/delete-node/ i3cmux@0f,4cc31020000;
+	/delete-node/ spd@50,4cc51180000;
+	/delete-node/ spd@51,4cc51181000;
+};
+
+&i3c2 {
+	status = "disabled";
+};
+
+&i3c3 {
+	status = "disabled";
+};
+
+&i3c4 {
+	status = "disabled";
+};
+
+&i3c5 {
+	status = "disabled";
+};
