@@ -1094,7 +1094,7 @@ cap_unix(struct cifs_ses *ses)
  * inode with new info
  */
 
-#define CIFS_FATTR_DFS_REFERRAL		0x1
+#define CIFS_FATTR_JUNCTION		0x1
 #define CIFS_FATTR_DELETE_PENDING	0x2
 #define CIFS_FATTR_NEED_REVAL		0x4
 #define CIFS_FATTR_INO_COLLISION	0x8

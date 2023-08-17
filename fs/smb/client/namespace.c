@@ -126,9 +126,11 @@ static char *automount_fullpath(struct dentry *dentry, void *page)
 	char *s;
 
 	spin_lock(&tcon->tc_lock);
-	if (unlikely(!tcon->origin_fullpath)) {
+	if (!tcon->origin_fullpath) {
 		spin_unlock(&tcon->tc_lock);
-		return ERR_PTR(-EREMOTE);
+		return build_path_from_dentry_optional_prefix(dentry,
+							      page,
+							      true);
 	}
 	spin_unlock(&tcon->tc_lock);
 
@@ -162,7 +164,6 @@ static struct vfsmount *cifs_do_automount(struct path *path)
 	int rc;
 	struct dentry *mntpt = path->dentry;
 	struct fs_context *fc;
-	struct cifs_sb_info *cifs_sb;
 	void *page = NULL;
 	struct smb3_fs_context *ctx, *cur_ctx;
 	struct smb3_fs_context tmp;
@@ -172,17 +173,7 @@ static struct vfsmount *cifs_do_automount(struct path *path)
 	if (IS_ROOT(mntpt))
 		return ERR_PTR(-ESTALE);
 
-	/*
-	 * The MSDFS spec states that paths in DFS referral requests and
-	 * responses must be prefixed by a single '\' character instead of
-	 * the double backslashes usually used in the UNC. This function
-	 * gives us the latter, so we must adjust the result.
-	 */
-	cifs_sb = CIFS_SB(mntpt->d_sb);
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS)
-		return ERR_PTR(-EREMOTE);
-
-	cur_ctx = cifs_sb->ctx;
+	cur_ctx = CIFS_SB(mntpt->d_sb)->ctx;
 
 	fc = fs_context_for_submount(path->mnt->mnt_sb->s_type, mntpt);
 	if (IS_ERR(fc))

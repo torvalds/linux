@@ -143,6 +143,7 @@ static bool reparse_file_needs_reval(const struct cifs_fattr *fattr)
 	case IO_REPARSE_TAG_DFSR:
 	case IO_REPARSE_TAG_SYMLINK:
 	case IO_REPARSE_TAG_NFS:
+	case IO_REPARSE_TAG_MOUNT_POINT:
 	case 0:
 		return true;
 	}
