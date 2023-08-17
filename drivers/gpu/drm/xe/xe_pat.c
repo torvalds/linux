@@ -5,6 +5,8 @@
 
 #include "xe_pat.h"
 
+#include <drm/xe_drm.h>
+
 #include "regs/xe_reg_defs.h"
 #include "xe_assert.h"
 #include "xe_device.h"
@@ -46,35 +48,37 @@
 static const char *XELP_MEM_TYPE_STR_MAP[] = { "UC", "WC", "WT", "WB" };
 
 struct xe_pat_ops {
-	void (*program_graphics)(struct xe_gt *gt, const u32 table[], int n_entries);
-	void (*program_media)(struct xe_gt *gt, const u32 table[], int n_entries);
+	void (*program_graphics)(struct xe_gt *gt, const struct xe_pat_table_entry table[],
+				 int n_entries);
+	void (*program_media)(struct xe_gt *gt, const struct xe_pat_table_entry table[],
+			      int n_entries);
 	void (*dump)(struct xe_gt *gt, struct drm_printer *p);
 };
 
-static const u32 xelp_pat_table[] = {
-	[0] = XELP_PAT_WB,
-	[1] = XELP_PAT_WC,
-	[2] = XELP_PAT_WT,
-	[3] = XELP_PAT_UC,
+static const struct xe_pat_table_entry xelp_pat_table[] = {
+	[0] = { XELP_PAT_WB, XE_COH_AT_LEAST_1WAY },
+	[1] = { XELP_PAT_WC, XE_COH_NONE },
+	[2] = { XELP_PAT_WT, XE_COH_NONE },
+	[3] = { XELP_PAT_UC, XE_COH_NONE },
 };
 
-static const u32 xehpc_pat_table[] = {
-	[0] = XELP_PAT_UC,
-	[1] = XELP_PAT_WC,
-	[2] = XELP_PAT_WT,
-	[3] = XELP_PAT_WB,
-	[4] = XEHPC_PAT_CLOS(1) | XELP_PAT_WT,
-	[5] = XEHPC_PAT_CLOS(1) | XELP_PAT_WB,
-	[6] = XEHPC_PAT_CLOS(2) | XELP_PAT_WT,
-	[7] = XEHPC_PAT_CLOS(2) | XELP_PAT_WB,
+static const struct xe_pat_table_entry xehpc_pat_table[] = {
+	[0] = { XELP_PAT_UC, XE_COH_NONE },
+	[1] = { XELP_PAT_WC, XE_COH_NONE },
+	[2] = { XELP_PAT_WT, XE_COH_NONE },
+	[3] = { XELP_PAT_WB, XE_COH_AT_LEAST_1WAY },
+	[4] = { XEHPC_PAT_CLOS(1) | XELP_PAT_WT, XE_COH_NONE },
+	[5] = { XEHPC_PAT_CLOS(1) | XELP_PAT_WB, XE_COH_AT_LEAST_1WAY },
+	[6] = { XEHPC_PAT_CLOS(2) | XELP_PAT_WT, XE_COH_NONE },
+	[7] = { XEHPC_PAT_CLOS(2) | XELP_PAT_WB, XE_COH_AT_LEAST_1WAY },
 };
 
-static const u32 xelpg_pat_table[] = {
-	[0] = XELPG_PAT_0_WB,
-	[1] = XELPG_PAT_1_WT,
-	[2] = XELPG_PAT_3_UC,
-	[3] = XELPG_PAT_0_WB | XELPG_2_COH_1W,
-	[4] = XELPG_PAT_0_WB | XELPG_3_COH_2W,
+static const struct xe_pat_table_entry xelpg_pat_table[] = {
+	[0] = { XELPG_PAT_0_WB, XE_COH_NONE },
+	[1] = { XELPG_PAT_1_WT, XE_COH_NONE },
+	[2] = { XELPG_PAT_3_UC, XE_COH_NONE },
+	[3] = { XELPG_PAT_0_WB | XELPG_2_COH_1W, XE_COH_AT_LEAST_1WAY },
+	[4] = { XELPG_PAT_0_WB | XELPG_3_COH_2W, XE_COH_AT_LEAST_1WAY },
 };
 
 /*
@@ -92,15 +96,18 @@ static const u32 xelpg_pat_table[] = {
  * coherency (which matches an all-0's encoding), so we can just omit them
  * in the table.
  */
-#define XE2_PAT(no_promote, comp_en, l3clos, l3_policy, l4_policy, coh_mode) \
-	(no_promote ? XE2_NO_PROMOTE : 0) | \
-	(comp_en ? XE2_COMP_EN : 0) | \
-	REG_FIELD_PREP(XE2_L3_CLOS, l3clos) | \
-	REG_FIELD_PREP(XE2_L3_POLICY, l3_policy) | \
-	REG_FIELD_PREP(XE2_L4_POLICY, l4_policy) | \
-	REG_FIELD_PREP(XE2_COH_MODE, coh_mode)
+#define XE2_PAT(no_promote, comp_en, l3clos, l3_policy, l4_policy, __coh_mode) \
+	{ \
+		.value = (no_promote ? XE2_NO_PROMOTE : 0) | \
+			(comp_en ? XE2_COMP_EN : 0) | \
+			REG_FIELD_PREP(XE2_L3_CLOS, l3clos) | \
+			REG_FIELD_PREP(XE2_L3_POLICY, l3_policy) | \
+			REG_FIELD_PREP(XE2_L4_POLICY, l4_policy) | \
+			REG_FIELD_PREP(XE2_COH_MODE, __coh_mode), \
+		.coh_mode = __coh_mode ? XE_COH_AT_LEAST_1WAY : XE_COH_NONE \
+	}
 
-static const u32 xe2_pat_table[] = {
+static const struct xe_pat_table_entry xe2_pat_table[] = {
 	[ 0] = XE2_PAT( 0, 0, 0, 0, 3, 0 ),
 	[ 1] = XE2_PAT( 0, 0, 0, 0, 3, 2 ),
 	[ 2] = XE2_PAT( 0, 0, 0, 0, 3, 3 ),
@@ -133,23 +140,31 @@ static const u32 xe2_pat_table[] = {
 };
 
 /* Special PAT values programmed outside the main table */
-#define XE2_PAT_ATS	XE2_PAT( 0, 0, 0, 0, 3, 3 )
+static const struct xe_pat_table_entry xe2_pat_ats = XE2_PAT( 0, 0, 0, 0, 3, 3 );
 
-static void program_pat(struct xe_gt *gt, const u32 table[], int n_entries)
+u16 xe_pat_index_get_coh_mode(struct xe_device *xe, u16 pat_index)
+{
+	WARN_ON(pat_index >= xe->pat.n_entries);
+	return xe->pat.table[pat_index].coh_mode;
+}
+
+static void program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[],
+			int n_entries)
 {
 	for (int i = 0; i < n_entries; i++) {
 		struct xe_reg reg = XE_REG(_PAT_INDEX(i));
 
-		xe_mmio_write32(gt, reg, table[i]);
+		xe_mmio_write32(gt, reg, table[i].value);
 	}
 }
 
-static void program_pat_mcr(struct xe_gt *gt, const u32 table[], int n_entries)
+static void program_pat_mcr(struct xe_gt *gt, const struct xe_pat_table_entry table[],
+			    int n_entries)
 {
 	for (int i = 0; i < n_entries; i++) {
 		struct xe_reg_mcr reg_mcr = XE_REG_MCR(_PAT_INDEX(i));
 
-		xe_gt_mcr_multicast_write(gt, reg_mcr, table[i]);
+		xe_gt_mcr_multicast_write(gt, reg_mcr, table[i].value);
 	}
 }
 
@@ -289,16 +304,18 @@ static const struct xe_pat_ops xelpg_pat_ops = {
 	.dump = xelpg_dump,
 };
 
-static void xe2lpg_program_pat(struct xe_gt *gt, const u32 table[], int n_entries)
+static void xe2lpg_program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[],
+			       int n_entries)
 {
 	program_pat_mcr(gt, table, n_entries);
-	xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_ATS), XE2_PAT_ATS);
+	xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_ATS), xe2_pat_ats.value);
 }
 
-static void xe2lpm_program_pat(struct xe_gt *gt, const u32 table[], int n_entries)
+static void xe2lpm_program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[],
+			       int n_entries)
 {
 	program_pat(gt, table, n_entries);
-	xe_mmio_write32(gt, XE_REG(_PAT_ATS), XE2_PAT_ATS);
+	xe_mmio_write32(gt, XE_REG(_PAT_ATS), xe2_pat_ats.value);
 }
 
 static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
@@ -396,6 +413,7 @@ void xe_pat_init_early(struct xe_device *xe)
 		xe->pat.idx[XE_CACHE_WT] = 2;
 		xe->pat.idx[XE_CACHE_WB] = 0;
 	} else if (GRAPHICS_VERx100(xe) <= 1210) {
+		WARN_ON_ONCE(!IS_DGFX(xe) && !xe->info.has_llc);
 		xe->pat.ops = &xelp_pat_ops;
 		xe->pat.table = xelp_pat_table;
 		xe->pat.n_entries = ARRAY_SIZE(xelp_pat_table);

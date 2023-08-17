@@ -368,7 +368,7 @@ struct xe_device {
 		/** Internal operations to abstract platforms */
 		const struct xe_pat_ops *ops;
 		/** PAT table to program in the HW */
-		const u32 *table;
+		const struct xe_pat_table_entry *table;
 		/** Number of PAT entries */
 		int n_entries;
 		u32 idx[__XE_CACHE_LEVEL_COUNT];
