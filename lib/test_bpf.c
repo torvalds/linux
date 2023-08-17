@@ -596,8 +596,8 @@ static int __bpf_fill_alu_shift(struct bpf_test *self, u8 op,
 {
 	static const s64 regs[] = {
 		0x0123456789abcdefLL, /* dword > 0, word < 0 */
-		0xfedcba9876543210LL, /* dowrd < 0, word > 0 */
-		0xfedcba0198765432LL, /* dowrd < 0, word < 0 */
+		0xfedcba9876543210LL, /* dword < 0, word > 0 */
+		0xfedcba0198765432LL, /* dword < 0, word < 0 */
 		0x0123458967abcdefLL, /* dword > 0, word > 0 */
 	};
 	int bits = alu32 ? 32 : 64;
@@ -14567,8 +14567,10 @@ static int run_one(const struct bpf_prog *fp, struct bpf_test *test)
 		if (ret == test->test[i].result) {
 			pr_cont("%lld ", duration);
 		} else {
-			pr_cont("ret %d != %d ", ret,
-				test->test[i].result);
+			s32 res = test->test[i].result;
+
+			pr_cont("ret %d != %d (%#x != %#x)",
+				ret, res, ret, res);
 			err_cnt++;
 		}
 	}
@@ -15045,7 +15047,7 @@ static __init int prepare_tail_call_tests(struct bpf_array **pprogs)
 	struct bpf_array *progs;
 	int which, err;
 
-	/* Allocate the table of programs to be used for tall calls */
+	/* Allocate the table of programs to be used for tail calls */
 	progs = kzalloc(struct_size(progs, ptrs, ntests + 1), GFP_KERNEL);
 	if (!progs)
 		goto out_nomem;
