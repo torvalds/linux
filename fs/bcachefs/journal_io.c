@@ -319,7 +319,6 @@ static int journal_validate_key(struct bch_fs *c,
 				  __btree_node_type(level, btree_id), write, &buf);
 
 		mustfix_fsck_err(c, "%s", buf.buf);
-		BUG();
 
 		le16_add_cpu(&entry->u64s, -((u16) k->k.u64s));
 		memmove(k, bkey_next(k), next - (void *) bkey_next(k));
