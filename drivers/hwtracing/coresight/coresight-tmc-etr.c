@@ -26,6 +26,12 @@ struct etr_flat_buf {
 	size_t		size;
 };
 
+struct etr_buf_hw {
+	bool	has_iommu;
+	bool	has_etr_sg;
+	bool	has_catu;
+};
+
 /*
  * etr_perf_buffer - Perf buffer used for ETR
  * @drvdata		- The ETR drvdaga this buffer has been allocated for.
@@ -830,6 +836,22 @@ static inline int tmc_etr_mode_alloc_buf(int mode,
 	}
 }
 
+static void get_etr_buf_hw(struct device *dev, struct etr_buf_hw *buf_hw)
+{
+	struct tmc_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	buf_hw->has_iommu = iommu_get_domain_for_dev(dev->parent);
+	buf_hw->has_etr_sg = tmc_etr_has_cap(drvdata, TMC_ETR_SG);
+	buf_hw->has_catu = !!tmc_etr_get_catu_device(drvdata);
+}
+
+static bool etr_can_use_flat_mode(struct etr_buf_hw *buf_hw, ssize_t etr_buf_size)
+{
+	bool has_sg = buf_hw->has_catu || buf_hw->has_etr_sg;
+
+	return !has_sg || buf_hw->has_iommu || etr_buf_size < SZ_1M;
+}
+
 /*
  * tmc_alloc_etr_buf: Allocate a buffer use by ETR.
  * @drvdata	: ETR device details.
@@ -843,22 +865,21 @@ static struct etr_buf *tmc_alloc_etr_buf(struct tmc_drvdata *drvdata,
 					 int node, void **pages)
 {
 	int rc = -ENOMEM;
-	bool has_etr_sg, has_iommu;
-	bool has_sg, has_catu;
 	struct etr_buf *etr_buf;
+	struct etr_buf_hw buf_hw;
 	struct device *dev = &drvdata->csdev->dev;
 
-	has_etr_sg = tmc_etr_has_cap(drvdata, TMC_ETR_SG);
-	has_iommu = iommu_get_domain_for_dev(dev->parent);
-	has_catu = !!tmc_etr_get_catu_device(drvdata);
-
-	has_sg = has_catu || has_etr_sg;
-
+	get_etr_buf_hw(dev, &buf_hw);
 	etr_buf = kzalloc(sizeof(*etr_buf), GFP_KERNEL);
 	if (!etr_buf)
 		return ERR_PTR(-ENOMEM);
 
 	etr_buf->size = size;
+
+	/* If there is user directive for buffer mode, try that first */
+	if (drvdata->etr_mode != ETR_MODE_AUTO)
+		rc = tmc_etr_mode_alloc_buf(drvdata->etr_mode, drvdata,
+					    etr_buf, node, pages);
 
 	/*
 	 * If we have to use an existing list of pages, we cannot reliably
@@ -872,14 +893,13 @@ static struct etr_buf *tmc_alloc_etr_buf(struct tmc_drvdata *drvdata,
 	 * Fallback to available mechanisms.
 	 *
 	 */
-	if (!pages &&
-	    (!has_sg || has_iommu || size < SZ_1M))
+	if (rc && !pages && etr_can_use_flat_mode(&buf_hw, size))
 		rc = tmc_etr_mode_alloc_buf(ETR_MODE_FLAT, drvdata,
 					    etr_buf, node, pages);
-	if (rc && has_etr_sg)
+	if (rc && buf_hw.has_etr_sg)
 		rc = tmc_etr_mode_alloc_buf(ETR_MODE_ETR_SG, drvdata,
 					    etr_buf, node, pages);
-	if (rc && has_catu)
+	if (rc && buf_hw.has_catu)
 		rc = tmc_etr_mode_alloc_buf(ETR_MODE_CATU, drvdata,
 					    etr_buf, node, pages);
 	if (rc) {
@@ -1804,3 +1824,70 @@ int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
 
 	return 0;
 }
+
+static const char *const buf_modes_str[] = {
+	[ETR_MODE_FLAT]		= "flat",
+	[ETR_MODE_ETR_SG]	= "tmc-sg",
+	[ETR_MODE_CATU]		= "catu",
+	[ETR_MODE_AUTO]		= "auto",
+};
+
+static ssize_t buf_modes_available_show(struct device *dev,
+					    struct device_attribute *attr, char *buf)
+{
+	struct etr_buf_hw buf_hw;
+	ssize_t size = 0;
+
+	get_etr_buf_hw(dev, &buf_hw);
+	size += sysfs_emit(buf, "%s ", buf_modes_str[ETR_MODE_AUTO]);
+	size += sysfs_emit_at(buf, size, "%s ", buf_modes_str[ETR_MODE_FLAT]);
+	if (buf_hw.has_etr_sg)
+		size += sysfs_emit_at(buf, size, "%s ", buf_modes_str[ETR_MODE_ETR_SG]);
+
+	if (buf_hw.has_catu)
+		size += sysfs_emit_at(buf, size, "%s ", buf_modes_str[ETR_MODE_CATU]);
+
+	size += sysfs_emit_at(buf, size, "\n");
+	return size;
+}
+static DEVICE_ATTR_RO(buf_modes_available);
+
+static ssize_t buf_mode_preferred_show(struct device *dev,
+					 struct device_attribute *attr, char *buf)
+{
+	struct tmc_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	return sysfs_emit(buf, "%s\n", buf_modes_str[drvdata->etr_mode]);
+}
+
+static ssize_t buf_mode_preferred_store(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t size)
+{
+	struct tmc_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct etr_buf_hw buf_hw;
+
+	get_etr_buf_hw(dev, &buf_hw);
+	if (sysfs_streq(buf, buf_modes_str[ETR_MODE_FLAT]))
+		drvdata->etr_mode = ETR_MODE_FLAT;
+	else if (sysfs_streq(buf, buf_modes_str[ETR_MODE_ETR_SG]) && buf_hw.has_etr_sg)
+		drvdata->etr_mode = ETR_MODE_ETR_SG;
+	else if (sysfs_streq(buf, buf_modes_str[ETR_MODE_CATU]) && buf_hw.has_catu)
+		drvdata->etr_mode = ETR_MODE_CATU;
+	else if (sysfs_streq(buf, buf_modes_str[ETR_MODE_AUTO]))
+		drvdata->etr_mode = ETR_MODE_AUTO;
+	else
+		return -EINVAL;
+	return size;
+}
+static DEVICE_ATTR_RW(buf_mode_preferred);
+
+static struct attribute *coresight_etr_attrs[] = {
+	&dev_attr_buf_modes_available.attr,
+	&dev_attr_buf_mode_preferred.attr,
+	NULL,
+};
+
+const struct attribute_group coresight_etr_group = {
+	.attrs = coresight_etr_attrs,
+};
