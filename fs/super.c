@@ -112,7 +112,7 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
 	if (!(sc->gfp_mask & __GFP_FS))
 		return SHRINK_STOP;
 
-	if (!trylock_super(sb))
+	if (!super_trylock_shared(sb))
 		return SHRINK_STOP;
 
 	if (sb->s_op->nr_cached_objects)
@@ -159,17 +159,17 @@ static unsigned long super_cache_count(struct shrinker *shrink,
 	sb = container_of(shrink, struct super_block, s_shrink);
 
 	/*
-	 * We don't call trylock_super() here as it is a scalability bottleneck,
-	 * so we're exposed to partial setup state. The shrinker rwsem does not
-	 * protect filesystem operations backing list_lru_shrink_count() or
-	 * s_op->nr_cached_objects(). Counts can change between
-	 * super_cache_count and super_cache_scan, so we really don't need locks
-	 * here.
+	 * We don't call super_trylock_shared() here as it is a scalability
+	 * bottleneck, so we're exposed to partial setup state. The shrinker
+	 * rwsem does not protect filesystem operations backing
+	 * list_lru_shrink_count() or s_op->nr_cached_objects(). Counts can
+	 * change between super_cache_count and super_cache_scan, so we really
+	 * don't need locks here.
 	 *
 	 * However, if we are currently mounting the superblock, the underlying
 	 * filesystem might be in a state of partial construction and hence it
-	 * is dangerous to access it.  trylock_super() uses a SB_BORN check to
-	 * avoid this situation, so do the same here. The memory barrier is
+	 * is dangerous to access it.  super_trylock_shared() uses a SB_BORN check
+	 * to avoid this situation, so do the same here. The memory barrier is
 	 * matched with the one in mount_fs() as we don't hold locks here.
 	 */
 	if (!(sb->s_flags & SB_BORN))
@@ -428,7 +428,7 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
 }
 
 /*
- *	trylock_super - try to grab ->s_umount shared
+ *	super_trylock_shared - try to grab ->s_umount shared
  *	@sb: reference we are trying to grab
  *
  *	Try to prevent fs shutdown.  This is used in places where we
@@ -444,7 +444,7 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
  *	of down_read().  There's a couple of places that are OK with that, but
  *	it's very much not a general-purpose interface.
  */
-bool trylock_super(struct super_block *sb)
+bool super_trylock_shared(struct super_block *sb)
 {
 	if (down_read_trylock(&sb->s_umount)) {
 		if (!hlist_unhashed(&sb->s_instances) &&
@@ -1210,7 +1210,7 @@ EXPORT_SYMBOL(get_tree_keyed);
  * and the place that clears the pointer to the superblock used by this function
  * before freeing the superblock.
  */
-static bool lock_active_super(struct super_block *sb)
+static bool super_lock_shared_active(struct super_block *sb)
 {
 	super_lock_shared(sb);
 	if (!sb->s_root ||
@@ -1228,7 +1228,7 @@ static void fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 	/* bd_holder_lock ensures that the sb isn't freed */
 	lockdep_assert_held(&bdev->bd_holder_lock);
 
-	if (!lock_active_super(sb))
+	if (!super_lock_shared_active(sb))
 		return;
 
 	if (!surprise)
@@ -1247,7 +1247,7 @@ static void fs_bdev_sync(struct block_device *bdev)
 
 	lockdep_assert_held(&bdev->bd_holder_lock);
 
-	if (!lock_active_super(sb))
+	if (!super_lock_shared_active(sb))
 		return;
 	sync_filesystem(sb);
 	super_unlock_shared(sb);

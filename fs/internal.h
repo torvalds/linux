@@ -115,7 +115,7 @@ static inline void put_file_access(struct file *file)
  * super.c
  */
 extern int reconfigure_super(struct fs_context *);
-extern bool trylock_super(struct super_block *sb);
+extern bool super_trylock_shared(struct super_block *sb);
 struct super_block *user_get_super(dev_t, bool excl);
 void put_super(struct super_block *sb);
 extern bool mount_capable(struct fs_context *);
