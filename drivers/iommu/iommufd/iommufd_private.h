@@ -296,6 +296,7 @@ iommufd_get_device(struct iommufd_ucmd *ucmd, u32 id)
 }
 
 void iommufd_device_destroy(struct iommufd_object *obj);
+int iommufd_get_hw_info(struct iommufd_ucmd *ucmd);
 
 struct iommufd_access {
 	struct iommufd_object obj;

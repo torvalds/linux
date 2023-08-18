@@ -4,6 +4,7 @@
 #include <linux/iommufd.h>
 #include <linux/slab.h>
 #include <linux/iommu.h>
+#include <uapi/linux/iommufd.h>
 #include "../iommu-priv.h"
 
 #include "io_pagetable.h"
@@ -1119,3 +1120,75 @@ err_out:
 	return rc;
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_access_rw, IOMMUFD);
+
+int iommufd_get_hw_info(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hw_info *cmd = ucmd->cmd;
+	void __user *user_ptr = u64_to_user_ptr(cmd->data_uptr);
+	const struct iommu_ops *ops;
+	struct iommufd_device *idev;
+	unsigned int data_len;
+	unsigned int copy_len;
+	void *data;
+	int rc;
+
+	if (cmd->flags || cmd->__reserved)
+		return -EOPNOTSUPP;
+
+	idev = iommufd_get_device(ucmd, cmd->dev_id);
+	if (IS_ERR(idev))
+		return PTR_ERR(idev);
+
+	ops = dev_iommu_ops(idev->dev);
+	if (ops->hw_info) {
+		data = ops->hw_info(idev->dev, &data_len, &cmd->out_data_type);
+		if (IS_ERR(data)) {
+			rc = PTR_ERR(data);
+			goto out_put;
+		}
+
+		/*
+		 * drivers that have hw_info callback should have a unique
+		 * iommu_hw_info_type.
+		 */
+		if (WARN_ON_ONCE(cmd->out_data_type ==
+				 IOMMU_HW_INFO_TYPE_NONE)) {
+			rc = -ENODEV;
+			goto out_free;
+		}
+	} else {
+		cmd->out_data_type = IOMMU_HW_INFO_TYPE_NONE;
+		data_len = 0;
+		data = NULL;
+	}
+
+	copy_len = min(cmd->data_len, data_len);
+	if (copy_to_user(user_ptr, data, copy_len)) {
+		rc = -EFAULT;
+		goto out_free;
+	}
+
+	/*
+	 * Zero the trailing bytes if the user buffer is bigger than the
+	 * data size kernel actually has.
+	 */
+	if (copy_len < cmd->data_len) {
+		if (clear_user(user_ptr + copy_len, cmd->data_len - copy_len)) {
+			rc = -EFAULT;
+			goto out_free;
+		}
+	}
+
+	/*
+	 * We return the length the kernel supports so userspace may know what
+	 * the kernel capability is. It could be larger than the input buffer.
+	 */
+	cmd->data_len = data_len;
+
+	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
+out_free:
+	kfree(data);
+out_put:
+	iommufd_put_object(&idev->obj);
+	return rc;
+}
