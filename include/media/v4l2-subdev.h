@@ -822,8 +822,9 @@ struct v4l2_subdev_state {
  *		     operation shall fail if the pad index it has been called on
  *		     is not valid or in case of unrecoverable failures.
  *
- * @set_routing: enable or disable data connection routes described in the
- *		 subdevice routing table.
+ * @set_routing: Enable or disable data connection routes described in the
+ *		 subdevice routing table. Subdevs that implement this operation
+ *		 must set the V4L2_SUBDEV_FL_STREAMS flag.
  *
  * @enable_streams: Enable the streams defined in streams_mask on the given
  *	source pad. Subdevs that implement this operation must use the active
