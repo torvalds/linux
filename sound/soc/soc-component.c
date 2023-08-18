@@ -1052,9 +1052,9 @@ int snd_soc_pcm_component_sync_stop(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-int snd_soc_pcm_component_copy_user(struct snd_pcm_substream *substream,
-				    int channel, unsigned long pos,
-				    void __user *buf, unsigned long bytes)
+int snd_soc_pcm_component_copy(struct snd_pcm_substream *substream,
+			       int channel, unsigned long pos,
+			       struct iov_iter *buf, unsigned long bytes)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component;
@@ -1062,12 +1062,10 @@ int snd_soc_pcm_component_copy_user(struct snd_pcm_substream *substream,
 
 	/* FIXME. it returns 1st copy now */
 	for_each_rtd_components(rtd, i, component)
-		if (component->driver->copy_user)
-			return soc_component_ret(
-				component,
-				component->driver->copy_user(
-					component, substream, channel,
-					pos, buf, bytes));
+		if (component->driver->copy)
+			return soc_component_ret(component,
+				component->driver->copy(component, substream,
+					channel, pos, buf, bytes));
 
 	return -EINVAL;
 }
