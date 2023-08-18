@@ -210,12 +210,15 @@ static int sdhci_f_sdh30_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct f_sdhost_priv *priv = sdhci_f_sdhost_priv(host);
-
-	reset_control_assert(priv->rst);
-	clk_disable_unprepare(priv->clk);
-	clk_disable_unprepare(priv->clk_iface);
+	struct clk *clk_iface = priv->clk_iface;
+	struct reset_control *rst = priv->rst;
+	struct clk *clk = priv->clk;
 
 	sdhci_pltfm_unregister(pdev);
+
+	reset_control_assert(rst);
+	clk_disable_unprepare(clk);
+	clk_disable_unprepare(clk_iface);
 
 	return 0;
 }
