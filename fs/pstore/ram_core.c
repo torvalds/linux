@@ -25,12 +25,10 @@
 /**
  * struct persistent_ram_buffer - persistent circular RAM buffer
  *
- * @sig:
- *	signature to indicate header (PERSISTENT_RAM_SIG xor PRZ-type value)
- * @start:
- *	offset into @data where the beginning of the stored bytes begin
- * @size:
- *	number of valid bytes stored in @data
+ * @sig: Signature to indicate header (PERSISTENT_RAM_SIG xor PRZ-type value)
+ * @start: First valid byte in the buffer.
+ * @size: Number of valid bytes in the buffer.
+ * @data: The contents of the buffer.
  */
 struct persistent_ram_buffer {
 	uint32_t    sig;
