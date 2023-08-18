@@ -174,6 +174,26 @@ enum msm_gpi_tre_type {
 	((0x2 << 20) | (0x2 << 16) | (link_rx << 11) | (bei << 10) | \
 	(ieot << 9) | (ieob << 8) | ch)
 
+/* I3C GO TRE */
+#define MSM_GPI_I3C_GO_TRE_DWORD0(flags, ccc_hdr, slave, opcode) \
+	((flags << 24) | (ccc_hdr << 16) | (slave << 8) | opcode)
+#define MSM_GPI_I3C_GO_TRE_DWORD1(flags) (flags)
+#define MSM_GPI_I3C_GO_TRE_DWORD2(rx_len) (rx_len)
+#define MSM_GPI_I3C_GO_TRE_DWORD3(link_rx, bei, ieot, ieob, ch) ((0x2 << 20) | \
+	(0x0 << 16) | (link_rx << 11) | (bei << 10) | (ieot << 9) | \
+	(ieob << 8) | ch)
+
+/* I3C Config0 TRE */
+#define MSM_GPI_I3C_CONFIG0_TRE_DWORD0(pack, t_cycle, t_high, t_low) \
+	((pack << 24) | (t_cycle << 16) | (t_high << 8) | t_low)
+#define MSM_GPI_I3C_CONFIG0_TRE_DWORD1(inter_delay, t_cycle, t_high) \
+	((inter_delay << 16) | (t_cycle << 8) | t_high)
+#define MSM_GPI_I3C_CONFIG0_TRE_DWORD2(clk_src, clk_div) \
+	((clk_src << 16) | clk_div)
+#define MSM_GPI_I3C_CONFIG0_TRE_DWORD3(link_rx, bei, ieot, ieob, ch) \
+	((0x2 << 20) | (0x2 << 16) | (link_rx << 11) | (bei << 10) | \
+	(ieot << 9) | (ieob << 8) | ch)
+
 #ifdef CONFIG_ARM64
 #define MSM_GPI_RING_PHYS_ADDR_UPPER(ptr) ((u32)(ptr >> 32))
 #else
@@ -344,9 +364,71 @@ struct gsi_common {
  * whenever client met some scenario like timeout, error in GPI transfer mode.
  */
 void gpi_dump_for_geni(struct dma_chan *chan);
+
+/**
+ * gsi_common_tre_process() - Process received TRE's from GSI HW
+ * @gsi: Base address of the gsi common structure.
+ * @num_xfers: number of messages count.
+ * @num_msg_per_irq: num of messages per irq.
+ * @wrapper_dev: Pointer to the corresponding QUPv3 wrapper core.
+ *
+ * This function is used to process received TRE's from GSI HW.
+ * And also used for error case, it will clear and unmap all pending transfers.
+ *
+ * Return: None.
+ */
+void gsi_common_tre_process(struct gsi_common *gsi, u32 num_xfers, u32 num_msg_per_irq,
+			    struct device *wrapper_dev);
+
+/**
+ * gsi_common_tx_tre_optimization() - Process received TRE's from GSI HW
+ * @gsi: Base address of the gsi common structure.
+ * @num_xfers: number of messages count.
+ * @num_msg_per_irq: num of messages per irq.
+ * @xfer_timeout: xfer timeout value.
+ * @wrapper_dev: Pointer to the corresponding QUPv3 wrapper core.
+ *
+ * This function is used to optimize dma tre's, it keeps always HW busy.
+ *
+ * Return: Returning timeout value
+ */
+int gsi_common_tx_tre_optimization(struct gsi_common *gsi, u32 num_xfers, u32 num_msg_per_irq,
+				   u32 xfer_timeout, struct device *wrapper_dev);
+
+/**
+ * geni_gsi_common_request_channel() - gsi common dma request channel
+ * @gsi: Base address of gsi common
+ *
+ * Return: Returns success or failure
+ */
 int geni_gsi_common_request_channel(struct gsi_common *gsi);
+
+/**
+ * gsi_common_prep_desc_and_submit() - gsi common prepare descriptor and gsi submit
+ * @gsi: Base address of gsi common
+ * @segs: Num of segments
+ * @tx_chan: dma transfer channel type
+ * @skip_callbacks: flag used to register callbacks
+ *
+ * Return: Returns success or failure
+ */
 int gsi_common_prep_desc_and_submit(struct gsi_common *gsi, int segs, bool tx_chan, bool skip_cb);
+
+/**
+ * gsi_common_fill_tre_buf() - gsi common fill tre buffers
+ * @gsi: Base address of gsi common
+ * @tx_chan: dma transfer channel type
+ *
+ * Return: Returns tre count
+ */
 int gsi_common_fill_tre_buf(struct gsi_common *gsi, bool tx_chan);
+
+/**
+ * gsi_common_clear_tre_indexes() - gsi common queue clear tre indexes
+ * @gsi_q: Base address of gsi common queue
+ *
+ * Return: None
+ */
 void gsi_common_clear_tre_indexes(struct gsi_tre_queue *gsi_q);
 #endif
 

@@ -1092,7 +1092,131 @@ static int gpi_config_interrupts(struct gpii *gpii,
 }
 
 /**
- * gsi_common_ev_cb() - gsi common event callback
+ * gsi_se_common_iommu_unmap_buf() - Unmap a single buffer from QUPv3 context bank
+ * @wrapper_dev: Pointer to the corresponding QUPv3 wrapper core.
+ * @iova: Pointer in which the mapped virtual address is stored.
+ * @size: Size of the buffer.
+ * @dir: Direction of the DMA transfer.
+ *
+ * This function is used to unmap an already mapped buffer from the
+ * QUPv3 context bank device space.
+ *
+ * Return: None.
+ */
+static void gsi_se_common_iommu_unmap_buf(struct device *wrapper_dev, dma_addr_t *iova,
+					 size_t size, enum dma_data_direction dir)
+{
+	if (!dma_mapping_error(wrapper_dev, *iova))
+		dma_unmap_single(wrapper_dev, *iova,  size, dir);
+}
+
+/**
+ * gsi_common_tre_process() - Process received TRE's from GSI HW
+ * @gsi: Base address of the gsi common structure.
+ * @num_xfers: number of messages count.
+ * @num_msg_per_irq: num of messages per irq.
+ * @wrapper_dev: Pointer to the corresponding QUPv3 wrapper core.
+ *
+ * This function is used to process received TRE's from GSI HW.
+ * And also used for error case, it will clear and unmap all pending transfers.
+ *
+ * Return: None.
+ */
+void gsi_common_tre_process(struct gsi_common *gsi, u32 num_xfers, u32 num_msg_per_irq,
+			    struct device *wrapper_dev)
+{
+	u32 msg_xfer_cnt;
+	int wr_idx = 0;
+	struct gsi_tre_queue *tx_tre_q = &gsi->tx.tre_queue;
+
+	/* Error case we need to unmap all messages.
+	 * Regular working case unmapping only processed messages.
+	 */
+	if (*gsi->protocol_err)
+		msg_xfer_cnt = tx_tre_q->msg_cnt;
+	else
+		msg_xfer_cnt = atomic_read(&tx_tre_q->irq_cnt) * num_msg_per_irq;
+
+	for (; tx_tre_q->unmap_msg_cnt < msg_xfer_cnt; tx_tre_q->unmap_msg_cnt++) {
+		if (tx_tre_q->unmap_msg_cnt == num_xfers) {
+			GSI_SE_DBG(gsi->ipc, false, gsi->dev,
+				   "%s:last %d msg unmapped msg_cnt:%d\n",
+				   __func__, num_xfers, msg_xfer_cnt);
+			break;
+		}
+		tx_tre_q->freed_msg_cnt++;
+
+		wr_idx = tx_tre_q->unmap_msg_cnt % GSI_MAX_NUM_TRE_MSGS;
+		if (tx_tre_q->len[wr_idx % GSI_MAX_NUM_TRE_MSGS] > GSI_MAX_IMMEDIATE_DMA_LEN) {
+			gsi_se_common_iommu_unmap_buf(wrapper_dev,
+				&tx_tre_q->dma_buf[wr_idx % GSI_MAX_NUM_TRE_MSGS],
+				tx_tre_q->len[wr_idx % GSI_MAX_NUM_TRE_MSGS],
+				DMA_TO_DEVICE);
+		}
+		GSI_SE_DBG(gsi->ipc, false, gsi->dev,
+			   "%s:unmap_msg_cnt %d freed_cnt:%d wr_idx:%d len:%d\n",
+			   __func__, tx_tre_q->unmap_msg_cnt, tx_tre_q->freed_msg_cnt,
+			   wr_idx, tx_tre_q->len[wr_idx % GSI_MAX_NUM_TRE_MSGS]);
+	}
+}
+EXPORT_SYMBOL_GPL(gsi_common_tre_process);
+
+/**
+ * gsi_common_tx_tre_optimization() - Process received TRE's from GSI HW
+ * @gsi: Base address of the gsi common structure.
+ * @num_xfers: number of messages count.
+ * @num_msg_per_irq: num of messages per irq.
+ * @xfer_timeout: xfer timeout value.
+ * @wrapper_dev: Pointer to the corresponding QUPv3 wrapper core.
+ *
+ * This function is used to optimize dma tre's, it keeps always HW busy.
+ *
+ * Return: Returning timeout value
+ */
+int gsi_common_tx_tre_optimization(struct gsi_common *gsi, u32 num_xfers, u32 num_msg_per_irq,
+				   u32 xfer_timeout, struct device *wrapper_dev)
+{
+	int timeout = 1, i;
+	int max_irq_cnt;
+
+	max_irq_cnt = num_xfers / num_msg_per_irq;
+	if (num_xfers % num_msg_per_irq)
+		max_irq_cnt++;
+
+	for (i = 0; i < max_irq_cnt; i++) {
+		if (max_irq_cnt != atomic_read(&gsi->tx.tre_queue.irq_cnt)) {
+			GSI_SE_DBG(gsi->ipc, false, gsi->dev,
+				   "%s: calling wait for_completion ix:%d irq_cnt:%d\n",
+				    __func__, i, atomic_read(&gsi->tx.tre_queue.irq_cnt));
+			timeout = wait_for_completion_timeout(gsi->xfer,
+							      xfer_timeout);
+			reinit_completion(gsi->xfer);
+			if (!timeout) {
+				GSI_SE_DBG(gsi->ipc, false, gsi->dev,
+					   "%s: msg xfer timeout\n", __func__);
+				return timeout;
+			}
+		}
+		GSI_SE_DBG(gsi->ipc, false, gsi->dev,
+			   "%s: maxirq_cnt:%d i:%d\n", __func__, max_irq_cnt, i);
+		gsi_common_tre_process(gsi, num_xfers, num_msg_per_irq, wrapper_dev);
+		if (num_xfers > gsi->tx.tre_queue.msg_cnt)
+			return timeout;
+	}
+
+	/* process received tre's */
+	if (timeout)
+		gsi_common_tre_process(gsi, num_xfers, num_msg_per_irq, wrapper_dev);
+
+	GSI_SE_DBG(gsi->ipc, false, gsi->dev,
+		   "%s:  timeout :%d\n", __func__, timeout);
+
+	return timeout;
+}
+EXPORT_SYMBOL_GPL(gsi_common_tx_tre_optimization);
+
+/**
+ * gsi_common_ev_cb() - gsi common event call back
  * @ch: Base address of dma channel
  * @cb_str: Base address of call back string
  * @ptr: Base address of gsi common structure
