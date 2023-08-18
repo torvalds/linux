@@ -547,7 +547,7 @@ static const struct file_operations otp_fops = {
 };
 
 static const struct of_device_id aspeed_otp_of_matches[] = {
-	{ .compatible = "aspeed,ast2600-otp" },
+	{ .compatible = "aspeed,ast2600-sbc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, aspeed_otp_of_matches);
@@ -634,6 +634,6 @@ static struct platform_driver aspeed_otp_driver = {
 
 module_platform_driver(aspeed_otp_driver);
 
-MODULE_AUTHOR("Johnny Huang <johnny_huang@aspeedtech.com>");
+MODULE_AUTHOR("Neal Liu <neal_liu@aspeedtech.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ASPEED OTP Driver");
