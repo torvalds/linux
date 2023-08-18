@@ -976,7 +976,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 	case IP_RECVERR:
 		inet_assign_bit(RECVERR, sk, val);
 		if (!val)
-			skb_queue_purge(&sk->sk_error_queue);
+			skb_errqueue_purge(&sk->sk_error_queue);
 		return 0;
 	case IP_RECVERR_RFC4884:
 		if (val < 0 || val > 1)

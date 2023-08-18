@@ -3745,6 +3745,27 @@ unsigned int skb_rbtree_purge(struct rb_root *root)
 	return sum;
 }
 
+void skb_errqueue_purge(struct sk_buff_head *list)
+{
+	struct sk_buff *skb, *next;
+	struct sk_buff_head kill;
+	unsigned long flags;
+
+	__skb_queue_head_init(&kill);
+
+	spin_lock_irqsave(&list->lock, flags);
+	skb_queue_walk_safe(list, skb, next) {
+		if (SKB_EXT_ERR(skb)->ee.ee_origin == SO_EE_ORIGIN_ZEROCOPY ||
+		    SKB_EXT_ERR(skb)->ee.ee_origin == SO_EE_ORIGIN_TIMESTAMPING)
+			continue;
+		__skb_unlink(skb, list);
+		__skb_queue_tail(&kill, skb);
+	}
+	spin_unlock_irqrestore(&list->lock, flags);
+	__skb_queue_purge(&kill);
+}
+EXPORT_SYMBOL(skb_errqueue_purge);
+
 /**
  *	skb_queue_head - queue a buffer at the list head
  *	@list: list to use

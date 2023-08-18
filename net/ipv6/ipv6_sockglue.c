@@ -923,7 +923,7 @@ done:
 			goto e_inval;
 		np->recverr = valbool;
 		if (!val)
-			skb_queue_purge(&sk->sk_error_queue);
+			skb_errqueue_purge(&sk->sk_error_queue);
 		retv = 0;
 		break;
 	case IPV6_FLOWINFO_SEND:
