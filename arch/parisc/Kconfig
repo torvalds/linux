@@ -49,6 +49,9 @@ config PARISC
 	select TTY # Needed for pdc_cons.c
 	select HAS_IOPORT if PCI || EISA
 	select HAVE_DEBUG_STACKOVERFLOW
+	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
+	select HAVE_ARCH_MMAP_RND_BITS
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_HASH
 	select HAVE_ARCH_JUMP_LABEL
@@ -123,6 +126,20 @@ config TIME_LOW_RES
 	bool
 	depends on SMP
 	default y
+
+config ARCH_MMAP_RND_BITS_MIN
+	default 18 if 64BIT
+	default 8
+
+config ARCH_MMAP_RND_COMPAT_BITS_MIN
+	default 8
+
+config ARCH_MMAP_RND_BITS_MAX
+	default 24 if 64BIT
+	default 17
+
+config ARCH_MMAP_RND_COMPAT_BITS_MAX
+	default 17
 
 # unless you want to implement ACPI on PA-RISC ... ;-)
 config PM
