@@ -1211,7 +1211,7 @@ static int odm_combine_segments_show(struct seq_file *m, void *unused)
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 	struct dc_link *link = aconnector->dc_link;
 	struct pipe_ctx *pipe_ctx = NULL;
-	int i, segments = 0;
+	int i, segments = -EOPNOTSUPP;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
