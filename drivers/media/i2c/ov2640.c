@@ -1205,17 +1205,14 @@ static int ov2640_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	if (client->dev.of_node) {
-		priv->clk = devm_clk_get(&client->dev, "xvclk");
+		priv->clk = devm_clk_get_enabled(&client->dev, "xvclk");
 		if (IS_ERR(priv->clk))
 			return PTR_ERR(priv->clk);
-		ret = clk_prepare_enable(priv->clk);
-		if (ret)
-			return ret;
 	}
 
 	ret = ov2640_probe_dt(client, priv);
 	if (ret)
-		goto err_clk;
+		return ret;
 
 	priv->win = ov2640_select_win(SVGA_WIDTH, SVGA_HEIGHT);
 	priv->cfmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
@@ -1264,8 +1261,6 @@ err_videoprobe:
 err_hdl:
 	v4l2_ctrl_handler_free(&priv->hdl);
 	mutex_destroy(&priv->lock);
-err_clk:
-	clk_disable_unprepare(priv->clk);
 	return ret;
 }
 
@@ -1278,7 +1273,6 @@ static void ov2640_remove(struct i2c_client *client)
 	mutex_destroy(&priv->lock);
 	media_entity_cleanup(&priv->subdev.entity);
 	v4l2_device_unregister_subdev(&priv->subdev);
-	clk_disable_unprepare(priv->clk);
 }
 
 static const struct i2c_device_id ov2640_id[] = {
