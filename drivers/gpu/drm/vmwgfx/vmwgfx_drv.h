@@ -1600,6 +1600,14 @@ vmw_bo_reference(struct vmw_buffer_object *buf)
 	return buf;
 }
 
+static inline void vmw_user_bo_unref(struct vmw_buffer_object *vbo)
+{
+	if (vbo) {
+		ttm_bo_put(&vbo->base);
+		drm_gem_object_put(&vbo->base.base);
+	}
+}
+
 static inline void vmw_fifo_resource_inc(struct vmw_private *dev_priv)
 {
 	atomic_inc(&dev_priv->num_fifo_resources);
