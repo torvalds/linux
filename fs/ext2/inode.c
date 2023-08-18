@@ -385,12 +385,16 @@ ext2_blks_to_allocate(Indirect * branch, int k, unsigned long blks,
 }
 
 /**
- *	ext2_alloc_blocks: multiple allocate blocks needed for a branch
- *	@indirect_blks: the number of blocks need to allocate for indirect
- *			blocks
- *	@blks: the number of blocks need to allocate for direct blocks
- *	@new_blocks: on return it will store the new block numbers for
- *	the indirect blocks(if needed) and the first direct block,
+ * ext2_alloc_blocks: Allocate multiple blocks needed for a branch.
+ * @inode: Owner.
+ * @goal: Preferred place for allocation.
+ * @indirect_blks: The number of blocks needed to allocate for indirect blocks.
+ * @blks: The number of blocks need to allocate for direct blocks.
+ * @new_blocks: On return it will store the new block numbers for
+ *	the indirect blocks(if needed) and the first direct block.
+ * @err: Error pointer.
+ *
+ * Return: Number of blocks allocated.
  */
 static int ext2_alloc_blocks(struct inode *inode,
 			ext2_fsblk_t goal, int indirect_blks, int blks,
