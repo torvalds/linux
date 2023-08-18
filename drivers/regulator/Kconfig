@@ -1072,7 +1072,11 @@ config REGULATOR_RAA215300
 	depends on COMMON_CLK
 	depends on I2C
 	help
-	  Support for the Renesas RAA215300 PMIC.
+	  If you say yes to this option, support will be included for the
+	  Renesas RAA215300 PMIC.
+
+	  Say M here if you want to include support for Renesas RAA215300 PMIC
+	  as a module. The module will be named "raa215300".
 
 config REGULATOR_RASPBERRYPI_TOUCHSCREEN_ATTINY
 	tristate "Raspberry Pi 7-inch touchscreen panel ATTINY regulator"
