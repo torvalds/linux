@@ -2306,12 +2306,12 @@ static void device_platform_notify(struct device *dev)
 
 static void device_platform_notify_remove(struct device *dev)
 {
-	acpi_device_notify_remove(dev);
+	if (platform_notify_remove)
+		platform_notify_remove(dev);
 
 	software_node_notify_remove(dev);
 
-	if (platform_notify_remove)
-		platform_notify_remove(dev);
+	acpi_device_notify_remove(dev);
 }
 
 /**
