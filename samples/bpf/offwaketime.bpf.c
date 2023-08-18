@@ -118,7 +118,7 @@ int oncpu(struct trace_event_raw_sched_switch *ctx)
 	/* record previous thread sleep time */
 	u32 pid = ctx->prev_pid;
 #else
-SEC("kprobe/finish_task_switch")
+SEC("kprobe.multi/finish_task_switch*")
 int oncpu(struct pt_regs *ctx)
 {
 	struct task_struct *p = (void *) PT_REGS_PARM1(ctx);
