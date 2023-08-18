@@ -2086,7 +2086,7 @@ static int smu_v13_0_6_get_thermal_temperature_range(struct smu_context *smu,
 						     struct smu_temperature_range *range)
 {
 	struct amdgpu_device *adev = smu->adev;
-	u32 aid_temp, xcd_temp;
+	u32 aid_temp, xcd_temp, mem_temp;
 	uint32_t smu_version;
 	u32 ccd_temp = 0;
 	int ret;
@@ -2119,13 +2119,14 @@ static int smu_v13_0_6_get_thermal_temperature_range(struct smu_context *smu,
 	if (ret)
 		goto failed;
 
-	range->hotspot_crit_max = max3(aid_temp, xcd_temp, ccd_temp);
+	range->hotspot_crit_max = max3(aid_temp, xcd_temp, ccd_temp) *
+				       SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
-					      PPSMC_HBM_THM_TYPE, &range->mem_crit_max);
+					      PPSMC_HBM_THM_TYPE, &mem_temp);
 	if (ret)
 		goto failed;
 
-	return 0;
+	range->mem_crit_max = mem_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 failed:
 	return ret;
 }
