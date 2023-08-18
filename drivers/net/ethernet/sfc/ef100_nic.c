@@ -1194,7 +1194,7 @@ int ef100_probe_netdev_pf(struct efx_nic *efx)
 		net_dev->features |= NETIF_F_HW_TC;
 		efx->fixed_features |= NETIF_F_HW_TC;
 	}
-	return rc;
+	return 0;
 }
 
 int ef100_probe_vf(struct efx_nic *efx)

@@ -586,7 +586,6 @@ extern char			ignore_fpu_irq;
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT 1
 #define ARCH_HAS_PREFETCHW
-#define ARCH_HAS_SPINLOCK_PREFETCH
 
 #ifdef CONFIG_X86_32
 # define BASE_PREFETCH		""
@@ -618,11 +617,6 @@ static __always_inline void prefetchw(const void *x)
 	alternative_input(BASE_PREFETCH, "prefetchw %P1",
 			  X86_FEATURE_3DNOWPREFETCH,
 			  "m" (*(const char *)x));
-}
-
-static inline void spin_lock_prefetch(const void *x)
-{
-	prefetchw(x);
 }
 
 #define TOP_OF_INIT_STACK ((unsigned long)&init_stack + sizeof(init_stack) - \

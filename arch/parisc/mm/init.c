@@ -523,10 +523,6 @@ void mark_rodata_ro(void)
 void *parisc_vmalloc_start __ro_after_init;
 EXPORT_SYMBOL(parisc_vmalloc_start);
 
-#ifdef CONFIG_PA11
-unsigned long pcxl_dma_start __ro_after_init;
-#endif
-
 void __init mem_init(void)
 {
 	/* Do sanity checks on IPC (compat) structures */

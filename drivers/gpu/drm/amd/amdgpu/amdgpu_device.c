@@ -1459,6 +1459,32 @@ bool amdgpu_device_need_post(struct amdgpu_device *adev)
 }
 
 /*
+ * On APUs with >= 64GB white flickering has been observed w/ SG enabled.
+ * Disable S/G on such systems until we have a proper fix.
+ * https://gitlab.freedesktop.org/drm/amd/-/issues/2354
+ * https://gitlab.freedesktop.org/drm/amd/-/issues/2735
+ */
+bool amdgpu_sg_display_supported(struct amdgpu_device *adev)
+{
+	switch (amdgpu_sg_display) {
+	case -1:
+		break;
+	case 0:
+		return false;
+	case 1:
+		return true;
+	default:
+		return false;
+	}
+	if ((totalram_pages() << (PAGE_SHIFT - 10)) +
+	    (adev->gmc.real_vram_size / 1024) >= 64000000) {
+		DRM_WARN("Disabling S/G due to >=64GB RAM\n");
+		return false;
+	}
+	return true;
+}
+
+/*
  * Intel hosts such as Raptor Lake and Sapphire Rapids don't support dynamic
  * speed switching. Until we have confirmation from Intel that a specific host
  * supports it, it's safer that we keep it disabled for all.
@@ -3696,10 +3722,11 @@ static void amdgpu_device_set_mcbp(struct amdgpu_device *adev)
 {
 	if (amdgpu_mcbp == 1)
 		adev->gfx.mcbp = true;
-
-	if ((adev->ip_versions[GC_HWIP][0] >= IP_VERSION(9, 0, 0)) &&
-	    (adev->ip_versions[GC_HWIP][0] < IP_VERSION(10, 0, 0)) &&
-	    adev->gfx.num_gfx_rings)
+	else if (amdgpu_mcbp == 0)
+		adev->gfx.mcbp = false;
+	else if ((adev->ip_versions[GC_HWIP][0] >= IP_VERSION(9, 0, 0)) &&
+		 (adev->ip_versions[GC_HWIP][0] < IP_VERSION(10, 0, 0)) &&
+		 adev->gfx.num_gfx_rings)
 		adev->gfx.mcbp = true;
 
 	if (amdgpu_sriov_vf(adev))
@@ -4367,6 +4394,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 		drm_fb_helper_set_suspend_unlocked(adev_to_drm(adev)->fb_helper, true);
 
 	cancel_delayed_work_sync(&adev->delayed_init_work);
+	flush_delayed_work(&adev->gfx.gfx_off_delay_work);
 
 	amdgpu_ras_suspend(adev);
 

@@ -662,10 +662,24 @@ static const struct intel_display_device_info xe_lpdp_display = {
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D),
 };
 
+/*
+ * Separate detection for no display cases to keep the display id array simple.
+ *
+ * IVB Q requires subvendor and subdevice matching to differentiate from IVB D
+ * GT2 server.
+ */
+static bool has_no_display(struct pci_dev *pdev)
+{
+	static const struct pci_device_id ids[] = {
+		INTEL_IVB_Q_IDS(0),
+		{}
+	};
+
+	return pci_match_id(ids, pdev);
+}
+
 #undef INTEL_VGA_DEVICE
-#undef INTEL_QUANTA_VGA_DEVICE
 #define INTEL_VGA_DEVICE(id, info) { id, info }
-#define INTEL_QUANTA_VGA_DEVICE(info) { 0x16a, info }
 
 static const struct {
 	u32 devid;
@@ -690,7 +704,6 @@ static const struct {
 	INTEL_IRONLAKE_M_IDS(&ilk_m_display),
 	INTEL_SNB_D_IDS(&snb_display),
 	INTEL_SNB_M_IDS(&snb_display),
-	INTEL_IVB_Q_IDS(NULL),		/* must be first IVB in list */
 	INTEL_IVB_M_IDS(&ivb_display),
 	INTEL_IVB_D_IDS(&ivb_display),
 	INTEL_HSW_IDS(&hsw_display),
@@ -774,6 +787,11 @@ intel_display_device_probe(struct drm_i915_private *i915, bool has_gmdid,
 
 	if (has_gmdid)
 		return probe_gmdid_display(i915, gmdid_ver, gmdid_rel, gmdid_step);
+
+	if (has_no_display(pdev)) {
+		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
+		return &no_display;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(intel_display_ids); i++) {
 		if (intel_display_ids[i].devid == pdev->device)

@@ -2090,10 +2090,10 @@ int efx_init_tc(struct efx_nic *efx)
 	rc = efx_mae_get_tables(efx);
 	if (rc)
 		return rc;
-	efx->tc->up = true;
 	rc = flow_indr_dev_register(efx_tc_indr_setup_cb, efx);
 	if (rc)
 		goto out_free;
+	efx->tc->up = true;
 	return 0;
 out_free:
 	efx_mae_free_tables(efx);
