@@ -612,7 +612,7 @@ struct rga_req {
 	/* porter duff alpha mode sel */
 	uint8_t PD_mode;
 
-	/* global alpha value */
+	/* legacy: global alpha value */
 	uint8_t alpha_global_value;
 
 	/* rop2/3/4 code scan from rop code table*/
@@ -674,7 +674,11 @@ struct rga_req {
 
 	struct rga_pre_intr_info pre_intr_info;
 
-	uint8_t reservr[59];
+	/* global alpha */
+	uint8_t fg_global_alpha;
+	uint8_t bg_global_alpha;
+
+	uint8_t reservr[57];
 };
 
 struct rga_alpha_config {
