@@ -1544,12 +1544,10 @@ static struct event_port_ops fewc_port_ops = {
 static bool beac_event_config(struct llcc_perfmon_private *llcc_priv, unsigned int event_type,
 		unsigned int *counter_num, bool enable)
 {
-	uint32_t val = 0, mask_val;
-	uint32_t valcfg = 0, mask_valcfg = 0;
-	unsigned int mc_cnt, offset;
-	struct llcc_perfmon_counter_map *counter_map;
+	uint32_t val = 0, mask_val, offset;
 	u8 filter_en, filter_sel = FILTER_0;
-	uint32_t mask_val_cfg, val_cfg0 = 0, val_cfg1 = 0;
+	unsigned int mc_cnt;
+	struct llcc_perfmon_counter_map *counter_map;
 
 	filter_en = llcc_priv->port_filter_sel[filter_sel] & (1 << EVENT_PORT_BEAC);
 	if (llcc_priv->fltr_logic ==  multiple_filtr) {
@@ -1558,23 +1556,6 @@ static bool beac_event_config(struct llcc_perfmon_private *llcc_priv, unsigned i
 	}
 
 	mask_val = EVENT_SEL_MASK;
-	if (filter_en) {
-		mask_val |= FILTER_SEL_MASK | FILTER_EN_MASK;
-		if (llcc_priv->version >= REV_2)
-			mask_valcfg = BEAC_WR_BEAT_FILTER_SEL_MASK | BEAC_WR_BEAT_FILTER_EN_MASK |
-				BEAC_RD_BEAT_FILTER_SEL_MASK | BEAC_RD_BEAT_FILTER_EN_MASK;
-	}
-
-	if (((event_type >= BEAC_MC_RD_BEAT_FIL0 &&
-		event_type <= BEAC_MC_WR_BEAT_FIL0) && filter_sel == FILTER_1) ||
-		((event_type >= BEAC_MC_RD_BEAT_FIL1 &&
-		event_type <= BEAC_MC_WR_BEAT_FIL1) && filter_sel == FILTER_0)) {
-		pr_err("Invalid configuration for BEAC, removing\n");
-		return false;
-	}
-
-	mask_val_cfg = PROF_CFG_BEAT_SCALING_MASK | WR_BEAT_FILTER_SEL_MASK |
-		WR_BEAT_FILTER_EN_MASK | RD_BEAT_FILTER_SEL_MASK | RD_BEAT_FILTER_EN_MASK;
 
 	if (enable) {
 		val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK;
@@ -1585,48 +1566,25 @@ static bool beac_event_config(struct llcc_perfmon_private *llcc_priv, unsigned i
 			 * need to be configured for that specific event using PROF_CFG, PROF_CFG0,
 			 * PROF_CFG1.
 			 */
-			if (event_type >= BEAC_MC_RD_BEAT_FIL0 &&
-						event_type <= BEAC_MC_WR_BEAT_FIL0) {
-				val_cfg0 = (BEAT_SCALING << BEAT_SCALING_SHIFT) |
-					(FILTER_0 << WR_BEAT_FILTER_SEL_0_SHIFT) |
-					(FILTER_0 << RD_BEAT_FILTER_SEL_0_SHIFT) |
-					WR_BEAT_FILTER_EN_0 | RD_BEAT_FILTER_EN_0;
-			} else if (event_type >= BEAC_MC_RD_BEAT_FIL1 &&
-						event_type <= BEAC_MC_WR_BEAT_FIL1) {
-				val_cfg1 = (BEAT_SCALING << BEAT_SCALING_SHIFT) |
-					(FILTER_1 << WR_BEAT_FILTER_SEL_0_SHIFT) |
-					(FILTER_1 << RD_BEAT_FILTER_SEL_0_SHIFT) |
-					WR_BEAT_FILTER_EN_0 | RD_BEAT_FILTER_EN_0;
+			if (((event_type >= BEAC_MC_RD_BEAT_FIL0 &&
+				event_type <= BEAC_MC_WR_BEAT_FIL0) && filter_sel == FILTER_1) ||
+				((event_type >= BEAC_MC_RD_BEAT_FIL1 &&
+				  event_type <= BEAC_MC_WR_BEAT_FIL1) && filter_sel == FILTER_0)) {
+				pr_err("Invalid configuration for BEAC, removing\n");
+				return false;
 			} else {
 				val |= (filter_sel << FILTER_SEL_SHIFT) | FILTER_EN;
 			}
-
-			if (llcc_priv->version >= REV_2)
-				valcfg = (FILTER_0 << BEAC_WR_BEAT_FILTER_SEL_SHIFT) |
-					BEAC_WR_BEAT_FILTER_EN |
-					(FILTER_0 << BEAC_RD_BEAT_FILTER_SEL_SHIFT) |
-					BEAC_RD_BEAT_FILTER_EN;
 		}
 	}
+
+	if (filter_en)
+		mask_val |= FILTER_SEL_MASK | FILTER_EN_MASK;
 
 	for (mc_cnt = 0; mc_cnt < llcc_priv->num_mc; mc_cnt++) {
 		offset = BEAC0_PROF_EVENT_n_CFG(llcc_priv->drv_ver, *counter_num + mc_cnt) +
 			mc_cnt * BEAC_INST_OFF;
 		llcc_bcast_modify(llcc_priv, offset, val, mask_val);
-
-		if (filter_sel == FILTER_0) {
-			offset = BEAC0_PROF_CFG0(llcc_priv->drv_ver) + mc_cnt *BEAC_INST_OFF;
-			llcc_bcast_modify(llcc_priv, offset, val_cfg0, mask_val_cfg);
-		}
-
-		if (filter_sel == FILTER_1) {
-			offset = BEAC0_PROF_CFG1(llcc_priv->drv_ver) + mc_cnt *BEAC_INST_OFF;
-			llcc_bcast_modify(llcc_priv, offset, val_cfg1, mask_val_cfg);
-		}
-
-		offset = BEAC0_PROF_CFG(llcc_priv->drv_ver) + mc_cnt *BEAC_INST_OFF;
-		llcc_bcast_modify(llcc_priv, offset, valcfg, mask_valcfg);
-
 		perfmon_cntr_config(llcc_priv, EVENT_PORT_BEAC, *counter_num, enable);
 		/* DBX uses 2 counters for BEAC 0 & 1 */
 		if (mc_cnt == 1)
@@ -1650,29 +1608,49 @@ static bool beac_event_config(struct llcc_perfmon_private *llcc_priv, unsigned i
 
 static void beac_event_enable(struct llcc_perfmon_private *llcc_priv, bool enable)
 {
-	uint32_t val = 0, mask_val;
-	unsigned int mc_cnt, offset;
+	uint32_t val = 0, val_cfg0 = 0, val_cfg1 = 0, mask_val = 0, mask_val0, mask_val1, offset;
+	bool prof_cfg_filter = false, prof_cfg1_filter1 = false;
+	unsigned int mc_cnt;
 
-	if (enable) {
-		/* mc_proftag can propagate only one filter tag. Fixing the same here */
-		if (llcc_priv->fltr_logic == no_fltr)
-			val = MCPROF_BEAC_FLTR_0 << BEAC_MC_PROFTAG_SHIFT;
-		else if (llcc_priv->fltr_logic == fltr_0_only)
-			val = MCPROF_FEAC_FLTR_0 << BEAC_MC_PROFTAG_SHIFT;
-		else
-			val = llcc_priv->mc_proftag << BEAC_MC_PROFTAG_SHIFT;
+	prof_cfg_filter = llcc_priv->port_filter_sel[FILTER_0] & (1 << EVENT_PORT_BEAC);
+	prof_cfg1_filter1 = llcc_priv->port_filter_sel[FILTER_1] & (1 << EVENT_PORT_BEAC);
 
-		val = (BYTE_SCALING << BYTE_SCALING_SHIFT) | (BEAT_SCALING << BEAT_SCALING_SHIFT) |
-			PROF_EN;
+	val = val_cfg0 = val_cfg1 = (BEAT_SCALING << BEAT_SCALING_SHIFT);
+	mask_val = PROF_CFG_BEAT_SCALING_MASK;
+
+	if (prof_cfg_filter || prof_cfg1_filter1) {
+		mask_val |=  BEAC_WR_BEAT_FILTER_SEL_MASK | BEAC_WR_BEAT_FILTER_EN_MASK |
+			BEAC_RD_BEAT_FILTER_SEL_MASK | BEAC_RD_BEAT_FILTER_EN_MASK;
+
+		val |= BEAC_WR_BEAT_FILTER_EN | BEAC_RD_BEAT_FILTER_EN;
+		if (prof_cfg1_filter1) {
+			val_cfg1 |= (FILTER_1 << BEAC_WR_BEAT_FILTER_SEL_SHIFT) |
+				(FILTER_1 << BEAC_RD_BEAT_FILTER_SEL_SHIFT) |
+				BEAC_RD_BEAT_FILTER_EN | BEAC_WR_BEAT_FILTER_EN;
+		}
+
+		if (prof_cfg_filter) {
+			val_cfg0 |= (FILTER_0 << BEAC_WR_BEAT_FILTER_SEL_SHIFT) |
+				(FILTER_0 << BEAC_RD_BEAT_FILTER_SEL_SHIFT) |
+				BEAC_RD_BEAT_FILTER_EN | BEAC_WR_BEAT_FILTER_EN;
+		}
 	}
 
-	mask_val = PROF_CFG_BEAT_SCALING_MASK | PROF_CFG_BYTE_SCALING_MASK | BEAC_MC_PROFTAG_MASK |
-		PROF_CFG_EN_MASK;
+	val |= (BYTE_SCALING << BYTE_SCALING_SHIFT) | PROF_EN;
+	mask_val0 = mask_val1 = mask_val;
+	mask_val |= PROF_CFG_BYTE_SCALING_MASK | PROF_CFG_EN_MASK | BEAC_MC_PROFTAG_MASK;
+	if (!enable)
+		val = val_cfg0 = val_cfg1 = 0;
 
 	for (mc_cnt = 0; mc_cnt < llcc_priv->num_mc; mc_cnt++) {
+		offset = BEAC0_PROF_CFG0(llcc_priv->drv_ver) + mc_cnt * BEAC_INST_OFF;
+		llcc_bcast_modify(llcc_priv, offset, val_cfg0, mask_val0);
+		offset = BEAC0_PROF_CFG1(llcc_priv->drv_ver) + mc_cnt * BEAC_INST_OFF;
+		llcc_bcast_modify(llcc_priv, offset, val_cfg1, mask_val1);
 		offset = BEAC0_PROF_CFG(llcc_priv->drv_ver) + mc_cnt * BEAC_INST_OFF;
 		llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 	}
+
 }
 
 static bool beac_event_filter_config(struct llcc_perfmon_private *llcc_priv,
