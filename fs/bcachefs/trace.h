@@ -403,29 +403,43 @@ TRACE_EVENT(btree_path_relock_fail,
 		__field(u8,			level		)
 		TRACE_BPOS_entries(pos)
 		__array(char,			node, 24	)
+		__field(u8,			self_read_count	)
+		__field(u8,			self_intent_count)
+		__field(u8,			read_count	)
+		__field(u8,			intent_count	)
 		__field(u32,			iter_lock_seq	)
 		__field(u32,			node_lock_seq	)
 	),
 
 	TP_fast_assign(
 		struct btree *b = btree_path_node(path, level);
+		struct six_lock_count c;
 
 		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
 		__entry->caller_ip		= caller_ip;
 		__entry->btree_id		= path->btree_id;
 		__entry->level			= path->level;
 		TRACE_BPOS_assign(pos, path->pos);
-		if (IS_ERR(b))
+
+		c = bch2_btree_node_lock_counts(trans, NULL, &path->l[level].b->c, level),
+		__entry->self_read_count	= c.n[SIX_LOCK_read];
+		__entry->self_intent_count	= c.n[SIX_LOCK_intent];
+
+		if (IS_ERR(b)) {
 			strscpy(__entry->node, bch2_err_str(PTR_ERR(b)), sizeof(__entry->node));
-		else
+		} else {
+			c = six_lock_counts(&path->l[level].b->c.lock);
+			__entry->read_count	= c.n[SIX_LOCK_read];
+			__entry->intent_count	= c.n[SIX_LOCK_intent];
 			scnprintf(__entry->node, sizeof(__entry->node), "%px", b);
+		}
 		__entry->iter_lock_seq		= path->l[level].lock_seq;
 		__entry->node_lock_seq		= is_btree_node(path, level)
 			? six_lock_seq(&path->l[level].b->c.lock)
 			: 0;
 	),
 
-	TP_printk("%s %pS btree %s pos %llu:%llu:%u level %u node %s iter seq %u lock seq %u",
+	TP_printk("%s %pS btree %s pos %llu:%llu:%u level %u node %s held %u:%u lock count %u:%u iter seq %u lock seq %u",
 		  __entry->trans_fn,
 		  (void *) __entry->caller_ip,
 		  bch2_btree_ids[__entry->btree_id],
@@ -434,6 +448,10 @@ TRACE_EVENT(btree_path_relock_fail,
 		  __entry->pos_snapshot,
 		  __entry->level,
 		  __entry->node,
+		  __entry->self_read_count,
+		  __entry->self_intent_count,
+		  __entry->read_count,
+		  __entry->intent_count,
 		  __entry->iter_lock_seq,
 		  __entry->node_lock_seq)
 );
@@ -475,7 +493,7 @@ TRACE_EVENT(btree_path_upgrade_fail,
 		__entry->self_intent_count	= c.n[SIX_LOCK_intent];
 		c = six_lock_counts(&path->l[level].b->c.lock);
 		__entry->read_count		= c.n[SIX_LOCK_read];
-		__entry->intent_count		= c.n[SIX_LOCK_read];
+		__entry->intent_count		= c.n[SIX_LOCK_intent];
 		__entry->iter_lock_seq		= path->l[level].lock_seq;
 		__entry->node_lock_seq		= is_btree_node(path, level)
 			? six_lock_seq(&path->l[level].b->c.lock)
