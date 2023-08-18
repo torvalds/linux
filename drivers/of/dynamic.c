@@ -198,6 +198,9 @@ static void __of_attach_node(struct device_node *np)
 {
 	const __be32 *phandle;
 	int sz;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&devtree_lock, flags);
 
 	if (!of_node_check_flag(np, OF_OVERLAY)) {
 		np->name = __of_get_property(np, "name", NULL);
@@ -220,6 +223,10 @@ static void __of_attach_node(struct device_node *np)
 	np->parent->child = np;
 	of_node_clear_flag(np, OF_DETACHED);
 	np->fwnode.flags |= FWNODE_FLAG_NOT_DEVICE;
+
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+	__of_attach_node_sysfs(np);
 }
 
 /**
@@ -229,17 +236,12 @@ static void __of_attach_node(struct device_node *np)
 int of_attach_node(struct device_node *np)
 {
 	struct of_reconfig_data rd;
-	unsigned long flags;
 
 	memset(&rd, 0, sizeof(rd));
 	rd.dn = np;
 
 	mutex_lock(&of_mutex);
-	raw_spin_lock_irqsave(&devtree_lock, flags);
 	__of_attach_node(np);
-	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-
-	__of_attach_node_sysfs(np);
 	mutex_unlock(&of_mutex);
 
 	of_reconfig_notify(OF_RECONFIG_ATTACH_NODE, &rd);
@@ -250,13 +252,15 @@ int of_attach_node(struct device_node *np)
 void __of_detach_node(struct device_node *np)
 {
 	struct device_node *parent;
+	unsigned long flags;
 
-	if (WARN_ON(of_node_check_flag(np, OF_DETACHED)))
-		return;
+	raw_spin_lock_irqsave(&devtree_lock, flags);
 
 	parent = np->parent;
-	if (WARN_ON(!parent))
+	if (WARN_ON(of_node_check_flag(np, OF_DETACHED) || !parent)) {
+		raw_spin_unlock_irqrestore(&devtree_lock, flags);
 		return;
+	}
 
 	if (parent->child == np)
 		parent->child = np->sibling;
@@ -273,6 +277,10 @@ void __of_detach_node(struct device_node *np)
 
 	/* race with of_find_node_by_phandle() prevented by devtree_lock */
 	__of_phandle_cache_inv_entry(np->phandle);
+
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+	__of_detach_node_sysfs(np);
 }
 
 /**
@@ -282,17 +290,12 @@ void __of_detach_node(struct device_node *np)
 int of_detach_node(struct device_node *np)
 {
 	struct of_reconfig_data rd;
-	unsigned long flags;
 
 	memset(&rd, 0, sizeof(rd));
 	rd.dn = np;
 
 	mutex_lock(&of_mutex);
-	raw_spin_lock_irqsave(&devtree_lock, flags);
 	__of_detach_node(np);
-	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-
-	__of_detach_node_sysfs(np);
 	mutex_unlock(&of_mutex);
 
 	of_reconfig_notify(OF_RECONFIG_DETACH_NODE, &rd);
@@ -564,12 +567,10 @@ static int __of_changeset_entry_notify(struct of_changeset_entry *ce,
 
 static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 {
-	unsigned long flags;
 	int ret = 0;
 
 	of_changeset_action_debug("apply: ", ce->action, ce->np, ce->prop);
 
-	raw_spin_lock_irqsave(&devtree_lock, flags);
 	switch (ce->action) {
 	case OF_RECONFIG_ATTACH_NODE:
 		__of_attach_node(ce->np);
@@ -590,30 +591,10 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 	default:
 		ret = -EINVAL;
 	}
-	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
 	if (ret) {
 		of_changeset_action_err("apply failed: ", ce->action, ce->np, ce->prop);
 		return ret;
-	}
-
-	switch (ce->action) {
-	case OF_RECONFIG_ATTACH_NODE:
-		__of_attach_node_sysfs(ce->np);
-		break;
-	case OF_RECONFIG_DETACH_NODE:
-		__of_detach_node_sysfs(ce->np);
-		break;
-	case OF_RECONFIG_ADD_PROPERTY:
-		/* ignore duplicate names */
-		__of_add_property_sysfs(ce->np, ce->prop);
-		break;
-	case OF_RECONFIG_REMOVE_PROPERTY:
-		__of_remove_property_sysfs(ce->np, ce->prop);
-		break;
-	case OF_RECONFIG_UPDATE_PROPERTY:
-		__of_update_property_sysfs(ce->np, ce->prop, ce->old_prop);
-		break;
 	}
 
 	return 0;
