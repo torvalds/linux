@@ -328,3 +328,7 @@
   dma_need_sync
   page_pool_put_page_bulk
   build_skb_around
+
+#required by xm_ispv4_pcie.ko
+  pci_ioremap_bar
+  pci_disable_pcie_error_reporting
