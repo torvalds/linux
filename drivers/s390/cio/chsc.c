@@ -881,8 +881,8 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 	secm_area->request.code = 0x0016;
 
 	secm_area->key = PAGE_DEFAULT_KEY >> 4;
-	secm_area->cub_addr1 = (u64)(unsigned long)css->cub_addr1;
-	secm_area->cub_addr2 = (u64)(unsigned long)css->cub_addr2;
+	secm_area->cub_addr1 = virt_to_phys(css->cub_addr1);
+	secm_area->cub_addr2 = virt_to_phys(css->cub_addr2);
 
 	secm_area->operation_code = enable ? 0 : 1;
 
