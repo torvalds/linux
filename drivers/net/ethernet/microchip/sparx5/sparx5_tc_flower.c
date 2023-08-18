@@ -1274,7 +1274,7 @@ static int sparx5_tc_free_rule_resources(struct net_device *ndev,
 	int ret = 0;
 
 	vrule = vcap_get_rule(vctrl, rule_id);
-	if (!vrule || IS_ERR(vrule))
+	if (IS_ERR(vrule))
 		return -EINVAL;
 
 	sparx5_tc_free_psfp_resources(sparx5, vrule);
