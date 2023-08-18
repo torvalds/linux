@@ -555,7 +555,7 @@ static int rzv2m_csi_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	controller = devm_spi_alloc_master(dev, sizeof(*csi));
+	controller = devm_spi_alloc_host(dev, sizeof(*csi));
 	if (!controller)
 		return -ENOMEM;
 
