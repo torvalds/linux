@@ -6566,7 +6566,8 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	} else {
 		if (request_clock > VOP2_MAX_DCLK_RATE)
 			request_clock = request_clock >> 2;
-		clock = clk_round_rate(vp->dclk, request_clock * 1000) / 1000;
+		clock = rockchip_drm_dclk_round_rate(vop2->version, vp->dclk,
+						     request_clock * 1000) / 1000;
 	}
 
 	/*
@@ -6870,9 +6871,11 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
-	if (adj_mode->crtc_clock <= VOP2_MAX_DCLK_RATE)
-		adj_mode->crtc_clock = DIV_ROUND_UP(clk_round_rate(vp->dclk,
-						    adj_mode->crtc_clock * 1000), 1000);
+	if (adj_mode->crtc_clock <= VOP2_MAX_DCLK_RATE) {
+		adj_mode->crtc_clock = rockchip_drm_dclk_round_rate(vop2->version, vp->dclk,
+								    adj_mode->crtc_clock * 1000);
+		adj_mode->crtc_clock = DIV_ROUND_UP(adj_mode->crtc_clock, 1000);
+	}
 	return true;
 }
 
@@ -8104,7 +8107,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		if (ret < 0)
 			goto out;
 
-		clk_set_rate(vp->dclk, dclk->rate);
+		rockchip_drm_dclk_set_rate(vop2->version, vp->dclk, dclk->rate);
 		DRM_DEV_INFO(vop2->dev, "set %s to %ld, get %ld\n",
 			      __clk_get_name(vp->dclk), dclk->rate, clk_get_rate(vp->dclk));
 	} else {
@@ -8114,9 +8117,11 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		 * The vop2 dclk should be four times crtc_clock for CVBS sampling clock needs.
 		 */
 		if (vop2->version == VOP_VERSION_RK3528 && vcstate->output_if & VOP_OUTPUT_IF_BT656)
-			clk_set_rate(vp->dclk, 4 * adjusted_mode->crtc_clock * 1000);
+			rockchip_drm_dclk_set_rate(vop2->version, vp->dclk,
+						   4 * adjusted_mode->crtc_clock * 1000);
 		else
-			clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
+			rockchip_drm_dclk_set_rate(vop2->version, vp->dclk,
+						   adjusted_mode->crtc_clock * 1000);
 	}
 
 	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
