@@ -86,7 +86,7 @@ static int raa215300_i2c_probe(struct i2c_client *client)
 	val &= RAA215300_REG_BLOCK_EN_RTC_EN;
 	regmap_write(regmap, RAA215300_REG_BLOCK_EN, val);
 
-	/*Clear the latched registers */
+	/* Clear the latched registers */
 	regmap_read(regmap, RAA215300_FAULT_LATCHED_STATUS_1, &val);
 	regmap_write(regmap, RAA215300_FAULT_LATCHED_STATUS_1, val);
 	regmap_read(regmap, RAA215300_FAULT_LATCHED_STATUS_2, &val);
