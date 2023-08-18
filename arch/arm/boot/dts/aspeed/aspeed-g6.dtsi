@@ -578,6 +578,7 @@
 			sbc: secure-boot-controller@1e6f2000 {
 				compatible = "aspeed,ast2600-sbc";
 				reg = <0x1e6f2000 0x1000>;
+				aspeed,scu = <&syscon>;
 			};
 
 			acry: crypto@1e6fa000 {
