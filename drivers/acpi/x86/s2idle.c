@@ -299,6 +299,30 @@ free_acpi_buffer:
 	ACPI_FREE(out_obj);
 }
 
+/**
+ * acpi_get_lps0_constraint - Get the LPS0 constraint for a device.
+ * @adev: Device to get the constraint for.
+ *
+ * The LPS0 constraint is the shallowest (minimum) power state in which the
+ * device can be so as to allow the platform as a whole to achieve additional
+ * energy conservation by utilizing a system-wide low-power state.
+ *
+ * Returns:
+ *  - ACPI power state value of the constraint for @adev on success.
+ *  - Otherwise, ACPI_STATE_UNKNOWN.
+ */
+int acpi_get_lps0_constraint(struct acpi_device *adev)
+{
+	struct lpi_constraints *entry;
+
+	for_each_lpi_constraint(entry) {
+		if (adev->handle == entry->handle)
+			return entry->min_dstate;
+	}
+
+	return ACPI_STATE_UNKNOWN;
+}
+
 static void lpi_check_constraints(void)
 {
 	struct lpi_constraints *entry;
