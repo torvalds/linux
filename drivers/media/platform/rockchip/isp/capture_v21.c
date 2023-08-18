@@ -1206,6 +1206,9 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 	unsigned long lock_flags = 0;
 	int i = 0;
 
+	if (stream->id == RKISP_STREAM_VIR)
+		return 0;
+
 	if (!stream->next_buf && stream->streaming &&
 	    dev->dmarx_dev.trigger == T_MANUAL &&
 	    is_rdbk_stream(stream))
@@ -1218,6 +1221,7 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 	    (!interlaced ||
 	     (stream->u.sp.field_rec == RKISP_FIELD_ODD &&
 	      stream->u.sp.field == RKISP_FIELD_EVEN))) {
+		struct rkisp_stream *vir = &dev->cap_dev.stream[RKISP_STREAM_VIR];
 		struct vb2_buffer *vb2_buf = &stream->curr_buf->vb.vb2_buf;
 		u64 ns = 0;
 
@@ -1268,7 +1272,16 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 				rdbk_frame_end(stream);
 			}
 		} else {
-			rkisp_stream_buf_done(stream, stream->curr_buf);
+			if (vir->streaming && vir->conn_id == stream->id) {
+				spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+				list_add_tail(&stream->curr_buf->queue,
+					      &dev->cap_dev.vir_cpy.queue);
+				spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+				if (!completion_done(&dev->cap_dev.vir_cpy.cmpl))
+					complete(&dev->cap_dev.vir_cpy.cmpl);
+			} else {
+				rkisp_stream_buf_done(stream, stream->curr_buf);
+			}
 		}
 
 		stream->curr_buf = NULL;
@@ -1378,6 +1391,98 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 		CIF_MI_CTRL_BURST_LEN_CHROM_16;
 	stream->interlaced = false;
 }
+
+static void vir_cpy_image(struct work_struct *work)
+{
+	struct rkisp_vir_cpy *cpy =
+	container_of(work, struct rkisp_vir_cpy, work);
+	struct rkisp_stream *vir = cpy->stream;
+	struct rkisp_buffer *src_buf = NULL;
+	unsigned long lock_flags = 0;
+	u32 i;
+
+	v4l2_dbg(1, rkisp_debug, &vir->ispdev->v4l2_dev,
+		 "%s enter\n", __func__);
+
+	vir->streaming = true;
+	spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+	if (!list_empty(&cpy->queue)) {
+		src_buf = list_first_entry(&cpy->queue,
+				struct rkisp_buffer, queue);
+		list_del(&src_buf->queue);
+	}
+	spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+
+	while (src_buf || vir->streaming) {
+		if (vir->stopping || !vir->streaming)
+			goto end;
+
+		if (!src_buf)
+			wait_for_completion(&cpy->cmpl);
+
+		vir->frame_end = false;
+		spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+
+		if (!src_buf && !list_empty(&cpy->queue)) {
+			src_buf = list_first_entry(&cpy->queue,
+					struct rkisp_buffer, queue);
+			list_del(&src_buf->queue);
+		}
+
+		if (src_buf && !vir->curr_buf && !list_empty(&vir->buf_queue)) {
+			vir->curr_buf = list_first_entry(&vir->buf_queue,
+					struct rkisp_buffer, queue);
+			list_del(&vir->curr_buf->queue);
+		}
+		spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+
+		if (!vir->curr_buf || !src_buf)
+			goto end;
+
+		for (i = 0; i < vir->out_isp_fmt.mplanes; i++) {
+			u32 payload_size = vir->out_fmt.plane_fmt[i].sizeimage;
+			void *src = vb2_plane_vaddr(&src_buf->vb.vb2_buf, i);
+			void *dst = vb2_plane_vaddr(&vir->curr_buf->vb.vb2_buf, i);
+
+			if (!src || !dst)
+				break;
+			vb2_set_plane_payload(&vir->curr_buf->vb.vb2_buf, i, payload_size);
+			memcpy(dst, src, payload_size);
+		}
+
+		vir->curr_buf->vb.sequence = src_buf->vb.sequence;
+		vir->curr_buf->vb.vb2_buf.timestamp = src_buf->vb.vb2_buf.timestamp;
+		vb2_buffer_done(&vir->curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		vir->curr_buf = NULL;
+end:
+		if (src_buf)
+			vb2_buffer_done(&src_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		src_buf = NULL;
+		spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+
+		if (!list_empty(&cpy->queue)) {
+			src_buf = list_first_entry(&cpy->queue,
+					struct rkisp_buffer, queue);
+			list_del(&src_buf->queue);
+		} else if (vir->stopping) {
+			vir->streaming = false;
+		}
+
+		spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+	}
+
+	vir->frame_end = true;
+
+	if (vir->stopping) {
+		vir->stopping = false;
+		vir->streaming = false;
+		wake_up(&vir->done);
+	}
+
+	v4l2_dbg(1, rkisp_debug, &vir->ispdev->v4l2_dev,
+		 "%s exit\n", __func__);
+}
+
 
 /*
  * Most of registers inside rockchip isp1 have shadow register since
@@ -1571,6 +1676,21 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 	if (!stream->streaming)
 		goto end;
 
+	if (stream->id == RKISP_STREAM_VIR) {
+		stream->stopping = true;
+		wait_event_timeout(stream->done,
+				   stream->frame_end,
+				   msecs_to_jiffies(500));
+		stream->streaming = false;
+		stream->stopping = false;
+		destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
+
+		if (!completion_done(&dev->cap_dev.vir_cpy.cmpl))
+			complete(&dev->cap_dev.vir_cpy.cmpl);
+		stream->conn_id = -1;
+		goto end;
+	}
+
 	rkisp_stream_stop(stream);
 	if (stream->id == RKISP_STREAM_MP ||
 	    stream->id == RKISP_STREAM_SP) {
@@ -1650,6 +1770,28 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (WARN_ON(stream->streaming)) {
 		mutex_unlock(&dev->hw_dev->dev_lock);
 		return -EBUSY;
+	}
+
+	if (stream->id == RKISP_STREAM_VIR) {
+		struct rkisp_stream *t = &dev->cap_dev.stream[stream->conn_id];
+
+		if (t->streaming) {
+			INIT_WORK(&dev->cap_dev.vir_cpy.work, vir_cpy_image);
+			init_completion(&dev->cap_dev.vir_cpy.cmpl);
+			INIT_LIST_HEAD(&dev->cap_dev.vir_cpy.queue);
+			dev->cap_dev.vir_cpy.stream = stream;
+			schedule_work(&dev->cap_dev.vir_cpy.work);
+			ret = 0;
+		} else {
+			v4l2_err(&dev->v4l2_dev,
+				 "no stream enable for iqtool\n");
+			destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
+			ret = -EINVAL;
+		}
+
+		mutex_unlock(&dev->hw_dev->dev_lock);
+
+		return ret;
 	}
 
 	memset(&stream->dbg, 0, sizeof(stream->dbg));
@@ -1787,7 +1929,7 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 
 	switch (id) {
 	case RKISP_STREAM_SP:
-		strlcpy(vdev->name, SP_VDEV_NAME,
+		strscpy(vdev->name, SP_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp_sp_streams_ops;
 		stream->config = &rkisp_sp_stream_config;
@@ -1795,25 +1937,32 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 		stream->config->fmt_size = ARRAY_SIZE(sp_fmts);
 		break;
 	case RKISP_STREAM_DMATX0:
-		strlcpy(vdev->name, DMATX0_VDEV_NAME,
+		strscpy(vdev->name, DMATX0_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp2_dmatx0_streams_ops;
 		stream->config = &rkisp2_dmatx0_stream_config;
 		break;
 	case RKISP_STREAM_DMATX2:
-		strlcpy(vdev->name, DMATX2_VDEV_NAME,
+		strscpy(vdev->name, DMATX2_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp2_dmatx2_streams_ops;
 		stream->config = &rkisp2_dmatx1_stream_config;
 		break;
 	case RKISP_STREAM_DMATX3:
-		strlcpy(vdev->name, DMATX3_VDEV_NAME,
+		strscpy(vdev->name, DMATX3_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp2_dmatx3_streams_ops;
 		stream->config = &rkisp2_dmatx3_stream_config;
 		break;
+	case RKISP_STREAM_VIR:
+		strscpy(vdev->name, VIR_VDEV_NAME,
+			sizeof(vdev->name));
+		stream->ops = NULL;
+		stream->config = &rkisp_mp_stream_config;
+		stream->conn_id = -1;
+		break;
 	default:
-		strlcpy(vdev->name, MP_VDEV_NAME,
+		strscpy(vdev->name, MP_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp_mp_streams_ops;
 		stream->config = &rkisp_mp_stream_config;
@@ -1857,8 +2006,13 @@ int rkisp_register_stream_v21(struct rkisp_device *dev)
 	ret = rkisp_stream_init(dev, RKISP_STREAM_DMATX3);
 	if (ret < 0)
 		goto err_free_tx2;
+	ret = rkisp_stream_init(dev, RKISP_STREAM_VIR);
+	if (ret < 0)
+		goto err_free_tx3;
 
 	return 0;
+err_free_tx3:
+	rkisp_unregister_stream_vdev(&cap_dev->stream[RKISP_STREAM_DMATX3]);
 err_free_tx2:
 	rkisp_unregister_stream_vdev(&cap_dev->stream[RKISP_STREAM_DMATX2]);
 err_free_tx0:
@@ -1886,6 +2040,8 @@ void rkisp_unregister_stream_v21(struct rkisp_device *dev)
 	rkisp_unregister_stream_vdev(stream);
 	stream = &cap_dev->stream[RKISP_STREAM_DMATX3];
 	rkisp_unregister_stream_vdev(stream);
+	stream = &cap_dev->stream[RKISP_STREAM_VIR];
+	rkisp_unregister_stream_vdev(stream);
 }
 
 /****************  Interrupter Handler ****************/
@@ -1905,7 +2061,7 @@ void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev)
 	for (i = 0; i < RKISP_MAX_STREAM; ++i) {
 		stream = &dev->cap_dev.stream[i];
 
-		if (!(mis_val & CIF_MI_FRAME(stream)))
+		if (!(mis_val & CIF_MI_FRAME(stream)) || stream->id == RKISP_STREAM_VIR)
 			continue;
 
 		if (i == RKISP_STREAM_DMATX0)
