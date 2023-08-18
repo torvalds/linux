@@ -1471,6 +1471,9 @@ qcom_nandc_read_cw_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	int raw_cw = cw;
 
 	nand_read_page_op(chip, page, 0, NULL, 0);
+	nandc->buf_count = 0;
+	nandc->buf_start = 0;
+	clear_read_regs(nandc);
 	host->use_ecc = false;
 
 	if (nandc->props->qpic_v2)
