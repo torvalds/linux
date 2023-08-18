@@ -4,13 +4,14 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
-#include <uapi/linux/bpf.h>
-#include <uapi/linux/ptrace.h>
-#include <uapi/linux/perf_event.h>
+#include "vmlinux.h"
 #include <linux/version.h>
-#include <linux/sched.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+
+#ifndef PERF_MAX_STACK_DEPTH
+#define PERF_MAX_STACK_DEPTH         127
+#endif
 
 #define _(P)                                                                   \
 	({                                                                     \
@@ -111,18 +112,8 @@ static inline int update_counts(void *ctx, u32 pid, u64 delta)
 
 #if 1
 /* taken from /sys/kernel/tracing/events/sched/sched_switch/format */
-struct sched_switch_args {
-	unsigned long long pad;
-	char prev_comm[TASK_COMM_LEN];
-	int prev_pid;
-	int prev_prio;
-	long long prev_state;
-	char next_comm[TASK_COMM_LEN];
-	int next_pid;
-	int next_prio;
-};
 SEC("tracepoint/sched/sched_switch")
-int oncpu(struct sched_switch_args *ctx)
+int oncpu(struct trace_event_raw_sched_switch *ctx)
 {
 	/* record previous thread sleep time */
 	u32 pid = ctx->prev_pid;

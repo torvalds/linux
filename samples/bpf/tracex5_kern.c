@@ -4,15 +4,14 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
-#include <linux/ptrace.h>
-#include <linux/version.h>
-#include <uapi/linux/bpf.h>
-#include <uapi/linux/seccomp.h>
-#include <uapi/linux/unistd.h>
+#include "vmlinux.h"
 #include "syscall_nrs.h"
+#include <linux/version.h>
+#include <uapi/linux/unistd.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
+#define __stringify(x) #x
 #define PROG(F) SEC("kprobe/"__stringify(F)) int bpf_func_##F
 
 struct {

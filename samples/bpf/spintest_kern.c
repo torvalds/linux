@@ -4,13 +4,14 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
+#include "vmlinux.h"
 #include <linux/version.h>
-#include <uapi/linux/bpf.h>
-#include <uapi/linux/perf_event.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+
+#ifndef PERF_MAX_STACK_DEPTH
+#define PERF_MAX_STACK_DEPTH         127
+#endif
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -60,6 +61,7 @@ SEC("kprobe/_raw_spin_lock_irq")PROG(p11)
 SEC("kprobe/_raw_spin_trylock")PROG(p12)
 SEC("kprobe/_raw_spin_lock")PROG(p13)
 SEC("kprobe/_raw_spin_lock_bh")PROG(p14)
+
 /* and to inner bpf helpers */
 SEC("kprobe/htab_map_update_elem")PROG(p15)
 SEC("kprobe/__htab_percpu_map_update_elem")PROG(p16)
