@@ -139,6 +139,10 @@ config ASPEED_UDMA
 	  SOCs. The UDMA engine can perform UART DMA operations between the memory
 	  buffer and the UART/VUART devices.
 
+config ASPEED_OTP
+	tristate "Aspeed OTP Driver"
+	depends on MACH_ASPEED_G6
+
 endmenu
 
 endif
