@@ -620,11 +620,17 @@ xrep_agfl_update_agf(
 	xfs_force_summary_recalc(sc->mp);
 
 	/* Update the AGF counters. */
-	if (xfs_perag_initialised_agf(sc->sa.pag))
+	if (xfs_perag_initialised_agf(sc->sa.pag)) {
 		sc->sa.pag->pagf_flcount = flcount;
+		clear_bit(XFS_AGSTATE_AGFL_NEEDS_RESET,
+				&sc->sa.pag->pag_opstate);
+	}
 	agf->agf_flfirst = cpu_to_be32(0);
 	agf->agf_flcount = cpu_to_be32(flcount);
-	agf->agf_fllast = cpu_to_be32(flcount - 1);
+	if (flcount)
+		agf->agf_fllast = cpu_to_be32(flcount - 1);
+	else
+		agf->agf_fllast = cpu_to_be32(xfs_agfl_size(sc->mp) - 1);
 
 	xfs_alloc_log_agf(sc->tp, agf_bp,
 			XFS_AGF_FLFIRST | XFS_AGF_FLLAST | XFS_AGF_FLCOUNT);
