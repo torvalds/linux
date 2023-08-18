@@ -537,7 +537,11 @@ static const struct soc_id soc_id[] = {
 	{ 565, "BLAIRP" },
 	{ 577, "PINEAPPLEP" },
 	{ 578, "BLAIR-LITE" },
+	{ 605, "SA_MONACOAU_ADAS" },
+	{ 606, "SA_MONACOAU_IVI" },
+	{ 607, "SA_MONACOAU_SRV1L" },
 	{ 614, "CLIFFS" },
+	{ 620, "SA_MONACOAU_SRV1L_FFC" },
 	{ 623, "PITTI" },
 };
 
