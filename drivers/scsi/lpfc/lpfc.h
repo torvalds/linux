@@ -309,7 +309,6 @@ struct lpfc_hba;
 #define LPFC_VMID_TIMER   300	/* timer interval in seconds */
 
 #define LPFC_MAX_VMID_SIZE      256
-#define LPFC_COMPRESS_VMID_SIZE 16
 
 union lpfc_vmid_io_tag {
 	u32 app_id;	/* App Id vmid */
@@ -667,7 +666,7 @@ struct lpfc_vport {
 	uint32_t cfg_first_burst_size;
 	uint32_t dev_loss_tmo_changed;
 	/* VMID parameters */
-	u8 lpfc_vmid_host_uuid[LPFC_COMPRESS_VMID_SIZE];
+	u8 lpfc_vmid_host_uuid[16];
 	u32 max_vmid;	/* maximum VMIDs allowed per port */
 	u32 cur_vmid_cnt;	/* Current VMID count */
 #define LPFC_MIN_VMID	4
