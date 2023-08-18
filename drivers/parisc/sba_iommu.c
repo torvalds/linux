@@ -121,6 +121,8 @@ module_param(sba_reserve_agpgart, int, 0444);
 MODULE_PARM_DESC(sba_reserve_agpgart, "Reserve half of IO pdir as AGPGART");
 #endif
 
+struct proc_dir_entry *proc_runway_root __ro_after_init;
+struct proc_dir_entry *proc_mckinley_root __ro_after_init;
 
 /************************************
 ** SBA register read and write support
@@ -1968,11 +1970,15 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 #ifdef CONFIG_PROC_FS
 	switch (dev->id.hversion) {
 	case PLUTO_MCKINLEY_PORT:
+		if (!proc_mckinley_root)
+			proc_mckinley_root = proc_mkdir("bus/mckinley", NULL);
 		root = proc_mckinley_root;
 		break;
 	case ASTRO_RUNWAY_PORT:
 	case IKE_MERCED_PORT:
 	default:
+		if (!proc_runway_root)
+			proc_runway_root = proc_mkdir("bus/runway", NULL);
 		root = proc_runway_root;
 		break;
 	}

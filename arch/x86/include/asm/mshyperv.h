@@ -5,7 +5,7 @@
 #include <linux/types.h>
 #include <linux/nmi.h>
 #include <linux/msi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/nospec-branch.h>
 #include <asm/paravirt.h>
