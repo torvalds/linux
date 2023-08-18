@@ -47,20 +47,9 @@ int foo(struct pt_regs *ctx) \
 }
 
 /* add kprobes to all possible *spin* functions */
-SEC("kprobe/spin_unlock")PROG(p1)
-SEC("kprobe/spin_lock")PROG(p2)
-SEC("kprobe/mutex_spin_on_owner")PROG(p3)
-SEC("kprobe/rwsem_spin_on_owner")PROG(p4)
-SEC("kprobe/spin_unlock_irqrestore")PROG(p5)
-SEC("kprobe/_raw_spin_unlock_irqrestore")PROG(p6)
-SEC("kprobe/_raw_spin_unlock_bh")PROG(p7)
-SEC("kprobe/_raw_spin_unlock")PROG(p8)
-SEC("kprobe/_raw_spin_lock_irqsave")PROG(p9)
-SEC("kprobe/_raw_spin_trylock_bh")PROG(p10)
-SEC("kprobe/_raw_spin_lock_irq")PROG(p11)
-SEC("kprobe/_raw_spin_trylock")PROG(p12)
-SEC("kprobe/_raw_spin_lock")PROG(p13)
-SEC("kprobe/_raw_spin_lock_bh")PROG(p14)
+SEC("kprobe.multi/spin_*lock*")PROG(spin_lock)
+SEC("kprobe.multi/*_spin_on_owner")PROG(spin_on_owner)
+SEC("kprobe.multi/_raw_spin_*lock*")PROG(raw_spin_lock)
 
 /* and to inner bpf helpers */
 SEC("kprobe/htab_map_update_elem")PROG(p15)

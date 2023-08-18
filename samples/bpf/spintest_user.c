@@ -9,13 +9,12 @@
 
 int main(int ac, char **argv)
 {
-	char filename[256], symbol[256];
 	struct bpf_object *obj = NULL;
 	struct bpf_link *links[20];
 	long key, next_key, value;
 	struct bpf_program *prog;
 	int map_fd, i, j = 0;
-	const char *section;
+	char filename[256];
 	struct ksym *sym;
 
 	if (load_kallsyms()) {
@@ -44,20 +43,13 @@ int main(int ac, char **argv)
 	}
 
 	bpf_object__for_each_program(prog, obj) {
-		section = bpf_program__section_name(prog);
-		if (sscanf(section, "kprobe/%s", symbol) != 1)
-			continue;
-
-		/* Attach prog only when symbol exists */
-		if (ksym_get_addr(symbol)) {
-			links[j] = bpf_program__attach(prog);
-			if (libbpf_get_error(links[j])) {
-				fprintf(stderr, "bpf_program__attach failed\n");
-				links[j] = NULL;
-				goto cleanup;
-			}
-			j++;
+		links[j] = bpf_program__attach(prog);
+		if (libbpf_get_error(links[j])) {
+			fprintf(stderr, "bpf_program__attach failed\n");
+			links[j] = NULL;
+			goto cleanup;
 		}
+		j++;
 	}
 
 	for (i = 0; i < 5; i++) {
