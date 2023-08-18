@@ -6031,7 +6031,7 @@ static int btrfs_dirty_inode(struct btrfs_inode *inode)
 static int btrfs_update_time(struct inode *inode, int flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	bool dirty = flags & ~S_VERSION;
+	bool dirty;
 
 	if (btrfs_root_readonly(root))
 		return -EROFS;
