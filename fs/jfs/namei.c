@@ -883,7 +883,7 @@ static int jfs_symlink(struct mnt_idmap *idmap, struct inode *dip,
 	struct component_name dname;
 	u32 ssize;		/* source pathname size */
 	struct btstack btstack;
-	struct inode *ip = d_inode(dentry);
+	struct inode *ip;
 	s64 xlen = 0;
 	int bmask = 0, xsize;
 	s64 xaddr;
