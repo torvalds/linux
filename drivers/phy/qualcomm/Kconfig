@@ -58,7 +58,7 @@ config PHY_QCOM_QMP
 	  Enable this to support the QMP PHY transceiver that is used
 	  with controllers such as PCIe, UFS, and USB on Qualcomm chips.
 
-config PHY_QCOM_UFS
+menuconfig PHY_QCOM_UFS
 	tristate "Qualcomm Technologies, Inc. UFS PHY driver"
 	depends on OF && ARCH_QCOM
 	select GENERIC_PHY
@@ -80,6 +80,14 @@ config PHY_QCOM_UFS_V3
 	  Support for 11nm UFS QMP phy present on QCOM chipsets.
 	  This is required to enable UFS on Sdmsteppe chipset.
 
+config PHY_QCOM_UFS_V3_SM4350
+	tristate "Qualcomm Technologies, Inc. UFS Holi Phy Driver"
+	help
+	  Qualcomm Technologies, Inc. UFS Holi Phy Driver.
+	  Enables support for UFS PHY on Qualcomm Technologies, Inc.
+	  Holi chipsets. This is required to enable UFS on Holi chipset.
+	  To compile this driver as a module, choose M here.
+
 config PHY_QCOM_UFS_V4
 	tristate
 	default PHY_QCOM_UFS
@@ -97,7 +105,6 @@ config PHY_QCOM_UFS_QRBTC_SDM845
 
 config PHY_QCOM_UFS_V4_SM6375
 	tristate "Qualcomm Technologies, Inc. UFS Blair Phy Driver"
-	depends on PHY_QCOM_UFS
 	help
 	  Support for UFS phy present on QCOM Blair chipsets.
 
