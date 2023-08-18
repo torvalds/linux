@@ -1535,12 +1535,12 @@ static int mma8452_reset(struct i2c_client *client)
 }
 
 static const struct of_device_id mma8452_dt_ids[] = {
+	{ .compatible = "fsl,fxls8471", .data = &mma_chip_info_table[fxls8471] },
 	{ .compatible = "fsl,mma8451", .data = &mma_chip_info_table[mma8451] },
 	{ .compatible = "fsl,mma8452", .data = &mma_chip_info_table[mma8452] },
 	{ .compatible = "fsl,mma8453", .data = &mma_chip_info_table[mma8453] },
 	{ .compatible = "fsl,mma8652", .data = &mma_chip_info_table[mma8652] },
 	{ .compatible = "fsl,mma8653", .data = &mma_chip_info_table[mma8653] },
-	{ .compatible = "fsl,fxls8471", .data = &mma_chip_info_table[fxls8471] },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mma8452_dt_ids);
@@ -1824,12 +1824,12 @@ static const struct dev_pm_ops mma8452_pm_ops = {
 };
 
 static const struct i2c_device_id mma8452_id[] = {
+	{ "fxls8471", (kernel_ulong_t)&mma_chip_info_table[fxls8471] },
 	{ "mma8451", (kernel_ulong_t)&mma_chip_info_table[mma8451] },
 	{ "mma8452", (kernel_ulong_t)&mma_chip_info_table[mma8452] },
 	{ "mma8453", (kernel_ulong_t)&mma_chip_info_table[mma8453] },
 	{ "mma8652", (kernel_ulong_t)&mma_chip_info_table[mma8652] },
 	{ "mma8653", (kernel_ulong_t)&mma_chip_info_table[mma8653] },
-	{ "fxls8471", (kernel_ulong_t)&mma_chip_info_table[fxls8471] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mma8452_id);
