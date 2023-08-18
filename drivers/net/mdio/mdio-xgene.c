@@ -20,8 +20,6 @@
 #include <linux/prefetch.h>
 #include <net/ip.h>
 
-static bool xgene_mdio_status;
-
 u32 xgene_mdio_rd_mac(struct xgene_mdio_pdata *pdata, u32 rd_addr)
 {
 	void __iomem *addr, *rd, *cmd, *cmd_done;
@@ -421,7 +419,6 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 		goto out_mdiobus;
 
 	pdata->mdio_bus = mdio_bus;
-	xgene_mdio_status = true;
 
 	return 0;
 
