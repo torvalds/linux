@@ -310,6 +310,7 @@ static int tracefs_apply_options(struct super_block *sb, bool remount)
 	struct tracefs_fs_info *fsi = sb->s_fs_info;
 	struct inode *inode = d_inode(sb->s_root);
 	struct tracefs_mount_opts *opts = &fsi->mount_opts;
+	umode_t tmp_mode;
 
 	/*
 	 * On remount, only reset mode/uid/gid if they were provided as mount
@@ -317,8 +318,9 @@ static int tracefs_apply_options(struct super_block *sb, bool remount)
 	 */
 
 	if (!remount || opts->opts & BIT(Opt_mode)) {
-		inode->i_mode &= ~S_IALLUGO;
-		inode->i_mode |= opts->mode;
+		tmp_mode = READ_ONCE(inode->i_mode) & ~S_IALLUGO;
+		tmp_mode |= opts->mode;
+		WRITE_ONCE(inode->i_mode, tmp_mode);
 	}
 
 	if (!remount || opts->opts & BIT(Opt_uid))
