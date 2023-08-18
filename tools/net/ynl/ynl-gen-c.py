@@ -5,6 +5,8 @@ import argparse
 import collections
 import os
 import re
+import shutil
+import tempfile
 import yaml
 
 from lib import SpecFamily, SpecAttrSet, SpecAttr, SpecOperation, SpecEnumSet, SpecEnumEntry
@@ -2304,7 +2306,7 @@ def main():
     parser.add_argument('-o', dest='out_file', type=str)
     args = parser.parse_args()
 
-    out_file = open(args.out_file, 'w+') if args.out_file else os.sys.stdout
+    tmp_file = tempfile.TemporaryFile('w+') if args.out_file else os.sys.stdout
 
     if args.header is None:
         parser.error("--header or --source is required")
@@ -2329,7 +2331,7 @@ def main():
         print(f'Message enum-model {parsed.msg_id_model} not supported for {args.mode} generation')
         os.sys.exit(1)
 
-    cw = CodeWriter(BaseNlLib(), out_file)
+    cw = CodeWriter(BaseNlLib(), tmp_file)
 
     _, spec_kernel = find_kernel_root(args.spec)
     if args.mode == 'uapi' or args.header:
@@ -2578,6 +2580,10 @@ def main():
     if args.header:
         cw.p(f'#endif /* {hdr_prot} */')
 
+    if args.out_file:
+        out_file = open(args.out_file, 'w+')
+        tmp_file.seek(0)
+        shutil.copyfileobj(tmp_file, out_file)
 
 if __name__ == "__main__":
     main()
