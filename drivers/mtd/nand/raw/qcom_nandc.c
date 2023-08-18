@@ -2541,9 +2541,11 @@ static int qcom_nand_attach_chip(struct nand_chip *chip)
 	return 0;
 }
 
-static int qcom_op_cmd_mapping(struct qcom_nand_controller *nandc, u8 opcode,
+static int qcom_op_cmd_mapping(struct nand_chip *chip, u8 opcode,
 			       struct qcom_op *q_op)
 {
+	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
+	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	int cmd;
 
 	switch (opcode) {
@@ -2571,6 +2573,13 @@ static int qcom_op_cmd_mapping(struct qcom_nand_controller *nandc, u8 opcode,
 		q_op->flag = OP_PROGRAM_PAGE;
 		nandc->exec_opwrite = true;
 		break;
+	case NAND_CMD_READ0:
+	case NAND_CMD_READSTART:
+		if (host->use_ecc)
+			cmd = OP_PAGE_READ_WITH_ECC;
+		else
+			cmd = OP_PAGE_READ;
+		break;
 	default:
 		dev_err(nandc->dev, "Opcode not supported: %u\n", opcode);
 		return -EOPNOTSUPP;
@@ -2584,7 +2593,6 @@ static int qcom_parse_instructions(struct nand_chip *chip,
 				    const struct nand_subop *subop,
 				    struct qcom_op *q_op)
 {
-	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	const struct nand_op_instr *instr = NULL;
 	unsigned int op_id;
 	int i, ret;
@@ -2597,7 +2605,7 @@ static int qcom_parse_instructions(struct nand_chip *chip,
 
 		switch (instr->type) {
 		case NAND_OP_CMD_INSTR:
-			ret = qcom_op_cmd_mapping(nandc, instr->ctx.cmd.opcode, q_op);
+			ret = qcom_op_cmd_mapping(chip, instr->ctx.cmd.opcode, q_op);
 			if (ret < 0)
 				return ret;
 
@@ -2791,13 +2799,25 @@ static int qcom_misc_cmd_type_exec(struct nand_chip *chip, const struct nand_sub
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_op q_op = {};
 	int ret;
+	int instrs = 1;
 
 	ret = qcom_parse_instructions(chip, subop, &q_op);
 	if (ret)
 		return ret;
 
-	if (q_op.flag == OP_PROGRAM_PAGE)
+	if (q_op.flag == OP_PROGRAM_PAGE) {
 		goto wait_rdy;
+	} else if (q_op.cmd_reg == OP_BLOCK_ERASE) {
+		q_op.cmd_reg |= PAGE_ACC | LAST_PAGE;
+		nandc_set_reg(chip, NAND_ADDR0, q_op.addr1_reg);
+		nandc_set_reg(chip, NAND_ADDR1, q_op.addr2_reg);
+		nandc_set_reg(chip, NAND_DEV0_CFG0,
+			      host->cfg0_raw & ~(7 << CW_PER_PAGE));
+		nandc_set_reg(chip, NAND_DEV0_CFG1, host->cfg1_raw);
+		instrs = 3;
+	} else {
+		return 0;
+	}
 
 	nandc->buf_count = 0;
 	nandc->buf_start = 0;
@@ -2809,9 +2829,12 @@ static int qcom_misc_cmd_type_exec(struct nand_chip *chip, const struct nand_sub
 	nandc_set_reg(chip, NAND_FLASH_CMD, q_op.cmd_reg);
 	nandc_set_reg(chip, NAND_EXEC_CMD, 1);
 
-	write_reg_dma(nandc, NAND_FLASH_CMD, 1, NAND_BAM_NEXT_SGL);
-	write_reg_dma(nandc, NAND_EXEC_CMD, 1, NAND_BAM_NEXT_SGL);
+	write_reg_dma(nandc, NAND_FLASH_CMD, instrs, NAND_BAM_NEXT_SGL);
+	(q_op.cmd_reg == OP_BLOCK_ERASE) ? write_reg_dma(nandc, NAND_DEV0_CFG0,
+	2, NAND_BAM_NEXT_SGL) : read_reg_dma(nandc,
+	NAND_FLASH_STATUS, 1, NAND_BAM_NEXT_SGL);
 
+	write_reg_dma(nandc, NAND_EXEC_CMD, 1, NAND_BAM_NEXT_SGL);
 	read_reg_dma(nandc, NAND_FLASH_STATUS, 1, NAND_BAM_NEXT_SGL);
 
 	ret = submit_descs(nandc);
@@ -2925,56 +2948,7 @@ err_out:
 	return ret;
 }
 
-static int qcom_erase_cmd_type_exec(struct nand_chip *chip, const struct nand_subop *subop)
-{
-	struct qcom_nand_host *host = to_qcom_nand_host(chip);
-	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
-	struct qcom_op q_op = {};
-	int ret;
-
-	ret = qcom_parse_instructions(chip, subop, &q_op);
-	if (ret)
-		return ret;
-
-	q_op.cmd_reg |= PAGE_ACC | LAST_PAGE;
-
-	nandc->buf_count = 0;
-	nandc->buf_start = 0;
-	host->use_ecc = false;
-	clear_read_regs(nandc);
-	clear_bam_transaction(nandc);
-
-	nandc_set_reg(chip, NAND_FLASH_CMD, q_op.cmd_reg);
-	nandc_set_reg(chip, NAND_ADDR0, q_op.addr1_reg);
-	nandc_set_reg(chip, NAND_ADDR1, q_op.addr2_reg);
-	nandc_set_reg(chip, NAND_DEV0_CFG0,
-		      host->cfg0_raw & ~(7 << CW_PER_PAGE));
-	nandc_set_reg(chip, NAND_DEV0_CFG1, host->cfg1_raw);
-	nandc_set_reg(chip, NAND_EXEC_CMD, 1);
-
-	write_reg_dma(nandc, NAND_FLASH_CMD, 3, NAND_BAM_NEXT_SGL);
-	write_reg_dma(nandc, NAND_DEV0_CFG0, 2, NAND_BAM_NEXT_SGL);
-	write_reg_dma(nandc, NAND_EXEC_CMD, 1, NAND_BAM_NEXT_SGL);
-
-	ret = submit_descs(nandc);
-	if (ret) {
-		dev_err(nandc->dev, "failure in submitting erase descriptor\n");
-		goto err_out;
-	}
-
-	ret = qcom_wait_rdy_poll(chip, q_op.rdy_timeout_ms);
-	if (ret)
-		goto err_out;
-
-err_out:
-	return ret;
-}
-
 static const struct nand_op_parser qcom_op_parser = NAND_OP_PARSER(
-		NAND_OP_PARSER_PATTERN(
-			qcom_misc_cmd_type_exec,
-			NAND_OP_PARSER_PAT_CMD_ELEM(false),
-			NAND_OP_PARSER_PAT_WAITRDY_ELEM(false)),
 		NAND_OP_PARSER_PATTERN(
 			qcom_read_id_type_exec,
 			NAND_OP_PARSER_PAT_CMD_ELEM(false),
@@ -2991,10 +2965,10 @@ static const struct nand_op_parser qcom_op_parser = NAND_OP_PARSER(
 			NAND_OP_PARSER_PAT_WAITRDY_ELEM(true),
 			NAND_OP_PARSER_PAT_DATA_IN_ELEM(false, 512)),
 		NAND_OP_PARSER_PATTERN(
-			qcom_erase_cmd_type_exec,
+			qcom_misc_cmd_type_exec,
 			NAND_OP_PARSER_PAT_CMD_ELEM(false),
-			NAND_OP_PARSER_PAT_ADDR_ELEM(false, MAX_ADDRESS_CYCLE),
-			NAND_OP_PARSER_PAT_CMD_ELEM(false),
+			NAND_OP_PARSER_PAT_ADDR_ELEM(true, MAX_ADDRESS_CYCLE),
+			NAND_OP_PARSER_PAT_CMD_ELEM(true),
 			NAND_OP_PARSER_PAT_WAITRDY_ELEM(false)),
 		);
 
@@ -3015,7 +2989,9 @@ static int qcom_check_op(struct nand_chip *chip,
 			    instr->ctx.cmd.opcode != NAND_CMD_ERASE1 &&
 			    instr->ctx.cmd.opcode != NAND_CMD_ERASE2 &&
 			    instr->ctx.cmd.opcode != NAND_CMD_STATUS &&
-			    instr->ctx.cmd.opcode != NAND_CMD_PAGEPROG)
+			    instr->ctx.cmd.opcode != NAND_CMD_PAGEPROG &&
+			    instr->ctx.cmd.opcode != NAND_CMD_READ0 &&
+			    instr->ctx.cmd.opcode != NAND_CMD_READSTART)
 				return -EOPNOTSUPP;
 			break;
 		default:
