@@ -86,7 +86,10 @@
 #define VBIOSSMC_MSG_SetDtbClk                    0x17
 #define VBIOSSMC_MSG_DispPsrEntry                 0x18 ///< Display PSR entry, DMU
 #define VBIOSSMC_MSG_DispPsrExit                  0x19 ///< Display PSR exit, DMU
-#define VBIOSSMC_Message_Count                    0x1A
+#define VBIOSSMC_MSG_DisableLSdma                 0x1A ///< Disable LSDMA; only sent by VBIOS
+#define VBIOSSMC_MSG_DpControllerPhyStatus        0x1B ///< Inform PMFW about the pre conditions for turning SLDO2 on/off . bit[0]==1 precondition is met, bit[1-2] are for DPPHY number
+#define VBIOSSMC_MSG_QueryIPS2Support             0x1C ///< Return 1: support; else not supported
+#define VBIOSSMC_Message_Count                    0x1D
 
 #define VBIOSSMC_Status_BUSY                      0x0
 #define VBIOSSMC_Result_OK                        0x1
@@ -447,4 +450,12 @@ void dcn35_smu_exit_low_power_state(struct clk_mgr_internal *clk_mgr)
 		clk_mgr,
 		VBIOSSMC_MSG_DispPsrExit,
 		0);
+}
+
+int dcn35_smu_get_ips_supported(struct clk_mgr_internal *clk_mgr)
+{
+	return dcn35_smu_send_msg_with_param(
+			clk_mgr,
+			VBIOSSMC_MSG_QueryIPS2Support,
+			0);
 }

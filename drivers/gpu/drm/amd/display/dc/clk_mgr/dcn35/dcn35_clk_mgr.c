@@ -747,6 +747,16 @@ static void dcn35_exit_low_power_state(struct clk_mgr *clk_mgr_base)
 
 }
 
+static bool dcn35_is_ips_supported(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	bool ips_supported = true;
+
+	ips_supported = dcn35_smu_get_ips_supported(clk_mgr) ? true : false;
+
+	return ips_supported;
+}
+
 static void dcn35_init_clocks_fpga(struct clk_mgr *clk_mgr)
 {
 	dcn35_init_clocks(clk_mgr);
@@ -833,6 +843,7 @@ static struct clk_mgr_funcs dcn35_funcs = {
 	.notify_wm_ranges = dcn35_notify_wm_ranges,
 	.set_low_power_state = dcn35_set_low_power_state,
 	.exit_low_power_state = dcn35_exit_low_power_state,
+	.is_ips_supported = dcn35_is_ips_supported,
 };
 
 struct clk_mgr_funcs dcn35_fpga_funcs = {
@@ -988,6 +999,13 @@ void dcn35_clk_mgr_construct(
 		dm_helpers_free_gpu_mem(clk_mgr->base.base.ctx, DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
 				smu_dpm_clks.dpm_clks);
 
+	if (dcn35_smu_get_ips_supported(&clk_mgr->base)) {
+		ctx->dc->debug.ignore_pg = false;
+		ctx->dc->debug.dmcub_emulation = false;
+		ctx->dc->debug.disable_dpp_power_gate = false;
+		ctx->dc->debug.disable_hubp_power_gate = false;
+		ctx->dc->debug.disable_dsc_power_gate = false;
+	}
 }
 
 void dcn35_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr_int)

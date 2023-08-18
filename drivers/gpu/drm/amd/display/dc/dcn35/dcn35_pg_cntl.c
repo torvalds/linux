@@ -84,10 +84,9 @@ void pg_cntl35_dsc_pg_control(struct pg_cntl *pg_cntl, unsigned int dsc_inst, bo
 		pg_cntl->ctx->dc->res_pool->dccg->funcs->enable_dsc(
 				pg_cntl->ctx->dc->res_pool->dccg, dsc_inst);
 
-	if (pg_cntl->ctx->dc->debug.disable_dsc_power_gate)
-		return;
-
-	if (pg_cntl->ctx->dc->idle_optimizations_allowed)
+	if (pg_cntl->ctx->dc->debug.ignore_pg ||
+		pg_cntl->ctx->dc->debug.disable_dsc_power_gate ||
+		pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
 	block_enabled = pg_cntl35_dsc_pg_status(pg_cntl, dsc_inst);
@@ -98,8 +97,7 @@ void pg_cntl35_dsc_pg_control(struct pg_cntl *pg_cntl, unsigned int dsc_inst, bo
 		if (!block_enabled)
 			return;
 	}
-	if (pg_cntl->ctx->dc->debug.ignore_pg)
-		return;
+
 	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
 	if (org_ip_request_cntl == 0)
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
@@ -190,13 +188,10 @@ void pg_cntl35_hubp_dpp_pg_control(struct pg_cntl *pg_cntl, unsigned int hubp_dp
 	uint32_t org_ip_request_cntl;
 	bool block_enabled;
 
-	if (!power_on)
-		return;
-	if (pg_cntl->ctx->dc->debug.disable_hubp_power_gate ||
-		pg_cntl->ctx->dc->debug.disable_dpp_power_gate)
-		return;
-
-	if (pg_cntl->ctx->dc->idle_optimizations_allowed)
+	if (pg_cntl->ctx->dc->debug.ignore_pg ||
+		pg_cntl->ctx->dc->debug.disable_hubp_power_gate ||
+		pg_cntl->ctx->dc->debug.disable_dpp_power_gate ||
+		pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
 	block_enabled = pg_cntl35_hubp_dpp_pg_status(pg_cntl, hubp_dpp_inst);
@@ -207,8 +202,7 @@ void pg_cntl35_hubp_dpp_pg_control(struct pg_cntl *pg_cntl, unsigned int hubp_dp
 		if (!block_enabled)
 			return;
 	}
-	if (pg_cntl->ctx->dc->debug.ignore_pg)
-		return;
+
 	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
 	if (org_ip_request_cntl == 0)
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
@@ -267,7 +261,8 @@ void pg_cntl35_hpo_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t org_ip_request_cntl;
 	bool block_enabled;
 
-	if (pg_cntl->ctx->dc->idle_optimizations_allowed)
+	if (pg_cntl->ctx->dc->debug.ignore_pg ||
+		pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
 	block_enabled = pg_cntl35_hpo_pg_status(pg_cntl);
@@ -278,8 +273,7 @@ void pg_cntl35_hpo_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 		if (!block_enabled)
 			return;
 	}
-	if (pg_cntl->ctx->dc->debug.ignore_pg)
-		return;
+
 	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
 	if (org_ip_request_cntl == 0)
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
@@ -309,9 +303,8 @@ void pg_cntl35_io_clk_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t org_ip_request_cntl;
 	bool block_enabled;
 
-	if (!power_on)
-		return;
-	if (pg_cntl->ctx->dc->idle_optimizations_allowed)
+	if (pg_cntl->ctx->dc->debug.ignore_pg ||
+		pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
 	block_enabled = pg_cntl35_io_clk_status(pg_cntl);
@@ -322,8 +315,7 @@ void pg_cntl35_io_clk_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 		if (!block_enabled)
 			return;
 	}
-	if (pg_cntl->ctx->dc->debug.ignore_pg)
-		return;
+
 	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
 	if (org_ip_request_cntl == 0)
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
@@ -351,7 +343,6 @@ static bool pg_cntl35_plane_otg_status(struct pg_cntl *pg_cntl)
 void pg_cntl35_mpcc_pg_control(struct pg_cntl *pg_cntl,
 	unsigned int mpcc_inst, bool power_on)
 {
-
 	if (pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
@@ -362,7 +353,6 @@ void pg_cntl35_mpcc_pg_control(struct pg_cntl *pg_cntl,
 void pg_cntl35_opp_pg_control(struct pg_cntl *pg_cntl,
 	unsigned int opp_inst, bool power_on)
 {
-
 	if (pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
@@ -373,7 +363,6 @@ void pg_cntl35_opp_pg_control(struct pg_cntl *pg_cntl,
 void pg_cntl35_optc_pg_control(struct pg_cntl *pg_cntl,
 	unsigned int optc_inst, bool power_on)
 {
-
 	if (pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
@@ -392,12 +381,9 @@ void pg_cntl35_plane_otg_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	bool all_mpcc_disabled = true, all_opp_disabled = true;
 	bool all_optc_disabled = true, all_stream_disabled = true;
 
-	if (pg_cntl->ctx->dc->debug.disable_optc_power_gate)
-		return;
-
-	if (!power_on)
-		return;
-	if (pg_cntl->ctx->dc->idle_optimizations_allowed)
+	if (pg_cntl->ctx->dc->debug.ignore_pg ||
+		pg_cntl->ctx->dc->debug.disable_optc_power_gate ||
+		pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
 	block_enabled = pg_cntl35_plane_otg_status(pg_cntl);
@@ -432,8 +418,7 @@ void pg_cntl35_plane_otg_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 			|| !all_stream_disabled || pg_cntl->pg_res_enable[PG_DWB])
 			return;
 	}
-	if (pg_cntl->ctx->dc->debug.ignore_pg)
-		return;
+
 	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
 	if (org_ip_request_cntl == 0)
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
