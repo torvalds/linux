@@ -168,6 +168,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   xfile.o \
 				   )
 
+xfs-$(CONFIG_XFS_ONLINE_SCRUB_STATS) += scrub/stats.o
 xfs-$(CONFIG_XFS_RT)		+= scrub/rtbitmap.o
 xfs-$(CONFIG_XFS_QUOTA)		+= scrub/quota.o
 

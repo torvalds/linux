@@ -22,6 +22,7 @@
 #include "scrub/trace.h"
 #include "scrub/repair.h"
 #include "scrub/health.h"
+#include "scrub/stats.h"
 
 /*
  * Online Scrub and Repair
@@ -461,8 +462,10 @@ xfs_scrub_metadata(
 	struct file			*file,
 	struct xfs_scrub_metadata	*sm)
 {
+	struct xchk_stats_run		run = { };
 	struct xfs_scrub		*sc;
 	struct xfs_mount		*mp = XFS_I(file_inode(file))->i_mount;
+	u64				check_start;
 	int				error = 0;
 
 	BUILD_BUG_ON(sizeof(meta_scrub_ops) !=
@@ -517,7 +520,9 @@ retry_op:
 		goto out_teardown;
 
 	/* Scrub for errors. */
+	check_start = xchk_stats_now();
 	error = sc->ops->scrub(sc);
+	run.scrub_ns += xchk_stats_elapsed_ns(check_start);
 	if (error == -EDEADLOCK && !(sc->flags & XCHK_TRY_HARDER))
 		goto try_harder;
 	if (error == -ECHRNG && !(sc->flags & XCHK_NEED_DRAIN))
@@ -551,7 +556,7 @@ retry_op:
 		 * If it's broken, userspace wants us to fix it, and we haven't
 		 * already tried to fix it, then attempt a repair.
 		 */
-		error = xrep_attempt(sc);
+		error = xrep_attempt(sc, &run);
 		if (error == -EAGAIN) {
 			/*
 			 * Either the repair function succeeded or it couldn't
@@ -579,12 +584,15 @@ out:
 		sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 		error = 0;
 	}
+	if (error != -ENOENT)
+		xchk_stats_merge(mp, sm, &run);
 	return error;
 need_drain:
 	error = xchk_teardown(sc, 0);
 	if (error)
 		goto out_sc;
 	sc->flags |= XCHK_NEED_DRAIN;
+	run.retries++;
 	goto retry_op;
 try_harder:
 	/*
@@ -596,5 +604,6 @@ try_harder:
 	if (error)
 		goto out_sc;
 	sc->flags |= XCHK_TRY_HARDER;
+	run.retries++;
 	goto retry_op;
 }

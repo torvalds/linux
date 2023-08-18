@@ -8,6 +8,8 @@
 
 #include "xfs_quota_defs.h"
 
+struct xchk_stats_run;
+
 static inline int xrep_notsupported(struct xfs_scrub *sc)
 {
 	return -EOPNOTSUPP;
@@ -25,7 +27,7 @@ static inline int xrep_notsupported(struct xfs_scrub *sc)
 
 /* Repair helpers */
 
-int xrep_attempt(struct xfs_scrub *sc);
+int xrep_attempt(struct xfs_scrub *sc, struct xchk_stats_run *run);
 void xrep_failure(struct xfs_mount *mp);
 int xrep_roll_ag_trans(struct xfs_scrub *sc);
 int xrep_defer_finish(struct xfs_scrub *sc);
@@ -70,7 +72,8 @@ int xrep_agi(struct xfs_scrub *sc);
 
 static inline int
 xrep_attempt(
-	struct xfs_scrub	*sc)
+	struct xfs_scrub	*sc,
+	struct xchk_stats_run	*run)
 {
 	return -EOPNOTSUPP;
 }
