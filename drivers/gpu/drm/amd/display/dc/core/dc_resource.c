@@ -1996,8 +1996,8 @@ void resource_log_pipe_topology_update(struct dc *dc, struct dc_state *state)
 		slice_count = resource_get_opp_heads_for_otg_master(otg_master,
 				&state->res_ctx, opp_heads);
 		for (slice_idx = 0; slice_idx < slice_count; slice_idx++) {
+			plane_idx = -1;
 			if (opp_heads[slice_idx]->plane_state) {
-				plane_idx = 0;
 				dpp_count = resource_get_dpp_pipes_for_opp_head(
 						opp_heads[slice_idx],
 						&state->res_ctx,
@@ -2005,15 +2005,14 @@ void resource_log_pipe_topology_update(struct dc *dc, struct dc_state *state)
 				for (dpp_idx = 0; dpp_idx < dpp_count; dpp_idx++) {
 					is_primary = !dpp_pipes[dpp_idx]->top_pipe ||
 							dpp_pipes[dpp_idx]->top_pipe->plane_state != dpp_pipes[dpp_idx]->plane_state;
+					if (is_primary)
+						plane_idx++;
 					resource_log_pipe(dc, dpp_pipes[dpp_idx],
 							stream_idx, slice_idx,
 							plane_idx, slice_count,
 							is_primary);
-					if (is_primary)
-						plane_idx++;
 				}
 			} else {
-				plane_idx = -1;
 				resource_log_pipe(dc, opp_heads[slice_idx],
 						stream_idx, slice_idx, plane_idx,
 						slice_count, true);
