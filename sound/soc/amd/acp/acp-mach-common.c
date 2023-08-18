@@ -513,6 +513,16 @@ SND_SOC_DAILINK_DEF(rt1019,
 	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-10EC1019:00", "rt1019-aif"),
 			  COMP_CODEC("i2c-10EC1019:01", "rt1019-aif")));
 
+static const struct snd_kcontrol_new rt1019_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Left Spk"),
+	SOC_DAPM_PIN_SWITCH("Right Spk"),
+};
+
+static const struct snd_soc_dapm_widget rt1019_widgets[] = {
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
+};
+
 static const struct snd_soc_dapm_route rt1019_map_lr[] = {
 	{ "Left Spk", NULL, "Left SPO" },
 	{ "Right Spk", NULL, "Right SPO" },
@@ -533,9 +543,24 @@ static int acp_card_rt1019_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct acp_card_drvdata *drvdata = card->drvdata;
+	int ret;
 
 	if (drvdata->amp_codec_id != RT1019)
 		return -EINVAL;
+
+	ret = snd_soc_dapm_new_controls(&card->dapm, rt1019_widgets,
+					ARRAY_SIZE(rt1019_widgets));
+	if (ret) {
+		dev_err(rtd->dev, "unable to add widget dapm controls, ret %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_add_card_controls(card, rt1019_controls,
+					ARRAY_SIZE(rt1019_controls));
+	if (ret) {
+		dev_err(rtd->dev, "unable to add card controls, ret %d\n", ret);
+		return ret;
+	}
 
 	return snd_soc_dapm_add_routes(&rtd->card->dapm, rt1019_map_lr,
 				       ARRAY_SIZE(rt1019_map_lr));
@@ -667,6 +692,14 @@ static const struct snd_soc_ops acp_card_rt1019_ops = {
 SND_SOC_DAILINK_DEF(max98360a,
 	DAILINK_COMP_ARRAY(COMP_CODEC("MX98360A:00", "HiFi")));
 
+static const struct snd_kcontrol_new max98360a_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Spk"),
+};
+
+static const struct snd_soc_dapm_widget max98360a_widgets[] = {
+	SND_SOC_DAPM_SPK("Spk", NULL),
+};
+
 static const struct snd_soc_dapm_route max98360a_map[] = {
 	{"Spk", NULL, "Speaker"},
 };
@@ -675,9 +708,24 @@ static int acp_card_maxim_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct acp_card_drvdata *drvdata = card->drvdata;
+	int ret;
 
 	if (drvdata->amp_codec_id != MAX98360A)
 		return -EINVAL;
+
+	ret = snd_soc_dapm_new_controls(&card->dapm, max98360a_widgets,
+					ARRAY_SIZE(max98360a_widgets));
+	if (ret) {
+		dev_err(rtd->dev, "unable to add widget dapm controls, ret %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_add_card_controls(card, max98360a_controls,
+					ARRAY_SIZE(max98360a_controls));
+	if (ret) {
+		dev_err(rtd->dev, "unable to add card controls, ret %d\n", ret);
+		return ret;
+	}
 
 	return snd_soc_dapm_add_routes(&rtd->card->dapm, max98360a_map,
 				       ARRAY_SIZE(max98360a_map));
@@ -744,13 +792,19 @@ SND_SOC_DAILINK_DEF(max98388,
 		    DAILINK_COMP_ARRAY(COMP_CODEC("i2c-ADS8388:00", "max98388-aif1"),
 				       COMP_CODEC("i2c-ADS8388:01", "max98388-aif1")));
 
+static const struct snd_kcontrol_new max98388_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Left Spk"),
+	SOC_DAPM_PIN_SWITCH("Right Spk"),
+};
+
 static const struct snd_soc_dapm_widget max98388_widgets[] = {
-	SND_SOC_DAPM_SPK("SPK", NULL),
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
 };
 
 static const struct snd_soc_dapm_route max98388_map[] = {
-	{ "SPK", NULL, "Left BE_OUT" },
-	{ "SPK", NULL, "Right BE_OUT" },
+	{ "Left Spk", NULL, "Left BE_OUT" },
+	{ "Right Spk", NULL, "Right BE_OUT" },
 };
 
 static struct snd_soc_codec_conf max98388_conf[] = {
@@ -803,6 +857,14 @@ static int acp_card_max98388_init(struct snd_soc_pcm_runtime *rtd)
 		/* Don't need to add routes if widget addition failed */
 		return ret;
 	}
+
+	ret = snd_soc_add_card_controls(card, max98388_controls,
+					ARRAY_SIZE(max98388_controls));
+	if (ret) {
+		dev_err(rtd->dev, "unable to add card controls, ret %d\n", ret);
+		return ret;
+	}
+
 	return snd_soc_dapm_add_routes(&rtd->card->dapm, max98388_map,
 				       ARRAY_SIZE(max98388_map));
 }
