@@ -1906,7 +1906,10 @@ out:
 	return dget(sb->s_root);
 
 err_put_super:
+	sb->s_fs_info = NULL;
+	c->vfs_sb = NULL;
 	deactivate_locked_super(sb);
+	bch2_fs_stop(c);
 	return ERR_PTR(bch2_err_class(ret));
 }
 
@@ -1914,8 +1917,11 @@ static void bch2_kill_sb(struct super_block *sb)
 {
 	struct bch_fs *c = sb->s_fs_info;
 
+	if (c)
+		c->vfs_sb = NULL;
 	generic_shutdown_super(sb);
-	bch2_fs_free(c);
+	if (c)
+		bch2_fs_free(c);
 }
 
 static struct file_system_type bcache_fs_type = {
