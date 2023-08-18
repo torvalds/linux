@@ -72,27 +72,21 @@ static const char *action_names[] = {
 	[OF_RECONFIG_UPDATE_PROPERTY] = "UPDATE_PROPERTY",
 };
 
+#define _do_print(func, prefix, action, node, prop, ...) ({	\
+	func("changeset: " prefix "%-15s %pOF%s%s\n",		\
+	     ##__VA_ARGS__, action_names[action], node,		\
+	     prop ? ":" : "", prop ? prop->name : "");		\
+})
+#define of_changeset_action_err(...) _do_print(pr_err, __VA_ARGS__)
+#define of_changeset_action_debug(...) _do_print(pr_debug, __VA_ARGS__)
+
 int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
 {
 	int rc;
-#ifdef DEBUG
 	struct of_reconfig_data *pr = p;
 
-	switch (action) {
-	case OF_RECONFIG_ATTACH_NODE:
-	case OF_RECONFIG_DETACH_NODE:
-		pr_debug("notify %-15s %pOF\n", action_names[action],
-			pr->dn);
-		break;
-	case OF_RECONFIG_ADD_PROPERTY:
-	case OF_RECONFIG_REMOVE_PROPERTY:
-	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr_debug("notify %-15s %pOF:%s\n", action_names[action],
-			pr->dn, pr->prop->name);
-		break;
+	of_changeset_action_debug("notify: ", action, pr->dn, pr->prop);
 
-	}
-#endif
 	rc = blocking_notifier_call_chain(&of_reconfig_chain, action, p);
 	return notifier_to_errno(rc);
 }
@@ -503,30 +497,6 @@ static void __of_changeset_entry_destroy(struct of_changeset_entry *ce)
 	kfree(ce);
 }
 
-#ifdef DEBUG
-static void __of_changeset_entry_dump(struct of_changeset_entry *ce)
-{
-	switch (ce->action) {
-	case OF_RECONFIG_ADD_PROPERTY:
-	case OF_RECONFIG_REMOVE_PROPERTY:
-	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr_debug("cset<%p> %-15s %pOF/%s\n", ce, action_names[ce->action],
-			ce->np, ce->prop->name);
-		break;
-	case OF_RECONFIG_ATTACH_NODE:
-	case OF_RECONFIG_DETACH_NODE:
-		pr_debug("cset<%p> %-15s %pOF\n", ce, action_names[ce->action],
-			ce->np);
-		break;
-	}
-}
-#else
-static inline void __of_changeset_entry_dump(struct of_changeset_entry *ce)
-{
-	/* empty */
-}
-#endif
-
 static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
 					  struct of_changeset_entry *rce)
 {
@@ -598,7 +568,7 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 	unsigned long flags;
 	int ret = 0;
 
-	__of_changeset_entry_dump(ce);
+	of_changeset_action_debug("apply: ", ce->action, ce->np, ce->prop);
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	switch (ce->action) {
@@ -642,8 +612,7 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
 	if (ret) {
-		pr_err("changeset: apply failed: %-15s %pOF:%s\n",
-		       action_names[ce->action], ce->np, ce->prop->name);
+		of_changeset_action_err("apply failed: ", ce->action, ce->np, ce->prop);
 		return ret;
 	}
 
