@@ -113,6 +113,7 @@ TEST_F(iommufd, cmd_length)
 	}
 
 	TEST_LENGTH(iommu_destroy, IOMMU_DESTROY);
+	TEST_LENGTH(iommu_hw_info, IOMMU_GET_HW_INFO);
 	TEST_LENGTH(iommu_ioas_alloc, IOMMU_IOAS_ALLOC);
 	TEST_LENGTH(iommu_ioas_iova_ranges, IOMMU_IOAS_IOVA_RANGES);
 	TEST_LENGTH(iommu_ioas_allow_iovas, IOMMU_IOAS_ALLOW_IOVAS);
@@ -185,6 +186,7 @@ FIXTURE(iommufd_ioas)
 	uint32_t ioas_id;
 	uint32_t stdev_id;
 	uint32_t hwpt_id;
+	uint32_t device_id;
 	uint64_t base_iova;
 };
 
@@ -211,7 +213,7 @@ FIXTURE_SETUP(iommufd_ioas)
 
 	for (i = 0; i != variant->mock_domains; i++) {
 		test_cmd_mock_domain(self->ioas_id, &self->stdev_id,
-				     &self->hwpt_id, NULL);
+				     &self->hwpt_id, &self->device_id);
 		self->base_iova = MOCK_APERTURE_START;
 	}
 }
@@ -287,6 +289,40 @@ TEST_F(iommufd_ioas, ioas_area_auto_destroy)
 	for (i = 0; i != 10; i++) {
 		test_ioctl_ioas_map_fixed(buffer, PAGE_SIZE,
 					  self->base_iova + i * PAGE_SIZE);
+	}
+}
+
+TEST_F(iommufd_ioas, get_hw_info)
+{
+	struct iommu_test_hw_info buffer_exact;
+	struct iommu_test_hw_info_buffer_larger {
+		struct iommu_test_hw_info info;
+		uint64_t trailing_bytes;
+	} buffer_larger;
+	struct iommu_test_hw_info_buffer_smaller {
+		__u32 flags;
+	} buffer_smaller;
+
+	if (self->device_id) {
+		/* Provide a zero-size user_buffer */
+		test_cmd_get_hw_info(self->device_id, NULL, 0);
+		/* Provide a user_buffer with exact size */
+		test_cmd_get_hw_info(self->device_id, &buffer_exact, sizeof(buffer_exact));
+		/*
+		 * Provide a user_buffer with size larger than the exact size to check if
+		 * kernel zero the trailing bytes.
+		 */
+		test_cmd_get_hw_info(self->device_id, &buffer_larger, sizeof(buffer_larger));
+		/*
+		 * Provide a user_buffer with size smaller than the exact size to check if
+		 * the fields within the size range still gets updated.
+		 */
+		test_cmd_get_hw_info(self->device_id, &buffer_smaller, sizeof(buffer_smaller));
+	} else {
+		test_err_get_hw_info(ENOENT, self->device_id,
+				     &buffer_exact, sizeof(buffer_exact));
+		test_err_get_hw_info(ENOENT, self->device_id,
+				     &buffer_larger, sizeof(buffer_larger));
 	}
 }
 
