@@ -411,7 +411,7 @@ static int vs_dc_dc8200_get_clock(struct device *dev, struct vs_dc *dc)
 	return 0;
 }
 
-static int  vs_dc_dc8200_clock_enable(struct device *dev, struct vs_dc *dc)
+static int vs_dc_dc8200_clock_enable(struct device *dev, struct vs_dc *dc)
 {
 	int ret;
 	/*clk_prepare_enable(dc->sys_clk);*/
@@ -459,7 +459,7 @@ static void vs_vout_reset_get(struct device *dev, struct vs_dc *dc)
 	dc->rst_vout_src = reset_control_get_shared(dev, "rst_vout_src");
 	if (IS_ERR(dc->rst_vout_src))
 		dev_err(dev, "failed to get rst_vout_src\n");
-	dc->noc_disp = reset_control_get_shared(dev, "rst_noc_disp");
+	dc->noc_disp = reset_control_get_exclusive(dev, "rst_noc_disp");
 	if (IS_ERR(dc->noc_disp))
 		dev_err(dev, "failed to get rst_noc_disp\n");
 }
@@ -467,7 +467,7 @@ static void vs_vout_reset_get(struct device *dev, struct vs_dc *dc)
 static void vs_vout_reset_deassert(struct vs_dc *dc)
 {
 	reset_control_deassert(dc->rst_vout_src);//no!
-	reset_control_deassert(dc->noc_disp);//ok
+	//reset_control_deassert(dc->noc_disp);//ok
 }
 
 /*
@@ -536,6 +536,7 @@ static int dc_vout_clk_enable(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "failed to enable clock\n");
 		return ret;
 	}
+	reset_control_deassert(dc->noc_disp);
 
 	ret = vs_dc_vouttop_clock_enable(dev, dc);
 	if (ret) {
