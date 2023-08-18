@@ -452,15 +452,9 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 		return port->irq;
 
 	/* the controller clock is optional */
-	port->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	port->clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
 	if (IS_ERR(port->clk))
 		return PTR_ERR(port->clk);
-
-	err = clk_prepare_enable(port->clk);
-	if (err) {
-		dev_err(&pdev->dev, "Unable to enable clock.\n");
-		return err;
-	}
 
 	if (of_device_is_compatible(np, "fsl,imx7d-gpio"))
 		port->power_off = true;
@@ -535,7 +529,6 @@ out_irqdomain_remove:
 out_bgio:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
-	clk_disable_unprepare(port->clk);
 	dev_info(&pdev->dev, "%s failed with errno %d\n", __func__, err);
 	return err;
 }
