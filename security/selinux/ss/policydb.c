@@ -2011,6 +2011,7 @@ static int filename_trans_read_helper(struct policydb *p, void *fp)
 		if (!datum)
 			goto out;
 
+		datum->next = NULL;
 		*dst = datum;
 
 		/* ebitmap_read() will at least init the bitmap */
@@ -2023,7 +2024,6 @@ static int filename_trans_read_helper(struct policydb *p, void *fp)
 			goto out;
 
 		datum->otype = le32_to_cpu(buf[0]);
-		datum->next = NULL;
 
 		dst = &datum->next;
 	}
