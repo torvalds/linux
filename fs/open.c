@@ -1150,7 +1150,7 @@ EXPORT_SYMBOL_GPL(kernel_file_open);
  * backing_file_open - open a backing file for kernel internal use
  * @path:	path of the file to open
  * @flags:	open flags
- * @path:	path of the backing file
+ * @real_path:	path of the backing file
  * @cred:	credentials for open
  *
  * Open a backing file for a stackable filesystem (e.g., overlayfs).
@@ -1567,7 +1567,7 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 }
 
 /**
- * close_range() - Close all file descriptors in a given range.
+ * sys_close_range() - Close all file descriptors in a given range.
  *
  * @fd:     starting file descriptor to close
  * @max_fd: last file descriptor to close
