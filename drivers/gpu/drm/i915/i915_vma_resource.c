@@ -94,7 +94,7 @@ static void unbind_fence_release(struct dma_fence *fence)
 	call_rcu(&fence->rcu, unbind_fence_free_rcu);
 }
 
-static struct dma_fence_ops unbind_fence_ops = {
+static const struct dma_fence_ops unbind_fence_ops = {
 	.get_driver_name = get_driver_name,
 	.get_timeline_name = get_timeline_name,
 	.release = unbind_fence_release,
