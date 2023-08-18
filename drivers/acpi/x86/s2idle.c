@@ -128,11 +128,10 @@ static void lpi_device_get_constraints_amd(void)
 				struct lpi_constraints *list;
 				acpi_status status;
 
+				list = &lpi_constraints_table[lpi_constraints_table_size];
+
 				for (k = 0; k < info_obj->package.count; k++) {
 					union acpi_object *obj = &info_obj->package.elements[k];
-
-					list = &lpi_constraints_table[lpi_constraints_table_size];
-					list->min_dstate = -1;
 
 					switch (k) {
 					case 0:
@@ -148,27 +147,21 @@ static void lpi_device_get_constraints_amd(void)
 						dev_info.min_dstate = obj->integer.value;
 						break;
 					}
-
-					if (!dev_info.enabled || !dev_info.name ||
-					    !dev_info.min_dstate)
-						continue;
-
-					status = acpi_get_handle(NULL, dev_info.name,
-								 &list->handle);
-					if (ACPI_FAILURE(status))
-						continue;
-
-					acpi_handle_debug(lps0_device_handle,
-							  "Name:%s\n", dev_info.name);
-
-					list->min_dstate = dev_info.min_dstate;
-
-					if (list->min_dstate < 0) {
-						acpi_handle_debug(lps0_device_handle,
-								  "Incomplete constraint defined\n");
-						continue;
-					}
 				}
+
+				if (!dev_info.enabled || !dev_info.name ||
+				    !dev_info.min_dstate)
+					continue;
+
+				status = acpi_get_handle(NULL, dev_info.name, &list->handle);
+				if (ACPI_FAILURE(status))
+					continue;
+
+				acpi_handle_debug(lps0_device_handle,
+						  "Name:%s\n", dev_info.name);
+
+				list->min_dstate = dev_info.min_dstate;
+
 				lpi_constraints_table_size++;
 			}
 		}
