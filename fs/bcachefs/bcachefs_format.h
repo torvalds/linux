@@ -1150,6 +1150,7 @@ struct bch_snapshot {
 	__le32			parent;
 	__le32			children[2];
 	__le32			subvol;
+	/* corresponds to a bch_snapshot_tree in BTREE_ID_snapshot_trees */
 	__le32			tree;
 	__le32			depth;
 	__le32			skip[3];
