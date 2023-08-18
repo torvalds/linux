@@ -802,36 +802,28 @@ DEFINE_INODE_EVENT(xfs_inode_inactivating);
  * ring buffer.  Somehow this was only worth mentioning in the ftrace sample
  * code.
  */
-TRACE_DEFINE_ENUM(PE_SIZE_PTE);
-TRACE_DEFINE_ENUM(PE_SIZE_PMD);
-TRACE_DEFINE_ENUM(PE_SIZE_PUD);
-
 TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_SHARED);
 TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_COW);
 
 TRACE_EVENT(xfs_filemap_fault,
-	TP_PROTO(struct xfs_inode *ip, enum page_entry_size pe_size,
-		 bool write_fault),
-	TP_ARGS(ip, pe_size, write_fault),
+	TP_PROTO(struct xfs_inode *ip, unsigned int order, bool write_fault),
+	TP_ARGS(ip, order, write_fault),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
-		__field(enum page_entry_size, pe_size)
+		__field(unsigned int, order)
 		__field(bool, write_fault)
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->pe_size = pe_size;
+		__entry->order = order;
 		__entry->write_fault = write_fault;
 	),
-	TP_printk("dev %d:%d ino 0x%llx %s write_fault %d",
+	TP_printk("dev %d:%d ino 0x%llx order %u write_fault %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
-		  __print_symbolic(__entry->pe_size,
-			{ PE_SIZE_PTE,	"PTE" },
-			{ PE_SIZE_PMD,	"PMD" },
-			{ PE_SIZE_PUD,	"PUD" }),
+		  __entry->order,
 		  __entry->write_fault)
 )
 
