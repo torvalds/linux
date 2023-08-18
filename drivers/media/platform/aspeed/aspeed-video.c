@@ -334,6 +334,8 @@ struct aspeed_video {
 	struct vb2_queue queue;
 	struct video_device vdev;
 	struct mutex video_lock;	/* v4l2 and videobuf2 lock */
+	struct dentry *debugfs_entry;
+	int id;
 
 	struct regmap *scu;
 	struct regmap *gfx;
@@ -1692,10 +1694,14 @@ static void aspeed_video_stop(struct aspeed_video *video)
 static int aspeed_video_querycap(struct file *file, void *fh,
 				 struct v4l2_capability *cap)
 {
+	struct aspeed_video *video = video_drvdata(file);
+
 	strscpy(cap->driver, DEVICE_NAME, sizeof(cap->driver));
 	strscpy(cap->card, "Aspeed Video Engine", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 DEVICE_NAME);
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform: %s%d",
+		 DEVICE_NAME, video->id);
 
 	return 0;
 }
@@ -2427,19 +2433,19 @@ static int aspeed_video_debugfs_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(aspeed_video_debugfs);
 
-static struct dentry *debugfs_entry;
-
 static void aspeed_video_debugfs_remove(struct aspeed_video *video)
 {
-	debugfs_remove_recursive(debugfs_entry);
-	debugfs_entry = NULL;
+	debugfs_remove_recursive(video->debugfs_entry);
 }
 
 static void aspeed_video_debugfs_create(struct aspeed_video *video)
 {
-	debugfs_entry = debugfs_create_file(DEVICE_NAME, 0444, NULL,
-					    video,
-					    &aspeed_video_debugfs_fops);
+	char filename[16];
+
+	snprintf(filename, sizeof(filename), "%s%d", DEVICE_NAME, video->id);
+	video->debugfs_entry = debugfs_create_file(filename, 0444,
+						   video->debugfs_entry, video,
+						   &aspeed_video_debugfs_fops);
 }
 #else
 static void aspeed_video_debugfs_remove(struct aspeed_video *video) { }
@@ -2490,6 +2496,8 @@ static int aspeed_video_setup_video(struct aspeed_video *video)
 	vbq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	vbq->io_modes = VB2_MMAP | VB2_READ | VB2_DMABUF;
 	vbq->dev = v4l2_dev->dev;
+	snprintf(vdev->name, sizeof(vdev->name), "%s%d",
+		 DEVICE_NAME, video->id);
 	vbq->lock = &video->video_lock;
 	vbq->ops = &aspeed_video_vb2_ops;
 	vbq->mem_ops = &vb2_dma_contig_memops;
@@ -2540,6 +2548,11 @@ static int aspeed_video_init(struct aspeed_video *video)
 	struct device *dev = video->dev;
 	unsigned int mask_size = (video->version >= 7) ? 64 : 32;
 
+	if (dev->of_node)
+		video->id = of_alias_get_id(dev->of_node, "video");
+	else
+		video->id = 0;
+
 	if (video->version >= 6) {
 		video->scu = syscon_regmap_lookup_by_phandle(dev->of_node,
 							     "aspeed,scu");
@@ -2562,7 +2575,7 @@ static int aspeed_video_init(struct aspeed_video *video)
 
 	rc = devm_request_threaded_irq(dev, irq, aspeed_video_irq,
 				       aspeed_video_thread_irq,
-				       IRQF_ONESHOT, DEVICE_NAME, video);
+				       IRQF_ONESHOT, dev_name(dev), video);
 	if (rc < 0) {
 		dev_err(dev, "Unable to request IRQ %d\n", irq);
 		return rc;
@@ -2681,6 +2694,9 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	}
 
 	aspeed_video_debugfs_create(video);
+
+	dev_info(video->dev, "%s%d registered as /dev/video%d\n", DEVICE_NAME,
+		 video->id, video->vdev.num);
 
 	return 0;
 }
