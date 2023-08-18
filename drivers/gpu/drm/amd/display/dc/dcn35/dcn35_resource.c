@@ -749,6 +749,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_mem_low_power = true,
 	.ignore_pg = true,
 	.psp_disabled_wa = true,
+	.disable_ips = true,
 };
 
 static const struct dc_panel_config panel_config_defaults = {
