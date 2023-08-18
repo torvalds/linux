@@ -79,6 +79,7 @@
 	FN(IPV6_NDISC_BAD_CODE)		\
 	FN(IPV6_NDISC_BAD_OPTIONS)	\
 	FN(IPV6_NDISC_NS_OTHERHOST)	\
+	FN(QUEUE_PURGE)			\
 	FNe(MAX)
 
 /**
@@ -342,6 +343,8 @@ enum skb_drop_reason {
 	 * for another host.
 	 */
 	SKB_DROP_REASON_IPV6_NDISC_NS_OTHERHOST,
+	/** @SKB_DROP_REASON_QUEUE_PURGE: bulk free. */
+	SKB_DROP_REASON_QUEUE_PURGE,
 	/**
 	 * @SKB_DROP_REASON_MAX: the maximum of core drop reasons, which
 	 * shouldn't be used as a real 'reason' - only for tracing code gen

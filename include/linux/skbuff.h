@@ -3149,20 +3149,35 @@ static inline int skb_orphan_frags_rx(struct sk_buff *skb, gfp_t gfp_mask)
 }
 
 /**
- *	__skb_queue_purge - empty a list
+ *	__skb_queue_purge_reason - empty a list
  *	@list: list to empty
+ *	@reason: drop reason
  *
  *	Delete all buffers on an &sk_buff list. Each buffer is removed from
  *	the list and one reference dropped. This function does not take the
  *	list lock and the caller must hold the relevant locks to use it.
  */
-static inline void __skb_queue_purge(struct sk_buff_head *list)
+static inline void __skb_queue_purge_reason(struct sk_buff_head *list,
+					    enum skb_drop_reason reason)
 {
 	struct sk_buff *skb;
+
 	while ((skb = __skb_dequeue(list)) != NULL)
-		kfree_skb(skb);
+		kfree_skb_reason(skb, reason);
 }
-void skb_queue_purge(struct sk_buff_head *list);
+
+static inline void __skb_queue_purge(struct sk_buff_head *list)
+{
+	__skb_queue_purge_reason(list, SKB_DROP_REASON_QUEUE_PURGE);
+}
+
+void skb_queue_purge_reason(struct sk_buff_head *list,
+			    enum skb_drop_reason reason);
+
+static inline void skb_queue_purge(struct sk_buff_head *list)
+{
+	skb_queue_purge_reason(list, SKB_DROP_REASON_QUEUE_PURGE);
+}
 
 unsigned int skb_rbtree_purge(struct rb_root *root);
 

@@ -3701,20 +3701,23 @@ struct sk_buff *skb_dequeue_tail(struct sk_buff_head *list)
 EXPORT_SYMBOL(skb_dequeue_tail);
 
 /**
- *	skb_queue_purge - empty a list
+ *	skb_queue_purge_reason - empty a list
  *	@list: list to empty
+ *	@reason: drop reason
  *
  *	Delete all buffers on an &sk_buff list. Each buffer is removed from
  *	the list and one reference dropped. This function takes the list
  *	lock and is atomic with respect to other list locking functions.
  */
-void skb_queue_purge(struct sk_buff_head *list)
+void skb_queue_purge_reason(struct sk_buff_head *list,
+			    enum skb_drop_reason reason)
 {
 	struct sk_buff *skb;
+
 	while ((skb = skb_dequeue(list)) != NULL)
-		kfree_skb(skb);
+		kfree_skb_reason(skb, reason);
 }
-EXPORT_SYMBOL(skb_queue_purge);
+EXPORT_SYMBOL(skb_queue_purge_reason);
 
 /**
  *	skb_rbtree_purge - empty a skb rbtree
