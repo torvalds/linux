@@ -1530,6 +1530,20 @@ int of_count_phandle_with_args(const struct device_node *np, const char *list_na
 }
 EXPORT_SYMBOL(of_count_phandle_with_args);
 
+static struct property *__of_remove_property_from_list(struct property **list, struct property *prop)
+{
+	struct property **next;
+
+	for (next = list; *next; next = &(*next)->next) {
+		if (*next == prop) {
+			*next = prop->next;
+			prop->next = NULL;
+			return prop;
+		}
+	}
+	return NULL;
+}
+
 /**
  * __of_add_property - Add a property to a node without lock operations
  * @np:		Caller's Device Node
@@ -1538,6 +1552,8 @@ EXPORT_SYMBOL(of_count_phandle_with_args);
 int __of_add_property(struct device_node *np, struct property *prop)
 {
 	struct property **next;
+
+	__of_remove_property_from_list(&np->deadprops, prop);
 
 	prop->next = NULL;
 	next = &np->properties;
@@ -1583,21 +1599,14 @@ EXPORT_SYMBOL_GPL(of_add_property);
 
 int __of_remove_property(struct device_node *np, struct property *prop)
 {
-	struct property **next;
-
-	for (next = &np->properties; *next; next = &(*next)->next) {
-		if (*next == prop)
-			break;
+	if (__of_remove_property_from_list(&np->properties, prop)) {
+		/* Found the property, add it to deadprops list */
+		prop->next = np->deadprops;
+		np->deadprops = prop;
+		return 0;
 	}
-	if (*next == NULL)
-		return -ENODEV;
 
-	/* found the node */
-	*next = prop->next;
-	prop->next = np->deadprops;
-	np->deadprops = prop;
-
-	return 0;
+	return -ENODEV;
 }
 
 /**
@@ -1640,6 +1649,8 @@ int __of_update_property(struct device_node *np, struct property *newprop,
 		struct property **oldpropp)
 {
 	struct property **next, *oldprop;
+
+	__of_remove_property_from_list(&np->deadprops, newprop);
 
 	for (next = &np->properties; *next; next = &(*next)->next) {
 		if (of_prop_cmp((*next)->name, newprop->name) == 0)
