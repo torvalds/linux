@@ -382,8 +382,8 @@ static void kick_trng(struct device *dev, int ent_delay)
 		val = ent_delay;
 		/* min. freq. count, equal to 1/4 of the entropy sample length */
 		wr_reg32(&r4tst->rtfrqmin, val >> 2);
-		/* max. freq. count, equal to 16 times the entropy sample length */
-		wr_reg32(&r4tst->rtfrqmax, val << 4);
+		/* disable maximum frequency count */
+		wr_reg32(&r4tst->rtfrqmax, RTFRQMAX_DISABLE);
 	}
 
 	wr_reg32(&r4tst->rtsdctl, (val << RTSDCTL_ENT_DLY_SHIFT) |
