@@ -8,17 +8,11 @@
 #include <linux/version.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
 
 #ifndef PERF_MAX_STACK_DEPTH
 #define PERF_MAX_STACK_DEPTH         127
 #endif
-
-#define _(P)                                                                   \
-	({                                                                     \
-		typeof(P) val;                                                 \
-		bpf_probe_read_kernel(&val, sizeof(val), &(P));                \
-		val;                                                           \
-	})
 
 #define MINBLOCK_US	1
 #define MAX_ENTRIES	10000
@@ -68,11 +62,9 @@ struct {
 SEC("kprobe/try_to_wake_up")
 int waker(struct pt_regs *ctx)
 {
-	struct task_struct *p = (void *) PT_REGS_PARM1(ctx);
+	struct task_struct *p = (void *)PT_REGS_PARM1_CORE(ctx);
+	u32 pid = BPF_CORE_READ(p, pid);
 	struct wokeby_t woke;
-	u32 pid;
-
-	pid = _(p->pid);
 
 	bpf_get_current_comm(&woke.name, sizeof(woke.name));
 	woke.ret = bpf_get_stackid(ctx, &stackmap, STACKID_FLAGS);
@@ -121,9 +113,9 @@ int oncpu(struct trace_event_raw_sched_switch *ctx)
 SEC("kprobe.multi/finish_task_switch*")
 int oncpu(struct pt_regs *ctx)
 {
-	struct task_struct *p = (void *) PT_REGS_PARM1(ctx);
+	struct task_struct *p = (void *)PT_REGS_PARM1_CORE(ctx);
 	/* record previous thread sleep time */
-	u32 pid = _(p->pid);
+	u32 pid = BPF_CORE_READ(p, pid);
 #endif
 	u64 delta, ts, *tsp;
 

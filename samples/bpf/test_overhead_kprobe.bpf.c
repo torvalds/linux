@@ -8,13 +8,7 @@
 #include <linux/version.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-
-#define _(P)                                                                   \
-	({                                                                     \
-		typeof(P) val = 0;                                             \
-		bpf_probe_read_kernel(&val, sizeof(val), &(P));                \
-		val;                                                           \
-	})
+#include <bpf/bpf_core_read.h>
 
 SEC("kprobe/__set_task_comm")
 int prog(struct pt_regs *ctx)
@@ -26,14 +20,14 @@ int prog(struct pt_regs *ctx)
 	u16 oom_score_adj;
 	u32 pid;
 
-	tsk = (void *)PT_REGS_PARM1(ctx);
+	tsk = (void *)PT_REGS_PARM1_CORE(ctx);
 
-	pid = _(tsk->pid);
-	bpf_probe_read_kernel_str(oldcomm, sizeof(oldcomm), &tsk->comm);
-	bpf_probe_read_kernel_str(newcomm, sizeof(newcomm),
+	pid = BPF_CORE_READ(tsk, pid);
+	bpf_core_read_str(oldcomm, sizeof(oldcomm), &tsk->comm);
+	bpf_core_read_str(newcomm, sizeof(newcomm),
 				  (void *)PT_REGS_PARM2(ctx));
-	signal = _(tsk->signal);
-	oom_score_adj = _(signal->oom_score_adj);
+	signal = BPF_CORE_READ(tsk, signal);
+	oom_score_adj = BPF_CORE_READ(signal, oom_score_adj);
 	return 0;
 }
 

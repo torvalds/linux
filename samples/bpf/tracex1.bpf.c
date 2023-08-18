@@ -8,14 +8,8 @@
 #include "net_shared.h"
 #include <linux/version.h>
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
-
-#define _(P)                                                                   \
-	({                                                                     \
-		typeof(P) val = 0;                                             \
-		bpf_probe_read_kernel(&val, sizeof(val), &(P));                \
-		val;                                                           \
-	})
 
 /* kprobe is NOT a stable ABI
  * kernel functions can be removed, renamed or completely change semantics.
@@ -34,12 +28,11 @@ int bpf_prog1(struct pt_regs *ctx)
 	struct sk_buff *skb;
 	int len;
 
-	/* non-portable! works for the given kernel only */
-	bpf_probe_read_kernel(&skb, sizeof(skb), (void *)PT_REGS_PARM1(ctx));
-	dev = _(skb->dev);
-	len = _(skb->len);
+	bpf_core_read(&skb, sizeof(skb), (void *)PT_REGS_PARM1(ctx));
+	dev = BPF_CORE_READ(skb, dev);
+	len = BPF_CORE_READ(skb, len);
 
-	bpf_probe_read_kernel(devname, sizeof(devname), dev->name);
+	BPF_CORE_READ_STR_INTO(&devname, dev, name);
 
 	if (devname[0] == 'l' && devname[1] == 'o') {
 		char fmt[] = "skb %p len %d\n";
