@@ -127,7 +127,7 @@ static int raa215300_i2c_probe(struct i2c_client *client)
 		struct clk_hw *hw;
 		ssize_t size;
 
-		hw = devm_clk_hw_register_fixed_rate(dev, clk_name, NULL, 0, 32000);
+		hw = devm_clk_hw_register_fixed_rate(dev, clk_name, NULL, 0, 32768);
 		if (IS_ERR(hw))
 			return PTR_ERR(hw);
 
