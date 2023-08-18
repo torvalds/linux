@@ -943,3 +943,14 @@ file pointer instead of struct dentry pointer.  d_tmpfile() is similarly
 changed to simplify callers.  The passed file is in a non-open state and on
 success must be opened before returning (e.g. by calling
 finish_open_simple()).
+
+---
+
+**mandatory**
+
+Calling convention for ->huge_fault has changed.  It now takes a page
+order instead of an enum page_entry_size, and it may be called without the
+mmap_lock held.  All in-tree users have been audited and do not seem to
+depend on the mmap_lock being held, but out of tree users should verify
+for themselves.  If they do need it, they can return VM_FAULT_RETRY to
+be called with the mmap_lock held.
