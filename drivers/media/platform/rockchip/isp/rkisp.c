@@ -541,45 +541,36 @@ static void rkisp_multi_overflow_hdl(struct rkisp_device *dev, bool on)
 	struct rkisp_hw_dev *hw = dev->hw_dev;
 
 	if (on) {
-		/* enable bay3d and mi */
+		/* enable mi */
 		rkisp_update_regs(dev, ISP3X_MI_WR_CTRL, ISP3X_MI_WR_CTRL);
 		rkisp_update_regs(dev, ISP3X_ISP_CTRL1, ISP3X_ISP_CTRL1);
-		if (dev->isp_ver == ISP_V21) {
-			rkisp_update_regs(dev, ISP21_BAY3D_CTRL, ISP21_BAY3D_CTRL);
-		} else if (dev->isp_ver == ISP_V30) {
+		if (dev->isp_ver == ISP_V30) {
 			rkisp_update_regs(dev, ISP3X_MPFBC_CTRL, ISP3X_MPFBC_CTRL);
 			rkisp_update_regs(dev, ISP3X_MI_BP_WR_CTRL, ISP3X_MI_BP_WR_CTRL);
-			rkisp_update_regs(dev, ISP3X_BAY3D_CTRL, ISP3X_BAY3D_CTRL);
 			rkisp_update_regs(dev, ISP3X_SWS_CFG, ISP3X_SWS_CFG);
 		} else if (dev->isp_ver == ISP_V32) {
 			rkisp_update_regs(dev, ISP3X_MI_BP_WR_CTRL, ISP3X_MI_BP_WR_CTRL);
 			rkisp_update_regs(dev, ISP32_MI_BPDS_WR_CTRL, ISP32_MI_BPDS_WR_CTRL);
 			rkisp_update_regs(dev, ISP32_MI_MPDS_WR_CTRL, ISP32_MI_MPDS_WR_CTRL);
-			rkisp_update_regs(dev, ISP3X_BAY3D_CTRL, ISP3X_BAY3D_CTRL);
 		}
 	} else {
-		/* disabled bay3d and mi. rv1106 sdmmc workaround, 3a_wr no close */
+		/* disabled mi. rv1106 sdmmc workaround, 3a_wr no close */
 		writel(CIF_MI_CTRL_INIT_OFFSET_EN | CIF_MI_CTRL_INIT_BASE_EN,
 		       hw->base_addr + ISP3X_MI_WR_CTRL);
-		if (dev->isp_ver == ISP_V21) {
-			writel(0, hw->base_addr + ISP21_BAY3D_CTRL);
-		} else if (dev->isp_ver == ISP_V30) {
+		if (dev->isp_ver == ISP_V30) {
 			writel(0, hw->base_addr + ISP3X_MPFBC_CTRL);
 			writel(0, hw->base_addr + ISP3X_MI_BP_WR_CTRL);
-			writel(0, hw->base_addr + ISP3X_BAY3D_CTRL);
 			writel(0xc, hw->base_addr + ISP3X_SWS_CFG);
 			if (hw->is_unite) {
 				writel(0, hw->base_next_addr + ISP3X_MI_WR_CTRL);
 				writel(0, hw->base_next_addr + ISP3X_MPFBC_CTRL);
 				writel(0, hw->base_next_addr + ISP3X_MI_BP_WR_CTRL);
-				writel(0, hw->base_next_addr + ISP3X_BAY3D_CTRL);
 				writel(0xc, hw->base_next_addr + ISP3X_SWS_CFG);
 			}
 		} else if (dev->isp_ver == ISP_V32) {
 			writel(0, hw->base_addr + ISP3X_MI_BP_WR_CTRL);
 			writel(0, hw->base_addr + ISP32_MI_BPDS_WR_CTRL);
 			writel(0, hw->base_addr + ISP32_MI_MPDS_WR_CTRL);
-			writel(0, hw->base_addr + ISP3X_BAY3D_CTRL);
 		}
 	}
 	rkisp_unite_write(dev, ISP3X_MI_WR_INIT, CIF_MI_INIT_SOFT_UPD, true, hw->is_unite);
@@ -741,19 +732,54 @@ run_next:
 		if (dev->sw_rd_cnt) {
 			/* the frame first running to off mi to save bandwidth */
 			rkisp_multi_overflow_hdl(dev, false);
-			/* FST_FRAME for YNR/CNR/SHP/ADRC/DHAZ no to refer to sram info */
-			val = ISP3X_YNR_FST_FRAME | ISP3X_CNR_FST_FRAME | ISP32_SHP_FST_FRAME |
-			      ISP3X_ADRC_FST_FRAME | ISP3X_DHAZ_FST_FRAME;
+
+			/* FST_FRAME no to read sram thumb */
+			val = ISP3X_YNR_FST_FRAME | ISP3X_DHAZ_FST_FRAME;
+			if (dev->isp_ver == ISP_V32)
+				val |= ISP32_SHP_FST_FRAME;
+			else
+				val |= ISP3X_CNR_FST_FRAME;
 			rkisp_unite_set_bits(dev, ISP3X_ISP_CTRL1, 0, val, false, hw->is_unite);
+			/* ADRC low iir thumb weight for first sensor switch */
+			val = rkisp_read_reg_cache(dev, ISP3X_DRC_IIRWG_GAIN);
+			val &= ~ISP3X_DRC_IIR_WEIGHT_MASK;
+			writel(val, hw->base_addr + ISP3X_DRC_IIRWG_GAIN);
+			/* ADRC iir5x5 and cur3x3 weight */
+			val = rkisp_read_reg_cache(dev, ISP3X_DRC_EXPLRATIO);
+			val &= ~ISP3X_DRC_WEIPRE_FRAME_MASK;
+			writel(val, hw->base_addr + ISP3X_DRC_EXPLRATIO);
+			/* YNR_THUMB_MIX_CUR_EN for thumb read addr to 0 */
+			val = rkisp_read_reg_cache(dev, ISP3X_YNR_GLOBAL_CTRL);
+			val |= ISP3X_YNR_THUMB_MIX_CUR_EN;
+			writel(val, hw->base_addr + ISP3X_YNR_GLOBAL_CTRL);
+			if (dev->isp_ver == ISP_V21 || dev->isp_ver == ISP_V30) {
+				/* CNR_THUMB_MIX_CUR_EN for thumb read addr to 0 */
+				val = rkisp_read_reg_cache(dev, ISP3X_CNR_CTRL);
+				val |= ISP3X_CNR_THUMB_MIX_CUR_EN;
+				writel(val, hw->base_addr + ISP3X_CNR_CTRL);
+				if (hw->is_unite)
+					writel(val, hw->base_next_addr + ISP3X_CNR_CTRL);
+			}
+
 			params_vdev->rdbk_times += dev->sw_rd_cnt;
 			stats_vdev->rdbk_drop = true;
 			is_upd = true;
 		} else if (is_try) {
+			/* the frame second running to on mi */
 			rkisp_multi_overflow_hdl(dev, true);
 			rkisp_update_regs(dev, ISP_LDCH_BASE, ISP_LDCH_BASE);
-			val = ISP3X_YNR_FST_FRAME | ISP3X_CNR_FST_FRAME | ISP32_SHP_FST_FRAME |
-			      ISP3X_ADRC_FST_FRAME | ISP3X_DHAZ_FST_FRAME;
+
+			val = ISP3X_YNR_FST_FRAME | ISP3X_DHAZ_FST_FRAME | ISP3X_CNR_FST_FRAME;
+			if (dev->isp_ver == ISP_V32)
+				val |= ISP32_SHP_FST_FRAME;
+			else
+				val |= ISP3X_CNR_FST_FRAME;
 			rkisp_unite_clear_bits(dev, ISP3X_ISP_CTRL1, val, false, hw->is_unite);
+			val = rkisp_read_reg_cache(dev, ISP3X_DRC_IIRWG_GAIN);
+			writel(val, hw->base_addr + ISP3X_DRC_IIRWG_GAIN);
+			val = rkisp_read_reg_cache(dev, ISP3X_DRC_EXPLRATIO);
+			writel(val, hw->base_addr + ISP3X_DRC_EXPLRATIO);
+
 			is_upd = true;
 		}
 	}
@@ -818,6 +844,8 @@ run_next:
 	val &= ~SW_IBUF_OP_MODE(0xf);
 	tmp = SW_IBUF_OP_MODE(dev->rd_mode);
 	val |= tmp | SW_CSI2RX_EN | SW_DMA_2FRM_MODE(dma2frm);
+	if (dev->isp_ver > ISP_V20)
+		dma2frm = dev->sw_rd_cnt;
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 		 "readback frame:%d time:%d 0x%x\n",
 		 cur_frame_id, dma2frm + 1, val);
