@@ -3072,6 +3072,11 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 	}
 	xprt->resvport = resvport;
 	xprt->reuseport = reuseport;
+
+	if (xprtargs->connect_timeout)
+		connect_timeout = xprtargs->connect_timeout;
+	if (xprtargs->reconnect_timeout)
+		reconnect_timeout = xprtargs->reconnect_timeout;
 	if (xprt->ops->set_connect_timeout != NULL)
 		xprt->ops->set_connect_timeout(xprt,
 				connect_timeout,
