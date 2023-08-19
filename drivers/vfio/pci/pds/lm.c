@@ -31,7 +31,7 @@ pds_vfio_get_lm_file(const struct file_operations *fops, int flags, u64 size)
 	/* Create file */
 	lm_file->filep =
 		anon_inode_getfile("pds_vfio_lm", fops, lm_file, flags);
-	if (!lm_file->filep)
+	if (IS_ERR(lm_file->filep))
 		goto out_free_file;
 
 	stream_open(lm_file->filep->f_inode, lm_file->filep);
