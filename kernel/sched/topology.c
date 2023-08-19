@@ -2112,13 +2112,15 @@ static int hop_cmp(const void *a, const void *b)
 	return -1;
 }
 
-/*
- * sched_numa_find_nth_cpu() - given the NUMA topology, find the Nth next cpu
- *                             closest to @cpu from @cpumask.
- * cpumask: cpumask to find a cpu from
- * cpu: Nth cpu to find
+/**
+ * sched_numa_find_nth_cpu() - given the NUMA topology, find the Nth closest CPU
+ *                             from @cpus to @cpu, taking into account distance
+ *                             from a given @node.
+ * @cpus: cpumask to find a cpu from
+ * @cpu: CPU to start searching
+ * @node: NUMA node to order CPUs by distance
  *
- * returns: cpu, or nr_cpu_ids when nothing found.
+ * Return: cpu, or nr_cpu_ids when nothing found.
  */
 int sched_numa_find_nth_cpu(const struct cpumask *cpus, int cpu, int node)
 {
