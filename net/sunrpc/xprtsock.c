@@ -2290,8 +2290,6 @@ static void xs_tcp_set_connect_timeout(struct rpc_xprt *xprt,
 		unsigned long reconnect_timeout)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
-	struct rpc_timeout to;
-	unsigned long initval;
 
 	spin_lock(&xprt->transport_lock);
 	if (reconnect_timeout < xprt->max_reconnect_timeout)
@@ -3350,8 +3348,13 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 	xprt->timeout = &xs_tcp_default_timeout;
 
 	xprt->max_reconnect_timeout = xprt->timeout->to_maxval;
+	if (args->reconnect_timeout)
+		xprt->max_reconnect_timeout = args->reconnect_timeout;
+
 	xprt->connect_timeout = xprt->timeout->to_initval *
 		(xprt->timeout->to_retries + 1);
+	if (args->connect_timeout)
+		xs_tcp_do_set_connect_timeout(xprt, args->connect_timeout);
 
 	INIT_WORK(&transport->recv_worker, xs_stream_data_receive_workfn);
 	INIT_WORK(&transport->error_worker, xs_error_handle);
