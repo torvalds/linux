@@ -8,6 +8,13 @@ def define_pitti():
     _pitti_in_tree_modules = [
         # keep sorted
         # TODO: Need to add GKI modules
+        "drivers/firmware/qcom-scm.ko",
+        "drivers/hwspinlock/qcom_hwspinlock.ko",
+        "drivers/mailbox/qcom-ipcc.ko",
+        "drivers/pinctrl/qcom/pinctrl-msm.ko",
+        "drivers/pinctrl/qcom/pinctrl-pitti.ko",
+        "drivers/soc/qcom/smem.ko",
+        "drivers/soc/qcom/socinfo.ko",
     ]
 
     _pitti_consolidate_in_tree_modules = _pitti_in_tree_modules + [
