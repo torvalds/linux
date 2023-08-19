@@ -450,6 +450,8 @@ struct dmub_feature_caps {
 	uint8_t reserved[4];
 	uint8_t subvp_psr_support;
 	uint8_t gecc_enable;
+	uint8_t replay_supported;
+	uint8_t replay_reserved[3];
 };
 
 struct dmub_visual_confirm_color {
