@@ -2140,6 +2140,7 @@ static const struct adsp_data monaco_auto_adsp_resource = {
 	.sysmon_name = "adsp",
 	.qmp_name = "adsp",
 	.ssctl_id = 0x14,
+	.auto_boot = true,
 };
 
 static const struct adsp_data monaco_auto_cdsp_resource = {
