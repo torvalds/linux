@@ -129,11 +129,9 @@ ice_lag_find_hw_by_lport(struct ice_lag *lag, u8 lport)
 	struct ice_lag_netdev_list *entry;
 	struct net_device *tmp_netdev;
 	struct ice_netdev_priv *np;
-	struct list_head *tmp;
 	struct ice_hw *hw;
 
-	list_for_each(tmp, lag->netdev_head) {
-		entry = list_entry(tmp, struct ice_lag_netdev_list, node);
+	list_for_each_entry(entry, lag->netdev_head, node) {
 		tmp_netdev = entry->netdev;
 		if (!tmp_netdev || !netif_is_ice(tmp_netdev))
 			continue;
@@ -985,9 +983,8 @@ ice_lag_set_swid(u16 primary_swid, struct ice_lag *local_lag,
 	/* if unlinnking need to free the shared resource */
 	if (!link && local_lag->bond_swid) {
 		buf->elem[0].e.sw_resp = cpu_to_le16(local_lag->bond_swid);
-		status = ice_aq_alloc_free_res(&local_lag->pf->hw, 1, buf,
-					       buf_len, ice_aqc_opc_free_res,
-					       NULL);
+		status = ice_aq_alloc_free_res(&local_lag->pf->hw, buf,
+					       buf_len, ice_aqc_opc_free_res);
 		if (status)
 			dev_err(ice_pf_to_dev(local_lag->pf), "Error freeing SWID during LAG unlink\n");
 		local_lag->bond_swid = 0;
@@ -1004,8 +1001,8 @@ ice_lag_set_swid(u16 primary_swid, struct ice_lag *local_lag,
 			cpu_to_le16(local_lag->pf->hw.port_info->sw_id);
 	}
 
-	status = ice_aq_alloc_free_res(&local_lag->pf->hw, 1, buf, buf_len,
-				       ice_aqc_opc_alloc_res, NULL);
+	status = ice_aq_alloc_free_res(&local_lag->pf->hw, buf, buf_len,
+				       ice_aqc_opc_alloc_res);
 	if (status)
 		dev_err(ice_pf_to_dev(local_lag->pf), "Error subscribing to SWID 0x%04X\n",
 			local_lag->bond_swid);
@@ -1535,11 +1532,9 @@ static void ice_lag_disable_sriov_bond(struct ice_lag *lag)
 	struct ice_lag_netdev_list *entry;
 	struct ice_netdev_priv *np;
 	struct net_device *netdev;
-	struct list_head *tmp;
 	struct ice_pf *pf;
 
-	list_for_each(tmp, lag->netdev_head) {
-		entry = list_entry(tmp, struct ice_lag_netdev_list, node);
+	list_for_each_entry(entry, lag->netdev_head, node) {
 		netdev = entry->netdev;
 		np = netdev_priv(netdev);
 		pf = np->vsi->back;
