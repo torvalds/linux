@@ -758,10 +758,12 @@ u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1)
 	} else {
 		val = read_sysreg(pmceid1_el0);
 		/*
-		 * Don't advertise STALL_SLOT, as PMMIR_EL0 is handled
+		 * Don't advertise STALL_SLOT*, as PMMIR_EL0 is handled
 		 * as RAZ
 		 */
-		val &= ~BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT - 32);
+		val &= ~(BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT - 32) |
+			 BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT_FRONTEND - 32) |
+			 BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT_BACKEND - 32));
 		base = 32;
 	}
 
