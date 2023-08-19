@@ -4,6 +4,7 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/input.h>
 #include "omap4460.dtsi"
 
@@ -206,7 +207,31 @@
 
 	clock-frequency = <100000>;
 
-	/* TODO: BD2606MVV at 0x66 */
+	led-controller@66 {
+		compatible = "rohm,bd2606mvv";
+		reg = <0x66>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@0 {
+			reg = <0>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_STATUS;
+		};
+
+		led@2 {
+			reg = <2>;
+			color = <LED_COLOR_ID_BLUE>;
+			function = LED_FUNCTION_STATUS;
+		};
+
+		led@4 {
+			reg = <4>;
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_STATUS;
+		};
+	};
 };
 
 &i2c4 {
