@@ -30,6 +30,7 @@
 #define EXYNOS5_FSEL_19MHZ2		0x3
 #define EXYNOS5_FSEL_20MHZ		0x4
 #define EXYNOS5_FSEL_24MHZ		0x5
+#define EXYNOS5_FSEL_26MHZ		0x82
 #define EXYNOS5_FSEL_50MHZ		0x7
 
 /* Exynos5: USB 3.0 DRD PHY registers */
@@ -243,6 +244,9 @@ static unsigned int exynos5_rate_to_clk(unsigned long rate, u32 *reg)
 		break;
 	case 24 * MHZ:
 		*reg = EXYNOS5_FSEL_24MHZ;
+		break;
+	case 26 * MHZ:
+		*reg = EXYNOS5_FSEL_26MHZ;
 		break;
 	case 50 * MHZ:
 		*reg = EXYNOS5_FSEL_50MHZ;
