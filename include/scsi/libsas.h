@@ -550,6 +550,7 @@ struct sas_ata_task {
 	u8     use_ncq:1;
 	u8     set_affil_pol:1;
 	u8     stp_affil_pol:1;
+	u8     return_fis_on_success:1;
 
 	u8     device_control_reg_update:1;
 
