@@ -476,6 +476,7 @@ static irqreturn_t msm_mpm_irq(int irq, void *dev_id)
 	unsigned int mpm_irq;
 	struct irq_desc *desc = NULL;
 	unsigned int reg = MPM_REG_ENABLE;
+	bool pending_status;
 
 	for (i = 0; i < QCOM_MPM_REG_WIDTH; i++) {
 		value[i] = msm_mpm_read(reg, i);
@@ -493,9 +494,14 @@ static irqreturn_t msm_mpm_irq(int irq, void *dev_id)
 			desc = apps_irq ?
 				irq_to_desc(apps_irq) : NULL;
 
-			if (desc && !irqd_is_level_type(&desc->irq_data))
-				irq_set_irqchip_state(apps_irq,
+			if (desc && !irqd_is_level_type(&desc->irq_data)) {
+				irq_get_irqchip_state(apps_irq,
+						IRQCHIP_STATE_PENDING, &pending_status);
+
+				if (!pending_status)
+					irq_set_irqchip_state(apps_irq,
 						IRQCHIP_STATE_PENDING, true);
+			}
 
 		}
 
