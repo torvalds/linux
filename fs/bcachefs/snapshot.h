@@ -263,6 +263,9 @@ static inline int bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
 	return __bch2_key_has_snapshot_overwrites(trans, id, pos);
 }
 
+int bch2_propagate_key_to_snapshot_leaves(struct btree_trans *, enum btree_id,
+					  struct bkey_s_c, struct bpos *);
+
 int bch2_snapshots_read(struct bch_fs *);
 void bch2_fs_snapshots_exit(struct bch_fs *);
 

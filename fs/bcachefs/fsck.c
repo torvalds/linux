@@ -853,14 +853,6 @@ static int check_inode(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	/*
-	 * if snapshot id isn't a leaf node, skip it - deletion in
-	 * particular is not atomic, so on the internal snapshot nodes
-	 * we can see inodes marked for deletion after a clean shutdown
-	 */
-	if (bch2_snapshot_is_internal_node(c, k.k->p.snapshot))
-		return 0;
-
 	if (!bkey_is_inode(k.k))
 		return 0;
 
@@ -880,6 +872,27 @@ static int check_inode(struct btree_trans *trans,
 			"inodes in different snapshots don't match")) {
 		bch_err(c, "repair not implemented yet");
 		return -EINVAL;
+	}
+
+	if ((u.bi_flags & (BCH_INODE_I_SIZE_DIRTY|BCH_INODE_UNLINKED)) &&
+	    bch2_key_has_snapshot_overwrites(trans, BTREE_ID_inodes, k.k->p)) {
+		struct bpos new_min_pos;
+
+		ret = bch2_propagate_key_to_snapshot_leaves(trans, iter->btree_id, k, &new_min_pos);
+		if (ret)
+			goto err;
+
+		u.bi_flags &= ~BCH_INODE_I_SIZE_DIRTY|BCH_INODE_UNLINKED;
+
+		ret = __write_inode(trans, &u, iter->pos.snapshot);
+		if (ret) {
+			bch_err_msg(c, ret, "in fsck: error updating inode");
+			return ret;
+		}
+
+		if (!bpos_eq(new_min_pos, POS_MIN))
+			bch2_btree_iter_set_pos(iter, bpos_predecessor(new_min_pos));
+		return 0;
 	}
 
 	if (u.bi_flags & BCH_INODE_UNLINKED &&
@@ -960,9 +973,10 @@ static int check_inode(struct btree_trans *trans,
 
 	if (do_update) {
 		ret = __write_inode(trans, &u, iter->pos.snapshot);
-		if (ret)
-			bch_err(c, "error in fsck: error updating inode: %s",
-				bch2_err_str(ret));
+		if (ret) {
+			bch_err_msg(c, ret, "in fsck: error updating inode");
+			return ret;
+		}
 	}
 err:
 fsck_err:
