@@ -189,6 +189,8 @@ def define_blair():
         "drivers/usb/pd/qpnp-pdphy.ko",
         "drivers/usb/pd/usbpd.ko",
         "drivers/usb/phy/phy-generic.ko",
+        "drivers/usb/phy/phy-msm-qusb.ko",
+        "drivers/usb/phy/phy-msm-qusb-v2.ko",
         "drivers/usb/phy/phy-msm-snps-hs.ko",
         "drivers/usb/phy/phy-msm-ssusb-qmp.ko",
         "drivers/usb/phy/phy-qcom-emu.ko",
