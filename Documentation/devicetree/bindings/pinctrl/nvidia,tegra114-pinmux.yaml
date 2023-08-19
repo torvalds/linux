@@ -22,8 +22,6 @@ properties:
 patternProperties:
   "^pinmux(-[a-z0-9-_]+)?$":
     type: object
-    properties:
-      phandle: true
 
     # pin groups
     additionalProperties:
