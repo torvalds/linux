@@ -1336,6 +1336,40 @@ int bch2_delete_dead_snapshots_hook(struct btree_trans *trans,
 	return 0;
 }
 
+int __bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
+				       enum btree_id id,
+				       struct bpos pos)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	bch2_trans_iter_init(trans, &iter, id, pos,
+			     BTREE_ITER_NOT_EXTENTS|
+			     BTREE_ITER_ALL_SNAPSHOTS);
+	while (1) {
+		k = bch2_btree_iter_prev(&iter);
+		ret = bkey_err(k);
+		if (ret)
+			break;
+
+		if (!k.k)
+			break;
+
+		if (!bkey_eq(pos, k.k->p))
+			break;
+
+		if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, pos.snapshot)) {
+			ret = 1;
+			break;
+		}
+	}
+	bch2_trans_iter_exit(trans, &iter);
+
+	return ret;
+}
+
 int bch2_snapshots_read(struct bch_fs *c)
 {
 	struct btree_iter iter;

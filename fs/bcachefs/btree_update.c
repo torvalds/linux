@@ -28,51 +28,6 @@ bch2_trans_update_by_path(struct btree_trans *, struct btree_path *,
 			  struct bkey_i *, enum btree_update_flags,
 			  unsigned long ip);
 
-static noinline int __check_pos_snapshot_overwritten(struct btree_trans *trans,
-					  enum btree_id id,
-					  struct bpos pos)
-{
-	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
-	bch2_trans_iter_init(trans, &iter, id, pos,
-			     BTREE_ITER_NOT_EXTENTS|
-			     BTREE_ITER_ALL_SNAPSHOTS);
-	while (1) {
-		k = bch2_btree_iter_prev(&iter);
-		ret = bkey_err(k);
-		if (ret)
-			break;
-
-		if (!k.k)
-			break;
-
-		if (!bkey_eq(pos, k.k->p))
-			break;
-
-		if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, pos.snapshot)) {
-			ret = 1;
-			break;
-		}
-	}
-	bch2_trans_iter_exit(trans, &iter);
-
-	return ret;
-}
-
-static inline int check_pos_snapshot_overwritten(struct btree_trans *trans,
-					  enum btree_id id,
-					  struct bpos pos)
-{
-	if (!btree_type_has_snapshots(id) ||
-	    bch2_snapshot_is_leaf(trans->c, pos.snapshot))
-		return 0;
-
-	return __check_pos_snapshot_overwritten(trans, id, pos);
-}
-
 static noinline int extent_front_merge(struct btree_trans *trans,
 				       struct btree_iter *iter,
 				       struct bkey_s_c k,
@@ -91,8 +46,8 @@ static noinline int extent_front_merge(struct btree_trans *trans,
 	if (!bch2_bkey_merge(c, bkey_i_to_s(update), bkey_i_to_s_c(*insert)))
 		return 0;
 
-	ret =   check_pos_snapshot_overwritten(trans, iter->btree_id, k.k->p) ?:
-		check_pos_snapshot_overwritten(trans, iter->btree_id, (*insert)->k.p);
+	ret =   bch2_key_has_snapshot_overwrites(trans, iter->btree_id, k.k->p) ?:
+		bch2_key_has_snapshot_overwrites(trans, iter->btree_id, (*insert)->k.p);
 	if (ret < 0)
 		return ret;
 	if (ret)
@@ -114,8 +69,8 @@ static noinline int extent_back_merge(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	int ret;
 
-	ret =   check_pos_snapshot_overwritten(trans, iter->btree_id, insert->k.p) ?:
-		check_pos_snapshot_overwritten(trans, iter->btree_id, k.k->p);
+	ret =   bch2_key_has_snapshot_overwrites(trans, iter->btree_id, insert->k.p) ?:
+		bch2_key_has_snapshot_overwrites(trans, iter->btree_id, k.k->p);
 	if (ret < 0)
 		return ret;
 	if (ret)

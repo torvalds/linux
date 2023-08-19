@@ -250,6 +250,19 @@ int bch2_delete_dead_snapshots_hook(struct btree_trans *,
 				    struct btree_trans_commit_hook *);
 void bch2_delete_dead_snapshots_work(struct work_struct *);
 
+int __bch2_key_has_snapshot_overwrites(struct btree_trans *, enum btree_id, struct bpos);
+
+static inline int bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
+					  enum btree_id id,
+					  struct bpos pos)
+{
+	if (!btree_type_has_snapshots(id) ||
+	    bch2_snapshot_is_leaf(trans->c, pos.snapshot))
+		return 0;
+
+	return __bch2_key_has_snapshot_overwrites(trans, id, pos);
+}
+
 int bch2_snapshots_read(struct bch_fs *);
 void bch2_fs_snapshots_exit(struct bch_fs *);
 
