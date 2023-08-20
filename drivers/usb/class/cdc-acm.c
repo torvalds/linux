@@ -864,6 +864,19 @@ static unsigned int acm_tty_write_room(struct tty_struct *tty)
 	return acm_wb_is_avail(acm) ? acm->writesize : 0;
 }
 
+static void acm_tty_flush_buffer(struct tty_struct *tty)
+{
+	struct acm *acm = tty->driver_data;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&acm->write_lock, flags);
+	for (i = 0; i < ACM_NW; i++)
+		if (acm->wb[i].use)
+			usb_unlink_urb(acm->wb[i].urb);
+	spin_unlock_irqrestore(&acm->write_lock, flags);
+}
+
 static unsigned int acm_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
@@ -2027,6 +2040,7 @@ static const struct tty_operations acm_ops = {
 	.hangup =		acm_tty_hangup,
 	.write =		acm_tty_write,
 	.write_room =		acm_tty_write_room,
+	.flush_buffer =		acm_tty_flush_buffer,
 	.ioctl =		acm_tty_ioctl,
 	.throttle =		acm_tty_throttle,
 	.unthrottle =		acm_tty_unthrottle,
