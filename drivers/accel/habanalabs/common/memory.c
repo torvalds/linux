@@ -1731,7 +1731,7 @@ static struct sg_table *hl_map_dmabuf(struct dma_buf_attachment *attachment,
 		npages = phys_pg_pack->npages;
 		page_size = phys_pg_pack->page_size;
 	} else {
-		pages = &hl_dmabuf->device_address;
+		pages = &hl_dmabuf->device_phys_addr;
 		npages = 1;
 		page_size = hl_dmabuf->dmabuf->size;
 	}
@@ -2064,9 +2064,9 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 addr, u64 size, u64 o
 		rc = validate_export_params_no_mmu(hdev, export_addr, size);
 		if (rc)
 			goto err_free_dmabuf_wrapper;
-	}
 
-	hl_dmabuf->device_address = export_addr;
+		hl_dmabuf->device_phys_addr = export_addr;
+	}
 
 	rc = export_dmabuf(ctx, hl_dmabuf, size, flags, dmabuf_fd);
 	if (rc)
