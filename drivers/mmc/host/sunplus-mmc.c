@@ -863,11 +863,9 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	struct spmmc_host *host;
 	int ret = 0;
 
-	mmc = mmc_alloc_host(sizeof(*host), &pdev->dev);
-	if (!mmc) {
-		ret = -ENOMEM;
-		goto probe_free_host;
-	}
+	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(struct spmmc_host));
+	if (!mmc)
+		return -ENOMEM;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
@@ -902,7 +900,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
-		goto probe_free_host;
+		goto clk_disable;
 
 	mmc->ops = &spmmc_ops;
 	mmc->f_min = SPMMC_MIN_CLK;
@@ -911,7 +909,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 
 	ret = mmc_regulator_get_supply(mmc);
 	if (ret)
-		goto probe_free_host;
+		goto clk_disable;
 
 	if (!mmc->ocr_avail)
 		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
@@ -927,14 +925,17 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	host->tuning_info.enable_tuning = 1;
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	mmc_add_host(mmc);
+	ret = mmc_add_host(mmc);
+	if (ret)
+		goto pm_disable;
 
-	return ret;
+	return 0;
 
-probe_free_host:
-	if (mmc)
-		mmc_free_host(mmc);
+pm_disable:
+	pm_runtime_disable(&pdev->dev);
 
+clk_disable:
+	clk_disable_unprepare(host->clk);
 	return ret;
 }
 
@@ -948,7 +949,6 @@ static int spmmc_drv_remove(struct platform_device *dev)
 	pm_runtime_put_noidle(&dev->dev);
 	pm_runtime_disable(&dev->dev);
 	platform_set_drvdata(dev, NULL);
-	mmc_free_host(host->mmc);
 
 	return 0;
 }

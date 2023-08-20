@@ -687,7 +687,7 @@ struct fb_var_cursorinfo {
 	__u16 height;
 	__u16 xspot;
 	__u16 yspot;
-	__u8 data[1];			/* field with [height][width]        */
+	DECLARE_FLEX_ARRAY(__u8, data);	/* field with [height][width]        */
 };
 
 struct fb_cursorstate {
