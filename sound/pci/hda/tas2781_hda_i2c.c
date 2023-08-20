@@ -118,7 +118,7 @@ static int tas2781_read_acpi(struct tasdevice_priv *p, const char *hid)
 
 err:
 	dev_err(p->dev, "read acpi error, ret: %d\n", ret);
-	put_device(physdev);
+	acpi_dev_put(adev);
 
 	return ret;
 }
