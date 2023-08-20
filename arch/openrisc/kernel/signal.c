@@ -229,7 +229,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
  * mode below.
  */
 
-int do_signal(struct pt_regs *regs, int syscall)
+static int do_signal(struct pt_regs *regs, int syscall)
 {
 	struct ksignal ksig;
 	unsigned long continue_addr = 0;
