@@ -1679,6 +1679,13 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 	 */
 	sgt->orig_nents = 0;
 
+	dev_dbg(hdev->dev, "prepared SG table with %u entries for importer %s\n",
+		nents, dev_name(dev));
+	for_each_sgtable_dma_sg(sgt, sg, i)
+		dev_dbg(hdev->dev,
+			"SG entry %d: address %#llx, length %#x\n",
+			i, sg_dma_address(sg), sg_dma_len(sg));
+
 	return sgt;
 
 err_unmap:
