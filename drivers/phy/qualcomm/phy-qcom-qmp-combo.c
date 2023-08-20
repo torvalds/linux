@@ -3067,12 +3067,6 @@ static int phy_dp_clks_register(struct qmp_combo *qmp, struct device_node *np)
 	if (ret)
 		return ret;
 
-	ret = devm_clk_bulk_get_all(qmp->dev, &qmp->clks);
-	if (ret < 0)
-		return ret;
-
-	qmp->num_clks = ret;
-
 	return 0;
 }
 
@@ -3331,6 +3325,12 @@ static int qmp_combo_parse_dt_legacy(struct qmp_combo *qmp, struct device_node *
 	ret = qmp_combo_parse_dt_lecacy_dp(qmp, dp_np);
 	if (ret)
 		return ret;
+
+	ret = devm_clk_bulk_get_all(qmp->dev, &qmp->clks);
+	if (ret < 0)
+		return ret;
+
+	qmp->num_clks = ret;
 
 	return 0;
 }
