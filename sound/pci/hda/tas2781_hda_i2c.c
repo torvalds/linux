@@ -608,15 +608,13 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 	strscpy(comps->name, dev_name(dev), sizeof(comps->name));
 
 	ret = tascodec_init(tas_priv, codec, tasdev_fw_ready);
-	if (ret)
-		return ret;
-
-	comps->playback_hook = tas2781_hda_playback_hook;
+	if (!ret)
+		comps->playback_hook = tas2781_hda_playback_hook;
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
-	return 0;
+	return ret;
 }
 
 static void tas2781_hda_unbind(struct device *dev,
