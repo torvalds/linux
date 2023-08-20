@@ -38,6 +38,14 @@ static int kstack_depth_to_print = 0x180;
 int lwa_flag;
 static unsigned long __user *lwa_addr;
 
+asmlinkage void unhandled_exception(struct pt_regs *regs, int ea, int vector);
+asmlinkage void do_trap(struct pt_regs *regs, unsigned long address);
+asmlinkage void do_fpe_trap(struct pt_regs *regs, unsigned long address);
+asmlinkage void do_unaligned_access(struct pt_regs *regs, unsigned long address);
+asmlinkage void do_bus_fault(struct pt_regs *regs, unsigned long address);
+asmlinkage void do_illegal_instruction(struct pt_regs *regs,
+				       unsigned long address);
+
 static void print_trace(void *data, unsigned long addr, int reliable)
 {
 	const char *loglvl = data;
