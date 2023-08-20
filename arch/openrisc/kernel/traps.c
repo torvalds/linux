@@ -31,6 +31,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/io.h>
+#include <asm/processor.h>
 #include <asm/unwinder.h>
 #include <asm/sections.h>
 
