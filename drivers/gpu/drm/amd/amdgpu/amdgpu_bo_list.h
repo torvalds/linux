@@ -55,6 +55,8 @@ struct amdgpu_bo_list {
 	/* Protect access during command submission.
 	 */
 	struct mutex bo_list_mutex;
+
+	struct amdgpu_bo_list_entry entries[];
 };
 
 int amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id,

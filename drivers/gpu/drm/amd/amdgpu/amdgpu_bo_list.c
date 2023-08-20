@@ -75,7 +75,6 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev, struct drm_file *filp,
 	struct amdgpu_bo_list_entry *array;
 	struct amdgpu_bo_list *list;
 	uint64_t total_size = 0;
-	size_t size;
 	unsigned i;
 	int r;
 
@@ -83,9 +82,7 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev, struct drm_file *filp,
 				/ sizeof(struct amdgpu_bo_list_entry))
 		return -EINVAL;
 
-	size = sizeof(struct amdgpu_bo_list);
-	size += num_entries * sizeof(struct amdgpu_bo_list_entry);
-	list = kvmalloc(size, GFP_KERNEL);
+	list = kvmalloc(struct_size(list, entries, num_entries), GFP_KERNEL);
 	if (!list)
 		return -ENOMEM;
 
