@@ -639,6 +639,7 @@ nouveau_uvmm_sm_prepare(struct nouveau_uvmm *uvmm,
 			struct drm_gpuva *va = r->unmap->va;
 			struct uvmm_map_args remap_args = {
 				.kind = uvma_from_va(va)->kind,
+				.region = uvma_from_va(va)->region,
 			};
 			u64 ustart = va->va.addr;
 			u64 urange = va->va.range;
