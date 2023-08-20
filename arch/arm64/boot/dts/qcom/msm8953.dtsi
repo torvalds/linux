@@ -49,8 +49,8 @@
 			capacity-dmips-mhz = <1024>;
 			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
 			next-level-cache = <&l2_0>;
-			power-domains = <&cpu_pd0>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd0>, <&cpr 0>;
+			power-domain-names = "psci", "perf";
 			#cooling-cells = <2>;
 		};
 
@@ -62,8 +62,8 @@
 			capacity-dmips-mhz = <1024>;
 			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
 			next-level-cache = <&l2_0>;
-			power-domains = <&cpu_pd1>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd1>, <&cpr 0>;
+			power-domain-names = "psci", "perf";
 			#cooling-cells = <2>;
 		};
 
@@ -75,8 +75,8 @@
 			capacity-dmips-mhz = <1024>;
 			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
 			next-level-cache = <&l2_0>;
-			power-domains = <&cpu_pd2>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd2>, <&cpr 0>;
+			power-domain-names = "psci", "perf";
 			#cooling-cells = <2>;
 		};
 
@@ -88,8 +88,8 @@
 			capacity-dmips-mhz = <1024>;
 			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
 			next-level-cache = <&l2_0>;
-			power-domains = <&cpu_pd3>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd3>, <&cpr 0>;
+			power-domain-names = "psci", "perf";
 			#cooling-cells = <2>;
 		};
 
@@ -101,8 +101,8 @@
 			capacity-dmips-mhz = <1024>;
 			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
 			next-level-cache = <&l2_1>;
-			power-domains = <&cpu_pd4>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd4>, <&cpr 1>;
+			power-domain-names = "psci", "perf";
 			#cooling-cells = <2>;
 		};
 
@@ -114,8 +114,8 @@
 			capacity-dmips-mhz = <1024>;
 			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
 			next-level-cache = <&l2_1>;
-			power-domains = <&cpu_pd5>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd5>, <&cpr 1>;
+			power-domain-names = "psci", "perf";
 			#cooling-cells = <2>;
 		};
 
@@ -127,8 +127,8 @@
 			capacity-dmips-mhz = <1024>;
 			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
 			next-level-cache = <&l2_1>;
-			power-domains = <&cpu_pd6>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd6>, <&cpr 1>;
+			power-domain-names = "psci", "perf";
 			#cooling-cells = <2>;
 		};
 
@@ -140,8 +140,8 @@
 			capacity-dmips-mhz = <1024>;
 			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
 			next-level-cache = <&l2_1>;
-			power-domains = <&cpu_pd7>;
-			power-domain-names = "psci";
+			power-domains = <&cpu_pd7>, <&cpr 1>;
+			power-domain-names = "psci", "perf";
 			#cooling-cells = <2>;
 		};
 
@@ -2366,6 +2366,30 @@
 			compatible = "qcom,msm8953-apcs-kpss-global", "syscon";
 			reg = <0x0b011000 0x1000>;
 			#mbox-cells = <1>;
+		};
+
+		cpr: power-controller@b018000 {
+			compatible = "qcom,msm8953-cpr4pd";
+
+			nvmem = <&qfprom>;
+			nvmem-cells = <&cpr_efuse_revision>,
+				      <&cpu_speed_bin>;
+			nvmem-cell-names = "fusing_rev",
+					   "speed_bin";
+
+			reg = <0xb018000 0x4000>,
+			      <0xb111200 0x100>,
+			      <0xb1d1360 0x14>,
+			      <0x19461d4 0x8>;
+			reg-names = "cpr",
+				    "apm",
+				    "apcs-mem-acc",
+				    "tcsr-mem-acc";
+
+			clocks = <&xo_board>;
+			clock-names = "ref";
+
+			#power-domain-cells = <1>;
 		};
 
 		timer@b120000 {
