@@ -1532,11 +1532,11 @@ static int set_dma_sg(struct scatterlist *sg, u64 bar_address, u64 chunk_size,
 }
 
 static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 *pages, u64 npages,
-						u64 page_size, u64 exported_size,
+						u64 page_size, u64 exported_size, u64 offset,
 						struct device *dev, enum dma_data_direction dir)
 {
 	u64 dma_max_seg_size, curr_page, size, chunk_size, left_size_to_export, left_size_in_page,
-		left_size_in_dma_seg, device_address, bar_address;
+		left_size_in_dma_seg, device_address, bar_address, start_page;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct scatterlist *sg;
 	unsigned int nents, i;
@@ -1557,11 +1557,20 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 
+	/* Use the offset to move to the actual first page that is exported */
+	for (start_page = 0 ; start_page < npages ; ++start_page) {
+		if (offset < page_size)
+			break;
+
+		/* The offset value was validated so there can't be an underflow */
+		offset -= page_size;
+	}
+
 	/* Calculate the required number of entries for the SG table */
-	curr_page = 0;
+	curr_page = start_page;
 	nents = 1;
 	left_size_to_export = exported_size;
-	left_size_in_page = page_size;
+	left_size_in_page = page_size - offset;
 	left_size_in_dma_seg = dma_max_seg_size;
 	next_sg_entry = false;
 
@@ -1599,10 +1608,10 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 		goto err_free_sgt;
 
 	/* Prepare the SG table entries */
-	curr_page = 0;
-	device_address = pages[curr_page];
+	curr_page = start_page;
+	device_address = pages[curr_page] + offset;
 	left_size_to_export = exported_size;
-	left_size_in_page = page_size;
+	left_size_in_page = page_size - offset;
 	left_size_in_dma_seg = dma_max_seg_size;
 	next_sg_entry = false;
 
@@ -1708,7 +1717,7 @@ static int hl_dmabuf_attach(struct dma_buf *dmabuf,
 static struct sg_table *hl_map_dmabuf(struct dma_buf_attachment *attachment,
 					enum dma_data_direction dir)
 {
-	u64 *pages, npages, page_size, exported_size;
+	u64 *pages, npages, page_size, exported_size, offset;
 	struct dma_buf *dma_buf = attachment->dmabuf;
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct hl_dmabuf_priv *hl_dmabuf;
@@ -1724,6 +1733,7 @@ static struct sg_table *hl_map_dmabuf(struct dma_buf_attachment *attachment,
 	}
 
 	exported_size = hl_dmabuf->dmabuf->size;
+	offset = hl_dmabuf->offset;
 	phys_pg_pack = hl_dmabuf->phys_pg_pack;
 
 	if (phys_pg_pack) {
@@ -1736,7 +1746,7 @@ static struct sg_table *hl_map_dmabuf(struct dma_buf_attachment *attachment,
 		page_size = hl_dmabuf->dmabuf->size;
 	}
 
-	sgt = alloc_sgt_from_device_pages(hdev, pages, npages, page_size, exported_size,
+	sgt = alloc_sgt_from_device_pages(hdev, pages, npages, page_size, exported_size, offset,
 						attachment->dev, dir);
 	if (IS_ERR(sgt))
 		dev_err(hdev->dev, "failed (%ld) to initialize sgt for dmabuf\n", PTR_ERR(sgt));
@@ -1882,12 +1892,12 @@ err_dma_buf_put:
 	return rc;
 }
 
-static int validate_export_params_common(struct hl_device *hdev, u64 device_addr, u64 size)
+static int validate_export_params_common(struct hl_device *hdev, u64 addr, u64 size, u64 offset)
 {
-	if (!PAGE_ALIGNED(device_addr)) {
+	if (!PAGE_ALIGNED(addr)) {
 		dev_dbg(hdev->dev,
 			"exported device memory address 0x%llx should be aligned to PAGE_SIZE 0x%lx\n",
-			device_addr, PAGE_SIZE);
+			addr, PAGE_SIZE);
 		return -EINVAL;
 	}
 
@@ -1895,6 +1905,13 @@ static int validate_export_params_common(struct hl_device *hdev, u64 device_addr
 		dev_dbg(hdev->dev,
 			"exported device memory size %llu should be a multiple of PAGE_SIZE %lu\n",
 			size, PAGE_SIZE);
+		return -EINVAL;
+	}
+
+	if (!PAGE_ALIGNED(offset)) {
+		dev_dbg(hdev->dev,
+			"exported device memory offset %llu should be a multiple of PAGE_SIZE %lu\n",
+			offset, PAGE_SIZE);
 		return -EINVAL;
 	}
 
@@ -1907,13 +1924,13 @@ static int validate_export_params_no_mmu(struct hl_device *hdev, u64 device_addr
 	u64 bar_address;
 	int rc;
 
-	rc = validate_export_params_common(hdev, device_addr, size);
+	rc = validate_export_params_common(hdev, device_addr, size, 0);
 	if (rc)
 		return rc;
 
 	if (device_addr < prop->dram_user_base_address ||
-				(device_addr + size) > prop->dram_end_address ||
-				(device_addr + size) < device_addr) {
+			(device_addr + size) > prop->dram_end_address ||
+			(device_addr + size) < device_addr) {
 		dev_dbg(hdev->dev,
 			"DRAM memory range 0x%llx (+0x%llx) is outside of DRAM boundaries\n",
 			device_addr, size);
@@ -1940,36 +1957,26 @@ static int validate_export_params(struct hl_device *hdev, u64 device_addr, u64 s
 	u64 bar_address;
 	int i, rc;
 
-	rc = validate_export_params_common(hdev, device_addr, size);
+	rc = validate_export_params_common(hdev, device_addr, size, offset);
 	if (rc)
 		return rc;
 
-	if (!PAGE_ALIGNED(offset)) {
-		dev_dbg(hdev->dev,
-			"exported device memory offset %llu should be a multiple of PAGE_SIZE %lu\n",
-			offset, PAGE_SIZE);
-		return -EINVAL;
-	}
-
 	if ((offset + size) > phys_pg_pack->total_size) {
 		dev_dbg(hdev->dev, "offset %#llx and size %#llx exceed total map size %#llx\n",
-				offset, size, phys_pg_pack->total_size);
+			offset, size, phys_pg_pack->total_size);
 		return -EINVAL;
 	}
 
 	for (i = 0 ; i < phys_pg_pack->npages ; i++) {
-
 		bar_address = hdev->dram_pci_bar_start +
-					(phys_pg_pack->pages[i] - prop->dram_base_address);
+				(phys_pg_pack->pages[i] - prop->dram_base_address);
 
 		if ((bar_address + phys_pg_pack->page_size) >
 				(hdev->dram_pci_bar_start + prop->dram_pci_bar_size) ||
 				(bar_address + phys_pg_pack->page_size) < bar_address) {
 			dev_dbg(hdev->dev,
 				"DRAM memory range 0x%llx (+0x%x) is outside of PCI BAR boundaries\n",
-					phys_pg_pack->pages[i],
-					phys_pg_pack->page_size);
-
+				phys_pg_pack->pages[i], phys_pg_pack->page_size);
 			return -EINVAL;
 		}
 	}
@@ -2025,7 +2032,6 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 addr, u64 size, u64 o
 	struct asic_fixed_properties *prop;
 	struct hl_dmabuf_priv *hl_dmabuf;
 	struct hl_device *hdev;
-	u64 export_addr;
 	int rc;
 
 	hdev = ctx->hdev;
@@ -2036,8 +2042,6 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 addr, u64 size, u64 o
 		dev_dbg(hdev->dev, "offset is not allowed in device without virtual memory\n");
 		return -EINVAL;
 	}
-
-	export_addr = addr + offset;
 
 	hl_dmabuf = kzalloc(sizeof(*hl_dmabuf), GFP_KERNEL);
 	if (!hl_dmabuf)
@@ -2054,18 +2058,19 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 addr, u64 size, u64 o
 			rc = PTR_ERR(phys_pg_pack);
 			goto dec_memhash_export_cnt;
 		}
-		rc = validate_export_params(hdev, export_addr, size, offset, phys_pg_pack);
+		rc = validate_export_params(hdev, addr, size, offset, phys_pg_pack);
 		if (rc)
 			goto dec_memhash_export_cnt;
 
 		hl_dmabuf->phys_pg_pack = phys_pg_pack;
 		hl_dmabuf->memhash_hnode = hnode;
+		hl_dmabuf->offset = offset;
 	} else {
-		rc = validate_export_params_no_mmu(hdev, export_addr, size);
+		rc = validate_export_params_no_mmu(hdev, addr, size);
 		if (rc)
 			goto err_free_dmabuf_wrapper;
 
-		hl_dmabuf->device_phys_addr = export_addr;
+		hl_dmabuf->device_phys_addr = addr;
 	}
 
 	rc = export_dmabuf(ctx, hl_dmabuf, size, flags, dmabuf_fd);

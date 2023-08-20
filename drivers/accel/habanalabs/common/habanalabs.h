@@ -1811,6 +1811,8 @@ struct hl_cs_counters_atomic {
  * @phys_pg_pack: pointer to physical page pack if the dma-buf was exported
  *                where virtual memory is supported.
  * @memhash_hnode: pointer to the memhash node. this object holds the export count.
+ * @offset: the offset into the buffer from which the memory is exported.
+ *          Relevant only if virtual memory is supported and phys_pg_pack is being used.
  * device_phys_addr: physical address of the device's memory. Relevant only
  *                   if phys_pg_pack is NULL (dma-buf was exported from address).
  *                   The total size can be taken from the dmabuf object.
@@ -1820,6 +1822,7 @@ struct hl_dmabuf_priv {
 	struct hl_ctx			*ctx;
 	struct hl_vm_phys_pg_pack	*phys_pg_pack;
 	struct hl_vm_hash_node		*memhash_hnode;
+	u64				offset;
 	u64				device_phys_addr;
 };
 
