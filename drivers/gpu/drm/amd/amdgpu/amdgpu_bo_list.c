@@ -87,7 +87,7 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev, struct drm_file *filp,
 	list->gws_obj = NULL;
 	list->oa_obj = NULL;
 
-	array = amdgpu_bo_list_array_entry(list, 0);
+	array = list->entries;
 	memset(array, 0, num_entries * sizeof(struct amdgpu_bo_list_entry));
 
 	for (i = 0; i < num_entries; ++i) {
