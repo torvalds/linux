@@ -18,6 +18,7 @@
 #include <linux/perf_event.h>
 
 #include <linux/uaccess.h>
+#include <asm/bug.h>
 #include <asm/mmu_context.h>
 #include <asm/siginfo.h>
 #include <asm/signal.h>
@@ -29,8 +30,6 @@
  *            - also look into include/asm/mmu_context.h
  */
 volatile pgd_t *current_pgd[NR_CPUS];
-
-extern void __noreturn die(char *, struct pt_regs *, long);
 
 asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long address,
 			      unsigned long vector, int write_acc);

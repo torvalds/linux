@@ -30,6 +30,7 @@
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 
+#include <asm/bug.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/unwinder.h>
