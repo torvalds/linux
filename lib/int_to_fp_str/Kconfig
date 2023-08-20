@@ -1,7 +1,12 @@
+menu "H Lib"
+
 config INT_TO_FP_STR 
         bool "int_to_fp_str"
+		default y
 
 config INT_TO_FP_STR_TEST
-        bool "Test for lib int_to_fp_str" if !KUNIT_ALL_TESTS
+        bool "Test for lib int_to_fp_str"
         depends on KUNIT=y
         default KUNIT_ALL_TESTS
+
+endmenu
