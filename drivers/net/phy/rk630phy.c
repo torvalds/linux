@@ -238,7 +238,7 @@ static void rk630_phy_t22_config_init(struct phy_device *phydev)
 	/* Switch to page 6 */
 	phy_write(phydev, REG_PAGE_SEL, 0x0600);
 	/* PHYAFE ADC optimization */
-	phy_write(phydev, REG_PAGE6_ADC_ANONTROL, 0x555e);
+	phy_write(phydev, REG_PAGE6_ADC_ANONTROL, 0x5540);
 	/* PHYAFE Gain optimization */
 	phy_write(phydev, REG_PAGE6_GAIN_ANONTROL, 0x0400);
 	/* PHYAFE EQ optimization */
@@ -291,8 +291,8 @@ static int rk630_phy_config_init(struct phy_device *phydev)
 		break;
 	case PHY_ADDR_T22:
 		rk630_phy_t22_config_init(phydev);
-		rk630_phy_set_aps(phydev, true);
-		rk630_phy_set_uaps(phydev, true);
+		rk630_phy_set_aps(phydev, false);
+		rk630_phy_set_uaps(phydev, false);
 		break;
 	default:
 		phydev_err(phydev, "Unsupported address for current phy: %d\n",
