@@ -2323,17 +2323,6 @@ static const struct qmp_pcie_offsets qmp_pcie_offsets_v5 = {
 	.rx2		= 0x1800,
 };
 
-static const struct qmp_pcie_offsets qmp_pcie_offsets_v6_20 = {
-	.serdes		= 0x1000,
-	.pcs		= 0x1200,
-	.pcs_misc	= 0x1400,
-	.tx		= 0x0000,
-	.rx		= 0x0200,
-	.tx2		= 0x0800,
-	.rx2		= 0x0a00,
-	.ln_shrd	= 0x0e00,
-};
-
 static const struct qmp_pcie_offsets qmp_pcie_offsets_v5_20 = {
 	.serdes		= 0x1000,
 	.pcs		= 0x1200,
@@ -2352,6 +2341,17 @@ static const struct qmp_pcie_offsets qmp_pcie_offsets_v5_30 = {
 	.rx		= 0x0200,
 	.tx2		= 0x3800,
 	.rx2		= 0x3a00,
+};
+
+static const struct qmp_pcie_offsets qmp_pcie_offsets_v6_20 = {
+	.serdes		= 0x1000,
+	.pcs		= 0x1200,
+	.pcs_misc	= 0x1400,
+	.tx		= 0x0000,
+	.rx		= 0x0200,
+	.tx2		= 0x0800,
+	.rx2		= 0x0a00,
+	.ln_shrd	= 0x0e00,
 };
 
 static const struct qmp_phy_cfg ipq8074_pciephy_cfg = {
