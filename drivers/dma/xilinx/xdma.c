@@ -668,6 +668,8 @@ static int xdma_set_vector_reg(struct xdma_device *xdev, u32 vec_tbl_start,
 			val |= irq_start << shift;
 			irq_start++;
 			irq_num--;
+			if (!irq_num)
+				break;
 		}
 
 		/* write IRQ register */
@@ -715,7 +717,7 @@ static int xdma_irq_init(struct xdma_device *xdev)
 		ret = request_irq(irq, xdma_channel_isr, 0,
 				  "xdma-c2h-channel", &xdev->c2h_chans[j]);
 		if (ret) {
-			xdma_err(xdev, "H2C channel%d request irq%d failed: %d",
+			xdma_err(xdev, "C2H channel%d request irq%d failed: %d",
 				 j, irq, ret);
 			goto failed_init_c2h;
 		}
@@ -892,7 +894,7 @@ static int xdma_probe(struct platform_device *pdev)
 	}
 
 	reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!reg_base) {
+	if (IS_ERR(reg_base)) {
 		xdma_err(xdev, "ioremap failed");
 		goto failed;
 	}

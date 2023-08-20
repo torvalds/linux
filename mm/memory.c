@@ -5705,6 +5705,9 @@ int __access_remote_vm(struct mm_struct *mm, unsigned long addr, void *buf,
 	if (mmap_read_lock_killable(mm))
 		return 0;
 
+	/* Untag the address before looking up the VMA */
+	addr = untagged_addr_remote(mm, addr);
+
 	/* Avoid triggering the temporary warning in __get_user_pages */
 	if (!vma_lookup(mm, addr) && !expand_stack(mm, addr))
 		return 0;

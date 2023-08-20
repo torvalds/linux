@@ -354,10 +354,8 @@ static int __init pdt_initcall(void)
 		return -ENODEV;
 
 	kpdtd_task = kthread_run(pdt_mainloop, NULL, "kpdtd");
-	if (IS_ERR(kpdtd_task))
-		return PTR_ERR(kpdtd_task);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(kpdtd_task);
 }
 
 late_initcall(pdt_initcall);

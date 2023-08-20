@@ -442,7 +442,7 @@ static int tegra_i2c_init_dma(struct tegra_i2c_dev *i2c_dev)
 	if (IS_VI(i2c_dev))
 		return 0;
 
-	if (!i2c_dev->hw->has_apb_dma) {
+	if (i2c_dev->hw->has_apb_dma) {
 		if (!IS_ENABLED(CONFIG_TEGRA20_APB_DMA)) {
 			dev_dbg(i2c_dev->dev, "APB DMA support not enabled\n");
 			return 0;
@@ -460,6 +460,7 @@ static int tegra_i2c_init_dma(struct tegra_i2c_dev *i2c_dev)
 	i2c_dev->dma_chan = dma_request_chan(i2c_dev->dev, "tx");
 	if (IS_ERR(i2c_dev->dma_chan)) {
 		err = PTR_ERR(i2c_dev->dma_chan);
+		i2c_dev->dma_chan = NULL;
 		goto err_out;
 	}
 

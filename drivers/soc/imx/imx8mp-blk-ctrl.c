@@ -164,7 +164,7 @@ static int imx8mp_hsio_blk_ctrl_probe(struct imx8mp_blk_ctrl *bc)
 	clk_hsio_pll->hw.init = &init;
 
 	hw = &clk_hsio_pll->hw;
-	ret = devm_clk_hw_register(bc->dev, hw);
+	ret = devm_clk_hw_register(bc->bus_power_dev, hw);
 	if (ret)
 		return ret;
 

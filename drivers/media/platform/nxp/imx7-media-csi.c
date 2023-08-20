@@ -9,7 +9,9 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/math.h>
 #include <linux/mfd/syscon.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
@@ -1137,8 +1139,9 @@ __imx7_csi_video_try_fmt(struct v4l2_pix_format *pixfmt,
 	 * TODO: Implement configurable stride support.
 	 */
 	walign = 8 * 8 / cc->bpp;
-	v4l_bound_align_image(&pixfmt->width, 1, 0xffff, walign,
-			      &pixfmt->height, 1, 0xffff, 1, 0);
+	pixfmt->width = clamp(round_up(pixfmt->width, walign), walign,
+			      round_down(65535U, walign));
+	pixfmt->height = clamp(pixfmt->height, 1U, 65535U);
 
 	pixfmt->bytesperline = pixfmt->width * cc->bpp / 8;
 	pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height;

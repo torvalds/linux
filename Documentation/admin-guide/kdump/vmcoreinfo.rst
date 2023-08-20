@@ -624,3 +624,9 @@ Used to get the correct ranges:
   * VMALLOC_START ~ VMALLOC_END : vmalloc() / ioremap() space.
   * VMEMMAP_START ~ VMEMMAP_END : vmemmap space, used for struct page array.
   * KERNEL_LINK_ADDR : start address of Kernel link and BPF
+
+va_kernel_pa_offset
+-------------------
+
+Indicates the offset between the kernel virtual and physical mappings.
+Used to translate virtual to physical addresses.
