@@ -16,7 +16,7 @@
 #define ITOA_MAX_LEN 12
 
 static long gzvm_vcpu_update_one_reg(struct gzvm_vcpu *vcpu,
-				     void * __user argp,
+				     void __user *argp,
 				     bool is_write)
 {
 	struct gzvm_one_reg reg;
@@ -32,20 +32,21 @@ static long gzvm_vcpu_update_one_reg(struct gzvm_vcpu *vcpu,
 	reg_size = (reg.id & GZVM_REG_SIZE_MASK) >> GZVM_REG_SIZE_SHIFT;
 	reg_size = BIT(reg_size);
 
+	if (reg_size != 1 && reg_size != 2 && reg_size != 4 && reg_size != 8)
+		return -EINVAL;
+
 	if (is_write) {
+		/* GZ hypervisor would filter out invalid vcpu register access */
 		if (copy_from_user(&data, reg_addr, reg_size))
 			return -EFAULT;
+	} else {
+		return -EOPNOTSUPP;
 	}
 
 	ret = gzvm_arch_vcpu_update_one_reg(vcpu, reg.id, is_write, &data);
 
 	if (ret)
 		return ret;
-
-	if (!is_write) {
-		if (copy_to_user(reg_addr, &data, reg_size))
-			return -EFAULT;
-	}
 
 	return 0;
 }
@@ -84,7 +85,7 @@ static bool gzvm_vcpu_handle_mmio(struct gzvm_vcpu *vcpu)
  * * 0			- Success.
  * * Negative		- Failure.
  */
-static long gzvm_vcpu_run(struct gzvm_vcpu *vcpu, void * __user argp)
+static long gzvm_vcpu_run(struct gzvm_vcpu *vcpu, void __user *argp)
 {
 	bool need_userspace = false;
 	u64 exit_reason = 0;
@@ -163,8 +164,8 @@ static long gzvm_vcpu_ioctl(struct file *filp, unsigned int ioctl,
 		ret = gzvm_vcpu_run(vcpu, argp);
 		break;
 	case GZVM_GET_ONE_REG:
-		/* is_write */
-		ret = gzvm_vcpu_update_one_reg(vcpu, argp, false);
+		/* !is_write */
+		ret = -EOPNOTSUPP;
 		break;
 	case GZVM_SET_ONE_REG:
 		/* is_write */
