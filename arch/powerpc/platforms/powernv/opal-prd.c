@@ -221,8 +221,8 @@ static ssize_t opal_prd_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
 	struct opal_prd_msg_header hdr;
+	struct opal_prd_msg *msg;
 	ssize_t size;
-	void *msg;
 	int rc;
 
 	size = sizeof(hdr);
@@ -254,12 +254,12 @@ static ssize_t opal_prd_write(struct file *file, const char __user *buf,
 
 static int opal_prd_release(struct inode *inode, struct file *file)
 {
-	struct opal_prd_msg_header msg;
+	struct opal_prd_msg msg;
 
-	msg.size = cpu_to_be16(sizeof(msg));
-	msg.type = OPAL_PRD_MSG_TYPE_FINI;
+	msg.header.size = cpu_to_be16(sizeof(msg));
+	msg.header.type = OPAL_PRD_MSG_TYPE_FINI;
 
-	opal_prd_msg((struct opal_prd_msg *)&msg);
+	opal_prd_msg(&msg);
 
 	atomic_xchg(&prd_usage, 0);
 
