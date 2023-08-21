@@ -333,23 +333,13 @@ struct swap_info_struct {
 					   */
 };
 
-static inline swp_entry_t folio_swap_entry(struct folio *folio)
-{
-	return folio->swap;
-}
-
 static inline swp_entry_t page_swap_entry(struct page *page)
 {
 	struct folio *folio = page_folio(page);
-	swp_entry_t entry = folio_swap_entry(folio);
+	swp_entry_t entry = folio->swap;
 
 	entry.val += folio_page_idx(folio, page);
 	return entry;
-}
-
-static inline void folio_set_swap_entry(struct folio *folio, swp_entry_t entry)
-{
-	folio->swap = entry;
 }
 
 /* linux/mm/workingset.c */

@@ -1536,7 +1536,7 @@ unlock_out:
 
 static bool folio_swapped(struct folio *folio)
 {
-	swp_entry_t entry = folio_swap_entry(folio);
+	swp_entry_t entry = folio->swap;
 	struct swap_info_struct *si = _swap_info_get(entry);
 
 	if (!si)

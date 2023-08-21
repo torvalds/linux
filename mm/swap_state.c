@@ -100,7 +100,7 @@ int add_to_swap_cache(struct folio *folio, swp_entry_t entry,
 
 	folio_ref_add(folio, nr);
 	folio_set_swapcache(folio);
-	folio_set_swap_entry(folio, entry);
+	folio->swap = entry;
 
 	do {
 		xas_lock_irq(&xas);
@@ -156,8 +156,7 @@ void __delete_from_swap_cache(struct folio *folio,
 		VM_BUG_ON_PAGE(entry != folio, entry);
 		xas_next(&xas);
 	}
-	entry.val = 0;
-	folio_set_swap_entry(folio, entry);
+	folio->swap.val = 0;
 	folio_clear_swapcache(folio);
 	address_space->nrpages -= nr;
 	__node_stat_mod_folio(folio, NR_FILE_PAGES, -nr);
@@ -233,7 +232,7 @@ fail:
  */
 void delete_from_swap_cache(struct folio *folio)
 {
-	swp_entry_t entry = folio_swap_entry(folio);
+	swp_entry_t entry = folio->swap;
 	struct address_space *address_space = swap_address_space(entry);
 
 	xa_lock_irq(&address_space->i_pages);

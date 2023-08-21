@@ -3828,7 +3828,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 				folio_add_lru(folio);
 
 				/* To provide entry to swap_readpage() */
-				folio_set_swap_entry(folio, entry);
+				folio->swap = entry;
 				swap_readpage(page, true, NULL);
 				folio->private = NULL;
 			}
