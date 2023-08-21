@@ -123,6 +123,9 @@
 /* Xilinx uartlite */
 #define PORT_UARTLITE	74
 
+/* Broadcom BCM7271 UART */
+#define PORT_BCM7271	76
+
 /* Broadcom SB1250, etc. SOC */
 #define PORT_SB1250_DUART	77
 
