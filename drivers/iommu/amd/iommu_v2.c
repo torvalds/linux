@@ -262,8 +262,8 @@ static void put_pasid_state(struct pasid_state *pasid_state)
 
 static void put_pasid_state_wait(struct pasid_state *pasid_state)
 {
-	refcount_dec(&pasid_state->count);
-	wait_event(pasid_state->wq, !refcount_read(&pasid_state->count));
+	if (!refcount_dec_and_test(&pasid_state->count))
+		wait_event(pasid_state->wq, !refcount_read(&pasid_state->count));
 	free_pasid_state(pasid_state);
 }
 
@@ -326,6 +326,9 @@ static void free_pasid_states(struct device_state *dev_state)
 			continue;
 
 		put_pasid_state(pasid_state);
+
+		/* Clear the pasid state so that the pasid can be re-used */
+		clear_pasid_state(dev_state, pasid_state->pasid);
 
 		/*
 		 * This will call the mn_release function and
