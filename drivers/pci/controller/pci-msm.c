@@ -1044,6 +1044,11 @@ struct msm_pcie_dev_t {
 	struct wakeup_source *ws;
 	struct icc_path *icc_path;
 
+	/*
+	 * Gets set when debugfs based l1 enable/disable is used
+	 * Gets unset when pcie_enable() API is called.
+	 */
+	bool debugfs_l1;
 	bool l0s_supported;
 	bool l1_supported;
 	bool l1ss_supported;
@@ -2145,14 +2150,22 @@ static void msm_pcie_sel_debug_testcase(struct msm_pcie_dev_t *dev,
 	case MSM_PCIE_DISABLE_L1:
 		PCIE_DBG_FS(dev, "\n\nPCIe: RC%d: disable L1\n\n",
 			dev->rc_idx);
+
+		mutex_lock(&dev->aspm_lock);
 		if (dev->link_status == MSM_PCIE_LINK_ENABLED)
 			msm_pcie_config_l1_disable_all(dev, dev->dev->bus);
 		dev->l1_supported = false;
+		dev->debugfs_l1 = true;
+		mutex_unlock(&dev->aspm_lock);
+
 		break;
 	case MSM_PCIE_ENABLE_L1:
 		PCIE_DBG_FS(dev, "\n\nPCIe: RC%d: enable L1\n\n",
 			dev->rc_idx);
+
+		mutex_lock(&dev->aspm_lock);
 		dev->l1_supported = true;
+		dev->debugfs_l1 = true;
 		if (dev->link_status == MSM_PCIE_LINK_ENABLED) {
 			/* enable l1 mode, clear bit 5 (REQ_NOT_ENTR_L1) */
 			msm_pcie_write_mask(dev->parf +
@@ -2160,6 +2173,8 @@ static void msm_pcie_sel_debug_testcase(struct msm_pcie_dev_t *dev,
 
 			msm_pcie_config_l1_enable_all(dev);
 		}
+		mutex_unlock(&dev->aspm_lock);
+
 		break;
 	case MSM_PCIE_DISABLE_L1SS:
 		PCIE_DBG_FS(dev, "\n\nPCIe: RC%d: disable L1ss\n\n",
@@ -2332,8 +2347,11 @@ static void msm_pcie_sel_debug_testcase(struct msm_pcie_dev_t *dev,
 		msm_pcie_config_l0s_disable_all(dev, dev->dev->bus);
 		dev->l0s_supported = false;
 
+		mutex_lock(&dev->aspm_lock);
 		msm_pcie_config_l1_disable_all(dev, dev->dev->bus);
 		dev->l1_supported = false;
+		dev->debugfs_l1 = true;
+		mutex_unlock(&dev->aspm_lock);
 
 		msm_pcie_loopback(dev, false);
 		break;
@@ -5691,6 +5709,9 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 
 	PCIE_DBG(dev, "RC%d: entry\n", dev->rc_idx);
 
+	dev->prevent_l1 = 0;
+	dev->debugfs_l1 = false;
+
 	mutex_lock(&dev->setup_lock);
 
 	if (dev->link_status == MSM_PCIE_LINK_ENABLED) {
@@ -8231,15 +8252,23 @@ void msm_pcie_allow_l1(struct pci_dev *pci_dev)
 
 	pcie_dev = PCIE_BUS_PRIV_DATA(root_pci_dev->bus);
 
+	mutex_lock(&pcie_dev->aspm_lock);
+	if (pcie_dev->debugfs_l1) {
+		PCIE_DBG2(pcie_dev,
+			"PCIe: RC%d: debugfs_l1 is set so no-op\n",
+			pcie_dev->rc_idx);
+		mutex_unlock(&pcie_dev->aspm_lock);
+		return;
+	}
+
 	if (!pcie_dev->l1_supported) {
 		PCIE_DBG2(pcie_dev,
 			"PCIe: RC%d: %02x:%02x.%01x: l1 not supported\n",
 			pcie_dev->rc_idx, pci_dev->bus->number,
 			PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn));
+		mutex_unlock(&pcie_dev->aspm_lock);
 		return;
 	}
-
-	mutex_lock(&pcie_dev->aspm_lock);
 
 	/* Reject the allow_l1 call if we are already in drv state */
 	if (pcie_dev->link_status == MSM_PCIE_LINK_DRV) {
@@ -8290,16 +8319,24 @@ int msm_pcie_prevent_l1(struct pci_dev *pci_dev)
 
 	pcie_dev = PCIE_BUS_PRIV_DATA(root_pci_dev->bus);
 
+	/* disable L1 */
+	mutex_lock(&pcie_dev->aspm_lock);
+	if (pcie_dev->debugfs_l1) {
+		PCIE_DBG2(pcie_dev,
+			"PCIe: RC%d: debugfs_l1 is set so no-op\n",
+			pcie_dev->rc_idx);
+		mutex_unlock(&pcie_dev->aspm_lock);
+		return 0;
+	}
+
 	if (!pcie_dev->l1_supported) {
 		PCIE_DBG2(pcie_dev,
 			"PCIe: RC%d: %02x:%02x.%01x: L1 not supported\n",
 			pcie_dev->rc_idx, pci_dev->bus->number,
 			PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn));
+		mutex_unlock(&pcie_dev->aspm_lock);
 		return 0;
 	}
-
-	/* disable L1 */
-	mutex_lock(&pcie_dev->aspm_lock);
 
 	/* Reject the prevent_l1 call if we are already in drv state */
 	if (pcie_dev->link_status == MSM_PCIE_LINK_DRV) {
