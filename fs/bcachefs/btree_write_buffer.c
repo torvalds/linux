@@ -75,7 +75,8 @@ static int bch2_btree_write_buffer_flush_one(struct btree_trans *trans,
 	}
 	return 0;
 trans_commit:
-	return  bch2_trans_update_seq(trans, wb->journal_seq, iter, &wb->k, 0) ?:
+	return  bch2_trans_update_seq(trans, wb->journal_seq, iter, &wb->k,
+				      BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  commit_flags|
 				  BTREE_INSERT_NOCHECK_RW|
@@ -124,7 +125,8 @@ btree_write_buffered_insert(struct btree_trans *trans,
 			     BTREE_ITER_CACHED|BTREE_ITER_INTENT);
 
 	ret   = bch2_btree_iter_traverse(&iter) ?:
-		bch2_trans_update_seq(trans, wb->journal_seq, &iter, &wb->k, 0);
+		bch2_trans_update_seq(trans, wb->journal_seq, &iter, &wb->k,
+				      BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -193,7 +195,8 @@ int __bch2_btree_write_buffer_flush(struct btree_trans *trans, unsigned commit_f
 
 		if (!iter.path || iter.path->btree_id != i->btree) {
 			bch2_trans_iter_exit(trans, &iter);
-			bch2_trans_iter_init(trans, &iter, i->btree, i->k.k.p, BTREE_ITER_INTENT);
+			bch2_trans_iter_init(trans, &iter, i->btree, i->k.k.p,
+					     BTREE_ITER_INTENT|BTREE_ITER_ALL_SNAPSHOTS);
 		}
 
 		bch2_btree_iter_set_pos(&iter, i->k.k.p);

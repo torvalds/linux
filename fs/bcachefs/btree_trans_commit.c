@@ -97,6 +97,7 @@ bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 	EBUG_ON(bpos_gt(insert->k.p, b->data->max_key));
 	EBUG_ON(insert->k.u64s >
 		bch_btree_keys_u64s_remaining(trans->c, b));
+	EBUG_ON(!b->c.level && !bpos_eq(insert->k.p, path->pos));
 
 	k = bch2_btree_node_iter_peek_all(node_iter, b);
 	if (k && bkey_cmp_left_packed(b, k, &insert->k.p))
