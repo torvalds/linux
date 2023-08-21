@@ -56,6 +56,8 @@ separated by spaces:
 	memory protection key tests
 - soft_dirty
 	test soft dirty page bit semantics
+- pagemap
+	test pagemap_scan IOCTL
 - cow
 	test copy-on-write semantics
 - thp
@@ -341,6 +343,8 @@ if [ -x ./soft-dirty ]
 then
 	CATEGORY="soft_dirty" run_test ./soft-dirty
 fi
+
+CATEGORY="pagemap" run_test ./pagemap_ioctl
 
 # COW tests
 CATEGORY="cow" run_test ./cow
