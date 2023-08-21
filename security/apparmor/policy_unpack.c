@@ -29,6 +29,7 @@
 #include "include/policy.h"
 #include "include/policy_unpack.h"
 #include "include/policy_compat.h"
+#include "include/signal.h"
 
 /* audit callback for unpack fields */
 static void audit_cb(struct audit_buffer *ab, void *va)
@@ -916,6 +917,12 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	(void) aa_unpack_strdup(e, &disconnected, "disconnected");
 	profile->disconnected = disconnected;
 
+	/* optional */
+	(void) aa_unpack_u32(e, &profile->signal, "kill");
+	if (profile->signal < 1 && profile->signal > MAXMAPPED_SIG) {
+		info = "profile kill.signal invalid value";
+		goto fail;
+	}
 	/* per profile debug flags (complain, audit) */
 	if (!aa_unpack_nameX(e, AA_STRUCT, "flags")) {
 		info = "profile missing flags";

@@ -236,6 +236,7 @@ struct aa_profile {
 	enum audit_mode audit;
 	long mode;
 	u32 path_flags;
+	int signal;
 	const char *disconnected;
 
 	struct aa_attachment attach;
