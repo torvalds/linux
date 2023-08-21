@@ -134,8 +134,10 @@ static struct pmac_mb_def pmac_mb;
  * Here are the chip specific feature functions
  */
 
-static inline int simple_feature_tweak(struct device_node *node, int type,
-				       int reg, u32 mask, int value)
+#ifndef CONFIG_PPC64
+
+static int simple_feature_tweak(struct device_node *node, int type, int reg,
+				u32 mask, int value)
 {
 	struct macio_chip*	macio;
 	unsigned long		flags;
@@ -153,8 +155,6 @@ static inline int simple_feature_tweak(struct device_node *node, int type,
 
 	return 0;
 }
-
-#ifndef CONFIG_PPC64
 
 static long ohare_htw_scc_enable(struct device_node *node, long param,
 				 long value)
