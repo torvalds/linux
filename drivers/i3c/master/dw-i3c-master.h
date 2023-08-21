@@ -74,6 +74,10 @@ struct dw_i3c_master {
 	struct {
 		unsigned long core_rate;
 		unsigned long core_period;
+		u32 i3c_od_scl_low;
+		u32 i3c_od_scl_high;
+		u32 i3c_pp_scl_low;
+		u32 i3c_pp_scl_high;
 	} timing;
 };
 

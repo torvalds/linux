@@ -235,12 +235,17 @@
 #define SCL_EXT_LCNT_1(x)		((x) & GENMASK(7, 0))
 
 #define SCL_EXT_TERMN_LCNT_TIMING	0xcc
+#define SDA_HOLD_SWITCH_DLY_TIMING	0xd0
+#define   SDA_TX_HOLD			GENMASK(18, 16)
+#define     SDA_TX_HOLD_MIN		0b001
+#define     SDA_TX_HOLD_MAX		0b111
 #define BUS_FREE_TIMING			0xd4
 #define   BUS_AVAIL_TIME		GENMASK(31, 16)
 #define     MAX_BUS_AVAIL_CNT		0xffffU
 #define   BUS_I3C_MST_FREE		GENMASK(15, 0)
 
 #define BUS_IDLE_TIMING			0xd8
+#define SCL_LOW_MST_EXT_TIMEOUT		0xdc
 #define I3C_VER_ID			0xe0
 #define I3C_VER_TYPE			0xe4
 #define EXTENDED_CAPABILITY		0xe8
@@ -273,6 +278,8 @@
 #define I3C_BUS_THIGH_MAX_NS		41
 
 #define XFER_TIMEOUT (msecs_to_jiffies(1000))
+
+#define JESD403_TIMED_RESET_NS_DEF	52428800
 
 struct dw_i3c_cmd {
 	u32 cmd_lo;
@@ -670,13 +677,21 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 	core_rate = master->timing.core_rate;
 	core_period = master->timing.core_period;
 
-	hcnt = DIV_ROUND_UP(I3C_BUS_THIGH_MAX_NS, core_period) - 1;
-	if (hcnt < SCL_I3C_TIMING_CNT_MIN)
-		hcnt = SCL_I3C_TIMING_CNT_MIN;
+	if (master->timing.i3c_pp_scl_high && master->timing.i3c_pp_scl_low) {
+		hcnt = DIV_ROUND_CLOSEST(master->timing.i3c_pp_scl_high,
+					 core_period);
+		lcnt = DIV_ROUND_CLOSEST(master->timing.i3c_pp_scl_low,
+					 core_period);
+	} else {
+		hcnt = DIV_ROUND_UP(I3C_BUS_THIGH_MAX_NS, core_period) - 1;
+		if (hcnt < SCL_I3C_TIMING_CNT_MIN)
+			hcnt = SCL_I3C_TIMING_CNT_MIN;
 
-	lcnt = DIV_ROUND_UP(core_rate, master->base.bus.scl_rate.i3c) - hcnt;
-	if (lcnt < SCL_I3C_TIMING_CNT_MIN)
-		lcnt = SCL_I3C_TIMING_CNT_MIN;
+		lcnt = DIV_ROUND_UP(core_rate, master->base.bus.scl_rate.i3c) -
+		       hcnt;
+		if (lcnt < SCL_I3C_TIMING_CNT_MIN)
+			lcnt = SCL_I3C_TIMING_CNT_MIN;
+	}
 
 	scl_timing = FIELD_PREP(SCL_I3C_TIMING_HCNT, hcnt) |
 		     FIELD_PREP(SCL_I3C_TIMING_LCNT, lcnt);
@@ -692,7 +707,12 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 	scl_timing |= SCL_EXT_LCNT_4(lcnt);
 	writel(scl_timing, master->regs + SCL_EXT_LCNT_TIMING);
 
-	if (master->base.bus.context == I3C_BUS_CONTEXT_JESD403) {
+	if (master->timing.i3c_od_scl_high && master->timing.i3c_od_scl_low) {
+		hcnt = DIV_ROUND_CLOSEST(master->timing.i3c_od_scl_high,
+					 core_period);
+		lcnt = DIV_ROUND_CLOSEST(master->timing.i3c_od_scl_low,
+					 core_period);
+	} else if (master->base.bus.context == I3C_BUS_CONTEXT_JESD403) {
 		u16 hcnt_fmp, lcnt_fmp;
 
 		calc_i2c_clk(master, I3C_BUS_I2C_FM_PLUS_SCL_RATE, &hcnt_fmp,
@@ -737,17 +757,8 @@ static int dw_i3c_bus_clk_cfg(struct i3c_master_controller *m)
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	struct i3c_bus *bus = i3c_master_get_bus(m);
-	unsigned long core_rate, core_period;
 	int ret;
 	u16 lcnt;
-
-	core_rate = clk_get_rate(master->core_clk);
-	if (!core_rate)
-		return -EINVAL;
-
-	core_period = DIV_ROUND_UP(1000000000, core_rate);
-	master->timing.core_rate = core_rate;
-	master->timing.core_period = core_period;
 
 	ret = dw_i2c_clk_cfg(master);
 	if (ret)
@@ -1803,10 +1814,62 @@ static const struct dw_i3c_platform_ops dw_i3c_platform_ops_default = {
 	.gen_internal_stop = dw_i3c_gen_internal_stop_nop,
 };
 
+static int dw_i3c_of_populate_bus_timing(struct dw_i3c_master *master,
+					 struct device_node *np)
+{
+	u32 val, reg, sda_tx_hold_ns, timed_reset_scl_low_ns;
+
+	master->timing.core_rate = clk_get_rate(master->core_clk);
+	if (!master->timing.core_rate) {
+		dev_err(&master->base.dev, "core clock rate not found\n");
+		return -EINVAL;
+	}
+
+	/* core_period is in nanosecond */
+	master->timing.core_period =
+		DIV_ROUND_UP(1000000000, master->timing.core_rate);
+
+	/* Parse configurations from the device tree */
+	if (!of_property_read_u32(np, "i3c-pp-scl-hi-period-ns", &val))
+		master->timing.i3c_pp_scl_high = val;
+
+	if (!of_property_read_u32(np, "i3c-pp-scl-lo-period-ns", &val))
+		master->timing.i3c_pp_scl_low = val;
+
+	if (!of_property_read_u32(np, "i3c-od-scl-hi-period-ns", &val))
+		master->timing.i3c_od_scl_high = val;
+
+	if (!of_property_read_u32(np, "i3c-od-scl-lo-period-ns", &val))
+		master->timing.i3c_od_scl_low = val;
+
+	sda_tx_hold_ns = SDA_TX_HOLD_MIN * master->timing.core_period;
+	if (!of_property_read_u32(np, "sda-tx-hold-ns", &val))
+		sda_tx_hold_ns = val;
+
+	timed_reset_scl_low_ns = JESD403_TIMED_RESET_NS_DEF;
+	if (!of_property_read_u32(np, "timed-reset-scl-low-ns", &val))
+		timed_reset_scl_low_ns = val;
+
+	val = clamp((u32)DIV_ROUND_CLOSEST(sda_tx_hold_ns,
+					   master->timing.core_period),
+		    (u32)SDA_TX_HOLD_MIN, (u32)SDA_TX_HOLD_MAX);
+	reg = readl(master->regs + SDA_HOLD_SWITCH_DLY_TIMING);
+	reg &= ~SDA_TX_HOLD;
+	reg |= FIELD_PREP(SDA_TX_HOLD, val);
+	writel(reg, master->regs + SDA_HOLD_SWITCH_DLY_TIMING);
+
+	val = DIV_ROUND_CLOSEST(timed_reset_scl_low_ns,
+				master->timing.core_period);
+	writel(val, master->regs + SCL_LOW_MST_EXT_TIMEOUT);
+
+	return 0;
+}
+
 int dw_i3c_common_probe(struct dw_i3c_master *master,
 			struct platform_device *pdev)
 {
 	const struct i3c_master_controller_ops *ops;
+	struct device_node *np;
 	int ret, irq;
 
 	if (!master->platform_ops)
@@ -1843,6 +1906,11 @@ int dw_i3c_common_probe(struct dw_i3c_master *master,
 		goto err_assert_rst;
 
 	platform_set_drvdata(pdev, master);
+
+	np = pdev->dev.of_node;
+	ret = dw_i3c_of_populate_bus_timing(master, np);
+	if (ret)
+		goto err_assert_rst;
 
 	/* Information regarding the FIFOs/QUEUEs depth */
 	ret = readl(master->regs + QUEUE_STATUS_LEVEL);
