@@ -72,6 +72,31 @@ struct drm_printer;
 #define OVERLAY_NEEDS_PHYSICAL(i915)	(DISPLAY_INFO(i915)->overlay_needs_physical)
 #define SUPPORTS_TV(i915)		(DISPLAY_INFO(i915)->supports_tv)
 
+/* Check that device has a display IP version within the specific range. */
+#define IS_DISPLAY_IP_RANGE(__i915, from, until) ( \
+	BUILD_BUG_ON_ZERO((from) < IP_VER(2, 0)) + \
+	(DISPLAY_VER_FULL(__i915) >= (from) && \
+	 DISPLAY_VER_FULL(__i915) <= (until)))
+
+/*
+ * Check if a device has a specific IP version as well as a stepping within the
+ * specified range [from, until).  The lower bound is inclusive, the upper
+ * bound is exclusive.  The most common use-case of this macro is for checking
+ * bounds for workarounds, which usually have a stepping ("from") at which the
+ * hardware issue is first present and another stepping ("until") at which a
+ * hardware fix is present and the software workaround is no longer necessary.
+ * E.g.,
+ *
+ *    IS_DISPLAY_IP_STEP(i915, IP_VER(14, 0), STEP_A0, STEP_B2)
+ *    IS_DISPLAY_IP_STEP(i915, IP_VER(14, 0), STEP_C0, STEP_FOREVER)
+ *
+ * "STEP_FOREVER" can be passed as "until" for workarounds that have no upper
+ * stepping bound for the specified IP version.
+ */
+#define IS_DISPLAY_IP_STEP(__i915, ipver, from, until) \
+	(IS_DISPLAY_IP_RANGE((__i915), (ipver), (ipver)) && \
+	 IS_DISPLAY_STEP((__i915), (from), (until)))
+
 struct intel_display_runtime_info {
 	struct {
 		u16 ver;
