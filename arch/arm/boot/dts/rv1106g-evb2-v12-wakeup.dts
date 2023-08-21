@@ -253,6 +253,9 @@
 &rkisp_vir0 {
 	status = "okay";
 
+	memory-region-thunderboot = <&rkisp_thunderboot>;
+	rtt-suspend;
+
 	port@0 {
 		isp_in: endpoint {
 			remote-endpoint = <&mipi_lvds_sditf>;
