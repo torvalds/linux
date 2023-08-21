@@ -4058,7 +4058,7 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 	u32 max_demand = 0;
 	struct walt_task_struct *prime_wts = NULL;
 	struct walt_task_struct *other_wts = NULL;
-	static int assign_cpu;
+	static int assign_cpu = -1;
 	static bool last_found_pipeline;
 	int i;
 
@@ -4099,12 +4099,10 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 			assign_cpu = cpumask_next_and(assign_cpu,
 						&cpus_for_pipeline, cpu_online_mask);
 
-			if (assign_cpu >= nr_cpu_ids) {
+			if (assign_cpu >= nr_cpu_ids)
 				/* reset and rotate the cpus */
-				assign_cpu = 0;
-				assign_cpu = cpumask_next_and(assign_cpu,
+				assign_cpu = cpumask_next_and(-1,
 						&cpus_for_pipeline, cpu_online_mask);
-			}
 
 			if (assign_cpu >= nr_cpu_ids)
 				wts->pipeline_cpu = -1;
@@ -4130,12 +4128,10 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 			/* demote prime_wts, it is not worthy */
 			assign_cpu = cpumask_next_and(assign_cpu,
 						&cpus_for_pipeline, cpu_online_mask);
-			if (assign_cpu >= nr_cpu_ids) {
+			if (assign_cpu >= nr_cpu_ids)
 				/* reset and rotate the cpus */
-				assign_cpu = 0;
-				assign_cpu = cpumask_next_and(assign_cpu,
+				assign_cpu = cpumask_next_and(-1,
 							&cpus_for_pipeline, cpu_online_mask);
-			}
 			if (assign_cpu >= nr_cpu_ids)
 				prime_wts->pipeline_cpu = -1;
 			else
