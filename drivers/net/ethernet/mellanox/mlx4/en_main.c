@@ -234,9 +234,11 @@ static int mlx4_en_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
+static void mlx4_en_remove(struct auxiliary_device *adev)
 {
-	struct mlx4_en_dev *mdev = endev_ptr;
+	struct mlx4_adev *madev = container_of(adev, struct mlx4_adev, adev);
+	struct mlx4_dev *dev = madev->mdev;
+	struct mlx4_en_dev *mdev = auxiliary_get_drvdata(adev);
 	int i;
 
 	mlx4_unregister_event_notifier(dev, &mdev->mlx_nb);
@@ -259,27 +261,36 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 	kfree(mdev);
 }
 
-static void *mlx4_en_add(struct mlx4_dev *dev)
+static int mlx4_en_probe(struct auxiliary_device *adev,
+			 const struct auxiliary_device_id *id)
 {
+	struct mlx4_adev *madev = container_of(adev, struct mlx4_adev, adev);
+	struct mlx4_dev *dev = madev->mdev;
 	struct mlx4_en_dev *mdev;
 	int err, i;
 
 	printk_once(KERN_INFO "%s", mlx4_en_version);
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
-	if (!mdev)
+	if (!mdev) {
+		err = -ENOMEM;
 		goto err_free_res;
+	}
 
-	if (mlx4_pd_alloc(dev, &mdev->priv_pdn))
+	err = mlx4_pd_alloc(dev, &mdev->priv_pdn);
+	if (err)
 		goto err_free_dev;
 
-	if (mlx4_uar_alloc(dev, &mdev->priv_uar))
+	err = mlx4_uar_alloc(dev, &mdev->priv_uar);
+	if (err)
 		goto err_pd;
 
 	mdev->uar_map = ioremap((phys_addr_t) mdev->priv_uar.pfn << PAGE_SHIFT,
 				PAGE_SIZE);
-	if (!mdev->uar_map)
+	if (!mdev->uar_map) {
+		err = -ENOMEM;
 		goto err_uar;
+	}
 	spin_lock_init(&mdev->uar_lock);
 
 	mdev->dev = dev;
@@ -291,13 +302,15 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	if (!mdev->LSO_support)
 		mlx4_warn(mdev, "LSO not supported, please upgrade to later FW version to enable LSO\n");
 
-	if (mlx4_mr_alloc(mdev->dev, mdev->priv_pdn, 0, ~0ull,
-			 MLX4_PERM_LOCAL_WRITE |  MLX4_PERM_LOCAL_READ,
-			 0, 0, &mdev->mr)) {
+	err = mlx4_mr_alloc(mdev->dev, mdev->priv_pdn, 0, ~0ull,
+			    MLX4_PERM_LOCAL_WRITE | MLX4_PERM_LOCAL_READ, 0, 0,
+			    &mdev->mr);
+	if (err) {
 		mlx4_err(mdev, "Failed allocating memory region\n");
 		goto err_map;
 	}
-	if (mlx4_mr_enable(mdev->dev, &mdev->mr)) {
+	err = mlx4_mr_enable(mdev->dev, &mdev->mr);
+	if (err) {
 		mlx4_err(mdev, "Failed enabling memory region\n");
 		goto err_mr;
 	}
@@ -317,8 +330,10 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	 * Note: we cannot use the shared workqueue because of deadlocks caused
 	 *       by the rtnl lock */
 	mdev->workqueue = create_singlethread_workqueue("mlx4_en");
-	if (!mdev->workqueue)
+	if (!mdev->workqueue) {
+		err = -ENOMEM;
 		goto err_mr;
+	}
 
 	/* At this stage all non-port specific tasks are complete:
 	 * mark the card state as up */
@@ -346,7 +361,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 		mlx4_err(mdev, "Failed to create netdev notifier\n");
 	}
 
-	return mdev;
+	auxiliary_set_drvdata(adev, mdev);
+	return 0;
 
 err_mr:
 	(void) mlx4_mr_free(dev, &mdev->mr);
@@ -360,12 +376,23 @@ err_pd:
 err_free_dev:
 	kfree(mdev);
 err_free_res:
-	return NULL;
+	return err;
 }
 
-static struct mlx4_interface mlx4_en_interface = {
-	.add		= mlx4_en_add,
-	.remove		= mlx4_en_remove,
+static const struct auxiliary_device_id mlx4_en_id_table[] = {
+	{ .name = MLX4_ADEV_NAME ".eth" },
+	{},
+};
+
+MODULE_DEVICE_TABLE(auxiliary, mlx4_en_id_table);
+
+static struct mlx4_adrv mlx4_en_adrv = {
+	.adrv = {
+		.name	= "eth",
+		.probe	= mlx4_en_probe,
+		.remove	= mlx4_en_remove,
+		.id_table = mlx4_en_id_table,
+	},
 	.protocol	= MLX4_PROT_ETH,
 };
 
@@ -395,12 +422,12 @@ static int __init mlx4_en_init(void)
 	mlx4_en_verify_params();
 	mlx4_en_init_ptys2ethtool_map();
 
-	return mlx4_register_interface(&mlx4_en_interface);
+	return mlx4_register_auxiliary_driver(&mlx4_en_adrv);
 }
 
 static void __exit mlx4_en_cleanup(void)
 {
-	mlx4_unregister_interface(&mlx4_en_interface);
+	mlx4_unregister_auxiliary_driver(&mlx4_en_adrv);
 }
 
 module_init(mlx4_en_init);

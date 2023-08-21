@@ -50,10 +50,21 @@ static LIST_HEAD(dev_list);
 static DEFINE_MUTEX(intf_mutex);
 static DEFINE_IDA(mlx4_adev_ida);
 
+static bool is_eth_supported(struct mlx4_dev *dev)
+{
+	for (int port = 1; port <= dev->caps.num_ports; port++)
+		if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
+			return true;
+
+	return false;
+}
+
 static const struct mlx4_adev_device {
 	const char *suffix;
 	bool (*is_supported)(struct mlx4_dev *dev);
-} mlx4_adev_devices[1] = {};
+} mlx4_adev_devices[] = {
+	{ "eth", is_eth_supported },
+};
 
 int mlx4_adev_init(struct mlx4_dev *dev)
 {
