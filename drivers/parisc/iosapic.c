@@ -890,7 +890,7 @@ iosapic_rd_version(struct iosapic_info *isi)
 **	o allocate and initialize isi_vector[]
 **	o allocate irq region
 */
-void *iosapic_register(unsigned long hpa)
+void *iosapic_register(unsigned long hpa, void __iomem *vaddr)
 {
 	struct iosapic_info *isi = NULL;
 	struct irt_entry *irte = irt_cell;
@@ -919,7 +919,7 @@ void *iosapic_register(unsigned long hpa)
 		return NULL;
 	}
 
-	isi->addr = ioremap(hpa, 4096);
+	isi->addr = vaddr;
 	isi->isi_hpa = hpa;
 	isi->isi_version = iosapic_rd_version(isi);
 	isi->isi_num_vectors = IOSAPIC_IRDT_MAX_ENTRY(isi->isi_version) + 1;
