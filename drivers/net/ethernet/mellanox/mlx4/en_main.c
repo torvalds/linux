@@ -184,10 +184,22 @@ static void mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 }
 
 static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
-			  enum mlx4_dev_event event, unsigned long port)
+			  enum mlx4_dev_event event, void *param)
 {
 	struct mlx4_en_dev *mdev = (struct mlx4_en_dev *) endev_ptr;
 	struct mlx4_en_priv *priv;
+	int port;
+
+	switch (event) {
+	case MLX4_DEV_EVENT_CATASTROPHIC_ERROR:
+	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:
+	case MLX4_DEV_EVENT_SLAVE_INIT:
+	case MLX4_DEV_EVENT_SLAVE_SHUTDOWN:
+		break;
+	default:
+		port = *(int *)param;
+		break;
+	}
 
 	switch (event) {
 	case MLX4_DEV_EVENT_PORT_UP:
@@ -205,6 +217,7 @@ static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 		mlx4_err(mdev, "Internal error detected, restarting device\n");
 		break;
 
+	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:
 	case MLX4_DEV_EVENT_SLAVE_INIT:
 	case MLX4_DEV_EVENT_SLAVE_SHUTDOWN:
 		break;
@@ -213,7 +226,7 @@ static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 		    !mdev->pndev[port])
 			return;
 		mlx4_warn(mdev, "Unhandled event %d for port %d\n", event,
-			  (int) port);
+			  port);
 	}
 }
 

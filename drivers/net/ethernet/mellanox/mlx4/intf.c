@@ -180,7 +180,7 @@ int mlx4_do_bond(struct mlx4_dev *dev, bool enable)
 }
 
 void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type,
-			 unsigned long param)
+			 void *param)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_device_context *dev_ctx;

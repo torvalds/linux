@@ -3174,7 +3174,7 @@ void mlx4_sched_ib_sl2vl_update_work(struct mlx4_ib_dev *ibdev,
 }
 
 static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
-			  enum mlx4_dev_event event, unsigned long param)
+			  enum mlx4_dev_event event, void *param)
 {
 	struct ib_event ibev;
 	struct mlx4_ib_dev *ibdev = to_mdev((struct ib_device *) ibdev_ptr);
@@ -3194,10 +3194,16 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 		return;
 	}
 
-	if (event == MLX4_DEV_EVENT_PORT_MGMT_CHANGE)
+	switch (event) {
+	case MLX4_DEV_EVENT_CATASTROPHIC_ERROR:
+		break;
+	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:
 		eqe = (struct mlx4_eqe *)param;
-	else
-		p = (int) param;
+		break;
+	default:
+		p = *(int *)param;
+		break;
+	}
 
 	switch (event) {
 	case MLX4_DEV_EVENT_PORT_UP:
