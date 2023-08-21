@@ -144,6 +144,9 @@
 /* Blackfin bf5xx */
 #define PORT_BFIN	75
 
+/* Broadcom BCM7271 UART */
+#define PORT_BCM7271	76
+
 /* Broadcom SB1250, etc. SOC */
 #define PORT_SB1250_DUART	77
 
