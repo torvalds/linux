@@ -203,6 +203,9 @@ static void gfx_v9_4_3_init_golden_registers(struct amdgpu_device *adev)
 		if (adev->rev_id == 0) {
 			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL1,
 					      REDUCE_FIFO_DEPTH_BY_2, 2);
+		} else {
+			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL2,
+						SPARE, 0x1);
 		}
 	}
 }
