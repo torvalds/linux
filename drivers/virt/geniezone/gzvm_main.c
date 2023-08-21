@@ -50,8 +50,8 @@ int gzvm_err_to_errno(unsigned long err)
  * @args: Pointer in u64 from userspace
  *
  * Return:
- * * 0			- Support, no error
- * * -EOPNOTSUPP	- Not support
+ * * 0			- Supported, no error
+ * * -EOPNOTSUPP	- Unsupported
  * * -EFAULT		- Failed to get data from userspace
  */
 long gzvm_dev_ioctl_check_extension(struct gzvm *gzvm, unsigned long args)
@@ -67,22 +67,22 @@ long gzvm_dev_ioctl_check_extension(struct gzvm *gzvm, unsigned long args)
 static long gzvm_dev_ioctl(struct file *filp, unsigned int cmd,
 			   unsigned long user_args)
 {
-	long ret = -ENOTTY;
+	long ret;
 
 	switch (cmd) {
 	case GZVM_CREATE_VM:
 		ret = gzvm_dev_ioctl_create_vm(user_args);
-		break;
+		return ret;
 	case GZVM_CHECK_EXTENSION:
 		if (!user_args)
 			return -EINVAL;
 		ret = gzvm_dev_ioctl_check_extension(NULL, user_args);
-		break;
+		return ret;
 	default:
-		ret = -ENOTTY;
+		break;
 	}
 
-	return ret;
+	return -ENOTTY;
 }
 
 static const struct file_operations gzvm_chardev_ops = {
