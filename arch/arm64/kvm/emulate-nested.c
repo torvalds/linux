@@ -651,6 +651,8 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 	SR_RANGE_TRAP(sys_reg(3, 4, 0, 0, 0),
 		      sys_reg(3, 4, 3, 15, 7), CGT_HCR_NV),
 	/* Skip the SP_EL1 encoding... */
+	SR_TRAP(SYS_SPSR_EL2,		CGT_HCR_NV),
+	SR_TRAP(SYS_ELR_EL2,		CGT_HCR_NV),
 	SR_RANGE_TRAP(sys_reg(3, 4, 4, 1, 1),
 		      sys_reg(3, 4, 10, 15, 7), CGT_HCR_NV),
 	SR_RANGE_TRAP(sys_reg(3, 4, 12, 0, 0),
