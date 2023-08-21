@@ -178,6 +178,14 @@ config REGULATOR_ATC260X
 	  ATC260x PMICs. This will enable support for all the software
 	  controllable DCDC/LDO regulators.
 
+config REGULATOR_AW37503
+	tristate "Awinic AW37503 Dual Output Power regulators"
+	depends on I2C && GPIOLIB
+	select REGMAP_I2C
+	help
+	  This driver supports AW37503 single inductor - dual output
+	  power supply specifically designed for display panels.
+
 config REGULATOR_AXP20X
 	tristate "X-POWERS AXP20X PMIC Regulators"
 	depends on MFD_AXP20X
