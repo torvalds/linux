@@ -269,7 +269,6 @@ unsigned int do_ring_perf_limit_reasons;
 unsigned int crystal_hz;
 unsigned long long tsc_hz;
 int base_cpu;
-double discover_bclk(unsigned int family, unsigned int model);
 unsigned int has_hwp;		/* IA32_PM_ENABLE, IA32_HWP_CAPABILITIES */
 			/* IA32_HWP_REQUEST, IA32_HWP_STATUS */
 unsigned int has_hwp_notify;	/* IA32_HWP_INTERRUPT */
@@ -279,12 +278,15 @@ unsigned int has_hwp_pkg;	/* IA32_HWP_REQUEST_PKG */
 unsigned int first_counter_read = 1;
 int ignore_stdin;
 
+int get_msr(int cpu, off_t offset, unsigned long long *msr);
+
 /* Model specific support Start */
 
 /* List of features that may diverge among different platforms */
 struct platform_features {
 	bool has_msr_misc_feature_control;	/* MSR_MISC_FEATURE_CONTROL */
 	bool has_msr_misc_pwr_mgmt;	/* MSR_MISC_PWR_MGMT */
+	int bclk_freq;		/* CPU base clock */
 };
 
 struct platform_data {
@@ -292,126 +294,185 @@ struct platform_data {
 	const struct platform_features *features;
 };
 
+/* For BCLK */
+enum bclk_freq {
+	BCLK_100MHZ = 1,
+	BCLK_133MHZ,
+	BCLK_SLV,
+};
+
+#define SLM_BCLK_FREQS 5
+double slm_freq_table[SLM_BCLK_FREQS] = { 83.3, 100.0, 133.3, 116.7, 80.0 };
+
+double slm_bclk(void)
+{
+	unsigned long long msr = 3;
+	unsigned int i;
+	double freq;
+
+	if (get_msr(base_cpu, MSR_FSB_FREQ, &msr))
+		fprintf(outf, "SLM BCLK: unknown\n");
+
+	i = msr & 0xf;
+	if (i >= SLM_BCLK_FREQS) {
+		fprintf(outf, "SLM BCLK[%d] invalid\n", i);
+		i = 3;
+	}
+	freq = slm_freq_table[i];
+
+	if (!quiet)
+		fprintf(outf, "SLM BCLK: %.1f Mhz\n", freq);
+
+	return freq;
+}
+
 static const struct platform_features nhm_features = {
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_133MHZ,
 };
 
 static const struct platform_features nhx_features = {
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_133MHZ,
 };
 
 static const struct platform_features snb_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features snx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features ivb_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features ivx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features hsw_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features hsx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features hswl_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features hswg_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features bdw_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features bdwg_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features bdx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features skl_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features cnl_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features skx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features icx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features spr_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features slv_features = {
+	.bclk_freq = BCLK_SLV,
 };
 
 static const struct platform_features slvd_features = {
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_SLV,
 };
 
 static const struct platform_features amt_features = {
+	.bclk_freq = BCLK_133MHZ,
 };
 
 static const struct platform_features gmt_features = {
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features gmtd_features = {
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features gmtp_features = {
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features tmt_features = {
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features tmtd_features = {
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features knl_features = {
 	.has_msr_misc_pwr_mgmt = 1,
+	.bclk_freq = BCLK_100MHZ,
 };
 
 static const struct platform_features default_features = {
@@ -3907,6 +3968,30 @@ void check_permissions(void)
 		exit(-6);
 }
 
+void probe_bclk(void)
+{
+	unsigned long long msr;
+	unsigned int base_ratio;
+
+	if (!do_nhm_platform_info)
+		return;
+
+	if (platform->bclk_freq == BCLK_100MHZ)
+		bclk = 100.00;
+	else if (platform->bclk_freq == BCLK_133MHZ)
+		bclk = 133.33;
+	else if (platform->bclk_freq == BCLK_SLV)
+		bclk = slm_bclk();
+	else
+		return;
+
+	get_msr(base_cpu, MSR_PLATFORM_INFO, &msr);
+	base_ratio = (msr >> 8) & 0xFF;
+
+	base_hz = base_ratio * bclk * 1000000;
+	has_base_hz = 1;
+}
+
 /*
  * NHM adds support for additional MSRs:
  *
@@ -3928,7 +4013,6 @@ void check_permissions(void)
 int probe_nhm_msrs(unsigned int family, unsigned int model)
 {
 	unsigned long long msr;
-	unsigned int base_ratio;
 	int *pkg_cstate_limits;
 
 	if (!genuine_intel)
@@ -3936,8 +4020,6 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 
 	if (family != 6)
 		return 0;
-
-	bclk = discover_bclk(family, model);
 
 	switch (model) {
 	case INTEL_FAM6_NEHALEM:	/* Core i7 and i5 Processor - Clarksfield, Lynnfield, Jasper Forest */
@@ -3992,11 +4074,6 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	get_msr(base_cpu, MSR_PKG_CST_CONFIG_CONTROL, &msr);
 	pkg_cstate_limit = pkg_cstate_limits[msr & 0xF];
 
-	get_msr(base_cpu, MSR_PLATFORM_INFO, &msr);
-	base_ratio = (msr >> 8) & 0xFF;
-
-	base_hz = base_ratio * bclk * 1000000;
-	has_base_hz = 1;
 	return 1;
 }
 
@@ -5403,41 +5480,6 @@ unsigned int get_aperf_mperf_multiplier(unsigned int family, unsigned int model)
 	return 1;
 }
 
-#define SLM_BCLK_FREQS 5
-double slm_freq_table[SLM_BCLK_FREQS] = { 83.3, 100.0, 133.3, 116.7, 80.0 };
-
-double slm_bclk(void)
-{
-	unsigned long long msr = 3;
-	unsigned int i;
-	double freq;
-
-	if (get_msr(base_cpu, MSR_FSB_FREQ, &msr))
-		fprintf(outf, "SLM BCLK: unknown\n");
-
-	i = msr & 0xf;
-	if (i >= SLM_BCLK_FREQS) {
-		fprintf(outf, "SLM BCLK[%d] invalid\n", i);
-		i = 3;
-	}
-	freq = slm_freq_table[i];
-
-	if (!quiet)
-		fprintf(outf, "SLM BCLK: %.1f Mhz\n", freq);
-
-	return freq;
-}
-
-double discover_bclk(unsigned int family, unsigned int model)
-{
-	if (has_snb_msrs(family, model) || is_knl(family, model))
-		return 100.00;
-	else if (is_slm(family, model))
-		return slm_bclk();
-	else
-		return 133.33;
-}
-
 int get_cpu_type(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned int eax, ebx, ecx, edx;
@@ -5929,6 +5971,7 @@ void process_cpuid()
 		BIC_PRESENT(BIC_CPU_c6);
 		BIC_PRESENT(BIC_SMI);
 	}
+	probe_bclk();
 	do_snb_cstates = has_snb_msrs(family, model);
 
 	if (do_snb_cstates)
