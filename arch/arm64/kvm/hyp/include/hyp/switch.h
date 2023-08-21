@@ -457,6 +457,7 @@ static bool handle_ampere1_tcr(struct kvm_vcpu *vcpu)
 	 */
 	val &= ~(TCR_HD | TCR_HA);
 	write_sysreg_el1(val, SYS_TCR);
+	__kvm_skip_instr(vcpu);
 	return true;
 }
 

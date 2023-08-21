@@ -411,6 +411,9 @@ static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
 	}, {
 		.name = "support wake on lan",
 		.cap_bit = HNAE3_DEV_SUPPORT_WOL_B,
+	}, {
+		.name = "support tm flush",
+		.cap_bit = HNAE3_DEV_SUPPORT_TM_FLUSH_B,
 	}
 };
 
@@ -461,9 +464,9 @@ static void hns3_dbg_fill_content(char *content, u16 len,
 		if (result) {
 			if (item_len < strlen(result[i]))
 				break;
-			strscpy(pos, result[i], strlen(result[i]));
+			memcpy(pos, result[i], strlen(result[i]));
 		} else {
-			strscpy(pos, items[i].name, strlen(items[i].name));
+			memcpy(pos, items[i].name, strlen(items[i].name));
 		}
 		pos += item_len;
 		len -= item_len;

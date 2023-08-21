@@ -2019,9 +2019,10 @@ unsigned ceph_dentry_hash(struct inode *dir, struct dentry *dn)
 	}
 }
 
+WRAP_DIR_ITER(ceph_readdir) // FIXME!
 const struct file_operations ceph_dir_fops = {
 	.read = ceph_read_dir,
-	.iterate = ceph_readdir,
+	.iterate_shared = shared_ceph_readdir,
 	.llseek = ceph_dir_llseek,
 	.open = ceph_open,
 	.release = ceph_release,
@@ -2033,7 +2034,7 @@ const struct file_operations ceph_dir_fops = {
 };
 
 const struct file_operations ceph_snapdir_fops = {
-	.iterate = ceph_readdir,
+	.iterate_shared = shared_ceph_readdir,
 	.llseek = ceph_dir_llseek,
 	.open = ceph_open,
 	.release = ceph_release,

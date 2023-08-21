@@ -68,7 +68,7 @@ static void aqua_vanjaram_set_xcp_id(struct amdgpu_device *adev,
 	enum AMDGPU_XCP_IP_BLOCK ip_blk;
 	uint32_t inst_mask;
 
-	ring->xcp_id = ~0;
+	ring->xcp_id = AMDGPU_XCP_NO_PARTITION;
 	if (adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
 		return;
 
@@ -177,7 +177,7 @@ static int aqua_vanjaram_select_scheds(
 	u32 sel_xcp_id;
 	int i;
 
-	if (fpriv->xcp_id == ~0) {
+	if (fpriv->xcp_id == AMDGPU_XCP_NO_PARTITION) {
 		u32 least_ref_cnt = ~0;
 
 		fpriv->xcp_id = 0;

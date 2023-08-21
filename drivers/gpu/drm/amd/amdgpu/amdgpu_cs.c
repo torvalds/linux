@@ -295,7 +295,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 
 	if (!p->gang_size) {
 		ret = -EINVAL;
-		goto free_partial_kdata;
+		goto free_all_kdata;
 	}
 
 	for (i = 0; i < p->gang_size; ++i) {

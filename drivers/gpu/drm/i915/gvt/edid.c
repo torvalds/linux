@@ -491,7 +491,7 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 		return;
 	}
 
-	msg_length = REG_FIELD_GET(DP_AUX_CH_CTL_MESSAGE_SIZE_MASK, reg);
+	msg_length = REG_FIELD_GET(DP_AUX_CH_CTL_MESSAGE_SIZE_MASK, value);
 
 	// check the msg in DATA register.
 	msg = vgpu_vreg(vgpu, offset + 4);

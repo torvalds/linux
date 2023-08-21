@@ -1763,7 +1763,6 @@ static int smu_v13_0_6_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 	mutex_lock(&adev->pm.mutex);
 	r = smu_v13_0_6_request_i2c_xfer(smu, req);
-	mutex_unlock(&adev->pm.mutex);
 	if (r)
 		goto fail;
 
@@ -1780,6 +1779,7 @@ static int smu_v13_0_6_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 	r = num_msgs;
 fail:
+	mutex_unlock(&adev->pm.mutex);
 	kfree(req);
 	return r;
 }
@@ -1993,9 +1993,8 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 
 	gpu_metrics->average_socket_power =
 		SMUQ10_TO_UINT(metrics->SocketPower);
-	/* Energy is reported in 15.625mJ units */
-	gpu_metrics->energy_accumulator =
-		SMUQ10_TO_UINT(metrics->SocketEnergyAcc);
+	/* Energy counter reported in 15.259uJ (2^-16) units */
+	gpu_metrics->energy_accumulator = metrics->SocketEnergyAcc;
 
 	gpu_metrics->current_gfxclk =
 		SMUQ10_TO_UINT(metrics->GfxclkFrequency[xcc0]);

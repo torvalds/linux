@@ -1005,7 +1005,7 @@ struct elf *elf_open_read(const char *name, int flags)
 		perror("malloc");
 		return NULL;
 	}
-	memset(elf, 0, offsetof(struct elf, sections));
+	memset(elf, 0, sizeof(*elf));
 
 	INIT_LIST_HEAD(&elf->sections);
 

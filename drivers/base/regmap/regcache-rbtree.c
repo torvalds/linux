@@ -471,6 +471,8 @@ static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
 	unsigned int start, end;
 	int ret;
 
+	map->async = true;
+
 	rbtree_ctx = map->cache;
 	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
 		rbnode = rb_entry(node, struct regcache_rbtree_node, node);
@@ -498,6 +500,8 @@ static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
 		if (ret != 0)
 			return ret;
 	}
+
+	map->async = false;
 
 	return regmap_async_complete(map);
 }

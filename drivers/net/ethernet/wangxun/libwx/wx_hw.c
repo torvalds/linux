@@ -1511,7 +1511,6 @@ static void wx_configure_rx(struct wx *wx)
 	psrtype = WX_RDB_PL_CFG_L4HDR |
 		  WX_RDB_PL_CFG_L3HDR |
 		  WX_RDB_PL_CFG_L2HDR |
-		  WX_RDB_PL_CFG_TUN_TUNHDR |
 		  WX_RDB_PL_CFG_TUN_TUNHDR;
 	wr32(wx, WX_RDB_PL_CFG(0), psrtype);
 

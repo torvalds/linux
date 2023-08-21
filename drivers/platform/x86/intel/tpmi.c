@@ -356,9 +356,7 @@ static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 		if (!pfs_start)
 			pfs_start = res_start;
 
-		pfs->pfs_header.cap_offset *= TPMI_CAP_OFFSET_UNIT;
-
-		pfs->vsec_offset = pfs_start + pfs->pfs_header.cap_offset;
+		pfs->vsec_offset = pfs_start + pfs->pfs_header.cap_offset * TPMI_CAP_OFFSET_UNIT;
 
 		/*
 		 * Process TPMI_INFO to get PCI device to CPU package ID.

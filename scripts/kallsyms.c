@@ -129,6 +129,7 @@ static struct sym_entry *read_symbol(FILE *in, char **buf, size_t *buf_len)
 	ssize_t readlen;
 	struct sym_entry *sym;
 
+	errno = 0;
 	readlen = getline(buf, buf_len, in);
 	if (readlen < 0) {
 		if (errno) {
@@ -349,10 +350,10 @@ static void cleanup_symbol_name(char *s)
 	 * ASCII[_]   = 5f
 	 * ASCII[a-z] = 61,7a
 	 *
-	 * As above, replacing '.' with '\0' does not affect the main sorting,
-	 * but it helps us with subsorting.
+	 * As above, replacing the first '.' in ".llvm." with '\0' does not
+	 * affect the main sorting, but it helps us with subsorting.
 	 */
-	p = strchr(s, '.');
+	p = strstr(s, ".llvm.");
 	if (p)
 		*p = '\0';
 }

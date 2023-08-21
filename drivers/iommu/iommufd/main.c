@@ -117,13 +117,55 @@ struct iommufd_object *iommufd_get_object(struct iommufd_ctx *ictx, u32 id,
 }
 
 /*
+ * Remove the given object id from the xarray if the only reference to the
+ * object is held by the xarray. The caller must call ops destroy().
+ */
+static struct iommufd_object *iommufd_object_remove(struct iommufd_ctx *ictx,
+						    u32 id, bool extra_put)
+{
+	struct iommufd_object *obj;
+	XA_STATE(xas, &ictx->objects, id);
+
+	xa_lock(&ictx->objects);
+	obj = xas_load(&xas);
+	if (xa_is_zero(obj) || !obj) {
+		obj = ERR_PTR(-ENOENT);
+		goto out_xa;
+	}
+
+	/*
+	 * If the caller is holding a ref on obj we put it here under the
+	 * spinlock.
+	 */
+	if (extra_put)
+		refcount_dec(&obj->users);
+
+	if (!refcount_dec_if_one(&obj->users)) {
+		obj = ERR_PTR(-EBUSY);
+		goto out_xa;
+	}
+
+	xas_store(&xas, NULL);
+	if (ictx->vfio_ioas == container_of(obj, struct iommufd_ioas, obj))
+		ictx->vfio_ioas = NULL;
+
+out_xa:
+	xa_unlock(&ictx->objects);
+
+	/* The returned object reference count is zero */
+	return obj;
+}
+
+/*
  * The caller holds a users refcount and wants to destroy the object. Returns
  * true if the object was destroyed. In all cases the caller no longer has a
  * reference on obj.
  */
-bool iommufd_object_destroy_user(struct iommufd_ctx *ictx,
-				 struct iommufd_object *obj)
+void __iommufd_object_destroy_user(struct iommufd_ctx *ictx,
+				   struct iommufd_object *obj, bool allow_fail)
 {
+	struct iommufd_object *ret;
+
 	/*
 	 * The purpose of the destroy_rwsem is to ensure deterministic
 	 * destruction of objects used by external drivers and destroyed by this
@@ -131,22 +173,22 @@ bool iommufd_object_destroy_user(struct iommufd_ctx *ictx,
 	 * side of this, such as during ioctl execution.
 	 */
 	down_write(&obj->destroy_rwsem);
-	xa_lock(&ictx->objects);
-	refcount_dec(&obj->users);
-	if (!refcount_dec_if_one(&obj->users)) {
-		xa_unlock(&ictx->objects);
-		up_write(&obj->destroy_rwsem);
-		return false;
-	}
-	__xa_erase(&ictx->objects, obj->id);
-	if (ictx->vfio_ioas && &ictx->vfio_ioas->obj == obj)
-		ictx->vfio_ioas = NULL;
-	xa_unlock(&ictx->objects);
+	ret = iommufd_object_remove(ictx, obj->id, true);
 	up_write(&obj->destroy_rwsem);
+
+	if (allow_fail && IS_ERR(ret))
+		return;
+
+	/*
+	 * If there is a bug and we couldn't destroy the object then we did put
+	 * back the caller's refcount and will eventually try to free it again
+	 * during close.
+	 */
+	if (WARN_ON(IS_ERR(ret)))
+		return;
 
 	iommufd_object_ops[obj->type].destroy(obj);
 	kfree(obj);
-	return true;
 }
 
 static int iommufd_destroy(struct iommufd_ucmd *ucmd)
@@ -154,13 +196,11 @@ static int iommufd_destroy(struct iommufd_ucmd *ucmd)
 	struct iommu_destroy *cmd = ucmd->cmd;
 	struct iommufd_object *obj;
 
-	obj = iommufd_get_object(ucmd->ictx, cmd->id, IOMMUFD_OBJ_ANY);
+	obj = iommufd_object_remove(ucmd->ictx, cmd->id, false);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
-	iommufd_ref_to_users(obj);
-	/* See iommufd_ref_to_users() */
-	if (!iommufd_object_destroy_user(ucmd->ictx, obj))
-		return -EBUSY;
+	iommufd_object_ops[obj->type].destroy(obj);
+	kfree(obj);
 	return 0;
 }
 

@@ -257,7 +257,7 @@ static int sdw_amd_scan_controller(struct device *dev)
 					     &sdw_manager_bitmap, 1);
 
 	if (ret) {
-		dev_err(dev, "Failed to read mipi-sdw-manager-list: %d\n", ret);
+		dev_dbg(dev, "Failed to read mipi-sdw-manager-list: %d\n", ret);
 		return -EINVAL;
 	}
 	count = hweight32(sdw_manager_bitmap);
@@ -641,7 +641,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	ret = get_acp63_device_config(val, pci, adata);
 	/* ACP PCI driver probe should be continued even PDM or SoundWire Devices are not found */
 	if (ret) {
-		dev_err(&pci->dev, "get acp device config failed:%d\n", ret);
+		dev_dbg(&pci->dev, "get acp device config failed:%d\n", ret);
 		goto skip_pdev_creation;
 	}
 	ret = create_acp63_platform_devs(pci, adata, addr);

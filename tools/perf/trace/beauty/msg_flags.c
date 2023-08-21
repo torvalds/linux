@@ -8,6 +8,12 @@
 #ifndef MSG_WAITFORONE
 #define MSG_WAITFORONE		   0x10000
 #endif
+#ifndef MSG_BATCH
+#define MSG_BATCH		   0x40000
+#endif
+#ifndef MSG_ZEROCOPY
+#define MSG_ZEROCOPY		 0x4000000
+#endif
 #ifndef MSG_SPLICE_PAGES
 #define MSG_SPLICE_PAGES	0x8000000
 #endif
@@ -50,6 +56,8 @@ static size_t syscall_arg__scnprintf_msg_flags(char *bf, size_t size,
 	P_MSG_FLAG(NOSIGNAL);
 	P_MSG_FLAG(MORE);
 	P_MSG_FLAG(WAITFORONE);
+	P_MSG_FLAG(BATCH);
+	P_MSG_FLAG(ZEROCOPY);
 	P_MSG_FLAG(SPLICE_PAGES);
 	P_MSG_FLAG(FASTOPEN);
 	P_MSG_FLAG(CMSG_CLOEXEC);

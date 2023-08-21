@@ -41,6 +41,15 @@ struct ftrace_ops;
 struct ftrace_regs;
 struct dyn_ftrace;
 
+char *arch_ftrace_match_adjust(char *str, const char *search);
+
+#ifdef CONFIG_HAVE_FUNCTION_GRAPH_RETVAL
+struct fgraph_ret_regs;
+unsigned long ftrace_return_to_handler(struct fgraph_ret_regs *ret_regs);
+#else
+unsigned long ftrace_return_to_handler(unsigned long frame_pointer);
+#endif
+
 #ifdef CONFIG_FUNCTION_TRACER
 /*
  * If the arch's mcount caller does not support all of ftrace's
@@ -675,7 +684,6 @@ void __init
 ftrace_set_early_filter(struct ftrace_ops *ops, char *buf, int enable);
 
 /* defined in arch */
-extern int ftrace_ip_converted(unsigned long ip);
 extern int ftrace_dyn_arch_init(void);
 extern void ftrace_replace_code(int enable);
 extern int ftrace_update_ftrace_func(ftrace_func_t func);
@@ -849,9 +857,6 @@ static inline int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_a
 	return -EINVAL;
 }
 #endif
-
-/* May be defined in arch */
-extern int ftrace_arch_read_dyn_info(char *buf, int size);
 
 extern int skip_trace(unsigned long ip);
 extern void ftrace_module_init(struct module *mod);

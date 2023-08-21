@@ -58,6 +58,9 @@ static struct regmap *gen_regmap(struct regmap_config *config,
 	int i;
 	struct reg_default *defaults;
 
+	config->disable_locking = config->cache_type == REGCACHE_RBTREE ||
+					config->cache_type == REGCACHE_MAPLE;
+
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
@@ -889,6 +892,8 @@ static struct regmap *gen_raw_regmap(struct regmap_config *config,
 
 	config->cache_type = test_type->cache_type;
 	config->val_format_endian = test_type->val_endian;
+	config->disable_locking = config->cache_type == REGCACHE_RBTREE ||
+					config->cache_type == REGCACHE_MAPLE;
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)

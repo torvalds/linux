@@ -97,7 +97,7 @@ struct mxc_jpeg_ctx {
 	struct mxc_jpeg_q_data		cap_q;
 	struct v4l2_fh			fh;
 	enum mxc_jpeg_enc_state		enc_state;
-	unsigned int			slot;
+	int				slot;
 	unsigned int			source_change;
 	bool				header_parsed;
 	struct v4l2_ctrl_handler	ctrl_handler;
@@ -106,6 +106,7 @@ struct mxc_jpeg_ctx {
 };
 
 struct mxc_jpeg_slot_data {
+	int slot;
 	bool used;
 	struct mxc_jpeg_desc *desc; // enc/dec descriptor
 	struct mxc_jpeg_desc *cfg_desc; // configuration descriptor
@@ -128,7 +129,7 @@ struct mxc_jpeg_dev {
 	struct v4l2_device		v4l2_dev;
 	struct v4l2_m2m_dev		*m2m_dev;
 	struct video_device		*dec_vdev;
-	struct mxc_jpeg_slot_data	slot_data[MXC_MAX_SLOTS];
+	struct mxc_jpeg_slot_data	slot_data;
 	int				num_domains;
 	struct device			**pd_dev;
 	struct device_link		**pd_link;

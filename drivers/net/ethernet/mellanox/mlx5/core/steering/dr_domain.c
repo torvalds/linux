@@ -475,6 +475,7 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 	mutex_init(&dmn->info.rx.mutex);
 	mutex_init(&dmn->info.tx.mutex);
 	xa_init(&dmn->definers_xa);
+	xa_init(&dmn->peer_dmn_xa);
 
 	if (dr_domain_caps_init(mdev, dmn)) {
 		mlx5dr_err(dmn, "Failed init domain, no caps\n");
@@ -507,6 +508,7 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 uninit_caps:
 	dr_domain_caps_uninit(dmn);
 def_xa_destroy:
+	xa_destroy(&dmn->peer_dmn_xa);
 	xa_destroy(&dmn->definers_xa);
 	kfree(dmn);
 	return NULL;
@@ -547,6 +549,7 @@ int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 	dr_domain_uninit_csum_recalc_fts(dmn);
 	dr_domain_uninit_resources(dmn);
 	dr_domain_caps_uninit(dmn);
+	xa_destroy(&dmn->peer_dmn_xa);
 	xa_destroy(&dmn->definers_xa);
 	mutex_destroy(&dmn->info.tx.mutex);
 	mutex_destroy(&dmn->info.rx.mutex);
@@ -556,17 +559,21 @@ int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 
 void mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
 			    struct mlx5dr_domain *peer_dmn,
-			    u8 peer_idx)
+			    u16 peer_vhca_id)
 {
+	struct mlx5dr_domain *peer;
+
 	mlx5dr_domain_lock(dmn);
 
-	if (dmn->peer_dmn[peer_idx])
-		refcount_dec(&dmn->peer_dmn[peer_idx]->refcount);
+	peer = xa_load(&dmn->peer_dmn_xa, peer_vhca_id);
+	if (peer)
+		refcount_dec(&peer->refcount);
 
-	dmn->peer_dmn[peer_idx] = peer_dmn;
+	WARN_ON(xa_err(xa_store(&dmn->peer_dmn_xa, peer_vhca_id, peer_dmn, GFP_KERNEL)));
 
-	if (dmn->peer_dmn[peer_idx])
-		refcount_inc(&dmn->peer_dmn[peer_idx]->refcount);
+	peer = xa_load(&dmn->peer_dmn_xa, peer_vhca_id);
+	if (peer)
+		refcount_inc(&peer->refcount);
 
 	mlx5dr_domain_unlock(dmn);
 }

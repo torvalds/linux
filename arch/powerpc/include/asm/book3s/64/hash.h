@@ -132,6 +132,11 @@ static inline int get_region_id(unsigned long ea)
 	return region_id;
 }
 
+static inline int hash__pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+{
+	return (((pmd_raw(pmd_a) ^ pmd_raw(pmd_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
+}
+
 #define	hash__pmd_bad(pmd)		(pmd_val(pmd) & H_PMD_BAD_BITS)
 #define	hash__pud_bad(pud)		(pud_val(pud) & H_PUD_BAD_BITS)
 static inline int hash__p4d_bad(p4d_t p4d)

@@ -1229,13 +1229,13 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		pasid = 0;
 	}
 
-	r = amdgpu_vm_init(adev, &fpriv->vm);
+	r = amdgpu_xcp_open_device(adev, fpriv, file_priv);
 	if (r)
 		goto error_pasid;
 
-	r = amdgpu_xcp_open_device(adev, fpriv, file_priv);
+	r = amdgpu_vm_init(adev, &fpriv->vm, fpriv->xcp_id);
 	if (r)
-		goto error_vm;
+		goto error_pasid;
 
 	r = amdgpu_vm_set_pasid(adev, &fpriv->vm, pasid);
 	if (r)

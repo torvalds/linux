@@ -176,8 +176,19 @@ void iommufd_object_abort_and_destroy(struct iommufd_ctx *ictx,
 				      struct iommufd_object *obj);
 void iommufd_object_finalize(struct iommufd_ctx *ictx,
 			     struct iommufd_object *obj);
-bool iommufd_object_destroy_user(struct iommufd_ctx *ictx,
-				 struct iommufd_object *obj);
+void __iommufd_object_destroy_user(struct iommufd_ctx *ictx,
+				   struct iommufd_object *obj, bool allow_fail);
+static inline void iommufd_object_destroy_user(struct iommufd_ctx *ictx,
+					       struct iommufd_object *obj)
+{
+	__iommufd_object_destroy_user(ictx, obj, false);
+}
+static inline void iommufd_object_deref_user(struct iommufd_ctx *ictx,
+					     struct iommufd_object *obj)
+{
+	__iommufd_object_destroy_user(ictx, obj, true);
+}
+
 struct iommufd_object *_iommufd_object_alloc(struct iommufd_ctx *ictx,
 					     size_t size,
 					     enum iommufd_object_type type);

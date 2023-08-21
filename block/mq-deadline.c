@@ -176,7 +176,7 @@ static inline struct request *deadline_from_pos(struct dd_per_prio *per_prio,
 	 * zoned writes, start searching from the start of a zone.
 	 */
 	if (blk_rq_is_seq_zoned_write(rq))
-		pos -= round_down(pos, rq->q->limits.chunk_sectors);
+		pos = round_down(pos, rq->q->limits.chunk_sectors);
 
 	while (node) {
 		rq = rb_entry_rq(node);

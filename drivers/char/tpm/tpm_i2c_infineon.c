@@ -716,7 +716,7 @@ static void tpm_tis_i2c_remove(struct i2c_client *client)
 
 static struct i2c_driver tpm_tis_i2c_driver = {
 	.id_table = tpm_tis_i2c_table,
-	.probe_new = tpm_tis_i2c_probe,
+	.probe = tpm_tis_i2c_probe,
 	.remove = tpm_tis_i2c_remove,
 	.driver = {
 		   .name = "tpm_i2c_infineon",

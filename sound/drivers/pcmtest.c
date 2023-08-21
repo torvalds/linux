@@ -110,8 +110,6 @@ struct pcmtst_buf_iter {
 	struct timer_list timer_instance;
 };
 
-static struct pcmtst *pcmtst;
-
 static struct snd_pcm_hardware snd_pcmtst_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -552,6 +550,7 @@ _err_free_chip:
 static int pcmtst_probe(struct platform_device *pdev)
 {
 	struct snd_card *card;
+	struct pcmtst *pcmtst;
 	int err;
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -573,13 +572,16 @@ static int pcmtst_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
+	platform_set_drvdata(pdev, pcmtst);
+
 	return 0;
 }
 
-static int pdev_remove(struct platform_device *dev)
+static void pdev_remove(struct platform_device *pdev)
 {
+	struct pcmtst *pcmtst = platform_get_drvdata(pdev);
+
 	snd_pcmtst_free(pcmtst);
-	return 0;
 }
 
 static struct platform_device pcmtst_pdev = {
@@ -589,7 +591,7 @@ static struct platform_device pcmtst_pdev = {
 
 static struct platform_driver pcmtst_pdrv = {
 	.probe =	pcmtst_probe,
-	.remove =	pdev_remove,
+	.remove_new =	pdev_remove,
 	.driver =	{
 		.name = "pcmtest",
 	},

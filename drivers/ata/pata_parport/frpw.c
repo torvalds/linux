@@ -293,4 +293,6 @@ static struct pi_protocol frpw = {
 };
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
+MODULE_DESCRIPTION("Freecom Power parallel port IDE adapter protocol driver");
 module_pata_parport_driver(frpw);

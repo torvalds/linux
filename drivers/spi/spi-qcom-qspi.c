@@ -69,7 +69,7 @@
 				 WR_FIFO_OVERRUN)
 #define QSPI_ALL_IRQS		(QSPI_ERR_IRQS | RESP_FIFO_RDY | \
 				 WR_FIFO_EMPTY | WR_FIFO_FULL | \
-				 TRANSACTION_DONE)
+				 TRANSACTION_DONE | DMA_CHAIN_DONE)
 
 #define PIO_XFER_CTRL		0x0014
 #define REQUEST_COUNT_MSK	0xffff
@@ -308,9 +308,11 @@ static int qcom_qspi_alloc_desc(struct qcom_qspi *ctrl, dma_addr_t dma_ptr,
 	dma_addr_t dma_cmd_desc;
 
 	/* allocate for dma cmd descriptor */
-	virt_cmd_desc = dma_pool_alloc(ctrl->dma_cmd_pool, GFP_KERNEL | __GFP_ZERO, &dma_cmd_desc);
-	if (!virt_cmd_desc)
-		return -ENOMEM;
+	virt_cmd_desc = dma_pool_alloc(ctrl->dma_cmd_pool, GFP_ATOMIC | __GFP_ZERO, &dma_cmd_desc);
+	if (!virt_cmd_desc) {
+		dev_warn_once(ctrl->dev, "Couldn't find memory for descriptor\n");
+		return -EAGAIN;
+	}
 
 	ctrl->virt_cmd_desc[ctrl->n_cmd_desc] = virt_cmd_desc;
 	ctrl->dma_cmd_desc[ctrl->n_cmd_desc] = dma_cmd_desc;
@@ -355,8 +357,20 @@ static int qcom_qspi_setup_dma_desc(struct qcom_qspi *ctrl,
 
 	for (i = 0; i < sgt->nents; i++) {
 		dma_ptr_sg = sg_dma_address(sgt->sgl + i);
+		dma_len_sg = sg_dma_len(sgt->sgl + i);
 		if (!IS_ALIGNED(dma_ptr_sg, QSPI_ALIGN_REQ)) {
 			dev_warn_once(ctrl->dev, "dma_address not aligned to %d\n", QSPI_ALIGN_REQ);
+			return -EAGAIN;
+		}
+		/*
+		 * When reading with DMA the controller writes to memory 1 word
+		 * at a time. If the length isn't a multiple of 4 bytes then
+		 * the controller can clobber the things later in memory.
+		 * Fallback to PIO to be safe.
+		 */
+		if (ctrl->xfer.dir == QSPI_READ && (dma_len_sg & 0x03)) {
+			dev_warn_once(ctrl->dev, "fallback to PIO for read of size %#010x\n",
+				      dma_len_sg);
 			return -EAGAIN;
 		}
 	}
@@ -441,8 +455,10 @@ static int qcom_qspi_transfer_one(struct spi_master *master,
 
 		ret = qcom_qspi_setup_dma_desc(ctrl, xfer);
 		if (ret != -EAGAIN) {
-			if (!ret)
+			if (!ret) {
+				dma_wmb();
 				qcom_qspi_dma_xfer(ctrl);
+			}
 			goto exit;
 		}
 		dev_warn_once(ctrl->dev, "DMA failure, falling back to PIO\n");
@@ -603,6 +619,9 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 	int_status = readl(ctrl->base + MSTR_INT_STATUS);
 	writel(int_status, ctrl->base + MSTR_INT_STATUS);
 
+	/* Ignore disabled interrupts */
+	int_status &= readl(ctrl->base + MSTR_INT_EN);
+
 	/* PIO mode handling */
 	if (ctrl->xfer.dir == QSPI_WRITE) {
 		if (int_status & WR_FIFO_EMPTY)
@@ -646,6 +665,30 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 	spin_unlock(&ctrl->lock);
 	return ret;
 }
+
+static int qcom_qspi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
+{
+	/*
+	 * If qcom_qspi_can_dma() is going to return false we don't need to
+	 * adjust anything.
+	 */
+	if (op->data.nbytes <= QSPI_MAX_BYTES_FIFO)
+		return 0;
+
+	/*
+	 * When reading, the transfer needs to be a multiple of 4 bytes so
+	 * shrink the transfer if that's not true. The caller will then do a
+	 * second transfer to finish things up.
+	 */
+	if (op->data.dir == SPI_MEM_DATA_IN && (op->data.nbytes & 0x3))
+		op->data.nbytes &= ~0x3;
+
+	return 0;
+}
+
+static const struct spi_controller_mem_ops qcom_qspi_mem_ops = {
+	.adjust_op_size = qcom_qspi_adjust_op_size,
+};
 
 static int qcom_qspi_probe(struct platform_device *pdev)
 {
@@ -731,6 +774,7 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	if (of_property_read_bool(pdev->dev.of_node, "iommus"))
 		master->can_dma = qcom_qspi_can_dma;
 	master->auto_runtime_pm = true;
+	master->mem_ops = &qcom_qspi_mem_ops;
 
 	ret = devm_pm_opp_set_clkname(&pdev->dev, "core");
 	if (ret)

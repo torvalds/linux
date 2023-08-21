@@ -109,10 +109,7 @@ EXPORT_SYMBOL_NS_GPL(iommufd_device_bind, IOMMUFD);
  */
 void iommufd_device_unbind(struct iommufd_device *idev)
 {
-	bool was_destroyed;
-
-	was_destroyed = iommufd_object_destroy_user(idev->ictx, &idev->obj);
-	WARN_ON(!was_destroyed);
+	iommufd_object_destroy_user(idev->ictx, &idev->obj);
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_device_unbind, IOMMUFD);
 
@@ -382,7 +379,7 @@ void iommufd_device_detach(struct iommufd_device *idev)
 	mutex_unlock(&hwpt->devices_lock);
 
 	if (hwpt->auto_domain)
-		iommufd_object_destroy_user(idev->ictx, &hwpt->obj);
+		iommufd_object_deref_user(idev->ictx, &hwpt->obj);
 	else
 		refcount_dec(&hwpt->obj.users);
 
@@ -456,10 +453,7 @@ EXPORT_SYMBOL_NS_GPL(iommufd_access_create, IOMMUFD);
  */
 void iommufd_access_destroy(struct iommufd_access *access)
 {
-	bool was_destroyed;
-
-	was_destroyed = iommufd_object_destroy_user(access->ictx, &access->obj);
-	WARN_ON(!was_destroyed);
+	iommufd_object_destroy_user(access->ictx, &access->obj);
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_access_destroy, IOMMUFD);
 
