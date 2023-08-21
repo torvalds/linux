@@ -4457,8 +4457,9 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 
 	ha->elsrej.size = sizeof(struct fc_els_ls_rjt) + 16;
 	ha->elsrej.c = dma_alloc_coherent(&ha->pdev->dev,
-	    ha->elsrej.size, &ha->elsrej.cdma, GFP_KERNEL);
-
+					  ha->elsrej.size,
+					  &ha->elsrej.cdma,
+					  GFP_KERNEL);
 	if (!ha->elsrej.c) {
 		ql_dbg_pci(ql_dbg_init, ha->pdev, 0xffff,
 		    "Alloc failed for els reject cmd.\n");
@@ -4467,8 +4468,21 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	ha->elsrej.c->er_cmd = ELS_LS_RJT;
 	ha->elsrej.c->er_reason = ELS_RJT_LOGIC;
 	ha->elsrej.c->er_explan = ELS_EXPL_UNAB_DATA;
+
+	ha->lsrjt.size = sizeof(struct fcnvme_ls_rjt);
+	ha->lsrjt.c = dma_alloc_coherent(&ha->pdev->dev, ha->lsrjt.size,
+			&ha->lsrjt.cdma, GFP_KERNEL);
+	if (!ha->lsrjt.c) {
+		ql_dbg_pci(ql_dbg_init, ha->pdev, 0xffff,
+			   "Alloc failed for nvme fc reject cmd.\n");
+		goto fail_lsrjt;
+	}
+
 	return 0;
 
+fail_lsrjt:
+	dma_free_coherent(&ha->pdev->dev, ha->elsrej.size,
+			  ha->elsrej.c, ha->elsrej.cdma);
 fail_elsrej:
 	dma_pool_destroy(ha->purex_dma_pool);
 fail_flt:
@@ -4996,6 +5010,12 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 		dma_free_coherent(&ha->pdev->dev, ha->elsrej.size,
 		    ha->elsrej.c, ha->elsrej.cdma);
 		ha->elsrej.c = NULL;
+	}
+
+	if (ha->lsrjt.c) {
+		dma_free_coherent(&ha->pdev->dev, ha->lsrjt.size, ha->lsrjt.c,
+				  ha->lsrjt.cdma);
+		ha->lsrjt.c = NULL;
 	}
 
 	ha->init_cb = NULL;
