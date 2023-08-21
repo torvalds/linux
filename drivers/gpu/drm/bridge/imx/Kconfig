@@ -49,4 +49,15 @@ config DRM_IMX8QXP_PIXEL_LINK_TO_DPI
 	  Choose this to enable pixel link to display pixel interface(PXL2DPI)
 	  found in Freescale i.MX8qxp processor.
 
+config DRM_IMX93_MIPI_DSI
+	tristate "Freescale i.MX93 specific extensions for Synopsys DW MIPI DSI"
+	depends on OF
+	depends on COMMON_CLK
+	select DRM_DW_MIPI_DSI
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  Choose this to enable MIPI DSI controller found in Freescale i.MX93
+	  processor.
+
 endif # ARCH_MXC || COMPILE_TEST
