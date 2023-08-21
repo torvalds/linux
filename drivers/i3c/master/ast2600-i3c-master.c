@@ -608,6 +608,8 @@ static int aspeed_i3c_master_disable(struct aspeed_i3c_master *master)
 	       master->regs + DEVICE_CTRL);
 	if (master->secondary) {
 		aspeed_i3c_toggle_scl_in(master, 8);
+		/* Clear the internal busy status */
+		aspeed_i3c_gen_stop_to_internal(master);
 		if (readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE) {
 			dev_warn(master->dev,
 					"Failed to disable controller");
