@@ -1304,16 +1304,14 @@ static int smu_v13_0_0_print_clk_levels(struct smu_context *smu,
 					od_table->OverDriveTable.UclkFmax);
 		break;
 
-	case SMU_OD_VDDC_CURVE:
+	case SMU_OD_VDDGFX_OFFSET:
 		if (!smu_v13_0_0_is_od_feature_supported(smu,
 							 PP_OD_FEATURE_GFX_VF_CURVE_BIT))
 			break;
 
-		size += sysfs_emit_at(buf, size, "OD_VDDC_CURVE:\n");
-		for (i = 0; i < PP_NUM_OD_VF_CURVE_POINTS; i++)
-			size += sysfs_emit_at(buf, size, "%d: %dmv\n",
-						i,
-						od_table->OverDriveTable.VoltageOffsetPerZoneBoundary[i]);
+		size += sysfs_emit_at(buf, size, "OD_VDDGFX_OFFSET:\n");
+		size += sysfs_emit_at(buf, size, "%dmV\n",
+				      od_table->OverDriveTable.VoltageOffsetPerZoneBoundary[0]);
 		break;
 
 	case SMU_OD_RANGE:
@@ -1355,7 +1353,7 @@ static int smu_v13_0_0_print_clk_levels(struct smu_context *smu,
 							  PP_OD_FEATURE_GFX_VF_CURVE,
 							  &min_value,
 							  &max_value);
-			size += sysfs_emit_at(buf, size, "VDDC_CURVE: %7dmv %10dmv\n",
+			size += sysfs_emit_at(buf, size, "VDDGFX_OFFSET: %7dmv %10dmv\n",
 					      min_value, max_value);
 		}
 		break;
@@ -1504,29 +1502,26 @@ static int smu_v13_0_0_od_edit_dpm_table(struct smu_context *smu,
 		}
 		break;
 
-	case PP_OD_EDIT_VDDC_CURVE:
+	case PP_OD_EDIT_VDDGFX_OFFSET:
 		if (!smu_v13_0_0_is_od_feature_supported(smu, PP_OD_FEATURE_GFX_VF_CURVE_BIT)) {
-			dev_warn(adev->dev, "VF curve setting not supported!\n");
+			dev_warn(adev->dev, "Gfx offset setting not supported!\n");
 			return -ENOTSUPP;
 		}
-
-		if (input[0] >= PP_NUM_OD_VF_CURVE_POINTS ||
-		    input[0] < 0)
-			return -EINVAL;
 
 		smu_v13_0_0_get_od_setting_limits(smu,
 						  PP_OD_FEATURE_GFX_VF_CURVE,
 						  &minimum,
 						  &maximum);
-		if (input[1] < minimum ||
-		    input[1] > maximum) {
+		if (input[0] < minimum ||
+		    input[0] > maximum) {
 			dev_info(adev->dev, "Voltage offset (%ld) must be within [%d, %d]!\n",
-				 input[1], minimum, maximum);
+				 input[0], minimum, maximum);
 			return -EINVAL;
 		}
 
-		od_table->OverDriveTable.VoltageOffsetPerZoneBoundary[input[0]] = input[1];
-		od_table->OverDriveTable.FeatureCtrlMask |= 1U << PP_OD_FEATURE_GFX_VF_CURVE_BIT;
+		for (i = 0; i < PP_NUM_OD_VF_CURVE_POINTS; i++)
+			od_table->OverDriveTable.VoltageOffsetPerZoneBoundary[i] = input[0];
+		od_table->OverDriveTable.FeatureCtrlMask |= BIT(PP_OD_FEATURE_GFX_VF_CURVE_BIT);
 		break;
 
 	case PP_OD_RESTORE_DEFAULT_TABLE:
