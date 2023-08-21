@@ -8,6 +8,9 @@
 #include "bpf_misc.h"
 #include "bpf_experimental.h"
 
+extern void bpf_rcu_read_lock(void) __ksym;
+extern void bpf_rcu_read_unlock(void) __ksym;
+
 struct node_data {
 	long key;
 	long list_data;
@@ -494,6 +497,74 @@ long rbtree_wrong_owner_remove_fail_a2(void *ctx)
 		bpf_obj_drop(container_of(res, struct node_data, r));
 		return 3;
 	}
+	return 0;
+}
+
+SEC("?fentry.s/bpf_testmod_test_read")
+__success
+int BPF_PROG(rbtree_sleepable_rcu,
+	     struct file *file, struct kobject *kobj,
+	     struct bin_attribute *bin_attr, char *buf, loff_t off, size_t len)
+{
+	struct bpf_rb_node *rb;
+	struct node_data *n, *m = NULL;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n)
+		return 0;
+
+	bpf_rcu_read_lock();
+	bpf_spin_lock(&lock);
+	bpf_rbtree_add(&root, &n->r, less);
+	rb = bpf_rbtree_first(&root);
+	if (!rb)
+		goto err_out;
+
+	rb = bpf_rbtree_remove(&root, rb);
+	if (!rb)
+		goto err_out;
+
+	m = container_of(rb, struct node_data, r);
+
+err_out:
+	bpf_spin_unlock(&lock);
+	bpf_rcu_read_unlock();
+	if (m)
+		bpf_obj_drop(m);
+	return 0;
+}
+
+SEC("?fentry.s/bpf_testmod_test_read")
+__success
+int BPF_PROG(rbtree_sleepable_rcu_no_explicit_rcu_lock,
+	     struct file *file, struct kobject *kobj,
+	     struct bin_attribute *bin_attr, char *buf, loff_t off, size_t len)
+{
+	struct bpf_rb_node *rb;
+	struct node_data *n, *m = NULL;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n)
+		return 0;
+
+	/* No explicit bpf_rcu_read_lock */
+	bpf_spin_lock(&lock);
+	bpf_rbtree_add(&root, &n->r, less);
+	rb = bpf_rbtree_first(&root);
+	if (!rb)
+		goto err_out;
+
+	rb = bpf_rbtree_remove(&root, rb);
+	if (!rb)
+		goto err_out;
+
+	m = container_of(rb, struct node_data, r);
+
+err_out:
+	bpf_spin_unlock(&lock);
+	/* No explicit bpf_rcu_read_unlock */
+	if (m)
+		bpf_obj_drop(m);
 	return 0;
 }
 
