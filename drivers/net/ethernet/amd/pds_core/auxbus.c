@@ -8,7 +8,7 @@
 
 /**
  * pds_client_register - Link the client to the firmware
- * @pf:	a pointer to the pdsc structure
+ * @pf_pdev:	ptr to the PF driver struct
  * @devname:	name that includes service into, e.g. pds_core.vDPA
  *
  * Return: positive client ID (ci) on success, or
@@ -53,7 +53,7 @@ EXPORT_SYMBOL_GPL(pds_client_register);
 
 /**
  * pds_client_unregister - Unlink the client from the firmware
- * @pf:	a pointer to the pdsc structure
+ * @pf_pdev:	ptr to the PF driver struct
  * @client_id:	id returned from pds_client_register()
  *
  * Return: 0 on success, or
