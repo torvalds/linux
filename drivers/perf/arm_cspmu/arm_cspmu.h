@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
  * ARM CoreSight Architecture PMU driver.
- * Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  */
 
@@ -69,6 +69,9 @@
 #define ARM_CSPMU_PMIIDR_IMPLEMENTER	GENMASK(11, 0)
 #define ARM_CSPMU_PMIIDR_PRODUCTID	GENMASK(31, 20)
 
+/* JEDEC-assigned JEP106 identification code */
+#define ARM_CSPMU_IMPL_ID_NVIDIA	0x36B
+
 struct arm_cspmu;
 
 /* This tracks the events assigned to each counter in the PMU. */
@@ -106,9 +109,23 @@ struct arm_cspmu_impl_ops {
 					 struct attribute *attr, int unused);
 };
 
+/* Vendor/implementer registration parameter. */
+struct arm_cspmu_impl_match {
+	/* Backend module. */
+	struct module *module;
+	const char *module_name;
+	/* PMIIDR value/mask. */
+	u32 pmiidr_val;
+	u32 pmiidr_mask;
+	/* Callback to vendor backend to init arm_cspmu_impl::ops. */
+	int (*impl_init_ops)(struct arm_cspmu *cspmu);
+};
+
 /* Vendor/implementer descriptor. */
 struct arm_cspmu_impl {
 	u32 pmiidr;
+	struct module *module;
+	struct arm_cspmu_impl_match *match;
 	struct arm_cspmu_impl_ops ops;
 	void *ctx;
 };
@@ -146,5 +163,11 @@ ssize_t arm_cspmu_sysfs_event_show(struct device *dev,
 ssize_t arm_cspmu_sysfs_format_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf);
+
+/* Register vendor backend. */
+int arm_cspmu_impl_register(const struct arm_cspmu_impl_match *impl_match);
+
+/* Unregister vendor backend. */
+void arm_cspmu_impl_unregister(const struct arm_cspmu_impl_match *impl_match);
 
 #endif /* __ARM_CSPMU_H__ */

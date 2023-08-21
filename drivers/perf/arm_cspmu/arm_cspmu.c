@@ -16,7 +16,7 @@
  * The user should refer to the vendor technical documentation to get details
  * about the supported events.
  *
- * Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  */
 
@@ -26,11 +26,11 @@
 #include <linux/interrupt.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 
 #include "arm_cspmu.h"
-#include "nvidia_cspmu.h"
 
 #define PMUNAME "arm_cspmu"
 #define DRVNAME "arm-cs-arch-pmu"
@@ -112,10 +112,9 @@
  */
 #define HILOHI_MAX_POLL	1000
 
-/* JEDEC-assigned JEP106 identification code */
-#define ARM_CSPMU_IMPL_ID_NVIDIA		0x36B
-
 static unsigned long arm_cspmu_cpuhp_state;
+
+static DEFINE_MUTEX(arm_cspmu_lock);
 
 static struct acpi_apmt_node *arm_cspmu_apmt_node(struct device *dev)
 {
@@ -373,27 +372,37 @@ static struct attribute_group arm_cspmu_cpumask_attr_group = {
 	.attrs = arm_cspmu_cpumask_attrs,
 };
 
-struct impl_match {
-	u32 pmiidr;
-	u32 mask;
-	int (*impl_init_ops)(struct arm_cspmu *cspmu);
+static struct arm_cspmu_impl_match impl_match[] = {
+	{
+		.module_name	= "nvidia_cspmu",
+		.pmiidr_val	= ARM_CSPMU_IMPL_ID_NVIDIA,
+		.pmiidr_mask	= ARM_CSPMU_PMIIDR_IMPLEMENTER,
+		.module		= NULL,
+		.impl_init_ops	= NULL,
+	},
+	{0}
 };
 
-static const struct impl_match impl_match[] = {
-	{
-	  .pmiidr = ARM_CSPMU_IMPL_ID_NVIDIA,
-	  .mask = ARM_CSPMU_PMIIDR_IMPLEMENTER,
-	  .impl_init_ops = nv_cspmu_init_ops
-	},
-	{}
-};
+static struct arm_cspmu_impl_match *arm_cspmu_impl_match_get(u32 pmiidr)
+{
+	struct arm_cspmu_impl_match *match = impl_match;
+
+	for (; match->pmiidr_val; match++) {
+		u32 mask = match->pmiidr_mask;
+
+		if ((match->pmiidr_val & mask) == (pmiidr & mask))
+			return match;
+	}
+
+	return NULL;
+}
 
 static int arm_cspmu_init_impl_ops(struct arm_cspmu *cspmu)
 {
-	int ret;
+	int ret = 0;
 	struct arm_cspmu_impl_ops *impl_ops = &cspmu->impl.ops;
 	struct acpi_apmt_node *apmt_node = arm_cspmu_apmt_node(cspmu->dev);
-	const struct impl_match *match = impl_match;
+	struct arm_cspmu_impl_match *match;
 
 	/*
 	 * Get PMU implementer and product id from APMT node.
@@ -405,17 +414,36 @@ static int arm_cspmu_init_impl_ops(struct arm_cspmu *cspmu)
 				       readl(cspmu->base0 + PMIIDR);
 
 	/* Find implementer specific attribute ops. */
-	for (; match->pmiidr; match++) {
-		const u32 mask = match->mask;
+	match = arm_cspmu_impl_match_get(cspmu->impl.pmiidr);
 
-		if ((match->pmiidr & mask) == (cspmu->impl.pmiidr & mask)) {
-			ret = match->impl_init_ops(cspmu);
-			if (ret)
-				return ret;
+	/* Load implementer module and initialize the callbacks. */
+	if (match) {
+		mutex_lock(&arm_cspmu_lock);
 
-			break;
+		if (match->impl_init_ops) {
+			/* Prevent unload until PMU registration is done. */
+			if (try_module_get(match->module)) {
+				cspmu->impl.module = match->module;
+				cspmu->impl.match = match;
+				ret = match->impl_init_ops(cspmu);
+				if (ret)
+					module_put(match->module);
+			} else {
+				WARN(1, "arm_cspmu failed to get module: %s\n",
+					match->module_name);
+				ret = -EINVAL;
+			}
+		} else {
+			request_module_nowait(match->module_name);
+			ret = -EPROBE_DEFER;
 		}
-	}
+
+		mutex_unlock(&arm_cspmu_lock);
+
+		if (ret)
+			return ret;
+	} else
+		cspmu->impl.module = THIS_MODULE;
 
 	/* Use default callbacks if implementer doesn't provide one. */
 	CHECK_DEFAULT_IMPL_OPS(impl_ops, get_event_attrs);
@@ -478,11 +506,6 @@ arm_cspmu_alloc_attr_group(struct arm_cspmu *cspmu)
 	struct attribute_group **attr_groups = NULL;
 	struct device *dev = cspmu->dev;
 	const struct arm_cspmu_impl_ops *impl_ops = &cspmu->impl.ops;
-	int ret;
-
-	ret = arm_cspmu_init_impl_ops(cspmu);
-	if (ret)
-		return NULL;
 
 	cspmu->identifier = impl_ops->get_identifier(cspmu);
 	cspmu->name = impl_ops->get_name(cspmu);
@@ -1149,7 +1172,7 @@ static int arm_cspmu_register_pmu(struct arm_cspmu *cspmu)
 
 	cspmu->pmu = (struct pmu){
 		.task_ctx_nr	= perf_invalid_context,
-		.module		= THIS_MODULE,
+		.module		= cspmu->impl.module,
 		.pmu_enable	= arm_cspmu_enable,
 		.pmu_disable	= arm_cspmu_disable,
 		.event_init	= arm_cspmu_event_init,
@@ -1196,11 +1219,17 @@ static int arm_cspmu_device_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = arm_cspmu_register_pmu(cspmu);
+	ret = arm_cspmu_init_impl_ops(cspmu);
 	if (ret)
 		return ret;
 
-	return 0;
+	ret = arm_cspmu_register_pmu(cspmu);
+
+	/* Matches arm_cspmu_init_impl_ops() above. */
+	if (cspmu->impl.module != THIS_MODULE)
+		module_put(cspmu->impl.module);
+
+	return ret;
 }
 
 static int arm_cspmu_device_remove(struct platform_device *pdev)
@@ -1299,6 +1328,75 @@ static void __exit arm_cspmu_exit(void)
 	platform_driver_unregister(&arm_cspmu_driver);
 	cpuhp_remove_multi_state(arm_cspmu_cpuhp_state);
 }
+
+int arm_cspmu_impl_register(const struct arm_cspmu_impl_match *impl_match)
+{
+	struct arm_cspmu_impl_match *match;
+	int ret = 0;
+
+	match = arm_cspmu_impl_match_get(impl_match->pmiidr_val);
+
+	if (match) {
+		mutex_lock(&arm_cspmu_lock);
+
+		if (!match->impl_init_ops) {
+			match->module = impl_match->module;
+			match->impl_init_ops = impl_match->impl_init_ops;
+		} else {
+			/* Broken match table may contain non-unique entries */
+			WARN(1, "arm_cspmu backend already registered for module: %s, pmiidr: 0x%x, mask: 0x%x\n",
+				match->module_name,
+				match->pmiidr_val,
+				match->pmiidr_mask);
+
+			ret = -EINVAL;
+		}
+
+		mutex_unlock(&arm_cspmu_lock);
+
+		if (!ret)
+			ret = driver_attach(&arm_cspmu_driver.driver);
+	} else {
+		pr_err("arm_cspmu reg failed, unable to find a match for pmiidr: 0x%x\n",
+			impl_match->pmiidr_val);
+
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(arm_cspmu_impl_register);
+
+static int arm_cspmu_match_device(struct device *dev, const void *match)
+{
+	struct arm_cspmu *cspmu = platform_get_drvdata(to_platform_device(dev));
+
+	return (cspmu && cspmu->impl.match == match) ? 1 : 0;
+}
+
+void arm_cspmu_impl_unregister(const struct arm_cspmu_impl_match *impl_match)
+{
+	struct device *dev;
+	struct arm_cspmu_impl_match *match;
+
+	match = arm_cspmu_impl_match_get(impl_match->pmiidr_val);
+
+	if (WARN_ON(!match))
+		return;
+
+	/* Unbind the driver from all matching backend devices. */
+	while ((dev = driver_find_device(&arm_cspmu_driver.driver, NULL,
+			match, arm_cspmu_match_device)))
+		device_release_driver(dev);
+
+	mutex_lock(&arm_cspmu_lock);
+
+	match->module = NULL;
+	match->impl_init_ops = NULL;
+
+	mutex_unlock(&arm_cspmu_lock);
+}
+EXPORT_SYMBOL_GPL(arm_cspmu_impl_unregister);
 
 module_init(arm_cspmu_init);
 module_exit(arm_cspmu_exit);
