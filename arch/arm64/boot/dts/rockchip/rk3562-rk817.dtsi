@@ -114,7 +114,8 @@
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vcc_3v3";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
 				};
 			};
 
