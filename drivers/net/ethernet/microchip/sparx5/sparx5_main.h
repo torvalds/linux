@@ -414,7 +414,6 @@ enum sparx5_pgid_type {
 };
 
 void sparx5_pgid_init(struct sparx5 *spx5);
-int sparx5_pgid_alloc_glag(struct sparx5 *spx5, u16 *idx);
 int sparx5_pgid_alloc_mcast(struct sparx5 *spx5, u16 *idx);
 int sparx5_pgid_free(struct sparx5 *spx5, u16 idx);
 
