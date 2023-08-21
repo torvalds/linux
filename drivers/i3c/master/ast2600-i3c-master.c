@@ -501,9 +501,11 @@ static void aspeed_i3c_toggle_scl_in(struct aspeed_i3c_master *master, u32 times
 static void aspeed_i3c_gen_stop_to_internal(struct aspeed_i3c_master *master)
 {
 	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
-			  SCL_IN_SW_MODE_VAL, SCL_IN_SW_MODE_VAL);
+			  SCL_IN_SW_MODE_VAL, 0);
 	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
 			  SDA_IN_SW_MODE_VAL, 0);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_IN_SW_MODE_VAL, SCL_IN_SW_MODE_VAL);
 	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
 			  SDA_IN_SW_MODE_VAL, SDA_IN_SW_MODE_VAL);
 }
