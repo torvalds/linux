@@ -3879,7 +3879,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 		 * changed.
 		 */
 		if (unlikely(!folio_test_swapcache(folio) ||
-			     page_private(page) != entry.val))
+			     page_swap_entry(page).val != entry.val))
 			goto out_page;
 
 		/*

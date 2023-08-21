@@ -100,6 +100,7 @@ int add_to_swap_cache(struct folio *folio, swp_entry_t entry,
 
 	folio_ref_add(folio, nr);
 	folio_set_swapcache(folio);
+	folio_set_swap_entry(folio, entry);
 
 	do {
 		xas_lock_irq(&xas);
@@ -113,7 +114,6 @@ int add_to_swap_cache(struct folio *folio, swp_entry_t entry,
 				if (shadowp)
 					*shadowp = old;
 			}
-			set_page_private(folio_page(folio, i), entry.val + i);
 			xas_store(&xas, folio);
 			xas_next(&xas);
 		}
@@ -154,9 +154,10 @@ void __delete_from_swap_cache(struct folio *folio,
 	for (i = 0; i < nr; i++) {
 		void *entry = xas_store(&xas, shadow);
 		VM_BUG_ON_PAGE(entry != folio, entry);
-		set_page_private(folio_page(folio, i), 0);
 		xas_next(&xas);
 	}
+	entry.val = 0;
+	folio_set_swap_entry(folio, entry);
 	folio_clear_swapcache(folio);
 	address_space->nrpages -= nr;
 	__node_stat_mod_folio(folio, NR_FILE_PAGES, -nr);

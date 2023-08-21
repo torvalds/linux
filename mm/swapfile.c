@@ -3369,7 +3369,7 @@ struct swap_info_struct *swp_swap_info(swp_entry_t entry)
 
 struct swap_info_struct *page_swap_info(struct page *page)
 {
-	swp_entry_t entry = { .val = page_private(page) };
+	swp_entry_t entry = page_swap_entry(page);
 	return swp_swap_info(entry);
 }
 
@@ -3384,7 +3384,7 @@ EXPORT_SYMBOL_GPL(swapcache_mapping);
 
 pgoff_t __page_file_index(struct page *page)
 {
-	swp_entry_t swap = { .val = page_private(page) };
+	swp_entry_t swap = page_swap_entry(page);
 	return swp_offset(swap);
 }
 EXPORT_SYMBOL_GPL(__page_file_index);
