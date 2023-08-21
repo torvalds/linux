@@ -1349,25 +1349,6 @@ static int snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_s
 }
 #endif
 
-static int ipc4_set_fmt_mask(struct snd_mask *fmt, unsigned int bit_depth)
-{
-	switch (bit_depth) {
-	case 16:
-		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
-		break;
-	case 24:
-		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
-		break;
-	case 32:
-		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int
 sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			       struct snd_pcm_hw_params *fe_params,
@@ -1381,8 +1362,6 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	struct snd_pcm_hw_params *ref_params;
 	struct sof_ipc4_copier *ipc4_copier;
 	struct snd_sof_dai *dai;
-	struct snd_mask *fmt;
-	int out_sample_valid_bits;
 	u32 gtw_cfg_config_length;
 	u32 dma_config_tlv_size = 0;
 	void **ipc_config_data;
@@ -1664,11 +1643,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	}
 
 	/* modify the input params for the next widget */
-	fmt = hw_param_mask(pipeline_params, SNDRV_PCM_HW_PARAM_FORMAT);
-	out_sample_valid_bits =
-		SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(copier_data->out_format.fmt_cfg);
-	snd_mask_none(fmt);
-	ret = ipc4_set_fmt_mask(fmt, out_sample_valid_bits);
+	ret = sof_ipc4_update_hw_params(sdev, pipeline_params, &copier_data->out_format);
 	if (ret)
 		return ret;
 
