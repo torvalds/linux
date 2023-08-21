@@ -179,6 +179,10 @@ struct link_service {
 	int (*aux_transfer_raw)(struct ddc_service *ddc,
 			struct aux_payload *payload,
 			enum aux_return_code_type *operation_result);
+	bool (*configure_fixed_vs_pe_retimer)(
+			struct ddc_service *ddc,
+			const uint8_t *data,
+			uint32_t len);
 	bool (*aux_transfer_with_retries_no_mutex)(struct ddc_service *ddc,
 			struct aux_payload *payload);
 	bool (*is_in_aux_transaction_mode)(struct ddc_service *ddc);

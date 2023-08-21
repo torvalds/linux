@@ -321,7 +321,7 @@ static bool is_subvp_high_refresh_candidate(struct dc_stream_state *stream)
 	 * remain in HW cursor mode if there's no cursor update which will
 	 * then cause corruption.
 	 */
-	if ((refresh_rate >= 120 && refresh_rate <= 165 &&
+	if ((refresh_rate >= 120 && refresh_rate <= 175 &&
 			stream->timing.v_addressable >= 1440 &&
 			stream->timing.v_addressable <= 2160) &&
 			(dc->current_state->stream_count > 1 ||

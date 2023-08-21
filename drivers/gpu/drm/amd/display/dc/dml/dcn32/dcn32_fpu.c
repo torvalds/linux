@@ -37,7 +37,7 @@
 
 static const struct subvp_high_refresh_list subvp_high_refresh_list = {
 			.min_refresh = 120,
-			.max_refresh = 165,
+			.max_refresh = 175,
 			.res = {
 				{.width = 3840, .height = 2160, },
 				{.width = 3440, .height = 1440, },
@@ -756,7 +756,7 @@ static bool dcn32_enough_pipes_for_subvp(struct dc *dc, struct dc_state *context
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
 		// Find the minimum pipe split count for non SubVP pipes
-		if (pipe->stream && !pipe->top_pipe &&
+		if (resource_is_pipe_type(pipe, OPP_HEAD) &&
 		    pipe->stream->mall_stream_config.type == SUBVP_NONE) {
 			split_cnt = 0;
 			while (pipe) {
@@ -886,7 +886,8 @@ static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context)
 
 		// We check for master pipe, but it shouldn't matter since we only need
 		// the pipe for timing info (stream should be same for any pipe splits)
-		if (!pipe->stream || !pipe->plane_state || pipe->top_pipe || pipe->prev_odm_pipe)
+		if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+				!resource_is_pipe_type(pipe, DPP_PIPE))
 			continue;
 
 		// Find the SubVP pipe
@@ -899,7 +900,8 @@ static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context)
 		drr_pipe = &context->res_ctx.pipe_ctx[i];
 
 		// We check for master pipe only
-		if (!drr_pipe->stream || !drr_pipe->plane_state || drr_pipe->top_pipe || drr_pipe->prev_odm_pipe)
+		if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+				!resource_is_pipe_type(pipe, DPP_PIPE))
 			continue;
 
 		if (drr_pipe->stream->mall_stream_config.type == SUBVP_NONE && drr_pipe->stream->ignore_msa_timing_param &&
@@ -980,7 +982,8 @@ static bool subvp_vblank_schedulable(struct dc *dc, struct dc_state *context)
 
 		// We check for master pipe, but it shouldn't matter since we only need
 		// the pipe for timing info (stream should be same for any pipe splits)
-		if (!pipe->stream || !pipe->plane_state || pipe->top_pipe || pipe->prev_odm_pipe)
+		if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+				!resource_is_pipe_type(pipe, DPP_PIPE))
 			continue;
 
 		if (!found && pipe->stream->mall_stream_config.type == SUBVP_NONE) {
@@ -1064,7 +1067,8 @@ static bool subvp_subvp_admissable(struct dc *dc,
 	}
 
 	if (subvp_count == 2 && ((min_refresh < 120 && max_refresh < 120) ||
-		(min_refresh >= 120 && max_refresh <= 165)))
+		(min_refresh >= subvp_high_refresh_list.min_refresh &&
+				max_refresh <= subvp_high_refresh_list.max_refresh)))
 		result = true;
 
 	return result;

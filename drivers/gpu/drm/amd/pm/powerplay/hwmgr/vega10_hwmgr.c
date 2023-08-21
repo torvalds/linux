@@ -3966,7 +3966,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = data->vce_power_gated ? 0 : 1;
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 		ret = vega10_get_gpu_power(hwmgr, (uint32_t *)value);
 		break;
 	case AMDGPU_PP_SENSOR_VDDGFX:

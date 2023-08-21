@@ -48,7 +48,7 @@ int pipe_priority_map[] = {
 
 struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_node *dev, struct queue_properties *q)
 {
-	struct kfd_mem_obj *mqd_mem_obj = NULL;
+	struct kfd_mem_obj *mqd_mem_obj;
 
 	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
 	if (!mqd_mem_obj)
@@ -64,7 +64,7 @@ struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_node *dev, struct queue_properti
 struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_node *dev,
 					struct queue_properties *q)
 {
-	struct kfd_mem_obj *mqd_mem_obj = NULL;
+	struct kfd_mem_obj *mqd_mem_obj;
 	uint64_t offset;
 
 	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);

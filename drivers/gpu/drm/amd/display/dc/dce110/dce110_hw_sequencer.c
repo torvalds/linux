@@ -1590,6 +1590,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	 */
 	if (pipe_ctx->stream->mall_stream_config.type != SUBVP_PHANTOM) {
 		pipe_ctx->stream->link->psr_settings.psr_feature_enabled = false;
+		pipe_ctx->stream->link->replay_settings.replay_feature_enabled = false;
 	}
 	return DC_OK;
 }
@@ -2019,6 +2020,10 @@ static bool should_enable_fbc(struct dc *dc,
 
 	/* PSR should not be enabled */
 	if (pipe_ctx->stream->link->psr_settings.psr_feature_enabled)
+		return false;
+
+	/* Replay should not be enabled */
+	if (pipe_ctx->stream->link->replay_settings.replay_feature_enabled)
 		return false;
 
 	/* Nothing to compress */

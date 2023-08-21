@@ -1018,8 +1018,8 @@ void hubbub31_init(struct hubbub *hubbub)
 		/*done in hwseq*/
 		/*REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);*/
 		REG_UPDATE_2(DCHUBBUB_CLOCK_CNTL,
-				DISPCLK_R_DCHUBBUB_GATE_DIS, 0,
-				DCFCLK_R_DCHUBBUB_GATE_DIS, 0);
+				DISPCLK_R_DCHUBBUB_GATE_DIS, 1,
+				DCFCLK_R_DCHUBBUB_GATE_DIS, 1);
 	}
 
 	/*

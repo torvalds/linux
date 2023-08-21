@@ -675,7 +675,8 @@ bool dp_set_test_pattern(
 		if (pipes[i].stream == NULL)
 			continue;
 
-		if (pipes[i].stream->link == link && !pipes[i].top_pipe && !pipes[i].prev_odm_pipe) {
+		if (resource_is_pipe_type(&pipes[i], OTG_MASTER) &&
+				pipes[i].stream->link == link) {
 			pipe_ctx = &pipes[i];
 			break;
 		}
@@ -703,6 +704,7 @@ bool dp_set_test_pattern(
 
 		/* Reset Test Pattern state */
 		link->test_pattern_enabled = false;
+		link->current_test_pattern = test_pattern;
 
 		return true;
 	}
@@ -740,6 +742,7 @@ bool dp_set_test_pattern(
 		if (test_pattern != DP_TEST_PATTERN_VIDEO_MODE) {
 			/* Set Test Pattern state */
 			link->test_pattern_enabled = true;
+			link->current_test_pattern = test_pattern;
 			if (p_link_settings != NULL)
 				dpcd_set_link_settings(link,
 						p_link_settings);
@@ -938,6 +941,7 @@ bool dp_set_test_pattern(
 
 		/* Set Test Pattern state */
 		link->test_pattern_enabled = true;
+		link->current_test_pattern = test_pattern;
 	}
 
 	return true;

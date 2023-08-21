@@ -1709,8 +1709,8 @@ void dcn32_retain_phantom_pipes(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->top_pipe && !pipe->prev_odm_pipe &&
-				pipe->plane_state && pipe->stream &&
+		if (resource_is_pipe_type(pipe, OTG_MASTER) &&
+				resource_is_pipe_type(pipe, DPP_PIPE) &&
 				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
 			phantom_plane = pipe->plane_state;
 			phantom_stream = pipe->stream;

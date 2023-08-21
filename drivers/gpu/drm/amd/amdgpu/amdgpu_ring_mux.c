@@ -397,7 +397,7 @@ void amdgpu_sw_ring_ib_begin(struct amdgpu_ring *ring)
 	struct amdgpu_ring_mux *mux = &adev->gfx.muxer;
 
 	WARN_ON(!ring->is_sw_ring);
-	if (ring->hw_prio > AMDGPU_RING_PRIO_DEFAULT) {
+	if (adev->gfx.mcbp && ring->hw_prio > AMDGPU_RING_PRIO_DEFAULT) {
 		if (amdgpu_mcbp_scan(mux) > 0)
 			amdgpu_mcbp_trigger_preempt(mux);
 		return;

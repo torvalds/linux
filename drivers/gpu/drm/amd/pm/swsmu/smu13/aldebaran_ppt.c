@@ -625,9 +625,10 @@ static int aldebaran_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
 		/* Valid power data is available only from primary die */
-		*value = aldebaran_is_primary(smu) ?
-				 metrics->AverageSocketPower << 8 :
-				 0;
+		if (aldebaran_is_primary(smu))
+			*value = metrics->AverageSocketPower << 8;
+		else
+			ret = -EOPNOTSUPP;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = metrics->TemperatureEdge *
@@ -1094,16 +1095,6 @@ static int aldebaran_get_current_activity_percent(struct smu_context *smu,
 	return ret;
 }
 
-static int aldebaran_get_gpu_power(struct smu_context *smu, uint32_t *value)
-{
-	if (!value)
-		return -EINVAL;
-
-	return aldebaran_get_smu_metrics_data(smu,
-					      METRICS_AVERAGE_SOCKETPOWER,
-					      value);
-}
-
 static int aldebaran_thermal_get_temperature(struct smu_context *smu,
 					     enum amd_pp_sensors sensor,
 					     uint32_t *value)
@@ -1157,8 +1148,10 @@ static int aldebaran_read_sensor(struct smu_context *smu,
 							     (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
-		ret = aldebaran_get_gpu_power(smu, (uint32_t *)data);
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
+		ret = aldebaran_get_smu_metrics_data(smu,
+						     METRICS_AVERAGE_SOCKETPOWER,
+						     (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
@@ -1183,6 +1176,7 @@ static int aldebaran_read_sensor(struct smu_context *smu,
 		ret = smu_v13_0_get_gfx_vdd(smu, (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 	default:
 		ret = -EOPNOTSUPP;
 		break;

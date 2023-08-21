@@ -132,6 +132,7 @@ struct psp_funcs {
 	int (*read_usbc_pd_fw)(struct psp_context *psp, uint32_t *fw_ver);
 	int (*update_spirom)(struct psp_context *psp, uint64_t fw_pri_mc_addr);
 	int (*vbflash_stat)(struct psp_context *psp);
+	int (*fatal_error_recovery_quirk)(struct psp_context *psp);
 };
 
 struct ta_funcs {
@@ -444,6 +445,10 @@ struct amdgpu_psp_funcs {
 #define psp_vbflash_status(psp) \
 	((psp)->funcs->vbflash_stat ? \
 	(psp)->funcs->vbflash_stat((psp)) : -EINVAL)
+
+#define psp_fatal_error_recovery_quirk(psp) \
+	((psp)->funcs->fatal_error_recovery_quirk ? \
+	(psp)->funcs->fatal_error_recovery_quirk((psp)) : 0)
 
 extern const struct amd_ip_funcs psp_ip_funcs;
 

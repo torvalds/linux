@@ -166,7 +166,7 @@ void set_dio_dp_lane_settings(struct dc_link *link,
 	link_enc->funcs->dp_set_lane_settings(link_enc, link_settings, lane_settings);
 }
 
-static void update_dio_stream_allocation_table(struct dc_link *link,
+void update_dio_stream_allocation_table(struct dc_link *link,
 		const struct link_resource *link_res,
 		const struct link_mst_stream_allocation_table *table)
 {

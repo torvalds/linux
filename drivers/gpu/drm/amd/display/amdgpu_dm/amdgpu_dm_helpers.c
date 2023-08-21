@@ -117,7 +117,7 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 	if (sad_count <= 0)
 		return result;
 
-	edid_caps->audio_mode_count = sad_count < DC_MAX_AUDIO_DESC_COUNT ? sad_count : DC_MAX_AUDIO_DESC_COUNT;
+	edid_caps->audio_mode_count = min(sad_count, DC_MAX_AUDIO_DESC_COUNT);
 	for (i = 0; i < edid_caps->audio_mode_count; ++i) {
 		struct cea_sad *sad = &sads[i];
 

@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.246"
+#define DC_VER "3.2.247"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -1498,6 +1498,7 @@ struct dc_link {
 	enum engine_id eng_id;
 
 	bool test_pattern_enabled;
+	enum dp_test_pattern current_test_pattern;
 	union compliance_test_state compliance_test_state;
 
 	void *priv;

@@ -182,11 +182,8 @@ void link_resume(struct dc_link *link)
 static bool is_master_pipe_for_link(const struct dc_link *link,
 		const struct pipe_ctx *pipe)
 {
-	return (pipe->stream &&
-			pipe->stream->link &&
-			pipe->stream->link == link &&
-			pipe->top_pipe == NULL &&
-			pipe->prev_odm_pipe == NULL);
+	return resource_is_pipe_type(pipe, OTG_MASTER) &&
+			pipe->stream->link == link;
 }
 
 /*
