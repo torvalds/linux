@@ -258,7 +258,6 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 				eloc++;
 			break;
 		case ORD_LIST_ELEMENTS:
-			size = ordered_list_data->elements_size;
 
 			/*
 			 * Ordered list data is stored in hex and comma separated format
@@ -270,17 +269,14 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 
 			part_tmp = tmpstr;
 			part = strsep(&part_tmp, COMMA_SEP);
-			if (!part)
-				strscpy(ordered_list_data->elements[0],
-					tmpstr,
-					sizeof(ordered_list_data->elements[0]));
 
-			for (olist_elem = 1; olist_elem < MAX_ELEMENTS_SIZE && part; olist_elem++) {
+			for (olist_elem = 0; olist_elem < MAX_ELEMENTS_SIZE && part; olist_elem++) {
 				strscpy(ordered_list_data->elements[olist_elem],
 					part,
 					sizeof(ordered_list_data->elements[olist_elem]));
-				part = strsep(&part_tmp, SEMICOLON_SEP);
+				part = strsep(&part_tmp, COMMA_SEP);
 			}
+			ordered_list_data->elements_size = olist_elem;
 
 			kfree(str_value);
 			str_value = NULL;
