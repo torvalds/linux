@@ -54,3 +54,36 @@ void mptcp_unregister_scheduler(struct mptcp_sched_ops *sched)
 	list_del_rcu(&sched->list);
 	spin_unlock(&mptcp_sched_list_lock);
 }
+
+int mptcp_init_sched(struct mptcp_sock *msk,
+		     struct mptcp_sched_ops *sched)
+{
+	if (!sched)
+		goto out;
+
+	if (!bpf_try_module_get(sched, sched->owner))
+		return -EBUSY;
+
+	msk->sched = sched;
+	if (msk->sched->init)
+		msk->sched->init(msk);
+
+	pr_debug("sched=%s", msk->sched->name);
+
+out:
+	return 0;
+}
+
+void mptcp_release_sched(struct mptcp_sock *msk)
+{
+	struct mptcp_sched_ops *sched = msk->sched;
+
+	if (!sched)
+		return;
+
+	msk->sched = NULL;
+	if (sched->release)
+		sched->release(msk);
+
+	bpf_module_put(sched, sched->owner);
+}
