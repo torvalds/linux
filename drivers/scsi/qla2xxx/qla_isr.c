@@ -56,6 +56,22 @@ const char *const port_state_str[] = {
 	[FCS_ONLINE]		= "ONLINE"
 };
 
+#define SFP_DISABLE_LASER_INITIATED    0x15  /* Sub code of 8070 AEN */
+#define SFP_ENABLE_LASER_INITIATED     0x16  /* Sub code of 8070 AEN */
+
+static inline void display_Laser_info(scsi_qla_host_t *vha,
+				      u16 mb1, u16 mb2, u16 mb3) {
+
+	if (mb1 == SFP_DISABLE_LASER_INITIATED)
+		ql_log(ql_log_warn, vha, 0xf0a2,
+		       "SFP temperature (%d C) reached/exceeded the threshold (%d C). Laser is disabled.\n",
+		       mb3, mb2);
+	if (mb1 == SFP_ENABLE_LASER_INITIATED)
+		ql_log(ql_log_warn, vha, 0xf0a3,
+		       "SFP temperature (%d C) reached normal operating level. Laser is enabled.\n",
+		       mb3);
+}
+
 static void
 qla24xx_process_abts(struct scsi_qla_host *vha, struct purex_item *pkt)
 {
@@ -1927,6 +1943,8 @@ global_port_update:
 		break;
 
 	case MBA_TEMPERATURE_ALERT:
+		if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
+			display_Laser_info(vha, mb[1], mb[2], mb[3]);
 		ql_dbg(ql_dbg_async, vha, 0x505e,
 		    "TEMPERATURE ALERT: %04x %04x %04x\n", mb[1], mb[2], mb[3]);
 		break;
