@@ -87,3 +87,9 @@ void mptcp_release_sched(struct mptcp_sock *msk)
 
 	bpf_module_put(sched, sched->owner);
 }
+
+void mptcp_subflow_set_scheduled(struct mptcp_subflow_context *subflow,
+				 bool scheduled)
+{
+	WRITE_ONCE(subflow->scheduled, scheduled);
+}
