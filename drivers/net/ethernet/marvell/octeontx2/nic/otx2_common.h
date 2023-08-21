@@ -326,6 +326,7 @@ struct otx2_ptp {
 	struct ptp_pin_desc extts_config;
 	u64 (*convert_rx_ptp_tstmp)(u64 timestamp);
 	u64 (*convert_tx_ptp_tstmp)(u64 timestamp);
+	u64 (*ptp_tstamp2nsec)(const struct timecounter *time_counter, u64 timestamp);
 	struct delayed_work synctstamp_work;
 	u64 tstamp;
 	u32 base_ns;
