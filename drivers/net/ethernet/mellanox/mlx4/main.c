@@ -3378,6 +3378,8 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
 
+	ATOMIC_INIT_NOTIFIER_HEAD(&priv->event_nh);
+
 	mutex_init(&priv->port_mutex);
 	mutex_init(&priv->bond_mutex);
 

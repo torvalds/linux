@@ -47,6 +47,7 @@
 #include <linux/spinlock.h>
 #include <net/devlink.h>
 #include <linux/rwsem.h>
+#include <linux/notifier.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/driver.h>
@@ -878,6 +879,7 @@ struct mlx4_priv {
 	struct list_head	dev_list;
 	struct list_head	ctx_list;
 	spinlock_t		ctx_lock;
+	struct atomic_notifier_head event_nh;
 
 	int			pci_dev_data;
 	int                     removed;

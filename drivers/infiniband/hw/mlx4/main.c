@@ -82,6 +82,8 @@ static const char mlx4_ib_version[] =
 static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init);
 static enum rdma_link_layer mlx4_ib_port_link_layer(struct ib_device *device,
 						    u32 port_num);
+static int mlx4_ib_event(struct notifier_block *this, unsigned long event,
+			 void *param);
 
 static struct workqueue_struct *wq;
 
@@ -2836,6 +2838,12 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 				do_slave_init(ibdev, j, 1);
 		}
 	}
+
+	/* register mlx4 core notifier */
+	ibdev->mlx_nb.notifier_call = mlx4_ib_event;
+	err = mlx4_register_event_notifier(dev, &ibdev->mlx_nb);
+	WARN(err, "failed to register mlx4 event notifier (%d)", err);
+
 	return ibdev;
 
 err_notif:
@@ -2952,6 +2960,8 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 	struct mlx4_ib_dev *ibdev = ibdev_ptr;
 	int p;
 	int i;
+
+	mlx4_unregister_event_notifier(dev, &ibdev->mlx_nb);
 
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
 		devlink_port_type_clear(mlx4_get_devlink_port(dev, i));
@@ -3173,11 +3183,13 @@ void mlx4_sched_ib_sl2vl_update_work(struct mlx4_ib_dev *ibdev,
 	}
 }
 
-static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
-			  enum mlx4_dev_event event, void *param)
+static int mlx4_ib_event(struct notifier_block *this, unsigned long event,
+			 void *param)
 {
+	struct mlx4_ib_dev *ibdev =
+		container_of(this, struct mlx4_ib_dev, mlx_nb);
+	struct mlx4_dev *dev = ibdev->dev;
 	struct ib_event ibev;
-	struct mlx4_ib_dev *ibdev = to_mdev((struct ib_device *) ibdev_ptr);
 	struct mlx4_eqe *eqe = NULL;
 	struct ib_event_work *ew;
 	int p = 0;
@@ -3187,11 +3199,11 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	    (event == MLX4_DEV_EVENT_PORT_DOWN))) {
 		ew = kmalloc(sizeof(*ew), GFP_ATOMIC);
 		if (!ew)
-			return;
+			return NOTIFY_DONE;
 		INIT_WORK(&ew->work, handle_bonded_port_state_event);
 		ew->ib_dev = ibdev;
 		queue_work(wq, &ew->work);
-		return;
+		return NOTIFY_DONE;
 	}
 
 	switch (event) {
@@ -3208,7 +3220,7 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	switch (event) {
 	case MLX4_DEV_EVENT_PORT_UP:
 		if (p > ibdev->num_ports)
-			return;
+			return NOTIFY_DONE;
 		if (!mlx4_is_slave(dev) &&
 		    rdma_port_get_link_layer(&ibdev->ib_dev, p) ==
 			IB_LINK_LAYER_INFINIBAND) {
@@ -3223,7 +3235,7 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 
 	case MLX4_DEV_EVENT_PORT_DOWN:
 		if (p > ibdev->num_ports)
-			return;
+			return NOTIFY_DONE;
 		ibev.event = IB_EVENT_PORT_ERR;
 		break;
 
@@ -3236,7 +3248,7 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:
 		ew = kmalloc(sizeof *ew, GFP_ATOMIC);
 		if (!ew)
-			return;
+			return NOTIFY_DONE;
 
 		INIT_WORK(&ew->work, handle_port_mgmt_change_event);
 		memcpy(&ew->ib_eqe, eqe, sizeof *eqe);
@@ -3246,7 +3258,7 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 			queue_work(wq, &ew->work);
 		else
 			handle_port_mgmt_change_event(&ew->work);
-		return;
+		return NOTIFY_DONE;
 
 	case MLX4_DEV_EVENT_SLAVE_INIT:
 		/* here, p is the slave id */
@@ -3262,7 +3274,7 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 								       1);
 			}
 		}
-		return;
+		return NOTIFY_DONE;
 
 	case MLX4_DEV_EVENT_SLAVE_SHUTDOWN:
 		if (mlx4_is_master(dev)) {
@@ -3278,22 +3290,22 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 		}
 		/* here, p is the slave id */
 		do_slave_init(ibdev, p, 0);
-		return;
+		return NOTIFY_DONE;
 
 	default:
-		return;
+		return NOTIFY_DONE;
 	}
 
-	ibev.device	      = ibdev_ptr;
+	ibev.device	      = &ibdev->ib_dev;
 	ibev.element.port_num = mlx4_is_bonded(ibdev->dev) ? 1 : (u8)p;
 
 	ib_dispatch_event(&ibev);
+	return NOTIFY_DONE;
 }
 
 static struct mlx4_interface mlx4_ib_interface = {
 	.add		= mlx4_ib_add,
 	.remove		= mlx4_ib_remove,
-	.event		= mlx4_ib_event,
 	.protocol	= MLX4_PROT_IB_IPV6,
 	.flags		= MLX4_INTFF_BONDING
 };

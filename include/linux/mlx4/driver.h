@@ -34,6 +34,7 @@
 #define MLX4_DRIVER_H
 
 #include <net/devlink.h>
+#include <linux/notifier.h>
 #include <linux/mlx4/device.h>
 
 struct mlx4_dev;
@@ -57,8 +58,6 @@ enum {
 struct mlx4_interface {
 	void *			(*add)	 (struct mlx4_dev *dev);
 	void			(*remove)(struct mlx4_dev *dev, void *context);
-	void			(*event) (struct mlx4_dev *dev, void *context,
-					  enum mlx4_dev_event event, void *param);
 	void			(*activate)(struct mlx4_dev *dev, void *context);
 	struct list_head	list;
 	enum mlx4_protocol	protocol;
@@ -86,6 +85,11 @@ struct mlx4_port_map {
 };
 
 int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p);
+
+int mlx4_register_event_notifier(struct mlx4_dev *dev,
+				 struct notifier_block *nb);
+int mlx4_unregister_event_notifier(struct mlx4_dev *dev,
+				   struct notifier_block *nb);
 
 struct devlink_port *mlx4_get_devlink_port(struct mlx4_dev *dev, int port);
 

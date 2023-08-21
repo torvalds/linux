@@ -183,10 +183,12 @@ static void mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	}
 }
 
-static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
-			  enum mlx4_dev_event event, void *param)
+static int mlx4_en_event(struct notifier_block *this, unsigned long event,
+			 void *param)
 {
-	struct mlx4_en_dev *mdev = (struct mlx4_en_dev *) endev_ptr;
+	struct mlx4_en_dev *mdev =
+		container_of(this, struct mlx4_en_dev, mlx_nb);
+	struct mlx4_dev *dev = mdev->dev;
 	struct mlx4_en_priv *priv;
 	int port;
 
@@ -205,7 +207,7 @@ static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 	case MLX4_DEV_EVENT_PORT_UP:
 	case MLX4_DEV_EVENT_PORT_DOWN:
 		if (!mdev->pndev[port])
-			return;
+			return NOTIFY_DONE;
 		priv = netdev_priv(mdev->pndev[port]);
 		/* To prevent races, we poll the link state in a separate
 		  task rather than changing it here */
@@ -224,16 +226,20 @@ static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 	default:
 		if (port < 1 || port > dev->caps.num_ports ||
 		    !mdev->pndev[port])
-			return;
-		mlx4_warn(mdev, "Unhandled event %d for port %d\n", event,
+			return NOTIFY_DONE;
+		mlx4_warn(mdev, "Unhandled event %d for port %d\n", (int)event,
 			  port);
 	}
+
+	return NOTIFY_DONE;
 }
 
 static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 {
 	struct mlx4_en_dev *mdev = endev_ptr;
 	int i;
+
+	mlx4_unregister_event_notifier(dev, &mdev->mlx_nb);
 
 	mutex_lock(&mdev->state_lock);
 	mdev->device_up = false;
@@ -276,7 +282,7 @@ static void mlx4_en_activate(struct mlx4_dev *dev, void *ctx)
 static void *mlx4_en_add(struct mlx4_dev *dev)
 {
 	struct mlx4_en_dev *mdev;
-	int i;
+	int err, i;
 
 	printk_once(KERN_INFO "%s", mlx4_en_version);
 
@@ -339,6 +345,11 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	mutex_init(&mdev->state_lock);
 	mdev->device_up = true;
 
+	/* register mlx4 core notifier */
+	mdev->mlx_nb.notifier_call = mlx4_en_event;
+	err = mlx4_register_event_notifier(dev, &mdev->mlx_nb);
+	WARN(err, "failed to register mlx4 event notifier (%d)", err);
+
 	return mdev;
 
 err_mr:
@@ -359,7 +370,6 @@ err_free_res:
 static struct mlx4_interface mlx4_en_interface = {
 	.add		= mlx4_en_add,
 	.remove		= mlx4_en_remove,
-	.event		= mlx4_en_event,
 	.protocol	= MLX4_PROT_ETH,
 	.activate	= mlx4_en_activate,
 };

@@ -183,17 +183,27 @@ void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type,
 			 void *param)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	struct mlx4_device_context *dev_ctx;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->ctx_lock, flags);
-
-	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
-		if (dev_ctx->intf->event)
-			dev_ctx->intf->event(dev, dev_ctx->context, type, param);
-
-	spin_unlock_irqrestore(&priv->ctx_lock, flags);
+	atomic_notifier_call_chain(&priv->event_nh, type, param);
 }
+
+int mlx4_register_event_notifier(struct mlx4_dev *dev,
+				 struct notifier_block *nb)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	return atomic_notifier_chain_register(&priv->event_nh, nb);
+}
+EXPORT_SYMBOL(mlx4_register_event_notifier);
+
+int mlx4_unregister_event_notifier(struct mlx4_dev *dev,
+				   struct notifier_block *nb)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	return atomic_notifier_chain_unregister(&priv->event_nh, nb);
+}
+EXPORT_SYMBOL(mlx4_unregister_event_notifier);
 
 int mlx4_register_device(struct mlx4_dev *dev)
 {
