@@ -2223,6 +2223,8 @@ __qla2x00_async_tm_cmd(struct tmf_arg *arg)
 			rval = QLA_FUNCTION_FAILED;
 		}
 	}
+	if (tm_iocb->u.tmf.data)
+		rval = tm_iocb->u.tmf.data;
 
 done_free_sp:
 	/* ref: INIT */
