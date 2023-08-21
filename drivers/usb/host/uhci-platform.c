@@ -80,7 +80,11 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 	 * Since shared usb code relies on it, set it here for now.
 	 * Once we have dma capability bindings this can go away.
 	 */
+#ifdef CONFIG_MACH_ASPEED_G7
+	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+#else
 	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+#endif
 	if (ret)
 		return ret;
 
