@@ -135,7 +135,6 @@ static int qti_hwkm_master_transaction(struct ice_mmio_data *mmio_data,
 				       size_t rsp_words)
 {
 	int i;
-	int err;
 	u32 val;
 	uint32_t rsp_discard;
 
@@ -1064,7 +1063,7 @@ static int qti_hwkm_get_device_tree_data(struct platform_device *pdev,
 					 struct ice_mmio_data *hwkm_dev)
 {
 	struct device *dev = &pdev->dev;
-	int ret;
+	int ret = 0;
 
 	hwkm_dev->km_res = platform_get_resource_byname(pdev,
 				IORESOURCE_MEM, "km_master");
