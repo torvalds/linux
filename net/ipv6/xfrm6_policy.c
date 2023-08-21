@@ -124,13 +124,9 @@ static void xfrm6_dst_destroy(struct dst_entry *dst)
 	xfrm_dst_destroy(xdst);
 }
 
-static void xfrm6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
-			     int unregister)
+static void xfrm6_dst_ifdown(struct dst_entry *dst, struct net_device *dev)
 {
 	struct xfrm_dst *xdst;
-
-	if (!unregister)
-		return;
 
 	xdst = (struct xfrm_dst *)dst;
 	if (xdst->u.rt6.rt6i_idev->dev == dev) {
