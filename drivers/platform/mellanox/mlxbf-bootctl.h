@@ -82,6 +82,14 @@
 #define MLXBF_BOOTCTL_FW_RESET  0x8200000D
 
 /*
+ * SMC function IDs to set, get and lock the manufacturing information
+ * stored within the eeprom.
+ */
+#define MLXBF_BOOTCTL_SET_MFG_INFO    0x8200000E
+#define MLXBF_BOOTCTL_GET_MFG_INFO    0x8200000F
+#define MLXBF_BOOTCTL_LOCK_MFG_INFO   0x82000011
+
+/*
  * SMC function IDs to set and get the large ICM carveout size
  * stored in the eeprom.
  */
