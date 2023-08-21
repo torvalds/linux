@@ -160,6 +160,7 @@ unsigned int augmented_arg__read_str(struct augmented_arg *augmented_arg, const 
 	 */
 	if (string_len > 0) {
 		augmented_len -= sizeof(augmented_arg->value) - string_len;
+		_Static_assert(is_power_of_2(sizeof(augmented_arg->value)), "sizeof(augmented_arg->value) needs to be a power of two");
 		augmented_len &= sizeof(augmented_arg->value) - 1;
 		augmented_arg->size = string_len;
 	} else {
