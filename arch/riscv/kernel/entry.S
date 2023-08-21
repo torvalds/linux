@@ -16,6 +16,8 @@
 #include <asm/errata_list.h>
 #include <linux/sizes.h>
 
+	.section .irqentry.text, "ax"
+
 SYM_CODE_START(handle_exception)
 	/*
 	 * If coming from userspace, preserve the user thread pointer and load
