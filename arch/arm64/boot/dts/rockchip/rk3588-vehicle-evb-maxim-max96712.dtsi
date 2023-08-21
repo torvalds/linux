@@ -5,11 +5,11 @@
  */
 
 / {
-	max96712_osc: oscillator {
+	max96712_dphy3_osc0: max96712-dphy3-oscillator@0 {
 		compatible = "fixed-clock";
 		#clock-cells = <1>;
-		clock-frequency  = <25000000>;
-		clock-output-names = "max96712-osc";
+		clock-frequency = <25000000>;
+		clock-output-names = "max96712-dphy3-osc0";
 	};
 };
 
@@ -28,9 +28,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			mipi_dphy1_in_max96712: endpoint@1 {
+			mipi_dphy3_in_max96712: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&max96712_out>;
+				remote-endpoint = <&max96712_dphy3_out>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
@@ -39,7 +39,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			csidphy1_out: endpoint@0 {
+			csidphy3_out: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&mipi4_csi2_input>;
 			};
@@ -50,19 +50,20 @@
 &i2c6 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c6m3_xfer>, <&max96712_errb>, <&max96712_int>;
+	pinctrl-0 = <&i2c6m3_xfer>;
 
-	max96712: max96712@29 {
-		compatible = "max96712";
+	max96712_dphy3: max96712@29 {
+		compatible = "maxim,max96712";
 		status = "okay";
 		reg = <0x29>;
 		clock-names = "xvclk";
-		clocks = <&max96712_osc 0>;
+		clocks = <&max96712_dphy3_osc0 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max96712_dphy3_power>, <&max96712_dphy3_errb>, <&max96712_dphy3_lock>;
 		power-domains = <&power RK3588_PD_VI>;
 		rockchip,grf = <&sys_grf>;
 		power-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
 		pocen-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 		lock-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
 		auto-init-deskew-mask = <0x03>;
 		frame-sync-period = <0>;
@@ -72,8 +73,8 @@
 		rockchip,camera-module-lens-name = "max96712";
 
 		port {
-			max96712_out: endpoint {
-				remote-endpoint = <&mipi_dphy1_in_max96712>;
+			max96712_dphy3_out: endpoint {
+				remote-endpoint = <&mipi_dphy3_in_max96712>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
@@ -94,7 +95,7 @@
 
 			mipi4_csi2_input: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&csidphy1_out>;
+				remote-endpoint = <&csidphy3_out>;
 			};
 		};
 
@@ -105,7 +106,7 @@
 
 			mipi4_csi2_output: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&cif_mipi2_in>;
+				remote-endpoint = <&cif_mipi4_in>;
 			};
 		};
 	};
@@ -129,7 +130,7 @@
 	rockchip,cif-monitor = <3 2 1 1000 5>;
 
 	port {
-		cif_mipi2_in: endpoint {
+		cif_mipi4_in: endpoint {
 			remote-endpoint = <&mipi4_csi2_output>;
 		};
 	};
@@ -145,12 +146,16 @@
 };
 
 &pinctrl {
-	max96712 {
-		max96712_errb: max96712-errb {
+	max96712-dphy3 {
+		max96712_dphy3_power: max96712-dphy3-power {
+			rockchip,pins = <4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		max96712_dphy3_errb: max96712-dphy3-errb {
 			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-		max96712_int: max96712-int {
+		max96712_dphy3_lock: max96712-dphy3-lock {
 			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
