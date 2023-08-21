@@ -5,11 +5,11 @@
  */
 
 / {
-	max96722_osc: max96722-oscillator {
+	max96722_dphy0_osc0: max96722-dphy0-oscillator@0 {
 		compatible = "fixed-clock";
 		#clock-cells = <1>;
 		clock-frequency = <25000000>;
-		clock-output-names = "max96722-osc";
+		clock-output-names = "max96722-dphy0-osc0";
 	};
 };
 
@@ -30,7 +30,7 @@
 
 			mipi_dphy0_in_max96722: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&max96722_out>;
+				remote-endpoint = <&max96722_dphy0_out>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
@@ -50,14 +50,16 @@
 &i2c7 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c7m3_xfer>, <&max96722_errb>, <&max96722_lock>;
+	pinctrl-0 = <&i2c7m3_xfer>;
 
-	max96722: max96722@29 {
-		compatible = "max96722";
+	max96722_dphy0: max96722@29 {
+		compatible = "maxim,max96722";
 		status = "okay";
 		reg = <0x29>;
 		clock-names = "xvclk";
-		clocks = <&max96722_osc 0>;
+		clocks = <&max96722_dphy0_osc0 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max96722_dphy0_power>, <&max96722_dphy0_errb>, <&max96722_dphy0_lock>;
 		power-domains = <&power RK3588_PD_VI>;
 		rockchip,grf = <&sys_grf>;
 		power-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
@@ -72,7 +74,7 @@
 		rockchip,camera-module-lens-name = "max96722";
 
 		port {
-			max96722_out: endpoint {
+			max96722_dphy0_out: endpoint {
 				remote-endpoint = <&mipi_dphy0_in_max96722>;
 				data-lanes = <1 2 3 4>;
 			};
@@ -145,12 +147,16 @@
 };
 
 &pinctrl {
-	max96722 {
-		max96722_errb: max96722-errb {
+	max96722-dphy0 {
+		max96722_dphy0_power: max96722-dphy0-power {
+			rockchip,pins = <1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		max96722_dphy0_errb: max96722-dphy0-errb {
 			rockchip,pins = <3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-		max96722_lock: max96722-lock {
+		max96722_dphy0_lock: max96722-dphy0-lock {
 			rockchip,pins = <3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
