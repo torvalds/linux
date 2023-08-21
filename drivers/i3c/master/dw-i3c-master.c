@@ -758,23 +758,31 @@ static int dw_i3c_bus_clk_cfg(struct i3c_master_controller *m)
 		return ret;
 
 	/*
-	 * MIPI I3C, mixed bus: BUS_I3C_MST_FREE = I2C FM SCL low period
-	 * MIPI I3C, pure bus : BUS_I3C_MST_FREE = I3C PP SCL low period
+	 * I3C register 0xd4[15:0] BUS_FREE_TIMING used to control several parameters:
+	 * - tCAS & tCASr (tHD_STA in JESD403)
+	 * - tCBP & tCBPr (tSU_STO in JESD403)
+	 * - bus free time between a STOP condition and a START condition
+	 *
+	 * The constraints of these parameters differ in various bus contexts:
+	 * MIPI I3C, mixed bus: BUS_FREE_TIMING = I2C FM SCL low period
+	 * MIPI I3C, pure bus : BUS_FREE_TIMING = I3C PP SCL low period
+	 * JESD403            : BUS_FREE_TIMING = I3C OD SCL low period
 	 */
-	if (bus->mode == I3C_BUS_MODE_PURE) {
+	if (bus->context == I3C_BUS_CONTEXT_JESD403) {
+		lcnt = FIELD_GET(SCL_I3C_TIMING_LCNT,
+				 readl(master->regs + SCL_I3C_OD_TIMING));
+	} else if (bus->mode == I3C_BUS_MODE_PURE) {
 		lcnt = FIELD_GET(SCL_I3C_TIMING_LCNT,
 				 readl(master->regs + SCL_I3C_PP_TIMING));
-		writel(FIELD_PREP(BUS_I3C_MST_FREE, lcnt),
-		       master->regs + BUS_FREE_TIMING);
 	} else {
-		lcnt = FIELD_GET(SCL_I2C_FM_TIMING_LCNT,
-				 readl(master->regs + SCL_I2C_FM_TIMING));
-		writel(FIELD_PREP(BUS_I3C_MST_FREE, lcnt),
-		       master->regs + BUS_FREE_TIMING);
 		writel(readl(master->regs + DEVICE_CTRL) |
 			       DEV_CTRL_I2C_SLAVE_PRESENT,
 		       master->regs + DEVICE_CTRL);
+		lcnt = FIELD_GET(SCL_I2C_FM_TIMING_LCNT,
+				 readl(master->regs + SCL_I2C_FM_TIMING));
 	}
+	writel(FIELD_PREP(BUS_I3C_MST_FREE, lcnt),
+	       master->regs + BUS_FREE_TIMING);
 
 	return 0;
 }
