@@ -38,15 +38,6 @@
 
 #include "mlx4.h"
 
-struct mlx4_device_context {
-	struct list_head	list;
-	struct list_head	bond_list;
-	struct mlx4_interface  *intf;
-	void		       *context;
-};
-
-static LIST_HEAD(intf_list);
-static LIST_HEAD(dev_list);
 static DEFINE_MUTEX(intf_mutex);
 static DEFINE_IDA(mlx4_adev_ida);
 
@@ -156,77 +147,6 @@ static void del_adev(struct auxiliary_device *adev)
 	auxiliary_device_uninit(adev);
 }
 
-static void mlx4_add_device(struct mlx4_interface *intf, struct mlx4_priv *priv)
-{
-	struct mlx4_device_context *dev_ctx;
-
-	dev_ctx = kmalloc(sizeof(*dev_ctx), GFP_KERNEL);
-	if (!dev_ctx)
-		return;
-
-	dev_ctx->intf    = intf;
-	dev_ctx->context = intf->add(&priv->dev);
-
-	if (dev_ctx->context) {
-		spin_lock_irq(&priv->ctx_lock);
-		list_add_tail(&dev_ctx->list, &priv->ctx_list);
-		spin_unlock_irq(&priv->ctx_lock);
-	} else
-		kfree(dev_ctx);
-
-}
-
-static void mlx4_remove_device(struct mlx4_interface *intf, struct mlx4_priv *priv)
-{
-	struct mlx4_device_context *dev_ctx;
-
-	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
-		if (dev_ctx->intf == intf) {
-			spin_lock_irq(&priv->ctx_lock);
-			list_del(&dev_ctx->list);
-			spin_unlock_irq(&priv->ctx_lock);
-
-			intf->remove(&priv->dev, dev_ctx->context);
-			kfree(dev_ctx);
-			return;
-		}
-}
-
-int mlx4_register_interface(struct mlx4_interface *intf)
-{
-	struct mlx4_priv *priv;
-
-	if (!intf->add || !intf->remove)
-		return -EINVAL;
-
-	mutex_lock(&intf_mutex);
-
-	list_add_tail(&intf->list, &intf_list);
-	list_for_each_entry(priv, &dev_list, dev_list) {
-		mlx4_add_device(intf, priv);
-	}
-
-	mutex_unlock(&intf_mutex);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mlx4_register_interface);
-
-void mlx4_unregister_interface(struct mlx4_interface *intf)
-{
-	struct mlx4_priv *priv;
-
-	mutex_lock(&intf_mutex);
-
-	list_for_each_entry(priv, &dev_list, dev_list)
-		mlx4_remove_device(intf, priv);
-
-	list_del(&intf->list);
-
-	mutex_unlock(&intf_mutex);
-}
-EXPORT_SYMBOL_GPL(mlx4_unregister_interface);
-
 int mlx4_register_auxiliary_driver(struct mlx4_adrv *madrv)
 {
 	return auxiliary_driver_register(&madrv->adrv);
@@ -242,10 +162,7 @@ EXPORT_SYMBOL_GPL(mlx4_unregister_auxiliary_driver);
 int mlx4_do_bond(struct mlx4_dev *dev, bool enable)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	struct mlx4_device_context *dev_ctx = NULL, *temp_dev_ctx;
-	unsigned long flags;
 	int i, ret;
-	LIST_HEAD(bond_list);
 
 	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_REMAP))
 		return -EOPNOTSUPP;
@@ -265,36 +182,6 @@ int mlx4_do_bond(struct mlx4_dev *dev, bool enable)
 			return ret;
 		}
 		dev->flags &= ~MLX4_FLAG_BONDED;
-	}
-
-	spin_lock_irqsave(&priv->ctx_lock, flags);
-	list_for_each_entry_safe(dev_ctx, temp_dev_ctx, &priv->ctx_list, list) {
-		if (!(dev_ctx->intf->flags & MLX4_INTFF_BONDING))
-			continue;
-
-		if (mlx4_is_mfunc(dev)) {
-			mlx4_dbg(dev,
-				 "SRIOV, disabled HA mode for intf proto %d\n",
-				 dev_ctx->intf->protocol);
-			continue;
-		}
-
-		list_add_tail(&dev_ctx->bond_list, &bond_list);
-		list_del(&dev_ctx->list);
-	}
-	spin_unlock_irqrestore(&priv->ctx_lock, flags);
-
-	list_for_each_entry(dev_ctx, &bond_list, bond_list) {
-		dev_ctx->intf->remove(dev, dev_ctx->context);
-		dev_ctx->context =  dev_ctx->intf->add(dev);
-
-		spin_lock_irqsave(&priv->ctx_lock, flags);
-		list_add_tail(&dev_ctx->list, &priv->ctx_list);
-		spin_unlock_irqrestore(&priv->ctx_lock, flags);
-
-		mlx4_dbg(dev, "Interface for protocol %d restarted with bonded mode %s\n",
-			 dev_ctx->intf->protocol, enable ?
-			 "enabled" : "disabled");
 	}
 
 	mutex_lock(&intf_mutex);
@@ -447,16 +334,11 @@ static int rescan_drivers_locked(struct mlx4_dev *dev)
 
 int mlx4_register_device(struct mlx4_dev *dev)
 {
-	struct mlx4_priv *priv = mlx4_priv(dev);
-	struct mlx4_interface *intf;
 	int ret;
 
 	mutex_lock(&intf_mutex);
 
 	dev->persist->interface_state |= MLX4_INTERFACE_STATE_UP;
-	list_add_tail(&priv->dev_list, &dev_list);
-	list_for_each_entry(intf, &intf_list, list)
-		mlx4_add_device(intf, priv);
 
 	ret = rescan_drivers_locked(dev);
 
@@ -474,9 +356,6 @@ int mlx4_register_device(struct mlx4_dev *dev)
 
 void mlx4_unregister_device(struct mlx4_dev *dev)
 {
-	struct mlx4_priv *priv = mlx4_priv(dev);
-	struct mlx4_interface *intf;
-
 	if (!(dev->persist->interface_state & MLX4_INTERFACE_STATE_UP))
 		return;
 
@@ -495,10 +374,6 @@ void mlx4_unregister_device(struct mlx4_dev *dev)
 	}
 	mutex_lock(&intf_mutex);
 
-	list_for_each_entry(intf, &intf_list, list)
-		mlx4_remove_device(intf, priv);
-
-	list_del(&priv->dev_list);
 	dev->persist->interface_state &= ~MLX4_INTERFACE_STATE_UP;
 
 	rescan_drivers_locked(dev);

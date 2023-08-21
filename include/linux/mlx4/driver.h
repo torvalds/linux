@@ -58,22 +58,12 @@ enum {
 	MLX4_INTFF_BONDING	= 1 << 0
 };
 
-struct mlx4_interface {
-	void *			(*add)	 (struct mlx4_dev *dev);
-	void			(*remove)(struct mlx4_dev *dev, void *context);
-	struct list_head	list;
-	enum mlx4_protocol	protocol;
-	int			flags;
-};
-
 struct mlx4_adrv {
 	struct auxiliary_driver	adrv;
 	enum mlx4_protocol	protocol;
 	int			flags;
 };
 
-int mlx4_register_interface(struct mlx4_interface *intf);
-void mlx4_unregister_interface(struct mlx4_interface *intf);
 int mlx4_register_auxiliary_driver(struct mlx4_adrv *madrv);
 void mlx4_unregister_auxiliary_driver(struct mlx4_adrv *madrv);
 

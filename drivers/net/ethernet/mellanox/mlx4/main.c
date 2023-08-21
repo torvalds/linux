@@ -42,7 +42,6 @@
 #include <linux/slab.h>
 #include <linux/io-mapping.h>
 #include <linux/delay.h>
-#include <linux/kmod.h>
 #include <linux/etherdevice.h>
 #include <net/devlink.h>
 
@@ -1091,27 +1090,6 @@ free_mem:
 	return err;
 }
 
-static void mlx4_request_modules(struct mlx4_dev *dev)
-{
-	int port;
-	int has_ib_port = false;
-	int has_eth_port = false;
-#define EN_DRV_NAME	"mlx4_en"
-#define IB_DRV_NAME	"mlx4_ib"
-
-	for (port = 1; port <= dev->caps.num_ports; port++) {
-		if (dev->caps.port_type[port] == MLX4_PORT_TYPE_IB)
-			has_ib_port = true;
-		else if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
-			has_eth_port = true;
-	}
-
-	if (has_eth_port)
-		request_module_nowait(EN_DRV_NAME);
-	if (has_ib_port || (dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
-		request_module_nowait(IB_DRV_NAME);
-}
-
 /*
  * Change the port configuration of the device.
  * Every user of this function must hold the port mutex.
@@ -1147,7 +1125,6 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 			mlx4_err(dev, "Failed to register device\n");
 			goto out;
 		}
-		mlx4_request_modules(dev);
 	}
 
 out:
@@ -3426,9 +3403,6 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 	devl_assert_locked(devlink);
 	dev = &priv->dev;
 
-	INIT_LIST_HEAD(&priv->ctx_list);
-	spin_lock_init(&priv->ctx_lock);
-
 	err = mlx4_adev_init(dev);
 	if (err)
 		return err;
@@ -3731,8 +3705,6 @@ slave_start:
 	err = mlx4_register_device(dev);
 	if (err)
 		goto err_port;
-
-	mlx4_request_modules(dev);
 
 	mlx4_sense_init(dev);
 	mlx4_start_sense(dev);
