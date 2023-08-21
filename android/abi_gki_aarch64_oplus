@@ -38,6 +38,7 @@
   ipv6_find_hdr
   is_ashmem_file
   jiffies_64_to_clock_t
+  kick_process
   ktime_get_coarse_real_ts64
   memory_cgrp_subsys
   memory_cgrp_subsys_enabled_key
@@ -48,6 +49,7 @@
   nf_ct_delete
   nf_register_net_hooks
   nf_unregister_net_hooks
+  nr_running
   of_css
   __page_file_index
   __page_mapcount
@@ -90,6 +92,9 @@
   __traceiter_android_vh_account_process_tick_gran
   __traceiter_android_vh_account_task_time
   __traceiter_android_vh_do_futex
+  __traceiter_android_vh_exit_check
+  __traceiter_android_vh_exit_signal_whether_wake
+  __traceiter_android_vh_freeze_whether_wake
   __traceiter_android_vh_futex_sleep_start
   __traceiter_android_vh_futex_wait_end
   __traceiter_android_vh_futex_wait_start
@@ -182,12 +187,15 @@
   __tracepoint_android_vh_check_folio_look_around_ref
   __tracepoint_android_vh_do_futex
   __tracepoint_android_vh_dup_task_struct
+  __tracepoint_android_vh_exit_check
   __tracepoint_android_vh_exit_signal
+  __tracepoint_android_vh_exit_signal_whether_wake
   __tracepoint_android_vh_mem_cgroup_id_remove
   __tracepoint_android_vh_mem_cgroup_css_offline
   __tracepoint_android_vh_mem_cgroup_css_online
   __tracepoint_android_vh_mem_cgroup_free
   __tracepoint_android_vh_mem_cgroup_alloc
+  __tracepoint_android_vh_freeze_whether_wake
   __tracepoint_android_vh_futex_sleep_start
   __tracepoint_android_vh_futex_wait_end
   __tracepoint_android_vh_futex_wait_start
@@ -240,5 +248,6 @@
   wait_for_completion_io_timeout
   wait_for_completion_killable_timeout
   wakeup_source_remove
+  wake_up_state
   wq_worker_comm
   zero_pfn
