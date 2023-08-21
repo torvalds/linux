@@ -655,6 +655,9 @@ int mptcp_subflow_create_socket(struct sock *sk, unsigned short family,
 void mptcp_info2sockaddr(const struct mptcp_addr_info *info,
 			 struct sockaddr_storage *addr,
 			 unsigned short family);
+struct mptcp_sched_ops *mptcp_sched_find(const char *name);
+int mptcp_register_scheduler(struct mptcp_sched_ops *sched);
+void mptcp_unregister_scheduler(struct mptcp_sched_ops *sched);
 
 static inline bool __tcp_can_send(const struct sock *ssk)
 {
