@@ -1659,6 +1659,7 @@
   overflowuid
   page_endio
   page_mapping
+  page_owner_inited
   __page_pinner_migration_failed
   __pagevec_release
   panic
@@ -2187,6 +2188,7 @@
   set_normalized_timespec64
   set_page_dirty_lock
   __SetPageMovable
+  __set_page_owner
   set_task_cpu
   set_user_nice
   sg_alloc_table
