@@ -371,6 +371,7 @@ static void mlock_vma_pages_range(struct vm_area_struct *vma,
 {
 	static const struct mm_walk_ops mlock_walk_ops = {
 		.pmd_entry = mlock_pte_range,
+		.walk_lock = PGWALK_WRLOCK_VERIFY,
 	};
 
 	/*
