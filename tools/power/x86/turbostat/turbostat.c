@@ -277,7 +277,6 @@ unsigned int has_hwp_notify;	/* IA32_HWP_INTERRUPT */
 unsigned int has_hwp_activity_window;	/* IA32_HWP_REQUEST[bits 41:32] */
 unsigned int has_hwp_epp;	/* IA32_HWP_REQUEST[bits 31:24] */
 unsigned int has_hwp_pkg;	/* IA32_HWP_REQUEST_PKG */
-unsigned int has_misc_feature_control;
 unsigned int first_counter_read = 1;
 int ignore_stdin;
 
@@ -285,6 +284,7 @@ int ignore_stdin;
 
 /* List of features that may diverge among different platforms */
 struct platform_features {
+	bool has_msr_misc_feature_control;	/* MSR_MISC_FEATURE_CONTROL */
 };
 
 struct platform_data {
@@ -299,51 +299,67 @@ static const struct platform_features nhx_features = {
 };
 
 static const struct platform_features snb_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features snx_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features ivb_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features ivx_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features hsw_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features hsx_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features hswl_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features hswg_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features bdw_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features bdwg_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features bdx_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features skl_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features cnl_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features skx_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features icx_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features spr_features = {
+	.has_msr_misc_feature_control = 1,
 };
 
 static const struct platform_features slv_features = {
@@ -3883,7 +3899,6 @@ void check_permissions(void)
  *
  * Side effect:
  * sets global pkg_cstate_limit to decode MSR_PKG_CST_CONFIG_CONTROL
- * sets has_misc_feature_control
  */
 int probe_nhm_msrs(unsigned int family, unsigned int model)
 {
@@ -3909,7 +3924,6 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_IVYBRIDGE:	/* IVB */
 	case INTEL_FAM6_IVYBRIDGE_X:	/* IVB Xeon */
 		pkg_cstate_limits = snb_pkg_cstate_limits;
-		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_HASWELL:	/* HSW */
 	case INTEL_FAM6_HASWELL_G:	/* HSW */
@@ -3921,16 +3935,13 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_SKYLAKE_L:	/* SKL */
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
 		pkg_cstate_limits = hsw_pkg_cstate_limits;
-		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 		pkg_cstate_limits = skx_pkg_cstate_limits;
-		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
 		pkg_cstate_limits = icx_pkg_cstate_limits;
-		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
 		no_MSR_MISC_PWR_MGMT = 1;
@@ -5541,7 +5552,7 @@ void decode_misc_feature_control(void)
 {
 	unsigned long long msr;
 
-	if (!has_misc_feature_control)
+	if (!platform->has_msr_misc_feature_control)
 		return;
 
 	if (!get_msr(base_cpu, MSR_MISC_FEATURE_CONTROL, &msr))
