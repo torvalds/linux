@@ -223,7 +223,8 @@
 
 &rkcif_mipi_lvds {
 	status = "okay";
-	//memory-region-thunderboot = <&rkisp_thunderboot>;
+	memory-region-thunderboot = <&rkisp_thunderboot>;
+	rtt-suspend;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&mipi_pins>;
