@@ -1238,9 +1238,9 @@ static int rk817_probe(struct snd_soc_component *component)
 	rk817->chip_ver = (chip_ver & 0x0f);
 	dev_info(component->dev, "%s: chip_name:0x%x, chip_ver:0x%x\n", __func__, chip_name, chip_ver);
 
+	/* always enable mclk, and will disable mclk in rk817_remove */
 	clk_prepare_enable(rk817->mclk);
 	rk817_reset(component);
-	clk_disable_unprepare(rk817->mclk);
 	mutex_init(&rk817->clk_lock);
 	rk817->clk_capture = 0;
 	rk817->clk_playback = 0;
@@ -1265,6 +1265,7 @@ static void rk817_remove(struct snd_soc_component *component)
 	rk817_codec_power_down(component, RK817_CODEC_ALL);
 	snd_soc_component_exit_regmap(component);
 	mutex_destroy(&rk817->clk_lock);
+	clk_disable_unprepare(rk817->mclk);
 	mdelay(10);
 
 }
