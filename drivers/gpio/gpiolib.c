@@ -2178,8 +2178,7 @@ static bool gpiod_free_commit(struct gpio_desc *desc)
 	}
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
-	blocking_notifier_call_chain(&desc->gdev->line_state_notifier,
-				     GPIOLINE_CHANGED_RELEASED, desc);
+	gpiod_line_state_notify(desc, GPIOLINE_CHANGED_RELEASED);
 
 	return ret;
 }
@@ -3741,6 +3740,12 @@ int gpiod_set_array_value_cansleep(unsigned int array_size,
 }
 EXPORT_SYMBOL_GPL(gpiod_set_array_value_cansleep);
 
+void gpiod_line_state_notify(struct gpio_desc *desc, unsigned long action)
+{
+	blocking_notifier_call_chain(&desc->gdev->line_state_notifier,
+				     action, desc);
+}
+
 /**
  * gpiod_add_lookup_table() - register GPIO device consumers
  * @table: table of consumers to register
@@ -4008,8 +4013,7 @@ static struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 		return ERR_PTR(ret);
 	}
 
-	blocking_notifier_call_chain(&desc->gdev->line_state_notifier,
-				     GPIOLINE_CHANGED_REQUESTED, desc);
+	gpiod_line_state_notify(desc, GPIOLINE_CHANGED_REQUESTED);
 
 	return desc;
 }
