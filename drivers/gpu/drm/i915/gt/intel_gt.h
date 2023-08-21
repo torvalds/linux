@@ -14,6 +14,17 @@
 struct drm_i915_private;
 struct drm_printer;
 
+/*
+ * Check that the GT is a graphics GT and has an IP version within the
+ * specified range (inclusive).
+ */
+#define IS_GFX_GT_IP_RANGE(gt, from, until) ( \
+	BUILD_BUG_ON_ZERO((from) < IP_VER(2, 0)) + \
+	BUILD_BUG_ON_ZERO((until) < (from)) + \
+	((gt)->type != GT_MEDIA && \
+	 GRAPHICS_VER_FULL((gt)->i915) >= (from) && \
+	 GRAPHICS_VER_FULL((gt)->i915) <= (until)))
+
 #define GT_TRACE(gt, fmt, ...) do {					\
 	const struct intel_gt *gt__ __maybe_unused = (gt);		\
 	GEM_TRACE("%s " fmt, dev_name(gt__->i915->drm.dev),		\
