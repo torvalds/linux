@@ -11,7 +11,10 @@
 
 #include <linux/types.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
 #include <drm/drm_modes.h>
 
 struct drm_display_mode;
@@ -55,6 +58,14 @@ struct dw_mipi_dsi_plat_data {
 					   const struct drm_display_mode *mode,
 					   unsigned long mode_flags,
 					   u32 lanes, u32 format);
+
+	u32 *(*get_input_bus_fmts)(void *priv_data,
+				   struct drm_bridge *bridge,
+				   struct drm_bridge_state *bridge_state,
+				   struct drm_crtc_state *crtc_state,
+				   struct drm_connector_state *conn_state,
+				   u32 output_fmt,
+				   unsigned int *num_input_fmts);
 
 	const struct dw_mipi_dsi_phy_ops *phy_ops;
 	const struct dw_mipi_dsi_host_ops *host_ops;
