@@ -1021,6 +1021,9 @@ static inline bool is_state1(void)
 {
 	struct cpumask local_mask = { CPU_BITS_NONE };
 
+	if (!cpumask_weight(&part_haltable_cpus))
+		return false;
+
 	cpumask_or(&local_mask, cpu_partial_halt_mask, cpu_halt_mask);
 	return cpumask_subset(&part_haltable_cpus, &local_mask);
 }
