@@ -47,8 +47,8 @@ torture_param(int, shuffle_interval, 3, "Number of jiffies between shuffles, 0=d
 torture_param(int, shutdown_secs, 0, "Shutdown time (j), <= zero to disable.");
 torture_param(int, stat_interval, 60, "Number of seconds between stats printk()s");
 torture_param(int, stutter, 5, "Number of jiffies to run/halt test, 0=disable");
-torture_param(int, writer_fifo, 0, "Run writers at sched_set_fifo() priority");
 torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
+torture_param(int, writer_fifo, 0, "Run writers at sched_set_fifo() priority");
 /* Going much higher trips "BUG: MAX_LOCKDEP_CHAIN_HLOCKS too low!" errors */
 #define MAX_NESTED_LOCKS 8
 
@@ -166,12 +166,9 @@ static int torture_lock_busted_write_lock(int tid __maybe_unused)
 
 static void torture_lock_busted_write_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
-
 	/* We want a long delay occasionally to force massive contention.  */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold)))
+		mdelay(long_hold);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
@@ -244,15 +241,14 @@ __acquires(torture_spinlock)
 static void torture_spin_lock_write_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 2;
-	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
 	unsigned long j;
 
 	/* We want a short delay mostly to emulate likely code, and
 	 * we want a long delay occasionally to force massive contention.
 	 */
-	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * longdelay_ms))) {
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold))) {
 		j = jiffies;
-		mdelay(longdelay_ms);
+		mdelay(long_hold);
 		pr_alert("%s: delay = %lu jiffies.\n", __func__, jiffies - j);
 	}
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 200 * shortdelay_us)))
@@ -370,14 +366,12 @@ __acquires(torture_rwlock)
 static void torture_rwlock_write_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 2;
-	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
 
 	/* We want a short delay mostly to emulate likely code, and
 	 * we want a long delay occasionally to force massive contention.
 	 */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold)))
+		mdelay(long_hold);
 	else
 		udelay(shortdelay_us);
 }
@@ -398,14 +392,12 @@ __acquires(torture_rwlock)
 static void torture_rwlock_read_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 10;
-	const unsigned long longdelay_ms = 100;
 
 	/* We want a short delay mostly to emulate likely code, and
 	 * we want a long delay occasionally to force massive contention.
 	 */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealreaders_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealreaders_stress * 2000 * long_hold)))
+		mdelay(long_hold);
 	else
 		udelay(shortdelay_us);
 }
@@ -503,12 +495,9 @@ __acquires(torture_mutex)
 
 static void torture_mutex_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
-
 	/* We want a long delay occasionally to force massive contention.  */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms * 5);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold)))
+		mdelay(long_hold * 5);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
@@ -676,15 +665,13 @@ __acquires(torture_rtmutex)
 static void torture_rtmutex_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 2;
-	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
 
 	/*
 	 * We want a short delay mostly to emulate likely code, and
 	 * we want a long delay occasionally to force massive contention.
 	 */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold)))
+		mdelay(long_hold);
 	if (!(torture_random(trsp) %
 	      (cxt.nrealwriters_stress * 200 * shortdelay_us)))
 		udelay(shortdelay_us);
@@ -741,12 +728,9 @@ __acquires(torture_rwsem)
 
 static void torture_rwsem_write_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
-
 	/* We want a long delay occasionally to force massive contention.  */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms * 10);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold)))
+		mdelay(long_hold * 10);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
@@ -766,14 +750,11 @@ __acquires(torture_rwsem)
 
 static void torture_rwsem_read_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_ms = 100;
-
 	/* We want a long delay occasionally to force massive contention.  */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealreaders_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms * 2);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealreaders_stress * 2000 * long_hold)))
+		mdelay(long_hold * 2);
 	else
-		mdelay(longdelay_ms / 2);
+		mdelay(long_hold / 2);
 	if (!(torture_random(trsp) % (cxt.nrealreaders_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
@@ -1056,11 +1037,12 @@ lock_torture_print_module_parms(struct lock_torture_ops *cur_ops,
 
 	cpumask_setall(&cpumask_all);
 	pr_alert("%s" TORTURE_FLAG
-		 "--- %s%s: nwriters_stress=%d nreaders_stress=%d nested_locks=%d stat_interval=%d verbose=%d shuffle_interval=%d stutter=%d shutdown_secs=%d onoff_interval=%d onoff_holdoff=%d readers_bind=%*pbl writers_bind=%*pbl\n",
+		 "--- %s%s: acq_writer_lim=%d long_hold=%d nested_locks=%d nreaders_stress=%d nwriters_stress=%d onoff_holdoff=%d onoff_interval=%d rt_boost=%d rt_boost_factor=%d shuffle_interval=%d shutdown_secs=%d stat_interval=%d stutter=%d verbose=%d writer_fifo=%d readers_bind=%*pbl writers_bind=%*pbl\n",
 		 torture_type, tag, cxt.debug_lock ? " [debug]": "",
-		 cxt.nrealwriters_stress, cxt.nrealreaders_stress,
-		 nested_locks, stat_interval, verbose, shuffle_interval,
-		 stutter, shutdown_secs, onoff_interval, onoff_holdoff,
+		 acq_writer_lim, long_hold, nested_locks, cxt.nrealreaders_stress,
+		 cxt.nrealwriters_stress, onoff_holdoff, onoff_interval, rt_boost,
+		 rt_boost_factor, shuffle_interval, shutdown_secs, stat_interval, stutter,
+		 verbose, writer_fifo,
 		 cpumask_pr_args(rcmp), cpumask_pr_args(wcmp));
 }
 
