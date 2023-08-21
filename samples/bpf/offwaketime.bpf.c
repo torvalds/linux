@@ -4,20 +4,15 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
-#include <uapi/linux/bpf.h>
-#include <uapi/linux/ptrace.h>
-#include <uapi/linux/perf_event.h>
+#include "vmlinux.h"
 #include <linux/version.h>
-#include <linux/sched.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
 
-#define _(P)                                                                   \
-	({                                                                     \
-		typeof(P) val;                                                 \
-		bpf_probe_read_kernel(&val, sizeof(val), &(P));                \
-		val;                                                           \
-	})
+#ifndef PERF_MAX_STACK_DEPTH
+#define PERF_MAX_STACK_DEPTH         127
+#endif
 
 #define MINBLOCK_US	1
 #define MAX_ENTRIES	10000
@@ -67,11 +62,9 @@ struct {
 SEC("kprobe/try_to_wake_up")
 int waker(struct pt_regs *ctx)
 {
-	struct task_struct *p = (void *) PT_REGS_PARM1(ctx);
+	struct task_struct *p = (void *)PT_REGS_PARM1_CORE(ctx);
+	u32 pid = BPF_CORE_READ(p, pid);
 	struct wokeby_t woke;
-	u32 pid;
-
-	pid = _(p->pid);
 
 	bpf_get_current_comm(&woke.name, sizeof(woke.name));
 	woke.ret = bpf_get_stackid(ctx, &stackmap, STACKID_FLAGS);
@@ -111,28 +104,18 @@ static inline int update_counts(void *ctx, u32 pid, u64 delta)
 
 #if 1
 /* taken from /sys/kernel/tracing/events/sched/sched_switch/format */
-struct sched_switch_args {
-	unsigned long long pad;
-	char prev_comm[TASK_COMM_LEN];
-	int prev_pid;
-	int prev_prio;
-	long long prev_state;
-	char next_comm[TASK_COMM_LEN];
-	int next_pid;
-	int next_prio;
-};
 SEC("tracepoint/sched/sched_switch")
-int oncpu(struct sched_switch_args *ctx)
+int oncpu(struct trace_event_raw_sched_switch *ctx)
 {
 	/* record previous thread sleep time */
 	u32 pid = ctx->prev_pid;
 #else
-SEC("kprobe/finish_task_switch")
+SEC("kprobe.multi/finish_task_switch*")
 int oncpu(struct pt_regs *ctx)
 {
-	struct task_struct *p = (void *) PT_REGS_PARM1(ctx);
+	struct task_struct *p = (void *)PT_REGS_PARM1_CORE(ctx);
 	/* record previous thread sleep time */
-	u32 pid = _(p->pid);
+	u32 pid = BPF_CORE_READ(p, pid);
 #endif
 	u64 delta, ts, *tsp;
 

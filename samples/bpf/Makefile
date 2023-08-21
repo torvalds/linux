@@ -124,21 +124,21 @@ always-y := $(tprogs-y)
 always-y += sockex1_kern.o
 always-y += sockex2_kern.o
 always-y += sockex3_kern.o
-always-y += tracex1_kern.o
+always-y += tracex1.bpf.o
 always-y += tracex2.bpf.o
-always-y += tracex3_kern.o
-always-y += tracex4_kern.o
-always-y += tracex5_kern.o
-always-y += tracex6_kern.o
-always-y += tracex7_kern.o
+always-y += tracex3.bpf.o
+always-y += tracex4.bpf.o
+always-y += tracex5.bpf.o
+always-y += tracex6.bpf.o
+always-y += tracex7.bpf.o
 always-y += sock_flags.bpf.o
 always-y += test_probe_write_user.bpf.o
 always-y += trace_output.bpf.o
 always-y += tcbpf1_kern.o
 always-y += tc_l2_redirect_kern.o
 always-y += lathist_kern.o
-always-y += offwaketime_kern.o
-always-y += spintest_kern.o
+always-y += offwaketime.bpf.o
+always-y += spintest.bpf.o
 always-y += map_perf_test.bpf.o
 always-y += test_overhead_tp.bpf.o
 always-y += test_overhead_raw_tp.bpf.o
@@ -333,7 +333,7 @@ $(obj)/xdp_redirect_user.o: $(obj)/xdp_redirect.skel.h
 $(obj)/xdp_monitor_user.o: $(obj)/xdp_monitor.skel.h
 $(obj)/xdp_router_ipv4_user.o: $(obj)/xdp_router_ipv4.skel.h
 
-$(obj)/tracex5_kern.o: $(obj)/syscall_nrs.h
+$(obj)/tracex5.bpf.o: $(obj)/syscall_nrs.h
 $(obj)/hbm_out_kern.o: $(src)/hbm.h $(src)/hbm_kern.h
 $(obj)/hbm.o: $(src)/hbm.h
 $(obj)/hbm_edt_kern.o: $(src)/hbm.h $(src)/hbm_kern.h
@@ -440,7 +440,7 @@ $(obj)/%.o: $(src)/%.c
 		-Wno-gnu-variable-sized-type-not-at-end \
 		-Wno-address-of-packed-member -Wno-tautological-compare \
 		-Wno-unknown-warning-option $(CLANG_ARCH_ARGS) \
-		-fno-asynchronous-unwind-tables \
+		-fno-asynchronous-unwind-tables -fcf-protection \
 		-I$(srctree)/samples/bpf/ -include asm_goto_workaround.h \
 		-O2 -emit-llvm -Xclang -disable-llvm-passes -c $< -o - | \
 		$(OPT) -O2 -mtriple=bpf-pc-linux | $(LLVM_DIS) | \
