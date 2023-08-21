@@ -235,8 +235,8 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 	iounmap(mdev->uar_map);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 	mlx4_pd_free(dev, mdev->priv_pdn);
-	if (mdev->nb.notifier_call)
-		unregister_netdevice_notifier(&mdev->nb);
+	if (mdev->netdev_nb.notifier_call)
+		unregister_netdevice_notifier(&mdev->netdev_nb);
 	kfree(mdev);
 }
 
@@ -252,11 +252,11 @@ static void mlx4_en_activate(struct mlx4_dev *dev, void *ctx)
 			mdev->pndev[i] = NULL;
 	}
 
-	/* register notifier */
-	mdev->nb.notifier_call = mlx4_en_netdev_event;
-	if (register_netdevice_notifier(&mdev->nb)) {
-		mdev->nb.notifier_call = NULL;
-		mlx4_err(mdev, "Failed to create notifier\n");
+	/* register netdev notifier */
+	mdev->netdev_nb.notifier_call = mlx4_en_netdev_event;
+	if (register_netdevice_notifier(&mdev->netdev_nb)) {
+		mdev->netdev_nb.notifier_call = NULL;
+		mlx4_err(mdev, "Failed to create netdev notifier\n");
 	}
 }
 
