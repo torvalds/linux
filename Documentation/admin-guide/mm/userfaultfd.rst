@@ -244,6 +244,41 @@ write-protected (so future writes will also result in a WP fault). These ioctls
 support a mode flag (``UFFDIO_COPY_MODE_WP`` or ``UFFDIO_CONTINUE_MODE_WP``
 respectively) to configure the mapping this way.
 
+If the userfaultfd context has ``UFFD_FEATURE_WP_ASYNC`` feature bit set,
+any vma registered with write-protection will work in async mode rather
+than the default sync mode.
+
+In async mode, there will be no message generated when a write operation
+happens, meanwhile the write-protection will be resolved automatically by
+the kernel.  It can be seen as a more accurate version of soft-dirty
+tracking and it can be different in a few ways:
+
+  - The dirty result will not be affected by vma changes (e.g. vma
+    merging) because the dirty is only tracked by the pte.
+
+  - It supports range operations by default, so one can enable tracking on
+    any range of memory as long as page aligned.
+
+  - Dirty information will not get lost if the pte was zapped due to
+    various reasons (e.g. during split of a shmem transparent huge page).
+
+  - Due to a reverted meaning of soft-dirty (page clean when uffd-wp bit
+    set; dirty when uffd-wp bit cleared), it has different semantics on
+    some of the memory operations.  For example: ``MADV_DONTNEED`` on
+    anonymous (or ``MADV_REMOVE`` on a file mapping) will be treated as
+    dirtying of memory by dropping uffd-wp bit during the procedure.
+
+The user app can collect the "written/dirty" status by looking up the
+uffd-wp bit for the pages being interested in /proc/pagemap.
+
+The page will not be under track of uffd-wp async mode until the page is
+explicitly write-protected by ``ioctl(UFFDIO_WRITEPROTECT)`` with the mode
+flag ``UFFDIO_WRITEPROTECT_MODE_WP`` set.  Trying to resolve a page fault
+that was tracked by async mode userfaultfd-wp is invalid.
+
+When userfaultfd-wp async mode is used alone, it can be applied to all
+kinds of memory.
+
 Memory Poisioning Emulation
 ---------------------------
 

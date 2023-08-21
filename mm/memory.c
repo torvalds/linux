@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/mm/memory.c
@@ -3349,11 +3350,28 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 	const bool unshare = vmf->flags & FAULT_FLAG_UNSHARE;
 	struct vm_area_struct *vma = vmf->vma;
 	struct folio *folio = NULL;
+	pte_t pte;
 
 	if (likely(!unshare)) {
 		if (userfaultfd_pte_wp(vma, ptep_get(vmf->pte))) {
-			pte_unmap_unlock(vmf->pte, vmf->ptl);
-			return handle_userfault(vmf, VM_UFFD_WP);
+			if (!userfaultfd_wp_async(vma)) {
+				pte_unmap_unlock(vmf->pte, vmf->ptl);
+				return handle_userfault(vmf, VM_UFFD_WP);
+			}
+
+			/*
+			 * Nothing needed (cache flush, TLB invalidations,
+			 * etc.) because we're only removing the uffd-wp bit,
+			 * which is completely invisible to the user.
+			 */
+			pte = pte_clear_uffd_wp(ptep_get(vmf->pte));
+
+			set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
+			/*
+			 * Update this to be prepared for following up CoW
+			 * handling
+			 */
+			vmf->orig_pte = pte;
 		}
 
 		/*
@@ -4879,8 +4897,11 @@ static inline vm_fault_t wp_huge_pmd(struct vm_fault *vmf)
 
 	if (vma_is_anonymous(vma)) {
 		if (likely(!unshare) &&
-		    userfaultfd_huge_pmd_wp(vma, vmf->orig_pmd))
+		    userfaultfd_huge_pmd_wp(vma, vmf->orig_pmd)) {
+			if (userfaultfd_wp_async(vmf->vma))
+				goto split;
 			return handle_userfault(vmf, VM_UFFD_WP);
+		}
 		return do_huge_pmd_wp_page(vmf);
 	}
 
@@ -4892,6 +4913,7 @@ static inline vm_fault_t wp_huge_pmd(struct vm_fault *vmf)
 		}
 	}
 
+split:
 	/* COW or write-notify handled on pte level: split pmd. */
 	__split_huge_pmd(vma, vmf->pmd, vmf->address, false, NULL);
 
