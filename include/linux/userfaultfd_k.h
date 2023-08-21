@@ -221,6 +221,13 @@ static inline vm_fault_t handle_userfault(struct vm_fault *vmf,
 	return VM_FAULT_SIGBUS;
 }
 
+static inline long uffd_wp_range(struct vm_area_struct *vma,
+				 unsigned long start, unsigned long len,
+				 bool enable_wp)
+{
+	return false;
+}
+
 static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
 					struct vm_userfaultfd_ctx vm_ctx)
 {
