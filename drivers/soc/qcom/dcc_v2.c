@@ -2015,7 +2015,7 @@ static int dcc_probe(struct platform_device *pdev)
 	if (ret)
 		return -EINVAL;
 
-	if (dcc_readl(drvdata, DCC_HW_INFO) & 0x300) {
+	if (BVAL(dcc_readl(drvdata, DCC_HW_INFO), 9)) {
 		drvdata->mem_map_ver = DCC_MEM_MAP_VER3;
 		drvdata->nr_link_list = dcc_readl(drvdata, DCC_LL_NUM_INFO);
 		if (drvdata->nr_link_list == 0)
