@@ -854,6 +854,7 @@ enum kfd_dbg_trap_address_watch_mode {
 /* Additional wave settings */
 enum kfd_dbg_trap_flags {
 	KFD_DBG_TRAP_FLAG_SINGLE_MEM_OP = 1,
+	KFD_DBG_TRAP_FLAG_SINGLE_ALU_OP = 2,
 };
 
 /* Trap exceptions */
