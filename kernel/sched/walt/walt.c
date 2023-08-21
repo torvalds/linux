@@ -3779,9 +3779,9 @@ static inline void pipeline_reset_boost(void)
 
 	if (sysctl_sched_heavy_nr != last_sched_heavy_nr) {
 		if (sysctl_sched_heavy_nr)
-			pipeline_set_boost(MANUAL_PIPELINE, false);
+			pipeline_set_boost(false, MANUAL_PIPELINE);
 		else
-			pipeline_set_boost(AUTO_PIPELINE, false);
+			pipeline_set_boost(false, AUTO_PIPELINE);
 
 		last_sched_heavy_nr = sysctl_sched_heavy_nr;
 	}
