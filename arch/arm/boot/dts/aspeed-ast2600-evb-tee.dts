@@ -22,7 +22,7 @@
 	};
 
 	firmware {
-		optee: optee@88000000 {
+		optee: optee@b0000000 {
 			compatible = "linaro,optee-tz";
 			method = "smc";
 		};
@@ -38,8 +38,8 @@
 		#size-cells = <1>;
 		ranges;
 
-		optee_core: optee_core@88000000 {
-			reg = <0x88000000 0x1000000>;
+		optee_core: optee_core@b0000000 {
+			reg = <0xb0000000 0x1000000>;
 			no-map;
 		};
 
