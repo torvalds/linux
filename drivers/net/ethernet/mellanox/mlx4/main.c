@@ -1441,7 +1441,7 @@ static int mlx4_mf_unbond(struct mlx4_dev *dev)
 	return ret;
 }
 
-int mlx4_bond(struct mlx4_dev *dev)
+static int mlx4_bond(struct mlx4_dev *dev)
 {
 	int ret = 0;
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -1467,9 +1467,8 @@ int mlx4_bond(struct mlx4_dev *dev)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mlx4_bond);
 
-int mlx4_unbond(struct mlx4_dev *dev)
+static int mlx4_unbond(struct mlx4_dev *dev)
 {
 	int ret = 0;
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -1496,10 +1495,8 @@ int mlx4_unbond(struct mlx4_dev *dev)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mlx4_unbond);
 
-
-int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p)
+static int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p)
 {
 	u8 port1 = v2p->port1;
 	u8 port2 = v2p->port2;
@@ -1541,7 +1538,61 @@ int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p)
 	mutex_unlock(&priv->bond_mutex);
 	return err;
 }
-EXPORT_SYMBOL_GPL(mlx4_port_map_set);
+
+struct mlx4_bond {
+	struct work_struct work;
+	struct mlx4_dev *dev;
+	int is_bonded;
+	struct mlx4_port_map port_map;
+};
+
+static void mlx4_bond_work(struct work_struct *work)
+{
+	struct mlx4_bond *bond = container_of(work, struct mlx4_bond, work);
+	int err = 0;
+
+	if (bond->is_bonded) {
+		if (!mlx4_is_bonded(bond->dev)) {
+			err = mlx4_bond(bond->dev);
+			if (err)
+				mlx4_err(bond->dev, "Fail to bond device\n");
+		}
+		if (!err) {
+			err = mlx4_port_map_set(bond->dev, &bond->port_map);
+			if (err)
+				mlx4_err(bond->dev,
+					 "Fail to set port map [%d][%d]: %d\n",
+					 bond->port_map.port1,
+					 bond->port_map.port2, err);
+		}
+	} else if (mlx4_is_bonded(bond->dev)) {
+		err = mlx4_unbond(bond->dev);
+		if (err)
+			mlx4_err(bond->dev, "Fail to unbond device\n");
+	}
+	put_device(&bond->dev->persist->pdev->dev);
+	kfree(bond);
+}
+
+int mlx4_queue_bond_work(struct mlx4_dev *dev, int is_bonded, u8 v2p_p1,
+			 u8 v2p_p2)
+{
+	struct mlx4_bond *bond;
+
+	bond = kzalloc(sizeof(*bond), GFP_ATOMIC);
+	if (!bond)
+		return -ENOMEM;
+
+	INIT_WORK(&bond->work, mlx4_bond_work);
+	get_device(&dev->persist->pdev->dev);
+	bond->dev = dev;
+	bond->is_bonded = is_bonded;
+	bond->port_map.port1 = v2p_p1;
+	bond->port_map.port2 = v2p_p2;
+	queue_work(mlx4_wq, &bond->work);
+	return 0;
+}
+EXPORT_SYMBOL(mlx4_queue_bond_work);
 
 static int mlx4_load_fw(struct mlx4_dev *dev)
 {

@@ -66,25 +66,6 @@ struct mlx4_interface {
 int mlx4_register_interface(struct mlx4_interface *intf);
 void mlx4_unregister_interface(struct mlx4_interface *intf);
 
-int mlx4_bond(struct mlx4_dev *dev);
-int mlx4_unbond(struct mlx4_dev *dev);
-static inline int mlx4_is_bonded(struct mlx4_dev *dev)
-{
-	return !!(dev->flags & MLX4_FLAG_BONDED);
-}
-
-static inline int mlx4_is_mf_bonded(struct mlx4_dev *dev)
-{
-	return (mlx4_is_bonded(dev) && mlx4_is_mfunc(dev));
-}
-
-struct mlx4_port_map {
-	u8	port1;
-	u8	port2;
-};
-
-int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p);
-
 int mlx4_register_event_notifier(struct mlx4_dev *dev,
 				 struct notifier_block *nb);
 int mlx4_unregister_event_notifier(struct mlx4_dev *dev,

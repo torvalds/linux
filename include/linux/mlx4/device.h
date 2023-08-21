@@ -1087,6 +1087,19 @@ static inline void *mlx4_buf_offset(struct mlx4_buf *buf, int offset)
 			(offset & (PAGE_SIZE - 1));
 }
 
+static inline int mlx4_is_bonded(struct mlx4_dev *dev)
+{
+	return !!(dev->flags & MLX4_FLAG_BONDED);
+}
+
+static inline int mlx4_is_mf_bonded(struct mlx4_dev *dev)
+{
+	return (mlx4_is_bonded(dev) && mlx4_is_mfunc(dev));
+}
+
+int mlx4_queue_bond_work(struct mlx4_dev *dev, int is_bonded, u8 v2p_p1,
+			 u8 v2p_p2);
+
 int mlx4_pd_alloc(struct mlx4_dev *dev, u32 *pdn);
 void mlx4_pd_free(struct mlx4_dev *dev, u32 pdn);
 int mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn);

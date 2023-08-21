@@ -2894,63 +2894,6 @@ static const struct xdp_metadata_ops mlx4_xdp_metadata_ops = {
 	.xmo_rx_hash			= mlx4_en_xdp_rx_hash,
 };
 
-struct mlx4_en_bond {
-	struct work_struct work;
-	struct mlx4_en_priv *priv;
-	int is_bonded;
-	struct mlx4_port_map port_map;
-};
-
-static void mlx4_en_bond_work(struct work_struct *work)
-{
-	struct mlx4_en_bond *bond = container_of(work,
-						     struct mlx4_en_bond,
-						     work);
-	int err = 0;
-	struct mlx4_dev *dev = bond->priv->mdev->dev;
-
-	if (bond->is_bonded) {
-		if (!mlx4_is_bonded(dev)) {
-			err = mlx4_bond(dev);
-			if (err)
-				en_err(bond->priv, "Fail to bond device\n");
-		}
-		if (!err) {
-			err = mlx4_port_map_set(dev, &bond->port_map);
-			if (err)
-				en_err(bond->priv, "Fail to set port map [%d][%d]: %d\n",
-				       bond->port_map.port1,
-				       bond->port_map.port2,
-				       err);
-		}
-	} else if (mlx4_is_bonded(dev)) {
-		err = mlx4_unbond(dev);
-		if (err)
-			en_err(bond->priv, "Fail to unbond device\n");
-	}
-	dev_put(bond->priv->dev);
-	kfree(bond);
-}
-
-static int mlx4_en_queue_bond_work(struct mlx4_en_priv *priv, int is_bonded,
-				   u8 v2p_p1, u8 v2p_p2)
-{
-	struct mlx4_en_bond *bond;
-
-	bond = kzalloc(sizeof(*bond), GFP_ATOMIC);
-	if (!bond)
-		return -ENOMEM;
-
-	INIT_WORK(&bond->work, mlx4_en_bond_work);
-	bond->priv = priv;
-	bond->is_bonded = is_bonded;
-	bond->port_map.port1 = v2p_p1;
-	bond->port_map.port2 = v2p_p2;
-	dev_hold(priv->dev);
-	queue_work(priv->mdev->workqueue, &bond->work);
-	return 0;
-}
-
 int mlx4_en_netdev_event(struct notifier_block *this,
 			 unsigned long event, void *ptr)
 {
@@ -2960,7 +2903,6 @@ int mlx4_en_netdev_event(struct notifier_block *this,
 	struct mlx4_dev *dev;
 	int i, num_eth_ports = 0;
 	bool do_bond = true;
-	struct mlx4_en_priv *priv;
 	u8 v2p_port1 = 0;
 	u8 v2p_port2 = 0;
 
@@ -2995,7 +2937,6 @@ int mlx4_en_netdev_event(struct notifier_block *this,
 	if ((do_bond && (event != NETDEV_BONDING_INFO)) || !port)
 		return NOTIFY_DONE;
 
-	priv = netdev_priv(ndev);
 	if (do_bond) {
 		struct netdev_notifier_bonding_info *notifier_info = ptr;
 		struct netdev_bonding_info *bonding_info =
@@ -3062,8 +3003,7 @@ int mlx4_en_netdev_event(struct notifier_block *this,
 		}
 	}
 
-	mlx4_en_queue_bond_work(priv, do_bond,
-				v2p_port1, v2p_port2);
+	mlx4_queue_bond_work(dev, do_bond, v2p_port1, v2p_port2);
 
 	return NOTIFY_DONE;
 }

@@ -863,6 +863,11 @@ struct mlx4_steer {
 	struct list_head steer_entries[MLX4_NUM_STEERS];
 };
 
+struct mlx4_port_map {
+	u8	port1;
+	u8	port2;
+};
+
 enum {
 	MLX4_PCI_DEV_IS_VF		= 1 << 0,
 	MLX4_PCI_DEV_FORCE_SENSE_PORT	= 1 << 1,
