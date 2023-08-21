@@ -1167,6 +1167,9 @@ static int f2fs_submit_page_read(struct inode *inode, struct page *page,
 	f2fs_wait_on_block_writeback(inode, blkaddr);
 
 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
+		iostat_update_and_unbind_ctx(bio);
+		if (bio->bi_private)
+			mempool_free(bio->bi_private, bio_post_read_ctx_pool);
 		bio_put(bio);
 		return -EFAULT;
 	}
