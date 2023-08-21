@@ -39,18 +39,15 @@ struct gzvm_kernel_irqfd {
 static struct workqueue_struct *irqfd_cleanup_wq;
 
 /**
- * irqfd_set_spi(): irqfd to inject virtual interrupt.
+ * irqfd_set_irq(): irqfd to inject virtual interrupt.
  * @gzvm: Pointer to gzvm.
- * @irq_source_id: irq source id.
  * @irq: This is spi interrupt number (starts from 0 instead of 32).
  * @level: irq triggered level.
- * @line_status: irq status.
  */
-static void irqfd_set_spi(struct gzvm *gzvm, int irq_source_id, u32 irq,
-			  int level, bool line_status)
+static void irqfd_set_irq(struct gzvm *gzvm, u32 irq, int level)
 {
 	if (level)
-		gzvm_irqchip_inject_irq(gzvm, irq_source_id, 0, irq, level);
+		gzvm_irqchip_inject_irq(gzvm, 0, irq, level);
 }
 
 /**
@@ -131,8 +128,7 @@ static int irqfd_wakeup(wait_queue_entry_t *wait, unsigned int mode, int sync,
 
 		eventfd_ctx_do_read(irqfd->eventfd, &cnt);
 		/* gzvm's irq injection is not blocked, don't need workq */
-		irqfd_set_spi(gzvm, GZVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi,
-			      1, false);
+		irqfd_set_irq(gzvm, irqfd->gsi, 1);
 	}
 
 	if (flags & EPOLLHUP) {

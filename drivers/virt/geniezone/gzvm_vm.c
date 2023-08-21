@@ -269,24 +269,23 @@ gzvm_vm_ioctl_set_memory_region(struct gzvm *gzvm,
 }
 
 int gzvm_irqchip_inject_irq(struct gzvm *gzvm, unsigned int vcpu_idx,
-			    u32 irq_type, u32 irq, bool level)
+			    u32 irq, bool level)
 {
-	return gzvm_arch_inject_irq(gzvm, vcpu_idx, irq_type, irq, level);
+	return gzvm_arch_inject_irq(gzvm, vcpu_idx, irq, level);
 }
 
 static int gzvm_vm_ioctl_irq_line(struct gzvm *gzvm,
 				  struct gzvm_irq_level *irq_level)
 {
 	u32 irq = irq_level->irq;
-	u32 irq_type, vcpu_idx, vcpu2_idx, irq_num;
+	u32 vcpu_idx, vcpu2_idx, irq_num;
 	bool level = irq_level->level;
 
-	irq_type = FIELD_GET(GZVM_IRQ_LINE_TYPE, irq);
 	vcpu_idx = FIELD_GET(GZVM_IRQ_LINE_VCPU, irq);
 	vcpu2_idx = FIELD_GET(GZVM_IRQ_LINE_VCPU2, irq) * (GZVM_IRQ_VCPU_MASK + 1);
 	irq_num = FIELD_GET(GZVM_IRQ_LINE_NUM, irq);
 
-	return gzvm_irqchip_inject_irq(gzvm, vcpu_idx + vcpu2_idx, irq_type, irq_num,
+	return gzvm_irqchip_inject_irq(gzvm, vcpu_idx + vcpu2_idx, irq_num,
 				       level);
 }
 

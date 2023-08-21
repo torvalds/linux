@@ -26,7 +26,6 @@
 #define ERR_NOT_SUPPORTED       (-24)
 #define ERR_NOT_IMPLEMENTED     (-27)
 #define ERR_FAULT               (-40)
-#define GZVM_USERSPACE_IRQ_SOURCE_ID            0
 #define GZVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID       1
 
 /*
@@ -133,7 +132,7 @@ int gzvm_arch_inform_exit(u16 vm_id);
 
 int gzvm_arch_create_device(u16 vm_id, struct gzvm_create_device *gzvm_dev);
 int gzvm_arch_inject_irq(struct gzvm *gzvm, unsigned int vcpu_idx,
-			 u32 irq_type, u32 irq, bool level);
+			 u32 irq, bool level);
 
 void gzvm_notify_acked_irq(struct gzvm *gzvm, unsigned int gsi);
 int gzvm_irqfd(struct gzvm *gzvm, struct gzvm_irqfd *args);

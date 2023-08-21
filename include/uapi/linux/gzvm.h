@@ -16,8 +16,6 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 
-#include <asm/gzvm_arch.h>
-
 #define GZVM_CAP_VM_GPA_SIZE	0xa5
 #define GZVM_CAP_PROTECTED_VM	0xffbadab1
 
