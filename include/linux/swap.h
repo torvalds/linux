@@ -335,8 +335,7 @@ struct swap_info_struct {
 
 static inline swp_entry_t folio_swap_entry(struct folio *folio)
 {
-	swp_entry_t entry = { .val = page_private(&folio->page) };
-	return entry;
+	return folio->swap;
 }
 
 static inline swp_entry_t page_swap_entry(struct page *page)
@@ -350,7 +349,7 @@ static inline swp_entry_t page_swap_entry(struct page *page)
 
 static inline void folio_set_swap_entry(struct folio *folio, swp_entry_t entry)
 {
-	folio->private = (void *)entry.val;
+	folio->swap = entry;
 }
 
 /* linux/mm/workingset.c */

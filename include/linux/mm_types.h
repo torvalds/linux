@@ -248,6 +248,14 @@ static inline struct page *encoded_page_ptr(struct encoded_page *page)
 	return (struct page *)(~ENCODE_PAGE_BITS & (unsigned long)page);
 }
 
+/*
+ * A swap entry has to fit into a "unsigned long", as the entry is hidden
+ * in the "index" field of the swapper address space.
+ */
+typedef struct {
+	unsigned long val;
+} swp_entry_t;
+
 /**
  * struct folio - Represents a contiguous set of bytes.
  * @flags: Identical to the page flags.
@@ -258,7 +266,7 @@ static inline struct page *encoded_page_ptr(struct encoded_page *page)
  * @index: Offset within the file, in units of pages.  For anonymous memory,
  *    this is the index from the beginning of the mmap.
  * @private: Filesystem per-folio data (see folio_attach_private()).
- *    Used for swp_entry_t if folio_test_swapcache().
+ * @swap: Used for swp_entry_t if folio_test_swapcache().
  * @_mapcount: Do not access this member directly.  Use folio_mapcount() to
  *    find out how many times this folio is mapped by userspace.
  * @_refcount: Do not access this member directly.  Use folio_ref_count()
@@ -301,7 +309,10 @@ struct folio {
 			};
 			struct address_space *mapping;
 			pgoff_t index;
-			void *private;
+			union {
+				void *private;
+				swp_entry_t swap;
+			};
 			atomic_t _mapcount;
 			atomic_t _refcount;
 #ifdef CONFIG_MEMCG
@@ -1208,14 +1219,6 @@ enum tlb_flush_reason {
 	TLB_REMOTE_SEND_IPI,
 	NR_TLB_FLUSH_REASONS,
 };
-
- /*
-  * A swap entry has to fit into a "unsigned long", as the entry is hidden
-  * in the "index" field of the swapper address space.
-  */
-typedef struct {
-	unsigned long val;
-} swp_entry_t;
 
 /**
  * enum fault_flag - Fault flag definitions.
