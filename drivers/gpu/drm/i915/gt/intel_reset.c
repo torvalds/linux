@@ -1641,7 +1641,7 @@ bool intel_engine_reset_needs_wa_22011802037(struct intel_gt *gt)
 	if (GRAPHICS_VER(gt->i915) < 11)
 		return false;
 
-	if (IS_MTL_GRAPHICS_STEP(gt->i915, M, STEP_A0, STEP_B0))
+	if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0))
 		return true;
 
 	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 70))
