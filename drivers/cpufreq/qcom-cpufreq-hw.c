@@ -28,7 +28,7 @@
 
 #define GT_IRQ_STATUS			BIT(2)
 
-#define MAX_FREQ_DOMAINS		3
+#define MAX_FREQ_DOMAINS		4
 
 struct qcom_cpufreq_soc_data {
 	u32 reg_enable;
