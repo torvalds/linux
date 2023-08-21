@@ -120,17 +120,17 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
 static int page_cache_pipe_buf_confirm(struct pipe_inode_info *pipe,
 				       struct pipe_buffer *buf)
 {
-	struct page *page = buf->page;
+	struct folio *folio = page_folio(buf->page);
 	int err;
 
-	if (!PageUptodate(page)) {
-		lock_page(page);
+	if (!folio_test_uptodate(folio)) {
+		folio_lock(folio);
 
 		/*
-		 * Page got truncated/unhashed. This will cause a 0-byte
+		 * Folio got truncated/unhashed. This will cause a 0-byte
 		 * splice, if this is the first page.
 		 */
-		if (!page->mapping) {
+		if (!folio->mapping) {
 			err = -ENODATA;
 			goto error;
 		}
@@ -138,20 +138,18 @@ static int page_cache_pipe_buf_confirm(struct pipe_inode_info *pipe,
 		/*
 		 * Uh oh, read-error from disk.
 		 */
-		if (!PageUptodate(page)) {
+		if (!folio_test_uptodate(folio)) {
 			err = -EIO;
 			goto error;
 		}
 
-		/*
-		 * Page is ok afterall, we are done.
-		 */
-		unlock_page(page);
+		/* Folio is ok after all, we are done */
+		folio_unlock(folio);
 	}
 
 	return 0;
 error:
-	unlock_page(page);
+	folio_unlock(folio);
 	return err;
 }
 
