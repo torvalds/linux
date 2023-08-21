@@ -183,13 +183,6 @@ static void mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	}
 }
 
-static void *mlx4_en_get_netdev(struct mlx4_dev *dev, void *ctx, u8 port)
-{
-	struct mlx4_en_dev *endev = ctx;
-
-	return endev->pndev[port];
-}
-
 static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 			  enum mlx4_dev_event event, unsigned long port)
 {
@@ -354,7 +347,6 @@ static struct mlx4_interface mlx4_en_interface = {
 	.add		= mlx4_en_add,
 	.remove		= mlx4_en_remove,
 	.event		= mlx4_en_event,
-	.get_dev	= mlx4_en_get_netdev,
 	.protocol	= MLX4_PROT_ETH,
 	.activate	= mlx4_en_activate,
 };

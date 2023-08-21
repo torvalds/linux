@@ -125,12 +125,14 @@ static struct net_device *mlx4_ib_get_netdev(struct ib_device *device,
 					     u32 port_num)
 {
 	struct mlx4_ib_dev *ibdev = to_mdev(device);
-	struct net_device *dev;
+	struct net_device *dev, *ret = NULL;
 
 	rcu_read_lock();
-	dev = mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port_num);
+	for_each_netdev_rcu(&init_net, dev) {
+		if (dev->dev.parent != ibdev->ib_dev.dev.parent ||
+		    dev->dev_port + 1 != port_num)
+			continue;
 
-	if (dev) {
 		if (mlx4_is_bonded(ibdev->dev)) {
 			struct net_device *upper = NULL;
 
@@ -143,11 +145,14 @@ static struct net_device *mlx4_ib_get_netdev(struct ib_device *device,
 					dev = active;
 			}
 		}
+
+		dev_hold(dev);
+		ret = dev;
+		break;
 	}
-	dev_hold(dev);
 
 	rcu_read_unlock();
-	return dev;
+	return ret;
 }
 
 static int mlx4_ib_update_gids_v1(struct gid_entry *gids,
@@ -2319,61 +2324,53 @@ unlock:
 	mutex_unlock(&ibdev->qp1_proxy_lock[port - 1]);
 }
 
-static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
-				 struct net_device *dev,
-				 unsigned long event)
+static void mlx4_ib_scan_netdev(struct mlx4_ib_dev *ibdev,
+				struct net_device *dev,
+				unsigned long event)
 
 {
-	struct mlx4_ib_iboe *iboe;
-	int update_qps_port = -1;
-	int port;
+	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
 
 	ASSERT_RTNL();
 
-	iboe = &ibdev->iboe;
+	if (dev->dev.parent != ibdev->ib_dev.dev.parent)
+		return;
 
 	spin_lock_bh(&iboe->lock);
-	mlx4_foreach_ib_transport_port(port, ibdev->dev) {
 
-		iboe->netdevs[port - 1] =
-			mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port);
+	iboe->netdevs[dev->dev_port] = event != NETDEV_UNREGISTER ? dev : NULL;
 
-		if (dev == iboe->netdevs[port - 1] &&
-		    (event == NETDEV_CHANGEADDR || event == NETDEV_REGISTER ||
-		     event == NETDEV_UP || event == NETDEV_CHANGE))
-			update_qps_port = port;
+	if (event == NETDEV_UP || event == NETDEV_DOWN) {
+		enum ib_port_state port_state;
+		struct ib_event ibev = { };
 
-		if (dev == iboe->netdevs[port - 1] &&
-		    (event == NETDEV_UP || event == NETDEV_DOWN)) {
-			enum ib_port_state port_state;
-			struct ib_event ibev = { };
+		if (ib_get_cached_port_state(&ibdev->ib_dev, dev->dev_port + 1,
+					     &port_state))
+			goto iboe_out;
 
-			if (ib_get_cached_port_state(&ibdev->ib_dev, port,
-						     &port_state))
-				continue;
+		if (event == NETDEV_UP &&
+		    (port_state != IB_PORT_ACTIVE ||
+		     iboe->last_port_state[dev->dev_port] != IB_PORT_DOWN))
+			goto iboe_out;
+		if (event == NETDEV_DOWN &&
+		    (port_state != IB_PORT_DOWN ||
+		     iboe->last_port_state[dev->dev_port] != IB_PORT_ACTIVE))
+			goto iboe_out;
+		iboe->last_port_state[dev->dev_port] = port_state;
 
-			if (event == NETDEV_UP &&
-			    (port_state != IB_PORT_ACTIVE ||
-			     iboe->last_port_state[port - 1] != IB_PORT_DOWN))
-				continue;
-			if (event == NETDEV_DOWN &&
-			    (port_state != IB_PORT_DOWN ||
-			     iboe->last_port_state[port - 1] != IB_PORT_ACTIVE))
-				continue;
-			iboe->last_port_state[port - 1] = port_state;
-
-			ibev.device = &ibdev->ib_dev;
-			ibev.element.port_num = port;
-			ibev.event = event == NETDEV_UP ? IB_EVENT_PORT_ACTIVE :
-							  IB_EVENT_PORT_ERR;
-			ib_dispatch_event(&ibev);
-		}
-
+		ibev.device = &ibdev->ib_dev;
+		ibev.element.port_num = dev->dev_port + 1;
+		ibev.event = event == NETDEV_UP ? IB_EVENT_PORT_ACTIVE :
+						  IB_EVENT_PORT_ERR;
+		ib_dispatch_event(&ibev);
 	}
+
+iboe_out:
 	spin_unlock_bh(&iboe->lock);
 
-	if (update_qps_port > 0)
-		mlx4_ib_update_qps(ibdev, dev, update_qps_port);
+	if (event == NETDEV_CHANGEADDR || event == NETDEV_REGISTER ||
+	    event == NETDEV_UP || event == NETDEV_CHANGE)
+		mlx4_ib_update_qps(ibdev, dev, dev->dev_port + 1);
 }
 
 static int mlx4_ib_netdev_event(struct notifier_block *this,
@@ -2386,7 +2383,7 @@ static int mlx4_ib_netdev_event(struct notifier_block *this,
 		return NOTIFY_DONE;
 
 	ibdev = container_of(this, struct mlx4_ib_dev, iboe.nb);
-	mlx4_ib_scan_netdevs(ibdev, dev, event);
+	mlx4_ib_scan_netdev(ibdev, dev, event);
 
 	return NOTIFY_DONE;
 }

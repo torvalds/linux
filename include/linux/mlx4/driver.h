@@ -59,7 +59,6 @@ struct mlx4_interface {
 	void			(*remove)(struct mlx4_dev *dev, void *context);
 	void			(*event) (struct mlx4_dev *dev, void *context,
 					  enum mlx4_dev_event event, unsigned long param);
-	void *			(*get_dev)(struct mlx4_dev *dev, void *context, u8 port);
 	void			(*activate)(struct mlx4_dev *dev, void *context);
 	struct list_head	list;
 	enum mlx4_protocol	protocol;
@@ -87,8 +86,6 @@ struct mlx4_port_map {
 };
 
 int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p);
-
-void *mlx4_get_protocol_dev(struct mlx4_dev *dev, enum mlx4_protocol proto, int port);
 
 struct devlink_port *mlx4_get_devlink_port(struct mlx4_dev *dev, int port);
 
