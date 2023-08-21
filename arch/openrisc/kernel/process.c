@@ -14,6 +14,7 @@
  */
 
 #define __KERNEL_SYSCALLS__
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -38,6 +39,7 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/spr_defs.h>
+#include <asm/switch_to.h>
 
 #include <linux/smp.h>
 
