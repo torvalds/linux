@@ -96,11 +96,6 @@ int mlx4_register_interface(struct mlx4_interface *intf)
 
 	list_add_tail(&intf->list, &intf_list);
 	list_for_each_entry(priv, &dev_list, dev_list) {
-		if (mlx4_is_mfunc(&priv->dev) && (intf->flags & MLX4_INTFF_BONDING)) {
-			mlx4_dbg(&priv->dev,
-				 "SRIOV, disabling HA mode for intf proto %d\n", intf->protocol);
-			intf->flags &= ~MLX4_INTFF_BONDING;
-		}
 		mlx4_add_device(intf, priv);
 	}
 
@@ -155,10 +150,18 @@ int mlx4_do_bond(struct mlx4_dev *dev, bool enable)
 
 	spin_lock_irqsave(&priv->ctx_lock, flags);
 	list_for_each_entry_safe(dev_ctx, temp_dev_ctx, &priv->ctx_list, list) {
-		if (dev_ctx->intf->flags & MLX4_INTFF_BONDING) {
-			list_add_tail(&dev_ctx->bond_list, &bond_list);
-			list_del(&dev_ctx->list);
+		if (!(dev_ctx->intf->flags & MLX4_INTFF_BONDING))
+			continue;
+
+		if (mlx4_is_mfunc(dev)) {
+			mlx4_dbg(dev,
+				 "SRIOV, disabled HA mode for intf proto %d\n",
+				 dev_ctx->intf->protocol);
+			continue;
 		}
+
+		list_add_tail(&dev_ctx->bond_list, &bond_list);
+		list_del(&dev_ctx->list);
 	}
 	spin_unlock_irqrestore(&priv->ctx_lock, flags);
 
