@@ -86,12 +86,13 @@ void pds_vfio_unregister_client_cmd(struct pds_vfio_pci_device *pds_vfio)
 }
 
 static int
-pds_vfio_suspend_wait_device_cmd(struct pds_vfio_pci_device *pds_vfio)
+pds_vfio_suspend_wait_device_cmd(struct pds_vfio_pci_device *pds_vfio, u8 type)
 {
 	union pds_core_adminq_cmd cmd = {
 		.lm_suspend_status = {
 			.opcode = PDS_LM_CMD_SUSPEND_STATUS,
 			.vf_id = cpu_to_le16(pds_vfio->vf_id),
+			.type = type,
 		},
 	};
 	struct device *dev = pds_vfio_to_dev(pds_vfio);
@@ -156,7 +157,7 @@ int pds_vfio_suspend_device_cmd(struct pds_vfio_pci_device *pds_vfio, u8 type)
 	 * The subsequent suspend status request(s) check if the firmware has
 	 * completed the device suspend process.
 	 */
-	return pds_vfio_suspend_wait_device_cmd(pds_vfio);
+	return pds_vfio_suspend_wait_device_cmd(pds_vfio, type);
 }
 
 int pds_vfio_resume_device_cmd(struct pds_vfio_pci_device *pds_vfio, u8 type)
