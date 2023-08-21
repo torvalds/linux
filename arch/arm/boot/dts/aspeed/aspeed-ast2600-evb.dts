@@ -341,10 +341,6 @@
 	status = "okay";
 };
 
-&fsim0 {
-	status = "okay";
-};
-
 &ehci1 {
 	status = "okay";
 };
@@ -480,6 +476,114 @@
 };
 
 /*
+ * Aspeed I3C daughter card configuration
+ *
+ * IMX3102: 2-to-1 multiplexier
+ * SPD5118: SPD Hub device
+ *
+ * +---------------------+
+ * | SoC                 |
+ * |                     |
+ * | I3C controller #0 - | --+
+ * |                     |    \                 SPD5118@50 (I3C mode)
+ * |                     |     +-----------+    |
+ * |                     |     | IMX3102@f | ---+--+---- i3c bus
+ * |                     |     | (I3C mode)|       |
+ * |                     |     +-----------+       |
+ * |                     |    /                    SPD5118@51 (I3C mode)
+ * | I3C controller #1 - | --+
+ * |                     |
+ * |                     |
+ * | I3C controller #2 - | --+
+ * |                     |    \                 SPD5118@52 (I2C mode)
+ * |                     |     +-----------+    |
+ * |                     |     | IMX3102@f | ---+--+---- i2c bus
+ * |                     |     | (I2C mode)|       |
+ * |                     |     +-----------+       |
+ * |                     |    /                    SPD5118@53 (I2C mode)
+ * | I3C controller #3 - | --+
+ * |                     |
+ * +---------------------+
+ */
+#define JESD300_SPD_I2C_MODE(bus, index, addr) \
+spd_ ## bus ## _ ## index: spd@addr { \
+	compatible = "eeprom"; \
+	reg = <0x ## addr 0x0 0x0>;	\
+}
+
+#define JESD300_SPD_I3C_MODE(bus, index, addr) \
+spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
+	reg = <0x ## addr 0x4cc 0x5118 ## index ## 000>; \
+	assigned-address = <0x ## addr>; \
+	dcr = /bits/ 8 <0xda>; \
+	bcr = /bits/ 8 <0x6>; \
+}
+
+#include <dt-bindings/i3c/i3c.h>
+
+&i3c0 {
+	status = "okay";
+	bus-context = /bits/ 8 <I3C_BUS_CONTEXT_JESD403>;
+	/* Renesas IMX3102 multiplexer w/ thermal sensor */
+	imx3102_0: i3cmux@0f,4cc31020000 {
+		reg = <0x0f 0x4cc 0x31020000>;
+		assigned-address = <0x0f>;
+		dcr = /bits/ 8 <0xd1>;
+		bcr = /bits/ 8 <0x6>;
+	};
+
+	JESD300_SPD_I3C_MODE(0, 0, 50);
+	JESD300_SPD_I3C_MODE(0, 1, 51);
+};
+
+&i3c1 {
+	status = "okay";
+	bus-context = /bits/ 8 <I3C_BUS_CONTEXT_JESD403>;
+	 /* Renesas IMX3102 multiplexer w/ thermal sensor */
+	imx3102_1: i3cmux@0f,4cc31020000 {
+		reg = <0x0f 0x4cc 0x31020000>;
+		assigned-address = <0x0f>;
+		dcr = /bits/ 8 <0xd1>;
+		bcr = /bits/ 8 <0x6>;
+	};
+
+	JESD300_SPD_I3C_MODE(1, 0, 50);
+	JESD300_SPD_I3C_MODE(1, 1, 51);
+};
+
+&i3c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i3c3_default>;
+
+	bus-context = /bits/ 8 <I3C_BUS_CONTEXT_JESD403>;
+	/* Renesas IMX3102 multiplexer w/ thermal sensor */
+	i3cmux@f {
+		compatible = "eeprom";
+		reg = <0xf 0x0 0x00000000>;
+	};
+
+	JESD300_SPD_I2C_MODE(2, 0, 52);
+	JESD300_SPD_I2C_MODE(2, 1, 53);
+};
+
+&i3c3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i3c4_default>;
+
+	bus-context = /bits/ 8 <I3C_BUS_CONTEXT_JESD403>;
+	/* Renesas IMX3102 multiplexer w/ thermal sensor */
+	i3cmux@f {
+		compatible = "eeprom";
+		reg = <0xf 0x0 0x00000000>;
+	};
+
+	JESD300_SPD_I2C_MODE(3, 0, 52);
+	JESD300_SPD_I2C_MODE(3, 1, 53);
+};
+
+/*
  * I3C loopback: connect I3C4 (target) to I3C5 (primary master)
  * Four devices will be created under /sys/bus/i3c/devices
  *   i3c-4: represent i3c4 controller, play the role as the target device
@@ -492,7 +596,7 @@
 &i3c4 {
 	initial-role = "target";
 	pid = <0x000007ec 0x05034000>;
-	dcr = <0>;
+	dcr = /bits/ 8 <0>;
 	status = "okay";
 };
 
