@@ -10,6 +10,16 @@
 #include <bpf/bpf_helpers.h>
 #include <linux/limits.h>
 
+/**
+ * is_power_of_2() - check if a value is a power of two
+ * @n: the value to check
+ *
+ * Determine whether some value is a power of two, where zero is *not*
+ * considered a power of two.  Return: true if @n is a power of 2, otherwise
+ * false.
+ */
+#define is_power_of_2(n) (n != 0 && ((n & (n - 1)) == 0))
+
 #define MAX_CPUS  4096
 
 // FIXME: These should come from system headers
@@ -187,6 +197,7 @@ int sys_enter_connect(struct syscall_enter_args *args)
         if (augmented_args == NULL)
                 return 1; /* Failure: don't filter */
 
+	_Static_assert(is_power_of_2(sizeof(augmented_args->saddr)), "sizeof(augmented_args->saddr) needs to be a power of two");
 	socklen &= sizeof(augmented_args->saddr) - 1;
 
 	bpf_probe_read(&augmented_args->saddr, socklen, sockaddr_arg);
