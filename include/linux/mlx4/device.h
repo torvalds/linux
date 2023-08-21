@@ -33,6 +33,7 @@
 #ifndef MLX4_DEVICE_H
 #define MLX4_DEVICE_H
 
+#include <linux/auxiliary_bus.h>
 #include <linux/if_ether.h>
 #include <linux/pci.h>
 #include <linux/completion.h>
@@ -887,6 +888,12 @@ struct mlx4_dev {
 	u64			regid_allmulti_array[MLX4_MAX_PORTS + 1];
 	struct mlx4_vf_dev     *dev_vfs;
 	u8  uar_page_shift;
+};
+
+struct mlx4_adev {
+	struct auxiliary_device adev;
+	struct mlx4_dev *mdev;
+	int idx;
 };
 
 struct mlx4_clock_params {

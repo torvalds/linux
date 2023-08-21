@@ -34,8 +34,11 @@
 #define MLX4_DRIVER_H
 
 #include <net/devlink.h>
+#include <linux/auxiliary_bus.h>
 #include <linux/notifier.h>
 #include <linux/mlx4/device.h>
+
+#define MLX4_ADEV_NAME "mlx4_core"
 
 struct mlx4_dev;
 
@@ -63,8 +66,16 @@ struct mlx4_interface {
 	int			flags;
 };
 
+struct mlx4_adrv {
+	struct auxiliary_driver	adrv;
+	enum mlx4_protocol	protocol;
+	int			flags;
+};
+
 int mlx4_register_interface(struct mlx4_interface *intf);
 void mlx4_unregister_interface(struct mlx4_interface *intf);
+int mlx4_register_auxiliary_driver(struct mlx4_adrv *madrv);
+void mlx4_unregister_auxiliary_driver(struct mlx4_adrv *madrv);
 
 int mlx4_register_event_notifier(struct mlx4_dev *dev,
 				 struct notifier_block *nb);

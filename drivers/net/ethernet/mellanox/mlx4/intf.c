@@ -48,6 +48,89 @@ struct mlx4_device_context {
 static LIST_HEAD(intf_list);
 static LIST_HEAD(dev_list);
 static DEFINE_MUTEX(intf_mutex);
+static DEFINE_IDA(mlx4_adev_ida);
+
+static const struct mlx4_adev_device {
+	const char *suffix;
+	bool (*is_supported)(struct mlx4_dev *dev);
+} mlx4_adev_devices[1] = {};
+
+int mlx4_adev_init(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	priv->adev_idx = ida_alloc(&mlx4_adev_ida, GFP_KERNEL);
+	if (priv->adev_idx < 0)
+		return priv->adev_idx;
+
+	priv->adev = kcalloc(ARRAY_SIZE(mlx4_adev_devices),
+			     sizeof(struct mlx4_adev *), GFP_KERNEL);
+	if (!priv->adev) {
+		ida_free(&mlx4_adev_ida, priv->adev_idx);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void mlx4_adev_cleanup(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	kfree(priv->adev);
+	ida_free(&mlx4_adev_ida, priv->adev_idx);
+}
+
+static void adev_release(struct device *dev)
+{
+	struct mlx4_adev *mlx4_adev =
+		container_of(dev, struct mlx4_adev, adev.dev);
+	struct mlx4_priv *priv = mlx4_priv(mlx4_adev->mdev);
+	int idx = mlx4_adev->idx;
+
+	kfree(mlx4_adev);
+	priv->adev[idx] = NULL;
+}
+
+static struct mlx4_adev *add_adev(struct mlx4_dev *dev, int idx)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	const char *suffix = mlx4_adev_devices[idx].suffix;
+	struct auxiliary_device *adev;
+	struct mlx4_adev *madev;
+	int ret;
+
+	madev = kzalloc(sizeof(*madev), GFP_KERNEL);
+	if (!madev)
+		return ERR_PTR(-ENOMEM);
+
+	adev = &madev->adev;
+	adev->id = priv->adev_idx;
+	adev->name = suffix;
+	adev->dev.parent = &dev->persist->pdev->dev;
+	adev->dev.release = adev_release;
+	madev->mdev = dev;
+	madev->idx = idx;
+
+	ret = auxiliary_device_init(adev);
+	if (ret) {
+		kfree(madev);
+		return ERR_PTR(ret);
+	}
+
+	ret = auxiliary_device_add(adev);
+	if (ret) {
+		auxiliary_device_uninit(adev);
+		return ERR_PTR(ret);
+	}
+	return madev;
+}
+
+static void del_adev(struct auxiliary_device *adev)
+{
+	auxiliary_device_delete(adev);
+	auxiliary_device_uninit(adev);
+}
 
 static void mlx4_add_device(struct mlx4_interface *intf, struct mlx4_priv *priv)
 {
@@ -120,12 +203,24 @@ void mlx4_unregister_interface(struct mlx4_interface *intf)
 }
 EXPORT_SYMBOL_GPL(mlx4_unregister_interface);
 
+int mlx4_register_auxiliary_driver(struct mlx4_adrv *madrv)
+{
+	return auxiliary_driver_register(&madrv->adrv);
+}
+EXPORT_SYMBOL_GPL(mlx4_register_auxiliary_driver);
+
+void mlx4_unregister_auxiliary_driver(struct mlx4_adrv *madrv)
+{
+	auxiliary_driver_unregister(&madrv->adrv);
+}
+EXPORT_SYMBOL_GPL(mlx4_unregister_auxiliary_driver);
+
 int mlx4_do_bond(struct mlx4_dev *dev, bool enable)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_device_context *dev_ctx = NULL, *temp_dev_ctx;
 	unsigned long flags;
-	int ret;
+	int i, ret;
 	LIST_HEAD(bond_list);
 
 	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_REMAP))
@@ -177,6 +272,57 @@ int mlx4_do_bond(struct mlx4_dev *dev, bool enable)
 			 dev_ctx->intf->protocol, enable ?
 			 "enabled" : "disabled");
 	}
+
+	mutex_lock(&intf_mutex);
+
+	for (i = 0; i < ARRAY_SIZE(mlx4_adev_devices); i++) {
+		struct mlx4_adev *madev = priv->adev[i];
+		struct mlx4_adrv *madrv;
+		enum mlx4_protocol protocol;
+
+		if (!madev)
+			continue;
+
+		device_lock(&madev->adev.dev);
+		if (!madev->adev.dev.driver) {
+			device_unlock(&madev->adev.dev);
+			continue;
+		}
+
+		madrv = container_of(madev->adev.dev.driver, struct mlx4_adrv,
+				     adrv.driver);
+		if (!(madrv->flags & MLX4_INTFF_BONDING)) {
+			device_unlock(&madev->adev.dev);
+			continue;
+		}
+
+		if (mlx4_is_mfunc(dev)) {
+			mlx4_dbg(dev,
+				 "SRIOV, disabled HA mode for intf proto %d\n",
+				 madrv->protocol);
+			device_unlock(&madev->adev.dev);
+			continue;
+		}
+
+		protocol = madrv->protocol;
+		device_unlock(&madev->adev.dev);
+
+		del_adev(&madev->adev);
+		priv->adev[i] = add_adev(dev, i);
+		if (IS_ERR(priv->adev[i])) {
+			mlx4_warn(dev, "Device[%d] (%s) failed to load\n", i,
+				  mlx4_adev_devices[i].suffix);
+			priv->adev[i] = NULL;
+			continue;
+		}
+
+		mlx4_dbg(dev,
+			 "Interface for protocol %d restarted with bonded mode %s\n",
+			 protocol, enable ? "enabled" : "disabled");
+	}
+
+	mutex_unlock(&intf_mutex);
+
 	return 0;
 }
 
@@ -206,10 +352,80 @@ int mlx4_unregister_event_notifier(struct mlx4_dev *dev,
 }
 EXPORT_SYMBOL(mlx4_unregister_event_notifier);
 
+static int add_drivers(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int i, ret = 0;
+
+	for (i = 0; i < ARRAY_SIZE(mlx4_adev_devices); i++) {
+		bool is_supported = false;
+
+		if (priv->adev[i])
+			continue;
+
+		if (mlx4_adev_devices[i].is_supported)
+			is_supported = mlx4_adev_devices[i].is_supported(dev);
+
+		if (!is_supported)
+			continue;
+
+		priv->adev[i] = add_adev(dev, i);
+		if (IS_ERR(priv->adev[i])) {
+			mlx4_warn(dev, "Device[%d] (%s) failed to load\n", i,
+				  mlx4_adev_devices[i].suffix);
+			/* We continue to rescan drivers and leave to the caller
+			 * to make decision if to release everything or
+			 * continue. */
+			ret = PTR_ERR(priv->adev[i]);
+			priv->adev[i] = NULL;
+		}
+	}
+	return ret;
+}
+
+static void delete_drivers(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	bool delete_all;
+	int i;
+
+	delete_all = !(dev->persist->interface_state & MLX4_INTERFACE_STATE_UP);
+
+	for (i = ARRAY_SIZE(mlx4_adev_devices) - 1; i >= 0; i--) {
+		bool is_supported = false;
+
+		if (!priv->adev[i])
+			continue;
+
+		if (mlx4_adev_devices[i].is_supported && !delete_all)
+			is_supported = mlx4_adev_devices[i].is_supported(dev);
+
+		if (is_supported)
+			continue;
+
+		del_adev(&priv->adev[i]->adev);
+		priv->adev[i] = NULL;
+	}
+}
+
+/* This function is used after mlx4_dev is reconfigured.
+ */
+static int rescan_drivers_locked(struct mlx4_dev *dev)
+{
+	lockdep_assert_held(&intf_mutex);
+
+	delete_drivers(dev);
+	if (!(dev->persist->interface_state & MLX4_INTERFACE_STATE_UP))
+		return 0;
+
+	return add_drivers(dev);
+}
+
 int mlx4_register_device(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_interface *intf;
+	int ret;
 
 	mutex_lock(&intf_mutex);
 
@@ -218,10 +434,18 @@ int mlx4_register_device(struct mlx4_dev *dev)
 	list_for_each_entry(intf, &intf_list, list)
 		mlx4_add_device(intf, priv);
 
+	ret = rescan_drivers_locked(dev);
+
 	mutex_unlock(&intf_mutex);
+
+	if (ret) {
+		mlx4_unregister_device(dev);
+		return ret;
+	}
+
 	mlx4_start_catas_poll(dev);
 
-	return 0;
+	return ret;
 }
 
 void mlx4_unregister_device(struct mlx4_dev *dev)
@@ -252,6 +476,8 @@ void mlx4_unregister_device(struct mlx4_dev *dev)
 
 	list_del(&priv->dev_list);
 	dev->persist->interface_state &= ~MLX4_INTERFACE_STATE_UP;
+
+	rescan_drivers_locked(dev);
 
 	mutex_unlock(&intf_mutex);
 }
