@@ -2609,8 +2609,11 @@ static const struct ib_device_ops mlx4_ib_dev_fs_ops = {
 	.destroy_flow = mlx4_ib_destroy_flow,
 };
 
-static void *mlx4_ib_add(struct mlx4_dev *dev)
+static int mlx4_ib_probe(struct auxiliary_device *adev,
+			 const struct auxiliary_device_id *id)
 {
+	struct mlx4_adev *madev = container_of(adev, struct mlx4_adev, adev);
+	struct mlx4_dev *dev = madev->mdev;
 	struct mlx4_ib_dev *ibdev;
 	int num_ports = 0;
 	int i, j;
@@ -2630,27 +2633,31 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	/* No point in registering a device with no ports... */
 	if (num_ports == 0)
-		return NULL;
+		return -ENODEV;
 
 	ibdev = ib_alloc_device(mlx4_ib_dev, ib_dev);
 	if (!ibdev) {
 		dev_err(&dev->persist->pdev->dev,
 			"Device struct alloc failed\n");
-		return NULL;
+		return -ENOMEM;
 	}
 
 	iboe = &ibdev->iboe;
 
-	if (mlx4_pd_alloc(dev, &ibdev->priv_pdn))
+	err = mlx4_pd_alloc(dev, &ibdev->priv_pdn);
+	if (err)
 		goto err_dealloc;
 
-	if (mlx4_uar_alloc(dev, &ibdev->priv_uar))
+	err = mlx4_uar_alloc(dev, &ibdev->priv_uar);
+	if (err)
 		goto err_pd;
 
 	ibdev->uar_map = ioremap((phys_addr_t) ibdev->priv_uar.pfn << PAGE_SHIFT,
 				 PAGE_SIZE);
-	if (!ibdev->uar_map)
+	if (!ibdev->uar_map) {
+		err = -ENOMEM;
 		goto err_uar;
+	}
 	MLX4_INIT_DOORBELL_LOCK(&ibdev->uar_lock);
 
 	ibdev->dev = dev;
@@ -2694,7 +2701,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	spin_lock_init(&iboe->lock);
 
-	if (init_node_data(ibdev))
+	err = init_node_data(ibdev);
+	if (err)
 		goto err_map;
 	mlx4_init_sl2vl_tbl(ibdev);
 
@@ -2726,6 +2734,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		new_counter_index = kmalloc(sizeof(*new_counter_index),
 					    GFP_KERNEL);
 		if (!new_counter_index) {
+			err = -ENOMEM;
 			if (allocated)
 				mlx4_counter_free(ibdev->dev, counter_index);
 			goto err_counter;
@@ -2743,8 +2752,10 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			new_counter_index =
 					kmalloc(sizeof(struct counter_index),
 						GFP_KERNEL);
-			if (!new_counter_index)
+			if (!new_counter_index) {
+				err = -ENOMEM;
 				goto err_counter;
+			}
 			new_counter_index->index = counter_index;
 			new_counter_index->allocated = 0;
 			list_add_tail(&new_counter_index->list,
@@ -2773,8 +2784,10 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 		ibdev->ib_uc_qpns_bitmap = bitmap_alloc(ibdev->steer_qpn_count,
 							GFP_KERNEL);
-		if (!ibdev->ib_uc_qpns_bitmap)
+		if (!ibdev->ib_uc_qpns_bitmap) {
+			err = -ENOMEM;
 			goto err_steer_qp_release;
+		}
 
 		if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_DMFS_IPOIB) {
 			bitmap_zero(ibdev->ib_uc_qpns_bitmap,
@@ -2794,17 +2807,21 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	for (j = 1; j <= ibdev->dev->caps.num_ports; j++)
 		atomic64_set(&iboe->mac[j - 1], ibdev->dev->caps.def_mac[j]);
 
-	if (mlx4_ib_alloc_diag_counters(ibdev))
+	err = mlx4_ib_alloc_diag_counters(ibdev);
+	if (err)
 		goto err_steer_free_bitmap;
 
-	if (ib_register_device(&ibdev->ib_dev, "mlx4_%d",
-			       &dev->persist->pdev->dev))
+	err = ib_register_device(&ibdev->ib_dev, "mlx4_%d",
+				 &dev->persist->pdev->dev);
+	if (err)
 		goto err_diag_counters;
 
-	if (mlx4_ib_mad_init(ibdev))
+	err = mlx4_ib_mad_init(ibdev);
+	if (err)
 		goto err_reg;
 
-	if (mlx4_ib_init_sriov(ibdev))
+	err = mlx4_ib_init_sriov(ibdev);
+	if (err)
 		goto err_mad;
 
 	if (!iboe->nb.notifier_call) {
@@ -2844,7 +2861,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	err = mlx4_register_event_notifier(dev, &ibdev->mlx_nb);
 	WARN(err, "failed to register mlx4 event notifier (%d)", err);
 
-	return ibdev;
+	auxiliary_set_drvdata(adev, ibdev);
+	return 0;
 
 err_notif:
 	if (ibdev->iboe.nb.notifier_call) {
@@ -2888,7 +2906,7 @@ err_pd:
 err_dealloc:
 	ib_dealloc_device(&ibdev->ib_dev);
 
-	return NULL;
+	return err;
 }
 
 int mlx4_ib_steer_qp_alloc(struct mlx4_ib_dev *dev, int count, int *qpn)
@@ -2955,9 +2973,11 @@ int mlx4_ib_steer_qp_reg(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 	return err;
 }
 
-static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
+static void mlx4_ib_remove(struct auxiliary_device *adev)
 {
-	struct mlx4_ib_dev *ibdev = ibdev_ptr;
+	struct mlx4_adev *madev = container_of(adev, struct mlx4_adev, adev);
+	struct mlx4_dev *dev = madev->mdev;
+	struct mlx4_ib_dev *ibdev = auxiliary_get_drvdata(adev);
 	int p;
 	int i;
 
@@ -3303,9 +3323,20 @@ static int mlx4_ib_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static struct mlx4_interface mlx4_ib_interface = {
-	.add		= mlx4_ib_add,
-	.remove		= mlx4_ib_remove,
+static const struct auxiliary_device_id mlx4_ib_id_table[] = {
+	{ .name = MLX4_ADEV_NAME ".ib" },
+	{},
+};
+
+MODULE_DEVICE_TABLE(auxiliary, mlx4_ib_id_table);
+
+static struct mlx4_adrv mlx4_ib_adrv = {
+	.adrv = {
+		.name	= "ib",
+		.probe	= mlx4_ib_probe,
+		.remove	= mlx4_ib_remove,
+		.id_table = mlx4_ib_id_table,
+	},
 	.protocol	= MLX4_PROT_IB_IPV6,
 	.flags		= MLX4_INTFF_BONDING
 };
@@ -3330,7 +3361,7 @@ static int __init mlx4_ib_init(void)
 	if (err)
 		goto clean_cm;
 
-	err = mlx4_register_interface(&mlx4_ib_interface);
+	err = mlx4_register_auxiliary_driver(&mlx4_ib_adrv);
 	if (err)
 		goto clean_mcg;
 
@@ -3352,7 +3383,7 @@ clean_qp_event:
 
 static void __exit mlx4_ib_cleanup(void)
 {
-	mlx4_unregister_interface(&mlx4_ib_interface);
+	mlx4_unregister_auxiliary_driver(&mlx4_ib_adrv);
 	mlx4_ib_mcg_destroy();
 	mlx4_ib_cm_destroy();
 	mlx4_ib_qp_event_cleanup();
