@@ -238,7 +238,6 @@ unsigned int hygon_genuine;
 unsigned int max_level, max_extended_level;
 unsigned int has_invariant_tsc;
 unsigned int do_nhm_platform_info;
-unsigned int no_MSR_MISC_PWR_MGMT;
 unsigned int aperf_mperf_multiplier = 1;
 double bclk;
 double base_hz;
@@ -285,6 +284,7 @@ int ignore_stdin;
 /* List of features that may diverge among different platforms */
 struct platform_features {
 	bool has_msr_misc_feature_control;	/* MSR_MISC_FEATURE_CONTROL */
+	bool has_msr_misc_pwr_mgmt;	/* MSR_MISC_PWR_MGMT */
 };
 
 struct platform_data {
@@ -293,100 +293,125 @@ struct platform_data {
 };
 
 static const struct platform_features nhm_features = {
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features nhx_features = {
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features snb_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features snx_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features ivb_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features ivx_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features hsw_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features hsx_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features hswl_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features hswg_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features bdw_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features bdwg_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features bdx_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features skl_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features cnl_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features skx_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features icx_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features spr_features = {
 	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features slv_features = {
 };
 
 static const struct platform_features slvd_features = {
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features amt_features = {
 };
 
 static const struct platform_features gmt_features = {
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features gmtd_features = {
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features gmtp_features = {
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features tmt_features = {
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features tmtd_features = {
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features knl_features = {
+	.has_msr_misc_pwr_mgmt = 1,
 };
 
 static const struct platform_features default_features = {
@@ -3944,14 +3969,12 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 		pkg_cstate_limits = icx_pkg_cstate_limits;
 		break;
 	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
-		no_MSR_MISC_PWR_MGMT = 1;
 		/* FALLTHRU */
 	case INTEL_FAM6_ATOM_SILVERMONT_D:	/* AVN */
 		pkg_cstate_limits = slv_pkg_cstate_limits;
 		break;
 	case INTEL_FAM6_ATOM_AIRMONT:	/* AMT */
 		pkg_cstate_limits = amt_pkg_cstate_limits;
-		no_MSR_MISC_PWR_MGMT = 1;
 		break;
 	case INTEL_FAM6_XEON_PHI_KNL:	/* PHI */
 		pkg_cstate_limits = phi_pkg_cstate_limits;
@@ -5576,7 +5599,7 @@ void decode_misc_pwr_mgmt_msr(void)
 	if (!do_nhm_platform_info)
 		return;
 
-	if (no_MSR_MISC_PWR_MGMT)
+	if (!platform->has_msr_misc_pwr_mgmt)
 		return;
 
 	if (!get_msr(base_cpu, MSR_MISC_PWR_MGMT, &msr))
