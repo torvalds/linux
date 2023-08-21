@@ -25,6 +25,54 @@ properties:
   interrupts:
     maxItems: 1
 
+  sda-tx-hold-ns:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [10, 20, 30, 40, 50, 60, 70]
+    default: 10
+    description: |
+      This value configures the hold tome of the transmit data (SDA) with
+      respect to the SCL edge.
+
+  timed-reset-scl-low-ns:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 10
+    maximum: 671088630
+    default: 52428800
+    description: |
+      This value configures the JESD403 timed-reset SCL low time in nanoseconds.
+
+  i3c-pp-scl-hi-period-ns:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 10
+    maximum: 2550
+    description: |
+      This value specifies the duration of the SCL high period time in
+      nanoseconds for I3C push-pull mode.
+
+  i3c-pp-scl-lo-period-ns:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 10
+    maximum: 2550
+    description: |
+      This value specifies the duration of the SCL low period time in
+      nanoseconds for I3C push-pull mode.
+
+  i3c-od-scl-hi-period-ns:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 10
+    maximum: 2550
+    description: |
+      This value specifies the duration of the SCL high period time in
+      nanoseconds for I3C open-drain mode.
+
+  i3c-od-scl-lo-period-ns:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 10
+    maximum: 2550
+    description: |
+      This value specifies the duration of the SCL low period time in
+      nanoseconds for I3C open-drain mode.
+
 required:
   - compatible
   - reg
@@ -42,6 +90,13 @@ examples:
         reg = <0x02000 0x1000>;
         interrupts = <0>;
         clocks = <&i3cclk>;
+
+        sda-tx-hold-ns = <10>;
+        timed-reset-scl-low-ns = <52428800>;
+        i3c-pp-scl-hi-period-ns = <40>;
+        i3c-pp-scl-lo-period-ns = <40>;
+        i3c-od-scl-hi-period-ns = <380>;
+        i3c-od-scl-lo-period-ns = <620>;
 
         eeprom@57{
             compatible = "atmel,24c01";
