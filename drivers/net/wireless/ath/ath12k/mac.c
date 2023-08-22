@@ -6771,7 +6771,7 @@ ath12k_mac_op_reconfig_complete(struct ieee80211_hw *hw,
 			/* After trigger disconnect, then upper layer will
 			 * trigger connect again, then the PN number of
 			 * upper layer will be reset to keep up with AP
-			 * side, hence PN number mis-match will not happened.
+			 * side, hence PN number mismatch will not happen.
 			 */
 			if (arvif->is_up &&
 			    arvif->vdev_type == WMI_VDEV_TYPE_STA &&
