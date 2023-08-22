@@ -525,9 +525,9 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 	status = "okay";
 	bus-context = /bits/ 8 <I3C_BUS_CONTEXT_JESD403>;
 	/* Renesas IMX3102 multiplexer w/ thermal sensor */
-	imx3102_0: i3cmux@0f,4cc31020000 {
-		reg = <0x0f 0x4cc 0x31020000>;
-		assigned-address = <0x0f>;
+	imx3102_0: i3cmux@f,4cc31020000 {
+		reg = <0xf 0x4cc 0x31020000>;
+		assigned-address = <0xf>;
 		dcr = /bits/ 8 <0xd1>;
 		bcr = /bits/ 8 <0x6>;
 	};
@@ -540,9 +540,9 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 	status = "okay";
 	bus-context = /bits/ 8 <I3C_BUS_CONTEXT_JESD403>;
 	 /* Renesas IMX3102 multiplexer w/ thermal sensor */
-	imx3102_1: i3cmux@0f,4cc31020000 {
-		reg = <0x0f 0x4cc 0x31020000>;
-		assigned-address = <0x0f>;
+	imx3102_1: i3cmux@f,4cc31020000 {
+		reg = <0xf 0x4cc 0x31020000>;
+		assigned-address = <0xf>;
 		dcr = /bits/ 8 <0xd1>;
 		bcr = /bits/ 8 <0x6>;
 	};
