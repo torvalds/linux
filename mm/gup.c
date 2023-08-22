@@ -2600,7 +2600,7 @@ static int gup_pte_range(pmd_t pmd, pmd_t *pmdp, unsigned long addr,
 		if (!folio)
 			goto pte_unmap;
 
-		if (unlikely(page_is_secretmem(page))) {
+		if (unlikely(folio_is_secretmem(folio))) {
 			gup_put_folio(folio, 1, flags);
 			goto pte_unmap;
 		}
