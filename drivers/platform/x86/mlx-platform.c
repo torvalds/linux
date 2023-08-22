@@ -5539,6 +5539,7 @@ static void mlxplat_poweroff(void)
 	struct mlxplat_priv *priv = platform_get_drvdata(mlxplat_dev);
 
 	regmap_write(priv->regmap, MLXPLAT_CPLD_LPC_REG_GP1_OFFSET, MLXPLAT_CPLD_HALT_MASK);
+	kernel_halt();
 }
 
 static int __init mlxplat_dmi_default_matched(const struct dmi_system_id *dmi)
