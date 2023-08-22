@@ -292,6 +292,10 @@ void iommu_device_unregister(struct iommu_device *iommu)
 	spin_lock(&iommu_device_lock);
 	list_del(&iommu->list);
 	spin_unlock(&iommu_device_lock);
+
+	/* Pairs with the alloc in generic_single_device_group() */
+	iommu_group_put(iommu->singleton_group);
+	iommu->singleton_group = NULL;
 }
 EXPORT_SYMBOL_GPL(iommu_device_unregister);
 
@@ -406,6 +410,7 @@ static int iommu_init_device(struct device *dev, const struct iommu_ops *ops)
 		ret = PTR_ERR(iommu_dev);
 		goto err_module_put;
 	}
+	dev->iommu->iommu_dev = iommu_dev;
 
 	ret = iommu_device_link(iommu_dev, dev);
 	if (ret)
@@ -420,7 +425,6 @@ static int iommu_init_device(struct device *dev, const struct iommu_ops *ops)
 	}
 	dev->iommu_group = group;
 
-	dev->iommu->iommu_dev = iommu_dev;
 	dev->iommu->max_pasids = dev_iommu_get_max_pasids(dev);
 	if (ops->is_attach_deferred)
 		dev->iommu->attach_deferred = ops->is_attach_deferred(dev);
@@ -434,6 +438,7 @@ err_release:
 err_module_put:
 	module_put(ops->owner);
 err_free:
+	dev->iommu->iommu_dev = NULL;
 	dev_iommu_free(dev);
 	return ret;
 }
@@ -1636,6 +1641,27 @@ struct iommu_group *generic_device_group(struct device *dev)
 	return iommu_group_alloc();
 }
 EXPORT_SYMBOL_GPL(generic_device_group);
+
+/*
+ * Generic device_group call-back function. It just allocates one
+ * iommu-group per iommu driver instance shared by every device
+ * probed by that iommu driver.
+ */
+struct iommu_group *generic_single_device_group(struct device *dev)
+{
+	struct iommu_device *iommu = dev->iommu->iommu_dev;
+
+	if (!iommu->singleton_group) {
+		struct iommu_group *group;
+
+		group = iommu_group_alloc();
+		if (IS_ERR(group))
+			return group;
+		iommu->singleton_group = group;
+	}
+	return iommu_group_ref_get(iommu->singleton_group);
+}
+EXPORT_SYMBOL_GPL(generic_single_device_group);
 
 /*
  * Use standard PCI bus topology, isolation features, and DMA alias quirks
