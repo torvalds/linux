@@ -1755,9 +1755,9 @@ static void xudc_handle_setup(struct xusb_udc *udc)
 	memcpy(&setup, ep0rambase, 8);
 
 	udc->setup = setup;
-	udc->setup.wValue = cpu_to_le16(setup.wValue);
-	udc->setup.wIndex = cpu_to_le16(setup.wIndex);
-	udc->setup.wLength = cpu_to_le16(setup.wLength);
+	udc->setup.wValue = cpu_to_le16((u16 __force)setup.wValue);
+	udc->setup.wIndex = cpu_to_le16((u16 __force)setup.wIndex);
+	udc->setup.wLength = cpu_to_le16((u16 __force)setup.wLength);
 
 	/* Clear previous requests */
 	xudc_nuke(ep0, -ECONNRESET);
