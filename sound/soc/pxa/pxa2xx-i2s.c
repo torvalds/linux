@@ -329,6 +329,8 @@ static int  pxa2xx_i2s_remove(struct snd_soc_dai *dai)
 		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
 
 static const struct snd_soc_dai_ops pxa_i2s_dai_ops = {
+	.probe		= pxa2xx_i2s_probe,
+	.remove		= pxa2xx_i2s_remove,
 	.startup	= pxa2xx_i2s_startup,
 	.shutdown	= pxa2xx_i2s_shutdown,
 	.trigger	= pxa2xx_i2s_trigger,
@@ -338,8 +340,6 @@ static const struct snd_soc_dai_ops pxa_i2s_dai_ops = {
 };
 
 static struct snd_soc_dai_driver pxa_i2s_dai = {
-	.probe = pxa2xx_i2s_probe,
-	.remove = pxa2xx_i2s_remove,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
