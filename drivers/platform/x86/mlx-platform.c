@@ -343,6 +343,7 @@
  * @hotplug_resources: system hotplug resources
  * @hotplug_resources_size: size of system hotplug resources
  * @hi2c_main_init_status: init status of I2C main bus
+ * @irq_fpga: FPGA IRQ number
  */
 struct mlxplat_priv {
 	struct platform_device *pdev_i2c;
@@ -356,6 +357,7 @@ struct mlxplat_priv {
 	struct resource *hotplug_resources;
 	unsigned int hotplug_resources_size;
 	u8 i2c_main_init_status;
+	int irq_fpga;
 };
 
 static struct platform_device *mlxplat_dev;
@@ -6188,6 +6190,8 @@ static int mlxplat_post_init(struct mlxplat_priv *priv)
 	/* Add hotplug driver */
 	if (mlxplat_hotplug) {
 		mlxplat_hotplug->regmap = priv->regmap;
+		if (priv->irq_fpga)
+			mlxplat_hotplug->irq = priv->irq_fpga;
 		priv->pdev_hotplug =
 		platform_device_register_resndata(&mlxplat_dev->dev,
 						  "mlxreg-hotplug", PLATFORM_DEVID_NONE,
@@ -6398,11 +6402,15 @@ static int mlxplat_probe(struct platform_device *pdev)
 	struct resource *hotplug_resources = NULL;
 	struct acpi_device *acpi_dev;
 	struct mlxplat_priv *priv;
-	int i, err;
+	int irq_fpga = 0, i, err;
 
 	acpi_dev = ACPI_COMPANION(&pdev->dev);
-	if (acpi_dev)
+	if (acpi_dev) {
+		irq_fpga = acpi_dev_gpio_irq_get(acpi_dev, 0);
+		if (irq_fpga < 0)
+			return -ENODEV;
 		mlxplat_dev = pdev;
+	}
 
 	err = mlxplat_pre_init(&hotplug_resources, &hotplug_resources_size);
 	if (err)
@@ -6417,6 +6425,7 @@ static int mlxplat_probe(struct platform_device *pdev)
 	platform_set_drvdata(mlxplat_dev, priv);
 	priv->hotplug_resources = hotplug_resources;
 	priv->hotplug_resources_size = hotplug_resources_size;
+	priv->irq_fpga = irq_fpga;
 
 	if (!mlxplat_regmap_config)
 		mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config;
