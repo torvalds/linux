@@ -17,6 +17,19 @@
 #include "ipc4-topology.h"
 #include "ops.h"
 
+/*
+ * The ignore_cpc flag can be used to ignore the CPC value for all modules by
+ * using 0 instead.
+ * The CPC is sent to the firmware along with the SOF_IPC4_MOD_INIT_INSTANCE
+ * message and it is used for clock scaling.
+ * 0 as CPC value will instruct the firmware to use maximum frequency, thus
+ * deactivating the clock scaling.
+ */
+static bool ignore_cpc;
+module_param_named(ipc4_ignore_cpc, ignore_cpc, bool, 0444);
+MODULE_PARM_DESC(ipc4_ignore_cpc,
+		 "Ignore CPC values. This option will disable clock scaling in firmware.");
+
 #define SOF_IPC4_GAIN_PARAM_ID  0
 #define SOF_IPC4_TPLG_ABI_SIZE 6
 #define SOF_IPC4_CHAIN_DMA_BUF_SIZE_MS 2
@@ -970,9 +983,16 @@ sof_ipc4_update_resource_usage(struct snd_sof_dev *sdev, struct snd_sof_widget *
 	/* Update base_config->cpc from the module manifest */
 	sof_ipc4_update_cpc_from_manifest(sdev, fw_module, base_config);
 
-	dev_dbg(sdev->dev, "%s: ibs / obs / cpc: %u / %u / %u\n",
-		swidget->widget->name, base_config->ibs, base_config->obs,
-		base_config->cpc);
+	if (ignore_cpc) {
+		dev_dbg(sdev->dev, "%s: ibs / obs: %u / %u, forcing cpc to 0 from %u\n",
+			swidget->widget->name, base_config->ibs, base_config->obs,
+			base_config->cpc);
+		base_config->cpc = 0;
+	} else {
+		dev_dbg(sdev->dev, "%s: ibs / obs / cpc: %u / %u / %u\n",
+			swidget->widget->name, base_config->ibs, base_config->obs,
+			base_config->cpc);
+	}
 }
 
 static int sof_ipc4_widget_assign_instance_id(struct snd_sof_dev *sdev,
