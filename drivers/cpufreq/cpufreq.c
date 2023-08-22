@@ -86,6 +86,7 @@ static void cpufreq_governor_limits(struct cpufreq_policy *policy);
 static int cpufreq_set_policy(struct cpufreq_policy *policy,
 			      struct cpufreq_governor *new_gov,
 			      unsigned int new_pol);
+static bool cpufreq_boost_supported(void);
 
 /*
  * Two notifier lists: the "policy" list is involved in the
@@ -623,6 +624,40 @@ static ssize_t store_boost(struct kobject *kobj, struct kobj_attribute *attr,
 }
 define_one_global_rw(boost);
 
+static ssize_t show_local_boost(struct cpufreq_policy *policy, char *buf)
+{
+	return sysfs_emit(buf, "%d\n", policy->boost_enabled);
+}
+
+static ssize_t store_local_boost(struct cpufreq_policy *policy,
+				 const char *buf, size_t count)
+{
+	int ret, enable;
+
+	ret = kstrtoint(buf, 10, &enable);
+	if (ret || enable < 0 || enable > 1)
+		return -EINVAL;
+
+	if (!cpufreq_driver->boost_enabled)
+		return -EINVAL;
+
+	if (policy->boost_enabled == enable)
+		return count;
+
+	cpus_read_lock();
+	ret = cpufreq_driver->set_boost(policy, enable);
+	cpus_read_unlock();
+
+	if (ret)
+		return ret;
+
+	policy->boost_enabled = enable;
+
+	return count;
+}
+
+static struct freq_attr local_boost = __ATTR(boost, 0644, show_local_boost, store_local_boost);
+
 static struct cpufreq_governor *find_governor(const char *str_governor)
 {
 	struct cpufreq_governor *t;
@@ -1053,6 +1088,12 @@ static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
 
 	if (cpufreq_driver->bios_limit) {
 		ret = sysfs_create_file(&policy->kobj, &bios_limit.attr);
+		if (ret)
+			return ret;
+	}
+
+	if (cpufreq_boost_supported()) {
+		ret = sysfs_create_file(&policy->kobj, &local_boost.attr);
 		if (ret)
 			return ret;
 	}
@@ -2718,6 +2759,8 @@ int cpufreq_boost_trigger_state(int state)
 		ret = cpufreq_driver->set_boost(policy, state);
 		if (ret)
 			goto err_reset_state;
+
+		policy->boost_enabled = state;
 	}
 	cpus_read_unlock();
 
