@@ -316,7 +316,7 @@ void mlx5_esw_ipsec_restore_dest_uplink(struct mlx5_core_dev *mdev)
 			err = mlx5_esw_ipsec_modify_flow_dests(esw, flow);
 			if (err)
 				mlx5_core_warn_once(mdev,
-						    "Faided to modify flow dests for IPsec");
+						    "Failed to modify flow dests for IPsec");
 		}
 		rhashtable_walk_stop(&iter);
 		rhashtable_walk_exit(&iter);

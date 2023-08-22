@@ -259,8 +259,11 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 	int err;
 
 	irq = kzalloc(sizeof(*irq), GFP_KERNEL);
-	if (!irq)
+	if (!irq || !zalloc_cpumask_var(&irq->mask, GFP_KERNEL)) {
+		kfree(irq);
 		return ERR_PTR(-ENOMEM);
+	}
+
 	if (!i || !pci_msix_can_alloc_dyn(dev->pdev)) {
 		/* The vector at index 0 is always statically allocated. If
 		 * dynamic irq is not supported all vectors are statically
@@ -297,11 +300,7 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 		mlx5_core_err(dev, "Failed to request irq. err = %d\n", err);
 		goto err_req_irq;
 	}
-	if (!zalloc_cpumask_var(&irq->mask, GFP_KERNEL)) {
-		mlx5_core_warn(dev, "zalloc_cpumask_var failed\n");
-		err = -ENOMEM;
-		goto err_cpumask;
-	}
+
 	if (af_desc) {
 		cpumask_copy(irq->mask, &af_desc->mask);
 		irq_set_affinity_and_hint(irq->map.virq, irq->mask);
@@ -319,8 +318,6 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 err_xa:
 	if (af_desc)
 		irq_update_affinity_hint(irq->map.virq, NULL);
-	free_cpumask_var(irq->mask);
-err_cpumask:
 	free_irq(irq->map.virq, &irq->nh);
 err_req_irq:
 #ifdef CONFIG_RFS_ACCEL
@@ -333,6 +330,7 @@ err_irq_rmap:
 	if (i && pci_msix_can_alloc_dyn(dev->pdev))
 		pci_msix_free_irq(dev->pdev, irq->map);
 err_alloc_irq:
+	free_cpumask_var(irq->mask);
 	kfree(irq);
 	return ERR_PTR(err);
 }
