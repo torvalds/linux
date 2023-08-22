@@ -2373,6 +2373,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_l1_switch_pwr_events_items_data[]
 		.reg = MLXPLAT_CPLD_LPC_REG_PWRB_OFFSET,
 		.mask = MLXPLAT_CPLD_PWR_BUTTON_MASK,
 		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
 		.hpdev.notifier = &mlxplat_mlxcpld_l1_switch_pwr_events_notifier,
 	},
 };
@@ -2433,6 +2434,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_l1_switch_health_events_items_dat
 		.reg = MLXPLAT_CPLD_LPC_REG_BRD_OFFSET,
 		.mask = MLXPLAT_CPLD_INTRUSION_MASK,
 		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+		.hpdev.action = MLXREG_HOTPLUG_DEVICE_NO_ACTION,
 		.hpdev.notifier = &mlxplat_mlxcpld_l1_switch_intrusion_events_notifier,
 	},
 	{
