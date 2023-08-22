@@ -108,6 +108,7 @@ struct pcmtst_buf_iter {
 	size_t total_bytes;			// Total bytes read/written
 	size_t chan_block;			// Bytes in one channel buffer when non-interleaved
 	struct snd_pcm_substream *substream;
+	bool suspend;				// We need to pause timer without shutting it down
 	struct timer_list timer_instance;
 };
 
@@ -115,7 +116,8 @@ static struct snd_pcm_hardware snd_pcmtst_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_NONINTERLEAVED |
-		 SNDRV_PCM_INFO_MMAP_VALID),
+		 SNDRV_PCM_INFO_MMAP_VALID |
+		 SNDRV_PCM_INFO_PAUSE),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		8000,
@@ -346,6 +348,9 @@ static void timer_timeout(struct timer_list *data)
 	v_iter = from_timer(v_iter, data, timer_instance);
 	substream = v_iter->substream;
 
+	if (v_iter->suspend)
+		return;
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK && !v_iter->is_buf_corrupted)
 		check_buf_block(v_iter, substream->runtime);
 	else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
@@ -358,7 +363,9 @@ static void timer_timeout(struct timer_list *data)
 		v_iter->period_pos %= v_iter->period_bytes;
 		snd_pcm_period_elapsed(substream);
 	}
-	mod_timer(&v_iter->timer_instance, jiffies + TIMER_INTERVAL + inject_delay);
+
+	if (!v_iter->suspend)
+		mod_timer(&v_iter->timer_instance, jiffies + TIMER_INTERVAL + inject_delay);
 }
 
 static int snd_pcmtst_pcm_open(struct snd_pcm_substream *substream)
@@ -373,19 +380,15 @@ static int snd_pcmtst_pcm_open(struct snd_pcm_substream *substream)
 	if (!v_iter)
 		return -ENOMEM;
 
+	v_iter->substream = substream;
 	runtime->hw = snd_pcmtst_hw;
 	runtime->private_data = v_iter;
-	v_iter->substream = substream;
-	v_iter->buf_pos = 0;
-	v_iter->is_buf_corrupted = false;
-	v_iter->period_pos = 0;
-	v_iter->total_bytes = 0;
 
 	playback_capture_test = 0;
 	ioctl_reset_test = 0;
 
 	timer_setup(&v_iter->timer_instance, timer_timeout, 0);
-	mod_timer(&v_iter->timer_instance, jiffies + TIMER_INTERVAL);
+
 	return 0;
 }
 
@@ -400,10 +403,40 @@ static int snd_pcmtst_pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static inline void reset_buf_iterator(struct pcmtst_buf_iter *v_iter)
+{
+	v_iter->buf_pos = 0;
+	v_iter->is_buf_corrupted = false;
+	v_iter->period_pos = 0;
+	v_iter->total_bytes = 0;
+}
+
+static inline void start_pcmtest_timer(struct pcmtst_buf_iter *v_iter)
+{
+	v_iter->suspend = false;
+	mod_timer(&v_iter->timer_instance, jiffies + TIMER_INTERVAL);
+}
+
 static int snd_pcmtst_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
+	struct pcmtst_buf_iter *v_iter = substream->runtime->private_data;
+
 	if (inject_trigger_err)
 		return -EINVAL;
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+		reset_buf_iterator(v_iter);
+		start_pcmtest_timer(v_iter);
+		break;
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		start_pcmtest_timer(v_iter);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		// We can't call timer_shutdown_sync here, as it is forbidden to sleep here
+		v_iter->suspend = true;
+		break;
+	}
 
 	return 0;
 }
