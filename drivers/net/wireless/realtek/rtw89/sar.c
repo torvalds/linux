@@ -211,6 +211,7 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 		case RTW89_TAS_STATE_DPR_ON:
 			delta = rtw89_txpwr_tas_to_sar(sar_hdl, tas->delta);
 			cfg -= delta;
+			break;
 		case RTW89_TAS_STATE_DPR_FORBID:
 		default:
 			break;
