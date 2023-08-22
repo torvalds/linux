@@ -72,6 +72,8 @@ static void _dpu_encoder_phys_cmd_update_intf_cfg(
 	if (intf_cfg.dsc != 0)
 		cmd_mode_cfg.data_compress = true;
 
+	cmd_mode_cfg.wide_bus_en = dpu_encoder_is_widebus_enabled(phys_enc->parent);
+
 	if (phys_enc->hw_intf->ops.program_intf_cmd_cfg)
 		phys_enc->hw_intf->ops.program_intf_cmd_cfg(phys_enc->hw_intf, &cmd_mode_cfg);
 }

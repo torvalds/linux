@@ -521,6 +521,9 @@ static void dpu_hw_intf_program_intf_cmd_cfg(struct dpu_hw_intf *ctx,
 	if (cmd_mode_cfg->data_compress)
 		intf_cfg2 |= INTF_CFG2_DCE_DATA_COMPRESS;
 
+	if (cmd_mode_cfg->wide_bus_en)
+		intf_cfg2 |= INTF_CFG2_DATABUS_WIDEN;
+
 	DPU_REG_WRITE(&ctx->hw, INTF_CONFIG2, intf_cfg2);
 }
 
@@ -545,6 +548,10 @@ static void _setup_intf_ops(struct dpu_hw_intf_ops *ops,
 		ops->disable_autorefresh = dpu_hw_intf_disable_autorefresh;
 	}
 
+	/* Technically, INTF_CONFIG2 is present for DPU 5.0+, but
+	 * we can configure it for DPU 7.0+ since the wide bus and DSC flags
+	 * would not be set for DPU < 7.0 anyways
+	 */
 	if (mdss_rev->core_major_ver >= 7)
 		ops->program_intf_cmd_cfg = dpu_hw_intf_program_intf_cmd_cfg;
 }
