@@ -3066,6 +3066,7 @@ static void __init of_unittest_overlay_notify(void)
 static void __init of_unittest_overlay(void)
 {
 	struct device_node *bus_np = NULL;
+	unsigned int i;
 
 	if (platform_driver_register(&unittest_driver)) {
 		unittest(0, "could not register unittest driver\n");
@@ -3103,7 +3104,8 @@ static void __init of_unittest_overlay(void)
 	of_unittest_overlay_2();
 	of_unittest_overlay_3();
 	of_unittest_overlay_4();
-	of_unittest_overlay_5();
+	for (i = 0; i < 3; i++)
+		of_unittest_overlay_5();
 	of_unittest_overlay_6();
 	of_unittest_overlay_8();
 
