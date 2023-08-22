@@ -1232,7 +1232,7 @@ static int rkvenc_init(struct mpp_dev *mpp)
 	}
 	INIT_WORK(&enc->iommu_work, rkvenc_iommu_handle_work);
 
-	mpp->iommu_info->hdl = rkvenc_iommu_fault_handle;
+	mpp->fault_handler = rkvenc_iommu_fault_handle;
 
 	return ret;
 }

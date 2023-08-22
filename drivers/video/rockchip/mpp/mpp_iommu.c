@@ -455,6 +455,9 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 		return 0;
 	}
 
+	if (mpp->cur_task)
+		mpp_task_dump_mem_region(mpp, mpp->cur_task);
+
 	if (mpp->dev_ops && mpp->dev_ops->dump_dev)
 		mpp->dev_ops->dump_dev(mpp);
 	else

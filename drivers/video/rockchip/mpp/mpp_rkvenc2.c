@@ -2463,8 +2463,7 @@ static int rkvenc_core_probe(struct platform_device *pdev)
 	}
 	mpp->session_max_buffers = RKVENC_SESSION_MAX_BUFFERS;
 	enc->hw_info = to_rkvenc_info(mpp->var->hw_info);
-	if (mpp->iommu_info)
-		mpp->iommu_info->hdl = rkvenc2_iommu_fault_handle;
+	mpp->fault_handler = rkvenc2_iommu_fault_handle;
 	rkvenc_procfs_init(mpp);
 	rkvenc_procfs_ccu_init(mpp);
 

@@ -586,6 +586,7 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 	mpp_dev_reset(mpp);
 	mpp_power_off(mpp);
 
+	mpp_iommu_dev_deactivate(mpp->iommu_info, mpp);
 	set_bit(TASK_STATE_TIMEOUT, &task->state);
 	set_bit(TASK_STATE_DONE, &task->state);
 	/* Wake up the GET thread */

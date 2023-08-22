@@ -1429,7 +1429,7 @@ static int rkvdec_3328_init(struct mpp_dev *mpp)
 		goto done;
 	}
 	dec->aux_iova = -1;
-	mpp->iommu_info->hdl = rkvdec_3328_iommu_hdl;
+	mpp->fault_handler = rkvdec_3328_iommu_hdl;
 
 	ret = rkvdec_devfreq_init(mpp);
 done:
