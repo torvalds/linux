@@ -127,6 +127,9 @@
 
 		pcie0: pcie@2000 {
 			reg = <0x00002000 0x1000>;
+
+			#address-cells = <3>;
+			#size-cells = <2>;
 		};
 
 		usb2: usb2@4000 {
@@ -156,8 +159,6 @@
 			};
 
 			ohci: usb@d000 {
-				#usb-cells = <0>;
-
 				compatible = "generic-ohci";
 				reg = <0xd000 0x1000>;
 				interrupt-parent = <&gic>;
@@ -180,6 +181,12 @@
 
 		gmac0: ethernet@5000 {
 			reg = <0x5000 0x1000>;
+			phy-mode = "internal";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 
 			mdio {
 				#address-cells = <1>;
@@ -191,10 +198,44 @@
 
 					status = "disabled";
 
-					/* ports are defined in board DTS */
 					ports {
 						#address-cells = <1>;
 						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+						};
+
+						port@1 {
+							reg = <1>;
+						};
+
+						port@2 {
+							reg = <2>;
+						};
+
+						port@3 {
+							reg = <3>;
+						};
+
+						port@4 {
+							reg = <4>;
+						};
+
+						port@5 {
+							reg = <5>;
+							ethernet = <&gmac1>;
+
+							fixed-link {
+								speed = <1000>;
+								full-duplex;
+							};
+						};
+
+						port@8 {
+							reg = <8>;
+							ethernet = <&gmac0>;
+						};
 					};
 				};
 			};
@@ -202,6 +243,12 @@
 
 		gmac1: ethernet@b000 {
 			reg = <0xb000 0x1000>;
+			phy-mode = "internal";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 		};
 
 		pmu@12000 {

@@ -8,7 +8,7 @@
 	interrupt-parent = <&intc>;
 
 	soc {
-		dma: dma@7e007000 {
+		dma: dma-controller@7e007000 {
 			compatible = "brcm,bcm2835-dma";
 			reg = <0x7e007000 0xf00>;
 			interrupts = <1 16>,
