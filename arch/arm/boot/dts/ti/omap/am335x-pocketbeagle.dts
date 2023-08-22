@@ -121,7 +121,7 @@
 		"P2.24",
 		"P2.33",
 		"P2.22",
-		"P2.18",
+		"P2.18 [PRU0.15i]",
 		"NC",
 		"NC",
 		"P2.01 [PWM1A]",
@@ -271,15 +271,6 @@
 		pinctrl-single,bias-pulldown   = < 0x10  0x00  0x10  0x18>;
 	};
 
-	/* P2_18 (ZCZ ball U13) gpio1_15 0x83c PIN 15 */
-	P2_18_gpio: P2-18-gpio-pins {
-		pinctrl-single,pins = <
-			AM33XX_PADCONF(AM335X_PIN_GPMC_AD15, PIN_INPUT_PULLUP, MUX_MODE7)
-		>;
-		pinctrl-single,bias-pullup   =   < 0x10  0x10  0x00  0x18>;
-		pinctrl-single,bias-pulldown   = < 0x10  0x00  0x10  0x18>;
-	};
-
 	/* P2_10 (ZCZ ball R14) gpio1_20 0x850 PIN 20 */
 	P2_10_gpio: P2-10-gpio-pins {
 		pinctrl-single,pins = <
@@ -405,6 +396,27 @@
 			AM33XX_PADCONF(AM335X_PIN_GPMC_WPN, PIN_OUTPUT_PULLDOWN, MUX_MODE6)	/* (U17) gpmc_wpn.uart4_txd */
 		>;
 	};
+
+	pru0_pins: pinmux-pru0-pins {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_XDMA_EVENT_INTR1, PIN_INPUT_PULLUP, MUX_MODE5)/* (D14) xdma_event_intr1.pr1_pru0_pru_r31_16 */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_AHCLKX, PIN_OUTPUT_PULLDOWN, MUX_MODE5)/* (A14) mcasp0_ahclkx.pr1_pru0_pru_r30_7 */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_ACLKR, PIN_OUTPUT_PULLDOWN, MUX_MODE5)	/* (B12) mcasp0_acklr.pr1_pru0_pru_r30_4 */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_FSX, PIN_OUTPUT_PULLDOWN, MUX_MODE5)	/* (B13) mcasp0_fsx.pr1_pru0_pru_r30_1 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD15, PIN_INPUT_PULLUP, MUX_MODE6)	/* (U13) gpmc_ad15.pr1_pru0_pru_r31_15 */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_AXR1, PIN_OUTPUT_PULLDOWN, MUX_MODE5)	/* (D13) mcasp0_axr1.pr1_pru0_pru_r30_6 */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_AHCLKR, PIN_OUTPUT_PULLDOWN, MUX_MODE5)/* (C12) mcasp0_ahclkr.pr1_pru0_pru_r30_3 */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_AXR0, PIN_OUTPUT_PULLDOWN, MUX_MODE5)	/* (D12) mcasp0_axr0.pr1_pru0_pru_r30_2 */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_FSR, PIN_OUTPUT_PULLDOWN, MUX_MODE5)	/* (C13) mcasp0_fsr.pr1_pru0_pru_r30_5 */
+		>;
+	};
+
+	pru1_pins: pinmux-pru1-pins {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_LCD_AC_BIAS_EN, PIN_OUTPUT_PULLDOWN, MUX_MODE5)/*(R6) lcd_ac_bias_en.pr1_pru1_pru_r30_11 */
+			AM33XX_PADCONF(AM335X_PIN_LCD_PCLK, PIN_OUTPUT_PULLDOWN, MUX_MODE5)	/* (V5) lcd_pclk.pr1_pru1_pru_r30_10 */
+		>;
+	};
 };
 
 &epwmss0 {
@@ -485,4 +497,18 @@
 
 &usb1 {
 	dr_mode = "host";
+};
+
+&pruss_tm {
+	status = "okay";
+};
+
+&pru0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pru0_pins>;
+};
+
+&pru1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pru1_pins>;
 };
