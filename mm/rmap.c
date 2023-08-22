@@ -915,6 +915,7 @@ int page_referenced(struct page *page,
 
 	return rwc.contended ? -1 : pra.referenced;
 }
+EXPORT_SYMBOL_GPL(page_referenced);
 
 static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 			    unsigned long address, void *arg)
