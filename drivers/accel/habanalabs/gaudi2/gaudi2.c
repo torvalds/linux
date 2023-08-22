@@ -7798,6 +7798,7 @@ static inline bool is_info_event(u32 event)
 	switch (event) {
 	case GAUDI2_EVENT_CPU_CPLD_SHUTDOWN_CAUSE:
 	case GAUDI2_EVENT_CPU_FIX_POWER_ENV_S ... GAUDI2_EVENT_CPU_FIX_THERMAL_ENV_E:
+	case GAUDI2_EVENT_ARC_PWR_BRK_ENTRY ... GAUDI2_EVENT_ARC_PWR_RD_MODE3:
 
 	/* return in case of NIC status event - these events are received periodically and not as
 	 * an indication to an error.
@@ -10176,6 +10177,17 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		error_count = GAUDI2_NA_EVENT_CAUSE;
 		is_critical = true;
+		break;
+
+	case GAUDI2_EVENT_ARC_PWR_BRK_ENTRY:
+	case GAUDI2_EVENT_ARC_PWR_BRK_EXT:
+	case GAUDI2_EVENT_ARC_PWR_RD_MODE0:
+	case GAUDI2_EVENT_ARC_PWR_RD_MODE1:
+	case GAUDI2_EVENT_ARC_PWR_RD_MODE2:
+	case GAUDI2_EVENT_ARC_PWR_RD_MODE3:
+		error_count = GAUDI2_NA_EVENT_CAUSE;
+		dev_info_ratelimited(hdev->dev, "%s event received\n",
+					gaudi2_irq_map_table[event_type].name);
 		break;
 
 	default:
