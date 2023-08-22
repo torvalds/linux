@@ -752,13 +752,13 @@ static int cdns_dsi_mode2cfg(struct cdns_dsi *dsi,
 		dsi_cfg->hsa = 117-DSI_HSA_FRAME_OVERHEAD;
 		dsi_cfg->hbp = 115-DSI_HBP_FRAME_OVERHEAD;
 		dsi_cfg->hfp = 209-DSI_HFP_FRAME_OVERHEAD;
-	} else if (output->dev->channel == 1){//raxda 8 inch config
+	} else if (output->dev->channel == 2){//raxda 8 inch config
 		dsi_cfg->hsa = 45-DSI_HSA_FRAME_OVERHEAD;
 		dsi_cfg->hbp = 134-DSI_HBP_FRAME_OVERHEAD;
 		dsi_cfg->hfp = 356-DSI_HFP_FRAME_OVERHEAD;
 
 	}
-	else if (output->dev->channel == 2){//raxda 10 inch config
+	else if (output->dev->channel == 1){//raxda 10 inch config
 		dsi_cfg->hsa = 405-DSI_HSA_FRAME_OVERHEAD;
 		dsi_cfg->hbp = 403-DSI_HBP_FRAME_OVERHEAD;
 		dsi_cfg->hfp = 396-DSI_HFP_FRAME_OVERHEAD;
@@ -845,9 +845,9 @@ static int cdns_dsi_check_conf(struct cdns_dsi *dsi,
 
 	if (output->dev->channel == 0) {
 		phy_cfg->hs_clk_rate = 750000000;//seeed
-	} else if (output->dev->channel == 1){
-		phy_cfg->hs_clk_rate = 490000000;//8 inch
 	} else if (output->dev->channel == 2){
+		phy_cfg->hs_clk_rate = 490000000;//8 inch
+	} else if (output->dev->channel == 1){
 		phy_cfg->hs_clk_rate = 980000000;//10 inch
 	}
 

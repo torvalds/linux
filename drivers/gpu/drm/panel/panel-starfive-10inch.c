@@ -246,7 +246,7 @@ static int panel_probe(struct i2c_client *client, const struct i2c_device_id *id
 	struct device *dev = &client->dev;
 	struct mipi_dsi_device_info info = {
 		.type = DSI_DRIVER_NAME,
-		.channel = 2, //0,
+		.channel = 1, //0,
 		.node = NULL,
 	};
 
@@ -390,7 +390,7 @@ static int starfive_dsi_probe(struct mipi_dsi_device *dsi)
 	 dsi->mode_flags = MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE ;
 	 dsi->format = MIPI_DSI_FMT_RGB888;
 	 dsi->lanes = 4;
-	 dsi->channel = 2;
+	 dsi->channel = 1;
 	 dsi->hs_rate = 980000000;
 
 	 ret = mipi_dsi_attach(dsi);
