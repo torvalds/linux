@@ -39,6 +39,26 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 
 	___activate_traps(vcpu);
 
+	if (has_cntpoff()) {
+		struct timer_map map;
+
+		get_timer_map(vcpu, &map);
+
+		/*
+		 * We're entrering the guest. Reload the correct
+		 * values from memory now that TGE is clear.
+		 */
+		if (map.direct_ptimer == vcpu_ptimer(vcpu))
+			val = __vcpu_sys_reg(vcpu, CNTP_CVAL_EL0);
+		if (map.direct_ptimer == vcpu_hptimer(vcpu))
+			val = __vcpu_sys_reg(vcpu, CNTHP_CVAL_EL2);
+
+		if (map.direct_ptimer) {
+			write_sysreg_el0(val, SYS_CNTP_CVAL);
+			isb();
+		}
+	}
+
 	val = read_sysreg(cpacr_el1);
 	val |= CPACR_ELx_TTA;
 	val &= ~(CPACR_EL1_ZEN_EL0EN | CPACR_EL1_ZEN_EL1EN |
@@ -76,6 +96,30 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 	___deactivate_traps(vcpu);
 
 	write_sysreg(HCR_HOST_VHE_FLAGS, hcr_el2);
+
+	if (has_cntpoff()) {
+		struct timer_map map;
+		u64 val, offset;
+
+		get_timer_map(vcpu, &map);
+
+		/*
+		 * We're exiting the guest. Save the latest CVAL value
+		 * to memory and apply the offset now that TGE is set.
+		 */
+		val = read_sysreg_el0(SYS_CNTP_CVAL);
+		if (map.direct_ptimer == vcpu_ptimer(vcpu))
+			__vcpu_sys_reg(vcpu, CNTP_CVAL_EL0) = val;
+		if (map.direct_ptimer == vcpu_hptimer(vcpu))
+			__vcpu_sys_reg(vcpu, CNTHP_CVAL_EL2) = val;
+
+		offset = read_sysreg_s(SYS_CNTPOFF_EL2);
+
+		if (map.direct_ptimer && offset) {
+			write_sysreg_el0(val + offset, SYS_CNTP_CVAL);
+			isb();
+		}
+	}
 
 	/*
 	 * ARM errata 1165522 and 1530923 require the actual execution of the
