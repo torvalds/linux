@@ -269,6 +269,7 @@ out:
 
 static int mcp3911_calc_scale_table(struct mcp3911 *adc)
 {
+	struct device *dev = &adc->spi->dev;
 	u32 ref = MCP3911_INT_VREF_MV;
 	u32 div;
 	int ret;
@@ -277,7 +278,7 @@ static int mcp3911_calc_scale_table(struct mcp3911 *adc)
 	if (adc->vref) {
 		ret = regulator_get_voltage(adc->vref);
 		if (ret < 0) {
-			return dev_err_probe(&adc->spi->dev, ret, "failed to get vref voltage\n");
+			return dev_err_probe(dev, ret, "failed to get vref voltage\n");
 		}
 
 		ref = ret / 1000;
@@ -334,6 +335,7 @@ static irqreturn_t mcp3911_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct mcp3911 *adc = iio_priv(indio_dev);
+	struct device *dev = &adc->spi->dev;
 	struct spi_transfer xfer[] = {
 		{
 			.tx_buf = &adc->tx_buf,
@@ -351,8 +353,7 @@ static irqreturn_t mcp3911_trigger_handler(int irq, void *p)
 	adc->tx_buf = MCP3911_REG_READ(MCP3911_CHANNEL(0), adc->dev_addr);
 	ret = spi_sync_transfer(adc->spi, xfer, ARRAY_SIZE(xfer));
 	if (ret < 0) {
-		dev_warn(&adc->spi->dev,
-				"failed to get conversion data\n");
+		dev_warn(dev, "failed to get conversion data\n");
 		goto out;
 	}
 
@@ -397,7 +398,7 @@ static int mcp3911_config(struct mcp3911 *adc)
 				     "invalid device address (%i). Must be in range 0-3.\n",
 				     adc->dev_addr);
 	}
-	dev_dbg(&adc->spi->dev, "use device address %i\n", adc->dev_addr);
+	dev_dbg(dev, "use device address %i\n", adc->dev_addr);
 
 	ret = mcp3911_read(adc, MCP3911_REG_CONFIG, &regval, 2);
 	if (ret)
@@ -405,21 +406,19 @@ static int mcp3911_config(struct mcp3911 *adc)
 
 	regval &= ~MCP3911_CONFIG_VREFEXT;
 	if (adc->vref) {
-		dev_dbg(&adc->spi->dev, "use external voltage reference\n");
+		dev_dbg(dev, "use external voltage reference\n");
 		regval |= FIELD_PREP(MCP3911_CONFIG_VREFEXT, 1);
 	} else {
-		dev_dbg(&adc->spi->dev,
-			"use internal voltage reference (1.2V)\n");
+		dev_dbg(dev, "use internal voltage reference (1.2V)\n");
 		regval |= FIELD_PREP(MCP3911_CONFIG_VREFEXT, 0);
 	}
 
 	regval &= ~MCP3911_CONFIG_CLKEXT;
 	if (adc->clki) {
-		dev_dbg(&adc->spi->dev, "use external clock as clocksource\n");
+		dev_dbg(dev, "use external clock as clocksource\n");
 		regval |= FIELD_PREP(MCP3911_CONFIG_CLKEXT, 1);
 	} else {
-		dev_dbg(&adc->spi->dev,
-			"use crystal oscillator as clocksource\n");
+		dev_dbg(dev, "use crystal oscillator as clocksource\n");
 		regval |= FIELD_PREP(MCP3911_CONFIG_CLKEXT, 0);
 	}
 
@@ -467,14 +466,14 @@ static int mcp3911_probe(struct spi_device *spi)
 	struct mcp3911 *adc;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
 
-	adc->vref = devm_regulator_get_optional(&adc->spi->dev, "vref");
+	adc->vref = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(adc->vref)) {
 		if (PTR_ERR(adc->vref) == -ENODEV) {
 			adc->vref = NULL;
@@ -487,13 +486,12 @@ static int mcp3911_probe(struct spi_device *spi)
 		if (ret)
 			return ret;
 
-		ret = devm_add_action_or_reset(&spi->dev,
-				mcp3911_cleanup_regulator, adc->vref);
+		ret = devm_add_action_or_reset(dev, mcp3911_cleanup_regulator, adc->vref);
 		if (ret)
 			return ret;
 	}
 
-	adc->clki = devm_clk_get_enabled(&adc->spi->dev, NULL);
+	adc->clki = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(adc->clki)) {
 		if (PTR_ERR(adc->clki) == -ENOENT) {
 			adc->clki = NULL;
@@ -506,7 +504,7 @@ static int mcp3911_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	if (device_property_read_bool(&adc->spi->dev, "microchip,data-ready-hiz"))
+	if (device_property_read_bool(dev, "microchip,data-ready-hiz"))
 		ret = mcp3911_update(adc, MCP3911_REG_STATUSCOM, MCP3911_STATUSCOM_DRHIZ,
 				0, 2);
 	else
@@ -540,15 +538,14 @@ static int mcp3911_probe(struct spi_device *spi)
 	mutex_init(&adc->lock);
 
 	if (spi->irq > 0) {
-		adc->trig = devm_iio_trigger_alloc(&spi->dev, "%s-dev%d",
-				indio_dev->name,
-				iio_device_id(indio_dev));
+		adc->trig = devm_iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name,
+						   iio_device_id(indio_dev));
 		if (!adc->trig)
 			return -ENOMEM;
 
 		adc->trig->ops = &mcp3911_trigger_ops;
 		iio_trigger_set_drvdata(adc->trig, adc);
-		ret = devm_iio_trigger_register(&spi->dev, adc->trig);
+		ret = devm_iio_trigger_register(dev, adc->trig);
 		if (ret)
 			return ret;
 
@@ -557,20 +554,19 @@ static int mcp3911_probe(struct spi_device *spi)
 		 * Some platforms might not allow the option to power it down so
 		 * don't enable the interrupt to avoid extra load on the system.
 		 */
-		ret = devm_request_irq(&spi->dev, spi->irq,
-				&iio_trigger_generic_data_rdy_poll, IRQF_NO_AUTOEN | IRQF_ONESHOT,
-				indio_dev->name, adc->trig);
+		ret = devm_request_irq(dev, spi->irq, &iio_trigger_generic_data_rdy_poll,
+				       IRQF_NO_AUTOEN | IRQF_ONESHOT,
+				       indio_dev->name, adc->trig);
 		if (ret)
 			return ret;
 	}
 
-	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
-			NULL,
-			mcp3911_trigger_handler, NULL);
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
+					      mcp3911_trigger_handler, NULL);
 	if (ret)
 		return ret;
 
-	return devm_iio_device_register(&adc->spi->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct of_device_id mcp3911_dt_ids[] = {
