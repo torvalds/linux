@@ -450,8 +450,6 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		hit_sum += prev_bin->hits;
 		recent_sum += prev_bin->recent;
 
-		tick_intercept_sum = intercept_sum;
-
 		if (dev->states_usage[i].disable)
 			continue;
 
@@ -484,7 +482,8 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		goto end;
 	}
 
-	tick_intercept_sum += cpu_data->state_bins[drv->state_count-1].intercepts;
+	tick_intercept_sum = intercept_sum +
+			cpu_data->state_bins[drv->state_count-1].intercepts;
 
 	/*
 	 * If the sum of the intercepts metric for all of the idle states
