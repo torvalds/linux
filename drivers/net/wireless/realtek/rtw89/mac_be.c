@@ -33,5 +33,6 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.filter_model_addr = R_BE_FILTER_MODEL_ADDR,
 	.indir_access_addr = R_BE_INDIR_ACCESS_ENTRY,
 	.mem_base_addrs = rtw89_mac_mem_base_addrs_be,
+	.rx_fltr = R_BE_RX_FLTR_OPT,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_be);

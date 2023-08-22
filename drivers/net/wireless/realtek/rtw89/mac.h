@@ -857,6 +857,7 @@ struct rtw89_mac_gen_def {
 	u32 filter_model_addr;
 	u32 indir_access_addr;
 	const u32 *mem_base_addrs;
+	u32 rx_fltr;
 };
 
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;
