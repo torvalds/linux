@@ -35,6 +35,7 @@
 #define MLXPLAT_CPLD_LPC_REG_CPLD3_PN1_OFFSET	0x09
 #define MLXPLAT_CPLD_LPC_REG_CPLD4_PN_OFFSET	0x0a
 #define MLXPLAT_CPLD_LPC_REG_CPLD4_PN1_OFFSET	0x0b
+#define MLXPLAT_CPLD_LPC_REG_RESET_GP1_OFFSET	0x17
 #define MLXPLAT_CPLD_LPC_REG_RESET_GP2_OFFSET	0x19
 #define MLXPLAT_CPLD_LPC_REG_RESET_GP4_OFFSET	0x1c
 #define MLXPLAT_CPLD_LPC_REG_RESET_CAUSE_OFFSET	0x1d
@@ -254,6 +255,7 @@
 					 MLXPLAT_CPLD_PWM_PG_MASK)
 #define MLXPLAT_CPLD_I2C_CAP_BIT	0x04
 #define MLXPLAT_CPLD_I2C_CAP_MASK	GENMASK(5, MLXPLAT_CPLD_I2C_CAP_BIT)
+#define MLXPLAT_CPLD_SYS_RESET_MASK	BIT(0)
 
 /* Masks for aggregation for comex carriers */
 #define MLXPLAT_CPLD_AGGR_MASK_CARRIER	BIT(1)
@@ -265,6 +267,7 @@
 #define MLXPLAT_CPLD_LPC_LC_MASK	GENMASK(7, 0)
 
 #define MLXPLAT_CPLD_HALT_MASK		BIT(3)
+#define MLXPLAT_CPLD_RESET_MASK		GENMASK(7, 1)
 
 /* Default I2C parent bus number */
 #define MLXPLAT_CPLD_PHYS_ADAPTER_DEF_NR	1
@@ -441,6 +444,7 @@ static struct i2c_mux_reg_platform_data mlxplat_default_mux_data[] = {
 static int mlxplat_max_adap_num;
 static int mlxplat_mux_num;
 static struct i2c_mux_reg_platform_data *mlxplat_mux_data;
+static struct notifier_block *mlxplat_reboot_nb;
 
 /* Platform extended mux data */
 static struct i2c_mux_reg_platform_data mlxplat_extended_mux_data[] = {
@@ -2361,8 +2365,11 @@ static int
 mlxplat_mlxcpld_l1_switch_pwr_events_handler(void *handle, enum mlxreg_hotplug_kind kind,
 					     u8 action)
 {
-	dev_info(&mlxplat_dev->dev, "System shutdown due to short press of power button");
-	kernel_power_off();
+	if (action) {
+		dev_info(&mlxplat_dev->dev, "System shutdown due to short press of power button");
+		kernel_power_off();
+	}
+
 	return 0;
 }
 
@@ -4957,6 +4964,7 @@ static struct mlxreg_core_platform_data mlxplat_mlxcpld_wd_set_type3[] = {
 static bool mlxplat_mlxcpld_writeable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case MLXPLAT_CPLD_LPC_REG_RESET_GP1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_RESET_GP4_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_LED1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_LED2_OFFSET:
@@ -5065,6 +5073,7 @@ static bool mlxplat_mlxcpld_readable_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_CPLD4_PN1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_CPLD5_PN_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_CPLD5_PN1_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_RESET_GP1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_RESET_GP4_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_RESET_CAUSE_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_RST_CAUSE1_OFFSET:
@@ -5229,6 +5238,7 @@ static bool mlxplat_mlxcpld_volatile_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_CPLD4_PN1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_CPLD5_PN_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_CPLD5_PN1_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_RESET_GP1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_RESET_GP4_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_RESET_CAUSE_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_RST_CAUSE1_OFFSET:
@@ -5533,11 +5543,33 @@ static struct mlxreg_core_platform_data
 	*mlxplat_wd_data[MLXPLAT_CPLD_WD_MAX_DEVS];
 static const struct regmap_config *mlxplat_regmap_config;
 
+/* Platform default reset function */
+static int mlxplat_reboot_notifier(struct notifier_block *nb, unsigned long action, void *unused)
+{
+	struct mlxplat_priv *priv = platform_get_drvdata(mlxplat_dev);
+	u32 regval;
+	int ret;
+
+	ret = regmap_read(priv->regmap, MLXPLAT_CPLD_LPC_REG_RESET_GP1_OFFSET, &regval);
+
+	if (action == SYS_RESTART && !ret && regval & MLXPLAT_CPLD_SYS_RESET_MASK)
+		regmap_write(priv->regmap, MLXPLAT_CPLD_LPC_REG_RESET_GP1_OFFSET,
+			     MLXPLAT_CPLD_RESET_MASK);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block mlxplat_reboot_default_nb = {
+	.notifier_call = mlxplat_reboot_notifier,
+};
+
 /* Platform default poweroff function */
 static void mlxplat_poweroff(void)
 {
 	struct mlxplat_priv *priv = platform_get_drvdata(mlxplat_dev);
 
+	if (mlxplat_reboot_nb)
+		unregister_reboot_notifier(mlxplat_reboot_nb);
 	regmap_write(priv->regmap, MLXPLAT_CPLD_LPC_REG_GP1_OFFSET, MLXPLAT_CPLD_HALT_MASK);
 	kernel_halt();
 }
@@ -5861,6 +5893,7 @@ static int __init mlxplat_dmi_l1_switch_matched(const struct dmi_system_id *dmi)
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
 	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_rack_switch;
 	pm_power_off = mlxplat_poweroff;
+	mlxplat_reboot_nb = &mlxplat_reboot_default_nb;
 
 	return 1;
 }
@@ -6410,8 +6443,15 @@ static int __init mlxplat_init(void)
 	if (err)
 		goto fail_regcache_sync;
 
+	if (mlxplat_reboot_nb) {
+		err = register_reboot_notifier(mlxplat_reboot_nb);
+		if (err)
+			goto fail_register_reboot_notifier;
+	}
+
 	return 0;
 
+fail_register_reboot_notifier:
 fail_regcache_sync:
 	mlxplat_pre_exit(priv);
 fail_mlxplat_i2c_main_init:
@@ -6429,6 +6469,8 @@ static void __exit mlxplat_exit(void)
 
 	if (pm_power_off)
 		pm_power_off = NULL;
+	if (mlxplat_reboot_nb)
+		unregister_reboot_notifier(mlxplat_reboot_nb);
 	mlxplat_pre_exit(priv);
 	mlxplat_i2c_main_exit(priv);
 	mlxplat_post_exit();
