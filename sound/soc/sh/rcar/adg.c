@@ -358,8 +358,6 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 		ckr = 0x80000000; /* BRGB output = 48kHz */
 
 	rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr | ckr);
-	rsnd_mod_write(adg_mod, BRRA,  adg->brga);
-	rsnd_mod_write(adg_mod, BRRB,  adg->brgb);
 
 	dev_dbg(dev, "CLKOUT is based on BRG%c (= %dHz)\n",
 		(ckr) ? 'B' : 'A',
@@ -372,8 +370,15 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct clk *clk;
 	int i;
+
+	if (enable) {
+		rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr);
+		rsnd_mod_write(adg_mod, BRRA,  adg->brga);
+		rsnd_mod_write(adg_mod, BRRB,  adg->brgb);
+	}
 
 	for_each_rsnd_clkin(clk, adg, i) {
 		if (enable) {
