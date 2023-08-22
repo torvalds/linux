@@ -230,11 +230,9 @@ static void node_affinity_add_tail(struct hfi1_affinity_node *entry)
 /* It must be called with node_affinity.lock held */
 static struct hfi1_affinity_node *node_affinity_lookup(int node)
 {
-	struct list_head *pos;
 	struct hfi1_affinity_node *entry;
 
-	list_for_each(pos, &node_affinity.list) {
-		entry = list_entry(pos, struct hfi1_affinity_node, list);
+	list_for_each_entry(entry, &node_affinity.list, list) {
 		if (entry->node == node)
 			return entry;
 	}
