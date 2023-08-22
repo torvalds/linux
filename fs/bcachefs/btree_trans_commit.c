@@ -801,7 +801,6 @@ static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans, un
 
 	bch2_inconsistent_error(c);
 	bch2_dump_trans_updates(trans);
-	printbuf_exit(err);
 
 	return -EINVAL;
 }
