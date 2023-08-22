@@ -1832,7 +1832,9 @@ void iwl_mei_unregister_complete(void)
 		struct iwl_mei *mei =
 			mei_cldev_get_drvdata(iwl_mei_global_cldev);
 
-		iwl_mei_send_sap_msg(mei->cldev, SAP_MSG_NOTIF_WIFIDR_DOWN);
+		if (mei->amt_enabled)
+			iwl_mei_send_sap_msg(mei->cldev,
+					     SAP_MSG_NOTIF_WIFIDR_DOWN);
 		mei->got_ownership = false;
 	}
 
