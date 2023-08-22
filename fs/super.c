@@ -1873,8 +1873,13 @@ int freeze_super(struct super_block *sb)
 {
 	int ret;
 
+	/* Since the caller must already have an active reference... */
 	atomic_inc(&sb->s_active);
-	__super_lock_excl(sb);
+
+	/* ...@sb definitely can't be dying. */
+	if (!super_lock_excl(sb))
+		WARN(1, "Dying superblock while freezing!");
+
 	if (sb->s_writers.frozen != SB_UNFROZEN) {
 		deactivate_locked_super(sb);
 		return -EBUSY;
@@ -1896,7 +1901,10 @@ int freeze_super(struct super_block *sb)
 	/* Release s_umount to preserve sb_start_write -> s_umount ordering */
 	super_unlock_excl(sb);
 	sb_wait_write(sb, SB_FREEZE_WRITE);
-	__super_lock_excl(sb);
+
+	/* We're still holding an active reference. */
+	if (!super_lock_excl(sb))
+		WARN(1, "Dying superblock while freezing!");
 
 	/* Now we go and block page faults... */
 	sb->s_writers.frozen = SB_FREEZE_PAGEFAULT;
@@ -1979,7 +1987,8 @@ out:
  */
 int thaw_super(struct super_block *sb)
 {
-	__super_lock_excl(sb);
+	if (!super_lock_excl(sb))
+		WARN(1, "Dying superblock while thawing!");
 	return thaw_super_locked(sb);
 }
 EXPORT_SYMBOL(thaw_super);
