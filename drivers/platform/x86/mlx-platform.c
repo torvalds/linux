@@ -5574,6 +5574,17 @@ static void mlxplat_poweroff(void)
 	kernel_halt();
 }
 
+static int __init mlxplat_register_platform_device(void)
+{
+	mlxplat_dev = platform_device_register_simple(MLX_PLAT_DEVICE_NAME, -1,
+						      mlxplat_lpc_resources,
+						      ARRAY_SIZE(mlxplat_lpc_resources));
+	if (IS_ERR(mlxplat_dev))
+		return PTR_ERR(mlxplat_dev);
+	else
+		return 1;
+}
+
 static int __init mlxplat_dmi_default_matched(const struct dmi_system_id *dmi)
 {
 	int i;
@@ -5594,7 +5605,7 @@ static int __init mlxplat_dmi_default_matched(const struct dmi_system_id *dmi)
 	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_default_wc_matched(const struct dmi_system_id *dmi)
@@ -5617,7 +5628,7 @@ static int __init mlxplat_dmi_default_wc_matched(const struct dmi_system_id *dmi
 	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_default_eth_wc_blade_matched(const struct dmi_system_id *dmi)
@@ -5642,7 +5653,7 @@ static int __init mlxplat_dmi_default_eth_wc_blade_matched(const struct dmi_syst
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
 	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_ng;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_msn21xx_matched(const struct dmi_system_id *dmi)
@@ -5665,7 +5676,7 @@ static int __init mlxplat_dmi_msn21xx_matched(const struct dmi_system_id *dmi)
 	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_msn274x_matched(const struct dmi_system_id *dmi)
@@ -5688,7 +5699,7 @@ static int __init mlxplat_dmi_msn274x_matched(const struct dmi_system_id *dmi)
 	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_msn201x_matched(const struct dmi_system_id *dmi)
@@ -5711,7 +5722,7 @@ static int __init mlxplat_dmi_msn201x_matched(const struct dmi_system_id *dmi)
 	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_qmb7xx_matched(const struct dmi_system_id *dmi)
@@ -5737,7 +5748,7 @@ static int __init mlxplat_dmi_qmb7xx_matched(const struct dmi_system_id *dmi)
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
 	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_ng;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_comex_matched(const struct dmi_system_id *dmi)
@@ -5762,7 +5773,7 @@ static int __init mlxplat_dmi_comex_matched(const struct dmi_system_id *dmi)
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_comex;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_ng400_matched(const struct dmi_system_id *dmi)
@@ -5788,7 +5799,7 @@ static int __init mlxplat_dmi_ng400_matched(const struct dmi_system_id *dmi)
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
 	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_ng400;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_modular_matched(const struct dmi_system_id *dmi)
@@ -5808,7 +5819,7 @@ static int __init mlxplat_dmi_modular_matched(const struct dmi_system_id *dmi)
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
 	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_eth_modular;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_chassis_blade_matched(const struct dmi_system_id *dmi)
@@ -5830,7 +5841,7 @@ static int __init mlxplat_dmi_chassis_blade_matched(const struct dmi_system_id *
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
 	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_ng400;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_rack_switch_matched(const struct dmi_system_id *dmi)
@@ -5851,7 +5862,7 @@ static int __init mlxplat_dmi_rack_switch_matched(const struct dmi_system_id *dm
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
 	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_rack_switch;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_ng800_matched(const struct dmi_system_id *dmi)
@@ -5872,7 +5883,7 @@ static int __init mlxplat_dmi_ng800_matched(const struct dmi_system_id *dmi)
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
 	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_ng400;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static int __init mlxplat_dmi_l1_switch_matched(const struct dmi_system_id *dmi)
@@ -5895,7 +5906,7 @@ static int __init mlxplat_dmi_l1_switch_matched(const struct dmi_system_id *dmi)
 	pm_power_off = mlxplat_poweroff;
 	mlxplat_reboot_nb = &mlxplat_reboot_default_nb;
 
-	return 1;
+	return mlxplat_register_platform_device();
 }
 
 static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
@@ -6139,12 +6150,6 @@ static int mlxplat_lpc_cpld_device_init(struct resource **hotplug_resources,
 {
 	int err;
 
-	mlxplat_dev = platform_device_register_simple(MLX_PLAT_DEVICE_NAME, PLATFORM_DEVID_NONE,
-						      mlxplat_lpc_resources,
-						      ARRAY_SIZE(mlxplat_lpc_resources));
-	if (IS_ERR(mlxplat_dev))
-		return PTR_ERR(mlxplat_dev);
-
 	mlxplat_mlxcpld_regmap_ctx.base = devm_ioport_map(&mlxplat_dev->dev,
 							  mlxplat_lpc_resources[1].start, 1);
 	if (!mlxplat_mlxcpld_regmap_ctx.base) {
@@ -6158,13 +6163,11 @@ static int mlxplat_lpc_cpld_device_init(struct resource **hotplug_resources,
 	return 0;
 
 fail_devm_ioport_map:
-	platform_device_unregister(mlxplat_dev);
 	return err;
 }
 
 static void mlxplat_lpc_cpld_device_exit(void)
 {
-	platform_device_unregister(mlxplat_dev);
 }
 
 static int
@@ -6389,15 +6392,12 @@ static void mlxplat_i2c_main_exit(struct mlxplat_priv *priv)
 		platform_device_unregister(priv->pdev_i2c);
 }
 
-static int __init mlxplat_init(void)
+static int mlxplat_probe(struct platform_device *pdev)
 {
-	unsigned int hotplug_resources_size;
-	struct resource *hotplug_resources;
+	unsigned int hotplug_resources_size = 0;
+	struct resource *hotplug_resources = NULL;
 	struct mlxplat_priv *priv;
 	int i, err;
-
-	if (!dmi_check_system(mlxplat_dmi_table))
-		return -ENODEV;
 
 	err = mlxplat_pre_init(&hotplug_resources, &hotplug_resources_size);
 	if (err)
@@ -6461,9 +6461,8 @@ fail_alloc:
 
 	return err;
 }
-module_init(mlxplat_init);
 
-static void __exit mlxplat_exit(void)
+static int mlxplat_remove(struct platform_device *pdev)
 {
 	struct mlxplat_priv *priv = platform_get_drvdata(mlxplat_dev);
 
@@ -6474,6 +6473,38 @@ static void __exit mlxplat_exit(void)
 	mlxplat_pre_exit(priv);
 	mlxplat_i2c_main_exit(priv);
 	mlxplat_post_exit();
+	return 0;
+}
+
+static struct platform_driver mlxplat_driver = {
+	.driver		= {
+		.name	= "mlxplat",
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+	},
+	.probe		= mlxplat_probe,
+	.remove		= mlxplat_remove,
+};
+
+static int __init mlxplat_init(void)
+{
+	int err;
+
+	if (!dmi_check_system(mlxplat_dmi_table))
+		return -ENODEV;
+
+	err = platform_driver_register(&mlxplat_driver);
+	if (err)
+		return err;
+	return 0;
+}
+module_init(mlxplat_init);
+
+static void __exit mlxplat_exit(void)
+{
+	if (mlxplat_dev)
+		platform_device_unregister(mlxplat_dev);
+
+	platform_driver_unregister(&mlxplat_driver);
 }
 module_exit(mlxplat_exit);
 
