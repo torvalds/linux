@@ -240,7 +240,6 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			  enum bkey_invalid_flags flags, struct printbuf *err)
 {
 	struct bkey_s_c_alloc_v4 a = bkey_s_c_to_alloc_v4(k);
-	int rw = flags & WRITE;
 
 	if (alloc_v4_u64s(a.v) > bkey_val_u64s(k.k)) {
 		prt_printf(err, "bad val size (%u > %lu)",
@@ -254,71 +253,55 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	if (rw == WRITE &&
-	    !(flags & BKEY_INVALID_JOURNAL) &&
-	    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_btree_backpointers) {
-		unsigned i, bp_len = 0;
-
-		for (i = 0; i < BCH_ALLOC_V4_NR_BACKPOINTERS(a.v); i++)
-			bp_len += alloc_v4_backpointers_c(a.v)[i].bucket_len;
-
-		if (bp_len > a.v->dirty_sectors) {
-			prt_printf(err, "too many backpointers");
-			return -BCH_ERR_invalid_bkey;
-		}
+	if (alloc_data_type(*a.v, a.v->data_type) != a.v->data_type) {
+		prt_printf(err, "invalid data type (got %u should be %u)",
+		       a.v->data_type, alloc_data_type(*a.v, a.v->data_type));
+		return -BCH_ERR_invalid_bkey;
 	}
 
-	if (rw == WRITE) {
-		if (alloc_data_type(*a.v, a.v->data_type) != a.v->data_type) {
-			prt_printf(err, "invalid data type (got %u should be %u)",
-			       a.v->data_type, alloc_data_type(*a.v, a.v->data_type));
+	switch (a.v->data_type) {
+	case BCH_DATA_free:
+	case BCH_DATA_need_gc_gens:
+	case BCH_DATA_need_discard:
+		if (a.v->dirty_sectors ||
+		    a.v->cached_sectors ||
+		    a.v->stripe) {
+			prt_printf(err, "empty data type free but have data");
+			return -BCH_ERR_invalid_bkey;
+		}
+		break;
+	case BCH_DATA_sb:
+	case BCH_DATA_journal:
+	case BCH_DATA_btree:
+	case BCH_DATA_user:
+	case BCH_DATA_parity:
+		if (!a.v->dirty_sectors) {
+			prt_printf(err, "data_type %s but dirty_sectors==0",
+			       bch2_data_types[a.v->data_type]);
+			return -BCH_ERR_invalid_bkey;
+		}
+		break;
+	case BCH_DATA_cached:
+		if (!a.v->cached_sectors ||
+		    a.v->dirty_sectors ||
+		    a.v->stripe) {
+			prt_printf(err, "data type inconsistency");
 			return -BCH_ERR_invalid_bkey;
 		}
 
-		switch (a.v->data_type) {
-		case BCH_DATA_free:
-		case BCH_DATA_need_gc_gens:
-		case BCH_DATA_need_discard:
-			if (a.v->dirty_sectors ||
-			    a.v->cached_sectors ||
-			    a.v->stripe) {
-				prt_printf(err, "empty data type free but have data");
-				return -BCH_ERR_invalid_bkey;
-			}
-			break;
-		case BCH_DATA_sb:
-		case BCH_DATA_journal:
-		case BCH_DATA_btree:
-		case BCH_DATA_user:
-		case BCH_DATA_parity:
-			if (!a.v->dirty_sectors) {
-				prt_printf(err, "data_type %s but dirty_sectors==0",
-				       bch2_data_types[a.v->data_type]);
-				return -BCH_ERR_invalid_bkey;
-			}
-			break;
-		case BCH_DATA_cached:
-			if (!a.v->cached_sectors ||
-			    a.v->dirty_sectors ||
-			    a.v->stripe) {
-				prt_printf(err, "data type inconsistency");
-				return -BCH_ERR_invalid_bkey;
-			}
-
-			if (!a.v->io_time[READ] &&
-			    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_to_lru_refs) {
-				prt_printf(err, "cached bucket with read_time == 0");
-				return -BCH_ERR_invalid_bkey;
-			}
-			break;
-		case BCH_DATA_stripe:
-			if (!a.v->stripe) {
-				prt_printf(err, "data_type %s but stripe==0",
-				       bch2_data_types[a.v->data_type]);
-				return -BCH_ERR_invalid_bkey;
-			}
-			break;
+		if (!a.v->io_time[READ] &&
+		    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_to_lru_refs) {
+			prt_printf(err, "cached bucket with read_time == 0");
+			return -BCH_ERR_invalid_bkey;
 		}
+		break;
+	case BCH_DATA_stripe:
+		if (!a.v->stripe) {
+			prt_printf(err, "data_type %s but stripe==0",
+			       bch2_data_types[a.v->data_type]);
+			return -BCH_ERR_invalid_bkey;
+		}
+		break;
 	}
 
 	return 0;
