@@ -12,6 +12,7 @@
 #include <linux/i2c-mux.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/i2c-mux-reg.h>
 #include <linux/platform_data/mlxreg.h>
@@ -331,6 +332,12 @@
 #define MLXPLAT_I2C_MAIN_BUS_NOTIFIED		0x01
 #define MLXPLAT_I2C_MAIN_BUS_HANDLE_CREATED	0x02
 
+/* Lattice FPGA PCI configuration */
+#define PCI_VENDOR_ID_LATTICE			0x1204
+#define PCI_DEVICE_ID_LATTICE_I2C_BRIDGE	0x9c2f
+#define PCI_DEVICE_ID_LATTICE_JTAG_BRIDGE	0x9c30
+#define PCI_DEVICE_ID_LATTICE_LPC_BRIDGE	0x9c32
+
 /* mlxplat_priv - platform private data
  * @pdev_i2c - i2c controller platform device
  * @pdev_mux - array of mux platform devices
@@ -362,6 +369,7 @@ struct mlxplat_priv {
 
 static struct platform_device *mlxplat_dev;
 static int mlxplat_i2c_main_complition_notify(void *handle, int id);
+static void __iomem *i2c_bridge_addr, *jtag_bridge_addr;
 
 /* Regions for LPC I2C controller and LPC base register space */
 static const struct resource mlxplat_lpc_resources[] = {
@@ -5544,6 +5552,9 @@ static struct mlxreg_core_platform_data *mlxplat_fan;
 static struct mlxreg_core_platform_data
 	*mlxplat_wd_data[MLXPLAT_CPLD_WD_MAX_DEVS];
 static const struct regmap_config *mlxplat_regmap_config;
+static struct pci_dev *lpc_bridge;
+static struct pci_dev *i2c_bridge;
+static struct pci_dev *jtag_bridge;
 
 /* Platform default reset function */
 static int mlxplat_reboot_notifier(struct notifier_block *nb, unsigned long action, void *unused)
@@ -6173,14 +6184,130 @@ static void mlxplat_lpc_cpld_device_exit(void)
 }
 
 static int
+mlxplat_pci_fpga_device_init(unsigned int device, const char *res_name, struct pci_dev **pci_bridge,
+			     void __iomem **pci_bridge_addr)
+{
+	void __iomem *pci_mem_addr;
+	struct pci_dev *pci_dev;
+	int err;
+
+	pci_dev = pci_get_device(PCI_VENDOR_ID_LATTICE, device, NULL);
+	if (!pci_dev)
+		return -ENODEV;
+
+	err = pci_enable_device(pci_dev);
+	if (err) {
+		dev_err(&pci_dev->dev, "pci_enable_device failed with error %d\n", err);
+		goto fail_pci_enable_device;
+	}
+
+	err = pci_request_region(pci_dev, 0, res_name);
+	if (err) {
+		dev_err(&pci_dev->dev, "pci_request_regions failed with error %d\n", err);
+		goto fail_pci_request_regions;
+	}
+
+	err = dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		err = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32));
+		if (err) {
+			dev_err(&pci_dev->dev, "dma_set_mask failed with error %d\n", err);
+			goto fail_pci_set_dma_mask;
+		}
+	}
+
+	pci_set_master(pci_dev);
+
+	pci_mem_addr = devm_ioremap(&pci_dev->dev, pci_resource_start(pci_dev, 0),
+				    pci_resource_len(pci_dev, 0));
+	if (!pci_mem_addr) {
+		dev_err(&mlxplat_dev->dev, "ioremap failed\n");
+		err = -EIO;
+		goto fail_ioremap;
+	}
+
+	*pci_bridge = pci_dev;
+	*pci_bridge_addr = pci_mem_addr;
+
+	return 0;
+
+fail_ioremap:
+fail_pci_set_dma_mask:
+	pci_release_regions(pci_dev);
+fail_pci_request_regions:
+	pci_disable_device(pci_dev);
+fail_pci_enable_device:
+	return err;
+}
+
+static void
+mlxplat_pci_fpga_device_exit(struct pci_dev *pci_bridge,
+			     void __iomem *pci_bridge_addr)
+{
+	iounmap(pci_bridge_addr);
+	pci_release_regions(pci_bridge);
+	pci_disable_device(pci_bridge);
+}
+
+static int
+mlxplat_pci_fpga_devices_init(struct resource **hotplug_resources,
+			      unsigned int *hotplug_resources_size)
+{
+	int err;
+
+	err = mlxplat_pci_fpga_device_init(PCI_DEVICE_ID_LATTICE_LPC_BRIDGE,
+					   "mlxplat_lpc_bridge", &lpc_bridge,
+					   &mlxplat_mlxcpld_regmap_ctx.base);
+	if (err)
+		goto mlxplat_pci_fpga_device_init_lpc_fail;
+
+	err = mlxplat_pci_fpga_device_init(PCI_DEVICE_ID_LATTICE_I2C_BRIDGE,
+					   "mlxplat_i2c_bridge", &i2c_bridge,
+					    &i2c_bridge_addr);
+	if (err)
+		goto mlxplat_pci_fpga_device_init_i2c_fail;
+
+	err = mlxplat_pci_fpga_device_init(PCI_DEVICE_ID_LATTICE_JTAG_BRIDGE,
+					   "mlxplat_jtag_bridge", &jtag_bridge,
+					    &jtag_bridge_addr);
+	if (err)
+		goto mlxplat_pci_fpga_device_init_jtag_fail;
+
+	return 0;
+
+mlxplat_pci_fpga_device_init_jtag_fail:
+	mlxplat_pci_fpga_device_exit(i2c_bridge, i2c_bridge_addr);
+mlxplat_pci_fpga_device_init_i2c_fail:
+	mlxplat_pci_fpga_device_exit(lpc_bridge, mlxplat_mlxcpld_regmap_ctx.base);
+mlxplat_pci_fpga_device_init_lpc_fail:
+	return err;
+}
+
+static void mlxplat_pci_fpga_devices_exit(void)
+{
+	mlxplat_pci_fpga_device_exit(jtag_bridge, jtag_bridge_addr);
+	mlxplat_pci_fpga_device_exit(i2c_bridge, i2c_bridge_addr);
+	mlxplat_pci_fpga_device_exit(lpc_bridge, mlxplat_mlxcpld_regmap_ctx.base);
+}
+
+static int
 mlxplat_pre_init(struct resource **hotplug_resources, unsigned int *hotplug_resources_size)
 {
-	return mlxplat_lpc_cpld_device_init(hotplug_resources, hotplug_resources_size);
+	int err;
+
+	err = mlxplat_pci_fpga_devices_init(hotplug_resources, hotplug_resources_size);
+	if (err == -ENODEV)
+		return mlxplat_lpc_cpld_device_init(hotplug_resources, hotplug_resources_size);
+
+	return err;
 }
 
 static void mlxplat_post_exit(void)
 {
-	mlxplat_lpc_cpld_device_exit();
+	if (lpc_bridge)
+		mlxplat_pci_fpga_devices_exit();
+	else
+		mlxplat_lpc_cpld_device_exit();
 }
 
 static int mlxplat_post_init(struct mlxplat_priv *priv)
@@ -6366,6 +6493,9 @@ static int mlxplat_i2c_main_init(struct mlxplat_priv *priv)
 	mlxplat_i2c->regmap = priv->regmap;
 	mlxplat_i2c->handle = priv;
 
+	/* Set mapped base address of I2C-LPC bridge over PCIe */
+	if (lpc_bridge)
+		mlxplat_i2c->addr = i2c_bridge_addr;
 	priv->pdev_i2c = platform_device_register_resndata(&mlxplat_dev->dev, "i2c_mlxcpld",
 							   nr, priv->hotplug_resources,
 							   priv->hotplug_resources_size,
