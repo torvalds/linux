@@ -9,8 +9,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <crypto/algapi.h>
 #include <crypto/sha2.h>
+#include <crypto/utils.h>
 #include <net/sock.h>
 #include <net/inet_common.h>
 #include <net/inet_hashtables.h>
