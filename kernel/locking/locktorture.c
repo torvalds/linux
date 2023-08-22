@@ -34,6 +34,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
 
 torture_param(int, acq_writer_lim, 0, "Write_acquisition time limit (jiffies).");
+torture_param(int, call_rcu_chains, 0, "Self-propagate call_rcu() chains during test (0=disable).");
 torture_param(int, long_hold, 100, "Do occasional long hold of lock (ms), 0=disable");
 torture_param(int, nested_locks, 0, "Number of nested locks (max = 8)");
 torture_param(int, nreaders_stress, -1, "Number of read-locking stress-test threads");
@@ -118,6 +119,12 @@ struct lock_stress_stats {
 	long n_lock_fail;
 	long n_lock_acquired;
 };
+
+struct call_rcu_chain {
+	struct rcu_head crc_rh;
+	bool crc_stop;
+};
+struct call_rcu_chain *call_rcu_chain;
 
 /* Forward reference. */
 static void lock_torture_cleanup(void);
@@ -1037,13 +1044,58 @@ lock_torture_print_module_parms(struct lock_torture_ops *cur_ops,
 
 	cpumask_setall(&cpumask_all);
 	pr_alert("%s" TORTURE_FLAG
-		 "--- %s%s: acq_writer_lim=%d long_hold=%d nested_locks=%d nreaders_stress=%d nwriters_stress=%d onoff_holdoff=%d onoff_interval=%d rt_boost=%d rt_boost_factor=%d shuffle_interval=%d shutdown_secs=%d stat_interval=%d stutter=%d verbose=%d writer_fifo=%d readers_bind=%*pbl writers_bind=%*pbl\n",
+		 "--- %s%s: acq_writer_lim=%d call_rcu_chains=%d long_hold=%d nested_locks=%d nreaders_stress=%d nwriters_stress=%d onoff_holdoff=%d onoff_interval=%d rt_boost=%d rt_boost_factor=%d shuffle_interval=%d shutdown_secs=%d stat_interval=%d stutter=%d verbose=%d writer_fifo=%d readers_bind=%*pbl writers_bind=%*pbl\n",
 		 torture_type, tag, cxt.debug_lock ? " [debug]": "",
-		 acq_writer_lim, long_hold, nested_locks, cxt.nrealreaders_stress,
+		 acq_writer_lim, call_rcu_chains, long_hold, nested_locks, cxt.nrealreaders_stress,
 		 cxt.nrealwriters_stress, onoff_holdoff, onoff_interval, rt_boost,
 		 rt_boost_factor, shuffle_interval, shutdown_secs, stat_interval, stutter,
 		 verbose, writer_fifo,
 		 cpumask_pr_args(rcmp), cpumask_pr_args(wcmp));
+}
+
+// If requested, maintain call_rcu() chains to keep a grace period always
+// in flight.  These increase the probability of getting an RCU CPU stall
+// warning and associated diagnostics when a locking primitive stalls.
+
+static void call_rcu_chain_cb(struct rcu_head *rhp)
+{
+	struct call_rcu_chain *crcp = container_of(rhp, struct call_rcu_chain, crc_rh);
+
+	if (!smp_load_acquire(&crcp->crc_stop)) {
+		(void)start_poll_synchronize_rcu(); // Start one grace period...
+		call_rcu(&crcp->crc_rh, call_rcu_chain_cb); // ... and later start another.
+	}
+}
+
+// Start the requested number of call_rcu() chains.
+static int call_rcu_chain_init(void)
+{
+	int i;
+
+	if (call_rcu_chains <= 0)
+		return 0;
+	call_rcu_chain = kcalloc(call_rcu_chains, sizeof(*call_rcu_chain), GFP_KERNEL);
+	if (!call_rcu_chains)
+		return -ENOMEM;
+	for (i = 0; i < call_rcu_chains; i++) {
+		call_rcu_chain[i].crc_stop = false;
+		call_rcu(&call_rcu_chain[i].crc_rh, call_rcu_chain_cb);
+	}
+	return 0;
+}
+
+// Stop all of the call_rcu() chains.
+static void call_rcu_chain_cleanup(void)
+{
+	int i;
+
+	if (!call_rcu_chain)
+		return;
+	for (i = 0; i < call_rcu_chains; i++)
+		smp_store_release(&call_rcu_chain[i].crc_stop, true);
+	rcu_barrier();
+	kfree(call_rcu_chain);
+	call_rcu_chain = NULL;
 }
 
 static void lock_torture_cleanup(void)
@@ -1095,6 +1147,8 @@ static void lock_torture_cleanup(void)
 	cxt.lwsa = NULL;
 	kfree(cxt.lrsa);
 	cxt.lrsa = NULL;
+
+	call_rcu_chain_cleanup();
 
 end:
 	if (cxt.init_called) {
@@ -1224,6 +1278,10 @@ static int __init lock_torture_init(void)
 			}
 		}
 	}
+
+	firsterr = call_rcu_chain_init();
+	if (torture_init_error(firsterr))
+		goto unwind;
 
 	lock_torture_print_module_parms(cxt.cur_ops, "Start of test");
 
