@@ -1371,13 +1371,6 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	/* depends on scaling ratios and recout, does not calculate offset yet */
 	calculate_viewport_size(pipe_ctx);
 
-	if (!pipe_ctx->stream->ctx->dc->config.enable_windowed_mpo_odm) {
-		/* Stopgap for validation of ODM + MPO on one side of screen case */
-		if (pipe_ctx->plane_res.scl_data.viewport.height < 1 ||
-				pipe_ctx->plane_res.scl_data.viewport.width < 1)
-			return false;
-	}
-
 	/*
 	 * LB calculations depend on vp size, h/v_active and scaling ratios
 	 * Setting line buffer pixel depth to 24bpp yields banding
