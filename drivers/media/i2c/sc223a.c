@@ -40,6 +40,8 @@
 
 #define PIXEL_RATE_WITH_405M_10BIT	(SC223A_LINK_FREQ_405 * 2 * \
 					SC223A_LANES / SC223A_BITS_PER_SAMPLE)
+/* 79.2Mhz */
+#define SC223A_PIXEL_RATE		(79200000)
 #define SC223A_XVCLK_FREQ		24000000
 
 #define CHIP_ID				0xcb3e
@@ -93,10 +95,12 @@
 #define SC223A_REG_VALUE_16BIT		2
 #define SC223A_REG_VALUE_24BIT		3
 
+#define RKMODULE_CAMERA_MODULE_MODE	"rockchip,camera_mode"
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 #define SC223A_NAME			"sc223a"
-
+#define CAMERA_MIPI_MODE		"mipi_mode"
+#define CAMERA_DVP_MODE			"dvp_mode"
 static const char * const sc223a_supply_names[] = {
 	"avdd",		/* Analog power */
 	"dovdd",	/* Digital I/O power */
@@ -104,6 +108,17 @@ static const char * const sc223a_supply_names[] = {
 };
 
 #define SC223A_NUM_SUPPLIES ARRAY_SIZE(sc223a_supply_names)
+
+enum sc223a_support_mode_id {
+	SC223A_MIPI_1920X1080 = 0,
+	SC223A_DVP_1920X1080,
+	SC223A_MODE_ID_MAX = SC223A_DVP_1920X1080,
+};
+
+enum sc223a_mode_id {
+	SC223A_MIPI_MODE = 0,
+	SC223A_DVP_MODE,
+};
 
 struct regval {
 	u16 addr;
@@ -121,6 +136,7 @@ struct sc223a_mode {
 	const struct regval *reg_list;
 	u32 hdr_mode;
 	u32 vc[PAD_MAX];
+	u8 mode_id;
 };
 
 struct sc223a {
@@ -152,6 +168,7 @@ struct sc223a {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	const char		*mode;
 	u32			cur_vts;
 	bool			has_init_exp;
 	bool			is_thunderboot;
@@ -353,8 +370,223 @@ static const struct regval sc223a_linear_10_1920x1080_30fps_regs[] = {
 	{REG_NULL, 0x00},
 };
 
+/*
+ * Xclk 24Mhz
+ * Pclk 79.2Mhz
+ * max_framerate 30fps
+ * 1920x1080
+ * dvp 10bit, 2lane
+ */
+static const struct regval sc223a_linear_10_1920x1080_dvp_30fps_regs[] = {
+	{0x0100, 0x00},
+	{0x36e9, 0x80},
+	{0x37f9, 0x80},
+	{0x3001, 0xff},
+	{0x3002, 0xf0},
+	{0x300a, 0x24},
+	{0x3018, 0x0f},
+	{0x301a, 0xf8},
+	{0x301c, 0x94},
+	{0x301f, 0x40},
+	{0x303f, 0x81},
+	{0x30b8, 0x44},
+	{0x3200, 0x00},
+	{0x3201, 0x00},
+	{0x3202, 0x00},
+	{0x3203, 0x00},
+	{0x3204, 0x07},
+	{0x3205, 0x87},
+	{0x3206, 0x04},
+	{0x3207, 0x3f},
+	{0x3208, 0x07},
+	{0x3209, 0x80},
+	{0x320a, 0x04},
+	{0x320b, 0x38},
+	{0x320c, 0x09},
+	{0x320d, 0x60},
+	{0x320e, 0x04},
+	{0x320f, 0x65},
+	{0x3210, 0x00},
+	{0x3211, 0x04},
+	{0x3212, 0x00},
+	{0x3213, 0x04},
+	{0x3227, 0x03},
+	{0x3250, 0x00},
+	{0x3253, 0x0c},
+	{0x3281, 0x80},
+	{0x3301, 0x06},
+	{0x3302, 0x12},
+	{0x3306, 0x84},
+	{0x3309, 0x60},
+	{0x330a, 0x00},
+	{0x330b, 0xe0},
+	{0x330d, 0x20},
+	{0x3314, 0x15},
+	{0x331e, 0x41},
+	{0x331f, 0x51},
+	{0x3320, 0x0a},
+	{0x3326, 0x0e},
+	{0x3333, 0x10},
+	{0x3334, 0x40},
+	{0x335d, 0x60},
+	{0x335e, 0x06},
+	{0x335f, 0x08},
+	{0x3364, 0x56},
+	{0x337a, 0x06},
+	{0x337b, 0x0e},
+	{0x337c, 0x02},
+	{0x337d, 0x0a},
+	{0x3390, 0x03},
+	{0x3391, 0x0f},
+	{0x3392, 0x1f},
+	{0x3393, 0x06},
+	{0x3394, 0x06},
+	{0x3395, 0x06},
+	{0x3396, 0x48},
+	{0x3397, 0x4b},
+	{0x3398, 0x5f},
+	{0x3399, 0x06},
+	{0x339a, 0x06},
+	{0x339b, 0x9c},
+	{0x339c, 0x9c},
+	{0x33a2, 0x04},
+	{0x33a3, 0x0a},
+	{0x33ad, 0x1c},
+	{0x33af, 0x40},
+	{0x33b1, 0x80},
+	{0x33b3, 0x20},
+	{0x349f, 0x02},
+	{0x34a6, 0x48},
+	{0x34a7, 0x4b},
+	{0x34a8, 0x20},
+	{0x34a9, 0x20},
+	{0x34f8, 0x5f},
+	{0x34f9, 0x10},
+	{0x3616, 0xac},
+	{0x3630, 0xc0},
+	{0x3631, 0x86},
+	{0x3632, 0x26},
+	{0x3633, 0x32},
+	{0x3637, 0x29},
+	{0x363a, 0x84},
+	{0x363b, 0x04},
+	{0x363c, 0x08},
+	{0x3641, 0x3a},
+	{0x364f, 0x39},
+	{0x3670, 0xce},
+	{0x3674, 0xc0},
+	{0x3675, 0xc0},
+	{0x3676, 0xc0},
+	{0x3677, 0x86},
+	{0x3678, 0x8b},
+	{0x3679, 0x8c},
+	{0x367c, 0x4b},
+	{0x367d, 0x5f},
+	{0x367e, 0x4b},
+	{0x367f, 0x5f},
+	{0x3690, 0x62},
+	{0x3691, 0x63},
+	{0x3692, 0x63},
+	{0x3699, 0x86},
+	{0x369a, 0x92},
+	{0x369b, 0xa4},
+	{0x369c, 0x48},
+	{0x369d, 0x4b},
+	{0x36a2, 0x4b},
+	{0x36a3, 0x4f},
+	{0x36ea, 0x09},
+	{0x36eb, 0x0c},
+	{0x36ec, 0x1c},
+	{0x36ed, 0x28},
+	{0x370f, 0x01},
+	{0x3721, 0x6c},
+	{0x3722, 0x09},
+	{0x3724, 0x41},
+	{0x3725, 0xc4},
+	{0x37b0, 0x09},
+	{0x37b1, 0x09},
+	{0x37b2, 0x09},
+	{0x37b3, 0x48},
+	{0x37b4, 0x5f},
+	{0x37fa, 0x09},
+	{0x37fb, 0x32},
+	{0x37fc, 0x10},
+	{0x37fd, 0x37},
+	{0x3900, 0x19},
+	{0x3901, 0x02},
+	{0x3905, 0xb8},
+	{0x391b, 0x82},
+	{0x391c, 0x00},
+	{0x391f, 0x04},
+	{0x3928, 0xc1},
+	{0x3933, 0x81},
+	{0x3934, 0x4c},
+	{0x393f, 0xff},
+	{0x3940, 0x73},
+	{0x3942, 0x01},
+	{0x3943, 0x4d},
+	{0x3946, 0x20},
+	{0x3957, 0x86},
+	{0x3e01, 0x8c},
+	{0x3e02, 0x00},
+	{0x3e28, 0xc4},
+	{0x440e, 0x02},
+	{0x4501, 0xc0},
+	{0x4509, 0x14},
+	{0x450d, 0x11},
+	{0x4518, 0x00},
+	{0x451b, 0x0a},
+	{0x4603, 0x09},
+	{0x4819, 0x07},
+	{0x481b, 0x04},
+	{0x481d, 0x0e},
+	{0x3000, 0xff},
+	{0x481f, 0x03},
+	{0x4821, 0x09},
+	{0x4823, 0x04},
+	{0x4825, 0x03},
+	{0x4827, 0x03},
+	{0x4829, 0x06},
+	{0x501c, 0x00},
+	{0x501d, 0x60},
+	{0x501e, 0x00},
+	{0x501f, 0x40},
+	{0x5799, 0x06},
+	{0x5ae0, 0xfe},
+	{0x5ae1, 0x40},
+	{0x5ae2, 0x38},
+	{0x5ae3, 0x30},
+	{0x5ae4, 0x28},
+	{0x5ae5, 0x38},
+	{0x5ae6, 0x30},
+	{0x5ae7, 0x28},
+	{0x5ae8, 0x3f},
+	{0x5ae9, 0x34},
+	{0x5aea, 0x2c},
+	{0x5aeb, 0x3f},
+	{0x5aec, 0x34},
+	{0x5aed, 0x2c},
+	{0x5aee, 0xfe},
+	{0x5aef, 0x40},
+	{0x5af4, 0x38},
+	{0x5af5, 0x30},
+	{0x5af6, 0x28},
+	{0x5af7, 0x38},
+	{0x5af8, 0x30},
+	{0x5af9, 0x28},
+	{0x5afa, 0x3f},
+	{0x5afb, 0x34},
+	{0x5afc, 0x2c},
+	{0x5afd, 0x3f},
+	{0x5afe, 0x34},
+	{0x5aff, 0x2c},
+	{0x36e9, 0x53},
+	{0x37f9, 0x53},
+	{REG_NULL, 0x00},
+};
+
 static const struct sc223a_mode supported_modes[] = {
-	{
+	[SC223A_MIPI_1920X1080] = {
 		.width = 1920,
 		.height = 1080,
 		.max_fps = {
@@ -367,11 +599,28 @@ static const struct sc223a_mode supported_modes[] = {
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.reg_list = sc223a_linear_10_1920x1080_30fps_regs,
 		.hdr_mode = NO_HDR,
+		.mode_id = SC223A_MIPI_MODE,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
-	}
+	},
+	[SC223A_DVP_1920X1080] = {
+		.width = 1920,
+		.height = 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x0080,
+		.hts_def = 0x0960,
+		.vts_def = 0x0465,
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.reg_list = sc223a_linear_10_1920x1080_dvp_30fps_regs,
+		.hdr_mode = NO_HDR,
+		.mode_id = SC223A_DVP_MODE,
+		.vc[PAD0] = 0,
+	},
 };
 
-static const s64 link_freq_menu_items[] = {
+static const __maybe_unused s64 link_freq_menu_items[] = {
 	SC223A_LINK_FREQ_405
 };
 
@@ -694,17 +943,25 @@ static int sc223a_g_mbus_config(struct v4l2_subdev *sd,
 	struct sc223a *sc223a = to_sc223a(sd);
 	const struct sc223a_mode *mode = sc223a->cur_mode;
 
-	u32 val = 1 << (SC223A_LANES - 1) |
-		V4L2_MBUS_CSI2_CHANNEL_0 |
-		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	u32 val;
 
-	if (mode->hdr_mode != NO_HDR)
-		val |= V4L2_MBUS_CSI2_CHANNEL_1;
-	if (mode->hdr_mode == HDR_X3)
-		val |= V4L2_MBUS_CSI2_CHANNEL_2;
+	if (!strcmp(sc223a->mode, CAMERA_MIPI_MODE)) {
+		val = 1 << (SC223A_LANES - 1) |
+		      V4L2_MBUS_CSI2_CHANNEL_0 |
+		      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+		if (mode->hdr_mode != NO_HDR)
+			val |= V4L2_MBUS_CSI2_CHANNEL_1;
+		if (mode->hdr_mode == HDR_X3)
+			val |= V4L2_MBUS_CSI2_CHANNEL_2;
 
-	config->type = V4L2_MBUS_CSI2_DPHY;
-	config->flags = val;
+		config->type = V4L2_MBUS_CSI2_DPHY;
+		config->flags = val;
+	} else if (!strcmp(sc223a->mode, CAMERA_DVP_MODE)) {
+		config->type = V4L2_MBUS_PARALLEL;
+		config->flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+				V4L2_MBUS_VSYNC_ACTIVE_LOW |
+				V4L2_MBUS_PCLK_SAMPLE_FALLING;
+	}
 
 	return 0;
 }
@@ -724,6 +981,7 @@ static long sc223a_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct sc223a *sc223a = to_sc223a(sd);
 	struct rkmodule_hdr_cfg *hdr;
 	u32 i, h, w;
+	u8 mode;
 	long ret = 0;
 	u32 stream = 0;
 
@@ -740,9 +998,11 @@ static long sc223a_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		hdr = (struct rkmodule_hdr_cfg *)arg;
 		w = sc223a->cur_mode->width;
 		h = sc223a->cur_mode->height;
+		mode = sc223a->cur_mode->mode_id;
 		for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
+			    mode == supported_modes[i].mode_id &&
 			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
 				sc223a->cur_mode = &supported_modes[i];
 				break;
@@ -889,6 +1149,7 @@ static int __sc223a_start_stream(struct sc223a *sc223a)
 			}
 		}
 	}
+
 	return sc223a_write_reg(sc223a->client, SC223A_REG_CTRL_MODE,
 				SC223A_REG_VALUE_08BIT, SC223A_MODE_STREAMING);
 }
@@ -1293,13 +1554,18 @@ static int sc223a_initialize_controls(struct sc223a *sc223a)
 		return ret;
 	handler->lock = &sc223a->mutex;
 
-	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
-				      0, 0, link_freq_menu_items);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	if (!strcmp(sc223a->mode, CAMERA_MIPI_MODE)) {
+		ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
+					      0, 0, link_freq_menu_items);
+		if (ctrl)
+			ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+		v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
+				  0, PIXEL_RATE_WITH_405M_10BIT, 1, PIXEL_RATE_WITH_405M_10BIT);
+	} else if (!strcmp(sc223a->mode, CAMERA_DVP_MODE)) {
+		v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
+				  0, SC223A_PIXEL_RATE, 1, SC223A_PIXEL_RATE);
+	}
 
-	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-			  0, PIXEL_RATE_WITH_405M_10BIT, 1, PIXEL_RATE_WITH_405M_10BIT);
 
 	h_blank = mode->hts_def - mode->width;
 	sc223a->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
@@ -1412,6 +1678,8 @@ static int sc223a_probe(struct i2c_client *client,
 				       &sc223a->module_name);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
 				       &sc223a->len_name);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_MODE,
+				       &sc223a->mode);
 	if (ret) {
 		dev_err(dev, "could not get module information!\n");
 		return -EINVAL;
@@ -1420,14 +1688,18 @@ static int sc223a_probe(struct i2c_client *client,
 	sc223a->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
 
 	sc223a->client = client;
-	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
-		if (hdr_mode == supported_modes[i].hdr_mode) {
-			sc223a->cur_mode = &supported_modes[i];
-			break;
+	if (!strcmp(sc223a->mode, CAMERA_MIPI_MODE)) {
+		for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+			if (hdr_mode == supported_modes[i].hdr_mode) {
+				sc223a->cur_mode = &supported_modes[i];
+				break;
+			}
 		}
+		if (i == ARRAY_SIZE(supported_modes))
+			sc223a->cur_mode = &supported_modes[SC223A_MIPI_1920X1080];
+	} else if (!strcmp(sc223a->mode, CAMERA_DVP_MODE)) {
+		sc223a->cur_mode = &supported_modes[SC223A_DVP_1920X1080];
 	}
-	if (i == ARRAY_SIZE(supported_modes))
-		sc223a->cur_mode = &supported_modes[0];
 
 	sc223a->xvclk = devm_clk_get(dev, "xvclk");
 	if (IS_ERR(sc223a->xvclk)) {
