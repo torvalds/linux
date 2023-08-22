@@ -735,10 +735,6 @@ static int a5psw_port_vlan_add(struct dsa_switch *ds, int port,
 	u16 vid = vlan->vid;
 	int vlan_res_id;
 
-	dev_dbg(a5psw->dev, "Add VLAN %d on port %d, %s, %s\n",
-		vid, port, tagged ? "tagged" : "untagged",
-		pvid ? "PVID" : "no PVID");
-
 	vlan_res_id = a5psw_find_vlan_entry(a5psw, vid);
 	if (vlan_res_id < 0) {
 		vlan_res_id = a5psw_new_vlan_res_entry(a5psw, vid);
@@ -766,8 +762,6 @@ static int a5psw_port_vlan_del(struct dsa_switch *ds, int port,
 	struct a5psw *a5psw = ds->priv;
 	u16 vid = vlan->vid;
 	int vlan_res_id;
-
-	dev_dbg(a5psw->dev, "Removing VLAN %d on port %d\n", vid, port);
 
 	vlan_res_id = a5psw_find_vlan_entry(a5psw, vid);
 	if (vlan_res_id < 0)
