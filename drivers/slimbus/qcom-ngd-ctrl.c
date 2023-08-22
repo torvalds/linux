@@ -998,17 +998,14 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 	 * acquired and is waiting for ctrl_lock. While in parallel for
 	 * slim_get_logical_addr request from codecs ctrl_lock is acquired
 	 * first followed by qcom_slim_ngd_xfer_msg.
-	 * In qcom_slim_ngd_xfer_msg check if tx lock is already acquired
-	 * as part of SSR/PDR notify and ngd is going down to avoid deadlock
-	 * scenario if there is a get logical address request.
+	 * mutex_trylock will not wait to aquire lock if it is already been
+	 * acquired by SSR sequence hence it will unblock SSR to finish
+	 * gracefully
 	 */
-	if (mutex_is_locked(&ctrl->tx_lock) &&
-			    ctrl->state == QCOM_SLIM_NGD_CTRL_SSR_GOING_DOWN) {
-		SLIM_ERR(ctrl, "ngd going down due SSR/PDR, try again!\n");
+	if (!mutex_trylock(&ctrl->tx_lock)) {
+		SLIM_ERR(ctrl, "ngd going down due SSR/PDR, try again! skipping check hw state\n");
 		return -EAGAIN;
 	}
-
-	mutex_lock(&ctrl->tx_lock);
 	ret = check_hw_state(ctrl, txn);
 	if (ret) {
 		SLIM_WARN(ctrl, "ADSP slimbus not up MC:0x%x,mt:0x%x ret:%d\n",
@@ -1096,7 +1093,10 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 			memcpy(puc, txn->msg->wbuf, txn->msg->num_bytes);
 	}
 
-	mutex_lock(&ctrl->tx_lock);
+	if (!mutex_trylock(&ctrl->tx_lock)) {
+		SLIM_ERR(ctrl, "ngd going down due SSR/PDR, try again! skipping tx msg post\n");
+		return -EAGAIN;
+	}
 	ret = qcom_slim_ngd_tx_msg_post(ctrl, pbuf, txn->rl);
 	if (ret) {
 		mutex_unlock(&ctrl->tx_lock);
