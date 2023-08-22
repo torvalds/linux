@@ -28,6 +28,7 @@ msm-poweroff.ko
 icc-debug.ko
 icc-rpm.ko
 qnoc-blair.ko
+qnoc-holi.ko
 qnoc-qos-rpm.ko
 dispcc-blair.ko
 gcc-blair.ko

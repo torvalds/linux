@@ -62,6 +62,7 @@ def define_blair():
         "drivers/interconnect/qcom/icc-debug.ko",
         "drivers/interconnect/qcom/icc-rpm.ko",
         "drivers/interconnect/qcom/qnoc-blair.ko",
+        "drivers/interconnect/qcom/qnoc-holi.ko",
         "drivers/interconnect/qcom/qnoc-qos-rpm.ko",
         "drivers/iommu/arm/arm-smmu/arm_smmu.ko",
         "drivers/iommu/iommu-logger.ko",
