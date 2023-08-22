@@ -15,10 +15,15 @@
 #include <linux/fs.h>
 #include "overlayfs.h"
 
+#include "../internal.h"	/* for sb_init_dio_done_wq */
+
 struct ovl_aio_req {
 	struct kiocb iocb;
 	refcount_t ref;
 	struct kiocb *orig_iocb;
+	/* used for aio completion */
+	struct work_struct work;
+	long res;
 };
 
 static struct kmem_cache *ovl_aio_request_cachep;
@@ -305,6 +310,37 @@ static void ovl_aio_rw_complete(struct kiocb *iocb, long res)
 	orig_iocb->ki_complete(orig_iocb, res);
 }
 
+static void ovl_aio_complete_work(struct work_struct *work)
+{
+	struct ovl_aio_req *aio_req = container_of(work,
+						   struct ovl_aio_req, work);
+
+	ovl_aio_rw_complete(&aio_req->iocb, aio_req->res);
+}
+
+static void ovl_aio_queue_completion(struct kiocb *iocb, long res)
+{
+	struct ovl_aio_req *aio_req = container_of(iocb,
+						   struct ovl_aio_req, iocb);
+	struct kiocb *orig_iocb = aio_req->orig_iocb;
+
+	/*
+	 * Punt to a work queue to serialize updates of mtime/size.
+	 */
+	aio_req->res = res;
+	INIT_WORK(&aio_req->work, ovl_aio_complete_work);
+	queue_work(file_inode(orig_iocb->ki_filp)->i_sb->s_dio_done_wq,
+		   &aio_req->work);
+}
+
+static int ovl_init_aio_done_wq(struct super_block *sb)
+{
+	if (sb->s_dio_done_wq)
+		return 0;
+
+	return sb_init_dio_done_wq(sb);
+}
+
 static ssize_t ovl_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
@@ -404,6 +440,10 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	} else {
 		struct ovl_aio_req *aio_req;
 
+		ret = ovl_init_aio_done_wq(inode->i_sb);
+		if (ret)
+			goto out;
+
 		ret = -ENOMEM;
 		aio_req = kmem_cache_zalloc(ovl_aio_request_cachep, GFP_KERNEL);
 		if (!aio_req)
@@ -412,7 +452,7 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 		aio_req->orig_iocb = iocb;
 		kiocb_clone(&aio_req->iocb, iocb, get_file(real.file));
 		aio_req->iocb.ki_flags = ifl;
-		aio_req->iocb.ki_complete = ovl_aio_rw_complete;
+		aio_req->iocb.ki_complete = ovl_aio_queue_completion;
 		refcount_set(&aio_req->ref, 2);
 		kiocb_start_write(&aio_req->iocb);
 		ret = vfs_iocb_iter_write(real.file, &aio_req->iocb, iter);
