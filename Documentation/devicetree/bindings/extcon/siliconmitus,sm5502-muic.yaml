@@ -27,6 +27,10 @@ properties:
     description: I2C slave address of the device. Usually 0x25 for SM5502
       and SM5703, 0x14 for SM5504.
 
+  connector:
+    $ref: /schemas/connector/usb-connector.yaml#
+    unevaluatedProperties: false
+
   interrupts:
     maxItems: 1
 
