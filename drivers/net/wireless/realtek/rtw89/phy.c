@@ -4568,7 +4568,7 @@ void rtw89_phy_tssi_ctrl_set_fast_mode_cfg(struct rtw89_dev *rtwdev,
 		regs = rtw89_tssi_fastmode_regs_level;
 
 	for (i = 0; i < RTW89_TSSI_FAST_MODE_NUM; i++) {
-		reg = rtw89_mac_reg_by_idx(regs[i].addr, mac_idx);
+		reg = rtw89_mac_reg_by_idx(rtwdev, regs[i].addr, mac_idx);
 		rtw89_write32_mask(rtwdev, reg, regs[i].mask, val);
 	}
 }
@@ -4630,11 +4630,11 @@ void rtw89_phy_tssi_ctrl_set_bandedge_cfg(struct rtw89_dev *rtwdev,
 	data = chip->tssi_dbw_table->data[bandedge_cfg];
 
 	for (i = 0; i < RTW89_TSSI_SBW_NUM; i++) {
-		reg = rtw89_mac_reg_by_idx(regs[i].addr, mac_idx);
+		reg = rtw89_mac_reg_by_idx(rtwdev, regs[i].addr, mac_idx);
 		rtw89_write32_mask(rtwdev, reg, regs[i].mask, data[i]);
 	}
 
-	reg = rtw89_mac_reg_by_idx(R_AX_BANDEDGE_CFG, mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_BANDEDGE_CFG, mac_idx);
 	rtw89_write32_mask(rtwdev, reg, B_AX_BANDEDGE_CFG_IDX_MASK, bandedge_cfg);
 
 	rtw89_phy_tssi_ctrl_set_fast_mode_cfg(rtwdev, mac_idx, bandedge_cfg,

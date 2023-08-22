@@ -2504,7 +2504,7 @@ void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_config_roc_chandef(rtwdev, rtwvif->sub_entity_idx, &roc_chan);
 	rtw89_set_channel(rtwdev);
 	rtw89_write32_clr(rtwdev,
-			  rtw89_mac_reg_by_idx(R_AX_RX_FLTR_OPT, RTW89_MAC_0),
+			  rtw89_mac_reg_by_idx(rtwdev, R_AX_RX_FLTR_OPT, RTW89_MAC_0),
 			  B_AX_A_UC_CAM_MATCH | B_AX_A_BC_CAM_MATCH);
 
 	ieee80211_ready_on_channel(hw);
@@ -2525,7 +2525,7 @@ void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_leave_lps(rtwdev);
 
 	rtw89_write32_mask(rtwdev,
-			   rtw89_mac_reg_by_idx(R_AX_RX_FLTR_OPT, RTW89_MAC_0),
+			   rtw89_mac_reg_by_idx(rtwdev, R_AX_RX_FLTR_OPT, RTW89_MAC_0),
 			   B_AX_RX_FLTR_CFG_MASK,
 			   rtwdev->hal.rx_fltr);
 

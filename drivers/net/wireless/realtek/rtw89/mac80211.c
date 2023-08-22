@@ -271,13 +271,13 @@ static void rtw89_ops_configure_filter(struct ieee80211_hw *hw,
 	}
 
 	rtw89_write32_mask(rtwdev,
-			   rtw89_mac_reg_by_idx(R_AX_RX_FLTR_OPT, RTW89_MAC_0),
+			   rtw89_mac_reg_by_idx(rtwdev, R_AX_RX_FLTR_OPT, RTW89_MAC_0),
 			   B_AX_RX_FLTR_CFG_MASK,
 			   rtwdev->hal.rx_fltr);
 	if (!rtwdev->dbcc_en)
 		goto out;
 	rtw89_write32_mask(rtwdev,
-			   rtw89_mac_reg_by_idx(R_AX_RX_FLTR_OPT, RTW89_MAC_1),
+			   rtw89_mac_reg_by_idx(rtwdev, R_AX_RX_FLTR_OPT, RTW89_MAC_1),
 			   B_AX_RX_FLTR_CFG_MASK,
 			   rtwdev->hal.rx_fltr);
 
@@ -354,7 +354,7 @@ static void ____rtw89_conf_tx_mu_edca(struct rtw89_dev *rtwdev,
 	val = FIELD_PREP(B_AX_MUEDCA_BE_PARAM_0_TIMER_MASK, timer_32us) |
 	      FIELD_PREP(B_AX_MUEDCA_BE_PARAM_0_CW_MASK, mu_edca->ecw_min_max) |
 	      FIELD_PREP(B_AX_MUEDCA_BE_PARAM_0_AIFS_MASK, aifs);
-	reg = rtw89_mac_reg_by_idx(ac_to_mu_edca_param[ac], rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, ac_to_mu_edca_param[ac], rtwvif->mac_idx);
 	rtw89_write32(rtwdev, reg, val);
 
 	rtw89_mac_set_hw_muedca_ctrl(rtwdev, rtwvif, true);
