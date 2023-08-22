@@ -2283,9 +2283,9 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint16_t dsc_slice_height;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * Some panels request main link off before xth vertical line
 	 */
-	uint16_t pad;
+	uint16_t poweroff_before_vertical_line;
 };
 
 /**
