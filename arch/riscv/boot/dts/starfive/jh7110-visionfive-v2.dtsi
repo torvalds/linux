@@ -448,19 +448,6 @@
 		reg = <0x38>;
 	};
 
-	panel_radxa@19 {
-		compatible ="starfive_jadard";
-		reg = <0x19>;
-		reset-gpio = <&gpio 23 0>;
-		enable-gpio = <&gpio 22 0>;
-
-		port {
-			panel_out1: endpoint {
-				remote-endpoint = <&dsi1_output>;
-				};
-		};
-	};
-
 	touchscreen@14 {
 		compatible = "goodix,gt911";
 		reg = <0x14>;
@@ -476,11 +463,26 @@
 		enable-gpio = <&gpio 22 0>;
 
 		port {
-			panel_out2: endpoint {
-				remote-endpoint = <&dsi2_output>;
+			panel_out1: endpoint {
+				remote-endpoint = <&dsi1_output>;
 			};
 		};
 	};
+
+        panel_radxa@19 {
+                compatible ="starfive_jadard";
+                reg = <0x19>;
+                reset-gpio = <&gpio 23 0>;
+                enable-gpio = <&gpio 22 0>;
+
+                port {
+                        panel_out2: endpoint {
+                                remote-endpoint = <&dsi2_output>;
+                                };
+                };
+        };
+
+
 };
 
 &i2c5 {
