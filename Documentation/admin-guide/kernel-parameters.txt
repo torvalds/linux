@@ -2918,6 +2918,14 @@
 			acquisition.  Acquisitions exceeding this limit
 			will result in a splat once they do complete.
 
+	locktorture.bind_readers= [KNL]
+			Specify the list of CPUs to which the readers are
+			to be bound.
+
+	locktorture.bind_writers= [KNL]
+			Specify the list of CPUs to which the writers are
+			to be bound.
+
 	locktorture.call_rcu_chains= [KNL]
 			Specify the number of self-propagating call_rcu()
 			chains to set up.  These are used to ensure that
@@ -2951,10 +2959,6 @@
 	locktorture.onoff_interval= [KNL]
 			Set time (s) between CPU-hotplug operations, or
 			zero to disable CPU-hotplug testing.
-
-	locktorture.readers_bind= [KNL]
-			Specify the list of CPUs to which the readers are
-			to be bound.
 
 	locktorture.rt_boost= [KNL]
 			Do periodic testing of real-time lock priority
@@ -2999,10 +3003,6 @@
 
 	locktorture.verbose= [KNL]
 			Enable additional printk() statements.
-
-	locktorture.writers_bind= [KNL]
-			Specify the list of CPUs to which the writers are
-			to be bound.
 
 	locktorture.writer_fifo= [KNL]
 			Run the write-side locktorture kthreads at
