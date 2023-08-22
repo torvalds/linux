@@ -19,7 +19,7 @@ struct drm_dsc_config *msm_dsi_get_dsc_config(struct msm_dsi *msm_dsi)
 
 bool msm_dsi_wide_bus_enabled(struct msm_dsi *msm_dsi)
 {
-	return false;
+	return msm_dsi_host_is_wide_bus_enabled(msm_dsi->host);
 }
 
 static int dsi_get_phy(struct msm_dsi *msm_dsi)
