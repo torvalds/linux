@@ -2328,9 +2328,7 @@ static int rkvdec2_hard_ccu_enqueue(struct rkvdec2_ccu *ccu,
 	writel(RKVDEC_CCU_BIT_CFG_DONE, ccu->reg_base + RKVDEC_CCU_CFG_DONE_BASE);
 	mpp_task_run_end(mpp_task, timing_en);
 
-	/* pending to running */
 	set_bit(TASK_STATE_RUNNING, &mpp_task->state);
-	mpp_taskqueue_pending_to_run(queue, mpp_task);
 	mpp_dbg_ccu("session %d task %d iova=%08x task->state=%lx link_mode=%08x\n",
 		    mpp_task->session->index, mpp_task->task_index,
 		    (u32)task->table->iova, mpp_task->state,
@@ -2503,6 +2501,7 @@ void rkvdec2_hard_ccu_worker(struct kthread_work *work_s)
 
 		rkvdec2_ccu_power_on(queue, dec->ccu);
 		rkvdec2_hard_ccu_enqueue(dec->ccu, mpp_task, queue, mpp);
+		mpp_taskqueue_pending_to_run(queue, mpp_task);
 	}
 
 	/* 4. poweroff when running and pending list are empty */
