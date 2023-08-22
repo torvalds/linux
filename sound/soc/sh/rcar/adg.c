@@ -607,6 +607,10 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 		}
 	}
 
+	if (!(adg->brg_rate[ADG_HZ_48]  && req_Hz[ADG_HZ_48]) &&
+	    !(adg->brg_rate[ADG_HZ_441] && req_Hz[ADG_HZ_441]))
+		goto rsnd_adg_get_clkout_end;
+
 	if (approximate)
 		dev_info(dev, "It uses CLK_I as approximate rate");
 
