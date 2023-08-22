@@ -149,18 +149,22 @@ static enum lru_status gfs2_qd_isolate(struct list_head *item,
 		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
 {
 	struct list_head *dispose = arg;
-	struct gfs2_quota_data *qd = list_entry(item, struct gfs2_quota_data, qd_lru);
+	struct gfs2_quota_data *qd =
+		list_entry(item, struct gfs2_quota_data, qd_lru);
+	enum lru_status status;
 
 	if (!spin_trylock(&qd->qd_lockref.lock))
 		return LRU_SKIP;
 
+	status = LRU_SKIP;
 	if (qd->qd_lockref.count == 0) {
 		lockref_mark_dead(&qd->qd_lockref);
 		list_lru_isolate_move(lru, &qd->qd_lru, dispose);
+		status = LRU_REMOVED;
 	}
 
 	spin_unlock(&qd->qd_lockref.lock);
-	return LRU_REMOVED;
+	return status;
 }
 
 static unsigned long gfs2_qd_shrink_scan(struct shrinker *shrink,
