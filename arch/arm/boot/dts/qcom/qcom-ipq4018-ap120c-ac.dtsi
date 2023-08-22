@@ -262,10 +262,11 @@
 &usb3 {
 	status = "okay";
 
-	dwc3@8a00000 {
-		phys = <&usb3_hs_phy>;
-		phy-names = "usb2-phy";
 	};
+
+&usb3_dwc {
+	phys = <&usb3_hs_phy>;
+	phy-names = "usb2-phy";
 };
 
 &usb2_hs_phy {
