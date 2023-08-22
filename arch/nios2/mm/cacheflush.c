@@ -75,12 +75,13 @@ static void flush_aliases(struct address_space *mapping, struct folio *folio)
 {
 	struct mm_struct *mm = current->active_mm;
 	struct vm_area_struct *vma;
+	unsigned long flags;
 	pgoff_t pgoff;
 	unsigned long nr = folio_nr_pages(folio);
 
 	pgoff = folio->index;
 
-	flush_dcache_mmap_lock(mapping);
+	flush_dcache_mmap_lock_irqsave(mapping, flags);
 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff + nr - 1) {
 		unsigned long start;
 
@@ -92,7 +93,7 @@ static void flush_aliases(struct address_space *mapping, struct folio *folio)
 		start = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 		flush_cache_range(vma, start, start + nr * PAGE_SIZE);
 	}
-	flush_dcache_mmap_unlock(mapping);
+	flush_dcache_mmap_unlock_irqrestore(mapping, flags);
 }
 
 void flush_cache_all(void)
