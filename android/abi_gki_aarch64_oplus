@@ -1549,6 +1549,7 @@
   __memcat_p
   memcg_kmem_enabled_key
   mem_cgroup_from_id
+  mem_cgroup_update_lru_size
   memchr
   memchr_inv
   memcmp
@@ -1616,6 +1617,7 @@
   mmc_send_tuning
   mmput
   mod_delayed_work_on
+  __mod_lruvec_state
   mod_node_page_state
   mod_timer
   mod_timer_pending
@@ -1815,6 +1817,7 @@
   __page_mapcount
   page_mapping
   __page_pinner_migration_failed
+  page_referenced
   page_symlink
   page_to_lruvec
   panic
@@ -2253,6 +2256,7 @@
   rndis_set_param_vendor
   rndis_signal_connect
   rndis_uninit
+  root_mem_cgroup
   root_task_group
   round_jiffies
   round_jiffies_relative
