@@ -1103,7 +1103,7 @@ config SEL3350_PLATFORM
 endif # X86_PLATFORM_DEVICES
 
 config P2SB
-	bool "Primary to Sideband (P2SB) bridge access support"
+	bool
 	depends on PCI && X86
 	help
 	  The Primary to Sideband (P2SB) bridge is an interface to some
