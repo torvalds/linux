@@ -1135,10 +1135,13 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	dma_addr_t dma_addr;
 	int i;
 
-	eth->scratch_ring = dma_alloc_coherent(eth->dma_dev,
-					       cnt * soc->txrx.txd_size,
-					       &eth->phy_scratch_ring,
-					       GFP_KERNEL);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SRAM))
+		eth->scratch_ring = eth->sram_base;
+	else
+		eth->scratch_ring = dma_alloc_coherent(eth->dma_dev,
+						       cnt * soc->txrx.txd_size,
+						       &eth->phy_scratch_ring,
+						       GFP_KERNEL);
 	if (unlikely(!eth->scratch_ring))
 		return -ENOMEM;
 
@@ -2446,8 +2449,14 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	if (!ring->buf)
 		goto no_tx_mem;
 
-	ring->dma = dma_alloc_coherent(eth->dma_dev, ring_size * sz,
-				       &ring->phys, GFP_KERNEL);
+	if (MTK_HAS_CAPS(soc->caps, MTK_SRAM)) {
+		ring->dma = eth->sram_base + ring_size * sz;
+		ring->phys = eth->phy_scratch_ring + ring_size * (dma_addr_t)sz;
+	} else {
+		ring->dma = dma_alloc_coherent(eth->dma_dev, ring_size * sz,
+					       &ring->phys, GFP_KERNEL);
+	}
+
 	if (!ring->dma)
 		goto no_tx_mem;
 
@@ -2546,8 +2555,7 @@ static void mtk_tx_clean(struct mtk_eth *eth)
 		kfree(ring->buf);
 		ring->buf = NULL;
 	}
-
-	if (ring->dma) {
+	if (!MTK_HAS_CAPS(soc->caps, MTK_SRAM) && ring->dma) {
 		dma_free_coherent(eth->dma_dev,
 				  ring->dma_size * soc->txrx.txd_size,
 				  ring->dma, ring->phys);
@@ -2566,8 +2574,13 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 {
 	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
 	struct mtk_rx_ring *ring;
-	int rx_data_len, rx_dma_size;
+	int rx_data_len, rx_dma_size, tx_ring_size;
 	int i;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		tx_ring_size = MTK_QDMA_RING_SIZE;
+	else
+		tx_ring_size = MTK_DMA_SIZE;
 
 	if (rx_flag == MTK_RX_FLAGS_QDMA) {
 		if (ring_no)
@@ -2603,9 +2616,20 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 		ring->page_pool = pp;
 	}
 
-	ring->dma = dma_alloc_coherent(eth->dma_dev,
-				       rx_dma_size * eth->soc->txrx.rxd_size,
-				       &ring->phys, GFP_KERNEL);
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SRAM) ||
+	    rx_flag != MTK_RX_FLAGS_NORMAL) {
+		ring->dma = dma_alloc_coherent(eth->dma_dev,
+					       rx_dma_size * eth->soc->txrx.rxd_size,
+					       &ring->phys, GFP_KERNEL);
+	} else {
+		struct mtk_tx_ring *tx_ring = &eth->tx_ring;
+
+		ring->dma = tx_ring->dma + tx_ring_size *
+			    eth->soc->txrx.txd_size * (ring_no + 1);
+		ring->phys = tx_ring->phys + tx_ring_size *
+			     eth->soc->txrx.txd_size * (ring_no + 1);
+	}
+
 	if (!ring->dma)
 		return -ENOMEM;
 
@@ -2690,7 +2714,7 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 	return 0;
 }
 
-static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
+static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring, bool in_sram)
 {
 	int i;
 
@@ -2713,7 +2737,7 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 		ring->data = NULL;
 	}
 
-	if (ring->dma) {
+	if (!in_sram && ring->dma) {
 		dma_free_coherent(eth->dma_dev,
 				  ring->dma_size * eth->soc->txrx.rxd_size,
 				  ring->dma, ring->phys);
@@ -3073,7 +3097,7 @@ static void mtk_dma_free(struct mtk_eth *eth)
 	for (i = 0; i < MTK_MAX_DEVS; i++)
 		if (eth->netdev[i])
 			netdev_reset_queue(eth->netdev[i]);
-	if (eth->scratch_ring) {
+	if (!MTK_HAS_CAPS(soc->caps, MTK_SRAM) && eth->scratch_ring) {
 		dma_free_coherent(eth->dma_dev,
 				  MTK_QDMA_RING_SIZE * soc->txrx.txd_size,
 				  eth->scratch_ring, eth->phy_scratch_ring);
@@ -3081,13 +3105,13 @@ static void mtk_dma_free(struct mtk_eth *eth)
 		eth->phy_scratch_ring = 0;
 	}
 	mtk_tx_clean(eth);
-	mtk_rx_clean(eth, &eth->rx_ring[0]);
-	mtk_rx_clean(eth, &eth->rx_ring_qdma);
+	mtk_rx_clean(eth, &eth->rx_ring[0], MTK_HAS_CAPS(soc->caps, MTK_SRAM));
+	mtk_rx_clean(eth, &eth->rx_ring_qdma, false);
 
 	if (eth->hwlro) {
 		mtk_hwlro_rx_uninit(eth);
 		for (i = 1; i < MTK_MAX_RX_RING_NUM; i++)
-			mtk_rx_clean(eth, &eth->rx_ring[i]);
+			mtk_rx_clean(eth, &eth->rx_ring[i], false);
 	}
 
 	kfree(eth->scratch_head);
@@ -4676,7 +4700,7 @@ static int mtk_sgmii_init(struct mtk_eth *eth)
 
 static int mtk_probe(struct platform_device *pdev)
 {
-	struct resource *res = NULL;
+	struct resource *res = NULL, *res_sram;
 	struct device_node *mac_np;
 	struct mtk_eth *eth;
 	int err, i;
@@ -4695,6 +4719,20 @@ static int mtk_probe(struct platform_device *pdev)
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
 		eth->ip_align = NET_IP_ALIGN;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SRAM)) {
+		/* SRAM is actual memory and supports transparent access just like DRAM.
+		 * Hence we don't require __iomem being set and don't need to use accessor
+		 * functions to read from or write to SRAM.
+		 */
+		if (mtk_is_netsys_v3_or_greater(eth)) {
+			eth->sram_base = (void __force *)devm_platform_ioremap_resource(pdev, 1);
+			if (IS_ERR(eth->sram_base))
+				return PTR_ERR(eth->sram_base);
+		} else {
+			eth->sram_base = (void __force *)eth->base + MTK_ETH_SRAM_OFFSET;
+		}
+	}
 
 	spin_lock_init(&eth->page_lock);
 	spin_lock_init(&eth->tx_irq_lock);
@@ -4758,6 +4796,18 @@ static int mtk_probe(struct platform_device *pdev)
 		if (!res) {
 			err = -EINVAL;
 			goto err_destroy_sgmii;
+		}
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SRAM)) {
+			if (mtk_is_netsys_v3_or_greater(eth)) {
+				res_sram = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+				if (!res_sram) {
+					err = -EINVAL;
+					goto err_destroy_sgmii;
+				}
+				eth->phy_scratch_ring = res_sram->start;
+			} else {
+				eth->phy_scratch_ring = res->start + MTK_ETH_SRAM_OFFSET;
+			}
 		}
 	}
 

@@ -139,6 +139,9 @@
 #define MTK_GDMA_MAC_ADRH(x)	({ typeof(x) _x = (x); (_x == MTK_GMAC3_ID) ?	\
 				   0x54C : 0x50C + (_x * 0x1000); })
 
+/* Internal SRAM offset */
+#define MTK_ETH_SRAM_OFFSET	0x40000
+
 /* FE global misc reg*/
 #define MTK_FE_GLO_MISC         0x124
 
@@ -938,6 +941,7 @@ enum mkt_eth_capabilities {
 	MTK_RSTCTRL_PPE1_BIT,
 	MTK_RSTCTRL_PPE2_BIT,
 	MTK_U3_COPHY_V2_BIT,
+	MTK_SRAM_BIT,
 
 	/* MUX BITS*/
 	MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT,
@@ -973,6 +977,7 @@ enum mkt_eth_capabilities {
 #define MTK_RSTCTRL_PPE1	BIT_ULL(MTK_RSTCTRL_PPE1_BIT)
 #define MTK_RSTCTRL_PPE2	BIT_ULL(MTK_RSTCTRL_PPE2_BIT)
 #define MTK_U3_COPHY_V2		BIT_ULL(MTK_U3_COPHY_V2_BIT)
+#define MTK_SRAM		BIT_ULL(MTK_SRAM_BIT)
 
 #define MTK_ETH_MUX_GDM1_TO_GMAC1_ESW		\
 	BIT_ULL(MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT)
@@ -1048,14 +1053,14 @@ enum mkt_eth_capabilities {
 #define MT7981_CAPS  (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | MTK_GMAC2_GEPHY | \
 		      MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
 		      MTK_MUX_U3_GMAC2_TO_QPHY | MTK_U3_COPHY_V2 | \
-		      MTK_RSTCTRL_PPE1)
+		      MTK_RSTCTRL_PPE1 | MTK_SRAM)
 
 #define MT7986_CAPS  (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | \
 		      MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
-		      MTK_RSTCTRL_PPE1)
+		      MTK_RSTCTRL_PPE1 | MTK_SRAM)
 
 #define MT7988_CAPS  (MTK_GDM1_ESW | MTK_QDMA | MTK_RSTCTRL_PPE1 | \
-		      MTK_RSTCTRL_PPE2)
+		      MTK_RSTCTRL_PPE2 | MTK_SRAM)
 
 struct mtk_tx_dma_desc_info {
 	dma_addr_t	addr;
@@ -1215,6 +1220,7 @@ struct mtk_eth {
 	struct device			*dev;
 	struct device			*dma_dev;
 	void __iomem			*base;
+	void				*sram_base;
 	spinlock_t			page_lock;
 	spinlock_t			tx_irq_lock;
 	spinlock_t			rx_irq_lock;
