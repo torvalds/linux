@@ -5,6 +5,7 @@
 #include <network_helpers.h>
 
 #include "local_kptr_stash.skel.h"
+#include "local_kptr_stash_fail.skel.h"
 static void test_local_kptr_stash_simple(void)
 {
 	LIBBPF_OPTS(bpf_test_run_opts, opts,
@@ -51,10 +52,17 @@ static void test_local_kptr_stash_unstash(void)
 	local_kptr_stash__destroy(skel);
 }
 
-void test_local_kptr_stash_success(void)
+static void test_local_kptr_stash_fail(void)
+{
+	RUN_TESTS(local_kptr_stash_fail);
+}
+
+void test_local_kptr_stash(void)
 {
 	if (test__start_subtest("local_kptr_stash_simple"))
 		test_local_kptr_stash_simple();
 	if (test__start_subtest("local_kptr_stash_unstash"))
 		test_local_kptr_stash_unstash();
+	if (test__start_subtest("local_kptr_stash_fail"))
+		test_local_kptr_stash_fail();
 }
