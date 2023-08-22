@@ -17,7 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/coresight.h>
-#include <linux/of_platform.h>
+#include <linux/property.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 
