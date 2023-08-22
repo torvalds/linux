@@ -59,8 +59,7 @@ static struct xe_sched_job *job_alloc(bool parallel)
 
 bool xe_sched_job_is_migration(struct xe_exec_queue *q)
 {
-	return q->vm && (q->vm->flags & XE_VM_FLAG_MIGRATION) &&
-		!(q->flags & EXEC_QUEUE_FLAG_WA);
+	return q->vm && (q->vm->flags & XE_VM_FLAG_MIGRATION);
 }
 
 static void job_free(struct xe_sched_job *job)
@@ -91,8 +90,7 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 	XE_WARN_ON(!q->vm && !(q->flags & EXEC_QUEUE_FLAG_KERNEL));
 
 	/* Migration and kernel engines have their own locking */
-	if (!(q->flags & (EXEC_QUEUE_FLAG_KERNEL | EXEC_QUEUE_FLAG_VM |
-			  EXEC_QUEUE_FLAG_WA))) {
+	if (!(q->flags & (EXEC_QUEUE_FLAG_KERNEL | EXEC_QUEUE_FLAG_VM))) {
 		lockdep_assert_held(&q->vm->lock);
 		if (!xe_vm_no_dma_fences(q->vm))
 			xe_vm_assert_held(q->vm);

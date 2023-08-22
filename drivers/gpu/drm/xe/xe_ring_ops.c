@@ -202,7 +202,7 @@ static int emit_pipe_imm_ggtt(u32 addr, u32 value, bool stall_only, u32 *dw,
 
 static u32 get_ppgtt_flag(struct xe_sched_job *job)
 {
-	return !(job->q->flags & EXEC_QUEUE_FLAG_WA) ? BIT(8) : 0;
+	return job->q->vm ? BIT(8) : 0;
 }
 
 /* for engines that don't require any special HW handling (no EUs, no aux inval, etc) */

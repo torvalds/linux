@@ -95,7 +95,7 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 	 * can perform GuC CT actions when needed. Caller is expected to
 	 * have already grabbed the rpm ref outside any sensitive locks.
 	 */
-	if (q->flags & EXEC_QUEUE_FLAG_VM)
+	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT) && (q->flags & EXEC_QUEUE_FLAG_VM))
 		drm_WARN_ON(&xe->drm, !xe_device_mem_access_get_if_ongoing(xe));
 
 	return q;
@@ -174,7 +174,7 @@ void xe_exec_queue_fini(struct xe_exec_queue *q)
 		xe_lrc_finish(q->lrc + i);
 	if (q->vm)
 		xe_vm_put(q->vm);
-	if (q->flags & EXEC_QUEUE_FLAG_VM)
+	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT) && (q->flags & EXEC_QUEUE_FLAG_VM))
 		xe_device_mem_access_put(gt_to_xe(q->gt));
 
 	kfree(q);

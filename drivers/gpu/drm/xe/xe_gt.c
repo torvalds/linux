@@ -87,15 +87,13 @@ static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	struct xe_sched_job *job;
 	struct xe_bb *bb;
 	struct dma_fence *fence;
-	u64 batch_ofs;
 	long timeout;
 
 	bb = xe_bb_new(gt, 4, false);
 	if (IS_ERR(bb))
 		return PTR_ERR(bb);
 
-	batch_ofs = xe_bo_ggtt_addr(gt_to_tile(gt)->mem.kernel_bb_pool->bo);
-	job = xe_bb_create_wa_job(q, bb, batch_ofs);
+	job = xe_bb_create_job(q, bb);
 	if (IS_ERR(job)) {
 		xe_bb_free(bb, NULL);
 		return PTR_ERR(job);
@@ -124,7 +122,6 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	struct xe_sched_job *job;
 	struct xe_bb *bb;
 	struct dma_fence *fence;
-	u64 batch_ofs;
 	long timeout;
 	int count = 0;
 
@@ -143,8 +140,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 		}
 	}
 
-	batch_ofs = xe_bo_ggtt_addr(gt_to_tile(gt)->mem.kernel_bb_pool->bo);
-	job = xe_bb_create_wa_job(q, bb, batch_ofs);
+	job = xe_bb_create_job(q, bb);
 	if (IS_ERR(job)) {
 		xe_bb_free(bb, NULL);
 		return PTR_ERR(job);
@@ -168,14 +164,12 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 int xe_gt_record_default_lrcs(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
 	int err = 0;
 
 	for_each_hw_engine(hwe, gt, id) {
 		struct xe_exec_queue *q, *nop_q;
-		struct xe_vm *vm;
 		void *default_lrc;
 
 		if (gt->default_lrc[hwe->class])
@@ -192,14 +186,13 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 		if (!default_lrc)
 			return -ENOMEM;
 
-		vm = xe_migrate_get_vm(tile->migrate);
-		q = xe_exec_queue_create(xe, vm, BIT(hwe->logical_instance), 1,
-					 hwe, EXEC_QUEUE_FLAG_WA);
+		q = xe_exec_queue_create(xe, NULL, BIT(hwe->logical_instance), 1,
+					 hwe, EXEC_QUEUE_FLAG_KERNEL);
 		if (IS_ERR(q)) {
 			err = PTR_ERR(q);
 			xe_gt_err(gt, "hwe %s: xe_exec_queue_create failed (%pe)\n",
 				  hwe->name, q);
-			goto put_vm;
+			return err;
 		}
 
 		/* Prime golden LRC with known good state */
@@ -210,8 +203,8 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 			goto put_exec_queue;
 		}
 
-		nop_q = xe_exec_queue_create(xe, vm, BIT(hwe->logical_instance),
-					     1, hwe, EXEC_QUEUE_FLAG_WA);
+		nop_q = xe_exec_queue_create(xe, NULL, BIT(hwe->logical_instance),
+					     1, hwe, EXEC_QUEUE_FLAG_KERNEL);
 		if (IS_ERR(nop_q)) {
 			err = PTR_ERR(nop_q);
 			xe_gt_err(gt, "hwe %s: nop xe_exec_queue_create failed (%pe)\n",
@@ -245,8 +238,6 @@ put_nop_q:
 		xe_exec_queue_put(nop_q);
 put_exec_queue:
 		xe_exec_queue_put(q);
-put_vm:
-		xe_vm_put(vm);
 		if (err)
 			break;
 	}
