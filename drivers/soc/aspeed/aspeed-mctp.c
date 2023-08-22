@@ -2245,8 +2245,7 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	}
 
 	priv->peci_mctp = platform_device_register_data(
-		priv->dev, priv->rc_f ? "peci1-mctp" : "peci0-mctp",
-		PLATFORM_DEVID_NONE, NULL, 0);
+		priv->dev, "peci-mctp", PLATFORM_DEVID_AUTO, NULL, 0);
 	if (IS_ERR(priv->peci_mctp))
 		dev_err(priv->dev, "Failed to register peci-mctp device\n");
 
