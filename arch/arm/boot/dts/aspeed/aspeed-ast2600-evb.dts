@@ -265,32 +265,34 @@
 };
 #endif
 
-&i2c0 {
-	status = "okay";
-};
-
-&i2c1 {
-	status = "okay";
-};
-
-&i2c2 {
-	status = "okay";
-};
-
-&i2c3 {
-	status = "okay";
-};
 
 &i2c4 {
 	status = "okay";
+
+	ssif-bmc@10 {
+		compatible = "aspeed,ast2600-ssif-bmc";
+		reg = <0x10>;
+	};
 };
 
 &i2c5 {
 	status = "okay";
+
+	ipmb@10 {
+		compatible = "ipmb-dev";
+		reg = <0x10>;
+		i2c-protocol;
+	};
 };
 
 &i2c6 {
 	status = "okay";
+
+	ipmb@12 {
+		compatible = "ipmb-dev";
+		reg = <0x12>;
+		i2c-protocol;
+	};
 };
 
 &i2c7 {
@@ -306,6 +308,7 @@
 		reg = <0x50>;
 		pagesize = <16>;
 	};
+
 };
 
 &i2c8 {
@@ -315,25 +318,10 @@
 		compatible = "national,lm75";
 		reg = <0x4d>;
 	};
+
 };
 
 &i2c9 {
-	status = "okay";
-};
-
-&i2c12 {
-	status = "okay";
-};
-
-&i2c13 {
-	status = "okay";
-};
-
-&i2c14 {
-	status = "okay";
-};
-
-&i2c15 {
 	status = "okay";
 };
 
