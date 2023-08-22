@@ -108,7 +108,7 @@
 		label = "bmc";
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <50000000>;
-#include "fpga-flash-layout.dtsi"
+#include "aspeed-flash-layout-128.dtsi"
 	};
 
 	flash@1 {
