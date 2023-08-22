@@ -41,6 +41,9 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 	int err;
 	int i;
 
+	/* only kernel queues can be permanent */
+	XE_WARN_ON((flags & EXEC_QUEUE_FLAG_PERMANENT) && !(flags & EXEC_QUEUE_FLAG_KERNEL));
+
 	q = kzalloc(sizeof(*q) + sizeof(struct xe_lrc) * width, GFP_KERNEL);
 	if (!q)
 		return ERR_PTR(-ENOMEM);

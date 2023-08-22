@@ -343,11 +343,14 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 
 		m->q = xe_exec_queue_create(xe, vm,
 					    BIT(hwe->logical_instance), 1,
-					    hwe, EXEC_QUEUE_FLAG_KERNEL);
+					    hwe,
+					    EXEC_QUEUE_FLAG_KERNEL |
+					    EXEC_QUEUE_FLAG_PERMANENT);
 	} else {
 		m->q = xe_exec_queue_create_class(xe, primary_gt, vm,
 						  XE_ENGINE_CLASS_COPY,
-						  EXEC_QUEUE_FLAG_KERNEL);
+						  EXEC_QUEUE_FLAG_KERNEL |
+						  EXEC_QUEUE_FLAG_PERMANENT);
 	}
 	if (IS_ERR(m->q)) {
 		xe_vm_close_and_put(vm);

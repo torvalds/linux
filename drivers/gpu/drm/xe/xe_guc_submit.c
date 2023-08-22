@@ -965,7 +965,7 @@ static void guc_exec_queue_fini_async(struct xe_exec_queue *q)
 	INIT_WORK(&q->guc->fini_async, __guc_exec_queue_fini_async);
 
 	/* We must block on kernel engines so slabs are empty on driver unload */
-	if (q->flags & EXEC_QUEUE_FLAG_KERNEL)
+	if (q->flags & EXEC_QUEUE_FLAG_PERMANENT)
 		__guc_exec_queue_fini_async(&q->guc->fini_async);
 	else
 		queue_work(system_wq, &q->guc->fini_async);
@@ -988,7 +988,7 @@ static void __guc_exec_queue_process_msg_cleanup(struct xe_sched_msg *msg)
 	struct xe_exec_queue *q = msg->private_data;
 	struct xe_guc *guc = exec_queue_to_guc(q);
 
-	XE_WARN_ON(q->flags & EXEC_QUEUE_FLAG_KERNEL);
+	XE_WARN_ON(q->flags & EXEC_QUEUE_FLAG_PERMANENT);
 	trace_xe_exec_queue_cleanup_entity(q);
 
 	if (exec_queue_registered(q))
@@ -1208,7 +1208,7 @@ static void guc_exec_queue_fini(struct xe_exec_queue *q)
 {
 	struct xe_sched_msg *msg = q->guc->static_msgs + STATIC_MSG_CLEANUP;
 
-	if (!(q->flags & EXEC_QUEUE_FLAG_KERNEL))
+	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT))
 		guc_exec_queue_add_msg(q, msg, CLEANUP);
 	else
 		__guc_exec_queue_fini(exec_queue_to_guc(q), q);

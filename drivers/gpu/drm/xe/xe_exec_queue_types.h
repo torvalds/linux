@@ -65,14 +65,22 @@ struct xe_exec_queue {
 	/** @fence_irq: fence IRQ used to signal job completion */
 	struct xe_hw_fence_irq *fence_irq;
 
-#define EXEC_QUEUE_FLAG_BANNED		BIT(0)
-#define EXEC_QUEUE_FLAG_KERNEL		BIT(1)
-#define EXEC_QUEUE_FLAG_PERSISTENT		BIT(2)
-#define EXEC_QUEUE_FLAG_COMPUTE_MODE	BIT(3)
-/* Caller needs to hold rpm ref when creating engine with EXEC_QUEUE_FLAG_VM */
-#define EXEC_QUEUE_FLAG_VM			BIT(4)
-#define EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD	BIT(5)
-#define EXEC_QUEUE_FLAG_WA			BIT(6)
+/* queue no longer allowed to submit */
+#define EXEC_QUEUE_FLAG_BANNED			BIT(0)
+/* queue used for kernel submission only */
+#define EXEC_QUEUE_FLAG_KERNEL			BIT(1)
+/* kernel engine only destroyed at driver unload */
+#define EXEC_QUEUE_FLAG_PERMANENT		BIT(2)
+/* queue keeps running pending jobs after destroy ioctl */
+#define EXEC_QUEUE_FLAG_PERSISTENT		BIT(3)
+/* queue for use with compute VMs */
+#define EXEC_QUEUE_FLAG_COMPUTE_MODE		BIT(4)
+/* for VM jobs. Caller needs to hold rpm ref when creating queue with this flag */
+#define EXEC_QUEUE_FLAG_VM			BIT(5)
+/* child of VM queue for multi-tile VM jobs */
+#define EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD	BIT(6)
+/* queue used for WA setup */
+#define EXEC_QUEUE_FLAG_WA			BIT(7)
 
 	/**
 	 * @flags: flags for this exec queue, should statically setup aside from ban
