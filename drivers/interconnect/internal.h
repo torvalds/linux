@@ -41,4 +41,7 @@ struct icc_path {
 	struct icc_req reqs[] __counted_by(num_nodes);
 };
 
+struct icc_path *icc_get(struct device *dev, const char *src, const char *dst);
+int icc_debugfs_client_init(struct dentry *icc_dir);
+
 #endif
