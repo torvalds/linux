@@ -133,7 +133,7 @@
 	vreg_edp_bl: regulator-edp-bl {
 		compatible = "regulator-fixed";
 
-		regulator-name = "VBL9";
+		regulator-name = "VREG_EDP_BL";
 		regulator-min-microvolt = <3600000>;
 		regulator-max-microvolt = <3600000>;
 
@@ -149,7 +149,7 @@
 	vreg_nvme: regulator-nvme {
 		compatible = "regulator-fixed";
 
-		regulator-name = "VCC3_SSD";
+		regulator-name = "VREG_NVME_3P3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
@@ -163,11 +163,11 @@
 	vreg_misc_3p3: regulator-misc-3p3 {
 		compatible = "regulator-fixed";
 
-		regulator-name = "VCC3B";
+		regulator-name = "VREG_MISC_3P3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&pmc8280_1_gpios 1 GPIO_ACTIVE_HIGH>;
+		gpio = <&pmc8280_1_gpios 2 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -180,7 +180,7 @@
 	vreg_wlan: regulator-wlan {
 		compatible = "regulator-fixed";
 
-		regulator-name = "VCC_WLAN_3R9";
+		regulator-name = "VPH_PWR_WLAN";
 		regulator-min-microvolt = <3900000>;
 		regulator-max-microvolt = <3900000>;
 
@@ -196,7 +196,7 @@
 	vreg_wwan: regulator-wwan {
 		compatible = "regulator-fixed";
 
-		regulator-name = "VCC3B_WAN";
+		regulator-name = "SDX_VPH_PWR";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
@@ -234,7 +234,6 @@
 
 		mode-switch;
 		orientation-switch;
-		svid = /bits/ 16 <0xff01>;
 
 		port {
 			usb0_sbu_mux: endpoint {
@@ -254,7 +253,6 @@
 
 		mode-switch;
 		orientation-switch;
-		svid = /bits/ 16 <0xff01>;
 
 		port {
 			usb1_sbu_mux: endpoint {
@@ -757,7 +755,7 @@
 	};
 
 	misc_3p3_reg_en: misc-3p3-reg-en-state {
-		pins = "gpio1";
+		pins = "gpio2";
 		function = "normal";
 	};
 };

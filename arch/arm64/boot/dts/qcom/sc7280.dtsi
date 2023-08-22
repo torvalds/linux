@@ -2449,7 +2449,7 @@
 				 <&apps_smmu 0x1821 0>,
 				 <&apps_smmu 0x1832 0>;
 
-			power-domains =	<&rpmhpd SC7280_LCX>;
+			power-domains = <&rpmhpd SC7280_LCX>;
 			power-domain-names = "lcx";
 			required-opps = <&rpmhpd_opp_nom>;
 

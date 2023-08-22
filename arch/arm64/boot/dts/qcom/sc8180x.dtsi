@@ -64,6 +64,7 @@
 				L3_0: l3-cache {
 					compatible = "cache";
 					cache-level = <3>;
+					cache-unified;
 				};
 			};
 		};
@@ -298,7 +299,7 @@
 		domain-idle-states {
 			CLUSTER_SLEEP_0: cluster-sleep-0 {
 				compatible = "domain-idle-state";
-				arm,psci-suspend-param = <0x4100c244>;
+				arm,psci-suspend-param = <0x4100a344>;
 				entry-latency-us = <3263>;
 				exit-latency-us = <6562>;
 				min-residency-us = <9987>;
@@ -2252,7 +2253,7 @@
 		};
 
 		gmu: gmu@2c6a000 {
-			compatible="qcom,adreno-gmu-680.1", "qcom,adreno-gmu";
+			compatible = "qcom,adreno-gmu-680.1", "qcom,adreno-gmu";
 
 			reg = <0 0x02c6a000 0 0x30000>,
 			      <0 0x0b290000 0 0x10000>,
@@ -2464,6 +2465,23 @@
 
 			status = "disabled";
 
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					usb_prim_qmpphy_out: endpoint {};
+				};
+
+				port@2 {
+					reg = <2>;
+
+					usb_prim_qmpphy_dp_in: endpoint {};
+				};
+			};
+
 			usb_prim_ssphy: usb3-phy@88e9200 {
 				reg = <0 0x088e9200 0 0x200>,
 				      <0 0x088e9400 0 0x200>,
@@ -2513,6 +2531,23 @@
 
 			status = "disabled";
 
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					usb_sec_qmpphy_out: endpoint {};
+				};
+
+				port@2 {
+					reg = <2>;
+
+					usb_sec_qmpphy_dp_in: endpoint {};
+				};
+			};
+
 			usb_sec_ssphy: usb3-phy@88e9200 {
 				reg = <0 0x088ee200 0 0x200>,
 				      <0 0x088ee400 0 0x200>,
@@ -2541,8 +2576,11 @@
 
 		system-cache-controller@9200000 {
 			compatible = "qcom,sc8180x-llcc";
-			reg = <0 0x09200000 0 0x50000>, <0 0x09600000 0 0x50000>;
-			reg-names = "llcc_base", "llcc_broadcast_base";
+			reg = <0 0x09200000 0 0x50000>, <0 0x09280000 0 0x50000>,
+			      <0 0x09300000 0 0x50000>, <0 0x09380000 0 0x50000>,
+			      <0 0x09600000 0 0x50000>;
+			reg-names = "llcc0_base", "llcc1_base", "llcc2_base",
+				    "llcc3_base", "llcc_broadcast_base";
 			interrupts = <GIC_SPI 582 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
@@ -2604,6 +2642,11 @@
 				snps,dis_enblslpm_quirk;
 				phys = <&usb_prim_hsphy>, <&usb_prim_ssphy>;
 				phy-names = "usb2-phy", "usb3-phy";
+
+				port {
+					usb_prim_role_switch: endpoint {
+					};
+				};
 			};
 		};
 
@@ -2656,6 +2699,11 @@
 				snps,dis_enblslpm_quirk;
 				phys = <&usb_sec_hsphy>, <&usb_sec_ssphy>;
 				phy-names = "usb2-phy", "usb3-phy";
+
+				port {
+					usb_sec_role_switch: endpoint {
+					};
+				};
 			};
 		};
 
@@ -2983,6 +3031,8 @@
 
 					port@1 {
 						reg = <1>;
+						mdss_dp0_out: endpoint {
+						};
 					};
 				};
 
@@ -3057,6 +3107,8 @@
 
 					port@1 {
 						reg = <1>;
+						mdss_dp1_out: endpoint {
+						};
 					};
 				};
 
@@ -3429,7 +3481,7 @@
 			#size-cells = <1>;
 			ranges = <0 0 0 0x20000000>;
 
-			frame@17c21000{
+			frame@17c21000 {
 				reg = <0x17c21000 0x1000>,
 				      <0x17c22000 0x1000>;
 				frame-number = <0>;
@@ -3856,7 +3908,7 @@
 			};
 		};
 
-		gpu-thermal-top {
+		gpu-top-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -4006,7 +4058,7 @@
 			};
 		};
 
-		gpu-thermal-bottom {
+		gpu-bottom-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 

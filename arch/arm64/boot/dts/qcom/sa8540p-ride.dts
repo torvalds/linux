@@ -407,6 +407,21 @@
 	status = "okay";
 };
 
+&pmm8540a_rtc {
+	nvmem-cells = <&rtc_offset>;
+	nvmem-cell-names = "offset";
+
+	status = "okay";
+};
+
+&pmm8540c_sdam_2 {
+	status = "okay";
+
+	rtc_offset: rtc-offset@a0 {
+		reg = <0xa0 0x4>;
+	};
+};
+
 &qup0 {
 	status = "okay";
 };

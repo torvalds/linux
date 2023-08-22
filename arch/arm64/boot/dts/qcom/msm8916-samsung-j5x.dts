@@ -8,10 +8,36 @@
 	model = "Samsung Galaxy J5 (2016)";
 	compatible = "samsung,j5x", "qcom,msm8916";
 	chassis-type = "handset";
+
+	reg_vdd_tsp_a: regulator-vdd-tsp-a {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_tsp_a";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+
+		gpio = <&tlmm 108 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&tsp_ldo_en_default>;
+		pinctrl-names = "default";
+	};
 };
 
 &muic {
 	interrupts = <121 IRQ_TYPE_EDGE_FALLING>;
+};
+
+&touchscreen {
+	vdd-supply = <&reg_vdd_tsp_a>;
+};
+
+&tlmm {
+	tsp_ldo_en_default: tsp-ldo-en-default-state {
+		pins = "gpio108";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
 };
 
 &muic_int_default {
