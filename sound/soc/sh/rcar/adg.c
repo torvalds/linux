@@ -502,8 +502,8 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	};
 
 	ckr = 0;
-	brga = 2; /* default 1/6 */
-	brgb = 2; /* default 1/6 */
+	brga = 0xff; /* default */
+	brgb = 0xff; /* default */
 
 	/*
 	 * ADG supports BRRA/BRRB output only
