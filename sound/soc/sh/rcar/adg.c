@@ -485,7 +485,6 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	struct device_node *np = dev->of_node;
 	struct property *prop;
 	u32 ckr, brgx, brga, brgb;
-	u32 rate, div;
 	u32 req_rate[ADG_HZ_SIZE] = {};
 	uint32_t count = 0;
 	unsigned long req_Hz[ADG_HZ_SIZE];
@@ -559,6 +558,8 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	 *	clock-frequency = <22579200 24576000>;
 	 */
 	for_each_rsnd_clkin(clk, adg, i) {
+		u32 rate, div;
+
 		rate = clk_get_rate(clk);
 
 		if (0 == rate) /* not used */
@@ -569,10 +570,8 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 		if (i == CLKI)
 			/* see [APPROXIMATE] */
 			rate = (clk_get_rate(clk) / req_Hz[ADG_HZ_441]) * req_Hz[ADG_HZ_441];
-		if (!adg->brg_rate[ADG_HZ_441] && (0 == rate % 44100)) {
-			div = 6;
-			if (req_Hz[ADG_HZ_441])
-				div = rate / req_Hz[ADG_HZ_441];
+		if (!adg->brg_rate[ADG_HZ_441] && req_Hz[ADG_HZ_441] && (0 == rate % 44100)) {
+			div = rate / req_Hz[ADG_HZ_441];
 			brgx = rsnd_adg_calculate_brgx(div);
 			if (BRRx_MASK(brgx) == brgx) {
 				brga = brgx;
@@ -590,10 +589,8 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 		if (i == CLKI)
 			/* see [APPROXIMATE] */
 			rate = (clk_get_rate(clk) / req_Hz[ADG_HZ_48]) * req_Hz[ADG_HZ_48];
-		if (!adg->brg_rate[ADG_HZ_48] && (0 == rate % 48000)) {
-			div = 6;
-			if (req_Hz[ADG_HZ_48])
-				div = rate / req_Hz[ADG_HZ_48];
+		if (!adg->brg_rate[ADG_HZ_48] && req_Hz[ADG_HZ_48] && (0 == rate % 48000)) {
+			div = rate / req_Hz[ADG_HZ_48];
 			brgx = rsnd_adg_calculate_brgx(div);
 			if (BRRx_MASK(brgx) == brgx) {
 				brgb = brgx;
