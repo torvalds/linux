@@ -4,6 +4,7 @@ qcom_cpu_vendor_hooks.ko
 qcom-scm.ko
 pinctrl-msm.ko
 pinctrl-blair.ko
+pinctrl-holi.ko
 cmd-db.ko
 qcom_ipc_logging.ko
 irq-qcom-mpm.ko
