@@ -3625,6 +3625,8 @@
 #define B_AX_GNT_BT_TX_SW_VAL BIT(1)
 #define B_AX_GNT_BT_TX_SW_CTRL BIT(0)
 
+#define R_BE_FILTER_MODEL_ADDR 0x0C04
+
 #define RR_MOD 0x00
 #define RR_MOD_V1 0x10000
 #define RR_MOD_IQK GENMASK(19, 4)
