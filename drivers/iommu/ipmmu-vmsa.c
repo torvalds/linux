@@ -64,7 +64,6 @@ struct ipmmu_vmsa_device {
 	struct ipmmu_vmsa_domain *domains[IPMMU_CTX_MAX];
 	s8 utlb_ctx[IPMMU_UTLB_MAX];
 
-	struct iommu_group *group;
 	struct dma_iommu_mapping *mapping;
 };
 
@@ -872,29 +871,18 @@ static void ipmmu_release_device(struct device *dev)
 	arm_iommu_release_mapping(mmu->mapping);
 }
 
-static struct iommu_group *ipmmu_find_group(struct device *dev)
-{
-	struct ipmmu_vmsa_device *mmu = to_ipmmu(dev);
-	struct iommu_group *group;
-
-	if (mmu->group)
-		return iommu_group_ref_get(mmu->group);
-
-	group = iommu_group_alloc();
-	if (!IS_ERR(group))
-		mmu->group = group;
-
-	return group;
-}
-
 static const struct iommu_ops ipmmu_ops = {
 	.identity_domain = &ipmmu_iommu_identity_domain,
 	.domain_alloc_paging = ipmmu_domain_alloc_paging,
 	.probe_device = ipmmu_probe_device,
 	.release_device = ipmmu_release_device,
 	.probe_finalize = ipmmu_probe_finalize,
+	/*
+	 * FIXME: The device grouping is a fixed property of the hardware's
+	 * ability to isolate and control DMA, it should not depend on kconfig.
+	 */
 	.device_group = IS_ENABLED(CONFIG_ARM) && !IS_ENABLED(CONFIG_IOMMU_DMA)
-			? generic_device_group : ipmmu_find_group,
+			? generic_device_group : generic_single_device_group,
 	.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K,
 	.of_xlate = ipmmu_of_xlate,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
