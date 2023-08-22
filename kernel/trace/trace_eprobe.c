@@ -807,13 +807,11 @@ static int trace_eprobe_tp_update_arg(struct trace_eprobe *ep, const char *argv[
 	int ret;
 
 	ret = traceprobe_parse_probe_arg(&ep->tp, i, argv[i], &ctx);
-	if (ret)
-		return ret;
-
 	/* Handle symbols "@" */
 	if (!ret)
 		ret = traceprobe_update_arg(&ep->tp.args[i]);
 
+	traceprobe_finish_parse(&ctx);
 	return ret;
 }
 

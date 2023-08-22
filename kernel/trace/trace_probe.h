@@ -383,9 +383,11 @@ static inline bool tparg_is_function_entry(unsigned int flags)
 
 struct traceprobe_parse_context {
 	struct trace_event_call *event;
-	const struct btf_param *params;
-	s32 nr_params;
-	const char *funcname;
+	/* BTF related parameters */
+	const char *funcname;		/* Function name in BTF */
+	const struct btf_param *params;	/* Parameter of the function */
+	s32 nr_params;			/* The number of the parameters */
+	struct btf *btf;		/* The BTF to be used */
 	unsigned int flags;
 	int offset;
 };
@@ -399,6 +401,12 @@ const char **traceprobe_expand_meta_args(int argc, const char *argv[],
 
 extern int traceprobe_update_arg(struct probe_arg *arg);
 extern void traceprobe_free_probe_arg(struct probe_arg *arg);
+
+/*
+ * If either traceprobe_parse_probe_arg() or traceprobe_expand_meta_args() is called,
+ * this MUST be called for clean up the context and return a resource.
+ */
+void traceprobe_finish_parse(struct traceprobe_parse_context *ctx);
 
 extern int traceprobe_split_symbol_offset(char *symbol, long *offset);
 int traceprobe_parse_event_name(const char **pevent, const char **pgroup,

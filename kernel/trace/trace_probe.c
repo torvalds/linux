@@ -304,16 +304,6 @@ static int parse_trace_event_arg(char *arg, struct fetch_insn *code,
 
 #ifdef CONFIG_PROBE_EVENTS_BTF_ARGS
 
-static struct btf *traceprobe_get_btf(void)
-{
-	struct btf *btf = bpf_get_btf_vmlinux();
-
-	if (IS_ERR_OR_NULL(btf))
-		return NULL;
-
-	return btf;
-}
-
 static u32 btf_type_int(const struct btf_type *t)
 {
 	return *(u32 *)(t + 1);
@@ -371,42 +361,49 @@ static const char *type_from_btf_id(struct btf *btf, s32 id)
 	return NULL;
 }
 
-static const struct btf_type *find_btf_func_proto(const char *funcname)
+static const struct btf_type *find_btf_func_proto(const char *funcname,
+						  struct btf **btf_p)
 {
-	struct btf *btf = traceprobe_get_btf();
 	const struct btf_type *t;
+	struct btf *btf = NULL;
 	s32 id;
 
-	if (!btf || !funcname)
+	if (!funcname)
 		return ERR_PTR(-EINVAL);
 
-	id = btf_find_by_name_kind(btf, funcname, BTF_KIND_FUNC);
+	id = bpf_find_btf_id(funcname, BTF_KIND_FUNC, &btf);
 	if (id <= 0)
 		return ERR_PTR(-ENOENT);
 
 	/* Get BTF_KIND_FUNC type */
 	t = btf_type_by_id(btf, id);
 	if (!t || !btf_type_is_func(t))
-		return ERR_PTR(-ENOENT);
+		goto err;
 
 	/* The type of BTF_KIND_FUNC is BTF_KIND_FUNC_PROTO */
 	t = btf_type_by_id(btf, t->type);
 	if (!t || !btf_type_is_func_proto(t))
-		return ERR_PTR(-ENOENT);
+		goto err;
 
+	*btf_p = btf;
 	return t;
+
+err:
+	btf_put(btf);
+	return ERR_PTR(-ENOENT);
 }
 
 static const struct btf_param *find_btf_func_param(const char *funcname, s32 *nr,
-						   bool tracepoint)
+						   struct btf **btf_p, bool tracepoint)
 {
 	const struct btf_param *param;
 	const struct btf_type *t;
+	struct btf *btf;
 
 	if (!funcname || !nr)
 		return ERR_PTR(-EINVAL);
 
-	t = find_btf_func_proto(funcname);
+	t = find_btf_func_proto(funcname, &btf);
 	if (IS_ERR(t))
 		return (const struct btf_param *)t;
 
@@ -419,29 +416,37 @@ static const struct btf_param *find_btf_func_param(const char *funcname, s32 *nr
 		param++;
 	}
 
-	if (*nr > 0)
+	if (*nr > 0) {
+		*btf_p = btf;
 		return param;
-	else
-		return NULL;
+	}
+
+	btf_put(btf);
+	return NULL;
+}
+
+static void clear_btf_context(struct traceprobe_parse_context *ctx)
+{
+	if (ctx->btf) {
+		btf_put(ctx->btf);
+		ctx->btf = NULL;
+		ctx->params = NULL;
+		ctx->nr_params = 0;
+	}
 }
 
 static int parse_btf_arg(const char *varname, struct fetch_insn *code,
 			 struct traceprobe_parse_context *ctx)
 {
-	struct btf *btf = traceprobe_get_btf();
 	const struct btf_param *params;
 	int i;
-
-	if (!btf) {
-		trace_probe_log_err(ctx->offset, NOSUP_BTFARG);
-		return -EOPNOTSUPP;
-	}
 
 	if (WARN_ON_ONCE(!ctx->funcname))
 		return -EINVAL;
 
 	if (!ctx->params) {
-		params = find_btf_func_param(ctx->funcname, &ctx->nr_params,
+		params = find_btf_func_param(ctx->funcname,
+					     &ctx->nr_params, &ctx->btf,
 					     ctx->flags & TPARG_FL_TPOINT);
 		if (IS_ERR_OR_NULL(params)) {
 			trace_probe_log_err(ctx->offset, NO_BTF_ENTRY);
@@ -452,7 +457,7 @@ static int parse_btf_arg(const char *varname, struct fetch_insn *code,
 		params = ctx->params;
 
 	for (i = 0; i < ctx->nr_params; i++) {
-		const char *name = btf_name_by_offset(btf, params[i].name_off);
+		const char *name = btf_name_by_offset(ctx->btf, params[i].name_off);
 
 		if (name && !strcmp(name, varname)) {
 			code->op = FETCH_OP_ARG;
@@ -470,7 +475,7 @@ static int parse_btf_arg(const char *varname, struct fetch_insn *code,
 static const struct fetch_type *parse_btf_arg_type(int arg_idx,
 					struct traceprobe_parse_context *ctx)
 {
-	struct btf *btf = traceprobe_get_btf();
+	struct btf *btf = ctx->btf;
 	const char *typestr = NULL;
 
 	if (btf && ctx->params) {
@@ -485,14 +490,17 @@ static const struct fetch_type *parse_btf_arg_type(int arg_idx,
 static const struct fetch_type *parse_btf_retval_type(
 					struct traceprobe_parse_context *ctx)
 {
-	struct btf *btf = traceprobe_get_btf();
 	const char *typestr = NULL;
 	const struct btf_type *t;
+	struct btf *btf;
 
-	if (btf && ctx->funcname) {
-		t = find_btf_func_proto(ctx->funcname);
-		if (!IS_ERR(t))
+	if (ctx->funcname) {
+		/* Do not use ctx->btf, because it must be used with ctx->param */
+		t = find_btf_func_proto(ctx->funcname, &btf);
+		if (!IS_ERR(t)) {
 			typestr = type_from_btf_id(btf, t->type);
+			btf_put(btf);
+		}
 	}
 
 	return find_fetch_type(typestr, ctx->flags);
@@ -501,21 +509,25 @@ static const struct fetch_type *parse_btf_retval_type(
 static bool is_btf_retval_void(const char *funcname)
 {
 	const struct btf_type *t;
+	struct btf *btf;
+	bool ret;
 
-	t = find_btf_func_proto(funcname);
+	t = find_btf_func_proto(funcname, &btf);
 	if (IS_ERR(t))
 		return false;
 
-	return t->type == 0;
+	ret = (t->type == 0);
+	btf_put(btf);
+	return ret;
 }
 #else
-static struct btf *traceprobe_get_btf(void)
+static void clear_btf_context(struct traceprobe_parse_context *ctx)
 {
-	return NULL;
+	ctx->btf = NULL;
 }
 
 static const struct btf_param *find_btf_func_param(const char *funcname, s32 *nr,
-						   bool tracepoint)
+						   struct btf **btf_p, bool tracepoint)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
@@ -1231,7 +1243,6 @@ static int sprint_nth_btf_arg(int idx, const char *type,
 			      char *buf, int bufsize,
 			      struct traceprobe_parse_context *ctx)
 {
-	struct btf *btf = traceprobe_get_btf();
 	const char *name;
 	int ret;
 
@@ -1239,7 +1250,7 @@ static int sprint_nth_btf_arg(int idx, const char *type,
 		trace_probe_log_err(0, NO_BTFARG);
 		return -ENOENT;
 	}
-	name = btf_name_by_offset(btf, ctx->params[idx].name_off);
+	name = btf_name_by_offset(ctx->btf, ctx->params[idx].name_off);
 	if (!name) {
 		trace_probe_log_err(0, NO_BTF_ENTRY);
 		return -ENOENT;
@@ -1271,7 +1282,7 @@ const char **traceprobe_expand_meta_args(int argc, const char *argv[],
 		return NULL;
 	}
 
-	params = find_btf_func_param(ctx->funcname, &nr_params,
+	params = find_btf_func_param(ctx->funcname, &nr_params, &ctx->btf,
 				     ctx->flags & TPARG_FL_TPOINT);
 	if (IS_ERR_OR_NULL(params)) {
 		if (args_idx != -1) {
@@ -1335,6 +1346,11 @@ const char **traceprobe_expand_meta_args(int argc, const char *argv[],
 error:
 	kfree(new_argv);
 	return ERR_PTR(ret);
+}
+
+void traceprobe_finish_parse(struct traceprobe_parse_context *ctx)
+{
+	clear_btf_context(ctx);
 }
 
 int traceprobe_update_arg(struct probe_arg *arg)
