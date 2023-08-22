@@ -271,6 +271,15 @@
 		pinctrl-single,bias-pulldown   = < 0x10  0x00  0x10  0x18>;
 	};
 
+	/* P2_20 (ZCZ ball T13) gpio2_00 0x888 */
+	P2_20_gpio: P2-20-gpio-pins {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN3, PIN_INPUT_PULLUP, MUX_MODE7)
+		>;
+		pinctrl-single,bias-pullup   =   < 0x10  0x10  0x00  0x18>;
+		pinctrl-single,bias-pulldown   = < 0x10  0x00  0x10  0x18>;
+	};
+
 	/* P2_10 (ZCZ ball R14) gpio1_20 0x850 PIN 20 */
 	P2_10_gpio: P2-10-gpio-pins {
 		pinctrl-single,pins = <
