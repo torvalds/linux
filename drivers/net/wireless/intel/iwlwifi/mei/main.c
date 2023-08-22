@@ -774,9 +774,13 @@ static void iwl_mei_set_init_conf(struct iwl_mei *mei)
 		iwl_mei_send_sap_msg_payload(mei->cldev, &sar_msg.hdr);
 	}
 
-	ether_addr_copy(nic_info_msg.mac_address, iwl_mei_cache.mac_address);
-	ether_addr_copy(nic_info_msg.nvm_address, iwl_mei_cache.nvm_address);
-	iwl_mei_send_sap_msg_payload(mei->cldev, &nic_info_msg.hdr);
+	if (is_valid_ether_addr(iwl_mei_cache.mac_address)) {
+		ether_addr_copy(nic_info_msg.mac_address,
+				iwl_mei_cache.mac_address);
+		ether_addr_copy(nic_info_msg.nvm_address,
+				iwl_mei_cache.nvm_address);
+		iwl_mei_send_sap_msg_payload(mei->cldev, &nic_info_msg.hdr);
+	}
 
 	iwl_mei_send_sap_msg_payload(mei->cldev, &rfkill_msg.hdr);
 }
