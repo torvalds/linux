@@ -485,10 +485,7 @@ static int at91_usart_gpio_setup(struct platform_device *pdev)
 
 	cs_gpios = devm_gpiod_get_array_optional(&pdev->dev, "cs", GPIOD_OUT_LOW);
 
-	if (IS_ERR(cs_gpios))
-		return PTR_ERR(cs_gpios);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(cs_gpios);
 }
 
 static int at91_usart_spi_probe(struct platform_device *pdev)
