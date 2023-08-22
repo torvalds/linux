@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) "IPsec: " fmt
 
-#include <crypto/algapi.h>
 #include <crypto/hash.h>
+#include <crypto/utils.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/slab.h>
