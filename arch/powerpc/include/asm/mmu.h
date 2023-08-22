@@ -144,11 +144,6 @@
 
 typedef pte_t *pgtable_t;
 
-#ifdef CONFIG_PPC_E500
-#include <asm/percpu.h>
-DECLARE_PER_CPU(int, next_tlbcam_idx);
-#endif
-
 enum {
 	MMU_FTRS_POSSIBLE =
 #if defined(CONFIG_PPC_BOOK3S_604)
