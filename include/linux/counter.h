@@ -399,7 +399,7 @@ struct counter_device {
 	struct mutex ops_exist_lock;
 };
 
-void *counter_priv(const struct counter_device *const counter);
+void *counter_priv(const struct counter_device *const counter) __attribute_const__;
 
 struct counter_device *counter_alloc(size_t sizeof_priv);
 void counter_put(struct counter_device *const counter);
