@@ -15,6 +15,7 @@
 struct rtw89_dev;
 struct rtw89_pci_info;
 struct rtw89_mac_gen_def;
+struct rtw89_phy_gen_def;
 
 extern const struct ieee80211_ops rtw89_ops;
 
@@ -3437,6 +3438,7 @@ struct rtw89_chip_info {
 	enum rtw89_chip_gen chip_gen;
 	const struct rtw89_chip_ops *ops;
 	const struct rtw89_mac_gen_def *mac_def;
+	const struct rtw89_phy_gen_def *phy_def;
 	const char *fw_basename;
 	u8 fw_format_max;
 	bool try_ce_fw;

@@ -7,7 +7,6 @@
 
 #include "core.h"
 
-#define RTW89_PHY_ADDR_OFFSET	0x10000
 #define RTW89_RF_ADDR_ADSEL_MASK  BIT(16)
 
 #define get_phy_headline(addr)		FIELD_GET(GENMASK(31, 28), addr)
@@ -337,61 +336,88 @@ struct rtw89_nbi_reg_def {
 	struct rtw89_reg_def notch2_en;
 };
 
+struct rtw89_phy_gen_def {
+	u32 cr_base;
+};
+
+extern const struct rtw89_phy_gen_def rtw89_phy_gen_ax;
+extern const struct rtw89_phy_gen_def rtw89_phy_gen_be;
+
 static inline void rtw89_phy_write8(struct rtw89_dev *rtwdev,
 				    u32 addr, u8 data)
 {
-	rtw89_write8(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, data);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write8(rtwdev, addr + phy->cr_base, data);
 }
 
 static inline void rtw89_phy_write16(struct rtw89_dev *rtwdev,
 				     u32 addr, u16 data)
 {
-	rtw89_write16(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, data);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write16(rtwdev, addr + phy->cr_base, data);
 }
 
 static inline void rtw89_phy_write32(struct rtw89_dev *rtwdev,
 				     u32 addr, u32 data)
 {
-	rtw89_write32(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, data);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write32(rtwdev, addr + phy->cr_base, data);
 }
 
 static inline void rtw89_phy_write32_set(struct rtw89_dev *rtwdev,
 					 u32 addr, u32 bits)
 {
-	rtw89_write32_set(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, bits);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write32_set(rtwdev, addr + phy->cr_base, bits);
 }
 
 static inline void rtw89_phy_write32_clr(struct rtw89_dev *rtwdev,
 					 u32 addr, u32 bits)
 {
-	rtw89_write32_clr(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, bits);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write32_clr(rtwdev, addr + phy->cr_base, bits);
 }
 
 static inline void rtw89_phy_write32_mask(struct rtw89_dev *rtwdev,
 					  u32 addr, u32 mask, u32 data)
 {
-	rtw89_write32_mask(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, mask, data);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write32_mask(rtwdev, addr + phy->cr_base, mask, data);
 }
 
 static inline u8 rtw89_phy_read8(struct rtw89_dev *rtwdev, u32 addr)
 {
-	return rtw89_read8(rtwdev, addr | RTW89_PHY_ADDR_OFFSET);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	return rtw89_read8(rtwdev, addr + phy->cr_base);
 }
 
 static inline u16 rtw89_phy_read16(struct rtw89_dev *rtwdev, u32 addr)
 {
-	return rtw89_read16(rtwdev, addr | RTW89_PHY_ADDR_OFFSET);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	return rtw89_read16(rtwdev, addr + phy->cr_base);
 }
 
 static inline u32 rtw89_phy_read32(struct rtw89_dev *rtwdev, u32 addr)
 {
-	return rtw89_read32(rtwdev, addr | RTW89_PHY_ADDR_OFFSET);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	return rtw89_read32(rtwdev, addr + phy->cr_base);
 }
 
 static inline u32 rtw89_phy_read32_mask(struct rtw89_dev *rtwdev,
 					u32 addr, u32 mask)
 {
-	return rtw89_read32_mask(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, mask);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	return rtw89_read32_mask(rtwdev, addr + phy->cr_base, mask);
 }
 
 static inline
