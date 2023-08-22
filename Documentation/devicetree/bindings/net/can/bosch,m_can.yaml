@@ -128,7 +128,7 @@ required:
   - clock-names
   - bosch,mram-cfg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
