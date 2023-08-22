@@ -2278,7 +2278,7 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 			device->advertised_queue_depth = device->queue_depth;
 			scsi_change_queue_depth(device->sdev, device->advertised_queue_depth);
 			if (device->rescan) {
-				scsi_rescan_device(&device->sdev->sdev_gendev);
+				scsi_rescan_device(device->sdev);
 				device->rescan = false;
 			}
 		}

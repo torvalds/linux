@@ -762,7 +762,7 @@ static ssize_t
 store_rescan_field (struct device *dev, struct device_attribute *attr,
 		    const char *buf, size_t count)
 {
-	scsi_rescan_device(dev);
+	scsi_rescan_device(to_scsi_device(dev));
 	return count;
 }
 static DEVICE_ATTR(rescan, S_IWUSR, NULL, store_rescan_field);
@@ -855,7 +855,7 @@ store_state_field(struct device *dev, struct device_attribute *attr,
 		 * waiting for pending I/O to finish.
 		 */
 		blk_mq_run_hw_queues(sdev->request_queue, true);
-		scsi_rescan_device(dev);
+		scsi_rescan_device(sdev);
 	}
 
 	return ret == 0 ? count : -EINVAL;

@@ -471,7 +471,7 @@ static void storvsc_device_scan(struct work_struct *work)
 	sdev = scsi_device_lookup(wrk->host, 0, wrk->tgt_id, wrk->lun);
 	if (!sdev)
 		goto done;
-	scsi_rescan_device(&sdev->sdev_gendev);
+	scsi_rescan_device(sdev);
 	scsi_device_put(sdev);
 
 done:
