@@ -293,7 +293,7 @@ allOf:
 patternProperties:
   "^mac@[0-1]$":
     type: object
-    additionalProperties: false
+    unevaluatedProperties: false
     allOf:
       - $ref: ethernet-controller.yaml#
     description:
@@ -305,14 +305,9 @@ patternProperties:
       reg:
         maxItems: 1
 
-      phy-handle: true
-
-      phy-mode: true
-
     required:
       - reg
       - compatible
-      - phy-handle
 
 required:
   - compatible

@@ -2,7 +2,7 @@
 #
 config LIGHTWEIGHT_SPINLOCK_CHECK
 	bool "Enable lightweight spinlock checks"
-	depends on SMP && !DEBUG_SPINLOCK
+	depends on DEBUG_KERNEL && SMP && !DEBUG_SPINLOCK
 	default y
 	help
 	  Add checks with low performance impact to the spinlock functions

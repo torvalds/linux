@@ -74,8 +74,8 @@
 static DEFINE_SPINLOCK(pdc_lock);
 #endif
 
-unsigned long pdc_result[NUM_PDC_RESULT]  __aligned(8);
-unsigned long pdc_result2[NUM_PDC_RESULT] __aligned(8);
+static unsigned long pdc_result[NUM_PDC_RESULT]  __aligned(8);
+static unsigned long pdc_result2[NUM_PDC_RESULT] __aligned(8);
 
 #ifdef CONFIG_64BIT
 #define WIDE_FIRMWARE 0x1
@@ -334,7 +334,7 @@ int __pdc_cpu_rendezvous(void)
 /**
  * pdc_cpu_rendezvous_lock - Lock PDC while transitioning to rendezvous state
  */
-void pdc_cpu_rendezvous_lock(void)
+void pdc_cpu_rendezvous_lock(void) __acquires(&pdc_lock)
 {
 	spin_lock(&pdc_lock);
 }
@@ -342,7 +342,7 @@ void pdc_cpu_rendezvous_lock(void)
 /**
  * pdc_cpu_rendezvous_unlock - Unlock PDC after reaching rendezvous state
  */
-void pdc_cpu_rendezvous_unlock(void)
+void pdc_cpu_rendezvous_unlock(void) __releases(&pdc_lock)
 {
 	spin_unlock(&pdc_lock);
 }

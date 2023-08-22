@@ -3,13 +3,6 @@
 # Counter devices
 #
 
-menuconfig COUNTER
-	tristate "Counter support"
-	help
-	  This enables counter device support through the Generic Counter
-	  interface. You only need to enable this, if you also want to enable
-	  one or more of the counter device drivers below.
-
 config I8254
 	tristate
 	select COUNTER
@@ -24,6 +17,13 @@ config I8254
 	  components.
 
 	  If built as a module its name will be i8254.
+
+menuconfig COUNTER
+	tristate "Counter support"
+	help
+	  This enables counter device support through the Generic Counter
+	  interface. You only need to enable this, if you also want to enable
+	  one or more of the counter device drivers below.
 
 if COUNTER
 

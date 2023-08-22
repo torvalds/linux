@@ -76,6 +76,8 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS35L56_SDW
 	imply SND_SOC_CS42L42
 	imply SND_SOC_CS42L42_SDW
+	imply SND_SOC_CS42L43
+	imply SND_SOC_CS42L43_SDW
 	imply SND_SOC_CS42L51_I2C
 	imply SND_SOC_CS42L52
 	imply SND_SOC_CS42L56
@@ -816,6 +818,20 @@ config SND_SOC_CS42L42_SDW
 	select SND_SOC_CS42L42_CORE
 	help
 	  Enable support for Cirrus Logic CS42L42 codec with Soundwire control
+
+config SND_SOC_CS42L43
+	tristate "Cirrus Logic CS42L43 CODEC"
+	depends on MFD_CS42L43
+	help
+	  Select this to support the audio functions of the Cirrus Logic
+	  CS42L43 PC CODEC.
+
+config SND_SOC_CS42L43_SDW
+	tristate "Cirrus Logic CS42L43 CODEC (SoundWire)"
+	depends on SND_SOC_CS42L43 && MFD_CS42L43_SDW
+	help
+	  Select this to support the audio functions of the Cirrus Logic
+	  CS42L43 PC CODEC over SoundWire.
 
 config SND_SOC_CS42L51
 	tristate
