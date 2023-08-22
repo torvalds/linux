@@ -348,7 +348,8 @@ static void handle_thermal_trip(struct thermal_zone_device *tz, int trip_id)
 	struct thermal_trip trip;
 
 	/* Ignore disabled trip points */
-	if (test_bit(trip_id, &tz->trips_disabled))
+	if (test_bit(trip_id, &tz->trips_disabled) ||
+	    trip.temperature == THERMAL_TEMP_INVALID)
 		return;
 
 	__thermal_zone_get_trip(tz, trip_id, &trip);
@@ -495,6 +496,25 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 	mutex_unlock(&tz->lock);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_update);
+
+/**
+ * thermal_zone_device_exec - Run a callback under the zone lock.
+ * @tz: Thermal zone.
+ * @cb: Callback to run.
+ * @data: Data to pass to the callback.
+ */
+void thermal_zone_device_exec(struct thermal_zone_device *tz,
+			      void (*cb)(struct thermal_zone_device *,
+					 unsigned long),
+			      unsigned long data)
+{
+	mutex_lock(&tz->lock);
+
+	cb(tz, data);
+
+	mutex_unlock(&tz->lock);
+}
+EXPORT_SYMBOL_GPL(thermal_zone_device_exec);
 
 static void thermal_zone_device_check(struct work_struct *work)
 {
