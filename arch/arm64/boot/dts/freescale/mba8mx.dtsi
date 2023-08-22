@@ -8,6 +8,16 @@
 /* TQ-Systems GmbH MBa8Mx baseboard */
 
 / {
+	backlight_lvds: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm3 0 5000000 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <7>;
+		power-supply = <&reg_12v>;
+		enable-gpios = <&expander2 2 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+
 	beeper {
 		compatible = "pwm-beeper";
 		pwms = <&pwm4 0 250000 0>;
@@ -65,10 +75,43 @@
 		};
 	};
 
+	gpio_delays: gpio-delays {
+		compatible = "gpio-delay";
+		#gpio-cells = <3>;
+		gpio-controller;
+		gpios = <&expander0 6 GPIO_ACTIVE_HIGH>;
+		gpio-line-names = "LVDS_BRIDGE_EN_1V8";
+	};
+
+	panel: panel-lvds {
+		/*
+		 * Display is not fixed, so compatible has to be added from
+		 * DT overlay
+		 */
+		backlight = <&backlight_lvds>;
+		power-supply = <&reg_vcc_3v3>;
+		status = "disabled";
+
+		port {
+			panel_in_lvds: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&lvds_bridge_out>;
+			};
+		};
+	};
+
 	pcie0_refclk: pcie0-refclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <100000000>;
+	};
+
+	reg_12v: regulator-12v {
+		compatible = "regulator-fixed";
+		regulator-name = "MBA8MX_12V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-always-on;
 	};
 
 	reg_hub_vbus: regulator-hub-vbus {
@@ -157,6 +200,10 @@
 		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
+		gpio-line-names = "", "", "", "",
+				  "", "", "LVDS_BRIDGE_EN", "",
+				  "", "", "", "",
+				  "", "", "", "";
 
 		sd-mux-oe-hog {
 			gpio-hog;
@@ -227,6 +274,52 @@
 	scl-gpios = <&gpio5 18 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	sda-gpios = <&gpio5 19 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
+
+	dsi_lvds_bridge: bridge@2d {
+		compatible = "ti,sn65dsi84";
+		reg = <0x2d>;
+		enable-gpios = <&gpio_delays 0 130000 0>;
+		vcc-supply = <&reg_sn65dsi83_1v8>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lvds_bridge_in: endpoint {
+					data-lanes = <1 2 3 4>;
+					remote-endpoint = <&mipi_dsi_out>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+
+				lvds_bridge_out: endpoint {
+					remote-endpoint = <&panel_in_lvds>;
+				};
+			};
+		};
+	};
+};
+
+&mipi_dsi {
+	samsung,burst-clock-frequency = <891000000>;
+	samsung,esc-clock-frequency = <20000000>;
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			mipi_dsi_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&lvds_bridge_in>;
+			};
+		};
+	};
 };
 
 &pwm3 {
