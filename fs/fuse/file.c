@@ -1299,6 +1299,47 @@ static ssize_t fuse_perform_write(struct kiocb *iocb, struct iov_iter *ii)
 	return res;
 }
 
+static bool fuse_io_past_eof(struct kiocb *iocb, struct iov_iter *iter)
+{
+	struct inode *inode = file_inode(iocb->ki_filp);
+
+	return iocb->ki_pos + iov_iter_count(iter) > i_size_read(inode);
+}
+
+/*
+ * @return true if an exclusive lock for direct IO writes is needed
+ */
+static bool fuse_dio_wr_exclusive_lock(struct kiocb *iocb, struct iov_iter *from)
+{
+	struct file *file = iocb->ki_filp;
+	struct fuse_file *ff = file->private_data;
+	struct inode *inode = file_inode(iocb->ki_filp);
+
+	/* Server side has to advise that it supports parallel dio writes. */
+	if (!(ff->open_flags & FOPEN_PARALLEL_DIRECT_WRITES))
+		return true;
+
+	/*
+	 * Append will need to know the eventual EOF - always needs an
+	 * exclusive lock.
+	 */
+	if (iocb->ki_flags & IOCB_APPEND)
+		return true;
+
+	/*
+	 * Combination of page access and direct-io is difficult, shared locks
+	 * actually introduce a conflict.
+	 */
+	if (get_fuse_conn(inode)->direct_io_allow_mmap)
+		return true;
+
+	/* Parallel dio beyond EOF is not supported, at least for now. */
+	if (fuse_io_past_eof(iocb, from))
+		return true;
+
+	return false;
+}
+
 static ssize_t fuse_cache_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
@@ -1558,26 +1599,12 @@ static ssize_t fuse_direct_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	return res;
 }
 
-static bool fuse_direct_write_extending_i_size(struct kiocb *iocb,
-					       struct iov_iter *iter)
-{
-	struct inode *inode = file_inode(iocb->ki_filp);
-
-	return iocb->ki_pos + iov_iter_count(iter) > i_size_read(inode);
-}
-
 static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
-	struct file *file = iocb->ki_filp;
-	struct fuse_file *ff = file->private_data;
 	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(iocb);
 	ssize_t res;
-	bool exclusive_lock =
-		!(ff->open_flags & FOPEN_PARALLEL_DIRECT_WRITES) ||
-		get_fuse_conn(inode)->direct_io_allow_mmap ||
-		iocb->ki_flags & IOCB_APPEND ||
-		fuse_direct_write_extending_i_size(iocb, from);
+	bool exclusive_lock = fuse_dio_wr_exclusive_lock(iocb, from);
 
 	/*
 	 * Take exclusive lock if
@@ -1591,10 +1618,10 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	else {
 		inode_lock_shared(inode);
 
-		/* A race with truncate might have come up as the decision for
-		 * the lock type was done without holding the lock, check again.
+		/*
+		 * Previous check was without any lock and might have raced.
 		 */
-		if (fuse_direct_write_extending_i_size(iocb, from)) {
+		if (fuse_io_past_eof(iocb, from)) {
 			inode_unlock_shared(inode);
 			inode_lock(inode);
 			exclusive_lock = true;
