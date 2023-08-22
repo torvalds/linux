@@ -62,4 +62,24 @@ long stash_rb_nodes(void *ctx)
 	return 0;
 }
 
+SEC("tc")
+__failure __msg("R1 must have zero offset when passed to release func")
+long drop_rb_node_off(void *ctx)
+{
+	struct map_value *mapval;
+	struct node_data *res;
+	int idx = 0;
+
+	mapval = bpf_map_lookup_elem(&some_nodes, &idx);
+	if (!mapval)
+		return 1;
+
+	res = bpf_obj_new(typeof(*res));
+	if (!res)
+		return 1;
+	/* Try releasing with graph node offset */
+	bpf_obj_drop(&res->node);
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";
