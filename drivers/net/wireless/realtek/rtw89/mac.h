@@ -327,8 +327,6 @@ enum rtw89_mac_mem_sel {
 	RTW89_MAC_MEM_NUM,
 };
 
-extern const u32 rtw89_mac_mem_base_addrs[];
-
 enum rtw89_rpwm_req_pwr_state {
 	RTW89_MAC_RPWM_REQ_PWR_STATE_ACTIVE = 0,
 	RTW89_MAC_RPWM_REQ_PWR_STATE_BAND0_RFON = 1,
@@ -829,6 +827,9 @@ extern const struct rtw89_mac_size_set rtw89_mac_size;
 
 struct rtw89_mac_gen_def {
 	u32 band1_offset;
+	u32 filter_model_addr;
+	u32 indir_access_addr;
+	const u32 *mem_base_addrs;
 };
 
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;

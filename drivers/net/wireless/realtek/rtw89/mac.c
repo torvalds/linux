@@ -12,7 +12,7 @@
 #include "reg.h"
 #include "util.h"
 
-const u32 rtw89_mac_mem_base_addrs[RTW89_MAC_MEM_NUM] = {
+static const u32 rtw89_mac_mem_base_addrs_ax[RTW89_MAC_MEM_NUM] = {
 	[RTW89_MAC_MEM_AXIDMA]	        = AXIDMA_BASE_ADDR,
 	[RTW89_MAC_MEM_SHARED_BUF]	= SHARED_BUF_BASE_ADDR,
 	[RTW89_MAC_MEM_DMAC_TBL]	= DMAC_TBL_BASE_ADDR,
@@ -39,19 +39,21 @@ const u32 rtw89_mac_mem_base_addrs[RTW89_MAC_MEM_NUM] = {
 static void rtw89_mac_mem_write(struct rtw89_dev *rtwdev, u32 offset,
 				u32 val, enum rtw89_mac_mem_sel sel)
 {
-	u32 addr = rtw89_mac_mem_base_addrs[sel] + offset;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 addr = mac->mem_base_addrs[sel] + offset;
 
-	rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, addr);
-	rtw89_write32(rtwdev, R_AX_INDIR_ACCESS_ENTRY, val);
+	rtw89_write32(rtwdev, mac->filter_model_addr, addr);
+	rtw89_write32(rtwdev, mac->indir_access_addr, val);
 }
 
 static u32 rtw89_mac_mem_read(struct rtw89_dev *rtwdev, u32 offset,
 			      enum rtw89_mac_mem_sel sel)
 {
-	u32 addr = rtw89_mac_mem_base_addrs[sel] + offset;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 addr = mac->mem_base_addrs[sel] + offset;
 
-	rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, addr);
-	return rtw89_read32(rtwdev, R_AX_INDIR_ACCESS_ENTRY);
+	rtw89_write32(rtwdev, mac->filter_model_addr, addr);
+	return rtw89_read32(rtwdev, mac->indir_access_addr);
 }
 
 int rtw89_mac_check_mac_en(struct rtw89_dev *rtwdev, u8 mac_idx,
@@ -3661,6 +3663,9 @@ static void rtw89_mac_dmac_tbl_init(struct rtw89_dev *rtwdev, u8 macid)
 {
 	u8 i;
 
+	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX)
+		return;
+
 	for (i = 0; i < 4; i++) {
 		rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR,
 			      DMAC_TBL_BASE_ADDR + (macid << 4) + (i << 2));
@@ -3670,6 +3675,9 @@ static void rtw89_mac_dmac_tbl_init(struct rtw89_dev *rtwdev, u8 macid)
 
 static void rtw89_mac_cmac_tbl_init(struct rtw89_dev *rtwdev, u8 macid)
 {
+	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX)
+		return;
+
 	rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR,
 		      CMAC_TBL_BASE_ADDR + macid * CCTL_INFO_SIZE);
 	rtw89_write32(rtwdev, R_AX_INDIR_ACCESS_ENTRY, 0x4);
@@ -5678,5 +5686,8 @@ int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 
 const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.band1_offset = RTW89_MAC_AX_BAND_REG_OFFSET,
+	.filter_model_addr = R_AX_FILTER_MODEL_ADDR,
+	.indir_access_addr = R_AX_INDIR_ACCESS_ENTRY,
+	.mem_base_addrs = rtw89_mac_mem_base_addrs_ax,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_ax);
