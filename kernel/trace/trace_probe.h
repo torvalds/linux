@@ -385,6 +385,7 @@ struct traceprobe_parse_context {
 	struct trace_event_call *event;
 	/* BTF related parameters */
 	const char *funcname;		/* Function name in BTF */
+	const struct btf_type  *proto;	/* Prototype of the function */
 	const struct btf_param *params;	/* Parameter of the function */
 	s32 nr_params;			/* The number of the parameters */
 	struct btf *btf;		/* The BTF to be used */
