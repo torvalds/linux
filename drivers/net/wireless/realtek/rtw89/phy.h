@@ -336,8 +336,74 @@ struct rtw89_nbi_reg_def {
 	struct rtw89_reg_def notch2_en;
 };
 
+struct rtw89_ccx_regs {
+	u32 setting_addr;
+	u32 edcca_opt_mask;
+	u32 measurement_trig_mask;
+	u32 trig_opt_mask;
+	u32 en_mask;
+	u32 ifs_cnt_addr;
+	u32 ifs_clm_period_mask;
+	u32 ifs_clm_cnt_unit_mask;
+	u32 ifs_clm_cnt_clear_mask;
+	u32 ifs_collect_en_mask;
+	u32 ifs_t1_addr;
+	u32 ifs_t1_th_h_mask;
+	u32 ifs_t1_en_mask;
+	u32 ifs_t1_th_l_mask;
+	u32 ifs_t2_addr;
+	u32 ifs_t2_th_h_mask;
+	u32 ifs_t2_en_mask;
+	u32 ifs_t2_th_l_mask;
+	u32 ifs_t3_addr;
+	u32 ifs_t3_th_h_mask;
+	u32 ifs_t3_en_mask;
+	u32 ifs_t3_th_l_mask;
+	u32 ifs_t4_addr;
+	u32 ifs_t4_th_h_mask;
+	u32 ifs_t4_en_mask;
+	u32 ifs_t4_th_l_mask;
+	u32 ifs_clm_tx_cnt_addr;
+	u32 ifs_clm_edcca_excl_cca_fa_mask;
+	u32 ifs_clm_tx_cnt_msk;
+	u32 ifs_clm_cca_addr;
+	u32 ifs_clm_ofdmcca_excl_fa_mask;
+	u32 ifs_clm_cckcca_excl_fa_mask;
+	u32 ifs_clm_fa_addr;
+	u32 ifs_clm_ofdm_fa_mask;
+	u32 ifs_clm_cck_fa_mask;
+	u32 ifs_his_addr;
+	u32 ifs_t4_his_mask;
+	u32 ifs_t3_his_mask;
+	u32 ifs_t2_his_mask;
+	u32 ifs_t1_his_mask;
+	u32 ifs_avg_l_addr;
+	u32 ifs_t2_avg_mask;
+	u32 ifs_t1_avg_mask;
+	u32 ifs_avg_h_addr;
+	u32 ifs_t4_avg_mask;
+	u32 ifs_t3_avg_mask;
+	u32 ifs_cca_l_addr;
+	u32 ifs_t2_cca_mask;
+	u32 ifs_t1_cca_mask;
+	u32 ifs_cca_h_addr;
+	u32 ifs_t4_cca_mask;
+	u32 ifs_t3_cca_mask;
+	u32 ifs_total_addr;
+	u32 ifs_cnt_done_mask;
+	u32 ifs_total_mask;
+};
+
+struct rtw89_physts_regs {
+	u32 setting_addr;
+	u32 dis_trigger_fail_mask;
+	u32 dis_trigger_brk_mask;
+};
+
 struct rtw89_phy_gen_def {
 	u32 cr_base;
+	const struct rtw89_ccx_regs *ccx;
+	const struct rtw89_physts_regs *physts;
 };
 
 extern const struct rtw89_phy_gen_def rtw89_phy_gen_ax;
