@@ -832,7 +832,6 @@ int hl_unreserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
  *                      physical pages
  *
  * This function does the following:
- * - Pin the physical pages related to the given virtual block.
  * - Create a physical page pack from the physical pages related to the given
  *   virtual block.
  */
