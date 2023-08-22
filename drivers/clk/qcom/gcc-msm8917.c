@@ -64,7 +64,7 @@ static struct clk_alpha_pll gpll0_sleep_clk_src = {
 				.index = DT_XO,
 			},
 			.num_parents = 1,
-			.ops = &clk_alpha_pll_ops,
+			.ops = &clk_branch_simple_ops,
 		},
 	},
 };
@@ -3042,6 +3042,7 @@ static struct gdsc cpp_gdsc = {
 static struct clk_regmap *gcc_msm8917_clocks[] = {
 	[GPLL0] = &gpll0.clkr,
 	[GPLL0_EARLY] = &gpll0_early.clkr,
+	[GPLL0_SLEEP_CLK_SRC] = &gpll0_sleep_clk_src.clkr,
 	[GPLL3] = &gpll3.clkr,
 	[GPLL3_EARLY] = &gpll3_early.clkr,
 	[GPLL4] = &gpll4.clkr,

@@ -23,6 +23,10 @@
 #include "clk-regmap-divider.h"
 #include "clk-regmap-mux.h"
 
+static struct clk_parent_data pxo_parent_data = {
+	.fw_name = "pxo", .name = "pxo_board",
+};
+
 static struct clk_pll pll4 = {
 	.l_reg = 0x4,
 	.m_reg = 0x8,
@@ -33,9 +37,7 @@ static struct clk_pll pll4 = {
 	.status_bit = 16,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pll4",
-		.parent_data = (const struct clk_parent_data[]){
-			{ .fw_name = "pxo", .name = "pxo_board" },
-		},
+		.parent_data = &pxo_parent_data,
 		.num_parents = 1,
 		.ops = &clk_pll_ops,
 	},
@@ -51,7 +53,7 @@ static const struct parent_map lcc_pxo_pll4_map[] = {
 	{ P_PLL4, 2 }
 };
 
-static const struct clk_parent_data lcc_pxo_pll4[] = {
+static struct clk_parent_data lcc_pxo_pll4[] = {
 	{ .fw_name = "pxo", .name = "pxo_board" },
 	{ .fw_name = "pll4_vote", .name = "pll4_vote" },
 };
@@ -444,6 +446,7 @@ static const struct qcom_cc_desc lcc_msm8960_desc = {
 static const struct of_device_id lcc_msm8960_match_table[] = {
 	{ .compatible = "qcom,lcc-msm8960" },
 	{ .compatible = "qcom,lcc-apq8064" },
+	{ .compatible = "qcom,lcc-mdm9615" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, lcc_msm8960_match_table);
@@ -452,6 +455,14 @@ static int lcc_msm8960_probe(struct platform_device *pdev)
 {
 	u32 val;
 	struct regmap *regmap;
+
+	/* patch for the cxo <-> pxo difference */
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,lcc-mdm9615")) {
+		pxo_parent_data.fw_name = "cxo";
+		pxo_parent_data.name = "cxo_board";
+		lcc_pxo_pll4[0].fw_name = "cxo";
+		lcc_pxo_pll4[0].name = "cxo_board";
+	}
 
 	regmap = qcom_cc_map(pdev, &lcc_msm8960_desc);
 	if (IS_ERR(regmap))
