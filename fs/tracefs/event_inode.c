@@ -27,7 +27,7 @@ struct eventfs_inode {
 	struct list_head	e_top_files;
 };
 
-/**
+/*
  * struct eventfs_file - hold the properties of the eventfs files and
  *                       directories.
  * @name:	the name of the file or directory to create
@@ -48,10 +48,16 @@ struct eventfs_file {
 	struct eventfs_inode		*ei;
 	const struct file_operations	*fop;
 	const struct inode_operations	*iop;
+	/*
+	 * Union - used for deletion
+	 * @del_list:	list of eventfs_file to delete
+	 * @rcu:	eventfs_file to delete in RCU
+	 * @is_freed:	node is freed if one of the above is set
+	 */
 	union {
-		struct list_head	del_list; /* list of eventfs_file to delete */
-		struct rcu_head		rcu; /* eventfs_file to delete */
-		unsigned long		is_freed; /* Freed if one of the above is set */
+		struct list_head	del_list;
+		struct rcu_head		rcu;
+		unsigned long		is_freed;
 	};
 	void				*data;
 	umode_t				mode;
