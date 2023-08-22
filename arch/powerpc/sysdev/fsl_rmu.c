@@ -359,7 +359,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-void msg_unit_error_handler(void)
+static void msg_unit_error_handler(void)
 {
 
 	/*XXX: Error recovery is not implemented, we just clear errors */
