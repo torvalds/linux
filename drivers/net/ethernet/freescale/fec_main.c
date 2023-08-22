@@ -1583,25 +1583,18 @@ fec_enet_run_xdp(struct fec_enet_private *fep, struct bpf_prog *prog,
 	case XDP_REDIRECT:
 		rxq->stats[RX_XDP_REDIRECT]++;
 		err = xdp_do_redirect(fep->netdev, xdp, prog);
-		if (!err) {
-			ret = FEC_ENET_XDP_REDIR;
-		} else {
-			ret = FEC_ENET_XDP_CONSUMED;
-			page = virt_to_head_page(xdp->data);
-			page_pool_put_page(rxq->page_pool, page, sync, true);
-		}
+		if (unlikely(err))
+			goto xdp_err;
+
+		ret = FEC_ENET_XDP_REDIR;
 		break;
 
 	case XDP_TX:
 		err = fec_enet_xdp_tx_xmit(fep, cpu, xdp, sync);
-		if (unlikely(err)) {
-			ret = FEC_ENET_XDP_CONSUMED;
-			page = virt_to_head_page(xdp->data);
-			page_pool_put_page(rxq->page_pool, page, sync, true);
-			trace_xdp_exception(fep->netdev, prog, act);
-		} else {
-			ret = FEC_ENET_XDP_TX;
-		}
+		if (unlikely(err))
+			goto xdp_err;
+
+		ret = FEC_ENET_XDP_TX;
 		break;
 
 	default:
@@ -1613,9 +1606,12 @@ fec_enet_run_xdp(struct fec_enet_private *fep, struct bpf_prog *prog,
 
 	case XDP_DROP:
 		rxq->stats[RX_XDP_DROP]++;
+xdp_err:
 		ret = FEC_ENET_XDP_CONSUMED;
 		page = virt_to_head_page(xdp->data);
 		page_pool_put_page(rxq->page_pool, page, sync, true);
+		if (act != XDP_DROP)
+			trace_xdp_exception(fep->netdev, prog, act);
 		break;
 	}
 
