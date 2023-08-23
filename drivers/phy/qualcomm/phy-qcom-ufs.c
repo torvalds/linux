@@ -366,6 +366,16 @@ static int ufs_qcom_phy_init_vreg(struct device *dev,
 	} else if (!strcmp(name, "vdda-phy")) {
 		vreg->max_uV = VDDA_PHY_MAX_UV;
 		vreg->min_uV = VDDA_PHY_MIN_UV;
+
+		snprintf(prop_name, MAX_PROP_NAME, "%s-min-microvolt", name);
+		of_property_read_u32(dev->of_node,
+				     prop_name, &vreg->min_uV);
+		if (vreg->min_uV < VDDA_PHY_MIN_UV ||
+			vreg->min_uV > VDDA_PHY_MAX_UV) {
+			dev_err(dev, "%s: ufs vdda-phy invalid min_uV=%duV\n",
+				__func__, vreg->min_uV);
+			vreg->min_uV = VDDA_PHY_MIN_UV;
+		}
 	} else if (!strcmp(name, "vddp-ref-clk")) {
 		vreg->max_uV = VDDP_REF_CLK_MAX_UV;
 		vreg->min_uV = VDDP_REF_CLK_MIN_UV;
