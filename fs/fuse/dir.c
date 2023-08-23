@@ -1219,11 +1219,14 @@ static int fuse_do_statx(struct inode *inode, struct file *file,
 		fuse_change_attributes(inode, &attr, &outarg.stat,
 				       ATTR_TIMEOUT(&outarg), attr_version);
 	}
-	stat->result_mask = sx->mask & (STATX_BASIC_STATS | STATX_BTIME);
-	stat->btime.tv_sec = sx->btime.tv_sec;
-	stat->btime.tv_nsec = min_t(u32, sx->btime.tv_nsec, NSEC_PER_SEC - 1);
-	fuse_fillattr(inode, &attr, stat);
-	stat->result_mask |= STATX_TYPE;
+
+	if (stat) {
+		stat->result_mask = sx->mask & (STATX_BASIC_STATS | STATX_BTIME);
+		stat->btime.tv_sec = sx->btime.tv_sec;
+		stat->btime.tv_nsec = min_t(u32, sx->btime.tv_nsec, NSEC_PER_SEC - 1);
+		fuse_fillattr(inode, &attr, stat);
+		stat->result_mask |= STATX_TYPE;
+	}
 
 	return 0;
 }
