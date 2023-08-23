@@ -12,7 +12,7 @@
 
 #define ARMV8_PMU_CYCLE_IDX		(ARMV8_PMU_MAX_COUNTERS - 1)
 
-#ifdef CONFIG_HW_PERF_EVENTS
+#if IS_ENABLED(CONFIG_HW_PERF_EVENTS) && IS_ENABLED(CONFIG_KVM)
 
 struct kvm_pmc {
 	u8 idx;	/* index into the pmu->pmc array */
