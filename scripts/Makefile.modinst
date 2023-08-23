@@ -95,7 +95,6 @@ endif
 # Signing
 # Don't stop modules_install even if we can't sign external modules.
 #
-ifeq ($(CONFIG_MODULE_SIG_ALL),y)
 ifeq ($(filter pkcs11:%, $(CONFIG_MODULE_SIG_KEY)),)
 sig-key := $(if $(wildcard $(CONFIG_MODULE_SIG_KEY)),,$(srctree)/)$(CONFIG_MODULE_SIG_KEY)
 else
@@ -104,12 +103,14 @@ endif
 quiet_cmd_sign = SIGN    $@
       cmd_sign = scripts/sign-file $(CONFIG_MODULE_SIG_HASH) "$(sig-key)" certs/signing_key.x509 $@ \
                  $(if $(KBUILD_EXTMOD),|| true)
-else
+
+ifeq ($(modules_sign_only),)
+
+# During modules_install, modules are signed only when CONFIG_MODULE_SIG_ALL=y.
+ifndef CONFIG_MODULE_SIG_ALL
 quiet_cmd_sign :=
       cmd_sign := :
 endif
-
-ifeq ($(modules_sign_only),)
 
 # Create necessary directories
 $(shell mkdir -p $(sort $(dir $(install-y))))
