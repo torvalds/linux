@@ -205,6 +205,7 @@ struct acp_dev_data {
 	struct acp_dsp_stream *dtrace_stream;
 	struct pci_dev *smn_dev;
 	struct acp_dsp_stream *probe_stream;
+	bool enable_fw_debug;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);

@@ -22,6 +22,10 @@
 
 #define SECURED_FIRMWARE 1
 
+static bool enable_fw_debug;
+module_param(enable_fw_debug, bool, 0444);
+MODULE_PARM_DESC(enable_fw_debug, "Enable Firmware debug");
+
 const struct dmi_system_id acp_sof_quirk_table[] = {
 	{
 		/* Valve Jupiter device */
@@ -558,6 +562,7 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 		dev_dbg(sdev->dev, "fw_code_bin:%s, fw_data_bin:%s\n", adata->fw_code_bin,
 			adata->fw_data_bin);
 	}
+	adata->enable_fw_debug = enable_fw_debug;
 	acp_memory_init(sdev);
 
 	acp_dsp_stream_init(sdev);
