@@ -1937,7 +1937,7 @@ static inline int may_rename(struct inode *old_dir,
 
 /* Check whether a task can perform a filesystem operation. */
 static int superblock_has_perm(const struct cred *cred,
-			       struct super_block *sb,
+			       const struct super_block *sb,
 			       u32 perms,
 			       struct common_audit_data *ad)
 {
@@ -2139,7 +2139,7 @@ static int selinux_capable(const struct cred *cred, struct user_namespace *ns,
 	return cred_has_capability(cred, cap, opts, ns == &init_user_ns);
 }
 
-static int selinux_quotactl(int cmds, int type, int id, struct super_block *sb)
+static int selinux_quotactl(int cmds, int type, int id, const struct super_block *sb)
 {
 	const struct cred *cred = current_cred();
 	int rc = 0;

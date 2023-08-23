@@ -284,7 +284,7 @@ int security_capable(const struct cred *cred,
 		       struct user_namespace *ns,
 		       int cap,
 		       unsigned int opts);
-int security_quotactl(int cmds, int type, int id, struct super_block *sb);
+int security_quotactl(int cmds, int type, int id, const struct super_block *sb);
 int security_quota_on(struct dentry *dentry);
 int security_syslog(int type);
 int security_settime64(const struct timespec64 *ts, const struct timezone *tz);
@@ -581,7 +581,7 @@ static inline int security_capable(const struct cred *cred,
 }
 
 static inline int security_quotactl(int cmds, int type, int id,
-				     struct super_block *sb)
+				     const struct super_block *sb)
 {
 	return 0;
 }
