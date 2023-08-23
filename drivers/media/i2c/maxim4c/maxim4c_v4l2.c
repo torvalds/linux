@@ -95,6 +95,11 @@ static int maxim4c_support_mode_init(maxim4c_t *maxim4c)
 
 	dev_info(dev, "=== maxim4c support mode init ===\n");
 
+#if MAXIM4C_TEST_PATTERN
+	ret = maxim4c_pattern_support_mode_init(maxim4c);
+	return ret;
+#endif
+
 	maxim4c->cfg_modes_num = 1;
 	maxim4c->cur_mode = &maxim4c->supported_mode;
 	mode = &maxim4c->supported_mode;
@@ -311,14 +316,12 @@ static long maxim4c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_SET_CSI_DPHY_PARAM:
 		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
-			rk3588_dcphy_param = *dphy_param;
+		rk3588_dcphy_param = *dphy_param;
 		dev_dbg(&maxim4c->client->dev, "set dcphy param\n");
 		break;
 	case RKMODULE_GET_CSI_DPHY_PARAM:
 		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
-			*dphy_param = rk3588_dcphy_param;
+		*dphy_param = rk3588_dcphy_param;
 		dev_dbg(&maxim4c->client->dev, "get dcphy param\n");
 		break;
 	default:
@@ -429,6 +432,22 @@ static int __maxim4c_start_stream(struct maxim4c *maxim4c)
 	s64 link_freq_hz = 0;
 	u8 link_mask = 0, link_freq_idx = 0;
 	u8 video_pipe_mask = 0;
+
+#if MAXIM4C_LOCAL_DES_ON_OFF_EN
+#if MAXIM4C_TEST_PATTERN
+	ret = maxim4c_pattern_hw_init(maxim4c);
+	if (ret) {
+		dev_err(dev, "test pattern hw init error\n");
+		return ret;
+	}
+#else
+	ret = maxim4c_module_hw_init(maxim4c);
+	if (ret) {
+		dev_err(dev, "maxim4c module hw init error\n");
+		return ret;
+	}
+#endif /* MAXIM4C_TEST_PATTERN */
+#endif /* MAXIM4C_LOCAL_DES_ON_OFF_EN */
 
 	link_mask = maxim4c->gmsl_link.link_enable_mask;
 	video_pipe_mask = maxim4c->video_pipe.pipe_enable_mask;

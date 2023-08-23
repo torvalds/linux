@@ -100,8 +100,8 @@ static int maxim4c_video_pipe_config_parse_dt(struct device *dev,
 					pipe_cfg_name,
 					strlen(pipe_cfg_name))) {
 			if (sub_idx >= MAXIM4C_PIPE_O_ID_MAX) {
-				dev_err(dev, "Too many matching %s node\n",
-					pipe_cfg_name);
+				dev_err(dev, "%pOF: Too many matching %s node\n",
+						parent_node, pipe_cfg_name);
 
 				of_node_put(node);
 				break;
@@ -205,8 +205,11 @@ int maxim4c_video_pipe_parse_dt(maxim4c_t *maxim4c, struct device_node *of_node)
 	dev_info(dev, "=== maxim4c video pipe parse dt ===\n");
 
 	node = of_get_child_by_name(of_node, "video-pipes");
-	if (IS_ERR_OR_NULL(node))
+	if (IS_ERR_OR_NULL(node)) {
+		dev_err(dev, "%pOF has no child node: video-pipes\n",
+				of_node);
 		return -ENODEV;
+	}
 
 	if (!of_device_is_available(node)) {
 		dev_info(dev, "%pOF is disabled\n", node);
@@ -325,21 +328,28 @@ EXPORT_SYMBOL(maxim4c_video_pipe_data_init);
 
 int maxim4c_video_pipe_hw_init(maxim4c_t *maxim4c)
 {
+	struct device *dev = &maxim4c->client->dev;
 	u8 pipe_enable_mask = 0;
 	int ret = 0;
 
 	ret = maxim4c_video_pipe_select(maxim4c);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "%s: video pipe select error\n", __func__);
 		return ret;
+	}
 
 	pipe_enable_mask = maxim4c->video_pipe.pipe_enable_mask;
 	ret = maxim4c_video_pipe_mask_enable(maxim4c, pipe_enable_mask, true);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "%s: video pipe mask enable error\n", __func__);
 		return ret;
+	}
 
 	ret = maxim4c_video_pipe_run_init_seq(maxim4c);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "%s: video pipe run init seq error\n", __func__);
 		return ret;
+	}
 
 	return 0;
 }

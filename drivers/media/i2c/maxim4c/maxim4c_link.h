@@ -63,18 +63,12 @@ enum maxim4c_link_tx_rate {
 	MAXIM4C_LINK_TX_RATE_187_5MPS = 0,
 };
 
-struct maxim4c_remote_info {
-	const char *remote_name;
-	const char *remote_compatible;
-};
-
 struct maxim4c_link_cfg {
 	u8 link_enable;
 	u8 link_type;
 	u8 link_rx_rate;
 	u8 link_tx_rate;
 
-	struct maxim4c_remote_info remote_info;
 	struct maxim4c_i2c_init_seq link_init_seq;
 };
 

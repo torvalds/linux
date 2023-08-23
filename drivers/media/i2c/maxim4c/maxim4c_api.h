@@ -23,6 +23,9 @@
 /* Maxim Deserializer Test Pattern */
 #define MAXIM4C_TEST_PATTERN		0
 
+/* Maxim Deserializer pwdn on/off enable */
+#define MAXIM4C_LOCAL_DES_ON_OFF_EN	0
+
 /* maxim4c i2c api */
 int maxim4c_i2c_write_reg(struct i2c_client *client,
 		u16 reg_addr, u16 reg_len, u16 val_len, u32 reg_val);
@@ -77,15 +80,22 @@ int maxim4c_remote_mfd_add_devices(maxim4c_t *maxim4c);
 int maxim4c_remote_devices_init(maxim4c_t *maxim4c, u8 link_init_mask);
 int maxim4c_remote_devices_deinit(maxim4c_t *maxim4c, u8 link_init_mask);
 int maxim4c_remote_load_init_seq(maxim4c_remote_t *remote_device);
+int maxim4c_remote_i2c_addr_select(maxim4c_remote_t *remote_device, u32 i2c_id);
+int maxim4c_remote_i2c_client_init(maxim4c_remote_t *remote_device,
+				struct i2c_client *des_client);
 int maxim4c_remote_device_register(maxim4c_t *maxim4c,
-		maxim4c_remote_t *remote_device);
+				maxim4c_remote_t *remote_device);
 
 /* maxim4c v4l2 subdev api */
 int maxim4c_v4l2_subdev_init(maxim4c_t *maxim4c);
 void maxim4c_v4l2_subdev_deinit(maxim4c_t *maxim4c);
 
+int maxim4c_module_hw_init(maxim4c_t *maxim4c);
+
 /* maxim4c pattern api */
-int maxim4c_pattern_init(maxim4c_t *maxim4c);
+int maxim4c_pattern_hw_init(maxim4c_t *maxim4c);
+int maxim4c_pattern_support_mode_init(maxim4c_t *maxim4c);
+int maxim4c_pattern_data_init(maxim4c_t *maxim4c);
 int maxim4c_pattern_enable(maxim4c_t *maxim4c, bool enable);
 
 #endif /* __MAXIM4C_API_H__ */

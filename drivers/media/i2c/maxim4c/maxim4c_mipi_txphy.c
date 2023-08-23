@@ -259,7 +259,8 @@ static int maxim4c_mipi_txphy_config_parse_dt(struct device *dev,
 				 txphy_cfg_name,
 				 strlen(txphy_cfg_name))) {
 			if (sub_idx >= MAXIM4C_TXPHY_ID_MAX) {
-				dev_err(dev, "Too many matching %s node\n", txphy_cfg_name);
+				dev_err(dev, "%pOF: Too many matching %s node\n",
+						parent_node, txphy_cfg_name);
 
 				of_node_put(node);
 				break;
@@ -355,8 +356,11 @@ int maxim4c_mipi_txphy_parse_dt(maxim4c_t *maxim4c, struct device_node *of_node)
 	dev_info(dev, "=== maxim4c mipi txphy parse dt ===\n");
 
 	node = of_get_child_by_name(of_node, "mipi-txphys");
-	if (IS_ERR_OR_NULL(node))
+	if (IS_ERR_OR_NULL(node)) {
+		dev_err(dev, "%pOF has no child node: mipi-txphys\n",
+				of_node);
 		return -ENODEV;
+	}
 
 	if (!of_device_is_available(node)) {
 		dev_info(dev, "%pOF is disabled\n", node);
@@ -404,6 +408,7 @@ EXPORT_SYMBOL(maxim4c_mipi_txphy_parse_dt);
 int maxim4c_mipi_txphy_hw_init(maxim4c_t *maxim4c)
 {
 	struct i2c_client *client = maxim4c->client;
+	struct device *dev = &client->dev;
 	maxim4c_mipi_txphy_t *mipi_txphy = &maxim4c->mipi_txphy;
 	struct maxim4c_txphy_cfg *phy_cfg = NULL;
 	u8 mode = 0;
@@ -497,7 +502,12 @@ int maxim4c_mipi_txphy_hw_init(maxim4c_t *maxim4c)
 	// mipi txphy auto init deskew
 	ret |= maxim4c_txphy_auto_init_deskew(maxim4c);
 
-	return ret;
+	if (ret) {
+		dev_err(dev, "%s: txphy hw init error\n", __func__);
+		return ret;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL(maxim4c_mipi_txphy_hw_init);
 

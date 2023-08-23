@@ -3,42 +3,44 @@
 # Maxim Quad GMSL deserializer and serializer devices
 #
 config VIDEO_DES_MAXIM4C
-	tristate "Maxim Qual GMSL deserializer support"
+	tristate "Maxim Quad GMSL deserializer support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
 	select V4L2_FWNODE
 	help
-	  This driver supports the Maxim Qual GMSL2/GMSL1 deserializer.
+	  This driver supports the Maxim Quad GMSL2/GMSL1 deserializer.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called maxim4c.
 
+menu "Maxim Quad GMSL serializer devices support"
+	visible if VIDEO_DES_MAXIM4C
+
 config MAXIM4C_SER_MAX9295
-	tristate "Maxim GMSL serializer support"
-	depends on I2C
-	select VIDEO_DES_MAXIM4C
+	tristate "Maxim GMSL2 serializer max9295 support"
+	depends on VIDEO_DES_MAXIM4C
 	help
-	  This driver supports the Maxim GMSL2 serializer.
+	  This driver supports the Maxim GMSL2 max9295 serializer.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called remote_max9295.
 
 config MAXIM4C_SER_MAX96715
-	tristate "Maxim GMSL serializer support"
-	depends on I2C
-	select VIDEO_DES_MAXIM4C
+	tristate "Maxim GMSL1 Serializer max96715 support"
+	depends on VIDEO_DES_MAXIM4C
 	help
-	  This driver supports the Maxim GMSL1 serializer.
+	  This driver supports the Maxim GMSL1 max96715 serializer.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called remote_max96715.
 
 config MAXIM4C_SER_MAX96717
-	tristate "Maxim GMSL serializer support"
-	depends on I2C
-	select VIDEO_DES_MAXIM4C
+	tristate "Maxim GMSL2 Serializer max96717 support"
+	depends on VIDEO_DES_MAXIM4C
 	help
-	  This driver supports the Maxim GMSL2 serializer.
+	  This driver supports the Maxim GMSL2 max96717 serializer.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called remote_max96717.
+
+endmenu

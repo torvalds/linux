@@ -107,16 +107,16 @@ static int maxim4c_link_run_init_seq(maxim4c_t *maxim4c)
 	maxim4c_gmsl_link_t *gmsl_link = &maxim4c->gmsl_link;
 	struct maxim4c_link_cfg *link_cfg = NULL;
 	struct maxim4c_i2c_init_seq *init_seq = NULL;
-	int i = 0;
+	int link_idx = 0;
 	int ret = 0;
 
 	// link init sequence
-	for (i = 0; i < MAXIM4C_LINK_ID_MAX; i++) {
-		link_cfg = &gmsl_link->link_cfg[i];
+	for (link_idx = 0; link_idx < MAXIM4C_LINK_ID_MAX; link_idx++) {
+		link_cfg = &gmsl_link->link_cfg[link_idx];
 		init_seq = &link_cfg->link_init_seq;
 		ret = maxim4c_i2c_run_init_seq(client, init_seq);
 		if (ret) {
-			dev_err(dev, "link id = %d init sequence error\n", i);
+			dev_err(dev, "link id = %d init sequence error\n", link_idx);
 			return ret;
 		}
 	}
@@ -386,6 +386,11 @@ int maxim4c_link_wait_linklock(struct maxim4c *maxim4c, u8 link_mask)
 	msleep(time_ms);
 
 	for (loop_idx = 0; loop_idx < 20; loop_idx++) {
+		if (loop_idx != 0) {
+			msleep(10);
+			time_ms += 10;
+		}
+
 		for (link_idx = 0; link_idx < MAXIM4C_LINK_ID_MAX; link_idx++) {
 			link_bit_mask = BIT(link_idx);
 
@@ -405,9 +410,6 @@ int maxim4c_link_wait_linklock(struct maxim4c *maxim4c, u8 link_mask)
 			maxim4c->link_lock_state = lock_state;
 			return 0;
 		}
-
-		msleep(10);
-		time_ms += 10;
 	}
 
 	if ((lock_state & link_mask) != 0) {
@@ -554,9 +556,7 @@ static int maxim4c_gmsl_link_config_parse_dt(struct device *dev,
 	struct device_node *init_seq_node = NULL;
 	struct maxim4c_i2c_init_seq *init_seq = NULL;
 	struct maxim4c_link_cfg *link_cfg = NULL;
-	struct maxim4c_remote_info *remote_info;
 	const char *link_cfg_name = "gmsl-link-config";
-	const char *prop_str = NULL;
 	u32 value = 0;
 	u32 sub_idx = 0, link_id = 0;
 	int ret = 0;
@@ -568,7 +568,8 @@ static int maxim4c_gmsl_link_config_parse_dt(struct device *dev,
 				 link_cfg_name,
 				 strlen(link_cfg_name))) {
 			if (sub_idx >= MAXIM4C_LINK_ID_MAX) {
-				dev_err(dev, "Too many matching %s node\n", link_cfg_name);
+				dev_err(dev, "%pOF: Too many matching %s node\n",
+						parent_node, link_cfg_name);
 
 				of_node_put(node);
 				break;
@@ -622,20 +623,6 @@ static int maxim4c_gmsl_link_config_parse_dt(struct device *dev,
 				link_cfg->link_rx_rate = value;
 			}
 
-			/* remote info */
-			remote_info = &link_cfg->remote_info;
-			ret = of_property_read_string(node, "remote-name", &prop_str);
-			if (ret == 0) {
-				dev_info(dev, "remote-name property: %s", prop_str);
-				remote_info->remote_name = prop_str;
-			}
-
-			ret = of_property_read_string(node, "remote-compatible", &prop_str);
-			if (ret == 0) {
-				dev_info(dev, "remote-compatible property: %s", prop_str);
-				remote_info->remote_compatible = prop_str;
-			}
-
 			/* link init sequence */
 			init_seq_node = of_get_child_by_name(node, "link-init-sequence");
 			if (!IS_ERR_OR_NULL(init_seq_node)) {
@@ -666,8 +653,11 @@ int maxim4c_link_parse_dt(maxim4c_t *maxim4c, struct device_node *of_node)
 	dev_info(dev, "=== maxim4c link parse dt ===\n");
 
 	node = of_get_child_by_name(of_node, "gmsl-links");
-	if (IS_ERR_OR_NULL(node))
+	if (IS_ERR_OR_NULL(node)) {
+		dev_err(dev, "%pOF has no child node: gmsl-links\n",
+				of_node);
 		return -ENODEV;
+	}
 
 	if (!of_device_is_available(node)) {
 		dev_info(dev, "%pOF is disabled\n", node);
@@ -699,29 +689,42 @@ EXPORT_SYMBOL(maxim4c_link_parse_dt);
 
 int maxim4c_link_hw_init(maxim4c_t *maxim4c)
 {
+	struct device *dev = &maxim4c->client->dev;
 	maxim4c_gmsl_link_t *gmsl_link = &maxim4c->gmsl_link;
 	int ret = 0;
 
 	// All links disable at beginning.
 	ret = maxim4c_link_status_init(maxim4c);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "%s: link status error\n", __func__);
 		return ret;
+	}
 
 	if (gmsl_link->link_vdd_ldo1_en)
 		ret |= maxim4c_link_enable_vdd_ldo1(maxim4c);
 
 	if (gmsl_link->link_vdd_ldo2_en)
 		ret |= maxim4c_link_enable_vdd_ldo2(maxim4c);
+	if (ret) {
+		dev_err(dev, "%s: link vdd ldo enable error\n", __func__);
+		return ret;
+	}
 
 	// Link Rate Setting
-	ret |= maxim4c_link_set_rate(maxim4c);
-	if (ret)
+	ret = maxim4c_link_set_rate(maxim4c);
+	if (ret) {
+		dev_err(dev, "%s: link set rate error\n", __func__);
 		return ret;
+	}
 
 	// link init sequence
 	ret = maxim4c_link_run_init_seq(maxim4c);
+	if (ret) {
+		dev_err(dev, "%s: link run init seq error\n", __func__);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(maxim4c_link_hw_init);
 
@@ -745,8 +748,6 @@ void maxim4c_link_data_init(maxim4c_t *maxim4c)
 		else
 			link_cfg->link_rx_rate = MAXIM4C_LINK_RX_RATE_6GBPS;
 		link_cfg->link_tx_rate = MAXIM4C_LINK_TX_RATE_187_5MPS;
-		link_cfg->remote_info.remote_name = NULL;
-		link_cfg->remote_info.remote_compatible = NULL;
 		link_cfg->link_init_seq.reg_init_seq = NULL;
 	}
 }

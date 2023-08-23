@@ -34,41 +34,26 @@ static int __maybe_unused max96715_link_mode_select(maxim4c_remote_t *max96715, 
 	struct device *dev = max96715->dev;
 	struct i2c_client *client = max96715->client;
 	u8 reg_mask = 0, reg_value = 0;
+	u32 delay_ms = 0;
 	int ret = 0;
 
 	dev_dbg(dev, "%s: mode = %d\n", __func__, mode);
 
 	reg_mask = BIT(7) | BIT(6);
-	if (mode == LINK_MODE_CONFIG)
+	if (mode == LINK_MODE_CONFIG) {
 		reg_value = BIT(6);
-	else
+		delay_ms = 5;
+	} else {
 		reg_value = BIT(7);
+		delay_ms = 50;
+	}
 	ret |= maxim4c_i2c_update_byte(client,
 			0x04, MAXIM4C_I2C_REG_ADDR_08BITS,
 			reg_mask, reg_value);
 
-	mdelay(5);
+	msleep(delay_ms);
 
 	return ret;
-}
-
-static int max96715_i2c_addr_select(maxim4c_remote_t *max96715, u32 i2c_id)
-{
-	struct device *dev = max96715->dev;
-	struct i2c_client *client = max96715->client;
-
-	if (i2c_id == MAXIM4C_I2C_SER_DEF) {
-		client->addr = max96715->ser_i2c_addr_def;
-		dev_info(dev, "select default i2c addr = 0x%x\n", client->addr);
-	} else if (i2c_id == MAXIM4C_I2C_SER_MAP) {
-		client->addr = max96715->ser_i2c_addr_map;
-		dev_info(dev, "select mapping i2c addr = 0x%x\n", client->addr);
-	} else {
-		dev_err(dev, "i2c select id = %d error\n", i2c_id);
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 static int max96715_i2c_addr_remap(maxim4c_remote_t *max96715)
@@ -81,7 +66,7 @@ static int max96715_i2c_addr_remap(maxim4c_remote_t *max96715)
 	if (max96715->ser_i2c_addr_map) {
 		dev_info(dev, "Serializer i2c address remap\n");
 
-		max96715_i2c_addr_select(max96715, MAXIM4C_I2C_SER_DEF);
+		maxim4c_remote_i2c_addr_select(max96715, MAXIM4C_I2C_SER_DEF);
 
 		i2c_8bit_addr = (max96715->ser_i2c_addr_map << 1);
 		ret = maxim4c_i2c_write_byte(client,
@@ -92,7 +77,7 @@ static int max96715_i2c_addr_remap(maxim4c_remote_t *max96715)
 			return ret;
 		}
 
-		max96715_i2c_addr_select(max96715, MAXIM4C_I2C_SER_MAP);
+		maxim4c_remote_i2c_addr_select(max96715, MAXIM4C_I2C_SER_MAP);
 	}
 
 	if (max96715->cam_i2c_addr_map) {
@@ -130,7 +115,7 @@ static int max96715_i2c_addr_def(maxim4c_remote_t *max96715)
 	if (max96715->ser_i2c_addr_map) {
 		dev_info(dev, "Serializer i2c address def\n");
 
-		max96715_i2c_addr_select(max96715, MAXIM4C_I2C_SER_MAP);
+		maxim4c_remote_i2c_addr_select(max96715, MAXIM4C_I2C_SER_MAP);
 
 		i2c_8bit_addr = (max96715->ser_i2c_addr_def << 1);
 		ret = maxim4c_i2c_write_byte(client,
@@ -141,7 +126,7 @@ static int max96715_i2c_addr_def(maxim4c_remote_t *max96715)
 			return ret;
 		}
 
-		max96715_i2c_addr_select(max96715, MAXIM4C_I2C_SER_DEF);
+		maxim4c_remote_i2c_addr_select(max96715, MAXIM4C_I2C_SER_DEF);
 	}
 
 	return 0;
@@ -160,13 +145,13 @@ static int max96715_check_chipid(maxim4c_remote_t *max96715)
 			&chip_id);
 	if (ret != 0) {
 		dev_info(dev, "Retry check chipid using map address\n");
-		max96715_i2c_addr_select(max96715, MAXIM4C_I2C_SER_MAP);
+		maxim4c_remote_i2c_addr_select(max96715, MAXIM4C_I2C_SER_MAP);
 		ret = maxim4c_i2c_read_byte(client,
 				MAX96715_REG_CHIP_ID, MAXIM4C_I2C_REG_ADDR_08BITS,
 				&chip_id);
 		if (ret != 0) {
 			dev_err(dev, "MAX96715 detect error, ret(%d)\n", ret);
-			max96715_i2c_addr_select(max96715, MAXIM4C_I2C_SER_DEF);
+			maxim4c_remote_i2c_addr_select(max96715, MAXIM4C_I2C_SER_DEF);
 
 			return -ENODEV;
 		}
@@ -175,13 +160,13 @@ static int max96715_check_chipid(maxim4c_remote_t *max96715)
 	}
 
 	if (chip_id != MAX96715_CHIP_ID) {
-		dev_err(dev, "Unexpected MAX96715 chip id(%02x)\n", chip_id);
+		dev_err(dev, "Unexpected chip id = %02x\n", chip_id);
 		return -ENODEV;
 	}
 
-	dev_info(dev, "Detected MAX96715 chipid: 0x%02x\n", chip_id);
+	dev_info(dev, "Detected MAX96715 chip id: 0x%02x\n", chip_id);
 
-	return ret;
+	return 0;
 }
 
 static int max96715_soft_power_down(maxim4c_remote_t *max96715)
@@ -208,7 +193,7 @@ static int max96715_module_init(maxim4c_remote_t *max96715)
 	struct maxim4c *maxim4c = max96715->local;
 	int ret = 0;
 
-	ret = max96715_i2c_addr_select(max96715, MAXIM4C_I2C_SER_DEF);
+	ret = maxim4c_remote_i2c_addr_select(max96715, MAXIM4C_I2C_SER_DEF);
 	if (ret)
 		return ret;
 
@@ -322,47 +307,30 @@ static int max96715_parse_dt(maxim4c_remote_t *max96715)
 	return 0;
 }
 
-static int max96715_i2c_client_init(maxim4c_remote_t *max96715,
-				struct i2c_client *local_client)
-{
-	struct device *dev = max96715->dev;
-	struct i2c_client *remote_client = NULL;
-	u16 remote_client_addr = 0;
-
-	if (max96715->ser_i2c_addr_map)
-		remote_client_addr = max96715->ser_i2c_addr_map;
-	else
-		remote_client_addr = max96715->ser_i2c_addr_def;
-	remote_client = devm_i2c_new_dummy_device(&local_client->dev,
-				local_client->adapter, remote_client_addr);
-	if (IS_ERR(remote_client)) {
-		dev_err(dev, "failed to alloc i2c client.\n");
-		return -PTR_ERR(remote_client);
-	}
-	remote_client->addr = max96715->ser_i2c_addr_def;
-
-	max96715->client = remote_client;
-	i2c_set_clientdata(remote_client, max96715);
-
-	dev_info(dev, "remote i2c client init, i2c_addr = 0x%x\n",
-		remote_client_addr);
-
-	return 0;
-}
-
 static int max96715_probe(struct platform_device *pdev)
 {
 	struct i2c_client *client = to_i2c_client(pdev->dev.parent);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
 	struct maxim4c_remote *max96715 = NULL;
+	u32 link_id = MAXIM4C_LINK_ID_MAX;
 	int ret = 0;
 
 	dev_info(&pdev->dev, "max96715 serializer probe\n");
 
+	link_id = (uintptr_t)of_device_get_match_data(&pdev->dev);
+	link_id = link_id - MAXIM4C_LINK_ID_MAX;
+	if (link_id >= MAXIM4C_LINK_ID_MAX) {
+		dev_err(&pdev->dev, "max96715 probe match data error\n");
+		return -EINVAL;
+	}
+	dev_info(&pdev->dev, "max96715 probe link id = %d\n", link_id);
+
 	max96715 = devm_kzalloc(&pdev->dev, sizeof(*max96715), GFP_KERNEL);
-	if (!max96715)
+	if (!max96715) {
+		dev_err(&pdev->dev, "max96715 probe no memory error\n");
 		return -ENOMEM;
+	}
 
 	max96715->dev = &pdev->dev;
 	max96715->remote_ops = &max96715_ops;
@@ -371,11 +339,22 @@ static int max96715_probe(struct platform_device *pdev)
 
 	max96715_parse_dt(max96715);
 
-	max96715_i2c_client_init(max96715, client);
+	if (max96715->remote_id != link_id) {
+		dev_err(&pdev->dev, "max96715 probe remote_id error\n");
+		return -EINVAL;
+	}
+
+	ret = maxim4c_remote_i2c_client_init(max96715, client);
+	if (ret) {
+		dev_err(&pdev->dev, "remote i2c client init error\n");
+		return ret;
+	}
 
 	ret = maxim4c_remote_device_register(maxim4c, max96715);
-	if (ret)
+	if (ret) {
+		dev_err(&pdev->dev, "remote serializer register error\n");
 		return ret;
+	}
 
 	maxim4c_remote_load_init_seq(max96715);
 
@@ -388,10 +367,21 @@ static int max96715_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id max96715_of_table[] = {
-	{ .compatible = "maxim4c,max96715", },
+	{
+		.compatible = "maxim4c,link0,max96715",
+		.data = (const void *)(MAXIM4C_LINK_ID_MAX + MAXIM4C_LINK_ID_A)
+	}, {
+		.compatible = "maxim4c,link1,max96715",
+		.data = (const void *)(MAXIM4C_LINK_ID_MAX + MAXIM4C_LINK_ID_B)
+	}, {
+		.compatible = "maxim4c,link2,max96715",
+		.data = (const void *)(MAXIM4C_LINK_ID_MAX + MAXIM4C_LINK_ID_C)
+	}, {
+		.compatible = "maxim4c,link3,max96715",
+		.data = (const void *)(MAXIM4C_LINK_ID_MAX + MAXIM4C_LINK_ID_D)
+	},
 	{ /* Sentinel */ },
 };
-
 MODULE_DEVICE_TABLE(of, max96715_of_table);
 
 static struct platform_driver max96715_driver = {

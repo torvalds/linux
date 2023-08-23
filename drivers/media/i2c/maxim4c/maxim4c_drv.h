@@ -9,6 +9,7 @@
 
 #include <linux/workqueue.h>
 #include <linux/rk-camera-module.h>
+#include <linux/mfd/core.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
@@ -55,7 +56,7 @@ struct maxim4c_mode {
 typedef struct maxim4c {
 	struct i2c_client *client;
 	struct clk *xvclk;
-	struct gpio_desc *power_gpio;
+	struct gpio_desc *pwdn_gpio;
 	struct gpio_desc *pocen_gpio;
 	struct gpio_desc *lock_gpio;
 
@@ -101,6 +102,7 @@ typedef struct maxim4c {
 
 	struct maxim4c_i2c_init_seq extra_init_seq;
 
+	struct mfd_cell remote_mfd_devs[MAXIM4C_LINK_ID_MAX];
 	maxim4c_remote_t *remote_device[MAXIM4C_LINK_ID_MAX];
 } maxim4c_t;
 

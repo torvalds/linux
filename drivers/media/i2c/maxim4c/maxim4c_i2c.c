@@ -88,7 +88,7 @@ int maxim4c_i2c_read_reg(struct i2c_client *client,
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 	if (ret != ARRAY_SIZE(msgs)) {
 		dev_err(&client->dev,
-			"%s: reading register 0x%x from 0x%x failed\n",
+			"%s: reading register 0x%04x from 0x%02x failed\n",
 			__func__, reg_addr, client->addr);
 		return -EIO;
 	}

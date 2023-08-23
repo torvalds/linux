@@ -20,25 +20,6 @@
 #define MAX9295_CHIP_ID			0x91
 #define MAX9295_REG_CHIP_ID		0x0D
 
-static int max9295_i2c_addr_select(maxim4c_remote_t *max9295, u32 i2c_id)
-{
-	struct device *dev = max9295->dev;
-	struct i2c_client *client = max9295->client;
-
-	if (i2c_id == MAXIM4C_I2C_SER_DEF) {
-		client->addr = max9295->ser_i2c_addr_def;
-		dev_info(dev, "select default i2c addr = 0x%x\n", client->addr);
-	} else if (i2c_id == MAXIM4C_I2C_SER_MAP) {
-		client->addr = max9295->ser_i2c_addr_map;
-		dev_info(dev, "select mapping i2c addr = 0x%x\n", client->addr);
-	} else {
-		dev_err(dev, "i2c select id = %d error\n", i2c_id);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int max9295_i2c_addr_remap(maxim4c_remote_t *max9295)
 {
 	struct device *dev = max9295->dev;
@@ -49,7 +30,7 @@ static int max9295_i2c_addr_remap(maxim4c_remote_t *max9295)
 	if (max9295->ser_i2c_addr_map) {
 		dev_info(dev, "Serializer i2c address remap\n");
 
-		max9295_i2c_addr_select(max9295, MAXIM4C_I2C_SER_DEF);
+		maxim4c_remote_i2c_addr_select(max9295, MAXIM4C_I2C_SER_DEF);
 
 		i2c_8bit_addr = (max9295->ser_i2c_addr_map << 1);
 		ret = maxim4c_i2c_write_byte(client,
@@ -60,7 +41,7 @@ static int max9295_i2c_addr_remap(maxim4c_remote_t *max9295)
 			return ret;
 		}
 
-		max9295_i2c_addr_select(max9295, MAXIM4C_I2C_SER_MAP);
+		maxim4c_remote_i2c_addr_select(max9295, MAXIM4C_I2C_SER_MAP);
 	}
 
 	if (max9295->cam_i2c_addr_map) {
@@ -98,7 +79,7 @@ static int max9295_i2c_addr_def(maxim4c_remote_t *max9295)
 	if (max9295->ser_i2c_addr_map) {
 		dev_info(dev, "Serializer i2c address def\n");
 
-		max9295_i2c_addr_select(max9295, MAXIM4C_I2C_SER_MAP);
+		maxim4c_remote_i2c_addr_select(max9295, MAXIM4C_I2C_SER_MAP);
 
 		i2c_8bit_addr = (max9295->ser_i2c_addr_def << 1);
 		ret = maxim4c_i2c_write_byte(client,
@@ -109,7 +90,7 @@ static int max9295_i2c_addr_def(maxim4c_remote_t *max9295)
 			return ret;
 		}
 
-		max9295_i2c_addr_select(max9295, MAXIM4C_I2C_SER_DEF);
+		maxim4c_remote_i2c_addr_select(max9295, MAXIM4C_I2C_SER_DEF);
 	}
 
 	return 0;
@@ -128,13 +109,13 @@ static int max9295_check_chipid(maxim4c_remote_t *max9295)
 			&chip_id);
 	if (ret != 0) {
 		dev_info(dev, "Retry check chipid using map address\n");
-		max9295_i2c_addr_select(max9295, MAXIM4C_I2C_SER_MAP);
+		maxim4c_remote_i2c_addr_select(max9295, MAXIM4C_I2C_SER_MAP);
 		ret = maxim4c_i2c_read_byte(client,
 				MAX9295_REG_CHIP_ID, MAXIM4C_I2C_REG_ADDR_16BITS,
 				&chip_id);
 		if (ret != 0) {
 			dev_err(dev, "MAX9295 detect error, ret(%d)\n", ret);
-			max9295_i2c_addr_select(max9295, MAXIM4C_I2C_SER_DEF);
+			maxim4c_remote_i2c_addr_select(max9295, MAXIM4C_I2C_SER_DEF);
 
 			return -ENODEV;
 		}
@@ -143,13 +124,13 @@ static int max9295_check_chipid(maxim4c_remote_t *max9295)
 	}
 
 	if (chip_id != MAX9295_CHIP_ID) {
-		dev_err(dev, "Unexpected MAX9295 chip id(%02x)\n", chip_id);
+		dev_err(dev, "Unexpected chip id = %02x\n", chip_id);
 		return -ENODEV;
 	}
 
-	dev_info(dev, "Detected MAX9295 chipid: 0x%02x\n", chip_id);
+	dev_info(dev, "Detected MAX9295 chip id: 0x%02x\n", chip_id);
 
-	return ret;
+	return 0;
 }
 
 static int max9295_soft_power_down(maxim4c_remote_t *max9295)
@@ -175,7 +156,7 @@ static int max9295_module_init(maxim4c_remote_t *max9295)
 	struct i2c_client *client = max9295->client;
 	int ret = 0;
 
-	ret = max9295_i2c_addr_select(max9295, MAXIM4C_I2C_SER_DEF);
+	ret = maxim4c_remote_i2c_addr_select(max9295, MAXIM4C_I2C_SER_DEF);
 	if (ret)
 		return ret;
 
@@ -263,47 +244,30 @@ static int max9295_parse_dt(maxim4c_remote_t *max9295)
 	return 0;
 }
 
-static int max9295_i2c_client_init(maxim4c_remote_t *max9295,
-				struct i2c_client *local_client)
-{
-	struct device *dev = max9295->dev;
-	struct i2c_client *remote_client = NULL;
-	u16 remote_client_addr = 0;
-
-	if (max9295->ser_i2c_addr_map)
-		remote_client_addr = max9295->ser_i2c_addr_map;
-	else
-		remote_client_addr = max9295->ser_i2c_addr_def;
-	remote_client = devm_i2c_new_dummy_device(&local_client->dev,
-				local_client->adapter, remote_client_addr);
-	if (IS_ERR(remote_client)) {
-		dev_err(dev, "failed to alloc i2c client.\n");
-		return -PTR_ERR(remote_client);
-	}
-	remote_client->addr = max9295->ser_i2c_addr_def;
-
-	max9295->client = remote_client;
-	i2c_set_clientdata(remote_client, max9295);
-
-	dev_info(dev, "remote i2c client init, i2c_addr = 0x%x\n",
-		remote_client_addr);
-
-	return 0;
-}
-
 static int max9295_probe(struct platform_device *pdev)
 {
 	struct i2c_client *client = to_i2c_client(pdev->dev.parent);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
 	struct maxim4c_remote *max9295 = NULL;
+	u32 link_id = MAXIM4C_LINK_ID_MAX;
 	int ret = 0;
 
 	dev_info(&pdev->dev, "max9295 serializer probe\n");
 
+	link_id = (uintptr_t)of_device_get_match_data(&pdev->dev);
+	link_id = link_id - MAXIM4C_LINK_ID_MAX;
+	if (link_id >= MAXIM4C_LINK_ID_MAX) {
+		dev_err(&pdev->dev, "max9295 probe match data error\n");
+		return -EINVAL;
+	}
+	dev_info(&pdev->dev, "max9295 probe link id = %d\n", link_id);
+
 	max9295 = devm_kzalloc(&pdev->dev, sizeof(*max9295), GFP_KERNEL);
-	if (!max9295)
+	if (!max9295) {
+		dev_err(&pdev->dev, "max9295 probe no memory error\n");
 		return -ENOMEM;
+	}
 
 	max9295->dev = &pdev->dev;
 	max9295->remote_ops = &max9295_ops;
@@ -312,11 +276,22 @@ static int max9295_probe(struct platform_device *pdev)
 
 	max9295_parse_dt(max9295);
 
-	max9295_i2c_client_init(max9295, client);
+	if (max9295->remote_id != link_id) {
+		dev_err(&pdev->dev, "max9295 probe remote_id error\n");
+		return -EINVAL;
+	}
+
+	ret = maxim4c_remote_i2c_client_init(max9295, client);
+	if (ret) {
+		dev_err(&pdev->dev, "remote i2c client init error\n");
+		return ret;
+	}
 
 	ret = maxim4c_remote_device_register(maxim4c, max9295);
-	if (ret)
+	if (ret) {
+		dev_err(&pdev->dev, "remote serializer register error\n");
 		return ret;
+	}
 
 	maxim4c_remote_load_init_seq(max9295);
 
@@ -329,10 +304,21 @@ static int max9295_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id max9295_of_table[] = {
-	{ .compatible = "maxim4c,max9295", },
+	{
+		.compatible = "maxim4c,link0,max9295",
+		.data = (const void *)(MAXIM4C_LINK_ID_MAX + MAXIM4C_LINK_ID_A)
+	}, {
+		.compatible = "maxim4c,link1,max9295",
+		.data = (const void *)(MAXIM4C_LINK_ID_MAX + MAXIM4C_LINK_ID_B)
+	}, {
+		.compatible = "maxim4c,link2,max9295",
+		.data = (const void *)(MAXIM4C_LINK_ID_MAX + MAXIM4C_LINK_ID_C)
+	}, {
+		.compatible = "maxim4c,link3,max9295",
+		.data = (const void *)(MAXIM4C_LINK_ID_MAX + MAXIM4C_LINK_ID_D)
+	},
 	{ /* Sentinel */ },
 };
-
 MODULE_DEVICE_TABLE(of, max9295_of_table);
 
 static struct platform_driver max9295_driver = {

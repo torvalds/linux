@@ -91,6 +91,13 @@ static int maxim4c_pattern_previnit(maxim4c_t *maxim4c)
 	if (ret)
 		return ret;
 
+	// video pipe disable.
+	ret = maxim4c_i2c_write_byte(client,
+			0x00F4, MAXIM4C_I2C_REG_ADDR_16BITS,
+			0x00);
+	if (ret)
+		return ret;
+
 	// MIPI CSI output disable.
 	ret = maxim4c_i2c_write_byte(client,
 			0x040B, MAXIM4C_I2C_REG_ADDR_16BITS,
@@ -108,7 +115,7 @@ static int maxim4c_pattern_previnit(maxim4c_t *maxim4c)
 	return 0;
 }
 
-static int maxim4c_pattern_hw_init(maxim4c_t *maxim4c)
+static int maxim4c_pattern_config(maxim4c_t *maxim4c)
 {
 	const u32 h_active = PATTERN_WIDTH;
 	const u32 h_fp = 88;
@@ -249,7 +256,25 @@ static int maxim4c_pattern_hw_init(maxim4c_t *maxim4c)
 	return ret;
 }
 
-int maxim4c_pattern_init(maxim4c_t *maxim4c)
+int maxim4c_pattern_support_mode_init(maxim4c_t *maxim4c)
+{
+	struct device *dev = &maxim4c->client->dev;
+	struct maxim4c_mode *supported_mode = NULL;
+
+	dev_info(dev, "=== maxim4c pattern support mode init ===\n");
+
+	maxim4c->cfg_modes_num = 1;
+	maxim4c->cur_mode = &maxim4c->supported_mode;
+	supported_mode = &maxim4c->supported_mode;
+
+	// init using def mode
+	memcpy(supported_mode, &maxim4c_pattern_mode, sizeof(struct maxim4c_mode));
+
+	return 0;
+}
+EXPORT_SYMBOL(maxim4c_pattern_support_mode_init);
+
+int maxim4c_pattern_data_init(maxim4c_t *maxim4c)
 {
 	struct device *dev = &maxim4c->client->dev;
 	struct device_node *node = NULL;
@@ -259,8 +284,11 @@ int maxim4c_pattern_init(maxim4c_t *maxim4c)
 
 	// maxim serdes local
 	node = of_get_child_by_name(dev->of_node, "serdes-local-device");
-	if (IS_ERR_OR_NULL(node))
+	if (IS_ERR_OR_NULL(node)) {
+		dev_err(dev, "%pOF has no child node: serdes-local-device\n",
+				dev->of_node);
 		return -ENODEV;
+	}
 
 	if (!of_device_is_available(node)) {
 		dev_info(dev, "%pOF is disabled\n", node);
@@ -273,23 +301,10 @@ int maxim4c_pattern_init(maxim4c_t *maxim4c)
 
 	/* mipi txphy parse dt */
 	ret = maxim4c_mipi_txphy_parse_dt(maxim4c, node);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "%s: txphy parse dt error\n", __func__);
 		return ret;
-
-	ret = maxim4c_pattern_previnit(maxim4c);
-	if (ret)
-		return ret;
-
-	ret = maxim4c_mipi_txphy_hw_init(maxim4c);
-	if (ret)
-		return ret;
-
-	maxim4c->cfg_modes_num = 1;
-	maxim4c->cur_mode = &maxim4c->supported_mode;
-	supported_mode = &maxim4c->supported_mode;
-
-	// init using def mode
-	memcpy(supported_mode, &maxim4c_pattern_mode, sizeof(struct maxim4c_mode));
+	}
 
 	// pattern generator and mode init
 	pattern = &maxim4c->pattern;
@@ -297,6 +312,7 @@ int maxim4c_pattern_init(maxim4c_t *maxim4c)
 	pattern->pattern_mode = PATTERN_CHECKERBOARD;
 	pattern->pattern_pclk = PATTERN_PCLK_75M;
 
+	supported_mode = &maxim4c->supported_mode;
 	switch (pattern->pattern_pclk) {
 	case PATTERN_PCLK_25M:
 		supported_mode->max_fps.denominator = 100000;
@@ -307,13 +323,13 @@ int maxim4c_pattern_init(maxim4c_t *maxim4c)
 	case PATTERN_PCLK_150M:
 		supported_mode->max_fps.denominator = 600000;
 		if (supported_mode->link_freq_idx < 12)
-			dev_info(dev, "link_freq_idx = %d is too low\n",
+			dev_warn(dev, "link_freq_idx = %d is too low\n",
 					supported_mode->link_freq_idx);
 		break;
 	case PATTERN_PCLK_375M:
 		supported_mode->max_fps.denominator = 1500000;
 		if (supported_mode->link_freq_idx < 22)
-			dev_info(dev, "link_freq_idx = %d is too low\n",
+			dev_warn(dev, "link_freq_idx = %d is too low\n",
 					supported_mode->link_freq_idx);
 		break;
 	}
@@ -321,8 +337,33 @@ int maxim4c_pattern_init(maxim4c_t *maxim4c)
 	dev_info(dev, "video pattern: generator = %d, mode = %d, pclk = %d\n",
 		pattern->pattern_generator, pattern->pattern_mode, pattern->pattern_pclk);
 
-	ret = maxim4c_pattern_hw_init(maxim4c);
-
-	return ret;
+	return 0;
 }
-EXPORT_SYMBOL(maxim4c_pattern_init);
+EXPORT_SYMBOL(maxim4c_pattern_data_init);
+
+int maxim4c_pattern_hw_init(maxim4c_t *maxim4c)
+{
+	struct device *dev = &maxim4c->client->dev;
+	int ret = 0;
+
+	ret = maxim4c_pattern_previnit(maxim4c);
+	if (ret) {
+		dev_err(dev, "%s: pattern previnit error\n", __func__);
+		return ret;
+	}
+
+	ret = maxim4c_mipi_txphy_hw_init(maxim4c);
+	if (ret) {
+		dev_err(dev, "%s: txphy hw init error\n", __func__);
+		return ret;
+	}
+
+	ret = maxim4c_pattern_config(maxim4c);
+	if (ret) {
+		dev_err(dev, "%s: pattern config error\n", __func__);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(maxim4c_pattern_hw_init);
