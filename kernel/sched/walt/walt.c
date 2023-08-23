@@ -2451,21 +2451,17 @@ static void walt_task_dead(struct task_struct *p)
 
 static void mark_task_starting(struct task_struct *p)
 {
-	u64 wallclock;
 	struct rq *rq = task_rq(p);
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+	u64 wallclock = walt_rq_clock(rq);
 
-	wallclock = walt_rq_clock(rq);
-	if (wts->mark_start)
-		WALT_BUG(WALT_BUG_WALT, p,
-				"CPU%d: %s task %s(%d)'s ms=%llu is already set!!",
-				raw_smp_processor_id(), __func__, p->comm, p->pid,
-				wts->mark_start);
-
-	wts->mark_start = wts->last_wake_ts = wallclock;
+	wts->last_wake_ts = wallclock;
 	wts->last_enqueued_ts = wallclock;
 	wts->mark_start_birth_ts = wallclock;
-	update_task_cpu_cycles(p, cpu_of(rq), wallclock);
+
+	if (wts->mark_start)
+		return;
+	walt_update_task_ravg(p, rq, TASK_UPDATE, wallclock, 0);
 }
 
 /*
