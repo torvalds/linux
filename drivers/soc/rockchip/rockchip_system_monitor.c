@@ -1029,6 +1029,8 @@ rockchip_system_monitor_wide_temp_init(struct monitor_dev_info *info)
 
 	if (!info->opp_table)
 		return;
+	if (!system_monitor->tz)
+		return;
 
 	/*
 	 * set the init state to low temperature that the voltage will be enough
