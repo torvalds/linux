@@ -106,6 +106,7 @@ struct xfs_scrub {
 
 /* XCHK state flags grow up from zero, XREP state flags grown down from 2^31 */
 #define XCHK_TRY_HARDER		(1U << 0)  /* can't get resources, try again */
+#define XCHK_HAVE_FREEZE_PROT	(1U << 1)  /* do we have freeze protection? */
 #define XCHK_FSGATES_DRAIN	(1U << 2)  /* defer ops draining enabled */
 #define XCHK_NEED_DRAIN		(1U << 3)  /* scrub needs to drain defer ops */
 #define XREP_ALREADY_FIXED	(1U << 31) /* checking our repair work */
