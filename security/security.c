@@ -1079,7 +1079,7 @@ int security_bprm_creds_for_exec(struct linux_binprm *bprm)
  *
  * Return: Returns 0 if the hook is successful and permission is granted.
  */
-int security_bprm_creds_from_file(struct linux_binprm *bprm, struct file *file)
+int security_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file)
 {
 	return call_int_hook(bprm_creds_from_file, 0, bprm, file);
 }

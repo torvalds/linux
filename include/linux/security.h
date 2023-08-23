@@ -151,7 +151,7 @@ extern int cap_capset(struct cred *new, const struct cred *old,
 		      const kernel_cap_t *effective,
 		      const kernel_cap_t *inheritable,
 		      const kernel_cap_t *permitted);
-extern int cap_bprm_creds_from_file(struct linux_binprm *bprm, struct file *file);
+extern int cap_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file);
 int cap_inode_setxattr(struct dentry *dentry, const char *name,
 		       const void *value, size_t size, int flags);
 int cap_inode_removexattr(struct mnt_idmap *idmap,
@@ -290,7 +290,7 @@ int security_syslog(int type);
 int security_settime64(const struct timespec64 *ts, const struct timezone *tz);
 int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
 int security_bprm_creds_for_exec(struct linux_binprm *bprm);
-int security_bprm_creds_from_file(struct linux_binprm *bprm, struct file *file);
+int security_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file);
 int security_bprm_check(struct linux_binprm *bprm);
 void security_bprm_committing_creds(struct linux_binprm *bprm);
 void security_bprm_committed_creds(struct linux_binprm *bprm);
@@ -613,7 +613,7 @@ static inline int security_bprm_creds_for_exec(struct linux_binprm *bprm)
 }
 
 static inline int security_bprm_creds_from_file(struct linux_binprm *bprm,
-						struct file *file)
+						const struct file *file)
 {
 	return cap_bprm_creds_from_file(bprm, file);
 }
