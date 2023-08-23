@@ -1159,7 +1159,7 @@ static int get_config_chgs(struct perf_pmu *pmu, struct list_head *head_config,
 	list_for_each_entry(term, head_config, list) {
 		switch (term->type_term) {
 		case PARSE_EVENTS__TERM_TYPE_USER:
-			type = perf_pmu__format_type(&pmu->format, term->config);
+			type = perf_pmu__format_type(pmu, term->config);
 			if (type != PERF_PMU_FORMAT_VALUE_CONFIG)
 				continue;
 			bits |= perf_pmu__format_bits(&pmu->format, term->config);

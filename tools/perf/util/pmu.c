@@ -1038,9 +1038,9 @@ __u64 perf_pmu__format_bits(struct list_head *formats, const char *name)
 	return bits;
 }
 
-int perf_pmu__format_type(struct list_head *formats, const char *name)
+int perf_pmu__format_type(struct perf_pmu *pmu, const char *name)
 {
-	struct perf_pmu_format *format = pmu_find_format(formats, name);
+	struct perf_pmu_format *format = pmu_find_format(&pmu->format, name);
 
 	if (!format)
 		return -1;
