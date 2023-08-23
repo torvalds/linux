@@ -2031,9 +2031,6 @@ int dcn32_populate_dml_pipes_from_context(
 			}
 		}
 
-		DC_FP_START();
-		dcn32_predict_pipe_split(context, &pipes[pipe_cnt]);
-		DC_FP_END();
 
 		pipe_cnt++;
 	}
