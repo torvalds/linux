@@ -41,6 +41,7 @@
 #include <asm/kexec.h>
 #include <asm/fadump.h>
 #include <asm/dtl.h>
+#include <asm/vphn.h>
 
 #include "pseries.h"
 
