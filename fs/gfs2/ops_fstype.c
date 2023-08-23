@@ -1786,9 +1786,9 @@ static void gfs2_kill_sb(struct super_block *sb)
 	/*
 	 * Flush and then drain the delete workqueue here (via
 	 * destroy_workqueue()) to ensure that any delete work that
-	 * may be running will also see the SDF_DEACTIVATING flag.
+	 * may be running will also see the SDF_KILL flag.
 	 */
-	set_bit(SDF_DEACTIVATING, &sdp->sd_flags);
+	set_bit(SDF_KILL, &sdp->sd_flags);
 	gfs2_flush_delete_work(sdp);
 	destroy_workqueue(sdp->sd_delete_wq);
 
