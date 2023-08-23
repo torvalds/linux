@@ -7,7 +7,7 @@
 /dts-v1/;
 
 #include "rk3588-vehicle-evb-v21.dtsi"
-#include "rk3588-vehicle-evb-maxim-max96712.dtsi"
+#include "rk3588-vehicle-evb-maxim-max96712-dphy3.dtsi"
 #include "rk3588-vehicle-serdes-display-v21.dtsi"
 #include "rk3588-android.dtsi"
 
