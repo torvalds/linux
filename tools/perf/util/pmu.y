@@ -21,6 +21,8 @@ do { \
                 YYABORT; \
 } while (0)
 
+static void perf_pmu_error(struct list_head *list, char *name, void *scanner, char const *msg);
+
 static void perf_pmu__set_format(unsigned long *bits, long from, long to)
 {
 	long b;
@@ -93,7 +95,7 @@ PP_VALUE
 
 %%
 
-void perf_pmu_error(struct list_head *list __maybe_unused,
+static void perf_pmu_error(struct list_head *list __maybe_unused,
 		    char *name __maybe_unused,
 		    void *scanner __maybe_unused,
 		    char const *msg __maybe_unused)
