@@ -1,7 +1,7 @@
 /*
  * arch/xtensa/kernel/align.S
  *
- * Handle unalignment exceptions in kernel space.
+ * Handle unalignment and load/store exceptions.
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file "COPYING" in the main directory of
@@ -26,19 +26,17 @@
 #define LOAD_EXCEPTION_HANDLER
 #endif
 
-#if XCHAL_UNALIGNED_STORE_EXCEPTION || defined LOAD_EXCEPTION_HANDLER
+#if XCHAL_UNALIGNED_STORE_EXCEPTION || defined CONFIG_XTENSA_LOAD_STORE
+#define STORE_EXCEPTION_HANDLER
+#endif
+
+#if defined LOAD_EXCEPTION_HANDLER || defined STORE_EXCEPTION_HANDLER
 #define ANY_EXCEPTION_HANDLER
 #endif
 
-#if XCHAL_HAVE_WINDOWED
+#if XCHAL_HAVE_WINDOWED && defined CONFIG_MMU
 #define UNALIGNED_USER_EXCEPTION
 #endif
-
-/*  First-level exception handler for unaligned exceptions.
- *
- *  Note: This handler works only for kernel exceptions.  Unaligned user
- *        access should get a seg fault.
- */
 
 /* Big and little endian 16-bit values are located in
  * different halves of a register.  HWORD_START helps to
@@ -228,8 +226,6 @@ ENDPROC(fast_load_store)
 #ifdef ANY_EXCEPTION_HANDLER
 ENTRY(fast_unaligned)
 
-#if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
-
 	call0	.Lsave_and_load_instruction
 
 	/* Analyze the instruction (load or store?). */
@@ -244,8 +240,7 @@ ENTRY(fast_unaligned)
 	/* 'store indicator bit' not set, jump */
 	_bbci.l	a4, OP1_SI_BIT + INSN_OP1, .Lload
 
-#endif
-#if XCHAL_UNALIGNED_STORE_EXCEPTION
+#ifdef STORE_EXCEPTION_HANDLER
 
 	/* Store: Jump to table entry to get the value in the source register.*/
 
@@ -254,7 +249,7 @@ ENTRY(fast_unaligned)
 	addx8	a5, a6, a5
 	jx	a5			# jump into table
 #endif
-#if XCHAL_UNALIGNED_LOAD_EXCEPTION
+#ifdef LOAD_EXCEPTION_HANDLER
 
 	/* Load: Load memory address. */
 
@@ -328,7 +323,7 @@ ENTRY(fast_unaligned)
 	mov	a14, a3		;	_j .Lexit;	.align 8
 	mov	a15, a3		;	_j .Lexit;	.align 8
 #endif
-#if XCHAL_UNALIGNED_STORE_EXCEPTION
+#ifdef STORE_EXCEPTION_HANDLER
 .Lstore_table:
 	l32i	a3, a2, PT_AREG0;	_j .Lstore_w;	.align 8
 	mov	a3, a1;			_j .Lstore_w;	.align 8	# fishy??
@@ -348,7 +343,6 @@ ENTRY(fast_unaligned)
 	mov	a3, a15		;	_j .Lstore_w;	.align 8
 #endif
 
-#ifdef ANY_EXCEPTION_HANDLER
 	/* We cannot handle this exception. */
 
 	.extern _kernel_exception
@@ -377,8 +371,8 @@ ENTRY(fast_unaligned)
 
 2:	movi	a0, _user_exception
 	jx	a0
-#endif
-#if XCHAL_UNALIGNED_STORE_EXCEPTION
+
+#ifdef STORE_EXCEPTION_HANDLER
 
 	# a7: instruction pointer, a4: instruction, a3: value
 .Lstore_w:
@@ -444,7 +438,7 @@ ENTRY(fast_unaligned)
 	s32i	a6, a4, 4
 #endif
 #endif
-#ifdef ANY_EXCEPTION_HANDLER
+
 .Lexit:
 #if XCHAL_HAVE_LOOPS
 	rsr	a4, lend		# check if we reached LEND
@@ -539,7 +533,7 @@ ENTRY(fast_unaligned)
 	__src_b	a4, a4, a5	# a4 has the instruction
 
 	ret
-#endif
+
 ENDPROC(fast_unaligned)
 
 ENTRY(fast_unaligned_fixup)
