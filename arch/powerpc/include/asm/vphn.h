@@ -19,4 +19,6 @@
 #define VPHN_FLAG_VCPU	1
 #define VPHN_FLAG_PCPU	2
 
+long hcall_vphn(unsigned long cpu, u64 flags, __be32 *associativity);
+
 #endif // _ASM_POWERPC_VPHN_H

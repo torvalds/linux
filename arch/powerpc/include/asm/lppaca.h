@@ -127,8 +127,6 @@ struct slb_shadow {
 	} save_area[SLB_NUM_BOLTED];
 } ____cacheline_aligned;
 
-extern long hcall_vphn(unsigned long cpu, u64 flags, __be32 *associativity);
-
 #endif /* CONFIG_PPC_BOOK3S */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_LPPACA_H */
