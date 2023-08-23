@@ -1417,18 +1417,6 @@ int perf_pmu__new_format(struct list_head *list, char *name,
 	return 0;
 }
 
-void perf_pmu__set_format(unsigned long *bits, long from, long to)
-{
-	long b;
-
-	if (!to)
-		to = from;
-
-	memset(bits, 0, BITS_TO_BYTES(PERF_PMU_FORMAT_BITS));
-	for (b = from; b <= to; b++)
-		__set_bit(b, bits);
-}
-
 void perf_pmu__del_formats(struct list_head *formats)
 {
 	struct perf_pmu_format *fmt, *tmp;

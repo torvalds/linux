@@ -231,7 +231,6 @@ void perf_pmu_error(struct list_head *list, char *name, void *scanner, char cons
 
 int perf_pmu__new_format(struct list_head *list, char *name,
 			 int config, unsigned long *bits);
-void perf_pmu__set_format(unsigned long *bits, long from, long to);
 int perf_pmu__format_parse(int dirfd, struct list_head *head);
 void perf_pmu__del_formats(struct list_head *formats);
 bool perf_pmu__has_format(const struct perf_pmu *pmu, const char *name);

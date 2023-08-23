@@ -21,6 +21,18 @@ do { \
                 YYABORT; \
 } while (0)
 
+static void perf_pmu__set_format(unsigned long *bits, long from, long to)
+{
+	long b;
+
+	if (!to)
+		to = from;
+
+	memset(bits, 0, BITS_TO_BYTES(PERF_PMU_FORMAT_BITS));
+	for (b = from; b <= to; b++)
+		__set_bit(b, bits);
+}
+
 %}
 
 %token PP_CONFIG
