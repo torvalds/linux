@@ -755,6 +755,9 @@ static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs,
 	int ret, mdio_ctrl, adv;
 	bool changed = 0;
 
+	if (xpcs->dev_flag == DW_DEV_TXGBE)
+		xpcs_write_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1, DW_CL37_BP | DW_EN_VSMMD1);
+
 	/* According to Chap 7.12, to set 1000BASE-X C37 AN, AN must
 	 * be disabled first:-
 	 * 1) VR_MII_MMD_CTRL Bit(12)[AN_ENABLE] = 0b
@@ -776,6 +779,8 @@ static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs,
 		return ret;
 
 	ret &= ~DW_VR_MII_PCS_MODE_MASK;
+	if (!xpcs->pcs.poll)
+		ret |= DW_VR_MII_AN_INTR_EN;
 	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL, ret);
 	if (ret < 0)
 		return ret;
@@ -1028,6 +1033,17 @@ static int xpcs_get_state_c37_1000basex(struct dw_xpcs *xpcs,
 		bmsr = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_BMSR);
 		if (bmsr < 0)
 			return bmsr;
+
+		/* Clear AN complete interrupt */
+		if (!xpcs->pcs.poll) {
+			int an_intr;
+
+			an_intr = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_INTR_STS);
+			if (an_intr & DW_VR_MII_AN_STS_C37_ANCMPLT_INTR) {
+				an_intr &= ~DW_VR_MII_AN_STS_C37_ANCMPLT_INTR;
+				xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_INTR_STS, an_intr);
+			}
+		}
 
 		phylink_mii_c22_pcs_decode_state(state, bmsr, lpa);
 	}
@@ -1319,9 +1335,10 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 
 		xpcs->pcs.ops = &xpcs_phylink_ops;
 		xpcs->pcs.neg_mode = true;
-		xpcs->pcs.poll = true;
 
 		if (xpcs->dev_flag != DW_DEV_TXGBE) {
+			xpcs->pcs.poll = true;
+
 			ret = xpcs_soft_reset(xpcs, compat);
 			if (ret)
 				goto out;
