@@ -509,7 +509,6 @@ LEX		= flex
 YACC		= bison
 AWK		= awk
 INSTALLKERNEL  := installkernel
-DEPMOD		= depmod
 PERL		= perl
 PYTHON3		= python3
 CHECK		= sparse
@@ -1871,15 +1870,8 @@ PHONY += modules_check
 modules_check: $(MODORDER)
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/modules-check.sh $<
 
-quiet_cmd_depmod = DEPMOD  $(MODLIB)
-      cmd_depmod = $(CONFIG_SHELL) $(srctree)/scripts/depmod.sh $(DEPMOD) \
-                   $(KERNELRELEASE)
-
 modules_install:
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modinst
-ifndef modules_sign_only
-	$(call cmd,depmod)
-endif
 
 else # CONFIG_MODULES
 

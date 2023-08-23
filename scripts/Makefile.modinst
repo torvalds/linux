@@ -86,6 +86,15 @@ $(dst)/%.ko: $(extmod_prefix)%.ko FORCE
 	$(call cmd,strip)
 	$(call cmd,sign)
 
+__modinst: depmod
+
+PHONY += depmod
+depmod: $(modules)
+	$(call cmd,depmod)
+
+quiet_cmd_depmod = DEPMOD  $(MODLIB)
+      cmd_depmod = $(srctree)/scripts/depmod.sh $(KERNELRELEASE)
+
 else
 
 $(dst)/%.ko: FORCE
