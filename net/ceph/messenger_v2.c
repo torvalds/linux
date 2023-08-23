@@ -8,9 +8,9 @@
 #include <linux/ceph/ceph_debug.h>
 
 #include <crypto/aead.h>
-#include <crypto/algapi.h>  /* for crypto_memneq() */
 #include <crypto/hash.h>
 #include <crypto/sha2.h>
+#include <crypto/utils.h>
 #include <linux/bvec.h>
 #include <linux/crc32c.h>
 #include <linux/net.h>
