@@ -242,6 +242,12 @@
 				power-domains = <&pwrc PWRC_USB_ID>;
 			};
 
+			hwrng: rng@5118 {
+				compatible = "amlogic,meson-rng";
+				reg = <0x0 0x5118 0x0 0x4>;
+				power-domains = <&pwrc PWRC_OTP_ID>;
+			};
+
 			clkc_pll: pll-clock-controller@7c80 {
 				compatible = "amlogic,a1-pll-clkc";
 				reg = <0 0x7c80 0 0x18c>;
