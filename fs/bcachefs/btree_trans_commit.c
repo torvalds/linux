@@ -817,25 +817,6 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 	struct btree_insert_entry *i;
 	int ret = 0, u64s_delta = 0;
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-	trans_for_each_update(trans, i) {
-		struct printbuf buf = PRINTBUF;
-		enum bkey_invalid_flags invalid_flags = 0;
-
-		if (!(flags & BTREE_INSERT_JOURNAL_REPLAY))
-			invalid_flags |= BKEY_INVALID_WRITE|BKEY_INVALID_COMMIT;
-
-		if (unlikely(bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
-					       i->bkey_type, invalid_flags, &buf)))
-			ret = bch2_trans_commit_bkey_invalid(trans, flags, i, &buf);
-		btree_insert_entry_checks(trans, i);
-		printbuf_exit(&buf);
-
-		if (ret)
-			return ret;
-	}
-#endif
-
 	trans_for_each_update(trans, i) {
 		if (i->cached)
 			continue;
@@ -1047,6 +1028,25 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	ret = bch2_trans_commit_run_triggers(trans);
 	if (ret)
 		goto out_reset;
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+	trans_for_each_update(trans, i) {
+		struct printbuf buf = PRINTBUF;
+		enum bkey_invalid_flags invalid_flags = 0;
+
+		if (!(flags & BTREE_INSERT_JOURNAL_REPLAY))
+			invalid_flags |= BKEY_INVALID_WRITE|BKEY_INVALID_COMMIT;
+
+		if (unlikely(bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
+					       i->bkey_type, invalid_flags, &buf)))
+			ret = bch2_trans_commit_bkey_invalid(trans, flags, i, &buf);
+		btree_insert_entry_checks(trans, i);
+		printbuf_exit(&buf);
+
+		if (ret)
+			return ret;
+	}
+#endif
 
 	if (unlikely(!test_bit(BCH_FS_MAY_GO_RW, &c->flags))) {
 		ret = do_bch2_trans_commit_to_journal_replay(trans);
