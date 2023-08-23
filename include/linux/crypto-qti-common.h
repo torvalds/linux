@@ -43,12 +43,12 @@ int crypto_qti_debug(const struct ice_mmio_data *mmio_data);
 int crypto_qti_keyslot_program(const struct ice_mmio_data *mmio_data,
 			       const struct blk_crypto_key *key,
 			       unsigned int slot, u8 data_unit_mask,
-			       int capid);
+			       int capid, int storage_type);
 int crypto_qti_keyslot_evict(const struct ice_mmio_data *mmio_data,
-							unsigned int slot);
-int crypto_qti_derive_raw_secret(const u8 *wrapped_key,
-				 unsigned int wrapped_key_size, u8 *secret,
-				 unsigned int secret_size);
+							unsigned int slot, int storage_type);
+int crypto_qti_derive_raw_secret(const struct ice_mmio_data *mmio_data, const u8 *wrapped_key,
+					unsigned int wrapped_key_size, u8 *secret,
+					unsigned int secret_size);
 
 #else
 static inline int crypto_qti_init_crypto(void *mmio_data)
@@ -65,25 +65,24 @@ static inline int crypto_qti_debug(const struct ice_mmio_data *mmio_data)
 {
 	return -EOPNOTSUPP;
 }
-static inline int crypto_qti_keyslot_program(
-						const struct ice_mmio_data *mmio_data,
-					    const struct blk_crypto_key *key,
-					    unsigned int slot,
-					    u8 data_unit_mask,
-					    int capid)
+static inline int crypto_qti_keyslot_program(const struct ice_mmio_data *mmio_data,
+						const struct blk_crypto_key *key,
+						unsigned int slot,
+						u8 data_unit_mask,
+						int capid, int storage_type)
 {
 	return -EOPNOTSUPP;
 }
 static inline int crypto_qti_keyslot_evict(const struct ice_mmio_data *mmio_data,
-						unsigned int slot)
+						unsigned int slot, int storage_type)
 {
 	return -EOPNOTSUPP;
 }
-static inline int crypto_qti_derive_raw_secret(
-					    const u8 *wrapped_key,
-					    unsigned int wrapped_key_size,
-					    u8 *secret,
-					    unsigned int secret_size)
+static inline int crypto_qti_derive_raw_secret(const struct ice_mmio_data *mmio_data,
+						const u8 *wrapped_key,
+						unsigned int wrapped_key_size,
+						u8 *secret,
+						unsigned int secret_size)
 {
 	return -EOPNOTSUPP;
 }

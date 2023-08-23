@@ -2,7 +2,7 @@
 /*
  * Common crypto library for storage encryption.
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/crypto-qti-common.h>
@@ -338,15 +338,15 @@ EXPORT_SYMBOL(crypto_qti_debug);
 int crypto_qti_keyslot_program(const struct ice_mmio_data *mmio_data,
 			       const struct blk_crypto_key *key,
 			       unsigned int slot,
-			       u8 data_unit_mask, int capid)
+			       u8 data_unit_mask, int capid, int storage_type)
 {
 	int err = 0;
 
 	err = crypto_qti_program_key(mmio_data, key, slot,
-				data_unit_mask, capid);
+				data_unit_mask, capid, storage_type);
 	if (err) {
 		pr_err("%s: program key failed with error %d\n", __func__, err);
-		err = crypto_qti_invalidate_key(mmio_data, slot);
+		err = crypto_qti_invalidate_key(mmio_data, slot, storage_type);
 		if (err) {
 			pr_err("%s: invalidate key failed with error %d\n",
 				__func__, err);
@@ -359,11 +359,11 @@ int crypto_qti_keyslot_program(const struct ice_mmio_data *mmio_data,
 EXPORT_SYMBOL(crypto_qti_keyslot_program);
 
 int crypto_qti_keyslot_evict(const struct ice_mmio_data *mmio_data,
-							 unsigned int slot)
+							 unsigned int slot, int storage_type)
 {
 	int err = 0;
 
-	err = crypto_qti_invalidate_key(mmio_data, slot);
+	err = crypto_qti_invalidate_key(mmio_data, slot, storage_type);
 	if (err) {
 		pr_err("%s: invalidate key failed with error %d\n",
 			__func__, err);
@@ -373,7 +373,7 @@ int crypto_qti_keyslot_evict(const struct ice_mmio_data *mmio_data,
 }
 EXPORT_SYMBOL(crypto_qti_keyslot_evict);
 
-int crypto_qti_derive_raw_secret(const u8 *wrapped_key,
+int crypto_qti_derive_raw_secret(const struct ice_mmio_data *mmio_data, const u8 *wrapped_key,
 				 unsigned int wrapped_key_size, u8 *secret,
 				 unsigned int secret_size)
 {
@@ -392,7 +392,7 @@ int crypto_qti_derive_raw_secret(const u8 *wrapped_key,
 	}
 
 	if (wrapped_key_size > 64)
-		err = crypto_qti_derive_raw_secret_platform(wrapped_key,
+		err = crypto_qti_derive_raw_secret_platform(mmio_data, wrapped_key,
 				wrapped_key_size, secret, secret_size);
 	else
 		memcpy(secret, wrapped_key, secret_size);
