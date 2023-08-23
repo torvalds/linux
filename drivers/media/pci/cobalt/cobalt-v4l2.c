@@ -107,11 +107,9 @@ static void chain_all_buffers(struct cobalt_stream *s)
 {
 	struct sg_dma_desc_info *desc[NR_BUFS];
 	struct cobalt_buffer *cb;
-	struct list_head *p;
 	int i = 0;
 
-	list_for_each(p, &s->bufs) {
-		cb = list_entry(p, struct cobalt_buffer, list);
+	list_for_each_entry(cb, &s->bufs, list) {
 		desc[i] = &s->dma_desc_info[cb->vb.vb2_buf.index];
 		if (i > 0)
 			descriptor_list_chain(desc[i-1], desc[i]);
@@ -348,7 +346,6 @@ static void cobalt_dma_stop_streaming(struct cobalt_stream *s)
 	struct cobalt *cobalt = s->cobalt;
 	struct sg_dma_desc_info *desc;
 	struct cobalt_buffer *cb;
-	struct list_head *p;
 	unsigned long flags;
 	int timeout_msec = 100;
 	int rx = s->video_channel;
@@ -367,8 +364,7 @@ static void cobalt_dma_stop_streaming(struct cobalt_stream *s)
 
 	/* Try to stop the DMA engine gracefully */
 	spin_lock_irqsave(&s->irqlock, flags);
-	list_for_each(p, &s->bufs) {
-		cb = list_entry(p, struct cobalt_buffer, list);
+	list_for_each_entry(cb, &s->bufs, list) {
 		desc = &s->dma_desc_info[cb->vb.vb2_buf.index];
 		/* Stop DMA after this descriptor chain */
 		descriptor_list_end_of_chain(desc);
