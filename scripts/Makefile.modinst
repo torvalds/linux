@@ -9,6 +9,8 @@ __modinst:
 include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
 
+install-y :=
+
 modules := $(call read-file, $(MODORDER))
 
 ifeq ($(KBUILD_EXTMOD),)
@@ -27,6 +29,7 @@ suffix-$(CONFIG_MODULE_COMPRESS_XZ)	:= .xz
 suffix-$(CONFIG_MODULE_COMPRESS_ZSTD)	:= .zst
 
 modules := $(patsubst $(extmod_prefix)%.o, $(dst)/%.ko$(suffix-y), $(modules))
+install-$(CONFIG_MODULES) += $(modules)
 
 __modinst: $(modules)
 	@:
@@ -35,7 +38,7 @@ __modinst: $(modules)
 # Installation
 #
 quiet_cmd_install = INSTALL $@
-      cmd_install = mkdir -p $(dir $@); cp $< $@
+      cmd_install = cp $< $@
 
 # Strip
 #
@@ -80,6 +83,9 @@ quiet_cmd_sign :=
 endif
 
 ifeq ($(modules_sign_only),)
+
+# Create necessary directories
+$(shell mkdir -p $(sort $(dir $(install-y))))
 
 $(dst)/%.ko: $(extmod_prefix)%.ko FORCE
 	$(call cmd,install)
