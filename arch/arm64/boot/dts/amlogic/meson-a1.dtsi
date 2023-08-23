@@ -248,6 +248,12 @@
 				power-domains = <&pwrc PWRC_OTP_ID>;
 			};
 
+			sec_AO: ao-secure@5a20 {
+				compatible = "amlogic,meson-gx-ao-secure", "syscon";
+				reg = <0x0 0x5a20 0x0 0x140>;
+				amlogic,has-chip-id;
+			};
+
 			clkc_pll: pll-clock-controller@7c80 {
 				compatible = "amlogic,a1-pll-clkc";
 				reg = <0 0x7c80 0 0x18c>;
