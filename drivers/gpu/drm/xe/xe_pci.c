@@ -30,28 +30,6 @@ enum toggle_d3cold {
 	D3COLD_ENABLE,
 };
 
-static void d3cold_toggle(struct pci_dev *pdev, enum toggle_d3cold toggle)
-{
-	struct xe_device *xe = pdev_to_xe_device(pdev);
-	struct pci_dev *root_pdev;
-
-	if (!xe->d3cold.capable)
-		return;
-
-	root_pdev = pcie_find_root_port(pdev);
-	if (!root_pdev)
-		return;
-
-	switch (toggle) {
-	case D3COLD_DISABLE:
-		pci_d3cold_disable(root_pdev);
-		break;
-	case D3COLD_ENABLE:
-		pci_d3cold_enable(root_pdev);
-		break;
-	}
-}
-
 struct xe_subplatform_desc {
 	enum xe_subplatform subplatform;
 	const char *name;
@@ -741,6 +719,28 @@ static void xe_pci_shutdown(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static void d3cold_toggle(struct pci_dev *pdev, enum toggle_d3cold toggle)
+{
+	struct xe_device *xe = pdev_to_xe_device(pdev);
+	struct pci_dev *root_pdev;
+
+	if (!xe->d3cold.capable)
+		return;
+
+	root_pdev = pcie_find_root_port(pdev);
+	if (!root_pdev)
+		return;
+
+	switch (toggle) {
+	case D3COLD_DISABLE:
+		pci_d3cold_disable(root_pdev);
+		break;
+	case D3COLD_ENABLE:
+		pci_d3cold_enable(root_pdev);
+		break;
+	}
+}
+
 static int xe_pci_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -851,12 +851,12 @@ static int xe_pci_runtime_idle(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops xe_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(xe_pci_suspend, xe_pci_resume)
 	SET_RUNTIME_PM_OPS(xe_pci_runtime_suspend, xe_pci_runtime_resume, xe_pci_runtime_idle)
 };
+#endif
 
 static struct pci_driver xe_pci_driver = {
 	.name = DRIVER_NAME,
@@ -864,7 +864,9 @@ static struct pci_driver xe_pci_driver = {
 	.probe = xe_pci_probe,
 	.remove = xe_pci_remove,
 	.shutdown = xe_pci_shutdown,
+#ifdef CONFIG_PM_SLEEP
 	.driver.pm = &xe_pm_ops,
+#endif
 };
 
 int xe_register_pci_driver(void)
