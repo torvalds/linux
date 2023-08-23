@@ -7,7 +7,6 @@
 #define __CHTLS_H__
 
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include <crypto/sha1.h>
 #include <crypto/sha2.h>
