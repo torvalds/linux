@@ -289,17 +289,29 @@ static int unix_validate_addr(struct sockaddr_un *sunaddr, int addr_len)
 	return 0;
 }
 
-static void unix_mkname_bsd(struct sockaddr_un *sunaddr, int addr_len)
+static int unix_mkname_bsd(struct sockaddr_un *sunaddr, int addr_len)
 {
+	struct sockaddr_storage *addr = (struct sockaddr_storage *)sunaddr;
+	short offset = offsetof(struct sockaddr_storage, __data);
+
+	BUILD_BUG_ON(offset != offsetof(struct sockaddr_un, sun_path));
+
 	/* This may look like an off by one error but it is a bit more
 	 * subtle.  108 is the longest valid AF_UNIX path for a binding.
 	 * sun_path[108] doesn't as such exist.  However in kernel space
 	 * we are guaranteed that it is a valid memory location in our
 	 * kernel address buffer because syscall functions always pass
 	 * a pointer of struct sockaddr_storage which has a bigger buffer
-	 * than 108.
+	 * than 108.  Also, we must terminate sun_path for strlen() in
+	 * getname_kernel().
 	 */
-	((char *)sunaddr)[addr_len] = 0;
+	addr->__data[addr_len - offset] = 0;
+
+	/* Don't pass sunaddr->sun_path to strlen().  Otherwise, 108 will
+	 * cause panic if CONFIG_FORTIFY_SOURCE=y.  Let __fortify_strlen()
+	 * know the actual buffer.
+	 */
+	return strlen(addr->__data) + offset + 1;
 }
 
 static void __unix_remove_socket(struct sock *sk)
@@ -778,7 +790,7 @@ static int unix_set_peek_off(struct sock *sk, int val)
 	if (mutex_lock_interruptible(&u->iolock))
 		return -EINTR;
 
-	sk->sk_peek_off = val;
+	WRITE_ONCE(sk->sk_peek_off, val);
 	mutex_unlock(&u->iolock);
 
 	return 0;
@@ -1208,10 +1220,7 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	struct path parent;
 	int err;
 
-	unix_mkname_bsd(sunaddr, addr_len);
-	addr_len = strlen(sunaddr->sun_path) +
-		offsetof(struct sockaddr_un, sun_path) + 1;
-
+	addr_len = unix_mkname_bsd(sunaddr, addr_len);
 	addr = unix_create_addr(sunaddr, addr_len);
 	if (!addr)
 		return -ENOMEM;

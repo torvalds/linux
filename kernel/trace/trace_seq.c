@@ -131,6 +131,7 @@ EXPORT_SYMBOL_GPL(trace_seq_bitmask);
  * trace_seq_vprintf - sequence printing of trace information
  * @s: trace sequence descriptor
  * @fmt: printf format string
+ * @args: Arguments for the format string
  *
  * The tracer may use either sequence operations or its own
  * copy to user routines. To simplify formatting of a trace

@@ -132,4 +132,7 @@ static struct pi_protocol fit2 = {
 };
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
+MODULE_DESCRIPTION("Fidelity International Technology parallel port IDE adapter"
+		   "(older models) protocol driver");
 module_pata_parport_driver(fit2);

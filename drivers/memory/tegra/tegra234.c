@@ -827,7 +827,7 @@ static int tegra234_mc_icc_set(struct icc_node *src, struct icc_node *dst)
 		return 0;
 
 	if (!mc->bwmgr_mrq_supported)
-		return -EINVAL;
+		return 0;
 
 	if (!mc->bpmp) {
 		dev_err(mc->dev, "BPMP reference NULL\n");
@@ -874,7 +874,7 @@ static int tegra234_mc_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
 	struct tegra_mc *mc = icc_provider_to_tegra_mc(p);
 
 	if (!mc->bwmgr_mrq_supported)
-		return -EINVAL;
+		return 0;
 
 	if (node->id == TEGRA_ICC_MC_CPU_CLUSTER0 ||
 	    node->id == TEGRA_ICC_MC_CPU_CLUSTER1 ||
@@ -889,27 +889,6 @@ static int tegra234_mc_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
 	return 0;
 }
 
-static struct icc_node*
-tegra234_mc_of_icc_xlate(struct of_phandle_args *spec, void *data)
-{
-	struct tegra_mc *mc = icc_provider_to_tegra_mc(data);
-	unsigned int cl_id = spec->args[0];
-	struct icc_node *node;
-
-	list_for_each_entry(node, &mc->provider.nodes, node_list) {
-		if (node->id != cl_id)
-			continue;
-
-		return node;
-	}
-
-	/*
-	 * If a client driver calls devm_of_icc_get() before the MC driver
-	 * is probed, then return EPROBE_DEFER to the client driver.
-	 */
-	return ERR_PTR(-EPROBE_DEFER);
-}
-
 static int tegra234_mc_icc_get_init_bw(struct icc_node *node, u32 *avg, u32 *peak)
 {
 	*avg = 0;
@@ -919,7 +898,7 @@ static int tegra234_mc_icc_get_init_bw(struct icc_node *node, u32 *avg, u32 *pea
 }
 
 static const struct tegra_mc_icc_ops tegra234_mc_icc_ops = {
-	.xlate = tegra234_mc_of_icc_xlate,
+	.xlate = tegra_mc_icc_xlate,
 	.aggregate = tegra234_mc_icc_aggregate,
 	.get_bw = tegra234_mc_icc_get_init_bw,
 	.set = tegra234_mc_icc_set,

@@ -4,14 +4,13 @@
 #ifdef __KERNEL__
 
 #include <asm/asm-compat.h>
-#include <asm/extable.h>
 
 #ifdef CONFIG_BUG
 
 #ifdef __ASSEMBLY__
 #include <asm/asm-offsets.h>
 #ifdef CONFIG_DEBUG_BUGVERBOSE
-.macro __EMIT_BUG_ENTRY addr,file,line,flags
+.macro EMIT_BUG_ENTRY addr,file,line,flags
 	 .section __bug_table,"aw"
 5001:	 .4byte \addr - .
 	 .4byte 5002f - .
@@ -23,7 +22,7 @@
 	 .previous
 .endm
 #else
-.macro __EMIT_BUG_ENTRY addr,file,line,flags
+.macro EMIT_BUG_ENTRY addr,file,line,flags
 	 .section __bug_table,"aw"
 5001:	 .4byte \addr - .
 	 .short \flags
@@ -31,18 +30,6 @@
 	 .previous
 .endm
 #endif /* verbose */
-
-.macro EMIT_WARN_ENTRY addr,file,line,flags
-	EX_TABLE(\addr,\addr+4)
-	__EMIT_BUG_ENTRY \addr,\file,\line,\flags
-.endm
-
-.macro EMIT_BUG_ENTRY addr,file,line,flags
-	.if \flags & 1 /* BUGFLAG_WARNING */
-	.err /* Use EMIT_WARN_ENTRY for warnings */
-	.endif
-	__EMIT_BUG_ENTRY \addr,\file,\line,\flags
-.endm
 
 #else /* !__ASSEMBLY__ */
 /* _EMIT_BUG_ENTRY expects args %0,%1,%2,%3 to be FILE, LINE, flags and
@@ -73,16 +60,6 @@
 		  "i" (sizeof(struct bug_entry)),	\
 		  ##__VA_ARGS__)
 
-#define WARN_ENTRY(insn, flags, label, ...)		\
-	asm_volatile_goto(				\
-		"1:	" insn "\n"			\
-		EX_TABLE(1b, %l[label])			\
-		_EMIT_BUG_ENTRY				\
-		: : "i" (__FILE__), "i" (__LINE__),	\
-		  "i" (flags),				\
-		  "i" (sizeof(struct bug_entry)),	\
-		  ##__VA_ARGS__ : : label)
-
 /*
  * BUG_ON() and WARN_ON() do their best to cooperate with compile-time
  * optimisations. However depending on the complexity of the condition
@@ -95,16 +72,7 @@
 } while (0)
 #define HAVE_ARCH_BUG
 
-#define __WARN_FLAGS(flags) do {				\
-	__label__ __label_warn_on;				\
-								\
-	WARN_ENTRY("twi 31, 0, 0", BUGFLAG_WARNING | (flags), __label_warn_on); \
-	barrier_before_unreachable();				\
-	__builtin_unreachable();				\
-								\
-__label_warn_on:						\
-	break;							\
-} while (0)
+#define __WARN_FLAGS(flags) BUG_ENTRY("twi 31, 0, 0", BUGFLAG_WARNING | (flags))
 
 #ifdef CONFIG_PPC64
 #define BUG_ON(x) do {						\
@@ -117,25 +85,15 @@ __label_warn_on:						\
 } while (0)
 
 #define WARN_ON(x) ({						\
-	bool __ret_warn_on = false;				\
-	do {							\
-		if (__builtin_constant_p((x))) {		\
-			if (!(x)) 				\
-				break; 				\
+	int __ret_warn_on = !!(x);				\
+	if (__builtin_constant_p(__ret_warn_on)) {		\
+		if (__ret_warn_on)				\
 			__WARN();				\
-			__ret_warn_on = true;			\
-		} else {					\
-			__label__ __label_warn_on;		\
-								\
-			WARN_ENTRY(PPC_TLNEI " %4, 0",		\
-				   BUGFLAG_WARNING | BUGFLAG_TAINT(TAINT_WARN),	\
-				   __label_warn_on,		\
-				   "r" ((__force long)(x)));	\
-			break;					\
-__label_warn_on:						\
-			__ret_warn_on = true;			\
-		}						\
-	} while (0);						\
+	} else {						\
+		BUG_ENTRY(PPC_TLNEI " %4, 0",			\
+			  BUGFLAG_WARNING | BUGFLAG_TAINT(TAINT_WARN),	\
+			  "r" (__ret_warn_on));	\
+	}							\
 	unlikely(__ret_warn_on);				\
 })
 
@@ -148,13 +106,12 @@ __label_warn_on:						\
 #ifdef __ASSEMBLY__
 .macro EMIT_BUG_ENTRY addr,file,line,flags
 .endm
-.macro EMIT_WARN_ENTRY addr,file,line,flags
-.endm
 #else /* !__ASSEMBLY__ */
 #define _EMIT_BUG_ENTRY
-#define _EMIT_WARN_ENTRY
 #endif
 #endif /* CONFIG_BUG */
+
+#define EMIT_WARN_ENTRY EMIT_BUG_ENTRY
 
 #include <asm-generic/bug.h>
 

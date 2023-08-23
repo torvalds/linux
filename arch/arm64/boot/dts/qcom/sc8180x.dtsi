@@ -3561,7 +3561,7 @@
 		};
 
 		osm_l3: interconnect@18321000 {
-			compatible = "qcom,sc8180x-osm-l3";
+			compatible = "qcom,sc8180x-osm-l3", "qcom,osm-l3";
 			reg = <0 0x18321000 0 0x1400>;
 
 			clocks = <&rpmhcc RPMH_CXO_CLK>, <&gcc GPLL0>;

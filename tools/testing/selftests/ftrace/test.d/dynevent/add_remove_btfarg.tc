@@ -13,7 +13,7 @@ if grep -qF "f[:[<group>/][<event>]] <func-name>[%return] [<args>]" README ; the
   FPROBES=yes
 fi
 
-if [ -z "$KPROBES" -a "$FPROBES" ] ; then
+if [ -z "$KPROBES" -a -z "$FPROBES" ] ; then
   exit_unsupported
 fi
 

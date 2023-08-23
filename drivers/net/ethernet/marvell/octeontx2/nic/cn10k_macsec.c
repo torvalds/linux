@@ -4,6 +4,7 @@
  * Copyright (C) 2022 Marvell.
  */
 
+#include <crypto/skcipher.h>
 #include <linux/rtnetlink.h>
 #include <linux/bitfield.h>
 #include "otx2_common.h"
@@ -41,6 +42,56 @@
 #define MCS_TCI_SCB			0x10 /* epon */
 #define MCS_TCI_E			0x08 /* encryption */
 #define MCS_TCI_C			0x04 /* changed text */
+
+#define CN10K_MAX_HASH_LEN		16
+#define CN10K_MAX_SAK_LEN		32
+
+static int cn10k_ecb_aes_encrypt(struct otx2_nic *pfvf, u8 *sak,
+				 u16 sak_len, u8 *hash)
+{
+	u8 data[CN10K_MAX_HASH_LEN] = { 0 };
+	struct skcipher_request *req = NULL;
+	struct scatterlist sg_src, sg_dst;
+	struct crypto_skcipher *tfm;
+	DECLARE_CRYPTO_WAIT(wait);
+	int err;
+
+	tfm = crypto_alloc_skcipher("ecb(aes)", 0, 0);
+	if (IS_ERR(tfm)) {
+		dev_err(pfvf->dev, "failed to allocate transform for ecb-aes\n");
+		return PTR_ERR(tfm);
+	}
+
+	req = skcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		dev_err(pfvf->dev, "failed to allocate request for skcipher\n");
+		err = -ENOMEM;
+		goto free_tfm;
+	}
+
+	err = crypto_skcipher_setkey(tfm, sak, sak_len);
+	if (err) {
+		dev_err(pfvf->dev, "failed to set key for skcipher\n");
+		goto free_req;
+	}
+
+	/* build sg list */
+	sg_init_one(&sg_src, data, CN10K_MAX_HASH_LEN);
+	sg_init_one(&sg_dst, hash, CN10K_MAX_HASH_LEN);
+
+	skcipher_request_set_callback(req, 0, crypto_req_done, &wait);
+	skcipher_request_set_crypt(req, &sg_src, &sg_dst,
+				   CN10K_MAX_HASH_LEN, NULL);
+
+	err = crypto_skcipher_encrypt(req);
+	err = crypto_wait_req(err, &wait);
+
+free_req:
+	skcipher_request_free(req);
+free_tfm:
+	crypto_free_skcipher(tfm);
+	return err;
+}
 
 static struct cn10k_mcs_txsc *cn10k_mcs_get_txsc(struct cn10k_mcs_cfg *cfg,
 						 struct macsec_secy *secy)
@@ -330,19 +381,53 @@ fail:
 	return ret;
 }
 
+static int cn10k_mcs_write_keys(struct otx2_nic *pfvf,
+				struct macsec_secy *secy,
+				struct mcs_sa_plcy_write_req *req,
+				u8 *sak, u8 *salt, ssci_t ssci)
+{
+	u8 hash_rev[CN10K_MAX_HASH_LEN];
+	u8 sak_rev[CN10K_MAX_SAK_LEN];
+	u8 salt_rev[MACSEC_SALT_LEN];
+	u8 hash[CN10K_MAX_HASH_LEN];
+	u32 ssci_63_32;
+	int err, i;
+
+	err = cn10k_ecb_aes_encrypt(pfvf, sak, secy->key_len, hash);
+	if (err) {
+		dev_err(pfvf->dev, "Generating hash using ECB(AES) failed\n");
+		return err;
+	}
+
+	for (i = 0; i < secy->key_len; i++)
+		sak_rev[i] = sak[secy->key_len - 1 - i];
+
+	for (i = 0; i < CN10K_MAX_HASH_LEN; i++)
+		hash_rev[i] = hash[CN10K_MAX_HASH_LEN - 1 - i];
+
+	for (i = 0; i < MACSEC_SALT_LEN; i++)
+		salt_rev[i] = salt[MACSEC_SALT_LEN - 1 - i];
+
+	ssci_63_32 = (__force u32)cpu_to_be32((__force u32)ssci);
+
+	memcpy(&req->plcy[0][0], sak_rev, secy->key_len);
+	memcpy(&req->plcy[0][4], hash_rev, CN10K_MAX_HASH_LEN);
+	memcpy(&req->plcy[0][6], salt_rev, MACSEC_SALT_LEN);
+	req->plcy[0][7] |= (u64)ssci_63_32 << 32;
+
+	return 0;
+}
+
 static int cn10k_mcs_write_rx_sa_plcy(struct otx2_nic *pfvf,
 				      struct macsec_secy *secy,
 				      struct cn10k_mcs_rxsc *rxsc,
 				      u8 assoc_num, bool sa_in_use)
 {
-	unsigned char *src = rxsc->sa_key[assoc_num];
 	struct mcs_sa_plcy_write_req *plcy_req;
-	u8 *salt_p = rxsc->salt[assoc_num];
+	u8 *sak = rxsc->sa_key[assoc_num];
+	u8 *salt = rxsc->salt[assoc_num];
 	struct mcs_rx_sc_sa_map *map_req;
 	struct mbox *mbox = &pfvf->mbox;
-	u64 ssci_salt_95_64 = 0;
-	u8 reg, key_len;
-	u64 salt_63_0;
 	int ret;
 
 	mutex_lock(&mbox->lock);
@@ -360,20 +445,10 @@ static int cn10k_mcs_write_rx_sa_plcy(struct otx2_nic *pfvf,
 		goto fail;
 	}
 
-	for (reg = 0, key_len = 0; key_len < secy->key_len; key_len += 8) {
-		memcpy((u8 *)&plcy_req->plcy[0][reg],
-		       (src + reg * 8), 8);
-		reg++;
-	}
-
-	if (secy->xpn) {
-		memcpy((u8 *)&salt_63_0, salt_p, 8);
-		memcpy((u8 *)&ssci_salt_95_64, salt_p + 8, 4);
-		ssci_salt_95_64 |= (__force u64)rxsc->ssci[assoc_num] << 32;
-
-		plcy_req->plcy[0][6] = salt_63_0;
-		plcy_req->plcy[0][7] = ssci_salt_95_64;
-	}
+	ret = cn10k_mcs_write_keys(pfvf, secy, plcy_req, sak,
+				   salt, rxsc->ssci[assoc_num]);
+	if (ret)
+		goto fail;
 
 	plcy_req->sa_index[0] = rxsc->hw_sa_id[assoc_num];
 	plcy_req->sa_cnt = 1;
@@ -586,13 +661,10 @@ static int cn10k_mcs_write_tx_sa_plcy(struct otx2_nic *pfvf,
 				      struct cn10k_mcs_txsc *txsc,
 				      u8 assoc_num)
 {
-	unsigned char *src = txsc->sa_key[assoc_num];
 	struct mcs_sa_plcy_write_req *plcy_req;
-	u8 *salt_p = txsc->salt[assoc_num];
+	u8 *sak = txsc->sa_key[assoc_num];
+	u8 *salt = txsc->salt[assoc_num];
 	struct mbox *mbox = &pfvf->mbox;
-	u64 ssci_salt_95_64 = 0;
-	u8 reg, key_len;
-	u64 salt_63_0;
 	int ret;
 
 	mutex_lock(&mbox->lock);
@@ -603,19 +675,10 @@ static int cn10k_mcs_write_tx_sa_plcy(struct otx2_nic *pfvf,
 		goto fail;
 	}
 
-	for (reg = 0, key_len = 0; key_len < secy->key_len; key_len += 8) {
-		memcpy((u8 *)&plcy_req->plcy[0][reg], (src + reg * 8), 8);
-		reg++;
-	}
-
-	if (secy->xpn) {
-		memcpy((u8 *)&salt_63_0, salt_p, 8);
-		memcpy((u8 *)&ssci_salt_95_64, salt_p + 8, 4);
-		ssci_salt_95_64 |= (__force u64)txsc->ssci[assoc_num] << 32;
-
-		plcy_req->plcy[0][6] = salt_63_0;
-		plcy_req->plcy[0][7] = ssci_salt_95_64;
-	}
+	ret = cn10k_mcs_write_keys(pfvf, secy, plcy_req, sak,
+				   salt, txsc->ssci[assoc_num]);
+	if (ret)
+		goto fail;
 
 	plcy_req->plcy[0][8] = assoc_num;
 	plcy_req->sa_index[0] = txsc->hw_sa_id[assoc_num];

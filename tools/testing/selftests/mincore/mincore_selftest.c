@@ -150,8 +150,8 @@ TEST(check_huge_pages)
 		MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
 		-1, 0);
 	if (addr == MAP_FAILED) {
-		if (errno == ENOMEM)
-			SKIP(return, "No huge pages available.");
+		if (errno == ENOMEM || errno == EINVAL)
+			SKIP(return, "No huge pages available or CONFIG_HUGETLB_PAGE disabled.");
 		else
 			TH_LOG("mmap error: %s", strerror(errno));
 	}

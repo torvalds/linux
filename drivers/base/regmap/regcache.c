@@ -368,8 +368,6 @@ int regcache_sync(struct regmap *map)
 	if (!map->cache_dirty)
 		goto out;
 
-	map->async = true;
-
 	/* Apply any patch first */
 	map->cache_bypass = true;
 	for (i = 0; i < map->patch_regs; i++) {
@@ -392,7 +390,6 @@ int regcache_sync(struct regmap *map)
 
 out:
 	/* Restore the bypass state */
-	map->async = false;
 	map->cache_bypass = bypass;
 	map->no_sync_defaults = false;
 	map->unlock(map->lock_arg);

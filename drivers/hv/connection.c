@@ -209,8 +209,7 @@ int vmbus_connect(void)
 	 * Setup the vmbus event connection for channel interrupt
 	 * abstraction stuff
 	 */
-	vmbus_connection.int_page =
-	(void *)hv_alloc_hyperv_zeroed_page();
+	vmbus_connection.int_page = hv_alloc_hyperv_zeroed_page();
 	if (vmbus_connection.int_page == NULL) {
 		ret = -ENOMEM;
 		goto cleanup;
@@ -225,8 +224,8 @@ int vmbus_connect(void)
 	 * Setup the monitor notification facility. The 1st page for
 	 * parent->child and the 2nd page for child->parent
 	 */
-	vmbus_connection.monitor_pages[0] = (void *)hv_alloc_hyperv_page();
-	vmbus_connection.monitor_pages[1] = (void *)hv_alloc_hyperv_page();
+	vmbus_connection.monitor_pages[0] = hv_alloc_hyperv_page();
+	vmbus_connection.monitor_pages[1] = hv_alloc_hyperv_page();
 	if ((vmbus_connection.monitor_pages[0] == NULL) ||
 	    (vmbus_connection.monitor_pages[1] == NULL)) {
 		ret = -ENOMEM;
@@ -333,15 +332,15 @@ void vmbus_disconnect(void)
 		destroy_workqueue(vmbus_connection.work_queue);
 
 	if (vmbus_connection.int_page) {
-		hv_free_hyperv_page((unsigned long)vmbus_connection.int_page);
+		hv_free_hyperv_page(vmbus_connection.int_page);
 		vmbus_connection.int_page = NULL;
 	}
 
 	set_memory_encrypted((unsigned long)vmbus_connection.monitor_pages[0], 1);
 	set_memory_encrypted((unsigned long)vmbus_connection.monitor_pages[1], 1);
 
-	hv_free_hyperv_page((unsigned long)vmbus_connection.monitor_pages[0]);
-	hv_free_hyperv_page((unsigned long)vmbus_connection.monitor_pages[1]);
+	hv_free_hyperv_page(vmbus_connection.monitor_pages[0]);
+	hv_free_hyperv_page(vmbus_connection.monitor_pages[1]);
 	vmbus_connection.monitor_pages[0] = NULL;
 	vmbus_connection.monitor_pages[1] = NULL;
 }

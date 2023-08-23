@@ -4681,9 +4681,9 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 
 io_error:
 	kunmap(page);
-	unlock_page(page);
 
 read_complete:
+	unlock_page(page);
 	return rc;
 }
 
@@ -4878,9 +4878,11 @@ void cifs_oplock_break(struct work_struct *work)
 	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
 						  oplock_break);
 	struct inode *inode = d_inode(cfile->dentry);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
-	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
-	struct TCP_Server_Info *server = tcon->ses->server;
+	struct cifs_tcon *tcon;
+	struct TCP_Server_Info *server;
+	struct tcon_link *tlink;
 	int rc = 0;
 	bool purge_cache = false, oplock_break_cancelled;
 	__u64 persistent_fid, volatile_fid;
@@ -4888,6 +4890,12 @@ void cifs_oplock_break(struct work_struct *work)
 
 	wait_on_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS,
 			TASK_UNINTERRUPTIBLE);
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		goto out;
+	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
 
 	server->ops->downgrade_oplock(server, cinode, cfile->oplock_level,
 				      cfile->oplock_epoch, &purge_cache);
@@ -4938,18 +4946,19 @@ oplock_break_ack:
 	/*
 	 * MS-SMB2 3.2.5.19.1 and 3.2.5.19.2 (and MS-CIFS 3.2.5.42) do not require
 	 * an acknowledgment to be sent when the file has already been closed.
-	 * check for server null, since can race with kill_sb calling tree disconnect.
 	 */
 	spin_lock(&cinode->open_file_lock);
-	if (tcon->ses && tcon->ses->server && !oplock_break_cancelled &&
-					!list_empty(&cinode->openFileList)) {
+	/* check list empty since can race with kill_sb calling tree disconnect */
+	if (!oplock_break_cancelled && !list_empty(&cinode->openFileList)) {
 		spin_unlock(&cinode->open_file_lock);
-		rc = tcon->ses->server->ops->oplock_response(tcon, persistent_fid,
-						volatile_fid, net_fid, cinode);
+		rc = server->ops->oplock_response(tcon, persistent_fid,
+						  volatile_fid, net_fid, cinode);
 		cifs_dbg(FYI, "Oplock release rc = %d\n", rc);
 	} else
 		spin_unlock(&cinode->open_file_lock);
 
+	cifs_put_tlink(tlink);
+out:
 	cifs_done_oplock_break(cinode);
 }
 

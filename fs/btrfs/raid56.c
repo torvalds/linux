@@ -71,7 +71,7 @@ static void rmw_rbio_work_locked(struct work_struct *work);
 static void index_rbio_pages(struct btrfs_raid_bio *rbio);
 static int alloc_rbio_pages(struct btrfs_raid_bio *rbio);
 
-static int finish_parity_scrub(struct btrfs_raid_bio *rbio, int need_check);
+static int finish_parity_scrub(struct btrfs_raid_bio *rbio);
 static void scrub_rbio_work_locked(struct work_struct *work);
 
 static void free_raid_bio_pointers(struct btrfs_raid_bio *rbio)
@@ -2404,7 +2404,7 @@ static int alloc_rbio_essential_pages(struct btrfs_raid_bio *rbio)
 	return 0;
 }
 
-static int finish_parity_scrub(struct btrfs_raid_bio *rbio, int need_check)
+static int finish_parity_scrub(struct btrfs_raid_bio *rbio)
 {
 	struct btrfs_io_context *bioc = rbio->bioc;
 	const u32 sectorsize = bioc->fs_info->sectorsize;
@@ -2444,9 +2444,6 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio, int need_check)
 	 * it.
 	 */
 	clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
-
-	if (!need_check)
-		goto writeback;
 
 	p_sector.page = alloc_page(GFP_NOFS);
 	if (!p_sector.page)
@@ -2516,7 +2513,6 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio, int need_check)
 		q_sector.page = NULL;
 	}
 
-writeback:
 	/*
 	 * time to start writing.  Make bios for everything from the
 	 * higher layers (the bio_list in our rbio) and our p/q.  Ignore
@@ -2699,7 +2695,6 @@ static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio)
 
 static void scrub_rbio(struct btrfs_raid_bio *rbio)
 {
-	bool need_check = false;
 	int sector_nr;
 	int ret;
 
@@ -2722,7 +2717,7 @@ static void scrub_rbio(struct btrfs_raid_bio *rbio)
 	 * We have every sector properly prepared. Can finish the scrub
 	 * and writeback the good content.
 	 */
-	ret = finish_parity_scrub(rbio, need_check);
+	ret = finish_parity_scrub(rbio);
 	wait_event(rbio->io_wait, atomic_read(&rbio->stripes_pending) == 0);
 	for (sector_nr = 0; sector_nr < rbio->stripe_nsectors; sector_nr++) {
 		int found_errors;

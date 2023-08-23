@@ -477,9 +477,28 @@ static struct attribute_group cxl_memdev_pmem_attribute_group = {
 	.attrs = cxl_memdev_pmem_attributes,
 };
 
+static umode_t cxl_memdev_security_visible(struct kobject *kobj,
+					   struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+
+	if (a == &dev_attr_security_sanitize.attr &&
+	    !test_bit(CXL_SEC_ENABLED_SANITIZE, mds->security.enabled_cmds))
+		return 0;
+
+	if (a == &dev_attr_security_erase.attr &&
+	    !test_bit(CXL_SEC_ENABLED_SECURE_ERASE, mds->security.enabled_cmds))
+		return 0;
+
+	return a->mode;
+}
+
 static struct attribute_group cxl_memdev_security_attribute_group = {
 	.name = "security",
 	.attrs = cxl_memdev_security_attributes,
+	.is_visible = cxl_memdev_security_visible,
 };
 
 static const struct attribute_group *cxl_memdev_attribute_groups[] = {

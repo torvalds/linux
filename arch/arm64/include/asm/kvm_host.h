@@ -727,6 +727,8 @@ struct kvm_vcpu_arch {
 #define DBG_SS_ACTIVE_PENDING	__vcpu_single_flag(sflags, BIT(5))
 /* PMUSERENR for the guest EL0 is on physical CPU */
 #define PMUSERENR_ON_CPU	__vcpu_single_flag(sflags, BIT(6))
+/* WFI instruction trapped */
+#define IN_WFI			__vcpu_single_flag(sflags, BIT(7))
 
 
 /* Pointer to the vcpu's SVE FFR for sve_{save,load}_state() */

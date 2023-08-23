@@ -103,7 +103,7 @@ static inline void _free_kb_keybuf(struct key_blob *kb)
 {
 	if (kb->key && kb->key != kb->keybuf
 	    && kb->keylen > sizeof(kb->keybuf)) {
-		kfree(kb->key);
+		kfree_sensitive(kb->key);
 		kb->key = NULL;
 	}
 }

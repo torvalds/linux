@@ -4938,8 +4938,8 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		if (qc->result_tf.status & ATA_SENSE &&
 		    ((ata_is_ncq(qc->tf.protocol) &&
 		      dev->flags & ATA_DFLAG_CDL_ENABLED) ||
-		     (!(ata_is_ncq(qc->tf.protocol) &&
-			ata_id_sense_reporting_enabled(dev->id))))) {
+		     (!ata_is_ncq(qc->tf.protocol) &&
+		      ata_id_sense_reporting_enabled(dev->id)))) {
 			/*
 			 * Tell SCSI EH to not overwrite scmd->result even if
 			 * this command is finished with result SAM_STAT_GOOD.

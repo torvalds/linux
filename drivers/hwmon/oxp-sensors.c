@@ -220,6 +220,20 @@ static int tt_toggle_disable(void)
 }
 
 /* Callbacks for turbo toggle attribute */
+static umode_t tt_toggle_is_visible(struct kobject *kobj,
+				    struct attribute *attr, int n)
+{
+	switch (board) {
+	case aok_zoe_a1:
+	case oxp_mini_amd_a07:
+	case oxp_mini_amd_pro:
+		return attr->mode;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static ssize_t tt_toggle_store(struct device *dev,
 			       struct device_attribute *attr, const char *buf,
 			       size_t count)
@@ -396,7 +410,15 @@ static struct attribute *oxp_ec_attrs[] = {
 	NULL
 };
 
-ATTRIBUTE_GROUPS(oxp_ec);
+static struct attribute_group oxp_ec_attribute_group = {
+	.is_visible = tt_toggle_is_visible,
+	.attrs = oxp_ec_attrs,
+};
+
+static const struct attribute_group *oxp_ec_groups[] = {
+	&oxp_ec_attribute_group,
+	NULL
+};
 
 static const struct hwmon_ops oxp_ec_hwmon_ops = {
 	.is_visible = oxp_ec_hwmon_is_visible,
@@ -415,7 +437,6 @@ static int oxp_platform_probe(struct platform_device *pdev)
 	const struct dmi_system_id *dmi_entry;
 	struct device *dev = &pdev->dev;
 	struct device *hwdev;
-	int ret;
 
 	/*
 	 * Have to check for AMD processor here because DMI strings are the
@@ -430,18 +451,6 @@ static int oxp_platform_probe(struct platform_device *pdev)
 
 	board = (enum oxp_board)(unsigned long)dmi_entry->driver_data;
 
-	switch (board) {
-	case aok_zoe_a1:
-	case oxp_mini_amd_a07:
-	case oxp_mini_amd_pro:
-		ret = devm_device_add_groups(dev, oxp_ec_groups);
-		if (ret)
-			return ret;
-		break;
-	default:
-		break;
-	}
-
 	hwdev = devm_hwmon_device_register_with_info(dev, "oxpec", NULL,
 						     &oxp_ec_chip_info, NULL);
 
@@ -451,6 +460,7 @@ static int oxp_platform_probe(struct platform_device *pdev)
 static struct platform_driver oxp_platform_driver = {
 	.driver = {
 		.name = "oxp-platform",
+		.dev_groups = oxp_ec_groups,
 	},
 	.probe = oxp_platform_probe,
 };

@@ -955,14 +955,25 @@ static const u16 scale_in[15] = {
 	800, 800
 };
 
-static inline long in_from_reg(u8 reg, u8 nr)
+/*
+ * NCT6798 scaling:
+ *    CPUVC, IN1, AVSB, 3VCC, IN0, IN8, IN4, 3VSB, VBAT,  VTT,  IN5,  IN6, IN2,
+ *      IN3, IN7
+ * Additional scales to be added later: IN9 (800), VHIF (1600)
+ */
+static const u16 scale_in_6798[15] = {
+	800, 800, 1600, 1600, 800, 800, 800, 1600, 1600, 1600, 1600, 1600, 800,
+	800, 800
+};
+
+static inline long in_from_reg(u8 reg, u8 nr, const u16 *scales)
 {
-	return DIV_ROUND_CLOSEST(reg * scale_in[nr], 100);
+	return DIV_ROUND_CLOSEST(reg * scales[nr], 100);
 }
 
-static inline u8 in_to_reg(u32 val, u8 nr)
+static inline u8 in_to_reg(u32 val, u8 nr, const u16 *scales)
 {
-	return clamp_val(DIV_ROUND_CLOSEST(val * 100, scale_in[nr]), 0, 255);
+	return clamp_val(DIV_ROUND_CLOSEST(val * 100, scales[nr]), 0, 255);
 }
 
 /* TSI temperatures are in 8.3 format */
@@ -1673,7 +1684,8 @@ show_in_reg(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%ld\n", in_from_reg(data->in[nr][index], nr));
+	return sprintf(buf, "%ld\n",
+		       in_from_reg(data->in[nr][index], nr, data->scale_in));
 }
 
 static ssize_t
@@ -1691,7 +1703,7 @@ store_in_reg(struct device *dev, struct device_attribute *attr, const char *buf,
 	if (err < 0)
 		return err;
 	mutex_lock(&data->update_lock);
-	data->in[nr][index] = in_to_reg(val, nr);
+	data->in[nr][index] = in_to_reg(val, nr, data->scale_in);
 	err = nct6775_write_value(data, data->REG_IN_MINMAX[index - 1][nr], data->in[nr][index]);
 	mutex_unlock(&data->update_lock);
 	return err ? : count;
@@ -3462,6 +3474,7 @@ int nct6775_probe(struct device *dev, struct nct6775_data *data,
 	mutex_init(&data->update_lock);
 	data->name = nct6775_device_names[data->kind];
 	data->bank = 0xff;		/* Force initial bank selection */
+	data->scale_in = scale_in;
 
 	switch (data->kind) {
 	case nct6106:
@@ -3976,6 +3989,9 @@ int nct6775_probe(struct device *dev, struct nct6775_data *data,
 			num_reg_tsi_temp = 0;
 			break;
 		}
+
+		if (data->kind == nct6798 || data->kind == nct6799)
+			data->scale_in = scale_in_6798;
 
 		reg_temp = NCT6779_REG_TEMP;
 		num_reg_temp = ARRAY_SIZE(NCT6779_REG_TEMP);

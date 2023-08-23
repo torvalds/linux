@@ -277,7 +277,7 @@ struct bond_vlan_tag {
 	unsigned short	vlan_id;
 };
 
-/**
+/*
  * Returns NULL if the net_device does not belong to any of the bond's slaves
  *
  * Caller must hold bond lock for read

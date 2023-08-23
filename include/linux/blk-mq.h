@@ -397,8 +397,6 @@ struct blk_mq_hw_ctx {
 	 */
 	struct blk_mq_tags	*sched_tags;
 
-	/** @queued: Number of queued requests. */
-	unsigned long		queued;
 	/** @run: Number of dispatched requests. */
 	unsigned long		run;
 

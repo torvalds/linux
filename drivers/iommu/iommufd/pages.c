@@ -297,7 +297,7 @@ static void batch_clear_carry(struct pfn_batch *batch, unsigned int keep_pfns)
 	batch->pfns[0] = batch->pfns[batch->end - 1] +
 			 (batch->npfns[batch->end - 1] - keep_pfns);
 	batch->npfns[0] = keep_pfns;
-	batch->end = 0;
+	batch->end = 1;
 }
 
 static void batch_skip_carry(struct pfn_batch *batch, unsigned int skip_pfns)

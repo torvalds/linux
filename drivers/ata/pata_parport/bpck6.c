@@ -459,5 +459,6 @@ static struct pi_protocol bpck6 = {
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Micro Solutions Inc.");
-MODULE_DESCRIPTION("BACKPACK Protocol module, compatible with PARIDE");
+MODULE_DESCRIPTION("Micro Solutions BACKPACK parallel port IDE adapter "
+		   "(version 6 drives) protocol driver");
 module_pata_parport_driver(bpck6);
