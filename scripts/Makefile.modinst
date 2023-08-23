@@ -11,6 +11,33 @@ include $(srctree)/scripts/Kbuild.include
 
 install-y :=
 
+ifeq ($(KBUILD_EXTMOD)$(modules_sign_only),)
+
+# remove the old directory and symlink
+$(shell rm -fr $(MODLIB)/kernel $(MODLIB)/build)
+
+install-$(CONFIG_MODULES) += $(addprefix $(MODLIB)/, build modules.order)
+
+$(MODLIB)/build: FORCE
+	$(call cmd,symlink)
+
+quiet_cmd_symlink = SYMLINK $@
+      cmd_symlink = ln -s $(CURDIR) $@
+
+$(MODLIB)/modules.order: modules.order FORCE
+	$(call cmd,install_modorder)
+
+quiet_cmd_install_modorder = INSTALL $@
+      cmd_install_modorder = sed 's:^\(.*\)\.o$$:kernel/\1.ko:' $< > $@
+
+# Install modules.builtin(.modinfo) even when CONFIG_MODULES is disabled.
+install-y += $(addprefix $(MODLIB)/, modules.builtin modules.builtin.modinfo)
+
+$(addprefix $(MODLIB)/, modules.builtin modules.builtin.modinfo): $(MODLIB)/%: % FORCE
+	$(call cmd,install)
+
+endif
+
 modules := $(call read-file, $(MODORDER))
 
 ifeq ($(KBUILD_EXTMOD),)
@@ -31,7 +58,7 @@ suffix-$(CONFIG_MODULE_COMPRESS_ZSTD)	:= .zst
 modules := $(patsubst $(extmod_prefix)%.o, $(dst)/%.ko$(suffix-y), $(modules))
 install-$(CONFIG_MODULES) += $(modules)
 
-__modinst: $(modules)
+__modinst: $(install-y)
 	@:
 
 #
@@ -92,14 +119,16 @@ $(dst)/%.ko: $(extmod_prefix)%.ko FORCE
 	$(call cmd,strip)
 	$(call cmd,sign)
 
+ifdef CONFIG_MODULES
 __modinst: depmod
 
 PHONY += depmod
-depmod: $(modules)
+depmod: $(install-y)
 	$(call cmd,depmod)
 
 quiet_cmd_depmod = DEPMOD  $(MODLIB)
       cmd_depmod = $(srctree)/scripts/depmod.sh $(KERNELRELEASE)
+endif
 
 else
 

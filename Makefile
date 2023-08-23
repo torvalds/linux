@@ -1477,24 +1477,6 @@ endif
 
 endif # CONFIG_MODULES
 
-modinst_pre :=
-ifneq ($(filter modules_install,$(MAKECMDGOALS)),)
-modinst_pre := __modinst_pre
-endif
-
-modules_install: $(modinst_pre)
-PHONY += __modinst_pre
-__modinst_pre:
-	@rm -rf $(MODLIB)/kernel
-	@rm -f $(MODLIB)/build
-	@mkdir -p $(MODLIB)
-ifdef CONFIG_MODULES
-	@ln -s $(CURDIR) $(MODLIB)/build
-	@sed 's:^\(.*\)\.o$$:kernel/\1.ko:' modules.order > $(MODLIB)/modules.order
-endif
-	@cp -f modules.builtin $(MODLIB)/
-	@cp -f $(objtree)/modules.builtin.modinfo $(MODLIB)/
-
 ###
 # Cleaning is done on three levels.
 # make clean     Delete most generated files
@@ -1836,12 +1818,15 @@ help:
 	@echo  '  clean           - remove generated files in module directory only'
 	@echo  ''
 
+ifndef CONFIG_MODULES
+modules modules_install: __external_modules_error
 __external_modules_error:
 	@echo >&2 '***'
 	@echo >&2 '*** The present kernel disabled CONFIG_MODULES.'
 	@echo >&2 '*** You cannot build or install external modules.'
 	@echo >&2 '***'
 	@false
+endif
 
 endif # KBUILD_EXTMOD
 
@@ -1849,6 +1834,9 @@ endif # KBUILD_EXTMOD
 # Modules
 
 PHONY += modules modules_install modules_prepare
+
+modules_install:
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modinst
 
 ifdef CONFIG_MODULES
 
@@ -1866,17 +1854,9 @@ PHONY += modules_check
 modules_check: $(MODORDER)
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/modules-check.sh $<
 
-modules_install:
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modinst
-
 else # CONFIG_MODULES
 
-# Modules not configured
-# ---------------------------------------------------------------------------
-
-PHONY += __external_modules_error
-
-modules modules_install: __external_modules_error
+modules:
 	@:
 
 KBUILD_MODULES :=
