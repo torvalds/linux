@@ -215,6 +215,22 @@
 				status = "disabled";
 			};
 
+			saradc: adc@2c00 {
+				compatible = "amlogic,meson-g12a-saradc",
+					"amlogic,meson-saradc";
+				reg = <0x0 0x2c00 0x0 0x48>;
+				#io-channel-cells = <1>;
+				power-domains = <&pwrc PWRC_I2C_ID>;
+				interrupts = <GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&xtal>,
+					<&clkc_periphs CLKID_SARADC_EN>,
+					<&clkc_periphs CLKID_SARADC>,
+					<&clkc_periphs CLKID_SARADC_SEL>;
+				clock-names = "clkin", "core",
+					"adc_clk", "adc_sel";
+				status = "disabled";
+			};
+
 			usb2_phy1: phy@4000 {
 				compatible = "amlogic,a1-usb2-phy";
 				clocks = <&clkc_periphs CLKID_USB_PHY_IN>;
