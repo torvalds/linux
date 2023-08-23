@@ -1698,10 +1698,13 @@ struct ext4_sb_info {
 	const char *s_last_error_func;
 	time64_t s_last_error_time;
 	/*
-	 * If we are in a context where we cannot update error information in
-	 * the on-disk superblock, we queue this work to do it.
+	 * If we are in a context where we cannot update the on-disk
+	 * superblock, we queue the work here.  This is used to update
+	 * the error information in the superblock, and for periodic
+	 * updates of the superblock called from the commit callback
+	 * function.
 	 */
-	struct work_struct s_error_work;
+	struct work_struct s_sb_upd_work;
 
 	/* Ext4 fast commit sub transaction ID */
 	atomic_t s_fc_subtid;
