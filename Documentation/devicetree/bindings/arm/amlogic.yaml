@@ -203,6 +203,7 @@ properties:
         items:
           - enum:
               - amlogic,ad401
+              - amlogic,ad402
           - const: amlogic,a1
 
       - description: Boards with the Amlogic C3 C302X/C308L SoC
