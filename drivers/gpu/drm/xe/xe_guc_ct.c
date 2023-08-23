@@ -1180,7 +1180,7 @@ static void guc_ctb_snapshot_print(struct guc_ctb_snapshot *snapshot,
 	u32 head, tail;
 
 	drm_printf(p, "\tsize: %d\n", snapshot->info.size);
-	drm_printf(p, "\tresv_space: %d\n", snapshot->info.space);
+	drm_printf(p, "\tresv_space: %d\n", snapshot->info.resv_space);
 	drm_printf(p, "\thead: %d\n", snapshot->info.head);
 	drm_printf(p, "\ttail: %d\n", snapshot->info.tail);
 	drm_printf(p, "\tspace: %d\n", snapshot->info.space);
