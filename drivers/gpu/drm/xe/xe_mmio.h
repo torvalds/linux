@@ -75,17 +75,6 @@ static inline u32 xe_mmio_rmw32(struct xe_gt *gt, struct xe_reg reg, u32 clr,
 	return old;
 }
 
-static inline void xe_mmio_write64(struct xe_gt *gt,
-				   struct xe_reg reg, u64 val)
-{
-	struct xe_tile *tile = gt_to_tile(gt);
-
-	if (reg.addr < gt->mmio.adj_limit)
-		reg.addr += gt->mmio.adj_offset;
-
-	writeq(val, tile->mmio.regs + reg.addr);
-}
-
 static inline int xe_mmio_write32_and_verify(struct xe_gt *gt,
 					     struct xe_reg reg, u32 val,
 					     u32 mask, u32 eval)

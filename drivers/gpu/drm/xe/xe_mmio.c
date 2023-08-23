@@ -490,9 +490,6 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 			}
 			xe_mmio_write32(gt, reg, args->value);
 			break;
-		case DRM_XE_MMIO_64BIT:
-			xe_mmio_write64(gt, reg, args->value);
-			break;
 		default:
 			drm_dbg(&xe->drm, "Invalid MMIO bit size");
 			fallthrough;
