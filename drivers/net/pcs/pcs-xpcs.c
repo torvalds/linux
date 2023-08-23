@@ -238,6 +238,29 @@ static int xpcs_write_vpcs(struct dw_xpcs *xpcs, int reg, u16 val)
 	return xpcs_write_vendor(xpcs, MDIO_MMD_PCS, reg, val);
 }
 
+static int xpcs_dev_flag(struct dw_xpcs *xpcs)
+{
+	int ret, oui;
+
+	ret = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_DEVID1);
+	if (ret < 0)
+		return ret;
+
+	oui = ret;
+
+	ret = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_DEVID2);
+	if (ret < 0)
+		return ret;
+
+	ret = (ret >> 10) & 0x3F;
+	oui |= ret << 16;
+
+	if (oui == DW_OUI_WX)
+		xpcs->dev_flag = DW_DEV_TXGBE;
+
+	return 0;
+}
+
 static int xpcs_poll_reset(struct dw_xpcs *xpcs, int dev)
 {
 	/* Poll until the reset bit clears (50ms per retry == 0.6 sec) */
@@ -1284,6 +1307,10 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 			goto out;
 		}
 
+		ret = xpcs_dev_flag(xpcs);
+		if (ret)
+			goto out;
+
 		xpcs->pcs.ops = &xpcs_phylink_ops;
 		xpcs->pcs.neg_mode = true;
 		if (compat->an_mode == DW_10GBASER)
@@ -1291,9 +1318,11 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 
 		xpcs->pcs.poll = true;
 
-		ret = xpcs_soft_reset(xpcs, compat);
-		if (ret)
-			goto out;
+		if (xpcs->dev_flag != DW_DEV_TXGBE) {
+			ret = xpcs_soft_reset(xpcs, compat);
+			if (ret)
+				goto out;
+		}
 
 		return xpcs;
 	}
