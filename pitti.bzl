@@ -10,6 +10,7 @@ def define_pitti():
         # TODO: Need to add GKI modules
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
+        "drivers/clk/qcom/gcc-pitti.ko",
         "drivers/clk/qcom/gdsc-regulator.ko",
         "drivers/cpuidle/governors/qcom_lpm.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
