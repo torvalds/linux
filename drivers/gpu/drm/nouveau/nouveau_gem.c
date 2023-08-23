@@ -856,9 +856,11 @@ revalidate:
 		for (i = 0; i < req->nr_push; i++) {
 			struct nouveau_vma *vma = (void *)(unsigned long)
 				bo[push[i].bo_index].user_priv;
+			u64 addr = vma->addr + push[i].offset;
+			u32 length = push[i].length & ~NOUVEAU_GEM_PUSHBUF_NO_PREFETCH;
+			bool no_prefetch = push[i].length & NOUVEAU_GEM_PUSHBUF_NO_PREFETCH;
 
-			nv50_dma_push(chan, vma->addr + push[i].offset,
-				      push[i].length);
+			nv50_dma_push(chan, addr, length, no_prefetch);
 		}
 	} else
 	if (drm->client.device.info.chipset >= 0x25) {
