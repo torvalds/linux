@@ -2597,7 +2597,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			hdmi_modb(hdmi, PKTSCHED_GCP_TX_EN, PKTSCHED_GCP_TX_EN, PKTSCHED_PKT_EN);
 			mdelay(50);
 		} else if (!hdmi->disabled) {
-			if (mode.clock > 600000)
+			if (hdmi->previous_mode.clock > 600000 && mode.clock > 600000)
 				hdmi->frl_switch = true;
 			hdmi->update = false;
 			crtc_state->mode_changed = true;
