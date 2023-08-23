@@ -1756,17 +1756,19 @@ int perf_pmu__event_source_devices_fd(void)
  * then pathname will be filled with
  * "/sys/bus/event_source/devices/cs_etm/format"
  *
- * Return 0 if the sysfs mountpoint couldn't be found or if no
- * characters were written.
+ * Return 0 if the sysfs mountpoint couldn't be found, if no characters were
+ * written or if the buffer size is exceeded.
  */
 int perf_pmu__pathname_scnprintf(char *buf, size_t size,
 				 const char *pmu_name, const char *filename)
 {
-	char base_path[PATH_MAX];
+	size_t len;
 
-	if (!perf_pmu__event_source_devices_scnprintf(base_path, sizeof(base_path)))
+	len = perf_pmu__event_source_devices_scnprintf(buf, size);
+	if (!len || (len + strlen(pmu_name) + strlen(filename) + 1)  >= size)
 		return 0;
-	return scnprintf(buf, size, "%s%s/%s", base_path, pmu_name, filename);
+
+	return scnprintf(buf + len, size - len, "%s/%s", pmu_name, filename);
 }
 
 int perf_pmu__pathname_fd(int dirfd, const char *pmu_name, const char *filename, int flags)
