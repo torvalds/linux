@@ -37,6 +37,7 @@
 #include "link_hwss.h"
 #include "dc/dc_dmub_srv.h"
 #include "link/protocols/link_dp_capability.h"
+#include "inc/hw/dchubbub.h"
 
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 #include "amdgpu_dm_psr.h"
@@ -3642,10 +3643,16 @@ DEFINE_DEBUGFS_ATTRIBUTE(disable_hpd_ops, disable_hpd_get,
 static int capabilities_show(struct seq_file *m, void *unused)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
-	struct dc_caps caps = adev->dm.dc->caps;
-	bool mall_supported = caps.mall_size_total;
+	struct dc *dc = adev->dm.dc;
+	bool mall_supported = dc->caps.mall_size_total;
+	unsigned int mall_in_use = false;
+	struct hubbub *hubbub = dc->res_pool->hubbub;
 
-	seq_printf(m, "mall: %s\n", mall_supported ? "yes" : "no");
+	if (hubbub->funcs->get_mall_en)
+		hubbub->funcs->get_mall_en(hubbub, &mall_in_use);
+
+	seq_printf(m, "mall supported: %s, enabled: %s\n",
+			   mall_supported ? "yes" : "no", mall_in_use ? "yes" : "no");
 
 	return 0;
 }
