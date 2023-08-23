@@ -663,6 +663,9 @@ static int txgbe_probe(struct pci_dev *pdev,
 			 "0x%08x", etrack_id);
 	}
 
+	if (etrack_id < 0x20010)
+		dev_warn(&pdev->dev, "Please upgrade the firmware to 0x20010 or above.\n");
+
 	txgbe = devm_kzalloc(&pdev->dev, sizeof(*txgbe), GFP_KERNEL);
 	if (!txgbe) {
 		err = -ENOMEM;
