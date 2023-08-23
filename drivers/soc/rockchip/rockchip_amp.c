@@ -14,6 +14,7 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/rockchip/rockchip_sip.h>
+#include <soc/rockchip/rockchip_amp.h>
 
 #define RK_CPU_STATUS_OFF		0
 #define RK_CPU_STATUS_ON		1
