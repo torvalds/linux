@@ -751,14 +751,10 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_unbounded_requesting = false,
 	.disable_mem_low_power = true,
 	.enable_hpo_pg_support = false,
-
 	//must match enable_single_display_2to1_odm_policy to support dynamic ODM transitions
 	.enable_double_buffered_dsc_pg_support = false,
 	.enable_dp_dig_pixel_rate_div_policy = 1,
-	.disable_stutter = true,
-	.disable_idle_power_optimizations = true,
 	.disable_z10 = false,
-	.disable_mem_low_power = true,
 	.ignore_pg = true,
 	.psp_disabled_wa = true,
 	.disable_ips = true,
