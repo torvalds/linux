@@ -1134,7 +1134,7 @@ void security_bprm_committing_creds(const struct linux_binprm *bprm)
  * process such as clearing out non-inheritable signal state.  This is called
  * immediately after commit_creds().
  */
-void security_bprm_committed_creds(struct linux_binprm *bprm)
+void security_bprm_committed_creds(const struct linux_binprm *bprm)
 {
 	call_void_hook(bprm_committed_creds, bprm);
 }

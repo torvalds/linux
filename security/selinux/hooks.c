@@ -2501,7 +2501,7 @@ static void selinux_bprm_committing_creds(const struct linux_binprm *bprm)
  * Clean up the process immediately after the installation of new credentials
  * due to exec
  */
-static void selinux_bprm_committed_creds(struct linux_binprm *bprm)
+static void selinux_bprm_committed_creds(const struct linux_binprm *bprm)
 {
 	const struct task_security_struct *tsec = selinux_cred(current_cred());
 	u32 osid, sid;

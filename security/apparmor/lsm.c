@@ -756,7 +756,7 @@ static void apparmor_bprm_committing_creds(const struct linux_binprm *bprm)
  * apparmor_bprm_committed_creds() - do cleanup after new creds committed
  * @bprm: binprm for the exec  (NOT NULL)
  */
-static void apparmor_bprm_committed_creds(struct linux_binprm *bprm)
+static void apparmor_bprm_committed_creds(const struct linux_binprm *bprm)
 {
 	/* clear out temporary/transitional state from the context */
 	aa_clear_task_ctx_trans(task_ctx(current));
