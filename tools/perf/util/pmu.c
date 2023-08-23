@@ -1135,8 +1135,7 @@ error:
  * Setup one of config[12] attr members based on the
  * user input data - term parameter.
  */
-static int pmu_config_term(const char *pmu_name,
-			   struct list_head *formats,
+static int pmu_config_term(struct perf_pmu *pmu,
 			   struct perf_event_attr *attr,
 			   struct parse_events_term *term,
 			   struct list_head *head_terms,
@@ -1160,15 +1159,15 @@ static int pmu_config_term(const char *pmu_name,
 	if (parse_events__is_hardcoded_term(term))
 		return 0;
 
-	format = pmu_find_format(formats, term->config);
+	format = pmu_find_format(&pmu->format, term->config);
 	if (!format) {
-		char *pmu_term = pmu_formats_string(formats);
+		char *pmu_term = pmu_formats_string(&pmu->format);
 		char *unknown_term;
 		char *help_msg;
 
 		if (asprintf(&unknown_term,
 				"unknown term '%s' for pmu '%s'",
-				term->config, pmu_name) < 0)
+				term->config, pmu->name) < 0)
 			unknown_term = NULL;
 		help_msg = parse_events_formats_error_string(pmu_term);
 		if (err) {
@@ -1259,7 +1258,7 @@ static int pmu_config_term(const char *pmu_name,
 	return 0;
 }
 
-int perf_pmu__config_terms(const char *pmu_name, struct list_head *formats,
+int perf_pmu__config_terms(struct perf_pmu *pmu,
 			   struct perf_event_attr *attr,
 			   struct list_head *head_terms,
 			   bool zero, struct parse_events_error *err)
@@ -1267,8 +1266,7 @@ int perf_pmu__config_terms(const char *pmu_name, struct list_head *formats,
 	struct parse_events_term *term;
 
 	list_for_each_entry(term, head_terms, list) {
-		if (pmu_config_term(pmu_name, formats, attr, term, head_terms,
-				    zero, err))
+		if (pmu_config_term(pmu, attr, term, head_terms, zero, err))
 			return -EINVAL;
 	}
 
@@ -1286,8 +1284,7 @@ int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 {
 	bool zero = !!pmu->default_config;
 
-	return perf_pmu__config_terms(pmu->name, &pmu->format, attr,
-				      head_terms, zero, err);
+	return perf_pmu__config_terms(pmu, attr, head_terms, zero, err);
 }
 
 static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
@@ -1417,7 +1414,7 @@ int perf_pmu__new_format(struct list_head *list, char *name,
 	return 0;
 }
 
-void perf_pmu__del_formats(struct list_head *formats)
+static void perf_pmu__del_formats(struct list_head *formats)
 {
 	struct perf_pmu_format *fmt, *tmp;
 

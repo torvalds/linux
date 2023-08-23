@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <linux/kernel.h>
 #include <linux/limits.h>
+#include <linux/zalloc.h>
 
 /* Simulated format definitions. */
 static struct test_format {
@@ -141,48 +142,55 @@ static struct list_head *test_terms_list(void)
 static int test__pmu(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	char dir[PATH_MAX];
-	char *format = test_format_dir_get(dir, sizeof(dir));
-	LIST_HEAD(formats);
+	char *format;
 	struct list_head *terms = test_terms_list();
+	struct perf_event_attr attr;
+	struct perf_pmu *pmu;
+	int fd;
 	int ret;
 
-	if (!format)
+	pmu = zalloc(sizeof(*pmu));
+	if (!pmu)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&pmu->format);
+	INIT_LIST_HEAD(&pmu->aliases);
+	INIT_LIST_HEAD(&pmu->caps);
+	format = test_format_dir_get(dir, sizeof(dir));
+	if (!format) {
+		free(pmu);
 		return -EINVAL;
+	}
 
-	do {
-		struct perf_event_attr attr;
-		int fd;
+	memset(&attr, 0, sizeof(attr));
 
-		memset(&attr, 0, sizeof(attr));
+	fd = open(format, O_DIRECTORY);
+	if (fd < 0) {
+		ret = fd;
+		goto out;
+	}
 
-		fd = open(format, O_DIRECTORY);
-		if (fd < 0) {
-			ret = fd;
-			break;
-		}
-		ret = perf_pmu__format_parse(fd, &formats);
-		if (ret)
-			break;
+	pmu->name = strdup("perf-pmu-test");
+	ret = perf_pmu__format_parse(fd, &pmu->format);
+	if (ret)
+		goto out;
 
-		ret = perf_pmu__config_terms("perf-pmu-test", &formats, &attr,
-					     terms, false, NULL);
-		if (ret)
-			break;
+	ret = perf_pmu__config_terms(pmu, &attr, terms, /*zero=*/false, /*err=*/NULL);
+	if (ret)
+		goto out;
 
-		ret = -EINVAL;
+	ret = -EINVAL;
+	if (attr.config  != 0xc00000000002a823)
+		goto out;
+	if (attr.config1 != 0x8000400000000145)
+		goto out;
+	if (attr.config2 != 0x0400000020041d07)
+		goto out;
 
-		if (attr.config  != 0xc00000000002a823)
-			break;
-		if (attr.config1 != 0x8000400000000145)
-			break;
-		if (attr.config2 != 0x0400000020041d07)
-			break;
-
-		ret = 0;
-	} while (0);
-
-	perf_pmu__del_formats(&formats);
+	ret = 0;
+out:
 	test_format_dir_put(format);
+	perf_pmu__delete(pmu);
 	return ret;
 }
 

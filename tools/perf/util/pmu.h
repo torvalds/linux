@@ -217,7 +217,7 @@ void pmu_add_sys_aliases(struct list_head *head, struct perf_pmu *pmu);
 int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 		     struct list_head *head_terms,
 		     struct parse_events_error *error);
-int perf_pmu__config_terms(const char *pmu_name, struct list_head *formats,
+int perf_pmu__config_terms(struct perf_pmu *pmu,
 			   struct perf_event_attr *attr,
 			   struct list_head *head_terms,
 			   bool zero, struct parse_events_error *error);
@@ -231,7 +231,6 @@ struct list_head *perf_pmu__alias(struct perf_pmu *pmu,
 int perf_pmu__new_format(struct list_head *list, char *name,
 			 int config, unsigned long *bits);
 int perf_pmu__format_parse(int dirfd, struct list_head *head);
-void perf_pmu__del_formats(struct list_head *formats);
 bool perf_pmu__has_format(const struct perf_pmu *pmu, const char *name);
 
 bool is_pmu_core(const char *name);
