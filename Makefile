@@ -1486,14 +1486,10 @@ modules_install: $(modinst_pre)
 PHONY += __modinst_pre
 __modinst_pre:
 	@rm -rf $(MODLIB)/kernel
-	@rm -f $(MODLIB)/source
+	@rm -f $(MODLIB)/build
 	@mkdir -p $(MODLIB)
 ifdef CONFIG_MODULES
-	@ln -s $(abspath $(srctree)) $(MODLIB)/source
-	@if [ ! $(objtree) -ef  $(MODLIB)/build ]; then \
-		rm -f $(MODLIB)/build ; \
-		ln -s $(CURDIR) $(MODLIB)/build ; \
-	fi
+	@ln -s $(CURDIR) $(MODLIB)/build
 	@sed 's:^\(.*\)\.o$$:kernel/\1.ko:' modules.order > $(MODLIB)/modules.order
 endif
 	@cp -f modules.builtin $(MODLIB)/
