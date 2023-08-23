@@ -4175,6 +4175,8 @@ static const char *gaudi2_irq_name(u16 irq_number)
 		return "gaudi2 unexpected error";
 	case GAUDI2_IRQ_NUM_USER_FIRST ... GAUDI2_IRQ_NUM_USER_LAST:
 		return "gaudi2 user completion";
+	case GAUDI2_IRQ_NUM_EQ_ERROR:
+		return "gaudi2 eq error";
 	default:
 		return "invalid";
 	}
@@ -4317,6 +4319,15 @@ static int gaudi2_enable_msix(struct hl_device *hdev)
 		}
 	}
 
+	irq = pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_EQ_ERROR);
+	rc = request_threaded_irq(irq, NULL, hl_irq_eq_error_interrupt_thread_handler,
+					IRQF_ONESHOT, gaudi2_irq_name(GAUDI2_IRQ_NUM_EQ_ERROR),
+					hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to request IRQ %d", irq);
+		goto free_user_irq;
+	}
+
 	gaudi2->hw_cap_initialized |= HW_CAP_MSIX;
 
 	return 0;
@@ -4376,6 +4387,7 @@ static void gaudi2_sync_irqs(struct hl_device *hdev)
 	}
 
 	synchronize_irq(pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_EVENT_QUEUE));
+	synchronize_irq(pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_EQ_ERROR));
 }
 
 static void gaudi2_disable_msix(struct hl_device *hdev)
@@ -4411,6 +4423,9 @@ static void gaudi2_disable_msix(struct hl_device *hdev)
 	irq = pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_COMPLETION);
 	cq = &hdev->completion_queue[GAUDI2_RESERVED_CQ_CS_COMPLETION];
 	free_irq(irq, cq);
+
+	irq = pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_EQ_ERROR);
+	free_irq(irq, hdev);
 
 	pci_free_irq_vectors(hdev->pdev);
 
@@ -11345,6 +11360,7 @@ static int gaudi2_ack_mmu_page_fault_or_access_error(struct hl_device *hdev, u64
 static void gaudi2_get_msi_info(__le32 *table)
 {
 	table[CPUCP_EVENT_QUEUE_MSI_TYPE] = cpu_to_le32(GAUDI2_EVENT_QUEUE_MSIX_IDX);
+	table[CPUCP_EVENT_QUEUE_ERR_MSI_TYPE] = cpu_to_le32(GAUDI2_IRQ_NUM_EQ_ERROR);
 }
 
 static int gaudi2_map_pll_idx_to_fw_idx(u32 pll_idx)

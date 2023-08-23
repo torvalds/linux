@@ -401,6 +401,18 @@ irqreturn_t hl_irq_user_interrupt_thread_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+irqreturn_t hl_irq_eq_error_interrupt_thread_handler(int irq, void *arg)
+{
+	u64 event_mask = HL_NOTIFIER_EVENT_DEVICE_RESET | HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE;
+	struct hl_device *hdev = arg;
+
+	dev_err(hdev->dev, "EQ error interrupt received\n");
+
+	hl_device_cond_reset(hdev, HL_DRV_RESET_HARD, event_mask);
+
+	return IRQ_HANDLED;
+}
+
 /**
  * hl_irq_handler_eq - irq handler for event queue
  *
