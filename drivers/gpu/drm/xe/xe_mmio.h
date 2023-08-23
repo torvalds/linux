@@ -11,6 +11,7 @@
 
 #include "regs/xe_reg_defs.h"
 #include "xe_device_types.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_types.h"
 
 struct drm_device;
@@ -85,16 +86,6 @@ static inline void xe_mmio_write64(struct xe_gt *gt,
 	writeq(val, tile->mmio.regs + reg.addr);
 }
 
-static inline u64 xe_mmio_read64(struct xe_gt *gt, struct xe_reg reg)
-{
-	struct xe_tile *tile = gt_to_tile(gt);
-
-	if (reg.addr < gt->mmio.adj_limit)
-		reg.addr += gt->mmio.adj_offset;
-
-	return readq(tile->mmio.regs + reg.addr);
-}
-
 static inline int xe_mmio_write32_and_verify(struct xe_gt *gt,
 					     struct xe_reg reg, u32 val,
 					     u32 mask, u32 eval)
@@ -155,5 +146,6 @@ static inline bool xe_mmio_in_range(const struct xe_mmio_range *range,
 
 int xe_mmio_probe_vram(struct xe_device *xe);
 int xe_mmio_tile_vram_size(struct xe_tile *tile, u64 *vram_size, u64 *tile_size, u64 *tile_base);
+u64 xe_mmio_read64_2x32(struct xe_gt *gt, struct xe_reg reg);
 
 #endif

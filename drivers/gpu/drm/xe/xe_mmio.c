@@ -228,7 +228,7 @@ int xe_mmio_tile_vram_size(struct xe_tile *tile, u64 *vram_size, u64 *tile_size,
 		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
 		offset = (u64)REG_FIELD_GET(GENMASK(31, 8), reg) * SZ_64K;
 	} else {
-		offset = xe_mmio_read64(gt, GSMBASE);
+		offset = xe_mmio_read64_2x32(gt, GSMBASE);
 	}
 
 	/* remove the tile offset so we have just the available size */
@@ -326,7 +326,7 @@ static void xe_mmio_probe_tiles(struct xe_device *xe)
 	if (xe->info.tile_count == 1)
 		return;
 
-	mtcfg = xe_mmio_read64(gt, XEHP_MTCFG_ADDR);
+	mtcfg = xe_mmio_read64_2x32(gt, XEHP_MTCFG_ADDR);
 	adj_tile_count = xe->info.tile_count =
 		REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
 
@@ -509,7 +509,7 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 			args->value = xe_mmio_read32(gt, reg);
 			break;
 		case DRM_XE_MMIO_64BIT:
-			args->value = xe_mmio_read64(gt, reg);
+			args->value = xe_mmio_read64_2x32(gt, reg);
 			break;
 		default:
 			drm_dbg(&xe->drm, "Invalid MMIO bit size");
@@ -526,3 +526,53 @@ exit:
 
 	return ret;
 }
+
+/**
+ * xe_mmio_read64_2x32() - Read a 64-bit register as two 32-bit reads
+ * @gt: MMIO target GT
+ * @reg: register to read value from
+ *
+ * Although Intel GPUs have some 64-bit registers, the hardware officially
+ * only supports GTTMMADR register reads of 32 bits or smaller.  Even if
+ * a readq operation may return a reasonable value, that violation of the
+ * spec shouldn't be relied upon and all 64-bit register reads should be
+ * performed as two 32-bit reads of the upper and lower dwords.
+ *
+ * When reading registers that may be changing (such as
+ * counters), a rollover of the lower dword between the two 32-bit reads
+ * can be problematic.  This function attempts to ensure the upper dword has
+ * stabilized before returning the 64-bit value.
+ *
+ * Note that because this function may re-read the register multiple times
+ * while waiting for the value to stabilize it should not be used to read
+ * any registers where read operations have side effects.
+ *
+ * Returns the value of the 64-bit register.
+ */
+u64 xe_mmio_read64_2x32(struct xe_gt *gt, struct xe_reg reg)
+{
+	struct xe_reg reg_udw = { .addr = reg.addr + 0x4 };
+	u32 ldw, udw, oldudw, retries;
+
+	if (reg.addr < gt->mmio.adj_limit) {
+		reg.addr += gt->mmio.adj_offset;
+		reg_udw.addr += gt->mmio.adj_offset;
+	}
+
+	oldudw = xe_mmio_read32(gt, reg_udw);
+	for (retries = 5; retries; --retries) {
+		ldw = xe_mmio_read32(gt, reg);
+		udw = xe_mmio_read32(gt, reg_udw);
+
+		if (udw == oldudw)
+			break;
+
+		oldudw = udw;
+	}
+
+	xe_gt_WARN(gt, retries == 0,
+		   "64-bit read of %#x did not stabilize\n", reg.addr);
+
+	return (u64)udw << 32 | ldw;
+}
+
