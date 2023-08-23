@@ -3881,6 +3881,7 @@ static void commit_planes_for_stream(struct dc *dc,
  */
 static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 		struct dc_stream_state *stream,
+		struct dc_surface_update *srf_updates,
 		int surface_count,
 		bool *is_plane_addition)
 {
@@ -3916,6 +3917,40 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 			} else if (surface_count > 2 && cur_stream_status->plane_count < surface_count) {
 				force_minimal_pipe_splitting = true;
 				*is_plane_addition = true;
+			}
+		}
+		if (dc->config.enable_windowed_mpo_odm) {
+			const struct rect *guaranteed_viewport = &stream->src;
+			const struct rect *surface_src, *surface_dst;
+			bool are_cur_planes_guaranteed = true;
+			bool are_new_planes_guaranteed = true;
+
+			for (i = 0; i < cur_stream_status->plane_count; i++) {
+				surface_src = &cur_stream_status->plane_states[i]->src_rect;
+				surface_dst = &cur_stream_status->plane_states[i]->dst_rect;
+				if ((surface_src->height > surface_dst->height && surface_src->height > guaranteed_viewport->height) ||
+						(surface_src->width > surface_dst->width && surface_src->width > guaranteed_viewport->width))
+					are_cur_planes_guaranteed = false;
+			}
+
+			for (i = 0; i < surface_count; i++) {
+				if (srf_updates[i].scaling_info) {
+					surface_src = &srf_updates[i].scaling_info->src_rect;
+					surface_dst = &srf_updates[i].scaling_info->dst_rect;
+				} else {
+					surface_src = &srf_updates[i].surface->src_rect;
+					surface_dst = &srf_updates[i].surface->dst_rect;
+				}
+				if ((surface_src->height > surface_dst->height && surface_src->height > guaranteed_viewport->height) ||
+						(surface_src->width > surface_dst->width && surface_src->width > guaranteed_viewport->width))
+					are_new_planes_guaranteed = false;
+			}
+
+			if (are_cur_planes_guaranteed && !are_new_planes_guaranteed) {
+				force_minimal_pipe_splitting = true;
+				*is_plane_addition = true;
+			} else if (!are_cur_planes_guaranteed && are_new_planes_guaranteed) {
+				force_minimal_pipe_splitting = true;
 			}
 		}
 	}
@@ -4270,6 +4305,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	force_minimal_pipe_splitting = could_mpcc_tree_change_for_active_pipes(
 			dc,
 			stream,
+			srf_updates,
 			surface_count,
 			&is_plane_addition);
 

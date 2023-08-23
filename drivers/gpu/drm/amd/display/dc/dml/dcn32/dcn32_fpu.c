@@ -1267,6 +1267,8 @@ static bool should_allow_odm_power_optimization(struct dc *dc,
 {
 	struct dc_stream_state *stream = context->streams[0];
 	struct pipe_slice_table slice_table;
+	struct dc_plane_state *plane;
+	struct rect guaranteed_viewport;
 	int i;
 
 	/*
@@ -1331,6 +1333,31 @@ static bool should_allow_odm_power_optimization(struct dc *dc,
 		for (i = 0; i < slice_table.odm_combine_count; i++)
 			if (slice_table.odm_combines[i].slice_count > 1)
 				return false;
+
+		/* up to here we know that a plane with viewport equal to stream
+		 * src can be validated with single DPP pipe. Therefore any
+		 * planes with smaller or equal viewport is guaranteed to work
+		 * regardless of its position and scaling ratio. Also we know
+		 * any plane without downscale ratio greater than 1 should also
+		 * work. Up until DCN3x we still have software limitation that
+		 * doesn't implement a smooth transition between ODM combine and
+		 * MPC combine during plane resizing when we are crossing ODM
+		 * capability boundary. So we are adding this guaranteed
+		 * viewport condition to limit ODM power optimization support
+		 * for only the planes within the guaranteed viewport size. Such
+		 * planes can be supported with ODM power optimization without
+		 * ever the need to transition to MPC combine in any scaling
+		 * ratios and positions. Therefore we cover the software
+		 * limitation of this transition sequence.
+		 */
+		guaranteed_viewport = stream->src;
+		for (i = 0; i < context->stream_status[0].plane_count; i++) {
+			plane = context->stream_status[0].plane_states[i];
+
+			if ((plane->src_rect.height > plane->dst_rect.height && plane->src_rect.height > guaranteed_viewport.height) ||
+					(plane->src_rect.width > plane->dst_rect.width && plane->src_rect.width > guaranteed_viewport.width))
+				return false;
+		}
 	} else {
 		/*
 		 * the new ODM power optimization feature reduces software
