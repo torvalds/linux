@@ -2794,26 +2794,26 @@ static ssize_t amdgpu_hwmon_show_power_avg(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	int val;
+	ssize_t val;
 
 	val = amdgpu_hwmon_get_power(dev, AMDGPU_PP_SENSOR_GPU_AVG_POWER);
 	if (val < 0)
 		return val;
 
-	return sysfs_emit(buf, "%u\n", val);
+	return sysfs_emit(buf, "%zd\n", val);
 }
 
 static ssize_t amdgpu_hwmon_show_power_input(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
 {
-	int val;
+	ssize_t val;
 
 	val = amdgpu_hwmon_get_power(dev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER);
 	if (val < 0)
 		return val;
 
-	return sysfs_emit(buf, "%u\n", val);
+	return sysfs_emit(buf, "%zd\n", val);
 }
 
 static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
