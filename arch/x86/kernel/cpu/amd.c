@@ -1282,6 +1282,25 @@ void set_dr_addr_mask(unsigned long mask, int dr)
 	}
 }
 
+bool cpu_has_ibpb_brtype_microcode(void)
+{
+	switch (boot_cpu_data.x86) {
+	/* Zen1/2 IBPB flushes branch type predictions too. */
+	case 0x17:
+		return boot_cpu_has(X86_FEATURE_AMD_IBPB);
+	case 0x19:
+		/* Poke the MSR bit on Zen3/4 to check its presence. */
+		if (!wrmsrl_safe(MSR_IA32_PRED_CMD, PRED_CMD_SBPB)) {
+			setup_force_cpu_cap(X86_FEATURE_SBPB);
+			return true;
+		} else {
+			return false;
+		}
+	default:
+		return false;
+	}
+}
+
 static void zenbleed_check_cpu(void *unused)
 {
 	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
