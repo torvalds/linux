@@ -67,12 +67,14 @@
 
 /* VR_MII_DIG_CTRL1 */
 #define DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW		BIT(9)
+#define DW_VR_MII_DIG_CTRL1_PHY_MODE_CTRL	BIT(0)
 
 /* VR_MII_DIG_CTRL2 */
 #define DW_VR_MII_DIG_CTRL2_TX_POL_INV		BIT(4)
 #define DW_VR_MII_DIG_CTRL2_RX_POL_INV		BIT(0)
 
 /* VR_MII_AN_CTRL */
+#define DW_VR_MII_AN_CTRL_8BIT			BIT(8)
 #define DW_VR_MII_AN_CTRL_TX_CONFIG_SHIFT	3
 #define DW_VR_MII_TX_CONFIG_MASK		BIT(3)
 #define DW_VR_MII_TX_CONFIG_PHY_SIDE_SGMII	0x1
@@ -97,6 +99,10 @@
 #define AN_CL37_EN			BIT(12)	/* Enable Clause 37 auto-nego */
 #define SGMII_SPEED_SS13		BIT(13)	/* SGMII speed along with SS6 */
 #define SGMII_SPEED_SS6			BIT(6)	/* SGMII speed along with SS13 */
+
+/* SR MII MMD AN Advertisement defines */
+#define DW_HALF_DUPLEX			BIT(6)
+#define DW_FULL_DUPLEX			BIT(5)
 
 /* VR MII EEE Control 0 defines */
 #define DW_VR_MII_EEE_LTX_EN			BIT(0)  /* LPI Tx Enable */

@@ -162,8 +162,9 @@ static bool txgbe_xpcs_mode_quirk(struct dw_xpcs *xpcs)
 	/* When txgbe do LAN reset, PCS will change to default 10GBASE-R mode */
 	ret = xpcs_read(xpcs, MDIO_MMD_PCS, MDIO_CTRL2);
 	ret &= MDIO_PCS_CTRL2_TYPE;
-	if (ret == MDIO_PCS_CTRL2_10GBR &&
-	    xpcs->interface != PHY_INTERFACE_MODE_10GBASER)
+	if ((ret == MDIO_PCS_CTRL2_10GBR &&
+	     xpcs->interface != PHY_INTERFACE_MODE_10GBASER) ||
+	    xpcs->interface == PHY_INTERFACE_MODE_SGMII)
 		return true;
 
 	return false;
