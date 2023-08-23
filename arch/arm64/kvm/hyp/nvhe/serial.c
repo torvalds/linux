@@ -35,7 +35,8 @@ static inline void __hyp_putx4n(unsigned long x, int n)
 
 static inline bool hyp_serial_enabled(void)
 {
-	return !!READ_ONCE(__hyp_putc);
+	/* Paired with __pkvm_register_serial_driver()'s cmpxchg */
+	return !!smp_load_acquire(&__hyp_putc);
 }
 
 void hyp_puts(const char *s)
@@ -64,5 +65,10 @@ void hyp_putc(char c)
 
 int __pkvm_register_serial_driver(void (*cb)(char))
 {
-	return cmpxchg(&__hyp_putc, NULL, cb) ? -EBUSY : 0;
+	/*
+	 * Paired with smp_load_acquire(&__hyp_putc) in
+	 * hyp_serial_enabled(). Ensure memory stores hapenning during a pKVM
+	 * module init are observed before executing the callback.
+	 */
+	return cmpxchg_release(&__hyp_putc, NULL, cb) ? -EBUSY : 0;
 }

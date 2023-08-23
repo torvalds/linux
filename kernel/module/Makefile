@@ -28,7 +28,7 @@ obj-$(CONFIG_MODULE_UNLOAD_TAINT_TRACKING) += tracking.o
 $(obj)/gki_module.o: include/generated/gki_module_protected_exports.h \
 			include/generated/gki_module_unprotected.h
 
-ALL_KMI_SYMBOLS := all_kmi_symbols
+ALL_KMI_SYMBOLS := include/config/abi_gki_kmi_symbols
 
 include/generated/gki_module_unprotected.h: $(ALL_KMI_SYMBOLS) \
 				$(srctree)/scripts/gen_gki_modules_headers.sh

@@ -42,6 +42,7 @@
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
   bpf_trace_run1
+  bpf_trace_run10
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -325,6 +326,7 @@
   fd_install
   fget
   _find_first_bit
+  _find_first_zero_bit
   _find_last_bit
   _find_next_and_bit
   _find_next_bit
@@ -701,6 +703,7 @@
   ___ratelimit
   raw_notifier_call_chain
   raw_notifier_chain_register
+  raw_notifier_chain_unregister
   _raw_read_lock
   _raw_read_unlock
   _raw_spin_lock
@@ -1025,7 +1028,6 @@
   ww_mutex_unlock
 
 # required by cfg80211.ko
-  bpf_trace_run10
   csum_partial
   debugfs_rename
   __dev_change_net_namespace
@@ -1227,8 +1229,10 @@
   match_string
   memory_read_from_buffer
   migrate_swap
+  perf_event_create_kernel_counter
+  perf_event_enable
+  perf_event_read_local
   pick_highest_pushable_task
-  raw_notifier_chain_unregister
   raw_spin_rq_lock_nested
   raw_spin_rq_unlock
   _raw_write_trylock
@@ -1272,6 +1276,7 @@
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_wakeup_ilocked
+  __traceiter_android_vh_jiffies_update
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_syscall_prctl_finished
   __traceiter_binder_transaction_received
@@ -1302,6 +1307,7 @@
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_wakeup_ilocked
+  __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_syscall_prctl_finished
   __tracepoint_binder_transaction_received
@@ -2048,6 +2054,9 @@
 
 # required by scsc_wlan.ko
   arp_tbl
+  __cpuhp_remove_state
+  __cpuhp_state_add_instance
+  __cpuhp_state_remove_instance
   dev_addr_mod
   dev_alloc_name
   __dev_queue_xmit
@@ -2056,6 +2065,7 @@
   dql_reset
   dst_release
   ether_setup
+  __find_nth_bit
   for_each_kernel_tracepoint
   in4_pton
   in6_pton
@@ -2200,7 +2210,6 @@
   drm_syncobj_get_handle
   drm_syncobj_replace_fence
   __fdget
-  _find_first_zero_bit
   __folio_put
   get_random_u32
   __get_task_comm
@@ -2261,7 +2270,6 @@
   __traceiter_gpu_mem_total
   __tracepoint_android_vh_meminfo_proc_show
   __tracepoint_gpu_mem_total
-  ttm_bo_eviction_valuable
   ttm_bo_init_reserved
   ttm_bo_kmap
   ttm_bo_kunmap
@@ -2304,6 +2312,7 @@
   ttm_resource_manager_usage
   ttm_sg_tt_init
   ttm_tt_fini
+  ttm_tt_unpopulate
   vm_get_page_prot
   __wake_up_locked
   ww_mutex_lock_interruptible
@@ -2575,5 +2584,6 @@
   __skb_get_hash
   __skb_gso_segment
   tasklet_unlock_wait
+  ttm_bo_eviction_valuable
   ufshcd_mcq_poll_cqe_nolock
   unregister_netdevice_many

@@ -6,6 +6,7 @@ load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels")
 load(
     "//build/kernel/kleaf:kernel.bzl",
+    "checkpatch",
     "ddk_headers",
     "kernel_abi",
     "kernel_build",
@@ -39,6 +40,11 @@ _GKI_X86_64_MAKE_GOALS = [
     "bzImage",
     "modules",
 ]
+
+checkpatch(
+    name = "checkpatch",
+    checkpatch_pl = "scripts/checkpatch.pl",
+)
 
 write_file(
     name = "gki_system_dlkm_modules",
