@@ -14,6 +14,34 @@
 #include "txgbe_hw.h"
 
 /**
+ *  txgbe_disable_sec_tx_path - Stops the transmit data path
+ *  @wx: pointer to hardware structure
+ *
+ *  Stops the transmit data path and waits for the HW to internally empty
+ *  the tx security block
+ **/
+int txgbe_disable_sec_tx_path(struct wx *wx)
+{
+	int val;
+
+	wr32m(wx, WX_TSC_CTL, WX_TSC_CTL_TX_DIS, WX_TSC_CTL_TX_DIS);
+	return read_poll_timeout(rd32, val, val & WX_TSC_ST_SECTX_RDY,
+				 1000, 20000, false, wx, WX_TSC_ST);
+}
+
+/**
+ *  txgbe_enable_sec_tx_path - Enables the transmit data path
+ *  @wx: pointer to hardware structure
+ *
+ *  Enables the transmit data path.
+ **/
+void txgbe_enable_sec_tx_path(struct wx *wx)
+{
+	wr32m(wx, WX_TSC_CTL, WX_TSC_CTL_TX_DIS, 0);
+	WX_WRITE_FLUSH(wx);
+}
+
+/**
  *  txgbe_init_thermal_sensor_thresh - Inits thermal sensor thresholds
  *  @wx: pointer to hardware structure
  *
