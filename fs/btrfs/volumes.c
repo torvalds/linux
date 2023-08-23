@@ -357,20 +357,18 @@ struct list_head * __attribute_const__ btrfs_get_fs_uuids(void)
 }
 
 /*
- * alloc_fs_devices - allocate struct btrfs_fs_devices
- * @fsid:		if not NULL, copy the UUID to fs_devices::fsid
- * @metadata_fsid:	if not NULL, copy the UUID to fs_devices::metadata_fsid
+ * Allocate new btrfs_fs_devices structure identified by a fsid.
+ *
+ * @fsid:    if not NULL, copy the UUID to fs_devices::fsid and to
+ *           fs_devices::metadata_fsid
  *
  * Return a pointer to a new struct btrfs_fs_devices on success, or ERR_PTR().
  * The returned struct is not linked onto any lists and can be destroyed with
  * kfree() right away.
  */
-static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid,
-						 const u8 *metadata_fsid)
+static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid)
 {
 	struct btrfs_fs_devices *fs_devs;
-
-	ASSERT(fsid || !metadata_fsid);
 
 	fs_devs = kzalloc(sizeof(*fs_devs), GFP_KERNEL);
 	if (!fs_devs)
@@ -385,8 +383,7 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid,
 
 	if (fsid) {
 		memcpy(fs_devs->fsid, fsid, BTRFS_FSID_SIZE);
-		memcpy(fs_devs->metadata_uuid,
-		       metadata_fsid ?: fsid, BTRFS_FSID_SIZE);
+		memcpy(fs_devs->metadata_uuid, fsid, BTRFS_FSID_SIZE);
 	}
 
 	return fs_devs;
@@ -812,8 +809,11 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 
 
 	if (!fs_devices) {
-		fs_devices = alloc_fs_devices(disk_super->fsid,
-				has_metadata_uuid ? disk_super->metadata_uuid : NULL);
+		fs_devices = alloc_fs_devices(disk_super->fsid);
+		if (has_metadata_uuid)
+			memcpy(fs_devices->metadata_uuid,
+			       disk_super->metadata_uuid, BTRFS_FSID_SIZE);
+
 		if (IS_ERR(fs_devices))
 			return ERR_CAST(fs_devices);
 
@@ -997,7 +997,7 @@ static struct btrfs_fs_devices *clone_fs_devices(struct btrfs_fs_devices *orig)
 
 	lockdep_assert_held(&uuid_mutex);
 
-	fs_devices = alloc_fs_devices(orig->fsid, NULL);
+	fs_devices = alloc_fs_devices(orig->fsid);
 	if (IS_ERR(fs_devices))
 		return fs_devices;
 
@@ -2451,7 +2451,7 @@ static struct btrfs_fs_devices *btrfs_init_sprout(struct btrfs_fs_info *fs_info)
 	 * Private copy of the seed devices, anchored at
 	 * fs_info->fs_devices->seed_list
 	 */
-	seed_devices = alloc_fs_devices(NULL, NULL);
+	seed_devices = alloc_fs_devices(NULL);
 	if (IS_ERR(seed_devices))
 		return seed_devices;
 
@@ -6901,7 +6901,7 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 		if (!btrfs_test_opt(fs_info, DEGRADED))
 			return ERR_PTR(-ENOENT);
 
-		fs_devices = alloc_fs_devices(fsid, NULL);
+		fs_devices = alloc_fs_devices(fsid);
 		if (IS_ERR(fs_devices))
 			return fs_devices;
 

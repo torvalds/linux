@@ -318,9 +318,10 @@ static bool check_tree_block_fsid(struct extent_buffer *eb)
 			   BTRFS_FSID_SIZE);
 
 	/*
-	 * alloc_fs_devices() copies the fsid into metadata_uuid if the
-	 * metadata_uuid is unset in the superblock, including for a seed device.
-	 * So, we can use fs_devices->metadata_uuid.
+	 * alloc_fsid_devices() copies the fsid into fs_devices::metadata_uuid.
+	 * This is then overwritten by metadata_uuid if it is present in the
+	 * device_list_add(). The same true for a seed device as well. So use of
+	 * fs_devices::metadata_uuid is appropriate here.
 	 */
 	if (memcmp(fsid, fs_info->fs_devices->metadata_uuid, BTRFS_FSID_SIZE) == 0)
 		return false;
