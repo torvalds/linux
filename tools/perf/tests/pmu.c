@@ -171,7 +171,7 @@ static int test__pmu(struct test_suite *test __maybe_unused, int subtest __maybe
 	}
 
 	pmu->name = strdup("perf-pmu-test");
-	ret = perf_pmu__format_parse(fd, &pmu->format);
+	ret = perf_pmu__format_parse(pmu, fd);
 	if (ret)
 		goto out;
 

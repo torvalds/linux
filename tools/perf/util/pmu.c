@@ -58,7 +58,7 @@ struct perf_pmu_format {
  * Parse & process all the sysfs attributes located under
  * the directory specified in 'dir' parameter.
  */
-int perf_pmu__format_parse(int dirfd, struct list_head *head)
+int perf_pmu__format_parse(struct perf_pmu *pmu, int dirfd)
 {
 	struct dirent *evt_ent;
 	DIR *format_dir;
@@ -96,7 +96,7 @@ int perf_pmu__format_parse(int dirfd, struct list_head *head)
 		}
 
 		perf_pmu_set_in(file, scanner);
-		ret = perf_pmu_parse(head, name, scanner);
+		ret = perf_pmu_parse(&pmu->format, name, scanner);
 		perf_pmu_lex_destroy(scanner);
 		fclose(file);
 	}
@@ -110,7 +110,7 @@ int perf_pmu__format_parse(int dirfd, struct list_head *head)
  * located at:
  * /sys/bus/event_source/devices/<dev>/format as sysfs group attributes.
  */
-static int pmu_format(int dirfd, const char *name, struct list_head *format)
+static int pmu_format(struct perf_pmu *pmu, int dirfd, const char *name)
 {
 	int fd;
 
@@ -119,7 +119,7 @@ static int pmu_format(int dirfd, const char *name, struct list_head *format)
 		return 0;
 
 	/* it'll close the fd */
-	if (perf_pmu__format_parse(fd, format))
+	if (perf_pmu__format_parse(pmu, fd))
 		return -1;
 
 	return 0;
@@ -508,7 +508,7 @@ static int pmu_aliases_parse(int dirfd, struct list_head *head)
  * Reading the pmu event aliases definition, which should be located at:
  * /sys/bus/event_source/devices/<dev>/events as sysfs group attributes.
  */
-static int pmu_aliases(int dirfd, const char *name, struct list_head *head)
+static int pmu_aliases(struct perf_pmu *pmu, int dirfd, const char *name)
 {
 	int fd;
 
@@ -517,7 +517,7 @@ static int pmu_aliases(int dirfd, const char *name, struct list_head *head)
 		return 0;
 
 	/* it'll close the fd */
-	if (pmu_aliases_parse(fd, head))
+	if (pmu_aliases_parse(fd, &pmu->aliases))
 		return -1;
 
 	return 0;
@@ -770,11 +770,10 @@ static int pmu_add_cpu_aliases_map_callback(const struct pmu_event *pe,
  * From the pmu_events_table, find the events that correspond to the given
  * PMU and add them to the list 'head'.
  */
-void pmu_add_cpu_aliases_table(struct list_head *head, struct perf_pmu *pmu,
-			const struct pmu_events_table *table)
+void pmu_add_cpu_aliases_table(struct perf_pmu *pmu, const struct pmu_events_table *table)
 {
 	struct pmu_add_cpu_aliases_map_data data = {
-		.head = head,
+		.head = &pmu->aliases,
 		.default_pmu_name = perf_pmus__default_pmu_name(),
 		.pmu = pmu,
 	};
@@ -783,7 +782,7 @@ void pmu_add_cpu_aliases_table(struct list_head *head, struct perf_pmu *pmu,
 	free(data.default_pmu_name);
 }
 
-static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
+static void pmu_add_cpu_aliases(struct perf_pmu *pmu)
 {
 	const struct pmu_events_table *table;
 
@@ -791,7 +790,7 @@ static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
 	if (!table)
 		return;
 
-	pmu_add_cpu_aliases_table(head, pmu, table);
+	pmu_add_cpu_aliases_table(pmu, table);
 }
 
 struct pmu_sys_event_iter_data {
@@ -821,10 +820,10 @@ static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe,
 	return 0;
 }
 
-void pmu_add_sys_aliases(struct list_head *head, struct perf_pmu *pmu)
+void pmu_add_sys_aliases(struct perf_pmu *pmu)
 {
 	struct pmu_sys_event_iter_data idata = {
-		.head = head,
+		.head = &pmu->aliases,
 		.pmu = pmu,
 	};
 
@@ -863,30 +862,33 @@ static int pmu_max_precise(int dirfd, struct perf_pmu *pmu)
 struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char *lookup_name)
 {
 	struct perf_pmu *pmu;
-	LIST_HEAD(format);
-	LIST_HEAD(aliases);
 	__u32 type;
 	char *name = pmu_find_real_name(lookup_name);
 	char *alias_name;
-
-	/*
-	 * The pmu data we store & need consists of the pmu
-	 * type value and format definitions. Load both right
-	 * now.
-	 */
-	if (pmu_format(dirfd, name, &format))
-		return NULL;
-
-	/*
-	 * Check the aliases first to avoid unnecessary work.
-	 */
-	if (pmu_aliases(dirfd, name, &aliases))
-		return NULL;
 
 	pmu = zalloc(sizeof(*pmu));
 	if (!pmu)
 		return NULL;
 
+	INIT_LIST_HEAD(&pmu->format);
+	INIT_LIST_HEAD(&pmu->aliases);
+	INIT_LIST_HEAD(&pmu->caps);
+	/*
+	 * The pmu data we store & need consists of the pmu
+	 * type value and format definitions. Load both right
+	 * now.
+	 */
+	if (pmu_format(pmu, dirfd, name)) {
+		free(pmu);
+		return NULL;
+	}
+	/*
+	 * Check the aliases first to avoid unnecessary work.
+	 */
+	if (pmu_aliases(pmu, dirfd, name)) {
+		free(pmu);
+		return NULL;
+	}
 	pmu->is_core = is_pmu_core(name);
 	pmu->cpus = pmu_cpumask(dirfd, name, pmu->is_core);
 	pmu->name = strdup(name);
@@ -909,14 +911,8 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 	if (pmu->is_uncore)
 		pmu->id = pmu_id(name);
 	pmu->max_precise = pmu_max_precise(dirfd, pmu);
-	pmu_add_cpu_aliases(&aliases, pmu);
-	pmu_add_sys_aliases(&aliases, pmu);
-
-	INIT_LIST_HEAD(&pmu->format);
-	INIT_LIST_HEAD(&pmu->aliases);
-	INIT_LIST_HEAD(&pmu->caps);
-	list_splice(&format, &pmu->format);
-	list_splice(&aliases, &pmu->aliases);
+	pmu_add_cpu_aliases(pmu);
+	pmu_add_sys_aliases(pmu);
 	list_add_tail(&pmu->list, pmus);
 
 	pmu->default_config = perf_pmu__get_default_config(pmu);
@@ -1395,6 +1391,17 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 		info->scale  = 1.0;
 
 	return 0;
+}
+
+struct perf_pmu_alias *perf_pmu__find_alias(struct perf_pmu *pmu, const char *event)
+{
+	struct perf_pmu_alias *alias;
+
+	list_for_each_entry(alias, &pmu->aliases, list)
+		if (!strcmp(event, alias->name))
+			return alias;
+
+	return NULL;
 }
 
 int perf_pmu__new_format(struct list_head *list, char *name,

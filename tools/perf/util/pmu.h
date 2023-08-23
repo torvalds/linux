@@ -213,7 +213,7 @@ struct perf_pmu_alias {
 	char *pmu_name;
 };
 
-void pmu_add_sys_aliases(struct list_head *head, struct perf_pmu *pmu);
+void pmu_add_sys_aliases(struct perf_pmu *pmu);
 int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 		     struct list_head *head_terms,
 		     struct parse_events_error *error);
@@ -225,12 +225,11 @@ __u64 perf_pmu__format_bits(struct perf_pmu *pmu, const char *name);
 int perf_pmu__format_type(struct perf_pmu *pmu, const char *name);
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 			  struct perf_pmu_info *info);
-struct list_head *perf_pmu__alias(struct perf_pmu *pmu,
-				  struct list_head *head_terms);
+struct perf_pmu_alias *perf_pmu__find_alias(struct perf_pmu *pmu, const char *event);
 
 int perf_pmu__new_format(struct list_head *list, char *name,
 			 int config, unsigned long *bits);
-int perf_pmu__format_parse(int dirfd, struct list_head *head);
+int perf_pmu__format_parse(struct perf_pmu *pmu, int dirfd);
 bool perf_pmu__has_format(const struct perf_pmu *pmu, const char *name);
 
 bool is_pmu_core(const char *name);
@@ -255,7 +254,7 @@ bool perf_pmu__file_exists(struct perf_pmu *pmu, const char *name);
 int perf_pmu__test(void);
 
 struct perf_event_attr *perf_pmu__get_default_config(struct perf_pmu *pmu);
-void pmu_add_cpu_aliases_table(struct list_head *head, struct perf_pmu *pmu,
+void pmu_add_cpu_aliases_table(struct perf_pmu *pmu,
 			       const struct pmu_events_table *table);
 
 char *perf_pmu__getcpuid(struct perf_pmu *pmu);

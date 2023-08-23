@@ -496,26 +496,13 @@ static int test__pmu_event_table(struct test_suite *test __maybe_unused,
 	return 0;
 }
 
-static struct perf_pmu_alias *find_alias(const char *test_event, struct list_head *aliases)
-{
-	struct perf_pmu_alias *alias;
-
-	list_for_each_entry(alias, aliases, list)
-		if (!strcmp(test_event, alias->name))
-			return alias;
-
-	return NULL;
-}
-
 /* Verify aliases are as expected */
 static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 {
 	struct perf_pmu_test_event const **test_event_table;
 	struct perf_pmu *pmu;
-	LIST_HEAD(aliases);
 	int res = 0;
 	const struct pmu_events_table *table = find_core_events_table("testarch", "testcpu");
-	struct perf_pmu_alias *a, *tmp;
 
 	if (!table)
 		return -1;
@@ -526,14 +513,18 @@ static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 	if (!pmu)
 		return -1;
 
-	pmu->name = pmu_name;
+	INIT_LIST_HEAD(&pmu->format);
+	INIT_LIST_HEAD(&pmu->aliases);
+	INIT_LIST_HEAD(&pmu->caps);
+	INIT_LIST_HEAD(&pmu->list);
+	pmu->name = strdup(pmu_name);
 
-	pmu_add_cpu_aliases_table(&aliases, pmu, table);
+	pmu_add_cpu_aliases_table(pmu, table);
 
 	for (; *test_event_table; test_event_table++) {
 		struct perf_pmu_test_event const *test_event = *test_event_table;
 		struct pmu_event const *event = &test_event->event;
-		struct perf_pmu_alias *alias = find_alias(event->name, &aliases);
+		struct perf_pmu_alias *alias = perf_pmu__find_alias(pmu, event->name);
 
 		if (!alias) {
 			pr_debug("testing aliases core PMU %s: no alias, alias_table->name=%s\n",
@@ -551,12 +542,8 @@ static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 		pr_debug2("testing aliases core PMU %s: matched event %s\n",
 			  pmu_name, alias->name);
 	}
+	perf_pmu__delete(pmu);
 
-	list_for_each_entry_safe(a, tmp, &aliases, list) {
-		list_del(&a->list);
-		perf_pmu_free_alias(a);
-	}
-	free(pmu);
 	return res;
 }
 
@@ -568,17 +555,16 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	const char *pmu_name = pmu->name;
 	struct perf_pmu_alias *a, *tmp, *alias;
 	const struct pmu_events_table *events_table;
-	LIST_HEAD(aliases);
 	int res = 0;
 
 	events_table = find_core_events_table("testarch", "testcpu");
 	if (!events_table)
 		return -1;
-	pmu_add_cpu_aliases_table(&aliases, pmu, events_table);
-	pmu_add_sys_aliases(&aliases, pmu);
+	pmu_add_cpu_aliases_table(pmu, events_table);
+	pmu_add_sys_aliases(pmu);
 
 	/* Count how many aliases we generated */
-	list_for_each_entry(alias, &aliases, list)
+	list_for_each_entry(alias, &pmu->aliases, list)
 		alias_count++;
 
 	/* Count how many aliases we expect from the known table */
@@ -592,7 +578,7 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 		goto out;
 	}
 
-	list_for_each_entry(alias, &aliases, list) {
+	list_for_each_entry(alias, &pmu->aliases, list) {
 		bool matched = false;
 
 		for (table = &test_pmu->aliases[0]; *table; table++) {
@@ -625,7 +611,7 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	}
 
 out:
-	list_for_each_entry_safe(a, tmp, &aliases, list) {
+	list_for_each_entry_safe(a, tmp, &pmu->aliases, list) {
 		list_del(&a->list);
 		perf_pmu_free_alias(a);
 	}
@@ -732,8 +718,13 @@ static int test__aliases(struct test_suite *test __maybe_unused,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(test_pmus); i++) {
-		int res = __test_uncore_pmu_event_aliases(&test_pmus[i]);
+		int res;
 
+		INIT_LIST_HEAD(&test_pmus[i].pmu.format);
+		INIT_LIST_HEAD(&test_pmus[i].pmu.aliases);
+		INIT_LIST_HEAD(&test_pmus[i].pmu.caps);
+
+		res = __test_uncore_pmu_event_aliases(&test_pmus[i]);
 		if (res)
 			return res;
 	}
