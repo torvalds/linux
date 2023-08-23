@@ -673,6 +673,7 @@ static int rk_minidump_driver_probe(struct platform_device *pdev)
 	md_ss_toc->encryption_status = MD_SS_ENCR_NONE;
 	md_ss_toc->encryption_required = MD_SS_ENCR_REQ;
 	md_ss_toc->elf_header = (u64)r.start;
+	md_ss_toc->minidump_table = (u64)virt_to_phys(&minidump_table);
 
 	minidump_table.md_ss_toc = md_ss_toc;
 	minidump_table.md_regions = devm_kzalloc(&pdev->dev, (MAX_NUM_ENTRIES *

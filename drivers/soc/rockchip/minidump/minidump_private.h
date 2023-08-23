@@ -54,6 +54,7 @@ struct md_ss_region {
  * @ss_region_count : Number of regions added in this SS toc
  * @md_ss_smem_regions_baseptr : regions base pointer of the Subsystem
  * @elf_header : base pointer of the minidump elf header
+ * @minidump_table : base pointer of the minidump_table
  */
 struct md_ss_toc {
 	u32			md_ss_toc_init;
@@ -63,6 +64,8 @@ struct md_ss_toc {
 	u32			ss_region_count;
 	u64			md_ss_smem_regions_baseptr;
 	u64			elf_header;
+	u64			elf_size;
+	u64			minidump_table;
 };
 
 /**
