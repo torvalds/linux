@@ -2103,50 +2103,7 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 				req->alpha_config.bg_global_alpha_value = 0xff;
 			}
 
-			/* porter duff alpha enable */
-			switch (req_rga->PD_mode) {
-			/* dst = 0 */
-			case 0:
-				break;
-			case 1:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC;
-				break;
-			case 2:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_DST;
-				break;
-			case 3:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC_OVER;
-				break;
-			case 4:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_DST_OVER;
-				break;
-			case 5:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC_IN;
-				break;
-			case 6:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_DST_IN;
-				break;
-			case 7:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC_OUT;
-				break;
-			case 8:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_DST_OUT;
-				break;
-			case 9:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_SRC_ATOP;
-				break;
-			case 10:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_DST_ATOP;
-				break;
-			case 11:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_XOR;
-				break;
-			case 12:
-				req->alpha_config.mode = RGA_ALPHA_BLEND_CLEAR;
-				break;
-			default:
-				break;
-			}
+			req->alpha_config.mode = req_rga->PD_mode;
 		}
 	}
 
