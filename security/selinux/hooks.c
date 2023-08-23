@@ -2721,7 +2721,7 @@ out_bad_option:
 	return -EINVAL;
 }
 
-static int selinux_sb_kern_mount(struct super_block *sb)
+static int selinux_sb_kern_mount(const struct super_block *sb)
 {
 	const struct cred *cred = current_cred();
 	struct common_audit_data ad;

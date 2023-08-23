@@ -1319,7 +1319,7 @@ EXPORT_SYMBOL(security_sb_remount);
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_sb_kern_mount(struct super_block *sb)
+int security_sb_kern_mount(const struct super_block *sb)
 {
 	return call_int_hook(sb_kern_mount, 0, sb);
 }
