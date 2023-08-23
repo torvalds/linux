@@ -102,8 +102,10 @@ arcompact_mumbojumbo(int c, struct cpuinfo_arc *info, char *buf, int len)
 	else
 		cpu_nm = "ARC770";
 
-	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s (%s ISA) %s\n",
-		       c, cpu_nm, isa_nm, IS_AVAIL1(be, "[Big-Endian]"));
+	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s (%s ISA) %s%s%s\n",
+		       c, cpu_nm, isa_nm,
+		       IS_AVAIL2(atomic, "atomic ", CONFIG_ARC_HAS_LLSC),
+		       IS_AVAIL1(be, "[Big-Endian]"));
 
 	READ_BCR(ARC_REG_FP_BCR, fpu_sp);
 	READ_BCR(ARC_REG_DPFP_BCR, fpu_dp);
