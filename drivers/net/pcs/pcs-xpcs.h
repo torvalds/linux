@@ -15,8 +15,13 @@
 /* VR_XS_PCS */
 #define DW_USXGMII_RST			BIT(10)
 #define DW_USXGMII_EN			BIT(9)
+#define DW_VR_XS_PCS_DIG_CTRL1		0x0000
+#define DW_VR_RST			BIT(15)
+#define DW_EN_VSMMD1			BIT(13)
 #define DW_VR_XS_PCS_DIG_STS		0x0010
 #define DW_RXFIFO_ERR			GENMASK(6, 5)
+#define DW_PSEQ_ST			GENMASK(4, 2)
+#define DW_PSEQ_ST_GOOD			FIELD_PREP(GENMASK(4, 2), 0x4)
 
 /* SR_MII */
 #define DW_USXGMII_FULL			BIT(8)
@@ -106,6 +111,9 @@
 
 int xpcs_read(struct dw_xpcs *xpcs, int dev, u32 reg);
 int xpcs_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val);
+int xpcs_read_vpcs(struct dw_xpcs *xpcs, int reg);
+int xpcs_write_vpcs(struct dw_xpcs *xpcs, int reg, u16 val);
 int nxp_sja1105_sgmii_pma_config(struct dw_xpcs *xpcs);
 int nxp_sja1110_sgmii_pma_config(struct dw_xpcs *xpcs);
 int nxp_sja1110_2500basex_pma_config(struct dw_xpcs *xpcs);
+int txgbe_xpcs_switch_mode(struct dw_xpcs *xpcs, phy_interface_t interface);
