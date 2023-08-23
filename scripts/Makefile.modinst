@@ -11,7 +11,7 @@ include $(srctree)/scripts/Kbuild.include
 
 install-y :=
 
-ifeq ($(KBUILD_EXTMOD)$(modules_sign_only),)
+ifeq ($(KBUILD_EXTMOD)$(sign-only),)
 
 # remove the old directory and symlink
 $(shell rm -fr $(MODLIB)/kernel $(MODLIB)/build)
@@ -104,7 +104,7 @@ quiet_cmd_sign = SIGN    $@
       cmd_sign = scripts/sign-file $(CONFIG_MODULE_SIG_HASH) "$(sig-key)" certs/signing_key.x509 $@ \
                  $(if $(KBUILD_EXTMOD),|| true)
 
-ifeq ($(modules_sign_only),)
+ifeq ($(sign-only),)
 
 # During modules_install, modules are signed only when CONFIG_MODULE_SIG_ALL=y.
 ifndef CONFIG_MODULE_SIG_ALL
