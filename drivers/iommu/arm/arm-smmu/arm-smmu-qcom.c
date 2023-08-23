@@ -298,13 +298,6 @@ static int arm_smmu_parse_impl_def_registers(struct arm_smmu_device *smmu)
 	return 0;
 }
 
-static const struct arm_smmu_impl qsmmuv2_impl = {
-	.init_context_bank = qsmmuv2_init_cb,
-	.iova_to_phys_hard = qsmmuv2_iova_to_phys_hard,
-	.tlb_sync_timeout = qsmmuv2_tlb_sync_timeout,
-	.reset = qsmmuv2_device_reset,
-};
-
 
 static struct qcom_smmu *to_qcom_smmu(struct arm_smmu_device *smmu)
 {
@@ -1921,8 +1914,10 @@ static int qsmmuv500_cfg_probe(struct arm_smmu_device *smmu)
  * Client wants to use S1 bypass
  *
  * Same as Case 3, except use the platform dma ops.
+ *
+ * This function can be used for qsmmuv500 and qsmmuv2.
  */
-static int qsmmuv500_def_domain_type(struct device *dev)
+static int qcom_def_domain_type(struct device *dev)
 {
 	const char *str;
 	struct device_node *np;
@@ -1955,7 +1950,7 @@ static const struct arm_smmu_impl qsmmuv500_impl = {
 	.tlb_sync_timeout = qsmmuv500_tlb_sync_timeout,
 	.device_remove = qsmmuv500_device_remove,
 	.device_group = qsmmuv500_device_group,
-	.def_domain_type = qsmmuv500_def_domain_type,
+	.def_domain_type = qcom_def_domain_type,
 };
 
 static const struct arm_smmu_impl qsmmuv500_adreno_impl = {
@@ -1967,7 +1962,25 @@ static const struct arm_smmu_impl qsmmuv500_adreno_impl = {
 	.tlb_sync_timeout = qsmmuv500_tlb_sync_timeout,
 	.device_remove = qsmmuv500_device_remove,
 	.device_group = qsmmuv500_device_group,
-	.def_domain_type = qsmmuv500_def_domain_type,
+	.def_domain_type = qcom_def_domain_type,
+};
+
+static const struct arm_smmu_impl qsmmuv2_impl = {
+	.init_context_bank = qsmmuv2_init_cb,
+	.iova_to_phys_hard = qsmmuv2_iova_to_phys_hard,
+	.tlb_sync_timeout = qsmmuv2_tlb_sync_timeout,
+	.reset = qsmmuv2_device_reset,
+	.def_domain_type = qcom_def_domain_type,
+};
+
+static const struct arm_smmu_impl qsmmuv2_adreno_impl = {
+	.init_context = qcom_adreno_smmu_init_context,
+	.alloc_context_bank = qcom_adreno_smmu_alloc_context_bank,
+	.init_context_bank = qsmmuv2_init_cb,
+	.iova_to_phys_hard = qsmmuv2_iova_to_phys_hard,
+	.tlb_sync_timeout = qsmmuv2_tlb_sync_timeout,
+	.reset = qsmmuv2_device_reset,
+	.def_domain_type = qcom_def_domain_type,
 };
 
 /* We only have access to arm-architected registers */
@@ -1975,7 +1988,7 @@ static const struct arm_smmu_impl qsmmuv500_virt_impl = {
 	.cfg_probe = qsmmuv500_cfg_probe,
 	.init_context_bank = qsmmuv500_init_cb,
 	.device_group = qsmmuv500_device_group,
-	.def_domain_type = qsmmuv500_def_domain_type,
+	.def_domain_type = qcom_def_domain_type,
 };
 
 struct arm_smmu_device *qsmmuv500_create(struct arm_smmu_device *smmu,
@@ -2148,7 +2161,10 @@ struct arm_smmu_device *qsmmuv2_impl_init(struct arm_smmu_device *smmu)
 
 	spin_lock_init(&data->atos_lock);
 	data->smmu = *smmu;
-	data->smmu.impl = &qsmmuv2_impl;
+	if (of_device_is_compatible(smmu->dev->of_node, "qcom,adreno-smmu"))
+		data->smmu.impl = &qsmmuv2_adreno_impl;
+	else
+		data->smmu.impl = &qsmmuv2_impl;
 
 	ret = arm_smmu_parse_impl_def_registers(&data->smmu);
 	if (ret)
