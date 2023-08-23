@@ -1369,6 +1369,7 @@ static int cs42l43_pll_ev(struct snd_soc_dapm_widget *w,
 			clk_disable_unprepare(priv->mclk);
 		break;
 	default:
+		ret = 0;
 		break;
 	}
 
