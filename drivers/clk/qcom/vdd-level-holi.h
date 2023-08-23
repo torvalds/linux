@@ -10,7 +10,8 @@
 
 enum vdd_levels {
 	VDD_NONE,
-	VDD_MIN,		/* MIN_SVS */
+	VDD_MIN,
+	VDD_LOWER_D1 = VDD_MIN, /* MIN_SVS / LOWSVS_D1 */
 	VDD_LOWER,		/* LOW_SVS / SVS2 */
 	VDD_LOW,		/* SVS */
 	VDD_LOW_L1,		/* SVS_L1 */
