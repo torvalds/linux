@@ -34,6 +34,13 @@
  *		...
  *	};
  *
+ *
+ * Below sample doesn't use "format" property,
+ * because test-component driver (test-cpu/test-codec) is supporting
+ * snd_soc_dai_ops :: .auto_selectable_formats.
+ * see
+ *	snd_soc_runtime_get_dai_fmt()
+ *	linux/sound/soc/generic/test-component.c :: test_dai_formats
  */
 / {
 	/*
