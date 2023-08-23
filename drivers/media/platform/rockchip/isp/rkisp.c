@@ -3888,17 +3888,17 @@ void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 
 		/* wait for all isp dev to register */
 		if (head->camera_num > 1) {
-			if (head->camera_num > hw->dev_num) {
-				v4l2_err(&isp_dev->v4l2_dev,
-					 "thunderboot invalid camera num:%d, dev num:%d\n",
-					 head->camera_num, hw->dev_num);
-				goto end;
-			}
 			while (timeout--) {
 				if (hw->dev_num >= head->camera_num &&
 				    hw->isp[hw->dev_num - 1]->is_probe_end)
 					break;
 				usleep_range(200, 210);
+			}
+			if (head->camera_num > hw->dev_num) {
+				v4l2_err(&isp_dev->v4l2_dev,
+					 "thunderboot invalid camera num:%d, dev num:%d\n",
+					 head->camera_num, hw->dev_num);
+				goto end;
 			}
 		}
 		for (i = 0; i < head->camera_num; i++)
