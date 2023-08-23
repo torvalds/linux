@@ -413,10 +413,11 @@ static void __init ms_hyperv_init_platform(void)
 			ms_hyperv.isolation_config_a, ms_hyperv.isolation_config_b);
 
 
-		if (cc_platform_has(CC_ATTR_GUEST_SEV_SNP)) {
-			static_branch_enable(&isolation_type_en_snp);
-		} else if (hv_get_isolation_type() == HV_ISOLATION_TYPE_SNP) {
-			static_branch_enable(&isolation_type_snp);
+		if (hv_get_isolation_type() == HV_ISOLATION_TYPE_SNP) {
+			if (ms_hyperv.paravisor_present)
+				static_branch_enable(&isolation_type_snp);
+			else
+				static_branch_enable(&isolation_type_en_snp);
 		}
 	}
 
