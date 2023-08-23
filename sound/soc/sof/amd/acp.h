@@ -174,6 +174,7 @@ struct sof_amd_acp_desc {
 	const char *name;
 	unsigned int host_bridge_id;
 	u32 pgfsm_base;
+	u32 ext_intr_enb;
 	u32 ext_intr_stat;
 	u32 dsp_intr_base;
 	u32 sram_pte_offset;
