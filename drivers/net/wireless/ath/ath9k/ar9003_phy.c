@@ -925,9 +925,6 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 			modes_txgain_index =
 				ar9561_hw_get_modes_txgain_index(ah, chan);
 
-		if (modes_txgain_index < 0)
-			return -EINVAL;
-
 		REG_WRITE_ARRAY(&ah->iniModesTxGain, modes_txgain_index,
 				regWrites);
 	} else {
