@@ -299,7 +299,7 @@ static int mchp_coreqspi_setup_clock(struct mchp_coreqspi *qspi, struct spi_devi
 
 static int mchp_coreqspi_setup_op(struct spi_device *spi_dev)
 {
-	struct spi_controller *ctlr = spi_dev->master;
+	struct spi_controller *ctlr = spi_dev->controller;
 	struct mchp_coreqspi *qspi = spi_controller_get_devdata(ctlr);
 	u32 control = readl_relaxed(qspi->regs + REG_CONTROL);
 
@@ -368,7 +368,7 @@ static inline void mchp_coreqspi_config_op(struct mchp_coreqspi *qspi, const str
 static int mchp_qspi_wait_for_ready(struct spi_mem *mem)
 {
 	struct mchp_coreqspi *qspi = spi_controller_get_devdata
-				    (mem->spi->master);
+				    (mem->spi->controller);
 	u32 status;
 	int ret;
 
@@ -387,7 +387,7 @@ static int mchp_qspi_wait_for_ready(struct spi_mem *mem)
 static int mchp_coreqspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct mchp_coreqspi *qspi = spi_controller_get_devdata
-				    (mem->spi->master);
+				    (mem->spi->controller);
 	u32 address = op->addr.val;
 	u8 opcode = op->cmd.opcode;
 	u8 opaddr[5];
@@ -505,10 +505,10 @@ static int mchp_coreqspi_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	ctlr = devm_spi_alloc_master(&pdev->dev, sizeof(*qspi));
+	ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*qspi));
 	if (!ctlr)
 		return dev_err_probe(&pdev->dev, -ENOMEM,
-				     "unable to allocate master for QSPI controller\n");
+				     "unable to allocate host for QSPI controller\n");
 
 	qspi = spi_controller_get_devdata(ctlr);
 	platform_set_drvdata(pdev, qspi);
