@@ -539,22 +539,16 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret,
 				     "could not request irq\n");
 
-	spi->clk = devm_clk_get(&pdev->dev, NULL);
+	spi->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(spi->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(spi->clk),
 				     "could not get clk\n");
-
-	ret = clk_prepare_enable(spi->clk);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "failed to enable clock\n");
 
 	mchp_corespi_init(master, spi);
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret) {
 		mchp_corespi_disable(spi);
-		clk_disable_unprepare(spi->clk);
 		return dev_err_probe(&pdev->dev, ret,
 				     "unable to register master for SPI controller\n");
 	}
@@ -570,7 +564,6 @@ static void mchp_corespi_remove(struct platform_device *pdev)
 	struct mchp_corespi *spi = spi_master_get_devdata(master);
 
 	mchp_corespi_disable_ints(spi);
-	clk_disable_unprepare(spi->clk);
 	mchp_corespi_disable(spi);
 }
 
