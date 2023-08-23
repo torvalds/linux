@@ -115,7 +115,7 @@ static void ttm_bo_add_mem_to_lru(struct ttm_buffer_object *bo,
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_resource_manager *man;
 
-	if (!list_empty(&bo->lru))
+	if (!list_empty(&bo->lru) || bo->pin_count)
 		return;
 
 	if (mem->placement & TTM_PL_FLAG_NO_EVICT)
@@ -165,7 +165,8 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 	ttm_bo_del_from_lru(bo);
 	ttm_bo_add_mem_to_lru(bo, &bo->mem);
 
-	if (bulk && !(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
+	if (bulk && !(bo->mem.placement & TTM_PL_FLAG_NO_EVICT) &&
+	    !bo->pin_count) {
 		switch (bo->mem.mem_type) {
 		case TTM_PL_TT:
 			ttm_bo_bulk_move_set_pos(&bulk->tt[bo->priority], bo);
@@ -544,8 +545,9 @@ static void ttm_bo_release(struct kref *kref)
 		 * shrinkers, now that they are queued for
 		 * destruction.
 		 */
-		if (bo->mem.placement & TTM_PL_FLAG_NO_EVICT) {
+		if (bo->mem.placement & TTM_PL_FLAG_NO_EVICT || bo->pin_count) {
 			bo->mem.placement &= ~TTM_PL_FLAG_NO_EVICT;
+			bo->pin_count = 0;
 			ttm_bo_del_from_lru(bo);
 			ttm_bo_add_mem_to_lru(bo, &bo->mem);
 		}
@@ -669,6 +671,13 @@ static bool ttm_bo_evict_swapout_allowable(struct ttm_buffer_object *bo,
 			struct ttm_operation_ctx *ctx, bool *locked, bool *busy)
 {
 	bool ret = false;
+
+	if (bo->pin_count) {
+		*locked = false;
+		if (busy)
+			*busy = false;
+		return false;
+	}
 
 	if (bo->base.resv == ctx->resv) {
 		dma_resv_assert_held(bo->base.resv);
@@ -1174,6 +1183,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	bo->moving = NULL;
 	bo->mem.placement = TTM_PL_FLAG_CACHED;
 	bo->acc_size = acc_size;
+	bo->pin_count = 0;
 	bo->sg = sg;
 	if (resv) {
 		bo->base.resv = resv;

@@ -202,7 +202,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	int ret;
 
 	/* Increase buffer size to receive large VHT MPDUs */
-	if (dev->mt76.cap.has_5ghz)
+	if (dev->mphy.cap.has_5ghz)
 		rx_buf_size *= 2;
 
 	mt76_dma_attach(&dev->mt76);

@@ -309,13 +309,15 @@ static int gadget_bind(struct usb_gadget *gadget,
 	dev->eps_num = i;
 	spin_unlock_irqrestore(&dev->lock, flags);
 
+	ret = raw_queue_event(dev, USB_RAW_EVENT_CONNECT, 0, NULL);
+	if (ret < 0) {
+		dev_err(&gadget->dev, "failed to queue event\n");
+		set_gadget_data(gadget, NULL);
+		return ret;
+	}
+
 	/* Matches kref_put() in gadget_unbind(). */
 	kref_get(&dev->count);
-
-	ret = raw_queue_event(dev, USB_RAW_EVENT_CONNECT, 0, NULL);
-	if (ret < 0)
-		dev_err(&gadget->dev, "failed to queue event\n");
-
 	return ret;
 }
 

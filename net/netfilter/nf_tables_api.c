@@ -3350,8 +3350,6 @@ static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 			NL_SET_BAD_ATTR(extack, nla[NFTA_RULE_CHAIN]);
 			return PTR_ERR(chain);
 		}
-		if (nft_chain_is_bound(chain))
-			return -EOPNOTSUPP;
 
 	} else if (nla[NFTA_RULE_CHAIN_ID]) {
 		chain = nft_chain_lookup_byid(net, table, nla[NFTA_RULE_CHAIN_ID],
@@ -3363,6 +3361,9 @@ static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 	} else {
 		return -EINVAL;
 	}
+
+	if (nft_chain_is_bound(chain))
+		return -EOPNOTSUPP;
 
 	if (nla[NFTA_RULE_HANDLE]) {
 		handle = be64_to_cpu(nla_get_be64(nla[NFTA_RULE_HANDLE]));
@@ -4576,10 +4577,9 @@ static int nft_validate_register_store(const struct nft_ctx *ctx,
 				       enum nft_data_types type,
 				       unsigned int len);
 
-static int nf_tables_bind_check_setelem(const struct nft_ctx *ctx,
-					struct nft_set *set,
-					const struct nft_set_iter *iter,
-					struct nft_set_elem *elem)
+static int nft_setelem_data_validate(const struct nft_ctx *ctx,
+				     struct nft_set *set,
+				     struct nft_set_elem *elem)
 {
 	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
 	enum nft_registers dreg;
@@ -4589,6 +4589,14 @@ static int nf_tables_bind_check_setelem(const struct nft_ctx *ctx,
 					   set->dtype == NFT_DATA_VERDICT ?
 					   NFT_DATA_VERDICT : NFT_DATA_VALUE,
 					   set->dlen);
+}
+
+static int nf_tables_bind_check_setelem(const struct nft_ctx *ctx,
+					struct nft_set *set,
+					const struct nft_set_iter *iter,
+					struct nft_set_elem *elem)
+{
+	return nft_setelem_data_validate(ctx, set, elem);
 }
 
 int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,

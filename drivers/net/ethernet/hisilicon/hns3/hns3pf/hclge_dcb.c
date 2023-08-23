@@ -53,7 +53,10 @@ static void hclge_tm_info_to_ieee_ets(struct hclge_dev *hdev,
 
 	for (i = 0; i < HNAE3_MAX_TC; i++) {
 		ets->prio_tc[i] = hdev->tm_info.prio_tc[i];
-		ets->tc_tx_bw[i] = hdev->tm_info.pg_info[0].tc_dwrr[i];
+		if (i < hdev->tm_info.num_tc)
+			ets->tc_tx_bw[i] = hdev->tm_info.pg_info[0].tc_dwrr[i];
+		else
+			ets->tc_tx_bw[i] = 0;
 
 		if (hdev->tm_info.tc_info[i].tc_sch_mode ==
 		    HCLGE_SCH_MODE_SP)
@@ -105,26 +108,31 @@ static int hclge_dcb_common_validate(struct hclge_dev *hdev, u8 num_tc,
 	return 0;
 }
 
-static int hclge_ets_validate(struct hclge_dev *hdev, struct ieee_ets *ets,
-			      u8 *tc, bool *changed)
+static u8 hclge_ets_tc_changed(struct hclge_dev *hdev, struct ieee_ets *ets,
+			       bool *changed)
 {
-	bool has_ets_tc = false;
-	u32 total_ets_bw = 0;
-	u8 max_tc = 0;
-	int ret;
+	u8 max_tc_id = 0;
 	u8 i;
 
 	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++) {
 		if (ets->prio_tc[i] != hdev->tm_info.prio_tc[i])
 			*changed = true;
 
-		if (ets->prio_tc[i] > max_tc)
-			max_tc = ets->prio_tc[i];
+		if (ets->prio_tc[i] > max_tc_id)
+			max_tc_id = ets->prio_tc[i];
 	}
 
-	ret = hclge_dcb_common_validate(hdev, max_tc + 1, ets->prio_tc);
-	if (ret)
-		return ret;
+	/* return max tc number, max tc id need to plus 1 */
+	return max_tc_id + 1;
+}
+
+static int hclge_ets_sch_mode_validate(struct hclge_dev *hdev,
+				       struct ieee_ets *ets, bool *changed,
+				       u8 tc_num)
+{
+	bool has_ets_tc = false;
+	u32 total_ets_bw = 0;
+	u8 i;
 
 	for (i = 0; i < HNAE3_MAX_TC; i++) {
 		switch (ets->tc_tsa[i]) {
@@ -134,6 +142,13 @@ static int hclge_ets_validate(struct hclge_dev *hdev, struct ieee_ets *ets,
 				*changed = true;
 			break;
 		case IEEE_8021QAZ_TSA_ETS:
+			if (i >= tc_num) {
+				dev_err(&hdev->pdev->dev,
+					"tc%u is disabled, cannot set ets bw\n",
+					i);
+				return -EINVAL;
+			}
+
 			/* The hardware will switch to sp mode if bandwidth is
 			 * 0, so limit ets bandwidth must be greater than 0.
 			 */
@@ -158,7 +173,26 @@ static int hclge_ets_validate(struct hclge_dev *hdev, struct ieee_ets *ets,
 	if (has_ets_tc && total_ets_bw != BW_PERCENT)
 		return -EINVAL;
 
-	*tc = max_tc + 1;
+	return 0;
+}
+
+static int hclge_ets_validate(struct hclge_dev *hdev, struct ieee_ets *ets,
+			      u8 *tc, bool *changed)
+{
+	u8 tc_num;
+	int ret;
+
+	tc_num = hclge_ets_tc_changed(hdev, ets, changed);
+
+	ret = hclge_dcb_common_validate(hdev, tc_num, ets->prio_tc);
+	if (ret)
+		return ret;
+
+	ret = hclge_ets_sch_mode_validate(hdev, ets, changed, tc_num);
+	if (ret)
+		return ret;
+
+	*tc = tc_num;
 	if (*tc != hdev->tm_info.num_tc)
 		*changed = true;
 
