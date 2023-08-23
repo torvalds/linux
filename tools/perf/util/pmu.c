@@ -1000,7 +1000,7 @@ void evsel__set_config_if_unset(struct perf_pmu *pmu, struct evsel *evsel,
 	if (term)
 		user_bits = term->val.cfg_chg;
 
-	bits = perf_pmu__format_bits(&pmu->format, config_name);
+	bits = perf_pmu__format_bits(pmu, config_name);
 
 	/* Do nothing if the user changed the value */
 	if (bits & user_bits)
@@ -1023,9 +1023,9 @@ pmu_find_format(struct list_head *formats, const char *name)
 	return NULL;
 }
 
-__u64 perf_pmu__format_bits(struct list_head *formats, const char *name)
+__u64 perf_pmu__format_bits(struct perf_pmu *pmu, const char *name)
 {
-	struct perf_pmu_format *format = pmu_find_format(formats, name);
+	struct perf_pmu_format *format = pmu_find_format(&pmu->format, name);
 	__u64 bits = 0;
 	int fbit;
 

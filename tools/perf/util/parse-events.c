@@ -1162,7 +1162,7 @@ static int get_config_chgs(struct perf_pmu *pmu, struct list_head *head_config,
 			type = perf_pmu__format_type(pmu, term->config);
 			if (type != PERF_PMU_FORMAT_VALUE_CONFIG)
 				continue;
-			bits |= perf_pmu__format_bits(&pmu->format, term->config);
+			bits |= perf_pmu__format_bits(pmu, term->config);
 			break;
 		case PARSE_EVENTS__TERM_TYPE_CONFIG:
 			bits = ~(u64)0;

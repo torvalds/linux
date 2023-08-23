@@ -221,7 +221,7 @@ int perf_pmu__config_terms(struct perf_pmu *pmu,
 			   struct perf_event_attr *attr,
 			   struct list_head *head_terms,
 			   bool zero, struct parse_events_error *error);
-__u64 perf_pmu__format_bits(struct list_head *formats, const char *name);
+__u64 perf_pmu__format_bits(struct perf_pmu *pmu, const char *name);
 int perf_pmu__format_type(struct perf_pmu *pmu, const char *name);
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 			  struct perf_pmu_info *info);

@@ -122,7 +122,7 @@ static int intel_pt_read_config(struct perf_pmu *intel_pt_pmu, const char *str,
 
 	*res = 0;
 
-	mask = perf_pmu__format_bits(&intel_pt_pmu->format, str);
+	mask = perf_pmu__format_bits(intel_pt_pmu, str);
 	if (!mask)
 		return -EINVAL;
 
@@ -346,8 +346,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	intel_pt_parse_terms(intel_pt_pmu, "tsc", &tsc_bit);
 	intel_pt_parse_terms(intel_pt_pmu, "noretcomp", &noretcomp_bit);
 	intel_pt_parse_terms(intel_pt_pmu, "mtc", &mtc_bit);
-	mtc_freq_bits = perf_pmu__format_bits(&intel_pt_pmu->format,
-					      "mtc_period");
+	mtc_freq_bits = perf_pmu__format_bits(intel_pt_pmu, "mtc_period");
 	intel_pt_parse_terms(intel_pt_pmu, "cyc", &cyc_bit);
 
 	intel_pt_tsc_ctc_ratio(&tsc_ctc_ratio_n, &tsc_ctc_ratio_d);
@@ -502,7 +501,7 @@ static int intel_pt_val_config_term(struct perf_pmu *intel_pt_pmu, int dirfd,
 
 	valid |= 1;
 
-	bits = perf_pmu__format_bits(&intel_pt_pmu->format, name);
+	bits = perf_pmu__format_bits(intel_pt_pmu, name);
 
 	config &= bits;
 
