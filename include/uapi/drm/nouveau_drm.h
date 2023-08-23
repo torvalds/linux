@@ -138,6 +138,7 @@ struct drm_nouveau_gem_pushbuf_push {
 	__u32 pad;
 	__u64 offset;
 	__u64 length;
+#define NOUVEAU_GEM_PUSHBUF_NO_PREFETCH (1 << 23)
 };
 
 struct drm_nouveau_gem_pushbuf {
@@ -338,7 +339,12 @@ struct drm_nouveau_exec_push {
 	/**
 	 * @va_len: the length of the push buffer mapping
 	 */
-	__u64 va_len;
+	__u32 va_len;
+	/**
+	 * @flags: the flags for this push buffer mapping
+	 */
+	__u32 flags;
+#define DRM_NOUVEAU_EXEC_PUSH_NO_PREFETCH 0x1
 };
 
 /**
