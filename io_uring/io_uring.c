@@ -807,13 +807,10 @@ static bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data,
 
 void io_req_cqe_overflow(struct io_kiocb *req)
 {
-	if (!(req->flags & REQ_F_CQE32_INIT)) {
-		req->extra1 = 0;
-		req->extra2 = 0;
-	}
 	io_cqring_event_overflow(req->ctx, req->cqe.user_data,
 				req->cqe.res, req->cqe.flags,
-				req->extra1, req->extra2);
+				req->big_cqe.extra1, req->big_cqe.extra2);
+	memset(&req->big_cqe, 0, sizeof(req->big_cqe));
 }
 
 /*
@@ -1057,6 +1054,7 @@ static void io_preinit_req(struct io_kiocb *req, struct io_ring_ctx *ctx)
 	req->async_data = NULL;
 	/* not necessary, but safer to zero */
 	memset(&req->cqe, 0, sizeof(req->cqe));
+	memset(&req->big_cqe, 0, sizeof(req->big_cqe));
 }
 
 static void io_flush_cached_locked_reqs(struct io_ring_ctx *ctx,

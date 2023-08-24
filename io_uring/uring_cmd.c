@@ -43,9 +43,8 @@ EXPORT_SYMBOL_GPL(io_uring_cmd_do_in_task_lazy);
 static inline void io_req_set_cqe32_extra(struct io_kiocb *req,
 					  u64 extra1, u64 extra2)
 {
-	req->extra1 = extra1;
-	req->extra2 = extra2;
-	req->flags |= REQ_F_CQE32_INIT;
+	req->big_cqe.extra1 = extra1;
+	req->big_cqe.extra2 = extra2;
 }
 
 /*

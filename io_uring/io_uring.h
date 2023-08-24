@@ -148,21 +148,12 @@ static inline bool io_fill_cqe_req(struct io_ring_ctx *ctx, struct io_kiocb *req
 	if (trace_io_uring_complete_enabled())
 		trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
 					req->cqe.res, req->cqe.flags,
-					(req->flags & REQ_F_CQE32_INIT) ? req->extra1 : 0,
-					(req->flags & REQ_F_CQE32_INIT) ? req->extra2 : 0);
+					req->big_cqe.extra1, req->big_cqe.extra2);
 
 	memcpy(cqe, &req->cqe, sizeof(*cqe));
-
 	if (ctx->flags & IORING_SETUP_CQE32) {
-		u64 extra1 = 0, extra2 = 0;
-
-		if (req->flags & REQ_F_CQE32_INIT) {
-			extra1 = req->extra1;
-			extra2 = req->extra2;
-		}
-
-		WRITE_ONCE(cqe->big_cqe[0], extra1);
-		WRITE_ONCE(cqe->big_cqe[1], extra2);
+		memcpy(cqe->big_cqe, &req->big_cqe, sizeof(*cqe));
+		memset(&req->big_cqe, 0, sizeof(req->big_cqe));
 	}
 	return true;
 }
