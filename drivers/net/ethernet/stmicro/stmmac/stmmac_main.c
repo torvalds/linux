@@ -1223,15 +1223,16 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 				    priv->phylink_config.supported_interfaces);
 
 	priv->phylink_config.mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
-		MAC_10 | MAC_100 | MAC_1000;
+						MAC_10FD | MAC_100FD |
+						MAC_1000FD;
+
+	/* Half-Duplex can only work with single queue */
+	if (priv->plat->tx_queues_to_use <= 1)
+		priv->phylink_config.mac_capabilities |= MAC_10HD | MAC_100HD |
+							 MAC_1000HD;
 
 	/* Get the MAC specific capabilities */
 	stmmac_mac_phylink_get_caps(priv);
-
-	/* Half-Duplex can only work with single queue */
-	if (priv->plat->tx_queues_to_use > 1)
-		priv->phylink_config.mac_capabilities &=
-			~(MAC_10HD | MAC_100HD | MAC_1000HD);
 
 	max_speed = priv->plat->max_speed;
 	if (max_speed)
