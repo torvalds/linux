@@ -1168,6 +1168,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 		break;
 
 	case BPF_ALU | BPF_END | BPF_FROM_BE:
+	case BPF_ALU64 | BPF_END | BPF_FROM_LE:
 		emit_li(RV_REG_T2, 0, ctx);
 
 		emit_andi(RV_REG_T1, rd, 0xff, ctx);
