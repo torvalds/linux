@@ -726,10 +726,9 @@ static inline struct task_struct *__next_thread(struct task_struct *p)
 					thread_node);
 }
 
-static inline struct task_struct *next_thread(const struct task_struct *p)
+static inline struct task_struct *next_thread(struct task_struct *p)
 {
-	return list_entry_rcu(p->thread_group.next,
-			      struct task_struct, thread_group);
+	return __next_thread(p) ?: p->group_leader;
 }
 
 static inline int thread_group_empty(struct task_struct *p)
