@@ -196,4 +196,15 @@ config TI_ICSSG_PRUETH
 	  to support the Ethernet operation. Currently, it supports Ethernet
 	  with 1G and 100M link speed.
 
+config TI_ICSS_IEP
+	tristate "TI PRU ICSS IEP driver"
+	depends on TI_PRUSS
+	default TI_PRUSS
+	help
+	  This driver enables support for the PRU-ICSS Industrial Ethernet
+	  Peripheral within a PRU-ICSS subsystem present on various TI SoCs.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called icss_iep.
+
 endif # NET_VENDOR_TI
