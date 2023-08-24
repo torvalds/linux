@@ -985,9 +985,9 @@ copy_iov:
 
 static void io_cqring_ev_posted_iopoll(struct io_ring_ctx *ctx)
 {
-	io_commit_cqring_flush(ctx);
 	if (ctx->flags & IORING_SETUP_SQPOLL)
 		io_cqring_wake(ctx);
+	io_commit_cqring_flush(ctx);
 }
 
 void io_rw_fail(struct io_kiocb *req)
