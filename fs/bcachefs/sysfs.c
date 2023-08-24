@@ -248,7 +248,6 @@ read_attribute(new_stripes);
 read_attribute(io_timers_read);
 read_attribute(io_timers_write);
 
-read_attribute(data_jobs);
 read_attribute(moving_ctxts);
 
 #ifdef CONFIG_BCACHEFS_TESTS
@@ -457,9 +456,6 @@ SHOW(bch2_fs)
 
 	if (attr == &sysfs_io_timers_write)
 		bch2_io_timers_to_text(out, &c->io_clock[WRITE]);
-
-	if (attr == &sysfs_data_jobs)
-		bch2_data_jobs_to_text(out, c);
 
 	if (attr == &sysfs_moving_ctxts)
 		bch2_fs_moving_ctxts_to_text(out, c);
@@ -681,7 +677,6 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_rebalance_work,
 	sysfs_pd_controller_files(rebalance),
 
-	&sysfs_data_jobs,
 	&sysfs_moving_ctxts,
 
 	&sysfs_internal_uuid,

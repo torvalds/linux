@@ -1103,46 +1103,40 @@ int bch2_data_job(struct bch_fs *c,
 	return ret;
 }
 
-void bch2_data_jobs_to_text(struct printbuf *out, struct bch_fs *c)
+static void bch2_moving_ctxt_to_text(struct printbuf *out, struct bch_fs *c, struct moving_context *ctxt)
 {
-	struct bch_move_stats *stats;
-
-	mutex_lock(&c->data_progress_lock);
-	list_for_each_entry(stats, &c->data_progress_list, list) {
-		prt_printf(out, "%s: data type %s btree_id %s position: ",
-		       stats->name,
-		       bch2_data_types[stats->data_type],
-		       bch2_btree_ids[stats->btree_id]);
-		bch2_bpos_to_text(out, stats->pos);
-		prt_printf(out, "%s", "\n");
-	}
-	mutex_unlock(&c->data_progress_lock);
-}
-
-static void bch2_moving_ctxt_to_text(struct printbuf *out, struct moving_context *ctxt)
-{
+	struct bch_move_stats *stats = ctxt->stats;
 	struct moving_io *io;
 
-	prt_printf(out, "%ps:", ctxt->fn);
+	prt_printf(out, "%s (%ps):", stats->name, ctxt->fn);
+	prt_newline(out);
+
+	prt_printf(out, " data type %s btree_id %s position: ",
+		   bch2_data_types[stats->data_type],
+		   bch2_btree_ids[stats->btree_id]);
+	bch2_bpos_to_text(out, stats->pos);
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
 
-	prt_printf(out, "reads: %u sectors %u",
+	prt_printf(out, "reads: ios %u/%u sectors %u/%u",
 		   atomic_read(&ctxt->read_ios),
-		   atomic_read(&ctxt->read_sectors));
+		   c->opts.move_ios_in_flight,
+		   atomic_read(&ctxt->read_sectors),
+		   c->opts.move_bytes_in_flight >> 9);
 	prt_newline(out);
 
-	prt_printf(out, "writes: %u sectors %u",
+	prt_printf(out, "writes: ios %u/%u sectors %u/%u",
 		   atomic_read(&ctxt->write_ios),
-		   atomic_read(&ctxt->write_sectors));
+		   c->opts.move_ios_in_flight,
+		   atomic_read(&ctxt->write_sectors),
+		   c->opts.move_bytes_in_flight >> 9);
 	prt_newline(out);
 
 	printbuf_indent_add(out, 2);
 
 	mutex_lock(&ctxt->lock);
-	list_for_each_entry(io, &ctxt->ios, io_list) {
+	list_for_each_entry(io, &ctxt->ios, io_list)
 		bch2_write_op_to_text(out, &io->write.op);
-	}
 	mutex_unlock(&ctxt->lock);
 
 	printbuf_indent_sub(out, 4);
@@ -1154,7 +1148,7 @@ void bch2_fs_moving_ctxts_to_text(struct printbuf *out, struct bch_fs *c)
 
 	mutex_lock(&c->moving_context_lock);
 	list_for_each_entry(ctxt, &c->moving_context_list, list)
-		bch2_moving_ctxt_to_text(out, ctxt);
+		bch2_moving_ctxt_to_text(out, c, ctxt);
 	mutex_unlock(&c->moving_context_lock);
 }
 
