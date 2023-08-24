@@ -957,12 +957,21 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 	if (!pmu)
 		return NULL;
 
-	INIT_LIST_HEAD(&pmu->format);
-	INIT_LIST_HEAD(&pmu->aliases);
-	INIT_LIST_HEAD(&pmu->caps);
 	pmu->name = strdup(name);
 	if (!pmu->name)
 		goto err;
+
+	/*
+	 * Read type early to fail fast if a lookup name isn't a PMU. Ensure
+	 * that type value is successfully assigned (return 1).
+	 */
+	if (perf_pmu__scan_file_at(pmu, dirfd, "type", "%u", &type) != 1)
+		goto err;
+
+	INIT_LIST_HEAD(&pmu->format);
+	INIT_LIST_HEAD(&pmu->aliases);
+	INIT_LIST_HEAD(&pmu->caps);
+
 	/*
 	 * The pmu data we store & need consists of the pmu
 	 * type value and format definitions. Load both right
@@ -981,10 +990,6 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 	}
 	pmu->is_core = is_pmu_core(name);
 	pmu->cpus = pmu_cpumask(dirfd, name, pmu->is_core);
-
-	/* Read type, and ensure that type value is successfully assigned (return 1) */
-	if (perf_pmu__scan_file_at(pmu, dirfd, "type", "%u", &type) != 1)
-		goto err;
 
 	alias_name = pmu_find_alias_name(name);
 	if (alias_name) {
