@@ -2339,8 +2339,21 @@ static void io_commit_sqring(struct io_ring_ctx *ctx)
  */
 static bool io_get_sqe(struct io_ring_ctx *ctx, const struct io_uring_sqe **sqe)
 {
-	unsigned head, mask = ctx->sq_entries - 1;
-	unsigned sq_idx = ctx->cached_sq_head++ & mask;
+	unsigned mask = ctx->sq_entries - 1;
+	unsigned head = ctx->cached_sq_head++ & mask;
+
+	if (!(ctx->flags & IORING_SETUP_NO_SQARRAY)) {
+		head = READ_ONCE(ctx->sq_array[head]);
+		if (unlikely(head >= ctx->sq_entries)) {
+			/* drop invalid entries */
+			spin_lock(&ctx->completion_lock);
+			ctx->cq_extra--;
+			spin_unlock(&ctx->completion_lock);
+			WRITE_ONCE(ctx->rings->sq_dropped,
+				   READ_ONCE(ctx->rings->sq_dropped) + 1);
+			return false;
+		}
+	}
 
 	/*
 	 * The cached sq head (or cq tail) serves two purposes:
@@ -2350,22 +2363,12 @@ static bool io_get_sqe(struct io_ring_ctx *ctx, const struct io_uring_sqe **sqe)
 	 * 2) allows the kernel side to track the head on its own, even
 	 *    though the application is the one updating it.
 	 */
-	head = READ_ONCE(ctx->sq_array[sq_idx]);
-	if (likely(head < ctx->sq_entries)) {
-		/* double index for 128-byte SQEs, twice as long */
-		if (ctx->flags & IORING_SETUP_SQE128)
-			head <<= 1;
-		*sqe = &ctx->sq_sqes[head];
-		return true;
-	}
 
-	/* drop invalid entries */
-	spin_lock(&ctx->completion_lock);
-	ctx->cq_extra--;
-	spin_unlock(&ctx->completion_lock);
-	WRITE_ONCE(ctx->rings->sq_dropped,
-		   READ_ONCE(ctx->rings->sq_dropped) + 1);
-	return false;
+	/* double index for 128-byte SQEs, twice as long */
+	if (ctx->flags & IORING_SETUP_SQE128)
+		head <<= 1;
+	*sqe = &ctx->sq_sqes[head];
+	return true;
 }
 
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
@@ -2733,6 +2736,12 @@ static unsigned long rings_size(struct io_ring_ctx *ctx, unsigned int sq_entries
 	if (off == 0)
 		return SIZE_MAX;
 #endif
+
+	if (ctx->flags & IORING_SETUP_NO_SQARRAY) {
+		if (sq_offset)
+			*sq_offset = SIZE_MAX;
+		return off;
+	}
 
 	if (sq_offset)
 		*sq_offset = off;
@@ -3710,7 +3719,8 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 		return PTR_ERR(rings);
 
 	ctx->rings = rings;
-	ctx->sq_array = (u32 *)((char *)rings + sq_array_offset);
+	if (!(ctx->flags & IORING_SETUP_NO_SQARRAY))
+		ctx->sq_array = (u32 *)((char *)rings + sq_array_offset);
 	rings->sq_ring_mask = p->sq_entries - 1;
 	rings->cq_ring_mask = p->cq_entries - 1;
 	rings->sq_ring_entries = p->sq_entries;
@@ -3921,7 +3931,8 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 	p->sq_off.ring_entries = offsetof(struct io_rings, sq_ring_entries);
 	p->sq_off.flags = offsetof(struct io_rings, sq_flags);
 	p->sq_off.dropped = offsetof(struct io_rings, sq_dropped);
-	p->sq_off.array = (char *)ctx->sq_array - (char *)ctx->rings;
+	if (!(ctx->flags & IORING_SETUP_NO_SQARRAY))
+		p->sq_off.array = (char *)ctx->sq_array - (char *)ctx->rings;
 	p->sq_off.resv1 = 0;
 	if (!(ctx->flags & IORING_SETUP_NO_MMAP))
 		p->sq_off.user_addr = 0;
@@ -4010,7 +4021,8 @@ static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 			IORING_SETUP_COOP_TASKRUN | IORING_SETUP_TASKRUN_FLAG |
 			IORING_SETUP_SQE128 | IORING_SETUP_CQE32 |
 			IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_DEFER_TASKRUN |
-			IORING_SETUP_NO_MMAP | IORING_SETUP_REGISTERED_FD_ONLY))
+			IORING_SETUP_NO_MMAP | IORING_SETUP_REGISTERED_FD_ONLY |
+			IORING_SETUP_NO_SQARRAY))
 		return -EINVAL;
 
 	return io_uring_create(entries, &p, params);

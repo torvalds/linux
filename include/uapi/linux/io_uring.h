@@ -185,6 +185,11 @@ enum {
  */
 #define IORING_SETUP_REGISTERED_FD_ONLY	(1U << 15)
 
+/*
+ * Removes indirection through the SQ index array.
+ */
+#define IORING_SETUP_NO_SQARRAY		(1U << 16)
+
 enum io_uring_op {
 	IORING_OP_NOP,
 	IORING_OP_READV,
