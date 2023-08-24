@@ -1290,7 +1290,7 @@ end:
  *
  * Call pci_power_up() to put @dev into D0, read from its PCI_PM_CTRL register
  * to confirm the state change, restore its BARs if they might be lost and
- * reconfigure ASPM in acordance with the new power state.
+ * reconfigure ASPM in accordance with the new power state.
  *
  * If pci_restore_state() is going to be called right after a power state change
  * to D0, it is more efficient to use pci_power_up() directly instead of this
