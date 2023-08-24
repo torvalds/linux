@@ -70,8 +70,8 @@ u64 hv_get_non_nested_register(unsigned int reg)
 {
 	u64 value;
 
-	if (hv_is_synic_reg(reg) && hv_isolation_type_snp())
-		hv_ghcb_msr_read(reg, &value);
+	if (hv_is_synic_reg(reg) && ms_hyperv.paravisor_present)
+		hv_ivm_msr_read(reg, &value);
 	else
 		rdmsrl(reg, value);
 	return value;
@@ -80,8 +80,8 @@ EXPORT_SYMBOL_GPL(hv_get_non_nested_register);
 
 void hv_set_non_nested_register(unsigned int reg, u64 value)
 {
-	if (hv_is_synic_reg(reg) && hv_isolation_type_snp()) {
-		hv_ghcb_msr_write(reg, value);
+	if (hv_is_synic_reg(reg) && ms_hyperv.paravisor_present) {
+		hv_ivm_msr_write(reg, value);
 
 		/* Write proxy bit via wrmsl instruction */
 		if (hv_is_sint_reg(reg))

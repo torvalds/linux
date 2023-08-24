@@ -500,8 +500,8 @@ void __init hyperv_init(void)
 	guest_id = hv_generate_guest_id(LINUX_VERSION_CODE);
 	wrmsrl(HV_X64_MSR_GUEST_OS_ID, guest_id);
 
-	/* Hyper-V requires to write guest os id via ghcb in SNP IVM. */
-	hv_ghcb_msr_write(HV_X64_MSR_GUEST_OS_ID, guest_id);
+	/* With the paravisor, the VM must also write the ID via GHCB/GHCI */
+	hv_ivm_msr_write(HV_X64_MSR_GUEST_OS_ID, guest_id);
 
 	/* A TDX VM with no paravisor only uses TDX GHCI rather than hv_hypercall_pg */
 	if (hv_isolation_type_tdx() && !ms_hyperv.paravisor_present)
@@ -590,7 +590,7 @@ skip_hypercall_pg_init:
 
 clean_guest_os_id:
 	wrmsrl(HV_X64_MSR_GUEST_OS_ID, 0);
-	hv_ghcb_msr_write(HV_X64_MSR_GUEST_OS_ID, 0);
+	hv_ivm_msr_write(HV_X64_MSR_GUEST_OS_ID, 0);
 	cpuhp_remove_state(cpuhp);
 free_ghcb_page:
 	free_percpu(hv_ghcb_pg);
@@ -611,7 +611,7 @@ void hyperv_cleanup(void)
 
 	/* Reset our OS id */
 	wrmsrl(HV_X64_MSR_GUEST_OS_ID, 0);
-	hv_ghcb_msr_write(HV_X64_MSR_GUEST_OS_ID, 0);
+	hv_ivm_msr_write(HV_X64_MSR_GUEST_OS_ID, 0);
 
 	/*
 	 * Reset hypercall page reference before reset the page,

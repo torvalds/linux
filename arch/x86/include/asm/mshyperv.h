@@ -275,14 +275,10 @@ int hv_map_ioapic_interrupt(int ioapic_id, bool level, int vcpu, int vector,
 int hv_unmap_ioapic_interrupt(int ioapic_id, struct hv_interrupt_entry *entry);
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
-void hv_ghcb_msr_write(u64 msr, u64 value);
-void hv_ghcb_msr_read(u64 msr, u64 *value);
 bool hv_ghcb_negotiate_protocol(void);
 void __noreturn hv_ghcb_terminate(unsigned int set, unsigned int reason);
 int hv_snp_boot_ap(int cpu, unsigned long start_ip);
 #else
-static inline void hv_ghcb_msr_write(u64 msr, u64 value) {}
-static inline void hv_ghcb_msr_read(u64 msr, u64 *value) {}
 static inline bool hv_ghcb_negotiate_protocol(void) { return false; }
 static inline void hv_ghcb_terminate(unsigned int set, unsigned int reason) {}
 static inline int hv_snp_boot_ap(int cpu, unsigned long start_ip) { return 0; }
@@ -292,8 +288,12 @@ extern bool hv_isolation_type_snp(void);
 
 #if defined(CONFIG_AMD_MEM_ENCRYPT) || defined(CONFIG_INTEL_TDX_GUEST)
 void hv_vtom_init(void);
+void hv_ivm_msr_write(u64 msr, u64 value);
+void hv_ivm_msr_read(u64 msr, u64 *value);
 #else
 static inline void hv_vtom_init(void) {}
+static inline void hv_ivm_msr_write(u64 msr, u64 value) {}
+static inline void hv_ivm_msr_read(u64 msr, u64 *value) {}
 #endif
 
 static inline bool hv_is_synic_reg(unsigned int reg)
