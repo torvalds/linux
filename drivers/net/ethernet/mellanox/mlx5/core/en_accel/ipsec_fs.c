@@ -936,23 +936,42 @@ static void setup_fte_reg_c4(struct mlx5_flow_spec *spec, u32 reqid)
 
 static void setup_fte_upper_proto_match(struct mlx5_flow_spec *spec, struct upspec *upspec)
 {
-	if (upspec->proto != IPPROTO_UDP)
+	switch (upspec->proto) {
+	case IPPROTO_UDP:
+		if (upspec->dport) {
+			MLX5_SET(fte_match_set_lyr_2_4, spec->match_criteria,
+				 udp_dport, upspec->dport_mask);
+			MLX5_SET(fte_match_set_lyr_2_4, spec->match_value,
+				 udp_dport, upspec->dport);
+		}
+		if (upspec->sport) {
+			MLX5_SET(fte_match_set_lyr_2_4, spec->match_criteria,
+				 udp_sport, upspec->sport_mask);
+			MLX5_SET(fte_match_set_lyr_2_4, spec->match_value,
+				 udp_sport, upspec->sport);
+		}
+		break;
+	case IPPROTO_TCP:
+		if (upspec->dport) {
+			MLX5_SET(fte_match_set_lyr_2_4, spec->match_criteria,
+				 tcp_dport, upspec->dport_mask);
+			MLX5_SET(fte_match_set_lyr_2_4, spec->match_value,
+				 tcp_dport, upspec->dport);
+		}
+		if (upspec->sport) {
+			MLX5_SET(fte_match_set_lyr_2_4, spec->match_criteria,
+				 tcp_sport, upspec->sport_mask);
+			MLX5_SET(fte_match_set_lyr_2_4, spec->match_value,
+				 tcp_sport, upspec->sport);
+		}
+		break;
+	default:
 		return;
+	}
 
 	spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, spec->match_criteria, ip_protocol);
 	MLX5_SET(fte_match_set_lyr_2_4, spec->match_value, ip_protocol, upspec->proto);
-	if (upspec->dport) {
-		MLX5_SET(fte_match_set_lyr_2_4, spec->match_criteria, udp_dport,
-			 upspec->dport_mask);
-		MLX5_SET(fte_match_set_lyr_2_4, spec->match_value, udp_dport, upspec->dport);
-	}
-
-	if (upspec->sport) {
-		MLX5_SET(fte_match_set_lyr_2_4, spec->match_criteria, udp_sport,
-			 upspec->sport_mask);
-		MLX5_SET(fte_match_set_lyr_2_4, spec->match_value, udp_sport, upspec->sport);
-	}
 }
 
 static enum mlx5_flow_namespace_type ipsec_fs_get_ns(struct mlx5e_ipsec *ipsec,
@@ -1243,6 +1262,7 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	setup_fte_spi(spec, attrs->spi);
 	setup_fte_esp(spec);
 	setup_fte_no_frags(spec);
+	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
 	if (rx != ipsec->rx_esw)
 		err = setup_modify_header(ipsec, attrs->type,
@@ -1519,6 +1539,7 @@ static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
 
 	setup_fte_no_frags(spec);
+	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
 	switch (attrs->action) {
 	case XFRM_POLICY_ALLOW:
