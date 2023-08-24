@@ -31,6 +31,7 @@ enum efx_encap_type efx_tc_indr_netdev_type(struct net_device *net_dev)
 	return EFX_ENCAP_TYPE_NONE;
 }
 
+#define EFX_TC_HDR_TYPE_TTL_MASK ((u32)0xff)
 #define EFX_EFV_PF	NULL
 /* Look up the representor information (efv) for a device.
  * May return NULL for the PF (us), or an error pointer for a device that
@@ -757,6 +758,7 @@ static const char *efx_tc_encap_type_name(enum efx_encap_type typ)
 /* For details of action order constraints refer to SF-123102-TC-1§12.6.1 */
 enum efx_tc_action_order {
 	EFX_TC_AO_DECAP,
+	EFX_TC_AO_DEC_TTL,
 	EFX_TC_AO_PEDIT_MAC_ADDRS,
 	EFX_TC_AO_VLAN_POP,
 	EFX_TC_AO_VLAN_PUSH,
@@ -776,6 +778,10 @@ static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
 		 * can wait until much later
 		 */
 		if (act->dst_mac || act->src_mac)
+			return false;
+
+		/* Decrementing ttl must not happen before DECAP */
+		if (act->do_ttl_dec)
 			return false;
 		fallthrough;
 	case EFX_TC_AO_VLAN_POP:
@@ -803,6 +809,10 @@ static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
 		fallthrough;
 	case EFX_TC_AO_DELIVER:
 		return !act->deliver;
+	case EFX_TC_AO_DEC_TTL:
+		if (act->encap_md)
+			return false;
+		return !act->do_ttl_dec;
 	default:
 		/* Bad caller.  Whatever they wanted to do, say they can't. */
 		WARN_ON_ONCE(1);
@@ -1049,6 +1059,7 @@ static int efx_tc_complete_mac_mangle(struct efx_nic *efx,
  * @fa:		FLOW_ACTION_MANGLE action metadata
  * @mung:	accumulator for partial mangles
  * @extack:	netlink extended ack for reporting errors
+ * @match:	original match used along with the mangle action
  *
  * Identify the fields written by a FLOW_ACTION_MANGLE, and record
  * the partial mangle state in @mung.  If this mangle completes an
@@ -1059,10 +1070,12 @@ static int efx_tc_complete_mac_mangle(struct efx_nic *efx,
 static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			 const struct flow_action_entry *fa,
 			 struct efx_tc_mangler_state *mung,
-			 struct netlink_ext_ack *extack)
+			 struct netlink_ext_ack *extack,
+			 struct efx_tc_match *match)
 {
 	__le32 mac32;
 	__le16 mac16;
+	u8 tr_ttl;
 
 	switch (fa->mangle.htype) {
 	case FLOW_ACT_MANGLE_HDR_TYPE_ETH:
@@ -1116,6 +1129,64 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 		default:
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported: mangle eth+%u %x/%x",
 					       fa->mangle.offset, fa->mangle.val, fa->mangle.mask);
+			return -EOPNOTSUPP;
+		}
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP4:
+		switch (fa->mangle.offset) {
+		case offsetof(struct iphdr, ttl):
+			/* we currently only support pedit IP4 when it applies
+			 * to TTL and then only when it can be achieved with a
+			 * decrement ttl action
+			 */
+
+			/* check that pedit applies to ttl only */
+			if (fa->mangle.mask != ~EFX_TC_HDR_TYPE_TTL_MASK) {
+				NL_SET_ERR_MSG_FMT_MOD(extack,
+						       "Unsupported: mask (%#x) out of range, only support mangle action on ipv4.ttl",
+						       fa->mangle.mask);
+				return -EOPNOTSUPP;
+			}
+
+			/* we can only convert to a dec ttl when we have an
+			 * exact match on the ttl field
+			 */
+			if (match->mask.ip_ttl != U8_MAX) {
+				NL_SET_ERR_MSG_FMT_MOD(extack,
+						       "Unsupported: only support mangle ipv4.ttl when we have an exact match on ttl, mask used for match (%#x)",
+						       match->mask.ip_ttl);
+				return -EOPNOTSUPP;
+			}
+
+			/* check that we don't try to decrement 0, which equates
+			 * to setting the ttl to 0xff
+			 */
+			if (match->value.ip_ttl == 0) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Unsupported: we cannot decrement ttl past 0");
+				return -EOPNOTSUPP;
+			}
+
+			/* check that we do not decrement ttl twice */
+			if (!efx_tc_flower_action_order_ok(act,
+							   EFX_TC_AO_DEC_TTL)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Unsupported: multiple dec ttl");
+				return -EOPNOTSUPP;
+			}
+
+			/* check pedit can be achieved with decrement action */
+			tr_ttl = match->value.ip_ttl - 1;
+			if ((fa->mangle.val & EFX_TC_HDR_TYPE_TTL_MASK) == tr_ttl) {
+				act->do_ttl_dec = 1;
+				return 0;
+			}
+
+			fallthrough;
+		default:
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Unsupported: only support mangle on the ttl field (offset is %u)",
+					       fa->mangle.offset);
 			return -EOPNOTSUPP;
 		}
 		break;
@@ -1885,7 +1956,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			act->vlan_push++;
 			break;
 		case FLOW_ACTION_MANGLE:
-			rc = efx_tc_mangle(efx, act, fa, &mung, extack);
+			rc = efx_tc_mangle(efx, act, fa, &mung, extack, &match);
 			if (rc < 0)
 				goto release;
 			break;
