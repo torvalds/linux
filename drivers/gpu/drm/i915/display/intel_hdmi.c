@@ -2485,9 +2485,8 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS, wakeref);
 
-	/* FIXME: Get rid of drm_edid_raw() */
-	cec_notifier_set_phys_addr_from_edid(intel_hdmi->cec_notifier,
-					     drm_edid_raw(drm_edid));
+	cec_notifier_set_phys_addr(intel_hdmi->cec_notifier,
+				   connector->display_info.source_physical_address);
 
 	return connected;
 }

@@ -5201,7 +5201,6 @@ intel_dp_set_edid(struct intel_dp *intel_dp)
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct intel_connector *connector = intel_dp->attached_connector;
 	const struct drm_edid *drm_edid;
-	const struct edid *edid;
 	bool vrr_capable;
 
 	intel_dp_unset_edid(intel_dp);
@@ -5219,10 +5218,8 @@ intel_dp_set_edid(struct intel_dp *intel_dp)
 	intel_dp_update_dfp(intel_dp, drm_edid);
 	intel_dp_update_420(intel_dp);
 
-	/* FIXME: Get rid of drm_edid_raw() */
-	edid = drm_edid_raw(drm_edid);
-
-	drm_dp_cec_set_edid(&intel_dp->aux, edid);
+	drm_dp_cec_attach(&intel_dp->aux,
+			  connector->base.display_info.source_physical_address);
 }
 
 static void
