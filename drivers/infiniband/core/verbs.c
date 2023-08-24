@@ -366,7 +366,7 @@ void rdma_copy_ah_attr(struct rdma_ah_attr *dest,
 EXPORT_SYMBOL(rdma_copy_ah_attr);
 
 /**
- * rdma_replace_ah_attr - Replace valid ah_attr with new new one.
+ * rdma_replace_ah_attr - Replace valid ah_attr with new one.
  * @old:        Pointer to existing ah_attr which needs to be replaced.
  *              old is assumed to be valid or zero'd
  * @new:        Pointer to the new ah_attr.
@@ -744,7 +744,7 @@ EXPORT_SYMBOL(ib_get_gids_from_rdma_hdr);
 
 /* Resolve destination mac address and hop limit for unicast destination
  * GID entry, considering the source GID entry as well.
- * ah_attribute must have have valid port_num, sgid_index.
+ * ah_attribute must have valid port_num, sgid_index.
  */
 static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
 				       struct rdma_ah_attr *ah_attr)
