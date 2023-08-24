@@ -57,20 +57,37 @@ int hv_post_message(union hv_connection_id connection_id,
 
 	local_irq_save(flags);
 
-	aligned_msg = *this_cpu_ptr(hyperv_pcpu_input_arg);
+	/*
+	 * A TDX VM with the paravisor must use the decrypted post_msg_page: see
+	 * the comment in struct hv_per_cpu_context. A SNP VM with the paravisor
+	 * can use the encrypted hyperv_pcpu_input_arg because it copies the
+	 * input into the GHCB page, which has been decrypted by the paravisor.
+	 */
+	if (hv_isolation_type_tdx() && ms_hyperv.paravisor_present)
+		aligned_msg = this_cpu_ptr(hv_context.cpu_context)->post_msg_page;
+	else
+		aligned_msg = *this_cpu_ptr(hyperv_pcpu_input_arg);
+
 	aligned_msg->connectionid = connection_id;
 	aligned_msg->reserved = 0;
 	aligned_msg->message_type = message_type;
 	aligned_msg->payload_size = payload_size;
 	memcpy((void *)aligned_msg->payload, payload, payload_size);
 
-	if (hv_isolation_type_snp())
-		status = hv_ghcb_hypercall(HVCALL_POST_MESSAGE,
-				(void *)aligned_msg, NULL,
-				sizeof(*aligned_msg));
-	else
+	if (ms_hyperv.paravisor_present) {
+		if (hv_isolation_type_tdx())
+			status = hv_tdx_hypercall(HVCALL_POST_MESSAGE,
+						  virt_to_phys(aligned_msg), 0);
+		else if (hv_isolation_type_snp())
+			status = hv_ghcb_hypercall(HVCALL_POST_MESSAGE,
+						   aligned_msg, NULL,
+						   sizeof(*aligned_msg));
+		else
+			status = HV_STATUS_INVALID_PARAMETER;
+	} else {
 		status = hv_do_hypercall(HVCALL_POST_MESSAGE,
 				aligned_msg, NULL);
+	}
 
 	local_irq_restore(flags);
 
@@ -104,6 +121,24 @@ int hv_synic_alloc(void)
 
 		tasklet_init(&hv_cpu->msg_dpc,
 			     vmbus_on_msg_dpc, (unsigned long) hv_cpu);
+
+		if (ms_hyperv.paravisor_present && hv_isolation_type_tdx()) {
+			hv_cpu->post_msg_page = (void *)get_zeroed_page(GFP_ATOMIC);
+			if (hv_cpu->post_msg_page == NULL) {
+				pr_err("Unable to allocate post msg page\n");
+				goto err;
+			}
+
+			ret = set_memory_decrypted((unsigned long)hv_cpu->post_msg_page, 1);
+			if (ret) {
+				pr_err("Failed to decrypt post msg page: %d\n", ret);
+				/* Just leak the page, as it's unsafe to free the page. */
+				hv_cpu->post_msg_page = NULL;
+				goto err;
+			}
+
+			memset(hv_cpu->post_msg_page, 0, PAGE_SIZE);
+		}
 
 		/*
 		 * Synic message and event pages are allocated by paravisor.
@@ -178,6 +213,17 @@ void hv_synic_free(void)
 			= per_cpu_ptr(hv_context.cpu_context, cpu);
 
 		/* It's better to leak the page if the encryption fails. */
+		if (ms_hyperv.paravisor_present && hv_isolation_type_tdx()) {
+			if (hv_cpu->post_msg_page) {
+				ret = set_memory_encrypted((unsigned long)
+					hv_cpu->post_msg_page, 1);
+				if (ret) {
+					pr_err("Failed to encrypt post msg page: %d\n", ret);
+					hv_cpu->post_msg_page = NULL;
+				}
+			}
+		}
+
 		if (!ms_hyperv.paravisor_present &&
 		    (hv_isolation_type_en_snp() || hv_isolation_type_tdx())) {
 			if (hv_cpu->synic_message_page) {
@@ -199,6 +245,7 @@ void hv_synic_free(void)
 			}
 		}
 
+		free_page((unsigned long)hv_cpu->post_msg_page);
 		free_page((unsigned long)hv_cpu->synic_event_page);
 		free_page((unsigned long)hv_cpu->synic_message_page);
 	}
