@@ -17,6 +17,8 @@
 #include <linux/regmap.h>
 #include <linux/bitfield.h>
 
+#include "../../common/stm_iio_types.h"
+
 #define ST_LSM6DSO16IS_DEV_NAME			"lsm6dso16is"
 
 #define ST_LSM6DSO16IS_REG_FUNC_CFG_ACCESS_ADDR	0x01

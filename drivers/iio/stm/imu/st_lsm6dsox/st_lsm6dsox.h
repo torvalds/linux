@@ -21,6 +21,8 @@
 #include <linux/workqueue.h>
 #include <linux/version.h>
 
+#include "../../common/stm_iio_types.h"
+
 #define ST_LSM6DSOX_ODR_EXPAND(odr, uodr)	(((odr) * 1000000) + (uodr))
 
 #define ST_LSM6DSO_DEV_NAME			"lsm6dso"
@@ -245,7 +247,7 @@ enum st_lsm6dsox_hw_id {
 }
 
 static const struct iio_event_spec st_lsm6dsox_flush_event = {
-	.type = IIO_EV_TYPE_FIFO_FLUSH,
+	.type = STM_IIO_EV_TYPE_FIFO_FLUSH,
 	.dir = IIO_EV_DIR_EITHER,
 };
 

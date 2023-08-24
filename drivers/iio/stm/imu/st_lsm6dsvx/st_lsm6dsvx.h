@@ -21,6 +21,8 @@
 #include <linux/workqueue.h>
 #include <linux/version.h>
 
+#include "../../common/stm_iio_types.h"
+
 #define ST_LSM6DSVX_ODR_LIST_SIZE		9
 #define ST_LSM6DSVX_ODR_EXPAND(odr, uodr)	((odr * 1000000) + uodr)
 
@@ -328,7 +330,7 @@
 }
 
 static const struct iio_event_spec st_lsm6dsvx_flush_event = {
-	.type = IIO_EV_TYPE_FIFO_FLUSH,
+	.type = STM_IIO_EV_TYPE_FIFO_FLUSH,
 	.dir = IIO_EV_DIR_EITHER,
 };
 

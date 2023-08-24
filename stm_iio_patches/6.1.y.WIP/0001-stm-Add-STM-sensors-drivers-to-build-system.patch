@@ -1,7 +1,7 @@
 From 912aec8de4c4896151095e14e1f4bc4a0c953195 Mon Sep 17 00:00:00 2001
 From: Mario Tesi <mario.tesi@st.com>
 Date: Fri, 10 Mar 2023 13:21:34 +0100
-Subject: [PATCH 2/3] Add STM sensors drivers to build system
+Subject: [PATCH] Add STM sensors drivers to build system
 
 Signed-off-by: Mario Tesi <mario.tesi@st.com>
 ---

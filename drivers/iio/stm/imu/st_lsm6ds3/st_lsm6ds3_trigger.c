@@ -118,7 +118,7 @@ read_fifo_status:
 					BIT(ST_MASK_ID_SIGN_MOTION))) {
 			iio_push_event(cdata->indio_dev[
 				ST_MASK_ID_SIGN_MOTION],
-				IIO_UNMOD_EVENT_CODE(IIO_SIGN_MOTION,
+				IIO_UNMOD_EVENT_CODE(STM_IIO_SIGN_MOTION,
 				0, IIO_EV_TYPE_THRESH, IIO_EV_DIR_EITHER),
 				cdata->timestamp);
 

@@ -16,6 +16,8 @@
 #include <linux/platform_data/stm/lis2ds12.h>
 #include <linux/version.h>
 
+#include "../common/stm_iio_types.h"
+
 #if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
 #include <linux/iio/iio-opaque.h>
 #endif /* LINUX_VERSION_CODE */

@@ -1,7 +1,7 @@
 From 6b3b528b789d3555952915bc436db6914cda5b8f Mon Sep 17 00:00:00 2001
 From: mario tesi <mario.tesi@st.com>
 Date: Thu, 16 Sep 2021 15:33:29 +0200
-Subject: [PATCH 1/2] Added STMEMS sensor to build system
+Subject: [PATCH] Added STMEMS sensor to build system
 
 Signed-off-by: mario tesi <mario.tesi@st.com>
 ---

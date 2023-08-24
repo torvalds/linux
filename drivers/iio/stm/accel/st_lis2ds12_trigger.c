@@ -24,7 +24,7 @@ static void lis2ds12_event_management(struct lis2ds12_data *cdata, u8 int_reg_va
 	if (CHECK_BIT(cdata->enabled_sensor, LIS2DS12_TAP) &&
 				(int_reg_val & LIS2DS12_TAP_MASK))
 		iio_push_event(cdata->iio_sensors_dev[LIS2DS12_TAP],
-					IIO_UNMOD_EVENT_CODE(IIO_TAP, 0,
+					IIO_UNMOD_EVENT_CODE(STM_IIO_TAP, 0,
 					IIO_EV_TYPE_THRESH,
 					IIO_EV_DIR_EITHER),
 					cdata->timestamp);
@@ -32,7 +32,7 @@ static void lis2ds12_event_management(struct lis2ds12_data *cdata, u8 int_reg_va
 	if (CHECK_BIT(cdata->enabled_sensor, LIS2DS12_DOUBLE_TAP) &&
 				(int_reg_val & LIS2DS12_DOUBLE_TAP_MASK))
 		iio_push_event(cdata->iio_sensors_dev[LIS2DS12_DOUBLE_TAP],
-					IIO_UNMOD_EVENT_CODE(IIO_TAP_TAP, 0,
+					IIO_UNMOD_EVENT_CODE(STM_IIO_TAP_TAP, 0,
 					IIO_EV_TYPE_THRESH,
 					IIO_EV_DIR_EITHER),
 					cdata->timestamp);
@@ -40,7 +40,7 @@ static void lis2ds12_event_management(struct lis2ds12_data *cdata, u8 int_reg_va
 	if (ck_gate_val & LIS2DS12_FUNC_CK_GATE_STEP_D_MASK) {
 		if (CHECK_BIT(cdata->enabled_sensor, LIS2DS12_STEP_D))
 			iio_push_event(cdata->iio_sensors_dev[LIS2DS12_STEP_D],
-					IIO_UNMOD_EVENT_CODE(IIO_STEP_DETECTOR, 0,
+					IIO_UNMOD_EVENT_CODE(IIO_STEPS, 0,
 					IIO_EV_TYPE_THRESH,
 					IIO_EV_DIR_EITHER),
 					cdata->timestamp);
@@ -52,7 +52,7 @@ static void lis2ds12_event_management(struct lis2ds12_data *cdata, u8 int_reg_va
 	if (CHECK_BIT(cdata->enabled_sensor, LIS2DS12_TILT) &&
 			(ck_gate_val & LIS2DS12_FUNC_CK_GATE_TILT_INT_MASK))
 		iio_push_event(cdata->iio_sensors_dev[LIS2DS12_TILT],
-					IIO_UNMOD_EVENT_CODE(IIO_TILT, 0,
+					IIO_UNMOD_EVENT_CODE(STM_IIO_TILT, 0,
 					IIO_EV_TYPE_THRESH,
 					IIO_EV_DIR_EITHER),
 					cdata->timestamp);
@@ -60,7 +60,7 @@ static void lis2ds12_event_management(struct lis2ds12_data *cdata, u8 int_reg_va
 	if (CHECK_BIT(cdata->enabled_sensor, LIS2DS12_SIGN_M) &&
 			(ck_gate_val & LIS2DS12_FUNC_CK_GATE_SIGN_M_DET_MASK))
 		iio_push_event(cdata->iio_sensors_dev[LIS2DS12_SIGN_M],
-					IIO_UNMOD_EVENT_CODE(IIO_SIGN_MOTION, 0,
+					IIO_UNMOD_EVENT_CODE(STM_IIO_SIGN_MOTION, 0,
 					IIO_EV_TYPE_THRESH,
 					IIO_EV_DIR_EITHER),
 					cdata->timestamp);

@@ -124,7 +124,7 @@ read_fifo_status:
 	if ((src_dig_func & ST_LSM6DSM_SRC_SIGN_MOTION_DATA_AVL) &&
 				(cdata->sensors_enabled & BIT(ST_MASK_ID_SIGN_MOTION))) {
 		iio_push_event(cdata->indio_dev[ST_MASK_ID_SIGN_MOTION],
-				IIO_UNMOD_EVENT_CODE(IIO_SIGN_MOTION,
+				IIO_UNMOD_EVENT_CODE(STM_IIO_SIGN_MOTION,
 				0, IIO_EV_TYPE_THRESH, IIO_EV_DIR_EITHER),
 				cdata->timestamp);
 	}
@@ -158,7 +158,7 @@ read_fifo_status:
 	if ((src_tap_func & ST_LSM6DSM_STAP_EVENT) &&
 				(cdata->sensors_enabled & BIT(ST_MASK_ID_TAP))) {
 		iio_push_event(cdata->indio_dev[ST_MASK_ID_TAP],
-				IIO_UNMOD_EVENT_CODE(IIO_TAP,
+				IIO_UNMOD_EVENT_CODE(STM_IIO_TAP,
 				0, IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING),
 				cdata->timestamp);
 	}
@@ -166,7 +166,7 @@ read_fifo_status:
 	if ((src_tap_func & ST_LSM6DSM_DTAP_EVENT) &&
 				(cdata->sensors_enabled & BIT(ST_MASK_ID_TAP_TAP))) {
 		iio_push_event(cdata->indio_dev[ST_MASK_ID_TAP_TAP],
-				IIO_UNMOD_EVENT_CODE(IIO_TAP_TAP,
+				IIO_UNMOD_EVENT_CODE(STM_IIO_TAP_TAP,
 				0, IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING),
 				cdata->timestamp);
 	}

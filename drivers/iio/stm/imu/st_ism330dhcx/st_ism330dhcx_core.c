@@ -273,7 +273,7 @@ static const struct iio_chan_spec st_ism330dhcx_gyro_channels[] = {
  */
 static const struct iio_chan_spec st_ism330dhcx_step_counter_channels[] = {
 	{
-		.type = IIO_STEP_COUNTER,
+		.type = STM_IIO_STEP_COUNTER,
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 'u',
@@ -282,7 +282,7 @@ static const struct iio_chan_spec st_ism330dhcx_step_counter_channels[] = {
 			.endianness = IIO_LE,
 		},
 	},
-	ST_ISM330DHCX_EVENT_CHANNEL(IIO_STEP_COUNTER, flush),
+	ST_ISM330DHCX_EVENT_CHANNEL(STM_IIO_STEP_COUNTER, flush),
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
@@ -293,7 +293,7 @@ static const struct iio_chan_spec st_ism330dhcx_step_counter_channels[] = {
  * Step detection event detection
  */
 static const struct iio_chan_spec st_ism330dhcx_step_detector_channels[] = {
-	ST_ISM330DHCX_EVENT_CHANNEL(IIO_STEP_DETECTOR, thr),
+	ST_ISM330DHCX_EVENT_CHANNEL(IIO_STEPS, thr),
 };
 
 /**
@@ -303,7 +303,7 @@ static const struct iio_chan_spec st_ism330dhcx_step_detector_channels[] = {
  * Significant Motion event detection
  */
 static const struct iio_chan_spec st_ism330dhcx_sign_motion_channels[] = {
-	ST_ISM330DHCX_EVENT_CHANNEL(IIO_SIGN_MOTION, thr),
+	ST_ISM330DHCX_EVENT_CHANNEL(STM_IIO_SIGN_MOTION, thr),
 };
 
 /**
@@ -313,7 +313,7 @@ static const struct iio_chan_spec st_ism330dhcx_sign_motion_channels[] = {
  * Tilt event detection
  */
 static const struct iio_chan_spec st_ism330dhcx_tilt_channels[] = {
-	ST_ISM330DHCX_EVENT_CHANNEL(IIO_TILT, thr),
+	ST_ISM330DHCX_EVENT_CHANNEL(STM_IIO_TILT, thr),
 };
 
 /**
@@ -351,7 +351,7 @@ static const struct iio_chan_spec st_ism330dhcx_temp_channels[] = {
  * Glance event detection
  */
 static const struct iio_chan_spec st_ism330dhcx_glance_channels[] = {
-	ST_ISM330DHCX_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_ISM330DHCX_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 };
 
 /**
@@ -361,7 +361,7 @@ static const struct iio_chan_spec st_ism330dhcx_glance_channels[] = {
  * Motion event detection
  */
 static const struct iio_chan_spec st_ism330dhcx_motion_channels[] = {
-	ST_ISM330DHCX_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_ISM330DHCX_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 };
 
 /**
@@ -371,7 +371,7 @@ static const struct iio_chan_spec st_ism330dhcx_motion_channels[] = {
  * No Motion event detection
  */
 static const struct iio_chan_spec st_ism330dhcx_no_motion_channels[] = {
-	ST_ISM330DHCX_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_ISM330DHCX_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 };
 
 /**
@@ -381,7 +381,7 @@ static const struct iio_chan_spec st_ism330dhcx_no_motion_channels[] = {
  * Wakeup event detection
  */
 static const struct iio_chan_spec st_ism330dhcx_wakeup_channels[] = {
-	ST_ISM330DHCX_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_ISM330DHCX_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 };
 
 /**
@@ -391,7 +391,7 @@ static const struct iio_chan_spec st_ism330dhcx_wakeup_channels[] = {
  * Pickup event detection
  */
 static const struct iio_chan_spec st_ism330dhcx_pickup_channels[] = {
-	ST_ISM330DHCX_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_ISM330DHCX_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 };
 
 /**
@@ -403,7 +403,7 @@ static const struct iio_chan_spec st_ism330dhcx_pickup_channels[] = {
  */
 static const struct iio_chan_spec st_ism330dhcx_orientation_channels[] = {
 	{
-		.type = IIO_GESTURE,
+		.type = STM_IIO_GESTURE,
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 'u',
@@ -421,7 +421,7 @@ static const struct iio_chan_spec st_ism330dhcx_orientation_channels[] = {
  * Wrist event detection
  */
 static const struct iio_chan_spec st_ism330dhcx_wrist_channels[] = {
-	ST_ISM330DHCX_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_ISM330DHCX_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 };
 
 int __st_ism330dhcx_write_with_mask(struct st_ism330dhcx_hw *hw, u8 addr, u8 mask,

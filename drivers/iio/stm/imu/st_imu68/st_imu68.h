@@ -14,6 +14,8 @@
 #include <linux/of_device.h>
 #include <linux/version.h>
 
+#include "../../common/stm_iio_types.h"
+
 #define ST_LSM9DS1_DEV_NAME		"lsm9ds1"
 
 #define ST_IMU68_OUT_LEN		6

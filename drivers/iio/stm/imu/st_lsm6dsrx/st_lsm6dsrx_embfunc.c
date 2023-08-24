@@ -30,7 +30,7 @@
  */
 static const struct iio_chan_spec st_lsm6dsrx_step_counter_channels[] = {
 	{
-		.type = IIO_STEP_COUNTER,
+		.type = STM_IIO_STEP_COUNTER,
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 'u',
@@ -39,7 +39,7 @@ static const struct iio_chan_spec st_lsm6dsrx_step_counter_channels[] = {
 			.endianness = IIO_LE,
 		},
 	},
-	ST_LSM6DSRX_EVENT_CHANNEL(IIO_STEP_COUNTER, flush),
+	ST_LSM6DSRX_EVENT_CHANNEL(STM_IIO_STEP_COUNTER, flush),
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
@@ -50,7 +50,7 @@ static const struct iio_chan_spec st_lsm6dsrx_step_counter_channels[] = {
  * Step detection event detection
  */
 static const struct iio_chan_spec st_lsm6dsrx_step_detector_channels[] = {
-	ST_LSM6DSRX_EVENT_CHANNEL(IIO_STEP_DETECTOR, thr),
+	ST_LSM6DSRX_EVENT_CHANNEL(IIO_STEPS, thr),
 };
 
 /**
@@ -61,7 +61,7 @@ static const struct iio_chan_spec st_lsm6dsrx_step_detector_channels[] = {
  * Significant Motion event detection
  */
 static const struct iio_chan_spec st_lsm6dsrx_sign_motion_channels[] = {
-	ST_LSM6DSRX_EVENT_CHANNEL(IIO_SIGN_MOTION, thr),
+	ST_LSM6DSRX_EVENT_CHANNEL(STM_IIO_SIGN_MOTION, thr),
 };
 
 /**
@@ -71,7 +71,7 @@ static const struct iio_chan_spec st_lsm6dsrx_sign_motion_channels[] = {
  * Tilt event detection
  */
 static const struct iio_chan_spec st_lsm6dsrx_tilt_channels[] = {
-	ST_LSM6DSRX_EVENT_CHANNEL(IIO_TILT, thr),
+	ST_LSM6DSRX_EVENT_CHANNEL(STM_IIO_TILT, thr),
 };
 
 static const unsigned long st_lsm6dsrx_embfunc_available_scan_masks[] = {
@@ -511,7 +511,7 @@ int st_lsm6dsrx_embfunc_handler_thread(struct st_lsm6dsrx_hw *hw)
 		/* embedded function sensors */
 		if (status & ST_LSM6DSRX_IS_STEP_DET_MASK) {
 			iio_dev = hw->iio_devs[ST_LSM6DSRX_ID_STEP_DETECTOR];
-			event = IIO_UNMOD_EVENT_CODE(IIO_STEP_DETECTOR,
+			event = IIO_UNMOD_EVENT_CODE(IIO_STEPS,
 						    -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
@@ -521,7 +521,7 @@ int st_lsm6dsrx_embfunc_handler_thread(struct st_lsm6dsrx_hw *hw)
 
 		if (status & ST_LSM6DSRX_IS_SIGMOT_MASK) {
 			iio_dev = hw->iio_devs[ST_LSM6DSRX_ID_SIGN_MOTION];
-			event = IIO_UNMOD_EVENT_CODE(IIO_SIGN_MOTION,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_SIGN_MOTION,
 						    -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
@@ -531,7 +531,7 @@ int st_lsm6dsrx_embfunc_handler_thread(struct st_lsm6dsrx_hw *hw)
 
 		if (status & ST_LSM6DSRX_IS_TILT_MASK) {
 			iio_dev = hw->iio_devs[ST_LSM6DSRX_ID_TILT];
-			event = IIO_UNMOD_EVENT_CODE(IIO_TILT, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_TILT, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,

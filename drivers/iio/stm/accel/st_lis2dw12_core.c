@@ -160,7 +160,7 @@ struct st_lis2dw12_selftest_req st_lis2dw12_selftest_table[] = {
 }
 
 const struct iio_event_spec st_lis2dw12_fifo_flush_event = {
-	.type = IIO_EV_TYPE_FIFO_FLUSH,
+	.type = STM_IIO_EV_TYPE_FIFO_FLUSH,
 	.dir = IIO_EV_DIR_EITHER,
 };
 
@@ -189,15 +189,15 @@ static const struct iio_chan_spec st_lis2dw12_acc_channels[] = {
 };
 
 static const struct iio_chan_spec st_lis2dw12_tap_tap_channels[] = {
-	ST_LIS2DW12_EVENT_CHANNEL(IIO_TAP_TAP, &st_lis2dw12_rthr_event),
+	ST_LIS2DW12_EVENT_CHANNEL(STM_IIO_TAP_TAP, &st_lis2dw12_rthr_event),
 };
 
 static const struct iio_chan_spec st_lis2dw12_tap_channels[] = {
-	ST_LIS2DW12_EVENT_CHANNEL(IIO_TAP, &st_lis2dw12_rthr_event),
+	ST_LIS2DW12_EVENT_CHANNEL(STM_IIO_TAP, &st_lis2dw12_rthr_event),
 };
 
 static const struct iio_chan_spec st_lis2dw12_wu_channels[] = {
-	ST_LIS2DW12_EVENT_CHANNEL(IIO_GESTURE, &st_lis2dw12_rthr_event),
+	ST_LIS2DW12_EVENT_CHANNEL(STM_IIO_GESTURE, &st_lis2dw12_rthr_event),
 };
 
 int st_lis2dw12_write_with_mask(struct st_lis2dw12_hw *hw, u8 addr, u8 mask,

@@ -66,7 +66,7 @@
 }
 
 const struct iio_event_spec st_lis3dhh_fifo_flush_event = {
-	.type = IIO_EV_TYPE_FIFO_FLUSH,
+	.type = STM_IIO_EV_TYPE_FIFO_FLUSH,
 	.dir = IIO_EV_DIR_EITHER,
 };
 

@@ -15,6 +15,8 @@
 #include <linux/iio/iio.h>
 #include <linux/of_device.h>
 
+#include "../common/stm_iio_types.h"
+
 #define ST_LIS2DW12_DEV_NAME		"lis2dw12"
 #define ST_IIS2DLPC_DEV_NAME		"iis2dlpc"
 #define ST_AIS2IH_DEV_NAME		"ais2ih"

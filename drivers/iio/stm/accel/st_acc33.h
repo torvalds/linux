@@ -10,6 +10,8 @@
 #ifndef ST_ACC33_H
 #define ST_ACC33_H
 
+#include "../common/stm_iio_types.h"
+
 #define LIS2DH_DEV_NAME			"lis2dh_accel"
 #define LIS2DH12_DEV_NAME		"lis2dh12_accel"
 #define LIS3DH_DEV_NAME			"lis3dh_accel"

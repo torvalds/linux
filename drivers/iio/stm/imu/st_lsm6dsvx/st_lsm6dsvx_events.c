@@ -43,7 +43,7 @@ static const unsigned long st_lsm6dsvx_event_available_scan_masks[] = {
 
 static const struct iio_chan_spec st_lsm6dsvx_wk_channels[] = {
 	{
-		.type = IIO_GESTURE,
+		.type = STM_IIO_GESTURE,
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 'u',
@@ -55,16 +55,16 @@ static const struct iio_chan_spec st_lsm6dsvx_wk_channels[] = {
 };
 
 static const struct iio_chan_spec st_lsm6dsvx_ff_channels[] = {
-	ST_LSM6DSVX_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_LSM6DSVX_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 };
 
 static const struct iio_chan_spec st_lsm6dsvx_sc_channels[] = {
-	ST_LSM6DSVX_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_LSM6DSVX_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 };
 
 static const struct iio_chan_spec st_lsm6dsvx_6D_channels[] = {
 	{
-		.type = IIO_GESTURE,
+		.type = STM_IIO_GESTURE,
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 'u',
@@ -76,11 +76,11 @@ static const struct iio_chan_spec st_lsm6dsvx_6D_channels[] = {
 };
 
 static const struct iio_chan_spec st_lsm6dsvx_tap_channels[] = {
-	ST_LSM6DSVX_EVENT_CHANNEL(IIO_TAP, thr),
+	ST_LSM6DSVX_EVENT_CHANNEL(STM_IIO_TAP, thr),
 };
 
 static const struct iio_chan_spec st_lsm6dsvx_dtap_channels[] = {
-	ST_LSM6DSVX_EVENT_CHANNEL(IIO_TAP_TAP, thr),
+	ST_LSM6DSVX_EVENT_CHANNEL(STM_IIO_TAP_TAP, thr),
 };
 
 /*
@@ -807,14 +807,14 @@ int st_lsm6dsvx_event_handler(struct st_lsm6dsvx_hw *hw)
 		if (status & ST_LSM6DSVX_TAP_IA_MASK) {
 			if (BIT(ST_LSM6DSVX_ID_TAP)) {
 				iio_dev = hw->iio_devs[ST_LSM6DSVX_ID_TAP];
-				event = IIO_UNMOD_EVENT_CODE(IIO_TAP, -1,
+				event = IIO_UNMOD_EVENT_CODE(STM_IIO_TAP, -1,
 							     IIO_EV_TYPE_THRESH,
 							     IIO_EV_DIR_RISING);
 				iio_push_event(iio_dev, event,
 					       iio_get_time_ns(iio_dev));
 			} else {
 				iio_dev = hw->iio_devs[ST_LSM6DSVX_ID_DTAP];
-				event = IIO_UNMOD_EVENT_CODE(IIO_TAP_TAP, -1,
+				event = IIO_UNMOD_EVENT_CODE(STM_IIO_TAP_TAP, -1,
 							     IIO_EV_TYPE_THRESH,
 							     IIO_EV_DIR_RISING);
 				iio_push_event(iio_dev, event,
@@ -824,7 +824,7 @@ int st_lsm6dsvx_event_handler(struct st_lsm6dsvx_hw *hw)
 
 		if (status & ST_LSM6DSVX_FF_IA_MASK) {
 			iio_dev = hw->iio_devs[ST_LSM6DSVX_ID_FF];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_GESTURE, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,
@@ -841,7 +841,7 @@ int st_lsm6dsvx_event_handler(struct st_lsm6dsvx_hw *hw)
 
 		if (status & ST_LSM6DSVX_SLEEP_CHANGE_MASK) {
 			iio_dev = hw->iio_devs[ST_LSM6DSVX_ID_SLPCHG];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_GESTURE, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,

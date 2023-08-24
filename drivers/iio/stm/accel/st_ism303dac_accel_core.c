@@ -165,7 +165,7 @@ static const struct iio_event_spec singol_thr_event = {
 };
 
 const struct iio_event_spec ism303dac_fifo_flush_event = {
-	.type = IIO_EV_TYPE_FIFO_FLUSH,
+	.type = STM_IIO_EV_TYPE_FIFO_FLUSH,
 	.dir = IIO_EV_DIR_EITHER,
 };
 
@@ -198,7 +198,7 @@ static const struct ism303dac_sensors_table {
 		.min_odr_hz = ISM303DAC_TAP_ODR,
 		.iio_channel = {
 			{
-				.type = IIO_TAP,
+				.type = STM_IIO_TAP,
 				.channel = 0,
 				.modified = 0,
 				.event_spec = &singol_thr_event,
@@ -214,7 +214,7 @@ static const struct ism303dac_sensors_table {
 		.min_odr_hz = ISM303DAC_TAP_ODR,
 		.iio_channel = {
 			{
-				.type = IIO_TAP_TAP,
+				.type = STM_IIO_TAP_TAP,
 				.channel = 0,
 				.modified = 0,
 				.event_spec = &singol_thr_event,
@@ -918,12 +918,12 @@ ssize_t ism303dac_sysfs_flush_fifo(struct device *dev,
 	sdata->cdata->timestamp = sensor_last_timestamp;
 
 	if (sensor_last_timestamp == sdata->cdata->sample_timestamp)
-		event_type = IIO_EV_DIR_FIFO_EMPTY;
+		event_type = STM_IIO_EV_DIR_FIFO_EMPTY;
 	else
-		event_type = IIO_EV_DIR_FIFO_DATA;
+		event_type = STM_IIO_EV_DIR_FIFO_DATA;
 
 	iio_push_event(indio_dev, IIO_UNMOD_EVENT_CODE(IIO_ACCEL,
-		       -1, IIO_EV_TYPE_FIFO_FLUSH, event_type),
+		       -1, STM_IIO_EV_TYPE_FIFO_FLUSH, event_type),
 		       sensor_last_timestamp);
 
 	enable_irq(sdata->cdata->irq);

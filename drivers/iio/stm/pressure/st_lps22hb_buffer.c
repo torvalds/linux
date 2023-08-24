@@ -155,13 +155,13 @@ ssize_t st_lps22hb_sysfs_flush_fifo(struct device *dev,
 	len = st_lps22hb_read_fifo(hw);
 	mutex_unlock(&hw->fifo_lock);
 
-	type = len > 0 ? IIO_EV_DIR_FIFO_DATA : IIO_EV_DIR_FIFO_EMPTY;
+	type = len > 0 ? STM_IIO_EV_DIR_FIFO_DATA : STM_IIO_EV_DIR_FIFO_EMPTY;
 	if (sensor->type == ST_LPS22HB_PRESS)
 		event = IIO_UNMOD_EVENT_CODE(IIO_PRESSURE, -1,
-					     IIO_EV_TYPE_FIFO_FLUSH, type);
+					     STM_IIO_EV_TYPE_FIFO_FLUSH, type);
 	else
 		event = IIO_UNMOD_EVENT_CODE(IIO_TEMP, -1,
-					     IIO_EV_TYPE_FIFO_FLUSH, type);
+					     STM_IIO_EV_TYPE_FIFO_FLUSH, type);
 	iio_push_event(indio_dev, event, st_lps22hb_get_time_ns(indio_dev));
 	mutex_unlock(&indio_dev->mlock);
 

@@ -50,7 +50,7 @@ static const unsigned long st_asm330lhhx_event_available_scan_masks[] = {
 
 static const struct iio_chan_spec st_asm330lhhx_wk_channels[] = {
 	{
-		.type = IIO_GESTURE,
+		.type = STM_IIO_GESTURE,
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 'u',
@@ -62,16 +62,16 @@ static const struct iio_chan_spec st_asm330lhhx_wk_channels[] = {
 };
 
 static const struct iio_chan_spec st_asm330lhhx_ff_channels[] = {
-	ST_ASM330LHHX_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_ASM330LHHX_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 };
 
 static const struct iio_chan_spec st_asm330lhhx_sc_channels[] = {
-	ST_ASM330LHHX_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_ASM330LHHX_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 };
 
 static const struct iio_chan_spec st_asm330lhhx_6D_channels[] = {
 	{
-		.type = IIO_GESTURE,
+		.type = STM_IIO_GESTURE,
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 'u',
@@ -469,7 +469,7 @@ int st_asm330lhhx_event_handler(struct st_asm330lhhx_hw *hw)
 		/* base function sensors */
 		if (status & ST_ASM330LHHX_FF_IA_MASK) {
 			iio_dev = hw->iio_devs[ST_ASM330LHHX_ID_FF];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_GESTURE, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,
@@ -484,7 +484,7 @@ int st_asm330lhhx_event_handler(struct st_asm330lhhx_hw *hw)
 		}
 		if (status & ST_ASM330LHHX_SLEEP_CHANGE_MASK) {
 			iio_dev = hw->iio_devs[ST_ASM330LHHX_ID_SC];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_GESTURE, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,

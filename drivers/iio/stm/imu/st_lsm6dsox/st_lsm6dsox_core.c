@@ -464,7 +464,7 @@ static const struct iio_chan_spec st_lsm6dsox_temp_channels[] = {
  */
 static const struct iio_chan_spec st_lsm6dsox_step_counter_channels[] = {
 	{
-		.type = IIO_STEP_COUNTER,
+		.type = STM_IIO_STEP_COUNTER,
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 'u',
@@ -473,7 +473,7 @@ static const struct iio_chan_spec st_lsm6dsox_step_counter_channels[] = {
 			.endianness = IIO_LE,
 		},
 	},
-	ST_LSM6DSOX_EVENT_CHANNEL(IIO_STEP_COUNTER, flush),
+	ST_LSM6DSOX_EVENT_CHANNEL(STM_IIO_STEP_COUNTER, flush),
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
@@ -484,7 +484,7 @@ static const struct iio_chan_spec st_lsm6dsox_step_counter_channels[] = {
  * Step detection event detection
  */
 static const struct iio_chan_spec st_lsm6dsox_step_detector_channels[] = {
-	ST_LSM6DSOX_EVENT_CHANNEL(IIO_STEP_DETECTOR, thr),
+	ST_LSM6DSOX_EVENT_CHANNEL(IIO_STEPS, thr),
 };
 
 /**
@@ -494,7 +494,7 @@ static const struct iio_chan_spec st_lsm6dsox_step_detector_channels[] = {
  * Significant Motion event detection
  */
 static const struct iio_chan_spec st_lsm6dsox_sign_motion_channels[] = {
-	ST_LSM6DSOX_EVENT_CHANNEL(IIO_SIGN_MOTION, thr),
+	ST_LSM6DSOX_EVENT_CHANNEL(STM_IIO_SIGN_MOTION, thr),
 };
 
 /**
@@ -504,7 +504,7 @@ static const struct iio_chan_spec st_lsm6dsox_sign_motion_channels[] = {
  * Tilt event detection
  */
 static const struct iio_chan_spec st_lsm6dsox_tilt_channels[] = {
-	ST_LSM6DSOX_EVENT_CHANNEL(IIO_TILT, thr),
+	ST_LSM6DSOX_EVENT_CHANNEL(STM_IIO_TILT, thr),
 };
 
 static __maybe_unused int st_lsm6dsox_reg_access(struct iio_dev *iio_dev,

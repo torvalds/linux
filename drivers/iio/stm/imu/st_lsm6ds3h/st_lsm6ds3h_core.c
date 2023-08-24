@@ -300,7 +300,7 @@ static const struct iio_event_spec singol_thr_event = {
 };
 
 const struct iio_event_spec lsm6ds3h_fifo_flush_event = {
-	.type = IIO_EV_TYPE_FIFO_FLUSH,
+	.type = STM_IIO_EV_TYPE_FIFO_FLUSH,
 	.dir = IIO_EV_DIR_EITHER,
 };
 
@@ -328,7 +328,7 @@ static const struct iio_chan_spec st_lsm6ds3h_gyro_ch[] = {
 
 static const struct iio_chan_spec st_lsm6ds3h_sign_motion_ch[] = {
 	{
-		.type = IIO_SIGN_MOTION,
+		.type = STM_IIO_SIGN_MOTION,
 		.channel = 0,
 		.modified = 0,
 		.event_spec = &singol_thr_event,
@@ -339,7 +339,7 @@ static const struct iio_chan_spec st_lsm6ds3h_sign_motion_ch[] = {
 
 static const struct iio_chan_spec st_lsm6ds3h_step_c_ch[] = {
 	{
-		.type = IIO_STEP_COUNTER,
+		.type = STM_IIO_STEP_COUNTER,
 		.modified = 0,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.address = ST_LSM6DS3H_STEP_COUNTER_OUT_L_ADDR,
@@ -350,17 +350,17 @@ static const struct iio_chan_spec st_lsm6ds3h_step_c_ch[] = {
 			.endianness = IIO_LE,
 		},
 	},
-	ST_LSM6DS3H_FLUSH_CHANNEL(IIO_STEP_COUNTER),
+	ST_LSM6DS3H_FLUSH_CHANNEL(STM_IIO_STEP_COUNTER),
 	IIO_CHAN_SOFT_TIMESTAMP(1)
 };
 
 static const struct iio_chan_spec st_lsm6ds3h_step_d_ch[] = {
-	ST_LSM6DS3H_FLUSH_CHANNEL(IIO_STEP_DETECTOR),
+	ST_LSM6DS3H_FLUSH_CHANNEL(IIO_STEPS),
 	IIO_CHAN_SOFT_TIMESTAMP(0)
 };
 
 static const struct iio_chan_spec st_lsm6ds3h_tilt_ch[] = {
-	ST_LSM6DS3H_FLUSH_CHANNEL(IIO_TILT),
+	ST_LSM6DS3H_FLUSH_CHANNEL(STM_IIO_TILT),
 	IIO_CHAN_SOFT_TIMESTAMP(0)
 };
 
@@ -2290,9 +2290,9 @@ ssize_t st_lsm6ds3h_sysfs_flush_fifo(struct device *dev,
 
 	if (sensor_last_timestamp ==
 			sdata->cdata->fifo_output[sdata->sindex].timestamp_p)
-		event_type = IIO_EV_DIR_FIFO_EMPTY;
+		event_type = STM_IIO_EV_DIR_FIFO_EMPTY;
 	else
-		event_type = IIO_EV_DIR_FIFO_DATA;
+		event_type = STM_IIO_EV_DIR_FIFO_DATA;
 
 	timestamp_flush = sdata->cdata->fifo_output[sdata->sindex].timestamp_p;
 
@@ -2316,7 +2316,7 @@ ssize_t st_lsm6ds3h_sysfs_flush_fifo(struct device *dev,
 	}
 
 	iio_push_event(indio_dev, IIO_UNMOD_EVENT_CODE(stype,
-				-1, IIO_EV_TYPE_FIFO_FLUSH, event_type),
+				-1, STM_IIO_EV_TYPE_FIFO_FLUSH, event_type),
 				timestamp_flush);
 
 	mutex_unlock(&sdata->cdata->odr_lock);

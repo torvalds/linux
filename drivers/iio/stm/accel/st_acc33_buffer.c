@@ -116,7 +116,7 @@ ssize_t st_acc33_flush_hwfifo(struct device *device,
 	mutex_unlock(&hw->fifo_lock);
 
 	code = IIO_UNMOD_EVENT_CODE(IIO_ACCEL, -1,
-				    IIO_EV_TYPE_FIFO_FLUSH,
+				    STM_IIO_EV_TYPE_FIFO_FLUSH,
 				    IIO_EV_DIR_EITHER);
 	iio_push_event(iio_dev, code, hw->ts_irq);
 

@@ -29,7 +29,7 @@ static void ism303dac_event_management(struct ism303dac_data *cdata,
 	if (CHECK_BIT(cdata->enabled_sensor, ISM303DAC_TAP) &&
 	    (int_reg_val & ISM303DAC_TAP_MASK))
 		iio_push_event(cdata->iio_sensors_dev[ISM303DAC_TAP],
-			       IIO_UNMOD_EVENT_CODE(IIO_TAP, 0,
+			       IIO_UNMOD_EVENT_CODE(STM_IIO_TAP, 0,
 			       IIO_EV_TYPE_THRESH,
 			       IIO_EV_DIR_EITHER),
 			       cdata->timestamp);
@@ -37,7 +37,7 @@ static void ism303dac_event_management(struct ism303dac_data *cdata,
 	if (CHECK_BIT(cdata->enabled_sensor, ISM303DAC_DOUBLE_TAP) &&
 	    (int_reg_val & ISM303DAC_DOUBLE_TAP_MASK))
 		iio_push_event(cdata->iio_sensors_dev[ISM303DAC_DOUBLE_TAP],
-			       IIO_UNMOD_EVENT_CODE(IIO_TAP_TAP, 0,
+			       IIO_UNMOD_EVENT_CODE(STM_IIO_TAP_TAP, 0,
 			       IIO_EV_TYPE_THRESH,
 			       IIO_EV_DIR_EITHER),
 			       cdata->timestamp);

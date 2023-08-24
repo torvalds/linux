@@ -196,7 +196,7 @@ ssize_t st_lis2dw12_flush_fifo(struct device *dev,
 	mutex_unlock(&hw->fifo_lock);
 
 	code = IIO_UNMOD_EVENT_CODE(IIO_ACCEL, -1,
-				    IIO_EV_TYPE_FIFO_FLUSH,
+				    STM_IIO_EV_TYPE_FIFO_FLUSH,
 				    IIO_EV_DIR_EITHER);
 	iio_push_event(iio_dev, code, hw->ts_irq);
 
@@ -251,7 +251,7 @@ static irqreturn_t st_lis2dw12_handler_thread(int irq, void *private)
 		/* Consider can have Tap and Double Tap events contemporarely */
 		if (source & ST_LIS2DW12_DTAP_SRC_MASK) {
 			iio_dev = hw->iio_devs[ST_LIS2DW12_ID_TAP_TAP];
-			type = IIO_TAP_TAP;
+			type = STM_IIO_TAP_TAP;
 			code = IIO_UNMOD_EVENT_CODE(type, -1,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING);
@@ -261,7 +261,7 @@ static irqreturn_t st_lis2dw12_handler_thread(int irq, void *private)
 
 		if (source & ST_LIS2DW12_STAP_SRC_MASK) {
 			iio_dev = hw->iio_devs[ST_LIS2DW12_ID_TAP];
-			type = IIO_TAP;
+			type = STM_IIO_TAP;
 			code = IIO_UNMOD_EVENT_CODE(type, -1,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING);
@@ -278,10 +278,10 @@ static irqreturn_t st_lis2dw12_handler_thread(int irq, void *private)
 		if (err < 0)
 			return IRQ_HANDLED;
 
-		code = IIO_UNMOD_EVENT_CODE(IIO_TAP_TAP, -1,
+		code = IIO_UNMOD_EVENT_CODE(STM_IIO_TAP_TAP, -1,
 					    IIO_EV_TYPE_THRESH,
 					    IIO_EV_DIR_RISING);
-		iio_push_event(hw->iio_devs[ST_LIS2DW12_ID_WU], IIO_GESTURE,
+		iio_push_event(hw->iio_devs[ST_LIS2DW12_ID_WU], STM_IIO_GESTURE,
 			       st_lis2dw12_get_timestamp(hw));
 	}
 

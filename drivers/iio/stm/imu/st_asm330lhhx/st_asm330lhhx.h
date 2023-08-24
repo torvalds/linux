@@ -21,6 +21,8 @@
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 
+#include "../../common/stm_iio_types.h"
+
 #define ST_ASM330LHHX_DEBUG_DISCHARGE
 
 #define ST_ASM330LHHX_MAX_ODR			833
@@ -240,7 +242,7 @@
 }
 
 static const struct iio_event_spec st_asm330lhhx_flush_event = {
-	.type = IIO_EV_TYPE_FIFO_FLUSH,
+	.type = STM_IIO_EV_TYPE_FIFO_FLUSH,
 	.dir = IIO_EV_DIR_EITHER,
 };
 

@@ -26,7 +26,7 @@ static const unsigned long st_lis2duxs12_event_available_scan_masks[] = {
 
 static const struct iio_chan_spec st_lis2duxs12_wk_channels[] = {
 	{
-		.type = IIO_GESTURE,
+		.type = STM_IIO_GESTURE,
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 'u',
@@ -38,28 +38,28 @@ static const struct iio_chan_spec st_lis2duxs12_wk_channels[] = {
 };
 
 static const struct iio_chan_spec st_lis2duxs12_ff_channels[] = {
-	ST_LIS2DUXS12_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_LIS2DUXS12_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
 static const struct iio_chan_spec st_lis2duxs12_tap_channels[] = {
-	ST_LIS2DUXS12_EVENT_CHANNEL(IIO_TAP, thr),
+	ST_LIS2DUXS12_EVENT_CHANNEL(STM_IIO_TAP, thr),
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
 static const struct iio_chan_spec st_lis2duxs12_dtap_channels[] = {
-	ST_LIS2DUXS12_EVENT_CHANNEL(IIO_TAP_TAP, thr),
+	ST_LIS2DUXS12_EVENT_CHANNEL(STM_IIO_TAP_TAP, thr),
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
 static const struct iio_chan_spec st_lis2duxs12_ttap_channels[] = {
-	ST_LIS2DUXS12_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_LIS2DUXS12_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
 static const struct iio_chan_spec st_lis2duxs12_6D_channels[] = {
 	{
-		.type = IIO_GESTURE,
+		.type = STM_IIO_GESTURE,
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 'u',
@@ -71,7 +71,7 @@ static const struct iio_chan_spec st_lis2duxs12_6D_channels[] = {
 };
 
 static const struct iio_chan_spec st_lis2duxs12_sleepchange_channels[] = {
-	ST_LIS2DUXS12_EVENT_CHANNEL(IIO_GESTURE, thr),
+	ST_LIS2DUXS12_EVENT_CHANNEL(STM_IIO_GESTURE, thr),
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
@@ -834,7 +834,7 @@ int st_lis2duxs12_event_handler(struct st_lis2duxs12_hw *hw)
 
 		if (status & ST_LIS2DUXS12_FF_IA_ALL_MASK) {
 			iio_dev = hw->iio_devs[ST_LIS2DUXS12_ID_FF];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_GESTURE, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,
@@ -849,7 +849,7 @@ int st_lis2duxs12_event_handler(struct st_lis2duxs12_hw *hw)
 		}
 		if (status & ST_LIS2DUXS12_SLEEP_CHANGE_ALL_MASK) {
 			iio_dev = hw->iio_devs[ST_LIS2DUXS12_ID_SC];
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_GESTURE, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,
@@ -864,7 +864,7 @@ int st_lis2duxs12_event_handler(struct st_lis2duxs12_hw *hw)
 		}
 		if (status & ST_LIS2DUXS12_SINGLE_TAP_ALL_MASK) {
 			iio_dev = hw->iio_devs[ST_LIS2DUXS12_ID_TAP];
-			event = IIO_UNMOD_EVENT_CODE(IIO_TAP, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_TAP, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,
@@ -872,7 +872,7 @@ int st_lis2duxs12_event_handler(struct st_lis2duxs12_hw *hw)
 		}
 		if (status & ST_LIS2DUXS12_DOUBLE_TAP_ALL_MASK) {
 			iio_dev = hw->iio_devs[ST_LIS2DUXS12_ID_DTAP];
-			event = IIO_UNMOD_EVENT_CODE(IIO_TAP_TAP, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_TAP_TAP, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,
@@ -881,7 +881,7 @@ int st_lis2duxs12_event_handler(struct st_lis2duxs12_hw *hw)
 		if (status & ST_LIS2DUXS12_TRIPLE_TAP_ALL_MASK) {
 			iio_dev = hw->iio_devs[ST_LIS2DUXS12_ID_TTAP];
 			/* triple tap is not available as IIO type */
-			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_GESTURE, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,

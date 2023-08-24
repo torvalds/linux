@@ -228,7 +228,7 @@ static const struct iio_chan_spec st_lis2duxs12_temp_channels[] = {
 static const struct
 iio_chan_spec st_lis2duxs12_step_counter_channels[] = {
 	{
-		.type = IIO_STEP_COUNTER,
+		.type = STM_IIO_STEP_COUNTER,
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 'u',
@@ -237,22 +237,22 @@ iio_chan_spec st_lis2duxs12_step_counter_channels[] = {
 			.endianness = IIO_LE,
 		},
 	},
-	ST_LIS2DUXS12_EVENT_CHANNEL(IIO_STEP_COUNTER, flush),
+	ST_LIS2DUXS12_EVENT_CHANNEL(STM_IIO_STEP_COUNTER, flush),
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
 static const struct
 iio_chan_spec st_lis2duxs12_step_detector_channels[] = {
-	ST_LIS2DUXS12_EVENT_CHANNEL(IIO_STEP_DETECTOR, thr),
+	ST_LIS2DUXS12_EVENT_CHANNEL(IIO_STEPS, thr),
 };
 
 static const struct
 iio_chan_spec st_lis2duxs12_sign_motion_channels[] = {
-	ST_LIS2DUXS12_EVENT_CHANNEL(IIO_SIGN_MOTION, thr),
+	ST_LIS2DUXS12_EVENT_CHANNEL(STM_IIO_SIGN_MOTION, thr),
 };
 
 static const struct iio_chan_spec st_lis2duxs12_tilt_channels[] = {
-	ST_LIS2DUXS12_EVENT_CHANNEL(IIO_TILT, thr),
+	ST_LIS2DUXS12_EVENT_CHANNEL(STM_IIO_TILT, thr),
 };
 
 static const unsigned long st_lis2duxs12_available_scan_masks[] = {

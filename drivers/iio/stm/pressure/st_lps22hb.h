@@ -15,6 +15,8 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
 
+#include "../common/stm_iio_types.h"
+
 #define ST_LPS22HB_MAX_FIFO_LENGTH		31
 
 #define ST_LPS22HB_CTRL3_ADDR			0x12

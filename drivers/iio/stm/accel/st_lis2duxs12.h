@@ -16,6 +16,8 @@
 #include <linux/regmap.h>
 #include <linux/bitfield.h>
 
+#include "../common/stm_iio_types.h"
+
 #define ST_LIS2DUXS12_ODR_EXPAND(odr, uodr)	(((odr) * 1000000) + (uodr))
 
 #define ST_LIS2DUX12_DEV_NAME			"lis2dux12"
@@ -328,7 +330,7 @@ struct __packed raw_data_t {
 }
 
 static const struct iio_event_spec st_lis2duxs12_flush_event = {
-	.type = IIO_EV_TYPE_FIFO_FLUSH,
+	.type = STM_IIO_EV_TYPE_FIFO_FLUSH,
 	.dir = IIO_EV_DIR_EITHER,
 };
 

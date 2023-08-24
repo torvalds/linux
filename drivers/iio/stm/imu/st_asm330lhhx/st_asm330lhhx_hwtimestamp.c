@@ -36,9 +36,9 @@ static void st_asm330lhhx_read_hw_timestamp(struct st_asm330lhhx_hw *hw)
 			ST_ASM330LHHX_TSYNC_OFFSET_NS;
 
 	eventLSB = IIO_EVENT_CODE(IIO_COUNT, 0, 0, 0,
-				  IIO_EV_TYPE_TIME_SYNC, 0, 0, 0);
+				  STM_IIO_EV_TYPE_TIME_SYNC, 0, 0, 0);
 	eventMSB = IIO_EVENT_CODE(IIO_COUNT, 0, 0, 1,
-				  IIO_EV_TYPE_TIME_SYNC, 0, 0, 0);
+				  STM_IIO_EV_TYPE_TIME_SYNC, 0, 0, 0);
 
 	spin_lock_irq(&hw->hwtimestamp_lock);
 	timestamp_hw_global = (hw->hw_timestamp_global & GENMASK_ULL(63, 32)) |

@@ -141,10 +141,10 @@ ssize_t st_lps22df_sysfs_flush_fifo(struct device *dev,
 
 	mutex_unlock(&hw->fifo_lock);
 
-	dir = len > 0 ? IIO_EV_DIR_FIFO_DATA : IIO_EV_DIR_FIFO_EMPTY;
+	dir = len > 0 ? STM_IIO_EV_DIR_FIFO_DATA : STM_IIO_EV_DIR_FIFO_EMPTY;
 	iio_push_event(indio_dev,
 		       IIO_UNMOD_EVENT_CODE(IIO_PRESSURE, -1,
-					    IIO_EV_TYPE_FIFO_FLUSH, dir),
+					    STM_IIO_EV_TYPE_FIFO_FLUSH, dir),
 		       fts);
 
 	return size;

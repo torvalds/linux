@@ -16,6 +16,8 @@
 #include <linux/property.h>
 #include <linux/iio/trigger.h>
 
+#include "../common/stm_iio_types.h"
+
 #define ST_LPS22DF_MAX_FIFO_LENGTH		127
 
 #define ST_LPS22DF_INTERRUPT_CFG_ADDR		0x0b

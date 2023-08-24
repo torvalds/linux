@@ -399,9 +399,9 @@ ssize_t st_lis2duxs12_flush_fifo(struct device *dev,
 		fts = ts;
 	mutex_unlock(&hw->fifo_lock);
 
-	type = count > 0 ? IIO_EV_DIR_FIFO_DATA : IIO_EV_DIR_FIFO_EMPTY;
+	type = count > 0 ? STM_IIO_EV_DIR_FIFO_DATA : STM_IIO_EV_DIR_FIFO_EMPTY;
 	event = IIO_UNMOD_EVENT_CODE(iio_dev->channels[0].type, -1,
-				     IIO_EV_TYPE_FIFO_FLUSH, type);
+				     STM_IIO_EV_TYPE_FIFO_FLUSH, type);
 	iio_push_event(iio_dev, event, fts);
 
 	return size;
@@ -560,7 +560,7 @@ static irqreturn_t st_lis2duxs12_handler_thread(int irq, void *private)
 		/* embedded function sensors */
 		if (status & ST_LIS2DUXS12_IS_STEP_DET_MASK) {
 			iio_dev = hw->iio_devs[ST_LIS2DUXS12_ID_STEP_DETECTOR];
-			event = IIO_UNMOD_EVENT_CODE(IIO_STEP_DETECTOR, -1,
+			event = IIO_UNMOD_EVENT_CODE(IIO_STEPS, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,
@@ -569,7 +569,7 @@ static irqreturn_t st_lis2duxs12_handler_thread(int irq, void *private)
 
 		if (status & ST_LIS2DUXS12_IS_SIGMOT_MASK) {
 			iio_dev = hw->iio_devs[ST_LIS2DUXS12_ID_SIGN_MOTION];
-			event = IIO_UNMOD_EVENT_CODE(IIO_SIGN_MOTION, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_SIGN_MOTION, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,
@@ -578,7 +578,7 @@ static irqreturn_t st_lis2duxs12_handler_thread(int irq, void *private)
 
 		if (status & ST_LIS2DUXS12_IS_TILT_MASK) {
 			iio_dev = hw->iio_devs[ST_LIS2DUXS12_ID_TILT];
-			event = IIO_UNMOD_EVENT_CODE(IIO_TILT, -1,
+			event = IIO_UNMOD_EVENT_CODE(STM_IIO_TILT, -1,
 						     IIO_EV_TYPE_THRESH,
 						     IIO_EV_DIR_RISING);
 			iio_push_event(iio_dev, event,

@@ -15,6 +15,8 @@
 #include <linux/of_device.h>
 #include <linux/delay.h>
 
+#include "../../common/stm_iio_types.h"
+
 #define ST_ISM330DHCX_MAX_ODR			833
 #define ST_ISM330DHCX_ODR_LIST_SIZE		8
 #define ST_ISM330DHCX_ODR_EXPAND(odr, uodr)	((odr * 1000000) + uodr)
@@ -136,7 +138,7 @@
 }
 
 static const struct iio_event_spec st_ism330dhcx_flush_event = {
-	.type = IIO_EV_TYPE_FIFO_FLUSH,
+	.type = STM_IIO_EV_TYPE_FIFO_FLUSH,
 	.dir = IIO_EV_DIR_EITHER,
 };
 

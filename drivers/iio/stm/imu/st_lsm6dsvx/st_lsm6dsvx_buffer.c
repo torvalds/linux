@@ -481,9 +481,9 @@ ssize_t st_lsm6dsvx_flush_fifo(struct device *dev,
 	fifo_ts = sensor->last_fifo_timestamp;
 	mutex_unlock(&hw->fifo_lock);
 
-	type = count > 0 ? IIO_EV_DIR_FIFO_DATA : IIO_EV_DIR_FIFO_EMPTY;
+	type = count > 0 ? STM_IIO_EV_DIR_FIFO_DATA : STM_IIO_EV_DIR_FIFO_EMPTY;
 	event = IIO_UNMOD_EVENT_CODE(iio_dev->channels[0].type, -1,
-				     IIO_EV_TYPE_FIFO_FLUSH, type);
+				     STM_IIO_EV_TYPE_FIFO_FLUSH, type);
 	iio_push_event(iio_dev, event, fifo_ts);
 
 	return size;
