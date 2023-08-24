@@ -1327,7 +1327,11 @@ out_be:
 
 	/* JUMP off */
 	case BPF_JMP | BPF_JA:
-		rvoff = rv_offset(i, off, ctx);
+	case BPF_JMP32 | BPF_JA:
+		if (BPF_CLASS(code) == BPF_JMP)
+			rvoff = rv_offset(i, off, ctx);
+		else
+			rvoff = rv_offset(i, imm, ctx);
 		ret = emit_jump_and_link(RV_REG_ZERO, rvoff, true, ctx);
 		if (ret)
 			return ret;
