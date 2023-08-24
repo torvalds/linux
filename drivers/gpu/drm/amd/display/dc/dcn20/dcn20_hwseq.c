@@ -2855,7 +2855,7 @@ void dcn20_fpga_init_hw(struct dc *dc)
 	res_pool->mpc->funcs->mpc_init(res_pool->mpc);
 
 	/* initialize OPP mpc_tree parameter */
-	for (i = 0; i < dc->res_pool->res_cap->num_opp; i++) {
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		res_pool->opps[i]->mpc_tree_params.opp_id = res_pool->opps[i]->inst;
 		res_pool->opps[i]->mpc_tree_params.opp_list = NULL;
 		for (j = 0; j < MAX_PIPES; j++)
