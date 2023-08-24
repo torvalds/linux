@@ -58,6 +58,11 @@ struct perf_pmu_alias {
 	struct list_head terms;
 	/** @list: List element of struct perf_pmu aliases. */
 	struct list_head list;
+	/**
+	 * @pmu_name: The name copied from the json struct pmu_event. This can
+	 * differ from the PMU name as it won't have suffixes.
+	 */
+	char *pmu_name;
 	/** @unit: Units for the event, such as bytes or cache lines. */
 	char unit[UNIT_MAX_LEN+1];
 	/** @scale: Value to scale read counter values by. */
@@ -79,11 +84,10 @@ struct perf_pmu_alias {
 	 * default.
 	 */
 	bool deprecated;
-	/**
-	 * @pmu_name: The name copied from the json struct pmu_event. This can
-	 * differ from the PMU name as it won't have suffixes.
-	 */
-	char *pmu_name;
+	/** @from_sysfs: Was the alias from sysfs or a json event? */
+	bool from_sysfs;
+	/** @info_loaded: Have the scale, unit and other values been read from disk? */
+	bool info_loaded;
 };
 
 /**
@@ -280,17 +284,21 @@ out:
 	return ret;
 }
 
-static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, int dirfd, const char *name)
+static int perf_pmu__parse_scale(struct perf_pmu *pmu, struct perf_pmu_alias *alias)
 {
 	struct stat st;
 	ssize_t sret;
+	size_t len;
 	char scale[128];
 	int fd, ret = -1;
 	char path[PATH_MAX];
 
-	scnprintf(path, PATH_MAX, "%s.scale", name);
+	len = perf_pmu__event_source_devices_scnprintf(path, sizeof(path));
+	if (!len)
+		return 0;
+	scnprintf(path + len, sizeof(path) - len, "%s/%s.scale", pmu->name, alias->name);
 
-	fd = openat(dirfd, path, O_RDONLY);
+	fd = open(path, O_RDONLY);
 	if (fd == -1)
 		return -1;
 
@@ -312,15 +320,20 @@ error:
 	return ret;
 }
 
-static int perf_pmu__parse_unit(struct perf_pmu_alias *alias, int dirfd, const char *name)
+static int perf_pmu__parse_unit(struct perf_pmu *pmu, struct perf_pmu_alias *alias)
 {
 	char path[PATH_MAX];
+	size_t len;
 	ssize_t sret;
 	int fd;
 
-	scnprintf(path, PATH_MAX, "%s.unit", name);
 
-	fd = openat(dirfd, path, O_RDONLY);
+	len = perf_pmu__event_source_devices_scnprintf(path, sizeof(path));
+	if (!len)
+		return 0;
+	scnprintf(path + len, sizeof(path) - len, "%s/%s.unit", pmu->name, alias->name);
+
+	fd = open(path, O_RDONLY);
 	if (fd == -1)
 		return -1;
 
@@ -343,14 +356,18 @@ error:
 }
 
 static int
-perf_pmu__parse_per_pkg(struct perf_pmu_alias *alias, int dirfd, const char *name)
+perf_pmu__parse_per_pkg(struct perf_pmu *pmu, struct perf_pmu_alias *alias)
 {
 	char path[PATH_MAX];
+	size_t len;
 	int fd;
 
-	scnprintf(path, PATH_MAX, "%s.per-pkg", name);
+	len = perf_pmu__event_source_devices_scnprintf(path, sizeof(path));
+	if (!len)
+		return 0;
+	scnprintf(path + len, sizeof(path) - len, "%s/%s.per-pkg", pmu->name, alias->name);
 
-	fd = openat(dirfd, path, O_RDONLY);
+	fd = open(path, O_RDONLY);
 	if (fd == -1)
 		return -1;
 
@@ -360,15 +377,18 @@ perf_pmu__parse_per_pkg(struct perf_pmu_alias *alias, int dirfd, const char *nam
 	return 0;
 }
 
-static int perf_pmu__parse_snapshot(struct perf_pmu_alias *alias,
-				    int dirfd, const char *name)
+static int perf_pmu__parse_snapshot(struct perf_pmu *pmu, struct perf_pmu_alias *alias)
 {
 	char path[PATH_MAX];
+	size_t len;
 	int fd;
 
-	scnprintf(path, PATH_MAX, "%s.snapshot", name);
+	len = perf_pmu__event_source_devices_scnprintf(path, sizeof(path));
+	if (!len)
+		return 0;
+	scnprintf(path + len, sizeof(path) - len, "%s/%s.snapshot", pmu->name, alias->name);
 
-	fd = openat(dirfd, path, O_RDONLY);
+	fd = open(path, O_RDONLY);
 	if (fd == -1)
 		return -1;
 
@@ -429,32 +449,52 @@ static bool assign_str(const char *name, const char *field, char **old_str,
 	return true;
 }
 
+static void read_alias_info(struct perf_pmu *pmu, struct perf_pmu_alias *alias)
+{
+	if (!alias->from_sysfs || alias->info_loaded)
+		return;
+
+	/*
+	 * load unit name and scale if available
+	 */
+	perf_pmu__parse_unit(pmu, alias);
+	perf_pmu__parse_scale(pmu, alias);
+	perf_pmu__parse_per_pkg(pmu, alias);
+	perf_pmu__parse_snapshot(pmu, alias);
+}
+
+struct update_alias_data {
+	struct perf_pmu *pmu;
+	struct perf_pmu_alias *alias;
+};
+
 static int update_alias(const struct pmu_event *pe,
 			const struct pmu_events_table *table __maybe_unused,
 			void *vdata)
 {
-	struct perf_pmu_alias *alias = vdata;
+	struct update_alias_data *data = vdata;
 	int ret = 0;
 
-	assign_str(pe->name, "desc", &alias->desc, pe->desc);
-	assign_str(pe->name, "long_desc", &alias->long_desc, pe->long_desc);
-	assign_str(pe->name, "topic", &alias->topic, pe->topic);
-	alias->per_pkg = pe->perpkg;
-	if (assign_str(pe->name, "value", &alias->str, pe->event)) {
-		parse_events_terms__purge(&alias->terms);
-		ret = parse_events_terms(&alias->terms, pe->event, /*input=*/NULL);
+	read_alias_info(data->pmu, data->alias);
+	assign_str(pe->name, "desc", &data->alias->desc, pe->desc);
+	assign_str(pe->name, "long_desc", &data->alias->long_desc, pe->long_desc);
+	assign_str(pe->name, "topic", &data->alias->topic, pe->topic);
+	data->alias->per_pkg = pe->perpkg;
+	if (assign_str(pe->name, "value", &data->alias->str, pe->event)) {
+		parse_events_terms__purge(&data->alias->terms);
+		ret = parse_events_terms(&data->alias->terms, pe->event, /*input=*/NULL);
 	}
 	if (!ret && pe->unit) {
 		char *unit;
 
-		ret = perf_pmu__convert_scale(pe->unit, &unit, &alias->scale);
+		ret = perf_pmu__convert_scale(pe->unit, &unit, &data->alias->scale);
 		if (!ret)
-			snprintf(alias->unit, sizeof(alias->unit), "%s", unit);
+			snprintf(data->alias->unit, sizeof(data->alias->unit), "%s", unit);
 	}
 	return ret;
 }
 
-static int perf_pmu__new_alias(struct perf_pmu *pmu, int dirfd, const char *name,
+static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 				const char *desc, const char *val, FILE *val_fd,
 				const struct pmu_event *pe)
 {
@@ -498,16 +538,6 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, int dirfd, const char *name
 	}
 
 	alias->name = strdup(name);
-	if (dirfd >= 0) {
-		/*
-		 * load unit name and scale if available
-		 */
-		perf_pmu__parse_unit(alias, dirfd, name);
-		perf_pmu__parse_scale(alias, dirfd, name);
-		perf_pmu__parse_per_pkg(alias, dirfd, name);
-		perf_pmu__parse_snapshot(alias, dirfd, name);
-	}
-
 	alias->desc = desc ? strdup(desc) : NULL;
 	alias->long_desc = long_desc ? strdup(long_desc) :
 				desc ? strdup(desc) : NULL;
@@ -522,9 +552,15 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, int dirfd, const char *name
 	}
 	if (!pe) {
 		/* Update an event from sysfs with json data. */
+		struct update_alias_data data = {
+			.pmu = pmu,
+			.alias = alias,
+		};
+
+		alias->from_sysfs = true;
 		if (pmu->events_table) {
 			if (pmu_events_table__find_event(pmu->events_table, pmu, name,
-							 update_alias, alias) == 0)
+							 update_alias, &data) == 0)
 				pmu->loaded_json_aliases++;
 		}
 	}
@@ -612,7 +648,7 @@ static int pmu_aliases_parse(struct perf_pmu *pmu, int dirfd)
 			continue;
 		}
 
-		if (perf_pmu__new_alias(pmu, dirfd, name, /*desc=*/ NULL,
+		if (perf_pmu__new_alias(pmu, name, /*desc=*/ NULL,
 					/*val=*/ NULL, file, /*pe=*/ NULL) < 0)
 			pr_debug("Cannot set up %s\n", name);
 		fclose(file);
@@ -865,7 +901,7 @@ static int pmu_add_cpu_aliases_map_callback(const struct pmu_event *pe,
 {
 	struct perf_pmu *pmu = vdata;
 
-	perf_pmu__new_alias(pmu, -1, pe->name, pe->desc, pe->event, /*val_fd=*/ NULL, pe);
+	perf_pmu__new_alias(pmu, pe->name, pe->desc, pe->event, /*val_fd=*/ NULL, pe);
 	return 0;
 }
 
@@ -901,7 +937,7 @@ static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe,
 
 	if (!strcmp(pmu->id, pe->compat) &&
 	    pmu_uncore_alias_match(pe->pmu, pmu->name)) {
-		perf_pmu__new_alias(pmu, -1,
+		perf_pmu__new_alias(pmu,
 				pe->name,
 				pe->desc,
 				pe->event,
@@ -1417,11 +1453,13 @@ static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 }
 
 
-static int check_info_data(struct perf_pmu_alias *alias,
+static int check_info_data(struct perf_pmu *pmu,
+			   struct perf_pmu_alias *alias,
 			   struct perf_pmu_info *info,
 			   struct parse_events_error *err,
 			   int column)
 {
+	read_alias_info(pmu, alias);
 	/*
 	 * Only one term in event definition can
 	 * define unit, scale and snapshot, fail
@@ -1491,7 +1529,7 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 			return ret;
 		}
 
-		ret = check_info_data(alias, info, err, term->err_term);
+		ret = check_info_data(pmu, alias, info, err, term->err_term);
 		if (ret)
 			return ret;
 
