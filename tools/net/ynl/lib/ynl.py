@@ -410,7 +410,12 @@ class YnlFamily(SpecFamily):
         elif attr["type"] == 'string':
             attr_payload = str(value).encode('ascii') + b'\x00'
         elif attr["type"] == 'binary':
-            attr_payload = bytes.fromhex(value)
+            if isinstance(value, bytes):
+                attr_payload = value
+            elif isinstance(value, str):
+                attr_payload = bytes.fromhex(value)
+            else:
+                raise Exception(f'Unknown type for binary attribute, value: {value}')
         elif attr['type'] in NlAttr.type_formats:
             format = NlAttr.get_format(attr['type'], attr.byte_order)
             attr_payload = format.pack(int(value))
