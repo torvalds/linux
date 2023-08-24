@@ -435,12 +435,12 @@ static void perf_pmu__del_aliases(struct perf_pmu *pmu)
 /* Merge an alias, search in alias list. If this name is already
  * present merge both of them to combine all information.
  */
-static bool perf_pmu_merge_alias(struct perf_pmu_alias *newalias,
-				 struct list_head *alist)
+static bool perf_pmu_merge_alias(struct perf_pmu *pmu,
+				 struct perf_pmu_alias *newalias)
 {
 	struct perf_pmu_alias *a;
 
-	list_for_each_entry(a, alist, list) {
+	list_for_each_entry(a, &pmu->aliases, list) {
 		if (!strcasecmp(newalias->name, a->name)) {
 			if (newalias->pmu_name && a->pmu_name &&
 			    !strcasecmp(newalias->pmu_name, a->pmu_name)) {
@@ -454,7 +454,7 @@ static bool perf_pmu_merge_alias(struct perf_pmu_alias *newalias,
 	return false;
 }
 
-static int perf_pmu__new_alias(struct list_head *list, int dirfd, const char *name,
+static int perf_pmu__new_alias(struct perf_pmu *pmu, int dirfd, const char *name,
 				const char *desc, const char *val, FILE *val_fd,
 				const struct pmu_event *pe)
 {
@@ -536,8 +536,8 @@ static int perf_pmu__new_alias(struct list_head *list, int dirfd, const char *na
 	alias->str = strdup(newval);
 	alias->pmu_name = pmu_name ? strdup(pmu_name) : NULL;
 
-	if (!perf_pmu_merge_alias(alias, list))
-		list_add_tail(&alias->list, list);
+	if (!perf_pmu_merge_alias(pmu, alias))
+		list_add_tail(&alias->list, &pmu->aliases);
 
 	return 0;
 }
@@ -563,7 +563,7 @@ static inline bool pmu_alias_info_file(char *name)
  * Process all the sysfs attributes located under the directory
  * specified in 'dir' parameter.
  */
-static int pmu_aliases_parse(int dirfd, struct list_head *head)
+static int pmu_aliases_parse(struct perf_pmu *pmu, int dirfd)
 {
 	struct dirent *evt_ent;
 	DIR *event_dir;
@@ -597,7 +597,7 @@ static int pmu_aliases_parse(int dirfd, struct list_head *head)
 			continue;
 		}
 
-		if (perf_pmu__new_alias(head, dirfd, name, /*desc=*/ NULL,
+		if (perf_pmu__new_alias(pmu, dirfd, name, /*desc=*/ NULL,
 					/*val=*/ NULL, file, /*pe=*/ NULL) < 0)
 			pr_debug("Cannot set up %s\n", name);
 		fclose(file);
@@ -620,7 +620,7 @@ static int pmu_aliases(struct perf_pmu *pmu, int dirfd, const char *name)
 		return 0;
 
 	/* it'll close the fd */
-	if (pmu_aliases_parse(fd, &pmu->aliases))
+	if (pmu_aliases_parse(pmu, fd))
 		return -1;
 
 	return 0;
@@ -848,10 +848,9 @@ static int pmu_add_cpu_aliases_map_callback(const struct pmu_event *pe,
 					const struct pmu_events_table *table __maybe_unused,
 					void *vdata)
 {
-	struct list_head *head = vdata;
+	struct perf_pmu *pmu = vdata;
 
-	/* need type casts to override 'const' */
-	perf_pmu__new_alias(head, -1, pe->name, pe->desc, pe->event, /*val_fd=*/ NULL, pe);
+	perf_pmu__new_alias(pmu, -1, pe->name, pe->desc, pe->event, /*val_fd=*/ NULL, pe);
 	return 0;
 }
 
@@ -861,7 +860,7 @@ static int pmu_add_cpu_aliases_map_callback(const struct pmu_event *pe,
  */
 void pmu_add_cpu_aliases_table(struct perf_pmu *pmu, const struct pmu_events_table *table)
 {
-	pmu_events_table__for_each_event(table, pmu, pmu_add_cpu_aliases_map_callback, &pmu->aliases);
+	pmu_events_table__for_each_event(table, pmu, pmu_add_cpu_aliases_map_callback, pmu);
 }
 
 static void pmu_add_cpu_aliases(struct perf_pmu *pmu)
@@ -875,24 +874,18 @@ static void pmu_add_cpu_aliases(struct perf_pmu *pmu)
 	pmu_add_cpu_aliases_table(pmu, table);
 }
 
-struct pmu_sys_event_iter_data {
-	struct list_head *head;
-	struct perf_pmu *pmu;
-};
-
 static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe,
 				       const struct pmu_events_table *table __maybe_unused,
-				       void *data)
+				       void *vdata)
 {
-	struct pmu_sys_event_iter_data *idata = data;
-	struct perf_pmu *pmu = idata->pmu;
+	struct perf_pmu *pmu = vdata;
 
 	if (!pe->compat || !pe->pmu)
 		return 0;
 
 	if (!strcmp(pmu->id, pe->compat) &&
 	    pmu_uncore_alias_match(pe->pmu, pmu->name)) {
-		perf_pmu__new_alias(idata->head, -1,
+		perf_pmu__new_alias(pmu, -1,
 				pe->name,
 				pe->desc,
 				pe->event,
@@ -905,15 +898,10 @@ static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe,
 
 void pmu_add_sys_aliases(struct perf_pmu *pmu)
 {
-	struct pmu_sys_event_iter_data idata = {
-		.head = &pmu->aliases,
-		.pmu = pmu,
-	};
-
 	if (!pmu->id)
 		return;
 
-	pmu_for_each_sys_event(pmu_add_sys_aliases_iter_fn, &idata);
+	pmu_for_each_sys_event(pmu_add_sys_aliases_iter_fn, pmu);
 }
 
 struct perf_event_attr * __weak
