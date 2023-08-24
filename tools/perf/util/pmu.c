@@ -859,28 +859,14 @@ out:
 	return res;
 }
 
-struct pmu_add_cpu_aliases_map_data {
-	/* List being added to. */
-	struct list_head *head;
-	/* If a pmu_event lacks a given PMU the default used. */
-	char *default_pmu_name;
-	/* The PMU that we're searching for events for. */
-	struct perf_pmu *pmu;
-};
-
 static int pmu_add_cpu_aliases_map_callback(const struct pmu_event *pe,
 					const struct pmu_events_table *table __maybe_unused,
 					void *vdata)
 {
-	struct pmu_add_cpu_aliases_map_data *data = vdata;
-	const char *pname = pe->pmu ?: data->default_pmu_name;
+	struct list_head *head = vdata;
 
-	if (!strcmp(pname, data->pmu->name) ||
-	    (data->pmu->is_uncore && pmu_uncore_alias_match(pname, data->pmu->name))) {
-		/* need type casts to override 'const' */
-		__perf_pmu__new_alias(data->head, -1, (char *)pe->name, (char *)pe->desc,
-				      (char *)pe->event, pe);
-	}
+	/* need type casts to override 'const' */
+	__perf_pmu__new_alias(head, -1, (char *)pe->name, (char *)pe->desc, (char *)pe->event, pe);
 	return 0;
 }
 
@@ -890,14 +876,7 @@ static int pmu_add_cpu_aliases_map_callback(const struct pmu_event *pe,
  */
 void pmu_add_cpu_aliases_table(struct perf_pmu *pmu, const struct pmu_events_table *table)
 {
-	struct pmu_add_cpu_aliases_map_data data = {
-		.head = &pmu->aliases,
-		.default_pmu_name = perf_pmus__default_pmu_name(),
-		.pmu = pmu,
-	};
-
-	pmu_events_table__for_each_event(table, pmu_add_cpu_aliases_map_callback, &data);
-	free(data.default_pmu_name);
+	pmu_events_table__for_each_event(table, pmu, pmu_add_cpu_aliases_map_callback, &pmu->aliases);
 }
 
 static void pmu_add_cpu_aliases(struct perf_pmu *pmu)
@@ -1711,6 +1690,12 @@ int perf_pmu__for_each_event(const struct perf_pmu *pmu, void *state, pmu_event_
 		ret = cb(state, &info);
 	}
 	return ret;
+}
+
+bool pmu__name_match(const struct perf_pmu *pmu, const char *pmu_name)
+{
+	return !strcmp(pmu->name, pmu_name) ||
+		(pmu->is_uncore && pmu_uncore_alias_match(pmu_name, pmu->name));
 }
 
 bool perf_pmu__is_software(const struct perf_pmu *pmu)

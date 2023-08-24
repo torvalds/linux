@@ -198,6 +198,7 @@ bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu);
 bool perf_pmu__have_event(const struct perf_pmu *pmu, const char *name);
 size_t perf_pmu__num_events(const struct perf_pmu *pmu);
 int perf_pmu__for_each_event(const struct perf_pmu *pmu, void *state, pmu_event_callback cb);
+bool pmu__name_match(const struct perf_pmu *pmu, const char *pmu_name);
 
 /**
  * perf_pmu_is_software - is the PMU a software PMU as in it uses the
