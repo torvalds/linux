@@ -5520,7 +5520,7 @@ static bool ufs_qcom_read_boot_config(struct platform_device *pdev)
 
 	cell = nvmem_cell_get(dev, "boot_conf");
 	if (IS_ERR(cell)) {
-		dev_warn(dev, "nvmem cell get failed\n");
+		dev_dbg(dev, "nvmem cell get failed\n");
 		goto ret;
 	}
 	buf = (u8 *)nvmem_cell_read(cell, &len);
