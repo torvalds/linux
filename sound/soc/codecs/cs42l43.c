@@ -2238,7 +2238,7 @@ static int cs42l43_codec_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused cs42l43_codec_runtime_resume(struct device *dev)
+static int cs42l43_codec_runtime_resume(struct device *dev)
 {
 	struct cs42l43_codec *priv = dev_get_drvdata(dev);
 
@@ -2250,9 +2250,8 @@ static int __maybe_unused cs42l43_codec_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops cs42l43_codec_pm_ops = {
-	SET_RUNTIME_PM_OPS(NULL, cs42l43_codec_runtime_resume, NULL)
-};
+DEFINE_RUNTIME_DEV_PM_OPS(cs42l43_codec_pm_ops, NULL,
+			  cs42l43_codec_runtime_resume, NULL);
 
 static const struct platform_device_id cs42l43_codec_id_table[] = {
 	{ "cs42l43-codec", },
