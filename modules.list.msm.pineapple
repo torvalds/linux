@@ -43,6 +43,7 @@ videocc-pineapple.ko
 debug-regulator.ko
 proxy-consumer.ko
 rpmh-regulator.ko
+camcc-cliffs.ko
 camcc-pineapple.ko
 qcom-ipcc.ko
 stub-regulator.ko
