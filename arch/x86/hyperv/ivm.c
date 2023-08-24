@@ -30,9 +30,6 @@
 
 #define GHCB_USAGE_HYPERV_CALL	1
 
-static u8 ap_start_input_arg[PAGE_SIZE] __bss_decrypted __aligned(PAGE_SIZE);
-static u8 ap_start_stack[PAGE_SIZE] __aligned(PAGE_SIZE);
-
 union hv_ghcb {
 	struct ghcb ghcb;
 	struct {
@@ -66,10 +63,10 @@ union hv_ghcb {
 	} hypercall;
 } __packed __aligned(HV_HYP_PAGE_SIZE);
 
-static DEFINE_PER_CPU(struct sev_es_save_area *, hv_sev_vmsa);
-
+/* Only used in an SNP VM with the paravisor */
 static u16 hv_ghcb_version __ro_after_init;
 
+/* Functions only used in an SNP VM with the paravisor go here. */
 u64 hv_ghcb_hypercall(u64 control, void *input, void *output, u32 input_size)
 {
 	union hv_ghcb *hv_ghcb;
@@ -247,194 +244,12 @@ static void hv_ghcb_msr_read(u64 msr, u64 *value)
 	local_irq_restore(flags);
 }
 
-#else
-static inline void hv_ghcb_msr_write(u64 msr, u64 value) {}
-static inline void hv_ghcb_msr_read(u64 msr, u64 *value) {}
-#endif /* CONFIG_AMD_MEM_ENCRYPT */
+/* Only used in a fully enlightened SNP VM, i.e. without the paravisor */
+static u8 ap_start_input_arg[PAGE_SIZE] __bss_decrypted __aligned(PAGE_SIZE);
+static u8 ap_start_stack[PAGE_SIZE] __aligned(PAGE_SIZE);
+static DEFINE_PER_CPU(struct sev_es_save_area *, hv_sev_vmsa);
 
-#ifdef CONFIG_INTEL_TDX_GUEST
-static void hv_tdx_msr_write(u64 msr, u64 val)
-{
-	struct tdx_hypercall_args args = {
-		.r10 = TDX_HYPERCALL_STANDARD,
-		.r11 = EXIT_REASON_MSR_WRITE,
-		.r12 = msr,
-		.r13 = val,
-	};
-
-	u64 ret = __tdx_hypercall(&args);
-
-	WARN_ONCE(ret, "Failed to emulate MSR write: %lld\n", ret);
-}
-
-static void hv_tdx_msr_read(u64 msr, u64 *val)
-{
-	struct tdx_hypercall_args args = {
-		.r10 = TDX_HYPERCALL_STANDARD,
-		.r11 = EXIT_REASON_MSR_READ,
-		.r12 = msr,
-	};
-
-	u64 ret = __tdx_hypercall_ret(&args);
-
-	if (WARN_ONCE(ret, "Failed to emulate MSR read: %lld\n", ret))
-		*val = 0;
-	else
-		*val = args.r11;
-}
-#else
-static inline void hv_tdx_msr_write(u64 msr, u64 value) {}
-static inline void hv_tdx_msr_read(u64 msr, u64 *value) {}
-#endif /* CONFIG_INTEL_TDX_GUEST */
-
-#if defined(CONFIG_AMD_MEM_ENCRYPT) || defined(CONFIG_INTEL_TDX_GUEST)
-void hv_ivm_msr_write(u64 msr, u64 value)
-{
-	if (!ms_hyperv.paravisor_present)
-		return;
-
-	if (hv_isolation_type_tdx())
-		hv_tdx_msr_write(msr, value);
-	else if (hv_isolation_type_snp())
-		hv_ghcb_msr_write(msr, value);
-}
-
-void hv_ivm_msr_read(u64 msr, u64 *value)
-{
-	if (!ms_hyperv.paravisor_present)
-		return;
-
-	if (hv_isolation_type_tdx())
-		hv_tdx_msr_read(msr, value);
-	else if (hv_isolation_type_snp())
-		hv_ghcb_msr_read(msr, value);
-}
-#endif
-
-#if defined(CONFIG_AMD_MEM_ENCRYPT) || defined(CONFIG_INTEL_TDX_GUEST)
-/*
- * hv_mark_gpa_visibility - Set pages visible to host via hvcall.
- *
- * In Isolation VM, all guest memory is encrypted from host and guest
- * needs to set memory visible to host via hvcall before sharing memory
- * with host.
- */
-static int hv_mark_gpa_visibility(u16 count, const u64 pfn[],
-			   enum hv_mem_host_visibility visibility)
-{
-	struct hv_gpa_range_for_visibility **input_pcpu, *input;
-	u16 pages_processed;
-	u64 hv_status;
-	unsigned long flags;
-
-	/* no-op if partition isolation is not enabled */
-	if (!hv_is_isolation_supported())
-		return 0;
-
-	if (count > HV_MAX_MODIFY_GPA_REP_COUNT) {
-		pr_err("Hyper-V: GPA count:%d exceeds supported:%lu\n", count,
-			HV_MAX_MODIFY_GPA_REP_COUNT);
-		return -EINVAL;
-	}
-
-	local_irq_save(flags);
-	input_pcpu = (struct hv_gpa_range_for_visibility **)
-			this_cpu_ptr(hyperv_pcpu_input_arg);
-	input = *input_pcpu;
-	if (unlikely(!input)) {
-		local_irq_restore(flags);
-		return -EINVAL;
-	}
-
-	input->partition_id = HV_PARTITION_ID_SELF;
-	input->host_visibility = visibility;
-	input->reserved0 = 0;
-	input->reserved1 = 0;
-	memcpy((void *)input->gpa_page_list, pfn, count * sizeof(*pfn));
-	hv_status = hv_do_rep_hypercall(
-			HVCALL_MODIFY_SPARSE_GPA_PAGE_HOST_VISIBILITY, count,
-			0, input, &pages_processed);
-	local_irq_restore(flags);
-
-	if (hv_result_success(hv_status))
-		return 0;
-	else
-		return -EFAULT;
-}
-
-/*
- * hv_vtom_set_host_visibility - Set specified memory visible to host.
- *
- * In Isolation VM, all guest memory is encrypted from host and guest
- * needs to set memory visible to host via hvcall before sharing memory
- * with host. This function works as wrap of hv_mark_gpa_visibility()
- * with memory base and size.
- */
-static bool hv_vtom_set_host_visibility(unsigned long kbuffer, int pagecount, bool enc)
-{
-	enum hv_mem_host_visibility visibility = enc ?
-			VMBUS_PAGE_NOT_VISIBLE : VMBUS_PAGE_VISIBLE_READ_WRITE;
-	u64 *pfn_array;
-	int ret = 0;
-	bool result = true;
-	int i, pfn;
-
-	pfn_array = kmalloc(HV_HYP_PAGE_SIZE, GFP_KERNEL);
-	if (!pfn_array)
-		return false;
-
-	for (i = 0, pfn = 0; i < pagecount; i++) {
-		pfn_array[pfn] = virt_to_hvpfn((void *)kbuffer + i * HV_HYP_PAGE_SIZE);
-		pfn++;
-
-		if (pfn == HV_MAX_MODIFY_GPA_REP_COUNT || i == pagecount - 1) {
-			ret = hv_mark_gpa_visibility(pfn, pfn_array,
-						     visibility);
-			if (ret) {
-				result = false;
-				goto err_free_pfn_array;
-			}
-			pfn = 0;
-		}
-	}
-
- err_free_pfn_array:
-	kfree(pfn_array);
-	return result;
-}
-
-static bool hv_vtom_tlb_flush_required(bool private)
-{
-	return true;
-}
-
-static bool hv_vtom_cache_flush_required(void)
-{
-	return false;
-}
-
-static bool hv_is_private_mmio(u64 addr)
-{
-	/*
-	 * Hyper-V always provides a single IO-APIC in a guest VM.
-	 * When a paravisor is used, it is emulated by the paravisor
-	 * in the guest context and must be mapped private.
-	 */
-	if (addr >= HV_IOAPIC_BASE_ADDRESS &&
-	    addr < (HV_IOAPIC_BASE_ADDRESS + PAGE_SIZE))
-		return true;
-
-	/* Same with a vTPM */
-	if (addr >= VTPM_BASE_ADDRESS &&
-	    addr < (VTPM_BASE_ADDRESS + PAGE_SIZE))
-		return true;
-
-	return false;
-}
-
-#endif /* defined(CONFIG_AMD_MEM_ENCRYPT) || defined(CONFIG_INTEL_TDX_GUEST) */
-
-#ifdef CONFIG_AMD_MEM_ENCRYPT
+/* Functions only used in an SNP VM without the paravisor go here. */
 
 #define hv_populate_vmcb_seg(seg, gdtr_base)			\
 do {								\
@@ -563,9 +378,202 @@ int hv_snp_boot_ap(int cpu, unsigned long start_ip)
 	return ret;
 }
 
+#else
+static inline void hv_ghcb_msr_write(u64 msr, u64 value) {}
+static inline void hv_ghcb_msr_read(u64 msr, u64 *value) {}
 #endif /* CONFIG_AMD_MEM_ENCRYPT */
 
+#ifdef CONFIG_INTEL_TDX_GUEST
+static void hv_tdx_msr_write(u64 msr, u64 val)
+{
+	struct tdx_hypercall_args args = {
+		.r10 = TDX_HYPERCALL_STANDARD,
+		.r11 = EXIT_REASON_MSR_WRITE,
+		.r12 = msr,
+		.r13 = val,
+	};
+
+	u64 ret = __tdx_hypercall(&args);
+
+	WARN_ONCE(ret, "Failed to emulate MSR write: %lld\n", ret);
+}
+
+static void hv_tdx_msr_read(u64 msr, u64 *val)
+{
+	struct tdx_hypercall_args args = {
+		.r10 = TDX_HYPERCALL_STANDARD,
+		.r11 = EXIT_REASON_MSR_READ,
+		.r12 = msr,
+	};
+
+	u64 ret = __tdx_hypercall_ret(&args);
+
+	if (WARN_ONCE(ret, "Failed to emulate MSR read: %lld\n", ret))
+		*val = 0;
+	else
+		*val = args.r11;
+}
+
+u64 hv_tdx_hypercall(u64 control, u64 param1, u64 param2)
+{
+	struct tdx_hypercall_args args = { };
+
+	args.r10 = control;
+	args.rdx = param1;
+	args.r8  = param2;
+
+	(void)__tdx_hypercall_ret(&args);
+
+	return args.r11;
+}
+
+#else
+static inline void hv_tdx_msr_write(u64 msr, u64 value) {}
+static inline void hv_tdx_msr_read(u64 msr, u64 *value) {}
+#endif /* CONFIG_INTEL_TDX_GUEST */
+
 #if defined(CONFIG_AMD_MEM_ENCRYPT) || defined(CONFIG_INTEL_TDX_GUEST)
+void hv_ivm_msr_write(u64 msr, u64 value)
+{
+	if (!ms_hyperv.paravisor_present)
+		return;
+
+	if (hv_isolation_type_tdx())
+		hv_tdx_msr_write(msr, value);
+	else if (hv_isolation_type_snp())
+		hv_ghcb_msr_write(msr, value);
+}
+
+void hv_ivm_msr_read(u64 msr, u64 *value)
+{
+	if (!ms_hyperv.paravisor_present)
+		return;
+
+	if (hv_isolation_type_tdx())
+		hv_tdx_msr_read(msr, value);
+	else if (hv_isolation_type_snp())
+		hv_ghcb_msr_read(msr, value);
+}
+
+/*
+ * hv_mark_gpa_visibility - Set pages visible to host via hvcall.
+ *
+ * In Isolation VM, all guest memory is encrypted from host and guest
+ * needs to set memory visible to host via hvcall before sharing memory
+ * with host.
+ */
+static int hv_mark_gpa_visibility(u16 count, const u64 pfn[],
+			   enum hv_mem_host_visibility visibility)
+{
+	struct hv_gpa_range_for_visibility **input_pcpu, *input;
+	u16 pages_processed;
+	u64 hv_status;
+	unsigned long flags;
+
+	/* no-op if partition isolation is not enabled */
+	if (!hv_is_isolation_supported())
+		return 0;
+
+	if (count > HV_MAX_MODIFY_GPA_REP_COUNT) {
+		pr_err("Hyper-V: GPA count:%d exceeds supported:%lu\n", count,
+			HV_MAX_MODIFY_GPA_REP_COUNT);
+		return -EINVAL;
+	}
+
+	local_irq_save(flags);
+	input_pcpu = (struct hv_gpa_range_for_visibility **)
+			this_cpu_ptr(hyperv_pcpu_input_arg);
+	input = *input_pcpu;
+	if (unlikely(!input)) {
+		local_irq_restore(flags);
+		return -EINVAL;
+	}
+
+	input->partition_id = HV_PARTITION_ID_SELF;
+	input->host_visibility = visibility;
+	input->reserved0 = 0;
+	input->reserved1 = 0;
+	memcpy((void *)input->gpa_page_list, pfn, count * sizeof(*pfn));
+	hv_status = hv_do_rep_hypercall(
+			HVCALL_MODIFY_SPARSE_GPA_PAGE_HOST_VISIBILITY, count,
+			0, input, &pages_processed);
+	local_irq_restore(flags);
+
+	if (hv_result_success(hv_status))
+		return 0;
+	else
+		return -EFAULT;
+}
+
+/*
+ * hv_vtom_set_host_visibility - Set specified memory visible to host.
+ *
+ * In Isolation VM, all guest memory is encrypted from host and guest
+ * needs to set memory visible to host via hvcall before sharing memory
+ * with host. This function works as wrap of hv_mark_gpa_visibility()
+ * with memory base and size.
+ */
+static bool hv_vtom_set_host_visibility(unsigned long kbuffer, int pagecount, bool enc)
+{
+	enum hv_mem_host_visibility visibility = enc ?
+			VMBUS_PAGE_NOT_VISIBLE : VMBUS_PAGE_VISIBLE_READ_WRITE;
+	u64 *pfn_array;
+	int ret = 0;
+	bool result = true;
+	int i, pfn;
+
+	pfn_array = kmalloc(HV_HYP_PAGE_SIZE, GFP_KERNEL);
+	if (!pfn_array)
+		return false;
+
+	for (i = 0, pfn = 0; i < pagecount; i++) {
+		pfn_array[pfn] = virt_to_hvpfn((void *)kbuffer + i * HV_HYP_PAGE_SIZE);
+		pfn++;
+
+		if (pfn == HV_MAX_MODIFY_GPA_REP_COUNT || i == pagecount - 1) {
+			ret = hv_mark_gpa_visibility(pfn, pfn_array,
+						     visibility);
+			if (ret) {
+				result = false;
+				goto err_free_pfn_array;
+			}
+			pfn = 0;
+		}
+	}
+
+ err_free_pfn_array:
+	kfree(pfn_array);
+	return result;
+}
+
+static bool hv_vtom_tlb_flush_required(bool private)
+{
+	return true;
+}
+
+static bool hv_vtom_cache_flush_required(void)
+{
+	return false;
+}
+
+static bool hv_is_private_mmio(u64 addr)
+{
+	/*
+	 * Hyper-V always provides a single IO-APIC in a guest VM.
+	 * When a paravisor is used, it is emulated by the paravisor
+	 * in the guest context and must be mapped private.
+	 */
+	if (addr >= HV_IOAPIC_BASE_ADDRESS &&
+	    addr < (HV_IOAPIC_BASE_ADDRESS + PAGE_SIZE))
+		return true;
+
+	/* Same with a vTPM */
+	if (addr >= VTPM_BASE_ADDRESS &&
+	    addr < (VTPM_BASE_ADDRESS + PAGE_SIZE))
+		return true;
+
+	return false;
+}
 
 void __init hv_vtom_init(void)
 {
@@ -654,20 +662,3 @@ bool hv_isolation_type_tdx(void)
 {
 	return static_branch_unlikely(&isolation_type_tdx);
 }
-
-#ifdef CONFIG_INTEL_TDX_GUEST
-
-u64 hv_tdx_hypercall(u64 control, u64 param1, u64 param2)
-{
-	struct tdx_hypercall_args args = { };
-
-	args.r10 = control;
-	args.rdx = param1;
-	args.r8  = param2;
-
-	(void)__tdx_hypercall_ret(&args);
-
-	return args.r11;
-}
-
-#endif
