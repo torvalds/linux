@@ -658,8 +658,8 @@ bool hv_is_hyperv_initialized(void)
 	if (x86_hyper_type != X86_HYPER_MS_HYPERV)
 		return false;
 
-	/* A TDX guest uses the GHCI call rather than hv_hypercall_pg. */
-	if (hv_isolation_type_tdx())
+	/* A TDX VM with no paravisor uses TDX GHCI call rather than hv_hypercall_pg */
+	if (hv_isolation_type_tdx() && !ms_hyperv.paravisor_present)
 		return true;
 	/*
 	 * Verify that earlier initialization succeeded by checking

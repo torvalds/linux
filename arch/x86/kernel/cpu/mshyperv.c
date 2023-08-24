@@ -40,6 +40,10 @@ bool hv_root_partition;
 bool hv_nested;
 struct ms_hyperv_info ms_hyperv;
 
+/* Used in modules via hv_do_hypercall(): see arch/x86/include/asm/mshyperv.h */
+bool hyperv_paravisor_present __ro_after_init;
+EXPORT_SYMBOL_GPL(hyperv_paravisor_present);
+
 #if IS_ENABLED(CONFIG_HYPERV)
 static inline unsigned int hv_get_nested_reg(unsigned int reg)
 {
@@ -429,6 +433,8 @@ static void __init ms_hyperv_init_platform(void)
 			ms_hyperv.shared_gpa_boundary =
 				BIT_ULL(ms_hyperv.shared_gpa_boundary_bits);
 
+		hyperv_paravisor_present = !!ms_hyperv.paravisor_present;
+
 		pr_info("Hyper-V: Isolation Config: Group A 0x%x, Group B 0x%x\n",
 			ms_hyperv.isolation_config_a, ms_hyperv.isolation_config_b);
 
@@ -526,8 +532,7 @@ static void __init ms_hyperv_init_platform(void)
 
 #if IS_ENABLED(CONFIG_HYPERV)
 	if ((hv_get_isolation_type() == HV_ISOLATION_TYPE_VBS) ||
-	    ((hv_get_isolation_type() == HV_ISOLATION_TYPE_SNP) &&
-	    ms_hyperv.paravisor_present))
+	    ms_hyperv.paravisor_present)
 		hv_vtom_init();
 	/*
 	 * Setup the hook to get control post apic initialization.

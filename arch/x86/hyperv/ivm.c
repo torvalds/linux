@@ -248,6 +248,9 @@ void hv_ghcb_msr_read(u64 msr, u64 *value)
 }
 EXPORT_SYMBOL_GPL(hv_ghcb_msr_read);
 
+#endif /* CONFIG_AMD_MEM_ENCRYPT */
+
+#if defined(CONFIG_AMD_MEM_ENCRYPT) || defined(CONFIG_INTEL_TDX_GUEST)
 /*
  * hv_mark_gpa_visibility - Set pages visible to host via hvcall.
  *
@@ -367,6 +370,10 @@ static bool hv_is_private_mmio(u64 addr)
 
 	return false;
 }
+
+#endif /* defined(CONFIG_AMD_MEM_ENCRYPT) || defined(CONFIG_INTEL_TDX_GUEST) */
+
+#ifdef CONFIG_AMD_MEM_ENCRYPT
 
 #define hv_populate_vmcb_seg(seg, gdtr_base)			\
 do {								\
@@ -495,15 +502,40 @@ int hv_snp_boot_ap(int cpu, unsigned long start_ip)
 	return ret;
 }
 
+#endif /* CONFIG_AMD_MEM_ENCRYPT */
+
+#if defined(CONFIG_AMD_MEM_ENCRYPT) || defined(CONFIG_INTEL_TDX_GUEST)
+
 void __init hv_vtom_init(void)
 {
+	enum hv_isolation_type type = hv_get_isolation_type();
+
+	switch (type) {
+	case HV_ISOLATION_TYPE_VBS:
+		fallthrough;
 	/*
 	 * By design, a VM using vTOM doesn't see the SEV setting,
 	 * so SEV initialization is bypassed and sev_status isn't set.
 	 * Set it here to indicate a vTOM VM.
+	 *
+	 * Note: if CONFIG_AMD_MEM_ENCRYPT is not set, sev_status is
+	 * defined as 0ULL, to which we can't assigned a value.
 	 */
-	sev_status = MSR_AMD64_SNP_VTOM;
-	cc_vendor = CC_VENDOR_AMD;
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+	case HV_ISOLATION_TYPE_SNP:
+		sev_status = MSR_AMD64_SNP_VTOM;
+		cc_vendor = CC_VENDOR_AMD;
+		break;
+#endif
+
+	case HV_ISOLATION_TYPE_TDX:
+		cc_vendor = CC_VENDOR_INTEL;
+		break;
+
+	default:
+		panic("hv_vtom_init: unsupported isolation type %d\n", type);
+	}
+
 	cc_set_mask(ms_hyperv.shared_gpa_boundary);
 	physical_mask &= ms_hyperv.shared_gpa_boundary - 1;
 
@@ -516,7 +548,7 @@ void __init hv_vtom_init(void)
 	mtrr_overwrite_state(NULL, 0, MTRR_TYPE_WRBACK);
 }
 
-#endif /* CONFIG_AMD_MEM_ENCRYPT */
+#endif /* defined(CONFIG_AMD_MEM_ENCRYPT) || defined(CONFIG_INTEL_TDX_GUEST) */
 
 enum hv_isolation_type hv_get_isolation_type(void)
 {
