@@ -1218,9 +1218,11 @@ void phy_stop_machine(struct phy_device *phydev)
 
 static void phy_process_error(struct phy_device *phydev)
 {
-	mutex_lock(&phydev->lock);
+	/* phydev->lock must be held for the state change to be safe */
+	if (!mutex_is_locked(&phydev->lock))
+		phydev_err(phydev, "PHY-device data unsafe context\n");
+
 	phydev->state = PHY_ERROR;
-	mutex_unlock(&phydev->lock);
 
 	phy_trigger_machine(phydev);
 }
@@ -1229,7 +1231,9 @@ static void phy_error_precise(struct phy_device *phydev,
 			      const void *func, int err)
 {
 	WARN(1, "%pS: returned: %d\n", func, err);
+	mutex_lock(&phydev->lock);
 	phy_process_error(phydev);
+	mutex_unlock(&phydev->lock);
 }
 
 /**
@@ -1238,8 +1242,7 @@ static void phy_error_precise(struct phy_device *phydev,
  *
  * Moves the PHY to the ERROR state in response to a read
  * or write error, and tells the controller the link is down.
- * Must not be called from interrupt context, or while the
- * phydev->lock is held.
+ * Must be called with phydev->lock held.
  */
 void phy_error(struct phy_device *phydev)
 {

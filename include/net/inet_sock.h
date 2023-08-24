@@ -223,7 +223,7 @@ struct inet_sock {
 	__s16			uc_ttl;
 	__be16			inet_sport;
 	struct ip_options_rcu __rcu	*inet_opt;
-	__u16			inet_id;
+	atomic_t		inet_id;
 
 	__u8			tos;
 	__u8			min_ttl;

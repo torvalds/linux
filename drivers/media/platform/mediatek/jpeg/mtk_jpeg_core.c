@@ -1310,6 +1310,8 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 	jpeg->dev = &pdev->dev;
 	jpeg->variant = of_device_get_match_data(jpeg->dev);
 
+	platform_set_drvdata(pdev, jpeg);
+
 	ret = devm_of_platform_populate(&pdev->dev);
 	if (ret) {
 		v4l2_err(&jpeg->v4l2_dev, "Master of platform populate failed.");
@@ -1380,8 +1382,6 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 		  "%s device registered as /dev/video%d (%d,%d)\n",
 		  jpeg->variant->dev_name, jpeg->vdev->num,
 		  VIDEO_MAJOR, jpeg->vdev->minor);
-
-	platform_set_drvdata(pdev, jpeg);
 
 	pm_runtime_enable(&pdev->dev);
 
