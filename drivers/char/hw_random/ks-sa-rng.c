@@ -81,7 +81,6 @@ struct trng_regs {
 };
 
 struct ks_sa_rng {
-	struct device	*dev;
 	struct hwrng	rng;
 	struct clk	*clk;
 	struct regmap	*regmap_cfg;
@@ -213,7 +212,6 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 	if (!ks_sa_rng)
 		return -ENOMEM;
 
-	ks_sa_rng->dev = dev;
 	ks_sa_rng->rng = (struct hwrng) {
 		.name = "ks_sa_hwrng",
 		.init = ks_sa_rng_init,
