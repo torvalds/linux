@@ -1747,3 +1747,5 @@
 		status = "disabled";
 	};
 };
+
+#include "aspeed-ltpi0.dtsi"
