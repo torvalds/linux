@@ -5656,7 +5656,6 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	int rc;
 	struct pqi_io_request *io_request;
 	struct pqi_aio_path_request *request;
-	struct pqi_scsi_dev *device;
 
 	io_request = pqi_alloc_io_request(ctrl_info, scmd);
 	if (!io_request)
@@ -5676,9 +5675,8 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	request->command_priority = io_high_prio;
 	put_unaligned_le16(io_request->index, &request->request_id);
 	request->error_index = request->request_id;
-	device = scmd->device->hostdata;
-	if (!pqi_is_logical_device(device) && ctrl_info->multi_lun_device_supported)
-		put_unaligned_le64(((scmd->device->lun) << 8), &request->lun_number);
+	if (!raid_bypass && ctrl_info->multi_lun_device_supported)
+		put_unaligned_le64(scmd->device->lun << 8, &request->lun_number);
 	if (cdb_length > sizeof(request->cdb))
 		cdb_length = sizeof(request->cdb);
 	request->cdb_length = cdb_length;
