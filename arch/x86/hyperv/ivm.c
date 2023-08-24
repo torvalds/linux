@@ -18,9 +18,7 @@
 #include <asm/mshyperv.h>
 #include <asm/hypervisor.h>
 #include <asm/mtrr.h>
-#include <asm/coco.h>
 #include <asm/io_apic.h>
-#include <asm/sev.h>
 #include <asm/realmode.h>
 #include <asm/e820/api.h>
 #include <asm/desc.h>
