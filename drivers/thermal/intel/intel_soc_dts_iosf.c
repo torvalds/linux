@@ -212,11 +212,9 @@ static int soc_dts_enable(int id)
 
 static void remove_dts_thermal_zone(struct intel_soc_dts_sensor_entry *dts)
 {
-	if (dts) {
-		iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
-			       SOC_DTS_OFFSET_ENABLE, dts->store_status);
-		thermal_zone_device_unregister(dts->tzone);
-	}
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
+		       SOC_DTS_OFFSET_ENABLE, dts->store_status);
+	thermal_zone_device_unregister(dts->tzone);
 }
 
 static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
