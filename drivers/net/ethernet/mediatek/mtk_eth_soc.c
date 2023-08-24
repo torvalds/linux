@@ -1135,10 +1135,13 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	dma_addr_t dma_addr;
 	int i;
 
-	eth->scratch_ring = dma_alloc_coherent(eth->dma_dev,
-					       cnt * soc->txrx.txd_size,
-					       &eth->phy_scratch_ring,
-					       GFP_KERNEL);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SRAM))
+		eth->scratch_ring = eth->sram_base;
+	else
+		eth->scratch_ring = dma_alloc_coherent(eth->dma_dev,
+						       cnt * soc->txrx.txd_size,
+						       &eth->phy_scratch_ring,
+						       GFP_KERNEL);
 	if (unlikely(!eth->scratch_ring))
 		return -ENOMEM;
 
@@ -1325,6 +1328,10 @@ static void mtk_tx_set_dma_desc_v2(struct net_device *dev, void *txd,
 	data = TX_DMA_PLEN0(info->size);
 	if (info->last)
 		data |= TX_DMA_LS0;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA))
+		data |= TX_DMA_PREP_ADDR64(info->addr);
+
 	WRITE_ONCE(desc->txd3, data);
 
 	 /* set forward port */
@@ -1994,6 +2001,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 	bool xdp_flush = false;
 	int idx;
 	struct sk_buff *skb;
+	u64 addr64 = 0;
 	u8 *data, *new_data;
 	struct mtk_rx_dma_v2 *rxd, trxd;
 	int done = 0, bytes = 0;
@@ -2109,7 +2117,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 				goto release_desc;
 			}
 
-			dma_unmap_single(eth->dma_dev, trxd.rxd1,
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA))
+				addr64 = RX_DMA_GET_ADDR64(trxd.rxd2);
+
+			dma_unmap_single(eth->dma_dev, ((u64)trxd.rxd1 | addr64),
 					 ring->buf_size, DMA_FROM_DEVICE);
 
 			skb = build_skb(data, ring->frag_size);
@@ -2174,6 +2185,9 @@ release_desc:
 			rxd->rxd2 = RX_DMA_LSO;
 		else
 			rxd->rxd2 = RX_DMA_PREP_PLEN0(ring->buf_size);
+
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA))
+			rxd->rxd2 |= RX_DMA_PREP_ADDR64(dma_addr);
 
 		ring->calc_idx = idx;
 		done++;
@@ -2446,8 +2460,14 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	if (!ring->buf)
 		goto no_tx_mem;
 
-	ring->dma = dma_alloc_coherent(eth->dma_dev, ring_size * sz,
-				       &ring->phys, GFP_KERNEL);
+	if (MTK_HAS_CAPS(soc->caps, MTK_SRAM)) {
+		ring->dma = eth->sram_base + ring_size * sz;
+		ring->phys = eth->phy_scratch_ring + ring_size * (dma_addr_t)sz;
+	} else {
+		ring->dma = dma_alloc_coherent(eth->dma_dev, ring_size * sz,
+					       &ring->phys, GFP_KERNEL);
+	}
+
 	if (!ring->dma)
 		goto no_tx_mem;
 
@@ -2546,8 +2566,7 @@ static void mtk_tx_clean(struct mtk_eth *eth)
 		kfree(ring->buf);
 		ring->buf = NULL;
 	}
-
-	if (ring->dma) {
+	if (!MTK_HAS_CAPS(soc->caps, MTK_SRAM) && ring->dma) {
 		dma_free_coherent(eth->dma_dev,
 				  ring->dma_size * soc->txrx.txd_size,
 				  ring->dma, ring->phys);
@@ -2566,8 +2585,13 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 {
 	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
 	struct mtk_rx_ring *ring;
-	int rx_data_len, rx_dma_size;
+	int rx_data_len, rx_dma_size, tx_ring_size;
 	int i;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		tx_ring_size = MTK_QDMA_RING_SIZE;
+	else
+		tx_ring_size = MTK_DMA_SIZE;
 
 	if (rx_flag == MTK_RX_FLAGS_QDMA) {
 		if (ring_no)
@@ -2603,9 +2627,20 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 		ring->page_pool = pp;
 	}
 
-	ring->dma = dma_alloc_coherent(eth->dma_dev,
-				       rx_dma_size * eth->soc->txrx.rxd_size,
-				       &ring->phys, GFP_KERNEL);
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SRAM) ||
+	    rx_flag != MTK_RX_FLAGS_NORMAL) {
+		ring->dma = dma_alloc_coherent(eth->dma_dev,
+					       rx_dma_size * eth->soc->txrx.rxd_size,
+					       &ring->phys, GFP_KERNEL);
+	} else {
+		struct mtk_tx_ring *tx_ring = &eth->tx_ring;
+
+		ring->dma = tx_ring->dma + tx_ring_size *
+			    eth->soc->txrx.txd_size * (ring_no + 1);
+		ring->phys = tx_ring->phys + tx_ring_size *
+			     eth->soc->txrx.txd_size * (ring_no + 1);
+	}
+
 	if (!ring->dma)
 		return -ENOMEM;
 
@@ -2645,6 +2680,9 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 			rxd->rxd2 = RX_DMA_LSO;
 		else
 			rxd->rxd2 = RX_DMA_PREP_PLEN0(ring->buf_size);
+
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA))
+			rxd->rxd2 |= RX_DMA_PREP_ADDR64(dma_addr);
 
 		rxd->rxd3 = 0;
 		rxd->rxd4 = 0;
@@ -2690,8 +2728,9 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 	return 0;
 }
 
-static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
+static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring, bool in_sram)
 {
+	u64 addr64 = 0;
 	int i;
 
 	if (ring->data && ring->dma) {
@@ -2705,7 +2744,10 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 			if (!rxd->rxd1)
 				continue;
 
-			dma_unmap_single(eth->dma_dev, rxd->rxd1,
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA))
+				addr64 = RX_DMA_GET_ADDR64(rxd->rxd2);
+
+			dma_unmap_single(eth->dma_dev, ((u64)rxd->rxd1 | addr64),
 					 ring->buf_size, DMA_FROM_DEVICE);
 			mtk_rx_put_buff(ring, ring->data[i], false);
 		}
@@ -2713,7 +2755,7 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 		ring->data = NULL;
 	}
 
-	if (ring->dma) {
+	if (!in_sram && ring->dma) {
 		dma_free_coherent(eth->dma_dev,
 				  ring->dma_size * eth->soc->txrx.rxd_size,
 				  ring->dma, ring->phys);
@@ -3073,7 +3115,7 @@ static void mtk_dma_free(struct mtk_eth *eth)
 	for (i = 0; i < MTK_MAX_DEVS; i++)
 		if (eth->netdev[i])
 			netdev_reset_queue(eth->netdev[i]);
-	if (eth->scratch_ring) {
+	if (!MTK_HAS_CAPS(soc->caps, MTK_SRAM) && eth->scratch_ring) {
 		dma_free_coherent(eth->dma_dev,
 				  MTK_QDMA_RING_SIZE * soc->txrx.txd_size,
 				  eth->scratch_ring, eth->phy_scratch_ring);
@@ -3081,13 +3123,13 @@ static void mtk_dma_free(struct mtk_eth *eth)
 		eth->phy_scratch_ring = 0;
 	}
 	mtk_tx_clean(eth);
-	mtk_rx_clean(eth, &eth->rx_ring[0]);
-	mtk_rx_clean(eth, &eth->rx_ring_qdma);
+	mtk_rx_clean(eth, &eth->rx_ring[0], MTK_HAS_CAPS(soc->caps, MTK_SRAM));
+	mtk_rx_clean(eth, &eth->rx_ring_qdma, false);
 
 	if (eth->hwlro) {
 		mtk_hwlro_rx_uninit(eth);
 		for (i = 1; i < MTK_MAX_RX_RING_NUM; i++)
-			mtk_rx_clean(eth, &eth->rx_ring[i]);
+			mtk_rx_clean(eth, &eth->rx_ring[i], false);
 	}
 
 	kfree(eth->scratch_head);
@@ -3613,19 +3655,34 @@ static void mtk_hw_reset(struct mtk_eth *eth)
 {
 	u32 val;
 
-	if (mtk_is_netsys_v2_or_greater(eth)) {
+	if (mtk_is_netsys_v2_or_greater(eth))
 		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0);
+
+	if (mtk_is_netsys_v3_or_greater(eth)) {
+		val = RSTCTRL_PPE0_V3;
+
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+			val |= RSTCTRL_PPE1_V3;
+
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
+			val |= RSTCTRL_PPE2;
+
+		val |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
+	} else if (mtk_is_netsys_v2_or_greater(eth)) {
 		val = RSTCTRL_PPE0_V2;
+
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+			val |= RSTCTRL_PPE1;
 	} else {
 		val = RSTCTRL_PPE0;
 	}
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
-		val |= RSTCTRL_PPE1;
-
 	ethsys_reset(eth, RSTCTRL_ETH | RSTCTRL_FE | val);
 
-	if (mtk_is_netsys_v2_or_greater(eth))
+	if (mtk_is_netsys_v3_or_greater(eth))
+		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN,
+			     0x6f8ff);
+	else if (mtk_is_netsys_v2_or_greater(eth))
 		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN,
 			     0x3ffffff);
 }
@@ -3651,13 +3708,21 @@ static void mtk_hw_warm_reset(struct mtk_eth *eth)
 		return;
 	}
 
-	if (mtk_is_netsys_v2_or_greater(eth))
-		rst_mask = RSTCTRL_ETH | RSTCTRL_PPE0_V2;
-	else
-		rst_mask = RSTCTRL_ETH | RSTCTRL_PPE0;
+	if (mtk_is_netsys_v3_or_greater(eth)) {
+		rst_mask = RSTCTRL_ETH | RSTCTRL_PPE0_V3;
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+			rst_mask |= RSTCTRL_PPE1_V3;
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
+			rst_mask |= RSTCTRL_PPE2;
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
-		rst_mask |= RSTCTRL_PPE1;
+		rst_mask |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
+	} else if (mtk_is_netsys_v2_or_greater(eth)) {
+		rst_mask = RSTCTRL_ETH | RSTCTRL_PPE0_V2;
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+			rst_mask |= RSTCTRL_PPE1;
+	} else {
+		rst_mask = RSTCTRL_ETH | RSTCTRL_PPE0;
+	}
 
 	regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL, rst_mask, rst_mask);
 
@@ -4009,11 +4074,17 @@ static void mtk_prepare_for_reset(struct mtk_eth *eth)
 	u32 val;
 	int i;
 
-	/* disabe FE P3 and P4 */
-	val = mtk_r32(eth, MTK_FE_GLO_CFG) | MTK_FE_LINK_DOWN_P3;
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
-		val |= MTK_FE_LINK_DOWN_P4;
-	mtk_w32(eth, val, MTK_FE_GLO_CFG);
+	/* set FE PPE ports link down */
+	for (i = MTK_GMAC1_ID;
+	     i <= (mtk_is_netsys_v3_or_greater(eth) ? MTK_GMAC3_ID : MTK_GMAC2_ID);
+	     i += 2) {
+		val = mtk_r32(eth, MTK_FE_GLO_CFG(i)) | MTK_FE_LINK_DOWN_P(PSE_PPE0_PORT);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+			val |= MTK_FE_LINK_DOWN_P(PSE_PPE1_PORT);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
+			val |= MTK_FE_LINK_DOWN_P(PSE_PPE2_PORT);
+		mtk_w32(eth, val, MTK_FE_GLO_CFG(i));
+	}
 
 	/* adjust PPE configurations to prepare for reset */
 	for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
@@ -4074,11 +4145,18 @@ static void mtk_pending_work(struct work_struct *work)
 		}
 	}
 
-	/* enabe FE P3 and P4 */
-	val = mtk_r32(eth, MTK_FE_GLO_CFG) & ~MTK_FE_LINK_DOWN_P3;
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
-		val &= ~MTK_FE_LINK_DOWN_P4;
-	mtk_w32(eth, val, MTK_FE_GLO_CFG);
+	/* set FE PPE ports link up */
+	for (i = MTK_GMAC1_ID;
+	     i <= (mtk_is_netsys_v3_or_greater(eth) ? MTK_GMAC3_ID : MTK_GMAC2_ID);
+	     i += 2) {
+		val = mtk_r32(eth, MTK_FE_GLO_CFG(i)) & ~MTK_FE_LINK_DOWN_P(PSE_PPE0_PORT);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+			val &= ~MTK_FE_LINK_DOWN_P(PSE_PPE1_PORT);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
+			val &= ~MTK_FE_LINK_DOWN_P(PSE_PPE2_PORT);
+
+		mtk_w32(eth, val, MTK_FE_GLO_CFG(i));
+	}
 
 	clear_bit(MTK_RESETTING, &eth->state);
 
@@ -4640,7 +4718,7 @@ static int mtk_sgmii_init(struct mtk_eth *eth)
 
 static int mtk_probe(struct platform_device *pdev)
 {
-	struct resource *res = NULL;
+	struct resource *res = NULL, *res_sram;
 	struct device_node *mac_np;
 	struct mtk_eth *eth;
 	int err, i;
@@ -4659,6 +4737,28 @@ static int mtk_probe(struct platform_device *pdev)
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
 		eth->ip_align = NET_IP_ALIGN;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SRAM)) {
+		/* SRAM is actual memory and supports transparent access just like DRAM.
+		 * Hence we don't require __iomem being set and don't need to use accessor
+		 * functions to read from or write to SRAM.
+		 */
+		if (mtk_is_netsys_v3_or_greater(eth)) {
+			eth->sram_base = (void __force *)devm_platform_ioremap_resource(pdev, 1);
+			if (IS_ERR(eth->sram_base))
+				return PTR_ERR(eth->sram_base);
+		} else {
+			eth->sram_base = (void __force *)eth->base + MTK_ETH_SRAM_OFFSET;
+		}
+	}
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA)) {
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
+		if (err) {
+			dev_err(&pdev->dev, "Wrong DMA config\n");
+			return -EINVAL;
+		}
+	}
 
 	spin_lock_init(&eth->page_lock);
 	spin_lock_init(&eth->tx_irq_lock);
@@ -4722,6 +4822,18 @@ static int mtk_probe(struct platform_device *pdev)
 		if (!res) {
 			err = -EINVAL;
 			goto err_destroy_sgmii;
+		}
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SRAM)) {
+			if (mtk_is_netsys_v3_or_greater(eth)) {
+				res_sram = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+				if (!res_sram) {
+					err = -EINVAL;
+					goto err_destroy_sgmii;
+				}
+				eth->phy_scratch_ring = res_sram->start;
+			} else {
+				eth->phy_scratch_ring = res->start + MTK_ETH_SRAM_OFFSET;
+			}
 		}
 	}
 
