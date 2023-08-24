@@ -715,6 +715,17 @@ bool same_thread_group(struct task_struct *p1, struct task_struct *p2)
 	return p1->signal == p2->signal;
 }
 
+/*
+ * returns NULL if p is the last thread in the thread group
+ */
+static inline struct task_struct *__next_thread(struct task_struct *p)
+{
+	return list_next_or_null_rcu(&p->signal->thread_head,
+					&p->thread_node,
+					struct task_struct,
+					thread_node);
+}
+
 static inline struct task_struct *next_thread(const struct task_struct *p)
 {
 	return list_entry_rcu(p->thread_group.next,
