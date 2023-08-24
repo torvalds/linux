@@ -11,11 +11,11 @@
 	compatible = "xiaomi,markw", "qcom,msm8953";
 	qcom,board-id = <0x1000b 1>;
 
-	battery: battery {
-		charge-full-design-microamp-hours = <4000000>;
-		constant-charge-current-max-microamp = <1000000>;
-		voltage-min-design-microvolt = <3400000>;
-		voltage-max-design-microvolt = <4380000>;
+	speaker_amp: audio-amplifier {
+		compatible = "awinic,aw8738";
+		mode-gpios = <&tlmm 96 GPIO_ACTIVE_HIGH>;
+		awinic,mode = <3>;
+		sound-name-prefix = "Speaker Amp";
 	};
 
 	chosen {
@@ -136,6 +136,13 @@
 	};
 };
 
+&battery {
+	charge-full-design-microamp-hours = <4000000>;
+	constant-charge-current-max-microamp = <1000000>;
+	voltage-min-design-microvolt = <3400000>;
+	voltage-max-design-microvolt = <4380000>;
+};
+
 &ft5406_ts {
 	status = "okay";
 
@@ -171,6 +178,26 @@
 	compatible = "xiaomi,markw-panel";
 };
 
+&sound_card {
+	model = "xiaomi-markw";
+
+	aux-devs = <&speaker_amp>;
+	audio-routing =
+		"AMIC1", "MIC BIAS External1",
+		"AMIC2", "MIC BIAS Internal2",
+		"AMIC3", "MIC BIAS External1";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act &cdc_pdm_comp_lines_act>;
+	pinctrl-1 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus &cdc_pdm_comp_lines_sus>;
+
+	status = "okay";
+};
+
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <135 4>;
+};
+
+&wcd_codec {
+	/delete-property/ qcom,gnd-jack-type-normally-open;
 };
