@@ -978,7 +978,9 @@ class Family(SpecFamily):
 
             for op_mode in ['do', 'dump']:
                 if op_mode in op:
-                    global_set.update(op[op_mode].get('request', []))
+                    req = op[op_mode].get('request')
+                    if req:
+                        global_set.update(req.get('attributes', []))
 
         self.global_policy = []
         self.global_policy_set = attr_set_name
