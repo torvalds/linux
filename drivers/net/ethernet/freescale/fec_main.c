@@ -1590,9 +1590,12 @@ fec_enet_run_xdp(struct fec_enet_private *fep, struct bpf_prog *prog,
 		break;
 
 	case XDP_TX:
+		rxq->stats[RX_XDP_TX]++;
 		err = fec_enet_xdp_tx_xmit(fep, cpu, xdp, sync);
-		if (unlikely(err))
+		if (unlikely(err)) {
+			rxq->stats[RX_XDP_TX_ERRORS]++;
 			goto xdp_err;
+		}
 
 		ret = FEC_ENET_XDP_TX;
 		break;
