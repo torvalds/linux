@@ -2061,9 +2061,10 @@ static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	if (forced_bpp) {
 		pipe_bpp = forced_bpp;
 	} else {
+		int max_bpc = min(limits->max_bpp / 3, (int)conn_state->max_requested_bpc);
+
 		/* For eDP use max bpp that can be supported with DSC. */
-		pipe_bpp = intel_dp_dsc_compute_max_bpp(intel_dp,
-							conn_state->max_requested_bpc);
+		pipe_bpp = intel_dp_dsc_compute_max_bpp(intel_dp, max_bpc);
 		if (!is_dsc_pipe_bpp_sufficient(i915, conn_state, limits, pipe_bpp)) {
 			drm_dbg_kms(&i915->drm,
 				    "Computed BPC is not in DSC BPC limits\n");
