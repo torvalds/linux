@@ -164,7 +164,7 @@ static struct input_dev *shield_allocate_input_dev(struct hid_device *hdev,
 	idev->id.product = hdev->product;
 	idev->id.version = hdev->version;
 	idev->uniq = hdev->uniq;
-	idev->name = devm_kasprintf(&idev->dev, GFP_KERNEL, "%s %s", hdev->name,
+	idev->name = devm_kasprintf(&hdev->dev, GFP_KERNEL, "%s %s", hdev->name,
 				    name_suffix);
 	if (!idev->name)
 		goto err_name;
