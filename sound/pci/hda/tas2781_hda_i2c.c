@@ -845,7 +845,7 @@ static struct i2c_driver tas2781_hda_i2c_driver = {
 		.pm		= &tas2781_hda_pm_ops,
 	},
 	.id_table	= tas2781_hda_i2c_id,
-	.probe_new	= tas2781_hda_i2c_probe,
+	.probe		= tas2781_hda_i2c_probe,
 	.remove		= tas2781_hda_i2c_remove,
 };
 module_i2c_driver(tas2781_hda_i2c_driver);
