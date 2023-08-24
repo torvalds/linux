@@ -1,0 +1,696 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+#include <dt-bindings/display/media-bus-format.h>
+
+/ {
+	max96712_dcphy0_osc: max96712-dcphy0-oscillator {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency = <25000000>;
+		clock-output-names = "max96712-dcphy0-osc";
+	};
+};
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dcphy0_in_max96712: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&max96712_dcphy0_out>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c8 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c8m2_xfer>;
+
+	max96712_dcphy0: max96712@29 {
+		compatible = "maxim4c,max96712";
+		status = "okay";
+		reg = <0x29>;
+		clock-names = "xvclk";
+		clocks = <&max96712_dcphy0_osc 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max96712_dcphy0_pwdn>, <&max96712_dcphy0_errb>, <&max96712_dcphy0_lock>;
+		power-domains = <&power RK3588_PD_VI>;
+		rockchip,grf = <&sys_grf>;
+		pwdn-gpios = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+		pocen-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		lock-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "max96712";
+		rockchip,camera-module-lens-name = "max96712";
+
+		port {
+			max96712_dcphy0_out: endpoint {
+				remote-endpoint = <&mipi_dcphy0_in_max96712>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		/* support mode config start */
+		support-mode-config {
+			status = "okay";
+
+			bus-format = <MEDIA_BUS_FMT_UYVY8_2X8>;
+			sensor-width = <1280>;
+			sensor-height = <800>;
+			max-fps-numerator = <10000>;
+			max-fps-denominator = <300000>;
+			bpp = <16>;
+			link-freq-idx = <12>;
+			vc-array = <0x10 0x20 0x40 0x80>; // VC0~3: bit4~7
+		};
+		/* support mode config end */
+
+		/* serdes local device start */
+		serdes-local-device {
+			status = "okay";
+
+			/* GMSL LINK config start */
+			gmsl-links {
+				status = "okay";
+
+				link-vdd-ldo1-en = <1>;
+				link-vdd-ldo2-en = <1>;
+
+				// Link A: link-id = 0
+				gmsl-link-config-0 {
+					status = "okay";
+					link-id = <0>; // Link ID: 0/1/2/3
+
+					link-type = <0>;
+					link-rx-rate = <0>;
+					link-tx-rate = <0>;
+
+					port {
+						max96712_dcphy0_link0_in: endpoint {
+							remote-endpoint = <&max96712_dcphy0_remote0_out>;
+						};
+					};
+
+					link-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							14 D1 03 00 00 // VGAHiGain
+							14 45 00 00 00 // Disable SSC
+							0B 06 ef 00 00 // HIM on
+							0B 07 84 00 00 // Enable HVEN and DBL
+							0B 0F 01 00 00 // Disable processing DE signals
+						];
+					};
+				};
+
+				// Link B: link-id = 1
+				gmsl-link-config-1 {
+					status = "okay";
+					link-id = <1>; // Link ID: 0/1/2/3
+
+					link-type = <0>;
+					link-rx-rate = <0>;
+					link-tx-rate = <0>;
+
+					port {
+						max96712_dcphy0_link1_in: endpoint {
+							remote-endpoint = <&max96712_dcphy0_remote1_out>;
+						};
+					};
+
+					link-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							15 D1 03 00 00 // VGAHiGain
+							15 45 00 00 00 // Disable SSC
+							0C 06 ef 00 00 // HIM on
+							0C 07 84 00 00 // Enable HVEN and DBL
+							0C 0F 01 00 00 // Disable processing DE signals
+						];
+					};
+				};
+
+				// Link C: link-id = 2
+				gmsl-link-config-2 {
+					status = "okay";
+					link-id = <2>; // Link ID: 0/1/2/3
+
+					link-type = <0>;
+					link-rx-rate = <0>;
+					link-tx-rate = <0>;
+
+					port {
+						max96712_dcphy0_link2_in: endpoint {
+							remote-endpoint = <&max96712_dcphy0_remote2_out>;
+						};
+					};
+
+					link-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							16 D1 03 00 00 // VGAHiGain
+							16 45 00 00 00 // Disable SSC
+							0D 06 ef 00 00 // HIM on
+							0D 07 84 00 00 // Enable HVEN and DBL
+							0D 0F 01 00 00 // Disable processing DE signals
+						];
+					};
+				};
+
+				// Link D: link-id = 3
+				gmsl-link-config-3 {
+					status = "okay";
+					link-id = <3>; // Link ID: 0/1/2/3
+
+					link-type = <0>;
+					link-rx-rate = <0>;
+					link-tx-rate = <0>;
+
+					port {
+						max96712_dcphy0_link3_in: endpoint {
+							remote-endpoint = <&max96712_dcphy0_remote3_out>;
+						};
+					};
+
+					link-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							17 D1 03 00 00 // VGAHiGain
+							17 45 00 00 00 // Disable SSC
+							0E 06 ef 00 00 // HIM on
+							0E 07 84 00 00 // Enable HVEN and DBL
+							0E 0F 01 00 00 // Disable processing DE signals
+						];
+					};
+				};
+			};
+			/* GMSL LINK config end */
+
+			/* VIDEO PIPE config start */
+			video-pipes {
+				status = "okay";
+
+				// Video Pipe 0
+				video-pipe-config-0 {
+					status = "okay";
+					pipe-id = <0>; // Video Pipe ID: 0/1/2/3/4/5/6/7
+
+					pipe-idx = <0>; // Video Pipe X/Y/Z/U: 0/1/2/3
+					link-idx = <0>; // Link A/B/C/D: 0/1/2/3
+
+					pipe-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							// Send YUV422, FS, and FE from Video Pipe 0 to Controller 0
+							09 0B 07 00 00 // Enable 0/1/2 SRC/DST Mappings
+							09 2D 00 00 00 // SRC/DST 0/1/2 -> CSI2 Controller 0;
+							// For the following MSB 2 bits = VC, LSB 6 bits = DT
+							09 0D 1e 00 00 // SRC0 VC = 0, DT = YUV422 8bit
+							09 0E 1e 00 00 // DST0 VC = 0, DT = YUV422 8bit
+							09 0F 00 00 00 // SRC1 VC = 0, DT = Frame Start
+							09 10 00 00 00 // DST1 VC = 0, DT = Frame Start
+							09 11 01 00 00 // SRC2 VC = 0, DT = Frame End
+							09 12 01 00 00 // DST2 VC = 0, DT = Frame End
+						];
+					};
+				};
+
+				// Video Pipe 1
+				video-pipe-config-1 {
+					status = "okay";
+					pipe-id = <1>; // Video Pipe 1: pipe-id = 1
+
+					pipe-idx = <0>; // Video Pipe X/Y/Z/U: 0/1/2/3
+					link-idx = <1>; // Link A/B/C/D: 0/1/2/3
+
+					pipe-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							// Send YUV422, FS, and FE from Video Pipe 1 to Controller 0
+							09 4B 07 00 00 // Enable 0/1/2 SRC/DST Mappings
+							09 6D 00 00 00 // SRC/DST 0/1/2 -> CSI2 Controller 0;
+							// For the following MSB 2 bits = VC, LSB 6 bits = DT
+							09 4D 1e 00 00 // SRC0 VC = 0, DT = YUV422 8bit
+							09 4E 5e 00 00 // DST0 VC = 1, DT = YUV422 8bit
+							09 4F 00 00 00 // SRC1 VC = 0, DT = Frame Start
+							09 50 40 00 00 // DST1 VC = 1, DT = Frame Start
+							09 51 01 00 00 // SRC2 VC = 0, DT = Frame End
+							09 52 41 00 00 // DST2 VC = 1, DT = Frame End
+						];
+					};
+				};
+
+				// Video Pipe 2
+				video-pipe-config-2 {
+					status = "okay";
+					pipe-id = <2>; // Video Pipe ID: 0/1/2/3/4/5/6/7
+
+					pipe-idx = <0>; // Video Pipe X/Y/Z/U: 0/1/2/3
+					link-idx = <2>; // Link A/B/C/D: 0/1/2/3
+
+					pipe-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							// Send YUV422, FS, and FE from Video Pipe 2 to Controller 0
+							09 8B 07 00 00 // Enable 0/1/2 SRC/DST Mappings
+							09 AD 00 00 00 // SRC/DST 0/1/2 -> CSI2 Controller 0;
+							// For the following MSB 2 bits = VC, LSB 6 bits = DT
+							09 8D 1e 00 00 // SRC0 VC = 0, DT = YUV422 8bit
+							09 8E 9e 00 00 // DST0 VC = 2, DT = YUV422 8bit
+							09 8F 00 00 00 // SRC1 VC = 0, DT = Frame Start
+							09 90 80 00 00 // DST1 VC = 2, DT = Frame Start
+							09 91 01 00 00 // SRC2 VC = 0, DT = Frame End
+							09 92 81 00 00 // DST2 VC = 2, DT = Frame End
+						];
+					};
+				};
+
+				// Video Pipe 3
+				video-pipe-config-3 {
+					status = "okay";
+					pipe-id = <3>; // Video Pipe ID: 0/1/2/3/4/5/6/7
+
+					pipe-idx = <0>; // Video Pipe X/Y/Z/U: 0/1/2/3
+					link-idx = <3>; // Link A/B/C/D: 0/1/2/3
+
+					pipe-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							// Send YUV422, FS, and FE from Video Pipe 3 to Controller 0
+							09 CB 07 00 00 // Enable 0/1/2 SRC/DST Mappings
+							09 ED 00 00 00 // SRC/DST 0/1/2 -> CSI2 Controller 0;
+							// For the following MSB 2 bits = VC, LSB 6 bits = DT
+							09 CD 1e 00 00 // SRC0 VC = 0, DT = YUV422 8bit
+							09 CE de 00 00 // DST0 VC = 3, DT = YUV422 8bit
+							09 CF 00 00 00 // SRC1 VC = 0, DT = Frame Start
+							09 D0 c0 00 00 // DST1 VC = 3, DT = Frame Start
+							09 D1 01 00 00 // SRC2 VC = 0, DT = Frame End
+							09 D2 c1 00 00 // DST2 VC = 3, DT = Frame End
+						];
+					};
+				};
+
+				// Software override for parallel mode
+				parallel-mode-config {
+					status = "okay";
+
+					parallel-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							// Enable software override for all pipes since GMSL1 data is parallel mode, bpp=8, dt=0x1e(yuv-8)
+							04 1A f0 00 00 // pipe 0/1/2/3: Enable YUV8-/10-bit mux mode
+							04 0B 40 00 00 // pipe 0 bpp=0x08: Datatypes = 0x2A, 0x10-12, 0x31-37
+							04 0C 00 00 00 // pipe 0 and 1 VC software override: 0x00
+							04 0D 00 00 00 // pipe 2 and 3 VC software override: 0x00
+							04 0E 5e 00 00 // pipe 0 DT=0x1E: YUV422 8-bit
+							04 0F 7e 00 00 // pipe 1 DT=0x1E: YUV422 8-bit
+							04 10 7a 00 00 // pipe 2 DT=0x1E, pipe 3 DT=0x1E: YUV422 8-bit
+							04 11 48 00 00 // pipe 1 bpp=0x08: Datatypes = 0x2A, 0x10-12, 0x31-37
+							04 12 20 00 00 // pipe 2 bpp=0x08, pipe 3 bpp=0x08: Datatypes = 0x2A, 0x10-12, 0x31-37
+							04 15 c0 c0 00 // pipe 0/1 enable software overide
+							04 18 c0 c0 00 // pipe 2/3 enable software overide
+						];
+					};
+				};
+			};
+			/* VIDEO PIPE config end */
+
+			/* MIPI TXPHY config start */
+			mipi-txphys {
+				status = "okay";
+
+				phy-mode = <1>;
+				phy-force-clock-out = <1>;
+				phy-force-clk0-en = <0>;
+				phy-force-clk3-en = <0>;
+
+				// MIPI TXPHY A: phy-id = 0
+				mipi-txphy-config-0 {
+					status = "okay";
+					phy-id = <0>; // MIPI TXPHY ID: 0/1/2/3
+
+					phy-type = <0>;
+					auto-deskew = <0x00>;
+					data-lane-num = <2>;
+					data-lane-map = <0x4>;
+					vc-ext-en = <0>;
+				};
+			};
+			/* MIPI TXPHY config end */
+
+			/* local device extra init sequence */
+			extra-init-sequence {
+				status = "disabled";
+
+				seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+				reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+				// reg_addr reg_val val_mask delay
+				init-sequence = [
+					// common init sequence such as fsync / gpio and so on
+				];
+			};
+		};
+		/* serdes local device end */
+
+		/* serdes remote device start */
+		serdes-remote-device-0 {
+			compatible = "maxim4c,link0,max96715";
+			status = "okay";
+
+			remote-id = <0>; // Same as Link ID: 0/1/2/3
+
+			// Serializer i2c 7bit address remap
+			ser-i2c-addr-def = <0x40>;
+			ser-i2c-addr-map = <0x41>; // 0: disable remap
+
+			port {
+				max96712_dcphy0_remote0_out: endpoint {
+					remote-endpoint = <&max96712_dcphy0_link0_in>;
+				};
+			};
+
+			remote-init-sequence {
+				seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
+				reg-addr-len = <1>; // 1: 8bits, 2: 16bits
+				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+				// reg_addr reg_val val_mask delay
+				init-sequence = [
+					07 84 00 00
+					67 c4 00 00
+					0F bf 00 00
+					3F 08 00 00
+					40 2d 00 00
+					20 10 00 00
+					21 11 00 00
+					22 12 00 00
+					23 13 00 00
+					24 14 00 00
+					25 15 00 00
+					26 16 00 00
+					27 17 00 00
+					30 00 00 00
+					31 01 00 00
+					32 02 00 00
+					33 03 00 00
+					34 04 00 00
+					35 05 00 00
+					36 06 00 00
+					37 07 00 00
+				];
+			};
+		};
+
+		serdes-remote-device-1 {
+			compatible = "maxim4c,link1,max96715";
+			status = "okay";
+
+			remote-id = <1>; // Same as Link ID: 0/1/2/3
+
+			// Serializer i2c 7bit address remap
+			ser-i2c-addr-def = <0x40>;
+			ser-i2c-addr-map = <0x42>; // 0: disable remap
+
+			port {
+				max96712_dcphy0_remote1_out: endpoint {
+					remote-endpoint = <&max96712_dcphy0_link1_in>;
+				};
+			};
+
+			remote-init-sequence {
+				seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
+				reg-addr-len = <1>; // 1: 8bits, 2: 16bits
+				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+				// reg_addr reg_val val_mask delay
+				init-sequence = [
+					07 84 00 00
+					67 c4 00 00
+					0F bf 00 00
+					3F 08 00 00
+					40 2d 00 00
+					20 10 00 00
+					21 11 00 00
+					22 12 00 00
+					23 13 00 00
+					24 14 00 00
+					25 15 00 00
+					26 16 00 00
+					27 17 00 00
+					30 00 00 00
+					31 01 00 00
+					32 02 00 00
+					33 03 00 00
+					34 04 00 00
+					35 05 00 00
+					36 06 00 00
+					37 07 00 00
+				];
+			};
+		};
+
+		serdes-remote-device-2 {
+			compatible = "maxim4c,link2,max96715";
+			status = "okay";
+
+			remote-id = <2>; // Same as Link ID: 0/1/2/3
+
+			// Serializer i2c 7bit address remap
+			ser-i2c-addr-def = <0x40>;
+			ser-i2c-addr-map = <0x43>; // 0: disable remap
+
+			port {
+				max96712_dcphy0_remote2_out: endpoint {
+					remote-endpoint = <&max96712_dcphy0_link2_in>;
+				};
+			};
+
+			remote-init-sequence {
+				seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
+				reg-addr-len = <1>; // 1: 8bits, 2: 16bits
+				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+				// reg_addr reg_val val_mask delay
+				init-sequence = [
+					07 84 00 00
+					67 c4 00 00
+					0F bf 00 00
+					3F 08 00 00
+					40 2d 00 00
+					20 10 00 00
+					21 11 00 00
+					22 12 00 00
+					23 13 00 00
+					24 14 00 00
+					25 15 00 00
+					26 16 00 00
+					27 17 00 00
+					30 00 00 00
+					31 01 00 00
+					32 02 00 00
+					33 03 00 00
+					34 04 00 00
+					35 05 00 00
+					36 06 00 00
+					37 07 00 00
+				];
+			};
+		};
+
+		serdes-remote-device-3 {
+			compatible = "maxim4c,link3,max96715";
+			status = "okay";
+
+			remote-id = <3>; // Same as Link ID: 0/1/2/3
+
+			// Serializer i2c 7bit address remap
+			ser-i2c-addr-def = <0x40>;
+			ser-i2c-addr-map = <0x44>; // 0: disable remap
+
+			port {
+				max96712_dcphy0_remote3_out: endpoint {
+					remote-endpoint = <&max96712_dcphy0_link3_in>;
+				};
+			};
+
+			remote-init-sequence {
+				seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
+				reg-addr-len = <1>; // 1: 8bits, 2: 16bits
+				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+				// reg_addr reg_val val_mask delay
+				init-sequence = [
+					07 84 00 00
+					67 c4 00 00
+					0F bf 00 00
+					3F 08 00 00
+					40 2d 00 00
+					20 10 00 00
+					21 11 00 00
+					22 12 00 00
+					23 13 00 00
+					24 14 00 00
+					25 15 00 00
+					26 16 00 00
+					27 17 00 00
+					30 00 00 00
+					31 01 00 00
+					32 02 00 00
+					33 03 00 00
+					34 04 00 00
+					35 05 00 00
+					36 06 00 00
+					37 07 00 00
+				];
+			};
+		};
+		/* serdes remote device end */
+	};
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi0_in>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+	/* parameters for do cif reset detecting:
+	 * index0: monitor mode,
+		   0 for idle,
+		   1 for continue,
+		   2 for trigger,
+		   3 for hotplug (for nextchip)
+	 * index1: the frame id to start timer,
+		   min is 2
+	 * index2: frame num of monitoring cycle
+	 * index3: err time for keep monitoring
+		   after finding out err (ms)
+	 * index4: csi2 err reference val for resetting
+	 */
+	rockchip,cif-monitor = <3 2 1 1000 5>;
+
+	port {
+		cif_mipi0_in: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+	rockchip,android-usb-camerahal-enable;
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&pinctrl {
+	max96712-dcphy0 {
+		max96712_dcphy0_pwdn: max96712-dcphy0-pwdn {
+			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		max96712_dcphy0_errb: max96712-dcphy0-errb {
+			rockchip,pins = <4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		max96712_dcphy0_lock: max96712-dcphy0-lock {
+			rockchip,pins = <4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
