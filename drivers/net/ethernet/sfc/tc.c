@@ -86,6 +86,12 @@ s64 efx_tc_flower_external_mport(struct efx_nic *efx, struct efx_rep *efv)
 	return mport;
 }
 
+static const struct rhashtable_params efx_tc_mac_ht_params = {
+	.key_len	= offsetofend(struct efx_tc_mac_pedit_action, h_addr),
+	.key_offset	= 0,
+	.head_offset	= offsetof(struct efx_tc_mac_pedit_action, linkage),
+};
+
 static const struct rhashtable_params efx_tc_encap_match_ht_params = {
 	.key_len	= offsetof(struct efx_tc_encap_match, linkage),
 	.key_offset	= 0,
@@ -109,6 +115,56 @@ static const struct rhashtable_params efx_tc_recirc_ht_params = {
 	.key_offset	= 0,
 	.head_offset	= offsetof(struct efx_tc_recirc_id, linkage),
 };
+
+static struct efx_tc_mac_pedit_action __maybe_unused *efx_tc_flower_get_mac(struct efx_nic *efx,
+							     unsigned char h_addr[ETH_ALEN],
+							     struct netlink_ext_ack *extack)
+{
+	struct efx_tc_mac_pedit_action *ped, *old;
+	int rc;
+
+	ped = kzalloc(sizeof(*ped), GFP_USER);
+	if (!ped)
+		return ERR_PTR(-ENOMEM);
+	memcpy(ped->h_addr, h_addr, ETH_ALEN);
+	old = rhashtable_lookup_get_insert_fast(&efx->tc->mac_ht,
+						&ped->linkage,
+						efx_tc_mac_ht_params);
+	if (old) {
+		/* don't need our new entry */
+		kfree(ped);
+		if (!refcount_inc_not_zero(&old->ref))
+			return ERR_PTR(-EAGAIN);
+		/* existing entry found, ref taken */
+		return old;
+	}
+
+	rc = efx_mae_allocate_pedit_mac(efx, ped);
+	if (rc < 0) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to store pedit MAC address in hw");
+		goto out_remove;
+	}
+
+	/* ref and return */
+	refcount_set(&ped->ref, 1);
+	return ped;
+out_remove:
+	rhashtable_remove_fast(&efx->tc->mac_ht, &ped->linkage,
+			       efx_tc_mac_ht_params);
+	kfree(ped);
+	return ERR_PTR(rc);
+}
+
+static void __maybe_unused efx_tc_flower_put_mac(struct efx_nic *efx,
+				  struct efx_tc_mac_pedit_action *ped)
+{
+	if (!refcount_dec_and_test(&ped->ref))
+		return; /* still in use */
+	rhashtable_remove_fast(&efx->tc->mac_ht, &ped->linkage,
+			       efx_tc_mac_ht_params);
+	efx_mae_free_pedit_mac(efx, ped);
+	kfree(ped);
+}
 
 static void efx_tc_free_action_set(struct efx_nic *efx,
 				   struct efx_tc_action_set *act, bool in_hw)
@@ -2156,6 +2212,14 @@ static void efx_tc_lhs_free(void *ptr, void *arg)
 	kfree(rule);
 }
 
+static void efx_tc_mac_free(void *ptr, void *__unused)
+{
+	struct efx_tc_mac_pedit_action *ped = ptr;
+
+	WARN_ON(refcount_read(&ped->ref));
+	kfree(ped);
+}
+
 static void efx_tc_flow_free(void *ptr, void *arg)
 {
 	struct efx_tc_flow_rule *rule = ptr;
@@ -2196,6 +2260,9 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	rc = efx_tc_init_counters(efx);
 	if (rc < 0)
 		goto fail_counters;
+	rc = rhashtable_init(&efx->tc->mac_ht, &efx_tc_mac_ht_params);
+	if (rc < 0)
+		goto fail_mac_ht;
 	rc = rhashtable_init(&efx->tc->encap_match_ht, &efx_tc_encap_match_ht_params);
 	if (rc < 0)
 		goto fail_encap_match_ht;
@@ -2233,6 +2300,8 @@ fail_lhs_rule_ht:
 fail_match_action_ht:
 	rhashtable_destroy(&efx->tc->encap_match_ht);
 fail_encap_match_ht:
+	rhashtable_destroy(&efx->tc->mac_ht);
+fail_mac_ht:
 	efx_tc_destroy_counters(efx);
 fail_counters:
 	efx_tc_destroy_encap_actions(efx);
@@ -2268,6 +2337,7 @@ void efx_fini_struct_tc(struct efx_nic *efx)
 	rhashtable_free_and_destroy(&efx->tc->recirc_ht, efx_tc_recirc_free, efx);
 	WARN_ON(!ida_is_empty(&efx->tc->recirc_ida));
 	ida_destroy(&efx->tc->recirc_ida);
+	rhashtable_free_and_destroy(&efx->tc->mac_ht, efx_tc_mac_free, NULL);
 	efx_tc_fini_counters(efx);
 	efx_tc_fini_encap_actions(efx);
 	mutex_unlock(&efx->tc->mutex);
