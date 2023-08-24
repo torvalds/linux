@@ -239,6 +239,7 @@ struct nfs_server {
 	struct list_head	delegations;
 	struct list_head	ss_copies;
 
+	unsigned long		delegation_gen;
 	unsigned long		mig_gen;
 	unsigned long		mig_status;
 #define NFS_MIG_IN_TRANSITION		(1)
