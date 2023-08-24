@@ -296,11 +296,6 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		}
 		break;
 	case BCH_DATA_stripe:
-		if (!a.v->stripe) {
-			prt_printf(err, "data_type %s but stripe==0",
-			       bch2_data_types[a.v->data_type]);
-			return -BCH_ERR_invalid_bkey;
-		}
 		break;
 	}
 
