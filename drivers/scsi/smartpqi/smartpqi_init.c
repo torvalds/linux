@@ -6570,21 +6570,21 @@ static int pqi_getpciinfo_ioctl(struct pqi_ctrl_info *ctrl_info, void __user *ar
 	struct pci_dev *pci_dev;
 	u32 subsystem_vendor;
 	u32 subsystem_device;
-	cciss_pci_info_struct pciinfo;
+	cciss_pci_info_struct pci_info;
 
 	if (!arg)
 		return -EINVAL;
 
 	pci_dev = ctrl_info->pci_dev;
 
-	pciinfo.domain = pci_domain_nr(pci_dev->bus);
-	pciinfo.bus = pci_dev->bus->number;
-	pciinfo.dev_fn = pci_dev->devfn;
+	pci_info.domain = pci_domain_nr(pci_dev->bus);
+	pci_info.bus = pci_dev->bus->number;
+	pci_info.dev_fn = pci_dev->devfn;
 	subsystem_vendor = pci_dev->subsystem_vendor;
 	subsystem_device = pci_dev->subsystem_device;
-	pciinfo.board_id = ((subsystem_device << 16) & 0xffff0000) | subsystem_vendor;
+	pci_info.board_id = ((subsystem_device << 16) & 0xffff0000) | subsystem_vendor;
 
-	if (copy_to_user(arg, &pciinfo, sizeof(pciinfo)))
+	if (copy_to_user(arg, &pci_info, sizeof(pci_info)))
 		return -EFAULT;
 
 	return 0;
