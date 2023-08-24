@@ -870,7 +870,15 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 		min_clk = pstate_table->gfxclk_pstate.curr.min;
 		max_clk = pstate_table->gfxclk_pstate.curr.max;
 
-		if (!smu_v13_0_6_freqs_in_same_level(now, min_clk) &&
+		if (now < SMU_13_0_6_DSCLK_THRESHOLD) {
+			size += sysfs_emit_at(buf, size, "S: %uMhz *\n",
+					      now);
+			size += sysfs_emit_at(buf, size, "0: %uMhz\n",
+					      min_clk);
+			size += sysfs_emit_at(buf, size, "1: %uMhz\n",
+					      max_clk);
+
+		} else if (!smu_v13_0_6_freqs_in_same_level(now, min_clk) &&
 		    !smu_v13_0_6_freqs_in_same_level(now, max_clk)) {
 			size += sysfs_emit_at(buf, size, "0: %uMhz\n",
 					      min_clk);
