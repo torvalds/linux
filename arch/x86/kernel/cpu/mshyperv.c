@@ -323,6 +323,26 @@ static void __init hv_smp_prepare_cpus(unsigned int max_cpus)
 }
 #endif
 
+/*
+ * When a fully enlightened TDX VM runs on Hyper-V, the firmware sets the
+ * HW_REDUCED flag: refer to acpi_tb_create_local_fadt(). Consequently ttyS0
+ * interrupts can't work because request_irq() -> ... -> irq_to_desc() returns
+ * NULL for ttyS0. This happens because mp_config_acpi_legacy_irqs() sees a
+ * nr_legacy_irqs() of 0, so it doesn't initialize the array 'mp_irqs[]', and
+ * later setup_IO_APIC_irqs() -> find_irq_entry() fails to find the legacy irqs
+ * from the array and hence doesn't create the necessary irq description info.
+ *
+ * Clone arch/x86/kernel/acpi/boot.c: acpi_generic_reduced_hw_init() here,
+ * except don't change 'legacy_pic', which keeps its default value
+ * 'default_legacy_pic'. This way, mp_config_acpi_legacy_irqs() sees a non-zero
+ * nr_legacy_irqs() and eventually serial console interrupts works properly.
+ */
+static void __init reduced_hw_init(void)
+{
+	x86_init.timers.timer_init	= x86_init_noop;
+	x86_init.irqs.pre_vector_init	= x86_init_noop;
+}
+
 static void __init ms_hyperv_init_platform(void)
 {
 	int hv_max_functions_eax;
@@ -433,6 +453,8 @@ static void __init ms_hyperv_init_platform(void)
 
 				/* Don't trust Hyper-V's TLB-flushing hypercalls. */
 				ms_hyperv.hints &= ~HV_X64_REMOTE_TLB_FLUSH_RECOMMENDED;
+
+				x86_init.acpi.reduced_hw_early_init = reduced_hw_init;
 			}
 		}
 	}
