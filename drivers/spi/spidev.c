@@ -393,8 +393,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case SPI_IOC_RD_MODE32:
 		tmp = spi->mode;
 
-		if (ctlr->use_gpio_descriptors && ctlr->cs_gpiods &&
-		    ctlr->cs_gpiods[spi_get_chipselect(spi, 0)])
+		if (ctlr->use_gpio_descriptors && spi_get_csgpiod(spi, 0))
 			tmp &= ~SPI_CS_HIGH;
 
 		if (cmd == SPI_IOC_RD_MODE)
@@ -430,8 +429,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				break;
 			}
 
-			if (ctlr->use_gpio_descriptors && ctlr->cs_gpiods &&
-			    ctlr->cs_gpiods[spi_get_chipselect(spi, 0)])
+			if (ctlr->use_gpio_descriptors && spi_get_csgpiod(spi, 0))
 				tmp |= SPI_CS_HIGH;
 
 			tmp |= spi->mode & ~SPI_MODE_MASK;
