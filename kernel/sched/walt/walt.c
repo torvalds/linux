@@ -2006,6 +2006,31 @@ account_busy_for_task_demand(struct rq *rq, struct task_struct *p, int event)
 	return 1;
 }
 
+#define RAMP_UP_THRES 230
+#define FINAL_BUCKET_DEMAND ((NUM_BUSY_BUCKETS - 2) << \
+		(SCHED_CAPACITY_SHIFT - NUM_BUSY_BUCKETS_SHIFT))
+#define FINAL_BUCKET_STEP_UP 8
+#define FINAL_BUCKET_STEP_DOWN 1
+
+static inline u32 scale_util_to_time(u16 util)
+{
+	return util * walt_scale_demand_divisor;
+}
+
+static void update_high_util_history(struct task_struct *p, u16 runtime_scaled)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	if (runtime_scaled >= FINAL_BUCKET_DEMAND) {
+		if (wts->high_util_history > U8_MAX - FINAL_BUCKET_STEP_UP)
+			wts->high_util_history = U8_MAX;
+		else
+			wts->high_util_history += FINAL_BUCKET_STEP_UP;
+	} else if (wts->high_util_history) {
+		wts->high_util_history -= FINAL_BUCKET_STEP_DOWN;
+	}
+}
+
 /*
  * Called when new window is starting for a task, to record cpu usage over
  * recently concluded window(s). Normally 'samples' should be 1. It can be > 1
@@ -2022,7 +2047,7 @@ static void update_history(struct rq *rq, struct task_struct *p,
 	u32 max = 0, avg, demand;
 	u64 sum = 0;
 	u16 demand_scaled, pred_demand_scaled, runtime_scaled;
-
+	u16 ramp_up_demand = 0;
 	struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 
 	/* Ignore windows where task had no activity */
@@ -2056,6 +2081,12 @@ static void update_history(struct rq *rq, struct task_struct *p,
 		else
 			demand = max(avg, runtime);
 	}
+
+	if ((demand == runtime) && (wts->high_util_history >= RAMP_UP_THRES)) {
+		ramp_up_demand = 1 << SCHED_CAPACITY_SHIFT;
+		demand = scale_util_to_time(ramp_up_demand);
+	}
+
 	pred_demand_scaled = predict_and_update_buckets(p, runtime_scaled);
 	demand_scaled = scale_time_to_util(demand);
 
@@ -2088,9 +2119,9 @@ static void update_history(struct rq *rq, struct task_struct *p,
 		if (wts->unfilter)
 			wts->unfilter = max_t(int, 0,
 				wts->unfilter - wrq->prev_window_size);
-
+	update_high_util_history(p, runtime_scaled);
 done:
-	trace_sched_update_history(rq, p, runtime, samples, event, wrq, wts);
+	trace_sched_update_history(rq, p, runtime, samples, event, wrq, wts, ramp_up_demand);
 }
 
 static u64 add_to_task_demand(struct rq *rq, struct task_struct *p, u64 delta)
@@ -2435,6 +2466,7 @@ static void init_new_task_load(struct task_struct *p)
 	wts->mvp_prio = WALT_NOT_MVP;
 	wts->cidx = 0;
 	wts->mark_start_birth_ts = 0;
+	wts->high_util_history = 0;
 	__sched_fork_init(p);
 	walt_flag_set(p, WALT_INIT, 1);
 }
