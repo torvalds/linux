@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 
 struct icss_iep;
+extern const struct icss_iep_clockops prueth_iep_clockops;
 
 /* Firmware specific clock operations */
 struct icss_iep_clockops {
