@@ -229,7 +229,7 @@ static struct i2c_driver aw37503_i2c_driver = {
 		.name = "aw37503",
 		.of_match_table = aw37503_of_match,
 	},
-	.probe_new = aw37503_probe,
+	.probe = aw37503_probe,
 	.id_table = aw37503_id,
 };
 
