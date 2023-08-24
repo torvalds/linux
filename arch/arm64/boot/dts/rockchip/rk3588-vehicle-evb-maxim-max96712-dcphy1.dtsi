@@ -1,0 +1,466 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+#include <dt-bindings/display/media-bus-format.h>
+
+/ {
+	max96712_dcphy1_osc: max96712-dcphy1-oscillator {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency = <25000000>;
+		clock-output-names = "max96712-dcphy1-osc";
+	};
+};
+
+&mipi_dcphy1 {
+	status = "okay";
+};
+
+&csi2_dcphy1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dcphy1_in_max96712: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&max96712_dcphy1_out>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy1_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi1_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m4_xfer>;
+
+	max96712_dcphy1: max96712@29 {
+		compatible = "maxim4c,max96712";
+		status = "okay";
+		reg = <0x29>;
+		clock-names = "xvclk";
+		clocks = <&max96712_dcphy1_osc 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max96712_dcphy1_pwdn>, <&max96712_dcphy1_errb>, <&max96712_dcphy1_lock>;
+		power-domains = <&power RK3588_PD_VI>;
+		rockchip,grf = <&sys_grf>;
+		pwdn-gpios = <&gpio4 RK_PD1 GPIO_ACTIVE_HIGH>;
+		pocen-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
+		lock-gpios = <&gpio4 RK_PD3 GPIO_ACTIVE_HIGH>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "max96712";
+		rockchip,camera-module-lens-name = "max96712";
+
+		port {
+			max96712_dcphy1_out: endpoint {
+				remote-endpoint = <&mipi_dcphy1_in_max96712>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		/* support mode config start */
+		support-mode-config {
+			status = "okay";
+
+			bus-format = <MEDIA_BUS_FMT_UYVY8_2X8>;
+			sensor-width = <1600>;
+			sensor-height = <1300>;
+			max-fps-numerator = <10000>;
+			max-fps-denominator = <300000>;
+			bpp = <16>;
+			link-freq-idx = <20>;
+			vc-array = <0x10 0x20 0x40 0x80>; // VC0~3: bit4~7
+		};
+		/* support mode config end */
+
+		/* serdes local device start */
+		serdes-local-device {
+			status = "okay";
+
+			/* GMSL LINK config start */
+			gmsl-links {
+				status = "okay";
+
+				link-vdd-ldo1-en = <1>;
+				link-vdd-ldo2-en = <1>;
+
+				// Link A: link-id = 0
+				gmsl-link-config-0 {
+					status = "okay";
+					link-id = <0>; // Link ID: 0/1/2/3
+
+					link-type = <1>;
+					link-rx-rate = <0>;
+					link-tx-rate = <0>;
+
+					port {
+						max96712_dcphy1_link0_in: endpoint {
+							remote-endpoint = <&max96712_dcphy1_remote0_out>;
+						};
+					};
+
+					link-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							14 D1 03 00 00 // VGAHiGain
+							14 45 00 00 00 // Disable SSC
+						];
+					};
+				};
+
+				// Link B: link-id = 1
+				gmsl-link-config-1 {
+					status = "okay";
+					link-id = <1>; // Link ID: 0/1/2/3
+
+					link-type = <1>;
+					link-rx-rate = <0>;
+					link-tx-rate = <0>;
+
+					port {
+						max96712_dcphy1_link1_in: endpoint {
+							remote-endpoint = <&max96712_dcphy1_remote1_out>;
+						};
+					};
+
+					link-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							15 D1 03 00 00 // VGAHiGain
+							15 45 00 00 00 // Disable SSC
+						];
+					};
+				};
+			};
+			/* GMSL LINK config end */
+
+			/* VIDEO PIPE config start */
+			video-pipes {
+				status = "okay";
+
+				// Video Pipe 0
+				video-pipe-config-0 {
+					status = "okay";
+					pipe-id = <0>; // Video Pipe ID: 0/1/2/3/4/5/6/7
+
+					pipe-idx = <0>; // Video Pipe X/Y/Z/U: 0/1/2/3
+					link-idx = <0>; // Link A/B/C/D: 0/1/2/3
+
+					pipe-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							// Send YUV422, FS, and FE from Video Pipe 0 to Controller 0
+							09 0B 07 00 00 // Enable 0/1/2 SRC/DST Mappings
+							09 2D 00 00 00 // SRC/DST 0/1/2 -> CSI2 Controller 0;
+							// For the following MSB 2 bits = VC, LSB 6 bits = DT
+							09 0D 1e 00 00 // SRC0 VC = 0, DT = YUV422 8bit
+							09 0E 1e 00 00 // DST0 VC = 0, DT = YUV422 8bit
+							09 0F 00 00 00 // SRC1 VC = 0, DT = Frame Start
+							09 10 00 00 00 // DST1 VC = 0, DT = Frame Start
+							09 11 01 00 00 // SRC2 VC = 0, DT = Frame End
+							09 12 01 00 00 // DST2 VC = 0, DT = Frame End
+							// pipe Cross
+							01 D9 59 00 00 // pipe 0: Inverts Cross VS
+						];
+					};
+				};
+
+				// Video Pipe 1
+				video-pipe-config-1 {
+					status = "okay";
+					pipe-id = <1>; // Video Pipe 1: pipe-id = 1
+
+					pipe-idx = <0>; // Video Pipe X/Y/Z/U: 0/1/2/3
+					link-idx = <1>; // Link A/B/C/D: 0/1/2/3
+
+					pipe-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							// Send YUV422, FS, and FE from Video Pipe 1 to Controller 0
+							09 4B 07 00 00 // Enable 0/1/2 SRC/DST Mappings
+							09 6D 00 00 00 // SRC/DST 0/1/2 -> CSI2 Controller 0;
+							// For the following MSB 2 bits = VC, LSB 6 bits = DT
+							09 4D 1e 00 00 // SRC0 VC = 0, DT = YUV422 8bit
+							09 4E 5e 00 00 // DST0 VC = 1, DT = YUV422 8bit
+							09 4F 00 00 00 // SRC1 VC = 0, DT = Frame Start
+							09 50 40 00 00 // DST1 VC = 1, DT = Frame Start
+							09 51 01 00 00 // SRC2 VC = 0, DT = Frame End
+							09 52 41 00 00 // DST2 VC = 1, DT = Frame End
+							// pipe Cross
+							01 F9 59 00 00 // pipe 1: Inverts Cross VS
+						];
+					};
+				};
+
+				// Software override for parallel mode
+				parallel-mode-config {
+					status = "okay";
+
+					parallel-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							// Enable software override for all pipes since GMSL1 data is parallel mode, bpp=8, dt=0x1e(yuv-8)
+							04 1A f0 00 00 // pipe 0/1/2/3: Enable YUV8-/10-bit mux mode
+							04 0B 40 00 00 // pipe 0 bpp=0x08: Datatypes = 0x2A, 0x10-12, 0x31-37
+							04 0C 00 00 00 // pipe 0 and 1 VC software override: 0x00
+							04 0D 00 00 00 // pipe 2 and 3 VC software override: 0x00
+							04 0E 5e 00 00 // pipe 0 DT=0x1E: YUV422 8-bit
+							04 0F 7e 00 00 // pipe 1 DT=0x1E: YUV422 8-bit
+							04 10 7a 00 00 // pipe 2 DT=0x1E, pipe 3 DT=0x1E: YUV422 8-bit
+							04 11 48 00 00 // pipe 1 bpp=0x08: Datatypes = 0x2A, 0x10-12, 0x31-37
+							04 12 20 00 00 // pipe 2 bpp=0x08, pipe 3 bpp=0x08: Datatypes = 0x2A, 0x10-12, 0x31-37
+							04 15 c0 c0 00 // pipe 0/1 enable software overide
+							04 18 c0 c0 00 // pipe 2/3 enable software overide
+						];
+					};
+				};
+			};
+			/* VIDEO PIPE config end */
+
+			/* MIPI TXPHY config start */
+			mipi-txphys {
+				status = "okay";
+
+				phy-mode = <1>;
+				phy-force-clock-out = <1>;
+				phy-force-clk0-en = <0>;
+				phy-force-clk3-en = <0>;
+
+				// MIPI TXPHY A: phy-id = 0
+				mipi-txphy-config-0 {
+					status = "okay";
+					phy-id = <0>; // MIPI TXPHY ID: 0/1/2/3
+
+					phy-type = <0>;
+					auto-deskew = <0x00>;
+					data-lane-num = <2>;
+					data-lane-map = <0x4>;
+					vc-ext-en = <0>;
+				};
+			};
+			/* MIPI TXPHY config end */
+
+			/* local device extra init sequence */
+			extra-init-sequence {
+				status = "disabled";
+
+				seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+				reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+				// reg_addr reg_val val_mask delay
+				init-sequence = [
+					// common init sequence such as fsync / gpio and so on
+				];
+			};
+		};
+		/* serdes local device end */
+
+		/* serdes remote device start */
+		serdes-remote-device-0 {
+			compatible = "maxim4c,link0,max9295";
+			status = "okay";
+
+			remote-id = <0>; // Same as Link ID: 0/1/2/3
+
+			// Serializer i2c 7bit address remap
+			ser-i2c-addr-def = <0x40>;
+			ser-i2c-addr-map = <0x41>; // 0: disable remap
+
+			port {
+				max96712_dcphy1_remote0_out: endpoint {
+					remote-endpoint = <&max96712_dcphy1_link0_in>;
+				};
+			};
+
+			remote-init-sequence {
+				seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+				reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+				// reg_addr reg_val val_mask delay
+				init-sequence = [
+					00 01 04 00 00 // RX_RATE: 187.5Mbps, TX_RATE: 3Gbps
+					00 11 03 00 00 // Coax Drive
+					02 D6 03 00 00 // MFP8: GPIO_OUT_DIS = 1, GPIO_TX_EN = 1
+					03 F0 51 00 00 // RCLK: 27MHz/24MHz (ALT),Enable reference-generation PLL, Enable pre-defined clock setting for reference-generation PLL
+					00 03 07 00 00 // RCLK: Enable RCLK output from altermative MFP pin, RCLKOUT clock select reference PLL
+					00 06 b1 00 00 // RCLK: GMSL2, Enable RCLK output, i2c selected
+					02 C1 10 00 00 // MFP1: GPIO_OUT pin output is driven to 1 when GPIO_RX_EN = 0
+					02 C2 60 00 00 // MFP1: OUT_TYPE = 1: Push-pull, PULL_UPDN_SEL[1:0] = 0b01: Pullup
+					00 07 07 00 00 // Enable Parallel video input, Parallel HS and VS Enable
+					00 10 05 00 00 // AUTO_LINK = 0, LINK_CFG = 1: LinkA is selected, REG_ENABLE = 1: Regulator enabled
+					00 12 14 00 00 // REG_MNL = 1: Enable LDO on/off state controlled by REG_ENABLE
+					01 00 62 00 00 // Video X, Line CRC enabled, ENC_MODE = 2: HS, VS, DE encoding on, color bits sent only when DE is high
+					01 01 50 00 00 // Video X, BPP = 0x10
+					00 53 10 00 00 // Video X, TX_STR_SEL = 0: Stream ID = 0 for packets from this channel
+					00 02 13 00 00 // Video transmit enable for Port X
+				];
+			};
+		};
+
+		serdes-remote-device-1 {
+			compatible = "maxim4c,link1,max9295";
+			status = "okay";
+
+			remote-id = <1>; // Same as Link ID: 0/1/2/3
+
+			// Serializer i2c 7bit address remap
+			ser-i2c-addr-def = <0x40>;
+			ser-i2c-addr-map = <0x42>; // 0: disable remap
+
+			port {
+				max96712_dcphy1_remote1_out: endpoint {
+					remote-endpoint = <&max96712_dcphy1_link1_in>;
+				};
+			};
+
+			remote-init-sequence {
+				seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+				reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+				// reg_addr reg_val val_mask delay
+				init-sequence = [
+					00 01 04 00 00 // RX_RATE: 187.5Mbps, TX_RATE: 3Gbps
+					00 11 03 00 00 // Coax Drive
+					02 D6 03 00 00 // MFP8: GPIO_OUT_DIS = 1, GPIO_TX_EN = 1
+					03 F0 51 00 00 // RCLK: 27MHz/24MHz (ALT),Enable reference-generation PLL, Enable pre-defined clock setting for reference-generation PLL
+					00 03 07 00 00 // RCLK: Enable RCLK output from altermative MFP pin, RCLKOUT clock select reference PLL
+					00 06 b1 00 00 // RCLK: GMSL2, Enable RCLK output, i2c selected
+					02 C1 10 00 00 // MFP1: GPIO_OUT pin output is driven to 1 when GPIO_RX_EN = 0
+					02 C2 60 00 00 // MFP1: OUT_TYPE = 1: Push-pull, PULL_UPDN_SEL[1:0] = 0b01: Pullup
+					00 07 07 00 00 // Enable Parallel video input, Parallel HS and VS Enable
+					00 10 05 00 00 // AUTO_LINK = 0, LINK_CFG = 1: LinkA is selected, REG_ENABLE = 1: Regulator enabled
+					00 12 14 00 00 // REG_MNL = 1: Enable LDO on/off state controlled by REG_ENABLE
+					01 00 62 00 00 // Video X, Line CRC enabled, ENC_MODE = 2: HS, VS, DE encoding on, color bits sent only when DE is high
+					01 01 50 00 00 // Video X, BPP = 0x10
+					00 53 10 00 00 // Video X, TX_STR_SEL = 0: Stream ID = 0 for packets from this channel
+					00 02 13 00 00 // Video transmit enable for Port X
+				];
+			};
+		};
+		/* serdes remote device end */
+	};
+};
+
+&mipi1_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy1_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi1_in>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds1 {
+	status = "okay";
+	/* parameters for do cif reset detecting:
+	 * index0: monitor mode,
+		   0 for idle,
+		   1 for continue,
+		   2 for trigger,
+		   3 for hotplug (for nextchip)
+	 * index1: the frame id to start timer,
+		   min is 2
+	 * index2: frame num of monitoring cycle
+	 * index3: err time for keep monitoring
+		   after finding out err (ms)
+	 * index4: csi2 err reference val for resetting
+	 */
+	rockchip,cif-monitor = <3 2 1 1000 5>;
+
+	port {
+		cif_mipi1_in: endpoint {
+			remote-endpoint = <&mipi1_csi2_output>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+	rockchip,android-usb-camerahal-enable;
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&pinctrl {
+	max96712-dcphy1 {
+		max96712_dcphy1_pwdn: max96712-dcphy1-pwdn {
+			rockchip,pins = <4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		max96712_dcphy1_errb: max96712-dcphy1-errb {
+			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		max96712_dcphy1_lock: max96712-dcphy1-lock {
+			rockchip,pins = <4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
