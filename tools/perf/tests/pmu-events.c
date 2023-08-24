@@ -477,12 +477,12 @@ static int test__pmu_event_table(struct test_suite *test __maybe_unused,
 	if (!table || !sys_event_table)
 		return -1;
 
-	err = pmu_events_table_for_each_event(table, test__pmu_event_table_core_callback,
+	err = pmu_events_table__for_each_event(table, test__pmu_event_table_core_callback,
 					      &map_events);
 	if (err)
 		return err;
 
-	err = pmu_events_table_for_each_event(sys_event_table, test__pmu_event_table_sys_callback,
+	err = pmu_events_table__for_each_event(sys_event_table, test__pmu_event_table_sys_callback,
 					      &map_events);
 	if (err)
 		return err;

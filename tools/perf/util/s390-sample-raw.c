@@ -168,7 +168,7 @@ static const char *get_counter_name(int set, int nr, const struct pmu_events_tab
 	if (!table)
 		return NULL;
 
-	pmu_events_table_for_each_event(table, get_counter_name_callback, &data);
+	pmu_events_table__for_each_event(table, get_counter_name_callback, &data);
 	return data.result;
 }
 

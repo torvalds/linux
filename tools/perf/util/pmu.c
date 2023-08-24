@@ -896,7 +896,7 @@ void pmu_add_cpu_aliases_table(struct perf_pmu *pmu, const struct pmu_events_tab
 		.pmu = pmu,
 	};
 
-	pmu_events_table_for_each_event(table, pmu_add_cpu_aliases_map_callback, &data);
+	pmu_events_table__for_each_event(table, pmu_add_cpu_aliases_map_callback, &data);
 	free(data.default_pmu_name);
 }
 
