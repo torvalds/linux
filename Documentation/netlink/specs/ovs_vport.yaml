@@ -139,9 +139,20 @@ operations:
             - ifindex
             - options
     -
+      name: del
+      doc: Delete existing OVS vport from a data path
+      attribute-set: vport
+      fixed-header: ovs-header
+      do:
+        request:
+          attributes:
+            - dp-ifindex
+            - port-no
+            - type
+            - name
+    -
       name: get
       doc: Get / dump OVS vport configuration and state
-      value: 3
       attribute-set: vport
       fixed-header: ovs-header
       do: &vport-get-op
