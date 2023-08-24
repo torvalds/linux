@@ -302,8 +302,7 @@ static int kfd_dbg_set_queue_workaround(struct queue *q, bool enable)
 	if (!q)
 		return 0;
 
-	if (KFD_GC_VERSION(q->device) < IP_VERSION(11, 0, 0) ||
-	    KFD_GC_VERSION(q->device) >= IP_VERSION(12, 0, 0))
+	if (!kfd_dbg_has_cwsr_workaround(q->device))
 		return 0;
 
 	if (enable && q->properties.is_user_cu_masked)
@@ -349,7 +348,7 @@ int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd)
 {
 	uint32_t spi_dbg_cntl = pdd->spi_dbg_override | pdd->spi_dbg_launch_mode;
 	uint32_t flags = pdd->process->dbg_flags;
-	bool sq_trap_en = !!spi_dbg_cntl;
+	bool sq_trap_en = !!spi_dbg_cntl || !kfd_dbg_has_cwsr_workaround(pdd->dev);
 
 	if (!kfd_dbg_is_per_vmid_supported(pdd->dev))
 		return 0;

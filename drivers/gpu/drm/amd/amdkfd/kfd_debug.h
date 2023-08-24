@@ -100,6 +100,12 @@ static inline bool kfd_dbg_is_rlc_restore_supported(struct kfd_node *dev)
 		 KFD_GC_VERSION(dev) == IP_VERSION(10, 1, 1));
 }
 
+static inline bool kfd_dbg_has_cwsr_workaround(struct kfd_node *dev)
+{
+	return KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0) &&
+	       KFD_GC_VERSION(dev) <= IP_VERSION(11, 0, 3);
+}
+
 static inline bool kfd_dbg_has_gws_support(struct kfd_node *dev)
 {
 	if ((KFD_GC_VERSION(dev) == IP_VERSION(9, 0, 1)

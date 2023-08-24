@@ -2287,6 +2287,8 @@ void microcode_check(struct cpuinfo_x86 *prev_info)
 
 	perf_check_microcode();
 
+	amd_check_microcode();
+
 	store_cpu_caps(&curr_info);
 
 	if (!memcmp(&prev_info->x86_capability, &curr_info.x86_capability,

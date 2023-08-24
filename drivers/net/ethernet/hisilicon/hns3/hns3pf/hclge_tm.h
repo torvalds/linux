@@ -33,6 +33,9 @@ enum hclge_opcode_type;
 #define HCLGE_DSCP_MAP_TC_BD_NUM	2
 #define HCLGE_DSCP_TC_SHIFT(n)		(((n) & 1) * 4)
 
+#define HCLGE_TM_FLUSH_TIME_MS	10
+#define HCLGE_TM_FLUSH_EN_MSK	BIT(0)
+
 struct hclge_pg_to_pri_link_cmd {
 	u8 pg_id;
 	u8 rsvd1[3];
@@ -272,4 +275,5 @@ int hclge_tm_get_port_shaper(struct hclge_dev *hdev,
 			     struct hclge_tm_shaper_para *para);
 int hclge_up_to_tc_map(struct hclge_dev *hdev);
 int hclge_dscp_to_tc_map(struct hclge_dev *hdev);
+int hclge_tm_flush_cfg(struct hclge_dev *hdev, bool enable);
 #endif
