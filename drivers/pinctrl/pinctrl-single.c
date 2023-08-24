@@ -239,32 +239,32 @@ static struct lock_class_key pcs_request_class;
  * does not help in this case.
  */
 
-static unsigned __maybe_unused pcs_readb(void __iomem *reg)
+static unsigned int pcs_readb(void __iomem *reg)
 {
 	return readb(reg);
 }
 
-static unsigned __maybe_unused pcs_readw(void __iomem *reg)
+static unsigned int pcs_readw(void __iomem *reg)
 {
 	return readw(reg);
 }
 
-static unsigned __maybe_unused pcs_readl(void __iomem *reg)
+static unsigned int pcs_readl(void __iomem *reg)
 {
 	return readl(reg);
 }
 
-static void __maybe_unused pcs_writeb(unsigned val, void __iomem *reg)
+static void pcs_writeb(unsigned int val, void __iomem *reg)
 {
 	writeb(val, reg);
 }
 
-static void __maybe_unused pcs_writew(unsigned val, void __iomem *reg)
+static void pcs_writew(unsigned int val, void __iomem *reg)
 {
 	writew(val, reg);
 }
 
-static void __maybe_unused pcs_writel(unsigned val, void __iomem *reg)
+static void pcs_writel(unsigned int val, void __iomem *reg)
 {
 	writel(val, reg);
 }
