@@ -657,7 +657,6 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 			if (!btf_is_kernel(field->kptr.btf)) {
 				pointee_struct_meta = btf_find_struct_meta(field->kptr.btf,
 									   field->kptr.btf_id);
-				WARN_ON_ONCE(!pointee_struct_meta);
 				migrate_disable();
 				__bpf_obj_drop_impl(xchgd_field, pointee_struct_meta ?
 								 pointee_struct_meta->record :
