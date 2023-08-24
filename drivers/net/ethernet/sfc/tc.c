@@ -1054,6 +1054,47 @@ static int efx_tc_complete_mac_mangle(struct efx_nic *efx,
 	return 0;
 }
 
+static int efx_tc_pedit_add(struct efx_nic *efx, struct efx_tc_action_set *act,
+			    const struct flow_action_entry *fa,
+			    struct netlink_ext_ack *extack)
+{
+	switch (fa->mangle.htype) {
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP4:
+		switch (fa->mangle.offset) {
+		case offsetof(struct iphdr, ttl):
+			/* check that pedit applies to ttl only */
+			if (fa->mangle.mask != ~EFX_TC_HDR_TYPE_TTL_MASK)
+				break;
+
+			/* Adding 0xff is equivalent to decrementing the ttl.
+			 * Other added values are not supported.
+			 */
+			if ((fa->mangle.val & EFX_TC_HDR_TYPE_TTL_MASK) != U8_MAX)
+				break;
+
+			/* check that we do not decrement ttl twice */
+			if (!efx_tc_flower_action_order_ok(act,
+							   EFX_TC_AO_DEC_TTL)) {
+				NL_SET_ERR_MSG_MOD(extack, "Unsupported: multiple dec ttl");
+				return -EOPNOTSUPP;
+			}
+			act->do_ttl_dec = 1;
+			return 0;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	NL_SET_ERR_MSG_FMT_MOD(extack,
+			       "Unsupported: ttl add action type %x %x %x/%x",
+			       fa->mangle.htype, fa->mangle.offset,
+			       fa->mangle.val, fa->mangle.mask);
+	return -EOPNOTSUPP;
+}
+
 /**
  * efx_tc_mangle() - handle a single 32-bit (or less) pedit
  * @efx:	NIC we're installing a flow rule on
@@ -2013,6 +2054,11 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			act->vlan_tci[act->vlan_push] = cpu_to_be16(tci);
 			act->vlan_proto[act->vlan_push] = fa->vlan.proto;
 			act->vlan_push++;
+			break;
+		case FLOW_ACTION_ADD:
+			rc = efx_tc_pedit_add(efx, act, fa, extack);
+			if (rc < 0)
+				goto release;
 			break;
 		case FLOW_ACTION_MANGLE:
 			rc = efx_tc_mangle(efx, act, fa, &mung, extack, &match);
