@@ -23,10 +23,12 @@
 #define DEVICE_NAME		"aspeed-espi"
 
 #define PERIF_MCYC_ALIGN	SZ_64K
-#define FLASH_EDAF_ALIGN	SZ_16M
 
+#define OOB_DMA_RPTR_KEY	0x4f4f4253
 #define OOB_DMA_DESC_NUM	8
 #define OOB_DMA_DESC_CUSTOM	0x4
+
+#define FLASH_EDAF_ALIGN	SZ_16M
 
 struct ast2700_espi_perif {
 	struct {
@@ -506,6 +508,26 @@ static void ast2700_espi_perif_reset(struct ast2700_espi *espi)
 	writel(0x0, espi->regs + ESPI_CH0_INT_EN);
 	writel(0xffffffff, espi->regs + ESPI_CH0_INT_STS);
 
+	reg = readl(espi->regs + ESPI_CH0_CTRL);
+	reg |= (ESPI_CH0_CTRL_MCYC_RD_DIS | ESPI_CH0_CTRL_MCYC_WR_DIS);
+	reg &= ~(ESPI_CH0_CTRL_NP_TX_RST
+		 | ESPI_CH0_CTRL_NP_RX_RST
+		 | ESPI_CH0_CTRL_PC_TX_RST
+		 | ESPI_CH0_CTRL_PC_RX_RST
+		 | ESPI_CH0_CTRL_NP_TX_DMA_EN
+		 | ESPI_CH0_CTRL_PC_TX_DMA_EN
+		 | ESPI_CH0_CTRL_PC_RX_DMA_EN
+		 | ESPI_CH0_CTRL_SW_RDY);
+	writel(reg, espi->regs + ESPI_CH0_CTRL);
+
+	udelay(1);
+
+	reg |= (ESPI_CH0_CTRL_NP_TX_RST
+		| ESPI_CH0_CTRL_NP_RX_RST
+		| ESPI_CH0_CTRL_PC_TX_RST
+		| ESPI_CH0_CTRL_PC_RX_RST);
+	writel(reg, espi->regs + ESPI_CH0_CTRL);
+
 	if (perif->mcyc.enable) {
 		mask = ~(perif->mcyc.size - 1);
 		writel(mask >> 32, espi->regs + ESPI_CH0_MCYC1_MASKH);
@@ -517,6 +539,10 @@ static void ast2700_espi_perif_reset(struct ast2700_espi *espi)
 
 		reg = readl(espi->regs + ESPI_CH0_MCYC1_MASKL) | ESPI_CH0_MCYC1_MASKL_EN;
 		writel(reg, espi->regs + ESPI_CH0_MCYC1_MASKL);
+
+		reg = readl(espi->regs + ESPI_CH0_CTRL);
+		reg &= ~(ESPI_CH0_CTRL_MCYC_RD_DIS | ESPI_CH0_CTRL_MCYC_WR_DIS);
+		writel(reg, espi->regs + ESPI_CH0_CTRL);
 	}
 
 	if (perif->dma.enable) {
@@ -536,9 +562,7 @@ static void ast2700_espi_perif_reset(struct ast2700_espi *espi)
 
 	writel(ESPI_CH0_INT_EN_PC_RX_CMPLT, espi->regs + ESPI_CH0_INT_EN);
 
-	reg = readl(espi->regs + ESPI_CH0_CTRL);
-	reg &= ~(ESPI_CH0_CTRL_MCYC_RD_DIS | ESPI_CH0_CTRL_MCYC_WR_DIS);
-	reg |= ESPI_CH0_CTRL_SW_RDY;
+	reg = readl(espi->regs + ESPI_CH0_CTRL) | ESPI_CH0_CTRL_SW_RDY;
 	writel(reg, espi->regs + ESPI_CH0_CTRL);
 }
 
@@ -625,10 +649,21 @@ static int ast2700_espi_perif_remove(struct ast2700_espi *espi)
 {
 	struct ast2700_espi_perif *perif;
 	struct device *dev;
+	uint32_t reg;
 
 	dev = espi->dev;
 
 	perif = &espi->perif;
+
+	writel(0x0, espi->regs + ESPI_CH0_INT_EN);
+
+	reg = readl(espi->regs + ESPI_CH0_CTRL);
+	reg |= (ESPI_CH0_CTRL_MCYC_RD_DIS | ESPI_CH0_CTRL_MCYC_WR_DIS);
+	reg &= ~(ESPI_CH0_CTRL_NP_TX_DMA_EN
+		 | ESPI_CH0_CTRL_PC_TX_DMA_EN
+		 | ESPI_CH0_CTRL_PC_RX_DMA_EN
+		 | ESPI_CH0_CTRL_SW_RDY);
+	writel(reg, espi->regs + ESPI_CH0_CTRL);
 
 	if (perif->mcyc.enable)
 		dmam_free_coherent(dev, perif->mcyc.size, perif->mcyc.virt,
@@ -759,6 +794,8 @@ static int ast2700_espi_vw_remove(struct ast2700_espi *espi)
 	struct ast2700_espi_vw *vw;
 
 	vw = &espi->vw;
+
+	writel(0x0, espi->regs + ESPI_CH1_INT_EN);
 
 	misc_deregister(&vw->mdev);
 
@@ -1118,6 +1155,19 @@ static void ast2700_espi_oob_reset(struct ast2700_espi *espi)
 	writel(0x0, espi->regs + ESPI_CH2_INT_EN);
 	writel(0xffffffff, espi->regs + ESPI_CH2_INT_STS);
 
+	reg = readl(espi->regs + ESPI_CH2_CTRL);
+	reg &= ~(ESPI_CH2_CTRL_TX_RST
+		 | ESPI_CH2_CTRL_RX_RST
+		 | ESPI_CH2_CTRL_TX_DMA_EN
+		 | ESPI_CH2_CTRL_RX_DMA_EN
+		 | ESPI_CH2_CTRL_SW_RDY);
+	writel(reg, espi->regs + ESPI_CH2_CTRL);
+
+	udelay(1);
+
+	reg |= (ESPI_CH2_CTRL_TX_RST | ESPI_CH2_CTRL_RX_RST);
+	writel(reg, espi->regs + ESPI_CH2_CTRL);
+
 	if (oob->dma.enable) {
 		tx_addr = oob->dma.tx_addr;
 		rx_addr = oob->dma.rx_addr;
@@ -1133,31 +1183,15 @@ static void ast2700_espi_oob_reset(struct ast2700_espi *espi)
 			rx_addr += PAGE_SIZE;
 		}
 
-		/*
-		 * A0 FIXME:
-		 *
-		 * A0 design caches a OOB DMA RX descriptor before actual eSPI OOB data in.
-		 * And this cached descriptor will not be dropped even with eSPI_Reset#.
-		 *
-		 * This results in the inconsistent views between the DMA engine and
-		 * the RX read pointer control register. SW relying on the read pointer
-		 * to retrieve OOB data will fetch wrong descriptor and so is OOB data.
-		 *
-		 * Herein we use OOB SW reset as A0 SW workaround to force the DMA engine
-		 * to drop cached descriptor. A1 would remove this cache behavior.
-		 */
-		reg = readl(espi->regs + ESPI_CH2_CTRL);
-		writel(reg & ~ESPI_CH2_CTRL_RX_RST, espi->regs + ESPI_CH2_CTRL);
-		udelay(1);
-		writel(reg, espi->regs + ESPI_CH2_CTRL);
-
 		writel(oob->dma.txd_addr >> 32, espi->regs + ESPI_CH2_TX_DMAH);
 		writel(oob->dma.txd_addr & 0xffffffff, espi->regs + ESPI_CH2_TX_DMAL);
+		writel(OOB_DMA_RPTR_KEY, espi->regs + ESPI_CH2_TX_DESC_RPTR);
 		writel(0x0, espi->regs + ESPI_CH2_TX_DESC_WPTR);
 		writel(OOB_DMA_DESC_NUM, espi->regs + ESPI_CH2_TX_DESC_EPTR);
 
 		writel(oob->dma.rxd_addr >> 32, espi->regs + ESPI_CH2_RX_DMAH);
 		writel(oob->dma.rxd_addr & 0xffffffff, espi->regs + ESPI_CH2_RX_DMAL);
+		writel(OOB_DMA_RPTR_KEY, espi->regs + ESPI_CH2_RX_DESC_RPTR);
 		writel(0x0, espi->regs + ESPI_CH2_RX_DESC_WPTR);
 		writel(OOB_DMA_DESC_NUM, espi->regs + ESPI_CH2_RX_DESC_EPTR);
 
@@ -1239,10 +1273,19 @@ static int ast2700_espi_oob_remove(struct ast2700_espi *espi)
 {
 	struct ast2700_espi_oob *oob;
 	struct device *dev;
+	uint32_t reg;
 
 	dev = espi->dev;
 
 	oob = &espi->oob;
+
+	writel(0x0, espi->regs + ESPI_CH2_INT_EN);
+
+	reg = readl(espi->regs + ESPI_CH2_CTRL);
+	reg &= ~(ESPI_CH2_CTRL_TX_DMA_EN
+		 | ESPI_CH2_CTRL_RX_DMA_EN
+		 | ESPI_CH2_CTRL_SW_RDY);
+	writel(reg, espi->regs + ESPI_CH2_CTRL);
 
 	if (oob->dma.enable) {
 		dmam_free_coherent(dev, sizeof(*oob->dma.txd_virt) * OOB_DMA_DESC_NUM,
@@ -1511,6 +1554,19 @@ static void ast2700_espi_flash_reset(struct ast2700_espi *espi)
 	writel(0x0, espi->regs + ESPI_CH3_INT_EN);
 	writel(0xffffffff, espi->regs + ESPI_CH3_INT_STS);
 
+	reg = readl(espi->regs + ESPI_CH3_CTRL);
+	reg &= ~(ESPI_CH3_CTRL_TX_RST
+		 | ESPI_CH3_CTRL_RX_RST
+		 | ESPI_CH3_CTRL_TX_DMA_EN
+		 | ESPI_CH3_CTRL_RX_DMA_EN
+		 | ESPI_CH3_CTRL_SW_RDY);
+	writel(reg, espi->regs + ESPI_CH3_CTRL);
+
+	udelay(1);
+
+	reg |= (ESPI_CH3_CTRL_TX_RST | ESPI_CH3_CTRL_RX_RST);
+	writel(reg, espi->regs + ESPI_CH3_CTRL);
+
 	if (flash->edaf.mode == EDAF_MODE_MIX) {
 		mask = ~(flash->edaf.size - 1);
 		writel(mask >> 32, espi->regs + ESPI_CH3_EDAF_MASKH);
@@ -1531,7 +1587,7 @@ static void ast2700_espi_flash_reset(struct ast2700_espi *espi)
 
 		reg = readl(espi->regs + ESPI_CH3_CTRL)
 		      | ESPI_CH3_CTRL_TX_DMA_EN
-			  | ESPI_CH3_CTRL_RX_DMA_EN;
+		      | ESPI_CH3_CTRL_RX_DMA_EN;
 		writel(reg, espi->regs + ESPI_CH3_CTRL);
 	}
 
@@ -1609,10 +1665,19 @@ static int ast2700_espi_flash_remove(struct ast2700_espi *espi)
 {
 	struct ast2700_espi_flash *flash;
 	struct device *dev;
+	uint32_t reg;
 
 	dev = espi->dev;
 
 	flash = &espi->flash;
+
+	writel(0x0, espi->regs + ESPI_CH3_INT_EN);
+
+	reg = readl(espi->regs + ESPI_CH3_CTRL);
+	reg &= ~(ESPI_CH3_CTRL_TX_DMA_EN
+		 | ESPI_CH3_CTRL_RX_DMA_EN
+		 | ESPI_CH3_CTRL_SW_RDY);
+	writel(reg, espi->regs + ESPI_CH3_CTRL);
 
 	if (flash->dma.enable) {
 		dmam_free_coherent(dev, PAGE_SIZE, flash->dma.tx_virt, flash->dma.tx_addr);
@@ -1712,6 +1777,10 @@ static int ast2700_espi_probe(struct platform_device *pdev)
 		return rc;
 	}
 
+	reg = readl(espi->regs + ESPI_INT_EN);
+	reg &= ~ESPI_INT_EN_RST_DEASSERT;
+	writel(reg, espi->regs + ESPI_INT_EN);
+
 	rc = ast2700_espi_perif_probe(espi);
 	if (rc) {
 		dev_err(dev, "cannot init CH0, rc=%d\n", rc);
@@ -1742,7 +1811,8 @@ static int ast2700_espi_probe(struct platform_device *pdev)
 		goto err_remove_flash;
 	}
 
-	reg = readl(espi->regs + ESPI_INT_EN) | ESPI_INT_EN_RST_DEASSERT;
+	reg = readl(espi->regs + ESPI_INT_EN);
+	reg |= ESPI_INT_EN_RST_DEASSERT;
 	writel(reg, espi->regs + ESPI_INT_EN);
 
 	dev_set_drvdata(dev, espi);
@@ -1767,11 +1837,16 @@ static int ast2700_espi_remove(struct platform_device *pdev)
 {
 	struct ast2700_espi *espi;
 	struct device *dev;
+	uint32_t reg;
 	int rc;
 
 	dev = &pdev->dev;
 
 	espi = (struct ast2700_espi *)dev_get_drvdata(dev);
+
+	reg = readl(espi->regs + ESPI_INT_EN);
+	reg &= ~ESPI_INT_EN_RST_DEASSERT;
+	writel(reg, espi->regs + ESPI_INT_EN);
 
 	rc = ast2700_espi_perif_remove(espi);
 	if (rc)

@@ -26,6 +26,7 @@
 #define PERIF_MMBI_ALIGN	SZ_64K
 #define PERIF_MMBI_INST_NUM	8
 
+#define OOB_DMA_RPTR_KEY	0x45538073
 #define OOB_DMA_DESC_NUM	8
 #define OOB_DMA_DESC_CUSTOM	0x4
 
@@ -646,7 +647,40 @@ static void ast2600_espi_perif_reset(struct ast2600_espi *espi)
 
 	perif = &espi->perif;
 
+	writel(ESPI_INT_EN_PERIF, espi->regs + ESPI_INT_EN_CLR);
+	writel(ESPI_INT_STS_PERIF, espi->regs + ESPI_INT_STS);
+
+	writel(0x0, espi->regs + ESPI_MMBI_INT_EN);
+	writel(0xffffffff, espi->regs + ESPI_MMBI_INT_STS);
+
+	reg = readl(espi->regs + ESPI_CTRL2);
+	reg |= (ESPI_CTRL2_MCYC_RD_DIS | ESPI_CTRL2_MCYC_WR_DIS);
+	writel(reg, espi->regs + ESPI_CTRL2);
+
+	reg = readl(espi->regs + ESPI_CTRL);
+	reg &= ~(ESPI_CTRL_PERIF_NP_TX_SW_RST
+		 | ESPI_CTRL_PERIF_NP_RX_SW_RST
+		 | ESPI_CTRL_PERIF_PC_TX_SW_RST
+		 | ESPI_CTRL_PERIF_PC_RX_SW_RST
+		 | ESPI_CTRL_PERIF_NP_TX_DMA_EN
+		 | ESPI_CTRL_PERIF_PC_TX_DMA_EN
+		 | ESPI_CTRL_PERIF_PC_RX_DMA_EN
+		 | ESPI_CTRL_PERIF_SW_RDY);
+	writel(reg, espi->regs + ESPI_CTRL);
+
+	udelay(1);
+
+	reg |= (ESPI_CTRL_PERIF_NP_TX_SW_RST
+		| ESPI_CTRL_PERIF_NP_RX_SW_RST
+		| ESPI_CTRL_PERIF_PC_TX_SW_RST
+		| ESPI_CTRL_PERIF_PC_RX_SW_RST);
+	writel(reg, espi->regs + ESPI_CTRL);
+
 	if (perif->mmbi.enable) {
+		reg = readl(espi->regs + ESPI_MMBI_CTRL);
+		reg &= ~(ESPI_MMBI_CTRL_EN);
+		writel(reg, espi->regs + ESPI_MMBI_CTRL);
+
 		mask = ~(perif->mmbi.size - 1);
 		writel(mask, espi->regs + ESPI_PERIF_MMBI_MASK);
 		writel(perif->mmbi.saddr, espi->regs + ESPI_PERIF_MMBI_SADDR);
@@ -685,8 +719,7 @@ static void ast2600_espi_perif_reset(struct ast2600_espi *espi)
 		writel(reg, espi->regs + ESPI_CTRL);
 	}
 
-	reg = readl(espi->regs + ESPI_INT_EN) | ESPI_INT_EN_PERIF_PC_RX_CMPLT;
-	writel(reg, espi->regs + ESPI_INT_EN);
+	writel(ESPI_INT_EN_PERIF_PC_RX_CMPLT, espi->regs + ESPI_INT_EN);
 
 	reg = readl(espi->regs + ESPI_CTRL) | ESPI_CTRL_PERIF_SW_RDY;
 	writel(reg, espi->regs + ESPI_CTRL);
@@ -856,13 +889,31 @@ static int ast2600_espi_perif_remove(struct ast2600_espi *espi)
 	struct ast2600_espi_perif_mmbi *mmbi;
 	struct ast2600_espi_perif *perif;
 	struct device *dev;
+	uint32_t reg;
 	int i;
 
 	dev = espi->dev;
 
 	perif = &espi->perif;
 
+	writel(ESPI_INT_EN_PERIF, espi->regs + ESPI_INT_EN_CLR);
+
+	reg = readl(espi->regs + ESPI_CTRL2);
+	reg |= (ESPI_CTRL2_MCYC_RD_DIS | ESPI_CTRL2_MCYC_WR_DIS);
+	writel(reg, espi->regs + ESPI_CTRL2);
+
+	reg = readl(espi->regs + ESPI_CTRL);
+	reg &= ~(ESPI_CTRL_PERIF_NP_TX_DMA_EN
+		 | ESPI_CTRL_PERIF_PC_TX_DMA_EN
+		 | ESPI_CTRL_PERIF_PC_RX_DMA_EN
+		 | ESPI_CTRL_PERIF_SW_RDY);
+	writel(reg, espi->regs + ESPI_CTRL);
+
 	if (perif->mmbi.enable) {
+		reg = readl(espi->regs + ESPI_MMBI_CTRL);
+		reg &= ~ESPI_MMBI_CTRL_EN;
+		writel(reg, espi->regs + ESPI_MMBI_CTRL);
+
 		for (i = 0; i < PERIF_MMBI_INST_NUM; ++i) {
 			mmbi = &perif->mmbi.inst[i];
 			misc_deregister(&mmbi->b2h_mdev);
@@ -949,14 +1000,17 @@ static void ast2600_espi_vw_reset(struct ast2600_espi *espi)
 	uint32_t reg;
 	struct ast2600_espi_vw *vw = &espi->vw;
 
+	writel(ESPI_INT_EN_VW, espi->regs + ESPI_INT_EN_CLR);
+	writel(ESPI_INT_STS_VW, espi->regs + ESPI_INT_STS);
+
 	writel(vw->gpio.dir, espi->regs + ESPI_VW_GPIO_DIR);
 
 	vw->gpio.val = readl(espi->regs + ESPI_VW_GPIO_VAL);
 
-	writel(ESPI_INT_EN_VW_GPIO, espi->regs + ESPI_INT_EN);
-
 	reg = readl(espi->regs + ESPI_CTRL2) & ~(ESPI_CTRL2_VW_TX_SORT);
 	writel(reg, espi->regs + ESPI_CTRL2);
+
+	writel(ESPI_INT_EN_VW_GPIO, espi->regs + ESPI_INT_EN);
 
 	reg = readl(espi->regs + ESPI_CTRL)
 	      | ((vw->gpio.hw_mode) ? 0 : ESPI_CTRL_VW_GPIO_SW)
@@ -993,6 +1047,8 @@ static int ast2600_espi_vw_remove(struct ast2600_espi *espi)
 	struct ast2600_espi_vw *vw;
 
 	vw = &espi->vw;
+
+	writel(ESPI_INT_EN_VW, espi->regs + ESPI_INT_EN_CLR);
 
 	misc_deregister(&vw->mdev);
 
@@ -1345,7 +1401,24 @@ static void ast2600_espi_oob_reset(struct ast2600_espi *espi)
 	uint32_t reg;
 	int i;
 
+	writel(ESPI_INT_EN_OOB, espi->regs + ESPI_INT_EN_CLR);
+	writel(ESPI_INT_STS_OOB, espi->regs + ESPI_INT_STS);
+
+	reg = readl(espi->regs + ESPI_CTRL);
+	reg &= ~(ESPI_CTRL_OOB_TX_SW_RST
+		 | ESPI_CTRL_OOB_RX_SW_RST
+		 | ESPI_CTRL_OOB_TX_DMA_EN
+		 | ESPI_CTRL_OOB_RX_DMA_EN
+		 | ESPI_CTRL_OOB_SW_RDY);
+	writel(reg, espi->regs + ESPI_CTRL);
+
+	udelay(1);
+
+	reg |= (ESPI_CTRL_OOB_TX_SW_RST | ESPI_CTRL_OOB_RX_SW_RST);
+	writel(reg, espi->regs + ESPI_CTRL);
+
 	oob = &espi->oob;
+
 	if (oob->dma.enable) {
 		tx_addr = oob->dma.tx_addr;
 		rx_addr = oob->dma.rx_addr;
@@ -1359,16 +1432,13 @@ static void ast2600_espi_oob_reset(struct ast2600_espi *espi)
 			rx_addr += PAGE_SIZE;
 		}
 
-		reg = readl(espi->regs + ESPI_CTRL);
-		writel(reg & ~ESPI_CTRL_OOB_RX_SW_RST, espi->regs + ESPI_CTRL);
-		udelay(1);
-		writel(reg, espi->regs + ESPI_CTRL);
-
 		writel(oob->dma.txd_addr, espi->regs + ESPI_OOB_TX_DMA);
+		writel(OOB_DMA_RPTR_KEY, espi->regs + ESPI_OOB_TX_DESC_RPTR);
 		writel(0x0, espi->regs + ESPI_OOB_TX_DESC_WPTR);
 		writel(OOB_DMA_DESC_NUM, espi->regs + ESPI_OOB_TX_DESC_NUM);
 
 		writel(oob->dma.rxd_addr, espi->regs + ESPI_OOB_RX_DMA);
+		writel(OOB_DMA_RPTR_KEY, espi->regs + ESPI_OOB_RX_DESC_RPTR);
 		writel(0x0, espi->regs + ESPI_OOB_RX_DESC_WPTR);
 		writel(OOB_DMA_DESC_NUM, espi->regs + ESPI_OOB_RX_DESC_NUM);
 
@@ -1449,10 +1519,19 @@ static int ast2600_espi_oob_remove(struct ast2600_espi *espi)
 {
 	struct ast2600_espi_oob *oob;
 	struct device *dev;
+	uint32_t reg;
 
 	dev = espi->dev;
 
 	oob = &espi->oob;
+
+	writel(ESPI_INT_EN_OOB, espi->regs + ESPI_INT_EN_CLR);
+
+	reg = readl(espi->regs + ESPI_CTRL);
+	reg &= ~(ESPI_CTRL_OOB_TX_DMA_EN
+		 | ESPI_CTRL_OOB_RX_DMA_EN
+		 | ESPI_CTRL_OOB_SW_RDY);
+	writel(reg, espi->regs + ESPI_CTRL);
 
 	if (oob->dma.enable) {
 		dmam_free_coherent(dev, sizeof(*oob->dma.txd_virt) * OOB_DMA_DESC_NUM,
@@ -1721,13 +1800,29 @@ static void ast2600_espi_flash_reset(struct ast2600_espi *espi)
 
 	flash = &espi->flash;
 
+	writel(ESPI_INT_EN_FLASH, espi->regs + ESPI_INT_EN_CLR);
+	writel(ESPI_INT_STS_FLASH, espi->regs + ESPI_INT_STS);
+
+	reg = readl(espi->regs + ESPI_CTRL);
+	reg &= ~(ESPI_CTRL_FLASH_TX_SW_RST
+		 | ESPI_CTRL_FLASH_RX_SW_RST
+		 | ESPI_CTRL_FLASH_TX_DMA_EN
+		 | ESPI_CTRL_FLASH_RX_DMA_EN
+		 | ESPI_CTRL_FLASH_SW_RDY);
+	writel(reg, espi->regs + ESPI_CTRL);
+
+	udelay(1);
+
+	reg |= (ESPI_CTRL_FLASH_TX_SW_RST | ESPI_CTRL_FLASH_RX_SW_RST);
+	writel(reg, espi->regs + ESPI_CTRL);
+
 	reg = readl(espi->regs + ESPI_CTRL)
 	      | FIELD_PREP(ESPI_CTRL_FLASH_SAFS_MODE, flash->safs.mode);
 	writel(reg, espi->regs + ESPI_CTRL);
 
 	if (flash->safs.mode == SAFS_MODE_MIX) {
 		reg = FIELD_PREP(ESPI_FLASH_SAFS_TADDR_BASE, flash->safs.taddr >> 24)
-			| FIELD_PREP(ESPI_FLASH_SAFS_TADDR_MASK, (~(flash->safs.size - 1)) >> 24);
+		      | FIELD_PREP(ESPI_FLASH_SAFS_TADDR_MASK, (~(flash->safs.size - 1)) >> 24);
 		writel(reg, espi->regs + ESPI_FLASH_SAFS_TADDR);
 	}
 
@@ -1737,12 +1832,11 @@ static void ast2600_espi_flash_reset(struct ast2600_espi *espi)
 
 		reg = readl(espi->regs + ESPI_CTRL)
 		      | ESPI_CTRL_FLASH_TX_DMA_EN
-			  | ESPI_CTRL_FLASH_RX_DMA_EN;
+		      | ESPI_CTRL_FLASH_RX_DMA_EN;
 		writel(reg, espi->regs + ESPI_CTRL);
 	}
 
-	reg = readl(espi->regs + ESPI_INT_EN) | ESPI_INT_EN_FLASH_RX_CMPLT;
-	writel(reg, espi->regs + ESPI_INT_EN);
+	writel(ESPI_INT_EN_FLASH_RX_CMPLT, espi->regs + ESPI_INT_EN);
 
 	reg = readl(espi->regs + ESPI_CTRL) | ESPI_CTRL_FLASH_SW_RDY;
 	writel(reg, espi->regs + ESPI_CTRL);
@@ -1816,10 +1910,19 @@ static int ast2600_espi_flash_remove(struct ast2600_espi *espi)
 {
 	struct ast2600_espi_flash *flash;
 	struct device *dev;
+	uint32_t reg;
 
 	dev = espi->dev;
 
 	flash = &espi->flash;
+
+	writel(ESPI_INT_EN_FLASH, espi->regs + ESPI_INT_EN_CLR);
+
+	reg = readl(espi->regs + ESPI_CTRL);
+	reg &= ~(ESPI_CTRL_FLASH_TX_DMA_EN
+		 | ESPI_CTRL_FLASH_RX_DMA_EN
+		 | ESPI_CTRL_FLASH_SW_RDY);
+	writel(reg, espi->regs + ESPI_CTRL);
 
 	if (flash->dma.enable) {
 		dmam_free_coherent(dev, PAGE_SIZE, flash->dma.tx_virt, flash->dma.tx_addr);
@@ -1874,7 +1977,6 @@ static int ast2600_espi_probe(struct platform_device *pdev)
 	struct ast2600_espi *espi;
 	struct resource *res;
 	struct device *dev;
-	uint32_t reg;
 	int rc;
 
 	dev = &pdev->dev;
@@ -1921,11 +2023,7 @@ static int ast2600_espi_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	writel(0x0, espi->regs + ESPI_INT_EN);
-	writel(0xffffffff, espi->regs + ESPI_INT_STS);
-
-	writel(0x0, espi->regs + ESPI_MMBI_INT_EN);
-	writel(0xffffffff, espi->regs + ESPI_MMBI_INT_STS);
+	writel(ESPI_INT_EN_RST_DEASSERT, espi->regs + ESPI_INT_EN_CLR);
 
 	rc = ast2600_espi_perif_probe(espi);
 	if (rc) {
@@ -1957,8 +2055,7 @@ static int ast2600_espi_probe(struct platform_device *pdev)
 		goto err_remove_flash;
 	}
 
-	reg = readl(espi->regs + ESPI_INT_EN) | ESPI_INT_EN_RST_DEASSERT;
-	writel(reg, espi->regs + ESPI_INT_EN);
+	writel(ESPI_INT_EN_RST_DEASSERT, espi->regs + ESPI_INT_EN);
 
 	dev_set_drvdata(dev, espi);
 
@@ -1987,6 +2084,8 @@ static int ast2600_espi_remove(struct platform_device *pdev)
 	dev = &pdev->dev;
 
 	espi = (struct ast2600_espi *)dev_get_drvdata(dev);
+
+	writel(ESPI_INT_EN_RST_DEASSERT, espi->regs + ESPI_INT_EN_CLR);
 
 	rc = ast2600_espi_perif_remove(espi);
 	if (rc)

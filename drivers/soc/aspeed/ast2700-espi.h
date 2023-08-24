@@ -42,6 +42,10 @@
 
 /* peripheral channel (ch0) registers */
 #define ESPI_CH0_CTRL			0x100
+#define   ESPI_CH0_CTRL_NP_TX_RST	BIT(31)
+#define   ESPI_CH0_CTRL_NP_RX_RST	BIT(30)
+#define   ESPI_CH0_CTRL_PC_TX_RST	BIT(29)
+#define   ESPI_CH0_CTRL_PC_RX_RST	BIT(28)
 #define   ESPI_CH0_CTRL_NP_TX_DMA_EN	BIT(19)
 #define   ESPI_CH0_CTRL_PC_TX_DMA_EN	BIT(17)
 #define   ESPI_CH0_CTRL_PC_RX_DMA_EN	BIT(16)
@@ -127,6 +131,7 @@
 
 /* out-of-band channel (ch2) registers */
 #define ESPI_CH2_CTRL			0x300
+#define   ESPI_CH2_CTRL_TX_RST		BIT(31)
 #define   ESPI_CH2_CTRL_RX_RST		BIT(30)
 #define   ESPI_CH2_CTRL_TX_DMA_EN	BIT(17)
 #define   ESPI_CH2_CTRL_RX_DMA_EN	BIT(16)
@@ -169,6 +174,8 @@
 
 /* flash channel (ch3) registers */
 #define ESPI_CH3_CTRL			0x400
+#define   ESPI_CH3_CTRL_TX_RST		BIT(31)
+#define   ESPI_CH3_CTRL_RX_RST		BIT(30)
 #define   ESPI_CH3_CTRL_TX_DMA_EN	BIT(17)
 #define   ESPI_CH3_CTRL_RX_DMA_EN	BIT(16)
 #define   ESPI_CH3_CTRL_EDAF_MODE	GENMASK(9, 8)
