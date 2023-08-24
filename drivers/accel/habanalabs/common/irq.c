@@ -259,8 +259,6 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 	dev_dbg(hdev->dev, "Irq handle: Timestamp record (%p) ts cb address (%p), interrupt_id: %u\n",
 			pend, pend->ts_reg_info.timestamp_kernel_addr, interrupt_id);
 
-	/* Mark kernel CB node as free */
-	pend->ts_reg_info.in_use = false;
 	list_del(&pend->wait_list_node);
 
 	/* Putting the refcount for ts_buff and cq_cb objects will be handled
@@ -269,6 +267,9 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 	free_node->buf = pend->ts_reg_info.buf;
 	free_node->cq_cb = pend->ts_reg_info.cq_cb;
 	list_add(&free_node->free_objects_node, *free_list);
+
+	/* Mark TS record as free */
+	pend->ts_reg_info.in_use = false;
 
 	return 0;
 }
