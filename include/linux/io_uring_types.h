@@ -211,20 +211,11 @@ struct io_ring_ctx {
 		unsigned int		drain_disabled: 1;
 		unsigned int		compat: 1;
 
+		struct task_struct	*submitter_task;
+		struct io_rings		*rings;
+		struct percpu_ref	refs;
+
 		enum task_work_notify_mode	notify_method;
-
-		/*
-		 * If IORING_SETUP_NO_MMAP is used, then the below holds
-		 * the gup'ed pages for the two rings, and the sqes.
-		 */
-		unsigned short		n_ring_pages;
-		unsigned short		n_sqe_pages;
-		struct page		**ring_pages;
-		struct page		**sqe_pages;
-
-		struct io_rings			*rings;
-		struct task_struct		*submitter_task;
-		struct percpu_ref		refs;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -262,10 +253,8 @@ struct io_ring_ctx {
 
 		struct io_buffer_list	*io_bl;
 		struct xarray		io_bl_xa;
-		struct list_head	io_buffers_cache;
 
 		struct io_hash_table	cancel_table_locked;
-		struct list_head	cq_overflow_list;
 		struct io_alloc_cache	apoll_cache;
 		struct io_alloc_cache	netmsg_cache;
 	} ____cacheline_aligned_in_smp;
@@ -298,11 +287,8 @@ struct io_ring_ctx {
 		 * manipulate the list, hence no extra locking is needed there.
 		 */
 		struct io_wq_work_list	iopoll_list;
-		struct io_hash_table	cancel_table;
 
 		struct llist_head	work_llist;
-
-		struct list_head	io_buffers_comp;
 	} ____cacheline_aligned_in_smp;
 
 	/* timeouts */
@@ -318,6 +304,10 @@ struct io_ring_ctx {
 	struct io_wq_work_list	locked_free_list;
 	unsigned int		locked_free_nr;
 
+	struct list_head	io_buffers_comp;
+	struct list_head	cq_overflow_list;
+	struct io_hash_table	cancel_table;
+
 	const struct cred	*sq_creds;	/* cred used for __io_sq_thread() */
 	struct io_sq_data	*sq_data;	/* if using sq thread polling */
 
@@ -331,6 +321,8 @@ struct io_ring_ctx {
 
 	struct xarray		personalities;
 	u32			pers_next;
+
+	struct list_head	io_buffers_cache;
 
 	/* Keep this last, we don't need it for the fast path */
 	struct wait_queue_head		poll_wq;
@@ -375,6 +367,15 @@ struct io_ring_ctx {
 	unsigned			sq_thread_idle;
 	/* protected by ->completion_lock */
 	unsigned			evfd_last_cq_tail;
+
+	/*
+	 * If IORING_SETUP_NO_MMAP is used, then the below holds
+	 * the gup'ed pages for the two rings, and the sqes.
+	 */
+	unsigned short			n_ring_pages;
+	unsigned short			n_sqe_pages;
+	struct page			**ring_pages;
+	struct page			**sqe_pages;
 };
 
 struct io_tw_state {
