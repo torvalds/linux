@@ -615,7 +615,7 @@ class Struct:
 
         self.attr_list = []
         self.attrs = dict()
-        if type_list:
+        if type_list is not None:
             for t in type_list:
                 self.attr_list.append((t, self.attr_set[t]),)
         else:
@@ -1543,7 +1543,14 @@ def parse_rsp_msg(ri, deref=False):
 
     ri.cw.write_func_prot('int', f'{op_prefix(ri, "reply", deref=deref)}_parse', func_args)
 
-    _multi_parse(ri, ri.struct["reply"], init_lines, local_vars)
+    if ri.struct["reply"].member_list():
+        _multi_parse(ri, ri.struct["reply"], init_lines, local_vars)
+    else:
+        # Empty reply
+        ri.cw.block_start()
+        ri.cw.p('return MNL_CB_OK;')
+        ri.cw.block_end()
+        ri.cw.nl()
 
 
 def print_req(ri):
