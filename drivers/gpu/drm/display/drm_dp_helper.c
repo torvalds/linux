@@ -2449,12 +2449,16 @@ int drm_dp_dsc_sink_supported_input_bpcs(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_S
 	int num_bpc = 0;
 	u8 color_depth = dsc_dpcd[DP_DSC_DEC_COLOR_DEPTH_CAP - DP_DSC_SUPPORT];
 
+	if (!drm_dp_sink_supports_dsc(dsc_dpcd))
+		return 0;
+
 	if (color_depth & DP_DSC_12_BPC)
 		dsc_bpc[num_bpc++] = 12;
 	if (color_depth & DP_DSC_10_BPC)
 		dsc_bpc[num_bpc++] = 10;
-	if (color_depth & DP_DSC_8_BPC)
-		dsc_bpc[num_bpc++] = 8;
+
+	/* A DP DSC Sink device shall support 8 bpc. */
+	dsc_bpc[num_bpc++] = 8;
 
 	return num_bpc;
 }
