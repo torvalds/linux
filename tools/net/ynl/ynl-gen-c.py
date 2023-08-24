@@ -428,6 +428,7 @@ class TypeBinary(Type):
 
     def _setter_lines(self, ri, member, presence):
         return [f"free({member});",
+                f"{presence}_len = len;",
                 f"{member} = malloc({presence}_len);",
                 f'memcpy({member}, {self.c_name}, {presence}_len);']
 
