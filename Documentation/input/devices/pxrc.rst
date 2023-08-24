@@ -5,7 +5,7 @@ pxrc - PhoenixRC Flight Controller Adapter
 :Author: Marcus Folkesson <marcus.folkesson@gmail.com>
 
 This driver let you use your own RC controller plugged into the
-adapter that comes with PhoenixRC [1]_ or other compatible adapters.
+adapter that comes with PhoenixRC or other compatible adapters.
 
 The adapter supports 7 analog channels and 1 digital input switch.
 
@@ -41,7 +41,7 @@ Manual Testing
 ==============
 
 To test this driver's functionality you may use `input-event` which is part of
-the `input layer utilities` suite [2]_.
+the `input layer utilities` suite [1]_.
 
 For example::
 
@@ -53,5 +53,4 @@ To print all input events from input `devnr`.
 References
 ==========
 
-.. [1] http://www.phoenix-sim.com/
-.. [2] https://www.kraxel.org/cgit/input/
+.. [1] https://www.kraxel.org/cgit/input/
