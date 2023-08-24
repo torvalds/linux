@@ -145,10 +145,11 @@ static inline bool io_fill_cqe_req(struct io_ring_ctx *ctx, struct io_kiocb *req
 	if (unlikely(!cqe))
 		return false;
 
-	trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
-				req->cqe.res, req->cqe.flags,
-				(req->flags & REQ_F_CQE32_INIT) ? req->extra1 : 0,
-				(req->flags & REQ_F_CQE32_INIT) ? req->extra2 : 0);
+	if (trace_io_uring_complete_enabled())
+		trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
+					req->cqe.res, req->cqe.flags,
+					(req->flags & REQ_F_CQE32_INIT) ? req->extra1 : 0,
+					(req->flags & REQ_F_CQE32_INIT) ? req->extra2 : 0);
 
 	memcpy(cqe, &req->cqe, sizeof(*cqe));
 
