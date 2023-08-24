@@ -32,6 +32,8 @@ enum efx_encap_type efx_tc_indr_netdev_type(struct net_device *net_dev)
 }
 
 #define EFX_TC_HDR_TYPE_TTL_MASK ((u32)0xff)
+/* Hoplimit is stored in the most significant byte in the pedit ipv6 header action */
+#define EFX_TC_HDR_TYPE_HLIMIT_MASK ~((u32)0xff000000)
 #define EFX_EFV_PF	NULL
 /* Look up the representor information (efv) for a device.
  * May return NULL for the PF (us), or an error pointer for a device that
@@ -1190,6 +1192,63 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			return -EOPNOTSUPP;
 		}
 		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
+		switch (fa->mangle.offset) {
+		case round_down(offsetof(struct ipv6hdr, hop_limit), 4):
+			/* we currently only support pedit IP6 when it applies
+			 * to the hoplimit and then only when it can be achieved
+			 * with a decrement hoplimit action
+			 */
+
+			/* check that pedit applies to ttl only */
+			if (fa->mangle.mask != EFX_TC_HDR_TYPE_HLIMIT_MASK) {
+				NL_SET_ERR_MSG_FMT_MOD(extack,
+						       "Unsupported: mask (%#x) out of range, only support mangle action on ipv6.hop_limit",
+						       fa->mangle.mask);
+
+				return -EOPNOTSUPP;
+			}
+
+			/* we can only convert to a dec ttl when we have an
+			 * exact match on the ttl field
+			 */
+			if (match->mask.ip_ttl != U8_MAX) {
+				NL_SET_ERR_MSG_FMT_MOD(extack,
+						       "Unsupported: only support mangle ipv6.hop_limit when we have an exact match on ttl, mask used for match (%#x)",
+						       match->mask.ip_ttl);
+				return -EOPNOTSUPP;
+			}
+
+			/* check that we don't try to decrement 0, which equates
+			 * to setting the ttl to 0xff
+			 */
+			if (match->value.ip_ttl == 0) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Unsupported: we cannot decrement hop_limit past 0");
+				return -EOPNOTSUPP;
+			}
+
+			/* check that we do not decrement hoplimit twice */
+			if (!efx_tc_flower_action_order_ok(act,
+							   EFX_TC_AO_DEC_TTL)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Unsupported: multiple dec ttl");
+				return -EOPNOTSUPP;
+			}
+
+			/* check pedit can be achieved with decrement action */
+			tr_ttl = match->value.ip_ttl - 1;
+			if ((fa->mangle.val >> 24) == tr_ttl) {
+				act->do_ttl_dec = 1;
+				return 0;
+			}
+
+			fallthrough;
+		default:
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Unsupported: only support mangle on the hop_limit field");
+			return -EOPNOTSUPP;
+		}
 	default:
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled mangle htype %u for action rule",
 				       fa->mangle.htype);
