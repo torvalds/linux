@@ -115,6 +115,8 @@ struct perf_pmu_format {
 	bool loaded;
 };
 
+static int pmu_aliases_parse(struct perf_pmu *pmu);
+
 static struct perf_pmu_format *perf_pmu__new_format(struct list_head *list, char *name)
 {
 	struct perf_pmu_format *format;
@@ -420,9 +422,14 @@ static void perf_pmu__del_aliases(struct perf_pmu *pmu)
 	}
 }
 
-static struct perf_pmu_alias *perf_pmu__find_alias(const struct perf_pmu *pmu, const char *name)
+static struct perf_pmu_alias *perf_pmu__find_alias(struct perf_pmu *pmu,
+						   const char *name,
+						   bool load)
 {
 	struct perf_pmu_alias *alias;
+
+	if (load && !pmu->sysfs_aliases_loaded)
+		pmu_aliases_parse(pmu);
 
 	list_for_each_entry(alias, &pmu->aliases, list) {
 		if (!strcasecmp(alias->name, name))
@@ -505,7 +512,7 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 	const char *long_desc = NULL, *topic = NULL, *unit = NULL, *pmu_name = NULL;
 	bool deprecated = false, perpkg = false;
 
-	if (perf_pmu__find_alias(pmu, name)) {
+	if (perf_pmu__find_alias(pmu, name, /*load=*/ false)) {
 		/* Alias was already created/loaded. */
 		return 0;
 	}
@@ -611,18 +618,33 @@ static inline bool pmu_alias_info_file(char *name)
 }
 
 /*
- * Process all the sysfs attributes located under the directory
- * specified in 'dir' parameter.
+ * Reading the pmu event aliases definition, which should be located at:
+ * /sys/bus/event_source/devices/<dev>/events as sysfs group attributes.
  */
-static int pmu_aliases_parse(struct perf_pmu *pmu, int dirfd)
+static int pmu_aliases_parse(struct perf_pmu *pmu)
 {
+	char path[PATH_MAX];
 	struct dirent *evt_ent;
 	DIR *event_dir;
-	int fd;
+	size_t len;
+	int fd, dir_fd;
 
-	event_dir = fdopendir(dirfd);
-	if (!event_dir)
+	len = perf_pmu__event_source_devices_scnprintf(path, sizeof(path));
+	if (!len)
+		return 0;
+	scnprintf(path + len, sizeof(path) - len, "%s/events", pmu->name);
+
+	dir_fd = open(path, O_DIRECTORY);
+	if (dir_fd == -1) {
+		pmu->sysfs_aliases_loaded = true;
+		return 0;
+	}
+
+	event_dir = fdopendir(dir_fd);
+	if (!event_dir){
+		close (dir_fd);
 		return -EINVAL;
+	}
 
 	while ((evt_ent = readdir(event_dir))) {
 		char *name = evt_ent->d_name;
@@ -637,7 +659,7 @@ static int pmu_aliases_parse(struct perf_pmu *pmu, int dirfd)
 		if (pmu_alias_info_file(name))
 			continue;
 
-		fd = openat(dirfd, name, O_RDONLY);
+		fd = openat(dir_fd, name, O_RDONLY);
 		if (fd == -1) {
 			pr_debug("Cannot open %s\n", name);
 			continue;
@@ -655,25 +677,8 @@ static int pmu_aliases_parse(struct perf_pmu *pmu, int dirfd)
 	}
 
 	closedir(event_dir);
-	return 0;
-}
-
-/*
- * Reading the pmu event aliases definition, which should be located at:
- * /sys/bus/event_source/devices/<dev>/events as sysfs group attributes.
- */
-static int pmu_aliases(struct perf_pmu *pmu, int dirfd, const char *name)
-{
-	int fd;
-
-	fd = perf_pmu__pathname_fd(dirfd, name, "events", O_DIRECTORY);
-	if (fd < 0)
-		return 0;
-
-	/* it'll close the fd */
-	if (pmu_aliases_parse(pmu, fd))
-		return -1;
-
+	close (dir_fd);
+	pmu->sysfs_aliases_loaded = true;
 	return 0;
 }
 
@@ -1014,13 +1019,6 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 	 * now.
 	 */
 	if (pmu_format(pmu, dirfd, name)) {
-		free(pmu);
-		return NULL;
-	}
-	/*
-	 * Check the aliases first to avoid unnecessary work.
-	 */
-	if (pmu_aliases(pmu, dirfd, name)) {
 		free(pmu);
 		return NULL;
 	}
@@ -1438,7 +1436,7 @@ static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 		return NULL;
 	}
 
-	alias = perf_pmu__find_alias(pmu, name);
+	alias = perf_pmu__find_alias(pmu, name, /*load=*/ true);
 	if (alias || pmu->cpu_aliases_added)
 		return alias;
 
@@ -1447,7 +1445,7 @@ static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 	    pmu_events_table__find_event(pmu->events_table, pmu, name,
 				         pmu_add_cpu_aliases_map_callback,
 				         pmu) == 0) {
-		alias = perf_pmu__find_alias(pmu, name);
+		alias = perf_pmu__find_alias(pmu, name, /*load=*/ false);
 	}
 	return alias;
 }
@@ -1620,7 +1618,7 @@ bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu)
 
 bool perf_pmu__have_event(struct perf_pmu *pmu, const char *name)
 {
-	if (perf_pmu__find_alias(pmu, name) != NULL)
+	if (perf_pmu__find_alias(pmu, name, /*load=*/ true) != NULL)
 		return true;
 	if (pmu->cpu_aliases_added || !pmu->events_table)
 		return false;
@@ -1629,7 +1627,12 @@ bool perf_pmu__have_event(struct perf_pmu *pmu, const char *name)
 
 size_t perf_pmu__num_events(struct perf_pmu *pmu)
 {
-	size_t nr = pmu->sysfs_aliases;
+	size_t nr;
+
+	if (!pmu->sysfs_aliases_loaded)
+		pmu_aliases_parse(pmu);
+
+	nr = pmu->sysfs_aliases;
 
 	if (pmu->cpu_aliases_added)
 		 nr += pmu->loaded_json_aliases;

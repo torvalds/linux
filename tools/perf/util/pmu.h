@@ -122,6 +122,8 @@ struct perf_pmu {
 	uint32_t sysfs_aliases;
 	/** @sysfs_aliases: Number of json event aliases loaded. */
 	uint32_t loaded_json_aliases;
+	/** @sysfs_aliases_loaded: Are sysfs aliases loaded from disk? */
+	bool sysfs_aliases_loaded;
 	/**
 	 * @cpu_aliases_added: Have all json events table entries for the PMU
 	 * been added?
