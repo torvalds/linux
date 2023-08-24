@@ -332,6 +332,7 @@ enum stmmac_state {
 	STMMAC_SERVICE_SCHED,
 };
 
+extern bool phy_intr_en;
 int stmmac_mdio_unregister(struct net_device *ndev);
 int stmmac_mdio_register(struct net_device *ndev);
 int stmmac_mdio_reset(struct mii_bus *mii);

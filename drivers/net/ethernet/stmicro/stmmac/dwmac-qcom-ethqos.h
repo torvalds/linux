@@ -37,6 +37,11 @@ struct qcom_ethqos {
 	struct clk *rgmii_clk;
 	unsigned int speed;
 
+	int gpio_phy_intr_redirect;
+	u32 phy_intr;
+	/* Work struct for handling phy interrupt */
+	struct work_struct emac_phy_work;
+
 	const struct ethqos_emac_por *por;
 	unsigned int num_por;
 	unsigned int emac_ver;
@@ -49,4 +54,6 @@ struct qcom_ethqos {
 
 int ethqos_init_reqgulators(struct qcom_ethqos *ethqos);
 void ethqos_disable_regulators(struct qcom_ethqos *ethqos);
+int ethqos_init_gpio(struct qcom_ethqos *ethqos);
+void ethqos_free_gpios(struct qcom_ethqos *ethqos);
 #endif

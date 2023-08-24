@@ -1165,7 +1165,19 @@ static int stmmac_init_phy(struct net_device *dev)
 			netdev_err(priv->dev, "no phy at addr %d\n", addr);
 			return -ENODEV;
 		}
+		if (phy_intr_en) {
+			phydev->irq = PHY_MAC_INTERRUPT;
+			phydev->interrupts =  PHY_INTERRUPT_ENABLED;
 
+			if (phydev->drv && phydev->drv->config_intr &&
+			    !phydev->drv->config_intr(phydev)) {
+				pr_debug(" qcom-ethqos: %s config_phy_intr successful\n",
+					 __func__);
+		}
+	} else {
+		pr_err("stmmac phy polling mode\n");
+		phydev->irq = PHY_POLL;
+	}
 		ret = phylink_connect_phy(priv->phylink, phydev);
 	} else {
 		fwnode_handle_put(phy_fwnode);
