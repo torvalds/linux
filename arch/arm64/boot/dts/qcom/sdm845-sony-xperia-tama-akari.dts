@@ -16,6 +16,23 @@
 	compatible = "sony,td4353-jdi-tama";
 };
 
+&pmi8998_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "NC",
+			  "NC",
+			  "",
+			  "NC",
+			  "NC",
+			  "",
+			  "WLC_EN_N",
+			  "NC",
+			  "NC", /* GPIO_10 */
+			  "RSVD(WLC_EN_N)",
+			  "CAM_IO_EN",
+			  "",
+			  "NC";
+};
+
 &tlmm {
 	gpio-line-names = "NC", /* GPIO_0 */
 			  "NC",

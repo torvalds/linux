@@ -524,7 +524,41 @@
 	status = "okay";
 };
 
+&pm8005_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "NC",
+			  "",
+			  "";
+};
+
 &pm8998_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "FOCUS_N",
+			  "",
+			  "NC",
+			  "VOL_DOWN_N",
+			  "VOL_UP_N",
+			  "SNAPSHOT_N",
+			  "NC",
+			  "FLASH_THERM",
+			  "NC", /* GPIO_10 */
+			  "LCD_ID",
+			  "RF_ID",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "", /* GPIO_20 */
+			  "NFC_CLK_REQ",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "";
+
 	focus_n: focus-n-state {
 		pins = "gpio2";
 		function = PMIC_GPIO_FUNC_NORMAL;

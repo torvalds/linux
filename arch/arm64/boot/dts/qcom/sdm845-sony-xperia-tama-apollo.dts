@@ -18,6 +18,23 @@
 	width-mm = <56>;
 };
 
+&pmi8998_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "NC",
+			  "NC",
+			  "",
+			  "VIB_LDO_EN",
+			  "NC",
+			  "",
+			  "NC",
+			  "NC",
+			  "NC", /* GPIO_10 */
+			  "NC",
+			  "CAM_IO_EN",
+			  "",
+			  "NC";
+};
+
 &tlmm {
 	gpio-line-names = "NC", /* GPIO_0 */
 			  "NC",

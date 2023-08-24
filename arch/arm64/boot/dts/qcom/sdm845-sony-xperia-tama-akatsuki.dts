@@ -44,6 +44,23 @@
 	/delete-property/ touch-reset-gpios;
 };
 
+&pmi8998_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "NC",
+			  "NC",
+			  "",
+			  "NC",
+			  "NC",
+			  "",
+			  "WLC_EN_N",
+			  "NC",
+			  "NC", /* GPIO_10 */
+			  "NC",
+			  "CAM_IO_EN",
+			  "",
+			  "NC";
+};
+
 &pmi8998_wled {
 	status = "disabled";
 };
