@@ -270,24 +270,6 @@ struct io_ring_ctx {
 		struct io_alloc_cache	netmsg_cache;
 	} ____cacheline_aligned_in_smp;
 
-	/* IRQ completion list, under ->completion_lock */
-	struct io_wq_work_list	locked_free_list;
-	unsigned int		locked_free_nr;
-
-	const struct cred	*sq_creds;	/* cred used for __io_sq_thread() */
-	struct io_sq_data	*sq_data;	/* if using sq thread polling */
-
-	struct wait_queue_head	sqo_sq_wait;
-	struct list_head	sqd_list;
-
-	unsigned long		check_cq;
-
-	unsigned int		file_alloc_start;
-	unsigned int		file_alloc_end;
-
-	struct xarray		personalities;
-	u32			pers_next;
-
 	struct {
 		/*
 		 * We cache a range of free CQEs we can use, once exhausted it
@@ -331,6 +313,24 @@ struct io_ring_ctx {
 		struct list_head	ltimeout_list;
 		unsigned		cq_last_tm_flush;
 	} ____cacheline_aligned_in_smp;
+
+	/* IRQ completion list, under ->completion_lock */
+	struct io_wq_work_list	locked_free_list;
+	unsigned int		locked_free_nr;
+
+	const struct cred	*sq_creds;	/* cred used for __io_sq_thread() */
+	struct io_sq_data	*sq_data;	/* if using sq thread polling */
+
+	struct wait_queue_head	sqo_sq_wait;
+	struct list_head	sqd_list;
+
+	unsigned long		check_cq;
+
+	unsigned int		file_alloc_start;
+	unsigned int		file_alloc_end;
+
+	struct xarray		personalities;
+	u32			pers_next;
 
 	/* Keep this last, we don't need it for the fast path */
 	struct wait_queue_head		poll_wq;
