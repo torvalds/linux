@@ -5094,13 +5094,6 @@ static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, int mac_id,
 
 	mon_dst_srng = &ar->ab->hal.srng_list[ring_id];
 
-	if (!mon_dst_srng) {
-		ath11k_warn(ar->ab,
-			    "HAL Monitor Destination Ring Init Failed -- %p",
-			    mon_dst_srng);
-		return;
-	}
-
 	spin_lock_bh(&pmon->mon_lock);
 
 	ath11k_hal_srng_access_begin(ar->ab, mon_dst_srng);
