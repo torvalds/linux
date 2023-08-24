@@ -5,6 +5,8 @@
 
 #include "xe_guc.h"
 
+#include <drm/drm_managed.h>
+
 #include "generated/xe_wa_oob.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_guc_regs.h"
@@ -20,6 +22,7 @@
 #include "xe_guc_submit.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
+#include "xe_uc.h"
 #include "xe_uc_fw.h"
 #include "xe_wa.h"
 #include "xe_wopcm.h"
@@ -217,6 +220,16 @@ static void guc_write_params(struct xe_guc *guc)
 		xe_mmio_write32(gt, SOFT_SCRATCH(1 + i), guc->params[i]);
 }
 
+static void guc_fini(struct drm_device *drm, void *arg)
+{
+	struct xe_guc *guc = arg;
+
+	xe_force_wake_get(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL);
+	xe_guc_pc_fini(&guc->pc);
+	xe_uc_fini_hw(&guc_to_gt(guc)->uc);
+	xe_force_wake_put(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL);
+}
+
 int xe_guc_init(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
@@ -241,6 +254,10 @@ int xe_guc_init(struct xe_guc *guc)
 		goto out;
 
 	ret = xe_guc_pc_init(&guc->pc);
+	if (ret)
+		goto out;
+
+	ret = drmm_add_action_or_reset(&gt_to_xe(gt)->drm, guc_fini, guc);
 	if (ret)
 		goto out;
 

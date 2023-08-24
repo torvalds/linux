@@ -884,10 +884,8 @@ out:
 	return ret;
 }
 
-static void pc_fini(struct drm_device *drm, void *arg)
+void xe_guc_pc_fini(struct xe_guc_pc *pc)
 {
-	struct xe_guc_pc *pc = arg;
-
 	XE_WARN_ON(xe_guc_pc_gucrc_disable(pc));
 	XE_WARN_ON(xe_guc_pc_stop(pc));
 	sysfs_remove_files(pc_to_gt(pc)->sysfs, pc_attrs);
@@ -922,10 +920,6 @@ int xe_guc_pc_init(struct xe_guc_pc *pc)
 	pc_init_fused_rp_values(pc);
 
 	err = sysfs_create_files(gt->sysfs, pc_attrs);
-	if (err)
-		return err;
-
-	err = drmm_add_action_or_reset(&xe->drm, pc_fini, pc);
 	if (err)
 		return err;
 

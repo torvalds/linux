@@ -167,6 +167,11 @@ int xe_uc_init_hw(struct xe_uc *uc)
 	return 0;
 }
 
+int xe_uc_fini_hw(struct xe_uc *uc)
+{
+	return xe_uc_sanitize_reset(uc);
+}
+
 int xe_uc_reset_prepare(struct xe_uc *uc)
 {
 	/* GuC submission not enabled, nothing to do */
