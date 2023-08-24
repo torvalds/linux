@@ -50,6 +50,12 @@
 			no-map;
 		};
 
+		video_engine_memory: video {
+			size = <0x0 0x04000000>;
+			alignment = <0x0 0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
 	};
 };
 
@@ -296,3 +302,13 @@
 };
 
 #endif
+
+&video0 {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+
+&video1 {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
