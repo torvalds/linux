@@ -546,6 +546,11 @@ static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 
 	pmu_add_cpu_aliases_table(pmu, table);
 
+	res = pmu_events_table__find_event(table, pmu, "bp_l1_btb_correct", NULL, NULL);
+	if (res != 0) {
+		pr_debug("Missing test event in test architecture");
+		return res;
+	}
 	for (; *test_event_table; test_event_table++) {
 		struct perf_pmu_test_event test_event = **test_event_table;
 		struct pmu_event const *event = &test_event.event;
