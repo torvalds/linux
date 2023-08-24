@@ -436,7 +436,7 @@ struct amdgpu_ras {
 };
 
 struct ras_fs_data {
-	char sysfs_name[32];
+	char sysfs_name[48];
 	char debugfs_name[32];
 };
 
