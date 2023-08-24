@@ -910,7 +910,7 @@ config ARCH_FORCE_MAX_ORDER
 	default "6" if PPC32 && PPC_64K_PAGES
 	range 4 10 if PPC32 && PPC_256K_PAGES
 	default "4" if PPC32 && PPC_256K_PAGES
-	range 10 10
+	range 10 12
 	default "10"
 	help
 	  The kernel page allocator limits the size of maximal physically
