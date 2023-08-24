@@ -223,6 +223,8 @@ struct phylink_config {
 	unsigned long mac_capabilities;
 };
 
+void phylink_limit_mac_speed(struct phylink_config *config, u32 max_speed);
+
 /**
  * struct phylink_mac_ops - MAC operations structure.
  * @validate: Validate and update the link configuration.
