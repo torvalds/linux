@@ -118,6 +118,15 @@ struct perf_pmu {
 	 * @events_table: The events table for json events in pmu-events.c.
 	 */
 	const struct pmu_events_table *events_table;
+	/** @sysfs_aliases: Number of sysfs aliases loaded. */
+	uint32_t sysfs_aliases;
+	/** @sysfs_aliases: Number of json event aliases loaded. */
+	uint32_t loaded_json_aliases;
+	/**
+	 * @cpu_aliases_added: Have all json events table entries for the PMU
+	 * been added?
+	 */
+	bool cpu_aliases_added;
 	/** @caps_initialized: Has the list caps been initialized? */
 	bool caps_initialized;
 	/** @nr_caps: The length of the list caps. */
@@ -199,9 +208,9 @@ bool perf_pmu__has_format(const struct perf_pmu *pmu, const char *name);
 bool is_pmu_core(const char *name);
 bool perf_pmu__supports_legacy_cache(const struct perf_pmu *pmu);
 bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu);
-bool perf_pmu__have_event(const struct perf_pmu *pmu, const char *name);
-size_t perf_pmu__num_events(const struct perf_pmu *pmu);
-int perf_pmu__for_each_event(const struct perf_pmu *pmu, void *state, pmu_event_callback cb);
+bool perf_pmu__have_event(struct perf_pmu *pmu, const char *name);
+size_t perf_pmu__num_events(struct perf_pmu *pmu);
+int perf_pmu__for_each_event(struct perf_pmu *pmu, void *state, pmu_event_callback cb);
 bool pmu__name_match(const struct perf_pmu *pmu, const char *pmu_name);
 
 /**

@@ -523,8 +523,9 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, int dirfd, const char *name
 	if (!pe) {
 		/* Update an event from sysfs with json data. */
 		if (pmu->events_table) {
-			pmu_events_table__find_event(pmu->events_table, pmu, name,
-						     update_alias, alias);
+			if (pmu_events_table__find_event(pmu->events_table, pmu, name,
+							 update_alias, alias) == 0)
+				pmu->loaded_json_aliases++;
 		}
 	}
 
@@ -548,6 +549,10 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, int dirfd, const char *name
 					 "%s=%s", term->config, term->val.str);
 	}
 	alias->str = strdup(newval);
+	if (!pe)
+		pmu->sysfs_aliases++;
+	else
+		pmu->loaded_json_aliases++;
 	list_add_tail(&alias->list, &pmu->aliases);
 	return 0;
 }
@@ -878,7 +883,11 @@ static void pmu_add_cpu_aliases(struct perf_pmu *pmu)
 	if (!pmu->events_table)
 		return;
 
+	if (pmu->cpu_aliases_added)
+		return;
+
 	pmu_add_cpu_aliases_table(pmu, pmu->events_table);
+	pmu->cpu_aliases_added = true;
 }
 
 static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe,
@@ -990,7 +999,6 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 		pmu->id = pmu_id(name);
 	pmu->max_precise = pmu_max_precise(dirfd, pmu);
 	pmu->events_table = perf_pmu__find_events_table(pmu);
-	pmu_add_cpu_aliases(pmu);
 	pmu_add_sys_aliases(pmu);
 	list_add_tail(&pmu->list, pmus);
 
@@ -1368,6 +1376,7 @@ int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 					     struct parse_events_term *term)
 {
+	struct perf_pmu_alias *alias;
 	char *name;
 
 	if (parse_events__is_hardcoded_term(term))
@@ -1388,7 +1397,18 @@ static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 		return NULL;
 	}
 
-	return perf_pmu__find_alias(pmu, name);
+	alias = perf_pmu__find_alias(pmu, name);
+	if (alias || pmu->cpu_aliases_added)
+		return alias;
+
+	/* Alias doesn't exist, try to get it from the json events. */
+	if (pmu->events_table &&
+	    pmu_events_table__find_event(pmu->events_table, pmu, name,
+				         pmu_add_cpu_aliases_map_callback,
+				         pmu) == 0) {
+		alias = perf_pmu__find_alias(pmu, name);
+	}
+	return alias;
 }
 
 
@@ -1555,18 +1575,23 @@ bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu)
 	return !pmu->is_core || perf_pmus__num_core_pmus() == 1;
 }
 
-bool perf_pmu__have_event(const struct perf_pmu *pmu, const char *name)
+bool perf_pmu__have_event(struct perf_pmu *pmu, const char *name)
 {
-	return perf_pmu__find_alias(pmu, name) != NULL;
+	if (perf_pmu__find_alias(pmu, name) != NULL)
+		return true;
+	if (pmu->cpu_aliases_added || !pmu->events_table)
+		return false;
+	return pmu_events_table__find_event(pmu->events_table, pmu, name, NULL, NULL) == 0;
 }
 
-size_t perf_pmu__num_events(const struct perf_pmu *pmu)
+size_t perf_pmu__num_events(struct perf_pmu *pmu)
 {
-	struct list_head *list;
-	size_t nr = 0;
+	size_t nr = pmu->sysfs_aliases;
 
-	list_for_each(list, &pmu->aliases)
-		nr++;
+	if (pmu->cpu_aliases_added)
+		 nr += pmu->loaded_json_aliases;
+	else if (pmu->events_table)
+		nr += pmu_events_table__num_events(pmu->events_table, pmu) - pmu->loaded_json_aliases;
 
 	return pmu->selectable ? nr + 1 : nr;
 }
@@ -1604,7 +1629,7 @@ static char *format_alias(char *buf, int len, const struct perf_pmu *pmu,
 	return buf;
 }
 
-int perf_pmu__for_each_event(const struct perf_pmu *pmu, void *state, pmu_event_callback cb)
+int perf_pmu__for_each_event(struct perf_pmu *pmu, void *state, pmu_event_callback cb)
 {
 	char buf[1024];
 	struct perf_pmu_alias *event;
@@ -1613,6 +1638,7 @@ int perf_pmu__for_each_event(const struct perf_pmu *pmu, void *state, pmu_event_
 	};
 	int ret = 0;
 
+	pmu_add_cpu_aliases(pmu);
 	list_for_each_entry(event, &pmu->aliases, list) {
 		size_t buf_used;
 
