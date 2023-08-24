@@ -1181,4 +1181,28 @@ static inline bool is_walt_sentinel(void)
 	}									\
 })
 
+static inline void walt_lockdep_assert(int cond, int cpu, struct task_struct *p)
+{
+	if (!cond) {
+		pr_err("LOCKDEP: %pS %ps %ps %ps\n",
+		       __builtin_return_address(0),
+		       __builtin_return_address(1),
+		       __builtin_return_address(2),
+		       __builtin_return_address(3));
+		WALT_BUG(WALT_BUG_WALT, p,
+			 "running_cpu=%d cpu_rq=%d cpu_rq lock not held",
+			 raw_smp_processor_id(), cpu);
+	}
+}
+
+#ifdef CONFIG_LOCKDEP
+#define walt_lockdep_assert_held(l, cpu, p)				\
+	walt_lockdep_assert(lockdep_is_held(l) != LOCK_STATE_NOT_HELD, cpu, p)
+#else
+#define walt_lockdep_assert_held(l, cpu, p) do { (void)(l); } while (0)
+#endif
+
+#define walt_lockdep_assert_rq(rq, p)			\
+	walt_lockdep_assert_held(&rq->__lock, cpu_of(rq), p)
+
 #endif /* _WALT_H */
