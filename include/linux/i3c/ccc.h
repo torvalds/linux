@@ -255,6 +255,33 @@ struct i3c_ccc_setbrgtgt {
 struct i3c_ccc_sethid {
 	u8 hid;
 };
+
+union devctrl_ctrl {
+	u8 value;
+	struct {
+		u8 reg_mod : 1;
+		u8 pec_bl : 2;
+		u8 st_offset : 2;
+		u8 addr_mask : 3;
+	} fields;
+};
+
+/**
+ * struct i3c_ccc_devctrl - payload passed to DEVCTRL CCC
+ *
+ * @ctrl: using to control the format of the following data
+ * @dev_addr: device address
+ * @datax: 0~3 data
+ */
+struct i3c_ccc_devctrl {
+	union devctrl_ctrl ctrl;
+	u8 dev_addr;
+	u8 data0;
+	u8 data1;
+	u8 data2;
+	u8 data3;
+} __packed;
+
 /**
  * enum i3c_sdr_max_data_rate - max data rate values for private SDR transfers
  */

@@ -993,6 +993,35 @@ int i3c_master_defslvs_locked(struct i3c_master_controller *master)
 }
 EXPORT_SYMBOL_GPL(i3c_master_defslvs_locked);
 
+int i3c_master_devctrl_locked(struct i3c_master_controller *master,
+			      union devctrl_ctrl ctrl, u8 dev_id, bool pec_en,
+			      bool parity_dis, bool ibi_clr)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_devctrl *devctrl;
+	struct i3c_ccc_cmd cmd;
+	int ret;
+
+	dev_info(&master->dev, "%s()\n", __func__);
+	devctrl = i3c_ccc_cmd_dest_init(&dest, I3C_BROADCAST_ADDR,
+					sizeof(*devctrl));
+	if (!devctrl)
+		return -ENOMEM;
+
+	devctrl->ctrl.value = ctrl.value;
+	devctrl->dev_addr = dev_id << 1;
+	devctrl->data0 = pec_en << 7 | parity_dis << 6;
+	devctrl->data1 = ibi_clr << 3;
+	devctrl->data2 = 0;
+	devctrl->data3 = 0;
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_DEVCTRL, &dest, 1, false, 0);
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_master_devctrl_locked);
+
 static int i3c_master_setda_locked(struct i3c_master_controller *master,
 				   u8 oldaddr, u8 newaddr, bool setdasa)
 {
