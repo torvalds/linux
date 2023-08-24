@@ -5627,7 +5627,7 @@ int pci_try_reset_function(struct pci_dev *dev)
 EXPORT_SYMBOL_GPL(pci_try_reset_function);
 
 /* Do any devices on or below this bus prevent a bus reset? */
-static bool pci_bus_resetable(struct pci_bus *bus)
+static bool pci_bus_resettable(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
@@ -5637,7 +5637,7 @@ static bool pci_bus_resetable(struct pci_bus *bus)
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (dev->dev_flags & PCI_DEV_FLAGS_NO_BUS_RESET ||
-		    (dev->subordinate && !pci_bus_resetable(dev->subordinate)))
+		    (dev->subordinate && !pci_bus_resettable(dev->subordinate)))
 			return false;
 	}
 
@@ -5695,7 +5695,7 @@ unlock:
 }
 
 /* Do any devices on or below this slot prevent a bus reset? */
-static bool pci_slot_resetable(struct pci_slot *slot)
+static bool pci_slot_resettable(struct pci_slot *slot)
 {
 	struct pci_dev *dev;
 
@@ -5707,7 +5707,7 @@ static bool pci_slot_resetable(struct pci_slot *slot)
 		if (!dev->slot || dev->slot != slot)
 			continue;
 		if (dev->dev_flags & PCI_DEV_FLAGS_NO_BUS_RESET ||
-		    (dev->subordinate && !pci_bus_resetable(dev->subordinate)))
+		    (dev->subordinate && !pci_bus_resettable(dev->subordinate)))
 			return false;
 	}
 
@@ -5843,7 +5843,7 @@ static int pci_slot_reset(struct pci_slot *slot, bool probe)
 {
 	int rc;
 
-	if (!slot || !pci_slot_resetable(slot))
+	if (!slot || !pci_slot_resettable(slot))
 		return -ENOTTY;
 
 	if (!probe)
@@ -5910,7 +5910,7 @@ static int pci_bus_reset(struct pci_bus *bus, bool probe)
 {
 	int ret;
 
-	if (!bus->self || !pci_bus_resetable(bus))
+	if (!bus->self || !pci_bus_resettable(bus))
 		return -ENOTTY;
 
 	if (probe)
