@@ -52,7 +52,7 @@ static int hyperv_init_ghcb(void)
 	void *ghcb_va;
 	void **ghcb_base;
 
-	if (!hv_isolation_type_snp())
+	if (!ms_hyperv.paravisor_present || !hv_isolation_type_snp())
 		return 0;
 
 	if (!hv_ghcb_pg)
@@ -117,7 +117,7 @@ static int hv_cpu_init(unsigned int cpu)
 			 * is blocked to run in Confidential VM. So only decrypt assist
 			 * page in non-root partition here.
 			 */
-			if (*hvp && hv_isolation_type_en_snp()) {
+			if (*hvp && !ms_hyperv.paravisor_present && hv_isolation_type_snp()) {
 				WARN_ON_ONCE(set_memory_decrypted((unsigned long)(*hvp), 1));
 				memset(*hvp, 0, PAGE_SIZE);
 			}
@@ -460,7 +460,7 @@ void __init hyperv_init(void)
 			goto common_free;
 	}
 
-	if (hv_isolation_type_snp()) {
+	if (ms_hyperv.paravisor_present && hv_isolation_type_snp()) {
 		/* Negotiate GHCB Version. */
 		if (!hv_ghcb_negotiate_protocol())
 			hv_ghcb_terminate(SEV_TERM_SET_GEN,
@@ -583,7 +583,7 @@ skip_hypercall_pg_init:
 	hv_query_ext_cap(0);
 
 	/* Find the VTL */
-	if (hv_isolation_type_en_snp())
+	if (!ms_hyperv.paravisor_present && hv_isolation_type_snp())
 		ms_hyperv.vtl = get_vtl();
 
 	return;

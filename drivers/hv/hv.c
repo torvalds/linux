@@ -164,7 +164,7 @@ int hv_synic_alloc(void)
 		}
 
 		if (!ms_hyperv.paravisor_present &&
-		    (hv_isolation_type_en_snp() || hv_isolation_type_tdx())) {
+		    (hv_isolation_type_snp() || hv_isolation_type_tdx())) {
 			ret = set_memory_decrypted((unsigned long)
 				hv_cpu->synic_message_page, 1);
 			if (ret) {
@@ -225,7 +225,7 @@ void hv_synic_free(void)
 		}
 
 		if (!ms_hyperv.paravisor_present &&
-		    (hv_isolation_type_en_snp() || hv_isolation_type_tdx())) {
+		    (hv_isolation_type_snp() || hv_isolation_type_tdx())) {
 			if (hv_cpu->synic_message_page) {
 				ret = set_memory_encrypted((unsigned long)
 					hv_cpu->synic_message_page, 1);

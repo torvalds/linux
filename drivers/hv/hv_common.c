@@ -383,7 +383,7 @@ int hv_common_cpu_init(unsigned int cpu)
 		}
 
 		if (!ms_hyperv.paravisor_present &&
-		    (hv_isolation_type_en_snp() || hv_isolation_type_tdx())) {
+		    (hv_isolation_type_snp() || hv_isolation_type_tdx())) {
 			ret = set_memory_decrypted((unsigned long)mem, pgcount);
 			if (ret) {
 				/* It may be unsafe to free 'mem' */
@@ -531,12 +531,6 @@ bool __weak hv_isolation_type_snp(void)
 	return false;
 }
 EXPORT_SYMBOL_GPL(hv_isolation_type_snp);
-
-bool __weak hv_isolation_type_en_snp(void)
-{
-	return false;
-}
-EXPORT_SYMBOL_GPL(hv_isolation_type_en_snp);
 
 bool __weak hv_isolation_type_tdx(void)
 {

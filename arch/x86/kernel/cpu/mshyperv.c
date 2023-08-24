@@ -304,7 +304,7 @@ static void __init hv_smp_prepare_cpus(unsigned int max_cpus)
 	 *  Override wakeup_secondary_cpu_64 callback for SEV-SNP
 	 *  enlightened guest.
 	 */
-	if (hv_isolation_type_en_snp()) {
+	if (!ms_hyperv.paravisor_present && hv_isolation_type_snp()) {
 		apic->wakeup_secondary_cpu_64 = hv_snp_boot_ap;
 		return;
 	}
@@ -440,10 +440,7 @@ static void __init ms_hyperv_init_platform(void)
 
 
 		if (hv_get_isolation_type() == HV_ISOLATION_TYPE_SNP) {
-			if (ms_hyperv.paravisor_present)
-				static_branch_enable(&isolation_type_snp);
-			else
-				static_branch_enable(&isolation_type_en_snp);
+			static_branch_enable(&isolation_type_snp);
 		} else if (hv_get_isolation_type() == HV_ISOLATION_TYPE_TDX) {
 			static_branch_enable(&isolation_type_tdx);
 
@@ -556,7 +553,8 @@ static void __init ms_hyperv_init_platform(void)
 
 # ifdef CONFIG_SMP
 	smp_ops.smp_prepare_boot_cpu = hv_smp_prepare_boot_cpu;
-	if (hv_root_partition || hv_isolation_type_en_snp())
+	if (hv_root_partition ||
+	    (!ms_hyperv.paravisor_present && hv_isolation_type_snp()))
 		smp_ops.smp_prepare_cpus = hv_smp_prepare_cpus;
 # endif
 
