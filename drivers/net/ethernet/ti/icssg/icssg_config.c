@@ -210,6 +210,10 @@ void icssg_config_ipg(struct prueth_emac *emac)
 	case SPEED_100:
 		icssg_mii_update_ipg(prueth->mii_rt, slice, MII_RT_TX_IPG_100M);
 		break;
+	case SPEED_10:
+		/* IPG for 10M is same as 100M */
+		icssg_mii_update_ipg(prueth->mii_rt, slice, MII_RT_TX_IPG_100M);
+		break;
 	default:
 		/* Other links speeds not supported */
 		netdev_err(emac->ndev, "Unsupported link speed\n");
@@ -439,6 +443,9 @@ void icssg_config_set_speed(struct prueth_emac *emac)
 		break;
 	case SPEED_100:
 		fw_speed = FW_LINK_SPEED_100M;
+		break;
+	case SPEED_10:
+		fw_speed = FW_LINK_SPEED_10M;
 		break;
 	default:
 		/* Other links speeds not supported */

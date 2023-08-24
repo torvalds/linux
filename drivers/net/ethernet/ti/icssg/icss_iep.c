@@ -727,6 +727,32 @@ void icss_iep_put(struct icss_iep *iep)
 }
 EXPORT_SYMBOL_GPL(icss_iep_put);
 
+void icss_iep_init_fw(struct icss_iep *iep)
+{
+	/* start IEP for FW use in raw 64bit mode, no PTP support */
+	iep->clk_tick_time = iep->def_inc;
+	iep->cycle_time_ns = 0;
+	iep->ops = NULL;
+	iep->clockops_data = NULL;
+	icss_iep_set_default_inc(iep, iep->def_inc);
+	icss_iep_set_compensation_inc(iep, iep->def_inc);
+	icss_iep_set_compensation_count(iep, 0);
+	regmap_write(iep->map, ICSS_IEP_SYNC_PWIDTH_REG, iep->refclk_freq / 10); /* 100 ms pulse */
+	regmap_write(iep->map, ICSS_IEP_SYNC0_PERIOD_REG, 0);
+	if (iep->plat_data->flags & ICSS_IEP_SLOW_COMPEN_REG_SUPPORT)
+		icss_iep_set_slow_compensation_count(iep, 0);
+
+	icss_iep_enable(iep);
+	icss_iep_settime(iep, 0);
+}
+EXPORT_SYMBOL_GPL(icss_iep_init_fw);
+
+void icss_iep_exit_fw(struct icss_iep *iep)
+{
+	icss_iep_disable(iep);
+}
+EXPORT_SYMBOL_GPL(icss_iep_exit_fw);
+
 int icss_iep_init(struct icss_iep *iep, const struct icss_iep_clockops *clkops,
 		  void *clockops_data, u32 cycle_time_ns)
 {

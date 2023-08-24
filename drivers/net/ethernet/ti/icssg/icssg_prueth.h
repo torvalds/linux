@@ -208,6 +208,7 @@ struct prueth_pdata {
  * @icssg_hwcmdseq: seq counter or HWQ messages
  * @emacs_initialized: num of EMACs/ext ports that are up/running
  * @iep0: pointer to IEP0 device
+ * @iep1: pointer to IEP1 device
  */
 struct prueth {
 	struct device *dev;
@@ -231,6 +232,7 @@ struct prueth {
 	u8 icssg_hwcmdseq;
 	int emacs_initialized;
 	struct icss_iep *iep0;
+	struct icss_iep *iep1;
 };
 
 struct emac_tx_ts_response {
