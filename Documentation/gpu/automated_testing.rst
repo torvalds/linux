@@ -52,7 +52,7 @@ IGT_VERSION
 drivers/gpu/drm/ci/testlist.txt
 -------------------------------
 
-IGT tests to be run on all drivers (unless mentioned in a driver's *-skips.txt
+IGT tests to be run on all drivers (unless mentioned in a driver's \*-skips.txt
 file, see below).
 
 drivers/gpu/drm/ci/${DRIVER_NAME}-${HW_REVISION}-fails.txt
