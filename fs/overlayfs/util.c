@@ -1403,6 +1403,7 @@ void ovl_copyattr(struct inode *inode)
 	realinode = ovl_i_path_real(inode, &realpath);
 	real_idmap = mnt_idmap(realpath.mnt);
 
+	spin_lock(&inode->i_lock);
 	vfsuid = i_uid_into_vfsuid(real_idmap, realinode);
 	vfsgid = i_gid_into_vfsgid(real_idmap, realinode);
 
@@ -1413,4 +1414,5 @@ void ovl_copyattr(struct inode *inode)
 	inode_set_mtime_to_ts(inode, inode_get_mtime(realinode));
 	inode_set_ctime_to_ts(inode, inode_get_ctime(realinode));
 	i_size_write(inode, i_size_read(realinode));
+	spin_unlock(&inode->i_lock);
 }
