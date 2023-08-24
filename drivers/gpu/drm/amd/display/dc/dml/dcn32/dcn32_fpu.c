@@ -1441,10 +1441,6 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 		vba->VoltageLevel = *vlevel;
 	}
 
-	if (should_allow_odm_power_optimization(dc, context, vba, split, merge))
-		try_odm_power_optimization_and_revalidate(
-				dc, context, pipes, split, merge, vlevel, *pipe_cnt);
-
 	/* Conditions for setting up phantom pipes for SubVP:
 	 * 1. Not force disable SubVP
 	 * 2. Full update (i.e. !fast_validate)
@@ -1563,6 +1559,11 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 			assign_subvp_index(dc, context);
 		}
 	}
+
+	if (should_allow_odm_power_optimization(dc, context, vba, split, merge))
+		try_odm_power_optimization_and_revalidate(
+				dc, context, pipes, split, merge, vlevel, *pipe_cnt);
+
 }
 
 static bool is_dtbclk_required(struct dc *dc, struct dc_state *context)
