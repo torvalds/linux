@@ -34,6 +34,7 @@
 
 #include "dce_clock_source.h"
 #include "clk_mgr.h"
+#include "dccg.h"
 
 #include "reg_helper.h"
 
