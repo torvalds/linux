@@ -769,9 +769,10 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	if (!con)
 		return -EINVAL;
 
-	/* Do not enable ras feature if it is not allowed */
-	if (enable &&
-	    head->block != AMDGPU_RAS_BLOCK__GFX &&
+	/* For non-gfx ip, do not enable ras feature if it is not allowed */
+	/* For gfx ip, regardless of feature support status, */
+	/* Force issue enable or disable ras feature commands */
+	if (head->block != AMDGPU_RAS_BLOCK__GFX &&
 	    !amdgpu_ras_is_feature_allowed(adev, head))
 		goto out;
 
