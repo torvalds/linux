@@ -33,7 +33,7 @@ struct icc_node_data {
  */
 struct icc_onecell_data {
 	unsigned int num_nodes;
-	struct icc_node *nodes[];
+	struct icc_node *nodes[] __counted_by(num_nodes);
 };
 
 struct icc_node *of_icc_xlate_onecell(struct of_phandle_args *spec,
