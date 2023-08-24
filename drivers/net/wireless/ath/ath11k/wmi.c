@@ -7222,14 +7222,12 @@ static int ath11k_wmi_tlv_rdy_parse(struct ath11k_base *ab, u16 tag, u16 len,
 		memset(&fixed_param, 0, sizeof(fixed_param));
 		memcpy(&fixed_param, (struct wmi_ready_event *)ptr,
 		       min_t(u16, sizeof(fixed_param), len));
-		ab->wlan_init_status = fixed_param.ready_event_min.status;
 		rdy_parse->num_extra_mac_addr =
 			fixed_param.ready_event_min.num_extra_mac_addr;
 
 		ether_addr_copy(ab->mac_addr,
 				fixed_param.ready_event_min.mac_addr.addr);
 		ab->pktlog_defs_checksum = fixed_param.pktlog_defs_checksum;
-		ab->wmi_ready = true;
 		break;
 	case WMI_TAG_ARRAY_FIXED_STRUCT:
 		addr_list = (struct wmi_mac_addr *)ptr;
