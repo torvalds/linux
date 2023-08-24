@@ -1200,9 +1200,9 @@ static int stmmac_init_phy(struct net_device *dev)
 static int stmmac_phy_setup(struct stmmac_priv *priv)
 {
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
-	struct fwnode_handle *fwnode = priv->plat->port_node;
 	int max_speed = priv->plat->max_speed;
 	int mode = priv->plat->phy_interface;
+	struct fwnode_handle *fwnode;
 	struct phylink *phylink;
 
 	priv->phylink_config.dev = &priv->dev->dev;
@@ -1210,9 +1210,6 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 	if (priv->plat->mdio_bus_data)
 		priv->phylink_config.ovr_an_inband =
 			mdio_bus_data->xpcs_an_inband;
-
-	if (!fwnode)
-		fwnode = dev_fwnode(priv->device);
 
 	/* Set the platform/firmware specified interface mode */
 	__set_bit(mode, priv->phylink_config.supported_interfaces);
@@ -1253,6 +1250,10 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 		priv->phylink_config.mac_capabilities &=
 			~(MAC_10HD | MAC_100HD | MAC_1000HD);
 	priv->phylink_config.mac_managed_pm = true;
+
+	fwnode = priv->plat->port_node;
+	if (!fwnode)
+		fwnode = dev_fwnode(priv->device);
 
 	phylink = phylink_create(&priv->phylink_config, fwnode,
 				 mode, &stmmac_phylink_mac_ops);
