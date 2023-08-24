@@ -1502,7 +1502,7 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 
 	pci_dev_put(ubox_dev);
 
-	return err ? pcibios_err_to_errno(err) : 0;
+	return pcibios_err_to_errno(err);
 }
 
 int snbep_uncore_pci_init(void)
