@@ -418,6 +418,8 @@ static void __init ms_hyperv_init_platform(void)
 				static_branch_enable(&isolation_type_snp);
 			else
 				static_branch_enable(&isolation_type_en_snp);
+		} else if (hv_get_isolation_type() == HV_ISOLATION_TYPE_TDX) {
+			static_branch_enable(&isolation_type_tdx);
 		}
 	}
 

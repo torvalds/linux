@@ -521,6 +521,12 @@ bool __weak hv_isolation_type_en_snp(void)
 }
 EXPORT_SYMBOL_GPL(hv_isolation_type_en_snp);
 
+bool __weak hv_isolation_type_tdx(void)
+{
+	return false;
+}
+EXPORT_SYMBOL_GPL(hv_isolation_type_tdx);
+
 void __weak hv_setup_vmbus_handler(void (*handler)(void))
 {
 }

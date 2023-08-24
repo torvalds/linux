@@ -562,3 +562,12 @@ bool hv_isolation_type_en_snp(void)
 	return static_branch_unlikely(&isolation_type_en_snp);
 }
 
+DEFINE_STATIC_KEY_FALSE(isolation_type_tdx);
+/*
+ * hv_isolation_type_tdx - Check if the system runs in an Intel TDX based
+ * isolated VM.
+ */
+bool hv_isolation_type_tdx(void)
+{
+	return static_branch_unlikely(&isolation_type_tdx);
+}
