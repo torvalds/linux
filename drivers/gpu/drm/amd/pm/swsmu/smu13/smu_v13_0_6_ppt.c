@@ -91,6 +91,8 @@
 #define PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT 0x5
 #define LINK_SPEED_MAX				4
 
+#define SMU_13_0_6_DSCLK_THRESHOLD 100
+
 static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion,			1),
@@ -783,13 +785,61 @@ static int smu_v13_0_6_get_current_clk_freq_by_table(struct smu_context *smu,
 	return smu_v13_0_6_get_smu_metrics_data(smu, member_type, value);
 }
 
+static int smu_v13_0_6_print_clks(struct smu_context *smu, char *buf,
+				  struct smu_13_0_dpm_table *single_dpm_table,
+				  uint32_t curr_clk, const char *clk_name)
+{
+	struct pp_clock_levels_with_latency clocks;
+	int i, ret, size = 0, level = -1;
+	uint32_t clk1, clk2;
+
+	ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
+	if (ret) {
+		dev_err(smu->adev->dev, "Attempt to get %s clk levels failed!",
+			clk_name);
+		return ret;
+	}
+
+	if (!clocks.num_levels)
+		return -EINVAL;
+
+	if (curr_clk < SMU_13_0_6_DSCLK_THRESHOLD) {
+		size = sysfs_emit_at(buf, size, "S: %uMhz *\n", curr_clk);
+		for (i = 0; i < clocks.num_levels; i++)
+			size += sysfs_emit_at(buf, size, "%d: %uMhz\n", i,
+					      clocks.data[i].clocks_in_khz /
+						      1000);
+
+	} else {
+		if ((clocks.num_levels == 1) ||
+		    (curr_clk < (clocks.data[0].clocks_in_khz / 1000)))
+			level = 0;
+		for (i = 0; i < clocks.num_levels; i++) {
+			clk1 = clocks.data[i].clocks_in_khz / 1000;
+
+			if (i < (clocks.num_levels - 1))
+				clk2 = clocks.data[i + 1].clocks_in_khz / 1000;
+
+			if (curr_clk >= clk1 && curr_clk < clk2) {
+				level = (curr_clk - clk1) <= (clk2 - curr_clk) ?
+						i :
+						i + 1;
+			}
+
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
+					      clk1, (level == i) ? "*" : "");
+		}
+	}
+
+	return size;
+}
+
 static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 					enum smu_clk_type type, char *buf)
 {
-	int i, now, size = 0;
+	int now, size = 0;
 	int ret = 0;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
-	struct pp_clock_levels_with_latency clocks;
 	struct smu_13_0_dpm_table *single_dpm_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_13_0_dpm_context *dpm_context = NULL;
@@ -852,26 +902,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 		}
 
 		single_dpm_table = &(dpm_context->dpm_tables.uclk_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get memory clk levels Failed!");
-			return ret;
-		}
 
-		for (i = 0; i < clocks.num_levels; i++)
-			size += sysfs_emit_at(
-				buf, size, "%d: %uMhz %s\n", i,
-				clocks.data[i].clocks_in_khz / 1000,
-				(clocks.num_levels == 1) ?
-					"*" :
-					(smu_v13_0_6_freqs_in_same_level(
-						 clocks.data[i].clocks_in_khz /
-							 1000,
-						 now) ?
-						 "*" :
-						 ""));
-		break;
+		return smu_v13_0_6_print_clks(smu, buf, single_dpm_table, now,
+					      "mclk");
 
 	case SMU_SOCCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_SOCCLK,
@@ -883,26 +916,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 		}
 
 		single_dpm_table = &(dpm_context->dpm_tables.soc_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get socclk levels Failed!");
-			return ret;
-		}
 
-		for (i = 0; i < clocks.num_levels; i++)
-			size += sysfs_emit_at(
-				buf, size, "%d: %uMhz %s\n", i,
-				clocks.data[i].clocks_in_khz / 1000,
-				(clocks.num_levels == 1) ?
-					"*" :
-					(smu_v13_0_6_freqs_in_same_level(
-						 clocks.data[i].clocks_in_khz /
-							 1000,
-						 now) ?
-						 "*" :
-						 ""));
-		break;
+		return smu_v13_0_6_print_clks(smu, buf, single_dpm_table, now,
+					      "socclk");
 
 	case SMU_FCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_FCLK,
@@ -914,26 +930,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 		}
 
 		single_dpm_table = &(dpm_context->dpm_tables.fclk_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get fclk levels Failed!");
-			return ret;
-		}
 
-		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(
-				buf, size, "%d: %uMhz %s\n", i,
-				single_dpm_table->dpm_levels[i].value,
-				(clocks.num_levels == 1) ?
-					"*" :
-					(smu_v13_0_6_freqs_in_same_level(
-						 clocks.data[i].clocks_in_khz /
-							 1000,
-						 now) ?
-						 "*" :
-						 ""));
-		break;
+		return smu_v13_0_6_print_clks(smu, buf, single_dpm_table, now,
+					      "fclk");
 
 	case SMU_VCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_VCLK,
@@ -945,26 +944,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 		}
 
 		single_dpm_table = &(dpm_context->dpm_tables.vclk_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get vclk levels Failed!");
-			return ret;
-		}
 
-		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(
-				buf, size, "%d: %uMhz %s\n", i,
-				single_dpm_table->dpm_levels[i].value,
-				(clocks.num_levels == 1) ?
-					"*" :
-					(smu_v13_0_6_freqs_in_same_level(
-						 clocks.data[i].clocks_in_khz /
-							 1000,
-						 now) ?
-						 "*" :
-						 ""));
-		break;
+		return smu_v13_0_6_print_clks(smu, buf, single_dpm_table, now,
+					      "vclk");
 
 	case SMU_DCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_DCLK,
@@ -976,26 +958,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 		}
 
 		single_dpm_table = &(dpm_context->dpm_tables.dclk_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get dclk levels Failed!");
-			return ret;
-		}
 
-		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(
-				buf, size, "%d: %uMhz %s\n", i,
-				single_dpm_table->dpm_levels[i].value,
-				(clocks.num_levels == 1) ?
-					"*" :
-					(smu_v13_0_6_freqs_in_same_level(
-						 clocks.data[i].clocks_in_khz /
-							 1000,
-						 now) ?
-						 "*" :
-						 ""));
-		break;
+		return smu_v13_0_6_print_clks(smu, buf, single_dpm_table, now,
+					      "dclk");
 
 	default:
 		break;
