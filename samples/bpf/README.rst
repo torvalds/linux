@@ -4,6 +4,12 @@ eBPF sample programs
 This directory contains a test stubs, verifier test-suite and examples
 for using eBPF. The examples use libbpf from tools/lib/bpf.
 
+Note that the XDP-specific samples have been removed from this directory and
+moved to the xdp-tools repository: https://github.com/xdp-project/xdp-tools
+See the commit messages removing each tool from this directory for how to
+convert specific command invocations between the old samples and the utilities
+in xdp-tools.
+
 Build dependencies
 ==================
 
