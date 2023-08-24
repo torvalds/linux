@@ -9161,7 +9161,7 @@ static void pqi_shutdown(struct pci_dev *pci_dev)
 	rc = pqi_flush_cache(ctrl_info, shutdown_event);
 	if (rc)
 		dev_err(&pci_dev->dev,
-			"unable to flush controller cache\n");
+			"unable to flush controller cache during shutdown\n");
 
 	pqi_crash_if_pending_command(ctrl_info);
 	pqi_reset(ctrl_info);
