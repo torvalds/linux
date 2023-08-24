@@ -31,6 +31,61 @@
 
 struct perf_pmu perf_pmu__fake;
 
+#define UNIT_MAX_LEN	31 /* max length for event unit name */
+
+/**
+ * struct perf_pmu_alias - An event either read from sysfs or builtin in
+ * pmu-events.c, created by parsing the pmu-events json files.
+ */
+struct perf_pmu_alias {
+	/** @name: Name of the event like "mem-loads". */
+	char *name;
+	/** @desc: Optional short description of the event. */
+	char *desc;
+	/** @long_desc: Optional long description. */
+	char *long_desc;
+	/**
+	 * @topic: Optional topic such as cache or pipeline, particularly for
+	 * json events.
+	 */
+	char *topic;
+	/**
+	 * @str: Comma separated parameter list like
+	 * "event=0xcd,umask=0x1,ldlat=0x3".
+	 */
+	char *str;
+	/** @terms: Owned list of the original parsed parameters. */
+	struct list_head terms;
+	/** @list: List element of struct perf_pmu aliases. */
+	struct list_head list;
+	/** @unit: Units for the event, such as bytes or cache lines. */
+	char unit[UNIT_MAX_LEN+1];
+	/** @scale: Value to scale read counter values by. */
+	double scale;
+	/**
+	 * @per_pkg: Does the file
+	 * <sysfs>/bus/event_source/devices/<pmu_name>/events/<name>.per-pkg or
+	 * equivalent json value exist and have the value 1.
+	 */
+	bool per_pkg;
+	/**
+	 * @snapshot: Does the file
+	 * <sysfs>/bus/event_source/devices/<pmu_name>/events/<name>.snapshot
+	 * exist and have the value 1.
+	 */
+	bool snapshot;
+	/**
+	 * @deprecated: Is the event hidden and so not shown in perf list by
+	 * default.
+	 */
+	bool deprecated;
+	/**
+	 * @pmu_name: The name copied from the json struct pmu_event. This can
+	 * differ from the PMU name as it won't have suffixes.
+	 */
+	char *pmu_name;
+};
+
 /**
  * struct perf_pmu_format - Values from a format file read from
  * <sysfs>/devices/cpu/format/ held in struct perf_pmu.
@@ -355,7 +410,7 @@ static void perf_pmu_update_alias(struct perf_pmu_alias *old,
 }
 
 /* Delete an alias entry. */
-void perf_pmu_free_alias(struct perf_pmu_alias *newalias)
+static void perf_pmu_free_alias(struct perf_pmu_alias *newalias)
 {
 	zfree(&newalias->name);
 	zfree(&newalias->desc);
@@ -1349,10 +1404,20 @@ int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 	return perf_pmu__config_terms(pmu, attr, head_terms, zero, err);
 }
 
+static struct perf_pmu_alias *perf_pmu__find_alias(const struct perf_pmu *pmu, const char *str)
+{
+	struct perf_pmu_alias *alias;
+
+	list_for_each_entry(alias, &pmu->aliases, list) {
+		if (!strcasecmp(alias->name, str))
+			return alias;
+	}
+	return NULL;
+}
+
 static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 					     struct parse_events_term *term)
 {
-	struct perf_pmu_alias *alias;
 	char *name;
 
 	if (parse_events__is_hardcoded_term(term))
@@ -1364,6 +1429,7 @@ static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 		if (pmu_find_format(&pmu->format, term->config))
 			return NULL;
 		name = term->config;
+
 	} else if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR) {
 		if (strcasecmp(term->config, "event"))
 			return NULL;
@@ -1372,11 +1438,7 @@ static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 		return NULL;
 	}
 
-	list_for_each_entry(alias, &pmu->aliases, list) {
-		if (!strcasecmp(alias->name, name))
-			return alias;
-	}
-	return NULL;
+	return perf_pmu__find_alias(pmu, name);
 }
 
 
@@ -1459,16 +1521,33 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 	return 0;
 }
 
-struct perf_pmu_alias *perf_pmu__find_alias(struct perf_pmu *pmu, const char *event)
+struct find_event_args {
+	const char *event;
+	void *state;
+	pmu_event_callback cb;
+};
+
+static int find_event_callback(void *state, struct pmu_event_info *info)
 {
-	struct perf_pmu_alias *alias;
+	struct find_event_args *args = state;
 
-	list_for_each_entry(alias, &pmu->aliases, list)
-		if (!strcmp(event, alias->name))
-			return alias;
+	if (!strcmp(args->event, info->name))
+		return args->cb(args->state, info);
 
-	return NULL;
+	return 0;
 }
+
+int perf_pmu__find_event(struct perf_pmu *pmu, const char *event, void *state, pmu_event_callback cb)
+{
+	struct find_event_args args = {
+		.event = event,
+		.state = state,
+		.cb = cb,
+	};
+
+	return perf_pmu__for_each_event(pmu, &args, find_event_callback);
+}
+
 static void perf_pmu__del_formats(struct list_head *formats)
 {
 	struct perf_pmu_format *fmt, *tmp;
@@ -1508,13 +1587,110 @@ bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu)
 
 bool perf_pmu__have_event(const struct perf_pmu *pmu, const char *name)
 {
-	struct perf_pmu_alias *alias;
+	return perf_pmu__find_alias(pmu, name) != NULL;
+}
 
-	list_for_each_entry(alias, &pmu->aliases, list) {
-		if (!strcmp(alias->name, name))
-			return true;
+size_t perf_pmu__num_events(const struct perf_pmu *pmu)
+{
+	struct list_head *list;
+	size_t nr = 0;
+
+	list_for_each(list, &pmu->aliases)
+		nr++;
+
+	return pmu->selectable ? nr + 1 : nr;
+}
+
+static int sub_non_neg(int a, int b)
+{
+	if (b > a)
+		return 0;
+	return a - b;
+}
+
+static char *format_alias(char *buf, int len, const struct perf_pmu *pmu,
+			  const struct perf_pmu_alias *alias)
+{
+	struct parse_events_term *term;
+	int used = snprintf(buf, len, "%s/%s", pmu->name, alias->name);
+
+	list_for_each_entry(term, &alias->terms, list) {
+		if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR)
+			used += snprintf(buf + used, sub_non_neg(len, used),
+					",%s=%s", term->config,
+					term->val.str);
 	}
-	return false;
+
+	if (sub_non_neg(len, used) > 0) {
+		buf[used] = '/';
+		used++;
+	}
+	if (sub_non_neg(len, used) > 0) {
+		buf[used] = '\0';
+		used++;
+	} else
+		buf[len - 1] = '\0';
+
+	return buf;
+}
+
+int perf_pmu__for_each_event(const struct perf_pmu *pmu, void *state, pmu_event_callback cb)
+{
+	char buf[1024];
+	struct perf_pmu_alias *event;
+	struct pmu_event_info info = {
+		.pmu = pmu,
+	};
+	int ret = 0;
+
+	list_for_each_entry(event, &pmu->aliases, list) {
+		size_t buf_used;
+
+		info.pmu_name = event->pmu_name ?: pmu->name;
+		info.alias = NULL;
+		if (event->desc) {
+			info.name = event->name;
+			buf_used = 0;
+		} else {
+			info.name = format_alias(buf, sizeof(buf), pmu, event);
+			if (pmu->is_core) {
+				info.alias = info.name;
+				info.name = event->name;
+			}
+			buf_used = strlen(buf) + 1;
+		}
+		info.scale_unit = NULL;
+		if (strlen(event->unit) || event->scale != 1.0) {
+			info.scale_unit = buf + buf_used;
+			buf_used += snprintf(buf + buf_used, sizeof(buf) - buf_used,
+					"%G%s", event->scale, event->unit) + 1;
+		}
+		info.desc = event->desc;
+		info.long_desc = event->long_desc;
+		info.encoding_desc = buf + buf_used;
+		buf_used += snprintf(buf + buf_used, sizeof(buf) - buf_used,
+				"%s/%s/", info.pmu_name, event->str) + 1;
+		info.topic = event->topic;
+		info.str = event->str;
+		info.deprecated = event->deprecated;
+		ret = cb(state, &info);
+		if (ret)
+			return ret;
+	}
+	if (pmu->selectable) {
+		info.name = buf;
+		snprintf(buf, sizeof(buf), "%s//", pmu->name);
+		info.alias = NULL;
+		info.scale_unit = NULL;
+		info.desc = NULL;
+		info.long_desc = NULL;
+		info.encoding_desc = NULL;
+		info.topic = NULL;
+		info.pmu_name = pmu->name;
+		info.deprecated = false;
+		ret = cb(state, &info);
+	}
+	return ret;
 }
 
 bool perf_pmu__is_software(const struct perf_pmu *pmu)

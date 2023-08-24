@@ -341,7 +341,7 @@ static int compare_pmu_events(const struct pmu_event *e1, const struct pmu_event
 	return 0;
 }
 
-static int compare_alias_to_test_event(struct perf_pmu_alias *alias,
+static int compare_alias_to_test_event(struct pmu_event_info *alias,
 				struct perf_pmu_test_event const *test_event,
 				char const *pmu_name)
 {
@@ -496,6 +496,23 @@ static int test__pmu_event_table(struct test_suite *test __maybe_unused,
 	return 0;
 }
 
+struct test_core_pmu_event_aliases_cb_args {
+	struct perf_pmu_test_event const *test_event;
+	int *count;
+};
+
+static int test_core_pmu_event_aliases_cb(void *state, struct pmu_event_info *alias)
+{
+	struct test_core_pmu_event_aliases_cb_args *args = state;
+
+	if (compare_alias_to_test_event(alias, args->test_event, alias->pmu->name))
+		return -1;
+	(*args->count)++;
+	pr_debug2("testing aliases core PMU %s: matched event %s\n",
+		alias->pmu_name, alias->name);
+	return 0;
+}
+
 /* Verify aliases are as expected */
 static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 {
@@ -522,25 +539,19 @@ static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 	pmu_add_cpu_aliases_table(pmu, table);
 
 	for (; *test_event_table; test_event_table++) {
-		struct perf_pmu_test_event const *test_event = *test_event_table;
-		struct pmu_event const *event = &test_event->event;
-		struct perf_pmu_alias *alias = perf_pmu__find_alias(pmu, event->name);
+		struct perf_pmu_test_event test_event = **test_event_table;
+		struct pmu_event const *event = &test_event.event;
+		struct test_core_pmu_event_aliases_cb_args args = {
+			.test_event = &test_event,
+			.count = count,
+		};
+		int err;
 
-		if (!alias) {
-			pr_debug("testing aliases core PMU %s: no alias, alias_table->name=%s\n",
-				  pmu_name, event->name);
-			res = -1;
-			break;
-		}
-
-		if (compare_alias_to_test_event(alias, test_event, pmu_name)) {
-			res = -1;
-			break;
-		}
-
-		(*count)++;
-		pr_debug2("testing aliases core PMU %s: matched event %s\n",
-			  pmu_name, alias->name);
+		test_event.event.pmu = pmu_name;
+		err = perf_pmu__find_event(pmu, event->name, &args,
+					   test_core_pmu_event_aliases_cb);
+		if (err)
+			res = err;
 	}
 	perf_pmu__delete(pmu);
 
@@ -553,7 +564,6 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	struct perf_pmu_test_event const **table;
 	struct perf_pmu *pmu = &test_pmu->pmu;
 	const char *pmu_name = pmu->name;
-	struct perf_pmu_alias *a, *tmp, *alias;
 	const struct pmu_events_table *events_table;
 	int res = 0;
 
@@ -564,8 +574,7 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	pmu_add_sys_aliases(pmu);
 
 	/* Count how many aliases we generated */
-	list_for_each_entry(alias, &pmu->aliases, list)
-		alias_count++;
+	alias_count = perf_pmu__num_events(pmu);
 
 	/* Count how many aliases we expect from the known table */
 	for (table = &test_pmu->aliases[0]; *table; table++)
@@ -574,33 +583,25 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	if (alias_count != to_match_count) {
 		pr_debug("testing aliases uncore PMU %s: mismatch expected aliases (%d) vs found (%d)\n",
 			 pmu_name, to_match_count, alias_count);
-		res = -1;
-		goto out;
+		return -1;
 	}
 
-	list_for_each_entry(alias, &pmu->aliases, list) {
-		bool matched = false;
+	for (table = &test_pmu->aliases[0]; *table; table++) {
+		struct perf_pmu_test_event test_event = **table;
+		struct pmu_event const *event = &test_event.event;
+		int err;
+		struct test_core_pmu_event_aliases_cb_args args = {
+			.test_event = &test_event,
+			.count = &matched_count,
+		};
 
-		for (table = &test_pmu->aliases[0]; *table; table++) {
-			struct perf_pmu_test_event const *test_event = *table;
-			struct pmu_event const *event = &test_event->event;
-
-			if (!strcmp(event->name, alias->name)) {
-				if (compare_alias_to_test_event(alias,
-							test_event,
-							pmu_name)) {
-					continue;
-				}
-				matched = true;
-				matched_count++;
-			}
-		}
-
-		if (matched == false) {
+		err = perf_pmu__find_event(pmu, event->name, &args,
+					   test_core_pmu_event_aliases_cb);
+		if (err) {
+			res = err;
 			pr_debug("testing aliases uncore PMU %s: could not match alias %s\n",
-				 pmu_name, alias->name);
-			res = -1;
-			goto out;
+				 pmu_name, event->name);
+			return -1;
 		}
 	}
 
@@ -608,12 +609,6 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 		pr_debug("testing aliases uncore PMU %s: mismatch found aliases (%d) vs matched (%d)\n",
 			 pmu_name, matched_count, alias_count);
 		res = -1;
-	}
-
-out:
-	list_for_each_entry_safe(a, tmp, &pmu->aliases, list) {
-		list_del(&a->list);
-		perf_pmu_free_alias(a);
 	}
 	return res;
 }

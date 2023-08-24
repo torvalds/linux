@@ -158,60 +158,21 @@ struct perf_pmu_info {
 	bool snapshot;
 };
 
-#define UNIT_MAX_LEN	31 /* max length for event unit name */
-
-/**
- * struct perf_pmu_alias - An event either read from sysfs or builtin in
- * pmu-events.c, created by parsing the pmu-events json files.
- */
-struct perf_pmu_alias {
-	/** @name: Name of the event like "mem-loads". */
-	char *name;
-	/** @desc: Optional short description of the event. */
-	char *desc;
-	/** @long_desc: Optional long description. */
-	char *long_desc;
-	/**
-	 * @topic: Optional topic such as cache or pipeline, particularly for
-	 * json events.
-	 */
-	char *topic;
-	/**
-	 * @str: Comma separated parameter list like
-	 * "event=0xcd,umask=0x1,ldlat=0x3".
-	 */
-	char *str;
-	/** @terms: Owned list of the original parsed parameters. */
-	struct list_head terms;
-	/** @list: List element of struct perf_pmu aliases. */
-	struct list_head list;
-	/** @unit: Units for the event, such as bytes or cache lines. */
-	char unit[UNIT_MAX_LEN+1];
-	/** @scale: Value to scale read counter values by. */
-	double scale;
-	/**
-	 * @per_pkg: Does the file
-	 * <sysfs>/bus/event_source/devices/<pmu_name>/events/<name>.per-pkg or
-	 * equivalent json value exist and have the value 1.
-	 */
-	bool per_pkg;
-	/**
-	 * @snapshot: Does the file
-	 * <sysfs>/bus/event_source/devices/<pmu_name>/events/<name>.snapshot
-	 * exist and have the value 1.
-	 */
-	bool snapshot;
-	/**
-	 * @deprecated: Is the event hidden and so not shown in perf list by
-	 * default.
-	 */
+struct pmu_event_info {
+	const struct perf_pmu *pmu;
+	const char *name;
+	const char* alias;
+	const char *scale_unit;
+	const char *desc;
+	const char *long_desc;
+	const char *encoding_desc;
+	const char *topic;
+	const char *pmu_name;
+	const char *str;
 	bool deprecated;
-	/**
-	 * @pmu_name: The name copied from the json struct pmu_event. This can
-	 * differ from the PMU name as it won't have suffixes.
-	 */
-	char *pmu_name;
 };
+
+typedef int (*pmu_event_callback)(void *state, struct pmu_event_info *info);
 
 void pmu_add_sys_aliases(struct perf_pmu *pmu);
 int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
@@ -225,7 +186,7 @@ __u64 perf_pmu__format_bits(struct perf_pmu *pmu, const char *name);
 int perf_pmu__format_type(struct perf_pmu *pmu, const char *name);
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 			  struct perf_pmu_info *info);
-struct perf_pmu_alias *perf_pmu__find_alias(struct perf_pmu *pmu, const char *event);
+int perf_pmu__find_event(struct perf_pmu *pmu, const char *event, void *state, pmu_event_callback cb);
 
 int perf_pmu__format_parse(struct perf_pmu *pmu, int dirfd, bool eager_load);
 void perf_pmu_format__set_value(void *format, int config, unsigned long *bits);
@@ -235,6 +196,9 @@ bool is_pmu_core(const char *name);
 bool perf_pmu__supports_legacy_cache(const struct perf_pmu *pmu);
 bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu);
 bool perf_pmu__have_event(const struct perf_pmu *pmu, const char *name);
+size_t perf_pmu__num_events(const struct perf_pmu *pmu);
+int perf_pmu__for_each_event(const struct perf_pmu *pmu, void *state, pmu_event_callback cb);
+
 /**
  * perf_pmu_is_software - is the PMU a software PMU as in it uses the
  *                        perf_sw_context in the kernel?
@@ -259,7 +223,6 @@ void pmu_add_cpu_aliases_table(struct perf_pmu *pmu,
 char *perf_pmu__getcpuid(struct perf_pmu *pmu);
 const struct pmu_events_table *pmu_events_table__find(void);
 const struct pmu_metrics_table *pmu_metrics_table__find(void);
-void perf_pmu_free_alias(struct perf_pmu_alias *alias);
 
 int perf_pmu__convert_scale(const char *scale, char **end, double *sval);
 

@@ -193,38 +193,31 @@ static void fix_raw(struct list_head *config_terms, struct perf_pmu *pmu)
 	struct parse_events_term *term;
 
 	list_for_each_entry(term, config_terms, list) {
-		struct perf_pmu_alias *alias;
-		bool matched = false;
+		u64 num;
 
 		if (term->type_term != PARSE_EVENTS__TERM_TYPE_RAW)
 			continue;
 
-		list_for_each_entry(alias, &pmu->aliases, list) {
-			if (!strcmp(alias->name, term->val.str)) {
-				free(term->config);
-				term->config = term->val.str;
-				term->type_val = PARSE_EVENTS__TERM_TYPE_NUM;
-				term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
-				term->val.num = 1;
-				term->no_value = true;
-				matched = true;
-				break;
-			}
-		}
-		if (!matched) {
-			u64 num;
-
+		if (perf_pmu__have_event(pmu, term->val.str)) {
 			free(term->config);
-			term->config = strdup("config");
-			errno = 0;
-			num = strtoull(term->val.str + 1, NULL, 16);
-			assert(errno == 0);
-			free(term->val.str);
+			term->config = term->val.str;
 			term->type_val = PARSE_EVENTS__TERM_TYPE_NUM;
-			term->type_term = PARSE_EVENTS__TERM_TYPE_CONFIG;
-			term->val.num = num;
-			term->no_value = false;
+			term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
+			term->val.num = 1;
+			term->no_value = true;
+			continue;
 		}
+
+		free(term->config);
+		term->config = strdup("config");
+		errno = 0;
+		num = strtoull(term->val.str + 1, NULL, 16);
+		assert(errno == 0);
+		free(term->val.str);
+		term->type_val = PARSE_EVENTS__TERM_TYPE_NUM;
+		term->type_term = PARSE_EVENTS__TERM_TYPE_CONFIG;
+		term->val.num = num;
+		term->no_value = false;
 	}
 }
 
@@ -1458,28 +1451,22 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 	INIT_LIST_HEAD(list);
 
 	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-		struct perf_pmu_alias *alias;
 		bool auto_merge_stats;
 
 		if (parse_events__filter_pmu(parse_state, pmu))
 			continue;
 
-		auto_merge_stats = perf_pmu__auto_merge_stats(pmu);
+		if (!perf_pmu__have_event(pmu, str))
+			continue;
 
-		list_for_each_entry(alias, &pmu->aliases, list) {
-			if (!strcasecmp(alias->name, str)) {
-				parse_events_copy_term_list(head, &orig_head);
-				if (!parse_events_add_pmu(parse_state, list,
-							  pmu->name, orig_head,
-							  auto_merge_stats, loc)) {
-					pr_debug("%s -> %s/%s/\n", str,
-						 pmu->name, alias->str);
-					parse_state->wild_card_pmus = true;
-					ok++;
-				}
-				parse_events_terms__delete(orig_head);
-			}
+		auto_merge_stats = perf_pmu__auto_merge_stats(pmu);
+		parse_events_copy_term_list(head, &orig_head);
+		if (!parse_events_add_pmu(parse_state, list, pmu->name,
+					  orig_head, auto_merge_stats, loc)) {
+			pr_debug("%s -> %s/%s/\n", str, pmu->name, str);
+			ok++;
 		}
+		parse_events_terms__delete(orig_head);
 	}
 
 	if (parse_state->fake_pmu) {
