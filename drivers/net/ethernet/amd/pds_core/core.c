@@ -524,7 +524,8 @@ static void pdsc_fw_down(struct pdsc *pdsc)
 	}
 
 	/* Notify clients of fw_down */
-	devlink_health_report(pdsc->fw_reporter, "FW down reported", pdsc);
+	if (pdsc->fw_reporter)
+		devlink_health_report(pdsc->fw_reporter, "FW down reported", pdsc);
 	pdsc_notify(PDS_EVENT_RESET, &reset_event);
 
 	pdsc_stop(pdsc);
@@ -554,8 +555,9 @@ static void pdsc_fw_up(struct pdsc *pdsc)
 
 	/* Notify clients of fw_up */
 	pdsc->fw_recoveries++;
-	devlink_health_reporter_state_update(pdsc->fw_reporter,
-					     DEVLINK_HEALTH_REPORTER_STATE_HEALTHY);
+	if (pdsc->fw_reporter)
+		devlink_health_reporter_state_update(pdsc->fw_reporter,
+						     DEVLINK_HEALTH_REPORTER_STATE_HEALTHY);
 	pdsc_notify(PDS_EVENT_RESET, &reset_event);
 
 	return;
