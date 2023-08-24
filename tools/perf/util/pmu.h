@@ -114,6 +114,10 @@ struct perf_pmu {
 	 * from json events in pmu-events.c.
 	 */
 	struct list_head aliases;
+	/**
+	 * @events_table: The events table for json events in pmu-events.c.
+	 */
+	const struct pmu_events_table *events_table;
 	/** @caps_initialized: Has the list caps been initialized? */
 	bool caps_initialized;
 	/** @nr_caps: The length of the list caps. */

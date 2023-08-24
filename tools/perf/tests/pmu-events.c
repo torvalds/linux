@@ -544,6 +544,7 @@ static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 	INIT_LIST_HEAD(&pmu->list);
 	pmu->name = strdup(pmu_name);
 
+	pmu->events_table = table;
 	pmu_add_cpu_aliases_table(pmu, table);
 
 	res = pmu_events_table__find_event(table, pmu, "bp_l1_btb_correct", NULL, NULL);
@@ -583,6 +584,7 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	events_table = find_core_events_table("testarch", "testcpu");
 	if (!events_table)
 		return -1;
+	pmu->events_table = events_table;
 	pmu_add_cpu_aliases_table(pmu, events_table);
 	pmu_add_sys_aliases(pmu);
 
