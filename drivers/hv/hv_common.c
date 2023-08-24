@@ -360,6 +360,7 @@ int hv_common_cpu_init(unsigned int cpu)
 	u64 msr_vp_index;
 	gfp_t flags;
 	int pgcount = hv_root_partition ? 2 : 1;
+	void *mem;
 	int ret;
 
 	/* hv_cpu_init() can be called with IRQs disabled from hv_resume() */
@@ -372,25 +373,40 @@ int hv_common_cpu_init(unsigned int cpu)
 	 * allocated if this CPU was previously online and then taken offline
 	 */
 	if (!*inputarg) {
-		*inputarg = kmalloc(pgcount * HV_HYP_PAGE_SIZE, flags);
-		if (!(*inputarg))
+		mem = kmalloc(pgcount * HV_HYP_PAGE_SIZE, flags);
+		if (!mem)
 			return -ENOMEM;
 
 		if (hv_root_partition) {
 			outputarg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
-			*outputarg = (char *)(*inputarg) + HV_HYP_PAGE_SIZE;
+			*outputarg = (char *)mem + HV_HYP_PAGE_SIZE;
 		}
 
 		if (hv_isolation_type_en_snp() || hv_isolation_type_tdx()) {
-			ret = set_memory_decrypted((unsigned long)*inputarg, pgcount);
+			ret = set_memory_decrypted((unsigned long)mem, pgcount);
 			if (ret) {
-				/* It may be unsafe to free *inputarg */
-				*inputarg = NULL;
+				/* It may be unsafe to free 'mem' */
 				return ret;
 			}
 
-			memset(*inputarg, 0x00, pgcount * PAGE_SIZE);
+			memset(mem, 0x00, pgcount * HV_HYP_PAGE_SIZE);
 		}
+
+		/*
+		 * In a fully enlightened TDX/SNP VM with more than 64 VPs, if
+		 * hyperv_pcpu_input_arg is not NULL, set_memory_decrypted() ->
+		 * ... -> cpa_flush()-> ... -> __send_ipi_mask_ex() tries to
+		 * use hyperv_pcpu_input_arg as the hypercall input page, which
+		 * must be a decrypted page in such a VM, but the page is still
+		 * encrypted before set_memory_decrypted() returns. Fix this by
+		 * setting *inputarg after the above set_memory_decrypted(): if
+		 * hyperv_pcpu_input_arg is NULL, __send_ipi_mask_ex() returns
+		 * HV_STATUS_INVALID_PARAMETER immediately, and the function
+		 * hv_send_ipi_mask() falls back to orig_apic.send_IPI_mask(),
+		 * which may be slightly slower than the hypercall, but still
+		 * works correctly in such a VM.
+		 */
+		*inputarg = mem;
 	}
 
 	msr_vp_index = hv_get_register(HV_REGISTER_VP_INDEX);
