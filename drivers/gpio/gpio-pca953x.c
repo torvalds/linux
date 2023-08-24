@@ -1051,7 +1051,6 @@ out:
 
 static int pca953x_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *i2c_id = i2c_client_get_device_id(client);
 	struct pca953x_platform_data *pdata;
 	struct pca953x_chip *chip;
 	int irq_base = 0;
@@ -1090,6 +1089,9 @@ static int pca953x_probe(struct i2c_client *client)
 	}
 
 	chip->client = client;
+	chip->driver_data = (uintptr_t)i2c_get_match_data(client);
+	if (!chip->driver_data)
+		return -ENODEV;
 
 	reg = devm_regulator_get(&client->dev, "vcc");
 	if (IS_ERR(reg))
@@ -1101,20 +1103,6 @@ static int pca953x_probe(struct i2c_client *client)
 		return ret;
 	}
 	chip->regulator = reg;
-
-	if (i2c_id) {
-		chip->driver_data = i2c_id->driver_data;
-	} else {
-		const void *match;
-
-		match = device_get_match_data(&client->dev);
-		if (!match) {
-			ret = -ENODEV;
-			goto err_exit;
-		}
-
-		chip->driver_data = (uintptr_t)match;
-	}
 
 	i2c_set_clientdata(client, chip);
 
