@@ -4048,10 +4048,10 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	 * pipe, we must use the minimal transition.
 	 */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *pipe = &transition_base_context->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream && pipe->next_odm_pipe) {
-			odm_in_use = true;
+		if (resource_is_pipe_type(pipe, OTG_MASTER)) {
+			odm_in_use = resource_get_odm_slice_count(pipe) > 1;
 			break;
 		}
 	}
