@@ -3799,14 +3799,6 @@ err_unlock:
 	mutex_unlock(&of_mutex);
 }
 
-#else
-
-static inline __init void of_unittest_overlay_high_level(void) {}
-
-#endif
-
-#ifdef CONFIG_PCI_DYNAMIC_OF_NODES
-
 static int of_unittest_pci_dev_num;
 static int of_unittest_pci_child_num;
 
@@ -3954,6 +3946,9 @@ static void __init of_unittest_pci_node(void)
 	struct pci_dev *pdev = NULL;
 	int rc;
 
+	if (!IS_ENABLED(CONFIG_PCI_DYNAMIC_OF_NODES))
+		return;
+
 	rc = pci_register_driver(&testdrv_driver);
 	unittest(!rc, "Failed to register pci test driver; rc = %d\n", rc);
 	if (rc)
@@ -3987,7 +3982,10 @@ static void __init of_unittest_pci_node(void)
 		pci_dev_put(pdev);
 }
 #else
-static void __init of_unittest_pci_node(void) { }
+
+static inline __init void of_unittest_overlay_high_level(void) {}
+static inline __init void of_unittest_pci_node(void) { }
+
 #endif
 
 static int __init of_unittest(void)
