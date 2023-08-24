@@ -197,9 +197,32 @@ static int mt76_led_init(struct mt76_phy *phy)
 {
 	struct mt76_dev *dev = phy->dev;
 	struct ieee80211_hw *hw = phy->hw;
+	struct device_node *np = dev->dev->of_node;
 
 	if (!phy->leds.cdev.brightness_set && !phy->leds.cdev.blink_set)
 		return 0;
+
+	np = of_get_child_by_name(np, "led");
+	if (np) {
+		if (!of_device_is_available(np)) {
+			of_node_put(np);
+			dev_info(dev->dev,
+				"led registration was explicitly disabled by dts\n");
+			return 0;
+		}
+
+		if (phy == &dev->phy) {
+			int led_pin;
+
+			if (!of_property_read_u32(np, "led-sources", &led_pin))
+				phy->leds.pin = led_pin;
+
+			phy->leds.al =
+				of_property_read_bool(np, "led-active-low");
+		}
+
+		of_node_put(np);
+	}
 
 	snprintf(phy->leds.name, sizeof(phy->leds.name), "mt76-%s",
 		 wiphy_name(hw->wiphy));
@@ -211,20 +234,8 @@ static int mt76_led_init(struct mt76_phy *phy)
 					mt76_tpt_blink,
 					ARRAY_SIZE(mt76_tpt_blink));
 
-	if (phy == &dev->phy) {
-		struct device_node *np = dev->dev->of_node;
-
-		np = of_get_child_by_name(np, "led");
-		if (np) {
-			int led_pin;
-
-			if (!of_property_read_u32(np, "led-sources", &led_pin))
-				phy->leds.pin = led_pin;
-			phy->leds.al = of_property_read_bool(np,
-							     "led-active-low");
-			of_node_put(np);
-		}
-	}
+	dev_info(dev->dev,
+		"registering led '%s'\n", phy->leds.name);
 
 	return led_classdev_register(dev->dev, &phy->leds.cdev);
 }
