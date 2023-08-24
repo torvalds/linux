@@ -391,17 +391,15 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	/* read requests */
 	case SPI_IOC_RD_MODE:
 	case SPI_IOC_RD_MODE32:
-		tmp = spi->mode;
+		tmp = spi->mode & SPI_MODE_MASK;
 
 		if (ctlr->use_gpio_descriptors && spi_get_csgpiod(spi, 0))
 			tmp &= ~SPI_CS_HIGH;
 
 		if (cmd == SPI_IOC_RD_MODE)
-			retval = put_user(tmp & SPI_MODE_MASK,
-					  (__u8 __user *)arg);
+			retval = put_user(tmp, (__u8 __user *)arg);
 		else
-			retval = put_user(tmp & SPI_MODE_MASK,
-					  (__u32 __user *)arg);
+			retval = put_user(tmp, (__u32 __user *)arg);
 		break;
 	case SPI_IOC_RD_LSB_FIRST:
 		retval = put_user((spi->mode & SPI_LSB_FIRST) ?  1 : 0,
