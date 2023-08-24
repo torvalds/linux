@@ -1227,16 +1227,6 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 	/* Get the MAC specific capabilities */
 	stmmac_mac_phylink_get_caps(priv);
 
-	if (priv->plat->has_xgmac) {
-		priv->phylink_config.mac_capabilities |= MAC_2500FD;
-		priv->phylink_config.mac_capabilities |= MAC_5000FD;
-		priv->phylink_config.mac_capabilities |= MAC_10000FD;
-		priv->phylink_config.mac_capabilities |= MAC_25000FD;
-		priv->phylink_config.mac_capabilities |= MAC_40000FD;
-		priv->phylink_config.mac_capabilities |= MAC_50000FD;
-		priv->phylink_config.mac_capabilities |= MAC_100000FD;
-	}
-
 	/* Half-Duplex can only work with single queue */
 	if (priv->plat->tx_queues_to_use > 1)
 		priv->phylink_config.mac_capabilities &=
