@@ -720,10 +720,7 @@ static int tmp51x_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	if (client->dev.of_node)
-		data->id = (uintptr_t)device_get_match_data(&client->dev);
-	else
-		data->id = i2c_match_id(tmp51x_id, client)->driver_data;
+	data->id = (uintptr_t)i2c_get_match_data(client);
 
 	ret = tmp51x_configure(dev, data);
 	if (ret < 0) {
