@@ -124,9 +124,11 @@ static void gfs2_qd_dispose(struct gfs2_quota_data *qd)
 	hlist_bl_del_rcu(&qd->qd_hlist);
 	spin_unlock_bucket(qd->qd_hash);
 
-	gfs2_assert_warn(sdp, !qd->qd_change);
-	gfs2_assert_warn(sdp, !qd->qd_slot_count);
-	gfs2_assert_warn(sdp, !qd->qd_bh_count);
+	if (!gfs2_withdrawn(sdp)) {
+		gfs2_assert_warn(sdp, !qd->qd_change);
+		gfs2_assert_warn(sdp, !qd->qd_slot_count);
+		gfs2_assert_warn(sdp, !qd->qd_bh_count);
+	}
 
 	gfs2_glock_put(qd->qd_gl);
 	call_rcu(&qd->qd_rcu, gfs2_qd_dealloc);
