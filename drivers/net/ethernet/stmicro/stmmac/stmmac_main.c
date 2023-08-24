@@ -1224,6 +1224,9 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 	priv->phylink_config.mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 		MAC_10 | MAC_100 | MAC_1000;
 
+	/* Get the MAC specific capabilities */
+	stmmac_mac_phylink_get_caps(priv);
+
 	if (priv->plat->has_gmac4) {
 		priv->phylink_config.mac_capabilities |= MAC_2500FD;
 	} else if (priv->plat->has_xgmac) {
