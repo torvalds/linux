@@ -1123,6 +1123,16 @@ static void process_legacy_input(struct snd_ump_endpoint *ump, const u32 *src,
 	spin_unlock_irqrestore(&ump->legacy_locks[dir], flags);
 }
 
+static void fill_substream_names(struct snd_ump_endpoint *ump,
+				 struct snd_rawmidi *rmidi, int dir)
+{
+	struct snd_rawmidi_substream *s;
+
+	list_for_each_entry(s, &rmidi->streams[dir].substreams, list)
+		snprintf(s->name, sizeof(s->name), "Group %d (%s)",
+			 s->number + 1, ump->info.name);
+}
+
 int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 				  char *id, int device)
 {
@@ -1156,6 +1166,11 @@ int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 	rmidi->ops = &snd_ump_legacy_ops;
 	rmidi->private_data = ump;
 	ump->legacy_rmidi = rmidi;
+	if (input)
+		fill_substream_names(ump, rmidi, SNDRV_RAWMIDI_STREAM_INPUT);
+	if (output)
+		fill_substream_names(ump, rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT);
+
 	ump_dbg(ump, "Created a legacy rawmidi #%d (%s)\n", device, id);
 	return 0;
 }
