@@ -6358,10 +6358,8 @@ static int pqi_device_reset_handler(struct pqi_ctrl_info *ctrl_info, struct pqi_
 	mutex_lock(&ctrl_info->lun_reset_mutex);
 
 	dev_err(&ctrl_info->pci_dev->dev,
-		"resetting scsi %d:%d:%d:%d due to cmd 0x%02x\n",
-		ctrl_info->scsi_host->host_no,
-		device->bus, device->target, lun,
-		scmd->cmd_len > 0 ? scmd->cmnd[0] : 0xff);
+		"resetting scsi %d:%d:%d:%u SCSI cmd at %p due to cmd opcode 0x%02x\n",
+		ctrl_info->scsi_host->host_no, device->bus, device->target, lun, scmd, scsi_opcode);
 
 	pqi_check_ctrl_health(ctrl_info);
 	if (pqi_ctrl_offline(ctrl_info))
@@ -6415,18 +6413,20 @@ static int pqi_eh_abort_handler(struct scsi_cmnd *scmd)
 
 	shost = scmd->device->host;
 	ctrl_info = shost_to_hba(shost);
+	device = scmd->device->hostdata;
 
 	dev_err(&ctrl_info->pci_dev->dev,
-		"attempting TASK ABORT on SCSI cmd at %p\n", scmd);
+		"attempting TASK ABORT on scsi %d:%d:%d:%d for SCSI cmd at %p\n",
+		shost->host_no, device->bus, device->target, (int)scmd->device->lun, scmd);
 
 	if (cmpxchg(&scmd->host_scribble, PQI_NO_COMPLETION, (void *)&wait) == NULL) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"SCSI cmd at %p already completed\n", scmd);
+			"scsi %d:%d:%d:%d for SCSI cmd at %p already completed\n",
+			shost->host_no, device->bus, device->target, (int)scmd->device->lun, scmd);
 		scmd->result = DID_RESET << 16;
 		goto out;
 	}
 
-	device = scmd->device->hostdata;
 	tmf_work = &device->tmf_work[scmd->device->lun];
 
 	if (cmpxchg(&tmf_work->scmd, NULL, scmd) == NULL) {
@@ -6440,7 +6440,8 @@ static int pqi_eh_abort_handler(struct scsi_cmnd *scmd)
 	wait_for_completion(&wait);
 
 	dev_err(&ctrl_info->pci_dev->dev,
-		"TASK ABORT on SCSI cmd at %p: SUCCESS\n", scmd);
+		"TASK ABORT on scsi %d:%d:%d:%d for SCSI cmd at %p: SUCCESS\n",
+		shost->host_no, device->bus, device->target, (int)scmd->device->lun, scmd);
 
 out:
 
