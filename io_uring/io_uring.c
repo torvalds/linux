@@ -147,7 +147,6 @@ static bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 bool cancel_all);
 
 static void io_queue_sqe(struct io_kiocb *req);
-static void __io_submit_flush_completions(struct io_ring_ctx *ctx);
 
 struct kmem_cache *req_cachep;
 
@@ -616,7 +615,7 @@ void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 
 static inline void __io_cq_lock(struct io_ring_ctx *ctx)
 {
-	if (!ctx->task_complete)
+	if (!ctx->lockless_cq)
 		spin_lock(&ctx->completion_lock);
 }
 
@@ -630,8 +629,11 @@ static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
 {
 	io_commit_cqring(ctx);
 	if (!ctx->task_complete) {
-		spin_unlock(&ctx->completion_lock);
-		io_cqring_wake(ctx);
+		if (!ctx->lockless_cq)
+			spin_unlock(&ctx->completion_lock);
+		/* IOPOLL rings only need to wake up if it's also SQPOLL */
+		if (!ctx->syscall_iopoll)
+			io_cqring_wake(ctx);
 	}
 	io_commit_cqring_flush(ctx);
 }
@@ -1485,7 +1487,8 @@ void io_queue_next(struct io_kiocb *req)
 		io_req_task_queue(nxt);
 }
 
-void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node)
+static void io_free_batch_list(struct io_ring_ctx *ctx,
+			       struct io_wq_work_node *node)
 	__must_hold(&ctx->uring_lock)
 {
 	do {
@@ -1522,7 +1525,7 @@ void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node)
 	} while (node);
 }
 
-static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
+void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
 	struct io_submit_state *state = &ctx->submit_state;
@@ -3835,6 +3838,9 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 	    !(ctx->flags & IORING_SETUP_IOPOLL) &&
 	    !(ctx->flags & IORING_SETUP_SQPOLL))
 		ctx->task_complete = true;
+
+	if (ctx->task_complete || (ctx->flags & IORING_SETUP_IOPOLL))
+		ctx->lockless_cq = true;
 
 	/*
 	 * lazy poll_wq activation relies on ->task_complete for synchronisation

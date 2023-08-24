@@ -205,6 +205,7 @@ struct io_ring_ctx {
 		unsigned int		has_evfd: 1;
 		/* all CQEs should be posted only by the submitter task */
 		unsigned int		task_complete: 1;
+		unsigned int		lockless_cq: 1;
 		unsigned int		syscall_iopoll: 1;
 		unsigned int		poll_activated: 1;
 		unsigned int		drain_disabled: 1;

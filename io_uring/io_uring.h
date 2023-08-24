@@ -72,7 +72,7 @@ int io_ring_add_registered_file(struct io_uring_task *tctx, struct file *file,
 int io_poll_issue(struct io_kiocb *req, struct io_tw_state *ts);
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
-void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node);
+void __io_submit_flush_completions(struct io_ring_ctx *ctx);
 int io_req_prep_async(struct io_kiocb *req);
 
 struct io_wq_work *io_wq_free_work(struct io_wq_work *work);
