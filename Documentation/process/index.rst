@@ -66,6 +66,7 @@ lack of a better place.
    :maxdepth: 1
 
    applying-patches
+   backporting
    adding-syscalls
    magic-number
    volatile-considered-harmful
