@@ -412,6 +412,7 @@
   param_ops_int
   param_ops_uint
   pcpu_nr_pages
+  percpu_counter_batch
   __per_cpu_offset
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
