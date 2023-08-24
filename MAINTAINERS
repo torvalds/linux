@@ -14803,6 +14803,16 @@ F:	net/netfilter/xt_CONNSECMARK.c
 F:	net/netfilter/xt_SECMARK.c
 F:	net/netlabel/
 
+NETWORKING [MACSEC]
+M:	Sabrina Dubroca <sd@queasysnail.net>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/macsec.c
+F:	include/net/macsec.h
+F:	include/uapi/linux/if_macsec.h
+K:	macsec
+K:	\bmdo_
+
 NETWORKING [MPTCP]
 M:	Matthieu Baerts <matthieu.baerts@tessares.net>
 M:	Mat Martineau <martineau@kernel.org>
