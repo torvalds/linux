@@ -818,7 +818,7 @@ void io_req_cqe_overflow(struct io_kiocb *req)
  * control dependency is enough as we're using WRITE_ONCE to
  * fill the cq entry
  */
-struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx, bool overflow)
+bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow)
 {
 	struct io_rings *rings = ctx->rings;
 	unsigned int off = ctx->cached_cq_tail & (ctx->cq_entries - 1);
@@ -830,7 +830,7 @@ struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx, bool overflow)
 	 * Force overflow the completion.
 	 */
 	if (!overflow && (ctx->check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT)))
-		return NULL;
+		return false;
 
 	/* userspace may cheat modifying the tail, be safe and do min */
 	queued = min(__io_cqring_events(ctx), ctx->cq_entries);
@@ -838,7 +838,7 @@ struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx, bool overflow)
 	/* we need a contiguous range, limit based on the current array offset */
 	len = min(free, ctx->cq_entries - off);
 	if (!len)
-		return NULL;
+		return false;
 
 	if (ctx->flags & IORING_SETUP_CQE32) {
 		off <<= 1;
@@ -847,12 +847,7 @@ struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx, bool overflow)
 
 	ctx->cqe_cached = &rings->cqes[off];
 	ctx->cqe_sentinel = ctx->cqe_cached + len;
-
-	ctx->cached_cq_tail++;
-	ctx->cqe_cached++;
-	if (ctx->flags & IORING_SETUP_CQE32)
-		ctx->cqe_cached++;
-	return &rings->cqes[off];
+	return true;
 }
 
 static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,

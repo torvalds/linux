@@ -38,7 +38,7 @@ enum {
 	IOU_STOP_MULTISHOT	= -ECANCELED,
 };
 
-struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx, bool overflow);
+bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow);
 void io_req_cqe_overflow(struct io_kiocb *req);
 int io_run_task_work_sig(struct io_ring_ctx *ctx);
 void io_req_defer_failed(struct io_kiocb *req, s32 res);
@@ -112,19 +112,20 @@ static inline void io_req_task_work_add(struct io_kiocb *req)
 static inline struct io_uring_cqe *io_get_cqe_overflow(struct io_ring_ctx *ctx,
 						       bool overflow)
 {
+	struct io_uring_cqe *cqe;
+
 	io_lockdep_assert_cq_locked(ctx);
 
-	if (likely(ctx->cqe_cached < ctx->cqe_sentinel)) {
-		struct io_uring_cqe *cqe = ctx->cqe_cached;
-
-		ctx->cached_cq_tail++;
-		ctx->cqe_cached++;
-		if (ctx->flags & IORING_SETUP_CQE32)
-			ctx->cqe_cached++;
-		return cqe;
+	if (unlikely(ctx->cqe_cached >= ctx->cqe_sentinel)) {
+		if (unlikely(!io_cqe_cache_refill(ctx, overflow)))
+			return NULL;
 	}
-
-	return __io_get_cqe(ctx, overflow);
+	cqe = ctx->cqe_cached;
+	ctx->cached_cq_tail++;
+	ctx->cqe_cached++;
+	if (ctx->flags & IORING_SETUP_CQE32)
+		ctx->cqe_cached++;
+	return cqe;
 }
 
 static inline struct io_uring_cqe *io_get_cqe(struct io_ring_ctx *ctx)
