@@ -1084,6 +1084,31 @@ static int efx_tc_pedit_add(struct efx_nic *efx, struct efx_tc_action_set *act,
 			break;
 		}
 		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
+		switch (fa->mangle.offset) {
+		case round_down(offsetof(struct ipv6hdr, hop_limit), 4):
+			/* check that pedit applies to hoplimit only */
+			if (fa->mangle.mask != EFX_TC_HDR_TYPE_HLIMIT_MASK)
+				break;
+
+			/* Adding 0xff is equivalent to decrementing the hoplimit.
+			 * Other added values are not supported.
+			 */
+			if ((fa->mangle.val >> 24) != U8_MAX)
+				break;
+
+			/* check that we do not decrement hoplimit twice */
+			if (!efx_tc_flower_action_order_ok(act,
+							   EFX_TC_AO_DEC_TTL)) {
+				NL_SET_ERR_MSG_MOD(extack, "Unsupported: multiple dec ttl");
+				return -EOPNOTSUPP;
+			}
+			act->do_ttl_dec = 1;
+			return 0;
+		default:
+			break;
+		}
+		break;
 	default:
 		break;
 	}
