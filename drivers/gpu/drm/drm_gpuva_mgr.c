@@ -1076,7 +1076,7 @@ __drm_gpuva_sm_map(struct drm_gpuva_manager *mgr,
 		   u64 req_addr, u64 req_range,
 		   struct drm_gem_object *req_obj, u64 req_offset)
 {
-	struct drm_gpuva *va, *next, *prev = NULL;
+	struct drm_gpuva *va, *next;
 	u64 req_end = req_addr + req_range;
 	int ret;
 
@@ -1106,7 +1106,7 @@ __drm_gpuva_sm_map(struct drm_gpuva_manager *mgr,
 				ret = op_unmap_cb(ops, priv, va, merge);
 				if (ret)
 					return ret;
-				goto next;
+				continue;
 			}
 
 			if (end > req_end) {
@@ -1151,7 +1151,7 @@ __drm_gpuva_sm_map(struct drm_gpuva_manager *mgr,
 				ret = op_remap_cb(ops, priv, &p, NULL, &u);
 				if (ret)
 					return ret;
-				goto next;
+				continue;
 			}
 
 			if (end > req_end) {
@@ -1184,7 +1184,7 @@ __drm_gpuva_sm_map(struct drm_gpuva_manager *mgr,
 				ret = op_unmap_cb(ops, priv, va, merge);
 				if (ret)
 					return ret;
-				goto next;
+				continue;
 			}
 
 			if (end > req_end) {
@@ -1205,8 +1205,6 @@ __drm_gpuva_sm_map(struct drm_gpuva_manager *mgr,
 				break;
 			}
 		}
-next:
-		prev = va;
 	}
 
 	return op_map_cb(ops, priv,

@@ -292,6 +292,28 @@ nouveau_job_submit(struct nouveau_job *job)
 	if (job->sync)
 		done_fence = dma_fence_get(job->done_fence);
 
+	/* If a sched job depends on a dma-fence from a job from the same GPU
+	 * scheduler instance, but a different scheduler entity, the GPU
+	 * scheduler does only wait for the particular job to be scheduled,
+	 * rather than for the job to fully complete. This is due to the GPU
+	 * scheduler assuming that there is a scheduler instance per ring.
+	 * However, the current implementation, in order to avoid arbitrary
+	 * amounts of kthreads, has a single scheduler instance while scheduler
+	 * entities represent rings.
+	 *
+	 * As a workaround, set the DRM_SCHED_FENCE_DONT_PIPELINE for all
+	 * out-fences in order to force the scheduler to wait for full job
+	 * completion for dependent jobs from different entities and same
+	 * scheduler instance.
+	 *
+	 * There is some work in progress [1] to address the issues of firmware
+	 * schedulers; once it is in-tree the scheduler topology in Nouveau
+	 * should be re-worked accordingly.
+	 *
+	 * [1] https://lore.kernel.org/dri-devel/20230801205103.627779-1-matthew.brost@intel.com/
+	 */
+	set_bit(DRM_SCHED_FENCE_DONT_PIPELINE, &job->done_fence->flags);
+
 	if (job->ops->armed_submit)
 		job->ops->armed_submit(job);
 
