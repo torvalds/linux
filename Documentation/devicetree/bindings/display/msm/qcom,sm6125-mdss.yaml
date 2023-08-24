@@ -1,23 +1,23 @@
-# SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/display/msm/qcom,sm6375-mdss.yaml#
+$id: http://devicetree.org/schemas/display/msm/qcom,sm6125-mdss.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm SM6375 Display MDSS
+title: Qualcomm SM6125 Display MDSS
 
 maintainers:
-  - Konrad Dybcio <konrad.dybcio@linaro.org>
+  - Marijn Suijten <marijn.suijten@somainline.org>
 
 description:
-  SM6375 MSM Mobile Display Subsystem (MDSS), which encapsulates sub-blocks
+  SM6125 MSM Mobile Display Subsystem (MDSS), which encapsulates sub-blocks
   like DPU display controller, DSI and DP interfaces etc.
 
 $ref: /schemas/display/msm/mdss-common.yaml#
 
 properties:
   compatible:
-    const: qcom,sm6375-mdss
+    const: qcom,sm6125-mdss
 
   clocks:
     items:
@@ -45,58 +45,64 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: qcom,sm6375-dpu
+        const: qcom,sm6125-dpu
 
   "^dsi@[0-9a-f]+$":
     type: object
     properties:
       compatible:
         items:
-          - const: qcom,sm6375-dsi-ctrl
+          - const: qcom,sm6125-dsi-ctrl
           - const: qcom,mdss-dsi-ctrl
 
   "^phy@[0-9a-f]+$":
     type: object
     properties:
       compatible:
-        const: qcom,sm6375-dsi-phy-7nm
+        const: qcom,sm6125-dsi-phy-14nm
 
 unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/qcom,dispcc-sm6125.h>
+    #include <dt-bindings/clock/qcom,gcc-sm6125.h>
     #include <dt-bindings/clock/qcom,rpmcc.h>
-    #include <dt-bindings/clock/qcom,sm6375-gcc.h>
-    #include <dt-bindings/clock/qcom,sm6375-dispcc.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/power/qcom-rpmpd.h>
 
     display-subsystem@5e00000 {
-        compatible = "qcom,sm6375-mdss";
+        compatible = "qcom,sm6125-mdss";
         reg = <0x05e00000 0x1000>;
         reg-names = "mdss";
 
-        power-domains = <&dispcc MDSS_GDSC>;
+        interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
 
         clocks = <&gcc GCC_DISP_AHB_CLK>,
                  <&dispcc DISP_CC_MDSS_AHB_CLK>,
                  <&dispcc DISP_CC_MDSS_MDP_CLK>;
-        clock-names = "iface", "ahb", "core";
+        clock-names = "iface",
+                      "ahb",
+                      "core";
 
-        interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
-        interrupt-controller;
-        #interrupt-cells = <1>;
+        power-domains = <&dispcc MDSS_GDSC>;
 
-        iommus = <&apps_smmu 0x820 0x2>;
+        iommus = <&apps_smmu 0x400 0x0>;
+
         #address-cells = <1>;
         #size-cells = <1>;
         ranges;
 
         display-controller@5e01000 {
-            compatible = "qcom,sm6375-dpu";
-            reg = <0x05e01000 0x8e030>,
+            compatible = "qcom,sm6125-dpu";
+            reg = <0x05e01000 0x83208>,
                   <0x05eb0000 0x2008>;
             reg-names = "mdp", "vbif";
+
+            interrupt-parent = <&mdss>;
+            interrupts = <0>;
 
             clocks = <&gcc GCC_DISP_HF_AXI_CLK>,
                      <&dispcc DISP_CC_MDSS_AHB_CLK>,
@@ -112,15 +118,11 @@ examples:
                           "core",
                           "vsync",
                           "throttle";
-
             assigned-clocks = <&dispcc DISP_CC_MDSS_VSYNC_CLK>;
             assigned-clock-rates = <19200000>;
 
             operating-points-v2 = <&mdp_opp_table>;
-            power-domains = <&rpmpd SM6375_VDDCX>;
-
-            interrupt-parent = <&mdss>;
-            interrupts = <0>;
+            power-domains = <&rpmpd SM6125_VDDCX>;
 
             ports {
                 #address-cells = <1>;
@@ -129,14 +131,14 @@ examples:
                 port@0 {
                     reg = <0>;
                     dpu_intf1_out: endpoint {
-                        remote-endpoint = <&dsi0_in>;
+                        remote-endpoint = <&mdss_dsi0_in>;
                     };
                 };
             };
         };
 
         dsi@5e94000 {
-            compatible = "qcom,sm6375-dsi-ctrl", "qcom,mdss-dsi-ctrl";
+            compatible = "qcom,sm6125-dsi-ctrl", "qcom,mdss-dsi-ctrl";
             reg = <0x05e94000 0x400>;
             reg-names = "dsi_ctrl";
 
@@ -155,13 +157,12 @@ examples:
                           "core",
                           "iface",
                           "bus";
-
             assigned-clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK_SRC>,
-                              <&dispcc DISP_CC_MDSS_PCLK0_CLK_SRC>;
+                      <&dispcc DISP_CC_MDSS_PCLK0_CLK_SRC>;
             assigned-clock-parents = <&mdss_dsi0_phy 0>, <&mdss_dsi0_phy 1>;
 
             operating-points-v2 = <&dsi_opp_table>;
-            power-domains = <&rpmpd SM6375_VDDMX>;
+            power-domains = <&rpmpd SM6125_VDDCX>;
 
             phys = <&mdss_dsi0_phy>;
             phy-names = "dsi";
@@ -175,24 +176,24 @@ examples:
 
                 port@0 {
                     reg = <0>;
-                    dsi0_in: endpoint {
+                    mdss_dsi0_in: endpoint {
                         remote-endpoint = <&dpu_intf1_out>;
                     };
                 };
 
                 port@1 {
                     reg = <1>;
-                    dsi0_out: endpoint {
+                    mdss_dsi0_out: endpoint {
                     };
                 };
             };
         };
 
-        mdss_dsi0_phy: phy@5e94400 {
-            compatible = "qcom,sm6375-dsi-phy-7nm";
-            reg = <0x05e94400 0x200>,
-                  <0x05e94600 0x280>,
-                  <0x05e94900 0x264>;
+        phy@5e94400 {
+            compatible = "qcom,sm6125-dsi-phy-14nm";
+            reg = <0x05e94400 0x100>,
+                  <0x05e94500 0x300>,
+                  <0x05e94800 0x188>;
             reg-names = "dsi_phy",
                         "dsi_phy_lane",
                         "dsi_pll";
@@ -202,7 +203,11 @@ examples:
 
             clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
                      <&rpmcc RPM_SMD_XO_CLK_SRC>;
-            clock-names = "iface", "ref";
+            clock-names = "iface",
+                          "ref";
+
+            required-opps = <&rpmpd_opp_nom>;
+            power-domains = <&rpmpd SM6125_VDDMX>;
         };
     };
 ...

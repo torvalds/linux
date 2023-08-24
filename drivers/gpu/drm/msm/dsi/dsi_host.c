@@ -752,6 +752,13 @@ static void dsi_ctrl_enable(struct msm_dsi_host *msm_host,
 		/* Always insert DCS command */
 		data |= DSI_CMD_CFG1_INSERT_DCS_COMMAND;
 		dsi_write(msm_host, REG_DSI_CMD_CFG1, data);
+
+		if (msm_host->cfg_hnd->major == MSM_DSI_VER_MAJOR_6G &&
+		    msm_host->cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V1_3) {
+			data = dsi_read(msm_host, REG_DSI_CMD_MODE_MDP_CTRL2);
+			data |= DSI_CMD_MODE_MDP_CTRL2_BURST_MODE;
+			dsi_write(msm_host, REG_DSI_CMD_MODE_MDP_CTRL2, data);
+		}
 	}
 
 	dsi_write(msm_host, REG_DSI_CMD_DMA_CTRL,
