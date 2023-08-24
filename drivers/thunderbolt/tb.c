@@ -1311,13 +1311,12 @@ static void tb_tunnel_dp(struct tb *tb)
 			continue;
 		}
 
-		tb_port_dbg(port, "DP IN available\n");
+		in = port;
+		tb_port_dbg(in, "DP IN available\n");
 
 		out = tb_find_dp_out(tb, port);
-		if (out) {
-			in = port;
+		if (out)
 			break;
-		}
 	}
 
 	if (!in) {
