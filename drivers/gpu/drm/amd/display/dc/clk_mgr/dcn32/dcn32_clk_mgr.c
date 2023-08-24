@@ -450,6 +450,38 @@ static int dcn32_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
 	return 0;
 }
 
+static void dcn32_auto_dpm_test_log(struct dc_clocks *new_clocks, struct clk_mgr_internal *clk_mgr)
+{
+	////////////////////////////////////////////////////////////////////////////
+	//	IMPORTANT: 	When adding more clocks to these logs, do NOT put a newline
+	//	 			anywhere other than at the very end of the string.
+	//
+	//	Formatting example (make sure to have " - " between each entry):
+	//
+	//				AutoDPMTest: clk1:%d - clk2:%d - clk3:%d - clk4:%d\n"
+	////////////////////////////////////////////////////////////////////////////
+	if (new_clocks &&
+		new_clocks->dramclk_khz > 0 &&
+		new_clocks->fclk_khz > 0 &&
+		new_clocks->dcfclk_khz > 0 &&
+		new_clocks->dppclk_khz > 0) {
+
+		if (new_clocks->p_state_change_support) {
+			DC_LOG_AUTO_DPM_TEST("AutoDPMTest: dramclk_khz:%d - fclk_khz:%d - "
+						 "dcfclk_khz:%d - dppclk_khz:%d\n",
+						 new_clocks->dramclk_khz,
+						 new_clocks->fclk_khz,
+						 new_clocks->dcfclk_khz,
+						 new_clocks->dppclk_khz);
+		} else {
+			DC_LOG_AUTO_DPM_TEST("AutoDPMTest: dramclk_khz:1249000 - fclk_khz:%d - "
+						 "dcfclk_khz:%d - dppclk_khz:%d\n",
+						 new_clocks->fclk_khz,
+						 new_clocks->dcfclk_khz,
+						 new_clocks->dppclk_khz);
+		}
+	}
+}
 
 static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
@@ -646,6 +678,10 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 		/*update dmcu for wait_loop count*/
 		dmcu->funcs->set_psr_wait_loop(dmcu,
 				clk_mgr_base->clks.dispclk_khz / 1000 / 7);
+
+	if (dc->config.enable_auto_dpm_test_logs) {
+	    dcn32_auto_dpm_test_log(new_clocks, clk_mgr);
+	}
 }
 
 static uint32_t dcn32_get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
