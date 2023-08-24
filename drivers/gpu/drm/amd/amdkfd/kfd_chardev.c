@@ -1855,8 +1855,8 @@ static uint32_t get_process_num_bos(struct kfd_process *p)
 	return num_of_bos;
 }
 
-static int criu_get_prime_handle(struct kgd_mem *mem, int flags,
-				      u32 *shared_fd)
+static int criu_get_prime_handle(struct kgd_mem *mem,
+				 int flags, u32 *shared_fd)
 {
 	struct dma_buf *dmabuf;
 	int ret;
