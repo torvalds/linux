@@ -1200,10 +1200,10 @@ static int stmmac_init_phy(struct net_device *dev)
 static int stmmac_phy_setup(struct stmmac_priv *priv)
 {
 	struct stmmac_mdio_bus_data *mdio_bus_data;
-	int max_speed = priv->plat->max_speed;
 	int mode = priv->plat->phy_interface;
 	struct fwnode_handle *fwnode;
 	struct phylink *phylink;
+	int max_speed;
 
 	priv->phylink_config.dev = &priv->dev->dev;
 	priv->phylink_config.type = PHYLINK_NETDEV;
@@ -1222,29 +1222,18 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 				    priv->phylink_config.supported_interfaces);
 
 	priv->phylink_config.mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
-		MAC_10 | MAC_100;
-
-	if (!max_speed || max_speed >= 1000)
-		priv->phylink_config.mac_capabilities |= MAC_1000;
+		MAC_10 | MAC_100 | MAC_1000;
 
 	if (priv->plat->has_gmac4) {
-		if (!max_speed || max_speed >= 2500)
-			priv->phylink_config.mac_capabilities |= MAC_2500FD;
+		priv->phylink_config.mac_capabilities |= MAC_2500FD;
 	} else if (priv->plat->has_xgmac) {
-		if (!max_speed || max_speed >= 2500)
-			priv->phylink_config.mac_capabilities |= MAC_2500FD;
-		if (!max_speed || max_speed >= 5000)
-			priv->phylink_config.mac_capabilities |= MAC_5000FD;
-		if (!max_speed || max_speed >= 10000)
-			priv->phylink_config.mac_capabilities |= MAC_10000FD;
-		if (!max_speed || max_speed >= 25000)
-			priv->phylink_config.mac_capabilities |= MAC_25000FD;
-		if (!max_speed || max_speed >= 40000)
-			priv->phylink_config.mac_capabilities |= MAC_40000FD;
-		if (!max_speed || max_speed >= 50000)
-			priv->phylink_config.mac_capabilities |= MAC_50000FD;
-		if (!max_speed || max_speed >= 100000)
-			priv->phylink_config.mac_capabilities |= MAC_100000FD;
+		priv->phylink_config.mac_capabilities |= MAC_2500FD;
+		priv->phylink_config.mac_capabilities |= MAC_5000FD;
+		priv->phylink_config.mac_capabilities |= MAC_10000FD;
+		priv->phylink_config.mac_capabilities |= MAC_25000FD;
+		priv->phylink_config.mac_capabilities |= MAC_40000FD;
+		priv->phylink_config.mac_capabilities |= MAC_50000FD;
+		priv->phylink_config.mac_capabilities |= MAC_100000FD;
 	}
 
 	/* Half-Duplex can only work with single queue */
@@ -1252,6 +1241,10 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 		priv->phylink_config.mac_capabilities &=
 			~(MAC_10HD | MAC_100HD | MAC_1000HD);
 	priv->phylink_config.mac_managed_pm = true;
+
+	max_speed = priv->plat->max_speed;
+	if (max_speed)
+		phylink_limit_mac_speed(&priv->phylink_config, max_speed);
 
 	fwnode = priv->plat->port_node;
 	if (!fwnode)
