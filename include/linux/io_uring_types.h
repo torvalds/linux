@@ -69,8 +69,8 @@ struct io_uring_task {
 };
 
 struct io_uring {
-	u32 head ____cacheline_aligned_in_smp;
-	u32 tail ____cacheline_aligned_in_smp;
+	u32 head;
+	u32 tail;
 };
 
 /*
