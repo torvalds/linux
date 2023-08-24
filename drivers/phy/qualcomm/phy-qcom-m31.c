@@ -82,7 +82,7 @@ struct m31_priv_data {
 	unsigned int			nregs;
 };
 
-struct m31_phy_regs m31_ipq5332_regs[] = {
+static struct m31_phy_regs m31_ipq5332_regs[] = {
 	{
 		USB_PHY_CFG0,
 		UTMI_PHY_OVERRIDE_EN,
