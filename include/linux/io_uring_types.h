@@ -256,6 +256,15 @@ struct io_ring_ctx {
 		struct io_hash_table	cancel_table_locked;
 		struct io_alloc_cache	apoll_cache;
 		struct io_alloc_cache	netmsg_cache;
+
+		/*
+		 * ->iopoll_list is protected by the ctx->uring_lock for
+		 * io_uring instances that don't use IORING_SETUP_SQPOLL.
+		 * For SQPOLL, only the single threaded io_sq_thread() will
+		 * manipulate the list, hence no extra locking is needed there.
+		 */
+		struct io_wq_work_list	iopoll_list;
+		bool			poll_multi_queue;
 	} ____cacheline_aligned_in_smp;
 
 	struct {
@@ -284,20 +293,6 @@ struct io_ring_ctx {
 		struct wait_queue_head	cq_wait;
 	} ____cacheline_aligned_in_smp;
 
-	struct {
-		spinlock_t		completion_lock;
-
-		bool			poll_multi_queue;
-
-		/*
-		 * ->iopoll_list is protected by the ctx->uring_lock for
-		 * io_uring instances that don't use IORING_SETUP_SQPOLL.
-		 * For SQPOLL, only the single threaded io_sq_thread() will
-		 * manipulate the list, hence no extra locking is needed there.
-		 */
-		struct io_wq_work_list	iopoll_list;
-	} ____cacheline_aligned_in_smp;
-
 	/* timeouts */
 	struct {
 		spinlock_t		timeout_lock;
@@ -307,6 +302,8 @@ struct io_ring_ctx {
 	} ____cacheline_aligned_in_smp;
 
 	struct io_uring_cqe	completion_cqes[16];
+
+	spinlock_t		completion_lock;
 
 	/* IRQ completion list, under ->completion_lock */
 	struct io_wq_work_list	locked_free_list;
