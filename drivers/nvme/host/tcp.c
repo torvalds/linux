@@ -1403,8 +1403,11 @@ static int nvme_tcp_init_connection(struct nvme_tcp_queue *queue)
 	iov.iov_base = icreq;
 	iov.iov_len = sizeof(*icreq);
 	ret = kernel_sendmsg(queue->sock, &msg, &iov, 1, iov.iov_len);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_warn("queue %d: failed to send icreq, error %d\n",
+			nvme_tcp_queue_id(queue), ret);
 		goto free_icresp;
+	}
 
 	memset(&msg, 0, sizeof(msg));
 	iov.iov_base = icresp;
@@ -1415,8 +1418,11 @@ static int nvme_tcp_init_connection(struct nvme_tcp_queue *queue)
 	}
 	ret = kernel_recvmsg(queue->sock, &msg, &iov, 1,
 			iov.iov_len, msg.msg_flags);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_warn("queue %d: failed to receive icresp, error %d\n",
+			nvme_tcp_queue_id(queue), ret);
 		goto free_icresp;
+	}
 	if (queue->ctrl->ctrl.opts->tls) {
 		ctype = tls_get_record_type(queue->sock->sk,
 					    (struct cmsghdr *)cbuf);
