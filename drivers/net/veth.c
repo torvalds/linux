@@ -373,13 +373,12 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (likely(veth_forward_skb(rcv, skb, rq, use_napi) == NET_RX_SUCCESS)) {
 		if (!use_napi)
 			dev_lstats_add(dev, length);
+		else
+			__veth_xdp_flush(rq);
 	} else {
 drop:
 		atomic64_inc(&priv->dropped);
 	}
-
-	if (use_napi)
-		__veth_xdp_flush(rq);
 
 	rcu_read_unlock();
 
