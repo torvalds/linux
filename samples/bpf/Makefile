@@ -30,8 +30,6 @@ tprogs-y += test_cgrp2_array_pin
 tprogs-y += test_cgrp2_attach
 tprogs-y += test_cgrp2_sock
 tprogs-y += test_cgrp2_sock2
-tprogs-y += xdp1
-tprogs-y += xdp2
 tprogs-y += xdp_router_ipv4
 tprogs-y += test_current_task_under_cgroup
 tprogs-y += trace_event
@@ -83,9 +81,6 @@ test_cgrp2_array_pin-objs := test_cgrp2_array_pin.o
 test_cgrp2_attach-objs := test_cgrp2_attach.o
 test_cgrp2_sock-objs := test_cgrp2_sock.o
 test_cgrp2_sock2-objs := test_cgrp2_sock2.o
-xdp1-objs := xdp1_user.o
-# reuse xdp1 source intentionally
-xdp2-objs := xdp1_user.o
 test_current_task_under_cgroup-objs := $(CGROUP_HELPERS) \
 				       test_current_task_under_cgroup_user.o
 trace_event-objs := trace_event_user.o $(TRACE_HELPERS)
@@ -132,8 +127,6 @@ always-y += test_overhead_raw_tp.bpf.o
 always-y += test_overhead_kprobe.bpf.o
 always-y += parse_varlen.o parse_simple.o parse_ldabs.o
 always-y += test_cgrp2_tc.bpf.o
-always-y += xdp1_kern.o
-always-y += xdp2_kern.o
 always-y += test_current_task_under_cgroup.bpf.o
 always-y += trace_event_kern.o
 always-y += sampleip_kern.o
