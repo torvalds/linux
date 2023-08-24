@@ -2472,7 +2472,7 @@ static int test_term(const struct terms_test *t)
 
 	INIT_LIST_HEAD(&terms);
 
-	ret = parse_events_terms(&terms, t->str);
+	ret = parse_events_terms(&terms, t->str, /*input=*/ NULL);
 	if (ret) {
 		pr_debug("failed to parse terms '%s', err %d\n",
 			 t->str , ret);

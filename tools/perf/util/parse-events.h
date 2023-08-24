@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <linux/types.h>
 #include <linux/perf_event.h>
+#include <stdio.h>
 #include <string.h>
 
 struct evsel;
@@ -42,7 +43,7 @@ static inline int parse_events(struct evlist *evlist, const char *str,
 
 int parse_event(struct evlist *evlist, const char *str);
 
-int parse_events_terms(struct list_head *terms, const char *str);
+int parse_events_terms(struct list_head *terms, const char *str, FILE *input);
 int parse_filter(const struct option *opt, const char *str, int unset);
 int exclude_perf(const struct option *opt, const char *arg, int unset);
 

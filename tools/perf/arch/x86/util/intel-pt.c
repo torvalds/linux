@@ -74,7 +74,7 @@ static int intel_pt_parse_terms_with_default(struct perf_pmu *pmu,
 
 	INIT_LIST_HEAD(terms);
 
-	err = parse_events_terms(terms, str);
+	err = parse_events_terms(terms, str, /*input=*/ NULL);
 	if (err)
 		goto out_free;
 
