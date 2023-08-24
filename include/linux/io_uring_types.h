@@ -270,15 +270,25 @@ struct io_ring_ctx {
 		unsigned		cached_cq_tail;
 		unsigned		cq_entries;
 		struct io_ev_fd	__rcu	*io_ev_fd;
-		struct wait_queue_head	cq_wait;
 		unsigned		cq_extra;
+	} ____cacheline_aligned_in_smp;
+
+	/*
+	 * task_work and async notification delivery cacheline. Expected to
+	 * regularly bounce b/w CPUs.
+	 */
+	struct {
+		struct llist_head	work_llist;
+		unsigned long		check_cq;
+		atomic_t		cq_wait_nr;
+		atomic_t		cq_timeouts;
+		struct wait_queue_head	cq_wait;
 	} ____cacheline_aligned_in_smp;
 
 	struct {
 		spinlock_t		completion_lock;
 
 		bool			poll_multi_queue;
-		atomic_t		cq_wait_nr;
 
 		/*
 		 * ->iopoll_list is protected by the ctx->uring_lock for
@@ -287,14 +297,11 @@ struct io_ring_ctx {
 		 * manipulate the list, hence no extra locking is needed there.
 		 */
 		struct io_wq_work_list	iopoll_list;
-
-		struct llist_head	work_llist;
 	} ____cacheline_aligned_in_smp;
 
 	/* timeouts */
 	struct {
 		spinlock_t		timeout_lock;
-		atomic_t		cq_timeouts;
 		struct list_head	timeout_list;
 		struct list_head	ltimeout_list;
 		unsigned		cq_last_tm_flush;
@@ -313,8 +320,6 @@ struct io_ring_ctx {
 
 	struct wait_queue_head	sqo_sq_wait;
 	struct list_head	sqd_list;
-
-	unsigned long		check_cq;
 
 	unsigned int		file_alloc_start;
 	unsigned int		file_alloc_end;
