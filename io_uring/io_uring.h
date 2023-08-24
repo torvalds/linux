@@ -109,28 +109,27 @@ static inline void io_req_task_work_add(struct io_kiocb *req)
 #define io_for_each_link(pos, head) \
 	for (pos = (head); pos; pos = pos->link)
 
-static inline struct io_uring_cqe *io_get_cqe_overflow(struct io_ring_ctx *ctx,
-						       bool overflow)
+static inline bool io_get_cqe_overflow(struct io_ring_ctx *ctx,
+					struct io_uring_cqe **ret,
+					bool overflow)
 {
-	struct io_uring_cqe *cqe;
-
 	io_lockdep_assert_cq_locked(ctx);
 
 	if (unlikely(ctx->cqe_cached >= ctx->cqe_sentinel)) {
 		if (unlikely(!io_cqe_cache_refill(ctx, overflow)))
-			return NULL;
+			return false;
 	}
-	cqe = ctx->cqe_cached;
+	*ret = ctx->cqe_cached;
 	ctx->cached_cq_tail++;
 	ctx->cqe_cached++;
 	if (ctx->flags & IORING_SETUP_CQE32)
 		ctx->cqe_cached++;
-	return cqe;
+	return true;
 }
 
-static inline struct io_uring_cqe *io_get_cqe(struct io_ring_ctx *ctx)
+static inline bool io_get_cqe(struct io_ring_ctx *ctx, struct io_uring_cqe **ret)
 {
-	return io_get_cqe_overflow(ctx, false);
+	return io_get_cqe_overflow(ctx, ret, false);
 }
 
 static inline bool io_fill_cqe_req(struct io_ring_ctx *ctx, struct io_kiocb *req)
@@ -142,8 +141,7 @@ static inline bool io_fill_cqe_req(struct io_ring_ctx *ctx, struct io_kiocb *req
 	 * submission (by quite a lot). Increment the overflow count in
 	 * the ring.
 	 */
-	cqe = io_get_cqe(ctx);
-	if (unlikely(!cqe))
+	if (unlikely(!io_get_cqe(ctx, &cqe)))
 		return false;
 
 	if (trace_io_uring_complete_enabled())
