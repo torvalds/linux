@@ -228,17 +228,14 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 		syscon_regmap_lookup_by_phandle(dev->of_node,
 						"ti,syscon-sa-cfg");
 
-	if (IS_ERR(ks_sa_rng->regmap_cfg)) {
-		dev_err(dev, "syscon_node_to_regmap failed\n");
-		return -EINVAL;
-	}
+	if (IS_ERR(ks_sa_rng->regmap_cfg))
+		return dev_err_probe(dev, -EINVAL, "syscon_node_to_regmap failed\n");
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
-		dev_err(dev, "Failed to enable SA power-domain\n");
 		pm_runtime_disable(dev);
-		return ret;
+		return dev_err_probe(dev, ret, "Failed to enable SA power-domain\n");
 	}
 
 	return devm_hwrng_register(&pdev->dev, &ks_sa_rng->rng);
