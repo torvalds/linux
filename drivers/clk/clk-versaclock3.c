@@ -119,20 +119,20 @@ enum vc3_div {
 };
 
 enum vc3_clk_mux {
-	VC3_DIFF2_MUX,
-	VC3_DIFF1_MUX,
-	VC3_SE3_MUX,
-	VC3_SE2_MUX,
 	VC3_SE1_MUX,
+	VC3_SE2_MUX,
+	VC3_SE3_MUX,
+	VC3_DIFF1_MUX,
+	VC3_DIFF2_MUX,
 };
 
 enum vc3_clk {
-	VC3_DIFF2,
-	VC3_DIFF1,
-	VC3_SE3,
-	VC3_SE2,
-	VC3_SE1,
 	VC3_REF,
+	VC3_SE1,
+	VC3_SE2,
+	VC3_SE3,
+	VC3_DIFF1,
+	VC3_DIFF2,
 };
 
 struct vc3_clk_data {
@@ -896,48 +896,16 @@ static struct vc3_hw_data clk_div[] = {
 };
 
 static struct vc3_hw_data clk_mux[] = {
-	[VC3_DIFF2_MUX] = {
+	[VC3_SE1_MUX] = {
 		.data = &(struct vc3_clk_data) {
-			.offs = VC3_DIFF2_CTRL_REG,
-			.bitmsk = VC3_DIFF2_CTRL_REG_DIFF2_CLK_SEL
+			.offs = VC3_SE1_DIV4_CTRL,
+			.bitmsk = VC3_SE1_DIV4_CTRL_SE1_CLK_SEL
 		},
 		.hw.init = &(struct clk_init_data){
-			.name = "diff2_mux",
+			.name = "se1_mux",
 			.ops = &vc3_clk_mux_ops,
 			.parent_hws = (const struct clk_hw *[]) {
-				&clk_div[VC3_DIV1].hw,
-				&clk_div[VC3_DIV3].hw
-			},
-			.num_parents = 2,
-			.flags = CLK_SET_RATE_PARENT
-		}
-	},
-	[VC3_DIFF1_MUX] = {
-		.data = &(struct vc3_clk_data) {
-			.offs = VC3_DIFF1_CTRL_REG,
-			.bitmsk = VC3_DIFF1_CTRL_REG_DIFF1_CLK_SEL
-		},
-		.hw.init = &(struct clk_init_data){
-			.name = "diff1_mux",
-			.ops = &vc3_clk_mux_ops,
-			.parent_hws = (const struct clk_hw *[]) {
-				&clk_div[VC3_DIV1].hw,
-				&clk_div[VC3_DIV3].hw
-			},
-			.num_parents = 2,
-			.flags = CLK_SET_RATE_PARENT
-		}
-	},
-	[VC3_SE3_MUX] = {
-		.data = &(struct vc3_clk_data) {
-			.offs = VC3_SE3_DIFF1_CTRL_REG,
-			.bitmsk = VC3_SE3_DIFF1_CTRL_REG_SE3_CLK_SEL
-		},
-		.hw.init = &(struct clk_init_data){
-			.name = "se3_mux",
-			.ops = &vc3_clk_mux_ops,
-			.parent_hws = (const struct clk_hw *[]) {
-				&clk_div[VC3_DIV2].hw,
+				&clk_div[VC3_DIV5].hw,
 				&clk_div[VC3_DIV4].hw
 			},
 			.num_parents = 2,
@@ -960,17 +928,49 @@ static struct vc3_hw_data clk_mux[] = {
 			.flags = CLK_SET_RATE_PARENT
 		}
 	},
-	[VC3_SE1_MUX] = {
+	[VC3_SE3_MUX] = {
 		.data = &(struct vc3_clk_data) {
-			.offs = VC3_SE1_DIV4_CTRL,
-			.bitmsk = VC3_SE1_DIV4_CTRL_SE1_CLK_SEL
+			.offs = VC3_SE3_DIFF1_CTRL_REG,
+			.bitmsk = VC3_SE3_DIFF1_CTRL_REG_SE3_CLK_SEL
 		},
 		.hw.init = &(struct clk_init_data){
-			.name = "se1_mux",
+			.name = "se3_mux",
 			.ops = &vc3_clk_mux_ops,
 			.parent_hws = (const struct clk_hw *[]) {
-				&clk_div[VC3_DIV5].hw,
+				&clk_div[VC3_DIV2].hw,
 				&clk_div[VC3_DIV4].hw
+			},
+			.num_parents = 2,
+			.flags = CLK_SET_RATE_PARENT
+		}
+	},
+	[VC3_DIFF1_MUX] = {
+		.data = &(struct vc3_clk_data) {
+			.offs = VC3_DIFF1_CTRL_REG,
+			.bitmsk = VC3_DIFF1_CTRL_REG_DIFF1_CLK_SEL
+		},
+		.hw.init = &(struct clk_init_data){
+			.name = "diff1_mux",
+			.ops = &vc3_clk_mux_ops,
+			.parent_hws = (const struct clk_hw *[]) {
+				&clk_div[VC3_DIV1].hw,
+				&clk_div[VC3_DIV3].hw
+			},
+			.num_parents = 2,
+			.flags = CLK_SET_RATE_PARENT
+		}
+	},
+	[VC3_DIFF2_MUX] = {
+		.data = &(struct vc3_clk_data) {
+			.offs = VC3_DIFF2_CTRL_REG,
+			.bitmsk = VC3_DIFF2_CTRL_REG_DIFF2_CLK_SEL
+		},
+		.hw.init = &(struct clk_init_data){
+			.name = "diff2_mux",
+			.ops = &vc3_clk_mux_ops,
+			.parent_hws = (const struct clk_hw *[]) {
+				&clk_div[VC3_DIV1].hw,
+				&clk_div[VC3_DIV3].hw
 			},
 			.num_parents = 2,
 			.flags = CLK_SET_RATE_PARENT
@@ -1109,7 +1109,7 @@ static int vc3_probe(struct i2c_client *client)
 				name, 0, CLK_SET_RATE_PARENT, 1, 1);
 		else
 			clk_out[i] = devm_clk_hw_register_fixed_factor_parent_hw(dev,
-				name, &clk_mux[i].hw, CLK_SET_RATE_PARENT, 1, 1);
+				name, &clk_mux[i - 1].hw, CLK_SET_RATE_PARENT, 1, 1);
 
 		if (IS_ERR(clk_out[i]))
 			return PTR_ERR(clk_out[i]);
