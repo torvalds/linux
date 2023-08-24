@@ -9003,6 +9003,52 @@ static void pqi_ctrl_offline_worker(struct work_struct *work)
 	pqi_take_ctrl_offline_deferred(ctrl_info);
 }
 
+static char *pqi_ctrl_shutdown_reason_to_string(enum pqi_ctrl_shutdown_reason ctrl_shutdown_reason)
+{
+	char *string;
+
+	switch (ctrl_shutdown_reason) {
+	case PQI_IQ_NOT_DRAINED_TIMEOUT:
+		string = "inbound queue not drained timeout";
+		break;
+	case PQI_LUN_RESET_TIMEOUT:
+		string = "LUN reset timeout";
+		break;
+	case PQI_IO_PENDING_POST_LUN_RESET_TIMEOUT:
+		string = "I/O pending timeout after LUN reset";
+		break;
+	case PQI_NO_HEARTBEAT:
+		string = "no controller heartbeat detected";
+		break;
+	case PQI_FIRMWARE_KERNEL_NOT_UP:
+		string = "firmware kernel not ready";
+		break;
+	case PQI_OFA_RESPONSE_TIMEOUT:
+		string = "OFA response timeout";
+		break;
+	case PQI_INVALID_REQ_ID:
+		string = "invalid request ID";
+		break;
+	case PQI_UNMATCHED_REQ_ID:
+		string = "unmatched request ID";
+		break;
+	case PQI_IO_PI_OUT_OF_RANGE:
+		string = "I/O queue producer index out of range";
+		break;
+	case PQI_EVENT_PI_OUT_OF_RANGE:
+		string = "event queue producer index out of range";
+		break;
+	case PQI_UNEXPECTED_IU_TYPE:
+		string = "unexpected IU type";
+		break;
+	default:
+		string = "unknown reason";
+		break;
+	}
+
+	return string;
+}
+
 static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info,
 	enum pqi_ctrl_shutdown_reason ctrl_shutdown_reason)
 {
@@ -9015,7 +9061,9 @@ static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info,
 	if (!pqi_disable_ctrl_shutdown)
 		sis_shutdown_ctrl(ctrl_info, ctrl_shutdown_reason);
 	pci_disable_device(ctrl_info->pci_dev);
-	dev_err(&ctrl_info->pci_dev->dev, "controller offline\n");
+	dev_err(&ctrl_info->pci_dev->dev,
+		"controller offline: reason code 0x%x (%s)\n",
+		ctrl_shutdown_reason, pqi_ctrl_shutdown_reason_to_string(ctrl_shutdown_reason));
 	schedule_work(&ctrl_info->ctrl_offline_work);
 }
 
