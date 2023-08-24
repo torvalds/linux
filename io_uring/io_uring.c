@@ -880,7 +880,7 @@ static void __io_flush_post_cqes(struct io_ring_ctx *ctx)
 
 	lockdep_assert_held(&ctx->uring_lock);
 	for (i = 0; i < state->cqes_count; i++) {
-		struct io_uring_cqe *cqe = &state->cqes[i];
+		struct io_uring_cqe *cqe = &ctx->completion_cqes[i];
 
 		if (!io_fill_cqe_aux(ctx, cqe->user_data, cqe->res, cqe->flags)) {
 			if (ctx->task_complete) {
@@ -931,7 +931,7 @@ bool io_fill_cqe_req_aux(struct io_kiocb *req, bool defer, s32 res, u32 cflags)
 
 	lockdep_assert_held(&ctx->uring_lock);
 
-	if (ctx->submit_state.cqes_count == ARRAY_SIZE(ctx->submit_state.cqes)) {
+	if (ctx->submit_state.cqes_count == ARRAY_SIZE(ctx->completion_cqes)) {
 		__io_cq_lock(ctx);
 		__io_flush_post_cqes(ctx);
 		/* no need to flush - flush is deferred */
@@ -945,7 +945,7 @@ bool io_fill_cqe_req_aux(struct io_kiocb *req, bool defer, s32 res, u32 cflags)
 	if (test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq))
 		return false;
 
-	cqe = &ctx->submit_state.cqes[ctx->submit_state.cqes_count++];
+	cqe = &ctx->completion_cqes[ctx->submit_state.cqes_count++];
 	cqe->user_data = user_data;
 	cqe->res = res;
 	cqe->flags = cflags;

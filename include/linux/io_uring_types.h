@@ -176,7 +176,6 @@ struct io_submit_state {
 	unsigned short		submit_nr;
 	unsigned int		cqes_count;
 	struct blk_plug		plug;
-	struct io_uring_cqe	cqes[16];
 };
 
 struct io_ev_fd {
@@ -306,6 +305,8 @@ struct io_ring_ctx {
 		struct list_head	ltimeout_list;
 		unsigned		cq_last_tm_flush;
 	} ____cacheline_aligned_in_smp;
+
+	struct io_uring_cqe	completion_cqes[16];
 
 	/* IRQ completion list, under ->completion_lock */
 	struct io_wq_work_list	locked_free_list;
