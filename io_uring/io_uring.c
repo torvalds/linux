@@ -1056,7 +1056,7 @@ static void io_preinit_req(struct io_kiocb *req, struct io_ring_ctx *ctx)
 	req->link = NULL;
 	req->async_data = NULL;
 	/* not necessary, but safer to zero */
-	req->cqe.res = 0;
+	memset(&req->cqe, 0, sizeof(req->cqe));
 }
 
 static void io_flush_cached_locked_reqs(struct io_ring_ctx *ctx,
