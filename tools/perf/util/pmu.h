@@ -227,9 +227,8 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 			  struct perf_pmu_info *info);
 struct perf_pmu_alias *perf_pmu__find_alias(struct perf_pmu *pmu, const char *event);
 
-int perf_pmu__new_format(struct list_head *list, char *name,
-			 int config, unsigned long *bits);
-int perf_pmu__format_parse(struct perf_pmu *pmu, int dirfd);
+int perf_pmu__format_parse(struct perf_pmu *pmu, int dirfd, bool eager_load);
+void perf_pmu_format__set_value(void *format, int config, unsigned long *bits);
 bool perf_pmu__has_format(const struct perf_pmu *pmu, const char *name);
 
 bool is_pmu_core(const char *name);

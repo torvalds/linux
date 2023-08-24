@@ -40,6 +40,10 @@ struct perf_pmu perf_pmu__fake;
  * value=PERF_PMU_FORMAT_VALUE_CONFIG and bits 0 to 7 will be set.
  */
 struct perf_pmu_format {
+	/** @list: Element on list within struct perf_pmu. */
+	struct list_head list;
+	/** @bits: Which config bits are set by this format value. */
+	DECLARE_BITMAP(bits, PERF_PMU_FORMAT_BITS);
 	/** @name: The modifier/file name. */
 	char *name;
 	/**
@@ -47,18 +51,79 @@ struct perf_pmu_format {
 	 * are from PERF_PMU_FORMAT_VALUE_CONFIG to
 	 * PERF_PMU_FORMAT_VALUE_CONFIG_END.
 	 */
-	int value;
-	/** @bits: Which config bits are set by this format value. */
-	DECLARE_BITMAP(bits, PERF_PMU_FORMAT_BITS);
-	/** @list: Element on list within struct perf_pmu. */
-	struct list_head list;
+	u16 value;
+	/** @loaded: Has the contents been loaded/parsed. */
+	bool loaded;
 };
+
+static struct perf_pmu_format *perf_pmu__new_format(struct list_head *list, char *name)
+{
+	struct perf_pmu_format *format;
+
+	format = zalloc(sizeof(*format));
+	if (!format)
+		return NULL;
+
+	format->name = strdup(name);
+	if (!format->name) {
+		free(format);
+		return NULL;
+	}
+	list_add_tail(&format->list, list);
+	return format;
+}
+
+/* Called at the end of parsing a format. */
+void perf_pmu_format__set_value(void *vformat, int config, unsigned long *bits)
+{
+	struct perf_pmu_format *format = vformat;
+
+	format->value = config;
+	memcpy(format->bits, bits, sizeof(format->bits));
+}
+
+static void __perf_pmu_format__load(struct perf_pmu_format *format, FILE *file)
+{
+	void *scanner;
+	int ret;
+
+	ret = perf_pmu_lex_init(&scanner);
+	if (ret)
+		return;
+
+	perf_pmu_set_in(file, scanner);
+	ret = perf_pmu_parse(format, scanner);
+	perf_pmu_lex_destroy(scanner);
+	format->loaded = true;
+}
+
+static void perf_pmu_format__load(struct perf_pmu *pmu, struct perf_pmu_format *format)
+{
+	char path[PATH_MAX];
+	FILE *file = NULL;
+
+	if (format->loaded)
+		return;
+
+	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), pmu->name, "format"))
+		return;
+
+	assert(strlen(path) + strlen(format->name) + 2 < sizeof(path));
+	strcat(path, "/");
+	strcat(path, format->name);
+
+	file = fopen(path, "r");
+	if (!file)
+		return;
+	__perf_pmu_format__load(format, file);
+	fclose(file);
+}
 
 /*
  * Parse & process all the sysfs attributes located under
  * the directory specified in 'dir' parameter.
  */
-int perf_pmu__format_parse(struct perf_pmu *pmu, int dirfd)
+int perf_pmu__format_parse(struct perf_pmu *pmu, int dirfd, bool eager_load)
 {
 	struct dirent *evt_ent;
 	DIR *format_dir;
@@ -68,37 +133,35 @@ int perf_pmu__format_parse(struct perf_pmu *pmu, int dirfd)
 	if (!format_dir)
 		return -EINVAL;
 
-	while (!ret && (evt_ent = readdir(format_dir))) {
+	while ((evt_ent = readdir(format_dir)) != NULL) {
+		struct perf_pmu_format *format;
 		char *name = evt_ent->d_name;
-		int fd;
-		void *scanner;
-		FILE *file;
 
 		if (!strcmp(name, ".") || !strcmp(name, ".."))
 			continue;
 
-
-		ret = -EINVAL;
-		fd = openat(dirfd, name, O_RDONLY);
-		if (fd < 0)
-			break;
-
-		file = fdopen(fd, "r");
-		if (!file) {
-			close(fd);
+		format = perf_pmu__new_format(&pmu->format, name);
+		if (!format) {
+			ret = -ENOMEM;
 			break;
 		}
 
-		ret = perf_pmu_lex_init(&scanner);
-		if (ret) {
+		if (eager_load) {
+			FILE *file;
+			int fd = openat(dirfd, name, O_RDONLY);
+
+			if (fd < 0) {
+				ret = -errno;
+				break;
+			}
+			file = fdopen(fd, "r");
+			if (!file) {
+				close(fd);
+				break;
+			}
+			__perf_pmu_format__load(format, file);
 			fclose(file);
-			break;
 		}
-
-		perf_pmu_set_in(file, scanner);
-		ret = perf_pmu_parse(&pmu->format, name, scanner);
-		perf_pmu_lex_destroy(scanner);
-		fclose(file);
 	}
 
 	closedir(format_dir);
@@ -119,7 +182,7 @@ static int pmu_format(struct perf_pmu *pmu, int dirfd, const char *name)
 		return 0;
 
 	/* it'll close the fd */
-	if (perf_pmu__format_parse(pmu, fd))
+	if (perf_pmu__format_parse(pmu, fd, /*eager_load=*/false))
 		return -1;
 
 	return 0;
@@ -962,13 +1025,15 @@ void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu)
 	if (pmu == &perf_pmu__fake)
 		return;
 
-	list_for_each_entry(format, &pmu->format, list)
+	list_for_each_entry(format, &pmu->format, list) {
+		perf_pmu_format__load(pmu, format);
 		if (format->value >= PERF_PMU_FORMAT_VALUE_CONFIG_END) {
 			pr_warning("WARNING: '%s' format '%s' requires 'perf_event_attr::config%d'"
 				   "which is not supported by this version of perf!\n",
 				   pmu->name, format->name, format->value);
 			return;
 		}
+	}
 }
 
 bool evsel__is_aux_event(const struct evsel *evsel)
@@ -1041,6 +1106,7 @@ int perf_pmu__format_type(struct perf_pmu *pmu, const char *name)
 	if (!format)
 		return -1;
 
+	perf_pmu_format__load(pmu, format);
 	return format->value;
 }
 
@@ -1177,7 +1243,7 @@ static int pmu_config_term(struct perf_pmu *pmu,
 		free(pmu_term);
 		return -EINVAL;
 	}
-
+	perf_pmu_format__load(pmu, format);
 	switch (format->value) {
 	case PERF_PMU_FORMAT_VALUE_CONFIG:
 		vp = &attr->config;
@@ -1403,24 +1469,6 @@ struct perf_pmu_alias *perf_pmu__find_alias(struct perf_pmu *pmu, const char *ev
 
 	return NULL;
 }
-
-int perf_pmu__new_format(struct list_head *list, char *name,
-			 int config, unsigned long *bits)
-{
-	struct perf_pmu_format *format;
-
-	format = zalloc(sizeof(*format));
-	if (!format)
-		return -ENOMEM;
-
-	format->name = strdup(name);
-	format->value = config;
-	memcpy(format->bits, bits, sizeof(format->bits));
-
-	list_add_tail(&format->list, list);
-	return 0;
-}
-
 static void perf_pmu__del_formats(struct list_head *formats)
 {
 	struct perf_pmu_format *fmt, *tmp;
