@@ -2126,7 +2126,7 @@ static int rcu_nocb_toggle(void *arg)
 	VERBOSE_TOROUT_STRING("rcu_nocb_toggle task started");
 	while (!rcu_inkernel_boot_has_ended())
 		schedule_timeout_interruptible(HZ / 10);
-	for_each_online_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		maxcpu = cpu;
 	WARN_ON(maxcpu < 0);
 	if (toggle_interval > ULONG_MAX)
