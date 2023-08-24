@@ -145,9 +145,20 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 		putchar('\n');
 
 	if (desc && print_state->desc) {
+		char *desc_with_unit = NULL;
+		int desc_len = -1;
+
+		if (pmu_name && strcmp(pmu_name, "cpu")) {
+			desc_len = strlen(desc);
+			desc_len = asprintf(&desc_with_unit,
+					    desc[desc_len - 1] != '.'
+					      ? "%s. Unit: %s" : "%s Unit: %s",
+					    desc, pmu_name);
+		}
 		printf("%*s", 8, "[");
-		wordwrap(desc, 8, pager_get_columns(), 0);
+		wordwrap(desc_len > 0 ? desc_with_unit : desc, 8, pager_get_columns(), 0);
 		printf("]\n");
+		free(desc_with_unit);
 	}
 	long_desc = long_desc ?: desc;
 	if (long_desc && print_state->long_desc) {

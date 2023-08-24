@@ -357,13 +357,6 @@ class JsonEvent:
       self.desc += extra_desc
     if self.long_desc and extra_desc:
       self.long_desc += extra_desc
-    if self.pmu and self.pmu != 'cpu':
-      if not self.desc:
-        self.desc = 'Unit: ' + self.pmu
-      else:
-        if not self.desc.endswith('. '):
-          self.desc += '. '
-      self.desc += 'Unit: ' + self.pmu
     if arch_std:
       if arch_std.lower() in _arch_std_events:
         event = _arch_std_events[arch_std.lower()].event

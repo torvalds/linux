@@ -129,7 +129,7 @@ static const struct perf_pmu_test_event uncore_hisi_ddrc_flux_wcmd = {
 	.event = {
 		.name = "uncore_hisi_ddrc.flux_wcmd",
 		.event = "event=0x2",
-		.desc = "DDRC write commands. Unit: hisi_sccl,ddrc",
+		.desc = "DDRC write commands",
 		.topic = "uncore",
 		.long_desc = "DDRC write commands",
 		.pmu = "hisi_sccl,ddrc",
@@ -143,7 +143,7 @@ static const struct perf_pmu_test_event unc_cbo_xsnp_response_miss_eviction = {
 	.event = {
 		.name = "unc_cbo_xsnp_response.miss_eviction",
 		.event = "event=0x22,umask=0x81",
-		.desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core. Unit: uncore_cbox",
+		.desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
 		.topic = "uncore",
 		.long_desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
 		.pmu = "uncore_cbox",
@@ -157,7 +157,7 @@ static const struct perf_pmu_test_event uncore_hyphen = {
 	.event = {
 		.name = "event-hyphen",
 		.event = "event=0xe0,umask=0x00",
-		.desc = "UNC_CBO_HYPHEN. Unit: uncore_cbox",
+		.desc = "UNC_CBO_HYPHEN",
 		.topic = "uncore",
 		.long_desc = "UNC_CBO_HYPHEN",
 		.pmu = "uncore_cbox",
@@ -171,7 +171,7 @@ static const struct perf_pmu_test_event uncore_two_hyph = {
 	.event = {
 		.name = "event-two-hyph",
 		.event = "event=0xc0,umask=0x00",
-		.desc = "UNC_CBO_TWO_HYPH. Unit: uncore_cbox",
+		.desc = "UNC_CBO_TWO_HYPH",
 		.topic = "uncore",
 		.long_desc = "UNC_CBO_TWO_HYPH",
 		.pmu = "uncore_cbox",
@@ -185,7 +185,7 @@ static const struct perf_pmu_test_event uncore_hisi_l3c_rd_hit_cpipe = {
 	.event = {
 		.name = "uncore_hisi_l3c.rd_hit_cpipe",
 		.event = "event=0x7",
-		.desc = "Total read hits. Unit: hisi_sccl,l3c",
+		.desc = "Total read hits",
 		.topic = "uncore",
 		.long_desc = "Total read hits",
 		.pmu = "hisi_sccl,l3c",
@@ -199,7 +199,7 @@ static const struct perf_pmu_test_event uncore_imc_free_running_cache_miss = {
 	.event = {
 		.name = "uncore_imc_free_running.cache_miss",
 		.event = "event=0x12",
-		.desc = "Total cache misses. Unit: uncore_imc_free_running",
+		.desc = "Total cache misses",
 		.topic = "uncore",
 		.long_desc = "Total cache misses",
 		.pmu = "uncore_imc_free_running",
@@ -213,7 +213,7 @@ static const struct perf_pmu_test_event uncore_imc_cache_hits = {
 	.event = {
 		.name = "uncore_imc.cache_hits",
 		.event = "event=0x34",
-		.desc = "Total cache hits. Unit: uncore_imc",
+		.desc = "Total cache hits",
 		.topic = "uncore",
 		.long_desc = "Total cache hits",
 		.pmu = "uncore_imc",
@@ -238,13 +238,13 @@ static const struct perf_pmu_test_event sys_ddr_pmu_write_cycles = {
 	.event = {
 		.name = "sys_ddr_pmu.write_cycles",
 		.event = "event=0x2b",
-		.desc = "ddr write-cycles event. Unit: uncore_sys_ddr_pmu",
+		.desc = "ddr write-cycles event",
 		.topic = "uncore",
 		.pmu = "uncore_sys_ddr_pmu",
 		.compat = "v8",
 	},
 	.alias_str = "event=0x2b",
-	.alias_long_desc = "ddr write-cycles event. Unit: uncore_sys_ddr_pmu",
+	.alias_long_desc = "ddr write-cycles event",
 	.matching_pmu = "uncore_sys_ddr_pmu",
 };
 
@@ -252,13 +252,13 @@ static const struct perf_pmu_test_event sys_ccn_pmu_read_cycles = {
 	.event = {
 		.name = "sys_ccn_pmu.read_cycles",
 		.event = "config=0x2c",
-		.desc = "ccn read-cycles event. Unit: uncore_sys_ccn_pmu",
+		.desc = "ccn read-cycles event",
 		.topic = "uncore",
 		.pmu = "uncore_sys_ccn_pmu",
 		.compat = "0x01",
 	},
 	.alias_str = "config=0x2c",
-	.alias_long_desc = "ccn read-cycles event. Unit: uncore_sys_ccn_pmu",
+	.alias_long_desc = "ccn read-cycles event",
 	.matching_pmu = "uncore_sys_ccn_pmu",
 };
 
