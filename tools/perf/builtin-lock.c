@@ -2507,7 +2507,7 @@ int cmd_lock(int argc, const char **argv)
 	OPT_CALLBACK('M', "map-nr-entries", &bpf_map_entries, "num",
 		     "Max number of BPF map entries", parse_map_entry),
 	OPT_CALLBACK(0, "max-stack", &max_stack_depth, "num",
-		     "Set the maximum stack depth when collecting lopck contention, "
+		     "Set the maximum stack depth when collecting lock contention, "
 		     "Default: " __stringify(CONTENTION_STACK_DEPTH), parse_max_stack),
 	OPT_INTEGER(0, "stack-skip", &stack_skip,
 		    "Set the number of stack depth to skip when finding a lock caller, "
