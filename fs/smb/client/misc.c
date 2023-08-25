@@ -476,7 +476,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 		return false;
 
 	/* If server is a channel, select the primary channel */
-	pserver = CIFS_SERVER_IS_CHAN(srv) ? srv->primary_server : srv;
+	pserver = SERVER_IS_CHAN(srv) ? srv->primary_server : srv;
 
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);

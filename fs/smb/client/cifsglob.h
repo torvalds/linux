@@ -745,7 +745,7 @@ struct TCP_Server_Info {
 	 * primary_server holds the ref-counted
 	 * pointer to primary channel connection for the session.
 	 */
-#define CIFS_SERVER_IS_CHAN(server)	(!!(server)->primary_server)
+#define SERVER_IS_CHAN(server)	(!!(server)->primary_server)
 	struct TCP_Server_Info *primary_server;
 	__u16 channel_sequence_num;  /* incremented on primary channel on each chan reconnect */
 

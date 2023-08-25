@@ -96,7 +96,7 @@ smb2_hdr_assemble(struct smb2_hdr *shdr, __le16 smb2_cmd,
 		/* After reconnect SMB3 must set ChannelSequence on subsequent reqs */
 		smb3_hdr = (struct smb3_hdr_req *)shdr;
 		/* if primary channel is not set yet, use default channel for chan sequence num */
-		if (CIFS_SERVER_IS_CHAN(server))
+		if (SERVER_IS_CHAN(server))
 			smb3_hdr->ChannelSequence =
 				cpu_to_le16(server->primary_server->channel_sequence_num);
 		else
@@ -564,7 +564,7 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 	 * secondary channels don't have the hostname field populated
 	 * use the hostname field in the primary channel instead
 	 */
-	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+	pserver = SERVER_IS_CHAN(server) ? server->primary_server : server;
 	cifs_server_lock(pserver);
 	hostname = pserver->hostname;
 	if (hostname && (hostname[0] != 0)) {
@@ -3796,7 +3796,7 @@ void smb2_reconnect_server(struct work_struct *work)
 	bool resched = false;
 
 	/* If server is a channel, select the primary channel */
-	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+	pserver = SERVER_IS_CHAN(server) ? server->primary_server : server;
 
 	/* Prevent simultaneous reconnects that can corrupt tcon->rlist list */
 	mutex_lock(&pserver->reconnect_mutex);

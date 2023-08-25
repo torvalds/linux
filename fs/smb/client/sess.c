@@ -323,12 +323,12 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 	ses->chans[chan_index].iface = iface;
 
 	/* No iface is found. if secondary chan, drop connection */
-	if (!iface && CIFS_SERVER_IS_CHAN(server))
+	if (!iface && SERVER_IS_CHAN(server))
 		ses->chans[chan_index].server = NULL;
 
 	spin_unlock(&ses->chan_lock);
 
-	if (!iface && CIFS_SERVER_IS_CHAN(server))
+	if (!iface && SERVER_IS_CHAN(server))
 		cifs_put_tcp_session(server, false);
 
 	return rc;
