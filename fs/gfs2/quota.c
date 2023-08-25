@@ -1557,7 +1557,6 @@ int gfs2_quotad(void *data)
 	unsigned long statfs_timeo = 0;
 	unsigned long quotad_timeo = 0;
 	unsigned long t = 0;
-	DEFINE_WAIT(wait);
 
 	while (!kthread_should_stop()) {
 
@@ -1583,12 +1582,12 @@ int gfs2_quotad(void *data)
 bypass:
 		t = min(quotad_timeo, statfs_timeo);
 
-		prepare_to_wait(&sdp->sd_quota_wait, &wait, TASK_INTERRUPTIBLE);
-		if (!sdp->sd_statfs_force_sync)
-			t -= schedule_timeout(t);
-		else
+		t = wait_event_interruptible_timeout(sdp->sd_quota_wait,
+				sdp->sd_statfs_force_sync,
+				t);
+
+		if (sdp->sd_statfs_force_sync)
 			t = 0;
-		finish_wait(&sdp->sd_quota_wait, &wait);
 	}
 
 	return 0;
