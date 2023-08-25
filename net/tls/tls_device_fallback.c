@@ -475,15 +475,6 @@ int tls_sw_fallback_init(struct sock *sk,
 	const u8 *key;
 	int rc;
 
-	offload_ctx->aead_send =
-	    crypto_alloc_aead("gcm(aes)", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(offload_ctx->aead_send)) {
-		rc = PTR_ERR(offload_ctx->aead_send);
-		pr_err_ratelimited("crypto_alloc_aead failed rc=%d\n", rc);
-		offload_ctx->aead_send = NULL;
-		goto err_out;
-	}
-
 	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128:
 		key = ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->key;
@@ -493,9 +484,18 @@ int tls_sw_fallback_init(struct sock *sk,
 		break;
 	default:
 		rc = -EINVAL;
-		goto free_aead;
+		goto err_out;
 	}
 	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
+
+	offload_ctx->aead_send =
+	    crypto_alloc_aead("gcm(aes)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(offload_ctx->aead_send)) {
+		rc = PTR_ERR(offload_ctx->aead_send);
+		pr_err_ratelimited("crypto_alloc_aead failed rc=%d\n", rc);
+		offload_ctx->aead_send = NULL;
+		goto err_out;
+	}
 
 	rc = crypto_aead_setkey(offload_ctx->aead_send, key, cipher_desc->key);
 	if (rc)
