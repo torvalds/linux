@@ -36,7 +36,7 @@ static LIST_HEAD(other_pmus);
 static bool read_sysfs_core_pmus;
 static bool read_sysfs_all_pmus;
 
-static int pmu_name_len_no_suffix(const char *str, unsigned long *num)
+int pmu_name_len_no_suffix(const char *str, unsigned long *num)
 {
 	int orig_len, len;
 
@@ -276,6 +276,43 @@ struct perf_pmu *perf_pmus__scan_core(struct perf_pmu *pmu)
 	return NULL;
 }
 
+static struct perf_pmu *perf_pmus__scan_skip_duplicates(struct perf_pmu *pmu)
+{
+	bool use_core_pmus = !pmu || pmu->is_core;
+	int last_pmu_name_len = 0;
+	const char *last_pmu_name = (pmu && pmu->name) ? pmu->name : "";
+
+	if (!pmu) {
+		pmu_read_sysfs(/*core_only=*/false);
+		pmu = list_prepare_entry(pmu, &core_pmus, list);
+	} else
+		last_pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", NULL);
+
+	if (use_core_pmus) {
+		list_for_each_entry_continue(pmu, &core_pmus, list) {
+			int pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", /*num=*/NULL);
+
+			if (last_pmu_name_len == pmu_name_len &&
+			    !strncmp(last_pmu_name, pmu->name ?: "", pmu_name_len))
+				continue;
+
+			return pmu;
+		}
+		pmu = NULL;
+		pmu = list_prepare_entry(pmu, &other_pmus, list);
+	}
+	list_for_each_entry_continue(pmu, &other_pmus, list) {
+		int pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", /*num=*/NULL);
+
+		if (last_pmu_name_len == pmu_name_len &&
+		    !strncmp(last_pmu_name, pmu->name ?: "", pmu_name_len))
+			continue;
+
+		return pmu;
+	}
+	return NULL;
+}
+
 const struct perf_pmu *perf_pmus__pmu_for_pmu_filter(const char *str)
 {
 	struct perf_pmu *pmu = NULL;
@@ -401,10 +438,17 @@ void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *p
 	int len;
 	struct sevent *aliases;
 	struct events_callback_state state;
+	bool skip_duplicate_pmus = print_cb->skip_duplicate_pmus(print_state);
+	struct perf_pmu *(*scan_fn)(struct perf_pmu *);
+
+	if (skip_duplicate_pmus)
+		scan_fn = perf_pmus__scan_skip_duplicates;
+	else
+		scan_fn = perf_pmus__scan;
 
 	pmu = NULL;
 	len = 0;
-	while ((pmu = perf_pmus__scan(pmu)) != NULL)
+	while ((pmu = scan_fn(pmu)) != NULL)
 		len += perf_pmu__num_events(pmu);
 
 	aliases = zalloc(sizeof(struct sevent) * len);
@@ -418,8 +462,9 @@ void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *p
 		.aliases_len = len,
 		.index = 0,
 	};
-	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-		perf_pmu__for_each_event(pmu, &state, perf_pmus__print_pmu_events__callback);
+	while ((pmu = scan_fn(pmu)) != NULL) {
+		perf_pmu__for_each_event(pmu, skip_duplicate_pmus, &state,
+					 perf_pmus__print_pmu_events__callback);
 	}
 	qsort(aliases, len, sizeof(struct sevent), cmp_sevent);
 	for (int j = 0; j < len; j++) {

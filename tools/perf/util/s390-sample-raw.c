@@ -171,7 +171,8 @@ static char *get_counter_name(int set, int nr, struct perf_pmu *pmu)
 	if (!pmu)
 		return NULL;
 
-	perf_pmu__for_each_event(pmu, &data, get_counter_name_callback);
+	perf_pmu__for_each_event(pmu, /*skip_duplicate_pmus=*/ true,
+				 &data, get_counter_name_callback);
 	return data.result;
 }
 

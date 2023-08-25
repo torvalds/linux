@@ -212,7 +212,8 @@ bool perf_pmu__supports_legacy_cache(const struct perf_pmu *pmu);
 bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu);
 bool perf_pmu__have_event(struct perf_pmu *pmu, const char *name);
 size_t perf_pmu__num_events(struct perf_pmu *pmu);
-int perf_pmu__for_each_event(struct perf_pmu *pmu, void *state, pmu_event_callback cb);
+int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
+			     void *state, pmu_event_callback cb);
 bool pmu__name_match(const struct perf_pmu *pmu, const char *pmu_name);
 
 /**
