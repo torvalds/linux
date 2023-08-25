@@ -423,6 +423,13 @@ scmi_perf_describe_levels_get(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
+static int scmi_perf_num_domains_get(const struct scmi_protocol_handle *ph)
+{
+	struct scmi_perf_info *pi = ph->get_priv(ph);
+
+	return pi->num_domains;
+}
+
 static int scmi_perf_msg_limits_set(const struct scmi_protocol_handle *ph,
 				    u32 domain, u32 max_perf, u32 min_perf)
 {
@@ -948,6 +955,7 @@ scmi_power_scale_get(const struct scmi_protocol_handle *ph)
 }
 
 static const struct scmi_perf_proto_ops perf_proto_ops = {
+	.num_domains_get = scmi_perf_num_domains_get,
 	.limits_set = scmi_perf_limits_set,
 	.limits_get = scmi_perf_limits_get,
 	.level_set = scmi_perf_level_set,
