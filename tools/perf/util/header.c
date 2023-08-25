@@ -4405,7 +4405,7 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 	if (perf_evsel__alloc_id(&evsel->core, 1, n_ids))
 		return -ENOMEM;
 
-	ids = (void *)&event->attr.attr + event->attr.attr.size;
+	ids = perf_record_header_attr_id(event);
 	for (i = 0; i < n_ids; i++) {
 		perf_evlist__id_add(&evlist->core, &evsel->core, 0, i, ids[i]);
 	}
