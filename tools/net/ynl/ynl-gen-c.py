@@ -428,6 +428,7 @@ class TypeBinary(Type):
 
     def _setter_lines(self, ri, member, presence):
         return [f"free({member});",
+                f"{presence}_len = len;",
                 f"{member} = malloc({presence}_len);",
                 f'memcpy({member}, {self.c_name}, {presence}_len);']
 
@@ -614,7 +615,7 @@ class Struct:
 
         self.attr_list = []
         self.attrs = dict()
-        if type_list:
+        if type_list is not None:
             for t in type_list:
                 self.attr_list.append((t, self.attr_set[t]),)
         else:
@@ -977,7 +978,9 @@ class Family(SpecFamily):
 
             for op_mode in ['do', 'dump']:
                 if op_mode in op:
-                    global_set.update(op[op_mode].get('request', []))
+                    req = op[op_mode].get('request')
+                    if req:
+                        global_set.update(req.get('attributes', []))
 
         self.global_policy = []
         self.global_policy_set = attr_set_name
@@ -1540,7 +1543,14 @@ def parse_rsp_msg(ri, deref=False):
 
     ri.cw.write_func_prot('int', f'{op_prefix(ri, "reply", deref=deref)}_parse', func_args)
 
-    _multi_parse(ri, ri.struct["reply"], init_lines, local_vars)
+    if ri.struct["reply"].member_list():
+        _multi_parse(ri, ri.struct["reply"], init_lines, local_vars)
+    else:
+        # Empty reply
+        ri.cw.block_start()
+        ri.cw.p('return MNL_CB_OK;')
+        ri.cw.block_end()
+        ri.cw.nl()
 
 
 def print_req(ri):
