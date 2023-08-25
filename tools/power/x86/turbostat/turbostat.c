@@ -256,7 +256,6 @@ unsigned int gfx_cur_mhz;
 unsigned int gfx_act_mhz;
 unsigned int tj_max;
 unsigned int tj_max_override;
-int tcc_offset_bits;
 double rapl_power_units, rapl_time_units;
 double rapl_dram_energy_units, rapl_energy_units;
 double rapl_joule_counter_range;
@@ -290,6 +289,7 @@ struct platform_features {
 	int bclk_freq;		/* CPU base clock */
 	int cst_limit;		/* MSR_PKG_CST_CONFIG_CONTROL */
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
+	int tcc_offset_bits;	/* TCC Offset bits in MSR_IA32_TEMPERATURE_TARGET */
 };
 
 struct platform_data {
@@ -482,6 +482,7 @@ static const struct platform_features skl_features = {
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE,
+	.tcc_offset_bits = 6,
 };
 
 static const struct platform_features cnl_features = {
@@ -492,6 +493,7 @@ static const struct platform_features cnl_features = {
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE,
+	.tcc_offset_bits = 6,
 };
 
 static const struct platform_features skx_features = {
@@ -4266,33 +4268,6 @@ int is_jvl(unsigned int family, unsigned int model)
 	return 0;
 }
 
-/*
- * tcc_offset_bits:
- * 0: Tcc Offset not supported (Default)
- * 6: Bit 29:24 of MSR_PLATFORM_INFO
- * 4: Bit 27:24 of MSR_PLATFORM_INFO
- */
-void check_tcc_offset(int model)
-{
-	unsigned long long msr;
-
-	if (!genuine_intel)
-		return;
-
-	switch (model) {
-	case INTEL_FAM6_SKYLAKE_L:
-	case INTEL_FAM6_CANNONLAKE_L:
-		if (!get_msr(base_cpu, MSR_PLATFORM_INFO, &msr)) {
-			msr = (msr >> 30) & 1;
-			if (msr)
-				tcc_offset_bits = 6;
-		}
-		return;
-	default:
-		return;
-	}
-}
-
 static void remove_underbar(char *s)
 {
 	char *to = s;
@@ -5490,20 +5465,18 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 	tcc_default = (msr >> 16) & 0xFF;
 
 	if (!quiet) {
-		switch (tcc_offset_bits) {
-		case 4:
-			tcc_offset = (msr >> 24) & 0xF;
+		int bits = platform->tcc_offset_bits;
+		unsigned long long enabled = 0;
+
+		if (bits && !get_msr(base_cpu, MSR_PLATFORM_INFO, &enabled))
+			enabled = (enabled >> 30) & 1;
+
+		if (bits && enabled) {
+			tcc_offset = (msr >> 24) & GENMASK(bits - 1, 0);
 			fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C) (%d default - %d offset)\n",
 				cpu, msr, tcc_default - tcc_offset, tcc_default, tcc_offset);
-			break;
-		case 6:
-			tcc_offset = (msr >> 24) & 0x3F;
-			fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C) (%d default - %d offset)\n",
-				cpu, msr, tcc_default - tcc_offset, tcc_default, tcc_offset);
-			break;
-		default:
+		} else {
 			fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C)\n", cpu, msr, tcc_default);
-			break;
 		}
 	}
 
@@ -5982,8 +5955,6 @@ void process_cpuid()
 	perf_limit_reasons_probe(family, model);
 	automatic_cstate_conversion_probe(family, model);
 	prewake_cstate_probe(family, model);
-
-	check_tcc_offset(model);
 
 	if (!quiet)
 		dump_cstate_pstate_config_info();
