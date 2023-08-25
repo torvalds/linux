@@ -1771,8 +1771,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_GET_CSI_DPHY_PARAM:
 		if (imx415->cur_mode->hdr_mode == HDR_X2) {
 			dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-			if (dphy_param->vendor == dcphy_param.vendor)
-				*dphy_param = dcphy_param;
+			*dphy_param = dcphy_param;
 			dev_info(&imx415->client->dev,
 				 "get sensor dphy param\n");
 		} else
