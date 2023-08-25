@@ -1583,6 +1583,15 @@ void devlink_free(struct devlink *devlink);
  *		       Should be used by device drivers set
  *		       the admin state of a function managed
  *		       by the devlink port.
+ * @port_fn_ipsec_crypto_get: Callback used to get port function's ipsec_crypto
+ *			      capability. Should be used by device drivers
+ *			      to report the current state of ipsec_crypto
+ *			      capability of a function managed by the devlink
+ *			      port.
+ * @port_fn_ipsec_crypto_set: Callback used to set port function's ipsec_crypto
+ *			      capability. Should be used by device drivers to
+ *			      enable/disable ipsec_crypto capability of a
+ *			      function managed by the devlink port.
  *
  * Note: Driver should return -EOPNOTSUPP if it doesn't support
  * port function (@port_fn_*) handling for a particular port.
@@ -1620,6 +1629,12 @@ struct devlink_port_ops {
 	int (*port_fn_state_set)(struct devlink_port *port,
 				 enum devlink_port_fn_state state,
 				 struct netlink_ext_ack *extack);
+	int (*port_fn_ipsec_crypto_get)(struct devlink_port *devlink_port,
+					bool *is_enable,
+					struct netlink_ext_ack *extack);
+	int (*port_fn_ipsec_crypto_set)(struct devlink_port *devlink_port,
+					bool enable,
+					struct netlink_ext_ack *extack);
 };
 
 void devlink_port_init(struct devlink *devlink,
