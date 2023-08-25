@@ -104,6 +104,7 @@ config SND_HDA_SCODEC_CS35L41_I2C
 	tristate "Build CS35L41 HD-audio side codec support for I2C Bus"
 	depends on I2C
 	depends on ACPI
+	depends on EFI
 	depends on SND_SOC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
@@ -119,6 +120,7 @@ config SND_HDA_SCODEC_CS35L41_SPI
 	tristate "Build CS35L41 HD-audio codec support for SPI Bus"
 	depends on SPI_MASTER
 	depends on ACPI
+	depends on EFI
 	depends on SND_SOC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
@@ -165,6 +167,7 @@ config SND_HDA_SCODEC_TAS2781_I2C
 	tristate "Build TAS2781 HD-audio side codec support for I2C Bus"
 	depends on I2C
 	depends on ACPI
+	depends on EFI
 	depends on SND_SOC
 	select SND_SOC_TAS2781_COMLIB
 	select SND_SOC_TAS2781_FMWLIB
