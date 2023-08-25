@@ -22925,6 +22925,7 @@ S:	Maintained
 W:	https://www.net-swift.com
 F:	Documentation/networking/device_drivers/ethernet/wangxun/*
 F:	drivers/net/ethernet/wangxun/
+F:	drivers/net/pcs/pcs-xpcs-wx.c
 
 WATCHDOG DEVICE DRIVERS
 M:	Wim Van Sebroeck <wim@linux-watchdog.org>
