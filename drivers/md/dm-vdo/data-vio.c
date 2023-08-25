@@ -1592,7 +1592,7 @@ static void read_block(struct vdo_completion *completion)
 		return;
 	}
 
-	submit_data_vio_io(data_vio);
+	vdo_submit_data_vio(data_vio);
 }
 
 static inline struct data_vio *
@@ -1910,7 +1910,7 @@ void write_data_vio(struct data_vio *data_vio)
 	}
 
 	data_vio->last_async_operation = VIO_ASYNC_OP_WRITE_DATA_VIO;
-	submit_data_vio_io(data_vio);
+	vdo_submit_data_vio(data_vio);
 }
 
 /**

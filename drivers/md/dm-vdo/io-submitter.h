@@ -22,7 +22,7 @@ void vdo_free_io_submitter(struct io_submitter *io_submitter);
 
 void process_vio_io(struct vdo_completion *completion);
 
-void submit_data_vio_io(struct data_vio *data_vio);
+void vdo_submit_data_vio(struct data_vio *data_vio);
 
 void __submit_metadata_vio(struct vio *vio, physical_block_number_t physical,
 			   bio_end_io_t callback, vdo_action_fn error_handler,

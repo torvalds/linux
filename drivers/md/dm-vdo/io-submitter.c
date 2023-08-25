@@ -305,13 +305,13 @@ static bool try_bio_map_merge(struct vio *vio)
 }
 
 /**
- * submit_data_vio_io() - Submit I/O for a data_vio.
+ * vdo_submit_data_vio() - Submit I/O for a data_vio.
  * @data_vio: the data_vio for which to issue I/O.
  *
  * If possible, this I/O will be merged other pending I/Os. Otherwise, the data_vio will be sent to
  * the appropriate bio zone directly.
  */
-void submit_data_vio_io(struct data_vio *data_vio)
+void vdo_submit_data_vio(struct data_vio *data_vio)
 {
 	if (try_bio_map_merge(&data_vio->vio))
 		return;

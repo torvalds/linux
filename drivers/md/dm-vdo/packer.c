@@ -486,7 +486,7 @@ static void write_bin(struct packer *packer, struct packer_bin *bin)
 	WRITE_ONCE(stats->compressed_blocks_written,
 		   stats->compressed_blocks_written + 1);
 
-	submit_data_vio_io(agent);
+	vdo_submit_data_vio(agent);
 }
 
 /**
