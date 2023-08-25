@@ -706,7 +706,7 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 				non_subvp_pipes++;
 				drr_psr_capable = (drr_psr_capable || dcn32_is_psr_capable(pipe));
 				if (pipe->stream->ignore_msa_timing_param &&
-						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable)) {
+						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed)) {
 					drr_pipe_found = true;
 				}
 			}
@@ -764,7 +764,7 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 				non_subvp_pipes++;
 				vblank_psr_capable = (vblank_psr_capable || dcn32_is_psr_capable(pipe));
 				if (pipe->stream->ignore_msa_timing_param &&
-						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable)) {
+						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed)) {
 					drr_pipe_found = true;
 				}
 			}
