@@ -17,6 +17,7 @@
 #include <linux/uio.h>
 #include <linux/iversion.h>
 #include <linux/fsverity.h>
+#include <linux/iomap.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
