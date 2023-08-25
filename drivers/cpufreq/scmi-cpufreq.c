@@ -72,13 +72,25 @@ static unsigned int scmi_cpufreq_fast_switch(struct cpufreq_policy *policy,
 
 static int scmi_cpu_domain_id(struct device *cpu_dev)
 {
-	struct of_phandle_args clkspec;
+	struct device_node *np = cpu_dev->of_node;
+	struct of_phandle_args domain_id;
+	int index;
 
-	if (of_parse_phandle_with_args(cpu_dev->of_node, "clocks",
-				       "#clock-cells", 0, &clkspec))
-		return -EINVAL;
+	if (of_parse_phandle_with_args(np, "clocks", "#clock-cells", 0,
+				       &domain_id)) {
+		/* Find the corresponding index for power-domain "perf". */
+		index = of_property_match_string(np, "power-domain-names",
+						 "perf");
+		if (index < 0)
+			return -EINVAL;
 
-	return clkspec.args[0];
+		if (of_parse_phandle_with_args(np, "power-domains",
+					       "#power-domain-cells", index,
+					       &domain_id))
+			return -EINVAL;
+	}
+
+	return domain_id.args[0];
 }
 
 static int
