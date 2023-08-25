@@ -47,12 +47,14 @@ struct cros_ec_cec_port {
  *
  * @cros_ec: Pointer to EC device
  * @notifier: Notifier info for responding to EC events
+ * @write_cmd_version: Highest supported version of EC_CMD_CEC_WRITE_MSG.
  * @num_ports: Number of CEC ports
  * @ports: Array of ports
  */
 struct cros_ec_cec {
 	struct cros_ec_device *cros_ec;
 	struct notifier_block notifier;
+	int write_cmd_version;
 	int num_ports;
 	struct cros_ec_cec_port *ports[EC_CEC_MAX_PORTS];
 };
@@ -141,12 +143,22 @@ static int cros_ec_cec_transmit(struct cec_adapter *adap, u8 attempts,
 	struct cros_ec_cec *cros_ec_cec = port->cros_ec_cec;
 	struct cros_ec_device *cros_ec = cros_ec_cec->cros_ec;
 	struct ec_params_cec_write params;
+	struct ec_params_cec_write_v1 params_v1;
 	int ret;
 
-	memcpy(params.msg, cec_msg->msg, cec_msg->len);
+	if (cros_ec_cec->write_cmd_version == 0) {
+		memcpy(params.msg, cec_msg->msg, cec_msg->len);
+		ret = cros_ec_cmd(cros_ec, 0, EC_CMD_CEC_WRITE_MSG, &params,
+				  cec_msg->len, NULL, 0);
+	} else {
+		params_v1.port = port->port_num;
+		params_v1.msg_len = cec_msg->len;
+		memcpy(params_v1.msg, cec_msg->msg, cec_msg->len);
+		ret = cros_ec_cmd(cros_ec, cros_ec_cec->write_cmd_version,
+				  EC_CMD_CEC_WRITE_MSG, &params_v1,
+				  sizeof(params_v1), NULL, 0);
+	}
 
-	ret = cros_ec_cmd(cros_ec, 0, EC_CMD_CEC_WRITE_MSG, &params,
-			  cec_msg->len, NULL, 0);
 	if (ret < 0) {
 		dev_err(cros_ec->dev,
 			"error writing CEC msg on EC: %d\n", ret);
@@ -285,6 +297,38 @@ static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
 
 #endif
 
+static int cros_ec_cec_get_write_cmd_version(struct cros_ec_cec *cros_ec_cec)
+{
+	struct cros_ec_device *cros_ec = cros_ec_cec->cros_ec;
+	struct ec_params_get_cmd_versions_v1 params = {
+		.cmd = EC_CMD_CEC_WRITE_MSG,
+	};
+	struct ec_response_get_cmd_versions response;
+	int ret;
+
+	ret = cros_ec_cmd(cros_ec, 1, EC_CMD_GET_CMD_VERSIONS, &params,
+			  sizeof(params), &response, sizeof(response));
+	if (ret < 0) {
+		dev_err(cros_ec->dev,
+			"error getting CEC write command version: %d\n", ret);
+		return ret;
+	}
+
+	if (response.version_mask & EC_VER_MASK(1)) {
+		cros_ec_cec->write_cmd_version = 1;
+	} else {
+		if (cros_ec_cec->num_ports != 1) {
+			dev_err(cros_ec->dev,
+				"v0 write command only supports 1 port, %d reported\n",
+				cros_ec_cec->num_ports);
+			return -EINVAL;
+		}
+		cros_ec_cec->write_cmd_version = 0;
+	}
+
+	return 0;
+}
+
 static int cros_ec_cec_init_port(struct device *dev,
 				 struct cros_ec_cec *cros_ec_cec,
 				 int port_num, struct device *hdmi_dev,
@@ -353,6 +397,10 @@ static int cros_ec_cec_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 1);
 
 	cros_ec_cec->num_ports = CEC_NUM_PORTS;
+
+	ret = cros_ec_cec_get_write_cmd_version(cros_ec_cec);
+	if (ret)
+		return ret;
 
 	for (int i = 0; i < cros_ec_cec->num_ports; i++) {
 		ret = cros_ec_cec_init_port(&pdev->dev, cros_ec_cec, i,
