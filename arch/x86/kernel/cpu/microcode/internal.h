@@ -104,7 +104,7 @@ int save_microcode_in_initrd_amd(unsigned int family);
 void reload_ucode_amd(unsigned int cpu);
 struct microcode_ops *init_amd_microcode(void);
 void exit_amd_microcode(void);
-#else /* CONFIG_MICROCODE_AMD */
+#else /* CONFIG_CPU_SUP_AMD */
 static inline void load_ucode_amd_bsp(unsigned int family) { }
 static inline void load_ucode_amd_ap(unsigned int family) { }
 static inline void load_ucode_amd_early(unsigned int family) { }
@@ -112,7 +112,7 @@ static inline int save_microcode_in_initrd_amd(unsigned int family) { return -EI
 static inline void reload_ucode_amd(unsigned int cpu) { }
 static inline struct microcode_ops *init_amd_microcode(void) { return NULL; }
 static inline void exit_amd_microcode(void) { }
-#endif /* !CONFIG_MICROCODE_AMD */
+#endif /* !CONFIG_CPU_SUP_AMD */
 
 #ifdef CONFIG_CPU_SUP_INTEL
 void load_ucode_intel_bsp(void);
