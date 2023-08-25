@@ -829,10 +829,8 @@ int mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw);
 bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev);
 void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev);
 
-int mlx5_eswitch_block_mode_trylock(struct mlx5_core_dev *dev);
-void mlx5_eswitch_block_mode_unlock(struct mlx5_core_dev *dev, int err);
-void mlx5_eswitch_unblock_mode_lock(struct mlx5_core_dev *dev);
-void mlx5_eswitch_unblock_mode_unlock(struct mlx5_core_dev *dev);
+int mlx5_eswitch_block_mode(struct mlx5_core_dev *dev);
+void mlx5_eswitch_unblock_mode(struct mlx5_core_dev *dev);
 
 static inline int mlx5_eswitch_num_vfs(struct mlx5_eswitch *esw)
 {
@@ -916,13 +914,8 @@ static inline void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev)
 {
 }
 
-static inline int mlx5_eswitch_block_mode_trylock(struct mlx5_core_dev *dev) { return 0; }
-
-static inline void mlx5_eswitch_block_mode_unlock(struct mlx5_core_dev *dev, int err) {}
-
-static inline void mlx5_eswitch_unblock_mode_lock(struct mlx5_core_dev *dev) {}
-
-static inline void mlx5_eswitch_unblock_mode_unlock(struct mlx5_core_dev *dev) {}
+static inline int mlx5_eswitch_block_mode(struct mlx5_core_dev *dev) { return 0; }
+static inline void mlx5_eswitch_unblock_mode(struct mlx5_core_dev *dev) {}
 #endif /* CONFIG_MLX5_ESWITCH */
 
 #endif /* __MLX5_ESWITCH_H__ */

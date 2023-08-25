@@ -3641,65 +3641,32 @@ static bool esw_offloads_devlink_ns_eq_netdev_ns(struct devlink *devlink)
 	return net_eq(devl_net, netdev_net);
 }
 
-int mlx5_eswitch_block_mode_trylock(struct mlx5_core_dev *dev)
+int mlx5_eswitch_block_mode(struct mlx5_core_dev *dev)
 {
-	struct devlink *devlink = priv_to_devlink(dev);
-	struct mlx5_eswitch *esw;
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	int err;
 
-	devl_lock(devlink);
-	esw = mlx5_devlink_eswitch_get(devlink);
-	if (IS_ERR(esw)) {
-		/* Failure means no eswitch => not possible to change eswitch mode */
-		devl_unlock(devlink);
+	if (!mlx5_esw_allowed(esw))
 		return 0;
-	}
 
+	/* Take TC into account */
 	err = mlx5_esw_try_lock(esw);
-	if (err < 0) {
-		devl_unlock(devlink);
+	if (err < 0)
 		return err;
-	}
 
+	esw->offloads.num_block_mode++;
+	mlx5_esw_unlock(esw);
 	return 0;
 }
 
-void mlx5_eswitch_block_mode_unlock(struct mlx5_core_dev *dev, int err)
+void mlx5_eswitch_unblock_mode(struct mlx5_core_dev *dev)
 {
-	struct devlink *devlink = priv_to_devlink(dev);
-	struct mlx5_eswitch *esw;
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
 
-	esw = mlx5_devlink_eswitch_get(devlink);
-	if (IS_ERR(esw))
-		return;
-
-	if (!err)
-		esw->offloads.num_block_mode++;
-	mlx5_esw_unlock(esw);
-	devl_unlock(devlink);
-}
-
-void mlx5_eswitch_unblock_mode_lock(struct mlx5_core_dev *dev)
-{
-	struct devlink *devlink = priv_to_devlink(dev);
-	struct mlx5_eswitch *esw;
-
-	esw = mlx5_devlink_eswitch_get(devlink);
-	if (IS_ERR(esw))
+	if (!mlx5_esw_allowed(esw))
 		return;
 
 	down_write(&esw->mode_lock);
-}
-
-void mlx5_eswitch_unblock_mode_unlock(struct mlx5_core_dev *dev)
-{
-	struct devlink *devlink = priv_to_devlink(dev);
-	struct mlx5_eswitch *esw;
-
-	esw = mlx5_devlink_eswitch_get(devlink);
-	if (IS_ERR(esw))
-		return;
-
 	esw->offloads.num_block_mode--;
 	up_write(&esw->mode_lock);
 }
