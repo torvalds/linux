@@ -373,7 +373,7 @@ static int change_page_attr_alias(unsigned long addr, unsigned long end,
 	return rc;
 }
 
-int __set_memory(unsigned long addr, int numpages, unsigned long flags)
+int __set_memory(unsigned long addr, unsigned long numpages, unsigned long flags)
 {
 	unsigned long end;
 	int rc;
