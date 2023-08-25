@@ -73,6 +73,8 @@ const struct tls_cipher_size_desc tls_cipher_size_desc[] = {
 	CIPHER_SIZE_DESC(TLS_CIPHER_CHACHA20_POLY1305),
 	CIPHER_SIZE_DESC(TLS_CIPHER_SM4_GCM),
 	CIPHER_SIZE_DESC(TLS_CIPHER_SM4_CCM),
+	CIPHER_SIZE_DESC(TLS_CIPHER_ARIA_GCM_128),
+	CIPHER_SIZE_DESC(TLS_CIPHER_ARIA_GCM_256),
 };
 
 static const struct proto *saved_tcpv6_prot;
