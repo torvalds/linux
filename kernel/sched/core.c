@@ -5899,8 +5899,7 @@ static noinline void __schedule_bug(struct task_struct *prev)
 	print_modules();
 	if (irqs_disabled())
 		print_irqtrace_events(prev);
-	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT)
-	    && in_atomic_preempt_off()) {
+	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT)) {
 		pr_err("Preemption disabled at:");
 		print_ip_sym(KERN_ERR, preempt_disable_ip);
 	}
