@@ -232,10 +232,8 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
 		__ctl_set_bit(0, 17);
 	}
-	if (test_facility(130)) {
+	if (test_facility(130))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_NX;
-		__ctl_set_bit(0, 20);
-	}
 	if (test_facility(133))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_GS;
 	if (test_facility(139) && (tod_clock_base.tod >> 63)) {
