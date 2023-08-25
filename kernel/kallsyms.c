@@ -163,12 +163,12 @@ unsigned long kallsyms_sym_address(int idx)
 	return kallsyms_relative_base - 1 - kallsyms_offsets[idx];
 }
 
-static bool cleanup_symbol_name(char *s)
+static void cleanup_symbol_name(char *s)
 {
 	char *res;
 
 	if (!IS_ENABLED(CONFIG_LTO_CLANG))
-		return false;
+		return;
 
 	/*
 	 * LLVM appends various suffixes for local functions and variables that
@@ -178,12 +178,10 @@ static bool cleanup_symbol_name(char *s)
 	 * - foo.llvm.[0-9a-f]+
 	 */
 	res = strstr(s, ".llvm.");
-	if (res) {
+	if (res)
 		*res = '\0';
-		return true;
-	}
 
-	return false;
+	return;
 }
 
 static int compare_symbol_name(const char *name, char *namebuf)
