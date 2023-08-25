@@ -16,6 +16,7 @@ def define_autogvm():
         "drivers/clk/qcom/virtio_clk.ko",
         "drivers/clk/qcom/virtio_clk_direwolf.ko",
         "drivers/clk/qcom/virtio_clk_lemans.ko",
+        "drivers/clk/qcom/virtio_clk_monaco.ko",
         "drivers/clk/qcom/virtio_clk_sa8195p.ko",
         "drivers/clk/qcom/virtio_clk_sm6150.ko",
         "drivers/clk/qcom/virtio_clk_sm8150.ko",

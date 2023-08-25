@@ -19,6 +19,7 @@ virtio_clk_direwolf.ko
 virtio_clk_sa8195p.ko
 virtio_clk_sm6150.ko
 virtio_clk_sm8150.ko
+virtio_clk_monaco.ko
 virtio_clk.ko
 debug-regulator.ko
 virtio_regulator.ko
