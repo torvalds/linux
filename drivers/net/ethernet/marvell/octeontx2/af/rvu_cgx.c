@@ -236,6 +236,11 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 
 	linfo = &event->link_uinfo;
 	pfmap = cgxlmac_to_pfmap(rvu, event->cgx_id, event->lmac_id);
+	if (!pfmap) {
+		dev_err(rvu->dev, "CGX port%d:%d not mapped with PF\n",
+			event->cgx_id, event->lmac_id);
+		return;
+	}
 
 	do {
 		pfid = find_first_bit(&pfmap,
