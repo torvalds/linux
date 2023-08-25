@@ -151,6 +151,10 @@ struct perf_record_header_attr {
 	__u64			 id[];
 };
 
+/* Returns the pointer to id array based on the actual attr size. */
+#define perf_record_header_attr_id(evt)			\
+	((void *)&(evt)->attr.attr + (evt)->attr.attr.size)
+
 enum {
 	PERF_CPU_MAP__CPUS = 0,
 	PERF_CPU_MAP__MASK = 1,
