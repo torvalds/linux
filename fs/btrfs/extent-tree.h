@@ -7,6 +7,7 @@
 #include "block-group.h"
 
 struct btrfs_free_cluster;
+struct btrfs_delayed_ref_head;
 
 enum btrfs_extent_allocation_policy {
 	BTRFS_EXTENT_ALLOC_CLUSTERED,
