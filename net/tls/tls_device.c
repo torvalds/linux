@@ -1079,28 +1079,14 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		goto release_netdev;
 	}
 
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128:
-		iv = ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->iv;
-		rec_seq =
-		 ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->rec_seq;
-		break;
-	case TLS_CIPHER_AES_GCM_256:
-		iv = ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->iv;
-		rec_seq =
-		 ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->rec_seq;
-		break;
-	default:
-		rc = -EINVAL;
-		goto release_netdev;
-	}
 	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
-
-	/* Sanity-check the rec_seq_size for stack allocations */
-	if (cipher_desc->rec_seq > TLS_MAX_REC_SEQ_SIZE) {
+	if (!cipher_desc || !cipher_desc->offloadable) {
 		rc = -EINVAL;
 		goto release_netdev;
 	}
+
+	iv = crypto_info_iv(crypto_info, cipher_desc);
+	rec_seq = crypto_info_rec_seq(crypto_info, cipher_desc);
 
 	prot->version = crypto_info->version;
 	prot->cipher_type = crypto_info->cipher_type;
