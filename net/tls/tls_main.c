@@ -58,6 +58,15 @@ enum {
 	TLS_NUM_PROTS,
 };
 
+#define CHECK_CIPHER_DESC(cipher,ci)				\
+	static_assert(cipher ## _IV_SIZE <= MAX_IV_SIZE);		\
+	static_assert(cipher ## _REC_SEQ_SIZE <= TLS_MAX_REC_SEQ_SIZE);	\
+	static_assert(cipher ## _TAG_SIZE == TLS_TAG_SIZE);		\
+	static_assert(sizeof_field(struct ci, iv) == cipher ## _IV_SIZE);	\
+	static_assert(sizeof_field(struct ci, key) == cipher ## _KEY_SIZE);	\
+	static_assert(sizeof_field(struct ci, salt) == cipher ## _SALT_SIZE);	\
+	static_assert(sizeof_field(struct ci, rec_seq) == cipher ## _REC_SEQ_SIZE);
+
 #define __CIPHER_DESC(ci) \
 	.iv_offset = offsetof(struct ci, iv), \
 	.key_offset = offsetof(struct ci, key), \
@@ -99,6 +108,15 @@ const struct tls_cipher_desc tls_cipher_desc[TLS_CIPHER_MAX + 1 - TLS_CIPHER_MIN
 	CIPHER_DESC(TLS_CIPHER_ARIA_GCM_128, tls12_crypto_info_aria_gcm_128, "gcm(aria)", false),
 	CIPHER_DESC(TLS_CIPHER_ARIA_GCM_256, tls12_crypto_info_aria_gcm_256, "gcm(aria)", false),
 };
+
+CHECK_CIPHER_DESC(TLS_CIPHER_AES_GCM_128, tls12_crypto_info_aes_gcm_128);
+CHECK_CIPHER_DESC(TLS_CIPHER_AES_GCM_256, tls12_crypto_info_aes_gcm_256);
+CHECK_CIPHER_DESC(TLS_CIPHER_AES_CCM_128, tls12_crypto_info_aes_ccm_128);
+CHECK_CIPHER_DESC(TLS_CIPHER_CHACHA20_POLY1305, tls12_crypto_info_chacha20_poly1305);
+CHECK_CIPHER_DESC(TLS_CIPHER_SM4_GCM, tls12_crypto_info_sm4_gcm);
+CHECK_CIPHER_DESC(TLS_CIPHER_SM4_CCM, tls12_crypto_info_sm4_ccm);
+CHECK_CIPHER_DESC(TLS_CIPHER_ARIA_GCM_128, tls12_crypto_info_aria_gcm_128);
+CHECK_CIPHER_DESC(TLS_CIPHER_ARIA_GCM_256, tls12_crypto_info_aria_gcm_256);
 
 static const struct proto *saved_tcpv6_prot;
 static DEFINE_MUTEX(tcpv6_prot_mutex);
