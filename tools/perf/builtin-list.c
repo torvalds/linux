@@ -513,7 +513,7 @@ int cmd_list(int argc, const char **argv)
 				ret = -1;
 				goto out;
 			}
-			default_ps.pmu_glob = pmu->name;
+			default_ps.pmu_glob = strdup(pmu->name);
 		}
 	}
 	print_cb.print_start(ps);

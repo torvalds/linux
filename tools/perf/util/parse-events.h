@@ -176,7 +176,7 @@ int parse_events_add_breakpoint(struct parse_events_state *parse_state,
 				u64 addr, char *type, u64 len,
 				struct list_head *head_config);
 int parse_events_add_pmu(struct parse_events_state *parse_state,
-			 struct list_head *list, char *name,
+			 struct list_head *list, const char *name,
 			 struct list_head *head_config,
 			bool auto_merge_stats, void *loc);
 

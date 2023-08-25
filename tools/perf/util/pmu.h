@@ -39,7 +39,7 @@ struct perf_pmu_caps {
  */
 struct perf_pmu {
 	/** @name: The name of the PMU such as "cpu". */
-	char *name;
+	const char *name;
 	/**
 	 * @alias_name: Optional alternate name for the PMU determined in
 	 * architecture specific code.
@@ -249,10 +249,10 @@ void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
 				   const char *config_name);
 void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu);
 
-int perf_pmu__match(char *pattern, char *name, char *tok);
+int perf_pmu__match(const char *pattern, const char *name, const char *tok);
 
-char *pmu_find_real_name(const char *name);
-char *pmu_find_alias_name(const char *name);
+const char *pmu_find_real_name(const char *name);
+const char *pmu_find_alias_name(const char *name);
 double perf_pmu__cpu_slots_per_cycle(void);
 int perf_pmu__event_source_devices_scnprintf(char *pathname, size_t size);
 int perf_pmu__pathname_scnprintf(char *buf, size_t size,

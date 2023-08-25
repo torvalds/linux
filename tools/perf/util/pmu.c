@@ -29,7 +29,9 @@
 #include "fncache.h"
 #include "util/evsel_config.h"
 
-struct perf_pmu perf_pmu__fake;
+struct perf_pmu perf_pmu__fake = {
+	.name = "fake",
+};
 
 #define UNIT_MAX_LEN	31 /* max length for event unit name */
 
@@ -967,13 +969,13 @@ perf_pmu__get_default_config(struct perf_pmu *pmu __maybe_unused)
 	return NULL;
 }
 
-char * __weak
+const char * __weak
 pmu_find_real_name(const char *name)
 {
-	return (char *)name;
+	return name;
 }
 
-char * __weak
+const char * __weak
 pmu_find_alias_name(const char *name __maybe_unused)
 {
 	return NULL;
@@ -991,8 +993,8 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 {
 	struct perf_pmu *pmu;
 	__u32 type;
-	char *name = pmu_find_real_name(lookup_name);
-	char *alias_name;
+	const char *name = pmu_find_real_name(lookup_name);
+	const char *alias_name;
 
 	pmu = zalloc(sizeof(*pmu));
 	if (!pmu)
@@ -1974,7 +1976,7 @@ void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
 		   name ?: "N/A", buf, config_name, config);
 }
 
-int perf_pmu__match(char *pattern, char *name, char *tok)
+int perf_pmu__match(const char *pattern, const char *name, const char *tok)
 {
 	if (!name)
 		return -1;

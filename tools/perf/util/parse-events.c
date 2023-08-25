@@ -262,7 +262,7 @@ __add_event(struct list_head *list, int *idx,
 	evsel->core.is_pmu_core = pmu ? pmu->is_core : false;
 	evsel->auto_merge_stats = auto_merge_stats;
 	evsel->pmu = pmu;
-	evsel->pmu_name = pmu && pmu->name ? strdup(pmu->name) : NULL;
+	evsel->pmu_name = pmu ? strdup(pmu->name) : NULL;
 
 	if (name)
 		evsel->name = strdup(name);
@@ -436,9 +436,6 @@ bool parse_events__filter_pmu(const struct parse_events_state *parse_state,
 {
 	if (parse_state->pmu_filter == NULL)
 		return false;
-
-	if (pmu->name == NULL)
-		return true;
 
 	return strcmp(parse_state->pmu_filter, pmu->name) != 0;
 }
@@ -1292,7 +1289,7 @@ static bool config_term_percore(struct list_head *config_terms)
 }
 
 int parse_events_add_pmu(struct parse_events_state *parse_state,
-			 struct list_head *list, char *name,
+			 struct list_head *list, const char *name,
 			 struct list_head *head_config,
 			 bool auto_merge_stats, void *loc_)
 {

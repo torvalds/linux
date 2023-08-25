@@ -522,7 +522,7 @@ static int test_core_pmu_event_aliases_cb(void *state, struct pmu_event_info *al
 }
 
 /* Verify aliases are as expected */
-static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
+static int __test_core_pmu_event_aliases(const char *pmu_name, int *count)
 {
 	struct perf_pmu_test_event const **test_event_table;
 	struct perf_pmu *pmu;
@@ -635,7 +635,7 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 static struct perf_pmu_test_pmu test_pmus[] = {
 	{
 		.pmu = {
-			.name = (char *)"hisi_sccl1_ddrc2",
+			.name = "hisi_sccl1_ddrc2",
 			.is_uncore = 1,
 		},
 		.aliases = {
@@ -644,7 +644,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"uncore_cbox_0",
+			.name = "uncore_cbox_0",
 			.is_uncore = 1,
 		},
 		.aliases = {
@@ -655,7 +655,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"hisi_sccl3_l3c7",
+			.name = "hisi_sccl3_l3c7",
 			.is_uncore = 1,
 		},
 		.aliases = {
@@ -664,7 +664,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"uncore_imc_free_running_0",
+			.name = "uncore_imc_free_running_0",
 			.is_uncore = 1,
 		},
 		.aliases = {
@@ -673,7 +673,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"uncore_imc_0",
+			.name = "uncore_imc_0",
 			.is_uncore = 1,
 		},
 		.aliases = {
@@ -682,7 +682,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"uncore_sys_ddr_pmu0",
+			.name = "uncore_sys_ddr_pmu0",
 			.is_uncore = 1,
 			.id = (char *)"v8",
 		},
@@ -692,7 +692,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"uncore_sys_ccn_pmu4",
+			.name = "uncore_sys_ccn_pmu4",
 			.is_uncore = 1,
 			.id = (char *)"0x01",
 		},

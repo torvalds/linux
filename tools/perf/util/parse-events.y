@@ -307,7 +307,7 @@ PE_NAME opt_pmu_config
 		}
 
 		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-			char *name = pmu->name;
+			const char *name = pmu->name;
 
 			if (parse_events__filter_pmu(parse_state, pmu))
 				continue;
