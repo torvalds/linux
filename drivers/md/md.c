@@ -4875,6 +4875,7 @@ action_store(struct mddev *mddev, const char *page, size_t len)
 		/* A write to sync_action is enough to justify
 		 * canceling read-auto mode
 		 */
+		flush_work(&mddev->sync_work);
 		mddev->ro = MD_RDWR;
 		md_wakeup_thread(mddev->sync_thread);
 	}
@@ -7649,6 +7650,10 @@ static int md_ioctl(struct block_device *bdev, blk_mode_t mode,
 		mutex_unlock(&mddev->open_mutex);
 		sync_blockdev(bdev);
 	}
+
+	if (!md_is_rdwr(mddev))
+		flush_work(&mddev->sync_work);
+
 	err = mddev_lock(mddev);
 	if (err) {
 		pr_debug("md: ioctl lock interrupted, reason %d, cmd %d\n",
@@ -8573,6 +8578,7 @@ bool md_write_start(struct mddev *mddev, struct bio *bi)
 	BUG_ON(mddev->ro == MD_RDONLY);
 	if (mddev->ro == MD_AUTO_READ) {
 		/* need to switch to read/write */
+		flush_work(&mddev->sync_work);
 		mddev->ro = MD_RDWR;
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
@@ -9233,6 +9239,16 @@ static bool rdev_addable(struct md_rdev *rdev)
 	return false;
 }
 
+static bool md_spares_need_change(struct mddev *mddev)
+{
+	struct md_rdev *rdev;
+
+	rdev_for_each(rdev, mddev)
+		if (rdev_removeable(rdev) || rdev_addable(rdev))
+			return true;
+	return false;
+}
+
 static int remove_and_add_spares(struct mddev *mddev,
 				 struct md_rdev *this)
 {
@@ -9360,6 +9376,18 @@ static void md_start_sync(struct work_struct *ws)
 
 	mddev_lock_nointr(mddev);
 
+	if (!md_is_rdwr(mddev)) {
+		/*
+		 * On a read-only array we can:
+		 * - remove failed devices
+		 * - add already-in_sync devices if the array itself is in-sync.
+		 * As we only add devices that are already in-sync, we can
+		 * activate the spares immediately.
+		 */
+		remove_and_add_spares(mddev, NULL);
+		goto not_running;
+	}
+
 	if (!md_choose_sync_action(mddev, &spares))
 		goto not_running;
 
@@ -9474,30 +9502,43 @@ void md_check_recovery(struct mddev *mddev)
 
 		if (!md_is_rdwr(mddev)) {
 			struct md_rdev *rdev;
+
+			if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery)) {
+				/* sync_work already queued. */
+				clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+				goto unlock;
+			}
+
 			if (!mddev->external && mddev->in_sync)
-				/* 'Blocked' flag not needed as failed devices
+				/*
+				 * 'Blocked' flag not needed as failed devices
 				 * will be recorded if array switched to read/write.
 				 * Leaving it set will prevent the device
 				 * from being removed.
 				 */
 				rdev_for_each(rdev, mddev)
 					clear_bit(Blocked, &rdev->flags);
-			/* On a read-only array we can:
-			 * - remove failed devices
-			 * - add already-in_sync devices if the array itself
-			 *   is in-sync.
-			 * As we only add devices that are already in-sync,
-			 * we can activate the spares immediately.
-			 */
-			remove_and_add_spares(mddev, NULL);
-			/* There is no thread, but we need to call
+
+			/*
+			 * There is no thread, but we need to call
 			 * ->spare_active and clear saved_raid_disk
 			 */
 			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			md_reap_sync_thread(mddev);
+
+			/*
+			 * Let md_start_sync() to remove and add rdevs to the
+			 * array.
+			 */
+			if (md_spares_need_change(mddev)) {
+				set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
+				queue_work(md_misc_wq, &mddev->sync_work);
+			}
+
 			clear_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 			clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 			clear_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags);
+
 			goto unlock;
 		}
 
