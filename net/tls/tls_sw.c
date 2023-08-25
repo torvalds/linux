@@ -2648,94 +2648,26 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 	}
 
 	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128: {
-		struct tls12_crypto_info_aes_gcm_128 *gcm_128_info;
-
-		gcm_128_info = (void *)crypto_info;
-		iv = gcm_128_info->iv;
-		rec_seq = gcm_128_info->rec_seq;
-		key = gcm_128_info->key;
-		salt = gcm_128_info->salt;
+	case TLS_CIPHER_AES_GCM_128:
+	case TLS_CIPHER_AES_GCM_256:
 		cipher_name = "gcm(aes)";
 		break;
-	}
-	case TLS_CIPHER_AES_GCM_256: {
-		struct tls12_crypto_info_aes_gcm_256 *gcm_256_info;
-
-		gcm_256_info = (void *)crypto_info;
-		iv = gcm_256_info->iv;
-		rec_seq = gcm_256_info->rec_seq;
-		key = gcm_256_info->key;
-		salt = gcm_256_info->salt;
-		cipher_name = "gcm(aes)";
-		break;
-	}
-	case TLS_CIPHER_AES_CCM_128: {
-		struct tls12_crypto_info_aes_ccm_128 *ccm_128_info;
-
-		ccm_128_info = (void *)crypto_info;
-		iv = ccm_128_info->iv;
-		rec_seq = ccm_128_info->rec_seq;
-		key = ccm_128_info->key;
-		salt = ccm_128_info->salt;
+	case TLS_CIPHER_AES_CCM_128:
 		cipher_name = "ccm(aes)";
 		break;
-	}
-	case TLS_CIPHER_CHACHA20_POLY1305: {
-		struct tls12_crypto_info_chacha20_poly1305 *chacha20_poly1305_info;
-
-		chacha20_poly1305_info = (void *)crypto_info;
-		iv = chacha20_poly1305_info->iv;
-		rec_seq = chacha20_poly1305_info->rec_seq;
-		key = chacha20_poly1305_info->key;
-		salt = chacha20_poly1305_info->salt;
+	case TLS_CIPHER_CHACHA20_POLY1305:
 		cipher_name = "rfc7539(chacha20,poly1305)";
 		break;
-	}
-	case TLS_CIPHER_SM4_GCM: {
-		struct tls12_crypto_info_sm4_gcm *sm4_gcm_info;
-
-		sm4_gcm_info = (void *)crypto_info;
-		iv = sm4_gcm_info->iv;
-		rec_seq = sm4_gcm_info->rec_seq;
-		key = sm4_gcm_info->key;
-		salt = sm4_gcm_info->salt;
+	case TLS_CIPHER_SM4_GCM:
 		cipher_name = "gcm(sm4)";
 		break;
-	}
-	case TLS_CIPHER_SM4_CCM: {
-		struct tls12_crypto_info_sm4_ccm *sm4_ccm_info;
-
-		sm4_ccm_info = (void *)crypto_info;
-		iv = sm4_ccm_info->iv;
-		rec_seq = sm4_ccm_info->rec_seq;
-		key = sm4_ccm_info->key;
-		salt = sm4_ccm_info->salt;
+	case TLS_CIPHER_SM4_CCM:
 		cipher_name = "ccm(sm4)";
 		break;
-	}
-	case TLS_CIPHER_ARIA_GCM_128: {
-		struct tls12_crypto_info_aria_gcm_128 *aria_gcm_128_info;
-
-		aria_gcm_128_info = (void *)crypto_info;
-		iv = aria_gcm_128_info->iv;
-		rec_seq = aria_gcm_128_info->rec_seq;
-		key = aria_gcm_128_info->key;
-		salt = aria_gcm_128_info->salt;
+	case TLS_CIPHER_ARIA_GCM_128:
+	case TLS_CIPHER_ARIA_GCM_256:
 		cipher_name = "gcm(aria)";
 		break;
-	}
-	case TLS_CIPHER_ARIA_GCM_256: {
-		struct tls12_crypto_info_aria_gcm_256 *gcm_256_info;
-
-		gcm_256_info = (void *)crypto_info;
-		iv = gcm_256_info->iv;
-		rec_seq = gcm_256_info->rec_seq;
-		key = gcm_256_info->key;
-		salt = gcm_256_info->salt;
-		cipher_name = "gcm(aria)";
-		break;
-	}
 	default:
 		rc = -EINVAL;
 		goto free_priv;
@@ -2743,6 +2675,11 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 
 	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
 	nonce_size = cipher_desc->nonce;
+
+	iv = crypto_info_iv(crypto_info, cipher_desc);
+	key = crypto_info_key(crypto_info, cipher_desc);
+	salt = crypto_info_salt(crypto_info, cipher_desc);
+	rec_seq = crypto_info_rec_seq(crypto_info, cipher_desc);
 
 	if (crypto_info->version == TLS_1_3_VERSION) {
 		nonce_size = 0;
