@@ -835,7 +835,7 @@ static void save_pages(struct vdo_page_cache *cache)
 	 * successfully persisted, and thus must issue a flush before each batch of pages is
 	 * written to ensure this.
 	 */
-	submit_flush_vio(vio, flush_endio, handle_flush_error);
+	vdo_submit_flush_vio(vio, flush_endio, handle_flush_error);
 }
 
 /**

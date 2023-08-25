@@ -1541,7 +1541,7 @@ static void reap_recovery_journal(struct recovery_journal *journal)
 	 * summary update covering the slab journal that just released some lock.
 	 */
 	journal->reaping = true;
-	submit_flush_vio(journal->flush_vio, flush_endio, handle_flush_error);
+	vdo_submit_flush_vio(journal->flush_vio, flush_endio, handle_flush_error);
 }
 
 /**

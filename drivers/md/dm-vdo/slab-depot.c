@@ -449,7 +449,7 @@ static void flush_for_reaping(struct waiter *waiter, void *context)
 	struct vio *vio = &pooled->vio;
 
 	vio->completion.parent = journal;
-	submit_flush_vio(vio, flush_endio, handle_flush_error);
+	vdo_submit_flush_vio(vio, flush_endio, handle_flush_error);
 }
 
 /**
