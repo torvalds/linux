@@ -51,6 +51,16 @@
 #define TLS_DEC_STATS(net, field)				\
 	SNMP_DEC_STATS((net)->mib.tls_statistics, field)
 
+struct tls_cipher_size_desc {
+	unsigned int iv;
+	unsigned int key;
+	unsigned int salt;
+	unsigned int tag;
+	unsigned int rec_seq;
+};
+
+extern const struct tls_cipher_size_desc tls_cipher_size_desc[];
+
 /* TLS records are maintained in 'struct tls_rec'. It stores the memory pages
  * allocated or mapped for each TLS record. After encryption, the records are
  * stores in a linked list.
