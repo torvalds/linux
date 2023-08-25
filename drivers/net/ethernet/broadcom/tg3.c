@@ -17795,10 +17795,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 		tnapi->tx_pending = TG3_DEF_TX_RING_PENDING;
 
 		tnapi->int_mbox = intmbx;
-		if (i <= 4)
-			intmbx += 0x8;
-		else
-			intmbx += 0x4;
+		intmbx += 0x8;
 
 		tnapi->consmbox = rcvmbx;
 		tnapi->prodmbox = sndmbx;
