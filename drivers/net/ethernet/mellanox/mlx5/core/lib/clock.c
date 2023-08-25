@@ -393,10 +393,12 @@ static int mlx5_ptp_freq_adj_real_time(struct mlx5_core_dev *mdev, long scaled_p
 
 	MLX5_SET(mtutc_reg, in, operation, MLX5_MTUTC_OPERATION_ADJUST_FREQ_UTC);
 
-	if (MLX5_CAP_MCAM_FEATURE(mdev, mtutc_freq_adj_units)) {
+	if (MLX5_CAP_MCAM_FEATURE(mdev, mtutc_freq_adj_units) &&
+	    scaled_ppm <= S32_MAX && scaled_ppm >= S32_MIN) {
+		/* HW scaled_ppm support on mlx5 devices only supports a 32-bit value */
 		MLX5_SET(mtutc_reg, in, freq_adj_units,
 			 MLX5_MTUTC_FREQ_ADJ_UNITS_SCALED_PPM);
-		MLX5_SET(mtutc_reg, in, freq_adjustment, scaled_ppm);
+		MLX5_SET(mtutc_reg, in, freq_adjustment, (s32)scaled_ppm);
 	} else {
 		MLX5_SET(mtutc_reg, in, freq_adj_units, MLX5_MTUTC_FREQ_ADJ_UNITS_PPB);
 		MLX5_SET(mtutc_reg, in, freq_adjustment, scaled_ppm_to_ppb(scaled_ppm));
