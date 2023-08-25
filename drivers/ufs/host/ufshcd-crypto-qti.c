@@ -85,7 +85,7 @@ static int ufshcd_crypto_qti_keyslot_program(
 
 	get_mmio_data(&mmio_data, host);
 	err = crypto_qti_keyslot_program(&mmio_data, key, slot,
-					data_unit_mask, cap_idx);
+					data_unit_mask, cap_idx, UFS_CE);
 	if (err)
 		pr_err("%s: failed with error %d\n", __func__, err);
 
@@ -119,7 +119,7 @@ static int ufshcd_crypto_qti_keyslot_evict(
 	}
 
 	get_mmio_data(&mmio_data, host);
-	err = crypto_qti_keyslot_evict(&mmio_data, slot);
+	err = crypto_qti_keyslot_evict(&mmio_data, slot, UFS_CE);
 	if (err)
 		pr_err("%s: failed with error %d\n", __func__, err);
 
@@ -136,6 +136,7 @@ static int ufshcd_crypto_qti_derive_raw_secret(
 	struct ufs_hba *hba =
 			container_of(profile, struct ufs_hba, crypto_profile);
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	struct ice_mmio_data mmio_data;
 
 	if (host->reset_in_progress) {
 		pr_err("UFS host reset in progress, state = 0x%x\n",
@@ -149,7 +150,8 @@ static int ufshcd_crypto_qti_derive_raw_secret(
 		return err;
 	}
 
-	err =  crypto_qti_derive_raw_secret(eph_key, eph_key_size,
+	get_mmio_data(&mmio_data, host);
+	err =  crypto_qti_derive_raw_secret(&mmio_data, eph_key, eph_key_size,
 				sw_secret, BLK_CRYPTO_SW_SECRET_SIZE);
 	if (err)
 		pr_err("%s: failed with error %d\n", __func__, err);

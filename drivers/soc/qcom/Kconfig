@@ -810,7 +810,7 @@ config QCOM_HUNG_TASK_ENH
 
 config QTI_CRYPTO_COMMON
 	tristate "Enable common crypto functionality used for FBE"
-	depends on SCSI_UFS_CRYPTO_QTI
+	depends on SCSI_UFS_CRYPTO_QTI || MMC_CRYPTO_QTI
 	help
 	 Say 'Y' to enable the common crypto implementation to be used by
 	 different storage layers such as UFS and EMMC for file based hardware

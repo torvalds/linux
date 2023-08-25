@@ -282,7 +282,7 @@ static int crypto_qti_program_key_v1(const struct ice_mmio_data *mmio_data,
 
 int crypto_qti_program_key(const struct ice_mmio_data *mmio_data,
 			   const struct blk_crypto_key *key, unsigned int slot,
-			   unsigned int data_unit_mask, int capid)
+			   unsigned int data_unit_mask, int capid, int storage_type)
 {
 	int err = 0;
 	union crypto_cfg cfg;
@@ -339,7 +339,7 @@ exit:
 EXPORT_SYMBOL(crypto_qti_program_key);
 
 int crypto_qti_invalidate_key(const struct ice_mmio_data *mmio_data,
-			      unsigned int slot)
+			      unsigned int slot, int storage_type)
 {
 	int err = 0;
 
@@ -493,7 +493,7 @@ static int crypto_qti_derive_raw_secret_platform_v1(
 }
 #endif
 
-int crypto_qti_derive_raw_secret_platform(
+int crypto_qti_derive_raw_secret_platform(const struct ice_mmio_data *mmio_data,
 				const u8 *wrapped_key,
 				unsigned int wrapped_key_size, u8 *secret,
 				unsigned int secret_size)
@@ -504,6 +504,14 @@ int crypto_qti_derive_raw_secret_platform(
 	return crypto_qti_derive_raw_secret_platform_v1(wrapped_key,
 		wrapped_key_size, secret, secret_size);
 #endif
+	if (!qti_hwkm_init_done) {
+		err = qti_hwkm_init(mmio_data);
+		if (err) {
+			pr_err("%s: Error with HWKM init %d\n", __func__, err);
+			return -EINVAL;
+		}
+		qti_hwkm_init_done = true;
+	}
 
 	/*
 	 * Call TZ to get a raw secret

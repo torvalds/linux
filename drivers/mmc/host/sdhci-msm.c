@@ -34,6 +34,9 @@
 #include "cqhci.h"
 #include "../core/core.h"
 #include <linux/qtee_shmbridge.h>
+#if IS_ENABLED(CONFIG_MMC_CRYPTO_QTI)
+#include <linux/crypto-qti-common.h>
+#endif
 
 #define CORE_MCI_VERSION		0x50
 #define CORE_VERSION_MAJOR_SHIFT	28
@@ -467,7 +470,7 @@ struct sdhci_msm_host {
 #ifdef CONFIG_MMC_CRYPTO
 	void __iomem *ice_mem;	/* MSM ICE mapped address (if available) */
 #endif
-#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+#if (IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER) || IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1))
 	void __iomem *ice_hwkm_mem;
 #endif
 	int pwr_irq;		/* power irq */
@@ -2982,7 +2985,7 @@ static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 	struct mmc_host *mmc = msm_host->mmc;
 	struct device *dev = mmc_dev(mmc);
 	struct resource *ice_base_res;
-#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+#if (IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER) || IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1))
 	struct resource *ice_hwkm_res;
 #endif
 	int err;
@@ -3009,7 +3012,8 @@ static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 		return err;
 	}
 
-#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+	cq_host->ice_mmio = msm_host->ice_mem;
+#if (IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER) || IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1))
 	ice_hwkm_res = platform_get_resource_byname(msm_host->pdev,
 						    IORESOURCE_MEM,
 						    "cqhci_ice_hwkm");
@@ -3023,6 +3027,7 @@ static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 		dev_err(dev, "Failed to map ICE HWKM registers; err=%d\n", err);
 		return err;
 	}
+	cq_host->ice_hwkm_mmio = msm_host->ice_hwkm_mem;
 #endif
 
 	if (!sdhci_msm_ice_supported(msm_host))

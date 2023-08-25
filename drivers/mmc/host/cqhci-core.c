@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015, 2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -20,6 +20,9 @@
 
 #include "cqhci.h"
 #include "cqhci-crypto.h"
+#if IS_ENABLED(CONFIG_MMC_CRYPTO_QTI)
+#include "cqhci-crypto-qti.h"
+#endif
 
 #define DCMD_SLOT 31
 #define NUM_SLOTS 32
@@ -1181,6 +1184,11 @@ struct cqhci_host *cqhci_pltfm_init(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to remap cqhci regs\n");
 		return ERR_PTR(-EBUSY);
 	}
+
+#if IS_ENABLED(CONFIG_MMC_CRYPTO_QTI)
+	cq_host->pdev = pdev;
+#endif
+
 	dev_dbg(&pdev->dev, "CMDQ ioremap: done\n");
 
 	return cq_host;
@@ -1224,7 +1232,11 @@ int cqhci_init(struct cqhci_host *cq_host, struct mmc_host *mmc,
 		goto out_err;
 	}
 
+#if IS_ENABLED(CONFIG_MMC_CRYPTO_QTI)
+	err = cqhci_qti_crypto_init(cq_host);
+#else
 	err = cqhci_crypto_init(cq_host);
+#endif
 	if (err) {
 		pr_err("%s: CQHCI crypto initialization failed\n",
 		       mmc_hostname(mmc));

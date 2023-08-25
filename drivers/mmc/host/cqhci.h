@@ -282,6 +282,13 @@ struct cqhci_host {
 	union cqhci_crypto_capabilities crypto_capabilities;
 	union cqhci_crypto_cap_entry *crypto_cap_array;
 	u32 crypto_cfg_register;
+	void __iomem *ice_mmio;
+#endif
+#if IS_ENABLED(CONFIG_MMC_CRYPTO_QTI)
+	struct platform_device *pdev;
+#endif
+#if (IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER) || IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1))
+	void __iomem *ice_hwkm_mmio;
 #endif
 };
 

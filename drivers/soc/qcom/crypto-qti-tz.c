@@ -2,7 +2,7 @@
 /*
  * Crypto TZ library for storage encryption.
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cacheflush.h>
@@ -13,13 +13,11 @@
 #include "crypto-qti-platform.h"
 
 #define ICE_CIPHER_MODE_XTS_256 3
-#define UFS_CE 10
-#define SDCC_CE 20
 #define UFS_CARD_CE 30
 
 int crypto_qti_program_key(const struct ice_mmio_data *mmio_data,
 			   const struct blk_crypto_key *key, unsigned int slot,
-			   unsigned int data_unit_mask, int capid)
+			   unsigned int data_unit_mask, int capid, int storage_type)
 {
 	int err = 0;
 	struct qtee_shm shm;
@@ -33,7 +31,7 @@ int crypto_qti_program_key(const struct ice_mmio_data *mmio_data,
 
 	err = qcom_scm_config_set_ice_key(slot, shm.paddr, key->size,
 					ICE_CIPHER_MODE_XTS_256,
-					data_unit_mask, UFS_CE);
+					data_unit_mask, storage_type);
 	if (err)
 		pr_err("%s:SCM call Error: 0x%x slot %d\n",
 				__func__, err, slot);
@@ -46,11 +44,11 @@ int crypto_qti_program_key(const struct ice_mmio_data *mmio_data,
 EXPORT_SYMBOL(crypto_qti_program_key);
 
 int crypto_qti_invalidate_key(const struct ice_mmio_data *mmio_data,
-			      unsigned int slot)
+			      unsigned int slot, int storage_type)
 {
 	int err = 0;
 
-	err = qcom_scm_clear_ice_key(slot, UFS_CE);
+	err = qcom_scm_clear_ice_key(slot, storage_type);
 	if (err)
 		pr_err("%s:SCM call Error: 0x%x\n", __func__, err);
 
@@ -58,7 +56,7 @@ int crypto_qti_invalidate_key(const struct ice_mmio_data *mmio_data,
 }
 EXPORT_SYMBOL(crypto_qti_invalidate_key);
 
-int crypto_qti_derive_raw_secret_platform(
+int crypto_qti_derive_raw_secret_platform(const struct ice_mmio_data *mmio_data,
 				const u8 *wrapped_key,
 				unsigned int wrapped_key_size, u8 *secret,
 				unsigned int secret_size)
