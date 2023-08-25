@@ -435,6 +435,7 @@ static int do_tls_getsockopt_conf(struct sock *sk, char __user *optval,
 				  int __user *optlen, int tx)
 {
 	int rc = 0;
+	const struct tls_cipher_desc *cipher_desc;
 	struct tls_context *ctx = tls_get_ctx(sk);
 	struct tls_crypto_info *crypto_info;
 	struct cipher_context *cctx;
@@ -473,172 +474,19 @@ static int do_tls_getsockopt_conf(struct sock *sk, char __user *optval,
 		goto out;
 	}
 
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128: {
-		struct tls12_crypto_info_aes_gcm_128 *
-		  crypto_info_aes_gcm_128 =
-		  container_of(crypto_info,
-			       struct tls12_crypto_info_aes_gcm_128,
-			       info);
-
-		if (len != sizeof(*crypto_info_aes_gcm_128)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(crypto_info_aes_gcm_128->iv,
-		       cctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
-		       TLS_CIPHER_AES_GCM_128_IV_SIZE);
-		memcpy(crypto_info_aes_gcm_128->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE);
-		if (copy_to_user(optval,
-				 crypto_info_aes_gcm_128,
-				 sizeof(*crypto_info_aes_gcm_128)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_AES_GCM_256: {
-		struct tls12_crypto_info_aes_gcm_256 *
-		  crypto_info_aes_gcm_256 =
-		  container_of(crypto_info,
-			       struct tls12_crypto_info_aes_gcm_256,
-			       info);
-
-		if (len != sizeof(*crypto_info_aes_gcm_256)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(crypto_info_aes_gcm_256->iv,
-		       cctx->iv + TLS_CIPHER_AES_GCM_256_SALT_SIZE,
-		       TLS_CIPHER_AES_GCM_256_IV_SIZE);
-		memcpy(crypto_info_aes_gcm_256->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_AES_GCM_256_REC_SEQ_SIZE);
-		if (copy_to_user(optval,
-				 crypto_info_aes_gcm_256,
-				 sizeof(*crypto_info_aes_gcm_256)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_AES_CCM_128: {
-		struct tls12_crypto_info_aes_ccm_128 *aes_ccm_128 =
-			container_of(crypto_info,
-				struct tls12_crypto_info_aes_ccm_128, info);
-
-		if (len != sizeof(*aes_ccm_128)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(aes_ccm_128->iv,
-		       cctx->iv + TLS_CIPHER_AES_CCM_128_SALT_SIZE,
-		       TLS_CIPHER_AES_CCM_128_IV_SIZE);
-		memcpy(aes_ccm_128->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_AES_CCM_128_REC_SEQ_SIZE);
-		if (copy_to_user(optval, aes_ccm_128, sizeof(*aes_ccm_128)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_CHACHA20_POLY1305: {
-		struct tls12_crypto_info_chacha20_poly1305 *chacha20_poly1305 =
-			container_of(crypto_info,
-				struct tls12_crypto_info_chacha20_poly1305,
-				info);
-
-		if (len != sizeof(*chacha20_poly1305)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(chacha20_poly1305->iv,
-		       cctx->iv + TLS_CIPHER_CHACHA20_POLY1305_SALT_SIZE,
-		       TLS_CIPHER_CHACHA20_POLY1305_IV_SIZE);
-		memcpy(chacha20_poly1305->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_CHACHA20_POLY1305_REC_SEQ_SIZE);
-		if (copy_to_user(optval, chacha20_poly1305,
-				sizeof(*chacha20_poly1305)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_SM4_GCM: {
-		struct tls12_crypto_info_sm4_gcm *sm4_gcm_info =
-			container_of(crypto_info,
-				struct tls12_crypto_info_sm4_gcm, info);
-
-		if (len != sizeof(*sm4_gcm_info)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(sm4_gcm_info->iv,
-		       cctx->iv + TLS_CIPHER_SM4_GCM_SALT_SIZE,
-		       TLS_CIPHER_SM4_GCM_IV_SIZE);
-		memcpy(sm4_gcm_info->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_SM4_GCM_REC_SEQ_SIZE);
-		if (copy_to_user(optval, sm4_gcm_info, sizeof(*sm4_gcm_info)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_SM4_CCM: {
-		struct tls12_crypto_info_sm4_ccm *sm4_ccm_info =
-			container_of(crypto_info,
-				struct tls12_crypto_info_sm4_ccm, info);
-
-		if (len != sizeof(*sm4_ccm_info)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(sm4_ccm_info->iv,
-		       cctx->iv + TLS_CIPHER_SM4_CCM_SALT_SIZE,
-		       TLS_CIPHER_SM4_CCM_IV_SIZE);
-		memcpy(sm4_ccm_info->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_SM4_CCM_REC_SEQ_SIZE);
-		if (copy_to_user(optval, sm4_ccm_info, sizeof(*sm4_ccm_info)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_ARIA_GCM_128: {
-		struct tls12_crypto_info_aria_gcm_128 *
-		  crypto_info_aria_gcm_128 =
-		  container_of(crypto_info,
-			       struct tls12_crypto_info_aria_gcm_128,
-			       info);
-
-		if (len != sizeof(*crypto_info_aria_gcm_128)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(crypto_info_aria_gcm_128->iv,
-		       cctx->iv + TLS_CIPHER_ARIA_GCM_128_SALT_SIZE,
-		       TLS_CIPHER_ARIA_GCM_128_IV_SIZE);
-		memcpy(crypto_info_aria_gcm_128->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_ARIA_GCM_128_REC_SEQ_SIZE);
-		if (copy_to_user(optval,
-				 crypto_info_aria_gcm_128,
-				 sizeof(*crypto_info_aria_gcm_128)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_ARIA_GCM_256: {
-		struct tls12_crypto_info_aria_gcm_256 *
-		  crypto_info_aria_gcm_256 =
-		  container_of(crypto_info,
-			       struct tls12_crypto_info_aria_gcm_256,
-			       info);
-
-		if (len != sizeof(*crypto_info_aria_gcm_256)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(crypto_info_aria_gcm_256->iv,
-		       cctx->iv + TLS_CIPHER_ARIA_GCM_256_SALT_SIZE,
-		       TLS_CIPHER_ARIA_GCM_256_IV_SIZE);
-		memcpy(crypto_info_aria_gcm_256->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_ARIA_GCM_256_REC_SEQ_SIZE);
-		if (copy_to_user(optval,
-				 crypto_info_aria_gcm_256,
-				 sizeof(*crypto_info_aria_gcm_256)))
-			rc = -EFAULT;
-		break;
-	}
-	default:
+	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
+	if (!cipher_desc || len != cipher_desc->crypto_info) {
 		rc = -EINVAL;
+		goto out;
 	}
+
+	memcpy(crypto_info_iv(crypto_info, cipher_desc),
+	       cctx->iv + cipher_desc->salt, cipher_desc->iv);
+	memcpy(crypto_info_rec_seq(crypto_info, cipher_desc),
+	       cctx->rec_seq, cipher_desc->rec_seq);
+
+	if (copy_to_user(optval, crypto_info, cipher_desc->crypto_info))
+		rc = -EFAULT;
 
 out:
 	return rc;
