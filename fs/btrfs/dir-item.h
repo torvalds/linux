@@ -5,6 +5,8 @@
 
 #include <linux/crc32c.h>
 
+struct fscrypt_str;
+
 int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
 			  const struct fscrypt_str *name);
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,

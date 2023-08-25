@@ -13,6 +13,7 @@ struct btrfs_key;
 struct btrfs_inode_extref;
 struct btrfs_inode;
 struct extent_buffer;
+struct fscrypt_str;
 
 /*
  * Return this if we need to call truncate_block for the last bit of the

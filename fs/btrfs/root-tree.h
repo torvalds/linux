@@ -3,6 +3,8 @@
 #ifndef BTRFS_ROOT_TREE_H
 #define BTRFS_ROOT_TREE_H
 
+struct fscrypt_str;
+
 int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 				     struct btrfs_block_rsv *rsv,
 				     int nitems, bool use_global_rsv);
