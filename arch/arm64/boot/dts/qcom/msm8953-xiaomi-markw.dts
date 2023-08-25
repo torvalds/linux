@@ -45,8 +45,8 @@
 	};
 
 	gpio-keys {
-		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_key_default>;
+		pinctrl-names = "default";
 	};
 
 	reserved-memory {
@@ -161,9 +161,9 @@
 		interrupt-parent = <&tlmm>;
 		interrupts = <65 IRQ_TYPE_EDGE_FALLING>;
 
-		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&ts_reset_active &ts_int_active>;
 		pinctrl-1 = <&ts_reset_suspend &ts_int_suspend>;
+		pinctrl-names = "default", "sleep";
 
 		reset-gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
 
@@ -187,9 +187,9 @@
 		"AMIC2", "MIC BIAS Internal2",
 		"AMIC3", "MIC BIAS External1";
 
-	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act &cdc_pdm_comp_lines_act>;
 	pinctrl-1 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus &cdc_pdm_comp_lines_sus>;
+	pinctrl-names = "default", "sleep";
 
 	status = "okay";
 };
