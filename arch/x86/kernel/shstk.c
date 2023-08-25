@@ -275,7 +275,7 @@ static int shstk_push_sigframe(unsigned long *ssp)
 		return -EINVAL;
 
 	*ssp -= SS_FRAME_SIZE;
-	if (put_shstk_data((void *__user)*ssp, target_ssp))
+	if (put_shstk_data((void __user *)*ssp, target_ssp))
 		return -EFAULT;
 
 	return 0;
