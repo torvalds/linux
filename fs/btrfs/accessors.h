@@ -4,6 +4,7 @@
 #define BTRFS_ACCESSORS_H
 
 #include <linux/stddef.h>
+#include <asm/unaligned.h>
 
 struct btrfs_map_token {
 	struct extent_buffer *eb;
