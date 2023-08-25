@@ -21,10 +21,6 @@
 
 #define DRV_NAME	"cros-ec-cec"
 
-/* Only one port is supported for now */
-#define CEC_NUM_PORTS	1
-#define CEC_PORT	0
-
 /**
  * struct cros_ec_cec_port - Driver data for a single EC CEC port
  *
@@ -358,6 +354,38 @@ static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
 
 #endif
 
+static int cros_ec_cec_get_num_ports(struct cros_ec_cec *cros_ec_cec)
+{
+	struct ec_response_cec_port_count response;
+	int ret;
+
+	ret = cros_ec_cmd(cros_ec_cec->cros_ec, 0, EC_CMD_CEC_PORT_COUNT, NULL,
+			  0, &response, sizeof(response));
+	if (ret < 0) {
+		/*
+		 * Old EC firmware only supports one port and does not support
+		 * the port count command, so fall back to assuming one port.
+		 */
+		cros_ec_cec->num_ports = 1;
+		return 0;
+	}
+
+	if (response.port_count == 0) {
+		dev_err(cros_ec_cec->cros_ec->dev,
+			"EC reports 0 CEC ports\n");
+		return -ENODEV;
+	}
+
+	if (response.port_count > EC_CEC_MAX_PORTS) {
+		dev_err(cros_ec_cec->cros_ec->dev,
+			"EC reports too many ports: %d\n", response.port_count);
+		return -EINVAL;
+	}
+
+	cros_ec_cec->num_ports = response.port_count;
+	return 0;
+}
+
 static int cros_ec_cec_get_write_cmd_version(struct cros_ec_cec *cros_ec_cec)
 {
 	struct cros_ec_device *cros_ec = cros_ec_cec->cros_ec;
@@ -463,7 +491,9 @@ static int cros_ec_cec_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	cros_ec_cec->num_ports = CEC_NUM_PORTS;
+	ret = cros_ec_cec_get_num_ports(cros_ec_cec);
+	if (ret)
+		return ret;
 
 	ret = cros_ec_cec_get_write_cmd_version(cros_ec_cec);
 	if (ret)

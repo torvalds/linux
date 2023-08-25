@@ -4536,6 +4536,17 @@ struct ec_response_cec_get {
 	uint8_t val;
 } __ec_align1;
 
+/* Get the number of CEC ports */
+#define EC_CMD_CEC_PORT_COUNT 0x00C1
+
+/**
+ * struct ec_response_cec_port_count - CEC port count response
+ * @port_count: number of CEC ports
+ */
+struct ec_response_cec_port_count {
+	uint8_t port_count;
+} __ec_align1;
+
 /* CEC parameters command */
 enum cec_command {
 	/* CEC reading, writing and events enable */
