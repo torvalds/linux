@@ -51,7 +51,7 @@
 #define TLS_DEC_STATS(net, field)				\
 	SNMP_DEC_STATS((net)->mib.tls_statistics, field)
 
-struct tls_cipher_size_desc {
+struct tls_cipher_desc {
 	unsigned int iv;
 	unsigned int key;
 	unsigned int salt;
@@ -61,14 +61,14 @@ struct tls_cipher_size_desc {
 
 #define TLS_CIPHER_MIN TLS_CIPHER_AES_GCM_128
 #define TLS_CIPHER_MAX TLS_CIPHER_ARIA_GCM_256
-extern const struct tls_cipher_size_desc tls_cipher_size_desc[TLS_CIPHER_MAX + 1 - TLS_CIPHER_MIN];
+extern const struct tls_cipher_desc tls_cipher_desc[TLS_CIPHER_MAX + 1 - TLS_CIPHER_MIN];
 
-static inline const struct tls_cipher_size_desc *get_cipher_size_desc(u16 cipher_type)
+static inline const struct tls_cipher_desc *get_cipher_desc(u16 cipher_type)
 {
 	if (cipher_type < TLS_CIPHER_MIN || cipher_type > TLS_CIPHER_MAX)
 		return NULL;
 
-	return &tls_cipher_size_desc[cipher_type - TLS_CIPHER_MIN];
+	return &tls_cipher_desc[cipher_type - TLS_CIPHER_MIN];
 }
 
 
