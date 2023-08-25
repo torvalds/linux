@@ -52,11 +52,19 @@
 	SNMP_DEC_STATS((net)->mib.tls_statistics, field)
 
 struct tls_cipher_desc {
+	unsigned int nonce;
 	unsigned int iv;
 	unsigned int key;
 	unsigned int salt;
 	unsigned int tag;
 	unsigned int rec_seq;
+	unsigned int iv_offset;
+	unsigned int key_offset;
+	unsigned int salt_offset;
+	unsigned int rec_seq_offset;
+	char *cipher_name;
+	bool offloadable;
+	size_t crypto_info;
 };
 
 #define TLS_CIPHER_MIN TLS_CIPHER_AES_GCM_128
@@ -69,6 +77,30 @@ static inline const struct tls_cipher_desc *get_cipher_desc(u16 cipher_type)
 		return NULL;
 
 	return &tls_cipher_desc[cipher_type - TLS_CIPHER_MIN];
+}
+
+static inline char *crypto_info_iv(struct tls_crypto_info *crypto_info,
+				   const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->iv_offset;
+}
+
+static inline char *crypto_info_key(struct tls_crypto_info *crypto_info,
+				    const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->key_offset;
+}
+
+static inline char *crypto_info_salt(struct tls_crypto_info *crypto_info,
+				     const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->salt_offset;
+}
+
+static inline char *crypto_info_rec_seq(struct tls_crypto_info *crypto_info,
+					const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->rec_seq_offset;
 }
 
 
