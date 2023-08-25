@@ -29,6 +29,7 @@
 #include "accessors.h"
 #include "file-item.h"
 #include "inode-item.h"
+#include "dir-item.h"
 
 /*
  * Error message should follow the following format:
