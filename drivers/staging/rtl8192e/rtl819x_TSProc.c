@@ -315,11 +315,11 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 				TsCommonInfo);
 			ResetTxTsEntry(tmp);
 		} else {
-			struct rx_ts_record *tmp =
+			struct rx_ts_record *ts =
 				 container_of(*ppTS,
 				 struct rx_ts_record,
 				 ts_common_info);
-			ResetRxTsEntry(tmp);
+			ResetRxTsEntry(ts);
 		}
 
 		netdev_dbg(ieee->dev,
