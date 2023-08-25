@@ -2468,31 +2468,6 @@ intel_sdvo_connector_atomic_set_property(struct drm_connector *connector,
 	return 0;
 }
 
-static int
-intel_sdvo_connector_register(struct drm_connector *connector)
-{
-	struct intel_sdvo *sdvo = intel_attached_sdvo(to_intel_connector(connector));
-	int ret;
-
-	ret = intel_connector_register(connector);
-	if (ret)
-		return ret;
-
-	return sysfs_create_link(&connector->kdev->kobj,
-				 &sdvo->ddc.dev.kobj,
-				 sdvo->ddc.dev.kobj.name);
-}
-
-static void
-intel_sdvo_connector_unregister(struct drm_connector *connector)
-{
-	struct intel_sdvo *sdvo = intel_attached_sdvo(to_intel_connector(connector));
-
-	sysfs_remove_link(&connector->kdev->kobj,
-			  sdvo->ddc.dev.kobj.name);
-	intel_connector_unregister(connector);
-}
-
 static struct drm_connector_state *
 intel_sdvo_connector_duplicate_state(struct drm_connector *connector)
 {
@@ -2511,8 +2486,8 @@ static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_sdvo_connector_atomic_get_property,
 	.atomic_set_property = intel_sdvo_connector_atomic_set_property,
-	.late_register = intel_sdvo_connector_register,
-	.early_unregister = intel_sdvo_connector_unregister,
+	.late_register = intel_connector_register,
+	.early_unregister = intel_connector_unregister,
 	.destroy = intel_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = intel_sdvo_connector_duplicate_state,
