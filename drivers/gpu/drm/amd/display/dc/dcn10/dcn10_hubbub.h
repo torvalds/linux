@@ -177,6 +177,7 @@ struct dcn_hubbub_registers {
 	uint32_t DCHUBBUB_SDPIF_CFG1;
 	uint32_t DCHUBBUB_CLOCK_CNTL;
 	uint32_t DCHUBBUB_MEM_PWR_MODE_CTRL;
+	uint32_t DCHUBBUB_ARB_QOS_FORCE;
 };
 
 #define HUBBUB_REG_FIELD_LIST_DCN32(type) \
@@ -199,8 +200,9 @@ struct dcn_hubbub_registers {
 		type MALL_PREFETCH_COMPLETE;\
 		type MALL_IN_USE
 
-#define HUBBUB_REG_FIELD_LIST_DCN35(type) \
-		type DCHUBBUB_FGCG_REP_DIS
+ #define HUBBUB_REG_FIELD_LIST_DCN35(type) \
+		type DCHUBBUB_FGCG_REP_DIS;\
+		type DCHUBBUB_ARB_ALLOW_CSTATE_DEEPSLEEP_LEGACY_MODE
 
 /* set field name */
 #define HUBBUB_SF(reg_name, field_name, post_fix)\
@@ -396,7 +398,7 @@ struct dcn_hubbub_mask {
 	HUBBUB_HVM_REG_FIELD_LIST(uint32_t);
 	HUBBUB_RET_REG_FIELD_LIST(uint32_t);
 	HUBBUB_REG_FIELD_LIST_DCN32(uint32_t);
-	HUBBUB_REG_FIELD_LIST_DCN35(uint8_t);
+	HUBBUB_REG_FIELD_LIST_DCN35(uint32_t);
 };
 
 struct dc;

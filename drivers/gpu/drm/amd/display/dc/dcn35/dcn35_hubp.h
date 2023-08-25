@@ -26,9 +26,9 @@
 #define __DC_HUBP_DCN35_H__
 
 #include "dcn31/dcn31_hubp.h"
-
+#include "dcn32/dcn32_hubp.h"
 #define HUBP_MASK_SH_LIST_DCN35(mask_sh)\
-	HUBP_MASK_SH_LIST_DCN31(mask_sh),\
+	HUBP_MASK_SH_LIST_DCN32(mask_sh),\
 	HUBP_SF(HUBP0_HUBP_CLK_CNTL, HUBP_FGCG_REP_DIS, mask_sh)
 
 #define DCN35_HUBP_REG_FIELD_VARIABLE_LIST(type)          \

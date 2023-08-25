@@ -66,7 +66,7 @@ static void dcn35_init_crb(struct hubbub *hubbub)
 	REG_SET_2(COMPBUF_RESERVED_SPACE, 0,
 			COMPBUF_RESERVED_SPACE_64B, hubbub2->pixel_chunk_size / 32,
 			COMPBUF_RESERVED_SPACE_ZS, hubbub2->pixel_chunk_size / 128);
-	REG_UPDATE(DCHUBBUB_DEBUG_CTRL_0, DET_DEPTH, 0x47F);
+	REG_UPDATE(DCHUBBUB_DEBUG_CTRL_0, DET_DEPTH, 0x5FF);
 }
 
 static void dcn35_program_compbuf_size(struct hubbub *hubbub, unsigned int compbuf_size_kb, bool safe_to_increase)
@@ -319,8 +319,10 @@ static bool hubbub35_program_watermarks(
 
 	REG_SET(DCHUBBUB_ARB_SAT_LEVEL, 0,
 			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);
-	REG_UPDATE(DCHUBBUB_ARB_DF_REQ_OUTSTAND,
-			DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 0xFF);/*hw delta*/
+	REG_UPDATE_2(DCHUBBUB_ARB_DF_REQ_OUTSTAND,
+			DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 0xFF,
+			DCHUBBUB_ARB_MIN_REQ_OUTSTAND_COMMIT_THRESHOLD, 0xA);/*hw delta*/
+	REG_UPDATE(DCHUBBUB_ARB_HOSTVM_CNTL, DCHUBBUB_ARB_MAX_QOS_COMMIT_THRESHOLD, 0xF);
 
 	hubbub1_allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
 
