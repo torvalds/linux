@@ -59,19 +59,63 @@ struct cros_ec_cec {
 	struct cros_ec_cec_port *ports[EC_CEC_MAX_PORTS];
 };
 
+static void cros_ec_cec_received_message(struct cros_ec_cec_port *port,
+					 uint8_t *msg, uint8_t len)
+{
+	if (len > CEC_MAX_MSG_SIZE)
+		len = CEC_MAX_MSG_SIZE;
+
+	port->rx_msg.len = len;
+	memcpy(port->rx_msg.msg, msg, len);
+
+	cec_received_msg(port->adap, &port->rx_msg);
+}
+
 static void handle_cec_message(struct cros_ec_cec *cros_ec_cec)
 {
 	struct cros_ec_device *cros_ec = cros_ec_cec->cros_ec;
 	uint8_t *cec_message = cros_ec->event_data.data.cec_message;
 	unsigned int len = cros_ec->event_size;
-	struct cros_ec_cec_port *port = cros_ec_cec->ports[CEC_PORT];
+	struct cros_ec_cec_port *port;
+	/*
+	 * There are two ways of receiving CEC messages:
+	 * 1. Old EC firmware which only supports one port sends the data in a
+	 *    cec_message MKBP event.
+	 * 2. New EC firmware which supports multiple ports uses
+	 *    EC_MKBP_CEC_HAVE_DATA to notify that data is ready and
+	 *    EC_CMD_CEC_READ_MSG to read it.
+	 * Check that the EC only has one CEC port, and then we can assume the
+	 * message is from port 0.
+	 */
+	if (cros_ec_cec->num_ports != 1) {
+		dev_err(cros_ec->dev,
+			"received cec_message on device with %d ports\n",
+			cros_ec_cec->num_ports);
+		return;
+	}
+	port = cros_ec_cec->ports[0];
 
-	if (len > CEC_MAX_MSG_SIZE)
-		len = CEC_MAX_MSG_SIZE;
-	port->rx_msg.len = len;
-	memcpy(port->rx_msg.msg, cec_message, len);
+	cros_ec_cec_received_message(port, cec_message, len);
+}
 
-	cec_received_msg(port->adap, &port->rx_msg);
+static void cros_ec_cec_read_message(struct cros_ec_cec_port *port)
+{
+	struct cros_ec_device *cros_ec = port->cros_ec_cec->cros_ec;
+	struct ec_params_cec_read params = {
+		.port = port->port_num,
+	};
+	struct ec_response_cec_read response;
+	int ret;
+
+	ret = cros_ec_cmd(cros_ec, 0, EC_CMD_CEC_READ_MSG, &params,
+			  sizeof(params), &response, sizeof(response));
+	if (ret < 0) {
+		dev_err(cros_ec->dev,
+			"error reading CEC message on EC: %d\n", ret);
+		return;
+	}
+
+	cros_ec_cec_received_message(port, response.msg, response.msg_len);
 }
 
 static void handle_cec_event(struct cros_ec_cec *cros_ec_cec)
@@ -97,6 +141,9 @@ static void handle_cec_event(struct cros_ec_cec *cros_ec_cec)
 		cec_transmit_attempt_done(port->adap,
 					  CEC_TX_STATUS_MAX_RETRIES |
 					  CEC_TX_STATUS_NACK);
+
+	if (events & EC_MKBP_CEC_HAVE_DATA)
+		cros_ec_cec_read_message(port);
 }
 
 static int cros_ec_cec_event(struct notifier_block *nb,
