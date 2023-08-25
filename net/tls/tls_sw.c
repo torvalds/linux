@@ -2591,7 +2591,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 	struct cipher_context *cctx;
 	struct crypto_aead **aead;
 	struct crypto_tfm *tfm;
-	char *iv, *rec_seq, *key, *salt, *cipher_name;
+	char *iv, *rec_seq, *key, *salt;
 	const struct tls_cipher_desc *cipher_desc;
 	u16 nonce_size;
 	int rc = 0;
@@ -2647,33 +2647,12 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		aead = &sw_ctx_rx->aead_recv;
 	}
 
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128:
-	case TLS_CIPHER_AES_GCM_256:
-		cipher_name = "gcm(aes)";
-		break;
-	case TLS_CIPHER_AES_CCM_128:
-		cipher_name = "ccm(aes)";
-		break;
-	case TLS_CIPHER_CHACHA20_POLY1305:
-		cipher_name = "rfc7539(chacha20,poly1305)";
-		break;
-	case TLS_CIPHER_SM4_GCM:
-		cipher_name = "gcm(sm4)";
-		break;
-	case TLS_CIPHER_SM4_CCM:
-		cipher_name = "ccm(sm4)";
-		break;
-	case TLS_CIPHER_ARIA_GCM_128:
-	case TLS_CIPHER_ARIA_GCM_256:
-		cipher_name = "gcm(aria)";
-		break;
-	default:
+	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
+	if (!cipher_desc) {
 		rc = -EINVAL;
 		goto free_priv;
 	}
 
-	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
 	nonce_size = cipher_desc->nonce;
 
 	iv = crypto_info_iv(crypto_info, cipher_desc);
@@ -2721,7 +2700,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 	}
 
 	if (!*aead) {
-		*aead = crypto_alloc_aead(cipher_name, 0, 0);
+		*aead = crypto_alloc_aead(cipher_desc->cipher_name, 0, 0);
 		if (IS_ERR(*aead)) {
 			rc = PTR_ERR(*aead);
 			*aead = NULL;
