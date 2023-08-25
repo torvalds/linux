@@ -97,10 +97,10 @@ EXPORT_SYMBOL(console_irq);
  * relocated above 2 GB, because it has to use 31 bit addresses.
  * Such code and data is part of the .amode31 section.
  */
-unsigned long __amode31_ref __samode31 = (unsigned long)&_samode31;
-unsigned long __amode31_ref __eamode31 = (unsigned long)&_eamode31;
-unsigned long __amode31_ref __stext_amode31 = (unsigned long)&_stext_amode31;
-unsigned long __amode31_ref __etext_amode31 = (unsigned long)&_etext_amode31;
+char __amode31_ref *__samode31 = _samode31;
+char __amode31_ref *__eamode31 = _eamode31;
+char __amode31_ref *__stext_amode31 = _stext_amode31;
+char __amode31_ref *__etext_amode31 = _etext_amode31;
 struct exception_table_entry __amode31_ref *__start_amode31_ex_table = _start_amode31_ex_table;
 struct exception_table_entry __amode31_ref *__stop_amode31_ex_table = _stop_amode31_ex_table;
 
@@ -770,15 +770,15 @@ static void __init setup_memory(void)
 static void __init relocate_amode31_section(void)
 {
 	unsigned long amode31_size = __eamode31 - __samode31;
-	long amode31_offset = physmem_info.reserved[RR_AMODE31].start - __samode31;
-	long *ptr;
+	long amode31_offset, *ptr;
 
+	amode31_offset = physmem_info.reserved[RR_AMODE31].start - (unsigned long)__samode31;
 	pr_info("Relocating AMODE31 section of size 0x%08lx\n", amode31_size);
 
 	/* Move original AMODE31 section to the new one */
-	memmove((void *)physmem_info.reserved[RR_AMODE31].start, (void *)__samode31, amode31_size);
+	memmove((void *)physmem_info.reserved[RR_AMODE31].start, __samode31, amode31_size);
 	/* Zero out the old AMODE31 section to catch invalid accesses within it */
-	memset((void *)__samode31, 0, amode31_size);
+	memset(__samode31, 0, amode31_size);
 
 	/* Update all AMODE31 region references */
 	for (ptr = _start_amode31_refs; ptr != _end_amode31_refs; ptr++)

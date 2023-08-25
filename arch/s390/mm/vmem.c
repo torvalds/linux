@@ -657,8 +657,8 @@ void __init vmem_map_init(void)
 		      (unsigned long)(__end_rodata - _etext) >> PAGE_SHIFT);
 	set_memory_rox((unsigned long)_sinittext,
 		       (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT);
-	set_memory_rox(__stext_amode31,
-		       (__etext_amode31 - __stext_amode31) >> PAGE_SHIFT);
+	set_memory_rox((unsigned long)__stext_amode31,
+		       (unsigned long)(__etext_amode31 - __stext_amode31) >> PAGE_SHIFT);
 
 	/* lowcore must be executable for LPSWE */
 	if (!static_key_enabled(&cpu_has_bear))
