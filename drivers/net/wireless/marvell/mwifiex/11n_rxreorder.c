@@ -918,7 +918,7 @@ void mwifiex_11n_rxba_sync_event(struct mwifiex_private *priv,
 
 	mwifiex_dbg_dump(priv->adapter, EVT_D, "RXBA_SYNC event:",
 			 event_buf, len);
-	while (tlv_buf_left >= sizeof(*tlv_rxba)) {
+	while (tlv_buf_left > sizeof(*tlv_rxba)) {
 		tlv_type = le16_to_cpu(tlv_rxba->header.type);
 		tlv_len  = le16_to_cpu(tlv_rxba->header.len);
 		if (tlv_type != TLV_TYPE_RXBA_SYNC) {
