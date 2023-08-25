@@ -270,23 +270,16 @@ static int mt6577_auxadc_probe(struct platform_device *pdev)
 		return PTR_ERR(adc_dev->reg_base);
 	}
 
-	adc_dev->adc_clk = devm_clk_get(&pdev->dev, "main");
+	adc_dev->adc_clk = devm_clk_get_enabled(&pdev->dev, "main");
 	if (IS_ERR(adc_dev->adc_clk)) {
-		dev_err(&pdev->dev, "failed to get auxadc clock\n");
-		return PTR_ERR(adc_dev->adc_clk);
-	}
-
-	ret = clk_prepare_enable(adc_dev->adc_clk);
-	if (ret) {
 		dev_err(&pdev->dev, "failed to enable auxadc clock\n");
-		return ret;
+		return PTR_ERR(adc_dev->adc_clk);
 	}
 
 	adc_clk_rate = clk_get_rate(adc_dev->adc_clk);
 	if (!adc_clk_rate) {
-		ret = -EINVAL;
 		dev_err(&pdev->dev, "null clock rate\n");
-		goto err_disable_clk;
+		return -EINVAL;
 	}
 
 	adc_dev->dev_comp = device_get_match_data(&pdev->dev);
@@ -310,8 +303,6 @@ static int mt6577_auxadc_probe(struct platform_device *pdev)
 err_power_off:
 	mt6577_auxadc_mod_reg(adc_dev->reg_base + MT6577_AUXADC_MISC,
 			      0, MT6577_AUXADC_PDN_EN);
-err_disable_clk:
-	clk_disable_unprepare(adc_dev->adc_clk);
 	return ret;
 }
 
@@ -324,8 +315,6 @@ static int mt6577_auxadc_remove(struct platform_device *pdev)
 
 	mt6577_auxadc_mod_reg(adc_dev->reg_base + MT6577_AUXADC_MISC,
 			      0, MT6577_AUXADC_PDN_EN);
-
-	clk_disable_unprepare(adc_dev->adc_clk);
 
 	return 0;
 }
