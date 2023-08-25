@@ -30,6 +30,7 @@ static int fips_enabled;
 
 struct tls_crypto_info_keys {
 	union {
+		struct tls_crypto_info crypto_info;
 		struct tls12_crypto_info_aes_gcm_128 aes128;
 		struct tls12_crypto_info_chacha20_poly1305 chacha20;
 		struct tls12_crypto_info_sm4_gcm sm4gcm;
@@ -1494,6 +1495,40 @@ TEST_F(tls, shutdown_reuse)
 	ret = connect(self->fd, &addr, sizeof(addr));
 	EXPECT_EQ(ret, -1);
 	EXPECT_EQ(errno, EISCONN);
+}
+
+TEST_F(tls, getsockopt)
+{
+	struct tls_crypto_info_keys expect, get;
+	socklen_t len;
+
+	/* get only the version/cipher */
+	len = sizeof(struct tls_crypto_info);
+	memrnd(&get, sizeof(get));
+	EXPECT_EQ(getsockopt(self->fd, SOL_TLS, TLS_TX, &get, &len), 0);
+	EXPECT_EQ(len, sizeof(struct tls_crypto_info));
+	EXPECT_EQ(get.crypto_info.version, variant->tls_version);
+	EXPECT_EQ(get.crypto_info.cipher_type, variant->cipher_type);
+
+	/* get the full crypto_info */
+	tls_crypto_info_init(variant->tls_version, variant->cipher_type, &expect);
+	len = expect.len;
+	memrnd(&get, sizeof(get));
+	EXPECT_EQ(getsockopt(self->fd, SOL_TLS, TLS_TX, &get, &len), 0);
+	EXPECT_EQ(len, expect.len);
+	EXPECT_EQ(get.crypto_info.version, variant->tls_version);
+	EXPECT_EQ(get.crypto_info.cipher_type, variant->cipher_type);
+	EXPECT_EQ(memcmp(&get, &expect, expect.len), 0);
+
+	/* short get should fail */
+	len = sizeof(struct tls_crypto_info) - 1;
+	EXPECT_EQ(getsockopt(self->fd, SOL_TLS, TLS_TX, &get, &len), -1);
+	EXPECT_EQ(errno, EINVAL);
+
+	/* partial get of the cipher data should fail */
+	len = expect.len - 1;
+	EXPECT_EQ(getsockopt(self->fd, SOL_TLS, TLS_TX, &get, &len), -1);
+	EXPECT_EQ(errno, EINVAL);
 }
 
 FIXTURE(tls_err)
