@@ -795,16 +795,12 @@ static int scmi_dev_domain_id(struct device *dev)
 }
 
 static int scmi_dvfs_device_opps_add(const struct scmi_protocol_handle *ph,
-				     struct device *dev)
+				     struct device *dev, u32 domain)
 {
-	int idx, ret, domain;
+	int idx, ret;
 	unsigned long freq;
 	struct scmi_opp *opp;
 	struct perf_dom_info *dom;
-
-	domain = scmi_dev_domain_id(dev);
-	if (domain < 0)
-		return -EINVAL;
 
 	dom = scmi_perf_domain_lookup(ph, domain);
 	if (IS_ERR(dom))
@@ -838,14 +834,9 @@ static int scmi_dvfs_device_opps_add(const struct scmi_protocol_handle *ph,
 
 static int
 scmi_dvfs_transition_latency_get(const struct scmi_protocol_handle *ph,
-				 struct device *dev)
+				 u32 domain)
 {
-	int domain;
 	struct perf_dom_info *dom;
-
-	domain = scmi_dev_domain_id(dev);
-	if (domain < 0)
-		return -EINVAL;
 
 	dom = scmi_perf_domain_lookup(ph, domain);
 	if (IS_ERR(dom))
@@ -942,14 +933,9 @@ static int scmi_dvfs_est_power_get(const struct scmi_protocol_handle *ph,
 }
 
 static bool scmi_fast_switch_possible(const struct scmi_protocol_handle *ph,
-				      struct device *dev)
+				      u32 domain)
 {
-	int domain;
 	struct perf_dom_info *dom;
-
-	domain = scmi_dev_domain_id(dev);
-	if (domain < 0)
-		return false;
 
 	dom = scmi_perf_domain_lookup(ph, domain);
 	if (IS_ERR(dom))
