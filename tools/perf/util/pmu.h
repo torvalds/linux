@@ -49,7 +49,7 @@ struct perf_pmu {
 	 * @id: Optional PMU identifier read from
 	 * <sysfs>/bus/event_source/devices/<name>/identifier.
 	 */
-	char *id;
+	const char *id;
 	/**
 	 * @type: Perf event attributed type value, read from
 	 * <sysfs>/bus/event_source/devices/<name>/type.

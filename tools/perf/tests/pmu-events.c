@@ -684,7 +684,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 		.pmu = {
 			.name = "uncore_sys_ddr_pmu0",
 			.is_uncore = 1,
-			.id = (char *)"v8",
+			.id = "v8",
 		},
 		.aliases = {
 			&sys_ddr_pmu_write_cycles,
@@ -694,7 +694,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 		.pmu = {
 			.name = "uncore_sys_ccn_pmu4",
 			.is_uncore = 1,
-			.id = (char *)"0x01",
+			.id = "0x01",
 		},
 		.aliases = {
 			&sys_ccn_pmu_read_cycles,

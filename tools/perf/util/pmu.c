@@ -2056,6 +2056,7 @@ void perf_pmu__delete(struct perf_pmu *pmu)
 	zfree(&pmu->default_config);
 	zfree(&pmu->name);
 	zfree(&pmu->alias_name);
+	zfree(&pmu->id);
 	free(pmu);
 }
 
