@@ -234,46 +234,6 @@ static void wave5_update_pix_fmt(struct v4l2_pix_format_mplane *pix_mp, unsigned
 	}
 }
 
-static void wave5_update_pix_fmt_r8(struct v4l2_pix_format_mplane *pix_mp, unsigned int width,
-				 unsigned int height)
-{
-	switch (pix_mp->pixelformat) {
-	case V4L2_PIX_FMT_YUV420:
-	case V4L2_PIX_FMT_NV12:
-	case V4L2_PIX_FMT_NV21:
-		pix_mp->width = round_up(width, 32);
-		pix_mp->height = round_up(height, 8);
-		pix_mp->plane_fmt[0].bytesperline = round_up(width, 32);
-		pix_mp->plane_fmt[0].sizeimage = width * height * 3 / 2;
-		break;
-	case V4L2_PIX_FMT_YUV420M:
-		pix_mp->width = round_up(width, 32);
-		pix_mp->height = round_up(height, 8);
-		pix_mp->plane_fmt[0].bytesperline = round_up(width, 32);
-		pix_mp->plane_fmt[0].sizeimage = width * height;
-		pix_mp->plane_fmt[1].bytesperline = round_up(width, 32) / 2;
-		pix_mp->plane_fmt[1].sizeimage = width * height / 4;
-		pix_mp->plane_fmt[2].bytesperline = round_up(width, 32) / 2;
-		pix_mp->plane_fmt[2].sizeimage = width * height / 4;
-		break;
-	case V4L2_PIX_FMT_NV12M:
-	case V4L2_PIX_FMT_NV21M:
-		pix_mp->width = round_up(width, 32);
-		pix_mp->height = round_up(height, 8);
-		pix_mp->plane_fmt[0].bytesperline = round_up(width, 32);
-		pix_mp->plane_fmt[0].sizeimage = width * height;
-		pix_mp->plane_fmt[1].bytesperline = round_up(width, 32);
-		pix_mp->plane_fmt[1].sizeimage = width * height / 2;
-		break;
-	default:
-		pix_mp->width = width;
-		pix_mp->height = height;
-		pix_mp->plane_fmt[0].bytesperline = 0;
-		pix_mp->plane_fmt[0].sizeimage = width * height;
-		break;
-	}
-}
-
 static void wave5_vpu_dec_start_decode(struct vpu_instance *inst)
 {
 	struct dec_param pic_param;
@@ -301,7 +261,6 @@ static void wave5_vpu_dec_start_decode(struct vpu_instance *inst)
 
 		src_buf = v4l2_m2m_src_buf_remove(inst->v4l2_fh.m2m_ctx);
 		inst->state = VPU_INST_STATE_STOP;
-		//printk("%d wave5 state = %d\n",__LINE__, inst->state);
 		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_ERROR);
 	}
 }
@@ -312,7 +271,6 @@ static void wave5_vpu_dec_stop_decode(struct vpu_instance *inst)
 	int ret;
 
 	inst->state = VPU_INST_STATE_STOP;
-	//printk("%d wave5 state = %d\n",__LINE__, inst->state);
 
 	ret = wave5_vpu_dec_update_bitstream_buffer(inst, 0);
 	if (ret) {
@@ -337,6 +295,7 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 	struct dec_output_info dec_output_info;
 	int ret;
 	u32 irq_status;
+	u32 stride, height;
 
 	if (kfifo_out(&inst->irq_status, &irq_status, sizeof(int)))
 		wave5_vpu_clear_interrupt_ex(inst, irq_status);
@@ -357,8 +316,9 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 				v4l2_m2m_dst_buf_remove_by_idx(inst->v4l2_fh.m2m_ctx,
 							       dec_output_info.index_frame_display);
 
-			int stride = inst->display_fmt.width;
-			int height  =inst->display_fmt.height;
+			stride = dec_output_info.disp_frame.stride;
+			height = dec_output_info.disp_pic_height -
+				dec_output_info.rc_display.bottom;
 			dev_dbg(inst->dev->dev, "%s %d disp_pic_height %u rc_display.bottom %u\n",
 				__func__, __LINE__, dec_output_info.disp_pic_height, dec_output_info.rc_display.bottom);
 			dev_dbg(inst->dev->dev, "%s %d stride %u height %u num %d\n", __func__, __LINE__, stride, height,inst->dst_fmt.num_planes);
@@ -425,7 +385,6 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 			v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
 
 			inst->eos = TRUE;
-			//pr_err("wave5 queue event type: %d id: %d\n",vpu_event_eos.type, vpu_event_eos.id);
 			v4l2_event_queue_fh(&inst->v4l2_fh, &vpu_event_eos);
 
 			v4l2_m2m_job_finish(inst->v4l2_m2m_dev, inst->v4l2_fh.m2m_ctx);
@@ -498,7 +457,7 @@ static int wave5_vpu_dec_try_fmt_cap(struct file *file, void *fh, struct v4l2_fo
 	if (!vpu_fmt) {
 		f->fmt.pix_mp.pixelformat = inst->dst_fmt.pixelformat;
 		f->fmt.pix_mp.num_planes = inst->dst_fmt.num_planes;
-		wave5_update_pix_fmt_r8(&f->fmt.pix_mp, inst->dst_fmt.width, inst->dst_fmt.height);
+		wave5_update_pix_fmt(&f->fmt.pix_mp, inst->dst_fmt.width, inst->dst_fmt.height);
 	} else {
 		int width = clamp(f->fmt.pix_mp.width, vpu_fmt->min_width, vpu_fmt->max_width);
 		int height = clamp(f->fmt.pix_mp.height, vpu_fmt->min_height, vpu_fmt->max_height);
@@ -506,7 +465,7 @@ static int wave5_vpu_dec_try_fmt_cap(struct file *file, void *fh, struct v4l2_fo
 
 		f->fmt.pix_mp.pixelformat = vpu_fmt->v4l2_pix_fmt;
 		f->fmt.pix_mp.num_planes = info->mem_planes;
-		wave5_update_pix_fmt_r8(&f->fmt.pix_mp, width, height);
+		wave5_update_pix_fmt(&f->fmt.pix_mp, width, height);
 	}
 
 	f->fmt.pix_mp.flags = 0;
@@ -525,7 +484,6 @@ static int wave5_vpu_dec_s_fmt_cap(struct file *file, void *fh, struct v4l2_form
 {
 	struct vpu_instance *inst = wave5_to_vpu_inst(fh);
 	int i, ret;
-	unsigned int scalew, scaleh;
 
 	dev_dbg(inst->dev->dev,
 		"%s: fourcc: %u width: %u height: %u num_planes: %u colorspace: %u field: %u\n",
@@ -533,37 +491,26 @@ static int wave5_vpu_dec_s_fmt_cap(struct file *file, void *fh, struct v4l2_form
 		f->fmt.pix_mp.num_planes, f->fmt.pix_mp.colorspace, f->fmt.pix_mp.field);
 
 	ret = wave5_vpu_dec_try_fmt_cap(file, fh, f);
-
 	if (ret)
 		return ret;
 
-	scalew = inst->src_fmt.width / f->fmt.pix_mp.width;
-	scaleh = inst->src_fmt.height / f->fmt.pix_mp.height;
-
-	//if (scalew > 8 || scaleh > 8 || scalew < 1 || scaleh < 1) {
-	//	dev_err(inst->dev->dev,"Scaling should be 1 to 1/8 (down-scaling only)! Use input parameter. \n");
-	//	return -EINVAL;
-	//}
-
-	inst->display_fmt.width = f->fmt.pix_mp.width;
-	inst->display_fmt.height = f->fmt.pix_mp.height;
-	inst->display_fmt.pixelformat = f->fmt.pix_mp.pixelformat;
-	inst->display_fmt.field = f->fmt.pix_mp.field;
-	inst->display_fmt.flags = f->fmt.pix_mp.flags;
-	inst->display_fmt.num_planes = f->fmt.pix_mp.num_planes;
+	inst->dst_fmt.width = f->fmt.pix_mp.width;
+	inst->dst_fmt.height = f->fmt.pix_mp.height;
 	inst->dst_fmt.pixelformat = f->fmt.pix_mp.pixelformat;
+	inst->dst_fmt.field = f->fmt.pix_mp.field;
+	inst->dst_fmt.flags = f->fmt.pix_mp.flags;
 	inst->dst_fmt.num_planes = f->fmt.pix_mp.num_planes;
-	for (i = 0; i < inst->display_fmt.num_planes; i++) {
-		inst->display_fmt.plane_fmt[i].bytesperline = f->fmt.pix_mp.plane_fmt[i].bytesperline;
-		inst->display_fmt.plane_fmt[i].sizeimage = f->fmt.pix_mp.plane_fmt[i].sizeimage;
+	for (i = 0; i < inst->dst_fmt.num_planes; i++) {
+		inst->dst_fmt.plane_fmt[i].bytesperline = f->fmt.pix_mp.plane_fmt[i].bytesperline;
+		inst->dst_fmt.plane_fmt[i].sizeimage = f->fmt.pix_mp.plane_fmt[i].sizeimage;
 	}
 
-	if (inst->display_fmt.pixelformat == V4L2_PIX_FMT_NV12 ||
-	    inst->display_fmt.pixelformat == V4L2_PIX_FMT_NV12M) {
+	if (inst->dst_fmt.pixelformat == V4L2_PIX_FMT_NV12 ||
+	    inst->dst_fmt.pixelformat == V4L2_PIX_FMT_NV12M) {
 		inst->cbcr_interleave = true;
 		inst->nv21 = false;
-	} else if (inst->display_fmt.pixelformat == V4L2_PIX_FMT_NV21 ||
-		   inst->display_fmt.pixelformat == V4L2_PIX_FMT_NV21M) {
+	} else if (inst->dst_fmt.pixelformat == V4L2_PIX_FMT_NV21 ||
+		   inst->dst_fmt.pixelformat == V4L2_PIX_FMT_NV21M) {
 		inst->cbcr_interleave = true;
 		inst->nv21 = true;
 	} else {
@@ -579,15 +526,15 @@ static int wave5_vpu_dec_g_fmt_cap(struct file *file, void *fh, struct v4l2_form
 	struct vpu_instance *inst = wave5_to_vpu_inst(fh);
 	int i;
 
-	f->fmt.pix_mp.width = inst->display_fmt.width;
-	f->fmt.pix_mp.height = inst->display_fmt.height;
-	f->fmt.pix_mp.pixelformat = inst->display_fmt.pixelformat;
-	f->fmt.pix_mp.field = inst->display_fmt.field;
-	f->fmt.pix_mp.flags = inst->display_fmt.flags;
-	f->fmt.pix_mp.num_planes = inst->display_fmt.num_planes;
+	f->fmt.pix_mp.width = inst->dst_fmt.width;
+	f->fmt.pix_mp.height = inst->dst_fmt.height;
+	f->fmt.pix_mp.pixelformat = inst->dst_fmt.pixelformat;
+	f->fmt.pix_mp.field = inst->dst_fmt.field;
+	f->fmt.pix_mp.flags = inst->dst_fmt.flags;
+	f->fmt.pix_mp.num_planes = inst->dst_fmt.num_planes;
 	for (i = 0; i < f->fmt.pix_mp.num_planes; i++) {
-		f->fmt.pix_mp.plane_fmt[i].bytesperline = inst->display_fmt.plane_fmt[i].bytesperline;
-		f->fmt.pix_mp.plane_fmt[i].sizeimage = inst->display_fmt.plane_fmt[i].sizeimage;
+		f->fmt.pix_mp.plane_fmt[i].bytesperline = inst->dst_fmt.plane_fmt[i].bytesperline;
+		f->fmt.pix_mp.plane_fmt[i].sizeimage = inst->dst_fmt.plane_fmt[i].sizeimage;
 	}
 
 	f->fmt.pix_mp.colorspace = inst->colorspace;
@@ -660,7 +607,6 @@ static int wave5_vpu_dec_s_fmt_out(struct file *file, void *fh, struct v4l2_form
 		__func__, f->fmt.pix_mp.pixelformat, f->fmt.pix_mp.width, f->fmt.pix_mp.height,
 		f->fmt.pix_mp.num_planes, f->fmt.pix_mp.field);
 
-
 	ret = wave5_vpu_dec_try_fmt_out(file, fh, f);
 	if (ret)
 		return ret;
@@ -682,9 +628,7 @@ static int wave5_vpu_dec_s_fmt_out(struct file *file, void *fh, struct v4l2_form
 	inst->quantization = f->fmt.pix_mp.quantization;
 	inst->xfer_func = f->fmt.pix_mp.xfer_func;
 
-
-	wave5_update_pix_fmt_r8(&inst->dst_fmt, f->fmt.pix_mp.width, f->fmt.pix_mp.height);
-	wave5_update_pix_fmt_r8(&inst->display_fmt, f->fmt.pix_mp.width, f->fmt.pix_mp.height);
+	wave5_update_pix_fmt(&inst->dst_fmt, f->fmt.pix_mp.width, f->fmt.pix_mp.height);
 
 	return 0;
 }
@@ -764,7 +708,6 @@ static int wave5_vpu_dec_decoder_cmd(struct file *file, void *fh, struct v4l2_de
 		wave5_handle_bitstream_buffer(inst);
 		inst->ops->start_process(inst);
 		inst->state = VPU_INST_STATE_STOP;
-		//printk("%d wave5 state = %d\n",__LINE__, inst->state);
 
 		ret = wave5_vpu_dec_update_bitstream_buffer(inst, 0);
 		if (ret) {
@@ -865,7 +808,7 @@ static int wave5_vpu_dec_queue_setup(struct vb2_queue *q, unsigned int *num_buff
 {
 	struct vpu_instance *inst = vb2_get_drv_priv(q);
 	struct v4l2_pix_format_mplane inst_format =
-		(q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ? inst->src_fmt : inst->display_fmt;
+		(q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ? inst->src_fmt : inst->dst_fmt;
 	unsigned int i;
 	int ret;
 
@@ -936,7 +879,6 @@ static int wave5_vpu_dec_queue_setup(struct vb2_queue *q, unsigned int *num_buff
 		}
 
 		inst->state = VPU_INST_STATE_OPEN;
-		//printk("wave5 state = %d\n",inst->state);
 
 		if (inst->thumbnail_mode)
 			wave5_vpu_dec_give_command(inst, ENABLE_DEC_THUMBNAIL_MODE, NULL);
@@ -1005,7 +947,6 @@ free_bitstream_vbuf:
 static int wave5_vpu_dec_start_streaming_open(struct vpu_instance *inst)
 {
 	struct dec_initial_info initial_info;
-	unsigned int scalew, scaleh;
 	int ret = 0;
 
 	memset(&initial_info, 0, sizeof(struct dec_initial_info));
@@ -1036,7 +977,6 @@ static int wave5_vpu_dec_start_streaming_open(struct vpu_instance *inst)
 			initial_info.profile, initial_info.min_frame_buffer_count);
 
 		inst->state = VPU_INST_STATE_INIT_SEQ;
-		//printk("wave5 state = %d\n",inst->state);
 		inst->min_dst_buf_count = initial_info.min_frame_buffer_count + 1;
 		inst->dst_buf_count = inst->min_dst_buf_count;
 
@@ -1050,28 +990,14 @@ static int wave5_vpu_dec_start_streaming_open(struct vpu_instance *inst)
 
 		if (initial_info.pic_width != inst->src_fmt.width ||
 		    initial_info.pic_height != inst->src_fmt.height) {
-			if (inst->std == W_AVC_DEC) {
-				wave5_update_pix_fmt(&inst->src_fmt, initial_info.pic_width,
-							initial_info.pic_height);
-				wave5_update_pix_fmt(&inst->dst_fmt, initial_info.pic_width,
-							initial_info.pic_height);
-			} else { //HEVC
-				wave5_update_pix_fmt_r8(&inst->src_fmt, initial_info.pic_width,
-							initial_info.pic_height);
-				wave5_update_pix_fmt_r8(&inst->dst_fmt, initial_info.pic_width,
-							initial_info.pic_height);
-			}
+			wave5_update_pix_fmt(&inst->src_fmt, initial_info.pic_width,
+					     initial_info.pic_height);
+			wave5_update_pix_fmt(&inst->dst_fmt, initial_info.pic_width,
+					     initial_info.pic_height);
 		}
+
 		inst->crop_rect.right = initial_info.pic_crop_rect.right;
 		inst->crop_rect.bottom = initial_info.pic_crop_rect.bottom;
-
-		scalew = inst->dst_fmt.width / inst->display_fmt.width;
-		scaleh = inst->dst_fmt.height / inst->display_fmt.height;
-
-		if (scalew > 8 || scaleh > 8 || scalew < 1 || scaleh < 1) {
-			wave5_update_pix_fmt(&inst->display_fmt, inst->dst_fmt.width,
-						inst->dst_fmt.height);
-		}
 
 		dev_dbg(inst->dev->dev, "wave5 queue event type: %d id: %d\n",vpu_event_src_ch.type, vpu_event_src_ch.id);
 		v4l2_event_queue_fh(&inst->v4l2_fh, &vpu_event_src_ch);
@@ -1087,7 +1013,6 @@ static int wave5_vpu_dec_start_streaming_seek(struct vpu_instance *inst)
 	struct dec_initial_info initial_info;
 	struct dec_param pic_param;
 	struct dec_output_info dec_output_info;
-	unsigned int scalew, scaleh;
 	int ret = 0;
 	u32 fail_res = 0;
 
@@ -1099,7 +1024,6 @@ static int wave5_vpu_dec_start_streaming_seek(struct vpu_instance *inst)
 
 		src_buf = v4l2_m2m_src_buf_remove(inst->v4l2_fh.m2m_ctx);
 		inst->state = VPU_INST_STATE_STOP;
-		//printk("%d wave5 state = %d\n",__LINE__, inst->state);
 		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_ERROR);
 		dev_dbg(inst->dev->dev, "%s: wave5_vpu_dec_start_one_frame\n", __func__);
 		return ret;
@@ -1142,28 +1066,14 @@ static int wave5_vpu_dec_start_streaming_seek(struct vpu_instance *inst)
 
 		if (initial_info.pic_width != inst->src_fmt.width ||
 		    initial_info.pic_height != inst->src_fmt.height) {
-			if (inst->std == W_AVC_DEC) {
-				wave5_update_pix_fmt(&inst->src_fmt, initial_info.pic_width,
-							initial_info.pic_height);
-				wave5_update_pix_fmt(&inst->dst_fmt, initial_info.pic_width,
-							initial_info.pic_height);
-			} else { //HEVC
-				wave5_update_pix_fmt_r8(&inst->src_fmt, initial_info.pic_width,
-							initial_info.pic_height);
-				wave5_update_pix_fmt_r8(&inst->dst_fmt, initial_info.pic_width,
-							initial_info.pic_height);
-			}
+			wave5_update_pix_fmt(&inst->src_fmt, initial_info.pic_width,
+					     initial_info.pic_height);
+			wave5_update_pix_fmt(&inst->dst_fmt, initial_info.pic_width,
+					     initial_info.pic_height);
 		}
+
 		inst->crop_rect.right = initial_info.pic_crop_rect.right;
 		inst->crop_rect.bottom = initial_info.pic_crop_rect.bottom;
-
-		scalew = inst->dst_fmt.width / inst->display_fmt.width;
-		scaleh = inst->dst_fmt.height / inst->display_fmt.height;
-
-		if (scalew > 8 || scaleh > 8 || scalew < 1 || scaleh < 1) {
-			wave5_update_pix_fmt(&inst->display_fmt, inst->dst_fmt.width,
-						inst->dst_fmt.height);
-		}
 
 		v4l2_event_queue_fh(&inst->v4l2_fh, &vpu_event_src_ch);
 
@@ -1206,22 +1116,22 @@ static void wave5_vpu_dec_buf_queue_dst(struct vb2_buffer *vb)
 		dma_addr_t buf_addr_y = 0, buf_addr_cb = 0, buf_addr_cr = 0;
 		u32 buf_size = 0;
 		u32 non_linear_num = inst->dst_buf_count;
-		u32 fb_stride = inst->display_fmt.width;
-		u32 luma_size = fb_stride * inst->display_fmt.height;
-		u32 chroma_size = (fb_stride / 2) * (inst->display_fmt.height / 2);
+		u32 fb_stride = inst->dst_fmt.width;
+		u32 luma_size = fb_stride * inst->dst_fmt.height;
+		u32 chroma_size = (fb_stride / 2) * (inst->dst_fmt.height / 2);
 
-		if (inst->display_fmt.num_planes == 1) {
+		if (inst->dst_fmt.num_planes == 1) {
 			buf_size = vb2_plane_size(&vbuf->vb2_buf, 0);
 			buf_addr_y = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 0);
 			buf_addr_cb = buf_addr_y + luma_size;
 			buf_addr_cr = buf_addr_cb + chroma_size;
-		} else if (inst->display_fmt.num_planes == 2) {
+		} else if (inst->dst_fmt.num_planes == 2) {
 			buf_size = vb2_plane_size(&vbuf->vb2_buf, 0) +
 				vb2_plane_size(&vbuf->vb2_buf, 1);
 			buf_addr_y = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 0);
 			buf_addr_cb = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 1);
 			buf_addr_cr = buf_addr_cb + chroma_size;
-		} else if (inst->display_fmt.num_planes == 3) {
+		} else if (inst->dst_fmt.num_planes == 3) {
 			buf_size = vb2_plane_size(&vbuf->vb2_buf, 0) +
 				vb2_plane_size(&vbuf->vb2_buf, 1) +
 				vb2_plane_size(&vbuf->vb2_buf, 2);
@@ -1233,7 +1143,7 @@ static void wave5_vpu_dec_buf_queue_dst(struct vb2_buffer *vb)
 		inst->frame_buf[vb->index + non_linear_num].buf_cb = buf_addr_cb;
 		inst->frame_buf[vb->index + non_linear_num].buf_cr = buf_addr_cr;
 		inst->frame_buf[vb->index + non_linear_num].size = buf_size;
-		inst->frame_buf[vb->index + non_linear_num].width = inst->display_fmt.width;
+		inst->frame_buf[vb->index + non_linear_num].width = inst->src_fmt.width;
 		inst->frame_buf[vb->index + non_linear_num].stride = fb_stride;
 		inst->frame_buf[vb->index + non_linear_num].map_type = LINEAR_FRAME_MAP;
 		inst->frame_buf[vb->index + non_linear_num].update_fb_info = true;
@@ -1369,7 +1279,6 @@ static void wave5_vpu_dec_stop_streaming(struct vb2_queue *q)
 		if (inst->eos) {
 			inst->eos = FALSE;
 			inst->state = VPU_INST_STATE_INIT_SEQ;
-			//printk("wave5 state = %d\n",inst->state);
 		}
 		inst->queued_dst_buf_num = 0;
 	}
@@ -1422,7 +1331,6 @@ static void wave5_vpu_dec_device_run(void *priv)
 	inst->ops->start_process(inst);
 
 	inst->state = VPU_INST_STATE_PIC_RUN;
-	//printk("wave5 state = %d\n",inst->state);
 }
 
 static void wave5_vpu_dec_job_abort(void *priv)
@@ -1487,7 +1395,6 @@ static int wave5_vpu_open_dec(struct file *filp)
 	v4l2_ctrl_handler_setup(&inst->v4l2_ctrl_hdl);
 
 	wave5_set_default_format(&inst->src_fmt, &inst->dst_fmt);
-	memcpy((void *)&inst->display_fmt, (void *)&inst->dst_fmt, sizeof(struct v4l2_pix_format_mplane));
 	inst->colorspace = V4L2_COLORSPACE_REC709;
 	inst->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	inst->hsv_enc = 0;
