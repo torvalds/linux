@@ -163,16 +163,7 @@ use::
 
 It will trigger a page fault on missing or read-only entries if write access is
 requested (see below). Page faults use the generic mm page fault code path just
-like a CPU page fault.
-
-Both functions copy CPU page table entries into their pfns array argument. Each
-entry in that array corresponds to an address in the virtual range. HMM
-provides a set of flags to help the driver identify special CPU page table
-entries.
-
-Locking within the sync_cpu_device_pagetables() callback is the most important
-aspect the driver must respect in order to keep things properly synchronized.
-The usage pattern is::
+like a CPU page fault. The usage pattern is::
 
  int driver_populate_range(...)
  {
