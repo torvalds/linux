@@ -201,6 +201,7 @@ def define_blair():
         "drivers/usb/phy/phy-msm-snps-hs.ko",
         "drivers/usb/phy/phy-msm-ssusb-qmp.ko",
         "drivers/usb/phy/phy-qcom-emu.ko",
+        "kernel/msm_sysstats.ko",
         "kernel/sched/walt/sched-walt.ko",
         "kernel/trace/qcom_ipc_logging.ko",
         "minidump.ko",
