@@ -208,6 +208,13 @@ static void svebf16_sigill(void)
 	asm volatile(".inst 0x658aa000" : : : "z0");
 }
 
+static void hbc_sigill(void)
+{
+	/* BC.EQ +4 */
+	asm volatile("cmp xzr, xzr\n"
+		     ".inst 0x54000030" : : : "cc");
+}
+
 static const struct hwcap_data {
 	const char *name;
 	unsigned long at_hwcap;
@@ -385,6 +392,14 @@ static const struct hwcap_data {
 		.at_hwcap = AT_HWCAP2,
 		.hwcap_bit = HWCAP2_SVE_EBF16,
 		.cpuinfo = "sveebf16",
+	},
+	{
+		.name = "HBC",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_HBC,
+		.cpuinfo = "hbc",
+		.sigill_fn = hbc_sigill,
+		.sigill_reliable = true,
 	},
 };
 
