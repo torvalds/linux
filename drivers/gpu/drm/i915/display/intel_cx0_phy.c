@@ -58,7 +58,7 @@ static u8 intel_cx0_get_owned_lane_mask(struct drm_i915_private *i915,
 	 * In DP-alt with pin assignment D, only PHY lane 0 is owned
 	 * by display and lane 1 is owned by USB.
 	 */
-	return intel_tc_port_fia_max_lane_count(dig_port) > 2
+	return intel_tc_port_max_lane_count(dig_port) > 2
 		? INTEL_CX0_BOTH_LANES : INTEL_CX0_LANE0;
 }
 
