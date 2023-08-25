@@ -450,8 +450,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 	sysfs_show_32bit_prop(buffer, offs, "cpu_cores_count",
 			      dev->node_props.cpu_cores_count);
 	sysfs_show_32bit_prop(buffer, offs, "simd_count",
-			      dev->gpu ? (dev->node_props.simd_count *
-					  NUM_XCC(dev->gpu->xcc_mask)) : 0);
+			      dev->gpu ? dev->node_props.simd_count : 0);
 	sysfs_show_32bit_prop(buffer, offs, "mem_banks_count",
 			      dev->node_props.mem_banks_count);
 	sysfs_show_32bit_prop(buffer, offs, "caches_count",
@@ -1604,7 +1603,7 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 	int i, j, k;
 	struct kfd_cache_properties *pcache = NULL;
 
-	cu_sibling_map_mask = cu_info->cu_bitmap[0][0];
+	cu_sibling_map_mask = cu_info->cu_bitmap[0][0][0];
 	cu_sibling_map_mask &=
 		((1 << pcache_info[cache_type].num_cu_shared) - 1);
 	first_active_cu = ffs(cu_sibling_map_mask);
@@ -1647,7 +1646,7 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 				pcache->sibling_map[k+3] = (uint8_t)((cu_sibling_map_mask >> 24) & 0xFF);
 				k += 4;
 
-				cu_sibling_map_mask = cu_info->cu_bitmap[i % 4][j + i / 4];
+				cu_sibling_map_mask = cu_info->cu_bitmap[0][i % 4][j + i / 4];
 				cu_sibling_map_mask &= ((1 << pcache_info[cache_type].num_cu_shared) - 1);
 			}
 		}
@@ -1708,8 +1707,8 @@ static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct
 					for (k = 0; k < pcu_info->num_cu_per_sh; k += pcache_info[ct].num_cu_shared) {
 
 						ret = fill_in_l1_pcache(&props_ext, pcache_info, pcu_info,
-										pcu_info->cu_bitmap[i % 4][j + i / 4], ct,
-										cu_processor_id, k);
+									pcu_info->cu_bitmap[0][i % 4][j + i / 4], ct,
+									cu_processor_id, k);
 
 						if (ret < 0)
 							break;
