@@ -813,11 +813,11 @@ void vdo_load_super_block(struct vdo *vdo, struct vdo_completion *parent)
 	}
 
 	vdo->super_block.vio.completion.parent = parent;
-	submit_metadata_vio(&vdo->super_block.vio,
-			    vdo_get_data_region_start(vdo->geometry),
-			    read_super_block_endio,
-			    handle_super_block_read_error,
-			    REQ_OP_READ);
+	vdo_submit_metadata_vio(&vdo->super_block.vio,
+				vdo_get_data_region_start(vdo->geometry),
+				read_super_block_endio,
+				handle_super_block_read_error,
+				REQ_OP_READ);
 }
 
 /**
@@ -1028,10 +1028,10 @@ void vdo_save_components(struct vdo *vdo, struct vdo_completion *parent)
 	vdo_encode_super_block(super_block->buffer, &vdo->states);
 	super_block->vio.completion.parent = parent;
 	super_block->vio.completion.callback_thread_id = parent->callback_thread_id;
-	submit_metadata_vio(&super_block->vio,
-			    vdo_get_data_region_start(vdo->geometry),
-			    super_block_write_endio, handle_save_error,
-			    REQ_OP_WRITE | REQ_PREFLUSH | REQ_FUA);
+	vdo_submit_metadata_vio(&super_block->vio,
+				vdo_get_data_region_start(vdo->geometry),
+				super_block_write_endio, handle_save_error,
+				REQ_OP_WRITE | REQ_PREFLUSH | REQ_FUA);
 }
 
 /**

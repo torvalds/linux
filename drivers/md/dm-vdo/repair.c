@@ -1748,10 +1748,9 @@ void vdo_repair(struct vdo_completion *parent)
 		remaining -= blocks;
 	}
 
-	for (vio_count = 0;
-	     vio_count < repair->vio_count;
+	for (vio_count = 0; vio_count < repair->vio_count;
 	     vio_count++, pbn += MAX_BLOCKS_PER_VIO) {
-		submit_metadata_vio(&repair->vios[vio_count], pbn, read_journal_endio,
-				    handle_journal_load_error, REQ_OP_READ);
+		vdo_submit_metadata_vio(&repair->vios[vio_count], pbn, read_journal_endio,
+					handle_journal_load_error, REQ_OP_READ);
 	}
 }

@@ -320,7 +320,7 @@ void submit_data_vio_io(struct data_vio *data_vio)
 }
 
 /**
- * vdo_submit_metadata_io() - Submit I/O for a metadata vio.
+ * __submit_metadata_vio() - Submit I/O for a metadata vio.
  * @vio: the vio for which to issue I/O
  * @physical: the physical block number to read or write
  * @callback: the bio endio function which will be called after the I/O completes
@@ -336,12 +336,12 @@ void submit_data_vio_io(struct data_vio *data_vio)
  * no error can occur on the bio queue. Currently this is true for all callers, but additional care
  * will be needed if this ever changes.
  */
-void vdo_submit_metadata_io(struct vio *vio, physical_block_number_t physical,
-			    bio_end_io_t callback, vdo_action_fn error_handler,
-			    unsigned int operation, char *data)
+void __submit_metadata_vio(struct vio *vio, physical_block_number_t physical,
+			   bio_end_io_t callback, vdo_action_fn error_handler,
+			   unsigned int operation, char *data)
 {
-	struct vdo_completion *completion = &vio->completion;
 	int result;
+	struct vdo_completion *completion = &vio->completion;
 	const struct admin_state_code *code = vdo_get_admin_state(completion->vdo);
 
 

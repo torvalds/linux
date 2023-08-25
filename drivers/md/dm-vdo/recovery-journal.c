@@ -1394,8 +1394,8 @@ static void write_block(struct waiter *waiter, void *context __always_unused)
 	 * the data being referenced is stable. The FUA is necessary to ensure that the journal
 	 * block itself is stable before allowing overwrites of the lbn's previous data.
 	 */
-	submit_metadata_vio(&block->vio, journal->origin + block->block_number,
-			    complete_write_endio, handle_write_error, WRITE_FLAGS);
+	vdo_submit_metadata_vio(&block->vio, journal->origin + block->block_number,
+				complete_write_endio, handle_write_error, WRITE_FLAGS);
 }
 
 
