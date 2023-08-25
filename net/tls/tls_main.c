@@ -739,7 +739,7 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	struct tls_crypto_info *crypto_info;
 	struct tls_crypto_info *alt_crypto_info;
 	struct tls_context *ctx = tls_get_ctx(sk);
-	size_t optsize;
+	const struct tls_cipher_desc *cipher_desc;
 	int rc = 0;
 	int conf;
 
@@ -780,46 +780,23 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 		}
 	}
 
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128:
-		optsize = sizeof(struct tls12_crypto_info_aes_gcm_128);
-		break;
-	case TLS_CIPHER_AES_GCM_256: {
-		optsize = sizeof(struct tls12_crypto_info_aes_gcm_256);
-		break;
+	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
+	if (!cipher_desc) {
+		rc = -EINVAL;
+		goto err_crypto_info;
 	}
-	case TLS_CIPHER_AES_CCM_128:
-		optsize = sizeof(struct tls12_crypto_info_aes_ccm_128);
-		break;
-	case TLS_CIPHER_CHACHA20_POLY1305:
-		optsize = sizeof(struct tls12_crypto_info_chacha20_poly1305);
-		break;
-	case TLS_CIPHER_SM4_GCM:
-		optsize = sizeof(struct tls12_crypto_info_sm4_gcm);
-		break;
-	case TLS_CIPHER_SM4_CCM:
-		optsize = sizeof(struct tls12_crypto_info_sm4_ccm);
-		break;
+
+	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_ARIA_GCM_128:
-		if (crypto_info->version != TLS_1_2_VERSION) {
-			rc = -EINVAL;
-			goto err_crypto_info;
-		}
-		optsize = sizeof(struct tls12_crypto_info_aria_gcm_128);
-		break;
 	case TLS_CIPHER_ARIA_GCM_256:
 		if (crypto_info->version != TLS_1_2_VERSION) {
 			rc = -EINVAL;
 			goto err_crypto_info;
 		}
-		optsize = sizeof(struct tls12_crypto_info_aria_gcm_256);
 		break;
-	default:
-		rc = -EINVAL;
-		goto err_crypto_info;
 	}
 
-	if (optlen != optsize) {
+	if (optlen != cipher_desc->crypto_info) {
 		rc = -EINVAL;
 		goto err_crypto_info;
 	}
