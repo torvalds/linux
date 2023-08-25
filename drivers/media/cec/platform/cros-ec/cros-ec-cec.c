@@ -77,8 +77,17 @@ static void handle_cec_message(struct cros_ec_cec *cros_ec_cec)
 static void handle_cec_event(struct cros_ec_cec *cros_ec_cec)
 {
 	struct cros_ec_device *cros_ec = cros_ec_cec->cros_ec;
-	uint32_t events = cros_ec->event_data.data.cec_events;
-	struct cros_ec_cec_port *port = cros_ec_cec->ports[CEC_PORT];
+	uint32_t cec_events = cros_ec->event_data.data.cec_events;
+	uint32_t port_num = EC_MKBP_EVENT_CEC_GET_PORT(cec_events);
+	uint32_t events = EC_MKBP_EVENT_CEC_GET_EVENTS(cec_events);
+	struct cros_ec_cec_port *port;
+
+	if (port_num >= cros_ec_cec->num_ports) {
+		dev_err(cros_ec->dev,
+			"received CEC event for invalid port %d\n", port_num);
+		return;
+	}
+	port = cros_ec_cec->ports[port_num];
 
 	if (events & EC_MKBP_CEC_SEND_OK)
 		cec_transmit_attempt_done(port->adap, CEC_TX_STATUS_OK);
