@@ -46,6 +46,7 @@ struct rknpu_job {
 	atomic_t interrupt_count;
 	ktime_t hw_recoder_time;
 	ktime_t commit_pc_time;
+	atomic_t submit_count[RKNPU_MAX_CORES];
 };
 
 irqreturn_t rknpu_core0_irq_handler(int irq, void *data);

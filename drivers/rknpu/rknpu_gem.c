@@ -985,6 +985,7 @@ static int rknpu_gem_mmap_buffer(struct rknpu_gem_object *rknpu_obj,
 	 * vm_pgoff (used as a fake buffer offset by DRM) to 0 as we want to map
 	 * the whole buffer.
 	 */
+	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP | VM_IO;
 	vma->vm_flags &= ~VM_PFNMAP;
 	vma->vm_pgoff = 0;
 
@@ -1329,19 +1330,29 @@ void rknpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 int rknpu_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
 	struct rknpu_gem_object *rknpu_obj = to_rknpu_obj(obj);
+	void *vaddr = NULL;
 
 	if (!rknpu_obj->pages)
 		return -EINVAL;
 
-	map->vaddr = vmap(rknpu_obj->pages, rknpu_obj->num_pages, VM_MAP,
+	vaddr = vmap(rknpu_obj->pages, rknpu_obj->num_pages, VM_MAP,
 			  PAGE_KERNEL);
+	if (!vaddr)
+		return -ENOMEM;
+
+	iosys_map_set_vaddr(map, vaddr);
 
 	return 0;
 }
 
 void rknpu_gem_prime_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
-	vunmap(map->vaddr);
+	struct rknpu_gem_object *rknpu_obj = to_rknpu_obj(obj);
+
+	if (rknpu_obj->pages) {
+		vunmap(map->vaddr);
+		map->vaddr = NULL;
+	}
 }
 #endif
 
@@ -1412,10 +1423,12 @@ int rknpu_gem_sync_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
 	struct rknpu_gem_object *rknpu_obj = NULL;
+	struct rknpu_device *rknpu_dev = dev->dev_private;
 	struct rknpu_mem_sync *args = data;
 	struct scatterlist *sg;
+	dma_addr_t sg_phys_addr;
 	unsigned long length, offset = 0;
-	unsigned long sg_left, size = 0;
+	unsigned long sg_offset, sg_left, size = 0;
 	unsigned long len = 0;
 	int i;
 
@@ -1439,6 +1452,8 @@ int rknpu_gem_sync_ioctl(struct drm_device *dev, void *data,
 						      DMA_FROM_DEVICE);
 		}
 	} else {
+		WARN_ON(!rknpu_dev->fake_dev);
+
 		length = args->size;
 		offset = args->offset;
 
@@ -1462,17 +1477,23 @@ int rknpu_gem_sync_ioctl(struct drm_device *dev, void *data,
 			if (len <= offset)
 				continue;
 
+			sg_phys_addr = sg_phys(sg);
+
 			sg_left = len - offset;
+			sg_offset = sg->length - sg_left;
+
 			size = (length < sg_left) ? length : sg_left;
 
 			if (args->flags & RKNPU_MEM_SYNC_TO_DEVICE) {
-				dma_sync_sg_for_device(dev->dev, sg, 1,
-						       DMA_TO_DEVICE);
+				dma_sync_single_range_for_device(
+					rknpu_dev->fake_dev, sg_phys_addr,
+					sg_offset, size, DMA_TO_DEVICE);
 			}
 
 			if (args->flags & RKNPU_MEM_SYNC_FROM_DEVICE) {
-				dma_sync_sg_for_cpu(dev->dev, sg, 1,
-						    DMA_FROM_DEVICE);
+				dma_sync_single_range_for_cpu(
+					rknpu_dev->fake_dev, sg_phys_addr,
+					sg_offset, size, DMA_FROM_DEVICE);
 			}
 
 			offset += size;

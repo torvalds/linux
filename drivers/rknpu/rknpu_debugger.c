@@ -63,7 +63,7 @@ static int rknpu_load_show(struct seq_file *m, void *data)
 
 		div_value = (RKNPU_LOAD_INTERVAL / 100000);
 		do_div(busy_time_total, div_value);
-		load = busy_time_total;
+		load = busy_time_total > 100 ? 100 : busy_time_total;
 
 		if (rknpu_dev->config->num_irqs > 1)
 			seq_printf(m, "%2.d%%,", load);

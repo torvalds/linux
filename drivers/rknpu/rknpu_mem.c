@@ -15,6 +15,8 @@
 #include "rknpu_ioctl.h"
 #include "rknpu_mem.h"
 
+#ifdef CONFIG_ROCKCHIP_RKNPU_DMA_HEAP
+
 int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
 			   struct file *file)
 {
@@ -108,7 +110,7 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
 	}
 
 	page_count = length >> PAGE_SHIFT;
-	pages = kmalloc_array(page_count, sizeof(struct page), GFP_KERNEL);
+	pages = vmalloc(page_count * sizeof(struct page));
 	if (!pages) {
 		LOG_ERROR("alloc pages failed\n");
 		ret = -ENOMEM;
@@ -146,7 +148,8 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
 		goto err_unmap_kv_addr;
 	}
 
-	kfree(pages);
+	vfree(pages);
+	pages = NULL;
 	dma_buf_unmap_attachment(attachment, table, DMA_BIDIRECTIONAL);
 	dma_buf_detach(dmabuf, attachment);
 
@@ -169,7 +172,8 @@ err_unmap_kv_addr:
 	rknpu_obj->kv_addr = NULL;
 
 err_free_pages:
-	kfree(pages);
+	vfree(pages);
+	pages = NULL;
 
 err_detach_dma_buf:
 	dma_buf_unmap_attachment(attachment, table, DMA_BIDIRECTIONAL);
@@ -292,7 +296,9 @@ int rknpu_mem_sync_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 {
 	struct rknpu_mem_object *rknpu_obj = NULL;
 	struct rknpu_mem_sync args;
+#ifdef CONFIG_DMABUF_PARTIAL
 	struct dma_buf *dmabuf;
+#endif
 	int ret = -EFAULT;
 
 	if (unlikely(copy_from_user(&args, (struct rknpu_mem_sync *)data,
@@ -310,7 +316,6 @@ int rknpu_mem_sync_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	}
 
 	rknpu_obj = (struct rknpu_mem_object *)(uintptr_t)args.obj_addr;
-	dmabuf = rknpu_obj->dmabuf;
 
 #ifndef CONFIG_DMABUF_PARTIAL
 	if (args.flags & RKNPU_MEM_SYNC_TO_DEVICE) {
@@ -322,6 +327,7 @@ int rknpu_mem_sync_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 				   DMA_FROM_DEVICE, true);
 	}
 #else
+	dmabuf = rknpu_obj->dmabuf;
 	if (args.flags & RKNPU_MEM_SYNC_TO_DEVICE) {
 		dmabuf->ops->end_cpu_access_partial(dmabuf, DMA_TO_DEVICE,
 						    args.offset, args.size);
@@ -334,3 +340,5 @@ int rknpu_mem_sync_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 
 	return 0;
 }
+
+#endif

@@ -30,10 +30,10 @@
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20230721"
+#define DRIVER_DATE "20230825"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 9
-#define DRIVER_PATCHLEVEL 1
+#define DRIVER_PATCHLEVEL 2
 
 #define LOG_TAG "RKNPU"
 
@@ -75,6 +75,7 @@ struct rknpu_config {
 	int num_resets;
 	__u64 nbuf_phyaddr;
 	__u64 nbuf_size;
+	__u64 max_submit_number;
 };
 
 struct rknpu_timer {
@@ -101,6 +102,7 @@ struct rknpu_device {
 	void __iomem *base[RKNPU_MAX_CORES];
 	struct device *dev;
 #ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
+	struct device *fake_dev;
 	struct drm_device *drm_dev;
 #endif
 #ifdef CONFIG_ROCKCHIP_RKNPU_DMA_HEAP

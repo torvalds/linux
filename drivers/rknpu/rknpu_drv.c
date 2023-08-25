@@ -117,7 +117,8 @@ static const struct rknpu_config rk356x_rknpu_config = {
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
 	.num_resets = ARRAY_SIZE(rknpu_resets),
 	.nbuf_phyaddr = 0,
-	.nbuf_size = 0
+	.nbuf_size = 0,
+	.max_submit_number = (1 << 12) - 1
 };
 
 static const struct rknpu_config rk3588_rknpu_config = {
@@ -135,7 +136,8 @@ static const struct rknpu_config rk3588_rknpu_config = {
 	.num_irqs = ARRAY_SIZE(rk3588_npu_irqs),
 	.num_resets = ARRAY_SIZE(rk3588_npu_resets),
 	.nbuf_phyaddr = 0,
-	.nbuf_size = 0
+	.nbuf_size = 0,
+	.max_submit_number = (1 << 12) - 1
 };
 
 static const struct rknpu_config rv1106_rknpu_config = {
@@ -153,7 +155,8 @@ static const struct rknpu_config rv1106_rknpu_config = {
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
 	.num_resets = ARRAY_SIZE(rknpu_resets),
 	.nbuf_phyaddr = 0,
-	.nbuf_size = 0
+	.nbuf_size = 0,
+	.max_submit_number = (1 << 16) - 1
 };
 
 static const struct rknpu_config rk3562_rknpu_config = {
@@ -171,7 +174,8 @@ static const struct rknpu_config rk3562_rknpu_config = {
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
 	.num_resets = ARRAY_SIZE(rknpu_resets),
 	.nbuf_phyaddr = 0xfe400000,
-	.nbuf_size = 256 * 1024
+	.nbuf_size = 256 * 1024,
+	.max_submit_number = (1 << 16) - 1
 };
 
 /* driver probe and init */
@@ -539,6 +543,9 @@ static const struct drm_ioctl_desc rknpu_ioctls[] = {
 			  DRM_RENDER_ALLOW),
 };
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+DEFINE_DRM_GEM_FOPS(rknpu_drm_driver_fops);
+#else
 static const struct file_operations rknpu_drm_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
@@ -552,6 +559,7 @@ static const struct file_operations rknpu_drm_driver_fops = {
 	.release = drm_release,
 	.llseek = noop_llseek,
 };
+#endif
 
 static struct drm_driver rknpu_drm_driver = {
 #if KERNEL_VERSION(5, 4, 0) <= LINUX_VERSION_CODE
@@ -582,7 +590,11 @@ static struct drm_driver rknpu_drm_driver = {
 	.gem_prime_import = drm_gem_prime_import,
 #endif
 	.gem_prime_import_sg_table = rknpu_gem_prime_import_sg_table,
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	.gem_prime_mmap = drm_gem_prime_mmap,
+#else
 	.gem_prime_mmap = rknpu_gem_prime_mmap,
+#endif
 	.ioctls = rknpu_ioctls,
 	.num_ioctls = ARRAY_SIZE(rknpu_ioctls),
 	.fops = &rknpu_drm_driver_fops,
@@ -602,7 +614,7 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 		container_of(timer, struct rknpu_device, timer);
 	struct rknpu_subcore_data *subcore_data = NULL;
 	struct rknpu_job *job = NULL;
-	ktime_t now = ktime_get();
+	ktime_t now;
 	unsigned long flags;
 	int i;
 
@@ -613,9 +625,10 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 
 		job = subcore_data->job;
 		if (job) {
+			now = ktime_get();
 			subcore_data->timer.busy_time +=
 				ktime_us_delta(now, job->hw_recoder_time);
-			job->hw_recoder_time = ktime_get();
+			job->hw_recoder_time = now;
 		}
 
 		subcore_data->timer.busy_time_record =
@@ -667,6 +680,42 @@ static bool rknpu_is_iommu_enable(struct device *dev)
 }
 
 #ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
+static int drm_fake_dev_register(struct rknpu_device *rknpu_dev)
+{
+	const struct platform_device_info rknpu_dev_info = {
+		.name = "rknpu_dev",
+		.id = PLATFORM_DEVID_AUTO,
+		.dma_mask = rknpu_dev->config->dma_mask,
+	};
+	struct platform_device *pdev = NULL;
+	int ret = -EINVAL;
+
+	pdev = platform_device_register_full(&rknpu_dev_info);
+	if (pdev) {
+		ret = of_dma_configure(&pdev->dev, NULL, true);
+		if (ret) {
+			platform_device_unregister(pdev);
+			pdev = NULL;
+		}
+	}
+
+	rknpu_dev->fake_dev = pdev ? &pdev->dev : NULL;
+
+	return ret;
+}
+
+static void drm_fake_dev_unregister(struct rknpu_device *rknpu_dev)
+{
+	struct platform_device *pdev = NULL;
+
+	if (!rknpu_dev->fake_dev)
+		return;
+
+	pdev = to_platform_device(rknpu_dev->fake_dev);
+
+	platform_device_unregister(pdev);
+}
+
 static int rknpu_drm_probe(struct rknpu_device *rknpu_dev)
 {
 	struct device *dev = rknpu_dev->dev;
@@ -685,6 +734,8 @@ static int rknpu_drm_probe(struct rknpu_device *rknpu_dev)
 	drm_dev->dev_private = rknpu_dev;
 	rknpu_dev->drm_dev = drm_dev;
 
+	drm_fake_dev_register(rknpu_dev);
+
 	return 0;
 
 err_free_drm:
@@ -700,6 +751,8 @@ err_free_drm:
 static void rknpu_drm_remove(struct rknpu_device *rknpu_dev)
 {
 	struct drm_device *drm_dev = rknpu_dev->drm_dev;
+
+	drm_fake_dev_unregister(rknpu_dev);
 
 	drm_dev_unregister(drm_dev);
 
@@ -2123,6 +2176,6 @@ MODULE_ALIAS("rockchip-rknpu");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(RKNPU_GET_DRV_VERSION_STRING(DRIVER_MAJOR, DRIVER_MINOR,
 					    DRIVER_PATCHLEVEL));
-#if defined(CONFIG_ROCKCHIP_RKNPU_DMA_HEAP) && KERNEL_VERSION(5, 16, 0) < LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 16, 0) < LINUX_VERSION_CODE
 MODULE_IMPORT_NS(DMA_BUF);
 #endif
