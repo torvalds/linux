@@ -6546,11 +6546,21 @@ static void msm_handle_error_source(struct pci_dev *dev,
 				!rdev->panic_on_aer)
 			goto skip;
 
+		/* Disable dumping PCIe registers when we are in DRV suspend */
+		spin_lock_irqsave(&rdev->cfg_lock, rdev->irqsave_flags);
+		if (!rdev->cfg_access) {
+			PCIE_DBG2(rdev,
+				"PCIe: RC%d is currently in drv suspend.\n",
+				rdev->rc_idx);
+			spin_unlock_irqrestore(&rdev->cfg_lock, rdev->irqsave_flags);
+			return;
+		}
 		pcie_parf_dump(rdev);
 		pcie_dm_core_dump(rdev);
 		pcie_phy_dump(rdev);
 		pcie_sm_dump(rdev);
 		pcie_crm_dump(rdev);
+		spin_unlock_irqrestore(&rdev->cfg_lock, rdev->irqsave_flags);
 
 skip:
 		if (rdev->panic_on_aer)
@@ -6742,7 +6752,6 @@ static irqreturn_t handle_aer_irq(int irq, void *data)
 {
 	struct msm_pcie_dev_t *dev = data;
 	struct aer_err_source e_src;
-	unsigned long irqsave_flags;
 
 	if (kfifo_is_empty(&dev->aer_fifo))
 		return IRQ_NONE;
@@ -6750,19 +6759,17 @@ static irqreturn_t handle_aer_irq(int irq, void *data)
 	while (kfifo_get(&dev->aer_fifo, &e_src)) {
 
 		/* Not handling aer interrupts when we are in drv suspend */
-		spin_lock_irqsave(&dev->irq_lock, irqsave_flags);
+		spin_lock_irqsave(&dev->cfg_lock, dev->irqsave_flags);
 		if (!dev->cfg_access) {
 			PCIE_DBG2(dev,
 				"PCIe: RC%d is currently in drv suspend.\n",
 				dev->rc_idx);
-			spin_unlock_irqrestore(&dev->irq_lock,
-							irqsave_flags);
+			spin_unlock_irqrestore(&dev->cfg_lock, dev->irqsave_flags);
 			goto done;
 		}
-
+		spin_unlock_irqrestore(&dev->cfg_lock, dev->irqsave_flags);
 		msm_aer_isr_one_error(dev, &e_src);
 
-		spin_unlock_irqrestore(&dev->irq_lock, irqsave_flags);
 	}
 
 done:
