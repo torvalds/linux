@@ -10,10 +10,9 @@
 
 static void RxPktPendingTimeout(struct timer_list *t)
 {
-	struct rx_ts_record *pRxTs = from_timer(pRxTs, t,
-						     rx_pkt_pending_timer);
-	struct rtllib_device *ieee = container_of(pRxTs, struct rtllib_device,
-						  RxTsRecord[pRxTs->num]);
+	struct rx_ts_record *ts = from_timer(ts, t, rx_pkt_pending_timer);
+	struct rtllib_device *ieee = container_of(ts, struct rtllib_device,
+						  RxTsRecord[ts->num]);
 
 	struct rx_reorder_entry *pReorderEntry = NULL;
 
@@ -22,24 +21,24 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	bool bPktInBuf = false;
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
-	if (pRxTs->rx_timeout_indicate_seq != 0xffff) {
-		while (!list_empty(&pRxTs->rx_pending_pkt_list)) {
+	if (ts->rx_timeout_indicate_seq != 0xffff) {
+		while (!list_empty(&ts->rx_pending_pkt_list)) {
 			pReorderEntry = (struct rx_reorder_entry *)
-					list_entry(pRxTs->rx_pending_pkt_list.prev,
+					list_entry(ts->rx_pending_pkt_list.prev,
 					struct rx_reorder_entry, List);
 			if (index == 0)
-				pRxTs->rx_indicate_seq = pReorderEntry->SeqNum;
+				ts->rx_indicate_seq = pReorderEntry->SeqNum;
 
 			if (SN_LESS(pReorderEntry->SeqNum,
-				    pRxTs->rx_indicate_seq) ||
+				    ts->rx_indicate_seq) ||
 			    SN_EQUAL(pReorderEntry->SeqNum,
-				     pRxTs->rx_indicate_seq)) {
+				     ts->rx_indicate_seq)) {
 				list_del_init(&pReorderEntry->List);
 
 				if (SN_EQUAL(pReorderEntry->SeqNum,
-				    pRxTs->rx_indicate_seq))
-					pRxTs->rx_indicate_seq =
-					      (pRxTs->rx_indicate_seq + 1) % 4096;
+				    ts->rx_indicate_seq))
+					ts->rx_indicate_seq =
+					      (ts->rx_indicate_seq + 1) % 4096;
 
 				netdev_dbg(ieee->dev,
 					   "%s(): Indicate SeqNum: %d\n",
@@ -58,7 +57,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	}
 
 	if (index > 0) {
-		pRxTs->rx_timeout_indicate_seq = 0xffff;
+		ts->rx_timeout_indicate_seq = 0xffff;
 
 		if (index > REORDER_WIN_SIZE) {
 			netdev_warn(ieee->dev,
@@ -72,9 +71,9 @@ static void RxPktPendingTimeout(struct timer_list *t)
 		bPktInBuf = false;
 	}
 
-	if (bPktInBuf && (pRxTs->rx_timeout_indicate_seq == 0xffff)) {
-		pRxTs->rx_timeout_indicate_seq = pRxTs->rx_indicate_seq;
-		mod_timer(&pRxTs->rx_pkt_pending_timer,  jiffies +
+	if (bPktInBuf && (ts->rx_timeout_indicate_seq == 0xffff)) {
+		ts->rx_timeout_indicate_seq = ts->rx_indicate_seq;
+		mod_timer(&ts->rx_pkt_pending_timer,  jiffies +
 			  msecs_to_jiffies(ieee->ht_info->rx_reorder_pending_time)
 			  );
 	}
