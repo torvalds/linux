@@ -5282,13 +5282,16 @@ void dc_query_current_properties(struct dc *dc, struct dc_current_properties *pr
 }
 
 /**
- *****************************************************************************
  * dc_set_edp_power() - DM controls eDP power to be ON/OFF
  *
  * Called when DM wants to power on/off eDP.
  *     Only work on links with flag skip_implict_edp_power_control is set.
  *
- *****************************************************************************
+ * @dc: Current DC state
+ * @edp_link: a link with eDP connector signal type
+ * @powerOn: power on/off eDP
+ *
+ * Return: void
  */
 void dc_set_edp_power(const struct dc *dc, struct dc_link *edp_link,
 				 bool powerOn)
