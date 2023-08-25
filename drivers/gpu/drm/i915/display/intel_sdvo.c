@@ -2613,9 +2613,9 @@ intel_sdvo_guess_ddc_bus(struct intel_sdvo *sdvo)
  * outputs, then LVDS outputs.
  */
 static void
-intel_sdvo_select_ddc_bus(struct drm_i915_private *dev_priv,
-			  struct intel_sdvo *sdvo)
+intel_sdvo_select_ddc_bus(struct intel_sdvo *sdvo)
 {
+	struct drm_i915_private *dev_priv = to_i915(sdvo->base.base.dev);
 	struct sdvo_device_mapping *mapping;
 
 	if (sdvo->port == PORT_B)
@@ -2630,9 +2630,9 @@ intel_sdvo_select_ddc_bus(struct drm_i915_private *dev_priv,
 }
 
 static void
-intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
-			  struct intel_sdvo *sdvo)
+intel_sdvo_select_i2c_bus(struct intel_sdvo *sdvo)
 {
+	struct drm_i915_private *dev_priv = to_i915(sdvo->base.base.dev);
 	struct sdvo_device_mapping *mapping;
 	u8 pin;
 
@@ -2671,9 +2671,9 @@ intel_sdvo_is_hdmi_connector(struct intel_sdvo *intel_sdvo)
 }
 
 static u8
-intel_sdvo_get_slave_addr(struct drm_i915_private *dev_priv,
-			  struct intel_sdvo *sdvo)
+intel_sdvo_get_slave_addr(struct intel_sdvo *sdvo)
 {
+	struct drm_i915_private *dev_priv = to_i915(sdvo->base.base.dev);
 	struct sdvo_device_mapping *my_mapping, *other_mapping;
 
 	if (sdvo->port == PORT_B) {
@@ -2994,7 +2994,6 @@ intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo)
 		SDVO_OUTPUT_LVDS0,
 		SDVO_OUTPUT_LVDS1,
 	};
-	struct drm_i915_private *i915 = to_i915(intel_sdvo->base.base.dev);
 	u16 flags;
 	int i;
 
@@ -3008,7 +3007,7 @@ intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo)
 
 	intel_sdvo->controlled_output = flags;
 
-	intel_sdvo_select_ddc_bus(i915, intel_sdvo);
+	intel_sdvo_select_ddc_bus(intel_sdvo);
 
 	for (i = 0; i < ARRAY_SIZE(probe_order); i++) {
 		u16 type = flags & probe_order[i];
@@ -3309,9 +3308,9 @@ static const struct i2c_lock_operations proxy_lock_ops = {
 };
 
 static bool
-intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
-			  struct drm_i915_private *dev_priv)
+intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo)
 {
+	struct drm_i915_private *dev_priv = to_i915(sdvo->base.base.dev);
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 
 	sdvo->ddc.owner = THIS_MODULE;
@@ -3357,22 +3356,22 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 	if (!intel_sdvo)
 		return false;
 
-	intel_sdvo->sdvo_reg = sdvo_reg;
-	intel_sdvo->port = port;
-	intel_sdvo->slave_addr =
-		intel_sdvo_get_slave_addr(dev_priv, intel_sdvo) >> 1;
-	intel_sdvo_select_i2c_bus(dev_priv, intel_sdvo);
-	if (!intel_sdvo_init_ddc_proxy(intel_sdvo, dev_priv))
-		goto err_i2c_bus;
-
 	/* encoder type will be decided later */
 	intel_encoder = &intel_sdvo->base;
 	intel_encoder->type = INTEL_OUTPUT_SDVO;
 	intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 	intel_encoder->port = port;
+
 	drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
 			 &intel_sdvo_enc_funcs, 0,
 			 "SDVO %c", port_name(port));
+
+	intel_sdvo->sdvo_reg = sdvo_reg;
+	intel_sdvo->port = port;
+	intel_sdvo->slave_addr = intel_sdvo_get_slave_addr(intel_sdvo) >> 1;
+	intel_sdvo_select_i2c_bus(intel_sdvo);
+	if (!intel_sdvo_init_ddc_proxy(intel_sdvo))
+		goto err_i2c_bus;
 
 	/* Read the regs to test if we can talk to the device */
 	for (i = 0; i < 0x40; i++) {
@@ -3467,10 +3466,10 @@ err_output:
 	intel_sdvo_output_cleanup(intel_sdvo);
 
 err:
-	drm_encoder_cleanup(&intel_encoder->base);
 	i2c_del_adapter(&intel_sdvo->ddc);
 err_i2c_bus:
 	intel_sdvo_unselect_i2c_bus(intel_sdvo);
+	drm_encoder_cleanup(&intel_encoder->base);
 	kfree(intel_sdvo);
 
 	return false;
