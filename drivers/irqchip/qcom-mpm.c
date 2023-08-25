@@ -600,10 +600,25 @@ const struct mpm_pin mpm_blair_gic_chip_data[] = {
 	{-1},
 };
 
+const struct mpm_pin mpm_holi_gic_chip_data[] = {
+	{5, 296}, /* lpass_irq_out_sdc */
+	{12, 422}, /* qmp_usb3_lfps_rxterm_irq_cx */
+	{86, 183}, /* mpm_wake,spmi_m */
+	{89, 314}, /* tsens0_tsens_0C_int */
+	{90, 315}, /* tsens1_tsens_0C_int */
+	{93, 260}, /* eud_p0_dpse_int_mx */
+	{94, 260}, /* eud_p0_dmse_int_mx */
+	{-1},
+};
+
 static const struct of_device_id mpm_gic_chip_data_table[] = {
 	{
 		.compatible = "qcom,mpm-blair",
 		.data = mpm_blair_gic_chip_data,
+	},
+	{
+		.compatible = "qcom,mpm-holi",
+		.data = mpm_holi_gic_chip_data,
 	},
 	{}
 };
