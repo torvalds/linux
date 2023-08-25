@@ -1559,9 +1559,9 @@ int gfs2_quotad(void *data)
 	unsigned long t = 0;
 
 	while (!kthread_should_stop()) {
-
 		if (gfs2_withdrawn(sdp))
-			goto bypass;
+			break;
+
 		/* Update the master statfs file */
 		if (sdp->sd_statfs_force_sync) {
 			int error = gfs2_statfs_sync(sdp->sd_vfs, 0);
@@ -1579,11 +1579,12 @@ int gfs2_quotad(void *data)
 
 		try_to_freeze();
 
-bypass:
 		t = min(quotad_timeo, statfs_timeo);
 
 		t = wait_event_interruptible_timeout(sdp->sd_quota_wait,
-				sdp->sd_statfs_force_sync,
+				sdp->sd_statfs_force_sync ||
+				gfs2_withdrawn(sdp) ||
+				kthread_should_stop(),
 				t);
 
 		if (sdp->sd_statfs_force_sync)
