@@ -9164,6 +9164,42 @@ void md_do_sync(struct md_thread *thread)
 }
 EXPORT_SYMBOL_GPL(md_do_sync);
 
+static bool rdev_removeable(struct md_rdev *rdev)
+{
+	/* rdev is not used. */
+	if (rdev->raid_disk < 0)
+		return false;
+
+	/* There are still inflight io, don't remove this rdev. */
+	if (atomic_read(&rdev->nr_pending))
+		return false;
+
+	/*
+	 * An error occurred but has not yet been acknowledged by the metadata
+	 * handler, don't remove this rdev.
+	 */
+	if (test_bit(Blocked, &rdev->flags))
+		return false;
+
+	/* Fautly rdev is not used, it's safe to remove it. */
+	if (test_bit(Faulty, &rdev->flags))
+		return true;
+
+	/* Journal disk can only be removed if it's faulty. */
+	if (test_bit(Journal, &rdev->flags))
+		return false;
+
+	/*
+	 * 'In_sync' is cleared while 'raid_disk' is valid, which means
+	 * replacement has just become active from pers->spare_active(), and
+	 * then pers->hot_remove_disk() will replace this rdev with replacement.
+	 */
+	if (!test_bit(In_sync, &rdev->flags))
+		return true;
+
+	return false;
+}
+
 static int remove_and_add_spares(struct mddev *mddev,
 				 struct md_rdev *this)
 {
@@ -9196,12 +9232,8 @@ static int remove_and_add_spares(struct mddev *mddev,
 		synchronize_rcu();
 	rdev_for_each(rdev, mddev) {
 		if ((this == NULL || rdev == this) &&
-		    rdev->raid_disk >= 0 &&
-		    !test_bit(Blocked, &rdev->flags) &&
-		    ((test_bit(RemoveSynchronized, &rdev->flags) ||
-		     (!test_bit(In_sync, &rdev->flags) &&
-		      !test_bit(Journal, &rdev->flags))) &&
-		    atomic_read(&rdev->nr_pending)==0)) {
+		    (test_bit(RemoveSynchronized, &rdev->flags) ||
+		     rdev_removeable(rdev))) {
 			if (mddev->pers->hot_remove_disk(
 				    mddev, rdev) == 0) {
 				sysfs_unlink_rdev(mddev, rdev);
