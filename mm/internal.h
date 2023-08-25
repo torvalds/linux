@@ -924,6 +924,13 @@ int migrate_device_coherent_page(struct page *page);
 struct folio *try_grab_folio(struct page *page, int refs, unsigned int flags);
 int __must_check try_grab_page(struct page *page, unsigned int flags);
 
+/*
+ * mm/huge_memory.c
+ */
+struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+				   unsigned long addr, pmd_t *pmd,
+				   unsigned int flags);
+
 enum {
 	/* mark page accessed */
 	FOLL_TOUCH = 1 << 16,
@@ -996,6 +1003,16 @@ static inline bool gup_must_unshare(struct vm_area_struct *vma,
 	/* Paired with a memory barrier in page_try_share_anon_rmap(). */
 	if (IS_ENABLED(CONFIG_HAVE_FAST_GUP))
 		smp_rmb();
+
+	/*
+	 * During GUP-fast we might not get called on the head page for a
+	 * hugetlb page that is mapped using cont-PTE, because GUP-fast does
+	 * not work with the abstracted hugetlb PTEs that always point at the
+	 * head page. For hugetlb, PageAnonExclusive only applies on the head
+	 * page (as it cannot be partially COW-shared), so lookup the head page.
+	 */
+	if (unlikely(!PageHead(page) && PageHuge(page)))
+		page = compound_head(page);
 
 	/*
 	 * Note that PageKsm() pages cannot be exclusive, and consequently,
