@@ -180,14 +180,27 @@ static struct sleep_stats *b_system_stats;
 static struct sleep_stats *a_system_stats;
 static DEFINE_MUTEX(sleep_stats_mutex);
 
+static inline void get_sleep_stat_name(u32 type, char *stat_type)
+{
+	int i;
+
+	for (i = 0; i < sizeof(u32); i++) {
+		stat_type[i] = type & 0xff;
+		type = type >> 8;
+	}
+	strim(stat_type);
+}
+
 bool has_system_slept(void)
 {
 	int i;
 	bool sleep_flag = true;
+	char stat_type[sizeof(u32) + 1] = {0};
 
 	for (i = 0; i < drv->config->num_records; i++) {
 		if (b_system_stats[i].count == a_system_stats[i].count) {
-			pr_warn("System %s has not entered sleep\n", a_system_stats[i].stat_type);
+			get_sleep_stat_name(b_system_stats[i].stat_type, stat_type);
+			pr_warn("System %s has not entered sleep\n", stat_type);
 			sleep_flag = false;
 		}
 	}
@@ -891,7 +904,7 @@ static void qcom_create_soc_sleep_stat_files(struct dentry *root, void __iomem *
 	char stat_type[sizeof(u32) + 1] = {0};
 	size_t stats_offset = config->stats_offset;
 	u32 offset = 0, type;
-	int i, j;
+	int i;
 
 	/*
 	 * On RPM targets, stats offset location is dynamic and changes from target
@@ -916,11 +929,7 @@ static void qcom_create_soc_sleep_stat_files(struct dentry *root, void __iomem *
 		 * For rpm-sleep-stats: "vmin" and "vlow".
 		 */
 		type = readl(d[i].base);
-		for (j = 0; j < sizeof(u32); j++) {
-			stat_type[j] = type & 0xff;
-			type = type >> 8;
-		}
-		strim(stat_type);
+		get_sleep_stat_name(type, stat_type);
 		debugfs_create_file(stat_type, 0400, root, &d[i],
 				    &qcom_soc_sleep_stats_fops);
 
@@ -1084,9 +1093,10 @@ static int qcom_stats_suspend(struct device *dev)
 	mutex_lock(&sleep_stats_mutex);
 	for (i = 0; i < ARRAY_SIZE(subsystems); i++) {
 		tmp = qcom_smem_get(subsystems[i].pid, subsystems[i].smem_item, NULL);
-		if (IS_ERR(b_subsystem_stats + i))
+		if (IS_ERR(tmp)) {
 			subsystems[i].not_present = true;
-		else
+			continue;
+		} else
 			subsystems[i].not_present = false;
 		qcom_stats_copy(tmp, b_subsystem_stats + i);
 	}
@@ -1115,7 +1125,11 @@ static int qcom_stats_resume(struct device *dev)
 
 	mutex_lock(&sleep_stats_mutex);
 	for (i = 0; i < ARRAY_SIZE(subsystems); i++) {
+		if (subsystems[i].not_present)
+			continue;
 		tmp = qcom_smem_get(subsystems[i].pid, subsystems[i].smem_item, NULL);
+		if (IS_ERR(tmp))
+			continue;
 		qcom_stats_copy(tmp, a_subsystem_stats + i);
 	}
 
