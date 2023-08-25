@@ -241,6 +241,31 @@ TEST_F(tls_basic, base_base)
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
 };
 
+TEST_F(tls_basic, bad_cipher)
+{
+	struct tls_crypto_info_keys tls12;
+
+	tls12.crypto_info.version = 200;
+	tls12.crypto_info.cipher_type = TLS_CIPHER_AES_GCM_128;
+	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, sizeof(struct tls12_crypto_info_aes_gcm_128)), -1);
+
+	tls12.crypto_info.version = TLS_1_2_VERSION;
+	tls12.crypto_info.cipher_type = 50;
+	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, sizeof(struct tls12_crypto_info_aes_gcm_128)), -1);
+
+	tls12.crypto_info.version = TLS_1_2_VERSION;
+	tls12.crypto_info.cipher_type = 59;
+	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, sizeof(struct tls12_crypto_info_aes_gcm_128)), -1);
+
+	tls12.crypto_info.version = TLS_1_2_VERSION;
+	tls12.crypto_info.cipher_type = 10;
+	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, sizeof(struct tls12_crypto_info_aes_gcm_128)), -1);
+
+	tls12.crypto_info.version = TLS_1_2_VERSION;
+	tls12.crypto_info.cipher_type = 70;
+	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, sizeof(struct tls12_crypto_info_aes_gcm_128)), -1);
+}
+
 FIXTURE(tls)
 {
 	int fd, cfd;
