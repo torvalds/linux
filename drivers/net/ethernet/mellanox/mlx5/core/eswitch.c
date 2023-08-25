@@ -48,6 +48,7 @@
 #include "devlink.h"
 #include "ecpf.h"
 #include "en/mod_hdr.h"
+#include "en_accel/ipsec.h"
 
 enum {
 	MLX5_ACTION_NONE = 0,
@@ -2336,3 +2337,34 @@ struct mlx5_core_dev *mlx5_eswitch_get_core_dev(struct mlx5_eswitch *esw)
 	return mlx5_esw_allowed(esw) ? esw->dev : NULL;
 }
 EXPORT_SYMBOL(mlx5_eswitch_get_core_dev);
+
+bool mlx5_eswitch_block_ipsec(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+
+	if (!mlx5_esw_allowed(esw))
+		return true;
+
+	mutex_lock(&esw->state_lock);
+	if (esw->enabled_ipsec_vf_count) {
+		mutex_unlock(&esw->state_lock);
+		return false;
+	}
+
+	dev->num_ipsec_offloads++;
+	mutex_unlock(&esw->state_lock);
+	return true;
+}
+
+void mlx5_eswitch_unblock_ipsec(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+
+	if (!mlx5_esw_allowed(esw))
+		/* Failure means no eswitch => core dev is not a PF */
+		return;
+
+	mutex_lock(&esw->state_lock);
+	dev->num_ipsec_offloads--;
+	mutex_unlock(&esw->state_lock);
+}

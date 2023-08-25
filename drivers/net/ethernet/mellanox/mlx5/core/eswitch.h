@@ -380,6 +380,7 @@ struct mlx5_eswitch {
 	struct blocking_notifier_head n_head;
 	struct xarray paired;
 	struct mlx5_devcom_comp_dev *devcom;
+	u16 enabled_ipsec_vf_count;
 };
 
 void esw_offloads_disable(struct mlx5_eswitch *esw);
@@ -855,6 +856,8 @@ mlx5_eswitch_get_slow_fdb(struct mlx5_eswitch *esw)
 
 int mlx5_eswitch_restore_ipsec_rule(struct mlx5_eswitch *esw, struct mlx5_flow_handle *rule,
 				    struct mlx5_esw_flow_attr *esw_attr, int attr_idx);
+bool mlx5_eswitch_block_ipsec(struct mlx5_core_dev *dev);
+void mlx5_eswitch_unblock_ipsec(struct mlx5_core_dev *dev);
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
@@ -916,6 +919,12 @@ static inline void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev)
 
 static inline int mlx5_eswitch_block_mode(struct mlx5_core_dev *dev) { return 0; }
 static inline void mlx5_eswitch_unblock_mode(struct mlx5_core_dev *dev) {}
+static inline bool mlx5_eswitch_block_ipsec(struct mlx5_core_dev *dev)
+{
+	return false;
+}
+
+static inline void mlx5_eswitch_unblock_ipsec(struct mlx5_core_dev *dev) {}
 #endif /* CONFIG_MLX5_ESWITCH */
 
 #endif /* __MLX5_ESWITCH_H__ */
