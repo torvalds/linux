@@ -9,6 +9,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/freezer.h>
+#include <trace/events/btrfs.h>
 #include "async-thread.h"
 #include "ctree.h"
 

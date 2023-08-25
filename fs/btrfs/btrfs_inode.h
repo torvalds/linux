@@ -9,6 +9,7 @@
 #include <linux/hash.h>
 #include <linux/refcount.h>
 #include <linux/fscrypt.h>
+#include <trace/events/btrfs.h>
 #include "extent_map.h"
 #include "extent_io.h"
 #include "ordered-data.h"

@@ -3,6 +3,7 @@
 #ifndef BTRFS_SPACE_INFO_H
 #define BTRFS_SPACE_INFO_H
 
+#include <trace/events/btrfs.h>
 #include "volumes.h"
 
 /*
