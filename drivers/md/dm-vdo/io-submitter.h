@@ -20,7 +20,7 @@ void vdo_cleanup_io_submitter(struct io_submitter *io_submitter);
 
 void vdo_free_io_submitter(struct io_submitter *io_submitter);
 
-void process_vio_io(struct vdo_completion *completion);
+void vdo_submit_vio(struct vdo_completion *completion);
 
 void vdo_submit_data_vio(struct data_vio *data_vio);
 

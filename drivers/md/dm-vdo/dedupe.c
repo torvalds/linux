@@ -1205,7 +1205,7 @@ static void start_verifying(struct hash_lock *lock, struct data_vio *agent)
 		return;
 	}
 
-	set_data_vio_bio_zone_callback(agent, process_vio_io);
+	set_data_vio_bio_zone_callback(agent, vdo_submit_vio);
 	vdo_launch_completion_with_priority(&vio->completion, BIO_Q_VERIFY_PRIORITY);
 }
 

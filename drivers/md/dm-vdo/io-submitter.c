@@ -116,10 +116,10 @@ static void send_bio_to_device(struct vio *vio, struct bio *bio)
 }
 
 /**
- * process_vio_io() - Submits a vio's bio to the underlying block device. May block if the device
- *                    is busy. This callback should be used by vios which did not attempt to merge.
+ * vdo_submit_vio() - Submits a vio's bio to the underlying block device. May block if the device
+ *		      is busy. This callback should be used by vios which did not attempt to merge.
  */
-void process_vio_io(struct vdo_completion *completion)
+void vdo_submit_vio(struct vdo_completion *completion)
 {
 	struct vio *vio = as_vio(completion);
 
@@ -156,12 +156,12 @@ static struct bio *get_bio_list(struct vio *vio)
 }
 
 /**
- * process_data_vio_io() - Submit a data_vio's bio to the storage below along with any bios that
- *                         have been merged with it.
+ * submit_data_vio() - Submit a data_vio's bio to the storage below along with
+ *		       any bios that have been merged with it.
  *
  * Context: This call may block and so should only be called from a bio thread.
  */
-static void process_data_vio_io(struct vdo_completion *completion)
+static void submit_data_vio(struct vdo_completion *completion)
 {
 	struct bio *bio, *next;
 	struct vio *vio = as_vio(completion);
@@ -316,7 +316,7 @@ void vdo_submit_data_vio(struct data_vio *data_vio)
 	if (try_bio_map_merge(&data_vio->vio))
 		return;
 
-	launch_data_vio_bio_zone_callback(data_vio, process_data_vio_io);
+	launch_data_vio_bio_zone_callback(data_vio, submit_data_vio);
 }
 
 /**
@@ -356,7 +356,7 @@ void __submit_metadata_vio(struct vio *vio, physical_block_number_t physical,
 		return;
 	}
 
-	vdo_set_completion_callback(completion, process_vio_io,
+	vdo_set_completion_callback(completion, vdo_submit_vio,
 				    get_vio_bio_zone_thread_id(vio));
 	vdo_launch_completion_with_priority(completion, get_metadata_priority(vio));
 }
