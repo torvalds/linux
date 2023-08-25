@@ -104,11 +104,13 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	bool wgp_mode_req = KFD_GC_VERSION(mm->dev) >= IP_VERSION(10, 0, 0);
 	uint32_t en_mask = wgp_mode_req ? 0x3 : 0x1;
 	int i, se, sh, cu, cu_bitmap_sh_mul, inc = wgp_mode_req ? 2 : 1;
+	uint32_t cu_active_per_node;
 
 	amdgpu_amdkfd_get_cu_info(mm->dev->adev, &cu_info);
 
-	if (cu_mask_count > cu_info.cu_active_number)
-		cu_mask_count = cu_info.cu_active_number;
+	cu_active_per_node = cu_info.cu_active_number / mm->dev->kfd->num_nodes;
+	if (cu_mask_count > cu_active_per_node)
+		cu_mask_count = cu_active_per_node;
 
 	/* Exceeding these bounds corrupts the stack and indicates a coding error.
 	 * Returning with no CU's enabled will hang the queue, which should be
@@ -141,7 +143,7 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	for (se = 0; se < cu_info.num_shader_engines; se++)
 		for (sh = 0; sh < cu_info.num_shader_arrays_per_engine; sh++)
 			cu_per_sh[se][sh] = hweight32(
-				cu_info.cu_bitmap[se % 4][sh + (se / 4) * cu_bitmap_sh_mul]);
+				cu_info.cu_bitmap[0][se % 4][sh + (se / 4) * cu_bitmap_sh_mul]);
 
 	/* Symmetrically map cu_mask to all SEs & SHs:
 	 * se_mask programs up to 2 SH in the upper and lower 16 bits.
