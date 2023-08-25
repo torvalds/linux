@@ -108,8 +108,6 @@ struct intel_sdvo {
 	 */
 	u16 hotplug_active;
 
-	enum port port;
-
 	/* DDC bus used by this SDVO encoder */
 	u8 ddc_bus;
 
@@ -226,7 +224,7 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 		return;
 	}
 
-	if (intel_sdvo->port == PORT_B)
+	if (intel_sdvo->base.port == PORT_B)
 		cval = intel_de_read(dev_priv, GEN3_SDVOC);
 	else
 		bval = intel_de_read(dev_priv, GEN3_SDVOB);
@@ -403,7 +401,7 @@ static const char *sdvo_cmd_name(u8 cmd)
 	return NULL;
 }
 
-#define SDVO_NAME(svdo) ((svdo)->port == PORT_B ? "SDVOB" : "SDVOC")
+#define SDVO_NAME(svdo) ((svdo)->base.port == PORT_B ? "SDVOB" : "SDVOC")
 
 static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 				   const void *args, int args_len)
@@ -1604,7 +1602,7 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 			sdvox |= SDVO_BORDER_ENABLE;
 	} else {
 		sdvox = intel_de_read(dev_priv, intel_sdvo->sdvo_reg);
-		if (intel_sdvo->port == PORT_B)
+		if (intel_sdvo->base.port == PORT_B)
 			sdvox &= SDVOB_PRESERVE_MASK;
 		else
 			sdvox &= SDVOC_PRESERVE_MASK;
@@ -2618,7 +2616,7 @@ intel_sdvo_select_ddc_bus(struct intel_sdvo *sdvo)
 	struct drm_i915_private *dev_priv = to_i915(sdvo->base.base.dev);
 	struct sdvo_device_mapping *mapping;
 
-	if (sdvo->port == PORT_B)
+	if (sdvo->base.port == PORT_B)
 		mapping = &dev_priv->display.vbt.sdvo_mappings[0];
 	else
 		mapping = &dev_priv->display.vbt.sdvo_mappings[1];
@@ -2636,7 +2634,7 @@ intel_sdvo_select_i2c_bus(struct intel_sdvo *sdvo)
 	struct sdvo_device_mapping *mapping;
 	u8 pin;
 
-	if (sdvo->port == PORT_B)
+	if (sdvo->base.port == PORT_B)
 		mapping = &dev_priv->display.vbt.sdvo_mappings[0];
 	else
 		mapping = &dev_priv->display.vbt.sdvo_mappings[1];
@@ -2676,7 +2674,7 @@ intel_sdvo_get_slave_addr(struct intel_sdvo *sdvo)
 	struct drm_i915_private *dev_priv = to_i915(sdvo->base.base.dev);
 	struct sdvo_device_mapping *my_mapping, *other_mapping;
 
-	if (sdvo->port == PORT_B) {
+	if (sdvo->base.port == PORT_B) {
 		my_mapping = &dev_priv->display.vbt.sdvo_mappings[0];
 		other_mapping = &dev_priv->display.vbt.sdvo_mappings[1];
 	} else {
@@ -2703,7 +2701,7 @@ intel_sdvo_get_slave_addr(struct intel_sdvo *sdvo)
 	 * No SDVO device info is found for another DVO port,
 	 * so use mapping assumption we had before BIOS parsing.
 	 */
-	if (sdvo->port == PORT_B)
+	if (sdvo->base.port == PORT_B)
 		return 0x70;
 	else
 		return 0x72;
@@ -3367,7 +3365,6 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 			 "SDVO %c", port_name(port));
 
 	intel_sdvo->sdvo_reg = sdvo_reg;
-	intel_sdvo->port = port;
 	intel_sdvo->slave_addr = intel_sdvo_get_slave_addr(intel_sdvo) >> 1;
 	intel_sdvo_select_i2c_bus(intel_sdvo);
 	if (!intel_sdvo_init_ddc_proxy(intel_sdvo))
@@ -3417,7 +3414,7 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 	 * hotplug lines.
 	 */
 	if (intel_sdvo->hotplug_active) {
-		if (intel_sdvo->port == PORT_B)
+		if (intel_sdvo->base.port == PORT_B)
 			intel_encoder->hpd_pin = HPD_SDVO_B;
 		else
 			intel_encoder->hpd_pin = HPD_SDVO_C;
