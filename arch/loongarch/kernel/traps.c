@@ -404,6 +404,9 @@ void die(const char *str, struct pt_regs *regs)
 
 	oops_exit();
 
+	if (ret == NOTIFY_STOP)
+		return;
+
 	if (regs && kexec_should_crash(current))
 		crash_kexec(regs);
 
@@ -413,8 +416,7 @@ void die(const char *str, struct pt_regs *regs)
 	if (panic_on_oops)
 		panic("Fatal exception");
 
-	if (ret != NOTIFY_STOP)
-		make_task_dead(SIGSEGV);
+	make_task_dead(SIGSEGV);
 }
 
 static inline void setup_vint_size(unsigned int size)
