@@ -9304,6 +9304,22 @@ static bool md_choose_sync_action(struct mddev *mddev, int *spares)
 static void md_start_sync(struct work_struct *ws)
 {
 	struct mddev *mddev = container_of(ws, struct mddev, sync_work);
+	int spares = 0;
+
+	mddev_lock_nointr(mddev);
+
+	if (!md_choose_sync_action(mddev, &spares))
+		goto not_running;
+
+	if (!mddev->pers->sync_request)
+		goto not_running;
+
+	/*
+	 * We are adding a device or devices to an array which has the bitmap
+	 * stored on all devices. So make sure all bitmap pages get written.
+	 */
+	if (spares)
+		md_bitmap_write_all(mddev->bitmap);
 
 	rcu_assign_pointer(mddev->sync_thread,
 			   md_register_thread(md_do_sync, mddev, "resync"));
@@ -9311,20 +9327,27 @@ static void md_start_sync(struct work_struct *ws)
 		pr_warn("%s: could not start resync thread...\n",
 			mdname(mddev));
 		/* leave the spares where they are, it shouldn't hurt */
-		clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
-		clear_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
-		clear_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
-		clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
-		clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
-		wake_up(&resync_wait);
-		if (test_and_clear_bit(MD_RECOVERY_RECOVER,
-				       &mddev->recovery))
-			if (mddev->sysfs_action)
-				sysfs_notify_dirent_safe(mddev->sysfs_action);
-	} else
-		md_wakeup_thread(mddev->sync_thread);
+		goto not_running;
+	}
+
+	mddev_unlock(mddev);
+	md_wakeup_thread(mddev->sync_thread);
 	sysfs_notify_dirent_safe(mddev->sysfs_action);
 	md_new_event();
+	return;
+
+not_running:
+	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+	clear_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
+	clear_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
+	clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
+	clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
+	mddev_unlock(mddev);
+
+	wake_up(&resync_wait);
+	if (test_and_clear_bit(MD_RECOVERY_RECOVER, &mddev->recovery) &&
+	    mddev->sysfs_action)
+		sysfs_notify_dirent_safe(mddev->sysfs_action);
 }
 
 /*
@@ -9392,7 +9415,6 @@ void md_check_recovery(struct mddev *mddev)
 		return;
 
 	if (mddev_trylock(mddev)) {
-		int spares = 0;
 		bool try_set_sync = mddev->safemode != 0;
 
 		if (!mddev->external && mddev->safemode == 1)
@@ -9479,31 +9501,14 @@ void md_check_recovery(struct mddev *mddev)
 		clear_bit(MD_RECOVERY_INTR, &mddev->recovery);
 		clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 
-		if (!test_and_clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery) ||
-		    test_bit(MD_RECOVERY_FROZEN, &mddev->recovery))
-			goto not_running;
-		if (!md_choose_sync_action(mddev, &spares))
-			goto not_running;
-		if (mddev->pers->sync_request) {
-			if (spares) {
-				/* We are adding a device or devices to an array
-				 * which has the bitmap stored on all devices.
-				 * So make sure all bitmap pages get written
-				 */
-				md_bitmap_write_all(mddev->bitmap);
-			}
+		if (test_and_clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery) &&
+		    !test_bit(MD_RECOVERY_FROZEN, &mddev->recovery)) {
 			queue_work(md_misc_wq, &mddev->sync_work);
-			goto unlock;
-		}
-	not_running:
-		if (!mddev->sync_thread) {
+		} else {
 			clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 			wake_up(&resync_wait);
-			if (test_and_clear_bit(MD_RECOVERY_RECOVER,
-					       &mddev->recovery))
-				if (mddev->sysfs_action)
-					sysfs_notify_dirent_safe(mddev->sysfs_action);
 		}
+
 	unlock:
 		wake_up(&mddev->sb_wait);
 		mddev_unlock(mddev);
