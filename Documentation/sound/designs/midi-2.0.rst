@@ -515,7 +515,7 @@ connection::
   % echo 2 > functions/midi2.usb0/ep.0/block.1/is_midi1
 
 For disabling the processing of UMP Stream messages in the gadget
-driver, pass `0` to `process_ump attribute in the top-level config::
+driver, pass `0` to `process_ump` attribute in the top-level config::
 
   % echo 0 > functions/midi2.usb0/process_ump
 
