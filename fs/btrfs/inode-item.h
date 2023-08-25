@@ -4,6 +4,7 @@
 #define BTRFS_INODE_ITEM_H
 
 #include <linux/types.h>
+#include <linux/crc32c.h>
 
 struct btrfs_trans_handle;
 struct btrfs_root;
@@ -74,6 +75,12 @@ static inline void btrfs_inode_split_flags(u64 inode_item_flags,
 {
 	*flags = (u32)inode_item_flags;
 	*ro_flags = (u32)(inode_item_flags >> 32);
+}
+
+/* Figure the key offset of an extended inode ref. */
+static inline u64 btrfs_extref_hash(u64 parent_objectid, const char *name, int len)
+{
+       return (u64)crc32c(parent_objectid, name, len);
 }
 
 int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
