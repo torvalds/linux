@@ -1322,9 +1322,6 @@ static int __init acpi_bus_init(void)
 		goto error1;
 	}
 
-	/* Set capability bits for _OSC under processor scope */
-	acpi_early_processor_osc();
-
 	/*
 	 * _OSC method may exist in module level code,
 	 * so it must be run after ACPI_FULL_INITIALIZATION
@@ -1340,7 +1337,7 @@ static int __init acpi_bus_init(void)
 
 	acpi_sysfs_init();
 
-	acpi_early_processor_set_pdc();
+	acpi_early_processor_control_setup();
 
 	/*
 	 * Maybe EC region is required at bus_scan/acpi_get_devices. So it
