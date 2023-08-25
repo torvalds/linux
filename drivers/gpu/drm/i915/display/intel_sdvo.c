@@ -2616,6 +2616,10 @@ intel_sdvo_select_i2c_bus(struct intel_sdvo *sdvo)
 	else
 		pin = GMBUS_PIN_DPB;
 
+	drm_dbg_kms(&dev_priv->drm, "[ENCODER:%d:%s] I2C pin %d, slave addr 0x%x\n",
+		    sdvo->base.base.base.id, sdvo->base.base.name,
+		    pin, sdvo->slave_addr);
+
 	sdvo->i2c = intel_gmbus_get_adapter(dev_priv, pin);
 
 	/*
