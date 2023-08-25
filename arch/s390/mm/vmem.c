@@ -651,14 +651,10 @@ void vmem_unmap_4k_page(unsigned long addr)
 
 void __init vmem_map_init(void)
 {
-	set_memory_rox((unsigned long)_stext,
-		       (unsigned long)(_etext - _stext) >> PAGE_SHIFT);
-	set_memory_ro((unsigned long)_etext,
-		      (unsigned long)(__end_rodata - _etext) >> PAGE_SHIFT);
-	set_memory_rox((unsigned long)_sinittext,
-		       (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT);
-	set_memory_rox((unsigned long)__stext_amode31,
-		       (unsigned long)(__etext_amode31 - __stext_amode31) >> PAGE_SHIFT);
+	__set_memory_rox(_stext, _etext);
+	__set_memory_ro(_etext, __end_rodata);
+	__set_memory_rox(_sinittext, _einittext);
+	__set_memory_rox(__stext_amode31, __etext_amode31);
 	/*
 	 * If the BEAR-enhancement facility is not installed the first
 	 * prefix page is used to return to the previous context with
@@ -667,8 +663,12 @@ void __init vmem_map_init(void)
 	if (!static_key_enabled(&cpu_has_bear))
 		set_memory_x(0, 1);
 	if (debug_pagealloc_enabled()) {
-		set_memory_4k((unsigned long)__va(0),
-			      ident_map_size >> PAGE_SHIFT);
+		/*
+		 * Use RELOC_HIDE() as long as __va(0) translates to NULL,
+		 * since performing pointer arithmetic on a NULL pointer
+		 * has undefined behavior and generates compiler warnings.
+		 */
+		__set_memory_4k(__va(0), RELOC_HIDE(__va(0), ident_map_size));
 	}
 	if (MACHINE_HAS_NX)
 		ctl_set_bit(0, 20);

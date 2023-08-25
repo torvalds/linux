@@ -107,7 +107,7 @@ void mark_rodata_ro(void)
 {
 	unsigned long size = __end_ro_after_init - __start_ro_after_init;
 
-	set_memory_ro((unsigned long)__start_ro_after_init, size >> PAGE_SHIFT);
+	__set_memory_ro(__start_ro_after_init, __end_ro_after_init);
 	pr_info("Write protected read-only-after-init data: %luk\n", size >> 10);
 	debug_checkwx();
 }
