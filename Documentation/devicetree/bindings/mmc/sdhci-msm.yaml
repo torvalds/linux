@@ -85,10 +85,10 @@ properties:
       - const: iface
       - const: core
       - const: xo
-      - const: ice
-      - const: bus
-      - const: cal
-      - const: sleep
+      - enum: [ice, bus, cal, sleep]
+      - enum: [ice, bus, cal, sleep]
+      - enum: [ice, bus, cal, sleep]
+      - enum: [ice, bus, cal, sleep]
 
   dma-coherent: true
 
