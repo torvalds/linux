@@ -898,7 +898,7 @@ tls_device_reencrypt(struct sock *sk, struct tls_context *tls_ctx)
 	default:
 		return -EINVAL;
 	}
-	cipher_sz = &tls_cipher_size_desc[tls_ctx->crypto_recv.info.cipher_type];
+	cipher_sz = get_cipher_size_desc(tls_ctx->crypto_recv.info.cipher_type);
 
 	rxm = strp_msg(tls_strp_msg(sw_ctx));
 	orig_buf = kmalloc(rxm->full_len + TLS_HEADER_SIZE + cipher_sz->iv,
@@ -1094,7 +1094,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		rc = -EINVAL;
 		goto release_netdev;
 	}
-	cipher_sz = &tls_cipher_size_desc[crypto_info->cipher_type];
+	cipher_sz = get_cipher_size_desc(crypto_info->cipher_type);
 
 	/* Sanity-check the rec_seq_size for stack allocations */
 	if (cipher_sz->rec_seq > TLS_MAX_REC_SEQ_SIZE) {

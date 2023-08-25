@@ -58,7 +58,7 @@ enum {
 	TLS_NUM_PROTS,
 };
 
-#define CIPHER_SIZE_DESC(cipher) [cipher] = { \
+#define CIPHER_SIZE_DESC(cipher) [cipher - TLS_CIPHER_MIN] = {	\
 	.iv = cipher ## _IV_SIZE, \
 	.key = cipher ## _KEY_SIZE, \
 	.salt = cipher ## _SALT_SIZE, \
@@ -66,7 +66,7 @@ enum {
 	.rec_seq = cipher ## _REC_SEQ_SIZE, \
 }
 
-const struct tls_cipher_size_desc tls_cipher_size_desc[] = {
+const struct tls_cipher_size_desc tls_cipher_size_desc[TLS_CIPHER_MAX + 1 - TLS_CIPHER_MIN] = {
 	CIPHER_SIZE_DESC(TLS_CIPHER_AES_GCM_128),
 	CIPHER_SIZE_DESC(TLS_CIPHER_AES_GCM_256),
 	CIPHER_SIZE_DESC(TLS_CIPHER_AES_CCM_128),

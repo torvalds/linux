@@ -69,7 +69,7 @@ static int tls_enc_record(struct aead_request *aead_req,
 	default:
 		return -EINVAL;
 	}
-	cipher_sz = &tls_cipher_size_desc[prot->cipher_type];
+	cipher_sz = get_cipher_size_desc(prot->cipher_type);
 
 	buf_size = TLS_HEADER_SIZE + cipher_sz->iv;
 	len = min_t(int, *in_len, buf_size);
@@ -310,7 +310,7 @@ static void fill_sg_out(struct scatterlist sg_out[3], void *buf,
 			void *dummy_buf)
 {
 	const struct tls_cipher_size_desc *cipher_sz =
-		&tls_cipher_size_desc[tls_ctx->crypto_send.info.cipher_type];
+		get_cipher_size_desc(tls_ctx->crypto_send.info.cipher_type);
 
 	sg_set_buf(&sg_out[0], dummy_buf, sync_size);
 	sg_set_buf(&sg_out[1], nskb->data + tcp_payload_offset, payload_len);
@@ -348,7 +348,7 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 	default:
 		goto free_req;
 	}
-	cipher_sz = &tls_cipher_size_desc[tls_ctx->crypto_send.info.cipher_type];
+	cipher_sz = get_cipher_size_desc(tls_ctx->crypto_send.info.cipher_type);
 	buf_len = cipher_sz->salt + cipher_sz->iv + TLS_AAD_SPACE_SIZE +
 		  sync_size + cipher_sz->tag;
 	buf = kmalloc(buf_len, GFP_ATOMIC);
@@ -495,7 +495,7 @@ int tls_sw_fallback_init(struct sock *sk,
 		rc = -EINVAL;
 		goto free_aead;
 	}
-	cipher_sz = &tls_cipher_size_desc[crypto_info->cipher_type];
+	cipher_sz = get_cipher_size_desc(crypto_info->cipher_type);
 
 	rc = crypto_aead_setkey(offload_ctx->aead_send, key, cipher_sz->key);
 	if (rc)
