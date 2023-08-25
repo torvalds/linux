@@ -83,7 +83,7 @@ enum {
 };
 
 struct parse_events_term {
-	char *config;
+	const char *config;
 	union {
 		char *str;
 		u64  num;
@@ -138,7 +138,7 @@ bool parse_events__filter_pmu(const struct parse_events_state *parse_state,
 void parse_events__shrink_config_terms(void);
 int parse_events__is_hardcoded_term(struct parse_events_term *term);
 int parse_events_term__num(struct parse_events_term **term,
-			   int type_term, char *config, u64 num,
+			   int type_term, const char *config, u64 num,
 			   bool novalue,
 			   void *loc_term, void *loc_val);
 int parse_events_term__str(struct parse_events_term **term,

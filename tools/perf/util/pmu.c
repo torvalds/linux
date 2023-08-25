@@ -1418,7 +1418,7 @@ static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 					     struct parse_events_term *term)
 {
 	struct perf_pmu_alias *alias;
-	char *name;
+	const char *name;
 
 	if (parse_events__is_hardcoded_term(term))
 		return NULL;

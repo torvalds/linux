@@ -199,7 +199,7 @@ static void fix_raw(struct list_head *config_terms, struct perf_pmu *pmu)
 			continue;
 
 		if (perf_pmu__have_event(pmu, term->val.str)) {
-			free(term->config);
+			zfree(&term->config);
 			term->config = term->val.str;
 			term->type_val = PARSE_EVENTS__TERM_TYPE_NUM;
 			term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
@@ -208,7 +208,7 @@ static void fix_raw(struct list_head *config_terms, struct perf_pmu *pmu)
 			continue;
 		}
 
-		free(term->config);
+		zfree(&term->config);
 		term->config = strdup("config");
 		errno = 0;
 		num = strtoull(term->val.str + 1, NULL, 16);
@@ -1416,7 +1416,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 	struct perf_pmu *pmu = NULL;
 	YYLTYPE *loc = loc_;
 	int ok = 0;
-	char *config;
+	const char *config;
 
 	*listp = NULL;
 
@@ -1435,7 +1435,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 				   PARSE_EVENTS__TERM_TYPE_USER,
 				   config, 1, false, NULL,
 					NULL) < 0) {
-		free(config);
+		zfree(&config);
 		goto out_err;
 	}
 	list_add_tail(&term->list, head);
@@ -2378,7 +2378,7 @@ static int new_term(struct parse_events_term **_term,
 }
 
 int parse_events_term__num(struct parse_events_term **term,
-			   int type_term, char *config, u64 num,
+			   int type_term, const char *config, u64 num,
 			   bool no_value,
 			   void *loc_term_, void *loc_val_)
 {
