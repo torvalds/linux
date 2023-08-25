@@ -659,8 +659,11 @@ void __init vmem_map_init(void)
 		       (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT);
 	set_memory_rox((unsigned long)__stext_amode31,
 		       (unsigned long)(__etext_amode31 - __stext_amode31) >> PAGE_SHIFT);
-
-	/* lowcore must be executable for LPSWE */
+	/*
+	 * If the BEAR-enhancement facility is not installed the first
+	 * prefix page is used to return to the previous context with
+	 * an LPSWE instruction and therefore must be executable.
+	 */
 	if (!static_key_enabled(&cpu_has_bear))
 		set_memory_x(0, 1);
 	if (debug_pagealloc_enabled()) {
