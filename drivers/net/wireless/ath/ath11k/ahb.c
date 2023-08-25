@@ -1096,7 +1096,7 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	hw_rev = (enum ath11k_hw_rev)of_id->data;
+	hw_rev = (uintptr_t)of_id->data;
 
 	switch (hw_rev) {
 	case ATH11K_HW_IPQ8074:
@@ -1306,17 +1306,7 @@ static struct platform_driver ath11k_ahb_driver = {
 	.shutdown = ath11k_ahb_shutdown,
 };
 
-static int ath11k_ahb_init(void)
-{
-	return platform_driver_register(&ath11k_ahb_driver);
-}
-module_init(ath11k_ahb_init);
-
-static void ath11k_ahb_exit(void)
-{
-	platform_driver_unregister(&ath11k_ahb_driver);
-}
-module_exit(ath11k_ahb_exit);
+module_platform_driver(ath11k_ahb_driver);
 
 MODULE_DESCRIPTION("Driver support for Qualcomm Technologies 802.11ax WLAN AHB devices");
 MODULE_LICENSE("Dual BSD/GPL");

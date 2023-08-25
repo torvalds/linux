@@ -3027,7 +3027,7 @@ static int ath12k_dp_rx_h_defrag_reo_reinject(struct ath12k *ar,
 					desc_info->cookie,
 					HAL_RX_BUF_RBM_SW3_BM);
 
-	/* Fill mpdu details into reo entrace ring */
+	/* Fill mpdu details into reo entrance ring */
 	srng = &ab->hal.srng_list[dp->reo_reinject_ring.ring_id];
 
 	spin_lock_bh(&srng->lock);
