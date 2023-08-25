@@ -6,36 +6,8 @@
 #ifndef BTRFS_CTREE_H
 #define BTRFS_CTREE_H
 
-#include <linux/mm.h>
-#include <linux/sched/signal.h>
-#include <linux/highmem.h>
-#include <linux/fs.h>
-#include <linux/rwsem.h>
-#include <linux/semaphore.h>
-#include <linux/completion.h>
-#include <linux/backing-dev.h>
-#include <linux/wait.h>
-#include <linux/slab.h>
-#include <trace/events/btrfs.h>
-#include <asm/unaligned.h>
 #include <linux/pagemap.h>
-#include <linux/btrfs.h>
-#include <linux/btrfs_tree.h>
-#include <linux/workqueue.h>
-#include <linux/security.h>
-#include <linux/sizes.h>
-#include <linux/dynamic_debug.h>
-#include <linux/refcount.h>
-#include <linux/crc32c.h>
-#include <linux/iomap.h>
-#include <linux/fscrypt.h>
-#include "extent-io-tree.h"
-#include "extent_io.h"
-#include "extent_map.h"
-#include "async-thread.h"
-#include "block-rsv.h"
 #include "locking.h"
-#include "misc.h"
 #include "fs.h"
 
 struct btrfs_trans_handle;
