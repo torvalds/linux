@@ -49,6 +49,12 @@ test_bpf_filter_basic() {
   fi
   if perf script -i "${perfdata}" -F ip | grep 'ffffffff[0-9a-f]*'
   then
+    if uname -r | grep -q ^6.2
+    then
+      echo "Basic bpf-filter test [Skipped unsupported kernel]"
+      err=2
+      return
+    fi
     echo "Basic bpf-filter test [Failed invalid output]"
     err=1
     return
