@@ -104,12 +104,6 @@ struct intel_sdvo {
 	int pixel_clock_min, pixel_clock_max;
 
 	/*
-	* For multiple function SDVO device,
-	* this is for current attached outputs.
-	*/
-	u16 attached_output;
-
-	/*
 	 * Hotplug activation bits for this device
 	 */
 	u16 hotplug_active;
@@ -1223,12 +1217,13 @@ static bool intel_sdvo_set_tv_format(struct intel_sdvo *intel_sdvo,
 
 static bool
 intel_sdvo_set_output_timings_from_mode(struct intel_sdvo *intel_sdvo,
+					struct intel_sdvo_connector *intel_sdvo_connector,
 					const struct drm_display_mode *mode)
 {
 	struct intel_sdvo_dtd output_dtd;
 
 	if (!intel_sdvo_set_target_output(intel_sdvo,
-					  intel_sdvo->attached_output))
+					  intel_sdvo_connector->output_flag))
 		return false;
 
 	intel_sdvo_get_dtd_from_mode(&output_dtd, mode);
@@ -1369,7 +1364,9 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 	 * the sequence to do it. Oh well.
 	 */
 	if (IS_TV(intel_sdvo_connector)) {
-		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo, mode))
+		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
+							     intel_sdvo_connector,
+							     mode))
 			return -EINVAL;
 
 		(void) intel_sdvo_get_preferred_input_mode(intel_sdvo,
@@ -1387,7 +1384,9 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 		if (ret)
 			return ret;
 
-		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo, fixed_mode))
+		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
+							     intel_sdvo_connector,
+							     fixed_mode))
 			return -EINVAL;
 
 		(void) intel_sdvo_get_preferred_input_mode(intel_sdvo,
@@ -1528,7 +1527,7 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 	 * channel on the motherboard.  In a two-input device, the first input
 	 * will be SDVOB and the second SDVOC.
 	 */
-	in_out.in0 = intel_sdvo->attached_output;
+	in_out.in0 = intel_sdvo_connector->output_flag;
 	in_out.in1 = 0;
 
 	intel_sdvo_set_value(intel_sdvo,
@@ -1537,7 +1536,7 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 
 	/* Set the output timings to the screen */
 	if (!intel_sdvo_set_target_output(intel_sdvo,
-					  intel_sdvo->attached_output))
+					  intel_sdvo_connector->output_flag))
 		return;
 
 	/* lvds has a special fixed output timing. */
@@ -1874,6 +1873,8 @@ static void intel_enable_sdvo(struct intel_atomic_state *state,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
+	struct intel_sdvo_connector *intel_sdvo_connector =
+		to_intel_sdvo_connector(conn_state->connector);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	u32 temp;
 	bool input1, input2;
@@ -1903,7 +1904,7 @@ static void intel_enable_sdvo(struct intel_atomic_state *state,
 	if (0)
 		intel_sdvo_set_encoder_power_state(intel_sdvo,
 						   DRM_MODE_DPMS_ON);
-	intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo->attached_output);
+	intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo_connector->output_flag);
 
 	if (pipe_config->has_audio)
 		intel_sdvo_enable_audio(intel_sdvo, pipe_config, conn_state);
@@ -2158,8 +2159,6 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	if (response == 0)
 		return connector_status_disconnected;
 
-	intel_sdvo->attached_output = response;
-
 	if ((intel_sdvo_connector->output_flag & response) == 0)
 		ret = connector_status_disconnected;
 	else if (IS_TMDS(intel_sdvo_connector))
@@ -2287,6 +2286,8 @@ static const struct drm_display_mode sdvo_tv_modes[] = {
 static int intel_sdvo_get_tv_modes(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
+	struct intel_sdvo_connector *intel_sdvo_connector =
+		to_intel_sdvo_connector(connector);
 	const struct drm_connector_state *conn_state = connector->state;
 	struct intel_sdvo_sdtv_resolution_request tv_res;
 	u32 reply = 0, format_map = 0;
@@ -2304,7 +2305,7 @@ static int intel_sdvo_get_tv_modes(struct drm_connector *connector)
 	memcpy(&tv_res, &format_map,
 	       min(sizeof(format_map), sizeof(struct intel_sdvo_sdtv_resolution_request)));
 
-	if (!intel_sdvo_set_target_output(intel_sdvo, intel_sdvo->attached_output))
+	if (!intel_sdvo_set_target_output(intel_sdvo, intel_sdvo_connector->output_flag))
 		return 0;
 
 	BUILD_BUG_ON(sizeof(tv_res) != 3);
