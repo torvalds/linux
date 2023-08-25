@@ -284,38 +284,43 @@ static SIMPLE_DEV_PM_OPS(cros_ec_cec_pm_ops,
 #if IS_ENABLED(CONFIG_PCI) && IS_ENABLED(CONFIG_DMI)
 
 /*
- * The Firmware only handles a single CEC interface tied to a single HDMI
- * connector we specify along with the DRM device name handling the HDMI output
+ * Specify the DRM device name handling the HDMI output and the HDMI connector
+ * corresponding to each CEC port. The order of connectors must match the order
+ * in the EC (first connector is EC port 0, ...), and the number of connectors
+ * must match the number of ports in the EC (which can be queried using the
+ * EC_CMD_CEC_PORT_COUNT host command).
  */
 
 struct cec_dmi_match {
 	const char *sys_vendor;
 	const char *product_name;
 	const char *devname;
-	const char *conn;
+	const char *const *conns;
 };
+
+static const char *const fizz_conns[] = { "Port B", NULL };
 
 static const struct cec_dmi_match cec_dmi_match_table[] = {
 	/* Google Fizz */
-	{ "Google", "Fizz", "0000:00:02.0", "Port B" },
+	{ "Google", "Fizz", "0000:00:02.0", fizz_conns },
 	/* Google Brask */
-	{ "Google", "Brask", "0000:00:02.0", "Port B" },
+	{ "Google", "Brask", "0000:00:02.0", fizz_conns },
 	/* Google Moli */
-	{ "Google", "Moli", "0000:00:02.0", "Port B" },
+	{ "Google", "Moli", "0000:00:02.0", fizz_conns },
 	/* Google Kinox */
-	{ "Google", "Kinox", "0000:00:02.0", "Port B" },
+	{ "Google", "Kinox", "0000:00:02.0", fizz_conns },
 	/* Google Kuldax */
-	{ "Google", "Kuldax", "0000:00:02.0", "Port B" },
+	{ "Google", "Kuldax", "0000:00:02.0", fizz_conns },
 	/* Google Aurash */
-	{ "Google", "Aurash", "0000:00:02.0", "Port B" },
+	{ "Google", "Aurash", "0000:00:02.0", fizz_conns },
 	/* Google Gladios */
-	{ "Google", "Gladios", "0000:00:02.0", "Port B" },
+	{ "Google", "Gladios", "0000:00:02.0", fizz_conns },
 	/* Google Lisbon */
-	{ "Google", "Lisbon", "0000:00:02.0", "Port B" },
+	{ "Google", "Lisbon", "0000:00:02.0", fizz_conns },
 };
 
 static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
-						const char **conn)
+						const char * const **conns)
 {
 	int i;
 
@@ -332,7 +337,7 @@ static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
 			if (!d)
 				return ERR_PTR(-EPROBE_DEFER);
 			put_device(d);
-			*conn = m->conn;
+			*conns = m->conns;
 			return d;
 		}
 	}
@@ -346,7 +351,7 @@ static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
 #else
 
 static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
-						const char **conn)
+						const char * const **conns)
 {
 	return ERR_PTR(-ENODEV);
 }
@@ -388,7 +393,7 @@ static int cros_ec_cec_get_write_cmd_version(struct cros_ec_cec *cros_ec_cec)
 static int cros_ec_cec_init_port(struct device *dev,
 				 struct cros_ec_cec *cros_ec_cec,
 				 int port_num, struct device *hdmi_dev,
-				 const char *conn)
+				 const char * const *conns)
 {
 	struct cros_ec_cec_port *port;
 	int ret;
@@ -406,7 +411,13 @@ static int cros_ec_cec_init_port(struct device *dev,
 	if (IS_ERR(port->adap))
 		return PTR_ERR(port->adap);
 
-	port->notify = cec_notifier_cec_adap_register(hdmi_dev, conn,
+	if (!conns[port_num]) {
+		dev_err(dev, "no conn for port %d\n", port_num);
+		ret = -ENODEV;
+		goto out_probe_adapter;
+	}
+
+	port->notify = cec_notifier_cec_adap_register(hdmi_dev, conns[port_num],
 						      port->adap);
 	if (!port->notify) {
 		ret = -ENOMEM;
@@ -435,10 +446,10 @@ static int cros_ec_cec_probe(struct platform_device *pdev)
 	struct cros_ec_cec *cros_ec_cec;
 	struct cros_ec_cec_port *port;
 	struct device *hdmi_dev;
-	const char *conn = NULL;
+	const char * const *conns = NULL;
 	int ret;
 
-	hdmi_dev = cros_ec_cec_find_hdmi_dev(&pdev->dev, &conn);
+	hdmi_dev = cros_ec_cec_find_hdmi_dev(&pdev->dev, &conns);
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
 
@@ -460,7 +471,7 @@ static int cros_ec_cec_probe(struct platform_device *pdev)
 
 	for (int i = 0; i < cros_ec_cec->num_ports; i++) {
 		ret = cros_ec_cec_init_port(&pdev->dev, cros_ec_cec, i,
-					    hdmi_dev, conn);
+					    hdmi_dev, conns);
 		if (ret)
 			goto unregister_ports;
 	}
