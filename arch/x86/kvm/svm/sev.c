@@ -2185,7 +2185,7 @@ void __init sev_hardware_setup(void)
 	bool sev_es_supported = false;
 	bool sev_supported = false;
 
-	if (!sev_enabled || !npt_enabled)
+	if (!sev_enabled || !npt_enabled || !nrips)
 		goto out;
 
 	/*

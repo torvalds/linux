@@ -203,7 +203,7 @@ static int nested = true;
 module_param(nested, int, S_IRUGO);
 
 /* enable/disable Next RIP Save */
-static int nrips = true;
+int nrips = true;
 module_param(nrips, int, 0444);
 
 /* enable/disable Virtual VMLOAD VMSAVE */
@@ -5156,9 +5156,11 @@ static __init int svm_hardware_setup(void)
 
 	svm_adjust_mmio_mask();
 
+	nrips = nrips && boot_cpu_has(X86_FEATURE_NRIPS);
+
 	/*
 	 * Note, SEV setup consumes npt_enabled and enable_mmio_caching (which
-	 * may be modified by svm_adjust_mmio_mask()).
+	 * may be modified by svm_adjust_mmio_mask()), as well as nrips.
 	 */
 	sev_hardware_setup();
 
@@ -5168,11 +5170,6 @@ static __init int svm_hardware_setup(void)
 		r = svm_cpu_init(cpu);
 		if (r)
 			goto err;
-	}
-
-	if (nrips) {
-		if (!boot_cpu_has(X86_FEATURE_NRIPS))
-			nrips = false;
 	}
 
 	enable_apicv = avic = avic && avic_hardware_setup();
