@@ -9208,6 +9208,31 @@ static bool rdev_is_spare(struct md_rdev *rdev)
 	       !test_bit(Faulty, &rdev->flags);
 }
 
+static bool rdev_addable(struct md_rdev *rdev)
+{
+	/* rdev is already used, don't add it again. */
+	if (test_bit(Candidate, &rdev->flags) || rdev->raid_disk >= 0 ||
+	    test_bit(Faulty, &rdev->flags))
+		return false;
+
+	/* Allow to add journal disk. */
+	if (test_bit(Journal, &rdev->flags))
+		return true;
+
+	/* Allow to add if array is read-write. */
+	if (md_is_rdwr(rdev->mddev))
+		return true;
+
+	/*
+	 * For read-only array, only allow to readd a rdev. And if bitmap is
+	 * used, don't allow to readd a rdev that is too old.
+	 */
+	if (rdev->saved_raid_disk >= 0 && !test_bit(Bitmap_sync, &rdev->flags))
+		return true;
+
+	return false;
+}
+
 static int remove_and_add_spares(struct mddev *mddev,
 				 struct md_rdev *this)
 {
@@ -9265,20 +9290,10 @@ static int remove_and_add_spares(struct mddev *mddev,
 			continue;
 		if (rdev_is_spare(rdev))
 			spares++;
-		if (test_bit(Candidate, &rdev->flags))
+		if (!rdev_addable(rdev))
 			continue;
-		if (rdev->raid_disk >= 0)
-			continue;
-		if (test_bit(Faulty, &rdev->flags))
-			continue;
-		if (!test_bit(Journal, &rdev->flags)) {
-			if (!md_is_rdwr(mddev) &&
-			    !(rdev->saved_raid_disk >= 0 &&
-			      !test_bit(Bitmap_sync, &rdev->flags)))
-				continue;
-
+		if (!test_bit(Journal, &rdev->flags))
 			rdev->recovery_offset = 0;
-		}
 		if (mddev->pers->hot_add_disk(mddev, rdev) == 0) {
 			/* failure here is OK */
 			sysfs_link_rdev(mddev, rdev);
