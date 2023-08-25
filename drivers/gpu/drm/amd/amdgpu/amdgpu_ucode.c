@@ -679,15 +679,25 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 	}
 }
 
+static inline int amdgpu_ucode_is_valid(uint32_t fw_version)
+{
+	if (!fw_version)
+		return -EINVAL;
+
+	return 0;
+}
+
 #define FW_VERSION_ATTR(name, mode, field)				\
 static ssize_t show_##name(struct device *dev,				\
-			  struct device_attribute *attr,		\
-			  char *buf)					\
+			   struct device_attribute *attr, char *buf)	\
 {									\
 	struct drm_device *ddev = dev_get_drvdata(dev);			\
 	struct amdgpu_device *adev = drm_to_adev(ddev);			\
 									\
-	return sysfs_emit(buf, "0x%08x\n", adev->field);	\
+	if (!buf)							\
+		return amdgpu_ucode_is_valid(adev->field);		\
+									\
+	return sysfs_emit(buf, "0x%08x\n", adev->field);		\
 }									\
 static DEVICE_ATTR(name, mode, show_##name, NULL)
 
@@ -732,9 +742,24 @@ static struct attribute *fw_attrs[] = {
 	NULL
 };
 
+#define to_dev_attr(x) container_of(x, struct device_attribute, attr)
+
+static umode_t amdgpu_ucode_sys_visible(struct kobject *kobj,
+					struct attribute *attr, int idx)
+{
+	struct device_attribute *dev_attr = to_dev_attr(attr);
+	struct device *dev = kobj_to_dev(kobj);
+
+	if (dev_attr->show(dev, dev_attr, NULL) == -EINVAL)
+		return 0;
+
+	return attr->mode;
+}
+
 static const struct attribute_group fw_attr_group = {
 	.name = "fw_version",
-	.attrs = fw_attrs
+	.attrs = fw_attrs,
+	.is_visible = amdgpu_ucode_sys_visible
 };
 
 int amdgpu_ucode_sysfs_init(struct amdgpu_device *adev)
