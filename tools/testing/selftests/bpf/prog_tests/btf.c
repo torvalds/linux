@@ -7296,7 +7296,7 @@ static struct btf_dedup_test dedup_tests[] = {
 			BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
 				BTF_FUNC_PROTO_ARG_ENC(NAME_NTH(2), 1),
 				BTF_FUNC_PROTO_ARG_ENC(NAME_NTH(3), 1),
-			BTF_FUNC_ENC(NAME_NTH(4), 2),			/* [4] */
+			BTF_FUNC_ENC(NAME_NTH(4), 3),			/* [4] */
 			/* tag -> t */
 			BTF_DECL_TAG_ENC(NAME_NTH(5), 2, -1),		/* [5] */
 			BTF_DECL_TAG_ENC(NAME_NTH(5), 2, -1),		/* [6] */
@@ -7317,7 +7317,7 @@ static struct btf_dedup_test dedup_tests[] = {
 			BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
 				BTF_FUNC_PROTO_ARG_ENC(NAME_NTH(2), 1),
 				BTF_FUNC_PROTO_ARG_ENC(NAME_NTH(3), 1),
-			BTF_FUNC_ENC(NAME_NTH(4), 2),			/* [4] */
+			BTF_FUNC_ENC(NAME_NTH(4), 3),			/* [4] */
 			BTF_DECL_TAG_ENC(NAME_NTH(5), 2, -1),		/* [5] */
 			BTF_DECL_TAG_ENC(NAME_NTH(5), 4, -1),		/* [6] */
 			BTF_DECL_TAG_ENC(NAME_NTH(5), 4, 1),		/* [7] */
