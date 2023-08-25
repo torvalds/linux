@@ -4062,6 +4062,8 @@ egress_verdict:
 	case TC_ACT_QUEUED:
 	case TC_ACT_TRAP:
 		consume_skb(skb);
+		fallthrough;
+	case TC_ACT_CONSUMED:
 		*ret = NET_XMIT_SUCCESS;
 		return NULL;
 	}
