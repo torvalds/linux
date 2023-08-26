@@ -594,6 +594,26 @@ static int scmi_clock_state_get(const struct scmi_protocol_handle *ph,
 				    enabled, NULL, atomic);
 }
 
+static int scmi_clock_config_oem_set(const struct scmi_protocol_handle *ph,
+				     u32 clk_id, u8 oem_type, u32 oem_val,
+				     bool atomic)
+{
+	struct clock_info *ci = ph->get_priv(ph);
+
+	return ci->clock_config_set(ph, clk_id, CLK_STATE_UNCHANGED,
+				    oem_type, oem_val, atomic);
+}
+
+static int scmi_clock_config_oem_get(const struct scmi_protocol_handle *ph,
+				     u32 clk_id, u8 oem_type, u32 *oem_val,
+				     u32 *attributes, bool atomic)
+{
+	struct clock_info *ci = ph->get_priv(ph);
+
+	return ci->clock_config_get(ph, clk_id, oem_type, attributes,
+				    NULL, oem_val, atomic);
+}
+
 static int scmi_clock_count_get(const struct scmi_protocol_handle *ph)
 {
 	struct clock_info *ci = ph->get_priv(ph);
@@ -625,6 +645,8 @@ static const struct scmi_clk_proto_ops clk_proto_ops = {
 	.enable = scmi_clock_enable,
 	.disable = scmi_clock_disable,
 	.state_get = scmi_clock_state_get,
+	.config_oem_get = scmi_clock_config_oem_get,
+	.config_oem_set = scmi_clock_config_oem_set,
 };
 
 static int scmi_clk_rate_notify(const struct scmi_protocol_handle *ph,
