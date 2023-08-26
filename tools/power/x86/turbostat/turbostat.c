@@ -358,6 +358,40 @@ enum perf_limit_reason_msrs {
 	PLR_RING = BIT(2),
 };
 
+/* For RAPL MSRs */
+enum rapl_msrs {
+	RAPL_PKG_POWER_LIMIT = BIT(0),	/* 0x610 MSR_PKG_POWER_LIMIT */
+	RAPL_PKG_ENERGY_STATUS = BIT(1),	/* 0x611 MSR_PKG_ENERGY_STATUS */
+	RAPL_PKG_PERF_STATUS = BIT(2),	/* 0x613 MSR_PKG_PERF_STATUS */
+	RAPL_PKG_POWER_INFO = BIT(3),	/* 0x614 MSR_PKG_POWER_INFO */
+	RAPL_DRAM_POWER_LIMIT = BIT(4),	/* 0x618 MSR_DRAM_POWER_LIMIT */
+	RAPL_DRAM_ENERGY_STATUS = BIT(5),	/* 0x619 MSR_DRAM_ENERGY_STATUS */
+	RAPL_DRAM_PERF_STATUS = BIT(6),	/* 0x61b MSR_DRAM_PERF_STATUS */
+	RAPL_DRAM_POWER_INFO = BIT(7),	/* 0x61c MSR_DRAM_POWER_INFO */
+	RAPL_CORE_POWER_LIMIT = BIT(8),	/* 0x638 MSR_PP0_POWER_LIMIT */
+	RAPL_CORE_ENERGY_STATUS = BIT(9),	/* 0x639 MSR_PP0_ENERGY_STATUS */
+	RAPL_CORE_POLICY = BIT(10),	/* 0x63a MSR_PP0_POLICY */
+	RAPL_GFX_POWER_LIMIT = BIT(11),	/* 0x640 MSR_PP1_POWER_LIMIT */
+	RAPL_GFX_ENERGY_STATUS = BIT(12),	/* 0x641 MSR_PP1_ENERGY_STATUS */
+	RAPL_GFX_POLICY = BIT(13),	/* 0x642 MSR_PP1_POLICY */
+	RAPL_AMD_PWR_UNIT = BIT(14),	/* 0xc0010299 MSR_AMD_RAPL_POWER_UNIT */
+	RAPL_AMD_CORE_ENERGY_STAT = BIT(15),	/* 0xc001029a MSR_AMD_CORE_ENERGY_STATUS */
+	RAPL_AMD_PKG_ENERGY_STAT = BIT(16),	/* 0xc001029b MSR_AMD_PKG_ENERGY_STATUS */
+	RAPL_PER_CORE_ENERGY = BIT(17),	/* Indicates cores energy collection is per-core, not per-package. */
+};
+
+#define RAPL_PKG	(RAPL_PKG_ENERGY_STATUS | RAPL_PKG_POWER_LIMIT)
+#define RAPL_DRAM	(RAPL_DRAM_ENERGY_STATUS | RAPL_DRAM_POWER_LIMIT)
+#define RAPL_CORE	(RAPL_CORE_ENERGY_STATUS | RAPL_CORE_POWER_LIMIT)
+#define RAPL_GFX	(RAPL_GFX_POWER_LIMIT | RAPL_GFX_ENERGY_STATUS)
+
+#define RAPL_PKG_ALL	(RAPL_PKG | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO)
+#define RAPL_DRAM_ALL	(RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_DRAM_POWER_INFO)
+#define RAPL_CORE_ALL	(RAPL_CORE | RAPL_CORE_POLICY)
+#define RAPL_GFX_ALL	(RAPL_GFX | RAPL_GFX_POLIGY)
+
+#define RAPL_AMD_F17H	(RAPL_AMD_PWR_UNIT | RAPL_AMD_CORE_ENERGY_STAT | RAPL_AMD_PKG_ENERGY_STAT)
+
 static const struct platform_features nhm_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
@@ -712,42 +746,6 @@ void probe_platform_features(unsigned int family, unsigned int model)
 
 /* Model specific support End */
 
-#define RAPL_PKG		(1 << 0)
-					/* 0x610 MSR_PKG_POWER_LIMIT */
-					/* 0x611 MSR_PKG_ENERGY_STATUS */
-#define RAPL_PKG_PERF_STATUS	(1 << 1)
-					/* 0x613 MSR_PKG_PERF_STATUS */
-#define RAPL_PKG_POWER_INFO	(1 << 2)
-					/* 0x614 MSR_PKG_POWER_INFO */
-
-#define RAPL_DRAM		(1 << 3)
-					/* 0x618 MSR_DRAM_POWER_LIMIT */
-					/* 0x619 MSR_DRAM_ENERGY_STATUS */
-#define RAPL_DRAM_PERF_STATUS	(1 << 4)
-					/* 0x61b MSR_DRAM_PERF_STATUS */
-#define RAPL_DRAM_POWER_INFO	(1 << 5)
-					/* 0x61c MSR_DRAM_POWER_INFO */
-
-#define RAPL_CORES_POWER_LIMIT	(1 << 6)
-					/* 0x638 MSR_PP0_POWER_LIMIT */
-#define RAPL_CORE_POLICY	(1 << 7)
-					/* 0x63a MSR_PP0_POLICY */
-
-#define RAPL_GFX		(1 << 8)
-					/* 0x640 MSR_PP1_POWER_LIMIT */
-					/* 0x641 MSR_PP1_ENERGY_STATUS */
-					/* 0x642 MSR_PP1_POLICY */
-
-#define RAPL_CORES_ENERGY_STATUS	(1 << 9)
-					/* 0x639 MSR_PP0_ENERGY_STATUS */
-#define RAPL_PER_CORE_ENERGY	(1 << 10)
-					/* Indicates cores energy collection is per-core,
-					 * not per-package. */
-#define RAPL_AMD_F17H		(1 << 11)
-					/* 0xc0010299 MSR_RAPL_PWR_UNIT */
-					/* 0xc001029a MSR_CORE_ENERGY_STAT */
-					/* 0xc001029b MSR_PKG_ENERGY_STAT */
-#define RAPL_CORES (RAPL_CORES_ENERGY_STATUS | RAPL_CORES_POWER_LIMIT)
 #define	TJMAX_DEFAULT	100
 
 /* MSRs that are not yet in the kernel-provided header. */
@@ -948,7 +946,7 @@ int idx_valid(int idx)
 	case IDX_DRAM_ENERGY:
 		return do_rapl & RAPL_DRAM;
 	case IDX_PP0_ENERGY:
-		return do_rapl & RAPL_CORES_ENERGY_STATUS;
+		return do_rapl & RAPL_CORE_ENERGY_STATUS;
 	case IDX_PP1_ENERGY:
 		return do_rapl & RAPL_GFX;
 	case IDX_PKG_PERF:
@@ -2710,7 +2708,7 @@ retry:
 			return -13;
 		p->energy_pkg = msr;
 	}
-	if (do_rapl & RAPL_CORES_ENERGY_STATUS) {
+	if (do_rapl & RAPL_CORE_ENERGY_STATUS) {
 		if (get_msr_sum(cpu, MSR_PP0_ENERGY_STATUS, &msr))
 			return -14;
 		p->energy_cores = msr;
@@ -4810,7 +4808,7 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 	case INTEL_FAM6_HASWELL_G:	/* HSW */
 	case INTEL_FAM6_BROADWELL:	/* BDW */
 	case INTEL_FAM6_BROADWELL_G:	/* BDW */
-		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_GFX | RAPL_PKG_POWER_INFO;
+		do_rapl = RAPL_PKG | RAPL_CORE_ALL | RAPL_GFX | RAPL_PKG_POWER_INFO;
 		if (rapl_joules) {
 			BIC_PRESENT(BIC_Pkg_J);
 			BIC_PRESENT(BIC_Cor_J);
@@ -4830,9 +4828,7 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 			BIC_PRESENT(BIC_PkgWatt);
 		break;
 	case INTEL_FAM6_ATOM_TREMONT:	/* EHL */
-		do_rapl =
-		    RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS
-		    | RAPL_GFX | RAPL_PKG_POWER_INFO;
+		do_rapl = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_GFX;
 		if (rapl_joules) {
 			BIC_PRESENT(BIC_Pkg_J);
 			BIC_PRESENT(BIC_Cor_J);
@@ -4846,7 +4842,7 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 		}
 		break;
 	case INTEL_FAM6_ATOM_TREMONT_D:	/* JVL */
-		do_rapl = RAPL_PKG | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO;
+		do_rapl = RAPL_PKG_ALL;
 		BIC_PRESENT(BIC_PKG__);
 		if (rapl_joules)
 			BIC_PRESENT(BIC_Pkg_J);
@@ -4855,9 +4851,7 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 		break;
 	case INTEL_FAM6_SKYLAKE_L:	/* SKL */
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
-		do_rapl =
-		    RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS
-		    | RAPL_GFX | RAPL_PKG_POWER_INFO;
+		do_rapl = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_GFX;
 		BIC_PRESENT(BIC_PKG__);
 		BIC_PRESENT(BIC_RAM__);
 		if (rapl_joules) {
@@ -4878,9 +4872,7 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
 	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 	case INTEL_FAM6_XEON_PHI_KNL:	/* KNL */
-		do_rapl =
-		    RAPL_PKG | RAPL_DRAM | RAPL_DRAM_POWER_INFO | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS |
-		    RAPL_PKG_POWER_INFO;
+		do_rapl = RAPL_PKG_ALL | RAPL_DRAM_ALL;
 		BIC_PRESENT(BIC_PKG__);
 		BIC_PRESENT(BIC_RAM__);
 		if (rapl_joules) {
@@ -4893,9 +4885,7 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 		break;
 	case INTEL_FAM6_SANDYBRIDGE_X:
 	case INTEL_FAM6_IVYBRIDGE_X:
-		do_rapl =
-		    RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_DRAM | RAPL_DRAM_POWER_INFO | RAPL_PKG_PERF_STATUS |
-		    RAPL_DRAM_PERF_STATUS | RAPL_PKG_POWER_INFO;
+		do_rapl = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM_ALL;
 		BIC_PRESENT(BIC_PKG__);
 		BIC_PRESENT(BIC_RAM__);
 		if (rapl_joules) {
@@ -4910,7 +4900,7 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 		break;
 	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
 	case INTEL_FAM6_ATOM_SILVERMONT_D:	/* AVN */
-		do_rapl = RAPL_PKG | RAPL_CORES;
+		do_rapl = RAPL_PKG | RAPL_CORE;
 		if (rapl_joules) {
 			BIC_PRESENT(BIC_Pkg_J);
 			BIC_PRESENT(BIC_Cor_J);
@@ -4920,9 +4910,7 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 		}
 		break;
 	case INTEL_FAM6_ATOM_GOLDMONT_D:	/* DNV */
-		do_rapl =
-		    RAPL_PKG | RAPL_DRAM | RAPL_DRAM_POWER_INFO | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS |
-		    RAPL_PKG_POWER_INFO | RAPL_CORES_ENERGY_STATUS;
+		do_rapl = RAPL_PKG_ALL | RAPL_DRAM_ALL | RAPL_CORE_ENERGY_STATUS;
 		BIC_PRESENT(BIC_PKG__);
 		BIC_PRESENT(BIC_RAM__);
 		if (rapl_joules) {
@@ -5195,7 +5183,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 		fprintf(outf, "cpu%d: MSR_PP0_POLICY: %lld\n", cpu, msr & 0xF);
 	}
-	if (do_rapl & RAPL_CORES_POWER_LIMIT) {
+	if (do_rapl & RAPL_CORE_POWER_LIMIT) {
 		if (get_msr(cpu, MSR_PP0_POWER_LIMIT, &msr))
 			return -9;
 		fprintf(outf, "cpu%d: MSR_PP0_POWER_LIMIT: 0x%08llx (%slocked)\n",
