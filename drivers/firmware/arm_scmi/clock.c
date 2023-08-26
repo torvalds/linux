@@ -418,26 +418,16 @@ scmi_clock_config_set(const struct scmi_protocol_handle *ph, u32 clk_id,
 	return ret;
 }
 
-static int scmi_clock_enable(const struct scmi_protocol_handle *ph, u32 clk_id)
+static int scmi_clock_enable(const struct scmi_protocol_handle *ph, u32 clk_id,
+			     bool atomic)
 {
-	return scmi_clock_config_set(ph, clk_id, CLOCK_ENABLE, false);
+	return scmi_clock_config_set(ph, clk_id, CLOCK_ENABLE, atomic);
 }
 
-static int scmi_clock_disable(const struct scmi_protocol_handle *ph, u32 clk_id)
+static int scmi_clock_disable(const struct scmi_protocol_handle *ph, u32 clk_id,
+			      bool atomic)
 {
-	return scmi_clock_config_set(ph, clk_id, 0, false);
-}
-
-static int scmi_clock_enable_atomic(const struct scmi_protocol_handle *ph,
-				    u32 clk_id)
-{
-	return scmi_clock_config_set(ph, clk_id, CLOCK_ENABLE, true);
-}
-
-static int scmi_clock_disable_atomic(const struct scmi_protocol_handle *ph,
-				     u32 clk_id)
-{
-	return scmi_clock_config_set(ph, clk_id, 0, true);
+	return scmi_clock_config_set(ph, clk_id, 0, atomic);
 }
 
 static int scmi_clock_count_get(const struct scmi_protocol_handle *ph)
@@ -470,8 +460,6 @@ static const struct scmi_clk_proto_ops clk_proto_ops = {
 	.rate_set = scmi_clock_rate_set,
 	.enable = scmi_clock_enable,
 	.disable = scmi_clock_disable,
-	.enable_atomic = scmi_clock_enable_atomic,
-	.disable_atomic = scmi_clock_disable_atomic,
 };
 
 static int scmi_clk_rate_notify(const struct scmi_protocol_handle *ph,
