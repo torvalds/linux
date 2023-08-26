@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rv1106-tb-nofastae.dtsi"
+
+/ {
+	reserved-memory {
+		mmc_ecsd: mmc@3f000 {
+			reg = <0x3f000 0x00001000>;
+		};
+
+		mmc_idmac: mmc@100000 {
+			reg = <0x00100000 0x00100000>;
+		};
+	};
+
+	thunder_boot_mmc: thunder-boot-mmc {
+		compatible = "rockchip,thunder-boot-mmc";
+		reg = <0xffa90000 0x4000>;
+		memory-region-src = <&ramdisk_c>;
+		memory-region-dst = <&ramdisk_r>;
+		memory-region-idmac = <&mmc_idmac>;
+	};
+};
+
+&emmc {
+	memory-region-ecsd = <&mmc_ecsd>;
+	post-power-on-delay-ms = <0>;
+};
