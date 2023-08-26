@@ -21,6 +21,7 @@ enum scmi_clock_protocol_cmd {
 	CLOCK_NAME_GET = 0x8,
 	CLOCK_RATE_NOTIFY = 0x9,
 	CLOCK_RATE_CHANGE_REQUESTED_NOTIFY = 0xA,
+	CLOCK_CONFIG_GET = 0xB,
 };
 
 enum clk_state {
@@ -56,6 +57,19 @@ struct scmi_msg_clock_config_set_v21 {
 #define NULL_OEM_TYPE			0
 #define REGMASK_OEM_TYPE_SET		GENMASK(23, 16)
 #define REGMASK_CLK_STATE		GENMASK(1, 0)
+	__le32 oem_config_val;
+};
+
+struct scmi_msg_clock_config_get {
+	__le32 id;
+	__le32 flags;
+#define REGMASK_OEM_TYPE_GET		GENMASK(7, 0)
+};
+
+struct scmi_msg_resp_clock_config_get {
+	__le32 attributes;
+	__le32 config;
+#define IS_CLK_ENABLED(x)		le32_get_bits((x), BIT(0))
 	__le32 oem_config_val;
 };
 
@@ -496,6 +510,55 @@ static int scmi_clock_disable(const struct scmi_protocol_handle *ph, u32 clk_id,
 				    NULL_OEM_TYPE, 0, atomic);
 }
 
+static int
+scmi_clock_config_get(const struct scmi_protocol_handle *ph, u32 clk_id,
+		      u8 oem_type, u32 *attributes, bool *enabled,
+		      u32 *oem_val, bool atomic)
+{
+	int ret;
+	u32 flags;
+	struct scmi_xfer *t;
+	struct scmi_msg_clock_config_get *cfg;
+
+	ret = ph->xops->xfer_get_init(ph, CLOCK_CONFIG_GET,
+				      sizeof(*cfg), 0, &t);
+	if (ret)
+		return ret;
+
+	t->hdr.poll_completion = atomic;
+
+	flags = FIELD_PREP(REGMASK_OEM_TYPE_GET, oem_type);
+
+	cfg = t->tx.buf;
+	cfg->id = cpu_to_le32(clk_id);
+	cfg->flags = cpu_to_le32(flags);
+
+	ret = ph->xops->do_xfer(ph, t);
+	if (!ret) {
+		struct scmi_msg_resp_clock_config_get *resp = t->rx.buf;
+
+		if (attributes)
+			*attributes = le32_to_cpu(resp->attributes);
+
+		if (enabled)
+			*enabled = IS_CLK_ENABLED(resp->config);
+
+		if (oem_val && oem_type)
+			*oem_val = le32_to_cpu(resp->oem_config_val);
+	}
+
+	ph->xops->xfer_put(ph, t);
+
+	return ret;
+}
+
+static int scmi_clock_state_get(const struct scmi_protocol_handle *ph,
+				u32 clk_id, bool *enabled, bool atomic)
+{
+	return scmi_clock_config_get(ph, clk_id, NULL_OEM_TYPE, NULL,
+				     enabled, NULL, atomic);
+}
+
 static int scmi_clock_count_get(const struct scmi_protocol_handle *ph)
 {
 	struct clock_info *ci = ph->get_priv(ph);
@@ -526,6 +589,7 @@ static const struct scmi_clk_proto_ops clk_proto_ops = {
 	.rate_set = scmi_clock_rate_set,
 	.enable = scmi_clock_enable,
 	.disable = scmi_clock_disable,
+	.state_get = scmi_clock_state_get,
 };
 
 static int scmi_clk_rate_notify(const struct scmi_protocol_handle *ph,
