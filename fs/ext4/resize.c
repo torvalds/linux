@@ -699,16 +699,14 @@ handle_ib:
 			block = start;
 		}
 
-		if (count) {
-			err = set_flexbg_block_bitmap(sb, handle,
-						      flex_gd,
-						      EXT4_B2C(sbi, start),
-						      EXT4_B2C(sbi,
-							       start + count
-							       - 1));
-			if (err)
-				goto out;
-		}
+		err = set_flexbg_block_bitmap(sb, handle,
+				flex_gd,
+				EXT4_B2C(sbi, start),
+				EXT4_B2C(sbi,
+					start + count
+					- 1));
+		if (err)
+			goto out;
 	}
 
 out:
