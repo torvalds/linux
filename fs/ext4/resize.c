@@ -55,7 +55,7 @@ int ext4_resize_begin(struct super_block *sb)
 	 * If the reserved GDT blocks is non-zero, the resize_inode feature
 	 * should always be set.
 	 */
-	if (EXT4_SB(sb)->s_es->s_reserved_gdt_blocks &&
+	if (sbi->s_es->s_reserved_gdt_blocks &&
 	    !ext4_has_feature_resize_inode(sb)) {
 		ext4_error(sb, "resize_inode disabled but reserved GDT blocks non-zero");
 		return -EFSCORRUPTED;
@@ -67,9 +67,9 @@ int ext4_resize_begin(struct super_block *sb)
          * bad time to do it anyways.
          */
 	if (EXT4_B2C(sbi, sbi->s_sbh->b_blocknr) !=
-	    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block)) {
+	    le32_to_cpu(sbi->s_es->s_first_data_block)) {
 		ext4_warning(sb, "won't resize using backup superblock at %llu",
-			(unsigned long long)EXT4_SB(sb)->s_sbh->b_blocknr);
+			(unsigned long long)sbi->s_sbh->b_blocknr);
 		return -EPERM;
 	}
 
@@ -77,7 +77,7 @@ int ext4_resize_begin(struct super_block *sb)
 	 * We are not allowed to do online-resizing on a filesystem mounted
 	 * with error, because it can destroy the filesystem easily.
 	 */
-	if (EXT4_SB(sb)->s_mount_state & EXT4_ERROR_FS) {
+	if (sbi->s_mount_state & EXT4_ERROR_FS) {
 		ext4_warning(sb, "There are errors in the filesystem, "
 			     "so online resizing is not allowed");
 		return -EPERM;
@@ -89,7 +89,7 @@ int ext4_resize_begin(struct super_block *sb)
 	}
 
 	if (test_and_set_bit_lock(EXT4_FLAGS_RESIZING,
-				  &EXT4_SB(sb)->s_ext4_flags))
+				  &sbi->s_ext4_flags))
 		ret = -EBUSY;
 
 	return ret;
