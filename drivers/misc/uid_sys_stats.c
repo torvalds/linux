@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/llist.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
 #include <linux/profile.h>
@@ -636,22 +637,22 @@ struct update_stats_work {
 	struct task_io_accounting ioac;
 	u64 utime;
 	u64 stime;
-	struct update_stats_work *next;
+	struct llist_node node;
 };
 
-static atomic_long_t work_usw;
+static LLIST_HEAD(work_usw);
 
 static void update_stats_workfn(struct work_struct *work)
 {
-	struct update_stats_work *usw;
+	struct update_stats_work *usw, *t;
 	struct uid_entry *uid_entry;
 	struct task_entry *task_entry __maybe_unused;
+	struct llist_node *node;
 
 	rt_mutex_lock(&uid_lock);
-	while ((usw = (struct update_stats_work *)atomic_long_read(&work_usw))) {
-		if (atomic_long_cmpxchg(&work_usw, (long)usw, (long)(usw->next)) != (long)usw)
-			continue;
 
+	node = llist_del_all(&work_usw);
+	llist_for_each_entry_safe(usw, t, node, node) {
 		uid_entry = find_uid_entry(usw->uid);
 		if (!uid_entry)
 			goto next;
@@ -664,7 +665,7 @@ static void update_stats_workfn(struct work_struct *work)
 		if (!task_entry)
 			goto next;
 		add_uid_tasks_io_stats(task_entry, &usw->ioac,
-				UID_STATE_DEAD_TASKS);
+				       UID_STATE_DEAD_TASKS);
 #endif
 		__add_uid_io_stats(uid_entry, &usw->ioac, UID_STATE_DEAD_TASKS);
 next:
@@ -704,8 +705,7 @@ static int process_notifier(struct notifier_block *self,
 			 */
 			usw->ioac = task->ioac;
 			task_cputime_adjusted(task, &usw->utime, &usw->stime);
-			usw->next = (struct update_stats_work *)atomic_long_xchg(&work_usw,
-										 (long)usw);
+			llist_add(&usw->node, &work_usw);
 			schedule_work(&update_stats_work);
 		}
 		return NOTIFY_OK;
