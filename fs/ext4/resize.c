@@ -154,8 +154,9 @@ static int verify_group_input(struct super_block *sb,
 
 	overhead = ext4_group_overhead_blocks(sb, group);
 	metaend = start + overhead;
-	input->free_clusters_count = free_blocks_count =
-		input->blocks_count - 2 - overhead - sbi->s_itb_per_group;
+	free_blocks_count = input->blocks_count - 2 - overhead -
+			    sbi->s_itb_per_group;
+	input->free_clusters_count = EXT4_B2C(sbi, free_blocks_count);
 
 	if (test_opt(sb, DEBUG))
 		printk(KERN_DEBUG "EXT4-fs: adding %s group %u: %u blocks "
