@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  *
  */
 
@@ -43,6 +43,11 @@
 			csi_dphy_input4: endpoint@4 {
 				reg = <4>;
 				remote-endpoint = <&jx_k17_out>;
+				data-lanes = <1 2>;
+			};
+			csi_dphy_input5: endpoint@5 {
+				reg = <5>;
+				remote-endpoint = <&sc3338_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -105,6 +110,28 @@
 		port {
 			sc3336_out: endpoint {
 				remote-endpoint = <&csi_dphy_input1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	sc3338: sc3338@30 {
+		compatible = "smartsens,sc3338";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru MCLK_REF_MIPI0>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "FKO1";
+		rockchip,camera-module-lens-name = "30IRC-F16";
+		port {
+			sc3338_out: endpoint {
+				remote-endpoint = <&csi_dphy_input5>;
 				data-lanes = <1 2>;
 			};
 		};
