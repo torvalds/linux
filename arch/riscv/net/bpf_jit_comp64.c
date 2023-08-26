@@ -580,7 +580,8 @@ static int add_exception_handler(const struct bpf_insn *insn,
 	unsigned long pc;
 	off_t offset;
 
-	if (!ctx->insns || !ctx->prog->aux->extable || BPF_MODE(insn->code) != BPF_PROBE_MEM)
+	if (!ctx->insns || !ctx->prog->aux->extable ||
+	    (BPF_MODE(insn->code) != BPF_PROBE_MEM && BPF_MODE(insn->code) != BPF_PROBE_MEMSX))
 		return 0;
 
 	if (WARN_ON_ONCE(ctx->nexentries >= ctx->prog->aux->num_exentries))
@@ -1046,7 +1047,19 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 			emit_zext_32(rd, ctx);
 			break;
 		}
-		emit_mv(rd, rs, ctx);
+		switch (insn->off) {
+		case 0:
+			emit_mv(rd, rs, ctx);
+			break;
+		case 8:
+		case 16:
+			emit_slli(RV_REG_T1, rs, 64 - insn->off, ctx);
+			emit_srai(rd, RV_REG_T1, 64 - insn->off, ctx);
+			break;
+		case 32:
+			emit_addiw(rd, rs, 0, ctx);
+			break;
+		}
 		if (!is64 && !aux->verifier_zext)
 			emit_zext_32(rd, ctx);
 		break;
@@ -1094,13 +1107,19 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 		break;
 	case BPF_ALU | BPF_DIV | BPF_X:
 	case BPF_ALU64 | BPF_DIV | BPF_X:
-		emit(is64 ? rv_divu(rd, rd, rs) : rv_divuw(rd, rd, rs), ctx);
+		if (off)
+			emit(is64 ? rv_div(rd, rd, rs) : rv_divw(rd, rd, rs), ctx);
+		else
+			emit(is64 ? rv_divu(rd, rd, rs) : rv_divuw(rd, rd, rs), ctx);
 		if (!is64 && !aux->verifier_zext)
 			emit_zext_32(rd, ctx);
 		break;
 	case BPF_ALU | BPF_MOD | BPF_X:
 	case BPF_ALU64 | BPF_MOD | BPF_X:
-		emit(is64 ? rv_remu(rd, rd, rs) : rv_remuw(rd, rd, rs), ctx);
+		if (off)
+			emit(is64 ? rv_rem(rd, rd, rs) : rv_remw(rd, rd, rs), ctx);
+		else
+			emit(is64 ? rv_remu(rd, rd, rs) : rv_remuw(rd, rd, rs), ctx);
 		if (!is64 && !aux->verifier_zext)
 			emit_zext_32(rd, ctx);
 		break;
@@ -1149,6 +1168,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 		break;
 
 	case BPF_ALU | BPF_END | BPF_FROM_BE:
+	case BPF_ALU64 | BPF_END | BPF_FROM_LE:
 		emit_li(RV_REG_T2, 0, ctx);
 
 		emit_andi(RV_REG_T1, rd, 0xff, ctx);
@@ -1271,16 +1291,24 @@ out_be:
 	case BPF_ALU | BPF_DIV | BPF_K:
 	case BPF_ALU64 | BPF_DIV | BPF_K:
 		emit_imm(RV_REG_T1, imm, ctx);
-		emit(is64 ? rv_divu(rd, rd, RV_REG_T1) :
-		     rv_divuw(rd, rd, RV_REG_T1), ctx);
+		if (off)
+			emit(is64 ? rv_div(rd, rd, RV_REG_T1) :
+			     rv_divw(rd, rd, RV_REG_T1), ctx);
+		else
+			emit(is64 ? rv_divu(rd, rd, RV_REG_T1) :
+			     rv_divuw(rd, rd, RV_REG_T1), ctx);
 		if (!is64 && !aux->verifier_zext)
 			emit_zext_32(rd, ctx);
 		break;
 	case BPF_ALU | BPF_MOD | BPF_K:
 	case BPF_ALU64 | BPF_MOD | BPF_K:
 		emit_imm(RV_REG_T1, imm, ctx);
-		emit(is64 ? rv_remu(rd, rd, RV_REG_T1) :
-		     rv_remuw(rd, rd, RV_REG_T1), ctx);
+		if (off)
+			emit(is64 ? rv_rem(rd, rd, RV_REG_T1) :
+			     rv_remw(rd, rd, RV_REG_T1), ctx);
+		else
+			emit(is64 ? rv_remu(rd, rd, RV_REG_T1) :
+			     rv_remuw(rd, rd, RV_REG_T1), ctx);
 		if (!is64 && !aux->verifier_zext)
 			emit_zext_32(rd, ctx);
 		break;
@@ -1314,7 +1342,11 @@ out_be:
 
 	/* JUMP off */
 	case BPF_JMP | BPF_JA:
-		rvoff = rv_offset(i, off, ctx);
+	case BPF_JMP32 | BPF_JA:
+		if (BPF_CLASS(code) == BPF_JMP)
+			rvoff = rv_offset(i, off, ctx);
+		else
+			rvoff = rv_offset(i, imm, ctx);
 		ret = emit_jump_and_link(RV_REG_ZERO, rvoff, true, ctx);
 		if (ret)
 			return ret;
@@ -1486,7 +1518,7 @@ out_be:
 		return 1;
 	}
 
-	/* LDX: dst = *(size *)(src + off) */
+	/* LDX: dst = *(unsigned size *)(src + off) */
 	case BPF_LDX | BPF_MEM | BPF_B:
 	case BPF_LDX | BPF_MEM | BPF_H:
 	case BPF_LDX | BPF_MEM | BPF_W:
@@ -1495,14 +1527,28 @@ out_be:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_H:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_W:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_DW:
+	/* LDSX: dst = *(signed size *)(src + off) */
+	case BPF_LDX | BPF_MEMSX | BPF_B:
+	case BPF_LDX | BPF_MEMSX | BPF_H:
+	case BPF_LDX | BPF_MEMSX | BPF_W:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_B:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_H:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_W:
 	{
 		int insn_len, insns_start;
+		bool sign_ext;
+
+		sign_ext = BPF_MODE(insn->code) == BPF_MEMSX ||
+			   BPF_MODE(insn->code) == BPF_PROBE_MEMSX;
 
 		switch (BPF_SIZE(code)) {
 		case BPF_B:
 			if (is_12b_int(off)) {
 				insns_start = ctx->ninsns;
-				emit(rv_lbu(rd, off, rs), ctx);
+				if (sign_ext)
+					emit(rv_lb(rd, off, rs), ctx);
+				else
+					emit(rv_lbu(rd, off, rs), ctx);
 				insn_len = ctx->ninsns - insns_start;
 				break;
 			}
@@ -1510,15 +1556,19 @@ out_be:
 			emit_imm(RV_REG_T1, off, ctx);
 			emit_add(RV_REG_T1, RV_REG_T1, rs, ctx);
 			insns_start = ctx->ninsns;
-			emit(rv_lbu(rd, 0, RV_REG_T1), ctx);
+			if (sign_ext)
+				emit(rv_lb(rd, 0, RV_REG_T1), ctx);
+			else
+				emit(rv_lbu(rd, 0, RV_REG_T1), ctx);
 			insn_len = ctx->ninsns - insns_start;
-			if (insn_is_zext(&insn[1]))
-				return 1;
 			break;
 		case BPF_H:
 			if (is_12b_int(off)) {
 				insns_start = ctx->ninsns;
-				emit(rv_lhu(rd, off, rs), ctx);
+				if (sign_ext)
+					emit(rv_lh(rd, off, rs), ctx);
+				else
+					emit(rv_lhu(rd, off, rs), ctx);
 				insn_len = ctx->ninsns - insns_start;
 				break;
 			}
@@ -1526,15 +1576,19 @@ out_be:
 			emit_imm(RV_REG_T1, off, ctx);
 			emit_add(RV_REG_T1, RV_REG_T1, rs, ctx);
 			insns_start = ctx->ninsns;
-			emit(rv_lhu(rd, 0, RV_REG_T1), ctx);
+			if (sign_ext)
+				emit(rv_lh(rd, 0, RV_REG_T1), ctx);
+			else
+				emit(rv_lhu(rd, 0, RV_REG_T1), ctx);
 			insn_len = ctx->ninsns - insns_start;
-			if (insn_is_zext(&insn[1]))
-				return 1;
 			break;
 		case BPF_W:
 			if (is_12b_int(off)) {
 				insns_start = ctx->ninsns;
-				emit(rv_lwu(rd, off, rs), ctx);
+				if (sign_ext)
+					emit(rv_lw(rd, off, rs), ctx);
+				else
+					emit(rv_lwu(rd, off, rs), ctx);
 				insn_len = ctx->ninsns - insns_start;
 				break;
 			}
@@ -1542,10 +1596,11 @@ out_be:
 			emit_imm(RV_REG_T1, off, ctx);
 			emit_add(RV_REG_T1, RV_REG_T1, rs, ctx);
 			insns_start = ctx->ninsns;
-			emit(rv_lwu(rd, 0, RV_REG_T1), ctx);
+			if (sign_ext)
+				emit(rv_lw(rd, 0, RV_REG_T1), ctx);
+			else
+				emit(rv_lwu(rd, 0, RV_REG_T1), ctx);
 			insn_len = ctx->ninsns - insns_start;
-			if (insn_is_zext(&insn[1]))
-				return 1;
 			break;
 		case BPF_DW:
 			if (is_12b_int(off)) {
@@ -1566,6 +1621,9 @@ out_be:
 		ret = add_exception_handler(insn, ctx, rd, insn_len);
 		if (ret)
 			return ret;
+
+		if (BPF_SIZE(code) != BPF_DW && insn_is_zext(&insn[1]))
+			return 1;
 		break;
 	}
 	/* speculation barrier */

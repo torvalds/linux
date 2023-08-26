@@ -286,6 +286,7 @@ static inline void __bpf_spin_lock(struct bpf_spin_lock *lock)
 	compiletime_assert(u.val == 0, "__ARCH_SPIN_LOCK_UNLOCKED not 0");
 	BUILD_BUG_ON(sizeof(*l) != sizeof(__u32));
 	BUILD_BUG_ON(sizeof(*lock) != sizeof(__u32));
+	preempt_disable();
 	arch_spin_lock(l);
 }
 
@@ -294,6 +295,7 @@ static inline void __bpf_spin_unlock(struct bpf_spin_lock *lock)
 	arch_spinlock_t *l = (void *)lock;
 
 	arch_spin_unlock(l);
+	preempt_enable();
 }
 
 #else
@@ -1913,7 +1915,11 @@ void __bpf_obj_drop_impl(void *p, const struct btf_record *rec)
 
 	if (rec)
 		bpf_obj_free_fields(rec, p);
-	bpf_mem_free(&bpf_global_ma, p);
+
+	if (rec && rec->refcount_off >= 0)
+		bpf_mem_free_rcu(&bpf_global_ma, p);
+	else
+		bpf_mem_free(&bpf_global_ma, p);
 }
 
 __bpf_kfunc void bpf_obj_drop_impl(void *p__alloc, void *meta__ign)
