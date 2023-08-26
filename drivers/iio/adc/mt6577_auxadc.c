@@ -246,6 +246,14 @@ static int mt6577_auxadc_suspend(struct device *dev)
 	return 0;
 }
 
+static void mt6577_power_off(void *data)
+{
+	struct mt6577_auxadc_device *adc_dev = data;
+
+	mt6577_auxadc_mod_reg(adc_dev->reg_base + MT6577_AUXADC_MISC,
+			      0, MT6577_AUXADC_PDN_EN);
+}
+
 static int mt6577_auxadc_probe(struct platform_device *pdev)
 {
 	struct mt6577_auxadc_device *adc_dev;
@@ -286,31 +294,14 @@ static int mt6577_auxadc_probe(struct platform_device *pdev)
 			      MT6577_AUXADC_PDN_EN, 0);
 	mdelay(MT6577_AUXADC_POWER_READY_MS);
 
-	platform_set_drvdata(pdev, indio_dev);
+	ret = devm_add_action_or_reset(&pdev->dev, mt6577_power_off, adc_dev);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to add action to managed power off\n");
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register iio device\n");
-		goto err_power_off;
-	}
-
-	return 0;
-
-err_power_off:
-	mt6577_auxadc_mod_reg(adc_dev->reg_base + MT6577_AUXADC_MISC,
-			      0, MT6577_AUXADC_PDN_EN);
-	return ret;
-}
-
-static int mt6577_auxadc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct mt6577_auxadc_device *adc_dev = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	mt6577_auxadc_mod_reg(adc_dev->reg_base + MT6577_AUXADC_MISC,
-			      0, MT6577_AUXADC_PDN_EN);
+	ret = devm_iio_device_register(&pdev->dev, indio_dev);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "failed to register iio device\n");
 
 	return 0;
 }
@@ -337,7 +328,6 @@ static struct platform_driver mt6577_auxadc_driver = {
 		.pm = pm_sleep_ptr(&mt6577_auxadc_pm_ops),
 	},
 	.probe	= mt6577_auxadc_probe,
-	.remove	= mt6577_auxadc_remove,
 };
 module_platform_driver(mt6577_auxadc_driver);
 
