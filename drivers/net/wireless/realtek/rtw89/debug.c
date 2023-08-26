@@ -572,9 +572,9 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 		seq_puts(m, #_regd "\n"); \
 		break
 
-static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev)
+static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev,
+			 const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 
@@ -604,16 +604,21 @@ static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	const struct rtw89_chan *chan;
 	int ret = 0;
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
+	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 
 	seq_puts(m, "[Regulatory] ");
-	__print_regd(m, rtwdev);
+	__print_regd(m, rtwdev, chan);
 
 	seq_puts(m, "[SAR]\n");
-	rtw89_print_sar(m, rtwdev);
+	rtw89_print_sar(m, rtwdev, chan->freq);
+
+	seq_puts(m, "[TAS]\n");
+	rtw89_print_tas(m, rtwdev);
 
 	seq_puts(m, "\n[TX power byrate]\n");
 	ret = __print_txpwr_map(m, rtwdev, &__txpwr_map_byr);
@@ -790,6 +795,9 @@ static void rtw89_debug_dump_mac_mem(struct seq_file *m,
 				     struct rtw89_dev *rtwdev,
 				     u8 sel, u32 start_addr, u32 len)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 filter_model_addr = mac->filter_model_addr;
+	u32 indir_access_addr = mac->indir_access_addr;
 	u32 base_addr, start_page, residue;
 	u32 i, j, p, pages;
 	u32 dump_len, remain;
@@ -799,17 +807,17 @@ static void rtw89_debug_dump_mac_mem(struct seq_file *m,
 	pages = len / MAC_MEM_DUMP_PAGE_SIZE + 1;
 	start_page = start_addr / MAC_MEM_DUMP_PAGE_SIZE;
 	residue = start_addr % MAC_MEM_DUMP_PAGE_SIZE;
-	base_addr = rtw89_mac_mem_base_addrs[sel];
+	base_addr = mac->mem_base_addrs[sel];
 	base_addr += start_page * MAC_MEM_DUMP_PAGE_SIZE;
 
 	for (p = 0; p < pages; p++) {
 		dump_len = min_t(u32, remain, MAC_MEM_DUMP_PAGE_SIZE);
-		rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, base_addr);
-		for (i = R_AX_INDIR_ACCESS_ENTRY + residue;
-		     i < R_AX_INDIR_ACCESS_ENTRY + dump_len;) {
+		rtw89_write32(rtwdev, filter_model_addr, base_addr);
+		for (i = indir_access_addr + residue;
+		     i < indir_access_addr + dump_len;) {
 			seq_printf(m, "%08xh:", i);
 			for (j = 0;
-			     j < 4 && i < R_AX_INDIR_ACCESS_ENTRY + dump_len;
+			     j < 4 && i < indir_access_addr + dump_len;
 			     j++, i += 4) {
 				val = rtw89_read32(rtwdev, i);
 				seq_printf(m, "  %08x", val);

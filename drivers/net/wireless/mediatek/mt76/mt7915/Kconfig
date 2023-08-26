@@ -7,7 +7,7 @@ config MT7915E
 	depends on PCI
 	select RELAY
 	help
-	  This adds support for MT7915-based wireless PCIe devices,
+	  This adds support for MT7915-based PCIe wireless devices,
 	  which support concurrent dual-band operation at both 5GHz
 	  and 2.4GHz IEEE 802.11ax 4x4:4SS 1024-QAM, 160MHz channels,
 	  OFDMA, spatial reuse and dual carrier modulation.

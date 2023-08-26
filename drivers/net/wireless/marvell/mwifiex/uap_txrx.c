@@ -110,6 +110,7 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 			    skb->len, le16_to_cpu(uap_rx_pd->rx_pkt_offset));
 		priv->stats.rx_dropped++;
 		dev_kfree_skb_any(skb);
+		return;
 	}
 
 	if ((!memcmp(&rx_pkt_hdr->rfc1042_hdr, bridge_tunnel_header,
@@ -252,7 +253,15 @@ int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
 
 	if (is_multicast_ether_addr(ra)) {
 		skb_uap = skb_copy(skb, GFP_ATOMIC);
-		mwifiex_uap_queue_bridged_pkt(priv, skb_uap);
+		if (likely(skb_uap)) {
+			mwifiex_uap_queue_bridged_pkt(priv, skb_uap);
+		} else {
+			mwifiex_dbg(adapter, ERROR,
+				    "failed to copy skb for uAP\n");
+			priv->stats.rx_dropped++;
+			dev_kfree_skb_any(skb);
+			return -1;
+		}
 	} else {
 		if (mwifiex_get_sta_entry(priv, ra)) {
 			/* Requeue Intra-BSS packet */
@@ -461,8 +470,8 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
  *      - Priority specific Tx control
  *      - Flags
  */
-void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
-			       struct sk_buff *skb)
+void mwifiex_process_uap_txpd(struct mwifiex_private *priv,
+			      struct sk_buff *skb)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct uap_txpd *txpd;
@@ -470,15 +479,6 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 	int pad;
 	u16 pkt_type, pkt_offset;
 	int hroom = adapter->intf_hdr_len;
-
-	if (!skb->len) {
-		mwifiex_dbg(adapter, ERROR,
-			    "Tx: bad packet length: %d\n", skb->len);
-		tx_info->status_code = -1;
-		return skb->data;
-	}
-
-	BUG_ON(skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN);
 
 	pkt_type = mwifiex_is_skb_mgmt_frame(skb) ? PKT_TYPE_MGMT : 0;
 
@@ -527,6 +527,4 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 	if (!txpd->tx_control)
 		/* TxCtrl set by user or default */
 		txpd->tx_control = cpu_to_le32(priv->pkt_tx_ctrl);
-
-	return skb->data;
 }

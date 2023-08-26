@@ -4,6 +4,8 @@
 
 #include "chan.h"
 #include "debug.h"
+#include "fw.h"
+#include "ps.h"
 #include "util.h"
 
 static enum rtw89_subband rtw89_get_subband_type(enum rtw89_band band,
@@ -116,6 +118,7 @@ bool rtw89_assign_entity_chan(struct rtw89_dev *rtwdev,
 	rcd->prev_primary_channel = chan->primary_channel;
 	rcd->prev_band_type = chan->band_type;
 	band_changed = new->band_type != chan->band_type;
+	rcd->band_changed = band_changed;
 
 	*chan = *new;
 	return band_changed;
@@ -193,8 +196,12 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct cfg80211_chan_def *chandef;
 	enum rtw89_entity_mode mode;
+	struct rtw89_chan chan;
 	u8 weight;
+	u8 last;
+	u8 idx;
 
 	weight = bitmap_weight(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
 	switch (weight) {
@@ -206,12 +213,119 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 		rtw89_config_default_chandef(rtwdev);
 		fallthrough;
 	case 1:
+		last = RTW89_SUB_ENTITY_0;
 		mode = RTW89_ENTITY_MODE_SCC;
 		break;
+	case 2:
+		last = RTW89_SUB_ENTITY_1;
+		mode = rtw89_get_entity_mode(rtwdev);
+		if (mode == RTW89_ENTITY_MODE_MCC)
+			break;
+
+		mode = RTW89_ENTITY_MODE_MCC_PREPARE;
+		break;
+	}
+
+	for (idx = 0; idx <= last; idx++) {
+		chandef = rtw89_chandef_get(rtwdev, idx);
+		rtw89_get_channel_params(chandef, &chan);
+		if (chan.channel == 0) {
+			WARN(1, "Invalid channel on chanctx %d\n", idx);
+			return RTW89_ENTITY_MODE_INVALID;
+		}
+
+		rtw89_assign_entity_chan(rtwdev, idx, &chan);
 	}
 
 	rtw89_set_entity_mode(rtwdev, mode);
 	return mode;
+}
+
+static void rtw89_chanctx_notify(struct rtw89_dev *rtwdev,
+				 enum rtw89_chanctx_state state)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_chanctx_listener *listener = chip->chanctx_listener;
+	int i;
+
+	if (!listener)
+		return;
+
+	for (i = 0; i < NUM_OF_RTW89_CHANCTX_CALLBACKS; i++) {
+		if (!listener->callbacks[i])
+			continue;
+
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "chanctx notify listener: cb %d, state %d\n",
+			    i, state);
+
+		listener->callbacks[i](rtwdev, state);
+	}
+}
+
+static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->scanning)
+		rtw89_hw_scan_abort(rtwdev, rtwdev->scan_info.scanning_vif);
+
+	rtw89_leave_lps(rtwdev);
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC start\n");
+	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_START);
+	return 0;
+}
+
+static void rtw89_mcc_stop(struct rtw89_dev *rtwdev)
+{
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC stop\n");
+	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_STOP);
+}
+
+void rtw89_chanctx_work(struct work_struct *work)
+{
+	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
+						chanctx_work.work);
+	enum rtw89_entity_mode mode;
+	int ret;
+
+	mutex_lock(&rtwdev->mutex);
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	switch (mode) {
+	case RTW89_ENTITY_MODE_MCC_PREPARE:
+		rtw89_set_entity_mode(rtwdev, RTW89_ENTITY_MODE_MCC);
+		rtw89_set_channel(rtwdev);
+
+		ret = rtw89_mcc_start(rtwdev);
+		if (ret)
+			rtw89_warn(rtwdev, "failed to start MCC: %d\n", ret);
+		break;
+	default:
+		break;
+	}
+
+	mutex_unlock(&rtwdev->mutex);
+}
+
+void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev)
+{
+	enum rtw89_entity_mode mode;
+	u32 delay;
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	switch (mode) {
+	default:
+		return;
+	case RTW89_ENTITY_MODE_MCC_PREPARE:
+		delay = ieee80211_tu_to_usec(RTW89_CHANCTX_TIME_MCC_PREPARE);
+		break;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "queue chanctx work for mode %d with delay %d us\n",
+		    mode, delay);
+	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->chanctx_work,
+				     usecs_to_jiffies(delay));
 }
 
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
@@ -238,6 +352,7 @@ void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
+	enum rtw89_entity_mode mode;
 	struct rtw89_vif *rtwvif;
 	u8 drop, roll;
 
@@ -267,6 +382,15 @@ void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
 	drop = roll;
 
 out:
+	mode = rtw89_get_entity_mode(rtwdev);
+	switch (mode) {
+	case RTW89_ENTITY_MODE_MCC:
+		rtw89_mcc_stop(rtwdev);
+		break;
+	default:
+		break;
+	}
+
 	clear_bit(drop, hal->entity_map);
 	rtw89_set_channel(rtwdev);
 }

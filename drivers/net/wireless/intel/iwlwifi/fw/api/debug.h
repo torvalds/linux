@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -29,6 +29,11 @@ enum iwl_debug_cmds {
 	 * &struct iwl_dbg_host_event_cfg_cmd
 	 */
 	HOST_EVENT_CFG = 0x3,
+	/**
+	 * @INVALID_WR_PTR_CMD: invalid write pointer, set in the TFD
+	 *	when it's not in use
+	 */
+	INVALID_WR_PTR_CMD = 0x6,
 	/**
 	 * @DBGC_SUSPEND_RESUME:
 	 * DBGC suspend/resume commad. Uses a single dword as data:
@@ -377,7 +382,7 @@ struct iwl_buf_alloc_cmd {
 #define DRAM_INFO_SECOND_MAGIC_WORD 0x89ABCDEF
 
 /**
- * struct iwL_dram_info - DRAM fragments allocation struct
+ * struct iwl_dram_info - DRAM fragments allocation struct
  *
  * Driver will fill in the first 1K(+) of the pointed DRAM fragment
  *

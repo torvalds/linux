@@ -96,21 +96,16 @@ static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 }
 
 static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
-			     size_t count, loff_t *ppos)
+				size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	unsigned long mask;
-	char buf[32];
-	ssize_t len;
+	ssize_t ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &mask))
-		return -EINVAL;
+	ret = kstrtoul_from_user(user_buf, count, 0, &mask);
+	if (ret)
+		return ret;
 
 	common->debug_mask = mask;
 	return count;
@@ -191,16 +186,11 @@ static ssize_t write_file_ani(struct file *file,
 	struct ath_softc *sc = file->private_data;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	unsigned long ani;
-	char buf[32];
-	ssize_t len;
+	ssize_t ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &ani))
-		return -EINVAL;
+	ret = kstrtoul_from_user(user_buf, count, 0, &ani);
+	if (ret)
+		return ret;
 
 	if (ani > 1)
 		return -EINVAL;
@@ -248,19 +238,14 @@ static ssize_t write_file_bt_ant_diversity(struct file *file,
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath9k_hw_capabilities *pCap = &sc->sc_ah->caps;
 	unsigned long bt_ant_diversity;
-	char buf[32];
-	ssize_t len;
+	ssize_t ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
+	ret = kstrtoul_from_user(user_buf, count, 0, &bt_ant_diversity);
+	if (ret)
+		return ret;
 
 	if (!(pCap->hw_caps & ATH9K_HW_CAP_BT_ANT_DIV))
 		goto exit;
-
-	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &bt_ant_diversity))
-		return -EINVAL;
 
 	common->bt_ant_diversity = !!bt_ant_diversity;
 	ath9k_ps_wakeup(sc);
@@ -792,16 +777,11 @@ static ssize_t write_file_reset(struct file *file,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	unsigned long val;
-	char buf[32];
-	ssize_t len;
+	ssize_t ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &val))
-		return -EINVAL;
+	ret = kstrtoul_from_user(user_buf, count, 0, &val);
+	if (ret)
+		return ret;
 
 	if (val != 1)
 		return -EINVAL;
@@ -886,16 +866,11 @@ static ssize_t write_file_regidx(struct file *file, const char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 	unsigned long regidx;
-	char buf[32];
-	ssize_t len;
+	ssize_t ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &regidx))
-		return -EINVAL;
+	ret = kstrtoul_from_user(user_buf, count, 0, &regidx);
+	if (ret)
+		return ret;
 
 	sc->debug.regidx = regidx;
 	return count;
@@ -931,16 +906,11 @@ static ssize_t write_file_regval(struct file *file, const char __user *user_buf,
 	struct ath_softc *sc = file->private_data;
 	struct ath_hw *ah = sc->sc_ah;
 	unsigned long regval;
-	char buf[32];
-	ssize_t len;
+	ssize_t ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &regval))
-		return -EINVAL;
+	ret = kstrtoul_from_user(user_buf, count, 0, &regval);
+	if (ret)
+		return ret;
 
 	ath9k_ps_wakeup(sc);
 	REG_WRITE_D(ah, sc->debug.regidx, regval);
@@ -1128,16 +1098,11 @@ static ssize_t write_file_wow(struct file *file, const char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 	unsigned long val;
-	char buf[32];
-	ssize_t len;
+	ssize_t ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &val))
-		return -EINVAL;
+	ret = kstrtoul_from_user(user_buf, count, 0, &val);
+	if (ret)
+		return ret;
 
 	if (val != 1)
 		return -EINVAL;
@@ -1191,17 +1156,12 @@ static ssize_t write_file_tpc(struct file *file, const char __user *user_buf,
 	struct ath_softc *sc = file->private_data;
 	struct ath_hw *ah = sc->sc_ah;
 	unsigned long val;
-	char buf[32];
-	ssize_t len;
+	ssize_t ret;
 	bool tpc_enabled;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtoul(buf, 0, &val))
-		return -EINVAL;
+	ret = kstrtoul_from_user(user_buf, count, 0, &val);
+	if (ret)
+		return ret;
 
 	if (val > 1)
 		return -EINVAL;
@@ -1420,7 +1380,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 
 	sc->debug.debugfs_phy = debugfs_create_dir("ath9k",
 						   sc->hw->wiphy->debugfsdir);
-	if (!sc->debug.debugfs_phy)
+	if (IS_ERR(sc->debug.debugfs_phy))
 		return -ENOMEM;
 
 #ifdef CONFIG_ATH_DEBUG

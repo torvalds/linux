@@ -14,6 +14,8 @@
 
 struct rtw89_dev;
 struct rtw89_pci_info;
+struct rtw89_mac_gen_def;
+struct rtw89_phy_gen_def;
 
 extern const struct ieee80211_ops rtw89_ops;
 
@@ -789,6 +791,7 @@ enum rtw89_phy_idx {
 
 enum rtw89_sub_entity_idx {
 	RTW89_SUB_ENTITY_0 = 0,
+	RTW89_SUB_ENTITY_1 = 1,
 
 	NUM_OF_RTW89_SUB_ENTITY,
 	RTW89_SUB_ENTITY_IDLE = NUM_OF_RTW89_SUB_ENTITY,
@@ -900,6 +903,7 @@ struct rtw89_chan {
 struct rtw89_chan_rcd {
 	u8 prev_primary_channel;
 	enum rtw89_band prev_band_type;
+	bool band_changed;
 };
 
 struct rtw89_channel_help_params {
@@ -2656,6 +2660,17 @@ struct rtw89_btc {
 	bool lps;
 };
 
+enum rtw89_btc_hmsg {
+	RTW89_BTC_HMSG_TMR_EN = 0x0,
+	RTW89_BTC_HMSG_BT_REG_READBACK = 0x1,
+	RTW89_BTC_HMSG_SET_BT_REQ_SLOT = 0x2,
+	RTW89_BTC_HMSG_FW_EV = 0x3,
+	RTW89_BTC_HMSG_BT_LINK_CHG = 0x4,
+	RTW89_BTC_HMSG_SET_BT_REQ_STBC = 0x5,
+
+	NUM_OF_RTW89_BTC_HMSG,
+};
+
 enum rtw89_ra_mode {
 	RTW89_RA_MODE_CCK = BIT(0),
 	RTW89_RA_MODE_OFDM = BIT(1),
@@ -2885,6 +2900,32 @@ struct rtw89_roc {
 
 #define RTW89_P2P_MAX_NOA_NUM 2
 
+struct rtw89_p2p_ie_head {
+	u8 eid;
+	u8 ie_len;
+	u8 oui[3];
+	u8 oui_type;
+} __packed;
+
+struct rtw89_noa_attr_head {
+	u8 attr_type;
+	__le16 attr_len;
+	u8 index;
+	u8 oppps_ctwindow;
+} __packed;
+
+struct rtw89_p2p_noa_ie {
+	struct rtw89_p2p_ie_head p2p_head;
+	struct rtw89_noa_attr_head noa_head;
+	struct ieee80211_p2p_noa_desc noa_desc[RTW89_P2P_MAX_NOA_NUM];
+} __packed;
+
+struct rtw89_p2p_noa_setter {
+	struct rtw89_p2p_noa_ie ie;
+	u8 noa_count;
+	u8 noa_index;
+};
+
 struct rtw89_vif {
 	struct list_head list;
 	struct rtw89_dev *rtwdev;
@@ -2927,6 +2968,7 @@ struct rtw89_vif {
 	struct cfg80211_scan_request *scan_req;
 	struct ieee80211_scan_ies *scan_ies;
 	struct list_head general_pkt_list;
+	struct rtw89_p2p_noa_setter p2p_noa;
 };
 
 enum rtw89_lv1_rcvy_step {
@@ -3339,6 +3381,10 @@ struct rtw89_dig_regs {
 	u32 seg0_pd_reg;
 	u32 pd_lower_bound_mask;
 	u32 pd_spatial_reuse_en;
+	u32 bmode_pd_reg;
+	u32 bmode_cca_rssi_limit_en;
+	u32 bmode_pd_lower_bound_reg;
+	u32 bmode_rssi_nocca_low_th_mask;
 	struct rtw89_reg_def p0_lna_init;
 	struct rtw89_reg_def p1_lna_init;
 	struct rtw89_reg_def p0_tia_init;
@@ -3375,10 +3421,28 @@ struct rtw89_antdiv_info {
 	bool get_stats;
 };
 
+enum rtw89_chanctx_state {
+	RTW89_CHANCTX_STATE_MCC_START,
+	RTW89_CHANCTX_STATE_MCC_STOP,
+};
+
+enum rtw89_chanctx_callbacks {
+	RTW89_CHANCTX_CALLBACK_PLACEHOLDER,
+
+	NUM_OF_RTW89_CHANCTX_CALLBACKS,
+};
+
+struct rtw89_chanctx_listener {
+	void (*callbacks[NUM_OF_RTW89_CHANCTX_CALLBACKS])
+		(struct rtw89_dev *rtwdev, enum rtw89_chanctx_state state);
+};
+
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	enum rtw89_chip_gen chip_gen;
 	const struct rtw89_chip_ops *ops;
+	const struct rtw89_mac_gen_def *mac_def;
+	const struct rtw89_phy_gen_def *phy_def;
 	const char *fw_basename;
 	u8 fw_format_max;
 	bool try_ce_fw;
@@ -3434,6 +3498,7 @@ struct rtw89_chip_info {
 	/* NULL if no rfe-specific, or a null-terminated array by rfe_parms */
 	const struct rtw89_rfe_parms_conf *rfe_parms_conf;
 	const struct rtw89_rfe_parms *dflt_parms;
+	const struct rtw89_chanctx_listener *chanctx_listener;
 
 	u8 txpwr_factor_rf;
 	u8 txpwr_factor_mac;
@@ -3690,12 +3755,34 @@ struct rtw89_sar_info {
 	};
 };
 
+enum rtw89_tas_state {
+	RTW89_TAS_STATE_DPR_OFF,
+	RTW89_TAS_STATE_DPR_ON,
+	RTW89_TAS_STATE_DPR_FORBID,
+};
+
+#define RTW89_TAS_MAX_WINDOW 50
+struct rtw89_tas_info {
+	s16 txpwr_history[RTW89_TAS_MAX_WINDOW];
+	s32 total_txpwr;
+	u8 cur_idx;
+	s8 dpr_gap;
+	s8 delta;
+	enum rtw89_tas_state state;
+	bool enable;
+};
+
 struct rtw89_chanctx_cfg {
 	enum rtw89_sub_entity_idx idx;
 };
 
 enum rtw89_entity_mode {
 	RTW89_ENTITY_MODE_SCC,
+	RTW89_ENTITY_MODE_MCC_PREPARE,
+	RTW89_ENTITY_MODE_MCC,
+
+	NUM_OF_RTW89_ENTITY_MODE,
+	RTW89_ENTITY_MODE_INVALID = NUM_OF_RTW89_ENTITY_MODE,
 };
 
 struct rtw89_sub_entity {
@@ -4352,6 +4439,7 @@ struct rtw89_dev {
 	struct rtw89_antdiv_info antdiv;
 
 	struct delayed_work track_work;
+	struct delayed_work chanctx_work;
 	struct delayed_work coex_act1_work;
 	struct delayed_work coex_bt_devinfo_work;
 	struct delayed_work coex_rfk_chk_work;
@@ -4365,6 +4453,7 @@ struct rtw89_dev {
 
 	struct rtw89_regulatory_info regulatory;
 	struct rtw89_sar_info sar;
+	struct rtw89_tas_info tas;
 
 	struct rtw89_btc btc;
 	enum rtw89_ps_mode ps_mode;
@@ -4900,6 +4989,18 @@ const struct rtw89_chan_rcd *rtw89_chan_rcd_get(struct rtw89_dev *rtwdev,
 	return &hal->sub[idx].rcd;
 }
 
+static inline
+const struct rtw89_chan *rtw89_scan_chan_get(struct rtw89_dev *rtwdev)
+{
+	struct ieee80211_vif *vif = rtwdev->scan_info.scanning_vif;
+	struct rtw89_vif *rtwvif = vif_to_rtwvif_safe(vif);
+
+	if (rtwvif)
+		return rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
+	else
+		return rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+}
+
 static inline void rtw89_chip_fem_setup(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
@@ -5273,6 +5374,8 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 void rtw89_free_ieee80211_hw(struct rtw89_dev *rtwdev);
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev);
 void rtw89_get_default_chandef(struct cfg80211_chan_def *chandef);
+void rtw89_get_channel_params(const struct cfg80211_chan_def *chandef,
+			      struct rtw89_chan *chan);
 void rtw89_set_channel(struct rtw89_dev *rtwdev);
 void rtw89_get_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		       struct rtw89_chan *chan);
@@ -5307,5 +5410,6 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 			      struct ieee80211_vif *vif, bool hw_scan);
 void rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif *rtwvif, bool active);
+void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event);
 
 #endif
