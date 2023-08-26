@@ -918,7 +918,8 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);
 
-	if (!cif_dev->is_thunderboot)
+	if (!cif_dev->is_thunderboot ||
+	    cif_dev->is_rdbk_to_online == false)
 		return 0;
 
 	if (dbufs->runtime_us && cif_dev->early_line == 0) {

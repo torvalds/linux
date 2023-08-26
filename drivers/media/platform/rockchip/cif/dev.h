@@ -476,6 +476,18 @@ struct rkcif_sync_cfg {
 	u32 group;
 };
 
+enum rkcif_toisp_buf_update_state {
+	RKCIF_TOISP_BUF_ROTATE,
+	RKCIF_TOISP_BUF_THESAME,
+	RKCIF_TOISP_BUF_LOSS,
+};
+
+struct rkcif_toisp_buf_state {
+	enum rkcif_toisp_buf_update_state state;
+	int check_cnt;
+	bool is_early_update;
+};
+
 /*
  * struct rkcif_stream - Stream states TODO
  *
@@ -547,6 +559,7 @@ struct rkcif_stream {
 	int				new_fource_idx;
 	atomic_t			buf_cnt;
 	struct completion		stop_complete;
+	struct rkcif_toisp_buf_state	toisp_buf_state;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
