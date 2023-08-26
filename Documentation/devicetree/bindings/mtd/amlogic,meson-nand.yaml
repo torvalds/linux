@@ -67,8 +67,8 @@ patternProperties:
     unevaluatedProperties: false
 
     dependencies:
-      nand-ecc-strength: ['nand-ecc-step-size']
-      nand-ecc-step-size: ['nand-ecc-strength']
+      nand-ecc-strength: [nand-ecc-step-size]
+      nand-ecc-step-size: [nand-ecc-strength]
 
 
 required:
