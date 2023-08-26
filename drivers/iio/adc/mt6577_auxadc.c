@@ -265,22 +265,18 @@ static int mt6577_auxadc_probe(struct platform_device *pdev)
 	indio_dev->num_channels = ARRAY_SIZE(mt6577_auxadc_iio_channels);
 
 	adc_dev->reg_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(adc_dev->reg_base)) {
-		dev_err(&pdev->dev, "failed to get auxadc base address\n");
-		return PTR_ERR(adc_dev->reg_base);
-	}
+	if (IS_ERR(adc_dev->reg_base))
+		return dev_err_probe(&pdev->dev, PTR_ERR(adc_dev->reg_base),
+				     "failed to get auxadc base address\n");
 
 	adc_dev->adc_clk = devm_clk_get_enabled(&pdev->dev, "main");
-	if (IS_ERR(adc_dev->adc_clk)) {
-		dev_err(&pdev->dev, "failed to enable auxadc clock\n");
-		return PTR_ERR(adc_dev->adc_clk);
-	}
+	if (IS_ERR(adc_dev->adc_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(adc_dev->adc_clk),
+				     "failed to enable auxadc clock\n");
 
 	adc_clk_rate = clk_get_rate(adc_dev->adc_clk);
-	if (!adc_clk_rate) {
-		dev_err(&pdev->dev, "null clock rate\n");
-		return -EINVAL;
-	}
+	if (!adc_clk_rate)
+		return dev_err_probe(&pdev->dev, -EINVAL, "null clock rate\n");
 
 	adc_dev->dev_comp = device_get_match_data(&pdev->dev);
 
