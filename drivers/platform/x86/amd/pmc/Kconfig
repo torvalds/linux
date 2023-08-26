@@ -6,6 +6,7 @@
 config AMD_PMC
 	tristate "AMD SoC PMC driver"
 	depends on ACPI && PCI && RTC_CLASS && AMD_NB
+	depends on SUSPEND
 	select SERIO
 	help
 	  The driver provides support for AMD Power Management Controller
