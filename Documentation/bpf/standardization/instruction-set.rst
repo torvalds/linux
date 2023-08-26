@@ -373,7 +373,7 @@ BPF_JNE   0x5    any  PC += offset if dst != src
 BPF_JSGT  0x6    any  PC += offset if dst > src                    signed
 BPF_JSGE  0x7    any  PC += offset if dst >= src                   signed
 BPF_CALL  0x8    0x0  call helper function by address              see `Helper functions`_
-BPF_CALL  0x8    0x1  call PC += offset                            see `Program-local functions`_
+BPF_CALL  0x8    0x1  call PC += imm                               see `Program-local functions`_
 BPF_CALL  0x8    0x2  call helper function by BTF ID               see `Helper functions`_
 BPF_EXIT  0x9    0x0  return                                       BPF_JMP only
 BPF_JLT   0xa    any  PC += offset if dst < src                    unsigned
@@ -424,8 +424,8 @@ Program-local functions
 ~~~~~~~~~~~~~~~~~~~~~~~
 Program-local functions are functions exposed by the same BPF program as the
 caller, and are referenced by offset from the call instruction, similar to
-``BPF_JA``.  A ``BPF_EXIT`` within the program-local function will return to
-the caller.
+``BPF_JA``.  The offset is encoded in the imm field of the call instruction.
+A ``BPF_EXIT`` within the program-local function will return to the caller.
 
 Load and store instructions
 ===========================
