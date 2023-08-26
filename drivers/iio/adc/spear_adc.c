@@ -274,10 +274,9 @@ static int spear_adc_probe(struct platform_device *pdev)
 	int irq;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(struct spear_adc_state));
-	if (!indio_dev) {
-		dev_err(dev, "failed allocating iio device\n");
-		return -ENOMEM;
-	}
+	if (!indio_dev)
+		return dev_err_probe(dev, -ENOMEM,
+				     "failed allocating iio device\n");
 
 	st = iio_priv(indio_dev);
 
@@ -298,10 +297,9 @@ static int spear_adc_probe(struct platform_device *pdev)
 		(struct adc_regs_spear3xx __iomem *)st->adc_base_spear6xx;
 
 	st->clk = devm_clk_get_enabled(dev, NULL);
-	if (IS_ERR(st->clk)) {
-		dev_err(dev, "failed enabling clock\n");
-		return PTR_ERR(st->clk);
-	}
+	if (IS_ERR(st->clk))
+		return dev_err_probe(dev, PTR_ERR(st->clk),
+				     "failed enabling clock\n");
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -309,16 +307,13 @@ static int spear_adc_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, irq, spear_adc_isr, 0, SPEAR_ADC_MOD_NAME,
 			       st);
-	if (ret < 0) {
-		dev_err(dev, "failed requesting interrupt\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed requesting interrupt\n");
 
 	if (of_property_read_u32(np, "sampling-frequency",
-				 &st->sampling_freq)) {
-		dev_err(dev, "sampling-frequency missing in DT\n");
-		return -EINVAL;
-	}
+				 &st->sampling_freq))
+		return dev_err_probe(dev, -EINVAL,
+				     "sampling-frequency missing in DT\n");
 
 	/*
 	 * Optional avg_samples defaults to 0, resulting in single data
