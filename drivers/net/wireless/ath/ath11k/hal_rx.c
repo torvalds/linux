@@ -814,7 +814,7 @@ ath11k_hal_rx_handle_ofdma_info(void *rx_tlv,
 
 	rx_user_status->ul_ofdma_user_v0_word0 = __le32_to_cpu(ppdu_end_user->info6);
 
-	rx_user_status->ul_ofdma_user_v0_word1 = __le32_to_cpu(ppdu_end_user->info9);
+	rx_user_status->ul_ofdma_user_v0_word1 = __le32_to_cpu(ppdu_end_user->info10);
 }
 
 static inline void
@@ -826,10 +826,10 @@ ath11k_hal_rx_populate_byte_count(void *rx_tlv, void *ppduinfo,
 
 	rx_user_status->mpdu_ok_byte_count =
 		FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO8_MPDU_OK_BYTE_COUNT,
-			  __le32_to_cpu(ppdu_end_user->info7));
+			  __le32_to_cpu(ppdu_end_user->info8));
 	rx_user_status->mpdu_err_byte_count =
 		FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO9_MPDU_ERR_BYTE_COUNT,
-			  __le32_to_cpu(ppdu_end_user->info8));
+			  __le32_to_cpu(ppdu_end_user->info9));
 }
 
 static inline void
@@ -903,8 +903,8 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 			FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO2_AST_INDEX,
 				  __le32_to_cpu(eu_stats->info2));
 		ppdu_info->tid =
-			ffs(FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO6_TID_BITMAP,
-				      __le32_to_cpu(eu_stats->info6))) - 1;
+			ffs(FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO7_TID_BITMAP,
+				      __le32_to_cpu(eu_stats->info7))) - 1;
 		ppdu_info->tcp_msdu_count =
 			FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO4_TCP_MSDU_CNT,
 				  __le32_to_cpu(eu_stats->info4));
