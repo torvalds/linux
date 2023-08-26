@@ -10,8 +10,6 @@
  */
 
 
-#define EXT4FS_DEBUG
-
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
