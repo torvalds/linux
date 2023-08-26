@@ -1119,7 +1119,7 @@ static const struct phylink_mac_ops stmmac_phylink_mac_ops = {
  */
 static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 {
-	int interface = priv->plat->interface;
+	int interface = priv->plat->mac_interface;
 
 	if (priv->dma_cap.pcs) {
 		if ((interface == PHY_INTERFACE_MODE_RGMII) ||
@@ -1214,7 +1214,9 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 		priv->phylink_config.ovr_an_inband =
 			mdio_bus_data->xpcs_an_inband;
 
-	/* Set the platform/firmware specified interface mode */
+	/* Set the platform/firmware specified interface mode. Note, phylink
+	 * deals with the PHY interface mode, not the MAC interface mode.
+	 */
 	__set_bit(mode, priv->phylink_config.supported_interfaces);
 
 	/* If we have an xpcs, it defines which PHY interfaces are supported. */
