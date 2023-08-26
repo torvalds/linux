@@ -1588,7 +1588,6 @@ exit_journal:
 		int meta_bg = ext4_has_feature_meta_bg(sb);
 		sector_t padding_blocks = meta_bg ? 0 : sbi->s_sbh->b_blocknr -
 					 ext4_group_first_block_no(sb, 0);
-		sector_t old_gdb = 0;
 
 		update_backups(sb, ext4_group_first_block_no(sb, 0),
 			       (char *)es, sizeof(struct ext4_super_block), 0);
@@ -1597,11 +1596,8 @@ exit_journal:
 
 			gdb_bh = sbi_array_rcu_deref(sbi, s_group_desc,
 						     gdb_num);
-			if (old_gdb == gdb_bh->b_blocknr)
-				continue;
 			update_backups(sb, gdb_bh->b_blocknr - padding_blocks,
 				       gdb_bh->b_data, gdb_bh->b_size, meta_bg);
-			old_gdb = gdb_bh->b_blocknr;
 		}
 	}
 exit:
