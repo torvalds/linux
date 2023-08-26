@@ -104,18 +104,6 @@ int ext4_resize_end(struct super_block *sb, bool update_backups)
 	return 0;
 }
 
-static ext4_group_t ext4_meta_bg_first_group(struct super_block *sb,
-					     ext4_group_t group) {
-	return (group >> EXT4_DESC_PER_BLOCK_BITS(sb)) <<
-	       EXT4_DESC_PER_BLOCK_BITS(sb);
-}
-
-static ext4_fsblk_t ext4_meta_bg_first_block_no(struct super_block *sb,
-					     ext4_group_t group) {
-	group = ext4_meta_bg_first_group(sb, group);
-	return ext4_group_first_block_no(sb, group);
-}
-
 static ext4_grpblk_t ext4_group_overhead_blocks(struct super_block *sb,
 						ext4_group_t group) {
 	ext4_grpblk_t overhead;
@@ -944,7 +932,13 @@ errout:
 }
 
 /*
- * add_new_gdb_meta_bg is the sister of add_new_gdb.
+ * If there is no available space in the existing block group descriptors for
+ * the new block group and there are no reserved block group descriptors, then
+ * the meta_bg feature will get enabled, and es->s_first_meta_bg will get set
+ * to the first block group that is managed using meta_bg and s_first_meta_bg
+ * must be a multiple of EXT4_DESC_PER_BLOCK(sb).
+ * This function will be called when first group of meta_bg is added to bring
+ * new group descriptors block of new added meta_bg.
  */
 static int add_new_gdb_meta_bg(struct super_block *sb,
 			       handle_t *handle, ext4_group_t group) {
@@ -954,8 +948,8 @@ static int add_new_gdb_meta_bg(struct super_block *sb,
 	unsigned long gdb_num = group / EXT4_DESC_PER_BLOCK(sb);
 	int err;
 
-	gdblock = ext4_meta_bg_first_block_no(sb, group) +
-		   ext4_bg_has_super(sb, group);
+	gdblock = ext4_group_first_block_no(sb, group) +
+		  ext4_bg_has_super(sb, group);
 	gdb_bh = ext4_sb_bread(sb, gdblock, 0);
 	if (IS_ERR(gdb_bh))
 		return PTR_ERR(gdb_bh);
