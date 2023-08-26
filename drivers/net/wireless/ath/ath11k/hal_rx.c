@@ -814,7 +814,7 @@ ath11k_hal_rx_handle_ofdma_info(void *rx_tlv,
 
 	rx_user_status->ul_ofdma_user_v0_word0 = __le32_to_cpu(ppdu_end_user->info6);
 
-	rx_user_status->ul_ofdma_user_v0_word1 = __le32_to_cpu(ppdu_end_user->rsvd2[10]);
+	rx_user_status->ul_ofdma_user_v0_word1 = __le32_to_cpu(ppdu_end_user->info9);
 }
 
 static inline void
@@ -825,11 +825,11 @@ ath11k_hal_rx_populate_byte_count(void *rx_tlv, void *ppduinfo,
 		(struct hal_rx_ppdu_end_user_stats *)rx_tlv;
 
 	rx_user_status->mpdu_ok_byte_count =
-		FIELD_GET(HAL_RX_PPDU_END_USER_STATS_RSVD2_6_MPDU_OK_BYTE_COUNT,
-			  __le32_to_cpu(ppdu_end_user->rsvd2[6]));
+		FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO8_MPDU_OK_BYTE_COUNT,
+			  __le32_to_cpu(ppdu_end_user->info7));
 	rx_user_status->mpdu_err_byte_count =
-		FIELD_GET(HAL_RX_PPDU_END_USER_STATS_RSVD2_8_MPDU_ERR_BYTE_COUNT,
-			  __le32_to_cpu(ppdu_end_user->rsvd2[8]));
+		FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO9_MPDU_ERR_BYTE_COUNT,
+			  __le32_to_cpu(ppdu_end_user->info8));
 }
 
 static inline void
