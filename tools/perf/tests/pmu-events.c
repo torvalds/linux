@@ -44,7 +44,7 @@ struct perf_pmu_test_pmu {
 
 static const struct perf_pmu_test_event bp_l1_btb_correct = {
 	.event = {
-		.pmu = "cpu",
+		.pmu = "default_core",
 		.name = "bp_l1_btb_correct",
 		.event = "event=0x8a",
 		.desc = "L1 BTB Correction",
@@ -56,7 +56,7 @@ static const struct perf_pmu_test_event bp_l1_btb_correct = {
 
 static const struct perf_pmu_test_event bp_l2_btb_correct = {
 	.event = {
-		.pmu = "cpu",
+		.pmu = "default_core",
 		.name = "bp_l2_btb_correct",
 		.event = "event=0x8b",
 		.desc = "L2 BTB Correction",
@@ -68,7 +68,7 @@ static const struct perf_pmu_test_event bp_l2_btb_correct = {
 
 static const struct perf_pmu_test_event segment_reg_loads_any = {
 	.event = {
-		.pmu = "cpu",
+		.pmu = "default_core",
 		.name = "segment_reg_loads.any",
 		.event = "event=0x6,period=200000,umask=0x80",
 		.desc = "Number of segment register loads",
@@ -80,7 +80,7 @@ static const struct perf_pmu_test_event segment_reg_loads_any = {
 
 static const struct perf_pmu_test_event dispatch_blocked_any = {
 	.event = {
-		.pmu = "cpu",
+		.pmu = "default_core",
 		.name = "dispatch_blocked.any",
 		.event = "event=0x9,period=200000,umask=0x20",
 		.desc = "Memory cluster signals to block micro-op dispatch for any reason",
@@ -92,7 +92,7 @@ static const struct perf_pmu_test_event dispatch_blocked_any = {
 
 static const struct perf_pmu_test_event eist_trans = {
 	.event = {
-		.pmu = "cpu",
+		.pmu = "default_core",
 		.name = "eist_trans",
 		.event = "event=0x3a,period=200000,umask=0x0",
 		.desc = "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions",
@@ -104,7 +104,7 @@ static const struct perf_pmu_test_event eist_trans = {
 
 static const struct perf_pmu_test_event l3_cache_rd = {
 	.event = {
-		.pmu = "cpu",
+		.pmu = "default_core",
 		.name = "l3_cache_rd",
 		.event = "event=0x40",
 		.desc = "L3 cache access, read",
@@ -391,8 +391,8 @@ static int compare_alias_to_test_event(struct pmu_event_info *alias,
 		return -1;
 	}
 
-
-	if (!is_same(alias->pmu_name, test_event->event.pmu)) {
+	if (!is_same(alias->pmu_name, test_event->event.pmu) &&
+	    !is_same(alias->pmu_name, "default_core")) {
 		pr_debug("testing aliases PMU %s: mismatched pmu_name, %s vs %s\n",
 			  pmu_name, alias->pmu_name, test_event->event.pmu);
 		return -1;
@@ -409,7 +409,7 @@ static int test__pmu_event_table_core_callback(const struct pmu_event *pe,
 	struct perf_pmu_test_event const **test_event_table;
 	bool found = false;
 
-	if (strcmp(pe->pmu, "cpu"))
+	if (strcmp(pe->pmu, "default_core"))
 		test_event_table = &uncore_events[0];
 	else
 		test_event_table = &core_events[0];
@@ -543,6 +543,7 @@ static int __test_core_pmu_event_aliases(const char *pmu_name, int *count)
 	INIT_LIST_HEAD(&pmu->caps);
 	INIT_LIST_HEAD(&pmu->list);
 	pmu->name = strdup(pmu_name);
+	pmu->is_core = true;
 
 	pmu->events_table = table;
 	pmu_add_cpu_aliases_table(pmu, table);

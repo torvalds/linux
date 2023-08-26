@@ -1747,7 +1747,12 @@ int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 bool pmu__name_match(const struct perf_pmu *pmu, const char *pmu_name)
 {
 	return !strcmp(pmu->name, pmu_name) ||
-		(pmu->is_uncore && pmu_uncore_alias_match(pmu_name, pmu->name));
+		(pmu->is_uncore && pmu_uncore_alias_match(pmu_name, pmu->name)) ||
+		/*
+		 * jevents and tests use default_core as a marker for any core
+		 * PMU as the PMU name varies across architectures.
+		 */
+	        (pmu->is_core && !strcmp(pmu_name, "default_core"));
 }
 
 bool perf_pmu__is_software(const struct perf_pmu *pmu)
