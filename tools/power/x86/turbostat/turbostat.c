@@ -4809,62 +4809,20 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 	case INTEL_FAM6_BROADWELL:	/* BDW */
 	case INTEL_FAM6_BROADWELL_G:	/* BDW */
 		do_rapl = RAPL_PKG | RAPL_CORE_ALL | RAPL_GFX | RAPL_PKG_POWER_INFO;
-		if (rapl_joules) {
-			BIC_PRESENT(BIC_Pkg_J);
-			BIC_PRESENT(BIC_Cor_J);
-			BIC_PRESENT(BIC_GFX_J);
-		} else {
-			BIC_PRESENT(BIC_PkgWatt);
-			BIC_PRESENT(BIC_CorWatt);
-			BIC_PRESENT(BIC_GFXWatt);
-		}
 		break;
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
 		do_rapl = RAPL_PKG | RAPL_PKG_POWER_INFO;
-		if (rapl_joules)
-			BIC_PRESENT(BIC_Pkg_J);
-		else
-			BIC_PRESENT(BIC_PkgWatt);
 		break;
 	case INTEL_FAM6_ATOM_TREMONT:	/* EHL */
 		do_rapl = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_GFX;
-		if (rapl_joules) {
-			BIC_PRESENT(BIC_Pkg_J);
-			BIC_PRESENT(BIC_Cor_J);
-			BIC_PRESENT(BIC_RAM_J);
-			BIC_PRESENT(BIC_GFX_J);
-		} else {
-			BIC_PRESENT(BIC_PkgWatt);
-			BIC_PRESENT(BIC_CorWatt);
-			BIC_PRESENT(BIC_RAMWatt);
-			BIC_PRESENT(BIC_GFXWatt);
-		}
 		break;
 	case INTEL_FAM6_ATOM_TREMONT_D:	/* JVL */
 		do_rapl = RAPL_PKG_ALL;
-		BIC_PRESENT(BIC_PKG__);
-		if (rapl_joules)
-			BIC_PRESENT(BIC_Pkg_J);
-		else
-			BIC_PRESENT(BIC_PkgWatt);
 		break;
 	case INTEL_FAM6_SKYLAKE_L:	/* SKL */
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
 		do_rapl = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_GFX;
-		BIC_PRESENT(BIC_PKG__);
-		BIC_PRESENT(BIC_RAM__);
-		if (rapl_joules) {
-			BIC_PRESENT(BIC_Pkg_J);
-			BIC_PRESENT(BIC_Cor_J);
-			BIC_PRESENT(BIC_RAM_J);
-			BIC_PRESENT(BIC_GFX_J);
-		} else {
-			BIC_PRESENT(BIC_PkgWatt);
-			BIC_PRESENT(BIC_CorWatt);
-			BIC_PRESENT(BIC_RAMWatt);
-			BIC_PRESENT(BIC_GFXWatt);
-		}
 		break;
 	case INTEL_FAM6_HASWELL_X:	/* HSX */
 	case INTEL_FAM6_BROADWELL_X:	/* BDX */
@@ -4873,59 +4831,46 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 	case INTEL_FAM6_XEON_PHI_KNL:	/* KNL */
 		do_rapl = RAPL_PKG_ALL | RAPL_DRAM_ALL;
-		BIC_PRESENT(BIC_PKG__);
-		BIC_PRESENT(BIC_RAM__);
-		if (rapl_joules) {
-			BIC_PRESENT(BIC_Pkg_J);
-			BIC_PRESENT(BIC_RAM_J);
-		} else {
-			BIC_PRESENT(BIC_PkgWatt);
-			BIC_PRESENT(BIC_RAMWatt);
-		}
 		break;
 	case INTEL_FAM6_SANDYBRIDGE_X:
 	case INTEL_FAM6_IVYBRIDGE_X:
 		do_rapl = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM_ALL;
-		BIC_PRESENT(BIC_PKG__);
-		BIC_PRESENT(BIC_RAM__);
-		if (rapl_joules) {
-			BIC_PRESENT(BIC_Pkg_J);
-			BIC_PRESENT(BIC_Cor_J);
-			BIC_PRESENT(BIC_RAM_J);
-		} else {
-			BIC_PRESENT(BIC_PkgWatt);
-			BIC_PRESENT(BIC_CorWatt);
-			BIC_PRESENT(BIC_RAMWatt);
-		}
 		break;
 	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
 	case INTEL_FAM6_ATOM_SILVERMONT_D:	/* AVN */
 		do_rapl = RAPL_PKG | RAPL_CORE;
-		if (rapl_joules) {
-			BIC_PRESENT(BIC_Pkg_J);
-			BIC_PRESENT(BIC_Cor_J);
-		} else {
-			BIC_PRESENT(BIC_PkgWatt);
-			BIC_PRESENT(BIC_CorWatt);
-		}
 		break;
 	case INTEL_FAM6_ATOM_GOLDMONT_D:	/* DNV */
 		do_rapl = RAPL_PKG_ALL | RAPL_DRAM_ALL | RAPL_CORE_ENERGY_STATUS;
-		BIC_PRESENT(BIC_PKG__);
-		BIC_PRESENT(BIC_RAM__);
-		if (rapl_joules) {
-			BIC_PRESENT(BIC_Pkg_J);
-			BIC_PRESENT(BIC_Cor_J);
-			BIC_PRESENT(BIC_RAM_J);
-		} else {
-			BIC_PRESENT(BIC_PkgWatt);
-			BIC_PRESENT(BIC_CorWatt);
-			BIC_PRESENT(BIC_RAMWatt);
-		}
 		break;
 	default:
 		return;
 	}
+
+	if (rapl_joules) {
+		if (do_rapl & RAPL_PKG_ENERGY_STATUS)
+			BIC_PRESENT(BIC_Pkg_J);
+		if (do_rapl & RAPL_CORE_ENERGY_STATUS)
+			BIC_PRESENT(BIC_Cor_J);
+		if (do_rapl & RAPL_DRAM_ENERGY_STATUS)
+			BIC_PRESENT(BIC_RAM_J);
+		if (do_rapl & RAPL_GFX_ENERGY_STATUS)
+			BIC_PRESENT(BIC_GFX_J);
+	} else {
+		if (do_rapl & RAPL_PKG_ENERGY_STATUS)
+			BIC_PRESENT(BIC_PkgWatt);
+		if (do_rapl & RAPL_CORE_ENERGY_STATUS)
+			BIC_PRESENT(BIC_CorWatt);
+		if (do_rapl & RAPL_DRAM_ENERGY_STATUS)
+			BIC_PRESENT(BIC_RAMWatt);
+		if (do_rapl & RAPL_GFX_ENERGY_STATUS)
+			BIC_PRESENT(BIC_GFXWatt);
+	}
+
+	if (do_rapl & RAPL_PKG_PERF_STATUS)
+		BIC_PRESENT(BIC_PKG__);
+	if (do_rapl & RAPL_DRAM_PERF_STATUS)
+		BIC_PRESENT(BIC_RAM__);
 
 	/* units on package 0, verify later other packages match */
 	if (get_msr(base_cpu, MSR_RAPL_POWER_UNIT, &msr))
