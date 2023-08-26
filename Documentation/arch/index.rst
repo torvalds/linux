@@ -19,7 +19,7 @@ implementation.
    nios2/index
    openrisc/index
    parisc/index
-   ../powerpc/index
+   powerpc/index
    ../riscv/index
    s390/index
    sh/index

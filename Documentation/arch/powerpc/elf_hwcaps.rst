@@ -202,7 +202,7 @@ PPC_FEATURE2_VEC_CRYPTO
 
 PPC_FEATURE2_HTM_NOSC
     System calls fail if called in a transactional state, see
-    Documentation/powerpc/syscall64-abi.rst
+    Documentation/arch/powerpc/syscall64-abi.rst
 
 PPC_FEATURE2_ARCH_3_00
     The processor supports the v3.0B / v3.0C userlevel architecture. Processors
@@ -217,11 +217,11 @@ PPC_FEATURE2_DARN
 
 PPC_FEATURE2_SCV
     The scv 0 instruction may be used for system calls, see
-    Documentation/powerpc/syscall64-abi.rst.
+    Documentation/arch/powerpc/syscall64-abi.rst.
 
 PPC_FEATURE2_HTM_NO_SUSPEND
     A limited Transactional Memory facility that does not support suspend is
-    available, see Documentation/powerpc/transactional_memory.rst.
+    available, see Documentation/arch/powerpc/transactional_memory.rst.
 
 PPC_FEATURE2_ARCH_3_1
     The processor supports the v3.1 userlevel architecture. Processors
