@@ -132,6 +132,9 @@ struct clock_info {
 	int (*clock_config_set)(const struct scmi_protocol_handle *ph,
 				u32 clk_id, enum clk_state state,
 				u8 oem_type, u32 oem_val, bool atomic);
+	int (*clock_config_get)(const struct scmi_protocol_handle *ph,
+				u32 clk_id, u8 oem_type, u32 *attributes,
+				bool *enabled, u32 *oem_val, bool atomic);
 };
 
 static enum scmi_clock_protocol_cmd evt_2_cmd[] = {
@@ -511,9 +514,9 @@ static int scmi_clock_disable(const struct scmi_protocol_handle *ph, u32 clk_id,
 }
 
 static int
-scmi_clock_config_get(const struct scmi_protocol_handle *ph, u32 clk_id,
-		      u8 oem_type, u32 *attributes, bool *enabled,
-		      u32 *oem_val, bool atomic)
+scmi_clock_config_get_v21(const struct scmi_protocol_handle *ph, u32 clk_id,
+			  u8 oem_type, u32 *attributes, bool *enabled,
+			  u32 *oem_val, bool atomic)
 {
 	int ret;
 	u32 flags;
@@ -552,11 +555,43 @@ scmi_clock_config_get(const struct scmi_protocol_handle *ph, u32 clk_id,
 	return ret;
 }
 
+static int
+scmi_clock_config_get_v2(const struct scmi_protocol_handle *ph, u32 clk_id,
+			 u8 oem_type, u32 *attributes, bool *enabled,
+			 u32 *oem_val, bool atomic)
+{
+	int ret;
+	struct scmi_xfer *t;
+	struct scmi_msg_resp_clock_attributes *resp;
+
+	if (!enabled)
+		return -EINVAL;
+
+	ret = ph->xops->xfer_get_init(ph, CLOCK_ATTRIBUTES,
+				      sizeof(clk_id), sizeof(*resp), &t);
+	if (ret)
+		return ret;
+
+	t->hdr.poll_completion = atomic;
+	put_unaligned_le32(clk_id, t->tx.buf);
+	resp = t->rx.buf;
+
+	ret = ph->xops->do_xfer(ph, t);
+	if (!ret)
+		*enabled = IS_CLK_ENABLED(resp->attributes);
+
+	ph->xops->xfer_put(ph, t);
+
+	return ret;
+}
+
 static int scmi_clock_state_get(const struct scmi_protocol_handle *ph,
 				u32 clk_id, bool *enabled, bool atomic)
 {
-	return scmi_clock_config_get(ph, clk_id, NULL_OEM_TYPE, NULL,
-				     enabled, NULL, atomic);
+	struct clock_info *ci = ph->get_priv(ph);
+
+	return ci->clock_config_get(ph, clk_id, NULL_OEM_TYPE, NULL,
+				    enabled, NULL, atomic);
 }
 
 static int scmi_clock_count_get(const struct scmi_protocol_handle *ph)
@@ -723,10 +758,13 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 	}
 
 	if (PROTOCOL_REV_MAJOR(version) >= 0x2 &&
-	    PROTOCOL_REV_MINOR(version) >= 0x1)
+	    PROTOCOL_REV_MINOR(version) >= 0x1) {
 		cinfo->clock_config_set = scmi_clock_config_set_v21;
-	else
+		cinfo->clock_config_get = scmi_clock_config_get_v21;
+	} else {
 		cinfo->clock_config_set = scmi_clock_config_set_v2;
+		cinfo->clock_config_get = scmi_clock_config_get_v2;
+	}
 
 	cinfo->version = version;
 	return ph->set_priv(ph, cinfo);
