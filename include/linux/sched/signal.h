@@ -733,7 +733,8 @@ static inline struct task_struct *next_thread(struct task_struct *p)
 
 static inline int thread_group_empty(struct task_struct *p)
 {
-	return list_empty(&p->thread_group);
+	return thread_group_leader(p) &&
+	       list_is_last(&p->thread_node, &p->signal->thread_head);
 }
 
 #define delay_group_leader(p) \
