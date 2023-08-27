@@ -2,6 +2,7 @@
 #include <test_progs.h>
 #include "percpu_alloc_array.skel.h"
 #include "percpu_alloc_cgrp_local_storage.skel.h"
+#include "percpu_alloc_fail.skel.h"
 
 static void test_array(void)
 {
@@ -107,6 +108,10 @@ close_fd:
 	close(cgroup_fd);
 }
 
+static void test_failure(void) {
+	RUN_TESTS(percpu_alloc_fail);
+}
+
 void test_percpu_alloc(void)
 {
 	if (test__start_subtest("array"))
@@ -115,4 +120,6 @@ void test_percpu_alloc(void)
 		test_array_sleepable();
 	if (test__start_subtest("cgrp_local_storage"))
 		test_cgrp_local_storage();
+	if (test__start_subtest("failure_tests"))
+		test_failure();
 }
