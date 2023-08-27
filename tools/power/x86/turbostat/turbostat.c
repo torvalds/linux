@@ -635,7 +635,7 @@ static const struct platform_features spr_features = {
 static const struct platform_features slv_features = {
 	.has_nhm_msrs = 1,
 	.bclk_freq = BCLK_SLV,
-	.supported_cstates = CC1 | CC3 | CC6 | PC3 | PC6,
+	.supported_cstates = CC1 | CC3 | CC6 | PC6,
 	.cst_limit = CST_LIMIT_SLV,
 	.trl_msrs = TRL_ATOM,
 	.rapl_msrs = RAPL_PKG | RAPL_CORE,
@@ -5829,10 +5829,6 @@ void process_cpuid()
 
 	do_irtl_snb = has_snb_msrs(family, model);
 	if (has_slv_msrs(family, model)) {
-		BIC_NOT_PRESENT(BIC_Pkgpc2);
-		BIC_NOT_PRESENT(BIC_Pkgpc3);
-		BIC_PRESENT(BIC_Pkgpc6);
-		BIC_NOT_PRESENT(BIC_Pkgpc7);
 		BIC_PRESENT(BIC_Mod_c6);
 		use_c1_residency_msr = 1;
 	}
