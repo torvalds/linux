@@ -1467,7 +1467,7 @@ static int _anx7625_hpd_polling(struct anx7625_data *ctx,
 	struct device *dev = &ctx->client->dev;
 
 	/* Interrupt mode, no need poll HPD status, just return */
-	if (ctx->pdata.intp_irq)
+	if ((ctx->pdata.intp_irq) && !(ctx->out_of_hibr))
 		return 0;
 
 	ret = readx_poll_timeout(anx7625_read_hpd_status_p0,
@@ -2211,6 +2211,7 @@ static void anx7625_bridge_detach(struct drm_bridge *bridge)
 {
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
 
+	ctx->bridge_attached = 0;
 	drm_dp_aux_unregister(&ctx->aux);
 }
 
@@ -2434,6 +2435,9 @@ static void anx7625_bridge_atomic_enable(struct drm_bridge *bridge,
 	if (!connector)
 		return;
 
+	if (ctx->out_of_hibr)
+		ctx->out_of_hibr = false;
+
 	ctx->connector = connector;
 
 	pm_runtime_get_sync(dev);
@@ -2558,14 +2562,46 @@ static int __maybe_unused anx7625_runtime_pm_resume(struct device *dev)
 
 	anx7625_power_on_init(ctx);
 
+	_anx7625_hpd_polling(ctx, 5000 * 100);
+
 	mutex_unlock(&ctx->lock);
 
 	return 0;
 }
 
+static int __maybe_unused anx7625_resume(struct device *dev)
+{
+	struct anx7625_data *ctx = dev_get_drvdata(dev);
+
+	if (!ctx->pdata.intp_irq)
+		return 0;
+
+	if (!pm_runtime_enabled(dev) || !pm_runtime_suspended(dev)) {
+		enable_irq(ctx->pdata.intp_irq);
+		ctx->out_of_hibr = true;
+		anx7625_runtime_pm_resume(dev);
+	}
+
+	return 0;
+}
+
+static int __maybe_unused anx7625_suspend(struct device *dev)
+{
+	struct anx7625_data *ctx = dev_get_drvdata(dev);
+
+	if (!ctx->pdata.intp_irq)
+		return 0;
+
+	if (!pm_runtime_enabled(dev) || !pm_runtime_suspended(dev)) {
+		anx7625_runtime_pm_suspend(dev);
+		disable_irq(ctx->pdata.intp_irq);
+	}
+
+	return 0;
+}
+
 static const struct dev_pm_ops anx7625_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(anx7625_suspend, anx7625_resume)
 	SET_RUNTIME_PM_OPS(anx7625_runtime_pm_suspend,
 			   anx7625_runtime_pm_resume, NULL)
 };
