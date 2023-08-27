@@ -284,6 +284,7 @@ struct platform_features {
 	bool has_cst_auto_convension;	/* AUTOMATIC_CSTATE_CONVERSION bit in MSR_PKG_CST_CONFIG_CONTROL */
 	bool has_irtl_msrs;	/* MSR_PKGC3/PKGC6/PKGC7/PKGC8/PKGC9/PKGC10_IRTL */
 	bool has_msr_core_c1_res;	/* MSR_CORE_C1_RES */
+	bool has_msr_module_c6_res_ms;	/* MSR_MODULE_C6_RES_MS */
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
 	int plr_msrs;		/* MSR_CORE/GFX/RING_PERF_LIMIT_REASONS */
 	int rapl_msrs;		/* RAPL PKG/DRAM/CORE/GFX MSRs, AMD RAPL MSRs */
@@ -653,6 +654,7 @@ static const struct platform_features slv_features = {
 	.supported_cstates = CC1 | CC6 | PC6,
 	.cst_limit = CST_LIMIT_SLV,
 	.has_msr_core_c1_res = 1,
+	.has_msr_module_c6_res_ms = 1,
 	.trl_msrs = TRL_ATOM,
 	.rapl_msrs = RAPL_PKG | RAPL_CORE,
 	.has_rapl_divisor = 1,
@@ -5690,9 +5692,9 @@ void process_cpuid()
 		BIC_PRESENT(BIC_SMI);
 	probe_bclk();
 
-	if (has_slv_msrs(family, model)) {
+	if (platform->has_msr_module_c6_res_ms)
 		BIC_PRESENT(BIC_Mod_c6);
-	}
+
 	if (has_skl_msrs(family, model)) {
 		BIC_PRESENT(BIC_Totl_c0);
 		BIC_PRESENT(BIC_Any_c0);
