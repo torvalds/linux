@@ -2335,8 +2335,7 @@ static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
 {
 	const u8 *b = buf;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	int c;
-	ssize_t retval = 0;
+	ssize_t num, retval = 0;
 
 	/* Job control check -- must be done at start (POSIX.1 7.1.1.4). */
 	if (L_TOSTOP(tty) && file->f_op->write_iter != redirected_tty_write) {
@@ -2362,7 +2361,7 @@ static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
 		}
 		if (O_OPOST(tty)) {
 			while (nr > 0) {
-				ssize_t num = process_output_block(tty, b, nr);
+				num = process_output_block(tty, b, nr);
 				if (num < 0) {
 					if (num == -EAGAIN)
 						break;
@@ -2384,16 +2383,16 @@ static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
 
 			while (nr > 0) {
 				mutex_lock(&ldata->output_lock);
-				c = tty->ops->write(tty, b, nr);
+				num = tty->ops->write(tty, b, nr);
 				mutex_unlock(&ldata->output_lock);
-				if (c < 0) {
-					retval = c;
+				if (num < 0) {
+					retval = num;
 					goto break_out;
 				}
-				if (!c)
+				if (!num)
 					break;
-				b += c;
-				nr -= c;
+				b += num;
+				nr -= num;
 			}
 		}
 		if (!nr)
