@@ -138,23 +138,23 @@ static inline size_t read_cnt(struct n_tty_data *ldata)
 
 static inline unsigned char read_buf(struct n_tty_data *ldata, size_t i)
 {
-	return ldata->read_buf[i & (N_TTY_BUF_SIZE - 1)];
+	return ldata->read_buf[MASK(i)];
 }
 
 static inline unsigned char *read_buf_addr(struct n_tty_data *ldata, size_t i)
 {
-	return &ldata->read_buf[i & (N_TTY_BUF_SIZE - 1)];
+	return &ldata->read_buf[MASK(i)];
 }
 
 static inline unsigned char echo_buf(struct n_tty_data *ldata, size_t i)
 {
 	smp_rmb(); /* Matches smp_wmb() in add_echo_byte(). */
-	return ldata->echo_buf[i & (N_TTY_BUF_SIZE - 1)];
+	return ldata->echo_buf[MASK(i)];
 }
 
 static inline unsigned char *echo_buf_addr(struct n_tty_data *ldata, size_t i)
 {
-	return &ldata->echo_buf[i & (N_TTY_BUF_SIZE - 1)];
+	return &ldata->echo_buf[MASK(i)];
 }
 
 /* If we are not echoing the data, perhaps this is a secret so erase it */
@@ -1359,7 +1359,7 @@ static void n_tty_receive_char_special(struct tty_struct *tty, unsigned char c,
 				put_tty_queue(c, ldata);
 
 handle_newline:
-			set_bit(ldata->read_head & (N_TTY_BUF_SIZE - 1), ldata->read_flags);
+			set_bit(MASK(ldata->read_head), ldata->read_flags);
 			put_tty_queue(c, ldata);
 			smp_store_release(&ldata->canon_head, ldata->read_head);
 			kill_fasync(&tty->fasync, SIGIO, POLL_IN);
@@ -1505,14 +1505,14 @@ n_tty_receive_buf_real_raw(const struct tty_struct *tty, const u8 *cp,
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t n, head;
 
-	head = ldata->read_head & (N_TTY_BUF_SIZE - 1);
+	head = MASK(ldata->read_head);
 	n = min_t(size_t, count, N_TTY_BUF_SIZE - head);
 	memcpy(read_buf_addr(ldata, head), cp, n);
 	ldata->read_head += n;
 	cp += n;
 	count -= n;
 
-	head = ldata->read_head & (N_TTY_BUF_SIZE - 1);
+	head = MASK(ldata->read_head);
 	n = min_t(size_t, count, N_TTY_BUF_SIZE - head);
 	memcpy(read_buf_addr(ldata, head), cp, n);
 	ldata->read_head += n;
@@ -1779,8 +1779,7 @@ static void n_tty_set_termios(struct tty_struct *tty, const struct ktermios *old
 			ldata->canon_head = ldata->read_tail;
 			ldata->push = 0;
 		} else {
-			set_bit((ldata->read_head - 1) & (N_TTY_BUF_SIZE - 1),
-				ldata->read_flags);
+			set_bit(MASK(ldata->read_head - 1), ldata->read_flags);
 			ldata->canon_head = ldata->read_head;
 			ldata->push = 1;
 		}
@@ -1941,7 +1940,7 @@ static bool copy_from_read_buf(const struct tty_struct *tty,
 	size_t n;
 	bool is_eof;
 	size_t head = smp_load_acquire(&ldata->commit_head);
-	size_t tail = ldata->read_tail & (N_TTY_BUF_SIZE - 1);
+	size_t tail = MASK(ldata->read_tail);
 
 	n = min(head - ldata->read_tail, N_TTY_BUF_SIZE - tail);
 	n = min(*nr, n);
@@ -2004,7 +2003,7 @@ static bool canon_copy_from_read_buf(const struct tty_struct *tty,
 	canon_head = smp_load_acquire(&ldata->canon_head);
 	n = min(*nr, canon_head - ldata->read_tail);
 
-	tail = ldata->read_tail & (N_TTY_BUF_SIZE - 1);
+	tail = MASK(ldata->read_tail);
 	size = min_t(size_t, tail + n, N_TTY_BUF_SIZE);
 
 	n_tty_trace("%s: nr:%zu tail:%zu n:%zu size:%zu\n",
@@ -2466,7 +2465,7 @@ static unsigned long inq_canon(struct n_tty_data *ldata)
 	nr = head - tail;
 	/* Skip EOF-chars.. */
 	while (MASK(head) != MASK(tail)) {
-		if (test_bit(tail & (N_TTY_BUF_SIZE - 1), ldata->read_flags) &&
+		if (test_bit(MASK(tail), ldata->read_flags) &&
 		    read_buf(ldata, tail) == __DISABLED_CHAR)
 			nr--;
 		tail++;
