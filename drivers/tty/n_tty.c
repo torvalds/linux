@@ -1262,6 +1262,91 @@ static bool n_tty_receive_char_flow_ctrl(struct tty_struct *tty, unsigned char c
 	return true;
 }
 
+static bool n_tty_receive_char_canon(struct tty_struct *tty, u8 c)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+
+	if (c == ERASE_CHAR(tty) || c == KILL_CHAR(tty) ||
+	    (c == WERASE_CHAR(tty) && L_IEXTEN(tty))) {
+		eraser(c, tty);
+		commit_echoes(tty);
+
+		return true;
+	}
+
+	if (c == LNEXT_CHAR(tty) && L_IEXTEN(tty)) {
+		ldata->lnext = 1;
+		if (L_ECHO(tty)) {
+			finish_erasing(ldata);
+			if (L_ECHOCTL(tty)) {
+				echo_char_raw('^', ldata);
+				echo_char_raw('\b', ldata);
+				commit_echoes(tty);
+			}
+		}
+
+		return true;
+	}
+
+	if (c == REPRINT_CHAR(tty) && L_ECHO(tty) && L_IEXTEN(tty)) {
+		size_t tail = ldata->canon_head;
+
+		finish_erasing(ldata);
+		echo_char(c, tty);
+		echo_char_raw('\n', ldata);
+		while (MASK(tail) != MASK(ldata->read_head)) {
+			echo_char(read_buf(ldata, tail), tty);
+			tail++;
+		}
+		commit_echoes(tty);
+
+		return true;
+	}
+
+	if (c == '\n') {
+		if (L_ECHO(tty) || L_ECHONL(tty)) {
+			echo_char_raw('\n', ldata);
+			commit_echoes(tty);
+		}
+		goto handle_newline;
+	}
+
+	if (c == EOF_CHAR(tty)) {
+		c = __DISABLED_CHAR;
+		goto handle_newline;
+	}
+
+	if ((c == EOL_CHAR(tty)) ||
+	    (c == EOL2_CHAR(tty) && L_IEXTEN(tty))) {
+		/*
+		 * XXX are EOL_CHAR and EOL2_CHAR echoed?!?
+		 */
+		if (L_ECHO(tty)) {
+			/* Record the column of first canon char. */
+			if (ldata->canon_head == ldata->read_head)
+				echo_set_canon_col(ldata);
+			echo_char(c, tty);
+			commit_echoes(tty);
+		}
+		/*
+		 * XXX does PARMRK doubling happen for
+		 * EOL_CHAR and EOL2_CHAR?
+		 */
+		if (c == (unsigned char) '\377' && I_PARMRK(tty))
+			put_tty_queue(c, ldata);
+
+handle_newline:
+		set_bit(MASK(ldata->read_head), ldata->read_flags);
+		put_tty_queue(c, ldata);
+		smp_store_release(&ldata->canon_head, ldata->read_head);
+		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
+		wake_up_interruptible_poll(&tty->read_wait, EPOLLIN | EPOLLRDNORM);
+		return true;
+	}
+
+	return false;
+}
+
 static void n_tty_receive_char_special(struct tty_struct *tty, unsigned char c,
 				       bool lookahead_done)
 {
@@ -1296,77 +1381,8 @@ static void n_tty_receive_char_special(struct tty_struct *tty, unsigned char c,
 	} else if (c == '\n' && I_INLCR(tty))
 		c = '\r';
 
-	if (ldata->icanon) {
-		if (c == ERASE_CHAR(tty) || c == KILL_CHAR(tty) ||
-		    (c == WERASE_CHAR(tty) && L_IEXTEN(tty))) {
-			eraser(c, tty);
-			commit_echoes(tty);
-			return;
-		}
-		if (c == LNEXT_CHAR(tty) && L_IEXTEN(tty)) {
-			ldata->lnext = 1;
-			if (L_ECHO(tty)) {
-				finish_erasing(ldata);
-				if (L_ECHOCTL(tty)) {
-					echo_char_raw('^', ldata);
-					echo_char_raw('\b', ldata);
-					commit_echoes(tty);
-				}
-			}
-			return;
-		}
-		if (c == REPRINT_CHAR(tty) && L_ECHO(tty) && L_IEXTEN(tty)) {
-			size_t tail = ldata->canon_head;
-
-			finish_erasing(ldata);
-			echo_char(c, tty);
-			echo_char_raw('\n', ldata);
-			while (MASK(tail) != MASK(ldata->read_head)) {
-				echo_char(read_buf(ldata, tail), tty);
-				tail++;
-			}
-			commit_echoes(tty);
-			return;
-		}
-		if (c == '\n') {
-			if (L_ECHO(tty) || L_ECHONL(tty)) {
-				echo_char_raw('\n', ldata);
-				commit_echoes(tty);
-			}
-			goto handle_newline;
-		}
-		if (c == EOF_CHAR(tty)) {
-			c = __DISABLED_CHAR;
-			goto handle_newline;
-		}
-		if ((c == EOL_CHAR(tty)) ||
-		    (c == EOL2_CHAR(tty) && L_IEXTEN(tty))) {
-			/*
-			 * XXX are EOL_CHAR and EOL2_CHAR echoed?!?
-			 */
-			if (L_ECHO(tty)) {
-				/* Record the column of first canon char. */
-				if (ldata->canon_head == ldata->read_head)
-					echo_set_canon_col(ldata);
-				echo_char(c, tty);
-				commit_echoes(tty);
-			}
-			/*
-			 * XXX does PARMRK doubling happen for
-			 * EOL_CHAR and EOL2_CHAR?
-			 */
-			if (c == (unsigned char) '\377' && I_PARMRK(tty))
-				put_tty_queue(c, ldata);
-
-handle_newline:
-			set_bit(MASK(ldata->read_head), ldata->read_flags);
-			put_tty_queue(c, ldata);
-			smp_store_release(&ldata->canon_head, ldata->read_head);
-			kill_fasync(&tty->fasync, SIGIO, POLL_IN);
-			wake_up_interruptible_poll(&tty->read_wait, EPOLLIN | EPOLLRDNORM);
-			return;
-		}
-	}
+	if (ldata->icanon && n_tty_receive_char_canon(tty, c))
+		return;
 
 	if (L_ECHO(tty)) {
 		finish_erasing(ldata);
