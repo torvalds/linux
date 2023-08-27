@@ -4804,11 +4804,9 @@ double get_quirk_tdp(void)
 	return 135.0;
 }
 
-double get_tdp_intel(unsigned int model)
+double get_tdp_intel(void)
 {
 	unsigned long long msr;
-
-	UNUSED(model);
 
 	if (platform->rapl_msrs & RAPL_PKG_POWER_INFO)
 		if (!get_msr(base_cpu, MSR_PKG_POWER_INFO, &msr))
@@ -4816,14 +4814,12 @@ double get_tdp_intel(unsigned int model)
 	return get_quirk_tdp();
 }
 
-double get_tdp_amd(unsigned int family)
+double get_tdp_amd(void)
 {
-	UNUSED(family);
-
 	return get_quirk_tdp();
 }
 
-void rapl_probe_intel(unsigned int model)
+void rapl_probe_intel(void)
 {
 	unsigned long long msr;
 	unsigned int time_unit;
@@ -4875,19 +4871,17 @@ void rapl_probe_intel(unsigned int model)
 
 	rapl_time_units = 1.0 / (1 << (time_unit));
 
-	tdp = get_tdp_intel(model);
+	tdp = get_tdp_intel();
 
 	rapl_joule_counter_range = 0xFFFFFFFF * rapl_energy_units / tdp;
 	if (!quiet)
 		fprintf(outf, "RAPL: %.0f sec. Joule Counter Range, at %.0f Watts\n", rapl_joule_counter_range, tdp);
 }
 
-void rapl_probe_amd(unsigned int family, unsigned int model)
+void rapl_probe_amd(void)
 {
 	unsigned long long msr;
 	double tdp;
-
-	UNUSED(model);
 
 	if (rapl_joules) {
 		BIC_PRESENT(BIC_Pkg_J);
@@ -4904,7 +4898,7 @@ void rapl_probe_amd(unsigned int family, unsigned int model)
 	rapl_energy_units = ldexp(1.0, -(msr >> 8 & 0x1f));
 	rapl_power_units = ldexp(1.0, -(msr & 0xf));
 
-	tdp = get_tdp_amd(family);
+	tdp = get_tdp_amd();
 
 	rapl_joule_counter_range = 0xFFFFFFFF * rapl_energy_units / tdp;
 	if (!quiet)
@@ -4916,15 +4910,15 @@ void rapl_probe_amd(unsigned int family, unsigned int model)
  *
  * sets rapl_power_units, rapl_energy_units, rapl_time_units
  */
-void rapl_probe(unsigned int family, unsigned int model)
+void rapl_probe(void)
 {
 	if (!platform->rapl_msrs)
 		return;
 
 	if (genuine_intel)
-		rapl_probe_intel(model);
+		rapl_probe_intel();
 	if (authentic_amd || hygon_genuine)
-		rapl_probe_amd(family, model);
+		rapl_probe_amd();
 }
 
 void prewake_cstate_probe(unsigned int family, unsigned int model)
@@ -5828,7 +5822,7 @@ void process_cpuid()
 	if (!quiet && has_slv_msrs(family, model))
 		decode_c6_demotion_policy_msr();
 
-	rapl_probe(family, model);
+	rapl_probe();
 	prewake_cstate_probe(family, model);
 
 	if (!quiet)
