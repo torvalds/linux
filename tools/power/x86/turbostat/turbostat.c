@@ -678,7 +678,7 @@ static const struct platform_features gmtd_features = {
 	.has_nhm_msrs = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.crystal_freq = 25000000,
-	.supported_cstates = CC1 | CC3 | CC6 | CC7 | PC2 | PC3 | PC6 | PC7,
+	.supported_cstates = CC1 | CC6 | PC2 | PC6,
 	.cst_limit = CST_LIMIT_GMT,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL | RAPL_CORE_ENERGY_STATUS,
@@ -5818,11 +5818,6 @@ void process_cpuid()
 		use_c1_residency_msr = 1;
 	}
 	if (is_dnv(family, model)) {
-		BIC_PRESENT(BIC_CPU_c1);
-		BIC_NOT_PRESENT(BIC_CPU_c3);
-		BIC_NOT_PRESENT(BIC_Pkgpc3);
-		BIC_NOT_PRESENT(BIC_CPU_c7);
-		BIC_NOT_PRESENT(BIC_Pkgpc7);
 		use_c1_residency_msr = 1;
 	}
 	if (is_skx(family, model) || is_icx(family, model) || is_spr(family, model)) {
