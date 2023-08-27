@@ -283,6 +283,7 @@ struct platform_features {
 	bool has_config_tdp;	/* MSR_CONFIG_TDP_NOMINAL/LEVEL_1/LEVEL_2/CONTROL, MSR_TURBO_ACTIVATION_RATIO */
 	int bclk_freq;		/* CPU base clock */
 	int crystal_freq;	/* Crystal clock to use when not available from CPUID.15 */
+	int supported_cstates;	/* Core cstates and Package cstates supported */
 	int cst_limit;		/* MSR_PKG_CST_CONFIG_CONTROL */
 	bool has_cst_auto_convension;	/* AUTOMATIC_CSTATE_CONVERSION bit in MSR_PKG_CST_CONFIG_CONTROL */
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
@@ -395,6 +396,21 @@ enum rapl_msrs {
 #define RAPL_GFX_ALL	(RAPL_GFX | RAPL_GFX_POLIGY)
 
 #define RAPL_AMD_F17H	(RAPL_AMD_PWR_UNIT | RAPL_AMD_CORE_ENERGY_STAT | RAPL_AMD_PKG_ENERGY_STAT)
+
+/* For Cstates */
+enum cstates {
+	CC1 = BIT(0),
+	CC3 = BIT(1),
+	CC6 = BIT(2),
+	CC7 = BIT(3),
+	PC2 = BIT(4),
+	PC3 = BIT(5),
+	PC6 = BIT(6),
+	PC7 = BIT(7),
+	PC8 = BIT(8),
+	PC9 = BIT(9),
+	PC10 = BIT(10),
+};
 
 static const struct platform_features nhm_features = {
 	.has_msr_misc_pwr_mgmt = 1,
@@ -5560,6 +5576,44 @@ void linux_perf_init(void)
 	BIC_PRESENT(BIC_IPC);
 }
 
+void probe_cstates(void)
+{
+	probe_cst_limit();
+
+	if (platform->supported_cstates & CC1)
+		BIC_PRESENT(BIC_CPU_c1);
+
+	if (platform->supported_cstates & CC3)
+		BIC_PRESENT(BIC_CPU_c3);
+
+	if (platform->supported_cstates & CC6)
+		BIC_PRESENT(BIC_CPU_c6);
+
+	if (platform->supported_cstates & CC7)
+		BIC_PRESENT(BIC_CPU_c7);
+
+	if (platform->supported_cstates & PC2 && (pkg_cstate_limit >= PCL__2))
+		BIC_PRESENT(BIC_Pkgpc2);
+
+	if (platform->supported_cstates & PC3 && (pkg_cstate_limit >= PCL__3))
+		BIC_PRESENT(BIC_Pkgpc3);
+
+	if (platform->supported_cstates & PC6 && (pkg_cstate_limit >= PCL__6))
+		BIC_PRESENT(BIC_Pkgpc6);
+
+	if (platform->supported_cstates & PC7 && (pkg_cstate_limit >= PCL__7))
+		BIC_PRESENT(BIC_Pkgpc7);
+
+	if (platform->supported_cstates & PC8 && (pkg_cstate_limit >= PCL__8))
+		BIC_PRESENT(BIC_Pkgpc8);
+
+	if (platform->supported_cstates & PC9 && (pkg_cstate_limit >= PCL__9))
+		BIC_PRESENT(BIC_Pkgpc9);
+
+	if (platform->supported_cstates & PC10 && (pkg_cstate_limit >= PCL_10))
+		BIC_PRESENT(BIC_Pkgpc10);
+}
+
 void process_cpuid()
 {
 	unsigned int eax, ebx, ecx, edx;
@@ -5741,7 +5795,8 @@ void process_cpuid()
 	BIC_PRESENT(BIC_IRQ);
 	BIC_PRESENT(BIC_TSC_MHz);
 
-	probe_cst_limit();
+	probe_cstates();
+
 	if (platform->has_nhm_msrs) {
 		BIC_PRESENT(BIC_CPU_c1);
 		BIC_PRESENT(BIC_CPU_c3);
