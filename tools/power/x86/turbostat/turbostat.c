@@ -604,6 +604,7 @@ static const struct platform_features cnl_features = {
 	.supported_cstates = CC1 | CC6 | CC7 | PC2 | PC3 | PC6 | PC7 | PC8 | PC9 | PC10,
 	.cst_limit = CST_LIMIT_HSW,
 	.has_irtl_msrs = 1,
+	.has_msr_core_c1_res = 1,
 	.has_ext_cst_msrs = 1,
 	.trl_msrs = TRL_BASE,
 	.tcc_offset_bits = 6,
