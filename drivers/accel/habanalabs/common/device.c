@@ -188,7 +188,36 @@ void hl_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size, void *
 	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, size, vaddr);
 }
 
-int hl_dma_map_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_data_direction dir)
+int hl_dma_map_sgtable_caller(struct hl_device *hdev, struct sg_table *sgt,
+				enum dma_data_direction dir, const char *caller)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct scatterlist *sg;
+	int rc, i;
+
+	rc = hdev->asic_funcs->dma_map_sgtable(hdev, sgt, dir);
+	if (rc)
+		return rc;
+
+	if (!trace_habanalabs_dma_map_page_enabled())
+		return 0;
+
+	for_each_sgtable_dma_sg(sgt, sg, i)
+		trace_habanalabs_dma_map_page(hdev->dev,
+				page_to_phys(sg_page(sg)),
+				sg->dma_address - prop->device_dma_offset_for_host_access,
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+				sg->dma_length,
+#else
+				sg->length,
+#endif
+				dir, caller);
+
+	return 0;
+}
+
+int hl_asic_dma_map_sgtable(struct hl_device *hdev, struct sg_table *sgt,
+				enum dma_data_direction dir)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct scatterlist *sg;
@@ -206,7 +235,30 @@ int hl_dma_map_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_da
 	return 0;
 }
 
-void hl_dma_unmap_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_data_direction dir)
+void hl_dma_unmap_sgtable_caller(struct hl_device *hdev, struct sg_table *sgt,
+					enum dma_data_direction dir, const char *caller)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct scatterlist *sg;
+	int i;
+
+	hdev->asic_funcs->dma_unmap_sgtable(hdev, sgt, dir);
+
+	if (trace_habanalabs_dma_unmap_page_enabled()) {
+		for_each_sgtable_dma_sg(sgt, sg, i)
+			trace_habanalabs_dma_unmap_page(hdev->dev, page_to_phys(sg_page(sg)),
+					sg->dma_address - prop->device_dma_offset_for_host_access,
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+					sg->dma_length,
+#else
+					sg->length,
+#endif
+					dir, caller);
+	}
+}
+
+void hl_asic_dma_unmap_sgtable(struct hl_device *hdev, struct sg_table *sgt,
+				enum dma_data_direction dir)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct scatterlist *sg;

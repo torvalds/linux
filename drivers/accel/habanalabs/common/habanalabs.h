@@ -159,6 +159,11 @@ enum hl_mmu_page_table_location {
 #define hl_asic_dma_pool_free(hdev, vaddr, dma_addr) \
 	hl_asic_dma_pool_free_caller(hdev, vaddr, dma_addr, __func__)
 
+#define hl_dma_map_sgtable(hdev, sgt, dir) \
+	hl_dma_map_sgtable_caller(hdev, sgt, dir, __func__)
+#define hl_dma_unmap_sgtable(hdev, sgt, dir) \
+	hl_dma_unmap_sgtable_caller(hdev, sgt, dir, __func__)
+
 /*
  * Reset Flags
  *
@@ -1520,9 +1525,9 @@ struct engines_data {
  * @asic_dma_pool_free: free small DMA allocation from pool.
  * @cpu_accessible_dma_pool_alloc: allocate CPU PQ packet from DMA pool.
  * @cpu_accessible_dma_pool_free: free CPU PQ packet from DMA pool.
- * @hl_dma_unmap_sgtable: DMA unmap scatter-gather table.
+ * @dma_unmap_sgtable: DMA unmap scatter-gather table.
+ * @dma_map_sgtable: DMA map scatter-gather table.
  * @cs_parser: parse Command Submission.
- * @asic_dma_map_sgtable: DMA map scatter-gather table.
  * @add_end_of_cb_packets: Add packets to the end of CB, if device requires it.
  * @update_eq_ci: update event queue CI.
  * @context_switch: called upon ASID context switch.
@@ -1643,12 +1648,11 @@ struct hl_asic_funcs {
 				size_t size, dma_addr_t *dma_handle);
 	void (*cpu_accessible_dma_pool_free)(struct hl_device *hdev,
 				size_t size, void *vaddr);
-	void (*hl_dma_unmap_sgtable)(struct hl_device *hdev,
-				struct sg_table *sgt,
+	void (*dma_unmap_sgtable)(struct hl_device *hdev, struct sg_table *sgt,
+				enum dma_data_direction dir);
+	int (*dma_map_sgtable)(struct hl_device *hdev, struct sg_table *sgt,
 				enum dma_data_direction dir);
 	int (*cs_parser)(struct hl_device *hdev, struct hl_cs_parser *parser);
-	int (*asic_dma_map_sgtable)(struct hl_device *hdev, struct sg_table *sgt,
-				enum dma_data_direction dir);
 	void (*add_end_of_cb_packets)(struct hl_device *hdev,
 					void *kernel_address, u32 len,
 					u32 original_len,
@@ -3670,8 +3674,13 @@ void *hl_asic_dma_pool_zalloc_caller(struct hl_device *hdev, size_t size, gfp_t 
 					dma_addr_t *dma_handle, const char *caller);
 void hl_asic_dma_pool_free_caller(struct hl_device *hdev, void *vaddr, dma_addr_t dma_addr,
 					const char *caller);
-int hl_dma_map_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_data_direction dir);
-void hl_dma_unmap_sgtable(struct hl_device *hdev, struct sg_table *sgt,
+int hl_dma_map_sgtable_caller(struct hl_device *hdev, struct sg_table *sgt,
+				enum dma_data_direction dir, const char *caller);
+void hl_dma_unmap_sgtable_caller(struct hl_device *hdev, struct sg_table *sgt,
+					enum dma_data_direction dir, const char *caller);
+int hl_asic_dma_map_sgtable(struct hl_device *hdev, struct sg_table *sgt,
+				enum dma_data_direction dir);
+void hl_asic_dma_unmap_sgtable(struct hl_device *hdev, struct sg_table *sgt,
 				enum dma_data_direction dir);
 int hl_access_sram_dram_region(struct hl_device *hdev, u64 addr, u64 *val,
 	enum debugfs_access_type acc_type, enum pci_region region_type, bool set_dram_bar);
