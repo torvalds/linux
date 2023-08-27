@@ -624,6 +624,8 @@ struct ieee80211_if_ocb {
  * these declarations define the interface, which enables
  * vendor-specific mesh synchronization
  *
+ * @rx_bcn_presp: beacon/probe response was received
+ * @adjust_tsf: TSF adjustment method
  */
 struct ieee80211_mesh_sync_ops {
 	void (*rx_bcn_presp)(struct ieee80211_sub_if_data *sdata, u16 stype,
@@ -864,12 +866,13 @@ enum txq_info_flags {
  * struct txq_info - per tid queue
  *
  * @tin: contains packets split into multiple flows
- * @def_flow: used as a fallback flow when a packet destined to @tin hashes to
- *	a fq_flow which is already owned by a different tin
- * @def_cvars: codel vars for @def_flow
+ * @def_cvars: codel vars for the @tin's default_flow
+ * @cstats: code statistics for this queue
  * @frags: used to keep fragments created after dequeue
  * @schedule_order: used with ieee80211_local->active_txqs
  * @schedule_round: counter to prevent infinite loops on TXQ scheduling
+ * @flags: TXQ flags from &enum txq_info_flags
+ * @txq: the driver visible part
  */
 struct txq_info {
 	struct fq_tin tin;
@@ -898,7 +901,8 @@ struct ieee80211_if_mntr {
  * struct ieee80211_if_nan - NAN state
  *
  * @conf: current NAN configuration
- * @func_ids: a bitmap of available instance_id's
+ * @func_lock: lock for @func_inst_ids
+ * @function_inst_ids: a bitmap of available instance_id's
  */
 struct ieee80211_if_nan {
 	struct cfg80211_nan_conf conf;
@@ -1239,7 +1243,7 @@ struct tpt_led_trigger {
 #endif
 
 /**
- * mac80211 scan flags - currently active scan mode
+ * enum mac80211_scan_flags - currently active scan mode
  *
  * @SCAN_SW_SCANNING: We're currently in the process of scanning but may as
  *	well be on the operating channel
@@ -1257,7 +1261,7 @@ struct tpt_led_trigger {
  *	and could send a probe request after receiving a beacon.
  * @SCAN_BEACON_DONE: Beacon received, we can now send a probe request
  */
-enum {
+enum mac80211_scan_flags {
 	SCAN_SW_SCANNING,
 	SCAN_HW_SCANNING,
 	SCAN_ONCHANNEL_SCANNING,
@@ -2179,7 +2183,7 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
  *	flags from &enum ieee80211_conn_flags.
  * @bssid: the currently connected bssid (for reporting)
  * @csa_ie: parsed 802.11 csa elements on count, mode, chandef and mesh ttl.
-	All of them will be filled with if success only.
+ *	All of them will be filled with if success only.
  * Return: 0 on success, <0 on error and >0 if there is nothing to parse.
  */
 int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
