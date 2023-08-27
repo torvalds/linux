@@ -258,14 +258,3 @@ int gsc_common_setup(struct parisc_device *parent, struct gsc_asic *gsc_asic)
 
 	return 0;
 }
-
-extern struct parisc_driver lasi_driver;
-
-static int __init gsc_init(void)
-{
-#ifdef CONFIG_GSC_LASI
-	register_parisc_driver(&lasi_driver);
-#endif
-	return 0;
-}
-arch_initcall(gsc_init);

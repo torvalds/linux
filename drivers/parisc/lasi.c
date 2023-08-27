@@ -220,9 +220,16 @@ static struct parisc_device_id lasi_tbl[] __initdata = {
 	{ HPHW_BA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00081 },
 	{ 0, }
 };
+MODULE_DEVICE_TABLE(parisc, lasi_tbl);
 
-struct parisc_driver lasi_driver __refdata = {
+static struct parisc_driver lasi_driver __refdata = {
 	.name =		"lasi",
 	.id_table =	lasi_tbl,
 	.probe =	lasi_init_chip,
 };
+
+static int __init lasi_init(void)
+{
+	return register_parisc_driver(&lasi_driver);
+}
+arch_initcall(lasi_init);
