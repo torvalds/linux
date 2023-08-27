@@ -285,6 +285,7 @@ struct platform_features {
 	bool has_irtl_msrs;	/* MSR_PKGC3/PKGC6/PKGC7/PKGC8/PKGC9/PKGC10_IRTL */
 	bool has_msr_core_c1_res;	/* MSR_CORE_C1_RES */
 	bool has_msr_module_c6_res_ms;	/* MSR_MODULE_C6_RES_MS */
+	bool has_msr_c6_demotion_policy_config;	/* MSR_CC6_DEMOTION_POLICY_CONFIG/MSR_MC6_DEMOTION_POLICY_CONFIG */
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
 	int plr_msrs;		/* MSR_CORE/GFX/RING_PERF_LIMIT_REASONS */
 	int rapl_msrs;		/* RAPL PKG/DRAM/CORE/GFX MSRs, AMD RAPL MSRs */
@@ -655,6 +656,7 @@ static const struct platform_features slv_features = {
 	.cst_limit = CST_LIMIT_SLV,
 	.has_msr_core_c1_res = 1,
 	.has_msr_module_c6_res_ms = 1,
+	.has_msr_c6_demotion_policy_config = 1,
 	.trl_msrs = TRL_ATOM,
 	.rapl_msrs = RAPL_PKG | RAPL_CORE,
 	.has_rapl_divisor = 1,
@@ -4279,28 +4281,6 @@ void probe_bclk(void)
 		tsc_tweak = base_hz / tsc_hz;
 }
 
-/*
- * SLV client has support for unique MSRs:
- *
- * MSR_CC6_DEMOTION_POLICY_CONFIG
- * MSR_MC6_DEMOTION_POLICY_CONFIG
- */
-
-int has_slv_msrs(unsigned int family, unsigned int model)
-{
-	if (!genuine_intel)
-		return 0;
-
-	if (family != 6)
-		return 0;
-
-	switch (model) {
-	case INTEL_FAM6_ATOM_SILVERMONT:
-		return 1;
-	}
-	return 0;
-}
-
 int is_icx(unsigned int family, unsigned int model)
 {
 
@@ -5358,6 +5338,9 @@ void decode_c6_demotion_policy_msr(void)
 {
 	unsigned long long msr;
 
+	if (!platform->has_msr_c6_demotion_policy_config)
+		return;
+
 	if (!get_msr(base_cpu, MSR_CC6_DEMOTION_POLICY_CONFIG, &msr))
 		fprintf(outf, "cpu%d: MSR_CC6_DEMOTION_POLICY_CONFIG: 0x%08llx (%sable-CC6-Demotion)\n",
 			base_cpu, msr, msr & (1 << 0) ? "EN" : "DIS");
@@ -5707,7 +5690,7 @@ void process_cpuid()
 	if (!quiet)
 		decode_misc_pwr_mgmt_msr();
 
-	if (!quiet && has_slv_msrs(family, model))
+	if (!quiet)
 		decode_c6_demotion_policy_msr();
 
 	rapl_probe();
