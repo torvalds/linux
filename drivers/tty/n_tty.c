@@ -2373,8 +2373,7 @@ static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
 				nr -= num;
 				if (nr == 0)
 					break;
-				c = *b;
-				if (process_output(c, tty) < 0)
+				if (process_output(*b, tty) < 0)
 					break;
 				b++; nr--;
 			}
