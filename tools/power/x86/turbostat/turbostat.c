@@ -245,7 +245,6 @@ double tsc_tweak = 1.0;
 unsigned int show_pkg_only;
 unsigned int show_core_only;
 char *output_buffer, *outp;
-unsigned int do_rapl;
 unsigned int do_dts;
 unsigned int do_ptm;
 unsigned int do_ipc;
@@ -289,6 +288,7 @@ struct platform_features {
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
 	int plr_msrs;		/* MSR_CORE/GFX/RING_PERF_LIMIT_REASONS */
 	int rapl_msrs;		/* RAPL PKG/DRAM/CORE/GFX MSRs, AMD RAPL MSRs */
+	bool has_per_core_rapl;	/* Indicates cores energy collection is per-core, not per-package. AMD specific for now */
 	int tcc_offset_bits;	/* TCC Offset bits in MSR_IA32_TEMPERATURE_TARGET */
 };
 
@@ -378,7 +378,6 @@ enum rapl_msrs {
 	RAPL_AMD_PWR_UNIT = BIT(14),	/* 0xc0010299 MSR_AMD_RAPL_POWER_UNIT */
 	RAPL_AMD_CORE_ENERGY_STAT = BIT(15),	/* 0xc001029a MSR_AMD_CORE_ENERGY_STATUS */
 	RAPL_AMD_PKG_ENERGY_STAT = BIT(16),	/* 0xc001029b MSR_AMD_PKG_ENERGY_STATUS */
-	RAPL_PER_CORE_ENERGY = BIT(17),	/* Indicates cores energy collection is per-core, not per-package. */
 };
 
 #define RAPL_PKG	(RAPL_PKG_ENERGY_STATUS | RAPL_PKG_POWER_LIMIT)
@@ -680,6 +679,7 @@ static const struct platform_features amd_features = {
 
 static const struct platform_features amd_features_with_rapl = {
 	.rapl_msrs = RAPL_AMD_F17H,
+	.has_per_core_rapl = 1,
 };
 
 static const struct platform_data turbostat_pdata[] = {
@@ -763,10 +763,8 @@ void probe_platform_features(unsigned int family, unsigned int model)
 
 			__cpuid(0x80000007, eax, ebx, ecx, edx);
 			/* RAPL (Fam 17h+) */
-			if ((edx & (1 << 14)) && family >= 0x17) {
+			if ((edx & (1 << 14)) && family >= 0x17)
 				platform = &amd_features_with_rapl;
-				do_rapl = RAPL_PER_CORE_ENERGY;
-			}
 		}
 		return;
 	}
@@ -1371,10 +1369,10 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sCoreThr", (printed++ ? delim : ""));
 
 	if (platform->rapl_msrs && !rapl_joules) {
-		if (DO_BIC(BIC_CorWatt) && (do_rapl & RAPL_PER_CORE_ENERGY))
+		if (DO_BIC(BIC_CorWatt) && platform->has_per_core_rapl)
 			outp += sprintf(outp, "%sCorWatt", (printed++ ? delim : ""));
 	} else if (platform->rapl_msrs && rapl_joules) {
-		if (DO_BIC(BIC_Cor_J) && (do_rapl & RAPL_PER_CORE_ENERGY))
+		if (DO_BIC(BIC_Cor_J) && platform->has_per_core_rapl)
 			outp += sprintf(outp, "%sCor_J", (printed++ ? delim : ""));
 	}
 
@@ -1435,7 +1433,7 @@ void print_header(char *delim)
 	if (platform->rapl_msrs && !rapl_joules) {
 		if (DO_BIC(BIC_PkgWatt))
 			outp += sprintf(outp, "%sPkgWatt", (printed++ ? delim : ""));
-		if (DO_BIC(BIC_CorWatt) && !(do_rapl & RAPL_PER_CORE_ENERGY))
+		if (DO_BIC(BIC_CorWatt) && !platform->has_per_core_rapl)
 			outp += sprintf(outp, "%sCorWatt", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_GFXWatt))
 			outp += sprintf(outp, "%sGFXWatt", (printed++ ? delim : ""));
@@ -1448,7 +1446,7 @@ void print_header(char *delim)
 	} else if (platform->rapl_msrs && rapl_joules) {
 		if (DO_BIC(BIC_Pkg_J))
 			outp += sprintf(outp, "%sPkg_J", (printed++ ? delim : ""));
-		if (DO_BIC(BIC_Cor_J) && !(do_rapl & RAPL_PER_CORE_ENERGY))
+		if (DO_BIC(BIC_Cor_J) && !platform->has_per_core_rapl)
 			outp += sprintf(outp, "%sCor_J", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_GFX_J))
 			outp += sprintf(outp, "%sGFX_J", (printed++ ? delim : ""));
@@ -1750,10 +1748,10 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	fmt8 = "%s%.2f";
 
-	if (DO_BIC(BIC_CorWatt) && (do_rapl & RAPL_PER_CORE_ENERGY))
+	if (DO_BIC(BIC_CorWatt) && platform->has_per_core_rapl)
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""), c->core_energy * rapl_energy_units / interval_float);
-	if (DO_BIC(BIC_Cor_J) && (do_rapl & RAPL_PER_CORE_ENERGY))
+	if (DO_BIC(BIC_Cor_J) && platform->has_per_core_rapl)
 		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), c->core_energy * rapl_energy_units);
 
 	/* print per-package data only for 1st core in package */
@@ -1818,7 +1816,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_pkg * rapl_energy_units / interval_float);
 
-	if (DO_BIC(BIC_CorWatt) && !(do_rapl & RAPL_PER_CORE_ENERGY))
+	if (DO_BIC(BIC_CorWatt) && !platform->has_per_core_rapl)
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_cores * rapl_energy_units / interval_float);
 	if (DO_BIC(BIC_GFXWatt))
@@ -1830,7 +1828,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 			    p->energy_dram * rapl_dram_energy_units / interval_float);
 	if (DO_BIC(BIC_Pkg_J))
 		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_pkg * rapl_energy_units);
-	if (DO_BIC(BIC_Cor_J) && !(do_rapl & RAPL_PER_CORE_ENERGY))
+	if (DO_BIC(BIC_Cor_J) && !platform->has_per_core_rapl)
 		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_cores * rapl_energy_units);
 	if (DO_BIC(BIC_GFX_J))
 		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_gfx * rapl_energy_units);
