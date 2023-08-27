@@ -281,6 +281,197 @@ unsigned int has_misc_feature_control;
 unsigned int first_counter_read = 1;
 int ignore_stdin;
 
+/* Model specific support Start */
+
+/* List of features that may diverge among different platforms */
+struct platform_features {
+};
+
+struct platform_data {
+	unsigned int model;
+	const struct platform_features *features;
+};
+
+static const struct platform_features nhm_features = {
+};
+
+static const struct platform_features nhx_features = {
+};
+
+static const struct platform_features snb_features = {
+};
+
+static const struct platform_features snx_features = {
+};
+
+static const struct platform_features ivb_features = {
+};
+
+static const struct platform_features ivx_features = {
+};
+
+static const struct platform_features hsw_features = {
+};
+
+static const struct platform_features hsx_features = {
+};
+
+static const struct platform_features hswl_features = {
+};
+
+static const struct platform_features hswg_features = {
+};
+
+static const struct platform_features bdw_features = {
+};
+
+static const struct platform_features bdwg_features = {
+};
+
+static const struct platform_features bdx_features = {
+};
+
+static const struct platform_features skl_features = {
+};
+
+static const struct platform_features cnl_features = {
+};
+
+static const struct platform_features skx_features = {
+};
+
+static const struct platform_features icx_features = {
+};
+
+static const struct platform_features spr_features = {
+};
+
+static const struct platform_features slv_features = {
+};
+
+static const struct platform_features slvd_features = {
+};
+
+static const struct platform_features amt_features = {
+};
+
+static const struct platform_features gmt_features = {
+};
+
+static const struct platform_features gmtd_features = {
+};
+
+static const struct platform_features gmtp_features = {
+};
+
+static const struct platform_features tmt_features = {
+};
+
+static const struct platform_features tmtd_features = {
+};
+
+static const struct platform_features knl_features = {
+};
+
+static const struct platform_features default_features = {
+};
+
+static const struct platform_features amd_features = {
+};
+
+static const struct platform_data turbostat_pdata[] = {
+	{ INTEL_FAM6_NEHALEM, &nhm_features },
+	{ INTEL_FAM6_NEHALEM_G, &nhm_features },
+	{ INTEL_FAM6_NEHALEM_EP, &nhm_features },
+	{ INTEL_FAM6_NEHALEM_EX, &nhx_features },
+	{ INTEL_FAM6_WESTMERE, &nhm_features },
+	{ INTEL_FAM6_WESTMERE_EP, &nhm_features },
+	{ INTEL_FAM6_WESTMERE_EX, &nhx_features },
+	{ INTEL_FAM6_SANDYBRIDGE, &snb_features },
+	{ INTEL_FAM6_SANDYBRIDGE_X, &snx_features },
+	{ INTEL_FAM6_IVYBRIDGE, &ivb_features },
+	{ INTEL_FAM6_IVYBRIDGE_X, &ivx_features },
+	{ INTEL_FAM6_HASWELL, &hsw_features },
+	{ INTEL_FAM6_HASWELL_X, &hsx_features },
+	{ INTEL_FAM6_HASWELL_L, &hswl_features },
+	{ INTEL_FAM6_HASWELL_G, &hswg_features },
+	{ INTEL_FAM6_BROADWELL, &bdw_features },
+	{ INTEL_FAM6_BROADWELL_G, &bdwg_features },
+	{ INTEL_FAM6_BROADWELL_X, &bdx_features },
+	{ INTEL_FAM6_BROADWELL_D, &bdx_features },
+	{ INTEL_FAM6_SKYLAKE_L, &skl_features },
+	{ INTEL_FAM6_SKYLAKE, &skl_features },
+	{ INTEL_FAM6_SKYLAKE_X, &skx_features },
+	{ INTEL_FAM6_KABYLAKE_L, &skl_features },
+	{ INTEL_FAM6_KABYLAKE, &skl_features },
+	{ INTEL_FAM6_COMETLAKE, &skl_features },
+	{ INTEL_FAM6_COMETLAKE_L, &skl_features },
+	{ INTEL_FAM6_CANNONLAKE_L, &cnl_features },
+	{ INTEL_FAM6_ICELAKE_X, &icx_features },
+	{ INTEL_FAM6_ICELAKE_D, &icx_features },
+	{ INTEL_FAM6_ICELAKE_L, &cnl_features },
+	{ INTEL_FAM6_ICELAKE_NNPI, &cnl_features },
+	{ INTEL_FAM6_ROCKETLAKE, &cnl_features },
+	{ INTEL_FAM6_TIGERLAKE_L, &cnl_features },
+	{ INTEL_FAM6_TIGERLAKE, &cnl_features },
+	{ INTEL_FAM6_SAPPHIRERAPIDS_X, &spr_features },
+	{ INTEL_FAM6_EMERALDRAPIDS_X, &spr_features },
+	{ INTEL_FAM6_LAKEFIELD, &cnl_features },
+	{ INTEL_FAM6_ALDERLAKE, &cnl_features },
+	{ INTEL_FAM6_ALDERLAKE_L, &cnl_features },
+	{ INTEL_FAM6_RAPTORLAKE, &cnl_features },
+	{ INTEL_FAM6_RAPTORLAKE_P, &cnl_features },
+	{ INTEL_FAM6_RAPTORLAKE_S, &cnl_features },
+	{ INTEL_FAM6_METEORLAKE, &cnl_features },
+	{ INTEL_FAM6_METEORLAKE_L, &cnl_features },
+	{ INTEL_FAM6_ATOM_SILVERMONT, &slv_features },
+	{ INTEL_FAM6_ATOM_SILVERMONT_D, &slvd_features },
+	{ INTEL_FAM6_ATOM_AIRMONT, &amt_features },
+	{ INTEL_FAM6_ATOM_GOLDMONT, &gmt_features },
+	{ INTEL_FAM6_ATOM_GOLDMONT_D, &gmtd_features },
+	{ INTEL_FAM6_ATOM_GOLDMONT_PLUS, &gmtp_features },
+	{ INTEL_FAM6_ATOM_TREMONT_D, &tmtd_features },
+	{ INTEL_FAM6_ATOM_TREMONT, &tmt_features },
+	{ INTEL_FAM6_ATOM_TREMONT_L, &tmt_features },
+	{ INTEL_FAM6_ATOM_GRACEMONT, &cnl_features },
+	{ INTEL_FAM6_XEON_PHI_KNL, &knl_features },
+	{ INTEL_FAM6_XEON_PHI_KNM, &knl_features },
+	/*
+	 * Missing support for
+	 * INTEL_FAM6_ICELAKE
+	 * INTEL_FAM6_ATOM_SILVERMONT_MID
+	 * INTEL_FAM6_ATOM_AIRMONT_MID
+	 * INTEL_FAM6_ATOM_AIRMONT_NP
+	 */
+	{ 0, NULL },
+};
+
+static const struct platform_features *platform;
+
+void probe_platform_features(unsigned int family, unsigned int model)
+{
+	int i;
+
+	if (authentic_amd || hygon_genuine) {
+		platform = &amd_features;
+		return;
+	}
+
+	platform = &default_features;
+
+	if (!genuine_intel || family != 6)
+		return;
+
+	for (i = 0; turbostat_pdata[i].features; i++) {
+		if (turbostat_pdata[i].model == model) {
+			platform = turbostat_pdata[i].features;
+			return;
+		}
+	}
+}
+
+/* Model specific support End */
+
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
 					/* 0x611 MSR_PKG_ENERGY_STATUS */
@@ -5562,6 +5753,7 @@ void process_cpuid()
 			edx_flags & (1 << 28) ? "HT" : "-", edx_flags & (1 << 29) ? "TM" : "-");
 	}
 
+	probe_platform_features(family, model);
 	if (genuine_intel)
 		model = intel_model_duplicates(model);
 
