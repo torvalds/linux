@@ -219,13 +219,9 @@ static void n_tty_kick_worker(const struct tty_struct *tty)
 static ssize_t chars_in_buffer(const struct tty_struct *tty)
 {
 	const struct n_tty_data *ldata = tty->disc_data;
-	ssize_t n = 0;
+	size_t head = ldata->icanon ? ldata->canon_head : ldata->commit_head;
 
-	if (!ldata->icanon)
-		n = ldata->commit_head - ldata->read_tail;
-	else
-		n = ldata->canon_head - ldata->read_tail;
-	return n;
+	return head - ldata->read_tail;
 }
 
 /**
