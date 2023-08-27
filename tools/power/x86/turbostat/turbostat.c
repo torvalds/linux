@@ -710,7 +710,7 @@ static const struct platform_features tmtd_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
 	.bclk_freq = BCLK_100MHZ,
-	.supported_cstates = CC1 | CC3 | CC6 | CC7 | PC2 | PC3 | PC6 | PC7,
+	.supported_cstates = CC1 | CC6,
 	.cst_limit = CST_LIMIT_GMT,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 	.rapl_msrs = RAPL_PKG_ALL,
@@ -4361,21 +4361,6 @@ int is_ehl(unsigned int family, unsigned int model)
 	return 0;
 }
 
-int is_jvl(unsigned int family, unsigned int model)
-{
-	if (!genuine_intel)
-		return 0;
-
-	if (family != 6)
-		return 0;
-
-	switch (model) {
-	case INTEL_FAM6_ATOM_TREMONT_D:
-		return 1;
-	}
-	return 0;
-}
-
 static void remove_underbar(char *s)
 {
 	char *to = s;
@@ -5831,14 +5816,6 @@ void process_cpuid()
 	if (has_slv_msrs(family, model)) {
 		BIC_PRESENT(BIC_Mod_c6);
 		use_c1_residency_msr = 1;
-	}
-	if (is_jvl(family, model)) {
-		BIC_NOT_PRESENT(BIC_CPU_c3);
-		BIC_NOT_PRESENT(BIC_CPU_c7);
-		BIC_NOT_PRESENT(BIC_Pkgpc2);
-		BIC_NOT_PRESENT(BIC_Pkgpc3);
-		BIC_NOT_PRESENT(BIC_Pkgpc6);
-		BIC_NOT_PRESENT(BIC_Pkgpc7);
 	}
 	if (is_dnv(family, model)) {
 		BIC_PRESENT(BIC_CPU_c1);
