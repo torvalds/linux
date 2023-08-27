@@ -1528,19 +1528,18 @@ n_tty_receive_buf_real_raw(const struct tty_struct *tty, const u8 *cp,
 			   size_t count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	size_t n, head;
 
-	head = MASK(ldata->read_head);
-	n = min(count, N_TTY_BUF_SIZE - head);
-	memcpy(read_buf_addr(ldata, head), cp, n);
-	ldata->read_head += n;
-	cp += n;
-	count -= n;
+	/* handle buffer wrap-around by a loop */
+	for (unsigned int i = 0; i < 2; i++) {
+		size_t head = MASK(ldata->read_head);
+		size_t n = min(count, N_TTY_BUF_SIZE - head);
 
-	head = MASK(ldata->read_head);
-	n = min(count, N_TTY_BUF_SIZE - head);
-	memcpy(read_buf_addr(ldata, head), cp, n);
-	ldata->read_head += n;
+		memcpy(read_buf_addr(ldata, head), cp, n);
+
+		ldata->read_head += n;
+		cp += n;
+		count -= n;
+	}
 }
 
 static void
