@@ -286,11 +286,6 @@ static int __init parisc_init(void)
 #if defined(CONFIG_IOMMU_SBA)
 	sba_init();
 #endif
-
-#ifdef CONFIG_CHASSIS_LCD_LED
-	register_led_regions();	/* register LED port info in procfs */
-#endif
-
 	return 0;
 }
 arch_initcall(parisc_init);

@@ -613,7 +613,7 @@ int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long d
    **
  */
 
-void __init register_led_regions(void)
+static int __init register_led_regions(void)
 {
 	switch (lcd_info.model) {
 	case DISPLAY_MODEL_LCD:
@@ -625,7 +625,9 @@ void __init register_led_regions(void)
 		request_mem_region((unsigned long)LED_DATA_REG, 1, "led_data");
 		break;
 	}
+	return 0;
 }
+late_initcall(register_led_regions);
 
 
 /*

@@ -27,9 +27,6 @@
 /* register_led_driver() */
 int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long data_reg);
 
-/* registers the LED regions for procfs */
-void __init register_led_regions(void);
-
 #ifdef CONFIG_CHASSIS_LCD_LED
 /* writes a string to the LCD display (if possible on this h/w) */
 int lcd_print(const char *str);
