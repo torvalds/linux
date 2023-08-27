@@ -319,7 +319,6 @@ extern void ccio_init(void);
 extern void iosapic_init(void);
 extern void lba_init(void);
 extern void sba_init(void);
-extern void parisc_eisa_init(void);
 struct parisc_device;
 struct resource;
 extern void sba_distributed_lmmio(struct parisc_device *, struct resource *);
