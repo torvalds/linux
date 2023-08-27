@@ -84,7 +84,6 @@ dump_wed_regs(struct seq_file *s, struct mtk_wed_device *dev,
 	}
 }
 
-
 static int
 wed_txinfo_show(struct seq_file *s, void *data)
 {
@@ -142,10 +141,8 @@ wed_txinfo_show(struct seq_file *s, void *data)
 	struct mtk_wed_hw *hw = s->private;
 	struct mtk_wed_device *dev = hw->wed_dev;
 
-	if (!dev)
-		return 0;
-
-	dump_wed_regs(s, dev, regs, ARRAY_SIZE(regs));
+	if (dev)
+		dump_wed_regs(s, dev, regs, ARRAY_SIZE(regs));
 
 	return 0;
 }
@@ -217,10 +214,8 @@ wed_rxinfo_show(struct seq_file *s, void *data)
 	struct mtk_wed_hw *hw = s->private;
 	struct mtk_wed_device *dev = hw->wed_dev;
 
-	if (!dev)
-		return 0;
-
-	dump_wed_regs(s, dev, regs, ARRAY_SIZE(regs));
+	if (dev)
+		dump_wed_regs(s, dev, regs, ARRAY_SIZE(regs));
 
 	return 0;
 }
