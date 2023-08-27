@@ -290,10 +290,6 @@ static int __init parisc_init(void)
 	lba_init();
 #endif
 
-#if defined(CONFIG_GSC_LASI) || defined(CONFIG_GSC_WAX)
-	gsc_init();
-#endif
-
 #ifdef CONFIG_CHASSIS_LCD_LED
 	register_led_regions();	/* register LED port info in procfs */
 #endif

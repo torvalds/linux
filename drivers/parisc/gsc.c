@@ -263,7 +263,7 @@ extern struct parisc_driver lasi_driver;
 extern struct parisc_driver asp_driver;
 extern struct parisc_driver wax_driver;
 
-void __init gsc_init(void)
+static int __init gsc_init(void)
 {
 #ifdef CONFIG_GSC_LASI
 	register_parisc_driver(&lasi_driver);
@@ -272,4 +272,6 @@ void __init gsc_init(void)
 #ifdef CONFIG_GSC_WAX
 	register_parisc_driver(&wax_driver);
 #endif
+	return 0;
 }
+arch_initcall(gsc_init);

@@ -313,7 +313,6 @@ extern void collect_boot_cpu_data(void);
 extern int show_cpuinfo (struct seq_file *m, void *v);
 
 /* driver code in driver/parisc */
-extern void gsc_init(void);
 extern void processor_init(void);
 extern void iosapic_init(void);
 extern void lba_init(void);
