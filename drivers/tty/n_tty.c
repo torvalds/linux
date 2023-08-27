@@ -1523,27 +1523,27 @@ static void n_tty_lookahead_flow_ctrl(struct tty_struct *tty, const u8 *cp,
 
 static void
 n_tty_receive_buf_real_raw(const struct tty_struct *tty, const u8 *cp,
-			   int count)
+			   size_t count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t n, head;
 
 	head = MASK(ldata->read_head);
-	n = min_t(size_t, count, N_TTY_BUF_SIZE - head);
+	n = min(count, N_TTY_BUF_SIZE - head);
 	memcpy(read_buf_addr(ldata, head), cp, n);
 	ldata->read_head += n;
 	cp += n;
 	count -= n;
 
 	head = MASK(ldata->read_head);
-	n = min_t(size_t, count, N_TTY_BUF_SIZE - head);
+	n = min(count, N_TTY_BUF_SIZE - head);
 	memcpy(read_buf_addr(ldata, head), cp, n);
 	ldata->read_head += n;
 }
 
 static void
 n_tty_receive_buf_raw(struct tty_struct *tty, const u8 *cp, const u8 *fp,
-		      int count)
+		      size_t count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	u8 flag = TTY_NORMAL;
@@ -1560,7 +1560,7 @@ n_tty_receive_buf_raw(struct tty_struct *tty, const u8 *cp, const u8 *fp,
 
 static void
 n_tty_receive_buf_closing(struct tty_struct *tty, const u8 *cp, const u8 *fp,
-			  int count, bool lookahead_done)
+			  size_t count, bool lookahead_done)
 {
 	u8 flag = TTY_NORMAL;
 
@@ -1573,7 +1573,7 @@ n_tty_receive_buf_closing(struct tty_struct *tty, const u8 *cp, const u8 *fp,
 }
 
 static void n_tty_receive_buf_standard(struct tty_struct *tty, const u8 *cp,
-				       const u8 *fp, int count,
+				       const u8 *fp, size_t count,
 				       bool lookahead_done)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1612,11 +1612,11 @@ static void n_tty_receive_buf_standard(struct tty_struct *tty, const u8 *cp,
 }
 
 static void __receive_buf(struct tty_struct *tty, const u8 *cp, const u8 *fp,
-			  int count)
+			  size_t count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	bool preops = I_ISTRIP(tty) || (I_IUCLC(tty) && L_IEXTEN(tty));
-	size_t la_count = min_t(size_t, ldata->lookahead_count, count);
+	size_t la_count = min(ldata->lookahead_count, count);
 
 	if (ldata->real_raw)
 		n_tty_receive_buf_real_raw(tty, cp, count);
@@ -1687,11 +1687,11 @@ static void __receive_buf(struct tty_struct *tty, const u8 *cp, const u8 *fp,
  */
 static size_t
 n_tty_receive_buf_common(struct tty_struct *tty, const u8 *cp, const u8 *fp,
-			 int count, bool flow)
+			 size_t count, bool flow)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	size_t rcvd = 0;
-	int room, n, overflow;
+	size_t n, rcvd = 0;
+	int room, overflow;
 
 	down_read(&tty->termios_rwsem);
 
@@ -1724,7 +1724,7 @@ n_tty_receive_buf_common(struct tty_struct *tty, const u8 *cp, const u8 *fp,
 		} else
 			overflow = 0;
 
-		n = min(count, room);
+		n = min_t(size_t, count, room);
 		if (!n)
 			break;
 
@@ -1954,9 +1954,8 @@ static inline int input_available_p(const struct tty_struct *tty, int poll)
  *		caller holds non-exclusive %termios_rwsem;
  *		read_tail published
  */
-static bool copy_from_read_buf(const struct tty_struct *tty,
-				      u8 **kbp,
-				      size_t *nr)
+static bool copy_from_read_buf(const struct tty_struct *tty, u8 **kbp,
+			       size_t *nr)
 
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -2009,8 +2008,7 @@ static bool copy_from_read_buf(const struct tty_struct *tty,
  *	caller holds non-exclusive %termios_rwsem;
  *	read_tail published
  */
-static bool canon_copy_from_read_buf(const struct tty_struct *tty,
-				     u8 **kbp,
+static bool canon_copy_from_read_buf(const struct tty_struct *tty, u8 **kbp,
 				     size_t *nr)
 {
 	struct n_tty_data *ldata = tty->disc_data;
