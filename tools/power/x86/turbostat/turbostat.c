@@ -287,6 +287,7 @@ struct platform_features {
 	bool has_msr_misc_feature_control;	/* MSR_MISC_FEATURE_CONTROL */
 	bool has_msr_misc_pwr_mgmt;	/* MSR_MISC_PWR_MGMT */
 	int bclk_freq;		/* CPU base clock */
+	int cst_limit;		/* MSR_PKG_CST_CONFIG_CONTROL */
 };
 
 struct platform_data {
@@ -326,153 +327,193 @@ double slm_bclk(void)
 	return freq;
 }
 
+/* For Package cstate limit */
+enum package_cstate_limit {
+	CST_LIMIT_NHM = 1,
+	CST_LIMIT_SNB,
+	CST_LIMIT_HSW,
+	CST_LIMIT_SKX,
+	CST_LIMIT_ICX,
+	CST_LIMIT_SLV,
+	CST_LIMIT_AMT,
+	CST_LIMIT_KNL,
+	CST_LIMIT_GMT,
+};
+
 static const struct platform_features nhm_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_133MHZ,
+	.cst_limit = CST_LIMIT_NHM,
 };
 
 static const struct platform_features nhx_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_133MHZ,
+	.cst_limit = CST_LIMIT_NHM,
 };
 
 static const struct platform_features snb_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_SNB,
 };
 
 static const struct platform_features snx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_SNB,
 };
 
 static const struct platform_features ivb_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_SNB,
 };
 
 static const struct platform_features ivx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_SNB,
 };
 
 static const struct platform_features hsw_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_HSW,
 };
 
 static const struct platform_features hsx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_HSW,
 };
 
 static const struct platform_features hswl_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_HSW,
 };
 
 static const struct platform_features hswg_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_HSW,
 };
 
 static const struct platform_features bdw_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_HSW,
 };
 
 static const struct platform_features bdwg_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_HSW,
 };
 
 static const struct platform_features bdx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_HSW,
 };
 
 static const struct platform_features skl_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_HSW,
 };
 
 static const struct platform_features cnl_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_HSW,
 };
 
 static const struct platform_features skx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_SKX,
 };
 
 static const struct platform_features icx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_ICX,
 };
 
 static const struct platform_features spr_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_SKX,
 };
 
 static const struct platform_features slv_features = {
 	.bclk_freq = BCLK_SLV,
+	.cst_limit = CST_LIMIT_SLV,
 };
 
 static const struct platform_features slvd_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_SLV,
+	.cst_limit = CST_LIMIT_SLV,
 };
 
 static const struct platform_features amt_features = {
 	.bclk_freq = BCLK_133MHZ,
+	.cst_limit = CST_LIMIT_AMT,
 };
 
 static const struct platform_features gmt_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_GMT,
 };
 
 static const struct platform_features gmtd_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_GMT,
 };
 
 static const struct platform_features gmtp_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_GMT,
 };
 
 static const struct platform_features tmt_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_GMT,
 };
 
 static const struct platform_features tmtd_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_GMT,
 };
 
 static const struct platform_features knl_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.bclk_freq = BCLK_100MHZ,
+	.cst_limit = CST_LIMIT_KNL,
 };
 
 static const struct platform_features default_features = {
@@ -2704,6 +2745,50 @@ int icx_pkg_cstate_limits[16] =
 	PCLRSV, PCLRSV
 };
 
+void probe_cst_limit(void)
+{
+	unsigned long long msr;
+	int *pkg_cstate_limits;
+
+	if (!do_nhm_platform_info)
+		return;
+
+	switch (platform->cst_limit) {
+	case CST_LIMIT_NHM:
+		pkg_cstate_limits = nhm_pkg_cstate_limits;
+		break;
+	case CST_LIMIT_SNB:
+		pkg_cstate_limits = snb_pkg_cstate_limits;
+		break;
+	case CST_LIMIT_HSW:
+		pkg_cstate_limits = hsw_pkg_cstate_limits;
+		break;
+	case CST_LIMIT_SKX:
+		pkg_cstate_limits = skx_pkg_cstate_limits;
+		break;
+	case CST_LIMIT_ICX:
+		pkg_cstate_limits = icx_pkg_cstate_limits;
+		break;
+	case CST_LIMIT_SLV:
+		pkg_cstate_limits = slv_pkg_cstate_limits;
+		break;
+	case CST_LIMIT_AMT:
+		pkg_cstate_limits = amt_pkg_cstate_limits;
+		break;
+	case CST_LIMIT_KNL:
+		pkg_cstate_limits = phi_pkg_cstate_limits;
+		break;
+	case CST_LIMIT_GMT:
+		pkg_cstate_limits = glm_pkg_cstate_limits;
+		break;
+	default:
+		return;
+	}
+
+	get_msr(base_cpu, MSR_PKG_CST_CONFIG_CONTROL, &msr);
+	pkg_cstate_limit = pkg_cstate_limits[msr & 0xF];
+}
+
 static void calculate_tsc_tweak()
 {
 	tsc_tweak = base_hz / tsc_hz;
@@ -4006,15 +4091,9 @@ void probe_bclk(void)
  * MSR_PKG_C6_RESIDENCY            0x000003f9
  * MSR_CORE_C3_RESIDENCY           0x000003fc
  * MSR_CORE_C6_RESIDENCY           0x000003fd
- *
- * Side effect:
- * sets global pkg_cstate_limit to decode MSR_PKG_CST_CONFIG_CONTROL
  */
 int probe_nhm_msrs(unsigned int family, unsigned int model)
 {
-	unsigned long long msr;
-	int *pkg_cstate_limits;
-
 	if (!genuine_intel)
 		return 0;
 
@@ -4024,14 +4103,10 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	switch (model) {
 	case INTEL_FAM6_NEHALEM:	/* Core i7 and i5 Processor - Clarksfield, Lynnfield, Jasper Forest */
 	case INTEL_FAM6_NEHALEM_EX:	/* Nehalem-EX Xeon - Beckton */
-		pkg_cstate_limits = nhm_pkg_cstate_limits;
-		break;
 	case INTEL_FAM6_SANDYBRIDGE:	/* SNB */
 	case INTEL_FAM6_SANDYBRIDGE_X:	/* SNB Xeon */
 	case INTEL_FAM6_IVYBRIDGE:	/* IVB */
 	case INTEL_FAM6_IVYBRIDGE_X:	/* IVB Xeon */
-		pkg_cstate_limits = snb_pkg_cstate_limits;
-		break;
 	case INTEL_FAM6_HASWELL:	/* HSW */
 	case INTEL_FAM6_HASWELL_G:	/* HSW */
 	case INTEL_FAM6_HASWELL_X:	/* HSX */
@@ -4041,38 +4116,22 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_BROADWELL_X:	/* BDX */
 	case INTEL_FAM6_SKYLAKE_L:	/* SKL */
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
-		pkg_cstate_limits = hsw_pkg_cstate_limits;
-		break;
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
-		pkg_cstate_limits = skx_pkg_cstate_limits;
-		break;
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
-		pkg_cstate_limits = icx_pkg_cstate_limits;
-		break;
 	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
-		/* FALLTHRU */
 	case INTEL_FAM6_ATOM_SILVERMONT_D:	/* AVN */
-		pkg_cstate_limits = slv_pkg_cstate_limits;
-		break;
 	case INTEL_FAM6_ATOM_AIRMONT:	/* AMT */
-		pkg_cstate_limits = amt_pkg_cstate_limits;
-		break;
 	case INTEL_FAM6_XEON_PHI_KNL:	/* PHI */
-		pkg_cstate_limits = phi_pkg_cstate_limits;
-		break;
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
 	case INTEL_FAM6_ATOM_GOLDMONT_D:	/* DNV */
 	case INTEL_FAM6_ATOM_TREMONT:	/* EHL */
 	case INTEL_FAM6_ATOM_TREMONT_D:	/* JVL */
-		pkg_cstate_limits = glm_pkg_cstate_limits;
 		break;
 	default:
 		return 0;
 	}
-	get_msr(base_cpu, MSR_PKG_CST_CONFIG_CONTROL, &msr);
-	pkg_cstate_limit = pkg_cstate_limits[msr & 0xF];
 
 	return 1;
 }
@@ -5964,6 +6023,7 @@ void process_cpuid()
 	BIC_PRESENT(BIC_IRQ);
 	BIC_PRESENT(BIC_TSC_MHz);
 
+	probe_cst_limit();
 	if (probe_nhm_msrs(family, model)) {
 		do_nhm_platform_info = 1;
 		BIC_PRESENT(BIC_CPU_c1);
