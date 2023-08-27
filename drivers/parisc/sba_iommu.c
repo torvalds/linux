@@ -1994,10 +1994,11 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 ** This is the only routine which is NOT static.
 ** Must be called exactly once before pci_init().
 */
-void __init sba_init(void)
+static int __init sba_init(void)
 {
-	register_parisc_driver(&sba_driver);
+	return register_parisc_driver(&sba_driver);
 }
+arch_initcall(sba_init);
 
 
 /**

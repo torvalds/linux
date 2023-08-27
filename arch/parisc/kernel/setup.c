@@ -283,9 +283,6 @@ static int __init parisc_init(void)
 #if defined(CONFIG_IOSAPIC)
 	iosapic_init();
 #endif
-#if defined(CONFIG_IOMMU_SBA)
-	sba_init();
-#endif
 	return 0;
 }
 arch_initcall(parisc_init);
