@@ -307,10 +307,6 @@ static int __init parisc_init(void)
 	parisc_eisa_init();
 #endif
 
-#if defined(CONFIG_HPPB)
-	hppb_init();
-#endif
-
 #ifdef CONFIG_CHASSIS_LCD_LED
 	register_led_regions();	/* register LED port info in procfs */
 #endif
