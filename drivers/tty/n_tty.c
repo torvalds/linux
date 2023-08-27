@@ -99,7 +99,7 @@ struct n_tty_data {
 
 	/* private to n_tty_receive_overrun (single-threaded) */
 	unsigned long overrun_time;
-	int num_overrun;
+	unsigned int num_overrun;
 
 	/* non-atomic */
 	bool no_room;
@@ -1174,7 +1174,7 @@ static void n_tty_receive_overrun(const struct tty_struct *tty)
 
 	ldata->num_overrun++;
 	if (time_is_before_jiffies(ldata->overrun_time + HZ)) {
-		tty_warn(tty, "%d input overrun(s)\n", ldata->num_overrun);
+		tty_warn(tty, "%u input overrun(s)\n", ldata->num_overrun);
 		ldata->overrun_time = jiffies;
 		ldata->num_overrun = 0;
 	}
