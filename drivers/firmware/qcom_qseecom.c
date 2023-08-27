@@ -83,7 +83,9 @@ static int qseecom_client_register(struct platform_device *qseecom_dev,
  * assuming the app has already been loaded (usually by firmware bootloaders)
  * and its ID can be queried successfully.
  */
-static const struct qseecom_app_desc qcom_qseecom_apps[] = {};
+static const struct qseecom_app_desc qcom_qseecom_apps[] = {
+	{ "qcom.tz.uefisecapp", "uefisecapp" },
+};
 
 static int qcom_qseecom_probe(struct platform_device *qseecom_dev)
 {
