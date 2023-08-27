@@ -221,7 +221,6 @@ unsigned int rapl_joules;
 unsigned int summary_only;
 unsigned int list_header_only;
 unsigned int dump_only;
-unsigned int do_knl_cstates;
 unsigned int has_aperf;
 unsigned int has_epb;
 unsigned int has_turbo;
@@ -286,6 +285,7 @@ struct platform_features {
 	bool has_msr_module_c6_res_ms;	/* MSR_MODULE_C6_RES_MS */
 	bool has_msr_c6_demotion_policy_config;	/* MSR_CC6_DEMOTION_POLICY_CONFIG/MSR_MC6_DEMOTION_POLICY_CONFIG */
 	bool has_msr_atom_pkg_c6_residency;	/* MSR_ATOM_PKG_C6_RESIDENCY */
+	bool has_msr_knl_core_c6_residency;	/* MSR_KNL_CORE_C6_RESIDENCY */
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
 	int plr_msrs;		/* MSR_CORE/GFX/RING_PERF_LIMIT_REASONS */
 	int rapl_msrs;		/* RAPL PKG/DRAM/CORE/GFX MSRs, AMD RAPL MSRs */
@@ -751,6 +751,7 @@ static const struct platform_features knl_features = {
 	.bclk_freq = BCLK_100MHZ,
 	.supported_cstates = CC1 | CC6 | PC3 | PC6,
 	.cst_limit = CST_LIMIT_KNL,
+	.has_msr_knl_core_c6_residency = 1,
 	.trl_msrs = TRL_KNL,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
 	.has_fixed_rapl_unit = 1,
@@ -2727,10 +2728,10 @@ retry:
 			return -6;
 	}
 
-	if ((DO_BIC(BIC_CPU_c6) || soft_c1_residency_display(BIC_CPU_c6)) && !do_knl_cstates) {
+	if ((DO_BIC(BIC_CPU_c6) || soft_c1_residency_display(BIC_CPU_c6)) && !platform->has_msr_knl_core_c6_residency) {
 		if (get_msr(cpu, MSR_CORE_C6_RESIDENCY, &c->c6))
 			return -7;
-	} else if (do_knl_cstates && soft_c1_residency_display(BIC_CPU_c6)) {
+	} else if (platform->has_msr_knl_core_c6_residency && soft_c1_residency_display(BIC_CPU_c6)) {
 		if (get_msr(cpu, MSR_KNL_CORE_C6_RESIDENCY, &c->c6))
 			return -7;
 	}
@@ -5670,7 +5671,6 @@ void process_cpuid()
 		BIC_PRESENT(BIC_GFX_c0);
 		BIC_PRESENT(BIC_CPUGFX);
 	}
-	do_knl_cstates = is_knl(family, model);
 
 	if (!quiet)
 		decode_misc_pwr_mgmt_msr();
