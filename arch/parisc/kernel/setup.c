@@ -143,11 +143,6 @@ void __init setup_arch(char **cmdline_p)
 	parisc_cache_init();
 	paging_init();
 
-#ifdef CONFIG_CHASSIS_LCD_LED
-	/* initialize the LCD/LED after boot_cpu_data is available ! */
-	led_init();		/* LCD/LED initialization */
-#endif
-
 #ifdef CONFIG_PA11
 	dma_ops_init();
 #endif
