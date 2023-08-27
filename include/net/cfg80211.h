@@ -8874,6 +8874,18 @@ static inline size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
 }
 
 /**
+ * ieee80211_fragment_element - fragment the last element in skb
+ * @skb: The skbuf that the element was added to
+ * @len_pos: Pointer to length of the element to fragment
+ * @frag_id: The element ID to use for fragments
+ *
+ * This function fragments all data after @len_pos, adding fragmentation
+ * elements with the given ID as appropriate. The SKB will grow in size
+ * accordingly.
+ */
+void ieee80211_fragment_element(struct sk_buff *skb, u8 *len_pos, u8 frag_id);
+
+/**
  * cfg80211_report_wowlan_wakeup - report wakeup from WoWLAN
  * @wdev: the wireless device reporting the wakeup
  * @wakeup: the wakeup report

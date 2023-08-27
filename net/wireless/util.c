@@ -1966,6 +1966,35 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
 }
 EXPORT_SYMBOL(ieee80211_ie_split_ric);
 
+void ieee80211_fragment_element(struct sk_buff *skb, u8 *len_pos, u8 frag_id)
+{
+	unsigned int elem_len;
+
+	if (!len_pos)
+		return;
+
+	elem_len = skb->data + skb->len - len_pos - 1;
+
+	while (elem_len > 255) {
+		/* this one is 255 */
+		*len_pos = 255;
+		/* remaining data gets smaller */
+		elem_len -= 255;
+		/* make space for the fragment ID/len in SKB */
+		skb_put(skb, 2);
+		/* shift back the remaining data to place fragment ID/len */
+		memmove(len_pos + 255 + 3, len_pos + 255 + 1, elem_len);
+		/* place the fragment ID */
+		len_pos += 255 + 1;
+		*len_pos = frag_id;
+		/* and point to fragment length to update later */
+		len_pos++;
+	}
+
+	*len_pos = elem_len;
+}
+EXPORT_SYMBOL(ieee80211_fragment_element);
+
 bool ieee80211_operating_class_to_band(u8 operating_class,
 				       enum nl80211_band *band)
 {
