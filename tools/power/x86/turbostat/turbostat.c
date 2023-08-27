@@ -229,7 +229,6 @@ unsigned int has_epb;
 unsigned int has_turbo;
 unsigned int is_hybrid;
 unsigned int do_irtl_snb;
-unsigned int do_irtl_hsw;
 unsigned int units = 1000000;	/* MHz etc */
 unsigned int genuine_intel;
 unsigned int authentic_amd;
@@ -3269,39 +3268,47 @@ void print_irtl(void)
 {
 	unsigned long long msr;
 
-	get_msr(base_cpu, MSR_PKGC3_IRTL, &msr);
-	fprintf(outf, "cpu%d: MSR_PKGC3_IRTL: 0x%08llx (", base_cpu, msr);
-	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
-		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+	if (platform->supported_cstates & PC3) {
+		get_msr(base_cpu, MSR_PKGC3_IRTL, &msr);
+		fprintf(outf, "cpu%d: MSR_PKGC3_IRTL: 0x%08llx (", base_cpu, msr);
+		fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+			(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+	}
 
-	get_msr(base_cpu, MSR_PKGC6_IRTL, &msr);
-	fprintf(outf, "cpu%d: MSR_PKGC6_IRTL: 0x%08llx (", base_cpu, msr);
-	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
-		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+	if (platform->supported_cstates & PC6) {
+		get_msr(base_cpu, MSR_PKGC6_IRTL, &msr);
+		fprintf(outf, "cpu%d: MSR_PKGC6_IRTL: 0x%08llx (", base_cpu, msr);
+		fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+			(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+	}
 
-	get_msr(base_cpu, MSR_PKGC7_IRTL, &msr);
-	fprintf(outf, "cpu%d: MSR_PKGC7_IRTL: 0x%08llx (", base_cpu, msr);
-	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
-		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+	if (platform->supported_cstates & PC7) {
+		get_msr(base_cpu, MSR_PKGC7_IRTL, &msr);
+		fprintf(outf, "cpu%d: MSR_PKGC7_IRTL: 0x%08llx (", base_cpu, msr);
+		fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+			(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+	}
 
-	if (!do_irtl_hsw)
-		return;
+	if (platform->supported_cstates & PC8) {
+		get_msr(base_cpu, MSR_PKGC8_IRTL, &msr);
+		fprintf(outf, "cpu%d: MSR_PKGC8_IRTL: 0x%08llx (", base_cpu, msr);
+		fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+			(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+	}
 
-	get_msr(base_cpu, MSR_PKGC8_IRTL, &msr);
-	fprintf(outf, "cpu%d: MSR_PKGC8_IRTL: 0x%08llx (", base_cpu, msr);
-	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
-		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+	if (platform->supported_cstates & PC9) {
+		get_msr(base_cpu, MSR_PKGC9_IRTL, &msr);
+		fprintf(outf, "cpu%d: MSR_PKGC9_IRTL: 0x%08llx (", base_cpu, msr);
+		fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+			(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+	}
 
-	get_msr(base_cpu, MSR_PKGC9_IRTL, &msr);
-	fprintf(outf, "cpu%d: MSR_PKGC9_IRTL: 0x%08llx (", base_cpu, msr);
-	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
-		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
-
-	get_msr(base_cpu, MSR_PKGC10_IRTL, &msr);
-	fprintf(outf, "cpu%d: MSR_PKGC10_IRTL: 0x%08llx (", base_cpu, msr);
-	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
-		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
-
+	if (platform->supported_cstates & PC10) {
+		get_msr(base_cpu, MSR_PKGC10_IRTL, &msr);
+		fprintf(outf, "cpu%d: MSR_PKGC10_IRTL: 0x%08llx (", base_cpu, msr);
+		fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+			(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+	}
 }
 
 void free_fd_percpu(void)
@@ -5146,39 +5153,6 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 }
 
 /*
- * HSW ULT added support for C8/C9/C10 MSRs:
- *
- * MSR_PKG_C8_RESIDENCY		0x00000630
- * MSR_PKG_C9_RESIDENCY		0x00000631
- * MSR_PKG_C10_RESIDENCY	0x00000632
- *
- * MSR_PKGC8_IRTL		0x00000633
- * MSR_PKGC9_IRTL		0x00000634
- * MSR_PKGC10_IRTL		0x00000635
- *
- */
-int has_c8910_msrs(unsigned int family, unsigned int model)
-{
-	if (!genuine_intel)
-		return 0;
-
-	if (family != 6)
-		return 0;
-
-	switch (model) {
-	case INTEL_FAM6_HASWELL_L:	/* HSW */
-	case INTEL_FAM6_BROADWELL:	/* BDW */
-	case INTEL_FAM6_SKYLAKE_L:	/* SKL */
-	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
-	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
-	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
-	case INTEL_FAM6_ATOM_TREMONT:	/* EHL */
-		return 1;
-	}
-	return 0;
-}
-
-/*
  * SKL adds support for additional MSRS:
  *
  * MSR_PKG_WEIGHTED_CORE_C0_RES    0x00000658
@@ -5757,7 +5731,6 @@ void process_cpuid()
 	if (is_dnv(family, model)) {
 		use_c1_residency_msr = 1;
 	}
-	do_irtl_hsw = has_c8910_msrs(family, model);
 	if (has_skl_msrs(family, model)) {
 		BIC_PRESENT(BIC_Totl_c0);
 		BIC_PRESENT(BIC_Any_c0);
