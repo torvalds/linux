@@ -258,7 +258,6 @@ int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 	mutex_lock(&ieee->wx_mutex);
 	switch (wrqu->mode) {
 	case IW_MODE_MONITOR:
-	case IW_MODE_ADHOC:
 	case IW_MODE_INFRA:
 		break;
 	case IW_MODE_AUTO:
