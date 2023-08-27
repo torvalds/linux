@@ -122,4 +122,26 @@ extern int qcom_scm_lmh_dcvsh(u32 payload_fn, u32 payload_reg, u32 payload_val,
 extern int qcom_scm_lmh_profile_change(u32 profile_id);
 extern bool qcom_scm_lmh_dcvsh_available(void);
 
+#ifdef CONFIG_QCOM_QSEECOM
+
+int qcom_scm_qseecom_app_get_id(const char *app_name, u32 *app_id);
+int qcom_scm_qseecom_app_send(u32 app_id, void *req, size_t req_size, void *rsp,
+			      size_t rsp_size);
+
+#else /* CONFIG_QCOM_QSEECOM */
+
+static inline int qcom_scm_qseecom_app_get_id(const char *app_name, u32 *app_id)
+{
+	return -EINVAL;
+}
+
+static inline int qcom_scm_qseecom_app_send(u32 app_id, void *req,
+					    size_t req_size, void *rsp,
+					    size_t rsp_size)
+{
+	return -EINVAL;
+}
+
+#endif /* CONFIG_QCOM_QSEECOM */
+
 #endif
