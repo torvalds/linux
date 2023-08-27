@@ -791,6 +791,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	c->btree_key_cache_btrees |= 1U << BTREE_ID_alloc;
 	if (c->opts.inodes_use_key_cache)
 		c->btree_key_cache_btrees |= 1U << BTREE_ID_inodes;
+	c->btree_key_cache_btrees |= 1U << BTREE_ID_logged_ops;
 
 	c->block_bits		= ilog2(block_sectors(c));
 	c->btree_foreground_merge_threshold = BTREE_FOREGROUND_MERGE_THRESHOLD(c);

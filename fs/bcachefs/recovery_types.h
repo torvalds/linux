@@ -29,6 +29,7 @@
 	x(check_subvols,		PASS_FSCK)						\
 	x(delete_dead_snapshots,	PASS_FSCK|PASS_UNCLEAN)					\
 	x(fs_upgrade_for_subvolumes,	0)							\
+	x(resume_logged_ops,		PASS_ALWAYS)						\
 	x(check_inodes,			PASS_FSCK)						\
 	x(check_extents,		PASS_FSCK)						\
 	x(check_dirents,		PASS_FSCK)						\

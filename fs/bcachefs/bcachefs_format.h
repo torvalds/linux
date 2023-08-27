@@ -2249,7 +2249,9 @@ enum btree_id_flags {
 	x(snapshot_trees,	15,	0,					\
 	  BIT_ULL(KEY_TYPE_snapshot_tree))					\
 	x(deleted_inodes,	16,	BTREE_ID_SNAPSHOTS,			\
-	  BIT_ULL(KEY_TYPE_set))
+	  BIT_ULL(KEY_TYPE_set))						\
+	x(logged_ops,		17,	0,					\
+	  0)
 
 enum btree_id {
 #define x(name, nr, ...) BTREE_ID_##name = nr,

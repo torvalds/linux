@@ -20,6 +20,7 @@
 #include "journal_reclaim.h"
 #include "journal_seq_blacklist.h"
 #include "lru.h"
+#include "logged_ops.h"
 #include "move.h"
 #include "quota.h"
 #include "recovery.h"

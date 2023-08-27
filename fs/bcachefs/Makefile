@@ -55,6 +55,7 @@ bcachefs-y		:=	\
 	journal_sb.o		\
 	journal_seq_blacklist.o	\
 	keylist.o		\
+	logged_ops.o		\
 	lru.o			\
 	mean_and_variance.o	\
 	migrate.o		\

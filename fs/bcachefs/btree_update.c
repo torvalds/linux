@@ -653,6 +653,7 @@ int bch2_btree_insert_nonextent(struct btree_trans *trans,
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, btree, k->k.p,
+			     BTREE_ITER_CACHED|
 			     BTREE_ITER_NOT_EXTENTS|
 			     BTREE_ITER_INTENT);
 	ret   = bch2_btree_iter_traverse(&iter) ?:
@@ -725,6 +726,23 @@ int bch2_btree_delete_at_buffered(struct btree_trans *trans,
 	bkey_init(&k->k);
 	k->k.p = pos;
 	return bch2_trans_update_buffered(trans, btree, k);
+}
+
+int bch2_btree_delete(struct btree_trans *trans,
+		      enum btree_id btree, struct bpos pos,
+		      unsigned update_flags)
+{
+	struct btree_iter iter;
+	int ret;
+
+	bch2_trans_iter_init(trans, &iter, btree, pos,
+			     BTREE_ITER_CACHED|
+			     BTREE_ITER_INTENT);
+	ret   = bch2_btree_iter_traverse(&iter) ?:
+		bch2_btree_delete_at(trans, &iter, update_flags);
+	bch2_trans_iter_exit(trans, &iter);
+
+	return ret;
 }
 
 int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
