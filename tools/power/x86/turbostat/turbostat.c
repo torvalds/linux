@@ -291,6 +291,7 @@ struct platform_features {
 	bool has_per_core_rapl;	/* Indicates cores energy collection is per-core, not per-package. AMD specific for now */
 	bool has_rapl_divisor;	/* Divisor for Energy unit raw value from MSR_RAPL_POWER_UNIT */
 	bool has_fixed_rapl_unit;	/* Fixed Energy Unit used for DRAM RAPL Domain */
+	int rapl_quirk_tdp;	/* Hardcoded TDP value when cannot be retrieved from hardware */
 	int tcc_offset_bits;	/* TCC Offset bits in MSR_IA32_TEMPERATURE_TARGET */
 };
 
@@ -602,6 +603,7 @@ static const struct platform_features slv_features = {
 	.trl_msrs = TRL_ATOM,
 	.rapl_msrs = RAPL_PKG | RAPL_CORE,
 	.has_rapl_divisor = 1,
+	.rapl_quirk_tdp = 30,
 };
 
 static const struct platform_features slvd_features = {
@@ -611,6 +613,7 @@ static const struct platform_features slvd_features = {
 	.cst_limit = CST_LIMIT_SLV,
 	.trl_msrs = TRL_BASE,
 	.rapl_msrs = RAPL_PKG | RAPL_CORE,
+	.rapl_quirk_tdp = 30,
 };
 
 static const struct platform_features amt_features = {
@@ -688,6 +691,7 @@ static const struct platform_features amd_features = {
 static const struct platform_features amd_features_with_rapl = {
 	.rapl_msrs = RAPL_AMD_F17H,
 	.has_per_core_rapl = 1,
+	.rapl_quirk_tdp = 280,	/* This is the max stock TDP of HEDT/Server Fam17h+ chips */
 };
 
 static const struct platform_data turbostat_pdata[] = {
@@ -4792,29 +4796,31 @@ int print_perf_limit(struct thread_data *t, struct core_data *c, struct pkg_data
 #define	RAPL_POWER_GRANULARITY	0x7FFF	/* 15 bit power granularity */
 #define	RAPL_TIME_GRANULARITY	0x3F	/* 6 bit time granularity */
 
+double get_quirk_tdp(void)
+{
+	if (platform->rapl_quirk_tdp)
+		return platform->rapl_quirk_tdp;
+
+	return 135.0;
+}
+
 double get_tdp_intel(unsigned int model)
 {
 	unsigned long long msr;
 
+	UNUSED(model);
+
 	if (platform->rapl_msrs & RAPL_PKG_POWER_INFO)
 		if (!get_msr(base_cpu, MSR_PKG_POWER_INFO, &msr))
 			return ((msr >> 0) & RAPL_POWER_GRANULARITY) * rapl_power_units;
-
-	switch (model) {
-	case INTEL_FAM6_ATOM_SILVERMONT:
-	case INTEL_FAM6_ATOM_SILVERMONT_D:
-		return 30.0;
-	default:
-		return 135.0;
-	}
+	return get_quirk_tdp();
 }
 
 double get_tdp_amd(unsigned int family)
 {
 	UNUSED(family);
 
-	/* This is the max stock TDP of HEDT/Server Fam17h+ chips */
-	return 280.0;
+	return get_quirk_tdp();
 }
 
 void rapl_probe_intel(unsigned int model)
