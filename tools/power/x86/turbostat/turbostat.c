@@ -222,7 +222,6 @@ unsigned int summary_only;
 unsigned int list_header_only;
 unsigned int dump_only;
 unsigned int do_knl_cstates;
-unsigned int do_slm_cstates;
 unsigned int has_aperf;
 unsigned int has_epb;
 unsigned int has_turbo;
@@ -286,6 +285,7 @@ struct platform_features {
 	bool has_msr_core_c1_res;	/* MSR_CORE_C1_RES */
 	bool has_msr_module_c6_res_ms;	/* MSR_MODULE_C6_RES_MS */
 	bool has_msr_c6_demotion_policy_config;	/* MSR_CC6_DEMOTION_POLICY_CONFIG/MSR_MC6_DEMOTION_POLICY_CONFIG */
+	bool has_msr_atom_pkg_c6_residency;	/* MSR_ATOM_PKG_C6_RESIDENCY */
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
 	int plr_msrs;		/* MSR_CORE/GFX/RING_PERF_LIMIT_REASONS */
 	int rapl_msrs;		/* RAPL PKG/DRAM/CORE/GFX MSRs, AMD RAPL MSRs */
@@ -657,6 +657,7 @@ static const struct platform_features slv_features = {
 	.has_msr_core_c1_res = 1,
 	.has_msr_module_c6_res_ms = 1,
 	.has_msr_c6_demotion_policy_config = 1,
+	.has_msr_atom_pkg_c6_residency = 1,
 	.trl_msrs = TRL_ATOM,
 	.rapl_msrs = RAPL_PKG | RAPL_CORE,
 	.has_rapl_divisor = 1,
@@ -669,6 +670,7 @@ static const struct platform_features slvd_features = {
 	.bclk_freq = BCLK_SLV,
 	.supported_cstates = CC1 | CC6 | PC3 | PC6,
 	.cst_limit = CST_LIMIT_SLV,
+	.has_msr_atom_pkg_c6_residency = 1,
 	.trl_msrs = TRL_BASE,
 	.rapl_msrs = RAPL_PKG | RAPL_CORE,
 	.rapl_quirk_tdp = 30,
@@ -2795,7 +2797,7 @@ retry:
 		if (get_msr(cpu, MSR_PKG_C3_RESIDENCY, &p->pc3))
 			return -9;
 	if (DO_BIC(BIC_Pkgpc6)) {
-		if (do_slm_cstates) {
+		if (platform->has_msr_atom_pkg_c6_residency) {
 			if (get_msr(cpu, MSR_ATOM_PKG_C6_RESIDENCY, &p->pc6))
 				return -10;
 		} else {
@@ -5125,22 +5127,6 @@ int has_skl_msrs(unsigned int family, unsigned int model)
 	return 0;
 }
 
-int is_slm(unsigned int family, unsigned int model)
-{
-	if (!genuine_intel)
-		return 0;
-
-	if (family != 6)
-		return 0;
-
-	switch (model) {
-	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
-	case INTEL_FAM6_ATOM_SILVERMONT_D:	/* AVN */
-		return 1;
-	}
-	return 0;
-}
-
 int is_knl(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
@@ -5684,7 +5670,6 @@ void process_cpuid()
 		BIC_PRESENT(BIC_GFX_c0);
 		BIC_PRESENT(BIC_CPUGFX);
 	}
-	do_slm_cstates = is_slm(family, model);
 	do_knl_cstates = is_knl(family, model);
 
 	if (!quiet)
