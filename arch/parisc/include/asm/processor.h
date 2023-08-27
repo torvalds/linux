@@ -315,7 +315,6 @@ extern int show_cpuinfo (struct seq_file *m, void *v);
 /* driver code in driver/parisc */
 extern void processor_init(void);
 extern void iosapic_init(void);
-extern void lba_init(void);
 extern void sba_init(void);
 struct parisc_device;
 struct resource;

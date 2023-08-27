@@ -1682,10 +1682,11 @@ static struct parisc_driver lba_driver __refdata = {
 ** One time initialization to let the world know the LBA was found.
 ** Must be called exactly once before pci_init().
 */
-void __init lba_init(void)
+static int __init lba_init(void)
 {
-	register_parisc_driver(&lba_driver);
+	return register_parisc_driver(&lba_driver);
 }
+arch_initcall(lba_init);
 
 /*
 ** Initialize the IBASE/IMASK registers for LBA (Elroy).
