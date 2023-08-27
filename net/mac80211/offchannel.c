@@ -829,8 +829,13 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		if (!sdata->u.mgd.associated ||
 		    (params->offchan && params->wait &&
 		     local->ops->remain_on_channel &&
-		     memcmp(sdata->vif.cfg.ap_addr, mgmt->bssid, ETH_ALEN)))
+		     memcmp(sdata->vif.cfg.ap_addr, mgmt->bssid, ETH_ALEN))) {
 			need_offchan = true;
+		} else if (sdata->u.mgd.associated &&
+			   ether_addr_equal(sdata->vif.cfg.ap_addr, mgmt->da)) {
+			sta = sta_info_get_bss(sdata, mgmt->da);
+			mlo_sta = sta && sta->sta.mlo;
+		}
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		need_offchan = true;
