@@ -223,7 +223,6 @@ unsigned int list_header_only;
 unsigned int dump_only;
 unsigned int do_knl_cstates;
 unsigned int do_slm_cstates;
-unsigned int use_c1_residency_msr;
 unsigned int has_aperf;
 unsigned int has_epb;
 unsigned int has_turbo;
@@ -284,6 +283,7 @@ struct platform_features {
 	int cst_limit;		/* MSR_PKG_CST_CONFIG_CONTROL */
 	bool has_cst_auto_convension;	/* AUTOMATIC_CSTATE_CONVERSION bit in MSR_PKG_CST_CONFIG_CONTROL */
 	bool has_irtl_msrs;	/* MSR_PKGC3/PKGC6/PKGC7/PKGC8/PKGC9/PKGC10_IRTL */
+	bool has_msr_core_c1_res;	/* MSR_CORE_C1_RES */
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
 	int plr_msrs;		/* MSR_CORE/GFX/RING_PERF_LIMIT_REASONS */
 	int rapl_msrs;		/* RAPL PKG/DRAM/CORE/GFX MSRs, AMD RAPL MSRs */
@@ -652,6 +652,7 @@ static const struct platform_features slv_features = {
 	.bclk_freq = BCLK_SLV,
 	.supported_cstates = CC1 | CC6 | PC6,
 	.cst_limit = CST_LIMIT_SLV,
+	.has_msr_core_c1_res = 1,
 	.trl_msrs = TRL_ATOM,
 	.rapl_msrs = RAPL_PKG | RAPL_CORE,
 	.has_rapl_divisor = 1,
@@ -697,6 +698,7 @@ static const struct platform_features gmtd_features = {
 	.supported_cstates = CC1 | CC6 | PC2 | PC6,
 	.cst_limit = CST_LIMIT_GMT,
 	.has_irtl_msrs = 1,
+	.has_msr_core_c1_res = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL | RAPL_CORE_ENERGY_STATUS,
 };
@@ -2069,7 +2071,7 @@ void delta_core(struct core_data *new, struct core_data *old)
 
 int soft_c1_residency_display(int bic)
 {
-	if (!DO_BIC(BIC_CPU_c1) || use_c1_residency_msr)
+	if (!DO_BIC(BIC_CPU_c1) || platform->has_msr_core_c1_res)
 		return 0;
 
 	return DO_BIC_READ(bic);
@@ -2118,7 +2120,7 @@ int delta_thread(struct thread_data *new, struct thread_data *old, struct core_d
 		}
 	}
 
-	if (use_c1_residency_msr) {
+	if (platform->has_msr_core_c1_res) {
 		/*
 		 * Some models have a dedicated C1 residency MSR,
 		 * which should be more accurate than the derivation below.
@@ -2700,7 +2702,7 @@ retry:
 			return -5;
 		t->smi_count = msr & 0xFFFFFFFF;
 	}
-	if (DO_BIC(BIC_CPU_c1) && use_c1_residency_msr) {
+	if (DO_BIC(BIC_CPU_c1) && platform->has_msr_core_c1_res) {
 		if (get_msr(cpu, MSR_CORE_C1_RES, &t->c1))
 			return -6;
 	}
@@ -4297,22 +4299,6 @@ int has_slv_msrs(unsigned int family, unsigned int model)
 	return 0;
 }
 
-int is_dnv(unsigned int family, unsigned int model)
-{
-
-	if (!genuine_intel)
-		return 0;
-
-	if (family != 6)
-		return 0;
-
-	switch (model) {
-	case INTEL_FAM6_ATOM_GOLDMONT_D:
-		return 1;
-	}
-	return 0;
-}
-
 int is_icx(unsigned int family, unsigned int model)
 {
 
@@ -5706,10 +5692,6 @@ void process_cpuid()
 
 	if (has_slv_msrs(family, model)) {
 		BIC_PRESENT(BIC_Mod_c6);
-		use_c1_residency_msr = 1;
-	}
-	if (is_dnv(family, model)) {
-		use_c1_residency_msr = 1;
 	}
 	if (has_skl_msrs(family, model)) {
 		BIC_PRESENT(BIC_Totl_c0);
