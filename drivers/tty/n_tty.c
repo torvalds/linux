@@ -582,6 +582,100 @@ break_out:
 	return i;
 }
 
+static int n_tty_process_echo_ops(struct tty_struct *tty, size_t *tail,
+				  int space)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+	u8 op;
+
+	/*
+	 * Since add_echo_byte() is called without holding output_lock, we
+	 * might see only portion of multi-byte operation.
+	 */
+	if (MASK(ldata->echo_commit) == MASK(*tail + 1))
+		return -ENODATA;
+
+	/*
+	 * If the buffer byte is the start of a multi-byte operation, get the
+	 * next byte, which is either the op code or a control character value.
+	 */
+	op = echo_buf(ldata, *tail + 1);
+
+	switch (op) {
+	case ECHO_OP_ERASE_TAB: {
+		unsigned int num_chars, num_bs;
+
+		if (MASK(ldata->echo_commit) == MASK(*tail + 2))
+			return -ENODATA;
+
+		num_chars = echo_buf(ldata, *tail + 2);
+
+		/*
+		 * Determine how many columns to go back in order to erase the
+		 * tab. This depends on the number of columns used by other
+		 * characters within the tab area. If this (modulo 8) count is
+		 * from the start of input rather than from a previous tab, we
+		 * offset by canon column. Otherwise, tab spacing is normal.
+		 */
+		if (!(num_chars & 0x80))
+			num_chars += ldata->canon_column;
+		num_bs = 8 - (num_chars & 7);
+
+		if (num_bs > space)
+			return -ENOSPC;
+
+		space -= num_bs;
+		while (num_bs--) {
+			tty_put_char(tty, '\b');
+			if (ldata->column > 0)
+				ldata->column--;
+		}
+		*tail += 3;
+		break;
+	}
+	case ECHO_OP_SET_CANON_COL:
+		ldata->canon_column = ldata->column;
+		*tail += 2;
+		break;
+
+	case ECHO_OP_MOVE_BACK_COL:
+		if (ldata->column > 0)
+			ldata->column--;
+		*tail += 2;
+		break;
+
+	case ECHO_OP_START:
+		/* This is an escaped echo op start code */
+		if (!space)
+			return -ENOSPC;
+
+		tty_put_char(tty, ECHO_OP_START);
+		ldata->column++;
+		space--;
+		*tail += 2;
+		break;
+
+	default:
+		/*
+		 * If the op is not a special byte code, it is a ctrl char
+		 * tagged to be echoed as "^X" (where X is the letter
+		 * representing the control char). Note that we must ensure
+		 * there is enough space for the whole ctrl pair.
+		 */
+		if (space < 2)
+			return -ENOSPC;
+
+		tty_put_char(tty, '^');
+		tty_put_char(tty, op ^ 0100);
+		ldata->column += 2;
+		space -= 2;
+		*tail += 2;
+		break;
+	}
+
+	return space;
+}
+
 /**
  * __process_echoes	-	write pending echo characters
  * @tty: terminal device
@@ -617,104 +711,12 @@ static size_t __process_echoes(struct tty_struct *tty)
 	while (MASK(ldata->echo_commit) != MASK(tail)) {
 		c = echo_buf(ldata, tail);
 		if (c == ECHO_OP_START) {
-			u8 op;
-			bool space_left = true;
-
-			/*
-			 * Since add_echo_byte() is called without holding
-			 * output_lock, we might see only portion of multi-byte
-			 * operation.
-			 */
-			if (MASK(ldata->echo_commit) == MASK(tail + 1))
+			int ret = n_tty_process_echo_ops(tty, &tail, space);
+			if (ret == -ENODATA)
 				goto not_yet_stored;
-			/*
-			 * If the buffer byte is the start of a multi-byte
-			 * operation, get the next byte, which is either the
-			 * op code or a control character value.
-			 */
-			op = echo_buf(ldata, tail + 1);
-
-			switch (op) {
-			case ECHO_OP_ERASE_TAB: {
-				unsigned int num_chars, num_bs;
-
-				if (MASK(ldata->echo_commit) == MASK(tail + 2))
-					goto not_yet_stored;
-				num_chars = echo_buf(ldata, tail + 2);
-
-				/*
-				 * Determine how many columns to go back
-				 * in order to erase the tab.
-				 * This depends on the number of columns
-				 * used by other characters within the tab
-				 * area.  If this (modulo 8) count is from
-				 * the start of input rather than from a
-				 * previous tab, we offset by canon column.
-				 * Otherwise, tab spacing is normal.
-				 */
-				if (!(num_chars & 0x80))
-					num_chars += ldata->canon_column;
-				num_bs = 8 - (num_chars & 7);
-
-				if (num_bs > space) {
-					space_left = false;
-					break;
-				}
-				space -= num_bs;
-				while (num_bs--) {
-					tty_put_char(tty, '\b');
-					if (ldata->column > 0)
-						ldata->column--;
-				}
-				tail += 3;
+			if (ret < 0)
 				break;
-			}
-			case ECHO_OP_SET_CANON_COL:
-				ldata->canon_column = ldata->column;
-				tail += 2;
-				break;
-
-			case ECHO_OP_MOVE_BACK_COL:
-				if (ldata->column > 0)
-					ldata->column--;
-				tail += 2;
-				break;
-
-			case ECHO_OP_START:
-				/* This is an escaped echo op start code */
-				if (!space) {
-					space_left = false;
-					break;
-				}
-				tty_put_char(tty, ECHO_OP_START);
-				ldata->column++;
-				space--;
-				tail += 2;
-				break;
-
-			default:
-				/*
-				 * If the op is not a special byte code,
-				 * it is a ctrl char tagged to be echoed
-				 * as "^X" (where X is the letter
-				 * representing the control char).
-				 * Note that we must ensure there is
-				 * enough space for the whole ctrl pair.
-				 *
-				 */
-				if (space < 2) {
-					space_left = false;
-					break;
-				}
-				tty_put_char(tty, '^');
-				tty_put_char(tty, op ^ 0100);
-				ldata->column += 2;
-				space -= 2;
-				tail += 2;
-			}
-
-			if (!space_left)
-				break;
+			space = ret;
 		} else {
 			if (O_OPOST(tty)) {
 				int retval = do_output_char(c, tty, space);
