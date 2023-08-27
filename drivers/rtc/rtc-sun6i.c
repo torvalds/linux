@@ -846,8 +846,6 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dev_info(&pdev->dev, "RTC enabled\n");
-
 	return 0;
 }
 
