@@ -1054,15 +1054,6 @@ static int pcf2127_enable_ts(struct device *dev, int ts_id)
 		return ret;
 	}
 
-	/* TS input pin driven to GND detection is supported by all variants.
-	 * Make sure that interrupt bit is defined.
-	 */
-	if (pcf2127->cfg->ts[ts_id].gnd_detect_bit == 0) {
-		dev_err(dev, "%s: tamper detection to GND configuration invalid\n",
-			__func__);
-		return -EINVAL;
-	}
-
 	/*
 	 * Enable interrupt generation when TSF timestamp flag is set.
 	 * Interrupt signals are open-drain outputs and can be left floating if
