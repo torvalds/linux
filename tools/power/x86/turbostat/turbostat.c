@@ -556,7 +556,7 @@ static const struct platform_features bdx_features = {
 	.has_nhm_msrs = 1,
 	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
-	.supported_cstates = CC1 | CC3 | CC6 | CC7 | PC2 | PC3 | PC6 | PC7,
+	.supported_cstates = CC1 | CC3 | CC6 | PC2 | PC3 | PC6,
 	.cst_limit = CST_LIMIT_HSW,
 	.has_cst_auto_convension = 1,
 	.trl_msrs = TRL_BASE,
@@ -4282,22 +4282,6 @@ int is_dnv(unsigned int family, unsigned int model)
 	return 0;
 }
 
-int is_bdx(unsigned int family, unsigned int model)
-{
-
-	if (!genuine_intel)
-		return 0;
-
-	if (family != 6)
-		return 0;
-
-	switch (model) {
-	case INTEL_FAM6_BROADWELL_X:
-		return 1;
-	}
-	return 0;
-}
-
 int is_icx(unsigned int family, unsigned int model)
 {
 
@@ -5803,10 +5787,6 @@ void process_cpuid()
 	}
 	if (is_dnv(family, model)) {
 		use_c1_residency_msr = 1;
-	}
-	if (is_bdx(family, model)) {
-		BIC_NOT_PRESENT(BIC_CPU_c7);
-		BIC_NOT_PRESENT(BIC_Pkgpc7);
 	}
 	if (has_c8910_msrs(family, model)) {
 		if (pkg_cstate_limit >= PCL__8)
