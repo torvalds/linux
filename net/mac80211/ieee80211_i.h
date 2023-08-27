@@ -625,7 +625,6 @@ struct ieee80211_if_ocb {
  * vendor-specific mesh synchronization
  *
  */
-struct ieee802_11_elems;
 struct ieee80211_mesh_sync_ops {
 	void (*rx_bcn_presp)(struct ieee80211_sub_if_data *sdata, u16 stype,
 			     struct ieee80211_mgmt *mgmt, unsigned int len,
