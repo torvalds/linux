@@ -5258,63 +5258,6 @@ void decode_c6_demotion_policy_msr(void)
 			base_cpu, msr, msr & (1 << 0) ? "EN" : "DIS");
 }
 
-/*
- * When models are the same, for the purpose of turbostat, reuse
- */
-unsigned int intel_model_duplicates(unsigned int model)
-{
-
-	switch (model) {
-	case INTEL_FAM6_NEHALEM_EP:	/* Core i7, Xeon 5500 series - Bloomfield, Gainstown NHM-EP */
-	case INTEL_FAM6_NEHALEM_G:	/* Core i7 and i5 Processor - Nehalem */
-	case INTEL_FAM6_WESTMERE:	/* Westmere Client - Clarkdale, Arrandale */
-	case INTEL_FAM6_WESTMERE_EP:	/* Westmere EP - Gulftown */
-		return INTEL_FAM6_NEHALEM;
-
-	case INTEL_FAM6_WESTMERE_EX:	/* Westmere-EX Xeon - Eagleton */
-		return INTEL_FAM6_NEHALEM_EX;
-
-	case INTEL_FAM6_XEON_PHI_KNM:
-		return INTEL_FAM6_XEON_PHI_KNL;
-
-	case INTEL_FAM6_BROADWELL_D:	/* BDX-DE */
-		return INTEL_FAM6_BROADWELL_X;
-
-	case INTEL_FAM6_SKYLAKE:
-	case INTEL_FAM6_KABYLAKE_L:
-	case INTEL_FAM6_KABYLAKE:
-	case INTEL_FAM6_COMETLAKE_L:
-	case INTEL_FAM6_COMETLAKE:
-		return INTEL_FAM6_SKYLAKE_L;
-
-	case INTEL_FAM6_ICELAKE_L:
-	case INTEL_FAM6_ICELAKE_NNPI:
-	case INTEL_FAM6_TIGERLAKE_L:
-	case INTEL_FAM6_TIGERLAKE:
-	case INTEL_FAM6_ROCKETLAKE:
-	case INTEL_FAM6_LAKEFIELD:
-	case INTEL_FAM6_ALDERLAKE:
-	case INTEL_FAM6_ALDERLAKE_L:
-	case INTEL_FAM6_ATOM_GRACEMONT:
-	case INTEL_FAM6_RAPTORLAKE:
-	case INTEL_FAM6_RAPTORLAKE_P:
-	case INTEL_FAM6_RAPTORLAKE_S:
-	case INTEL_FAM6_METEORLAKE:
-	case INTEL_FAM6_METEORLAKE_L:
-		return INTEL_FAM6_CANNONLAKE_L;
-
-	case INTEL_FAM6_ATOM_TREMONT_L:
-		return INTEL_FAM6_ATOM_TREMONT;
-
-	case INTEL_FAM6_ICELAKE_D:
-		return INTEL_FAM6_ICELAKE_X;
-
-	case INTEL_FAM6_EMERALDRAPIDS_X:
-		return INTEL_FAM6_SAPPHIRERAPIDS_X;
-	}
-	return model;
-}
-
 void print_dev_latency(void)
 {
 	char *path = "/dev/cpu_dma_latency";
@@ -5457,8 +5400,6 @@ void process_cpuid()
 	}
 
 	probe_platform_features(family, model);
-	if (genuine_intel)
-		model = intel_model_duplicates(model);
 
 	if (!(edx_flags & (1 << 5)))
 		errx(1, "CPUID: no MSR");
