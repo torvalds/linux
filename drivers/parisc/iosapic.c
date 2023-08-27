@@ -348,12 +348,9 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 }
 
 
-
-void __init iosapic_init(void)
+static int __init iosapic_init(void)
 {
 	unsigned long cell = 0;
-
-	DBG("iosapic_init()\n");
 
 #ifdef __LP64__
 	if (is_pdc_pat()) {
@@ -371,7 +368,10 @@ void __init iosapic_init(void)
 	irt_num_entry = iosapic_load_irt(cell, &irt_cell);
 	if (irt_num_entry == 0)
 		irt_cell = NULL;	/* old PDC w/o iosapic */
+
+	return 0;
 }
+arch_initcall(iosapic_init);
 
 
 /*

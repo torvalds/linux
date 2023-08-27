@@ -278,11 +278,6 @@ static int __init parisc_init(void)
 
 	apply_alternatives_all();
 	parisc_setup_cache_timing();
-
-	/* These are in a non-obvious order, will fix when we have an iotree */
-#if defined(CONFIG_IOSAPIC)
-	iosapic_init();
-#endif
 	return 0;
 }
 arch_initcall(parisc_init);
