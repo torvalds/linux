@@ -1262,6 +1262,17 @@ static bool n_tty_receive_char_flow_ctrl(struct tty_struct *tty, unsigned char c
 	return true;
 }
 
+static void n_tty_receive_handle_newline(struct tty_struct *tty, u8 c)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+
+	set_bit(MASK(ldata->read_head), ldata->read_flags);
+	put_tty_queue(c, ldata);
+	smp_store_release(&ldata->canon_head, ldata->read_head);
+	kill_fasync(&tty->fasync, SIGIO, POLL_IN);
+	wake_up_interruptible_poll(&tty->read_wait, EPOLLIN | EPOLLRDNORM);
+}
+
 static bool n_tty_receive_char_canon(struct tty_struct *tty, u8 c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1308,12 +1319,16 @@ static bool n_tty_receive_char_canon(struct tty_struct *tty, u8 c)
 			echo_char_raw('\n', ldata);
 			commit_echoes(tty);
 		}
-		goto handle_newline;
+		n_tty_receive_handle_newline(tty, c);
+
+		return true;
 	}
 
 	if (c == EOF_CHAR(tty)) {
 		c = __DISABLED_CHAR;
-		goto handle_newline;
+		n_tty_receive_handle_newline(tty, c);
+
+		return true;
 	}
 
 	if ((c == EOL_CHAR(tty)) ||
@@ -1335,12 +1350,8 @@ static bool n_tty_receive_char_canon(struct tty_struct *tty, u8 c)
 		if (c == (unsigned char) '\377' && I_PARMRK(tty))
 			put_tty_queue(c, ldata);
 
-handle_newline:
-		set_bit(MASK(ldata->read_head), ldata->read_flags);
-		put_tty_queue(c, ldata);
-		smp_store_release(&ldata->canon_head, ldata->read_head);
-		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
-		wake_up_interruptible_poll(&tty->read_wait, EPOLLIN | EPOLLRDNORM);
+		n_tty_receive_handle_newline(tty, c);
+
 		return true;
 	}
 
