@@ -3618,7 +3618,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
 		return ieee80211_link_use_reserved_context(&sdata->deflink);
 	}
 
-	if (!cfg80211_chandef_identical(&sdata->vif.bss_conf.chandef,
+	if (!cfg80211_chandef_identical(&link_data->conf->chandef,
 					&link_data->csa_chandef))
 		return -EINVAL;
 
@@ -3634,7 +3634,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
 		changed |= BSS_CHANGED_EHT_PUNCTURING;
 	}
 
-	ieee80211_link_info_change_notify(sdata, &sdata->deflink, changed);
+	ieee80211_link_info_change_notify(sdata, link_data, changed);
 
 	if (link_data->csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
@@ -3646,8 +3646,9 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
 	if (err)
 		return err;
 
-	cfg80211_ch_switch_notify(sdata->dev, &link_data->csa_chandef, 0,
-				  sdata->vif.bss_conf.eht_puncturing);
+	cfg80211_ch_switch_notify(sdata->dev, &link_data->csa_chandef,
+				  link_data->link_id,
+				  link_data->conf->eht_puncturing);
 
 	return 0;
 }

@@ -1772,7 +1772,8 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 		return;
 	}
 
-	cfg80211_ch_switch_notify(sdata->dev, &link->reserved_chandef, 0, 0);
+	cfg80211_ch_switch_notify(sdata->dev, &link->reserved_chandef,
+				  link->link_id, 0);
 }
 
 void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success,
