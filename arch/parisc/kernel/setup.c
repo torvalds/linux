@@ -290,16 +290,6 @@ static int __init parisc_init(void)
 	lba_init();
 #endif
 
-	/* CCIO before any potential subdevices */
-#if defined(CONFIG_IOMMU_CCIO)
-	ccio_init();
-#endif
-
-	/*
-	 * Need to register Asp & Wax before the EISA adapters for the IRQ
-	 * regions.  EISA must come before PCI to be sure it gets IRQ region
-	 * 0.
-	 */
 #if defined(CONFIG_GSC_LASI) || defined(CONFIG_GSC_WAX)
 	gsc_init();
 #endif

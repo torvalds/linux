@@ -8,17 +8,9 @@
 **	(c) Copyright 2000 Ryan Bradetich
 **	(c) Copyright 2000 Hewlett-Packard Company
 **
-**
-**
 **  "Real Mode" operation refers to U2/Uturn chip operation.
 **  U2/Uturn were designed to perform coherency checks w/o using
 **  the I/O MMU - basically what x86 does.
-**
-**  Philipp Rumpf has a "Real Mode" driver for PCX-W machines at:
-**      CVSROOT=:pserver:anonymous@198.186.203.37:/cvsroot/linux-parisc
-**      cvs -z3 co linux/arch/parisc/kernel/dma-rm.c
-**
-**  I've rewritten his code to work under TPG's tree. See ccio-rm-dma.c.
 **
 **  Drawbacks of using Real Mode are:
 **	o outbound DMA is slower - U2 won't prefetch data (GSC+ XQL signal).
@@ -1582,8 +1574,8 @@ static int __init ccio_probe(struct parisc_device *dev)
  *
  * Register this driver.
  */
-void __init ccio_init(void)
+static int __init ccio_init(void)
 {
-	register_parisc_driver(&ccio_driver);
+	return register_parisc_driver(&ccio_driver);
 }
-
+arch_initcall(ccio_init);
