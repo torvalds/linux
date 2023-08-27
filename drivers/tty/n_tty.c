@@ -1347,7 +1347,7 @@ static bool n_tty_receive_char_canon(struct tty_struct *tty, u8 c)
 		 * XXX does PARMRK doubling happen for
 		 * EOL_CHAR and EOL2_CHAR?
 		 */
-		if (c == (unsigned char) '\377' && I_PARMRK(tty))
+		if (c == '\377' && I_PARMRK(tty))
 			put_tty_queue(c, ldata);
 
 		n_tty_receive_handle_newline(tty, c);
@@ -1409,7 +1409,7 @@ static void n_tty_receive_char_special(struct tty_struct *tty, unsigned char c,
 	}
 
 	/* PARMRK doubling check */
-	if (c == (unsigned char) '\377' && I_PARMRK(tty))
+	if (c == '\377' && I_PARMRK(tty))
 		put_tty_queue(c, ldata);
 
 	put_tty_queue(c, ldata);
@@ -1444,7 +1444,7 @@ static void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 		commit_echoes(tty);
 	}
 	/* PARMRK doubling check */
-	if (c == (unsigned char) '\377' && I_PARMRK(tty))
+	if (c == '\377' && I_PARMRK(tty))
 		put_tty_queue(c, ldata);
 	put_tty_queue(c, ldata);
 }
