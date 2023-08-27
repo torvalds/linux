@@ -7195,7 +7195,7 @@ ieee80211_setup_assoc_link(struct ieee80211_sub_if_data *sdata,
 			   unsigned int link_id)
 {
 	struct ieee80211_local *local = sdata->local;
-	const struct cfg80211_bss_ies *beacon_ies;
+	const struct cfg80211_bss_ies *bss_ies;
 	struct ieee80211_supported_band *sband;
 	const struct element *ht_elem, *vht_elem;
 	struct ieee80211_link_data *link;
@@ -7270,32 +7270,37 @@ ieee80211_setup_assoc_link(struct ieee80211_sub_if_data *sdata,
 	link->conf->eht_puncturing = 0;
 
 	rcu_read_lock();
-	beacon_ies = rcu_dereference(cbss->beacon_ies);
-	if (beacon_ies) {
-		const struct ieee80211_eht_operation *eht_oper;
-		const struct element *elem;
+	bss_ies = rcu_dereference(cbss->beacon_ies);
+	if (bss_ies) {
 		u8 dtim_count = 0;
 
-		ieee80211_get_dtim(beacon_ies, &dtim_count,
+		ieee80211_get_dtim(bss_ies, &dtim_count,
 				   &link->u.mgd.dtim_period);
 
 		sdata->deflink.u.mgd.have_beacon = true;
 
 		if (ieee80211_hw_check(&local->hw, TIMING_BEACON_ONLY)) {
-			link->conf->sync_tsf = beacon_ies->tsf;
+			link->conf->sync_tsf = bss_ies->tsf;
 			link->conf->sync_device_ts = bss->device_ts_beacon;
 			link->conf->sync_dtim_count = dtim_count;
 		}
+	} else {
+		bss_ies = rcu_dereference(cbss->ies);
+	}
+
+	if (bss_ies) {
+		const struct ieee80211_eht_operation *eht_oper;
+		const struct element *elem;
 
 		elem = cfg80211_find_ext_elem(WLAN_EID_EXT_MULTIPLE_BSSID_CONFIGURATION,
-					      beacon_ies->data, beacon_ies->len);
+					      bss_ies->data, bss_ies->len);
 		if (elem && elem->datalen >= 3)
 			link->conf->profile_periodicity = elem->data[2];
 		else
 			link->conf->profile_periodicity = 0;
 
 		elem = cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY,
-					  beacon_ies->data, beacon_ies->len);
+					  bss_ies->data, bss_ies->len);
 		if (elem && elem->datalen >= 11 &&
 		    (elem->data[10] & WLAN_EXT_CAPA11_EMA_SUPPORT))
 			link->conf->ema_ap = true;
@@ -7303,7 +7308,7 @@ ieee80211_setup_assoc_link(struct ieee80211_sub_if_data *sdata,
 			link->conf->ema_ap = false;
 
 		elem = cfg80211_find_ext_elem(WLAN_EID_EXT_EHT_OPERATION,
-					      beacon_ies->data, beacon_ies->len);
+					      bss_ies->data, bss_ies->len);
 		eht_oper = (const void *)(elem->data + 1);
 
 		if (elem &&
