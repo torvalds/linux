@@ -146,10 +146,6 @@ int BPF_PROG(test_array_map_10)
 			/* race condition */
 			bpf_percpu_obj_drop(p1);
 		}
-
-		p = e->pc;
-		if (!p)
-			goto out;
 	}
 
 	v = bpf_this_cpu_ptr(p);
