@@ -994,12 +994,7 @@ static void hl_device_eq_heartbeat(struct hl_device *hdev)
 	u64 event_mask = HL_NOTIFIER_EVENT_DEVICE_RESET | HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
-	 /*
-	  * This feature supported in FW version 1.12.0 45.2.0 and above,
-	  * only on those FW versions eq_health_check_supported will be set.
-	  * Start checking eq health only after driver has enabled events from FW.
-	  */
-	if (!prop->cpucp_info.eq_health_check_supported || !hdev->init_done)
+	if (!prop->cpucp_info.eq_health_check_supported)
 		return;
 
 	if (hdev->eq_heartbeat_received)
@@ -1015,7 +1010,8 @@ static void hl_device_heartbeat(struct work_struct *work)
 	struct hl_info_fw_err_info info = {0};
 	u64 event_mask = HL_NOTIFIER_EVENT_DEVICE_RESET | HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE;
 
-	if (!hl_device_operational(hdev, NULL))
+	/* Start heartbeat checks only after driver has enabled events from FW */
+	if (!hl_device_operational(hdev, NULL) || !hdev->init_done)
 		goto reschedule;
 
 	/*
