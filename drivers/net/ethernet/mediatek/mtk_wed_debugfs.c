@@ -127,8 +127,17 @@ wed_txinfo_show(struct seq_file *s, void *data)
 		DUMP_WDMA_RING(WDMA_RING_RX(0)),
 		DUMP_WDMA_RING(WDMA_RING_RX(1)),
 
-		DUMP_STR("TX FREE"),
+		DUMP_STR("WED TX FREE"),
 		DUMP_WED(WED_RX_MIB(0)),
+		DUMP_WED_RING(WED_RING_RX(0)),
+		DUMP_WED(WED_WPDMA_RX_COHERENT_MIB(0)),
+		DUMP_WED(WED_RX_MIB(1)),
+		DUMP_WED_RING(WED_RING_RX(1)),
+		DUMP_WED(WED_WPDMA_RX_COHERENT_MIB(1)),
+
+		DUMP_STR("WED WPDMA TX FREE"),
+		DUMP_WED_RING(WED_WPDMA_RING_RX(0)),
+		DUMP_WED_RING(WED_WPDMA_RING_RX(1)),
 	};
 	struct mtk_wed_hw *hw = s->private;
 	struct mtk_wed_device *dev = hw->wed_dev;
