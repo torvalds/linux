@@ -804,6 +804,9 @@ static int check_vcpu_requests(struct kvm_vcpu *vcpu)
 			kvm_pmu_handle_pmcr(vcpu,
 					    __vcpu_sys_reg(vcpu, PMCR_EL0));
 
+		if (kvm_check_request(KVM_REQ_RESYNC_PMU_EL0, vcpu))
+			kvm_vcpu_pmu_restore_guest(vcpu);
+
 		if (kvm_check_request(KVM_REQ_SUSPEND, vcpu))
 			return kvm_vcpu_suspend(vcpu);
 
