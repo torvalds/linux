@@ -521,7 +521,7 @@ static void ubi_fastmap_close(struct ubi_device *ubi)
 static struct ubi_wl_entry *may_reserve_for_fm(struct ubi_device *ubi,
 					   struct ubi_wl_entry *e,
 					   struct rb_root *root) {
-	if (e && !ubi->fm_disabled && !ubi->fm &&
+	if (e && !ubi->fm_disabled && !ubi->fm && !ubi->fm_anchor &&
 	    e->pnum < UBI_FM_MAX_START)
 		e = rb_entry(rb_next(root->rb_node),
 			     struct ubi_wl_entry, u.rb);
