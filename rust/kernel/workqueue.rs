@@ -2,9 +2,42 @@
 
 //! Work queues.
 //!
+//! This file has two components: The raw work item API, and the safe work item API.
+//!
+//! One pattern that is used in both APIs is the `ID` const generic, which exists to allow a single
+//! type to define multiple `work_struct` fields. This is done by choosing an id for each field,
+//! and using that id to specify which field you wish to use. (The actual value doesn't matter, as
+//! long as you use different values for different fields of the same struct.) Since these IDs are
+//! generic, they are used only at compile-time, so they shouldn't exist in the final binary.
+//!
+//! # The raw API
+//!
+//! The raw API consists of the `RawWorkItem` trait, where the work item needs to provide an
+//! arbitrary function that knows how to enqueue the work item. It should usually not be used
+//! directly, but if you want to, you can use it without using the pieces from the safe API.
+//!
+//! # The safe API
+//!
+//! The safe API is used via the `Work` struct and `WorkItem` traits. Furthermore, it also includes
+//! a trait called `WorkItemPointer`, which is usually not used directly by the user.
+//!
+//!  * The `Work` struct is the Rust wrapper for the C `work_struct` type.
+//!  * The `WorkItem` trait is implemented for structs that can be enqueued to a workqueue.
+//!  * The `WorkItemPointer` trait is implemented for the pointer type that points at a something
+//!    that implements `WorkItem`.
+//!
 //! C header: [`include/linux/workqueue.h`](../../../../include/linux/workqueue.h)
 
-use crate::{bindings, types::Opaque};
+use crate::{bindings, prelude::*, sync::LockClassKey, types::Opaque};
+use core::marker::PhantomData;
+
+/// Creates a [`Work`] initialiser with the given name and a newly-created lock class.
+#[macro_export]
+macro_rules! new_work {
+    ($($name:literal)?) => {
+        $crate::workqueue::Work::new($crate::optional_name!($($name)?), $crate::static_lock_class!())
+    };
+}
 
 /// A kernel work queue.
 ///
@@ -106,6 +139,228 @@ pub unsafe trait RawWorkItem<const ID: u64> {
     unsafe fn __enqueue<F>(self, queue_work_on: F) -> Self::EnqueueOutput
     where
         F: FnOnce(*mut bindings::work_struct) -> bool;
+}
+
+/// Defines the method that should be called directly when a work item is executed.
+///
+/// This trait is implemented by `Pin<Box<T>>` and `Arc<T>`, and is mainly intended to be
+/// implemented for smart pointer types. For your own structs, you would implement [`WorkItem`]
+/// instead. The `run` method on this trait will usually just perform the appropriate
+/// `container_of` translation and then call into the `run` method from the [`WorkItem`] trait.
+///
+/// This trait is used when the `work_struct` field is defined using the [`Work`] helper.
+///
+/// # Safety
+///
+/// Implementers must ensure that [`__enqueue`] uses a `work_struct` initialized with the [`run`]
+/// method of this trait as the function pointer.
+///
+/// [`__enqueue`]: RawWorkItem::__enqueue
+/// [`run`]: WorkItemPointer::run
+pub unsafe trait WorkItemPointer<const ID: u64>: RawWorkItem<ID> {
+    /// Run this work item.
+    ///
+    /// # Safety
+    ///
+    /// The provided `work_struct` pointer must originate from a previous call to `__enqueue` where
+    /// the `queue_work_on` closure returned true, and the pointer must still be valid.
+    unsafe extern "C" fn run(ptr: *mut bindings::work_struct);
+}
+
+/// Defines the method that should be called when this work item is executed.
+///
+/// This trait is used when the `work_struct` field is defined using the [`Work`] helper.
+pub trait WorkItem<const ID: u64 = 0> {
+    /// The pointer type that this struct is wrapped in. This will typically be `Arc<Self>` or
+    /// `Pin<Box<Self>>`.
+    type Pointer: WorkItemPointer<ID>;
+
+    /// The method that should be called when this work item is executed.
+    fn run(this: Self::Pointer);
+}
+
+/// Links for a work item.
+///
+/// This struct contains a function pointer to the `run` function from the [`WorkItemPointer`]
+/// trait, and defines the linked list pointers necessary to enqueue a work item in a workqueue.
+///
+/// Wraps the kernel's C `struct work_struct`.
+///
+/// This is a helper type used to associate a `work_struct` with the [`WorkItem`] that uses it.
+#[repr(transparent)]
+pub struct Work<T: ?Sized, const ID: u64 = 0> {
+    work: Opaque<bindings::work_struct>,
+    _inner: PhantomData<T>,
+}
+
+// SAFETY: Kernel work items are usable from any thread.
+//
+// We do not need to constrain `T` since the work item does not actually contain a `T`.
+unsafe impl<T: ?Sized, const ID: u64> Send for Work<T, ID> {}
+// SAFETY: Kernel work items are usable from any thread.
+//
+// We do not need to constrain `T` since the work item does not actually contain a `T`.
+unsafe impl<T: ?Sized, const ID: u64> Sync for Work<T, ID> {}
+
+impl<T: ?Sized, const ID: u64> Work<T, ID> {
+    /// Creates a new instance of [`Work`].
+    #[inline]
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(name: &'static CStr, key: &'static LockClassKey) -> impl PinInit<Self>
+    where
+        T: WorkItem<ID>,
+    {
+        // SAFETY: The `WorkItemPointer` implementation promises that `run` can be used as the work
+        // item function.
+        unsafe {
+            kernel::init::pin_init_from_closure(move |slot| {
+                let slot = Self::raw_get(slot);
+                bindings::init_work_with_key(
+                    slot,
+                    Some(T::Pointer::run),
+                    false,
+                    name.as_char_ptr(),
+                    key.as_ptr(),
+                );
+                Ok(())
+            })
+        }
+    }
+
+    /// Get a pointer to the inner `work_struct`.
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must not be dangling and must be properly aligned. (But the memory
+    /// need not be initialized.)
+    #[inline]
+    pub unsafe fn raw_get(ptr: *const Self) -> *mut bindings::work_struct {
+        // SAFETY: The caller promises that the pointer is aligned and not dangling.
+        //
+        // A pointer cast would also be ok due to `#[repr(transparent)]`. We use `addr_of!` so that
+        // the compiler does not complain that the `work` field is unused.
+        unsafe { Opaque::raw_get(core::ptr::addr_of!((*ptr).work)) }
+    }
+}
+
+/// Declares that a type has a [`Work<T, ID>`] field.
+///
+/// The intended way of using this trait is via the [`impl_has_work!`] macro. You can use the macro
+/// like this:
+///
+/// ```no_run
+/// use kernel::impl_has_work;
+/// use kernel::prelude::*;
+/// use kernel::workqueue::Work;
+///
+/// struct MyWorkItem {
+///     work_field: Work<MyWorkItem, 1>,
+/// }
+///
+/// impl_has_work! {
+///     impl HasWork<MyWorkItem, 1> for MyWorkItem { self.work_field }
+/// }
+/// ```
+///
+/// Note that since the `Work` type is annotated with an id, you can have several `work_struct`
+/// fields by using a different id for each one.
+///
+/// # Safety
+///
+/// The [`OFFSET`] constant must be the offset of a field in Self of type [`Work<T, ID>`]. The methods on
+/// this trait must have exactly the behavior that the definitions given below have.
+///
+/// [`Work<T, ID>`]: Work
+/// [`impl_has_work!`]: crate::impl_has_work
+/// [`OFFSET`]: HasWork::OFFSET
+pub unsafe trait HasWork<T, const ID: u64 = 0> {
+    /// The offset of the [`Work<T, ID>`] field.
+    ///
+    /// [`Work<T, ID>`]: Work
+    const OFFSET: usize;
+
+    /// Returns the offset of the [`Work<T, ID>`] field.
+    ///
+    /// This method exists because the [`OFFSET`] constant cannot be accessed if the type is not Sized.
+    ///
+    /// [`Work<T, ID>`]: Work
+    /// [`OFFSET`]: HasWork::OFFSET
+    #[inline]
+    fn get_work_offset(&self) -> usize {
+        Self::OFFSET
+    }
+
+    /// Returns a pointer to the [`Work<T, ID>`] field.
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must point at a valid struct of type `Self`.
+    ///
+    /// [`Work<T, ID>`]: Work
+    #[inline]
+    unsafe fn raw_get_work(ptr: *mut Self) -> *mut Work<T, ID> {
+        // SAFETY: The caller promises that the pointer is valid.
+        unsafe { (ptr as *mut u8).add(Self::OFFSET) as *mut Work<T, ID> }
+    }
+
+    /// Returns a pointer to the struct containing the [`Work<T, ID>`] field.
+    ///
+    /// # Safety
+    ///
+    /// The pointer must point at a [`Work<T, ID>`] field in a struct of type `Self`.
+    ///
+    /// [`Work<T, ID>`]: Work
+    #[inline]
+    unsafe fn work_container_of(ptr: *mut Work<T, ID>) -> *mut Self
+    where
+        Self: Sized,
+    {
+        // SAFETY: The caller promises that the pointer points at a field of the right type in the
+        // right kind of struct.
+        unsafe { (ptr as *mut u8).sub(Self::OFFSET) as *mut Self }
+    }
+}
+
+/// Used to safely implement the [`HasWork<T, ID>`] trait.
+///
+/// # Examples
+///
+/// ```
+/// use kernel::impl_has_work;
+/// use kernel::sync::Arc;
+/// use kernel::workqueue::{self, Work};
+///
+/// struct MyStruct {
+///     work_field: Work<MyStruct, 17>,
+/// }
+///
+/// impl_has_work! {
+///     impl HasWork<MyStruct, 17> for MyStruct { self.work_field }
+/// }
+/// ```
+///
+/// [`HasWork<T, ID>`]: HasWork
+#[macro_export]
+macro_rules! impl_has_work {
+    ($(impl$(<$($implarg:ident),*>)?
+       HasWork<$work_type:ty $(, $id:tt)?>
+       for $self:ident $(<$($selfarg:ident),*>)?
+       { self.$field:ident }
+    )*) => {$(
+        // SAFETY: The implementation of `raw_get_work` only compiles if the field has the right
+        // type.
+        unsafe impl$(<$($implarg),*>)? $crate::workqueue::HasWork<$work_type $(, $id)?> for $self $(<$($selfarg),*>)? {
+            const OFFSET: usize = ::core::mem::offset_of!(Self, $field) as usize;
+
+            #[inline]
+            unsafe fn raw_get_work(ptr: *mut Self) -> *mut $crate::workqueue::Work<$work_type $(, $id)?> {
+                // SAFETY: The caller promises that the pointer is not dangling.
+                unsafe {
+                    ::core::ptr::addr_of_mut!((*ptr).$field)
+                }
+            }
+        }
+    )*};
 }
 
 /// Returns the system work queue (`system_wq`).
