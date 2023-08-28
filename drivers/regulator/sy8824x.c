@@ -142,7 +142,7 @@ static int sy8824_i2c_probe(struct i2c_client *client)
 	}
 
 	di->dev = dev;
-	di->cfg = of_device_get_match_data(dev);
+	di->cfg = i2c_get_match_data(client);
 
 	regmap = devm_regmap_init_i2c(client, di->cfg->config);
 	if (IS_ERR(regmap)) {
@@ -204,29 +204,17 @@ static const struct sy8824_config sy20278_cfg = {
 };
 
 static const struct of_device_id sy8824_dt_ids[] = {
-	{
-		.compatible = "silergy,sy8824c",
-		.data = &sy8824c_cfg
-	},
-	{
-		.compatible = "silergy,sy8824e",
-		.data = &sy8824e_cfg
-	},
-	{
-		.compatible = "silergy,sy20276",
-		.data = &sy20276_cfg
-	},
-	{
-		.compatible = "silergy,sy20278",
-		.data = &sy20278_cfg
-	},
+	{ .compatible = "silergy,sy8824c", .data = &sy8824c_cfg },
+	{ .compatible = "silergy,sy8824e", .data = &sy8824e_cfg },
+	{ .compatible = "silergy,sy20276", .data = &sy20276_cfg },
+	{ .compatible = "silergy,sy20278", .data = &sy20278_cfg },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sy8824_dt_ids);
 
 static const struct i2c_device_id sy8824_id[] = {
-	{ "sy8824", },
-	{ },
+	{ "sy8824", (kernel_ulong_t)&sy8824c_cfg },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sy8824_id);
 
