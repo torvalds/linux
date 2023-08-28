@@ -2319,6 +2319,7 @@ void ieee80211_stop_device(struct ieee80211_local *local)
 	cancel_work_sync(&local->reconfig_filter);
 
 	flush_workqueue(local->workqueue);
+	wiphy_work_flush(local->hw.wiphy, NULL);
 	drv_stop(local);
 }
 
