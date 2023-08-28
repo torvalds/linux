@@ -2234,8 +2234,8 @@ static void ieee80211_flush_completed_scan(struct ieee80211_local *local,
 		 */
 		if (aborted)
 			set_bit(SCAN_ABORTED, &local->scanning);
-		ieee80211_queue_delayed_work(&local->hw, &local->scan_work, 0);
-		flush_delayed_work(&local->scan_work);
+		wiphy_delayed_work_queue(local->hw.wiphy, &local->scan_work, 0);
+		wiphy_delayed_work_flush(local->hw.wiphy, &local->scan_work);
 	}
 }
 

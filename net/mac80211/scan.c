@@ -291,8 +291,8 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 		 * the beacon/proberesp rx gives us an opportunity to upgrade
 		 * to active scan
 		 */
-		 set_bit(SCAN_BEACON_DONE, &local->scanning);
-		 ieee80211_queue_delayed_work(&local->hw, &local->scan_work, 0);
+		set_bit(SCAN_BEACON_DONE, &local->scanning);
+		wiphy_delayed_work_queue(local->hw.wiphy, &local->scan_work, 0);
 	}
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
@@ -522,7 +522,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw,
 
 	memcpy(&local->scan_info, info, sizeof(*info));
 
-	ieee80211_queue_delayed_work(&local->hw, &local->scan_work, 0);
+	wiphy_delayed_work_queue(local->hw.wiphy, &local->scan_work, 0);
 }
 EXPORT_SYMBOL(ieee80211_scan_completed);
 
@@ -562,8 +562,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local,
 	/* We need to set power level at maximum rate for scanning. */
 	ieee80211_hw_config(local, 0);
 
-	ieee80211_queue_delayed_work(&local->hw,
-				     &local->scan_work, 0);
+	wiphy_delayed_work_queue(local->hw.wiphy, &local->scan_work, 0);
 
 	return 0;
 }
@@ -620,8 +619,8 @@ void ieee80211_run_deferred_scan(struct ieee80211_local *local)
 					lockdep_is_held(&local->mtx))))
 		return;
 
-	ieee80211_queue_delayed_work(&local->hw, &local->scan_work,
-				     round_jiffies_relative(0));
+	wiphy_delayed_work_queue(local->hw.wiphy, &local->scan_work,
+				 round_jiffies_relative(0));
 }
 
 static void ieee80211_send_scan_probe_req(struct ieee80211_sub_if_data *sdata,
@@ -812,8 +811,8 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		}
 
 		/* Now, just wait a bit and we are all done! */
-		ieee80211_queue_delayed_work(&local->hw, &local->scan_work,
-					     next_delay);
+		wiphy_delayed_work_queue(local->hw.wiphy, &local->scan_work,
+					 next_delay);
 		return 0;
 	} else {
 		/* Do normal software scan */
@@ -1060,7 +1059,7 @@ static void ieee80211_scan_state_resume(struct ieee80211_local *local,
 	local->next_scan_state = SCAN_SET_CHANNEL;
 }
 
-void ieee80211_scan_work(struct work_struct *work)
+void ieee80211_scan_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, scan_work.work);
@@ -1154,7 +1153,8 @@ void ieee80211_scan_work(struct work_struct *work)
 		}
 	} while (next_delay == 0);
 
-	ieee80211_queue_delayed_work(&local->hw, &local->scan_work, next_delay);
+	wiphy_delayed_work_queue(local->hw.wiphy, &local->scan_work,
+				 next_delay);
 	goto out;
 
 out_complete:
@@ -1297,12 +1297,7 @@ void ieee80211_scan_cancel(struct ieee80211_local *local)
 		goto out;
 	}
 
-	/*
-	 * If the work is currently running, it must be blocked on
-	 * the mutex, but we'll set scan_sdata = NULL and it'll
-	 * simply exit once it acquires the mutex.
-	 */
-	cancel_delayed_work(&local->scan_work);
+	wiphy_delayed_work_cancel(local->hw.wiphy, &local->scan_work);
 	/* and clean up */
 	memset(&local->scan_info, 0, sizeof(local->scan_info));
 	__ieee80211_scan_completed(&local->hw, true);

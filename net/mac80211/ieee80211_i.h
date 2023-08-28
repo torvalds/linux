@@ -1445,7 +1445,7 @@ struct ieee80211_local {
 
 	unsigned long leave_oper_channel_time;
 	enum mac80211_scan_state next_scan_state;
-	struct delayed_work scan_work;
+	struct wiphy_delayed_work scan_work;
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
 	/* For backward compatibility only -- do not use */
 	struct cfg80211_chan_def _oper_chandef;
@@ -1862,7 +1862,7 @@ int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
 int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata);
 
 /* scan/BSS handling */
-void ieee80211_scan_work(struct work_struct *work);
+void ieee80211_scan_work(struct wiphy *wiphy, struct wiphy_work *work);
 int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 				const u8 *ssid, u8 ssid_len,
 				struct ieee80211_channel **channels,

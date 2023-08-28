@@ -334,9 +334,7 @@ static void ieee80211_restart_work(struct work_struct *work)
 	struct ieee80211_sub_if_data *sdata;
 	int ret;
 
-	/* wait for scan work complete */
 	flush_workqueue(local->workqueue);
-	flush_work(&local->sched_scan_stopped_work);
 
 	rtnl_lock();
 	/* we might do interface manipulations, so need both */
@@ -806,7 +804,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	INIT_LIST_HEAD(&local->chanctx_list);
 	mutex_init(&local->chanctx_mtx);
 
-	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
+	wiphy_delayed_work_init(&local->scan_work, ieee80211_scan_work);
 
 	INIT_WORK(&local->restart_work, ieee80211_restart_work);
 
