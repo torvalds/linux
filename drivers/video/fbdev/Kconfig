@@ -1905,11 +1905,8 @@ config FB_BROADSHEET
 config FB_HYPERV
 	tristate "Microsoft Hyper-V Synthetic Video support"
 	depends on FB && HYPERV
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	select FB_DEFERRED_IO
 	select DMA_CMA if HAVE_DMA_CONTIGUOUS && CMA
+	select FB_IOMEM_HELPERS_DEFERRED
 	select VIDEO_NOMODESET
 	help
 	  This framebuffer driver supports Microsoft Hyper-V Synthetic Video.
