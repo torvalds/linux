@@ -473,7 +473,7 @@ struct ieee80211_if_managed {
 	struct timer_list timer;
 	struct timer_list conn_mon_timer;
 	struct timer_list bcn_mon_timer;
-	struct work_struct monitor_work;
+	struct wiphy_work monitor_work;
 	struct wiphy_work beacon_connection_loss_work;
 	struct wiphy_work csa_connection_drop_work;
 

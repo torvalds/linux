@@ -6683,10 +6683,11 @@ static void ieee80211_sta_conn_mon_timer(struct timer_list *t)
 		return;
 	}
 
-	ieee80211_queue_work(&local->hw, &ifmgd->monitor_work);
+	wiphy_work_queue(local->hw.wiphy, &sdata->u.mgd.monitor_work);
 }
 
-static void ieee80211_sta_monitor_work(struct work_struct *work)
+static void ieee80211_sta_monitor_work(struct wiphy *wiphy,
+				       struct wiphy_work *work)
 {
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
@@ -6702,8 +6703,8 @@ static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 
 		/* let's probe the connection once */
 		if (!ieee80211_hw_check(&sdata->local->hw, CONNECTION_MONITOR))
-			ieee80211_queue_work(&sdata->local->hw,
-					     &sdata->u.mgd.monitor_work);
+			wiphy_work_queue(sdata->local->hw.wiphy,
+					 &sdata->u.mgd.monitor_work);
 	}
 }
 
@@ -6821,7 +6822,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	INIT_WORK(&ifmgd->monitor_work, ieee80211_sta_monitor_work);
+	wiphy_work_init(&ifmgd->monitor_work, ieee80211_sta_monitor_work);
 	wiphy_work_init(&ifmgd->beacon_connection_loss_work,
 			ieee80211_beacon_connection_loss_work);
 	wiphy_work_init(&ifmgd->csa_connection_drop_work,
@@ -7850,7 +7851,8 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 	 * they will not do anything but might not have been
 	 * cancelled when disconnecting.
 	 */
-	cancel_work_sync(&ifmgd->monitor_work);
+	wiphy_work_cancel(sdata->local->hw.wiphy,
+			  &ifmgd->monitor_work);
 	wiphy_work_cancel(sdata->local->hw.wiphy,
 			  &ifmgd->beacon_connection_loss_work);
 	wiphy_work_cancel(sdata->local->hw.wiphy,
