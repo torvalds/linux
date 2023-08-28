@@ -1134,6 +1134,7 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 		 wiphy_name(local->hw.wiphy));
 	sdata->wdev.iftype = NL80211_IFTYPE_MONITOR;
 	mutex_init(&sdata->wdev.mtx);
+	sdata->wdev.wiphy = local->hw.wiphy;
 
 	ieee80211_sdata_init(local, sdata);
 
