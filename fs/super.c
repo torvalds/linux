@@ -434,6 +434,33 @@ void put_super(struct super_block *sb)
 	spin_unlock(&sb_lock);
 }
 
+static void kill_super_notify(struct super_block *sb)
+{
+	lockdep_assert_not_held(&sb->s_umount);
+
+	/* already notified earlier */
+	if (sb->s_flags & SB_DEAD)
+		return;
+
+	/*
+	 * Remove it from @fs_supers so it isn't found by new
+	 * sget{_fc}() walkers anymore. Any concurrent mounter still
+	 * managing to grab a temporary reference is guaranteed to
+	 * already see SB_DYING and will wait until we notify them about
+	 * SB_DEAD.
+	 */
+	spin_lock(&sb_lock);
+	hlist_del_init(&sb->s_instances);
+	spin_unlock(&sb_lock);
+
+	/*
+	 * Let concurrent mounts know that this thing is really dead.
+	 * We don't need @sb->s_umount here as every concurrent caller
+	 * will see SB_DYING and either discard the superblock or wait
+	 * for SB_DEAD.
+	 */
+	super_wake(sb, SB_DEAD);
+}
 
 /**
  *	deactivate_locked_super	-	drop an active reference to superblock
@@ -453,6 +480,8 @@ void deactivate_locked_super(struct super_block *s)
 		unregister_shrinker(&s->s_shrink);
 		fs->kill_sb(s);
 
+		kill_super_notify(s);
+
 		/*
 		 * Since list_lru_destroy() may sleep, we cannot call it from
 		 * put_super(), where we hold the sb_lock. Therefore we destroy
@@ -460,25 +489,6 @@ void deactivate_locked_super(struct super_block *s)
 		 */
 		list_lru_destroy(&s->s_dentry_lru);
 		list_lru_destroy(&s->s_inode_lru);
-
-		/*
-		 * Remove it from @fs_supers so it isn't found by new
-		 * sget{_fc}() walkers anymore. Any concurrent mounter still
-		 * managing to grab a temporary reference is guaranteed to
-		 * already see SB_DYING and will wait until we notify them about
-		 * SB_DEAD.
-		 */
-		spin_lock(&sb_lock);
-		hlist_del_init(&s->s_instances);
-		spin_unlock(&sb_lock);
-
-		/*
-		 * Let concurrent mounts know that this thing is really dead.
-		 * We don't need @sb->s_umount here as every concurrent caller
-		 * will see SB_DYING and either discard the superblock or wait
-		 * for SB_DEAD.
-		 */
-		super_wake(s, SB_DEAD);
 
 		put_filesystem(fs);
 		put_super(s);
@@ -1260,6 +1270,7 @@ void kill_anon_super(struct super_block *sb)
 {
 	dev_t dev = sb->s_dev;
 	generic_shutdown_super(sb);
+	kill_super_notify(sb);
 	free_anon_bdev(dev);
 }
 EXPORT_SYMBOL(kill_anon_super);
