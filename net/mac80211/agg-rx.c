@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 
 /**
@@ -140,7 +140,7 @@ void ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, u16 ba_rx_bitmap,
 		if (ba_rx_bitmap & BIT(i))
 			set_bit(i, sta->ampdu_mlme.tid_rx_stop_requested);
 
-	ieee80211_queue_work(&sta->local->hw, &sta->ampdu_mlme.work);
+	wiphy_work_queue(sta->local->hw.wiphy, &sta->ampdu_mlme.work);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(ieee80211_stop_rx_ba_session);
@@ -166,7 +166,7 @@ static void sta_rx_agg_session_timer_expired(struct timer_list *t)
 	       sta->sta.addr, tid);
 
 	set_bit(tid, sta->ampdu_mlme.tid_rx_timer_expired);
-	ieee80211_queue_work(&sta->local->hw, &sta->ampdu_mlme.work);
+	wiphy_work_queue(sta->local->hw.wiphy, &sta->ampdu_mlme.work);
 }
 
 static void sta_rx_agg_reorder_timer_expired(struct timer_list *t)
@@ -507,7 +507,6 @@ void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif,
 				 const u8 *addr, unsigned int tid)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
 	rcu_read_lock();
@@ -516,7 +515,7 @@ void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif,
 		goto unlock;
 
 	set_bit(tid, sta->ampdu_mlme.tid_rx_manage_offl);
-	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
+	wiphy_work_queue(sta->local->hw.wiphy, &sta->ampdu_mlme.work);
  unlock:
 	rcu_read_unlock();
 }
@@ -526,7 +525,6 @@ void ieee80211_rx_ba_timer_expired(struct ieee80211_vif *vif,
 				   const u8 *addr, unsigned int tid)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
 	rcu_read_lock();
@@ -535,7 +533,7 @@ void ieee80211_rx_ba_timer_expired(struct ieee80211_vif *vif,
 		goto unlock;
 
 	set_bit(tid, sta->ampdu_mlme.tid_rx_timer_expired);
-	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
+	wiphy_work_queue(sta->local->hw.wiphy, &sta->ampdu_mlme.work);
 
  unlock:
 	rcu_read_unlock();

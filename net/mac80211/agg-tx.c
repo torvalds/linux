@@ -743,7 +743,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	 */
 	sta->ampdu_mlme.tid_start_tx[tid] = tid_tx;
 
-	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
+	wiphy_work_queue(local->hw.wiphy, &sta->ampdu_mlme.work);
 
 	/* this flow continues off the work */
  err_unlock_sta:
@@ -862,7 +862,7 @@ void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif,
 		goto out;
 
 	set_bit(HT_AGG_STATE_START_CB, &tid_tx->state);
-	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
+	wiphy_work_queue(local->hw.wiphy, &sta->ampdu_mlme.work);
  out:
 	rcu_read_unlock();
 }
@@ -916,7 +916,7 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 	}
 
 	set_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state);
-	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
+	wiphy_work_queue(local->hw.wiphy, &sta->ampdu_mlme.work);
 
  unlock:
 	spin_unlock_bh(&sta->lock);
@@ -976,7 +976,7 @@ void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif,
 		goto out;
 
 	set_bit(HT_AGG_STATE_STOP_CB, &tid_tx->state);
-	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
+	wiphy_work_queue(local->hw.wiphy, &sta->ampdu_mlme.work);
  out:
 	rcu_read_unlock();
 }

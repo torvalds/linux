@@ -291,7 +291,7 @@ struct sta_ampdu_mlme {
 	unsigned long agg_session_valid[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
 	unsigned long unexpected_agg[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
 	/* tx */
-	struct work_struct work;
+	struct wiphy_work work;
 	struct tid_ampdu_tx __rcu *tid_tx[IEEE80211_NUM_TIDS];
 	struct tid_ampdu_tx *tid_start_tx[IEEE80211_NUM_TIDS];
 	unsigned long last_addba_req_time[IEEE80211_NUM_TIDS];

@@ -333,7 +333,7 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 	 * the BA session, so handle it to properly clean tid_tx data.
 	 */
 	if(reason == AGG_STOP_DESTROY_STA) {
-		cancel_work_sync(&sta->ampdu_mlme.work);
+		wiphy_work_cancel(sta->local->hw.wiphy, &sta->ampdu_mlme.work);
 
 		mutex_lock(&sta->ampdu_mlme.mtx);
 		for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
@@ -350,7 +350,7 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 	}
 }
 
-void ieee80211_ba_session_work(struct work_struct *work)
+void ieee80211_ba_session_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct sta_info *sta =
 		container_of(work, struct sta_info, ampdu_mlme.work);
@@ -416,7 +416,7 @@ void ieee80211_ba_session_work(struct work_struct *work)
 
 				mutex_unlock(&sta->ampdu_mlme.mtx);
 
-				ieee80211_queue_work(&sdata->local->hw, work);
+				wiphy_work_queue(sdata->local->hw.wiphy, work);
 				return;
 			}
 

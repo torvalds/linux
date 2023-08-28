@@ -2134,7 +2134,7 @@ void ieee80211_start_tx_ba_cb(struct sta_info *sta, int tid,
 			      struct tid_ampdu_tx *tid_tx);
 void ieee80211_stop_tx_ba_cb(struct sta_info *sta, int tid,
 			     struct tid_ampdu_tx *tid_tx);
-void ieee80211_ba_session_work(struct work_struct *work);
+void ieee80211_ba_session_work(struct wiphy *wiphy, struct wiphy_work *work);
 void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid);
 void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid);
 
