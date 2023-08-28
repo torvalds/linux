@@ -2401,12 +2401,11 @@ void ieee80211_dynamic_ps_timer(struct timer_list *t)
 	ieee80211_queue_work(&local->hw, &local->dynamic_ps_enable_work);
 }
 
-void ieee80211_dfs_cac_timer_work(struct work_struct *work)
+void ieee80211_dfs_cac_timer_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
-	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct ieee80211_link_data *link =
-		container_of(delayed_work, struct ieee80211_link_data,
-			     dfs_cac_timer_work);
+		container_of(work, struct ieee80211_link_data,
+			     dfs_cac_timer_work.work);
 	struct cfg80211_chan_def chandef = link->conf->chandef;
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 
