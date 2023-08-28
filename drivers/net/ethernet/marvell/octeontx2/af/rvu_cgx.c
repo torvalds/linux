@@ -236,6 +236,11 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 
 	linfo = &event->link_uinfo;
 	pfmap = cgxlmac_to_pfmap(rvu, event->cgx_id, event->lmac_id);
+	if (!pfmap) {
+		dev_err(rvu->dev, "CGX port%d:%d not mapped with PF\n",
+			event->cgx_id, event->lmac_id);
+		return;
+	}
 
 	do {
 		pfid = find_first_bit(&pfmap,
@@ -345,7 +350,7 @@ int rvu_cgx_init(struct rvu *rvu)
 	rvu->cgx_cnt_max = cgx_get_cgxcnt_max();
 	if (!rvu->cgx_cnt_max) {
 		dev_info(rvu->dev, "No CGX devices found!\n");
-		return -ENODEV;
+		return 0;
 	}
 
 	rvu->cgx_idmap = devm_kzalloc(rvu->dev, rvu->cgx_cnt_max *
