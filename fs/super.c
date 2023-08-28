@@ -570,8 +570,8 @@ static bool grab_super_dead(struct super_block *sb)
 		return true;
 	}
 	wait_var_event(&sb->s_flags, wait_dead(sb));
-	put_super(sb);
 	lockdep_assert_not_held(&sb->s_umount);
+	put_super(sb);
 	return false;
 }
 
