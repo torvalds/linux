@@ -35,6 +35,14 @@
  * are ready. The control transfer will then be kept from completing till
  * all the function drivers that requested for USB_GADGET_DELAYED_STAUS
  * invoke usb_composite_setup_continue().
+ *
+ * NOTE: USB_GADGET_DELAYED_STATUS must not be used in UDC drivers: they
+ * must delay completing the status stage for 0-length control transfers
+ * regardless of the whether USB_GADGET_DELAYED_STATUS is returned from
+ * the gadget driver's setup() callback.
+ * Currently, a number of UDC drivers rely on USB_GADGET_DELAYED_STATUS,
+ * which is a bug. These drivers must be fixed and USB_GADGET_DELAYED_STATUS
+ * must be contained within the composite framework.
  */
 #define USB_GADGET_DELAYED_STATUS       0x7fff	/* Impossibly large value */
 

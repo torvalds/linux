@@ -711,6 +711,15 @@ static inline int usb_gadget_check_config(struct usb_gadget *gadget)
  * get_interface.  Setting a configuration (or interface) is where
  * endpoints should be activated or (config 0) shut down.
  *
+ * The gadget driver's setup() callback does not have to queue a response to
+ * ep0 within the setup() call, the driver can do it after setup() returns.
+ * The UDC driver must wait until such a response is queued before proceeding
+ * with the data/status stages of the control transfer.
+ *
+ * NOTE: Currently, a number of UDC drivers rely on USB_GADGET_DELAYED_STATUS
+ * being returned from the setup() callback, which is a bug. See the comment
+ * next to USB_GADGET_DELAYED_STATUS for details.
+ *
  * (Note that only the default control endpoint is supported.  Neither
  * hosts nor devices generally support control traffic except to ep0.)
  *
