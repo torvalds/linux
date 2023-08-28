@@ -1089,31 +1089,18 @@ static int at91_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	st->clk = devm_clk_get(&pdev->dev, "adc_clk");
+	st->clk = devm_clk_get_enabled(&pdev->dev, "adc_clk");
 	if (IS_ERR(st->clk)) {
-		dev_err(&pdev->dev, "Failed to get the clock.\n");
+		dev_err(&pdev->dev,
+			"Could not prepare or enable the clock.\n");
 		return PTR_ERR(st->clk);
 	}
 
-	ret = clk_prepare_enable(st->clk);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Could not prepare or enable the clock.\n");
-		return ret;
-	}
-
-	st->adc_clk = devm_clk_get(&pdev->dev, "adc_op_clk");
+	st->adc_clk = devm_clk_get_enabled(&pdev->dev, "adc_op_clk");
 	if (IS_ERR(st->adc_clk)) {
-		dev_err(&pdev->dev, "Failed to get the ADC clock.\n");
-		ret = PTR_ERR(st->adc_clk);
-		goto error_disable_clk;
-	}
-
-	ret = clk_prepare_enable(st->adc_clk);
-	if (ret) {
 		dev_err(&pdev->dev,
 			"Could not prepare or enable the ADC clock.\n");
-		goto error_disable_clk;
+		return PTR_ERR(st->adc_clk);
 	}
 
 	/*
@@ -1132,8 +1119,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	if (!st->startup_time) {
 		dev_err(&pdev->dev, "No startup time available.\n");
-		ret = -EINVAL;
-		goto error_disable_adc_clk;
+		return -EINVAL;
 	}
 	ticks = (*st->caps->calc_startup_ticks)(st->startup_time, adc_clk_khz);
 
@@ -1161,7 +1147,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	ret = at91_adc_channel_init(idev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Couldn't initialize the channels.\n");
-		goto error_disable_adc_clk;
+		return ret;
 	}
 
 	init_waitqueue_head(&st->wq_data_avail);
@@ -1176,19 +1162,19 @@ static int at91_adc_probe(struct platform_device *pdev)
 		ret = at91_adc_buffer_init(idev);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "Couldn't initialize the buffer.\n");
-			goto error_disable_adc_clk;
+			return ret;
 		}
 
 		ret = at91_adc_trigger_init(idev);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "Couldn't setup the triggers.\n");
 			at91_adc_buffer_remove(idev);
-			goto error_disable_adc_clk;
+			return ret;
 		}
 	} else {
 		ret = at91_ts_register(idev, pdev);
 		if (ret)
-			goto error_disable_adc_clk;
+			return ret;
 
 		at91_ts_hw_init(idev, adc_clk_khz);
 	}
@@ -1208,10 +1194,6 @@ error_iio_device_register:
 	} else {
 		at91_ts_unregister(st);
 	}
-error_disable_adc_clk:
-	clk_disable_unprepare(st->adc_clk);
-error_disable_clk:
-	clk_disable_unprepare(st->clk);
 	return ret;
 }
 
@@ -1227,8 +1209,6 @@ static int at91_adc_remove(struct platform_device *pdev)
 	} else {
 		at91_ts_unregister(st);
 	}
-	clk_disable_unprepare(st->adc_clk);
-	clk_disable_unprepare(st->clk);
 
 	return 0;
 }
