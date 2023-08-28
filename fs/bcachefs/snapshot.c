@@ -655,28 +655,18 @@ u32 bch2_snapshot_skiplist_get(struct bch_fs *c, u32 id)
 	return id;
 }
 
-static int snapshot_skiplist_good(struct btree_trans *trans, struct bch_snapshot s)
+static int snapshot_skiplist_good(struct btree_trans *trans, u32 id, struct bch_snapshot s)
 {
-	struct bch_snapshot a;
 	unsigned i;
-	int ret;
 
-	for (i = 0; i < 3; i++) {
-		if (!s.parent != !s.skip[i])
-			return false;
-
-		if (!s.parent)
-			continue;
-
-		ret = bch2_snapshot_lookup(trans, le32_to_cpu(s.skip[i]), &a);
-		if (bch2_err_matches(ret, ENOENT))
-			return false;
-		if (ret)
-			return ret;
-
-		if (a.tree != s.tree)
-			return false;
-	}
+	for (i = 0; i < 3; i++)
+		if (!s.parent) {
+			if (s.skip[i])
+				return false;
+		} else {
+			if (!bch2_snapshot_is_ancestor_early(trans->c, id, le32_to_cpu(s.skip[i])))
+				return false;
+		}
 
 	return true;
 }
@@ -856,7 +846,7 @@ static int check_snapshot(struct btree_trans *trans,
 		s = u->v;
 	}
 
-	ret = snapshot_skiplist_good(trans, s);
+	ret = snapshot_skiplist_good(trans, k.k->p.offset, s);
 	if (ret < 0)
 		goto err;
 
