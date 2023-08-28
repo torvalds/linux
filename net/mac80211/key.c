@@ -775,8 +775,9 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key,
 		if (delay_tailroom) {
 			/* see ieee80211_delayed_tailroom_dec */
 			sdata->crypto_tx_tailroom_pending_dec++;
-			schedule_delayed_work(&sdata->dec_tailroom_needed_wk,
-					      HZ/2);
+			wiphy_delayed_work_queue(sdata->local->hw.wiphy,
+						 &sdata->dec_tailroom_needed_wk,
+						 HZ / 2);
 		} else {
 			decrease_tailroom_need_count(sdata, 1);
 		}
@@ -1122,7 +1123,8 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_key *key, *tmp;
 	LIST_HEAD(keys);
 
-	cancel_delayed_work_sync(&sdata->dec_tailroom_needed_wk);
+	wiphy_delayed_work_cancel(local->hw.wiphy,
+				  &sdata->dec_tailroom_needed_wk);
 
 	mutex_lock(&local->key_mtx);
 
@@ -1193,7 +1195,8 @@ void ieee80211_free_sta_keys(struct ieee80211_local *local,
 	mutex_unlock(&local->key_mtx);
 }
 
-void ieee80211_delayed_tailroom_dec(struct work_struct *wk)
+void ieee80211_delayed_tailroom_dec(struct wiphy *wiphy,
+				    struct wiphy_work *wk)
 {
 	struct ieee80211_sub_if_data *sdata;
 

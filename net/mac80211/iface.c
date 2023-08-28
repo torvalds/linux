@@ -2149,8 +2149,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	INIT_LIST_HEAD(&sdata->key_list);
 
-	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,
-			  ieee80211_delayed_tailroom_dec);
+	wiphy_delayed_work_init(&sdata->dec_tailroom_needed_wk,
+				ieee80211_delayed_tailroom_dec);
 
 	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		struct ieee80211_supported_band *sband;

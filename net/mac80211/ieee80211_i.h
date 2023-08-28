@@ -1041,7 +1041,7 @@ struct ieee80211_sub_if_data {
 	/* count for keys needing tailroom space allocation */
 	int crypto_tx_tailroom_needed_cnt;
 	int crypto_tx_tailroom_pending_dec;
-	struct delayed_work dec_tailroom_needed_wk;
+	struct wiphy_delayed_work dec_tailroom_needed_wk;
 
 	struct net_device *dev;
 	struct ieee80211_local *local;

@@ -372,7 +372,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 				sdata_unlock(sdata);
 			}
 		}
-		flush_delayed_work(&sdata->dec_tailroom_needed_wk);
+		wiphy_delayed_work_flush(local->hw.wiphy,
+					 &sdata->dec_tailroom_needed_wk);
 	}
 	ieee80211_scan_cancel(local);
 
