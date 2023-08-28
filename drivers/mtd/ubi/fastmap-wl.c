@@ -118,7 +118,7 @@ static void wait_free_pebs_for_pool(struct ubi_device *ubi)
 	 * 4. beb_rsvd_pebs: This value should be get under lock ubi->wl_lock
 	 */
 	int reserved = WL_RESERVED_PEBS + EBA_RESERVED_PEBS +
-		       ubi->fm_size / ubi->leb_size - 1;
+		       ubi->fm_size / ubi->leb_size - 1 + ubi->fm_pool_rsv_cnt;
 
 	do {
 		spin_lock(&ubi->wl_lock);
