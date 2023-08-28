@@ -2368,19 +2368,41 @@ static int prctl_set_vma(unsigned long opt, unsigned long start,
 }
 #endif /* CONFIG_ANON_VMA_NAME */
 
+static inline unsigned long get_current_mdwe(void)
+{
+	unsigned long ret = 0;
+
+	if (test_bit(MMF_HAS_MDWE, &current->mm->flags))
+		ret |= PR_MDWE_REFUSE_EXEC_GAIN;
+	if (test_bit(MMF_HAS_MDWE_NO_INHERIT, &current->mm->flags))
+		ret |= PR_MDWE_NO_INHERIT;
+
+	return ret;
+}
+
 static inline int prctl_set_mdwe(unsigned long bits, unsigned long arg3,
 				 unsigned long arg4, unsigned long arg5)
 {
+	unsigned long current_bits;
+
 	if (arg3 || arg4 || arg5)
 		return -EINVAL;
 
-	if (bits & ~(PR_MDWE_REFUSE_EXEC_GAIN))
+	if (bits & ~(PR_MDWE_REFUSE_EXEC_GAIN | PR_MDWE_NO_INHERIT))
 		return -EINVAL;
 
+	/* NO_INHERIT only makes sense with REFUSE_EXEC_GAIN */
+	if (bits & PR_MDWE_NO_INHERIT && !(bits & PR_MDWE_REFUSE_EXEC_GAIN))
+		return -EINVAL;
+
+	current_bits = get_current_mdwe();
+	if (current_bits && current_bits != bits)
+		return -EPERM; /* Cannot unset the flags */
+
+	if (bits & PR_MDWE_NO_INHERIT)
+		set_bit(MMF_HAS_MDWE_NO_INHERIT, &current->mm->flags);
 	if (bits & PR_MDWE_REFUSE_EXEC_GAIN)
 		set_bit(MMF_HAS_MDWE, &current->mm->flags);
-	else if (test_bit(MMF_HAS_MDWE, &current->mm->flags))
-		return -EPERM; /* Cannot unset the flag */
 
 	return 0;
 }
@@ -2390,9 +2412,7 @@ static inline int prctl_get_mdwe(unsigned long arg2, unsigned long arg3,
 {
 	if (arg2 || arg3 || arg4 || arg5)
 		return -EINVAL;
-
-	return test_bit(MMF_HAS_MDWE, &current->mm->flags) ?
-		PR_MDWE_REFUSE_EXEC_GAIN : 0;
+	return get_current_mdwe();
 }
 
 static int prctl_get_auxv(void __user *addr, unsigned long len)
