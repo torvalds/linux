@@ -25,6 +25,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/ch11.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/composite.h>
 
 #include <uapi/linux/usb/raw_gadget.h>
 
@@ -363,6 +364,16 @@ static int gadget_setup(struct usb_gadget *gadget,
 out_unlock:
 	spin_unlock_irqrestore(&dev->lock, flags);
 out:
+	if (ret == 0 && ctrl->wLength == 0) {
+		/*
+		 * Return USB_GADGET_DELAYED_STATUS as a workaround to stop
+		 * some UDC drivers (e.g. dwc3) from automatically proceeding
+		 * with the status stage for 0-length transfers.
+		 * Should be removed once all UDC drivers are fixed to always
+		 * delay the status stage until a response is queued to EP0.
+		 */
+		return USB_GADGET_DELAYED_STATUS;
+	}
 	return ret;
 }
 
