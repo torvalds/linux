@@ -4745,7 +4745,8 @@ static int ieee80211_color_change_finalize(struct ieee80211_sub_if_data *sdata)
 	return 0;
 }
 
-void ieee80211_color_change_finalize_work(struct work_struct *work)
+void ieee80211_color_change_finalize_work(struct wiphy *wiphy,
+					  struct wiphy_work *work)
 {
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
@@ -4786,8 +4787,8 @@ void ieee80211_color_change_finish(struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 
-	ieee80211_queue_work(&sdata->local->hw,
-			     &sdata->deflink.color_change_finalize_work);
+	wiphy_work_queue(sdata->local->hw.wiphy,
+			 &sdata->deflink.color_change_finalize_work);
 }
 EXPORT_SYMBOL_GPL(ieee80211_color_change_finish);
 
