@@ -32,6 +32,7 @@ static void string_stream_init_test(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, list_empty(&stream->fragments));
 	KUNIT_EXPECT_PTR_EQ(test, stream->test, test);
 	KUNIT_EXPECT_TRUE(test, (stream->gfp == GFP_KERNEL));
+	KUNIT_EXPECT_FALSE(test, stream->append_newlines);
 	KUNIT_EXPECT_TRUE(test, string_stream_is_empty(stream));
 }
 
@@ -215,6 +216,45 @@ static void string_stream_append_test(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, get_concatenated_string(test, stream_1), stream_2_content);
 }
 
+/* Appending the content of one string stream to one with auto-newlining. */
+static void string_stream_append_auto_newline_test(struct kunit *test)
+{
+	struct string_stream *stream_1, *stream_2;
+
+	/* Stream 1 has newline appending enabled */
+	stream_1 = alloc_string_stream(test, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream_1);
+	string_stream_set_append_newlines(stream_1, true);
+	KUNIT_EXPECT_TRUE(test, stream_1->append_newlines);
+
+	/* Stream 2 does not append newlines */
+	stream_2 = alloc_string_stream(test, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream_2);
+
+	/* Appending a stream with a newline should not add another newline */
+	string_stream_add(stream_1, "Original string\n");
+	string_stream_add(stream_2, "Appended content\n");
+	string_stream_add(stream_2, "More stuff\n");
+	string_stream_append(stream_1, stream_2);
+	KUNIT_EXPECT_STREQ(test, get_concatenated_string(test, stream_1),
+			   "Original string\nAppended content\nMore stuff\n");
+
+	string_stream_destroy(stream_2);
+	stream_2 = alloc_string_stream(test, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream_2);
+
+	/*
+	 * Appending a stream without newline should add a final newline.
+	 * The appended string_stream is treated as a single string so newlines
+	 * should not be inserted between fragments.
+	 */
+	string_stream_add(stream_2, "Another");
+	string_stream_add(stream_2, "And again");
+	string_stream_append(stream_1, stream_2);
+	KUNIT_EXPECT_STREQ(test, get_concatenated_string(test, stream_1),
+			   "Original string\nAppended content\nMore stuff\nAnotherAnd again\n");
+}
+
 /* Adding an empty string should not create a fragment. */
 static void string_stream_append_empty_string_test(struct kunit *test)
 {
@@ -238,12 +278,65 @@ static void string_stream_append_empty_string_test(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, get_concatenated_string(test, stream), "Add this line");
 }
 
+/* Adding strings without automatic newline appending */
+static void string_stream_no_auto_newline_test(struct kunit *test)
+{
+	struct string_stream *stream;
+
+	stream = alloc_string_stream(test, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream);
+
+	/*
+	 * Add some strings with and without newlines. All formatted newlines
+	 * should be preserved. It should not add any extra newlines.
+	 */
+	string_stream_add(stream, "One");
+	string_stream_add(stream, "Two\n");
+	string_stream_add(stream, "%s\n", "Three");
+	string_stream_add(stream, "%s", "Four\n");
+	string_stream_add(stream, "Five\n%s", "Six");
+	string_stream_add(stream, "Seven\n\n");
+	string_stream_add(stream, "Eight");
+	KUNIT_EXPECT_STREQ(test, get_concatenated_string(test, stream),
+			   "OneTwo\nThree\nFour\nFive\nSixSeven\n\nEight");
+}
+
+/* Adding strings with automatic newline appending */
+static void string_stream_auto_newline_test(struct kunit *test)
+{
+	struct string_stream *stream;
+
+	stream = alloc_string_stream(test, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream);
+
+	string_stream_set_append_newlines(stream, true);
+	KUNIT_EXPECT_TRUE(test, stream->append_newlines);
+
+	/*
+	 * Add some strings with and without newlines. Newlines should
+	 * be appended to lines that do not end with \n, but newlines
+	 * resulting from the formatting should not be changed.
+	 */
+	string_stream_add(stream, "One");
+	string_stream_add(stream, "Two\n");
+	string_stream_add(stream, "%s\n", "Three");
+	string_stream_add(stream, "%s", "Four\n");
+	string_stream_add(stream, "Five\n%s", "Six");
+	string_stream_add(stream, "Seven\n\n");
+	string_stream_add(stream, "Eight");
+	KUNIT_EXPECT_STREQ(test, get_concatenated_string(test, stream),
+			   "One\nTwo\nThree\nFour\nFive\nSix\nSeven\n\nEight\n");
+}
+
 static struct kunit_case string_stream_test_cases[] = {
 	KUNIT_CASE(string_stream_init_test),
 	KUNIT_CASE(string_stream_line_add_test),
 	KUNIT_CASE(string_stream_variable_length_line_test),
 	KUNIT_CASE(string_stream_append_test),
+	KUNIT_CASE(string_stream_append_auto_newline_test),
 	KUNIT_CASE(string_stream_append_empty_string_test),
+	KUNIT_CASE(string_stream_no_auto_newline_test),
+	KUNIT_CASE(string_stream_auto_newline_test),
 	{}
 };
 
