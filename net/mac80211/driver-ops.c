@@ -285,6 +285,8 @@ int drv_assign_vif_chanctx(struct ieee80211_local *local,
 {
 	int ret = 0;
 
+	might_sleep();
+
 	drv_verify_link_exists(sdata, link_conf);
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
