@@ -186,4 +186,17 @@ config PTP_1588_CLOCK_OCP
 
 	  More information is available at http://www.timingcard.com/
 
+config PTP_QCOM_CLOCK_TSC
+	tristate "QCOM  TSC as PTP clock"
+	depends on COMMON_CLK
+	help
+	  This driver adds support for using the TSC as a PTP clock.
+	  The hardware supports time stamping of PTP packets.
+
+	  This PTP driver also registers interrupts for ETU(Event Timestamp Unit)
+	  and updates the TSC timestamps to PTP clock.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_qcom_tsc.
+
 endmenu
