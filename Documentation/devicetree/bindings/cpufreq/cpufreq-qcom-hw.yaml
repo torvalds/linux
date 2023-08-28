@@ -49,6 +49,7 @@ properties:
       - description: Frequency domain 0 register region
       - description: Frequency domain 1 register region
       - description: Frequency domain 2 register region
+      - description: Frequency domain 3 register region
 
   reg-names:
     minItems: 1
@@ -56,6 +57,7 @@ properties:
       - const: freq-domain0
       - const: freq-domain1
       - const: freq-domain2
+      - const: freq-domain3
 
   clocks:
     items:
@@ -69,7 +71,7 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 3
+    maxItems: 4
 
   interrupt-names:
     minItems: 1
@@ -77,6 +79,7 @@ properties:
       - const: dcvsh-irq-0
       - const: dcvsh-irq-1
       - const: dcvsh-irq-2
+      - const: dcvsh-irq-3
 
   '#freq-domain-cells':
     const: 1
