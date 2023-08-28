@@ -3155,9 +3155,13 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 
 	switch (type) {
 	case TIOCL_SETSEL:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
 		return set_selection_user((struct tiocl_selection
 					 __user *)(p+1), tty);
 	case TIOCL_PASTESEL:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
 		return paste_selection(tty);
 	case TIOCL_UNBLANKSCREEN:
 		console_lock();
@@ -3165,6 +3169,8 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		console_unlock();
 		break;
 	case TIOCL_SELLOADLUT:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
 		console_lock();
 		ret = sel_loadlut(p);
 		console_unlock();
