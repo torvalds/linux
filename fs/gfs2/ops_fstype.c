@@ -1103,7 +1103,7 @@ static int init_threads(struct gfs2_sbd *sdp)
 	struct task_struct *p;
 	int error = 0;
 
-	p = kthread_create(gfs2_logd, sdp, "gfs2_logd");
+	p = kthread_create(gfs2_logd, sdp, "gfs2_logd/%s", sdp->sd_fsname);
 	if (IS_ERR(p)) {
 		error = PTR_ERR(p);
 		fs_err(sdp, "can't create logd thread: %d\n", error);
@@ -1112,7 +1112,7 @@ static int init_threads(struct gfs2_sbd *sdp)
 	get_task_struct(p);
 	sdp->sd_logd_process = p;
 
-	p = kthread_create(gfs2_quotad, sdp, "gfs2_quotad");
+	p = kthread_create(gfs2_quotad, sdp, "gfs2_quotad/%s", sdp->sd_fsname);
 	if (IS_ERR(p)) {
 		error = PTR_ERR(p);
 		fs_err(sdp, "can't create quotad thread: %d\n", error);
