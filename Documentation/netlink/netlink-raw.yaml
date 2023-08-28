@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 %YAML 1.2
 ---
-$id: http://kernel.org/schemas/netlink/genetlink-legacy.yaml#
+$id: http://kernel.org/schemas/netlink/netlink-raw.yaml#
 $schema: https://json-schema.org/draft-07/schema
 
 # Common defines
@@ -16,23 +16,24 @@ $defs:
 
 # Schema for specs
 title: Protocol
-description: Specification of a genetlink protocol
+description: Specification of a raw netlink protocol
 type: object
 required: [ name, doc, attribute-sets, operations ]
 additionalProperties: False
 properties:
   name:
-    description: Name of the genetlink family.
+    description: Name of the netlink family.
     type: string
   doc:
     type: string
-  version:
-    description: Generic Netlink family version. Default is 1.
-    type: integer
-    minimum: 1
   protocol:
-    description: Schema compatibility level. Default is "genetlink".
-    enum: [ genetlink, genetlink-c, genetlink-legacy ] # Trim
+    description: Schema compatibility level.
+    enum: [ netlink-raw ] # Trim
+  # Start netlink-raw
+  protonum:
+    description: Protocol number to use for netlink-raw
+    type: integer
+  # End netlink-raw
   uapi-header:
     description: Path to the uAPI header, default is linux/${family-name}.h
     type: string
@@ -131,6 +132,12 @@ properties:
               enum:
                 description: Name of the enum type used for the attribute.
                 type: string
+              enum-as-flags:
+                description: |
+                  Treat the enum as flags. In most cases enum is either used as flags or as values.
+                  Sometimes, however, both forms are necessary, in which case header contains the enum
+                  form while specific attributes may request to convert the values into a bitfield.
+                type: boolean
               display-hint: &display-hint
                 description: |
                   Optional format indicator that is intended only for choosing
@@ -321,7 +328,7 @@ properties:
               description: Kernel attribute validation flags.
               type: array
               items:
-                enum: [ strict, dump, dump-strict ]
+                enum: [ strict, dump ]
             # Start genetlink-legacy
             fixed-header: *fixed-header
             # End genetlink-legacy
@@ -396,3 +403,8 @@ properties:
               type: string
             # End genetlink-c
             flags: *cmd_flags
+            # Start netlink-raw
+            value:
+              description: Value of the netlink multicast group in the uAPI.
+              type: integer
+            # End netlink-raw
