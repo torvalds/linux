@@ -44,32 +44,46 @@ int string_stream_vadd(struct string_stream *stream,
 		       va_list args)
 {
 	struct string_stream_fragment *frag_container;
-	int len;
+	int buf_len, result_len;
 	va_list args_for_counting;
 
 	/* Make a copy because `vsnprintf` could change it */
 	va_copy(args_for_counting, args);
 
 	/* Evaluate length of formatted string */
-	len = vsnprintf(NULL, 0, fmt, args_for_counting);
+	buf_len = vsnprintf(NULL, 0, fmt, args_for_counting);
 
 	va_end(args_for_counting);
 
-	if (len == 0)
+	if (buf_len == 0)
 		return 0;
 
+	/* Reserve one extra for possible appended newline. */
+	if (stream->append_newlines)
+		buf_len++;
+
 	/* Need space for null byte. */
-	len++;
+	buf_len++;
 
 	frag_container = alloc_string_stream_fragment(stream->test,
-						      len,
+						      buf_len,
 						      stream->gfp);
 	if (IS_ERR(frag_container))
 		return PTR_ERR(frag_container);
 
-	len = vsnprintf(frag_container->fragment, len, fmt, args);
+	if (stream->append_newlines) {
+		/* Don't include reserved newline byte in writeable length. */
+		result_len = vsnprintf(frag_container->fragment, buf_len - 1, fmt, args);
+
+		/* Append newline if necessary. */
+		if (frag_container->fragment[result_len - 1] != '\n')
+			result_len = strlcat(frag_container->fragment, "\n", buf_len);
+	} else {
+		result_len = vsnprintf(frag_container->fragment, buf_len, fmt, args);
+	}
+
 	spin_lock(&stream->lock);
-	stream->length += len;
+	stream->length += result_len;
 	list_add_tail(&frag_container->node, &stream->fragments);
 	spin_unlock(&stream->lock);
 

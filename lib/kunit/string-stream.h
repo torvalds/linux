@@ -25,6 +25,7 @@ struct string_stream {
 	spinlock_t lock;
 	struct kunit *test;
 	gfp_t gfp;
+	bool append_newlines;
 };
 
 struct kunit;
@@ -46,5 +47,11 @@ int string_stream_append(struct string_stream *stream,
 bool string_stream_is_empty(struct string_stream *stream);
 
 void string_stream_destroy(struct string_stream *stream);
+
+static inline void string_stream_set_append_newlines(struct string_stream *stream,
+						     bool append_newlines)
+{
+	stream->append_newlines = append_newlines;
+}
 
 #endif /* _KUNIT_STRING_STREAM_H */
