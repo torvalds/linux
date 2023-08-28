@@ -368,6 +368,7 @@ struct msm_geni_serial_port {
 	struct uart_gsi *gsi;
 	struct work_struct tx_xfer_work;
 	struct work_struct rx_cancel_work;
+	struct work_struct tx_cancel_work;
 	struct workqueue_struct *tx_wq;
 	struct workqueue_struct *rx_wq;
 	struct completion xfer;
@@ -381,6 +382,7 @@ struct msm_geni_serial_port {
 	struct workqueue_struct *wakeup_irq_wq;
 	struct delayed_work wakeup_irq_dwork;
 	struct completion wakeup_comp;
+	atomic_t flush_buffers;
 };
 
 static const struct uart_ops msm_geni_serial_pops;
@@ -1883,6 +1885,15 @@ exit_gsi_tx_xfer:
 		     "%s: Failed to prep Tx descriptor", __func__);
 }
 
+static void msm_geni_uart_gsi_cancel_tx(struct work_struct *work)
+{
+	struct msm_geni_serial_port *msm_port = container_of(work,
+			struct msm_geni_serial_port,
+			tx_cancel_work);
+
+	dmaengine_terminate_all(msm_port->gsi->tx_c);
+}
+
 static void msm_geni_uart_gsi_cancel_rx(struct work_struct *work)
 {
 	struct msm_geni_serial_port *msm_port = container_of(work,
@@ -2001,6 +2012,9 @@ static int msm_geni_serial_prep_dma_tx(struct uart_port *uport)
 	unsigned int dma_dbg;
 	bool timeout, is_irq_masked;
 	int ret = 0;
+
+	if (atomic_read(&msm_port->flush_buffers))
+		return -EIO;
 
 	xmit_size = uart_circ_chars_pending(xmit);
 	if (xmit_size < WAKEUP_CHARS)
@@ -2144,6 +2158,13 @@ static void msm_geni_serial_start_tx(struct uart_port *uport)
 		pm_runtime_get(uport->dev);
 	}
 
+	/*
+	 * If flush has been triggered earlier from userspace and port is
+	 * still active(not yet closed) then reset the flush_buffers flag.
+	 */
+	if (atomic_read(&msm_port->flush_buffers))
+		atomic_set(&msm_port->flush_buffers, 0);
+
 	if (msm_port->xfer_mode == GENI_SE_FIFO) {
 		geni_status = geni_read_reg(uport->membase,
 						  SE_GENI_STATUS);
@@ -2201,11 +2222,12 @@ static void stop_tx_sequencer(struct uart_port *uport)
 	unsigned int dma_dbg;
 	struct msm_geni_serial_port *port = GET_DEV_PORT(uport);
 
-	geni_status = geni_read_reg(uport->membase, SE_GENI_STATUS);
 	if (port->xfer_mode == GENI_GPI_DMA) {
-		dmaengine_terminate_all(port->gsi->tx_c);
+		queue_work(port->tx_wq, &port->tx_cancel_work);
 		return;
 	}
+	geni_status = geni_read_reg(uport->membase, SE_GENI_STATUS);
+
 	/* Possible stop tx is called multiple times. */
 	if (!(geni_status & M_GENI_CMD_ACTIVE))
 		return;
@@ -3381,6 +3403,21 @@ static void set_rfr_wm(struct msm_geni_serial_port *port)
 	port->tx_wm = 2;
 }
 
+/*
+ * msm_geni_serial_flush() - Stops any pending tx transactions
+ *
+ * @uport: pointer to uart port
+ *
+ * Return: None
+ */
+static void msm_geni_serial_flush(struct uart_port *uport)
+{
+	struct msm_geni_serial_port *port = GET_DEV_PORT(uport);
+
+	atomic_set(&port->flush_buffers, 1);
+	stop_tx_sequencer(uport);
+}
+
 static void msm_geni_serial_shutdown(struct uart_port *uport)
 {
 	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
@@ -3488,6 +3525,7 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 
 		/* Reset UART error to default during port_close() */
 		msm_port->uart_error = UART_ERROR_DEFAULT;
+		atomic_set(&msm_port->flush_buffers, 0);
 	}
 	msm_port->shutdown_in_progress = false;
 	UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev, "%s: End %d\n", __func__, ret);
@@ -4177,7 +4215,7 @@ static const struct uart_ops msm_geni_serial_pops = {
 	.set_mctrl = msm_geni_serial_set_mctrl,
 	.get_mctrl = msm_geni_serial_get_mctrl,
 	.break_ctl = msm_geni_serial_break_ctl,
-	.flush_buffer = NULL,
+	.flush_buffer = msm_geni_serial_flush,
 	.ioctl = msm_geni_serial_ioctl,
 	/* For HSUART nodes without IOCTL support */
 	.pm = msm_geni_serial_hs_pm,
@@ -4233,6 +4271,8 @@ static void msm_geni_serial_init_gsi(struct uart_port *uport)
 		INIT_WORK(&msm_port->tx_xfer_work, msm_geni_uart_gsi_xfer_tx);
 		INIT_WORK(&msm_port->rx_cancel_work,
 			  msm_geni_uart_gsi_cancel_rx);
+		INIT_WORK(&msm_port->tx_cancel_work,
+			  msm_geni_uart_gsi_cancel_tx);
 	}
 }
 
