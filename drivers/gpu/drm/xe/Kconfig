@@ -27,6 +27,7 @@ config DRM_XE
 	select DRM_SCHED
 	select MMU_NOTIFIER
 	select WANT_DEV_COREDUMP
+	select AUXILIARY_BUS
 	help
 	  Experimental driver for Intel Xe series GPUs
 

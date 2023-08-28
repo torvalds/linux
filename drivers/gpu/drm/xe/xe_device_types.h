@@ -13,6 +13,7 @@
 #include <drm/ttm/ttm_device.h>
 
 #include "xe_devcoredump_types.h"
+#include "xe_heci_gsc.h"
 #include "xe_gt_types.h"
 #include "xe_platform_types.h"
 #include "xe_pt_types.h"
@@ -383,6 +384,9 @@ struct xe_device {
 
 	/** @hwmon: hwmon subsystem integration */
 	struct xe_hwmon *hwmon;
+
+	/** @heci_gsc: graphics security controller */
+	struct xe_heci_gsc heci_gsc;
 
 	/* For pcode */
 	struct mutex sb_lock;
