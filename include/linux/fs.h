@@ -1069,7 +1069,7 @@ extern void fasync_free(struct fasync_struct *);
 extern void kill_fasync(struct fasync_struct **, int, int);
 
 extern void __f_setown(struct file *filp, struct pid *, enum pid_type, int force);
-extern int f_setown(struct file *filp, unsigned long arg, int force);
+extern int f_setown(struct file *filp, int who, int force);
 extern void f_delown(struct file *filp);
 extern pid_t f_getown(struct file *filp);
 extern int send_sigurg(struct fown_struct *fown);
@@ -1871,7 +1871,7 @@ struct file_operations {
 	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
 	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
 	void (*splice_eof)(struct file *file);
-	int (*setlease)(struct file *, long, struct file_lock **, void **);
+	int (*setlease)(struct file *, int, struct file_lock **, void **);
 	long (*fallocate)(struct file *file, int mode, loff_t offset,
 			  loff_t len);
 	void (*show_fdinfo)(struct seq_file *m, struct file *f);
@@ -2632,6 +2632,13 @@ static inline bool inode_wrong_type(const struct inode *inode, umode_t mode)
 	return (inode->i_mode ^ mode) & S_IFMT;
 }
 
+/**
+ * file_start_write - get write access to a superblock for regular file io
+ * @file: the file we want to write to
+ *
+ * This is a variant of sb_start_write() which is a noop on non-regualr file.
+ * Should be matched with a call to file_end_write().
+ */
 static inline void file_start_write(struct file *file)
 {
 	if (!S_ISREG(file_inode(file)->i_mode))
@@ -2646,11 +2653,53 @@ static inline bool file_start_write_trylock(struct file *file)
 	return sb_start_write_trylock(file_inode(file)->i_sb);
 }
 
+/**
+ * file_end_write - drop write access to a superblock of a regular file
+ * @file: the file we wrote to
+ *
+ * Should be matched with a call to file_start_write().
+ */
 static inline void file_end_write(struct file *file)
 {
 	if (!S_ISREG(file_inode(file)->i_mode))
 		return;
-	__sb_end_write(file_inode(file)->i_sb, SB_FREEZE_WRITE);
+	sb_end_write(file_inode(file)->i_sb);
+}
+
+/**
+ * kiocb_start_write - get write access to a superblock for async file io
+ * @iocb: the io context we want to submit the write with
+ *
+ * This is a variant of sb_start_write() for async io submission.
+ * Should be matched with a call to kiocb_end_write().
+ */
+static inline void kiocb_start_write(struct kiocb *iocb)
+{
+	struct inode *inode = file_inode(iocb->ki_filp);
+
+	sb_start_write(inode->i_sb);
+	/*
+	 * Fool lockdep by telling it the lock got released so that it
+	 * doesn't complain about the held lock when we return to userspace.
+	 */
+	__sb_writers_release(inode->i_sb, SB_FREEZE_WRITE);
+}
+
+/**
+ * kiocb_end_write - drop write access to a superblock after async file io
+ * @iocb: the io context we sumbitted the write with
+ *
+ * Should be matched with a call to kiocb_start_write().
+ */
+static inline void kiocb_end_write(struct kiocb *iocb)
+{
+	struct inode *inode = file_inode(iocb->ki_filp);
+
+	/*
+	 * Tell lockdep we inherited freeze protection from submission thread.
+	 */
+	__sb_writers_acquired(inode->i_sb, SB_FREEZE_WRITE);
+	sb_end_write(inode->i_sb);
 }
 
 /*
@@ -2700,8 +2749,7 @@ static inline bool inode_is_open_for_write(const struct inode *inode)
 #if defined(CONFIG_IMA) || defined(CONFIG_FILE_LOCKING)
 static inline void i_readcount_dec(struct inode *inode)
 {
-	BUG_ON(!atomic_read(&inode->i_readcount));
-	atomic_dec(&inode->i_readcount);
+	BUG_ON(atomic_dec_return(&inode->i_readcount) < 0);
 }
 static inline void i_readcount_inc(struct inode *inode)
 {
@@ -3046,7 +3094,7 @@ extern int simple_write_begin(struct file *file, struct address_space *mapping,
 extern const struct address_space_operations ram_aops;
 extern int always_delete_dentry(const struct dentry *);
 extern struct inode *alloc_anon_inode(struct super_block *);
-extern int simple_nosetlease(struct file *, long, struct file_lock **, void **);
+extern int simple_nosetlease(struct file *, int, struct file_lock **, void **);
 extern const struct dentry_operations simple_dentry_operations;
 
 extern struct dentry *simple_lookup(struct inode *, struct dentry *, unsigned int flags);

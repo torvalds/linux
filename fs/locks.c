@@ -438,7 +438,7 @@ static void flock_make_lock(struct file *filp, struct file_lock *fl, int type)
 	fl->fl_end = OFFSET_MAX;
 }
 
-static int assign_type(struct file_lock *fl, long type)
+static int assign_type(struct file_lock *fl, int type)
 {
 	switch (type) {
 	case F_RDLCK:
@@ -549,7 +549,7 @@ static const struct lock_manager_operations lease_manager_ops = {
 /*
  * Initialize a lease, use the default lock manager operations
  */
-static int lease_init(struct file *filp, long type, struct file_lock *fl)
+static int lease_init(struct file *filp, int type, struct file_lock *fl)
 {
 	if (assign_type(fl, type) != 0)
 		return -EINVAL;
@@ -567,7 +567,7 @@ static int lease_init(struct file *filp, long type, struct file_lock *fl)
 }
 
 /* Allocate a file_lock initialised to this type of lease */
-static struct file_lock *lease_alloc(struct file *filp, long type)
+static struct file_lock *lease_alloc(struct file *filp, int type)
 {
 	struct file_lock *fl = locks_alloc_lock();
 	int error = -ENOMEM;
@@ -1666,7 +1666,7 @@ int fcntl_getlease(struct file *filp)
  * conflict with the lease we're trying to set.
  */
 static int
-check_conflicting_open(struct file *filp, const long arg, int flags)
+check_conflicting_open(struct file *filp, const int arg, int flags)
 {
 	struct inode *inode = file_inode(filp);
 	int self_wcount = 0, self_rcount = 0;
@@ -1701,7 +1701,7 @@ check_conflicting_open(struct file *filp, const long arg, int flags)
 }
 
 static int
-generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **priv)
+generic_add_lease(struct file *filp, int arg, struct file_lock **flp, void **priv)
 {
 	struct file_lock *fl, *my_fl = NULL, *lease;
 	struct inode *inode = file_inode(filp);
@@ -1859,7 +1859,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
  *	The (input) flp->fl_lmops->lm_break function is required
  *	by break_lease().
  */
-int generic_setlease(struct file *filp, long arg, struct file_lock **flp,
+int generic_setlease(struct file *filp, int arg, struct file_lock **flp,
 			void **priv)
 {
 	struct inode *inode = file_inode(filp);
@@ -1906,7 +1906,7 @@ lease_notifier_chain_init(void)
 }
 
 static inline void
-setlease_notifier(long arg, struct file_lock *lease)
+setlease_notifier(int arg, struct file_lock *lease)
 {
 	if (arg != F_UNLCK)
 		srcu_notifier_call_chain(&lease_notifier_chain, arg, lease);
@@ -1942,7 +1942,7 @@ EXPORT_SYMBOL_GPL(lease_unregister_notifier);
  * may be NULL if the lm_setup operation doesn't require it.
  */
 int
-vfs_setlease(struct file *filp, long arg, struct file_lock **lease, void **priv)
+vfs_setlease(struct file *filp, int arg, struct file_lock **lease, void **priv)
 {
 	if (lease)
 		setlease_notifier(arg, *lease);
@@ -1953,7 +1953,7 @@ vfs_setlease(struct file *filp, long arg, struct file_lock **lease, void **priv)
 }
 EXPORT_SYMBOL_GPL(vfs_setlease);
 
-static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
+static int do_fcntl_add_lease(unsigned int fd, struct file *filp, int arg)
 {
 	struct file_lock *fl;
 	struct fasync_struct *new;
@@ -1988,7 +1988,7 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
  *	Note that you also need to call %F_SETSIG to
  *	receive a signal when the lease is broken.
  */
-int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
+int fcntl_setlease(unsigned int fd, struct file *filp, int arg)
 {
 	if (arg == F_UNLCK)
 		return vfs_setlease(filp, F_UNLCK, NULL, (void **)&filp);

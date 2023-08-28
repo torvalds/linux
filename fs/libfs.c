@@ -815,21 +815,20 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
-	struct page *page;
-	pgoff_t index;
+	struct folio *folio;
 
-	index = pos >> PAGE_SHIFT;
+	folio = __filemap_get_folio(mapping, pos / PAGE_SIZE, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
-		return -ENOMEM;
+	*pagep = &folio->page;
 
-	*pagep = page;
+	if (!folio_test_uptodate(folio) && (len != folio_size(folio))) {
+		size_t from = offset_in_folio(folio, pos);
 
-	if (!PageUptodate(page) && (len != PAGE_SIZE)) {
-		unsigned from = pos & (PAGE_SIZE - 1);
-
-		zero_user_segments(page, 0, from, from + len, PAGE_SIZE);
+		folio_zero_segments(folio, 0, from,
+				from + len, folio_size(folio));
 	}
 	return 0;
 }
@@ -861,17 +860,18 @@ static int simple_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
-	struct inode *inode = page->mapping->host;
+	struct folio *folio = page_folio(page);
+	struct inode *inode = folio->mapping->host;
 	loff_t last_pos = pos + copied;
 
-	/* zero the stale part of the page if we did a short copy */
-	if (!PageUptodate(page)) {
+	/* zero the stale part of the folio if we did a short copy */
+	if (!folio_test_uptodate(folio)) {
 		if (copied < len) {
-			unsigned from = pos & (PAGE_SIZE - 1);
+			size_t from = offset_in_folio(folio, pos);
 
-			zero_user(page, from + copied, len - copied);
+			folio_zero_range(folio, from + copied, len - copied);
 		}
-		SetPageUptodate(page);
+		folio_mark_uptodate(folio);
 	}
 	/*
 	 * No need to use i_size_read() here, the i_size
@@ -880,9 +880,9 @@ static int simple_write_end(struct file *file, struct address_space *mapping,
 	if (last_pos > inode->i_size)
 		i_size_write(inode, last_pos);
 
-	set_page_dirty(page);
-	unlock_page(page);
-	put_page(page);
+	folio_mark_dirty(folio);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return copied;
 }
@@ -1536,7 +1536,7 @@ EXPORT_SYMBOL(alloc_anon_inode);
  * All arguments are ignored and it just returns -EINVAL.
  */
 int
-simple_nosetlease(struct file *filp, long arg, struct file_lock **flp,
+simple_nosetlease(struct file *filp, int arg, struct file_lock **flp,
 		  void **priv)
 {
 	return -EINVAL;
