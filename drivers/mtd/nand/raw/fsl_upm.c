@@ -173,8 +173,7 @@ static int fun_probe(struct platform_device *ofdev)
 	if (!fun)
 		return -ENOMEM;
 
-	io_res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	fun->io_base = devm_ioremap_resource(&ofdev->dev, io_res);
+	fun->io_base = devm_platform_get_and_ioremap_resource(ofdev, 0, &io_res);
 	if (IS_ERR(fun->io_base))
 		return PTR_ERR(fun->io_base);
 
