@@ -151,17 +151,8 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	if (!sb_rdonly(sdp->sd_vfs)) {
 		bool locked = mutex_trylock(&sdp->sd_freeze_mutex);
 
-		if (sdp->sd_quotad_process &&
-		    current != sdp->sd_quotad_process) {
-			kthread_stop(sdp->sd_quotad_process);
-			sdp->sd_quotad_process = NULL;
-		}
-
-		if (sdp->sd_logd_process &&
-		    current != sdp->sd_logd_process) {
-			kthread_stop(sdp->sd_logd_process);
-			sdp->sd_logd_process = NULL;
-		}
+		wake_up(&sdp->sd_logd_waitq);
+		wake_up(&sdp->sd_quota_wait);
 
 		wait_event_timeout(sdp->sd_log_waitq,
 				   gfs2_log_is_empty(sdp),
