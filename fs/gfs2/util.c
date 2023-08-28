@@ -9,6 +9,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/kthread.h>
 #include <linux/crc32.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/delay.h>
@@ -150,7 +151,23 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	if (!sb_rdonly(sdp->sd_vfs)) {
 		bool locked = mutex_trylock(&sdp->sd_freeze_mutex);
 
-		gfs2_make_fs_ro(sdp);
+		if (sdp->sd_quotad_process &&
+		    current != sdp->sd_quotad_process) {
+			kthread_stop(sdp->sd_quotad_process);
+			sdp->sd_quotad_process = NULL;
+		}
+
+		if (sdp->sd_logd_process &&
+		    current != sdp->sd_logd_process) {
+			kthread_stop(sdp->sd_logd_process);
+			sdp->sd_logd_process = NULL;
+		}
+
+		wait_event_timeout(sdp->sd_log_waitq,
+				   gfs2_log_is_empty(sdp),
+				   HZ * 5);
+
+		sdp->sd_vfs->s_flags |= SB_RDONLY;
 
 		if (locked)
 			mutex_unlock(&sdp->sd_freeze_mutex);
