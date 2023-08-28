@@ -437,7 +437,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 	if (!wdev)
 		return NOTIFY_DONE;
 
-	if (wdev->wiphy != local->hw.wiphy)
+	if (wdev->wiphy != local->hw.wiphy || !wdev->registered)
 		return NOTIFY_DONE;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(ndev);
@@ -452,6 +452,25 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	ifmgd = &sdata->u.mgd;
+
+	/*
+	 * The nested here is needed to convince lockdep that this is
+	 * all OK. Yes, we lock the wiphy mutex here while we already
+	 * hold the notifier rwsem, that's the normal case. And yes,
+	 * we also acquire the notifier rwsem again when unregistering
+	 * a netdev while we already hold the wiphy mutex, so it does
+	 * look like a typical ABBA deadlock.
+	 *
+	 * However, both of these things happen with the RTNL held
+	 * already. Therefore, they can't actually happen, since the
+	 * lock orders really are ABC and ACB, which is fine due to
+	 * the RTNL (A).
+	 *
+	 * We still need to prevent recursion, which is accomplished
+	 * by the !wdev->registered check above.
+	 */
+	mutex_lock_nested(&local->hw.wiphy->mtx, 1);
+	__acquire(&local->hw.wiphy->mtx);
 	sdata_lock(sdata);
 
 	/* Copy the addresses to the vif config list */
@@ -470,6 +489,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 		ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_ARP_FILTER);
 
 	sdata_unlock(sdata);
+	wiphy_unlock(local->hw.wiphy);
 
 	return NOTIFY_OK;
 }

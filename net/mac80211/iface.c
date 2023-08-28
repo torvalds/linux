@@ -2284,6 +2284,20 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	list_for_each_entry_safe(sdata, tmp, &unreg_list, list) {
 		bool netdev = sdata->dev;
 
+		/*
+		 * Remove IP addresses explicitly, since the notifier will
+		 * skip the callbacks if wdev->registered is false, since
+		 * we can't acquire the wiphy_lock() again there if already
+		 * inside this locked section.
+		 */
+		sdata_lock(sdata);
+		sdata->vif.cfg.arp_addr_cnt = 0;
+		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+		    sdata->u.mgd.associated)
+			ieee80211_vif_cfg_change_notify(sdata,
+							BSS_CHANGED_ARP_FILTER);
+		sdata_unlock(sdata);
+
 		list_del(&sdata->list);
 		cfg80211_unregister_wdev(&sdata->wdev);
 
