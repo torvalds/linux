@@ -151,6 +151,12 @@ config FB_IOMEM_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_IMAGEBLIT
 
+config FB_IOMEM_HELPERS_DEFERRED
+	bool
+	depends on FB_CORE
+	select FB_DEFERRED_IO
+	select FB_IOMEM_HELPERS
+
 config FB_SYSMEM_HELPERS
 	bool
 	depends on FB_CORE
