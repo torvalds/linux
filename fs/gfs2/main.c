@@ -162,7 +162,7 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_control_wq)
 		goto fail_wq2;
 
-	gfs2_freeze_wq = alloc_workqueue("freeze_workqueue", 0, 0);
+	gfs2_freeze_wq = alloc_workqueue("gfs2_freeze", 0, 0);
 
 	if (!gfs2_freeze_wq)
 		goto fail_wq3;
