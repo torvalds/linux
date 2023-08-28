@@ -3590,8 +3590,9 @@ static int ieee80211_set_after_csa_beacon(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
+static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
 {
+	struct ieee80211_sub_if_data *sdata = link_data->sdata;
 	struct ieee80211_local *local = sdata->local;
 	u64 changed = 0;
 	int err;
@@ -3605,20 +3606,20 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 	 * completed successfully
 	 */
 
-	if (sdata->deflink.reserved_chanctx) {
+	if (link_data->reserved_chanctx) {
 		/*
 		 * with multi-vif csa driver may call ieee80211_csa_finish()
 		 * many times while waiting for other interfaces to use their
 		 * reservations
 		 */
-		if (sdata->deflink.reserved_ready)
+		if (link_data->reserved_ready)
 			return 0;
 
 		return ieee80211_link_use_reserved_context(&sdata->deflink);
 	}
 
 	if (!cfg80211_chandef_identical(&sdata->vif.bss_conf.chandef,
-					&sdata->deflink.csa_chandef))
+					&link_data->csa_chandef))
 		return -EINVAL;
 
 	sdata->vif.bss_conf.csa_active = false;
@@ -3635,25 +3636,27 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 
 	ieee80211_link_info_change_notify(sdata, &sdata->deflink, changed);
 
-	if (sdata->deflink.csa_block_tx) {
+	if (link_data->csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->deflink.csa_block_tx = false;
+		link_data->csa_block_tx = false;
 	}
 
-	err = drv_post_channel_switch(sdata);
+	err = drv_post_channel_switch(link_data);
 	if (err)
 		return err;
 
-	cfg80211_ch_switch_notify(sdata->dev, &sdata->deflink.csa_chandef, 0,
+	cfg80211_ch_switch_notify(sdata->dev, &link_data->csa_chandef, 0,
 				  sdata->vif.bss_conf.eht_puncturing);
 
 	return 0;
 }
 
-static void ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
+static void ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
 {
-	if (__ieee80211_csa_finalize(sdata)) {
+	struct ieee80211_sub_if_data *sdata = link_data->sdata;
+
+	if (__ieee80211_csa_finalize(link_data)) {
 		sdata_info(sdata, "failed to finalize CSA, disconnecting\n");
 		cfg80211_stop_iface(sdata->local->hw.wiphy, &sdata->wdev,
 				    GFP_KERNEL);
@@ -3662,21 +3665,21 @@ static void ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 
 void ieee80211_csa_finalize_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
-	struct ieee80211_sub_if_data *sdata =
-		container_of(work, struct ieee80211_sub_if_data,
-			     deflink.csa_finalize_work);
+	struct ieee80211_link_data *link =
+		container_of(work, struct ieee80211_link_data, csa_finalize_work);
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	/* AP might have been stopped while waiting for the lock. */
-	if (!sdata->vif.bss_conf.csa_active)
+	if (!link->conf->csa_active)
 		return;
 
 	if (!ieee80211_sdata_running(sdata))
 		return;
 
-	ieee80211_csa_finalize(sdata);
+	ieee80211_csa_finalize(link);
 }
 
 static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
@@ -3919,7 +3922,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		drv_channel_switch_beacon(sdata, &params->chandef);
 	} else {
 		/* if the beacon didn't change, we can finalize immediately */
-		ieee80211_csa_finalize(sdata);
+		ieee80211_csa_finalize(&sdata->deflink);
 	}
 
 out:

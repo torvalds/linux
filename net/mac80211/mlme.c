@@ -1763,7 +1763,7 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 	 */
 	link->u.mgd.beacon_crc_valid = false;
 
-	ret = drv_post_channel_switch(sdata);
+	ret = drv_post_channel_switch(link);
 	if (ret) {
 		sdata_info(sdata,
 			   "driver post channel switch failed, disconnecting\n");
@@ -1775,25 +1775,34 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 	cfg80211_ch_switch_notify(sdata->dev, &link->reserved_chandef, 0, 0);
 }
 
-void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success)
+void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success,
+			     unsigned int link_id)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	if (WARN_ON(ieee80211_vif_is_mld(&sdata->vif)))
-		success = false;
+	trace_api_chswitch_done(sdata, success, link_id);
 
-	trace_api_chswitch_done(sdata, success);
+	rcu_read_lock();
+
 	if (!success) {
 		sdata_info(sdata,
 			   "driver channel switch failed, disconnecting\n");
 		wiphy_work_queue(sdata->local->hw.wiphy,
-				 &ifmgd->csa_connection_drop_work);
+				 &sdata->u.mgd.csa_connection_drop_work);
 	} else {
+		struct ieee80211_link_data *link =
+			rcu_dereference(sdata->link[link_id]);
+
+		if (WARN_ON(!link)) {
+			rcu_read_unlock();
+			return;
+		}
+
 		wiphy_delayed_work_queue(sdata->local->hw.wiphy,
-					 &sdata->deflink.u.mgd.chswitch_work,
-					 0);
+					 &link->u.mgd.chswitch_work, 0);
 	}
+
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(ieee80211_chswitch_done);
 

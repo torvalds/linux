@@ -1126,8 +1126,9 @@ drv_pre_channel_switch(struct ieee80211_sub_if_data *sdata,
 }
 
 static inline int
-drv_post_channel_switch(struct ieee80211_sub_if_data *sdata)
+drv_post_channel_switch(struct ieee80211_link_data *link)
 {
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 	int ret = 0;
 
@@ -1139,7 +1140,8 @@ drv_post_channel_switch(struct ieee80211_sub_if_data *sdata)
 
 	trace_drv_post_channel_switch(local, sdata);
 	if (local->ops->post_channel_switch)
-		ret = local->ops->post_channel_switch(&local->hw, &sdata->vif);
+		ret = local->ops->post_channel_switch(&local->hw, &sdata->vif,
+						      link->conf);
 	trace_drv_return_int(local, ret);
 	return ret;
 }

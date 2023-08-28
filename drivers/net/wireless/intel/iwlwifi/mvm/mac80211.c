@@ -1370,7 +1370,8 @@ int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 }
 
 int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif)
+				struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
@@ -1452,7 +1453,8 @@ void iwl_mvm_abort_channel_switch(struct ieee80211_hw *hw,
 	mvmvif->csa_failed = true;
 	mutex_unlock(&mvm->mutex);
 
-	iwl_mvm_post_channel_switch(hw, vif);
+	/* If we're here, we can't support MLD */
+	iwl_mvm_post_channel_switch(hw, vif, &vif->bss_conf);
 }
 
 void iwl_mvm_channel_switch_disconnect_wk(struct work_struct *wk)
@@ -1464,7 +1466,7 @@ void iwl_mvm_channel_switch_disconnect_wk(struct work_struct *wk)
 	vif = container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
 
 	/* Trigger disconnect (should clear the CSA state) */
-	ieee80211_chswitch_done(vif, false);
+	ieee80211_chswitch_done(vif, false, 0);
 }
 
 static u8
@@ -5535,7 +5537,7 @@ void iwl_mvm_channel_switch_rx_beacon(struct ieee80211_hw *hw,
 		if (mvmvif->csa_misbehave) {
 			/* Second time, give up on this AP*/
 			iwl_mvm_abort_channel_switch(hw, vif);
-			ieee80211_chswitch_done(vif, false);
+			ieee80211_chswitch_done(vif, false, 0);
 			mvmvif->csa_misbehave = false;
 			return;
 		}

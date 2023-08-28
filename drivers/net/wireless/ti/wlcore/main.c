@@ -2043,7 +2043,7 @@ static void wlcore_channel_switch_work(struct work_struct *work)
 		goto out;
 
 	vif = wl12xx_wlvif_to_vif(wlvif);
-	ieee80211_chswitch_done(vif, false);
+	ieee80211_chswitch_done(vif, false, 0);
 
 	ret = pm_runtime_resume_and_get(wl->dev);
 	if (ret < 0)
@@ -3030,7 +3030,7 @@ static int wlcore_unset_assoc(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 
 		wl12xx_cmd_stop_channel_switch(wl, wlvif);
-		ieee80211_chswitch_done(vif, false);
+		ieee80211_chswitch_done(vif, false, 0);
 		cancel_delayed_work(&wlvif->channel_switch_work);
 	}
 
@@ -5451,7 +5451,7 @@ static void wl12xx_op_channel_switch(struct ieee80211_hw *hw,
 
 	if (unlikely(wl->state == WLCORE_STATE_OFF)) {
 		if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
-			ieee80211_chswitch_done(vif, false);
+			ieee80211_chswitch_done(vif, false, 0);
 		goto out;
 	} else if (unlikely(wl->state != WLCORE_STATE_ON)) {
 		goto out;

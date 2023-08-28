@@ -1839,7 +1839,7 @@ void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
 
 		iwl_mvm_csa_client_absent(mvm, vif);
 		cancel_delayed_work(&mvmvif->csa_work);
-		ieee80211_chswitch_done(vif, true);
+		ieee80211_chswitch_done(vif, true, 0);
 		break;
 	default:
 		/* should never happen */

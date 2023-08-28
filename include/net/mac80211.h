@@ -4539,7 +4539,8 @@ struct ieee80211_ops {
 				  struct ieee80211_channel_switch *ch_switch);
 
 	int (*post_channel_switch)(struct ieee80211_hw *hw,
-				   struct ieee80211_vif *vif);
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_bss_conf *link_conf);
 	void (*abort_channel_switch)(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif);
 	void (*channel_switch_rx_beacon)(struct ieee80211_hw *hw,
@@ -6537,11 +6538,14 @@ void ieee80211_radar_detected(struct ieee80211_hw *hw);
  * ieee80211_chswitch_done - Complete channel switch process
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @success: make the channel switch successful or not
+ * @link_id: the link_id on which the switch was done. Ignored if success is
+ *	false.
  *
  * Complete the channel switch post-process: set the new operational channel
  * and wake up the suspended queues.
  */
-void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success);
+void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success,
+			     unsigned int link_id);
 
 /**
  * ieee80211_channel_switch_disconnect - disconnect due to channel switch error
