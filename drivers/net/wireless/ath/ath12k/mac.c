@@ -4647,8 +4647,8 @@ static void ath12k_mac_setup_sband_iftype_data(struct ath12k *ar,
 							  ar->mac.iftype[band],
 							  band);
 		sband = &ar->mac.sbands[band];
-		sband->iftype_data = ar->mac.iftype[band];
-		sband->n_iftype_data = count;
+		_ieee80211_set_sband_iftype_data(sband, ar->mac.iftype[band],
+						 count);
 	}
 
 	if (cap->supported_bands & WMI_HOST_WLAN_5G_CAP) {
@@ -4657,8 +4657,8 @@ static void ath12k_mac_setup_sband_iftype_data(struct ath12k *ar,
 							  ar->mac.iftype[band],
 							  band);
 		sband = &ar->mac.sbands[band];
-		sband->iftype_data = ar->mac.iftype[band];
-		sband->n_iftype_data = count;
+		_ieee80211_set_sband_iftype_data(sband, ar->mac.iftype[band],
+						 count);
 	}
 
 	if (cap->supported_bands & WMI_HOST_WLAN_5G_CAP &&
@@ -4668,8 +4668,8 @@ static void ath12k_mac_setup_sband_iftype_data(struct ath12k *ar,
 							  ar->mac.iftype[band],
 							  band);
 		sband = &ar->mac.sbands[band];
-		sband->iftype_data = ar->mac.iftype[band];
-		sband->n_iftype_data = count;
+		_ieee80211_set_sband_iftype_data(sband, ar->mac.iftype[band],
+						 count);
 	}
 }
 

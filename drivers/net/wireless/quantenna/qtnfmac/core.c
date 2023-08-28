@@ -535,7 +535,7 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 		if (!wiphy->bands[band])
 			continue;
 
-		kfree(wiphy->bands[band]->iftype_data);
+		kfree((__force void *)wiphy->bands[band]->iftype_data);
 		wiphy->bands[band]->n_iftype_data = 0;
 
 		kfree(wiphy->bands[band]->channels);

@@ -377,7 +377,7 @@ bottom:
 		return;
 
 	wiphy->bands[NL80211_BAND_6GHZ] = NULL;
-	kfree(sband->iftype_data);
+	kfree((__force void *)sband->iftype_data);
 	kfree(sband);
 }
 

@@ -1913,20 +1913,20 @@ static int nl80211_send_band_rateinfo(struct sk_buff *msg,
 		struct nlattr *nl_iftype_data =
 			nla_nest_start_noflag(msg,
 					      NL80211_BAND_ATTR_IFTYPE_DATA);
+		const struct ieee80211_sband_iftype_data *iftd;
 		int err;
 
 		if (!nl_iftype_data)
 			return -ENOBUFS;
 
-		for (i = 0; i < sband->n_iftype_data; i++) {
+		for_each_sband_iftype_data(sband, i, iftd) {
 			struct nlattr *iftdata;
 
 			iftdata = nla_nest_start_noflag(msg, i + 1);
 			if (!iftdata)
 				return -ENOBUFS;
 
-			err = nl80211_send_iftype_data(msg, sband,
-						       &sband->iftype_data[i]);
+			err = nl80211_send_iftype_data(msg, sband, iftd);
 			if (err)
 				return err;
 
