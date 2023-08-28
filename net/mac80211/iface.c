@@ -749,9 +749,9 @@ static int ieee80211_stop(struct net_device *dev)
 		ieee80211_stop_mbssid(sdata);
 	}
 
-	cancel_work_sync(&sdata->activate_links_work);
-
 	wiphy_lock(sdata->local->hw.wiphy);
+	wiphy_work_cancel(sdata->local->hw.wiphy, &sdata->activate_links_work);
+
 	ieee80211_do_stop(sdata, true);
 	wiphy_unlock(sdata->local->hw.wiphy);
 
@@ -1691,7 +1691,8 @@ static void ieee80211_iface_work(struct wiphy *wiphy, struct wiphy_work *work)
 	}
 }
 
-static void ieee80211_activate_links_work(struct work_struct *work)
+static void ieee80211_activate_links_work(struct wiphy *wiphy,
+					  struct wiphy_work *work)
 {
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
@@ -1736,7 +1737,8 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	skb_queue_head_init(&sdata->skb_queue);
 	skb_queue_head_init(&sdata->status_queue);
 	wiphy_work_init(&sdata->work, ieee80211_iface_work);
-	INIT_WORK(&sdata->activate_links_work, ieee80211_activate_links_work);
+	wiphy_work_init(&sdata->activate_links_work,
+			ieee80211_activate_links_work);
 
 	switch (type) {
 	case NL80211_IFTYPE_P2P_GO:

@@ -512,6 +512,6 @@ void ieee80211_set_active_links_async(struct ieee80211_vif *vif,
 		return;
 
 	sdata->desired_active_links = active_links;
-	schedule_work(&sdata->activate_links_work);
+	wiphy_work_queue(sdata->local->hw.wiphy, &sdata->activate_links_work);
 }
 EXPORT_SYMBOL_GPL(ieee80211_set_active_links_async);
