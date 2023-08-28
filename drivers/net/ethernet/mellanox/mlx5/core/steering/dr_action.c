@@ -1169,13 +1169,16 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 				   bool ignore_flow_level,
 				   u32 flow_source)
 {
+	struct mlx5dr_cmd_flow_destination_hw_info tmp_hw_dest;
 	struct mlx5dr_cmd_flow_destination_hw_info *hw_dests;
 	struct mlx5dr_action **ref_actions;
 	struct mlx5dr_action *action;
 	bool reformat_req = false;
+	bool is_ft_wire = false;
 	u16 num_dst_ft = 0;
 	u32 num_of_ref = 0;
 	u32 ref_act_cnt;
+	u16 last_dest;
 	int ret;
 	int i;
 
@@ -1224,16 +1227,31 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 			}
 			num_dst_ft++;
 			hw_dests[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-			if (dest_action->dest_tbl->is_fw_tbl)
+			if (dest_action->dest_tbl->is_fw_tbl) {
 				hw_dests[i].ft_id = dest_action->dest_tbl->fw_tbl.id;
-			else
+			} else {
 				hw_dests[i].ft_id = dest_action->dest_tbl->tbl->table_id;
+				if (dest_action->dest_tbl->is_wire_ft) {
+					is_ft_wire = true;
+					last_dest = i;
+				}
+			}
 			break;
 
 		default:
 			mlx5dr_dbg(dmn, "Invalid multiple destinations action\n");
 			goto free_ref_actions;
 		}
+	}
+
+	/* In multidest, the FW does the iterator in the RX except of the last
+	 * one that done in the TX.
+	 * So, if one of the ft target is wire, put it at the end of the dest list.
+	 */
+	if (is_ft_wire && num_dst_ft > 1) {
+		tmp_hw_dest = hw_dests[last_dest];
+		hw_dests[last_dest] = hw_dests[num_of_dests - 1];
+		hw_dests[num_of_dests - 1] = tmp_hw_dest;
 	}
 
 	action = dr_action_create_generic(DR_ACTION_TYP_FT);

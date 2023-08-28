@@ -209,10 +209,17 @@ static struct mlx5dr_action *create_ft_action(struct mlx5dr_domain *domain,
 					      struct mlx5_flow_rule *dst)
 {
 	struct mlx5_flow_table *dest_ft = dst->dest_attr.ft;
+	struct mlx5dr_action *tbl_action;
 
 	if (mlx5dr_is_fw_table(dest_ft))
 		return mlx5dr_action_create_dest_flow_fw_table(domain, dest_ft);
-	return mlx5dr_action_create_dest_table(dest_ft->fs_dr_table.dr_table);
+
+	tbl_action = mlx5dr_action_create_dest_table(dest_ft->fs_dr_table.dr_table);
+	if (tbl_action)
+		tbl_action->dest_tbl->is_wire_ft =
+			dest_ft->flags & MLX5_FLOW_TABLE_UPLINK_VPORT ? 1 : 0;
+
+	return tbl_action;
 }
 
 static struct mlx5dr_action *create_range_action(struct mlx5dr_domain *domain,
