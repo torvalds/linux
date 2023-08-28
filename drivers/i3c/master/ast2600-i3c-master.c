@@ -2489,8 +2489,8 @@ static int aspeed_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 	dev_grp->mask.set &= ~DEV_ADDR_TABLE_SIR_REJECT;
 	dev_grp->mask.set |= FIELD_PREP(DEV_ADDR_TABLE_IBI_ADDR_MASK,
 					IBI_ADDR_MASK_LAST_3BITS);
-	if (IS_MANUF_ID_ASPEED(dev->info.pid))
-		dev_grp->mask.set |= DEV_ADDR_TABLE_IBI_PEC_EN;
+	/* Enable the PEC to avoid issue of IBI with the payload length 4n+1 */
+	dev_grp->mask.set |= DEV_ADDR_TABLE_IBI_PEC_EN;
 	if (dev->info.bcr & I3C_BCR_IBI_PAYLOAD)
 		dev_grp->mask.set |= DEV_ADDR_TABLE_IBI_WITH_DATA;
 
