@@ -357,61 +357,6 @@ static void fbtft_deferred_io(struct fb_info *info, struct list_head *pagereflis
 					dirty_lines_start, dirty_lines_end);
 }
 
-static void fbtft_fb_fillrect(struct fb_info *info,
-			      const struct fb_fillrect *rect)
-{
-	struct fbtft_par *par = info->par;
-
-	dev_dbg(info->dev,
-		"%s: dx=%d, dy=%d, width=%d, height=%d\n",
-		__func__, rect->dx, rect->dy, rect->width, rect->height);
-	sys_fillrect(info, rect);
-
-	par->fbtftops.mkdirty(info, rect->dy, rect->height);
-}
-
-static void fbtft_fb_copyarea(struct fb_info *info,
-			      const struct fb_copyarea *area)
-{
-	struct fbtft_par *par = info->par;
-
-	dev_dbg(info->dev,
-		"%s: dx=%d, dy=%d, width=%d, height=%d\n",
-		__func__,  area->dx, area->dy, area->width, area->height);
-	sys_copyarea(info, area);
-
-	par->fbtftops.mkdirty(info, area->dy, area->height);
-}
-
-static void fbtft_fb_imageblit(struct fb_info *info,
-			       const struct fb_image *image)
-{
-	struct fbtft_par *par = info->par;
-
-	dev_dbg(info->dev,
-		"%s: dx=%d, dy=%d, width=%d, height=%d\n",
-		__func__,  image->dx, image->dy, image->width, image->height);
-	sys_imageblit(info, image);
-
-	par->fbtftops.mkdirty(info, image->dy, image->height);
-}
-
-static ssize_t fbtft_fb_write(struct fb_info *info, const char __user *buf,
-			      size_t count, loff_t *ppos)
-{
-	struct fbtft_par *par = info->par;
-	ssize_t res;
-
-	dev_dbg(info->dev,
-		"%s: count=%zd, ppos=%llu\n", __func__,  count, *ppos);
-	res = fb_sys_write(info, buf, count, ppos);
-
-	/* TODO: only mark changed area update all for now */
-	par->fbtftops.mkdirty(info, -1, 0);
-
-	return res;
-}
-
 /* from pxafb.c */
 static unsigned int chan_to_field(unsigned int chan, struct fb_bitfield *bf)
 {
@@ -473,16 +418,30 @@ static int fbtft_fb_blank(int blank, struct fb_info *info)
 	return ret;
 }
 
+static void fbtft_ops_damage_range(struct fb_info *info, off_t off, size_t len)
+{
+	struct fbtft_par *par = info->par;
+
+	/* TODO: only mark changed area update all for now */
+	par->fbtftops.mkdirty(info, -1, 0);
+}
+
+static void fbtft_ops_damage_area(struct fb_info *info, u32 x, u32 y, u32 width, u32 height)
+{
+	struct fbtft_par *par = info->par;
+
+	par->fbtftops.mkdirty(info, y, height);
+}
+
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(fbtft_ops,
+				   fbtft_ops_damage_range,
+				   fbtft_ops_damage_area)
+
 static const struct fb_ops fbtft_ops = {
-	.owner        = THIS_MODULE;
-	.fb_read      = fb_sys_read;
-	.fb_write     = fbtft_fb_write;
-	.fb_fillrect  = fbtft_fb_fillrect;
-	.fb_copyarea  = fbtft_fb_copyarea;
-	.fb_imageblit = fbtft_fb_imageblit;
-	.fb_setcolreg = fbtft_fb_setcolreg;
-	.fb_blank     = fbtft_fb_blank;
-	.fb_mmap      = fb_deferred_io_mmap;
+	.owner        = THIS_MODULE,
+	FB_DEFAULT_DEFERRED_OPS(fbtft_ops),
+	.fb_setcolreg = fbtft_fb_setcolreg,
+	.fb_blank     = fbtft_fb_blank,
 };
 
 static void fbtft_merge_fbtftops(struct fbtft_ops *dst, struct fbtft_ops *src)
