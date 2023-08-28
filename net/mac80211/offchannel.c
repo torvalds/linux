@@ -84,6 +84,8 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	if (WARN_ON(local->use_chanctx))
 		return;
 
@@ -101,7 +103,6 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 					false);
 	ieee80211_flush_queues(local, NULL, false);
 
-	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (!ieee80211_sdata_running(sdata))
 			continue;
@@ -127,17 +128,17 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 		    sdata->u.mgd.associated)
 			ieee80211_offchannel_ps_enable(sdata);
 	}
-	mutex_unlock(&local->iflist_mtx);
 }
 
 void ieee80211_offchannel_return(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	if (WARN_ON(local->use_chanctx))
 		return;
 
-	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE)
 			continue;
@@ -161,7 +162,6 @@ void ieee80211_offchannel_return(struct ieee80211_local *local)
 				BSS_CHANGED_BEACON_ENABLED);
 		}
 	}
-	mutex_unlock(&local->iflist_mtx);
 
 	ieee80211_wake_queues_by_reason(&local->hw, IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL,

@@ -4322,7 +4322,6 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata;
 	struct cfg80211_chan_def chandef;
 
-	/* for interface list, to avoid linking iflist_mtx and chanctx_mtx */
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	list_for_each_entry(sdata, &local->interfaces, list) {

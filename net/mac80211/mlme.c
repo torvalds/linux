@@ -2799,6 +2799,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	u64 vif_changed = BSS_CHANGED_ASSOC;
 	unsigned int link_id;
 
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	sdata->u.mgd.associated = true;
 
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
@@ -2860,9 +2862,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 						 vif_changed | changed[0]);
 	}
 
-	mutex_lock(&local->iflist_mtx);
 	ieee80211_recalc_ps(local);
-	mutex_unlock(&local->iflist_mtx);
 
 	/* leave this here to not change ordering in non-MLO cases */
 	if (!ieee80211_vif_is_mld(&sdata->vif))
@@ -3069,9 +3069,7 @@ static void ieee80211_reset_ap_probe(struct ieee80211_sub_if_data *sdata)
 
 	__ieee80211_stop_poll(sdata);
 
-	mutex_lock(&local->iflist_mtx);
 	ieee80211_recalc_ps(local);
-	mutex_unlock(&local->iflist_mtx);
 
 	if (ieee80211_hw_check(&sdata->local->hw, CONNECTION_MONITOR))
 		return;
@@ -3267,9 +3265,7 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	if (already)
 		goto out;
 
-	mutex_lock(&sdata->local->iflist_mtx);
 	ieee80211_recalc_ps(sdata->local);
-	mutex_unlock(&sdata->local->iflist_mtx);
 
 	ifmgd->probe_send_count = 0;
 	ieee80211_mgd_probe_ap_send(sdata);
@@ -6094,9 +6090,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		changed |= BSS_CHANGED_BEACON_INFO;
 		link->u.mgd.have_beacon = true;
 
-		mutex_lock(&local->iflist_mtx);
 		ieee80211_recalc_ps(local);
-		mutex_unlock(&local->iflist_mtx);
 
 		ieee80211_recalc_ps_vif(sdata);
 	}

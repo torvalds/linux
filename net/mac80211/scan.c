@@ -555,20 +555,18 @@ static bool __ieee80211_can_leave_ch(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sub_if_data *sdata_iter;
 
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	if (!ieee80211_is_radar_required(local))
 		return true;
 
 	if (!regulatory_pre_cac_allowed(local->hw.wiphy))
 		return false;
 
-	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata_iter, &local->interfaces, list) {
-		if (sdata_iter->wdev.cac_started) {
-			mutex_unlock(&local->iflist_mtx);
+		if (sdata_iter->wdev.cac_started)
 			return false;
-		}
 	}
-	mutex_unlock(&local->iflist_mtx);
 
 	return true;
 }
@@ -860,12 +858,13 @@ static void ieee80211_scan_state_decision(struct ieee80211_local *local,
 	enum mac80211_scan_state next_scan_state;
 	struct cfg80211_scan_request *scan_req;
 
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	/*
 	 * check if at least one STA interface is associated,
 	 * check if at least one STA interface has pending tx frames
 	 * and grab the lowest used beacon interval
 	 */
-	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (!ieee80211_sdata_running(sdata))
 			continue;
@@ -881,7 +880,6 @@ static void ieee80211_scan_state_decision(struct ieee80211_local *local,
 			}
 		}
 	}
-	mutex_unlock(&local->iflist_mtx);
 
 	scan_req = rcu_dereference_protected(local->scan_req,
 					     lockdep_is_held(&local->hw.wiphy->mtx));

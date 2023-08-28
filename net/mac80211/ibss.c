@@ -1738,7 +1738,8 @@ void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 
-	mutex_lock(&local->iflist_mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (!ieee80211_sdata_running(sdata))
 			continue;
@@ -1746,7 +1747,6 @@ void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local)
 			continue;
 		sdata->u.ibss.last_scan_completed = jiffies;
 	}
-	mutex_unlock(&local->iflist_mtx);
 }
 
 int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
