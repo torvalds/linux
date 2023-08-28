@@ -894,64 +894,6 @@ static int ufx_handle_damage(struct ufx_data *dev, int x, int y,
 	return 0;
 }
 
-/* Path triggered by usermode clients who write to filesystem
- * e.g. cat filename > /dev/fb1
- * Not used by X Windows or text-mode console. But useful for testing.
- * Slow because of extra copy and we must assume all pixels dirty. */
-static ssize_t ufx_ops_write(struct fb_info *info, const char __user *buf,
-			  size_t count, loff_t *ppos)
-{
-	ssize_t result;
-	struct ufx_data *dev = info->par;
-	u32 offset = (u32) *ppos;
-
-	result = fb_sys_write(info, buf, count, ppos);
-
-	if (result > 0) {
-		int start = max((int)(offset / info->fix.line_length), 0);
-		int lines = min((u32)((result / info->fix.line_length) + 1),
-				(u32)info->var.yres);
-
-		ufx_handle_damage(dev, 0, start, info->var.xres, lines);
-	}
-
-	return result;
-}
-
-static void ufx_ops_copyarea(struct fb_info *info,
-				const struct fb_copyarea *area)
-{
-
-	struct ufx_data *dev = info->par;
-
-	sys_copyarea(info, area);
-
-	ufx_handle_damage(dev, area->dx, area->dy,
-			area->width, area->height);
-}
-
-static void ufx_ops_imageblit(struct fb_info *info,
-				const struct fb_image *image)
-{
-	struct ufx_data *dev = info->par;
-
-	sys_imageblit(info, image);
-
-	ufx_handle_damage(dev, image->dx, image->dy,
-			image->width, image->height);
-}
-
-static void ufx_ops_fillrect(struct fb_info *info,
-			  const struct fb_fillrect *rect)
-{
-	struct ufx_data *dev = info->par;
-
-	sys_fillrect(info, rect);
-
-	ufx_handle_damage(dev, rect->dx, rect->dy, rect->width,
-			      rect->height);
-}
-
 /* NOTE: fb_defio.c is holding info->fbdefio.mutex
  *   Touching ANY framebuffer memory that triggers a page fault
  *   in fb_defio will cause a deadlock, when it also tries to
@@ -1279,14 +1221,31 @@ static int ufx_ops_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
+static void ufx_ops_damage_range(struct fb_info *info, off_t off, size_t len)
+{
+	struct ufx_data *dev = info->par;
+	int start = max((int)(off / info->fix.line_length), 0);
+	int lines = min((u32)((len / info->fix.line_length) + 1), (u32)info->var.yres);
+
+	ufx_handle_damage(dev, 0, start, info->var.xres, lines);
+}
+
+static void ufx_ops_damage_area(struct fb_info *info, u32 x, u32 y, u32 width, u32 height)
+{
+	struct ufx_data *dev = info->par;
+
+	ufx_handle_damage(dev, x, y, width, height);
+}
+
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(ufx_ops,
+				   ufx_ops_damage_range,
+				   ufx_ops_damage_area)
+
 static const struct fb_ops ufx_ops = {
 	.owner = THIS_MODULE,
-	.fb_read = fb_sys_read,
-	.fb_write = ufx_ops_write,
+	__FB_DEFAULT_DEFERRED_OPS_RDWR(ufx_ops),
 	.fb_setcolreg = ufx_ops_setcolreg,
-	.fb_fillrect = ufx_ops_fillrect,
-	.fb_copyarea = ufx_ops_copyarea,
-	.fb_imageblit = ufx_ops_imageblit,
+	__FB_DEFAULT_DEFERRED_OPS_DRAW(ufx_ops),
 	.fb_mmap = ufx_ops_mmap,
 	.fb_ioctl = ufx_ops_ioctl,
 	.fb_open = ufx_ops_open,
