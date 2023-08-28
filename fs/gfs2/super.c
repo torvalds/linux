@@ -563,15 +563,8 @@ void gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 				   gfs2_log_is_empty(sdp),
 				   HZ * 5);
 		gfs2_assert_warn(sdp, gfs2_log_is_empty(sdp));
-	} else {
-		wait_event_timeout(sdp->sd_log_waitq,
-				   gfs2_log_is_empty(sdp),
-				   HZ * 5);
 	}
 	gfs2_quota_cleanup(sdp);
-
-	if (!log_write_allowed)
-		sdp->sd_vfs->s_flags |= SB_RDONLY;
 }
 
 /**
@@ -607,6 +600,8 @@ restart:
 	} else {
 		gfs2_quota_cleanup(sdp);
 	}
+	if (gfs2_withdrawn(sdp))
+		gfs2_quota_cleanup(sdp);
 	WARN_ON(gfs2_withdrawing(sdp));
 
 	/*  At this point, we're through modifying the disk  */
