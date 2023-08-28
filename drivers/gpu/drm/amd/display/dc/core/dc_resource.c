@@ -2874,6 +2874,15 @@ bool dc_remove_plane_from_context(
 
 	stream_status->plane_states[stream_status->plane_count] = NULL;
 
+	if (stream_status->plane_count == 0 && dc->config.enable_windowed_mpo_odm)
+		/* ODM combine could prevent us from supporting more planes
+		 * we will reset ODM slice count back to 1 when all planes have
+		 * been removed to maximize the amount of planes supported when
+		 * new planes are added.
+		 */
+		resource_update_pipes_for_stream_with_slice_count(
+				context, dc->current_state, dc->res_pool, stream, 1);
+
 	return true;
 }
 
