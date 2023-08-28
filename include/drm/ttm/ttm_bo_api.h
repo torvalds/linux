@@ -628,10 +628,8 @@ static inline void ttm_bo_pin(struct ttm_buffer_object *bo)
 static inline void ttm_bo_unpin(struct ttm_buffer_object *bo)
 {
 	dma_resv_assert_held(bo->base.resv);
-	if (bo->pin_count)
-		--bo->pin_count;
-	else
-		WARN_ON_ONCE(true);
+	WARN_ON_ONCE(!bo->pin_count);
+	--bo->pin_count;
 }
 
 int ttm_mem_evict_first(struct ttm_bo_device *bdev,
