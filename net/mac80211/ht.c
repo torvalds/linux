@@ -543,6 +543,8 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *action_frame;
+	struct ieee80211_tx_info *info;
+	u8 status_link_id = link_id < 0 ? 0 : link_id;
 
 	/* 27 = header + category + action + smps mode */
 	skb = dev_alloc_skb(27 + local->hw.extra_tx_headroom);
@@ -562,6 +564,7 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
 		WARN_ON(1);
+		smps = IEEE80211_SMPS_OFF;
 		fallthrough;
 	case IEEE80211_SMPS_OFF:
 		action_frame->u.action.u.ht_smps.smps_control =
@@ -578,7 +581,12 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* we'll do more on status of this frame */
-	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
+	info = IEEE80211_SKB_CB(skb);
+	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
+	/* we have 12 bits, and need 6: link_id 4, smps 2 */
+	info->status_data = IEEE80211_STATUS_TYPE_SMPS |
+			    u16_encode_bits(status_link_id << 2 | smps,
+					    IEEE80211_STATUS_SUBDATA_MASK);
 	ieee80211_tx_skb_tid(sdata, skb, 7, link_id);
 
 	return 0;

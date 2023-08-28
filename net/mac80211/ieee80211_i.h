@@ -88,6 +88,7 @@ extern const u8 ieee80211_ac_to_qos_mask[IEEE80211_NUM_ACS];
 enum ieee80211_status_data {
 	IEEE80211_STATUS_TYPE_MASK	= 0x00f,
 	IEEE80211_STATUS_TYPE_INVALID	= 0,
+	IEEE80211_STATUS_TYPE_SMPS	= 1,
 	IEEE80211_STATUS_SUBDATA_MASK	= 0xff0,
 };
 
@@ -931,6 +932,9 @@ struct ieee80211_link_data_managed {
 	struct wiphy_delayed_work chswitch_work;
 
 	struct wiphy_work request_smps_work;
+	/* used to reconfigure hardware SM PS */
+	struct wiphy_work recalc_smps;
+
 	bool beacon_crc_valid;
 	u32 beacon_crc;
 	struct ewma_beacon_signal ave_beacon_signal;
@@ -1068,9 +1072,6 @@ struct ieee80211_sub_if_data {
 
 	atomic_t num_tx_queued;
 	struct mac80211_qos_map __rcu *qos_map;
-
-	/* used to reconfigure hardware SM PS */
-	struct work_struct recalc_smps;
 
 	struct wiphy_work work;
 	struct sk_buff_head skb_queue;
