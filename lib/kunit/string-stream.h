@@ -30,7 +30,8 @@ struct string_stream {
 
 struct kunit;
 
-struct string_stream *alloc_string_stream(struct kunit *test, gfp_t gfp);
+struct string_stream *kunit_alloc_string_stream(struct kunit *test, gfp_t gfp);
+void kunit_free_string_stream(struct kunit *test, struct string_stream *stream);
 
 int __printf(2, 3) string_stream_add(struct string_stream *stream,
 				     const char *fmt, ...);

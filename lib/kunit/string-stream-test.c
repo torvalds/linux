@@ -25,7 +25,7 @@ static void string_stream_init_test(struct kunit *test)
 {
 	struct string_stream *stream;
 
-	stream = alloc_string_stream(test, GFP_KERNEL);
+	stream = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream);
 
 	KUNIT_EXPECT_EQ(test, stream->length, 0);
@@ -48,7 +48,7 @@ static void string_stream_line_add_test(struct kunit *test)
 	size_t len, total_len;
 	int num_lines, i;
 
-	stream = alloc_string_stream(test, GFP_KERNEL);
+	stream = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream);
 
 	/* Add series of sequence numbered lines */
@@ -104,7 +104,7 @@ static void string_stream_variable_length_line_test(struct kunit *test)
 	size_t offset, total_len;
 	int num_lines, i;
 
-	stream = alloc_string_stream(test, GFP_KERNEL);
+	stream = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream);
 
 	/*
@@ -164,10 +164,10 @@ static void string_stream_append_test(struct kunit *test)
 	size_t combined_length;
 	int i;
 
-	stream_1 = alloc_string_stream(test, GFP_KERNEL);
+	stream_1 = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream_1);
 
-	stream_2 = alloc_string_stream(test, GFP_KERNEL);
+	stream_2 = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream_2);
 
 	/* Append content of empty stream to empty stream */
@@ -207,9 +207,9 @@ static void string_stream_append_test(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, get_concatenated_string(test, stream_1), combined_content);
 
 	/* Append content of non-empty stream to empty stream */
-	string_stream_destroy(stream_1);
+	kunit_free_string_stream(test, stream_1);
 
-	stream_1 = alloc_string_stream(test, GFP_KERNEL);
+	stream_1 = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream_1);
 
 	string_stream_append(stream_1, stream_2);
@@ -222,13 +222,13 @@ static void string_stream_append_auto_newline_test(struct kunit *test)
 	struct string_stream *stream_1, *stream_2;
 
 	/* Stream 1 has newline appending enabled */
-	stream_1 = alloc_string_stream(test, GFP_KERNEL);
+	stream_1 = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream_1);
 	string_stream_set_append_newlines(stream_1, true);
 	KUNIT_EXPECT_TRUE(test, stream_1->append_newlines);
 
 	/* Stream 2 does not append newlines */
-	stream_2 = alloc_string_stream(test, GFP_KERNEL);
+	stream_2 = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream_2);
 
 	/* Appending a stream with a newline should not add another newline */
@@ -239,8 +239,8 @@ static void string_stream_append_auto_newline_test(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, get_concatenated_string(test, stream_1),
 			   "Original string\nAppended content\nMore stuff\n");
 
-	string_stream_destroy(stream_2);
-	stream_2 = alloc_string_stream(test, GFP_KERNEL);
+	kunit_free_string_stream(test, stream_2);
+	stream_2 = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream_2);
 
 	/*
@@ -261,7 +261,7 @@ static void string_stream_append_empty_string_test(struct kunit *test)
 	struct string_stream *stream;
 	int original_frag_count;
 
-	stream = alloc_string_stream(test, GFP_KERNEL);
+	stream = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream);
 
 	/* Formatted empty string */
@@ -283,7 +283,7 @@ static void string_stream_no_auto_newline_test(struct kunit *test)
 {
 	struct string_stream *stream;
 
-	stream = alloc_string_stream(test, GFP_KERNEL);
+	stream = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream);
 
 	/*
@@ -306,7 +306,7 @@ static void string_stream_auto_newline_test(struct kunit *test)
 {
 	struct string_stream *stream;
 
-	stream = alloc_string_stream(test, GFP_KERNEL);
+	stream = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream);
 
 	string_stream_set_append_newlines(stream, true);

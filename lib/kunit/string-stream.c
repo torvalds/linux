@@ -153,7 +153,7 @@ bool string_stream_is_empty(struct string_stream *stream)
 	return list_empty(&stream->fragments);
 }
 
-struct string_stream *alloc_string_stream(struct kunit *test, gfp_t gfp)
+static struct string_stream *alloc_string_stream(struct kunit *test, gfp_t gfp)
 {
 	struct string_stream *stream;
 
@@ -172,4 +172,14 @@ struct string_stream *alloc_string_stream(struct kunit *test, gfp_t gfp)
 void string_stream_destroy(struct string_stream *stream)
 {
 	string_stream_clear(stream);
+}
+
+struct string_stream *kunit_alloc_string_stream(struct kunit *test, gfp_t gfp)
+{
+	return alloc_string_stream(test, gfp);
+}
+
+void kunit_free_string_stream(struct kunit *test, struct string_stream *stream)
+{
+	string_stream_destroy(stream);
 }
