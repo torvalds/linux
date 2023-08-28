@@ -1,0 +1,134 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106.dtsi"
+#include "rv1106-evb-v10.dtsi"
+#include "rv1106-evb-cam.dtsi"
+#include "rv1106-tb-nofastae-emmc.dtsi"
+
+/ {
+	model = "Rockchip RV1106G EVB2 V12 Board";
+	compatible = "rockchip,rv1106g-evb2-v12", "rockchip,rv1106";
+
+	chosen {
+		bootargs = "loglevel=0 rootfstype=erofs rootflags=dax console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip";
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	vcc_3v3: vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vcc3v3_sd: vcc3v3-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio2 RK_PA7 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc3v3_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc_pwren>;
+	};
+
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		WIFI,host_wake_irq = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&fiq_debugger {
+	rockchip,baudrate = <1500000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2m1_xfer>;
+};
+
+&pinctrl {
+	sdmmc {
+		/omit-if-no-ref/
+		sdmmc_pwren: sdmmc-pwren {
+			rockchip,pins = <2 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&pwm10 {
+	status = "okay";
+};
+
+&pwm11 {
+	status = "okay";
+};
+
+&ramdisk_r {
+	reg = <0x800000 (20 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x1C00000 (10 * 0x00100000)>;
+};
+
+&sdio {
+	max-frequency = <50000000>;
+	bus-width = <1>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	non-removable;
+	rockchip,default-sample-phase = <90>;
+	no-sd;
+	no-mmc;
+	supports-sdio;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc1m0_cmd &sdmmc1m0_clk &sdmmc1m0_bus4>;
+	status = "okay";
+};
+
+&sdmmc {
+	max-frequency = <200000000>;
+	no-sdio;
+	no-mmc;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	disable-wp;
+	pinctrl-names = "normal", "idle";
+	pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_det &sdmmc0_bus4>;
+	pinctrl-1 = <&sdmmc0_idle_pins &sdmmc0_det>;
+	vmmc-supply = <&vcc3v3_sd>;
+	status = "okay";
+};
+
+&sfc {
+	assigned-clocks = <&cru SCLK_SFC>;
+	assigned-clock-rates = <125000000>;
+	status = "disabled";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <125000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "peripheral";
+};
