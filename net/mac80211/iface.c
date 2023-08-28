@@ -430,12 +430,13 @@ static int ieee80211_open(struct net_device *dev)
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
 
+	wiphy_lock(sdata->local->hw.wiphy);
 	err = ieee80211_check_concurrent_iface(sdata, sdata->vif.type);
 	if (err)
-		return err;
+		goto out;
 
-	wiphy_lock(sdata->local->hw.wiphy);
 	err = ieee80211_do_open(&sdata->wdev, true);
+out:
 	wiphy_unlock(sdata->local->hw.wiphy);
 
 	return err;
