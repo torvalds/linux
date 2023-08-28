@@ -166,6 +166,8 @@ void devlink_trap_groups_notify_register(struct devlink *devlink);
 void devlink_trap_groups_notify_unregister(struct devlink *devlink);
 void devlink_traps_notify_register(struct devlink *devlink);
 void devlink_traps_notify_unregister(struct devlink *devlink);
+void devlink_rates_notify_register(struct devlink *devlink);
+void devlink_rates_notify_unregister(struct devlink *devlink);
 
 /* Ports */
 #define ASSERT_DEVLINK_PORT_INITIALIZED(devlink_port)				\
@@ -278,3 +280,6 @@ int devlink_nl_cmd_trap_group_set_doit(struct sk_buff *skb,
 				       struct genl_info *info);
 int devlink_nl_cmd_trap_policer_set_doit(struct sk_buff *skb,
 					 struct genl_info *info);
+int devlink_nl_cmd_rate_set_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_rate_new_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_rate_del_doit(struct sk_buff *skb, struct genl_info *info);
