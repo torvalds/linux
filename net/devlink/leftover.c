@@ -28,14 +28,8 @@
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/devlink.h>
-#define CREATE_TRACE_POINTS
-#include <trace/events/devlink.h>
 
 #include "devl_internal.h"
-
-EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwmsg);
-EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwerr);
-EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_trap_report);
 
 const struct genl_small_ops devlink_nl_small_ops[40] = {
 	{
