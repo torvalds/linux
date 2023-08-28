@@ -472,12 +472,23 @@ static int __init dt_scan_mmu_pid_width(unsigned long node,
 	return 1;
 }
 
+/*
+ * Outside hotplug the kernel uses this value to map the kernel direct map
+ * with radix. To be compatible with older kernels, let's keep this value
+ * as 16M which is also SECTION_SIZE with SPARSEMEM. We can ideally map
+ * things with 1GB size in the case where we don't support hotplug.
+ */
+#ifndef CONFIG_MEMORY_HOTPLUG
+#define DEFAULT_MEMORY_BLOCK_SIZE	SZ_16M
+#else
+#define DEFAULT_MEMORY_BLOCK_SIZE	MIN_MEMORY_BLOCK_SIZE
+#endif
+
 static void update_memory_block_size(unsigned long *block_size, unsigned long mem_size)
 {
-	unsigned long section_size = 1UL << SECTION_SIZE_BITS;
+	unsigned long min_memory_block_size = DEFAULT_MEMORY_BLOCK_SIZE;
 
-	for (; *block_size > section_size; *block_size >>= 2) {
-
+	for (; *block_size > min_memory_block_size; *block_size >>= 2) {
 		if ((mem_size & *block_size) == 0)
 			break;
 	}
@@ -507,7 +518,7 @@ static int __init probe_memory_block_size(unsigned long node, const char *uname,
 			/*
 			 * Nothing in the device tree
 			 */
-			*block_size = MIN_MEMORY_BLOCK_SIZE;
+			*block_size = DEFAULT_MEMORY_BLOCK_SIZE;
 		else
 			*block_size = of_read_number(prop, dt_root_size_cells);
 		/*
