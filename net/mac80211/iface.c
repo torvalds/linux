@@ -251,9 +251,9 @@ unlock:
 	return ret;
 }
 
-static int ieee80211_change_mac(struct net_device *dev, void *addr)
+static int _ieee80211_change_mac(struct ieee80211_sub_if_data *sdata,
+				 void *addr)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
 	struct sockaddr *sa = addr;
 	bool check_dup = true;
@@ -278,7 +278,7 @@ static int ieee80211_change_mac(struct net_device *dev, void *addr)
 
 	if (live)
 		drv_remove_interface(local, sdata);
-	ret = eth_mac_addr(dev, sa);
+	ret = eth_mac_addr(sdata->dev, sa);
 
 	if (ret == 0) {
 		memcpy(sdata->vif.addr, sa->sa_data, ETH_ALEN);
@@ -290,6 +290,19 @@ static int ieee80211_change_mac(struct net_device *dev, void *addr)
 	 */
 	if (live)
 		WARN_ON(drv_add_interface(local, sdata));
+
+	return ret;
+}
+
+static int ieee80211_change_mac(struct net_device *dev, void *addr)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	int ret;
+
+	wiphy_lock(local->hw.wiphy);
+	ret = _ieee80211_change_mac(sdata, addr);
+	wiphy_unlock(local->hw.wiphy);
 
 	return ret;
 }
