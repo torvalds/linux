@@ -231,6 +231,13 @@ int devlink_nl_cmd_sb_occ_snapshot_doit(struct sk_buff *skb,
 					struct genl_info *info);
 int devlink_nl_cmd_sb_occ_max_clear_doit(struct sk_buff *skb,
 					 struct genl_info *info);
+int devlink_nl_cmd_dpipe_table_get(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_dpipe_entries_get(struct sk_buff *skb,
+				     struct genl_info *info);
+int devlink_nl_cmd_dpipe_headers_get(struct sk_buff *skb,
+				     struct genl_info *info);
+int devlink_nl_cmd_dpipe_table_counters_set(struct sk_buff *skb,
+					    struct genl_info *info);
 int devlink_nl_cmd_health_reporter_set_doit(struct sk_buff *skb,
 					    struct genl_info *info);
 int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
