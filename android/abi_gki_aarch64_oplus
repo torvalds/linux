@@ -32,10 +32,12 @@
   iio_channel_get
   iio_channel_release
   iio_get_channel_type
+  ip_local_deliver
   ip6_local_out
   ip6_route_me_harder
   ip_route_me_harder
   ipv6_find_hdr
+  iov_iter_advance
   is_ashmem_file
   jiffies_64_to_clock_t
   kick_process
@@ -47,7 +49,9 @@
   mmc_wait_for_cmd
   nf_ct_attach
   nf_ct_delete
+  nf_register_net_hook
   nf_register_net_hooks
+  nf_unregister_net_hook
   nf_unregister_net_hooks
   nr_running
   of_css
@@ -67,6 +71,7 @@
   remove_proc_subtree
   rtc_read_alarm
   rtc_set_alarm
+  __rtnl_link_unregister
   sdio_memcpy_fromio
   sdio_memcpy_toio
   sdio_set_block_size
