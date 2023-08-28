@@ -236,6 +236,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	int err;
 
 	sdata_assert_lock(sdata);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	/* Reset own TSF to allow time synchronization work. */
 	drv_reset_tsf(local, sdata);
@@ -299,17 +300,14 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	radar_required = err;
 
-	mutex_lock(&local->mtx);
 	if (ieee80211_link_use_channel(&sdata->deflink, &chandef,
 				       ifibss->fixed_channel ?
 					IEEE80211_CHANCTX_SHARED :
 					IEEE80211_CHANCTX_EXCLUSIVE)) {
 		sdata_info(sdata, "Failed to join IBSS, no channel context\n");
-		mutex_unlock(&local->mtx);
 		return;
 	}
 	sdata->deflink.radar_required = radar_required;
-	mutex_unlock(&local->mtx);
 
 	memcpy(ifibss->bssid, bssid, ETH_ALEN);
 
@@ -367,9 +365,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.cfg.ssid_len = 0;
 		RCU_INIT_POINTER(ifibss->presp, NULL);
 		kfree_rcu(presp, rcu_head);
-		mutex_lock(&local->mtx);
 		ieee80211_link_release_channel(&sdata->deflink);
-		mutex_unlock(&local->mtx);
 		sdata_info(sdata, "Failed to join IBSS, driver failure: %d\n",
 			   err);
 		return;
@@ -680,6 +676,8 @@ static void ieee80211_ibss_disconnect(struct ieee80211_sub_if_data *sdata)
 	struct beacon_data *presp;
 	struct sta_info *sta;
 
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	if (!is_zero_ether_addr(ifibss->bssid)) {
 		cbss = cfg80211_get_bss(local->hw.wiphy, ifibss->chandef.chan,
 					ifibss->bssid, ifibss->ssid,
@@ -726,9 +724,7 @@ static void ieee80211_ibss_disconnect(struct ieee80211_sub_if_data *sdata)
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED |
 						BSS_CHANGED_IBSS);
 	drv_leave_ibss(local, sdata);
-	mutex_lock(&local->mtx);
 	ieee80211_link_release_channel(&sdata->deflink);
-	mutex_unlock(&local->mtx);
 }
 
 static void ieee80211_csa_connection_drop_work(struct wiphy *wiphy,

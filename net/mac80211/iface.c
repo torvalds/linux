@@ -110,7 +110,7 @@ static u32 __ieee80211_recalc_idle(struct ieee80211_local *local,
 	bool working, scanning, active;
 	unsigned int led_trig_start = 0, led_trig_stop = 0;
 
-	lockdep_assert_held(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	active = force_active ||
 		 !list_empty(&local->chanctx_list) ||
@@ -207,14 +207,14 @@ static int ieee80211_can_powered_addr_change(struct ieee80211_sub_if_data *sdata
 	struct ieee80211_sub_if_data *scan_sdata;
 	int ret = 0;
 
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	/* To be the most flexible here we want to only limit changing the
 	 * address if the specific interface is doing offchannel work or
 	 * scanning.
 	 */
 	if (netif_carrier_ok(sdata->dev))
 		return -EBUSY;
-
-	mutex_lock(&local->mtx);
 
 	/* First check no ROC work is happening on this iface */
 	list_for_each_entry(roc, &local->roc_list, list) {
@@ -230,7 +230,7 @@ static int ieee80211_can_powered_addr_change(struct ieee80211_sub_if_data *sdata
 	/* And if this iface is scanning */
 	if (local->scanning) {
 		scan_sdata = rcu_dereference_protected(local->scan_sdata,
-						       lockdep_is_held(&local->mtx));
+						       lockdep_is_held(&local->hw.wiphy->mtx));
 		if (sdata == scan_sdata)
 			ret = -EBUSY;
 	}
@@ -247,7 +247,6 @@ static int ieee80211_can_powered_addr_change(struct ieee80211_sub_if_data *sdata
 	}
 
 unlock:
-	mutex_unlock(&local->mtx);
 	return ret;
 }
 
@@ -464,6 +463,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	bool cancel_scan;
 	struct cfg80211_nan_func *func;
 
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 	synchronize_rcu(); /* flush _ieee80211_wake_txqs() */
 
@@ -534,7 +535,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	     "destroying interface with valid links 0x%04x\n",
 	     sdata->vif.valid_links);
 
-	mutex_lock(&local->mtx);
 	sdata->vif.bss_conf.csa_active = false;
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		sdata->deflink.u.mgd.csa_waiting_bcn = false;
@@ -543,7 +543,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
 		sdata->deflink.csa_block_tx = false;
 	}
-	mutex_unlock(&local->mtx);
 	sdata_unlock(sdata);
 
 	wiphy_work_cancel(local->hw.wiphy, &sdata->deflink.csa_finalize_work);
@@ -555,9 +554,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	if (sdata->wdev.cac_started) {
 		chandef = sdata->vif.bss_conf.chandef;
 		WARN_ON(local->suspended);
-		mutex_lock(&local->mtx);
 		ieee80211_link_release_channel(&sdata->deflink);
-		mutex_unlock(&local->mtx);
 		cfg80211_cac_event(sdata->dev, &chandef,
 				   NL80211_RADAR_CAC_ABORTED,
 				   GFP_KERNEL);
@@ -585,9 +582,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
-		mutex_lock(&local->mtx);
 		list_del(&sdata->u.vlan.list);
-		mutex_unlock(&local->mtx);
 		RCU_INIT_POINTER(sdata->vif.bss_conf.chanctx_conf, NULL);
 		/* see comment in the default case below */
 		ieee80211_free_keys(sdata, true);
@@ -685,9 +680,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		if (local->monitors == 0)
 			ieee80211_del_virtual_monitor(local);
 
-		mutex_lock(&local->mtx);
 		ieee80211_recalc_idle(local);
-		mutex_unlock(&local->mtx);
 
 		if (!(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE))
 			break;
@@ -1169,10 +1162,8 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	mutex_unlock(&local->iflist_mtx);
 
 	sdata_lock(sdata);
-	mutex_lock(&local->mtx);
 	ret = ieee80211_link_use_channel(&sdata->deflink, &local->monitor_chandef,
 					 IEEE80211_CHANCTX_EXCLUSIVE);
-	mutex_unlock(&local->mtx);
 	sdata_unlock(sdata);
 	if (ret) {
 		mutex_lock(&local->iflist_mtx);
@@ -1217,9 +1208,7 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 	synchronize_net();
 
 	sdata_lock(sdata);
-	mutex_lock(&local->mtx);
 	ieee80211_link_release_channel(&sdata->deflink);
-	mutex_unlock(&local->mtx);
 	sdata_unlock(sdata);
 
 	drv_remove_interface(local, sdata);
@@ -1251,9 +1240,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		if (!sdata->bss)
 			return -ENOLINK;
 
-		mutex_lock(&local->mtx);
 		list_add(&sdata->u.vlan.list, &sdata->bss->vlans);
-		mutex_unlock(&local->mtx);
 
 		master = container_of(sdata->bss,
 				      struct ieee80211_sub_if_data, u.ap);
@@ -1362,9 +1349,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		ieee80211_adjust_monitor_flags(sdata, 1);
 		ieee80211_configure_filter(local);
 		ieee80211_recalc_offload(local);
-		mutex_lock(&local->mtx);
 		ieee80211_recalc_idle(local);
-		mutex_unlock(&local->mtx);
 
 		netif_carrier_on(dev);
 		break;
@@ -1469,11 +1454,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		drv_stop(local);
  err_del_bss:
 	sdata->bss = NULL;
-	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
-		mutex_lock(&local->mtx);
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		list_del(&sdata->u.vlan.list);
-		mutex_unlock(&local->mtx);
-	}
 	/* might already be clear but that doesn't matter */
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 	return res;

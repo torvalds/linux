@@ -804,8 +804,6 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	__hw_addr_init(&local->mc_list);
 
 	mutex_init(&local->iflist_mtx);
-	mutex_init(&local->mtx);
-
 	spin_lock_init(&local->filter_lock);
 	spin_lock_init(&local->rx_path_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
@@ -1539,7 +1537,6 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	enum nl80211_band band;
 
 	mutex_destroy(&local->iflist_mtx);
-	mutex_destroy(&local->mtx);
 
 	if (local->wiphy_ciphers_allocated) {
 		kfree(local->hw.wiphy->cipher_suites);

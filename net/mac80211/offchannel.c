@@ -197,7 +197,7 @@ static unsigned long ieee80211_end_finished_rocs(struct ieee80211_local *local,
 	struct ieee80211_roc_work *roc, *tmp;
 	long remaining_dur_min = LONG_MAX;
 
-	lockdep_assert_held(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
 		long remaining;
@@ -264,7 +264,7 @@ static void ieee80211_hw_roc_start(struct wiphy *wiphy, struct wiphy_work *work)
 		container_of(work, struct ieee80211_local, hw_roc_start);
 	struct ieee80211_roc_work *roc;
 
-	mutex_lock(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	list_for_each_entry(roc, &local->roc_list, list) {
 		if (!roc->started)
@@ -273,8 +273,6 @@ static void ieee80211_hw_roc_start(struct wiphy *wiphy, struct wiphy_work *work)
 		roc->hw_begun = true;
 		ieee80211_handle_roc_started(roc, local->hw_roc_start_time);
 	}
-
-	mutex_unlock(&local->mtx);
 }
 
 void ieee80211_ready_on_channel(struct ieee80211_hw *hw)
@@ -295,7 +293,7 @@ static void _ieee80211_start_next_roc(struct ieee80211_local *local)
 	enum ieee80211_roc_type type;
 	u32 min_dur, max_dur;
 
-	lockdep_assert_held(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (WARN_ON(list_empty(&local->roc_list)))
 		return;
@@ -386,7 +384,7 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 {
 	struct ieee80211_roc_work *roc;
 
-	lockdep_assert_held(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (list_empty(&local->roc_list)) {
 		ieee80211_run_deferred_scan(local);
@@ -417,7 +415,7 @@ static void __ieee80211_roc_work(struct ieee80211_local *local)
 	struct ieee80211_roc_work *roc;
 	bool on_channel;
 
-	lockdep_assert_held(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (WARN_ON(local->ops->remain_on_channel))
 		return;
@@ -456,9 +454,9 @@ static void ieee80211_roc_work(struct wiphy *wiphy, struct wiphy_work *work)
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, roc_work.work);
 
-	mutex_lock(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	__ieee80211_roc_work(local);
-	mutex_unlock(&local->mtx);
 }
 
 static void ieee80211_hw_roc_done(struct wiphy *wiphy, struct wiphy_work *work)
@@ -466,14 +464,12 @@ static void ieee80211_hw_roc_done(struct wiphy *wiphy, struct wiphy_work *work)
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, hw_roc_done);
 
-	mutex_lock(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	ieee80211_end_finished_rocs(local, jiffies);
 
 	/* if there's another roc, start it now */
 	ieee80211_start_next_roc(local);
-
-	mutex_unlock(&local->mtx);
 }
 
 void ieee80211_remain_on_channel_expired(struct ieee80211_hw *hw)
@@ -537,7 +533,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	bool queued = false, combine_started = true;
 	int ret;
 
-	lockdep_assert_held(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (channel->freq_offset)
 		/* this may work, but is untested */
@@ -675,15 +671,12 @@ int ieee80211_remain_on_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
-	int ret;
 
-	mutex_lock(&local->mtx);
-	ret = ieee80211_start_roc_work(local, sdata, chan,
-				       duration, cookie, NULL,
-				       IEEE80211_ROC_TYPE_NORMAL);
-	mutex_unlock(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
-	return ret;
+	return ieee80211_start_roc_work(local, sdata, chan,
+					duration, cookie, NULL,
+					IEEE80211_ROC_TYPE_NORMAL);
 }
 
 static int ieee80211_cancel_roc(struct ieee80211_local *local,
@@ -692,12 +685,13 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 	struct ieee80211_roc_work *roc, *tmp, *found = NULL;
 	int ret;
 
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	if (!cookie)
 		return -ENOENT;
 
 	wiphy_work_flush(local->hw.wiphy, &local->hw_roc_start);
 
-	mutex_lock(&local->mtx);
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
 		if (!mgmt_tx && roc->cookie != cookie)
 			continue;
@@ -709,7 +703,6 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 	}
 
 	if (!found) {
-		mutex_unlock(&local->mtx);
 		return -ENOENT;
 	}
 
@@ -721,7 +714,6 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 	if (local->ops->remain_on_channel) {
 		ret = drv_cancel_remain_on_channel(local, roc->sdata);
 		if (WARN_ON_ONCE(ret)) {
-			mutex_unlock(&local->mtx);
 			return ret;
 		}
 
@@ -749,7 +741,6 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 	}
 
  out_unlock:
-	mutex_unlock(&local->mtx);
 
 	return 0;
 }
@@ -777,6 +768,8 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	u32 flags;
 	int ret;
 	u8 *data;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (params->dont_wait_for_ack)
 		flags = IEEE80211_TX_CTL_NO_ACK;
@@ -854,8 +847,6 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	 */
 	if (need_offchan && !params->chan)
 		return -EINVAL;
-
-	mutex_lock(&local->mtx);
 
 	/* Check if the operating channel is the requested channel */
 	if (!params->chan && mlo_sta) {
@@ -980,7 +971,6 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (ret)
 		ieee80211_free_txskb(&local->hw, skb);
  out_unlock:
-	mutex_unlock(&local->mtx);
 	return ret;
 }
 
@@ -1006,7 +996,8 @@ void ieee80211_roc_purge(struct ieee80211_local *local,
 	struct ieee80211_roc_work *roc, *tmp;
 	bool work_to_do = false;
 
-	mutex_lock(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
 		if (sdata && roc->sdata != sdata)
 			continue;
@@ -1026,5 +1017,4 @@ void ieee80211_roc_purge(struct ieee80211_local *local,
 	}
 	if (work_to_do)
 		__ieee80211_roc_work(local);
-	mutex_unlock(&local->mtx);
 }

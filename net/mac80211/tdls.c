@@ -30,13 +30,13 @@ void ieee80211_tdls_peer_del_work(struct wiphy *wiphy, struct wiphy_work *wk)
 			     u.mgd.tdls_peer_del_work.work);
 	local = sdata->local;
 
-	mutex_lock(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	if (!is_zero_ether_addr(sdata->u.mgd.tdls_peer)) {
 		tdls_dbg(sdata, "TDLS del peer %pM\n", sdata->u.mgd.tdls_peer);
 		sta_info_destroy_addr(sdata, sdata->u.mgd.tdls_peer);
 		eth_zero_addr(sdata->u.mgd.tdls_peer);
 	}
-	mutex_unlock(&local->mtx);
 }
 
 static void ieee80211_tdls_add_ext_capab(struct ieee80211_link_data *link,
@@ -1180,7 +1180,7 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 		return -ENOTSUPP;
 	}
 
-	mutex_lock(&local->mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	/* we don't support concurrent TDLS peer setups */
 	if (!is_zero_ether_addr(sdata->u.mgd.tdls_peer) &&
@@ -1208,7 +1208,6 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 
 	ieee80211_flush_queues(local, sdata, false);
 	memcpy(sdata->u.mgd.tdls_peer, peer, ETH_ALEN);
-	mutex_unlock(&local->mtx);
 
 	/* we cannot take the mutex while preparing the setup packet */
 	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer,
@@ -1218,9 +1217,7 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 					      extra_ies, extra_ies_len, 0,
 					      NULL);
 	if (ret < 0) {
-		mutex_lock(&local->mtx);
 		eth_zero_addr(sdata->u.mgd.tdls_peer);
-		mutex_unlock(&local->mtx);
 		return ret;
 	}
 
@@ -1230,7 +1227,6 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 
 out_unlock:
-	mutex_unlock(&local->mtx);
 	return ret;
 }
 
@@ -1470,7 +1466,6 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 	 * ieee80211_bss_info_change_notify()
 	 */
 	sdata_lock(sdata);
-	mutex_lock(&local->mtx);
 	tdls_dbg(sdata, "TDLS oper %d peer %pM\n", oper, peer);
 
 	switch (oper) {
@@ -1532,7 +1527,6 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		wiphy_work_queue(sdata->local->hw.wiphy,
 				 &sdata->deflink.u.mgd.request_smps_work);
 
-	mutex_unlock(&local->mtx);
 	sdata_unlock(sdata);
 	return ret;
 }

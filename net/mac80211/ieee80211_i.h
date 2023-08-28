@@ -1466,9 +1466,6 @@ struct ieee80211_local {
 	struct list_head mon_list; /* only that are IFF_UP && !cooked */
 	struct mutex iflist_mtx;
 
-	/* mutex for scan and work locking */
-	struct mutex mtx;
-
 	/* Scanning and BSS list */
 	unsigned long scanning;
 	struct cfg80211_ssid scan_ssid;
