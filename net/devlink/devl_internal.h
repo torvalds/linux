@@ -156,6 +156,8 @@ int devlink_nl_msg_reply_and_new(struct sk_buff **msg, struct genl_info *info);
 void devlink_notify(struct devlink *devlink, enum devlink_command cmd);
 void devlink_ports_notify_register(struct devlink *devlink);
 void devlink_ports_notify_unregister(struct devlink *devlink);
+void devlink_params_notify_register(struct devlink *devlink);
+void devlink_params_notify_unregister(struct devlink *devlink);
 
 /* Ports */
 #define ASSERT_DEVLINK_PORT_INITIALIZED(devlink_port)				\
@@ -240,6 +242,13 @@ int devlink_nl_cmd_dpipe_table_counters_set(struct sk_buff *skb,
 					    struct genl_info *info);
 int devlink_nl_cmd_resource_set(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_resource_dump(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_param_set_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_port_param_get_dumpit(struct sk_buff *msg,
+					 struct netlink_callback *cb);
+int devlink_nl_cmd_port_param_get_doit(struct sk_buff *skb,
+				       struct genl_info *info);
+int devlink_nl_cmd_port_param_set_doit(struct sk_buff *skb,
+				       struct genl_info *info);
 int devlink_nl_cmd_health_reporter_set_doit(struct sk_buff *skb,
 					    struct genl_info *info);
 int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
