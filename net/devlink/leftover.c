@@ -3131,7 +3131,7 @@ void devlink_trap_report(struct devlink *devlink, struct sk_buff *skb,
 	devlink_trap_stats_update(trap_item->stats, skb->len);
 	devlink_trap_stats_update(trap_item->group_item->stats, skb->len);
 
-	if (trace_devlink_trap_report_enabled()) {
+	if (tracepoint_enabled(devlink_trap_report)) {
 		struct devlink_trap_metadata metadata = {};
 
 		devlink_trap_report_metadata_set(&metadata, trap_item,
