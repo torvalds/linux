@@ -121,7 +121,7 @@ module_param(sba_reserve_agpgart, int, 0444);
 MODULE_PARM_DESC(sba_reserve_agpgart, "Reserve half of IO pdir as AGPGART");
 #endif
 
-struct proc_dir_entry *proc_runway_root __ro_after_init;
+static struct proc_dir_entry *proc_runway_root __ro_after_init;
 struct proc_dir_entry *proc_mckinley_root __ro_after_init;
 
 /************************************

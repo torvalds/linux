@@ -63,8 +63,6 @@
 #undef CCIO_COLLECT_STATS
 #endif
 
-#include <asm/runway.h>		/* for proc_runway_root */
-
 #ifdef DEBUG_CCIO_INIT
 #define DBG_INIT(x...)  printk(x)
 #else
@@ -1559,10 +1557,15 @@ static int __init ccio_probe(struct parisc_device *dev)
 
 #ifdef CONFIG_PROC_FS
 	if (ioc_count == 0) {
-		proc_create_single(MODULE_NAME, 0, proc_runway_root,
+		struct proc_dir_entry *runway;
+
+		runway = proc_mkdir("bus/runway", NULL);
+		if (runway) {
+			proc_create_single(MODULE_NAME, 0, runway,
 				ccio_proc_info);
-		proc_create_single(MODULE_NAME"-bitmap", 0, proc_runway_root,
+			proc_create_single(MODULE_NAME"-bitmap", 0, runway,
 				ccio_proc_bitmap_info);
+		}
 	}
 #endif
 	ioc_count++;
