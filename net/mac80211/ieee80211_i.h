@@ -1368,7 +1368,7 @@ struct ieee80211_local {
 	spinlock_t filter_lock;
 
 	/* used for uploading changed mc list */
-	struct work_struct reconfig_filter;
+	struct wiphy_work reconfig_filter;
 
 	/* aggregated multicast list */
 	struct netdev_hw_addr_list mc_list;
