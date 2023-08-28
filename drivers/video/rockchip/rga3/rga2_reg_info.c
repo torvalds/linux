@@ -2024,6 +2024,8 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 
 	req->palette_mode = req_rga->palette_mode;
 	req->yuv2rgb_mode = req_rga->yuv2rgb_mode;
+	if (req_rga->full_csc.flag & 0x1)
+		req->full_csc_en = 1;
 	req->endian_mode = req_rga->endian_mode;
 	req->rgb2yuv_mode = 0;
 
@@ -2331,7 +2333,8 @@ static int rga2_init_reg(struct rga_job *job)
 	memset(&req, 0x0, sizeof(req));
 
 	rga_cmd_to_rga2_cmd(scheduler, &job->rga_command_base, &req);
-	memcpy(&job->full_csc, &job->rga_command_base.full_csc, sizeof(job->full_csc));
+	if (req.full_csc_en)
+		memcpy(&job->full_csc, &job->rga_command_base.full_csc, sizeof(job->full_csc));
 	memcpy(&job->pre_intr_info, &job->rga_command_base.pre_intr_info,
 	       sizeof(job->pre_intr_info));
 
