@@ -1,11 +1,11 @@
 .. contents::
 .. sectnum::
 
-========================================
-eBPF Instruction Set Specification, v1.0
-========================================
+=======================================
+BPF Instruction Set Specification, v1.0
+=======================================
 
-This document specifies version 1.0 of the eBPF instruction set.
+This document specifies version 1.0 of the BPF instruction set.
 
 Documentation conventions
 =========================
@@ -100,7 +100,7 @@ Definitions
 Instruction encoding
 ====================
 
-eBPF has two instruction encodings:
+BPF has two instruction encodings:
 
 * the basic instruction encoding, which uses 64 bits to encode an instruction
 * the wide instruction encoding, which appends a second 64-bit immediate (i.e.,
@@ -244,7 +244,7 @@ BPF_END    0xd0   0        byte swap operations (see `Byte swap instructions`_ b
 =========  =====  =======  ==========================================================
 
 Underflow and overflow are allowed during arithmetic operations, meaning
-the 64-bit or 32-bit value will wrap. If eBPF program execution would
+the 64-bit or 32-bit value will wrap. If BPF program execution would
 result in division by zero, the destination register is instead set to zero.
 If execution would result in modulo by zero, for ``BPF_ALU64`` the value of
 the destination register is unchanged whereas for ``BPF_ALU`` the upper
@@ -366,7 +366,7 @@ BPF_JSLT  0xc    any  PC += offset if dst < src                    signed
 BPF_JSLE  0xd    any  PC += offset if dst <= src                   signed
 ========  =====  ===  ===========================================  =========================================
 
-The eBPF program needs to store the return value into register R0 before doing a
+The BPF program needs to store the return value into register R0 before doing a
 ``BPF_EXIT``.
 
 Example:
@@ -486,9 +486,9 @@ Atomic operations
 
 Atomic operations are operations that operate on memory and can not be
 interrupted or corrupted by other access to the same memory region
-by other eBPF programs or means outside of this specification.
+by other BPF programs or means outside of this specification.
 
-All atomic operations supported by eBPF are encoded as store operations
+All atomic operations supported by BPF are encoded as store operations
 that use the ``BPF_ATOMIC`` mode modifier as follows:
 
 * ``BPF_ATOMIC | BPF_W | BPF_STX`` for 32-bit operations
@@ -578,7 +578,7 @@ where
 Maps
 ~~~~
 
-Maps are shared memory regions accessible by eBPF programs on some platforms.
+Maps are shared memory regions accessible by BPF programs on some platforms.
 A map can have various semantics as defined in a separate document, and may or
 may not have a single contiguous memory region, but the 'map_val(map)' is
 currently only defined for maps that do have a single contiguous memory region.
@@ -600,6 +600,6 @@ identified by the given id.
 Legacy BPF Packet access instructions
 -------------------------------------
 
-eBPF previously introduced special instructions for access to packet data that were
+BPF previously introduced special instructions for access to packet data that were
 carried over from classic BPF. However, these instructions are
 deprecated and should no longer be used.
