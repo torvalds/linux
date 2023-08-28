@@ -311,11 +311,9 @@ static void ieee80211_pairwise_rekey(struct ieee80211_key *old,
 			 * job done for the few ms we need it.)
 			 */
 			set_sta_flag(sta, WLAN_STA_BLOCK_BA);
-			mutex_lock(&sta->ampdu_mlme.mtx);
 			for (i = 0; i <  IEEE80211_NUM_TIDS; i++)
-				___ieee80211_stop_tx_ba_session(sta, i,
-								AGG_STOP_LOCAL_REQUEST);
-			mutex_unlock(&sta->ampdu_mlme.mtx);
+				__ieee80211_stop_tx_ba_session(sta, i,
+							       AGG_STOP_LOCAL_REQUEST);
 		}
 	} else if (old) {
 		/* Rekey without Extended Key ID.
