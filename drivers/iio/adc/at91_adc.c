@@ -1077,11 +1077,13 @@ static int at91_adc_probe(struct platform_device *pdev)
 	at91_adc_writel(st, AT91_ADC_IDR, 0xFFFFFFFF);
 
 	if (st->caps->has_tsmr)
-		ret = request_irq(st->irq, at91_adc_9x5_interrupt, 0,
-				  pdev->dev.driver->name, idev);
+		ret = devm_request_irq(&pdev->dev, st->irq,
+				       at91_adc_9x5_interrupt, 0,
+				       pdev->dev.driver->name, idev);
 	else
-		ret = request_irq(st->irq, at91_adc_rl_interrupt, 0,
-				  pdev->dev.driver->name, idev);
+		ret = devm_request_irq(&pdev->dev, st->irq,
+				       at91_adc_rl_interrupt, 0,
+				       pdev->dev.driver->name, idev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to allocate IRQ.\n");
 		return ret;
@@ -1090,15 +1092,14 @@ static int at91_adc_probe(struct platform_device *pdev)
 	st->clk = devm_clk_get(&pdev->dev, "adc_clk");
 	if (IS_ERR(st->clk)) {
 		dev_err(&pdev->dev, "Failed to get the clock.\n");
-		ret = PTR_ERR(st->clk);
-		goto error_free_irq;
+		return PTR_ERR(st->clk);
 	}
 
 	ret = clk_prepare_enable(st->clk);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Could not prepare or enable the clock.\n");
-		goto error_free_irq;
+		return ret;
 	}
 
 	st->adc_clk = devm_clk_get(&pdev->dev, "adc_op_clk");
@@ -1211,8 +1212,6 @@ error_disable_adc_clk:
 	clk_disable_unprepare(st->adc_clk);
 error_disable_clk:
 	clk_disable_unprepare(st->clk);
-error_free_irq:
-	free_irq(st->irq, idev);
 	return ret;
 }
 
@@ -1230,7 +1229,6 @@ static int at91_adc_remove(struct platform_device *pdev)
 	}
 	clk_disable_unprepare(st->adc_clk);
 	clk_disable_unprepare(st->clk);
-	free_irq(st->irq, idev);
 
 	return 0;
 }
