@@ -1058,6 +1058,26 @@ static void devlink_port_notify(struct devlink_port *devlink_port,
 				0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
+static void devlink_ports_notify(struct devlink *devlink,
+				 enum devlink_command cmd)
+{
+	struct devlink_port *devlink_port;
+	unsigned long port_index;
+
+	xa_for_each(&devlink->ports, port_index, devlink_port)
+		devlink_port_notify(devlink_port, cmd);
+}
+
+static void devlink_ports_notify_register(struct devlink *devlink)
+{
+	devlink_ports_notify(devlink, DEVLINK_CMD_PORT_NEW);
+}
+
+static void devlink_ports_notify_unregister(struct devlink *devlink)
+{
+	devlink_ports_notify(devlink, DEVLINK_CMD_PORT_DEL);
+}
+
 static void devlink_rate_notify(struct devlink_rate *devlink_rate,
 				enum devlink_command cmd)
 {
@@ -1082,6 +1102,22 @@ static void devlink_rate_notify(struct devlink_rate *devlink_rate,
 
 	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink), msg,
 				0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
+}
+
+static void devlink_rates_notify_register(struct devlink *devlink)
+{
+	struct devlink_rate *rate_node;
+
+	list_for_each_entry(rate_node, &devlink->rate_list, list)
+		devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_NEW);
+}
+
+static void devlink_rates_notify_unregister(struct devlink *devlink)
+{
+	struct devlink_rate *rate_node;
+
+	list_for_each_entry_reverse(rate_node, &devlink->rate_list, list)
+		devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_DEL);
 }
 
 static int
@@ -1926,6 +1962,22 @@ static void devlink_linecard_notify(struct devlink_linecard *linecard,
 
 	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
 				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
+}
+
+static void devlink_linecards_notify_register(struct devlink *devlink)
+{
+	struct devlink_linecard *linecard;
+
+	list_for_each_entry(linecard, &devlink->linecard_list, list)
+		devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+}
+
+static void devlink_linecards_notify_unregister(struct devlink *devlink)
+{
+	struct devlink_linecard *linecard;
+
+	list_for_each_entry_reverse(linecard, &devlink->linecard_list, list)
+		devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_DEL);
 }
 
 int devlink_nl_linecard_get_doit(struct sk_buff *skb, struct genl_info *info)
@@ -4285,6 +4337,26 @@ static void devlink_param_notify(struct devlink *devlink,
 				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
+static void devlink_params_notify(struct devlink *devlink,
+				  enum devlink_command cmd)
+{
+	struct devlink_param_item *param_item;
+	unsigned long param_id;
+
+	xa_for_each(&devlink->params, param_id, param_item)
+		devlink_param_notify(devlink, 0, param_item, cmd);
+}
+
+static void devlink_params_notify_register(struct devlink *devlink)
+{
+	devlink_params_notify(devlink, DEVLINK_CMD_PARAM_NEW);
+}
+
+static void devlink_params_notify_unregister(struct devlink *devlink)
+{
+	devlink_params_notify(devlink, DEVLINK_CMD_PARAM_DEL);
+}
+
 static int devlink_nl_param_get_dump_one(struct sk_buff *msg,
 					 struct devlink *devlink,
 					 struct netlink_callback *cb,
@@ -4692,6 +4764,22 @@ static void devlink_nl_region_notify(struct devlink_region *region,
 
 	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink), msg,
 				0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
+}
+
+static void devlink_regions_notify_register(struct devlink *devlink)
+{
+	struct devlink_region *region;
+
+	list_for_each_entry(region, &devlink->region_list, list)
+		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
+}
+
+static void devlink_regions_notify_unregister(struct devlink *devlink)
+{
+	struct devlink_region *region;
+
+	list_for_each_entry_reverse(region, &devlink->region_list, list)
+		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
 }
 
 /**
@@ -6662,98 +6750,36 @@ const struct genl_small_ops devlink_nl_small_ops[40] = {
 	/* -- No new ops here! Use split ops going forward! -- */
 };
 
-static void
-devlink_trap_policer_notify(struct devlink *devlink,
-			    const struct devlink_trap_policer_item *policer_item,
-			    enum devlink_command cmd);
-static void
-devlink_trap_group_notify(struct devlink *devlink,
-			  const struct devlink_trap_group_item *group_item,
-			  enum devlink_command cmd);
-static void devlink_trap_notify(struct devlink *devlink,
-				const struct devlink_trap_item *trap_item,
-				enum devlink_command cmd);
+static void devlink_trap_policers_notify_register(struct devlink *devlink);
+static void devlink_trap_policers_notify_unregister(struct devlink *devlink);
+static void devlink_trap_groups_notify_register(struct devlink *devlink);
+static void devlink_trap_groups_notify_unregister(struct devlink *devlink);
+static void devlink_traps_notify_register(struct devlink *devlink);
+static void devlink_traps_notify_unregister(struct devlink *devlink);
 
 void devlink_notify_register(struct devlink *devlink)
 {
-	struct devlink_trap_policer_item *policer_item;
-	struct devlink_trap_group_item *group_item;
-	struct devlink_param_item *param_item;
-	struct devlink_trap_item *trap_item;
-	struct devlink_port *devlink_port;
-	struct devlink_linecard *linecard;
-	struct devlink_rate *rate_node;
-	struct devlink_region *region;
-	unsigned long port_index;
-	unsigned long param_id;
-
 	devlink_notify(devlink, DEVLINK_CMD_NEW);
-	list_for_each_entry(linecard, &devlink->linecard_list, list)
-		devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
-
-	xa_for_each(&devlink->ports, port_index, devlink_port)
-		devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
-
-	list_for_each_entry(policer_item, &devlink->trap_policer_list, list)
-		devlink_trap_policer_notify(devlink, policer_item,
-					    DEVLINK_CMD_TRAP_POLICER_NEW);
-
-	list_for_each_entry(group_item, &devlink->trap_group_list, list)
-		devlink_trap_group_notify(devlink, group_item,
-					  DEVLINK_CMD_TRAP_GROUP_NEW);
-
-	list_for_each_entry(trap_item, &devlink->trap_list, list)
-		devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_NEW);
-
-	list_for_each_entry(rate_node, &devlink->rate_list, list)
-		devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_NEW);
-
-	list_for_each_entry(region, &devlink->region_list, list)
-		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
-
-	xa_for_each(&devlink->params, param_id, param_item)
-		devlink_param_notify(devlink, 0, param_item,
-				     DEVLINK_CMD_PARAM_NEW);
+	devlink_linecards_notify_register(devlink);
+	devlink_ports_notify_register(devlink);
+	devlink_trap_policers_notify_register(devlink);
+	devlink_trap_groups_notify_register(devlink);
+	devlink_traps_notify_register(devlink);
+	devlink_rates_notify_register(devlink);
+	devlink_regions_notify_register(devlink);
+	devlink_params_notify_register(devlink);
 }
 
 void devlink_notify_unregister(struct devlink *devlink)
 {
-	struct devlink_trap_policer_item *policer_item;
-	struct devlink_trap_group_item *group_item;
-	struct devlink_param_item *param_item;
-	struct devlink_trap_item *trap_item;
-	struct devlink_port *devlink_port;
-	struct devlink_linecard *linecard;
-	struct devlink_rate *rate_node;
-	struct devlink_region *region;
-	unsigned long port_index;
-	unsigned long param_id;
-
-	xa_for_each(&devlink->params, param_id, param_item)
-		devlink_param_notify(devlink, 0, param_item,
-				     DEVLINK_CMD_PARAM_DEL);
-
-	list_for_each_entry_reverse(region, &devlink->region_list, list)
-		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
-
-	list_for_each_entry_reverse(rate_node, &devlink->rate_list, list)
-		devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_DEL);
-
-	list_for_each_entry_reverse(trap_item, &devlink->trap_list, list)
-		devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_DEL);
-
-	list_for_each_entry_reverse(group_item, &devlink->trap_group_list, list)
-		devlink_trap_group_notify(devlink, group_item,
-					  DEVLINK_CMD_TRAP_GROUP_DEL);
-	list_for_each_entry_reverse(policer_item, &devlink->trap_policer_list,
-				    list)
-		devlink_trap_policer_notify(devlink, policer_item,
-					    DEVLINK_CMD_TRAP_POLICER_DEL);
-
-	xa_for_each(&devlink->ports, port_index, devlink_port)
-		devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_DEL);
-	list_for_each_entry_reverse(linecard, &devlink->linecard_list, list)
-		devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_DEL);
+	devlink_params_notify_unregister(devlink);
+	devlink_regions_notify_unregister(devlink);
+	devlink_rates_notify_unregister(devlink);
+	devlink_traps_notify_unregister(devlink);
+	devlink_trap_groups_notify_unregister(devlink);
+	devlink_trap_policers_notify_unregister(devlink);
+	devlink_ports_notify_unregister(devlink);
+	devlink_linecards_notify_unregister(devlink);
 	devlink_notify(devlink, DEVLINK_CMD_DEL);
 }
 
@@ -8879,6 +8905,24 @@ devlink_trap_group_notify(struct devlink *devlink,
 				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
+static void devlink_trap_groups_notify_register(struct devlink *devlink)
+{
+	struct devlink_trap_group_item *group_item;
+
+	list_for_each_entry(group_item, &devlink->trap_group_list, list)
+		devlink_trap_group_notify(devlink, group_item,
+					  DEVLINK_CMD_TRAP_GROUP_NEW);
+}
+
+static void devlink_trap_groups_notify_unregister(struct devlink *devlink)
+{
+	struct devlink_trap_group_item *group_item;
+
+	list_for_each_entry_reverse(group_item, &devlink->trap_group_list, list)
+		devlink_trap_group_notify(devlink, group_item,
+					  DEVLINK_CMD_TRAP_GROUP_DEL);
+}
+
 static int
 devlink_trap_item_group_link(struct devlink *devlink,
 			     struct devlink_trap_item *trap_item)
@@ -8919,6 +8963,22 @@ static void devlink_trap_notify(struct devlink *devlink,
 
 	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
 				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
+}
+
+static void devlink_traps_notify_register(struct devlink *devlink)
+{
+	struct devlink_trap_item *trap_item;
+
+	list_for_each_entry(trap_item, &devlink->trap_list, list)
+		devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_NEW);
+}
+
+static void devlink_traps_notify_unregister(struct devlink *devlink)
+{
+	struct devlink_trap_item *trap_item;
+
+	list_for_each_entry_reverse(trap_item, &devlink->trap_list, list)
+		devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_DEL);
 }
 
 static int
@@ -9380,6 +9440,25 @@ devlink_trap_policer_notify(struct devlink *devlink,
 
 	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
 				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
+}
+
+static void devlink_trap_policers_notify_register(struct devlink *devlink)
+{
+	struct devlink_trap_policer_item *policer_item;
+
+	list_for_each_entry(policer_item, &devlink->trap_policer_list, list)
+		devlink_trap_policer_notify(devlink, policer_item,
+					    DEVLINK_CMD_TRAP_POLICER_NEW);
+}
+
+static void devlink_trap_policers_notify_unregister(struct devlink *devlink)
+{
+	struct devlink_trap_policer_item *policer_item;
+
+	list_for_each_entry_reverse(policer_item, &devlink->trap_policer_list,
+				    list)
+		devlink_trap_policer_notify(devlink, policer_item,
+					    DEVLINK_CMD_TRAP_POLICER_DEL);
 }
 
 static int
