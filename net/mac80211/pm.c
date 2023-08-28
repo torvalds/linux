@@ -40,13 +40,12 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	if (ieee80211_hw_check(hw, AMPDU_AGGREGATION) &&
 	    !(wowlan && wowlan->any)) {
-		mutex_lock(&local->sta_mtx);
+		lockdep_assert_wiphy(local->hw.wiphy);
 		list_for_each_entry(sta, &local->sta_list, list) {
 			set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 			ieee80211_sta_tear_down_BA_sessions(
 					sta, AGG_STOP_LOCAL_REQUEST);
 		}
-		mutex_unlock(&local->sta_mtx);
 	}
 
 	/* keep sched_scan only in case of 'any' trigger */
@@ -119,12 +118,11 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			local->quiescing = false;
 			local->wowlan = false;
 			if (ieee80211_hw_check(hw, AMPDU_AGGREGATION)) {
-				mutex_lock(&local->sta_mtx);
+				lockdep_assert_wiphy(local->hw.wiphy);
 				list_for_each_entry(sta,
 						    &local->sta_list, list) {
 					clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 				}
-				mutex_unlock(&local->sta_mtx);
 			}
 			ieee80211_wake_queues_by_reason(hw,
 					IEEE80211_MAX_QUEUE_MAP,

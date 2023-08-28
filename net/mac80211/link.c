@@ -455,7 +455,7 @@ int __ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
 	int ret;
 
 	sdata_assert_lock(sdata);
-	mutex_lock(&local->sta_mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 	mutex_lock(&local->mtx);
 	mutex_lock(&local->key_mtx);
 	old_active = sdata->vif.active_links;
@@ -475,7 +475,6 @@ int __ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
 	}
 	mutex_unlock(&local->key_mtx);
 	mutex_unlock(&local->mtx);
-	mutex_unlock(&local->sta_mtx);
 
 	return ret;
 }

@@ -5927,7 +5927,7 @@ int ieee80211_reserve_tid(struct ieee80211_sta *pubsta, u8 tid)
 	int ret;
 	u32 queues;
 
-	lockdep_assert_held(&local->sta_mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	/* only some cases are supported right now */
 	switch (sdata->vif.type) {
@@ -5988,7 +5988,7 @@ void ieee80211_unreserve_tid(struct ieee80211_sta *pubsta, u8 tid)
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
-	lockdep_assert_held(&sdata->local->sta_mtx);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	/* only some cases are supported right now */
 	switch (sdata->vif.type) {

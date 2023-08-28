@@ -1435,10 +1435,9 @@ struct ieee80211_local {
 
 	/* Station data */
 	/*
-	 * The mutex only protects the list, hash table and
-	 * counter, reads are done with RCU.
+	 * The list, hash table and counter are protected
+	 * by the wiphy mutex, reads are done with RCU.
 	 */
-	struct mutex sta_mtx;
 	spinlock_t tim_lock;
 	unsigned long num_sta;
 	struct list_head sta_list;

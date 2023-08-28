@@ -3207,11 +3207,10 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	ifmgd->probe_send_count++;
 
 	if (dst) {
-		mutex_lock(&sdata->local->sta_mtx);
+		lockdep_assert_wiphy(sdata->local->hw.wiphy);
 		sta = sta_info_get(sdata, dst);
 		if (!WARN_ON(!sta))
 			ieee80211_check_fast_rx(sta);
-		mutex_unlock(&sdata->local->sta_mtx);
 	}
 
 	if (ieee80211_hw_check(&sdata->local->hw, REPORTS_TX_ACK_STATUS)) {
@@ -3629,7 +3628,6 @@ static bool ieee80211_mark_sta_auth(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	const u8 *ap_addr = ifmgd->auth_data->ap_addr;
 	struct sta_info *sta;
-	bool result = true;
 
 	sdata_info(sdata, "authenticated\n");
 	ifmgd->auth_data->done = true;
@@ -3638,22 +3636,18 @@ static bool ieee80211_mark_sta_auth(struct ieee80211_sub_if_data *sdata)
 	run_again(sdata, ifmgd->auth_data->timeout);
 
 	/* move station state to auth */
-	mutex_lock(&sdata->local->sta_mtx);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 	sta = sta_info_get(sdata, ap_addr);
 	if (!sta) {
 		WARN_ONCE(1, "%s: STA %pM not found", sdata->name, ap_addr);
-		result = false;
-		goto out;
+		return false;
 	}
 	if (sta_info_move_state(sta, IEEE80211_STA_AUTH)) {
 		sdata_info(sdata, "failed moving %pM to auth\n", ap_addr);
-		result = false;
-		goto out;
+		return false;
 	}
 
-out:
-	mutex_unlock(&sdata->local->sta_mtx);
-	return result;
+	return true;
 }
 
 static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
@@ -5099,7 +5093,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	u16 valid_links = 0, dormant_links = 0;
 	int err;
 
-	mutex_lock(&sdata->local->sta_mtx);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 	/*
 	 * station info was already allocated and inserted before
 	 * the association and should be available to us
@@ -5147,7 +5141,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 					" (assoc)" : "");
 
 		link_sta = rcu_dereference_protected(sta->link[link_id],
-						     lockdep_is_held(&local->sta_mtx));
+						     lockdep_is_held(&local->hw.wiphy->mtx));
 		if (WARN_ON(!link_sta))
 			goto out_err;
 
@@ -5234,8 +5228,6 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	if (sdata->wdev.use_4addr)
 		drv_sta_set_4addr(local, sdata, &sta->sta, true);
 
-	mutex_unlock(&sdata->local->sta_mtx);
-
 	ieee80211_set_associated(sdata, assoc_data, changed);
 
 	/*
@@ -5255,7 +5247,6 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	return true;
 out_err:
 	eth_zero_addr(sdata->vif.cfg.ap_addr);
-	mutex_unlock(&sdata->local->sta_mtx);
 	return false;
 }
 
@@ -6142,16 +6133,14 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 				le16_to_cpu(mgmt->u.beacon.capab_info),
 				erp_valid, erp_value);
 
-	mutex_lock(&local->sta_mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 	sta = sta_info_get(sdata, sdata->vif.cfg.ap_addr);
 	if (WARN_ON(!sta)) {
-		mutex_unlock(&local->sta_mtx);
 		goto free;
 	}
 	link_sta = rcu_dereference_protected(sta->link[link->link_id],
-					     lockdep_is_held(&local->sta_mtx));
+					     lockdep_is_held(&local->hw.wiphy->mtx));
 	if (WARN_ON(!link_sta)) {
-		mutex_unlock(&local->sta_mtx);
 		goto free;
 	}
 
@@ -6167,7 +6156,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 				elems->vht_operation, elems->he_operation,
 				elems->eht_operation,
 				elems->s1g_oper, bssid, &changed)) {
-		mutex_unlock(&local->sta_mtx);
 		sdata_info(sdata,
 			   "failed to follow AP %pM bandwidth change, disconnect\n",
 			   bssid);
@@ -6185,7 +6173,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		ieee80211_vht_handle_opmode(sdata, link_sta,
 					    *elems->opmode_notif,
 					    rx_status->band);
-	mutex_unlock(&local->sta_mtx);
 
 	changed |= ieee80211_handle_pwr_constr(link, chan, mgmt,
 					       elems->country_elem,

@@ -1257,7 +1257,7 @@ static void ieee80211_ibss_sta_expire(struct ieee80211_sub_if_data *sdata)
 	unsigned long exp_time = IEEE80211_IBSS_INACTIVITY_LIMIT;
 	unsigned long exp_rsn = IEEE80211_IBSS_RSN_INACTIVITY_LIMIT;
 
-	mutex_lock(&local->sta_mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
 		unsigned long last_active = ieee80211_sta_last_active(sta);
@@ -1282,8 +1282,6 @@ static void ieee80211_ibss_sta_expire(struct ieee80211_sub_if_data *sdata)
 			WARN_ON(__sta_info_destroy(sta));
 		}
 	}
-
-	mutex_unlock(&local->sta_mtx);
 }
 
 /*

@@ -569,7 +569,7 @@ int drv_change_sta_links(struct ieee80211_local *local,
 
 	for_each_set_bit(link_id, &links_to_rem, IEEE80211_MLD_MAX_NUM_LINKS) {
 		link_sta = rcu_dereference_protected(info->link[link_id],
-						     lockdep_is_held(&local->sta_mtx));
+						     lockdep_is_held(&local->hw.wiphy->mtx));
 
 		ieee80211_link_sta_debugfs_drv_remove(link_sta);
 	}
@@ -585,7 +585,7 @@ int drv_change_sta_links(struct ieee80211_local *local,
 
 	for_each_set_bit(link_id, &links_to_add, IEEE80211_MLD_MAX_NUM_LINKS) {
 		link_sta = rcu_dereference_protected(info->link[link_id],
-						     lockdep_is_held(&local->sta_mtx));
+						     lockdep_is_held(&local->hw.wiphy->mtx));
 		ieee80211_link_sta_debugfs_drv_add(link_sta);
 	}
 

@@ -4669,7 +4669,7 @@ void __ieee80211_check_fast_rx_iface(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
-	lockdep_assert_held(&local->sta_mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	list_for_each_entry(sta, &local->sta_list, list) {
 		if (sdata != sta->sdata &&
@@ -4683,9 +4683,9 @@ void ieee80211_check_fast_rx_iface(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 
-	mutex_lock(&local->sta_mtx);
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	__ieee80211_check_fast_rx_iface(sdata);
-	mutex_unlock(&local->sta_mtx);
 }
 
 static void ieee80211_rx_8023(struct ieee80211_rx_data *rx,
