@@ -168,6 +168,8 @@ void devlink_traps_notify_register(struct devlink *devlink);
 void devlink_traps_notify_unregister(struct devlink *devlink);
 void devlink_rates_notify_register(struct devlink *devlink);
 void devlink_rates_notify_unregister(struct devlink *devlink);
+void devlink_linecards_notify_register(struct devlink *devlink);
+void devlink_linecards_notify_unregister(struct devlink *devlink);
 
 /* Ports */
 #define ASSERT_DEVLINK_PORT_INITIALIZED(devlink_port)				\
@@ -181,21 +183,6 @@ struct devlink_port *
 devlink_port_get_from_info(struct devlink *devlink, struct genl_info *info);
 struct devlink_port *devlink_port_get_from_attrs(struct devlink *devlink,
 						 struct nlattr **attrs);
-
-/* Linecards */
-struct devlink_linecard {
-	struct list_head list;
-	struct devlink *devlink;
-	unsigned int index;
-	const struct devlink_linecard_ops *ops;
-	void *priv;
-	enum devlink_linecard_state state;
-	struct mutex state_lock; /* Protects state */
-	const char *type;
-	struct devlink_linecard_type *types;
-	unsigned int types_count;
-	struct devlink *nested_devlink;
-};
 
 /* Reload */
 bool devlink_reload_actions_valid(const struct devlink_ops *ops);
@@ -221,6 +208,21 @@ int devlink_resources_validate(struct devlink *devlink,
 /* Rates */
 int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
 			     struct netlink_ext_ack *extack);
+
+/* Linecards */
+struct devlink_linecard {
+	struct list_head list;
+	struct devlink *devlink;
+	unsigned int index;
+	const struct devlink_linecard_ops *ops;
+	void *priv;
+	enum devlink_linecard_state state;
+	struct mutex state_lock; /* Protects state */
+	const char *type;
+	struct devlink_linecard_type *types;
+	unsigned int types_count;
+	struct devlink *nested_devlink;
+};
 
 /* Devlink nl cmds */
 int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info);
@@ -283,3 +285,5 @@ int devlink_nl_cmd_trap_policer_set_doit(struct sk_buff *skb,
 int devlink_nl_cmd_rate_set_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_rate_new_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_rate_del_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_linecard_set_doit(struct sk_buff *skb,
+				     struct genl_info *info);
