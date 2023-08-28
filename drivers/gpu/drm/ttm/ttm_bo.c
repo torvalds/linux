@@ -674,8 +674,7 @@ static bool ttm_bo_evict_swapout_allowable(struct ttm_buffer_object *bo,
 
 	if (bo->pin_count) {
 		*locked = false;
-		if (busy)
-			*busy = false;
+		*busy = false;
 		return false;
 	}
 
