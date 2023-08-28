@@ -150,6 +150,8 @@ devlink_nl_put_handle(struct sk_buff *msg, struct devlink *devlink)
 	return 0;
 }
 
+int devlink_nl_msg_reply_and_new(struct sk_buff **msg, struct genl_info *info);
+
 /* Notify */
 void devlink_notify(struct devlink *devlink, enum devlink_command cmd);
 void devlink_ports_notify_register(struct devlink *devlink);

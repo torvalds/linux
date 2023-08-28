@@ -1277,22 +1277,6 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int devlink_dpipe_send_and_alloc_skb(struct sk_buff **pskb,
-					    struct genl_info *info)
-{
-	int err;
-
-	if (*pskb) {
-		err = genlmsg_reply(*pskb, info);
-		if (err)
-			return err;
-	}
-	*pskb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!*pskb)
-		return -ENOMEM;
-	return 0;
-}
-
 static int devlink_dpipe_tables_fill(struct genl_info *info,
 				     enum devlink_command cmd, int flags,
 				     struct list_head *dpipe_tables,
@@ -1311,7 +1295,7 @@ static int devlink_dpipe_tables_fill(struct genl_info *info,
 	table = list_first_entry(dpipe_tables,
 				 struct devlink_dpipe_table, list);
 start_again:
-	err = devlink_dpipe_send_and_alloc_skb(&skb, info);
+	err = devlink_nl_msg_reply_and_new(&skb, info);
 	if (err)
 		return err;
 
@@ -1358,7 +1342,7 @@ send_done:
 	nlh = nlmsg_put(skb, info->snd_portid, info->snd_seq,
 			NLMSG_DONE, 0, flags | NLM_F_MULTI);
 	if (!nlh) {
-		err = devlink_dpipe_send_and_alloc_skb(&skb, info);
+		err = devlink_nl_msg_reply_and_new(&skb, info);
 		if (err)
 			return err;
 		goto send_done;
@@ -1551,8 +1535,8 @@ int devlink_dpipe_entry_ctx_prepare(struct devlink_dpipe_dump_ctx *dump_ctx)
 	struct devlink *devlink;
 	int err;
 
-	err = devlink_dpipe_send_and_alloc_skb(&dump_ctx->skb,
-					       dump_ctx->info);
+	err = devlink_nl_msg_reply_and_new(&dump_ctx->skb,
+					   dump_ctx->info);
 	if (err)
 		return err;
 
@@ -1638,7 +1622,7 @@ send_done:
 	nlh = nlmsg_put(dump_ctx.skb, info->snd_portid, info->snd_seq,
 			NLMSG_DONE, 0, flags | NLM_F_MULTI);
 	if (!nlh) {
-		err = devlink_dpipe_send_and_alloc_skb(&dump_ctx.skb, info);
+		err = devlink_nl_msg_reply_and_new(&dump_ctx.skb, info);
 		if (err)
 			return err;
 		goto send_done;
@@ -1746,7 +1730,7 @@ static int devlink_dpipe_headers_fill(struct genl_info *info,
 
 	i = 0;
 start_again:
-	err = devlink_dpipe_send_and_alloc_skb(&skb, info);
+	err = devlink_nl_msg_reply_and_new(&skb, info);
 	if (err)
 		return err;
 
@@ -1782,7 +1766,7 @@ send_done:
 	nlh = nlmsg_put(skb, info->snd_portid, info->snd_seq,
 			NLMSG_DONE, 0, flags | NLM_F_MULTI);
 	if (!nlh) {
-		err = devlink_dpipe_send_and_alloc_skb(&skb, info);
+		err = devlink_nl_msg_reply_and_new(&skb, info);
 		if (err)
 			return err;
 		goto send_done;
@@ -2047,7 +2031,7 @@ static int devlink_resource_fill(struct genl_info *info,
 	resource = list_first_entry(&devlink->resource_list,
 				    struct devlink_resource, list);
 start_again:
-	err = devlink_dpipe_send_and_alloc_skb(&skb, info);
+	err = devlink_nl_msg_reply_and_new(&skb, info);
 	if (err)
 		return err;
 
@@ -2086,7 +2070,7 @@ send_done:
 	nlh = nlmsg_put(skb, info->snd_portid, info->snd_seq,
 			NLMSG_DONE, 0, flags | NLM_F_MULTI);
 	if (!nlh) {
-		err = devlink_dpipe_send_and_alloc_skb(&skb, info);
+		err = devlink_nl_msg_reply_and_new(&skb, info);
 		if (err)
 			return err;
 		goto send_done;

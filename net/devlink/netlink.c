@@ -82,6 +82,21 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_REGION_DIRECT] = { .type = NLA_FLAG },
 };
 
+int devlink_nl_msg_reply_and_new(struct sk_buff **msg, struct genl_info *info)
+{
+	int err;
+
+	if (*msg) {
+		err = genlmsg_reply(*msg, info);
+		if (err)
+			return err;
+	}
+	*msg = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!*msg)
+		return -ENOMEM;
+	return 0;
+}
+
 struct devlink *
 devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs)
 {
