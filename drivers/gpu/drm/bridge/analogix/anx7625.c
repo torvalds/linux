@@ -2435,8 +2435,10 @@ static void anx7625_bridge_atomic_enable(struct drm_bridge *bridge,
 	if (!connector)
 		return;
 
-	if (ctx->out_of_hibr)
+	if (ctx->out_of_hibr) {
 		ctx->out_of_hibr = false;
+		pr_info("anx7625 hibernation: Display up\n");
+	}
 
 	ctx->connector = connector;
 
