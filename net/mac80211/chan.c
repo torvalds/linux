@@ -1206,8 +1206,8 @@ ieee80211_link_chanctx_reservation_complete(struct ieee80211_link_data *link)
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_OCB:
-		ieee80211_queue_work(&sdata->local->hw,
-				     &link->csa_finalize_work);
+		wiphy_work_queue(sdata->local->hw.wiphy,
+				 &link->csa_finalize_work);
 		break;
 	case NL80211_IFTYPE_STATION:
 		wiphy_delayed_work_queue(sdata->local->hw.wiphy,

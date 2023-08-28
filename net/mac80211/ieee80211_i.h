@@ -990,7 +990,7 @@ struct ieee80211_link_data {
 	struct ieee80211_key __rcu *default_mgmt_key;
 	struct ieee80211_key __rcu *default_beacon_key;
 
-	struct work_struct csa_finalize_work;
+	struct wiphy_work csa_finalize_work;
 	bool csa_block_tx; /* write-protected by sdata_lock and local->mtx */
 
 	bool operating_11g_mode;
@@ -1989,7 +1989,7 @@ int ieee80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 				  struct wireless_dev *wdev, u64 cookie);
 
 /* channel switch handling */
-void ieee80211_csa_finalize_work(struct work_struct *work);
+void ieee80211_csa_finalize_work(struct wiphy *wiphy, struct wiphy_work *work);
 int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 			     struct cfg80211_csa_settings *params);
 
