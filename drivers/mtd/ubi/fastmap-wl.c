@@ -142,8 +142,7 @@ static void wait_free_pebs_for_pool(struct ubi_device *ubi)
  * @ubi: UBI device description object
  *
  * This helper function checks whether there are enough free pebs (deducted
- * by fastmap pebs) to fill fm_pool and fm_wl_pool, above rule works after
- * there is at least one of free pebs is filled into fm_wl_pool.
+ * by fastmap pebs) to fill fm_pool and fm_wl_pool.
  */
 static bool has_enough_free_count(struct ubi_device *ubi)
 {
@@ -152,7 +151,7 @@ static bool has_enough_free_count(struct ubi_device *ubi)
 	if (!ubi->free.rb_node)
 		return false;
 
-	if (ubi->fm_wl_pool.size > 0 && !(ubi->ro_mode || ubi->fm_disabled))
+	if (!ubi->ro_mode && !ubi->fm_disabled)
 		fm_used = ubi->fm_size / ubi->leb_size - 1;
 
 	return ubi->free_count > fm_used;
