@@ -1189,7 +1189,7 @@ qla2xxx_process_purls_pkt(struct scsi_qla_host *vha, struct purex_item *item)
 				 &item->iocb, item->size);
 #endif
 	if (ret) {
-		ql_dbg(ql_dbg_unsol, vha, 0x2125, "NVMe tranport ls_req failed\n");
+		ql_dbg(ql_dbg_unsol, vha, 0x2125, "NVMe transport ls_req failed\n");
 		memset((void *)&a, 0, sizeof(a));
 		a.vp_idx = vha->vp_idx;
 		a.nport_handle = uctx->nport_handle;
