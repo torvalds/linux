@@ -1466,12 +1466,6 @@ struct ieee80211_local {
 	struct list_head mon_list; /* only that are IFF_UP && !cooked */
 	struct mutex iflist_mtx;
 
-	/*
-	 * Key mutex, protects sdata's key_list and sta_info's
-	 * key pointers and ptk_idx (write access, they're RCU.)
-	 */
-	struct mutex key_mtx;
-
 	/* mutex for scan and work locking */
 	struct mutex mtx;
 

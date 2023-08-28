@@ -452,13 +452,11 @@ static int ieee80211_set_tx(struct ieee80211_sub_if_data *sdata,
 	if (sta->ptk_idx == key_idx)
 		return 0;
 
-	mutex_lock(&local->key_mtx);
-	key = key_mtx_dereference(local, sta->ptk[key_idx]);
+	key = wiphy_dereference(local->hw.wiphy, sta->ptk[key_idx]);
 
 	if (key && key->conf.flags & IEEE80211_KEY_FLAG_NO_AUTO_TX)
 		ret = ieee80211_set_tx_key(key);
 
-	mutex_unlock(&local->key_mtx);
 	return ret;
 }
 
@@ -599,30 +597,29 @@ ieee80211_lookup_key(struct ieee80211_sub_if_data *sdata, int link_id,
 		}
 
 		if (pairwise && key_idx < NUM_DEFAULT_KEYS)
-			return rcu_dereference_check_key_mtx(local,
-							     sta->ptk[key_idx]);
+			return wiphy_dereference(local->hw.wiphy,
+						 sta->ptk[key_idx]);
 
 		if (!pairwise &&
 		    key_idx < NUM_DEFAULT_KEYS +
 			      NUM_DEFAULT_MGMT_KEYS +
 			      NUM_DEFAULT_BEACON_KEYS)
-			return rcu_dereference_check_key_mtx(local,
-							     link_sta->gtk[key_idx]);
+			return wiphy_dereference(local->hw.wiphy,
+						 link_sta->gtk[key_idx]);
 
 		return NULL;
 	}
 
 	if (pairwise && key_idx < NUM_DEFAULT_KEYS)
-		return rcu_dereference_check_key_mtx(local,
-						     sdata->keys[key_idx]);
+		return wiphy_dereference(local->hw.wiphy, sdata->keys[key_idx]);
 
-	key = rcu_dereference_check_key_mtx(local, link->gtk[key_idx]);
+	key = wiphy_dereference(local->hw.wiphy, link->gtk[key_idx]);
 	if (key)
 		return key;
 
 	/* or maybe it was a WEP key */
 	if (key_idx < NUM_DEFAULT_KEYS)
-		return rcu_dereference_check_key_mtx(local, sdata->keys[key_idx]);
+		return wiphy_dereference(local->hw.wiphy, sdata->keys[key_idx]);
 
 	return NULL;
 }
@@ -634,25 +631,16 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_key *key;
-	int ret;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	mutex_lock(&local->key_mtx);
-
 	key = ieee80211_lookup_key(sdata, link_id, key_idx, pairwise, mac_addr);
-	if (!key) {
-		ret = -ENOENT;
-		goto out_unlock;
-	}
+	if (!key)
+		return -ENOENT;
 
 	ieee80211_key_free(key, sdata->vif.type == NL80211_IFTYPE_STATION);
 
-	ret = 0;
- out_unlock:
-	mutex_unlock(&local->key_mtx);
-
-	return ret;
+	return 0;
 }
 
 static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,

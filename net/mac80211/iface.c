@@ -1245,6 +1245,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	int res;
 	u32 hw_reconf_flags = 0;
 
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN: {
 		struct ieee80211_sub_if_data *master;
@@ -1271,10 +1273,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		       sizeof(sdata->vif.hw_queue));
 		sdata->vif.bss_conf.chandef = master->vif.bss_conf.chandef;
 
-		mutex_lock(&local->key_mtx);
 		sdata->crypto_tx_tailroom_needed_cnt +=
 			master->crypto_tx_tailroom_needed_cnt;
-		mutex_unlock(&local->key_mtx);
 
 		break;
 		}
