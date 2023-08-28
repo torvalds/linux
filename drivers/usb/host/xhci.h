@@ -558,33 +558,6 @@ struct xhci_doorbell_array {
 #define DB_VALUE(ep, stream)	((((ep) + 1) & 0xff) | ((stream) << 16))
 #define DB_VALUE_HOST		0x00000000
 
-/**
- * struct xhci_protocol_caps
- * @revision:		major revision, minor revision, capability ID,
- *			and next capability pointer.
- * @name_string:	Four ASCII characters to say which spec this xHC
- *			follows, typically "USB ".
- * @port_info:		Port offset, count, and protocol-defined information.
- */
-struct xhci_protocol_caps {
-	u32	revision;
-	u32	name_string;
-	u32	port_info;
-};
-
-#define	XHCI_EXT_PORT_MAJOR(x)	(((x) >> 24) & 0xff)
-#define	XHCI_EXT_PORT_MINOR(x)	(((x) >> 16) & 0xff)
-#define	XHCI_EXT_PORT_PSIC(x)	(((x) >> 28) & 0x0f)
-#define	XHCI_EXT_PORT_OFF(x)	((x) & 0xff)
-#define	XHCI_EXT_PORT_COUNT(x)	(((x) >> 8) & 0xff)
-
-#define	XHCI_EXT_PORT_PSIV(x)	(((x) >> 0) & 0x0f)
-#define	XHCI_EXT_PORT_PSIE(x)	(((x) >> 4) & 0x03)
-#define	XHCI_EXT_PORT_PLT(x)	(((x) >> 6) & 0x03)
-#define	XHCI_EXT_PORT_PFD(x)	(((x) >> 8) & 0x01)
-#define	XHCI_EXT_PORT_LP(x)	(((x) >> 14) & 0x03)
-#define	XHCI_EXT_PORT_PSIM(x)	(((x) >> 16) & 0xffff)
-
 #define PLT_MASK        (0x03 << 6)
 #define PLT_SYM         (0x00 << 6)
 #define PLT_ASYM_RX     (0x02 << 6)
