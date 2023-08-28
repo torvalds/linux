@@ -124,9 +124,6 @@ typedef int devlink_nl_dump_one_func_t(struct sk_buff *msg,
 struct devlink *
 devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs);
 
-void devlink_notify_unregister(struct devlink *devlink);
-void devlink_notify_register(struct devlink *devlink);
-
 int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
 		      devlink_nl_dump_one_func_t *dump_one);
 
@@ -151,7 +148,8 @@ devlink_nl_put_handle(struct sk_buff *msg, struct devlink *devlink)
 int devlink_nl_msg_reply_and_new(struct sk_buff **msg, struct genl_info *info);
 
 /* Notify */
-void devlink_notify(struct devlink *devlink, enum devlink_command cmd);
+void devlink_notify_register(struct devlink *devlink);
+void devlink_notify_unregister(struct devlink *devlink);
 void devlink_ports_notify_register(struct devlink *devlink);
 void devlink_ports_notify_unregister(struct devlink *devlink);
 void devlink_params_notify_register(struct devlink *devlink);
