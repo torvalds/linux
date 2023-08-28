@@ -517,7 +517,7 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 		/*
 		 * For insertions we track reserved metadata space by accounting
 		 * for the number of leaves that will be used, based on the delayed
-		 * node's index_items_size field.
+		 * node's curr_index_batch_size and index_item_leaves fields.
 		 */
 		if (item->type == BTRFS_DELAYED_DELETION_ITEM)
 			item->bytes_reserved = num_bytes;
