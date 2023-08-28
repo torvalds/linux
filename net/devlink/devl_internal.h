@@ -220,6 +220,15 @@ int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
 				     struct genl_info *info);
 int devlink_nl_cmd_port_new_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_port_del_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_sb_pool_set_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_sb_port_pool_set_doit(struct sk_buff *skb,
+					 struct genl_info *info);
+int devlink_nl_cmd_sb_tc_pool_bind_set_doit(struct sk_buff *skb,
+					    struct genl_info *info);
+int devlink_nl_cmd_sb_occ_snapshot_doit(struct sk_buff *skb,
+					struct genl_info *info);
+int devlink_nl_cmd_sb_occ_max_clear_doit(struct sk_buff *skb,
+					 struct genl_info *info);
 int devlink_nl_cmd_health_reporter_set_doit(struct sk_buff *skb,
 					    struct genl_info *info);
 int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
