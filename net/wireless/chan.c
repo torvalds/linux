@@ -823,7 +823,7 @@ bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
 	if (!(chan->flags & IEEE80211_CHAN_RADAR))
 		return false;
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		if (!reg_dfs_domain_same(wiphy, &rdev->wiphy))
 			continue;
 

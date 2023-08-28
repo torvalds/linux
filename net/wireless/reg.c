@@ -2461,7 +2461,7 @@ static void reg_check_chans_work(struct work_struct *work)
 	pr_debug("Verifying active interfaces after reg change\n");
 	rtnl_lock();
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list)
+	for_each_rdev(rdev)
 		reg_leave_invalid_chans(&rdev->wiphy);
 
 	rtnl_unlock();
@@ -2515,7 +2515,7 @@ static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
 
 	ASSERT_RTNL();
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		wiphy = &rdev->wiphy;
 		wiphy_update_regulatory(wiphy, initiator);
 	}
@@ -2991,7 +2991,7 @@ static void wiphy_all_share_dfs_chan_state(struct wiphy *wiphy)
 
 	ASSERT_RTNL();
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		if (wiphy == &rdev->wiphy)
 			continue;
 		wiphy_share_dfs_chan_state(wiphy, &rdev->wiphy);
@@ -3057,7 +3057,7 @@ static void notify_self_managed_wiphys(struct regulatory_request *request)
 	struct cfg80211_registered_device *rdev;
 	struct wiphy *wiphy;
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		wiphy = &rdev->wiphy;
 		if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED &&
 		    request->initiator == NL80211_REGDOM_SET_BY_USER)
@@ -3122,7 +3122,7 @@ static void reg_process_pending_beacon_hints(void)
 		list_del_init(&pending_beacon->list);
 
 		/* Applies the beacon hint to current wiphys */
-		list_for_each_entry(rdev, &cfg80211_rdev_list, list)
+		for_each_rdev(rdev)
 			wiphy_update_new_beacon(&rdev->wiphy, pending_beacon);
 
 		/* Remembers the beacon hint for new wiphys or reg changes */
@@ -3177,7 +3177,7 @@ static void reg_process_self_managed_hints(void)
 
 	ASSERT_RTNL();
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		wiphy_lock(&rdev->wiphy);
 		reg_process_self_managed_hint(&rdev->wiphy);
 		wiphy_unlock(&rdev->wiphy);
@@ -3517,7 +3517,7 @@ static void restore_regulatory_settings(bool reset_user, bool cached)
 	world_alpha2[0] = cfg80211_world_regdom->alpha2[0];
 	world_alpha2[1] = cfg80211_world_regdom->alpha2[1];
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		if (rdev->wiphy.regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
 			continue;
 		if (rdev->wiphy.regulatory_flags & REGULATORY_CUSTOM_REG)
@@ -3574,7 +3574,7 @@ static bool is_wiphy_all_set_reg_flag(enum ieee80211_regulatory_flags flag)
 	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 			wdev_lock(wdev);
 			if (!(wdev->wiphy->regulatory_flags & flag)) {
@@ -4244,7 +4244,7 @@ void regulatory_propagate_dfs_state(struct wiphy *wiphy,
 	if (WARN_ON(!cfg80211_chandef_valid(chandef)))
 		return;
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		if (wiphy == &rdev->wiphy)
 			continue;
 

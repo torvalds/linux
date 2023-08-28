@@ -702,7 +702,7 @@ static bool cfg80211_is_all_idle(void)
 	 * need not issue a disconnect hint and reset any info such
 	 * as chan dfs state, etc.
 	 */
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 			wdev_lock(wdev);
 			if (wdev->conn || wdev->connected ||

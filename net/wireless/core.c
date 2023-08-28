@@ -60,7 +60,7 @@ struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx)
 
 	ASSERT_RTNL();
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		if (rdev->wiphy_idx == wiphy_idx) {
 			result = rdev;
 			break;
@@ -116,7 +116,7 @@ static int cfg80211_dev_check_name(struct cfg80211_registered_device *rdev,
 	}
 
 	/* Ensure another device does not already have this name. */
-	list_for_each_entry(rdev2, &cfg80211_rdev_list, list)
+	for_each_rdev(rdev2)
 		if (strcmp(newname, wiphy_name(&rdev2->wiphy)) == 0)
 			return -EINVAL;
 
@@ -1601,7 +1601,7 @@ static void __net_exit cfg80211_pernet_exit(struct net *net)
 	struct cfg80211_registered_device *rdev;
 
 	rtnl_lock();
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		if (net_eq(wiphy_net(&rdev->wiphy), net))
 			WARN_ON(cfg80211_switch_netns(rdev, &init_net));
 	}

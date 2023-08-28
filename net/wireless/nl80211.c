@@ -106,7 +106,7 @@ __cfg80211_wdev_from_attrs(struct cfg80211_registered_device *rdev,
 
 	ASSERT_RTNL();
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		struct wireless_dev *wdev;
 
 		if (wiphy_net(&rdev->wiphy) != netns)
@@ -3075,7 +3075,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 		cb->args[0] = (long)state;
 	}
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		if (!net_eq(wiphy_net(&rdev->wiphy), sock_net(skb->sk)))
 			continue;
 		if (++idx <= state->start)
@@ -3985,7 +3985,7 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 		filter_wiphy = cb->args[2] - 1;
 	}
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
 		if (!net_eq(wiphy_net(&rdev->wiphy), sock_net(skb->sk)))
 			continue;
 		if (wp_idx < wp_start) {
