@@ -2396,25 +2396,25 @@ static int wsa_macro_probe(struct platform_device *pdev)
 
 	wsa->macro = devm_clk_get_optional(dev, "macro");
 	if (IS_ERR(wsa->macro))
-		return PTR_ERR(wsa->macro);
+		return dev_err_probe(dev, PTR_ERR(wsa->macro), "unable to get macro clock\n");
 
 	wsa->dcodec = devm_clk_get_optional(dev, "dcodec");
 	if (IS_ERR(wsa->dcodec))
-		return PTR_ERR(wsa->dcodec);
+		return dev_err_probe(dev, PTR_ERR(wsa->dcodec), "unable to get dcodec clock\n");
 
 	wsa->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(wsa->mclk))
-		return PTR_ERR(wsa->mclk);
+		return dev_err_probe(dev, PTR_ERR(wsa->mclk), "unable to get mclk clock\n");
 
 	if (flags & LPASS_MACRO_FLAG_HAS_NPL_CLOCK) {
 		wsa->npl = devm_clk_get(dev, "npl");
 		if (IS_ERR(wsa->npl))
-			return PTR_ERR(wsa->npl);
+			return dev_err_probe(dev, PTR_ERR(wsa->npl), "unable to get npl clock\n");
 	}
 
 	wsa->fsgen = devm_clk_get(dev, "fsgen");
 	if (IS_ERR(wsa->fsgen))
-		return PTR_ERR(wsa->fsgen);
+		return dev_err_probe(dev, PTR_ERR(wsa->fsgen), "unable to get fsgen clock\n");
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

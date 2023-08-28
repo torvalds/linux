@@ -21,6 +21,7 @@ config SND_SOC_SOF_AMD_COMMON
 	select SND_SOC_SOF_PCI_DEV
 	select SND_AMD_ACP_CONFIG
 	select SND_SOC_SOF_XTENSA
+	select SND_SOC_SOF_ACP_PROBES
 	select SND_SOC_ACPI if ACPI
 	help
 	  This option is not user-selectable but automatically handled by
@@ -41,5 +42,12 @@ config SND_SOC_SOF_AMD_REMBRANDT
 	  Select this option for SOF support on AMD Rembrandt platform
 	  Say Y if you want to enable SOF on Rembrandt.
 	  If unsure select "N".
+
+config SND_SOC_SOF_ACP_PROBES
+	tristate
+	select SND_SOC_SOF_DEBUG_PROBES
+	help
+	  This option is not user-selectable but automatically handled by
+	  'select' statements at a higher level
 
 endif

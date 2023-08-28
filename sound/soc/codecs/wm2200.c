@@ -2151,7 +2151,7 @@ static const struct regmap_config wm2200_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm2200_reg_defaults),
 	.volatile_reg = wm2200_volatile_register,
 	.readable_reg = wm2200_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.ranges = wm2200_ranges,
 	.num_ranges = ARRAY_SIZE(wm2200_ranges),
 };

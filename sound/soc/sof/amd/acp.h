@@ -61,12 +61,12 @@
 #define HOST_BRIDGE_CZN				0x1630
 #define HOST_BRIDGE_RMB				0x14B5
 #define ACP_SHA_STAT				0x8000
-#define ACP_PSP_TIMEOUT_COUNTER			5
+#define ACP_PSP_TIMEOUT_US			1000000
 #define ACP_EXT_INTR_ERROR_STAT			0x20000000
 #define MP0_C2PMSG_114_REG			0x3810AC8
 #define MP0_C2PMSG_73_REG			0x3810A24
 #define MBOX_ACP_SHA_DMA_COMMAND		0x70000
-#define MBOX_DELAY				1000
+#define MBOX_DELAY_US				1000
 #define MBOX_READY_MASK				0x80000000
 #define MBOX_STATUS_MASK			0xFFFF
 
@@ -77,6 +77,7 @@
 #define AMD_STACK_DUMP_SIZE			32
 
 #define SRAM1_SIZE				0x13A000
+#define PROBE_STATUS_BIT			BIT(31)
 
 enum clock_source {
 	ACP_CLOCK_96M = 0,
@@ -156,6 +157,8 @@ struct acp_dsp_stream {
 	int active;
 	unsigned int reg_offset;
 	size_t posn_offset;
+	struct snd_compr_stream *cstream;
+	u64 cstream_posn;
 };
 
 struct sof_amd_acp_desc {
@@ -168,6 +171,7 @@ struct sof_amd_acp_desc {
 	u32 hw_semaphore_offset;
 	u32 acp_clkmux_sel;
 	u32 fusion_dsp_offset;
+	u32 probe_reg_offset;
 };
 
 /* Common device data struct for ACP devices */
@@ -186,6 +190,7 @@ struct acp_dev_data {
 	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
 	struct acp_dsp_stream *dtrace_stream;
 	struct pci_dev *smn_dev;
+	struct acp_dsp_stream *probe_stream;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
@@ -273,4 +278,8 @@ static inline const struct sof_amd_acp_desc *get_chip_info(struct snd_sof_pdata 
 
 	return desc->chip_info;
 }
+
+int acp_probes_register(struct snd_sof_dev *sdev);
+void acp_probes_unregister(struct snd_sof_dev *sdev);
+
 #endif

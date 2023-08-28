@@ -386,7 +386,6 @@ static int mchp_pdmc_open(struct snd_soc_component *component,
 	for (i = 0; i < ARRAY_SIZE(mchp_pdmc_snd_controls); i++) {
 		const struct snd_kcontrol_new *control = &mchp_pdmc_snd_controls[i];
 		struct snd_ctl_elem_id id;
-		struct snd_kcontrol *kctl;
 		int err;
 
 		if (component->name_prefix)
@@ -400,17 +399,10 @@ static int mchp_pdmc_open(struct snd_soc_component *component,
 		id.device = control->device;
 		id.subdevice = control->subdevice;
 		id.index = control->index;
-		kctl = snd_ctl_find_id(component->card->snd_card, &id);
-		if (!kctl) {
-			dev_err(component->dev, "Failed to find %s\n", control->name);
-			continue;
-		}
-		err = snd_ctl_remove(component->card->snd_card, kctl);
-		if (err < 0) {
+		err = snd_ctl_remove_id(component->card->snd_card, &id);
+		if (err < 0)
 			dev_err(component->dev, "%d: Failed to remove %s\n", err,
 				control->name);
-			continue;
-		}
 	}
 
 	return 0;
@@ -962,7 +954,7 @@ static int mchp_pdmc_dt_init(struct mchp_pdmc *dd)
 /* used to clean the channel index found on RHR's MSB */
 static int mchp_pdmc_process(struct snd_pcm_substream *substream,
 			     int channel, unsigned long hwoff,
-			     void *buf, unsigned long bytes)
+			     struct iov_iter *buf, unsigned long bytes)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	u8 *dma_ptr = runtime->dma_area + hwoff +

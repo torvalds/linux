@@ -407,7 +407,7 @@ static int __graph_parse_node(struct asoc_simple_priv *priv,
 
 	graph_parse_mclk_fs(ep, dai_props);
 
-	ret = asoc_graph_parse_dai(ep, dlc, &is_single_links);
+	ret = asoc_graph_parse_dai(dev, ep, dlc, &is_single_links);
 	if (ret < 0)
 		return ret;
 

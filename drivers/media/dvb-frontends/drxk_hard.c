@@ -20,7 +20,7 @@
 #include <media/dvb_frontend.h>
 #include "drxk.h"
 #include "drxk_hard.h"
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 
 static int power_down_dvbt(struct drxk_state *state, bool set_power_mode);
 static int power_down_qam(struct drxk_state *state);

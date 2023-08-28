@@ -370,18 +370,11 @@ static const struct snd_soc_component_driver pxa_i2s_component = {
 
 static int pxa2xx_i2s_drv_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct resource *res;
 
-	if (!res) {
-		dev_err(&pdev->dev, "missing MMIO resource\n");
-		return -ENXIO;
-	}
-
-	i2s_reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(i2s_reg_base)) {
-		dev_err(&pdev->dev, "ioremap failed\n");
+	i2s_reg_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(i2s_reg_base))
 		return PTR_ERR(i2s_reg_base);
-	}
 
 	pxa2xx_i2s_pcm_stereo_out.addr = res->start + SADR;
 	pxa2xx_i2s_pcm_stereo_in.addr = res->start + SADR;

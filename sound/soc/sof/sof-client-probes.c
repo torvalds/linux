@@ -523,6 +523,7 @@ static void sof_probes_client_remove(struct auxiliary_device *auxdev)
 
 static const struct auxiliary_device_id sof_probes_client_id_table[] = {
 	{ .name = "snd_sof.hda-probes", },
+	{ .name = "snd_sof.acp-probes", },
 	{},
 };
 MODULE_DEVICE_TABLE(auxiliary, sof_probes_client_id_table);

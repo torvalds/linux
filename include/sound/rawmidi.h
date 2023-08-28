@@ -135,7 +135,7 @@ struct snd_rawmidi {
 	struct mutex open_mutex;
 	wait_queue_head_t open_wait;
 
-	struct device dev;
+	struct device *dev;
 
 	struct snd_info_entry *proc_entry;
 
