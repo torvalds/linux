@@ -138,23 +138,44 @@ static void wait_free_pebs_for_pool(struct ubi_device *ubi)
 }
 
 /*
- * has_enough_free_count - whether ubi has enough free pebs to fill fm pools
+ * left_free_count - returns the number of free pebs to fill fm pools
  * @ubi: UBI device description object
  *
- * This helper function checks whether there are enough free pebs (deducted
+ * This helper function returns the number of free pebs (deducted
  * by fastmap pebs) to fill fm_pool and fm_wl_pool.
  */
-static bool has_enough_free_count(struct ubi_device *ubi)
+static int left_free_count(struct ubi_device *ubi)
 {
 	int fm_used = 0;	// fastmap non anchor pebs.
 
 	if (!ubi->free.rb_node)
-		return false;
+		return 0;
 
 	if (!ubi->ro_mode && !ubi->fm_disabled)
 		fm_used = ubi->fm_size / ubi->leb_size - 1;
 
-	return ubi->free_count > fm_used;
+	return ubi->free_count - fm_used;
+}
+
+/*
+ * can_fill_pools - whether free PEBs will be left after filling pools
+ * @ubi: UBI device description object
+ * @free: current number of free PEBs
+ *
+ * Return %1 if there are still left free PEBs after filling pools,
+ * otherwise %0 is returned.
+ */
+static int can_fill_pools(struct ubi_device *ubi, int free)
+{
+	struct ubi_fm_pool *wl_pool = &ubi->fm_wl_pool;
+	struct ubi_fm_pool *pool = &ubi->fm_pool;
+	int pool_need = pool->max_size - pool->size +
+			wl_pool->max_size - wl_pool->size;
+
+	if (free - pool_need < 1)
+		return 0;
+
+	return 1;
 }
 
 /**
@@ -199,7 +220,7 @@ void ubi_refill_pools_and_lock(struct ubi_device *ubi)
 	for (;;) {
 		enough = 0;
 		if (pool->size < pool->max_size) {
-			if (!has_enough_free_count(ubi))
+			if (left_free_count(ubi) <= 0)
 				break;
 
 			e = wl_get_wle(ubi);
@@ -212,10 +233,13 @@ void ubi_refill_pools_and_lock(struct ubi_device *ubi)
 			enough++;
 
 		if (wl_pool->size < wl_pool->max_size) {
-			if (!has_enough_free_count(ubi))
+			int left_free = left_free_count(ubi);
+
+			if (left_free <= 0)
 				break;
 
-			e = find_wl_entry(ubi, &ubi->free, WL_FREE_MAX_DIFF);
+			e = find_wl_entry(ubi, &ubi->free, WL_FREE_MAX_DIFF,
+					  !can_fill_pools(ubi, left_free));
 			self_check_in_wl_tree(ubi, e, &ubi->free);
 			rb_erase(&e->u.rb, &ubi->free);
 			ubi->free_count--;
@@ -355,12 +379,12 @@ static bool need_wear_leveling(struct ubi_device *ubi)
 	if (!e) {
 		if (!ubi->free.rb_node)
 			return false;
-		e = find_wl_entry(ubi, &ubi->free, WL_FREE_MAX_DIFF);
+		e = find_wl_entry(ubi, &ubi->free, WL_FREE_MAX_DIFF, 0);
 		ec = e->ec;
 	} else {
 		ec = e->ec;
 		if (ubi->free.rb_node) {
-			e = find_wl_entry(ubi, &ubi->free, WL_FREE_MAX_DIFF);
+			e = find_wl_entry(ubi, &ubi->free, WL_FREE_MAX_DIFF, 0);
 			ec = max(ec, e->ec);
 		}
 	}
