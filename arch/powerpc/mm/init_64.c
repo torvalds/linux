@@ -569,8 +569,12 @@ static int __init probe_memory_block_size(unsigned long node, const char *uname,
 		 */
 		compatible = of_get_flat_dt_prop(node, "compatible", NULL);
 		if (compatible && !strcmp(compatible, "ibm,coherent-device-memory")) {
-			*block_size = SZ_256M;
-			return 1;
+			if (*block_size > SZ_256M)
+				*block_size = SZ_256M;
+			/*
+			 * We keep 256M as the upper limit with GPU present.
+			 */
+			return 0;
 		}
 	}
 	/* continue looking for other memory device types */
