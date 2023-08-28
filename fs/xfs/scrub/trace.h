@@ -98,6 +98,7 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_FSCOUNTERS);
 
 #define XFS_SCRUB_STATE_STRINGS \
 	{ XCHK_TRY_HARDER,			"try_harder" }, \
+	{ XCHK_HAVE_FREEZE_PROT,		"nofreeze" }, \
 	{ XCHK_FSGATES_DRAIN,			"fsgates_drain" }, \
 	{ XCHK_NEED_DRAIN,			"need_drain" }, \
 	{ XREP_ALREADY_FIXED,			"already_fixed" }
@@ -692,6 +693,31 @@ TRACE_EVENT(xchk_fscounters_within_range,
 		  __entry->curr_value,
 		  __entry->old_value)
 )
+
+DECLARE_EVENT_CLASS(xchk_fsfreeze_class,
+	TP_PROTO(struct xfs_scrub *sc, int error),
+	TP_ARGS(sc, error),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, type)
+		__field(int, error)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->type = sc->sm->sm_type;
+		__entry->error = error;
+	),
+	TP_printk("dev %d:%d type %s error %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
+		  __entry->error)
+);
+#define DEFINE_XCHK_FSFREEZE_EVENT(name) \
+DEFINE_EVENT(xchk_fsfreeze_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, int error), \
+	TP_ARGS(sc, error))
+DEFINE_XCHK_FSFREEZE_EVENT(xchk_fsfreeze);
+DEFINE_XCHK_FSFREEZE_EVENT(xchk_fsthaw);
 
 TRACE_EVENT(xchk_refcount_incorrect,
 	TP_PROTO(struct xfs_perag *pag, const struct xfs_refcount_irec *irec,

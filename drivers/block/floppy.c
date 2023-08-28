@@ -3255,7 +3255,7 @@ static int set_geometry(unsigned int cmd, struct floppy_struct *g,
 
 			if (!disk || ITYPE(drive_state[cnt].fd_device) != type)
 				continue;
-			__invalidate_device(disk->part0, true);
+			disk_force_media_change(disk);
 		}
 		mutex_unlock(&open_lock);
 	} else {
