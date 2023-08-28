@@ -550,7 +550,7 @@ struct ieee80211_if_managed {
 	 * on the BE queue, but there's a lot of VO traffic, we might
 	 * get stuck in a downgraded situation and flush takes forever.
 	 */
-	struct delayed_work tx_tspec_wk;
+	struct wiphy_delayed_work tx_tspec_wk;
 
 	/* Information elements from the last transmitted (Re)Association
 	 * Request frame.
