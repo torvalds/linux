@@ -160,6 +160,12 @@ void devlink_params_notify_register(struct devlink *devlink);
 void devlink_params_notify_unregister(struct devlink *devlink);
 void devlink_regions_notify_register(struct devlink *devlink);
 void devlink_regions_notify_unregister(struct devlink *devlink);
+void devlink_trap_policers_notify_register(struct devlink *devlink);
+void devlink_trap_policers_notify_unregister(struct devlink *devlink);
+void devlink_trap_groups_notify_register(struct devlink *devlink);
+void devlink_trap_groups_notify_unregister(struct devlink *devlink);
+void devlink_traps_notify_register(struct devlink *devlink);
+void devlink_traps_notify_unregister(struct devlink *devlink);
 
 /* Ports */
 #define ASSERT_DEVLINK_PORT_INITIALIZED(devlink_port)				\
@@ -267,3 +273,8 @@ int devlink_nl_cmd_health_reporter_dump_clear_doit(struct sk_buff *skb,
 						   struct genl_info *info);
 int devlink_nl_cmd_health_reporter_test_doit(struct sk_buff *skb,
 					     struct genl_info *info);
+int devlink_nl_cmd_trap_set_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_trap_group_set_doit(struct sk_buff *skb,
+				       struct genl_info *info);
+int devlink_nl_cmd_trap_policer_set_doit(struct sk_buff *skb,
+					 struct genl_info *info);
