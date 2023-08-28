@@ -2211,7 +2211,8 @@ static void ieee80211_change_ps(struct ieee80211_local *local)
 		conf->flags &= ~IEEE80211_CONF_PS;
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 		del_timer_sync(&local->dynamic_ps_timer);
-		cancel_work_sync(&local->dynamic_ps_enable_work);
+		wiphy_work_cancel(local->hw.wiphy,
+				  &local->dynamic_ps_enable_work);
 	}
 }
 
@@ -2308,7 +2309,8 @@ void ieee80211_recalc_ps_vif(struct ieee80211_sub_if_data *sdata)
 	}
 }
 
-void ieee80211_dynamic_ps_disable_work(struct work_struct *work)
+void ieee80211_dynamic_ps_disable_work(struct wiphy *wiphy,
+				       struct wiphy_work *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local,
@@ -2325,7 +2327,8 @@ void ieee80211_dynamic_ps_disable_work(struct work_struct *work)
 					false);
 }
 
-void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
+void ieee80211_dynamic_ps_enable_work(struct wiphy *wiphy,
+				      struct wiphy_work *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local,
@@ -2398,7 +2401,7 @@ void ieee80211_dynamic_ps_timer(struct timer_list *t)
 {
 	struct ieee80211_local *local = from_timer(local, t, dynamic_ps_timer);
 
-	ieee80211_queue_work(&local->hw, &local->dynamic_ps_enable_work);
+	wiphy_work_queue(local->hw.wiphy, &local->dynamic_ps_enable_work);
 }
 
 void ieee80211_dfs_cac_timer_work(struct wiphy *wiphy, struct wiphy_work *work)
@@ -3002,7 +3005,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->deflink.ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
 
 	del_timer_sync(&local->dynamic_ps_timer);
-	cancel_work_sync(&local->dynamic_ps_enable_work);
+	wiphy_work_cancel(local->hw.wiphy, &local->dynamic_ps_enable_work);
 
 	/* Disable ARP filtering */
 	if (sdata->vif.cfg.arp_addr_cnt)

@@ -266,8 +266,8 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 						IEEE80211_QUEUE_STOP_REASON_PS,
 						false);
 		ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
-		ieee80211_queue_work(&local->hw,
-				     &local->dynamic_ps_disable_work);
+		wiphy_work_queue(local->hw.wiphy,
+				 &local->dynamic_ps_disable_work);
 	}
 
 	/* Don't restart the timer if we're not disassociated */

@@ -1560,8 +1560,8 @@ struct ieee80211_local {
 	 * interface (and monitors) in PS, this then points there.
 	 */
 	struct ieee80211_sub_if_data *ps_sdata;
-	struct work_struct dynamic_ps_enable_work;
-	struct work_struct dynamic_ps_disable_work;
+	struct wiphy_work dynamic_ps_enable_work;
+	struct wiphy_work dynamic_ps_disable_work;
 	struct timer_list dynamic_ps_timer;
 	struct notifier_block ifa_notifier;
 	struct notifier_block ifa6_notifier;
@@ -2348,8 +2348,10 @@ static inline int ieee80211_ac_from_tid(int tid)
 	return ieee802_1d_to_ac[tid & 7];
 }
 
-void ieee80211_dynamic_ps_enable_work(struct work_struct *work);
-void ieee80211_dynamic_ps_disable_work(struct work_struct *work);
+void ieee80211_dynamic_ps_enable_work(struct wiphy *wiphy,
+				      struct wiphy_work *work);
+void ieee80211_dynamic_ps_disable_work(struct wiphy *wiphy,
+				       struct wiphy_work *work);
 void ieee80211_dynamic_ps_timer(struct timer_list *t);
 void ieee80211_send_nullfunc(struct ieee80211_local *local,
 			     struct ieee80211_sub_if_data *sdata,
