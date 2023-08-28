@@ -7642,7 +7642,7 @@ out_mutex:
 		goto next_group;
 	}
 out:
-	range->len = trimmed * sb->s_blocksize;
+	range->len = trimmed * osb->s_clustersize;
 	return ret;
 }
 
