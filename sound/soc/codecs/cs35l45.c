@@ -1078,6 +1078,7 @@ static int cs35l45_initialize(struct cs35l45_private *cs35l45)
 
 	switch (dev_id[0]) {
 	case 0x35A450:
+	case 0x35A460:
 		break;
 	default:
 		dev_err(cs35l45->dev, "Bad DEVID 0x%x\n", dev_id[0]);
