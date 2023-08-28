@@ -1440,6 +1440,17 @@ void perf_pmu__del_formats(struct list_head *formats)
 	}
 }
 
+bool perf_pmu__has_format(const struct perf_pmu *pmu, const char *name)
+{
+	struct perf_pmu_format *format;
+
+	list_for_each_entry(format, &pmu->format, list) {
+		if (!strcmp(format->name, name))
+			return true;
+	}
+	return false;
+}
+
 bool is_pmu_core(const char *name)
 {
 	return !strcmp(name, "cpu") || !strcmp(name, "cpum_cf") || is_sysfs_pmu_core(name);

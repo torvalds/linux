@@ -123,6 +123,7 @@ struct dw_i2s_dev {
 	u32 fifo_th;
 	u32 l_reg;
 	u32 r_reg;
+	bool is_jh7110; /* Flag for StarFive JH7110 SoC */
 
 	/* data related to DMA transfers b/w i2s and DMAC */
 	union dw_i2s_snd_dma_data play_dma_data;

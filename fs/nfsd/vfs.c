@@ -956,10 +956,13 @@ nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	last_page = page + (offset + sd->len - 1) / PAGE_SIZE;
 	for (page += offset / PAGE_SIZE; page <= last_page; page++) {
 		/*
-		 * Skip page replacement when extending the contents
-		 * of the current page.
+		 * Skip page replacement when extending the contents of the
+		 * current page.  But note that we may get two zero_pages in a
+		 * row from shmem.
 		 */
-		if (page == *(rqstp->rq_next_page - 1))
+		if (page == *(rqstp->rq_next_page - 1) &&
+		    offset_in_page(rqstp->rq_res.page_base +
+				   rqstp->rq_res.page_len))
 			continue;
 		if (unlikely(!svc_rqst_replace_page(rqstp, page)))
 			return -EIO;

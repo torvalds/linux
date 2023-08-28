@@ -1560,6 +1560,10 @@ static void set_dai_flags(struct snd_soc_dai_driver *dai_drv,
 			1 : 0;
 }
 
+static const struct snd_soc_dai_ops tplg_dai_ops = {
+	.compress_new	= snd_soc_new_compress,
+};
+
 static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	struct snd_soc_tplg_pcm *pcm)
 {
@@ -1601,7 +1605,7 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	}
 
 	if (pcm->compress)
-		dai_drv->compress_new = snd_soc_new_compress;
+		dai_drv->ops = &tplg_dai_ops;
 
 	/* pass control to component driver for optional further init */
 	ret = soc_tplg_dai_load(tplg, dai_drv, pcm, NULL);

@@ -577,7 +577,7 @@ struct tx_msg {
     struct tib_structure tib;
     struct phy_header phy;
     struct mac_header mac;
-    UCHAR  var[1];
+    UCHAR  var[];
 };
 
 /****** ECF Receive Control Structure (RCS) Area at Shared RAM offset 0x0800  */

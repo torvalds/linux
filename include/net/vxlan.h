@@ -556,12 +556,12 @@ static inline void vxlan_flag_attr_error(int attrtype,
 }
 
 static inline bool vxlan_fdb_nh_path_select(struct nexthop *nh,
-					    int hash,
+					    u32 hash,
 					    struct vxlan_rdst *rdst)
 {
 	struct fib_nh_common *nhc;
 
-	nhc = nexthop_path_fdb_result(nh, hash);
+	nhc = nexthop_path_fdb_result(nh, hash >> 1);
 	if (unlikely(!nhc))
 		return false;
 

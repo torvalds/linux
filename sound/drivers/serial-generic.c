@@ -366,7 +366,7 @@ MODULE_DEVICE_TABLE(of, snd_serial_generic_dt_ids);
 static struct serdev_device_driver snd_serial_generic_driver = {
 	.driver	= {
 		.name		= "snd-serial-generic",
-		.of_match_table	= of_match_ptr(snd_serial_generic_dt_ids),
+		.of_match_table	= snd_serial_generic_dt_ids,
 	},
 	.probe	= snd_serial_generic_probe,
 };
