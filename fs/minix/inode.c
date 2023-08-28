@@ -501,10 +501,7 @@ static struct inode *V1_minix_iget(struct inode *inode)
 	i_gid_write(inode, raw_inode->i_gid);
 	set_nlink(inode, raw_inode->i_nlinks);
 	inode->i_size = raw_inode->i_size;
-	inode->i_mtime.tv_sec = inode->i_atime.tv_sec = inode->i_ctime.tv_sec = raw_inode->i_time;
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_atime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
+	inode->i_mtime = inode->i_atime = inode_set_ctime(inode, raw_inode->i_time, 0);
 	inode->i_blocks = 0;
 	for (i = 0; i < 9; i++)
 		minix_inode->u.i1_data[i] = raw_inode->i_zone[i];
@@ -543,10 +540,9 @@ static struct inode *V2_minix_iget(struct inode *inode)
 	inode->i_size = raw_inode->i_size;
 	inode->i_mtime.tv_sec = raw_inode->i_mtime;
 	inode->i_atime.tv_sec = raw_inode->i_atime;
-	inode->i_ctime.tv_sec = raw_inode->i_ctime;
+	inode_set_ctime(inode, raw_inode->i_ctime, 0);
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_atime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
 	inode->i_blocks = 0;
 	for (i = 0; i < 10; i++)
 		minix_inode->u.i2_data[i] = raw_inode->i_zone[i];
@@ -622,7 +618,7 @@ static struct buffer_head * V2_minix_update_inode(struct inode * inode)
 	raw_inode->i_size = inode->i_size;
 	raw_inode->i_mtime = inode->i_mtime.tv_sec;
 	raw_inode->i_atime = inode->i_atime.tv_sec;
-	raw_inode->i_ctime = inode->i_ctime.tv_sec;
+	raw_inode->i_ctime = inode_get_ctime(inode).tv_sec;
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
 		raw_inode->i_zone[0] = old_encode_dev(inode->i_rdev);
 	else for (i = 0; i < 10; i++)
@@ -660,7 +656,7 @@ int minix_getattr(struct mnt_idmap *idmap, const struct path *path,
 	struct super_block *sb = path->dentry->d_sb;
 	struct inode *inode = d_inode(path->dentry);
 
-	generic_fillattr(&nop_mnt_idmap, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 	if (INODE_VERSION(inode) == MINIX_V1)
 		stat->blocks = (BLOCK_SIZE / 512) * V1_minix_blocks(stat->size, sb);
 	else

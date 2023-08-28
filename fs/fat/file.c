@@ -401,7 +401,7 @@ int fat_getattr(struct mnt_idmap *idmap, const struct path *path,
 	struct inode *inode = d_inode(path->dentry);
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
 
-	generic_fillattr(idmap, inode, stat);
+	generic_fillattr(idmap, request_mask, inode, stat);
 	stat->blksize = sbi->cluster_size;
 
 	if (sbi->options.nfs == FAT_NFS_NOSTALE_RO) {

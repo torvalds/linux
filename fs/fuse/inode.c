@@ -194,8 +194,7 @@ void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 		inode->i_mtime.tv_nsec  = attr->mtimensec;
 	}
 	if (!(cache_mask & STATX_CTIME)) {
-		inode->i_ctime.tv_sec   = attr->ctime;
-		inode->i_ctime.tv_nsec  = attr->ctimensec;
+		inode_set_ctime(inode, attr->ctime, attr->ctimensec);
 	}
 
 	if (attr->blksize != 0)
@@ -259,8 +258,8 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 		attr->mtimensec = inode->i_mtime.tv_nsec;
 	}
 	if (cache_mask & STATX_CTIME) {
-		attr->ctime = inode->i_ctime.tv_sec;
-		attr->ctimensec = inode->i_ctime.tv_nsec;
+		attr->ctime = inode_get_ctime(inode).tv_sec;
+		attr->ctimensec = inode_get_ctime(inode).tv_nsec;
 	}
 
 	if ((attr_version != 0 && fi->attr_version > attr_version) ||
@@ -318,8 +317,7 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr,
 	inode->i_size = attr->size;
 	inode->i_mtime.tv_sec  = attr->mtime;
 	inode->i_mtime.tv_nsec = attr->mtimensec;
-	inode->i_ctime.tv_sec  = attr->ctime;
-	inode->i_ctime.tv_nsec = attr->ctimensec;
+	inode_set_ctime(inode, attr->ctime, attr->ctimensec);
 	if (S_ISREG(inode->i_mode)) {
 		fuse_init_common(inode);
 		fuse_init_file_inode(inode, attr->flags);
@@ -1401,16 +1399,18 @@ EXPORT_SYMBOL_GPL(fuse_dev_free);
 static void fuse_fill_attr_from_inode(struct fuse_attr *attr,
 				      const struct fuse_inode *fi)
 {
+	struct timespec64 ctime = inode_get_ctime(&fi->inode);
+
 	*attr = (struct fuse_attr){
 		.ino		= fi->inode.i_ino,
 		.size		= fi->inode.i_size,
 		.blocks		= fi->inode.i_blocks,
 		.atime		= fi->inode.i_atime.tv_sec,
 		.mtime		= fi->inode.i_mtime.tv_sec,
-		.ctime		= fi->inode.i_ctime.tv_sec,
+		.ctime		= ctime.tv_sec,
 		.atimensec	= fi->inode.i_atime.tv_nsec,
 		.mtimensec	= fi->inode.i_mtime.tv_nsec,
-		.ctimensec	= fi->inode.i_ctime.tv_nsec,
+		.ctimensec	= ctime.tv_nsec,
 		.mode		= fi->inode.i_mode,
 		.nlink		= fi->inode.i_nlink,
 		.uid		= fi->inode.i_uid.val,

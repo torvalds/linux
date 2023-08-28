@@ -562,7 +562,7 @@ int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 			   & ~((loff_t)sbi->cluster_size - 1)) >> 9;
 
 	fat_time_fat2unix(sbi, &inode->i_mtime, de->time, de->date, 0);
-	inode->i_ctime = inode->i_mtime;
+	inode_set_ctime_to_ts(inode, inode->i_mtime);
 	if (sbi->options.isvfat) {
 		fat_time_fat2unix(sbi, &inode->i_atime, 0, de->adate, 0);
 		fat_time_fat2unix(sbi, &MSDOS_I(inode)->i_crtime, de->ctime,
@@ -1407,8 +1407,7 @@ static int fat_read_root(struct inode *inode)
 	MSDOS_I(inode)->mmu_private = inode->i_size;
 
 	fat_save_attrs(inode, ATTR_DIR);
-	inode->i_mtime.tv_sec = inode->i_atime.tv_sec = inode->i_ctime.tv_sec = 0;
-	inode->i_mtime.tv_nsec = inode->i_atime.tv_nsec = inode->i_ctime.tv_nsec = 0;
+	inode->i_mtime = inode->i_atime = inode_set_ctime(inode, 0, 0);
 	set_nlink(inode, fat_subdirs(inode)+2);
 
 	return 0;

@@ -450,7 +450,7 @@ v9fs_vfs_getattr_dotl(struct mnt_idmap *idmap,
 	p9_debug(P9_DEBUG_VFS, "dentry: %p\n", dentry);
 	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9ses->cache & (CACHE_META|CACHE_LOOSE)) {
-		generic_fillattr(&nop_mnt_idmap, inode, stat);
+		generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 		return 0;
 	} else if (v9ses->cache) {
 		if (S_ISREG(inode->i_mode)) {
@@ -475,7 +475,7 @@ v9fs_vfs_getattr_dotl(struct mnt_idmap *idmap,
 		return PTR_ERR(st);
 
 	v9fs_stat2inode_dotl(st, d_inode(dentry), 0);
-	generic_fillattr(&nop_mnt_idmap, d_inode(dentry), stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, d_inode(dentry), stat);
 	/* Change block size to what the server returned */
 	stat->blksize = st->st_blksize;
 
@@ -645,8 +645,8 @@ v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode,
 		inode->i_atime.tv_nsec = stat->st_atime_nsec;
 		inode->i_mtime.tv_sec = stat->st_mtime_sec;
 		inode->i_mtime.tv_nsec = stat->st_mtime_nsec;
-		inode->i_ctime.tv_sec = stat->st_ctime_sec;
-		inode->i_ctime.tv_nsec = stat->st_ctime_nsec;
+		inode_set_ctime(inode, stat->st_ctime_sec,
+				stat->st_ctime_nsec);
 		inode->i_uid = stat->st_uid;
 		inode->i_gid = stat->st_gid;
 		set_nlink(inode, stat->st_nlink);
@@ -668,8 +668,8 @@ v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode,
 			inode->i_mtime.tv_nsec = stat->st_mtime_nsec;
 		}
 		if (stat->st_result_mask & P9_STATS_CTIME) {
-			inode->i_ctime.tv_sec = stat->st_ctime_sec;
-			inode->i_ctime.tv_nsec = stat->st_ctime_nsec;
+			inode_set_ctime(inode, stat->st_ctime_sec,
+					stat->st_ctime_nsec);
 		}
 		if (stat->st_result_mask & P9_STATS_UID)
 			inode->i_uid = stat->st_uid;

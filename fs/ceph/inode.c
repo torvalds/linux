@@ -100,7 +100,7 @@ struct inode *ceph_get_snapdir(struct inode *parent)
 	inode->i_uid = parent->i_uid;
 	inode->i_gid = parent->i_gid;
 	inode->i_mtime = parent->i_mtime;
-	inode->i_ctime = parent->i_ctime;
+	inode_set_ctime_to_ts(inode, inode_get_ctime(parent));
 	inode->i_atime = parent->i_atime;
 	ci->i_rbytes = 0;
 	ci->i_btime = ceph_inode(parent)->i_btime;
@@ -688,6 +688,7 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 			 struct timespec64 *mtime, struct timespec64 *atime)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct timespec64 ictime = inode_get_ctime(inode);
 	int warn = 0;
 
 	if (issued & (CEPH_CAP_FILE_EXCL|
@@ -696,11 +697,11 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 		      CEPH_CAP_AUTH_EXCL|
 		      CEPH_CAP_XATTR_EXCL)) {
 		if (ci->i_version == 0 ||
-		    timespec64_compare(ctime, &inode->i_ctime) > 0) {
+		    timespec64_compare(ctime, &ictime) > 0) {
 			dout("ctime %lld.%09ld -> %lld.%09ld inc w/ cap\n",
-			     inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
+			     ictime.tv_sec, ictime.tv_nsec,
 			     ctime->tv_sec, ctime->tv_nsec);
-			inode->i_ctime = *ctime;
+			inode_set_ctime_to_ts(inode, *ctime);
 		}
 		if (ci->i_version == 0 ||
 		    ceph_seq_cmp(time_warp_seq, ci->i_time_warp_seq) > 0) {
@@ -738,7 +739,7 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 	} else {
 		/* we have no write|excl caps; whatever the MDS says is true */
 		if (ceph_seq_cmp(time_warp_seq, ci->i_time_warp_seq) >= 0) {
-			inode->i_ctime = *ctime;
+			inode_set_ctime_to_ts(inode, *ctime);
 			inode->i_mtime = *mtime;
 			inode->i_atime = *atime;
 			ci->i_time_warp_seq = time_warp_seq;
@@ -2166,7 +2167,8 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 		bool only = (ia_valid & (ATTR_SIZE|ATTR_MTIME|ATTR_ATIME|
 					 ATTR_MODE|ATTR_UID|ATTR_GID)) == 0;
 		dout("setattr %p ctime %lld.%ld -> %lld.%ld (%s)\n", inode,
-		     inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
+		     inode_get_ctime(inode).tv_sec,
+		     inode_get_ctime(inode).tv_nsec,
 		     attr->ia_ctime.tv_sec, attr->ia_ctime.tv_nsec,
 		     only ? "ctime only" : "ignored");
 		if (only) {
@@ -2191,7 +2193,7 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 	if (dirtied) {
 		inode_dirty_flags = __ceph_mark_dirty_caps(ci, dirtied,
 							   &prealloc_cf);
-		inode->i_ctime = attr->ia_ctime;
+		inode_set_ctime_to_ts(inode, attr->ia_ctime);
 		inode_inc_iversion_raw(inode);
 	}
 
@@ -2465,7 +2467,7 @@ int ceph_getattr(struct mnt_idmap *idmap, const struct path *path,
 			return err;
 	}
 
-	generic_fillattr(&nop_mnt_idmap, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 	stat->ino = ceph_present_inode(inode);
 
 	/*
