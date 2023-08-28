@@ -364,7 +364,7 @@ trace_raw_output_##call(struct trace_iterator *iter, int flags,		\
 	if (ret != TRACE_TYPE_HANDLED)					\
 		return ret;						\
 									\
-	trace_event_printf(iter, print);				\
+	trace_seq_printf(s, print);					\
 									\
 	return trace_handle_return(s);					\
 }									\
