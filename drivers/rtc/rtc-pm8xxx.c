@@ -528,9 +528,11 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	rc = dev_pm_set_wake_irq(&pdev->dev, rtc_dd->rtc_alarm_irq);
-	if (rc)
-		return rc;
+	if (!of_property_read_bool(pdev->dev.of_node, "qcom,disable-alarm-wakeup")) {
+		rc = dev_pm_set_wake_irq(&pdev->dev, rtc_dd->rtc_alarm_irq);
+		if (rc)
+			return rc;
+	}
 
 	return 0;
 }
