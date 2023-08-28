@@ -1079,12 +1079,12 @@ static void dasd_eckd_get_uid_string(struct dasd_conf *conf,
 
 	create_uid(conf, &uid);
 	if (strlen(uid.vduit) > 0)
-		snprintf(print_uid, sizeof(*print_uid),
+		snprintf(print_uid, DASD_UID_STRLEN,
 			 "%s.%s.%04x.%02x.%s",
 			 uid.vendor, uid.serial, uid.ssid,
 			 uid.real_unit_addr, uid.vduit);
 	else
-		snprintf(print_uid, sizeof(*print_uid),
+		snprintf(print_uid, DASD_UID_STRLEN,
 			 "%s.%s.%04x.%02x",
 			 uid.vendor, uid.serial, uid.ssid,
 			 uid.real_unit_addr);
@@ -1093,8 +1093,8 @@ static void dasd_eckd_get_uid_string(struct dasd_conf *conf,
 static int dasd_eckd_check_cabling(struct dasd_device *device,
 				   void *conf_data, __u8 lpm)
 {
+	char print_path_uid[DASD_UID_STRLEN], print_device_uid[DASD_UID_STRLEN];
 	struct dasd_eckd_private *private = device->private;
-	char print_path_uid[60], print_device_uid[60];
 	struct dasd_conf path_conf;
 
 	path_conf.data = conf_data;
@@ -1293,9 +1293,9 @@ static void dasd_eckd_path_available_action(struct dasd_device *device,
 	__u8 path_rcd_buf[DASD_ECKD_RCD_DATA_SIZE];
 	__u8 lpm, opm, npm, ppm, epm, hpfpm, cablepm;
 	struct dasd_conf_data *conf_data;
+	char print_uid[DASD_UID_STRLEN];
 	struct dasd_conf path_conf;
 	unsigned long flags;
-	char print_uid[60];
 	int rc, pos;
 
 	opm = 0;
@@ -5856,8 +5856,8 @@ static void dasd_eckd_dump_sense(struct dasd_device *device,
 static int dasd_eckd_reload_device(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private = device->private;
+	char print_uid[DASD_UID_STRLEN];
 	int rc, old_base;
-	char print_uid[60];
 	struct dasd_uid uid;
 	unsigned long flags;
 
