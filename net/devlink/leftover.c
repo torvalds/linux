@@ -492,6 +492,50 @@ static int devlink_port_fn_migratable_fill(struct devlink_port *devlink_port,
 	return 0;
 }
 
+static int devlink_port_fn_ipsec_crypto_fill(struct devlink_port *devlink_port,
+					     struct nla_bitfield32 *caps,
+					     struct netlink_ext_ack *extack)
+{
+	bool is_enable;
+	int err;
+
+	if (!devlink_port->ops->port_fn_ipsec_crypto_get ||
+	    devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PCI_VF)
+		return 0;
+
+	err = devlink_port->ops->port_fn_ipsec_crypto_get(devlink_port, &is_enable, extack);
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			return 0;
+		return err;
+	}
+
+	devlink_port_fn_cap_fill(caps, DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO, is_enable);
+	return 0;
+}
+
+static int devlink_port_fn_ipsec_packet_fill(struct devlink_port *devlink_port,
+					     struct nla_bitfield32 *caps,
+					     struct netlink_ext_ack *extack)
+{
+	bool is_enable;
+	int err;
+
+	if (!devlink_port->ops->port_fn_ipsec_packet_get ||
+	    devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PCI_VF)
+		return 0;
+
+	err = devlink_port->ops->port_fn_ipsec_packet_get(devlink_port, &is_enable, extack);
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			return 0;
+		return err;
+	}
+
+	devlink_port_fn_cap_fill(caps, DEVLINK_PORT_FN_CAP_IPSEC_PACKET, is_enable);
+	return 0;
+}
+
 static int devlink_port_fn_caps_fill(struct devlink_port *devlink_port,
 				     struct sk_buff *msg,
 				     struct netlink_ext_ack *extack,
@@ -505,6 +549,14 @@ static int devlink_port_fn_caps_fill(struct devlink_port *devlink_port,
 		return err;
 
 	err = devlink_port_fn_migratable_fill(devlink_port, &caps, extack);
+	if (err)
+		return err;
+
+	err = devlink_port_fn_ipsec_crypto_fill(devlink_port, &caps, extack);
+	if (err)
+		return err;
+
+	err = devlink_port_fn_ipsec_packet_fill(devlink_port, &caps, extack);
 	if (err)
 		return err;
 
@@ -838,6 +890,20 @@ devlink_port_fn_roce_set(struct devlink_port *devlink_port, bool enable,
 						   extack);
 }
 
+static int
+devlink_port_fn_ipsec_crypto_set(struct devlink_port *devlink_port, bool enable,
+				 struct netlink_ext_ack *extack)
+{
+	return devlink_port->ops->port_fn_ipsec_crypto_set(devlink_port, enable, extack);
+}
+
+static int
+devlink_port_fn_ipsec_packet_set(struct devlink_port *devlink_port, bool enable,
+				 struct netlink_ext_ack *extack)
+{
+	return devlink_port->ops->port_fn_ipsec_packet_set(devlink_port, enable, extack);
+}
+
 static int devlink_port_fn_caps_set(struct devlink_port *devlink_port,
 				    const struct nlattr *attr,
 				    struct netlink_ext_ack *extack)
@@ -859,6 +925,20 @@ static int devlink_port_fn_caps_set(struct devlink_port *devlink_port,
 		err = devlink_port_fn_mig_set(devlink_port, caps_value &
 					      DEVLINK_PORT_FN_CAP_MIGRATABLE,
 					      extack);
+		if (err)
+			return err;
+	}
+	if (caps.selector & DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO) {
+		err = devlink_port_fn_ipsec_crypto_set(devlink_port, caps_value &
+						       DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO,
+						       extack);
+		if (err)
+			return err;
+	}
+	if (caps.selector & DEVLINK_PORT_FN_CAP_IPSEC_PACKET) {
+		err = devlink_port_fn_ipsec_packet_set(devlink_port, caps_value &
+						       DEVLINK_PORT_FN_CAP_IPSEC_PACKET,
+						       extack);
 		if (err)
 			return err;
 	}
@@ -1223,6 +1303,30 @@ static int devlink_port_function_validate(struct devlink_port *devlink_port,
 			if (devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PCI_VF) {
 				NL_SET_ERR_MSG_ATTR(extack, attr,
 						    "migratable function attribute supported for VFs only");
+				return -EOPNOTSUPP;
+			}
+		}
+		if (caps.selector & DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO) {
+			if (!ops->port_fn_ipsec_crypto_set) {
+				NL_SET_ERR_MSG_ATTR(extack, attr,
+						    "Port doesn't support ipsec_crypto function attribute");
+				return -EOPNOTSUPP;
+			}
+			if (devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PCI_VF) {
+				NL_SET_ERR_MSG_ATTR(extack, attr,
+						    "ipsec_crypto function attribute supported for VFs only");
+				return -EOPNOTSUPP;
+			}
+		}
+		if (caps.selector & DEVLINK_PORT_FN_CAP_IPSEC_PACKET) {
+			if (!ops->port_fn_ipsec_packet_set) {
+				NL_SET_ERR_MSG_ATTR(extack, attr,
+						    "Port doesn't support ipsec_packet function attribute");
+				return -EOPNOTSUPP;
+			}
+			if (devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PCI_VF) {
+				NL_SET_ERR_MSG_ATTR(extack, attr,
+						    "ipsec_packet function attribute supported for VFs only");
 				return -EOPNOTSUPP;
 			}
 		}

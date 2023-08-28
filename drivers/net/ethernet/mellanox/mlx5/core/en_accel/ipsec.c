@@ -38,6 +38,7 @@
 #include <net/netevent.h>
 
 #include "en.h"
+#include "eswitch.h"
 #include "ipsec.h"
 #include "ipsec_rxtx.h"
 #include "en_rep.h"
@@ -670,6 +671,11 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 	if (err)
 		goto err_xfrm;
 
+	if (!mlx5_eswitch_block_ipsec(priv->mdev)) {
+		err = -EBUSY;
+		goto err_xfrm;
+	}
+
 	/* check esn */
 	if (x->props.flags & XFRM_STATE_ESN)
 		mlx5e_ipsec_update_esn_state(sa_entry);
@@ -678,7 +684,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 
 	err = mlx5_ipsec_create_work(sa_entry);
 	if (err)
-		goto err_xfrm;
+		goto unblock_ipsec;
 
 	err = mlx5e_ipsec_create_dwork(sa_entry);
 	if (err)
@@ -735,6 +741,8 @@ release_work:
 	if (sa_entry->work)
 		kfree(sa_entry->work->data);
 	kfree(sa_entry->work);
+unblock_ipsec:
+	mlx5_eswitch_unblock_ipsec(priv->mdev);
 err_xfrm:
 	kfree(sa_entry);
 	NL_SET_ERR_MSG_WEAK_MOD(extack, "Device failed to offload this state");
@@ -764,6 +772,7 @@ static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
+	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
 
 	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
 		goto sa_entry_free;
@@ -780,6 +789,7 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 	if (sa_entry->work)
 		kfree(sa_entry->work->data);
 	kfree(sa_entry->work);
+	mlx5_eswitch_unblock_ipsec(ipsec->mdev);
 sa_entry_free:
 	kfree(sa_entry);
 }
@@ -1055,6 +1065,11 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 	pol_entry->x = x;
 	pol_entry->ipsec = priv->ipsec;
 
+	if (!mlx5_eswitch_block_ipsec(priv->mdev)) {
+		err = -EBUSY;
+		goto ipsec_busy;
+	}
+
 	mlx5e_ipsec_build_accel_pol_attrs(pol_entry, &pol_entry->attrs);
 	err = mlx5e_accel_ipsec_fs_add_pol(pol_entry);
 	if (err)
@@ -1064,6 +1079,8 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 	return 0;
 
 err_fs:
+	mlx5_eswitch_unblock_ipsec(priv->mdev);
+ipsec_busy:
 	kfree(pol_entry);
 	NL_SET_ERR_MSG_MOD(extack, "Device failed to offload this policy");
 	return err;
@@ -1074,6 +1091,7 @@ static void mlx5e_xfrm_del_policy(struct xfrm_policy *x)
 	struct mlx5e_ipsec_pol_entry *pol_entry = to_ipsec_pol_entry(x);
 
 	mlx5e_accel_ipsec_fs_del_pol(pol_entry);
+	mlx5_eswitch_unblock_ipsec(pol_entry->ipsec->mdev);
 }
 
 static void mlx5e_xfrm_free_policy(struct xfrm_policy *x)
