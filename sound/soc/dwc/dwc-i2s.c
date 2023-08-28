@@ -729,6 +729,7 @@ static int dw_configure_dai_by_dt(struct dw_i2s_dev *dev,
 
 }
 
+#ifdef CONFIG_OF
 /* clocks initialization with master mode on JH7110 SoC */
 static int jh7110_i2s_crg_master_init(struct dw_i2s_dev *dev)
 {
@@ -912,6 +913,7 @@ static int jh7110_i2stx0_clk_cfg(struct i2s_clk_config_data *config)
 
 	return clk_set_rate(dev->clk, bclk_rate);
 }
+#endif /* CONFIG_OF */
 
 static int dw_i2s_probe(struct platform_device *pdev)
 {
