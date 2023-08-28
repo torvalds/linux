@@ -538,7 +538,7 @@ ieee80211_smps_mode_to_smps_mode(enum ieee80211_smps_mode smps)
 
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_smps_mode smps, const u8 *da,
-			       const u8 *bssid)
+			       const u8 *bssid, int link_id)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
@@ -579,7 +579,7 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 
 	/* we'll do more on status of this frame */
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
-	ieee80211_tx_skb(sdata, skb);
+	ieee80211_tx_skb_tid(sdata, skb, 7, link_id);
 
 	return 0;
 }

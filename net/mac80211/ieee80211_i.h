@@ -2098,7 +2098,7 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 			  u16 initiator, u16 reason_code);
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_smps_mode smps, const u8 *da,
-			       const u8 *bssid);
+			       const u8 *bssid, int link_id);
 bool ieee80211_smps_is_restrictive(enum ieee80211_smps_mode smps_mode_old,
 				   enum ieee80211_smps_mode smps_mode_new);
 
