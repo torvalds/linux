@@ -1133,6 +1133,8 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 	struct device *dev = axp20x->dev;
 	const struct acpi_device_id *acpi_id;
 	const struct of_device_id *of_id;
+	const struct mfd_cell *cells_no_irq = NULL;
+	int nr_cells_no_irq = 0;
 
 	if (dev->of_node) {
 		of_id = of_match_device(dev->driver->of_match_table, dev);
@@ -1207,14 +1209,15 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 		 * if there is no interrupt line.
 		 */
 		if (of_property_read_bool(axp20x->dev->of_node,
-					  "x-powers,self-working-mode") &&
-		    axp20x->irq > 0) {
+					  "x-powers,self-working-mode")) {
 			axp20x->nr_cells = ARRAY_SIZE(axp806_self_working_cells);
 			axp20x->cells = axp806_self_working_cells;
 		} else {
 			axp20x->nr_cells = ARRAY_SIZE(axp806_cells);
 			axp20x->cells = axp806_cells;
 		}
+		nr_cells_no_irq = ARRAY_SIZE(axp806_cells);
+		cells_no_irq = axp806_cells;
 		axp20x->regmap_cfg = &axp806_regmap_config;
 		axp20x->regmap_irq_chip = &axp806_regmap_irq_chip;
 		break;
@@ -1238,24 +1241,8 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 		axp20x->regmap_irq_chip = &axp803_regmap_irq_chip;
 		break;
 	case AXP15060_ID:
-		/*
-		 * Don't register the power key part if there is no interrupt
-		 * line.
-		 *
-		 * Since most use cases of AXP PMICs are Allwinner SOCs, board
-		 * designers follow Allwinner's reference design and connects
-		 * IRQ line to SOC, there's no need for those variants to deal
-		 * with cases that IRQ isn't connected. However, AXP15660 is
-		 * used by some other vendors' SOCs that didn't connect IRQ
-		 * line, we need to deal with this case.
-		 */
-		if (axp20x->irq > 0) {
-			axp20x->nr_cells = ARRAY_SIZE(axp15060_cells);
-			axp20x->cells = axp15060_cells;
-		} else {
-			axp20x->nr_cells = ARRAY_SIZE(axp_regulator_only_cells);
-			axp20x->cells = axp_regulator_only_cells;
-		}
+		axp20x->nr_cells = ARRAY_SIZE(axp15060_cells);
+		axp20x->cells = axp15060_cells;
 		axp20x->regmap_cfg = &axp15060_regmap_config;
 		axp20x->regmap_irq_chip = &axp15060_regmap_irq_chip;
 		break;
@@ -1263,6 +1250,23 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 		dev_err(dev, "unsupported AXP20X ID %lu\n", axp20x->variant);
 		return -EINVAL;
 	}
+
+	/*
+	 * Use an alternative cell array when no interrupt line is connected,
+	 * since IRQs are required by some drivers.
+	 * The default is the safe "regulator-only", as this works fine without
+	 * an interrupt specified.
+	 */
+	if (axp20x->irq <= 0) {
+		if (cells_no_irq) {
+			axp20x->nr_cells = nr_cells_no_irq;
+			axp20x->cells = cells_no_irq;
+		} else {
+			axp20x->nr_cells = ARRAY_SIZE(axp_regulator_only_cells);
+			axp20x->cells = axp_regulator_only_cells;
+		}
+	}
+
 	dev_info(dev, "AXP20x variant %s found\n",
 		 axp20x_model_names[axp20x->variant]);
 
