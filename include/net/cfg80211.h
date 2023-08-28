@@ -5690,6 +5690,16 @@ void wiphy_work_queue(struct wiphy *wiphy, struct wiphy_work *work);
  */
 void wiphy_work_cancel(struct wiphy *wiphy, struct wiphy_work *work);
 
+/**
+ * wiphy_work_flush - flush previously queued work
+ * @wiphy: the wiphy, for debug purposes
+ * @work: the work to flush, this can be %NULL to flush all work
+ *
+ * Flush the work (i.e. run it if pending). This must be called
+ * under the wiphy mutex acquired by wiphy_lock().
+ */
+void wiphy_work_flush(struct wiphy *wiphy, struct wiphy_work *work);
+
 struct wiphy_delayed_work {
 	struct wiphy_work work;
 	struct wiphy *wiphy;
@@ -5732,6 +5742,17 @@ void wiphy_delayed_work_queue(struct wiphy *wiphy,
  */
 void wiphy_delayed_work_cancel(struct wiphy *wiphy,
 			       struct wiphy_delayed_work *dwork);
+
+/**
+ * wiphy_delayed work_flush - flush previously queued delayed work
+ * @wiphy: the wiphy, for debug purposes
+ * @work: the work to flush
+ *
+ * Flush the work (i.e. run it if pending). This must be called
+ * under the wiphy mutex acquired by wiphy_lock().
+ */
+void wiphy_delayed_work_flush(struct wiphy *wiphy,
+			      struct wiphy_delayed_work *dwork);
 
 /**
  * struct wireless_dev - wireless device state
