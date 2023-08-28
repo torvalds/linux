@@ -293,6 +293,9 @@ static __always_inline unsigned long variable_ffz(unsigned long word)
  */
 static __always_inline unsigned long __fls(unsigned long word)
 {
+	if (__builtin_constant_p(word))
+		return BITS_PER_LONG - 1 - __builtin_clzl(word);
+
 	asm("bsr %1,%0"
 	    : "=r" (word)
 	    : "rm" (word));
@@ -360,6 +363,9 @@ static __always_inline int fls(unsigned int x)
 {
 	int r;
 
+	if (__builtin_constant_p(x))
+		return x ? 32 - __builtin_clz(x) : 0;
+
 #ifdef CONFIG_X86_64
 	/*
 	 * AMD64 says BSRL won't clobber the dest reg if x==0; Intel64 says the
@@ -401,6 +407,9 @@ static __always_inline int fls(unsigned int x)
 static __always_inline int fls64(__u64 x)
 {
 	int bitpos = -1;
+
+	if (__builtin_constant_p(x))
+		return x ? 64 - __builtin_clzll(x) : 0;
 	/*
 	 * AMD64 says BSRQ won't clobber the dest reg if x==0; Intel64 says the
 	 * dest reg is undefined if x==0, but their CPU architect says its
