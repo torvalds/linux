@@ -3415,7 +3415,7 @@ static void msm_geni_serial_flush(struct uart_port *uport)
 	struct msm_geni_serial_port *port = GET_DEV_PORT(uport);
 
 	atomic_set(&port->flush_buffers, 1);
-	stop_tx_sequencer(uport);
+	msm_geni_serial_stop_tx(uport);
 }
 
 static void msm_geni_serial_shutdown(struct uart_port *uport)
