@@ -135,6 +135,16 @@ static void arfs_del_rules(struct mlx5e_flow_steering *fs);
 
 int mlx5e_arfs_disable(struct mlx5e_flow_steering *fs)
 {
+	/* Moving to switchdev mode, fs->arfs is freed by mlx5e_nic_profile
+	 * cleanup_rx callback and it is not recreated when
+	 * mlx5e_uplink_rep_profile is loaded as mlx5e_create_flow_steering()
+	 * is not called by the uplink_rep profile init_rx callback. Thus, if
+	 * ntuple is set, moving to switchdev flow will enter this function
+	 * with fs->arfs nullified.
+	 */
+	if (!mlx5e_fs_get_arfs(fs))
+		return 0;
+
 	arfs_del_rules(fs);
 
 	return arfs_disable(fs);

@@ -516,14 +516,6 @@ static int mchp_spdiftx_hw_free(struct snd_pcm_substream *substream,
 			    SPDIFTX_CR_SWRST | SPDIFTX_CR_FCLR);
 }
 
-static const struct snd_soc_dai_ops mchp_spdiftx_dai_ops = {
-	.startup	= mchp_spdiftx_dai_startup,
-	.shutdown	= mchp_spdiftx_dai_shutdown,
-	.trigger	= mchp_spdiftx_trigger,
-	.hw_params	= mchp_spdiftx_hw_params,
-	.hw_free	= mchp_spdiftx_hw_free,
-};
-
 #define MCHP_SPDIFTX_RATES	SNDRV_PCM_RATE_8000_192000
 
 #define MCHP_SPDIFTX_FORMATS	(SNDRV_PCM_FMTBIT_S8 |		\
@@ -703,9 +695,17 @@ static int mchp_spdiftx_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops mchp_spdiftx_dai_ops = {
+	.probe		= mchp_spdiftx_dai_probe,
+	.startup	= mchp_spdiftx_dai_startup,
+	.shutdown	= mchp_spdiftx_dai_shutdown,
+	.trigger	= mchp_spdiftx_trigger,
+	.hw_params	= mchp_spdiftx_hw_params,
+	.hw_free	= mchp_spdiftx_hw_free,
+};
+
 static struct snd_soc_dai_driver mchp_spdiftx_dai = {
 	.name = "mchp-spdiftx",
-	.probe	= mchp_spdiftx_dai_probe,
 	.playback = {
 		.stream_name = "S/PDIF Playback",
 		.channels_min = 1,
@@ -891,7 +891,7 @@ static struct platform_driver mchp_spdiftx_driver = {
 	.remove_new = mchp_spdiftx_remove,
 	.driver	= {
 		.name	= "mchp_spdiftx",
-		.of_match_table = of_match_ptr(mchp_spdiftx_dt_ids),
+		.of_match_table = mchp_spdiftx_dt_ids,
 		.pm = pm_ptr(&mchp_spdiftx_pm_ops)
 	},
 };

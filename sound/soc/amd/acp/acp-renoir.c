@@ -97,7 +97,6 @@ static struct snd_soc_dai_driver acp_renoir_dai[] = {
 		.rate_max = 48000,
 	},
 	.ops = &asoc_acp_cpu_dai_ops,
-	.probe = &asoc_acp_i2s_probe,
 },
 {
 	.name = "acp-i2s-bt",
@@ -123,7 +122,6 @@ static struct snd_soc_dai_driver acp_renoir_dai[] = {
 		.rate_max = 48000,
 	},
 	.ops = &asoc_acp_cpu_dai_ops,
-	.probe = &asoc_acp_i2s_probe,
 },
 {
 	.name = "acp-pdm-dmic",

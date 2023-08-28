@@ -63,8 +63,6 @@ struct parport_gsc_private {
 	int writeIntrThreshold;
 
 	/* buffer suitable for DMA, if DMA enabled */
-	char *dma_buf;
-	dma_addr_t dma_handle;
 	struct pci_dev *dev;
 };
 
@@ -198,10 +196,5 @@ extern void parport_gsc_restore_state(struct parport *p, struct parport_state *s
 extern void parport_gsc_inc_use_count(void);
 
 extern void parport_gsc_dec_use_count(void);
-
-extern struct parport *parport_gsc_probe_port(unsigned long base,
-						unsigned long base_hi,
-						int irq, int dma,
-						struct parisc_device *padev);
 
 #endif	/* __DRIVERS_PARPORT_PARPORT_GSC_H */

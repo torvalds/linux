@@ -43,6 +43,17 @@ static void sc7280_jack_free(struct snd_jack *jack)
 	snd_soc_component_set_jack(component, NULL, NULL);
 }
 
+static struct snd_soc_jack_pin sc7280_jack_pins[] = {
+	{
+		.pin = "Headphone Jack",
+		.mask = SND_JACK_HEADPHONE,
+	},
+	{
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+};
+
 static int sc7280_headset_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
@@ -54,13 +65,15 @@ static int sc7280_headset_init(struct snd_soc_pcm_runtime *rtd)
 	int rval, i;
 
 	if (!pdata->jack_setup) {
-		rval = snd_soc_card_jack_new(card, "Headset Jack",
-					     SND_JACK_HEADSET | SND_JACK_LINEOUT |
-					     SND_JACK_MECHANICAL |
-					     SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-					     SND_JACK_BTN_2 | SND_JACK_BTN_3 |
-					     SND_JACK_BTN_4 | SND_JACK_BTN_5,
-					     &pdata->hs_jack);
+		rval = snd_soc_card_jack_new_pins(card, "Headset Jack",
+						  SND_JACK_HEADSET | SND_JACK_LINEOUT |
+						  SND_JACK_MECHANICAL |
+						  SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+						  SND_JACK_BTN_2 | SND_JACK_BTN_3 |
+						  SND_JACK_BTN_4 | SND_JACK_BTN_5,
+						  &pdata->hs_jack,
+						  sc7280_jack_pins,
+						  ARRAY_SIZE(sc7280_jack_pins));
 
 		if (rval < 0) {
 			dev_err(card->dev, "Unable to add Headset Jack\n");
@@ -361,6 +374,11 @@ static const struct snd_soc_dapm_widget sc7280_snd_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 };
 
+static const struct snd_kcontrol_new sc7280_snd_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+};
+
 static int sc7280_snd_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					 struct snd_pcm_hw_params *params)
 {
@@ -396,6 +414,8 @@ static int sc7280_snd_platform_probe(struct platform_device *pdev)
 
 	card->dapm_widgets = sc7280_snd_widgets;
 	card->num_dapm_widgets = ARRAY_SIZE(sc7280_snd_widgets);
+	card->controls = sc7280_snd_controls;
+	card->num_controls = ARRAY_SIZE(sc7280_snd_controls);
 
 	ret = qcom_snd_parse_of(card);
 	if (ret)

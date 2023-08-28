@@ -89,6 +89,12 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 3072000
 
+  nuvoton,left-input-single-end:
+    description: Enable left input with single-ended settings if set.
+        For the headset mic application, the single-ended control is
+        just limited to the left adc for design demand.
+    type: boolean
+
   '#sound-dai-cells':
     const: 0
 
@@ -114,6 +120,7 @@ examples:
             nuvoton,jkdet-pull-enable;
             nuvoton,jkdet-pull-up;
             nuvoton,key-enable;
+            nuvoton,left-input-single-end;
             nuvoton,jkdet-polarity = <GPIO_ACTIVE_LOW>;
             nuvoton,micbias-voltage = <6>;
             nuvoton,vref-impedance = <2>;

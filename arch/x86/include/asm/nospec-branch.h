@@ -211,7 +211,8 @@
  * eventually turn into it's own annotation.
  */
 .macro VALIDATE_UNRET_END
-#if defined(CONFIG_NOINSTR_VALIDATION) && defined(CONFIG_CPU_UNRET_ENTRY)
+#if defined(CONFIG_NOINSTR_VALIDATION) && \
+	(defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_SRSO))
 	ANNOTATE_RETPOLINE_SAFE
 	nop
 #endif
@@ -289,12 +290,17 @@
  */
 .macro UNTRAIN_RET
 #if defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_IBPB_ENTRY) || \
-	defined(CONFIG_CALL_DEPTH_TRACKING)
+	defined(CONFIG_CALL_DEPTH_TRACKING) || defined(CONFIG_CPU_SRSO)
 	VALIDATE_UNRET_END
 	ALTERNATIVE_3 "",						\
 		      CALL_ZEN_UNTRAIN_RET, X86_FEATURE_UNRET,		\
 		      "call entry_ibpb", X86_FEATURE_ENTRY_IBPB,	\
 		      __stringify(RESET_CALL_DEPTH), X86_FEATURE_CALL_DEPTH
+#endif
+
+#ifdef CONFIG_CPU_SRSO
+	ALTERNATIVE_2 "", "call srso_untrain_ret", X86_FEATURE_SRSO, \
+			  "call srso_untrain_ret_alias", X86_FEATURE_SRSO_ALIAS
 #endif
 .endm
 
@@ -306,6 +312,11 @@
 		      CALL_ZEN_UNTRAIN_RET, X86_FEATURE_UNRET,		\
 		      "call entry_ibpb", X86_FEATURE_ENTRY_IBPB,	\
 		      __stringify(RESET_CALL_DEPTH_FROM_CALL), X86_FEATURE_CALL_DEPTH
+#endif
+
+#ifdef CONFIG_CPU_SRSO
+	ALTERNATIVE_2 "", "call srso_untrain_ret", X86_FEATURE_SRSO, \
+			  "call srso_untrain_ret_alias", X86_FEATURE_SRSO_ALIAS
 #endif
 .endm
 
@@ -332,6 +343,8 @@ extern retpoline_thunk_t __x86_indirect_jump_thunk_array[];
 
 extern void __x86_return_thunk(void);
 extern void zen_untrain_ret(void);
+extern void srso_untrain_ret(void);
+extern void srso_untrain_ret_alias(void);
 extern void entry_ibpb(void);
 
 #ifdef CONFIG_CALL_THUNKS
@@ -479,11 +492,11 @@ void alternative_msr_write(unsigned int msr, u64 val, unsigned int feature)
 		: "memory");
 }
 
+extern u64 x86_pred_cmd;
+
 static inline void indirect_branch_prediction_barrier(void)
 {
-	u64 val = PRED_CMD_IBPB;
-
-	alternative_msr_write(MSR_IA32_PRED_CMD, val, X86_FEATURE_USE_IBPB);
+	alternative_msr_write(MSR_IA32_PRED_CMD, x86_pred_cmd, X86_FEATURE_USE_IBPB);
 }
 
 /* The Intel SPEC CTRL MSR base value cache */

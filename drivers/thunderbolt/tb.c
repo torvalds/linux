@@ -1964,6 +1964,8 @@ unlock:
 
 	pm_runtime_mark_last_busy(&tb->dev);
 	pm_runtime_put_autosuspend(&tb->dev);
+
+	kfree(ev);
 }
 
 static void tb_queue_dp_bandwidth_request(struct tb *tb, u64 route, u8 port)
