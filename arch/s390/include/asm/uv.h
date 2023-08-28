@@ -463,6 +463,7 @@ static inline int is_prot_virt_host(void)
 	return prot_virt_host;
 }
 
+int uv_pin_shared(unsigned long paddr);
 int gmap_make_secure(struct gmap *gmap, unsigned long gaddr, void *uvcb);
 int gmap_destroy_page(struct gmap *gmap, unsigned long gaddr);
 int uv_destroy_owned_page(unsigned long paddr);
@@ -474,6 +475,11 @@ void setup_uv(void);
 #else
 #define is_prot_virt_host() 0
 static inline void setup_uv(void) {}
+
+static inline int uv_pin_shared(unsigned long paddr)
+{
+	return 0;
+}
 
 static inline int uv_destroy_owned_page(unsigned long paddr)
 {
