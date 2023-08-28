@@ -1736,9 +1736,6 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 	int over = 0;
 	unsigned char d_type;
 
-	if (list_empty(ins_list))
-		return 0;
-
 	/*
 	 * Changing the data of the delayed item is impossible. So
 	 * we needn't lock them. And we have held i_mutex of the

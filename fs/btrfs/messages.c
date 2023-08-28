@@ -10,14 +10,13 @@
 #ifdef CONFIG_PRINTK
 
 #define STATE_STRING_PREFACE	": state "
-#define STATE_STRING_BUF_LEN	(sizeof(STATE_STRING_PREFACE) + BTRFS_FS_STATE_COUNT)
+#define STATE_STRING_BUF_LEN	(sizeof(STATE_STRING_PREFACE) + BTRFS_FS_STATE_COUNT + 1)
 
 /*
  * Characters to print to indicate error conditions or uncommon filesystem state.
  * RO is not an error.
  */
 static const char fs_state_chars[] = {
-	[BTRFS_FS_STATE_ERROR]			= 'E',
 	[BTRFS_FS_STATE_REMOUNTING]		= 'M',
 	[BTRFS_FS_STATE_RO]			= 0,
 	[BTRFS_FS_STATE_TRANS_ABORTED]		= 'A',
@@ -36,6 +35,11 @@ static void btrfs_state_to_string(const struct btrfs_fs_info *info, char *buf)
 
 	memcpy(curr, STATE_STRING_PREFACE, sizeof(STATE_STRING_PREFACE));
 	curr += sizeof(STATE_STRING_PREFACE) - 1;
+
+	if (BTRFS_FS_ERROR(info)) {
+		*curr++ = 'E';
+		states_printed = true;
+	}
 
 	for_each_set_bit(bit, &fs_state, sizeof(fs_state)) {
 		WARN_ON_ONCE(bit >= BTRFS_FS_STATE_COUNT);
@@ -155,7 +159,7 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 	 * Today we only save the error info to memory.  Long term we'll also
 	 * send it down to the disk.
 	 */
-	set_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state);
+	WRITE_ONCE(fs_info->fs_error, errno);
 
 	/* Don't go through full error handling during mount. */
 	if (!(sb->s_flags & SB_BORN))
@@ -251,12 +255,6 @@ void __cold _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, 
 	va_end(args);
 }
 #endif
-
-void __cold btrfs_print_v0_err(struct btrfs_fs_info *fs_info)
-{
-	btrfs_err(fs_info,
-"Unsupported V0 extent filesystem detected. Aborting. Please re-create your filesystem with a newer kernel");
-}
 
 #if BITS_PER_LONG == 32
 void __cold btrfs_warn_32bit_limit(struct btrfs_fs_info *fs_info)
