@@ -948,7 +948,6 @@ static int vote_clock_off(struct uart_port *uport)
 	usage_count = atomic_read(&uport->dev->power.usage_count);
 	UART_LOG_DBG(port->ipc_log_pwr, uport->dev, "%s:%s ioctl:%d usage_count:%d\n",
 		     __func__, current->comm, port->ioctl_count, usage_count);
-	atomic_set(&port->check_wakeup_byte, 1);
 	return 0;
 };
 
@@ -2825,26 +2824,22 @@ exit_handle_tx:
  * @uport: pointer to uart port
  * @size: size of rx data
  *
- * Return: offset of rx buffer where wakeup byte is present,
- * if wakeup byte is not found returns error
+ * Return: true if wakeup byte found else false
  */
-static int msm_geni_find_wakeup_byte(struct uart_port *uport, int size)
+static bool msm_geni_find_wakeup_byte(struct uart_port *uport, int size)
 {
 	struct msm_geni_serial_port *port = GET_DEV_PORT(uport);
 	unsigned char *buf = (unsigned char *)port->rx_buf;
-	int i = 0;
 
-	for (; i < size; i++) {
-		if (buf[i] == port->wakeup_byte) {
-			UART_LOG_DBG(port->ipc_log_rx, uport->dev,
-				     "%s Found wakeup byte\n", __func__);
-			atomic_set(&port->check_wakeup_byte, 0);
-			return i;
-		}
+	if (buf[0] == port->wakeup_byte) {
 		UART_LOG_DBG(port->ipc_log_rx, uport->dev,
-			     "%s Dropping 0x%x\n", __func__, buf[i]);
+			     "%s Found wakeup byte\n", __func__);
+		atomic_set(&port->check_wakeup_byte, 0);
+		return true;
 	}
-	return -EINVAL;
+	dump_ipc(uport, port->ipc_log_rx, "Dropped Rx", buf, 0, size);
+
+	return false;
 }
 
 static void check_rx_buf(char *buf, struct uart_port *uport, int size)
@@ -2885,7 +2880,7 @@ static int msm_geni_serial_handle_dma_rx(struct uart_port *uport, bool drop_rx)
 	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
 	unsigned int rx_bytes = 0;
 	struct tty_port *tport;
-	int ret = 0, offset = 0;
+	int ret = 0;
 	unsigned int geni_status;
 
 	geni_status = geni_read_reg(uport->membase, SE_GENI_STATUS);
@@ -2916,11 +2911,11 @@ static int msm_geni_serial_handle_dma_rx(struct uart_port *uport, bool drop_rx)
 		return 0;
 
 	if (atomic_read(&msm_port->check_wakeup_byte)) {
-		offset = msm_geni_find_wakeup_byte(uport, rx_bytes);
-		if (offset == -EINVAL) {
+		ret = msm_geni_find_wakeup_byte(uport, rx_bytes);
+		if (!ret) {
 			/* wakeup byte not found, drop the rx data */
 			UART_LOG_DBG(msm_port->ipc_log_rx, uport->dev,
-				     "%s wakeup byte not found in %d bytes\n",
+				     "%s dropping Rx data as wakeup byte not found in %d bytes\n",
 				     __func__, rx_bytes);
 			memset(msm_port->rx_buf, 0, rx_bytes);
 			return 0;
@@ -2928,18 +2923,15 @@ static int msm_geni_serial_handle_dma_rx(struct uart_port *uport, bool drop_rx)
 	}
 
 	tport = &uport->state->port;
-	ret = tty_insert_flip_string(tport, (unsigned char *)(msm_port->rx_buf) + offset,
-				     (rx_bytes - offset));
-	if (ret != (rx_bytes - offset)) {
-		dev_err(uport->dev, "%s: ret %d rx_bytes %d\n",
-			__func__, ret, (rx_bytes - offset));
+	ret = tty_insert_flip_string(tport, (unsigned char *)(msm_port->rx_buf), rx_bytes);
+	if (ret != rx_bytes) {
+		dev_err(uport->dev, "%s: ret %d rx_bytes %d\n", __func__, ret, rx_bytes);
 		msm_geni_update_uart_error_code(msm_port, UART_ERROR_RX_TTY_INSERT_FAIL);
 		WARN_ON_ONCE(1);
 	}
 	uport->icount.rx += ret;
 	tty_flip_buffer_push(tport);
-	dump_ipc(uport, msm_port->ipc_log_rx, "DMA Rx",
-		 (char *)msm_port->rx_buf + offset, 0, (rx_bytes - offset));
+	dump_ipc(uport, msm_port->ipc_log_rx, "DMA Rx", (char *)msm_port->rx_buf, 0, rx_bytes);
 	/*
 	 * DMA_DONE interrupt doesn't confirm that the DATA is copied to
 	 * DDR memory, sometimes we are queuing the stale data from previous
