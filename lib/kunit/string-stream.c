@@ -6,6 +6,7 @@
  * Author: Brendan Higgins <brendanhiggins@google.com>
  */
 
+#include <kunit/static_stub.h>
 #include <kunit/test.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -170,6 +171,8 @@ struct string_stream *alloc_string_stream(gfp_t gfp)
 
 void string_stream_destroy(struct string_stream *stream)
 {
+	KUNIT_STATIC_STUB_REDIRECT(string_stream_destroy, stream);
+
 	if (!stream)
 		return;
 

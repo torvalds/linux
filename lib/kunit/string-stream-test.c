@@ -6,15 +6,31 @@
  * Author: Brendan Higgins <brendanhiggins@google.com>
  */
 
+#include <kunit/static_stub.h>
 #include <kunit/test.h>
 #include <linux/slab.h>
 
 #include "string-stream.h"
 
-/* This avoids a cast warning if kfree() is passed direct to kunit_add_action(). */
+struct string_stream_test_priv {
+	/* For testing resource-managed free. */
+	struct string_stream *expected_free_stream;
+	bool stream_was_freed;
+	bool stream_free_again;
+};
+
+/* Avoids a cast warning if kfree() is passed direct to kunit_add_action(). */
 static void kfree_wrapper(void *p)
 {
 	kfree(p);
+}
+
+/* Avoids a cast warning if string_stream_destroy() is passed direct to kunit_add_action(). */
+static void cleanup_raw_stream(void *p)
+{
+	struct string_stream *stream = p;
+
+	string_stream_destroy(stream);
 }
 
 static char *get_concatenated_string(struct kunit *test, struct string_stream *stream)
@@ -27,11 +43,12 @@ static char *get_concatenated_string(struct kunit *test, struct string_stream *s
 	return str;
 }
 
-/* string_stream object is initialized correctly. */
-static void string_stream_init_test(struct kunit *test)
+/* Managed string_stream object is initialized correctly. */
+static void string_stream_managed_init_test(struct kunit *test)
 {
 	struct string_stream *stream;
 
+	/* Resource-managed initialization. */
 	stream = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream);
 
@@ -40,6 +57,109 @@ static void string_stream_init_test(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, (stream->gfp == GFP_KERNEL));
 	KUNIT_EXPECT_FALSE(test, stream->append_newlines);
 	KUNIT_EXPECT_TRUE(test, string_stream_is_empty(stream));
+}
+
+/* Unmanaged string_stream object is initialized correctly. */
+static void string_stream_unmanaged_init_test(struct kunit *test)
+{
+	struct string_stream *stream;
+
+	stream = alloc_string_stream(GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, stream);
+	kunit_add_action(test, cleanup_raw_stream, stream);
+
+	KUNIT_EXPECT_EQ(test, stream->length, 0);
+	KUNIT_EXPECT_TRUE(test, list_empty(&stream->fragments));
+	KUNIT_EXPECT_EQ(test, stream->gfp, GFP_KERNEL);
+	KUNIT_EXPECT_FALSE(test, stream->append_newlines);
+
+	KUNIT_EXPECT_TRUE(test, string_stream_is_empty(stream));
+}
+
+static void string_stream_destroy_stub(struct string_stream *stream)
+{
+	struct kunit *fake_test = kunit_get_current_test();
+	struct string_stream_test_priv *priv = fake_test->priv;
+
+	/* The kunit could own string_streams other than the one we are testing. */
+	if (stream == priv->expected_free_stream) {
+		if (priv->stream_was_freed)
+			priv->stream_free_again = true;
+		else
+			priv->stream_was_freed = true;
+	}
+
+	/*
+	 * Calling string_stream_destroy() will only call this function again
+	 * because the redirection stub is still active.
+	 * Avoid calling deactivate_static_stub() or changing current->kunit_test
+	 * during cleanup.
+	 */
+	string_stream_clear(stream);
+	kfree(stream);
+}
+
+/* kunit_free_string_stream() calls string_stream_desrtoy() */
+static void string_stream_managed_free_test(struct kunit *test)
+{
+	struct string_stream_test_priv *priv = test->priv;
+
+	priv->expected_free_stream = NULL;
+	priv->stream_was_freed = false;
+	priv->stream_free_again = false;
+
+	kunit_activate_static_stub(test,
+				   string_stream_destroy,
+				   string_stream_destroy_stub);
+
+	priv->expected_free_stream = kunit_alloc_string_stream(test, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->expected_free_stream);
+
+	/* This should call the stub function. */
+	kunit_free_string_stream(test, priv->expected_free_stream);
+
+	KUNIT_EXPECT_TRUE(test, priv->stream_was_freed);
+	KUNIT_EXPECT_FALSE(test, priv->stream_free_again);
+}
+
+/* string_stream object is freed when test is cleaned up. */
+static void string_stream_resource_free_test(struct kunit *test)
+{
+	struct string_stream_test_priv *priv = test->priv;
+	struct kunit *fake_test;
+
+	fake_test = kunit_kzalloc(test, sizeof(*fake_test), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fake_test);
+
+	kunit_init_test(fake_test, "string_stream_fake_test", NULL);
+	fake_test->priv = priv;
+
+	/*
+	 * Activate stub before creating string_stream so the
+	 * string_stream will be cleaned up first.
+	 */
+	priv->expected_free_stream = NULL;
+	priv->stream_was_freed = false;
+	priv->stream_free_again = false;
+
+	kunit_activate_static_stub(fake_test,
+				   string_stream_destroy,
+				   string_stream_destroy_stub);
+
+	priv->expected_free_stream = kunit_alloc_string_stream(fake_test, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->expected_free_stream);
+
+	/* Set current->kunit_test to fake_test so the static stub will be called. */
+	current->kunit_test = fake_test;
+
+	/* Cleanup test - the stub function should be called */
+	kunit_cleanup(fake_test);
+
+	/* Set current->kunit_test back to current test. */
+	current->kunit_test = test;
+
+	KUNIT_EXPECT_TRUE(test, priv->stream_was_freed);
+	KUNIT_EXPECT_FALSE(test, priv->stream_free_again);
 }
 
 /*
@@ -334,8 +454,24 @@ static void string_stream_auto_newline_test(struct kunit *test)
 			   "One\nTwo\nThree\nFour\nFive\nSix\nSeven\n\nEight\n");
 }
 
+static int string_stream_test_init(struct kunit *test)
+{
+	struct string_stream_test_priv *priv;
+
+	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	test->priv = priv;
+
+	return 0;
+}
+
 static struct kunit_case string_stream_test_cases[] = {
-	KUNIT_CASE(string_stream_init_test),
+	KUNIT_CASE(string_stream_managed_init_test),
+	KUNIT_CASE(string_stream_unmanaged_init_test),
+	KUNIT_CASE(string_stream_managed_free_test),
+	KUNIT_CASE(string_stream_resource_free_test),
 	KUNIT_CASE(string_stream_line_add_test),
 	KUNIT_CASE(string_stream_variable_length_line_test),
 	KUNIT_CASE(string_stream_append_test),
@@ -348,6 +484,7 @@ static struct kunit_case string_stream_test_cases[] = {
 
 static struct kunit_suite string_stream_test_suite = {
 	.name = "string-stream-test",
-	.test_cases = string_stream_test_cases
+	.test_cases = string_stream_test_cases,
+	.init = string_stream_test_init,
 };
 kunit_test_suites(&string_stream_test_suite);
