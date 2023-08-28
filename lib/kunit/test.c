@@ -296,7 +296,7 @@ static void kunit_print_string_stream(struct kunit *test,
 		kunit_err(test, "\n");
 	} else {
 		kunit_err(test, "%s", buf);
-		kunit_kfree(test, buf);
+		kfree(buf);
 	}
 }
 

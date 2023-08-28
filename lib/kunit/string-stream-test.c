@@ -11,11 +11,18 @@
 
 #include "string-stream.h"
 
+/* This avoids a cast warning if kfree() is passed direct to kunit_add_action(). */
+static void kfree_wrapper(void *p)
+{
+	kfree(p);
+}
+
 static char *get_concatenated_string(struct kunit *test, struct string_stream *stream)
 {
 	char *str = string_stream_get_string(stream);
 
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, str);
+	kunit_add_action(test, kfree_wrapper, (void *)str);
 
 	return str;
 }
@@ -30,7 +37,6 @@ static void string_stream_init_test(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, stream->length, 0);
 	KUNIT_EXPECT_TRUE(test, list_empty(&stream->fragments));
-	KUNIT_EXPECT_PTR_EQ(test, stream->test, test);
 	KUNIT_EXPECT_TRUE(test, (stream->gfp == GFP_KERNEL));
 	KUNIT_EXPECT_FALSE(test, stream->append_newlines);
 	KUNIT_EXPECT_TRUE(test, string_stream_is_empty(stream));
