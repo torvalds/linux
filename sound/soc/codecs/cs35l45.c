@@ -279,7 +279,7 @@ static const struct snd_kcontrol_new cs35l45_dsp_muxes[] = {
 };
 
 static const struct snd_kcontrol_new cs35l45_dac_muxes[] = {
-	SOC_DAPM_ENUM("DACPCM1 Source", cs35l45_dacpcm_enums[0]),
+	SOC_DAPM_ENUM("DACPCM Source", cs35l45_dacpcm_enums[0]),
 };
 
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
@@ -333,7 +333,7 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("DSP_RX7 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[6]),
 	SND_SOC_DAPM_MUX("DSP_RX8 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[7]),
 
-	SND_SOC_DAPM_MUX("DACPCM1 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dac_muxes[0]),
+	SND_SOC_DAPM_MUX("DACPCM Source", SND_SOC_NOPM, 0, 0, &cs35l45_dac_muxes[0]),
 
 	SND_SOC_DAPM_OUT_DRV("AMP", SND_SOC_NOPM, 0, 0, NULL, 0),
 
@@ -403,7 +403,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{ "ASP_RX1", NULL, "ASP_EN" },
 	{ "ASP_RX2", NULL, "ASP_EN" },
 
-	{ "AMP", NULL, "DACPCM1 Source"},
+	{ "AMP", NULL, "DACPCM Source"},
 	{ "AMP", NULL, "GLOBAL_EN"},
 
 	CS35L45_DSP_MUX_ROUTE("DSP_RX1"),
@@ -427,7 +427,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DSP1 Preload", NULL, "DSP1 Preloader"},
 	{"DSP1", NULL, "DSP1 Preloader"},
 
-	CS35L45_DAC_MUX_ROUTE("DACPCM1"),
+	CS35L45_DAC_MUX_ROUTE("DACPCM"),
 
 	{ "SPK", NULL, "AMP"},
 };
