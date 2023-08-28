@@ -330,15 +330,26 @@ static const struct hdcp2_dp_msg_data hdcp2_dp_msg_data[] = {
 	  0, 0 },
 };
 
+static struct drm_dp_aux *
+intel_dp_hdcp_get_aux(struct intel_connector *connector)
+{
+	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
+
+	if (intel_encoder_is_mst(connector->encoder))
+		return &connector->port->aux;
+	else
+		return &dig_port->dp.aux;
+}
+
 static int
 intel_dp_hdcp2_read_rx_status(struct intel_connector *connector,
 			      u8 *rx_status)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
+	struct drm_dp_aux *aux = intel_dp_hdcp_get_aux(connector);
 	ssize_t ret;
 
-	ret = drm_dp_dpcd_read(&dig_port->dp.aux,
+	ret = drm_dp_dpcd_read(aux,
 			       DP_HDCP_2_2_REG_RXSTATUS_OFFSET, rx_status,
 			       HDCP_2_2_DP_RXSTATUS_LEN);
 	if (ret != HDCP_2_2_DP_RXSTATUS_LEN) {
@@ -440,7 +451,6 @@ static
 int intel_dp_hdcp2_write_msg(struct intel_connector *connector,
 			     void *buf, size_t size)
 {
-	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
 	unsigned int offset;
 	u8 *byte = buf;
 	ssize_t ret, bytes_to_write, len;
@@ -453,7 +463,7 @@ int intel_dp_hdcp2_write_msg(struct intel_connector *connector,
 
 	offset = hdcp2_msg_data->offset;
 
-	aux = &dig_port->dp.aux;
+	aux = intel_dp_hdcp_get_aux(connector);
 
 	/* No msg_id in DP HDCP2.2 msgs */
 	bytes_to_write = size - 1;
@@ -480,11 +490,11 @@ static
 ssize_t get_receiver_id_list_rx_info(struct intel_connector *connector,
 				     u32 *dev_cnt, u8 *byte)
 {
-	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
+	struct drm_dp_aux *aux = intel_dp_hdcp_get_aux(connector);
 	ssize_t ret;
 	u8 *rx_info = byte;
 
-	ret = drm_dp_dpcd_read(&dig_port->dp.aux,
+	ret = drm_dp_dpcd_read(aux,
 			       DP_HDCP_2_2_REG_RXINFO_OFFSET,
 			       (void *)rx_info, HDCP_2_2_RXINFO_LEN);
 	if (ret != HDCP_2_2_RXINFO_LEN)
@@ -506,6 +516,7 @@ int intel_dp_hdcp2_read_msg(struct intel_connector *connector,
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
+	struct drm_dp_aux *aux;
 	unsigned int offset;
 	u8 *byte = buf;
 	ssize_t ret, bytes_to_recv, len;
@@ -518,6 +529,8 @@ int intel_dp_hdcp2_read_msg(struct intel_connector *connector,
 	if (!hdcp2_msg_data)
 		return -EINVAL;
 	offset = hdcp2_msg_data->offset;
+
+	aux = intel_dp_hdcp_get_aux(connector);
 
 	ret = intel_dp_hdcp2_wait_for_msg(connector, hdcp2_msg_data);
 	if (ret < 0)
@@ -551,7 +564,7 @@ int intel_dp_hdcp2_read_msg(struct intel_connector *connector,
 			msg_end = ktime_add_ms(ktime_get_raw(),
 					       hdcp2_msg_data->msg_read_timeout);
 
-		ret = drm_dp_dpcd_read(&dig_port->dp.aux, offset,
+		ret = drm_dp_dpcd_read(aux, offset,
 				       (void *)byte, len);
 		if (ret < 0) {
 			drm_dbg_kms(&i915->drm, "msg_id %d, ret %zd\n",
