@@ -1765,6 +1765,8 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	int i;
 	int ret;
 
+	lockdep_assert_wiphy(local->hw.wiphy);
+
 	if (params->chandef.chan->freq_offset) {
 		/* this may work, but is untested */
 		return -EOPNOTSUPP;
@@ -1785,10 +1787,8 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	chanmode = (params->channel_fixed && !ret) ?
 		IEEE80211_CHANCTX_SHARED : IEEE80211_CHANCTX_EXCLUSIVE;
 
-	mutex_lock(&local->chanctx_mtx);
 	ret = ieee80211_check_combinations(sdata, &params->chandef, chanmode,
 					   radar_detect_width);
-	mutex_unlock(&local->chanctx_mtx);
 	if (ret < 0)
 		return ret;
 

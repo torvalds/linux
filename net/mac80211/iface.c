@@ -324,9 +324,9 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sub_if_data *nsdata;
-	int ret;
 
 	ASSERT_RTNL();
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	/* we hold the RTNL here so can safely walk the list */
 	list_for_each_entry(nsdata, &local->interfaces, list) {
@@ -391,10 +391,7 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	mutex_lock(&local->chanctx_mtx);
-	ret = ieee80211_check_combinations(sdata, NULL, 0, 0);
-	mutex_unlock(&local->chanctx_mtx);
-	return ret;
+	return ieee80211_check_combinations(sdata, NULL, 0, 0);
 }
 
 static int ieee80211_check_queues(struct ieee80211_sub_if_data *sdata,

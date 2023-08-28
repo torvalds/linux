@@ -826,7 +826,6 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	spin_lock_init(&local->handle_wake_tx_queue_lock);
 
 	INIT_LIST_HEAD(&local->chanctx_list);
-	mutex_init(&local->chanctx_mtx);
 
 	wiphy_delayed_work_init(&local->scan_work, ieee80211_scan_work);
 

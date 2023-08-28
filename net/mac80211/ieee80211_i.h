@@ -979,8 +979,8 @@ struct ieee80211_link_data {
 	struct ieee80211_sub_if_data *sdata;
 	unsigned int link_id;
 
-	struct list_head assigned_chanctx_list; /* protected by chanctx_mtx */
-	struct list_head reserved_chanctx_list; /* protected by chanctx_mtx */
+	struct list_head assigned_chanctx_list; /* protected by wiphy mutex */
+	struct list_head reserved_chanctx_list; /* protected by wiphy mutex */
 
 	/* multicast keys only */
 	struct ieee80211_key __rcu *gtk[NUM_DEFAULT_KEYS +
@@ -1001,7 +1001,7 @@ struct ieee80211_link_data {
 	struct delayed_work color_collision_detect_work;
 	u64 color_bitmap;
 
-	/* context reservation -- protected with chanctx_mtx */
+	/* context reservation -- protected with wiphy mutex */
 	struct ieee80211_chanctx *reserved_chanctx;
 	struct cfg80211_chan_def reserved_chandef;
 	bool reserved_radar_required;
@@ -1499,7 +1499,6 @@ struct ieee80211_local {
 
 	/* channel contexts */
 	struct list_head chanctx_list;
-	struct mutex chanctx_mtx;
 
 #ifdef CONFIG_MAC80211_LEDS
 	struct led_trigger tx_led, rx_led, assoc_led, radio_led;
