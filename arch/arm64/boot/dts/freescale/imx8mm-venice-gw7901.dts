@@ -678,7 +678,6 @@
 
 			port@5 {
 				reg = <5>;
-				label = "cpu";
 				ethernet = <&fec1>;
 				phy-mode = "rgmii-id";
 
