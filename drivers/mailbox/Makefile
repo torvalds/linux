@@ -19,6 +19,8 @@ obj-$(CONFIG_OMAP2PLUS_MBOX)	+= omap-mailbox.o
 
 obj-$(CONFIG_ROCKCHIP_MBOX)	+= rockchip-mailbox.o
 
+obj-$(CONFIG_ROCKCHIP_MBOX_DEMO)	+= rockchip-mbox-demo.o
+
 obj-$(CONFIG_PCC)		+= pcc.o
 
 obj-$(CONFIG_ALTERA_MBOX)	+= mailbox-altera.o

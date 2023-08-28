@@ -79,6 +79,12 @@ config ROCKCHIP_MBOX
 	  Please check it that the Soc you use have Mailbox hardware.
 	  Say Y here if you want to use the Rockchip Mailbox support.
 
+config ROCKCHIP_MBOX_DEMO
+	tristate "Rockchip MBOX Demo"
+	depends on ROCKCHIP_MBOX
+	help
+	  Say y here to enable Rockchip MBOX Demo.
+
 config PCC
 	bool "Platform Communication Channel Driver"
 	depends on ACPI
