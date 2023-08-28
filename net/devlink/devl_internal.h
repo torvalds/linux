@@ -3,6 +3,7 @@
  * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
  */
 
+#include <linux/etherdevice.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
@@ -11,6 +12,8 @@
 #include <linux/xarray.h>
 #include <net/devlink.h>
 #include <net/net_namespace.h>
+#include <net/rtnetlink.h>
+#include <rdma/ib_verbs.h>
 
 #include "netlink_gen.h"
 
@@ -149,15 +152,36 @@ devlink_nl_put_handle(struct sk_buff *msg, struct devlink *devlink)
 
 /* Notify */
 void devlink_notify(struct devlink *devlink, enum devlink_command cmd);
+void devlink_ports_notify_register(struct devlink *devlink);
+void devlink_ports_notify_unregister(struct devlink *devlink);
 
 /* Ports */
+#define ASSERT_DEVLINK_PORT_INITIALIZED(devlink_port)				\
+	WARN_ON_ONCE(!(devlink_port)->initialized)
+
+struct devlink_port *devlink_port_get_by_index(struct devlink *devlink,
+					       unsigned int port_index);
 int devlink_port_netdevice_event(struct notifier_block *nb,
 				 unsigned long event, void *ptr);
-
 struct devlink_port *
 devlink_port_get_from_info(struct devlink *devlink, struct genl_info *info);
 struct devlink_port *devlink_port_get_from_attrs(struct devlink *devlink,
 						 struct nlattr **attrs);
+
+/* Linecards */
+struct devlink_linecard {
+	struct list_head list;
+	struct devlink *devlink;
+	unsigned int index;
+	const struct devlink_linecard_ops *ops;
+	void *priv;
+	enum devlink_linecard_state state;
+	struct mutex state_lock; /* Protects state */
+	const char *type;
+	struct devlink_linecard_type *types;
+	unsigned int types_count;
+	struct devlink *nested_devlink;
+};
 
 /* Reload */
 bool devlink_reload_actions_valid(const struct devlink_ops *ops);
@@ -190,6 +214,12 @@ int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info)
 int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_flash_update(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_selftests_run(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_port_set_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_port_split_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
+				     struct genl_info *info);
+int devlink_nl_cmd_port_new_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_port_del_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_health_reporter_set_doit(struct sk_buff *skb,
 					    struct genl_info *info);
 int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
