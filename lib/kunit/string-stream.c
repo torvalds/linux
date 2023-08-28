@@ -50,10 +50,16 @@ int string_stream_vadd(struct string_stream *stream,
 	/* Make a copy because `vsnprintf` could change it */
 	va_copy(args_for_counting, args);
 
-	/* Need space for null byte. */
-	len = vsnprintf(NULL, 0, fmt, args_for_counting) + 1;
+	/* Evaluate length of formatted string */
+	len = vsnprintf(NULL, 0, fmt, args_for_counting);
 
 	va_end(args_for_counting);
+
+	if (len == 0)
+		return 0;
+
+	/* Need space for null byte. */
+	len++;
 
 	frag_container = alloc_string_stream_fragment(stream->test,
 						      len,
