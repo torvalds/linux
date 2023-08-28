@@ -174,7 +174,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-void devlink_notify(struct devlink *devlink, enum devlink_command cmd)
+static void devlink_notify(struct devlink *devlink, enum devlink_command cmd)
 {
 	struct sk_buff *msg;
 	int err;
@@ -228,6 +228,32 @@ devlink_nl_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
 int devlink_nl_get_dumpit(struct sk_buff *msg, struct netlink_callback *cb)
 {
 	return devlink_nl_dumpit(msg, cb, devlink_nl_get_dump_one);
+}
+
+void devlink_notify_register(struct devlink *devlink)
+{
+	devlink_notify(devlink, DEVLINK_CMD_NEW);
+	devlink_linecards_notify_register(devlink);
+	devlink_ports_notify_register(devlink);
+	devlink_trap_policers_notify_register(devlink);
+	devlink_trap_groups_notify_register(devlink);
+	devlink_traps_notify_register(devlink);
+	devlink_rates_notify_register(devlink);
+	devlink_regions_notify_register(devlink);
+	devlink_params_notify_register(devlink);
+}
+
+void devlink_notify_unregister(struct devlink *devlink)
+{
+	devlink_params_notify_unregister(devlink);
+	devlink_regions_notify_unregister(devlink);
+	devlink_rates_notify_unregister(devlink);
+	devlink_traps_notify_unregister(devlink);
+	devlink_trap_groups_notify_unregister(devlink);
+	devlink_trap_policers_notify_unregister(devlink);
+	devlink_ports_notify_unregister(devlink);
+	devlink_linecards_notify_unregister(devlink);
+	devlink_notify(devlink, DEVLINK_CMD_DEL);
 }
 
 static void devlink_reload_failed_set(struct devlink *devlink,
