@@ -684,8 +684,8 @@ void drm_connector_unregister(struct drm_connector *connector)
 	if (connector->funcs->early_unregister)
 		connector->funcs->early_unregister(connector);
 
-	drm_sysfs_connector_remove(connector);
 	drm_debugfs_connector_remove(connector);
+	drm_sysfs_connector_remove(connector);
 
 	connector->registration_state = DRM_CONNECTOR_UNREGISTERED;
 	mutex_unlock(&connector->mutex);
