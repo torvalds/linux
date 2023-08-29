@@ -3422,6 +3422,18 @@ err:
 	nfnetlink_set_err(ctx->net, ctx->portid, NFNLGRP_NFTABLES, -ENOBUFS);
 }
 
+static void audit_log_rule_reset(const struct nft_table *table,
+				 unsigned int base_seq,
+				 unsigned int nentries)
+{
+	char *buf = kasprintf(GFP_ATOMIC, "%s:%u",
+			      table->name, base_seq);
+
+	audit_log_nfcfg(buf, table->family, nentries,
+			AUDIT_NFT_OP_RULE_RESET, GFP_ATOMIC);
+	kfree(buf);
+}
+
 struct nft_rule_dump_ctx {
 	char *table;
 	char *chain;
@@ -3527,6 +3539,9 @@ static int nf_tables_dump_rules(struct sk_buff *skb,
 	}
 done:
 	rcu_read_unlock();
+
+	if (reset && idx > cb->args[0])
+		audit_log_rule_reset(table, cb->seq, idx - cb->args[0]);
 
 	cb->args[0] = idx;
 	return skb->len;
@@ -3634,6 +3649,9 @@ static int nf_tables_getrule(struct sk_buff *skb, const struct nfnl_info *info,
 				       family, table, chain, rule, 0, reset);
 	if (err < 0)
 		goto err_fill_rule_info;
+
+	if (reset)
+		audit_log_rule_reset(table, nft_pernet(net)->base_seq, 1);
 
 	return nfnetlink_unicast(skb2, net, NETLINK_CB(skb).portid);
 
