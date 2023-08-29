@@ -287,7 +287,7 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "L2 lines alloacated",
+        "BriefDescription": "L2 lines allocated",
         "EventCode": "0xF1",
         "EventName": "L2_LINES_IN.ANY",
         "SampleAfterValue": "100000",
