@@ -406,6 +406,9 @@ static int mei_ace_setup_dev_link(struct mei_ace *ace)
 	if (!csi_dev) {
 		ret = -EPROBE_DEFER;
 		goto err;
+	} else if (!dev_fwnode(csi_dev)) {
+		ret = -EPROBE_DEFER;
+		goto err_put;
 	}
 
 	/* setup link between mei_ace and mei_csi */
