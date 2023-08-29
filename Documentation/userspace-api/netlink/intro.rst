@@ -528,6 +528,8 @@ families may, however, require a larger buffer. 32kB buffer is recommended
 for most efficient handling of dumps (larger buffer fits more dumped
 objects and therefore fewer recvmsg() calls are needed).
 
+.. _classic_netlink:
+
 Classic Netlink
 ===============
 
