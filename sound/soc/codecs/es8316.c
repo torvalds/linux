@@ -27,7 +27,6 @@
  * MCLK/LRCK ratios, but we also add ratio 400, which is commonly used on
  * Intel Cherry Trail platforms (19.2MHz MCLK, 48kHz LRCK).
  */
-#define NR_SUPPORTED_MCLK_LRCK_RATIOS ARRAY_SIZE(supported_mclk_lrck_ratios)
 static const unsigned int supported_mclk_lrck_ratios[] = {
 	256, 384, 400, 500, 512, 768, 1024
 };
@@ -40,7 +39,7 @@ struct es8316_priv {
 	struct snd_soc_jack *jack;
 	int irq;
 	unsigned int sysclk;
-	unsigned int allowed_rates[NR_SUPPORTED_MCLK_LRCK_RATIOS];
+	unsigned int allowed_rates[ARRAY_SIZE(supported_mclk_lrck_ratios)];
 	struct snd_pcm_hw_constraint_list sysclk_constraints;
 	bool jd_inverted;
 };
@@ -382,7 +381,7 @@ static int es8316_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	/* Limit supported sample rates to ones that can be autodetected
 	 * by the codec running in slave mode.
 	 */
-	for (i = 0; i < NR_SUPPORTED_MCLK_LRCK_RATIOS; i++) {
+	for (i = 0; i < ARRAY_SIZE(supported_mclk_lrck_ratios); i++) {
 		const unsigned int ratio = supported_mclk_lrck_ratios[i];
 
 		if (freq % ratio == 0)
@@ -472,7 +471,7 @@ static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
 	int i;
 
 	/* Validate supported sample rates that are autodetected from MCLK */
-	for (i = 0; i < NR_SUPPORTED_MCLK_LRCK_RATIOS; i++) {
+	for (i = 0; i < ARRAY_SIZE(supported_mclk_lrck_ratios); i++) {
 		const unsigned int ratio = supported_mclk_lrck_ratios[i];
 
 		if (es8316->sysclk % ratio != 0)
@@ -480,7 +479,7 @@ static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
 		if (es8316->sysclk / ratio == params_rate(params))
 			break;
 	}
-	if (i == NR_SUPPORTED_MCLK_LRCK_RATIOS)
+	if (i == ARRAY_SIZE(supported_mclk_lrck_ratios))
 		return -EINVAL;
 	lrck_divider = es8316->sysclk / params_rate(params);
 	bclk_divider = lrck_divider / 4;
