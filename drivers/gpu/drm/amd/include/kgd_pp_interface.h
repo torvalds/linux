@@ -265,6 +265,14 @@ enum pp_power_type
 	PP_PWR_TYPE_FAST,
 };
 
+enum pp_xgmi_plpd_mode {
+	XGMI_PLPD_NONE = -1,
+	XGMI_PLPD_DISALLOW,
+	XGMI_PLPD_DEFAULT,
+	XGMI_PLPD_OPTIMIZED,
+	XGMI_PLPD_COUNT,
+};
+
 #define PP_GROUP_MASK        0xF0000000
 #define PP_GROUP_SHIFT       28
 

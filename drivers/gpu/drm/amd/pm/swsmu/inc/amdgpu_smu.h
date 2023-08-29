@@ -563,6 +563,8 @@ struct smu_context {
 	u32 debug_resp_reg;
 
 	struct delayed_work		swctf_delayed_work;
+
+	enum pp_xgmi_plpd_mode plpd_mode;
 };
 
 struct i2c_adapter;
