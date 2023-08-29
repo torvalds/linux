@@ -1396,9 +1396,9 @@
 
 	i2c0: i2c-bus@100 {
 		#address-cells = <1>;
-		#size-cells = <1>;
+		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0x100 0x80>, <0x1a0 0x20>;
+		reg = <0x100 0x80>, <0x1A0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1413,9 +1413,9 @@
 
 	i2c1: i2c-bus@200 {
 		#address-cells = <1>;
-		#size-cells = <1>;
+		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0x200 0x80>, <0x2a0 0x20>;
+		reg = <0x200 0x80>, <0x2A0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1432,7 +1432,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0x300 0x80>, <0x3a0 0x20>;
+		reg = <0x300 0x80>, <0x3A0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1449,7 +1449,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0x400 0x80>, <0x4a0 0x20>;
+		reg = <0x400 0x80>, <0x4A0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		clocks = <&io_clk AST2700_IO_CLK_APB>;
@@ -1465,7 +1465,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0x500 0x80>, <0x5a0 0x20>;
+		reg = <0x500 0x80>, <0x5A0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1482,7 +1482,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0x600 0x80>, <0x6a0 0x20>;
+		reg = <0x600 0x80>, <0x6A0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1499,7 +1499,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0x700 0x80>, <0x7a0 0x20>;
+		reg = <0x700 0x80>, <0x7A0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1516,7 +1516,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0x800 0x80>, <0x8a0 0x20>;
+		reg = <0x800 0x80>, <0x8A0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1533,7 +1533,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0x900 0x80>, <0x9a0 0x20>;
+		reg = <0x900 0x80>, <0x9A0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1550,7 +1550,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0xa00 0x80>, <0xaa0 0x20>;
+		reg = <0xA00 0x80>, <0xAA0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1567,7 +1567,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0xb00 0x80>, <0xba0 0x20>;
+		reg = <0xB00 0x80>, <0xBA0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1584,7 +1584,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0xc00 0x80>, <0xca0 0x20>;
+		reg = <0xC00 0x80>, <0xCA0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1601,7 +1601,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0xd00 0x80>, <0xda0 0x20>;
+		reg = <0xD00 0x80>, <0xDA0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1618,7 +1618,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0xe00 0x80>, <0xea0 0x20>;
+		reg = <0xE00 0x80>, <0xEA0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1635,7 +1635,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0xf00 0x80>, <0xfa0 0x20>;
+		reg = <0xF00 0x80>, <0xFA0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
@@ -1652,7 +1652,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
-		reg = <0x1000 0x80>, <0x10a0 0x20>;
+		reg = <0x1000 0x80>, <0x10A0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
