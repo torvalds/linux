@@ -13,9 +13,9 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
-#include <linux/of_device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/dma-mapping.h>
+#include <linux/of.h>
 
 #include "sdhci-pltfm.h"
 
@@ -184,15 +184,12 @@ static int sdhci_sparx5_probe(struct platform_device *pdev)
 	sdhci_sparx5 = sdhci_pltfm_priv(pltfm_host);
 	sdhci_sparx5->host = host;
 
-	pltfm_host->clk = devm_clk_get(&pdev->dev, "core");
+	pltfm_host->clk = devm_clk_get_enabled(&pdev->dev, "core");
 	if (IS_ERR(pltfm_host->clk)) {
 		ret = PTR_ERR(pltfm_host->clk);
-		dev_err(&pdev->dev, "failed to get core clk: %d\n", ret);
+		dev_err(&pdev->dev, "failed to get and enable core clk: %d\n", ret);
 		goto free_pltfm;
 	}
-	ret = clk_prepare_enable(pltfm_host->clk);
-	if (ret)
-		goto free_pltfm;
 
 	if (!of_property_read_u32(np, "microchip,clock-delay", &value) &&
 	    (value > 0 && value <= MSHC_DLY_CC_MAX))
@@ -202,13 +199,13 @@ static int sdhci_sparx5_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
-		goto err_clk;
+		goto free_pltfm;
 
 	sdhci_sparx5->cpu_ctrl = syscon_regmap_lookup_by_compatible(syscon);
 	if (IS_ERR(sdhci_sparx5->cpu_ctrl)) {
 		dev_err(&pdev->dev, "No CPU syscon regmap !\n");
 		ret = PTR_ERR(sdhci_sparx5->cpu_ctrl);
-		goto err_clk;
+		goto free_pltfm;
 	}
 
 	if (sdhci_sparx5->delay_clock >= 0)
@@ -225,7 +222,7 @@ static int sdhci_sparx5_probe(struct platform_device *pdev)
 
 	ret = sdhci_add_host(host);
 	if (ret)
-		goto err_clk;
+		goto free_pltfm;
 
 	/* Set AXI bus master to use un-cached access (for DMA) */
 	if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA) &&
@@ -239,8 +236,6 @@ static int sdhci_sparx5_probe(struct platform_device *pdev)
 
 	return ret;
 
-err_clk:
-	clk_disable_unprepare(pltfm_host->clk);
 free_pltfm:
 	sdhci_pltfm_free(pdev);
 	return ret;
@@ -260,7 +255,7 @@ static struct platform_driver sdhci_sparx5_driver = {
 		.pm = &sdhci_pltfm_pmops,
 	},
 	.probe = sdhci_sparx5_probe,
-	.remove = sdhci_pltfm_unregister,
+	.remove_new = sdhci_pltfm_remove,
 };
 
 module_platform_driver(sdhci_sparx5_driver);
