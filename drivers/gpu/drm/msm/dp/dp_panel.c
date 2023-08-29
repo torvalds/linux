@@ -48,47 +48,15 @@ static int dp_panel_read_dpcd(struct dp_panel *dp_panel)
 	ssize_t rlen;
 	struct dp_panel_private *panel;
 	struct dp_link_info *link_info;
-	u8 *dpcd, major = 0, minor = 0, temp;
-	u32 offset = DP_DPCD_REV;
-
-	dpcd = dp_panel->dpcd;
+	u8 *dpcd, major, minor;
 
 	panel = container_of(dp_panel, struct dp_panel_private, dp_panel);
+	dpcd = dp_panel->dpcd;
+	rc = drm_dp_read_dpcd_caps(panel->aux, dpcd);
+	if (rc)
+		return rc;
+
 	link_info = &dp_panel->link_info;
-
-	rlen = drm_dp_dpcd_read(panel->aux, offset,
-			dpcd, (DP_RECEIVER_CAP_SIZE + 1));
-	if (rlen < (DP_RECEIVER_CAP_SIZE + 1)) {
-		DRM_ERROR("dpcd read failed, rlen=%zd\n", rlen);
-		if (rlen == -ETIMEDOUT)
-			rc = rlen;
-		else
-			rc = -EINVAL;
-
-		goto end;
-	}
-
-	temp = dpcd[DP_TRAINING_AUX_RD_INTERVAL];
-
-	/* check for EXTENDED_RECEIVER_CAPABILITY_FIELD_PRESENT */
-	if (temp & BIT(7)) {
-		drm_dbg_dp(panel->drm_dev,
-				"using EXTENDED_RECEIVER_CAPABILITY_FIELD\n");
-		offset = DPRX_EXTENDED_DPCD_FIELD;
-	}
-
-	rlen = drm_dp_dpcd_read(panel->aux, offset,
-		dpcd, (DP_RECEIVER_CAP_SIZE + 1));
-	if (rlen < (DP_RECEIVER_CAP_SIZE + 1)) {
-		DRM_ERROR("dpcd read failed, rlen=%zd\n", rlen);
-		if (rlen == -ETIMEDOUT)
-			rc = rlen;
-		else
-			rc = -EINVAL;
-
-		goto end;
-	}
-
 	link_info->revision = dpcd[DP_DPCD_REV];
 	major = (link_info->revision >> 4) & 0x0f;
 	minor = link_info->revision & 0x0f;
