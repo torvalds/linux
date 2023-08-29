@@ -147,8 +147,8 @@ static int dp_panel_update_modes(struct drm_connector *connector,
 int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 	struct drm_connector *connector)
 {
-	int rc = 0, bw_code;
-	int rlen, count;
+	int rc, bw_code;
+	int count;
 	struct dp_panel_private *panel;
 
 	if (!dp_panel || !connector) {
@@ -174,16 +174,11 @@ int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 	}
 
 	if (dp_panel->dfp_present) {
-		rlen = drm_dp_dpcd_read(panel->aux, DP_SINK_COUNT,
-				&count, 1);
-		if (rlen == 1) {
-			count = DP_GET_SINK_COUNT(count);
-			if (!count) {
-				DRM_ERROR("no downstream ports connected\n");
-				panel->link->sink_count = 0;
-				rc = -ENOTCONN;
-				goto end;
-			}
+		count = drm_dp_read_sink_count(panel->aux);
+		if (!count) {
+			DRM_ERROR("no downstream ports connected\n");
+			panel->link->sink_count = 0;
+			return -ENOTCONN;
 		}
 	}
 
