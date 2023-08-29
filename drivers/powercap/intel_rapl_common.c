@@ -1485,7 +1485,7 @@ static int rapl_detect_domains(struct rapl_package *rp)
 	}
 	pr_debug("found %d domains on %s\n", rp->nr_domains, rp->name);
 
-	rp->domains = kcalloc(rp->nr_domains + 1, sizeof(struct rapl_domain),
+	rp->domains = kcalloc(rp->nr_domains, sizeof(struct rapl_domain),
 			      GFP_KERNEL);
 	if (!rp->domains)
 		return -ENOMEM;

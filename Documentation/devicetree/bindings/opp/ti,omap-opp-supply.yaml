@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/opp/ti,omap-opp-supply.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments OMAP compatible OPP supply
+
+description:
+  OMAP5, DRA7, and AM57 families of SoCs have Class 0 AVS eFuse
+  registers, which contain OPP-specific voltage information tailored
+  for the specific device. This binding provides the information
+  needed to describe such a hardware values and relate them to program
+  the primary regulator during an OPP transition.
+
+  Also, some supplies may have an associated vbb-supply, an Adaptive
+  Body Bias regulator, which must transition in a specific sequence
+  w.r.t the vdd-supply and clk when making an OPP transition. By
+  supplying two regulators to the device that will undergo OPP
+  transitions, we can use the multi-regulator support implemented by
+  the OPP core to describe both regulators the platform needs. The
+  OPP core binding Documentation/devicetree/bindings/opp/opp-v2.yaml
+  provides further information (refer to Example 4 Handling multiple
+  regulators).
+
+maintainers:
+  - Nishanth Menon <nm@ti.com>
+
+properties:
+  $nodename:
+    pattern: '^opp-supply(@[0-9a-f]+)?$'
+
+  compatible:
+    oneOf:
+      - description: Basic OPP supply controlling VDD and VBB
+        const: ti,omap-opp-supply
+      - description: OMAP5+ optimized voltages in efuse(Class 0) VDD along with
+          VBB.
+        const: ti,omap5-opp-supply
+      - description: OMAP5+ optimized voltages in efuse(class0) VDD but no VBB
+        const: ti,omap5-core-opp-supply
+
+  reg:
+    maxItems: 1
+
+  ti,absolute-max-voltage-uv:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Absolute maximum voltage for the OPP supply in micro-volts.
+    minimum: 750000
+    maximum: 1500000
+
+  ti,efuse-settings:
+    description: An array of u32 tuple items providing information about
+      optimized efuse configuration.
+    minItems: 1
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    items:
+      items:
+        - description: Reference voltage in micro-volts (OPP Voltage)
+          minimum: 750000
+          maximum: 1500000
+          multipleOf: 10000
+        - description: efuse offset where the optimized voltage is located
+          multipleOf: 4
+          maximum: 256
+
+required:
+  - compatible
+  - ti,absolute-max-voltage-uv
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: ti,omap-opp-supply
+    then:
+      required:
+        - reg
+        - ti,efuse-settings
+
+additionalProperties: false
+
+examples:
+  - |
+    opp-supply {
+        compatible = "ti,omap-opp-supply";
+        ti,absolute-max-voltage-uv = <1375000>;
+    };
+  - |
+    opp-supply@4a003b20 {
+        compatible = "ti,omap5-opp-supply";
+        reg = <0x4a003b20 0x8>;
+        ti,efuse-settings =
+            /* uV   offset */
+            <1060000 0x0>,
+            <1160000 0x4>,
+            <1210000 0x8>;
+        ti,absolute-max-voltage-uv = <1500000>;
+    };
