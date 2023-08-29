@@ -628,7 +628,7 @@
 		};
 
 		dma: dma-controller@16050000 {
-			compatible = "starfive,jh7110-dma", "snps,axi-dma-1.01a";
+			compatible = "starfive,jh7110-axi-dma";
 			dma-coherent;
 			reg = <0x0 0x16050000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_DMA1P_CLK_AXI>,
@@ -638,13 +638,11 @@
 			resets = <&rstgen RSTN_U0_DW_DMA1P_AXI>,
 				 <&rstgen RSTN_U0_DW_DMA1P_AHB>,
 				 <&rstgen RSTN_U0_NOC_BUS_STG_AXI_N>;
-			reset-names = "rst_axi", "rst_ahb", "rst_stg";
 			interrupts = <73>;
-			#dma-cells = <2>;
+			#dma-cells = <1>;
 			dma-channels = <4>;
 			snps,dma-masters = <1>;
 			snps,data-width = <3>;
-			snps,num-hs-if = <56>;
 			snps,block-size = <65536 65536 65536 65536>;
 			snps,priority = <0 1 2 3>;
 			snps,axi-max-burst-len = <15>;
@@ -1203,7 +1201,7 @@
 				 <&rstgen RSTN_U0_TDM16SLOT_APB>,
 				 <&rstgen RSTN_U0_TDM16SLOT_TDM>;
 			reset-names = "tdm_ahb", "tdm_apb", "tdm_rst";
-			dmas = <&dma 20 1>, <&dma 21 1>;
+			dmas = <&dma 20>, <&dma 21>;
 			dma-names = "rx","tx";
 			#sound-dai-cells = <0>;
 			status = "disabled";
@@ -1237,7 +1235,7 @@
 			clock-names = "apb0", "pwmdac-apb", "pwmdac-core";
 			resets = <&rstgen RSTN_U0_PWMDAC_APB>;
 			reset-names = "rst-apb";
-			dmas = <&dma 22 1>;
+			dmas = <&dma 22>;
 			dma-names = "tx";
 			#sound-dai-cells = <0>;
 			status = "disabled";
@@ -1248,7 +1246,7 @@
 			reg = <0x0 0x100c0000 0x0 0x1000>;
 			interrupt-names = "tx";
 			#sound-dai-cells = <0>;
-			dmas = <&dma 28 1>;
+			dmas = <&dma 28>;
 			dma-names = "rx";
 			status = "disabled";
 		};
@@ -1288,7 +1286,7 @@
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
 				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
 			reset-names = "rst_apb_rx", "rst_bclk_rx";
-			dmas = <&dma 24 1>;
+			dmas = <&dma 24>;
 			dma-names = "rx";
 			starfive,sys-syscon = <&sys_syscon 0x18 0x34>;
 			#sound-dai-cells = <0>;
@@ -1318,7 +1316,7 @@
 				      "bclk-ext", "lrck-ext";
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
 				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
-			dmas = <&dma 24 1>;
+			dmas = <&dma 24>;
 			dma-names = "rx";
 			starfive,sys-syscon = <&sys_syscon 0x18 0x34>;
 			#sound-dai-cells = <0>;
@@ -1343,7 +1341,7 @@
 			resets = <&rstgen RSTN_U0_I2STX_4CH_APB>,
 				 <&rstgen RSTN_U0_I2STX_4CH_BCLK>;
 			reset-names = "rst_apb", "rst_bclk";
-			dmas = <&dma 47 1>;
+			dmas = <&dma 47>;
 			dma-names = "tx";
 			#sound-dai-cells = <0>;
 			status = "disabled";
@@ -1372,7 +1370,7 @@
 				      "mclk_ext", "bclk_ext", "lrck_ext";
 			resets = <&rstgen RSTN_U1_I2STX_4CH_APB>,
 				 <&rstgen RSTN_U1_I2STX_4CH_BCLK>;
-			dmas = <&dma 48 1>;
+			dmas = <&dma 48>;
 			dma-names = "tx";
 			#sound-dai-cells = <0>;
 			status = "disabled";
