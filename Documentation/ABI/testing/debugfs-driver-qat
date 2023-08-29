@@ -1,4 +1,4 @@
-What:		/sys/kernel/debug/qat_<device>_<BDF>/qat/fw_counters
+What:		/sys/kernel/debug/qat_<device>_<BDF>/fw_counters
 Date:		November 2023
 KernelVersion:	6.6
 Contact:	qat-linux@intel.com
