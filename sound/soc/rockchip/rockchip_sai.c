@@ -22,6 +22,7 @@
 
 #define DRV_NAME		"rockchip-sai"
 
+#define CLK_SHIFT_RATE_HZ_MAX	1 /* 1 Hz */
 #define FW_RATIO_MAX		8
 #define FW_RATIO_MIN		1
 #define MAXBURST_PER_FIFO	8
@@ -496,9 +497,10 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 		if (sai->is_clk_auto)
 			clk_set_rate(sai->mclk, bclk_rate);
 		mclk_rate = clk_get_rate(sai->mclk);
-		if (mclk_rate < bclk_rate) {
-			dev_err(sai->dev, "Mismatch mclk: %u, expected %u at least\n",
-				mclk_rate, bclk_rate);
+		if (mclk_rate < bclk_rate - CLK_SHIFT_RATE_HZ_MAX ||
+		    mclk_rate > bclk_rate + CLK_SHIFT_RATE_HZ_MAX) {
+			dev_err(sai->dev, "Mismatch mclk: %u, expected %u (+/- %dHz)\n",
+				mclk_rate, bclk_rate, CLK_SHIFT_RATE_HZ_MAX);
 			return -EINVAL;
 		}
 
