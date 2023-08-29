@@ -352,6 +352,12 @@ int proc_thermal_mmio_add(struct pci_dev *pdev,
 			dev_err(&pdev->dev, "failed to add MBOX interface\n");
 			goto err_rem_rfim;
 		}
+	} else if (feature_mask & PROC_THERMAL_FEATURE_WT_HINT) {
+		ret = proc_thermal_wt_hint_add(pdev, proc_priv);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to add WT Hint\n");
+			goto err_rem_rfim;
+		}
 	}
 
 	return 0;
@@ -376,10 +382,13 @@ void proc_thermal_mmio_remove(struct pci_dev *pdev, struct proc_thermal_device *
 
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_WT_REQ)
 		proc_thermal_wt_req_remove(pdev);
+	else if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_WT_HINT)
+		proc_thermal_wt_hint_remove(pdev);
 }
 EXPORT_SYMBOL_GPL(proc_thermal_mmio_remove);
 
 MODULE_IMPORT_NS(INTEL_TCC);
+MODULE_IMPORT_NS(INT340X_THERMAL);
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_DESCRIPTION("Processor Thermal Reporting Device Driver");
 MODULE_LICENSE("GPL v2");

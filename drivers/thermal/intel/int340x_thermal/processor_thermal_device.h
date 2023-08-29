@@ -61,6 +61,7 @@ struct rapl_mmio_regs {
 #define PROC_THERMAL_FEATURE_DVFS	0x04
 #define PROC_THERMAL_FEATURE_WT_REQ	0x08
 #define PROC_THERMAL_FEATURE_DLVR	0x10
+#define PROC_THERMAL_FEATURE_WT_HINT	0x20
 
 #if IS_ENABLED(CONFIG_PROC_THERMAL_MMIO_RAPL)
 int proc_thermal_rapl_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
@@ -95,6 +96,12 @@ int processor_thermal_mbox_interrupt_config(struct pci_dev *pdev, bool enable, i
 					    int time_window);
 int proc_thermal_add(struct device *dev, struct proc_thermal_device *priv);
 void proc_thermal_remove(struct proc_thermal_device *proc_priv);
+
+int proc_thermal_wt_hint_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
+void proc_thermal_wt_hint_remove(struct pci_dev *pdev);
+void proc_thermal_wt_intr_callback(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
+bool proc_thermal_check_wt_intr(struct proc_thermal_device *proc_priv);
+
 int proc_thermal_suspend(struct device *dev);
 int proc_thermal_resume(struct device *dev);
 int proc_thermal_mmio_add(struct pci_dev *pdev,
