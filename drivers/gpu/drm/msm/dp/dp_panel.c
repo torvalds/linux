@@ -17,7 +17,6 @@ struct dp_panel_private {
 	struct dp_link *link;
 	struct dp_catalog *catalog;
 	bool panel_on;
-	bool aux_cfg_update_done;
 };
 
 static void dp_panel_read_psr_cap(struct dp_panel_private *panel)
@@ -177,19 +176,6 @@ int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 		}
 	}
 
-	if (panel->aux_cfg_update_done) {
-		drm_dbg_dp(panel->drm_dev,
-				"read DPCD with updated AUX config\n");
-		rc = dp_panel_read_dpcd(dp_panel);
-		bw_code = drm_dp_link_rate_to_bw_code(dp_panel->link_info.rate);
-		if (rc || !is_link_rate_valid(bw_code) ||
-			!is_lane_count_valid(dp_panel->link_info.num_lanes)
-			|| (bw_code > dp_panel->max_bw_code)) {
-			DRM_ERROR("read dpcd failed %d\n", rc);
-			return rc;
-		}
-		panel->aux_cfg_update_done = false;
-	}
 end:
 	return rc;
 }
@@ -434,7 +420,6 @@ struct dp_panel *dp_panel_get(struct dp_panel_in *in)
 
 	dp_panel = &panel->dp_panel;
 	dp_panel->max_bw_code = DP_LINK_BW_8_1;
-	panel->aux_cfg_update_done = false;
 
 	return dp_panel;
 }
