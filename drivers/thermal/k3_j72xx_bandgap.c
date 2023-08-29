@@ -502,8 +502,6 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 	writel(K3_VTM_ANYMAXT_OUTRG_ALERT_EN, data[0].bgp->cfg2_base +
 	       K3_VTM_MISC_CTRL_OFFSET);
 
-	platform_set_drvdata(pdev, bgp);
-
 	print_look_up_table(dev, ref_table);
 	/*
 	 * Now that the derived_table has the appropriate look up values
