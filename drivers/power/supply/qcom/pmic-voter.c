@@ -177,11 +177,13 @@ void lock_votable(struct votable *votable)
 {
 	mutex_lock(&votable->vote_lock);
 }
+EXPORT_SYMBOL_GPL(lock_votable);
 
 void unlock_votable(struct votable *votable)
 {
 	mutex_unlock(&votable->vote_lock);
 }
+EXPORT_SYMBOL_GPL(unlock_votable);
 
 /**
  * is_override_vote_enabled() -
@@ -200,6 +202,7 @@ bool is_override_vote_enabled_locked(struct votable *votable)
 
 	return votable->override_result != -EINVAL;
 }
+EXPORT_SYMBOL_GPL(is_override_vote_enabled_locked);
 
 bool is_override_vote_enabled(struct votable *votable)
 {
@@ -214,6 +217,7 @@ bool is_override_vote_enabled(struct votable *votable)
 
 	return enable;
 }
+EXPORT_SYMBOL_GPL(is_override_vote_enabled);
 
 /**
  * is_client_vote_enabled() -
@@ -241,6 +245,7 @@ bool is_client_vote_enabled_locked(struct votable *votable,
 
 	return votable->votes[client_id].enabled;
 }
+EXPORT_SYMBOL_GPL(is_client_vote_enabled_locked);
 
 bool is_client_vote_enabled(struct votable *votable, const char *client_str)
 {
@@ -254,6 +259,7 @@ bool is_client_vote_enabled(struct votable *votable, const char *client_str)
 	unlock_votable(votable);
 	return enabled;
 }
+EXPORT_SYMBOL_GPL(is_client_vote_enabled);
 
 /**
  * get_client_vote() -
@@ -284,6 +290,7 @@ int get_client_vote_locked(struct votable *votable, const char *client_str)
 
 	return votable->votes[client_id].value;
 }
+EXPORT_SYMBOL_GPL(get_client_vote_locked);
 
 int get_client_vote(struct votable *votable, const char *client_str)
 {
@@ -297,6 +304,7 @@ int get_client_vote(struct votable *votable, const char *client_str)
 	unlock_votable(votable);
 	return value;
 }
+EXPORT_SYMBOL_GPL(get_client_vote);
 
 /**
  * get_effective_result() -
@@ -328,6 +336,7 @@ int get_effective_result_locked(struct votable *votable)
 
 	return votable->effective_result;
 }
+EXPORT_SYMBOL_GPL(get_effective_result_locked);
 
 int get_effective_result(struct votable *votable)
 {
@@ -341,6 +350,7 @@ int get_effective_result(struct votable *votable)
 	unlock_votable(votable);
 	return value;
 }
+EXPORT_SYMBOL_GPL(get_effective_result);
 
 /**
  * get_effective_client() -
@@ -373,6 +383,7 @@ const char *get_effective_client_locked(struct votable *votable)
 
 	return get_client_str(votable, votable->effective_client_id);
 }
+EXPORT_SYMBOL_GPL(get_effective_client_locked);
 
 const char *get_effective_client(struct votable *votable)
 {
@@ -386,6 +397,7 @@ const char *get_effective_client(struct votable *votable)
 	unlock_votable(votable);
 	return client_str;
 }
+EXPORT_SYMBOL_GPL(get_effective_client);
 
 /**
  * vote() -
@@ -499,6 +511,7 @@ out:
 	unlock_votable(votable);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(vote);
 
 /**
  * vote_override() -
@@ -553,6 +566,7 @@ out:
 	unlock_votable(votable);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(vote_override);
 
 int rerun_election(struct votable *votable)
 {
@@ -572,6 +586,7 @@ int rerun_election(struct votable *votable)
 	unlock_votable(votable);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(rerun_election);
 
 struct votable *find_votable(const char *name)
 {
@@ -600,6 +615,7 @@ out:
 	else
 		return NULL;
 }
+EXPORT_SYMBOL_GPL(find_votable);
 
 static int force_active_get(void *data, u64 *val)
 {
@@ -802,6 +818,7 @@ struct votable *create_votable(const char *name,
 
 	return votable;
 }
+EXPORT_SYMBOL_GPL(create_votable);
 
 void destroy_votable(struct votable *votable)
 {
@@ -823,3 +840,4 @@ void destroy_votable(struct votable *votable)
 	kfree(votable->name);
 	kfree(votable);
 }
+EXPORT_SYMBOL_GPL(destroy_votable);
