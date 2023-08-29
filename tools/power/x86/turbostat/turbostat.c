@@ -272,7 +272,7 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr);
 struct platform_features {
 	bool has_msr_misc_feature_control;	/* MSR_MISC_FEATURE_CONTROL */
 	bool has_msr_misc_pwr_mgmt;	/* MSR_MISC_PWR_MGMT */
-	bool has_nhm_msrs;	/* MSR_PLATFORM_INFO, MSR_IA32_TEMPERATURE_TARGET, MSR_SMI_COUNT, MSR_PKG_CST_CONFIG_CONTROL, TRL MSRs */
+	bool has_nhm_msrs;	/* MSR_PLATFORM_INFO, MSR_IA32_TEMPERATURE_TARGET, MSR_SMI_COUNT, MSR_PKG_CST_CONFIG_CONTROL, MSR_IA32_POWER_CTL, TRL MSRs */
 	bool has_config_tdp;	/* MSR_CONFIG_TDP_NOMINAL/LEVEL_1/LEVEL_2/CONTROL, MSR_TURBO_ACTIVATION_RATIO */
 	int bclk_freq;		/* CPU base clock */
 	int crystal_freq;	/* Crystal clock to use when not available from CPUID.15 */
@@ -3025,6 +3025,14 @@ static void dump_platform_info(void)
 
 	ratio = (msr >> 8) & 0xFF;
 	fprintf(outf, "%d * %.1f = %.1f MHz base frequency\n", ratio, bclk, ratio * bclk);
+}
+
+static void dump_power_ctl(void)
+{
+	unsigned long long msr;
+
+	if (!platform->has_nhm_msrs)
+		return;
 
 	get_msr(base_cpu, MSR_IA32_POWER_CTL, &msr);
 	fprintf(outf, "cpu%d: MSR_IA32_POWER_CTL: 0x%08llx (C1E auto-promotion: %sabled)\n",
@@ -3228,6 +3236,9 @@ static void dump_knl_turbo_ratio_limits(void)
 static void dump_cst_cfg(void)
 {
 	unsigned long long msr;
+
+	if (!platform->has_nhm_msrs)
+		return;
 
 	get_msr(base_cpu, MSR_PKG_CST_CONFIG_CONTROL, &msr);
 
@@ -4332,7 +4343,6 @@ static void dump_cstate_pstate_config_info(void)
 
 	dump_platform_info();
 	dump_turbo_ratio_info();
-	dump_cst_cfg();
 }
 
 static int read_sysfs_int(char *path)
@@ -5332,6 +5342,25 @@ void probe_cstates(void)
 
 	if (platform->supported_cstates & PC10 && (pkg_cstate_limit >= PCL_10))
 		BIC_PRESENT(BIC_Pkgpc10);
+
+	if (platform->has_msr_module_c6_res_ms)
+		BIC_PRESENT(BIC_Mod_c6);
+
+	if (platform->has_ext_cst_msrs) {
+		BIC_PRESENT(BIC_Totl_c0);
+		BIC_PRESENT(BIC_Any_c0);
+		BIC_PRESENT(BIC_GFX_c0);
+		BIC_PRESENT(BIC_CPUGFX);
+	}
+
+	if (quiet)
+		return;
+
+	dump_power_ctl();
+	dump_cst_cfg();
+	decode_c6_demotion_policy_msr();
+	print_dev_latency();
+	dump_sysfs_cstate_config();
 }
 
 void process_cpuid()
@@ -5519,21 +5548,8 @@ void process_cpuid()
 		BIC_PRESENT(BIC_SMI);
 	probe_bclk();
 
-	if (platform->has_msr_module_c6_res_ms)
-		BIC_PRESENT(BIC_Mod_c6);
-
-	if (platform->has_ext_cst_msrs) {
-		BIC_PRESENT(BIC_Totl_c0);
-		BIC_PRESENT(BIC_Any_c0);
-		BIC_PRESENT(BIC_GFX_c0);
-		BIC_PRESENT(BIC_CPUGFX);
-	}
-
 	if (!quiet)
 		decode_misc_pwr_mgmt_msr();
-
-	if (!quiet)
-		decode_c6_demotion_policy_msr();
 
 	rapl_probe();
 
@@ -5541,10 +5557,6 @@ void process_cpuid()
 		dump_cstate_pstate_config_info();
 	intel_uncore_frequency_probe();
 
-	if (!quiet)
-		print_dev_latency();
-	if (!quiet)
-		dump_sysfs_cstate_config();
 	if (!quiet)
 		dump_sysfs_pstate_config();
 
