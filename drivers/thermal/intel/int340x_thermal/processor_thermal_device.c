@@ -346,8 +346,8 @@ int proc_thermal_mmio_add(struct pci_dev *pdev,
 		}
 	}
 
-	if (feature_mask & PROC_THERMAL_FEATURE_MBOX) {
-		ret = proc_thermal_mbox_add(pdev, proc_priv);
+	if (feature_mask & PROC_THERMAL_FEATURE_WT_REQ) {
+		ret = proc_thermal_wt_req_add(pdev, proc_priv);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to add MBOX interface\n");
 			goto err_rem_rfim;
@@ -374,8 +374,8 @@ void proc_thermal_mmio_remove(struct pci_dev *pdev, struct proc_thermal_device *
 	    proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DVFS)
 		proc_thermal_rfim_remove(pdev);
 
-	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_MBOX)
-		proc_thermal_mbox_remove(pdev);
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_WT_REQ)
+		proc_thermal_wt_req_remove(pdev);
 }
 EXPORT_SYMBOL_GPL(proc_thermal_mmio_remove);
 
