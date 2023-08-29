@@ -2897,13 +2897,17 @@ get_encoder_by_ddc_pin(struct intel_encoder *encoder, u8 ddc_pin)
 	struct intel_encoder *other;
 
 	for_each_intel_encoder(&i915->drm, other) {
+		struct intel_connector *connector;
+
 		if (other == encoder)
 			continue;
 
 		if (!intel_encoder_is_dig_port(other))
 			continue;
 
-		if (enc_to_dig_port(other)->hdmi.ddc_bus == ddc_pin)
+		connector = enc_to_dig_port(other)->hdmi.attached_connector;
+
+		if (connector && connector->base.ddc == intel_gmbus_get_adapter(i915, ddc_pin))
 			return other;
 	}
 
@@ -2997,6 +3001,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_encoder->port;
 	struct cec_connector_info conn_info;
+	u8 ddc_pin;
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "Adding HDMI connector on [ENCODER:%d:%s]\n",
@@ -3011,14 +3016,14 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 		     intel_encoder->base.name))
 		return;
 
-	intel_hdmi->ddc_bus = intel_hdmi_ddc_pin(intel_encoder);
-	if (!intel_hdmi->ddc_bus)
+	ddc_pin = intel_hdmi_ddc_pin(intel_encoder);
+	if (!ddc_pin)
 		return;
 
 	drm_connector_init_with_ddc(dev, connector,
 				    &intel_hdmi_connector_funcs,
 				    DRM_MODE_CONNECTOR_HDMIA,
-				    intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus));
+				    intel_gmbus_get_adapter(dev_priv, ddc_pin));
 
 	drm_connector_helper_add(connector, &intel_hdmi_connector_helper_funcs);
 

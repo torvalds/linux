@@ -1583,7 +1583,6 @@ struct intel_watermark_params {
 
 struct intel_hdmi {
 	i915_reg_t hdmi_reg;
-	int ddc_bus;
 	struct {
 		enum drm_dp_dual_mode_type type;
 		int max_tmds_clock;
