@@ -8,6 +8,7 @@
 #include <linux/mutex.h>
 #include <linux/of_address.h>
 #include "qcom_pil_info.h"
+#include <linux/syscore_ops.h>
 
 /*
  * The PIL relocation information region is used to communicate memory regions
@@ -28,6 +29,10 @@ struct pil_reloc {
 static struct pil_reloc _reloc __read_mostly;
 static DEFINE_MUTEX(pil_reloc_lock);
 static bool timeouts_disabled;
+
+#ifdef CONFIG_HIBERNATION
+static bool hibernation;
+#endif
 
 /**
  * qcom_pil_timeouts_disabled() - Check if pil timeouts are disabled in imem
@@ -75,12 +80,36 @@ out:
 }
 EXPORT_SYMBOL(qcom_pil_timeouts_disabled);
 
+#ifdef CONFIG_HIBERNATION
+static void pil_reloc_restore_syscore_resume(void)
+{
+	if (_reloc.base) {
+		mutex_lock(&pil_reloc_lock);
+		iounmap(_reloc.base);
+		_reloc.base = NULL;
+		mutex_unlock(&pil_reloc_lock);
+	} else
+		pr_info("The PIL relocation information region is not mapped\n");
+}
+
+static struct syscore_ops pil_reloc_restore_syscore_ops = {
+	.resume = pil_reloc_restore_syscore_resume,
+};
+#endif
+
 static int qcom_pil_info_init(void)
 {
 	struct device_node *np;
 	struct resource imem;
 	void __iomem *base;
 	int ret;
+
+#ifdef CONFIG_HIBERNATION
+	if (!hibernation) {
+		register_syscore_ops(&pil_reloc_restore_syscore_ops);
+		hibernation = true;
+	}
+#endif
 
 	/* Already initialized? */
 	if (_reloc.base)
