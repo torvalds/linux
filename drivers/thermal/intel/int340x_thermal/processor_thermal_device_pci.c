@@ -122,20 +122,43 @@ static void pkg_thermal_schedule_work(struct delayed_work *work)
 	schedule_delayed_work(work, ms);
 }
 
+static irqreturn_t proc_thermal_irq_thread_handler(int irq, void *devid)
+{
+	struct proc_thermal_pci *pci_info = devid;
+
+	proc_thermal_wt_intr_callback(pci_info->pdev, pci_info->proc_priv);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t proc_thermal_irq_handler(int irq, void *devid)
 {
 	struct proc_thermal_pci *pci_info = devid;
+	struct proc_thermal_device *proc_priv;
+	int ret = IRQ_HANDLED;
 	u32 status;
 
+	proc_priv = pci_info->proc_priv;
+
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_WT_HINT) {
+		if (proc_thermal_check_wt_intr(pci_info->proc_priv))
+			ret = IRQ_WAKE_THREAD;
+	}
+
+	/*
+	 * Since now there are two sources of interrupts: one from thermal threshold
+	 * and another from workload hint, add a check if there was really a threshold
+	 * interrupt before scheduling work function for thermal threshold.
+	 */
 	proc_thermal_mmio_read(pci_info, PROC_THERMAL_MMIO_INT_STATUS_0, &status);
+	if (status) {
+		/* Disable enable interrupt flag */
+		proc_thermal_mmio_write(pci_info, PROC_THERMAL_MMIO_INT_ENABLE_0, 0);
+		pci_write_config_byte(pci_info->pdev, 0xdc, 0x01);
+		pkg_thermal_schedule_work(&pci_info->work);
+	}
 
-	/* Disable enable interrupt flag */
-	proc_thermal_mmio_write(pci_info, PROC_THERMAL_MMIO_INT_ENABLE_0, 0);
-	pci_write_config_byte(pci_info->pdev, 0xdc, 0x01);
-
-	pkg_thermal_schedule_work(&pci_info->work);
-
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
@@ -270,7 +293,7 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq,
-					proc_thermal_irq_handler, NULL,
+					proc_thermal_irq_handler, proc_thermal_irq_thread_handler,
 					irq_flag, KBUILD_MODNAME, pci_info);
 	if (ret) {
 		dev_err(&pdev->dev, "Request IRQ %d failed\n", pdev->irq);
@@ -383,6 +406,8 @@ static struct pci_driver proc_thermal_pci_driver = {
 };
 
 module_pci_driver(proc_thermal_pci_driver);
+
+MODULE_IMPORT_NS(INT340X_THERMAL);
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_DESCRIPTION("Processor Thermal Reporting Device Driver");
