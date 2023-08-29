@@ -837,7 +837,7 @@ void intel_lvds_init(struct drm_i915_private *i915)
 	struct intel_encoder *encoder;
 	i915_reg_t lvds_reg;
 	u32 lvds;
-	u8 pin;
+	u8 ddc_pin;
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds)) {
@@ -864,8 +864,8 @@ void intel_lvds_init(struct drm_i915_private *i915)
 			return;
 	}
 
-	pin = GMBUS_PIN_PANEL;
-	if (!intel_bios_is_lvds_present(i915, &pin)) {
+	ddc_pin = GMBUS_PIN_PANEL;
+	if (!intel_bios_is_lvds_present(i915, &ddc_pin)) {
 		if ((lvds & LVDS_PORT_EN) == 0) {
 			drm_dbg_kms(&i915->drm,
 				    "LVDS is not present in VBT\n");
@@ -888,8 +888,10 @@ void intel_lvds_init(struct drm_i915_private *i915)
 	lvds_encoder->attached_connector = connector;
 	encoder = &lvds_encoder->base;
 
-	drm_connector_init(&i915->drm, &connector->base, &intel_lvds_connector_funcs,
-			   DRM_MODE_CONNECTOR_LVDS);
+	drm_connector_init_with_ddc(&i915->drm, &connector->base,
+				    &intel_lvds_connector_funcs,
+				    DRM_MODE_CONNECTOR_LVDS,
+				    intel_gmbus_get_adapter(i915, ddc_pin));
 
 	drm_encoder_init(&i915->drm, &encoder->base, &intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS, "LVDS");
@@ -943,13 +945,10 @@ void intel_lvds_init(struct drm_i915_private *i915)
 	 * preferred mode is the right one.
 	 */
 	mutex_lock(&i915->drm.mode_config.mutex);
-	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_CAN_SWITCH_DDC) {
-		drm_edid = drm_edid_read_switcheroo(&connector->base,
-						    intel_gmbus_get_adapter(i915, pin));
-	} else {
-		drm_edid = drm_edid_read_ddc(&connector->base,
-					     intel_gmbus_get_adapter(i915, pin));
-	}
+	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_CAN_SWITCH_DDC)
+		drm_edid = drm_edid_read_switcheroo(&connector->base, connector->base.ddc);
+	else
+		drm_edid = drm_edid_read_ddc(&connector->base, connector->base.ddc);
 	if (drm_edid) {
 		if (drm_edid_connector_update(&connector->base, drm_edid) ||
 		    !drm_edid_connector_add_modes(&connector->base)) {
