@@ -198,7 +198,7 @@ static int drm_minor_register(struct drm_device *dev, enum drm_minor_type type)
 	return 0;
 
 err_debugfs:
-	drm_debugfs_cleanup(minor);
+	drm_debugfs_unregister(minor);
 	return ret;
 }
 
@@ -222,7 +222,7 @@ static void drm_minor_unregister(struct drm_device *dev, enum drm_minor_type typ
 
 	device_del(minor->kdev);
 	dev_set_drvdata(minor->kdev, NULL); /* safety belt */
-	drm_debugfs_cleanup(minor);
+	drm_debugfs_unregister(minor);
 }
 
 /*
