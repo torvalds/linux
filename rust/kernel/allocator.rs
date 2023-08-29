@@ -41,9 +41,9 @@ unsafe fn krealloc_aligned(ptr: *mut u8, new_layout: Layout, flags: bindings::gf
 
 unsafe impl GlobalAlloc for KernelAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        // `krealloc()` is used instead of `kmalloc()` because the latter is
-        // an inline function and cannot be bound to as a result.
-        unsafe { bindings::krealloc(ptr::null(), layout.size(), bindings::GFP_KERNEL) as *mut u8 }
+        // SAFETY: `ptr::null_mut()` is null and `layout` has a non-zero size by the function safety
+        // requirement.
+        unsafe { krealloc_aligned(ptr::null_mut(), layout, bindings::GFP_KERNEL) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
@@ -51,58 +51,38 @@ unsafe impl GlobalAlloc for KernelAllocator {
             bindings::kfree(ptr as *const core::ffi::c_void);
         }
     }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        // SAFETY:
+        // - `new_size`, when rounded up to the nearest multiple of `layout.align()`, will not
+        //   overflow `isize` by the function safety requirement.
+        // - `layout.align()` is a proper alignment (i.e. not zero and must be a power of two).
+        let layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
+
+        // SAFETY:
+        // - `ptr` is either null or a pointer allocated by this allocator by the function safety
+        //   requirement.
+        // - the size of `layout` is not zero because `new_size` is not zero by the function safety
+        //   requirement.
+        unsafe { krealloc_aligned(ptr, layout, bindings::GFP_KERNEL) }
+    }
+
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        // SAFETY: `ptr::null_mut()` is null and `layout` has a non-zero size by the function safety
+        // requirement.
+        unsafe {
+            krealloc_aligned(
+                ptr::null_mut(),
+                layout,
+                bindings::GFP_KERNEL | bindings::__GFP_ZERO,
+            )
+        }
+    }
 }
 
 #[global_allocator]
 static ALLOCATOR: KernelAllocator = KernelAllocator;
 
-// `rustc` only generates these for some crate types. Even then, we would need
-// to extract the object file that has them from the archive. For the moment,
-// let's generate them ourselves instead.
-//
-// Note: Although these are *safe* functions, they are called by the compiler
-// with parameters that obey the same `GlobalAlloc` function safety
-// requirements: size and align should form a valid layout, and size is
-// greater than 0.
-//
-// Note that `#[no_mangle]` implies exported too, nowadays.
+// See <https://github.com/rust-lang/rust/pull/86844>.
 #[no_mangle]
-fn __rust_alloc(size: usize, align: usize) -> *mut u8 {
-    // SAFETY: See assumption above.
-    let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
-
-    // SAFETY: `ptr::null_mut()` is null, per assumption above the size of `layout` is greater
-    // than 0.
-    unsafe { krealloc_aligned(ptr::null_mut(), layout, bindings::GFP_KERNEL) }
-}
-
-#[no_mangle]
-fn __rust_dealloc(ptr: *mut u8, _size: usize, _align: usize) {
-    unsafe { bindings::kfree(ptr as *const core::ffi::c_void) };
-}
-
-#[no_mangle]
-fn __rust_realloc(ptr: *mut u8, _old_size: usize, align: usize, new_size: usize) -> *mut u8 {
-    // SAFETY: See assumption above.
-    let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, align) };
-
-    // SAFETY: Per assumption above, `ptr` is allocated by `__rust_*` before, and the size of
-    // `new_layout` is greater than 0.
-    unsafe { krealloc_aligned(ptr, new_layout, bindings::GFP_KERNEL) }
-}
-
-#[no_mangle]
-fn __rust_alloc_zeroed(size: usize, align: usize) -> *mut u8 {
-    // SAFETY: See assumption above.
-    let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
-
-    // SAFETY: `ptr::null_mut()` is null, per assumption above the size of `layout` is greater
-    // than 0.
-    unsafe {
-        krealloc_aligned(
-            ptr::null_mut(),
-            layout,
-            bindings::GFP_KERNEL | bindings::__GFP_ZERO,
-        )
-    }
-}
+static __rust_no_alloc_shim_is_unstable: u8 = 0;

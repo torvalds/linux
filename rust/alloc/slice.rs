@@ -784,6 +784,38 @@ impl<T, A: Allocator> BorrowMut<[T]> for Vec<T, A> {
     }
 }
 
+// Specializable trait for implementing ToOwned::clone_into. This is
+// public in the crate and has the Allocator parameter so that
+// vec::clone_from use it too.
+#[cfg(not(no_global_oom_handling))]
+pub(crate) trait SpecCloneIntoVec<T, A: Allocator> {
+    fn clone_into(&self, target: &mut Vec<T, A>);
+}
+
+#[cfg(not(no_global_oom_handling))]
+impl<T: Clone, A: Allocator> SpecCloneIntoVec<T, A> for [T] {
+    default fn clone_into(&self, target: &mut Vec<T, A>) {
+        // drop anything in target that will not be overwritten
+        target.truncate(self.len());
+
+        // target.len <= self.len due to the truncate above, so the
+        // slices here are always in-bounds.
+        let (init, tail) = self.split_at(target.len());
+
+        // reuse the contained values' allocations/resources.
+        target.clone_from_slice(init);
+        target.extend_from_slice(tail);
+    }
+}
+
+#[cfg(not(no_global_oom_handling))]
+impl<T: Copy, A: Allocator> SpecCloneIntoVec<T, A> for [T] {
+    fn clone_into(&self, target: &mut Vec<T, A>) {
+        target.clear();
+        target.extend_from_slice(self);
+    }
+}
+
 #[cfg(not(no_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: Clone> ToOwned for [T] {
@@ -799,16 +831,7 @@ impl<T: Clone> ToOwned for [T] {
     }
 
     fn clone_into(&self, target: &mut Vec<T>) {
-        // drop anything in target that will not be overwritten
-        target.truncate(self.len());
-
-        // target.len <= self.len due to the truncate above, so the
-        // slices here are always in-bounds.
-        let (init, tail) = self.split_at(target.len());
-
-        // reuse the contained values' allocations/resources.
-        target.clone_from_slice(init);
-        target.extend_from_slice(tail);
+        SpecCloneIntoVec::clone_into(self, target);
     }
 }
 
