@@ -5,7 +5,7 @@
  * Copyright (C) 2022 Loongson Technology Corporation Limited
  */
 
-#include <asm/export.h>
+#include <linux/export.h>
 #include <asm/ftrace.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>

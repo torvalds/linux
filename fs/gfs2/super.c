@@ -412,7 +412,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(inode));
 	str->di_atime = cpu_to_be64(inode->i_atime.tv_sec);
 	str->di_mtime = cpu_to_be64(inode->i_mtime.tv_sec);
-	str->di_ctime = cpu_to_be64(inode->i_ctime.tv_sec);
+	str->di_ctime = cpu_to_be64(inode_get_ctime(inode).tv_sec);
 
 	str->di_goal_meta = cpu_to_be64(ip->i_goal);
 	str->di_goal_data = cpu_to_be64(ip->i_goal);
@@ -429,7 +429,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_eattr = cpu_to_be64(ip->i_eattr);
 	str->di_atime_nsec = cpu_to_be32(inode->i_atime.tv_nsec);
 	str->di_mtime_nsec = cpu_to_be32(inode->i_mtime.tv_nsec);
-	str->di_ctime_nsec = cpu_to_be32(inode->i_ctime.tv_nsec);
+	str->di_ctime_nsec = cpu_to_be32(inode_get_ctime(inode).tv_nsec);
 }
 
 /**
@@ -689,7 +689,7 @@ static int gfs2_freeze_locally(struct gfs2_sbd *sdp)
 	struct super_block *sb = sdp->sd_vfs;
 	int error;
 
-	error = freeze_super(sb);
+	error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
 	if (error)
 		return error;
 
@@ -697,7 +697,9 @@ static int gfs2_freeze_locally(struct gfs2_sbd *sdp)
 		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_FREEZE |
 			       GFS2_LFC_FREEZE_GO_SYNC);
 		if (gfs2_withdrawn(sdp)) {
-			thaw_super(sb);
+			error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
+			if (error)
+				return error;
 			return -EIO;
 		}
 	}
@@ -712,7 +714,7 @@ static int gfs2_do_thaw(struct gfs2_sbd *sdp)
 	error = gfs2_freeze_lock_shared(sdp);
 	if (error)
 		goto fail;
-	error = thaw_super(sb);
+	error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
 	if (!error)
 		return 0;
 
@@ -761,7 +763,7 @@ out:
  *
  */
 
-static int gfs2_freeze_super(struct super_block *sb)
+static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
@@ -816,7 +818,7 @@ out:
  *
  */
 
-static int gfs2_thaw_super(struct super_block *sb)
+static int gfs2_thaw_super(struct super_block *sb, enum freeze_holder who)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;

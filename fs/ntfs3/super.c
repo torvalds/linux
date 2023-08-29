@@ -569,9 +569,9 @@ static void init_once(void *foo)
 }
 
 /*
- * put_ntfs - Noinline to reduce binary size.
+ * Noinline to reduce binary size.
  */
-static noinline void put_ntfs(struct ntfs_sb_info *sbi)
+static noinline void ntfs3_free_sbi(struct ntfs_sb_info *sbi)
 {
 	kfree(sbi->new_rec);
 	kvfree(ntfs_put_shared(sbi->upcase));
@@ -625,12 +625,6 @@ static void ntfs_put_super(struct super_block *sb)
 
 	/* Mark rw ntfs as clear, if possible. */
 	ntfs_set_state(sbi, NTFS_DIRTY_CLEAR);
-
-	put_mount_options(sbi->options);
-	put_ntfs(sbi);
-	sb->s_fs_info = NULL;
-
-	sync_blockdev(sb->s_bdev);
 }
 
 static int ntfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -1564,15 +1558,7 @@ load_root:
 put_inode_out:
 	iput(inode);
 out:
-	/*
-	 * Free resources here.
-	 * ntfs_fs_free will be called with fc->s_fs_info = NULL
-	 */
-	put_mount_options(sbi->options);
-	put_ntfs(sbi);
-	sb->s_fs_info = NULL;
 	kfree(boot2);
-
 	return err;
 }
 
@@ -1659,7 +1645,7 @@ static void ntfs_fs_free(struct fs_context *fc)
 	struct ntfs_sb_info *sbi = fc->s_fs_info;
 
 	if (sbi)
-		put_ntfs(sbi);
+		ntfs3_free_sbi(sbi);
 
 	if (opts)
 		put_mount_options(opts);
@@ -1728,13 +1714,24 @@ free_opts:
 	return -ENOMEM;
 }
 
+static void ntfs3_kill_sb(struct super_block *sb)
+{
+	struct ntfs_sb_info *sbi = sb->s_fs_info;
+
+	kill_block_super(sb);
+
+	if (sbi->options)
+		put_mount_options(sbi->options);
+	ntfs3_free_sbi(sbi);
+}
+
 // clang-format off
 static struct file_system_type ntfs_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "ntfs3",
 	.init_fs_context	= ntfs_init_fs_context,
 	.parameters		= ntfs_fs_parameters,
-	.kill_sb		= kill_block_super,
+	.kill_sb		= ntfs3_kill_sb,
 	.fs_flags		= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
 };
 // clang-format on

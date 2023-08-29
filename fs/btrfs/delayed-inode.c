@@ -1736,9 +1736,6 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 	int over = 0;
 	unsigned char d_type;
 
-	if (list_empty(ins_list))
-		return 0;
-
 	/*
 	 * Changing the data of the delayed item is impossible. So
 	 * we needn't lock them. And we have held i_mutex of the
@@ -1809,9 +1806,9 @@ static void fill_stack_inode_item(struct btrfs_trans_handle *trans,
 				      inode->i_mtime.tv_nsec);
 
 	btrfs_set_stack_timespec_sec(&inode_item->ctime,
-				     inode->i_ctime.tv_sec);
+				     inode_get_ctime(inode).tv_sec);
 	btrfs_set_stack_timespec_nsec(&inode_item->ctime,
-				      inode->i_ctime.tv_nsec);
+				      inode_get_ctime(inode).tv_nsec);
 
 	btrfs_set_stack_timespec_sec(&inode_item->otime,
 				     BTRFS_I(inode)->i_otime.tv_sec);
@@ -1862,8 +1859,8 @@ int btrfs_fill_inode(struct inode *inode, u32 *rdev)
 	inode->i_mtime.tv_sec = btrfs_stack_timespec_sec(&inode_item->mtime);
 	inode->i_mtime.tv_nsec = btrfs_stack_timespec_nsec(&inode_item->mtime);
 
-	inode->i_ctime.tv_sec = btrfs_stack_timespec_sec(&inode_item->ctime);
-	inode->i_ctime.tv_nsec = btrfs_stack_timespec_nsec(&inode_item->ctime);
+	inode_set_ctime(inode, btrfs_stack_timespec_sec(&inode_item->ctime),
+			btrfs_stack_timespec_nsec(&inode_item->ctime));
 
 	BTRFS_I(inode)->i_otime.tv_sec =
 		btrfs_stack_timespec_sec(&inode_item->otime);

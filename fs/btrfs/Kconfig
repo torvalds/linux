@@ -49,9 +49,11 @@ config BTRFS_FS_POSIX_ACL
 	  If you don't know what Access Control Lists are, say N
 
 config BTRFS_FS_CHECK_INTEGRITY
-	bool "Btrfs with integrity check tool compiled in (DANGEROUS)"
+	bool "Btrfs with integrity check tool compiled in (DEPRECATED)"
 	depends on BTRFS_FS
 	help
+	  This feature has been deprecated and will be removed in 6.7.
+
 	  Adds code that examines all block write requests (including
 	  writes of the super block). The goal is to verify that the
 	  state of the filesystem on disk is always consistent, i.e.,
