@@ -126,9 +126,9 @@
 
 		mbist-vmin = <825000 900000 950000>;
 		nvmem-cells = <&cpu_leakage>, <&core_pvtm>, <&mbist_vmin>, <&cpu_opp_info>,
-			      <&specification_serial_number>;
+			      <&specification_serial_number>, <&remark_spec_serial_number>;
 		nvmem-cell-names = "leakage", "pvtm", "mbist-vmin", "opp-info",
-				   "specification_serial_number";
+				   "specification_serial_number", "remark_spec_serial_number";
 		rockchip,supported-hw;
 		rockchip,max-volt = <1150000>;
 		rockchip,pvtm-voltage-sel = <
@@ -1147,9 +1147,9 @@
 
 		mbist-vmin = <825000 900000 950000>;
 		nvmem-cells = <&npu_leakage>, <&core_pvtm>, <&mbist_vmin>, <&npu_opp_info>,
-			      <&specification_serial_number>;
+			      <&specification_serial_number>, <&remark_spec_serial_number>;
 		nvmem-cell-names = "leakage", "pvtm", "mbist-vmin", "opp-info",
-				   "specification_serial_number";
+				   "specification_serial_number", "remark_spec_serial_number";
 		rockchip,supported-hw;
 		rockchip,max-volt = <1000000>;
 		rockchip,temp-hysteresis = <5000>;
@@ -1329,9 +1329,9 @@
 
 		mbist-vmin = <825000 900000 950000>;
 		nvmem-cells = <&gpu_leakage>, <&core_pvtm>, <&mbist_vmin>, <&gpu_opp_info>,
-			      <&specification_serial_number>;
+			      <&specification_serial_number>, <&remark_spec_serial_number>;
 		nvmem-cell-names = "leakage", "pvtm", "mbist-vmin", "opp-info",
-				   "specification_serial_number";
+				   "specification_serial_number", "remark_spec_serial_number";
 		rockchip,supported-hw;
 		rockchip,max-volt = <1000000>;
 		rockchip,temp-hysteresis = <5000>;
@@ -2418,9 +2418,9 @@
 
 		mbist-vmin = <825000 900000 950000>;
 		nvmem-cells = <&log_leakage>, <&core_pvtm>, <&mbist_vmin>, <&dmc_opp_info>,
-			      <&specification_serial_number>;
+			      <&specification_serial_number>, <&remark_spec_serial_number>;
 		nvmem-cell-names = "leakage", "pvtm", "mbist-vmin", "opp-info",
-				   "specification_serial_number";
+				   "specification_serial_number", "remark_spec_serial_number";
 		rockchip,supported-hw;
 		rockchip,max-volt = <1000000>;
 		rockchip,temp-hysteresis = <5000>;
@@ -2847,6 +2847,10 @@
 		};
 		dmc_opp_info: dmc-opp-info@48 {
 			reg = <0x48 0x6>;
+		};
+		remark_spec_serial_number: remark-spec-serial-number@56 {
+			reg = <0x56 0x1>;
+			bits = <0 5>;
 		};
 	};
 
