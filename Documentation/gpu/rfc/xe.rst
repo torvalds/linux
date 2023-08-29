@@ -88,24 +88,6 @@ depend on any other patch touching drm_scheduler itself that was not yet merged
 through drm-misc. This, by itself, already includes the reach of an agreement for
 uniform 1 to 1 relationship implementation / usage across drivers.
 
-GPU VA
-------
-Two main goals of Xe are meeting together here:
-
-1) Have an uAPI that aligns with modern UMD needs.
-
-2) Early upstream engagement.
-
-RedHat engineers working on Nouveau proposed a new DRM feature to handle keeping
-track of GPU virtual address mappings. This is still not merged upstream, but
-this aligns very well with our goals and with our VM_BIND. The engagement with
-upstream and the port of Xe towards GPUVA is already ongoing.
-
-As a key measurable result, Xe needs to be aligned with the GPU VA and working in
-our tree. Missing Nouveau patches should *not* block Xe and any needed GPUVA
-related patch should be independent and present on dri-devel or acked by
-maintainers to go along with the first Xe pull request towards drm-next.
-
 ASYNC VM_BIND
 -------------
 Although having a common DRM level IOCTL for VM_BIND is not a requirement to get
@@ -230,3 +212,21 @@ Xe merged, it is mandatory to enforce the overall locking scheme for all major
 structs and list (so vm and vma). So, a consensus is needed, and possibly some
 common helpers. If helpers are needed, they should be also documented in this
 document.
+
+GPU VA
+------
+Two main goals of Xe are meeting together here:
+
+1) Have an uAPI that aligns with modern UMD needs.
+
+2) Early upstream engagement.
+
+RedHat engineers working on Nouveau proposed a new DRM feature to handle keeping
+track of GPU virtual address mappings. This is still not merged upstream, but
+this aligns very well with our goals and with our VM_BIND. The engagement with
+upstream and the port of Xe towards GPUVA is already ongoing.
+
+As a key measurable result, Xe needs to be aligned with the GPU VA and working in
+our tree. Missing Nouveau patches should *not* block Xe and any needed GPUVA
+related patch should be independent and present on dri-devel or acked by
+maintainers to go along with the first Xe pull request towards drm-next.
