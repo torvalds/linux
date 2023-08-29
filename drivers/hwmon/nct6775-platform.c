@@ -35,7 +35,7 @@ static const char * const nct6775_sio_names[] __initconst = {
 	"NCT6796D",
 	"NCT6797D",
 	"NCT6798D",
-	"NCT6799D",
+	"NCT6796D-S/NCT6799D-R",
 };
 
 static unsigned short force_id;
