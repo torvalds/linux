@@ -316,6 +316,11 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 				v4l2_m2m_dst_buf_remove_by_idx(inst->v4l2_fh.m2m_ctx,
 							       dec_output_info.index_frame_display);
 
+			if (!dst_buf) {
+				dev_dbg(inst->dev->dev,"find no dst_buf \n");
+				return;
+			}
+
 			stride = dec_output_info.disp_frame.stride;
 			height = dec_output_info.disp_pic_height -
 				dec_output_info.rc_display.bottom;
