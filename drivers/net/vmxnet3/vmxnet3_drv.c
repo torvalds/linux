@@ -28,6 +28,7 @@
 #include <net/ip6_checksum.h>
 
 #include "vmxnet3_int.h"
+#include "vmxnet3_xdp.h"
 
 char vmxnet3_driver_name[] = "vmxnet3";
 #define VMXNET3_DRIVER_DESC "VMware vmxnet3 virtual NIC driver"
@@ -338,14 +339,16 @@ static void
 vmxnet3_unmap_tx_buf(struct vmxnet3_tx_buf_info *tbi,
 		     struct pci_dev *pdev)
 {
-	if (tbi->map_type == VMXNET3_MAP_SINGLE)
+	u32 map_type = tbi->map_type;
+
+	if (map_type & VMXNET3_MAP_SINGLE)
 		dma_unmap_single(&pdev->dev, tbi->dma_addr, tbi->len,
 				 DMA_TO_DEVICE);
-	else if (tbi->map_type == VMXNET3_MAP_PAGE)
+	else if (map_type & VMXNET3_MAP_PAGE)
 		dma_unmap_page(&pdev->dev, tbi->dma_addr, tbi->len,
 			       DMA_TO_DEVICE);
 	else
-		BUG_ON(tbi->map_type != VMXNET3_MAP_NONE);
+		BUG_ON(map_type & ~VMXNET3_MAP_XDP);
 
 	tbi->map_type = VMXNET3_MAP_NONE; /* to help debugging */
 }
@@ -353,19 +356,20 @@ vmxnet3_unmap_tx_buf(struct vmxnet3_tx_buf_info *tbi,
 
 static int
 vmxnet3_unmap_pkt(u32 eop_idx, struct vmxnet3_tx_queue *tq,
-		  struct pci_dev *pdev,	struct vmxnet3_adapter *adapter)
+		  struct pci_dev *pdev,	struct vmxnet3_adapter *adapter,
+		  struct xdp_frame_bulk *bq)
 {
-	struct sk_buff *skb;
+	struct vmxnet3_tx_buf_info *tbi;
 	int entries = 0;
+	u32 map_type;
 
 	/* no out of order completion */
 	BUG_ON(tq->buf_info[eop_idx].sop_idx != tq->tx_ring.next2comp);
 	BUG_ON(VMXNET3_TXDESC_GET_EOP(&(tq->tx_ring.base[eop_idx].txd)) != 1);
 
-	skb = tq->buf_info[eop_idx].skb;
-	BUG_ON(skb == NULL);
-	tq->buf_info[eop_idx].skb = NULL;
-
+	tbi = &tq->buf_info[eop_idx];
+	BUG_ON(!tbi->skb);
+	map_type = tbi->map_type;
 	VMXNET3_INC_RING_IDX_ONLY(eop_idx, tq->tx_ring.size);
 
 	while (tq->tx_ring.next2comp != eop_idx) {
@@ -381,7 +385,14 @@ vmxnet3_unmap_pkt(u32 eop_idx, struct vmxnet3_tx_queue *tq,
 		entries++;
 	}
 
-	dev_kfree_skb_any(skb);
+	if (map_type & VMXNET3_MAP_XDP)
+		xdp_return_frame_bulk(tbi->xdpf, bq);
+	else
+		dev_kfree_skb_any(tbi->skb);
+
+	/* xdpf and skb are in an anonymous union. */
+	tbi->skb = NULL;
+
 	return entries;
 }
 
@@ -390,8 +401,12 @@ static int
 vmxnet3_tq_tx_complete(struct vmxnet3_tx_queue *tq,
 			struct vmxnet3_adapter *adapter)
 {
-	int completed = 0;
 	union Vmxnet3_GenericDesc *gdesc;
+	struct xdp_frame_bulk bq;
+	int completed = 0;
+
+	xdp_frame_bulk_init(&bq);
+	rcu_read_lock();
 
 	gdesc = tq->comp_ring.base + tq->comp_ring.next2proc;
 	while (VMXNET3_TCD_GET_GEN(&gdesc->tcd) == tq->comp_ring.gen) {
@@ -402,11 +417,13 @@ vmxnet3_tq_tx_complete(struct vmxnet3_tx_queue *tq,
 
 		completed += vmxnet3_unmap_pkt(VMXNET3_TCD_GET_TXIDX(
 					       &gdesc->tcd), tq, adapter->pdev,
-					       adapter);
+					       adapter, &bq);
 
 		vmxnet3_comp_ring_adv_next2proc(&tq->comp_ring);
 		gdesc = tq->comp_ring.base + tq->comp_ring.next2proc;
 	}
+	xdp_flush_frame_bulk(&bq);
+	rcu_read_unlock();
 
 	if (completed) {
 		spin_lock(&tq->tx_lock);
@@ -426,26 +443,36 @@ static void
 vmxnet3_tq_cleanup(struct vmxnet3_tx_queue *tq,
 		   struct vmxnet3_adapter *adapter)
 {
+	struct xdp_frame_bulk bq;
+	u32 map_type;
 	int i;
+
+	xdp_frame_bulk_init(&bq);
+	rcu_read_lock();
 
 	while (tq->tx_ring.next2comp != tq->tx_ring.next2fill) {
 		struct vmxnet3_tx_buf_info *tbi;
 
 		tbi = tq->buf_info + tq->tx_ring.next2comp;
+		map_type = tbi->map_type;
 
 		vmxnet3_unmap_tx_buf(tbi, adapter->pdev);
 		if (tbi->skb) {
-			dev_kfree_skb_any(tbi->skb);
+			if (map_type & VMXNET3_MAP_XDP)
+				xdp_return_frame_bulk(tbi->xdpf, &bq);
+			else
+				dev_kfree_skb_any(tbi->skb);
 			tbi->skb = NULL;
 		}
 		vmxnet3_cmd_ring_adv_next2comp(&tq->tx_ring);
 	}
 
-	/* sanity check, verify all buffers are indeed unmapped and freed */
-	for (i = 0; i < tq->tx_ring.size; i++) {
-		BUG_ON(tq->buf_info[i].skb != NULL ||
-		       tq->buf_info[i].map_type != VMXNET3_MAP_NONE);
-	}
+	xdp_flush_frame_bulk(&bq);
+	rcu_read_unlock();
+
+	/* sanity check, verify all buffers are indeed unmapped */
+	for (i = 0; i < tq->tx_ring.size; i++)
+		BUG_ON(tq->buf_info[i].map_type != VMXNET3_MAP_NONE);
 
 	tq->tx_ring.gen = VMXNET3_INIT_GEN;
 	tq->tx_ring.next2fill = tq->tx_ring.next2comp = 0;
@@ -599,7 +626,17 @@ vmxnet3_rq_alloc_rx_buf(struct vmxnet3_rx_queue *rq, u32 ring_idx,
 		gd = ring->base + ring->next2fill;
 		rbi->comp_state = VMXNET3_RXD_COMP_PENDING;
 
-		if (rbi->buf_type == VMXNET3_RX_BUF_SKB) {
+		if (rbi->buf_type == VMXNET3_RX_BUF_XDP) {
+			void *data = vmxnet3_pp_get_buff(rq->page_pool,
+							 &rbi->dma_addr,
+							 GFP_KERNEL);
+			if (!data) {
+				rq->stats.rx_buf_alloc_failure++;
+				break;
+			}
+			rbi->page = virt_to_page(data);
+			val = VMXNET3_RXD_BTYPE_HEAD << VMXNET3_RXD_BTYPE_SHIFT;
+		} else if (rbi->buf_type == VMXNET3_RX_BUF_SKB) {
 			if (rbi->skb == NULL) {
 				rbi->skb = __netdev_alloc_skb_ip_align(adapter->netdev,
 								       rbi->len,
@@ -1263,6 +1300,63 @@ drop_pkt:
 	return NETDEV_TX_OK;
 }
 
+static int
+vmxnet3_create_pp(struct vmxnet3_adapter *adapter,
+		  struct vmxnet3_rx_queue *rq, int size)
+{
+	bool xdp_prog = vmxnet3_xdp_enabled(adapter);
+	const struct page_pool_params pp_params = {
+		.order = 0,
+		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
+		.pool_size = size,
+		.nid = NUMA_NO_NODE,
+		.dev = &adapter->pdev->dev,
+		.offset = VMXNET3_XDP_RX_OFFSET,
+		.max_len = VMXNET3_XDP_MAX_FRSIZE,
+		.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE,
+	};
+	struct page_pool *pp;
+	int err;
+
+	pp = page_pool_create(&pp_params);
+	if (IS_ERR(pp))
+		return PTR_ERR(pp);
+
+	err = xdp_rxq_info_reg(&rq->xdp_rxq, adapter->netdev, rq->qid,
+			       rq->napi.napi_id);
+	if (err < 0)
+		goto err_free_pp;
+
+	err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq, MEM_TYPE_PAGE_POOL, pp);
+	if (err)
+		goto err_unregister_rxq;
+
+	rq->page_pool = pp;
+
+	return 0;
+
+err_unregister_rxq:
+	xdp_rxq_info_unreg(&rq->xdp_rxq);
+err_free_pp:
+	page_pool_destroy(pp);
+
+	return err;
+}
+
+void *
+vmxnet3_pp_get_buff(struct page_pool *pp, dma_addr_t *dma_addr,
+		    gfp_t gfp_mask)
+{
+	struct page *page;
+
+	page = page_pool_alloc_pages(pp, gfp_mask | __GFP_NOWARN);
+	if (unlikely(!page))
+		return NULL;
+
+	*dma_addr = page_pool_get_dma_addr(page) + pp->p.offset;
+
+	return page_address(page);
+}
 
 static netdev_tx_t
 vmxnet3_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
@@ -1423,6 +1517,8 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 	struct Vmxnet3_RxDesc rxCmdDesc;
 	struct Vmxnet3_RxCompDesc rxComp;
 #endif
+	bool need_flush = false;
+
 	vmxnet3_getRxComp(rcd, &rq->comp_ring.base[rq->comp_ring.next2proc].rcd,
 			  &rxComp);
 	while (rcd->gen == rq->comp_ring.gen) {
@@ -1463,6 +1559,31 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			goto rcd_done;
 		}
 
+		if (rcd->sop && rcd->eop && vmxnet3_xdp_enabled(adapter)) {
+			struct sk_buff *skb_xdp_pass;
+			int act;
+
+			if (VMXNET3_RX_DATA_RING(adapter, rcd->rqID)) {
+				ctx->skb = NULL;
+				goto skip_xdp; /* Handle it later. */
+			}
+
+			if (rbi->buf_type != VMXNET3_RX_BUF_XDP)
+				goto rcd_done;
+
+			act = vmxnet3_process_xdp(adapter, rq, rcd, rbi, rxd,
+						  &skb_xdp_pass);
+			if (act == XDP_PASS) {
+				ctx->skb = skb_xdp_pass;
+				goto sop_done;
+			}
+			ctx->skb = NULL;
+			need_flush |= act == XDP_REDIRECT;
+
+			goto rcd_done;
+		}
+skip_xdp:
+
 		if (rcd->sop) { /* first buf of the pkt */
 			bool rxDataRingUsed;
 			u16 len;
@@ -1471,7 +1592,8 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			       (rcd->rqID != rq->qid &&
 				rcd->rqID != rq->dataRingQid));
 
-			BUG_ON(rbi->buf_type != VMXNET3_RX_BUF_SKB);
+			BUG_ON(rbi->buf_type != VMXNET3_RX_BUF_SKB &&
+			       rbi->buf_type != VMXNET3_RX_BUF_XDP);
 			BUG_ON(ctx->skb != NULL || rbi->skb == NULL);
 
 			if (unlikely(rcd->len == 0)) {
@@ -1489,6 +1611,25 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			rxDataRingUsed =
 				VMXNET3_RX_DATA_RING(adapter, rcd->rqID);
 			len = rxDataRingUsed ? rcd->len : rbi->len;
+
+			if (rxDataRingUsed && vmxnet3_xdp_enabled(adapter)) {
+				struct sk_buff *skb_xdp_pass;
+				size_t sz;
+				int act;
+
+				sz = rcd->rxdIdx * rq->data_ring.desc_size;
+				act = vmxnet3_process_xdp_small(adapter, rq,
+								&rq->data_ring.base[sz],
+								rcd->len,
+								&skb_xdp_pass);
+				if (act == XDP_PASS) {
+					ctx->skb = skb_xdp_pass;
+					goto sop_done;
+				}
+				need_flush |= act == XDP_REDIRECT;
+
+				goto rcd_done;
+			}
 			new_skb = netdev_alloc_skb_ip_align(adapter->netdev,
 							    len);
 			if (new_skb == NULL) {
@@ -1621,6 +1762,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 		}
 
 
+sop_done:
 		skb = ctx->skb;
 		if (rcd->eop) {
 			u32 mtu = adapter->netdev->mtu;
@@ -1757,6 +1899,8 @@ refill_buf:
 		vmxnet3_getRxComp(rcd,
 				  &rq->comp_ring.base[rq->comp_ring.next2proc].rcd, &rxComp);
 	}
+	if (need_flush)
+		xdp_do_flush();
 
 	return num_pkts;
 }
@@ -1775,24 +1919,32 @@ vmxnet3_rq_cleanup(struct vmxnet3_rx_queue *rq,
 
 	for (ring_idx = 0; ring_idx < 2; ring_idx++) {
 		for (i = 0; i < rq->rx_ring[ring_idx].size; i++) {
+			struct vmxnet3_rx_buf_info *rbi;
 #ifdef __BIG_ENDIAN_BITFIELD
 			struct Vmxnet3_RxDesc rxDesc;
 #endif
+
+			rbi = &rq->buf_info[ring_idx][i];
 			vmxnet3_getRxDesc(rxd,
 				&rq->rx_ring[ring_idx].base[i].rxd, &rxDesc);
 
 			if (rxd->btype == VMXNET3_RXD_BTYPE_HEAD &&
-					rq->buf_info[ring_idx][i].skb) {
+			    rbi->page && rbi->buf_type == VMXNET3_RX_BUF_XDP) {
+				page_pool_recycle_direct(rq->page_pool,
+							 rbi->page);
+				rbi->page = NULL;
+			} else if (rxd->btype == VMXNET3_RXD_BTYPE_HEAD &&
+				   rbi->skb) {
 				dma_unmap_single(&adapter->pdev->dev, rxd->addr,
 						 rxd->len, DMA_FROM_DEVICE);
-				dev_kfree_skb(rq->buf_info[ring_idx][i].skb);
-				rq->buf_info[ring_idx][i].skb = NULL;
+				dev_kfree_skb(rbi->skb);
+				rbi->skb = NULL;
 			} else if (rxd->btype == VMXNET3_RXD_BTYPE_BODY &&
-					rq->buf_info[ring_idx][i].page) {
+				   rbi->page) {
 				dma_unmap_page(&adapter->pdev->dev, rxd->addr,
 					       rxd->len, DMA_FROM_DEVICE);
-				put_page(rq->buf_info[ring_idx][i].page);
-				rq->buf_info[ring_idx][i].page = NULL;
+				put_page(rbi->page);
+				rbi->page = NULL;
 			}
 		}
 
@@ -1813,6 +1965,7 @@ vmxnet3_rq_cleanup_all(struct vmxnet3_adapter *adapter)
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		vmxnet3_rq_cleanup(&adapter->rx_queue[i], adapter);
+	rcu_assign_pointer(adapter->xdp_bpf_prog, NULL);
 }
 
 
@@ -1841,6 +1994,11 @@ static void vmxnet3_rq_destroy(struct vmxnet3_rx_queue *rq,
 			rq->rx_ring[i].base = NULL;
 		}
 	}
+
+	if (xdp_rxq_info_is_reg(&rq->xdp_rxq))
+		xdp_rxq_info_unreg(&rq->xdp_rxq);
+	page_pool_destroy(rq->page_pool);
+	rq->page_pool = NULL;
 
 	if (rq->data_ring.base) {
 		dma_free_coherent(&adapter->pdev->dev,
@@ -1885,14 +2043,16 @@ static int
 vmxnet3_rq_init(struct vmxnet3_rx_queue *rq,
 		struct vmxnet3_adapter  *adapter)
 {
-	int i;
+	int i, err;
 
 	/* initialize buf_info */
 	for (i = 0; i < rq->rx_ring[0].size; i++) {
 
-		/* 1st buf for a pkt is skbuff */
+		/* 1st buf for a pkt is skbuff or xdp page */
 		if (i % adapter->rx_buf_per_pkt == 0) {
-			rq->buf_info[0][i].buf_type = VMXNET3_RX_BUF_SKB;
+			rq->buf_info[0][i].buf_type = vmxnet3_xdp_enabled(adapter) ?
+						      VMXNET3_RX_BUF_XDP :
+						      VMXNET3_RX_BUF_SKB;
 			rq->buf_info[0][i].len = adapter->skb_buf_size;
 		} else { /* subsequent bufs for a pkt is frag */
 			rq->buf_info[0][i].buf_type = VMXNET3_RX_BUF_PAGE;
@@ -1913,8 +2073,18 @@ vmxnet3_rq_init(struct vmxnet3_rx_queue *rq,
 		rq->rx_ring[i].gen = VMXNET3_INIT_GEN;
 		rq->rx_ring[i].isOutOfOrder = 0;
 	}
+
+	err = vmxnet3_create_pp(adapter, rq,
+				rq->rx_ring[0].size + rq->rx_ring[1].size);
+	if (err)
+		return err;
+
 	if (vmxnet3_rq_alloc_rx_buf(rq, 0, rq->rx_ring[0].size - 1,
 				    adapter) == 0) {
+		xdp_rxq_info_unreg(&rq->xdp_rxq);
+		page_pool_destroy(rq->page_pool);
+		rq->page_pool = NULL;
+
 		/* at least has 1 rx buffer for the 1st ring */
 		return -ENOMEM;
 	}
@@ -2016,7 +2186,7 @@ err:
 }
 
 
-static int
+int
 vmxnet3_rq_create_all(struct vmxnet3_adapter *adapter)
 {
 	int i, err = 0;
@@ -3053,7 +3223,7 @@ vmxnet3_free_pci_resources(struct vmxnet3_adapter *adapter)
 }
 
 
-static void
+void
 vmxnet3_adjust_rx_ring_size(struct vmxnet3_adapter *adapter)
 {
 	size_t sz, i, ring0_size, ring1_size, comp_size;
@@ -3612,6 +3782,8 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 		.ndo_poll_controller = vmxnet3_netpoll,
 #endif
+		.ndo_bpf = vmxnet3_xdp,
+		.ndo_xdp_xmit = vmxnet3_xdp_xmit,
 	};
 	int err;
 	u32 ver;
@@ -3864,6 +4036,8 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	vmxnet3_declare_features(adapter);
+	netdev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+			       NETDEV_XDP_ACT_NDO_XMIT;
 
 	adapter->rxdata_desc_size = VMXNET3_VERSION_GE_3(adapter) ?
 		VMXNET3_DEF_RXDATA_DESC_SIZE : 0;

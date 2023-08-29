@@ -33,6 +33,7 @@ struct ipv6_devconf {
 	__s32		accept_ra_defrtr;
 	__u32		ra_defrtr_metric;
 	__s32		accept_ra_min_hop_limit;
+	__s32		accept_ra_min_lft;
 	__s32		accept_ra_pinfo;
 	__s32		ignore_routes_with_linkdown;
 #ifdef CONFIG_IPV6_ROUTER_PREF
@@ -199,14 +200,7 @@ struct inet6_cork {
 	u8 tclass;
 };
 
-/**
- * struct ipv6_pinfo - ipv6 private area
- *
- * In the struct sock hierarchy (tcp6_sock, upd6_sock, etc)
- * this _must_ be the last member, so that inet6_sk_generic
- * is able to calculate its offset from the base struct sock
- * by using the struct proto->slab_obj_size member. -acme
- */
+/* struct ipv6_pinfo - ipv6 private area */
 struct ipv6_pinfo {
 	struct in6_addr 	saddr;
 	struct in6_pktinfo	sticky_pktinfo;
@@ -306,19 +300,19 @@ struct raw6_sock {
 	__u32			offset;		/* checksum offset  */
 	struct icmp6_filter	filter;
 	__u32			ip6mr_table;
-	/* ipv6_pinfo has to be the last member of raw6_sock, see inet6_sk_generic */
+
 	struct ipv6_pinfo	inet6;
 };
 
 struct udp6_sock {
 	struct udp_sock	  udp;
-	/* ipv6_pinfo has to be the last member of udp6_sock, see inet6_sk_generic */
+
 	struct ipv6_pinfo inet6;
 };
 
 struct tcp6_sock {
 	struct tcp_sock	  tcp;
-	/* ipv6_pinfo has to be the last member of tcp6_sock, see inet6_sk_generic */
+
 	struct ipv6_pinfo inet6;
 };
 

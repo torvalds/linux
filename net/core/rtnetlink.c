@@ -61,7 +61,7 @@
 #include "dev.h"
 
 #define RTNL_MAX_TYPE		50
-#define RTNL_SLAVE_MAX_TYPE	43
+#define RTNL_SLAVE_MAX_TYPE	44
 
 struct rtnl_link {
 	rtnl_doit_func		doit;
@@ -1273,7 +1273,6 @@ static noinline_for_stack int rtnl_fill_stats(struct sk_buff *skb,
 static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 					       struct net_device *dev,
 					       int vfs_num,
-					       struct nlattr *vfinfo,
 					       u32 ext_filter_mask)
 {
 	struct ifla_vf_rss_query_en vf_rss_query_en;
@@ -1343,7 +1342,7 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 	vf_trust.setting = ivi.trusted;
 	vf = nla_nest_start_noflag(skb, IFLA_VF_INFO);
 	if (!vf)
-		goto nla_put_vfinfo_failure;
+		return -EMSGSIZE;
 	if (nla_put(skb, IFLA_VF_MAC, sizeof(vf_mac), &vf_mac) ||
 	    nla_put(skb, IFLA_VF_BROADCAST, sizeof(vf_broadcast), &vf_broadcast) ||
 	    nla_put(skb, IFLA_VF_VLAN, sizeof(vf_vlan), &vf_vlan) ||
@@ -1414,8 +1413,6 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 
 nla_put_vf_failure:
 	nla_nest_cancel(skb, vf);
-nla_put_vfinfo_failure:
-	nla_nest_cancel(skb, vfinfo);
 	return -EMSGSIZE;
 }
 
@@ -1441,8 +1438,10 @@ static noinline_for_stack int rtnl_fill_vf(struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	for (i = 0; i < num_vfs; i++) {
-		if (rtnl_fill_vfinfo(skb, dev, i, vfinfo, ext_filter_mask))
+		if (rtnl_fill_vfinfo(skb, dev, i, ext_filter_mask)) {
+			nla_nest_cancel(skb, vfinfo);
 			return -EMSGSIZE;
+		}
 	}
 
 	nla_nest_end(skb, vfinfo);

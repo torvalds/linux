@@ -10,6 +10,9 @@ pdsc_viftype *pdsc_dl_find_viftype_by_id(struct pdsc *pdsc,
 {
 	int vt;
 
+	if (!pdsc->viftype_status)
+		return NULL;
+
 	for (vt = 0; vt < PDS_DEV_TYPE_MAX; vt++) {
 		if (pdsc->viftype_status[vt].dl_id == dl_id)
 			return &pdsc->viftype_status[vt];

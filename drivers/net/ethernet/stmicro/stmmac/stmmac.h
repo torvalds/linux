@@ -21,7 +21,8 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
 #include <linux/reset.h>
-#include <net/page_pool.h>
+#include <net/page_pool/types.h>
+#include <net/xdp.h>
 #include <uapi/linux/bpf.h>
 
 struct stmmac_resources {
@@ -77,6 +78,7 @@ struct stmmac_tx_queue {
 	dma_addr_t dma_tx_phy;
 	dma_addr_t tx_tail_addr;
 	u32 mss;
+	struct stmmac_txq_stats txq_stats;
 };
 
 struct stmmac_rx_buffer {
@@ -121,6 +123,7 @@ struct stmmac_rx_queue {
 		unsigned int len;
 		unsigned int error;
 	} state;
+	struct stmmac_rxq_stats rxq_stats;
 };
 
 struct stmmac_channel {

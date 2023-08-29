@@ -233,11 +233,19 @@ static void mtk_pcs_lynxi_link_up(struct phylink_pcs *pcs,
 	}
 }
 
+static void mtk_pcs_lynxi_disable(struct phylink_pcs *pcs)
+{
+	struct mtk_pcs_lynxi *mpcs = pcs_to_mtk_pcs_lynxi(pcs);
+
+	mpcs->interface = PHY_INTERFACE_MODE_NA;
+}
+
 static const struct phylink_pcs_ops mtk_pcs_lynxi_ops = {
 	.pcs_get_state = mtk_pcs_lynxi_get_state,
 	.pcs_config = mtk_pcs_lynxi_config,
 	.pcs_an_restart = mtk_pcs_lynxi_restart_an,
 	.pcs_link_up = mtk_pcs_lynxi_link_up,
+	.pcs_disable = mtk_pcs_lynxi_disable,
 };
 
 struct phylink_pcs *mtk_pcs_lynxi_create(struct device *dev,

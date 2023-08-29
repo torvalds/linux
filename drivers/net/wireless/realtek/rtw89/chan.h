@@ -7,6 +7,9 @@
 
 #include "core.h"
 
+/* The dwell time in TU before doing rtw89_chanctx_work(). */
+#define RTW89_CHANCTX_TIME_MCC_PREPARE 100
+
 static inline bool rtw89_get_entity_state(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
@@ -50,6 +53,8 @@ void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
 			      const struct cfg80211_chan_def *chandef);
 void rtw89_entity_init(struct rtw89_dev *rtwdev);
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev);
+void rtw89_chanctx_work(struct work_struct *work);
+void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev);
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 			  struct ieee80211_chanctx_conf *ctx);
 void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,

@@ -594,30 +594,48 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	/* Firmware files to download are based on ROM version.
 	 * ROM version is derived from last two bytes of soc_ver.
 	 */
-	rom_ver = ((soc_ver & 0x00000f00) >> 0x04) | (soc_ver & 0x0000000f);
+	if (soc_type == QCA_WCN3988)
+		rom_ver = ((soc_ver & 0x00000f00) >> 0x05) | (soc_ver & 0x0000000f);
+	else
+		rom_ver = ((soc_ver & 0x00000f00) >> 0x04) | (soc_ver & 0x0000000f);
 
 	if (soc_type == QCA_WCN6750)
 		qca_send_patch_config_cmd(hdev);
 
 	/* Download rampatch file */
 	config.type = TLV_TYPE_PATCH;
-	if (qca_is_wcn399x(soc_type)) {
+	switch (soc_type) {
+	case QCA_WCN3990:
+	case QCA_WCN3991:
+	case QCA_WCN3998:
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/crbtfw%02x.tlv", rom_ver);
-	} else if (soc_type == QCA_QCA6390) {
+		break;
+	case QCA_WCN3988:
+		snprintf(config.fwname, sizeof(config.fwname),
+			 "qca/apbtfw%02x.tlv", rom_ver);
+		break;
+	case QCA_QCA6390:
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/htbtfw%02x.tlv", rom_ver);
-	} else if (soc_type == QCA_WCN6750) {
+		break;
+	case QCA_WCN6750:
 		/* Choose mbn file by default.If mbn file is not found
 		 * then choose tlv file
 		 */
 		config.type = ELF_TYPE_PATCH;
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/msbtfw%02x.mbn", rom_ver);
-	} else if (soc_type == QCA_WCN6855) {
+		break;
+	case QCA_WCN6855:
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/hpbtfw%02x.tlv", rom_ver);
-	} else {
+		break;
+	case QCA_WCN7850:
+		snprintf(config.fwname, sizeof(config.fwname),
+			 "qca/hmtbtfw%02x.tlv", rom_ver);
+		break;
+	default:
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/rampatch_%08x.bin", soc_ver);
 	}
@@ -633,30 +651,48 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 
 	/* Download NVM configuration */
 	config.type = TLV_TYPE_NVM;
-	if (firmware_name)
+	if (firmware_name) {
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/%s", firmware_name);
-	else if (qca_is_wcn399x(soc_type)) {
-		if (le32_to_cpu(ver.soc_id) == QCA_WCN3991_SOC_ID) {
+	} else {
+		switch (soc_type) {
+		case QCA_WCN3990:
+		case QCA_WCN3991:
+		case QCA_WCN3998:
+			if (le32_to_cpu(ver.soc_id) == QCA_WCN3991_SOC_ID) {
+				snprintf(config.fwname, sizeof(config.fwname),
+					 "qca/crnv%02xu.bin", rom_ver);
+			} else {
+				snprintf(config.fwname, sizeof(config.fwname),
+					 "qca/crnv%02x.bin", rom_ver);
+			}
+			break;
+		case QCA_WCN3988:
 			snprintf(config.fwname, sizeof(config.fwname),
-				 "qca/crnv%02xu.bin", rom_ver);
-		} else {
+				 "qca/apnv%02x.bin", rom_ver);
+			break;
+		case QCA_QCA6390:
 			snprintf(config.fwname, sizeof(config.fwname),
-				 "qca/crnv%02x.bin", rom_ver);
+				 "qca/htnv%02x.bin", rom_ver);
+			break;
+		case QCA_WCN6750:
+			snprintf(config.fwname, sizeof(config.fwname),
+				 "qca/msnv%02x.bin", rom_ver);
+			break;
+		case QCA_WCN6855:
+			snprintf(config.fwname, sizeof(config.fwname),
+				 "qca/hpnv%02x.bin", rom_ver);
+			break;
+		case QCA_WCN7850:
+			snprintf(config.fwname, sizeof(config.fwname),
+				 "qca/hmtnv%02x.bin", rom_ver);
+			break;
+
+		default:
+			snprintf(config.fwname, sizeof(config.fwname),
+				 "qca/nvm_%08x.bin", soc_ver);
 		}
 	}
-	else if (soc_type == QCA_QCA6390)
-		snprintf(config.fwname, sizeof(config.fwname),
-			 "qca/htnv%02x.bin", rom_ver);
-	else if (soc_type == QCA_WCN6750)
-		snprintf(config.fwname, sizeof(config.fwname),
-			 "qca/msnv%02x.bin", rom_ver);
-	else if (soc_type == QCA_WCN6855)
-		snprintf(config.fwname, sizeof(config.fwname),
-			 "qca/hpnv%02x.bin", rom_ver);
-	else
-		snprintf(config.fwname, sizeof(config.fwname),
-			 "qca/nvm_%08x.bin", soc_ver);
 
 	err = qca_download_firmware(hdev, &config, soc_type, rom_ver);
 	if (err < 0) {
@@ -664,16 +700,25 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 		return err;
 	}
 
-	if (soc_type >= QCA_WCN3991) {
+	switch (soc_type) {
+	case QCA_WCN3991:
+	case QCA_QCA6390:
+	case QCA_WCN6750:
+	case QCA_WCN6855:
+	case QCA_WCN7850:
 		err = qca_disable_soc_logging(hdev);
 		if (err < 0)
 			return err;
+		break;
+	default:
+		break;
 	}
 
 	/* WCN399x and WCN6750 supports the Microsoft vendor extension with 0xFD70 as the
 	 * VsMsftOpCode.
 	 */
 	switch (soc_type) {
+	case QCA_WCN3988:
 	case QCA_WCN3990:
 	case QCA_WCN3991:
 	case QCA_WCN3998:
@@ -695,6 +740,7 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	case QCA_WCN3991:
 	case QCA_WCN6750:
 	case QCA_WCN6855:
+	case QCA_WCN7850:
 		/* get fw build info */
 		err = qca_read_fw_build_info(hdev);
 		if (err < 0)

@@ -50,9 +50,9 @@ static int lpc18xx_dwmac_probe(struct platform_device *pdev)
 		goto err_remove_config_dt;
 	}
 
-	if (plat_dat->interface == PHY_INTERFACE_MODE_MII) {
+	if (plat_dat->mac_interface == PHY_INTERFACE_MODE_MII) {
 		ethmode = LPC18XX_CREG_CREG6_ETHMODE_MII;
-	} else if (plat_dat->interface == PHY_INTERFACE_MODE_RMII) {
+	} else if (plat_dat->mac_interface == PHY_INTERFACE_MODE_RMII) {
 		ethmode = LPC18XX_CREG_CREG6_ETHMODE_RMII;
 	} else {
 		dev_err(&pdev->dev, "Only MII and RMII mode supported\n");

@@ -346,6 +346,24 @@ the software port.
      - The number of receive packets with CQE compression on ring i [#accel]_.
      - Acceleration
 
+   * - `rx[i]_arfs_add`
+     - The number of aRFS flow rules added to the device for direct RQ steering
+       on ring i [#accel]_.
+     - Acceleration
+
+   * - `rx[i]_arfs_request_in`
+     - Number of flow rules that have been requested to move into ring i for
+       direct RQ steering [#accel]_.
+     - Acceleration
+
+   * - `rx[i]_arfs_request_out`
+     - Number of flow rules that have been requested to move out of ring i [#accel]_.
+     - Acceleration
+
+   * - `rx[i]_arfs_expired`
+     - Number of flow rules that have been expired and removed [#accel]_.
+     - Acceleration
+
    * - `rx[i]_arfs_err`
      - Number of flow rules that failed to be added to the flow table.
      - Error
@@ -443,11 +461,6 @@ the software port.
    * - `rx[i]_xsk_buff_alloc_err`
      - The number of times allocating an skb or XSK buffer failed in the XSK RQ
        context.
-     - Error
-
-   * - `rx[i]_xsk_arfs_err`
-     - aRFS (accelerated Receive Flow Steering) does not occur in the XSK RQ
-       context, so this counter should never increment.
      - Error
 
    * - `rx[i]_xdp_tx_xmit`
@@ -681,6 +694,12 @@ the software port.
      - Accumulation of time differences between the port timestamp and CQE
        timestamp when the difference is greater than 128 seconds in precision
        time protocol.
+     - Error
+
+   * - `ptp_cq[i]_late_cqe`
+     - Number of times a CQE has been delivered on the PTP timestamping CQ when
+       the CQE was not expected since a certain amount of time had elapsed where
+       the device typically ensures not posting the CQE.
      - Error
 
 .. [#ring_global] The corresponding ring and global counters do not share the

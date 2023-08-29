@@ -138,7 +138,7 @@ static inline bool mlx5e_accel_tx_begin(struct net_device *dev,
 	}
 #endif
 
-#ifdef CONFIG_MLX5_EN_MACSEC
+#ifdef CONFIG_MLX5_MACSEC
 	if (unlikely(mlx5e_macsec_skb_is_offload(skb))) {
 		struct mlx5e_priv *priv = netdev_priv(dev);
 
@@ -173,7 +173,7 @@ static inline void mlx5e_accel_tx_eseg(struct mlx5e_priv *priv,
 		mlx5e_ipsec_tx_build_eseg(priv, skb, eseg);
 #endif
 
-#ifdef CONFIG_MLX5_EN_MACSEC
+#ifdef CONFIG_MLX5_MACSEC
 	if (unlikely(mlx5e_macsec_skb_is_offload(skb)))
 		mlx5e_macsec_tx_build_eseg(priv->macsec, skb, eseg);
 #endif

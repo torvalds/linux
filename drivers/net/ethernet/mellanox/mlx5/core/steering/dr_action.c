@@ -1422,7 +1422,6 @@ dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 	case DR_ACTION_TYP_TNL_L3_TO_L2:
 	{
 		u8 *hw_actions;
-		int ret;
 
 		hw_actions = kzalloc(DR_ACTION_CACHE_LINE_SIZE, GFP_KERNEL);
 		if (!hw_actions)

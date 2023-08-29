@@ -565,6 +565,8 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define RX_QUEUE_MASK                         255
 #define RX_QUEUE_SIZE_LOG                     8
 
+#define IWL_DEFAULT_RX_QUEUE			0
+
 /**
  * struct iwl_rb_status - reserve buffer status
  * 	host memory mapped FH registers

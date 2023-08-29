@@ -3,6 +3,7 @@
 #include <test_progs.h>
 #include <linux/pkt_cls.h>
 
+#include "cap_helpers.h"
 #include "test_tc_bpf.skel.h"
 
 #define LO_IFINDEX 1
@@ -327,7 +328,7 @@ static int test_tc_bpf_api(struct bpf_tc_hook *hook, int fd)
 	return 0;
 }
 
-void test_tc_bpf(void)
+void tc_bpf_root(void)
 {
 	DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = LO_IFINDEX,
 			    .attach_point = BPF_TC_INGRESS);
@@ -392,4 +393,37 @@ end:
 		bpf_tc_hook_destroy(&hook);
 	}
 	test_tc_bpf__destroy(skel);
+}
+
+void tc_bpf_non_root(void)
+{
+	struct test_tc_bpf *skel = NULL;
+	__u64 caps = 0;
+	int ret;
+
+	/* In case CAP_BPF and CAP_PERFMON is not set */
+	ret = cap_enable_effective(1ULL << CAP_BPF | 1ULL << CAP_NET_ADMIN, &caps);
+	if (!ASSERT_OK(ret, "set_cap_bpf_cap_net_admin"))
+		return;
+	ret = cap_disable_effective(1ULL << CAP_SYS_ADMIN | 1ULL << CAP_PERFMON, NULL);
+	if (!ASSERT_OK(ret, "disable_cap_sys_admin"))
+		goto restore_cap;
+
+	skel = test_tc_bpf__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_tc_bpf__open_and_load"))
+		goto restore_cap;
+
+	test_tc_bpf__destroy(skel);
+
+restore_cap:
+	if (caps)
+		cap_enable_effective(caps, NULL);
+}
+
+void test_tc_bpf(void)
+{
+	if (test__start_subtest("tc_bpf_root"))
+		tc_bpf_root();
+	if (test__start_subtest("tc_bpf_non_root"))
+		tc_bpf_non_root();
 }

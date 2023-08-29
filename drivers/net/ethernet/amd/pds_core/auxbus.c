@@ -11,7 +11,7 @@
  * @pf_pdev:	ptr to the PF driver struct
  * @devname:	name that includes service into, e.g. pds_core.vDPA
  *
- * Return: 0 on success, or
+ * Return: positive client ID (ci) on success, or
  *         negative for error
  */
 int pds_client_register(struct pci_dev *pf_pdev, char *devname)

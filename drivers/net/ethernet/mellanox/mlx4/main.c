@@ -42,7 +42,6 @@
 #include <linux/slab.h>
 #include <linux/io-mapping.h>
 #include <linux/delay.h>
-#include <linux/kmod.h>
 #include <linux/etherdevice.h>
 #include <net/devlink.h>
 
@@ -864,7 +863,7 @@ static void mlx4_slave_destroy_special_qp_cap(struct mlx4_dev *dev)
 
 static int mlx4_slave_special_qp_cap(struct mlx4_dev *dev)
 {
-	struct mlx4_func_cap *func_cap = NULL;
+	struct mlx4_func_cap *func_cap;
 	struct mlx4_caps *caps = &dev->caps;
 	int i, err = 0;
 
@@ -908,9 +907,9 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 {
 	int			   err;
 	u32			   page_size;
-	struct mlx4_dev_cap	   *dev_cap = NULL;
-	struct mlx4_func_cap	   *func_cap = NULL;
-	struct mlx4_init_hca_param *hca_param = NULL;
+	struct mlx4_dev_cap	   *dev_cap;
+	struct mlx4_func_cap	   *func_cap;
+	struct mlx4_init_hca_param *hca_param;
 
 	hca_param = kzalloc(sizeof(*hca_param), GFP_KERNEL);
 	func_cap = kzalloc(sizeof(*func_cap), GFP_KERNEL);
@@ -1091,27 +1090,6 @@ free_mem:
 	return err;
 }
 
-static void mlx4_request_modules(struct mlx4_dev *dev)
-{
-	int port;
-	int has_ib_port = false;
-	int has_eth_port = false;
-#define EN_DRV_NAME	"mlx4_en"
-#define IB_DRV_NAME	"mlx4_ib"
-
-	for (port = 1; port <= dev->caps.num_ports; port++) {
-		if (dev->caps.port_type[port] == MLX4_PORT_TYPE_IB)
-			has_ib_port = true;
-		else if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
-			has_eth_port = true;
-	}
-
-	if (has_eth_port)
-		request_module_nowait(EN_DRV_NAME);
-	if (has_ib_port || (dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
-		request_module_nowait(IB_DRV_NAME);
-}
-
 /*
  * Change the port configuration of the device.
  * Every user of this function must hold the port mutex.
@@ -1147,7 +1125,6 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 			mlx4_err(dev, "Failed to register device\n");
 			goto out;
 		}
-		mlx4_request_modules(dev);
 	}
 
 out:
@@ -1441,7 +1418,7 @@ static int mlx4_mf_unbond(struct mlx4_dev *dev)
 	return ret;
 }
 
-int mlx4_bond(struct mlx4_dev *dev)
+static int mlx4_bond(struct mlx4_dev *dev)
 {
 	int ret = 0;
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -1467,9 +1444,8 @@ int mlx4_bond(struct mlx4_dev *dev)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mlx4_bond);
 
-int mlx4_unbond(struct mlx4_dev *dev)
+static int mlx4_unbond(struct mlx4_dev *dev)
 {
 	int ret = 0;
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -1496,10 +1472,8 @@ int mlx4_unbond(struct mlx4_dev *dev)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mlx4_unbond);
 
-
-int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p)
+static int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p)
 {
 	u8 port1 = v2p->port1;
 	u8 port2 = v2p->port2;
@@ -1541,7 +1515,61 @@ int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p)
 	mutex_unlock(&priv->bond_mutex);
 	return err;
 }
-EXPORT_SYMBOL_GPL(mlx4_port_map_set);
+
+struct mlx4_bond {
+	struct work_struct work;
+	struct mlx4_dev *dev;
+	int is_bonded;
+	struct mlx4_port_map port_map;
+};
+
+static void mlx4_bond_work(struct work_struct *work)
+{
+	struct mlx4_bond *bond = container_of(work, struct mlx4_bond, work);
+	int err = 0;
+
+	if (bond->is_bonded) {
+		if (!mlx4_is_bonded(bond->dev)) {
+			err = mlx4_bond(bond->dev);
+			if (err)
+				mlx4_err(bond->dev, "Fail to bond device\n");
+		}
+		if (!err) {
+			err = mlx4_port_map_set(bond->dev, &bond->port_map);
+			if (err)
+				mlx4_err(bond->dev,
+					 "Fail to set port map [%d][%d]: %d\n",
+					 bond->port_map.port1,
+					 bond->port_map.port2, err);
+		}
+	} else if (mlx4_is_bonded(bond->dev)) {
+		err = mlx4_unbond(bond->dev);
+		if (err)
+			mlx4_err(bond->dev, "Fail to unbond device\n");
+	}
+	put_device(&bond->dev->persist->pdev->dev);
+	kfree(bond);
+}
+
+int mlx4_queue_bond_work(struct mlx4_dev *dev, int is_bonded, u8 v2p_p1,
+			 u8 v2p_p2)
+{
+	struct mlx4_bond *bond;
+
+	bond = kzalloc(sizeof(*bond), GFP_ATOMIC);
+	if (!bond)
+		return -ENOMEM;
+
+	INIT_WORK(&bond->work, mlx4_bond_work);
+	get_device(&dev->persist->pdev->dev);
+	bond->dev = dev;
+	bond->is_bonded = is_bonded;
+	bond->port_map.port1 = v2p_p1;
+	bond->port_map.port2 = v2p_p2;
+	queue_work(mlx4_wq, &bond->work);
+	return 0;
+}
+EXPORT_SYMBOL(mlx4_queue_bond_work);
 
 static int mlx4_load_fw(struct mlx4_dev *dev)
 {
@@ -3375,8 +3403,11 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 	devl_assert_locked(devlink);
 	dev = &priv->dev;
 
-	INIT_LIST_HEAD(&priv->ctx_list);
-	spin_lock_init(&priv->ctx_lock);
+	err = mlx4_adev_init(dev);
+	if (err)
+		return err;
+
+	ATOMIC_INIT_NOTIFIER_HEAD(&priv->event_nh);
 
 	mutex_init(&priv->port_mutex);
 	mutex_init(&priv->bond_mutex);
@@ -3402,10 +3433,11 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 		err = mlx4_get_ownership(dev);
 		if (err) {
 			if (err < 0)
-				return err;
+				goto err_adev;
 			else {
 				mlx4_warn(dev, "Multiple PFs not yet supported - Skipping PF\n");
-				return -EINVAL;
+				err = -EINVAL;
+				goto err_adev;
 			}
 		}
 
@@ -3674,8 +3706,6 @@ slave_start:
 	if (err)
 		goto err_port;
 
-	mlx4_request_modules(dev);
-
 	mlx4_sense_init(dev);
 	mlx4_start_sense(dev);
 
@@ -3753,6 +3783,9 @@ err_sriov:
 		mlx4_free_ownership(dev);
 
 	kfree(dev_cap);
+
+err_adev:
+	mlx4_adev_cleanup(dev);
 	return err;
 }
 
@@ -4132,6 +4165,8 @@ static void mlx4_unload_one(struct pci_dev *pdev)
 
 	mlx4_slave_destroy_special_qp_cap(dev);
 	kfree(dev->dev_vfs);
+
+	mlx4_adev_cleanup(dev);
 
 	mlx4_clean_dev(dev);
 	priv->pci_dev_data = pci_dev_data;
@@ -4519,6 +4554,9 @@ static int __init mlx4_verify_params(void)
 static int __init mlx4_init(void)
 {
 	int ret;
+
+	WARN_ONCE(strcmp(MLX4_ADEV_NAME, KBUILD_MODNAME),
+		  "mlx4_core name not in sync with kernel module name");
 
 	if (mlx4_verify_params())
 		return -EINVAL;

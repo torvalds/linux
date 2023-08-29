@@ -131,17 +131,8 @@ struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
 				      struct sk_buff *skb);
 #endif
 static inline u8 iwl_txq_gen1_tfd_get_num_tbs(struct iwl_trans *trans,
-					      void *_tfd)
+					      struct iwl_tfd *tfd)
 {
-	struct iwl_tfd *tfd;
-
-	if (trans->trans_cfg->gen2) {
-		struct iwl_tfh_tfd *tfh_tfd = _tfd;
-
-		return le16_to_cpu(tfh_tfd->num_tbs) & 0x1f;
-	}
-
-	tfd = (struct iwl_tfd *)_tfd;
 	return tfd->num_tbs & 0x1f;
 }
 
@@ -162,6 +153,21 @@ static inline u16 iwl_txq_gen1_tfd_tb_get_len(struct iwl_trans *trans,
 	tb = &tfd->tbs[idx];
 
 	return le16_to_cpu(tb->hi_n_len) >> 4;
+}
+
+static inline void iwl_pcie_gen1_tfd_set_tb(struct iwl_trans *trans,
+					    struct iwl_tfd *tfd,
+					    u8 idx, dma_addr_t addr, u16 len)
+{
+	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+	u16 hi_n_len = len << 4;
+
+	put_unaligned_le32(addr, &tb->lo);
+	hi_n_len |= iwl_get_dma_hi_addr(addr);
+
+	tb->hi_n_len = cpu_to_le16(hi_n_len);
+
+	tfd->num_tbs = idx + 1;
 }
 
 void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,

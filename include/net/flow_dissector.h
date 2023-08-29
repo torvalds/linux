@@ -302,6 +302,14 @@ struct flow_dissector_key_l2tpv3 {
 };
 
 /**
+ * struct flow_dissector_key_ipsec:
+ * @spi: identifier for a ipsec connection
+ */
+struct flow_dissector_key_ipsec {
+	__be32 spi;
+};
+
+/**
  * struct flow_dissector_key_cfm
  * @mdl_ver: maintenance domain level (mdl) and cfm protocol version
  * @opcode: code specifying a type of cfm protocol packet
@@ -354,6 +362,7 @@ enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_PPPOE, /* struct flow_dissector_key_pppoe */
 	FLOW_DISSECTOR_KEY_L2TPV3, /* struct flow_dissector_key_l2tpv3 */
 	FLOW_DISSECTOR_KEY_CFM, /* struct flow_dissector_key_cfm */
+	FLOW_DISSECTOR_KEY_IPSEC, /* struct flow_dissector_key_ipsec */
 
 	FLOW_DISSECTOR_KEY_MAX,
 };
@@ -370,7 +379,8 @@ struct flow_dissector_key {
 };
 
 struct flow_dissector {
-	unsigned int used_keys; /* each bit repesents presence of one key id */
+	unsigned long long  used_keys;
+		/* each bit represents presence of one key id */
 	unsigned short int offset[FLOW_DISSECTOR_KEY_MAX];
 };
 
@@ -430,7 +440,7 @@ void skb_flow_get_icmp_tci(const struct sk_buff *skb,
 static inline bool dissector_uses_key(const struct flow_dissector *flow_dissector,
 				      enum flow_dissector_key_id key_id)
 {
-	return flow_dissector->used_keys & (1 << key_id);
+	return flow_dissector->used_keys & (1ULL << key_id);
 }
 
 static inline void *skb_flow_dissector_target(struct flow_dissector *flow_dissector,

@@ -127,17 +127,23 @@ static int mlx5_fw_reset_get_reset_state_err(struct mlx5_core_dev *dev,
 	if (mlx5_reg_mfrl_query(dev, NULL, NULL, &reset_state))
 		goto out;
 
+	if (!reset_state)
+		return 0;
+
 	switch (reset_state) {
 	case MLX5_MFRL_REG_RESET_STATE_IN_NEGOTIATION:
 	case MLX5_MFRL_REG_RESET_STATE_RESET_IN_PROGRESS:
-		NL_SET_ERR_MSG_MOD(extack, "Sync reset was already triggered");
+		NL_SET_ERR_MSG_MOD(extack, "Sync reset still in progress");
 		return -EBUSY;
-	case MLX5_MFRL_REG_RESET_STATE_TIMEOUT:
-		NL_SET_ERR_MSG_MOD(extack, "Sync reset got timeout");
+	case MLX5_MFRL_REG_RESET_STATE_NEG_TIMEOUT:
+		NL_SET_ERR_MSG_MOD(extack, "Sync reset negotiation timeout");
 		return -ETIMEDOUT;
 	case MLX5_MFRL_REG_RESET_STATE_NACK:
 		NL_SET_ERR_MSG_MOD(extack, "One of the hosts disabled reset");
 		return -EPERM;
+	case MLX5_MFRL_REG_RESET_STATE_UNLOAD_TIMEOUT:
+		NL_SET_ERR_MSG_MOD(extack, "Sync reset unload timeout");
+		return -ETIMEDOUT;
 	}
 
 out:
@@ -151,7 +157,7 @@ int mlx5_fw_reset_set_reset_sync(struct mlx5_core_dev *dev, u8 reset_type_sel,
 	struct mlx5_fw_reset *fw_reset = dev->priv.fw_reset;
 	u32 out[MLX5_ST_SZ_DW(mfrl_reg)] = {};
 	u32 in[MLX5_ST_SZ_DW(mfrl_reg)] = {};
-	int err;
+	int err, rst_res;
 
 	set_bit(MLX5_FW_RESET_FLAGS_PENDING_COMP, &fw_reset->reset_flags);
 
@@ -164,11 +170,32 @@ int mlx5_fw_reset_set_reset_sync(struct mlx5_core_dev *dev, u8 reset_type_sel,
 		return 0;
 
 	clear_bit(MLX5_FW_RESET_FLAGS_PENDING_COMP, &fw_reset->reset_flags);
-	if (err == -EREMOTEIO && MLX5_CAP_MCAM_FEATURE(dev, reset_state))
-		return mlx5_fw_reset_get_reset_state_err(dev, extack);
+	if (err == -EREMOTEIO && MLX5_CAP_MCAM_FEATURE(dev, reset_state)) {
+		rst_res = mlx5_fw_reset_get_reset_state_err(dev, extack);
+		return rst_res ? rst_res : err;
+	}
 
 	NL_SET_ERR_MSG_MOD(extack, "Sync reset command failed");
 	return mlx5_cmd_check(dev, err, in, out);
+}
+
+int mlx5_fw_reset_verify_fw_complete(struct mlx5_core_dev *dev,
+				     struct netlink_ext_ack *extack)
+{
+	u8 rst_state;
+	int err;
+
+	err = mlx5_fw_reset_get_reset_state_err(dev, extack);
+	if (err)
+		return err;
+
+	rst_state = mlx5_get_fw_rst_state(dev);
+	if (!rst_state)
+		return 0;
+
+	mlx5_core_err(dev, "Sync reset did not complete, state=%d\n", rst_state);
+	NL_SET_ERR_MSG_MOD(extack, "Sync reset did not complete successfully");
+	return rst_state;
 }
 
 int mlx5_fw_reset_set_live_patch(struct mlx5_core_dev *dev)

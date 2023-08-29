@@ -224,7 +224,7 @@ int efx_ef100_init_datapath_caps(struct efx_nic *efx)
 static int ef100_ev_probe(struct efx_channel *channel)
 {
 	/* Allocate an extra descriptor for the QMDA status completion entry */
-	return efx_nic_alloc_buffer(channel->efx, &channel->eventq.buf,
+	return efx_nic_alloc_buffer(channel->efx, &channel->eventq,
 				    (channel->eventq_mask + 2) *
 				    sizeof(efx_qword_t),
 				    GFP_KERNEL);

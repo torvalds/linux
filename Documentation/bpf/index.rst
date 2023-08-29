@@ -12,9 +12,9 @@ that goes into great technical depth about the BPF Architecture.
 .. toctree::
    :maxdepth: 1
 
-   instruction-set
    verifier
    libbpf/index
+   standardization/index
    btf
    faq
    syscall_api
@@ -29,7 +29,6 @@ that goes into great technical depth about the BPF Architecture.
    bpf_licensing
    test_debug
    clang-notes
-   linux-notes
    other
    redirect
 

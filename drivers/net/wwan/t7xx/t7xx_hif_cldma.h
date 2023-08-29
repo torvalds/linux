@@ -34,7 +34,7 @@
 /**
  * enum cldma_id - Identifiers for CLDMA HW units.
  * @CLDMA_ID_MD: Modem control channel.
- * @CLDMA_ID_AP: Application Processor control channel (not used at the moment).
+ * @CLDMA_ID_AP: Application Processor control channel.
  * @CLDMA_NUM:   Number of CLDMA HW units available.
  */
 enum cldma_id {

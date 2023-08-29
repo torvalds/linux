@@ -124,22 +124,13 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 	xfrm_dst_destroy(xdst);
 }
 
-static void xfrm4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
-			     int unregister)
-{
-	if (!unregister)
-		return;
-
-	xfrm_dst_ifdown(dst, dev);
-}
-
 static struct dst_ops xfrm4_dst_ops_template = {
 	.family =		AF_INET,
 	.update_pmtu =		xfrm4_update_pmtu,
 	.redirect =		xfrm4_redirect,
 	.cow_metrics =		dst_cow_metrics_generic,
 	.destroy =		xfrm4_dst_destroy,
-	.ifdown =		xfrm4_dst_ifdown,
+	.ifdown =		xfrm_dst_ifdown,
 	.local_out =		__ip_local_out,
 	.gc_thresh =		32768,
 };

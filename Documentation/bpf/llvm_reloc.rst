@@ -28,7 +28,7 @@ For example, for the following code::
     return g1 + g2 + l1 + l2;
   }
 
-Compiled with ``clang -target bpf -O2 -c test.c``, the following is
+Compiled with ``clang --target=bpf -O2 -c test.c``, the following is
 the code with ``llvm-objdump -dr test.o``::
 
        0:       18 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 r1 = 0 ll
@@ -157,7 +157,7 @@ and ``call`` instructions. For example::
     return gfunc(a, b) +  lfunc(a, b) + global;
   }
 
-Compiled with ``clang -target bpf -O2 -c test.c``, we will have
+Compiled with ``clang --target=bpf -O2 -c test.c``, we will have
 following code with `llvm-objdump -dr test.o``::
 
   Disassembly of section .text:
@@ -203,7 +203,7 @@ The following is an example to show how R_BPF_64_ABS64 could be generated::
   int global() { return 0; }
   struct t { void *g; } gbl = { global };
 
-Compiled with ``clang -target bpf -O2 -g -c test.c``, we will see a
+Compiled with ``clang --target=bpf -O2 -g -c test.c``, we will see a
 relocation below in ``.data`` section with command
 ``llvm-readelf -r test.o``::
 

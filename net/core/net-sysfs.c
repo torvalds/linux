@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/cpu.h>
+#include <net/netdev_rx_queue.h>
 
 #include "dev.h"
 #include "net-sysfs.h"

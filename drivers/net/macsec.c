@@ -518,14 +518,8 @@ static void macsec_count_tx(struct sk_buff *skb, struct macsec_tx_sc *tx_sc,
 
 static void count_tx(struct net_device *dev, int ret, int len)
 {
-	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
-		struct pcpu_sw_netstats *stats = this_cpu_ptr(dev->tstats);
-
-		u64_stats_update_begin(&stats->syncp);
-		u64_stats_inc(&stats->tx_packets);
-		u64_stats_add(&stats->tx_bytes, len);
-		u64_stats_update_end(&stats->syncp);
-	}
+	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN))
+		dev_sw_netstats_tx_add(dev, 1, len);
 }
 
 static void macsec_encrypt_done(void *data, int err)
@@ -827,12 +821,7 @@ static void macsec_finalize_skb(struct sk_buff *skb, u8 icv_len, u8 hdr_len)
 
 static void count_rx(struct net_device *dev, int len)
 {
-	struct pcpu_sw_netstats *stats = this_cpu_ptr(dev->tstats);
-
-	u64_stats_update_begin(&stats->syncp);
-	u64_stats_inc(&stats->rx_packets);
-	u64_stats_add(&stats->rx_bytes, len);
-	u64_stats_update_end(&stats->syncp);
+	dev_sw_netstats_rx_add(dev, len);
 }
 
 static void macsec_decrypt_done(void *data, int err)
@@ -4239,6 +4228,18 @@ static struct net *macsec_get_link_net(const struct net_device *dev)
 {
 	return dev_net(macsec_priv(dev)->real_dev);
 }
+
+struct net_device *macsec_get_real_dev(const struct net_device *dev)
+{
+	return macsec_priv(dev)->real_dev;
+}
+EXPORT_SYMBOL_GPL(macsec_get_real_dev);
+
+bool macsec_netdev_is_offloaded(struct net_device *dev)
+{
+	return macsec_is_offloaded(macsec_priv(dev));
+}
+EXPORT_SYMBOL_GPL(macsec_netdev_is_offloaded);
 
 static size_t macsec_get_size(const struct net_device *dev)
 {

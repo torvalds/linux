@@ -515,13 +515,12 @@ static void __build_flow_key(const struct net *net, struct flowi4 *fl4,
 	__u8 scope = RT_SCOPE_UNIVERSE;
 
 	if (sk) {
-		const struct inet_sock *inet = inet_sk(sk);
-
 		oif = sk->sk_bound_dev_if;
 		mark = READ_ONCE(sk->sk_mark);
 		tos = ip_sock_rt_tos(sk);
 		scope = ip_sock_rt_scope(sk);
-		prot = inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol;
+		prot = inet_test_bit(HDRINCL, sk) ? IPPROTO_RAW :
+						    sk->sk_protocol;
 	}
 
 	flowi4_init_output(fl4, oif, mark, tos & IPTOS_RT_MASK, scope,
@@ -555,7 +554,8 @@ static void build_sk_flow_key(struct flowi4 *fl4, const struct sock *sk)
 	flowi4_init_output(fl4, sk->sk_bound_dev_if, READ_ONCE(sk->sk_mark),
 			   ip_sock_rt_tos(sk) & IPTOS_RT_MASK,
 			   ip_sock_rt_scope(sk),
-			   inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
+			   inet_test_bit(HDRINCL, sk) ?
+				IPPROTO_RAW : sk->sk_protocol,
 			   inet_sk_flowi_flags(sk),
 			   daddr, inet->inet_saddr, 0, 0, sk->sk_uid);
 	rcu_read_unlock();

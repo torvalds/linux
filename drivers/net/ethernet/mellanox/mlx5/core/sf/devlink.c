@@ -12,7 +12,7 @@
 #include "diag/sf_tracepoint.h"
 
 struct mlx5_sf {
-	struct devlink_port dl_port;
+	struct mlx5_devlink_port dl_port;
 	unsigned int port_index;
 	u32 controller;
 	u16 id;
@@ -292,11 +292,11 @@ static int mlx5_sf_add(struct mlx5_core_dev *dev, struct mlx5_sf_table *table,
 	if (IS_ERR(sf))
 		return PTR_ERR(sf);
 
-	err = mlx5_esw_offloads_sf_vport_enable(esw, &sf->dl_port, sf->hw_fn_id,
-						new_attr->controller, new_attr->sfnum);
+	err = mlx5_eswitch_load_sf_vport(esw, sf->hw_fn_id, MLX5_VPORT_UC_ADDR_CHANGE,
+					 &sf->dl_port, new_attr->controller, new_attr->sfnum);
 	if (err)
 		goto esw_err;
-	*dl_port = &sf->dl_port;
+	*dl_port = &sf->dl_port.dl_port;
 	trace_mlx5_sf_add(dev, sf->port_index, sf->controller, sf->hw_fn_id, new_attr->sfnum);
 	return 0;
 
@@ -400,7 +400,7 @@ int mlx5_devlink_sf_port_del(struct devlink *devlink,
 		goto sf_err;
 	}
 
-	mlx5_esw_offloads_sf_vport_disable(esw, sf->hw_fn_id);
+	mlx5_eswitch_unload_sf_vport(esw, sf->hw_fn_id);
 	mlx5_sf_id_erase(table, sf);
 
 	mutex_lock(&table->sf_state_lock);
@@ -472,7 +472,7 @@ static void mlx5_sf_deactivate_all(struct mlx5_sf_table *table)
 	 * arrive. It is safe to destroy all user created SFs.
 	 */
 	xa_for_each(&table->port_indices, index, sf) {
-		mlx5_esw_offloads_sf_vport_disable(esw, sf->hw_fn_id);
+		mlx5_eswitch_unload_sf_vport(esw, sf->hw_fn_id);
 		mlx5_sf_id_erase(table, sf);
 		mlx5_sf_dealloc(table, sf);
 	}

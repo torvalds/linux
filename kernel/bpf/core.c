@@ -61,6 +61,7 @@
 #define AX	regs[BPF_REG_AX]
 #define ARG1	regs[BPF_REG_ARG1]
 #define CTX	regs[BPF_REG_CTX]
+#define OFF	insn->off
 #define IMM	insn->imm
 
 struct bpf_mem_alloc bpf_global_ma;
@@ -372,7 +373,12 @@ static int bpf_adj_delta_to_off(struct bpf_insn *insn, u32 pos, s32 end_old,
 {
 	const s32 off_min = S16_MIN, off_max = S16_MAX;
 	s32 delta = end_new - end_old;
-	s32 off = insn->off;
+	s32 off;
+
+	if (insn->code == (BPF_JMP32 | BPF_JA))
+		off = insn->imm;
+	else
+		off = insn->off;
 
 	if (curr < pos && curr + off + 1 >= end_old)
 		off += delta;
@@ -380,8 +386,12 @@ static int bpf_adj_delta_to_off(struct bpf_insn *insn, u32 pos, s32 end_old,
 		off -= delta;
 	if (off < off_min || off > off_max)
 		return -ERANGE;
-	if (!probe_pass)
-		insn->off = off;
+	if (!probe_pass) {
+		if (insn->code == (BPF_JMP32 | BPF_JA))
+			insn->imm = off;
+		else
+			insn->off = off;
+	}
 	return 0;
 }
 
@@ -1271,7 +1281,7 @@ static int bpf_jit_blind_insn(const struct bpf_insn *from,
 	case BPF_ALU | BPF_MOD | BPF_K:
 		*to++ = BPF_ALU32_IMM(BPF_MOV, BPF_REG_AX, imm_rnd ^ from->imm);
 		*to++ = BPF_ALU32_IMM(BPF_XOR, BPF_REG_AX, imm_rnd);
-		*to++ = BPF_ALU32_REG(from->code, from->dst_reg, BPF_REG_AX);
+		*to++ = BPF_ALU32_REG_OFF(from->code, from->dst_reg, BPF_REG_AX, from->off);
 		break;
 
 	case BPF_ALU64 | BPF_ADD | BPF_K:
@@ -1285,7 +1295,7 @@ static int bpf_jit_blind_insn(const struct bpf_insn *from,
 	case BPF_ALU64 | BPF_MOD | BPF_K:
 		*to++ = BPF_ALU64_IMM(BPF_MOV, BPF_REG_AX, imm_rnd ^ from->imm);
 		*to++ = BPF_ALU64_IMM(BPF_XOR, BPF_REG_AX, imm_rnd);
-		*to++ = BPF_ALU64_REG(from->code, from->dst_reg, BPF_REG_AX);
+		*to++ = BPF_ALU64_REG_OFF(from->code, from->dst_reg, BPF_REG_AX, from->off);
 		break;
 
 	case BPF_JMP | BPF_JEQ  | BPF_K:
@@ -1523,6 +1533,7 @@ EXPORT_SYMBOL_GPL(__bpf_call_base);
 	INSN_3(ALU64, DIV,  X),			\
 	INSN_3(ALU64, MOD,  X),			\
 	INSN_2(ALU64, NEG),			\
+	INSN_3(ALU64, END, TO_LE),		\
 	/*   Immediate based. */		\
 	INSN_3(ALU64, ADD,  K),			\
 	INSN_3(ALU64, SUB,  K),			\
@@ -1591,6 +1602,7 @@ EXPORT_SYMBOL_GPL(__bpf_call_base);
 	INSN_3(JMP, JSLE, K),			\
 	INSN_3(JMP, JSET, K),			\
 	INSN_2(JMP, JA),			\
+	INSN_2(JMP32, JA),			\
 	/* Store instructions. */		\
 	/*   Register based. */			\
 	INSN_3(STX, MEM,  B),			\
@@ -1610,6 +1622,9 @@ EXPORT_SYMBOL_GPL(__bpf_call_base);
 	INSN_3(LDX, MEM, H),			\
 	INSN_3(LDX, MEM, W),			\
 	INSN_3(LDX, MEM, DW),			\
+	INSN_3(LDX, MEMSX, B),			\
+	INSN_3(LDX, MEMSX, H),			\
+	INSN_3(LDX, MEMSX, W),			\
 	/*   Immediate based. */		\
 	INSN_3(LD, IMM, DW)
 
@@ -1635,12 +1650,6 @@ bool bpf_opcode_in_insntable(u8 code)
 }
 
 #ifndef CONFIG_BPF_JIT_ALWAYS_ON
-u64 __weak bpf_probe_read_kernel(void *dst, u32 size, const void *unsafe_ptr)
-{
-	memset(dst, 0, size);
-	return -EFAULT;
-}
-
 /**
  *	___bpf_prog_run - run eBPF program on a given context
  *	@regs: is the array of MAX_BPF_EXT_REG eBPF pseudo-registers
@@ -1666,6 +1675,9 @@ static u64 ___bpf_prog_run(u64 *regs, const struct bpf_insn *insn)
 		[BPF_LDX | BPF_PROBE_MEM | BPF_H] = &&LDX_PROBE_MEM_H,
 		[BPF_LDX | BPF_PROBE_MEM | BPF_W] = &&LDX_PROBE_MEM_W,
 		[BPF_LDX | BPF_PROBE_MEM | BPF_DW] = &&LDX_PROBE_MEM_DW,
+		[BPF_LDX | BPF_PROBE_MEMSX | BPF_B] = &&LDX_PROBE_MEMSX_B,
+		[BPF_LDX | BPF_PROBE_MEMSX | BPF_H] = &&LDX_PROBE_MEMSX_H,
+		[BPF_LDX | BPF_PROBE_MEMSX | BPF_W] = &&LDX_PROBE_MEMSX_W,
 	};
 #undef BPF_INSN_3_LBL
 #undef BPF_INSN_2_LBL
@@ -1733,13 +1745,36 @@ select_insn:
 		DST = -DST;
 		CONT;
 	ALU_MOV_X:
-		DST = (u32) SRC;
+		switch (OFF) {
+		case 0:
+			DST = (u32) SRC;
+			break;
+		case 8:
+			DST = (u32)(s8) SRC;
+			break;
+		case 16:
+			DST = (u32)(s16) SRC;
+			break;
+		}
 		CONT;
 	ALU_MOV_K:
 		DST = (u32) IMM;
 		CONT;
 	ALU64_MOV_X:
-		DST = SRC;
+		switch (OFF) {
+		case 0:
+			DST = SRC;
+			break;
+		case 8:
+			DST = (s8) SRC;
+			break;
+		case 16:
+			DST = (s16) SRC;
+			break;
+		case 32:
+			DST = (s32) SRC;
+			break;
+		}
 		CONT;
 	ALU64_MOV_K:
 		DST = IMM;
@@ -1761,36 +1796,114 @@ select_insn:
 		(*(s64 *) &DST) >>= IMM;
 		CONT;
 	ALU64_MOD_X:
-		div64_u64_rem(DST, SRC, &AX);
-		DST = AX;
+		switch (OFF) {
+		case 0:
+			div64_u64_rem(DST, SRC, &AX);
+			DST = AX;
+			break;
+		case 1:
+			AX = div64_s64(DST, SRC);
+			DST = DST - AX * SRC;
+			break;
+		}
 		CONT;
 	ALU_MOD_X:
-		AX = (u32) DST;
-		DST = do_div(AX, (u32) SRC);
+		switch (OFF) {
+		case 0:
+			AX = (u32) DST;
+			DST = do_div(AX, (u32) SRC);
+			break;
+		case 1:
+			AX = abs((s32)DST);
+			AX = do_div(AX, abs((s32)SRC));
+			if ((s32)DST < 0)
+				DST = (u32)-AX;
+			else
+				DST = (u32)AX;
+			break;
+		}
 		CONT;
 	ALU64_MOD_K:
-		div64_u64_rem(DST, IMM, &AX);
-		DST = AX;
+		switch (OFF) {
+		case 0:
+			div64_u64_rem(DST, IMM, &AX);
+			DST = AX;
+			break;
+		case 1:
+			AX = div64_s64(DST, IMM);
+			DST = DST - AX * IMM;
+			break;
+		}
 		CONT;
 	ALU_MOD_K:
-		AX = (u32) DST;
-		DST = do_div(AX, (u32) IMM);
+		switch (OFF) {
+		case 0:
+			AX = (u32) DST;
+			DST = do_div(AX, (u32) IMM);
+			break;
+		case 1:
+			AX = abs((s32)DST);
+			AX = do_div(AX, abs((s32)IMM));
+			if ((s32)DST < 0)
+				DST = (u32)-AX;
+			else
+				DST = (u32)AX;
+			break;
+		}
 		CONT;
 	ALU64_DIV_X:
-		DST = div64_u64(DST, SRC);
+		switch (OFF) {
+		case 0:
+			DST = div64_u64(DST, SRC);
+			break;
+		case 1:
+			DST = div64_s64(DST, SRC);
+			break;
+		}
 		CONT;
 	ALU_DIV_X:
-		AX = (u32) DST;
-		do_div(AX, (u32) SRC);
-		DST = (u32) AX;
+		switch (OFF) {
+		case 0:
+			AX = (u32) DST;
+			do_div(AX, (u32) SRC);
+			DST = (u32) AX;
+			break;
+		case 1:
+			AX = abs((s32)DST);
+			do_div(AX, abs((s32)SRC));
+			if (((s32)DST < 0) == ((s32)SRC < 0))
+				DST = (u32)AX;
+			else
+				DST = (u32)-AX;
+			break;
+		}
 		CONT;
 	ALU64_DIV_K:
-		DST = div64_u64(DST, IMM);
+		switch (OFF) {
+		case 0:
+			DST = div64_u64(DST, IMM);
+			break;
+		case 1:
+			DST = div64_s64(DST, IMM);
+			break;
+		}
 		CONT;
 	ALU_DIV_K:
-		AX = (u32) DST;
-		do_div(AX, (u32) IMM);
-		DST = (u32) AX;
+		switch (OFF) {
+		case 0:
+			AX = (u32) DST;
+			do_div(AX, (u32) IMM);
+			DST = (u32) AX;
+			break;
+		case 1:
+			AX = abs((s32)DST);
+			do_div(AX, abs((s32)IMM));
+			if (((s32)DST < 0) == ((s32)IMM < 0))
+				DST = (u32)AX;
+			else
+				DST = (u32)-AX;
+			break;
+		}
 		CONT;
 	ALU_END_TO_BE:
 		switch (IMM) {
@@ -1815,6 +1928,19 @@ select_insn:
 			break;
 		case 64:
 			DST = (__force u64) cpu_to_le64(DST);
+			break;
+		}
+		CONT;
+	ALU64_END_TO_LE:
+		switch (IMM) {
+		case 16:
+			DST = (__force u16) __swab16(DST);
+			break;
+		case 32:
+			DST = (__force u32) __swab32(DST);
+			break;
+		case 64:
+			DST = (__force u64) __swab64(DST);
 			break;
 		}
 		CONT;
@@ -1866,6 +1992,9 @@ out:
 	}
 	JMP_JA:
 		insn += insn->off;
+		CONT;
+	JMP32_JA:
+		insn += insn->imm;
 		CONT;
 	JMP_EXIT:
 		return BPF_R0;
@@ -1931,8 +2060,8 @@ out:
 		DST = *(SIZE *)(unsigned long) (SRC + insn->off);	\
 		CONT;							\
 	LDX_PROBE_MEM_##SIZEOP:						\
-		bpf_probe_read_kernel(&DST, sizeof(SIZE),		\
-				      (const void *)(long) (SRC + insn->off));	\
+		bpf_probe_read_kernel_common(&DST, sizeof(SIZE),	\
+			      (const void *)(long) (SRC + insn->off));	\
 		DST = *((SIZE *)&DST);					\
 		CONT;
 
@@ -1941,6 +2070,21 @@ out:
 	LDST(W,  u32)
 	LDST(DW, u64)
 #undef LDST
+
+#define LDSX(SIZEOP, SIZE)						\
+	LDX_MEMSX_##SIZEOP:						\
+		DST = *(SIZE *)(unsigned long) (SRC + insn->off);	\
+		CONT;							\
+	LDX_PROBE_MEMSX_##SIZEOP:					\
+		bpf_probe_read_kernel_common(&DST, sizeof(SIZE),		\
+				      (const void *)(long) (SRC + insn->off));	\
+		DST = *((SIZE *)&DST);					\
+		CONT;
+
+	LDSX(B,   s8)
+	LDSX(H,  s16)
+	LDSX(W,  s32)
+#undef LDSX
 
 #define ATOMIC_ALU_OP(BOP, KOP)						\
 		case BOP:						\

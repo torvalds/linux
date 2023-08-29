@@ -2197,11 +2197,10 @@ struct batadv_algo_gw_ops {
 	void (*init_sel_class)(struct batadv_priv *bat_priv);
 
 	/**
-	 * @store_sel_class: parse and stores a new GW selection class
-	 *  (optional)
+	 * @sel_class_max: maximum allowed GW selection class
 	 */
-	ssize_t (*store_sel_class)(struct batadv_priv *bat_priv, char *buff,
-				   size_t count);
+	u32 sel_class_max;
+
 	/**
 	 * @get_best_gw_node: select the best GW from the list of available
 	 *  nodes (optional)
