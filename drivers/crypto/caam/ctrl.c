@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <linux/sys_soc.h>
 #include <linux/fsl/mc.h>
 
@@ -740,6 +741,109 @@ static int caam_ctrl_rng_init(struct device *dev)
 	return 0;
 }
 
+/* Indicate if the internal state of the CAAM is lost during PM */
+static int caam_off_during_pm(void)
+{
+	bool not_off_during_pm = of_machine_is_compatible("fsl,imx6q") ||
+				 of_machine_is_compatible("fsl,imx6qp") ||
+				 of_machine_is_compatible("fsl,imx6dl");
+
+	return not_off_during_pm ? 0 : 1;
+}
+
+static void caam_state_save(struct device *dev)
+{
+	struct caam_drv_private *ctrlpriv = dev_get_drvdata(dev);
+	struct caam_ctl_state *state = &ctrlpriv->state;
+	struct caam_ctrl __iomem *ctrl = ctrlpriv->ctrl;
+	u32 deco_inst, jr_inst;
+	int i;
+
+	state->mcr = rd_reg32(&ctrl->mcr);
+	state->scfgr = rd_reg32(&ctrl->scfgr);
+
+	deco_inst = (rd_reg32(&ctrl->perfmon.cha_num_ms) &
+		     CHA_ID_MS_DECO_MASK) >> CHA_ID_MS_DECO_SHIFT;
+	for (i = 0; i < deco_inst; i++) {
+		state->deco_mid[i].liodn_ms =
+			rd_reg32(&ctrl->deco_mid[i].liodn_ms);
+		state->deco_mid[i].liodn_ls =
+			rd_reg32(&ctrl->deco_mid[i].liodn_ls);
+	}
+
+	jr_inst = (rd_reg32(&ctrl->perfmon.cha_num_ms) &
+		   CHA_ID_MS_JR_MASK) >> CHA_ID_MS_JR_SHIFT;
+	for (i = 0; i < jr_inst; i++) {
+		state->jr_mid[i].liodn_ms =
+			rd_reg32(&ctrl->jr_mid[i].liodn_ms);
+		state->jr_mid[i].liodn_ls =
+			rd_reg32(&ctrl->jr_mid[i].liodn_ls);
+	}
+}
+
+static void caam_state_restore(const struct device *dev)
+{
+	const struct caam_drv_private *ctrlpriv = dev_get_drvdata(dev);
+	const struct caam_ctl_state *state = &ctrlpriv->state;
+	struct caam_ctrl __iomem *ctrl = ctrlpriv->ctrl;
+	u32 deco_inst, jr_inst;
+	int i;
+
+	wr_reg32(&ctrl->mcr, state->mcr);
+	wr_reg32(&ctrl->scfgr, state->scfgr);
+
+	deco_inst = (rd_reg32(&ctrl->perfmon.cha_num_ms) &
+		     CHA_ID_MS_DECO_MASK) >> CHA_ID_MS_DECO_SHIFT;
+	for (i = 0; i < deco_inst; i++) {
+		wr_reg32(&ctrl->deco_mid[i].liodn_ms,
+			 state->deco_mid[i].liodn_ms);
+		wr_reg32(&ctrl->deco_mid[i].liodn_ls,
+			 state->deco_mid[i].liodn_ls);
+	}
+
+	jr_inst = (rd_reg32(&ctrl->perfmon.cha_num_ms) &
+		   CHA_ID_MS_JR_MASK) >> CHA_ID_MS_JR_SHIFT;
+	for (i = 0; i < jr_inst; i++) {
+		wr_reg32(&ctrl->jr_mid[i].liodn_ms,
+			 state->jr_mid[i].liodn_ms);
+		wr_reg32(&ctrl->jr_mid[i].liodn_ls,
+			 state->jr_mid[i].liodn_ls);
+	}
+
+	if (ctrlpriv->virt_en == 1)
+		clrsetbits_32(&ctrl->jrstart, 0, JRSTART_JR0_START |
+			      JRSTART_JR1_START | JRSTART_JR2_START |
+			      JRSTART_JR3_START);
+}
+
+static int caam_ctrl_suspend(struct device *dev)
+{
+	const struct caam_drv_private *ctrlpriv = dev_get_drvdata(dev);
+
+	if (ctrlpriv->caam_off_during_pm && !ctrlpriv->optee_en)
+		caam_state_save(dev);
+
+	return 0;
+}
+
+static int caam_ctrl_resume(struct device *dev)
+{
+	struct caam_drv_private *ctrlpriv = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (ctrlpriv->caam_off_during_pm && !ctrlpriv->optee_en) {
+		caam_state_restore(dev);
+
+		/* HW and rng will be reset so deinstantiation can be removed */
+		devm_remove_action(dev, devm_deinstantiate_rng, dev);
+		ret = caam_ctrl_rng_init(dev);
+	}
+
+	return ret;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(caam_ctrl_pm_ops, caam_ctrl_suspend, caam_ctrl_resume);
+
 /* Probe routine for CAAM top (controller) level */
 static int caam_probe(struct platform_device *pdev)
 {
@@ -770,6 +874,8 @@ static int caam_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	caam_imx = (bool)imx_soc_match;
+
+	ctrlpriv->caam_off_during_pm = caam_imx && caam_off_during_pm();
 
 	if (imx_soc_match) {
 		/*
@@ -1033,6 +1139,7 @@ static struct platform_driver caam_driver = {
 	.driver = {
 		.name = "caam",
 		.of_match_table = caam_match,
+		.pm = pm_ptr(&caam_ctrl_pm_ops),
 	},
 	.probe       = caam_probe,
 };
