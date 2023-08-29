@@ -1180,12 +1180,11 @@ static void
 qla2xxx_process_purls_pkt(struct scsi_qla_host *vha, struct purex_item *item)
 {
 	struct qla_nvme_unsol_ctx *uctx = item->purls_context;
-	fc_port_t *fcport = uctx->fcport;
 	struct qla_nvme_lsrjt_pt_arg a;
 	int ret = 1;
 
 #if (IS_ENABLED(CONFIG_NVME_FC))
-	ret = nvme_fc_rcv_ls_req(fcport->nvme_remote_port, &uctx->lsrsp,
+	ret = nvme_fc_rcv_ls_req(uctx->fcport->nvme_remote_port, &uctx->lsrsp,
 				 &item->iocb, item->size);
 #endif
 	if (ret) {
