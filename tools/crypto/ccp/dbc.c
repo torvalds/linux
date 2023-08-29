@@ -68,5 +68,6 @@ int process_param(int fd, int msg_index, __u8 *signature, int *data)
 		return errno;
 
 	*data = tmp.param;
+	memcpy(signature, tmp.signature, sizeof(tmp.signature));
 	return 0;
 }
