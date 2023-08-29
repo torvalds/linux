@@ -5940,6 +5940,25 @@ static __always_inline void intel_pmu_init_glc(struct pmu *pmu)
 	hybrid(pmu, pebs_constraints) = intel_glc_pebs_event_constraints;
 }
 
+static __always_inline void intel_pmu_init_grt(struct pmu *pmu)
+{
+	x86_pmu.mid_ack = true;
+	x86_pmu.limit_period = glc_limit_period;
+	x86_pmu.pebs_aliases = NULL;
+	x86_pmu.pebs_prec_dist = true;
+	x86_pmu.pebs_block = true;
+	x86_pmu.lbr_pt_coexist = true;
+	x86_pmu.flags |= PMU_FL_HAS_RSP_1;
+	x86_pmu.flags |= PMU_FL_INSTR_LATENCY;
+
+	memcpy(hybrid_var(pmu, hw_cache_event_ids), glp_hw_cache_event_ids, sizeof(hw_cache_event_ids));
+	memcpy(hybrid_var(pmu, hw_cache_extra_regs), tnt_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
+	hybrid_var(pmu, hw_cache_event_ids)[C(ITLB)][C(OP_READ)][C(RESULT_ACCESS)] = -1;
+	hybrid(pmu, event_constraints) = intel_slm_event_constraints;
+	hybrid(pmu, pebs_constraints) = intel_grt_pebs_event_constraints;
+	hybrid(pmu, extra_regs) = intel_grt_extra_regs;
+}
+
 __init int intel_pmu_init(void)
 {
 	struct attribute **extra_skl_attr = &empty_attrs;
@@ -6218,28 +6237,10 @@ __init int intel_pmu_init(void)
 		break;
 
 	case INTEL_FAM6_ATOM_GRACEMONT:
-		x86_pmu.mid_ack = true;
-		memcpy(hw_cache_event_ids, glp_hw_cache_event_ids,
-		       sizeof(hw_cache_event_ids));
-		memcpy(hw_cache_extra_regs, tnt_hw_cache_extra_regs,
-		       sizeof(hw_cache_extra_regs));
-		hw_cache_event_ids[C(ITLB)][C(OP_READ)][C(RESULT_ACCESS)] = -1;
-
-		x86_pmu.event_constraints = intel_slm_event_constraints;
-		x86_pmu.pebs_constraints = intel_grt_pebs_event_constraints;
-		x86_pmu.extra_regs = intel_grt_extra_regs;
-
-		x86_pmu.pebs_aliases = NULL;
-		x86_pmu.pebs_prec_dist = true;
-		x86_pmu.pebs_block = true;
-		x86_pmu.lbr_pt_coexist = true;
-		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
-		x86_pmu.flags |= PMU_FL_INSTR_LATENCY;
-
+		intel_pmu_init_grt(NULL);
 		intel_pmu_pebs_data_source_grt();
 		x86_pmu.pebs_latency_data = adl_latency_data_small;
 		x86_pmu.get_event_constraints = tnt_get_event_constraints;
-		x86_pmu.limit_period = glc_limit_period;
 		td_attr = tnt_events_attrs;
 		mem_attr = grt_mem_attrs;
 		extra_attr = nhm_format_attr;
@@ -6249,28 +6250,11 @@ __init int intel_pmu_init(void)
 
 	case INTEL_FAM6_ATOM_CRESTMONT:
 	case INTEL_FAM6_ATOM_CRESTMONT_X:
-		x86_pmu.mid_ack = true;
-		memcpy(hw_cache_event_ids, glp_hw_cache_event_ids,
-		       sizeof(hw_cache_event_ids));
-		memcpy(hw_cache_extra_regs, tnt_hw_cache_extra_regs,
-		       sizeof(hw_cache_extra_regs));
-		hw_cache_event_ids[C(ITLB)][C(OP_READ)][C(RESULT_ACCESS)] = -1;
-
-		x86_pmu.event_constraints = intel_slm_event_constraints;
-		x86_pmu.pebs_constraints = intel_grt_pebs_event_constraints;
+		intel_pmu_init_grt(NULL);
 		x86_pmu.extra_regs = intel_cmt_extra_regs;
-
-		x86_pmu.pebs_aliases = NULL;
-		x86_pmu.pebs_prec_dist = true;
-		x86_pmu.lbr_pt_coexist = true;
-		x86_pmu.pebs_block = true;
-		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
-		x86_pmu.flags |= PMU_FL_INSTR_LATENCY;
-
 		intel_pmu_pebs_data_source_cmt();
 		x86_pmu.pebs_latency_data = mtl_latency_data_small;
 		x86_pmu.get_event_constraints = cmt_get_event_constraints;
-		x86_pmu.limit_period = glc_limit_period;
 		td_attr = cmt_events_attrs;
 		mem_attr = grt_mem_attrs;
 		extra_attr = cmt_format_attr;
