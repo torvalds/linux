@@ -56,7 +56,7 @@
 #define RK_LSC_RESERVED_SIZE	0x0020
 #define RK_GAINMAP_SIZE		0x0800
 #define RK_DCCMAP_SIZE		0x0200
-#define RK_PDAF_RESERVED_SIZE	0x0020
+#define RK_PDAF_RESERVED_SIZE	0x001e
 #define RK_AF_RESERVED_SIZE	0x0014
 #define RKOTP_MAX_MODULE	0x0008
 
@@ -151,6 +151,7 @@ struct pdaf_otp_info {
 	u32 dccmap_height;
 	u32 dccmap[RK_DCCMAP_SIZE];
 	u32 dccmap_checksum;
+	u32 pd_offset;
 	u32 checksum;
 	u32 size;
 };

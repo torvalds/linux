@@ -649,6 +649,11 @@ static void rkotp_read_pdaf(struct eeprom_device *eeprom_dev,
 	checksum += otp_ptr->pdaf_data.dccmap_checksum;
 	base_addr += 1;
 
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->pdaf_data.pd_offset);
+	checksum += otp_ptr->pdaf_data.pd_offset;
+	base_addr += 2;
+
 	memset(pdaf_buf, 0, RK_PDAF_RESERVED_SIZE);
 	ret |= read_reg_otp_buf(client, base_addr,
 	       RK_PDAF_RESERVED_SIZE, pdaf_buf);
@@ -931,7 +936,7 @@ static int otp_eeprom_show(struct seq_file *p, void *v)
 			seq_printf(p, "flag=%d;\n", dev->otp->pdaf_data.flag);
 			seq_printf(p, "gainmap_width=%d;\n", gainmap_w);
 			seq_printf(p, "gainmap_height=%d;\n", gainmap_h);
-
+			seq_printf(p, "pd_offset=%d\n", dev->otp->pdaf_data.pd_offset);
 			seq_printf(p, "gainmap_table=\n");
 			for (i = 0; i < gainmap_h; i++) {
 				for (j = 0; j < gainmap_w; j++) {
