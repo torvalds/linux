@@ -264,7 +264,7 @@ static void ovl_file_accessed(struct file *file)
 }
 
 #define OVL_IOCB_MASK \
-	(IOCB_NOWAIT | IOCB_HIPRI | IOCB_DSYNC | IOCB_SYNC)
+	(IOCB_NOWAIT | IOCB_HIPRI | IOCB_DSYNC | IOCB_SYNC | IOCB_APPEND)
 
 static rwf_t iocb_to_rw_flags(int flags)
 {
