@@ -12,8 +12,8 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_platform.h>
 #include <linux/module.h>
+#include <linux/of.h>
 
 struct gpio_restart {
 	struct gpio_desc *reset_gpio;
