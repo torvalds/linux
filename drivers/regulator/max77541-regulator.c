@@ -44,7 +44,7 @@ static const struct linear_range max77541_buck_ranges[] = {
 };
 
 static const unsigned int max77541_buck_volt_range_sel[] = {
-	0x00, 0x00, 0x40, 0x40, 0x80, 0x80,
+	0x0, 0x0, 0x1, 0x1, 0x2, 0x2,
 };
 
 enum max77541_regulators {
@@ -67,7 +67,7 @@ enum max77541_regulators {
 		.vsel_mask = MAX77541_BITS_MX_VOUT,			\
 		.vsel_range_reg = MAX77541_REG_M ## _id ## _CFG1,	\
 		.vsel_range_mask = MAX77541_BITS_MX_CFG1_RNG,		\
-		.linear_range_selectors = max77541_buck_volt_range_sel, \
+		.linear_range_selectors_bitfield = max77541_buck_volt_range_sel, \
 		.owner = THIS_MODULE,					\
 	}
 
@@ -86,7 +86,7 @@ enum max77541_regulators {
 		.vsel_mask = MAX77541_BITS_MX_VOUT,			\
 		.vsel_range_reg = MAX77541_REG_M ## _id ## _CFG1,	\
 		.vsel_range_mask = MAX77541_BITS_MX_CFG1_RNG,		\
-		.linear_range_selectors = max77541_buck_volt_range_sel, \
+		.linear_range_selectors_bitfield = max77541_buck_volt_range_sel, \
 		.owner = THIS_MODULE,					\
 	}
 
