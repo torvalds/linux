@@ -1513,6 +1513,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 	struct device *dev = card->dev;
 	struct acp_card_drvdata *drv_data = card->drvdata;
 	int i = 0, num_links = 0;
+	int rc;
 
 	if (drv_data->hs_cpu_id)
 		num_links++;
@@ -1550,6 +1551,13 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 			links[i].num_codecs = ARRAY_SIZE(rt5682s);
 			links[i].init = acp_card_rt5682s_init;
 			links[i].ops = &acp_card_rt5682s_ops;
+		}
+		if (drv_data->hs_codec_id == ES83XX) {
+			rc = acp_ops_configure_link(card, &links[i]);
+			if (rc != 0) {
+				dev_err(dev, "Failed to configure link for ES83XX: %d\n", rc);
+				return rc;
+			}
 		}
 		i++;
 	}

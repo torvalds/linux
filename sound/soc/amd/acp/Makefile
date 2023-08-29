@@ -17,7 +17,7 @@ snd-acp-rembrandt-objs  := acp-rembrandt.o
 
 #machine specific driver
 snd-acp-mach-objs     := acp-mach-common.o
-snd-acp-legacy-mach-objs     := acp-legacy-mach.o
+snd-acp-legacy-mach-objs     := acp-legacy-mach.o acp3x-es83xx/acp3x-es83xx.o
 snd-acp-sof-mach-objs     := acp-sof-mach.o
 
 obj-$(CONFIG_SND_SOC_AMD_ACP_PCM) += snd-acp-pcm.o

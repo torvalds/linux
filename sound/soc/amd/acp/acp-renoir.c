@@ -69,6 +69,10 @@ static struct snd_soc_acpi_mach snd_soc_acpi_amd_acp_machines[] = {
 		.id = "AMDI1019",
 		.drv_name = "renoir-acp",
 	},
+	{
+		.id = "ESSX8336",
+		.drv_name = "acp3x-es83xx",
+	},
 	{},
 };
 
