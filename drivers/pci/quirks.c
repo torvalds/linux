@@ -363,7 +363,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NEC,	PCI_DEVICE_ID_NEC_CBUS_3,	quirk_isa_d
 
 #ifdef CONFIG_HAS_IOPORT
 /*
- * Intel NM10 "TigerPoint" LPC PM1a_STS.BM_STS must be clear
+ * Intel NM10 "Tiger Point" LPC PM1a_STS.BM_STS must be clear
  * for some HT machines to use C4 w/o hanging.
  */
 static void quirk_tigerpoint_bm_sts(struct pci_dev *dev)
@@ -376,7 +376,7 @@ static void quirk_tigerpoint_bm_sts(struct pci_dev *dev)
 	pm1a = inw(pmbase);
 
 	if (pm1a & 0x10) {
-		pci_info(dev, FW_BUG "TigerPoint LPC.BM_STS cleared\n");
+		pci_info(dev, FW_BUG "Tiger Point LPC.BM_STS cleared\n");
 		outw(0x10, pmbase);
 	}
 }
@@ -3075,7 +3075,7 @@ static void __nv_msi_ht_cap_quirk(struct pci_dev *dev, int all)
 
 	/*
 	 * HT MSI mapping should be disabled on devices that are below
-	 * a non-Hypertransport host bridge. Locate the host bridge...
+	 * a non-HyperTransport host bridge. Locate the host bridge.
 	 */
 	host_bridge = pci_get_domain_bus_and_slot(pci_domain_nr(dev->bus), 0,
 						  PCI_DEVFN(0, 0));
@@ -5731,7 +5731,7 @@ int pci_idt_bus_quirk(struct pci_bus *bus, int devfn, u32 *l, int timeout)
 /*
  * Microsemi Switchtec NTB uses devfn proxy IDs to move TLPs between
  * NT endpoints via the internal switch fabric. These IDs replace the
- * originating requestor ID TLPs which access host memory on peer NTB
+ * originating Requester ID TLPs which access host memory on peer NTB
  * ports. Therefore, all proxy IDs must be aliased to the NTB device
  * to permit access when the IOMMU is turned on.
  */

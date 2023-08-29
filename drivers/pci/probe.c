@@ -8,7 +8,6 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
-#include <linux/of_device.h>
 #include <linux/of_pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/slab.h>
@@ -2137,7 +2136,7 @@ static void pci_configure_relaxed_ordering(struct pci_dev *dev)
 {
 	struct pci_dev *root;
 
-	/* PCI_EXP_DEVICE_RELAX_EN is RsvdP in VFs */
+	/* PCI_EXP_DEVCTL_RELAX_EN is RsvdP in VFs */
 	if (dev->is_virtfn)
 		return;
 
