@@ -3,6 +3,7 @@
 #include <linux/highmem.h>
 #include <linux/ptrace.h>
 #include <linux/uprobes.h>
+#include <asm/insn.h>
 
 #include "decode-insn.h"
 
@@ -15,6 +16,11 @@ bool is_swbp_insn(uprobe_opcode_t *insn)
 #else
 	return *insn == UPROBE_SWBP_INSN;
 #endif
+}
+
+bool is_trap_insn(uprobe_opcode_t *insn)
+{
+	return riscv_insn_is_ebreak(*insn) || riscv_insn_is_c_ebreak(*insn);
 }
 
 unsigned long uprobe_get_swbp_addr(struct pt_regs *regs)
