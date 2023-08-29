@@ -15,6 +15,11 @@
 
 #define DRV_NAME "proc_thermal_pci"
 
+static bool use_msi;
+module_param(use_msi, bool, 0644);
+MODULE_PARM_DESC(use_msi,
+	"Use PCI MSI based interrupts for processor thermal device.");
+
 struct proc_thermal_pci {
 	struct pci_dev *pdev;
 	struct proc_thermal_device *proc_priv;
@@ -203,6 +208,7 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 	struct proc_thermal_device *proc_priv;
 	struct proc_thermal_pci *pci_info;
 	int irq_flag = 0, irq, ret;
+	bool msi_irq = false;
 
 	proc_priv = devm_kzalloc(&pdev->dev, sizeof(*proc_priv), GFP_KERNEL);
 	if (!proc_priv)
@@ -248,16 +254,21 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 		goto err_ret_mmio;
 	}
 
-	/* request and enable interrupt */
-	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to allocate vectors!\n");
-		goto err_ret_tzone;
-	}
-	if (!pdev->msi_enabled && !pdev->msix_enabled)
-		irq_flag = IRQF_SHARED;
+	if (use_msi && (pdev->msi_enabled || pdev->msix_enabled)) {
+		/* request and enable interrupt */
+		ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to allocate vectors!\n");
+			goto err_ret_tzone;
+		}
 
-	irq =  pci_irq_vector(pdev, 0);
+		irq =  pci_irq_vector(pdev, 0);
+		msi_irq = true;
+	} else {
+		irq_flag = IRQF_SHARED;
+		irq = pdev->irq;
+	}
+
 	ret = devm_request_threaded_irq(&pdev->dev, irq,
 					proc_thermal_irq_handler, NULL,
 					irq_flag, KBUILD_MODNAME, pci_info);
@@ -273,7 +284,8 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 	return 0;
 
 err_free_vectors:
-	pci_free_irq_vectors(pdev);
+	if (msi_irq)
+		pci_free_irq_vectors(pdev);
 err_ret_tzone:
 	thermal_zone_device_unregister(pci_info->tzone);
 err_ret_mmio:
