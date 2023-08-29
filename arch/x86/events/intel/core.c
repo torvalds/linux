@@ -299,7 +299,7 @@ static struct extra_reg intel_icl_extra_regs[] __read_mostly = {
 	EVENT_EXTRA_END
 };
 
-static struct extra_reg intel_spr_extra_regs[] __read_mostly = {
+static struct extra_reg intel_glc_extra_regs[] __read_mostly = {
 	INTEL_UEVENT_EXTRA_REG(0x012a, MSR_OFFCORE_RSP_0, 0x3fffffffffull, RSP_0),
 	INTEL_UEVENT_EXTRA_REG(0x012b, MSR_OFFCORE_RSP_1, 0x3fffffffffull, RSP_1),
 	INTEL_UEVENT_PEBS_LDLAT_EXTRA_REG(0x01cd),
@@ -309,7 +309,7 @@ static struct extra_reg intel_spr_extra_regs[] __read_mostly = {
 	EVENT_EXTRA_END
 };
 
-static struct event_constraint intel_spr_event_constraints[] = {
+static struct event_constraint intel_glc_event_constraints[] = {
 	FIXED_EVENT_CONSTRAINT(0x00c0, 0),	/* INST_RETIRED.ANY */
 	FIXED_EVENT_CONSTRAINT(0x0100, 0),	/* INST_RETIRED.PREC_DIST */
 	FIXED_EVENT_CONSTRAINT(0x003c, 1),	/* CPU_CLK_UNHALTED.CORE */
@@ -349,7 +349,7 @@ static struct event_constraint intel_spr_event_constraints[] = {
 	EVENT_CONSTRAINT_END
 };
 
-static struct extra_reg intel_gnr_extra_regs[] __read_mostly = {
+static struct extra_reg intel_rwc_extra_regs[] __read_mostly = {
 	INTEL_UEVENT_EXTRA_REG(0x012a, MSR_OFFCORE_RSP_0, 0x3fffffffffull, RSP_0),
 	INTEL_UEVENT_EXTRA_REG(0x012b, MSR_OFFCORE_RSP_1, 0x3fffffffffull, RSP_1),
 	INTEL_UEVENT_PEBS_LDLAT_EXTRA_REG(0x01cd),
@@ -473,7 +473,7 @@ static u64 intel_pmu_event_map(int hw_event)
 	return intel_perfmon_event_map[hw_event];
 }
 
-static __initconst const u64 spr_hw_cache_event_ids
+static __initconst const u64 glc_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
@@ -552,7 +552,7 @@ static __initconst const u64 spr_hw_cache_event_ids
  },
 };
 
-static __initconst const u64 spr_hw_cache_extra_regs
+static __initconst const u64 glc_hw_cache_extra_regs
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
@@ -4273,7 +4273,7 @@ icl_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 }
 
 static struct event_constraint *
-spr_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+glc_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 			  struct perf_event *event)
 {
 	struct event_constraint *c;
@@ -4362,7 +4362,7 @@ adl_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 	struct x86_hybrid_pmu *pmu = hybrid_pmu(event->pmu);
 
 	if (pmu->cpu_type == hybrid_big)
-		return spr_get_event_constraints(cpuc, idx, event);
+		return glc_get_event_constraints(cpuc, idx, event);
 	else if (pmu->cpu_type == hybrid_small)
 		return tnt_get_event_constraints(cpuc, idx, event);
 
@@ -4409,7 +4409,7 @@ rwc_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 {
 	struct event_constraint *c;
 
-	c = spr_get_event_constraints(cpuc, idx, event);
+	c = glc_get_event_constraints(cpuc, idx, event);
 
 	/* The Retire Latency is not supported by the fixed counter 0. */
 	if (event->attr.precise_ip &&
@@ -4490,7 +4490,7 @@ static void nhm_limit_period(struct perf_event *event, s64 *left)
 	*left = max(*left, 32LL);
 }
 
-static void spr_limit_period(struct perf_event *event, s64 *left)
+static void glc_limit_period(struct perf_event *event, s64 *left)
 {
 	if (event->attr.precise_ip == 3)
 		*left = max(*left, 128LL);
@@ -5337,14 +5337,14 @@ static struct attribute *icl_tsx_events_attrs[] = {
 EVENT_ATTR_STR(mem-stores,	mem_st_spr,	"event=0xcd,umask=0x2");
 EVENT_ATTR_STR(mem-loads-aux,	mem_ld_aux,	"event=0x03,umask=0x82");
 
-static struct attribute *spr_events_attrs[] = {
+static struct attribute *glc_events_attrs[] = {
 	EVENT_PTR(mem_ld_hsw),
 	EVENT_PTR(mem_st_spr),
 	EVENT_PTR(mem_ld_aux),
 	NULL,
 };
 
-static struct attribute *spr_td_events_attrs[] = {
+static struct attribute *glc_td_events_attrs[] = {
 	EVENT_PTR(slots),
 	EVENT_PTR(td_retiring),
 	EVENT_PTR(td_bad_spec),
@@ -5357,7 +5357,7 @@ static struct attribute *spr_td_events_attrs[] = {
 	NULL,
 };
 
-static struct attribute *spr_tsx_events_attrs[] = {
+static struct attribute *glc_tsx_events_attrs[] = {
 	EVENT_PTR(tx_start),
 	EVENT_PTR(tx_abort),
 	EVENT_PTR(tx_commit),
@@ -6215,7 +6215,7 @@ __init int intel_pmu_init(void)
 		intel_pmu_pebs_data_source_grt();
 		x86_pmu.pebs_latency_data = adl_latency_data_small;
 		x86_pmu.get_event_constraints = tnt_get_event_constraints;
-		x86_pmu.limit_period = spr_limit_period;
+		x86_pmu.limit_period = glc_limit_period;
 		td_attr = tnt_events_attrs;
 		mem_attr = grt_mem_attrs;
 		extra_attr = nhm_format_attr;
@@ -6246,7 +6246,7 @@ __init int intel_pmu_init(void)
 		intel_pmu_pebs_data_source_cmt();
 		x86_pmu.pebs_latency_data = mtl_latency_data_small;
 		x86_pmu.get_event_constraints = cmt_get_event_constraints;
-		x86_pmu.limit_period = spr_limit_period;
+		x86_pmu.limit_period = glc_limit_period;
 		td_attr = cmt_events_attrs;
 		mem_attr = grt_mem_attrs;
 		extra_attr = cmt_format_attr;
@@ -6563,20 +6563,20 @@ __init int intel_pmu_init(void)
 	case INTEL_FAM6_SAPPHIRERAPIDS_X:
 	case INTEL_FAM6_EMERALDRAPIDS_X:
 		x86_pmu.flags |= PMU_FL_MEM_LOADS_AUX;
-		x86_pmu.extra_regs = intel_spr_extra_regs;
+		x86_pmu.extra_regs = intel_glc_extra_regs;
 		fallthrough;
 	case INTEL_FAM6_GRANITERAPIDS_X:
 	case INTEL_FAM6_GRANITERAPIDS_D:
 		pmem = true;
 		x86_pmu.late_ack = true;
-		memcpy(hw_cache_event_ids, spr_hw_cache_event_ids, sizeof(hw_cache_event_ids));
-		memcpy(hw_cache_extra_regs, spr_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
+		memcpy(hw_cache_event_ids, glc_hw_cache_event_ids, sizeof(hw_cache_event_ids));
+		memcpy(hw_cache_extra_regs, glc_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
 
-		x86_pmu.event_constraints = intel_spr_event_constraints;
-		x86_pmu.pebs_constraints = intel_spr_pebs_event_constraints;
+		x86_pmu.event_constraints = intel_glc_event_constraints;
+		x86_pmu.pebs_constraints = intel_glc_pebs_event_constraints;
 		if (!x86_pmu.extra_regs)
-			x86_pmu.extra_regs = intel_gnr_extra_regs;
-		x86_pmu.limit_period = spr_limit_period;
+			x86_pmu.extra_regs = intel_rwc_extra_regs;
+		x86_pmu.limit_period = glc_limit_period;
 		x86_pmu.pebs_ept = 1;
 		x86_pmu.pebs_aliases = NULL;
 		x86_pmu.pebs_prec_dist = true;
@@ -6586,13 +6586,13 @@ __init int intel_pmu_init(void)
 		x86_pmu.flags |= PMU_FL_INSTR_LATENCY;
 
 		x86_pmu.hw_config = hsw_hw_config;
-		x86_pmu.get_event_constraints = spr_get_event_constraints;
+		x86_pmu.get_event_constraints = glc_get_event_constraints;
 		extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
 			hsw_format_attr : nhm_format_attr;
 		extra_skl_attr = skl_format_attr;
-		mem_attr = spr_events_attrs;
-		td_attr = spr_td_events_attrs;
-		tsx_attr = spr_tsx_events_attrs;
+		mem_attr = glc_events_attrs;
+		td_attr = glc_td_events_attrs;
+		tsx_attr = glc_tsx_events_attrs;
 		x86_pmu.rtm_abort_event = X86_CONFIG(.event=0xc9, .umask=0x04);
 		x86_pmu.lbr_pt_coexist = true;
 		intel_pmu_pebs_data_source_skl(pmem);
@@ -6642,7 +6642,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.filter = intel_pmu_filter;
 		x86_pmu.get_event_constraints = adl_get_event_constraints;
 		x86_pmu.hw_config = adl_hw_config;
-		x86_pmu.limit_period = spr_limit_period;
+		x86_pmu.limit_period = glc_limit_period;
 		x86_pmu.get_hybrid_cpu_type = adl_get_hybrid_cpu_type;
 		/*
 		 * The rtm_abort_event is used to check whether to enable GPRs
@@ -6691,11 +6691,11 @@ __init int intel_pmu_init(void)
 		pmu->intel_cap.perf_metrics = 1;
 		pmu->intel_cap.pebs_output_pt_available = 0;
 
-		memcpy(pmu->hw_cache_event_ids, spr_hw_cache_event_ids, sizeof(pmu->hw_cache_event_ids));
-		memcpy(pmu->hw_cache_extra_regs, spr_hw_cache_extra_regs, sizeof(pmu->hw_cache_extra_regs));
-		pmu->event_constraints = intel_spr_event_constraints;
-		pmu->pebs_constraints = intel_spr_pebs_event_constraints;
-		pmu->extra_regs = intel_spr_extra_regs;
+		memcpy(pmu->hw_cache_event_ids, glc_hw_cache_event_ids, sizeof(pmu->hw_cache_event_ids));
+		memcpy(pmu->hw_cache_extra_regs, glc_hw_cache_extra_regs, sizeof(pmu->hw_cache_extra_regs));
+		pmu->event_constraints = intel_glc_event_constraints;
+		pmu->pebs_constraints = intel_glc_pebs_event_constraints;
+		pmu->extra_regs = intel_glc_extra_regs;
 
 		/* Initialize Atom core specific PerfMon capabilities.*/
 		pmu = &x86_pmu.hybrid_pmu[X86_HYBRID_PMU_ATOM_IDX];
@@ -6719,7 +6719,7 @@ __init int intel_pmu_init(void)
 		pmu->pebs_constraints = intel_grt_pebs_event_constraints;
 		pmu->extra_regs = intel_grt_extra_regs;
 		if (is_mtl(boot_cpu_data.x86_model)) {
-			x86_pmu.hybrid_pmu[X86_HYBRID_PMU_CORE_IDX].extra_regs = intel_gnr_extra_regs;
+			x86_pmu.hybrid_pmu[X86_HYBRID_PMU_CORE_IDX].extra_regs = intel_rwc_extra_regs;
 			x86_pmu.pebs_latency_data = mtl_latency_data_small;
 			extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
 				mtl_hybrid_extra_attr_rtm : mtl_hybrid_extra_attr;
