@@ -51,7 +51,6 @@ ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
 	u32 rate_flags, rates = 0, rates_added = 0;
 	struct beacon_data *presp;
 	int frame_len;
-	int shift;
 
 	/* Build IBSS probe response */
 	frame_len = sizeof(struct ieee80211_hdr_3addr) +
@@ -92,7 +91,6 @@ ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
 
 	sband = local->hw.wiphy->bands[chandef->chan->band];
 	rate_flags = ieee80211_chandef_rate_flags(chandef);
-	shift = ieee80211_chandef_get_shift(chandef);
 	rates_n = 0;
 	if (have_higher_than_11mbit)
 		*have_higher_than_11mbit = false;
@@ -111,8 +109,7 @@ ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
 	*pos++ = WLAN_EID_SUPP_RATES;
 	*pos++ = min_t(int, 8, rates_n);
 	for (ri = 0; ri < sband->n_bitrates; ri++) {
-		int rate = DIV_ROUND_UP(sband->bitrates[ri].bitrate,
-					5 * (1 << shift));
+		int rate = DIV_ROUND_UP(sband->bitrates[ri].bitrate, 5);
 		u8 basic = 0;
 		if (!(rates & BIT(ri)))
 			continue;
@@ -155,8 +152,7 @@ ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
 		*pos++ = WLAN_EID_EXT_SUPP_RATES;
 		*pos++ = rates_n - 8;
 		for (; ri < sband->n_bitrates; ri++) {
-			int rate = DIV_ROUND_UP(sband->bitrates[ri].bitrate,
-						5 * (1 << shift));
+			int rate = DIV_ROUND_UP(sband->bitrates[ri].bitrate, 5);
 			u8 basic = 0;
 			if (!(rates & BIT(ri)))
 				continue;
@@ -399,7 +395,6 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	enum nl80211_channel_type chan_type;
 	u64 tsf;
 	u32 rate_flags;
-	int shift;
 
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
@@ -434,7 +429,6 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	sband = sdata->local->hw.wiphy->bands[cbss->channel->band];
 	rate_flags = ieee80211_chandef_rate_flags(&sdata->u.ibss.chandef);
-	shift = ieee80211_vif_get_shift(&sdata->vif);
 
 	basic_rates = 0;
 
@@ -448,8 +442,7 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 			    != rate_flags)
 				continue;
 
-			brate = DIV_ROUND_UP(sband->bitrates[j].bitrate,
-					     5 * (1 << shift));
+			brate = DIV_ROUND_UP(sband->bitrates[j].bitrate, 5);
 			if (brate == rate) {
 				if (is_basic)
 					basic_rates |= BIT(j);

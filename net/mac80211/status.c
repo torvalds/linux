@@ -256,7 +256,7 @@ static int ieee80211_tx_radiotap_len(struct ieee80211_tx_info *info,
 static void
 ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 				 struct sk_buff *skb, int retry_count,
-				 int rtap_len, int shift,
+				 int rtap_len,
 				 struct ieee80211_tx_status *status)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -307,7 +307,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 
 	if (legacy_rate) {
 		rthdr->it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_RATE));
-		*pos = DIV_ROUND_UP(legacy_rate, 5 * (1 << shift));
+		*pos = DIV_ROUND_UP(legacy_rate, 5);
 		/* padding for tx flags */
 		pos += 2;
 	}
@@ -878,7 +878,7 @@ static int ieee80211_tx_get_rates(struct ieee80211_hw *hw,
 }
 
 void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
-			  int retry_count, int shift, bool send_to_cooked,
+			  int retry_count, bool send_to_cooked,
 			  struct ieee80211_tx_status *status)
 {
 	struct sk_buff *skb2;
@@ -895,7 +895,7 @@ void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
 		return;
 	}
 	ieee80211_add_tx_radiotap_header(local, skb, retry_count,
-					 rtap_len, shift, status);
+					 rtap_len, status);
 
 	/* XXX: is this sufficient for BPF? */
 	skb_reset_mac_header(skb);
@@ -948,14 +948,12 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	bool acked;
 	bool noack_success;
 	struct ieee80211_bar *bar;
-	int shift = 0;
 	int tid = IEEE80211_NUM_TIDS;
 
 	fc = hdr->frame_control;
 
 	if (status->sta) {
 		sta = container_of(status->sta, struct sta_info, sta);
-		shift = ieee80211_vif_get_shift(&sta->sdata->vif);
 
 		if (info->flags & IEEE80211_TX_STATUS_EOSP)
 			clear_sta_flag(sta, WLAN_STA_SP);
@@ -1093,7 +1091,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	}
 
 	/* send to monitor interfaces */
-	ieee80211_tx_monitor(local, skb, retry_count, shift,
+	ieee80211_tx_monitor(local, skb, retry_count,
 			     send_to_cooked, status);
 }
 
