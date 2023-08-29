@@ -1322,7 +1322,8 @@ void dcn32_disable_link_output(struct dc_link *link,
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 
 	if (signal == SIGNAL_TYPE_EDP &&
-			link->dc->hwss.edp_backlight_control)
+			link->dc->hwss.edp_backlight_control &&
+			!link->skip_implict_edp_power_control)
 		link->dc->hwss.edp_backlight_control(link, false);
 	else if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->lock_phy(dmcu);
@@ -1331,7 +1332,8 @@ void dcn32_disable_link_output(struct dc_link *link,
 	link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
 
 	if (signal == SIGNAL_TYPE_EDP &&
-			link->dc->hwss.edp_backlight_control)
+			link->dc->hwss.edp_backlight_control &&
+			!link->skip_implict_edp_power_control)
 		link->dc->hwss.edp_power_control(link, false);
 	else if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
