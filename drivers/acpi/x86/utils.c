@@ -518,3 +518,38 @@ bool acpi_quirk_skip_acpi_ac_and_battery(void)
 	return false;
 }
 EXPORT_SYMBOL_GPL(acpi_quirk_skip_acpi_ac_and_battery);
+
+/* This section provides a workaround for a specific x86 system
+ * which requires disabling of mwait to work correctly.
+ */
+static int __init acpi_proc_quirk_set_no_mwait(const struct dmi_system_id *id)
+{
+	pr_notice("%s detected - disabling mwait for CPU C-states\n",
+		  id->ident);
+	boot_option_idle_override = IDLE_NOMWAIT;
+	return 0;
+}
+
+static const struct dmi_system_id acpi_proc_quirk_mwait_dmi_table[] __initconst = {
+	{
+		.callback = acpi_proc_quirk_set_no_mwait,
+		.ident = "Extensa 5220",
+		.matches =  {
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies LTD"),
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "0100"),
+			DMI_MATCH(DMI_BOARD_NAME, "Columbia"),
+		},
+		.driver_data = NULL,
+	},
+	{}
+};
+
+void __init acpi_proc_quirk_mwait_check(void)
+{
+	/*
+	 * Check whether the system is DMI table. If yes, OSPM
+	 * should not use mwait for CPU-states.
+	 */
+	dmi_check_system(acpi_proc_quirk_mwait_dmi_table);
+}

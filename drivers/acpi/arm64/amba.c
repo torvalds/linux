@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "internal.h"
+#include "init.h"
 
 static const struct acpi_device_id amba_id_list[] = {
 	{"ARMH0061", 0}, /* PL061 GPIO Device */
