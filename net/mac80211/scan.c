@@ -187,12 +187,6 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	else if (ieee80211_hw_check(&local->hw, SIGNAL_UNSPEC))
 		bss_meta.signal = (rx_status->signal * 100) / local->hw.max_signal;
 
-	bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_20;
-	if (rx_status->bw == RATE_INFO_BW_5)
-		bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_5;
-	else if (rx_status->bw == RATE_INFO_BW_10)
-		bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_10;
-
 	bss_meta.chan = channel;
 
 	rcu_read_lock();
@@ -315,22 +309,11 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 		ieee80211_rx_bss_put(local, bss);
 }
 
-static void
-ieee80211_prepare_scan_chandef(struct cfg80211_chan_def *chandef,
-			       enum nl80211_bss_scan_width scan_width)
+static void ieee80211_prepare_scan_chandef(struct cfg80211_chan_def *chandef)
 {
 	memset(chandef, 0, sizeof(*chandef));
-	switch (scan_width) {
-	case NL80211_BSS_CHAN_WIDTH_5:
-		chandef->width = NL80211_CHAN_WIDTH_5;
-		break;
-	case NL80211_BSS_CHAN_WIDTH_10:
-		chandef->width = NL80211_CHAN_WIDTH_10;
-		break;
-	default:
-		chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
-		break;
-	}
+
+	chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
 }
 
 /* return false if no more work */
@@ -378,7 +361,7 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_sub_if_data *sdata)
 	}
 
 	local->hw_scan_req->req.n_channels = n_chans;
-	ieee80211_prepare_scan_chandef(&chandef, req->scan_width);
+	ieee80211_prepare_scan_chandef(&chandef);
 
 	if (req->flags & NL80211_SCAN_FLAG_MIN_PREQ_CONTENT)
 		flags |= IEEE80211_PROBE_FLAG_MIN_CONTENT;
@@ -919,7 +902,6 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 {
 	int skip;
 	struct ieee80211_channel *chan;
-	enum nl80211_bss_scan_width oper_scan_width;
 	struct cfg80211_scan_request *scan_req;
 
 	scan_req = rcu_dereference_protected(local->scan_req,
@@ -933,42 +915,21 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	local->scan_chandef.freq1_offset = chan->freq_offset;
 	local->scan_chandef.center_freq2 = 0;
 
-	/* For scanning on the S1G band, ignore scan_width (which is constant
-	 * across all channels) for now since channel width is specific to each
-	 * channel. Detect the required channel width here and likely revisit
-	 * later. Maybe scan_width could be used to build the channel scan list?
+	/* For scanning on the S1G band, detect the channel width according to
+	 * the channel being scanned.
 	 */
 	if (chan->band == NL80211_BAND_S1GHZ) {
 		local->scan_chandef.width = ieee80211_s1g_channel_width(chan);
 		goto set_channel;
 	}
 
-	switch (scan_req->scan_width) {
-	case NL80211_BSS_CHAN_WIDTH_5:
-		local->scan_chandef.width = NL80211_CHAN_WIDTH_5;
-		break;
-	case NL80211_BSS_CHAN_WIDTH_10:
-		local->scan_chandef.width = NL80211_CHAN_WIDTH_10;
-		break;
-	default:
-	case NL80211_BSS_CHAN_WIDTH_20:
-		/* If scanning on oper channel, use whatever channel-type
-		 * is currently in use.
-		 */
-		oper_scan_width = cfg80211_chandef_to_scan_width(
-					&local->_oper_chandef);
-		if (chan == local->_oper_chandef.chan &&
-		    oper_scan_width == scan_req->scan_width)
-			local->scan_chandef = local->_oper_chandef;
-		else
-			local->scan_chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
-		break;
-	case NL80211_BSS_CHAN_WIDTH_1:
-	case NL80211_BSS_CHAN_WIDTH_2:
-		/* shouldn't get here, S1G handled above */
-		WARN_ON(1);
-		break;
-	}
+	/* If scanning on oper channel, use whatever channel-type
+	 * is currently in use.
+	 */
+	if (chan == local->_oper_chandef.chan)
+		local->scan_chandef = local->_oper_chandef;
+	else
+		local->scan_chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
 
 set_channel:
 	if (ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL))
@@ -1152,8 +1113,7 @@ int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 				const u8 *ssid, u8 ssid_len,
 				struct ieee80211_channel **channels,
-				unsigned int n_channels,
-				enum nl80211_bss_scan_width scan_width)
+				unsigned int n_channels)
 {
 	struct ieee80211_local *local = sdata->local;
 	int ret = -EBUSY, i, n_ch = 0;
@@ -1210,7 +1170,6 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 
 	local->int_scan_req->ssids = &local->scan_ssid;
 	local->int_scan_req->n_ssids = 1;
-	local->int_scan_req->scan_width = scan_width;
 	memcpy(local->int_scan_req->ssids[0].ssid, ssid, IEEE80211_MAX_SSID_LEN);
 	local->int_scan_req->ssids[0].ssid_len = ssid_len;
 
@@ -1311,7 +1270,7 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	ieee80211_prepare_scan_chandef(&chandef, req->scan_width);
+	ieee80211_prepare_scan_chandef(&chandef);
 
 	ieee80211_build_preq_ies(sdata, ie, num_bands * iebufsz,
 				 &sched_scan_ies, req->ie,
