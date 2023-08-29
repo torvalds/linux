@@ -67,8 +67,8 @@ platforms.
 
 When the time comes for Xe, the protection will be lifted on Xe and kept in i915.
 
-Xe – Pre-Merge Goals
-====================
+Xe – Pre-Merge Goals - Work-in-Progress
+=======================================
 
 Drm_scheduler
 -------------
@@ -206,6 +206,14 @@ This item ties into the GPUVA, VM_BIND, and even long-running compute support.
 As a key measurable result, we need to have a community consensus documented in
 this document and the Xe driver prepared for the changes, if necessary.
 
+Xe – uAPI high level overview
+=============================
+
+...Warning: To be done in follow up patches after/when/where the main consensus in various items are individually reached.
+
+Xe – Pre-Merge Goals - Completed
+================================
+
 Dev_coredump
 ------------
 
@@ -222,8 +230,3 @@ Later, when we are in-tree, the goal is to collaborate with devcoredump
 infrastructure with overall possible improvements, like multiple file support
 for better organization of the dumps, snapshot support, dmesg extra print,
 and whatever may make sense and help the overall infrastructure.
-
-Xe – uAPI high level overview
-=============================
-
-...Warning: To be done in follow up patches after/when/where the main consensus in various items are individually reached.
