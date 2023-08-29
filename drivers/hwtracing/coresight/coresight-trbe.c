@@ -1253,8 +1253,18 @@ static void arm_trbe_register_coresight_cpu(struct trbe_drvdata *drvdata, int cp
 	desc.name = devm_kasprintf(dev, GFP_KERNEL, "trbe%d", cpu);
 	if (!desc.name)
 		goto cpu_clear;
-
-	desc.pdata = coresight_get_platform_data(dev);
+	/*
+	 * TRBE coresight devices do not need regular connections
+	 * information, as the paths get built between all percpu
+	 * source and their respective percpu sink devices. Though
+	 * coresight_register() expect device connections via the
+	 * platform_data, which TRBE devices do not have. As they
+	 * are not real ACPI devices, coresight_get_platform_data()
+	 * ends up failing. Instead let's allocate a dummy zeroed
+	 * coresight_platform_data structure and assign that back
+	 * into the device for that purpose.
+	 */
+	desc.pdata = devm_kzalloc(dev, sizeof(*desc.pdata), GFP_KERNEL);
 	if (IS_ERR(desc.pdata))
 		goto cpu_clear;
 
