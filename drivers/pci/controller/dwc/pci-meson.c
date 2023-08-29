@@ -163,6 +163,13 @@ static int meson_pcie_reset(struct meson_pcie *mp)
 	return 0;
 }
 
+static inline void meson_pcie_disable_clock(void *data)
+{
+	struct clk *clk = data;
+
+	clk_disable_unprepare(clk);
+}
+
 static inline struct clk *meson_pcie_probe_clock(struct device *dev,
 						 const char *id, u64 rate)
 {
@@ -187,9 +194,7 @@ static inline struct clk *meson_pcie_probe_clock(struct device *dev,
 		return ERR_PTR(ret);
 	}
 
-	devm_add_action_or_reset(dev,
-				 (void (*) (void *))clk_disable_unprepare,
-				 clk);
+	devm_add_action_or_reset(dev, meson_pcie_disable_clock, clk);
 
 	return clk;
 }
