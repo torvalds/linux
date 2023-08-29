@@ -12,8 +12,8 @@
 #define MASTER_LLCC				3
 #define MASTER_QDSS_BAM				4
 #define MASTER_QSPI_0				5
-#define MASTER_QUP_1				6
-#define MASTER_QUP_2				7
+#define MASTER_QUP_0				6
+#define MASTER_QUP_1				7
 #define MASTER_A1NOC_SNOC				8
 #define MASTER_A2NOC_SNOC				9
 #define MASTER_CAMNOC_HF				10
@@ -82,8 +82,8 @@
 #define SLAVE_PRNG				537
 #define SLAVE_QDSS_CFG				538
 #define SLAVE_QSPI_0				539
-#define SLAVE_QUP_1				540
-#define SLAVE_QUP_2				541
+#define SLAVE_QUP_0				540
+#define SLAVE_QUP_1				541
 #define SLAVE_SDCC_2				542
 #define SLAVE_TCSR				543
 #define SLAVE_TLMM				544
