@@ -150,6 +150,9 @@ static int drm_debugfs_open(struct inode *inode, struct file *file)
 {
 	struct drm_info_node *node = inode->i_private;
 
+	if (!device_is_registered(node->minor->kdev))
+		return -ENODEV;
+
 	return single_open(file, node->info_ent->show, node);
 }
 
@@ -157,6 +160,10 @@ static int drm_debugfs_entry_open(struct inode *inode, struct file *file)
 {
 	struct drm_debugfs_entry *entry = inode->i_private;
 	struct drm_debugfs_info *node = &entry->file;
+	struct drm_minor *minor = entry->dev->primary ?: entry->dev->accel;
+
+	if (!device_is_registered(minor->kdev))
+		return -ENODEV;
 
 	return single_open(file, node->show, entry);
 }
