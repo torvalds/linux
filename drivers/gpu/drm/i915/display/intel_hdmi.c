@@ -1240,7 +1240,7 @@ static void hsw_set_infoframes(struct intel_encoder *encoder,
 void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable)
 {
 	struct drm_i915_private *dev_priv = intel_hdmi_to_i915(hdmi);
-	struct i2c_adapter *ddc = intel_gmbus_get_adapter(dev_priv, hdmi->ddc_bus);
+	struct i2c_adapter *ddc = hdmi->attached_connector->base.ddc;
 
 	if (hdmi->dp_dual_mode.type < DRM_DP_DUAL_MODE_TYPE2_DVI)
 		return;
@@ -1255,9 +1255,8 @@ void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable)
 static int intel_hdmi_hdcp_read(struct intel_digital_port *dig_port,
 				unsigned int offset, void *buffer, size_t size)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_hdmi *hdmi = &dig_port->hdmi;
-	struct i2c_adapter *ddc = intel_gmbus_get_adapter(i915, hdmi->ddc_bus);
+	struct i2c_adapter *ddc = hdmi->attached_connector->base.ddc;
 	int ret;
 	u8 start = offset & 0xff;
 	struct i2c_msg msgs[] = {
@@ -1283,9 +1282,8 @@ static int intel_hdmi_hdcp_read(struct intel_digital_port *dig_port,
 static int intel_hdmi_hdcp_write(struct intel_digital_port *dig_port,
 				 unsigned int offset, void *buffer, size_t size)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_hdmi *hdmi = &dig_port->hdmi;
-	struct i2c_adapter *ddc = intel_gmbus_get_adapter(i915, hdmi->ddc_bus);
+	struct i2c_adapter *ddc = hdmi->attached_connector->base.ddc;
 	int ret;
 	u8 *write_buf;
 	struct i2c_msg msg;
@@ -1318,7 +1316,7 @@ int intel_hdmi_hdcp_write_an_aksv(struct intel_digital_port *dig_port,
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_hdmi *hdmi = &dig_port->hdmi;
-	struct i2c_adapter *ddc = intel_gmbus_get_adapter(i915, hdmi->ddc_bus);
+	struct i2c_adapter *ddc = hdmi->attached_connector->base.ddc;
 	int ret;
 
 	ret = intel_hdmi_hdcp_write(dig_port, DRM_HDCP_DDC_AN, an,
@@ -2399,8 +2397,10 @@ intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
 	struct intel_encoder *encoder = &hdmi_to_dig_port(hdmi)->base;
-	struct i2c_adapter *ddc = intel_gmbus_get_adapter(dev_priv, hdmi->ddc_bus);
-	enum drm_dp_dual_mode_type type = drm_dp_dual_mode_detect(&dev_priv->drm, ddc);
+	struct i2c_adapter *ddc = connector->ddc;
+	enum drm_dp_dual_mode_type type;
+
+	type = drm_dp_dual_mode_detect(&dev_priv->drm, ddc);
 
 	/*
 	 * Type 1 DVI adaptors are not required to implement any
@@ -2448,7 +2448,7 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(to_intel_connector(connector));
-	struct i2c_adapter *ddc = intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus);
+	struct i2c_adapter *ddc = connector->ddc;
 	intel_wakeref_t wakeref;
 	const struct drm_edid *drm_edid;
 	bool connected = false;
@@ -2541,19 +2541,10 @@ static int intel_hdmi_get_modes(struct drm_connector *connector)
 	return drm_edid_connector_add_modes(connector);
 }
 
-static struct i2c_adapter *
-intel_hdmi_get_i2c_adapter(struct drm_connector *connector)
-{
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(to_intel_connector(connector));
-
-	return intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus);
-}
-
 static void intel_hdmi_create_i2c_symlink(struct drm_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->dev);
-	struct i2c_adapter *ddc = intel_hdmi_get_i2c_adapter(connector);
+	struct i2c_adapter *ddc = connector->ddc;
 	struct kobject *i2c_kobj = &ddc->dev.kobj;
 	struct kobject *connector_kobj = &connector->kdev->kobj;
 	int ret;
@@ -2565,7 +2556,7 @@ static void intel_hdmi_create_i2c_symlink(struct drm_connector *connector)
 
 static void intel_hdmi_remove_i2c_symlink(struct drm_connector *connector)
 {
-	struct i2c_adapter *ddc = intel_hdmi_get_i2c_adapter(connector);
+	struct i2c_adapter *ddc = connector->ddc;
 	struct kobject *i2c_kobj = &ddc->dev.kobj;
 	struct kobject *connector_kobj = &connector->kdev->kobj;
 
@@ -3004,7 +2995,6 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 	struct intel_encoder *intel_encoder = &dig_port->base;
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i2c_adapter *ddc;
 	enum port port = intel_encoder->port;
 	struct cec_connector_info conn_info;
 
@@ -3025,12 +3015,11 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 	if (!intel_hdmi->ddc_bus)
 		return;
 
-	ddc = intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus);
-
 	drm_connector_init_with_ddc(dev, connector,
 				    &intel_hdmi_connector_funcs,
 				    DRM_MODE_CONNECTOR_HDMIA,
-				    ddc);
+				    intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus));
+
 	drm_connector_helper_add(connector, &intel_hdmi_connector_helper_funcs);
 
 	if (DISPLAY_VER(dev_priv) < 12)
