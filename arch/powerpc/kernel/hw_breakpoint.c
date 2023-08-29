@@ -230,13 +230,15 @@ void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
 	struct arch_hw_breakpoint *info;
 	int i;
 
+	preempt_disable();
+
 	for (i = 0; i < nr_wp_slots(); i++) {
 		struct perf_event *bp = __this_cpu_read(bp_per_reg[i]);
 
 		if (unlikely(bp && counter_arch_bp(bp)->perf_single_step))
 			goto reset;
 	}
-	return;
+	goto out;
 
 reset:
 	regs_set_return_msr(regs, regs->msr & ~MSR_SE);
@@ -245,6 +247,9 @@ reset:
 		__set_breakpoint(i, info);
 		info->perf_single_step = false;
 	}
+
+out:
+	preempt_enable();
 }
 
 static bool is_larx_stcx_instr(int type)
