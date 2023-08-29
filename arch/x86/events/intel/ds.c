@@ -261,7 +261,7 @@ static u64 __adl_latency_data_small(struct perf_event *event, u64 status,
 {
 	u64 val;
 
-	WARN_ON_ONCE(hybrid_pmu(event->pmu)->cpu_type == hybrid_big);
+	WARN_ON_ONCE(hybrid_pmu(event->pmu)->pmu_type == hybrid_big);
 
 	dse &= PERF_PEBS_DATA_SOURCE_MASK;
 	val = hybrid_var(event->pmu, pebs_data_source)[dse];
