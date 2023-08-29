@@ -991,7 +991,7 @@ struct ieee80211_link_data {
 	struct ieee80211_key __rcu *default_beacon_key;
 
 	struct wiphy_work csa_finalize_work;
-	bool csa_block_tx; /* write-protected by sdata_lock and local->mtx */
+	bool csa_block_tx;
 
 	bool operating_11g_mode;
 
@@ -1135,28 +1135,8 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 	return container_of(p, struct ieee80211_sub_if_data, vif);
 }
 
-static inline void sdata_lock(struct ieee80211_sub_if_data *sdata)
-	__acquires(&sdata->wdev.mtx)
-{
-	mutex_lock(&sdata->wdev.mtx);
-	__acquire(&sdata->wdev.mtx);
-}
-
-static inline void sdata_unlock(struct ieee80211_sub_if_data *sdata)
-	__releases(&sdata->wdev.mtx)
-{
-	mutex_unlock(&sdata->wdev.mtx);
-	__release(&sdata->wdev.mtx);
-}
-
 #define sdata_dereference(p, sdata) \
-	rcu_dereference_protected(p, lockdep_is_held(&sdata->wdev.mtx))
-
-static inline void
-sdata_assert_lock(struct ieee80211_sub_if_data *sdata)
-{
-	lockdep_assert_held(&sdata->wdev.mtx);
-}
+	wiphy_dereference(sdata->local->hw.wiphy, p)
 
 static inline int
 ieee80211_chanwidth_get_shift(enum nl80211_chan_width width)
@@ -2034,8 +2014,10 @@ void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 void ieee80211_link_stop(struct ieee80211_link_data *link);
 int ieee80211_vif_set_links(struct ieee80211_sub_if_data *sdata,
 			    u16 new_links, u16 dormant_links);
-void ieee80211_vif_clear_links(struct ieee80211_sub_if_data *sdata);
-int __ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links);
+static inline void ieee80211_vif_clear_links(struct ieee80211_sub_if_data *sdata)
+{
+	ieee80211_vif_set_links(sdata, 0, 0);
+}
 
 /* tx handling */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local);

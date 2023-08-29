@@ -529,7 +529,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	del_timer_sync(&local->dynamic_ps_timer);
 	wiphy_work_cancel(local->hw.wiphy, &local->dynamic_ps_enable_work);
 
-	sdata_lock(sdata);
 	WARN(ieee80211_vif_is_mld(&sdata->vif),
 	     "destroying interface with valid links 0x%04x\n",
 	     sdata->vif.valid_links);
@@ -542,7 +541,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
 		sdata->deflink.csa_block_tx = false;
 	}
-	sdata_unlock(sdata);
 
 	wiphy_work_cancel(local->hw.wiphy, &sdata->deflink.csa_finalize_work);
 	wiphy_work_cancel(local->hw.wiphy,
@@ -1133,7 +1131,6 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	snprintf(sdata->name, IFNAMSIZ, "%s-monitor",
 		 wiphy_name(local->hw.wiphy));
 	sdata->wdev.iftype = NL80211_IFTYPE_MONITOR;
-	mutex_init(&sdata->wdev.mtx);
 	sdata->wdev.wiphy = local->hw.wiphy;
 
 	ieee80211_sdata_init(local, sdata);
@@ -1159,17 +1156,14 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	rcu_assign_pointer(local->monitor_sdata, sdata);
 	mutex_unlock(&local->iflist_mtx);
 
-	sdata_lock(sdata);
 	ret = ieee80211_link_use_channel(&sdata->deflink, &local->monitor_chandef,
 					 IEEE80211_CHANCTX_EXCLUSIVE);
-	sdata_unlock(sdata);
 	if (ret) {
 		mutex_lock(&local->iflist_mtx);
 		RCU_INIT_POINTER(local->monitor_sdata, NULL);
 		mutex_unlock(&local->iflist_mtx);
 		synchronize_net();
 		drv_remove_interface(local, sdata);
-		mutex_destroy(&sdata->wdev.mtx);
 		kfree(sdata);
 		return ret;
 	}
@@ -1205,13 +1199,10 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 
 	synchronize_net();
 
-	sdata_lock(sdata);
 	ieee80211_link_release_channel(&sdata->deflink);
-	sdata_unlock(sdata);
 
 	drv_remove_interface(local, sdata);
 
-	mutex_destroy(&sdata->wdev.mtx);
 	kfree(sdata);
 }
 
@@ -2279,13 +2270,11 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 		 * we can't acquire the wiphy_lock() again there if already
 		 * inside this locked section.
 		 */
-		sdata_lock(sdata);
 		sdata->vif.cfg.arp_addr_cnt = 0;
 		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
 		    sdata->u.mgd.associated)
 			ieee80211_vif_cfg_change_notify(sdata,
 							BSS_CHANGED_ARP_FILTER);
-		sdata_unlock(sdata);
 
 		list_del(&sdata->list);
 		cfg80211_unregister_wdev(&sdata->wdev);

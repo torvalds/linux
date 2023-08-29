@@ -124,10 +124,10 @@ void ieee80211_ocb_work(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_ocb *ifocb = &sdata->u.ocb;
 	struct sta_info *sta;
 
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
+
 	if (ifocb->joined != true)
 		return;
-
-	sdata_lock(sdata);
 
 	spin_lock_bh(&ifocb->incomplete_lock);
 	while (!list_empty(&ifocb->incomplete_stations)) {
@@ -144,8 +144,6 @@ void ieee80211_ocb_work(struct ieee80211_sub_if_data *sdata)
 
 	if (test_and_clear_bit(OCB_WORK_HOUSEKEEPING, &ifocb->wrkq_flags))
 		ieee80211_ocb_housekeeping(sdata);
-
-	sdata_unlock(sdata);
 }
 
 static void ieee80211_ocb_housekeeping_timer(struct timer_list *t)

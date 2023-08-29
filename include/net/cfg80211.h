@@ -5938,8 +5938,6 @@ void wiphy_delayed_work_flush(struct wiphy *wiphy,
  * @mgmt_registrations: list of registrations for management frames
  * @mgmt_registrations_need_update: mgmt registrations were updated,
  *	need to propagate the update to the driver
- * @mtx: mutex used to lock data in this struct, may be used by drivers
- *	and some API functions require it held
  * @beacon_interval: beacon interval used on this device for transmitting
  *	beacons, 0 when not valid
  * @address: The address for this device, valid only if @netdev is %NULL
@@ -5984,8 +5982,6 @@ struct wireless_dev {
 
 	struct list_head mgmt_registrations;
 	u8 mgmt_registrations_need_update:1;
-
-	struct mutex mtx;
 
 	bool use_4addr, is_running, registered, registering;
 
@@ -8589,7 +8585,7 @@ bool cfg80211_reg_can_beacon_relax(struct wiphy *wiphy,
  * @link_id: the link ID for MLO, must be 0 for non-MLO
  * @punct_bitmap: the new puncturing bitmap
  *
- * Caller must acquire wdev_lock, therefore must only be called from sleepable
+ * Caller must hold wiphy mutex, therefore must only be called from sleepable
  * driver context!
  */
 void cfg80211_ch_switch_notify(struct net_device *dev,

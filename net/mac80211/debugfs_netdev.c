@@ -322,7 +322,6 @@ static int ieee80211_set_smps(struct ieee80211_link_data *link,
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
-	int err;
 
 	if (sdata->vif.driver_flags & IEEE80211_VIF_DISABLE_SMPS_OVERRIDE)
 		return -EOPNOTSUPP;
@@ -340,11 +339,7 @@ static int ieee80211_set_smps(struct ieee80211_link_data *link,
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
-	sdata_lock(sdata);
-	err = __ieee80211_request_smps_mgd(link->sdata, link, smps_mode);
-	sdata_unlock(sdata);
-
-	return err;
+	return __ieee80211_request_smps_mgd(link->sdata, link, smps_mode);
 }
 
 static const char *smps_modes[IEEE80211_SMPS_NUM_MODES] = {
@@ -416,16 +411,13 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 	case NL80211_IFTYPE_STATION:
 		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 		/* BSSID SA DA */
-		sdata_lock(sdata);
 		if (!sdata->u.mgd.associated) {
-			sdata_unlock(sdata);
 			dev_kfree_skb(skb);
 			return -ENOTCONN;
 		}
 		memcpy(hdr->addr1, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
 		memcpy(hdr->addr3, addr, ETH_ALEN);
-		sdata_unlock(sdata);
 		break;
 	default:
 		dev_kfree_skb(skb);

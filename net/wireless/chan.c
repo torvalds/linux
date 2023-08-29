@@ -713,7 +713,7 @@ bool cfg80211_beaconing_iface_active(struct wireless_dev *wdev)
 {
 	unsigned int link;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_AP:
@@ -782,18 +782,14 @@ static bool cfg80211_is_wiphy_oper_chan(struct wiphy *wiphy,
 {
 	struct wireless_dev *wdev;
 
-	list_for_each_entry(wdev, &wiphy->wdev_list, list) {
-		wdev_lock(wdev);
-		if (!cfg80211_beaconing_iface_active(wdev)) {
-			wdev_unlock(wdev);
-			continue;
-		}
+	lockdep_assert_wiphy(wiphy);
 
-		if (cfg80211_wdev_on_sub_chan(wdev, chan, false)) {
-			wdev_unlock(wdev);
+	list_for_each_entry(wdev, &wiphy->wdev_list, list) {
+		if (!cfg80211_beaconing_iface_active(wdev))
+			continue;
+
+		if (cfg80211_wdev_on_sub_chan(wdev, chan, false))
 			return true;
-		}
-		wdev_unlock(wdev);
 	}
 
 	return false;
@@ -1325,10 +1321,7 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		bool ret;
 
-		wdev_lock(wdev);
 		ret = cfg80211_ir_permissive_check_wdev(iftype, wdev, chan);
-		wdev_unlock(wdev);
-
 		if (ret)
 			return ret;
 	}
@@ -1437,17 +1430,10 @@ EXPORT_SYMBOL(cfg80211_any_usable_channels);
 struct cfg80211_chan_def *wdev_chandef(struct wireless_dev *wdev,
 				       unsigned int link_id)
 {
-	/*
-	 * We need to sort out the locking here - in some cases
-	 * where we get here we really just don't care (yet)
-	 * about the valid links, but in others we do. But we
-	 * get here with various driver cases, so we cannot
-	 * easily require the wdev mutex.
-	 */
-	if (link_id || wdev->valid_links & BIT(0)) {
-		ASSERT_WDEV_LOCK(wdev);
-		WARN_ON(!(wdev->valid_links & BIT(link_id)));
-	}
+	lockdep_assert_wiphy(wdev->wiphy);
+
+	WARN_ON(wdev->valid_links && !(wdev->valid_links & BIT(link_id)));
+	WARN_ON(!wdev->valid_links && link_id > 0);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_MESH_POINT:

@@ -573,8 +573,7 @@ ieee80211_lookup_key(struct ieee80211_sub_if_data *sdata, int link_id,
 	struct ieee80211_key *key;
 
 	if (link_id >= 0) {
-		link = rcu_dereference_check(sdata->link[link_id],
-					     lockdep_is_held(&sdata->wdev.mtx));
+		link = sdata_dereference(sdata->link[link_id], sdata);
 		if (!link)
 			return NULL;
 	}
@@ -896,12 +895,10 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 		sdata = wiphy_dereference(local->hw.wiphy,
 					  local->monitor_sdata);
 		if (sdata) {
-			sdata_lock(sdata);
 			ieee80211_link_release_channel(&sdata->deflink);
 			ret = ieee80211_link_use_channel(&sdata->deflink,
 							 chandef,
 							 IEEE80211_CHANCTX_EXCLUSIVE);
-			sdata_unlock(sdata);
 		}
 	} else {
 		if (local->open_count == local->monitors) {
@@ -1490,7 +1487,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_bss_conf *link_conf;
 	u64 changed = 0;
 
-	sdata_assert_lock(sdata);
+	lockdep_assert_wiphy(wiphy);
 
 	link = sdata_dereference(sdata->link[params->link_id], sdata);
 	if (!link)
@@ -1549,7 +1546,6 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 		sdata_dereference(sdata->link[link_id], sdata);
 	struct ieee80211_bss_conf *link_conf = link->conf;
 
-	sdata_assert_lock(sdata);
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	old_beacon = sdata_dereference(link->u.ap.beacon, sdata);
@@ -2163,14 +2159,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		}
 	}
 
-	/* we use sta_info_get_bss() so this might be different */
-	if (sdata != sta->sdata) {
-		mutex_lock_nested(&sta->sdata->wdev.mtx, 1);
-		err = sta_apply_parameters(local, sta, params);
-		mutex_unlock(&sta->sdata->wdev.mtx);
-	} else {
-		err = sta_apply_parameters(local, sta, params);
-	}
+	err = sta_apply_parameters(local, sta, params);
 	if (err)
 		return err;
 
@@ -3132,7 +3121,7 @@ int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 	bool tdls_peer_found = false;
 
-	lockdep_assert_held(&sdata->wdev.mtx);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	if (WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION))
 		return -EINVAL;
@@ -3211,7 +3200,6 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	local->dynamic_ps_forced_timeout = timeout;
 
 	/* no change, but if automatic follow powersave */
-	sdata_lock(sdata);
 	for (link_id = 0; link_id < ARRAY_SIZE(sdata->link); link_id++) {
 		struct ieee80211_link_data *link;
 
@@ -3222,7 +3210,6 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		__ieee80211_request_smps_mgd(sdata, link,
 					     link->u.mgd.req_smps);
 	}
-	sdata_unlock(sdata);
 
 	if (ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
@@ -3609,7 +3596,6 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 	u64 changed = 0;
 	int err;
 
-	sdata_assert_lock(sdata);
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	/*
@@ -3681,20 +3667,16 @@ void ieee80211_csa_finalize_work(struct wiphy *wiphy, struct wiphy_work *work)
 			     deflink.csa_finalize_work);
 	struct ieee80211_local *local = sdata->local;
 
-	sdata_lock(sdata);
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	/* AP might have been stopped while waiting for the lock. */
 	if (!sdata->vif.bss_conf.csa_active)
-		goto unlock;
+		return;
 
 	if (!ieee80211_sdata_running(sdata))
-		goto unlock;
+		return;
 
 	ieee80211_csa_finalize(sdata);
-
-unlock:
-	sdata_unlock(sdata);
 }
 
 static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
@@ -3850,7 +3832,6 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	u64 changed = 0;
 	int err;
 
-	sdata_assert_lock(sdata);
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (!list_empty(&local->roc_list) || local->scanning)
@@ -4665,7 +4646,6 @@ static int ieee80211_color_change_finalize(struct ieee80211_sub_if_data *sdata)
 	u64 changed = 0;
 	int err;
 
-	sdata_assert_lock(sdata);
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	sdata->vif.bss_conf.color_change_active = false;
@@ -4692,20 +4672,16 @@ void ieee80211_color_change_finalize_work(struct wiphy *wiphy,
 			     deflink.color_change_finalize_work);
 	struct ieee80211_local *local = sdata->local;
 
-	sdata_lock(sdata);
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	/* AP might have been stopped while waiting for the lock. */
 	if (!sdata->vif.bss_conf.color_change_active)
-		goto unlock;
+		return;
 
 	if (!ieee80211_sdata_running(sdata))
-		goto unlock;
+		return;
 
 	ieee80211_color_change_finalize(sdata);
-
-unlock:
-	sdata_unlock(sdata);
 }
 
 void ieee80211_color_collision_detection_work(struct work_struct *work)
@@ -4716,9 +4692,7 @@ void ieee80211_color_collision_detection_work(struct work_struct *work)
 			     color_collision_detect_work);
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 
-	sdata_lock(sdata);
 	cfg80211_obss_color_collision_notify(sdata->dev, link->color_bitmap);
-	sdata_unlock(sdata);
 }
 
 void ieee80211_color_change_finish(struct ieee80211_vif *vif)
@@ -4762,7 +4736,6 @@ ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
 	u64 changed = 0;
 	int err;
 
-	sdata_assert_lock(sdata);
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (sdata->vif.bss_conf.nontransmitted)

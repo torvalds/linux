@@ -191,7 +191,7 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_link_data *old_data[IEEE80211_MLD_MAX_NUM_LINKS];
 	bool use_deflink = old_links == 0; /* set for error case */
 
-	sdata_assert_lock(sdata);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	memset(to_free, 0, sizeof(links));
 
@@ -301,23 +301,6 @@ int ieee80211_vif_set_links(struct ieee80211_sub_if_data *sdata,
 	ieee80211_free_links(sdata, links);
 
 	return ret;
-}
-
-void ieee80211_vif_clear_links(struct ieee80211_sub_if_data *sdata)
-{
-	struct link_container *links[IEEE80211_MLD_MAX_NUM_LINKS];
-
-	/*
-	 * The locking here is different because when we free links
-	 * in the station case we need to be able to cancel_work_sync()
-	 * something that also takes the lock.
-	 */
-
-	sdata_lock(sdata);
-	ieee80211_vif_update_links(sdata, links, 0, 0);
-	sdata_unlock(sdata);
-
-	ieee80211_free_links(sdata, links);
 }
 
 static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
@@ -447,14 +430,13 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-int __ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
+int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
 	u16 old_active;
 	int ret;
 
-	sdata_assert_lock(sdata);
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	old_active = sdata->vif.active_links;
@@ -472,18 +454,6 @@ int __ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
 		/* otherwise switch directly */
 		ret = _ieee80211_set_active_links(sdata, active_links);
 	}
-
-	return ret;
-}
-
-int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
-{
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	int ret;
-
-	sdata_lock(sdata);
-	ret = __ieee80211_set_active_links(vif, active_links);
-	sdata_unlock(sdata);
 
 	return ret;
 }

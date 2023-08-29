@@ -1278,14 +1278,13 @@ void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 		rdev->num_running_monitor_ifaces += num;
 }
 
-void __cfg80211_leave(struct cfg80211_registered_device *rdev,
-		      struct wireless_dev *wdev)
+void cfg80211_leave(struct cfg80211_registered_device *rdev,
+		    struct wireless_dev *wdev)
 {
 	struct net_device *dev = wdev->netdev;
 	struct cfg80211_sched_scan_request *pos, *tmp;
 
 	lockdep_assert_held(&rdev->wiphy.mtx);
-	ASSERT_WDEV_LOCK(wdev);
 
 	cfg80211_pmsr_wdev_down(wdev);
 
@@ -1293,7 +1292,7 @@ void __cfg80211_leave(struct cfg80211_registered_device *rdev,
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_ADHOC:
-		__cfg80211_leave_ibss(rdev, dev, true);
+		cfg80211_leave_ibss(rdev, dev, true);
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
@@ -1313,14 +1312,14 @@ void __cfg80211_leave(struct cfg80211_registered_device *rdev,
 				    WLAN_REASON_DEAUTH_LEAVING, true);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
-		__cfg80211_leave_mesh(rdev, dev);
+		cfg80211_leave_mesh(rdev, dev);
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		__cfg80211_stop_ap(rdev, dev, -1, true);
+		cfg80211_stop_ap(rdev, dev, -1, true);
 		break;
 	case NL80211_IFTYPE_OCB:
-		__cfg80211_leave_ocb(rdev, dev);
+		cfg80211_leave_ocb(rdev, dev);
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 	case NL80211_IFTYPE_NAN:
@@ -1336,14 +1335,6 @@ void __cfg80211_leave(struct cfg80211_registered_device *rdev,
 		/* invalid */
 		break;
 	}
-}
-
-void cfg80211_leave(struct cfg80211_registered_device *rdev,
-		    struct wireless_dev *wdev)
-{
-	wdev_lock(wdev);
-	__cfg80211_leave(rdev, wdev);
-	wdev_unlock(wdev);
 }
 
 void cfg80211_stop_iface(struct wiphy *wiphy, struct wireless_dev *wdev,
@@ -1370,7 +1361,6 @@ EXPORT_SYMBOL(cfg80211_stop_iface);
 
 void cfg80211_init_wdev(struct wireless_dev *wdev)
 {
-	mutex_init(&wdev->mtx);
 	INIT_LIST_HEAD(&wdev->event_list);
 	spin_lock_init(&wdev->event_lock);
 	INIT_LIST_HEAD(&wdev->mgmt_registrations);
@@ -1533,7 +1523,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 	case NETDEV_UP:
 		wiphy_lock(&rdev->wiphy);
 		cfg80211_update_iface_num(rdev, wdev->iftype, 1);
-		wdev_lock(wdev);
 		switch (wdev->iftype) {
 #ifdef CONFIG_CFG80211_WEXT
 		case NL80211_IFTYPE_ADHOC:
@@ -1563,7 +1552,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		default:
 			break;
 		}
-		wdev_unlock(wdev);
 		rdev->opencount++;
 
 		/*

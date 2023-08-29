@@ -235,28 +235,6 @@ void cfg80211_init_wdev(struct wireless_dev *wdev);
 void cfg80211_register_wdev(struct cfg80211_registered_device *rdev,
 			    struct wireless_dev *wdev);
 
-static inline void wdev_lock(struct wireless_dev *wdev)
-	__acquires(wdev)
-{
-	lockdep_assert_held(&wdev->wiphy->mtx);
-	mutex_lock(&wdev->mtx);
-	__acquire(wdev->mtx);
-}
-
-static inline void wdev_unlock(struct wireless_dev *wdev)
-	__releases(wdev)
-{
-	lockdep_assert_held(&wdev->wiphy->mtx);
-	__release(wdev->mtx);
-	mutex_unlock(&wdev->mtx);
-}
-
-static inline void ASSERT_WDEV_LOCK(struct wireless_dev *wdev)
-{
-	lockdep_assert_held(&wdev->wiphy->mtx);
-	lockdep_assert_held(&wdev->mtx);
-}
-
 static inline bool cfg80211_has_monitors_only(struct cfg80211_registered_device *rdev)
 {
 	lockdep_assert_held(&rdev->wiphy.mtx);
@@ -340,8 +318,6 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 			 struct cfg80211_ibss_params *params,
 			 struct cfg80211_cached_keys *connkeys);
 void cfg80211_clear_ibss(struct net_device *dev, bool nowext);
-int __cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev, bool nowext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, bool nowext);
 void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
@@ -356,8 +332,6 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,
 			 struct mesh_setup *setup,
 			 const struct mesh_config *conf);
-int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev);
 int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 			struct net_device *dev);
 int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
@@ -365,21 +339,13 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 			      struct cfg80211_chan_def *chandef);
 
 /* OCB */
-int __cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
-			struct net_device *dev,
-			struct ocb_setup *setup);
 int cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
 		      struct net_device *dev,
 		      struct ocb_setup *setup);
-int __cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
-			 struct net_device *dev);
 int cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev);
 
 /* AP */
-int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev, int link,
-		       bool notify);
 int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev, int link,
 		     bool notify);
@@ -557,8 +523,6 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 			       enum nl80211_iftype iftype, int num);
 
-void __cfg80211_leave(struct cfg80211_registered_device *rdev,
-		      struct wireless_dev *wdev);
 void cfg80211_leave(struct cfg80211_registered_device *rdev,
 		    struct wireless_dev *wdev);
 

@@ -643,9 +643,7 @@ struct ieee80211_fils_discovery {
  * @pwr_reduction: power constraint of BSS.
  * @eht_support: does this BSS support EHT
  * @eht_puncturing: bitmap to indicate which channels are punctured in this BSS
- * @csa_active: marks whether a channel switch is going on. Internally it is
- *	write-protected by sdata_lock and local->mtx so holding either is fine
- *	for read access.
+ * @csa_active: marks whether a channel switch is going on.
  * @csa_punct_bitmap: new puncturing bitmap for channel switch
  * @mu_mimo_owner: indicates interface owns MU-MIMO capability
  * @chanctx_conf: The channel context this interface is assigned to, or %NULL
@@ -653,9 +651,7 @@ struct ieee80211_fils_discovery {
  *	path needing to access it; even though the netdev carrier will always
  *	be off when it is %NULL there can still be races and packets could be
  *	processed after it switches back to %NULL.
- * @color_change_active: marks whether a color change is ongoing. Internally it is
- *	write-protected by sdata_lock and local->mtx so holding either is fine
- *	for read access.
+ * @color_change_active: marks whether a color change is ongoing.
  * @color_change_color: the bss color that will be used after the change.
  * @ht_ldpc: in AP mode, indicates interface has HT LDPC capability.
  * @vht_ldpc: in AP mode, indicates interface has VHT LDPC capability.
@@ -1974,22 +1970,18 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
  */
 struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif);
 
-/**
- * lockdep_vif_mutex_held - for lockdep checks on link poiners
- * @vif: the interface to check
- */
-static inline bool lockdep_vif_mutex_held(struct ieee80211_vif *vif)
+static inline bool lockdep_vif_wiphy_mutex_held(struct ieee80211_vif *vif)
 {
-	return lockdep_is_held(&ieee80211_vif_to_wdev(vif)->mtx);
+	return lockdep_is_held(&ieee80211_vif_to_wdev(vif)->wiphy->mtx);
 }
 
 #define link_conf_dereference_protected(vif, link_id)		\
 	rcu_dereference_protected((vif)->link_conf[link_id],	\
-				  lockdep_vif_mutex_held(vif))
+				  lockdep_vif_wiphy_mutex_held(vif))
 
 #define link_conf_dereference_check(vif, link_id)		\
 	rcu_dereference_check((vif)->link_conf[link_id],	\
-			      lockdep_vif_mutex_held(vif))
+			      lockdep_vif_wiphy_mutex_held(vif))
 
 /**
  * enum ieee80211_key_flags - key flags

@@ -2342,12 +2342,11 @@ static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
 	bool ret;
 	int link;
 
-	wdev_lock(wdev);
 	iftype = wdev->iftype;
 
 	/* make sure the interface is active */
 	if (!wdev->netdev || !netif_running(wdev->netdev))
-		goto wdev_inactive_unlock;
+		return true;
 
 	for (link = 0; link < ARRAY_SIZE(wdev->links); link++) {
 		struct ieee80211_channel *chan;
@@ -2407,8 +2406,6 @@ static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
 			break;
 		}
 
-		wdev_unlock(wdev);
-
 		switch (iftype) {
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_P2P_GO:
@@ -2429,16 +2426,8 @@ static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
 		default:
 			break;
 		}
-
-		wdev_lock(wdev);
 	}
 
-	wdev_unlock(wdev);
-
-	return true;
-
-wdev_inactive_unlock:
-	wdev_unlock(wdev);
 	return true;
 }
 
@@ -3577,13 +3566,10 @@ static bool is_wiphy_all_set_reg_flag(enum ieee80211_regulatory_flags flag)
 	for_each_rdev(rdev) {
 		wiphy_lock(&rdev->wiphy);
 		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
-			wdev_lock(wdev);
 			if (!(wdev->wiphy->regulatory_flags & flag)) {
-				wdev_unlock(wdev);
 				wiphy_unlock(&rdev->wiphy);
 				return false;
 			}
-			wdev_unlock(wdev);
 		}
 		wiphy_unlock(&rdev->wiphy);
 	}

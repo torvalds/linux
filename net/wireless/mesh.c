@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Portions
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2023 Intel Corporation
  */
 #include <linux/ieee80211.h>
 #include <linux/export.h>
@@ -109,7 +109,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 
 	BUILD_BUG_ON(IEEE80211_MAX_SSID_LEN != IEEE80211_MAX_MESH_ID_LEN);
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT)
 		return -EOPNOTSUPP;
@@ -257,13 +257,13 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 	return 0;
 }
 
-int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev)
+int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
+			struct net_device *dev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT)
 		return -EOPNOTSUPP;
@@ -284,19 +284,6 @@ int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 		rdev_set_qos_map(rdev, dev, NULL);
 		cfg80211_sched_dfs_chan_update(rdev);
 	}
-
-	return err;
-}
-
-int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
-			struct net_device *dev)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
-
-	wdev_lock(wdev);
-	err = __cfg80211_leave_mesh(rdev, dev);
-	wdev_unlock(wdev);
 
 	return err;
 }
