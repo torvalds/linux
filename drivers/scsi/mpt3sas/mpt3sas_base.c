@@ -139,7 +139,7 @@ static void
 _base_clear_outstanding_commands(struct MPT3SAS_ADAPTER *ioc);
 
 static u32
-_base_readl_ext_retry(const volatile void __iomem *addr);
+_base_readl_ext_retry(const void __iomem *addr);
 
 /**
  * mpt3sas_base_check_cmd_timeout - Function
@@ -204,7 +204,7 @@ module_param_call(mpt3sas_fwfault_debug, _scsih_set_fwfault_debug,
  * while reading the system interface register.
  */
 static inline u32
-_base_readl_aero(const volatile void __iomem *addr)
+_base_readl_aero(const void __iomem *addr)
 {
 	u32 i = 0, ret_val;
 
@@ -217,7 +217,7 @@ _base_readl_aero(const volatile void __iomem *addr)
 }
 
 static u32
-_base_readl_ext_retry(const volatile void __iomem *addr)
+_base_readl_ext_retry(const void __iomem *addr)
 {
 	u32 i, ret_val;
 
@@ -231,7 +231,7 @@ _base_readl_ext_retry(const volatile void __iomem *addr)
 }
 
 static inline u32
-_base_readl(const volatile void __iomem *addr)
+_base_readl(const void __iomem *addr)
 {
 	return readl(addr);
 }
