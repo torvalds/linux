@@ -5916,6 +5916,30 @@ static __always_inline bool is_mtl(u8 x86_model)
 	       (x86_model == INTEL_FAM6_METEORLAKE_L);
 }
 
+static __always_inline void intel_pmu_init_glc(struct pmu *pmu)
+{
+	x86_pmu.late_ack = true;
+	x86_pmu.limit_period = glc_limit_period;
+	x86_pmu.pebs_aliases = NULL;
+	x86_pmu.pebs_prec_dist = true;
+	x86_pmu.pebs_block = true;
+	x86_pmu.flags |= PMU_FL_HAS_RSP_1;
+	x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
+	x86_pmu.flags |= PMU_FL_INSTR_LATENCY;
+	x86_pmu.rtm_abort_event = X86_CONFIG(.event=0xc9, .umask=0x04);
+	x86_pmu.lbr_pt_coexist = true;
+	x86_pmu.num_topdown_events = 8;
+	static_call_update(intel_pmu_update_topdown_event,
+			   &icl_update_topdown_event);
+	static_call_update(intel_pmu_set_topdown_event_period,
+			   &icl_set_topdown_event_period);
+
+	memcpy(hybrid_var(pmu, hw_cache_event_ids), glc_hw_cache_event_ids, sizeof(hw_cache_event_ids));
+	memcpy(hybrid_var(pmu, hw_cache_extra_regs), glc_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
+	hybrid(pmu, event_constraints) = intel_glc_event_constraints;
+	hybrid(pmu, pebs_constraints) = intel_glc_pebs_event_constraints;
+}
+
 __init int intel_pmu_init(void)
 {
 	struct attribute **extra_skl_attr = &empty_attrs;
@@ -6567,24 +6591,10 @@ __init int intel_pmu_init(void)
 		fallthrough;
 	case INTEL_FAM6_GRANITERAPIDS_X:
 	case INTEL_FAM6_GRANITERAPIDS_D:
-		pmem = true;
-		x86_pmu.late_ack = true;
-		memcpy(hw_cache_event_ids, glc_hw_cache_event_ids, sizeof(hw_cache_event_ids));
-		memcpy(hw_cache_extra_regs, glc_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
-
-		x86_pmu.event_constraints = intel_glc_event_constraints;
-		x86_pmu.pebs_constraints = intel_glc_pebs_event_constraints;
+		intel_pmu_init_glc(NULL);
 		if (!x86_pmu.extra_regs)
 			x86_pmu.extra_regs = intel_rwc_extra_regs;
-		x86_pmu.limit_period = glc_limit_period;
 		x86_pmu.pebs_ept = 1;
-		x86_pmu.pebs_aliases = NULL;
-		x86_pmu.pebs_prec_dist = true;
-		x86_pmu.pebs_block = true;
-		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
-		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
-		x86_pmu.flags |= PMU_FL_INSTR_LATENCY;
-
 		x86_pmu.hw_config = hsw_hw_config;
 		x86_pmu.get_event_constraints = glc_get_event_constraints;
 		extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
@@ -6593,14 +6603,7 @@ __init int intel_pmu_init(void)
 		mem_attr = glc_events_attrs;
 		td_attr = glc_td_events_attrs;
 		tsx_attr = glc_tsx_events_attrs;
-		x86_pmu.rtm_abort_event = X86_CONFIG(.event=0xc9, .umask=0x04);
-		x86_pmu.lbr_pt_coexist = true;
-		intel_pmu_pebs_data_source_skl(pmem);
-		x86_pmu.num_topdown_events = 8;
-		static_call_update(intel_pmu_update_topdown_event,
-				   &icl_update_topdown_event);
-		static_call_update(intel_pmu_set_topdown_event_period,
-				   &icl_set_topdown_event_period);
+		intel_pmu_pebs_data_source_skl(true);
 		pr_cont("Sapphire Rapids events, ");
 		name = "sapphire_rapids";
 		break;
