@@ -43,10 +43,15 @@
 	optc1->tg_shift->field_name, optc1->tg_mask->field_name
 
 /**
- * Enable CRTC
- * Enable CRTC - call ASIC Control Object to enable Timing generator.
+ * optc35_set_odm_combine() - Enable CRTC - call ASIC Control Object to enable Timing generator.
+ *
+ * @optc: Output Pipe Timing Combine instance reference.
+ * @opp_id: Output Plane Processor instance ID.
+ * @opp_cnt: Output Plane Processor count.
+ * @timing: Timing parameters used to configure DCN blocks.
+ *
+ * Return: void.
  */
-
 static void optc35_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_cnt,
 		struct dc_crtc_timing *timing)
 {
