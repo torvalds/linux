@@ -2255,8 +2255,6 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	WARN(local->open_count, "%s: open count remains %d\n",
 	     wiphy_name(local->hw.wiphy), local->open_count);
 
-	ieee80211_txq_teardown_flows(local);
-
 	mutex_lock(&local->iflist_mtx);
 	list_splice_init(&local->interfaces, &unreg_list);
 	mutex_unlock(&local->iflist_mtx);
