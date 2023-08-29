@@ -2696,6 +2696,9 @@ config MEMCPY_SLOW_KUNIT_TEST
 	  and bit ranges. These can be very slow, so they are split out
 	  as a separate config, in case they need to be disabled.
 
+	  Note this config option will be replaced by the use of KUnit test
+	  attributes.
+
 config IS_SIGNED_TYPE_KUNIT_TEST
 	tristate "Test is_signed_type() macro" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -3002,6 +3005,19 @@ config RUST_BUILD_ASSERT_ALLOW
 	  as an escape hatch, you can choose Y here to ignore them during build
 	  and let the check be carried at runtime (with `panic!` being called if
 	  the check fails).
+
+	  If unsure, say N.
+
+config RUST_KERNEL_DOCTESTS
+	bool "Doctests for the `kernel` crate" if !KUNIT_ALL_TESTS
+	depends on RUST && KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the documentation tests of the `kernel` crate
+	  as KUnit tests.
+
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in Documentation/dev-tools/kunit/.
 
 	  If unsure, say N.
 

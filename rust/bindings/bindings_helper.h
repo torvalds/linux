@@ -6,6 +6,7 @@
  * Sorted alphabetically.
  */
 
+#include <kunit/test.h>
 #include <linux/errname.h>
 #include <linux/slab.h>
 #include <linux/refcount.h>
