@@ -27,59 +27,61 @@
 
 #define rseq_smp_load_acquire(p)						\
 __extension__ ({								\
-	__typeof(*p) ____p1;							\
-	switch (sizeof(*p)) {							\
+	union { rseq_unqual_scalar_typeof(*(p)) __val; char __c[sizeof(*(p))]; } __u; \
+	switch (sizeof(*(p))) {							\
 	case 1:									\
-		asm volatile ("ldarb %w0, %1"					\
-			: "=r" (*(__u8 *)p)					\
-			: "Q" (*p) : "memory");					\
+		__asm__ __volatile__ ("ldarb %w0, %1"				\
+			: "=r" (*(__u8 *)__u.__c)				\
+			: "Q" (*(p)) : "memory");				\
 		break;								\
 	case 2:									\
-		asm volatile ("ldarh %w0, %1"					\
-			: "=r" (*(__u16 *)p)					\
-			: "Q" (*p) : "memory");					\
+		__asm__ __volatile__ ("ldarh %w0, %1"				\
+			: "=r" (*(__u16 *)__u.__c)				\
+			: "Q" (*(p)) : "memory");				\
 		break;								\
 	case 4:									\
-		asm volatile ("ldar %w0, %1"					\
-			: "=r" (*(__u32 *)p)					\
-			: "Q" (*p) : "memory");					\
+		__asm__ __volatile__ ("ldar %w0, %1"				\
+			: "=r" (*(__u32 *)__u.__c)				\
+			: "Q" (*(p)) : "memory");				\
 		break;								\
 	case 8:									\
-		asm volatile ("ldar %0, %1"					\
-			: "=r" (*(__u64 *)p)					\
-			: "Q" (*p) : "memory");					\
+		__asm__ __volatile__ ("ldar %0, %1"				\
+			: "=r" (*(__u64 *)__u.__c)				\
+			: "Q" (*(p)) : "memory");				\
 		break;								\
 	}									\
-	____p1;									\
+	(rseq_unqual_scalar_typeof(*(p)))__u.__val;				\
 })
 
 #define rseq_smp_acquire__after_ctrl_dep()	rseq_smp_rmb()
 
 #define rseq_smp_store_release(p, v)						\
 do {										\
-	switch (sizeof(*p)) {							\
+	union { rseq_unqual_scalar_typeof(*(p)) __val; char __c[sizeof(*(p))]; } __u = \
+		{ .__val = (rseq_unqual_scalar_typeof(*(p))) (v) };		\
+	switch (sizeof(*(p))) {							\
 	case 1:									\
-		asm volatile ("stlrb %w1, %0"					\
-				: "=Q" (*p)					\
-				: "r" ((__u8)v)					\
+		__asm__ __volatile__ ("stlrb %w1, %0"				\
+				: "=Q" (*(p))					\
+				: "r" (*(__u8 *)__u.__c)			\
 				: "memory");					\
 		break;								\
 	case 2:									\
-		asm volatile ("stlrh %w1, %0"					\
-				: "=Q" (*p)					\
-				: "r" ((__u16)v)				\
+		__asm__ __volatile__ ("stlrh %w1, %0"				\
+				: "=Q" (*(p))					\
+				: "r" (*(__u16 *)__u.__c)			\
 				: "memory");					\
 		break;								\
 	case 4:									\
-		asm volatile ("stlr %w1, %0"					\
-				: "=Q" (*p)					\
-				: "r" ((__u32)v)				\
+		__asm__ __volatile__ ("stlr %w1, %0"				\
+				: "=Q" (*(p))					\
+				: "r" (*(__u32 *)__u.__c)			\
 				: "memory");					\
 		break;								\
 	case 8:									\
-		asm volatile ("stlr %1, %0"					\
-				: "=Q" (*p)					\
-				: "r" ((__u64)v)				\
+		__asm__ __volatile__ ("stlr %1, %0"				\
+				: "=Q" (*(p))					\
+				: "r" (*(__u64 *)__u.__c)			\
 				: "memory");					\
 		break;								\
 	}									\
