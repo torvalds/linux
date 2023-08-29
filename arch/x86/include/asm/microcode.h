@@ -75,10 +75,4 @@ void show_ucode_info_early(void);
 static inline void show_ucode_info_early(void) { }
 #endif /* !CONFIG_CPU_SUP_INTEL */
 
-#ifdef CONFIG_CPU_SUP_AMD
-void amd_check_microcode(void);
-#else /* CONFIG_CPU_SUP_AMD */
-static inline void amd_check_microcode(void) {}
-#endif
-
 #endif /* _ASM_X86_MICROCODE_H */
