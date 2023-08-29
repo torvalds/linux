@@ -128,6 +128,7 @@ struct aspeed_spi_controller {
 	uint32_t flag;
 	bool disable_calib;
 	spinlock_t lock;
+	bool pure_spi_mode_only;
 };
 
 static uint32_t
@@ -1101,6 +1102,11 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 		}
 
 		decode_sz_arr[target_cs] = desc->info.length;
+		if (ast_ctrl->pure_spi_mode_only) {
+			decode_sz_arr[target_cs] =
+				ast_ctrl->ahb_window_sz / ast_ctrl->num_cs;
+			decode_sz_arr[target_cs] &= ~(info->min_decode_sz - 1);
+		}
 
 		if (info->adjust_decode_sz)
 			info->adjust_decode_sz(decode_sz_arr, ast_ctrl->num_cs);
@@ -1387,6 +1393,9 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto end;
 	}
+
+	ast_ctrl->pure_spi_mode_only =
+		of_property_read_bool(dev->of_node, "pure-spi-mode-only");
 
 	ast_ctrl->irq = platform_get_irq(pdev, 0);
 	if (ast_ctrl->irq < 0) {
