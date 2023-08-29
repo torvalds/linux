@@ -5913,7 +5913,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 
 	mutex_lock(&dev_priv->drm.mode_config.mutex);
-	drm_edid = drm_edid_read_ddc(connector, &intel_dp->aux.ddc);
+	drm_edid = drm_edid_read_ddc(connector, connector->ddc);
 	if (!drm_edid) {
 		/* Fallback to EDID from ACPI OpRegion, if any */
 		drm_edid = intel_opregion_get_edid(intel_connector);
@@ -6052,20 +6052,21 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		intel_dp->pps.active_pipe = vlv_active_pipe(intel_dp);
 
+	intel_dp_aux_init(intel_dp);
+
 	drm_dbg_kms(&dev_priv->drm,
 		    "Adding %s connector on [ENCODER:%d:%s]\n",
 		    type == DRM_MODE_CONNECTOR_eDP ? "eDP" : "DP",
 		    intel_encoder->base.base.id, intel_encoder->base.name);
 
-	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
+	drm_connector_init_with_ddc(dev, connector, &intel_dp_connector_funcs,
+				    type, &intel_dp->aux.ddc);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
 	if (!HAS_GMCH(dev_priv) && DISPLAY_VER(dev_priv) < 12)
 		connector->interlace_allowed = true;
 
 	intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
-
-	intel_dp_aux_init(intel_dp);
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
