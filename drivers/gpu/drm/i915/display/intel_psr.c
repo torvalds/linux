@@ -1360,8 +1360,7 @@ static void wm_optimization_wa(struct intel_dp *intel_dp,
 	bool set_wa_bit = false;
 
 	/* Wa_14015648006 */
-	if (IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0) ||
-	    IS_DISPLAY_VER(dev_priv, 11, 13))
+	if (IS_DISPLAY_VER(dev_priv, 11, 14))
 		set_wa_bit |= crtc_state->wm_level_disabled;
 
 	/* Wa_16013835468 */
