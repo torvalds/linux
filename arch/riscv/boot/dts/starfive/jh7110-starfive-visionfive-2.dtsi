@@ -513,6 +513,7 @@
 
 &usb0 {
 	dr_mode = "peripheral";
+	status = "okay";
 };
 
 &U74_1 {
