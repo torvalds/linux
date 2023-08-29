@@ -312,6 +312,13 @@ struct drm_device {
 	struct drm_fb_helper *fb_helper;
 
 	/**
+	 * @debugfs_root:
+	 *
+	 * Root directory for debugfs files.
+	 */
+	struct dentry *debugfs_root;
+
+	/**
 	 * @debugfs_mutex:
 	 *
 	 * Protects &debugfs_list access.
