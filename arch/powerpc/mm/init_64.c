@@ -92,7 +92,7 @@ static struct page * __meminit vmemmap_subsection_start(unsigned long vmemmap_ad
  * a page table lookup here because with the hash translation we don't keep
  * vmemmap details in linux page table.
  */
-static int __meminit vmemmap_populated(unsigned long vmemmap_addr, int vmemmap_map_size)
+int __meminit vmemmap_populated(unsigned long vmemmap_addr, int vmemmap_map_size)
 {
 	struct page *start;
 	unsigned long vmemmap_end = vmemmap_addr + vmemmap_map_size;
@@ -183,8 +183,8 @@ static __meminit int vmemmap_list_populate(unsigned long phys,
 	return 0;
 }
 
-static bool altmap_cross_boundary(struct vmem_altmap *altmap, unsigned long start,
-				unsigned long page_size)
+bool altmap_cross_boundary(struct vmem_altmap *altmap, unsigned long start,
+			   unsigned long page_size)
 {
 	unsigned long nr_pfn = page_size / sizeof(struct page);
 	unsigned long start_pfn = page_to_pfn((struct page *)start);
@@ -198,8 +198,8 @@ static bool altmap_cross_boundary(struct vmem_altmap *altmap, unsigned long star
 	return false;
 }
 
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
-		struct vmem_altmap *altmap)
+static int __meminit __vmemmap_populate(unsigned long start, unsigned long end, int node,
+					struct vmem_altmap *altmap)
 {
 	bool altmap_alloc;
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
@@ -272,6 +272,18 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	return 0;
 }
 
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+			       struct vmem_altmap *altmap)
+{
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (radix_enabled())
+		return radix__vmemmap_populate(start, end, node, altmap);
+#endif
+
+	return __vmemmap_populate(start, end, node, altmap);
+}
+
 #ifdef CONFIG_MEMORY_HOTPLUG
 static unsigned long vmemmap_list_free(unsigned long start)
 {
@@ -303,8 +315,8 @@ static unsigned long vmemmap_list_free(unsigned long start)
 	return vmem_back->phys;
 }
 
-void __ref vmemmap_free(unsigned long start, unsigned long end,
-		struct vmem_altmap *altmap)
+static void __ref __vmemmap_free(unsigned long start, unsigned long end,
+				 struct vmem_altmap *altmap)
 {
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
 	unsigned long page_order = get_order(page_size);
@@ -361,6 +373,17 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
 		vmemmap_remove_mapping(start, page_size);
 	}
 }
+
+void __ref vmemmap_free(unsigned long start, unsigned long end,
+			struct vmem_altmap *altmap)
+{
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (radix_enabled())
+		return radix__vmemmap_free(start, end, altmap);
+#endif
+	return __vmemmap_free(start, end, altmap);
+}
+
 #endif
 void register_page_bootmem_memmap(unsigned long section_nr,
 				  struct page *start_page, unsigned long size)

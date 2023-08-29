@@ -583,7 +583,8 @@ static int delete_vma_from_mm(struct vm_area_struct *vma)
 {
 	VMA_ITERATOR(vmi, vma->vm_mm, vma->vm_start);
 
-	if (vma_iter_prealloc(&vmi)) {
+	vma_iter_config(&vmi, vma->vm_start, vma->vm_end);
+	if (vma_iter_prealloc(&vmi, vma)) {
 		pr_warn("Allocation of vma tree for process %d failed\n",
 		       current->pid);
 		return -ENOMEM;
@@ -591,7 +592,7 @@ static int delete_vma_from_mm(struct vm_area_struct *vma)
 	cleanup_vma_from_mm(vma);
 
 	/* remove from the MM's tree and list */
-	vma_iter_clear(&vmi, vma->vm_start, vma->vm_end);
+	vma_iter_clear(&vmi);
 	return 0;
 }
 /*
@@ -1003,7 +1004,7 @@ error_free:
 enomem:
 	pr_err("Allocation of length %lu from process %d (%s) failed\n",
 	       len, current->pid, current->comm);
-	show_free_areas(0, NULL);
+	show_mem();
 	return -ENOMEM;
 }
 
@@ -1053,9 +1054,6 @@ unsigned long do_mmap(struct file *file,
 	vma = vm_area_alloc(current->mm);
 	if (!vma)
 		goto error_getting_vma;
-
-	if (vma_iter_prealloc(&vmi))
-		goto error_vma_iter_prealloc;
 
 	region->vm_usage = 1;
 	region->vm_flags = vm_flags;
@@ -1198,6 +1196,10 @@ unsigned long do_mmap(struct file *file,
 
 share:
 	BUG_ON(!vma->vm_region);
+	vma_iter_config(&vmi, vma->vm_start, vma->vm_end);
+	if (vma_iter_prealloc(&vmi, vma))
+		goto error_just_free;
+
 	setup_vma_to_mm(vma, current->mm);
 	current->mm->map_count++;
 	/* add the VMA to the tree */
@@ -1236,22 +1238,14 @@ error_getting_vma:
 	kmem_cache_free(vm_region_jar, region);
 	pr_warn("Allocation of vma for %lu byte allocation from process %d failed\n",
 			len, current->pid);
-	show_free_areas(0, NULL);
+	show_mem();
 	return -ENOMEM;
 
 error_getting_region:
 	pr_warn("Allocation of vm region for %lu byte allocation from process %d failed\n",
 			len, current->pid);
-	show_free_areas(0, NULL);
+	show_mem();
 	return -ENOMEM;
-
-error_vma_iter_prealloc:
-	kmem_cache_free(vm_region_jar, region);
-	vm_area_free(vma);
-	pr_warn("Allocation of vma tree for process %d failed\n", current->pid);
-	show_free_areas(0, NULL);
-	return -ENOMEM;
-
 }
 
 unsigned long ksys_mmap_pgoff(unsigned long addr, unsigned long len,
@@ -1336,12 +1330,6 @@ int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	if (!new)
 		goto err_vma_dup;
 
-	if (vma_iter_prealloc(vmi)) {
-		pr_warn("Allocation of vma tree for process %d failed\n",
-			current->pid);
-		goto err_vmi_preallocate;
-	}
-
 	/* most fields are the same, copy all, and then fixup */
 	*region = *vma->vm_region;
 	new->vm_region = region;
@@ -1353,6 +1341,13 @@ int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	} else {
 		region->vm_start = new->vm_start = addr;
 		region->vm_pgoff = new->vm_pgoff += npages;
+	}
+
+	vma_iter_config(vmi, new->vm_start, new->vm_end);
+	if (vma_iter_prealloc(vmi, vma)) {
+		pr_warn("Allocation of vma tree for process %d failed\n",
+			current->pid);
+		goto err_vmi_preallocate;
 	}
 
 	if (new->vm_ops && new->vm_ops->open)
@@ -1396,17 +1391,13 @@ static int vmi_shrink_vma(struct vma_iterator *vmi,
 
 	/* adjust the VMA's pointers, which may reposition it in the MM's tree
 	 * and list */
-	if (vma_iter_prealloc(vmi)) {
-		pr_warn("Allocation of vma tree for process %d failed\n",
-		       current->pid);
-		return -ENOMEM;
-	}
-
 	if (from > vma->vm_start) {
-		vma_iter_clear(vmi, from, vma->vm_end);
+		if (vma_iter_clear_gfp(vmi, from, vma->vm_end, GFP_KERNEL))
+			return -ENOMEM;
 		vma->vm_end = from;
 	} else {
-		vma_iter_clear(vmi, vma->vm_start, to);
+		if (vma_iter_clear_gfp(vmi, vma->vm_start, to, GFP_KERNEL))
+			return -ENOMEM;
 		vma->vm_start = to;
 	}
 
@@ -1809,7 +1800,7 @@ static int __meminit init_user_reserve(void)
 {
 	unsigned long free_kbytes;
 
-	free_kbytes = global_zone_page_state(NR_FREE_PAGES) << (PAGE_SHIFT - 10);
+	free_kbytes = K(global_zone_page_state(NR_FREE_PAGES));
 
 	sysctl_user_reserve_kbytes = min(free_kbytes / 32, 1UL << 17);
 	return 0;
@@ -1830,7 +1821,7 @@ static int __meminit init_admin_reserve(void)
 {
 	unsigned long free_kbytes;
 
-	free_kbytes = global_zone_page_state(NR_FREE_PAGES) << (PAGE_SHIFT - 10);
+	free_kbytes = K(global_zone_page_state(NR_FREE_PAGES));
 
 	sysctl_admin_reserve_kbytes = min(free_kbytes / 32, 1UL << 13);
 	return 0;

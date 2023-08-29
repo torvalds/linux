@@ -8438,13 +8438,6 @@ F:	Documentation/power/freezing-of-tasks.rst
 F:	include/linux/freezer.h
 F:	kernel/freezer.c
 
-FRONTSWAP API
-M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-F:	include/linux/frontswap.h
-F:	mm/frontswap.c
-
 FS-CACHE: LOCAL CACHING FOR NETWORK FILESYSTEMS
 M:	David Howells <dhowells@redhat.com>
 L:	linux-cachefs@redhat.com (moderated for non-subscribers)
@@ -14898,7 +14891,6 @@ NETWORKING [TCP]
 M:	Eric Dumazet <edumazet@google.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	include/linux/net_mm.h
 F:	include/linux/tcp.h
 F:	include/net/tcp.h
 F:	include/trace/events/tcp.h

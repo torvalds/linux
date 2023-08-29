@@ -284,17 +284,6 @@ const char * const migratetype_names[MIGRATE_TYPES] = {
 #endif
 };
 
-static compound_page_dtor * const compound_page_dtors[NR_COMPOUND_DTORS] = {
-	[NULL_COMPOUND_DTOR] = NULL,
-	[COMPOUND_PAGE_DTOR] = free_compound_page,
-#ifdef CONFIG_HUGETLB_PAGE
-	[HUGETLB_PAGE_DTOR] = free_huge_page,
-#endif
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	[TRANSHUGE_PAGE_DTOR] = free_transhuge_page,
-#endif
-};
-
 int min_free_kbytes = 1024;
 int user_min_free_kbytes = -1;
 static int watermark_boost_factor __read_mostly = 15000;
@@ -371,10 +360,16 @@ static inline int pfn_to_bitidx(const struct page *page, unsigned long pfn)
 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
 }
 
-static __always_inline
-unsigned long __get_pfnblock_flags_mask(const struct page *page,
-					unsigned long pfn,
-					unsigned long mask)
+/**
+ * get_pfnblock_flags_mask - Return the requested group of flags for the pageblock_nr_pages block of pages
+ * @page: The page within the block of interest
+ * @pfn: The target page frame number
+ * @mask: mask of bits that the caller is interested in
+ *
+ * Return: pageblock_bits flags
+ */
+unsigned long get_pfnblock_flags_mask(const struct page *page,
+					unsigned long pfn, unsigned long mask)
 {
 	unsigned long *bitmap;
 	unsigned long bitidx, word_bitidx;
@@ -393,24 +388,10 @@ unsigned long __get_pfnblock_flags_mask(const struct page *page,
 	return (word >> bitidx) & mask;
 }
 
-/**
- * get_pfnblock_flags_mask - Return the requested group of flags for the pageblock_nr_pages block of pages
- * @page: The page within the block of interest
- * @pfn: The target page frame number
- * @mask: mask of bits that the caller is interested in
- *
- * Return: pageblock_bits flags
- */
-unsigned long get_pfnblock_flags_mask(const struct page *page,
-					unsigned long pfn, unsigned long mask)
-{
-	return __get_pfnblock_flags_mask(page, pfn, mask);
-}
-
 static __always_inline int get_pfnblock_migratetype(const struct page *page,
 					unsigned long pfn)
 {
-	return __get_pfnblock_flags_mask(page, pfn, MIGRATETYPE_MASK);
+	return get_pfnblock_flags_mask(page, pfn, MIGRATETYPE_MASK);
 }
 
 /**
@@ -459,7 +440,7 @@ void set_pageblock_migratetype(struct page *page, int migratetype)
 #ifdef CONFIG_DEBUG_VM
 static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 {
-	int ret = 0;
+	int ret;
 	unsigned seq;
 	unsigned long pfn = page_to_pfn(page);
 	unsigned long sp, start_pfn;
@@ -468,8 +449,7 @@ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 		seq = zone_span_seqbegin(zone);
 		start_pfn = zone->zone_start_pfn;
 		sp = zone->spanned_pages;
-		if (!zone_spans_pfn(zone, pfn))
-			ret = 1;
+		ret = !zone_spans_pfn(zone, pfn);
 	} while (zone_span_seqretry(zone, seq));
 
 	if (ret)
@@ -539,8 +519,6 @@ out:
 
 static inline unsigned int order_to_pindex(int migratetype, int order)
 {
-	int base = order;
-
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	if (order > PAGE_ALLOC_COSTLY_ORDER) {
 		VM_BUG_ON(order != pageblock_order);
@@ -550,7 +528,7 @@ static inline unsigned int order_to_pindex(int migratetype, int order)
 	VM_BUG_ON(order > PAGE_ALLOC_COSTLY_ORDER);
 #endif
 
-	return (MIGRATE_PCPTYPES * base) + migratetype;
+	return (MIGRATE_PCPTYPES * order) + migratetype;
 }
 
 static inline int pindex_to_order(unsigned int pindex)
@@ -594,18 +572,9 @@ static inline void free_the_page(struct page *page, unsigned int order)
  * The remaining PAGE_SIZE pages are called "tail pages". PageTail() is encoded
  * in bit 0 of page->compound_head. The rest of bits is pointer to head page.
  *
- * The first tail page's ->compound_dtor holds the offset in array of compound
- * page destructors. See compound_page_dtors.
- *
  * The first tail page's ->compound_order holds the order of allocation.
  * This usage means that zero-order pages may not be compound.
  */
-
-void free_compound_page(struct page *page)
-{
-	mem_cgroup_uncharge(page_folio(page));
-	free_the_page(page, compound_order(page));
-}
 
 void prep_compound_page(struct page *page, unsigned int order)
 {
@@ -621,10 +590,16 @@ void prep_compound_page(struct page *page, unsigned int order)
 
 void destroy_large_folio(struct folio *folio)
 {
-	enum compound_dtor_id dtor = folio->_folio_dtor;
+	if (folio_test_hugetlb(folio)) {
+		free_huge_folio(folio);
+		return;
+	}
 
-	VM_BUG_ON_FOLIO(dtor >= NR_COMPOUND_DTORS, folio);
-	compound_page_dtors[dtor](&folio->page);
+	if (folio_test_large_rmappable(folio))
+		folio_undo_large_rmappable(folio);
+
+	mem_cgroup_uncharge(folio);
+	free_the_page(&folio->page, folio_order(folio));
 }
 
 static inline void set_buddy_order(struct page *page, unsigned int order)
@@ -824,7 +799,7 @@ static inline void __free_one_page(struct page *page,
 			 * pageblock isolation could cause incorrect freepage or CMA
 			 * accounting or HIGHATOMIC accounting.
 			 */
-			int buddy_mt = get_pageblock_migratetype(buddy);
+			int buddy_mt = get_pfnblock_migratetype(buddy, buddy_pfn);
 
 			if (migratetype != buddy_mt
 					&& (!migratetype_is_mergeable(migratetype) ||
@@ -900,7 +875,7 @@ int split_free_page(struct page *free_page,
 		goto out;
 	}
 
-	mt = get_pageblock_migratetype(free_page);
+	mt = get_pfnblock_migratetype(free_page, free_page_pfn);
 	if (likely(!is_migrate_isolate(mt)))
 		__mod_zone_freepage_state(zone, -(1UL << order), mt);
 
@@ -1132,7 +1107,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
 		VM_BUG_ON_PAGE(compound && compound_order(page) != order, page);
 
 		if (compound)
-			ClearPageHasHWPoisoned(page);
+			page[1].flags &= ~PAGE_FLAGS_SECOND;
 		for (i = 1; i < (1 << order); i++) {
 			if (compound)
 				bad += free_tail_page_prepare(page, page + i);
@@ -1210,8 +1185,6 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 					int pindex)
 {
 	unsigned long flags;
-	int min_pindex = 0;
-	int max_pindex = NR_PCP_LISTS - 1;
 	unsigned int order;
 	bool isolated_pageblocks;
 	struct page *page;
@@ -1234,17 +1207,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 
 		/* Remove pages from lists in a round-robin fashion. */
 		do {
-			if (++pindex > max_pindex)
-				pindex = min_pindex;
+			if (++pindex > NR_PCP_LISTS - 1)
+				pindex = 0;
 			list = &pcp->lists[pindex];
-			if (!list_empty(list))
-				break;
-
-			if (pindex == max_pindex)
-				max_pindex--;
-			if (pindex == min_pindex)
-				min_pindex++;
-		} while (1);
+		} while (list_empty(list));
 
 		order = pindex_to_order(pindex);
 		nr_pages = 1 << order;
@@ -1834,6 +1800,10 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
 
 	free_pages = move_freepages_block(zone, page, start_type,
 						&movable_pages);
+	/* moving whole block can fail due to zone boundary conditions */
+	if (!free_pages)
+		goto single_page;
+
 	/*
 	 * Determine how many pages are compatible with our allocation.
 	 * For movable allocation, it's the number of movable pages which
@@ -1855,14 +1825,9 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
 		else
 			alike_pages = 0;
 	}
-
-	/* moving whole block can fail due to zone boundary conditions */
-	if (!free_pages)
-		goto single_page;
-
 	/*
 	 * If a sufficient number of pages in the block are either free or of
-	 * comparable migratability as our allocation, claim the whole block.
+	 * compatible migratability as our allocation, claim the whole block.
 	 */
 	if (free_pages + alike_pages >= (1 << (pageblock_order-1)) ||
 			page_group_by_mobility_disabled)
@@ -1912,8 +1877,7 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
  * Reserve a pageblock for exclusive use of high-order atomic allocations if
  * there are no empty page blocks that contain a page with a suitable order
  */
-static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
-				unsigned int alloc_order)
+static void reserve_highatomic_pageblock(struct page *page, struct zone *zone)
 {
 	int mt;
 	unsigned long max_managed, flags;
@@ -2353,10 +2317,10 @@ static bool free_unref_page_prepare(struct page *page, unsigned long pfn,
 	return true;
 }
 
-static int nr_pcp_free(struct per_cpu_pages *pcp, int high, int batch,
-		       bool free_high)
+static int nr_pcp_free(struct per_cpu_pages *pcp, int high, bool free_high)
 {
 	int min_nr_free, max_nr_free;
+	int batch = READ_ONCE(pcp->batch);
 
 	/* Free everything if batch freeing high-order pages. */
 	if (unlikely(free_high))
@@ -2423,9 +2387,7 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
 
 	high = nr_pcp_high(pcp, zone, free_high);
 	if (pcp->count >= high) {
-		int batch = READ_ONCE(pcp->batch);
-
-		free_pcppages_bulk(zone, nr_pcp_free(pcp, high, batch, free_high), pcp, pindex);
+		free_pcppages_bulk(zone, nr_pcp_free(pcp, high, free_high), pcp, pindex);
 	}
 }
 
@@ -3225,7 +3187,7 @@ try_this_zone:
 			 * if the pageblock should be reserved for the future
 			 */
 			if (unlikely(alloc_flags & ALLOC_HIGHATOMIC))
-				reserve_highatomic_pageblock(page, zone, order);
+				reserve_highatomic_pageblock(page, zone);
 
 			return page;
 		} else {
@@ -4508,10 +4470,11 @@ struct folio *__folio_alloc(gfp_t gfp, unsigned int order, int preferred_nid,
 {
 	struct page *page = __alloc_pages(gfp | __GFP_COMP, order,
 			preferred_nid, nodemask);
+	struct folio *folio = (struct folio *)page;
 
-	if (page && order > 1)
-		prep_transhuge_page(page);
-	return (struct folio *)page;
+	if (folio && order > 1)
+		folio_prep_large_rmappable(folio);
+	return folio;
 }
 EXPORT_SYMBOL(__folio_alloc);
 
@@ -5139,19 +5102,17 @@ static void __build_all_zonelists(void *data)
 	unsigned long flags;
 
 	/*
-	 * Explicitly disable this CPU's interrupts before taking seqlock
-	 * to prevent any IRQ handler from calling into the page allocator
-	 * (e.g. GFP_ATOMIC) that could hit zonelist_iter_begin and livelock.
+	 * The zonelist_update_seq must be acquired with irqsave because the
+	 * reader can be invoked from IRQ with GFP_ATOMIC.
 	 */
-	local_irq_save(flags);
+	write_seqlock_irqsave(&zonelist_update_seq, flags);
 	/*
-	 * Explicitly disable this CPU's synchronous printk() before taking
-	 * seqlock to prevent any printk() from trying to hold port->lock, for
+	 * Also disable synchronous printk() to prevent any printk() from
+	 * trying to hold port->lock, for
 	 * tty_insert_flip_string_and_push_buffer() on other CPU might be
 	 * calling kmalloc(GFP_ATOMIC | __GFP_NOWARN) with port->lock held.
 	 */
 	printk_deferred_enter();
-	write_seqlock(&zonelist_update_seq);
 
 #ifdef CONFIG_NUMA
 	memset(node_load, 0, sizeof(node_load));
@@ -5188,9 +5149,8 @@ static void __build_all_zonelists(void *data)
 #endif
 	}
 
-	write_sequnlock(&zonelist_update_seq);
 	printk_deferred_exit();
-	local_irq_restore(flags);
+	write_sequnlock_irqrestore(&zonelist_update_seq, flags);
 }
 
 static noinline void __init
@@ -5694,9 +5654,9 @@ static void __setup_per_zone_wmarks(void)
 	struct zone *zone;
 	unsigned long flags;
 
-	/* Calculate total number of !ZONE_HIGHMEM pages */
+	/* Calculate total number of !ZONE_HIGHMEM and !ZONE_MOVABLE pages */
 	for_each_zone(zone) {
-		if (!is_highmem(zone))
+		if (!is_highmem(zone) && zone_idx(zone) != ZONE_MOVABLE)
 			lowmem_pages += zone_managed_pages(zone);
 	}
 
@@ -5706,15 +5666,15 @@ static void __setup_per_zone_wmarks(void)
 		spin_lock_irqsave(&zone->lock, flags);
 		tmp = (u64)pages_min * zone_managed_pages(zone);
 		do_div(tmp, lowmem_pages);
-		if (is_highmem(zone)) {
+		if (is_highmem(zone) || zone_idx(zone) == ZONE_MOVABLE) {
 			/*
 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
-			 * need highmem pages, so cap pages_min to a small
-			 * value here.
+			 * need highmem and movable zones pages, so cap pages_min
+			 * to a small  value here.
 			 *
 			 * The WMARK_HIGH-WMARK_LOW and (WMARK_LOW-WMARK_MIN)
 			 * deltas control async page reclaim, and so should
-			 * not be capped for highmem.
+			 * not be capped for highmem and movable zones.
 			 */
 			unsigned long min_pages;
 

@@ -1569,7 +1569,7 @@ static void mpage_release_unused_pages(struct mpage_da_data *mpd,
 
 			if (folio->index < mpd->first_page)
 				continue;
-			if (folio->index + folio_nr_pages(folio) - 1 > end)
+			if (folio_next_index(folio) - 1 > end)
 				continue;
 			BUG_ON(!folio_test_locked(folio));
 			BUG_ON(folio_test_writeback(folio));
@@ -2455,7 +2455,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 
 			if (mpd->map.m_len == 0)
 				mpd->first_page = folio->index;
-			mpd->next_page = folio->index + folio_nr_pages(folio);
+			mpd->next_page = folio_next_index(folio);
 			/*
 			 * Writeout when we cannot modify metadata is simple.
 			 * Just submit the page. For data=journal mode we

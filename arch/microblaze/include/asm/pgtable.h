@@ -230,12 +230,12 @@ extern unsigned long empty_zero_page[1024];
 
 #define pte_page(x)		(mem_map + (unsigned long) \
 				((pte_val(x) - memory_start) >> PAGE_SHIFT))
-#define PFN_SHIFT_OFFSET	(PAGE_SHIFT)
+#define PFN_PTE_SHIFT		PAGE_SHIFT
 
-#define pte_pfn(x)		(pte_val(x) >> PFN_SHIFT_OFFSET)
+#define pte_pfn(x)		(pte_val(x) >> PFN_PTE_SHIFT)
 
 #define pfn_pte(pfn, prot) \
-	__pte(((pte_basic_t)(pfn) << PFN_SHIFT_OFFSET) | pgprot_val(prot))
+	__pte(((pte_basic_t)(pfn) << PFN_PTE_SHIFT) | pgprot_val(prot))
 
 #ifndef __ASSEMBLY__
 /*
@@ -330,14 +330,7 @@ static inline unsigned long pte_update(pte_t *p, unsigned long clr,
 /*
  * set_pte stores a linux PTE into the linux page table.
  */
-static inline void set_pte(struct mm_struct *mm, unsigned long addr,
-		pte_t *ptep, pte_t pte)
-{
-	*ptep = pte;
-}
-
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-		pte_t *ptep, pte_t pte)
+static inline void set_pte(pte_t *ptep, pte_t pte)
 {
 	*ptep = pte;
 }

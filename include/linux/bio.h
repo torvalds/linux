@@ -253,6 +253,11 @@ static inline struct page *bio_first_page_all(struct bio *bio)
 	return bio_first_bvec_all(bio)->bv_page;
 }
 
+static inline struct folio *bio_first_folio_all(struct bio *bio)
+{
+	return page_folio(bio_first_page_all(bio));
+}
+
 static inline struct bio_vec *bio_last_bvec_all(struct bio *bio)
 {
 	WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED));

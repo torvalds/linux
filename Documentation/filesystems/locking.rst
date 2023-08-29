@@ -636,26 +636,29 @@ vm_operations_struct
 
 prototypes::
 
-	void (*open)(struct vm_area_struct*);
-	void (*close)(struct vm_area_struct*);
-	vm_fault_t (*fault)(struct vm_area_struct*, struct vm_fault *);
+	void (*open)(struct vm_area_struct *);
+	void (*close)(struct vm_area_struct *);
+	vm_fault_t (*fault)(struct vm_fault *);
+	vm_fault_t (*huge_fault)(struct vm_fault *, unsigned int order);
+	vm_fault_t (*map_pages)(struct vm_fault *, pgoff_t start, pgoff_t end);
 	vm_fault_t (*page_mkwrite)(struct vm_area_struct *, struct vm_fault *);
 	vm_fault_t (*pfn_mkwrite)(struct vm_area_struct *, struct vm_fault *);
 	int (*access)(struct vm_area_struct *, unsigned long, void*, int, int);
 
 locking rules:
 
-=============	=========	===========================
+=============	==========	===========================
 ops		mmap_lock	PageLocked(page)
-=============	=========	===========================
-open:		yes
-close:		yes
-fault:		yes		can return with page locked
-map_pages:	read
-page_mkwrite:	yes		can return with page locked
-pfn_mkwrite:	yes
-access:		yes
-=============	=========	===========================
+=============	==========	===========================
+open:		write
+close:		read/write
+fault:		read		can return with page locked
+huge_fault:	maybe-read
+map_pages:	maybe-read
+page_mkwrite:	read		can return with page locked
+pfn_mkwrite:	read
+access:		read
+=============	==========	===========================
 
 ->fault() is called when a previously not present pte is about to be faulted
 in. The filesystem must find and return the page associated with the passed in
@@ -665,11 +668,18 @@ then ensure the page is not already truncated (invalidate_lock will block
 subsequent truncate), and then return with VM_FAULT_LOCKED, and the page
 locked. The VM will unlock the page.
 
+->huge_fault() is called when there is no PUD or PMD entry present.  This
+gives the filesystem the opportunity to install a PUD or PMD sized page.
+Filesystems can also use the ->fault method to return a PMD sized page,
+so implementing this function may not be necessary.  In particular,
+filesystems should not call filemap_fault() from ->huge_fault().
+The mmap_lock may not be held when this method is called.
+
 ->map_pages() is called when VM asks to map easy accessible pages.
 Filesystem should find and map pages associated with offsets from "start_pgoff"
 till "end_pgoff". ->map_pages() is called with the RCU lock held and must
 not block.  If it's not possible to reach a page without blocking,
-filesystem should skip it. Filesystem should use do_set_pte() to setup
+filesystem should skip it. Filesystem should use set_pte_range() to setup
 page table entry. Pointer to entry associated with the page is passed in
 "pte" field in vm_fault structure. Pointers to entries for other offsets
 should be calculated relative to "pte".

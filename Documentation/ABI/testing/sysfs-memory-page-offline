@@ -10,7 +10,7 @@ Description:
 		dropping it if possible. The kernel will then be placed
 		on the bad page list and never be reused.
 
-		The offlining is done in kernel specific granuality.
+		The offlining is done in kernel specific granularity.
 		Normally it's the base page size of the kernel, but
 		this might change.
 
@@ -35,7 +35,7 @@ Description:
 		to access this page assuming it's poisoned by the
 		hardware.
 
-		The offlining is done in kernel specific granuality.
+		The offlining is done in kernel specific granularity.
 		Normally it's the base page size of the kernel, but
 		this might change.
 
