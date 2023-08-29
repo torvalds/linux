@@ -639,7 +639,6 @@ static void __smb2_oplock_break_noti(struct work_struct *wk)
 {
 	struct smb2_oplock_break *rsp = NULL;
 	struct ksmbd_work *work = container_of(wk, struct ksmbd_work, work);
-	struct ksmbd_conn *conn = work->conn;
 	struct oplock_break_info *br_info = work->request_buf;
 	struct smb2_hdr *rsp_hdr;
 	struct ksmbd_file *fp;
@@ -656,8 +655,6 @@ static void __smb2_oplock_break_noti(struct work_struct *wk)
 
 	rsp_hdr = smb2_get_msg(work->response_buf);
 	memset(rsp_hdr, 0, sizeof(struct smb2_hdr) + 2);
-	*(__be32 *)work->response_buf =
-		cpu_to_be32(conn->vals->header_size);
 	rsp_hdr->ProtocolId = SMB2_PROTO_NUMBER;
 	rsp_hdr->StructureSize = SMB2_HEADER_STRUCTURE_SIZE;
 	rsp_hdr->CreditRequest = cpu_to_le16(0);
@@ -684,13 +681,15 @@ static void __smb2_oplock_break_noti(struct work_struct *wk)
 	rsp->PersistentFid = fp->persistent_id;
 	rsp->VolatileFid = fp->volatile_id;
 
-	inc_rfc1001_len(work->response_buf, 24);
+	ksmbd_fd_put(work, fp);
+	if (ksmbd_iov_pin_rsp(work, (void *)rsp,
+			      sizeof(struct smb2_oplock_break)))
+		goto out;
 
 	ksmbd_debug(OPLOCK,
 		    "sending oplock break v_id %llu p_id = %llu lock level = %d\n",
 		    rsp->VolatileFid, rsp->PersistentFid, rsp->OplockLevel);
 
-	ksmbd_fd_put(work, fp);
 	ksmbd_conn_write(work);
 
 out:
@@ -751,7 +750,6 @@ static void __smb2_lease_break_noti(struct work_struct *wk)
 	struct smb2_lease_break *rsp = NULL;
 	struct ksmbd_work *work = container_of(wk, struct ksmbd_work, work);
 	struct lease_break_info *br_info = work->request_buf;
-	struct ksmbd_conn *conn = work->conn;
 	struct smb2_hdr *rsp_hdr;
 
 	if (allocate_oplock_break_buf(work)) {
@@ -761,8 +759,6 @@ static void __smb2_lease_break_noti(struct work_struct *wk)
 
 	rsp_hdr = smb2_get_msg(work->response_buf);
 	memset(rsp_hdr, 0, sizeof(struct smb2_hdr) + 2);
-	*(__be32 *)work->response_buf =
-		cpu_to_be32(conn->vals->header_size);
 	rsp_hdr->ProtocolId = SMB2_PROTO_NUMBER;
 	rsp_hdr->StructureSize = SMB2_HEADER_STRUCTURE_SIZE;
 	rsp_hdr->CreditRequest = cpu_to_le16(0);
@@ -791,7 +787,9 @@ static void __smb2_lease_break_noti(struct work_struct *wk)
 	rsp->AccessMaskHint = 0;
 	rsp->ShareMaskHint = 0;
 
-	inc_rfc1001_len(work->response_buf, 44);
+	if (ksmbd_iov_pin_rsp(work, (void *)rsp,
+			      sizeof(struct smb2_lease_break)))
+		goto out;
 
 	ksmbd_conn_write(work);
 
@@ -845,6 +843,7 @@ static int smb2_lease_break_noti(struct oplock_info *opinfo)
 			setup_async_work(in_work, NULL, NULL);
 			smb2_send_interim_resp(in_work, STATUS_PENDING);
 			list_del(&in_work->interim_entry);
+			ksmbd_iov_reset(in_work);
 		}
 		INIT_WORK(&work->work, __smb2_lease_break_noti);
 		ksmbd_queue_work(work);

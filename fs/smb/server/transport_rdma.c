@@ -1241,14 +1241,12 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 
 	//FIXME: skip RFC1002 header..
 	buflen -= 4;
-	iov[0].iov_base += 4;
-	iov[0].iov_len -= 4;
 
 	remaining_data_length = buflen;
 	ksmbd_debug(RDMA, "Sending smb (RDMA): smb_len=%u\n", buflen);
 
 	smb_direct_send_ctx_init(st, &send_ctx, need_invalidate, remote_key);
-	start = i = 0;
+	start = i = 1;
 	buflen = 0;
 	while (true) {
 		buflen += iov[i].iov_len;
