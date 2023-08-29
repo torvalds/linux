@@ -1,5 +1,14 @@
 # Introduction
-This repository contains STMicroelectronics MEMS IIO drivers for Linux/Android kernels.
+This repository contains STMicroelectronics MEMS IIO drivers for the following LTS Linux/Android kernels:
+ - 4.9 (EOL)
+ - 4.14
+ - 4.19
+ - 5.4
+ - 5.10
+ - 5.15
+ - 6.1 (WIP)
+
+For EOL kernel the maintenance has been discontinued and is strongly discouraged from using it for new developments.
 
 ## Source code integration
 From your kernel source code directory add the git remote (i.e. stmems_iio_github) for this repository:
