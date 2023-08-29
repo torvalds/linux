@@ -8,6 +8,7 @@ obj-$(CONFIG_PINCTRL_KALAMA)	+= pinctrl-kalama.o
 obj-$(CONFIG_PINCTRL_BLAIR)	+= pinctrl-blair.o
 obj-$(CONFIG_PINCTRL_HOLI)	+= pinctrl-holi.o
 obj-$(CONFIG_PINCTRL_PITTI)    += pinctrl-pitti.o
+obj-$(CONFIG_PINCTRL_VOLCANO)   += pinctrl-volcano.o
 obj-$(CONFIG_PINCTRL_APQ8064)	+= pinctrl-apq8064.o
 obj-$(CONFIG_PINCTRL_APQ8084)	+= pinctrl-apq8084.o
 obj-$(CONFIG_PINCTRL_IPQ4019)	+= pinctrl-ipq4019.o
