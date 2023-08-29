@@ -655,7 +655,8 @@ static void fuse_release_user_pages(struct fuse_args_pages *ap,
 	for (i = 0; i < ap->num_pages; i++) {
 		if (should_dirty)
 			set_page_dirty_lock(ap->pages[i]);
-		put_page(ap->pages[i]);
+		if (ap->args.is_pinned)
+			unpin_user_page(ap->pages[i]);
 	}
 }
 
@@ -1495,10 +1496,13 @@ static int fuse_get_user_pages(struct fuse_args_pages *ap, struct iov_iter *ii,
 	while (nbytes < *nbytesp && ap->num_pages < max_pages) {
 		unsigned npages;
 		size_t start;
-		ret = iov_iter_get_pages2(ii, &ap->pages[ap->num_pages],
-					*nbytesp - nbytes,
-					max_pages - ap->num_pages,
-					&start);
+		struct page **pt_pages;
+
+		pt_pages = &ap->pages[ap->num_pages];
+		ret = iov_iter_extract_pages(ii, &pt_pages,
+					     *nbytesp - nbytes,
+					     max_pages - ap->num_pages,
+					     0, &start);
 		if (ret < 0)
 			break;
 
@@ -1515,6 +1519,7 @@ static int fuse_get_user_pages(struct fuse_args_pages *ap, struct iov_iter *ii,
 			(PAGE_SIZE - ret) & (PAGE_SIZE - 1);
 	}
 
+	ap->args.is_pinned = iov_iter_extract_will_pin(ii);
 	ap->args.user_pages = true;
 	if (write)
 		ap->args.in_pages = true;
