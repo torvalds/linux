@@ -116,7 +116,7 @@ Here are the installation steps in detail:
 	as a 3270, not a 3215.
 
 	5. Run the 3270 configuration script config3270.  It is
-	distributed in this same directory, Documentation/s390, as
+	distributed in this same directory, Documentation/arch/s390, as
 	config3270.sh.  Inspect the output script it produces,
 	/tmp/mkdev3270, and then run that script.  This will create the
 	necessary character special device files and make the necessary
@@ -125,7 +125,7 @@ Here are the installation steps in detail:
 	Then notify /sbin/init that /etc/inittab has changed, by issuing
 	the telinit command with the q operand::
 
-		cd Documentation/s390
+		cd Documentation/arch/s390
 		sh config3270.sh
 		sh /tmp/mkdev3270
 		telinit q

@@ -136,5 +136,5 @@ debugfs entries
 
   The level of logging can be changed to be more or less verbose by piping to
   /sys/kernel/debug/s390dbf/cio_*/level a number between 0 and 6; see the
-  documentation on the S/390 debug feature (Documentation/s390/s390dbf.rst)
+  documentation on the S/390 debug feature (Documentation/arch/s390/s390dbf.rst)
   for details.

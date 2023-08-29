@@ -40,7 +40,7 @@ For example:
   Change the level of logging to be more or less verbose by piping
   a number between 0 and 6 to  /sys/kernel/debug/s390dbf/pci_*/level. For
   details, see the documentation on the S/390 debug feature at
-  Documentation/s390/s390dbf.rst.
+  Documentation/arch/s390/s390dbf.rst.
 
 Sysfs entries
 =============

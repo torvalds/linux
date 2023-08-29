@@ -146,6 +146,7 @@ static u32 __amode31_ref *__ctl_linkage_stack = __ctl_linkage_stack_amode31;
 static u32 __amode31_ref *__ctl_duct = __ctl_duct_amode31;
 
 int __bootdata(noexec_disabled);
+unsigned long __bootdata_preserved(max_mappable);
 unsigned long __bootdata(ident_map_size);
 struct physmem_info __bootdata(physmem_info);
 
@@ -874,7 +875,7 @@ static void __init log_component_list(void)
 		pr_info("Linux is running with Secure-IPL enabled\n");
 	else
 		pr_info("Linux is running with Secure-IPL disabled\n");
-	ptr = (void *) early_ipl_comp_list_addr;
+	ptr = __va(early_ipl_comp_list_addr);
 	end = (void *) ptr + early_ipl_comp_list_size;
 	pr_info("The IPL report contains the following components:\n");
 	while (ptr < end) {
