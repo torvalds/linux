@@ -396,7 +396,10 @@ static int mmap_is_legacy(struct rlimit *rlim_stack)
 	if (current->personality & ADDR_COMPAT_LAYOUT)
 		return 1;
 
-	if (rlim_stack->rlim_cur == RLIM_INFINITY)
+	/* On parisc the stack always grows up - so a unlimited stack should
+	 * not be an indicator to use the legacy memory layout. */
+	if (rlim_stack->rlim_cur == RLIM_INFINITY &&
+		!IS_ENABLED(CONFIG_STACK_GROWSUP))
 		return 1;
 
 	return sysctl_legacy_va_layout;

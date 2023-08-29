@@ -1535,7 +1535,8 @@ lba_driver_probe(struct parisc_device *dev)
 	}
 
 	/* Tell I/O SAPIC driver we have a IRQ handler/region. */
-	tmp_obj = iosapic_register(dev->hpa.start + LBA_IOSAPIC_BASE);
+	tmp_obj = iosapic_register(dev->hpa.start + LBA_IOSAPIC_BASE,
+						addr + LBA_IOSAPIC_BASE);
 
 	/* NOTE: PCI devices (e.g. 103c:1005 graphics card) which don't
 	**	have an IRT entry will get NULL back from iosapic code.
@@ -1681,10 +1682,11 @@ static struct parisc_driver lba_driver __refdata = {
 ** One time initialization to let the world know the LBA was found.
 ** Must be called exactly once before pci_init().
 */
-void __init lba_init(void)
+static int __init lba_init(void)
 {
-	register_parisc_driver(&lba_driver);
+	return register_parisc_driver(&lba_driver);
 }
+arch_initcall(lba_init);
 
 /*
 ** Initialize the IBASE/IMASK registers for LBA (Elroy).
