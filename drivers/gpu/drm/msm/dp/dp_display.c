@@ -341,19 +341,12 @@ static const struct component_ops dp_display_comp_ops = {
 	.unbind = dp_display_unbind,
 };
 
-static bool dp_display_is_ds_bridge(struct dp_panel *panel)
-{
-	return (panel->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-		DP_DWN_STRM_PORT_PRESENT);
-}
-
 static bool dp_display_is_sink_count_zero(struct dp_display_private *dp)
 {
 	drm_dbg_dp(dp->drm_dev, "present=%#x sink_count=%d\n",
 			dp->panel->dpcd[DP_DOWNSTREAMPORT_PRESENT],
 		dp->link->sink_count);
-	return dp_display_is_ds_bridge(dp->panel) &&
-		(dp->link->sink_count == 0);
+	return drm_dp_is_branch(dp->panel->dpcd) && dp->link->sink_count == 0;
 }
 
 static void dp_display_send_hpd_event(struct msm_dp *dp_display)
