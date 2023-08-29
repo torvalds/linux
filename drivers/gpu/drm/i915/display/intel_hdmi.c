@@ -2541,28 +2541,6 @@ static int intel_hdmi_get_modes(struct drm_connector *connector)
 	return drm_edid_connector_add_modes(connector);
 }
 
-static void intel_hdmi_create_i2c_symlink(struct drm_connector *connector)
-{
-	struct drm_i915_private *i915 = to_i915(connector->dev);
-	struct i2c_adapter *ddc = connector->ddc;
-	struct kobject *i2c_kobj = &ddc->dev.kobj;
-	struct kobject *connector_kobj = &connector->kdev->kobj;
-	int ret;
-
-	ret = sysfs_create_link(connector_kobj, i2c_kobj, i2c_kobj->name);
-	if (ret)
-		drm_err(&i915->drm, "Failed to create i2c symlink (%d)\n", ret);
-}
-
-static void intel_hdmi_remove_i2c_symlink(struct drm_connector *connector)
-{
-	struct i2c_adapter *ddc = connector->ddc;
-	struct kobject *i2c_kobj = &ddc->dev.kobj;
-	struct kobject *connector_kobj = &connector->kdev->kobj;
-
-	sysfs_remove_link(connector_kobj, i2c_kobj->name);
-}
-
 static int
 intel_hdmi_connector_register(struct drm_connector *connector)
 {
@@ -2571,8 +2549,6 @@ intel_hdmi_connector_register(struct drm_connector *connector)
 	ret = intel_connector_register(connector);
 	if (ret)
 		return ret;
-
-	intel_hdmi_create_i2c_symlink(connector);
 
 	return ret;
 }
@@ -2583,7 +2559,6 @@ static void intel_hdmi_connector_unregister(struct drm_connector *connector)
 
 	cec_notifier_conn_unregister(n);
 
-	intel_hdmi_remove_i2c_symlink(connector);
 	intel_connector_unregister(connector);
 }
 
