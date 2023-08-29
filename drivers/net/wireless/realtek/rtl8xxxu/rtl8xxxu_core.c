@@ -7500,6 +7500,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		case 0x8179:
 		case 0xb711:
 		case 0xf192:
+		case 0x2005:
 			untested = 0;
 			break;
 		}
