@@ -43,9 +43,7 @@ static void dp_panel_read_psr_cap(struct dp_panel_private *panel)
 
 static int dp_panel_read_dpcd(struct dp_panel *dp_panel)
 {
-	int rc = 0;
-	size_t len;
-	ssize_t rlen;
+	int rc;
 	struct dp_panel_private *panel;
 	struct dp_link_info *link_info;
 	u8 *dpcd, major, minor;
@@ -79,25 +77,8 @@ static int dp_panel_read_dpcd(struct dp_panel *dp_panel)
 	if (drm_dp_enhanced_frame_cap(dpcd))
 		link_info->capabilities |= DP_LINK_CAP_ENHANCED_FRAMING;
 
-	dp_panel->dfp_present = dpcd[DP_DOWNSTREAMPORT_PRESENT];
-	dp_panel->dfp_present &= DP_DWN_STRM_PORT_PRESENT;
-
-	if (dp_panel->dfp_present && (dpcd[DP_DPCD_REV] > 0x10)) {
-		dp_panel->ds_port_cnt = dpcd[DP_DOWN_STREAM_PORT_COUNT];
-		dp_panel->ds_port_cnt &= DP_PORT_COUNT_MASK;
-		len = DP_DOWNSTREAM_PORTS * DP_DOWNSTREAM_CAP_SIZE;
-
-		rlen = drm_dp_dpcd_read(panel->aux,
-			DP_DOWNSTREAM_PORT_0, dp_panel->ds_cap_info, len);
-		if (rlen < len) {
-			DRM_ERROR("ds port status failed, rlen=%zd\n", rlen);
-			rc = -EINVAL;
-			goto end;
-		}
-	}
-
 	dp_panel_read_psr_cap(panel);
-end:
+
 	return rc;
 }
 
@@ -173,7 +154,7 @@ int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 		return -EINVAL;
 	}
 
-	if (dp_panel->dfp_present) {
+	if (drm_dp_is_branch(dp_panel->dpcd)) {
 		count = drm_dp_read_sink_count(panel->aux);
 		if (!count) {
 			DRM_ERROR("no downstream ports connected\n");
