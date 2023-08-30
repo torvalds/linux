@@ -74,8 +74,7 @@ nvkm_sw_oclass_get(struct nvkm_oclass *oclass, int index)
 }
 
 static int
-nvkm_sw_cclass_get(struct nvkm_fifo_chan *fifoch,
-		   const struct nvkm_oclass *oclass,
+nvkm_sw_cclass_get(struct nvkm_chan *fifoch, const struct nvkm_oclass *oclass,
 		   struct nvkm_object **pobject)
 {
 	struct nvkm_sw *sw = nvkm_sw(oclass->engine);

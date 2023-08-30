@@ -1178,14 +1178,12 @@ err_unregister_host:
 	return ret;
 }
 
-static int mtk_dsi_remove(struct platform_device *pdev)
+static void mtk_dsi_remove(struct platform_device *pdev)
 {
 	struct mtk_dsi *dsi = platform_get_drvdata(pdev);
 
 	mtk_output_dsi_disable(dsi);
 	mipi_dsi_host_unregister(&dsi->host);
-
-	return 0;
 }
 
 static const struct mtk_dsi_driver_data mt8173_dsi_driver_data = {
@@ -1223,7 +1221,7 @@ MODULE_DEVICE_TABLE(of, mtk_dsi_of_match);
 
 struct platform_driver mtk_dsi_driver = {
 	.probe = mtk_dsi_probe,
-	.remove = mtk_dsi_remove,
+	.remove_new = mtk_dsi_remove,
 	.driver = {
 		.name = "mtk-dsi",
 		.of_match_table = mtk_dsi_of_match,

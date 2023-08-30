@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Red Hat Inc.
+ * Copyright 2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,23 +18,29 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: AMD
+ *
  */
-#include "ram.h"
 
-#include <subdev/bios.h>
-#include <subdev/bios/init.h>
-#include <subdev/bios/rammap.h>
+#ifndef AMDGPU_DM_AMDGPU_DM_REPLAY_H_
+#define AMDGPU_DM_AMDGPU_DM_REPLAY_H_
 
-static const struct nvkm_ram_func
-ga102_ram = {
+#include "amdgpu.h"
+
+enum replay_enable_option {
+	pr_enable_option_static_screen = 0x1,
+	pr_enable_option_mpo_video = 0x2,
+	pr_enable_option_full_screen_video = 0x4,
+	pr_enable_option_general_ui = 0x8,
+	pr_enable_option_static_screen_coasting = 0x10000,
+	pr_enable_option_mpo_video_coasting = 0x20000,
+	pr_enable_option_full_screen_video_coasting = 0x40000,
 };
 
-int
-ga102_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
-{
-	struct nvkm_device *device = fb->subdev.device;
-	enum nvkm_ram_type type = nvkm_fb_bios_memtype(device->bios);
-	u32 size = nvkm_rd32(device, 0x1183a4);
 
-	return nvkm_ram_new_(&ga102_ram, fb, type, (u64)size << 20, pram);
-}
+bool amdgpu_dm_replay_enable(struct dc_stream_state *stream, bool enable);
+bool amdgpu_dm_setup_replay(struct dc_link *link, struct amdgpu_dm_connector *aconnector);
+bool amdgpu_dm_replay_disable(struct dc_stream_state *stream);
+
+#endif /* AMDGPU_DM_AMDGPU_DM_REPLAY_H_ */

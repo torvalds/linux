@@ -930,8 +930,7 @@ static int ffb_probe(struct platform_device *op)
 	/* Don't mention copyarea, so SCROLL_REDRAW is always
 	 * used.  It is the fastest on this chip.
 	 */
-	info->flags = (FBINFO_DEFAULT |
-		       /* FBINFO_HWACCEL_COPYAREA | */
+	info->flags = (/* FBINFO_HWACCEL_COPYAREA | */
 		       FBINFO_HWACCEL_FILLRECT |
 		       FBINFO_HWACCEL_IMAGEBLIT);
 

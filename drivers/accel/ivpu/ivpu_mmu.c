@@ -7,7 +7,7 @@
 #include <linux/highmem.h>
 
 #include "ivpu_drv.h"
-#include "ivpu_hw_mtl_reg.h"
+#include "ivpu_hw_37xx_reg.h"
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
@@ -143,6 +143,16 @@
 #define IVPU_MMU_CD_0_ASET		BIT(47)
 #define IVPU_MMU_CD_0_ASID		GENMASK_ULL(63, 48)
 
+#define IVPU_MMU_T0SZ_48BIT             16
+#define IVPU_MMU_T0SZ_38BIT             26
+
+#define IVPU_MMU_IPS_48BIT		5
+#define IVPU_MMU_IPS_44BIT		4
+#define IVPU_MMU_IPS_42BIT		3
+#define IVPU_MMU_IPS_40BIT		2
+#define IVPU_MMU_IPS_36BIT		1
+#define IVPU_MMU_IPS_32BIT		0
+
 #define IVPU_MMU_CD_1_TTB0_MASK		GENMASK_ULL(51, 4)
 
 #define IVPU_MMU_STE_0_S1CDMAX		GENMASK_ULL(63, 59)
@@ -176,13 +186,13 @@
 #define IVPU_MMU_REG_TIMEOUT_US		(10 * USEC_PER_MSEC)
 #define IVPU_MMU_QUEUE_TIMEOUT_US	(100 * USEC_PER_MSEC)
 
-#define IVPU_MMU_GERROR_ERR_MASK ((REG_FLD(MTL_VPU_HOST_MMU_GERROR, CMDQ)) | \
-				  (REG_FLD(MTL_VPU_HOST_MMU_GERROR, EVTQ_ABT)) | \
-				  (REG_FLD(MTL_VPU_HOST_MMU_GERROR, PRIQ_ABT)) | \
-				  (REG_FLD(MTL_VPU_HOST_MMU_GERROR, MSI_CMDQ_ABT)) | \
-				  (REG_FLD(MTL_VPU_HOST_MMU_GERROR, MSI_EVTQ_ABT)) | \
-				  (REG_FLD(MTL_VPU_HOST_MMU_GERROR, MSI_PRIQ_ABT)) | \
-				  (REG_FLD(MTL_VPU_HOST_MMU_GERROR, MSI_ABT)))
+#define IVPU_MMU_GERROR_ERR_MASK ((REG_FLD(VPU_37XX_HOST_MMU_GERROR, CMDQ)) | \
+				  (REG_FLD(VPU_37XX_HOST_MMU_GERROR, EVTQ_ABT)) | \
+				  (REG_FLD(VPU_37XX_HOST_MMU_GERROR, PRIQ_ABT)) | \
+				  (REG_FLD(VPU_37XX_HOST_MMU_GERROR, MSI_CMDQ_ABT)) | \
+				  (REG_FLD(VPU_37XX_HOST_MMU_GERROR, MSI_EVTQ_ABT)) | \
+				  (REG_FLD(VPU_37XX_HOST_MMU_GERROR, MSI_PRIQ_ABT)) | \
+				  (REG_FLD(VPU_37XX_HOST_MMU_GERROR, MSI_ABT)))
 
 static char *ivpu_mmu_event_to_str(u32 cmd)
 {
@@ -240,15 +250,15 @@ static void ivpu_mmu_config_check(struct ivpu_device *vdev)
 	else
 		val_ref = IVPU_MMU_IDR0_REF;
 
-	val = REGV_RD32(MTL_VPU_HOST_MMU_IDR0);
+	val = REGV_RD32(VPU_37XX_HOST_MMU_IDR0);
 	if (val != val_ref)
 		ivpu_dbg(vdev, MMU, "IDR0 0x%x != IDR0_REF 0x%x\n", val, val_ref);
 
-	val = REGV_RD32(MTL_VPU_HOST_MMU_IDR1);
+	val = REGV_RD32(VPU_37XX_HOST_MMU_IDR1);
 	if (val != IVPU_MMU_IDR1_REF)
 		ivpu_dbg(vdev, MMU, "IDR1 0x%x != IDR1_REF 0x%x\n", val, IVPU_MMU_IDR1_REF);
 
-	val = REGV_RD32(MTL_VPU_HOST_MMU_IDR3);
+	val = REGV_RD32(VPU_37XX_HOST_MMU_IDR3);
 	if (val != IVPU_MMU_IDR3_REF)
 		ivpu_dbg(vdev, MMU, "IDR3 0x%x != IDR3_REF 0x%x\n", val, IVPU_MMU_IDR3_REF);
 
@@ -259,7 +269,7 @@ static void ivpu_mmu_config_check(struct ivpu_device *vdev)
 	else
 		val_ref = IVPU_MMU_IDR5_REF;
 
-	val = REGV_RD32(MTL_VPU_HOST_MMU_IDR5);
+	val = REGV_RD32(VPU_37XX_HOST_MMU_IDR5);
 	if (val != val_ref)
 		ivpu_dbg(vdev, MMU, "IDR5 0x%x != IDR5_REF 0x%x\n", val, val_ref);
 }
@@ -386,18 +396,18 @@ static int ivpu_mmu_irqs_setup(struct ivpu_device *vdev)
 	u32 irq_ctrl = IVPU_MMU_IRQ_EVTQ_EN | IVPU_MMU_IRQ_GERROR_EN;
 	int ret;
 
-	ret = ivpu_mmu_reg_write(vdev, MTL_VPU_HOST_MMU_IRQ_CTRL, 0);
+	ret = ivpu_mmu_reg_write(vdev, VPU_37XX_HOST_MMU_IRQ_CTRL, 0);
 	if (ret)
 		return ret;
 
-	return ivpu_mmu_reg_write(vdev, MTL_VPU_HOST_MMU_IRQ_CTRL, irq_ctrl);
+	return ivpu_mmu_reg_write(vdev, VPU_37XX_HOST_MMU_IRQ_CTRL, irq_ctrl);
 }
 
 static int ivpu_mmu_cmdq_wait_for_cons(struct ivpu_device *vdev)
 {
 	struct ivpu_mmu_queue *cmdq = &vdev->mmu->cmdq;
 
-	return REGV_POLL(MTL_VPU_HOST_MMU_CMDQ_CONS, cmdq->cons, (cmdq->prod == cmdq->cons),
+	return REGV_POLL(VPU_37XX_HOST_MMU_CMDQ_CONS, cmdq->cons, (cmdq->prod == cmdq->cons),
 			 IVPU_MMU_QUEUE_TIMEOUT_US);
 }
 
@@ -437,7 +447,7 @@ static int ivpu_mmu_cmdq_sync(struct ivpu_device *vdev)
 		return ret;
 
 	clflush_cache_range(q->base, IVPU_MMU_CMDQ_SIZE);
-	REGV_WR32(MTL_VPU_HOST_MMU_CMDQ_PROD, q->prod);
+	REGV_WR32(VPU_37XX_HOST_MMU_CMDQ_PROD, q->prod);
 
 	ret = ivpu_mmu_cmdq_wait_for_cons(vdev);
 	if (ret)
@@ -485,7 +495,7 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	mmu->evtq.prod = 0;
 	mmu->evtq.cons = 0;
 
-	ret = ivpu_mmu_reg_write(vdev, MTL_VPU_HOST_MMU_CR0, 0);
+	ret = ivpu_mmu_reg_write(vdev, VPU_37XX_HOST_MMU_CR0, 0);
 	if (ret)
 		return ret;
 
@@ -495,17 +505,17 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	      FIELD_PREP(IVPU_MMU_CR1_QUEUE_SH, IVPU_MMU_SH_ISH) |
 	      FIELD_PREP(IVPU_MMU_CR1_QUEUE_OC, IVPU_MMU_CACHE_WB) |
 	      FIELD_PREP(IVPU_MMU_CR1_QUEUE_IC, IVPU_MMU_CACHE_WB);
-	REGV_WR32(MTL_VPU_HOST_MMU_CR1, val);
+	REGV_WR32(VPU_37XX_HOST_MMU_CR1, val);
 
-	REGV_WR64(MTL_VPU_HOST_MMU_STRTAB_BASE, mmu->strtab.dma_q);
-	REGV_WR32(MTL_VPU_HOST_MMU_STRTAB_BASE_CFG, mmu->strtab.base_cfg);
+	REGV_WR64(VPU_37XX_HOST_MMU_STRTAB_BASE, mmu->strtab.dma_q);
+	REGV_WR32(VPU_37XX_HOST_MMU_STRTAB_BASE_CFG, mmu->strtab.base_cfg);
 
-	REGV_WR64(MTL_VPU_HOST_MMU_CMDQ_BASE, mmu->cmdq.dma_q);
-	REGV_WR32(MTL_VPU_HOST_MMU_CMDQ_PROD, 0);
-	REGV_WR32(MTL_VPU_HOST_MMU_CMDQ_CONS, 0);
+	REGV_WR64(VPU_37XX_HOST_MMU_CMDQ_BASE, mmu->cmdq.dma_q);
+	REGV_WR32(VPU_37XX_HOST_MMU_CMDQ_PROD, 0);
+	REGV_WR32(VPU_37XX_HOST_MMU_CMDQ_CONS, 0);
 
 	val = IVPU_MMU_CR0_CMDQEN;
-	ret = ivpu_mmu_reg_write(vdev, MTL_VPU_HOST_MMU_CR0, val);
+	ret = ivpu_mmu_reg_write(vdev, VPU_37XX_HOST_MMU_CR0, val);
 	if (ret)
 		return ret;
 
@@ -521,17 +531,17 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	if (ret)
 		return ret;
 
-	REGV_WR64(MTL_VPU_HOST_MMU_EVTQ_BASE, mmu->evtq.dma_q);
-	REGV_WR32(MTL_VPU_HOST_MMU_EVTQ_PROD_SEC, 0);
-	REGV_WR32(MTL_VPU_HOST_MMU_EVTQ_CONS_SEC, 0);
+	REGV_WR64(VPU_37XX_HOST_MMU_EVTQ_BASE, mmu->evtq.dma_q);
+	REGV_WR32(VPU_37XX_HOST_MMU_EVTQ_PROD_SEC, 0);
+	REGV_WR32(VPU_37XX_HOST_MMU_EVTQ_CONS_SEC, 0);
 
 	val |= IVPU_MMU_CR0_EVTQEN;
-	ret = ivpu_mmu_reg_write(vdev, MTL_VPU_HOST_MMU_CR0, val);
+	ret = ivpu_mmu_reg_write(vdev, VPU_37XX_HOST_MMU_CR0, val);
 	if (ret)
 		return ret;
 
 	val |= IVPU_MMU_CR0_ATSCHK;
-	ret = ivpu_mmu_reg_write(vdev, MTL_VPU_HOST_MMU_CR0, val);
+	ret = ivpu_mmu_reg_write(vdev, VPU_37XX_HOST_MMU_CR0, val);
 	if (ret)
 		return ret;
 
@@ -540,7 +550,7 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 		return ret;
 
 	val |= IVPU_MMU_CR0_SMMUEN;
-	return ivpu_mmu_reg_write(vdev, MTL_VPU_HOST_MMU_CR0, val);
+	return ivpu_mmu_reg_write(vdev, VPU_37XX_HOST_MMU_CR0, val);
 }
 
 static void ivpu_mmu_strtab_link_cd(struct ivpu_device *vdev, u32 sid)
@@ -617,12 +627,12 @@ static int ivpu_mmu_cd_add(struct ivpu_device *vdev, u32 ssid, u64 cd_dma)
 	entry = cdtab->base + (ssid * IVPU_MMU_CDTAB_ENT_SIZE);
 
 	if (cd_dma != 0) {
-		cd[0] = FIELD_PREP(IVPU_MMU_CD_0_TCR_T0SZ, 26) |
+		cd[0] = FIELD_PREP(IVPU_MMU_CD_0_TCR_T0SZ, IVPU_MMU_T0SZ_48BIT) |
 			FIELD_PREP(IVPU_MMU_CD_0_TCR_TG0, 0) |
 			FIELD_PREP(IVPU_MMU_CD_0_TCR_IRGN0, 0) |
 			FIELD_PREP(IVPU_MMU_CD_0_TCR_ORGN0, 0) |
 			FIELD_PREP(IVPU_MMU_CD_0_TCR_SH0, 0) |
-			FIELD_PREP(IVPU_MMU_CD_0_TCR_IPS, 3) |
+			FIELD_PREP(IVPU_MMU_CD_0_TCR_IPS, IVPU_MMU_IPS_48BIT) |
 			FIELD_PREP(IVPU_MMU_CD_0_ASID, ssid) |
 			IVPU_MMU_CD_0_TCR_EPD1 |
 			IVPU_MMU_CD_0_AA64 |
@@ -791,14 +801,14 @@ static u32 *ivpu_mmu_get_event(struct ivpu_device *vdev)
 	u32 idx = IVPU_MMU_Q_IDX(evtq->cons);
 	u32 *evt = evtq->base + (idx * IVPU_MMU_EVTQ_CMD_SIZE);
 
-	evtq->prod = REGV_RD32(MTL_VPU_HOST_MMU_EVTQ_PROD_SEC);
+	evtq->prod = REGV_RD32(VPU_37XX_HOST_MMU_EVTQ_PROD_SEC);
 	if (!CIRC_CNT(IVPU_MMU_Q_IDX(evtq->prod), IVPU_MMU_Q_IDX(evtq->cons), IVPU_MMU_Q_COUNT))
 		return NULL;
 
 	clflush_cache_range(evt, IVPU_MMU_EVTQ_CMD_SIZE);
 
 	evtq->cons = (evtq->cons + 1) & IVPU_MMU_Q_WRAP_MASK;
-	REGV_WR32(MTL_VPU_HOST_MMU_EVTQ_CONS_SEC, evtq->cons);
+	REGV_WR32(VPU_37XX_HOST_MMU_EVTQ_CONS_SEC, evtq->cons);
 
 	return evt;
 }
@@ -831,35 +841,35 @@ void ivpu_mmu_irq_gerr_handler(struct ivpu_device *vdev)
 
 	ivpu_dbg(vdev, IRQ, "MMU error\n");
 
-	gerror_val = REGV_RD32(MTL_VPU_HOST_MMU_GERROR);
-	gerrorn_val = REGV_RD32(MTL_VPU_HOST_MMU_GERRORN);
+	gerror_val = REGV_RD32(VPU_37XX_HOST_MMU_GERROR);
+	gerrorn_val = REGV_RD32(VPU_37XX_HOST_MMU_GERRORN);
 
 	active = gerror_val ^ gerrorn_val;
 	if (!(active & IVPU_MMU_GERROR_ERR_MASK))
 		return;
 
-	if (REG_TEST_FLD(MTL_VPU_HOST_MMU_GERROR, MSI_ABT, active))
+	if (REG_TEST_FLD(VPU_37XX_HOST_MMU_GERROR, MSI_ABT, active))
 		ivpu_warn_ratelimited(vdev, "MMU MSI ABT write aborted\n");
 
-	if (REG_TEST_FLD(MTL_VPU_HOST_MMU_GERROR, MSI_PRIQ_ABT, active))
+	if (REG_TEST_FLD(VPU_37XX_HOST_MMU_GERROR, MSI_PRIQ_ABT, active))
 		ivpu_warn_ratelimited(vdev, "MMU PRIQ MSI ABT write aborted\n");
 
-	if (REG_TEST_FLD(MTL_VPU_HOST_MMU_GERROR, MSI_EVTQ_ABT, active))
+	if (REG_TEST_FLD(VPU_37XX_HOST_MMU_GERROR, MSI_EVTQ_ABT, active))
 		ivpu_warn_ratelimited(vdev, "MMU EVTQ MSI ABT write aborted\n");
 
-	if (REG_TEST_FLD(MTL_VPU_HOST_MMU_GERROR, MSI_CMDQ_ABT, active))
+	if (REG_TEST_FLD(VPU_37XX_HOST_MMU_GERROR, MSI_CMDQ_ABT, active))
 		ivpu_warn_ratelimited(vdev, "MMU CMDQ MSI ABT write aborted\n");
 
-	if (REG_TEST_FLD(MTL_VPU_HOST_MMU_GERROR, PRIQ_ABT, active))
+	if (REG_TEST_FLD(VPU_37XX_HOST_MMU_GERROR, PRIQ_ABT, active))
 		ivpu_err_ratelimited(vdev, "MMU PRIQ write aborted\n");
 
-	if (REG_TEST_FLD(MTL_VPU_HOST_MMU_GERROR, EVTQ_ABT, active))
+	if (REG_TEST_FLD(VPU_37XX_HOST_MMU_GERROR, EVTQ_ABT, active))
 		ivpu_err_ratelimited(vdev, "MMU EVTQ write aborted\n");
 
-	if (REG_TEST_FLD(MTL_VPU_HOST_MMU_GERROR, CMDQ, active))
+	if (REG_TEST_FLD(VPU_37XX_HOST_MMU_GERROR, CMDQ, active))
 		ivpu_err_ratelimited(vdev, "MMU CMDQ write aborted\n");
 
-	REGV_WR32(MTL_VPU_HOST_MMU_GERRORN, gerror_val);
+	REGV_WR32(VPU_37XX_HOST_MMU_GERRORN, gerror_val);
 }
 
 int ivpu_mmu_set_pgtable(struct ivpu_device *vdev, int ssid, struct ivpu_mmu_pgtable *pgtable)

@@ -810,7 +810,7 @@ static int __maybe_unused pvr2fb_common_init(void)
 	fb_info->fix		= pvr2_fix;
 	fb_info->par		= currentpar;
 	fb_info->pseudo_palette	= currentpar->palette;
-	fb_info->flags		= FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	fb_info->flags		= FBINFO_HWACCEL_YPAN;
 
 	if (video_output == VO_VGA)
 		defmode = DEFMODE_VGA;

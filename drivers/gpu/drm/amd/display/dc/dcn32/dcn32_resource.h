@@ -136,11 +136,11 @@ bool dcn32_any_surfaces_rotated(struct dc *dc, struct dc_state *context);
 bool dcn32_is_center_timing(struct pipe_ctx *pipe);
 bool dcn32_is_psr_capable(struct pipe_ctx *pipe);
 
-struct pipe_ctx *dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
-		struct dc_state *state,
+struct pipe_ctx *dcn32_acquire_free_pipe_as_secondary_dpp_pipe(
+		const struct dc_state *cur_ctx,
+		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
-		struct dc_stream_state *stream,
-		struct pipe_ctx *head_pipe);
+		const struct pipe_ctx *opp_head_pipe);
 
 void dcn32_determine_det_override(struct dc *dc,
 		struct dc_state *context,

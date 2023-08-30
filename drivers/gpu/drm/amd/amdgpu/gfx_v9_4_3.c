@@ -196,14 +196,11 @@ static void gfx_v9_4_3_init_golden_registers(struct amdgpu_device *adev)
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
 		dev_inst = GET_INST(GC, i);
-		if (dev_inst >= 2)
-			WREG32_SOC15(GC, dev_inst, regGRBM_MCM_ADDR, 0x4);
 
+		WREG32_SOC15(GC, dev_inst, regGB_ADDR_CONFIG,
+			     GOLDEN_GB_ADDR_CONFIG);
 		/* Golden settings applied by driver for ASIC with rev_id 0 */
 		if (adev->rev_id == 0) {
-			WREG32_SOC15(GC, dev_inst, regGB_ADDR_CONFIG,
-				     GOLDEN_GB_ADDR_CONFIG);
-
 			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL1,
 					      REDUCE_FIFO_DEPTH_BY_2, 2);
 		}
@@ -340,13 +337,11 @@ static uint64_t gfx_v9_4_3_get_gpu_clock_counter(struct amdgpu_device *adev)
 {
 	uint64_t clock;
 
-	amdgpu_gfx_off_ctrl(adev, false);
 	mutex_lock(&adev->gfx.gpu_clock_mutex);
 	WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_CAPTURE_GPU_CLOCK_COUNT, 1);
 	clock = (uint64_t)RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPU_CLOCK_COUNT_LSB) |
 		((uint64_t)RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
 	mutex_unlock(&adev->gfx.gpu_clock_mutex);
-	amdgpu_gfx_off_ctrl(adev, true);
 
 	return clock;
 }
@@ -625,7 +620,7 @@ static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 						int num_xccs_per_xcp)
 {
 	int ret, i, num_xcc;
-	u32 tmp = 0;
+	u32 tmp = 0, regval;
 
 	if (adev->psp.funcs) {
 		ret = psp_spatial_partition(&adev->psp,
@@ -633,23 +628,24 @@ static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 						    num_xccs_per_xcp);
 		if (ret)
 			return ret;
-	} else {
-		num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	}
 
-		for (i = 0; i < num_xcc; i++) {
-			tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, NUM_XCC_IN_XCP,
-					    num_xccs_per_xcp);
-			tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, VIRTUAL_XCC_ID,
-					    i % num_xccs_per_xcp);
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+
+	for (i = 0; i < num_xcc; i++) {
+		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, NUM_XCC_IN_XCP,
+				    num_xccs_per_xcp);
+		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, VIRTUAL_XCC_ID,
+				    i % num_xccs_per_xcp);
+		regval = RREG32_SOC15(GC, GET_INST(GC, i), regCP_HYP_XCP_CTL);
+		if (regval != tmp)
 			WREG32_SOC15(GC, GET_INST(GC, i), regCP_HYP_XCP_CTL,
 				     tmp);
-		}
-		ret = 0;
 	}
 
 	adev->gfx.num_xcc_per_xcp = num_xccs_per_xcp;
 
-	return ret;
+	return 0;
 }
 
 static int gfx_v9_4_3_ih_to_xcc_inst(struct amdgpu_device *adev, int ih_node)
@@ -901,6 +897,7 @@ static void gfx_v9_4_3_xcc_init_compute_vmid(struct amdgpu_device *adev,
 	int i;
 	uint32_t sh_mem_config;
 	uint32_t sh_mem_bases;
+	uint32_t data;
 
 	/*
 	 * Configure apertures:
@@ -920,6 +917,11 @@ static void gfx_v9_4_3_xcc_init_compute_vmid(struct amdgpu_device *adev,
 		/* CP and shaders */
 		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regSH_MEM_CONFIG, sh_mem_config);
 		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regSH_MEM_BASES, sh_mem_bases);
+
+		/* Enable trap for each kfd vmid. */
+		data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regSPI_GDBG_PER_VMID_CNTL);
+		data = REG_SET_FIELD(data, SPI_GDBG_PER_VMID_CNTL, TRAP_EN, 1);
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regSPI_GDBG_PER_VMID_CNTL, data);
 	}
 	soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
 	mutex_unlock(&adev->srbm_mutex);
@@ -1038,32 +1040,6 @@ static void gfx_v9_4_3_xcc_disable_gpa_mode(struct amdgpu_device *adev, int xcc_
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCPC_PSP_DEBUG, data);
 }
 
-static void gfx_v9_4_3_xcc_program_xcc_id(struct amdgpu_device *adev,
-					  int xcc_id)
-{
-	uint32_t tmp = 0;
-	int num_xcc;
-
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	switch (num_xcc) {
-	/* directly config VIRTUAL_XCC_ID to 0 for 1-XCC */
-	case 1:
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_HYP_XCP_CTL, 0x8);
-		break;
-	case 2:
-	case 4:
-	case 6:
-	case 8:
-		tmp = (xcc_id % adev->gfx.num_xcc_per_xcp) << REG_FIELD_SHIFT(CP_HYP_XCP_CTL, VIRTUAL_XCC_ID);
-		tmp = tmp | (adev->gfx.num_xcc_per_xcp << REG_FIELD_SHIFT(CP_HYP_XCP_CTL, NUM_XCC_IN_XCP));
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_HYP_XCP_CTL, tmp);
-
-		break;
-	default:
-		break;
-	}
-}
-
 static bool gfx_v9_4_3_is_rlc_enabled(struct amdgpu_device *adev)
 {
 	uint32_t rlc_setting;
@@ -1100,6 +1076,24 @@ static void gfx_v9_4_3_xcc_unset_safe_mode(struct amdgpu_device *adev,
 
 	data = RLC_SAFE_MODE__CMD_MASK;
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_SAFE_MODE, data);
+}
+
+static void gfx_v9_4_3_init_rlcg_reg_access_ctrl(struct amdgpu_device *adev)
+{
+	int xcc_id, num_xcc;
+	struct amdgpu_rlcg_reg_access_ctrl *reg_access_ctrl;
+
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
+		reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl[GET_INST(GC, xcc_id)];
+		reg_access_ctrl->scratch_reg0 = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG0);
+		reg_access_ctrl->scratch_reg1 = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG1);
+		reg_access_ctrl->scratch_reg2 = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG2);
+		reg_access_ctrl->scratch_reg3 = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG3);
+		reg_access_ctrl->grbm_cntl = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regGRBM_GFX_CNTL);
+		reg_access_ctrl->grbm_idx = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regGRBM_GFX_INDEX);
+		reg_access_ctrl->spare_int = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_SPARE_INT);
+	}
 }
 
 static int gfx_v9_4_3_rlc_init(struct amdgpu_device *adev)
@@ -1921,9 +1915,6 @@ static int gfx_v9_4_3_xcc_cp_resume(struct amdgpu_device *adev, int xcc_id)
 			return r;
 	}
 
-	/* set the virtual and physical id based on partition_mode */
-	gfx_v9_4_3_xcc_program_xcc_id(adev, xcc_id);
-
 	r = gfx_v9_4_3_xcc_kiq_resume(adev, xcc_id);
 	if (r)
 		return r;
@@ -2182,6 +2173,9 @@ static int gfx_v9_4_3_early_init(void *handle)
 	gfx_v9_4_3_set_gds_init(adev);
 	gfx_v9_4_3_set_rlc_funcs(adev);
 
+	/* init rlcg reg access ctrl */
+	gfx_v9_4_3_init_rlcg_reg_access_ctrl(adev);
+
 	return gfx_v9_4_3_init_microcode(adev);
 }
 
@@ -2197,6 +2191,10 @@ static int gfx_v9_4_3_late_init(void *handle)
 	r = amdgpu_irq_get(adev, &adev->gfx.priv_inst_irq, 0);
 	if (r)
 		return r;
+
+	if (adev->gfx.ras &&
+	    adev->gfx.ras->enable_watchdog_timer)
+		adev->gfx.ras->enable_watchdog_timer(adev);
 
 	return 0;
 }
@@ -4044,6 +4042,34 @@ static void gfx_v9_4_3_inst_reset_ras_err_status(struct amdgpu_device *adev,
 	gfx_v9_4_3_inst_reset_sq_timeout_status(adev, xcc_id);
 }
 
+static void gfx_v9_4_3_inst_enable_watchdog_timer(struct amdgpu_device *adev,
+					void *ras_error_status, int xcc_id)
+{
+	uint32_t i;
+	uint32_t data;
+
+	data = REG_SET_FIELD(0, SQ_TIMEOUT_CONFIG, TIMEOUT_FATAL_DISABLE,
+			     amdgpu_watchdog_timer.timeout_fatal_disable ? 1 : 0);
+
+	if (amdgpu_watchdog_timer.timeout_fatal_disable &&
+	    (amdgpu_watchdog_timer.period < 1 ||
+	     amdgpu_watchdog_timer.period > 0x23)) {
+		dev_warn(adev->dev, "Watchdog period range is 1 to 0x23\n");
+		amdgpu_watchdog_timer.period = 0x23;
+	}
+	data = REG_SET_FIELD(data, SQ_TIMEOUT_CONFIG, PERIOD_SEL,
+			     amdgpu_watchdog_timer.period);
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+		gfx_v9_4_3_xcc_select_se_sh(adev, i, 0xffffffff, 0xffffffff, xcc_id);
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regSQ_TIMEOUT_CONFIG, data);
+	}
+	gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
+			xcc_id);
+	mutex_unlock(&adev->grbm_idx_mutex);
+}
+
 static void gfx_v9_4_3_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
@@ -4064,6 +4090,11 @@ static void gfx_v9_4_3_query_ras_error_status(struct amdgpu_device *adev)
 static void gfx_v9_4_3_reset_ras_error_status(struct amdgpu_device *adev)
 {
 	amdgpu_gfx_ras_error_func(adev, NULL, gfx_v9_4_3_inst_reset_ras_err_status);
+}
+
+static void gfx_v9_4_3_enable_watchdog_timer(struct amdgpu_device *adev)
+{
+	amdgpu_gfx_ras_error_func(adev, NULL, gfx_v9_4_3_inst_enable_watchdog_timer);
 }
 
 static const struct amd_ip_funcs gfx_v9_4_3_ip_funcs = {
@@ -4394,4 +4425,5 @@ struct amdgpu_gfx_ras gfx_v9_4_3_ras = {
 	.ras_block = {
 		.hw_ops = &gfx_v9_4_3_ras_ops,
 	},
+	.enable_watchdog_timer = &gfx_v9_4_3_enable_watchdog_timer,
 };

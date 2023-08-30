@@ -15,6 +15,7 @@ properties:
   compatible:
     enum:
       - qcom,sc7180-dpu
+      - qcom,sm6125-dpu
       - qcom,sm6350-dpu
       - qcom,sm6375-dpu
 
@@ -63,7 +64,9 @@ allOf:
   - if:
       properties:
         compatible:
-          const: qcom,sm6375-dpu
+          enum:
+            - qcom,sm6375-dpu
+            - qcom,sm6125-dpu
 
     then:
       properties:

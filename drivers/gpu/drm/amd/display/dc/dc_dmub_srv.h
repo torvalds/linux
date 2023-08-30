@@ -87,4 +87,7 @@ void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv);
 
 void dc_send_update_cursor_info_to_dmu(struct pipe_ctx *pCtx, uint8_t pipe_idx);
 bool dc_dmub_check_min_version(struct dmub_srv *srv);
+
+void dc_dmub_srv_enable_dpia_trace(const struct dc *dc);
+
 #endif /* _DMUB_DC_SRV_H_ */

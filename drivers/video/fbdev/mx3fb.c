@@ -1247,13 +1247,11 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
  */
 static const struct fb_ops mx3fb_ops = {
 	.owner = THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_set_par = mx3fb_set_par,
 	.fb_check_var = mx3fb_check_var,
 	.fb_setcolreg = mx3fb_setcolreg,
 	.fb_pan_display = mx3fb_pan_display,
-	.fb_fillrect = cfb_fillrect,
-	.fb_copyarea = cfb_copyarea,
-	.fb_imageblit = cfb_imageblit,
 	.fb_blank = mx3fb_blank,
 };
 
@@ -1406,7 +1404,6 @@ static struct fb_info *mx3fb_init_fbinfo(struct device *dev,
 	fbi->var.activate	= FB_ACTIVATE_NOW;
 
 	fbi->fbops		= ops;
-	fbi->flags		= FBINFO_FLAG_DEFAULT;
 	fbi->pseudo_palette	= mx3fbi->pseudo_palette;
 
 	mutex_init(&mx3fbi->mutex);

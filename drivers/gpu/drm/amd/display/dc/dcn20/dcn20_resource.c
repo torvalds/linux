@@ -1294,7 +1294,7 @@ static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 enum dc_status dcn20_build_mapped_resource(const struct dc *dc, struct dc_state *context, struct dc_stream_state *stream)
 {
 	enum dc_status status = DC_OK;
-	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
+	struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
 
 	if (!pipe_ctx)
 		return DC_ERROR_UNEXPECTED;
@@ -1948,7 +1948,7 @@ int dcn20_validate_apply_pipe_split_flags(
 			v->ODMCombineEnablePerState[vlevel][pipe_plane];
 
 		if (v->ODMCombineEnabled[pipe_plane] == dm_odm_combine_mode_disabled) {
-			if (get_num_mpc_splits(pipe) == 1) {
+			if (resource_get_num_mpc_splits(pipe) == 1) {
 				/*If need split for mpc but 2 way split already*/
 				if (split[i] == 4)
 					split[i] = 2; /* 2 -> 4 MPC */
@@ -1956,7 +1956,7 @@ int dcn20_validate_apply_pipe_split_flags(
 					split[i] = 0; /* 2 -> 2 MPC */
 				else if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state)
 					merge[i] = true; /* 2 -> 1 MPC */
-			} else if (get_num_mpc_splits(pipe) == 3) {
+			} else if (resource_get_num_mpc_splits(pipe) == 3) {
 				/*If need split for mpc but 4 way split already*/
 				if (split[i] == 2 && ((pipe->top_pipe && !pipe->top_pipe->top_pipe)
 						|| !pipe->bottom_pipe)) {
@@ -1965,7 +1965,7 @@ int dcn20_validate_apply_pipe_split_flags(
 						pipe->top_pipe->plane_state == pipe->plane_state)
 					merge[i] = true; /* 4 -> 1 MPC */
 				split[i] = 0;
-			} else if (get_num_odm_splits(pipe)) {
+			} else if (resource_get_num_odm_splits(pipe)) {
 				/* ODM -> MPC transition */
 				if (pipe->prev_odm_pipe) {
 					split[i] = 0;
@@ -1973,7 +1973,7 @@ int dcn20_validate_apply_pipe_split_flags(
 				}
 			}
 		} else {
-			if (get_num_odm_splits(pipe) == 1) {
+			if (resource_get_num_odm_splits(pipe) == 1) {
 				/*If need split for odm but 2 way split already*/
 				if (split[i] == 4)
 					split[i] = 2; /* 2 -> 4 ODM */
@@ -1983,7 +1983,7 @@ int dcn20_validate_apply_pipe_split_flags(
 					ASSERT(0); /* NOT expected yet */
 					merge[i] = true; /* exit ODM */
 				}
-			} else if (get_num_odm_splits(pipe) == 3) {
+			} else if (resource_get_num_odm_splits(pipe) == 3) {
 				/*If need split for odm but 4 way split already*/
 				if (split[i] == 2 && ((pipe->prev_odm_pipe && !pipe->prev_odm_pipe->prev_odm_pipe)
 						|| !pipe->next_odm_pipe)) {
@@ -1993,7 +1993,7 @@ int dcn20_validate_apply_pipe_split_flags(
 					merge[i] = true; /* exit ODM */
 				}
 				split[i] = 0;
-			} else if (get_num_mpc_splits(pipe)) {
+			} else if (resource_get_num_mpc_splits(pipe)) {
 				/* MPC -> ODM transition */
 				ASSERT(0); /* NOT expected yet */
 				if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state) {
@@ -2147,31 +2147,31 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 	return voltage_supported;
 }
 
-struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(
-		struct dc_state *state,
+struct pipe_ctx *dcn20_acquire_free_pipe_for_layer(
+		const struct dc_state *cur_ctx,
+		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
-		struct dc_stream_state *stream)
+		const struct pipe_ctx *opp_head)
 {
-	struct resource_context *res_ctx = &state->res_ctx;
-	struct pipe_ctx *head_pipe = resource_get_head_pipe_for_stream(res_ctx, stream);
-	struct pipe_ctx *idle_pipe = find_idle_secondary_pipe(res_ctx, pool, head_pipe);
+	struct resource_context *res_ctx = &new_ctx->res_ctx;
+	struct pipe_ctx *otg_master = resource_get_otg_master_for_stream(res_ctx, opp_head->stream);
+	struct pipe_ctx *sec_dpp_pipe = resource_find_free_secondary_pipe_legacy(res_ctx, pool, otg_master);
 
-	if (!head_pipe)
-		ASSERT(0);
+	ASSERT(otg_master);
 
-	if (!idle_pipe)
+	if (!sec_dpp_pipe)
 		return NULL;
 
-	idle_pipe->stream = head_pipe->stream;
-	idle_pipe->stream_res.tg = head_pipe->stream_res.tg;
-	idle_pipe->stream_res.opp = head_pipe->stream_res.opp;
+	sec_dpp_pipe->stream = opp_head->stream;
+	sec_dpp_pipe->stream_res.tg = opp_head->stream_res.tg;
+	sec_dpp_pipe->stream_res.opp = opp_head->stream_res.opp;
 
-	idle_pipe->plane_res.hubp = pool->hubps[idle_pipe->pipe_idx];
-	idle_pipe->plane_res.ipp = pool->ipps[idle_pipe->pipe_idx];
-	idle_pipe->plane_res.dpp = pool->dpps[idle_pipe->pipe_idx];
-	idle_pipe->plane_res.mpcc_inst = pool->dpps[idle_pipe->pipe_idx]->inst;
+	sec_dpp_pipe->plane_res.hubp = pool->hubps[sec_dpp_pipe->pipe_idx];
+	sec_dpp_pipe->plane_res.ipp = pool->ipps[sec_dpp_pipe->pipe_idx];
+	sec_dpp_pipe->plane_res.dpp = pool->dpps[sec_dpp_pipe->pipe_idx];
+	sec_dpp_pipe->plane_res.mpcc_inst = pool->dpps[sec_dpp_pipe->pipe_idx]->inst;
 
-	return idle_pipe;
+	return sec_dpp_pipe;
 }
 
 bool dcn20_get_dcc_compression_cap(const struct dc *dc,
@@ -2216,7 +2216,7 @@ static const struct resource_funcs dcn20_res_pool_funcs = {
 	.link_enc_create = dcn20_link_encoder_create,
 	.panel_cntl_create = dcn20_panel_cntl_create,
 	.validate_bandwidth = dcn20_validate_bandwidth,
-	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
+	.acquire_free_pipe_as_secondary_dpp_pipe = dcn20_acquire_free_pipe_for_layer,
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,

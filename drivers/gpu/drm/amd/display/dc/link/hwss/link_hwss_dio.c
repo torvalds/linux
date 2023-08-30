@@ -46,6 +46,9 @@ void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream->ctx->dc->link_srv->dp_trace_source_sequence(pipe_ctx->stream->link,
 				DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_BE);
+	if (stream_enc->funcs->map_stream_to_link)
+		stream_enc->funcs->map_stream_to_link(stream_enc,
+				stream_enc->stream_enc_inst, link_enc->transmitter - TRANSMITTER_UNIPHY_A);
 	if (stream_enc->funcs->enable_fifo)
 		stream_enc->funcs->enable_fifo(stream_enc);
 }
@@ -163,7 +166,7 @@ void set_dio_dp_lane_settings(struct dc_link *link,
 	link_enc->funcs->dp_set_lane_settings(link_enc, link_settings, lane_settings);
 }
 
-static void update_dio_stream_allocation_table(struct dc_link *link,
+void update_dio_stream_allocation_table(struct dc_link *link,
 		const struct link_resource *link_res,
 		const struct link_mst_stream_allocation_table *table)
 {

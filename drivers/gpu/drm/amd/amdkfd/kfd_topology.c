@@ -36,8 +36,8 @@
 #include "kfd_crat.h"
 #include "kfd_topology.h"
 #include "kfd_device_queue_manager.h"
-#include "kfd_iommu.h"
 #include "kfd_svm.h"
+#include "kfd_debug.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_ras.h"
 #include "amdgpu.h"
@@ -988,17 +988,6 @@ static void find_system_memory(const struct dmi_header *dm,
 	}
 }
 
-/*
- * Performance counters information is not part of CRAT but we would like to
- * put them in the sysfs under topology directory for Thunk to get the data.
- * This function is called before updating the sysfs.
- */
-static int kfd_add_perf_to_topology(struct kfd_topology_device *kdev)
-{
-	/* These are the only counters supported so far */
-	return kfd_iommu_add_perf_counters(kdev);
-}
-
 /* kfd_add_non_crat_information - Add information that is not currently
  *	defined in CRAT but is necessary for KFD topology
  * @dev - topology device to which addition info is added
@@ -1011,25 +1000,6 @@ static void kfd_add_non_crat_information(struct kfd_topology_device *kdev)
 		dmi_walk(find_system_memory, kdev);
 	}
 	/* TODO: For GPU node, rearrange code from kfd_topology_add_device */
-}
-
-/* kfd_is_acpi_crat_invalid - CRAT from ACPI is valid only for AMD APU devices.
- *	Ignore CRAT for all other devices. AMD APU is identified if both CPU
- *	and GPU cores are present.
- * @device_list - topology device list created by parsing ACPI CRAT table.
- * @return - TRUE if invalid, FALSE is valid.
- */
-static bool kfd_is_acpi_crat_invalid(struct list_head *device_list)
-{
-	struct kfd_topology_device *dev;
-
-	list_for_each_entry(dev, device_list, list) {
-		if (dev->node_props.cpu_cores_count &&
-			dev->node_props.simd_count)
-			return false;
-	}
-	pr_info("Ignoring ACPI CRAT on non-APU system\n");
-	return true;
 }
 
 int kfd_topology_init(void)
@@ -1062,48 +1032,25 @@ int kfd_topology_init(void)
 	 */
 	proximity_domain = 0;
 
-	/*
-	 * Get the CRAT image from the ACPI. If ACPI doesn't have one
-	 * or if ACPI CRAT is invalid create a virtual CRAT.
-	 * NOTE: The current implementation expects all AMD APUs to have
-	 *	CRAT. If no CRAT is available, it is assumed to be a CPU
-	 */
-	ret = kfd_create_crat_image_acpi(&crat_image, &image_size);
-	if (!ret) {
-		ret = kfd_parse_crat_table(crat_image,
-					   &temp_topology_device_list,
-					   proximity_domain);
-		if (ret ||
-		    kfd_is_acpi_crat_invalid(&temp_topology_device_list)) {
-			kfd_release_topology_device_list(
-				&temp_topology_device_list);
-			kfd_destroy_crat_image(crat_image);
-			crat_image = NULL;
-		}
+	ret = kfd_create_crat_image_virtual(&crat_image, &image_size,
+					    COMPUTE_UNIT_CPU, NULL,
+					    proximity_domain);
+	cpu_only_node = 1;
+	if (ret) {
+		pr_err("Error creating VCRAT table for CPU\n");
+		return ret;
 	}
 
-	if (!crat_image) {
-		ret = kfd_create_crat_image_virtual(&crat_image, &image_size,
-						    COMPUTE_UNIT_CPU, NULL,
-						    proximity_domain);
-		cpu_only_node = 1;
-		if (ret) {
-			pr_err("Error creating VCRAT table for CPU\n");
-			return ret;
-		}
-
-		ret = kfd_parse_crat_table(crat_image,
-					   &temp_topology_device_list,
-					   proximity_domain);
-		if (ret) {
-			pr_err("Error parsing VCRAT table for CPU\n");
-			goto err;
-		}
+	ret = kfd_parse_crat_table(crat_image,
+				   &temp_topology_device_list,
+				   proximity_domain);
+	if (ret) {
+		pr_err("Error parsing VCRAT table for CPU\n");
+		goto err;
 	}
 
 	kdev = list_first_entry(&temp_topology_device_list,
 				struct kfd_topology_device, list);
-	kfd_add_perf_to_topology(kdev);
 
 	down_write(&topology_lock);
 	kfd_topology_update_device_list(&temp_topology_device_list,
@@ -1189,8 +1136,7 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_node *gpu)
 		/* Discrete GPUs need their own topology device list
 		 * entries. Don't assign them to CPU/APU nodes.
 		 */
-		if (!gpu->kfd->use_iommu_v2 &&
-		    dev->node_props.cpu_cores_count)
+		if (dev->node_props.cpu_cores_count)
 			continue;
 
 		if (!dev->gpu && (dev->node_props.simd_count > 0)) {
@@ -1931,23 +1877,27 @@ static void kfd_topology_set_capabilities(struct kfd_topology_device *dev)
 			HSA_CAP_TRAP_DEBUG_WAVE_LAUNCH_TRAP_OVERRIDE_SUPPORTED |
 			HSA_CAP_TRAP_DEBUG_WAVE_LAUNCH_MODE_SUPPORTED;
 
-	if (KFD_GC_VERSION(dev->gpu) < IP_VERSION(10, 0, 0)) {
-		dev->node_props.debug_prop |= HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX9 |
-						HSA_DBG_WATCH_ADDR_MASK_HI_BIT;
+	if (kfd_dbg_has_ttmps_always_setup(dev->gpu))
+		dev->node_props.debug_prop |= HSA_DBG_DISPATCH_INFO_ALWAYS_VALID;
 
-		if (KFD_GC_VERSION(dev->gpu) < IP_VERSION(9, 4, 2))
+	if (KFD_GC_VERSION(dev->gpu) < IP_VERSION(10, 0, 0)) {
+		if (KFD_GC_VERSION(dev->gpu) == IP_VERSION(9, 4, 3))
 			dev->node_props.debug_prop |=
-				HSA_DBG_DISPATCH_INFO_ALWAYS_VALID;
+				HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX9_4_3 |
+				HSA_DBG_WATCH_ADDR_MASK_HI_BIT_GFX9_4_3;
 		else
+			dev->node_props.debug_prop |=
+				HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX9 |
+				HSA_DBG_WATCH_ADDR_MASK_HI_BIT;
+
+		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(9, 4, 2))
 			dev->node_props.capability |=
 				HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED;
 	} else {
 		dev->node_props.debug_prop |= HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX10 |
 					HSA_DBG_WATCH_ADDR_MASK_HI_BIT;
 
-		if (KFD_GC_VERSION(dev->gpu) < IP_VERSION(11, 0, 0))
-			dev->node_props.debug_prop |= HSA_DBG_DISPATCH_INFO_ALWAYS_VALID;
-		else
+		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(11, 0, 0))
 			dev->node_props.capability |=
 				HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED;
 	}
@@ -2083,10 +2033,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	 * Overwrite ATS capability according to needs_iommu_device to fix
 	 * potential missing corresponding bit in CRAT of BIOS.
 	 */
-	if (dev->gpu->kfd->use_iommu_v2)
-		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
-	else
-		dev->node_props.capability &= ~HSA_CAP_ATS_PRESENT;
+	dev->node_props.capability &= ~HSA_CAP_ATS_PRESENT;
 
 	/* Fix errors in CZ CRAT.
 	 * simd_count: Carrizo CRAT reports wrong simd_count, probably
@@ -2279,29 +2226,6 @@ int kfd_numa_node_to_apic_id(int numa_node_id)
 		return kfd_cpumask_to_apic_id(cpu_online_mask);
 	}
 	return kfd_cpumask_to_apic_id(cpumask_of_node(numa_node_id));
-}
-
-void kfd_double_confirm_iommu_support(struct kfd_dev *gpu)
-{
-	struct kfd_topology_device *dev;
-
-	gpu->use_iommu_v2 = false;
-
-	if (!gpu->device_info.needs_iommu_device)
-		return;
-
-	down_read(&topology_lock);
-
-	/* Only use IOMMUv2 if there is an APU topology node with no GPU
-	 * assigned yet. This GPU will be assigned to it.
-	 */
-	list_for_each_entry(dev, &topology_device_list, list)
-		if (dev->node_props.cpu_cores_count &&
-		    dev->node_props.simd_count &&
-		    !dev->gpu)
-			gpu->use_iommu_v2 = true;
-
-	up_read(&topology_lock);
 }
 
 #if defined(CONFIG_DEBUG_FS)

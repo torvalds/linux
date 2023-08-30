@@ -170,6 +170,95 @@ extern "C" {
 #endif
 
 #pragma pack(push, 1)
+#define ABM_NUM_OF_ACE_SEGMENTS         5
+
+union abm_flags {
+	struct {
+		/**
+		 * @abm_enabled: Indicates if ABM is enabled.
+		 */
+		unsigned int abm_enabled : 1;
+
+		/**
+		 * @disable_abm_requested: Indicates if driver has requested ABM to be disabled.
+		 */
+		unsigned int disable_abm_requested : 1;
+
+		/**
+		 * @disable_abm_immediately: Indicates if driver has requested ABM to be disabled
+		 * immediately.
+		 */
+		unsigned int disable_abm_immediately : 1;
+
+		/**
+		 * @disable_abm_immediate_keep_gain: Indicates if driver has requested ABM
+		 * to be disabled immediately and keep gain.
+		 */
+		unsigned int disable_abm_immediate_keep_gain : 1;
+
+		/**
+		 * @fractional_pwm: Indicates if fractional duty cycle for backlight PWM is enabled.
+		 */
+		unsigned int fractional_pwm : 1;
+
+		/**
+		 * @abm_gradual_bl_change: Indicates if algorithm has completed gradual adjustment
+		 * of user backlight level.
+		 */
+		unsigned int abm_gradual_bl_change : 1;
+	} bitfields;
+
+	unsigned int u32All;
+};
+
+struct abm_save_restore {
+	/**
+	 * @flags: Misc. ABM flags.
+	 */
+	union abm_flags flags;
+
+	/**
+	 * @pause: true:  pause ABM and get state
+	 *         false: unpause ABM after setting state
+	 */
+	uint32_t pause;
+
+	/**
+	 * @next_ace_slope: Next ACE slopes to be programmed in HW (u3.13)
+	 */
+	uint32_t next_ace_slope[ABM_NUM_OF_ACE_SEGMENTS];
+
+	/**
+	 * @next_ace_thresh: Next ACE thresholds to be programmed in HW (u10.6)
+	 */
+	uint32_t next_ace_thresh[ABM_NUM_OF_ACE_SEGMENTS];
+
+	/**
+	 * @next_ace_offset: Next ACE offsets to be programmed in HW (u10.6)
+	 */
+	uint32_t next_ace_offset[ABM_NUM_OF_ACE_SEGMENTS];
+
+
+	/**
+	 * @knee_threshold: Current x-position of ACE knee (u0.16).
+	 */
+	uint32_t knee_threshold;
+	/**
+	 * @current_gain: Current backlight reduction (u16.16).
+	 */
+	uint32_t current_gain;
+	/**
+	 * @curr_bl_level: Current actual backlight level converging to target backlight level.
+	 */
+	uint16_t curr_bl_level;
+
+	/**
+	 * @curr_user_bl_level: Current nominal backlight level converging to level requested by user.
+	 */
+	uint16_t curr_user_bl_level;
+
+};
+
 /**
  * union dmub_addr - DMUB physical/virtual 64-bit address.
  */
@@ -245,6 +334,112 @@ union dmub_psr_debug_flags {
 	/**
 	 * Union for debug flags.
 	 */
+	uint32_t u32All;
+};
+
+/**
+ * Flags that can be set by driver to change some Replay behaviour.
+ */
+union replay_debug_flags {
+	struct {
+		/**
+		 * Enable visual confirm in FW.
+		 */
+		uint32_t visual_confirm : 1;
+
+		/**
+		 * @skip_crc: Set if need to skip CRC.
+		 */
+		uint32_t skip_crc : 1;
+
+		/**
+		 * @force_link_power_on: Force disable ALPM control
+		 */
+		uint32_t force_link_power_on : 1;
+
+		/**
+		 * @force_phy_power_on: Force phy power on
+		 */
+		uint32_t force_phy_power_on : 1;
+
+		/**
+		 * @timing_resync_disabled: Disabled Replay normal sleep mode timing resync
+		 */
+		uint32_t timing_resync_disabled : 1;
+
+		/**
+		 * @skip_crtc_disabled: CRTC disable skipped
+		 */
+		uint32_t skip_crtc_disabled : 1;
+
+		/**
+		 * @force_defer_one_frame_update: Force defer one frame update in ultra sleep mode
+		 */
+		uint32_t force_defer_one_frame_update : 1;
+		/**
+		 * @disable_delay_alpm_on: Force disable delay alpm on
+		 */
+		uint32_t disable_delay_alpm_on : 1;
+		/**
+		 * @disable_desync_error_check: Force disable desync error check
+		 */
+		uint32_t disable_desync_error_check : 1;
+		/**
+		 * @disable_desync_error_check: Force disable desync error check
+		 */
+		uint32_t disable_dmub_save_restore : 1;
+
+		uint32_t reserved : 22;
+	} bitfields;
+
+	uint32_t u32All;
+};
+
+union replay_hw_flags {
+	struct {
+		/**
+		 * @allow_alpm_fw_standby_mode: To indicate whether the
+		 * ALPM FW standby mode is allowed
+		 */
+		uint32_t allow_alpm_fw_standby_mode : 1;
+
+		/*
+		 * @dsc_enable_status: DSC enable status in driver
+		 */
+		uint32_t dsc_enable_status : 1;
+
+		/**
+		 * @fec_enable_status: receive fec enable/disable status from driver
+		 */
+		uint32_t fec_enable_status : 1;
+
+		/*
+		 * @smu_optimizations_en: SMU power optimization.
+		 * Only when active display is Replay capable and display enters Replay.
+		 * Trigger interrupt to SMU to powerup/down.
+		 */
+		uint32_t smu_optimizations_en : 1;
+
+		/**
+		 * @otg_powered_down: Flag to keep track of OTG power state.
+		 */
+		uint32_t otg_powered_down : 1;
+
+		/**
+		 * @phy_power_state: Indicates current phy power state
+		 */
+		uint32_t phy_power_state : 1;
+
+		/**
+		 * @link_power_state: Indicates current link power state
+		 */
+		uint32_t link_power_state : 1;
+		/**
+		 * Use TPS3 signal when restore main link.
+		 */
+		uint32_t force_wakeup_by_tps3 : 1;
+	} bitfields;
+
 	uint32_t u32All;
 };
 
@@ -566,9 +761,42 @@ enum dmub_gpint_command {
 	DMUB_GPINT__PSR_RESIDENCY = 9,
 
 	/**
+	 * DESC: Get REPLAY state from FW.
+	 * RETURN: REPLAY state enum. This enum may need to be converted to the legacy REPLAY state value.
+	 */
+	DMUB_GPINT__GET_REPLAY_STATE = 13,
+
+	/**
+	 * DESC: Start REPLAY residency counter. Stop REPLAY resdiency counter and get value.
+	 * ARGS: We can measure residency from various points. The argument will specify the residency mode.
+	 *       By default, it is measured from after we powerdown the PHY, to just before we powerup the PHY.
+	 * RETURN: REPLAY residency in milli-percent.
+	 */
+	DMUB_GPINT__REPLAY_RESIDENCY = 14,
+
+
+	/**
 	 * DESC: Notifies DMCUB detection is done so detection required can be cleared.
 	 */
 	DMUB_GPINT__NOTIFY_DETECTION_DONE = 12,
+	/**
+	 * DESC: Updates the trace buffer lower 32-bit mask.
+	 * ARGS: The new mask
+	 * RETURN: Lower 32-bit mask.
+	 */
+	DMUB_GPINT__UPDATE_TRACE_BUFFER_MASK = 101,
+	/**
+	 * DESC: Updates the trace buffer lower 32-bit mask.
+	 * ARGS: The new mask
+	 * RETURN: Lower 32-bit mask.
+	 */
+	DMUB_GPINT__SET_TRACE_BUFFER_MASK_WORD0 = 102,
+	/**
+	 * DESC: Updates the trace buffer mask bi0~bit15.
+	 * ARGS: The new mask
+	 * RETURN: Lower 32-bit mask.
+	 */
+	DMUB_GPINT__SET_TRACE_BUFFER_MASK_WORD1 = 103,
 };
 
 /**
@@ -762,6 +990,11 @@ enum dmub_cmd_type {
 	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
+
+	/**
+	 * Command type used for all REPLAY commands.
+	 */
+	DMUB_CMD__REPLAY = 83,
 
 	/**
 	 * Command type used for all SECURE_DISPLAY commands.
@@ -1911,6 +2144,10 @@ enum dmub_phy_fsm_state {
 	DMUB_PHY_FSM_PLL_EN,
 	DMUB_PHY_FSM_TX_EN,
 	DMUB_PHY_FSM_FAST_LP,
+	DMUB_PHY_FSM_P2_PLL_OFF_CPM,
+	DMUB_PHY_FSM_P2_PLL_OFF_PG,
+	DMUB_PHY_FSM_P2_PLL_OFF,
+	DMUB_PHY_FSM_P2_PLL_ON,
 };
 
 /**
@@ -2496,6 +2733,272 @@ struct dmub_cmd_psr_set_power_opt_data {
 	uint32_t power_opt;
 };
 
+#define REPLAY_RESIDENCY_MODE_SHIFT            (0)
+#define REPLAY_RESIDENCY_ENABLE_SHIFT          (1)
+
+#define REPLAY_RESIDENCY_MODE_MASK             (0x1 << REPLAY_RESIDENCY_MODE_SHIFT)
+# define REPLAY_RESIDENCY_MODE_PHY             (0x0 << REPLAY_RESIDENCY_MODE_SHIFT)
+# define REPLAY_RESIDENCY_MODE_ALPM            (0x1 << REPLAY_RESIDENCY_MODE_SHIFT)
+
+#define REPLAY_RESIDENCY_ENABLE_MASK           (0x1 << REPLAY_RESIDENCY_ENABLE_SHIFT)
+# define REPLAY_RESIDENCY_DISABLE              (0x0 << REPLAY_RESIDENCY_ENABLE_SHIFT)
+# define REPLAY_RESIDENCY_ENABLE               (0x1 << REPLAY_RESIDENCY_ENABLE_SHIFT)
+
+enum replay_state {
+	REPLAY_STATE_0			= 0x0,
+	REPLAY_STATE_1			= 0x10,
+	REPLAY_STATE_1A			= 0x11,
+	REPLAY_STATE_2			= 0x20,
+	REPLAY_STATE_3			= 0x30,
+	REPLAY_STATE_3INIT		= 0x31,
+	REPLAY_STATE_4			= 0x40,
+	REPLAY_STATE_4A			= 0x41,
+	REPLAY_STATE_4B			= 0x42,
+	REPLAY_STATE_4C			= 0x43,
+	REPLAY_STATE_4D			= 0x44,
+	REPLAY_STATE_4B_LOCKED		= 0x4A,
+	REPLAY_STATE_4C_UNLOCKED	= 0x4B,
+	REPLAY_STATE_5			= 0x50,
+	REPLAY_STATE_5A			= 0x51,
+	REPLAY_STATE_5B			= 0x52,
+	REPLAY_STATE_5A_LOCKED		= 0x5A,
+	REPLAY_STATE_5B_UNLOCKED	= 0x5B,
+	REPLAY_STATE_6			= 0x60,
+	REPLAY_STATE_6A			= 0x61,
+	REPLAY_STATE_6B			= 0x62,
+	REPLAY_STATE_INVALID		= 0xFF,
+};
+
+/**
+ * Replay command sub-types.
+ */
+enum dmub_cmd_replay_type {
+	/**
+	 * Copy driver-calculated parameters to REPLAY state.
+	 */
+	DMUB_CMD__REPLAY_COPY_SETTINGS		= 0,
+	/**
+	 * Enable REPLAY.
+	 */
+	DMUB_CMD__REPLAY_ENABLE			= 1,
+	/**
+	 * Set Replay power option.
+	 */
+	DMUB_CMD__SET_REPLAY_POWER_OPT		= 2,
+	/**
+	 * Set coasting vtotal.
+	 */
+	DMUB_CMD__REPLAY_SET_COASTING_VTOTAL	= 3,
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__REPLAY_COPY_SETTINGS command.
+ */
+struct dmub_cmd_replay_copy_settings_data {
+	/**
+	 * Flags that can be set by driver to change some replay behaviour.
+	 */
+	union replay_debug_flags debug;
+
+	/**
+	 * @flags: Flags used to determine feature functionality.
+	 */
+	union replay_hw_flags flags;
+
+	/**
+	 * DPP HW instance.
+	 */
+	uint8_t dpp_inst;
+	/**
+	 * OTG HW instance.
+	 */
+	uint8_t otg_inst;
+	/**
+	 * DIG FE HW instance.
+	 */
+	uint8_t digfe_inst;
+	/**
+	 * DIG BE HW instance.
+	 */
+	uint8_t digbe_inst;
+	/**
+	 * AUX HW instance.
+	 */
+	uint8_t aux_inst;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * @pixel_deviation_per_line: Indicate the maximum pixel deviation per line compare
+	 * to Source timing when Sink maintains coasting vtotal during the Replay normal sleep mode
+	 */
+	uint8_t pixel_deviation_per_line;
+	/**
+	 * @max_deviation_line: The max number of deviation line that can keep the timing
+	 * synchronized between the Source and Sink during Replay normal sleep mode.
+	 */
+	uint8_t max_deviation_line;
+	/**
+	 * Length of each horizontal line in ns.
+	 */
+	uint32_t line_time_in_ns;
+	/**
+	 * PHY instance.
+	 */
+	uint8_t dpphy_inst;
+	/**
+	 * Determines if SMU optimzations are enabled/disabled.
+	 */
+	uint8_t smu_optimizations_en;
+	/**
+	 * Determines if timing sync are enabled/disabled.
+	 */
+	uint8_t replay_timing_sync_supported;
+	/*
+	 * Use FSM state for Replay power up/down
+	 */
+	uint8_t use_phy_fsm;
+};
+
+/**
+ * Definition of a DMUB_CMD__REPLAY_COPY_SETTINGS command.
+ */
+struct dmub_rb_cmd_replay_copy_settings {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__REPLAY_COPY_SETTINGS command.
+	 */
+	struct dmub_cmd_replay_copy_settings_data replay_copy_settings_data;
+};
+
+/**
+ * Replay disable / enable state for dmub_rb_cmd_replay_enable_data.enable
+ */
+enum replay_enable {
+	/**
+	 * Disable REPLAY.
+	 */
+	REPLAY_DISABLE				= 0,
+	/**
+	 * Enable REPLAY.
+	 */
+	REPLAY_ENABLE				= 1,
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__REPLAY_ENABLE command.
+ */
+struct dmub_rb_cmd_replay_enable_data {
+	/**
+	 * Replay enable or disable.
+	 */
+	uint8_t enable;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Phy state to enter.
+	 * Values to use are defined in dmub_phy_fsm_state
+	 */
+	uint8_t phy_fsm_state;
+	/**
+	 * Phy rate for DP - RBR/HBR/HBR2/HBR3.
+	 * Set this using enum phy_link_rate.
+	 * This does not support HDMI/DP2 for now.
+	 */
+	uint8_t phy_rate;
+};
+
+/**
+ * Definition of a DMUB_CMD__REPLAY_ENABLE command.
+ * Replay enable/disable is controlled using action in data.
+ */
+struct dmub_rb_cmd_replay_enable {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	struct dmub_rb_cmd_replay_enable_data data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__SET_REPLAY_POWER_OPT command.
+ */
+struct dmub_cmd_replay_set_power_opt_data {
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[3];
+	/**
+	 * REPLAY power option
+	 */
+	uint32_t power_opt;
+};
+
+/**
+ * Definition of a DMUB_CMD__SET_REPLAY_POWER_OPT command.
+ */
+struct dmub_rb_cmd_replay_set_power_opt {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of a DMUB_CMD__SET_REPLAY_POWER_OPT command.
+	 */
+	struct dmub_cmd_replay_set_power_opt_data replay_set_power_opt_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__REPLAY_SET_COASTING_VTOTAL command.
+ */
+struct dmub_cmd_replay_set_coasting_vtotal_data {
+	/**
+	 * 16-bit value dicated by driver that indicates the coasting vtotal.
+	 */
+	uint16_t coasting_vtotal;
+	/**
+	 * REPLAY control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+};
+
+/**
+ * Definition of a DMUB_CMD__REPLAY_SET_COASTING_VTOTAL command.
+ */
+struct dmub_rb_cmd_replay_set_coasting_vtotal {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_SET_COASTING_VTOTAL command.
+	 */
+	struct dmub_cmd_replay_set_coasting_vtotal_data replay_set_coasting_vtotal_data;
+};
+
 /**
  * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
  */
@@ -2587,6 +3090,10 @@ enum hw_lock_client {
 	 */
 	HW_LOCK_CLIENT_PSR_SU		= 1,
 	/**
+	 * Replay is the client of HW Lock Manager.
+	 */
+	HW_LOCK_CLIENT_REPLAY           = 4,
+	/**
 	 * Invalid client.
 	 */
 	HW_LOCK_CLIENT_INVALID = 0xFFFFFFFF,
@@ -2672,6 +3179,12 @@ enum dmub_cmd_abm_type {
 	 * unregister vertical interrupt after steady state is reached
 	 */
 	DMUB_CMD__ABM_PAUSE	= 6,
+
+	/**
+	 * Save and Restore ABM state. On save we save parameters, and
+	 * on restore we update state with passed in data.
+	 */
+	DMUB_CMD__ABM_SAVE_RESTORE	= 7,
 };
 
 /**
@@ -3056,6 +3569,7 @@ struct dmub_cmd_abm_pause_data {
 	uint8_t pad[1];
 };
 
+
 /**
  * Definition of a DMUB_CMD__ABM_PAUSE command.
  */
@@ -3069,6 +3583,36 @@ struct dmub_rb_cmd_abm_pause {
 	 * Data passed from driver to FW in a DMUB_CMD__ABM_PAUSE command.
 	 */
 	struct dmub_cmd_abm_pause_data abm_pause_data;
+};
+
+/**
+ * Definition of a DMUB_CMD__ABM_SAVE_RESTORE command.
+ */
+struct dmub_rb_cmd_abm_save_restore {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * OTG hw instance
+	 */
+	uint8_t otg_inst;
+
+	/**
+	 * Enable or disable ABM pause
+	 */
+	uint8_t freeze;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t debug;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__ABM_INIT_CONFIG command.
+	 */
+	struct dmub_cmd_abm_init_config_data abm_init_config_data;
 };
 
 /**
@@ -3509,6 +4053,11 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_abm_pause abm_pause;
 
 	/**
+	 * Definition of a DMUB_CMD__ABM_SAVE_RESTORE command.
+	 */
+	struct dmub_rb_cmd_abm_save_restore abm_save_restore;
+
+	/**
 	 * Definition of a DMUB_CMD__DP_AUX_ACCESS command.
 	 */
 	struct dmub_rb_cmd_dp_aux_access dp_aux_access;
@@ -3576,6 +4125,22 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE command.
 	 */
 	struct dmub_rb_cmd_idle_opt_dcn_notify_idle idle_opt_notify_idle;
+	/*
+	 * Definition of a DMUB_CMD__REPLAY_COPY_SETTINGS command.
+	 */
+	struct dmub_rb_cmd_replay_copy_settings replay_copy_settings;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_ENABLE command.
+	 */
+	struct dmub_rb_cmd_replay_enable replay_enable;
+	/**
+	 * Definition of a DMUB_CMD__SET_REPLAY_POWER_OPT command.
+	 */
+	struct dmub_rb_cmd_replay_set_power_opt replay_set_power_opt;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_SET_COASTING_VTOTAL command.
+	 */
+	struct dmub_rb_cmd_replay_set_coasting_vtotal replay_set_coasting_vtotal;
 };
 
 /**

@@ -317,7 +317,7 @@ struct dpu_hw_sspp_ops {
 struct dpu_hw_sspp {
 	struct dpu_hw_blk base;
 	struct dpu_hw_blk_reg_map hw;
-	const struct dpu_ubwc_cfg *ubwc;
+	const struct msm_mdss_data *ubwc;
 
 	/* Pipe */
 	enum dpu_sspp idx;
@@ -333,10 +333,10 @@ struct dpu_kms;
  * Should be called once before accessing every pipe.
  * @cfg:  Pipe catalog entry for which driver object is required
  * @addr: Mapped register io address of MDP
- * @ubwc: UBWC configuration data
+ * @mdss_data: UBWC / MDSS configuration data
  */
 struct dpu_hw_sspp *dpu_hw_sspp_init(const struct dpu_sspp_cfg *cfg,
-		void __iomem *addr, const struct dpu_ubwc_cfg *ubwc);
+		void __iomem *addr, const struct msm_mdss_data *mdss_data);
 
 /**
  * dpu_hw_sspp_destroy(): Destroys SSPP driver context
