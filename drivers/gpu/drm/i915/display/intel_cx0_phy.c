@@ -29,6 +29,8 @@
 #define INTEL_CX0_LANE1		BIT(1)
 #define INTEL_CX0_BOTH_LANES	(INTEL_CX0_LANE1 | INTEL_CX0_LANE0)
 
+#define INTEL_CX0_MSGBUS_TIMER_BUMPED_VAL	0x200
+
 bool intel_is_c10phy(struct drm_i915_private *i915, enum phy phy)
 {
 	if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0) && phy < PHY_C)
@@ -119,6 +121,42 @@ static void intel_cx0_bus_reset(struct drm_i915_private *i915, enum port port, i
 	intel_clear_response_ready_flag(i915, port, lane);
 }
 
+/*
+ * Check if there was a timeout detected by the hardware in the message bus
+ * and bump the threshold if so.
+ */
+static void intel_cx0_bus_check_and_bump_timer(struct drm_i915_private *i915,
+					       enum port port, int lane)
+{
+	enum phy phy = intel_port_to_phy(i915, port);
+	i915_reg_t reg;
+	u32 val;
+	u32 timer_val;
+
+	reg = XELPDP_PORT_MSGBUS_TIMER(port, lane);
+	val = intel_de_read(i915, reg);
+
+	if (!(val & XELPDP_PORT_MSGBUS_TIMER_TIMED_OUT)) {
+		drm_warn(&i915->drm,
+			 "PHY %c lane %d: hardware did not detect a timeout\n",
+			 phy_name(phy), lane);
+		return;
+	}
+
+	timer_val = REG_FIELD_GET(XELPDP_PORT_MSGBUS_TIMER_VAL_MASK, val);
+
+	if (timer_val == INTEL_CX0_MSGBUS_TIMER_BUMPED_VAL)
+		return;
+
+	val &= ~XELPDP_PORT_MSGBUS_TIMER_VAL_MASK;
+	val |= XELPDP_PORT_MSGBUS_TIMER_VAL(INTEL_CX0_MSGBUS_TIMER_BUMPED_VAL);
+
+	drm_dbg_kms(&i915->drm,
+		    "PHY %c lane %d: increasing msgbus timer threshold to %#x\n",
+		    phy_name(phy), lane, INTEL_CX0_MSGBUS_TIMER_BUMPED_VAL);
+	intel_de_write(i915, reg, val);
+}
+
 static int intel_cx0_wait_for_ack(struct drm_i915_private *i915, enum port port,
 				  int command, int lane, u32 *val)
 {
@@ -132,6 +170,7 @@ static int intel_cx0_wait_for_ack(struct drm_i915_private *i915, enum port port,
 					 XELPDP_MSGBUS_TIMEOUT_SLOW, val)) {
 		drm_dbg_kms(&i915->drm, "PHY %c Timeout waiting for message ACK. Status: 0x%x\n",
 			    phy_name(phy), *val);
+		intel_cx0_bus_check_and_bump_timer(i915, port, lane);
 		intel_cx0_bus_reset(i915, port, lane);
 		return -ETIMEDOUT;
 	}
