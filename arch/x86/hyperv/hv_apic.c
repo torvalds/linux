@@ -86,14 +86,14 @@ static void hv_apic_write(u32 reg, u32 val)
 	}
 }
 
-static void hv_apic_eoi_write(u32 reg, u32 val)
+static void hv_apic_eoi_write(void)
 {
 	struct hv_vp_assist_page *hvp = hv_vp_assist_page[smp_processor_id()];
 
 	if (hvp && (xchg(&hvp->apic_assist, 0) & 0x1))
 		return;
 
-	wrmsr(HV_X64_MSR_EOI, val, 0);
+	wrmsr(HV_X64_MSR_EOI, APIC_EOI_ACK, 0);
 }
 
 static bool cpu_is_self(int cpu)
@@ -286,12 +286,12 @@ void __init hv_apic_init(void)
 		 */
 		orig_apic = *apic;
 
-		apic->send_IPI = hv_send_ipi;
-		apic->send_IPI_mask = hv_send_ipi_mask;
-		apic->send_IPI_mask_allbutself = hv_send_ipi_mask_allbutself;
-		apic->send_IPI_allbutself = hv_send_ipi_allbutself;
-		apic->send_IPI_all = hv_send_ipi_all;
-		apic->send_IPI_self = hv_send_ipi_self;
+		apic_update_callback(send_IPI, hv_send_ipi);
+		apic_update_callback(send_IPI_mask, hv_send_ipi_mask);
+		apic_update_callback(send_IPI_mask_allbutself, hv_send_ipi_mask_allbutself);
+		apic_update_callback(send_IPI_allbutself, hv_send_ipi_allbutself);
+		apic_update_callback(send_IPI_all, hv_send_ipi_all);
+		apic_update_callback(send_IPI_self, hv_send_ipi_self);
 	}
 
 	if (ms_hyperv.hints & HV_X64_APIC_ACCESS_RECOMMENDED) {
@@ -308,12 +308,12 @@ void __init hv_apic_init(void)
 		 * lazy EOI when available, but the same accessor works for
 		 * both xapic and x2apic because the field layout is the same.
 		 */
-		apic_set_eoi_write(hv_apic_eoi_write);
+		apic_update_callback(eoi, hv_apic_eoi_write);
 		if (!x2apic_enabled()) {
-			apic->read      = hv_apic_read;
-			apic->write     = hv_apic_write;
-			apic->icr_write = hv_apic_icr_write;
-			apic->icr_read  = hv_apic_icr_read;
+			apic_update_callback(read, hv_apic_read);
+			apic_update_callback(write, hv_apic_write);
+			apic_update_callback(icr_write, hv_apic_icr_write);
+			apic_update_callback(icr_read, hv_apic_icr_read);
 		}
 	}
 }

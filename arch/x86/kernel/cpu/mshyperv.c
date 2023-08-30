@@ -119,7 +119,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_callback)
 		vmbus_handler();
 
 	if (ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED)
-		ack_APIC_irq();
+		apic_eoi();
 
 	set_irq_regs(old_regs);
 }
@@ -147,7 +147,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_stimer0)
 	if (hv_stimer0_handler)
 		hv_stimer0_handler();
 	add_interrupt_randomness(HYPERV_STIMER0_VECTOR);
-	ack_APIC_irq();
+	apic_eoi();
 
 	set_irq_regs(old_regs);
 }

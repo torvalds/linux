@@ -27,5 +27,5 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_threshold)
 	inc_irq_stat(irq_threshold_count);
 	mce_threshold_vector();
 	trace_threshold_apic_exit(THRESHOLD_APIC_VECTOR);
-	ack_APIC_irq();
+	apic_eoi();
 }
