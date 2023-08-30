@@ -162,6 +162,8 @@ static int g12a_toacodec_input_hw_params(struct snd_pcm_substream *substream,
 }
 
 static const struct snd_soc_dai_ops g12a_toacodec_input_ops = {
+	.probe		= meson_codec_glue_input_dai_probe,
+	.remove		= meson_codec_glue_input_dai_remove,
 	.hw_params	= g12a_toacodec_input_hw_params,
 	.set_fmt	= meson_codec_glue_input_set_fmt,
 };
@@ -185,8 +187,6 @@ static const struct snd_soc_dai_ops g12a_toacodec_output_ops = {
 	.id = (xid),							\
 	.playback = TOACODEC_STREAM(xname, "Playback", 8),		\
 	.ops = &g12a_toacodec_input_ops,				\
-	.probe = meson_codec_glue_input_dai_probe,			\
-	.remove = meson_codec_glue_input_dai_remove,			\
 }
 
 #define TOACODEC_OUTPUT(xname, xid) {					\

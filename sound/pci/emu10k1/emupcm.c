@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
+ *                   Lee Revell <rlrevell@joe-job.com>
+ *                   James Courtier-Dutton <James@superbug.co.uk>
+ *                   Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
  *                   Creative Labs, Inc.
+ *
  *  Routines for control of EMU10K1 chips / PCM routines
- *  Multichannel PCM support Copyright (c) Lee Revell <rlrevell@joe-job.com>
- *
- *  BUGS:
- *    --
- *
- *  TODO:
- *    --
  */
 
 #include <linux/pci.h>
@@ -343,9 +340,7 @@ static void snd_emu10k1_pcm_init_voices(struct snd_emu10k1 *emu,
 					unsigned int end_addr,
 					struct snd_emu10k1_pcm_mixer *mix)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&emu->reg_lock, flags);
+	spin_lock_irq(&emu->reg_lock);
 	snd_emu10k1_pcm_init_voice(emu, evoice, w_16, stereo,
 				   start_addr, end_addr,
 				   &mix->send_routing[stereo][0],
@@ -355,7 +350,7 @@ static void snd_emu10k1_pcm_init_voices(struct snd_emu10k1 *emu,
 					   start_addr, end_addr,
 					   &mix->send_routing[2][0],
 					   &mix->send_volume[2][0]);
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
+	spin_unlock_irq(&emu->reg_lock);
 }
 
 static void snd_emu10k1_pcm_init_extra_voice(struct snd_emu10k1 *emu,

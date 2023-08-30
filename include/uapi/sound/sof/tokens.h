@@ -99,7 +99,11 @@
 #define SOF_TKN_COMP_OUTPUT_PIN_BINDING_WNAME	414
 #define SOF_TKN_COMP_NUM_INPUT_AUDIO_FORMATS	415
 #define SOF_TKN_COMP_NUM_OUTPUT_AUDIO_FORMATS	416
-
+/*
+ * The token value is copied to the dapm_widget's
+ * no_wname_in_kcontrol_name.
+ */
+#define SOF_TKN_COMP_NO_WNAME_IN_KCONTROL_NAME	417
 
 /* SSP */
 #define SOF_TKN_INTEL_SSP_CLKS_CONTROL		500

@@ -2615,9 +2615,13 @@ static int vc4_hdmi_audio_cpu_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops vc4_snd_dai_ops = {
+	.probe  = vc4_hdmi_audio_cpu_dai_probe,
+};
+
 static struct snd_soc_dai_driver vc4_hdmi_audio_cpu_dai_drv = {
 	.name = "vc4-hdmi-cpu-dai",
-	.probe  = vc4_hdmi_audio_cpu_dai_probe,
+	.ops = &vc4_snd_dai_ops,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,

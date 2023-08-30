@@ -880,20 +880,11 @@ static void ak4613_parse_of(struct ak4613_priv *priv,
 static int ak4613_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
-	struct device_node *np = dev->of_node;
 	const struct regmap_config *regmap_cfg;
 	struct regmap *regmap;
 	struct ak4613_priv *priv;
 
-	regmap_cfg = NULL;
-	if (np)
-		regmap_cfg = of_device_get_match_data(dev);
-	else {
-		const struct i2c_device_id *id =
-			i2c_match_id(ak4613_i2c_id, i2c);
-		regmap_cfg = (const struct regmap_config *)id->driver_data;
-	}
-
+	regmap_cfg = i2c_get_match_data(i2c);
 	if (!regmap_cfg)
 		return -EINVAL;
 

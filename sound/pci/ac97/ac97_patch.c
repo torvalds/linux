@@ -3431,11 +3431,7 @@ static const char * const follower_sws_vt1616[] = {
 static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
 						    const char *name)
 {
-	struct snd_ctl_elem_id id;
-	memset(&id, 0, sizeof(id));
-	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	strcpy(id.name, name);
-	return snd_ctl_find_id(ac97->bus->card, &id);
+	return snd_ctl_find_id_mixer(ac97->bus->card, name);
 }
 
 /* create a virtual master control and add followers */
@@ -3444,7 +3440,6 @@ static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
 				const char * const *followers)
 {
 	struct snd_kcontrol *kctl;
-	const char * const *s;
 	int err;
 
 	kctl = snd_ctl_make_virtual_master(name, tlv);
@@ -3454,20 +3449,7 @@ static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
 	if (err < 0)
 		return err;
 
-	for (s = followers; *s; s++) {
-		struct snd_kcontrol *sctl;
-
-		sctl = snd_ac97_find_mixer_ctl(ac97, *s);
-		if (!sctl) {
-			dev_dbg(ac97->bus->card->dev,
-				"Cannot find follower %s, skipped\n", *s);
-			continue;
-		}
-		err = snd_ctl_add_follower(kctl, sctl);
-		if (err < 0)
-			return err;
-	}
-	return 0;
+	return snd_ctl_add_followers(ac97->bus->card, kctl, followers);
 }
 
 static int patch_vt1616_specific(struct snd_ac97 * ac97)

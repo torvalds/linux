@@ -395,8 +395,8 @@ static int bcd2000_probe(struct usb_interface *interface,
 
 	snd_card_set_dev(card, &interface->dev);
 
-	strncpy(card->driver, "snd-bcd2000", sizeof(card->driver));
-	strncpy(card->shortname, "BCD2000", sizeof(card->shortname));
+	strscpy(card->driver, "snd-bcd2000", sizeof(card->driver));
+	strscpy(card->shortname, "BCD2000", sizeof(card->shortname));
 	usb_make_path(bcd2k->dev, usb_path, sizeof(usb_path));
 	snprintf(bcd2k->card->longname, sizeof(bcd2k->card->longname),
 		    "Behringer BCD2000 at %s",

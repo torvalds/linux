@@ -486,6 +486,11 @@ struct sdw_slave_id {
 	__u8 sdw_version:4;
 };
 
+struct sdw_extended_slave_id {
+	int link_id;
+	struct sdw_slave_id id;
+};
+
 /*
  * Helper macros to extract the MIPI-defined IDs
  *
