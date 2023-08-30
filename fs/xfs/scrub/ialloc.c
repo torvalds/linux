@@ -328,8 +328,7 @@ xchk_iallocbt_check_cluster_ifree(
 		goto out;
 	}
 
-	error = xfs_icache_inode_is_allocated(mp, bs->cur->bc_tp, fsino,
-			&ino_inuse);
+	error = xchk_inode_is_allocated(bs->sc, agino, &ino_inuse);
 	if (error == -ENODATA) {
 		/* Not cached, just read the disk buffer */
 		freemask_ok = irec_free ^ !!(dip->di_mode);
