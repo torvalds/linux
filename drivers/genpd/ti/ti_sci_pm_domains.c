@@ -119,7 +119,7 @@ static int ti_sci_pm_domain_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ti_sci_genpd_provider *pd_provider;
 	struct ti_sci_pm_domain *pd;
-	struct device_node *np = NULL;
+	struct device_node *np;
 	struct of_phandle_args args;
 	int ret;
 	u32 max_id = 0;
@@ -138,11 +138,7 @@ static int ti_sci_pm_domain_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&pd_provider->pd_list);
 
 	/* Find highest device ID used for power domains */
-	while (1) {
-		np = of_find_node_with_property(np, "power-domains");
-		if (!np)
-			break;
-
+	for_each_node_with_property(np, "power-domains") {
 		index = 0;
 
 		while (1) {
