@@ -765,7 +765,7 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 	u16 cmd;
 
 	/* Only deal with VGA class devices */
-	if ((pdev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
+	if (!pci_is_vga(pdev))
 		return false;
 
 	/* Allocate structure */
