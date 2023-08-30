@@ -1370,11 +1370,13 @@ static const struct adv7511_chip_info adv7511_chip_info = {
 static const struct adv7511_chip_info adv7533_chip_info = {
 	.type = ADV7533,
 	.max_mode_clock_khz = 80000,
+	.max_lane_freq_khz = 800000,
 };
 
 static const struct adv7511_chip_info adv7535_chip_info = {
 	.type = ADV7535,
 	.max_mode_clock_khz = 148500,
+	.max_lane_freq_khz = 891000,
 };
 
 static const struct i2c_device_id adv7511_i2c_ids[] = {
