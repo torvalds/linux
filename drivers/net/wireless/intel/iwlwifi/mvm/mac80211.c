@@ -3883,7 +3883,8 @@ int iwl_mvm_mac_sta_state_common(struct ieee80211_hw *hw,
 
 	/* this would be a mac80211 bug ... but don't crash */
 	for_each_sta_active_link(vif, sta, link_sta, link_id) {
-		if (WARN_ON_ONCE(!mvmvif->link[link_id]->phy_ctxt)) {
+		if (WARN_ON_ONCE(!mvmvif->link[link_id] ||
+				 !mvmvif->link[link_id]->phy_ctxt)) {
 			mutex_unlock(&mvm->mutex);
 			return test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
 					&mvm->status) ? 0 : -EINVAL;
