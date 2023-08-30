@@ -827,7 +827,7 @@ static int iwl_mvm_get_queue_size(struct ieee80211_sta *sta)
 		if (!link)
 			continue;
 
-		/* support for 1k ba size */
+		/* support for 512 ba size */
 		if (link->eht_cap.has_eht &&
 		    max_size < IWL_DEFAULT_QUEUE_SIZE_EHT)
 			max_size = IWL_DEFAULT_QUEUE_SIZE_EHT;

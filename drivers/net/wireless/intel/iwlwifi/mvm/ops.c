@@ -1136,7 +1136,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		return NULL;
 
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-		max_agg = IEEE80211_MAX_AMPDU_BUF_EHT;
+		max_agg = 512;
 	else
 		max_agg = IEEE80211_MAX_AMPDU_BUF_HE;
 
