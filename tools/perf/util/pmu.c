@@ -51,11 +51,6 @@ struct perf_pmu_alias {
 	 * json events.
 	 */
 	char *topic;
-	/**
-	 * @str: Comma separated parameter list like
-	 * "event=0xcd,umask=0x1,ldlat=0x3".
-	 */
-	char *str;
 	/** @terms: Owned list of the original parsed parameters. */
 	struct list_head terms;
 	/** @list: List element of struct perf_pmu aliases. */
@@ -408,7 +403,6 @@ static void perf_pmu_free_alias(struct perf_pmu_alias *newalias)
 	zfree(&newalias->desc);
 	zfree(&newalias->long_desc);
 	zfree(&newalias->topic);
-	zfree(&newalias->str);
 	zfree(&newalias->pmu_name);
 	parse_events_terms__purge(&newalias->terms);
 	free(newalias);
@@ -489,7 +483,7 @@ static int update_alias(const struct pmu_event *pe,
 	assign_str(pe->name, "long_desc", &data->alias->long_desc, pe->long_desc);
 	assign_str(pe->name, "topic", &data->alias->topic, pe->topic);
 	data->alias->per_pkg = pe->perpkg;
-	if (assign_str(pe->name, "value", &data->alias->str, pe->event)) {
+	if (pe->event) {
 		parse_events_terms__purge(&data->alias->terms);
 		ret = parse_events_terms(&data->alias->terms, pe->event, /*input=*/NULL);
 	}
@@ -511,7 +505,6 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 	int ret;
 	const char *long_desc = NULL, *topic = NULL, *unit = NULL, *pmu_name = NULL;
 	bool deprecated = false, perpkg = false;
-	struct strbuf sb;
 
 	if (perf_pmu__find_alias(pmu, name, /*load=*/ false)) {
 		/* Alias was already created/loaded. */
@@ -531,7 +524,6 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 	if (!alias)
 		return -ENOMEM;
 
-	alias->str = NULL;
 	INIT_LIST_HEAD(&alias->terms);
 	alias->scale = 1.0;
 	alias->unit[0] = '\0';
@@ -574,17 +566,6 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 		}
 	}
 
-	/* Scan event and remove leading zeroes, spaces, newlines, some
-	 * platforms have terms specified as
-	 * event=0x0091 (read from files ../<PMU>/events/<FILE>
-	 * and terms specified as event=0x91 (read from JSON files).
-	 *
-	 * Rebuild string to make alias->str member comparable.
-	 */
-	zfree(&alias->str);
-	strbuf_init(&sb, /*hint=*/ 0);
-	parse_events_term__to_strbuf(&alias->terms, &sb);
-	alias->str = strbuf_detach(&sb, /*sz=*/ NULL);
 	if (!pe)
 		pmu->sysfs_aliases++;
 	else
@@ -1682,7 +1663,9 @@ int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 		.pmu = pmu,
 	};
 	int ret = 0;
+	struct strbuf sb;
 
+	strbuf_init(&sb, /*hint=*/ 0);
 	pmu_add_cpu_aliases(pmu);
 	list_for_each_entry(event, &pmu->aliases, list) {
 		size_t buf_used;
@@ -1710,14 +1693,16 @@ int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 		info.desc = event->desc;
 		info.long_desc = event->long_desc;
 		info.encoding_desc = buf + buf_used;
+		parse_events_term__to_strbuf(&event->terms, &sb);
 		buf_used += snprintf(buf + buf_used, sizeof(buf) - buf_used,
-				"%s/%s/", info.pmu_name, event->str) + 1;
+				"%s/%s/", info.pmu_name, sb.buf) + 1;
 		info.topic = event->topic;
-		info.str = event->str;
+		info.str = sb.buf;
 		info.deprecated = event->deprecated;
 		ret = cb(state, &info);
 		if (ret)
-			return ret;
+			goto out;
+		strbuf_setlen(&sb, /*len=*/ 0);
 	}
 	if (pmu->selectable) {
 		info.name = buf;
@@ -1732,6 +1717,8 @@ int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 		info.deprecated = false;
 		ret = cb(state, &info);
 	}
+out:
+	strbuf_release(&sb);
 	return ret;
 }
 
