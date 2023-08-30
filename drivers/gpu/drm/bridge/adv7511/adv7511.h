@@ -341,6 +341,7 @@ struct adv7511_chip_info {
 	unsigned int num_supplies;
 	unsigned int reg_cec_offset;
 	bool has_dsi;
+	bool link_config;
 };
 
 struct adv7511 {
