@@ -1,11 +1,10 @@
-// SPDX-License-Identifier:  GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // (C) 2017-2018 Synopsys, Inc. (www.synopsys.com)
 
 /*
  * Synopsys DesignWare AXI DMA Controller driver.
  *
  * Author: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
- *         Samin.guo <samin.guo@starfivetech.com>
  */
 
 #ifndef _AXI_DMA_PLATFORM_H
@@ -23,44 +22,18 @@
 #define DMAC_MAX_MASTERS	2
 #define DMAC_MAX_BLK_SIZE	0x200000
 
-#define TIMEOUT_US		200000
-
-struct dma_ch_en {
-	u8 ch_en;
-	u8 ch_en_shift;
-	u8 ch_en_we_shift;
-	u8 ch_susp;
-	u8 ch_susp_shift;
-	u8 ch_susp_we_shift;
-	u8 ch_abort;
-	u8 ch_abort_shift;
-	u8 ch_abort_we_shfit;
-};
-
-struct dma_ch_cfg {
-	u8 ch_cfg_priority_pos;
-	u8 ch_cfg_dst_per_pos;
-	u8 ch_cfg_src_per_pos;
-};
-
-struct dma_multi {
-	bool ch_cfg_2;
-	bool ch_enreg_2;
-	struct dma_ch_cfg cfg;
-	struct dma_ch_en en;
-	bool need_flush;
-};
-
 struct dw_axi_dma_hcfg {
 	u32	nr_channels;
 	u32	nr_masters;
-	u32	nr_hs_if;
 	u32	m_data_width;
 	u32	block_size[DMAC_MAX_CHANNELS];
 	u32	priority[DMAC_MAX_CHANNELS];
 	/* maximum supported axi burst length */
 	u32	axi_rw_burst_len;
+	/* Register map for DMAX_NUM_CHANNELS <= 8 */
+	bool	reg_map_8_channels;
 	bool	restrict_axi_burst_len;
+	bool	use_cfg2;
 };
 
 struct axi_dma_chan {
@@ -68,7 +41,6 @@ struct axi_dma_chan {
 	void __iomem			*chan_regs;
 	u8				id;
 	u8				hw_handshake_num;
-	s8				burst_trans_len;
 	atomic_t			descs_allocated;
 
 	struct dma_pool			*desc_pool;
@@ -77,7 +49,6 @@ struct axi_dma_chan {
 	struct axi_dma_desc		*desc;
 	struct dma_slave_config		config;
 	enum dma_transfer_direction	direction;
-	bool 				fixed_burst_trans_len;
 	bool				cyclic;
 	/* these other elements are all protected by vc.lock */
 	bool				is_paused;
@@ -99,12 +70,8 @@ struct axi_dma_chip {
 	void __iomem		*apb_regs;
 	struct clk		*core_clk;
 	struct clk		*cfgr_clk;
-	struct clk		*axi_clk;
+	struct clk		*noc_clk;
 	struct dw_axi_dma	*dw;
-	struct dma_multi	multi;
-	struct reset_control	*rst_core;
-	struct reset_control	*rst_cfgr;
-	struct reset_control	*rst_axi;
 };
 
 /* LLI == Linked List Item */
@@ -133,11 +100,22 @@ struct axi_dma_hw_desc {
 struct axi_dma_desc {
 	struct axi_dma_hw_desc	*hw_desc;
 
-	struct virt_dma_desc	vd;
-	struct axi_dma_chan	*chan;
-	u32			completed_blocks;
-	u32			length;
-	u32			period_len;
+	struct virt_dma_desc		vd;
+	struct axi_dma_chan		*chan;
+	u32				completed_blocks;
+	u32				length;
+	u32				period_len;
+};
+
+struct axi_dma_chan_config {
+	u8 dst_multblk_type;
+	u8 src_multblk_type;
+	u8 dst_per;
+	u8 src_per;
+	u8 tt_fc;
+	u8 prior;
+	u8 hs_sel_dst;
+	u8 hs_sel_src;
 };
 
 static inline struct device *dchan2dev(struct dma_chan *dchan)
@@ -176,15 +154,8 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define DMAC_CHEN		0x018 /* R/W DMAC Channel Enable */
 #define DMAC_CHEN_L		0x018 /* R/W DMAC Channel Enable 00-31 */
 #define DMAC_CHEN_H		0x01C /* R/W DMAC Channel Enable 32-63 */
-#define DMAC_CHSUSP		0x018 /* R/W DMAC Channel suspend */
-#define DMAC_CHABORT		0x018 /* R/W DMAC Channel Abort */
-
-#define DMAC_CHEN_2		0x018 /* R/W DMAC Channel Enable */
-#define DMAC_CHEN_L_2		0x018 /* R/W DMAC Channel Enable */
-#define DMAC_CHEN_H_2		0x01C /* R/W DMAC Channel Enable */
-#define DMAC_CHSUSP_2		0x020 /* R/W DMAC Channel Suspend */
-#define DMAC_CHABORT_2		0x028 /* R/W DMAC Channel Abort */
-
+#define DMAC_CHSUSPREG		0x020 /* R/W DMAC Channel Suspend */
+#define DMAC_CHABORTREG		0x028 /* R/W DMAC Channel Abort */
 #define DMAC_INTSTATUS		0x030 /* R DMAC Interrupt Status */
 #define DMAC_COMMON_INTCLEAR	0x038 /* W DMAC Interrupt Clear */
 #define DMAC_COMMON_INTSTATUS_ENA 0x040 /* R DMAC Interrupt Status Enable */
@@ -233,6 +204,7 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define DMA_APB_HS_SEL_BIT_SIZE	0x08 /* HW handshake bits per channel */
 #define DMA_APB_HS_SEL_MASK	0xFF /* HW handshake select masks */
 #define MAX_BLOCK_SIZE		0x1000 /* 1024 blocks * 4 bytes data width */
+#define DMA_REG_MAP_CH_REF	0x08 /* Channel count to choose register map */
 
 /* DMAC_CFG */
 #define DMAC_EN_POS			0
@@ -241,23 +213,19 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define INT_EN_POS			1
 #define INT_EN_MASK			BIT(INT_EN_POS)
 
+/* DMAC_CHEN */
 #define DMAC_CHAN_EN_SHIFT		0
 #define DMAC_CHAN_EN_WE_SHIFT		8
 
 #define DMAC_CHAN_SUSP_SHIFT		16
 #define DMAC_CHAN_SUSP_WE_SHIFT		24
 
-#define DMAC_CHAN_ABORT_SHIFT		32
-#define DMAC_CHAN_ABORT_WE_SHIFT	40
+/* DMAC_CHEN2 */
+#define DMAC_CHAN_EN2_WE_SHIFT		16
 
-#define DMAC_CHAN_EN_SHIFT_2		0
-#define DMAC_CHAN_EN_WE_SHIFT_2		16
-
-#define DMAC_CHAN_SUSP_SHIFT_2		0
-#define DMAC_CHAN_SUSP_WE_SHIFT_2	16
-
-#define DMAC_CHAN_ABORT_SHIFT_2		0
-#define DMAC_CHAN_ABORT_WE_SHIFT_2	16
+/* DMAC_CHSUSP */
+#define DMAC_CHAN_SUSP2_SHIFT		0
+#define DMAC_CHAN_SUSP2_WE_SHIFT	16
 
 /* CH_CTL_H */
 #define CH_CTL_H_ARLEN_EN		BIT(6)
@@ -321,7 +289,6 @@ enum {
 #define CH_CFG_H_PRIORITY_POS		17
 #define CH_CFG_H_DST_PER_POS		12
 #define CH_CFG_H_SRC_PER_POS		7
-#define CH_CFG_H_PRIORITY_POS_2		15
 #define CH_CFG_H_HS_SEL_DST_POS		4
 #define CH_CFG_H_HS_SEL_SRC_POS		3
 enum {
@@ -344,15 +311,21 @@ enum {
 /* CH_CFG_L */
 #define CH_CFG_L_DST_MULTBLK_TYPE_POS	2
 #define CH_CFG_L_SRC_MULTBLK_TYPE_POS	0
-
-#define CH_CFG_L_DST_PER_POS_2		11
-#define CH_CFG_L_SRC_PER_POS_2		4
 enum {
 	DWAXIDMAC_MBLK_TYPE_CONTIGUOUS	= 0,
 	DWAXIDMAC_MBLK_TYPE_RELOAD,
 	DWAXIDMAC_MBLK_TYPE_SHADOW_REG,
 	DWAXIDMAC_MBLK_TYPE_LL
 };
+
+/* CH_CFG2 */
+#define CH_CFG2_L_SRC_PER_POS		4
+#define CH_CFG2_L_DST_PER_POS		11
+
+#define CH_CFG2_H_TT_FC_POS		0
+#define CH_CFG2_H_HS_SEL_SRC_POS	3
+#define CH_CFG2_H_HS_SEL_DST_POS	4
+#define CH_CFG2_H_PRIORITY_POS		20
 
 /**
  * DW AXI DMA channel interrupts

@@ -255,41 +255,22 @@ static int sf_tdm_resume(struct snd_soc_component *component)
 #define sf_tdm_resume	NULL
 #endif
 
-/* 
- * To stop dma first, we must implement this function, because it is
- * called before stopping the stream. 
- */
-static int sf_pcm_trigger(struct snd_soc_component *component,
-			      struct snd_pcm_substream *substream, int cmd)
-{
-	int ret = 0;
-	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_RESUME:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		break;
-
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		axi_dma_cyclic_stop(chan);
-		break;
-
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
-}
-
 static const struct snd_soc_component_driver sf_tdm_component = {
 	.name		= "jh7110-tdm",
 	.suspend	= sf_tdm_suspend,
 	.resume		= sf_tdm_resume,
-	.trigger	= sf_pcm_trigger,
 };
+
+static int sf_tdm_startup(struct snd_pcm_substream *substream,
+			      struct snd_soc_dai *cpu_dai)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
+
+	dai_link->stop_dma_first = 1;
+
+	return 0;
+}
 
 static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
@@ -302,10 +283,6 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 	int channels;
 	int ret;
 	struct snd_dmaengine_dai_dma_data *dma_data = NULL;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai_link *dai_link = rtd->dai_link;
-
-	dai_link->stop_dma_first = 1;
 
 	channels = params_channels(params);
 	data_width = params_width(params);
@@ -490,6 +467,7 @@ static int sf_tdm_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 }
 
 static const struct snd_soc_dai_ops sf_tdm_dai_ops = {
+	.startup	= sf_tdm_startup,
 	.hw_params	= sf_tdm_hw_params,
 	.trigger	= sf_tdm_trigger,
 	.set_fmt	= sf_tdm_set_fmt,
