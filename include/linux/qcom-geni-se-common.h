@@ -44,6 +44,7 @@ if (print) { \
 /* In KHz */
 #define DEFAULT_SE_CLK	19200
 #define SPI_CORE2X_VOTE	51000
+#define Q2SPI_CORE2X_VOTE	100000
 #define I2C_CORE2X_VOTE	50000
 #define I3C_CORE2X_VOTE	19200
 #define APPS_PROC_TO_QUP_VOTE	140000
@@ -56,6 +57,7 @@ if (print) { \
 #define SE_DMA_TX_LEN                   (0xC3C)
 #define SE_DMA_TX_IRQ_EN                (0xC48)
 #define SE_DMA_TX_LEN_IN                (0xC54)
+#define GENI_SE_DMA_EOT_BUF		(BIT(0))
 
 #define SE_DMA_RX_PTR_L			(0xD30)
 #define SE_DMA_RX_PTR_H			(0xD34)

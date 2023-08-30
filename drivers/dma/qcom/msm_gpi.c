@@ -161,6 +161,20 @@ struct __packed xfer_compl_event {
 	u8 chid;
 };
 
+struct __packed qup_q2spi_status {
+	u32 ptr_l;
+	u32 ptr_h : 8;
+	u32 resvd_0 : 8;
+	u32 value : 8;
+	u32 resvd_1 : 8;
+	u32 length : 20;
+	u32 resvd_2 : 4;
+	u8 code : 8;
+	u16 status : 16;
+	u8 type : 8;
+	u8 ch_id : 8;
+};
+
 struct __packed immediate_data_event {
 	u8 data_bytes[8];
 	u8 length : 4;
@@ -186,18 +200,13 @@ struct __packed gpi_ere {
 	u32 dword[4];
 };
 
-enum GPI_EV_TYPE {
-	XFER_COMPLETE_EV_TYPE = 0x22,
-	IMMEDIATE_DATA_EV_TYPE = 0x30,
-	QUP_NOTIF_EV_TYPE = 0x31,
-	STALE_EV_TYPE = 0xFF,
-};
-
 union __packed gpi_event {
 	struct __packed xfer_compl_event xfer_compl_event;
 	struct __packed immediate_data_event immediate_data_event;
 	struct __packed qup_notif_event qup_notif_event;
 	struct __packed gpi_ere gpi_ere;
+	struct __packed qup_q2spi_status q2spi_status;
+	struct __packed qup_q2spi_cr_header_event q2spi_cr_header_event;
 };
 
 enum gpii_irq_settings {
@@ -298,6 +307,7 @@ enum se_protocol {
 	SE_PROTOCOL_SPI = 1,
 	SE_PROTOCOL_UART = 2,
 	SE_PROTOCOL_I2C = 3,
+	SE_PROTOCOL_Q2SPI = 0xE,
 	SE_MAX_PROTOCOL
 };
 
@@ -538,6 +548,7 @@ struct gpii_chan {
 	struct virt_dma_chan vc;
 	u32 chid;
 	u32 seid;
+	u8 init_config:1;
 	enum se_protocol protocol;
 	enum EV_PRIORITY priority; /* comes from clients DT node */
 	struct gpii *gpii;
@@ -1700,12 +1711,118 @@ static void gpi_process_xfer_compl_event(struct gpii_chan *gpii_chan,
 		tx_cb_param->length = compl_event->length;
 		tx_cb_param->completion_code = compl_event->code;
 		tx_cb_param->status = compl_event->status;
+		tx_cb_param->tce_type = compl_event->type;
+		GPII_INFO(gpii, gpii_chan->chid, "tx_cb_param:%p\n", tx_cb_param);
+		vd->tx.callback(tx_cb_param);
+	}
+gpi_free_desc:
+	gpi_free_chan_desc(gpii_chan);
+}
+
+/* process Q2SPI_STATUS TCE notification event */
+static void
+gpi_process_qup_q2spi_status(struct gpii_chan *gpii_chan,
+			     struct qup_q2spi_status *q2spi_status_event)
+{
+	struct gpii *gpii = gpii_chan->gpii;
+	struct gpi_ring *ch_ring = gpii_chan->ch_ring;
+	void *ev_rp = to_virtual(ch_ring, q2spi_status_event->ptr_l);
+	struct virt_dma_desc *vd;
+	struct msm_gpi_dma_async_tx_cb_param *tx_cb_param;
+	struct gpi_desc *gpi_desc;
+	unsigned long flags;
+
+	/* only process events on active channel */
+	if (unlikely(gpii_chan->pm_state != ACTIVE_STATE)) {
+		GPII_ERR(gpii, gpii_chan->chid, "skipping processing event because ch @ %s state\n",
+			 TO_GPI_PM_STR(gpii_chan->pm_state));
+		gpi_generate_cb_event(gpii_chan, MSM_GPI_QUP_PENDING_EVENT, __LINE__);
+		return;
+	}
+
+	spin_lock_irqsave(&gpii_chan->vc.lock, flags);
+	vd = vchan_next_desc(&gpii_chan->vc);
+	if (!vd) {
+		struct gpi_ere *gpi_ere;
+
+		spin_unlock_irqrestore(&gpii_chan->vc.lock, flags);
+		GPII_ERR(gpii, gpii_chan->chid,
+			 "Event without a pending descriptor!\n");
+		gpi_ere = (struct gpi_ere *)q2spi_status_event;
+		GPII_ERR(gpii, gpii_chan->chid, "Event: %08x %08x %08x %08x\n",
+			 gpi_ere->dword[0], gpi_ere->dword[1],
+			 gpi_ere->dword[2], gpi_ere->dword[3]);
+		gpi_generate_cb_event(gpii_chan, MSM_GPI_QUP_EOT_DESC_MISMATCH, __LINE__);
+		return;
+	}
+	gpi_desc = to_gpi_desc(vd);
+	spin_unlock_irqrestore(&gpii_chan->vc.lock, flags);
+
+	/*
+	 * RP pointed by Event is to last TRE processed,
+	 * we need to update ring rp to ev_rp + 1
+	 */
+	ev_rp += ch_ring->el_size;
+	if (ev_rp >= (ch_ring->base + ch_ring->len))
+		ev_rp = ch_ring->base;
+	ch_ring->rp = ev_rp;
+	/* update must be visible to other cores */
+	smp_wmb();
+
+	if (q2spi_status_event->code == MSM_GPI_TCE_EOB) {
+		if (gpii->protocol != SE_PROTOCOL_Q2SPI)
+			goto gpi_free_desc;
+	}
+
+	tx_cb_param = vd->tx.callback_param;
+	if (vd->tx.callback && tx_cb_param) {
+		GPII_VERB(gpii, gpii_chan->chid,
+			  "cb_length:%u code:0x%x type:0x%x status:0x%x q2spi_status:0x%x\n",
+			  q2spi_status_event->length, q2spi_status_event->code,
+			  q2spi_status_event->type, q2spi_status_event->status,
+			  q2spi_status_event->value);
+		tx_cb_param->length = q2spi_status_event->length;
+		tx_cb_param->completion_code = q2spi_status_event->code;
+		tx_cb_param->tce_type = q2spi_status_event->type;
+		tx_cb_param->status = q2spi_status_event->status;
+		tx_cb_param->q2spi_status = q2spi_status_event->value;
 		vd->tx.callback(tx_cb_param);
 	}
 
 gpi_free_desc:
 	gpi_free_chan_desc(gpii_chan);
+}
 
+/* process Q2SPI CR Header TCE notification event */
+static void
+gpi_process_xfer_q2spi_cr_header(struct gpii_chan *gpii_chan,
+				 struct qup_q2spi_cr_header_event *q2spi_cr_header_event)
+{
+	struct gpi_client_info *client_info = &gpii_chan->client_info;
+	struct gpii *gpii_ptr = NULL;
+	struct msm_gpi_cb msm_gpi_cb;
+
+	gpii_ptr = gpii_chan->gpii;
+	GPII_VERB(gpii_ptr, gpii_chan->chid,
+		  "code:0x%x type:0x%x hdr_0:0x%x hrd_1:0x%x hrd_2:0x%x hdr3:0x%x\n",
+		  q2spi_cr_header_event->code, q2spi_cr_header_event->type,
+		  q2spi_cr_header_event->cr_hdr_0, q2spi_cr_header_event->cr_hdr_1,
+		  q2spi_cr_header_event->cr_hdr_2, q2spi_cr_header_event->cr_hdr_3);
+	GPII_VERB(gpii_ptr, gpii_chan->chid,
+		  "cr_byte_0:0x%x cr_byte_1:0x%x cr_byte_2:0x%x cr_byte_3h:0x%x\n",
+		  q2spi_cr_header_event->cr_ed_byte_0, q2spi_cr_header_event->cr_ed_byte_1,
+		  q2spi_cr_header_event->cr_ed_byte_2, q2spi_cr_header_event->cr_ed_byte_3);
+	GPII_VERB(gpii_ptr, gpii_chan->chid, "code:0x%x\n", q2spi_cr_header_event->code);
+	GPII_VERB(gpii_ptr, gpii_chan->chid,
+		  "cr_byte_0_len:0x%x cr_byte_0_err:0x%x type:0x%x ch_id:0x%x\n",
+		  q2spi_cr_header_event->byte0_len, q2spi_cr_header_event->byte0_err,
+		  q2spi_cr_header_event->type, q2spi_cr_header_event->ch_id);
+	msm_gpi_cb.cb_event = MSM_GPI_QUP_CR_HEADER;
+	msm_gpi_cb.q2spi_cr_header_event = *q2spi_cr_header_event;
+	GPII_VERB(gpii_chan->gpii, gpii_chan->chid, "sending CB event:%s\n",
+		  TO_GPI_CB_EVENT_STR(msm_gpi_cb.cb_event));
+	client_info->callback(&gpii_chan->vc.chan, &msm_gpi_cb,
+				client_info->cb_param);
 }
 
 /* process all events */
@@ -1762,6 +1879,15 @@ static void gpi_process_events(struct gpii *gpii)
 				gpii_chan = &gpii->gpii_chan[chid];
 				gpi_process_qup_notif_event(gpii_chan,
 						&gpi_event->qup_notif_event);
+				break;
+			case QUP_TCE_TYPE_Q2SPI_STATUS:
+				gpii_chan = &gpii->gpii_chan[chid];
+				gpi_process_qup_q2spi_status(gpii_chan, &gpi_event->q2spi_status);
+				break;
+			case QUP_TCE_TYPE_Q2SPI_CR_HEADER:
+				gpii_chan = &gpii->gpii_chan[chid];
+				gpi_process_xfer_q2spi_cr_header(gpii_chan,
+								 &gpi_event->q2spi_cr_header_event);
 				break;
 			default:
 				GPII_VERB(gpii, GPI_DBG_COMMON,
@@ -1951,6 +2077,7 @@ static int gpi_alloc_chan(struct gpii_chan *gpii_chan, bool send_alloc_cmd)
 			GPI_GPII_n_CH_k_SCRATCH_0_OFFS(gpii->gpii_id,
 						       gpii_chan->chid),
 			GPI_GPII_n_CH_K_SCRATCH_0(!gpii_chan->chid,
+						  gpii_chan->init_config,
 						  gpii_chan->protocol,
 						  gpii_chan->seid),
 		},
@@ -2988,13 +3115,15 @@ static struct dma_chan *gpi_of_dma_xlate(struct of_phandle_args *args,
 	/* get ring size, protocol, se_id, and priority */
 	gpii_chan->seid = seid;
 	gpii_chan->protocol = args->args[2];
+	if (gpii_chan->protocol == SE_PROTOCOL_Q2SPI)
+		gpii_chan->init_config = 1;
 	gpii_chan->req_tres = args->args[3];
 	gpii_chan->priority = args->args[4] & GPI_EV_PRIORITY_BMSK;
 
 	GPI_LOG(gpi_dev,
-		"client req gpii:%u chid:%u #_tre:%u prio:%u proto:%u SE:%d\n",
+		"client req gpii:%u chid:%u #_tre:%u prio:%u proto:%u SE:%d init_config:%d\n",
 		gpii, chid, gpii_chan->req_tres, gpii_chan->priority,
-		gpii_chan->protocol, gpii_chan->seid);
+		gpii_chan->protocol, gpii_chan->seid, gpii_chan->init_config);
 
 	return dma_get_slave_channel(&gpii_chan->vc.chan);
 }

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __MSM_GPI_H_
@@ -10,6 +11,15 @@
 
 struct __packed msm_gpi_tre {
 	u32 dword[4];
+};
+
+enum GPI_EV_TYPE {
+	XFER_COMPLETE_EV_TYPE = 0x22,
+	IMMEDIATE_DATA_EV_TYPE = 0x30,
+	QUP_NOTIF_EV_TYPE = 0x31,
+	STALE_EV_TYPE = 0xFF,
+	QUP_TCE_TYPE_Q2SPI_STATUS = 0x35,
+	QUP_TCE_TYPE_Q2SPI_CR_HEADER = 0x36,
 };
 
 enum msm_gpi_tre_type {
@@ -202,6 +212,7 @@ enum msm_gpi_cb_event {
 	MSM_GPI_QUP_PENDING_EVENT,
 	MSM_GPI_QUP_EOT_DESC_MISMATCH,
 	MSM_GPI_QUP_SW_ERROR,
+	MSM_GPI_QUP_CR_HEADER,
 	MSM_GPI_QUP_MAX_EVENT,
 };
 
@@ -211,12 +222,32 @@ struct msm_gpi_error_log {
 	u32 error_code;
 };
 
+struct __packed qup_q2spi_cr_header_event {
+	u32 cr_hdr_0 : 8;
+	u32 cr_hdr_1 : 8;
+	u32 cr_hdr_2 : 8;
+	u32 cr_hdr_3 : 8;
+	u32 cr_ed_byte_0 : 8;
+	u32 cr_ed_byte_1 : 8;
+	u32 cr_ed_byte_2 : 8;
+	u32 cr_ed_byte_3 : 8;
+	u32 reserved0 : 24;
+	u8 code : 8;
+	u32 byte0_len : 4;
+	u32 reserved1 : 3;
+	u32 byte0_err : 1;
+	u32 reserved2 : 8;
+	u8 type : 8;
+	u8 ch_id : 8;
+};
+
 struct msm_gpi_cb {
 	enum msm_gpi_cb_event cb_event;
 	u64 status;
 	u64 timestamp;
 	u64 count;
 	struct msm_gpi_error_log error_log;
+	struct __packed qup_q2spi_cr_header_event q2spi_cr_header_event;
 };
 
 struct dma_chan;
@@ -261,6 +292,8 @@ struct msm_gpi_dma_async_tx_cb_param {
 	u32 status;
 	struct __packed msm_gpi_tre imed_tre;
 	void *userdata;
+	enum GPI_EV_TYPE tce_type;
+	u32 q2spi_status:8;
 };
 
 /* Client drivers of the GPI can call this function to dump the GPI registers
