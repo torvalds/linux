@@ -18,8 +18,12 @@ config VALIDATE_FS_PARSER
 config FS_IOMAP
 	bool
 
+config BUFFER_HEAD
+	bool
+
 # old blockdev_direct_IO implementation.  Use iomap for new code instead
 config LEGACY_DIRECT_IO
+	depends on BUFFER_HEAD
 	bool
 
 if BLOCK

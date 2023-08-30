@@ -5,6 +5,7 @@
 menuconfig BLOCK
        bool "Enable the block layer" if EXPERT
        default y
+       select FS_IOMAP
        select SBITMAP
        help
 	 Provide block layer support for the kernel.

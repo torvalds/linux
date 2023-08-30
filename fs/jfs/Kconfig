@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config JFS_FS
 	tristate "JFS filesystem support"
+	select BUFFER_HEAD
 	select NLS
 	select CRC32
 	select LEGACY_DIRECT_IO
