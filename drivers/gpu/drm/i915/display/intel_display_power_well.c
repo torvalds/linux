@@ -1794,6 +1794,11 @@ static void xelpdp_aux_power_well_enable(struct drm_i915_private *dev_priv,
 					 struct i915_power_well *power_well)
 {
 	enum aux_ch aux_ch = i915_power_well_instance(power_well)->xelpdp.aux_ch;
+	enum phy phy = icl_aux_pw_to_phy(dev_priv, power_well);
+
+	if (intel_phy_is_tc(dev_priv, phy))
+		icl_tc_port_assert_ref_held(dev_priv, power_well,
+					    aux_ch_to_digital_port(dev_priv, aux_ch));
 
 	intel_de_rmw(dev_priv, XELPDP_DP_AUX_CH_CTL(aux_ch),
 		     XELPDP_DP_AUX_CH_CTL_POWER_REQUEST,
