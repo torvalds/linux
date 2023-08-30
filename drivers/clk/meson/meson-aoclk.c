@@ -75,19 +75,18 @@ int meson_aoclkc_probe(struct platform_device *pdev)
 		data->clks[clkid]->map = regmap;
 
 	/* Register all clks */
-	for (clkid = 0; clkid < data->hw_data->num; clkid++) {
-		if (!data->hw_data->hws[clkid])
+	for (clkid = 0; clkid < data->hw_clks.num; clkid++) {
+		if (!data->hw_clks.hws[clkid])
 			continue;
 
-		ret = devm_clk_hw_register(dev, data->hw_data->hws[clkid]);
+		ret = devm_clk_hw_register(dev, data->hw_clks.hws[clkid]);
 		if (ret) {
 			dev_err(dev, "Clock registration failed\n");
 			return ret;
 		}
 	}
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
-		(void *) data->hw_data);
+	return devm_of_clk_add_hw_provider(dev, meson_clk_hw_get, (void *)&data->hw_clks);
 }
 EXPORT_SYMBOL_GPL(meson_aoclkc_probe);
 MODULE_LICENSE("GPL v2");

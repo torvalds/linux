@@ -30,14 +30,19 @@ config COMMON_CLK_MESON_VID_PLL_DIV
 	tristate
 	select COMMON_CLK_MESON_REGMAP
 
+config COMMON_CLK_MESON_CLKC_UTILS
+	tristate
+
 config COMMON_CLK_MESON_AO_CLKC
 	tristate
 	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
 	select RESET_CONTROLLER
 
 config COMMON_CLK_MESON_EE_CLKC
 	tristate
 	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
 
 config COMMON_CLK_MESON_CPU_DYNDIV
 	tristate
@@ -48,6 +53,7 @@ config COMMON_CLK_MESON8B
 	depends on ARM
 	default y
 	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
 	select COMMON_CLK_MESON_MPLL
 	select COMMON_CLK_MESON_PLL
 	select MFD_SYSCON
@@ -94,6 +100,7 @@ config COMMON_CLK_AXG_AUDIO
 	select COMMON_CLK_MESON_REGMAP
 	select COMMON_CLK_MESON_PHASE
 	select COMMON_CLK_MESON_SCLK_DIV
+	select COMMON_CLK_MESON_CLKC_UTILS
 	select REGMAP_MMIO
 	help
 	  Support for the audio clock controller on AmLogic A113D devices,
@@ -103,6 +110,7 @@ config COMMON_CLK_A1_PLL
 	tristate "Amlogic A1 SoC PLL controller support"
 	depends on ARM64
 	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
 	select COMMON_CLK_MESON_PLL
 	help
 	  Support for the PLL clock controller on Amlogic A113L based
@@ -114,6 +122,7 @@ config COMMON_CLK_A1_PERIPHERALS
 	depends on ARM64
 	select COMMON_CLK_MESON_DUALDIV
 	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
 	help
 	  Support for the Peripherals clock controller on Amlogic A113L based
 	  device, A1 SoC Family. Say Y if you want A1 Peripherals clock

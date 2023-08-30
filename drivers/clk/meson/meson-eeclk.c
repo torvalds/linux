@@ -43,20 +43,19 @@ int meson_eeclkc_probe(struct platform_device *pdev)
 	for (i = 0; i < data->regmap_clk_num; i++)
 		data->regmap_clks[i]->map = map;
 
-	for (i = 0; i < data->hw_onecell_data->num; i++) {
+	for (i = 0; i < data->hw_clks.num; i++) {
 		/* array might be sparse */
-		if (!data->hw_onecell_data->hws[i])
+		if (!data->hw_clks.hws[i])
 			continue;
 
-		ret = devm_clk_hw_register(dev, data->hw_onecell_data->hws[i]);
+		ret = devm_clk_hw_register(dev, data->hw_clks.hws[i]);
 		if (ret) {
 			dev_err(dev, "Clock registration failed\n");
 			return ret;
 		}
 	}
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
-					   data->hw_onecell_data);
+	return devm_of_clk_add_hw_provider(dev, meson_clk_hw_get, (void *)&data->hw_clks);
 }
 EXPORT_SYMBOL_GPL(meson_eeclkc_probe);
 MODULE_LICENSE("GPL v2");
