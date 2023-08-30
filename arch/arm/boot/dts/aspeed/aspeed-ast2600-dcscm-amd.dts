@@ -24,36 +24,17 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			/delete-node/ u-boot-env@e0000;
-			/delete-node/ kernel@100000;
-			/delete-node/ rofs@a00000;
 			/delete-node/ rwfs@2e00000;
 
-			pfm@e0000 {
-				reg = <0xe0000 0x20000>; // 128KB
-				label = "pfm";
-			};
-
-			u-boot-env@100000 {
-				reg = <0x100000 0x20000>; // 128KB
-				label = "u-boot-env";
-			};
-
-			rwfs@120000 {
-				reg = <0x120000 0xfe0000>; // 16256KB
+			rwfs@2e00000 {
+				reg = <0x2e00000 0xfe0000>; // 16256KB
 				label = "rwfs";
 			};
 
-			kernel@1100000 {
-				reg = <0x1100000 0x900000>; // 9216KB
-				label = "kernel";
+			pfm@3de0000 {
+				reg = <0x3de0000 0x20000>; // 128KB
+				label = "pfm";
 			};
-
-			rofs@1a00000 {
-				reg = <0x1a00000 0x2400000>; // 36864KB
-				label = "rofs";
-			};
-
 			reserved-1@3e00000 {
 				reg = <0x3e00000 0x200000>; // 2048KB
 				label = "reserved-1";
