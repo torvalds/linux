@@ -72,6 +72,10 @@ _COMMON_GKI_MODULES_LIST = [
 # Deprecated - Use `get_gki_modules_list` function instead.
 COMMON_GKI_MODULES_LIST = _COMMON_GKI_MODULES_LIST
 
+_ARM_GKI_MODULES_LIST = [
+    # keep sorted
+]
+
 _ARM64_GKI_MODULES_LIST = [
     # keep sorted
     "arch/arm64/geniezone/gzvm.ko",
@@ -90,20 +94,22 @@ def get_gki_modules_list(arch = None):
     """ Provides the list of GKI modules.
 
     Args:
-      arch: One of [arm64, x86_64, riscv64].
+      arch: One of [arm, arm64, x86_64, riscv64].
 
     Returns:
       The list of GKI modules for the given |arch|.
     """
     gki_modules_list = [] + _COMMON_GKI_MODULES_LIST
-    if arch == "arm64":
+    if arch == "arm":
+        gki_modules_list += _ARM_GKI_MODULES_LIST
+    elif arch == "arm64":
         gki_modules_list += _ARM64_GKI_MODULES_LIST
     elif arch == "x86_64":
         gki_modules_list += _X86_64_GKI_MODULES_LIST
     elif arch == "riscv64":
         gki_modules_list += _RISCV64_GKI_MODULES_LIST
     else:
-        fail("{}: arch {} not supported. Use one of [arm64, x86_64, riscv64]".format(
+        fail("{}: arch {} not supported. Use one of [arm, arm64, x86_64, riscv64]".format(
             str(native.package_relative_label(":x")).removesuffix(":x"),
             arch,
         ))
