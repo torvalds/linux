@@ -342,7 +342,7 @@ PE_NAME opt_pmu_config
 			struct parse_events_error *error = parse_state->error;
 			char *help;
 
-			if (asprintf(&help, "Unabled to find PMU or event on a PMU of '%s'", $1) < 0)
+			if (asprintf(&help, "Unable to find PMU or event on a PMU of '%s'", $1) < 0)
 				help = NULL;
 			parse_events_error__handle(error, @1.first_column,
 						   strdup("Bad event or PMU"),
@@ -368,7 +368,7 @@ PE_NAME sep_dc
 		struct parse_events_error *error = parse_state->error;
 		char *help;
 
-		if (asprintf(&help, "Unabled to find PMU or event on a PMU of '%s'", $1) < 0)
+		if (asprintf(&help, "Unable to find event on a PMU of '%s'", $1) < 0)
 			help = NULL;
 		parse_events_error__handle(error, @1.first_column, strdup("Bad event name"), help);
 		free($1);
