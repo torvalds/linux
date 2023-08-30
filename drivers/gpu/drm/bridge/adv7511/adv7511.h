@@ -335,6 +335,7 @@ enum adv7511_type {
 
 struct adv7511_chip_info {
 	enum adv7511_type type;
+	unsigned int max_mode_clock_khz;
 };
 
 struct adv7511 {

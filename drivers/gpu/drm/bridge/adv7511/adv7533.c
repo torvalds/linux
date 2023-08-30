@@ -108,7 +108,7 @@ enum drm_mode_status adv7533_mode_valid(struct adv7511 *adv,
 	u8 bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
 
 	/* Check max clock for either 7533 or 7535 */
-	if (mode->clock > (adv->info->type == ADV7533 ? 80000 : 148500))
+	if (mode->clock > adv->info->max_mode_clock_khz)
 		return MODE_CLOCK_HIGH;
 
 	/* Check max clock for each lane */
